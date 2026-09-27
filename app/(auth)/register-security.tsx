@@ -57,6 +57,11 @@ import {
   setRegistrationState,
 } from "@/lib/registration"
 import { ROUTES } from "@/lib/routes"
+import {
+  clearPendingSocialSignup,
+  getPendingSocialSignup,
+} from "@/lib/social-signup"
+import { useToast } from "@/components/ui/toast"
 
 /** Registrasi via HP: 4 langkah — ini langkah ke-4 (terakhir). */
 const STEP_PROGRESS = 4 / 4
@@ -64,6 +69,7 @@ const STEP_PROGRESS = 4 / 4
 export default function RegisterSecurityScreen() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
+  const toast = useToast()
 
   // tempToken hasil verifikasi OTP (memori modul, bukan route params).
   const regRef = useState(getRegistrationState)[0]
@@ -111,14 +117,27 @@ export default function RegisterSecurityScreen() {
 
     setSubmitting(true)
     try {
-      await api.auth.phoneRegister({
+      const socialLinkToken = getPendingSocialSignup()
+      const result = await api.auth.phoneRegister({
         tempToken,
         fullName: fullName.trim(),
         // Username kosong → undefined (backend = "tidak diisi").
         username: username.trim().length > 0 ? username.trim() : undefined,
         password,
         location: (await getAuthLocation()) ?? undefined,
+        // Identitas sosial baru (dari login Google/Apple): ditautkan setelah
+        // nomor HP terverifikasi. Gagal menautkan tidak menggagalkan registrasi.
+        socialLinkToken: socialLinkToken ?? undefined,
       })
+      clearPendingSocialSignup()
+      if (socialLinkToken && !(result as { socialLinked?: boolean }).socialLinked) {
+        toast.show({
+          title: "Pendaftaran berhasil",
+          description:
+            "Akun Google/Apple belum tertaut — tautkan nanti dari Pengaturan → Keamanan.",
+          tone: "info",
+        })
+      }
       // Simpan fullName untuk sapaan di setup-profile; token sesi sudah
       // disimpan otomatis oleh auth.ts. Password TIDAK disimpan.
       setRegistrationState({ tempToken: "", phoneNumber, fullName: fullName.trim() })

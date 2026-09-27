@@ -43,6 +43,7 @@ import { cn } from "@/lib/cn"
 import { focusRing } from "@/lib/focus-ring"
 import { formatFileSize } from "@/lib/format"
 import { fileExtension, isImageMime } from "@/lib/mime"
+import { attachmentTypeLabel } from "@/lib/dispute-attachments"
 
 export type ChatAttachment = {
   fileName: string
@@ -133,6 +134,7 @@ export function ChatAttachmentItem({
 
   const a11y = [
     attachment.fileName,
+    attachmentTypeLabel(attachment.mimeType),
     formatFileSize(attachment.fileSize),
     errored ? t.failed : uploading ? t.uploading : undefined,
   ]
@@ -189,7 +191,7 @@ export function ChatAttachmentItem({
             </Text>
           ) : null}
         </View>
-        {uploading ? <ProgressBar value={Math.round((progress ?? 0) * 100)} size="sm" className="absolute bottom-0 left-0 right-0" /> : null}
+        {uploading ? <ProgressBar value={progress == null ? undefined : Math.round(progress * 100)} size="sm" className="absolute bottom-0 left-0 right-0" /> : null}
       </PressableScale>
     )
   }
@@ -247,7 +249,7 @@ export function ChatAttachmentItem({
           <Icon icon={X} size="xs" />
         </Pressable>
       ) : null}
-      {uploading ? <ProgressBar value={Math.round((progress ?? 0) * 100)} size="sm" className="absolute bottom-0 left-0 right-0" /> : null}
+      {uploading ? <ProgressBar value={progress == null ? undefined : Math.round(progress * 100)} size="sm" className="absolute bottom-0 left-0 right-0" /> : null}
     </View>
   )
 }

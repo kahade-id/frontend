@@ -439,6 +439,8 @@ export async function phoneRegister(dto: {
   username?: string
   password: string
   location?: LocationDto
+  /** Token signup sosial untuk identitas baru — ditautkan pasca-verifikasi. */
+  socialLinkToken?: string
 }) {
   const body: PhoneRegisterDto = {
     tempToken: dto.tempToken,
@@ -447,6 +449,7 @@ export async function phoneRegister(dto: {
     password: dto.password,
     deviceId: await getDeviceId(),
     location: dto.location,
+    socialLinkToken: dto.socialLinkToken,
   }
   const result = await http.post<AuthTokens & { user?: AuthUser }, PhoneRegisterDto>(
     "/v1/auth/phone-register",

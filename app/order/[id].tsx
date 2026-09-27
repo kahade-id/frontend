@@ -58,6 +58,7 @@ import { RATING_SNOOZE_MS, isRatingSnoozed, snoozeRatingReminder, useUiPrefs } f
 import { usePolling } from "@/lib/use-polling"
 import { useClockTick } from "@/lib/use-clock-tick"
 import { useQrisPayment } from "@/lib/use-qris-payment"
+import { useOrderTracking } from "@/lib/use-order-tracking"
 import { useResultTimer } from "@/lib/use-result-timer"
 import type { DisputeCategoryValue } from "@/lib/labels/dispute"
 import { type ReasonValue } from "@/components/ui/reason-picker"
@@ -95,6 +96,7 @@ import {
   OrderPaymentSheet,
 } from "@/components/order-action-sheets"
 import { SectionHeader } from "@/components/ui/section"
+import { MilestoneSection } from "@/components/order-milestones"
 import { ShippingInfoCard } from "@/components/ui/shipping-info-card"
 import { Text } from "@/components/ui/text"
 import { TextLink } from "@/components/ui/text-link"
@@ -526,6 +528,8 @@ export default function OrderDetailScreen() {
   const [confirmRecreateQris, setConfirmRecreateQris] = useState(false)
 
   const openChatBusyRef = useRef(false)
+  // Lacak pengiriman (Gap-D) — logika di lib/use-order-tracking.ts (S9).
+  const { openTracking } = useOrderTracking(order, toast.show)
   const openChat = useCallback(async () => {
     if (!order) return
     // R2 (audit ronde-2, butir #54): pemindaian room bisa memakan beberapa GET
@@ -787,6 +791,14 @@ export default function OrderDetailScreen() {
             />
           ) : null}
 
+          {/* Escrow bertahap (GAP-C): hanya tampil bila order punya milestone.
+              Order satu tahap tidak berubah perilakunya — seksi ini tidak
+              merender apa pun bila daftar tahap kosong. */}
+          <MilestoneSection
+            orderId={order.id}
+            role={isBuyer ? "BUYER" : isSeller ? "SELLER" : undefined}
+          />
+
           <ShippingInfoCard
             shipping={
               order.trackingNumber || order.courierName
@@ -798,6 +810,7 @@ export default function OrderDetailScreen() {
             }
             canEdit={canShip}
             onEdit={() => setSheet("shipping")}
+            onTrack={() => void openTracking()}
             onCopy={(v) => void copy(v)}
             copied={copied}
           />
@@ -963,6 +976,7 @@ export default function OrderDetailScreen() {
             isDisputed={isDisputed}
             canDispute={canDispute}
             canCancel={canCancel}
+            canReturn={isBuyer && order.status === "COMPLETED"}
             submitting={submitting}
             onOpenSheet={(kind) => setSheet(kind)}
           />

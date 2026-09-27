@@ -47,12 +47,17 @@ export type DisputeEvidence = {
   createdAt: string
 }
 
-/** Lampiran pesan mediasi — bentuk Json backend {fileKey,fileName,fileType,fileSize}. */
+/** Lampiran pesan mediasi — bentuk Json backend {fileKey,fileName,fileType,fileSize}
+ * + `url`/`expiresAt` opsional (signed URL TTL 300 dtk, GAP-B3). */
 export type DisputeMessageAttachment = {
   fileKey: string
   fileName: string
   fileType: string
   fileSize?: number
+  /** Signed URL unduh; kedaluwarsa → minta ulang via getDisputeMessageAttachmentUrl. */
+  url?: string
+  /** ISO-8601 kedaluwarsa `url`. */
+  expiresAt?: string
 }
 
 /** Pesan dalam ruang sengketa. */
@@ -61,6 +66,10 @@ export type DisputeMessage = {
   text: string
   fromUser: boolean
   createdAt: string
+  /** Id pengirim (user) — untuk label pihak Bukti Pembeli/Penjual (G141). */
+  senderId?: string
+  /** Id admin pengirim — terisi berarti pesan moderator (G141). */
+  adminId?: string
   /** Lampiran; pesan khusus-lampiran punya text "" (DP-006). */
   attachments?: DisputeMessageAttachment[]
 }
@@ -365,6 +374,9 @@ function normalizeDisputeMessageAttachment(raw: unknown): DisputeMessageAttachme
     fileName: fileName ?? "Lampiran",
     fileType: pickString(a, ["fileType", "file_type", "mimeType", "mime_type"]) ?? "",
     fileSize: typeof size === "number" && Number.isFinite(size) ? size : undefined,
+    // GAP-B3 (G139): signed URL + kedaluwarsa dari backend (aditif).
+    url: pickString(a, ["url", "signedUrl", "signed_url"]),
+    expiresAt: pickString(a, ["expiresAt", "expires_at"]),
   }
 }
 
@@ -403,6 +415,9 @@ function normalizeDisputeMessage(raw: DisputeMessage): DisputeMessage | null {
     text,
     fromUser,
     createdAt: typeof createdAtRaw === "string" ? createdAtRaw : "",
+    // GAP-B3 (G141): identitas pengirim untuk label pihak lampiran.
+    senderId: pickString(record, ["senderId", "sender_id", "sender"]),
+    adminId: pickString(record, ["adminId", "admin_id"]),
     ...(attachments.length > 0 ? { attachments } : {}),
   }
 }
@@ -419,6 +434,10 @@ export function sendDisputeMessage(
   disputeId: string,
   text: string,
   attachments?: DisputeMessageAttachmentInput[],
+  /** GAP-B3 (G134): satu kunci per pesan — dipakai ulang saat retry manual
+   * setelah kegagalan tak pasti, supaya backend (@Idempotency) mengenali
+   * percobaan yang sama dan tidak menduplikasi pesan. */
+  idempotencyKey?: string,
 ) {
   // DTO produksi: DisputeMessageDto { message?, attachments? } — bukan { text }.
   // I-22: lihat submitDisputeEvidence (assert pesan kosong/terlalu panjang).
@@ -436,7 +455,26 @@ export function sendDisputeMessage(
       message: text,
       ...(cleanAttachments.length > 0 ? { attachments: cleanAttachments } : {}),
     },
-    { auth: "required" },
+    {
+      auth: "required",
+      ...(idempotencyKey ? { headers: { "Idempotency-Key": idempotencyKey } } : {}),
+    },
+  )
+}
+
+/**
+ * GAP-B3 (G139): minta ulang signed URL lampiran pesan yang kedaluwarsa.
+ * Backend memverifikasi: pemanggil peserta sengketa + fileKey terdaftar di
+ * pesan sengketa ini (G148). Jangan pernah menampilkan/menyimpan URL mentah —
+ * selalu lewat endpoint ini.
+ */
+export function getDisputeMessageAttachmentUrl(
+  disputeId: string,
+  fileKey: string,
+): Promise<{ url: string; expiresAt: string }> {
+  return http.get<{ url: string; expiresAt: string }>(
+    `/v1/disputes/${seg(disputeId)}/attachments/signed-url`,
+    { auth: "required", query: { fileKey } },
   )
 }
 

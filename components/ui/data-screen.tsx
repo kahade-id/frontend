@@ -116,6 +116,12 @@ export type DataScreenProps = {
   dock?: ReactNode
   /** Reveal horizontal isi layar bila perpindahan mode baru saja mendarat di sini. */
   shiftFade?: boolean
+  /**
+   * Teruskan ke <Screen keyboardAvoiding> — untuk layar data yang punya
+   * input inline (mis. catatan revisi milestone). Default false (tidak
+   * mengubah perilaku konsumen existing).
+   */
+  keyboardAvoiding?: boolean
   children?: ReactNode
 }
 
@@ -151,6 +157,7 @@ export function DataScreen({
   above,
   dock,
   shiftFade = false,
+  keyboardAvoiding,
   persistent,
   children,
 }: DataScreenProps) {
@@ -190,7 +197,7 @@ export function DataScreen({
   )
 
   return (
-    <Screen edges={["top"]} padded={false} background={background} footer={footer}>
+    <Screen edges={["top"]} padded={false} background={background} footer={footer} keyboardAvoiding={keyboardAvoiding}>
       <Header title={title} {...header} />
       {above}
       {shiftFade ? <ModeShiftFade>{scroller}</ModeShiftFade> : scroller}

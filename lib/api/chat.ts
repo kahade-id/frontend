@@ -117,20 +117,27 @@ export type ChatSearchResult = {
   }
 }
 
-function normalizeChatMessage(raw: ChatMessage & Record<string, unknown>): ChatMessage {
+/**
+ * Normalisasi satu pesan chat dari respons REST ATAU payload realtime
+ * (`chat.new_message` / `chat.message_updated`) — serializer SAMA untuk
+ * kedua jalur (G107). Diekspor agar lapisan realtime tidak menduplikasi
+ * logika ini.
+ */
+export function normalizeChatMessage(raw: Record<string, unknown>): ChatMessage {
+  const record = raw as ChatMessage & Record<string, unknown>
   return {
-    ...raw,
-    text: raw.text ?? (typeof raw.content === "string" ? raw.content : undefined),
-    senderId: raw.senderId ?? null,
+    ...record,
+    text: record.text ?? (typeof record.content === "string" ? record.content : undefined),
+    senderId: record.senderId ?? null,
     fromUser:
-      typeof raw.fromUser === "boolean"
-        ? raw.fromUser
-        : raw.isMine === true || raw.isFromCurrentUser === true,
+      typeof record.fromUser === "boolean"
+        ? record.fromUser
+        : record.isMine === true || record.isFromCurrentUser === true,
     // Backend memakai `content`/`isEdited`; raw tetap dipertahankan lewat ...raw.
-    isPinned: raw.isPinned === true,
-    isEdited: raw.isEdited === true,
+    isPinned: record.isPinned === true,
+    isEdited: record.isEdited === true,
     // CN-003: pesan terhapus — jangan andalkan content null saja.
-    isDeleted: raw.isDeleted === true,
+    isDeleted: record.isDeleted === true,
   }
 }
 

@@ -13,6 +13,8 @@
  *   Ganti Nomor HP       PUT  /v1/users/me (phoneNumber)  → app/change-phone.tsx
  *   Ganti Password       POST /v1/auth/change-password    → app/change-password.tsx
  *   Ganti PIN            POST /v1/wallet/set-pin          → app/change-pin.tsx
+ *   Login Sosial         GET  /v1/auth/social             → app/social-providers.tsx
+ *                        (taut/lepas butuh re-auth; last-method guard di server)
  *   Biometrik            expo-local-authentication        → app/biometric-settings.tsx
  *   Verifikasi 2 Langkah GET  /v1/auth/2fa/status         → app/two-factor.tsx
  *   Perangkat & Log      GET  /v1/sessions, security-log  → app/security-activity.tsx
@@ -180,6 +182,21 @@ export default function SecurityScreen() {
               ) : undefined
             }
           />
+          {/* GAP-A (G013/G018/G019): kelola akun Google/Apple yang tertaut.
+              Penautan & pelepasan butuh re-auth; server menolak bila ini
+              satu-satunya metode masuk. */}
+          <ListItem
+            title="Login Sosial"
+            titleVariant="bodyLarge"
+            leading={UserFocus}
+            chevron
+            href={ROUTES.socialProviders}
+            trailing={
+              <Text variant="caption" tone="secondary">
+                Google / Apple
+              </Text>
+            }
+          />
         </View>
 
       </View>
@@ -203,6 +220,23 @@ export default function SecurityScreen() {
             chevron
             href={ROUTES.twoFactor}
             trailing={twoFactorLabel}
+          />
+          {/*
+           * GAP-A (G034): Passkey = kredensial masuk WebAuthn terverifikasi
+           * server. Terpisah dari "Biometrik" di atas yang hanya mengunci
+           * aplikasi di HP ini (app-lock lokal, bukan metode masuk akun).
+           */}
+          <ListItem
+            title="Passkey"
+            titleVariant="bodyLarge"
+            leading={Key}
+            chevron
+            href={ROUTES.passkeys}
+            trailing={
+              <Text variant="caption" tone="secondary">
+                Tanpa kata sandi
+              </Text>
+            }
           />
         </View>
 

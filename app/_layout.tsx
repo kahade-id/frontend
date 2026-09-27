@@ -42,6 +42,7 @@ import { ListLoading } from "@/components/ui/paginated-list"
 import { Button } from "@/components/ui/button"
 import { ErrorState } from "@/components/ui/error-state"
 import { useAuthSession } from "@/lib/use-auth-session"
+import { RealtimeProvider } from "@/lib/realtime/socket-provider"
 import { PendingActionsBanner } from "@/components/pending-actions-banner"
 import { AUTHENTICATED_SCREENS, isProtectedPath } from "@/lib/protected-routes"
 import { GuestLoginPrompt } from "@/components/web-guest-gate"
@@ -60,6 +61,7 @@ import { ROUTES } from "@/lib/routes"
 import { refreshUnreadCount } from "@/lib/unread-count"
 import { tokens } from "@/lib/tokens"
 import { captureError, installTelemetry, logWarn } from "@/lib/telemetry"
+import { installSentrySink } from "@/lib/telemetry-sentry"
 import { consumeOtaUpdateNotice } from "@/lib/ota-notice"
 import { translate } from "@/lib/i18n/translate"
 import { getLanguage, subscribeLanguage } from "@/lib/i18n/store"
@@ -88,6 +90,8 @@ export default function RootLayout() {
   // sekali per proses — idempoten terhadap Hot Reload (D-03).
   useEffect(() => {
     installTelemetry()
+    // G476: sink produksi — default aman (tanpa DSN tidak mengirim apa pun).
+    installSentrySink()
   }, [])
 
   // Web tidak memakai splash/onboarding ala aplikasi: tree langsung
@@ -430,6 +434,14 @@ function AppShell() {
             ditawarkan lagi di boot, di tab mana pun — catatan di
             lib/pending-actions, resolve di layar uangnya. */}
         <PendingActionsBanner />
+        {/*
+          GAP-B2 (G102): satu koneksi realtime per akun untuk seluruh app.
+          Token dari sesi — provider menutup socket saat logout (token null)
+          dan re-handshake saat token di-refresh. Layar chat memakai
+          `useChatRoomRealtime`; polling REST tetap sebagai fallback
+          (G119/G120).
+        */}
+        <RealtimeProvider token={session.token}>
         <View className="flex-1 items-center">
           <ContentContainer bordered>
             <PortalScene>
@@ -494,6 +506,7 @@ function AppShell() {
               terkunci; no-op di web dan tanpa sesi. */}
           {Platform.OS !== "web" ? <AppLockGate sessionActive={Boolean(session.token)} /> : null}
         </View>
+        </RealtimeProvider>
       </ToastProvider>
 
       {/*

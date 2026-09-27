@@ -47,13 +47,13 @@
  *   - Tombol "Masuk" disabled selama submit untuk mencegah double-submit.
  *   - Setelah login berhasil → /welcome (cek permissions; bukan user baru).
  */
-import { useCallback, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { Platform, ScrollView, TextInput, View } from "react-native"
 
 import { CaptchaSlider } from "@/components/ui/captcha-slider"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useLocalSearchParams, useRouter } from "expo-router"
-import { WhatsappLogo } from "phosphor-react-native"
+import { WhatsappLogo, Fingerprint } from "phosphor-react-native"
 
 import { Alert } from "@/components/ui/alert"
 import { Divider } from "@/components/ui/divider"
@@ -78,7 +78,17 @@ import { getAuthLocation } from "@/lib/location"
 import { setPendingNext } from "@/lib/login-redirect"
 import { setOtpFlow } from "@/lib/otp-flow"
 import { ROUTES } from "@/lib/routes"
+import { setPendingSocialSignup } from "@/lib/social-signup"
 import { setPendingTwoFactorLogin } from "@/lib/two-factor-login"
+import { Dialog } from "@/components/ui/modal"
+import { SocialLoginButtons, type SocialOutcome } from "@/components/auth/social-login-buttons"
+import {
+  getPasskeyCapabilitySync,
+  startPasskeyAuthentication,
+  type AuthenticationOptionsJSON,
+  PasskeyError,
+} from "@/lib/passkey"
+import { PASSKEY_COPY } from "@/lib/passkey-instructions"
 
 export default function LoginScreen() {
   const router = useRouter()
@@ -105,6 +115,11 @@ export default function LoginScreen() {
   const [captchaAnswer, setCaptchaAnswer] = useState<number | null>(null)
   const [captchaLoading, setCaptchaLoading] = useState(false)
   const [captchaError, setCaptchaError] = useState<string | null>(null)
+
+  // Passkey (GAP-A G033): alur penuh hanya di web; native menampilkan info.
+  const passkeySupported = getPasskeyCapabilitySync().supported
+  const [pkSubmitting, setPkSubmitting] = useState(false)
+  const [pkNativeInfo, setPkNativeInfo] = useState(false)
 
   const isFormValid = identifier.trim().length > 0 && password.length > 0
 
@@ -207,6 +222,134 @@ export default function LoginScreen() {
       setSubmitting(false)
     }
   }, [submitting, isFormValid, identifier, password, router, nextPath, challenge, captchaAnswer, loadCaptcha, goAfterLogin])
+
+  // ── Passkey (GAP-A G033/G041): masuk tanpa kata sandi ───────────────
+  //
+  // Terpisah visual dari "kunci biometrik perangkat" (app-lock lokal, bukan
+  // metode masuk — lihat lib/biometrics.ts). Alur penuh hanya di web karena
+  // WebAuthn adalah API browser; di native tombol menampilkan penjelasan
+  // jujur (PASSKEY_COPY.loginNativeInfo), bukan klaim palsu.
+
+  const finishPasskeyLogin = useCallback(
+    async (challengeId: string, assertion: unknown) => {
+      const result = await api.passkey.verifyAuthLogin({ challengeId, assertion })
+      if ("requiresPhoneMigration" in result && result.requiresPhoneMigration) {
+        router.replace(ROUTES.phoneMigration(result.migrationToken))
+        return
+      }
+      if ("requiresTwoFactor" in result && result.requiresTwoFactor) {
+        // Passkey TIDAK menggantikan 2FA aktif: lanjut ke layar kode (G027).
+        setPendingTwoFactorLogin({ tempToken: result.tempToken, identifier: identifier.trim() })
+        router.push(ROUTES.verify2fa)
+        return
+      }
+      goAfterLogin()
+    },
+    [router, identifier, goAfterLogin],
+  )
+
+  const handlePasskeyLogin = useCallback(async () => {
+    if (pkSubmitting) return
+    if (!passkeySupported) {
+      setPkNativeInfo(true)
+      return
+    }
+    setPkSubmitting(true)
+    setFormError(null)
+    setPendingNext(nextPath)
+    try {
+      const trimmed = identifier.trim()
+      const { challengeId, options } = await api.passkey.getAuthOptions(
+        trimmed ? { username: trimmed } : {},
+      )
+      const assertion = await startPasskeyAuthentication(options as AuthenticationOptionsJSON)
+      await finishPasskeyLogin(challengeId, assertion)
+    } catch (err) {
+      if (err instanceof PasskeyError) {
+        // Pembatalan oleh user = diam; masalah lain tampil sebagai error form.
+        if (err.code !== "CANCELLED") setFormError(err.message)
+        return
+      }
+      if (isApiError(err)) {
+        if (err.code === "RATE_LIMITED") {
+          setFormError("Terlalu banyak percobaan. Tunggu beberapa saat sebelum mencoba lagi.")
+          return
+        }
+        if (err.code === "VALIDATION" || err.code === "BAD_REQUEST") {
+          setFormError(err.message || "Data tidak valid. Periksa kembali data masuk Anda.")
+          return
+        }
+      }
+      setFormError(userMessage(err))
+    } finally {
+      setPkSubmitting(false)
+    }
+  }, [pkSubmitting, passkeySupported, identifier, nextPath, finishPasskeyLogin])
+
+  // ── Social login (GAP-A G001–G025): Google / Apple ──────────────────────
+  // Hasil dinormalisasi oleh api.social.socialLogin; token sesi sudah
+  // disimpan otomatis bila kind === "session".
+  const handleSocialOutcome = useCallback(
+    (outcome: SocialOutcome) => {
+      setFormError(null)
+      if (outcome.kind === "session") {
+        goAfterLogin()
+        return
+      }
+      if (outcome.kind === "twoFactor") {
+        setPendingTwoFactorLogin({ tempToken: outcome.tempToken, identifier: "" })
+        router.push(ROUTES.verify2fa)
+        return
+      }
+      if (outcome.kind === "phoneMigration") {
+        router.replace(ROUTES.phoneMigration(outcome.migrationToken))
+        return
+      }
+      if (outcome.kind === "linkRequired") {
+        // Identitas sosial baru: registrasi TETAP nomor HP + OTP WhatsApp.
+        // linkToken dibawa (memori modul) ke phone-register untuk ditautkan
+        // setelah nomor terverifikasi.
+        setPendingSocialSignup(outcome.linkToken)
+        router.push(ROUTES.register)
+        return
+      }
+      // Konflik email: buktikan kepemilikan akun lama sebelum menautkan.
+      router.push(
+        ROUTES.socialLinkConfirm({
+          linkToken: outcome.linkToken,
+          maskedEmail: outcome.maskedEmail,
+          provider: outcome.provider,
+        }),
+      )
+    },
+    [goAfterLogin, router],
+  )
+
+  // Autofill passkey (conditional mediation, web saja — G041/G043): browser
+  // menampilkan saran passkey di kolom username tanpa dialog modal.
+  // Kegagalan di sini selalu diam — ini fitur opsional, bukan alur utama.
+  useEffect(() => {
+    if (Platform.OS !== "web" || !passkeySupported) return
+    let cancelled = false
+    void (async () => {
+      try {
+        const { getPasskeyCapability } = await import("@/lib/passkey")
+        if (!(await getPasskeyCapability()).conditionalMediation) return
+        const { challengeId, options } = await api.passkey.getAuthOptions()
+        const assertion = await startPasskeyAuthentication(
+          options as AuthenticationOptionsJSON,
+          { conditional: true },
+        )
+        if (cancelled) return
+        await finishPasskeyLogin(challengeId, assertion)
+      } catch {
+        // Diam: autofill opsional; user tetap bisa menekan tombol passkey.
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [passkeySupported, finishPasskeyLogin])
 
   const handleWhatsappLogin = useCallback(async () => {
     if (waSubmitting) return
@@ -408,9 +551,55 @@ export default function LoginScreen() {
                 </VStack>
               )}
             </VStack>
+
+            {/* Opsi ketiga: passkey (GAP-A G033). Terpisah visual dari kunci
+                biometrik perangkat (app-lock lokal — bukan metode masuk). */}
+            <Divider label="atau" />
+            <VStack gap={2}>
+              <Button
+                variant="secondary"
+                leftIcon={Fingerprint}
+                onPress={() => void handlePasskeyLogin()}
+                loading={pkSubmitting}
+                disabled={submitting || waSubmitting}
+              >
+                {PASSKEY_COPY.loginButton}
+              </Button>
+              {passkeySupported ? (
+                <Text variant="caption" tone="secondary" className="text-pretty">
+                  {PASSKEY_COPY.loginHintWeb}
+                </Text>
+              ) : (
+                <Text variant="caption" tone="secondary" className="text-pretty">
+                  Passkey tersedia di web — ketuk untuk info selengkapnya.
+                </Text>
+              )}
+            </VStack>
+
+            {/* Opsi keempat: login sosial Google / Apple (GAP-A G001–G025).
+                Tombol hanya tampil bila server mengonfirmasi provider tersedia
+                (GET /v1/auth/social/providers). Registrasi tetap nomor HP:
+                identitas baru diarahkan daftar nomor HP dulu. */}
+            <Divider label="atau" />
+            <SocialLoginButtons
+              onBeforeStart={() => setPendingNext(nextPath)}
+              onOutcome={handleSocialOutcome}
+              onError={(msg) => setFormError(`Login sosial gagal: ${msg}`)}
+            />
           </VStack>
           </FadeIn>
         </ScrollView>
+
+        {/* Info jujur untuk native: passkey penuh hanya di web (G033) */}
+        <Dialog
+          visible={pkNativeInfo}
+          onRequestClose={() => setPkNativeInfo(false)}
+          title={PASSKEY_COPY.loginNativeInfo.title}
+          description={PASSKEY_COPY.loginNativeInfo.body}
+          confirmLabel="Mengerti"
+          hideCancel
+          onConfirm={() => setPkNativeInfo(false)}
+        />
 
         {/* Footer links */}
         <FooterBar>
@@ -426,6 +615,13 @@ export default function LoginScreen() {
               Daftar
             </TextLink>
           </Text>
+
+          {/* GAP-A (G052): pemulihan akun dalam masa tenggang penghapusan. */}
+          <View className="items-center">
+            <TextLink onPress={() => router.push(ROUTES.deletionStatus)} disabled={submitting}>
+              Akun dihapus? Pulihkan di sini
+            </TextLink>
+          </View>
         </FooterBar>
       </KeyboardAvoiding>
     </Screen>

@@ -1,0 +1,136 @@
+/**
+ * Screen — Ajukan Retur (GAP-D G203–G206).
+ * POST /v1/returns · jendela pengajuan & deadline dihitung server (G206).
+ * Dipanggil dengan query ?orderId=...
+ */
+import { useState } from "react"
+import { Text, TextInput, View, Pressable } from "react-native"
+import { useLocalSearchParams, useRouter } from "expo-router"
+
+import { ROUTES } from "@/lib/routes"
+import { api } from "@/lib/api"
+import type { ReturnEligibility, ReturnReasonCode } from "@/lib/api/returns"
+import { RETURN_REASON_LABEL } from "@/lib/api/returns"
+import { formatDateTime } from "@/lib/format"
+import { tokens } from "@/lib/tokens"
+import { useApiQuery } from "@/lib/use-api-query"
+import { showMutationError } from "@/lib/mutation-toast"
+import { useTheme } from "@/components/theme-provider"
+import { useToast } from "@/components/ui/toast"
+
+import { Button } from "@/components/ui/button"
+import { DataScreen } from "@/components/ui/data-screen"
+import { SectionHeader } from "@/components/ui/section"
+
+const REASONS: ReturnReasonCode[] = [
+  "BARANG_RUSAK",
+  "BARANG_TIDAK_SESUAI_DESKRIPSI",
+  "BARANG_TIDAK_LENGKAP",
+  "BARANG_PALSU",
+  "SALAH_KIRIM_VARIAN",
+  "BARANG_KEDALUWARSA",
+  "KEMASAN_RUSAK_PARAH",
+  "LAINNYA",
+]
+
+export default function NewReturnScreen() {
+  const router = useRouter()
+  const { orderId } = useLocalSearchParams<{ orderId: string }>()
+  const { mode } = useTheme()
+  const toast = useToast()
+  const c = tokens.colors[mode]
+  const [reasonCode, setReasonCode] = useState<ReturnReasonCode>("BARANG_RUSAK")
+  const [reasonDetail, setReasonDetail] = useState("")
+  const [submitting, setSubmitting] = useState(false)
+
+  const eligQuery = useApiQuery<ReturnEligibility>(
+    `return-eligibility:${String(orderId)}`,
+    (signal) => api.returns.getReturnEligibility(String(orderId), signal),
+    !!orderId,
+  )
+  const elig = eligQuery.data
+
+  async function submit() {
+    if (!orderId || submitting) return
+    setSubmitting(true)
+    try {
+      const created = await api.returns.createReturn({
+        orderId: String(orderId),
+        reasonCode,
+        reasonDetail: reasonDetail.trim() || undefined,
+      })
+      router.replace(ROUTES.returnDetail(created.id))
+    } catch (e) {
+      showMutationError(toast.show, {
+        failTitle: "Gagal mengajukan retur",
+        uncertainHint: "Pengajuan mungkin sudah terkirim — periksa daftar retur sebelum mencoba lagi.",
+        err: e,
+      })
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <DataScreen title="Ajukan Retur" state={eligQuery} loadingMessage="Memeriksa syarat retur…">
+      {elig ? (
+        !elig.eligible ? (
+          <View style={{ paddingVertical: tokens.space[4] }}>
+            <SectionHeader title="Tidak dapat mengajukan retur" />
+            <Text style={{ color: c.textTertiary }}>{elig.reason ?? "Pesanan ini tidak memenuhi syarat retur."}</Text>
+          </View>
+        ) : (
+          <View style={{ paddingVertical: tokens.space[4], gap: tokens.space[4] }}>
+            {elig.deadlineAt ? (
+              <Text style={{ color: c.textTertiary }}>
+                Batas pengajuan: {formatDateTime(elig.deadlineAt)} (dihitung server)
+              </Text>
+            ) : null}
+            <View>
+              <SectionHeader title="Alasan retur" />
+              <View style={{ gap: tokens.space[2] }}>
+                {REASONS.map((r) => (
+                  <Pressable
+                    key={r}
+                    onPress={() => setReasonCode(r)}
+                    style={{
+                      padding: tokens.space[3],
+                      borderRadius: tokens.radius.md,
+                      borderWidth: 1,
+                      borderColor: reasonCode === r ? c.primary : c.borderDefault,
+                      // Tidak ada token "primarySoft": tint 8% dari primary.
+                      backgroundColor: reasonCode === r ? `${c.primary}14` : c.surface,
+                    }}
+                  >
+                    <Text style={{ fontWeight: reasonCode === r ? "700" : "400" }}>{RETURN_REASON_LABEL[r]}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+            <View>
+              <SectionHeader title="Deskripsi (opsional)" />
+              <TextInput
+                value={reasonDetail}
+                onChangeText={setReasonDetail}
+                multiline
+                numberOfLines={4}
+                placeholder="Jelaskan kondisi barang…"
+                placeholderTextColor={c.textTertiary}
+                style={{
+                  borderWidth: 1, borderColor: c.borderDefault, borderRadius: tokens.radius.md,
+                  padding: tokens.space[3], color: c.textPrimary, textAlignVertical: "top",
+                }}
+              />
+              <Text style={{ color: c.textTertiary, fontSize: 12, marginTop: tokens.space[1] }}>
+                Foto kondisi barang dapat ditambahkan setelah pengajuan dibuat, di halaman detail retur.
+              </Text>
+            </View>
+            <Button onPress={submit} disabled={submitting}>
+              {submitting ? "Mengirim…" : "Ajukan Retur"}
+            </Button>
+          </View>
+        )
+      ) : null}
+    </DataScreen>
+  )
+}

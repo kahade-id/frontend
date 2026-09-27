@@ -45,11 +45,13 @@ export const AUTHENTICATED_SCREENS = [
   "invoice/[orderId]",
   "kyc",
   "language",
+  "milestones/[id]", // detail milestone escrow — GET ber-auth (Tim C, integrasi 2026-09-27)
   "notification/[id]",
   "notification-preferences",
   "notifications",
   "order/[id]",
   "order-links",
+  "passkeys", // kelola passkey — endpoint auth required (Tim A, integrasi 2026-09-27)
   "privacy-settings",
   "profile/[id]",
   "questions",
@@ -58,14 +60,20 @@ export const AUTHENTICATED_SCREENS = [
   "receive",
   "referral",
   "reports",
+  "returns/index", // retur buyer/seller — endpoint auth required (GAP-D, integrasi 2026-09-27)
+  "returns/[id]",
+  "returns/new",
   "saved",
   "search",
   "security",
   "security-activity",
+  "seller/products/index", // katalog seller — endpoint auth required (GAP-D, integrasi 2026-09-27)
+  "seller/products/[id]",
   "settings",
   "showcase",
   "showcase-management",
   "showcase/create",
+  "social-providers", // tautan akun sosial — endpoint auth required (Tim A, integrasi 2026-09-27)
   "kahade-plus/plans",
   "kahade-plus/manage",
   "kahade-plus/theme",
@@ -74,6 +82,7 @@ export const AUTHENTICATED_SCREENS = [
   "support",
   "topup-history",
   "topup",
+  "tracking/[shipmentId]", // timeline kurir — endpoint auth required (GAP-D, integrasi 2026-09-27)
   "transaction-templates",
   "transfer",
   "trust-score",

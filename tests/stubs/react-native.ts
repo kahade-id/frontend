@@ -33,6 +33,12 @@ export const StyleSheet = {
   hairlineWidth: 1,
 }
 
+export const AppState = {
+  currentState: "active" as const,
+  addEventListener: () => ({ remove: () => {} }),
+  removeEventListener: () => {},
+}
+
 export default {
   Platform,
   View,
@@ -45,4 +51,5 @@ export default {
   TextInput,
   useWindowDimensions,
   StyleSheet,
+  AppState,
 }

@@ -87,6 +87,11 @@ export type PhoneRegisterDto = {
   deviceId: string
   /** Lokasi presisi perangkat (opsional) */
   location?: LocationDto
+  /**
+   * Token signup sosial (scope social_signup) dari login Google/Apple untuk
+   * identitas baru — ditautkan setelah nomor HP terverifikasi.
+   */
+  socialLinkToken?: string
 }
 
 export type RequestPhoneChangeDto = {
@@ -1347,6 +1352,19 @@ export type UpdatePrivacyDto = {
   profileVisible?: boolean
   /** Show online status */
   showOnlineStatus?: boolean
+  /** GAP-B1 (G076–G083): kontrol granular — lihat PrivacySettings. */
+  showEmail?: boolean
+  showPhone?: boolean
+  showDob?: boolean
+  showGender?: boolean
+  showFollowerList?: "EVERYONE" | "FOLLOWERS" | "ONLY_ME"
+  showFollowingList?: "EVERYONE" | "FOLLOWERS" | "ONLY_ME"
+  showcaseDefaultVisibility?: "PUBLIC" | "PRIVATE" | "FOLLOWERS"
+  qaCommentPolicy?: "EVERYONE" | "FOLLOWERS" | "DISABLED"
+  qaAnswerModeration?: boolean
+  showReviews?: boolean
+  hiddenStats?: string[]
+  searchEngineIndex?: boolean
 }
 
 export type UpdateLanguageDto = {

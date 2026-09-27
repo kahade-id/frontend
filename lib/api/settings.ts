@@ -25,9 +25,34 @@ export type ReportsSettings = {
   createdAt: string
 }
 
+/**
+ * GAP-B1 (G076–G083): pengaturan privasi granular — mirror kontrak backend
+ * `PUT /v1/settings/privacy`. Semua field granular opsional (PATCH semantics):
+ * server boleh mengirim subset; UI tidak boleh mengarang default.
+ */
+export type PrivacyListVisibility = "EVERYONE" | "FOLLOWERS" | "ONLY_ME"
+export type QaCommentPolicy = "EVERYONE" | "FOLLOWERS" | "DISABLED"
 export type PrivacySettings = {
   profileVisible: boolean
   showOnlineStatus: boolean
+  /** G076: visibilitas field identitas akun (viewer != owner). */
+  showEmail?: boolean
+  showPhone?: boolean
+  showDob?: boolean
+  showGender?: boolean
+  /** G077: siapa yang dapat melihat daftar follower/following. */
+  showFollowerList?: PrivacyListVisibility
+  showFollowingList?: PrivacyListVisibility
+  /** G078: visibilitas default etalase baru. */
+  showcaseDefaultVisibility?: "PUBLIC" | "PRIVATE" | "FOLLOWERS"
+  /** G079–G080: kebijakan Q&A profil. */
+  qaCommentPolicy?: QaCommentPolicy
+  qaAnswerModeration?: boolean
+  /** G081–G082: ulasan & statistik. */
+  showReviews?: boolean
+  hiddenStats?: string[]
+  /** G083: indeks mesin pencari. */
+  searchEngineIndex?: boolean
 }
 
 function normalizeBlockedUser(value: unknown): BlockedUser | null {
@@ -186,6 +211,54 @@ export function updatePrivacySettings(dto: UpdatePrivacyDto) {
   })
 }
 
+/**
+ * GAP-B1 (G084–G086): persetujuan (consent) per jenis.
+ * GET /v1/settings/consents — status saat ini per jenis.
+ * PUT /v1/settings/consents — beri/tarik persetujuan. TRANSACTIONAL tidak
+ * dapat ditarik (revocable=false; server menolak dengan 400).
+ */
+export type ConsentType = "MARKETING_PUSH" | "MARKETING_EMAIL" | "MARKETING_WHATSAPP" | "TRANSACTIONAL"
+
+export type ConsentStatus = {
+  type: ConsentType
+  granted: boolean
+  revocable: boolean
+  policyVersion: string
+  policyTextHash: string | null
+  title: { id: string; en: string }
+  grantedAt: string | null
+  revokedAt: string | null
+  channel: string | null
+}
+
+export function getConsents(signal?: AbortSignal) {
+  return http.get<ConsentStatus[]>("/v1/settings/consents", { auth: "required", signal })
+}
+
+export function updateConsent(type: ConsentType, granted: boolean) {
+  return http.put<ConsentStatus, { type: ConsentType; granted: boolean; channel: string }>(
+    "/v1/settings/consents",
+    { type, granted, channel: "in-app" },
+    { auth: "required" },
+  )
+}
+
+export type ConsentHistoryEntry = {
+  type: ConsentType
+  granted: boolean
+  policyVersion: string
+  channel: string | null
+  ipAddress: string | null
+  createdAt: string
+}
+
+/** GET /v1/settings/consents/history — riwayat persetujuan berversi. */
+export function getConsentHistory(signal?: AbortSignal) {
+  return http
+    .get<unknown>("/v1/settings/consents/history", { auth: "required", signal })
+    .then((raw) => readList<ConsentHistoryEntry>(raw, ["items", "data"]))
+}
+
 export function getLanguage(signal?: AbortSignal) {
   return http.get<{ language: "id" | "en" }>("/v1/settings/language", {
     auth: "required",
@@ -200,15 +273,49 @@ export function updateLanguage(dto: UpdateLanguageDto) {
 }
 
 /**
- * POST /v1/settings/privacy/export — minta ekspor data pribadi.
- * Spec hanya `201: ""` (UNVERIFIED): backend bisa mengembalikan `{ url }`
- * (tautan unduh siap) atau pesan bahwa ekspor diproses & dikirim via email.
- * Keduanya opsional di tipe supaya UI bisa memilih perilaku.
+ * GAP-B1 (G087–G100): ekspor data pribadi.
+ *
+ * POST /v1/settings/privacy/export — membuat arsip secara sinkron dan
+ * mengembalikan URL unduh bertanda waktu. Cooldown 24 jam antar permintaan
+ * (429/400 bila terlalu sering).
  */
-export function exportPrivacy() {
-  return http.post<{ url?: string; message?: string } | undefined, undefined>(
+export type DataExportResult = {
+  message: string
+  downloadUrl: string
+  expiresAt: string
+  requestId: string
+}
+
+export function exportPrivacy(format: "json" | "csv" = "json") {
+  return http.post<DataExportResult, { format: "json" | "csv" }>(
     "/v1/settings/privacy/export",
-    undefined,
+    { format },
+    { auth: "required" },
+  )
+}
+
+export type ExportRequestSummary = {
+  id: string
+  status: "PENDING" | "READY" | "EXPIRED" | "FAILED"
+  format: "JSON" | "CSV"
+  requestedAt: string
+  readyAt: string | null
+  expiresAt: string | null
+  downloadedAt: string | null
+  downloadCount: number
+}
+
+/** GET /v1/settings/exports — riwayat permintaan ekspor (status + kedaluwarsa). */
+export function getExportHistory(signal?: AbortSignal) {
+  return http
+    .get<unknown>("/v1/settings/exports", { auth: "required", signal })
+    .then((raw) => readList<ExportRequestSummary>(raw, ["items", "data"]))
+}
+
+/** GET /v1/settings/exports/:id/download — URL signed baru (5 menit), tercatat di audit. */
+export function downloadExportRequest(id: string) {
+  return http.get<{ downloadUrl: string; expiresAt: string }>(
+    `/v1/settings/exports/${id}/download`,
     { auth: "required" },
   )
 }

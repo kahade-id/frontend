@@ -32,6 +32,11 @@ export type FeedbackInput = {
   message: string
   /** Email/kontak opsional bila pengguna ingin dihubungi. */
   contact?: string
+  /**
+   * true bila pengguna mengizinkan tim Kahade menghubunginya terkait
+   * masukan ini. Default false; hanya bermakna bila contact diisi.
+   */
+  contactConsent?: boolean
   rating?: number
 }
 
@@ -58,6 +63,8 @@ function normalizeInput(input: FeedbackInput): FeedbackInput {
     category: input.category,
     message: input.message.trim().replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, "").slice(0, MAX_MESSAGE_LENGTH),
     contact: input.contact?.trim().slice(0, MAX_CONTACT_LENGTH) || undefined,
+    // Persetujuan hanya bermakna bila kontak diisi — kirim false bila tidak.
+    contactConsent: Boolean(input.contact?.trim()) && input.contactConsent === true,
     rating: input.rating,
   }
 }
@@ -127,6 +134,7 @@ async function postFeedback(payload: FeedbackInput): Promise<void> {
       category: payload.category,
       message: payload.message,
       contact: payload.contact?.trim() || undefined,
+      contactConsent: payload.contactConsent === true,
       rating: payload.rating,
       platform: "app",
     },

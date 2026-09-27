@@ -66,6 +66,7 @@ import {
   getPinnedMessages,
   getReadReceipts,
   getRoomPresence,
+  normalizeChatMessage,
   pinChatMessage,
   removeReaction,
   sendChatTyping,
@@ -75,6 +76,11 @@ import {
   type ChatReaction,
   type ChatRoom,
 } from "@/lib/api/chat"
+import {
+  applyDeletedTombstone,
+  applyReactionSummary,
+} from "@/lib/realtime/chat-events"
+import { useChatRoomRealtime } from "@/lib/realtime/use-chat-room"
 import type { ChatAttachmentDto, SendMessageDto } from "@/lib/api/types"
 import { useCopy } from "@/lib/clipboard"
 import { formatDateTime, truncateMiddle } from "@/lib/format"
@@ -114,25 +120,17 @@ type LocalAttachment = ComposerAttachment & { picked?: PickedImage }
 /** Jarak poll pesan baru saat ruang AKTIF. Push tetap pemicu utama. */
 const CHAT_POLL_MS = 8000
 /**
- * CN-013 (audit 2026-09-26): chat memakai polling REST, BUKAN WebSocket —
- * dan itu KEPUTUSAN SADAR, bukan kelalaian.
+ * GAP-B2 (implementasi 2026-09-26): chat memakai WebSocket realtime
+ * (`useChatRoomRealtime`) DENGAN polling REST sebagai fallback.
  *
- * Backend memancarkan `chat.new_message` / `chat.reaction_updated` /
- * `chat.typing` via socket, tetapi payload-nya SALAH untuk adopsi klien:
- * - CN-004: `chat.new_message` diserialisasi dengan `viewerId` PENGIRIM untuk
- *   semua penerima → pesan masuk dirender sebagai pesan keluar.
- * - CN-005: `chat.reaction_updated` memakai `reactedByMe` milik aktor untuk
- *   semua peserta.
- * Mengadopsi socket sekarang = mengintroduksi bug tersebut ke UI.
- *
- * Prasyarat adopsi realtime:
- * 1. Backend perbaiki CN-004/CN-005 (serialisasi per penerima).
- * 2. Frontend bangun klien socket (auth, reconnect, dedupe vs polling).
- * 3. CN-014 (indikator mengetik) hidup otomatis setelah (2) — endpoint kirim
- *    `POST /v1/chat/rooms/{id}/typing` sudah ada; yang hilang hanya transport
- *    penerima.
- *
- * Sementara itu polling dipertahankan (dengan idle backoff di bawah).
+ * Prasyarat CN-013 sudah terpenuhi: backend kini memakai serialisasi
+ * per-penerima untuk `chat.new_message` (CN-004) dan `chat.reaction_updated`
+ * (CN-005) — `chat.service.ts` mengirim `senderView` ke pengirim dan
+ * `recipientView` ke penerima. Event socket juga bertanda tangan HMAC per
+ * sesi (`session_hmac_token`); klien memverifikasi sebelum normalisasi
+ * (`lib/realtime/hmac.ts`). Saat socket sehat, poll pesan melambat ke
+ * interval idle dan poll presence dimatikan; saat socket mati, polling
+ * penuh kembali mengambil alih otomatis.
  */
 /**
  * F-07 (audit): setelah IDLE_AFTER_EMPTY_POLLS poll beruntun tanpa pesan
@@ -256,6 +254,12 @@ export default function ChatRoomScreen() {
   const [editTarget, setEditTarget] = useState<ChatMessage | null>(null)
   const [pinned, setPinned] = useState<ChatMessage[]>([])
   const [presence, setPresence] = useState<ChatPresence | null>(null)
+  /**
+   * GAP-B2 (G110): indikator "mengetik…" lawan bicara dari event socket
+   * `chat.typing` (bukan dari poll). `createTypingTracker` di hook memberi
+   * expiry otomatis bila sinyal berhenti tak pernah tiba.
+   */
+  const [counterpartTyping, setCounterpartTyping] = useState(false)
   /** id pesan milik sendiri yang sudah dibaca lawan bicara (read receipt). */
   const [readByCounterpart, setReadByCounterpart] = useState<Set<string>>(new Set())
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -377,7 +381,6 @@ export default function ChatRoomScreen() {
     void refreshPinned()
     void refreshPresence()
   }, [roomId, refreshPresence, refreshPinned, refreshReadReceipts])
-  usePolling(refreshPresence, PRESENCE_POLL_MS, Boolean(roomId))
 
   // ── Poll pesan baru ────────────────────────────────────────────────────
   // Tanpa ini, balasan lawan bicara TIDAK PERNAH muncul selama ruang
@@ -466,7 +469,72 @@ export default function ChatRoomScreen() {
     [roomId, mergeIncoming, refreshReadReceipts, refreshPinned],
   )
 
-  usePolling(pollNewMessages, pollInterval, Boolean(roomId) && !error && !loading)
+
+  // ── Realtime socket (GAP-B2, G101–G125) ────────────────────────────────
+  // Backend kini memakai serialisasi per-penerima untuk `chat.new_message`
+  // (CN-004) dan `chat.reaction_updated` (CN-005) — payload yang diterima
+  // hook ini sudah benar untuk viewer ini. Event melewati verifikasi
+  // envelope HMAC di dalam hook; REST polling di bawah tetap jalan sebagai
+  // fallback (G119) dan melambat saat socket sehat (G120).
+  const { healthy: realtimeHealthy, sendTyping: sendTypingRealtime } = useChatRoomRealtime(roomId, {
+    onMessage: (raw) => {
+      try {
+        const msg = normalizeChatMessage(raw as Record<string, unknown>)
+        // Dedup vs pesan optimistis & hasil poll: mergeIncoming menyaring
+        // berdasarkan id (G108).
+        mergeIncoming([msg], roomIdRef.current)
+      } catch (err) {
+        logWarn("chat:realtime-message", err)
+      }
+    },
+    onMessageUpdated: (raw) => {
+      try {
+        const msg = normalizeChatMessage(raw as Record<string, unknown>)
+        // mergeIncoming ikut me-refresh pesan yang sudah ada (teks/edit/
+        // reaksi/pin) dari data terbaru — sama seperti respons poll (C-07).
+        mergeIncoming([msg], roomIdRef.current)
+      } catch (err) {
+        logWarn("chat:realtime-updated", err)
+      }
+    },
+    onMessageDeleted: (messageId) => {
+      setMessages((prev) => applyDeletedTombstone(prev, messageId))
+    },
+    onReaction: (messageId, reactions) => {
+      setMessages((prev) => applyReactionSummary(prev, messageId, reactions))
+    },
+    onPin: (messageId, isPinned) => {
+      setMessages((prev) =>
+        prev.map((m) => (m.id === messageId ? { ...m, isPinned } : m)),
+      )
+      void refreshPinned()
+    },
+    onRead: (messageId) => {
+      // Gema mark-as-read milik sendiri sudah difilter di hook; yang tiba
+      // di sini adalah bacaan lawan bicara.
+      if (messageId) {
+        setReadByCounterpart((prev) => new Set(prev).add(messageId))
+      } else {
+        void refreshReadReceipts()
+      }
+    },
+    onTyping: (isTyping) => setCounterpartTyping(isTyping),
+    onPresence: (isOnline) =>
+      setPresence((prev) => (prev ? { ...prev, isOnline } : prev)),
+    // G109: setelah reconnect + join ulang, pesan yang terlewat diambil
+    // via REST (kursor = halaman terbaru; mergeIncoming mendup).
+    onReconnect: () => {
+      void pollNewMessages()
+    },
+  })
+
+  // G119/G120: polling REST tetap sebagai fallback — tidak pernah
+  // dimatikan total karena socket bisa putus diam-diam tanpa event
+  // disconnect. Saat socket sehat, poll pesan melambat ke interval idle
+  // dan poll presence dimatikan (presence datang via socket).
+  const messagePollInterval = realtimeHealthy ? CHAT_POLL_IDLE_MS : pollInterval
+  usePolling(pollNewMessages, messagePollInterval, Boolean(roomId) && !error && !loading)
+  usePolling(refreshPresence, PRESENCE_POLL_MS, Boolean(roomId) && !realtimeHealthy)
 
   // ── Auto-scroll ke pesan terbaru ───────────────────────────────────────
   // Thread tumbuh ke bawah, tetapi ScrollView mulai di ATAS: membuka ruang
@@ -723,7 +791,7 @@ export default function ChatRoomScreen() {
         // Hentikan indikator mengetik setelah pesan terkirim.
         if (typingTimer.current) clearTimeout(typingTimer.current)
         typingActive.current = false
-        void sendChatTyping(roomId, false).catch((err) => logWarn("chat:typing-stop", err))
+        sendTypingRealtime(false)
         void refreshReadReceipts()
       } catch (err) {
         // CN-015: JANGAN hapus pesan — tandai gagal agar pengguna bisa retry.
@@ -972,7 +1040,7 @@ export default function ChatRoomScreen() {
     if (!roomId) return
     if (!typingActive.current) {
       typingActive.current = true
-      void sendChatTyping(roomId, true).catch((err) => logWarn("chat:typing", err))
+      sendTypingRealtime(true)
     }
     // F-07: pengguna sedang mengetik → percakapan hidup, poll cepat.
     emptyPolls.current = 0
@@ -980,9 +1048,9 @@ export default function ChatRoomScreen() {
     if (typingTimer.current) clearTimeout(typingTimer.current)
     typingTimer.current = setTimeout(() => {
       typingActive.current = false
-      void sendChatTyping(roomId, false).catch((err) => logWarn("chat:typing", err))
+      sendTypingRealtime(false)
     }, 3000)
-  }, [roomId])
+  }, [roomId, sendTypingRealtime])
 
   useEffect(() => {
     if (draft.trim()) notifyTyping()
@@ -1021,13 +1089,15 @@ export default function ChatRoomScreen() {
    * terakhir dilihat, lalu offline. `presence` null = belum termuat → baris
    * status dikosongkan supaya tinggi header tidak melompat dua kali.
    */
-  const statusText = presence
-    ? presence.isOnline
-      ? "Online"
-      : presence.lastSeenAt
-        ? `Terakhir dilihat ${formatDateTime(presence.lastSeenAt)}`
-        : "Offline"
-    : undefined
+  const statusText = counterpartTyping
+    ? "mengetik…"
+    : presence
+      ? presence.isOnline
+        ? "Online"
+        : presence.lastSeenAt
+          ? `Terakhir dilihat ${formatDateTime(presence.lastSeenAt)}`
+          : "Offline"
+      : undefined
 
   // ── Aksi mode pilih pesan (ubin ikon+label di <SelectionBar>) ──────────
   const selectionActions: SelectionAction[] = useMemo(() => {

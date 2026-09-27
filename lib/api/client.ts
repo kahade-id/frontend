@@ -76,6 +76,27 @@ export function createIdempotencyKey(): string {
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
 }
 
+/**
+ * G478: correlation ID end-to-end. Setiap request membawa `X-Request-Id`
+ * (UUID v4) — backend memakai nilai ini bila valid, men-generate bila tidak
+ * ada, dan mengembalikannya di response header untuk korelasi log.
+ * Tidak menimpa bila pemanggil sudah menyetelnya (mis. retry dengan ID sama).
+ *
+ * Koreksi integrasi 2026-09-27: bila pemanggil sudah menyetel
+ * `Idempotency-Key`, pakai nilainya sebagai correlation ID — JANGAN
+ * membangkitkan UUID baru. D-09 melarang pembuatan kunci acak saat kunci
+ * pemanggil ada (hemat UUID + pola retry manual); kunci idempotensi memang
+ * sudah merupakan ID korelasi yang valid untuk request tersebut.
+ */
+export function ensureRequestId(headers: Record<string, string>): void {
+  const get = (name: string) => {
+    const key = Object.keys(headers).find((h) => h.toLowerCase() === name)
+    return key ? headers[key] : undefined
+  }
+  if (get("x-request-id")) return
+  headers["X-Request-Id"] = get("idempotency-key") ?? createIdempotencyKey()
+}
+
 export function buildUrl(path: string, query?: QueryParams): string {
   // Prevent accidental credential leakage to a presigned/external URL. Uploads
   // deliberately use a separate unauthenticated transport.
@@ -294,6 +315,8 @@ export function refreshAccessToken(): Promise<string | null> {
       "Content-Type": "application/json",
       ...(await deviceHeaders()),
     }
+    // G478: correlation ID end-to-end.
+    ensureRequestId(headers)
     // Jalur refresh: cookie HttpOnly `kahade_refresh_token` (utama, web+native
     // dengan credentials include) ATAU body `{ refreshToken }` (cadangan mobile,
     // dibaca controller produksi: req.cookies?.kahade_refresh_token || body?.refreshToken).
@@ -514,6 +537,8 @@ async function performRequest<TResponse, TBody>(
       ...extraHeaders,
     }
     if (idempotencyKey && !headers["Idempotency-Key"]) headers["Idempotency-Key"] = idempotencyKey
+    // G478: correlation ID end-to-end (tidak menimpa bila sudah diset).
+    ensureRequestId(headers)
     if (body !== undefined) headers["Content-Type"] = "application/json"
     if (formData)
       for (const name of Object.keys(headers))
@@ -626,8 +651,8 @@ type RequiredAuth<T> = T & { auth: AuthMode }
 export const http = {
   get: <T>(path: string, options: RequiredAuth<NoBody>) =>
     request<T>(path, { ...options, method: "GET" }),
-  delete: <T>(path: string, options: RequiredAuth<NoBody>) =>
-    request<T>(path, { ...options, method: "DELETE" }),
+  delete: <T, B = undefined>(path: string, options: RequiredAuth<NoBody> & { body?: B }) =>
+    request<T, B>(path, { ...options, method: "DELETE", body: options.body }),
   post: <T, B = undefined>(path: string, body: B | undefined, options: RequiredAuth<WithBody<B>>) =>
     request<T, B>(path, { ...options, method: "POST", body }),
   put: <T, B = undefined>(path: string, body: B | undefined, options: RequiredAuth<WithBody<B>>) =>

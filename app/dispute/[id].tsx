@@ -31,7 +31,7 @@
  *     evidence, bukan pesan.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { View } from "react-native"
+import { Alert, View } from "react-native"
 import { useLocalSearchParams } from "expo-router"
 
 import { api, createIdempotencyKey } from "@/lib/api"
@@ -49,7 +49,18 @@ import type {
 } from "@/lib/api/disputes"
 import { useApiQuery } from "@/lib/use-api-query"
 import { usePolling } from "@/lib/use-polling"
-import { pickImage } from "@/lib/image-picker"
+import { pickImage, type PickedImage } from "@/lib/image-picker"
+import * as DocumentPicker from "expo-document-picker"
+import {
+  DISPUTE_ATTACHMENT_MAX_FILES,
+  isSensitiveAttachment,
+  sameDisputeContext,
+  validateDisputeAttachments,
+  type DisputeAttachmentCandidate,
+  type DisputeContext,
+} from "@/lib/dispute-attachments"
+import { uploadDirect, uploadDirectImage, cleanupUploads } from "@/lib/api/upload"
+import type { ComposerAttachment } from "@/components/ui/chat-composer"
 import { formatDateTime, formatRupiah } from "@/lib/format"
 import { tokens } from "@/lib/tokens"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
@@ -97,6 +108,16 @@ function toEvidenceFileType(mime: string): EvidenceFileType {
     : "image/jpeg"
 }
 
+
+/**
+ * GAP-B3: lampiran pesan sengketa dalam antrean composer. `_uri`/`_kind`
+ * internal (untuk retry upload) — tidak dikirim ke server.
+ */
+type QueuedMessageAttachment = ComposerAttachment & {
+  fileKey?: string
+  _uri?: string
+  _kind?: "image" | "document"
+}
 
 export default function DisputeDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
@@ -345,22 +366,166 @@ export default function DisputeDetailScreen() {
     [id, toast.show, query],
   )
 
+  // ── GAP-B3 (G126–G150): lampiran pesan sengketa ────────────────────────
+  // DP-025: composer pesan kini mendukung lampiran. Alur per berkas:
+  // pilih (kamera/galeri/dokumen PDF) → validasi kontrak backend (maks 5
+  // berkas @ ≤10MB, total ≤20MB, 9 MIME) → upload direct-upload
+  // DISPUTE_EVIDENCE (server auto-confirm) → antrean di atas composer
+  // dengan status upload/error + retry. Berkas sensitif (nama mirip
+  // dokumen identitas) memicu dialog konfirmasi (G145) sebelum dikirim.
+  const [msgAttachments, setMsgAttachments] = useState<QueuedMessageAttachment[]>([])
+  const [msgAttachSheetOpen, setMsgAttachSheetOpen] = useState(false)
+  /** G144: konteks sengketa saat upload dimulai — berubah → kirim dikunci. */
+  const msgUploadContextRef = useRef<DisputeContext | null>(null)
+  /** G137: cegah kirim ganda (tap dua kali / retry agresif). */
+  const msgSendLockRef = useRef(false)
+
+  const currentDisputeContext = useCallback((): DisputeContext | null => {
+    if (!id) return null
+    return { disputeId: id, role: myRole, status: dispute?.status }
+  }, [id, myRole, dispute?.status])
+
+  const patchMsgAttachment = useCallback(
+    (localId: string, patch: Partial<QueuedMessageAttachment>) => {
+      setMsgAttachments((prev) => prev.map((a) => (a.localId === localId ? { ...a, ...patch } : a)))
+    },
+    [],
+  )
+
+  const uploadMessageFile = useCallback(
+    async (
+      localId: string,
+      file: { uri: string; name: string; mimeType: string; size: number },
+      kind: "image" | "document",
+    ) => {
+      if (!id) return
+      // G144: kunci konteks saat upload dimulai.
+      if (!msgUploadContextRef.current) msgUploadContextRef.current = currentDisputeContext()
+      patchMsgAttachment(localId, { status: "uploading", progress: 0 })
+      try {
+        let fileKey: string
+        if (kind === "image") {
+          const picked: PickedImage = {
+            uri: file.uri,
+            name: file.name,
+            mimeType: file.mimeType,
+            size: file.size,
+          }
+          ;({ fileKey } = await uploadDirectImage(picked, "DISPUTE_EVIDENCE"))
+        } else {
+          const formData = new FormData()
+          formData.append("file", {
+            uri: file.uri,
+            name: file.name,
+            type: file.mimeType,
+          } as unknown as Blob)
+          formData.append("purpose", "DISPUTE_EVIDENCE")
+          const result = await uploadDirect(formData)
+          if (!result.fileKey) throw new Error("Kunci unggahan tidak tersedia.")
+          fileKey = result.fileKey
+        }
+        patchMsgAttachment(localId, { status: "idle", progress: 1, fileKey })
+      } catch (err) {
+        logWarn("dispute:message-attachment-upload", err)
+        patchMsgAttachment(localId, { status: "error", progress: 0 })
+      }
+    },
+    [id, currentDisputeContext, patchMsgAttachment],
+  )
+
+  const enqueueMessageAttachment = useCallback(
+    (candidate: DisputeAttachmentCandidate, file: { uri: string; name: string; mimeType: string; size: number }, kind: "image" | "document") => {
+      // G128: validasi terhadap KESELURUHAN antrean (bukan per aksi pilih).
+      const existing = {
+        count: msgAttachments.length,
+        bytes: msgAttachments.reduce((sum, a) => sum + (a.fileSize || 0), 0),
+      }
+      const validation = validateDisputeAttachments([candidate], existing)
+      if (!validation.ok) {
+        toast.show({ title: "Lampiran tidak valid", description: validation.errors[0], tone: "danger" })
+        return
+      }
+      const proceed = () => {
+        const localId = `${Date.now()}-${Math.random().toString(36).slice(2)}`
+        setMsgAttachments((prev) => [
+          ...prev,
+          {
+            localId,
+            fileName: candidate.name,
+            fileUrl: "",
+            mimeType: candidate.mimeType,
+            fileSize: candidate.size,
+            status: "uploading",
+            progress: 0,
+            _uri: file.uri,
+            _kind: kind,
+          },
+        ])
+        void uploadMessageFile(localId, file, kind)
+      }
+      // G145: heuristik dokumen sensitif → konfirmasi eksplisit.
+      if (isSensitiveAttachment(candidate.name, candidate.mimeType)) {
+        Alert.alert(
+          "Berkas sensitif?",
+          `"${candidate.name}" terlihat seperti dokumen identitas. Bukti sengketa dilihat mediator dan lawan transaksi. Tetap lampirkan?`,
+          [
+            { text: "Batal", style: "cancel" },
+            { text: "Tetap lampirkan", onPress: proceed },
+          ],
+        )
+        return
+      }
+      proceed()
+    },
+    [msgAttachments, toast, uploadMessageFile],
+  )
+
   const handleSend = useCallback(
     async (content: string) => {
       const text = content.trim()
-      if (!id || !text) return
-      // TODO(DP-025): file picker lampiran pesan sengketa. API
-      // `sendDisputeMessage(id, text, attachments)` sudah mendukung attachments
-      // [{fileKey,fileName,fileType,fileSize}]; yang belum: (1) pilih file via
-      // expo-document-picker di composer, (2) upload via jalur direct-upload
-      // dispute-evidence + konfirmasi fileKey (syarat backend:
-      // verifyEvidenceFileKeysBatch, maks 5 file @ ≤10MB, total ≤20MB),
-      // (3) antrean lampiran di atas composer dengan state upload/error.
-      // Unduhan lampiran juga follow-up (butuh endpoint signed-URL baru).
+      if (!id) return
+      // G137: kunci kirim ganda (tap dua kali / keyboard enter beruntun).
+      if (msgSendLockRef.current) return
+      // G144: konteks sengketa berubah saat upload berjalan → kunci kirim.
+      const started = msgUploadContextRef.current
+      const now = currentDisputeContext()
+      if (started && now && !sameDisputeContext(started, now)) {
+        toast.show({
+          title: "Sengketa berubah",
+          description: "Status atau peran sengketa berubah saat mengunggah — lampiran dibatalkan, pilih ulang bila perlu.",
+          tone: "danger",
+        })
+        setMsgAttachments([])
+        msgUploadContextRef.current = null
+        return
+      }
+      const ready = msgAttachments.filter((a) => (a.status ?? "idle") === "idle" && a.fileKey)
+      const pending = msgAttachments.filter((a) => (a.status ?? "idle") === "uploading")
+      if (pending.length > 0) {
+        toast.show({
+          title: "Unggahan belum selesai",
+          description: `Tunggu ${pending.length} lampiran selesai diunggah sebelum mengirim.`,
+          tone: "warning",
+        })
+        return
+      }
+      if (!text && ready.length === 0) return
+      msgSendLockRef.current = true
       setSending(true)
+      // G134: satu kunci idempotensi per percobaan kirim — retry manual
+      // setelah kegagalan tak pasti tidak menduplikasi pesan di server.
+      const idempotencyKey = createIdempotencyKey()
+      const attachments = ready.map((a) => ({
+        fileKey: a.fileKey as string,
+        fileName: a.fileName,
+        fileType: a.mimeType,
+        fileSize: a.fileSize,
+      }))
       try {
-        await api.disputes.sendDisputeMessage(id, text)
+        await api.disputes.sendDisputeMessage(id, text, attachments, idempotencyKey)
         setDraft("")
+        setMsgAttachments([])
+        msgUploadContextRef.current = null
         // M-45 (audit end-to-end, issue #44): refetch pesan TERPISAH — dulu
         // `sendDisputeMessage` + `getDisputeMessages` satu `try` dan draft sudah
         // dikosongkan: refetch gagal → "Gagal mengirim pesan" padahal pesan
@@ -372,6 +537,12 @@ export default function DisputeDetailScreen() {
           // Pesan sudah terkirim — daftar menyusul saat penyegaran berikutnya.
         }
       } catch (err) {
+        // Berkas sudah terupload tapi pesan gagal → bersihkan best-effort
+        // agar tidak menjadi orphan di storage (G-04).
+        const orphanKeys = attachments.map((a) => a.fileKey).filter(Boolean)
+        if (orphanKeys.length > 0) {
+          cleanupUploads(orphanKeys).catch((e) => logWarn("dispute:message-attachment-cleanup", e))
+        }
         // R2 (audit escrow ronde-2, butir #8): pesan mediasi adalah bukti
         // permanen — kegagalan tak pasti harus diakui sebelum pengguna mengirim
         // ulang teks yang sama.
@@ -392,9 +563,10 @@ export default function DisputeDetailScreen() {
         }
       } finally {
         setSending(false)
+        msgSendLockRef.current = false
       }
     },
-    [id, toast.show, query],
+    [id, toast.show, query, msgAttachments, currentDisputeContext],
   )
 
   // SEC-DSP-FE-03: pilihan sumber bukti — kamera untuk foto kerusakan saat itu juga,
@@ -467,6 +639,82 @@ export default function DisputeDetailScreen() {
   const handleAddEvidence = useCallback(() => {
     setEvidenceSourceOpen(true)
   }, [])
+
+
+  const pickMessageAttachment = useCallback(
+    async (source: "camera" | "library" | "document") => {
+      if (!id) return
+      if (msgAttachments.length >= DISPUTE_ATTACHMENT_MAX_FILES) {
+        toast.show({
+          title: "Batas lampiran",
+          description: `Maksimal ${DISPUTE_ATTACHMENT_MAX_FILES} lampiran per pesan.`,
+          tone: "danger",
+        })
+        return
+      }
+      if (source === "document") {
+        const result = await DocumentPicker.getDocumentAsync({
+          type: "application/pdf",
+          copyToCacheDirectory: true,
+          multiple: false,
+        })
+        if (result.canceled || !result.assets[0]) return
+        const asset = result.assets[0]
+        const candidate: DisputeAttachmentCandidate = {
+          name: asset.name,
+          mimeType: asset.mimeType ?? "application/pdf",
+          size: asset.size ?? 0,
+        }
+        enqueueMessageAttachment(
+          candidate,
+          { uri: asset.uri, name: asset.name, mimeType: candidate.mimeType, size: candidate.size },
+          "document",
+        )
+        return
+      }
+      const picked = await pickImage({ allowVideos: true, source })
+      if (picked.status === "denied") {
+        toast.show({
+          title: source === "camera" ? "Akses kamera ditolak" : "Akses galeri ditolak",
+          tone: "danger",
+        })
+        return
+      }
+      if (picked.status !== "picked") return
+      const asset = picked.asset
+      const candidate: DisputeAttachmentCandidate = {
+        name: asset.name,
+        mimeType: asset.mimeType,
+        size: asset.size,
+      }
+      enqueueMessageAttachment(
+        candidate,
+        { uri: asset.uri, name: asset.name, mimeType: asset.mimeType, size: asset.size },
+        "image",
+      )
+    },
+    [id, msgAttachments.length, toast, enqueueMessageAttachment],
+  )
+
+  const removeMessageAttachment = useCallback((localId: string) => {
+    // G133: hapus hanya dari DRAFT — berkas yang sudah terkirim tidak bisa
+    // ditarik (menjadi bukti permanen mediasi).
+    setMsgAttachments((prev) => prev.filter((a) => a.localId !== localId))
+  }, [])
+
+  const retryMessageAttachment = useCallback(
+    (localId: string) => {
+      const target = msgAttachments.find((a) => a.localId === localId)
+      if (!target || target.status !== "error" || !target._uri || !target._kind) return
+      // G136: retry memakai uri lokal yang sama — tanpa pilih ulang.
+      void uploadMessageFile(
+        localId,
+        { uri: target._uri, name: target.fileName, mimeType: target.mimeType, size: target.fileSize },
+        target._kind,
+      )
+    },
+    [msgAttachments, uploadMessageFile],
+  )
 
   const handleDeleteEvidence = useCallback(async () => {
     if (!id || !deleteEvidenceId) return
@@ -826,6 +1074,10 @@ export default function DisputeDetailScreen() {
             sending={sending}
             disabled={loading}
             labels={{ placeholder: "Tulis pesan untuk mediator & lawan transaksi…" }}
+            attachments={msgAttachments}
+            onAttach={() => setMsgAttachSheetOpen(true)}
+            onRemoveAttachment={removeMessageAttachment}
+            onRetryAttachment={retryMessageAttachment}
           />
         ) : undefined
       }
@@ -865,7 +1117,7 @@ export default function DisputeDetailScreen() {
               updatedAt={dispute.updatedAt ? formatDateTime(dispute.updatedAt) : undefined}
             />
 
-            <DisputeMessagesSection messages={messages} sending={sending} />
+            <DisputeMessagesSection messages={messages} sending={sending} disputeId={id as string} />
 
             <SectionHeader
               title="Bukti"
@@ -975,6 +1227,36 @@ export default function DisputeDetailScreen() {
         noteMax={PROPOSAL_NOTE_MAX}
         proposing={proposing}
         onSubmit={() => void handlePropose()}
+      />
+
+      {/* GAP-B3 (G126): pilih sumber lampiran pesan — kamera/galeri/dokumen. */}
+      <ActionSheet
+        title="Lampirkan berkas"
+        description="Foto, video, atau dokumen PDF. Maksimal 5 berkas @ 10 MB, total 20 MB per pesan."
+        visible={msgAttachSheetOpen}
+        onRequestClose={() => setMsgAttachSheetOpen(false)}
+        showCancel
+        cancelLabel="Batal"
+        actions={[
+          {
+            key: "camera",
+            label: "Ambil foto",
+            description: "Gunakan kamera untuk foto saat ini",
+            onPress: () => void pickMessageAttachment("camera"),
+          },
+          {
+            key: "library",
+            label: "Pilih dari galeri",
+            description: "Foto atau video yang sudah tersimpan",
+            onPress: () => void pickMessageAttachment("library"),
+          },
+          {
+            key: "document",
+            label: "Pilih dokumen",
+            description: "Berkas PDF dari perangkat",
+            onPress: () => void pickMessageAttachment("document"),
+          },
+        ]}
       />
 
       {/* SEC-DSP-FE-03: pilih sumber bukti — kamera atau galeri. */}

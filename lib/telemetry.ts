@@ -28,6 +28,7 @@
 import { Platform } from "react-native"
 import { installedAppVersion } from "@/lib/runtime-info"
 import { ApiError } from "@/lib/api/errors"
+import { redactTelemetryEvent } from "@/lib/telemetry-redaction"
 
 export type TelemetryLevel = "warn" | "error"
 
@@ -100,16 +101,19 @@ function describeError(err: unknown): string {
 }
 
 function dispatch(event: TelemetryEvent) {
-  buffer.push(event)
+  // G477: SEMUA event lewat redaksi dulu — tidak ada jalur pintas ke
+  // buffer/sink/remote tanpa redaksi.
+  const safeEvent = redactTelemetryEvent(event)
+  buffer.push(safeEvent)
   if (buffer.length > BUFFER_MAX) buffer.splice(0, buffer.length - BUFFER_MAX)
   for (const sink of sinks) {
     try {
-      sink(event)
+      sink(safeEvent)
     } catch {
       /* sink rusak tidak boleh menjatuhkan pemanggil */
     }
   }
-  void sendRemote(event)
+  void sendRemote(safeEvent)
 }
 
 /** Remote sink bawaan: aktif hanya bila EXPO_PUBLIC_TELEMETRY_URL diisi. */

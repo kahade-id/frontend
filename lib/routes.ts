@@ -70,6 +70,27 @@ export const ROUTES = {
    */
   verify2fa: "/verify-2fa" as Href,
   /**
+   * Status & pemulihan penghapusan akun PRA-LOGIN (GAP-A G052/G053/G064).
+   * User dalam masa tenggang (sesi revoked) melihat status + membatalkan
+   * via OTP WhatsApp — tanpa sesi login.
+   */
+  deletionStatus: "/deletion-status" as Href,
+  /**
+   * Kelola akun Google/Apple yang tertaut (GAP-A G013/G014/G018/G019).
+   * GET /v1/auth/social → daftar; tautan/lepas butuh re-auth.
+   */
+  socialProviders: "/social-providers" as Href,
+  /**
+   * Konfirmasi tautan sosial setelah konflik email (GAP-A G014).
+   * linkToken sekali-pakai (bukan sesi) — user membuktikan kepemilikan akun
+   * lama via kata sandi (+2FA) sebelum penautan.
+   */
+  socialLinkConfirm: (opts: { linkToken: string; maskedEmail?: string; provider: string }) =>
+    ({
+      pathname: "/social-link-confirm",
+      params: { linkToken: opts.linkToken, maskedEmail: opts.maskedEmail ?? "", provider: opts.provider },
+    }) as unknown as Href,
+  /**
    * Verifikasi email akun (POST /v1/auth/verify-email OTP, resend, correct-email).
    * `email` hanya untuk ditampilkan/prefill — bukan kredensial.
    */
@@ -254,6 +275,8 @@ export const ROUTES = {
   /** Ganti email akun (POST /v1/auth/correct-email { newEmail, password }) */
   changeEmail: "/change-email" as Href,
   biometricSettings: "/biometric-settings" as Href,
+  /** Kelola passkey/WebAuthn (GAP-A): daftar, tambah, ganti nama, hapus, pulihkan. */
+  passkeys: "/passkeys" as Href,
   notificationPreferences: "/notification-preferences" as Href,
   /**
    * Tampilan: mode terang/gelap/sistem.
@@ -454,6 +477,50 @@ export const ROUTES = {
     orderId
       ? ({ pathname: "/rate/[orderId]", params: { orderId } } as unknown as Href)
       : ("/transactions" as Href),
+  /** Detail tahap milestone satu order */
+  milestoneDetail: (milestoneId: string) =>
+    milestoneId
+      ? ({ pathname: "/milestones/[id]", params: { id: milestoneId } } as unknown as Href)
+      : ("/transactions" as Href),
+
+  // ── Katalog, retur, pelacakan, produk seller (Gap-D) ──────────────────────
+  /** Katalog produk (Gap-D: GET /v1/products) */
+  products: "/products" as Href,
+  /** Detail satu produk (Gap-D: GET /v1/products/{id}) */
+  productDetail: (productId: string) =>
+    productId
+      ? ({ pathname: "/products/[id]", params: { id: productId } } as unknown as Href)
+      : ("/products" as Href),
+  /** Daftar pengajuan retur (Gap-D: GET /v1/returns) */
+  returns: "/returns" as Href,
+  /** Form pengajuan retur baru (Gap-D: POST /v1/returns) */
+  newReturn: (orderId?: string) =>
+    ({
+      pathname: "/returns/new",
+      params: orderId ? { orderId } : {},
+    }) as unknown as Href,
+  /** Detail satu pengajuan retur (Gap-D: GET /v1/returns/{id}) */
+  returnDetail: (returnId: string) =>
+    returnId
+      ? ({ pathname: "/returns/[id]", params: { id: returnId } } as unknown as Href)
+      : ("/returns" as Href),
+  /** Detail pelacakan kiriman (Gap-D: GET /v1/shipments/{id}/tracking) */
+  trackingDetail: (shipmentId: string) =>
+    shipmentId
+      ? ({ pathname: "/tracking/[shipmentId]", params: { shipmentId } } as unknown as Href)
+      : ("/returns" as Href),
+  /** Daftar produk seller (Gap-D: GET /v1/seller/products) */
+  sellerProducts: "/seller/products" as Href,
+  /**
+   * Form tambah produk seller (Gap-D) — TIDAK ada file new.tsx; dirender
+   * app/seller/products/[id].tsx dengan id="new" (segmen dinamis menangkapnya).
+   */
+  newSellerProduct: "/seller/products/new" as Href,
+  /** Detail/edit produk seller (Gap-D) */
+  sellerProductDetail: (productId: string) =>
+    productId
+      ? ({ pathname: "/seller/products/[id]", params: { id: productId } } as unknown as Href)
+      : ("/seller/products" as Href),
 } as const
 
 /**

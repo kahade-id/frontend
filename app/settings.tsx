@@ -35,6 +35,7 @@ import { useCallback, useState } from "react"
 import { Platform, View } from "react-native"
 import { router, type Href } from "expo-router"
 import {
+  ArrowUDownLeft,
   Bell,
   Briefcase,
   Buildings,
@@ -49,6 +50,7 @@ import {
   Scales,
   Shield,
   ShieldCheck,
+  ShoppingBag,
   SignOut,
   Storefront,
   Translate,
@@ -170,6 +172,13 @@ export default function SettingsScreen() {
       icon: Storefront,
       route: ROUTES.businessVerification,
     },
+  ]
+
+  // ── Toko & Pesanan (Gap-D: katalog, retur, produk seller) ──────────────
+  const shopItems: MenuItemData[] = [
+    { id: "products", label: "Katalog Produk", icon: ShoppingBag, route: ROUTES.products },
+    { id: "returns", label: "Retur Saya", icon: ArrowUDownLeft, route: ROUTES.returns },
+    { id: "seller-products", label: "Produk Saya", icon: Storefront, route: ROUTES.sellerProducts },
   ]
 
   // ── Preferensi ──────────────────────────────────────────────────
@@ -316,6 +325,12 @@ export default function SettingsScreen() {
             <View className="gap-2">
               <MenuGroupLabel>Akun</MenuGroupLabel>
               {renderGroup(accountItems)}
+            </View>
+
+            {/* ── Toko & Pesanan ───────────────────────────────── */}
+            <View className="gap-2">
+              <MenuGroupLabel>Toko &amp; Pesanan</MenuGroupLabel>
+              {renderGroup(shopItems)}
             </View>
 
             {/* ── Preferensi ───────────────────────────────────── */}

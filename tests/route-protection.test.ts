@@ -39,6 +39,7 @@ const PUBLIC_SCREENS = new Set<string>([
   "(auth)/register",
   "(auth)/register-security",
   "(auth)/reset-password",
+  "(auth)/social-link-confirm", // konfirmasi tautan sosial via linkToken — corong auth pra-sesi, auth:"none" (Tim A, integrasi 2026-09-27)
   "(auth)/verify-2fa",
   "(auth)/verify-otp",
   "(auth)/whatsapp-trigger",
@@ -48,6 +49,7 @@ const PUBLIC_SCREENS = new Set<string>([
   "app-version", // info versi (GET /v1/public/app-version, auth none)
   "appearance", // preferensi tema lokal, tanpa API ber-auth
   "contact",
+  "deletion-status", // status hapus akun via deletionToken — tanpa sesi (Tim A, integrasi 2026-09-27)
   "faq",
   "feedback",
   "help/[slug]",
@@ -62,6 +64,8 @@ const PUBLIC_SCREENS = new Set<string>([
   // corong share wajib bisa dibuka tamu; aksi Terima/Tolak digerbang sesi di
   // dalam layar (dialihkan ke login membawa next-path).
   "order-link/[token]",
+  "products/index", // katalog publik — GET /v1/products @Public() (GAP-D, integrasi 2026-09-27)
+  "products/[id]", // detail produk publik — GET /v1/products/:id @Public() (GAP-D, integrasi 2026-09-27)
   "scan",
 ])
 

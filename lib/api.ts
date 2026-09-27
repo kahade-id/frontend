@@ -18,21 +18,28 @@
  * dengan `npm run gen:api` bila spec berubah.
  */
 import * as auth from "@/lib/api/auth"
+import * as accountDeletion from "@/lib/api/account-deletion"
 import * as badges from "@/lib/api/badges"
 import * as bankAccounts from "@/lib/api/bank-accounts"
 import * as businessVerification from "@/lib/api/business-verification"
 import * as chat from "@/lib/api/chat"
+import * as courier from "@/lib/api/courier"
 import * as deeplinks from "@/lib/api/deeplinks"
 import * as disputes from "@/lib/api/disputes"
 import * as helpCenter from "@/lib/api/help-center"
 import * as kyc from "@/lib/api/kyc"
+import * as milestones from "@/lib/api/milestones"
 import * as notifications from "@/lib/api/notifications"
 import * as orders from "@/lib/api/orders"
+import * as passkey from "@/lib/api/passkey"
+import * as products from "@/lib/api/products"
 import * as publicApi from "@/lib/api/public"
 import * as ratings from "@/lib/api/ratings"
 import * as referrals from "@/lib/api/referrals"
+import * as returns from "@/lib/api/returns"
 import * as search from "@/lib/api/search"
 import * as sessions from "@/lib/api/sessions"
+import * as social from "@/lib/api/social"
 import * as showcase from "@/lib/api/showcase"
 import * as settings from "@/lib/api/settings"
 import * as subscriptions from "@/lib/api/subscriptions"
@@ -88,26 +95,50 @@ export type {
   OrderSummary,
   Paginated,
 } from "@/lib/api/orders"
+export {
+  acceptMilestone,
+  attachMilestoneEvidence,
+  approveMilestoneChange,
+  getMilestone,
+  listOrderMilestones,
+  normalizeMilestone,
+  proposeMilestoneChange,
+  remainingRevisions,
+  requestMilestoneRevision,
+  submitMilestone,
+  type MilestoneChangeRequest,
+  type MilestoneEvidence,
+  type MilestoneEvent,
+  type MilestoneStatus,
+  type OrderMilestone,
+} from "@/lib/api/milestones"
 export type { UserSearchResult, UserProfile } from "@/lib/api/users"
 export type { FavoriteRecipient, Wallet, WalletTransaction } from "@/lib/api/wallet"
 
 export const api = {
   auth,
+  accountDeletion,
   badges,
   bankAccounts,
   businessVerification,
   chat,
+  courier,
   deeplinks,
   disputes,
   helpCenter,
   kyc,
+  milestones,
   notifications,
   orders,
+  passkey,
+  products,
   public: publicApi,
   ratings,
   referrals,
+  returns,
   search,
   sessions,
+  social,
   showcase,
   settings,
   subscriptions,

@@ -26,6 +26,7 @@ import { logWarn } from "@/lib/telemetry"
 
 import { Alert } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Chip } from "@/components/ui/chip"
 import { Field } from "@/components/ui/field"
 import { FadeIn } from "@/components/ui/fade-in"
@@ -47,6 +48,8 @@ export default function FeedbackScreen() {
   const [category, setCategory] = useState<FeedbackCategory>(FEEDBACK_CATEGORIES[0])
   const [message, setMessage] = useState("")
   const [contact, setContact] = useState("")
+  /** Default false — opsional, hanya bermakna bila kontak diisi. */
+  const [contactConsent, setContactConsent] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [queuedCount, setQueuedCount] = useState(0)
 
@@ -83,6 +86,7 @@ export default function FeedbackScreen() {
         category,
         message: trimmed,
         contact: contact.trim() || undefined,
+        contactConsent,
       })
       if (result.status === "queued") {
         toast.show({
@@ -102,6 +106,7 @@ export default function FeedbackScreen() {
       }
       setMessage("")
       setContact("")
+      setContactConsent(false)
       void queuedFeedbackCount().then(setQueuedCount).catch((err) => logWarn("feedback:queue-count", err))
     } catch (err) {
       toast.show({
@@ -112,7 +117,7 @@ export default function FeedbackScreen() {
     } finally {
       setSubmitting(false)
     }
-  }, [category, contact, submitting, toast, trimmed, valid])
+  }, [category, contact, contactConsent, submitting, toast, trimmed, valid])
 
   return (
     <Screen
@@ -205,6 +210,13 @@ export default function FeedbackScreen() {
                 keyboardType="default"
               />
             </Field>
+
+            <Checkbox
+              checked={contactConsent}
+              onChange={setContactConsent}
+              label="Boleh dihubungi terkait masukan ini"
+              description="Tim Kahade boleh menghubungi Anda untuk menindaklanjuti masukan ini. Kontak tamu dihapus otomatis setelah 90 hari."
+            />
 
             {/* D-12 (audit): persetujuan eksplisit penyimpanan lokal —
                 antrean luring bisa memuat email/konteks transaksi (PII).

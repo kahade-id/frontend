@@ -10,7 +10,7 @@
 import { useState } from "react"
 import { View } from "react-native"
 import { router } from "expo-router"
-import { ChatCircleDots, Receipt, ShieldWarning, Timer } from "phosphor-react-native"
+import { ArrowUDownLeft, ChatCircleDots, Receipt, ShieldWarning, Timer } from "phosphor-react-native"
 
 import {
   cancelOrder,
@@ -470,6 +470,7 @@ export function OrderSecondaryActions({
   isDisputed,
   canDispute,
   canCancel,
+  canReturn,
   submitting,
   onOpenSheet,
 }: {
@@ -480,6 +481,8 @@ export function OrderSecondaryActions({
   isDisputed: boolean
   canDispute: boolean
   canCancel: boolean
+  /** Pembeli + order COMPLETED — layar /returns/new memverifikasi ulang syarat via server. */
+  canReturn: boolean
   submitting: boolean
   onOpenSheet: (sheet: "dispute" | "cancel") => void
 }) {
@@ -548,6 +551,16 @@ export function OrderSecondaryActions({
           onPress={() => onOpenSheet("dispute")}
         >
           Ajukan sengketa
+        </Button>
+      ) : null}
+      {canReturn ? (
+        <Button
+          variant="secondary"
+          size="sm"
+          leftIcon={ArrowUDownLeft}
+          onPress={() => router.push(ROUTES.newReturn(order.id))}
+        >
+          Ajukan retur
         </Button>
       ) : null}
       {canCancel ? (
