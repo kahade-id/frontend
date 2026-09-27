@@ -553,15 +553,25 @@ export default function TopupScreen() {
                   const finalStatus = mapValue(STATUS, result?.status, undefined)
                   if (finalStatus) {
                     const ok = finalStatus === "SUCCESS"
+                    // FE-IMP-4 item 25: QRIS/kode bayar kedaluwarsa ditonjolkan
+                    // dengan CTA regenerate — bukan sekadar struk "gagal".
+                    const expired = finalStatus === "EXPIRED"
                     const receiptStatus: ReceiptStatus = ok ? "SUCCESS" : "FAILED"
                     const methodLabel =
                       methods.find((m) => m.id === (result?.method ?? methodId))?.name ??
                       result?.method ??
                       ""
                     return (
-                      <ReceiptTicket
-                        status={receiptStatus}
-                        title={ok ? "Top-up berhasil" : "Top-up gagal"}
+                      <>
+                        <ReceiptTicket
+                          status={receiptStatus}
+                          title={
+                            ok
+                              ? "Top-up berhasil"
+                              : expired
+                                ? "Kode pembayaran kedaluwarsa"
+                                : "Top-up gagal"
+                          }
                         amount={result?.grossAmount ?? result?.amount ?? amount}
                         // Dana masuk — hijau, konsisten dengan baris riwayat.
                         amountTone={ok ? "success" : "primary"}
@@ -582,6 +592,19 @@ export default function TopupScreen() {
                         onShare={() => void shareReceipt(topupTicketRef.current)}
                         onCopyReceiptId={(id) => void copy(id)}
                       />
+                        {expired ? (
+                          <Button
+                            variant="primary"
+                            fullWidth
+                            onPress={() => {
+                              setResult(null)
+                              setStep("method")
+                            }}
+                          >
+                            Buat kode pembayaran baru
+                          </Button>
+                        ) : null}
+                      </>
                     )
                   }
                   return (
