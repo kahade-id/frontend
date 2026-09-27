@@ -37,7 +37,7 @@ import { Camera as CameraIcon, Image as ImageIcon, Images, Trash } from "phospho
 import { api, type UpdateProfileDto, userMessage } from "@/lib/api"
 import { pickImage, pickedImageToFormData, type PickImageOptions } from "@/lib/image-picker"
 import { goBackOrNavigate } from "@/lib/navigation"
-import { logWarn } from "@/lib/telemetry"
+import { useAvatarUpload } from "@/lib/use-avatar-upload"
 import { resolveMediaUrl } from "@/lib/media"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
@@ -60,6 +60,7 @@ import { Icon } from "@/components/ui/icon"
 import { IconButton } from "@/components/ui/icon-button"
 import { Input } from "@/components/ui/input"
 import { PasswordField } from "@/components/ui/password-field"
+import { ProgressBar } from "@/components/ui/progress-bar"
 import { normalizePhoneId, PhoneInput, toE164Id } from "@/components/ui/phone-input"
 import { Picture } from "@/components/ui/picture"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
@@ -72,7 +73,6 @@ import { TextArea } from "@/components/ui/text-area"
 import { UsernameField, type UsernameAvailability } from "@/components/ui/username-field"
 import { useToast } from "@/components/ui/toast"
 
-const AVATAR_PICKER: PickImageOptions = { square: true }
 /** Sampul dipotong melebar (rasio ~2.6:1 di ProfileHeader), bukan persegi. */
 const COVER_PICKER: PickImageOptions = { allowsEditing: true, aspect: [16, 6] }
 /** Tinggi pratinjau sampul — harus sama dengan COVER_HEIGHT di ProfileHeader. */
@@ -140,7 +140,9 @@ export default function EditProfileScreen() {
   const [submitting, setSubmitting] = useState(false)
 
   const [avatarSheetOpen, setAvatarSheetOpen] = useState(false)
-  const [avatarBusy, setAvatarBusy] = useState(false)
+  // Item 66 (mega-batch 2026-09-28): progress bar saat mengunggah + tombol
+  // "Coba lagi" saat gagal, via hook terpadu useAvatarUpload.
+  const avatar = useAvatarUpload({ onAvatarUrl: setAvatarUrl })
 
   // Foto sampul (header image) profil — endpoint /v1/users/me/header/*.
   const [headerUrl, setHeaderUrl] = useState<string | null>(null)
@@ -324,80 +326,19 @@ export default function EditProfileScreen() {
     void save()
   }, [dirty, needsPassword, save, submitting])
 
-  // ── Avatar ─────────────────────────────────────────────────────────────
-  const uploadAvatar = useCallback(
-    async (source: PickImageOptions["source"]) => {
-      const picked = await pickImage({ ...AVATAR_PICKER, source })
-      if (picked.status === "denied") {
-        toast.show({
-          title: source === "camera" ? translate("Izin kamera ditolak") : translate("Izin galeri ditolak"),
-          description: translate("Aktifkan di pengaturan perangkat."),
-          tone: "danger",
-        })
-        return
-      }
-      if (picked.status !== "picked") return
-      setAvatarBusy(true)
-      /**
-       * G-04: avatarKey yang sudah terupload tetapi confirmAvatar-nya gagal
-       * adalah orphan di S3 — bersihkan best-effort. Kunci dianggap terpakai
-       * (di-clear) begitu confirm berhasil.
-       */
-      let orphanKey: string | undefined
-      try {
-        const uploaded = await api.users.uploadAvatarDirect(
-          await pickedImageToFormData(picked.asset),
-        )
-        orphanKey = uploaded.avatarKey ?? undefined
-        if (uploaded.avatarKey) {
-          await api.users.confirmAvatar({ avatarKey: uploaded.avatarKey })
-          orphanKey = undefined
-        }
-        if (uploaded.avatarUrl) setAvatarUrl(uploaded.avatarUrl)
-        toast.show({ title: translate("Foto profil diperbarui"), tone: "success" })
-      } catch (err: unknown) {
-        if (orphanKey) {
-          api.upload
-            .cleanupUploads([orphanKey])
-            .catch((cleanupErr: unknown) => logWarn("profile:avatar-cleanup", cleanupErr))
-        }
-        toast.show({
-          title: translate("Gagal mengunggah foto"),
-          description: userMessage(err),
-          tone: "danger",
-        })
-      } finally {
-        setAvatarBusy(false)
-      }
-    },
-    [toast.show],
-  )
-
-  const removeAvatar = useCallback(async () => {
-    setAvatarBusy(true)
-    try {
-      await api.users.deleteAvatar()
-      setAvatarUrl(null)
-      toast.show({ title: translate("Foto profil dihapus"), tone: "success" })
-    } catch (err: unknown) {
-      toast.show({ title: translate("Gagal menghapus foto"), description: userMessage(err), tone: "danger" })
-    } finally {
-      setAvatarBusy(false)
-    }
-  }, [toast.show])
-
+  // ── Avatar (via useAvatarUpload — progress + retry item 66) ──────────
   const avatarActions: ActionSheetItem[] = [
     {
       key: "camera",
       label: translate("Ambil foto"),
       icon: CameraIcon,
-      onPress: () => void uploadAvatar("camera"),
+      onPress: () => void avatar.upload("camera"),
     },
     {
       key: "gallery",
       label: translate("Pilih dari galeri"),
       icon: Images,
-      onPress: () => void uploadAvatar("library"),
+      onPress: () => void avatar.upload("library"),
     },
     ...(avatarUrl
       ? [
@@ -406,7 +347,7 @@ export default function EditProfileScreen() {
             label: translate("Hapus foto"),
             icon: Trash,
             destructive: true,
-            onPress: () => void removeAvatar(),
+            onPress: () => void avatar.remove(),
           } satisfies ActionSheetItem,
         ]
       : []),
@@ -600,12 +541,32 @@ export default function EditProfileScreen() {
                     size="sm"
                     shape="pill"
                     accessibilityLabel={translate("Ubah foto profil")}
-                    loading={avatarBusy}
-                    disabled={avatarBusy}
+                    loading={avatar.busy}
+                    disabled={avatar.busy}
                     onPress={() => setAvatarSheetOpen(true)}
                   />
                 </View>
               </View>
+              {/* Item 66 (2026-09-28): progress saat mengunggah + error inline
+                  dengan tombol "Coba lagi" (tanpa pilih ulang foto). */}
+              {avatar.busy ? (
+                <View className="w-44 items-center gap-1.5 pt-2">
+                  <ProgressBar size="sm" className="w-full" accessibilityLabel={translate("Mengunggah foto profil")} />
+                  <Text variant="caption" tone="secondary">
+                    {translate("Mengunggah foto…")}
+                  </Text>
+                </View>
+              ) : null}
+              {avatar.error && !avatar.busy ? (
+                <View className="items-center gap-1.5 pt-2">
+                  <Text variant="caption" tone="danger" className="text-center">
+                    {avatar.error}
+                  </Text>
+                  <Button size="sm" variant="secondary" fullWidth={false} onPress={() => void avatar.retry()}>
+                    {translate("Coba lagi")}
+                  </Button>
+                </View>
+              ) : null}
             </View>
 
             <FormSection title={translate("Informasi dasar")}>
