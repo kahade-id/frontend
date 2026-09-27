@@ -35,7 +35,6 @@ import { View } from "react-native"
 
 import { BottomSheet, type BottomSheetProps } from "@/components/ui/bottom-sheet"
 import { Button } from "@/components/ui/button"
-import { Divider } from "@/components/ui/divider"
 import { Icon, type IconComponent } from "@/components/ui/icon"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
@@ -96,15 +95,10 @@ export function ActionSheet({
       {...sheetProps}
     >
       <View accessibilityRole="menu">
-        {/* Revisi 2026-09-23: pemisah antar baris DIHAPUS — list tenang tanpa
-            garis berulang. Yang tersisa TEPAT DUA (permintaan produk): satu di
-            bawah title (bingkai atas grup aksi) dan satu di ATAS aksi paling
-            bawah (aksen "baris terakhir berbeda", pola menu iOS untuk aksi
-            destruktif/terpisah). */}
-        {actions.length > 0 ? <Divider /> : null}
-        {actions.map((item, index) => (
+        {/* Revisi 2026-09-27: kedua Divider dihapus atas permintaan produk —
+            list aksi tampil bersih tanpa garis pemisah. */}
+        {actions.map((item) => (
           <View key={item.key}>
-            {index === actions.length - 1 && actions.length > 1 ? <Divider /> : null}
             <PressableScale
               accessibilityRole="menuitem"
               scaleOnPress={false}
