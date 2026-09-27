@@ -45,8 +45,9 @@ import type { CreateShowcaseItemDto } from "@/lib/api/types"
 import { API_CONSTRAINTS } from "@/lib/api/constraints"
 import { getSessionRevision } from "@/lib/api/session"
 import { useSessionRevision } from "@/lib/guest-gate"
-import { pickImages, type PickedImage } from "@/lib/image-picker"
+import { pickImages, pickedImageToBlob, type PickedImage } from "@/lib/image-picker"
 import { markShowcaseFeedDirty } from "@/lib/showcase-social-prefs"
+import { partitionAssetsBySize, resolveCreateAttempt } from "@/lib/showcase-state"
 import { SHOWCASE_IMAGE_MAX_BYTES, getShowcasePhotoLimit } from "@/lib/showcase-limits"
 import { useKahadePlus } from "@/lib/use-kahade-plus"
 import { ShowcaseHtmlDescriptionEditor } from "@/components/ui/showcase-html-description-editor"
@@ -59,6 +60,7 @@ import {
   isDraftMeaningful,
   type ShowcaseDraft,
 } from "@/lib/showcase-draft"
+import { showcasePriceLabelOrFallback } from "@/lib/showcase-labels"
 import { tokens } from "@/lib/tokens"
 import { translate } from "@/lib/i18n/translate"
 import { useLanguage } from "@/lib/i18n"
@@ -313,9 +315,32 @@ export default function ShowcaseCreateScreen() {
         return
       }
       if (picked.status !== "picked" || controller.signal.aborted) return
+      // SH-F-005 (audit 2026-09-27): aset yang ukurannya tidak dilaporkan
+      // platform (size 0, Android lama) JANGAN lolos diam-diam — baca ukuran
+      // aktual dari bytes dulu; bila tetap tak diketahui, TOLAK dengan pesan
+      // jelas (jangan fail-open ke upload yang berujung 413/gantung).
+      const sizedAssets = await Promise.all(
+        picked.assets.map(async (asset) => {
+          if (asset.size > 0) return asset
+          try {
+            const blob = await pickedImageToBlob(asset)
+            return blob.size > 0 ? { ...asset, size: blob.size } : asset
+          } catch {
+            return asset
+          }
+        }),
+      )
+      const { tooBig, unknownSize } = partitionAssetsBySize(sizedAssets, SHOWCASE_IMAGE_MAX_BYTES)
+      if (unknownSize.length > 0) {
+        setPhotoError(
+          translate("Ukuran foto {x} tidak dapat dibaca. Pilih ulang foto tersebut.", {
+            x: unknownSize.map((a) => a.name ?? translate("tanpa nama")).join(", "),
+          }),
+        )
+        return
+      }
       // S6: validasi ukuran SEBELUM upload — maks 5MB (selaras backend
       // UploadPurpose.SHOWCASE_IMAGE). Tampilkan nama file yang ditolak.
-      const tooBig = picked.assets.filter((a) => (a.size ?? 0) > SHOWCASE_IMAGE_MAX_BYTES)
       if (tooBig.length > 0) {
         setPhotoError(
           translate("Foto {x} melebihi {y} MB.", {
@@ -333,15 +358,15 @@ export default function ShowcaseCreateScreen() {
       let completed = 0
       const bump = () => {
         completed += 1
-        setUploadProgress(completed / picked.assets.length)
+        setUploadProgress(completed / sizedAssets.length)
         setProgress(
           translate("Mengunggah foto {x} dari {y}", {
             x: completed,
-            y: picked.assets.length,
+            y: sizedAssets.length,
           }),
         )
       }
-      const queue = [...picked.assets]
+      const queue = [...sizedAssets]
       const workers = Array.from({ length: Math.min(CONCURRENCY, queue.length) }, async () => {
         while (queue.length > 0) {
           if (controller.signal.aborted) return
@@ -379,7 +404,7 @@ export default function ShowcaseCreateScreen() {
           toast.show({
             title: translate("{x} dari {y} foto gagal diunggah", {
               x: failures.length,
-              y: picked.assets.length,
+              y: sizedAssets.length,
             }),
             description: detail,
             tone: "warning",
@@ -511,10 +536,14 @@ export default function ShowcaseCreateScreen() {
     try {
       // Idempotency-Key: mengirim ulang setelah timeout memakai kunci yang
       // SAMA, jadi karya tidak tercatat dua kali.
-      createAttempt.current ??= {
-        key: createIdempotencyKey(),
-        dto: { ...payload, imageFileKeys: previews.map((entry) => entry.fileKey) },
-      }
+      // SH-F-006 (audit 2026-09-27): retry memakai kunci yang SAMA tetapi DTO
+      // dibangun ulang dari form TERKINI — pengguna boleh mengedit form saat
+      // status belum pasti; DTO basi percobaan pertama tidak boleh terkirim.
+      createAttempt.current = resolveCreateAttempt(
+        createAttempt.current?.key ?? null,
+        () => ({ ...payload, imageFileKeys: previews.map((entry) => entry.fileKey) }),
+        createIdempotencyKey,
+      )
       await api.users.createShowcase(createAttempt.current.dto, createAttempt.current.key)
       createAttempt.current = null
       pendingKeys.current = []
@@ -794,6 +823,16 @@ export default function ShowcaseCreateScreen() {
             errorText={priceError}
             disabled={busy || uncertainCreate}
           />
+          {/* IMP-F-013: pratinjau label harga live — pengguna memverifikasi
+              "Rp 1.500.000" (dengan pemisah ribuan) sebelum terbit. Satu baris
+              teks, bukan redesign. */}
+          {form.priceMin != null || form.priceMax != null ? (
+            <Text variant="caption" tone="secondary" accessibilityLiveRegion="polite">
+              {translate("Pratinjau: {x}", {
+                x: showcasePriceLabelOrFallback({ priceMin: form.priceMin, priceMax: form.priceMax }),
+              })}
+            </Text>
+          ) : null}
 
           <View className="flex-row items-center justify-between gap-3">
             <View className="flex-1 gap-1">

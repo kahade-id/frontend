@@ -44,6 +44,42 @@ export function applyShowcaseCommentCountDelta(
   return changed ? next : items
 }
 
+/**
+ * Clamp hitungan sosial: negatif/NaN/Infinity/bukan-angka → 0.
+ * Selaras dengan `count()` di `parseShowcaseItem` (lib/api/showcase.ts) —
+ * satu semantik agar jalur profil tidak lagi menampilkan "-3 Suka"
+ * (SH-F-010, audit 2026-09-27).
+ */
+export function clampShowcaseCount(value: unknown): number {
+  return typeof value === "number" && Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0
+}
+
+/** Nilai like dari SERVER untuk satu item (snapshot pembanding override). */
+export type ServerLikeState = { isLiked: boolean; likeCount: number }
+
+/**
+ * SH-F-001 (audit 2026-09-27): kapan override like optimistis boleh dibuang
+ * saat objek `item` berganti identitas?
+ *
+ * `mergeById` (load-more) dan ledger komentar (`applyShowcaseCommentCountDelta`)
+ * membuat objek BARU untuk data yang SAMA — override yang sudah dikonfirmasi
+ * server tidak boleh hilang karenanya (hati padam sendiri).
+ *
+ *  - mutasi like masih berjalan → JANGAN (hasil optimistis belum pasti)
+ *  - belum ada snapshot server → JANGAN (tak bisa membuktikan data berubah)
+ *  - nilai server BERUBAH vs snapshot → YA (data definitif baru tiba)
+ *  - nilai server sama → TIDAK (identitas baru, data sama)
+ */
+export function shouldClearLikeOverride(
+  prevServer: ServerLikeState | undefined,
+  nextServer: ServerLikeState,
+  mutationPending: boolean,
+): boolean {
+  if (mutationPending) return false
+  if (!prevServer) return false
+  return prevServer.isLiked !== nextServer.isLiked || prevServer.likeCount !== nextServer.likeCount
+}
+
 /** Judul fallback SATU-SATUNYA untuk item tanpa judul (audit J-04). */
 export function untitledShowcaseTitle(): string {
   return translate("Tanpa judul")
@@ -90,15 +126,23 @@ export function toSocialShowcaseItem(
     ? raw.images
         .map((image, index) => {
           const url = resolveMediaUrl(image?.imageUrl)
+          // SH-F-010: sortOrder asing → fallback indeks (selaras parseShowcaseItem).
+          const sortOrder =
+            typeof image?.sortOrder === "number" && Number.isFinite(image.sortOrder)
+              ? image.sortOrder
+              : index
           return url
             ? {
                 id: image.id ?? `${item.id}-${index}`,
                 imageUrl: url,
-                sortOrder: image.sortOrder ?? index,
+                sortOrder,
               }
             : null
         })
         .filter((image): image is { id: string; imageUrl: string; sortOrder: number } => image != null)
+        // SH-F-010: urutkan by sortOrder seperti parseShowcaseItem — cover di
+        // tab Etalase profil tidak boleh beda urutan dari feed/detail.
+        .sort((a, b) => a.sortOrder - b.sortOrder)
     : []
   if (images.length === 0) {
     const cover = showcaseCoverOf(item)
@@ -114,9 +158,9 @@ export function toSocialShowcaseItem(
     imageUrl: item.imageUrl ?? null,
     priceMin: item.priceMin ?? null,
     priceMax: item.priceMax ?? null,
-    likeCount: typeof raw.likeCount === "number" ? raw.likeCount : 0,
-    commentCount: typeof raw.commentCount === "number" ? raw.commentCount : 0,
-    viewCount: typeof raw.viewCount === "number" ? raw.viewCount : 0,
+    likeCount: clampShowcaseCount(raw.likeCount),
+    commentCount: clampShowcaseCount(raw.commentCount),
+    viewCount: clampShowcaseCount(raw.viewCount),
     isLiked: getInitialIsLiked(raw),
     isOwner: raw.isOwner === true || isSelf ? true : undefined,
     createdAt: item.createdAt,

@@ -3,7 +3,6 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import {
-  Image,
   ScrollView,
   View,
   type TextInput,
@@ -61,6 +60,7 @@ import { Input } from "@/components/ui/input"
 import type { LoadMoreStatus } from "@/components/ui/load-more"
 import { MediaViewer, type MediaViewerItem } from "@/components/ui/media-viewer"
 import { Dialog } from "@/components/ui/modal"
+import { Picture } from "@/components/ui/picture"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { ShowcaseAuthorRow } from "@/components/showcase-author-row"
 import { Radio, RadioGroup } from "@/components/ui/radio"
@@ -97,7 +97,11 @@ export default function ShowcaseDetailScreen() {
     Boolean(id),
     // D-08 (audit 2026-09-23): jangan `retry: 0` di lapis hook — satu
     // gangguan jaringan sesaat tidak boleh langsung layar error penuh.
-    { useCache: false, refreshOnFocus: true },
+    // SH-F-009 (audit 2026-09-27): TANPA refreshOnFocus — GET /v1/showcase/:id
+    // MENAIKKAN viewCount, jadi refetch tiap kembali fokus (dari komentar,
+    // ganti tab, dsb.) menggelembungkan view. Penyegaran manual tetap ada
+    // lewat tarik-untuk-menyegarkan (query.refresh di DataScreen).
+    { useCache: false },
   )
   const item = query.data
 
@@ -231,9 +235,9 @@ function ShowcaseDetailContent({
     if (hasSession) void api.users.getMeCached().then((me) => {
       if (alive) {
         // BUG#1 (2026-09-26): meId dipakai untuk dibandingkan dengan
-        // author.userId (public USR-XXX dari backend) — pakai me.userId,
-        // BUKAN me.id (cuid internal) yang tidak pernah cocok.
-        setMeId(me.userId ?? me.id ?? null)
+        // author.userId (public USR-XXX dari backend) — pakai pickPublicUserId
+        // (userId publik), BUKAN me.id (cuid internal) yang tidak pernah cocok.
+        setMeId(api.users.pickPublicUserId(me))
         setMeUsername(me.username ?? null)
       }
     }).catch(() => { if (alive) { setMeId(null); setMeUsername(null) } })
@@ -836,11 +840,15 @@ function ShowcaseDetailContent({
                   containerClassName={cn("w-36 overflow-hidden rounded-xl bg-surface-elevated", focusRing)}
                 >
                   {cover ? (
-                    <Image
-                      source={{ uri: cover }}
+                    // SH-F-007: <Picture> (bukan RN Image mentah) — URL rusak
+                    // menampilkan fallback ikon, bukan kotak kosong.
+                    // bordered=false + radius=none: tampilan identik dengan sebelumnya.
+                    <Picture
+                      source={cover}
+                      alt={rel.title}
                       className="h-24 w-36"
-                      resizeMode="cover"
-                      accessibilityLabel={rel.title}
+                      radius="none"
+                      bordered={false}
                     />
                   ) : (
                     <View className="h-24 w-36 items-center justify-center bg-surface">

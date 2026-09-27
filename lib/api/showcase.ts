@@ -539,7 +539,13 @@ export function parseShowcaseItem(raw: unknown): ShowcaseSocialItem {
     category: typeof value.category === "string"
       ? value.category.trim().replace(/\s+/g, " ")
       : null,
-    visibility: typeof value.visibility === "string" ? value.visibility : undefined,
+    // SH-F-011 (audit 2026-09-27): whitelist enum — nilai asing ("FOLLOWERS",
+    // "UNLISTED", dst.) JANGAN fail-open ke publik; turunkan ke undefined
+    // dan biarkan pemanggil memutuskan aman (fail-closed).
+    visibility:
+      value.visibility === "PUBLIC" || value.visibility === "PRIVATE"
+        ? value.visibility
+        : undefined,
     isActive: typeof value.isActive === "boolean" ? value.isActive : undefined,
     coverImageUrl: typeof value.coverImageUrl === "string" ? value.coverImageUrl : null,
     imageUrl: typeof value.imageUrl === "string" ? value.imageUrl : null,

@@ -45,7 +45,7 @@ import {
   type ShowcaseSocialItem,
 } from "@/lib/api/showcase"
 import { createIdempotencyKey, isApiError, userMessage } from "@/lib/api"
-import { getMeCached } from "@/lib/api/users"
+import { getMeCached, pickPublicUserId } from "@/lib/api/users"
 import { useCopy } from "@/lib/clipboard"
 import { queueShowcaseCommentCount } from "@/lib/showcase-social-prefs"
 import { SHOWCASE_COMMENT_MESSAGES } from "@/lib/showcase-comment-messages"
@@ -122,7 +122,11 @@ export function ShowcaseCommentsSheet({
       const p = getMeCached?.()
       if (p && typeof p.then === "function") {
         p.then((u) => {
-          if (u?.id) setMeId(u.id)
+          // SH-F-002 (2026-09-27): meId dibandingkan dengan author.userId
+          // (public USR-XXX) — pakai pickPublicUserId (userId publik), BUKAN
+          // u.id (cuid internal) yang tidak pernah cocok. Sebelumnya menu
+          // "Hapus komentar" tak pernah muncul untuk komentar sendiri.
+          setMeId(pickPublicUserId(u))
         }).catch(() => undefined)
       }
     } catch {

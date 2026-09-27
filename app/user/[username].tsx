@@ -46,6 +46,7 @@ import {
 import { useCopy } from "@/lib/clipboard"
 import { profileUrl } from "@/lib/deeplinks"
 import { formatDateTime, formatDecimal, formatNumber } from "@/lib/format"
+import { acquireShowcaseMutation } from "@/lib/showcase-state"
 import { useHasSession } from "@/lib/guest-gate"
 import { goBackOrNavigate } from "@/lib/navigation"
 import { resolveMediaUrl } from "@/lib/media"
@@ -465,6 +466,17 @@ export default function UserProfileScreen() {
       // P3 (audit 2026-09-26): tamu diarahkan login dulu — jangan tembak
       // endpoint lalu gagal 401 dengan toast "Gagal mengikuti".
       if (!requireSession()) return
+      // SH-F-004 (audit 2026-09-27): kunci in-flight per-handle — guard
+      // boolean `followLoading` saja balapan antar dua tap cepat (keduanya
+      // membaca state lama sebelum setState pertama diterapkan), sehingga
+      // follow+unfollow bisa terkirim bersamaan dan state akhir berlawanan
+      // dengan server. Kunci sinkron ini menolak tap kedua seketika.
+      const release = acquireShowcaseMutation(`follow:${handle}`)
+      if (!release) return
+      // Rollback memakai SNAPSHOT nilai sebelum optimistis (bukan `!next`) —
+      // bila state sempat berubah di tengah, rollback tidak ikut membaliknya.
+      const prevFollowing = following
+      const prevCount = followerCount
       setFollowing(next)
       setFollowerCount((c) => (c == null ? c : Math.max(0, c + (next ? 1 : -1))))
       setFollowLoading(true)
@@ -472,18 +484,19 @@ export default function UserProfileScreen() {
         if (next) await api.users.followUser(handle)
         else await api.users.unfollowUser(handle)
       } catch (err) {
-        setFollowing(!next)
-        setFollowerCount((c) => (c == null ? c : Math.max(0, c + (next ? -1 : 1))))
+        setFollowing(prevFollowing)
+        setFollowerCount(prevCount)
         toast.show({
           title: next ? translate("Gagal mengikuti") : translate("Gagal berhenti mengikuti"),
           description: isApiError(err) ? userMessage(err) : undefined,
           tone: "danger",
         })
       } finally {
+        release()
         setFollowLoading(false)
       }
     },
-    [handle, requireSession, toast],
+    [handle, requireSession, toast, following, followerCount],
   )
 
   const handleFavorite = useCallback(

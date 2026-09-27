@@ -113,6 +113,19 @@ export function normalizeUserProfile(raw: UserProfile): UserProfile {
   }
 }
 
+/**
+ * BUG#1 (2026-09-26): identitas untuk pencocokan peran = `userId` publik
+ * (format USR-XXXXXXXX), BUKAN `id` (cuid internal) yang tidak pernah cocok
+ * dengan `author.userId` dari backend. Satu helper supaya pola ini tidak
+ * ditulis ulang dengan hasil berbeda (SH-F-002: sheet komentar feed dulu
+ * memakai `u.id` sehingga "Hapus komentar" tak pernah muncul).
+ */
+export function pickPublicUserId(
+  me: { userId?: string | null; id?: string | null } | null | undefined,
+): string | null {
+  return me?.userId ?? me?.id ?? null
+}
+
 /** GET /v1/users/me — profil lengkap user yang sedang login. */
 export function getMe(signal?: AbortSignal) {
   return http

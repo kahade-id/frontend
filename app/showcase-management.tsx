@@ -29,21 +29,21 @@ import { useKahadePlus } from "@/lib/use-kahade-plus"
 import { ShowcaseHtmlDescriptionEditor } from "@/components/ui/showcase-html-description-editor"
 import { sanitizeShowcaseHtml } from "@/lib/showcase-html"
 import { useShowcaseOperation } from "@/lib/use-showcase-operation"
-import { useSessionRevision } from "@/lib/guest-gate"
+import { useHasSession, useSessionRevision } from "@/lib/guest-gate"
 import { getSessionRevision } from "@/lib/api/session"
 import { pickImages } from "@/lib/image-picker"
 import { useApiQuery } from "@/lib/use-api-query"
 import { ROUTES } from "@/lib/routes"
-import { showcasePriceLabel } from "@/lib/showcase-labels"
+import { showcasePriceLabel, showcasePriceLabelOrFallback } from "@/lib/showcase-labels"
 import { showcaseCoverOf, untitledShowcaseTitle } from "@/lib/showcase-social"
 import { markShowcaseFeedDirty } from "@/lib/showcase-social-prefs"
 import { cleanupPendingShowcaseKeys, uploadShowcasePhoto } from "@/lib/showcase-upload"
 import {
-  getDeletedShowcaseItems,
+  getRecoverableShowcaseItems,
   markShowcaseDeleted,
   restoreDaysLeft,
   unmarkShowcaseDeleted,
-  type DeletedShowcaseItem,
+  type RecoverableShowcaseItem,
 } from "@/lib/showcase-deleted"
 import { tokens } from "@/lib/tokens"
 
@@ -130,7 +130,10 @@ function rawMeta(it: ShowcaseItem): { category: string; isPublic: boolean } {
   const raw = it as ShowcaseItem & { category?: string | null; visibility?: string | null }
   return {
     category: typeof raw.category === "string" ? raw.category : "",
-    isPublic: raw.visibility !== "PRIVATE",
+    // SH-F-011 (audit 2026-09-27): fail-CLOSED — nilai asing (bukan "PUBLIC")
+    // diperlakukan sebagai privat, bukan publik. Sebelumnya `!== "PRIVATE"`
+    // membuat "FOLLOWERS"/"UNLISTED" masa depan tampil sebagai publik.
+    isPublic: raw.visibility === "PUBLIC",
   }
 }
 
@@ -182,12 +185,14 @@ function ShowcaseManagement() {
   const { isActive: isPlusActive } = useKahadePlus()
   const photoLimit = getShowcasePhotoLimit(isPlusActive)
 
-  /** Daftar karya yang di-soft-delete (lokal, untuk dipulihkan dalam 30 hari). */
-  const [deletedItems, setDeletedItems] = useState<DeletedShowcaseItem[]>([])
+  /** Daftar karya yang di-soft-delete (server + lokal, untuk dipulihkan dalam 30 hari). */
+  const hasSession = useHasSession()
+  const [deletedItems, setDeletedItems] = useState<RecoverableShowcaseItem[]>([])
   const [restoringId, setRestoringId] = useState<string | null>(null)
   const refreshDeleted = useCallback(async () => {
-    setDeletedItems(await getDeletedShowcaseItems())
-  }, [])
+    // SH-F-003: daftar pulihkan dari server (SS-012) digabung catatan lokal.
+    setDeletedItems(await getRecoverableShowcaseItems(hasSession))
+  }, [hasSession])
   useEffect(() => {
     void refreshDeleted()
   }, [refreshDeleted])
@@ -397,7 +402,7 @@ function ShowcaseManagement() {
 
   /** Pulihkan karya yang di-soft-delete. */
   const handleRestore = useCallback(
-    async (item: DeletedShowcaseItem) => {
+    async (item: RecoverableShowcaseItem) => {
       if (restoringId) return
       setRestoringId(item.id)
       try {
@@ -628,7 +633,10 @@ function ShowcaseManagement() {
     <Screen edges={["top"]} padded={false}>
       <Header title="Kelola Etalase" />
       <PullToRefresh
-        onRefresh={() => void query.refresh()}
+        onRefresh={() => {
+          void query.refresh()
+          void refreshDeleted()
+        }}
         refreshing={refreshing}
         contentContainerClassName="px-5"
         scrollViewProps={{
@@ -695,7 +703,10 @@ function ShowcaseManagement() {
                   subtitle="Dapat dipulihkan dalam 30 hari"
                 />
                 {deletedItems.map((item) => {
-                  const daysLeft = restoreDaysLeft(item.deletedAt)
+                  // SH-F-003: daysRemaining server diutamakan (kanonis);
+                  // entri lokal dihitung dari deletedAt.
+                  const daysLeft =
+                    item.daysRemaining ?? (item.deletedAt ? restoreDaysLeft(item.deletedAt) : 0)
                   return (
                     <View
                       key={item.id}
@@ -714,7 +725,8 @@ function ShowcaseManagement() {
                         </Text>
                         <Text variant="caption" tone="secondary">
                           {daysLeft > 0
-                            ? `Sisa ${daysLeft} hari untuk memulihkan`
+                            ? // SH-F-015: lewat translate (jangan template literal mentah).
+                              translate("Sisa {x} hari untuk memulihkan", { x: daysLeft })
                             : translate("Segera dihapus permanen")}
                         </Text>
                       </View>
@@ -959,6 +971,15 @@ function ShowcaseManagement() {
             errorText={formError && form.title.trim() ? formError : undefined}
             disabled={saving}
           />
+          {/* IMP-F-013: pratinjau label harga live — verifikasi "Rp 1.500.000"
+              sebelum simpan. Satu baris teks, bukan redesign. */}
+          {form.priceMin != null || form.priceMax != null ? (
+            <Text variant="caption" tone="secondary" accessibilityLiveRegion="polite">
+              {translate("Pratinjau: {x}", {
+                x: showcasePriceLabelOrFallback({ priceMin: form.priceMin, priceMax: form.priceMax }),
+              })}
+            </Text>
+          ) : null}
           {/* D-02: visibilitas PUBLIC/PRIVATE */}
           <View className="flex-row items-center justify-between gap-3">
             <View className="flex-1 gap-1">

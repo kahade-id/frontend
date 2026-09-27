@@ -36,6 +36,41 @@ export function showcaseIsHidden(item: { isActive?: boolean; visibility?: string
   return item.isActive === false || item.visibility === "PRIVATE"
 }
 
+/**
+ * SH-F-006 (audit 2026-09-27): kontrak retry pembuatan karya — kunci
+ * idempotency dipakai ULANG (satu aksi logis → anti-duplikat server), tetapi
+ * DTO dibangun ulang dari state form TERKINI setiap percobaan. DTO basi dari
+ * percobaan pertama tidak boleh terkirim setelah pengguna mengedit form.
+ */
+export function resolveCreateAttempt<Dto>(
+  previousKey: string | null,
+  buildDto: () => Dto,
+  newKey: () => string,
+): { key: string; dto: Dto } {
+  return { key: previousKey ?? newKey(), dto: buildDto() }
+}
+
+/**
+ * SH-F-005 (audit 2026-09-27): klasifikasi aset gambar untuk validasi batas
+ * ukuran. Aset yang ukurannya TIDAK dilaporkan platform (`size <= 0`)
+ * dipisahkan eksplisit — pemanggil WAJIB menanganinya (baca ukuran aktual /
+ * tolak dengan pesan jelas), JANGAN fail-open ke upload.
+ */
+export function partitionAssetsBySize<T extends { size: number }>(
+  assets: T[],
+  maxBytes: number,
+): { ok: T[]; tooBig: T[]; unknownSize: T[] } {
+  const ok: T[] = []
+  const tooBig: T[] = []
+  const unknownSize: T[] = []
+  for (const asset of assets) {
+    if (asset.size <= 0) unknownSize.push(asset)
+    else if (asset.size > maxBytes) tooBig.push(asset)
+    else ok.push(asset)
+  }
+  return { ok, tooBig, unknownSize }
+}
+
 /** Shared lock: multiple mounted cards must not mutate the same item concurrently. */
 const mutations = new Set<string>()
 export function acquireShowcaseMutation(key: string): (() => void) | null {

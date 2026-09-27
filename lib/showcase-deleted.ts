@@ -1,11 +1,15 @@
 /**
- * Pelacakan lokal karya etalase yang di-soft-delete.
+ * Pelacakan karya etalase yang di-soft-delete.
  *
- * Backend tidak menyediakan endpoint list item terhapus, jadi aplikasi
- * menyimpan info item yang dihapus secara lokal (SecureStore) agar user
- * bisa melihat daftar "Baru dihapus" dan memulihkannya dalam 30 hari.
+ * SH-F-003 (audit 2026-09-27): sumber UTAMA daftar "Baru dihapus" kini
+ * endpoint backend GET /v1/users/me/showcase/deleted (SS-012) — lintas
+ * perangkat / reinstall / logout-login. Catatan lokal (SecureStore) tetap
+ * ada sebagai pelengkap (cover & judul saat server tak mengirimnya) dan
+ * fallback saat jaringan gagal.
  */
 import { getSecureItem, setSecureItem, SecureKeys } from "@/lib/secure-storage"
+import { getDeletedShowcase, type DeletedShowcaseItem as ServerDeletedShowcaseItem } from "@/lib/api/showcase"
+import { translate } from "@/lib/i18n/translate"
 
 export type DeletedShowcaseItem = {
   id: string
@@ -80,4 +84,94 @@ export function restoreDaysLeft(deletedAt: string): number {
   const elapsed = Date.now() - t
   const remaining = SHOWCASE_RESTORE_WINDOW_DAYS * 24 * 60 * 60 * 1000 - elapsed
   return Math.max(0, Math.ceil(remaining / (24 * 60 * 60 * 1000)))
+}
+
+/**
+ * SH-F-003: satu entri daftar pulihkan — gabungan sumber server + lokal.
+ */
+export type RecoverableShowcaseItem = {
+  id: string
+  title: string
+  /** ISO timestamp saat dihapus — hanya ada pada entri lokal. */
+  deletedAt?: string
+  /** Sisa hari pemulihan — server diutamakan, lokal dihitung. */
+  daysRemaining?: number
+  coverUrl?: string
+  /** true = hanya dikenal dari server (mis. dihapus dari perangkat lain). */
+  serverOnly?: boolean
+}
+
+/**
+ * SH-F-003: gabungkan daftar terhapus server + lokal (dedupe per id).
+ * - `daysRemaining` server menang atas hitungan lokal (sumber kanonis).
+ * - entri server dengan `restorable: false` / id tak valid dilewati.
+ * - judul/cover lokal melengkapi entri server yang minim field.
+ * Fungsi murni — bisa diuji tanpa jaringan.
+ */
+export function mergeDeletedShowcase(
+  local: DeletedShowcaseItem[],
+  server: ServerDeletedShowcaseItem[],
+): RecoverableShowcaseItem[] {
+  const byId = new Map<string, RecoverableShowcaseItem>()
+  for (const it of local) {
+    byId.set(it.id, {
+      id: it.id,
+      title: it.title,
+      deletedAt: it.deletedAt,
+      coverUrl: it.coverUrl,
+    })
+  }
+  for (const s of server) {
+    if (!s || typeof s.id !== "string" || !s.id) continue
+    // Tak bisa dipulihkan → tidak usah tampil di daftar pulihkan.
+    if (s.restorable === false) continue
+    const daysRemaining =
+      typeof s.daysRemaining === "number" && Number.isFinite(s.daysRemaining)
+        ? Math.max(0, Math.floor(s.daysRemaining))
+        : typeof s.deletedAt === "string"
+          ? restoreDaysLeft(s.deletedAt)
+          : undefined
+    const existing = byId.get(s.id)
+    if (existing) {
+      if (typeof s.title === "string" && s.title.trim()) existing.title = s.title.trim()
+      if (daysRemaining != null) existing.daysRemaining = daysRemaining
+    } else {
+      byId.set(s.id, {
+        id: s.id,
+        title: typeof s.title === "string" && s.title.trim() ? s.title.trim() : translate("Tanpa judul"),
+        deletedAt: typeof s.deletedAt === "string" ? s.deletedAt : undefined,
+        daysRemaining,
+        serverOnly: true,
+      })
+    }
+  }
+  // Lokal (terbaru dulu) lalu entri server-only — urutan tampilan tak berubah
+  // untuk pengguna yang hanya punya entri lokal.
+  const entries = [...byId.values()]
+  entries.sort((a, b) => {
+    const aLocal = a.deletedAt != null
+    const bLocal = b.deletedAt != null
+    if (aLocal !== bLocal) return aLocal ? -1 : 1
+    if (aLocal && bLocal) return Date.parse(b.deletedAt as string) - Date.parse(a.deletedAt as string)
+    return 0
+  })
+  return entries
+}
+
+/**
+ * SH-F-003: daftar "Baru dihapus" = server (bila ada sesi) + lokal.
+ * Kegagalan jaringan/otorisasi → fallback daftar lokal (fail-open yang aman:
+ * menampilkan yang diketahui, bukan error).
+ */
+export async function getRecoverableShowcaseItems(hasSession: boolean): Promise<RecoverableShowcaseItem[]> {
+  const local = await getDeletedShowcaseItems()
+  if (!hasSession) return mergeDeletedShowcase(local, [])
+  let server: ServerDeletedShowcaseItem[] = []
+  try {
+    const res = await getDeletedShowcase({ page: 1, limit: 50 })
+    if (res && Array.isArray(res.items)) server = res.items
+  } catch {
+    // Jaringan gagal → daftar lokal tetap tampil.
+  }
+  return mergeDeletedShowcase(local, server)
 }

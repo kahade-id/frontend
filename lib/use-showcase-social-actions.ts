@@ -13,6 +13,7 @@ import { useHasSession, useSessionRevision } from "@/lib/guest-gate"
 import { getSessionRevision } from "@/lib/api/session"
 import { acquireShowcaseMutation, showcaseMutationPending } from "@/lib/showcase-state"
 import { ROUTES } from "@/lib/routes"
+import { shouldClearLikeOverride, type ServerLikeState } from "@/lib/showcase-social"
 import {
   loadShowcaseBookmarks,
   clearShowcaseLikeOverride,
@@ -83,10 +84,38 @@ export function useShowcaseSocialActions(item: ShowcaseSocialItem): ShowcaseSoci
       if (revision === getSessionRevision()) return loadShowcaseBookmarks(me.id)
     }).catch(() => {})
   }, [hasSession, sessionRevision])
-  const previousItem = useRef(item)
+  /**
+   * SH-F-001 (audit 2026-09-27): override like optimistis JANGAN dibuang
+   * berdasar identitas objek. `mergeById` (load-more) dan ledger komentar
+   * membuat objek baru untuk data yang SAMA — clear-by-identity memadamkan
+   * hati yang baru dikonfirmasi server. Sebagai gantinya: simpan snapshot
+   * nilai SERVER per item; override hanya dibuang bila nilai server
+   * definitif BERUBAH (lihat `shouldClearLikeOverride`).
+   */
+  const likeServerSnapshots = useRef(new Map<string, ServerLikeState>())
+  const likeSnapshotRevision = useRef(getSessionRevision())
   useEffect(() => {
-    if (previousItem.current !== item && !showcaseMutationPending(`${getSessionRevision()}:like:${item.id}`)) clearShowcaseLikeOverride(item.id)
-    previousItem.current = item
+    const revision = getSessionRevision()
+    if (likeSnapshotRevision.current !== revision) {
+      // Ganti sesi = semua override sudah dibuang store; snapshot ikut reset.
+      likeSnapshotRevision.current = revision
+      likeServerSnapshots.current.clear()
+    }
+    const nextServer: ServerLikeState = {
+      isLiked: item.isLiked === true,
+      likeCount: item.likeCount,
+    }
+    const prevServer = likeServerSnapshots.current.get(item.id)
+    likeServerSnapshots.current.set(item.id, nextServer)
+    if (
+      shouldClearLikeOverride(
+        prevServer,
+        nextServer,
+        showcaseMutationPending(`${revision}:like:${item.id}`),
+      )
+    ) {
+      clearShowcaseLikeOverride(item.id)
+    }
   }, [item])
 
   const liked = override?.isLiked ?? item.isLiked === true

@@ -25,6 +25,13 @@ export type NotificationReference = {
   referenceId?: string | null
   /** Fallback: path backend (mis. `/chat/<id>`) bila referenceType/Id kosong. */
   actionUrl?: string | null
+  /**
+   * SH-F-008 (audit 2026-09-27): id komentar untuk deep-link highlight
+   * (`?comment=<id>` di detail etalase). Payload backend saat ini TIDAK
+   * mendokumentasikan field ini — gap kontrak; bila tak tersedia, route
+   * jatuh ke detail polos (highlight tidak menyala).
+   */
+  commentId?: string | null
 }
 
 /** Normalisasi "Order_Link" / "order-link" / "orderLink" → "orderlink" */
@@ -86,9 +93,15 @@ export function routeForNotificationReference(ref: NotificationReference): Href 
     case "showcase":
     case "etalase":
     case "showcaselike":
-    case "showcasecomment":
-      // Audit Etalase I-02: notifikasi suka/komentar karya → detail item.
+      // Audit Etalase I-02: notifikasi suka karya → detail item.
       return id ? ROUTES.showcaseDetail(id) : ROUTES.showcase
+    case "showcasecomment": {
+      // SH-F-008: teruskan id komentar bila payload menyediakannya agar
+      // highlight `?comment=` di detail menyala; tanpa id komentar → detail
+      // polos (gap kontrak payload, bukan bug routing).
+      const comment = ref.commentId?.trim()
+      return id ? ROUTES.showcaseDetail(id, { comment: comment || undefined }) : ROUTES.showcase
+    }
     case "security":
     case "session":
     case "login":
@@ -224,8 +237,11 @@ export function routeForPushData(data: unknown): Href | null {
     str("transactionId") ??
     str("username") ??
     str("token")
+  // SH-F-008: id komentar untuk highlight deep-link; kunci payload tidak
+  // didokumentasikan backend (gap kontrak) — terima varian yang lazim.
+  const commentId = str("commentId") ?? str("comment_id") ?? str("comment")
 
-  return routeForNotificationReference({ referenceType, referenceId })
+  return routeForNotificationReference({ referenceType, referenceId, commentId })
 }
 
 /**
