@@ -14,6 +14,8 @@ export type SupportMessage = {
   text: string
   fromUser: boolean
   createdAt: string
+  /** Item 130: lampiran balasan (fileKey, maks 5 — BE-IMP ReplyTicketDto.attachments). */
+  attachments?: string[]
 }
 
 /** Tiket dukungan. */
@@ -58,6 +60,10 @@ function normalizeSupportMessage(raw: unknown): SupportMessage {
         : typeof record.createdAt === "number"
           ? new Date(record.createdAt).toISOString()
           : "",
+    // Item 130: lampiran per balasan — hanya string fileKey yang lolos.
+    attachments: Array.isArray(record.attachments)
+      ? (record.attachments as unknown[]).filter((a): a is string => typeof a === "string")
+      : undefined,
   }
 }
 
@@ -116,10 +122,15 @@ export function createSupportTicket(dto: CreateTicketDto & { subject?: string; m
   )
 }
 
-export function replySupportTicket(ticketId: string, message: string) {
-  return http.post<SupportTicket, { message: string }>(
+/**
+ * POST /v1/support/tickets/{id}/reply.
+ * Item 130: `attachments` (fileKey, maks 5) — didukung BE-IMP; bila backend
+ * lama mengabaikan field tak dikenal, balasan teks tetap terkirim.
+ */
+export function replySupportTicket(ticketId: string, message: string, attachments?: string[]) {
+  return http.post<SupportTicket, { message: string; attachments?: string[] }>(
     `/v1/support/tickets/${seg(ticketId)}/reply`,
-    { message },
+    { message, ...(attachments?.length ? { attachments: attachments.slice(0, 5) } : {}) },
     { auth: "required" },
   )
 }

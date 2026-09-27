@@ -1,24 +1,43 @@
 /**
  * Screen — Hubungi Kami: form tiket baru (POST /v1/support/tickets).
  * Daftar tiket ada di layar Tiket Bantuan (Support) — bukan diulang di sini.
+ *
+ * Item mega-batch:
+ * - 131: draft otomatis (restore/autosave/clear, akun-spesifik via clearSession).
+ * - 132: pemilih pesanan terkait (bottom sheet, order terbaru).
+ * - 133: prefill category/orderId/relatedArticleId dari search params.
  */
-import { useCallback, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { ScrollView, View } from "react-native"
-import { router } from "expo-router"
+import { router, useLocalSearchParams } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { api, userMessage } from "@/lib/api"
+import type { Order } from "@/lib/api/orders-shared"
 import { pickImages } from "@/lib/image-picker"
+import { formatRupiah } from "@/lib/format"
+import { ORDER_STATUS_LABELS } from "@/lib/labels/status"
 import { ROUTES } from "@/lib/routes"
+import { serverNow } from "@/lib/server-time"
+import {
+  clearSupportDraft,
+  isEmptyDraft,
+  loadSupportDraft,
+  saveSupportDraft,
+  type SupportDraft,
+} from "@/lib/support-draft"
 import { tokens } from "@/lib/tokens"
 
+import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Button } from "@/components/ui/button"
 import { Chip } from "@/components/ui/chip"
 import { Field } from "@/components/ui/field"
 import { FormSection } from "@/components/ui/form-section"
 import { Header } from "@/components/ui/header"
 import { Input } from "@/components/ui/input"
+import { PressableScale } from "@/components/ui/pressable-scale"
 import { Screen } from "@/components/ui/screen"
+import { Spinner } from "@/components/ui/spinner"
 import { Text } from "@/components/ui/text"
 import { TextArea } from "@/components/ui/text-area"
 import { TextLink } from "@/components/ui/text-link"
@@ -36,20 +55,86 @@ const TICKET_CATEGORIES = [
 
 type TicketCategory = (typeof TICKET_CATEGORIES)[number]["value"]
 
+function isTicketCategory(v: string): v is TicketCategory {
+  return TICKET_CATEGORIES.some((c) => c.value === v)
+}
+
 /** Maksimal lampiran per tiket — selaras CreateTicketDto (maxItems 5). */
 const MAX_ATTACHMENTS = 5
 
 export default function ContactScreen() {
   const insets = useSafeAreaInsets()
   const toast = useToast()
+  // Item 133: prefill dari deep link (detail order → category=ORDER&orderId=…;
+  // artikel bantuan → relatedArticleId=…).
+  const params = useLocalSearchParams<{
+    category?: string
+    orderId?: string
+    relatedArticleId?: string
+  }>()
   const [subject, setSubject] = useState("")
   const [message, setMessage] = useState("")
   const [category, setCategory] = useState<TicketCategory>("GENERAL")
   const [submitting, setSubmitting] = useState(false)
+  // Item 131/132: orderId + relatedArticleId ikut dalam draft.
+  const [orderId, setOrderId] = useState<string | undefined>(undefined)
+  const [relatedArticleId, setRelatedArticleId] = useState<string | undefined>(undefined)
+  const [orderSheetOpen, setOrderSheetOpen] = useState(false)
+  const [orders, setOrders] = useState<Order[] | null>(null)
+  const [ordersLoading, setOrdersLoading] = useState(false)
+  const restoredRef = useRef(false)
   // SP-024: lampiran tiket — backend POST /v1/support/tickets sudah menerima
   // `attachments` (fileKey, max 5, diverifikasi); form mengekspos picker-nya.
   const [attachments, setAttachments] = useState<string[]>([])
   const [uploading, setUploading] = useState(false)
+
+  // Item 131: pulihkan draft sekali saat mount; search params selalu menang.
+  useEffect(() => {
+    let alive = true
+    void (async () => {
+      const draft = await loadSupportDraft()
+      if (!alive || restoredRef.current) return
+      restoredRef.current = true
+      if (draft && !isEmptyDraft(draft)) {
+        setSubject(draft.subject)
+        setMessage(draft.message)
+        if (isTicketCategory(draft.category)) setCategory(draft.category)
+        setAttachments(draft.attachments)
+        setOrderId(draft.orderId)
+        setRelatedArticleId(draft.relatedArticleId)
+      }
+      if (params.category && isTicketCategory(params.category)) setCategory(params.category)
+      if (params.orderId) setOrderId(params.orderId)
+      if (params.relatedArticleId) setRelatedArticleId(params.relatedArticleId)
+    })()
+    return () => {
+      alive = false
+    }
+    // Params hanya dibaca sekali saat mount (deep link), bukan reactive.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Item 131: autosave debounce 500ms setelah perubahan apa pun.
+  useEffect(() => {
+    if (!restoredRef.current) return
+    const draft: SupportDraft = {
+      category,
+      subject,
+      message,
+      attachments,
+      orderId,
+      relatedArticleId,
+      savedAt: serverNow(),
+    }
+    if (isEmptyDraft(draft)) {
+      void clearSupportDraft()
+      return
+    }
+    const t = setTimeout(() => {
+      void saveSupportDraft(draft)
+    }, 500)
+    return () => clearTimeout(t)
+  }, [category, subject, message, attachments, orderId, relatedArticleId])
 
   const handlePickAttachments = useCallback(async () => {
     const remaining = MAX_ATTACHMENTS - attachments.length
@@ -102,6 +187,8 @@ export default function ContactScreen() {
         message: message.trim(),
         category,
         attachments,
+        ...(orderId ? { orderId } : {}),
+        ...(relatedArticleId ? { relatedArticleId } : {}),
       })
       toast.show({
         title: "Tiket terkirim",
@@ -109,10 +196,14 @@ export default function ContactScreen() {
         tone: "success",
         duration: 4000,
       })
+      // Item 131: draft bersih setelah sukses terkirim.
+      await clearSupportDraft()
       setSubject("")
       setMessage("")
       setCategory("GENERAL")
       setAttachments([])
+      setOrderId(undefined)
+      setRelatedArticleId(undefined)
       if (res?.id) router.replace(ROUTES.supportTicket(res.id))
       else router.replace(ROUTES.support)
     } catch (err: unknown) {
@@ -126,7 +217,29 @@ export default function ContactScreen() {
     } finally {
       setSubmitting(false)
     }
-  }, [category, subject, message, attachments, toast.show])
+  }, [category, subject, message, attachments, orderId, relatedArticleId, toast.show])
+
+  // Item 132: pemilih pesanan — muat lazy saat sheet dibuka (20 terbaru).
+  const openOrderSheet = useCallback(async () => {
+    setOrderSheetOpen(true)
+    if (orders !== null) return
+    setOrdersLoading(true)
+    try {
+      const res = await api.orders.listOrders({ limit: 20 })
+      setOrders(res.data)
+    } catch {
+      setOrders([])
+    } finally {
+      setOrdersLoading(false)
+    }
+  }, [orders])
+
+  const selectedOrder = orderId ? orders?.find((o) => o.id === orderId) : undefined
+  const selectedOrderLabel = selectedOrder
+    ? `${selectedOrder.title} · ${formatRupiah(selectedOrder.orderValue)}`
+    : orderId
+      ? `Pesanan #${orderId.slice(-6).toUpperCase()}`
+      : undefined
 
   return (
     <Screen
@@ -193,6 +306,26 @@ export default function ContactScreen() {
               numberOfLines={5}
             />
           </Field>
+          {/* Item 132: pesanan terkait — opsional, dipilih dari 20 order terbaru. */}
+          <Field label="Pesanan terkait (opsional)">
+            <View className="gap-2">
+              <View className="flex-row items-center gap-3">
+                <Button variant="secondary" fullWidth={false} onPress={() => void openOrderSheet()}>
+                  {selectedOrderLabel ?? "Pilih pesanan"}
+                </Button>
+                {orderId ? (
+                  <TextLink inline onPress={() => setOrderId(undefined)}>
+                    Hapus
+                  </TextLink>
+                ) : null}
+              </View>
+              {relatedArticleId ? (
+                <Text variant="caption" tone="secondary">
+                  Tiket ini dibuat dari artikel bantuan yang Anda tandai tidak membantu.
+                </Text>
+              ) : null}
+            </View>
+          </Field>
           <Field label="Lampiran (opsional)">
             <View className="gap-2">
               {attachments.map((fileKey, index) => (
@@ -232,6 +365,44 @@ export default function ContactScreen() {
           </TextLink>
         </Text>
       </ScrollView>
+      <BottomSheet
+        visible={orderSheetOpen}
+        onRequestClose={() => setOrderSheetOpen(false)}
+        title="Pilih pesanan"
+        description="Tiket akan ditautkan ke pesanan yang dipilih."
+      >
+        {ordersLoading ? (
+          <View className="items-center py-6">
+            <Spinner />
+          </View>
+        ) : orders && orders.length > 0 ? (
+          <View className="gap-2">
+            {orders.map((o) => (
+              <PressableScale
+                key={o.id}
+                onPress={() => {
+                  setOrderId(o.id)
+                  setOrderSheetOpen(false)
+                }}
+                accessibilityRole="button"
+                accessibilityLabel={`Pilih pesanan ${o.title}`}
+                className="gap-1 rounded-md border border-border bg-surface p-3"
+              >
+                <Text variant="body" numberOfLines={1}>
+                  {o.title}
+                </Text>
+                <Text variant="caption" tone="secondary">
+                  {ORDER_STATUS_LABELS[o.status]} · {formatRupiah(o.orderValue)}
+                </Text>
+              </PressableScale>
+            ))}
+          </View>
+        ) : (
+          <Text variant="body" tone="secondary" className="py-6 text-center">
+            Tidak ada pesanan.
+          </Text>
+        )}
+      </BottomSheet>
     </Screen>
   )
 }

@@ -9,7 +9,7 @@
 
 import { Crossfade } from "@/components/ui/fade-in"
 import { DetailLoading } from "@/components/ui/paginated-list"
-import { useCallback, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { View } from "react-native"
 import { useLocalSearchParams } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
@@ -18,11 +18,15 @@ import { api, userMessage } from "@/lib/api"
 import type { SupportMessage, SupportTicket } from "@/lib/api/support"
 import { formatDateTime } from "@/lib/format"
 import { focusRingInset } from "@/lib/focus-ring"
+import { pickImages } from "@/lib/image-picker"
+import { markSupportTicketOpened } from "@/lib/support-unread"
 import { tokens } from "@/lib/tokens"
 import { useApiQuery } from "@/lib/use-api-query"
+import { usePolling } from "@/lib/use-polling"
+import { logWarn } from "@/lib/telemetry"
 import { translate, useLanguage } from "@/lib/i18n"
 
-import { Star } from "phosphor-react-native"
+import { Star, Paperclip, X } from "phosphor-react-native"
 
 import { Button } from "@/components/ui/button"
 import { ChatMessageBubble } from "@/components/ui/chat-message-bubble"
@@ -34,6 +38,7 @@ import { PressableScale } from "@/components/ui/pressable-scale"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
+import { SupportAttachmentItem } from "@/components/ui/support-attachment-item"
 import { SupportTicketCard } from "@/components/ui/support-ticket-card"
 import { Text } from "@/components/ui/text"
 import { TextArea } from "@/components/ui/text-area"
@@ -49,6 +54,9 @@ export default function SupportTicketDetailScreen() {
 
   const [reply, setReply] = useState("")
   const [sending, setSending] = useState(false)
+  /** Item 130: fileKey lampiran balasan (maks 5), diunggah dulu via CHAT_ATTACHMENT. */
+  const [replyAttachmentKeys, setReplyAttachmentKeys] = useState<string[]>([])
+  const [uploadingReply, setUploadingReply] = useState(false)
 
   /**
    * `useApiQuery`, bukan rakitan useState/useEffect: request dibatalkan saat
@@ -69,8 +77,9 @@ export default function SupportTicketDetailScreen() {
     if (!ticketId || !reply.trim()) return
     setSending(true)
     try {
-      await api.support.replySupportTicket(ticketId, reply.trim())
+      await api.support.replySupportTicket(ticketId, reply.trim(), replyAttachmentKeys)
       setReply("")
+      setReplyAttachmentKeys([])
       await query.reload()
       toast.show({ title: "Balasan terkirim", tone: "success", duration: 2500 })
     } catch (err: unknown) {
@@ -78,7 +87,36 @@ export default function SupportTicketDetailScreen() {
     } finally {
       setSending(false)
     }
-  }, [ticketId, reply, toast.show, query])
+  }, [ticketId, reply, replyAttachmentKeys, toast.show, query])
+
+  /** Item 130: pilih & unggah lampiran balasan (maks 5 total). */
+  const handlePickReplyAttachments = useCallback(async () => {
+    const remaining = 5 - replyAttachmentKeys.length
+    if (remaining <= 0) {
+      toast.show({ title: "Maksimal 5 lampiran per balasan", tone: "warning" })
+      return
+    }
+    setUploadingReply(true)
+    try {
+      const picked = await pickImages({ selectionLimit: remaining })
+      if (picked.status !== "picked") return
+      const keys: string[] = []
+      for (const asset of picked.assets) {
+        const { fileKey } = await api.upload.uploadDirectImage(asset, "CHAT_ATTACHMENT")
+        keys.push(fileKey)
+      }
+      setReplyAttachmentKeys((prev) => [...prev, ...keys].slice(0, 5))
+    } catch (err: unknown) {
+      logWarn("support:reply-attachment", err)
+      toast.show({ title: "Gagal mengunggah lampiran", description: userMessage(err), tone: "danger" })
+    } finally {
+      setUploadingReply(false)
+    }
+  }, [replyAttachmentKeys.length, toast.show])
+
+  const handleRemoveReplyAttachment = useCallback((fileKey: string) => {
+    setReplyAttachmentKeys((prev) => prev.filter((k) => k !== fileKey))
+  }, [])
 
   // ---- Aksi pemilik tiket: tutup / buka lagi / rating -----------------
   // Aturan status di backend: close = selain CLOSED/RESOLVED; reopen =
@@ -88,6 +126,20 @@ export default function SupportTicketDetailScreen() {
   const isClosed = status === "CLOSED"
   const canClose = Boolean(ticket) && !isClosedLike
   const myRating = ticket?.rating ?? 0
+
+  // Item 126: tandai tiket dibuka agar badge unread di daftar ter-reset.
+  useEffect(() => {
+    if (ticket) void markSupportTicketOpened(ticket.id)
+  }, [ticket])
+
+  // Item 127: polling diam tiap 10 dtk saat tiket belum selesai.
+  usePolling(
+    async () => {
+      await query.refresh().catch(() => {})
+    },
+    10_000,
+    Boolean(ticketId && ticket && !isClosedLike),
+  )
 
   const [closeOpen, setCloseOpen] = useState(false)
   const [closing, setClosing] = useState(false)
@@ -177,7 +229,8 @@ export default function SupportTicketDetailScreen() {
 
   return (
     <Screen keyboardAvoiding edges={["top"]} padded={false}>
-      <Header title="Tiket" />
+      {/* Item 129: judul memuat nomor tiket setelah data termuat. */}
+      <Header title={ticket ? `Tiket ${ticket.ticketNumber}` : "Tiket"} />
       <PullToRefresh
         onRefresh={query.refresh}
         refreshing={query.refreshing}
@@ -206,13 +259,10 @@ export default function SupportTicketDetailScreen() {
             {ticket.attachmentKeys && ticket.attachmentKeys.length > 0 ? (
               <View className="gap-2">
                 <SectionHeader title="Lampiran" />
+                {/* Item 128: lampiran bisa dibuka (pratinjau/undi) atau error eksplisit. */}
                 <View className="flex-row flex-wrap gap-2">
                   {ticket.attachmentKeys.map((key, index) => (
-                    <View key={key || index} className="rounded-md border border-border bg-surface px-3 py-2">
-                      <Text variant="caption" tone="secondary" numberOfLines={1}>
-                        {translate("Lampiran #{x}", { x: index + 1 })}
-                      </Text>
-                    </View>
+                    <SupportAttachmentItem key={key || index} fileKey={key} index={index} />
                   ))}
                 </View>
               </View>
@@ -297,20 +347,80 @@ export default function SupportTicketDetailScreen() {
                 text={m.text}
                 time={formatDateTime(m.createdAt)}
                 grouped={messages[i - 1]?.fromUser === m.fromUser}
-              />
+              >
+                {/* Item 130: lampiran per balasan (slot children = di atas teks). */}
+                {m.attachments && m.attachments.length > 0 ? (
+                  <View className="gap-1">
+                    {m.attachments.map((key, ai) => (
+                      <SupportAttachmentItem key={key || ai} fileKey={key} index={ai} />
+                    ))}
+                  </View>
+                ) : null}
+              </ChatMessageBubble>
             ))}
 
             <SectionHeader title="Balas" />
-            <TextArea
-              value={reply}
-              onChangeText={setReply}
-              placeholder="Tulis balasan Anda"
-              maxLength={2000}
-              numberOfLines={4}
-            />
-            <Button loading={sending} disabled={!reply.trim()} onPress={() => void handleSend()}>
-              Kirim balasan
-            </Button>
+            {/* Item 130: composer diblokir untuk tiket selesai; lampiran maks 5. */}
+            {isClosedLike ? (
+              <Text variant="caption" tone="secondary">
+                Tiket sudah {status === "RESOLVED" ? "diselesaikan" : "ditutup"} — balasan
+                dinonaktifkan. Buka kembali tiket bila masalahnya belum selesai.
+              </Text>
+            ) : (
+              <View className="gap-2">
+                <TextArea
+                  value={reply}
+                  onChangeText={setReply}
+                  placeholder="Tulis balasan Anda"
+                  maxLength={2000}
+                  numberOfLines={4}
+                />
+                {replyAttachmentKeys.length > 0 ? (
+                  <View className="flex-row flex-wrap gap-2">
+                    {replyAttachmentKeys.map((key, i) => (
+                      <View
+                        key={key}
+                        className="flex-row items-center gap-1 rounded-md border border-border bg-surface px-2 py-1"
+                      >
+                        <Icon icon={Paperclip} size="sm" tone="default" />
+                        <Text variant="caption" tone="secondary">
+                          {translate("Lampiran #{x}", { x: i + 1 })}
+                        </Text>
+                        <PressableScale
+                          onPress={() => handleRemoveReplyAttachment(key)}
+                          accessibilityRole="button"
+                          accessibilityLabel={translate("Hapus lampiran {x}", { x: i + 1 })}
+                          className="p-1"
+                        >
+                          <Icon icon={X} size="sm" tone="default" />
+                        </PressableScale>
+                      </View>
+                    ))}
+                  </View>
+                ) : null}
+                <View className="flex-row gap-2">
+                  <Button
+                    variant="secondary"
+                    fullWidth={false}
+                    loading={uploadingReply}
+                    disabled={replyAttachmentKeys.length >= 5}
+                    onPress={() => void handlePickReplyAttachments()}
+                    accessibilityLabel="Tambah lampiran balasan"
+                  >
+                    <Icon icon={Paperclip} size="sm" tone="default" />
+                    {" "}Lampiran
+                  </Button>
+                  <Button
+                    loading={sending}
+                    disabled={!reply.trim() || uploadingReply}
+                    onPress={() => void handleSend()}
+                    className="flex-1"
+                  >
+                    Kirim balasan
+                  </Button>
+                </View>
+              </View>
+            )}
             </View>
           ) : null}
         </Crossfade>

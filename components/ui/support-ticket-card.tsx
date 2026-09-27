@@ -35,6 +35,7 @@ import { Text } from "@/components/ui/text"
 import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
 import { hasOwn } from "@/lib/has-own"
+import { ticketCategoryLabel } from "@/lib/labels/support"
 
 import { TICKET_STATUS_LABELS, type TicketStatus } from "@/lib/labels/status"
 
@@ -123,6 +124,8 @@ export function SupportTicketCard({
   const t = { ...DEFAULT_LABELS, ...labels }
   const showAwaiting = (awaitingYou ?? status === "WAITING_USER") && isTicketActive(status)
   const statusLabel = isTicketStatus(status) ? TICKET_STATUS_LABELS[status] : status
+  // Item 125: kategori backend ("ORDER") → label Indonesia ("Pesanan").
+  const categoryLabel = category ? ticketCategoryLabel(category) : undefined
 
   const a11y =
     accessibilityLabel ??
@@ -131,7 +134,7 @@ export function SupportTicketCard({
       `Tiket ${ticketNumber}`,
       subject,
       statusLabel,
-      category,
+      categoryLabel,
       updatedAt,
     ])
 
@@ -151,16 +154,16 @@ export function SupportTicketCard({
         {subject}
       </Text>
 
-      {category || attachmentCount ? (
+      {categoryLabel || attachmentCount ? (
         <View className="flex-row items-center gap-2">
-          {category ? (
+          {categoryLabel ? (
             <Text variant="caption" tone="secondary" numberOfLines={1}>
-              {category}
+              {categoryLabel}
             </Text>
           ) : null}
           {attachmentCount ? (
             <View className="flex-row items-center gap-1">
-              {category ? (
+              {categoryLabel ? (
                 <Text variant="caption" tone="secondary">
                   ·
                 </Text>

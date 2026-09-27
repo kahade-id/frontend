@@ -1512,6 +1512,12 @@ export type ReplyTicketDto = {
    * minLength 1 · maxLength 5000
    */
   message: string
+  /**
+   * Item mega-batch 130 (BE-IMP): fileKey lampiran balasan, maks 5
+   * (purpose CHAT_ATTACHMENT). Ditambahkan manual — generator tipe belum
+   * mencakupnya; aditif, backend lama mengabaikan field tak dikenal.
+   */
+  attachments?: string[]
 }
 
 export type CreateShowcaseReportDto = {
