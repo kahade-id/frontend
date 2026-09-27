@@ -52,6 +52,7 @@ import {
 import { RATING_SNOOZE_MS, isRatingSnoozed, snoozeRatingReminder, useUiPrefs } from "@/lib/ui-prefs"
 import { usePolling } from "@/lib/use-polling"
 import { useClockTick } from "@/lib/use-clock-tick"
+import { resolveShippingCountdown } from "@/lib/order-shipping-countdown"
 import { useQrisPayment } from "@/lib/use-qris-payment"
 import { useOrderTracking } from "@/lib/use-order-tracking"
 import { useResultTimer } from "@/lib/use-result-timer"
@@ -620,7 +621,16 @@ export default function OrderDetailScreen() {
    * hitungan yang salah. Hook di sini (sebelum early return) — lihat J-14.
    */
   const autoReleaseTicking = order?.status === "IN_DELIVERY" && !!order?.autoCompleteAt
-  const nowMs = useClockTick(autoReleaseTicking)
+  /**
+   * Countdown "Batas waktu kirim penjual" — tampil HANYA bila order sudah
+   * dibayar & belum dikirim & `shippingDeadline` masih di masa depan (logika
+   * tampil/sembunyi di `resolveShippingCountdown`, pola sama seperti
+   * auto-release di atas). Deadline lewat → kartu tampil sebagai status
+   * jujur "melewati batas", konsisten dengan kartu auto-release yang tidak
+   * disembunyikan saat habis.
+   */
+  const shippingTicking = !!order?.shippingDeadline && !order?.shippedBy
+  const nowMs = useClockTick(autoReleaseTicking || shippingTicking)
   const autoRelease = useMemo(() => {
     if (!order || order.status !== "IN_DELIVERY" || !order.autoCompleteAt) return null
     const target = new Date(order.autoCompleteAt).getTime()
@@ -630,6 +640,10 @@ export default function OrderDetailScreen() {
       secondsLeft: Math.max(0, Math.floor((target - nowMs) / 1000)),
     }
   }, [order, nowMs])
+  const shippingCountdown = useMemo(
+    () => resolveShippingCountdown(order, nowMs),
+    [order, nowMs],
+  )
   const snoozeRatingReminderForOrder = useCallback(() => {
     if (!order) return
     // E-03: snooze dibandingkan terhadap jam SERVER (serverNow) di ui-prefs,
@@ -763,6 +777,7 @@ export default function OrderDetailScreen() {
             shippingRequired={shippingRequired}
             submitting={submitting}
             autoRelease={autoRelease}
+            shippingCountdown={shippingCountdown}
             onPay={() => setSheet("pay")}
             onAccept={() => setConfirmAccept(true)}
             onReject={() => setSheet("reject")}

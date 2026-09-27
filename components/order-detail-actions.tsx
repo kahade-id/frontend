@@ -16,6 +16,7 @@ import { ErrorState } from "@/components/ui/error-state"
 import { Text } from "@/components/ui/text"
 import { formatDurationWords, formatDateTimeWIB, formatRupiah } from "@/lib/format"
 import { translate } from "@/lib/i18n/translate"
+import type { ShippingCountdown } from "@/lib/order-shipping-countdown"
 
 export type OrderDetailActionsProps = Omit<ViewProps, "children"> & {
   /** Gerbang tampil — dihitung di layar dari status × peran. */
@@ -32,6 +33,12 @@ export type OrderDetailActionsProps = Omit<ViewProps, "children"> & {
   submitting: boolean
   /** Countdown auto-release dana (IN_DELIVERY + autoCompleteAt). */
   autoRelease: { secondsLeft: number; at: string } | null
+  /**
+   * Countdown batas waktu kirim penjual — tampil hanya bila order sudah
+   * dibayar & belum dikirim. Gerbang milik layar (via
+   * `resolveShippingCountdown`); komponen hanya me-render yang diminta.
+   */
+  shippingCountdown: ShippingCountdown | null
   onPay: () => void
   onAccept: () => void
   onReject: () => void
@@ -99,6 +106,7 @@ export function OrderDetailActions({
   shippingRequired,
   submitting,
   autoRelease,
+  shippingCountdown,
   onPay,
   onAccept,
   onReject,
@@ -133,6 +141,41 @@ export function OrderDetailActions({
                 { x: formatDateTimeWIB(autoRelease.at) },
               )}
             </Text>
+          </View>
+        ) : null}
+        {/*
+         * Countdown batas waktu kirim penjual — order sudah dibayar & belum
+         * dikirim. Deadline lewat: tampilkan status jujur ("melewati batas"),
+         * bukan disembunyikan — pola sama seperti kartu auto-release di atas
+         * yang saat habis menampilkan teks alternatif.
+         */}
+        {shippingCountdown ? (
+          <View className="gap-1 rounded-lg bg-warning-soft p-3">
+            {shippingCountdown.kind === "countdown" ? (
+              <>
+                <Text variant="body" weight={600}>
+                  {translate("Batas waktu kirim penjual: {x}.", {
+                    x: formatDurationWords(shippingCountdown.secondsLeft),
+                  })}
+                </Text>
+                <Text variant="caption" tone="secondary">
+                  {translate("Penjual harus mengirim sebelum {x}.", {
+                    x: formatDateTimeWIB(shippingCountdown.at),
+                  })}
+                </Text>
+              </>
+            ) : (
+              <>
+                <Text variant="body" weight={600}>
+                  {translate("Penjual melewati batas waktu kirim.")}
+                </Text>
+                <Text variant="caption" tone="secondary">
+                  {translate("Tenggat kirim adalah {x}.", {
+                    x: formatDateTimeWIB(shippingCountdown.at),
+                  })}
+                </Text>
+              </>
+            )}
           </View>
         ) : null}
         {canPay ? (

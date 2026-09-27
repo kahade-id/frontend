@@ -315,6 +315,17 @@ export type Order = {
    */
   autoCompleteAt?: string | null
   /**
+   * Batas waktu kirim penjual — diekspos backend di GET /v1/orders/:id sebagai
+   * `shippingDeadline` (= deliveryDeadlineAt). Klien menampilkan countdown
+   * "Batas waktu kirim penjual" selama order sudah dibayar & belum dikirim.
+   */
+  shippingDeadline?: string | null
+  /**
+   * Waktu pengiriman aktual — diekspos backend sebagai `shippedBy`
+   * (= shippedAt). Ada nilainya = countdown batas kirim tidak lagi tampil.
+   */
+  shippedBy?: string | null
+  /**
    * Pihak order TIDAK dijamin ada: `getOrder` hanya `readEntity`, dan backend
    * bisa mengembalikan `null`/menghilangkan pihak yang akunnya sudah dihapus.
    * Jadi keduanya opsional — deref tanpa penjaga akan melempar TypeError di
@@ -466,6 +477,10 @@ export function normalizeOrder(raw: Order & Record<string, unknown>): Order {
     deliveryDeadlineDays,
     deliveryDeadlineAt: optionalText(record.deliveryDeadlineAt ?? record.delivery_deadline_at),
     autoCompleteAt: optionalText(record.autoCompleteAt ?? record.auto_complete_at),
+    // Batas kirim + penanda sudah-dikirim dari GET /v1/orders/:id
+    // (additive, nullable — fail closed bila backend belum mengirimnya).
+    shippingDeadline: optionalText(record.shippingDeadline ?? record.shipping_deadline),
+    shippedBy: pickString(record, ["shippedBy", "shipped_by"]) ?? null,
     buyer: normalizeParty(record.buyer),
     seller: normalizeParty(record.seller),
     myRole: (pickString(record, ["myRole", "role", "my_role"]) ?? undefined) as OrderRole | undefined,

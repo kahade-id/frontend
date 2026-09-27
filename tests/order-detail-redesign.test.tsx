@@ -149,6 +149,7 @@ describe("<OrderDetailActions>", () => {
     shippingRequired: true,
     submitting: false,
     autoRelease: null,
+    shippingCountdown: null,
     onPay: noop,
     onAccept: noop,
     onReject: noop,
