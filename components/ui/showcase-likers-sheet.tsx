@@ -209,44 +209,59 @@ export function ShowcaseLikersSheet({
           />
         ) : (
           <View>
-            {active.data.map((person) => (
-              <PressableScale
-                key={person.key}
-                accessibilityRole="button"
-                accessibilityLabel={translate("Lihat profil {x}", {
-                  x: person.fullName?.trim() || (person.username ? `@${person.username}` : person.key),
-                })}
-                // Item 52 (FE-IMP-1): baris penyuka/penyimpan BISA diketuk → profil.
-                onPress={() => {
-                  onClose()
-                  if (!person.username) return
-                  router.push(
-                    hasSession
-                      ? ROUTES.userProfile(person.username)
-                      : ROUTES.loginRequired(`/user/${encodeURIComponent(person.username)}`),
-                  )
-                }}
-                containerClassName={cn("-mx-2 rounded-md px-2", focusRing)}
-                className="flex-row items-center gap-3 py-2.5"
-              >
-                <Avatar source={person.avatarUrl ?? undefined} name={displayName(person)} size="md" />
-                <View className="flex-1">
-                  <Text variant="label" numberOfLines={1}>
-                    {displayName(person)}
-                  </Text>
-                  {person.username && person.fullName ? (
-                    <Text variant="caption" tone="secondary" numberOfLines={1}>
-                      @{person.username}
+            {active.data.map((person) => {
+              // Item 52: baris tanpa username TIDAK bisa diketuk (bukan tombol)
+              // dan TIDAK boleh menutup sheet tanpa navigasi.
+              const rowContent = (
+                <>
+                  <Avatar source={person.avatarUrl ?? undefined} name={displayName(person)} size="md" />
+                  <View className="flex-1">
+                    <Text variant="label" numberOfLines={1}>
+                      {displayName(person)}
+                    </Text>
+                    {person.username && person.fullName ? (
+                      <Text variant="caption" tone="secondary" numberOfLines={1}>
+                        @{person.username}
+                      </Text>
+                    ) : null}
+                  </View>
+                  {person.at ? (
+                    <Text variant="caption" tone="tertiary">
+                      {formatRelativeTime(person.at)}
                     </Text>
                   ) : null}
-                </View>
-                {person.at ? (
-                  <Text variant="caption" tone="tertiary">
-                    {formatRelativeTime(person.at)}
-                  </Text>
-                ) : null}
-              </PressableScale>
-            ))}
+                </>
+              )
+              if (!person.username) {
+                return (
+                  <View key={person.key} className="flex-row items-center gap-3 py-2.5">
+                    {rowContent}
+                  </View>
+                )
+              }
+              return (
+                <PressableScale
+                  key={person.key}
+                  accessibilityRole="button"
+                  accessibilityLabel={translate("Lihat profil {x}", {
+                    x: person.fullName?.trim() || `@${person.username}`,
+                  })}
+                  // Item 52 (FE-IMP-1): baris penyuka/penyimpan BISA diketuk → profil.
+                  onPress={() => {
+                    onClose()
+                    router.push(
+                      hasSession
+                        ? ROUTES.userProfile(person.username as string)
+                        : ROUTES.loginRequired(`/user/${encodeURIComponent(person.username as string)}`),
+                    )
+                  }}
+                  containerClassName={cn("-mx-2 rounded-md px-2", focusRing)}
+                  className="flex-row items-center gap-3 py-2.5"
+                >
+                  {rowContent}
+                </PressableScale>
+              )
+            })}
             {active.status === "idle" && active.hasNext ? (
               <Button
                 variant="ghost"

@@ -34,60 +34,63 @@ export function ShowcaseRelatedCard({ rel }: { rel: ShowcaseSocialItem }) {
   const { liked, likePending, toggleLike } = useShowcaseSocialActions(rel)
   const cover = rel.coverImageUrl ?? rel.imageUrl ?? undefined
 
+  /*
+   * Item 166: quick-like adalah OVERLAY sibling (bukan anak pressable kartu)
+   * — pressable bersarang membuat ketuk hati ikut memicu navigasi detail di
+   * sebagian platform walau stopPropagation dipanggil.
+   */
   return (
-    <PressableScale
-      accessibilityRole="button"
-      accessibilityLabel={rel.title}
-      onPress={() => router.push(ROUTES.showcaseDetail(rel.id))}
-      containerClassName={cn("w-36 overflow-hidden rounded-xl bg-surface-elevated", focusRing)}
-    >
-      <View className="relative">
-        {cover ? (
-          // SH-F-007: <Picture> (bukan RN Image mentah) — URL rusak
-          // menampilkan fallback ikon, bukan kotak kosong.
-          <Picture
-            source={cover}
-            alt={rel.title}
-            className="h-24 w-36"
-            radius="none"
-            bordered={false}
-          />
-        ) : (
-          <View className="h-24 w-36 items-center justify-center bg-surface">
-            <Text variant="caption" tone="secondary">
-              {translate("Etalase")}
-            </Text>
-          </View>
-        )}
-        {/* Quick-like: tamu tetap bisa mengetuk — hook mengarahkan login. */}
-        <View className="absolute right-1 top-1">
-          <IconButton
-            icon={Heart}
-            variant="ghost"
-            size="sm"
-            active={liked}
-            accessibilityLabel={
-              liked ? translate("Batal sukai {x}", { x: rel.title }) : translate("Sukai {x}", { x: rel.title })
-            }
-            accessibilityState={{ selected: liked }}
-            loading={likePending}
-            onPress={(event) => {
-              // Jangan ikut membuka detail saat hati diketuk.
-              event.stopPropagation()
-              toggleLike()
-            }}
-            className="bg-background/70"
-          />
+    <View className="relative w-36">
+      <PressableScale
+        accessibilityRole="button"
+        accessibilityLabel={rel.title}
+        onPress={() => router.push(ROUTES.showcaseDetail(rel.id))}
+        containerClassName={cn("w-36 overflow-hidden rounded-xl bg-surface-elevated", focusRing)}
+      >
+        <View className="relative">
+          {cover ? (
+            // SH-F-007: <Picture> (bukan RN Image mentah) — URL rusak
+            // menampilkan fallback ikon, bukan kotak kosong.
+            <Picture
+              source={cover}
+              alt={rel.title}
+              className="h-24 w-36"
+              radius="none"
+              bordered={false}
+            />
+          ) : (
+            <View className="h-24 w-36 items-center justify-center bg-surface">
+              <Text variant="caption" tone="secondary">
+                {translate("Etalase")}
+              </Text>
+            </View>
+          )}
         </View>
+        <View className="p-2">
+          <Text variant="caption" weight={600} numberOfLines={2}>
+            {rel.title}
+          </Text>
+          <Text variant="caption" tone="secondary" numberOfLines={1} className="tabular-nums">
+            {showcasePriceLabelOrFallback(rel)}
+          </Text>
+        </View>
+      </PressableScale>
+      {/* Quick-like: tamu tetap bisa mengetuk — hook mengarahkan login. */}
+      <View className="absolute right-1 top-1">
+        <IconButton
+          icon={Heart}
+          variant="ghost"
+          size="sm"
+          active={liked}
+          accessibilityLabel={
+            liked ? translate("Batal sukai {x}", { x: rel.title }) : translate("Sukai {x}", { x: rel.title })
+          }
+          accessibilityState={{ selected: liked }}
+          loading={likePending}
+          onPress={toggleLike}
+          className="bg-background/70"
+        />
       </View>
-      <View className="p-2">
-        <Text variant="caption" weight={600} numberOfLines={2}>
-          {rel.title}
-        </Text>
-        <Text variant="caption" tone="secondary" numberOfLines={1} className="tabular-nums">
-          {showcasePriceLabelOrFallback(rel)}
-        </Text>
-      </View>
-    </PressableScale>
+    </View>
   )
 }

@@ -459,6 +459,10 @@ function ShowcaseDetailContent({
           })),
       )
       setCommentTotal((n) => Math.max(0, n - 1))
+      // Item 161: kirim gagal — kembalikan draft (state + SecureStore) supaya
+      // teks yang diketik pengguna tidak hilang.
+      setDraft(content)
+      saveShowcaseCommentDraft(id, content)
       toast.show({
         title: SHOWCASE_COMMENT_MESSAGES.sendFailed,
         description: isApiError(err) ? userMessage(err) : undefined,
@@ -675,6 +679,8 @@ function ShowcaseDetailContent({
       }}
       refreshable
       contentClassName="gap-0"
+      // Item 163: footer memuat komposer komentar — naik di atas keyboard.
+      keyboardAvoiding
       footer={
         <View className="border-t border-border bg-background py-3">
           {/* Item 163/164 (FE-IMP-1): bar sticky harga + CTA "Buat Transaksi"
@@ -959,7 +965,12 @@ function ShowcaseDetailContent({
               icon={ShareNetwork}
               variant="ghost"
               accessibilityLabel={translate("Bagikan karya ini")}
-              onPress={() => void share()}
+              // Item 159: tutup viewer dulu sebelum membuka sheet berbagi —
+              // dua Modal bertumpuk rawan sheet tertutup viewer.
+              onPress={() => {
+                setViewerIndex(null)
+                void share()
+              }}
             />
             <IconButton
               icon={BookmarkSimple}

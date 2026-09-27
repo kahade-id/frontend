@@ -123,7 +123,7 @@ export function ImageViewer({
 
   const renderItem = useCallback(
     ({ item, index: i }: { item: ImageViewerItem; index: number }) => {
-      const alt = item.alt ?? title ?? translate("Foto {x} dari {y}", { x: i + 1, y: images.length })
+      const alt = item.alt ?? title ?? translate("Media {x} dari {y}", { x: i + 1, y: images.length })
       // Item 158: slide video — diputar fullscreen; hanya slide aktif yang
       // berbunyi/berjalan. Zoom cubit tidak berlaku untuk video.
       if (item.kind === "video") {
@@ -239,7 +239,7 @@ export function ImageViewer({
                 <IconButton
                   icon={CaretLeft}
                   variant="ghost"
-                  accessibilityLabel={translate("Foto sebelumnya")}
+                  accessibilityLabel={translate("Media sebelumnya")}
                   onPress={() => goTo(safeCurrent - 1)}
                   disabled={safeCurrent === 0}
                 />
@@ -254,7 +254,7 @@ export function ImageViewer({
                 <IconButton
                   icon={CaretRight}
                   variant="ghost"
-                  accessibilityLabel={translate("Foto berikutnya")}
+                  accessibilityLabel={translate("Media berikutnya")}
                   onPress={() => goTo(safeCurrent + 1)}
                   disabled={safeCurrent >= images.length - 1}
                 />

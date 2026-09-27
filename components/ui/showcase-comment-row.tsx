@@ -173,7 +173,7 @@ export function ShowcaseCommentRow({
                   : ROUTES.loginRequired(`/user/${encodeURIComponent(comment.author.username)}`),
               )
             }
-            containerClassName={cn("min-w-0 flex-1 rounded-sm", focusRing)}
+            containerClassName={cn("min-w-0 shrink rounded-sm", focusRing)}
           >
             {/*
               SS-003 (audit 2026-09-26): seal verifikasi penulis — rantai data
@@ -200,32 +200,36 @@ export function ShowcaseCommentRow({
               >
                 {isMine ? ` • ${translate("Anda")}` : null}
               </Text>
-              {/* Item 165: waktu bisa diketuk — beralih relatif ↔ absolut. */}
-              <PressableScale
-                accessibilityRole="button"
-                accessibilityLabel={
-                  showAbsoluteTime
-                    ? translate("Tampilkan waktu relatif")
-                    : translate("Tampilkan waktu pasti")
-                }
-                accessibilityHint={translate("Ketuk untuk beralih format waktu")}
-                onPress={() => setShowAbsoluteTime((prev) => !prev)}
-                containerClassName={cn("rounded-sm", focusRing)}
-                hitSlop={8}
-              >
-                <Text
-                  variant="caption"
-                  tone="secondary"
-                  weight={400}
-                  numberOfLines={1}
-                  className="tabular-nums"
-                >
-                  • {timeLabel}
-                  {edited ? ` ${translate("(diedit)")}` : null}
-                </Text>
-              </PressableScale>
             </View>
           </PressableScale>
+          {/*
+            Item 165: tombol waktu adalah SAUDARA tombol profil (bukan anak) —
+            pressable bersarang membuat ketuk waktu ikut memicu navigasi profil.
+          */}
+          <PressableScale
+            accessibilityRole="button"
+            accessibilityLabel={
+              showAbsoluteTime
+                ? translate("Tampilkan waktu relatif")
+                : translate("Tampilkan waktu pasti")
+            }
+            accessibilityHint={translate("Ketuk untuk beralih format waktu")}
+            onPress={() => setShowAbsoluteTime((prev) => !prev)}
+            containerClassName={cn("shrink-0 rounded-sm", focusRing)}
+            hitSlop={8}
+          >
+            <Text
+              variant="caption"
+              tone="secondary"
+              weight={400}
+              numberOfLines={1}
+              className="tabular-nums"
+            >
+              • {timeLabel}
+              {edited ? ` ${translate("(diedit)")}` : null}
+            </Text>
+          </PressableScale>
+          <View className="min-w-0 flex-1" />
           {menuable && onOpenMenu ? (
             <IconButton
               icon={DotsThree}

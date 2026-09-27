@@ -26,6 +26,7 @@ import { formatCountdown } from "@/lib/format"
 import { translate } from "@/lib/i18n/translate"
 import { useLanguage } from "@/lib/i18n"
 import { useDataSaver } from "@/lib/ui-prefs"
+import { resolveVideoShouldPlay, toggleDataSaverPlayIntent } from "@/lib/showcase-video-play"
 import type { GalleryMedia } from "@/lib/showcase-social"
 
 /**
@@ -67,6 +68,23 @@ export function ShowcaseMediaGallery({ media, title, onOpen, onDoubleTap, autopl
   const [paused, setPaused] = useState<Record<string, boolean>>({})
   /** Batch 19 (item 15): video yang sudah diketuk di mode hemat data. */
   const [manualPlay, setManualPlay] = useState<Record<string, boolean>>({})
+  /**
+   * Item 59 strict (FE-IMP-1): latch niat putar eksplisit per video untuk
+   * mode hemat data. Autoplay scroll-driven TIDAK PERNAH berlaku saat
+   * `dataSaver` aktif — bahkan setelah video dimuat manual. Latch dipasang
+   * oleh ketuk eksplisit (poster "Putar video" / ketuk video) dan dicabut
+   * saat pindah slide, supaya video tidak "autoplay" saat slide dikunjungi
+   * ulang.
+   */
+  const [playLatch, setPlayLatch] = useState<Record<string, boolean>>({})
+  useEffect(() => () => {
+    if (pendingSingleRef.current) clearTimeout(pendingSingleRef.current)
+  }, [])
+  // Item 59 strict: pindah slide dalam mode hemat data = cabut semua niat
+  // putar — video yang dimuat manual tidak boleh mulai sendiri.
+  useEffect(() => {
+    if (dataSaver) setPlayLatch({})
+  }, [page, dataSaver])
   useEffect(() => () => {
     if (pendingSingleRef.current) clearTimeout(pendingSingleRef.current)
   }, [])
@@ -90,6 +108,16 @@ export function ShowcaseMediaGallery({ media, title, onOpen, onDoubleTap, autopl
     const slide = media[index]
     const singleTap = () => {
       if (slide?.kind === "video") {
+        if (dataSaver) {
+          // Item 59 strict: dalam mode hemat data, ketuk video = toggle niat
+          // putar EKSPLISIT (bukan autoplay). Tidak ada sinyal otomatis yang
+          // bisa memutar video — hanya latch ini.
+          const playing = manualPlay[slide.id] === true && playLatch[slide.id] === true && !paused[slide.id]
+          const next = toggleDataSaverPlayIntent(playing)
+          setPlayLatch((prev) => ({ ...prev, [slide.id]: next.latch }))
+          setPaused((prev) => ({ ...prev, [slide.id]: next.paused }))
+          return
+        }
         setPaused((prev) => ({ ...prev, [slide.id]: !prev[slide.id] }))
         return
       }
@@ -143,10 +171,20 @@ export function ShowcaseMediaGallery({ media, title, onOpen, onDoubleTap, autopl
                     title={title}
                     // Item 16: autoplay hanya bila slide aktif & terlihat & tidak di-pause manual.
                     shouldPlay={autoplayActive && index === page && !paused[m.id]}
+                    // Item 59 strict: dalam mode hemat data, autoplay TIDAK
+                    // PERNAH diizinkan — bahkan setelah video dimuat manual.
+                    dataSaver={dataSaver}
+                    // Niat putar eksplisit (ketuk poster / ketuk video).
+                    userPlay={playLatch[m.id] === true && !paused[m.id]}
                     // Item 15: tunda unduhan video sampai diketuk.
                     gated={dataSaver && !manualPlay[m.id]}
                     onTap={() => handleSlidePress(index)}
-                    onRequestPlay={() => setManualPlay((prev) => ({ ...prev, [m.id]: true }))}
+                    onRequestPlay={() => {
+                      setManualPlay((prev) => ({ ...prev, [m.id]: true }))
+                      // Ketuk "Putar video" = niat eksplisit → langsung putar.
+                      setPlayLatch((prev) => ({ ...prev, [m.id]: true }))
+                      setPaused((prev) => ({ ...prev, [m.id]: false }))
+                    }}
                   />
                 ) : (
                   <PressableScale accessibilityRole="button"
@@ -197,8 +235,11 @@ export function ShowcaseMediaGallery({ media, title, onOpen, onDoubleTap, autopl
           </PressableScale>
           <View className="flex-row items-center gap-3">
             {/* Item 155 (FE-IMP-1): titik indikator BISA diketuk → lompat ke
-                slide. Dulu <View> mati (hanya panah yang bisa dipakai). */}
-            <View accessible accessibilityLabel={translate("Media {x} dari {y}", { x: page + 1, y: media.length })} accessibilityLiveRegion="polite" className="flex-row items-center gap-1.5">
+                slide. Dulu <View> mati (hanya panah yang bisa dipakai).
+                Parent SENGAJA tidak `accessible`: di iOS itu mengelompokkan
+                anak dan menyembunyikan tiap tombol dari VoiceOver — posisi
+                dibaca lewat label tiap titik. */}
+            <View className="flex-row items-center gap-1.5">
               {media.map((m, index) => (
                 <PressableScale
                   key={`dot-${m.id}`}
@@ -239,6 +280,8 @@ function VideoSlide({
   media,
   title,
   shouldPlay,
+  dataSaver,
+  userPlay,
   gated,
   onTap,
   onRequestPlay,
@@ -246,6 +289,10 @@ function VideoSlide({
   media: GalleryMedia
   title: string
   shouldPlay: boolean
+  /** Item 59 strict: true = autoplay mati total, hanya niat eksplisit. */
+  dataSaver: boolean
+  /** Niat putar eksplisit pengguna (latch), sudah dikurangi pause manual. */
+  userPlay: boolean
   gated: boolean
   onTap: () => void
   onRequestPlay: () => void
@@ -257,10 +304,16 @@ function VideoSlide({
    * ketuk speaker tidak ikut memicu toggle play/pause ketuk-tunggal.
    */
   const [muted, setMuted] = useState(true)
-  // Item 59 (FE-IMP-1): eksplisit — saat gated (hemat data, belum diketuk),
-  // autoplay TIDAK BOLEH jalan; `shouldPlay` hanya berlaku setelah video
-  // dimuat manual oleh pengguna.
-  const effectiveShouldPlay = gated ? false : shouldPlay
+  // Item 59 strict (FE-IMP-1): keputusan putar terpusat di
+  // `resolveVideoShouldPlay`. Saat gated (hemat data, belum diketuk) jangan
+  // pernah putar; dalam mode hemat data autoplay (`shouldPlay`) SELALU
+  // diabaikan — hanya niat eksplisit (`userPlay`) yang memutar video.
+  const effectiveShouldPlay = resolveVideoShouldPlay({
+    gated,
+    dataSaver,
+    autoplaySignal: shouldPlay,
+    userPlay,
+  })
   const toggleMute = () => setMuted((m) => !m)
 
   const muteButton = (
