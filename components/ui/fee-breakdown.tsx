@@ -26,7 +26,7 @@
  *   - `loading` = Skeleton dengan tinggi baris sama supaya kartu tidak
  *     melompat saat user mengubah nominal dan fee dihitung ulang.
  */
-import { type ViewProps } from "react-native"
+import { View, type ViewProps } from "react-native"
 import { translate } from "@/lib/i18n/translate"
 
 import { Amount } from "@/components/ui/amount"
@@ -93,6 +93,12 @@ export type FeeBreakdownProps = Omit<ViewProps, "children" | "role"> & {
   buyerPays?: number
   sellerGets?: number
   loading?: boolean
+  /**
+   * Iterasi de-card 2026-09-27: `bare` me-render baris-baris invoice TANPA
+   * bungkus <Card> — dipakai layar detail order yang sudah punya
+   * <SectionHeader>. Konsumen lain (invoice, review transaksi) tidak berubah.
+   */
+  bare?: boolean
   labels?: Partial<Omit<FeeBreakdownLabels, "responsibility">> & { responsibility?: Partial<FeeBreakdownLabels["responsibility"]> }
   className?: string
 }
@@ -107,6 +113,7 @@ export function FeeBreakdown({
   buyerPays,
   sellerGets,
   loading = false,
+  bare = false,
   labels,
   className,
   ...rest
@@ -143,19 +150,31 @@ export function FeeBreakdown({
   const gets = sellerGets
 
   if (loading) {
-    return (
-      <Card padded className={cn("gap-3", className)} accessibilityLabel="Menghitung biaya" {...rest}>
+    const skeletonRows = (
+      <>
         <Skeleton height={14} className="w-full tabular-nums" />
         <Skeleton height={14} className="w-full" />
         <Skeleton height={1} className="w-full" />
         <Skeleton height={20} className="w-full" />
         <Skeleton height={14} className="w-3/4" />
+      </>
+    )
+    if (bare) {
+      return (
+        <View className={cn("gap-3", className)} accessibilityLabel="Menghitung biaya" {...rest}>
+          {skeletonRows}
+        </View>
+      )
+    }
+    return (
+      <Card padded className={cn("gap-3", className)} accessibilityLabel="Menghitung biaya" {...rest}>
+        {skeletonRows}
       </Card>
     )
   }
 
-  return (
-    <Card padded className={cn("gap-3", className)} {...rest}>
+  const rows = (
+    <>
       <KeyValue label={t.orderValue} value={<Amount value={orderValue} size="body" />} />
       <KeyValue
         label={t.serviceFee}
@@ -209,6 +228,21 @@ export function FeeBreakdown({
           {share.buyer !== share.seller ? " (sisa pembulatan ke pembeli)" : ""}
         </Text>
       ) : null}
+    </>
+  )
+
+  if (bare) {
+    // Tabel invoice sesungguhnya: baris + hairline divider, tanpa card.
+    return (
+      <View className={cn("gap-1", className)} {...rest}>
+        {rows}
+      </View>
+    )
+  }
+
+  return (
+    <Card padded className={cn("gap-3", className)} {...rest}>
+      {rows}
     </Card>
   )
 }

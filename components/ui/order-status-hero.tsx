@@ -1,16 +1,22 @@
 /**
  * Kahade — <OrderStatusHero>.
  *
- * Kepala halaman detail order: status yang MENONJOL (ikon besar + label),
+ * Kepala halaman detail order — FULL-BLEED band (tepi-ke-tepi, bukan card
+ * mengambang): latar lembut sesuai status, status besar dan berwibawa,
  * judul order, lalu blok identitas transaksi — ID Transaksi (dengan salin),
  * Tanggal dan Waktu terpisah.
+ *
+ * Iterasi de-card 2026-09-27: keluhan user "monoton card card" — hero bukan
+ * lagi <Card> melainkan pita full-bleed dengan `-mx-5 -mt-3` (meniadakan
+ * padding container + paddingTop parent) sehingga menyentuh tepi layar dan
+ * header. Latar = ramp `*-soft` sesuai tone status (mode-aware, aman di web
+ * karena View biasa — bukan Reanimated).
  *
  * Hierarki baca: STATUS → JUDUL → ID TRANSAKSI → TANGGAL/WAKTU.
  */
 import { View, type ViewProps } from "react-native"
 import { Check, Copy } from "phosphor-react-native"
 
-import { Card } from "@/components/ui/card"
 import { Divider } from "@/components/ui/divider"
 import { IconButton } from "@/components/ui/icon-button"
 import { Text } from "@/components/ui/text"
@@ -19,6 +25,23 @@ import { cn } from "@/lib/cn"
 import { formatDate, formatTime } from "@/lib/format"
 import { translate } from "@/lib/i18n/translate"
 import type { OrderStatus } from "@/lib/api/orders"
+
+/** Latar pita hero mengikuti tone status — selaras dengan OrderStatusBadge. */
+const STATUS_HERO_BG: Record<string, string> = {
+  WAITING_CONFIRMATION: "bg-warning-soft",
+  WAITING_PAYMENT: "bg-warning-soft",
+  PENDING_PAYMENT: "bg-warning-soft",
+  DELIVERED: "bg-warning-soft",
+  PROCESSING: "bg-info-soft",
+  IN_DELIVERY: "bg-info-soft",
+  PAID: "bg-info-soft",
+  SHIPPED: "bg-info-soft",
+  COMPLETED: "bg-success-soft",
+  DISPUTED: "bg-danger-soft",
+  CANCELLED: "bg-surface",
+  REFUNDED: "bg-surface",
+  EXPIRED: "bg-surface",
+}
 
 // `role` di-Omit: ViewProps RN punya `role?: Role` (a11y) yang disjoint dengan
 // "buyer"/"seller" — tanpa Omit, `role` tereduksi menjadi `undefined` saja
@@ -49,22 +72,23 @@ export function OrderStatusHero({
   const statusLabel = ORDER_STATUS_LABELS[status as OrderStatus] ?? String(status)
   const date = formatDate(createdAt, { long: true })
   const time = formatTime(createdAt)
+  const heroBg = STATUS_HERO_BG[status] ?? "bg-info-soft"
   return (
-    <Card padded className={cn("gap-4", className)} {...rest}>
+    <View className={cn("-mx-5 -mt-3 px-5 pb-7 pt-6", heroBg, className)} {...rest}>
       {/* Baris status — elemen paling menonjol di layar */}
       <View className="flex-row items-center justify-between gap-3">
         <View className="flex-1 gap-1" accessible accessibilityRole="header">
           <Text variant="caption" tone="secondary">
             {translate("Status order")}
           </Text>
-          <Text variant="h2" accessibilityLabel={`${translate("Status order")}: ${statusLabel}`}>
+          <Text variant="h1" accessibilityLabel={`${translate("Status order")}: ${statusLabel}`}>
             {statusLabel}
           </Text>
         </View>
         <OrderStatusBadge status={status} role={role} size="md" />
       </View>
 
-      <View className="gap-1">
+      <View className="mt-4 gap-1">
         <Text variant="caption" tone="secondary">
           {translate("Order")}
         </Text>
@@ -73,10 +97,12 @@ export function OrderStatusHero({
         </Text>
       </View>
 
-      <Divider />
+      <View className="my-5">
+        <Divider />
+      </View>
 
       {/* Identitas transaksi */}
-      <View className="gap-3">
+      <View className="gap-4">
         <View className="flex-row items-center justify-between gap-3">
           <View className="flex-1 gap-1">
             <Text variant="caption" tone="secondary">
@@ -114,6 +140,6 @@ export function OrderStatusHero({
           </View>
         </View>
       </View>
-    </Card>
+    </View>
   )
 }

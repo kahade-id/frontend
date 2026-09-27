@@ -26,11 +26,11 @@ import { PencilSimple, Truck } from "phosphor-react-native"
 import { View, type ViewProps } from "react-native"
 
 import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
 import { CopyableField } from "@/components/ui/copyable-field"
 import { EmptyState } from "@/components/ui/empty-state"
 import { IconBox } from "@/components/ui/icon-box"
 import { IconButton } from "@/components/ui/icon-button"
+import { SectionHeader } from "@/components/ui/section"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 
@@ -85,8 +85,10 @@ export function ShippingInfoCard({ shipping, canEdit = false, onEdit, onTrack, o
   const filled = !!shipping?.trackingNumber || !!shipping?.courierName
 
   if (!filled) {
+    // Iterasi de-card 2026-09-27: empty state polos — tanpa bungkus <Card>.
     return (
-      <Card padded className={className} {...rest}>
+      <View className={cn("gap-4", className)} {...rest}>
+        <SectionHeader title={t.title} />
         <EmptyState
           compact
           icon={Truck}
@@ -100,25 +102,30 @@ export function ShippingInfoCard({ shipping, canEdit = false, onEdit, onTrack, o
             ) : undefined
           }
         />
-      </Card>
+      </View>
     )
   }
 
   return (
-    <Card padded className={cn("gap-4", className)} {...rest}>
-      <View className="flex-row items-center justify-between gap-3">
-        <View className="flex-1 flex-row items-center gap-3">
-          <IconBox icon={Truck} size="md" variant="surface" />
-          <View className="flex-1 gap-0.5">
-            <Text variant="caption" tone="secondary">
-              {t.courier}
-            </Text>
-            <Text ellipsizeMode="tail" variant="body" weight={600} tone="primary" numberOfLines={1}>
-              {shipping?.courierName ?? "—"}
-            </Text>
-          </View>
+    <View className={cn("gap-4", className)} {...rest}>
+      <SectionHeader
+        title={t.title}
+        action={
+          canEdit && onEdit ? (
+            <IconButton icon={PencilSimple} size="sm" variant="ghost" accessibilityLabel={t.edit} onPress={onEdit} />
+          ) : undefined
+        }
+      />
+      <View className="flex-row items-center gap-3">
+        <IconBox icon={Truck} size="md" variant="surface" />
+        <View className="flex-1 gap-0.5">
+          <Text variant="caption" tone="secondary">
+            {t.courier}
+          </Text>
+          <Text ellipsizeMode="tail" variant="body" weight={600} tone="primary" numberOfLines={1}>
+            {shipping?.courierName ?? "—"}
+          </Text>
         </View>
-        {canEdit && onEdit ? <IconButton icon={PencilSimple} size="sm" variant="ghost" accessibilityLabel={t.edit} onPress={onEdit} /> : null}
       </View>
 
       {shipping?.trackingNumber ? (
@@ -150,6 +157,6 @@ export function ShippingInfoCard({ shipping, canEdit = false, onEdit, onTrack, o
           </Button>
         ) : null}
       </View>
-    </Card>
+    </View>
   )
 }

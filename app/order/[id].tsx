@@ -716,7 +716,10 @@ export default function OrderDetailScreen() {
             saat pindah order tanpa remount layar. Refresh (PTR) tidak memicu
             reveal ulang karena komponen tidak me-remount. */}
         <FadeIn key={order.id} duration="fast">
-        <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
+        {/* Iterasi de-card 2026-09-27: ritme antar-section space.8 (32px)
+            sesuai §4 — section polos butuh ruang napas lebih lega
+            dibanding tumpukan kartu. */}
+        <View className="gap-7" style={{ paddingTop: tokens.space[3] }}>
           {/* 1 — Hero: status menonjol + judul + ID transaksi + tanggal/waktu.
               Hierarki baca: STATUS → JUDUL → ID TRANSAKSI → TANGGAL/WAKTU. */}
           <OrderStatusHero
@@ -803,11 +806,13 @@ export default function OrderDetailScreen() {
             orderValue={order.orderValue}
           />
 
-          {/* 6 — Rincian pembayaran bergaya invoice */}
+          {/* 6 — Rincian pembayaran: tabel invoice sesungguhnya (bare, tanpa
+              card) — baris + hairline divider, total menonjol. */}
           {fee && knownRole ? (
             <>
               <SectionHeader title="Rincian pembayaran" />
               <FeeBreakdown
+                bare
                 orderValue={order.orderValue}
                 feeAmount={fee.platformFee}
                 feeResponsibility={order.feeResponsibility}

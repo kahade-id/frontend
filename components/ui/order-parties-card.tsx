@@ -11,10 +11,10 @@ import { CaretRight, UserCircle } from "phosphor-react-native"
 
 import { Avatar } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
-import { Card } from "@/components/ui/card"
 import { Icon } from "@/components/ui/icon"
 import { Divider } from "@/components/ui/divider"
 import { PressableScale } from "@/components/ui/pressable-scale"
+import { SectionHeader } from "@/components/ui/section"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { translate } from "@/lib/i18n/translate"
@@ -97,11 +97,10 @@ export function OrderPartiesCard({
   className,
   ...rest
 }: OrderPartiesCardProps) {
+  // Iterasi de-card 2026-09-27: baris kompak dengan divider — bukan kartu.
   return (
-    <Card padded className={cn("gap-3", className)} {...rest}>
-      <Text variant="h3" accessibilityRole="header">
-        {translate("Pihak transaksi")}
-      </Text>
+    <View className={cn("gap-4", className)} {...rest}>
+      <SectionHeader title={translate("Pihak transaksi")} />
       <PartyRow
         label={translate("Pembeli")}
         party={buyer}
@@ -115,6 +114,6 @@ export function OrderPartiesCard({
         isMe={myRole === "SELLER"}
         onOpenProfile={onOpenProfile}
       />
-    </Card>
+    </View>
   )
 }

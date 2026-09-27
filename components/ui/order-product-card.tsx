@@ -11,9 +11,9 @@ import { View, type ViewProps } from "react-native"
 
 import { Amount } from "@/components/ui/amount"
 import { Badge } from "@/components/ui/badge"
-import { Card } from "@/components/ui/card"
 import { Divider } from "@/components/ui/divider"
 import { Icon, type IconComponent } from "@/components/ui/icon"
+import { SectionHeader } from "@/components/ui/section"
 import { Text } from "@/components/ui/text"
 import { ORDER_TYPE_ICONS, ORDER_TYPE_LABELS } from "@/components/ui/order-form-selectors"
 import { cn } from "@/lib/cn"
@@ -37,11 +37,11 @@ export function OrderProductCard({
 }: OrderProductCardProps) {
   const TypeIcon = (ORDER_TYPE_ICONS as Record<string, IconComponent | undefined>)[orderType]
   const typeLabel = (ORDER_TYPE_LABELS as Record<string, string>)[orderType] ?? String(orderType)
+  // Iterasi de-card 2026-09-27: section polos — judul + isi + hairline divider,
+  // tanpa bungkus <Card>.
   return (
-    <Card padded className={cn("gap-3", className)} {...rest}>
-      <Text variant="h3" accessibilityRole="header">
-        {translate("Produk")}
-      </Text>
+    <View className={cn("gap-4", className)} {...rest}>
+      <SectionHeader title={translate("Produk")} />
       <View className="flex-row gap-3">
         <View
           className="h-16 w-16 items-center justify-center rounded-md bg-surface"
@@ -71,6 +71,6 @@ export function OrderProductCard({
         </Text>
         <Amount value={orderValue} size="body" />
       </View>
-    </Card>
+    </View>
   )
 }
