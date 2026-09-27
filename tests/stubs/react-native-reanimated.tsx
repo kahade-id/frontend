@@ -148,6 +148,15 @@ export function useDerivedValue<T>(worklet: () => T): { value: T } {
   return useMemo(() => ({ value: worklet() }), [])
 }
 
+/**
+ * `useAnimatedScrollHandler` — di test cukup kembalikan no-op: tidak ada
+ * scroll sungguhan, dan komponen tidak boleh crash saat onScroll tak
+ * terpanggil.
+ */
+export function useAnimatedScrollHandler(_handlers: Record<string, unknown>) {
+  return useMemo(() => () => {}, [])
+}
+
 /** Snap ke target: test memeriksa tujuan animasi, bukan kurva. */
 export function withSpring<T>(to: T): T {
   return to
