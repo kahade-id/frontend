@@ -220,7 +220,7 @@ function forceUpdateDescription(
   return detail?.message ? `${base}\n\n${detail.message}` : base
 }
 
-function AppShell() {
+function AppShellInner() {
   const { mode } = useTheme()
   const palette = tokens.colors[mode]
   const router = useRouter()
@@ -508,141 +508,134 @@ function AppShell() {
   }
 
   return (
-    // PortalProvider + ToastProvider HARUS di dalam ThemeProvider (kita sudah
-    // di dalamnya — AppShell dirender oleh ThemeProvider) agar overlay yang
-    // diteleport (BottomSheet, Modal, Banner, Tooltip, SearchOverlay,
-    // LoadingScreen) dan Toast tetap menerima CSS variable dari vars().
-    // Tanpa provider ini, setiap komponen overlay melempar error saat mount.
-    <PortalProvider>
-      <ToastProvider>
-        <StatusBar style={mode === "dark" ? "light" : "dark"} />
-        {/* Pemberitahuan global non-blocking (OTA baru termuat, SW web baru) —
-            harus DI DALAM ToastProvider, di luar Stack. */}
-        <GlobalNotices />
+    <>
+      <StatusBar style={mode === "dark" ? "light" : "dark"} />
+      {/* Pemberitahuan global non-blocking (OTA baru termuat, SW web baru) —
+          harus DI DALAM ToastProvider, di luar Stack. */}
+      <GlobalNotices />
 
-        {/*
-          Ajakan pasang aplikasi untuk pengunjung web seluler dulu berupa kartu
-          mengalir (<SmartAppInstallCard>) di Beranda — Beranda dihapus, jadi
-          kartu itu ikut ditarik; pintu pasang kini hanya metadata PWA.
-        */}
+      {/*
+        Ajakan pasang aplikasi untuk pengunjung web seluler dulu berupa kartu
+        mengalir (<SmartAppInstallCard>) di Beranda — Beranda dihapus, jadi
+        kartu itu ikut ditarik; pintu pasang kini hanya metadata PWA.
+      */}
 
+      {/*
+        Outer: full-bleed background (bg-background sudah di ThemeProvider).
+        Inner: w-full di mobile; di >= md di-cap max-w-content (520px) & center.
+        Border kiri-kanan tipis di web lebar memberi batas visual tanpa shadow.
+        PortalHost berada di dalam kolom konten yang sama supaya overlay
+        (sheet/modal) ikut ter-cap 520px di web lebar (§11), bukan full-bleed.
+        PortalScene (audit #3) menyembunyikan <Stack> dari screen reader saat
+        Modal/BottomSheet/SearchOverlay/LoadingOverlay terbuka; Toast berada
+        di luar Scene (ToastProvider) agar tetap terbaca sebagai alert.
+      */}
+      {/* J-04 (audit): aksi uang menggantung (QRIS/top-up/withdraw OTP)
+          ditawarkan lagi di boot, di tab mana pun — catatan di
+          lib/pending-actions, resolve di layar uangnya. */}
+      <PendingActionsBanner />
+      {/* Item #27: banner ramping "Anda sedang offline" — non-blocking,
+          hanya tampil saat NetInfo pasti melaporkan offline. */}
+      <OfflineBanner />
+      {/*
+        GAP-B2 (G102): satu koneksi realtime per akun untuk seluruh app.
+        Token dari sesi — provider menutup socket saat logout (token null)
+        dan re-handshake saat token di-refresh. Layar chat memakai
+        `useChatRoomRealtime`; polling REST tetap sebagai fallback
+        (G119/G120).
+      */}
+      {/* Item #29: gerbang mode pemeliharaan — cek GET /v1/public/maintenance
+          saat start; saat aktif, seluruh konten diganti layar informatif
+          (pesan server + tombol coba lagi), bukan crash. */}
+      <MaintenanceGate>
+      <RealtimeProvider token={session.token}>
+      <View className="flex-1 items-center">
         {/*
-          Outer: full-bleed background (bg-background sudah di ThemeProvider).
-          Inner: w-full di mobile; di >= md di-cap max-w-content (520px) & center.
-          Border kiri-kanan tipis di web lebar memberi batas visual tanpa shadow.
-          PortalHost berada di dalam kolom konten yang sama supaya overlay
-          (sheet/modal) ikut ter-cap 520px di web lebar (§11), bukan full-bleed.
-          PortalScene (audit #3) menyembunyikan <Stack> dari screen reader saat
-          Modal/BottomSheet/SearchOverlay/LoadingOverlay terbuka; Toast berada
-          di luar Scene (ToastProvider) agar tetap terbaca sebagai alert.
+          Efek dorong konten ala X saat drawer dibuka (2026-09-27):
+          konten sedikit bergeser kanan + mengecil dengan sudut membulat.
+          Progress dibaca dari `drawerProgress` (ditulis komponen drawer).
+          Reduced motion: tanpa transform.
         */}
-        {/* J-04 (audit): aksi uang menggantung (QRIS/top-up/withdraw OTP)
-            ditawarkan lagi di boot, di tab mana pun — catatan di
-            lib/pending-actions, resolve di layar uangnya. */}
-        <PendingActionsBanner />
-        {/* Item #27: banner ramping "Anda sedang offline" — non-blocking,
-            hanya tampil saat NetInfo pasti melaporkan offline. */}
-        <OfflineBanner />
-        {/*
-          GAP-B2 (G102): satu koneksi realtime per akun untuk seluruh app.
-          Token dari sesi — provider menutup socket saat logout (token null)
-          dan re-handshake saat token di-refresh. Layar chat memakai
-          `useChatRoomRealtime`; polling REST tetap sebagai fallback
-          (G119/G120).
-        */}
-        {/* Item #29: gerbang mode pemeliharaan — cek GET /v1/public/maintenance
-            saat start; saat aktif, seluruh konten diganti layar informatif
-            (pesan server + tombol coba lagi), bukan crash. */}
-        <MaintenanceGate>
-        <RealtimeProvider token={session.token}>
-        <View className="flex-1 items-center">
-          {/*
-            Efek dorong konten ala X saat drawer dibuka (2026-09-27):
-            konten sedikit bergeser kanan + mengecil dengan sudut membulat.
-            Progress dibaca dari `drawerProgress` (ditulis komponen drawer).
-            Reduced motion: tanpa transform.
-          */}
-          <Reanimated.View
-            style={[
-              { flex: 1, width: "100%", alignItems: "center" },
-              drawerContentStyle,
-            ]}
-          >
-          <ContentContainer bordered>
-            <PortalScene>
-              {session.restoring ? (
-                <View className="px-5">
-                  <ListLoading />
-                </View>
-              ) : session.error && !skipRestoreError ? (
-                <View className="flex-1 px-5">
-                  <ErrorState
-                    title="Sesi belum dapat dipulihkan"
-                    description={session.error}
-                    onRetry={session.retry}
-                  />
-                  <Button variant="ghost" onPress={() => setSkipRestoreError(true)}>
-                    Buka halaman masuk
-                  </Button>
-                </View>
-              ) : (
-                <Stack
-                  screenOptions={{
-                    headerShown: false,
-                    // Stack native tidak bisa di-style via className; ambil dari tokens
-                    // agar transisi header/scene tetap flat & konsisten.
-                    contentStyle: { backgroundColor: palette.background },
-                    animation: reducedMotion ? "none" : "slide_from_right",
-                    animationDuration: tokens.motion.duration.base,
-                  }}
+        <Reanimated.View
+          style={[
+            { flex: 1, width: "100%", alignItems: "center" },
+            drawerContentStyle,
+          ]}
+        >
+        <ContentContainer bordered>
+          <PortalScene>
+            {session.restoring ? (
+              <View className="px-5">
+                <ListLoading />
+              </View>
+            ) : session.error && !skipRestoreError ? (
+              <View className="flex-1 px-5">
+                <ErrorState
+                  title="Sesi belum dapat dipulihkan"
+                  description={session.error}
+                  onRetry={session.retry}
+                />
+                <Button variant="ghost" onPress={() => setSkipRestoreError(true)}>
+                  Buka halaman masuk
+                </Button>
+              </View>
+            ) : (
+              <Stack
+                screenOptions={{
+                  headerShown: false,
+                  // Stack native tidak bisa di-style via className; ambil dari tokens
+                  // agar transisi header/scene tetap flat & konsisten.
+                  contentStyle: { backgroundColor: palette.background },
+                  animation: reducedMotion ? "none" : "slide_from_right",
+                  animationDuration: tokens.motion.duration.base,
+                }}
+              >
+                {/* Web: guard selalu true (semua layar terdaftar);
+                    pemblokiran tamu ditangani GuestLoginPrompt di bawah. */}
+                <Stack.Protected
+                  guard={Platform.OS === "web" ? true : Boolean(session.token)}
                 >
-                  {/* Web: guard selalu true (semua layar terdaftar);
-                      pemblokiran tamu ditangani GuestLoginPrompt di bawah. */}
-                  <Stack.Protected
-                    guard={Platform.OS === "web" ? true : Boolean(session.token)}
-                  >
-                    {AUTHENTICATED_SCREENS.map((name) => (
-                      <Stack.Screen
-                        key={name}
-                        name={name}
-                        options={{
-                          // v2: push vs modal-like vs list→detail (lib/screen-transitions).
-                          animation: animationForScreen(name, reducedMotion),
-                          animationDuration: animationDurationForScreen(),
-                        }}
-                      />
-                    ))}
-                  </Stack.Protected>
-                </Stack>
-              )}
-              {/* Tamu web membuka layar ber-auth → ajakan login penuh di
-                  atas layar (Stack tetap terpasang di baliknya). */}
-              {guestBlocked ? (
-                <View className="absolute inset-0 bg-background">
-                  <GuestLoginPrompt next={pathname} />
-                </View>
-              ) : null}
-            </PortalScene>
-            <PersistentShellBar />
-            <PortalHost />
-          </ContentContainer>
-          </Reanimated.View>
-          {/*
-            Drawer/sidebar navigasi (2026-09-27): overlay di atas konten,
-            di bawah AppLockGate — kunci aplikasi tetap menutupi semuanya.
-          */}
-          <AppDrawer />
-          {/* Sheet global "Buat baru" (2026-09-28): dibuka dari (+) header
-              Etalase & pensil drawer via `openCreateSheet()`. */}
-          <CreateSheet />
-          {/* A-04 (audit): kunci aplikasi (§14 re-auth setelah background >1
-              menit). Dirender SETELAH konten agar menutupi seluruh tree saat
-              terkunci; no-op di web dan tanpa sesi. */}
-          {Platform.OS !== "web" ? <AppLockGate sessionActive={Boolean(session.token)} /> : null}
-        </View>
-        </RealtimeProvider>
-        </MaintenanceGate>
-      </ToastProvider>
+                  {AUTHENTICATED_SCREENS.map((name) => (
+                    <Stack.Screen
+                      key={name}
+                      name={name}
+                      options={{
+                        // v2: push vs modal-like vs list→detail (lib/screen-transitions).
+                        animation: animationForScreen(name, reducedMotion),
+                        animationDuration: animationDurationForScreen(),
+                      }}
+                    />
+                  ))}
+                </Stack.Protected>
+              </Stack>
+            )}
+            {/* Tamu web membuka layar ber-auth → ajakan login penuh di
+                atas layar (Stack tetap terpasang di baliknya). */}
+            {guestBlocked ? (
+              <View className="absolute inset-0 bg-background">
+                <GuestLoginPrompt next={pathname} />
+              </View>
+            ) : null}
+          </PortalScene>
+          <PersistentShellBar />
+          <PortalHost />
+        </ContentContainer>
+        </Reanimated.View>
+        {/*
+          Drawer/sidebar navigasi (2026-09-27): overlay di atas konten,
+          di bawah AppLockGate — kunci aplikasi tetap menutupi semuanya.
+        */}
+        <AppDrawer />
+        {/* Sheet global "Buat baru" (2026-09-28): dibuka dari (+) header
+            Etalase & pensil drawer via `openCreateSheet()`. */}
+        <CreateSheet />
+        {/* A-04 (audit): kunci aplikasi (§14 re-auth setelah background >1
+            menit). Dirender SETELAH konten agar menutupi seluruh tree saat
+            terkunci; no-op di web dan tanpa sesi. */}
+        {Platform.OS !== "web" ? <AppLockGate sessionActive={Boolean(session.token)} /> : null}
+      </View>
+      </RealtimeProvider>
+      </MaintenanceGate>
 
       {/*
         Modal force-update (OTA): tampil di atas seluruh tree, tidak bisa
@@ -692,6 +685,35 @@ function AppShell() {
         onRequestClose={() => undefined}
         destructive={false}
       />
+    </>
+  )
+}
+
+/**
+ * HOTFIX 2026-09-28 — kahade.id down ("Halaman tidak dapat ditampilkan").
+ *
+ * Akar masalah: `AppShell` memanggil `useToast()` di badan komponennya
+ * sendiri, padahal `<ToastProvider>` baru di-render DI DALAM JSX AppShell.
+ * Context tidak bisa dikonsumsi oleh komponen yang menyediakannya —
+ * `useToast()` melempar di setiap render pertama sehingga seluruh aplikasi
+ * jatuh ke error boundary (commit 8dbd61f, item #27).
+ *
+ * Perbaikan: pecah dua lapis — provider dipasang di `AppShell` (luar),
+ * seluruh hook & konten pindah ke `AppShellInner` (dalam). Jangan panggil
+ * `useToast()` (atau context lain yang disediakan di sini) di badan
+ * `AppShell` lagi.
+ */
+function AppShell() {
+  return (
+    // PortalProvider + ToastProvider HARUS di dalam ThemeProvider (kita sudah
+    // di dalamnya — AppShell dirender oleh ThemeProvider) agar overlay yang
+    // diteleport (BottomSheet, Modal, Banner, Tooltip, SearchOverlay,
+    // LoadingScreen) dan Toast tetap menerima CSS variable dari vars().
+    // Tanpa provider ini, setiap komponen overlay melempar error saat mount.
+    <PortalProvider>
+      <ToastProvider>
+        <AppShellInner />
+      </ToastProvider>
     </PortalProvider>
   )
 }
