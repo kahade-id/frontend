@@ -35,7 +35,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Camera as CameraIcon, Image as ImageIcon, Images, Trash } from "phosphor-react-native"
 
 import { api, type UpdateProfileDto, userMessage } from "@/lib/api"
-import { pickImage, pickedImageToFormData, type PickImageOptions } from "@/lib/image-picker"
+import { pickImage, pickedImageToFormData, type PickedImage, type PickImageOptions } from "@/lib/image-picker"
 import { goBackOrNavigate } from "@/lib/navigation"
 import { useAvatarUpload } from "@/lib/use-avatar-upload"
 import { resolveMediaUrl } from "@/lib/media"
@@ -355,11 +355,20 @@ export default function EditProfileScreen() {
 
   // ── Foto sampul (header image) ─────────────────────────────────────────
   /**
-   * Pola sama dengan avatar (direct upload → confirm bila server mengembalikan
-   * key): sampul bukan bagian dto profil, jadi diunggah saat dipilih dan tidak
-   * menunggu tombol "Simpan perubahan".
+   * Item 67 (mega-batch 2026-09-28): sampul tidak langsung diunggah saat
+   * dipilih — pengguna melihat pratinjau 16:6 dulu dan mengonfirmasi.
+   * Posisi/bingkai crop diatur di langkah picker (`allowsEditing` + aspect
+   * 16:6, pengguna menggeser bingkai di UI crop bawaan OS); dialog ini
+   * memastikan hasil akhirnya sesuai sebelum benar-benar di-upload (persist).
    */
-  const uploadHeader = useCallback(
+  const [pendingHeader, setPendingHeader] = useState<PickedImage | null>(null)
+  const [pendingHeaderSource, setPendingHeaderSource] = useState<PickImageOptions["source"] | null>(null)
+  /**
+   * Pola sama dengan avatar (direct upload → confirm bila server mengembalikan
+   * key): sampul bukan bagian dto profil, jadi diunggah saat dikonfirmasi dan
+   * tidak menunggu tombol "Simpan perubahan".
+   */
+  const pickHeader = useCallback(
     async (source: PickImageOptions["source"]) => {
       const picked = await pickImage({ ...COVER_PICKER, source })
       if (picked.status === "denied") {
@@ -371,26 +380,48 @@ export default function EditProfileScreen() {
         return
       }
       if (picked.status !== "picked") return
-      setHeaderBusy(true)
-      try {
-        const uploaded = await api.users.uploadHeaderDirect(
-          await pickedImageToFormData(picked.asset),
-        )
-        if (uploaded.headerKey) await api.users.confirmHeader({ headerKey: uploaded.headerKey })
-        if (uploaded.headerUrl) setHeaderUrl(uploaded.headerUrl)
-        toast.show({ title: translate("Foto sampul diperbarui"), tone: "success" })
-      } catch (err: unknown) {
-        toast.show({
-          title: translate("Gagal mengunggah foto sampul"),
-          description: userMessage(err),
-          tone: "danger",
-        })
-      } finally {
-        setHeaderBusy(false)
-      }
+      // Tahan dulu — unggah hanya setelah pengguna menekan "Simpan sampul".
+      setPendingHeader(picked.asset)
+      setPendingHeaderSource(source)
     },
     [toast.show],
   )
+
+  const confirmPendingHeader = useCallback(async () => {
+    if (!pendingHeader || headerBusy) return
+    setHeaderBusy(true)
+    try {
+      const uploaded = await api.users.uploadHeaderDirect(
+        await pickedImageToFormData(pendingHeader),
+      )
+      if (uploaded.headerKey) await api.users.confirmHeader({ headerKey: uploaded.headerKey })
+      if (uploaded.headerUrl) setHeaderUrl(uploaded.headerUrl)
+      setPendingHeader(null)
+      setPendingHeaderSource(null)
+      toast.show({ title: translate("Foto sampul diperbarui"), tone: "success" })
+    } catch (err: unknown) {
+      toast.show({
+        title: translate("Gagal mengunggah foto sampul"),
+        description: userMessage(err),
+        tone: "danger",
+      })
+    } finally {
+      setHeaderBusy(false)
+    }
+  }, [pendingHeader, headerBusy, toast.show])
+
+  /** Pilih ulang dari dialog pratinjau (sumber sama) untuk mengatur ulang posisi crop. */
+  const repickHeader = useCallback(() => {
+    const source = pendingHeaderSource
+    setPendingHeader(null)
+    if (source) void pickHeader(source)
+  }, [pendingHeaderSource, pickHeader])
+
+  const cancelPendingHeader = useCallback(() => {
+    if (headerBusy) return
+    setPendingHeader(null)
+    setPendingHeaderSource(null)
+  }, [headerBusy])
 
   const removeHeader = useCallback(async () => {
     setHeaderBusy(true)
@@ -414,13 +445,13 @@ export default function EditProfileScreen() {
       key: "camera",
       label: translate("Ambil foto"),
       icon: CameraIcon,
-      onPress: () => void uploadHeader("camera"),
+      onPress: () => void pickHeader("camera"),
     },
     {
       key: "gallery",
       label: translate("Pilih dari galeri"),
       icon: Images,
-      onPress: () => void uploadHeader("library"),
+      onPress: () => void pickHeader("library"),
     },
     ...(headerUrl
       ? [
@@ -705,6 +736,50 @@ export default function EditProfileScreen() {
         actions={headerActions}
         onRequestClose={() => setHeaderSheetOpen(false)}
       />
+
+      {/*
+       * Item 67: pratinjau sampul sebelum konfirmasi. Posisi crop sudah diatur
+       * di langkah picker (UI crop bawaan OS, bingkai 16:6 bisa digeser);
+       * "Pilih ulang" mengulang langkah itu dengan sumber yang sama.
+       */}
+      <Dialog
+        title={translate("Pratinjau sampul")}
+        description={translate(
+          "Ini tampilan sampul 16:6 persis seperti di profil. Belum diunggah — tekan Simpan sampul untuk mengunggah.",
+        )}
+        visible={pendingHeader !== null}
+        loading={headerBusy}
+        confirmLabel={translate("Simpan sampul")}
+        cancelLabel={translate("Batal")}
+        onConfirm={() => void confirmPendingHeader()}
+        onCancel={cancelPendingHeader}
+        onRequestClose={cancelPendingHeader}
+      >
+        {pendingHeader ? (
+          <View className="gap-3">
+            <View className="w-full overflow-hidden rounded-md border border-border bg-surface">
+              <Picture
+                source={{ uri: pendingHeader.uri }}
+                alt={translate("Pratinjau foto sampul")}
+                height={COVER_HEIGHT}
+                radius="none"
+                bordered={false}
+                className="w-full"
+                style={{ width: "100%", aspectRatio: undefined }}
+              />
+            </View>
+            <Button
+              variant="ghost"
+              size="sm"
+              fullWidth={false}
+              disabled={headerBusy}
+              onPress={repickHeader}
+            >
+              {translate("Pilih ulang")}
+            </Button>
+          </View>
+        ) : null}
+      </Dialog>
 
       <Dialog
         title={translate("Konfirmasi kata sandi")}
