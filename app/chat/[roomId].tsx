@@ -96,6 +96,7 @@ import { ChatEditSheet } from "@/components/ui/chat-edit-sheet"
 import { ChatForwardSheet } from "@/components/ui/chat-forward-sheet"
 import { ChatMessageRow } from "@/components/ui/chat-message-row"
 import { ChatPinnedBar } from "@/components/ui/chat-pinned-bar"
+import { ChatReactionPopover } from "@/components/ui/chat-reaction-popover"
 import { ChatRoomHeader } from "@/components/ui/chat-room-header"
 import { ChatRoomMenu } from "@/components/ui/chat-room-menu"
 import { ChatSearchSheet } from "@/components/ui/chat-search-sheet"
@@ -112,6 +113,7 @@ import { ChatRoomFooter } from "@/components/ui/chat-room-footer"
 import { SelectionBar, type SelectionAction } from "@/components/ui/selection-bar"
 import { useToast } from "@/components/ui/toast"
 import { isImageMime } from "@/lib/mime"
+import type { ChatBubbleAnchor } from "@/lib/chat-bubble"
 
 
 /** Lampiran composer + berkas lokal untuk unggah ulang bila gagal. */
@@ -862,6 +864,15 @@ export default function ChatRoomScreen() {
 
   // ── Mode pilih: masuk / keluar / toggle ────────────────────────────────
   const selecting = selectedIds.size > 0
+  /**
+   * Popover reaksi MENGAMBANG (revisi 2026-09-27): dibuka oleh tekan lama
+   * pada bubble (`onLongPressAt` → jangkar posisi), menggantikan baris emoji
+   * penuh di header mode-pilih. Backdrop transparan — tidak menutupi layar.
+   */
+  const [reactionPopover, setReactionPopover] = useState<{
+    message: ChatMessage
+    anchor: ChatBubbleAnchor
+  } | null>(null)
   const selectedMessages = useMemo(
     () => messages.filter((m) => selectedIds.has(m.id)),
     [messages, selectedIds],
@@ -869,7 +880,11 @@ export default function ChatRoomScreen() {
   /** Aksi per-pesan (reaksi, pin, edit) hanya sah untuk satu pilihan. */
   const singleSelected = selectedMessages.length === 1 ? (selectedMessages[0] ?? null) : null
 
-  const exitSelect = useCallback(() => setSelectedIds(new Set()), [])
+  const exitSelect = useCallback(() => {
+    setSelectedIds(new Set())
+    // Popover reaksi selalu ikut tertutup saat mode pilih berakhir.
+    setReactionPopover(null)
+  }, [])
 
   const enterSelect = useCallback((id: string) => {
     haptic("select")
@@ -1248,18 +1263,9 @@ export default function ChatRoomScreen() {
           actions={selectionActions}
           onClose={exitSelect}
           closeLabel="Keluar dari mode pilih pesan"
-          quickReactions={
-            singleSelected
-              ? {
-                  emojis: QUICK_REACTIONS,
-                  onPick: (emoji) => {
-                    const target = singleSelected
-                    exitSelect()
-                    void handleReact(target, emoji)
-                  },
-                }
-              : undefined
-          }
+          // Revisi 2026-09-27: pemilih emoji TIDAK lagi satu baris penuh di
+          // header (menutupi konten di atas) — ia <ChatReactionPopover> yang
+          // mengambang di dekat bubble yang ditekan lama (dirender di bawah).
         />
       ) : (
         <ChatRoomHeader
@@ -1307,7 +1313,9 @@ export default function ChatRoomScreen() {
         removeClippedSubviews={false}
         data={messages}
         keyExtractor={(m) => m.id}
-        contentContainerClassName="px-5"
+        // Revisi 2026-09-27: gutter horizontal HANYA dari baris bubble
+        // (`px-5` di <ChatMessageBubble>) — padding di sini DOBEL (40px)
+        // dan membuat inset kiri/kanan tidak proporsional.
         contentContainerStyle={{ paddingBottom: insets.bottom + tokens.space[4], flexGrow: 1 }}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
@@ -1317,7 +1325,9 @@ export default function ChatRoomScreen() {
         scrollEventThrottle={SCROLL_EVENT_THROTTLE}
         ListHeaderComponent={
           messages.length > 0 ? (
-            <View style={{ paddingTop: tokens.space[3] }}>
+            // px-5: kompensasi gutter list yang dihapus (lihat atas) —
+            // tombol "Muat pesan sebelumnya" tetap sejajar dengan bubble.
+            <View style={{ paddingTop: tokens.space[3] }} className="px-5">
               <LoadMore
                 status={olderStatus}
                 onLoadMore={() => void loadOlder()}
@@ -1361,16 +1371,25 @@ export default function ChatRoomScreen() {
           <ChatMessageRow
             message={m}
             previous={index > 0 ? messages[index - 1] : undefined}
+            // Pesan tepat di bawahnya — penentu "bubble terakhir grup menit"
+            // (jam hanya tampil di situ, ala WhatsApp).
+            next={index < messages.length - 1 ? messages[index + 1] : undefined}
             selecting={selecting}
             selected={selectedIds.has(m.id)}
             readByCounterpart={readByCounterpart.has(m.id)}
             // Foto + nama lawan bicara untuk gelembung masuk (2026-09-26).
             counterpart={{ name: counterpartName, avatarUrl: room?.counterpart?.avatarUrl }}
-            // Mode pilih (v3 2026-09-21): di luar mode pilih ketuk/tekan lama
-            // langsung MEMILIH pesan ini (satu langkah, tanpa ActionSheet);
-            // saat mode pilih aktif setiap ketukan men-toggle pilihan. Web
-            // tetap bisa memilih tanpa affordance tekan-lama.
-            onPress={(target) => (selecting ? toggleSelect(target.id) : enterSelect(target.id))}
+            // Revisi 2026-09-27: KETUKAN bubble teks = NO-OP di luar mode
+            // pilih (tidak membuka apa pun); saat mode pilih aktif ketukan
+            // men-toggle pilihan. Aksi (menu/reaksi) HANYA lewat tekan lama
+            // → masuk mode pilih + popover reaksi mengambang di dekat bubble.
+            onPress={(target) => {
+              if (selecting) toggleSelect(target.id)
+            }}
+            onLongPress={(target, anchor) => {
+              if (!selecting) enterSelect(target.id)
+              setReactionPopover({ message: target, anchor })
+            }}
             onReact={(target, emoji) => void handleReact(target, emoji)}
             onAttachmentPress={openAttachment}
             // CN-015: kirim ulang pesan yang gagal.
@@ -1402,6 +1421,24 @@ export default function ChatRoomScreen() {
         item={viewerItem}
         onClose={() => setViewerItem(null)}
         onOpenError={(msg) => toast.show({ title: msg, tone: "danger" })}
+      />
+
+      {/* Pemilih reaksi MENGAMBANG (revisi 2026-09-27): pil emoji di dekat
+          bubble yang ditekan lama — bukan baris penuh di header. Backdrop
+          transparan: tidak menutupi layar. Pilih → bereaksi + keluar mode
+          pilih; ketuk di luar → tutup popover saja. */}
+      <ChatReactionPopover
+        target={reactionPopover}
+        emojis={QUICK_REACTIONS}
+        onPick={(emoji) => {
+          const target = reactionPopover?.message
+          setReactionPopover(null)
+          if (target) {
+            exitSelect()
+            void handleReact(target, emoji)
+          }
+        }}
+        onDismiss={() => setReactionPopover(null)}
       />
 
       {/* Menu ⋮ RUANG (bukan per pesan): lihat pesanan, cari pesan, profil

@@ -4,13 +4,22 @@
  * Kenapa dipisah dari layar ruang chat (G-11: layar itu hanya boleh menyusut):
  * baris ini membawa seluruh aturan visual thread — grouping, pemisah hari,
  * sorotan mode pilih — yang tidak perlu diketahui layar. Layar hanya
- * menyerahkan pesan, pesan sebelumnya, dan keadaan pilihan.
+ * menyerahkan pesan, pesan sebelumnya/berikutnya, dan keadaan pilihan.
  *
  * Keputusan non-obvious:
  *   - Grup = pengirim sama DAN jarak < 5 menit DAN tidak menyeberang hari.
  *     Sebelumnya hanya "pengirim sama", jadi dua pesan berjarak enam jam
  *     menempel tanpa nama pengirim dan pemisah harinya hilang.
- *   - Waktu bubble cukup JAM: tanggal sudah disebut pemisah hari.
+ *   - Jam tampil HANYA di bubble TERAKHIR tiap grup menit (revisi 2026-09-27,
+ *     ala WhatsApp): pesan berurutan dari pengirim yang sama dalam MENIT yang
+ *     sama (tanggal + jam + menit identik) menampilkan jam sekali — di bubble
+ *     terakhir. Beda menit atau beda pengirim → jam tampil lagi. Dihitung di
+ *     sini via `isLastInMinuteGroup(message, next)` — `next` adalah pesan
+ *     tepat DI BAWAHNYA (daftar diurut menaik). Format/zona jam TIDAK berubah
+ *     (`formatTime` seperti sebelumnya), hanya frekuensi tampilnya.
+ *   - Ketukan bubble teks = NO-OP di luar mode pilih (revisi 2026-09-27);
+ *     saat mode pilih aktif ketukan men-toggle pilihan. Aksi (menu/reaksi)
+ *     HANYA lewat tekan lama — lihat `resolveBubblePressHandlers`.
  *   - Selama mode pilih, chip reaksi dimatikan (`onReact` tidak diteruskan):
  *     ketukan di tengah pilihan massal tidak boleh membuka menu emoji.
  *   - Sorotan pilihan dipasang lewat `className` bubble (bukan pembungkus)
@@ -21,6 +30,11 @@ import { View } from "react-native"
 import type { ChatAttachmentDto } from "@/lib/api/types"
 import type { ChatMessage } from "@/lib/api/chat"
 import { formatTime } from "@/lib/format"
+import {
+  isLastInMinuteGroup,
+  resolveBubblePressHandlers,
+  type ChatBubbleAnchor,
+} from "@/lib/chat-bubble"
 
 import { ChatAttachmentItem } from "@/components/ui/chat-attachment-item"
 import { ChatDaySeparator, dayKey, dayLabel } from "@/components/ui/chat-day-separator"
@@ -38,6 +52,12 @@ export type ChatMessageRowProps = {
   message: ChatMessage
   /** Pesan tepat di atasnya — penentu pemisah hari + grouping. */
   previous?: ChatMessage
+  /**
+   * Pesan tepat di bawahnya — penentu "bubble terakhir grup menit"
+   * (`isLastInMinuteGroup`): hanya bubble terakhir tiap grup menit yang
+   * menampilkan jam.
+   */
+  next?: ChatMessage
   /** Mode pilih sedang aktif (mematikan chip reaksi). */
   selecting: boolean
   /** Pesan ini termasuk yang dipilih (diberi sorotan). */
@@ -50,9 +70,18 @@ export type ChatMessageRowProps = {
    * tetap tampil seperti sebelumnya, tanpa kolom avatar.
    */
   counterpart?: { name?: string | null; avatarUrl?: string | null }
-  /** Ketuk / tekan lama: layar memutuskan memilih atau men-toggle. */
+  /**
+   * Ketuk bubble — revisi 2026-09-27: di luar mode pilih ini NO-OP (tidak
+   * membuka apa pun); saat mode pilih aktif, men-toggle pilihan pesan.
+   */
   onPress: (message: ChatMessage) => void
-  /** Reaksi emoji dari chip di bawah bubble (bubar saat mode pilih). */
+  /**
+   * Tekan lama bubble — SATU-SATUNYA jalan membuka aksi (masuk mode pilih +
+   * popover reaksi mengambang di dekat bubble). `anchor` = posisi bubble di
+   * window untuk penempatan popover.
+   */
+  onLongPress: (message: ChatMessage, anchor: ChatBubbleAnchor) => void
+  /** Reaksi emoji dari badge di sudut bubble (bubar saat mode pilih). */
   onReact?: (message: ChatMessage, emoji: string) => void
   /** Lampiran dibuka (gambar → MediaViewer, berkas → eksternal). */
   onAttachmentPress: (attachment: ChatAttachmentDto) => void
@@ -63,11 +92,13 @@ export type ChatMessageRowProps = {
 export function ChatMessageRow({
   message,
   previous,
+  next,
   selecting,
   selected,
   readByCounterpart,
   counterpart,
   onPress,
+  onLongPress,
   onReact,
   onAttachmentPress,
   onRetry,
@@ -79,6 +110,21 @@ export function ChatMessageRow({
     !showDay &&
     new Date(message.createdAt).getTime() - new Date(previous.createdAt).getTime() <
       GROUP_WINDOW_MS
+  /**
+   * Jam hanya di bubble TERAKHIR tiap grup menit (pengirim sama + menit
+   * sama). Bukan jam yang disamakan — melainkan menit (tanggal+jam+menit).
+   */
+  const showTime = isLastInMinuteGroup(message, next)
+  /**
+   * Aturan interaksi bubble: ketuk = no-op di luar mode pilih (toggle saat
+   * mode pilih aktif); tekan lama = buka aksi + popover reaksi.
+   */
+  const pressHandlers = resolveBubblePressHandlers({
+    selecting,
+    isDeleted: message.isDeleted,
+    onTap: () => onPress(message),
+    onLongPress: (anchor) => onLongPress(message, anchor),
+  })
 
   return (
     <View className="gap-1">
@@ -87,7 +133,7 @@ export function ChatMessageRow({
         direction={message.fromUser ? "outgoing" : "incoming"}
         // CN-003: pesan terhapus — placeholder, bukan gelembung kosong.
         text={message.isDeleted ? "Pesan ini telah dihapus" : message.text}
-        time={formatTime(message.createdAt)}
+        time={showTime ? formatTime(message.createdAt) : undefined}
         grouped={grouped}
         /*
          * Penanda arah (2026-09-26): geoembung MASUK membawa foto & nama
@@ -119,8 +165,8 @@ export function ChatMessageRow({
         isPinned={message.isPinned}
         isEdited={message.isEdited}
         isDeleted={message.isDeleted}
-        onPress={message.isDeleted ? undefined : () => onPress(message)}
-        onLongPress={message.isDeleted ? undefined : () => onPress(message)}
+        onPress={pressHandlers.onPress}
+        onLongPressAt={pressHandlers.onLongPressAt}
         className={selected ? "rounded-md bg-surface" : undefined}
       >
         {message.attachments?.length ? (
