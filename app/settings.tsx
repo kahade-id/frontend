@@ -58,6 +58,7 @@ import {
   SignOut,
   Storefront,
   Ticket,
+  AirplaneTilt,
   Translate,
   User,
   Bookmark,
@@ -161,6 +162,8 @@ export default function SettingsScreen() {
     { id: "seller-products", label: "Produk Saya", icon: Storefront, route: ROUTES.sellerProducts },
     // Batch 43 (item 9): voucher toko penjual.
     { id: "seller-vouchers", label: "Voucher Toko", icon: Ticket, route: ROUTES.sellerVouchers },
+    // Batch 43 (item 15): trip jastip host.
+    { id: "jastip", label: "Jastip Saya", icon: AirplaneTilt, route: ROUTES.jastip },
   ]
 
   // ── Preferensi ──────────────────────────────────────────────────

@@ -190,6 +190,16 @@ export const ROUTES = {
   createTransactionWithVoucher: (voucherCode: string) =>
     ({ pathname: "/create-transaction", params: { voucherCode } }) as unknown as Href,
   /**
+   * Buat transaksi escrow untuk jastip: nominal = total yang dikunci host
+   * (barang + fee + ongkir). Buyer menautkan order yang terbentuk via
+   * POST /v1/jastip/participants/:id/link-order (batch 43, item 15).
+   */
+  createTransactionJastip: (title: string, totalLockedIdr: number) =>
+    ({
+      pathname: "/create-transaction",
+      params: { title, amount: String(totalLockedIdr), orderType: "PHYSICAL_GOODS" },
+    }) as unknown as Href,
+  /**
    * Buat transaksi ter-prefill dari template (layar Template Transaksi → "Pakai").
    * Parameter dibaca sekali saat layar mount; validasi & langkah tetap seperti biasa.
    */
@@ -530,6 +540,13 @@ export const ROUTES = {
       : ("/seller/products" as Href),
   /** Voucher toko penjual (batch 43, item 9 — /v1/seller-vouchers) */
   sellerVouchers: "/seller/vouchers" as Href,
+  /** Jastip — daftar trip host (batch 43, item 15 — /v1/jastip) */
+  jastip: "/jastip" as Href,
+  /** Jastip — detail trip (host & peserta) */
+  jastipDetail: (tripId: string) =>
+    tripId
+      ? ({ pathname: "/jastip/[id]", params: { id: tripId } } as unknown as Href)
+      : ("/jastip" as Href),
 } as const
 
 /**
