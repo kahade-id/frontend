@@ -66,6 +66,11 @@ import { ShowcaseAuthorRow } from "@/components/showcase-author-row"
 import { ShowcaseLikersSheet, type LikersTab } from "@/components/ui/showcase-likers-sheet"
 import { Radio, RadioGroup } from "@/components/ui/radio"
 import { ShowcaseMediaGallery } from "@/components/ui/showcase-media-gallery"
+import {
+  DiscountPrice,
+  ProductBadges,
+  ServiceSlotSection,
+} from "@/components/showcase/product-commerce-section"
 import { Spin360Viewer } from "@/components/ui/spin360-viewer"
 import { ShowcaseDetailActions } from "@/components/ui/showcase-detail-actions"
 import { ShowcaseHtmlView } from "@/components/ui/showcase-html-description-editor"
@@ -227,6 +232,11 @@ function ShowcaseDetailContent({
   /** T5 (audit 2026-09-26): hapus karya dari layar detail (pemilik saja). */
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  // Batch 43 (item 5/7): catat hit klik produk — fire-and-forget, sekali per
+  // mount (analytics badge Terlaris). Kegagalan tidak mengganggu UX.
+  useEffect(() => {
+    api.commerce.recordProductClick(id)
+  }, [id])
   /**
    * Kontrak final Tim A #5 (2026-09-28): sheet daftar penyuka/penyimpan.
    * null = tertutup; selain itu tab awal yang dibuka.
@@ -723,6 +733,9 @@ function ShowcaseDetailContent({
         <Text variant="h2" weight={700} className="tabular-nums">
           {priceLabel}
         </Text>
+        {/* Batch 43: harga coret + badge Terlaris/Diskon */}
+        <DiscountPrice showcaseId={id} salePriceIdr={item.priceMin ?? item.priceMax} />
+        <ProductBadges showcaseId={id} />
         {item.category ? (
           // A-12: badge kategori juga menavigasi ke feed terfilter.
           <PressableScale
@@ -763,6 +776,15 @@ function ShowcaseDetailContent({
           </Text>
         )
       ) : null}
+
+      {/* Batch 43 (item 10): kalender slot jasa + booking — hanya render bila
+          penjual mengonfigurasi slot untuk karya ini. */}
+      <ServiceSlotSection
+        showcaseId={id}
+        sellerUsername={item.author.username}
+        hasSession={hasSession}
+        isOwner={isOwner}
+      />
 
       {/* Separator atas aksi — inset mx-5, bukan full */}
       <Divider inset className="mt-4" />

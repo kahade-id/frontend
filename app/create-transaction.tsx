@@ -185,7 +185,24 @@ export default function CreateTransactionScreen() {
     deadline?: string
     fee?: string
     description?: string
+    /** Batch 43 (item 10): slot jasa dari detail etalase — di-booking saat submit. */
+    slotId?: string
+    slotDate?: string
+    slotTime?: string
+    /** "1" = slot sudah di-booking di halaman detail — jangan booking ulang. */
+    slotBooked?: string
   }>()
+  // Batch 43 (item 10): prefill slot jasa — sekali saat mount.
+  const slotPrefill = useMemo(() => {
+    const slotId = params.slotId?.trim() || undefined
+    if (!slotId) return null
+    return {
+      slotId,
+      slotDate: params.slotDate?.trim() || undefined,
+      slotTime: params.slotTime?.trim() || undefined,
+      alreadyBooked: params.slotBooked === "1",
+    }
+  }, [params.slotId, params.slotDate, params.slotTime, params.slotBooked])
   const [mode, setMode] = useState<Mode>("direct")
   // Nilai prefill template dibersihkan SATU KALI di sini (bukan di initializer
   // state): parameter query tidak berubah saat layar hidup, jadi hasilnya
@@ -235,7 +252,10 @@ export default function CreateTransactionScreen() {
   const [counterpartReason, setCounterpartReason] = useState<string | undefined>()
   const [title, setTitle] = useState(templatePrefill.title ?? "")
   const [description, setDescription] = useState(templatePrefill.description ?? "")
-  const [orderType, setOrderType] = useState<OrderType>(templatePrefill.orderType ?? "SERVICE")
+  const [orderType, setOrderType] = useState<OrderType>(
+    // Batch 43: slot jasa dari detail etalase memaksa tipe SERVICE.
+    slotPrefill ? "SERVICE" : (templatePrefill.orderType ?? "SERVICE"),
+  )
   const [orderValue, setOrderValue] = useState(templatePrefill.amount ?? 0)
   // F10 (audit 2026-09-26): tenggat dipilih lewat kalender <DatePickerSheet>,
   // BUKAN input angka hari. `null` = belum dipilih → placeholder "Pilih
@@ -484,6 +504,24 @@ export default function CreateTransactionScreen() {
     submitLock.current = true
     setSubmitting(true)
     try {
+      // Batch 43 (item 10): booking slot jasa dilakukan SAAT transaksi
+      // dikonfirmasi — gagal booking = transaksi dibatalkan (jangan buat
+      // order untuk slot yang tidak terpesan). Slot yang sudah di-booking
+      // di halaman detail tidak di-booking ulang.
+      if (slotPrefill && !slotPrefill.alreadyBooked) {
+        try {
+          await api.commerce.bookServiceSlot(slotPrefill.slotId)
+        } catch (slotErr) {
+          submitLock.current = false
+          setSubmitting(false)
+          toast.show({
+            title: translate("Slot jasa gagal dipesan"),
+            description: userMessage(slotErr),
+            tone: "danger",
+          })
+          return
+        }
+      }
       // Backend memakai `deliveryDeadlineAt` bila ada; `deliveryDeadlineDays`
       // tetap dikirim sebagai fallback = selisih hari kalender dari hari ini
       // (min 1, max ikut batas picker 14).
@@ -698,6 +736,21 @@ export default function CreateTransactionScreen() {
 
         {step === 2 ? (
           <FormSection title="Detail pesanan">
+            {/* Batch 43 (item 10): slot jasa dari detail etalase — di-booking
+                saat transaksi dikonfirmasi (lihat handleSubmit). */}
+            {slotPrefill ? (
+              <View className="gap-1 rounded-md border border-info bg-info-soft p-3">
+                <Text variant="body" weight={600} tone="info">
+                  {translate("Slot jasa terpilih")}
+                </Text>
+                <Text variant="caption" tone="secondary">
+                  {slotPrefill.slotDate
+                    ? `${slotPrefill.slotDate}${slotPrefill.slotTime ? ` · ${slotPrefill.slotTime}` : ""}`
+                    : translate("Slot akan dipesan saat Anda menekan Buat transaksi.")}
+                  {slotPrefill.alreadyBooked ? ` — ${translate("sudah dipesan")}` : ""}
+                </Text>
+              </View>
+            ) : null}
             <Field label="Judul" required errorText={titleError}>
               <Input
                 value={title}
