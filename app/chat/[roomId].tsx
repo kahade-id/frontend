@@ -83,7 +83,7 @@ import {
 import { useChatRoomRealtime } from "@/lib/realtime/use-chat-room"
 import type { ChatAttachmentDto, SendMessageDto } from "@/lib/api/types"
 import { useCopy } from "@/lib/clipboard"
-import { formatDateTime, truncateMiddle } from "@/lib/format"
+import { formatChatListTime, truncateMiddle } from "@/lib/format"
 import { haptic } from "@/lib/haptics"
 import { logWarn } from "@/lib/telemetry"
 import { pickImage, pickedImageToFormData, type PickedImage } from "@/lib/image-picker"
@@ -1095,7 +1095,9 @@ export default function ChatRoomScreen() {
       ? presence.isOnline
         ? "Online"
         : presence.lastSeenAt
-          ? `Terakhir dilihat ${formatDateTime(presence.lastSeenAt)}`
+          // UI-C003: cap waktu ringkas ("Kemarin"), bukan datetime penuh yang
+          // memadati baris status 2-baris di bawah nama.
+          ? `Terakhir dilihat ${formatChatListTime(presence.lastSeenAt)}`
           : "Offline"
       : undefined
 
@@ -1202,7 +1204,10 @@ export default function ChatRoomScreen() {
       edges={["top"]}
       padded={false}
       footer={
-        error || !roomId ? undefined : (
+        // UI-C001: room 404 (roomGone) menyembunyikan footer — composer yang
+        // tetap tampil di bawah EmptyState "tidak tersedia" mengundang kirim
+        // ke ruang yang sudah tidak ada (selalu gagal + retry yang sia-sia).
+        error || roomGone || !roomId ? undefined : (
         /*
           Footer dipecah ke <ChatRoomFooter> (2026-09-26): layar ini
           menyentuh plafon G-11, dan blok ini murni penyusunan — tidak

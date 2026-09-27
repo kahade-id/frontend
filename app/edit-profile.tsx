@@ -312,7 +312,9 @@ export default function EditProfileScreen() {
   )
 
   const handleSubmit = useCallback(() => {
-    if (!dirty) return
+    // UI-P022: cegah double-tap — Button loading saja tidak cukup karena
+    // setSubmitting async; tap kedua sebelum state diterapkan = dua PUT.
+    if (!dirty || submitting) return
     if (needsPassword) {
       setCurrentPassword("")
       setPasswordError(undefined)
@@ -320,7 +322,7 @@ export default function EditProfileScreen() {
       return
     }
     void save()
-  }, [dirty, needsPassword, save])
+  }, [dirty, needsPassword, save, submitting])
 
   // ── Avatar ─────────────────────────────────────────────────────────────
   const uploadAvatar = useCallback(
@@ -509,7 +511,7 @@ export default function EditProfileScreen() {
             disabled={loading || !!error || !dirty}
             onPress={handleSubmit}
           >
-            Simpan perubahan
+            {translate("Simpan perubahan")}
           </Button>
         </View>
       }
@@ -633,6 +635,7 @@ export default function EditProfileScreen() {
                   value={form.bio}
                   onChangeText={(v) => set("bio", v)}
                   maxLength={500}
+                  showCount
                   numberOfLines={4}
                   placeholder={translate("Ceritakan tentang Anda")}
                 />
@@ -665,7 +668,7 @@ export default function EditProfileScreen() {
                     </Button>
                   }
                 >
-                  Verifikasi email agar notifikasi penting dan pemulihan akun bisa dikirim.
+                  {translate("Verifikasi email agar notifikasi penting dan pemulihan akun bisa dikirim.")}
                 </Alert>
               ) : null}
               <View className="gap-2">

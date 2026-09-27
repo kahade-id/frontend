@@ -46,7 +46,9 @@ export function ChatPinnedBar({
   onUnpin,
   onLayout,
 }: ChatPinnedBarProps) {
-  const preview = message.text?.trim() || "(lampiran)"
+  // UI-C009: label "(lampiran)" ikut katalog i18n — sheet pencarian sudah
+  // menerjemahkannya; baris pin tidak boleh memakai string mentah.
+  const preview = message.text?.trim() || translate("(lampiran)")
 
   return (
     <PressableScale

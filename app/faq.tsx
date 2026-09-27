@@ -4,6 +4,7 @@ import { View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Question, MagnifyingGlass } from "phosphor-react-native"
 import { api } from "@/lib/api"
+import { translate, useLanguage } from "@/lib/i18n"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 import { useApiQuery } from "@/lib/use-api-query"
@@ -19,6 +20,9 @@ import { PullToRefreshFlatList } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
 
 export default function FaqScreen() {
+  // Langganan bahasa: placeholder kolom cari (prop string) harus langsung
+  // ikut berganti saat pengguna mengubah bahasa (UI-M008).
+  useLanguage()
   const insets = useSafeAreaInsets()
   const [keyword, setKeyword] = useState("")
   const categories = useApiQuery("help-categories", (signal) =>
@@ -44,7 +48,7 @@ export default function FaqScreen() {
         <DebouncedSearchField
           autoFocus={false}
           onQueryChange={setKeyword}
-          placeholder="Cari bantuan"
+          placeholder={translate("Cari bantuan")}
         />
       </FadeIn>
       <PullToRefreshFlatList

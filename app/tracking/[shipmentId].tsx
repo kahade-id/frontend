@@ -75,7 +75,9 @@ export default function TrackingScreen() {
               <Text style={{ fontWeight: "800", fontSize: 16 }}>
                 {shipment.trackingNumber ?? shipment.manualTrackingNumber ?? "—"}
               </Text>
-              <Badge>{SHIPMENT_STATUS_LABEL[shipment.status]}</Badge>
+              {/* UI-T009 (audit UI/UX 2026-09-27): fallback nilai mentah bila
+                  backend mengirim status asing — sebelumnya Badge kosong. */}
+              <Badge>{SHIPMENT_STATUS_LABEL[shipment.status] ?? shipment.status}</Badge>
             </View>
             <Text style={{ color: c.textTertiary, marginTop: tokens.space[1] }}>
               {shipment.providerCode.toUpperCase()}
@@ -98,8 +100,10 @@ export default function TrackingScreen() {
               </View>
             </View>
             <View style={{ marginTop: tokens.space[3] }}>
-              <Button variant="secondary" disabled={refreshing} onPress={refresh}>
-                {refreshing ? "Memuat…" : "Muat Ulang Tracking"}
+              {/* UI-T012 (audit UI/UX 2026-09-27): gunakan prop loading Button
+                  (spinner + anti double-tap), bukan ganti label teks. */}
+              <Button variant="secondary" loading={refreshing} onPress={refresh}>
+                Muat Ulang Tracking
               </Button>
             </View>
           </Card>
@@ -123,7 +127,7 @@ export default function TrackingScreen() {
                   <View key={ev.id} style={{ flexDirection: "row", gap: tokens.space[2] }}>
                     <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: c.primary, marginTop: 6 }} />
                     <View style={{ flex: 1 }}>
-                      <Text style={{ fontWeight: "600" }}>{SHIPMENT_STATUS_LABEL[ev.status]}</Text>
+                      <Text style={{ fontWeight: "600" }}>{SHIPMENT_STATUS_LABEL[ev.status] ?? ev.status}</Text>
                       {ev.locationMasked ? <Text style={{ color: c.textTertiary }}>{ev.locationMasked}</Text> : null}
                       {ev.description ? <Text style={{ fontSize: 13 }}>{ev.description}</Text> : null}
                       <Text style={{ color: c.textTertiary, fontSize: 12 }}>

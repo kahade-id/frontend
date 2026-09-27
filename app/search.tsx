@@ -48,6 +48,7 @@ import { showcaseImages } from "@/lib/showcase-social"
 import { formatDateTime, formatNumber } from "@/lib/format"
 import { resolveMediaUrl } from "@/lib/media"
 import { translate } from "@/lib/i18n/translate"
+import { buildResultMessage } from "@/lib/search-ui"
 import { useLanguage } from "@/lib/i18n"
 import { cn } from "@/lib/cn"
 import { ROUTES } from "@/lib/routes"
@@ -358,16 +359,14 @@ export default function SearchScreen() {
   /**
    * Pengumuman hasil untuk screen reader (<LiveRegion> §10). Error memakai
    * "assertive" agar tidak kalah antrean dari pengumuman sopan.
+   * Pesan dibangun lewat helper teruji agar ikut bahasa aktif (UI-M005).
    */
-  const resultMessage = !enabled
-    ? ""
-    : searchError
-      ? searchError
-      : loading
-        ? ""
-        : rows.length === 0
-          ? "Tidak ada hasil"
-          : `${formatNumber(rows.length)} hasil ditemukan`
+  const resultMessage = buildResultMessage({
+    enabled,
+    error: searchError,
+    loading,
+    count: rows.length,
+  })
 
   /** Isi kolom dari chip saran/riwayat, atau kosongkan lewat `applyQuery("")`. */
   const applyQuery = (next: string) => {
@@ -402,7 +401,7 @@ export default function SearchScreen() {
             key={seedNonce}
             initialQuery={seed}
             onQueryChange={setKeyword}
-            placeholder="Cari karya, pengguna, pesanan…"
+            placeholder={translate("Cari karya, pengguna, pesanan…")}
             containerClassName="flex-1"
           />
         }
@@ -427,7 +426,7 @@ export default function SearchScreen() {
                     accessibilityState={{ selected: scope === option.value }}
                     onPress={() => setScope(option.value)}
                   >
-                    {translate(option.label)}
+                    {option.label}
                   </Chip>
                 ))}
               </ScrollRow>
@@ -751,7 +750,7 @@ function ShowcaseResultRow({ item }: { item: ShowcaseSocialItem }) {
         x: item.title,
         y: item.author.fullName ?? item.author.username,
       })}
-      accessibilityHint="Buka detail postingan"
+      accessibilityHint={translate("Buka detail postingan")}
       onPress={() => router.push(ROUTES.showcaseDetail(item.id))}
       containerClassName={cn("min-h-14 w-full rounded-md", focusRing)}
       className="flex-row items-center gap-3 py-2"

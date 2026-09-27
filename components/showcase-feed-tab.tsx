@@ -65,6 +65,7 @@ import {
 } from "@/lib/showcase-social-prefs"
 import { applyShowcaseCommentCountDelta } from "@/lib/showcase-social"
 import { tokens } from "@/lib/tokens"
+import { normalizePriceFilter } from "@/lib/showcase-price-filter"
 import { useCollapsingHeader } from "@/lib/use-collapsing-header"
 import { useShowcaseSocialActions } from "@/lib/use-showcase-social-actions"
 import { useToast } from "@/components/ui/toast"
@@ -103,6 +104,9 @@ const FOLLOWING_MAX_PAGES = 3
  */
 const FOLLOWING_INDEX_MAX_PAGES = 20
 const FOLLOWING_INDEX_PARALLEL = 4
+
+// UI-F019: implementasi dipindah ke lib/showcase-price-filter.ts (murni &
+// teruji); komponen hanya mengimpor.
 
 // ------------------------------------------------------------------
 // Tab Showcase (cursor/keyset) — header lipat + tab feed gaya profil publik
@@ -341,16 +345,7 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
 
   /** DC-012: terapkan filter harga dari input (integer >= 0; kosong = lepas). */
   const applyPriceFilter = useCallback(() => {
-    const toInt = (s: string): number | undefined => {
-      const digits = s.replace(/[^0-9]/g, "")
-      if (!digits) return undefined
-      const n = Math.floor(Number(digits))
-      return Number.isFinite(n) && n >= 0 ? n : undefined
-    }
-    const min = toInt(minPriceInput)
-    const max = toInt(maxPriceInput)
-    // Min > maks tidak valid — abaikan maks (bukan error yang menghalangi).
-    setPriceFilter({ min, max: min !== undefined && max !== undefined && max < min ? undefined : max })
+    setPriceFilter(normalizePriceFilter(minPriceInput, maxPriceInput))
     setPriceOpen(false)
   }, [minPriceInput, maxPriceInput])
 

@@ -46,6 +46,16 @@ export type KahadePlusThemeDef = {
 /** Tema default = tanpa override (identitas brand standar). */
 export const DEFAULT_THEME_ID = "default"
 
+/**
+ * Warna aksen tema standar per mode — identitas brand hitam/putih (§2.1
+ * tokens). Ini DATA warna (seperti definisi tema eksklusif di bawah),
+ * bukan token UI: dipakai untuk pratinjau swatch tema default.
+ */
+export const DEFAULT_THEME_ACCENT: Record<"light" | "dark", string> = {
+  light: "#000000",
+  dark: "#FFFFFF",
+}
+
 export const KAHADE_PLUS_THEMES: KahadePlusThemeDef[] = [
   {
     id: "gold",

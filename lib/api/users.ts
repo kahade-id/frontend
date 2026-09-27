@@ -1002,6 +1002,35 @@ export type QuestionComment = {
   deleted?: boolean
 }
 
+/**
+ * Kepemilikan pertanyaan/komentar Q&A untuk tombol Hapus (audit UI/UX
+ * 2026-09-27, TIM PROFILE).
+ *
+ * Backend TIDAK PERNAH mengirim `asker.id` (select hanya
+ * username/fullName/avatarUrl) — pembanding yang benar adalah `askerId`
+ * (id internal, dikirim backend). `asker.id` dipertahankan sebagai fallback
+ * defensif bila backend mulai mengirimnya. `meId` = id internal dari
+ * GET /v1/users/me (bukan USR-XXX publik). Versi lama yang hanya memakai
+ * `q.asker?.id` membuat tombol Hapus milik sendiri tidak pernah muncul
+ * (regresi kelas PRF-001).
+ */
+export function isOwnQuestion(
+  q: { askerId?: string | null; asker?: { id?: string | null } | null } | null | undefined,
+  meId: string | null | undefined,
+): boolean {
+  if (!q || !meId) return false
+  return q.askerId === meId || q.asker?.id === meId
+}
+
+/** Kepemilikan komentar — `authorId` (id internal) vs id saya. */
+export function isOwnQuestionComment(
+  c: Pick<QuestionComment, "authorId"> | null | undefined,
+  meId: string | null | undefined,
+): boolean {
+  if (!c || !meId) return false
+  return c.authorId === meId
+}
+
 export type QuestionCommentListResponse =
   | QuestionComment[]
   | {

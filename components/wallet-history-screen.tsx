@@ -7,6 +7,7 @@ import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 import { byTimestampDesc, usePaginatedQuery } from "@/lib/use-paginated-query"
 import { EmptyState } from "@/components/ui/empty-state"
+import { Button } from "@/components/ui/button"
 import { Header } from "@/components/ui/header"
 import { PaginatedList } from "@/components/ui/paginated-list"
 import { Screen } from "@/components/ui/screen"
@@ -44,6 +45,15 @@ export function WalletHistoryScreen({ kind }: { kind: "topup" | "withdraw" }) {
             icon={kind === "topup" ? ArrowCircleDown : ArrowCircleUp}
             title={kind === "topup" ? "Belum ada top-up" : "Belum ada penarikan"}
             description="Riwayat transaksi akan muncul di sini."
+            // UI-W013: empty state tanpa jalan keluar — tambahkan CTA aksi.
+            action={
+              <Button
+                fullWidth={false}
+                onPress={() => router.push(kind === "topup" ? ROUTES.topup : ROUTES.withdraw)}
+              >
+                {kind === "topup" ? "Isi saldo" : "Tarik dana"}
+              </Button>
+            }
           />
         }
         renderItem={({ item }) => (

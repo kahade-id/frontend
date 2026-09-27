@@ -121,7 +121,24 @@ export default function TransactionTemplatesScreen() {
   }, [])
 
   const handleSave = useCallback(async () => {
-    if (!form.name.trim() || !form.title.trim() || form.orderValue < 10_000 || form.deliveryDeadlineDays < 1) return
+    // UI-T021 (audit UI/UX 2026-09-27): beri tahu field mana yang belum
+    // valid — sebelumnya tombol Simpan diam tanpa umpan balik.
+    if (!form.name.trim()) {
+      toast.show({ title: "Nama template wajib diisi", tone: "danger" })
+      return
+    }
+    if (!form.title.trim()) {
+      toast.show({ title: "Judul order wajib diisi", tone: "danger" })
+      return
+    }
+    if (form.orderValue < 10_000) {
+      toast.show({ title: "Nilai order minimal Rp10.000", tone: "danger" })
+      return
+    }
+    if (form.deliveryDeadlineDays < 1) {
+      toast.show({ title: "Tenggat wajib diisi (1–14 hari)", tone: "danger" })
+      return
+    }
     setSubmitting(true)
     try {
       // DTO produksi tidak mengenal `role`/`counterpartUsername` — mengirim
@@ -321,11 +338,9 @@ export default function TransactionTemplatesScreen() {
                         deliveryDeadlineDays: Number.isFinite(n) ? Math.min(14, Math.max(0, n)) : 0,
                       })
                     }}
-                    onBlur={() => {
-                      if (deadlineDraft) return
-                      setDeadlineDraft("1")
-                      setForm({ ...form, deliveryDeadlineDays: 1 })
-                    }}
+                    // UI-T021 (audit UI/UX 2026-09-27): JANGAN isi diam-diam
+                    // saat blur — field ini required dan nilai kosong sengaja
+                    // menahan submit (lihat guard simpan & komentar di atas).
                     keyboardType="number-pad"
                     maxLength={2}
                   />

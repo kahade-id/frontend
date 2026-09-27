@@ -9,12 +9,13 @@
  * Params: linkToken (sekali-pakai), maskedEmail, provider.
  */
 
-import { useState } from "react"
-import { ScrollView } from "react-native"
+import { useEffect, useRef, useState } from "react"
+import { ScrollView, TextInput } from "react-native"
 import { useLocalSearchParams, useRouter } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { api, isApiError, userMessage } from "@/lib/api"
+import { MFA_CODE_MAX_LENGTH, normalizeMfaCode } from "@/lib/auth-ui"
 import { setPendingNext } from "@/lib/login-redirect"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
@@ -43,6 +44,13 @@ export default function SocialLinkConfirmScreen() {
   const [showMfa, setShowMfa] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [errorText, setErrorText] = useState<string | null>(null)
+  const mfaRef = useRef<TextInput>(null)
+
+  // Kolom MFA muncul kondisional (setelah backend meminta 2FA) — fokuskan
+  // agar pengguna tidak perlu mengetuk manual.
+  useEffect(() => {
+    if (showMfa) mfaRef.current?.focus()
+  }, [showMfa])
 
   if (!linkToken) {
     return (
@@ -137,6 +145,7 @@ export default function SocialLinkConfirmScreen() {
               setErrorText(null)
             }}
             required
+            autoFocus
             returnKeyType={showMfa ? "next" : "done"}
             onSubmitEditing={() => void handleConfirm()}
             disabled={submitting}
@@ -144,12 +153,19 @@ export default function SocialLinkConfirmScreen() {
           {showMfa ? (
             <Input
               label="Kode authenticator (2FA)"
+              ref={mfaRef}
               value={mfaCode}
               onChangeText={(t) => {
-                setMfaCode(t.replace(/\D/g, "").slice(0, 8))
+                // UI-A001: kode cadangan alfanumerik (10–16 karakter) harus
+                // lolos utuh — hanya whitespace yang dibuang, bukan non-digit.
+                setMfaCode(normalizeMfaCode(t))
                 setErrorText(null)
               }}
-              keyboardType="number-pad"
+              autoCapitalize="characters"
+              autoCorrect={false}
+              autoComplete="one-time-code"
+              textContentType="oneTimeCode"
+              maxLength={MFA_CODE_MAX_LENGTH}
               required
               returnKeyType="done"
               onSubmitEditing={() => void handleConfirm()}

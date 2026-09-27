@@ -8,7 +8,7 @@ import { useLocalSearchParams } from "expo-router"
 
 import { api } from "@/lib/api"
 import type { Product } from "@/lib/api/products"
-import { PRODUCT_STATUS_LABEL, sellableQty, variantLabel } from "@/lib/api/products"
+import { PRODUCT_STATUS_LABEL, productStatusBadgeTone, sellableQty, variantLabel } from "@/lib/api/products"
 import { formatRupiah } from "@/lib/format"
 import { tokens } from "@/lib/tokens"
 import { useApiQuery } from "@/lib/use-api-query"
@@ -76,7 +76,7 @@ export default function ProductDetailScreen() {
           <Card>
             <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
               <Text style={{ fontWeight: "800", fontSize: 18, flex: 1 }}>{p.name}</Text>
-              <Badge>{PRODUCT_STATUS_LABEL[p.status]}</Badge>
+              <Badge tone={productStatusBadgeTone(p.status)}>{PRODUCT_STATUS_LABEL[p.status]}</Badge>
             </View>
             <Text style={{ color: c.textTertiary, marginTop: tokens.space[1] }}>
               {p.category} · SKU {p.sku}
@@ -101,6 +101,11 @@ export default function ProductDetailScreen() {
                   <Pressable
                     key={v.id}
                     onPress={() => setSelectedVariant(v.id)}
+                    // UI-F002 (lanjutan): opsi varian ikut diberi role + state
+                    // terpilih untuk screen reader.
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: selectedVariant === v.id }}
+                    accessibilityLabel={variantLabel(v)}
                     style={{
                       padding: tokens.space[3], borderRadius: tokens.radius.md, borderWidth: 1,
                       borderColor: selectedVariant === v.id ? c.primary : c.borderDefault,
@@ -119,11 +124,23 @@ export default function ProductDetailScreen() {
           <Card>
             <SectionHeader title="Jumlah" />
             <View style={{ flexDirection: "row", alignItems: "center", gap: tokens.space[3] }}>
-              <Pressable onPress={() => setQty((x) => Math.max(1, x - 1))} style={{ padding: tokens.space[2], borderWidth: 1, borderColor: c.borderDefault, borderRadius: tokens.radius.md }}>
+              {/* UI-F002: target sentuh ≥44pt + label aksesibilitas (sebelumnya
+                  ≈35pt tanpa label — screen reader hanya membaca "−"/"+"). */}
+              <Pressable
+                onPress={() => setQty((x) => Math.max(1, x - 1))}
+                accessibilityRole="button"
+                accessibilityLabel="Kurangi jumlah"
+                style={{ minHeight: 44, minWidth: 44, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: c.borderDefault, borderRadius: tokens.radius.md }}
+              >
                 <Text style={{ fontSize: 18 }}>−</Text>
               </Pressable>
-              <Text style={{ fontSize: 18, fontWeight: "700" }}>{qty}</Text>
-              <Pressable onPress={() => setQty((x) => Math.min(99, x + 1))} style={{ padding: tokens.space[2], borderWidth: 1, borderColor: c.borderDefault, borderRadius: tokens.radius.md }}>
+              <Text style={{ fontSize: 18, fontWeight: "700" }} accessibilityLabel={`Jumlah ${qty}`}>{qty}</Text>
+              <Pressable
+                onPress={() => setQty((x) => Math.min(99, x + 1))}
+                accessibilityRole="button"
+                accessibilityLabel="Tambah jumlah"
+                style={{ minHeight: 44, minWidth: 44, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: c.borderDefault, borderRadius: tokens.radius.md }}
+              >
                 <Text style={{ fontSize: 18 }}>+</Text>
               </Pressable>
             </View>

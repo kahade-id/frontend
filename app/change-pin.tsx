@@ -228,7 +228,8 @@ export default function ChangePinScreen() {
           </>
         ) : (
           <>
-            <SectionHeader title={isSetupMode ? "PIN baru" : "PIN baru"} />
+            {/* UI-W011: judul langkah membedakan mode — dulu dua cabang identik. */}
+            <SectionHeader title={isSetupMode ? "Buat PIN" : "PIN baru"} />
             <Text variant="body" tone="secondary">
               Pilih PIN 6 digit. Jangan gunakan tanggal lahir atau angka berurutan.
             </Text>

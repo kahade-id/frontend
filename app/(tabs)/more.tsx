@@ -65,6 +65,7 @@ import { useAuthSession } from "@/lib/use-auth-session"
 import { useAppMode } from "@/lib/app-mode"
 import { ROUTES } from "@/lib/routes"
 import { translate } from "@/lib/i18n/translate"
+import { installedAppVersion } from "@/lib/runtime-info"
 import { useApiQuery } from "@/lib/use-api-query"
 import { tokens } from "@/lib/tokens"
 
@@ -364,7 +365,7 @@ export default function MoreScreen() {
         {/* ── CATATAN KAKI APLIKASI ── */}
         <View className="items-center justify-center py-2 gap-1">
           <Text variant="caption" tone="secondary">
-            Kahade Safe Escrow & Commerce · Versi 1.0.0
+            Kahade Safe Escrow & Commerce · Versi {installedAppVersion() ?? "—"}
           </Text>
           <Text variant="caption" tone="secondary" className="text-2xs text-center">
             Transaksi aman, terjaga, dan terpercaya di seluruh Indonesia

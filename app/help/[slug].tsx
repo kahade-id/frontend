@@ -7,10 +7,12 @@
 
 import { useCallback, useEffect, useState } from "react"
 import { ScrollView, View } from "react-native"
+import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useLocalSearchParams } from "expo-router"
 import { Article, Check, X } from "phosphor-react-native"
 import { api } from "@/lib/api"
 import { ROUTES } from "@/lib/routes"
+import { tokens } from "@/lib/tokens"
 import { useApiQuery } from "@/lib/use-api-query"
 import { logWarn } from "@/lib/telemetry"
 import { Button } from "@/components/ui/button"
@@ -60,6 +62,7 @@ function FeedbackBlock({ articleId }: { articleId: string }) {
 }
 
 export default function HelpScreen() {
+  const insets = useSafeAreaInsets()
   const { slug, article, q } = useLocalSearchParams<{
     slug: string
     article?: string
@@ -95,6 +98,7 @@ export default function HelpScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
         contentContainerClassName="gap-4 px-5 py-4"
+        contentContainerStyle={{ paddingBottom: insets.bottom + tokens.space[8] }}
       >
         <Crossfade loading={query.loading} skeleton={<DetailLoading />}>
           {query.error ? (

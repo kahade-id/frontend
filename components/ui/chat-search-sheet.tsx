@@ -23,7 +23,7 @@ import { translate } from "@/lib/i18n/translate"
 
 import { searchRoomMessages, type ChatMessage } from "@/lib/api/chat"
 import { userMessage } from "@/lib/api"
-import { formatDateTime } from "@/lib/format"
+import { formatChatListTime } from "@/lib/format"
 import { useDebouncedValue } from "@/lib/use-debounced-value"
 import { logWarn } from "@/lib/telemetry"
 import { cn } from "@/lib/cn"
@@ -153,7 +153,7 @@ export function ChatSearchSheet({
                 {r.text || (r.attachments?.length ? "(lampiran)" : "(pesan tanpa teks)")}
               </Text>
               <Text variant="caption" tone="secondary">
-                {formatDateTime(r.createdAt)} · {r.fromUser ? "Anda" : (counterpartName ?? "Lawan bicara")}
+                {formatChatListTime(r.createdAt)} · {r.fromUser ? "Anda" : (counterpartName ?? "Lawan bicara")}
               </Text>
             </PressableScale>
           ))

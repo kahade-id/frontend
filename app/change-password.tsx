@@ -5,6 +5,7 @@ import { useCallback, useState } from "react"
 import { ScrollView, View } from "react-native"
 
 import { api, userMessage } from "@/lib/api"
+import { isPasswordValid } from "@/lib/auth-constants"
 import { goBackOrNavigate } from "@/lib/navigation"
 import { ROUTES } from "@/lib/routes"
 
@@ -24,7 +25,7 @@ export default function ChangePasswordScreen() {
   const [submitting, setSubmitting] = useState(false)
 
   const handleSubmit = useCallback(async () => {
-    if (!current || next.length < 12 || next !== confirm) return
+    if (!current || !isPasswordValid(next) || next !== confirm) return
     setSubmitting(true)
     try {
       await api.auth.changePassword({
@@ -61,7 +62,7 @@ export default function ChangePasswordScreen() {
           <Button
             fullWidth
             loading={submitting}
-            disabled={!current || next.length < 12 || next !== confirm}
+            disabled={!current || !isPasswordValid(next) || next !== confirm}
             onPress={() => void handleSubmit()}
           >
             Simpan password

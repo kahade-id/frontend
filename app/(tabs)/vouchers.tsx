@@ -49,7 +49,7 @@ import type { Voucher } from "@/lib/api/vouchers"
 import { mergeBadges } from "@/lib/badges"
 import { useCopy } from "@/lib/clipboard"
 import { referralUrl } from "@/lib/deeplinks"
-import { formatDateTime, formatDateTimeWIB, formatNumber, formatRupiah } from "@/lib/format"
+import { formatDateTimeWIB, formatNumber, formatRupiah } from "@/lib/format"
 import { useHasSession } from "@/lib/guest-gate"
 import { haptic } from "@/lib/haptics"
 import { translate } from "@/lib/i18n/translate"
@@ -573,7 +573,7 @@ export default function VouchersScreen() {
               code={u.code}
               savedAmount={u.discountValue ?? Number.NaN}
               orderId={u.orderId}
-              usedAt={u.usedAt ? formatDateTime(u.usedAt) : undefined}
+              usedAt={u.usedAt ? formatDateTimeWIB(u.usedAt) : undefined}
             />
           ))
         )}

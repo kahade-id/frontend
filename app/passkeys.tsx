@@ -16,6 +16,7 @@ import { Fingerprint, Plus, Trash, PencilSimple, ShieldWarning } from "phosphor-
 import { api } from "@/lib/api"
 import type { PasskeySummary } from "@/lib/api/passkey"
 import { userMessage } from "@/lib/api/errors"
+import { formatDate } from "@/lib/format"
 import { useApiQuery } from "@/lib/use-api-query"
 import {
   getPasskeyCapabilitySync,
@@ -34,12 +35,18 @@ import { useToast } from "@/components/ui/toast"
 
 type ReauthInput = { password?: string; mfaCode?: string; otpCode?: string }
 
+/**
+ * UI-A010: `onSubmit` opsional — tombol "done" keyboard ikut men-submit dialog
+ * (sebelumnya tidak melakukan apa-apa).
+ */
 function ReauthFields({
   value,
   onChange,
+  onSubmit,
 }: {
   value: ReauthInput
   onChange: (v: ReauthInput) => void
+  onSubmit?: () => void
 }) {
   return (
     <View className="gap-3">
@@ -48,6 +55,8 @@ function ReauthFields({
         value={value.password ?? ""}
         onChangeText={(t) => onChange({ ...value, password: t })}
         autoComplete="current-password"
+        returnKeyType="done"
+        onSubmitEditing={onSubmit}
       />
       <Input
         label="Kode 2FA (bila aktif)"
@@ -56,22 +65,17 @@ function ReauthFields({
         keyboardType="number-pad"
         maxLength={6}
         helperText="Kosongkan bila 2FA tidak aktif."
+        returnKeyType="done"
+        onSubmitEditing={onSubmit}
       />
     </View>
   )
 }
 
-function formatDate(iso: string): string {
-  try {
-    return new Date(iso).toLocaleDateString("id-ID", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    })
-  } catch {
-    return iso
-  }
-}
+/**
+ * UI-A004: memakai `formatDate` dari lib/format.ts (§13) — sebelumnya memakai
+ * `toLocaleDateString` langsung yang tidak konsisten dengan seluruh app.
+ */
 
 export default function PasskeysScreen() {
   const toast = useToast()
@@ -128,7 +132,7 @@ export default function PasskeysScreen() {
           password: reauth.password || undefined,
           mfaCode: reauth.mfaCode || undefined,
           otpCode: reauth.otpCode || undefined,
-          deviceName: `${Platform.OS === "web" ? "Web" : "Perangkat"} — ${new Date().toLocaleDateString("id-ID")}`,
+          deviceName: `${Platform.OS === "web" ? "Web" : "Perangkat"} — ${formatDate(new Date())}`,
         })
         const attestation = await startPasskeyRegistration(options as RegistrationOptionsJSON)
         const created = await api.passkey.verifyRegistration({ challengeId, attestation })
@@ -226,7 +230,7 @@ export default function PasskeysScreen() {
         setReauthInput({})
         const { challengeId, options } = await api.passkey.getRegisterOptions({
           reauthToken: res.reauthToken,
-          deviceName: `Web — ${new Date().toLocaleDateString("id-ID")}`,
+          deviceName: `Web — ${formatDate(new Date())}`,
         })
         const attestation = await startPasskeyRegistration(options as RegistrationOptionsJSON)
         await api.passkey.verifyRegistration({ challengeId, attestation })
@@ -339,7 +343,11 @@ export default function PasskeysScreen() {
         onConfirm={() => reauthFor && void doAddWithReauth(reauthInput)}
         loading={working}
       >
-        <ReauthFields value={reauthInput} onChange={setReauthInput} />
+        <ReauthFields
+          value={reauthInput}
+          onChange={setReauthInput}
+          onSubmit={() => reauthFor && void doAddWithReauth(reauthInput)}
+        />
       </Dialog>
 
       {/* Ganti nama (+ re-auth inline) */}
@@ -350,6 +358,7 @@ export default function PasskeysScreen() {
         confirmLabel="Simpan"
         onConfirm={() => void handleRename()}
         loading={working}
+        confirmButtonProps={{ disabled: !renameName.trim() }}
       >
         <View className="gap-3">
           <Input
@@ -358,8 +367,14 @@ export default function PasskeysScreen() {
             onChangeText={setRenameName}
             maxLength={100}
             placeholder="mis. Laptop kerja"
+            returnKeyType="done"
+            onSubmitEditing={() => void handleRename()}
           />
-          <ReauthFields value={reauthInput} onChange={setReauthInput} />
+          <ReauthFields
+            value={reauthInput}
+            onChange={setReauthInput}
+            onSubmit={() => void handleRename()}
+          />
         </View>
       </Dialog>
 
@@ -393,7 +408,11 @@ export default function PasskeysScreen() {
         onConfirm={() => void handleRevoke()}
         loading={working}
       >
-        <ReauthFields value={reauthInput} onChange={setReauthInput} />
+        <ReauthFields
+          value={reauthInput}
+          onChange={setReauthInput}
+          onSubmit={() => void handleRevoke()}
+        />
       </Dialog>
 
       {/* Pemulihan (G039) */}

@@ -116,7 +116,8 @@ export default function WithdrawScreen() {
   // endpoint dan parameternya identik, jadi tidak perlu tiga salinan daftar
   // rekening yang berbeda di cache.
   const accountsQuery = useApiQuery<BankAccount[]>(queryKeys.bankAccounts(), async (signal) => {
-    return (await api.bankAccounts.listBankAccounts(signal)) ?? []
+
+  return (await api.bankAccounts.listBankAccounts(signal)) ?? []
   })
   const accounts = useMemo(() => accountsQuery.data ?? [], [accountsQuery.data])
   const { loading, error } = accountsQuery
@@ -376,11 +377,29 @@ export default function WithdrawScreen() {
     }
   }, [txId, toast.show])
 
+  // UI-W010: tombol back header saat sheet verifikasi terbuka harus melewati
+  // penjagaan yang sama dengan menutup sheet (A-06) — jangan langsung
+  // router.back() saat OTP penarikan masih pending.
+  const handleHeaderBack = useCallback(() => {
+    if (step === "verify") {
+      if (submitting || cancelling) return
+      if (verifyMode === "otp" && txId) {
+        setCloseConfirmOpen(true)
+        return
+      }
+      setStep("amount")
+      setVerifyMode("pin")
+      return
+    }
+    if (router.canGoBack()) router.back()
+    else router.replace(ROUTES.wallet)
+  }, [step, verifyMode, txId, submitting, cancelling])
+
   return (
     // SEC-404: proteksi screen-capture iOS di layar tarik dana (PIN + nominal).
     <ScreenCaptureGuard>
       <Screen edges={["top"]} padded={false}>
-      <Header title="Tarik Dana" progress={progress} safeArea={false} />
+      <Header title="Tarik Dana" progress={progress} safeArea={false} onBack={handleHeaderBack} />
 
       <KeyboardAvoiding offset={insets.top + HEADER_BAR_HEIGHT}>
         {step === "amount" ? (
@@ -539,6 +558,7 @@ export default function WithdrawScreen() {
                   setAccountSheetOpen(false)
                   router.push(ROUTES.bankAccounts)
                 }}
+                containerClassName="flex-1"
               >
                 Tambah rekening
               </Button>
@@ -546,7 +566,7 @@ export default function WithdrawScreen() {
             <Button
               onPress={() => setAccountSheetOpen(false)}
               disabled={!selected}
-              className="flex-1"
+              containerClassName="flex-1"
             >
               Selesai
             </Button>

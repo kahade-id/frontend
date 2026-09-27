@@ -23,6 +23,7 @@ import { Linking, Pressable, View } from "react-native"
 import { CaretRight, DownloadSimple } from "phosphor-react-native"
 
 import { api, userMessage } from "@/lib/api"
+import { translate, useLanguage } from "@/lib/i18n"
 import { safeHttpsUrl } from "@/lib/version"
 import type {
   ConsentHistoryEntry,
@@ -39,9 +40,11 @@ import { useApiQuery } from "@/lib/use-api-query"
 import { ActionSheet } from "@/components/ui/action-sheet"
 import { Button } from "@/components/ui/button"
 import { DataScreen } from "@/components/ui/data-screen"
+import { Icon } from "@/components/ui/icon"
 import { Dialog } from "@/components/ui/modal"
 import { PrivacyToggleList } from "@/components/ui/privacy-toggle-list"
 import { SectionHeader } from "@/components/ui/section"
+import { Switch } from "@/components/ui/switch"
 import { Text } from "@/components/ui/text"
 import { useToast } from "@/components/ui/toast"
 
@@ -156,7 +159,7 @@ function EnumRow<T extends string>({ title, description, value, options, labels,
           <Text variant="caption" tone="secondary">{description}</Text>
         </View>
         <Text variant="body" tone="secondary">{value ? labels[value] ?? value : "—"}</Text>
-        <CaretRight size={16} color="#9ca3af" />
+        <Icon icon={CaretRight} size="sm" tone="default" />
       </Pressable>
       <ActionSheet
         title={title}
@@ -179,6 +182,8 @@ function EnumRow<T extends string>({ title, description, value, options, labels,
 }
 
 export default function PrivacySettingsScreen() {
+  // Langganan bahasa: a11y label switch persetujuan (prop string, UI-M003).
+  useLanguage()
   const toast = useToast()
   // Partial: server boleh mengirim subset; UI tidak boleh mengarang default.
   const query = useApiQuery<Partial<PrivacySettings>>("privacy-settings", (signal) =>
@@ -496,15 +501,16 @@ export default function PrivacySettingsScreen() {
                   </Text>
                 ) : null}
               </View>
-              <Pressable
-                accessibilityRole="switch"
-                accessibilityState={{ checked: c.granted, disabled: !c.revocable || busy }}
+              {/* UI-M003: pakai shared <Switch> — warna token, target sentuh
+                  44pt, role switch, reduced-motion. Jangan kembalikan ke
+                  Pressable hand-rolled. */}
+              <Switch
+                value={c.granted}
+                onChange={(next) => void handleConsentChange(c.type, next)}
                 disabled={!c.revocable || busy}
-                onPress={() => void handleConsentChange(c.type, !c.granted)}
-                className={`h-8 w-14 rounded-full p-1 ${c.granted ? "bg-emerald-500" : "bg-neutral-600"} ${!c.revocable ? "opacity-50" : ""}`}
-              >
-                <View className={`h-6 w-6 rounded-full bg-white ${c.granted ? "ml-auto" : ""}`} />
-              </Pressable>
+                accessibilityLabel={translate(meta.title)}
+                className="self-center"
+              />
             </View>
           )
         })}

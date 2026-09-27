@@ -6,11 +6,14 @@
  * Negatif), list <RatingReviewCard> dengan balasan penjual, dan empty state
  * yang sama persis — hanya lokasi kodenya yang pindah.
  */
+import { router } from "expo-router"
 import { View } from "react-native"
 import { Star } from "phosphor-react-native"
 
 import type { PublicRatingFilter, Rating } from "@/lib/api/ratings"
+import { ROUTES } from "@/lib/routes"
 
+import { Button } from "@/components/ui/button"
 import { Chip } from "@/components/ui/chip"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ListLoading } from "@/components/ui/paginated-list"
@@ -80,7 +83,8 @@ export function ProfileRatingsTab({
           />
         )
       ) : (
-        ratings.map((r) => {
+        <>
+          {ratings.map((r) => {
           const reviewer: RatingPerson = {
             name: r.authorUsername ?? translate("Pengguna"),
             avatar: r.authorAvatarUrl ? { uri: r.authorAvatarUrl } : undefined,
@@ -105,8 +109,19 @@ export function ProfileRatingsTab({
                   : undefined
               }
             />
-          )
-        })
+            )
+          })}
+          {/* UI-P011: tab hanya menampilkan 20 item pertama — tautan ke daftar
+              penuh agar konten tidak terlihat terpotong. */}
+          <Button
+            size="sm"
+            variant="ghost"
+            fullWidth={false}
+            onPress={() => router.push(ROUTES.userRatings(handle))}
+          >
+            {translate("Lihat semua ulasan")}
+          </Button>
+        </>
       )}
     </View>
   )

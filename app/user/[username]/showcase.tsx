@@ -72,7 +72,8 @@ export default function PublicShowcaseScreen() {
 
   return (
     <Screen edges={["top"]} padded={false}>
-      <Header title={translate("Etalase — @{x}", { x: username ?? "" })} />
+      {/* UI-P016: tanpa "@" menggantung bila param username belum resolve. */}
+      <Header title={username ? translate("Etalase — @{x}", { x: username }) : translate("Etalase")} />
       <PullToRefresh key={`${revision}:${username}`}
         onRefresh={showcase.refresh}
         refreshing={showcase.refreshing}

@@ -27,7 +27,7 @@ import { AchievementBadgeGrid } from "@/components/ui/achievement-badge"
 import { DataScreen } from "@/components/ui/data-screen"
 import { SectionHeader } from "@/components/ui/section"
 import { useToast } from "@/components/ui/toast"
-import { translate } from "@/lib/i18n/translate"
+import { translate, useLanguage } from "@/lib/i18n"
 
 /** Spec: `limit` maximum 100 */
 const CATALOG_LIMIT = 100
@@ -55,6 +55,8 @@ async function fetchBadgePages(kind: "mine" | "catalog", signal?: AbortSignal) {
 
 export default function BadgesScreen() {
   const toast = useToast()
+  // i18n: label mengikuti bahasa aktif.
+  useLanguage()
 
   const query = useApiQuery("badges", async (signal) => {
     // Katalog boleh gagal tanpa memblokir halaman; "my" tidak.
@@ -70,19 +72,19 @@ export default function BadgesScreen() {
 
   return (
     <DataScreen
-      title="Lencana"
+      title={translate("Lencana")}
       state={query}
-      loadingMessage="Memuat lencana…"
+      loadingMessage={translate("Memuat lencana…")}
       empty={
         items.length === 0 && {
           icon: Medal,
-          title: "Belum ada lencana",
-          description: "Selesaikan transaksi untuk membuka lencana.",
+          title: translate("Belum ada lencana"),
+          description: translate("Selesaikan transaksi untuk membuka lencana."),
         }
       }
     >
       <SectionHeader
-        title="Lencana"
+        title={translate("Lencana")}
         subtitle={translate("{x} lencana diraih ditampilkan", {
           x: items.filter((b) => b.earned === true).length,
         })}

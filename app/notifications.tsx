@@ -49,7 +49,7 @@ import {
 import { api, type AppNotification, type NotificationCategory, userMessage } from "@/lib/api"
 import { formatDateTime } from "@/lib/format"
 import { haptic } from "@/lib/haptics"
-import { translate } from "@/lib/i18n"
+import { translate, useLanguage } from "@/lib/i18n"
 import { tokens } from "@/lib/tokens"
 import { ROUTES } from "@/lib/routes"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
@@ -123,6 +123,9 @@ function NotifSkeletonRow() {
 // ------------------------------------------------------------------
 
 export default function NotificationsScreen() {
+  // Langganan bahasa: a11y label/hint tombol header (prop string) harus
+  // langsung ikut berganti saat pengguna mengubah bahasa (UI-M019).
+  useLanguage()
   const toast = useToast()
   const insets = useSafeAreaInsets()
 
@@ -325,7 +328,7 @@ export default function NotificationsScreen() {
             <IconButton
               icon={X}
               variant="ghost"
-              accessibilityLabel="Batal memilih"
+              accessibilityLabel={translate("Batal memilih")}
               onPress={exitSelect}
             />
           }
@@ -334,14 +337,14 @@ export default function NotificationsScreen() {
               <IconButton
                 icon={Checks}
                 variant="ghost"
-                accessibilityLabel="Tandai yang dipilih dibaca"
+                accessibilityLabel={translate("Tandai yang dipilih dibaca")}
                 disabled={selectedCount === 0 || batchBusy}
                 onPress={() => void handleReadSelected()}
               />
               <IconButton
                 icon={Trash}
                 variant="ghost"
-                accessibilityLabel="Hapus yang dipilih"
+                accessibilityLabel={translate("Hapus yang dipilih")}
                 disabled={selectedCount === 0 || batchBusy}
                 onPress={() => setConfirm("delete-selected")}
               />
@@ -357,8 +360,8 @@ export default function NotificationsScreen() {
                 <IconButton
                   icon={Checks}
                   variant="ghost"
-                  accessibilityLabel="Tandai semua dibaca"
-                  accessibilityHint="Menandai seluruh notifikasi sebagai sudah dibaca"
+                  accessibilityLabel={translate("Tandai semua dibaca")}
+                  accessibilityHint={translate("Menandai seluruh notifikasi sebagai sudah dibaca")}
                   disabled={batchBusy}
                   onPress={() => void handleReadAll()}
                 />
@@ -367,8 +370,10 @@ export default function NotificationsScreen() {
                 icon={FunnelSimple}
                 variant="ghost"
                 active={unreadOnly}
-                accessibilityLabel={unreadOnly ? "Tampilkan semua notifikasi" : "Hanya yang belum dibaca"}
-                accessibilityHint="Saring daftar antara semua dan belum dibaca"
+                accessibilityLabel={
+                  unreadOnly ? translate("Tampilkan semua notifikasi") : translate("Hanya yang belum dibaca")
+                }
+                accessibilityHint={translate("Saring daftar antara semua dan belum dibaca")}
                 disabled={!hasUnread && !unreadOnly}
                 onPress={() => setUnreadOnly((v) => !v)}
               />
@@ -376,7 +381,7 @@ export default function NotificationsScreen() {
                 <IconButton
                   icon={DotsThreeVertical}
                   variant="ghost"
-                  accessibilityLabel="Opsi notifikasi"
+                  accessibilityLabel={translate("Opsi notifikasi")}
                   onPress={() => setMenuOpen(true)}
                 />
               ) : null}

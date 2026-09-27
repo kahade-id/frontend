@@ -281,7 +281,25 @@ export default function WithdrawalSchedulesScreen() {
                   batas kontrak tidak bisa lagi saling menyimpang.
                 */}
                 {!editing ? (
-                  accounts.length > 0 ? (
+                  bankAccountsQuery.loading ? (
+                    <Text variant="body" tone="secondary">
+                      Memuat rekening…
+                    </Text>
+                  ) : bankAccountsQuery.error ? (
+                    // UI-W023: error fetch rekening jangan disamarkan sebagai
+                    // "belum ada rekening" — tampilkan error + retry.
+                    <View className="gap-2 rounded-sm border border-border-control p-4">
+                      <Text variant="body" tone="danger">
+                        Gagal memuat rekening: {bankAccountsQuery.error}
+                      </Text>
+                      <Button
+                        variant="secondary"
+                        onPress={() => void bankAccountsQuery.refresh()}
+                      >
+                        Coba lagi
+                      </Button>
+                    </View>
+                  ) : accounts.length > 0 ? (
                     <Select
                       label="Rekening Bank Tujuan"
                       value={selectedBankAccountId}

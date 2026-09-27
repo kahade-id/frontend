@@ -53,6 +53,7 @@ import { SectionHeader } from "@/components/ui/section"
 import { SegmentedControl, type SegmentItem } from "@/components/ui/segmented-control"
 import { TextArea } from "@/components/ui/text-area"
 import { useToast } from "@/components/ui/toast"
+import { translate, useLanguage } from "@/lib/i18n"
 
 const PAGE_SIZE = 20
 /** RatingReplyDto.content — batas lokal sama dengan komentar ulasan (spec tanpa maxLength) */
@@ -123,6 +124,9 @@ export default function RatingsScreen() {
   }, { compare: byTimestampDesc<Rating>((rating) => rating.createdAt) })
   const items = query.data
   const { loading, error, refreshing, loadingMore, loadMoreError, hasMore } = query
+  // i18n: label segmen mengikuti bahasa aktif.
+  useLanguage()
+
   const [segment, setSegment] = useState<Segment>("RECEIVED")
 
   // Balasan (buat/ubah) + hapus
@@ -156,12 +160,12 @@ export default function RatingsScreen() {
     setDeletingRating(true)
     try {
       await api.ratings.deleteMyRating(deleteRatingTarget.id)
-      toast.show({ title: "Ulasan dihapus", tone: "neutral", duration: 3000 })
+      toast.show({ title: translate("Ulasan dihapus"), tone: "neutral", duration: 3000 })
       setDeleteRatingTarget(null)
       await query.refresh()
     } catch (err) {
       toast.show({
-        title: "Gagal menghapus ulasan",
+        title: translate("Gagal menghapus ulasan"),
         description: userMessage(err),
         tone: "danger",
       })
@@ -182,7 +186,7 @@ export default function RatingsScreen() {
         }))
       } catch (err) {
         toast.show({
-          title: "Gagal memperbarui tanda berguna",
+          title: translate("Gagal memperbarui tanda berguna"),
           description: userMessage(err),
           tone: "danger",
         })
@@ -230,17 +234,17 @@ export default function RatingsScreen() {
     try {
       if (replyEditor.mode === "edit" && replyEditor.replyId) {
         await api.ratings.updateRatingReply(replyEditor.replyId, { content })
-        toast.show({ title: "Balasan diperbarui", tone: "success", duration: 3000 })
+        toast.show({ title: translate("Balasan diperbarui"), tone: "success", duration: 3000 })
       } else {
         await api.ratings.replyRating(replyEditor.rating.id, { content })
-        toast.show({ title: "Balasan terkirim", tone: "success", duration: 3000 })
+        toast.show({ title: translate("Balasan terkirim"), tone: "success", duration: 3000 })
       }
       setReplyEditor(null)
       setReplyText("")
       await query.refresh()
     } catch (err) {
       toast.show({
-        title: "Gagal menyimpan balasan",
+        title: translate("Gagal menyimpan balasan"),
         description: userMessage(err),
         tone: "danger",
       })
@@ -254,12 +258,12 @@ export default function RatingsScreen() {
     setDeleting(true)
     try {
       await api.ratings.deleteRatingReply(deleteReply.replyId)
-      toast.show({ title: "Balasan dihapus", tone: "neutral", duration: 3000 })
+      toast.show({ title: translate("Balasan dihapus"), tone: "neutral", duration: 3000 })
       setDeleteReply(null)
       await query.refresh()
     } catch (err) {
       toast.show({
-        title: "Gagal menghapus balasan",
+        title: translate("Gagal menghapus balasan"),
         description: userMessage(err),
         tone: "danger",
       })
@@ -283,12 +287,12 @@ export default function RatingsScreen() {
           stars: v.stars,
           comment: v.comment.trim() || undefined,
         })
-        toast.show({ title: "Ulasan diperbarui", tone: "success", duration: 3000 })
+        toast.show({ title: translate("Ulasan diperbarui"), tone: "success", duration: 3000 })
         setEditRating(null)
         await query.refresh()
       } catch (err) {
         toast.show({
-          title: "Gagal memperbarui ulasan",
+          title: translate("Gagal memperbarui ulasan"),
           description: userMessage(err),
           tone: "danger",
         })
@@ -304,7 +308,7 @@ export default function RatingsScreen() {
       ? {
           id: r.replyId ?? `reply-${r.id}`,
           content: r.reply,
-          by: { name: segment === "RECEIVED" ? "Anda" : (r.targetUsername ?? "Penjual") },
+          by: { name: segment === "RECEIVED" ? translate("Anda") : (r.targetUsername ?? translate("Penjual")) },
           role: "seller",
           date: r.replyCreatedAt ?? r.createdAt,
           mine: segment === "RECEIVED",
@@ -313,11 +317,11 @@ export default function RatingsScreen() {
 
   return (
     <Screen edges={["top"]} padded={false}>
-      <Header title="Ulasan" />
+      <Header title={translate("Ulasan")} />
       <View className="px-5" style={{ paddingTop: tokens.space[3] }}>
         <SegmentedControl
           accessibilityLabel="Jenis ulasan"
-          items={SEGMENTS}
+          items={SEGMENTS.map((sg) => ({ ...sg, label: translate(sg.label) }))}
           value={segment}
           onChange={setSegment}
         />
@@ -333,7 +337,7 @@ export default function RatingsScreen() {
         <Crossfade loading={loading} skeleton={<ListLoading />}>
           {error ? (
           <ErrorState
-            title="Gagal memuat"
+            title={translate("Gagal memuat")}
             description={error}
             onRetry={() => void query.reload()}
           />
@@ -342,12 +346,12 @@ export default function RatingsScreen() {
             <EmptyState
               icon={Star}
               title={
-                segment === "RECEIVED" ? "Belum ada ulasan masuk" : "Belum ada ulasan yang Anda beri"
+                segment === "RECEIVED" ? translate("Belum ada ulasan masuk") : translate("Belum ada ulasan yang Anda beri")
               }
               description={
                 segment === "RECEIVED"
-                  ? "Ulasan dari lawan transaksi akan muncul di sini."
-                  : "Beri ulasan dari halaman order yang sudah selesai."
+                  ? translate("Ulasan dari lawan transaksi akan muncul di sini.")
+                  : translate("Beri ulasan dari halaman order yang sudah selesai.")
               }
             />
             {hasMore ? (
@@ -355,7 +359,7 @@ export default function RatingsScreen() {
                 status={loadingMore ? "loading" : loadMoreError ? "error" : "idle"}
                 errorLabel={loadMoreError ?? undefined}
                 onLoadMore={() => void query.loadMore()}
-                idleLabel="Muat ulasan di halaman berikutnya"
+                idleLabel={translate("Muat ulasan di halaman berikutnya")}
                 hideEnd
               />
             ) : null}
@@ -363,7 +367,7 @@ export default function RatingsScreen() {
         ) : (
           <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
             <SectionHeader
-              title={segment === "RECEIVED" ? "Ulasan masuk" : "Ulasan yang Anda beri"}
+              title={segment === "RECEIVED" ? translate("Ulasan masuk") : translate("Ulasan yang Anda beri")}
             />
             {visible.map((r) => {
               const reply = replyOf(r)
@@ -378,10 +382,10 @@ export default function RatingsScreen() {
                   reviewer={
                     received
                       ? {
-                          name: r.authorUsername ?? "Pengguna",
+                          name: r.authorUsername ?? translate("Pengguna"),
                           avatar: r.authorAvatarUrl ?? undefined,
                         }
-                      : { name: "Anda" }
+                      : { name: translate("Anda") }
                   }
                   date={r.createdAt}
                   orderId={r.orderId}
@@ -403,7 +407,7 @@ export default function RatingsScreen() {
                         onPress={() => void handleToggleHelpful(r)}
                         accessibilityState={{ selected: helpful?.on ?? false }}
                       >
-                        {helpful?.on ?? false ? "Sudah ditandai berguna" : "Tandai berguna"}
+                        {helpful?.on ?? false ? translate("Sudah ditandai berguna") : translate("Tandai berguna")}
                         {helpfulCount > 0 ? ` · ${helpfulCount}` : ""}
                       </Button>
                     ) : (
@@ -414,7 +418,7 @@ export default function RatingsScreen() {
                           leftIcon={PencilSimple}
                           onPress={() => openEditRating(r)}
                         >
-                          Ubah ulasan
+                          {translate("Ubah ulasan")}
                         </Button>
                         {withinDeleteWindow(r.createdAt) ? (
                           <Button
@@ -423,7 +427,7 @@ export default function RatingsScreen() {
                             leftIcon={Trash}
                             onPress={() => setDeleteRatingTarget(r)}
                           >
-                            Hapus
+                            {translate("Hapus")}
                           </Button>
                         ) : null}
                       </View>
@@ -449,12 +453,12 @@ export default function RatingsScreen() {
 
       {/* Balas / ubah balasan */}
       <Dialog
-        title={replyEditor?.mode === "edit" ? "Ubah balasan" : "Balas ulasan"}
-        description="Jaga nada tetap ramah dan profesional."
+        title={replyEditor?.mode === "edit" ? translate("Ubah balasan") : translate("Balas ulasan")}
+        description={translate("Jaga nada tetap ramah dan profesional.")}
         visible={!!replyEditor}
         loading={sending}
-        confirmLabel={replyEditor?.mode === "edit" ? "Simpan" : "Kirim Balasan"}
-        cancelLabel="Batal"
+        confirmLabel={replyEditor?.mode === "edit" ? translate("Simpan") : translate("Kirim Balasan")}
+        cancelLabel={translate("Batal")}
         onConfirm={() => void handleSendReply()}
         onCancel={() => setReplyEditor(null)}
         onRequestClose={() => setReplyEditor(null)}
@@ -463,7 +467,7 @@ export default function RatingsScreen() {
         <TextArea
           value={replyText}
           onChangeText={setReplyText}
-          placeholder="Tulis balasan"
+          placeholder={translate("Tulis balasan")}
           maxLength={REPLY_MAX}
           showCount
           numberOfLines={4}
@@ -472,13 +476,13 @@ export default function RatingsScreen() {
 
       {/* Hapus balasan */}
       <Dialog
-        title="Hapus balasan?"
-        description="Balasan akan hilang dari profil publik Anda. Tindakan ini tidak bisa dibatalkan."
+        title={translate("Hapus balasan?")}
+        description={translate("Balasan akan hilang dari profil publik Anda. Tindakan ini tidak bisa dibatalkan.")}
         visible={!!deleteReply}
         destructive
         loading={deleting}
-        confirmLabel="Hapus"
-        cancelLabel="Batal"
+        confirmLabel={translate("Hapus")}
+        cancelLabel={translate("Batal")}
         onConfirm={() => void handleDeleteReply()}
         onCancel={() => setDeleteReply(null)}
         onRequestClose={() => setDeleteReply(null)}
@@ -486,13 +490,13 @@ export default function RatingsScreen() {
 
       {/* Hapus ulasan sendiri (jendela 7 hari) */}
       <Dialog
-        title="Hapus ulasan ini?"
-        description="Ulasan akan hilang dari profil penerima dan skor reputasinya ikut diperbarui. Tindakan ini tidak bisa dibatalkan."
+        title={translate("Hapus ulasan ini?")}
+        description={translate("Ulasan akan hilang dari profil penerima dan skor reputasinya ikut diperbarui. Tindakan ini tidak bisa dibatalkan.")}
         visible={!!deleteRatingTarget}
         destructive
         loading={deletingRating}
-        confirmLabel="Hapus"
-        cancelLabel="Batal"
+        confirmLabel={translate("Hapus")}
+        cancelLabel={translate("Batal")}
         onConfirm={() => void handleDeleteRating()}
         onCancel={() => setDeleteRatingTarget(null)}
         onRequestClose={() => setDeleteRatingTarget(null)}
@@ -503,7 +507,7 @@ export default function RatingsScreen() {
         avoidKeyboard
         visible={!!editRating}
         onRequestClose={() => (savingEdit ? undefined : setEditRating(null))}
-        title="Ubah ulasan"
+        title={translate("Ubah ulasan")}
         description={editRating?.orderTitle ?? undefined}
       >
         <RatingForm

@@ -29,6 +29,7 @@
  */
 import { useLocalSearchParams } from "expo-router"
 import { useRouter } from "expo-router"
+import { useState } from "react"
 import { Platform, View } from "react-native"
 
 import { api } from "@/lib/api"
@@ -49,8 +50,12 @@ export default function WelcomeScreen() {
   const router = useRouter()
   const { newUser } = useLocalSearchParams<{ newUser?: string }>()
   const isNewUser = newUser === "1"
+  // UI-A007: umpan balik loading + cegah double-tap selama registrasi push.
+  const [starting, setStarting] = useState(false)
 
   async function handleStart() {
+    if (starting) return
+    setStarting(true)
     // Web memakai FCM Web Push (lib/web-push.web.ts), native memakai Expo
     // push token (lib/push-notifications.ts). Keduanya bermuara ke endpoint
     // register-device yang sama dengan `platform` berbeda. Keduanya no-op
@@ -94,7 +99,7 @@ export default function WelcomeScreen() {
             </Text>
           </View>
 
-          <Button onPress={handleStart}>
+          <Button onPress={handleStart} loading={starting}>
             {isNewUser ? "Mulai" : "Masuk ke beranda"}
           </Button>
         </VStack>

@@ -371,8 +371,10 @@ export default function BusinessVerificationScreen() {
             </>
           ) : null}
 
+          {/* UI-M010: caption status tidak dibatasi numberOfLines — harus utuh
+              pada font OS besar (maxFontSizeMultiplier=2). */}
           {uiStatus === "APPROVED" ? (
-            <Text numberOfLines={2} variant="caption" tone="secondary">
+            <Text variant="caption" tone="secondary">
               Bisnis Anda sudah terverifikasi. Badge "Business Verified" tampil di profil Anda.
             </Text>
           ) : null}

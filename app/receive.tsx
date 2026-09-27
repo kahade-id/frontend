@@ -117,9 +117,13 @@ export default function ReceiveScreen() {
                     <Text variant="body" weight={600} tone="primary" numberOfLines={1}>
                       {displayName}
                     </Text>
-                    <Text variant="caption" tone="secondary">
-                      @{username}
-                    </Text>
+                    {/* UI-W018: username kosong (profil gagal dimuat) dulu
+                        merender "@" telanjang. */}
+                    {username ? (
+                      <Text variant="caption" tone="secondary">
+                        @{username}
+                      </Text>
+                    ) : null}
                   </View>
                 </View>
               )}

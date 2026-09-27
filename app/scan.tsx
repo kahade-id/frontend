@@ -313,7 +313,7 @@ export default function ScanScreen() {
                 size="md"
                 leftIcon={ImageIcon}
                 onPress={() => void handlePickFromGallery()}
-                className="flex-1"
+                containerClassName="flex-1"
               >
                 Dari Galeri
               </Button>
@@ -322,7 +322,7 @@ export default function ScanScreen() {
                 size="md"
                 leftIcon={Keyboard}
                 onPress={() => setManualInputOpen(true)}
-                className="flex-1"
+                containerClassName="flex-1"
               >
                 Ketik Manual
               </Button>
@@ -380,7 +380,7 @@ export default function ScanScreen() {
                         void copy(myProfileUrl)
                         toast.show({ title: "Tautan disalin ke papan klip", tone: "success" })
                       }}
-                      className="flex-1"
+                      containerClassName="flex-1"
                     >
                       Salin
                     </Button>
@@ -389,7 +389,7 @@ export default function ScanScreen() {
                       size="md"
                       leftIcon={ShareNetwork}
                       onPress={() => void handleShareProfile()}
-                      className="flex-1"
+                      containerClassName="flex-1"
                     >
                       Bagikan
                     </Button>
@@ -439,7 +439,7 @@ export default function ScanScreen() {
             <Button
               variant="secondary"
               onPress={() => setManualInputOpen(false)}
-              className="flex-1"
+              containerClassName="flex-1"
             >
               Batal
             </Button>
@@ -447,7 +447,7 @@ export default function ScanScreen() {
               variant="primary"
               disabled={!manualCode.trim()}
               onPress={handleManualSubmit}
-              className="flex-1"
+              containerClassName="flex-1"
             >
               Lanjutkan
             </Button>
@@ -480,14 +480,14 @@ export default function ScanScreen() {
             <Button
               variant="secondary"
               onPress={() => setDetectedResult(null)}
-              className="flex-1"
+              containerClassName="flex-1"
             >
               Pindai Lagi
             </Button>
             <Button
               variant="primary"
               onPress={() => detectedResult?.action()}
-              className="flex-1"
+              containerClassName="flex-1"
             >
               {detectedResult?.type === "other" ? "Salin Kode" : "Buka Sekarang"}
             </Button>

@@ -646,6 +646,9 @@ export default function TransferScreen() {
                 setNote(noteDraft.slice(0, NOTE_MAX))
                 setNoteSheetOpen(false)
               }}
+              // UI-W006: di flex-row, w-full (default) mendorong tombol "Hapus"
+              // keluar layar — pakai containerClassName seperti pola baku.
+              containerClassName="flex-1"
             >
               Simpan catatan
             </Button>

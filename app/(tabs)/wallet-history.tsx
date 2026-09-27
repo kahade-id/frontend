@@ -48,6 +48,7 @@
  */
 import { useMemo, useState } from "react"
 import { View } from "react-native"
+import { router } from "expo-router"
 import { translate } from "@/lib/i18n/translate"
 import {
   ArrowCircleDown,
@@ -68,6 +69,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { TAB_BAR_HEIGHT } from "@/components/ui/bottom-tab-bar"
 
 import { Amount } from "@/components/ui/amount"
+import { Button } from "@/components/ui/button"
 import { Chip } from "@/components/ui/chip"
 import { EmptyState } from "@/components/ui/empty-state"
 import { FadeIn } from "@/components/ui/fade-in"
@@ -427,6 +429,19 @@ export default function WalletHistoryScreen() {
               type === ALL
                 ? "Semua pergerakan dana Anda (top-up, penarikan, transfer, escrow) akan muncul di sini."
                 : "Coba jenis lain atau hapus filter untuk melihat seluruh mutasi."
+            }
+            // UI-W012: teks menyuruh "hapus filter" tapi tak ada tombolnya;
+            // saat benar-benar kosong beri jalan ke isi saldo.
+            action={
+              type === ALL ? (
+                <Button fullWidth={false} onPress={() => router.push(ROUTES.topup)}>
+                  Isi saldo
+                </Button>
+              ) : (
+                <Button fullWidth={false} variant="secondary" onPress={() => setType(ALL)}>
+                  Hapus filter
+                </Button>
+              )
             }
           />
         }

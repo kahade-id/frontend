@@ -25,6 +25,7 @@ import { Text } from "@/components/ui/text"
 import { useToast } from "@/components/ui/toast"
 import { translate } from "@/lib/i18n/translate"
 import {
+  DEFAULT_THEME_ACCENT,
   DEFAULT_THEME_ID,
   useKahadePlusTheme,
 } from "@/lib/kahade-plus-theme"
@@ -83,7 +84,7 @@ export default function KahadePlusThemeScreen() {
                 leading={
                   <View
                     className="h-8 w-8 rounded-full border border-border"
-                    style={{ backgroundColor: mode === "dark" ? "#FFFFFF" : "#000000" }}
+                    style={{ backgroundColor: DEFAULT_THEME_ACCENT[mode] }}
                   />
                 }
                 trailing={

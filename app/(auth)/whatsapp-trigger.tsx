@@ -252,7 +252,8 @@ export default function WhatsappTriggerScreen() {
               Konfirmasi lewat WhatsApp
             </Heading>
             <Text variant="body" tone="secondary" className="text-pretty">
-              Untuk keamanan, kode dikirim sebagai balasan chat kamu sendiri —
+              {/* UI-A005: copy formal "Anda" (§12) — konsisten dengan layar auth lain. */}
+              Untuk keamanan, kode dikirim sebagai balasan chat Anda sendiri —
               bukan pesan mendadak dari kami. Anda HARUS mengirim pesan dulu ke
               WhatsApp resmi Kahade{" "}
               <Text variant="monoBody" weight={600}>
@@ -275,7 +276,7 @@ export default function WhatsappTriggerScreen() {
               <Text variant="monoBody" weight={600}>
                 {refCode}
               </Text>{" "}
-              — tinggal tekan kirim.
+              — tinggal ketuk kirim.
             </Text>
           </View>
 
@@ -331,7 +332,7 @@ export default function WhatsappTriggerScreen() {
           <View className="flex-1" />
 
           <Text variant="caption" tone="secondary" className="text-center text-pretty">
-            Tidak muncul balasan? Periksa apakah kamu mengirim dari nomor{" "}
+            Tidak muncul balasan? Periksa apakah Anda mengirim dari nomor{" "}
             <Text variant="monoBody" weight={600}>
               {displayPhone}
             </Text>

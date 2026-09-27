@@ -68,6 +68,16 @@ export const RETURN_RESOLUTION_LABEL: Record<ReturnResolutionType, string> = {
   MUTUAL_AGREED: "Kesepakatan bersama",
 }
 
+/**
+ * UI-T003 (audit UI/UX 2026-09-27): label manusia untuk peran aktor di
+ * timeline & catatan negosiasi — enum mentah ("BUYER"/"SELLER") tidak
+ * ditampilkan ke pengguna. Fallback ke nilai mentah untuk nilai asing.
+ */
+export const RETURN_ACTOR_ROLE_LABEL: Record<string, string> = {
+  BUYER: "Pembeli",
+  SELLER: "Penjual",
+}
+
 export type ReturnListItem = {
   id: string
   returnId: string

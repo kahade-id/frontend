@@ -80,7 +80,8 @@ export function ShowcaseDetailComments({
       {/* ── Komentar header: count di samping + separator ── */}
       <View className="gap-0 px-5 pb-0 pt-8">
         <View className="flex-row items-baseline gap-2">
-          <Text variant="h3">Komentar</Text>
+          {/* UI-F011: header ikut kamus (sebelumnya hardcoded). */}
+          <Text variant="h3">{translate("Komentar")}</Text>
           {commentTotal > 0 ? (
             <Text variant="body" tone="secondary" className="tabular-nums">
               {formatNumber(commentTotal)}
@@ -94,7 +95,7 @@ export function ShowcaseDetailComments({
         {/* F-06: status "loading" di awal — tanpa kilatan kosong/tombol. */}
         {comments.length === 0 && commentsStatus !== "loading" && commentsStatus !== "error" ? (
           <Text variant="body" tone="secondary">
-            Belum ada komentar. Jadilah yang pertama!
+            {translate("Belum ada komentar. Jadilah yang pertama!")}
           </Text>
         ) : null}
         {comments.slice(0, commentRenderLimit).map((root) => {
@@ -151,7 +152,7 @@ export function ShowcaseDetailComments({
         })}
         {comments.length > commentRenderLimit ? (
           <Button variant="ghost" fullWidth onPress={onShowMore}>
-            Tampilkan komentar lainnya
+            {translate("Tampilkan komentar lainnya")}
           </Button>
         ) : null}
         {/* F-07: halaman baru ditambahkan DI BAWAH → tombolnya di bawah. */}

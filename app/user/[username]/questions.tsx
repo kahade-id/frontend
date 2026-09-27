@@ -25,18 +25,22 @@ import { Crossfade } from "@/components/ui/fade-in"
 import { ListLoading } from "@/components/ui/paginated-list"
 import { useCallback, useState } from "react"
 import { View } from "react-native"
-import { useLocalSearchParams } from "expo-router"
+import { useLocalSearchParams, router } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { ChatCircleDots } from "phosphor-react-native"
 
 import { api, userMessage } from "@/lib/api"
 import {
+  isOwnQuestion,
   readQuestionComments,
   readQuestionList,
   type QuestionComment,
   type QuestionItem,
 } from "@/lib/api/users"
 import { formatDateTime } from "@/lib/format"
+import { atHandle } from "@/lib/profile-uiux"
+import { ROUTES } from "@/lib/routes"
+import { useHasSession } from "@/lib/guest-gate"
 import type { UserProfile } from "@/lib/api/users"
 import { queryKeys } from "@/lib/query-keys"
 import { tokens } from "@/lib/tokens"
@@ -57,7 +61,7 @@ import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
 import { TextArea } from "@/components/ui/text-area"
 import { useToast } from "@/components/ui/toast"
-import { translate } from "@/lib/i18n/translate"
+import { translate, useLanguage } from "@/lib/i18n"
 
 const PAGE_SIZE = 20
 const COMMENT_PAGE = 20
@@ -78,6 +82,16 @@ export default function PublicQuestionsScreen() {
   const { username } = useLocalSearchParams<{ username: string }>()
   const insets = useSafeAreaInsets()
   const toast = useToast()
+  // i18n: label mengikuti bahasa aktif.
+  useLanguage()
+  // UI-P012: tamu di-gate ke login sebelum aksi sosial — konsisten dengan tab
+  // Utas di layar profil (P3) yang me-gate Bertanya/upvote/komentar.
+  const hasSession = useHasSession()
+  const requireSession = useCallback(() => {
+    if (hasSession) return true
+    router.push(ROUTES.loginRequired(`/user/${encodeURIComponent(username ?? "")}/questions`))
+    return false
+  }, [hasSession, username])
 
   /**
    * Audit — layar ini merakit paginator sendiri. Diganti `usePaginatedQuery`
@@ -127,7 +141,12 @@ export default function PublicQuestionsScreen() {
       }
     },
     // C-08 (audit): daftar tanya-jawab kronologis — terbaru di atas.
-    { compare: byTimestampDesc<QuestionItem>((question) => question.createdAt) },
+    // UI-P025: `enabled` — username datang dari param rute; tanpa ini fetcher
+    // menembak /v1/users/undefined/questions sebelum rute selesai di-resolve.
+    {
+      compare: byTimestampDesc<QuestionItem>((question) => question.createdAt),
+      enabled: Boolean(username),
+    },
   )
   const items = query.data
   const { loading, error, refreshing, loadingMore, loadMoreError, hasMore } = query
@@ -141,6 +160,7 @@ export default function PublicQuestionsScreen() {
   const handleUpvote = useCallback(
     async (q: QuestionItem, next: boolean) => {
       if (upvotingId) return
+      if (!requireSession()) return
       setUpvotingId(q.id)
       const prevCount = q.upvoteCount ?? 0
       const prevActive = q.isUpvotedByViewer === true
@@ -153,7 +173,7 @@ export default function PublicQuestionsScreen() {
       } catch (err: unknown) {
         patchQuestion(q.id, { upvoteCount: prevCount, isUpvotedByViewer: prevActive })
         toast.show({
-          title: "Gagal memperbarui dukungan",
+          title: translate("Gagal memperbarui dukungan"),
           description: userMessage(err),
           tone: "danger",
         })
@@ -161,7 +181,7 @@ export default function PublicQuestionsScreen() {
         setUpvotingId(null)
       }
     },
-    [upvotingId, patchQuestion, toast],
+    [upvotingId, patchQuestion, requireSession, toast],
   )
 
   const [askOpen, setAskOpen] = useState(false)
@@ -200,7 +220,7 @@ export default function PublicQuestionsScreen() {
         }))
       } catch {
         setComments((c) => ({ ...c, loading: false }))
-        toast.show({ title: "Gagal memuat komentar", tone: "danger" })
+        toast.show({ title: translate("Gagal memuat komentar"), tone: "danger" })
       }
     },
     [toast],
@@ -221,22 +241,23 @@ export default function PublicQuestionsScreen() {
 
   const submitComment = useCallback(async () => {
     if (!openId || !commentText.trim() || commentSending) return
+    if (!requireSession()) return
     setCommentSending(true)
     try {
       await api.users.addQuestionComment(openId, { content: commentText.trim() })
       setCommentText("")
       await loadComments(openId, 1)
-      toast.show({ title: "Komentar terkirim", tone: "success", duration: 3000 })
+      toast.show({ title: translate("Komentar terkirim"), tone: "success", duration: 3000 })
     } catch (err) {
       toast.show({
-        title: "Gagal mengirim komentar",
+        title: translate("Gagal mengirim komentar"),
         description: userMessage(err),
         tone: "danger",
       })
     } finally {
       setCommentSending(false)
     }
-  }, [openId, commentText, commentSending, loadComments, toast])
+  }, [openId, commentText, commentSending, loadComments, requireSession, toast])
 
   // ── Bertanya ───────────────────────────────────────────────────────
   const submitAsk = useCallback(async () => {
@@ -252,13 +273,13 @@ export default function PublicQuestionsScreen() {
     setAsking(true)
     try {
       await api.users.addQuestion(username, value)
-      toast.show({ title: "Pertanyaan terkirim", tone: "success", duration: 3000 })
+      toast.show({ title: translate("Pertanyaan terkirim"), tone: "success", duration: 3000 })
       setAskOpen(false)
       setAskText("")
       await query.refresh()
     } catch (err) {
       toast.show({
-        title: "Gagal mengirim pertanyaan",
+        title: translate("Gagal mengirim pertanyaan"),
         description: userMessage(err),
         tone: "danger",
       })
@@ -276,31 +297,35 @@ export default function PublicQuestionsScreen() {
         await api.users.deleteQuestion(deleteQ.id)
         setDeleteQ(null)
         if (openId === deleteQ.id) setOpenId(null)
-        toast.show({ title: "Pertanyaan dihapus", tone: "neutral", duration: 3000 })
+        toast.show({ title: translate("Pertanyaan dihapus"), tone: "neutral", duration: 3000 })
         await query.refresh()
       } else if (deleteC && openId) {
         await api.users.deleteQuestionComment(deleteC.id)
         setDeleteC(null)
-        toast.show({ title: "Komentar dihapus", tone: "neutral", duration: 3000 })
+        toast.show({ title: translate("Komentar dihapus"), tone: "neutral", duration: 3000 })
         await loadComments(openId, 1)
       }
     } catch (err) {
-      toast.show({ title: "Gagal menghapus", description: userMessage(err), tone: "danger" })
+      toast.show({ title: translate("Gagal menghapus"), description: userMessage(err), tone: "danger" })
     } finally {
       setDeleting(false)
     }
   }, [deleting, deleteQ, deleteC, openId, toast, query, loadComments])
 
-  const isMyQuestion = (q: QuestionItem) => !!meId && q.asker?.id === meId
+  // UI-P008: kepemilikan via helper bersama (askerId dulu) — versi lama hanya
+  // q.asker?.id sehingga tombol Hapus milik sendiri tak pernah muncul (PRF-001).
+  const isMyQuestion = (q: QuestionItem) => isOwnQuestion(q, meId)
   const isMyComment = (c: QuestionComment) => !!meId && c.authorId === meId
 
   return (
     <Screen edges={["top"]} padded={false}>
       <Header
-        title="Tanya Jawab"
+        title={translate("Tanya Jawab")}
         right={
-          <Button size="sm" variant="secondary" onPress={() => setAskOpen(true)}>
-            Bertanya
+          <Button size="sm" variant="secondary" fullWidth={false} onPress={() => {
+            if (requireSession()) setAskOpen(true)
+          }}>
+            {translate("Bertanya")}
           </Button>
         }
       />
@@ -314,16 +339,16 @@ export default function PublicQuestionsScreen() {
       >
         <Crossfade loading={loading} skeleton={<ListLoading />}>
           {error ? (
-          <ErrorState title="Gagal memuat" description={error} onRetry={() => void query.reload()} />
+          <ErrorState title={translate("Gagal memuat")} description={error} onRetry={() => void query.reload()} />
         ) : items.length === 0 ? (
           <EmptyState
             icon={ChatCircleDots}
-            title="Belum ada pertanyaan"
-            description="Jadilah yang pertama bertanya pada profil ini."
+            title={translate("Belum ada pertanyaan")}
+            description={translate("Jadilah yang pertama bertanya pada profil ini.")}
           />
         ) : (
           <View className="gap-3" style={{ paddingTop: tokens.space[3] }}>
-            <SectionHeader title={`@${username}`} />
+            <SectionHeader title={atHandle(username)} />
             {items.map((q) => (
               <View key={q.id} className="gap-3">
                 <QACard
@@ -335,7 +360,7 @@ export default function PublicQuestionsScreen() {
                   }}
                   question={q.question}
                   asker={{
-                    name: q.asker?.fullName ?? q.asker?.username ?? "Seseorang",
+                    name: q.asker?.fullName ?? q.asker?.username ?? translate("Seseorang"),
                     avatar: q.asker?.avatarUrl ?? undefined,
                   }}
                   date={q.createdAt}
@@ -343,7 +368,7 @@ export default function PublicQuestionsScreen() {
                     q.answer
                       ? {
                           text: q.answer,
-                          by: { name: `@${username}` },
+                          by: { name: atHandle(username) },
                           date: q.answeredAt ?? q.createdAt,
                         }
                       : undefined
@@ -352,11 +377,11 @@ export default function PublicQuestionsScreen() {
                   footer={
                     <View className="flex-row flex-wrap gap-2">
                       <Button size="sm" variant="ghost" onPress={() => void toggleComments(q)}>
-                        {openId === q.id ? "Tutup komentar" : "Komentar"}
+                        {openId === q.id ? translate("Tutup komentar") : translate("Komentar")}
                       </Button>
                       {isMyQuestion(q) ? (
                         <Button size="sm" variant="ghost" onPress={() => setDeleteQ(q)}>
-                          Hapus pertanyaan
+                          {translate("Hapus pertanyaan")}
                         </Button>
                       ) : null}
                     </View>
@@ -367,7 +392,7 @@ export default function PublicQuestionsScreen() {
                     {comments.loading && comments.items.length === 0 ? (
                       <ListLoading />
                     ) : comments.items.length === 0 ? (
-                      <EmptyState icon={ChatCircleDots} title="Belum ada komentar" />
+                      <EmptyState icon={ChatCircleDots} title={translate("Belum ada komentar")} />
                     ) : (
                       <View className="gap-3">
                         {comments.items.map((c) => (
@@ -391,7 +416,7 @@ export default function PublicQuestionsScreen() {
                           <LoadMore
                             status={comments.loading ? "loading" : "idle"}
                             onLoadMore={() => void loadComments(q.id, comments.page + 1)}
-                            idleLabel="Muat komentar lainnya"
+                            idleLabel={translate("Muat komentar lainnya")}
                           />
                         ) : null}
                       </View>
@@ -402,7 +427,7 @@ export default function PublicQuestionsScreen() {
                       onSubmit={() => void submitComment()}
                       submitting={commentSending}
                       maxLength={COMMENT_MAX}
-                      placeholder={translate("Tulis komentar untuk @{x}…", { x: username })}
+                      placeholder={translate("Tulis komentar untuk @{x}…", { x: username ?? "" })}
                     />
                   </Card>
                 ) : null}
@@ -424,13 +449,13 @@ export default function PublicQuestionsScreen() {
       </PullToRefresh>
 
       <Dialog
-        title={translate("Bertanya kepada @{x}", { x: username })}
-        description="Pertanyaan Anda akan tampil di profil ini dan dijawab oleh pemiliknya."
+        title={translate("Bertanya kepada @{x}", { x: username ?? "" })}
+        description={translate("Pertanyaan Anda akan tampil di profil ini dan dijawab oleh pemiliknya.")}
         visible={askOpen}
         loading={asking}
-        confirmLabel="Kirim Pertanyaan"
+        confirmLabel={translate("Kirim Pertanyaan")}
         confirmButtonProps={{ disabled: askText.trim().length < QUESTION_MIN }}
-        cancelLabel="Batal"
+        cancelLabel={translate("Batal")}
         onConfirm={() => void submitAsk()}
         onCancel={() => setAskOpen(false)}
         onRequestClose={() => setAskOpen(false)}
@@ -438,24 +463,24 @@ export default function PublicQuestionsScreen() {
         <TextArea
           value={askText}
           onChangeText={setAskText}
-          placeholder="Tulis pertanyaan Anda…"
+          placeholder={translate("Tulis pertanyaan Anda…")}
           maxLength={QUESTION_MAX}
           showCount
         />
       </Dialog>
 
       <Dialog
-        title={deleteQ ? "Hapus pertanyaan?" : "Hapus komentar?"}
+        title={deleteQ ? translate("Hapus pertanyaan?") : translate("Hapus komentar?")}
         description={
           deleteQ
-            ? "Pertanyaan beserta jawabannya akan hilang dari profil ini."
-            : "Komentar Anda akan dihapus dari utas ini."
+            ? translate("Pertanyaan beserta jawabannya akan hilang dari profil ini.")
+            : translate("Komentar Anda akan dihapus dari utas ini.")
         }
         visible={!!deleteQ || !!deleteC}
         destructive
         loading={deleting}
-        confirmLabel="Hapus"
-        cancelLabel="Batal"
+        confirmLabel={translate("Hapus")}
+        cancelLabel={translate("Batal")}
         onConfirm={() => void handleDelete()}
         onCancel={() => {
           setDeleteQ(null)

@@ -15,6 +15,7 @@ import { SectionHeader } from "@/components/ui/section"
 import { SensitiveText } from "@/components/ui/sensitive-text"
 import { useToast } from "@/components/ui/toast"
 import { api, clearSession, isApiError, type UserProfile, userMessage } from "@/lib/api"
+import { translate, useLanguage } from "@/lib/i18n"
 import { queryKeys } from "@/lib/query-keys"
 import { ROUTES } from "@/lib/routes"
 import { useApiQuery } from "@/lib/use-api-query"
@@ -22,6 +23,9 @@ import { useApiQuery } from "@/lib/use-api-query"
 type Step = "request" | "confirm"
 
 export default function ChangePhoneScreen() {
+  // Langganan bahasa: kalimat Alert berisi <SensitiveText> (children campuran,
+  // tidak auto-translate) harus langsung ikut berganti bahasa (UI-M014).
+  useLanguage()
   const toast = useToast()
   const profile = useApiQuery<UserProfile>(queryKeys.me(), (signal) => api.users.getMe(signal))
   const currentPhone = profile.data?.phoneNumber ?? ""
@@ -121,9 +125,9 @@ export default function ChangePhoneScreen() {
           </Alert>
         </> : <>
           <SectionHeader title="Masukkan kode verifikasi" />
-          <Alert tone="info">Kode 6 digit telah dikirim via WhatsApp ke <SensitiveText value={newPhone} mask="phone" toggleable={false} />.</Alert>
+          <Alert tone="info">{translate("Kode 6 digit telah dikirim via WhatsApp ke")} <SensitiveText value={newPhone} mask="phone" toggleable={false} />.</Alert>
           <OtpInput value={code} onChange={(value) => { setCode(value); setError(undefined) }}
-            errorText={error} autoFocus disabled={submitting} />
+            autoFocus disabled={submitting} />
           <Button variant="ghost" disabled={submitting} onPress={() => { setCode(""); setError(undefined); setStep("request") }}>
             Ubah nomor
           </Button>

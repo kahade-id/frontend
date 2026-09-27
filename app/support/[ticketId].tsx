@@ -20,7 +20,7 @@ import { formatDateTime } from "@/lib/format"
 import { focusRingInset } from "@/lib/focus-ring"
 import { tokens } from "@/lib/tokens"
 import { useApiQuery } from "@/lib/use-api-query"
-import { translate } from "@/lib/i18n"
+import { translate, useLanguage } from "@/lib/i18n"
 
 import { Star } from "phosphor-react-native"
 
@@ -40,6 +40,9 @@ import { TextArea } from "@/components/ui/text-area"
 import { useToast } from "@/components/ui/toast"
 
 export default function SupportTicketDetailScreen() {
+  // Langganan bahasa: a11y label bintang & placeholder komentar (prop string)
+  // harus langsung ikut berganti saat pengguna mengubah bahasa (UI-M018).
+  useLanguage()
   const { ticketId } = useLocalSearchParams<{ ticketId: string }>()
   const insets = useSafeAreaInsets()
   const toast = useToast()
@@ -253,10 +256,22 @@ export default function SupportTicketDetailScreen() {
                   <TextArea
                     value={ratingComment}
                     onChangeText={setRatingComment}
-                    placeholder="Komentar (opsional)"
+                    placeholder={translate(
+                      starRating >= 1 && starRating <= 2
+                        ? "Ceritakan kendalanya (wajib)"
+                        : "Komentar (opsional)",
+                    )}
                     maxLength={500}
                     numberOfLines={2}
                   />
+                  {/* UI-M009: aturan "komentar wajib untuk rating 1–2" tidak
+                      terlihat dari label/placeholder — jelaskan eksplisit. */}
+                  {starRating >= 1 && starRating <= 2 && !ratingComment.trim() ? (
+                    <Text variant="caption" tone="warning">
+                      Rating 1–2 bintang membutuhkan komentar agar tim kami bisa
+                      menindaklanjuti.
+                    </Text>
+                  ) : null}
                   <Button
                     variant="secondary"
                     loading={ratingSubmitting}

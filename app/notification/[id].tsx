@@ -38,6 +38,7 @@ import {
 } from "@/lib/notification-category"
 import { refreshUnreadCount } from "@/lib/unread-count"
 import { useApiQuery } from "@/lib/use-api-query"
+import { translate, useLanguage } from "@/lib/i18n"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -64,6 +65,8 @@ const CATEGORY_ICON_BOX: Record<UiCategory, "surface" | "danger"> = {
 }
 
 export default function NotificationDetailScreen() {
+  // Langganan bahasa untuk a11y label tombol hapus (prop string, UI-M020).
+  useLanguage()
   const { id } = useLocalSearchParams<{ id?: string }>()
   const toast = useToast()
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -148,7 +151,7 @@ export default function NotificationDetailScreen() {
                 <IconButton
                   icon={Trash}
                   variant="ghost"
-                  accessibilityLabel="Hapus notifikasi"
+                  accessibilityLabel={translate("Hapus notifikasi")}
                   onPress={() => setConfirmDelete(true)}
                 />
               ),

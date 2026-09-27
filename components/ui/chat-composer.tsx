@@ -46,6 +46,8 @@ import {
 } from "react-native"
 
 import { ChatAttachmentItem, type ChatAttachment, type ChatAttachmentStatus } from "@/components/ui/chat-attachment-item"
+import { canSendMessage } from "@/lib/chat-send-ready"
+export { canSendMessage }
 import { IconButton } from "@/components/ui/icon-button"
 import { Text } from "@/components/ui/text"
 import { useTheme } from "@/components/theme-provider"
@@ -108,13 +110,6 @@ export type ChatComposerProps = Omit<ViewProps, "children"> & {
   labels?: Partial<ChatComposerLabels>
   className?: string
   inputProps?: Omit<TextInputProps, "value" | "onChangeText" | "multiline" | "style" | "className">
-}
-
-export function canSendMessage(text: string, attachments: readonly ComposerAttachment[] = []): boolean {
-  const hasText = text.trim().length > 0
-  const hasFiles = attachments.length > 0
-  const allReady = attachments.every((a) => (a.status ?? "idle") === "idle")
-  return (hasText || hasFiles) && allReady
 }
 
 export function ChatComposer({

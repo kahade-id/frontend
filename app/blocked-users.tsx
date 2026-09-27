@@ -7,7 +7,7 @@
  * memakai `userMessage(err)` — bukan copy tetap yang menyembunyikan alasan
  * sebenarnya (mis. "pengguna sudah tidak diblokir").
  */
-import { useCallback, useState } from "react"
+import { useCallback, useRef, useState } from "react"
 import { Prohibit } from "phosphor-react-native"
 
 import { api } from "@/lib/api"
@@ -20,18 +20,25 @@ import { DataScreen } from "@/components/ui/data-screen"
 import { Dialog } from "@/components/ui/modal"
 import { UserListItem } from "@/components/ui/user-list-item"
 import { useToast } from "@/components/ui/toast"
-import { translate } from "@/lib/i18n/translate"
+import { translate, useLanguage } from "@/lib/i18n"
 
 export default function BlockedUsersScreen() {
   const toast = useToast()
+  // i18n: label mengikuti bahasa aktif.
+  useLanguage()
   const query = useApiQuery("blocked-users", (signal) => api.settings.getBlockedUsers(signal))
   const items = query.data ?? []
   const [unblockingId, setUnblockingId] = useState<string | null>(null)
   const [confirmTarget, setConfirmTarget] = useState<BlockedUser | null>(null)
   const { setData } = query
 
+  // UI-P009: kunci in-flight sinkron — guard state async `unblockingId`
+  // balapan antar dua tap cepat pada tombol konfirmasi dialog.
+  const unblockingRef = useRef(false)
   const handleUnblock = useCallback(
     async (user: BlockedUser) => {
+      if (unblockingRef.current) return
+      unblockingRef.current = true
       setUnblockingId(user.id)
       try {
         await api.settings.unblockUser(user.id)
@@ -43,8 +50,9 @@ export default function BlockedUsersScreen() {
           duration: 3000,
         })
       } catch (err) {
-        toast.show({ title: "Gagal membuka blokir", description: userMessage(err), tone: "danger" })
+        toast.show({ title: translate("Gagal membuka blokir"), description: userMessage(err), tone: "danger" })
       } finally {
+        unblockingRef.current = false
         setUnblockingId(null)
       }
     },
@@ -54,14 +62,14 @@ export default function BlockedUsersScreen() {
   return (
     <>
       <DataScreen
-        title="Pengguna Diblokir"
+        title={translate("Pengguna Diblokir")}
         state={query}
-        loadingMessage="Memuat daftar…"
+        loadingMessage={translate("Memuat daftar…")}
         empty={
           items.length === 0 && {
             icon: Prohibit,
-            title: "Tidak ada yang diblokir",
-            description: "Pengguna yang Anda blokir akan muncul di sini.",
+            title: translate("Tidak ada yang diblokir"),
+            description: translate("Pengguna yang Anda blokir akan muncul di sini."),
           }
         }
         contentClassName="gap-1"
@@ -81,7 +89,7 @@ export default function BlockedUsersScreen() {
                 loading={unblockingId === u.id}
                 onPress={() => setConfirmTarget(u)}
               >
-                Buka blokir
+                {translate("Buka blokir")}
               </Button>
             }
             divider={i < items.length - 1}
@@ -91,11 +99,11 @@ export default function BlockedUsersScreen() {
 
       <Dialog
         title={confirmTarget ? translate("Buka blokir @{x}?", { x: confirmTarget.username }) : "Buka blokir?"}
-        description="Pengguna ini akan dapat melihat profil Anda dan memulai percakapan kembali."
+        description={translate("Pengguna ini akan dapat melihat profil Anda dan memulai percakapan kembali.")}
         visible={confirmTarget !== null}
         loading={unblockingId !== null}
-        confirmLabel="Buka blokir"
-        cancelLabel="Batal"
+        confirmLabel={translate("Buka blokir")}
+        cancelLabel={translate("Batal")}
         onConfirm={() => confirmTarget && void handleUnblock(confirmTarget)}
         onCancel={() => setConfirmTarget(null)}
         onRequestClose={() => setConfirmTarget(null)}

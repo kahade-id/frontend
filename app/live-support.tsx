@@ -436,9 +436,11 @@ export default function LiveSupportScreen() {
                   onChangeText={setDraft}
                   onSend={handleSend}
                   sending={sending || starting}
+                  // UI-M025: ChatComposer sudah menerapkan translateProp sendiri —
+                  // teruskan string mentah, bukan hasil translate() ganda.
                   labels={{
-                    placeholder: translate("Tulis pesan…"),
-                    send: translate("Kirim"),
+                    placeholder: "Tulis pesan…",
+                    send: "Kirim",
                   }}
                 />
               </View>

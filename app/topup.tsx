@@ -278,8 +278,11 @@ export default function TopupScreen() {
       <Header
         title="Isi Saldo"
         progress={progress}
-        onBack={step === "amount" || step === "result" ? undefined : handleBack}
-        showBack={step === "method"}
+        // UI-W009: langkah nominal dulu tanpa tombol back sama sekali
+        // (showBack hanya true di "method") — inkonsisten dengan
+        // tarik/transfer. Hasil tetap tanpa back (pembayaran aktif).
+        onBack={step === "result" ? undefined : handleBack}
+        showBack={step !== "result"}
         safeArea={false}
       />
 

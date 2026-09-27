@@ -6,6 +6,7 @@
  * dirender juga dihapus.
  */
 import { api } from "@/lib/api"
+import { translate, useLanguage } from "@/lib/i18n"
 import { formatDateTime } from "@/lib/format"
 import { useApiQuery } from "@/lib/use-api-query"
 
@@ -14,11 +15,13 @@ import { Text } from "@/components/ui/text"
 import { TrustScoreCard } from "@/components/ui/trust-score-card"
 
 export default function TrustScoreScreen() {
+  // i18n: label mengikuti bahasa aktif.
+  useLanguage()
   const query = useApiQuery("trust-score", (signal) => api.users.getMyTrustScore(signal))
   const data = query.data
 
   return (
-    <DataScreen title="Skor Kepercayaan" state={query} loadingMessage="Memuat skor…">
+    <DataScreen title={translate("Skor Kepercayaan")} state={query} loadingMessage={translate("Memuat skor…")}>
       {data ? (
         <>
           <TrustScoreCard
@@ -28,8 +31,7 @@ export default function TrustScoreScreen() {
             updatedAt={data.updatedAt ? formatDateTime(data.updatedAt) : undefined}
           />
           <Text variant="body" tone="secondary">
-            Skor kepercayaan dihitung dari verifikasi identitas, riwayat transaksi, dan ulasan
-            Anda. Semakin tinggi skor, semakin dipercaya lawan transaksi.
+            {translate("Skor kepercayaan dihitung dari verifikasi identitas, riwayat transaksi, dan ulasan Anda. Semakin tinggi skor, semakin dipercaya lawan transaksi.")}
           </Text>
         </>
       ) : null}

@@ -26,6 +26,7 @@ import { logWarn } from "@/lib/telemetry"
 
 import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Button } from "@/components/ui/button"
+import { CHAT_MESSAGE_MAX } from "@/components/ui/chat-composer"
 import { TextArea } from "@/components/ui/text-area"
 import { useToast } from "@/components/ui/toast"
 
@@ -99,6 +100,9 @@ export function ChatEditSheet({ message, roomId, onClose, onSaved }: ChatEditShe
           value={draft}
           onChangeText={setDraft}
           rows={4}
+          // UI-C011: samakan dengan batas composer (2000) — tanpa ini user
+          // bisa mengetik lebih lalu ditolak server saat menyimpan.
+          maxLength={CHAT_MESSAGE_MAX}
           placeholder="Tulis ulang pesan Anda"
           accessibilityLabel="Isi pesan yang diedit"
         />

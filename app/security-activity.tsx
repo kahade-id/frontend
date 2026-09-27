@@ -529,7 +529,7 @@ export default function SecurityActivityScreen() {
       <Dialog
         title="Keluar dari semua perangkat?"
         description={translate(
-          "Semua sesi termasuk perangkat ini akan dicabut. Kamu harus masuk kembali di semua perangkat.",
+          "Semua sesi termasuk perangkat ini akan dicabut. Anda harus masuk kembali di semua perangkat.",
         )}
         visible={confirmAll}
         destructive

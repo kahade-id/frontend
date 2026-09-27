@@ -631,7 +631,7 @@ function ShowcaseManagement() {
 
   return (
     <Screen edges={["top"]} padded={false}>
-      <Header title="Kelola Etalase" />
+      <Header title={translate("Kelola Etalase")} />
       <PullToRefresh
         onRefresh={() => {
           void query.refresh()
@@ -648,7 +648,7 @@ function ShowcaseManagement() {
         ) : (
           <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
             <SectionHeader
-              title="Etalase Anda"
+              title={translate("Etalase Anda")}
               subtitle={
                 items.length
                   ? [
@@ -684,23 +684,23 @@ function ShowcaseManagement() {
                 empty={
                   <EmptyState
                     icon={Images}
-                    title="Belum ada foto"
-                    description="Tambahkan foto produk atau hasil kerja Anda."
+                    title={translate("Belum ada foto")}
+                    description={translate("Tambahkan foto produk atau hasil kerja Anda.")}
                   />
                 }
               />
             </Crossfade>
             {items.length > renderLimit ? <Button variant="ghost" onPress={() => setRenderLimit((limit) => limit + 60)}>{translate("Tampilkan karya lainnya")}</Button> : null}
             <Text variant="caption" tone="secondary">
-              Ketuk karya untuk mengubah detail, menyembunyikan, atau menghapus.
+              {translate("Ketuk karya untuk mengubah detail, menyembunyikan, atau menghapus.")}
             </Text>
 
             {/* Soft-delete: karya yang dihapus bisa dipulihkan dalam 30 hari. */}
             {deletedItems.length > 0 ? (
               <View className="gap-2">
                 <SectionHeader
-                  title="Baru dihapus"
-                  subtitle="Dapat dipulihkan dalam 30 hari"
+                  title={translate("Baru dihapus")}
+                  subtitle={translate("Dapat dipulihkan dalam 30 hari")}
                 />
                 {deletedItems.map((item) => {
                   // SH-F-003: daysRemaining server diutamakan (kanonis);
@@ -753,7 +753,7 @@ function ShowcaseManagement() {
               variant="secondary"
               onPress={() => router.push(ROUTES.showcaseCreate)}
             >
-              Buat karya baru
+              {translate("Buat karya baru")}
             </Button>
           </View>
         )}
@@ -773,7 +773,7 @@ function ShowcaseManagement() {
         avoidKeyboard
         visible={imagesItem != null}
         onRequestClose={() => void closeImagesSheet()}
-        title={imagesItem ? translate("Foto: {x}", { x: labelOf(imagesItem) }) : "Foto karya"}
+        title={imagesItem ? translate("Foto: {x}", { x: labelOf(imagesItem) }) : translate("Foto karya")}
         description={translate("{x} dari {y} foto. Foto pertama menjadi cover karya.", {
           x: imagesItem?.images?.length ?? 0,
           y: photoLimit,
@@ -800,7 +800,7 @@ function ShowcaseManagement() {
               <Picture source={img.imageUrl} alt="" width={56} height={56} radius="sm" />
               <View className="flex-1 gap-0.5">
                 <Text variant="body" weight={500} tone="primary">
-                  Foto {i + 1}
+                  {translate("Foto {x}", { x: i + 1 })}
                 </Text>
                 {i === 0 ? <Text variant="caption" tone="secondary">{translate("Cover karya")}</Text> : null}
               </View>
@@ -872,22 +872,22 @@ function ShowcaseManagement() {
         avoidKeyboard
         visible={!!editor}
         onRequestClose={requestCloseEditor}
-        title="Ubah detail"
-        description="Judul, kategori, dan rentang harga membantu calon pembeli memahami penawaran Anda."
+        title={translate("Ubah detail")}
+        description={translate("Judul, kategori, dan rentang harga membantu calon pembeli memahami penawaran Anda.")}
         footer={
           <View className="gap-2">
             <Button variant="primary" loading={saving} onPress={() => void handleSave()} fullWidth>
-              Simpan
+              {translate("Simpan")}
             </Button>
             <Button variant="ghost" disabled={saving} onPress={requestCloseEditor} fullWidth>
-              Batal
+              {translate("Batal")}
             </Button>
           </View>
         }
       >
         <View className="gap-4">
           <Input
-            label="Judul"
+            label={translate("Judul")}
             value={form.title}
             onChangeText={(t) => {
               setForm((f) => ({ ...f, title: t }))
@@ -984,7 +984,7 @@ function ShowcaseManagement() {
           <View className="flex-row items-center justify-between gap-3">
             <View className="flex-1 gap-1">
               <Text variant="body" weight={500}>
-                Tampilkan secara publik
+                {translate("Tampilkan secara publik")}
               </Text>
               <Text variant="caption" tone="secondary">
                 {form.isPublic

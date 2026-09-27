@@ -13,10 +13,11 @@ import {
   RETURN_STATUS_LABEL,
   RETURN_REASON_LABEL,
   RETURN_RESOLUTION_LABEL,
+  RETURN_ACTOR_ROLE_LABEL,
   formatIdrSen,
   returnIdShort,
 } from "@/lib/api/returns"
-import { formatDateTime } from "@/lib/format"
+import { formatDateTime, formatDateTimeWIB } from "@/lib/format"
 import { tokens } from "@/lib/tokens"
 import { useApiQuery } from "@/lib/use-api-query"
 import { showMutationError } from "@/lib/mutation-toast"
@@ -40,7 +41,7 @@ function Timeline({ detail, dot, muted }: { detail: ReturnDetail; dot: string; m
               {t.toStatus ? (RETURN_STATUS_LABEL[t.toStatus as keyof typeof RETURN_STATUS_LABEL] ?? t.toStatus) : t.event}
             </Text>
             <Text style={{ color: muted, fontSize: 12 }}>
-              {formatDateTime(t.createdAt)} · {t.actorRole}
+              {formatDateTime(t.createdAt)} · {RETURN_ACTOR_ROLE_LABEL[t.actorRole] ?? t.actorRole}
             </Text>
           </View>
         </View>
@@ -69,7 +70,7 @@ export default function ReturnDetailScreen() {
   )
   const detail = query.data
 
-  async function run(label: string, fn: () => Promise<unknown>, confirmMsg?: string) {
+  async function run(label: string, failTitle: string, fn: () => Promise<unknown>, confirmMsg?: string) {
     const go = async () => {
       setMutating(true)
       try {
@@ -78,7 +79,9 @@ export default function ReturnDetailScreen() {
       } catch (e) {
         if (
           showMutationError(toast.show, {
-            failTitle: `Gagal: ${label}`,
+            // UI-T016 (audit UI/UX 2026-09-27): failTitle kini frasa utuh
+            // ("Gagal mengirim resi"), bukan "Gagal: <verba>".
+            failTitle,
             uncertainHint: "Aksi mungkin sudah diproses — memuat ulang…",
             err: e,
           })
@@ -103,19 +106,19 @@ export default function ReturnDetailScreen() {
           <Card>
             <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
               <Text style={{ fontWeight: "800", fontSize: 16 }}>{returnIdShort(detail)}</Text>
-              <Badge>{RETURN_STATUS_LABEL[detail.status]}</Badge>
+              <Badge>{RETURN_STATUS_LABEL[detail.status] ?? detail.status}</Badge>
             </View>
-            <Text style={{ marginTop: tokens.space[2] }}>{RETURN_REASON_LABEL[detail.reasonCode]}</Text>
+            <Text style={{ marginTop: tokens.space[2] }}>{RETURN_REASON_LABEL[detail.reasonCode] ?? detail.reasonCode}</Text>
             {detail.reasonDetail ? <Text style={{ color: c.textTertiary }}>{detail.reasonDetail}</Text> : null}
             {detail.resolutionType ? (
               <Text style={{ marginTop: tokens.space[1] }}>
-                Penyelesaian: {RETURN_RESOLUTION_LABEL[detail.resolutionType]}
+                Penyelesaian: {detail.resolutionType ? (RETURN_RESOLUTION_LABEL[detail.resolutionType] ?? detail.resolutionType) : "—"}
                 {detail.refundAmount != null ? ` · ${formatIdrSen(detail.refundAmount)}` : ""}
               </Text>
             ) : null}
             {detail.sellerRespondBy && (detail.status === "REQUESTED" || detail.status === "SELLER_REVIEW") ? (
               <Text style={{ color: warningText, marginTop: tokens.space[1] }}>
-                Penjual harus merespons sebelum {formatDateTime(detail.sellerRespondBy)}
+                Penjual harus merespons sebelum {formatDateTimeWIB(detail.sellerRespondBy)}
               </Text>
             ) : null}
           </Card>
@@ -126,7 +129,7 @@ export default function ReturnDetailScreen() {
               <Text>{detail.returnInstructions}</Text>
               {detail.shipBy ? (
                 <Text style={{ color: c.textTertiary, marginTop: tokens.space[1] }}>
-                  Kirim sebelum {formatDateTime(detail.shipBy)}
+                  Kirim sebelum {formatDateTimeWIB(detail.shipBy)}
                 </Text>
               ) : null}
               {detail.returnTrackingNumber ? (
@@ -145,13 +148,14 @@ export default function ReturnDetailScreen() {
                 value={tracking}
                 onChangeText={setTracking}
                 placeholder="Nomor resi pengiriman balik"
+                accessibilityLabel="Nomor resi pengiriman balik"
                 placeholderTextColor={c.textTertiary}
                 style={{ borderWidth: 1, borderColor: c.borderDefault, borderRadius: tokens.radius.md, padding: tokens.space[3], color: c.textPrimary }}
               />
               <View style={{ marginTop: tokens.space[2] }}>
                 <Button
                   disabled={!tracking.trim() || mutating}
-                  onPress={() => run("Kirim resi", () => api.returns.submitReturnTracking(detail.id, { trackingNumber: tracking.trim() }))}
+                  onPress={() => run("Kirim resi", "Gagal mengirim resi", () => api.returns.submitReturnTracking(detail.id, { trackingNumber: tracking.trim() }))}
                 >
                   Kirim Resi
                 </Button>
@@ -164,22 +168,28 @@ export default function ReturnDetailScreen() {
             <View style={{ gap: tokens.space[2] }}>
               {(detail.notes ?? []).map((n) => (
                 <View key={n.id} style={{ backgroundColor: c.surface, borderRadius: tokens.radius.md, padding: tokens.space[2] }}>
-                  <Text style={{ fontSize: 12, color: c.textTertiary }}>{n.authorRole} · {formatDateTime(n.createdAt)}</Text>
+                  <Text style={{ fontSize: 12, color: c.textTertiary }}>{RETURN_ACTOR_ROLE_LABEL[n.authorRole] ?? n.authorRole} · {formatDateTime(n.createdAt)}</Text>
                   <Text>{n.message}</Text>
                 </View>
               ))}
+              {/* UI-T006 (audit UI/UX 2026-09-27): empty state eksplisit saat
+                  belum ada pesan — sebelumnya kartu Negosiasi tampil kosong. */}
+              {(detail.notes ?? []).length === 0 ? (
+                <Text style={{ color: c.textTertiary }}>Belum ada pesan.</Text>
+              ) : null}
             </View>
             <TextInput
               value={note}
               onChangeText={setNote}
               placeholder="Tulis pesan untuk pihak lain…"
+              accessibilityLabel="Pesan negosiasi"
               placeholderTextColor={c.textTertiary}
               style={{ borderWidth: 1, borderColor: c.borderDefault, borderRadius: tokens.radius.md, padding: tokens.space[3], color: c.textPrimary, marginTop: tokens.space[2] }}
             />
             <View style={{ marginTop: tokens.space[2] }}>
               <Button
                 disabled={!note.trim() || mutating}
-                onPress={() => run("Kirim pesan", async () => { await api.returns.addReturnNote(detail.id, { message: note.trim() }); setNote("") })}
+                onPress={() => run("Kirim pesan", "Gagal mengirim pesan", async () => { await api.returns.addReturnNote(detail.id, { message: note.trim() }); setNote("") })}
               >
                 Kirim Pesan
               </Button>
@@ -195,14 +205,14 @@ export default function ReturnDetailScreen() {
             {["REQUESTED", "SELLER_REVIEW", "CLARIFICATION_NEEDED"].includes(detail.status) ? (
               <Button
                 variant="secondary"
-                onPress={() => run("Batalkan", () => api.returns.cancelReturn(detail.id), "Batalkan pengajuan retur ini?")}
+                onPress={() => run("Batalkan", "Gagal membatalkan retur", () => api.returns.cancelReturn(detail.id), "Batalkan pengajuan retur ini?")}
               >
                 Batalkan Pengajuan
               </Button>
             ) : null}
             {detail.status === "RETURN_SHIPPING" ? (
               <Button
-                onPress={() => run("Konfirmasi terima", () => api.returns.confirmReturnReceived(detail.id))}
+                onPress={() => run("Konfirmasi terima", "Gagal mengonfirmasi penerimaan", () => api.returns.confirmReturnReceived(detail.id))}
               >
                 Konfirmasi Barang Diterima (Penjual)
               </Button>
@@ -210,7 +220,7 @@ export default function ReturnDetailScreen() {
             {!["RESOLVED_REFUND", "RESOLVED_EXCHANGE", "RESOLVED_REPAIR", "ESCALATED", "CANCELLED", "EXPIRED", "REJECTED"].includes(detail.status) ? (
               <Button
                 variant="secondary"
-                onPress={() => run("Eskalasi", () => api.returns.escalateReturn(detail.id), "Eskalasi ke sengketa? Kasus sengketa yang sudah ada akan dipakai ulang.")}
+                onPress={() => run("Eskalasi", "Gagal melakukan eskalasi", () => api.returns.escalateReturn(detail.id), "Eskalasi ke sengketa? Kasus sengketa yang sudah ada akan dipakai ulang.")}
               >
                 Eskalasi ke Sengketa
               </Button>

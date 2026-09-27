@@ -118,6 +118,22 @@ export type ChatSearchResult = {
 }
 
 /**
+ * UI-C002 (audit UI/UX 2026-09-27): teks preview satu baris untuk daftar
+ * chat. Pesan terakhir yang hanya berisi lampiran (tanpa teks) harus
+ * menampilkan "(lampiran)" — bukan baris kosong — konsisten dengan
+ * <ChatPinnedBar> dan <ChatSearchSheet>. Murni, bisa di-unit-test.
+ */
+export function chatRoomPreview(
+  last: Pick<ChatMessage, "text" | "attachments"> | null | undefined,
+  /** Label terjemahan untuk pesan berisi lampiran saja. */
+  attachmentLabel = "(lampiran)",
+): string {
+  const text = last?.text?.trim()
+  if (text) return text
+  return last?.attachments?.length ? attachmentLabel : ""
+}
+
+/**
  * Normalisasi satu pesan chat dari respons REST ATAU payload realtime
  * (`chat.new_message` / `chat.message_updated`) — serializer SAMA untuk
  * kedua jalur (G107). Diekspor agar lapisan realtime tidak menduplikasi

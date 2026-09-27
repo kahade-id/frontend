@@ -1,9 +1,11 @@
 import { useCallback, useRef, useState } from "react"
 import { Platform, ScrollView } from "react-native"
+import { useSafeAreaInsets } from "react-native-safe-area-context"
 import Constants from "expo-constants"
 import * as Updates from "expo-updates"
 import { api } from "@/lib/api"
 import { installedAppVersion, installedBuildNumber } from "@/lib/runtime-info"
+import { tokens } from "@/lib/tokens"
 import { useApiQuery } from "@/lib/use-api-query"
 import { AppVersionInfoRow } from "@/components/ui/app-version-info-row"
 import { Button } from "@/components/ui/button"
@@ -16,6 +18,7 @@ import { useToast } from "@/components/ui/toast"
 
 export default function AppVersionScreen() {
   const toast = useToast()
+  const insets = useSafeAreaInsets()
   const version = useApiQuery(
     "server-app-version",
     (signal) => api.public.getAppVersion(signal),
@@ -67,6 +70,7 @@ export default function AppVersionScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
         contentContainerClassName="gap-4 px-5 py-4"
+        contentContainerStyle={{ paddingBottom: insets.bottom + tokens.space[8] }}
       >
         <AppVersionInfoRow
           appName={Constants.expoConfig?.name ?? "Kahade"}
@@ -85,6 +89,8 @@ export default function AppVersionScreen() {
             description={version.error}
             onRetry={() => void version.reload()}
           />
+        ) : version.loading ? (
+          <Text variant="caption" tone="secondary">Memeriksa versi server…</Text>
         ) : version.data ? (
           <>
             <SectionHeader title="Versi di toko aplikasi" />

@@ -20,12 +20,13 @@ import { translate } from "@/lib/i18n/translate"
 
 import { api, isApiError, userMessage } from "@/lib/api"
 import { referralUrl } from "@/lib/deeplinks"
-import { formatDateTime, formatRupiah } from "@/lib/format"
+import { formatDateTimeWIB, formatRupiah } from "@/lib/format"
 import { haptic } from "@/lib/haptics"
 import { shareContent } from "@/lib/share"
 import { tokens } from "@/lib/tokens"
 
 import { Avatar } from "@/components/ui/avatar"
+import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Button } from "@/components/ui/button"
 import { ErrorState } from "@/components/ui/error-state"
 import { FormSection } from "@/components/ui/form-section"
@@ -111,6 +112,9 @@ export default function ReferralScreen() {
   const leaderboard = (leaderboardQuery.data ?? []).slice(0, 10)
 
   const [regenerating, setRegenerating] = useState(false)
+  // UI-W022: regenerate membuat kode lama tidak berlaku — minta konfirmasi
+  // dulu agar tidak terpicu tak sengaja.
+  const [regenConfirmOpen, setRegenConfirmOpen] = useState(false)
   const [applyCode, setApplyCode] = useState("")
   const [applying, setApplying] = useState(false)
   const [applyError, setApplyError] = useState<string | undefined>()
@@ -195,7 +199,7 @@ export default function ReferralScreen() {
               copied={copied}
               onCopy={(v) => void copy(v)}
               onShare={code ? () => void handleShare() : undefined}
-              onRegenerate={() => void handleRegenerate()}
+              onRegenerate={() => setRegenConfirmOpen(true)}
               regenerating={regenerating}
             />
 
@@ -284,7 +288,7 @@ export default function ReferralScreen() {
                     key={h.id}
                     name={h.invitedUsername}
                     status={h.status}
-                    joinedAt={formatDateTime(h.createdAt)}
+                    joinedAt={formatDateTimeWIB(h.createdAt)}
                     rewardAmount={h.reward}
                     divider={i < history.length - 1}
                   />
@@ -300,7 +304,7 @@ export default function ReferralScreen() {
                     key={r.id}
                     amount={r.amount}
                     status={r.status}
-                    date={formatDateTime(r.createdAt)}
+                    date={formatDateTimeWIB(r.createdAt)}
                   />
                 ))}
               </>
@@ -309,6 +313,36 @@ export default function ReferralScreen() {
           )}
         </Crossfade>
       </PullToRefresh>
+
+      {/* UI-W022: konfirmasi regenerate — kode lama menjadi tidak berlaku. */}
+      <BottomSheet
+        visible={regenConfirmOpen}
+        onRequestClose={() => setRegenConfirmOpen(false)}
+        title="Buat kode referral baru?"
+        description="Kode lama tidak akan berlaku lagi. Teman yang mendaftar dengan kode lama tidak terhitung sebagai undangan Anda."
+        footer={
+          <View className="flex-row gap-3">
+            <Button
+              variant="secondary"
+              onPress={() => setRegenConfirmOpen(false)}
+              disabled={regenerating}
+              containerClassName="flex-1"
+            >
+              Batal
+            </Button>
+            <Button
+              onPress={() => {
+                setRegenConfirmOpen(false)
+                void handleRegenerate()
+              }}
+              loading={regenerating}
+              containerClassName="flex-1"
+            >
+              Buat kode baru
+            </Button>
+          </View>
+        }
+      />
     </Screen>
   )
 }

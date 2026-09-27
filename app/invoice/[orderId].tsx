@@ -254,7 +254,9 @@ export default function InvoiceScreen() {
               total={invoice.total}
               meta={[
                 { label: "Terbit", value: formatDateTime(invoice.issuedAt) },
-                { label: "Order", value: invoice.order.id },
+                // UI-T010 (audit UI/UX 2026-09-27): tampilkan shortcode, bukan UUID
+        // mentah 36 karakter (konsisten dengan jalur share yang sudah disensor).
+        { label: "Order", value: `#${shortId(invoice.order.id)}` },
                 // M-56 (audit end-to-end, issue #101): baris biaya TIDAK hilang
                 // diam-diam — `normalizeFeeBreakdown` bisa `undefined` dan dulu
                 // tidak ada jejak di struk. Tidak terbaca = "—" (B-14).

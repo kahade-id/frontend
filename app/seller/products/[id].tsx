@@ -110,6 +110,8 @@ export default function SellerProductFormScreen() {
           await api.products.setProductStatus(String(id), status)
         }
       }
+      // UI-F018: konfirmasi sukses — sebelumnya langsung back tanpa umpan balik.
+      toast.show({ title: "Produk disimpan", tone: "success", duration: 2500 })
       router.back()
     } catch (e) {
       showMutationError(toast.show, {
@@ -124,13 +126,13 @@ export default function SellerProductFormScreen() {
 
   const formFields = (
     <View style={{ padding: tokens.space[4], gap: tokens.space[3] }}>
-      <Field label="SKU *"><TextInput value={sku} onChangeText={setSku} autoCapitalize="characters" editable={isNew} placeholderTextColor={c.textTertiary} style={inputStyle()} /></Field>
-      <Field label="Nama produk *"><TextInput value={name} onChangeText={setName} placeholderTextColor={c.textTertiary} style={inputStyle()} /></Field>
-      <Field label="Kategori *"><TextInput value={category} onChangeText={setCategory} placeholderTextColor={c.textTertiary} style={inputStyle()} /></Field>
-      <Field label="Harga (Rp) *"><TextInput value={priceIdr} onChangeText={setPriceIdr} keyboardType="numeric" placeholderTextColor={c.textTertiary} style={inputStyle()} /></Field>
-      <Field label="Stok awal"><TextInput value={stock} onChangeText={setStock} keyboardType="numeric" placeholderTextColor={c.textTertiary} style={inputStyle()} /></Field>
-      <Field label="Berat (gram)"><TextInput value={weight} onChangeText={setWeight} keyboardType="numeric" placeholderTextColor={c.textTertiary} style={inputStyle()} /></Field>
-      <Field label="Ambang stok menipis"><TextInput value={lowStock} onChangeText={setLowStock} keyboardType="numeric" placeholderTextColor={c.textTertiary} style={inputStyle()} /></Field>
+      <Field label="SKU *"><TextInput value={sku} onChangeText={setSku} autoCapitalize="characters" editable={isNew} accessibilityLabel="SKU, wajib diisi" placeholderTextColor={c.textTertiary} style={inputStyle()} /></Field>
+      <Field label="Nama produk *"><TextInput value={name} onChangeText={setName} accessibilityLabel="Nama produk, wajib diisi" placeholderTextColor={c.textTertiary} style={inputStyle()} /></Field>
+      <Field label="Kategori *"><TextInput value={category} onChangeText={setCategory} accessibilityLabel="Kategori, wajib diisi" placeholderTextColor={c.textTertiary} style={inputStyle()} /></Field>
+      <Field label="Harga (Rp) *"><TextInput value={priceIdr} onChangeText={setPriceIdr} keyboardType="numeric" accessibilityLabel="Harga dalam rupiah, wajib diisi" placeholderTextColor={c.textTertiary} style={inputStyle()} /></Field>
+      <Field label="Stok awal"><TextInput value={stock} onChangeText={setStock} keyboardType="numeric" accessibilityLabel="Stok awal" placeholderTextColor={c.textTertiary} style={inputStyle()} /></Field>
+      <Field label="Berat (gram)"><TextInput value={weight} onChangeText={setWeight} keyboardType="numeric" accessibilityLabel="Berat dalam gram" placeholderTextColor={c.textTertiary} style={inputStyle()} /></Field>
+      <Field label="Ambang stok menipis"><TextInput value={lowStock} onChangeText={setLowStock} keyboardType="numeric" accessibilityLabel="Ambang stok menipis" placeholderTextColor={c.textTertiary} style={inputStyle()} /></Field>
       {!isNew ? (
         <Field label="Status">
           <View style={{ flexDirection: "row", flexWrap: "wrap", gap: tokens.space[2] }}>
@@ -143,7 +145,7 @@ export default function SellerProductFormScreen() {
         </Field>
       ) : null}
       <Field label="Deskripsi">
-        <TextInput value={description} onChangeText={setDescription} multiline numberOfLines={4} textAlignVertical="top" placeholderTextColor={c.textTertiary} style={inputStyle()} />
+        <TextInput value={description} onChangeText={setDescription} multiline accessibilityLabel="Deskripsi produk" numberOfLines={4} textAlignVertical="top" placeholderTextColor={c.textTertiary} style={inputStyle()} />
       </Field>
       <Text style={{ color: c.textTertiary, fontSize: 12 }}>
         Harga dikirim ke server dalam rupiah; penyimpanan presisi (sen) ditangani server.

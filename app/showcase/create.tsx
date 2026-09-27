@@ -587,21 +587,21 @@ export default function ShowcaseCreateScreen() {
             disabled={uploading || previews.length === 0}
             onPress={() => void handleSave()}
           >
-            Terbitkan karya
+            {translate("Terbitkan karya")}
           </Button>
           <Button variant="ghost" fullWidth disabled={busy} onPress={requestClose}>
-            Batal
+            {translate("Batal")}
           </Button>
         </View>
       }
     >
-      <Header title="Karya baru" backKind="close" onBack={requestClose} />
+      <Header title={translate("Karya baru")} backKind="close" onBack={requestClose} />
 
       <View className="gap-6 px-5 pb-6 pt-4">
         {/* ── FOTO ── */}
         <View className="gap-3">
           <SectionHeader
-            title="Foto karya"
+            title={translate("Foto karya")}
             subtitle={
               previews.length
                 ? translate("Foto pertama menjadi cover · {x}/{y} foto", {
@@ -654,8 +654,8 @@ export default function ShowcaseCreateScreen() {
           ) : (
             <EmptyState
               icon={Images}
-              title="Belum ada foto"
-              description="Pilih foto produk atau hasil kerja Anda dari galeri."
+              title={translate("Belum ada foto")}
+              description={translate("Pilih foto produk atau hasil kerja Anda dari galeri.")}
             />
           )}
 
@@ -666,7 +666,7 @@ export default function ShowcaseCreateScreen() {
             disabled={saving || previews.length >= photoLimit}
             onPress={() => void handlePickPhotos()}
           >
-            {previews.length > 0 ? "Tambah foto" : "Pilih foto"}
+            {previews.length > 0 ? translate("Tambah foto") : translate("Pilih foto")}
           </Button>
 
           {photoError ? (
@@ -683,7 +683,7 @@ export default function ShowcaseCreateScreen() {
                 {progress}
               </Text>
               <Button variant="ghost" onPress={() => uploadAbort.current?.abort()}>
-                Batalkan unggahan
+                {translate("Batalkan unggahan")}
               </Button>
             </View>
           ) : null}
@@ -691,8 +691,7 @@ export default function ShowcaseCreateScreen() {
           {failedAssets.length > 0 ? (
             <View className="gap-2">
               <Text tone="danger">
-                Foto berikut gagal diunggah. Coba lagi atau keluarkan dari pilihan sebelum
-                menyimpan.
+                {translate("Foto berikut gagal diunggah. Coba lagi atau keluarkan dari pilihan sebelum menyimpan.")}
               </Text>
               {failedAssets.map((failed, index) => (
                 <View key={`${failed.asset.uri}-${index}`} className="gap-1">
@@ -708,12 +707,12 @@ export default function ShowcaseCreateScreen() {
                       setFailedAssets((entries) => entries.filter((_, i) => i !== index))
                     }
                   >
-                    Keluarkan foto gagal
+                    {translate("Keluarkan foto gagal")}
                   </Button>
                 </View>
               ))}
               <Button loading={uploading} onPress={() => void retryFailedPhotos()}>
-                Coba lagi foto gagal
+                {translate("Coba lagi foto gagal")}
               </Button>
             </View>
           ) : null}
@@ -721,22 +720,21 @@ export default function ShowcaseCreateScreen() {
 
         {/* ── DETAIL ── */}
         <View className="gap-4">
-          <SectionHeader title="Detail karya" subtitle="Judul, kategori, dan harga membantu calon pembeli memahami penawaran Anda." />
+          <SectionHeader title={translate("Detail karya")} subtitle={translate("Judul, kategori, dan harga membantu calon pembeli memahami penawaran Anda.")} />
 
           {uncertainCreate ? (
             <View className="gap-2 rounded-md border border-border p-3">
               <Text tone="danger">
-                Status simpan belum pasti. Coba Terbitkan lagi untuk melanjutkan permintaan yang
-                sama, atau periksa daftar etalase Anda sebelum membuat karya baru.
+                {translate("Status simpan belum pasti. Coba Terbitkan lagi untuk melanjutkan permintaan yang sama, atau periksa daftar etalase Anda sebelum membuat karya baru.")}
               </Text>
               <Button variant="secondary" onPress={() => setIntentionalLeave(true)}>
-                Periksa daftar etalase
+                {translate("Periksa daftar etalase")}
               </Button>
             </View>
           ) : null}
 
           <Input
-            label="Judul"
+            label={translate("Judul")}
             value={form.title}
             onChangeText={(text) => {
               setForm((current) => ({ ...current, title: text }))
@@ -756,7 +754,7 @@ export default function ShowcaseCreateScreen() {
            */}
           {isPlusActive ? (
             <ShowcaseHtmlDescriptionEditor
-              label="Deskripsi"
+              label={translate("Deskripsi")}
               value={form.description}
               onChangeText={(text) => setForm((current) => ({ ...current, description: text }))}
               maxLength={DESC_MAX}
@@ -765,7 +763,7 @@ export default function ShowcaseCreateScreen() {
             />
           ) : (
             <TextArea
-              label="Deskripsi"
+              label={translate("Deskripsi")}
               value={form.description}
               onChangeText={(text) => setForm((current) => ({ ...current, description: text }))}
               maxLength={DESC_MAX}
@@ -786,7 +784,7 @@ export default function ShowcaseCreateScreen() {
             disabled={busy || uncertainCreate}
           />
           <Input
-            label="Harga minimum (opsional)"
+            label={translate("Harga minimum (opsional)")}
             keyboardType="number-pad"
             value={form.priceMin == null ? "" : String(form.priceMin)}
             maxLength={15}
@@ -802,13 +800,13 @@ export default function ShowcaseCreateScreen() {
               form.priceMin === 0
                 ? translate("Harga {x} ditampilkan sebagai Gratis.", { x: 0 })
                 : form.priceMin != null && form.priceMax == null
-                  ? "Tanpa harga maksimum, ini ditampilkan sebagai harga pasti."
+                  ? translate("Tanpa harga maksimum, ini ditampilkan sebagai harga pasti.")
                   : undefined
             }
             disabled={busy || uncertainCreate}
           />
           <Input
-            label="Harga maksimum (opsional)"
+            label={translate("Harga maksimum (opsional)")}
             keyboardType="number-pad"
             value={form.priceMax == null ? "" : String(form.priceMax)}
             maxLength={15}
@@ -837,7 +835,7 @@ export default function ShowcaseCreateScreen() {
           <View className="flex-row items-center justify-between gap-3">
             <View className="flex-1 gap-1">
               <Text variant="body" weight={500}>
-                Tampilkan secara publik
+                {translate("Tampilkan secara publik")}
               </Text>
               <Text variant="caption" tone="secondary">
                 {form.isPublic
@@ -875,12 +873,12 @@ export default function ShowcaseCreateScreen() {
       </View>
 
       <Dialog
-        title="Buang karya ini?"
-        description="Foto yang sudah diunggah dan ketikan Anda akan dibuang."
+        title={translate("Buang karya ini?")}
+        description={translate("Foto yang sudah diunggah dan ketikan Anda akan dibuang.")}
         visible={discardOpen}
         destructive
-        confirmLabel="Buang"
-        cancelLabel="Lanjut mengedit"
+        confirmLabel={translate("Buang")}
+        cancelLabel={translate("Lanjut mengedit")}
         onConfirm={confirmDiscard}
         onCancel={() => {
           pendingNavigation.current = null
@@ -894,11 +892,11 @@ export default function ShowcaseCreateScreen() {
 
       {/* S7: tawarkan lanjutkan draft teks yang tersimpan. */}
       <Dialog
-        title="Lanjutkan draft?"
-        description="Ada ketikan karya yang belum diterbitkan. Lanjutkan dari draft tersebut?"
+        title={translate("Lanjutkan draft?")}
+        description={translate("Ada ketikan karya yang belum diterbitkan. Lanjutkan dari draft tersebut?")}
         visible={resumeDraft != null}
-        confirmLabel="Lanjutkan"
-        cancelLabel="Buang draft"
+        confirmLabel={translate("Lanjutkan")}
+        cancelLabel={translate("Buang draft")}
         onConfirm={() => {
           const d = resumeDraft
           if (d) {

@@ -12,7 +12,7 @@
  * Pesan galat backend ditampilkan APA ADANYA via `userMessage(err)` (S2).
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { View, Pressable, Text } from "react-native"
+import { View } from "react-native"
 import { Redirect, router } from "expo-router"
 import { CrownSimple } from "phosphor-react-native"
 
@@ -25,21 +25,27 @@ import {
   type KahadePlusPlan,
   type QrisSubscribeResult,
 } from "@/lib/api/subscriptions"
+import { cn } from "@/lib/cn"
+import { focusRing } from "@/lib/focus-ring"
 import { formatRupiah } from "@/lib/format"
 import { KAHADE_PLUS_BENEFITS } from "@/lib/kahade-plus-benefits"
 import { ROUTES } from "@/lib/routes"
 import { useApiQuery } from "@/lib/use-api-query"
 import { useKahadePlus, invalidateKahadePlus } from "@/lib/use-kahade-plus"
 import { useResultTimer } from "@/lib/use-result-timer"
+import { isQrisExpired } from "@/lib/wallet-ui"
 import { translate } from "@/lib/i18n/translate"
 
 import { BottomSheet } from "@/components/ui/bottom-sheet"
+import { Countdown } from "@/components/ui/countdown"
 import { DataScreen } from "@/components/ui/data-screen"
 import { PinInput } from "@/components/ui/pin-input"
+import { PressableScale } from "@/components/ui/pressable-scale"
 import { QRCodeDisplay } from "@/components/ui/qr-code-display"
 import { SectionHeader } from "@/components/ui/section"
 import { SubscriptionBenefitList } from "@/components/ui/subscription-benefit-list"
 import { SubscriptionPlanCard } from "@/components/ui/subscription-plan-card"
+import { Text } from "@/components/ui/text"
 import { TransactionProgressOverlay } from "@/components/ui/transaction-progress-overlay"
 import { useToast } from "@/components/ui/toast"
 
@@ -152,7 +158,7 @@ export default function KahadePlusPlansScreen() {
         setSubmitting(false)
       }
     },
-    [selected, toast.show, scheduleResult],
+    [selected, paymentMethod, toast.show, scheduleResult],
   )
 
   // Anggota aktif tidak memilih paket di sini — kelola di layar manage.
@@ -242,33 +248,31 @@ export default function KahadePlusPlansScreen() {
         }
         avoidKeyboard
       >
-        {/* Pilihan metode pembayaran: Wallet/QRIS + PIN (keputusan produk 2026-09-26) */}
-        <View style={{ flexDirection: "row", gap: 8, marginBottom: 16 }}>
-          {(["WALLET", "QRIS"] as const).map((m) => (
-            <Pressable
-              key={m}
-              onPress={() => setPaymentMethod(m)}
-              disabled={submitting}
-              style={{
-                flex: 1,
-                paddingVertical: 12,
-                borderRadius: 12,
-                borderWidth: 1.5,
-                borderColor: paymentMethod === m ? "#7c3aed" : "#e5e7eb",
-                backgroundColor: paymentMethod === m ? "#f5f3ff" : "#fff",
-                alignItems: "center",
-              }}
-            >
-              <Text
-                style={{
-                  fontWeight: "600",
-                  color: paymentMethod === m ? "#7c3aed" : "#6b7280",
-                }}
+        {/* Pilihan metode pembayaran: Wallet/QRIS + PIN (keputusan produk 2026-09-26).
+            UI-W007: dulu hex literal + RN Text — kini token design system. */}
+        <View className="mb-4 flex-row gap-2">
+          {(["WALLET", "QRIS"] as const).map((m) => {
+            const active = paymentMethod === m
+            return (
+              <PressableScale
+                key={m}
+                onPress={() => setPaymentMethod(m)}
+                disabled={submitting}
+                containerClassName={cn("flex-1", focusRing)}
+                className={cn(
+                  "items-center rounded-md border px-4 py-3",
+                  active ? "border-primary bg-primary" : "border-border-control bg-surface",
+                )}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: active, disabled: submitting }}
+                accessibilityLabel={m === "WALLET" ? "Bayar dengan saldo wallet" : "Bayar dengan QRIS"}
               >
-                {m === "WALLET" ? "Saldo Wallet" : "QRIS"}
-              </Text>
-            </Pressable>
-          ))}
+                <Text variant="body" weight={600} tone={active ? "inverse" : "secondary"}>
+                  {m === "WALLET" ? "Saldo Wallet" : "QRIS"}
+                </Text>
+              </PressableScale>
+            )
+          })}
         </View>
         <PinInput
           mode="enter"
@@ -318,8 +322,10 @@ function QrisPaymentSheet({
   onSuccess: () => void
 }) {
   const [status, setStatus] = useState<string>("PENDING")
-  const expiredAt = useMemo(() => new Date(qris.expiredAt).getTime(), [qris.expiredAt])
-  const expired = Date.now() > expiredAt
+  // UI-W008: `expired` dulu dihitung dari Date.now() sekali per-render —
+  // tanpa tick, teks "kedaluwarsa" tak pernah muncul tepat waktu dan polling
+  // jalan terus. Kini state + <Countdown> yang memicu render saat tenggat lewat.
+  const [expired, setExpired] = useState(() => isQrisExpired(qris.expiredAt))
 
   useEffect(() => {
     if (expired) return
@@ -346,7 +352,7 @@ function QrisPaymentSheet({
 
   return (
     <BottomSheet visible onRequestClose={onClose} title="Bayar dengan QRIS">
-      <View style={{ alignItems: "center", paddingVertical: 16 }}>
+      <View className="items-center gap-3 py-4">
         {qris.qrString ? (
           <QRCodeDisplay
             value={qris.qrString}
@@ -355,15 +361,26 @@ function QrisPaymentSheet({
             caption=""
           />
         ) : (
-          <Text>Menyiapkan kode QR…</Text>
+          <Text variant="body" tone="secondary">
+            Menyiapkan kode QR…
+          </Text>
         )}
-        <Text style={{ marginTop: 12, color: "#6b7280" }}>
-          {expired
-            ? "Kode QR kedaluwarsa. Silakan ulangi pemesanan."
-            : status === "PENDING"
-              ? "Menunggu pembayaran…"
-              : "Memproses…"}
-        </Text>
+        {expired ? (
+          <Text variant="body" tone="danger" className="text-center">
+            Kode QR kedaluwarsa. Silakan ulangi pemesanan.
+          </Text>
+        ) : (
+          <>
+            <Countdown
+              until={new Date(qris.expiredAt)}
+              prefix="Berlaku hingga"
+              onComplete={() => setExpired(true)}
+            />
+            <Text variant="caption" tone="secondary" className="text-center">
+              {status === "PENDING" ? "Menunggu pembayaran…" : "Memproses…"}
+            </Text>
+          </>
+        )}
       </View>
     </BottomSheet>
   )

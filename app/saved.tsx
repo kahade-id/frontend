@@ -22,6 +22,7 @@ import { ROUTES } from "@/lib/routes"
 import { useApiQuery } from "@/lib/use-api-query"
 
 import { DataScreen } from "@/components/ui/data-screen"
+import { Button } from "@/components/ui/button"
 import { IconButton } from "@/components/ui/icon-button"
 import { SectionHeader } from "@/components/ui/section"
 import { UserListItem } from "@/components/ui/user-list-item"
@@ -60,6 +61,20 @@ export default function SavedProfilesScreen() {
       state={query}
       loadingMessage="Memuat profil tersimpan…"
       contentClassName="gap-1"
+      // UI-F009 (audit UI/UX 2026-09-27): empty state + CTA — sebelumnya daftar
+      // kosong hanya menampilkan header "Profil tersimpan" (Favorit punya).
+      empty={
+        items.length === 0 && {
+          icon: Bookmark,
+          title: "Belum ada profil tersimpan",
+          description: "Simpan profil penjual dari halaman profil mereka untuk dilihat lagi nanti.",
+          action: (
+            <Button variant="secondary" fullWidth={false} onPress={() => router.push(ROUTES.showcase)}>
+              Jelajahi etalase
+            </Button>
+          ),
+        }
+      }
       // J-01 (audit 2026-09-23): section karya tersimpan punya query sendiri —
       // tidak boleh ikut hilang saat query PROFIL tersimpan loading/error.
       persistent={<ShowcaseSavedCollection />}

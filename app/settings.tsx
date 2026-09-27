@@ -34,6 +34,7 @@
 import { useCallback, useState } from "react"
 import { Platform, View } from "react-native"
 import { router, type Href } from "expo-router"
+import Constants from "expo-constants"
 import {
   ArrowUDownLeft,
   Bell,
@@ -155,7 +156,8 @@ export default function SettingsScreen() {
     }
   }, [])
 
-  const appVersionStr = installedAppVersion() ? `v${installedAppVersion()}` : "v1.0.0"
+  const rawVersion = installedAppVersion() ?? Constants.expoConfig?.version
+  const appVersionStr = rawVersion ? `v${rawVersion}` : "—"
   const themeLabel =
     preference === "system" ? "Sistem" : preference === "dark" ? "Gelap" : "Terang"
 

@@ -511,6 +511,35 @@ export function formatRelativeTime(d: Date | number | string, now: Date | number
   return formatDate(d)
 }
 
+/**
+ * Cap waktu RINGKAS untuk daftar chat & status kehadiran — pola WhatsApp:
+ * hari ini → "14:32", kemarin → "Kemarin", tahun berjalan → "12 Sep",
+ * tahun lain → "12 Sep 2026". Batas hari dihitung di zona perangkat (sama
+ * seperti `dayKey` pemisah hari thread) supaya "Kemarin" tidak bergeser
+ * karena UTC. Data invalid → "—" (§13).
+ *
+ * UI-C002/UI-C003/UI-C006 (audit UI/UX 2026-09-27): daftar chat, "Terakhir
+ * dilihat" di header ruang, dan hasil pencarian sebelumnya memakai
+ * `formatDateTime` penuh ("3 Sep 2026, 14:30") yang memadati baris dan
+ * bertentangan dengan kontrak terdokumentasi <ChatRoomListItem>
+ * ("14:32" / "Kemarin" / "12 Mar").
+ */
+export function formatChatListTime(d: Date | number | string): string {
+  const date = displayDate(d)
+  if (!date) return "—"
+  const now = new Date()
+  const startOf = (x: Date) =>
+    new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime()
+  const diffDays = Math.round((startOf(now) - startOf(date)) / 86_400_000)
+  if (diffDays === 0) return formatTime(d)
+  if (diffDays === 1) return translate("Kemarin")
+  const day = date.getDate()
+  const month = monthNames(false)[date.getMonth()]
+  return date.getFullYear() === now.getFullYear()
+    ? `${day} ${month}`
+    : `${day} ${month} ${date.getFullYear()}`
+}
+
 /** "14:30" — jam di zona perangkat, atau di `timeZone` bila diminta (E-06). */
 export function formatTime(d: Date | number | string, opts: { timeZone?: string } = {}): string {
   const date = opts.timeZone === WIB_TIME_ZONE ? displayDateWib(d) : displayDate(d)

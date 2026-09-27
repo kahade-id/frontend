@@ -17,6 +17,8 @@ import { Star } from "phosphor-react-native"
 import { api } from "@/lib/api"
 import { readMyRatings, type PublicRatingFilter, type Rating } from "@/lib/api/ratings"
 import { tokens } from "@/lib/tokens"
+import { translate, useLanguage } from "@/lib/i18n"
+import { atHandle } from "@/lib/profile-uiux"
 import { byTimestampDesc, usePaginatedQuery } from "@/lib/use-paginated-query"
 
 import { Chip } from "@/components/ui/chip"
@@ -40,6 +42,8 @@ const FILTERS: { value: PublicRatingFilter; label: string }[] = [
 export default function PublicRatingsScreen() {
   const { username } = useLocalSearchParams<{ username: string }>()
   const insets = useSafeAreaInsets()
+  // i18n: label filter mengikuti bahasa aktif.
+  useLanguage()
 
   const [filter, setFilter] = useState<PublicRatingFilter>("all")
 
@@ -86,11 +90,11 @@ export default function PublicRatingsScreen() {
 
   return (
     <Screen edges={["top"]} padded={false}>
-      <Header title="Ulasan" />
+      <Header title={translate("Ulasan")} />
       <View className="flex-row flex-wrap gap-2 px-5" style={{ paddingTop: tokens.space[3] }}>
         {FILTERS.map((f) => (
           <Chip key={f.value} selected={filter === f.value} onPress={() => setFilter(f.value)}>
-            {f.label}
+            {translate(f.label)}
           </Chip>
         ))}
       </View>
@@ -105,22 +109,22 @@ export default function PublicRatingsScreen() {
         <Crossfade loading={query.loading} skeleton={<ListLoading />}>
           {query.error ? (
           <ErrorState
-            title="Gagal memuat"
+            title={translate("Gagal memuat")}
             description={query.error}
             onRetry={() => void query.reload()}
           />
         ) : items.length === 0 ? (
           <EmptyState
             icon={Star}
-            title="Belum ada ulasan"
-            description="Ulasan pesanan akan muncul di sini."
+            title={translate("Belum ada ulasan")}
+            description={translate("Ulasan pesanan akan muncul di sini.")}
           />
         ) : (
           <View className="gap-3" style={{ paddingTop: tokens.space[3] }}>
-            <SectionHeader title={`@${username}`} />
+            <SectionHeader title={atHandle(username)} />
             {items.map((r) => {
               const reviewer: RatingPerson = {
-                name: r.authorUsername ?? "Pengguna",
+                name: r.authorUsername ?? translate("Pengguna"),
                 avatar: r.authorAvatarUrl ?? undefined,
               }
               return (
@@ -136,7 +140,7 @@ export default function PublicRatingsScreen() {
                       ? {
                           id: `reply-${r.id}`,
                           content: r.reply,
-                          by: { name: `@${username}` },
+                          by: { name: atHandle(username) },
                           role: "seller",
                           date: r.createdAt,
                         }

@@ -8,7 +8,7 @@
 import { useCallback, useMemo, useState } from "react"
 import { View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { PencilSimpleLine, Plus, Trash } from "phosphor-react-native"
+import { Bank, PencilSimpleLine, Plus, Trash } from "phosphor-react-native"
 
 import { api, type AddBankAccountDto, userMessage } from "@/lib/api"
 import type { BankAccount } from "@/lib/api/bank-accounts"
@@ -216,8 +216,6 @@ export default function BankAccountsScreen() {
     }
   }, [editTarget, editName, toast.show, query])
 
-  const selectedBank = useMemo(() => banks.find((b) => b.code === bankCode), [banks, bankCode])
-
   return (
     <Screen keyboardAvoiding edges={["top"]} padded={false}>
       <Header title="Rekening Bank" />
@@ -235,7 +233,9 @@ export default function BankAccountsScreen() {
           <ErrorState title="Gagal memuat" description={error} onRetry={() => void query.reload()} />
         ) : accounts.length === 0 ? (
           <EmptyState
-            icon={Trash}
+            // UI-W017: ikon tempat sampah untuk state kosong terbaca sebagai
+            // aksi hapus — pakai ikon bank yang netral.
+            icon={Bank}
             title="Belum ada rekening"
             description="Tambahkan rekening bank untuk menarik dana."
           />
@@ -248,7 +248,9 @@ export default function BankAccountsScreen() {
                 bankCode={acc.bankCode}
                 accountNumber={acc.accountNumber}
                 accountHolder={acc.accountName}
-                logo={selectedBank?.logo ?? undefined}
+                // UI-W003: logo harus dari bank milik baris ini — dulu memakai
+                // bank yang sedang dipilih di form tambah (salah untuk semua baris).
+                logo={banks.find((b) => b.code === acc.bankCode)?.logo ?? undefined}
                 primary={acc.isPrimary}
                 verified={acc.isVerified}
                 divider={i < accounts.length - 1}

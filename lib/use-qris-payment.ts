@@ -88,6 +88,9 @@ export function useQrisPayment({
   const [pollError, setPollError] = useState<string | null>(null)
   const [stopped, setStopped] = useState(false)
   const [creating, setCreating] = useState(false)
+  // UI-T019 (audit UI/UX 2026-09-27): indikator visual saat sync status
+  // berjalan (manual "Cek status sekarang" / tick poll) — display only.
+  const [syncing, setSyncing] = useState(false)
   const pollCount = useRef(0)
   const creatingRef = useRef(false)
   /** G-04: satu request status dalam satu waktu (poll + manual berbagi). */
@@ -117,6 +120,7 @@ export function useQrisPayment({
     // (createIntent/onCheckStatus) tidak boleh berjalan paralel — satu
     // request dalam satu waktu; pemanggil berikutnya membagi hasil yang sama.
     if (syncInFlight.current) return syncInFlight.current
+    setSyncing(true)
     const run = (async () => {
       try {
         const res = await api.orders.getPaymentStatus(orderId)
@@ -140,6 +144,7 @@ export function useQrisPayment({
         return null
       } finally {
         syncInFlight.current = null
+        setSyncing(false)
       }
     })()
     syncInFlight.current = run
@@ -267,6 +272,7 @@ export function useQrisPayment({
     pollError,
     stopped,
     creating,
+    syncing,
     createIntent,
     syncStatus,
     reset,

@@ -147,8 +147,10 @@ export function PendingActionsBanner() {
           onPress={() =>
             setDismissed((prev) => new Set(prev).add(actionKey(primary)))
           }
+          // UI-T018 (audit UI/UX 2026-09-27): target sentuh ≥ 44pt — sebelumnya
+          // hanya ikon kecil dengan padding 6pt.
           containerClassName={cn("rounded-md p-1.5")}
-          className="items-center justify-center"
+          className="min-h-[44px] min-w-[44px] items-center justify-center"
         >
           <Icon icon={X} size="sm" />
         </PressableScale>

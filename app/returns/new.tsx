@@ -5,13 +5,14 @@
  */
 import { useState } from "react"
 import { Text, TextInput, View, Pressable } from "react-native"
+import { Package } from "phosphor-react-native"
 import { useLocalSearchParams, useRouter } from "expo-router"
 
 import { ROUTES } from "@/lib/routes"
 import { api } from "@/lib/api"
 import type { ReturnEligibility, ReturnReasonCode } from "@/lib/api/returns"
 import { RETURN_REASON_LABEL } from "@/lib/api/returns"
-import { formatDateTime } from "@/lib/format"
+import { formatDateTimeWIB } from "@/lib/format"
 import { tokens } from "@/lib/tokens"
 import { useApiQuery } from "@/lib/use-api-query"
 import { showMutationError } from "@/lib/mutation-toast"
@@ -20,6 +21,9 @@ import { useToast } from "@/components/ui/toast"
 
 import { Button } from "@/components/ui/button"
 import { DataScreen } from "@/components/ui/data-screen"
+import { EmptyState } from "@/components/ui/empty-state"
+import { Header } from "@/components/ui/header"
+import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
 
 const REASONS: ReturnReasonCode[] = [
@@ -71,6 +75,26 @@ export default function NewReturnScreen() {
     }
   }
 
+  // UI-T007 (audit UI/UX 2026-09-27): orderId hilang (mis. deep link cacat)
+  // tidak boleh menghasilkan layar kosong — tampilkan empty state eksplisit.
+  if (!orderId) {
+    return (
+      <Screen edges={["top", "bottom"]} padded>
+        <Header title="Ajukan Retur" />
+        <EmptyState
+          icon={Package}
+          title="Pesanan tidak ditemukan"
+          description="Tautan retur tidak valid. Buka kembali dari detail pesanan Anda."
+          action={
+            <Button variant="secondary" onPress={() => router.back()}>
+              Kembali
+            </Button>
+          }
+        />
+      </Screen>
+    )
+  }
+
   return (
     <DataScreen title="Ajukan Retur" state={eligQuery} loadingMessage="Memeriksa syarat retur…">
       {elig ? (
@@ -83,7 +107,7 @@ export default function NewReturnScreen() {
           <View style={{ paddingVertical: tokens.space[4], gap: tokens.space[4] }}>
             {elig.deadlineAt ? (
               <Text style={{ color: c.textTertiary }}>
-                Batas pengajuan: {formatDateTime(elig.deadlineAt)} (dihitung server)
+                Batas pengajuan: {formatDateTimeWIB(elig.deadlineAt)} (dihitung server)
               </Text>
             ) : null}
             <View>
@@ -93,6 +117,9 @@ export default function NewReturnScreen() {
                   <Pressable
                     key={r}
                     onPress={() => setReasonCode(r)}
+                    accessibilityRole="radio"
+                    accessibilityLabel={`Alasan: ${RETURN_REASON_LABEL[r]}`}
+                    accessibilityState={{ checked: reasonCode === r }}
                     style={{
                       padding: tokens.space[3],
                       borderRadius: tokens.radius.md,
@@ -125,8 +152,10 @@ export default function NewReturnScreen() {
                 Foto kondisi barang dapat ditambahkan setelah pengajuan dibuat, di halaman detail retur.
               </Text>
             </View>
-            <Button onPress={submit} disabled={submitting}>
-              {submitting ? "Mengirim…" : "Ajukan Retur"}
+            {/* UI-T017 (audit UI/UX 2026-09-27): prop loading — spinner +
+                anti double-submit; label tidak berganti-ganti. */}
+            <Button onPress={submit} loading={submitting}>
+              Ajukan Retur
             </Button>
           </View>
         )

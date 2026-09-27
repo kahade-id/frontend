@@ -50,6 +50,7 @@ import { Text } from "@/components/ui/text"
 import { TextLink } from "@/components/ui/text-link"
 import { useToast } from "@/components/ui/toast"
 import { translate } from "@/lib/i18n/translate"
+import { useLanguage } from "@/lib/i18n"
 
 /** VerifyEmailDto.otp: 6 digit */
 const OTP_LENGTH = 6
@@ -57,6 +58,8 @@ const OTP_LENGTH = 6
 const RESEND_COOLDOWN = 60
 
 export default function VerifyEmailScreen() {
+  // Langganan bahasa untuk a11y label OtpInput (prop string, UI-M021).
+  useLanguage()
   const router = useRouter()
   const insets = useSafeAreaInsets()
   const toast = useToast()
@@ -210,7 +213,7 @@ export default function VerifyEmailScreen() {
               errorText={otpError}
               helperText={otpError ? undefined : "Kode berlaku beberapa menit"}
               disabled={verifying || !email}
-              accessibilityLabel="Kode verifikasi email 6 digit"
+              accessibilityLabel={translate("Kode verifikasi email 6 digit")}
             />
 
             <Button onPress={() => void handleVerify()} loading={verifying} disabled={otp.length < OTP_LENGTH}>

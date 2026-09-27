@@ -40,11 +40,12 @@ import { router } from "expo-router"
 import { api, isApiError, userMessage } from "@/lib/api"
 import {
   CHAT_PAGE_SIZE,
+  chatRoomPreview,
   setRoomArchived,
   setRoomMuted,
   type ChatRoom,
 } from "@/lib/api/chat"
-import { formatDateTime, truncateMiddle } from "@/lib/format"
+import { formatChatListTime, truncateMiddle } from "@/lib/format"
 import { haptic } from "@/lib/haptics"
 import { translate } from "@/lib/i18n"
 import { ROUTES } from "@/lib/routes"
@@ -54,6 +55,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { TAB_BAR_HEIGHT } from "@/components/ui/bottom-tab-bar"
 
 import { ChatRoomListItem } from "@/components/ui/chat-room-list-item"
+import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Header } from "@/components/ui/header"
 import { IconButton } from "@/components/ui/icon-button"
@@ -360,6 +362,13 @@ export default function ChatScreen() {
               icon={Chats}
               title="Belum ada percakapan"
               description="Mulai chat dengan lawan transaksi Anda."
+              // UI-C004: empty state wajib punya jalan keluar yang bisa
+              // diketuk — chat selalu bermula dari sebuah transaksi.
+              action={
+                <Button onPress={() => router.push(ROUTES.transactions)}>
+                  Lihat transaksi
+                </Button>
+              }
             />
           )
         }
@@ -372,12 +381,18 @@ export default function ChatScreen() {
             lastMessage={
               item.lastMessage
                 ? {
-                    text: item.lastMessage.text ?? "",
+                    // UI-C002: pesan terakhir berisi lampiran saja (tanpa
+                    // teks) menampilkan "(lampiran)", bukan baris kosong —
+                    // konsisten dengan pinned-bar & sheet pencarian.
+                    text: chatRoomPreview(item.lastMessage, translate("(lampiran)")),
                     fromSelf: item.lastMessage.fromUser,
                   }
                 : undefined
             }
-            time={item.lastMessage ? formatDateTime(item.lastMessage.createdAt) : undefined}
+            // UI-C001: cap waktu ringkas pola WhatsApp ("14:32" / "Kemarin" /
+            // "12 Mar"), bukan formatDateTime penuh yang memadati baris —
+            // sesuai kontrak terdokumentasi <ChatRoomListItem>.
+            time={item.lastMessage ? formatChatListTime(item.lastMessage.createdAt) : undefined}
             unreadCount={item.unreadCount}
             // Order id saja (tanpa kata "Pesanan") — metadata ringkas di kanan
             // baris pertama; panjangnya dipotong di tengah agar nomor tetap

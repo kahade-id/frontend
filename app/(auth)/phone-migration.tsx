@@ -155,7 +155,8 @@ export default function PhoneMigrationScreen() {
               </Text>
 
               {formError ? (
-                <Alert tone="danger" title="Gagal" onDismiss={() => setFormError(null)}>
+                // UI-A006: judul konsisten dengan register.tsx ("Kode belum terkirim").
+                <Alert tone="danger" title="Kode belum terkirim" onDismiss={() => setFormError(null)}>
                   {formError}
                 </Alert>
               ) : null}

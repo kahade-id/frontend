@@ -52,6 +52,8 @@ export type QrisPaymentPanelProps = {
   onRecreate: () => void
   /** "Cek status sekarang" — pembaruan manual selagi menunggu. */
   onCheckStatus: () => void
+  /** UI-T019: sync status sedang berjalan (umpan balik visual). */
+  checking?: boolean
   /**
    * R2 (audit ronde-2, butir #29/#30): jalan keluar "Bayar metode lain" yang
    * dijanjikan copy UNKNOWN/pollStopped (C-10/M-14 use-qris-payment) namun
@@ -76,6 +78,7 @@ export function QrisPaymentPanel({
   onRecreate,
   onCheckStatus,
   onUseOtherMethod,
+  checking = false,
 }: QrisPaymentPanelProps) {
   const failed = status === "EXPIRED" || status === "FAILED"
   return (
@@ -141,7 +144,7 @@ export function QrisPaymentPanel({
         </Button>
       ) : (
         <>
-          <Button variant="ghost" onPress={onCheckStatus}>
+          <Button variant="ghost" loading={checking} onPress={onCheckStatus}>
             Cek status sekarang
           </Button>
           {onUseOtherMethod && (status === "UNKNOWN" || pollStopped) ? (

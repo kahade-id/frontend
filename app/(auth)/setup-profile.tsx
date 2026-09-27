@@ -81,6 +81,7 @@ import { TextLink } from "@/components/ui/text-link"
 import { VStack } from "@/components/ui/stack"
 import { api, getAccessToken, isApiError, userMessage } from "@/lib/api"
 import { clearRegistrationState, getRegistrationState } from "@/lib/registration"
+import { hasProfileChanges } from "@/lib/auth-ui"
 import { pickImage, pickedImageToFormData, type PickedImage, type PickImageOptions } from "@/lib/image-picker"
 import { ROUTES } from "@/lib/routes"
 import { translate } from "@/lib/i18n/translate"
@@ -119,7 +120,10 @@ export default function SetupProfileScreen() {
   const [avatarUploading, setAvatarUploading] = useState(false)
   const [avatarError, setAvatarError] = useState<string | null>(null)
 
-  const hasChanges = bio.trim().length > 0
+  // UI-A003: upload avatar non-blocking dan langsung tersimpan di server,
+  // jadi foto yang terunggah dihitung sebagai perubahan — pengguna yang
+  // hanya menambah foto tetap bisa memakai CTA utama "Simpan".
+  const hasChanges = hasProfileChanges(bio, avatarUrl)
 
   const handleBioChange = useCallback((text: string) => {
     setBio(text)
@@ -335,7 +339,7 @@ export default function SetupProfileScreen() {
         <Button
           onPress={() => void handleSave()}
           loading={submitting}
-          disabled={!hasChanges}
+          disabled={!hasChanges || avatarUploading}
         >
           Simpan
         </Button>

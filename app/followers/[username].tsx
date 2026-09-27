@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { View } from "react-native"
 import { useLocalSearchParams, router } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
@@ -20,6 +20,11 @@ type Tab = "followers" | "following"
 export default function FollowersScreen() {
   const { username, tab: initialTab } = useLocalSearchParams<{ username: string; tab?: Tab }>()
   const [tab, setTab] = useState<Tab>(initialTab === "following" ? "following" : "followers")
+  // UI-P019: sinkronkan tab bila param rute berubah setelah mount (mis. pindah
+  // dari "Pengikut" ke "Mengikuti" tanpa remount).
+  useEffect(() => {
+    setTab(initialTab === "following" ? "following" : "followers")
+  }, [initialTab])
   // i18n: label tab mengikuti bahasa aktif.
   useLanguage()
   const insets = useSafeAreaInsets()
@@ -35,14 +40,17 @@ export default function FollowersScreen() {
         ? api.users.getFollowers(username, { page, limit: 20 }, signal)
         : api.users.getFollowing(username, { page, limit: 20 }, signal),
     // R1 (audit 2026-09-26): backend tidak mengirim id — dedup pakai username (unik).
-    { getKey: (item) => item.username },
+    // UI-P020: `enabled` — username datang dari param rute; tanpa ini fetcher
+    // menembak /v1/users/undefined/followers sebelum rute selesai di-resolve.
+    { getKey: (item) => item.username, enabled: Boolean(username) },
   )
   return (
     <Screen edges={["top"]} padded={false}>
       <Header title={tab === "followers" ? translate("Pengikut") : translate("Mengikuti")} />
       <View className="px-5 py-4">
         <SegmentedControl<Tab>
-          accessibilityLabel={translate("Daftar pengikut")}
+          // UI-P018: label aksesibilitas mengikuti tab aktif.
+          accessibilityLabel={tab === "followers" ? translate("Daftar pengikut") : translate("Daftar mengikuti")}
           value={tab}
           onChange={setTab}
           items={[

@@ -15,6 +15,7 @@
  */
 import { http } from "@/lib/api/client"
 import { readList, readPage } from "@/lib/api/response"
+import type { BadgeTone } from "@/components/ui/badge"
 
 export type ProductStatus = "DRAFT" | "ACTIVE" | "OUT_OF_STOCK" | "ARCHIVED"
 export type ProductModerationStatus = "PENDING" | "APPROVED" | "REJECTED" | "FLAGGED"
@@ -265,6 +266,25 @@ export function importStockCsv(body: { csv: string }) {
 
 export function sellableQty(p: Pick<Product, "quantityAvailable" | "quantityReserved">): number {
   return Math.max(0, (p.quantityAvailable ?? 0) - (p.quantityReserved ?? 0))
+}
+
+/**
+ * UI-F006 (audit UI/UX 2026-09-27): tone badge SEMANTIK per status produk —
+ * Draf/Aktif/Stok habis/Diarsipkan selama ini memakai badge default sehingga
+ * tidak terbedakan visual di daftar seller, katalog, dan detail produk.
+ * `import type` saja: tidak ada dependensi runtime lib → komponen UI.
+ */
+export function productStatusBadgeTone(status: ProductStatus): BadgeTone {
+  switch (status) {
+    case "ACTIVE":
+      return "success"
+    case "OUT_OF_STOCK":
+      return "warning"
+    case "DRAFT":
+      return "info"
+    case "ARCHIVED":
+      return "neutral"
+  }
 }
 
 export function variantLabel(v: Pick<ProductVariant, "attributes">): string {

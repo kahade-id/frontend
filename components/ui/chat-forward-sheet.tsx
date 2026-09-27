@@ -71,6 +71,9 @@ export function ChatForwardSheet({
   const [rooms, setRooms] = useState<ChatRoom[]>([])
   const [loading, setLoading] = useState(false)
   const [hasMore, setHasMore] = useState(false)
+  // UI-C010: kegagalan muat TIDAK boleh jatuh ke EmptyState "Belum ada
+  // percakapan lain" (menyesatkan — masalahnya error, bukan kosong).
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [sending, setSending] = useState(false)
   const page = useRef(1)
   const requestId = useRef(0)
@@ -80,6 +83,8 @@ export function ChatForwardSheet({
       if (!roomId) return
       const request = ++requestId.current
       setLoading(true)
+      // Retry eksplisit menghapus pesan error sebelumnya.
+      if (next === 1) setLoadError(null)
       try {
         const res = await api.chat.listChatRooms({ page: next, limit: FORWARD_PAGE_SIZE })
         if (request !== requestId.current) return
@@ -93,7 +98,10 @@ export function ChatForwardSheet({
         setHasMore(next < res.meta.totalPages)
       } catch (err) {
         logWarn("chat:forward-rooms", err)
-        toast.show({ title: "Gagal memuat daftar percakapan", tone: "danger" })
+        // Hanya halaman pertama yang menjadi error layar-penuh; halaman
+        // lanjutan cukup toast agar daftar yang sudah ada tidak hilang.
+        if (next === 1) setLoadError(userMessage(err))
+        else toast.show({ title: "Gagal memuat percakapan lain", tone: "danger" })
       } finally {
         if (request === requestId.current) setLoading(false)
       }
@@ -107,6 +115,7 @@ export function ChatForwardSheet({
     if (!open) return
     setRooms([])
     setHasMore(false)
+    setLoadError(null)
     page.current = 1
     void loadPage(1)
   }, [open, loadPage])
@@ -210,7 +219,20 @@ export function ChatForwardSheet({
             <ListLoading />
           </View>
         ) : null}
-        {!loading && rooms.length === 0 ? (
+        {!loading && loadError ? (
+          <View className="items-center gap-2 px-5 py-6">
+            <Text variant="body" weight={500} tone="primary" className="text-center">
+              Gagal memuat daftar percakapan
+            </Text>
+            <Text variant="caption" tone="secondary" className="text-center">
+              {loadError}
+            </Text>
+            <Button variant="secondary" size="sm" onPress={() => void loadPage(1)}>
+              Coba lagi
+            </Button>
+          </View>
+        ) : null}
+        {!loading && !loadError && rooms.length === 0 ? (
           <EmptyState
             icon={Chats}
             title="Belum ada percakapan lain"

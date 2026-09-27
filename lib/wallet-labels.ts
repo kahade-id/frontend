@@ -90,12 +90,20 @@ export const WALLET_TXN_LABELS: Record<string, string> = {
  */
 export const WALLET_TXN_STATUS_LABELS: Record<string, string> = {
   COMPLETED: "Selesai",
-  PENDING: "Menunggu",
-  PENDING_SETTLEMENT: "Menunggu penyelesaian",
+  SUCCESS: "Berhasil",
   SETTLED: "Terselesaikan",
+  APPROVED: "Disetujui",
+  REFUNDED: "Dikembalikan",
   RELEASED: "Dicairkan",
+  PENDING: "Menunggu",
+  WAITING: "Menunggu",
+  PENDING_OTP: "Menunggu OTP",
+  PENDING_SETTLEMENT: "Menunggu penyelesaian",
   PROCESSING: "Diproses",
+  REVIEW: "Ditinjau",
   FAILED: "Gagal",
+  REJECTED: "Ditolak",
+  EXPIRED: "Kedaluwarsa",
   CANCELLED: "Dibatalkan",
 }
 

@@ -168,6 +168,7 @@ export function OrderPaymentSheet({
             onRecreate={onRequestRecreate}
             onUseOtherMethod={onUseOtherMethod}
             onCheckStatus={handleCheckStatus}
+            checking={qrisPayment.syncing}
           />
         ) : (
           <Button loading={submitting || qrisPayment.creating} onPress={onShowQris}>

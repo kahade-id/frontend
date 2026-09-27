@@ -138,7 +138,8 @@ export default function KahadePlusManageScreen() {
                 title="Status"
                 trailing={
                   <Text variant="body" weight={600} tone="primary">
-                    {plus.status ? (STATUS_LABEL[plus.status] ?? plus.status) : "Aktif"}
+                    {/* UI-W016: status asing jangan tampil sebagai enum mentah. */}
+                    {plus.status ? (STATUS_LABEL[plus.status] ?? "Status belum tersedia") : "Aktif"}
                   </Text>
                 }
                 divider={false}

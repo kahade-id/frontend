@@ -44,7 +44,7 @@ import { Radio, RadioGroup } from "@/components/ui/radio"
 import { SegmentedControl, type SegmentItem } from "@/components/ui/segmented-control"
 import { TextArea } from "@/components/ui/text-area"
 import { useToast } from "@/components/ui/toast"
-import { translate } from "@/lib/i18n/translate"
+import { translate, useLanguage } from "@/lib/i18n"
 
 /** G-13: opsi hide satu sumber di lib/labels/report (= HiddenReason API). */
 const HIDE_REASONS = CONTENT_REPORT_REASONS
@@ -63,6 +63,9 @@ const SEGMENTS: SegmentItem<MyQuestionsType>[] = [
 export default function QuestionsScreen() {
   const insets = useSafeAreaInsets()
   const toast = useToast()
+
+  // i18n: label segmen mengikuti bahasa aktif.
+  useLanguage()
 
   const [type, setType] = useState<MyQuestionsType>("received")
 
@@ -118,10 +121,10 @@ export default function QuestionsScreen() {
       // cukup hapus dari state lokal.
       query.setData((prev) => prev.filter((q) => q.id !== hideTarget.id))
       setHideTarget(null)
-      toast.show({ title: "Pertanyaan disembunyikan", tone: "success", duration: 2500 })
+      toast.show({ title: translate("Pertanyaan disembunyikan"), tone: "success", duration: 2500 })
     } catch (err: unknown) {
       toast.show({
-        title: "Gagal menyembunyikan pertanyaan",
+        title: translate("Gagal menyembunyikan pertanyaan"),
         description: userMessage(err),
         tone: "danger",
       })
@@ -152,7 +155,7 @@ export default function QuestionsScreen() {
       } catch (err: unknown) {
         patchQuestion(q.id, { upvoteCount: prevCount, isUpvotedByViewer: prevActive })
         toast.show({
-          title: "Gagal memperbarui dukungan",
+          title: translate("Gagal memperbarui dukungan"),
           description: userMessage(err),
           tone: "danger",
         })
@@ -181,11 +184,11 @@ export default function QuestionsScreen() {
     setAnswering(true)
     try {
       await api.users.answerQuestion(answerTarget.id, value)
-      toast.show({ title: "Jawaban terkirim", tone: "success", duration: 3000 })
+      toast.show({ title: translate("Jawaban terkirim"), tone: "success", duration: 3000 })
       setAnswerTarget(null)
       await query.reload()
     } catch (err) {
-      toast.show({ title: "Gagal mengirim jawaban", description: userMessage(err), tone: "danger" })
+      toast.show({ title: translate("Gagal mengirim jawaban"), description: userMessage(err), tone: "danger" })
     } finally {
       setAnswering(false)
     }
@@ -196,12 +199,12 @@ export default function QuestionsScreen() {
     setDeleting(true)
     try {
       await api.users.deleteQuestion(deleteTarget.id)
-      toast.show({ title: "Pertanyaan dihapus", tone: "neutral", duration: 3000 })
+      toast.show({ title: translate("Pertanyaan dihapus"), tone: "neutral", duration: 3000 })
       setDeleteTarget(null)
       await query.reload()
     } catch (err) {
       toast.show({
-        title: "Gagal menghapus pertanyaan",
+        title: translate("Gagal menghapus pertanyaan"),
         description: userMessage(err),
         tone: "danger",
       })
@@ -214,11 +217,11 @@ export default function QuestionsScreen() {
 
   return (
     <Screen edges={["top"]} padded={false}>
-      <Header title="Tanya Jawab" />
+      <Header title={translate("Tanya Jawab")} />
       <View className="px-5" style={{ paddingTop: tokens.space[3] }}>
         <SegmentedControl
           accessibilityLabel="Jenis pertanyaan"
-          items={SEGMENTS}
+          items={SEGMENTS.map((sg) => ({ ...sg, label: translate(sg.label) }))}
           value={type}
           onChange={setType}
         />
@@ -234,7 +237,7 @@ export default function QuestionsScreen() {
         <Crossfade loading={query.loading} skeleton={<ListLoading />}>
           {query.error ? (
           <ErrorState
-            title="Gagal memuat"
+            title={translate("Gagal memuat")}
             description={query.error}
             onRetry={() => void query.reload()}
           />
@@ -242,21 +245,21 @@ export default function QuestionsScreen() {
           <EmptyState
             icon={ChatCircleDots}
             title={
-              received ? "Belum ada pertanyaan masuk" : "Belum ada pertanyaan yang Anda ajukan"
+              received ? translate("Belum ada pertanyaan masuk") : translate("Belum ada pertanyaan yang Anda ajukan")
             }
             description={
               received
-                ? "Pertanyaan dari calon pembeli akan muncul di sini."
-                : "Ajukan pertanyaan dari halaman profil pengguna lain."
+                ? translate("Pertanyaan dari calon pembeli akan muncul di sini.")
+                : translate("Ajukan pertanyaan dari halaman profil pengguna lain.")
             }
           />
         ) : (
           <View className="gap-3" style={{ paddingTop: tokens.space[3] }}>
-            <SectionHeader title={translate("{x} pertanyaan", { x: items.length })} />
+            <SectionHeader title={translate("Pertanyaan")} />
             {items.map((q) => {
               const other = received ? q.asker : q.target
               const otherName =
-                other?.fullName ?? other?.username ?? (received ? "Seseorang" : "Pengguna")
+                other?.fullName ?? other?.username ?? (received ? translate("Seseorang") : translate("Pengguna"))
               return (
                 <QACard
                   key={q.id}
@@ -270,7 +273,7 @@ export default function QuestionsScreen() {
                   asker={
                     received
                       ? { name: otherName, avatar: q.asker?.avatarUrl ?? undefined }
-                      : { name: "Anda" }
+                      : { name: translate("Anda") }
                   }
                   date={q.createdAt}
                   answer={
@@ -278,7 +281,7 @@ export default function QuestionsScreen() {
                       ? {
                           text: q.answer,
                           by: {
-                            name: received ? "Anda" : otherName,
+                            name: received ? translate("Anda") : otherName,
                             avatar: received ? undefined : (other?.avatarUrl ?? undefined),
                           },
                           date: q.answeredAt ?? q.createdAt,
@@ -288,7 +291,7 @@ export default function QuestionsScreen() {
                   answerAction={
                     received && !q.answer ? (
                       <Button size="sm" variant="secondary" onPress={() => openAnswer(q)}>
-                        Jawab
+                        {translate("Jawab")}
                       </Button>
                     ) : undefined
                   }
@@ -300,7 +303,7 @@ export default function QuestionsScreen() {
                           variant="ghost"
                           onPress={() => router.push(ROUTES.userProfile(other.username))}
                         >
-                          Lihat profil
+                          {translate("Lihat profil")}
                         </Button>
                       ) : null}
                       {received ? (
@@ -312,11 +315,11 @@ export default function QuestionsScreen() {
                             setHideTarget(q)
                           }}
                         >
-                          Sembunyikan
+                          {translate("Sembunyikan")}
                         </Button>
                       ) : null}
                       <Button size="sm" variant="ghost" onPress={() => setDeleteTarget(q)}>
-                        Hapus
+                        {translate("Hapus")}
                       </Button>
                     </View>
                   }
@@ -342,15 +345,15 @@ export default function QuestionsScreen() {
       </PullToRefresh>
 
       <Dialog
-        title="Jawab pertanyaan"
+        title={translate("Jawab pertanyaan")}
         description={translate("Dari {x}", {
-          x: answerTarget?.asker?.fullName ?? answerTarget?.asker?.username ?? "",
+          x: answerTarget?.asker?.fullName ?? answerTarget?.asker?.username ?? translate("Pengguna"),
         })}
         visible={!!answerTarget}
         loading={answering}
-        confirmLabel="Kirim Jawaban"
+        confirmLabel={translate("Kirim Jawaban")}
         confirmButtonProps={{ disabled: answerText.trim().length < ANSWER_MIN }}
-        cancelLabel="Batal"
+        cancelLabel={translate("Batal")}
         onConfirm={() => void submitAnswer()}
         onCancel={() => setAnswerTarget(null)}
         onRequestClose={() => setAnswerTarget(null)}
@@ -358,7 +361,7 @@ export default function QuestionsScreen() {
         <TextArea
           value={answerText}
           onChangeText={setAnswerText}
-          placeholder="Tulis jawaban Anda…"
+          placeholder={translate("Tulis jawaban Anda…")}
           maxLength={ANSWER_MAX}
           showCount
         />
@@ -368,8 +371,8 @@ export default function QuestionsScreen() {
         avoidKeyboard
         visible={hideTarget != null}
         onRequestClose={() => setHideTarget(null)}
-        title="Sembunyikan pertanyaan"
-        description="Pertanyaan tidak lagi tampil di profil publik. Tindakan dapat dibatalkan lewat moderasi."
+        title={translate("Sembunyikan pertanyaan")}
+        description={translate("Pertanyaan tidak lagi tampil di profil publik. Tindakan dapat dibatalkan lewat moderasi.")}
         footer={
           <Button
             fullWidth
@@ -377,7 +380,7 @@ export default function QuestionsScreen() {
             loading={hiding}
             onPress={() => void submitHide()}
           >
-            Sembunyikan
+            {translate("Sembunyikan")}
           </Button>
         }
       >
@@ -395,17 +398,17 @@ export default function QuestionsScreen() {
       </BottomSheet>
 
       <Dialog
-        title="Hapus pertanyaan?"
+        title={translate("Hapus pertanyaan?")}
         description={
           received
-            ? "Pertanyaan ini akan hilang dari profil publik Anda."
-            : "Pertanyaan Anda akan dihapus dari profil pengguna tersebut."
+            ? translate("Pertanyaan ini akan hilang dari profil publik Anda.")
+            : translate("Pertanyaan Anda akan dihapus dari profil pengguna tersebut.")
         }
         visible={!!deleteTarget}
         destructive
         loading={deleting}
-        confirmLabel="Hapus"
-        cancelLabel="Batal"
+        confirmLabel={translate("Hapus")}
+        cancelLabel={translate("Batal")}
         onConfirm={() => void handleDelete()}
         onCancel={() => setDeleteTarget(null)}
         onRequestClose={() => setDeleteTarget(null)}

@@ -19,7 +19,7 @@
  *     satu-satunya blok hitam murni besar di layar chat, sesuai §1 "hitam
  *     sebagai otoritas": pesan Anda sendiri adalah yang paling perlu
  *     dibedakan cepat. Incoming memakai surface+border agar tetap "tenang".
- *   - Lebar maksimum 80% (`max-w-[80%]`) — cukup untuk kalimat panjang
+ *   - Lebar maksimum 76% (`max-w-[76%]`) — cukup untuk kalimat panjang
  *     tanpa menutup jalur visual arah pesan. Angka ini turunan praktik
  *     umum, bukan token; didokumentasikan di sini agar tidak diubah
  *     per-pemakaian.
@@ -38,7 +38,7 @@
  *   - `children` = slot lampiran (Picture, kartu order, bukti kirim) yang
  *     dirender DI ATAS teks dalam gelembung yang sama, padding sama.
  *     Komponen ini tidak tahu jenis lampiran — pemanggil yang menentukan.
- *   - onLongPress (salin, balas, hapus) ada di gelembung, bukan seluruh
+ *   - onLongPress (salin, hapus) ada di gelembung, bukan seluruh
  *     baris; `scaleOnPress={false}` karena baris chat yang ikut mengecil
  *     terasa "goyang" saat scroll cepat.
  */
@@ -53,6 +53,7 @@ import { Text } from "@/components/ui/text"
 import { TextLink } from "@/components/ui/text-link"
 import { cn } from "@/lib/cn"
 import { focusRing } from "@/lib/focus-ring"
+import { hitSlopToReach } from "@/lib/hit-slop"
 import { translate } from "@/lib/i18n/translate"
 import { summarize } from "@/lib/a11y"
 
@@ -318,6 +319,10 @@ export function ChatMessageBubble({
                 accessibilityHint="Ketuk untuk mengubah reaksi"
                 scaleOnPress={false}
                 onPress={onReact ? () => onReact(r.emoji) : undefined}
+                // UI-C005: chip ≈ 24px tinggi — slop vertikal ke 44pt target
+                // sentuh; horizontal 0 supaya chip bertetangga (gap-1) tidak
+                // saling menimpa area sentuhnya.
+                hitSlop={hitSlopToReach(44, 24)}
                 containerClassName={cn(
                   "flex-row items-center rounded-full border px-2 py-0.5",
                   r.reactedByMe ? "border-primary bg-surface-elevated" : "border-border bg-surface",

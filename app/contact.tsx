@@ -126,7 +126,7 @@ export default function ContactScreen() {
     } finally {
       setSubmitting(false)
     }
-  }, [category, subject, message, toast.show])
+  }, [category, subject, message, attachments, toast.show])
 
   return (
     <Screen

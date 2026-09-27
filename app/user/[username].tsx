@@ -39,7 +39,7 @@ import { api, isApiError, userMessage } from "@/lib/api"
 import type { HiddenReason, PublicUserProfile, QuestionComment, QuestionItem, VerificationBadge } from "@/lib/api/users"
 import { readMyRatings, type PublicRatingFilter, type Rating } from "@/lib/api/ratings"
 import { getOrCreateDm } from "@/lib/api/chat"
-import { resolveFollowStatus } from "@/lib/api/users"
+import { isOwnQuestion, isOwnQuestionComment, resolveFollowStatus } from "@/lib/api/users"
 import {
   readQuestionComments,
   readQuestionList,
@@ -265,6 +265,30 @@ export default function UserProfileScreen() {
   const coverUri = resolveMediaUrl(profile?.headerUrl)
 
   const profileRequest = useRef(0)
+  // UI-P006: reset state per-profil saat username berubah — tanpa ini, pindah
+  // dari profil A ke B menampilkan tab/angka/daftar milik A selagi B dimuat.
+  const prevUsernameRef = useRef(username)
+  useEffect(() => {
+    if (prevUsernameRef.current === username) return
+    prevUsernameRef.current = username
+    setActiveTab("content")
+    setQuestions([])
+    setRatings([])
+    setRatingFilter("all")
+    setFollowing(null)
+    setFollowerCount(null)
+    setFollowingCount(null)
+    setFavorite(false)
+    setSaved(false)
+    setBadges([])
+    setOpenQuestionId(null)
+    setQuestionComments({ items: [], loading: false })
+    setCommentText("")
+    setAskText("")
+    setAskOpen(false)
+    setDeleteQ(null)
+    setDeleteC(null)
+  }, [username])
   // Fetch all tab contents
   const fetchTabContents = useCallback(
     async (targetName: string) => {
@@ -520,6 +544,11 @@ export default function UserProfileScreen() {
     async (next: boolean) => {
       if (!handle) return
       if (!requireSession()) return
+      // UI-P005: kunci sinkron per-handle — guard `favLoading` (state async)
+      // balapan antar dua tap cepat (keduanya membaca state lama sebelum
+      // setState pertama diterapkan), seperti pada follow (SH-F-004).
+      const release = acquireShowcaseMutation(`favorite:${handle}`)
+      if (!release) return
       setFavLoading(true)
       try {
         if (next) await api.users.addFavorite(handle)
@@ -532,6 +561,7 @@ export default function UserProfileScreen() {
           tone: "danger",
         })
       } finally {
+        release()
         setFavLoading(false)
       }
     },
@@ -573,7 +603,13 @@ export default function UserProfileScreen() {
    */
   const handleSaveProfile = useCallback(
     async (next: boolean) => {
-      if (saveLoading) return
+      // UI-P001: tamu di-gate ke login seperti aksi sosial lain (follow,
+      // favorit, chat, blokir) — jangan tembak endpoint lalu gagal 401.
+      if (!requireSession()) return
+      // UI-P005: kunci sinkron per-handle — guard `saveLoading` (state async)
+      // balapan antar dua tap cepat, seperti pada follow (SH-F-004).
+      const release = acquireShowcaseMutation(`save-profile:${handle}`)
+      if (!release) return
       setSaveLoading(true)
       try {
         if (next) {
@@ -592,10 +628,11 @@ export default function UserProfileScreen() {
           tone: "danger",
         })
       } finally {
+        release()
         setSaveLoading(false)
       }
     },
-    [handle, saveLoading, toast],
+    [handle, saveLoading, toast, requireSession],
   )
 
 
@@ -632,11 +669,19 @@ export default function UserProfileScreen() {
     [copy, toast],
   )
 
+  // UI-P005: kunci in-flight sinkron — double-tap cepat tidak boleh membuka
+  // dua sheet berbagi bertumpuk (menu kebab memakai ShareSheetTrigger ber-guard).
+  const sharingRef = useRef(false)
   const handleShare = useCallback(async () => {
-    if (!handle) return
-    const payload = profileSharePayload()
-    const outcome = await shareContent(payload)
-    if (outcome === "unavailable") await shareUnavailable(payload)
+    if (!handle || sharingRef.current) return
+    sharingRef.current = true
+    try {
+      const payload = profileSharePayload()
+      const outcome = await shareContent(payload)
+      if (outcome === "unavailable") await shareUnavailable(payload)
+    } finally {
+      sharingRef.current = false
+    }
   }, [handle, profileSharePayload, shareUnavailable])
 
   const handleBlock = useCallback(async () => {
@@ -769,12 +814,11 @@ export default function UserProfileScreen() {
     }
   }, [deleting, deleteQ, deleteC, openQuestionId, username, toast])
 
-  // PRF-001: kepemilikan pertanyaan dibandingkan via `askerId` (id internal,
-  // dikirim backend). Versi lama memakai `q.asker?.id` — field itu tidak
-  // pernah dikirim backend (select hanya username/fullName/avatarUrl),
-  // sehingga tombol Hapus pertanyaan sendiri tak pernah muncul.
-  const isMyQuestion = (q: QuestionItem) => !!meId && (q.askerId === meId || q.asker?.id === meId)
-  const isMyComment = (c: QuestionComment) => !!meId && c.authorId === meId
+  // PRF-001: kepemilikan via helper bersama lib/api/users (terkunci test
+  // unit) — bandingkan `askerId`/`authorId` (id internal) dengan id saya.
+  // Pola yang sama dipakai layar Tanya Jawab publik.
+  const isMyQuestion = (q: QuestionItem) => isOwnQuestion(q, meId)
+  const isMyComment = (c: QuestionComment) => isOwnQuestionComment(c, meId)
 
   return (
     <Screen edges={["top"]} padded={false}>
@@ -906,7 +950,7 @@ export default function UserProfileScreen() {
                     leftIcon={PencilSimple}
                     onPress={() => router.push(ROUTES.editProfile)}
                   >
-                    Edit profil
+                    {translate("Edit profil")}
                   </Button>
                 ) : (
                   <>
@@ -1049,16 +1093,38 @@ export default function UserProfileScreen() {
                 ) : null}
 
                 {profile.trustScore != null ? (
-                  <View className="flex-row items-center gap-1">
-                    {/* v2: skor = accent di semua permukaan (ikut TrustScoreCard). */}
-                    <Icon icon={ShieldCheck} size="xs" tone="accent" weight="fill" />
-                    <Text variant="body" weight={700} tone="accent">
-                      {profile.trustScore}
-                    </Text>
-                    <Text variant="caption" tone="secondary">
-                      {translate("Skor")}
-                    </Text>
-                  </View>
+                  // UI-P007: skor milik sendiri dapat dibuka ke layar rincian
+                  // (/trust-score memakai getMyTrustScore — hanya untuk diri
+                  // sendiri; profil orang lain tetap tampilan statis).
+                  isSelf ? (
+                    <Pressable
+                      className="flex-row items-center gap-1"
+                      accessibilityRole="button"
+                      accessibilityLabel={translate("Skor kepercayaan {x}, buka rincian", { x: profile.trustScore })}
+                      hitSlop={TEXT_ROW_HIT_SLOP}
+                      onPress={() => router.push(ROUTES.trustScore)}
+                    >
+                      {/* v2: skor = accent di semua permukaan (ikut TrustScoreCard). */}
+                      <Icon icon={ShieldCheck} size="xs" tone="accent" weight="fill" />
+                      <Text variant="body" weight={700} tone="accent">
+                        {profile.trustScore}
+                      </Text>
+                      <Text variant="caption" tone="secondary">
+                        {translate("Skor")}
+                      </Text>
+                    </Pressable>
+                  ) : (
+                    <View className="flex-row items-center gap-1">
+                      {/* v2: skor = accent di semua permukaan (ikut TrustScoreCard). */}
+                      <Icon icon={ShieldCheck} size="xs" tone="accent" weight="fill" />
+                      <Text variant="body" weight={700} tone="accent">
+                        {profile.trustScore}
+                      </Text>
+                      <Text variant="caption" tone="secondary">
+                        {translate("Skor")}
+                      </Text>
+                    </View>
+                  )
                 ) : null}
               </View>
 
@@ -1099,7 +1165,7 @@ export default function UserProfileScreen() {
                       leftIcon={Handshake}
                       onPress={() => router.push(ROUTES.createTransactionWith(handle))}
                     >
-                      Buat transaksi escrow
+                      {translate("Buat transaksi escrow")}
                     </Button>
                   </View>
                 </>
@@ -1148,7 +1214,7 @@ export default function UserProfileScreen() {
                  */}
                 <View className="flex-row items-center justify-between gap-3">
                   <Text variant="label" tone="secondary" numberOfLines={1} className="flex-1">
-                    {translate("Pertanyaan Pengguna ({x})", { x: questions.length })}
+                    {translate("Pertanyaan Pengguna")}
                   </Text>
                   {!isSelf ? (
                     <Button
@@ -1240,7 +1306,7 @@ export default function UserProfileScreen() {
                                 fullWidth={false}
                                 onPress={() => setDeleteQ(q)}
                               >
-                                Hapus
+                                {translate("Hapus")}
                               </Button>
                             ) : null}
                           </View>
@@ -1273,7 +1339,7 @@ export default function UserProfileScreen() {
                                       fullWidth={false}
                                       onPress={() => setHideC(c)}
                                     >
-                                      Sembunyikan
+                                      {translate("Sembunyikan")}
                                     </Button>
                                   ) : undefined
                                 }
@@ -1294,6 +1360,16 @@ export default function UserProfileScreen() {
                     </View>
                   ))
                 )}
+                {/* UI-P011: tab hanya menampilkan 20 item pertama — tautan ke
+                    daftar penuh agar konten tidak terlihat terpotong. */}
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  fullWidth={false}
+                  onPress={() => router.push(ROUTES.userQuestions(handle))}
+                >
+                  {translate("Lihat semua pertanyaan")}
+                </Button>
               </View>
             ) : null}
 
@@ -1433,7 +1509,7 @@ export default function UserProfileScreen() {
                 )
             }}
           >
-            Laporkan pengguna
+            {translate("Laporkan pengguna")}
           </Button>
           <Button
             variant="destructive"
@@ -1443,7 +1519,7 @@ export default function UserProfileScreen() {
               setBlockOpen(true)
             }}
           >
-            Blokir pengguna
+            {translate("Blokir pengguna")}
           </Button>
         </View>
       </Dialog>
@@ -1463,7 +1539,7 @@ export default function UserProfileScreen() {
             loading={hidingC}
             onPress={() => void submitHideComment()}
           >
-            Sembunyikan
+            {translate("Sembunyikan")}
           </Button>
         }
       >

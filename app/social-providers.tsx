@@ -14,6 +14,7 @@ import { View } from "react-native"
 
 import { api, isApiError, userMessage } from "@/lib/api"
 import type { LinkedSocialProvider, SocialProvider } from "@/lib/api/social"
+import { formatDate } from "@/lib/format"
 import { SocialCancelledError, getSocialIdToken, isAppleButtonSupported } from "@/lib/social-oauth"
 import { useApiQuery } from "@/lib/use-api-query"
 import { logWarn } from "@/lib/telemetry"
@@ -150,6 +151,9 @@ export default function SocialProvidersScreen() {
                 key={l.provider}
                 title={PROVIDER_LABEL[l.provider]}
                 titleVariant="bodyLarge"
+                // UI-A011: tampilkan kapan ditautkan (§13 formatDate) supaya
+                // pengguna bisa membedakan bila beberapa akun provider dipakai.
+                subtitle={l.linkedAt ? `Tertaut ${formatDate(l.linkedAt)}` : undefined}
                 trailing={
                   <Button
                     size="sm"

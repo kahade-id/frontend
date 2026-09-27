@@ -34,6 +34,9 @@ import { useToast } from "@/components/ui/toast"
 
 type Step = "lookup" | "otp" | "status"
 
+/** Panjang kode OTP penghapusan akun — harus sama dengan copy UI ("kode 6 digit", UI-M016). */
+const DELETION_OTP_LENGTH = 6
+
 export default function DeletionStatusScreen() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
@@ -79,7 +82,7 @@ export default function DeletionStatusScreen() {
   }
 
   const handleVerify = async () => {
-    if (busy || otp.trim().length < 4) return
+    if (busy || otp.trim().length < DELETION_OTP_LENGTH) return
     setBusy(true)
     setErrorText(null)
     try {
@@ -183,7 +186,7 @@ export default function DeletionStatusScreen() {
               disabled={busy}
               autoFocus
             />
-            <Button onPress={() => void handleVerify()} loading={busy} disabled={otp.length < 4}>
+            <Button onPress={() => void handleVerify()} loading={busy} disabled={otp.trim().length < DELETION_OTP_LENGTH}>
               Verifikasi
             </Button>
             <Button variant="ghost" onPress={() => void handleLookup()} disabled={busy}>

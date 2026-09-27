@@ -34,7 +34,11 @@ export default function DisputesScreen() {
   // Identitas sendiri (cache bersama 5 dtk, C-02) — untuk peran di tiap kartu:
   // siapa pembuka, siapa lawan, dan apakah giliran saya yang ditunggu.
   const meQuery = useApiQuery("me", (signal) => api.users.getMeCached(signal))
-  const meId = meQuery.data?.id
+  // UI-T001 (audit UI/UX 2026-09-27): buyerId/sellerId order memakai public
+  // userId (USR-XXX), BUKAN cuid internal `me.id` — pakai pickPublicUserId
+  // agar label "Dibuka oleh saya" & strip "Tanggapan Anda dibutuhkan" tidak
+  // pernah kosong.
+  const meId = api.users.pickPublicUserId(meQuery.data)
   const query = usePaginatedQuery<DisputeListItem>(
     "disputes",
     (page, signal) => api.disputes.listMyDisputes({ page, limit: PAGE_LIMIT }, signal),

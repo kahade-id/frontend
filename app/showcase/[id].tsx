@@ -632,15 +632,17 @@ function ShowcaseDetailContent({
           {replyTo ? (
             <View className="mb-2 flex-row items-center gap-2 rounded-md bg-surface-elevated px-3 py-1.5">
               <Text variant="caption" tone="secondary" className="flex-1" numberOfLines={1}>
-                Membalas {replyTo.author.fullName ?? `@${replyTo.author.username}`}
+                {translate("Membalas {x}", { x: replyTo.author.fullName ?? `@${replyTo.author.username}` })}
               </Text>
               <PressableScale
                 accessibilityRole="button"
                 accessibilityLabel={translate("Batalkan balasan")}
+                // UI-F014: teks kecil butuh hitSlop agar mudah disentuh.
+                hitSlop={12}
                 onPress={() => setReplyTo(null)}
               >
                 <Text variant="caption" tone="primary">
-                  Batal
+                  {translate("Batal")}
                 </Text>
               </PressableScale>
             </View>
@@ -672,7 +674,7 @@ function ShowcaseDetailContent({
           ) : (
             // A-05: tamu diarahkan login, bukan komposer yang berujung 401.
             <Button onPress={() => router.push(ROUTES.loginRequired(`/showcase/${encodeURIComponent(id)}`))}>
-              Masuk untuk berkomentar
+              {translate("Masuk untuk berkomentar")}
             </Button>
           )}
         </View>
@@ -770,11 +772,11 @@ function ShowcaseDetailContent({
           // gagal-cepat di UI, bukan di tengah alur transaksi.
           <View className="gap-2">
             <Button fullWidth disabled={item.isActive === false} onPress={handleCreateTransaction}>
-              Buat Transaksi
+              {translate("Buat Transaksi")}
             </Button>
             {item.isActive === false ? (
               <Text variant="caption" tone="secondary" className="text-center">
-                Karya ini sedang tidak aktif, jadi belum bisa ditransaksikan.
+                {translate("Karya ini sedang tidak aktif, jadi belum bisa ditransaksikan.")}
               </Text>
             ) : null}
           </View>
@@ -782,10 +784,10 @@ function ShowcaseDetailContent({
           // T5 (audit 2026-09-26): pemilik bisa menghapus karyanya dari sini.
           <View className="gap-2">
             <Text variant="caption" tone="secondary" className="text-center">
-              Karya Anda — komentar di sini bisa Anda moderasi.
+              {translate("Karya Anda — komentar di sini bisa Anda moderasi.")}
             </Text>
             <Button variant="ghost" fullWidth onPress={() => setDeleteOpen(true)}>
-              Hapus karya
+              {translate("Hapus karya")}
             </Button>
           </View>
         )}
@@ -891,7 +893,7 @@ function ShowcaseDetailContent({
             ? [
                 {
                   key: "edit",
-                  label: "Edit",
+                  label: translate("Edit"),
                   icon: undefined,
                   onPress: () => {
                     setEditTarget(commentMenu)
@@ -1000,7 +1002,7 @@ function ShowcaseDetailContent({
         {confirmKind === "hide" ? (
           <View className="gap-2">
             <Text variant="caption" tone="secondary">
-              Kategori alasan:
+              {translate("Kategori alasan:")}
             </Text>
             <RadioGroup value={hideReason} onChange={(v) => setHideReason(v as Reason)}>
               {HIDE_REASONS.map((r) => (

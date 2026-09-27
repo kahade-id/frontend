@@ -1,14 +1,14 @@
 import type { Href } from "expo-router"
 import type { WalletTransaction } from "@/lib/api/wallet"
 import { summarize } from "@/lib/a11y"
-import { formatRupiah, formatDateTime } from "@/lib/format"
+import { formatRupiah, formatDateTimeWIB } from "@/lib/format"
 import {
   WALLET_TXN_KIND,
   WALLET_TXN_LABELS,
-  WALLET_TXN_STATUS_LABELS,
   walletTransactionStatus,
   walletTransactionType,
 } from "@/lib/wallet-labels"
+import { walletStatusLabel } from "@/lib/wallet-ui"
 import { WalletTransactionListItem } from "@/components/ui/wallet-transaction-list-item"
 import { mapValue } from "@/lib/has-own"
 
@@ -39,8 +39,10 @@ export function WalletTransactionRow({
         // WF-028 (Batch 1-money): screen reader mendengar label yang sama
         // dengan visual ("Diproses"), bukan enum mentah ("PENDING_OTP").
         // Status asing tetap memakai enum-nya (jujur, bukan label tebakan).
-        tx.status ? (WALLET_TXN_STATUS_LABELS[tx.status] ?? tx.status) : "Status belum tersedia",
-        formatDateTime(tx.createdAt),
+        walletStatusLabel(tx.status),
+        // UI-W001: tanggal selalu WIB — konsisten dengan pengelompokan
+        // riwayat dan layar detail, bukan zona perangkat.
+        formatDateTimeWIB(tx.createdAt),
         tx.referenceId ?? undefined,
       ])}
       title={mapValue(WALLET_TXN_LABELS, tx.type, tx.type)}
@@ -48,8 +50,8 @@ export function WalletTransactionRow({
       amount={tx.amount}
       kind={mapValue(WALLET_TXN_KIND, tx.type, "other")}
       status={walletTransactionStatus(tx.status)}
-      statusLabel={tx.status ?? "Status belum tersedia"}
-      timestamp={formatDateTime(tx.createdAt)}
+      statusLabel={walletStatusLabel(tx.status)}
+      timestamp={formatDateTimeWIB(tx.createdAt)}
       reference={tx.referenceId ?? undefined}
       onPress={onPress}
       href={href}

@@ -35,22 +35,25 @@ import {
   type OrderMilestone,
 } from "@/lib/api"
 import { logWarn } from "@/lib/telemetry"
-import { formatDateTime, formatRupiah, parseRupiah } from "@/lib/format"
+import { formatDateTime, formatDateLong, formatDateTimeWIB, formatRupiah, parseRupiah } from "@/lib/format"
 import { pickImage } from "@/lib/image-picker"
 import { translate } from "@/lib/i18n"
 import { useApiQuery } from "@/lib/use-api-query"
 
 import { Button } from "@/components/ui/button"
 import { DataScreen } from "@/components/ui/data-screen"
+import { DatePickerSheet, normalizePickerDate } from "@/components/ui/date-picker-sheet"
 import { Dialog } from "@/components/ui/modal"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Field } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { KeyValue, KeyValueList } from "@/components/ui/key-value"
+import { PressableScale } from "@/components/ui/pressable-scale"
 import { SectionHeader } from "@/components/ui/section"
 import { Text } from "@/components/ui/text"
 import { TextArea } from "@/components/ui/text-area"
 import { useToast } from "@/components/ui/toast"
+import { UPLOAD_DEFAULT_MAX_MB } from "@/components/ui/upload-field"
 
 import { MILESTONE_STATUS_LABEL, MILESTONE_STATUS_TONE } from "@/components/order-milestones"
 import { Badge } from "@/components/ui/badge"
@@ -110,7 +113,10 @@ export default function MilestoneDetailScreen() {
   const [proposeOpen, setProposeOpen] = useState(false)
   const [propTitle, setPropTitle] = useState("")
   const [propAmount, setPropAmount] = useState("")
-  const [propDeadline, setPropDeadline] = useState("")
+  // UI-T005 (audit UI/UX 2026-09-27): tenggat dipilih lewat kalender, bukan
+  // ketik ISO mentah — format yang dikirim ke API tetap string ISO.
+  const [propDeadlineDate, setPropDeadlineDate] = useState<Date | null>(null)
+  const [propDeadlineOpen, setPropDeadlineOpen] = useState(false)
   const [propNote, setPropNote] = useState("")
 
   const runAction = useCallback(
@@ -138,6 +144,16 @@ export default function MilestoneDetailScreen() {
       return
     }
     if (picked.status !== "picked") return
+    // UI-T008 (audit UI/UX 2026-09-27): validasi ukuran SEBELUM upload —
+    // pola yang sama dengan bukti pengiriman (F7), satu batas 10 MB.
+    if (picked.asset.size > 0 && picked.asset.size > UPLOAD_DEFAULT_MAX_MB * 1024 * 1024) {
+      toast.show({
+        title: "Berkas terlalu besar",
+        description: translate("Ukuran berkas melebihi {x} MB.", { x: UPLOAD_DEFAULT_MAX_MB }),
+        tone: "danger",
+      })
+      return
+    }
     setUploading(true)
     try {
       const { fileKey } = await api.upload.uploadDirectImage(picked.asset, "MILESTONE_EVIDENCE")
@@ -224,10 +240,10 @@ export default function MilestoneDetailScreen() {
                 />
               ) : null}
               {milestone.deadline ? (
-                <KeyValue label="Tenggat pengerjaan" value={formatDateTime(milestone.deadline)} />
+                <KeyValue label="Tenggat pengerjaan" value={formatDateTimeWIB(milestone.deadline)} />
               ) : null}
               {milestone.reviewDeadline ? (
-                <KeyValue label="Tenggat review" value={formatDateTime(milestone.reviewDeadline)} />
+                <KeyValue label="Tenggat review" value={formatDateTimeWIB(milestone.reviewDeadline)} />
               ) : null}
               <KeyValue
                 label="Putaran revisi tersisa"
@@ -246,7 +262,7 @@ export default function MilestoneDetailScreen() {
                 ) : null}
                 {change.deadline ? (
                   <Text variant="caption" tone="secondary">
-                    Tenggat baru: {formatDateTime(change.deadline)}
+                    Tenggat baru: {formatDateTimeWIB(change.deadline)}
                   </Text>
                 ) : null}
                 {change.note ? (
@@ -404,11 +420,34 @@ export default function MilestoneDetailScreen() {
                         keyboardType="numeric"
                       />
                     </Field>
-                    <Field label="Tenggat baru (opsional, ISO)">
-                      <Input
-                        value={propDeadline}
-                        onChangeText={setPropDeadline}
-                        placeholder="cth. 2026-10-15T23:59:59+07:00"
+                    <Field label="Tenggat baru (opsional)">
+                      <PressableScale
+                        accessibilityRole="button"
+                        accessibilityLabel="Tenggat baru (opsional)"
+                        accessibilityValue={{
+                          text: propDeadlineDate ? formatDateLong(propDeadlineDate) : "Pilih tanggal",
+                        }}
+                        onPress={() => setPropDeadlineOpen(true)}
+                        className="h-14 w-full flex-row items-center rounded-sm border border-border-control bg-background px-4"
+                      >
+                        <Text
+                          variant="body"
+                          tone={propDeadlineDate ? undefined : "tertiary"}
+                          numberOfLines={1}
+                          className="flex-1"
+                        >
+                          {propDeadlineDate ? formatDateLong(propDeadlineDate) : "Pilih tanggal"}
+                        </Text>
+                      </PressableScale>
+                      <DatePickerSheet
+                        visible={propDeadlineOpen}
+                        onRequestClose={() => setPropDeadlineOpen(false)}
+                        value={propDeadlineDate}
+                        onSelect={(d) => {
+                          setPropDeadlineDate(normalizePickerDate(d))
+                          setPropDeadlineOpen(false)
+                        }}
+                        title="Tenggat baru"
                       />
                     </Field>
                     <Field label="Catatan">
@@ -435,7 +474,7 @@ export default function MilestoneDetailScreen() {
                             api.milestones.proposeMilestoneChange(milestone.id, {
                               title: propTitle.trim() || undefined,
                               amount: amountNum,
-                              deadline: propDeadline.trim() || undefined,
+                              deadline: propDeadlineDate ? propDeadlineDate.toISOString() : undefined,
                               note: propNote.trim(),
                             }),
                           "Usulan perubahan dikirim",
@@ -444,7 +483,7 @@ export default function MilestoneDetailScreen() {
                           setProposeOpen(false)
                           setPropTitle("")
                           setPropAmount("")
-                          setPropDeadline("")
+                          setPropDeadlineDate(null)
                           setPropNote("")
                         })
                       }}

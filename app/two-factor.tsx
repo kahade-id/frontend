@@ -189,8 +189,10 @@ export default function TwoFactorScreen() {
       setSetup(res)
       setSetupPassword("")
       setStep("scan")
-    } catch {
-      setSetupError("Kata sandi salah atau 2FA tidak bisa disiapkan. Coba lagi.")
+    } catch (err: unknown) {
+      // UI-A002: jangan menelan pesan backend — userMessage(err) memberi
+      // alasan yang bisa ditindaklanjuti (rate limit, sesi kedaluwarsa, …).
+      setSetupError(userMessage(err) || "Kata sandi salah atau 2FA tidak bisa disiapkan. Coba lagi.")
     } finally {
       setSettingUp(false)
     }
@@ -207,8 +209,10 @@ export default function TwoFactorScreen() {
         setStep("codes")
         toast.show({ title: "Verifikasi dua langkah aktif", tone: "success" })
         await query.refresh()
-      } catch {
-        setEnableError("Kode tidak valid. Pastikan jam perangkat akurat, lalu coba lagi.")
+      } catch (err: unknown) {
+        // UI-A002: alasan dari server (mis. kode kedaluwarsa vs salah) lebih
+        // berguna daripada kalimat generik.
+        setEnableError(userMessage(err) || "Kode tidak valid. Pastikan jam perangkat akurat, lalu coba lagi.")
       } finally {
         setEnabling(false)
       }
