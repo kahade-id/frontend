@@ -8,7 +8,6 @@ import type { WalletTransaction } from "@/lib/api/wallet"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 import { byTimestampDesc, usePaginatedQuery } from "@/lib/use-paginated-query"
-import { walletTransactionStatus } from "@/lib/wallet-labels"
 import { useToast } from "@/components/ui/toast"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Button } from "@/components/ui/button"
@@ -93,10 +92,16 @@ export function WalletHistoryScreen({ kind }: { kind: "topup" | "withdraw" }) {
           />
         }
         renderItem={({ item }) => {
-          const status = walletTransactionStatus(item.status)
-          // FE-IMP-4 item 3: top-up PENDING → "Lanjutkan bayar" langsung ke
-          // kartu status pembayaran.
-          const canResume = kind === "topup" && status === "PENDING"
+          // FE-IMP-4 item 3 — DITAHAN (fail closed, 2026-09-28): CTA "Lanjutkan
+          // bayar" dari riwayat butuh `paymentTxId` (= midtransOrderId) yang
+          // dicari `GET /v1/wallet/topup-status/:paymentTxId`. Namun
+          // `GET /v1/wallet/topup-history` hanya mengembalikan id/txId ledger
+          // (WLT-xxx) — TIDAK ada paymentTxId. Melempar id ledger ke endpoint
+          // itu pasti 404. Jangan menebak identifier: resume dari riwayat
+          // butuh backend mengekspos paymentTxId di topup-history (atau
+          // endpoint resume-by-wallettx). Resume dalam-sesi (deep link dari
+          // hasil top-up baru, yang membawa paymentTxId asli) tetap jalan di
+          // app/topup.tsx.
           const canCancel =
             kind === "withdraw" && String(item.status ?? "").toUpperCase() === "PENDING_OTP"
           return (
@@ -110,26 +115,11 @@ export function WalletHistoryScreen({ kind }: { kind: "topup" | "withdraw" }) {
                 vivid
                 onPress={() => router.push(ROUTES.walletTransaction(item.id))}
               />
-              {canResume || canCancel ? (
+              {canCancel ? (
                 <View className="-mt-1 flex-row gap-2 px-5 pb-3">
-                  {canResume ? (
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onPress={() =>
-                        router.push(
-                          `${ROUTES.topup}?resumePayment=${encodeURIComponent(item.id)}`,
-                        )
-                      }
-                    >
-                      Lanjutkan bayar
-                    </Button>
-                  ) : null}
-                  {canCancel ? (
-                    <Button size="sm" variant="secondary" onPress={() => setCancelTarget(item)}>
-                      Batalkan
-                    </Button>
-                  ) : null}
+                  <Button size="sm" variant="secondary" onPress={() => setCancelTarget(item)}>
+                    Batalkan
+                  </Button>
                 </View>
               ) : null}
             </View>

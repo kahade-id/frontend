@@ -552,25 +552,30 @@ export default function WithdrawScreen() {
                       qrDataUrl={withdrawQr}
                       ticketRef={withdrawTicketRef}
                       onShare={() => void shareReceipt(withdrawTicketRef.current)}
-                      // FE-IMP-4 item 7: rincian biaya penarikan. Biaya &
-                      // bersih hanya ditampilkan bila SERVER mengirim fieldnya
-                      // — klien tidak menghitung biaya sendiri (fail closed:
-                      // tanpa data server, tidak ada baris biaya palsu).
+                      // FE-IMP-4 item 7: rincian biaya penarikan. Biaya & bersih
+                      // hanya ditampilkan bila SERVER mengirim fieldnya — klien
+                      // tidak menghitung biaya/net sendiri (fail closed: tanpa
+                      // data server, tidak ada baris biaya palsu).
                       rows={[
                         { label: "Nominal penarikan", value: formatRupiah(amount), mono: true },
                         ...(() => {
-                          const fee = (result as { fee?: unknown } | null)?.fee
+                          const res = result as { fee?: unknown; netAmount?: unknown } | null
+                          const fee = res?.fee
                           if (typeof fee !== "number" || !Number.isFinite(fee) || fee < 0) {
                             return []
                           }
-                          return [
-                            { label: "Biaya admin", value: formatRupiah(fee), mono: true },
-                            {
+                          const rows = [{ label: "Biaya admin", value: formatRupiah(fee), mono: true }]
+                          // Net hanya bila server mengirim netAmount — jangan
+                          // hitung amount - fee sendiri (aturan FE-IMP-4).
+                          const net = res?.netAmount
+                          if (typeof net === "number" && Number.isFinite(net) && net >= 0) {
+                            rows.push({
                               label: "Diterima bersih",
-                              value: formatRupiah(amount - fee),
+                              value: formatRupiah(net),
                               mono: true,
-                            },
-                          ]
+                            })
+                          }
+                          return rows
                         })(),
                       ]}
                     />

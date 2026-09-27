@@ -206,22 +206,21 @@ export default function ChangePinScreen() {
               returnKeyType="next"
               onSubmitEditing={() => passwordOk && afterPassword()}
             />
-            {/* FE-IMP-4 item 12: tidak ada alur reset/lupa PIN wallet via OTP
-                di backend (OtpType tidak punya wallet-PIN reset; `set-pin`
-                selalu butuh password + PIN lama). JANGAN memalsukan alur —
-                arahkan ke reset kata sandi akun via WhatsApp, lalu PIN bisa
-                diubah di sini dengan kata sandi baru. */}
+            {/* FE-IMP-4 item 12: backend TIDAK punya reset PIN wallet via OTP
+                (OtpType tidak punya jenis reset PIN; `set-pin` selalu butuh
+                PIN lama untuk PIN existing). JANGAN mengklaim reset kata
+                sandi bisa membuat PIN baru — itu salah. Arahkan ke dukungan. */}
             <Text variant="caption" tone="secondary" className="text-pretty">
-              Lupa PIN? Atur ulang kata sandi akun terlebih dahulu, lalu buat
-              PIN baru di sini.{" "}
+              Lupa PIN wallet? Reset PIN mandiri belum didukung — hubungi{" "}
               <TextLink
                 variant="caption"
                 inline
-                onPress={() => router.push(ROUTES.forgotPassword())}
-                accessibilityLabel="Buka halaman lupa kata sandi"
+                onPress={() => router.push(ROUTES.liveSupport)}
+                accessibilityLabel="Buka bantuan langsung"
               >
-                Lupa kata sandi
-              </TextLink>
+                bantuan langsung
+              </TextLink>{" "}
+              untuk verifikasi identitas dan bantuan reset.
             </Text>
           </>
         ) : step === "current" ? (

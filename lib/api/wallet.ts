@@ -454,8 +454,14 @@ export function getTopupFeeEstimate(
       const record = (raw ?? {}) as Record<string, unknown>
       const num = (v: unknown): number | undefined =>
         typeof v === "number" && Number.isFinite(v) ? v : undefined
-      const fee = num(record.fee) ?? 0
-      const total = num(record.total) ?? amount + fee
+      // FE-IMP-4: respons malformed TIDAK boleh menjadi fee 0 yang dianggap
+      // server-valid. `fee` dan `total` wajib angka finite dari server; bila
+      // tidak, lempar agar pemanggil jatuh ke estimasi lokal berlabel jujur.
+      const fee = num(record.fee)
+      const total = num(record.total)
+      if (fee == null || total == null || fee < 0 || total < 0) {
+        throw new Error("fee-estimate malformed")
+      }
       return {
         amount: num(record.amount) ?? amount,
         method: typeof record.method === "string" ? record.method : method,
