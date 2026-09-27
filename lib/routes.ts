@@ -559,6 +559,8 @@ export const ROUTES = {
       : ("/jastip" as Href),
   /** Patungan — daftar grup publik (batch 43, item 16 — /v1/patungan) */
   patungan: "/patungan" as Href,
+  /** Booking jasa saya (batch 43, item 12 — /v1/commerce/service-slots/bookings) */
+  serviceBookings: "/service-bookings" as Href,
   /** Patungan — detail grup */
   patunganDetail: (groupId: string) =>
     groupId

@@ -60,6 +60,7 @@ import {
   Ticket,
   AirplaneTilt,
   UsersThree,
+  CalendarCheck,
   Translate,
   User,
   Bookmark,
@@ -167,6 +168,8 @@ export default function SettingsScreen() {
     { id: "jastip", label: "Jastip Saya", icon: AirplaneTilt, route: ROUTES.jastip },
     // Batch 43 (item 16): grup patungan.
     { id: "patungan", label: "Patungan", icon: UsersThree, route: ROUTES.patungan },
+    // Batch 43 (item 12): booking jasa buyer.
+    { id: "service-bookings", label: "Booking Jasa", icon: CalendarCheck, route: ROUTES.serviceBookings },
   ]
 
   // ── Preferensi ──────────────────────────────────────────────────
