@@ -271,7 +271,7 @@ export function AppDrawer() {
           {/* Kepala: tumpukan vertikal (foto di atas, nama + username di
               bawahnya rata kiri) — tanpa chevron. Tombol X absolute tepat
               di pojok kanan atas header. */}
-          <View className="relative px-5 pb-5 pt-2">
+          <View className="relative px-5 pb-5 pt-6">
             {token && profile ? (
               <PressableScale
                 onPress={goProfile}
@@ -319,7 +319,7 @@ export function AppDrawer() {
                 pojok kanan atas header di semua platform (termasuk web).
                 Style inline untuk positioning — bukan background — jadi aman
                 dari masalah compile className di web. */}
-            <View style={{ position: "absolute", right: 12, top: 4 }}>
+            <View style={{ position: "absolute", right: 12, top: 20 }}>
               <PressableScale
                 onPress={closeDrawer}
                 accessibilityRole="button"
