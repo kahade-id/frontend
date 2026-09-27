@@ -23,6 +23,7 @@ import * as badges from "@/lib/api/badges"
 import * as bankAccounts from "@/lib/api/bank-accounts"
 import * as businessVerification from "@/lib/api/business-verification"
 import * as chat from "@/lib/api/chat"
+import * as commerce from "@/lib/api/commerce"
 import * as courier from "@/lib/api/courier"
 import * as deeplinks from "@/lib/api/deeplinks"
 import * as disputes from "@/lib/api/disputes"
@@ -122,6 +123,7 @@ export const api = {
   bankAccounts,
   businessVerification,
   chat,
+  commerce,
   courier,
   deeplinks,
   disputes,
