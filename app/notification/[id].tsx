@@ -28,6 +28,11 @@ import { api, userMessage, type AppNotification } from "@/lib/api"
 import { formatDateTime } from "@/lib/format"
 import { ROUTES } from "@/lib/routes"
 import {
+  checkConfirmReceiptEligible,
+  confirmReceipt,
+  orderIdFromNotification,
+} from "@/lib/order-confirm"
+import {
   labelForNotificationReference,
   routeForNotificationReference,
 } from "@/lib/notification-routing"
@@ -101,6 +106,64 @@ export default function NotificationDetailScreen() {
 
   const relatedRoute = notif ? routeForNotificationReference(notif) : null
   const relatedLabel = notif ? labelForNotificationReference(notif) : null
+
+  // Item #24 — "Konfirmasi terima" langsung dari notifikasi in-app.
+  // orderId diambil dari referenceType/referenceId (fail-closed: null bila
+  // bukan referensi order). Kelayakan dicek via API saat detail dimuat;
+  // tombol HANYA tampil bila order memang bisa dikonfirmasi.
+  const confirmOrderId = notif
+    ? orderIdFromNotification({
+        referenceType: notif.referenceType,
+        referenceId: notif.referenceId,
+        actionUrl: notif.actionUrl,
+      })
+    : null
+  const [confirmEligible, setConfirmEligible] = useState(false)
+  const [confirming, setConfirming] = useState(false)
+  useEffect(() => {
+    if (!confirmOrderId) {
+      setConfirmEligible(false)
+      return
+    }
+    let cancelled = false
+    setConfirmEligible(false)
+    void checkConfirmReceiptEligible(confirmOrderId)
+      .then((result) => {
+        if (!cancelled) setConfirmEligible(result.eligible)
+      })
+      .catch(() => {
+        // Fail-closed: ragu = sembunyikan tombol.
+        if (!cancelled) setConfirmEligible(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [confirmOrderId])
+
+  const handleConfirmReceipt = async () => {
+    if (!confirmOrderId || confirming) return
+    setConfirming(true)
+    try {
+      await confirmReceipt(confirmOrderId)
+      setConfirmEligible(false)
+      toast.show({
+        title: "Pesanan dikonfirmasi diterima",
+        description: "Dana escrow diteruskan ke penjual.",
+        tone: "success",
+        duration: 4000,
+      })
+      // Refresh status: data layar ini + seluruh cache query.
+      await query.reload()
+    } catch (err: unknown) {
+      toast.show({
+        title: "Konfirmasi gagal",
+        description: userMessage(err),
+        tone: "danger",
+      })
+    } finally {
+      setConfirming(false)
+    }
+  }
 
   const handleDelete = async () => {
     if (!notif || deleting) return
@@ -204,6 +267,23 @@ export default function NotificationDetailScreen() {
               Notifikasi ini tidak menaut ke halaman lain.
             </Text>
           )}
+
+          {/* ── Item #24: Konfirmasi terima langsung dari notifikasi.
+              Hanya tampil bila API mengonfirmasi order bisa dikonfirmasi
+              (fail-closed: disembunyikan saat ragu). */}
+          {confirmEligible && confirmOrderId ? (
+            <View className="gap-2 rounded-xl bg-success-soft p-4">
+              <Text variant="body" weight={600} tone="primary">
+                Pesanan sudah sampai?
+              </Text>
+              <Text variant="caption" tone="secondary">
+                Konfirmasi penerimaan untuk meneruskan dana escrow ke penjual.
+              </Text>
+              <Button loading={confirming} onPress={() => void handleConfirmReceipt()}>
+                Konfirmasi terima
+              </Button>
+            </View>
+          ) : null}
         </View>
       ) : null}
 

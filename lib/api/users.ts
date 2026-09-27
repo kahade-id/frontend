@@ -672,13 +672,21 @@ export function getFollowing(
 }
 
 export function followUser(username: string) {
-  return http.post<void>(`/v1/users/${seg(username)}/follow`, undefined, { auth: "required" })
+  return http.post<void>(`/v1/users/${seg(username)}/follow`, undefined, {
+    auth: "required",
+    // Item #27: boleh diantrekan saat offline (aksi sosial).
+    offlineBehavior: "enqueue-social",
+    offlineLabel: "Ikuti pengguna",
+  })
 }
 
 export function unfollowUser(username: string) {
   return http.delete<void>(`/v1/users/${seg(username)}/follow`, {
     auth: "required",
     responseType: "void",
+    // Item #27: boleh diantrekan saat offline (aksi sosial).
+    offlineBehavior: "enqueue-social",
+    offlineLabel: "Berhenti mengikuti",
   })
 }
 

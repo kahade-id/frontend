@@ -407,14 +407,24 @@ function toLikeState(raw: unknown, fallbackCount = 0): { liked: boolean; likeCou
 /** POST /v1/showcase/:showcaseId/like → `{ liked: true, likeCount }`. */
 export function likeShowcase(showcaseId: string, fallbackCount = 0) {
   return http
-    .post<unknown>(`/v1/showcase/${seg(showcaseId)}/like`, undefined, { auth: "required" })
+    .post<unknown>(`/v1/showcase/${seg(showcaseId)}/like`, undefined, {
+      auth: "required",
+      // Item #27: boleh diantrekan saat offline (aksi sosial).
+      offlineBehavior: "enqueue-social",
+      offlineLabel: "Suka karya",
+    })
     .then((raw) => toLikeState(raw, fallbackCount))
 }
 
 /** DELETE /v1/showcase/:showcaseId/like → `{ liked: false, likeCount }`. */
 export function unlikeShowcase(showcaseId: string, fallbackCount = 0) {
   return http
-    .delete<unknown>(`/v1/showcase/${seg(showcaseId)}/like`, { auth: "required" })
+    .delete<unknown>(`/v1/showcase/${seg(showcaseId)}/like`, {
+      auth: "required",
+      // Item #27: boleh diantrekan saat offline (aksi sosial).
+      offlineBehavior: "enqueue-social",
+      offlineLabel: "Batal suka karya",
+    })
     .then((raw) => toLikeState(raw, fallbackCount))
 }
 

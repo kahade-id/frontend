@@ -167,6 +167,40 @@ export function isUncertainMutationError(err: unknown): boolean {
 }
 
 // ------------------------------------------------------------------
+// Offline yang DIKETAHUI (item #27): gerbang fail-closed untuk mutasi.
+// ------------------------------------------------------------------
+
+/**
+ * Dilempar transport (`lib/api/client.ts`) saat perangkat JELAS offline dan
+ * pemanggil mencoba mutasi (non-GET) yang tidak diizinkan masuk antrean.
+ *
+ * BUKAN ApiError: tidak ada respons HTTP sama sekali. Bedakan dari
+ * `ApiError` berkode NETWORK (request dikirim tapi jaringan gagal di tengah
+ * jalan — nasib mutasi TAK PASTI, lihat `isUncertainMutationError`).
+ * OfflineError berarti request TIDAK PERNAH dikirim — aman untuk retry
+ * manual tanpa risiko eksekusi ganda.
+ *
+ * Copy disengaja eksplisit menyebut "tidak diantrekan": pengguna produk
+ * keuangan harus tahu aksi uangnya DIBATALKAN saat offline, bukan
+ * "disimpan dan dikirim nanti" (itu hanya berlaku untuk aksi sosial
+ * like/ikuti/simpan).
+ */
+export class OfflineError extends Error {
+  readonly code = "OFFLINE" as const
+  constructor() {
+    super(
+      "Anda sedang offline. Aksi ini membutuhkan koneksi internet dan tidak " +
+        "dapat diantrekan — silakan coba lagi setelah tersambung.",
+    )
+    this.name = "OfflineError"
+  }
+}
+
+export function isOfflineError(err: unknown): err is OfflineError {
+  return err instanceof OfflineError
+}
+
+// ------------------------------------------------------------------
 // Parsing body error backend (format NestJS)
 // ------------------------------------------------------------------
 
@@ -319,6 +353,9 @@ export const DEFAULT_ERROR_MESSAGES: Record<ApiErrorCode, string> = {
 
 /** Pesan siap tampil: pakai message backend bila ada, selain itu default per kode. */
 export function userMessage(err: unknown): string {
+  // Item #27: offline yang diketahui selalu memakai copy klien yang jelas —
+  // jangan biarkan wording teknis lolos ke toast.
+  if (isOfflineError(err)) return err.message
   if (isApiError(err)) {
     // Rate-limit PIN selalu pakai copy ID klien yang jelas — pesan backend
     // berbahasa Inggris dan tidak menyebut durasi kunci. Dicek lewat code

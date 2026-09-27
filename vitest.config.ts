@@ -38,6 +38,9 @@ export default defineConfig({
       // `expo-location` ditarik lib/location (getAuthLocation) — kini di graf
       // impor facade API aksi sensitif; stub mengembalikan "izin ditolak".
       "expo-location": stub("expo-location"),
+      // `@react-native-community/netinfo` ditarik lib/connectivity (item #27)
+      // — native module tidak ada di Node; stub di atas.
+      "@react-native-community/netinfo": stub("netinfo"),
     },
   },
   /**

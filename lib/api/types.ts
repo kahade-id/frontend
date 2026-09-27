@@ -1125,6 +1125,11 @@ export type UpdatePreferencesDto = {
   quietHoursTimezone?: string
   /** Preferred language */
   language?: "id" | "en"
+  /**
+   * Item #25 — frekuensi ringkasan (digest) notifikasi (kontrak Tim B).
+   * "off" (default) = perilaku lama: notifikasi dikirim seperti biasa.
+   */
+  digestFrequency?: "off" | "daily" | "weekly"
 }
 
 export type RegisterDeviceDto = {

@@ -13,24 +13,37 @@
  *   - Pesan gagal simpan menyertakan `userMessage(err)` dari backend.
  */
 import { useCallback, useEffect, useState } from "react"
-import { Platform } from "react-native"
+import { Platform, View } from "react-native"
+import { CaretRight } from "phosphor-react-native"
 
 import { api } from "@/lib/api"
 import { userMessage } from "@/lib/api/errors"
 import { useApiQuery } from "@/lib/use-api-query"
+import { isTimeInRange } from "@/lib/time-input"
 import { isWebPushConfigured } from "@/lib/web-push-config"
 import { registerWebPushDevice } from "@/lib/web-push"
 
 import { Alert } from "@/components/ui/alert"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { DataScreen } from "@/components/ui/data-screen"
+import { Icon } from "@/components/ui/icon"
+import { PressableScale } from "@/components/ui/pressable-scale"
 import {
   NotificationPreferencesMatrix,
   type NotificationPreferenceKey,
   type NotificationPreferences as MatrixPreferences,
 } from "@/components/ui/notification-preferences-matrix"
+import { Radio, RadioGroup } from "@/components/ui/radio"
+import { SectionHeader } from "@/components/ui/section"
+import { Switch } from "@/components/ui/switch"
 import { Text } from "@/components/ui/text"
+import { TimePickerSheet } from "@/components/ui/time-picker-sheet"
 import { useToast } from "@/components/ui/toast"
+import type { DigestFrequency } from "@/lib/api/notifications"
+import { formatDateTime } from "@/lib/format"
+import { useLanguage } from "@/lib/i18n"
+import { translate } from "@/lib/i18n/translate"
 
 export default function NotificationPreferencesScreen() {
   const toast = useToast()
@@ -70,6 +83,62 @@ export default function NotificationPreferencesScreen() {
     [value, setData, toast.show],
   )
 
+  /**
+   * Item #25 — simpan frekuensi digest (PUT /v1/notifications/preferences).
+   * Pola yang sama dengan handleChange: optimistis + rollback ke NILAI
+   * SEBELUMNYA bila gagal. Dibaca dari `query.data` (tipe API penuh), bukan
+   * `value` (matriks boolean-only).
+   */
+  const handleDigestChange = useCallback(
+    async (next: DigestFrequency) => {
+      const previous = query.data?.digestFrequency ?? "off"
+      setData({ ...value, digestFrequency: next })
+      try {
+        await api.notifications.updateNotificationPreferences({ digestFrequency: next })
+        toast.show({ title: "Preferensi tersimpan", tone: "success", duration: 2500 })
+      } catch (err) {
+        setData((prev) => ({ ...(prev ?? {}), digestFrequency: previous }))
+        toast.show({
+          title: "Gagal menyimpan preferensi",
+          description: userMessage(err),
+          tone: "danger",
+        })
+      }
+    },
+    [query.data, value, setData, toast.show],
+  )
+
+  /**
+   * Item #26 — simpan jadwal jangan-ganggu (PUT /v1/notifications/preferences).
+   * Pola sama dengan handleChange: optimistis + rollback ke NILAI SEBELUMNYA
+   * bila gagal, supaya toggle/jam tidak desinkron dengan server.
+   */
+  const handleQuietHours = useCallback(
+    async (patch: QuietHoursPatch) => {
+      // Dibaca dari `query.data` (tipe API penuh), bukan `value` (matriks
+      // boolean-only) — field quiet hours tidak ada di tipe matriks.
+      const apiPrefs = query.data
+      const previous: QuietHoursPatch = {
+        quietHoursEnabled: apiPrefs?.quietHoursEnabled,
+        quietHoursStart: apiPrefs?.quietHoursStart,
+        quietHoursEnd: apiPrefs?.quietHoursEnd,
+      }
+      setData({ ...value, ...patch })
+      try {
+        await api.notifications.updateNotificationPreferences(patch)
+        toast.show({ title: "Preferensi tersimpan", tone: "success", duration: 2500 })
+      } catch (err) {
+        setData((prev) => ({ ...(prev ?? {}), ...previous }))
+        toast.show({
+          title: "Gagal menyimpan preferensi",
+          description: userMessage(err),
+          tone: "danger",
+        })
+      }
+    },
+    [query.data, value, setData, toast.show],
+  )
+
   return (
     <DataScreen
       title="Preferensi Notifikasi"
@@ -87,7 +156,203 @@ export default function NotificationPreferencesScreen() {
         // perubahan kata sandi, dan 2FA adalah §14 — selalu aktif.
         lockedKeys={["securityInApp", "securityPush"]}
       />
+      <DigestSection
+        frequency={query.data?.digestFrequency ?? "off"}
+        lastSentAt={query.data?.lastDigestSentAt ?? null}
+        onChange={(next) => void handleDigestChange(next)}
+      />
+      <QuietHoursSection
+        enabled={query.data?.quietHoursEnabled ?? false}
+        start={query.data?.quietHoursStart ?? "22:00"}
+        end={query.data?.quietHoursEnd ?? "06:00"}
+        timezone={query.data?.quietHoursTimezone}
+        onSave={(patch) => handleQuietHours(patch)}
+      />
     </DataScreen>
+  )
+}
+
+const DIGEST_OPTIONS: DigestFrequency[] = ["off", "daily", "weekly"]
+
+/**
+ * Label/descriptif opsi digest — literal ditulis LANGSUNG di dalam
+ * translate() (bukan via variabel) agar generator katalog i18n
+ * (scripts/gen-i18n-catalog.mjs) memungutnya.
+ */
+function digestLabel(value: DigestFrequency): string {
+  return translate(value === "daily" ? "Harian" : value === "weekly" ? "Mingguan" : "Mati")
+}
+
+function digestDescription(value: DigestFrequency): string {
+  return translate(
+    value === "daily"
+      ? "Terima satu ringkasan notifikasi setiap hari."
+      : value === "weekly"
+        ? "Terima satu ringkasan notifikasi setiap minggu."
+        : "Notifikasi dikirim seperti biasa, tanpa ringkasan.",
+  )
+}
+
+/**
+ * Item #25 — pilihan frekuensi ringkasan (digest) notifikasi.
+ * "off" (default) = perilaku lama. Menampilkan waktu kirim terakhir bila ada.
+ */
+function DigestSection({
+  frequency,
+  lastSentAt,
+  onChange,
+}: {
+  frequency: DigestFrequency
+  lastSentAt: string | null
+  onChange: (next: DigestFrequency) => void
+}) {
+  // Berlangganan bahasa agar label ikut ter-render ulang saat ganti bahasa.
+  useLanguage()
+  return (
+    <>
+      <SectionHeader
+        title={translate("Ringkasan notifikasi")}
+        subtitle={translate("Kumpulkan notifikasi menjadi satu ringkasan berkala.")}
+      />
+      <RadioGroup
+        accessibilityLabel={translate("Frekuensi ringkasan notifikasi")}
+        value={frequency}
+        onChange={(v) => onChange(v as DigestFrequency)}
+        variant="card"
+      >
+        {DIGEST_OPTIONS.map((opt) => (
+          <Radio key={opt} value={opt} label={digestLabel(opt)} description={digestDescription(opt)} />
+        ))}
+      </RadioGroup>
+      {frequency !== "off" && lastSentAt ? (
+        <Text variant="caption" tone="secondary">
+          {translate("Ringkasan terakhir dikirim {x}", { x: formatDateTime(lastSentAt) })}
+        </Text>
+      ) : null}
+    </>
+  )
+}
+
+/** Bentuk patch jadwal jangan-ganggu untuk PUT /v1/notifications/preferences. */
+type QuietHoursPatch = {
+  quietHoursEnabled?: boolean
+  quietHoursStart?: string
+  quietHoursEnd?: string
+}
+
+/** true bila "sekarang" (zona perangkat) masuk rentang [start, end). */
+export function isQuietHoursActive(start: string, end: string, now = new Date()): boolean {
+  return isTimeInRange(start, end, now)
+}
+
+function QuietHoursSection({
+  enabled,
+  start,
+  end,
+  timezone,
+  onSave,
+}: {
+  enabled: boolean
+  start: string
+  end: string
+  timezone?: string | null
+  onSave: (patch: QuietHoursPatch) => void
+}) {
+  const [picker, setPicker] = useState<"start" | "end" | null>(null)
+  const deviceTz = (() => {
+    try {
+      return Intl.DateTimeFormat().resolvedOptions().timeZone
+    } catch {
+      return null
+    }
+  })()
+  const tz = timezone || deviceTz
+  const activeNow = enabled && isQuietHoursActive(start, end)
+
+  return (
+    <View className="gap-3">
+      <SectionHeader
+        title={translate("Jangan ganggu")}
+        subtitle={translate("Jadwal harian tanpa bunyi notifikasi push.")}
+      />
+      <View className="gap-1 rounded-xl border border-border bg-surface p-4">
+        <View className="flex-row items-center justify-between gap-3">
+          <View className="flex-1">
+            <Text variant="body" weight={600} tone="primary">
+              {translate("Aktifkan jadwal")}
+            </Text>
+            <Text variant="caption" tone="secondary">
+              {translate("Push tidak dibunyikan pada jam berikut.")}
+            </Text>
+          </View>
+          <Switch
+            value={enabled}
+            onChange={(next) => onSave({ quietHoursEnabled: next })}
+            accessibilityLabel={translate("Aktifkan jadwal jangan-ganggu")}
+          />
+        </View>
+        {enabled ? (
+          <View className="mt-3 gap-2 border-t border-border pt-3">
+            <TimeRow
+              label={translate("Mulai")}
+              value={start}
+              onPress={() => setPicker("start")}
+            />
+            <TimeRow
+              label={translate("Selesai")}
+              value={end}
+              onPress={() => setPicker("end")}
+            />
+            <View className="flex-row items-center justify-between">
+              <Text variant="caption" tone="secondary">
+                {translate("Zona waktu: {x}", { x: tz ?? "—" })}
+              </Text>
+              <Badge tone={activeNow ? "success" : "neutral"} variant="soft">
+                {activeNow ? translate("Aktif sekarang") : translate("Tidak aktif")}
+              </Badge>
+            </View>
+          </View>
+        ) : null}
+      </View>
+      <TimePickerSheet
+        visible={picker !== null}
+        onRequestClose={() => setPicker(null)}
+        title={picker === "start" ? translate("Jam mulai") : translate("Jam selesai")}
+        value={picker === "start" ? start : end}
+        onSelect={(next) =>
+          onSave(picker === "start" ? { quietHoursStart: next } : { quietHoursEnd: next })
+        }
+      />
+    </View>
+  )
+}
+
+function TimeRow({
+  label,
+  value,
+  onPress,
+}: {
+  label: string
+  value: string
+  onPress: () => void
+}) {
+  return (
+    <PressableScale
+      accessibilityRole="button"
+      accessibilityLabel={`${label}: ${value}`}
+      onPress={onPress}
+      className="flex-row items-center justify-between rounded-lg bg-background px-3 py-2.5"
+    >
+      <Text variant="body" tone="secondary">
+        {label}
+      </Text>
+      <View className="flex-row items-center gap-1">
+        <Text variant="body" weight={600} tone="primary" className="tabular-nums">
+          {value}
+        </Text>
+        <Icon icon={CaretRight} size="sm" tone="default" />
+      </View>
+    </PressableScale>
   )
 }
 

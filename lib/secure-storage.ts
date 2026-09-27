@@ -151,6 +151,18 @@ export const SecureKeys = {
    * bukan sesi).
    */
   notificationLocalPrefs: "kahade.notifications.localPrefs",
+  /**
+   * Antrean aksi sosial offline (JSON — lib/offline-queue.ts): like/unlike
+   * karya dan follow/unfollow. BUKAN rahasia (hanya path + label tampilan);
+   * boleh persist di web seperti `uiPrefs`. Dibatasi revisi sesi saat
+   * eksekusi — entri sesi lama dibuang, bukan dikirim sebagai sesi baru.
+   */
+  offlineSocialQueue: "kahade.offline.socialQueue",
+  /**
+   * Item #28 — skala ukuran font A-/A+ (0.85–1.3). String desimal, mis. "1.1".
+   * Preferensi perangkat non-sensitif: persist di web, TIDAK ikut clearSession.
+   */
+  fontScale: "kahade.ui.fontScale",
 } as const
 
 export type SecureKey = (typeof SecureKeys)[keyof typeof SecureKeys]
@@ -175,6 +187,14 @@ const WEB_PERSISTENT_KEYS = new Set<SecureKey>([
   SecureKeys.coachMarkQrSeen,
   SecureKeys.notificationLocalPrefs,
   SecureKeys.onboardingChecklistDone,
+  SecureKeys.offlineSocialQueue,
+  /**
+   * Item #28 — skala font A-/A+ (lib/font-scale.ts). Preferensi aksesibilitas
+   * non-sensitif level perangkat: boleh persist di web seperti themePreference,
+   * dan TIDAK dihapus `clearSession()` (logout bukan alasan mengembalikan
+   * ukuran teks pengguna).
+   */
+  SecureKeys.fontScale,
 ])
 /**
  * D-07 (audit): apakah kunci ini BERTAHAN di web? Dipakai modul yang harus
@@ -259,6 +279,9 @@ export async function clearSession(): Promise<void> {
     deleteSecureItem(SecureKeys.pendingActions),
     deleteSecureItem(SecureKeys.recentRecipients),
     deleteSecureItem(SecureKeys.showcaseBookmarks),
+    // Antrean aksi sosial milik akun yang logout — akun berikutnya tidak
+    // boleh mewarisi/mengirimnya (drain juga membuang revisi sesi asing).
+    deleteSecureItem(SecureKeys.offlineSocialQueue),
   ])
 }
 

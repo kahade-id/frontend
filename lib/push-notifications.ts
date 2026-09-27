@@ -45,6 +45,10 @@ import {
 } from "@/lib/notification-local-prefs"
 import { SecureKeys, deleteSecureItem, getOrCreateDeviceId, getSecureItem, setSecureItem } from "@/lib/secure-storage"
 import { logWarn } from "@/lib/telemetry"
+import {
+  CONFIRM_RECEIPT_ACTION,
+  ORDER_ACTION_CATEGORY,
+} from "@/lib/order-confirm"
 
 export type PushPlatform = "android" | "ios" | "web"
 
@@ -124,11 +128,25 @@ let coldStartHandled = false
  * diingat juga di memori proses.
  */
 let lastColdStartId: string | null = null
+/**
+ * Item #24: `actionIdentifier` diteruskan ke `onOpen` (default tap =
+ * `Notifications.DEFAULT_ACTION_IDENTIFIER`). Aksi kategori — mis.
+ * "Konfirmasi terima" — ditangani pemanggil (root layout), BUKAN sebagai
+ * navigasi biasa.
+ */
 export function subscribeNotificationOpened(
-  onOpen: (data: unknown, source: NotificationOpenSource) => void,
+  onOpen: (
+    data: unknown,
+    source: NotificationOpenSource,
+    actionIdentifier: string,
+  ) => void,
 ): () => void {
   const sub = Notifications.addNotificationResponseReceivedListener((response) => {
-    onOpen(response.notification.request.content.data, "tap")
+    onOpen(
+      response.notification.request.content.data,
+      "tap",
+      response.actionIdentifier ?? Notifications.DEFAULT_ACTION_IDENTIFIER,
+    )
   })
   if (!coldStartHandled) {
     coldStartHandled = true
@@ -153,7 +171,11 @@ export function subscribeNotificationOpened(
           logWarn("push:cold-start-dedupe", error)
         }
         lastColdStartId = id
-        onOpen(response.notification.request.content.data, "cold-start")
+        onOpen(
+          response.notification.request.content.data,
+          "cold-start",
+          response.actionIdentifier ?? Notifications.DEFAULT_ACTION_IDENTIFIER,
+        )
       })
       .catch((err) => logWarn("push:cold-start", err))
   }
@@ -267,6 +289,32 @@ export async function setupNotifications(): Promise<void> {
       sound: "default",
       enableVibrate: true,
     })
+  }
+
+  // Item #24 — kategori aksi push "Konfirmasi terima" (order). Dipasang di
+  // SEMUA platform native (iOS butuh kategori terdaftar sebelum notifikasi
+  // tiba; Android butuh untuk action button). Web tidak mendukung category
+  // actions expo-notifications — lewati agar tidak melempar.
+  //
+  // Agar tombol muncul, backend HARUS menyertakan
+  // `categoryId: "kahade-order-actions"` pada payload push tipe
+  // ORDER_SHIPPED & sejenisnya (lihat lib/order-confirm.ts).
+  if (Platform.OS !== "web") {
+    try {
+      await Notifications.setNotificationCategoryAsync(ORDER_ACTION_CATEGORY, [
+        {
+          identifier: CONFIRM_RECEIPT_ACTION,
+          buttonTitle: "Konfirmasi terima",
+          options: {
+            // Aksi melepas dana escrow: WAJIB buka app (foreground) supaya
+            // berjalan dalam sesi terverifikasi + verifikasi ulang via API.
+            opensAppToForeground: true,
+          },
+        },
+      ])
+    } catch (error) {
+      logWarn("push:notification-category", error)
+    }
   }
 }
 

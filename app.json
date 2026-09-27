@@ -86,6 +86,7 @@
     "plugins": [
       "expo-router",
       "expo-font",
+      "./plugins/withAppShortcuts",
       [
         "expo-splash-screen",
         {

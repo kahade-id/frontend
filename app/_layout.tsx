@@ -45,6 +45,7 @@ import { ErrorState } from "@/components/ui/error-state"
 import { useAuthSession } from "@/lib/use-auth-session"
 import { RealtimeProvider } from "@/lib/realtime/socket-provider"
 import { PendingActionsBanner } from "@/components/pending-actions-banner"
+import { MaintenanceGate } from "@/components/maintenance-screen"
 import { AUTHENTICATED_SCREENS, isProtectedPath } from "@/lib/protected-routes"
 import { GuestLoginPrompt } from "@/components/web-guest-gate"
 import { compareVersions, safeHttpsUrl } from "@/lib/version"
@@ -58,6 +59,19 @@ import { routeForPushData } from "@/lib/notification-routing"
 import { animationDurationForScreen, animationForScreen } from "@/lib/screen-transitions"
 import { setupNotifications, subscribeNotificationOpened } from "@/lib/push-notifications"
 import { subscribeWebPushMessages } from "@/lib/web-push"
+import {
+  CONFIRM_RECEIPT_ACTION,
+  confirmReceipt,
+  orderIdFromPushData,
+} from "@/lib/order-confirm"
+import { userMessage } from "@/lib/api/errors"
+import { initConnectivity } from "@/lib/connectivity"
+import {
+  initOfflineQueue,
+  onSocialActionQueued,
+  onSocialQueueDrained,
+} from "@/lib/offline-queue"
+import { OfflineBanner } from "@/components/offline-banner"
 import { ROUTES } from "@/lib/routes"
 import { refreshUnreadCount } from "@/lib/unread-count"
 import { tokens } from "@/lib/tokens"
@@ -213,6 +227,8 @@ function AppShell() {
   const session = useAuthSession()
   const reducedMotion = useReducedMotion()
   const [skipRestoreError, setSkipRestoreError] = useState(false)
+  // Dipakai oleh efek item #24/#27 di bawah (push action + antrean offline).
+  const toast = useToast()
 
   // Efek dorong konten ala X saat drawer dibuka (2026-09-27): konten sedikit
   // bergeser kanan + mengecil dengan sudut membulat, mengikuti progress
@@ -263,6 +279,41 @@ function AppShell() {
     })
   }, [])
 
+  // Item #27 — konektivitas & antrean offline, sekali per proses:
+  //   - `initConnectivity()`: satu langganan NetInfo; gerbang fail-closed di
+  //     transport menolak mutasi non-sosial saat jelas offline.
+  //   - `initOfflineQueue()`: pulihkan sisa antrean + eksekusi saat reconnect.
+  //   - Feedback toast untuk kedua arah antrean (masuk & terkirim).
+  useEffect(() => {
+    initConnectivity()
+    initOfflineQueue()
+    const show = toast.show
+    const offQueued = onSocialActionQueued((label) => {
+      show({
+        title: `Offline — ${label} diantrekan`,
+        description: "Akan dikirim otomatis saat tersambung kembali.",
+        tone: "warning",
+        duration: 3500,
+      })
+    })
+    const offDrained = onSocialQueueDrained(({ executed, failed }) => {
+      if (executed === 0 && failed === 0) return
+      show({
+        title: "Tersambung kembali",
+        description:
+          failed > 0
+            ? `${executed} aksi terkirim, ${failed} gagal — coba lagi manual.`
+            : `${executed} aksi yang tertunda terkirim.`,
+        tone: failed > 0 ? "warning" : "success",
+        duration: 4000,
+      })
+    })
+    return () => {
+      offQueued()
+      offDrained()
+    }
+  }, [toast.show])
+
   // Pesan FCM Web saat tab terbuka (foreground) + klik notifikasi web.
   // Cermin handler tap native di bawah: pemetaan tunggal
   // lib/notification-routing. "foreground" hanya menyegarkan badge (tanpa
@@ -289,7 +340,45 @@ function AppShell() {
   // app/index.tsx & onSessionExpired tetap mengarahkan ke login.
   useEffect(() => {
     if (session.restoring || session.error) return
-    return subscribeNotificationOpened((data, source) => {
+    return subscribeNotificationOpened((data, source, actionIdentifier) => {
+      // Item #24 — action button "Konfirmasi terima" dari push: verifikasi
+      // ulang kelayakan via API (fail-closed) lalu eksekusi; setelah aksi,
+      // buka detail order agar pengguna melihat status terbaru.
+      if (actionIdentifier === CONFIRM_RECEIPT_ACTION) {
+        void (async () => {
+          if (!session.token) {
+            router.push(ROUTES.login)
+            return
+          }
+          const orderId = orderIdFromPushData(data)
+          if (!orderId) {
+            toast.show({
+              title: "Konfirmasi gagal",
+              description: "Notifikasi ini tidak menaut ke order yang valid.",
+              tone: "danger",
+            })
+            return
+          }
+          try {
+            await confirmReceipt(orderId)
+            toast.show({
+              title: "Pesanan dikonfirmasi diterima",
+              description: "Dana escrow diteruskan ke penjual.",
+              tone: "success",
+              duration: 4000,
+            })
+          } catch (err: unknown) {
+            toast.show({
+              title: "Konfirmasi gagal",
+              description: userMessage(err),
+              tone: "danger",
+            })
+          }
+          router.push(ROUTES.orderDetail(orderId))
+          void refreshUnreadCount()
+        })()
+        return
+      }
       const resolved = routeForPushData(data)
       // Cold start: hanya navigasi bila payload menunjuk entitas SPESIFIK.
       // Payload kosong/tak dikenal = tetap di Beranda (initial route) —
@@ -451,6 +540,9 @@ function AppShell() {
             ditawarkan lagi di boot, di tab mana pun — catatan di
             lib/pending-actions, resolve di layar uangnya. */}
         <PendingActionsBanner />
+        {/* Item #27: banner ramping "Anda sedang offline" — non-blocking,
+            hanya tampil saat NetInfo pasti melaporkan offline. */}
+        <OfflineBanner />
         {/*
           GAP-B2 (G102): satu koneksi realtime per akun untuk seluruh app.
           Token dari sesi — provider menutup socket saat logout (token null)
@@ -458,6 +550,10 @@ function AppShell() {
           `useChatRoomRealtime`; polling REST tetap sebagai fallback
           (G119/G120).
         */}
+        {/* Item #29: gerbang mode pemeliharaan — cek GET /v1/public/maintenance
+            saat start; saat aktif, seluruh konten diganti layar informatif
+            (pesan server + tombol coba lagi), bukan crash. */}
+        <MaintenanceGate>
         <RealtimeProvider token={session.token}>
         <View className="flex-1 items-center">
           {/*
@@ -545,6 +641,7 @@ function AppShell() {
           {Platform.OS !== "web" ? <AppLockGate sessionActive={Boolean(session.token)} /> : null}
         </View>
         </RealtimeProvider>
+        </MaintenanceGate>
       </ToastProvider>
 
       {/*

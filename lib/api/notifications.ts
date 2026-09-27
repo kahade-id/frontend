@@ -208,9 +208,25 @@ export type NotificationPreferences = {
   marketingEmail?: boolean
   /** IANA timezone untuk quiet hours (batch 4: CN-008) */
   quietHoursTimezone?: string
+  /** Quiet hours enabled — item #26. */
+  quietHoursEnabled?: boolean
+  /** Quiet hours start (HH:mm) — item #26. */
+  quietHoursStart?: string
+  /** Quiet hours end (HH:mm) — item #26. */
+  quietHoursEnd?: string
+  /**
+   * Item #25 — frekuensi ringkasan (digest) notifikasi (kontrak Tim B).
+   * "off" (default) = perilaku lama: notifikasi dikirim seperti biasa.
+   */
+  digestFrequency?: "off" | "daily" | "weekly"
+  /** Waktu kirim ringkasan terakhir (ISO 8601) — null bila belum pernah. */
+  lastDigestSentAt?: string | null
 }
 
 export type NotificationPreferenceKey = keyof NotificationPreferences
+
+/** Item #25 — frekuensi ringkasan (digest) notifikasi (kontrak Tim B). */
+export type DigestFrequency = "off" | "daily" | "weekly"
 
 export function getNotificationPreferences(signal?: AbortSignal) {
   return http.get<NotificationPreferences>("/v1/notifications/preferences", {

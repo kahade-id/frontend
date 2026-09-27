@@ -34,8 +34,9 @@ import { forwardRef } from "react"
 import { Text as RNText, type TextProps as RNTextProps } from "react-native"
 
 import { cn } from "@/lib/cn"
+import { useFontScale } from "@/lib/font-scale"
 import { localizeChildren, translateProp, useLanguage } from "@/lib/i18n"
-import type { TypographyKey } from "@/lib/tokens"
+import { typography, type TypographyKey } from "@/lib/tokens"
 
 export type TextVariant = TypographyKey
 /**
@@ -141,7 +142,16 @@ function roleOf(variant: TextVariantProp): keyof typeof weightClass {
 }
 
 export const Text = forwardRef<RNText, TextProps>(function Text(
-  { variant = "body", tone = "primary", weight, className, children, accessibilityLabel, ...rest },
+  {
+    variant = "body",
+    tone = "primary",
+    weight,
+    className,
+    children,
+    accessibilityLabel,
+    style,
+    ...rest
+  },
   ref,
 ) {
   // Titik terjemahan SELURUH teks di app (lihat §"Kenapa di sini" di
@@ -164,6 +174,21 @@ export const Text = forwardRef<RNText, TextProps>(function Text(
   // "inherit": jangan pasang size/face — hanya weight (jika ada) + tone.
   const inherit = variant === "inherit"
 
+  // Item #28 — skala font A-/A+ pengguna (0.85–1.3, default 1.0). Diterapkan
+  // sebagai style inline fontSize+lineHeight dari token tipografi §3.2, di
+  // ATAS className (style prop menang atas NativeWind). `inherit` sengaja
+  // dilewati: teks nested mewarisi ukuran parent yang SUDAH di-scale — ikut
+  // men-scale = ukuran ganda. scale === 1 → tidak ada style tambahan (nol
+  // biaya render untuk mayoritas pengguna).
+  const fontScale = useFontScale()
+  const scaledStyle =
+    !inherit && fontScale !== 1
+      ? {
+          fontSize: typography[variant].fontSize * fontScale,
+          lineHeight: typography[variant].lineHeight * fontScale,
+        }
+      : undefined
+
   return (
     <RNText
       ref={ref}
@@ -171,6 +196,7 @@ export const Text = forwardRef<RNText, TextProps>(function Text(
       maxFontSizeMultiplier={2}
       accessibilityLabel={translateProp(accessibilityLabel)}
       {...rest}
+      style={scaledStyle ? [style, scaledStyle] : style}
       className={cn(
         !inherit && sizeClass[variant],
         forced ? cn(forced, role === "sans" && "tabular-nums") : !inherit && faceClass[variant],

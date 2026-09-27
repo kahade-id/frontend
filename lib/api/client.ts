@@ -18,8 +18,16 @@ import {
 import { asRecord, invalidResponse, unwrapResponse } from "@/lib/api/response"
 import { recordServerDate } from "@/lib/server-time"
 import { recordBackpressure, clearBackpressure } from "@/lib/api/backpressure"
+import { verifyMaintenanceFrom503 } from "@/lib/api/maintenance"
 import { invalidateQueryCache } from "@/lib/query-cache"
 import { logWarn } from "@/lib/telemetry"
+import { isOfflineKnown } from "@/lib/connectivity"
+import { OfflineError } from "@/lib/api/errors"
+import {
+  enqueueSocialAction,
+  isQueueableSocialAction,
+  setSocialQueueExecutor,
+} from "@/lib/offline-queue"
 import {
   clearSession,
   emitSessionExpired,
@@ -61,6 +69,17 @@ export type RequestOptions<TBody = undefined> = {
   responseType?: ResponseType
   /** GET only. Mutations are NEVER automatically retried on network/server errors. */
   retry?: number
+  /**
+   * Item #27 — perilaku saat perangkat JELAS offline (fail-closed):
+   *   - tidak di-set: mutasi DITOLAK dengan `OfflineError` (pesan jelas).
+   *     WAJIB untuk aksi finansial/transaksi/wallet/escrow/sengketa.
+   *   - `"enqueue-social"`: HANYA untuk aksi sosial allowlist
+   *     (like/unlike, follow/unfollow — lihat `isQueueableSocialAction`);
+   *     request diantrekan dan dieksekusi saat koneksi kembali.
+   *     `offlineLabel` = copy manusiawi untuk feedback antrean.
+   */
+  offlineBehavior?: "enqueue-social"
+  offlineLabel?: string
 }
 
 /** Backend requires a UUID v4 on idempotent mutations (chat, uploads, ratings, etc.). */
@@ -392,7 +411,30 @@ export function request<TResponse = unknown, TBody = undefined>(
   path: string,
   options: RequestOptions<TBody>,
 ): Promise<TResponse> {
-  if ((options.method ?? "GET") !== "GET")
+  const method = options.method ?? "GET"
+  // Item #27 — gerbang offline fail-closed. Hanya aktif bila NetInfo PASTI
+  // melaporkan offline (`null` = belum tahu → fail-open, lihat
+  // lib/connectivity.ts). GET tidak digerbang: pembaca memakai cache/error
+  // biasa, dan polling latar tidak boleh melempar OfflineError berulang.
+  if (method !== "GET" && isOfflineKnown()) {
+    if (
+      options.offlineBehavior === "enqueue-social" &&
+      isQueueableSocialAction(method, path)
+    ) {
+      return enqueueSocialAction({
+        method: method as "POST" | "DELETE",
+        path,
+        body: options.body,
+        headers: options.headers,
+        label: options.offlineLabel ?? "Aksi sosial",
+      }) as Promise<TResponse>
+    }
+    // Aksi finansial/transaksi/wallet/escrow/sengketa/chat: JANGAN antrekan —
+    // tolak dengan pesan jelas. OfflineError = request tidak pernah dikirim,
+    // jadi aman dicoba ulang manual tanpa risiko eksekusi ganda.
+    return Promise.reject(new OfflineError())
+  }
+  if (method !== "GET")
     return performRequest<TResponse, TBody>(path, options)
   // R2 (audit ronde-2, butir #99): signal TIDAK lagi melewati dedupe. Hampir
   // semua pemanggil (useApiQuery/usePaginatedQuery) memasok AbortSignal, jadi
@@ -595,6 +637,20 @@ async function performRequest<TResponse, TBody>(
     } else if (reply.status >= 200 && reply.status < 300) {
       clearBackpressure()
     }
+    /**
+     * Item #29 — 503 = kemungkinan maintenance. Verifikasi best-effort ke
+     * GET /v1/public/maintenance; aplikasi HANYA dialihkan ke layar
+     * maintenance bila endpoint mengonfirmasi enabled=true. 503 transien
+     * tidak mengusir pengguna — error asli tetap diteruskan ke pemanggil.
+     *
+     * Gerbang `Retry-After`: kontrak maintenance mengirim 503 + header
+     * `Retry-After: 300` + body {message}. 503 TANPA header itu (CDN
+     * transien, dsb.) tidak memicu request verifikasi tambahan — hemat
+     * satu round-trip dan tidak mengganggu retry pemanggil.
+     */
+    if (reply.status === 503 && reply.error?.retryAfterMs != null) {
+      verifyMaintenanceFrom503()
+    }
     assertSession()
     if (reply.status === 401 && (auth === "required" || (auth === "optional" && token))) {
       // A concurrent request may already have rotated this exact access token.
@@ -660,3 +716,16 @@ export const http = {
   patch: <T, B = undefined>(path: string, body: B | undefined, options: RequiredAuth<WithBody<B>>) =>
     request<T, B>(path, { ...options, method: "PATCH", body }),
 }
+
+// Item #27: eksekutor antrean sosial — request yang dieksekusi saat koneksi
+// kembali berjalan lewat `request()` penuh (auth, idempotency-key, error
+// normalisasi). Dipanggil saat drain; gerbang offline di `request()` lolos
+// karena drain hanya berjalan saat online.
+setSocialQueueExecutor((item) =>
+  request(item.path, {
+    method: item.method,
+    body: item.body,
+    headers: item.headers,
+    auth: "required",
+  }),
+)
