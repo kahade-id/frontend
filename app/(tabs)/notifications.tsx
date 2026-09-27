@@ -36,6 +36,7 @@
  */
 
 import { byTimestampDesc, usePaginatedQuery } from "@/lib/use-paginated-query"
+import { useScrollElevation } from "@/lib/use-scroll-elevation"
 import { PaginatedList } from "@/components/ui/paginated-list"
 import { useToast } from "@/components/ui/toast"
 import { useCallback, useEffect, useMemo, useState } from "react"
@@ -213,6 +214,8 @@ function NotificationsScreen() {
   // langsung ikut berganti saat pengguna mengubah bahasa (UI-M019).
   useLanguage()
   const toast = useToast()
+  // Efek scroll: header terangkat (bayangan) saat daftar digulir.
+  const { elevated, onScrollWorklet } = useScrollElevation()
   const insets = useSafeAreaInsets()
 
   const [category, setCategory] = useState<NotificationCategory>("TRANSAKSI")
@@ -411,6 +414,7 @@ function NotificationsScreen() {
           title={selectedCount > 0 ? translate(`${selectedCount} dipilih`) : "Pilih notifikasi"}
           showBack={false}
           separator={false}
+          elevated={elevated}
           left={
             <IconButton
               icon={X}
@@ -445,6 +449,7 @@ function NotificationsScreen() {
           // untuk kembali (seperti <Header title="Transaksi" showBack={false}/>).
           showBack={false}
           separator={false}
+          elevated={elevated}
           right={
             <>
               {hasUnread ? (
@@ -489,6 +494,7 @@ function NotificationsScreen() {
 
       <PaginatedList
         {...query}
+        onScrollWorklet={onScrollWorklet}
         padded={false}
         // Audit: default <ListLoading/> merender 4 kartu h-24; baris
         // notifikasi jauh lebih rapat, sehingga daftar "melompat" saat data

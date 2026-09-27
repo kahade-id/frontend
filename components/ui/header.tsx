@@ -34,6 +34,8 @@ import { IconButton } from "@/components/ui/icon-button"
 import { StepProgress } from "@/components/ui/stepper"
 import { Text } from "@/components/ui/text"
 import { ScreenInsetsContext } from "@/components/ui/screen"
+import { useTheme } from "@/components/theme-provider"
+import { elevationStyle } from "@/lib/elevation"
 import { tokens } from "@/lib/tokens"
 import { ROUTES } from "@/lib/routes"
 import { cn } from "@/lib/cn"
@@ -105,6 +107,9 @@ export type HeaderProps = Omit<ViewProps, "children"> & {
   /** Tampilkan garis pemisah di bawah header (default true). Tab Transaksi,
       Pesan, dan Notifikasi mematikannya atas permintaan produk (2026-09-27). */
   separator?: boolean
+  /** Bayangan lembut di bawah header saat konten di-scroll — efek elevasi
+      dinamis (permintaan produk 2026-09-27). Pasangan `useScrollElevation`. */
+  elevated?: boolean
   /** Safe area top ikut dipadding (default true; false bila SafeAreaView di luar) */
   safeArea?: boolean
   className?: string
@@ -122,10 +127,12 @@ export function Header({
   progress,
   transparent = false,
   separator = true,
+  elevated = false,
   safeArea,
   className,
   ...rest
 }: HeaderProps) {
+  const { mode: themeMode } = useTheme()
   const insets = useSafeAreaInsets()
   const router = useRouter()
   const providedInsets = useContext(ScreenInsetsContext)
@@ -163,7 +170,12 @@ export function Header({
         !transparent && separator && "border-b border-border",
         className,
       )}
-      style={(safeArea ?? !providedInsets.top) ? { paddingTop: insets.top } : undefined}
+      style={[
+        (safeArea ?? !providedInsets.top) ? { paddingTop: insets.top } : undefined,
+        // Efek scroll: bayangan lembut saat konten lewat di bawah header.
+        // Bukan border — separator statis sudah dihapus atas permintaan produk.
+        elevated && !transparent ? elevationStyle("low", themeMode) : undefined,
+      ]}
       {...rest}
     >
       <View className="w-full md:max-w-content">

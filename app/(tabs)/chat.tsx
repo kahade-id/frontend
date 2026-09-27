@@ -64,6 +64,7 @@ import { PaginatedList } from "@/components/ui/paginated-list"
 import { Screen } from "@/components/ui/screen"
 import { Skeleton, SkeletonGroup } from "@/components/ui/skeleton"
 import { useToast } from "@/components/ui/toast"
+import { useScrollElevation } from "@/lib/use-scroll-elevation"
 
 /**
  * Batas jumlah ruang yang bisa dipilih sekaligus. Backend tidak punya
@@ -121,6 +122,8 @@ export default function ChatScreen() {
   const [selecting, setSelecting] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(() => new Set())
   const [batchBusy, setBatchBusy] = useState(false)
+  // Efek scroll: header terangkat (bayangan) saat daftar digulir.
+  const { elevated, onScrollWorklet } = useScrollElevation()
 
   // Query aktif mengikuti tab — tiap tab datanya sudah difilter server
   // (utama = non-arsip, arsip = ?archived=true). Tidak ada lagi filter
@@ -270,6 +273,7 @@ export default function ChatScreen() {
           title={selectedCount > 0 ? translate(`${selectedCount} dipilih`) : "Pilih percakapan"}
           showBack={false}
           separator={false}
+          elevated={elevated}
           left={
             <IconButton
               icon={X}
@@ -316,6 +320,7 @@ export default function ChatScreen() {
           // dengan tab Transaksi/Dompet.
           showBack={false}
           separator={false}
+          elevated={elevated}
           title={archiveOpen ? "Diarsipkan" : "Chat"}
           right={
             <IconButton
@@ -333,6 +338,7 @@ export default function ChatScreen() {
       <ModeShiftFade>
       <PaginatedList
         {...activeQuery}
+        onScrollWorklet={onScrollWorklet}
         // ChatRoomListItem memasang px-4 sendiri. `padded` default menambah
         // paddingHorizontal 20px lagi di contentContainer -> baris menjorok
         // dan tidak sejajar Header di atasnya. Sama seperti app/notifications.tsx.
