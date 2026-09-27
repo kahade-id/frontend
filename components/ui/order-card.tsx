@@ -60,6 +60,7 @@ import { ArrowDownLeft, ArrowUpRight, Clock } from "phosphor-react-native"
 import { translate } from "@/lib/i18n/translate"
 import { translateProp } from "@/lib/i18n"
 import { formatCountdown } from "@/lib/format"
+import { countdownDeadlineLabel, isCountdownUrgent } from "@/lib/order-countdown"
 import { shortId } from "@/lib/short-id"
 import { useClockTick } from "@/lib/use-clock-tick"
 
@@ -331,17 +332,19 @@ export function OrderCard({
         ) : null}
       </View>
 
-      {/* Tenggat — hanya status aktif; garis atas memisahkan dari isi */}
+      {/* Tenggat — hanya status aktif; garis atas memisahkan dari isi.
+          Item 35 (mega-batch FE-IMP-5): label KONTEKSTUAL per status
+          ("Batas bayar"/"Batas kirim"/"Batas konfirmasi") menggantikan
+          "Batas waktu" generik. Override `labels.deadline` tetap dihormati
+          bila pemanggil memberi label eksplisit. */}
       {showDeadline ? (
         <View className="flex-row items-center justify-between border-t border-border pt-3">
           <View className="flex-row items-center gap-1.5">
             <Icon icon={Clock} size="xs" tone="default" />
             <Text variant="caption" tone="secondary">
-              {t.deadline}
+              {labels?.deadline ?? countdownDeadlineLabel(status)}
             </Text>
           </View>
-          {/* tone primary: tenggat adalah informasi, bukan bahaya — warna
-              semantik disimpan untuk Badge status (§2.3) */}
           <OrderCardDeadline until={deadlineAt} onComplete={onDeadline} />
         </View>
       ) : null}
@@ -382,14 +385,21 @@ function OrderCardDeadline({
       onComplete?.()
     }
   }, [remainingSec, onComplete])
+  // Item 36 (mega-batch FE-IMP-5): sisa < 24 jam → tone danger (mendesak).
+  // §2.3 menyimpan warna semantik untuk Badge status; countdown tenggat yang
+  // nyaris habis adalah informasi mendesak yang sah memakai danger.
+  const urgent = remainingSec != null && isCountdownUrgent(remainingSec)
   return (
     <Text
       variant="monoBody"
-      tone="primary"
+      tone={urgent ? "danger" : "primary"}
+      weight={urgent ? 700 : undefined}
       accessibilityLabel={
         translateProp(
           valid
-            ? translate("Tenggat dalam {x}", { x: formatCountdown(remainingSec ?? 0) })
+            ? translate(urgent ? "Tenggat mendesak dalam {x}" : "Tenggat dalam {x}", {
+                x: formatCountdown(remainingSec ?? 0),
+              })
             : "Tenggat tidak diketahui",
         )
       }

@@ -40,6 +40,7 @@ import { WhatsappLogo } from "phosphor-react-native"
 
 import { Alert } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
+import { Countdown } from "@/components/ui/countdown"
 import { FooterBar } from "@/components/ui/footer-bar"
 import { Header } from "@/components/ui/header"
 import { Heading } from "@/components/ui/heading"
@@ -47,7 +48,9 @@ import { KeyboardAvoiding } from "@/components/ui/keyboard-avoiding"
 import { Screen } from "@/components/ui/screen"
 import { Text } from "@/components/ui/text"
 import { TextLink } from "@/components/ui/text-link"
+import { useToast } from "@/components/ui/toast"
 import { api, isApiError, userMessage } from "@/lib/api"
+import { copyToClipboard } from "@/lib/clipboard"
 import { safeWhatsAppLink } from "@/lib/external-url"
 import { formatPhoneId } from "@/lib/format"
 import { getAuthLocation } from "@/lib/location"
@@ -78,6 +81,7 @@ function nextPollDelayMs(attempt: number): number {
 
 export default function WhatsappTriggerScreen() {
   const router = useRouter()
+  const toast = useToast()
   /** State alur dari layar asal (memori modul — lihat lib/otp-flow). */
   const flowRef = useRef(getOtpFlow())
   const flow = flowRef.current
@@ -133,6 +137,26 @@ export default function WhatsappTriggerScreen() {
     router.replace(ROUTES.verifyOtp)
   }, [router, stopPolling])
 
+  /**
+   * Penanganan status terminal (dipakai polling otomatis DAN poll manual
+   * "Saya sudah kirim pesan" — FE-IMP-3 #107). Generic untuk semua penyebab,
+   * bukan sinyal enumerasi (lihat state altAuth).
+   */
+  const handleTerminalStatus = useCallback(
+    (status: "FAILED" | "EXPIRED") => {
+      stopPolling()
+      setAltAuth(
+        purpose === "register" ? "login" : purpose === "login" ? "register" : null,
+      )
+      setFormError(
+        status === "FAILED"
+          ? "Pengiriman kode gagal. Minta kode baru di bawah, lalu kirim pesan lagi ke WhatsApp resmi Kahade."
+          : "Waktu permintaan habis. Minta kode baru di bawah, lalu kirim pesan lagi ke WhatsApp resmi Kahade.",
+      )
+    },
+    [purpose, stopPolling],
+  )
+
   useEffect(() => {
     if (!refCode || done) return
     startedAt.current = Date.now()
@@ -150,17 +174,7 @@ export default function WhatsappTriggerScreen() {
         if (status === "COMPLETED") {
           goVerifyOtp()
         } else if (status === "FAILED" || status === "EXPIRED") {
-          stopPolling()
-          // Escape hatch lintas-alur (lihat state altAuth): generic untuk
-          // semua penyebab — bukan sinyal enumerasi.
-          setAltAuth(
-            purpose === "register" ? "login" : purpose === "login" ? "register" : null,
-          )
-          setFormError(
-            status === "FAILED"
-              ? "Pengiriman kode gagal. Minta kode baru di bawah, lalu kirim pesan lagi ke WhatsApp resmi Kahade."
-              : "Waktu permintaan habis. Minta kode baru di bawah, lalu kirim pesan lagi ke WhatsApp resmi Kahade.",
-          )
+          handleTerminalStatus(status)
         } else {
           // WAITING → tick berikutnya dengan jeda backoff yang lebih panjang.
           attempt += 1
@@ -181,7 +195,48 @@ export default function WhatsappTriggerScreen() {
       cancelled = true
       stopPolling()
     }
-  }, [refCode, done, goVerifyOtp, stopPolling, purpose])
+  }, [refCode, done, goVerifyOtp, stopPolling, handleTerminalStatus])
+
+  // FE-IMP-3 #107 — "Saya sudah kirim pesan": SATU poll segera (tanpa
+  // menunggu giliran backoff) + petunjuk salin kode bila balasan belum ada.
+  // Polling otomatis tetap berjalan; ini hanya pengecekan ekstra.
+  const [checkingNow, setCheckingNow] = useState(false)
+  const handleSentMessage = useCallback(async () => {
+    if (checkingNow || !refCode || done) return
+    setCheckingNow(true)
+    try {
+      const { status } = await api.auth.getOtpTriggerStatus(refCode)
+      if (status === "COMPLETED") {
+        goVerifyOtp()
+      } else if (status === "FAILED" || status === "EXPIRED") {
+        handleTerminalStatus(status)
+      } else {
+        // WAITING → balasan belum terdeteksi: beri petunjuk, jangan error.
+        toast.show({
+          title: "Belum ada balasan terdeteksi",
+          description:
+            "Pastikan pesan berisi kode referensi sudah terkirim dari nomor Anda. Bila mengirim manual, salin kode di atas.",
+          tone: "info",
+          duration: 5000,
+        })
+      }
+    } catch {
+      // Jaringan bergetar: diam — polling otomatis tetap berjalan.
+    } finally {
+      setCheckingNow(false)
+    }
+  }, [checkingNow, refCode, done, goVerifyOtp, handleTerminalStatus, toast.show])
+
+  // FE-IMP-3 #107 — salin kode referensi untuk pengiriman manual.
+  const handleCopyCode = useCallback(async () => {
+    if (!refCode) return
+    const ok = await copyToClipboard(refCode)
+    toast.show(
+      ok
+        ? { title: "Kode referensi disalin", tone: "success", duration: 2500 }
+        : { title: "Gagal menyalin kode", description: "Salin manual dari layar ini.", tone: "danger" },
+    )
+  }, [refCode, toast.show])
 
   const openWhatsapp = useCallback(() => {
     // B-08: URL yang tidak lolos whitelist TIDAK dibuka apa pun adanya —
@@ -282,12 +337,30 @@ export default function WhatsappTriggerScreen() {
 
           {/* Kode referensi — selalu terlihat untuk pengiriman manual */}
           <View className="gap-2 rounded-md border border-border bg-surface-elevated px-4 py-3">
-            <Text variant="caption" tone="secondary">
-              Kode referensi Anda
-            </Text>
+            <View className="flex-row items-center justify-between">
+              <Text variant="caption" tone="secondary">
+                Kode referensi Anda
+              </Text>
+              {/* FE-IMP-3 #107 — salin kode untuk pengiriman manual. */}
+              <TextLink onPress={() => void handleCopyCode()}>
+                Salin kode
+              </TextLink>
+            </View>
             <Text variant="monoBody" weight={700} className="text-lg tracking-widest">
               {refCode}
             </Text>
+            {/*
+             * FE-IMP-3 #106 — countdown kedaluwarsa kode referensi (timestamp
+             * absolut dari server; tetap benar walau app ke background).
+             */}
+            {flowRef.current?.expiresAt ? (
+              <Countdown
+                key={refCode}
+                until={new Date(flowRef.current.expiresAt).getTime()}
+                prefix="Kode kedaluwarsa dalam"
+                tone="secondary"
+              />
+            ) : null}
             <Text variant="caption" tone="secondary" className="text-pretty">
               Tidak bisa membuka WhatsApp otomatis? Kirim pesan berisi kode di
               atas secara manual ke {KAHADE_WHATSAPP_NUMBER}.
@@ -302,6 +375,20 @@ export default function WhatsappTriggerScreen() {
             <Text variant="caption" tone="secondary" className="text-pretty">
               Layar ini otomatis lanjut begitu bot membalas kode verifikasi.
             </Text>
+            {/*
+             * FE-IMP-3 #107 — "Saya sudah kirim pesan": satu poll segera
+             * (tanpa menunggu giliran backoff). Polling otomatis tetap jalan.
+             */}
+            <View className="pt-1">
+              <Button
+                variant="secondary"
+                size="sm"
+                loading={checkingNow}
+                onPress={() => void handleSentMessage()}
+              >
+                Saya sudah kirim pesan
+              </Button>
+            </View>
           </View>
 
           {formError ? (

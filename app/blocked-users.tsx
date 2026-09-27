@@ -14,6 +14,7 @@ import { api } from "@/lib/api"
 import type { BlockedUser } from "@/lib/api/settings"
 import { userMessage } from "@/lib/api/errors"
 import { useApiQuery } from "@/lib/use-api-query"
+import { formatDate } from "@/lib/format"
 
 import { Button } from "@/components/ui/button"
 import { DataScreen } from "@/components/ui/data-screen"
@@ -81,6 +82,8 @@ export default function BlockedUsersScreen() {
             username={u.username}
             avatar={{ source: u.avatarUrl ?? undefined }}
             blocked
+            // FE-IMP-3 #98 — tanggal diblokir per baris (caption di bawah handle).
+            stat={u.blockedAt ? translate("Diblokir {x}", { x: formatDate(u.blockedAt) }) : undefined}
             action={
               <Button
                 variant="ghost"

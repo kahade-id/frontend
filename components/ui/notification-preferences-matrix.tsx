@@ -35,6 +35,11 @@ import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { translate } from "@/lib/i18n/translate"
 import { summarize } from "@/lib/a11y"
+import {
+  effectiveNotificationStatus,
+  formatEffectiveStatus,
+  type NotificationCategory as EffectiveCategory,
+} from "@/lib/notification-effective"
 
 export type NotificationChannel = "InApp" | "Push" | "Email"
 export type NotificationCategory = "order" | "wallet" | "security" | "chat" | "dispute" | "ranking" | "marketing"
@@ -85,6 +90,13 @@ export type NotificationPreferencesMatrixProps = Omit<ViewProps, "children"> & {
   /** Batasi kategori yang ditampilkan (default semua) */
   categories?: readonly NotificationCategory[]
   disabled?: boolean
+  /**
+   * FE-IMP-3 #94 — status efektif gabungan per jenis notifikasi
+   * (perangkat + server). Bila diisi (termasuk `null` = belum diketahui),
+   * tiap kategori menampilkan caption status efektif di bawah deskripsinya;
+   * bila `undefined`, matriks tampil seperti biasa tanpa caption.
+   */
+  devicePushGranted?: boolean | null
   labels?: {
     categories?: Partial<Record<NotificationCategory, Partial<{ title: string; description: string }>>>
     channels?: Partial<Record<NotificationChannel, string>>
@@ -99,12 +111,14 @@ export function NotificationPreferencesMatrix({
   lockedKeys = [],
   categories = CATEGORY_ORDER,
   disabled = false,
+  devicePushGranted,
   labels,
   className,
   ...rest
 }: NotificationPreferencesMatrixProps) {
   const channelLabels = { ...DEFAULT_LABELS.channels, ...labels?.channels }
   const lockedLabel = labels?.locked ?? DEFAULT_LABELS.locked
+  const showEffective = devicePushGranted !== undefined
 
   return (
     <View className={cn("gap-5", className)} {...rest}>
@@ -127,6 +141,18 @@ export function NotificationPreferencesMatrix({
                 <Text variant="caption" tone="secondary">
                   {description}
                 </Text>
+                {/*
+                 * FE-IMP-3 #94 — status efektif gabungan per jenis notifikasi:
+                 * preferensi server × izin notifikasi perangkat. Push yang ON
+                 * di server tidak efektif bila izin perangkat mati.
+                 */}
+                {showEffective ? (
+                  <Text variant="caption" tone="secondary" className="pt-0.5">
+                    {formatEffectiveStatus(
+                      effectiveNotificationStatus(cat as EffectiveCategory, value, devicePushGranted ?? null),
+                    )}
+                  </Text>
+                ) : null}
               </View>
 
               <View className="gap-2">

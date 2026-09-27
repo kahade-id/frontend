@@ -39,6 +39,7 @@ import { tokens } from "@/lib/tokens"
 import { logWarn } from "@/lib/telemetry"
 
 import { Alert } from "@/components/ui/alert"
+import { Button } from "@/components/ui/button"
 import { Header } from "@/components/ui/header"
 import { ListGroup, ListItem } from "@/components/ui/list-item"
 import { Screen } from "@/components/ui/screen"
@@ -57,6 +58,8 @@ export default function BiometricSettingsScreen() {
   const [capability, setCapability] = useState<BiometricCapability | null>(null)
   const [loading, setLoading] = useState(true)
   const [toggling, setToggling] = useState(false)
+  // FE-IMP-3 #95 — state uji kunci manual.
+  const [testing, setTesting] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -124,6 +127,44 @@ export default function BiometricSettingsScreen() {
   const label = capability?.label ?? "biometrik"
   const unavailable = !loading && !capability?.available
 
+  // FE-IMP-3 #95 — "Uji kunci sekarang": memicu prompt biometrik sungguhan
+  // tanpa mengubah preferensi, supaya pengguna yakin kuncinya berfungsi
+  // SEBELUM mengandalkannya di AppLockGate.
+  const handleTest = useCallback(async () => {
+    if (testing || unavailable) return
+    setTesting(true)
+    try {
+      const outcome = await authenticateBiometric({
+        promptMessage: "Uji kunci biometrik",
+        promptSubtitle: "Tempelkan jari atau tunjukkan wajah Anda",
+        fallbackLabel: "Batal",
+      })
+      if (outcome === "success") {
+        toast.show({
+          title: "Kunci berfungsi",
+          description: `${label} dikenali dengan baik di perangkat ini.`,
+          tone: "success",
+        })
+      } else if (outcome === "lockout") {
+        toast.show({
+          title: "Biometrik terkunci sementara",
+          description: "Terlalu banyak percobaan gagal. Coba lagi nanti.",
+          tone: "danger",
+        })
+      } else if (outcome === "failed" || outcome === "unavailable") {
+        toast.show({
+          title: "Biometrik tidak dikenali",
+          description:
+            "Coba lagi, atau periksa pendaftaran biometrik di pengaturan perangkat.",
+          tone: "danger",
+        })
+      }
+      // "cancelled"/"dismissed" = pengguna batal — diam, bukan error.
+    } finally {
+      setTesting(false)
+    }
+  }, [testing, unavailable, label, toast.show])
+
   return (
     <Screen edges={["top"]} padded={false}>
       <Header title="Biometrik" />
@@ -167,6 +208,18 @@ export default function BiometricSettingsScreen() {
                 masuk. Transaksi uang (transfer, tarik dana, bayar pesanan) selalu memakai PIN dompet.
               </Text>
             )}
+
+            {/* FE-IMP-3 #95 — uji kunci manual tanpa mengubah preferensi. */}
+            {!unavailable ? (
+              <Button
+                variant="secondary"
+                loading={testing}
+                disabled={loading || toggling || testing}
+                onPress={() => void handleTest()}
+              >
+                Uji kunci sekarang
+              </Button>
+            ) : null}
           </>
         )}
 

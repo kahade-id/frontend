@@ -1,10 +1,12 @@
-import { useCallback, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { Platform, ScrollView } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import Constants from "expo-constants"
 import * as Updates from "expo-updates"
 import { api } from "@/lib/api"
 import { installedAppVersion, installedBuildNumber } from "@/lib/runtime-info"
+import { formatDateTime } from "@/lib/format"
+import { getSecureItem, setSecureItem, SecureKeys } from "@/lib/secure-storage"
 import { tokens } from "@/lib/tokens"
 import { useApiQuery } from "@/lib/use-api-query"
 import { AppVersionInfoRow } from "@/components/ui/app-version-info-row"
@@ -28,6 +30,25 @@ export default function AppVersionScreen() {
   const [available, setAvailable] = useState(false)
   const busy = useRef(false)
   const canUpdate = Platform.OS !== "web" && !__DEV__ && Updates.isEnabled
+  // FE-IMP-3 #99 — kapan terakhir pembaruan OTA diperiksa (persisten per
+  // perangkat, bukan rahasia).
+  const [lastChecked, setLastChecked] = useState<string | null>(null)
+  useEffect(() => {
+    let alive = true
+    getSecureItem(SecureKeys.otaLastChecked)
+      .then((v) => {
+        if (alive && v) setLastChecked(v)
+      })
+      .catch(() => {})
+    return () => {
+      alive = false
+    }
+  }, [])
+  const markChecked = useCallback(() => {
+    const now = new Date().toISOString()
+    setLastChecked(now)
+    void setSecureItem(SecureKeys.otaLastChecked, now).catch(() => {})
+  }, [])
   const update = useCallback(async () => {
     if (!canUpdate || busy.current) return
     busy.current = true
@@ -43,6 +64,7 @@ export default function AppVersionScreen() {
       } else {
         const result = await Updates.checkForUpdateAsync()
         setAvailable(result.isAvailable)
+        markChecked()
         toast.show({
           title: result.isAvailable
             ? "Pembaruan OTA tersedia"
@@ -60,7 +82,7 @@ export default function AppVersionScreen() {
       busy.current = false
       setChecking(false)
     }
-  }, [canUpdate, available, toast.show])
+  }, [canUpdate, available, toast.show, markChecked])
   return (
     <Screen edges={["top"]} padded={false}>
       {/* Header di LUAR area scroll: tombol kembali harus tetap terjangkau
@@ -113,6 +135,10 @@ export default function AppVersionScreen() {
         <Text variant="caption" tone="secondary">
           OTA memperbarui JavaScript dan aset untuk runtime yang kompatibel. Perubahan native atau
           versi minimum membutuhkan pembaruan dari toko aplikasi.
+        </Text>
+        {/* FE-IMP-3 #99 — waktu terakhir pemeriksaan OTA. */}
+        <Text variant="caption" tone="secondary">
+          Terakhir diperiksa: {lastChecked ? formatDateTime(lastChecked) : "belum pernah"}
         </Text>
       </ScrollView>
     </Screen>

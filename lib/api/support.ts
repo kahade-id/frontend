@@ -14,6 +14,8 @@ export type SupportMessage = {
   text: string
   fromUser: boolean
   createdAt: string
+  /** Item 130: fileKey lampiran pada balasan (backend reply.attachments). */
+  attachments?: string[]
 }
 
 /** Tiket dukungan. */
@@ -58,6 +60,11 @@ function normalizeSupportMessage(raw: unknown): SupportMessage {
         : typeof record.createdAt === "number"
           ? new Date(record.createdAt).toISOString()
           : "",
+    // Item 130: lampiran balasan (fileKey) — backend replyToTicket menyimpan
+    // dto.attachments yang sudah diverifikasi.
+    attachments: Array.isArray(record.attachments)
+      ? (record.attachments as unknown[]).filter((a): a is string => typeof a === "string")
+      : undefined,
   }
 }
 
@@ -116,10 +123,20 @@ export function createSupportTicket(dto: CreateTicketDto & { subject?: string; m
   )
 }
 
-export function replySupportTicket(ticketId: string, message: string) {
-  return http.post<SupportTicket, { message: string }>(
+export function replySupportTicket(
+  ticketId: string,
+  message: string,
+  /**
+   * Item 130 (mega-batch FE-IMP-5): lampiran balasan — fileKey dari
+   * `uploadDirectImage(…, "CHAT_ATTACHMENT")`. Backend ReplyTicketDto sudah
+   * mendukung (maks 5, diverifikasi milik user); server menolak key asing
+   * dengan 400 — pemanggil menangani sebagai error biasa.
+   */
+  attachments?: string[],
+) {
+  return http.post<SupportTicket, { message: string; attachments?: string[] }>(
     `/v1/support/tickets/${seg(ticketId)}/reply`,
-    { message },
+    { message, ...(attachments && attachments.length > 0 ? { attachments } : {}) },
     { auth: "required" },
   )
 }

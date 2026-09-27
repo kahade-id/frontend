@@ -6,7 +6,9 @@ import { ErrorState } from "@/components/ui/error-state"
 import { Screen } from "@/components/ui/screen"
 
 /** Runtime rendering failures get a recovery screen, never a blank page or raw financial data in an error dump. */
-export function AppErrorBoundary({ retry }: ErrorBoundaryProps) {
+export function AppErrorBoundary({ error, retry }: ErrorBoundaryProps) {
+  const msg = error instanceof Error ? error.message : String(error)
+  const stack = error instanceof Error ? error.stack : ""
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
@@ -17,6 +19,11 @@ export function AppErrorBoundary({ retry }: ErrorBoundaryProps) {
               description="Coba muat ulang halaman. Periksa riwayat transaksi sebelum mengirim ulang tindakan yang belum terkonfirmasi."
               onRetry={() => void retry()}
             />
+            {/* DEBUG SEMENTARA: tampilkan error asli */}
+            <div style={{ marginTop: 24, padding: 12, background: "#fff", maxWidth: 520 }}>
+              <p data-testid="debug-error" style={{ color: "#b00", fontSize: 13, whiteSpace: "pre-wrap" }}>{msg}</p>
+              <p style={{ color: "#666", fontSize: 10, whiteSpace: "pre-wrap" }}>{stack}</p>
+            </div>
           </Screen>
         </ThemeProvider>
       </SafeAreaProvider>

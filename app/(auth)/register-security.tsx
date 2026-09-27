@@ -210,7 +210,10 @@ export default function RegisterSecurityScreen() {
                     setUsername(t)
                     setFormError(null)
                   }}
-                  helperText="Opsional — bisa diisi nanti"
+                  // FE-IMP-3 #109 — aturan username tampil di bawah field
+                  // SEBELUM submit (bukan hanya setelah error): 3–20 karakter,
+                  // huruf kecil/angka/._ (sumber: UsernameField).
+                  helperText="Opsional — 3–20 karakter, huruf kecil/angka/._"
                   autoCapitalize="none"
                   autoCorrect={false}
                   autoComplete="username"
@@ -252,6 +255,21 @@ export default function RegisterSecurityScreen() {
                   onSubmitEditing={() => void handleSubmit()}
                   disabled={submitting}
                 />
+
+                {/*
+                 * FE-IMP-3 #110 — indikator LIVE kata sandi cocok.
+                 * Murni visual: validasi submit tetap di handleSubmit.
+                 */}
+                {password.length > 0 && confirmPassword.length > 0 ? (
+                  <Text
+                    variant="caption"
+                    tone={password === confirmPassword ? "success" : "danger"}
+                  >
+                    {password === confirmPassword
+                      ? "Kata sandi cocok"
+                      : "Kata sandi belum sama"}
+                  </Text>
+                ) : null}
               </VStack>
 
               <Button

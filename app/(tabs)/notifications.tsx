@@ -31,7 +31,8 @@
  *    (tandai dibaca / hapus), dan chevron/titik tiga membuat baris terasa
  *    seperti punya dua target sentuh padahal seluruh baris adalah tombol.
  *  - Mode pilih (maks 50 = BatchNotificationIdsDto): read-batch & delete-batch.
- *  - Menu ⋮ → "Hapus yang sudah dibaca" (`POST /v1/notifications/delete-read`).
+ *  - Menu ⋮ → "Pilih beberapa", "Hapus yang sudah dibaca"
+ *    (`POST /v1/notifications/delete-read`), dan "Pengaturan notifikasi".
  *  - Infinite scroll (page/limit, spec: max 100, default 20) + pull-to-refresh.
  *  - Skeleton loading pertama, EmptyState, ErrorState eksplisit.
  *
@@ -53,6 +54,7 @@ import {
   Checks,
   DotsThreeVertical,
   FunnelSimple,
+  GearSix,
   Megaphone,
   Receipt,
   Trash,
@@ -78,6 +80,7 @@ import {
 import { routeForNotificationReference } from "@/lib/notification-routing"
 import { refreshUnreadCount } from "@/lib/unread-count"
 import { logWarn } from "@/lib/telemetry"
+import { useUiPrefs } from "@/lib/ui-prefs"
 
 import { ActionSheet, type ActionSheetItem } from "@/components/ui/action-sheet"
 import { Dialog } from "@/components/ui/modal"
@@ -179,6 +182,8 @@ function MarkAllReadButton({
   busy: boolean
   onPress: () => void
 }) {
+  // Item 42: label visual disamakan dengan accessibilityLabel — "Tandai semua
+  // dibaca" (sebelumnya visual "Tandai dibaca" vs a11y "Tandai semua dibaca").
   return (
     <PressableScale
       accessibilityRole="button"
@@ -192,7 +197,7 @@ function MarkAllReadButton({
     >
       <Icon icon={Checks} size="sm" tone="active" />
       <Text variant="body" weight={600} tone="primary">
-        {translate("Tandai dibaca")}
+        {translate("Tandai semua dibaca")}
       </Text>
     </PressableScale>
   )
@@ -229,7 +234,15 @@ function NotificationsScreen() {
   const { elevated, onScrollWorklet } = useScrollElevation()
   const insets = useSafeAreaInsets()
 
-  const [category, setCategory] = useState<NotificationCategory>("TRANSAKSI")
+  // Item 40: kategori tab yang dipilih terakhir diingat PERSISTEN per
+  // perangkat (lib/ui-prefs) — pola sama seperti tab peran Transaksi
+  // (transactionsTab): baca langsung dari preferensi, tanpa state lokal.
+  const { prefs, setPrefs } = useUiPrefs()
+  const category = prefs.notificationsTab as NotificationCategory
+  const setCategory = useCallback(
+    (next: NotificationCategory) => setPrefs({ notificationsTab: next }),
+    [setPrefs],
+  )
   /** Funnel kanan header: true = hanya "Belum dibaca" (query isRead=false). */
   const [unreadOnly, setUnreadOnly] = useState(false)
 
@@ -467,6 +480,17 @@ function NotificationsScreen() {
       onPress: () => {
         setMenuOpen(false)
         setConfirm("delete-read")
+      },
+    },
+    // Item 41: jalan pintas ke pengaturan notifikasi (dulu menu ⋮ hanya
+    // punya pilih/hapus — pengguna tidak bisa menemukan pengaturan).
+    {
+      key: "settings",
+      label: "Pengaturan notifikasi",
+      icon: GearSix,
+      onPress: () => {
+        setMenuOpen(false)
+        router.push(ROUTES.notificationSettings)
       },
     },
   ]

@@ -39,6 +39,7 @@ import { KeyboardAvoiding } from "@/components/ui/keyboard-avoiding"
 import { isValidPhoneId, PhoneInput, toE164Id } from "@/components/ui/phone-input"
 import { Screen } from "@/components/ui/screen"
 import { Text } from "@/components/ui/text"
+import { TextLink } from "@/components/ui/text-link"
 import { VStack } from "@/components/ui/stack"
 import { api, userMessage } from "@/lib/api"
 import { getAuthLocation } from "@/lib/location"
@@ -154,6 +155,16 @@ export default function ForgotPasswordScreen() {
           <Button onPress={() => void handleSubmit()} loading={submitting}>
             Kirim kode
           </Button>
+          {/*
+           * FE-IMP-3 #112 — reset HANYA via nomor HP (tidak ada jalur email).
+           * Nomor tidak aktif = tidak bisa terima balasan WA → tautan bantuan.
+           */}
+          <Text variant="caption" tone="secondary" className="text-center text-pretty">
+            Nomor HP tidak aktif atau sudah tidak dipakai?{" "}
+            <TextLink inline onPress={() => router.push(ROUTES.liveSupport)}>
+              Minta bantuan
+            </TextLink>
+          </Text>
         </FooterBar>
       </KeyboardAvoiding>
     </Screen>

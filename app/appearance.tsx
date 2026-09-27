@@ -126,6 +126,28 @@ export default function AppearanceScreen() {
             </Button>
           ) : null}
         </View>
+
+        {/*
+         * FE-IMP-3 #92 — paragraf contoh NYATA yang mengikuti skala font
+         * terpilih. <Text> menerapkan skala otomatis (lib/font-scale via
+         * components/ui/text.tsx), jadi paragraf ini membesar/mengecil
+         * langsung saat A−/A+ diketuk — bukan sekadar angka persen.
+         */}
+        <View className="rounded-xl border border-border bg-surface p-4">
+          <Text variant="body" tone="primary" className="text-pretty">
+            Contoh paragraf: dana escrow Rp2.500.000 untuk pesanan #KD-88213
+            telah masuk dan menunggu konfirmasi penjual. Begini tampilan teks
+            sepanjang ini pada skala {Math.round(fontScale * 100)}% yang Anda
+            pilih — ubah dengan tombol A− / A+ di atas untuk melihat
+            perbedaannya langsung.
+          </Text>
+          <Text variant="caption" tone="secondary" className="pt-2">
+            {translate("Skala berlaku untuk seluruh teks aplikasi, termasuk judul di bawah ini.")}
+          </Text>
+          <Text variant="label" tone="primary" className="pt-3">
+            Contoh judul label
+          </Text>
+        </View>
       </View>
     </Screen>
   )

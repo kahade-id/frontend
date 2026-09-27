@@ -17,16 +17,19 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Platform, ScrollView, View, type ViewStyle } from "react-native"
+import { router } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useIsFocused } from "@react-navigation/native"
-import { Lifebuoy } from "phosphor-react-native"
+import { Lifebuoy, Star } from "phosphor-react-native"
 
 import { api, userMessage } from "@/lib/api"
 import type { SupportTicket } from "@/lib/api/support"
+import type { HelpArticle } from "@/lib/api/help-center"
 import { formatTime } from "@/lib/format"
 import { tokens } from "@/lib/tokens"
 import { useApiQuery } from "@/lib/use-api-query"
 import { translate } from "@/lib/i18n"
+import { ROUTES } from "@/lib/routes"
 
 import { Button } from "@/components/ui/button"
 import { ChatComposer, type ChatComposerPayload } from "@/components/ui/chat-composer"
@@ -37,6 +40,7 @@ import { ErrorState } from "@/components/ui/error-state"
 import { HEADER_BAR_HEIGHT, Header } from "@/components/ui/header"
 import { Icon } from "@/components/ui/icon"
 import { KeyboardAvoiding } from "@/components/ui/keyboard-avoiding"
+import { PressableScale } from "@/components/ui/pressable-scale"
 import { Screen } from "@/components/ui/screen"
 import { Text } from "@/components/ui/text"
 import { useToast } from "@/components/ui/toast"
@@ -108,6 +112,41 @@ export default function LiveSupportScreen() {
   const listRef = useRef<ScrollView | null>(null)
   const timers = useRef<ReturnType<typeof setTimeout>[]>([])
 
+  // ---- Item 134 (mega-batch FE-IMP-5): saran artikel bantuan dari draft —
+  // debounced, tampil SEBELUM percakapan dimulai/dikirim. Murni tampilan;
+  // tidak mengubah alur tiket.
+  const [suggestions, setSuggestions] = useState<HelpArticle[]>([])
+  useEffect(() => {
+    if (ticketId !== null) {
+      setSuggestions([])
+      return
+    }
+    const text = draft.trim()
+    if (text.length < 3) {
+      setSuggestions([])
+      return
+    }
+    const timer = setTimeout(() => {
+      let cancelled = false
+      void api.helpCenter
+        .searchHelpArticles(text)
+        .then((articles) => {
+          if (!cancelled) setSuggestions(articles.slice(0, 3))
+        })
+        .catch(() => {
+          // Saran artikel nonblocking — gagal = tidak tampil, bukan error.
+          if (!cancelled) setSuggestions([])
+        })
+      return () => {
+        cancelled = true
+      }
+    }, 600)
+    return () => clearTimeout(timer)
+  }, [draft, ticketId])
+
+  // ---- Item 135 (mega-batch FE-IMP-5): prompt rating setelah percakapan
+  // ditutup — didefinisikan setelah `isClosedLike` (lihat di bawah).
+
   // ---- Tahap 1: cari tiket Live Chat yang masih terbuka -------------------
   const listQuery = useApiQuery<SupportTicket[]>(
     "support-tickets:live-chat",
@@ -130,6 +169,33 @@ export default function LiveSupportScreen() {
   const ticket = ticketQuery.data
   const isClosedLike =
     ticket != null && (ticket.status === "CLOSED" || ticket.status === "RESOLVED")
+
+  // ---- Item 135 (mega-batch FE-IMP-5): prompt rating setelah percakapan
+  // ditutup — live support memakai tiket support biasa sehingga
+  // rateSupportTicket berlaku seperti di detail tiket.
+  const [starRating, setStarRating] = useState(0)
+  const [ratingSubmitting, setRatingSubmitting] = useState(false)
+  const myRating = ticket?.rating ?? 0
+  // Tampil bila percakapan ditutup dan pengguna belum memberi rating.
+  const showRatingPrompt = isClosedLike && ticketId !== null && myRating < 1
+  const handleRate = useCallback(async () => {
+    if (!ticketId || starRating < 1 || starRating > 5) return
+    setRatingSubmitting(true)
+    try {
+      await api.support.rateSupportTicket(ticketId, starRating)
+      toast.show({ title: translate("Terima kasih atas rating Anda"), tone: "success", duration: 2500 })
+      setStarRating(0)
+      await ticketQuery.reload()
+    } catch (err: unknown) {
+      toast.show({
+        title: translate("Gagal mengirim rating"),
+        description: userMessage(err),
+        tone: "danger",
+      })
+    } finally {
+      setRatingSubmitting(false)
+    }
+  }, [ticketId, starRating, ticketQuery, toast.show])
 
   useEffect(() => {
     if (!isFocused || !ticketId || isClosedLike) return
@@ -396,6 +462,47 @@ export default function LiveSupportScreen() {
                 <Text variant="caption" tone="secondary" className="text-center">
                   {translate("Percakapan ini sudah ditutup.")}
                 </Text>
+                {/* Item 135: prompt rating setelah percakapan ditutup. */}
+                {showRatingPrompt ? (
+                  <View className="items-center gap-2 rounded-md border border-border bg-surface p-4">
+                    <Text variant="body" weight={600}>
+                      {translate("Bagaimana pengalaman Anda dengan Live Support?")}
+                    </Text>
+                    <View className="flex-row gap-2">
+                      {[1, 2, 3, 4, 5].map((n) => (
+                        <PressableScale
+                          key={n}
+                          scaleOnPress={false}
+                          haptic
+                          onPress={() => setStarRating(n)}
+                          accessibilityRole="button"
+                          accessibilityState={{ selected: starRating === n }}
+                          accessibilityLabel={translate("{x} bintang", { x: n })}
+                        >
+                          <Icon
+                            icon={Star}
+                            size="md"
+                            tone={n <= starRating ? "accent" : "default"}
+                            weight={n <= starRating ? "fill" : "regular"}
+                          />
+                        </PressableScale>
+                      ))}
+                    </View>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      loading={ratingSubmitting}
+                      disabled={starRating < 1}
+                      onPress={() => void handleRate()}
+                    >
+                      {translate("Kirim rating")}
+                    </Button>
+                  </View>
+                ) : myRating >= 1 ? (
+                  <Text variant="caption" tone="secondary">
+                    {translate("Terima kasih — rating {x}/5 Anda sudah tercatat.", { x: myRating })}
+                  </Text>
+                ) : null}
                 <Button
                   variant="secondary"
                   size="sm"
@@ -411,6 +518,30 @@ export default function LiveSupportScreen() {
 
           {!isClosedLike ? (
             <>
+              {/* Item 134: saran artikel bantuan dari draft — tampil SEBELUM
+                  percakapan dimulai, di atas composer. Nonblocking. */}
+              {ticketId === null && suggestions.length > 0 ? (
+                <View className="gap-2 px-4 py-2">
+                  <Text variant="caption" tone="secondary">
+                    {translate("Mungkin artikel ini membantu:")}
+                  </Text>
+                  {suggestions.map((article) => (
+                    <PressableScale
+                      key={article.id}
+                      accessibilityRole="link"
+                      accessibilityLabel={article.title}
+                      onPress={() =>
+                        router.push(ROUTES.helpArticle(article.id, undefined, article.title))
+                      }
+                      className="rounded-md border border-border bg-surface px-3 py-2.5"
+                    >
+                      <Text variant="body" weight={600} numberOfLines={2}>
+                        {article.title || translate("Artikel bantuan")}
+                      </Text>
+                    </PressableScale>
+                  ))}
+                </View>
+              ) : null}
               {/* Topik cepat — satu baris di atas composer.
                   FIX 2026-09-27: di web (kahade.id) gesture geser horizontal
                   bisa diblokir ancestor yang memasang touch-action pan-y,

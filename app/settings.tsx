@@ -63,8 +63,13 @@ import {
 
 import { api } from "@/lib/api"
 import { clearSession } from "@/lib/api/session"
+import type { UserProfile } from "@/lib/api/users"
+import type { NotificationPreferences } from "@/lib/api/notifications"
 import { unregisterPushDevice } from "@/lib/push-notifications"
 import { unregisterWebPushDevice } from "@/lib/web-push"
+import { summarizeNotificationPreferences } from "@/lib/notification-effective"
+import { queryKeys } from "@/lib/query-keys"
+import { useApiQuery } from "@/lib/use-api-query"
 import { ROUTES } from "@/lib/routes"
 import { languageLabel, useLanguage } from "@/lib/i18n"
 import { installedAppVersion } from "@/lib/runtime-info"
@@ -105,6 +110,23 @@ export default function SettingsScreen() {
 
   const [logoutOpen, setLogoutOpen] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
+
+  // FE-IMP-3 #93 — nama/@username untuk dialog konfirmasi keluar. Query ringan
+  // (cache bersama queryKeys.me()); gagal muat → dialog tetap jalan tanpa nama.
+  const meQuery = useApiQuery<UserProfile>(queryKeys.me(), (signal) =>
+    api.users.getMe(signal),
+  )
+  const me = meQuery.data
+
+  // FE-IMP-3 #91 — status kanan baris "Notifikasi": "N dari 7 jenis aktif",
+  // atau "Senyap 22:00–07:00" bila quiet hours menyala. Belum dimuat/gagal →
+  // tanpa trailing (bukan angka yang menyesatkan).
+  const notifPrefsQuery = useApiQuery<NotificationPreferences>(
+    "notification-preferences",
+    (signal) => api.notifications.getNotificationPreferences(signal),
+  )
+  const notifTrailing =
+    summarizeNotificationPreferences(notifPrefsQuery.data ?? null) ?? undefined
 
   const performLogout = useCallback(async () => {
     setLoggingOut(true)
@@ -165,6 +187,7 @@ export default function SettingsScreen() {
       label: "Notifikasi",
       icon: Bell,
       route: ROUTES.notificationPreferences,
+      trailing: notifTrailing,
     },
     {
       id: "language",
@@ -288,7 +311,13 @@ export default function SettingsScreen() {
         destructive
         icon={SignOut}
         title="Keluar dari Kahade?"
-        description="Perangkat ini akan berhenti menerima notifikasi akun. Anda bisa masuk kembali kapan saja."
+        description={
+          // FE-IMP-3 #93 — tampilkan akun yang akan keluar supaya tidak salah
+          // akun (perangkat bersama / multi-akun).
+          me?.username
+            ? `Keluar dari akun ${me.fullName || me.username} (@${me.username}) di perangkat ini? Perangkat ini akan berhenti menerima notifikasi akun. Anda bisa masuk kembali kapan saja.`
+            : "Perangkat ini akan berhenti menerima notifikasi akun. Anda bisa masuk kembali kapan saja."
+        }
         confirmLabel="Keluar"
         cancelLabel="Batal"
         loading={loggingOut}

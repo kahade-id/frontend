@@ -29,7 +29,7 @@ import { Icon, type IconComponent, type IconTone } from "@/components/ui/icon"
 import { SectionHeader } from "@/components/ui/section"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
-import { formatDate, formatTime } from "@/lib/format"
+import { formatDateTimeLocal } from "@/lib/format"
 import { translate } from "@/lib/i18n/translate"
 import type { JourneyStep, JourneyStepKey, JourneyStepState, JourneyStepTone } from "@/lib/order-journey"
 
@@ -61,10 +61,14 @@ const STATE_LABEL: Record<JourneyStepState, string> = {
   failed: translate("Berhenti"),
 }
 
+/**
+ * Mega-batch FE-IMP-5 (item 38): timestamp memakai zona waktu PERANGKAT
+ * (formatDateTimeLocal) — versi lama meng-hardcode label "WIB" padahal nilai
+ * dihitung dari zona perangkat, sehingga pengguna WITA/WIT melihat jam lokal
+ * dengan label yang salah.
+ */
 function formatJourneyTime(iso: string): string {
-  const date = formatDate(iso, { long: true })
-  const time = formatTime(iso)
-  return time === "—" ? date : `${date} · ${time} WIB`
+  return formatDateTimeLocal(iso)
 }
 
 function StepNode({ step: s }: { step: JourneyStep }) {

@@ -42,7 +42,10 @@
  *     ke /whatsapp-trigger (trigger baru, kode referensi baru).
  *   - tempToken disimpan di memori modul (lib/registration.ts /
  *     lib/password-reset.ts) — bukan SecureStore, bukan route params.
- *   - "Ubah nomor HP" = `router.back()` ke layar asal.
+ *   - "Ubah nomor HP" kembali ke input nomor sesuai purpose (register →
+ *     /register, login → /login, forgot_password → /forgot-password,
+ *     migrate_phone → /phone-migration) — bukan router.back() buta
+ *     (FE-IMP-3 #117).
  */
 import { useCallback, useEffect, useRef, useState } from "react"
 import { Platform, ScrollView, View } from "react-native"
@@ -262,8 +265,30 @@ export default function VerifyOtpScreen() {
   }, [resending, phoneNumber, purpose, flow, router])
 
   const handleChangePhone = useCallback(() => {
-    router.back()
-  }, [router])
+    // FE-IMP-3 #117 — kembali ke input nomor SESUAI purpose, bukan
+    // router.back() buta (stack tidak terduga bila masuk via deep-link /
+    // reload web). UX-only: tidak mengubah alur verifikasi.
+    switch (purpose) {
+      case "register":
+        router.replace(ROUTES.register)
+        break
+      case "login":
+        router.replace(ROUTES.login)
+        break
+      case "forgot_password":
+        router.replace(ROUTES.forgotPassword())
+        break
+      case "migrate_phone":
+        if (flow?.migrationToken) {
+          router.replace(ROUTES.phoneMigration(flow.migrationToken))
+        } else if (router.canGoBack()) {
+          router.back()
+        }
+        break
+      default:
+        if (router.canGoBack()) router.back()
+    }
+  }, [router, purpose, flow])
 
   // Jangan render tanpa alur aktif (effect akan redirect)
   if (!flow || !phoneNumber || !purpose) return null
@@ -338,11 +363,20 @@ export default function VerifyOtpScreen() {
 
         {/* Footer: countdown/resend + ubah nomor */}
         <FooterBar>
-          <View className="items-center">
+          <View className="items-center gap-1">
             {canResend ? (
-              <TextLink onPress={handleResend} disabled={resending}>
-                {resending ? "Meminta kode baru…" : "Kirim ulang kode"}
-              </TextLink>
+              <>
+                <TextLink onPress={handleResend} disabled={resending}>
+                  {resending ? "Meminta kode baru…" : "Kirim ulang kode"}
+                </TextLink>
+                {/*
+                 * FE-IMP-3 #119 — jelaskan: kode baru dikirim sebagai balasan
+                 * SETELAH pesan pemicu dikirim lagi (bukan OTP langsung).
+                 */}
+                <Text variant="caption" tone="secondary" className="text-center text-pretty">
+                  Kode baru dikirim sebagai balasan setelah Anda mengirim pesan pemicu lagi ke WhatsApp resmi Kahade.
+                </Text>
+              </>
             ) : (
               <Countdown
                 key={countdownKey}

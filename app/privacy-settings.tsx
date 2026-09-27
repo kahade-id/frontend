@@ -112,7 +112,10 @@ const MISC_ITEMS = [
   {
     key: "searchEngineIndex",
     title: "Izinkan mesin pencari",
-    description: "Profil Anda boleh diindeks mesin pencari.",
+    // FE-IMP-3 #104 — jujur soal propagasi: perubahan butuh beberapa hari
+    // untuk tercermin di hasil pencarian (cache perayap, bukan instan).
+    description:
+      "Profil Anda boleh diindeks mesin pencari. Perubahan membutuhkan beberapa hari untuk berlaku di hasil pencarian.",
   },
 ] as const
 
@@ -142,10 +145,16 @@ type EnumRowProps<T extends string> = {
   labels: Record<string, string>
   pending: boolean
   onPick: (next: T) => void
+  /**
+   * FE-IMP-3 #100 — label default backend bila nilai belum pernah disimpan
+   * (enum unset). Baris menampilkan "Mengikuti default: X" supaya pengguna
+   * tahu nilai efektifnya, bukan sekadar "—".
+   */
+  defaultValue?: T
 }
 
 /** Baris pemilih nilai enum (G077/G078/G079) — sheet opsi, bukan toggle. */
-function EnumRow<T extends string>({ title, description, value, options, labels, pending, onPick }: EnumRowProps<T>) {
+function EnumRow<T extends string>({ title, description, value, options, labels, pending, onPick, defaultValue }: EnumRowProps<T>) {
   const [open, setOpen] = useState(false)
   return (
     <>
@@ -158,7 +167,13 @@ function EnumRow<T extends string>({ title, description, value, options, labels,
           <Text variant="body" weight={500}>{title}</Text>
           <Text variant="caption" tone="secondary">{description}</Text>
         </View>
-        <Text variant="body" tone="secondary">{value ? labels[value] ?? value : "—"}</Text>
+        <Text variant="body" tone="secondary">
+          {value
+            ? (labels[value] ?? value)
+            : defaultValue
+              ? `Mengikuti default: ${labels[defaultValue] ?? defaultValue}`
+              : "—"}
+        </Text>
         <Icon icon={CaretRight} size="sm" tone="default" />
       </Pressable>
       <ActionSheet
@@ -280,6 +295,8 @@ export default function PrivacySettingsScreen() {
     (signal) => api.settings.getConsentHistory(signal).catch(() => []),
   )
   const [consentPending, setConsentPending] = useState<ConsentType[]>([])
+  // FE-IMP-3 #101 — riwayat persetujuan expandable.
+  const [historyExpanded, setHistoryExpanded] = useState(false)
 
   const CONSENT_LABELS: Record<ConsentType, { title: string; description: string }> = {
     MARKETING_PUSH: {
@@ -328,6 +345,15 @@ export default function PrivacySettingsScreen() {
 
   const exportHistory = useApiQuery<ExportRequestSummary[]>("export-history", (signal) =>
     api.settings.getExportHistory(signal).catch(() => []),
+  )
+
+  // FE-IMP-3 #102 — permintaan terakhir (untuk "Terakhir diminta: {tanggal}"
+  // di dialog konfirmasi ekspor). Ambil requestedAt termuda; riwayat tidak
+  // dijamin terurut dari server.
+  const lastExportAt = (exportHistory.data ?? []).reduce<string | null>(
+    (acc, item) =>
+      !acc || item.requestedAt > acc ? item.requestedAt : acc,
+    null,
   )
 
   const handleExport = useCallback(async () => {
@@ -422,6 +448,9 @@ export default function PrivacySettingsScreen() {
           labels={LIST_VISIBILITY_LABELS}
           pending={pending.includes("showFollowerList")}
           onPick={(next) => void saveField("showFollowerList", next)}
+          // FE-IMP-3 #100 — default backend: DEFAULT_PRIVACY_SETTING di
+          // backend/src/modules/users/privacy-profile.util.ts.
+          defaultValue="EVERYONE"
         />
         <EnumRow<PrivacyListVisibility>
           title="Daftar mengikuti"
@@ -431,6 +460,7 @@ export default function PrivacySettingsScreen() {
           labels={LIST_VISIBILITY_LABELS}
           pending={pending.includes("showFollowingList")}
           onPick={(next) => void saveField("showFollowingList", next)}
+          defaultValue="EVERYONE"
         />
         <EnumRow<string>
           title="Visibilitas default etalase"
@@ -440,6 +470,7 @@ export default function PrivacySettingsScreen() {
           labels={SHOWCASE_VISIBILITY_LABELS}
           pending={pending.includes("showcaseDefaultVisibility")}
           onPick={(next) => void saveField("showcaseDefaultVisibility", next)}
+          defaultValue="PUBLIC"
         />
 
         <SectionHeader title="Ulasan & statistik" />
@@ -474,6 +505,7 @@ export default function PrivacySettingsScreen() {
           labels={QA_POLICY_LABELS}
           pending={pending.includes("qaCommentPolicy")}
           onPick={(next) => void saveField("qaCommentPolicy", next)}
+          defaultValue="EVERYONE"
         />
         <PrivacyToggleList
           items={MISC_ITEMS}
@@ -519,7 +551,7 @@ export default function PrivacySettingsScreen() {
             <Text variant="body" tone="secondary">
               Riwayat persetujuan:
             </Text>
-            {(consentHistory.data ?? []).slice(0, 5).map((h, i) => (
+            {(historyExpanded ? consentHistory.data ?? [] : (consentHistory.data ?? []).slice(0, 3)).map((h, i) => (
               <View key={`${h.type}-${h.createdAt}-${i}`} className="px-5 py-2">
                 <Text variant="caption" tone="secondary">
                   {CONSENT_LABELS[h.type]?.title ?? h.type} — {h.granted ? "disetujui" : "ditarik"} · v{h.policyVersion} ·{" "}
@@ -527,6 +559,26 @@ export default function PrivacySettingsScreen() {
                 </Text>
               </View>
             ))}
+            {/* FE-IMP-3 #101 — riwayat expandable "Lihat semua riwayat". */}
+            {(consentHistory.data ?? []).length > 3 ? (
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => setHistoryExpanded((v) => !v)}
+                className="flex-row items-center gap-1 px-5 py-2 active:opacity-70"
+              >
+                <Text variant="body" tone="primary">
+                  {historyExpanded
+                    ? "Sembunyikan riwayat"
+                    : `Lihat semua riwayat (${(consentHistory.data ?? []).length})`}
+                </Text>
+                <Icon
+                  icon={CaretRight}
+                  size="sm"
+                  tone="default"
+                  style={{ transform: [{ rotate: historyExpanded ? "90deg" : "-90deg" }] }}
+                />
+              </Pressable>
+            ) : null}
           </>
         ) : null}
 
@@ -595,6 +647,17 @@ export default function PrivacySettingsScreen() {
         onCancel={() => setExportOpen(false)}
         onRequestClose={() => setExportOpen(false)}
       >
+        {/* FE-IMP-3 #102 — tanggal permintaan terakhir SEBELUM konfirmasi. */}
+        <Text variant="caption" tone="secondary" className="pt-1">
+          Terakhir diminta:{" "}
+          {lastExportAt
+            ? new Date(lastExportAt).toLocaleDateString("id-ID", {
+                day: "numeric",
+                month: "short",
+                year: "numeric",
+              })
+            : "belum pernah"}
+        </Text>
         <View className="flex-row gap-2 pt-2">
           {(["json", "csv"] as const).map((fmt) => (
             <Pressable

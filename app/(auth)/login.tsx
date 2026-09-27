@@ -56,6 +56,7 @@ import { useLocalSearchParams, useRouter } from "expo-router"
 import { WhatsappLogo, Fingerprint } from "phosphor-react-native"
 
 import { Alert } from "@/components/ui/alert"
+import { Badge } from "@/components/ui/badge"
 import { Divider } from "@/components/ui/divider"
 import { FadeIn } from "@/components/ui/fade-in"
 import { FooterBar } from "@/components/ui/footer-bar"
@@ -102,6 +103,10 @@ export default function LoginScreen() {
   const [password, setPassword] = useState("")
   const [submitting, setSubmitting] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
+  // FE-IMP-3 #114 — hitung kegagalan login (kata sandi) per instance layar.
+  // Setelah 2 kegagalan, "Lupa kata sandi?" tampil DEKAT error. Murni state
+  // UI: tidak mengubah request, captcha, atau rate-limit.
+  const [failCount, setFailCount] = useState(0)
 
   // Opsi WhatsApp: expand inline di bawah form password.
   const [waExpanded, setWaExpanded] = useState(false)
@@ -169,6 +174,7 @@ export default function LoginScreen() {
       if ("requiresPhoneMigration" in result && result.requiresPhoneMigration) {
         // Akun lama belum punya nomor HP → wajib migrasi. migrationToken
         // short-lived untuk satu alur ini.
+        setFailCount(0)
         router.replace(ROUTES.phoneMigration(result.migrationToken))
         return
       }
@@ -176,13 +182,17 @@ export default function LoginScreen() {
       if ("requiresTwoFactor" in result && result.requiresTwoFactor) {
         // Akun memakai TOTP → simpan tempToken di memori, lanjut ke layar kode.
         // `push` (bukan replace) supaya tombol kembali membawa ke form login.
+        setFailCount(0)
         setPendingTwoFactorLogin({ tempToken: result.tempToken, identifier: identifier.trim() })
         router.push(ROUTES.verify2fa)
         return
       }
 
+      setFailCount(0)
       goAfterLogin()
     } catch (err) {
+      // FE-IMP-3 #114 — semua jalan keluar catch = satu kegagalan login.
+      setFailCount((c) => c + 1)
       if (isApiError(err)) {
         /*
          * Captcha diminta backend (3+ kegagalan dari IP ini). Tantangan lama
@@ -506,6 +516,18 @@ export default function LoginScreen() {
               </Alert>
             ) : null}
 
+            {/*
+             * FE-IMP-3 #114 — setelah 2 kegagalan, tampilkan "Lupa kata
+             * sandi?" DEKAT error (bukan cuma di footer bawah).
+             */}
+            {formError && failCount >= 2 ? (
+              <View className="items-center">
+                <TextLink onPress={handleForgotPassword} disabled={submitting}>
+                  Lupa kata sandi?
+                </TextLink>
+              </View>
+            ) : null}
+
             {/* Opsi kedua: masuk dengan WhatsApp (OTP, tanpa password) */}
             <Divider label="atau" />
             <VStack gap={4}>
@@ -556,15 +578,26 @@ export default function LoginScreen() {
                 biometrik perangkat (app-lock lokal — bukan metode masuk). */}
             <Divider label="atau" />
             <VStack gap={2}>
-              <Button
-                variant="secondary"
-                leftIcon={Fingerprint}
-                onPress={() => void handlePasskeyLogin()}
-                loading={pkSubmitting}
-                disabled={submitting || waSubmitting}
-              >
-                {PASSKEY_COPY.loginButton}
-              </Button>
+              <View className="flex-row items-center gap-2">
+                <View className="flex-1">
+                  <Button
+                    variant="secondary"
+                    leftIcon={Fingerprint}
+                    onPress={() => void handlePasskeyLogin()}
+                    loading={pkSubmitting}
+                    disabled={submitting || waSubmitting}
+                  >
+                    {PASSKEY_COPY.loginButton}
+                  </Button>
+                </View>
+                {/*
+                 * FE-IMP-3 #115 — badge "Web saja" tampil SEBELUM tombol
+                 * ditekan: passkey penuh hanya didukung di web (G033).
+                 */}
+                <Badge tone="neutral" variant="outline">
+                  Web saja
+                </Badge>
+              </View>
               {passkeySupported ? (
                 <Text variant="caption" tone="secondary" className="text-pretty">
                   {PASSKEY_COPY.loginHintWeb}

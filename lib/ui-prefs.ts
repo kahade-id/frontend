@@ -26,6 +26,9 @@ import { logWarn } from "@/lib/telemetry"
 
 export type TransactionsTab = "buyer" | "seller"
 
+/** Kategori tab Notifikasi — disalin dari lib/api (hindari import cycle). */
+export type NotificationsTab = "TRANSAKSI" | "PROMOSI" | "INFORMASI"
+
 export type UiPrefs = {
   /** Saldo disembunyikan (privasi bahu-penumpang) — dipakai Beranda & Dompet. */
   balanceHidden: boolean
@@ -44,6 +47,19 @@ export type UiPrefs = {
    * Preferensi perangkat (bukan akun): logout tidak meresetnya.
    */
   dataSaver: boolean
+  /**
+   * Mega-batch FE-IMP-5 (item 40) — kategori terakhir tab Notifikasi
+   * (TRANSAKSI/PROMOSI/INFORMASI), diingat seperti tab Transaksi.
+   * Preferensi perangkat: logout tidak meresetnya.
+   */
+  notificationsTab: NotificationsTab
+  /**
+   * Mega-batch FE-IMP-5 (item 126) — ticketId → epoch ms terakhir tiket
+   * dibuka. Dipakai dot "balasan baru": balasan staf yang lebih baru dari
+   * waktu buka = belum dibaca. Milik AKUN (dihapus saat logout seperti
+   * `ratingSnoozeUntil`) karena ticketId milik akun yang sedang login.
+   */
+  ticketLastOpened: Record<string, number>
 }
 
 const DEFAULT_PREFS: UiPrefs = {
@@ -52,6 +68,8 @@ const DEFAULT_PREFS: UiPrefs = {
   appMode: "commerce",
   ratingSnoozeUntil: {},
   dataSaver: false,
+  notificationsTab: "TRANSAKSI",
+  ticketLastOpened: {},
 }
 
 export type RecentRecipient = {
@@ -96,6 +114,16 @@ function sanitizePrefs(raw: unknown): UiPrefs {
       }
     }
   }
+  // Mega-batch FE-IMP-5 (item 126): ticketLastOpened hanya angka wajar —
+  // entri masa depan / bukan angka dibuang.
+  const opened: Record<string, number> = {}
+  if (typeof rec.ticketLastOpened === "object" && rec.ticketLastOpened !== null) {
+    for (const [key, value] of Object.entries(rec.ticketLastOpened as Record<string, unknown>)) {
+      if (typeof value === "number" && Number.isFinite(value) && value > 0 && value <= Date.now()) {
+        opened[key] = value
+      }
+    }
+  }
   return {
     balanceHidden: rec.balanceHidden === true,
     transactionsTab: rec.transactionsTab === "seller" ? "seller" : "buyer",
@@ -104,6 +132,12 @@ function sanitizePrefs(raw: unknown): UiPrefs {
     ratingSnoozeUntil: snooze,
     // Batch 19 (item 15): default OFF bila belum pernah disimpan.
     dataSaver: rec.dataSaver === true,
+    // Mega-batch FE-IMP-5 (item 40): nilai asing → TRANSAKSI (bawaan).
+    notificationsTab:
+      rec.notificationsTab === "PROMOSI" || rec.notificationsTab === "INFORMASI"
+        ? rec.notificationsTab
+        : "TRANSAKSI",
+    ticketLastOpened: opened,
   }
 }
 
@@ -182,16 +216,22 @@ export function setUiPrefs(patch: Partial<UiPrefs>): void {
  * `ratingSnoozeUntil` berkunci `orderId` akun yang sedang login — akun
  * berikutnya di perangkat yang sama tidak boleh mewarisi jejak transaksi itu
  * (alasan yang sama dengan `pendingActions`/`recentRecipients` di
- * `clearSession()`). `balanceHidden`, `transactionsTab`, `appMode`, dan
- * `dataSaver` sengaja TIDAK disentuh: keempatnya preferensi perangkat yang
- * berlaku untuk siapa pun yang memakai perangkat ini.
+ * `clearSession()`). `ticketLastOpened` ikut dibersihkan dengan alasan yang
+ * sama (ticketId milik akun). `balanceHidden`, `transactionsTab`,
+ * `notificationsTab`, `appMode`, dan `dataSaver` sengaja TIDAK disentuh:
+ * kelimanya preferensi perangkat yang berlaku untuk siapa pun yang memakai
+ * perangkat ini.
  *
  * Tidak ada I/O saat tidak ada yang perlu dibersihkan (kasus paling sering:
  * logout tanpa pernah menunda pengingat ulasan).
  */
 export function clearAccountPrefs(): void {
-  if (Object.keys(prefs.ratingSnoozeUntil).length === 0) return
-  setUiPrefs({ ratingSnoozeUntil: {} })
+  if (
+    Object.keys(prefs.ratingSnoozeUntil).length === 0 &&
+    Object.keys(prefs.ticketLastOpened).length === 0
+  )
+    return
+  setUiPrefs({ ratingSnoozeUntil: {}, ticketLastOpened: {} })
 }
 
 /**
@@ -249,6 +289,40 @@ export function resetUiPrefsForTest(): void {
   recents = []
   loadPromise = null
   emit()
+}
+
+/**
+ * Mega-batch FE-IMP-5 (item 126): catat waktu terakhir tiket dibuka.
+ * Dipanggil saat layar detail tiket termuat — dot "balasan baru" di daftar
+ * memakai nilai ini sebagai pembanding waktu balasan staf terakhir.
+ */
+export function recordTicketOpened(ticketId: string): void {
+  const next = { ...prefs.ticketLastOpened, [ticketId]: Date.now() }
+  // Batasi 50 tiket agar blob tidak tumbuh selamanya — buang yang terlama.
+  const keys = Object.keys(next)
+  if (keys.length > 50) {
+    keys
+      .sort((a, b) => next[a] - next[b])
+      .slice(0, keys.length - 50)
+      .forEach((k) => delete next[k])
+  }
+  setUiPrefs({ ticketLastOpened: next })
+}
+
+/**
+ * Mega-batch FE-IMP-5 (item 126): true bila ada balasan STAFF yang lebih baru
+ * dari terakhir tiket dibuka (atau belum pernah dibuka). `lastMessageAt`
+ * epoch ms dari `lastMessage.createdAt`; pesan dari user sendiri tidak
+ * dihitung (user tahu apa yang ia tulis).
+ */
+export function hasUnreadTicketReply(
+  ticketId: string,
+  lastMessageAt: number | null,
+  lastMessageFromUser: boolean,
+): boolean {
+  if (lastMessageFromUser || lastMessageAt == null || !Number.isFinite(lastMessageAt)) return false
+  const openedAt = prefs.ticketLastOpened[ticketId] ?? 0
+  return lastMessageAt > openedAt
 }
 
 /** Hook baca semua preferensi + pastikan pemuatan dimulai. */
