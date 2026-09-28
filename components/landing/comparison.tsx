@@ -44,9 +44,25 @@ const ROWS: { label: string; cells: { text: string; status: CellStatus }[] }[] =
   {
     label: "Penyelesaian sengketa",
     cells: [
-      { text: "Admin bantu", status: "good" },
+      { text: "Admin bantu sampai tuntas", status: "good" },
       { text: "CS lambat", status: "neutral" },
       { text: "Tidak ada", status: "bad" },
+    ],
+  },
+  {
+    label: "Transparansi biaya",
+    cells: [
+      { text: "Ditampilkan jelas di awal", status: "good" },
+      { text: "Kadang tersembunyi", status: "neutral" },
+      { text: "Fee admin tak pasti", status: "bad" },
+    ],
+  },
+  {
+    label: "Verifikasi pengguna",
+    cells: [
+      { text: "KYC penjual & pembeli", status: "good" },
+      { text: "Sebagian terverifikasi", status: "neutral" },
+      { text: "Tidak ada verifikasi", status: "bad" },
     ],
   },
   {
@@ -104,19 +120,33 @@ export function LandingComparison() {
                   key={header}
                   className={
                     i === 0
-                      ? "flex-1 items-center justify-center rounded-xl border border-border bg-surface-elevated p-4"
+                      ? "flex-1 items-center justify-center gap-1.5 rounded-xl border border-border bg-surface-elevated p-4"
                       : "flex-1 items-center justify-center p-4"
                   }
                 >
+                  {i === 0 ? (
+                    <View className="rounded-full bg-primary px-3 py-1">
+                      <Text variant="caption" tone="inverse" weight={700}>
+                        Pilihan aman
+                      </Text>
+                    </View>
+                  ) : null}
                   <Text variant="label" className="text-center">
                     {header}
                   </Text>
                 </View>
               ))}
             </View>
-            {/* Baris data */}
-            {ROWS.map((row) => (
-              <View key={row.label} className="flex-row gap-2">
+            {/* Baris data — zebra agar mudah dipindai baris per baris */}
+            {ROWS.map((row, rowIndex) => (
+              <View
+                key={row.label}
+                className={
+                  rowIndex % 2 === 1
+                    ? "flex-row gap-2 rounded-xl bg-surface"
+                    : "flex-row gap-2"
+                }
+              >
                 <View className="flex-[1.2] justify-center p-4">
                   <Text variant="label">{row.label}</Text>
                 </View>

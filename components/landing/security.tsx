@@ -1,9 +1,9 @@
 /**
  * Kahade landing — <LandingSecurity>: strip kepercayaan keamanan.
  *
- * Section gelap: empat pilar keamanan dalam strip horizontal (wrap di layar
- * kecil), masing-masing ikon + label + satu kalimat. Semua warna lewat
- * class mode-aware (tone "inverse" di atas bg-primary section gelap).
+ * Bahasa AWAM, bukan jargon: tiap pilar menjelaskan "apa artinya buat saya"
+ * dalam satu kalimat sehari-hari. Section gelap: empat pilar dalam strip
+ * horizontal (wrap di layar kecil), masing-masing ikon + label + satu kalimat.
  */
 import { View } from "react-native"
 import {
@@ -28,23 +28,23 @@ type SecurityItem = {
 const ITEMS: SecurityItem[] = [
   {
     icon: ShieldCheck,
-    title: "Enkripsi data",
-    description: "Data pribadi & transaksi terenkripsi.",
+    title: "Data terkunci rapat",
+    description: "Data pribadi dan riwayat transaksimu diacak, tidak bisa dibaca pihak lain.",
   },
   {
     icon: LockKey,
-    title: "Dana di escrow",
-    description: "Dana ditahan aman sampai Anda konfirmasi.",
+    title: "Uang aman di penampungan",
+    description: "Uang pembeli ditahan dulu — penjual tidak bisa kabur bawa uang.",
   },
   {
     icon: IdentificationCard,
-    title: "Verifikasi identitas",
-    description: "KYC untuk penjual & pembeli.",
+    title: "Kenali lawan transaksimu",
+    description: "Penjual dan pembeli melewati verifikasi identitas sebelum bertransaksi.",
   },
   {
     icon: MagnifyingGlass,
-    title: "Audit berkala",
-    description: "Sistem diaudit & dipantau rutin.",
+    title: "Diawasi rutin",
+    description: "Sistem kami diperiksa keamanannya secara berkala oleh tim internal.",
   },
 ]
 
@@ -54,8 +54,8 @@ export function LandingSecurity() {
       id="keamanan"
       dark
       eyebrow="Keamanan"
-      title="Keamanan setara perbankan."
-      description="Setiap rupiah dan setiap data Anda dilindungi berlapis — dari pembayaran sampai penarikan dana."
+      title="Tenang, semuanya dijaga."
+      description="Kamu tidak perlu paham istilah teknisnya — cukup tahu: setiap rupiah dan setiap datamu dilindungi berlapis, dari pembayaran sampai penarikan dana."
     >
       <View className="flex-row flex-wrap justify-center gap-4">
         {ITEMS.map((item, index) => (

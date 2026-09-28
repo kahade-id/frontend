@@ -54,6 +54,16 @@ const FAQS: FaqItem[] = [
     answer:
       "Buka menu Dompet, pilih Tarik Dana, masukkan nominal dan pilih rekening bank yang sudah Anda daftarkan, lalu konfirmasi dengan PIN dompet. Dana diproses ke rekening Anda sesuai jadwal penarikan.",
   },
+  {
+    question: "Apakah harus install aplikasi?",
+    answer:
+      "Tidak wajib. Kamu bisa langsung membuka web app Kahade dari browser HP atau laptop dan memakai semua fitur utama. Aplikasi tersedia bila kamu ingin pengalaman yang lebih cepat dengan notifikasi real-time.",
+  },
+  {
+    question: "Bagaimana cara mulai jualan di Kahade?",
+    answer:
+      "Daftar dengan nomor HP (verifikasi via WhatsApp), lengkapi profil, lalu buat etalase pertamamu: foto produk, harga, dan deskripsi. Etalase bisa langsung dibagikan ke media sosial — pembeli yang tertarik akan membuat order escrow denganmu.",
+  },
 ]
 
 export function LandingFaq() {

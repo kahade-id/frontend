@@ -8,14 +8,13 @@
  */
 import { useEffect, useState } from "react"
 import { Platform, Pressable, View } from "react-native"
-import { ShieldCheck } from "phosphor-react-native"
 
 import { cn } from "@/lib/cn"
 import { useTheme } from "@/components/theme-provider"
 import { modes } from "@/lib/tokens"
 import { Text } from "@/components/ui/text"
 import { Button } from "@/components/ui/button"
-import { Icon } from "@/components/ui/icon"
+import { Logo } from "@/components/ui/logo"
 
 import { scrollToSection } from "./scroll"
 
@@ -61,12 +60,10 @@ export function LandingNavbar() {
           onPress={() => scrollToSection("hero")}
           accessibilityRole="link"
           accessibilityLabel="Kahade — kembali ke atas"
-          className="cursor-pointer flex-row items-center gap-2"
+          className="cursor-pointer"
         >
-          <Icon icon={ShieldCheck} size="md" tone="active" weight="fill" />
-          <Text variant="h3" weight={700}>
-            Kahade
-          </Text>
+          {/* Logo asli Kahade (SVG vektor, ikut light/dark otomatis) */}
+          <Logo variant="lockup" size="sm" />
         </Pressable>
 
         <View className="hidden flex-row items-center gap-7 md:flex">
@@ -90,7 +87,7 @@ export function LandingNavbar() {
           fullWidth={false}
           onPress={() => scrollToSection("download")}
         >
-          Download App
+          Mulai Gratis
         </Button>
       </View>
     </View>

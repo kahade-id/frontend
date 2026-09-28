@@ -12,6 +12,7 @@ import { cn } from "@/lib/cn"
 import { focusRing } from "@/lib/focus-ring"
 import { ROUTES } from "@/lib/routes"
 import { Text } from "@/components/ui/text"
+import { Logo } from "@/components/ui/logo"
 
 import { scrollToSection } from "./scroll"
 
@@ -59,8 +60,9 @@ export function LandingFooter() {
     <View className="w-full border-t border-border bg-surface">
       <View className="mx-auto w-full max-w-6xl px-5 py-12 md:px-8">
         <View className="flex-col gap-10 md:flex-row md:justify-between">
-          <View className="max-w-xs gap-2">
-            <Text variant="h3">Kahade</Text>
+          <View className="max-w-xs gap-3">
+            {/* Logo asli Kahade */}
+            <Logo variant="lockup" size="sm" />
             <Text variant="body" tone="secondary">
               Jual beli online tanpa was-was — dana aman di escrow.
             </Text>

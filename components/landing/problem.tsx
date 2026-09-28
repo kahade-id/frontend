@@ -23,17 +23,20 @@ const PROBLEMS: Problem[] = [
   {
     icon: Warning,
     title: "Takut ditipu",
-    description: "Bayar dulu, barang tak kunjung datang.",
+    description:
+      "Transfer dulu, barang tak kunjung datang. Chat penjual tiba-tiba hilang — uang ikut melayang.",
   },
   {
     icon: Handshake,
     title: "Rekber manual ribet",
-    description: "Cari admin, transfer manual, catat sendiri.",
+    description:
+      "Harus cari admin yang bisa dipercaya, transfer manual, catat mutasi sendiri. Satu transaksi bisa makan waktu berjam-jam.",
   },
   {
     icon: Scales,
     title: "Sengketa tanpa penengah",
-    description: "Chat penjual hilang, uang ikut melayang.",
+    description:
+      "Barang datang tidak sesuai foto? Tidak ada pihak netral yang membantu — ujung-ujungnya cuma bisa pasrah.",
   },
 ]
 
@@ -43,13 +46,19 @@ export function LandingProblem() {
       id="masalah"
       eyebrow="Masalah"
       title="Kenapa jual beli online bikin was-was?"
+      description="Tiga keresahan yang hampir semua orang pernah rasakan — atau takutkan."
     >
       <View className="flex-col gap-4 md:flex-row">
         {PROBLEMS.map((problem, index) => (
           <Reveal key={problem.title} delay={index * 120} className="md:flex-1">
             <View className="h-full rounded-2xl border border-border bg-surfaceElevated p-6">
-              <View className="mb-4 h-12 w-12 items-center justify-center rounded-full bg-surface">
-                <Icon icon={problem.icon} size="md" tone="active" />
+              <View className="mb-4 flex-row items-center justify-between">
+                <View className="h-12 w-12 items-center justify-center rounded-full bg-surface">
+                  <Icon icon={problem.icon} size="md" tone="active" />
+                </View>
+                <Text variant="caption" tone="secondary">
+                  0{index + 1}
+                </Text>
               </View>
               <Text variant="h3" className="mb-2">
                 {problem.title}
@@ -61,6 +70,15 @@ export function LandingProblem() {
           </Reveal>
         ))}
       </View>
+      {/* Jembatan emosional ke section Solusi */}
+      <Reveal delay={360}>
+        <Text variant="bodyLarge" tone="secondary" className="mx-auto mt-10 max-w-xl text-center">
+          Kedengarannya familiar? Tenang — setiap masalah di atas{" "}
+          <Text variant="bodyLarge" weight={700}>
+            ada jawabannya.
+          </Text>
+        </Text>
+      </Reveal>
     </Section>
   )
 }

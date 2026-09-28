@@ -4,15 +4,11 @@
  * Section gelap: kiri 3 langkah mini memulai, kanan kartu berisi placeholder
  * QR (JUJUR: bukan QR asli, hanya ikon + teks "QR download menyusul"),
  * badge store nonaktif ("Segera hadir" — belum ada akun store), dan tombol
- * gaya secondary menuju web app.
- *
- * Catatan: <Button variant="secondary"> tidak dipakai di sini karena warna
- * teksnya (text-text-primary) tidak terbaca di atas section gelap — tombol
- * di bawah meniru gaya secondary (outline) dengan teks tone "inverse".
+ * menonjol menuju web app (aksi nyata yang bisa dilakukan SEKARANG).
  */
 import { Pressable, View } from "react-native"
 import { useRouter } from "expo-router"
-import { AppleLogo, GooglePlayLogo, QrCode } from "phosphor-react-native"
+import { AppleLogo, ArrowRight, GooglePlayLogo, QrCode } from "phosphor-react-native"
 
 import { Icon, type IconComponent } from "@/components/ui/icon"
 import { Text } from "@/components/ui/text"
@@ -22,7 +18,7 @@ import { Reveal } from "./reveal"
 import { Section } from "./section"
 
 const STEPS = [
-  { title: "Download aplikasi", description: "atau buka web app Kahade" },
+  { title: "Buka web app Kahade", description: "langsung dari browser — tanpa install" },
   { title: "Daftar dengan nomor HP", description: "verifikasi cepat via WhatsApp" },
   { title: "Mulai transaksi aman", description: "dana dilindungi escrow" },
 ]
@@ -65,7 +61,8 @@ export function LandingCtaDownload() {
       id="download"
       dark
       eyebrow="Mulai Sekarang"
-      title="Jual beli aman dalam genggaman."
+      title="Siap jual beli tanpa was-was?"
+      description="Gratis. Tanpa kartu kredit. Verifikasi nomor HP kurang dari 2 menit."
     >
       <View className="flex-col gap-10 lg:flex-row lg:items-center lg:gap-16">
         {/* Kiri: 3 langkah mini */}
@@ -108,13 +105,14 @@ export function LandingCtaDownload() {
 
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Buka Web App Kahade"
+              accessibilityLabel="Buka Web App Kahade — mulai sekarang, gratis"
               onPress={() => router.push(ROUTES.showcase)}
-              className="w-full flex-row items-center justify-center rounded-sm border border-border px-5 py-3"
+              className="w-full flex-row items-center justify-center gap-2 rounded-sm bg-primary px-5 py-3.5"
             >
-              <Text variant="body" weight={600} tone="inverse">
-                Buka Web App
+              <Text variant="body" weight={700} tone="inverse">
+                Buka Web App — Gratis
               </Text>
+              <Icon icon={ArrowRight} size="sm" tone="inverse" />
             </Pressable>
           </View>
         </Reveal>
