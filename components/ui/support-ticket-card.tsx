@@ -28,6 +28,7 @@ import { translate } from "@/lib/i18n/translate"
 
 import { Badge, type BadgeProps, type BadgeTone } from "@/components/ui/badge"
 import { Card, type CardProps } from "@/components/ui/card"
+import { ticketCategoryLabel } from "@/lib/labels/ticket"
 import { Dot } from "@/components/ui/dot"
 import { Icon } from "@/components/ui/icon"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -151,11 +152,12 @@ export function SupportTicketCard({
         {subject}
       </Text>
 
+      {/* Baris 3: kategori (label Indonesia, bukan kode mentah) · lampiran */}
       {category || attachmentCount ? (
         <View className="flex-row items-center gap-2">
           {category ? (
             <Text variant="caption" tone="secondary" numberOfLines={1}>
-              {category}
+              {ticketCategoryLabel(category)}
             </Text>
           ) : null}
           {attachmentCount ? (

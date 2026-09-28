@@ -635,6 +635,39 @@ export function formatDateTimeWIB(d: Date | number | string): string {
   return `${zoned.day} ${month} ${zoned.year}, ${pad2(zoned.hour)}:${pad2(zoned.minute)} ${zone}`
 }
 
+/**
+ * Mega-batch FE-IMP-5 (item 38): singkatan zona waktu PERANGKAT
+ * ("WIB"/"WITA"/"WIT"/"GMT+7"…), dibaca dari Intl. Kosong bila Intl tidak
+ * bisa menentukan (Hermes tanpa full-ICU) — pemanggil menampilkan tanpa
+ * label zona daripada menebak.
+ */
+export function deviceTimeZoneAbbreviation(): string {
+  try {
+    const parts = new Intl.DateTimeFormat("id", { timeZoneName: "short" }).formatToParts(
+      new Date(),
+    )
+    const tz = parts.find((p) => p.type === "timeZoneName")?.value?.trim()
+    return tz && tz !== "id" ? tz : ""
+  } catch {
+    return ""
+  }
+}
+
+/**
+ * Mega-batch FE-IMP-5 (item 38): "3 Sep 2026, 14:30 WIB" — seperti
+ * `formatDateTime` (zona perangkat), DITAMBAH singkatan zona perangkat yang
+ * sebenarnya, BUKAN hardcode "WIB". Dipakai timestamp perjalanan order
+ * (Perjalanan order menampilkan waktu yang terjadi, bukan tenggat yang
+ * mengikat — jadi zona perangkat yang benar, bukan zona backend).
+ */
+export function formatDateTimeLocal(d: Date | number | string): string {
+  const date = displayDate(d)
+  if (!date) return "—"
+  const base = formatDateTime(date)
+  const abbr = deviceTimeZoneAbbreviation()
+  return abbr ? `${base} ${abbr}` : base
+}
+
 /** "Rabu, 3 September 2026" — untuk layar konfirmasi/struk */
 export function formatDateLong(d: Date | number | string): string {
   const date = displayDate(d)
@@ -709,6 +742,27 @@ export function groupAccountNumber(account: string): string {
     .replace(/\s/g, "")
     .replace(/(.{4})/g, "$1 ")
     .trim()
+}
+
+/**
+ * FE-IMP-3 #103 — samarkan email untuk baris menu Keamanan: "b••••@gmail.com".
+ * Hanya karakter pertama bagian lokal yang terlihat, domain utuh (supaya
+ * pengguna tetap mengenali provider-nya).
+ */
+export function maskEmail(email: string): string {
+  const clean = asText(email).trim()
+  const at = clean.indexOf("@")
+  if (at < 1 || at === clean.length - 1) return "\u2022\u2022\u2022"
+  return `${clean[0]}\u2022\u2022\u2022${clean.slice(at)}`
+}
+
+/**
+ * FE-IMP-3 #103 — samarkan nomor HP untuk baris menu Keamanan:
+ * "•••• •••• 7890" (4 digit terakhir terlihat). Mendelegasikan ke
+ * maskAccountNumber (format mask PII yang sudah baku).
+ */
+export function maskPhone(phone: string): string {
+  return maskAccountNumber(asText(phone).replace(/\D/g, ""))
 }
 
 /**

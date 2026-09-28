@@ -129,6 +129,13 @@ export default function PhoneMigrationScreen() {
                   Akun Anda belum memiliki nomor HP. Kami membutuhkan nomor HP
                   yang aktif untuk keamanan akun dan verifikasi transaksi.
                 </Text>
+                {/*
+                 * FE-IMP-3 #113 — tegaskan: akun belum bisa dipakai sampai
+                 * nomor ditambahkan (migrasi wajib, bukan opsional).
+                 */}
+                <Alert tone="warning" title="Akun belum bisa dipakai">
+                  Selesaikan penambahan nomor HP untuk mulai memakai akun Anda.
+                </Alert>
               </VStack>
 
               <PhoneInput

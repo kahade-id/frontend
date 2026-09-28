@@ -319,6 +319,29 @@ export async function setupNotifications(): Promise<void> {
 }
 
 /**
+ * Baca status izin notifikasi perangkat TANPA meminta (tidak memicu prompt
+ * izin ke pengguna). `true` = granted, `false` = ditolak/belum diberikan,
+ * `null` = tidak bisa dibaca (web tanpa API Notification, emulator, error).
+ *
+ * Dipakai FE-IMP-3 #94: status efektif gabungan per jenis notifikasi
+ * (perangkat + server) di layar Preferensi Notifikasi.
+ */
+export async function getDevicePushPermissionGranted(): Promise<boolean | null> {
+  try {
+    if (Platform.OS === "web") {
+      if (typeof window === "undefined" || !("Notification" in window)) return null
+      return window.Notification.permission === "granted"
+    }
+    if (!Device.isDevice) return null
+    const { status } = await Notifications.getPermissionsAsync()
+    return status === "granted"
+  } catch (err) {
+    logWarn("push:read-permission", err)
+    return null
+  }
+}
+
+/**
  * Minta izin (bila belum) dan ambil Expo push token.
  * `null` = tidak bisa (izin ditolak, emulator, tanpa EAS projectId, web).
  */

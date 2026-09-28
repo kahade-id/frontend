@@ -92,6 +92,26 @@ function toneFor(status: string): TimelineTone {
   return "neutral"
 }
 
+/**
+ * Mega-batch FE-IMP-5 (item 44): alasan manusiawi untuk entri "oleh Sistem"
+ * tanpa catatan. Sistem hanya memicu transisi otomatis yang bisa dipetakan
+ * dari status tujuan — pemetaan konservatif, hanya untuk status yang
+ * memang hanya bisa dipicu otomatis:
+ * - EXPIRED   = batas pembayaran habis tanpa pembayaran
+ * - COMPLETED = tenggat konfirmasi habis tanpa sengketa (rilis otomatis)
+ * Status lain (CANCELLED/REFUNDED bisa manual) tidak ditebak.
+ */
+export function systemReasonLabel(toStatus: string): string | null {
+  switch (toStatus) {
+    case "EXPIRED":
+      return "Batas pembayaran habis tanpa pembayaran"
+    case "COMPLETED":
+      return "Tenggat konfirmasi habis tanpa sengketa"
+    default:
+      return null
+  }
+}
+
 export function mapOrderHistoryToTimeline(
   entries: readonly OrderHistoryEntry[],
   currentStatus: string,
@@ -120,13 +140,18 @@ export function mapOrderHistoryToTimeline(
     // J-06 (audit escrow 2026-09-24): kalimat digabung via translate supaya
     // urutan kata bisa dibalik bahasa lain — dulu `parts.join(" — ")`
     // (potongan sudah diterjemahkan, tetapi rangkaiannya lolos katalog).
+    // Item 44 (mega-batch FE-IMP-5): entri "oleh Sistem" tanpa catatan
+    // mendapat alasan manusiawi dari status tujuannya.
+    const systemReason =
+      e.actor === "SYSTEM" && !e.note ? systemReasonLabel(e.toStatus) : null
+    const note = e.note ?? systemReason ?? undefined
     const description =
-      actorLabel && e.note
+      actorLabel && note
         ? // R2 (audit ronde-2, butir #86): token kanonik {x}/{y}.
-          translate("{x} — {y}", { x: `${labels.by} ${actorLabel}`, y: e.note })
+          translate("{x} — {y}", { x: `${labels.by} ${actorLabel}`, y: note })
         : actorLabel
           ? `${labels.by} ${actorLabel}`
-          : e.note
+          : note
 
     return {
       id: e.id,

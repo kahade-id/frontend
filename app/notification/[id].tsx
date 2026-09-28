@@ -120,6 +120,9 @@ export default function NotificationDetailScreen() {
     : null
   const [confirmEligible, setConfirmEligible] = useState(false)
   const [confirming, setConfirming] = useState(false)
+  // Item 32 (mega-batch FE-IMP-5): konfirmasi eksplisit sebelum dana escrow
+  // dilepas dari jalur notifikasi — copy sama seperti detail order.
+  const [confirmReleaseOpen, setConfirmReleaseOpen] = useState(false)
   useEffect(() => {
     if (!confirmOrderId) {
       setConfirmEligible(false)
@@ -279,13 +282,28 @@ export default function NotificationDetailScreen() {
               <Text variant="caption" tone="secondary">
                 Konfirmasi penerimaan untuk meneruskan dana escrow ke penjual.
               </Text>
-              <Button loading={confirming} onPress={() => void handleConfirmReceipt()}>
+              <Button onPress={() => setConfirmReleaseOpen(true)}>
                 Konfirmasi terima
               </Button>
             </View>
           ) : null}
         </View>
       ) : null}
+
+      <Dialog
+        title="Konfirmasi terima barang?"
+        description="Dana akan diteruskan ke penjual dan tidak bisa dibatalkan. Pastikan barang/jasa sudah Anda terima dan sesuai dengan kesepakatan."
+        visible={confirmReleaseOpen}
+        loading={confirming}
+        confirmLabel="Ya, konfirmasi"
+        cancelLabel="Periksa dulu"
+        onConfirm={() => {
+          setConfirmReleaseOpen(false)
+          void handleConfirmReceipt()
+        }}
+        onCancel={() => setConfirmReleaseOpen(false)}
+        onRequestClose={() => setConfirmReleaseOpen(false)}
+      />
 
       <Dialog
         title="Hapus notifikasi?"

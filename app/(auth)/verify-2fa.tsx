@@ -196,7 +196,9 @@ export default function VerifyTwoFactorScreen() {
                   setFieldError(undefined)
                 }}
                 errorText={fieldError}
-                helperText={fieldError ? undefined : "Kode berganti setiap 30 detik"}
+                // FE-IMP-3 #116 — kode TOTP berubah tiap 30 detik: selalu
+                // pakai kode terbaru dari aplikasi autentikator.
+                helperText={fieldError ? undefined : "Kode berubah setiap 30 detik — gunakan kode terbaru"}
                 disabled={verifying || tokenExpired}
                 autoFocus
                 accessibilityLabel="Kode autentikator 6 digit"

@@ -305,6 +305,15 @@ export default function SetupProfileScreen() {
                 Foto profil berhasil diperbarui
               </Text>
             ) : null}
+            {/*
+             * FE-IMP-3 #118 — upload gagal tidak memblokir alur: tegaskan foto
+             * bisa ditambahkan nanti dari Edit Profil.
+             */}
+            {avatarError ? (
+              <Text variant="caption" tone="secondary" className="text-center">
+                Foto bisa ditambahkan nanti dari Edit Profil.
+              </Text>
+            ) : null}
           </VStack>
 
           {/* Bio section */}

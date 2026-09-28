@@ -134,6 +134,12 @@ export const SecureKeys = {
    */
   lastUpdateId: "kahade.ota.lastUpdateId",
   /**
+   * FE-IMP-3 #99 — waktu terakhir pengguna menekan "Periksa pembaruan OTA"
+   * (ISO string). BUKAN rahasia; level perangkat seperti `lastUpdateId` —
+   * TIDAK dihapus clearSession.
+   */
+  otaLastChecked: "kahade.ota.lastChecked",
+  /**
    * Coach mark "sekali saja" untuk elemen baru (lib/coach-mark.ts):
    * tombol (+) di header Etalase ("create") dan ikon QR di bottom navbar
    * ("qr"). "1" bila tooltip pengenalnya sudah pernah tampil/ditutup.

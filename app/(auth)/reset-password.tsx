@@ -160,6 +160,22 @@ export default function ResetPasswordScreen() {
                   onSubmitEditing={() => void handleSubmit()}
                   disabled={submitting}
                 />
+
+                {/*
+                 * FE-IMP-3 #111 — indikator LIVE kata sandi cocok (sama
+                 * seperti register). Murni visual: validasi submit tetap di
+                 * handleSubmit.
+                 */}
+                {newPassword.length > 0 && confirmPassword.length > 0 ? (
+                  <Text
+                    variant="caption"
+                    tone={newPassword === confirmPassword ? "success" : "danger"}
+                  >
+                    {newPassword === confirmPassword
+                      ? "Kata sandi cocok"
+                      : "Kata sandi belum sama"}
+                  </Text>
+                ) : null}
               </VStack>
 
               <Button

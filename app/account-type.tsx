@@ -13,6 +13,7 @@
  *     sebelumnya selalu aktif dan mengirim PUT tanpa perubahan.
  */
 import { useCallback, useState } from "react"
+import { View } from "react-native"
 import { Briefcase, User } from "phosphor-react-native"
 
 import { api } from "@/lib/api"
@@ -25,6 +26,7 @@ import { useApiQuery } from "@/lib/use-api-query"
 import { Button } from "@/components/ui/button"
 import { DataScreen } from "@/components/ui/data-screen"
 import type { IconComponent } from "@/components/ui/icon"
+import { Dialog } from "@/components/ui/modal"
 import { SectionHeader } from "@/components/ui/section"
 import { Text } from "@/components/ui/text"
 import { ToggleGroup } from "@/components/ui/toggle-group"
@@ -55,6 +57,25 @@ const OPTIONS = (Object.keys(OPTION_DETAILS) as AccountType[]).map((value) => ({
   ...OPTION_DETAILS[value],
 }))
 
+/**
+ * FE-IMP-3 #97 — ringkasan konsekuensi ganti tipe akun, ditampilkan di dialog
+ * konfirmasi SEBELUM menyimpan. Copy diturunkan dari deskripsi yang sudah ada
+ * di layar ini ("Akun bisnis menampilkan profil usaha Anda di marketplace,
+ * termasuk produk dan riwayat penjualan") — bukan aturan produk baru.
+ */
+const CONSEQUENCES: Record<AccountType, string[]> = {
+  BUSINESS: [
+    "Profil usaha Anda tampil di marketplace.",
+    "Produk dan riwayat penjualan terlihat publik di profil.",
+    "Dapat diubah kembali ke Personal kapan saja.",
+  ],
+  PERSONAL: [
+    "Tampilan profil usaha disembunyikan dari publik.",
+    "Produk dan riwayat penjualan tidak lagi tampil di profil publik.",
+    "Dapat diubah kembali ke Bisnis kapan saja.",
+  ],
+}
+
 export default function AccountTypeScreen() {
   const toast = useToast()
   /**
@@ -73,10 +94,13 @@ export default function AccountTypeScreen() {
   const [picked, setPicked] = useState<AccountType | undefined>(undefined)
   const value = picked ?? serverValue
   const [submitting, setSubmitting] = useState(false)
+  // FE-IMP-3 #97 — dialog konfirmasi berisi ringkasan konsekuensi.
+  const [confirmOpen, setConfirmOpen] = useState(false)
   const { setData } = query
 
   const handleSave = useCallback(async () => {
     if (!value) return
+    setConfirmOpen(false)
     setSubmitting(true)
     try {
       await api.users.updateProfile({ accountType: value })
@@ -117,10 +141,34 @@ export default function AccountTypeScreen() {
       <Button
         loading={submitting}
         disabled={!value || value === serverValue}
-        onPress={() => void handleSave()}
+        onPress={() => setConfirmOpen(true)}
       >
         Simpan
       </Button>
+
+      {/* FE-IMP-3 #97 — konfirmasi + ringkasan konsekuensi sebelum menyimpan. */}
+      <Dialog
+        visible={confirmOpen}
+        title={value === "BUSINESS" ? "Ubah ke akun Bisnis?" : "Ubah ke akun Personal?"}
+        description="Pastikan Anda memahami konsekuensinya sebelum menyimpan:"
+        confirmLabel="Ya, ubah"
+        cancelLabel="Batal"
+        loading={submitting}
+        onConfirm={() => void handleSave()}
+        onCancel={() => setConfirmOpen(false)}
+        onRequestClose={() => setConfirmOpen(false)}
+      >
+        <View className="gap-1.5 pt-1">
+          {(value ? CONSEQUENCES[value] : []).map((line) => (
+            <View key={line} className="flex-row gap-2">
+              <Text variant="body" tone="secondary">•</Text>
+              <Text variant="body" tone="secondary" className="flex-1">
+                {line}
+              </Text>
+            </View>
+          ))}
+        </View>
+      </Dialog>
     </DataScreen>
   )
 }

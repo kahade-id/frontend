@@ -26,6 +26,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { api, isApiError } from "@/lib/api"
 import type { DeletionRequestResult } from "@/lib/api/account-deletion"
 import { clearSession } from "@/lib/api/session"
+import { copyToClipboard } from "@/lib/clipboard"
 import { formatDate } from "@/lib/format"
 import { unregisterPushDevice } from "@/lib/push-notifications"
 import { unregisterWebPushDevice } from "@/lib/web-push"
@@ -122,6 +123,18 @@ export default function DeleteAccountScreen() {
   )
 
   // ── Layar hasil: kode referensi + jadwal purge + cara batalkan ─────────
+  // FE-IMP-3 #96 — tombol "Salin kode" untuk kode referensi (dibutuhkan untuk
+  // pembatalan pra-login dari layar Masuk).
+  const handleCopyCode = useCallback(async () => {
+    if (!result) return
+    const ok = await copyToClipboard(result.referenceCode)
+    toast.show(
+      ok
+        ? { title: "Kode referensi disalin", tone: "success", duration: 2500 }
+        : { title: "Gagal menyalin kode", description: "Salin manual dari layar ini.", tone: "danger" },
+    )
+  }, [result, toast])
+
   if (result) {
     return (
       <Screen edges={["top"]}>
@@ -145,6 +158,9 @@ export default function DeleteAccountScreen() {
           <Alert tone="warning" title="Simpan kode referensi ini">
             {result.referenceCode}
           </Alert>
+          <Button variant="secondary" size="sm" onPress={() => void handleCopyCode()}>
+            Salin kode
+          </Button>
           <VStack gap={2}>
             <Heading level={2}>Cara membatalkan</Heading>
             <Text variant="body" tone="secondary" className="text-pretty">

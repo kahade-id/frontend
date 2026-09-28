@@ -22,6 +22,7 @@ import { useApiQuery } from "@/lib/use-api-query"
 import { isTimeInRange } from "@/lib/time-input"
 import { isWebPushConfigured } from "@/lib/web-push-config"
 import { registerWebPushDevice } from "@/lib/web-push"
+import { getDevicePushPermissionGranted } from "@/lib/push-notifications"
 
 import { Alert } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -53,6 +54,22 @@ export default function NotificationPreferencesScreen() {
   )
   const value: MatrixPreferences = query.data ?? {}
   const { setData } = query
+
+  // FE-IMP-3 #94 — izin notifikasi perangkat saat ini (dibaca SEKALI saat
+  // mount, TANPA meminta — getDevicePushPermissionGranted tidak memicu
+  // prompt). Dipakai matriks untuk status efektif gabungan per jenis
+  // notifikasi (perangkat + server). `null` = belum diketahui / tidak
+  // didukung — tidak memblokir status server.
+  const [devicePushGranted, setDevicePushGranted] = useState<boolean | null>(null)
+  useEffect(() => {
+    let alive = true
+    void getDevicePushPermissionGranted().then((granted) => {
+      if (alive) setDevicePushGranted(granted)
+    })
+    return () => {
+      alive = false
+    }
+  }, [])
 
   // CN-008: kirim timezone perangkat sekali saat preferensi dimuat,
   // agar quiet hours dievaluasi di zona waktu pengguna, bukan selalu WIB.
@@ -155,6 +172,8 @@ export default function NotificationPreferencesScreen() {
         // Keamanan akun tidak boleh dimatikan total: peringatan login baru,
         // perubahan kata sandi, dan 2FA adalah §14 — selalu aktif.
         lockedKeys={["securityInApp", "securityPush"]}
+        // FE-IMP-3 #94: status efektif gabungan per jenis (perangkat + server).
+        devicePushGranted={devicePushGranted}
       />
       <DigestSection
         frequency={query.data?.digestFrequency ?? "off"}

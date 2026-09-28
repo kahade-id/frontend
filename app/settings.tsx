@@ -68,11 +68,17 @@ import {
 
 import { api } from "@/lib/api"
 import { clearSession } from "@/lib/api/session"
+import type { UserProfile } from "@/lib/api/users"
+import type { NotificationPreferences } from "@/lib/api/notifications"
 import { unregisterPushDevice } from "@/lib/push-notifications"
 import { unregisterWebPushDevice } from "@/lib/web-push"
+import { summarizeNotificationPreferences } from "@/lib/notification-effective"
+import { queryKeys } from "@/lib/query-keys"
+import { useApiQuery } from "@/lib/use-api-query"
 import { ROUTES } from "@/lib/routes"
 import { languageLabel, useLanguage } from "@/lib/i18n"
 import { installedAppVersion } from "@/lib/runtime-info"
+import { maskEmail, maskPhone } from "@/lib/format"
 import { tokens } from "@/lib/tokens"
 import { logWarn } from "@/lib/telemetry"
 
@@ -111,6 +117,32 @@ export default function SettingsScreen() {
   const [logoutOpen, setLogoutOpen] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
 
+  // FE-IMP-3 #93 — nama/@username untuk dialog konfirmasi keluar. Query ringan
+  // (cache bersama queryKeys.me()); gagal muat → dialog tetap jalan tanpa nama.
+  const meQuery = useApiQuery<UserProfile>(queryKeys.me(), (signal) =>
+    api.users.getMe(signal),
+  )
+  const me = meQuery.data
+
+  // FE-IMP-3 #91 — status kanan baris "Notifikasi": "N dari 7 jenis aktif",
+  // atau "Senyap 22:00–07:00" bila quiet hours menyala. Belum dimuat/gagal →
+  // tanpa trailing (bukan angka yang menyesatkan).
+  const notifPrefsQuery = useApiQuery<NotificationPreferences>(
+    "notification-preferences",
+    (signal) => api.notifications.getNotificationPreferences(signal),
+  )
+  const notifTrailing =
+    summarizeNotificationPreferences(notifPrefsQuery.data ?? null) ?? undefined
+
+  // FE-IMP-3 #103 — identitas tersamarkan di baris menu Keamanan (nomor HP
+  // bila ada, kalau tidak email) — cegah shoulder-surfing identitas akun
+  // penuh. Belum dimuat/gagal → tanpa trailing.
+  const securityTrailing = me?.phoneNumber
+    ? maskPhone(me.phoneNumber)
+    : me?.email
+      ? maskEmail(me.email)
+      : undefined
+
   const performLogout = useCallback(async () => {
     setLoggingOut(true)
     try {
@@ -147,7 +179,7 @@ export default function SettingsScreen() {
     // Batch 43 (item 2): buku alamat pengiriman.
     { id: "addresses", label: "Buku Alamat", icon: MapPin, route: ROUTES.addresses },
     { id: "reports", label: "Laporan & Analitik", icon: FileText, route: ROUTES.analytics },
-    { id: "security", label: "Keamanan", icon: ShieldCheck, route: ROUTES.security },
+    { id: "security", label: "Keamanan", icon: ShieldCheck, route: ROUTES.security, trailing: securityTrailing },
     { id: "account-type", label: "Tipe Akun", icon: Briefcase, route: ROUTES.accountType },
     {
       id: "business-verification",
@@ -180,6 +212,7 @@ export default function SettingsScreen() {
       label: "Notifikasi",
       icon: Bell,
       route: ROUTES.notificationPreferences,
+      trailing: notifTrailing,
     },
     {
       id: "language",
@@ -303,7 +336,13 @@ export default function SettingsScreen() {
         destructive
         icon={SignOut}
         title="Keluar dari Kahade?"
-        description="Perangkat ini akan berhenti menerima notifikasi akun. Anda bisa masuk kembali kapan saja."
+        description={
+          // FE-IMP-3 #93 — tampilkan akun yang akan keluar supaya tidak salah
+          // akun (perangkat bersama / multi-akun).
+          me?.username
+            ? `Keluar dari akun ${me.fullName || me.username} (@${me.username}) di perangkat ini? Perangkat ini akan berhenti menerima notifikasi akun. Anda bisa masuk kembali kapan saja.`
+            : "Perangkat ini akan berhenti menerima notifikasi akun. Anda bisa masuk kembali kapan saja."
+        }
         confirmLabel="Keluar"
         cancelLabel="Batal"
         loading={loggingOut}

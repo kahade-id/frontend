@@ -10,7 +10,7 @@
 import { useState } from "react"
 import { View } from "react-native"
 import { router } from "expo-router"
-import { ArrowUDownLeft, ChatCircleDots, Receipt, ShieldWarning, Timer } from "phosphor-react-native"
+import { ChatCircleDots, Receipt, ShieldWarning, Timer } from "phosphor-react-native"
 
 import {
   cancelOrder,
@@ -471,7 +471,6 @@ export function OrderSecondaryActions({
   isDisputed,
   canDispute,
   canCancel,
-  canReturn,
   submitting,
   onOpenSheet,
 }: {
@@ -482,8 +481,9 @@ export function OrderSecondaryActions({
   isDisputed: boolean
   canDispute: boolean
   canCancel: boolean
-  /** Pembeli + order COMPLETED — layar /returns/new memverifikasi ulang syarat via server. */
-  canReturn: boolean
+  // Item 46 (mega-batch FE-IMP-5): "Ajukan retur" NAIK menjadi aksi primer
+  // di <OrderDetailActions> (selama window retur backend berlaku) — tidak
+  // lagi menjadi aksi sekunder di sini.
   submitting: boolean
   onOpenSheet: (sheet: "dispute" | "cancel") => void
 }) {
@@ -552,16 +552,6 @@ export function OrderSecondaryActions({
           onPress={() => onOpenSheet("dispute")}
         >
           Ajukan sengketa
-        </Button>
-      ) : null}
-      {canReturn ? (
-        <Button
-          variant="secondary"
-          size="sm"
-          leftIcon={ArrowUDownLeft}
-          onPress={() => router.push(ROUTES.newReturn(order.id))}
-        >
-          Ajukan retur
         </Button>
       ) : null}
       {canCancel ? (

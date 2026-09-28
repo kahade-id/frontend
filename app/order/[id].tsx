@@ -53,6 +53,8 @@ import { RATING_SNOOZE_MS, isRatingSnoozed, snoozeRatingReminder, useUiPrefs } f
 import { usePolling } from "@/lib/use-polling"
 import { useClockTick } from "@/lib/use-clock-tick"
 import { resolveShippingCountdown } from "@/lib/order-shipping-countdown"
+import { nextStepHintFor } from "@/lib/order-next-step"
+import type { ReturnEligibility } from "@/lib/api/returns"
 import { useQrisPayment } from "@/lib/use-qris-payment"
 import { useOrderTracking } from "@/lib/use-order-tracking"
 import { useResultTimer } from "@/lib/use-result-timer"
@@ -273,6 +275,18 @@ export default function OrderDetailScreen() {
   const historyHasMore = query.data?.historyHasMore ?? false
   const durations = query.data?.durations ?? null
   const fee = query.data?.fee ?? null
+  /**
+   * Item 46 (mega-batch FE-IMP-5): "Ajukan retur" sebagai aksi PRIMER selama
+   * window retur backend berlaku. Kelayakan + tenggat dari
+   * GET /v1/returns/eligibility — hanya diambil untuk pembeli + COMPLETED.
+   */
+  const returnEligibilityQuery = useApiQuery<ReturnEligibility | null>(
+    `return-eligibility:${id}`,
+    (signal) => api.returns.getReturnEligibility(id as string, signal),
+    Boolean(id && order?.status === "COMPLETED" && order?.myRole === "BUYER"),
+  )
+  const returnEligibility = returnEligibilityQuery.data ?? null
+  const canReturnPrimary = returnEligibility?.eligible === true
   /**
    * Lima langkah perjalanan order untuk <OrderJourney> — diturunkan murni
    * dari data server (createdAt/paidAt/completedAt + riwayat), tanpa request
@@ -597,6 +611,27 @@ export default function OrderDetailScreen() {
     const next = nextOrderStatus(order.status)
     if (!next) return undefined
     const hours = durations?.[next]
+    // Item 37 (mega-batch FE-IMP-5): estimasi rata-rata TIDAK ditampilkan bila
+    // melebihi tenggat aktual — "Biasanya 3 hari" padahal tenggat besok adalah
+    // janji palsu. Tenggat aktual yang diketahui klien:
+    //   PROCESSING → IN_DELIVERY : shippingDeadline
+    //   IN_DELIVERY → COMPLETED  : autoCompleteAt (rilis otomatis)
+    // Status lain tidak punya tenggat yang diketahui klien → estimasi tetap.
+    if (hours != null) {
+      const actualDeadlineAt =
+        next === "IN_DELIVERY"
+          ? (order.shippingDeadline ?? order.deliveryDeadlineAt ?? null)
+          : next === "COMPLETED"
+            ? (order.autoCompleteAt ?? null)
+            : null
+      if (actualDeadlineAt) {
+        const deadlineMs = new Date(actualDeadlineAt).getTime()
+        // Domain jam server (serverNow) — deadline berasal dari server.
+        if (Number.isFinite(deadlineMs) && hours * 3_600_000 > deadlineMs - serverNow()) {
+          return undefined
+        }
+      }
+    }
     // G-05: frasa diterjemahkan lewat kunci berkatalog ({x} = angkanya), bukan
     // kalimat Indonesia yang dirakit di lapisan format.
     const parts = hours != null ? durationHoursParts(hours) : null
@@ -778,11 +813,19 @@ export default function OrderDetailScreen() {
                 order.status === "SHIPPED" ||
                 order.status === "DELIVERED")
             }
+            // Item 46: "Ajukan retur" sebagai aksi PRIMER selama window retur
+            // backend berlaku (pembeli + COMPLETED + eligible).
+            canReturn={canReturnPrimary}
+            returnDeadlineAt={returnEligibility?.deadlineAt ?? null}
             buyerPays={fee?.buyerPays}
             shippingRequired={shippingRequired}
             submitting={submitting}
             autoRelease={autoRelease}
             shippingCountdown={shippingCountdown}
+            // Item 34: panduan "langkah berikutnya" bila area aksi kosong.
+            nextStepHint={nextStepHintFor(order.status, order.myRole)}
+            // Item 35: label countdown kontekstual ("Batas kirim"/"Batas konfirmasi").
+            status={order.status}
             onPay={() => setSheet("pay")}
             onAccept={() => setConfirmAccept(true)}
             onReject={() => setSheet("reject")}
@@ -808,6 +851,8 @@ export default function OrderDetailScreen() {
               )
             }
             onRate={() => router.push(ROUTES.rateOrder(order.id))}
+            // Item 46: buka form retur dengan order terisi.
+            onReturn={() => router.push(ROUTES.newReturn(order.id))}
             onReload={() => void query.reload()}
           />
 
@@ -855,22 +900,26 @@ export default function OrderDetailScreen() {
             onOpenProfile={(username) => router.push(ROUTES.userProfile(username))}
           />
 
-          {/* 8 — Pengiriman: kurir + resi (salin/lacak) */}
-          <ShippingInfoCard
-            shipping={
-              order.trackingNumber || order.courierName
-                ? {
-                    courierName: order.courierName ?? undefined,
-                    trackingNumber: order.trackingNumber ?? undefined,
-                  }
-                : null
-            }
-            canEdit={canShip}
-            onEdit={() => setSheet("shipping")}
-            onTrack={() => void openTracking()}
-            onCopy={(v) => void copy(v)}
-            copied={copied}
-          />
+          {/* 8 — Pengiriman: kurir + resi (salin/lacak). Item 43: HANYA untuk
+              order BARANG FISIK — jasa/digital/lainnya tidak punya resi/
+              ongkir dan kotak ini hanya membingungkan. */}
+          {order.orderType === "PHYSICAL_GOODS" ? (
+            <ShippingInfoCard
+              shipping={
+                order.trackingNumber || order.courierName
+                  ? {
+                      courierName: order.courierName ?? undefined,
+                      trackingNumber: order.trackingNumber ?? undefined,
+                    }
+                  : null
+              }
+              canEdit={canShip}
+              onEdit={() => setSheet("shipping")}
+              onTrack={() => void openTracking()}
+              onCopy={(v) => void copy(v)}
+              copied={copied}
+            />
+          ) : null}
 
           {/* 9 — Dana escrow: penjelasan menenangkan sesuai status */}
           <OrderEscrowCard
@@ -961,13 +1010,21 @@ export default function OrderDetailScreen() {
             isDisputed={isDisputed}
             canDispute={canDispute}
             canCancel={canCancel}
-            canReturn={isBuyer && order.status === "COMPLETED"}
             submitting={submitting}
             onOpenSheet={(kind) => setSheet(kind)}
           />
 
           {/* 14 — Butuh bantuan? */}
-          <OrderHelpCard onContactSupport={() => router.push(ROUTES.liveSupport)} />
+          {/* Item 133: "Hubungi CS" membuka form Buat Tiket dengan kategori
+              ORDER + order terisi — bukan live support kosong. */}
+          <OrderHelpCard
+            onContactSupport={() =>
+              router.push({
+                pathname: "/contact",
+                params: { category: "ORDER", orderId: order.id },
+              })
+            }
+          />
 
           {/* 15 — Riwayat */}
           <SectionHeader title="Riwayat" />

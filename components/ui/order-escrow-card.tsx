@@ -57,6 +57,31 @@ function escrowCopy(
           { x: COMPANY },
         ),
       }
+    // Item 33: sebelum pembayaran, jangan klaim dana "ditahan" — dana baru
+    // ditahan SETELAH pembeli membayar.
+    case "WAITING_CONFIRMATION":
+      return {
+        title: translate("Menunggu konfirmasi penjual"),
+        body: translate(
+          "Dana akan ditahan setelah Anda membayar. Saat ini penjual perlu menerima pesanan terlebih dahulu.",
+        ),
+      }
+    case "WAITING_PAYMENT":
+    case "PENDING_PAYMENT":
+      return myRole === "SELLER"
+        ? {
+            title: translate("Menunggu pembayaran"),
+            body: translate(
+              "Dana akan ditahan setelah pembeli membayar. Dana hanya diteruskan ke dompet Anda setelah pembeli mengonfirmasi penerimaan.",
+            ),
+          }
+        : {
+            title: translate("Menunggu pembayaran"),
+            body: translate(
+              "Dana akan ditahan setelah Anda membayar. Setelah dibayar, {x} menahan dana sampai Anda mengonfirmasi penerimaan barang/jasa.",
+              { x: COMPANY },
+            ),
+          }
     default:
       return myRole === "SELLER"
         ? {
