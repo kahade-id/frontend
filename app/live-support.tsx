@@ -26,10 +26,10 @@ import { api, userMessage } from "@/lib/api"
 import type { SupportTicket } from "@/lib/api/support"
 import type { HelpArticle } from "@/lib/api/help-center"
 import { formatTime } from "@/lib/format"
+import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 import { useApiQuery } from "@/lib/use-api-query"
 import { translate } from "@/lib/i18n"
-import { ROUTES } from "@/lib/routes"
 
 import { Button } from "@/components/ui/button"
 import { ChatComposer, type ChatComposerPayload } from "@/components/ui/chat-composer"
@@ -43,6 +43,7 @@ import { KeyboardAvoiding } from "@/components/ui/keyboard-avoiding"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Screen } from "@/components/ui/screen"
 import { Text } from "@/components/ui/text"
+import { TextArea } from "@/components/ui/text-area"
 import { useToast } from "@/components/ui/toast"
 
 // ---------------------------------------------------------------------------
@@ -108,44 +109,15 @@ export default function LiveSupportScreen() {
   const [closeOpen, setCloseOpen] = useState(false)
   const [closing, setClosing] = useState(false)
   const [reopening, setReopening] = useState(false)
+  // Item 134: saran artikel sebelum percakapan dimulai (debounce draft).
+  const [suggestions, setSuggestions] = useState<HelpArticle[]>([])
+  // Item 135: rating inline setelah percakapan ditutup.
+  const [ratingStars, setRatingStars] = useState(0)
+  const [ratingComment, setRatingComment] = useState("")
+  const [ratingBusy, setRatingBusy] = useState(false)
 
   const listRef = useRef<ScrollView | null>(null)
   const timers = useRef<ReturnType<typeof setTimeout>[]>([])
-
-  // ---- Item 134 (mega-batch FE-IMP-5): saran artikel bantuan dari draft —
-  // debounced, tampil SEBELUM percakapan dimulai/dikirim. Murni tampilan;
-  // tidak mengubah alur tiket.
-  const [suggestions, setSuggestions] = useState<HelpArticle[]>([])
-  useEffect(() => {
-    if (ticketId !== null) {
-      setSuggestions([])
-      return
-    }
-    const text = draft.trim()
-    if (text.length < 3) {
-      setSuggestions([])
-      return
-    }
-    const timer = setTimeout(() => {
-      let cancelled = false
-      void api.helpCenter
-        .searchHelpArticles(text)
-        .then((articles) => {
-          if (!cancelled) setSuggestions(articles.slice(0, 3))
-        })
-        .catch(() => {
-          // Saran artikel nonblocking — gagal = tidak tampil, bukan error.
-          if (!cancelled) setSuggestions([])
-        })
-      return () => {
-        cancelled = true
-      }
-    }, 600)
-    return () => clearTimeout(timer)
-  }, [draft, ticketId])
-
-  // ---- Item 135 (mega-batch FE-IMP-5): prompt rating setelah percakapan
-  // ditutup — didefinisikan setelah `isClosedLike` (lihat di bawah).
 
   // ---- Tahap 1: cari tiket Live Chat yang masih terbuka -------------------
   const listQuery = useApiQuery<SupportTicket[]>(
@@ -169,33 +141,6 @@ export default function LiveSupportScreen() {
   const ticket = ticketQuery.data
   const isClosedLike =
     ticket != null && (ticket.status === "CLOSED" || ticket.status === "RESOLVED")
-
-  // ---- Item 135 (mega-batch FE-IMP-5): prompt rating setelah percakapan
-  // ditutup — live support memakai tiket support biasa sehingga
-  // rateSupportTicket berlaku seperti di detail tiket.
-  const [starRating, setStarRating] = useState(0)
-  const [ratingSubmitting, setRatingSubmitting] = useState(false)
-  const myRating = ticket?.rating ?? 0
-  // Tampil bila percakapan ditutup dan pengguna belum memberi rating.
-  const showRatingPrompt = isClosedLike && ticketId !== null && myRating < 1
-  const handleRate = useCallback(async () => {
-    if (!ticketId || starRating < 1 || starRating > 5) return
-    setRatingSubmitting(true)
-    try {
-      await api.support.rateSupportTicket(ticketId, starRating)
-      toast.show({ title: translate("Terima kasih atas rating Anda"), tone: "success", duration: 2500 })
-      setStarRating(0)
-      await ticketQuery.reload()
-    } catch (err: unknown) {
-      toast.show({
-        title: translate("Gagal mengirim rating"),
-        description: userMessage(err),
-        tone: "danger",
-      })
-    } finally {
-      setRatingSubmitting(false)
-    }
-  }, [ticketId, starRating, ticketQuery, toast.show])
 
   useEffect(() => {
     if (!isFocused || !ticketId || isClosedLike) return
@@ -236,6 +181,30 @@ export default function LiveSupportScreen() {
       timers.current = []
     }
   }, [items.length, scrollToEnd])
+
+  // Item 134: sebelum percakapan dimulai, debounce draft ketikan dan cari
+  // artikel bantuan yang relevan. Hanya improvement — tidak mengubah alur chat.
+  useEffect(() => {
+    if (ticketId !== null) {
+      setSuggestions([])
+      return
+    }
+    const q = draft.trim()
+    if (q.length < 3) {
+      setSuggestions([])
+      return
+    }
+    const t = setTimeout(async () => {
+      try {
+        const found = await api.helpCenter.searchHelpArticles(q)
+        setSuggestions(found.slice(0, 3))
+      } catch {
+        // Saran artikel = nice-to-have; gagal diam-diam tanpa mengganggu chat.
+        setSuggestions([])
+      }
+    }, 600)
+    return () => clearTimeout(t)
+  }, [draft, ticketId])
 
   // ---- Aksi ---------------------------------------------------------------
   const startConversation = useCallback(
@@ -350,9 +319,32 @@ export default function LiveSupportScreen() {
     }
   }, [ticketId, ticketQuery, toast.show])
 
+  // Item 135: rating inline setelah percakapan ditutup (API existing
+  // rateSupportTicket, sama seperti rating tiket di support/[ticketId]).
+  const handleRate = useCallback(async () => {
+    if (!ticketId || ratingStars < 1 || ratingStars > 5) return
+    setRatingBusy(true)
+    try {
+      await api.support.rateSupportTicket(ticketId, ratingStars, ratingComment.trim() || undefined)
+      toast.show({ title: translate("Terima kasih atas penilaian Anda"), tone: "success", duration: 2500 })
+      setRatingStars(0)
+      setRatingComment("")
+      await ticketQuery.reload()
+    } catch (err: unknown) {
+      toast.show({
+        title: translate("Gagal mengirim rating"),
+        description: userMessage(err),
+        tone: "danger",
+      })
+    } finally {
+      setRatingBusy(false)
+    }
+  }, [ticketId, ratingStars, ratingComment, ticketQuery, toast.show])
+
   // ---- Render --------------------------------------------------------------
   const showWelcome = ticketId === null && !listQuery.loading && !listQuery.error
   const statusOpen = ticket != null && !isClosedLike
+  const showRating = isClosedLike && (ticket?.rating ?? 0) < 1
 
   return (
     <Screen edges={["top"]} padded={false}>
@@ -458,50 +450,54 @@ export default function LiveSupportScreen() {
             ) : null}
 
             {isClosedLike ? (
-              <View className="items-center gap-2 py-2">
+              <View className="items-center gap-3 py-2">
                 <Text variant="caption" tone="secondary" className="text-center">
                   {translate("Percakapan ini sudah ditutup.")}
                 </Text>
-                {/* Item 135: prompt rating setelah percakapan ditutup. */}
-                {showRatingPrompt ? (
-                  <View className="items-center gap-2 rounded-md border border-border bg-surface p-4">
-                    <Text variant="body" weight={600}>
-                      {translate("Bagaimana pengalaman Anda dengan Live Support?")}
+                {/* Item 135: rating inline setelah close/reload. */}
+                {showRating ? (
+                  <View className="w-full gap-2 rounded-lg border border-border bg-surface p-3">
+                    <Text variant="label" tone="secondary" className="text-center">
+                      {translate("Seberapa puas Anda dengan bantuan kami?")}
                     </Text>
-                    <View className="flex-row gap-2">
+                    <View className="flex-row items-center justify-center gap-2">
                       {[1, 2, 3, 4, 5].map((n) => (
                         <PressableScale
                           key={n}
                           scaleOnPress={false}
                           haptic
-                          onPress={() => setStarRating(n)}
+                          onPress={() => setRatingStars(n)}
                           accessibilityRole="button"
-                          accessibilityState={{ selected: starRating === n }}
+                          accessibilityState={{ selected: ratingStars === n }}
                           accessibilityLabel={translate("{x} bintang", { x: n })}
+                          className="p-1"
                         >
                           <Icon
                             icon={Star}
                             size="md"
-                            tone={n <= starRating ? "accent" : "default"}
-                            weight={n <= starRating ? "fill" : "regular"}
+                            tone={n <= ratingStars ? "accent" : "default"}
+                            weight={n <= ratingStars ? "fill" : "regular"}
                           />
                         </PressableScale>
                       ))}
                     </View>
+                    <TextArea
+                      value={ratingComment}
+                      onChangeText={setRatingComment}
+                      placeholder={translate("Komentar (opsional)")}
+                      maxLength={500}
+                      numberOfLines={2}
+                    />
                     <Button
                       variant="secondary"
                       size="sm"
-                      loading={ratingSubmitting}
-                      disabled={starRating < 1}
+                      loading={ratingBusy}
+                      disabled={ratingStars < 1}
                       onPress={() => void handleRate()}
                     >
                       {translate("Kirim rating")}
                     </Button>
                   </View>
-                ) : myRating >= 1 ? (
-                  <Text variant="caption" tone="secondary">
-                    {translate("Terima kasih — rating {x}/5 Anda sudah tercatat.", { x: myRating })}
-                  </Text>
                 ) : null}
                 <Button
                   variant="secondary"
@@ -518,25 +514,22 @@ export default function LiveSupportScreen() {
 
           {!isClosedLike ? (
             <>
-              {/* Item 134: saran artikel bantuan dari draft — tampil SEBELUM
-                  percakapan dimulai, di atas composer. Nonblocking. */}
-              {ticketId === null && suggestions.length > 0 ? (
-                <View className="gap-2 px-4 py-2">
-                  <Text variant="caption" tone="secondary">
-                    {translate("Mungkin artikel ini membantu:")}
+              {/* Item 134: saran artikel relevan sebelum percakapan dimulai. */}
+              {showWelcome && suggestions.length > 0 ? (
+                <View className="gap-2 border-t border-border px-4 py-3">
+                  <Text variant="label" tone="secondary">
+                    {translate("Mungkin membantu")}
                   </Text>
-                  {suggestions.map((article) => (
+                  {suggestions.map((a) => (
                     <PressableScale
-                      key={article.id}
+                      key={a.id}
+                      onPress={() => router.push(ROUTES.helpArticle(a.slug, a.category))}
                       accessibilityRole="link"
-                      accessibilityLabel={article.title}
-                      onPress={() =>
-                        router.push(ROUTES.helpArticle(article.id, undefined, article.title))
-                      }
-                      className="rounded-md border border-border bg-surface px-3 py-2.5"
+                      accessibilityLabel={a.title}
+                      className="rounded-md border border-border bg-surface px-3 py-2"
                     >
-                      <Text variant="body" weight={600} numberOfLines={2}>
-                        {article.title || translate("Artikel bantuan")}
+                      <Text variant="body" numberOfLines={2}>
+                        {a.title}
                       </Text>
                     </PressableScale>
                   ))}

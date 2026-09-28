@@ -28,7 +28,7 @@ import { translate } from "@/lib/i18n/translate"
 
 import { Badge, type BadgeProps, type BadgeTone } from "@/components/ui/badge"
 import { Card, type CardProps } from "@/components/ui/card"
-import { ticketCategoryLabel } from "@/lib/labels/ticket"
+import { ticketCategoryLabel } from "@/lib/labels/support"
 import { Dot } from "@/components/ui/dot"
 import { Icon } from "@/components/ui/icon"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -124,6 +124,8 @@ export function SupportTicketCard({
   const t = { ...DEFAULT_LABELS, ...labels }
   const showAwaiting = (awaitingYou ?? status === "WAITING_USER") && isTicketActive(status)
   const statusLabel = isTicketStatus(status) ? TICKET_STATUS_LABELS[status] : status
+  // Item 125: kategori backend ("ORDER") → label Indonesia ("Pesanan").
+  const categoryLabel = category ? ticketCategoryLabel(category) : undefined
 
   const a11y =
     accessibilityLabel ??
@@ -132,7 +134,7 @@ export function SupportTicketCard({
       `Tiket ${ticketNumber}`,
       subject,
       statusLabel,
-      category,
+      categoryLabel,
       updatedAt,
     ])
 
@@ -152,17 +154,16 @@ export function SupportTicketCard({
         {subject}
       </Text>
 
-      {/* Baris 3: kategori (label Indonesia, bukan kode mentah) · lampiran */}
-      {category || attachmentCount ? (
+      {categoryLabel || attachmentCount ? (
         <View className="flex-row items-center gap-2">
-          {category ? (
+          {categoryLabel ? (
             <Text variant="caption" tone="secondary" numberOfLines={1}>
-              {ticketCategoryLabel(category)}
+              {categoryLabel}
             </Text>
           ) : null}
           {attachmentCount ? (
             <View className="flex-row items-center gap-1">
-              {category ? (
+              {categoryLabel ? (
                 <Text variant="caption" tone="secondary">
                   ·
                 </Text>

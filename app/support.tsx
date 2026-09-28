@@ -4,63 +4,75 @@
  *
  * Audit: state async → `useApiQuery`; kerangka → <DataScreen>.
  *
- * Mega-batch FE-IMP-5:
- * - Item 124: pencarian (nomor tiket/subjek) + chip filter status.
- * - Item 125: label kategori Indonesia (di <SupportTicketCard>).
- * - Item 126: dot "balasan baru" — balasan staf lebih baru dari terakhir
- *   tiket dibuka (disimpan lokal per tiket di lib/ui-prefs).
+ * Item mega-batch:
+ * - 124: pencarian + filter status (filter lokal — API belum punya query filter).
+ * - 126: dot unread dari jejak "terakhir dibuka" lokal (lib/support-unread).
  */
-import { useMemo, useState } from "react"
-import { ScrollView, View } from "react-native"
-import { ChatCircleText } from "phosphor-react-native"
+import { ChatCircleText, MagnifyingGlass } from "phosphor-react-native"
 import { router } from "expo-router"
+import { useEffect, useMemo, useState } from "react"
+import { View } from "react-native"
 
 import { api } from "@/lib/api"
+import type { SupportTicket } from "@/lib/api/support"
 import { formatDateTime } from "@/lib/format"
 import { ROUTES } from "@/lib/routes"
+import { getSupportOpenedAt, isSupportTicketUnread } from "@/lib/support-unread"
 import { useApiQuery } from "@/lib/use-api-query"
-import { hasUnreadTicketReply } from "@/lib/ui-prefs"
-import { TICKET_STATUS_LABELS } from "@/lib/labels/status"
 
 import { Button } from "@/components/ui/button"
 import { Chip } from "@/components/ui/chip"
 import { DataScreen } from "@/components/ui/data-screen"
-import { DebouncedSearchField } from "@/components/ui/debounced-search-field"
-import { EmptyState } from "@/components/ui/empty-state"
+import { Input } from "@/components/ui/input"
 import { SectionHeader } from "@/components/ui/section"
 import { SupportTicketCard } from "@/components/ui/support-ticket-card"
 
-type StatusFilter = "ALL" | "OPEN" | "IN_PROGRESS" | "WAITING_USER" | "RESOLVED" | "CLOSED"
+type StatusFilter = "all" | "active" | "waiting" | "done"
 
-const STATUS_FILTERS: StatusFilter[] = [
-  "ALL",
-  "OPEN",
-  "IN_PROGRESS",
-  "WAITING_USER",
-  "RESOLVED",
-  "CLOSED",
+const STATUS_FILTERS: Array<{ value: StatusFilter; label: string }> = [
+  { value: "all", label: "Semua" },
+  { value: "active", label: "Aktif" },
+  { value: "waiting", label: "Menunggu saya" },
+  { value: "done", label: "Selesai" },
 ]
 
-function statusFilterLabel(filter: StatusFilter): string {
-  return filter === "ALL" ? "Semua" : (TICKET_STATUS_LABELS[filter] ?? filter)
+function matchesFilter(t: SupportTicket, filter: StatusFilter): boolean {
+  switch (filter) {
+    case "active":
+      return t.status === "OPEN" || t.status === "IN_PROGRESS"
+    case "waiting":
+      return t.status === "WAITING_USER"
+    case "done":
+      return t.status === "RESOLVED" || t.status === "CLOSED"
+    default:
+      return true
+  }
 }
 
 export default function SupportScreen() {
   const query = useApiQuery("support-tickets", (signal) => api.support.listSupportTickets(signal))
   const tickets = query.data ?? []
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL")
-  const [searchText, setSearchText] = useState("")
 
-  const filtered = useMemo(() => {
-    const q = searchText.trim().toLowerCase()
+  const [search, setSearch] = useState("")
+  const [filter, setFilter] = useState<StatusFilter>("all")
+  const [openedAt, setOpenedAt] = useState<Record<string, number>>({})
+
+  useEffect(() => {
+    void getSupportOpenedAt().then(setOpenedAt)
+  }, [])
+
+  const visible = useMemo(() => {
+    const q = search.trim().toLowerCase()
     return tickets.filter((t) => {
-      if (statusFilter !== "ALL" && t.status !== statusFilter) return false
+      if (!matchesFilter(t, filter)) return false
       if (!q) return true
       return (
-        t.ticketNumber.toLowerCase().includes(q) || t.subject.toLowerCase().includes(q)
+        t.subject.toLowerCase().includes(q) ||
+        t.ticketNumber.toLowerCase().includes(q) ||
+        (t.lastMessage?.text ?? "").toLowerCase().includes(q)
       )
     })
-  }, [tickets, statusFilter, searchText])
+  }, [tickets, search, filter])
 
   return (
     <DataScreen
@@ -80,64 +92,56 @@ export default function SupportScreen() {
         }
       }
     >
-      {/* Item 124: pencarian + chip status. */}
-      <DebouncedSearchField
-        placeholder="Cari nomor tiket atau subjek…"
-        onQueryChange={setSearchText}
-      />
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-        <View className="flex-row gap-2">
-          {STATUS_FILTERS.map((filter) => (
+      <SectionHeader title="Semua tiket" />
+      {/* Item 124: pencarian + filter status. */}
+      <View className="gap-2">
+        <Input
+          value={search}
+          onChangeText={setSearch}
+          placeholder="Cari subjek atau nomor tiket"
+          leftIcon={MagnifyingGlass}
+          returnKeyType="search"
+          accessibilityLabel="Cari tiket"
+        />
+        <View className="flex-row flex-wrap gap-2" accessibilityRole="radiogroup">
+          {STATUS_FILTERS.map((f) => (
             <Chip
-              key={filter}
-              selected={statusFilter === filter}
-              onPress={() => setStatusFilter(filter)}
+              key={f.value}
+              selected={filter === f.value}
+              onPress={() => setFilter(f.value)}
+              accessibilityRole="radio"
+              accessibilityState={{ selected: filter === f.value }}
             >
-              {statusFilterLabel(filter)}
+              {f.label}
             </Chip>
           ))}
         </View>
-      </ScrollView>
-
-      <SectionHeader
-        title={statusFilter === "ALL" ? "Semua tiket" : statusFilterLabel(statusFilter)}
-      />
-      {filtered.length === 0 && tickets.length > 0 ? (
-        <View className="py-8">
-          <EmptyState
-            icon={ChatCircleText}
-            title="Tidak ada tiket yang cocok"
-            description="Coba kata kunci atau filter status lain."
-          />
+      </View>
+      {visible.map((t) => (
+        <SupportTicketCard
+          key={t.id}
+          ticketNumber={t.ticketNumber}
+          subject={t.subject}
+          status={t.status}
+          category={t.category}
+          attachmentCount={t.attachmentKeys?.length}
+          lastMessage={
+            t.lastMessage
+              ? { text: t.lastMessage.text, fromUser: t.lastMessage.fromUser }
+              : undefined
+          }
+          updatedAt={t.updatedAt ? formatDateTime(t.updatedAt) : undefined}
+          unread={isSupportTicketUnread(t, openedAt)}
+          href={ROUTES.supportTicket(t.id)}
+        />
+      ))}
+      {tickets.length > 0 && visible.length === 0 ? (
+        <View className="items-center py-6">
+          <Button variant="ghost" fullWidth={false} onPress={() => { setSearch(""); setFilter("all") }}>
+            Bersihkan pencarian
+          </Button>
         </View>
       ) : null}
-      {filtered.map((t) => {
-        const lastAt = t.lastMessage?.createdAt ? Date.parse(t.lastMessage.createdAt) : null
-        return (
-          <SupportTicketCard
-            key={t.id}
-            ticketNumber={t.ticketNumber}
-            subject={t.subject}
-            status={t.status}
-            category={t.category}
-            attachmentCount={t.attachmentKeys?.length}
-            // Item 126: dot balasan baru bila staf membalas setelah tiket
-            // terakhir dibuka.
-            unread={hasUnreadTicketReply(
-              t.id,
-              Number.isFinite(lastAt) ? lastAt : null,
-              t.lastMessage?.fromUser ?? true,
-            )}
-            lastMessage={
-              t.lastMessage
-                ? { text: t.lastMessage.text, fromUser: t.lastMessage.fromUser }
-                : undefined
-            }
-            updatedAt={t.updatedAt ? formatDateTime(t.updatedAt) : undefined}
-            href={ROUTES.supportTicket(t.id)}
-          />
-        )
-      })}
     </DataScreen>
   )
 }

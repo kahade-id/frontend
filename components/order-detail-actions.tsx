@@ -7,38 +7,16 @@
  * GERBANG TAMPIL 100% milik pemanggil (canPay/canConfirm/…): komponen ini
  * TIDAK memutuskan kapan tombol muncul — hanya me-render yang diminta.
  * Seluruh handler (runAction, sheet, navigasi) diteruskan sebagai props.
- *
- * Mega-batch FE-IMP-5:
- * - Item 31: label rilis escrow disatukan menjadi "Konfirmasi terima"
- *   (sebelumnya "Tandai selesai" di sini vs "Konfirmasi terima" di
- *   notifikasi/push).
- * - Item 32: dialog konfirmasi sebelum dana escrow dilepas — "Dana akan
- *   diteruskan ke penjual dan tidak bisa dibatalkan".
- * - Item 34: bila TIDAK ADA aksi primer (menunggu pihak lain), tampilkan box
- *   "Langkah berikutnya" dari prop `nextStepHint`.
- * - Item 35: label countdown kontekstual ("Batas kirim"/"Batas konfirmasi"
- *   dari lib/order-countdown) menggantikan "Batas waktu kirim penjual".
- * - Item 36: countdown < 24 jam naik ke tone danger (bg-danger-soft).
- * - Item 45: box auto-release menegaskan hak memeriksa & sengketa sampai
- *   waktu rilis otomatis.
- * - Item 46: "Ajukan retur" sebagai aksi PRIMER selama window retur berlaku
- *   (prop `canReturn` + `returnDeadlineAt`).
  */
-import { useState } from "react"
 import { View, type ViewProps } from "react-native"
 import { ArrowUDownLeft, Package, Truck } from "phosphor-react-native"
 
 import { Button } from "@/components/ui/button"
-import { Dialog } from "@/components/ui/modal"
 import { ErrorState } from "@/components/ui/error-state"
 import { Text } from "@/components/ui/text"
 import { formatDurationWords, formatDateTimeWIB, formatRupiah } from "@/lib/format"
 import { translate } from "@/lib/i18n/translate"
-import {
-  countdownDeadlineLabel,
-  isCountdownUrgent,
-} from "@/lib/order-countdown"
-import { nextStepTitle } from "@/lib/order-next-step"
+import { orderNextStepHint, type OrderActorRole } from "@/lib/order-next-step"
 import type { ShippingCountdown } from "@/lib/order-shipping-countdown"
 
 export type OrderDetailActionsProps = Omit<ViewProps, "children"> & {
@@ -50,14 +28,16 @@ export type OrderDetailActionsProps = Omit<ViewProps, "children"> & {
   canRate: boolean
   /** Penjual melihat bukti pengiriman saat order dalam pengiriman. */
   canViewProof: boolean
-  /** Item 46: pembeli + window retur backend masih berlaku → aksi primer. */
-  canReturn: boolean
-  /** Tenggat window retur (ISO) — tampil sebagai info di tombol retur. */
-  returnDeadlineAt?: string | null
+  /** Item 46: "Ajukan retur" sebagai aksi PRIMER selama jendela retur berlaku. */
+  canReturnPrimary: boolean
   /** Nominal bayar terverifikasi; null = tombol Bayar terkunci. */
   buyerPays: number | null | undefined
   shippingRequired: boolean
   submitting: boolean
+  /** Status order mentah — untuk label countdown & hint langkah berikut. */
+  status: string
+  /** Peran user — untuk hint langkah berikut & copy auto-release. */
+  myRole?: OrderActorRole
   /** Countdown auto-release dana (IN_DELIVERY + autoCompleteAt). */
   autoRelease: { secondsLeft: number; at: string } | null
   /**
@@ -66,17 +46,6 @@ export type OrderDetailActionsProps = Omit<ViewProps, "children"> & {
    * `resolveShippingCountdown`); komponen hanya me-render yang diminta.
    */
   shippingCountdown: ShippingCountdown | null
-  /**
-   * Item 34: panduan satu kalimat bila area aksi kosong (menunggu pihak
-   * lain). Diturunkan layar dari status × peran (lib/order-next-step).
-   */
-  nextStepHint?: string | null
-  /**
-   * Item 35: status order saat ini — dipakai label countdown kontekstual
-   * ("Batas kirim"/"Batas konfirmasi"). Opsional; tanpa status, label
-   * generik "Batas waktu" dipakai (fallback aman).
-   */
-  status?: string
   onPay: () => void
   onAccept: () => void
   onReject: () => void
@@ -84,7 +53,6 @@ export type OrderDetailActionsProps = Omit<ViewProps, "children"> & {
   onDeliveryProof: () => void
   onComplete: () => void
   onRate: () => void
-  /** Item 46: buka form retur (layar /returns/new). */
   onReturn: () => void
   onReload: () => void
   className?: string
@@ -100,8 +68,6 @@ export type OrderRatingReminderProps = Omit<ViewProps, "children"> & {
 /**
  * Pengingat ulasan pasca-COMPLETED (jendela 7 hari backend, bisa ditunda).
  * Murni presentasi — keputusan tampil (`visible`) milik layar.
- *
- * Item 39: copy diseragamkan ke formal "Anda" ("ulasanmu" → "ulasan Anda").
  */
 export function OrderRatingReminder({
   visible,
@@ -115,6 +81,7 @@ export function OrderRatingReminder({
     <View className={className} {...rest}>
       <View className="gap-3 rounded-lg bg-info-soft p-3">
         <View className="gap-1">
+          {/* Item 39: copy formal "Anda" (dulu "ulasanmu"). */}
           <Text variant="caption" tone="secondary">
             Transaksi selesai — ulasan Anda membantu pengguna lain memutuskan.
           </Text>
@@ -137,6 +104,28 @@ export function OrderRatingReminder({
     </View>
   )
 }
+
+/**
+ * Item 36: tone countdown naik mengikuti kedekatan tenggat —
+ * kedaluwarsa → danger, < 24 jam → warning, selebihnya info.
+ */
+type CountdownTone = "danger" | "warning" | "info"
+function countdownTone(secondsLeft: number | null, expired: boolean): CountdownTone {
+  if (expired) return "danger"
+  if (secondsLeft != null && secondsLeft < 24 * 3600) return "warning"
+  return "info"
+}
+const COUNTDOWN_BOX_BG: Record<CountdownTone, string> = {
+  danger: "bg-danger-soft",
+  warning: "bg-warning-soft",
+  info: "bg-info-soft",
+}
+const COUNTDOWN_TITLE_TONE: Record<CountdownTone, "danger" | "primary"> = {
+  danger: "danger",
+  warning: "primary",
+  info: "primary",
+}
+
 export function OrderDetailActions({
   canPay,
   canConfirm,
@@ -144,15 +133,14 @@ export function OrderDetailActions({
   canReviewDelivery,
   canRate,
   canViewProof,
-  canReturn,
-  returnDeadlineAt,
+  canReturnPrimary,
   buyerPays,
   shippingRequired,
   submitting,
+  status,
+  myRole,
   autoRelease,
   shippingCountdown,
-  nextStepHint,
-  status,
   onPay,
   onAccept,
   onReject,
@@ -165,19 +153,18 @@ export function OrderDetailActions({
   className,
   ...rest
 }: OrderDetailActionsProps) {
-  // Item 32: konfirmasi eksplisit sebelum dana escrow dilepas. Dialog hidup
-  // di dalam komponen (presentasi), aksi pelepasannya tetap milik pemanggil.
-  const [confirmReleaseOpen, setConfirmReleaseOpen] = useState(false)
-
-  // Item 34: area aksi dianggap "kosong" bila tidak ada SATU PUN aksi primer
-  // yang dirender — countdown bukan aksi, jadi tidak ikut dihitung.
-  const hasPrimaryAction =
-    canPay || canConfirm || canShip || canReviewDelivery || canRate || canViewProof || canReturn
-
-  const autoReleaseUrgent = autoRelease ? isCountdownUrgent(autoRelease.secondsLeft) : false
-  const shippingUrgent =
-    shippingCountdown?.kind === "countdown" ? isCountdownUrgent(shippingCountdown.secondsLeft) : false
-
+  const autoReleaseTone = countdownTone(
+    autoRelease?.secondsLeft ?? null,
+    (autoRelease?.secondsLeft ?? 1) <= 0,
+  )
+  const shippingTone = countdownTone(
+    shippingCountdown?.kind === "countdown" ? shippingCountdown.secondsLeft : null,
+    shippingCountdown?.kind === "overdue",
+  )
+  // Item 34: area aksi kosong → tampilkan "langkah berikutnya" per status × peran.
+  const hasAnyAction =
+    canPay || canConfirm || canShip || canReviewDelivery || canRate || canViewProof || canReturnPrimary
+  const nextStepHint = !hasAnyAction ? orderNextStepHint(status, myRole) : null
   return (
     <View className={className} {...rest}>
       <View className="gap-2">
@@ -185,26 +172,19 @@ export function OrderDetailActions({
          * Countdown auto-release dana: IN_DELIVERY + `autoCompleteAt` dari
          * backend (= deliveryDeadlineAt). Dana cair otomatis bila tidak
          * ada konfirmasi/sengketa sebelum tanggal tersebut.
-         *
-         * Item 35: label kontekstual "Batas konfirmasi". Item 36: < 24 jam
-         * naik ke tone danger. Item 45: tegaskan hak memeriksa barang &
-         * mengajukan sengketa sampai waktu rilis otomatis.
+         * Item 35: label kontekstual "Batas konfirmasi".
          */}
         {autoRelease ? (
-          <View className={`gap-1 rounded-lg p-3 ${autoReleaseUrgent ? "bg-danger-soft" : "bg-warning-soft"}`}>
-            <Text variant="body" weight={600}>
+          <View className={`gap-1 rounded-lg p-3 ${COUNTDOWN_BOX_BG[autoReleaseTone]}`}>
+            <Text variant="label" tone="secondary">
+              {translate("Batas konfirmasi")}
+            </Text>
+            <Text variant="body" weight={600} tone={COUNTDOWN_TITLE_TONE[autoReleaseTone]}>
               {autoRelease.secondsLeft > 0
-                ? translate("{label}: {x}.", {
-                    label: countdownDeadlineLabel(status ?? "IN_DELIVERY"),
+                ? translate("Dana akan cair otomatis dalam {x}.", {
                     x: formatDurationWords(autoRelease.secondsLeft),
                   })
                 : translate("Dana akan segera diteruskan ke penjual.")}
-            </Text>
-            <Text variant="caption" tone="secondary">
-              {translate(
-                "Anda masih bisa memeriksa barang & mengajukan sengketa sampai {x}.",
-                { x: formatDateTimeWIB(autoRelease.at) },
-              )}
             </Text>
             <Text variant="caption" tone="secondary">
               {translate(
@@ -212,6 +192,14 @@ export function OrderDetailActions({
                 { x: formatDateTimeWIB(autoRelease.at) },
               )}
             </Text>
+            {/* Item 45: tegaskan hak pembeli sampai detik terakhir. */}
+            {myRole === "BUYER" && autoRelease.secondsLeft > 0 ? (
+              <Text variant="caption" tone="secondary">
+                {translate("Anda masih bisa memeriksa barang & mengajukan sengketa sampai {x}.", {
+                  x: formatDateTimeWIB(autoRelease.at),
+                })}
+              </Text>
+            ) : null}
           </View>
         ) : null}
         {/*
@@ -219,31 +207,30 @@ export function OrderDetailActions({
          * dikirim. Deadline lewat: tampilkan status jujur ("melewati batas"),
          * bukan disembunyikan — pola sama seperti kartu auto-release di atas
          * yang saat habis menampilkan teks alternatif.
-         *
-         * Item 35: "Batas kirim". Item 36: < 24 jam → tone danger.
+         * Item 35: label kontekstual "Batas kirim".
          */}
         {shippingCountdown ? (
-          <View className={`gap-1 rounded-lg p-3 ${shippingUrgent ? "bg-danger-soft" : "bg-warning-soft"}`}>
+          <View className={`gap-1 rounded-lg p-3 ${COUNTDOWN_BOX_BG[shippingTone]}`}>
+            <Text variant="label" tone="secondary">
+              {translate("Batas kirim")}
+            </Text>
             {shippingCountdown.kind === "countdown" ? (
               <>
-                <Text variant="body" weight={600}>
-                  {translate("{label}: {x}.", {
-                    label: countdownDeadlineLabel(status ?? "PROCESSING"),
+                <Text variant="body" weight={600} tone={COUNTDOWN_TITLE_TONE[shippingTone]}>
+                  {translate("Penjual harus mengirim dalam {x}.", {
                     x: formatDurationWords(shippingCountdown.secondsLeft),
                   })}
                 </Text>
                 <Text variant="caption" tone="secondary">
-                  {translate("Penjual harus mengirim sebelum {x}.", {
+                  {translate("Tenggat kirim: {x}.", {
                     x: formatDateTimeWIB(shippingCountdown.at),
                   })}
                 </Text>
               </>
             ) : (
               <>
-                <Text variant="body" weight={600} tone={shippingUrgent ? "danger" : "primary"}>
-                  {translate("Penjual melewati {label}.", {
-                    label: countdownDeadlineLabel(status ?? "PROCESSING").toLowerCase(),
-                  })}
+                <Text variant="body" weight={600} tone={COUNTDOWN_TITLE_TONE[shippingTone]}>
+                  {translate("Penjual melewati batas waktu kirim.")}
                 </Text>
                 <Text variant="caption" tone="secondary">
                   {translate("Tenggat kirim adalah {x}.", {
@@ -252,6 +239,19 @@ export function OrderDetailActions({
                 </Text>
               </>
             )}
+          </View>
+        ) : null}
+        {/* Item 46: "Ajukan retur" sebagai aksi PRIMER selama jendela retur berlaku. */}
+        {canReturnPrimary ? (
+          <Button leftIcon={ArrowUDownLeft} onPress={onReturn}>
+            Ajukan retur
+          </Button>
+        ) : null}
+        {nextStepHint ? (
+          <View className="gap-1 rounded-lg bg-info-soft p-3">
+            <Text variant="body" tone="secondary">
+              {nextStepHint}
+            </Text>
           </View>
         ) : null}
         {canPay ? (
@@ -297,10 +297,9 @@ export function OrderDetailActions({
             <Button leftIcon={Package} onPress={onDeliveryProof}>
               Periksa bukti pengiriman
             </Button>
-            {/* Item 31: label disatukan menjadi "Konfirmasi terima" (dulu
-                "Tandai selesai" — tidak konsisten dengan notifikasi/push).
-                Item 32: ketuk → dialog konfirmasi dulu, baru dana dilepas. */}
-            <Button variant="secondary" loading={submitting} onPress={() => setConfirmReleaseOpen(true)}>
+            {/* Item 31: satu nama untuk rilis escrow — "Konfirmasi terima"
+                (selaras label di notifikasi/push, item #24). */}
+            <Button variant="secondary" loading={submitting} onPress={onComplete}>
               Konfirmasi terima
             </Button>
           </>
@@ -315,51 +314,7 @@ export function OrderDetailActions({
             Beri ulasan
           </Button>
         ) : null}
-        {/* Item 46: "Ajukan retur" sebagai aksi PRIMER selama window retur
-            berlaku — bukan lagi tombol sekunder di "Lainnya". */}
-        {canReturn ? (
-          <>
-            <Button leftIcon={ArrowUDownLeft} onPress={onReturn}>
-              Ajukan retur
-            </Button>
-            {returnDeadlineAt ? (
-              <Text variant="caption" tone="secondary">
-                {translate("Window retur berlaku sampai {x}.", {
-                  x: formatDateTimeWIB(returnDeadlineAt),
-                })}
-              </Text>
-            ) : null}
-          </>
-        ) : null}
-        {/* Item 34: tidak ada aksi primer → tampilkan "langkah berikutnya"
-            per status × peran, supaya area tidak kosong membingungkan. */}
-        {!hasPrimaryAction && nextStepHint ? (
-          <View className="gap-1 rounded-lg bg-info-soft p-3">
-            <Text variant="body" weight={600}>
-              {nextStepTitle()}
-            </Text>
-            <Text variant="caption" tone="secondary">
-              {nextStepHint}
-            </Text>
-          </View>
-        ) : null}
       </View>
-
-      {/* Item 32: dialog konfirmasi pelepasan dana escrow. */}
-      <Dialog
-        title="Konfirmasi terima barang?"
-        description="Dana akan diteruskan ke penjual dan tidak bisa dibatalkan. Pastikan barang/jasa sudah Anda terima dan sesuai dengan kesepakatan."
-        visible={confirmReleaseOpen}
-        loading={submitting}
-        confirmLabel="Ya, konfirmasi"
-        cancelLabel="Periksa dulu"
-        onConfirm={() => {
-          setConfirmReleaseOpen(false)
-          onComplete()
-        }}
-        onCancel={() => setConfirmReleaseOpen(false)}
-        onRequestClose={() => setConfirmReleaseOpen(false)}
-      />
     </View>
   )
 }

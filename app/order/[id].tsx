@@ -53,8 +53,6 @@ import { RATING_SNOOZE_MS, isRatingSnoozed, snoozeRatingReminder, useUiPrefs } f
 import { usePolling } from "@/lib/use-polling"
 import { useClockTick } from "@/lib/use-clock-tick"
 import { resolveShippingCountdown } from "@/lib/order-shipping-countdown"
-import { nextStepHintFor } from "@/lib/order-next-step"
-import type { ReturnEligibility } from "@/lib/api/returns"
 import { useQrisPayment } from "@/lib/use-qris-payment"
 import { useOrderTracking } from "@/lib/use-order-tracking"
 import { useResultTimer } from "@/lib/use-result-timer"
@@ -168,6 +166,12 @@ export default function OrderDetailScreen() {
     historyPage: number
     durations: AverageDurations | null
     fee: Awaited<ReturnType<typeof api.orders.calculateFee>> | null
+    /**
+     * Item 46: kelayakan retur dari server (GET /v1/returns/eligibility) —
+     * hanya dicek untuk pembeli + order COMPLETED; `null` = tidak dicek /
+     * gagal (fallback ke tombol sekunder lama, fail-closed).
+     */
+    returnEligible: boolean | null
   }>(
     `order-detail:${id}`,
     async (signal) => {
@@ -240,6 +244,20 @@ export default function OrderDetailScreen() {
       // riwayat diambil PARALEL dengan detail+durasi (Promise.all), sehingga
       // tidak pernah menambah RTT. Versi lama punya susulan serial fee/riwayat
       // yang ikut menahan TTI order terminal.
+      //
+      // Item 46: kelayakan retur dicek PARALEL juga — hanya untuk pembeli +
+      // COMPLETED. Gagal = null (fallback tombol sekunder, bukan hilang).
+      const resolvedForReturnCheck = resolvedOrder
+      const returnElig =
+        resolvedForReturnCheck.myRole === "BUYER" && resolvedForReturnCheck.status === "COMPLETED"
+          ? await api.returns
+              .getReturnEligibility(oid, signal)
+              .then((e) => e?.eligible === true)
+              .catch((err) => {
+                logWarn("order:return-eligibility", err)
+                return null
+              })
+          : null
       return {
         order: resolvedOrder,
         history: h?.data ?? [],
@@ -249,6 +267,7 @@ export default function OrderDetailScreen() {
         historyPage: 1,
         durations: d,
         fee,
+        returnEligible: returnElig,
       }
     },
     Boolean(id),
@@ -275,18 +294,6 @@ export default function OrderDetailScreen() {
   const historyHasMore = query.data?.historyHasMore ?? false
   const durations = query.data?.durations ?? null
   const fee = query.data?.fee ?? null
-  /**
-   * Item 46 (mega-batch FE-IMP-5): "Ajukan retur" sebagai aksi PRIMER selama
-   * window retur backend berlaku. Kelayakan + tenggat dari
-   * GET /v1/returns/eligibility — hanya diambil untuk pembeli + COMPLETED.
-   */
-  const returnEligibilityQuery = useApiQuery<ReturnEligibility | null>(
-    `return-eligibility:${id}`,
-    (signal) => api.returns.getReturnEligibility(id as string, signal),
-    Boolean(id && order?.status === "COMPLETED" && order?.myRole === "BUYER"),
-  )
-  const returnEligibility = returnEligibilityQuery.data ?? null
-  const canReturnPrimary = returnEligibility?.eligible === true
   /**
    * Lima langkah perjalanan order untuk <OrderJourney> — diturunkan murni
    * dari data server (createdAt/paidAt/completedAt + riwayat), tanpa request
@@ -372,6 +379,8 @@ export default function OrderDetailScreen() {
 
   const [sheet, setSheet] = useState<SheetKind>(null)
   const [confirmAccept, setConfirmAccept] = useState(false)
+  // Item 32: dialog konfirmasi SEBELUM dana escrow dilepas.
+  const [confirmComplete, setConfirmComplete] = useState(false)
 
   // Pembayaran
   const [payMethod, setPayMethod] = useState<PayMethod>("balance")
@@ -397,7 +406,7 @@ export default function OrderDetailScreen() {
    * "pembayaran kedua" bila yang pertama sebenarnya sudah terdebit.
    */
   const payKeyRef = useRef<string | null>(null)
-  // R2 (audit ronde-2, butir #17): kunci untuk "Tandai selesai" (rilis escrow);
+  // R2 (audit ronde-2, butir #17): kunci untuk "Konfirmasi terima" (rilis escrow);
   // dibersihkan setelah SUKSES — uncertain-fail mempertahankan untuk retry.
   const completeKeyRef = useRef<string | null>(null)
 
@@ -606,6 +615,32 @@ export default function OrderDetailScreen() {
     }
   }, [order])
 
+  /**
+   * Item 32: eksekusi rilis escrow — hanya dipanggil dari dialog konfirmasi
+   * "Konfirmasi terima barang?" (copy: dana diteruskan & tidak bisa dibatalkan).
+   */
+  const handleCompleteOrder = useCallback(() => {
+    if (!order) return
+    setConfirmComplete(false)
+    void runAction(
+      async () => {
+        // M-28: spesifikasi `POST /v1/orders/{id}/complete` TANPA
+        // requestBody — jejak bukti melekat pada order di server.
+        await api.orders.completeOrder(
+          order.id,
+          // R2 butir #17: kunci idempotensi per siklus — retry
+          // pasca-timeout tidak melepas dana dua kali di server
+          // yang mendukung header. Dibersihkan setelah SUKSES.
+          completeKeyRef.current ??
+            (completeKeyRef.current = createIdempotencyKey()),
+        )
+        completeKeyRef.current = null
+      },
+      "Order selesai",
+      "Gagal menyelesaikan order",
+    )
+  }, [order, runAction])
+
   const expectedNext = useMemo(() => {
     if (!order) return undefined
     const next = nextOrderStatus(order.status)
@@ -635,11 +670,33 @@ export default function OrderDetailScreen() {
     // G-05: frasa diterjemahkan lewat kunci berkatalog ({x} = angkanya), bukan
     // kalimat Indonesia yang dirakit di lapisan format.
     const parts = hours != null ? durationHoursParts(hours) : null
+    if (!parts) return undefined
+    // Item 37 (final review): estimasi rata-rata TIDAK ditampilkan bila
+    // melebihi tenggat AKTUAL yang mengatur transisi berikutnya — bukan
+    // selalu deliveryDeadlineAt:
+    //   PROCESSING → IN_DELIVERY : batas kirim penjual (shippingDeadline)
+    //   IN_DELIVERY → COMPLETED  : auto-complete (autoCompleteAt)
+    //   lainnya                  : deliveryDeadlineAt (fallback lama)
+    // Estimasi yang menjanjikan "biasanya 3 hari" padahal tenggatnya besok
+    // adalah informasi yang menyesatkan.
+    if (hours != null) {
+      const relevantDeadline =
+        next === "IN_DELIVERY"
+          ? (order.shippingDeadline ?? order.deliveryDeadlineAt)
+          : next === "COMPLETED"
+            ? (order.autoCompleteAt ?? order.deliveryDeadlineAt)
+            : order.deliveryDeadlineAt
+      if (relevantDeadline) {
+        const deadlineMs = new Date(relevantDeadline).getTime()
+        if (Number.isFinite(deadlineMs) && serverNow() + hours * 3_600_000 > deadlineMs) {
+          return undefined
+        }
+      }
+    }
     return {
       title: ORDER_STATUS_LABELS[next] ?? next,
-      description: !parts
-        ? undefined
-        : parts.unit === "day"
+      description:
+        parts.unit === "day"
           ? translate("Biasanya sekitar {x} hari", { x: parts.value })
           : translate("Biasanya sekitar {x} jam", { x: parts.value }),
     }
@@ -813,43 +870,24 @@ export default function OrderDetailScreen() {
                 order.status === "SHIPPED" ||
                 order.status === "DELIVERED")
             }
-            // Item 46: "Ajukan retur" sebagai aksi PRIMER selama window retur
-            // backend berlaku (pembeli + COMPLETED + eligible).
-            canReturn={canReturnPrimary}
-            returnDeadlineAt={returnEligibility?.deadlineAt ?? null}
+            canReturnPrimary={query.data?.returnEligible === true}
             buyerPays={fee?.buyerPays}
             shippingRequired={shippingRequired}
             submitting={submitting}
+            status={order.status}
+            myRole={knownRole ? myRole : undefined}
             autoRelease={autoRelease}
             shippingCountdown={shippingCountdown}
-            // Item 34: panduan "langkah berikutnya" bila area aksi kosong.
-            nextStepHint={nextStepHintFor(order.status, order.myRole)}
+            // Item 34: panduan "langkah berikutnya" dihitung di dalam
+            // OrderDetailActions bila area aksi kosong.
             // Item 35: label countdown kontekstual ("Batas kirim"/"Batas konfirmasi").
-            status={order.status}
             onPay={() => setSheet("pay")}
             onAccept={() => setConfirmAccept(true)}
             onReject={() => setSheet("reject")}
             onShipping={() => setSheet("shipping")}
             onDeliveryProof={() => router.push(ROUTES.deliveryProof(order.id))}
-            onComplete={() =>
-              void runAction(
-                async () => {
-                  // M-28: spesifikasi `POST /v1/orders/{id}/complete` TANPA
-                  // requestBody — jejak bukti melekat pada order di server.
-                  await api.orders.completeOrder(
-                    order.id,
-                    // R2 butir #17: kunci idempotensi per siklus — retry
-                    // pasca-timeout tidak melepas dana dua kali di server
-                    // yang mendukung header. Dibersihkan setelah SUKSES.
-                    completeKeyRef.current ??
-                      (completeKeyRef.current = createIdempotencyKey()),
-                  )
-                  completeKeyRef.current = null
-                },
-                "Order selesai",
-                "Gagal menyelesaikan order",
-              )
-            }
+            // Item 32: rilis escrow WAJIB lewat dialog konfirmasi dulu.
+            onComplete={() => setConfirmComplete(true)}
             onRate={() => router.push(ROUTES.rateOrder(order.id))}
             // Item 46: buka form retur dengan order terisi.
             onReturn={() => router.push(ROUTES.newReturn(order.id))}
@@ -900,10 +938,9 @@ export default function OrderDetailScreen() {
             onOpenProfile={(username) => router.push(ROUTES.userProfile(username))}
           />
 
-          {/* 8 — Pengiriman: kurir + resi (salin/lacak). Item 43: HANYA untuk
-              order BARANG FISIK — jasa/digital/lainnya tidak punya resi/
-              ongkir dan kotak ini hanya membingungkan. */}
-          {order.orderType === "PHYSICAL_GOODS" ? (
+          {/* 8 — Pengiriman: kurir + resi (salin/lacak). Item 43: khusus
+              PHYSICAL_GOODS — jasa/digital TIDAK menampilkan info kirim. */}
+          {shippingRequired ? (
             <ShippingInfoCard
               shipping={
                 order.trackingNumber || order.courierName
@@ -1010,6 +1047,8 @@ export default function OrderDetailScreen() {
             isDisputed={isDisputed}
             canDispute={canDispute}
             canCancel={canCancel}
+            canReturn={isBuyer && order.status === "COMPLETED"}
+            returnIsPrimary={query.data?.returnEligible === true}
             submitting={submitting}
             onOpenSheet={(kind) => setSheet(kind)}
           />
@@ -1148,6 +1187,10 @@ export default function OrderDetailScreen() {
           void handlePayQris()
         }}
         onRecreateClose={() => setConfirmRecreateQris(false)}
+        completeOpen={confirmComplete}
+        completeLoading={submitting}
+        onCompleteConfirm={handleCompleteOrder}
+        onCompleteClose={() => setConfirmComplete(false)}
       />
 
       <OrderPayProgressOverlay

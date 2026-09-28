@@ -36,6 +36,7 @@ import {
 } from "@/components/ui/order-status-badge"
 import { Timeline, type TimelineItem, type TimelineTone } from "@/components/ui/timeline"
 import { cn } from "@/lib/cn"
+import { hasOwn } from "@/lib/has-own"
 import { translate } from "@/lib/i18n/translate"
 
 export type OrderHistoryActor = "BUYER" | "SELLER" | "SYSTEM" | "ADMIN"
@@ -85,6 +86,15 @@ const DEFAULT_LABELS: OrderHistoryLabels = {
 
 const DANGER_STATUSES: readonly string[] = ["DISPUTED", "CANCELLED", "REFUNDED"]
 const WARNING_STATUSES: readonly string[] = ["EXPIRED"]
+
+// Item 44: alasan manusiawi untuk transisi yang dilakukan sistem tanpa
+// catatan — "oleh Sistem" saja tidak menjelaskan KENAPA.
+const SYSTEM_REASONS: Record<string, string> = {
+  EXPIRED: translate("tenggat habis tanpa sengketa"),
+  COMPLETED: translate("dikonfirmasi otomatis setelah tenggat habis"),
+  CANCELLED: translate("dibatalkan otomatis karena tenggat pembayaran habis"),
+  REFUNDED: translate("dana dikembalikan otomatis"),
+}
 
 function toneFor(status: string): TimelineTone {
   if (DANGER_STATUSES.includes(status)) return "danger"
@@ -140,18 +150,17 @@ export function mapOrderHistoryToTimeline(
     // J-06 (audit escrow 2026-09-24): kalimat digabung via translate supaya
     // urutan kata bisa dibalik bahasa lain — dulu `parts.join(" — ")`
     // (potongan sudah diterjemahkan, tetapi rangkaiannya lolos katalog).
-    // Item 44 (mega-batch FE-IMP-5): entri "oleh Sistem" tanpa catatan
-    // mendapat alasan manusiawi dari status tujuannya.
     const systemReason =
-      e.actor === "SYSTEM" && !e.note ? systemReasonLabel(e.toStatus) : null
-    const note = e.note ?? systemReason ?? undefined
+      !e.note && e.actor === "SYSTEM" && hasOwn(SYSTEM_REASONS, e.toStatus)
+        ? SYSTEM_REASONS[e.toStatus]
+        : undefined
     const description =
-      actorLabel && note
+      actorLabel && (e.note || systemReason)
         ? // R2 (audit ronde-2, butir #86): token kanonik {x}/{y}.
-          translate("{x} — {y}", { x: `${labels.by} ${actorLabel}`, y: note })
+          translate("{x} — {y}", { x: `${labels.by} ${actorLabel}`, y: (e.note ?? systemReason) as string })
         : actorLabel
           ? `${labels.by} ${actorLabel}`
-          : note
+          : e.note
 
     return {
       id: e.id,

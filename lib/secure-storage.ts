@@ -165,6 +165,18 @@ export const SecureKeys = {
    */
   offlineSocialQueue: "kahade.offline.socialQueue",
   /**
+   * Item mega-batch 126 — timestamp terakhir tiket dukungan dibuka per
+   * ticketId (JSON, lib/support-unread.ts). Data milik AKUN: dihapus
+   * `clearSession()`; memory-only di web (bukan WEB_PERSISTENT_KEYS) supaya
+   * jejak baca tiket tidak menetap di localStorage.
+   */
+  supportOpenedAt: "kahade.support.openedAt",
+  /**
+   * Item mega-batch 131 — draft form tiket dukungan (lib/support-draft.ts).
+   * Data milik AKUN: dihapus `clearSession()`; memory-only di web.
+   */
+  supportDraft: "kahade.support.draft",
+  /**
    * Item #28 — skala ukuran font A-/A+ (0.85–1.3). String desimal, mis. "1.1".
    * Preferensi perangkat non-sensitif: persist di web, TIDAK ikut clearSession.
    */
@@ -288,6 +300,10 @@ export async function clearSession(): Promise<void> {
     // Antrean aksi sosial milik akun yang logout — akun berikutnya tidak
     // boleh mewarisi/mengirimnya (drain juga membuang revisi sesi asing).
     deleteSecureItem(SecureKeys.offlineSocialQueue),
+    // Item mega-batch 126: jejak "terakhir dibuka" tiket dukungan milik akun.
+    deleteSecureItem(SecureKeys.supportOpenedAt),
+    // Item mega-batch 131: draft tiket milik akun.
+    deleteSecureItem(SecureKeys.supportDraft),
   ])
 }
 

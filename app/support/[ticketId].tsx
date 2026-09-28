@@ -10,7 +10,7 @@
 import { Crossfade } from "@/components/ui/fade-in"
 import { DetailLoading } from "@/components/ui/paginated-list"
 import { useCallback, useEffect, useState } from "react"
-import { Linking, View } from "react-native"
+import { View } from "react-native"
 import { useLocalSearchParams } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
@@ -18,14 +18,15 @@ import { api, userMessage } from "@/lib/api"
 import type { SupportMessage, SupportTicket } from "@/lib/api/support"
 import { formatDateTime } from "@/lib/format"
 import { focusRingInset } from "@/lib/focus-ring"
+import { pickImages } from "@/lib/image-picker"
+import { markSupportTicketOpened } from "@/lib/support-unread"
 import { tokens } from "@/lib/tokens"
 import { useApiQuery } from "@/lib/use-api-query"
 import { usePolling } from "@/lib/use-polling"
-import { recordTicketOpened } from "@/lib/ui-prefs"
-import { pickImages } from "@/lib/image-picker"
+import { logWarn } from "@/lib/telemetry"
 import { translate, useLanguage } from "@/lib/i18n"
 
-import { Star, Paperclip, CameraPlus, XCircle } from "phosphor-react-native"
+import { Star, Paperclip, X } from "phosphor-react-native"
 
 import { Button } from "@/components/ui/button"
 import { ChatMessageBubble } from "@/components/ui/chat-message-bubble"
@@ -37,6 +38,7 @@ import { PressableScale } from "@/components/ui/pressable-scale"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
+import { SupportAttachmentItem } from "@/components/ui/support-attachment-item"
 import { SupportTicketCard } from "@/components/ui/support-ticket-card"
 import { Text } from "@/components/ui/text"
 import { TextArea } from "@/components/ui/text-area"
@@ -52,6 +54,9 @@ export default function SupportTicketDetailScreen() {
 
   const [reply, setReply] = useState("")
   const [sending, setSending] = useState(false)
+  /** Item 130: fileKey lampiran balasan (maks 5), diunggah dulu via CHAT_ATTACHMENT. */
+  const [replyAttachmentKeys, setReplyAttachmentKeys] = useState<string[]>([])
+  const [uploadingReply, setUploadingReply] = useState(false)
 
   /**
    * `useApiQuery`, bukan rakitan useState/useEffect: request dibatalkan saat
@@ -68,109 +73,50 @@ export default function SupportTicketDetailScreen() {
   const ticket = query.data
   const messages: SupportMessage[] = ticket?.messages ?? []
 
-  // Item 127 (mega-batch FE-IMP-5): polling balasan saat tiket masih aktif —
-  // pola sama seperti live support (10 detik), berhenti saat RESOLVED/CLOSED.
-  const isActiveForPolling = Boolean(ticketId) && ticket?.status !== "CLOSED" && ticket?.status !== "RESOLVED"
-  usePolling(
-    async (signal) => {
-      if (signal.aborted) return
-      await query.refresh()
-    },
-    10_000,
-    isActiveForPolling,
-  )
+  const handleSend = useCallback(async () => {
+    if (!ticketId || !reply.trim()) return
+    setSending(true)
+    try {
+      await api.support.replySupportTicket(ticketId, reply.trim(), replyAttachmentKeys)
+      setReply("")
+      setReplyAttachmentKeys([])
+      await query.reload()
+      toast.show({ title: "Balasan terkirim", tone: "success", duration: 2500 })
+    } catch (err: unknown) {
+      toast.show({ title: "Gagal mengirim balasan", description: userMessage(err), tone: "danger" })
+    } finally {
+      setSending(false)
+    }
+  }, [ticketId, reply, replyAttachmentKeys, toast.show, query])
 
-  // Item 126: catat waktu buka tiket — dot "balasan baru" di daftar memakai
-  // nilai ini sebagai pembanding waktu balasan staf terakhir.
-  useEffect(() => {
-    if (ticketId) recordTicketOpened(ticketId)
-  }, [ticketId])
-
-  // Item 128: lampiran tiket — backend hanya menyimpan fileKey. Buka langsung
-  // HANYA bila payload sudah URL aman (http/https); fileKey mentah tidak
-  // boleh dirakit jadi URL tak terverifikasi → fallback graceful.
-  const openAttachment = useCallback(
-    (key: string, label: string) => {
-      if (/^https?:\/\//i.test(key.trim())) {
-        void Linking.openURL(key.trim()).catch(() =>
-          toast.show({ title: "Gagal membuka lampiran", tone: "danger" }),
-        )
-        return
-      }
-      toast.show({
-        title: "Pratinjau belum tersedia",
-        description: `${label} tersimpan di server — hubungi CS bila Anda membutuhkannya.`,
-        tone: "info",
-        duration: 3500,
-      })
-    },
-    [toast],
-  )
-
-  const [replyAttachments, setReplyAttachments] = useState<string[]>([])
-  const [uploadingAttachment, setUploadingAttachment] = useState(false)
-
-  // Item 130: foto pada balasan — picker → upload CHAT_ATTACHMENT → fileKey
-  // ikut dikirim bersama teks. Gagal upload = lampiran dibatalkan, teks/draft
-  // tetap aman (tidak ada kirim setengah).
-  const handlePickReplyAttachment = useCallback(async () => {
-    const remaining = 5 - replyAttachments.length
+  /** Item 130: pilih & unggah lampiran balasan (maks 5 total). */
+  const handlePickReplyAttachments = useCallback(async () => {
+    const remaining = 5 - replyAttachmentKeys.length
     if (remaining <= 0) {
       toast.show({ title: "Maksimal 5 lampiran per balasan", tone: "warning" })
       return
     }
-    let picked: Awaited<ReturnType<typeof pickImages>>
+    setUploadingReply(true)
     try {
-      picked = await pickImages({ selectionLimit: remaining })
-    } catch (err) {
-      toast.show({ title: "Gagal memilih foto", description: userMessage(err), tone: "danger" })
-      return
-    }
-    if (picked.status === "denied") {
-      toast.show({ title: "Akses galeri ditolak", tone: "danger" })
-      return
-    }
-    if (picked.status !== "picked") return
-    setUploadingAttachment(true)
-    try {
+      const picked = await pickImages({ selectionLimit: remaining })
+      if (picked.status !== "picked") return
       const keys: string[] = []
       for (const asset of picked.assets) {
         const { fileKey } = await api.upload.uploadDirectImage(asset, "CHAT_ATTACHMENT")
         keys.push(fileKey)
       }
-      setReplyAttachments((prev) => [...prev, ...keys].slice(0, 5))
-    } catch (err) {
-      toast.show({
-        title: "Gagal mengunggah lampiran",
-        description: userMessage(err),
-        tone: "danger",
-      })
+      setReplyAttachmentKeys((prev) => [...prev, ...keys].slice(0, 5))
+    } catch (err: unknown) {
+      logWarn("support:reply-attachment", err)
+      toast.show({ title: "Gagal mengunggah lampiran", description: userMessage(err), tone: "danger" })
     } finally {
-      setUploadingAttachment(false)
+      setUploadingReply(false)
     }
-  }, [replyAttachments.length, toast])
+  }, [replyAttachmentKeys.length, toast.show])
 
   const handleRemoveReplyAttachment = useCallback((fileKey: string) => {
-    setReplyAttachments((prev) => prev.filter((k) => k !== fileKey))
+    setReplyAttachmentKeys((prev) => prev.filter((k) => k !== fileKey))
   }, [])
-
-  const handleSend = useCallback(async () => {
-    if (!ticketId || !reply.trim()) return
-    setSending(true)
-    try {
-      await api.support.replySupportTicket(ticketId, reply.trim(), replyAttachments)
-      setReply("")
-      setReplyAttachments([])
-      await query.reload()
-      toast.show({ title: "Balasan terkirim", tone: "success", duration: 2500 })
-    } catch (err: unknown) {
-      // Draft teks + lampiran tetap dipertahankan — pengguna bisa retry tanpa
-      // mengetik ulang.
-      toast.show({ title: "Gagal mengirim balasan", description: userMessage(err), tone: "danger" })
-    } finally {
-      setSending(false)
-    }
-  }, [ticketId, reply, replyAttachments, toast.show, query])
 
   // ---- Aksi pemilik tiket: tutup / buka lagi / rating -----------------
   // Aturan status di backend: close = selain CLOSED/RESOLVED; reopen =
@@ -180,6 +126,20 @@ export default function SupportTicketDetailScreen() {
   const isClosed = status === "CLOSED"
   const canClose = Boolean(ticket) && !isClosedLike
   const myRating = ticket?.rating ?? 0
+
+  // Item 126: tandai tiket dibuka agar badge unread di daftar ter-reset.
+  useEffect(() => {
+    if (ticket) void markSupportTicketOpened(ticket.id)
+  }, [ticket])
+
+  // Item 127: polling diam tiap 10 dtk saat tiket belum selesai.
+  usePolling(
+    async () => {
+      await query.refresh().catch(() => {})
+    },
+    10_000,
+    Boolean(ticketId && ticket && !isClosedLike),
+  )
 
   const [closeOpen, setCloseOpen] = useState(false)
   const [closing, setClosing] = useState(false)
@@ -269,8 +229,8 @@ export default function SupportTicketDetailScreen() {
 
   return (
     <Screen keyboardAvoiding edges={["top"]} padded={false}>
-      {/* Item 129: judul dinamis "Tiket TK-XXXXXX" setelah data tersedia. */}
-      <Header title={ticket?.ticketNumber ? `Tiket ${ticket.ticketNumber}` : "Tiket"} />
+      {/* Item 129: judul memuat nomor tiket setelah data termuat. */}
+      <Header title={ticket ? `Tiket ${ticket.ticketNumber}` : "Tiket"} />
       <PullToRefresh
         onRefresh={query.refresh}
         refreshing={query.refreshing}
@@ -299,24 +259,11 @@ export default function SupportTicketDetailScreen() {
             {ticket.attachmentKeys && ticket.attachmentKeys.length > 0 ? (
               <View className="gap-2">
                 <SectionHeader title="Lampiran" />
+                {/* Item 128: lampiran bisa dibuka (pratinjau/undi) atau error eksplisit. */}
                 <View className="flex-row flex-wrap gap-2">
-                  {ticket.attachmentKeys.map((key, index) => {
-                    const label = translate("Lampiran #{x}", { x: index + 1 })
-                    return (
-                      <PressableScale
-                        key={key || index}
-                        accessibilityRole="button"
-                        accessibilityLabel={label}
-                        onPress={() => openAttachment(key, label)}
-                        className="flex-row items-center gap-1.5 rounded-md border border-border bg-surface px-3 py-2"
-                      >
-                        <Icon icon={Paperclip} size="xs" tone="default" />
-                        <Text variant="caption" tone="secondary" numberOfLines={1}>
-                          {label}
-                        </Text>
-                      </PressableScale>
-                    )
-                  })}
+                  {ticket.attachmentKeys.map((key, index) => (
+                    <SupportAttachmentItem key={key || index} fileKey={key} index={index} />
+                  ))}
                 </View>
               </View>
             ) : null}
@@ -394,90 +341,86 @@ export default function SupportTicketDetailScreen() {
               </Text>
             ) : null}
             {messages.map((m, i) => (
-              <View key={m.id} className="gap-1">
-                <ChatMessageBubble
-                  direction={m.fromUser ? "outgoing" : "incoming"}
-                  text={m.text}
-                  time={formatDateTime(m.createdAt)}
-                  grouped={messages[i - 1]?.fromUser === m.fromUser}
-                />
-                {/* Item 130: lampiran pada balasan (fileKey) — interaksi sama
-                    seperti lampiran tiket (item 128). */}
+              <ChatMessageBubble
+                key={m.id}
+                direction={m.fromUser ? "outgoing" : "incoming"}
+                text={m.text}
+                time={formatDateTime(m.createdAt)}
+                grouped={messages[i - 1]?.fromUser === m.fromUser}
+              >
+                {/* Item 130: lampiran per balasan (slot children = di atas teks). */}
                 {m.attachments && m.attachments.length > 0 ? (
-                  <View className="flex-row flex-wrap gap-2">
-                    {m.attachments.map((key, index) => {
-                      const label = translate("Lampiran balasan #{x}", { x: index + 1 })
-                      return (
-                        <PressableScale
-                          key={key || index}
-                          accessibilityRole="button"
-                          accessibilityLabel={label}
-                          onPress={() => openAttachment(key, label)}
-                          className="flex-row items-center gap-1.5 rounded-md border border-border bg-surface px-3 py-2"
-                        >
-                          <Icon icon={Paperclip} size="xs" tone="default" />
-                          <Text variant="caption" tone="secondary" numberOfLines={1}>
-                            {label}
-                          </Text>
-                        </PressableScale>
-                      )
-                    })}
+                  <View className="gap-1">
+                    {m.attachments.map((key, ai) => (
+                      <SupportAttachmentItem key={key || ai} fileKey={key} index={ai} />
+                    ))}
                   </View>
                 ) : null}
-              </View>
+              </ChatMessageBubble>
             ))}
 
             <SectionHeader title="Balas" />
-            <TextArea
-              value={reply}
-              onChangeText={setReply}
-              placeholder="Tulis balasan Anda"
-              maxLength={2000}
-              numberOfLines={4}
-            />
-            {/* Item 130: lampiran foto pada balasan (maks 5). */}
-            {replyAttachments.length > 0 ? (
-              <View className="flex-row flex-wrap gap-2">
-                {replyAttachments.map((key, index) => (
-                  <View
-                    key={key}
-                    className="flex-row items-center gap-1.5 rounded-md border border-border bg-surface px-3 py-2"
-                  >
-                    <Icon icon={Paperclip} size="xs" tone="default" />
-                    <Text variant="caption" tone="secondary">
-                      {translate("Foto #{x}", { x: index + 1 })}
-                    </Text>
-                    <PressableScale
-                      accessibilityRole="button"
-                      accessibilityLabel={translate("Hapus lampiran #{x}", { x: index + 1 })}
-                      onPress={() => handleRemoveReplyAttachment(key)}
-                    >
-                      <Icon icon={XCircle} size="xs" tone="default" />
-                    </PressableScale>
+            {/* Item 130: composer diblokir untuk tiket selesai; lampiran maks 5. */}
+            {isClosedLike ? (
+              <Text variant="caption" tone="secondary">
+                Tiket sudah {status === "RESOLVED" ? "diselesaikan" : "ditutup"} — balasan
+                dinonaktifkan. Buka kembali tiket bila masalahnya belum selesai.
+              </Text>
+            ) : (
+              <View className="gap-2">
+                <TextArea
+                  value={reply}
+                  onChangeText={setReply}
+                  placeholder="Tulis balasan Anda"
+                  maxLength={2000}
+                  numberOfLines={4}
+                />
+                {replyAttachmentKeys.length > 0 ? (
+                  <View className="flex-row flex-wrap gap-2">
+                    {replyAttachmentKeys.map((key, i) => (
+                      <View
+                        key={key}
+                        className="flex-row items-center gap-1 rounded-md border border-border bg-surface px-2 py-1"
+                      >
+                        <Icon icon={Paperclip} size="sm" tone="default" />
+                        <Text variant="caption" tone="secondary">
+                          {translate("Lampiran #{x}", { x: i + 1 })}
+                        </Text>
+                        <PressableScale
+                          onPress={() => handleRemoveReplyAttachment(key)}
+                          accessibilityRole="button"
+                          accessibilityLabel={translate("Hapus lampiran {x}", { x: i + 1 })}
+                          className="p-1"
+                        >
+                          <Icon icon={X} size="sm" tone="default" />
+                        </PressableScale>
+                      </View>
+                    ))}
                   </View>
-                ))}
+                ) : null}
+                <View className="flex-row gap-2">
+                  <Button
+                    variant="secondary"
+                    fullWidth={false}
+                    loading={uploadingReply}
+                    disabled={replyAttachmentKeys.length >= 5}
+                    onPress={() => void handlePickReplyAttachments()}
+                    accessibilityLabel="Tambah lampiran balasan"
+                  >
+                    <Icon icon={Paperclip} size="sm" tone="default" />
+                    {" "}Lampiran
+                  </Button>
+                  <Button
+                    loading={sending}
+                    disabled={!reply.trim() || uploadingReply}
+                    onPress={() => void handleSend()}
+                    className="flex-1"
+                  >
+                    Kirim balasan
+                  </Button>
+                </View>
               </View>
-            ) : null}
-            <View className="flex-row gap-2">
-              <Button
-                variant="secondary"
-                leftIcon={CameraPlus}
-                loading={uploadingAttachment}
-                disabled={replyAttachments.length >= 5}
-                onPress={() => void handlePickReplyAttachment()}
-              >
-                Foto
-              </Button>
-              <View className="flex-1">
-                <Button
-                  loading={sending}
-                  disabled={!reply.trim() || uploadingAttachment}
-                  onPress={() => void handleSend()}
-                >
-                  Kirim balasan
-                </Button>
-              </View>
-            </View>
+            )}
             </View>
           ) : null}
         </Crossfade>
