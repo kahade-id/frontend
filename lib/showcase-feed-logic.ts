@@ -115,3 +115,19 @@ export function mergeById(
   for (const item of incoming) merged.set(item.id, item)
   return [...merged.values()]
 }
+
+/**
+ * C03 (batch 139): rekonsiliasi daftar setelah fetch.
+ * - "more": halaman baru DIGABUNG ke data lama (posisi lama dipertahankan).
+ * - "initial"/"refresh": daftar DIGANTI data baru — komponen tidak
+ *   mengosongkan `items` sebelum respons sukses, sehingga data lama tetap
+ *   tampil selama indikator refresh kecil berjalan; gagal = data lama utuh.
+ */
+export function reconcileFeedItems(
+  mode: "initial" | "refresh" | "more",
+  previous: ShowcaseSocialItem[],
+  incoming: ShowcaseSocialItem[],
+): ShowcaseSocialItem[] {
+  if (mode === "more") return mergeById(previous, incoming)
+  return [...incoming]
+}

@@ -29,6 +29,7 @@ import {
 } from "@/lib/showcase-social-prefs"
 import { useToast } from "@/components/ui/toast"
 import { translate } from "@/lib/i18n/translate"
+import { optimisticToggleState } from "@/lib/showcase-social"
 
 /**
  * C-03 (audit 2026-09-23): tujuan kembali setelah login = LAYAR SAAT INI
@@ -198,17 +199,19 @@ export function useShowcaseSocialActions(item: ShowcaseSocialItem): ShowcaseSoci
       isLiked: current.isLiked,
       likeCount: current.likeCount,
     }
-    const next = !previous.isLiked
+    // C13: transisi optimistis murni — rollback = snapshot `previous`.
+    const optimistic = optimisticToggleState({ active: previous.isLiked, count: previous.likeCount })
+    const next = optimistic.active
     setShowcaseLikeState(item.id, {
       isLiked: next,
-      likeCount: Math.max(0, previous.likeCount + (next ? 1 : -1)),
+      likeCount: optimistic.count,
     })
     setLikePending(true)
     void (async () => {
       try {
         // K-04: fallback = nilai optimistis — respons tanpa `likeCount`
-        // tidak menampilkan "0 Suka".
-        const optimisticCount = Math.max(0, previous.likeCount + (next ? 1 : -1))
+        // tidak menampilkan "0 Suka". (C13: sama dengan optimistic.count.)
+        const optimisticCount = optimistic.count
         const res = next
           ? await likeShowcase(item.id, optimisticCount)
           : await unlikeShowcase(item.id, optimisticCount)
@@ -294,8 +297,10 @@ export function useShowcaseSocialActions(item: ShowcaseSocialItem): ShowcaseSoci
     // agar POST/DELETE save tidak balapan dan count tidak salah.
     if (savedPending) return
     const revision = getSessionRevision()
-    const wanted = !saved
-    const optimisticCount = Math.max(0, saveCount + (wanted ? 1 : -1))
+    // C13: transisi optimistis murni — rollback = override dibersihkan.
+    const optimistic = optimisticToggleState({ active: saved, count: saveCount })
+    const wanted = optimistic.active
+    const optimisticCount = optimistic.count
     setShowcaseSavedPending(item.id, wanted)
     setSaveCountOverride(optimisticCount)
     void (async () => {

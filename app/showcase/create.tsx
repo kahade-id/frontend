@@ -25,18 +25,17 @@
  *     saat `POST` sedang berjalan atau hasilnya belum pasti (transport timeout
  *     bisa saja sudah tersimpan di server) — lihat `uncertainCreate`.
  */
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Linking, Platform, View } from "react-native"
 import { useNavigation, usePreventRemove, type NavigationAction } from "@react-navigation/native"
 import { useRouter } from "expo-router"
 import {
-  CaretLeft,
-  CaretRight,
   Eye,
   EyeSlash,
   Images,
   Play,
   Plus,
+  Star,
   Trash,
   VideoCamera,
 } from "phosphor-react-native"
@@ -70,6 +69,8 @@ import {
   type ShowcaseDraft,
 } from "@/lib/showcase-draft"
 import { showcasePriceLabelOrFallback } from "@/lib/showcase-labels"
+import { moveMediaToFront, moveMediaItem } from "@/lib/showcase-media-order"
+import { formatRupiahTyping, isPriceRangeValid, parseRupiahTyping } from "@/lib/rupiah-input"
 import { tokens } from "@/lib/tokens"
 import { translate } from "@/lib/i18n/translate"
 import { useLanguage } from "@/lib/i18n"
@@ -80,10 +81,11 @@ import { Dialog } from "@/components/ui/modal"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Header } from "@/components/ui/header"
 import { Icon } from "@/components/ui/icon"
-import { IconButton } from "@/components/ui/icon-button"
 import { Input } from "@/components/ui/input"
 import { Picture } from "@/components/ui/picture"
+import { PressableScale } from "@/components/ui/pressable-scale"
 import { Screen } from "@/components/ui/screen"
+import { DragSortList } from "@/components/showcase-media-drag-sort"
 import { SectionHeader } from "@/components/ui/section"
 import { ShowcaseCategoryInput } from "@/components/ui/showcase-category-input"
 import { ShowcaseConditionInput } from "@/components/ui/showcase-condition-input"
@@ -91,6 +93,10 @@ import { Switch } from "@/components/ui/switch"
 import { Text } from "@/components/ui/text"
 import { TextArea } from "@/components/ui/text-area"
 import { useToast } from "@/components/ui/toast"
+import { ValidationSummary } from "@/components/ui/validation-summary"
+import { BottomSheet } from "@/components/ui/bottom-sheet"
+import { ShowcaseFeedItem } from "@/components/ui/showcase-feed-item"
+import type { ShowcaseMedia, ShowcaseSocialItem } from "@/lib/api/showcase"
 
 /** Batas field — turunan dari kontrak backend, bukan angka lokal (D-08). */
 const TITLE_MAX = API_CONSTRAINTS.CreateShowcaseItemDto.title.maxLength
@@ -205,6 +211,18 @@ export default function ShowcaseCreateScreen() {
   const [titleError, setTitleError] = useState<string | undefined>()
   const [photoError, setPhotoError] = useState<string | undefined>()
   const [priceError, setPriceError] = useState<string | undefined>()
+  /**
+   * C11 (batch 139): pratinjau sebelum terbit — overlay berisi komponen kartu
+   * feed YANG SAMA (`ShowcaseFeedItem` mode non-interaktif).
+   */
+  const [previewVisible, setPreviewVisible] = useState(false)
+  /**
+   * C10 (batch 139): relasi harga min–maks divalidasi LANGSUNG saat mengetik
+   * (computed, bukan hanya saat submit) — mencegah "min > maks" lolos.
+   */
+  const priceRangeError = !isPriceRangeValid(form.priceMin, form.priceMax)
+    ? translate("Harga minimum tidak boleh lebih besar dari harga maksimum.")
+    : undefined
   const [previews, setPreviews] = useState<Preview[]>([])
   const [failedAssets, setFailedAssets] = useState<FailedPhoto[]>([])
   const [uploading, setUploading] = useState(false)
@@ -276,6 +294,57 @@ export default function ShowcaseCreateScreen() {
    */
   const { isActive: isPlusActive } = useKahadePlus()
   const photoLimit = getShowcasePhotoLimit(isPlusActive)
+  /**
+   * C11 (batch 139): rakit item pratinjau dari state form saat ini — media
+   * memakai URI lokal (belum terbit), author "Anda", count nol. Kartu yang
+   * dirender adalah `ShowcaseFeedItem` yang sama dengan feed.
+   */
+  const previewItem: ShowcaseSocialItem | null = useMemo(() => {
+    if (!previewVisible) return null
+    const images: ShowcaseMedia[] = previews.map((preview, index) => ({
+      id: preview.fileKey,
+      kind: preview.video ? ("video" as const) : ("image" as const),
+      // Pratinjau memakai URI lokal (belum terbit): video = berkas lokal,
+      // thumbnail = poster backend bila sudah terunggah.
+      imageUrl: preview.asset.uri,
+      thumbnailUrl: preview.video?.thumbnailUrl ?? preview.asset.uri,
+      sortOrder: index,
+      width: preview.asset.width ?? undefined,
+      height: preview.asset.height ?? undefined,
+    }))
+    const rawDescription = form.description.trim()
+    // Plus: deskripsi HTML → teks polos untuk kartu (kartu feed hanya
+    // menampilkan teks; HTML penuh dirender di detail).
+    const description = rawDescription
+      ? isPlusActive
+        ? rawDescription.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim() || null
+        : rawDescription
+      : null
+    const now = new Date().toISOString()
+    return {
+      id: "preview-local",
+      title: form.title.trim() || translate("Tanpa judul"),
+      description,
+      category: form.category.trim() || null,
+      images,
+      priceMin: form.priceMin,
+      priceMax: form.priceMax,
+      likeCount: 0,
+      commentCount: 0,
+      viewCount: 0,
+      saveCount: 0,
+      isLiked: false,
+      isSaved: false,
+      isOwner: true,
+      createdAt: now,
+      updatedAt: now,
+      author: {
+        userId: "preview-local",
+        username: translate("Anda"),
+        fullName: null,
+      },
+    }
+  }, [previewVisible, previews, form, isPlusActive])
 
   useEffect(() => {
     mounted.current = true
@@ -634,24 +703,52 @@ export default function ShowcaseCreateScreen() {
     }
   }, [failedAssets, previews, revision])
 
-  /** Geser atau buang satu pratinjau media (indeks 0 = cover). */
-  const movePreview = useCallback(
-    (index: number, direction: -1 | 0 | 1) => {
+  /** Buang satu pratinjau media. */
+  const removePreview = useCallback(
+    (index: number) => {
       if (uploadBusy.current || saveBusy.current || uncertainCreate) return
       const next = [...previews]
-      if (direction === 0) {
-        const [removed] = next.splice(index, 1)
-        // Video: bersihkan thumbnailFileKey juga (jangan sisakan orphan).
-        if (removed) void cleanupPendingShowcaseKeys(previewServerKeys(removed))
-      } else {
-        const destination = index + direction
-        if (destination < 0 || destination >= next.length) return
-        ;[next[index], next[destination]] = [next[destination], next[index]]
-      }
+      const [removed] = next.splice(index, 1)
+      if (!removed) return
+      // Video: bersihkan thumbnailFileKey juga (jangan sisakan orphan).
+      void cleanupPendingShowcaseKeys(previewServerKeys(removed))
       pendingKeys.current = next.flatMap(previewServerKeys)
       setPreviews(next)
     },
     [previews, uncertainCreate],
+  )
+
+  /**
+   * C09 (batch 139): drag-reorder — pindahkan media dari→ke. Aturan produk
+   * tetap: media pertama = sampul karya.
+   */
+  const reorderPreview = useCallback(
+    (from: number, to: number) => {
+      if (uploadBusy.current || saveBusy.current || uncertainCreate) return
+      setPreviews((current) => {
+        const next = moveMediaItem(current, from, to)
+        pendingKeys.current = next.flatMap(previewServerKeys)
+        return next
+      })
+    },
+    [uncertainCreate],
+  )
+
+  /**
+   * C09 (batch 139): "pilih sampul" eksplisit — media pindah ke indeks 0
+   * (aturan produk: media pertama = sampul karya). Urutan lain tidak berubah.
+   */
+  const setAsCover = useCallback(
+    (index: number) => {
+      if (uploadBusy.current || saveBusy.current || uncertainCreate) return
+      setPreviews((current) => {
+        if (index <= 0 || index >= current.length) return current
+        const next = moveMediaToFront(current, index)
+        pendingKeys.current = next.flatMap(previewServerKeys)
+        return next
+      })
+    },
+    [uncertainCreate],
   )
 
   // ── Simpan ──────────────────────────────────────────────────────────
@@ -776,6 +873,22 @@ export default function ShowcaseCreateScreen() {
       padded={false}
       footer={
         <View className="gap-2">
+          {/* C10 (batch 139): ringkasan error tepat di atas tombol terbit —
+              pengguna tidak perlu mencari field yang salah satu per satu. */}
+          <ValidationSummary
+            errors={[titleError, photoError, priceRangeError].filter(
+              (message): message is string => message != null,
+            )}
+          />
+          {/* C11 (batch 139): pratinjau kartu sebelum terbit. */}
+          <Button
+            variant="secondary"
+            fullWidth
+            disabled={busy || previews.length === 0}
+            onPress={() => setPreviewVisible(true)}
+          >
+            {translate("Pratinjau")}
+          </Button>
           <Button
             variant="primary"
             fullWidth
@@ -800,7 +913,7 @@ export default function ShowcaseCreateScreen() {
             title={translate("Foto karya")}
             subtitle={
               previews.length
-                ? translate("Foto pertama menjadi cover · {x}/{y} foto", {
+                ? translate("Tahan & seret untuk menyusun · foto pertama menjadi cover · {x}/{y} foto", {
                     x: previews.length,
                     y: photoLimit,
                   })
@@ -808,16 +921,33 @@ export default function ShowcaseCreateScreen() {
             }
           />
           {previews.length > 0 ? (
-            <View className="flex-row flex-wrap gap-2">
-              {previews.map((preview, index) => {
+            /*
+             * C09 (batch 139): drag-reorder — tahan thumbnail lalu seret ke
+             * posisi baru. Media pertama = sampul karya (aturan produk).
+             */
+            <DragSortList
+              items={previews}
+              getId={(preview) => preview.fileKey}
+              columns="auto"
+              cellWidth={88}
+              cellHeight={88}
+              gap={8}
+              disabled={busy || uncertainCreate}
+              onReorder={reorderPreview}
+              cellStyle={{ width: 88, height: 88 }}
+              renderItem={(preview, index, { dropTarget }) => {
                 // Video: pratinjau memakai thumbnail backend + lencana play.
                 const thumb = preview.video?.thumbnailUrl ?? preview.asset.uri
                 const label = preview.video
                   ? translate("Video {x}", { x: index + 1 })
                   : translate("Foto {x}", { x: index + 1 })
                 return (
-                <View key={preview.fileKey} className="gap-1">
-                  <View className="relative">
+                  <View
+                    className="relative h-full w-full"
+                    accessible
+                    accessibilityRole="button"
+                    accessibilityLabel={translate("{x} — tahan lalu seret untuk mengubah urutan", { x: label })}
+                  >
                     <Picture
                       source={thumb}
                       alt={label}
@@ -835,37 +965,51 @@ export default function ShowcaseCreateScreen() {
                         </View>
                       </View>
                     ) : null}
+                    {/* C09: sampul = media pertama — penanda di sampul aktif,
+                        tombol bintang di lainnya untuk memindahkannya ke
+                        posisi sampul. */}
+                    {index === 0 ? (
+                      <View className="absolute left-1 top-1 rounded-full bg-overlay-media px-1.5 py-0.5">
+                        <Text variant="caption" weight={700} className="text-white">
+                          {translate("Sampul")}
+                        </Text>
+                      </View>
+                    ) : (
+                      <View className="absolute right-1 top-1">
+                        <PressableScale
+                          accessibilityRole="button"
+                          accessibilityLabel={translate("Jadikan sampul: {x}", { x: label })}
+                          accessibilityHint={translate("Pindahkan media ini ke posisi pertama sebagai sampul karya")}
+                          disabled={busy || uncertainCreate}
+                          onPress={() => setAsCover(index)}
+                          containerClassName="items-center justify-center rounded-full bg-overlay-media p-1.5"
+                        >
+                          <Icon icon={Star} size="sm" tone="inverse" />
+                        </PressableScale>
+                      </View>
+                    )}
+                    <View className="absolute bottom-1 right-1">
+                      <PressableScale
+                        accessibilityRole="button"
+                        accessibilityLabel={translate("Hapus media {x}", { x: index + 1 })}
+                        disabled={busy || uncertainCreate}
+                        onPress={() => removePreview(index)}
+                        containerClassName="items-center justify-center rounded-full bg-overlay-media p-1.5"
+                      >
+                        <Icon icon={Trash} size="sm" tone="inverse" />
+                      </PressableScale>
+                    </View>
+                    {/* C09: penanda target drop — tanpa menggeser layout. */}
+                    {dropTarget ? (
+                      <View
+                        className="pointer-events-none absolute inset-0 rounded-sm border-2 border-accent"
+                        accessibilityLabel={translate("Lepaskan di sini")}
+                      />
+                    ) : null}
                   </View>
-                  <View className="flex-row items-center justify-between">
-                    <IconButton
-                      icon={CaretLeft}
-                      size="sm"
-                      variant="ghost"
-                      accessibilityLabel={translate("Geser media {x} ke kiri", { x: index + 1 })}
-                      disabled={busy || uncertainCreate || index === 0}
-                      onPress={() => movePreview(index, -1)}
-                    />
-                    <IconButton
-                      icon={Trash}
-                      size="sm"
-                      variant="ghost"
-                      accessibilityLabel={translate("Hapus media {x}", { x: index + 1 })}
-                      disabled={busy || uncertainCreate}
-                      onPress={() => movePreview(index, 0)}
-                    />
-                    <IconButton
-                      icon={CaretRight}
-                      size="sm"
-                      variant="ghost"
-                      accessibilityLabel={translate("Geser media {x} ke kanan", { x: index + 1 })}
-                      disabled={busy || uncertainCreate || index === previews.length - 1}
-                      onPress={() => movePreview(index, 1)}
-                    />
-                  </View>
-                </View>
                 )
-              })}
-            </View>
+              }}
+            />
           ) : (
             <EmptyState
               icon={Images}
@@ -1018,14 +1162,14 @@ export default function ShowcaseCreateScreen() {
           <Input
             label={translate("Harga minimum (opsional)")}
             keyboardType="number-pad"
-            value={form.priceMin == null ? "" : String(form.priceMin)}
-            maxLength={15}
+            // C10 (batch 139): tampilkan pemisah ribuan saat mengetik
+            // ("1500000" → "1.500.000"); state tetap angka.
+            value={formatRupiahTyping(form.priceMin)}
             onChangeText={(raw) => {
-              // S4: terima paste "1.000.000" / "1,000,000" — buang pemisah ribuan.
-              const digits = raw.replace(/[.\s,]/g, "")
-              if (!/^\d*$/.test(digits)) return
-              const value = digits === "" ? null : Number(digits)
-              setForm((current) => ({ ...current, priceMin: value }))
+              const parsed = parseRupiahTyping(raw)
+              // undefined = ketikan tak valid (negatif/huruf/>15 digit) — abaikan.
+              if (parsed === undefined) return
+              setForm((current) => ({ ...current, priceMin: parsed }))
               setPriceError(undefined)
             }}
             helperText={
@@ -1033,24 +1177,28 @@ export default function ShowcaseCreateScreen() {
                 ? translate("Harga {x} ditampilkan sebagai Gratis.", { x: 0 })
                 : form.priceMin != null && form.priceMax == null
                   ? translate("Tanpa harga maksimum, ini ditampilkan sebagai harga pasti.")
-                  : undefined
+                  : translate("Maksimal 15 digit; nilai negatif ditolak.")
             }
             disabled={busy || uncertainCreate}
           />
           <Input
             label={translate("Harga maksimum (opsional)")}
             keyboardType="number-pad"
-            value={form.priceMax == null ? "" : String(form.priceMax)}
-            maxLength={15}
+            value={formatRupiahTyping(form.priceMax)}
             onChangeText={(raw) => {
-              // S4: terima paste "1.000.000" / "1,000,000" — buang pemisah ribuan.
-              const digits = raw.replace(/[.\s,]/g, "")
-              if (!/^\d*$/.test(digits)) return
-              const value = digits === "" ? null : Number(digits)
-              setForm((current) => ({ ...current, priceMax: value }))
+              const parsed = parseRupiahTyping(raw)
+              if (parsed === undefined) return
+              setForm((current) => ({ ...current, priceMax: parsed }))
               setPriceError(undefined)
             }}
-            errorText={priceError}
+            // C10 (batch 139): validasi relasi min–maks LANGSUNG saat mengetik,
+            // bukan hanya saat submit.
+            errorText={priceError ?? priceRangeError}
+            helperText={
+              priceError ?? priceRangeError
+                ? undefined
+                : translate("Maksimal 15 digit; nilai negatif ditolak.")
+            }
             disabled={busy || uncertainCreate}
           />
           {/* IMP-F-013: pratinjau label harga live — pengguna memverifikasi
@@ -1160,6 +1308,37 @@ export default function ShowcaseCreateScreen() {
         }}
         onRequestClose={() => setResumeDraft(null)}
       />
+
+      {/* C11 (batch 139): pratinjau sebelum terbit — komponen kartu feed YANG
+          SAMA (`ShowcaseFeedItem`, mode non-interaktif): media/aksi tidak
+          membuka apa pun, judul/deskripsi sebagai teks biasa. */}
+      <BottomSheet
+        visible={previewVisible}
+        onRequestClose={() => setPreviewVisible(false)}
+        title={translate("Pratinjau karya")}
+        description={translate("Tampilan kartu karya Anda di feed sebelum diterbitkan.")}
+        footer={
+          <View className="gap-2">
+            <Button
+              variant="primary"
+              fullWidth
+              loading={saving}
+              disabled={uploading || previews.length === 0}
+              onPress={() => {
+                setPreviewVisible(false)
+                void handleSave()
+              }}
+            >
+              {translate("Terbitkan karya")}
+            </Button>
+            <Button variant="ghost" fullWidth onPress={() => setPreviewVisible(false)}>
+              {translate("Kembali edit")}
+            </Button>
+          </View>
+        }
+      >
+        {previewItem ? <ShowcaseFeedItem item={previewItem} nonInteractive /> : null}
+      </BottomSheet>
     </Screen>
   )
 }

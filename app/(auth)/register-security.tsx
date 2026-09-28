@@ -344,7 +344,7 @@ export default function RegisterSecurityScreen() {
               </VStack>
 
               {/* A04: ringkasan validasi di atas tombol submit */}
-              <ValidationSummary issues={issues} onDismiss={clearIssues} />
+              <ValidationSummary issues={issues} onDismiss={clearIssues} tone="danger" />
 
               <Button
                 onPress={() => void handleSubmit()}

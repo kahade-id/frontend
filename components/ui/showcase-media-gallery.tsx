@@ -36,7 +36,7 @@ import type { GalleryMedia } from "@/lib/showcase-social"
  */
 const DOUBLE_TAP_MS = 300
 
-export function ShowcaseMediaGallery({ media, title, onOpen, onDoubleTap, autoplayActive = true }: {
+export function ShowcaseMediaGallery({ media, title, onOpen, onDoubleTap, autoplayActive = true, aspectRatio = 1 }: {
   /** Urutan media persis seperti yang dipakai `onOpen` (indeks = indeks media). */
   media: GalleryMedia[]
   title: string
@@ -48,6 +48,12 @@ export function ShowcaseMediaGallery({ media, title, onOpen, onDoubleTap, autopl
    * Kartu feed mengirim "kartu terlihat"; halaman detail mengirim true.
    */
   autoplayActive?: boolean
+  /**
+   * C01 (batch 139): rasio slide pertama dari respons list — dipakai
+   * placeholder di luar jendela render (±1 slide) agar pager tidak bergeser
+   * saat slide jauh dimuat. Tiap slide memakai rasionya sendiri bila ada.
+   */
+  aspectRatio?: number
 }) {
   // i18n: label mengikuti bahasa aktif.
   useLanguage()
@@ -190,12 +196,14 @@ export function ShowcaseMediaGallery({ media, title, onOpen, onDoubleTap, autopl
                   <PressableScale accessibilityRole="button"
                     accessibilityLabel={translate("Lihat foto {x} dari {y}", { x: index + 1, y: media.length })}
                     onPress={() => handleSlidePress(index)} containerClassName="w-full">
-                    <Picture source={m.url} alt={title} aspectRatio={1} radius="none" bordered={false} recyclingKey={m.id} preventDownload dataSaverGate />
+                    {/* C01: rasio dari respons list — placeholder tidak meloncat. */}
+                    <Picture source={m.url} alt={title} aspectRatio={m.aspectRatio ?? 1} radius="none" bordered={false} recyclingKey={m.id} preventDownload dataSaverGate />
                   </PressableScale>
                 )
               ) : (
                 // Placeholder seukuran (B-01): tata letak pager tidak bergeser.
-                <View className="aspect-square w-full bg-surface" />
+                // C01: pakai rasio slide sendiri (fallback rasio slide pertama).
+                <View className="w-full bg-surface" style={{ aspectRatio: m.aspectRatio ?? aspectRatio }} />
               )}
             </View>
           ))}
@@ -315,6 +323,8 @@ function VideoSlide({
     userPlay,
   })
   const toggleMute = () => setMuted((m) => !m)
+  // C01: rasio slide — placeholder & poster ikut agar tak meloncat.
+  const slideAspectRatio = media.aspectRatio ?? 1
 
   const muteButton = (
     <View className="absolute bottom-2 right-2">
@@ -341,12 +351,12 @@ function VideoSlide({
           onPress={onRequestPlay}
           containerClassName="w-full"
         >
-          <View className="relative aspect-square w-full items-center justify-center gap-1.5 bg-surface px-8">
+          <View className="relative w-full items-center justify-center gap-1.5 bg-surface px-8" style={{ aspectRatio: slideAspectRatio }}>
             {media.posterUrl ? (
               <Picture
                 source={media.posterUrl}
                 alt={title}
-                aspectRatio={1}
+                aspectRatio={slideAspectRatio}
                 radius="none"
                 bordered={false}
                 className="absolute inset-0"
@@ -382,7 +392,7 @@ function VideoSlide({
         onPress={onTap}
         containerClassName="w-full"
       >
-        <FeedVideo source={media.url} poster={media.posterUrl} alt={title} shouldPlay={effectiveShouldPlay} muted={muted} />
+        <FeedVideo source={media.url} poster={media.posterUrl} alt={title} shouldPlay={effectiveShouldPlay} muted={muted} aspectRatio={slideAspectRatio} />
       </PressableScale>
       {muteButton}
       {/* Item 57: badge durasi ala TikTok/IG di thumbnail video. */}

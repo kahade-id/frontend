@@ -4,9 +4,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   ScrollView,
+  UIManager,
   View,
+  findNodeHandle,
   type TextInput,
 } from "react-native"
+import { runOnJS } from "react-native-reanimated"
 import { useLocalSearchParams, router } from "expo-router"
 import { translate } from "@/lib/i18n/translate"
 import { useLanguage } from "@/lib/i18n"
@@ -41,11 +44,13 @@ import { showcasePriceLabelOrFallback } from "@/lib/showcase-labels"
 import { showcaseHtmlHasFormatting } from "@/lib/showcase-html"
 import { useShowcaseSocialActions } from "@/lib/use-showcase-social-actions"
 import { useApiQuery } from "@/lib/use-api-query"
+import { consumePrefetchedShowcaseDetail } from "@/lib/showcase-detail-prefetch"
+import { isShowcaseSoldOut } from "@/lib/showcase-stock"
 
 import { useSessionRevision } from "@/lib/guest-gate"
 import { useShowcaseOperation } from "@/lib/use-showcase-operation"
 import { mergeComments, patchComments } from "@/lib/showcase-state"
-import { showcaseImages, showcaseMedia, showcaseSpin360Groups } from "@/lib/showcase-social"
+import { showcaseImages, showcaseMedia, showcaseSpin360Groups, findShowcaseComment, shouldFetchNextCommentPage, sortShowcaseComments } from "@/lib/showcase-social"
 import { markShowcaseDeleted } from "@/lib/showcase-deleted"
 import { markShowcaseFeedDirty, queueShowcaseCommentCount } from "@/lib/showcase-social-prefs"
 import { SHOWCASE_COMMENT_MESSAGES } from "@/lib/showcase-comment-messages"
@@ -102,6 +107,13 @@ type Reason = ContentReportReason
 const COMMENT_RENDER_STEP = 40
 /** Kontrak DTO CreateShowcaseCommentDto (audit F-04, sumber constraints.ts). */
 const COMMENT_MAX = API_CONSTRAINTS.CreateShowcaseCommentDto.content.maxLength
+/**
+ * C14 (batch 139): pencarian komentar deep link dibatasi — jangan mengunduh
+ * seluruh utas (hemat data & waktu).
+ */
+const COMMENT_FOCUS_MAX_PAGES = 5
+/** C14: jarak baris target dari atas viewport scroll saat difokuskan. */
+const COMMENT_FOCUS_TOP_MARGIN = 88
 
 export default function ShowcaseDetailScreen() {
   // i18n: label mengikuti bahasa aktif.
@@ -109,9 +121,24 @@ export default function ShowcaseDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
   const revision = useSessionRevision()
 
+  /**
+   * C05 (batch 139): hasil prefetch dari feed (press-in pada kartu) dipakai
+   * SEKALI sebagai respons pertama — halaman langsung render tanpa request
+   * ulang bila masih segar (TTL 90 dtk di lib). `useRef` initializer berjalan
+   * sekali per mount, selaras sifat sekali-pakai `consume…`.
+   */
+  const prefetchedRef = useRef<ShowcaseSocialItem | null>(
+    id ? consumePrefetchedShowcaseDetail(id) : null,
+  )
+
   const query = useApiQuery<ShowcaseSocialItem>(
     `showcase-detail:${revision}:${id}`,
-    (signal) => getShowcaseDetail(id, signal),
+    (signal) => {
+      const hit = prefetchedRef.current
+      prefetchedRef.current = null
+      if (hit) return Promise.resolve(hit)
+      return getShowcaseDetail(id, signal)
+    },
     Boolean(id),
     // D-08 (audit 2026-09-23): jangan `retry: 0` di lapis hook — satu
     // gangguan jaringan sesaat tidak boleh langsung layar error penuh.
@@ -228,6 +255,35 @@ function ShowcaseDetailContent({
   const [commentsStatus, setCommentsStatus] = useState<LoadMoreStatus>("loading")
   const [commentRenderLimit, setCommentRenderLimit] = useState(COMMENT_RENDER_STEP)
   const [commentsRefreshing, setCommentsRefreshing] = useState(false)
+  /**
+   * C14 (batch 139): fokus komentar dari deep link `?comment=`.
+   * - `detailScrollRef`/`detailScrollOffsetRef`: scroll terprogram + offset
+   *   terkini (offset dipantau via onScroll web/iOS, worklet Android).
+   * - `commentTargetRowRef`: pembungkus baris target (dipasang oleh
+   *   <ShowcaseDetailComments>) untuk pengukuran posisi.
+   * - `commentFocusDoneRef`: fokus hanya sekali per deep link.
+   */
+  const detailScrollRef = useRef<ScrollView>(null)
+  const detailScrollOffsetRef = useRef(0)
+  const commentTargetRowRef = useRef<View>(null)
+  const commentFocusDoneRef = useRef(false)
+  const trackDetailScrollOffset = useCallback((offsetY: number) => {
+    detailScrollOffsetRef.current = offsetY
+  }, [])
+  const handleDetailScroll = useCallback(
+    (event: { nativeEvent?: { contentOffset?: { y?: number } } }) => {
+      const y = event?.nativeEvent?.contentOffset?.y
+      if (typeof y === "number" && Number.isFinite(y)) trackDetailScrollOffset(y)
+    },
+    [trackDetailScrollOffset],
+  )
+  const handleDetailScrollWorklet = useCallback(
+    (offsetY: number) => {
+      "worklet"
+      runOnJS(trackDetailScrollOffset)(offsetY)
+    },
+    [trackDetailScrollOffset],
+  )
   const [replyTo, setReplyTo] = useState<ShowcaseComment | null>(null)
   const [draft, setDraft] = useState("")
   /**
@@ -348,6 +404,81 @@ function ShowcaseDetailContent({
     void fetchComments(1, false)
     return () => commentsAbort.current?.abort()
   }, [fetchComments])
+
+  /**
+   * C14 (batch 139): deep link `?comment=` — cari target lintas halaman
+   * (bounded: berhenti saat ketemu, halaman habis, atau batas halaman).
+   * Tidak mengganggu tombol "muat berikutnya" manual (guard status).
+   */
+  useEffect(() => {
+    // C14: keputusan lanjut-cari murni & teruji (batas halaman).
+    if (
+      !shouldFetchNextCommentPage({
+        commentId: highlightComment,
+        focusDone: commentFocusDoneRef.current,
+        targetFound: !!highlightComment && !!findShowcaseComment(comments, highlightComment),
+        commentsStatus,
+        commentsPage,
+        maxPages: COMMENT_FOCUS_MAX_PAGES,
+      })
+    ) {
+      return
+    }
+    void fetchComments(commentsPage + 1, true)
+  }, [highlightComment, comments, commentsStatus, commentsPage, fetchComments])
+
+  /**
+   * C14: pastikan baris target ikut ter-render — perluas render limit sampai
+   * mencakup indeks target pada urutan default ("newest", sama seperti
+   * komponen daftar saat deep link tiba).
+   */
+  useEffect(() => {
+    if (!highlightComment || commentFocusDoneRef.current) return
+    const ordered = sortShowcaseComments(comments, "newest")
+    const targetIndex = ordered.findIndex((root) => root.id === highlightComment)
+    if (targetIndex >= 0 && targetIndex >= commentRenderLimit) {
+      setCommentRenderLimit(targetIndex + 1)
+    }
+  }, [highlightComment, comments, commentRenderLimit])
+
+  /**
+   * C14: scroll otomatis ke baris target setelah ter-render. Posisi diukur
+   * via `measure()` (koordinat halaman) dikurangi posisi ScrollView +
+   * offset scroll terkini — lalu `scrollTo` terprogram. Sekali per deep link.
+   */
+  useEffect(() => {
+    if (!highlightComment || commentFocusDoneRef.current) return
+    const found = findShowcaseComment(comments, highlightComment)
+    if (!found) return
+    const ordered = sortShowcaseComments(comments, "newest")
+    const targetIndex = ordered.findIndex((root) => root.id === highlightComment)
+    if (targetIndex < 0 || targetIndex >= commentRenderLimit) return
+    let cancelled = false
+    const raf = requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (cancelled) return
+        const row = commentTargetRowRef.current
+        const scroller = detailScrollRef.current
+        if (!row || !scroller) return
+        row.measure((_x, _y, _w, _h, _pageX, pageY) => {
+          // ScrollView tidak mengekspos .measure di tipenya — ukur via node.
+          const scrollNode = findNodeHandle(scroller)
+          if (scrollNode == null) return
+          UIManager.measure(scrollNode, (_sx, _sy, _sw, _sh, _spx, spy) => {
+            if (cancelled) return
+            const targetY =
+              pageY - spy + detailScrollOffsetRef.current - COMMENT_FOCUS_TOP_MARGIN
+            commentFocusDoneRef.current = true
+            scroller.scrollTo({ y: Math.max(0, targetY), animated: true })
+          })
+        })
+      })
+    })
+    return () => {
+      cancelled = true
+      cancelAnimationFrame(raf)
+    }
+  }, [highlightComment, comments, commentRenderLimit])
 
   const isOwner = item.isOwner === true || (hasSession && meId === item.author.userId)
 
@@ -613,6 +744,10 @@ function ShowcaseDetailContent({
   }, [commentsRefreshing, query, fetchComments])
 
   const priceLabel = showcasePriceLabelOrFallback(item)
+  // C06 (batch 139): status stok konsisten dengan kartu feed — CTA
+  // "Buat Transaksi" nonaktif saat stok habis. Graceful: tanpa field stok
+  // dari backend, perilaku sama seperti sebelumnya.
+  const soldOut = isShowcaseSoldOut(item)
 
   const canReply = (c: ShowcaseComment) => hasSession && !c.isHidden && c.parentId == null
   const isMine = (c: ShowcaseComment) => meId != null && c.author.userId === meId
@@ -694,6 +829,10 @@ function ShowcaseDetailContent({
       contentClassName="gap-0"
       // Item 163: footer memuat komposer komentar — naik di atas keyboard.
       keyboardAvoiding
+      // C14 (batch 139): scroll terprogram + pantau offset untuk fokus komentar.
+      scrollRef={detailScrollRef}
+      onScroll={handleDetailScroll}
+      onScrollWorklet={handleDetailScrollWorklet}
       footer={
         <View className="border-t border-border bg-background py-3">
           {/* Item 163/164 (FE-IMP-1): bar sticky harga + CTA "Buat Transaksi"
@@ -706,17 +845,25 @@ function ShowcaseDetailContent({
                 <Text variant="h3" weight={700} numberOfLines={1} className="tabular-nums">
                   {priceLabel}
                 </Text>
+                {/* C06: status stok konsisten dengan badge di kartu feed. */}
+                {soldOut ? (
+                  <Text variant="caption" weight={700} tone="danger">
+                    {translate("Stok habis")}
+                  </Text>
+                ) : null}
                 <Text variant="caption" tone="secondary" numberOfLines={2}>
                   {translate("Dana ditahan escrow sampai barang Anda terima")}
                 </Text>
               </View>
               <Button
-                disabled={item.isActive === false}
+                disabled={item.isActive === false || soldOut}
                 onPress={handleCreateTransaction}
                 accessibilityHint={
-                  item.isActive === false
-                    ? translate("Karya ini sedang tidak aktif, jadi belum bisa ditransaksikan.")
-                    : undefined
+                  soldOut
+                    ? translate("Stok karya ini habis, jadi belum bisa ditransaksikan.")
+                    : item.isActive === false
+                      ? translate("Karya ini sedang tidak aktif, jadi belum bisa ditransaksikan.")
+                      : undefined
                 }
               >
                 {translate("Buat Transaksi")}
@@ -802,6 +949,8 @@ function ShowcaseDetailContent({
             if (!liked) toggleLike()
           }}
           autoplayActive={viewerIndex == null}
+          // C01: rasio slide pertama untuk placeholder di luar jendela render.
+          aspectRatio={resolvedMedia[0]?.aspectRatio ?? 1}
         />
       </View>
 
@@ -971,6 +1120,9 @@ function ShowcaseDetailContent({
         commentsStatus={commentsStatus}
         commentRenderLimit={commentRenderLimit}
         highlightComment={highlightComment}
+        // C14: fokus + scroll otomatis ke komentar deep link.
+        focusCommentId={highlightComment}
+        focusRowRef={commentTargetRowRef}
         isOwner={isOwner}
         hasSession={hasSession}
         isMine={isMine}

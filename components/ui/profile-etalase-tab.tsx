@@ -42,6 +42,7 @@ import { ErrorState } from "@/components/ui/error-state"
 import { ShowcaseFeedSkeleton } from "@/components/ui/showcase-feed-skeleton"
 import { ShowcaseCommentsSheet } from "@/components/ui/showcase-comments-sheet"
 import { ShowcaseFeedItem } from "@/components/ui/showcase-feed-item"
+import { prefetchShowcaseDetail } from "@/lib/showcase-detail-prefetch"
 import { ShowcaseReportSheet } from "@/components/ui/showcase-report-sheet"
 import { ShowcaseShareSheet } from "@/components/ui/showcase-share-sheet"
 import {
@@ -91,11 +92,14 @@ const EtalaseCard = memo(function EtalaseCard({
     liked === (item.isLiked === true) && likeCount === item.likeCount
       ? item
       : { ...item, isLiked: liked, likeCount }
+  // C05 (batch 139): prefetch metadata ringan saat niat buka terdeteksi.
+  const handlePressIn = useCallback(() => prefetchShowcaseDetail(item.id), [item.id])
   return (
     <>
       <ShowcaseFeedItem
         item={display}
         onPress={() => router.push(ROUTES.showcaseDetail(item.id))}
+        onPressIn={handlePressIn}
         onToggleLike={toggleLike}
         onOpenComments={() => onOpenComments(item)}
         onToggleSave={toggleSave}

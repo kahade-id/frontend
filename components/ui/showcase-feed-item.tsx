@@ -63,11 +63,18 @@ import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { focusRing } from "@/lib/focus-ring"
 import { shouldFireDoubleTapLike } from "@/lib/showcase-like-guard"
+import { isShowcaseSoldOut } from "@/lib/showcase-stock"
 import { FeedFollowButton } from "@/components/ui/feed-follow-button"
 
 export type ShowcaseFeedItemProps = {
   item: ShowcaseSocialItem
   onPress?: () => void
+  /**
+   * C05 (batch 139): niat buka detail terdeteksi (press-in pada judul) —
+   * pemanggil memicu `prefetchShowcaseDetail` agar navigasi terasa instan.
+   * Tidak memicu unduhan media apa pun (prefetch hanya metadata JSON).
+   */
+  onPressIn?: () => void
   /**
    * Ketuk media → buka pratinjau gambar (index slide). Bila tidak disediakan,
    * ketuk media jatuh ke `onPress` (perilaku lama: buka detail karya).
@@ -98,6 +105,13 @@ export type ShowcaseFeedItemProps = {
    * untuk karya sendiri (lapor tidak masuk akal untuk karya sendiri).
    */
   onManage?: () => void
+  /**
+   * C11 (batch 139): mode pratinjau — kartu memakai komponen yang sama dengan
+   * feed, tetapi semua tombol tidak navigasi/tidak memicu aksi (author,
+   * kategori, media, follow, lapor, dan bar aksi dirender non-interaktif).
+   * Dipakai sheet pratinjau sebelum terbitkan etalase.
+   */
+  nonInteractive?: boolean
   divider?: boolean
   className?: string
 }
@@ -166,6 +180,7 @@ function CountAction({
 function ShowcaseFeedItemBase({
   item,
   onPress,
+  onPressIn,
   onOpenMedia,
   onToggleLike,
   onOpenComments,
@@ -178,6 +193,7 @@ function ShowcaseFeedItemBase({
   onOptions,
   onManage,
   autoplayActive = true,
+  nonInteractive = false,
   divider = false,
   className,
 }: ShowcaseFeedItemProps) {
@@ -245,6 +261,14 @@ function ShowcaseFeedItemBase({
     if (item.category) router.push(ROUTES.showcaseWithCategory(item.category, kind))
   }, [item.category, kind])
 
+  // C06 (batch 139): badge "Stok habis" di kartu — graceful: status unknown
+  // (field backend belum ada) = tidak ada badge.
+  const soldOut = isShowcaseSoldOut(item)
+  // C11 (batch 139): pratinjau — media tidak membuka apa pun.
+  const handleOpenMedia = nonInteractive
+    ? () => {}
+    : (index: number) => (onOpenMedia ? onOpenMedia(index) : onPress?.())
+
   const likeRow = (
     // Revisi 2026-09-23: suka = MERAH + motion pop/ring (<LikeAction>) —
     // menggantikan CountAction generik yang dulu dipakai di sini.
@@ -278,6 +302,29 @@ function ShowcaseFeedItemBase({
           tamu diarahkan ke loginRequired dengan `next` profil, jadi tidak
           "menabrak dinding" tanpa konteks; setelah login mendarat di profil. */}
       <View className="flex-row items-center gap-2 px-5 pt-3">
+        {nonInteractive ? (
+          /* C11: pratinjau — author dirender sebagai info biasa. */
+          <View className="min-w-0 flex-1 flex-row items-center gap-3">
+            <Avatar
+              source={item.author.avatarUrl ? { uri: item.author.avatarUrl } : undefined}
+              name={item.author.fullName?.trim() || item.author.username}
+              size="md"
+            />
+            <View className="min-w-0 flex-1 justify-center">
+              <VerifiedName
+                name={item.author.fullName?.trim() || item.author.username}
+                variant="body"
+                badges={item.author.badges as unknown as VerificationBadge[]}
+                verified={item.author.isKycVerified === true}
+                tier={item.author.sealTier ?? null}
+                textProps={{ weight: 600 }}
+              />
+              <Text variant="caption" tone="secondary" numberOfLines={1}>
+                {`@${item.author.username} · ${formatTimeAgo(item.createdAt)}`}
+              </Text>
+            </View>
+          </View>
+        ) : (
         <PressableScale
           accessibilityRole="button"
           accessibilityLabel={translate("Lihat profil {x}", { x: item.author.fullName?.trim() || item.author.username })}
@@ -313,16 +360,15 @@ function ShowcaseFeedItemBase({
             </Text>
           </View>
         </PressableScale>
-        {/* Item 56 (FE-IMP-1): tombol Ikuti langsung dari feed — status
-            diambil sekali per username per sesi (lib/follow-status.ts), tanpa
-            N+1 request. Disembunyikan untuk karya sendiri. */}
-        {!item.isOwner ? (
+        )}
+        {/* C11: pratinjau menyembunyikan tombol aksi (ikuti/lapor/kelola). */}
+        {!nonInteractive && !item.isOwner ? (
           <FeedFollowButton username={item.author.username} isOwner={item.isOwner} />
         ) : null}
         {/* B-05: lapor tidak masuk akal untuk karya sendiri (selaras detail).
             Untuk karya sendiri tampilkan DotsThreeCircle (kelola: edit/hapus)
-            bila onManage disediakan. */}
-        {!item.isOwner ? (
+            bila onManage disediakan. C11: pratinjau menyembunyikan semuanya. */}
+        {!nonInteractive && !item.isOwner ? (
           <IconButton
             icon={onOptions ? DotsThreeCircle : Flag}
             variant="ghost"
@@ -333,7 +379,7 @@ function ShowcaseFeedItemBase({
             accessibilityHint={onOptions ? translate("Buka opsi karya") : translate("Laporkan karya ini")}
             onPress={onOptions ?? handleReport}
           />
-        ) : onManage ? (
+        ) : !nonInteractive && onManage ? (
           <IconButton
             icon={DotsThreeCircle}
             variant="ghost"
@@ -354,10 +400,20 @@ function ShowcaseFeedItemBase({
           <ShowcaseMediaGallery
             media={gallery}
             title={item.title}
-            onOpen={(index) => (onOpenMedia ? onOpenMedia(index) : onPress?.())}
-            onDoubleTap={onToggleLike ? handleMediaDoubleTap : undefined}
+            onOpen={handleOpenMedia}
+            onDoubleTap={!nonInteractive && onToggleLike ? handleMediaDoubleTap : undefined}
             autoplayActive={autoplayActive}
+            // C01: rasio slide pertama untuk placeholder di luar jendela render.
+            aspectRatio={gallery[0]?.aspectRatio ?? 1}
           />
+          {/* C06: badge stok habis — menimpa media, info kartu tetap tampil. */}
+          {soldOut ? (
+            <View className="absolute left-2 top-2 rounded-full bg-overlay-media px-2.5 py-1">
+              <Text variant="caption" weight={700} className="text-white">
+                {translate("Stok habis")}
+              </Text>
+            </View>
+          ) : null}
           {heartVisible ? (
             <View
               pointerEvents="none"
@@ -388,6 +444,14 @@ function ShowcaseFeedItemBase({
         {item.category || item.orderLink ? (
           <View className="flex-row flex-wrap items-center gap-2">
             {item.category ? (
+              nonInteractive ? (
+                /* C11: pratinjau — kategori sebagai label biasa. */
+                <View className="rounded-sm px-0">
+                  <Text variant="caption" tone="secondary" numberOfLines={1}>
+                    {item.category}
+                  </Text>
+                </View>
+              ) : (
               <PressableScale
                 accessibilityRole="button"
                 accessibilityLabel={translate("Filter kategori {x}", { x: item.category })}
@@ -399,17 +463,33 @@ function ShowcaseFeedItemBase({
                   {item.category}
                 </Text>
               </PressableScale>
+              )
             ) : null}
             {/* Batch 43: badge commerce (Terlaris/Diskon) di kartu feed —
                 hanya untuk produk commerce (orderLink ada). */}
             {item.orderLink ? <CommerceBadgesCompact showcaseId={item.id} /> : null}
           </View>
         ) : null}
+        {/* C11: pratinjau — judul/deskripsi sebagai teks biasa. */}
+        {nonInteractive ? (
+          <View className="gap-1">
+            <Text variant="body" weight={600} numberOfLines={2}>
+              {item.title}
+            </Text>
+            {item.description ? (
+              <Text variant="caption" tone="secondary" numberOfLines={2}>
+                {item.description}
+              </Text>
+            ) : null}
+          </View>
+        ) : (
         <PressableScale
           accessibilityRole={onPress ? "button" : undefined}
           accessibilityLabel={onPress ? item.title : undefined}
           accessibilityHint={onPress ? translate("Buka detail karya") : undefined}
           onPress={onPress}
+          // C05: press-in = niat buka detail → prefetch metadata ringan.
+          onPressIn={nonInteractive ? undefined : onPressIn}
           containerClassName={cn("rounded-sm", focusRing)}
         >
           <View className="gap-1">
@@ -423,6 +503,7 @@ function ShowcaseFeedItemBase({
             ) : null}
           </View>
         </PressableScale>
+        )}
       </View>
 
       {/* ── Separator atas aksi (inset, bukan full) ── */}

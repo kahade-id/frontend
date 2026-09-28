@@ -27,13 +27,14 @@
  */
 import { Component, useEffect, useState, type ReactNode } from "react"
 import { View, type ViewProps } from "react-native"
-import { Play } from "phosphor-react-native"
+import { ArrowClockwise, Play } from "phosphor-react-native"
 import type { ImageSource } from "expo-image"
 import type { VideoPlayer } from "expo-video"
 
 import { Picture } from "@/components/ui/picture"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Icon } from "@/components/ui/icon"
+import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { translate } from "@/lib/i18n/translate"
 import { useLanguage } from "@/lib/i18n"
@@ -95,44 +96,54 @@ export type FeedVideoProps = Omit<ViewProps, "children"> & {
   nativeControls?: boolean
   /** Ketuk video = toggle play/pause (pratinjau upload). */
   allowTapToggle?: boolean
+  /** C01 (batch 139): rasio slide — dipakai poster/frame agar tak meloncat. */
+  aspectRatio?: number
   className?: string
+}
+
+/**
+ * MediaSource membolehkan { uri: string | null } — normalkan ke tipe yang
+ * diterima <Picture> (string | number | ImageSource).
+ */
+function normalizePosterSource(
+  poster?: MediaSource,
+): string | number | ImageSource | undefined {
+  if (typeof poster === "string" || typeof poster === "number") return poster
+  return typeof poster?.uri === "string" ? { uri: poster.uri } : undefined
 }
 
 function VideoPoster({
   poster,
   alt,
   label,
+  aspectRatio = 1,
   onPress,
   className,
 }: {
   poster?: MediaSource
   alt: string
   label?: string
+  /** C01 (batch 139): rasio slide — dipakai saat poster belum siap. */
+  aspectRatio?: number
   onPress?: () => void
   className?: string
 }) {
   // i18n: label aksesibilitas mengikuti bahasa aktif.
   useLanguage()
-  // MediaSource membolehkan { uri: string | null } — normalkan ke tipe yang
-  // diterima <Picture> (string | number | ImageSource).
-  const posterSource: string | number | ImageSource | undefined =
-    typeof poster === "string" || typeof poster === "number"
-      ? poster
-      : typeof poster?.uri === "string"
-        ? { uri: poster.uri }
-        : undefined
+  const posterSource = normalizePosterSource(poster)
   const body = (
     <View
       className={cn(
-        "relative aspect-square w-full items-center justify-center overflow-hidden bg-surface",
+        "relative w-full items-center justify-center overflow-hidden bg-surface",
         className,
       )}
+      style={{ aspectRatio }}
     >
       {posterSource ? (
         <Picture
           source={posterSource}
           alt={alt}
-          aspectRatio={1}
+          aspectRatio={aspectRatio}
           radius="none"
           bordered={false}
           className="absolute inset-0"
@@ -175,9 +186,17 @@ function useSyncPlayer(player: VideoPlayer, shouldPlay: boolean, muted: boolean,
 /**
  * Pemutar expo-video yang sebenarnya — HANYA di-render bila modul tersedia.
  * Throw di sini (APK lama) ditangkap <VideoErrorBoundary> pemanggil.
+ *
+ * C04 (batch 139): bila stream gagal (`statusChange` → "error"), laporkan ke
+ * `onError`; <ExpoVideoInner> menampilkan fallback poster + tombol "Coba
+ * lagi" yang me-mount ulang komponen ini (player baru) tanpa menyembunyikan
+ * info produk di kartu.
  */
 function ExpoVideoInner({
   source,
+  poster,
+  alt,
+  aspectRatio = 1,
   shouldPlay,
   muted,
   loop,
@@ -185,11 +204,95 @@ function ExpoVideoInner({
   allowTapToggle,
 }: {
   source: string
+  poster?: MediaSource
+  alt: string
+  /** C01: rasio slide — dipakai frame & fallback saat video belum siap. */
+  aspectRatio?: number
   shouldPlay: boolean
   muted: boolean
   loop: boolean
   nativeControls: boolean
   allowTapToggle: boolean
+}) {
+  // i18n: label aksesibilitas mengikuti bahasa aktif.
+  useLanguage()
+  const [retryKey, setRetryKey] = useState(0)
+  const [failed, setFailed] = useState(false)
+
+  if (failed) {
+    const posterSource = normalizePosterSource(poster)
+    return (
+      <View
+        className="relative w-full items-center justify-center gap-2 overflow-hidden bg-surface px-6"
+        style={{ aspectRatio }}
+      >
+        {posterSource ? (
+          <Picture
+            source={posterSource}
+            alt={alt}
+            aspectRatio={aspectRatio}
+            radius="none"
+            bordered={false}
+            className="absolute inset-0"
+          />
+        ) : null}
+        <PressableScale
+          accessibilityRole="button"
+          accessibilityLabel={translate("Coba muat video lagi")}
+          onPress={() => {
+            setRetryKey((n) => n + 1)
+            setFailed(false)
+          }}
+          containerClassName="rounded-full bg-background px-4 py-2"
+        >
+          <View className="flex-row items-center gap-1.5">
+            <Icon icon={ArrowClockwise} size="sm" />
+            <Text variant="caption" weight={600}>
+              {translate("Coba lagi")}
+            </Text>
+          </View>
+        </PressableScale>
+        <Text variant="caption" tone="secondary" className="text-center">
+          {translate("Video gagal dimuat")}
+        </Text>
+      </View>
+    )
+  }
+
+  return (
+    <ExpoVideoPlayer
+      key={retryKey}
+      source={source}
+      aspectRatio={aspectRatio}
+      shouldPlay={shouldPlay}
+      muted={muted}
+      loop={loop}
+      nativeControls={nativeControls}
+      allowTapToggle={allowTapToggle}
+      onError={() => setFailed(true)}
+    />
+  )
+}
+
+/** Instans player tunggal — di-mount ulang (key) setiap "Coba lagi". */
+function ExpoVideoPlayer({
+  source,
+  aspectRatio,
+  shouldPlay,
+  muted,
+  loop,
+  nativeControls,
+  allowTapToggle,
+  onError,
+}: {
+  source: string
+  aspectRatio: number
+  shouldPlay: boolean
+  muted: boolean
+  loop: boolean
+  nativeControls: boolean
+  allowTapToggle: boolean
+  onError: () => void
 }) {
   // i18n: label aksesibilitas mengikuti bahasa aktif.
   useLanguage()
@@ -202,6 +305,13 @@ function ExpoVideoInner({
     p.muted = muted
   })
   useSyncPlayer(player, shouldPlay, muted, loop)
+
+  useEffect(() => {
+    const sub = player.addListener("statusChange", (event: { status?: string }) => {
+      if (event?.status === "error") onError()
+    })
+    return () => sub.remove()
+  }, [player, onError])
 
   const [tapPaused, setTapPaused] = useState(true)
   useEffect(() => {
@@ -219,7 +329,10 @@ function ExpoVideoInner({
   }
 
   const frame = (
-    <View className="relative aspect-square w-full overflow-hidden bg-surface">
+    <View
+      className="relative w-full overflow-hidden bg-surface"
+      style={{ aspectRatio }}
+    >
       <VideoView
         player={player}
         style={{ width: "100%", height: "100%" }}
@@ -259,19 +372,23 @@ export function FeedVideo({
   loop = true,
   nativeControls = false,
   allowTapToggle = false,
+  aspectRatio = 1,
   className,
   ...rest
 }: FeedVideoProps) {
   // i18n: label aksesibilitas mengikuti bahasa aktif.
   useLanguage()
   const available = isExpoVideoAvailable()
-  const fallback = <VideoPoster poster={poster} alt={alt} className={className} />
+  const fallback = <VideoPoster poster={poster} alt={alt} aspectRatio={aspectRatio} className={className} />
   if (!available) return <View className={cn("w-full", className)} {...rest}>{fallback}</View>
   return (
     <View className={cn("w-full", className)} {...rest}>
       <VideoErrorBoundary fallback={fallback}>
         <ExpoVideoInner
           source={source}
+          poster={poster}
+          alt={alt}
+          aspectRatio={aspectRatio}
           shouldPlay={shouldPlay}
           muted={muted}
           loop={loop}
