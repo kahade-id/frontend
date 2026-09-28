@@ -36,7 +36,10 @@ const COLUMNS: { heading: string; links: FooterLink[] }[] = [
   },
   {
     heading: "Bantuan",
-    links: [{ label: "Hubungi Kami", href: ROUTES.contact }],
+    // NAV-008: /contact (form tiket) butuh login — di halaman publik
+    // (landing) tamu akan mental ke login. Arahkan ke Umpan Balik yang
+    // publik dan punya kolom kontak opsional.
+    links: [{ label: "Umpan Balik", href: ROUTES.feedback }],
   },
 ]
 

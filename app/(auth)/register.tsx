@@ -103,11 +103,12 @@ export default function RegisterScreen() {
   const goLogin = useCallback(() => {
     // NAV-013: bawa `next` bila ada — pengguna yang ternyata sudah punya akun
     // tetap kembali ke tujuan setelah masuk.
-    const loginHref =
-      typeof next === "string" && next.startsWith("/")
-        ? ({ pathname: "/login", params: { next } } as const)
-        : ROUTES.login
-    if (router.canGoBack()) {
+    const hasNext = typeof next === "string" && next.startsWith("/")
+    const loginHref = hasNext ? ({ pathname: "/login", params: { next } } as const) : ROUTES.login
+    // Bila `next` ada, SELALU replace: GuestLoginPrompt membuka register via
+    // replace, jadi Back bisa mendarat di halaman sebelum target (bukan login)
+    // dan `next` hilang.
+    if (!hasNext && router.canGoBack()) {
       router.back()
     } else {
       router.replace(loginHref)

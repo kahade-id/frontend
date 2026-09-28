@@ -28,7 +28,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { AppState, Linking, Platform, View } from "react-native"
 import { GestureHandlerRootView } from "react-native-gesture-handler"
 import Reanimated, { useAnimatedStyle } from "react-native-reanimated"
-import { Stack, usePathname, useRouter } from "expo-router"
+import { Stack, usePathname, useRouter, type Href } from "expo-router"
 import { StatusBar } from "expo-status-bar"
 import * as SplashScreen from "expo-splash-screen"
 import { useFonts } from "expo-font"
@@ -101,6 +101,31 @@ SplashScreen.setOptions({
   duration: tokens.motion.duration.base,
   fade: true,
 })
+
+/**
+ * NAV-007: ubah Href (string ATAU objek expo-router) menjadi path konkret
+ * untuk `pendingNext`. Template segmen dinamis ("/order/[id]") disubstitusi
+ * dari `params`; bila ada segmen yang tak terisi → null (login redirect
+ * tidak boleh mendarat di 404).
+ */
+function hrefToConcretePath(href: Href): string | null {
+  if (typeof href === "string") return href || null
+  const obj = href as { pathname?: unknown; params?: unknown }
+  if (typeof obj.pathname !== "string" || !obj.pathname) return null
+  const params =
+    obj.params != null && typeof obj.params === "object"
+      ? (obj.params as Record<string, unknown>)
+      : {}
+  const path = obj.pathname.replace(/\[([^\]/]+)\]/g, (_m, key: string) => {
+    const value = params[key]
+    return typeof value === "string" || typeof value === "number"
+      ? encodeURIComponent(String(value))
+      : ""
+  })
+  // Segmen dinamis tersisa (mis. catch-all) = tidak bisa dikonkretkan.
+  if (path.includes("[") || path.includes("]")) return null
+  return path
+}
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts(fontAssets)
@@ -281,9 +306,15 @@ function AppShellInner() {
   const redirectedDeepLink = useRef(false)
   useEffect(() => {
     if (Platform.OS === "web") return
+    // Reset: sesi pulih ATAU sudah di rute publik → logout berikutnya dalam
+    // proses yang sama boleh mengalihkan lagi (tanpa ini, deep link kedua
+    // setelah login–logout mendarat di layar kosong lagi).
+    if (session.token || !isNativeGuardedPath(pathname)) {
+      redirectedDeepLink.current = false
+      return
+    }
     if (redirectedDeepLink.current) return
-    if (session.restoring || session.error || session.token) return
-    if (!isNativeGuardedPath(pathname)) return
+    if (session.restoring || session.error) return
     redirectedDeepLink.current = true
     setPendingNext(pathname)
     // Literal "/login" (= ROUTES.login): bentuk objek `as const` butuh
@@ -410,14 +441,10 @@ function AppShellInner() {
       const target = resolved ?? ROUTES.notifications
       // NAV-007: tap notifikasi saat logout — simpan tujuan supaya alur
       // login/welcome melanjutkannya (takePendingNext), bukan hilang.
+      // Href objek harus dikonkretkan dulu: menyimpan template mentah
+      // ("/order/[id]") membuat redirect login mendarat di 404.
       if (!session.token) {
-        const targetPath =
-          typeof target === "string"
-            ? target
-            : typeof target?.pathname === "string"
-              ? target.pathname
-              : null
-        setPendingNext(targetPath)
+        setPendingNext(hrefToConcretePath(target))
       }
       router.push(session.token ? target : ROUTES.login)
       if (session.token) {

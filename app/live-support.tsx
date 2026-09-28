@@ -29,6 +29,7 @@ import { formatTime } from "@/lib/format"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 import { useApiQuery } from "@/lib/use-api-query"
+import { useHasSession } from "@/lib/guest-gate"
 import { translate } from "@/lib/i18n"
 import { onReconnect } from "@/lib/connectivity"
 import {
@@ -49,6 +50,7 @@ import { ChatMessageBubble } from "@/components/ui/chat-message-bubble"
 import { Chip } from "@/components/ui/chip"
 import { Dialog } from "@/components/ui/modal"
 import { ErrorState } from "@/components/ui/error-state"
+import { GuestLoginPrompt } from "@/components/web-guest-gate"
 import { HEADER_BAR_HEIGHT, Header } from "@/components/ui/header"
 import { Icon } from "@/components/ui/icon"
 import { KeyboardAvoiding } from "@/components/ui/keyboard-avoiding"
@@ -124,6 +126,12 @@ export default function LiveSupportScreen() {
   const insets = useSafeAreaInsets()
   const isFocused = useIsFocused()
   const toast = useToast()
+  /**
+   * NAV-005: endpoint tiket (GET /v1/support/tickets) semuanya auth-required.
+   * Gate di sini (bukan cuma overlay root) supaya layar yang ter-mount di
+   * belakang overlay tidak menembak endpoint tanpa sesi. Pola = wallet.tsx.
+   */
+  const hasSession = useHasSession()
 
   const [ticketId, setTicketId] = useState<string | null>(null)
   const [draft, setDraft] = useState("")
@@ -149,7 +157,7 @@ export default function LiveSupportScreen() {
   const listQuery = useApiQuery<SupportTicket[]>(
     "support-tickets:live-chat",
     (signal) => api.support.listSupportTickets(signal),
-    ticketId === null,
+    hasSession && ticketId === null,
   )
 
   useEffect(() => {
@@ -162,7 +170,7 @@ export default function LiveSupportScreen() {
   const ticketQuery = useApiQuery<SupportTicket>(
     `support-ticket:${ticketId ?? "none"}`,
     (signal) => api.support.getSupportTicket(ticketId as string, signal),
-    ticketId !== null,
+    hasSession && ticketId !== null,
   )
   const ticket = ticketQuery.data
   const isClosedLike =
@@ -485,6 +493,16 @@ export default function LiveSupportScreen() {
   }, [ticketId, ratingStars, ratingComment, ticketQuery, toast.show])
 
   // ---- Render --------------------------------------------------------------
+  // NAV-005: tamu tidak melihat isi kanal — ajakan masuk (pola wallet.tsx).
+  if (!hasSession) {
+    return (
+      <Screen edges={["top"]} padded={false}>
+        <Header title={translate("Live Support")} />
+        <GuestLoginPrompt bare next="/live-support" />
+      </Screen>
+    )
+  }
+
   const showWelcome = ticketId === null && !listQuery.loading && !listQuery.error
   const statusOpen = ticket != null && !isClosedLike
   const showRating = isClosedLike && (ticket?.rating ?? 0) < 1

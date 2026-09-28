@@ -40,6 +40,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { View } from "react-native"
 import { CalendarBlank } from "phosphor-react-native"
 import { router, useLocalSearchParams } from "expo-router"
+import { useNavigation, usePreventRemove, type NavigationAction } from "@react-navigation/native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import {
@@ -336,6 +337,63 @@ export default function CreateTransactionScreen() {
   const [confirmedCounterpart, setConfirmedCounterpart] = useState<string | null>(null)
   const [feeError, setFeeError] = useState<string | null>(null)
 
+  /**
+   * NAV-012: Back / gesture-back / tab tidak boleh menghapus isian diam-diam.
+   * `dirty` = ada ketikan/pilihan yang menyimpang dari nilai awal (prefill
+   * template ikut dihitung — kembali tanpa konfirmasi membuang konteks).
+   */
+  const navigation = useNavigation()
+  const [initialDeadlineTime] = useState<number | null>(() => deadlineDate?.getTime() ?? null)
+  const dirty =
+    step > 0 ||
+    counterpart.trim() !== (params.counterpart?.trim() ?? "") ||
+    title.trim() !== (templatePrefill.title ?? "").trim() ||
+    description.trim() !== (templatePrefill.description ?? "").trim() ||
+    orderValue !== (templatePrefill.amount ?? 0) ||
+    (deadlineDate?.getTime() ?? null) !== initialDeadlineTime ||
+    voucher != null ||
+    sellerVoucher != null ||
+    shippingAddress != null
+  /**
+   * Keluar yang disengaja (konfirmasi "Buang" / submit sukses): `beforeRemove`
+   * membaca flag `preventRemove` dari render TERAKHIR, jadi navigasi tidak
+   * boleh dieksekusi di handler yang sama dengan `setIntentionalLeave(true)` —
+   * selalu lewat effect di bawah setelah guard mati.
+   * (Pola yang sama dengan app/showcase/create.tsx.)
+   */
+  const [intentionalLeave, setIntentionalLeave] = useState(false)
+  const [discardOpen, setDiscardOpen] = useState(false)
+  const pendingNavigation = useRef<NavigationAction | null>(null)
+  const pendingReplace = useRef<Parameters<typeof router.replace>[0] | null>(null)
+
+  usePreventRemove(dirty && !intentionalLeave, ({ data }) => {
+    if (submitting) return
+    pendingNavigation.current = data.action
+    setDiscardOpen(true)
+  })
+
+  useEffect(() => {
+    if (!intentionalLeave) return
+    const action = pendingNavigation.current
+    pendingNavigation.current = null
+    const replaceHref = pendingReplace.current
+    pendingReplace.current = null
+    if (action) navigation.dispatch(action)
+    else if (replaceHref) router.replace(replaceHref)
+    else router.back()
+  }, [intentionalLeave, navigation])
+
+  // Web: peringatan bawaan browser sebelum tab ditutup dengan isian hidup.
+  useEffect(() => {
+    if (typeof window === "undefined" || !dirty) return
+    const warn = (event: BeforeUnloadEvent) => {
+      event.preventDefault()
+      event.returnValue = ""
+    }
+    window.addEventListener("beforeunload", warn)
+    return () => window.removeEventListener("beforeunload", warn)
+  }, [dirty])
+
   // ── Validitas per langkah (gerbang tombol "Lanjut") ──────────────────
   const counterpartConfirmed =
     confirmedCounterpart === counterpart.trim() && counterpartState === "found"
@@ -623,7 +681,10 @@ export default function CreateTransactionScreen() {
           tone: "success",
           duration: 4000,
         })
-        router.replace(link.token ? ROUTES.orderLink(link.token) : ROUTES.orderLinks)
+        // NAV-012: sukses = keluar yang disengaja — lewat effect agar
+        // `beforeRemove` tidak mencegat replace ini sebagai "buang isian".
+        pendingReplace.current = link.token ? ROUTES.orderLink(link.token) : ROUTES.orderLinks
+        setIntentionalLeave(true)
         return
       }
       const dto: CreateOrderDto = {
@@ -642,7 +703,9 @@ export default function CreateTransactionScreen() {
         tone: "success",
         duration: 4000,
       })
-      router.replace(order.id ? ROUTES.orderDetail(order.id) : ROUTES.transactions)
+      // NAV-012: sukses = keluar yang disengaja (lihat komentar di atas).
+      pendingReplace.current = order.id ? ROUTES.orderDetail(order.id) : ROUTES.transactions
+      setIntentionalLeave(true)
     } catch (err) {
       if (isApiError(err) && err.backendCode === "KYC_REQUIRED") {
         setKycReason(kycReasonMessage(err.message))
@@ -984,6 +1047,31 @@ export default function CreateTransactionScreen() {
         onRequestClose={() => setScheduleOpen(false)}
         scheduleLoading={scheduleLoading}
         schedule={schedule}
+      />
+
+      {/* NAV-012: konfirmasi sebelum Back membuang isian transaksi. */}
+      <Dialog
+        title="Buang isian transaksi?"
+        description="Isian yang sudah diketik akan hilang dan tidak bisa dikembalikan."
+        visible={discardOpen}
+        confirmLabel="Buang"
+        cancelLabel="Lanjutkan mengisi"
+        destructive
+        onConfirm={() => {
+          setDiscardOpen(false)
+          // Jangan dispatch di sini: guard masih aktif sampai commit
+          // berikutnya dan `beforeRemove` akan membuka dialog lagi.
+          // Effect `intentionalLeave` mengeksekusi aksi yang tertunda.
+          setIntentionalLeave(true)
+        }}
+        onCancel={() => {
+          pendingNavigation.current = null
+          setDiscardOpen(false)
+        }}
+        onRequestClose={() => {
+          pendingNavigation.current = null
+          setDiscardOpen(false)
+        }}
       />
 
       <Dialog
