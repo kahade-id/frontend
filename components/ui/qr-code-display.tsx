@@ -7,8 +7,8 @@
  * utama adalah KETERBACAAN oleh scanner, bukan estetika.
  *
  * Keputusan non-obvious:
- *   - Encode dengan paket `qrcode` (`QRCode.create`, sudah dependency) dan
- *     render modul sebagai SATU <Path> react-native-svg (bukan ribuan
+ *   - Encode dengan inti `qrcode` (`create` dari `qrcode/lib/core/qrcode`,
+ *     ST-008) dan render modul sebagai SATU <Path> react-native-svg (bukan ribuan
  *     <Rect>): QR versi 10 punya 57x57 = 3249 modul; satu path string
  *     jauh lebih ringan untuk bridge/DOM daripada 3249 elemen.
  *   - Warna modul SELALU hitam murni di atas putih murni (`brand.black` /
@@ -38,7 +38,13 @@
  *   - Tidak ada animasi/gradient/rounded-dots pada modul (§1 flat, presisi):
  *     modul bulat menurunkan keterbacaan scanner murah.
  */
-import QRCode from "qrcode"
+// ST-008 (PERF-FIX 2026-09-29): hanya inti pembuatan matriks QR yang
+// diimpor (`qrcode/lib/core/qrcode`), bukan entry utama `qrcode`.
+// Entry utama di-resolve Metro via field `browser` ke lib/browser.js yang
+// ikut menarik renderer canvas (butuh DOM — mati di native) dan svg-tag
+// (tidak dipakai; path SVG dibangun sendiri dari matriks di bawah).
+// Inti ini murni: core/qrcode + dijkstrajs, tanpa dependensi server.
+import { create as createQrCode } from "qrcode/lib/core/qrcode"
 import { QrCode } from "phosphor-react-native"
 import { useMemo } from "react"
 import { View, type ViewProps } from "react-native"
@@ -115,7 +121,7 @@ export function QRCodeDisplay({
 
   const encoded = useMemo(() => {
     try {
-      const qr = QRCode.create(value, { errorCorrectionLevel: ec })
+      const qr = createQrCode(value, { errorCorrectionLevel: ec })
       const count = qr.modules.size
       const scale = size / (count + QUIET_ZONE * 2)
       const offset = QUIET_ZONE * scale
