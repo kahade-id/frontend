@@ -111,6 +111,14 @@ export default function PasskeysScreen() {
 
   // ── Tambah ─────────────────────────────────────────────────────────
 
+  // A12 (batch 139): nama perangkat saat create — user bisa menamai sendiri,
+  // default otomatis seperti sebelumnya bila dikosongkan.
+  const defaultPasskeyName = useCallback(
+    () => `${Platform.OS === "web" ? "Web" : "Perangkat"} — ${formatDate(new Date())}`,
+    [],
+  )
+  const [addName, setAddName] = useState("")
+
   const handleAdd = useCallback(() => {
     if (!webSupported) {
       toast.show({
@@ -122,8 +130,9 @@ export default function PasskeysScreen() {
       return
     }
     setReauthInput({})
+    setAddName(defaultPasskeyName())
     setReauthFor({ action: "add" })
-  }, [webSupported, toast.show])
+  }, [webSupported, toast.show, defaultPasskeyName])
 
   const doAddWithReauth = useCallback(
     async (reauth: ReauthInput) => {
@@ -133,7 +142,8 @@ export default function PasskeysScreen() {
           password: reauth.password || undefined,
           mfaCode: reauth.mfaCode || undefined,
           otpCode: reauth.otpCode || undefined,
-          deviceName: `${Platform.OS === "web" ? "Web" : "Perangkat"} — ${formatDate(new Date())}`,
+          // A12: nama dari input user; fallback default bila dikosongkan.
+          deviceName: addName.trim() || defaultPasskeyName(),
         })
         const attestation = await startPasskeyRegistration(options as RegistrationOptionsJSON)
         const created = await api.passkey.verifyRegistration({ challengeId, attestation })
@@ -150,7 +160,7 @@ export default function PasskeysScreen() {
         setWorking(false)
       }
     },
-    [refresh, toast.show],
+    [refresh, toast.show, addName, defaultPasskeyName],
   )
 
   // ── Ganti nama ─────────────────────────────────────────────────────
@@ -334,7 +344,7 @@ export default function PasskeysScreen() {
         </Text>
       </DataScreen>
 
-      {/* Re-auth untuk tambah */}
+      {/* Re-auth untuk tambah (+ A12: nama perangkat saat create) */}
       <Dialog
         visible={reauthFor !== null}
         onRequestClose={() => setReauthFor(null)}
@@ -344,11 +354,22 @@ export default function PasskeysScreen() {
         onConfirm={() => reauthFor && void doAddWithReauth(reauthInput)}
         loading={working}
       >
-        <ReauthFields
-          value={reauthInput}
-          onChange={setReauthInput}
-          onSubmit={() => reauthFor && void doAddWithReauth(reauthInput)}
-        />
+        <View className="gap-3">
+          <Input
+            label="Nama perangkat"
+            value={addName}
+            onChangeText={setAddName}
+            maxLength={100}
+            placeholder="mis. Laptop kerja"
+            returnKeyType="done"
+            onSubmitEditing={() => reauthFor && void doAddWithReauth(reauthInput)}
+          />
+          <ReauthFields
+            value={reauthInput}
+            onChange={setReauthInput}
+            onSubmit={() => reauthFor && void doAddWithReauth(reauthInput)}
+          />
+        </View>
       </Dialog>
 
       {/* Ganti nama (+ re-auth inline) */}
