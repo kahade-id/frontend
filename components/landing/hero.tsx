@@ -12,6 +12,7 @@ import { useRouter } from "expo-router"
 import {
   ArrowRight,
   ChatCircleText,
+  CheckCircle,
   Heart,
   ShareNetwork,
   ShieldCheck,
@@ -24,6 +25,13 @@ import { Icon } from "@/components/ui/icon"
 
 import { Reveal } from "./reveal"
 import { scrollToSection } from "./scroll"
+
+/** Poin kepercayaan ringkas di bawah CTA — faktual, tanpa angka klaim. */
+const TRUST_POINTS = [
+  "Gratis buat akun",
+  "Escrow otomatis",
+  "Bantuan admin",
+] as const
 
 function ShowcaseMockup() {
   return (
@@ -88,6 +96,25 @@ function ShowcaseMockup() {
           </Text>
         </View>
       </View>
+
+      {/* Cuplikan chat: negosiasi → sepakat → escrow. Menunjukkan sisi
+          sosial + aman dalam satu alur yang familier. */}
+      <View className="mx-auto mt-4 w-full max-w-sm gap-2 rounded-2xl border border-border bg-surfaceElevated p-4">
+        <View className="self-start rounded-2xl rounded-bl-md bg-surface px-3.5 py-2.5">
+          <Text variant="body">Deal ya, Rp 850.000 🙏</Text>
+        </View>
+        <View className="self-end rounded-2xl rounded-br-md bg-primary px-3.5 py-2.5">
+          <Text variant="body" tone="inverse">
+            Deal! Saya buatkan order escrow-nya ya
+          </Text>
+        </View>
+        <View className="mt-1 flex-row items-center justify-center gap-1.5">
+          <Icon icon={CheckCircle} size="xs" tone="success" weight="fill" />
+          <Text variant="caption" tone="secondary">
+            Order escrow dibuat — dana pembeli aman
+          </Text>
+        </View>
+      </View>
     </View>
   )
 }
@@ -105,16 +132,21 @@ export function LandingHero() {
           <Reveal>
             <View className="mb-5 self-start rounded-full border border-border bg-surface px-4 py-1.5">
               <Text variant="label" tone="secondary">
-                Escrow aman · Sosial commerce
+                Rekber otomatis · Etalase sosial
               </Text>
             </View>
 
-            <Text variant="display">Jual beli online tanpa takut ditipu.</Text>
+            <Text variant="display">
+              Jual beli online{" "}
+              <Text variant="display" tone="accent">
+                tanpa takut ditipu.
+              </Text>
+            </Text>
 
             <Text variant="bodyLarge" tone="secondary" className="mt-5 max-w-xl">
-              Kahade menahan dana pembeli di escrow sampai barang diterima — plus
-              etalase sosial tempat kamu jualan dan belanja semudah main media
-              sosial.
+              Uang pembeli ditahan Kahade sampai barang diterima — penjual pun
+              tenang karena dana sudah pasti ada. Jualan dan belanja semudah
+              main media sosial.
             </Text>
 
             <View className="mt-8 flex-col gap-3 sm:flex-row">
@@ -125,7 +157,7 @@ export function LandingHero() {
                 rightIcon={ArrowRight}
                 onPress={() => scrollToSection("download")}
               >
-                Download App
+                Mulai Gratis
               </Button>
               <Button
                 variant="secondary"
@@ -135,6 +167,19 @@ export function LandingHero() {
               >
                 Buka Web App
               </Button>
+            </View>
+
+            {/* Poin kepercayaan — 3 detik pertama harus menjawab
+                "kenapa saya harus percaya". */}
+            <View className="mt-6 flex-row flex-wrap gap-x-5 gap-y-2">
+              {TRUST_POINTS.map((point) => (
+                <View key={point} className="flex-row items-center gap-1.5">
+                  <Icon icon={CheckCircle} size="sm" tone="success" weight="fill" />
+                  <Text variant="caption" tone="secondary">
+                    {point}
+                  </Text>
+                </View>
+              ))}
             </View>
           </Reveal>
         </View>

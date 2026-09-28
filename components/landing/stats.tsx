@@ -25,6 +25,8 @@ const HONEST_PLACEHOLDER = "—"
 
 type StatSlot = {
   label: string
+  /** Konteks manusiawi: angka ini artinya apa bagi pengunjung. */
+  context: string
   /** Nilai terformat, atau undefined bila tidak ada angka asli. */
   value?: string
 }
@@ -33,18 +35,22 @@ function slotsFrom(stats: PublicStats | null): StatSlot[] {
   return [
     {
       label: "Transaksi aman",
+      context: "dana pembeli & penjual terlindungi",
       value: stats?.transactionsCount != null ? intFormat.format(stats.transactionsCount) : undefined,
     },
     {
       label: "Pengguna",
+      context: "penjual & pembeli terverifikasi",
       value: stats?.usersCount != null ? intFormat.format(stats.usersCount) : undefined,
     },
     {
       label: "Kota terjangkau",
+      context: "dari Sabang sampai Merauke",
       value: stats?.citiesCount != null ? intFormat.format(stats.citiesCount) : undefined,
     },
     {
       label: "Rating aplikasi",
+      context: "dari ulasan pengguna",
       value: stats?.ratingAvg != null ? ratingFormat.format(stats.ratingAvg) : undefined,
     },
   ]
@@ -94,6 +100,9 @@ export function LandingStats() {
               )}
               <Text variant="label" tone="inverse" className="mt-3 text-center">
                 {slot.label}
+              </Text>
+              <Text variant="caption" tone="inverse" className="mt-1 text-center opacity-70">
+                {slot.context}
               </Text>
             </View>
           </Reveal>

@@ -6,41 +6,57 @@
  * selalu sejajar dengan lingkaran nomor di tiap breakpoint.
  */
 import { View } from "react-native"
+import {
+  CreditCard,
+  LockKey,
+  Package,
+  SealCheck,
+  Wallet,
+} from "phosphor-react-native"
 
 import { Text } from "@/components/ui/text"
+import { Icon, type IconComponent } from "@/components/ui/icon"
 
 import { Reveal } from "./reveal"
 import { Section } from "./section"
 
-const STEPS = [
+const STEPS: { icon: IconComponent; title: string; description: string }[] = [
   {
+    icon: CreditCard,
     title: "Bayar ke escrow",
-    description: "Pembeli membayar, dana masuk penampungan yang aman.",
+    description: "Pembeli membayar — dana masuk penampungan aman milik Kahade.",
   },
   {
+    icon: LockKey,
     title: "Dana ditahan",
     description: "Penjual melihat dana sudah aman sebelum memproses pesanan.",
   },
   {
+    icon: Package,
     title: "Barang dikirim",
-    description: "Penjual mengirim pesanan sesuai kesepakatan.",
+    description: "Penjual mengirim pesanan sesuai kesepakatan di chat.",
   },
   {
+    icon: SealCheck,
     title: "Pembeli konfirmasi",
-    description: "Barang diterima dan dicek — sesuai, baru lanjut.",
+    description: "Barang diterima dan dicek — kalau sesuai, baru lanjut.",
   },
   {
+    icon: Wallet,
     title: "Dana cair",
-    description: "Dana diteruskan ke dompet penjual, tanpa drama.",
+    description: "Dana diteruskan ke dompet penjual. Tanpa drama.",
   },
-] as const
+]
 
-function StepNumber({ index }: { index: number }) {
+function StepNumber({ index, icon }: { index: number; icon: IconComponent }) {
   return (
-    <View className="h-11 w-11 items-center justify-center rounded-full bg-primary">
-      <Text variant="label" tone="inverse">
-        {index + 1}
-      </Text>
+    <View className="relative h-14 w-14 items-center justify-center rounded-full bg-primary">
+      <Icon icon={icon} size="md" tone="inverse" />
+      <View className="absolute -bottom-1 -right-1 h-6 w-6 items-center justify-center rounded-full border-2 border-background bg-surfaceElevated">
+        <Text variant="caption" weight={700}>
+          {index + 1}
+        </Text>
+      </View>
     </View>
   )
 }
@@ -59,7 +75,7 @@ export function LandingHowItWorks() {
           <Reveal key={step.title} delay={i * 90}>
             <View className="flex-row">
               <View className="items-center">
-                <StepNumber index={i} />
+                <StepNumber index={i} icon={step.icon} />
                 {i < STEPS.length - 1 ? (
                   <View className="my-2 w-0.5 min-h-8 flex-1 bg-border" />
                 ) : null}
@@ -78,11 +94,11 @@ export function LandingHowItWorks() {
       {/* Desktop: stepper horizontal */}
       <View className="relative hidden md:flex md:flex-row">
         {/* Garis penghubung di belakang lingkaran (pusat kolom pertama → terakhir) */}
-        <View className="absolute left-[10%] right-[10%] top-[22px] h-0.5 bg-border" />
+        <View className="absolute left-[10%] right-[10%] top-[28px] h-0.5 bg-border" />
         {STEPS.map((step, i) => (
           <Reveal key={step.title} delay={i * 90} className="flex-1">
             <View className="items-center px-3">
-              <StepNumber index={i} />
+              <StepNumber index={i} icon={step.icon} />
               <Text variant="h3" className="mt-4 text-center">
                 {step.title}
               </Text>
@@ -93,6 +109,13 @@ export function LandingHowItWorks() {
           </Reveal>
         ))}
       </View>
+      {/* Penutup: status terpantau di setiap langkah */}
+      <Reveal delay={450}>
+        <Text variant="body" tone="secondary" className="mx-auto mt-10 max-w-xl text-center">
+          Di setiap langkah, kamu bisa memantau status transaksi dan chat dengan
+          lawan transaksimu — tidak ada yang berjalan dalam gelap.
+        </Text>
+      </Reveal>
     </Section>
   )
 }

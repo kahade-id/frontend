@@ -1,30 +1,43 @@
 /**
- * Kahade landing — <LandingFeatures>: grid kartu fitur unggulan.
+ * Kahade landing — <LandingFeatures>: fitur unggulan dalam layout bento.
  *
- * 2 kolom di mobile, 3 kolom di desktop. Ikon dalam lingkaran netral
- * (monokrom brand) + judul + satu kalimat.
+ * Bento (bukan grid monoton): kartu pertama (Etalase Sosial) membentang 2
+ * kolom di desktop dengan strip ilustrasi interaksi sosial; lima kartu lain
+ * mengisi ritme 1 kolom. Mobile: 1 kolom penuh agar tidak sempit.
  */
 import { View } from "react-native"
 import {
   ChatCircle,
+  ChatCircleText,
   Heart,
   Link,
   QrCode,
   SealCheck,
+  ShareNetwork,
   Wallet,
 } from "phosphor-react-native"
 
-import { Icon } from "@/components/ui/icon"
+import { Icon, type IconComponent } from "@/components/ui/icon"
 import { Text } from "@/components/ui/text"
 
 import { Reveal } from "./reveal"
 import { Section } from "./section"
 
-const FEATURES = [
+type Feature = {
+  icon: IconComponent
+  title: string
+  description: string
+  /** Kartu hero bento: membentang 2 kolom di desktop. */
+  hero?: boolean
+}
+
+const FEATURES: Feature[] = [
   {
     icon: Heart,
     title: "Etalase Sosial",
-    description: "Like, komen, dan share etalase — seru seperti media sosial.",
+    description:
+      "Jualan semudah posting: produk bisa di-like, dikomentari, dan dibagikan — pembeli datang karena suka, bukan cuma butuh.",
+    hero: true,
   },
   {
     icon: ChatCircle,
@@ -51,7 +64,33 @@ const FEATURES = [
     title: "Bukti Terpercaya",
     description: "Ulasan dan riwayat transaksi yang transparan.",
   },
-] as const
+]
+
+/** Strip ilustrasi interaksi untuk kartu hero bento. */
+function SocialStrip() {
+  return (
+    <View className="mt-5 flex-row items-center gap-5 border-t border-border pt-4">
+      <View className="flex-row items-center gap-1.5">
+        <Icon icon={Heart} size="sm" tone="danger" weight="fill" />
+        <Text variant="caption" tone="secondary">
+          Suka
+        </Text>
+      </View>
+      <View className="flex-row items-center gap-1.5">
+        <Icon icon={ChatCircleText} size="sm" tone="active" />
+        <Text variant="caption" tone="secondary">
+          Komentar
+        </Text>
+      </View>
+      <View className="flex-row items-center gap-1.5">
+        <Icon icon={ShareNetwork} size="sm" tone="active" />
+        <Text variant="caption" tone="secondary">
+          Bagikan
+        </Text>
+      </View>
+    </View>
+  )
+}
 
 export function LandingFeatures() {
   return (
@@ -59,11 +98,16 @@ export function LandingFeatures() {
       id="fitur"
       eyebrow="Fitur Unggulan"
       title="Satu aplikasi untuk jualan & belanja."
+      description="Semua yang kamu butuhkan — dari pajang dagangan sampai dana cair — tanpa pindah aplikasi."
     >
-      <View className="grid grid-cols-2 gap-4 md:grid-cols-3 md:gap-5">
+      <View className="grid grid-cols-1 gap-4 md:grid-cols-3 md:gap-5">
         {FEATURES.map((feature, i) => (
-          <Reveal key={feature.title} delay={(i % 3) * 90}>
-            <View className="rounded-2xl border border-border bg-surface-elevated p-5 md:p-6">
+          <Reveal
+            key={feature.title}
+            delay={(i % 3) * 90}
+            className={feature.hero ? "md:col-span-2" : undefined}
+          >
+            <View className="h-full rounded-2xl border border-border bg-surface-elevated p-5 md:p-6">
               <View className="mb-4 h-12 w-12 items-center justify-center rounded-full bg-surface">
                 <Icon icon={feature.icon} size="md" tone="active" />
               </View>
@@ -73,6 +117,7 @@ export function LandingFeatures() {
               <Text variant="body" tone="secondary">
                 {feature.description}
               </Text>
+              {feature.hero ? <SocialStrip /> : null}
             </View>
           </Reveal>
         ))}
