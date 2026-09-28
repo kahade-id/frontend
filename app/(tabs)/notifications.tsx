@@ -78,7 +78,7 @@ import {
   notificationRowId,
   type NotificationRow,
 } from "@/lib/notification-social-grouping"
-import { routeForNotificationReference } from "@/lib/notification-routing"
+import { checkNotificationTarget } from "@/lib/notification-target"
 import { refreshUnreadCount } from "@/lib/unread-count"
 import { logWarn } from "@/lib/telemetry"
 
@@ -378,6 +378,47 @@ function NotificationsScreen() {
     })
   }, [])
 
+  /**
+   * B15: buka target notifikasi setelah VALIDASI — target deep-link
+   * (order/dispute/etalase) yang sudah dihapus mengembalikan 404 dari probe
+   * dan TIDAK dibuka; pengguna tetap di daftar dengan penjelasan, bukan
+   * mendarat di layar detail yang mati. Jenis lain fail-open (probe tidak
+   * memblokir) dan chat mengandalkan empty state ruang.
+   */
+  const handleOpenNotification = useCallback(
+    async (head: AppNotification, isGroup: boolean, items: AppNotification[]) => {
+      if (selecting) {
+        if (isGroup) toggleSelectGroup(items)
+        else toggleSelect(head.id)
+        return
+      }
+      if (isGroup) {
+        // Grup hanya berisi yang belum dibaca (aturan agregasi).
+        handleReadGroup(items)
+      } else if (!head.isRead) {
+        handleRead(head.id)
+      }
+      // CN-017: satu ketukan — bila entitas terkait bisa di-resolve
+      // (referenceType/referenceId atau actionUrl), langsung ke sana
+      // seperti tap push; bila tidak, baru ke layar detail.
+      // Grup: reference sama untuk semua anggota → pakai head.
+      // B15: checkNotificationTarget me-resolve route + mem-probe
+      // keberadaan entitas (order/dispute/etalase); 404 → "unavailable"
+      // dan TIDAK dibuka — pengguna tetap di daftar dengan penjelasan.
+      const check = await checkNotificationTarget(head)
+      if (check.status === "unavailable") {
+        toast.show({
+          title: "Konten tidak tersedia",
+          description: `${check.entityLabel} sudah tidak tersedia — kemungkinan sudah dihapus.`,
+          tone: "warning",
+        })
+        return
+      }
+      router.push(check.status === "ok" ? check.route : ROUTES.notificationDetail(head.id))
+    },
+    [selecting, toggleSelectGroup, toggleSelect, handleReadGroup, handleRead, toast.show],
+  )
+
   /** Tekan lama satu baris → mode pilih dengan baris itu sudah terpilih. */
   const enterSelect = useCallback((id: string) => {
     haptic("select")
@@ -495,17 +536,6 @@ function NotificationsScreen() {
       onPress: () => {
         setMenuOpen(false)
         setConfirm("delete-read")
-      },
-    },
-    // Item 41: jalan pintas ke pengaturan notifikasi (dulu menu ⋮ hanya
-    // punya pilih/hapus — pengguna tidak bisa menemukan pengaturan).
-    {
-      key: "settings",
-      label: "Pengaturan notifikasi",
-      icon: GearSix,
-      onPress: () => {
-        setMenuOpen(false)
-        router.push(ROUTES.notificationSettings)
       },
     },
   ]
@@ -673,25 +703,7 @@ function NotificationsScreen() {
                 unread={isGroup ? true : !head.isRead}
                 selected={selecting && members.every((m) => selected.has(m.id))}
                 haptic
-                onPress={() => {
-                  if (selecting) {
-                    if (isGroup) toggleSelectGroup(row.items)
-                    else toggleSelect(head.id)
-                    return
-                  }
-                  if (isGroup) {
-                    // Grup hanya berisi yang belum dibaca (aturan agregasi).
-                    handleReadGroup(row.items)
-                  } else if (!head.isRead) {
-                    handleRead(head.id)
-                  }
-                  // CN-017: satu ketukan — bila entitas terkait bisa di-resolve
-                  // (referenceType/referenceId atau actionUrl), langsung ke sana
-                  // seperti tap push; bila tidak, baru ke layar detail.
-                  // Grup: reference sama untuk semua anggota → pakai head.
-                  const direct = routeForNotificationReference(head)
-                  router.push(direct ?? ROUTES.notificationDetail(head.id))
-                }}
+                onPress={() => void handleOpenNotification(head, isGroup, members)}
                 // Tekan lama = masuk mode pilih (bukan ActionSheet per item).
                 // Di web affordance tekan-lama tidak ada, jadi hint baris
                 // menyebutnya eksplisit (lihat NotificationListItem).

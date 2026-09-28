@@ -27,6 +27,9 @@
  */
 import { View } from "react-native"
 
+import { useTheme } from "@/components/theme-provider"
+import { semantic } from "@/lib/tokens"
+
 import type { ChatAttachmentDto } from "@/lib/api/types"
 import {
   asOrderCard,
@@ -159,6 +162,22 @@ export type ChatMessageRowProps = {
    * transaksi escrow untuk etalase tersebut.
    */
   onBuyProductCard?: (card: ChatProductCardPayload) => void
+  /**
+   * B10: pemisah hari dirender sebagai baris sticky FlatList (bukan di dalam
+   * row) — `true` menonaktifkan pemisah internal row ini.
+   */
+  hideDaySeparator?: boolean
+  /**
+   * B09: sorot pesan asal balasan selama beberapa detik setelah pengguna
+   * mengetuk kutipan balasan. Warna dari `semantic.warning[mode].bgSoft`
+   * (inline style — bukan className bg-*).
+   */
+  highlighted?: boolean
+  /**
+   * B09: ketuk kutipan balasan → lompat ke pesan asal. Dipanggil dengan
+   * `replyToId` pesan ini; `undefined` = kutipan tidak bisa diketuk.
+   */
+  onQuotePress?: (replyToId: string) => void
 }
 
 export function ChatMessageRow({
@@ -179,8 +198,14 @@ export function ChatMessageRow({
   searchHighlight,
   translation,
   onBuyProductCard,
+  hideDaySeparator = false,
+  highlighted = false,
+  onQuotePress,
 }: ChatMessageRowProps) {
-  const showDay = !previous || dayKey(previous.createdAt) !== dayKey(message.createdAt)
+  // B09: warna sorot mode-aware — inline style (aturan: jangan className
+  // bg-* untuk background yang digambar manual).
+  const { mode } = useTheme()
+  const showDay = !hideDaySeparator && (!previous || dayKey(previous.createdAt) !== dayKey(message.createdAt))
   const grouped =
     !!previous &&
     previous.fromUser === message.fromUser &&
@@ -285,7 +310,16 @@ export function ChatMessageRow({
       : message.text
 
   return (
-    <View className="gap-1">
+    <View
+      className="gap-1"
+      // B09: sorot pesan asal balasan — inline style mode-aware (aturan:
+      // jangan className bg-* untuk background yang digambar manual).
+      style={
+        highlighted
+          ? { backgroundColor: semantic.warning[mode].bgSoft, borderRadius: 12 }
+          : undefined
+      }
+    >
       {showDay ? <ChatDaySeparator label={dayLabel(message.createdAt)} /> : null}
       <ChatMessageBubble
         direction={isSystemMessage ? "system" : message.fromUser ? "outgoing" : "incoming"}
@@ -328,6 +362,11 @@ export function ChatMessageRow({
         // DM 1:1: nama pengirim di blok kutipan balasan juga disembunyikan
         // (ala WhatsApp — kutipan hanya menampilkan cuplikan pesan).
         hideQuoteSenderName={!showSenderIdentity}
+        // B09: ketuk kutipan → lompat ke pesan asal + sorot. Hanya bila
+        // replyToId ada (pesan asal bisa dicari di thread).
+        onQuotePress={
+          onQuotePress && message.replyToId ? () => onQuotePress(message.replyToId as string) : undefined
+        }
         // Swipe kanan = jalan pintas balas (2026-09-28). Tekan lama "Balas"
         // tetap ada; gesture dimatikan saat mode pilih / pesan terhapus /
         // pesan sistem (batch 43).

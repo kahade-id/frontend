@@ -10,14 +10,20 @@
  * (messageType "VOICE" — sudah ada di kontrak SendMessageDto).
  */
 
+import { CHAT_ATTACHMENT_MAX_BYTES, formatBytesId } from "@/lib/chat-attachment-limits"
+
 /** MIME rekaman expo-av preset HIGH_QUALITY (m4a/AAC di iOS & Android). */
 export const VOICE_NOTE_MIME = "audio/m4a"
 /** Batas durasi rekam — perekam auto-stop saat tercapai. */
 export const VOICE_NOTE_MAX_DURATION_MS = 5 * 60 * 1000
 /** Durasi minimum agar tidak terkirim rekaman tak sengaja (< 1 detik). */
 export const VOICE_NOTE_MIN_DURATION_MS = 1000
-/** Batas ukuran = batas lampiran chat lain (10 MB, server 50 MB). */
-export const VOICE_NOTE_MAX_BYTES = 10 * 1024 * 1024
+/**
+ * Batas ukuran = batas lampiran chat server (50 MB) — B06. 5 menit m4a
+ * HIGH_QUALITY jauh di bawahnya; nilai ini hanya gate darurat sebelum
+ * server menolak.
+ */
+export const VOICE_NOTE_MAX_BYTES = CHAT_ATTACHMENT_MAX_BYTES
 
 export type VoiceNoteFile = {
   /** URI lokal hasil rekaman (file://). */
@@ -67,7 +73,7 @@ export function validateVoiceNoteFile(input: { size: number; durationMs: number 
 export function voiceNoteValidationMessage(reason: Exclude<VoiceNoteValidation, { ok: true }>["reason"]): string {
   switch (reason) {
     case "too-big":
-      return "Ukuran voice note maksimal 10 MB."
+      return `Ukuran voice note maksimal ${formatBytesId(CHAT_ATTACHMENT_MAX_BYTES)}.`
     case "too-short":
       return "Rekaman terlalu pendek — tahan dan rekam minimal 1 detik."
     case "too-long":

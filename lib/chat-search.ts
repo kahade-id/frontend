@@ -71,3 +71,56 @@ export function matchCounterLabel(index: number, total: number): string {
   if (total <= 0 || index < 0 || index >= total) return ""
   return `${index + 1} dari ${total}`
 }
+
+/** Karakter konteks di tiap sisi keyword dalam cuplikan hasil pencarian. */
+export const SEARCH_SNIPPET_CONTEXT_CHARS = 40
+/** Maksimal jendela konteks per cuplikan — baris hasil tetap ringkas. */
+const SEARCH_SNIPPET_MAX_WINDOWS = 2
+
+/**
+ * Cuplikan hasil pencarian (B12): potongan teks di sekitar kemunculan
+ * keyword — `contextChars` karakter sebelum & sesudah tiap kemunculan —
+ * dengan segmen keyword tetap ditandai `hit` untuk di-highlight.
+ * Jendela yang bertumpukan digabung; antar jendela disisipi " … ".
+ * Query kosong / tidak cocok → [].
+ */
+export function buildSearchSnippet(
+  text: string,
+  query: string,
+  contextChars: number = SEARCH_SNIPPET_CONTEXT_CHARS,
+): HighlightSpan[] {
+  const q = query.trim()
+  if (!q || !text) return []
+  const lower = text.toLocaleLowerCase()
+  const lq = q.toLocaleLowerCase()
+  const positions: number[] = []
+  let from = 0
+  for (;;) {
+    const idx = lower.indexOf(lq, from)
+    if (idx < 0) break
+    positions.push(idx)
+    from = idx + Math.max(1, lq.length)
+  }
+  if (positions.length === 0) return []
+
+  // Jendela [start, end) per kemunculan, lalu gabung yang bertumpukan.
+  const windows: Array<[number, number]> = positions.map((p) => [
+    Math.max(0, p - contextChars),
+    Math.min(text.length, p + lq.length + contextChars),
+  ])
+  windows.sort((a, b) => a[0] - b[0])
+  const merged: Array<[number, number]> = []
+  for (const w of windows) {
+    const lastM = merged[merged.length - 1]
+    if (lastM && w[0] <= lastM[1]) lastM[1] = Math.max(lastM[1], w[1])
+    else merged.push([w[0], w[1]])
+  }
+
+  const out: HighlightSpan[] = []
+  merged.slice(0, SEARCH_SNIPPET_MAX_WINDOWS).forEach(([start, end], wi) => {
+    if (wi > 0) out.push({ text: " … ", hit: false })
+    const slice = text.slice(start, end)
+    for (const span of splitHighlightSpans(slice, q)) out.push(span)
+  })
+  return out
+}

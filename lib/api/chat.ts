@@ -12,9 +12,11 @@
  *   - `GET /rooms` & `GET /rooms/{roomId}/attachments` memakai page/limit.
  */
 
-import { readList, readPage } from "@/lib/api/response"
+import { readList, readPage, unwrapResponse } from "@/lib/api/response"
 
-import { http, seg } from "@/lib/api/client"
+import { buildUrl, http, refreshAccessToken, seg } from "@/lib/api/client"
+import { ApiError, DEFAULT_ERROR_MESSAGES } from "@/lib/api/errors"
+import { getAccessToken } from "@/lib/api/session"
 import type { ChatAttachmentDto, SendMessageDto } from "@/lib/api/types"
 import type { SealTier } from "@/components/ui/verified-seal"
 
@@ -402,6 +404,186 @@ export function uploadChatAttachment(roomId: string, formData: FormData) {
   return http.post<ChatAttachmentDto>(`/v1/chat/rooms/${seg(roomId)}/upload`, undefined, {
     formData,
     auth: "required",
+  })
+}
+
+/**
+ * B04: parse respons upload chat — unwrap envelope `{success,data}`/`{data}`
+ * persis seperti client fetch (`unwrapResponse`), lalu validasi bentuk DTO
+ * (fileName/fileUrl wajib string). Fail-closed: PARSE bila respons tidak
+ * valid, supaya lampiran rusak tidak lolos sebagai DTO palsu.
+ *
+ * Diekspor untuk test (dipakai internal oleh uploadChatAttachmentProgress).
+ */
+export function parseChatUploadResponse(bodyText: string): ChatAttachmentDto {
+  let body: unknown
+  try {
+    body = JSON.parse(bodyText)
+  } catch {
+    throw new ApiError({ code: "PARSE", message: "Respons unggahan tidak valid." })
+  }
+  const dto = unwrapResponse(body) as Record<string, unknown> | null
+  if (
+    !dto ||
+    typeof dto !== "object" ||
+    typeof dto.fileName !== "string" ||
+    typeof dto.fileUrl !== "string"
+  ) {
+    throw new ApiError({ code: "PARSE", message: "Respons unggahan tidak memuat lampiran." })
+  }
+  return dto as ChatAttachmentDto
+}
+
+/**
+ * Unggah lampiran chat via `XMLHttpRequest` dengan LAPORAN PROGRESS (B04).
+ *
+ * `fetch` tidak melaporkan progress upload — pola sama dengan
+ * `uploadDirectVideo` di lib/api/upload.ts. Auth: Bearer <redacted> sesi
+ * (satu kali refresh-and-retry bila 401, selaras client.ts). `signal`
+ * membatalkan unggahan (tombol "batal" per file di composer).
+ */
+export function uploadChatAttachmentProgress(
+  roomId: string,
+  formData: FormData,
+  opts: {
+    /** Fraksi 0–1 kemajuan upload. */
+    onProgress?: (fraction: number) => void
+    signal?: AbortSignal
+    timeoutMs?: number
+  } = {},
+): Promise<ChatAttachmentDto> {
+  const { onProgress, signal, timeoutMs = 300_000 } = opts
+  return new Promise<ChatAttachmentDto>((resolvePromise, rejectPromise) => {
+    let settled = false
+    const resolve = (v: ChatAttachmentDto) => {
+      if (!settled) {
+        settled = true
+        resolvePromise(v)
+      }
+    }
+    const reject = (e: unknown) => {
+      if (!settled) {
+        settled = true
+        rejectPromise(e)
+      }
+    }
+    if (signal?.aborted) {
+      reject(new ApiError({ code: "ABORTED", message: "Unggahan dibatalkan." }))
+      return
+    }
+
+    const sendOnce = (token: string): Promise<void> =>
+      new Promise<void>((resolveXhr, rejectXhr) => {
+        const xhr = new XMLHttpRequest()
+        const onAbort = () => xhr.abort()
+        signal?.addEventListener("abort", onAbort, { once: true })
+        const cleanup = () => signal?.removeEventListener("abort", onAbort)
+        xhr.upload.onprogress = (event) => {
+          if (event.lengthComputable && event.total > 0) {
+            onProgress?.(Math.min(1, Math.max(0, event.loaded / event.total)))
+          }
+        }
+        xhr.timeout = timeoutMs
+        xhr.ontimeout = () => {
+          cleanup()
+          rejectXhr(
+            new ApiError({
+              code: "TIMEOUT",
+              message: "Unggahan terlalu lama. Periksa koneksi lalu coba lagi.",
+              path: `/v1/chat/rooms/${roomId}/upload`,
+            }),
+          )
+        }
+        xhr.onabort = () => {
+          cleanup()
+          rejectXhr(new ApiError({ code: "ABORTED", message: "Unggahan dibatalkan." }))
+        }
+        xhr.onerror = () => {
+          cleanup()
+          rejectXhr(
+            new ApiError({
+              code: "NETWORK",
+              message: DEFAULT_ERROR_MESSAGES.NETWORK,
+              path: `/v1/chat/rooms/${roomId}/upload`,
+            }),
+          )
+        }
+        xhr.onload = () => {
+          cleanup()
+          const bodyText = typeof xhr.responseText === "string" ? xhr.responseText : ""
+          if (xhr.status >= 200 && xhr.status < 300) {
+            try {
+              resolveXhr()
+              resolve(parseChatUploadResponse(bodyText))
+            } catch (err) {
+              rejectXhr(err)
+            }
+            return
+          }
+          if (xhr.status === 401) {
+            rejectXhr({ retriable401: true as const })
+            return
+          }
+          let message = DEFAULT_ERROR_MESSAGES.SERVER
+          try {
+            const body = JSON.parse(bodyText) as { message?: unknown }
+            if (typeof body.message === "string" && body.message) message = body.message
+          } catch {
+            // Pakai pesan default.
+          }
+          rejectXhr(
+            new ApiError({
+              code:
+                xhr.status === 413
+                  ? "PAYLOAD_TOO_LARGE"
+                  : xhr.status >= 500
+                    ? "SERVER"
+                    : xhr.status === 400
+                      ? "BAD_REQUEST"
+                      : "UNKNOWN",
+              message,
+              path: `/v1/chat/rooms/${roomId}/upload`,
+            }),
+          )
+        }
+        xhr.open("POST", buildUrl(`/v1/chat/rooms/${seg(roomId)}/upload`))
+        xhr.setRequestHeader("Accept", "application/json")
+        xhr.setRequestHeader("Authorization", `Bearer ${token}`)
+        // JANGAN set Content-Type — XHR mengisi multipart boundary sendiri.
+        xhr.send(formData as unknown as Parameters<XMLHttpRequest["send"]>[0])
+      })
+
+    const run = async () => {
+      try {
+        const token = await getAccessToken()
+        if (!token) {
+          throw new ApiError({
+            code: "UNAUTHORIZED",
+            message: DEFAULT_ERROR_MESSAGES.UNAUTHORIZED,
+            path: `/v1/chat/rooms/${roomId}/upload`,
+          })
+        }
+        try {
+          await sendOnce(token)
+        } catch (err) {
+          const retriable =
+            err && typeof err === "object" && (err as { retriable401?: unknown }).retriable401 === true
+          if (!retriable || signal?.aborted) throw err
+          const fresh = await refreshAccessToken()
+          if (!fresh) {
+            throw new ApiError({
+              code: "UNAUTHORIZED",
+              message: DEFAULT_ERROR_MESSAGES.UNAUTHORIZED,
+              path: `/v1/chat/rooms/${roomId}/upload`,
+            })
+          }
+          await sendOnce(fresh)
+        }
+      } catch (err) {
+        reject(err)
+      }
+    }
+    void run()
   })
 }
 

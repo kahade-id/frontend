@@ -118,6 +118,8 @@ export type ChatComposerProps = Omit<ViewProps, "children"> & {
   onMicPress?: () => void
   onRemoveAttachment?: (localId: string) => void
   onRetryAttachment?: (localId: string) => void
+  /** B04: batalkan unggahan yang sedang berjalan (chip "Batal"). */
+  onCancelAttachment?: (localId: string) => void
   replyTo?: ComposerReplyTarget
   onCancelReply?: () => void
   sending?: boolean
@@ -149,6 +151,7 @@ export function ChatComposer({
   onMicPress,
   onRemoveAttachment,
   onRetryAttachment,
+  onCancelAttachment,
   replyTo,
   onCancelReply,
   sending = false,
@@ -269,6 +272,7 @@ export function ChatComposer({
               progress={a.progress}
               onRemove={onRemoveAttachment ? () => onRemoveAttachment(a.localId) : undefined}
               onRetry={onRetryAttachment ? () => onRetryAttachment(a.localId) : undefined}
+              onCancel={onCancelAttachment ? () => onCancelAttachment(a.localId) : undefined}
             />
           ))}
         </ScrollView>

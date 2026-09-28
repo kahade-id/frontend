@@ -26,6 +26,8 @@ export type ChatRoomFooterProps = {
   /** Tombol lompat ke bawah hanya berguna saat pembaca sudah meninggalkan dasar. */
   showJumpToLatest: boolean
   onJumpToLatest: () => void
+  /** B03: jumlah pesan baru masuk saat pembaca di atas → badge di tombol. */
+  newMessageCount?: number
   /** Ruang sudah selesai → composer diganti panel informasi. */
   completed: boolean
   /** Kalimat penutup ruang (lihat `chatRoomClosedNotice`). */
@@ -43,6 +45,8 @@ export type ChatRoomFooterProps = {
   onMicPress?: () => void
   onRemoveAttachment: (localId: string) => void
   onRetryAttachment: (localId: string) => void
+  /** B04: batalkan unggahan yang sedang berjalan. */
+  onCancelAttachment?: (localId: string) => void
   sending: boolean
   disabled: boolean
   /** Target balasan — strip "Membalas …" di atas composer (permintaan produk 2026-09-28). */
@@ -64,6 +68,7 @@ export type ChatRoomFooterProps = {
 export function ChatRoomFooter({
   showJumpToLatest,
   onJumpToLatest,
+  newMessageCount = 0,
   completed,
   closedNotice,
   orderId,
@@ -76,6 +81,7 @@ export function ChatRoomFooter({
   onMicPress,
   onRemoveAttachment,
   onRetryAttachment,
+  onCancelAttachment,
   sending,
   disabled,
   replyTo,
@@ -95,6 +101,7 @@ export function ChatRoomFooter({
         visible={showJumpToLatest}
         onPress={onJumpToLatest}
         label="Gulir ke pesan terbaru"
+        count={newMessageCount}
         className="px-5 pb-2"
       />
 
@@ -152,6 +159,7 @@ export function ChatRoomFooter({
             onMicPress={onMicPress}
             onRemoveAttachment={onRemoveAttachment}
             onRetryAttachment={onRetryAttachment}
+            onCancelAttachment={onCancelAttachment}
             replyTo={replyTo}
             onCancelReply={onCancelReply}
             sending={sending}

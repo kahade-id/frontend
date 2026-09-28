@@ -5,7 +5,8 @@
  *
  * Bentuk data = ChatAttachmentDto (`POST /v1/chat/rooms/{roomId}/messages`,
  * hasil `POST .../upload`, daftar `GET .../attachments`): fileName, fileUrl,
- * mimeType, fileSize (≤10MB), thumbnailUrl opsional.
+ * mimeType, fileSize (≤50MB — batas server, lihat lib/chat-attachment-limits),
+ * thumbnailUrl opsional.
  *
  * Tiga `layout`:
  *   "chip"  — 44px tinggi (min-h-11), untuk antrean lampiran di atas composer;
@@ -25,7 +26,8 @@
  *     thumbnail dan tidak memberi tahu "sudah berapa persen".
  *   - Status "error" mengganti ikon dengan Warning tone danger + tombol
  *     ulang (`onRetry`); nama file tetap tampil supaya user tahu file mana
- *     yang gagal.
+ *     yang gagal. "cancelled" (B04) menandai unggahan yang dibatalkan user —
+ *     bisa diulang (`onRetry`) atau dihapus (`onRemove`).
  *   - Ukuran file ditulis `formatFileSize` (§13) di baris meta; untuk chip
  *     disembunyikan (ruang sempit) kecuali status error.
  */
@@ -53,7 +55,7 @@ export type ChatAttachment = {
   thumbnailUrl?: string
 }
 
-export type ChatAttachmentStatus = "idle" | "uploading" | "error"
+export type ChatAttachmentStatus = "idle" | "uploading" | "error" | "cancelled"
 export type ChatAttachmentLayout = "chip" | "tile" | "row"
 
 // Lampiran chat datang mentah dari response (`normalizeChatMessage` hanya
@@ -83,6 +85,9 @@ export type ChatAttachmentItemLabels = {
   retry: string
   failed: string
   uploading: string
+  /** B04: teks status + aksi saat unggahan dibatalkan pengguna. */
+  cancelled: string
+  cancel: string
 }
 
 const DEFAULT_LABELS: ChatAttachmentItemLabels = {
@@ -90,6 +95,8 @@ const DEFAULT_LABELS: ChatAttachmentItemLabels = {
   retry: "Coba lagi",
   failed: "Gagal diunggah",
   uploading: "Mengunggah",
+  cancelled: "Dibatalkan",
+  cancel: "Batal",
 }
 
 export type ChatAttachmentItemProps = Omit<ViewProps, "children"> & {
@@ -102,6 +109,8 @@ export type ChatAttachmentItemProps = Omit<ViewProps, "children"> & {
   /** Hanya chip: tombol X */
   onRemove?: () => void
   onRetry?: () => void
+  /** B04: hanya chip — batalkan unggahan yang sedang berjalan. */
+  onCancel?: () => void
   /** Hanya row: teks meta tambahan (pengirim · waktu) */
   meta?: string
   divider?: ListItemProps["divider"]
@@ -119,6 +128,7 @@ export function ChatAttachmentItem({
   onPress,
   onRemove,
   onRetry,
+  onCancel,
   meta,
   divider,
   labels,
@@ -130,13 +140,14 @@ export function ChatAttachmentItem({
   const icon = attachmentIcon(attachment.mimeType)
   const errored = status === "error"
   const uploading = status === "uploading"
+  const cancelled = status === "cancelled"
   const thumb = attachment.thumbnailUrl ?? (image ? attachment.fileUrl : undefined)
 
   const a11y = [
     attachment.fileName,
     attachmentTypeLabel(attachment.mimeType),
     formatFileSize(attachment.fileSize),
-    errored ? t.failed : uploading ? t.uploading : undefined,
+    errored ? t.failed : uploading ? t.uploading : cancelled ? t.cancelled : undefined,
   ]
     .filter(Boolean)
     .join(", ")
@@ -174,7 +185,7 @@ export function ChatAttachmentItem({
         containerClassName={cn("rounded-sm", focusRing)}
         className={cn(
           "overflow-hidden rounded-sm border border-border bg-surface",
-          errored && "border-border-error",
+          (errored || cancelled) && "border-border-error",
           className,
         )}
         {...rest}
@@ -203,15 +214,15 @@ export function ChatAttachmentItem({
     <View
       className={cn(
         "relative min-h-11 max-w-[220px] flex-row items-center gap-2 overflow-hidden rounded-sm border border-border bg-surface pl-2",
-        errored && "border-border-error",
+        (errored || cancelled) && "border-border-error",
         className,
       )}
       {...rest}
     >
-      {thumb && !errored ? (
+      {thumb && !errored && !cancelled ? (
         <Picture source={thumb} alt="" width={24} height={24} radius="xs" />
       ) : (
-        <Icon icon={errored ? Warning : icon} size="sm" tone={errored ? "danger" : "default"} />
+        <Icon icon={errored || cancelled ? Warning : icon} size="sm" tone={errored || cancelled ? "danger" : "default"} />
       )}
       <View accessible accessibilityLabel={a11y} className="flex-1">
         <Text variant="caption" weight={500} tone="primary" numberOfLines={1}>
@@ -221,13 +232,34 @@ export function ChatAttachmentItem({
           <Text variant="caption" tone="danger" numberOfLines={1}>
             {t.failed}
           </Text>
+        ) : cancelled ? (
+          <Text variant="caption" tone="danger" numberOfLines={1}>
+            {t.cancelled}
+          </Text>
+        ) : uploading ? (
+          <Text variant="caption" tone="secondary" numberOfLines={1} className="tabular-nums">
+            {`${t.uploading}${progress != null ? ` · ${Math.round(progress * 100)}%` : ""}`}
+          </Text>
         ) : attachment.fileSize > 0 ? (
           <Text variant="caption" tone="secondary" numberOfLines={1}>
             {formatFileSize(attachment.fileSize)}
           </Text>
         ) : null}
       </View>
-      {errored && onRetry ? (
+      {/* B04: saat mengunggah, X diganti tombol "Batal" yang membatalkan
+          request (AbortController), bukan sekadar menghapus chip. */}
+      {uploading && onCancel ? (
+        <Pressable
+          onPress={onCancel}
+          accessibilityRole="button"
+          accessibilityLabel={t.cancel}
+          className="min-h-11 items-center justify-center px-2"
+        >
+          <Text variant="caption" weight={600} tone="primary" className="px-1 underline">
+            {t.cancel}
+          </Text>
+        </Pressable>
+      ) : (errored || cancelled) && onRetry ? (
         <Pressable
           onPress={onRetry}
           accessibilityRole="button"

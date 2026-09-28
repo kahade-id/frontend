@@ -15,6 +15,13 @@ import { File, Image, Microphone, VideoCamera } from "phosphor-react-native"
 
 import { ActionSheet } from "@/components/ui/action-sheet"
 import type { IconComponent } from "@/components/ui/icon"
+import { CHAT_ATTACHMENT_MAX_BYTES, chatAttachmentFormatsLabel, formatBytesId } from "@/lib/chat-attachment-limits"
+
+/**
+ * Kualitas foto yang dipilih user (B05): "standard" = terkompresi,
+ * "file" = kualitas asli tanpa kompresi.
+ */
+export type ChatImageQuality = "standard" | "file"
 
 export type ChatAttachmentSheetProps = {
   visible: boolean
@@ -22,7 +29,7 @@ export type ChatAttachmentSheetProps = {
   onRequestClose: () => void
   title?: string
   description?: string
-  onPickImage: () => void
+  onPickImage: (quality: ChatImageQuality) => void
   onPickVideo: () => void
   onPickFile: () => void
   onRecordVoice: () => void
@@ -43,28 +50,37 @@ export function ChatAttachmentSheet({
   visible,
   onRequestClose,
   title = "Lampirkan berkas",
-  description = "Pilih jenis lampiran untuk pesan ini.",
+  description,
   onPickImage,
   onPickVideo,
   onPickFile,
   onRecordVoice,
   extraActions = [],
 }: ChatAttachmentSheetProps) {
+  // B06: batas server ditampilkan di sheet supaya user tahu SEBELUM memilih.
+  const limitsText = `Maks ${formatBytesId(CHAT_ATTACHMENT_MAX_BYTES)} · Format: ${chatAttachmentFormatsLabel()}`
   return (
     <ActionSheet
       visible={visible}
       onRequestClose={onRequestClose}
       title={title}
-      description={description}
+      description={description ?? `Pilih jenis lampiran untuk pesan ini. ${limitsText}.`}
       showCancel
       cancelLabel="Batal"
       actions={[
         {
-          key: "image",
-          label: "Gambar",
-          description: "Foto dari galeri perangkat",
+          key: "image-standard",
+          label: "Foto (standar)",
+          description: "Kualitas standar, ukuran lebih kecil",
           icon: Image,
-          onPress: onPickImage,
+          onPress: () => onPickImage("standard"),
+        },
+        {
+          key: "image-file",
+          label: "Foto (asli)",
+          description: "Kualitas asli tanpa kompresi",
+          icon: Image,
+          onPress: () => onPickImage("file"),
         },
         {
           key: "video",
