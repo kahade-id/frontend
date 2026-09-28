@@ -76,6 +76,7 @@ import type { CaptchaChallenge } from "@/lib/api/auth"
 import { CAPTCHA_MESSAGES } from "@/lib/captcha-messages"
 import { PASSWORD_MAX } from "@/lib/auth-constants"
 import { getAuthLocation } from "@/lib/location"
+import { clearLoginIdentifier, getLoginIdentifier, setLoginIdentifier } from "@/lib/login-identifier"
 import { setPendingNext } from "@/lib/login-redirect"
 import { setOtpFlow } from "@/lib/otp-flow"
 import { ROUTES } from "@/lib/routes"
@@ -99,7 +100,10 @@ export default function LoginScreen() {
   const { next } = useLocalSearchParams<{ next?: string }>()
   const nextPath = typeof next === "string" && next.startsWith("/") ? next : undefined
 
-  const [identifier, setIdentifier] = useState("")
+  // A01 (batch 139): identifier non-rahasia dipertahankan selama sesi
+  // formulir — pulihkan dari penyimpanan sesi bila layar me-remount
+  // (mis. kembali dari tautan bantuan "Lupa kata sandi?").
+  const [identifier, setIdentifier] = useState(() => getLoginIdentifier())
   const [password, setPassword] = useState("")
   const [submitting, setSubmitting] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
@@ -143,6 +147,8 @@ export default function LoginScreen() {
   }, [])
 
   const goAfterLogin = useCallback(() => {
+    // A01: sesi formulir selesai → identifier tidak perlu dipertahankan.
+    clearLoginIdentifier()
     // Web guest mode tidak memakai layar Welcome/splash: langsung kembali
     // ke tujuan (atau Beranda). Native tetap melalui Welcome (izin push).
     if (Platform.OS === "web") {
@@ -454,7 +460,9 @@ export default function LoginScreen() {
                 label="Username / Email / Nomor HP"
                 value={identifier}
                 onChangeText={(t) => {
+                  // A01: simpan identifier non-rahasia selama sesi formulir.
                   setIdentifier(t)
+                  setLoginIdentifier(t)
                   setFormError(null)
                 }}
                 helperText="Contoh: johndoe, nama@email.com, atau 0812xxxxxxx"
