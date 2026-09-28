@@ -17,6 +17,8 @@ import { Text } from "@/components/ui/text"
 import { formatDurationWords, formatDateTimeWIB, formatRupiah } from "@/lib/format"
 import { translate } from "@/lib/i18n/translate"
 import { orderNextStepHint, type OrderActorRole } from "@/lib/order-next-step"
+import { ctaUnavailableReasons } from "@/lib/wallet-batch139"
+import { OrderRoleBadge } from "@/components/ui/order-role-badge"
 import type { ShippingCountdown } from "@/lib/order-shipping-countdown"
 
 export type OrderDetailActionsProps = Omit<ViewProps, "children"> & {
@@ -165,8 +167,25 @@ export function OrderDetailActions({
   const hasAnyAction =
     canPay || canConfirm || canShip || canReviewDelivery || canRate || canViewProof || canReturnPrimary
   const nextStepHint = !hasAnyAction ? orderNextStepHint(status, myRole) : null
+  /**
+   * D15 (batch 139): alasan eksplisit mengapa TIDAK ADA tombol yang bisa
+   * ditekan — per status × peran. Diutamakan di atas hint umum bila ada.
+   */
+  const unavailableReasons = !hasAnyAction ? ctaUnavailableReasons(status, myRole) : []
   return (
     <View className={className} {...rest}>
+      {/*
+       * D14 (batch 139): peran konsisten — badge "Pembeli"/"Penjual" yang
+       * SAMA dengan header & timeline, tepat di atas tombol aksi.
+       */}
+      {myRole ? (
+        <View className="mb-2 flex-row items-center gap-2">
+          <Text variant="caption" tone="secondary">
+            {translate("Anda bertindak sebagai")}
+          </Text>
+          <OrderRoleBadge role={myRole} />
+        </View>
+      ) : null}
       <View className="gap-2">
         {/*
          * Countdown auto-release dana: IN_DELIVERY + `autoCompleteAt` dari
@@ -247,7 +266,15 @@ export function OrderDetailActions({
             Ajukan retur
           </Button>
         ) : null}
-        {nextStepHint ? (
+        {unavailableReasons.length > 0 ? (
+          <View className="gap-1.5 rounded-lg bg-info-soft p-3">
+            {unavailableReasons.map((reason) => (
+              <Text key={reason} variant="body" tone="secondary">
+                {reason}
+              </Text>
+            ))}
+          </View>
+        ) : nextStepHint ? (
           <View className="gap-1 rounded-lg bg-info-soft p-3">
             <Text variant="body" tone="secondary">
               {nextStepHint}

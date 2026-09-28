@@ -1074,6 +1074,10 @@ export default function OrderDetailScreen() {
                 qrDataUrl={orderPaymentQr}
                 ticketRef={orderTicketRef}
                 onShare={() => void shareReceipt(orderTicketRef.current)}
+                // D12 (batch 139): salin ID REFERENSI saja — bukan data
+                // sensitif lain. ID order dipakai sebagai referensi
+                // pembayaran di perbankan/konfirmasi manual.
+                onCopyReceiptId={(id) => void copy(id)}
               />
             </>
           ) : null}
