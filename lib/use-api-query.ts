@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useIsFocused } from "@react-navigation/native"
 import { ApiError, userMessage } from "@/lib/api/errors"
+import { getSessionSnapshot } from "@/lib/api/session"
 import { useGuestPathBlocked } from "@/lib/guest-gate"
 import {
   CACHE_REVALIDATE_AFTER_MS,
@@ -259,6 +260,16 @@ export function useApiQuery<TRaw, T = TRaw>(
     if (!active) return
     return onQueryCacheInvalidation(() => {
       if (!latest.current.enabled) return
+      /**
+       * NS-007 (audit performa): lewati revalidasi bila tidak ada sesi.
+       * `clearSession()` (logout) memicu `invalidateQueryCache()` tanpa
+       * argumen — tanpa guard ini, semua layar yang masih mount menembak
+       * ulang dan langsung 401 (token sudah null): badai request sia-sia +
+       * risiko `emitSessionExpired` redundan. `getSessionSnapshot()` sinkron
+       * (cache dalam-memori); null = tidak ada token yang diketahui.
+       * Aman: hook tetap memuat awal saat mount via effect `[load]`.
+       */
+      if (getSessionSnapshot() == null) return
       if (markQueryRevalidating(key)) void latest.current.load(true, true)
     })
   }, [active, key])
