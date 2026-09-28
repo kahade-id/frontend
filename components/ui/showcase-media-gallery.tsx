@@ -315,6 +315,8 @@ function VideoSlide({
     userPlay,
   })
   const toggleMute = () => setMuted((m) => !m)
+  // C01: rasio slide — placeholder & poster ikut agar tak meloncat.
+  const slideAspectRatio = media.aspectRatio ?? 1
 
   const muteButton = (
     <View className="absolute bottom-2 right-2">
@@ -341,12 +343,12 @@ function VideoSlide({
           onPress={onRequestPlay}
           containerClassName="w-full"
         >
-          <View className="relative aspect-square w-full items-center justify-center gap-1.5 bg-surface px-8">
+          <View className="relative w-full items-center justify-center gap-1.5 bg-surface px-8" style={{ aspectRatio: slideAspectRatio }}>
             {media.posterUrl ? (
               <Picture
                 source={media.posterUrl}
                 alt={title}
-                aspectRatio={1}
+                aspectRatio={slideAspectRatio}
                 radius="none"
                 bordered={false}
                 className="absolute inset-0"
@@ -382,7 +384,7 @@ function VideoSlide({
         onPress={onTap}
         containerClassName="w-full"
       >
-        <FeedVideo source={media.url} poster={media.posterUrl} alt={title} shouldPlay={effectiveShouldPlay} muted={muted} />
+        <FeedVideo source={media.url} poster={media.posterUrl} alt={title} shouldPlay={effectiveShouldPlay} muted={muted} aspectRatio={slideAspectRatio} />
       </PressableScale>
       {muteButton}
       {/* Item 57: badge durasi ala TikTok/IG di thumbnail video. */}

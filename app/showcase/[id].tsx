@@ -802,6 +802,8 @@ function ShowcaseDetailContent({
             if (!liked) toggleLike()
           }}
           autoplayActive={viewerIndex == null}
+          // C01: rasio slide pertama untuk placeholder di luar jendela render.
+          aspectRatio={resolvedMedia[0]?.aspectRatio ?? 1}
         />
       </View>
 
