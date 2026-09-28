@@ -308,11 +308,11 @@ export async function clearSession(): Promise<void> {
 }
 
 /**
- * Kunci dinamis draft chat per-room (lib/chat-drafts.ts) — satu-satunya kunci
- * dinamis yang diizinkan modul ini. Draft BUKAN rahasia (teks ketikan user),
- * tapi SecureStore adalah satu-satunya storage persisten yang terpasang
- * (repo tidak memakai AsyncStorage). Di web sengaja memory-only (tidak masuk
- * WEB_PERSISTENT_KEYS) — isi chat tidak boleh mendarat di localStorage.
+ * Kunci dinamis draft chat per-room (lib/chat-drafts.ts). Draft BUKAN rahasia
+ * (teks ketikan user), tapi SecureStore adalah satu-satunya storage persisten
+ * yang terpasang (repo tidak memakai AsyncStorage). Di web sengaja
+ * memory-only (tidak masuk WEB_PERSISTENT_KEYS) — isi chat tidak boleh
+ * mendarat di localStorage.
  *
  * roomId dinormalisasi: hanya [a-zA-Z0-9_-] yang lolos, sisanya diganti "-"
  * supaya kunci tetap valid & tidak bisa menyuntik path/key lain.
@@ -320,6 +320,26 @@ export async function clearSession(): Promise<void> {
 export function chatDraftKey(roomId: string): string {
   const safe = String(roomId ?? "").replace(/[^a-zA-Z0-9_-]/g, "-").slice(0, 128)
   return `kahade.chat.draft.${safe}`
+}
+
+/**
+ * Kunci antrean pesan gagal per-room (lib/chat-failed-queue.ts, B07) — pola
+ * sama dengan `chatDraftKey`: memory + SecureStore (web memory-only, tidak
+ * masuk WEB_PERSISTENT_KEYS — isi chat tidak boleh mendarat di localStorage).
+ */
+export function chatFailedKey(roomId: string): string {
+  const safe = String(roomId ?? "").replace(/[^a-zA-Z0-9_-]/g, "-").slice(0, 128)
+  return `kahade.chat.failed.${safe}`
+}
+
+/**
+ * Kunci pesan yang disembunyikan lokal per-room ("hapus untuk saya",
+ * lib/chat-hidden-messages.ts, B08) — pola sama dengan `chatDraftKey`.
+ * Hanya menyimpan ID pesan (bukan isi) — non-sensitif.
+ */
+export function chatHiddenKey(roomId: string): string {
+  const safe = String(roomId ?? "").replace(/[^a-zA-Z0-9_-]/g, "-").slice(0, 128)
+  return `kahade.chat.hidden.${safe}`
 }
 
 /**
