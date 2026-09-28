@@ -17,7 +17,7 @@
  *   - Ikuti optimistis: state lokal dibalik dulu, dipulihkan bila server
  *     menolak (toast galat), `pendingId` mencegah double-tap.
  */
-import { useCallback, useState } from "react"
+import { memo, useCallback, useState, useMemo } from "react"
 import { View } from "react-native"
 import { router } from "expo-router"
 import { Compass, LockKey } from "phosphor-react-native"
@@ -37,6 +37,46 @@ import { UserDiscoverResultItem } from "@/components/ui/user-discover-result-ite
 import { useToast } from "@/components/ui/toast"
 
 const PAGE_LIMIT = 20
+
+/**
+ * LR-010 (perf-fix): baris pengguna yang di-memo. Objek `follow` dibuat via
+ * useMemo agar identitasnya stabil — toggle follow satu baris tidak
+ * me-render ulang semua baris. Tampilan & perilaku tidak berubah.
+ */
+const DiscoverUserRow = memo(function DiscoverUserRow({
+  user,
+  pending,
+  divider,
+  onPress,
+  onToggleFollow,
+}: {
+  user: DiscoveredUser
+  pending: boolean
+  divider: boolean
+  onPress: (username: string) => void
+  onToggleFollow: (user: DiscoveredUser, next: boolean) => void
+}) {
+  const handlePress = useCallback(() => onPress(user.username), [onPress, user.username])
+  const handleToggle = useCallback((next: boolean) => onToggleFollow(user, next), [onToggleFollow, user])
+  const follow = useMemo(
+    () => ({ following: !!user.following, loading: pending, onToggle: handleToggle }),
+    [user.following, pending, handleToggle],
+  )
+  return (
+    <UserDiscoverResultItem
+      name={user.fullName ?? user.username}
+      handle={`@${user.username}`}
+      avatar={user.avatarUrl ?? undefined}
+      verified={user.verified}
+      sealTier={user.sealTier ?? null}
+      transactionCount={user.transactionCount}
+      rating={user.rating}
+      onPress={handlePress}
+      follow={follow}
+      divider={divider}
+    />
+  )
+})
 
 export function UsersTab({ bottomPadding }: { bottomPadding: number }) {
   const toast = useToast()
@@ -76,6 +116,30 @@ export function UsersTab({ bottomPadding }: { bottomPadding: number }) {
     [setData, toast.show],
   )
 
+  const handleUserPress = useCallback(
+    (username: string) => router.push(ROUTES.userProfile(username)),
+    [],
+  )
+  const handleToggleFollowRow = useCallback(
+    (user: DiscoveredUser, next: boolean) => void handleFollowToggle(user, next),
+    [handleFollowToggle],
+  )
+  /**
+   * LR-010: renderItem stabil — identitas tidak berubah tiap render.
+   */
+  const renderUserRow = useCallback(
+    ({ item, index }: { item: DiscoveredUser; index: number }) => (
+      <DiscoverUserRow
+        user={item}
+        pending={pendingId === item.id}
+        divider={index < query.data.length - 1}
+        onPress={handleUserPress}
+        onToggleFollow={handleToggleFollowRow}
+      />
+    ),
+    [pendingId, query.data.length, handleUserPress, handleToggleFollowRow],
+  )
+
   return (
     <View className="flex-1">
       {/* DC-013: filter rating minimum — chip toggle. */}
@@ -112,24 +176,7 @@ export function UsersTab({ bottomPadding }: { bottomPadding: number }) {
           />
         )
       }
-      renderItem={({ item, index }) => (
-        <UserDiscoverResultItem
-          name={item.fullName ?? item.username}
-          handle={`@${item.username}`}
-          avatar={item.avatarUrl ?? undefined}
-          verified={item.verified}
-          sealTier={item.sealTier ?? null}
-          transactionCount={item.transactionCount}
-          rating={item.rating}
-          onPress={() => router.push(ROUTES.userProfile(item.username))}
-          follow={{
-            following: !!item.following,
-            loading: pendingId === item.id,
-            onToggle: (next) => void handleFollowToggle(item, next),
-          }}
-          divider={index < query.data.length - 1}
-        />
-      )}
+      renderItem={renderUserRow}
     />
     </View>
   )

@@ -1,3 +1,4 @@
+import { memo } from "react"
 import type { Href } from "expo-router"
 import type { WalletTransaction } from "@/lib/api/wallet"
 import { summarize } from "@/lib/a11y"
@@ -13,7 +14,12 @@ import { WalletTransactionListItem } from "@/components/ui/wallet-transaction-li
 import { mapValue } from "@/lib/has-own"
 
 /** One mapping for overview, top-up/withdraw histories and search results. */
-export function WalletTransactionRow({
+
+/**
+ * LR-010 (perf-fix): dibungkus `memo` — nominal & perilaku tidak berubah;
+ * hanya mencegah re-render baris saat daftar re-render.
+ */
+export const WalletTransactionRow = memo(function WalletTransactionRow({
   transaction: tx,
   onPress,
   href,
@@ -73,4 +79,4 @@ export function WalletTransactionRow({
       inset={false}
     />
   )
-}
+})

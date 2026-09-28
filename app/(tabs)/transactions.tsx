@@ -48,7 +48,7 @@
  *   - Loading pertama memakai <OrderCardSkeleton> sebentuk kartu asli
  *     (bukan kartu generik) supaya layout tidak melompat saat data masuk.
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { View } from "react-native"
 import { Funnel, Receipt, ShoppingBag, Storefront } from "phosphor-react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
@@ -151,8 +151,13 @@ function TransactionDayHeader({
  * Satu kartu order — pemetaan Order → props <OrderCard> yang sama persis
  * seperti sebelum redesign (peran, lawan transaksi, timestamp WIB, tenggat
  * epoch-ms). Hanya dibungkus supaya daftar kelompok bisa memetakannya.
+ *
+ * LR-006 (perf-fix): dibungkus `memo` — nominal, status, dan perilaku TIDAK
+ * berubah; hanya mencegah re-render kartu saat parent re-render (mis. saat
+ * mengetik di pencarian). `order` dan `onDeadline` (scheduleRefresh, sudah
+ * useCallback) adalah identitas stabil.
  */
-function TransactionOrderCard({
+const TransactionOrderCard = memo(function TransactionOrderCard({
   order,
   onDeadline,
 }: {
@@ -191,7 +196,7 @@ function TransactionOrderCard({
       href={ROUTES.orderDetail(order.id)}
     />
   )
-}
+})
 
 /** Skeleton sebentuk kartu transaksi (3 kartu) — layout tidak melompat. */
 function TransactionListSkeleton() {
@@ -287,6 +292,22 @@ export default function TransactionsScreen() {
    * perilaku yang sama dengan Riwayat Dompet — diterima.
    */
   const groups = useMemo<OrderDayGroup<Order>[]>(() => groupOrdersByDay(query.data), [query.data])
+  /**
+   * LR-006 (perf-fix): renderItem stabil via useCallback — identitasnya tidak
+   * berubah tiap render, sehingga PaginatedList tidak me-render ulang semua
+   * baris saat parent re-render (mis. saat mengetik di pencarian).
+   */
+  const renderGroup = useCallback(
+    ({ item: group }: { item: OrderDayGroup<Order> }) => (
+      <View className="gap-3">
+        <TransactionDayHeader label={group.label} sub={group.sub} count={group.count} />
+        {group.orders.map((order) => (
+          <TransactionOrderCard key={order.id} order={order} onDeadline={scheduleRefresh} />
+        ))}
+      </View>
+    ),
+    [scheduleRefresh],
+  )
   if (!hasSession) {
     return (
       <Screen edges={["top"]} padded={false}>
@@ -392,14 +413,7 @@ export default function TransactionsScreen() {
             }
           />
         }
-        renderItem={({ item: group }) => (
-          <View className="gap-3">
-            <TransactionDayHeader label={group.label} sub={group.sub} count={group.count} />
-            {group.orders.map((order) => (
-              <TransactionOrderCard key={order.id} order={order} onDeadline={scheduleRefresh} />
-            ))}
-          </View>
-        )}
+        renderItem={renderGroup}
       />
       </ModeShiftFade>
     </Screen>

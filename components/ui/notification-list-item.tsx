@@ -41,6 +41,7 @@ import {
   ShieldWarning,
   Wallet,
 } from "phosphor-react-native"
+import { memo } from "react"
 import { View, type ViewProps } from "react-native"
 
 import { Icon, type IconComponent, type IconTone } from "@/components/ui/icon"
@@ -135,7 +136,12 @@ export function notificationRowTintClass(unread: boolean, selected: boolean): st
   return unread || selected ? "bg-surface" : null
 }
 
-export function NotificationListItem({
+/**
+ * LR-007 (perf-fix): dibungkus `memo` — tampilan & perilaku tidak berubah;
+ * hanya mencegah re-render baris saat daftar re-render (mis. toggle satu
+ * baris tidak me-render ulang semua baris).
+ */
+export const NotificationListItem = memo(function NotificationListItem({
   title,
   body,
   category = "system",
@@ -278,4 +284,4 @@ export function NotificationListItem({
       ) : null}
     </View>
   )
-}
+})

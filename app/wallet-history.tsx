@@ -59,7 +59,7 @@
  *     apa pun sampai "Terapkan" ditekan — mengetuk chip jenis tidak boleh
  *     memicu refetch beruntun.
  */
-import { useMemo, useState } from "react"
+import { memo, useCallback, useMemo, useState } from "react"
 import { View } from "react-native"
 import { router } from "expo-router"
 import { translate } from "@/lib/i18n/translate"
@@ -85,6 +85,7 @@ import {
   filterWalletTransactions,
   groupByDay,
   HISTORY_STATUS_FILTERS,
+  type DayGroup,
   type WalletHistoryFilters,
 } from "@/lib/wallet-history-grouping"
 import { tokens } from "@/lib/tokens"
@@ -149,6 +150,48 @@ function HistorySkeleton() {
 // Screen
 // ------------------------------------------------------------------
 
+/**
+ * LR-010 (perf-fix): satu kelompok hari riwayat wallet yang di-memo.
+ * Nominal, grouping WIB, dan perilaku tidak berubah — hanya mencegah re-render
+ * kelompok saat daftar re-render.
+ */
+const WalletHistoryDayGroup = memo(function WalletHistoryDayGroup({
+  item,
+}: {
+  item: { label: string; sub: string | null; in: number; out: number; txns: WalletTransaction[] }
+}) {
+  const net = item.in - item.out
+  return (
+    <View className="overflow-hidden rounded-md bg-surface">
+      <View className="flex-row items-baseline justify-between gap-3 px-4 pt-3">
+        <View className="flex-1 flex-row items-baseline gap-2">
+          <Text variant="body" weight={600} tone="primary" numberOfLines={1}>
+            {item.label}
+          </Text>
+          {item.sub ? (
+            <Text variant="caption" tone="secondary" numberOfLines={1}>
+              {item.sub}
+            </Text>
+          ) : null}
+        </View>
+        {item.in + item.out > 0 ? (
+          <Amount value={net} sign="always" tone={net >= 0 ? "success" : "primary"} />
+        ) : null}
+      </View>
+      <View className="px-2 pb-1 pt-1">
+        {item.txns.map((tx) => (
+          <WalletTransactionRow
+            key={tx.id}
+            transaction={tx}
+            href={ROUTES.walletTransaction(tx.id)}
+            divider={false}
+          />
+        ))}
+      </View>
+    </View>
+  )
+})
+
 export default function WalletHistoryScreen() {
   const insets = useSafeAreaInsets()
   const [filters, setFilters] = useState<WalletHistoryFilters>(DEFAULT_HISTORY_FILTERS)
@@ -190,6 +233,14 @@ export default function WalletHistoryScreen() {
     [items, filters.direction, filters.status, search],
   )
   const groups = useMemo(() => groupByDay(visibleItems), [visibleItems])
+  /**
+   * LR-010 (perf-fix): renderItem stabil via useCallback — identitas tidak
+   * berubah tiap render; setiap kelompok hari di-memo.
+   */
+  const renderDayGroup = useCallback(
+    ({ item }: { item: DayGroup }) => <WalletHistoryDayGroup item={item} />,
+    [],
+  )
 
   const searching = search.trim() !== ""
   const clientFiltered = filters.direction !== "ALL" || filters.status !== "ALL"
@@ -462,45 +513,7 @@ export default function WalletHistoryScreen() {
             />
           )
         }
-        renderItem={({ item }) => {
-          const net = item.in - item.out
-          return (
-            <View className="overflow-hidden rounded-md bg-surface">
-              {/* Kepala kelompok: hari + net harian */}
-              <View className="flex-row items-baseline justify-between gap-3 px-4 pt-3">
-                <View className="flex-1 flex-row items-baseline gap-2">
-                  <Text variant="body" weight={600} tone="primary" numberOfLines={1}>
-                    {item.label}
-                  </Text>
-                  {item.sub ? (
-                    <Text variant="caption" tone="secondary" numberOfLines={1}>
-                      {item.sub}
-                    </Text>
-                  ) : null}
-                </View>
-                {item.in + item.out > 0 ? (
-                  <Amount
-                    value={net}
-                    sign="always"
-                    tone={net >= 0 ? "success" : "primary"}
-                  />
-                ) : null}
-              </View>
-              {/* Baris-baris mutasi hari itu (tanpa separator — kartu yang memisah) */}
-              <View className="px-2 pb-1 pt-1">
-                {item.txns.map((tx) => (
-                  <WalletTransactionRow
-                    key={tx.id}
-                    transaction={tx}
-                    href={ROUTES.walletTransaction(tx.id)}
-                    divider={false}
-                  />
-                ))}
-              </View>
-            </View>
-          )
-        }}
-      />
+        renderItem={renderDayGroup}      />
       </ModeShiftFade>
 
       <WalletHistoryFilterSheet
