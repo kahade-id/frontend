@@ -25,7 +25,10 @@ import {
   type ReactNode,
 } from "react"
 import { AppState } from "react-native"
-import { io, type Socket } from "socket.io-client"
+// ST-005 (PERF-FIX 2026-09-29): `io` dimuat via dynamic import() di efek
+// koneksi — socket.io-client (±90KB + engine.io) keluar dari graph evaluasi
+// awal. Import TIPE saja di sini (dihapus saat kompilasi).
+import type { Socket } from "socket.io-client"
 
 import { API_BASE_URL } from "@/lib/api/config"
 import { refreshAccessToken } from "@/lib/api/client"
@@ -79,23 +82,6 @@ export function RealtimeProvider({
    * mendukung HMAC (deploy lama), grace timer 8 dtk membuka pintu agar
    * kompatibel; event tak bertanda tetap diterima seperti sebelumnya.
    */
-  const keyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const clearKeyTimer = () => {
-    if (keyTimerRef.current) {
-      clearTimeout(keyTimerRef.current)
-      keyTimerRef.current = null
-    }
-  }
-  const armKeyWait = () => {
-    clearKeyTimer()
-    keyTimerRef.current = setTimeout(() => {
-      keyTimerRef.current = null
-      if (sessionKeyRef.current) return
-      logWarn("realtime:hmac", new Error("session_hmac_token tak kunjung tiba — mode kompatibel tanpa verifikasi"))
-      setStatus("connected")
-      setEpoch((e) => e + 1)
-    }, 8000)
-  }
   const statusRef = useRef<RealtimeStatus>(token ? "connecting" : "disabled")
   const [status, setStatusState] = useState<RealtimeStatus>(token ? "connecting" : "disabled")
   const [epoch, setEpoch] = useState(0)
@@ -106,6 +92,24 @@ export function RealtimeProvider({
     statusRef.current = next
     setStatusState(next)
   }, [])
+
+  const keyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const clearKeyTimer = useCallback(() => {
+    if (keyTimerRef.current) {
+      clearTimeout(keyTimerRef.current)
+      keyTimerRef.current = null
+    }
+  }, [])
+  const armKeyWait = useCallback(() => {
+    clearKeyTimer()
+    keyTimerRef.current = setTimeout(() => {
+      keyTimerRef.current = null
+      if (sessionKeyRef.current) return
+      logWarn("realtime:hmac", new Error("session_hmac_token tak kunjung tiba — mode kompatibel tanpa verifikasi"))
+      setStatus("connected")
+      setEpoch((e) => e + 1)
+    }, 8000)
+  }, [clearKeyTimer, setStatus])
 
   const destroySocket = useCallback(() => {
     const socket = socketRef.current
@@ -132,6 +136,107 @@ export function RealtimeProvider({
     [],
   )
 
+  /**
+   * ST-005: pasang semua handler socket SETELAH dynamic import("socket.io-client")
+   * selesai. Dipisah dari efek koneksi agar modul realtime tidak dievaluasi saat boot.
+   */
+  const attachSocketHandlers = useCallback((socket: Socket) => {
+      socket.on("connect", () => {
+        refreshAttemptedRef.current = false
+        pausedRef.current = false
+        logMetric("connected", `socket ${socket.id} — menunggu kunci HMAC`)
+        // G108: pintu "connected" dibuka oleh session_hmac_token / grace timer.
+        armKeyWait()
+      })
+
+      socket.on("disconnect", (reason) => {
+        logMetric("disconnect", reason)
+        if (pausedRef.current) {
+          // Jeda manual saat background (G117) — bukan kegagalan.
+          setStatus("offline")
+          return
+        }
+        if (reason === "io server disconnect") {
+          // Server menendang (mis. token kedaluwarsa/dicabut): coba refresh
+          // SEKALI, lalu biarkan efek token di atas yang re-handshake.
+          // Tanpa ini socket.io tidak auto-reconnect setelah kick server.
+          setStatus("reconnecting")
+          if (!refreshAttemptedRef.current) {
+            refreshAttemptedRef.current = true
+            void refreshAccessToken()
+              .then((fresh) => {
+                if (!fresh) {
+                  // Refresh gagal total → sesi berakhir; jalur REST yang
+                  // menangani logout. Jangan putar ulang tanpa henti.
+                  logWarn("realtime:reauth", new Error("refresh token gagal setelah kick server"))
+                  setStatus("offline")
+                }
+                // Sukses → `setAccessToken` memicu efek token → re-handshake.
+              })
+              .catch((err: unknown) => {
+                logWarn("realtime:reauth", err)
+                setStatus("offline")
+              })
+          }
+          return
+        }
+        // Putus jaringan / transport: biarkan auto-reconnect bawaan bekerja.
+        setStatus("reconnecting")
+      })
+
+      socket.on("reconnect_attempt", (attempt) => {
+        logMetric("reconnect_attempt", `#${attempt}`)
+        setStatus("reconnecting")
+      })
+
+      socket.on("reconnect", (attempt) => {
+        logMetric("reconnected", `setelah ${attempt} percobaan — menunggu kunci HMAC baru`)
+        // Server bisa merotasi kunci tiap sesi; jangan pakai status lama
+        // sebelum kunci baru tiba (atau grace timer).
+        armKeyWait()
+      })
+
+      socket.on("reconnect_failed", () => {
+        logWarn("realtime:reconnect", new Error("reconnect gagal berulang — menunggu jaringan"))
+        setStatus("offline")
+      })
+
+      socket.on("connect_error", (err) => {
+        // JANGAN log err.message mentah bila mengandung token — pesan error
+        // koneksi engine.io tidak membawa token; tetap redaksi defensif.
+        logWarn("realtime:connect", err)
+        setStatus("reconnecting")
+      })
+
+      // Kunci HMAC sesi: server mengirim tepat setelah auth sukses.
+      // Disimpan di ref (bukan state) — hanya dipakai verifikasi event.
+      socket.on("session_hmac_token", (payload: unknown) => {
+        const tokenValue =
+          typeof payload === "object" && payload !== null
+            ? (payload as { token?: unknown }).token
+            : undefined
+        if (typeof tokenValue === "string" && tokenValue.length >= 16) {
+          sessionKeyRef.current = tokenValue
+          clearKeyTimer()
+          logMetric("hmac", "kunci sesi diterima — pintu connected dibuka")
+          setStatus("connected")
+          setEpoch((e) => e + 1)
+        } else {
+          logWarn("realtime:hmac", new Error("session_hmac_token tanpa token valid"))
+        }
+      })
+
+      // Event `error` dari server (auth gagal, rate limit, dst).
+      socket.on(SOCKET_SERVER_ERROR_EVENT, (payload: unknown) => {
+        const message =
+          typeof payload === "object" && payload !== null
+            ? String((payload as { message?: unknown }).message ?? "unknown")
+            : "unknown"
+        logWarn("realtime:server", new Error(`server error: ${message}`))
+      })
+
+  }, [setStatus, armKeyWait, clearKeyTimer])
+
   // ── Siklus hidup socket mengikuti token (G103/G104/G123) ───────────────
   useEffect(() => {
     if (!token) {
@@ -156,111 +261,35 @@ export function RealtimeProvider({
       }
       return
     }
-    logMetric("connect", "membuka koneksi socket")
-    const socket = io(API_BASE_URL, buildSocketOptions(token))
-    socketRef.current = socket
+    logMetric("connect", "membuka koneksi socket — memuat socket.io-client lazy (ST-005)")
+    // ST-005: modul socket.io-client dievaluasi HANYA di titik ini (koneksi
+    // pertama), bukan saat boot. Tanpa token yang masih valid, jangan konek.
+    let cancelled = false
     setStatus("connecting")
-
-    socket.on("connect", () => {
-      refreshAttemptedRef.current = false
-      pausedRef.current = false
-      logMetric("connected", `socket ${socket.id} — menunggu kunci HMAC`)
-      // G108: pintu "connected" dibuka oleh session_hmac_token / grace timer.
-      armKeyWait()
-    })
-
-    socket.on("disconnect", (reason) => {
-      logMetric("disconnect", reason)
-      if (pausedRef.current) {
-        // Jeda manual saat background (G117) — bukan kegagalan.
-        setStatus("offline")
-        return
-      }
-      if (reason === "io server disconnect") {
-        // Server menendang (mis. token kedaluwarsa/dicabut): coba refresh
-        // SEKALI, lalu biarkan efek token di atas yang re-handshake.
-        // Tanpa ini socket.io tidak auto-reconnect setelah kick server.
-        setStatus("reconnecting")
-        if (!refreshAttemptedRef.current) {
-          refreshAttemptedRef.current = true
-          void refreshAccessToken()
-            .then((fresh) => {
-              if (!fresh) {
-                // Refresh gagal total → sesi berakhir; jalur REST yang
-                // menangani logout. Jangan putar ulang tanpa henti.
-                logWarn("realtime:reauth", new Error("refresh token gagal setelah kick server"))
-                setStatus("offline")
-              }
-              // Sukses → `setAccessToken` memicu efek token → re-handshake.
-            })
-            .catch((err: unknown) => {
-              logWarn("realtime:reauth", err)
-              setStatus("offline")
-            })
+    void import("socket.io-client")
+      .then(({ io }) => {
+        if (cancelled) return
+        // Token berganti/hilang saat modul dimuat → jangan sambungkan socket
+        // basi (fail-closed).
+        if (tokenRef.current !== token || !tokenRef.current) return
+        const socket = io(API_BASE_URL, buildSocketOptions(token))
+        if (cancelled || tokenRef.current !== token) {
+          socket.disconnect()
+          return
         }
-        return
-      }
-      // Putus jaringan / transport: biarkan auto-reconnect bawaan bekerja.
-      setStatus("reconnecting")
-    })
-
-    socket.on("reconnect_attempt", (attempt) => {
-      logMetric("reconnect_attempt", `#${attempt}`)
-      setStatus("reconnecting")
-    })
-
-    socket.on("reconnect", (attempt) => {
-      logMetric("reconnected", `setelah ${attempt} percobaan — menunggu kunci HMAC baru`)
-      // Server bisa merotasi kunci tiap sesi; jangan pakai status lama
-      // sebelum kunci baru tiba (atau grace timer).
-      armKeyWait()
-    })
-
-    socket.on("reconnect_failed", () => {
-      logWarn("realtime:reconnect", new Error("reconnect gagal berulang — menunggu jaringan"))
-      setStatus("offline")
-    })
-
-    socket.on("connect_error", (err) => {
-      // JANGAN log err.message mentah bila mengandung token — pesan error
-      // koneksi engine.io tidak membawa token; tetap redaksi defensif.
-      logWarn("realtime:connect", err)
-      setStatus("reconnecting")
-    })
-
-    // Kunci HMAC sesi: server mengirim tepat setelah auth sukses.
-    // Disimpan di ref (bukan state) — hanya dipakai verifikasi event.
-    socket.on("session_hmac_token", (payload: unknown) => {
-      const tokenValue =
-        typeof payload === "object" && payload !== null
-          ? (payload as { token?: unknown }).token
-          : undefined
-      if (typeof tokenValue === "string" && tokenValue.length >= 16) {
-        sessionKeyRef.current = tokenValue
-        clearKeyTimer()
-        logMetric("hmac", "kunci sesi diterima — pintu connected dibuka")
-        setStatus("connected")
-        setEpoch((e) => e + 1)
-      } else {
-        logWarn("realtime:hmac", new Error("session_hmac_token tanpa token valid"))
-      }
-    })
-
-    // Event `error` dari server (auth gagal, rate limit, dst).
-    socket.on(SOCKET_SERVER_ERROR_EVENT, (payload: unknown) => {
-      const message =
-        typeof payload === "object" && payload !== null
-          ? String((payload as { message?: unknown }).message ?? "unknown")
-          : "unknown"
-      logWarn("realtime:server", new Error(`server error: ${message}`))
-    })
-
+        socketRef.current = socket
+        attachSocketHandlers(socket)
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return
+        logWarn("realtime:load", err)
+        setStatus("offline")
+      })
     return () => {
-      // Cleanup efek: hanya saat token BERGANTI (akun lain) / unmount.
-      // `destroySocket` di sini aman karena efek selalu membuat ulang socket
-      // untuk token baru; saat token sama, efek tidak jalan ulang.
+      cancelled = true
     }
-  }, [token, destroySocket, setStatus])
+  }, [token, destroySocket, setStatus, attachSocketHandlers])
+
 
   // Unmount provider → buang socket.
   useEffect(() => () => destroySocket(), [destroySocket])

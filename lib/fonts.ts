@@ -3,7 +3,8 @@
  *
  * Satu-satunya tempat yang menyentuh file font fisik. Semua nama di sini
  * diturunkan dari `fontFamilyByWeight` di tokens.ts, sehingga:
- *   - key di `fontAssets` == string yang dipakai `fontFamily` di StyleSheet
+ *   - key di peta font (`fontAssetsBlocking`/`fontAssetsDeferred`) == string
+ *     yang dipakai `fontFamily` di StyleSheet
  *   - typo nama font / weight yang tidak tersedia = compile error, bukan
  *     fallback diam-diam ke system font saat runtime.
  *
@@ -46,8 +47,15 @@ export type FontAssetName = {
  * `satisfies Record<FontAssetName, number>` memaksa 7 key ini PERSIS sama
  * dengan tokens: kurang satu, atau salah ketik satu huruf, langsung gagal
  * type-check. `require()` harus literal statis agar Metro bisa bundle.
+ *
+ * ST-003 (PERF-FIX 2026-09-29): peta dipecah dua — KRITIS (PlusJakartaSans,
+ * dipakai layar pertama → blocking di splash) dan TANGGUH (EBGaramond 392KB
+ * + AzeretMono, hanya dipakai teks legal/grafik/format-bar → dimuat lazy
+ * setelah first paint via `Font.loadAsync`). Pengecekan exhaustiveness tetap
+ * di `allFontAssets`; dua peta turunan dijamin mencakup semua key lewat
+ * `satisfies`.
  */
-export const fontAssets = {
+const allFontAssets = {
   "PlusJakartaSans-Regular": require("../assets/fonts/PlusJakartaSans-Regular.ttf"),
   "PlusJakartaSans-Medium": require("../assets/fonts/PlusJakartaSans-Medium.ttf"),
   "PlusJakartaSans-SemiBold": require("../assets/fonts/PlusJakartaSans-SemiBold.ttf"),
@@ -56,6 +64,31 @@ export const fontAssets = {
   "AzeretMono-Medium": require("../assets/fonts/AzeretMono-Medium.ttf"),
   "AzeretMono-SemiBold": require("../assets/fonts/AzeretMono-SemiBold.ttf"),
 } satisfies Record<FontAssetName, number>
+
+/**
+ * ST-003: subset KRITIS untuk `useFonts()` blocking — hanya PlusJakartaSans
+ * (dipakai layar pertama). Splash tidak lagi menunggu EBGaramond/AzeretMono.
+ */
+export const fontAssetsBlocking = {
+  "PlusJakartaSans-Regular": allFontAssets["PlusJakartaSans-Regular"],
+  "PlusJakartaSans-Medium": allFontAssets["PlusJakartaSans-Medium"],
+  "PlusJakartaSans-SemiBold": allFontAssets["PlusJakartaSans-SemiBold"],
+  "PlusJakartaSans-Bold": allFontAssets["PlusJakartaSans-Bold"],
+} as const
+
+/** ST-003: font lazy — dimuat setelah first paint, tidak menahan splash. */
+export const fontAssetsDeferred = {
+  "EBGaramond-Medium": allFontAssets["EBGaramond-Medium"],
+  "AzeretMono-Medium": allFontAssets["AzeretMono-Medium"],
+  "AzeretMono-SemiBold": allFontAssets["AzeretMono-SemiBold"],
+} as const
+
+// Verifikasi compile-time: gabungan kedua subset == semua key tokens.
+const _exhaustive: Record<FontAssetName, number> = {
+  ...fontAssetsBlocking,
+  ...fontAssetsDeferred,
+}
+void _exhaustive
 
 /* -------------------------------------------------------------------------- */
 /* Helpers                                                                     */
