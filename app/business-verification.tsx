@@ -23,8 +23,8 @@
  *   - Upload dilakukan saat submit (bukan saat pilih), persis pola KYC:
  *     tombol submit `loading` selama semua berkas diupload.
  */
-import { useCallback, useState } from "react"
-import { View } from "react-native"
+import { useCallback, useRef, useState } from "react"
+import { TextInput, View } from "react-native"
 import { Plus } from "phosphor-react-native"
 import { translate } from "@/lib/i18n/translate"
 
@@ -114,6 +114,10 @@ export default function BusinessVerificationScreen() {
   const [npwpNumber, setNpwpNumber] = useState("")
   const [deedNumber, setDeedNumber] = useState("")
   const [siupNumber, setSiupNumber] = useState("")
+  // FRM-010: rantai fokus Next antar field form verifikasi bisnis.
+  const npwpRef = useRef<TextInput>(null)
+  const deedRef = useRef<TextInput>(null)
+  const siupRef = useRef<TextInput>(null)
   const [docs, setDocs] = useState<PickedImage[]>([])
   const [submitting, setSubmitting] = useState(false)
 
@@ -250,6 +254,8 @@ export default function BusinessVerificationScreen() {
                   value={businessName}
                   onChangeText={setBusinessName}
                   returnKeyType="next"
+                  // FRM-010: Next memindahkan fokus ke field berikutnya.
+                  onSubmitEditing={() => npwpRef.current?.focus()}
                   maxLength={150}
                   placeholder="Sesuai akta/NPWP"
                 />
@@ -263,25 +269,30 @@ export default function BusinessVerificationScreen() {
                 })}
               >
                 <Input
+                  ref={npwpRef}
                   value={npwpNumber}
                   onChangeText={(t) => setNpwpNumber(t.replace(/[^0-9.\-]/g, "").slice(0, 25))}
                   keyboardType="number-pad"
                   returnKeyType="next"
+                  onSubmitEditing={() => deedRef.current?.focus()}
                   maxLength={25}
                   placeholder="01.234.567.8-901.000"
                 />
               </Field>
               <Field label="No. akta pendirian" helperText="Isi akta atau SIUP — minimal satu.">
                 <Input
+                  ref={deedRef}
                   value={deedNumber}
                   onChangeText={setDeedNumber}
                   returnKeyType="next"
+                  onSubmitEditing={() => siupRef.current?.focus()}
                   maxLength={100}
                   placeholder="Opsional bila sudah isi SIUP"
                 />
               </Field>
               <Field label="No. SIUP / NIB" helperText="Isi akta atau SIUP — minimal satu.">
                 <Input
+                  ref={siupRef}
                   value={siupNumber}
                   onChangeText={setSiupNumber}
                   returnKeyType="done"

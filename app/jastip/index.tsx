@@ -177,10 +177,14 @@ export default function JastipScreen() {
         ))}
       </View>
 
+      {/* FRM-023: sheet induk disembunyikan selama DatePickerSheet terbuka
+          (pola single-sheet — dua BottomSheet tidak boleh visible bersamaan). */}
       <BottomSheet
-        visible={sheetOpen}
+        visible={sheetOpen && !dateSheetOpen}
         onRequestClose={() => setSheetOpen(false)}
         title={translate("Buat trip jastip")}
+        // FRM-017: field bawah tidak tertutup keyboard di layar kecil.
+        avoidKeyboard
         footer={
           <Button fullWidth loading={saving} onPress={() => void handleCreate()}>
             {translate("Buat trip")}
@@ -191,14 +195,14 @@ export default function JastipScreen() {
           <Input
             label={translate("Judul trip")}
             value={title}
-            onChangeText={setTitle}
+            onChangeText={(t) => { setTitle(t); setFormError(undefined) }}
             placeholder={translate("cth: Jastip Jepang — batch Maret")}
             maxLength={120}
           />
           <Input
             label={translate("Deskripsi (opsional)")}
             value={description}
-            onChangeText={setDescription}
+            onChangeText={(t) => { setDescription(t); setFormError(undefined) }}
             placeholder={translate("Tujuan, jadwal, ketentuan…")}
             multiline
             maxLength={500}
@@ -211,7 +215,7 @@ export default function JastipScreen() {
           <Input
             label={translate("Total slot (opsional)")}
             value={slotTotal}
-            onChangeText={setSlotTotal}
+            onChangeText={(t) => { setSlotTotal(t); setFormError(undefined) }}
             keyboardType="number-pad"
             placeholder={translate("cth: 20")}
             maxLength={4}
@@ -230,6 +234,7 @@ export default function JastipScreen() {
         value={deadline}
         onSelect={(d) => {
           setDeadline(d)
+          setFormError(undefined)
           setDateSheetOpen(false)
         }}
         title={translate("Deadline order")}

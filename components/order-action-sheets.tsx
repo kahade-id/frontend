@@ -7,8 +7,8 @@
  * adanya; state & mutasi tetap di layar, komponen ini murni presentasi +
  * meneruskan callback. `OrderPaymentSheet` juga dipakai tes komponen.
  */
-import { useState } from "react"
-import { View } from "react-native"
+import { useRef, useState } from "react"
+import { TextInput, View } from "react-native"
 import { router } from "expo-router"
 import { ArrowUDownLeft, ChatCircleDots, Receipt, ShieldWarning, Timer } from "phosphor-react-native"
 
@@ -236,6 +236,8 @@ export function OrderActionSheets({
    * dikirim. Resi salah = pembeli tidak bisa melacak.
    */
   const [shipConfirmOpen, setShipConfirmOpen] = useState(false)
+  // FRM-008: rantai fokus Next Kurir -> Nomor resi.
+  const trackingRef = useRef<TextInput>(null)
   const trackingValidation = validateTrackingInput(courier, tracking, shippingRequired)
   const trackingValid = !trackingValidation.courierError && !trackingValidation.trackingError
   return (
@@ -442,6 +444,8 @@ export function OrderActionSheets({
               placeholder="JNE, SiCepat, …"
               autoCapitalize="words"
               returnKeyType="next"
+              // FRM-008: Next memindahkan fokus ke Nomor resi.
+              onSubmitEditing={() => trackingRef.current?.focus()}
               maxLength={100}
             />
           </Field>
@@ -451,6 +455,7 @@ export function OrderActionSheets({
             errorText={trackingValidation.trackingError}
           >
             <Input
+              ref={trackingRef}
               value={tracking}
               onChangeText={onChangeTracking}
               placeholder="Nomor resi"

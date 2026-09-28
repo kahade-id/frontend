@@ -11,8 +11,8 @@
  * (<BankAccountCard>: avatar bank, nomor termasker, badge "Utama", baris
  * aksi), CTA primer tegas, empty state dengan aksi, dialog konfirmasi hapus.
  */
-import { useCallback, useMemo, useState } from "react"
-import { View } from "react-native"
+import { useCallback, useMemo, useState, useRef } from "react"
+import { TextInput, View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Bank, Plus } from "phosphor-react-native"
 
@@ -91,6 +91,8 @@ export default function BankAccountsScreen() {
   const banks = useMemo(() => query.data?.banks ?? [], [query.data])
   const { loading, error, refreshing } = query
 
+  // FRM-011: rantai fokus Next Nomor rekening -> Nama pemilik rekening.
+  const accountNameRef = useRef<TextInput>(null)
   const [adding, setAdding] = useState(false)
   const [bankCode, setBankCode] = useState<string | undefined>(undefined)
   const [bankName, setBankName] = useState("")
@@ -314,12 +316,15 @@ export default function BankAccountsScreen() {
                   onChangeText={(t) => setAccountNumber(t.replace(/[^\d]/g, ""))}
                   keyboardType="number-pad"
                   returnKeyType="next"
+                  // FRM-011: Next memindahkan fokus ke Nama pemilik rekening.
+                  onSubmitEditing={() => accountNameRef.current?.focus()}
                   placeholder="1234567890"
                   maxLength={20}
                 />
               </Field>
               <Field label="Nama pemilik rekening" required>
                 <Input
+                  ref={accountNameRef}
                   value={accountName}
                   onChangeText={setAccountName}
                   placeholder="Sesuai rekening"
@@ -400,6 +405,10 @@ export default function BankAccountsScreen() {
           autoComplete="name"
           textContentType="name"
           maxLength={100}
+          // FRM-020: keyboard muncul otomatis; Enter/Selesai langsung menyimpan.
+          autoFocus
+          returnKeyType="done"
+          onSubmitEditing={() => void handleEdit()}
         />
       </Dialog>
       </Screen>

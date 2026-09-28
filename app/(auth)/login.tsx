@@ -118,6 +118,8 @@ export default function LoginScreen() {
   const [waPhoneError, setWaPhoneError] = useState<string | undefined>()
   const [waSubmitting, setWaSubmitting] = useState(false)
   const waPhoneRef = useRef<TextInput>(null)
+  // FRM-004: rantai fokus identifier -> password.
+  const passwordRef = useRef<TextInput>(null)
 
   // Captcha hanya muncul bila backend memintanya (3+ login gagal per IP).
   const [challenge, setChallenge] = useState<CaptchaChallenge | null>(null)
@@ -473,11 +475,14 @@ export default function LoginScreen() {
                 autoFocus
                 required
                 returnKeyType="next"
+                // FRM-004: Next memindahkan fokus ke field kata sandi.
+                onSubmitEditing={() => passwordRef.current?.focus()}
                 disabled={submitting}
               />
 
               {/* Label default PasswordField = "Kata sandi" — konsisten dengan alur registrasi */}
               <PasswordField
+                ref={passwordRef}
                 value={password}
                 onChangeText={(t) => {
                   setPassword(t)

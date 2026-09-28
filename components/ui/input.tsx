@@ -132,7 +132,9 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
     onChangeText,
     className,
     containerClassName,
-    multiline: _ignoredMultiline,
+    // FRM-001: prop RN `multiline` tidak boleh dibuang — ia ikut mengaktifkan
+    // mode multiline (selain variant="multiline" / TextArea).
+    multiline,
     ...rest
   },
   ref,
@@ -160,7 +162,8 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
   const hasValue = current.length > 0
 
   const isSearch = variant === "search"
-  const isMultiline = variant === "multiline"
+  // FRM-001/016: multiline aktif bila variant="multiline" ATAU prop RN multiline diteruskan.
+  const isMultiline = variant === "multiline" || !!multiline
   const hasError = !!errorText
   const showLabel = !!label && !isSearch
   const floated = focused || hasValue

@@ -500,7 +500,9 @@ export default function JastipDetailScreen() {
       <BottomSheet
         visible={joinOpen}
         onRequestClose={() => setJoinOpen(false)}
-        title={translate("Ikut trip")}
+        // FRM-017: field bawah tidak tertutup keyboard di layar kecil.
+        avoidKeyboard
+      title={translate("Ikut trip")}
         footer={
           <Button fullWidth loading={joining} onPress={() => void handleJoin()}>
             {translate("Ikut")}
@@ -511,7 +513,7 @@ export default function JastipDetailScreen() {
           <Input
             label={translate("Barang yang diinginkan")}
             value={itemSummary}
-            onChangeText={setItemSummary}
+            onChangeText={(t) => { setItemSummary(t); setJoinError(undefined) }}
             placeholder={translate("cth: Sepatu sneakers ukuran 42, warna hitam")}
             multiline
             maxLength={300}
@@ -530,7 +532,9 @@ export default function JastipDetailScreen() {
       <BottomSheet
         visible={itemOpen}
         onRequestClose={() => setItemOpen(false)}
-        title={translate("Tambah item katalog")}
+        // FRM-017: field bawah tidak tertutup keyboard di layar kecil.
+        avoidKeyboard
+      title={translate("Tambah item katalog")}
         footer={
           <Button fullWidth loading={addingItem} onPress={() => void handleAddItem()}>
             {translate("Tambah item")}
@@ -541,20 +545,20 @@ export default function JastipDetailScreen() {
           <Input
             label={translate("Nama item")}
             value={itemName}
-            onChangeText={setItemName}
+            onChangeText={(t) => { setItemName(t); setItemError(undefined) }}
             maxLength={120}
           />
           <Input
             label={translate("Estimasi harga (Rp, opsional)")}
             value={itemPrice}
-            onChangeText={setItemPrice}
+            onChangeText={(t) => { setItemPrice(t); setItemError(undefined) }}
             keyboardType="number-pad"
             maxLength={15}
           />
           <Input
             label={translate("Catatan (opsional)")}
             value={itemNote}
-            onChangeText={setItemNote}
+            onChangeText={(t) => { setItemNote(t); setItemError(undefined) }}
             maxLength={200}
           />
           {itemError ? (
@@ -568,7 +572,9 @@ export default function JastipDetailScreen() {
       <BottomSheet
         visible={lockTarget != null}
         onRequestClose={() => setLockTarget(null)}
-        title={translate("Kunci harga peserta")}
+        // FRM-017: field bawah tidak tertutup keyboard di layar kecil.
+        avoidKeyboard
+      title={translate("Kunci harga peserta")}
         footer={
           <Button fullWidth loading={locking} onPress={() => void handleLock()}>
             {translate("Kunci harga")}
@@ -582,21 +588,21 @@ export default function JastipDetailScreen() {
           <Input
             label={translate("Harga barang (Rp)")}
             value={goods}
-            onChangeText={setGoods}
+            onChangeText={(t) => { setGoods(t); setLockError(undefined) }}
             keyboardType="number-pad"
             maxLength={15}
           />
           <Input
             label={translate("Fee jastip (Rp)")}
             value={fee}
-            onChangeText={setFee}
+            onChangeText={(t) => { setFee(t); setLockError(undefined) }}
             keyboardType="number-pad"
             maxLength={15}
           />
           <Input
             label={translate("Ongkir (Rp)")}
             value={shipping}
-            onChangeText={setShipping}
+            onChangeText={(t) => { setShipping(t); setLockError(undefined) }}
             keyboardType="number-pad"
             maxLength={15}
           />
@@ -611,7 +617,9 @@ export default function JastipDetailScreen() {
       <BottomSheet
         visible={linkTarget != null}
         onRequestClose={() => setLinkTarget(null)}
-        title={translate("Tautkan order escrow")}
+        // FRM-017: field bawah tidak tertutup keyboard di layar kecil.
+        avoidKeyboard
+      title={translate("Tautkan order escrow")}
         footer={
           <Button fullWidth loading={linking} onPress={() => void handleLink()}>
             {translate("Tautkan")}
@@ -622,7 +630,7 @@ export default function JastipDetailScreen() {
           <Input
             label={translate("ID order")}
             value={orderId}
-            onChangeText={setOrderId}
+            onChangeText={(t) => { setOrderId(t); setLinkError(undefined) }}
             placeholder={translate("ID order yang sudah dibayar")}
             autoCapitalize="none"
             maxLength={40}

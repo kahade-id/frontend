@@ -82,6 +82,8 @@ export type VoucherRedeemBoxProps = Omit<ViewProps, "children"> & {
   onBrowse?: () => void
   /** Pesan penolakan dari server */
   errorText?: string
+  /** FRM-015: dipanggil setiap kode berubah agar pemanggil bisa membersihkan error lama. */
+  onCodeChange?: (code: string) => void
   applying?: boolean
   disabled?: boolean
   labels?: Partial<VoucherRedeemBoxLabels>
@@ -110,6 +112,7 @@ export function VoucherRedeemBox({
   onRemove,
   onBrowse,
   errorText,
+  onCodeChange,
   applying = false,
   disabled = false,
   labels,
@@ -193,7 +196,11 @@ export function VoucherRedeemBox({
             label={t.heading}
             placeholder={t.placeholder}
             value={code}
-            onChangeText={setCode}
+            onChangeText={(t) => {
+              setCode(t)
+              // FRM-015: error penolakan lama tidak lengket saat pengguna mengetik koreksi.
+              onCodeChange?.(t)
+            }}
             errorText={errorText}
             disabled={disabled}
             leftIcon={Tag}

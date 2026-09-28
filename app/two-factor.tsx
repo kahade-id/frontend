@@ -28,7 +28,7 @@
  *   - Setelah enable/disable, status di-REFETCH (bukan ditebak) supaya
  *     `backupCodesRemaining` selalu dari server.
  */
-import { useCallback, useState } from "react"
+import { useCallback, useRef, useState } from "react"
 import { View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
@@ -48,7 +48,7 @@ import { CopyableField } from "@/components/ui/copyable-field"
 import { Dialog } from "@/components/ui/modal"
 import { SensitiveConfirmDialog } from "@/components/ui/sensitive-confirm"
 import { Header } from "@/components/ui/header"
-import { OtpInput } from "@/components/ui/otp-input"
+import { OtpInput, type OtpInputHandle } from "@/components/ui/otp-input"
 import { PasswordField } from "@/components/ui/password-field"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { QRCodeDisplay } from "@/components/ui/qr-code-display"
@@ -130,6 +130,8 @@ export default function TwoFactorScreen() {
   // ── Regenerasi kode cadangan ───────────────────────────────────────────
   const [regenOpen, setRegenOpen] = useState(false)
   const [regenPassword, setRegenPassword] = useState("")
+  // FRM-012: rantai fokus Next password -> OtpInput dialog regenerasi.
+  const regenOtpRef = useRef<OtpInputHandle>(null)
   /** 6 digit TOTP — `RegenerateBackupCodesDto.code` wajib di spec. */
   const [regenCode, setRegenCode] = useState("")
   const [regenError, setRegenError] = useState<string | undefined>()
@@ -595,12 +597,15 @@ export default function TwoFactorScreen() {
           errorText={regenError}
           required
           returnKeyType="next"
+          // FRM-012: Next memindahkan fokus ke kolom kode OTP.
+          onSubmitEditing={() => regenOtpRef.current?.focus()}
         />
         <View className="gap-2">
           <Text variant="label" tone="secondary">
             Kode aplikasi autentikator
           </Text>
           <OtpInput
+            ref={regenOtpRef}
             length={TOTP_LENGTH}
             value={regenCode}
             onChange={setRegenCode}

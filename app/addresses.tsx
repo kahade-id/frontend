@@ -136,6 +136,12 @@ export default function AddressesScreen() {
     setSheetOpen(true)
   }, [])
 
+  // FRM-002: error validasi langsung hilang begitu pengguna mengoreksi field.
+  const patchForm = useCallback((patch: Partial<FormState>) => {
+    setForm((f) => ({ ...f, ...patch }))
+    setFormError(undefined)
+  }, [])
+
   const validate = (dto: CreateAddressDto): string | null => {
     if (!dto.recipientName) return translate("Nama penerima wajib diisi.")
     if (!dto.phone) return translate("Nomor HP wajib diisi.")
@@ -344,7 +350,13 @@ export default function AddressesScreen() {
         onRequestClose={() => setSheetOpen(false)}
         title={editing ? translate("Ubah alamat") : translate("Tambah alamat")}
         footer={
-          <Button fullWidth loading={saving} onPress={() => void handleSave()}>
+          <Button
+            fullWidth
+            loading={saving}
+            // FRM-003: nonaktif sampai semua field wajib terisi (validasi tetap jalan saat submit).
+            disabled={validate(formToDto(form)) !== null}
+            onPress={() => void handleSave()}
+          >
             {editing ? translate("Simpan") : translate("Tambah alamat")}
           </Button>
         }
@@ -354,7 +366,7 @@ export default function AddressesScreen() {
             <SegmentedControl<AddressLabel>
               items={LABEL_OPTIONS}
               value={form.label}
-              onChange={(label) => setForm((f) => ({ ...f, label }))}
+              onChange={(label) => patchForm({ label })}
               accessibilityLabel={translate("Label alamat")}
             />
           </Field>
@@ -362,7 +374,7 @@ export default function AddressesScreen() {
             <Input
               label={translate("Nama label")}
               value={form.customLabel}
-              onChangeText={(text) => setForm((f) => ({ ...f, customLabel: text }))}
+              onChangeText={(text) => patchForm({ customLabel: text })}
               placeholder={translate("cth: Kos, Rumah orang tua")}
               maxLength={30}
             />
@@ -370,21 +382,21 @@ export default function AddressesScreen() {
           <Input
             label={translate("Nama penerima")}
             value={form.recipientName}
-            onChangeText={(text) => setForm((f) => ({ ...f, recipientName: text }))}
+            onChangeText={(text) => patchForm({ recipientName: text })}
             maxLength={100}
             autoCapitalize="words"
           />
           <Input
             label={translate("Nomor HP")}
             value={form.phone}
-            onChangeText={(text) => setForm((f) => ({ ...f, phone: text.replace(/[^\d+]/g, "") }))}
+            onChangeText={(text) => patchForm({ phone: text.replace(/[^\d+]/g, "") })}
             keyboardType="phone-pad"
             maxLength={16}
           />
           <Input
             label={translate("Alamat")}
             value={form.addressLine}
-            onChangeText={(text) => setForm((f) => ({ ...f, addressLine: text }))}
+            onChangeText={(text) => patchForm({ addressLine: text })}
             placeholder={translate("Jalan, nomor rumah/gedung, patokan")}
             maxLength={255}
             multiline
@@ -393,14 +405,14 @@ export default function AddressesScreen() {
             <Input
               label={translate("Kota")}
               value={form.city}
-              onChangeText={(text) => setForm((f) => ({ ...f, city: text }))}
+              onChangeText={(text) => patchForm({ city: text })}
               maxLength={100}
               containerClassName="flex-1"
             />
             <Input
               label={translate("Kode pos")}
               value={form.postalCode}
-              onChangeText={(text) => setForm((f) => ({ ...f, postalCode: text.replace(/\D/g, "") }))}
+              onChangeText={(text) => patchForm({ postalCode: text.replace(/\D/g, "") })}
               keyboardType="number-pad"
               maxLength={10}
               containerClassName="flex-1"
@@ -409,7 +421,7 @@ export default function AddressesScreen() {
           <Input
             label={translate("Provinsi (opsional)")}
             value={form.province}
-            onChangeText={(text) => setForm((f) => ({ ...f, province: text }))}
+            onChangeText={(text) => patchForm({ province: text })}
             maxLength={100}
           />
           {formError ? (

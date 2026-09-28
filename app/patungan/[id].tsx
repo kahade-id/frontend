@@ -436,7 +436,9 @@ export default function PatunganDetailScreen() {
       <BottomSheet
         visible={joinOpen}
         onRequestClose={() => setJoinOpen(false)}
-        title={translate("Ikut patungan")}
+        // FRM-017: field bawah tidak tertutup keyboard di layar kecil.
+        avoidKeyboard
+      title={translate("Ikut patungan")}
         footer={
           <Button fullWidth loading={joining} onPress={() => void handleJoin()}>
             {translate("Ikut")}
@@ -452,7 +454,7 @@ export default function PatunganDetailScreen() {
             <Input
               label={translate("Nominal iuran (Rp)")}
               value={customAmount}
-              onChangeText={setCustomAmount}
+              onChangeText={(t) => { setCustomAmount(t); setJoinError(undefined) }}
               keyboardType="number-pad"
               maxLength={15}
             />
@@ -471,7 +473,9 @@ export default function PatunganDetailScreen() {
       <BottomSheet
         visible={linkOpen}
         onRequestClose={() => setLinkOpen(false)}
-        title={translate("Tautkan order escrow")}
+        // FRM-017: field bawah tidak tertutup keyboard di layar kecil.
+        avoidKeyboard
+      title={translate("Tautkan order escrow")}
         footer={
           <Button fullWidth loading={linking} onPress={() => void handleLink()}>
             {translate("Tautkan")}
@@ -482,9 +486,12 @@ export default function PatunganDetailScreen() {
           <Input
             label={translate("ID order")}
             value={orderId}
-            onChangeText={setOrderId}
+            onChangeText={(t) => { setOrderId(t); setLinkError(undefined) }}
             placeholder={translate("ID order yang sudah dibayar")}
             autoCapitalize="none"
+            // FRM-024: autocorrect/spellcheck mati — jangan sampai ID order diubah jadi kata kamus.
+            autoCorrect={false}
+            spellCheck={false}
             maxLength={40}
           />
           {linkError ? (
