@@ -18,7 +18,7 @@
  *   melanjutkan thread tersebut.
  */
 import { useCallback, useEffect, useRef, useState } from "react"
-import { ScrollView, View } from "react-native"
+import { ScrollView, TextInput, View } from "react-native"
 import { router, useLocalSearchParams } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { ArrowDown, ArrowUp, Paperclip, X } from "phosphor-react-native"
@@ -119,6 +119,8 @@ export default function ContactScreen() {
   const [orders, setOrders] = useState<Order[] | null>(null)
   const [ordersLoading, setOrdersLoading] = useState(false)
   const restoredRef = useRef(false)
+  // FRM-009: rantai fokus Next Subjek -> Pesan.
+  const messageRef = useRef<TextInput>(null)
   // F09: lampiran = urutan + keterangan per item.
   const [attachments, setAttachments] = useState<AttachmentItem[]>([])
   const [uploading, setUploading] = useState(false)
@@ -519,11 +521,14 @@ export default function ContactScreen() {
               placeholder="Ringkasan masalah"
               autoCapitalize="sentences"
               returnKeyType="next"
+              // FRM-009: Next memindahkan fokus ke field Pesan.
+              onSubmitEditing={() => messageRef.current?.focus()}
               maxLength={120}
             />
           </Field>
           <Field label="Pesan" required>
             <TextArea
+              ref={messageRef}
               value={message}
               onChangeText={setMessage}
               placeholder="Jelaskan kendala Anda"

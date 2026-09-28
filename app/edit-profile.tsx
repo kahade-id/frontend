@@ -29,7 +29,7 @@
  *     yang sama dengan Setup Profil; foto bukan bagian dari dto profil.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { View } from "react-native"
+import { TextInput, View } from "react-native"
 import { router } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Camera as CameraIcon, Image as ImageIcon, Images, Trash } from "phosphor-react-native"
@@ -273,6 +273,8 @@ export default function EditProfileScreen() {
   const [conflictFields, setConflictFields] = useState<string[]>([])
   const skipConflictRef = useRef(false)
   const pendingPasswordRef = useRef<string | undefined>(undefined)
+  // FRM-007: rantai fokus Next dari Nama lengkap ke Username.
+  const usernameRef = useRef<TextInput>(null)
 
   const detectConflicts = useCallback(async (): Promise<string[]> => {
     let fresh: Awaited<ReturnType<typeof api.users.getMe>> | null = null
@@ -676,9 +678,12 @@ export default function EditProfileScreen() {
                   textContentType="name"
                   autoCapitalize="words"
                   returnKeyType="next"
+                  // FRM-007: Next memindahkan fokus ke field username.
+                  onSubmitEditing={() => usernameRef.current?.focus()}
                 />
               </Field>
               <UsernameField
+                ref={usernameRef}
                 value={form.username}
                 onChangeText={(v) => set("username", v)}
                 availability={usernameAvailability}

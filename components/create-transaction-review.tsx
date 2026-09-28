@@ -220,6 +220,7 @@ export function VoucherSection({
   onRemove,
   applying,
   errorText,
+  onCodeChange,
   title = "Voucher",
 }: {
   initialCode?: string
@@ -228,6 +229,8 @@ export function VoucherSection({
   onRemove: () => void
   applying: boolean
   errorText?: string
+  /** FRM-015: membersihkan error penolakan saat kode diubah. */
+  onCodeChange?: (code: string) => void
   /** Batch 43 (item 9): judul khusus untuk voucher toko penjual. */
   title?: string
 }) {
@@ -240,6 +243,7 @@ export function VoucherSection({
         onRemove={onRemove}
         applying={applying}
         errorText={errorText}
+        onCodeChange={onCodeChange}
       />
     </FormSection>
   )

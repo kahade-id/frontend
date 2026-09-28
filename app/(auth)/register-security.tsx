@@ -133,6 +133,8 @@ export default function RegisterSecurityScreen() {
   const fullNameRef = useRef<TextInput>(null)
   const passwordRef = useRef<TextInput>(null)
   const confirmRef = useRef<TextInput>(null)
+  // FRM-005: ref untuk rantai fokus Next antar field.
+  const usernameRef = useRef<TextInput>(null)
   const [submitting, setSubmitting] = useState(false)
 
   // A06 (batch 139): konfirmasi bila keluar dengan data yang belum disimpan.
@@ -268,6 +270,8 @@ export default function RegisterSecurityScreen() {
                   required
                   autoFocus
                   returnKeyType="next"
+                  // FRM-005: Next memindahkan fokus ke field berikutnya.
+                  onSubmitEditing={() => usernameRef.current?.focus()}
                   disabled={submitting}
                 />
 
@@ -277,6 +281,7 @@ export default function RegisterSecurityScreen() {
                     seperti di edit profil. */}
                 <UsernameField
                   label="Username"
+                  ref={usernameRef}
                   value={username}
                   onChangeText={(t) => {
                     setUsername(t)
@@ -289,6 +294,8 @@ export default function RegisterSecurityScreen() {
                   autoComplete="username"
                   textContentType="username"
                   returnKeyType="next"
+                  // FRM-005: Next memindahkan fokus ke field kata sandi.
+                  onSubmitEditing={() => passwordRef.current?.focus()}
                   disabled={submitting}
                 />
 
@@ -309,6 +316,8 @@ export default function RegisterSecurityScreen() {
                   maxLength={PASSWORD_MAX}
                   required
                   returnKeyType="next"
+                  // FRM-005: Next memindahkan fokus ke konfirmasi kata sandi.
+                  onSubmitEditing={() => confirmRef.current?.focus()}
                   disabled={submitting}
                 />
 

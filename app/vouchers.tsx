@@ -453,6 +453,7 @@ export default function VouchersScreen() {
           applied={applied}
           applying={checking}
           errorText={promoError ?? undefined}
+          onCodeChange={() => setPromoError(null)}
           onApply={(code) => void handleApplyCode(code)}
           onRemove={clearPromo}
           labels={{ heading: "Kode promo", placeholder: "Masukkan kode", apply: "Cek kode" }}

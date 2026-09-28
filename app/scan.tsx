@@ -795,6 +795,8 @@ export default function ScanScreen() {
         visible={manualInputOpen}
         onRequestClose={() => setManualInputOpen(false)}
         title="Masukkan Kode atau Tautan"
+        // FRM-014: input autoFocus — keyboard jangan sampai menutupi field di layar kecil.
+        avoidKeyboard
         footer={
           <View className="flex-row gap-3">
             <Button

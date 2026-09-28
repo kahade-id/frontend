@@ -359,6 +359,12 @@ export function DigitalAssetsSellerManager({ showcaseId }: { showcaseId: string 
             }
             maxLength={500}
             autoCapitalize="none"
+            // FRM-021: khusus tipe LINK — keyboard URL + autocorrect mati agar
+            // URL tidak diubah saat mengetik.
+            keyboardType={assetType === "LINK" ? "url" : "default"}
+            autoCorrect={assetType === "LINK" ? false : undefined}
+            spellCheck={assetType === "LINK" ? false : undefined}
+            autoComplete={assetType === "LINK" ? "url" : undefined}
           />
           <Input
             label={translate("Label (opsional)")}

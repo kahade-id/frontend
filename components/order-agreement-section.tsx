@@ -190,6 +190,8 @@ export function OrderAgreementSection({
         visible={sheetOpen}
         onRequestClose={() => setSheetOpen(false)}
         title={translate("Buat SPK")}
+        // FRM-019: keyboard tidak menutupi tombol simpan di layar kecil.
+        avoidKeyboard
         footer={
           <Button fullWidth loading={saving} onPress={() => void handleCreate()}>
             {translate("Simpan SPK")}
@@ -200,7 +202,8 @@ export function OrderAgreementSection({
           <TextArea
             label={translate("Isi kesepakatan")}
             value={text}
-            onChangeText={setText}
+            // FRM-019: error hilang begitu pengguna memperbaiki teks.
+            onChangeText={(t) => { setText(t); setFormError(undefined) }}
             placeholder={translate("cth: Desain logo selesai 7 hari, maks. 2x revisi, file master AI + PNG diserahkan via chat.")}
             maxLength={2000}
             rows={6}

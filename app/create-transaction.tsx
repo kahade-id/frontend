@@ -928,6 +928,7 @@ export default function CreateTransactionScreen() {
                 onRemove={() => setVoucher(null)}
                 applying={applyingVoucher}
                 errorText={voucherError}
+                onCodeChange={() => setVoucherError(undefined)}
               />
             ) : null}
 
@@ -941,6 +942,7 @@ export default function CreateTransactionScreen() {
                 onRemove={() => setSellerVoucher(null)}
                 applying={applyingSellerVoucher}
                 errorText={sellerVoucherError}
+                onCodeChange={() => setSellerVoucherError(undefined)}
               />
             ) : null}
 

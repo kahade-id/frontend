@@ -29,8 +29,8 @@
  *     agar error tidak berkedip saat mengetik.
  *   - Lokasi opsional dicatat; null = lanjut tanpa lokasi.
  */
-import { useCallback, useEffect, useState } from "react"
-import { ScrollView } from "react-native"
+import { useCallback, useEffect, useRef, useState } from "react"
+import { ScrollView, TextInput } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useRouter } from "expo-router"
 
@@ -73,6 +73,8 @@ export default function ResetPasswordScreen() {
 
   const [newPassword, setNewPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
+  // FRM-006: rantai fokus Next antar field.
+  const confirmRef = useRef<TextInput>(null)
   const [passwordError, setPasswordError] = useState<string | undefined>()
   const [confirmError, setConfirmError] = useState<string | undefined>()
   const [formError, setFormError] = useState<string | null>(null)
@@ -146,10 +148,13 @@ export default function ResetPasswordScreen() {
                   required
                   autoFocus
                   returnKeyType="next"
+                  // FRM-006: Next memindahkan fokus ke konfirmasi kata sandi.
+                  onSubmitEditing={() => confirmRef.current?.focus()}
                   disabled={submitting}
                 />
                 <PasswordField
                   label="Konfirmasi kata sandi"
+                  ref={confirmRef}
                   value={confirmPassword}
                   onChangeText={(t) => {
                     setConfirmPassword(t)

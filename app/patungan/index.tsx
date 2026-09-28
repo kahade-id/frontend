@@ -240,10 +240,14 @@ export default function PatunganScreen() {
         ))}
       </View>
 
+      {/* FRM-023: sheet induk disembunyikan selama DatePickerSheet terbuka
+          (pola single-sheet — dua BottomSheet tidak boleh visible bersamaan). */}
       <BottomSheet
-        visible={sheetOpen}
+        visible={sheetOpen && !dateSheetOpen}
         onRequestClose={() => setSheetOpen(false)}
         title={translate("Buat grup patungan")}
+        // FRM-017: field bawah tidak tertutup keyboard di layar kecil.
+        avoidKeyboard
         footer={
           <Button fullWidth loading={saving} onPress={() => void handleCreate()}>
             {translate("Buat grup")}
@@ -254,14 +258,14 @@ export default function PatunganScreen() {
           <Input
             label={translate("Judul")}
             value={title}
-            onChangeText={setTitle}
+            onChangeText={(t) => { setTitle(t); setFormError(undefined) }}
             placeholder={translate("cth: Patungan kado perpisahan")}
             maxLength={120}
           />
           <Input
             label={translate("Deskripsi (opsional)")}
             value={description}
-            onChangeText={setDescription}
+            onChangeText={(t) => { setDescription(t); setFormError(undefined) }}
             multiline
             maxLength={500}
           />
@@ -269,14 +273,14 @@ export default function PatunganScreen() {
             <SegmentedControl<PatunganMode>
               items={MODE_OPTIONS}
               value={mode}
-              onChange={setMode}
+              onChange={(m) => { setMode(m); setFormError(undefined) }}
               accessibilityLabel={translate("Mode iuran")}
             />
           </Field>
           <Input
             label={translate("Target dana (Rp)")}
             value={target}
-            onChangeText={setTarget}
+            onChangeText={(t) => { setTarget(t); setFormError(undefined) }}
             keyboardType="number-pad"
             maxLength={15}
           />
@@ -284,7 +288,7 @@ export default function PatunganScreen() {
             <Input
               label={translate("Nominal per orang (Rp)")}
               value={perPerson}
-              onChangeText={setPerPerson}
+              onChangeText={(t) => { setPerPerson(t); setFormError(undefined) }}
               keyboardType="number-pad"
               maxLength={15}
             />
@@ -297,7 +301,7 @@ export default function PatunganScreen() {
           <Input
             label={translate("Total slot (opsional, min. 2)")}
             value={slotTotal}
-            onChangeText={setSlotTotal}
+            onChangeText={(t) => { setSlotTotal(t); setFormError(undefined) }}
             keyboardType="number-pad"
             maxLength={4}
           />
@@ -318,6 +322,7 @@ export default function PatunganScreen() {
         value={deadline}
         onSelect={(d) => {
           setDeadline(d)
+          setFormError(undefined)
           setDateSheetOpen(false)
         }}
         title={translate("Deadline patungan")}

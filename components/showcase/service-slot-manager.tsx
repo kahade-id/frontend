@@ -210,9 +210,12 @@ export function ServiceSlotManagerSheet({
       </BottomSheet>
 
       <BottomSheet
-        visible={formOpen}
+        // FRM-022/FRM-023: single-sheet — disembunyikan selama date/time picker terbuka.
+        visible={formOpen && !datePickerOpen && timeTarget == null}
         onRequestClose={() => setFormOpen(false)}
         title={translate("Tambah slot")}
+        // FRM-022: keyboard tidak menutupi field catatan di layar kecil.
+        avoidKeyboard
         footer={
           <Button fullWidth loading={saving} onPress={() => void handleSave()}>
             {translate("Simpan slot")}
@@ -242,12 +245,12 @@ export function ServiceSlotManagerSheet({
             value={capacity}
             min={1}
             max={100}
-            onChange={setCapacity}
+            onChange={(n) => { setCapacity(n); setFormError(undefined) }}
           />
           <Input
             label={translate("Catatan (opsional)")}
             value={note}
-            onChangeText={setNote}
+            onChangeText={(t) => { setNote(t); setFormError(undefined) }}
             placeholder={translate("cth: bawa laptop sendiri")}
             maxLength={200}
           />
@@ -266,6 +269,7 @@ export function ServiceSlotManagerSheet({
         minDate={new Date()}
         onSelect={(date) => {
           setSlotDate(date)
+          setFormError(undefined)
           setDatePickerOpen(false)
         }}
       />
@@ -277,6 +281,7 @@ export function ServiceSlotManagerSheet({
         onSelect={(next) => {
           if (timeTarget === "start") setStartTime(next)
           else setEndTime(next)
+          setFormError(undefined)
           setTimeTarget(null)
         }}
       />
