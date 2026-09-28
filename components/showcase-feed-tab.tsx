@@ -44,7 +44,7 @@ import { queryKeys } from "@/lib/query-keys"
 import { ROUTES } from "@/lib/routes"
 import {
   emptyFeedPageState,
-  mergeById,
+  reconcileFeedItems,
   resetFeedPageState,
   sameFeedFilter,
   type FeedPageState,
@@ -95,6 +95,11 @@ import { ShowcaseReportSheet } from "@/components/ui/showcase-report-sheet"
 import { ShowcaseShareSheet } from "@/components/ui/showcase-share-sheet"
 import { ModeShiftFade } from "@/components/ui/mode-switcher"
 import { ShowcaseHeader, type ShowcaseFeedKind } from "@/components/ui/showcase-header"
+import {
+  buildFeedPositionKey,
+  isFeedPositionRestorable,
+  selectTopVisibleAnchor,
+} from "@/lib/showcase-feed-position"
 import { ShowcaseFeedSkeleton } from "@/components/ui/showcase-feed-skeleton"
 import { Text } from "@/components/ui/text"
 
@@ -395,7 +400,8 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
   const pendingRestoreRef = useRef<{ offset: number } | null>(null)
   const positionKey = useCallback(
     (kindValue: ShowcaseFeedKind, filterValue: ShowcaseFeedFilter, revisionValue: number) =>
-      `${kindValue}:${revisionValue}:${JSON.stringify(filterValue)}`,
+      // C02: kunci cache posisi per tab × filter × revision/sesi.
+      buildFeedPositionKey(kindValue, revisionValue, filterValue),
     [],
   )
   /** Simpan offset + anchor tab/filter yang sedang aktif. */
@@ -413,8 +419,8 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
    */
   const restorePosition = useCallback((key: string) => {
     const saved = positionCache.current[key]
-    if (!saved || saved.offset <= 0) return
-    if (saved.anchorId && !itemsRef.current.some((item) => item.id === saved.anchorId)) return
+    // C02: guard murni — offset positif + anchor masih ada.
+    if (!isFeedPositionRestorable(saved, itemsRef.current.map((item) => item.id))) return
     pendingRestoreRef.current = { offset: saved.offset }
   }, [])
   /** Cermin `items` untuk commit atomik cache (tanpa side-effect di updater). */
@@ -443,11 +449,9 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
   const handleViewableItemsChanged = useCallback(
     ({ viewableItems }: { viewableItems: { item: ShowcaseSocialItem; index?: number | null }[] }) => {
       setVisibleIds(new Set(viewableItems.map((v) => v.item.id)))
-      let top: { item: ShowcaseSocialItem; index?: number | null } | null = null
-      for (const candidate of viewableItems) {
-        if (top == null || (candidate.index ?? Infinity) < (top.index ?? Infinity)) top = candidate
-      }
-      topVisibleRef.current = top ? { id: top.item.id } : null
+      // C02: anchor = item terlihat paling atas (indeks terkecil).
+      const top = selectTopVisibleAnchor(viewableItems)
+      topVisibleRef.current = top ? { id: top.id } : null
     },
     [],
   )
@@ -664,7 +668,9 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
         // F-04 (audit 2026-09-23): item yang sudah dilaporkan sesi ini
         // disembunyikan dari feed pelapor (moderasi ada di server).
         const visible = incoming.filter((item) => !isShowcaseReported(item.id))
-        const nextItems = mode === "more" ? mergeById(itemsRef.current, visible) : visible
+        // C03: refresh/initial mengganti daftar (data lama tetap tampil
+        // selama fetch); "more" menggabungkan.
+        const nextItems = reconcileFeedItems(mode, itemsRef.current, visible)
         appliedCommentSeq.current = Math.max(appliedCommentSeq.current, commentSeqAtStart)
         itemsRef.current = nextItems
         setItems(nextItems)

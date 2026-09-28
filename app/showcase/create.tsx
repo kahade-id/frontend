@@ -70,7 +70,7 @@ import {
 } from "@/lib/showcase-draft"
 import { showcasePriceLabelOrFallback } from "@/lib/showcase-labels"
 import { moveMediaToFront, moveMediaItem } from "@/lib/showcase-media-order"
-import { formatRupiahTyping, parseRupiahTyping } from "@/lib/rupiah-input"
+import { formatRupiahTyping, isPriceRangeValid, parseRupiahTyping } from "@/lib/rupiah-input"
 import { tokens } from "@/lib/tokens"
 import { translate } from "@/lib/i18n/translate"
 import { useLanguage } from "@/lib/i18n"
@@ -220,10 +220,9 @@ export default function ShowcaseCreateScreen() {
    * C10 (batch 139): relasi harga min–maks divalidasi LANGSUNG saat mengetik
    * (computed, bukan hanya saat submit) — mencegah "min > maks" lolos.
    */
-  const priceRangeError =
-    form.priceMin != null && form.priceMax != null && form.priceMin > form.priceMax
-      ? translate("Harga minimum tidak boleh lebih besar dari harga maksimum.")
-      : undefined
+  const priceRangeError = !isPriceRangeValid(form.priceMin, form.priceMax)
+    ? translate("Harga minimum tidak boleh lebih besar dari harga maksimum.")
+    : undefined
   const [previews, setPreviews] = useState<Preview[]>([])
   const [failedAssets, setFailedAssets] = useState<FailedPhoto[]>([])
   const [uploading, setUploading] = useState(false)

@@ -437,6 +437,20 @@ export function sortShowcaseComments<T extends { id: string; createdAt: string }
 }
 
 /**
+ * C13 (batch 139): transisi optimistis like/save — murni & unit-testable.
+ * Dari state sebelumnya, hitung state "seakan berhasil": status dibalik,
+ * hitungan ±1 (dijepit di 0). Rollback = terapkan ulang snapshot `previous`
+ * (hook melakukannya saat request gagal + toast danger).
+ */
+export function optimisticToggleState(previous: {
+  active: boolean
+  count: number
+}): { active: boolean; count: number } {
+  const active = !previous.active
+  return { active, count: Math.max(0, previous.count + (active ? 1 : -1)) }
+}
+
+/**
  * C14 (batch 139): cari komentar deep link di utas yang sudah dimuat.
  * Mengembalikan `{ root, reply }` — `reply` null bila target adalah komentar
  * root. Murni & unit-testable (dipakai alur fokus `?comment=`).
@@ -451,4 +465,25 @@ export function findShowcaseComment(
     if (reply) return { root, reply }
   }
   return null
+}
+
+/**
+ * C14 (batch 139): bolehkan ambil halaman komentar berikutnya untuk mencari
+ * target deep link? Bounded — berhenti saat target ketemu, halaman habis
+ * (`hasNext` tercermin dari status), atau batas halaman tercapai. Murni &
+ * unit-testable.
+ */
+export function shouldFetchNextCommentPage(args: {
+  commentId: string | undefined
+  focusDone: boolean
+  targetFound: boolean
+  /** "idle" = halaman terakhir selesai & masih ada berikutnya. */
+  commentsStatus: string
+  commentsPage: number
+  maxPages: number
+}): boolean {
+  const { commentId, focusDone, targetFound, commentsStatus, commentsPage, maxPages } = args
+  if (!commentId || focusDone || targetFound) return false
+  if (commentsStatus !== "idle") return false
+  return commentsPage < maxPages
 }

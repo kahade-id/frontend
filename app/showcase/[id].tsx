@@ -50,7 +50,7 @@ import { isShowcaseSoldOut } from "@/lib/showcase-stock"
 import { useSessionRevision } from "@/lib/guest-gate"
 import { useShowcaseOperation } from "@/lib/use-showcase-operation"
 import { mergeComments, patchComments } from "@/lib/showcase-state"
-import { showcaseImages, showcaseMedia, showcaseSpin360Groups, findShowcaseComment, sortShowcaseComments } from "@/lib/showcase-social"
+import { showcaseImages, showcaseMedia, showcaseSpin360Groups, findShowcaseComment, shouldFetchNextCommentPage, sortShowcaseComments } from "@/lib/showcase-social"
 import { markShowcaseDeleted } from "@/lib/showcase-deleted"
 import { markShowcaseFeedDirty, queueShowcaseCommentCount } from "@/lib/showcase-social-prefs"
 import { SHOWCASE_COMMENT_MESSAGES } from "@/lib/showcase-comment-messages"
@@ -411,10 +411,19 @@ function ShowcaseDetailContent({
    * Tidak mengganggu tombol "muat berikutnya" manual (guard status).
    */
   useEffect(() => {
-    if (!highlightComment || commentFocusDoneRef.current) return
-    if (findShowcaseComment(comments, highlightComment)) return
-    if (commentsStatus !== "idle") return
-    if (commentsPage >= COMMENT_FOCUS_MAX_PAGES) return
+    // C14: keputusan lanjut-cari murni & teruji (batas halaman).
+    if (
+      !shouldFetchNextCommentPage({
+        commentId: highlightComment,
+        focusDone: commentFocusDoneRef.current,
+        targetFound: !!highlightComment && !!findShowcaseComment(comments, highlightComment),
+        commentsStatus,
+        commentsPage,
+        maxPages: COMMENT_FOCUS_MAX_PAGES,
+      })
+    ) {
+      return
+    }
     void fetchComments(commentsPage + 1, true)
   }, [highlightComment, comments, commentsStatus, commentsPage, fetchComments])
 

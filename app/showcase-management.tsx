@@ -33,7 +33,7 @@ import {
 } from "@/components/ui/commerce-product-fields"
 import { validImageOrder, showcaseIsHidden } from "@/lib/showcase-state"
 import { moveMediaToFront, moveMediaItem } from "@/lib/showcase-media-order"
-import { formatRupiahTyping, parseRupiahTyping } from "@/lib/rupiah-input"
+import { formatRupiahTyping, isPriceRangeValid, parseRupiahTyping } from "@/lib/rupiah-input"
 import { getShowcasePhotoLimit } from "@/lib/showcase-limits"
 import { useKahadePlus } from "@/lib/use-kahade-plus"
 import { ShowcaseHtmlDescriptionEditor } from "@/components/ui/showcase-html-description-editor"
@@ -247,10 +247,9 @@ function ShowcaseManagement() {
    * C10 (batch 139): relasi harga min–maks divalidasi LANGSUNG saat mengetik
    * (computed, bukan hanya saat simpan).
    */
-  const priceRangeError =
-    form.priceMin != null && form.priceMax != null && form.priceMin > form.priceMax
-      ? translate("Harga minimum tidak boleh lebih besar dari harga maksimum.")
-      : undefined
+  const priceRangeError = !isPriceRangeValid(form.priceMin, form.priceMax)
+    ? translate("Harga minimum tidak boleh lebih besar dari harga maksimum.")
+    : undefined
   // Batch 43 (commerce): field commerce editor — prefill dari cache sesi
   // (backend belum mengeksposnya lewat GET showcase mana pun).
   const [commerce, setCommerce] = useState<CommerceFormValues>(EMPTY_COMMERCE_FORM)

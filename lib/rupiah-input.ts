@@ -17,6 +17,20 @@ export const RUPIAH_MIN = 0
 export const RUPIAH_MAX_DIGITS = 15
 
 /**
+ * C10 (batch 139): validasi relasi harga min–maks — true bila valid
+ * (salah satu kosong, atau min <= maks). Dipakai live saat mengetik di
+ * create & kelola; pesan error diterjemahkan di call-site (modul ini murni
+ * agar bisa di-unit-test tanpa runtime i18n).
+ */
+export function isPriceRangeValid(
+  priceMin: number | null | undefined,
+  priceMax: number | null | undefined,
+): boolean {
+  if (priceMin == null || priceMax == null) return true
+  return priceMin <= priceMax
+}
+
+/**
  * Angka → teks ketikan berformat ribuan ("1500000" → "1.500.000").
  * `null` → "" (input kosong).
  */
