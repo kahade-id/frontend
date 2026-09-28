@@ -43,6 +43,8 @@ import {
 
 import { api, isApiError, userMessage } from "@/lib/api"
 import { createIdempotencyKey } from "@/lib/api/client"
+import { setCommerceFieldsCache } from "@/lib/commerce-fields"
+import { CommerceProductFields, EMPTY_COMMERCE_FORM, type CommerceFormValues } from "@/components/ui/commerce-product-fields"
 import type { CreateShowcaseItemDto, ShowcaseMediaInput } from "@/lib/api/types"
 import { API_CONSTRAINTS } from "@/lib/api/constraints"
 import { getSessionRevision } from "@/lib/api/session"
@@ -183,6 +185,10 @@ export default function ShowcaseCreateScreen() {
   const revision = useSessionRevision()
 
   const [form, setForm] = useState<FormState>(EMPTY_FORM)
+  // Batch 43 (commerce): field commerce — tipe produk, harga coret, tenggat
+  // jasa, info digital, jadwal publish. Dikirim via PATCH
+  // /v1/commerce/products/:id SETELAH karya terbuat.
+  const [commerce, setCommerce] = useState<CommerceFormValues>(EMPTY_COMMERCE_FORM)
   // T2 (audit 2026-09-26): error per field — satu `formError` membuat pesan
   // foto/harga menempel di input yang salah.
   const [titleError, setTitleError] = useState<string | undefined>()
@@ -663,6 +669,16 @@ export default function ShowcaseCreateScreen() {
       setPriceError(translate("Isi harga minimum dulu bila memakai harga maksimum."))
       return
     }
+    // Batch 43: validasi field commerce.
+    if (commerce.productType === "JASA" && commerce.serviceDeadlineDays == null) {
+      toast.show({ title: translate("Produk jasa wajib memiliki tenggat pengerjaan."), tone: "danger" })
+      return
+    }
+    const salePrice = form.priceMin ?? form.priceMax
+    if (commerce.originalPriceIdr != null && salePrice != null && commerce.originalPriceIdr <= salePrice) {
+      toast.show({ title: translate("Harga coret harus lebih besar dari harga jual."), tone: "danger" })
+      return
+    }
     saveBusy.current = true
     setSaving(true)
     const payload = { title, ...formToPayload(form) }
@@ -689,9 +705,31 @@ export default function ShowcaseCreateScreen() {
         }),
         createIdempotencyKey,
       )
-      await api.users.createShowcase(createAttempt.current.dto, createAttempt.current.key)
+      const created = await api.users.createShowcase(createAttempt.current.dto, createAttempt.current.key)
       createAttempt.current = null
       pendingKeys.current = []
+      // Batch 43: simpan field commerce via PATCH terpisah (endpoint create
+      // tidak mengenal field ini). Kegagalan di sini TIDAK menggagalkan karya
+      // yang sudah tersimpan — pengguna bisa lengkapi di Kelola Etalase.
+      try {
+        const updated = await api.commerce.updateProductCommerce(created.id, {
+          productType: commerce.productType,
+          originalPriceIdr: commerce.originalPriceIdr,
+          serviceDeadlineDays: commerce.serviceDeadlineDays,
+          digitalDeliveryInfo: commerce.digitalDeliveryInfo.trim() || undefined,
+          scheduledAt: commerce.scheduledAt,
+        })
+        if (updated) setCommerceFieldsCache(created.id, updated)
+      } catch (commerceError) {
+        if (mounted.current && revision === getSessionRevision()) {
+          toast.show({
+            title: translate("Field commerce gagal disimpan"),
+            description: translate("Karya sudah tersimpan — lengkapi tipe produk & harga coret di Kelola Etalase."),
+            tone: "warning",
+            duration: 5000,
+          })
+        }
+      }
       // S7: terbit sukses → hapus draft teks.
       void clearShowcaseDraft()
       if (!mounted.current || revision !== getSessionRevision()) return
@@ -713,7 +751,7 @@ export default function ShowcaseCreateScreen() {
       saveBusy.current = false
       if (mounted.current) setSaving(false)
     }
-  }, [failedAssets.length, form, previews, revision, toast, isPlusActive])
+  }, [failedAssets.length, form, previews, revision, toast, isPlusActive, commerce])
 
   const busy = uploading || saving
 
@@ -1006,6 +1044,15 @@ export default function ShowcaseCreateScreen() {
               })}
             </Text>
           ) : null}
+
+          {/* Batch 43 (commerce): tipe produk, harga coret, tenggat jasa,
+              info digital, jadwal publish. */}
+          <CommerceProductFields
+            value={commerce}
+            onChange={setCommerce}
+            salePriceIdr={form.priceMin ?? form.priceMax}
+            disabled={busy || uncertainCreate}
+          />
 
           <View className="flex-row items-center justify-between gap-3">
             <View className="flex-1 gap-1">

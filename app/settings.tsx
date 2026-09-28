@@ -49,6 +49,7 @@ import {
   Headset,
   Info,
   Lifebuoy,
+  MapPin,
   Moon,
   Scales,
   Shield,
@@ -56,6 +57,10 @@ import {
   ShoppingBag,
   SignOut,
   Storefront,
+  Ticket,
+  AirplaneTilt,
+  UsersThree,
+  CalendarCheck,
   Translate,
   User,
   Bookmark,
@@ -139,6 +144,8 @@ export default function SettingsScreen() {
   const accountItems: MenuItemData[] = [
     { id: "saved", label: "Profil Tersimpan", icon: Bookmark, route: ROUTES.saved },
     { id: "edit-profile", label: "Edit Profil", icon: User, route: ROUTES.editProfile },
+    // Batch 43 (item 2): buku alamat pengiriman.
+    { id: "addresses", label: "Buku Alamat", icon: MapPin, route: ROUTES.addresses },
     { id: "reports", label: "Laporan & Analitik", icon: FileText, route: ROUTES.analytics },
     { id: "security", label: "Keamanan", icon: ShieldCheck, route: ROUTES.security },
     { id: "account-type", label: "Tipe Akun", icon: Briefcase, route: ROUTES.accountType },
@@ -155,6 +162,14 @@ export default function SettingsScreen() {
     { id: "products", label: "Katalog Produk", icon: ShoppingBag, route: ROUTES.products },
     { id: "returns", label: "Retur Saya", icon: ArrowUDownLeft, route: ROUTES.returns },
     { id: "seller-products", label: "Produk Saya", icon: Storefront, route: ROUTES.sellerProducts },
+    // Batch 43 (item 9): voucher toko penjual.
+    { id: "seller-vouchers", label: "Voucher Toko", icon: Ticket, route: ROUTES.sellerVouchers },
+    // Batch 43 (item 15): trip jastip host.
+    { id: "jastip", label: "Jastip Saya", icon: AirplaneTilt, route: ROUTES.jastip },
+    // Batch 43 (item 16): grup patungan.
+    { id: "patungan", label: "Patungan", icon: UsersThree, route: ROUTES.patungan },
+    // Batch 43 (item 12): booking jasa buyer.
+    { id: "service-bookings", label: "Booking Jasa", icon: CalendarCheck, route: ROUTES.serviceBookings },
   ]
 
   // ── Preferensi ──────────────────────────────────────────────────

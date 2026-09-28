@@ -190,6 +190,26 @@ export const ROUTES = {
   createTransactionWithVoucher: (voucherCode: string) =>
     ({ pathname: "/create-transaction", params: { voucherCode } }) as unknown as Href,
   /**
+   * Buat transaksi escrow untuk jastip: nominal = total yang dikunci host
+   * (barang + fee + ongkir). Buyer menautkan order yang terbentuk via
+   * POST /v1/jastip/participants/:id/link-order (batch 43, item 15).
+   */
+  createTransactionJastip: (title: string, totalLockedIdr: number) =>
+    ({
+      pathname: "/create-transaction",
+      params: { title, amount: String(totalLockedIdr), orderType: "PHYSICAL_GOODS" },
+    }) as unknown as Href,
+  /**
+   * Buat transaksi escrow untuk iuran patungan: nominal = amountIdr
+   * partisipasi. Peserta menautkan order via
+   * POST /v1/patungan/participants/:id/link-order (batch 43, item 16).
+   */
+  createTransactionPatungan: (title: string, amountIdr: number) =>
+    ({
+      pathname: "/create-transaction",
+      params: { title, amount: String(amountIdr), orderType: "OTHER" },
+    }) as unknown as Href,
+  /**
    * Buat transaksi ter-prefill dari template (layar Template Transaksi → "Pakai").
    * Parameter dibaca sekali saat layar mount; validasi & langkah tetap seperti biasa.
    */
@@ -381,6 +401,8 @@ export const ROUTES = {
   ratings: "/ratings" as Href,
   /** Voucher (available + my-usage + redeem) */
   vouchers: "/vouchers" as Href,
+  /** Buku alamat (batch 43, item 2 — GET/POST/PATCH/DELETE /v1/addresses) */
+  addresses: "/addresses" as Href,
   /** Badge (GET /v1/badges + /my) */
   badges: "/badges" as Href,
   /** Pencarian global (GET /v1/search) */
@@ -534,6 +556,24 @@ export const ROUTES = {
     productId
       ? ({ pathname: "/seller/products/[id]", params: { id: productId } } as unknown as Href)
       : ("/seller/products" as Href),
+  /** Voucher toko penjual (batch 43, item 9 — /v1/seller-vouchers) */
+  sellerVouchers: "/seller/vouchers" as Href,
+  /** Jastip — daftar trip host (batch 43, item 15 — /v1/jastip) */
+  jastip: "/jastip" as Href,
+  /** Jastip — detail trip (host & peserta) */
+  jastipDetail: (tripId: string) =>
+    tripId
+      ? ({ pathname: "/jastip/[id]", params: { id: tripId } } as unknown as Href)
+      : ("/jastip" as Href),
+  /** Patungan — daftar grup publik (batch 43, item 16 — /v1/patungan) */
+  patungan: "/patungan" as Href,
+  /** Booking jasa saya (batch 43, item 12 — /v1/commerce/service-slots/bookings) */
+  serviceBookings: "/service-bookings" as Href,
+  /** Patungan — detail grup */
+  patunganDetail: (groupId: string) =>
+    groupId
+      ? ({ pathname: "/patungan/[id]", params: { id: groupId } } as unknown as Href)
+      : ("/patungan" as Href),
 } as const
 
 /**

@@ -90,6 +90,9 @@ import { Text } from "@/components/ui/text"
 import { TextArea } from "@/components/ui/text-area"
 import { useToast } from "@/components/ui/toast"
 import type { AppliedVoucher } from "@/components/ui/voucher-redeem-box"
+import { AddressPicker } from "@/components/ui/address-picker"
+import type { Address } from "@/lib/api/commerce"
+import { addressLabelText } from "@/lib/api/commerce"
 import { translate } from "@/lib/i18n/translate"
 import { cn } from "@/lib/cn"
 import { formatDateLong } from "@/lib/format"
@@ -185,7 +188,24 @@ export default function CreateTransactionScreen() {
     deadline?: string
     fee?: string
     description?: string
+    /** Batch 43 (item 10): slot jasa dari detail etalase — di-booking saat submit. */
+    slotId?: string
+    slotDate?: string
+    slotTime?: string
+    /** "1" = slot sudah di-booking di halaman detail — jangan booking ulang. */
+    slotBooked?: string
   }>()
+  // Batch 43 (item 10): prefill slot jasa — sekali saat mount.
+  const slotPrefill = useMemo(() => {
+    const slotId = params.slotId?.trim() || undefined
+    if (!slotId) return null
+    return {
+      slotId,
+      slotDate: params.slotDate?.trim() || undefined,
+      slotTime: params.slotTime?.trim() || undefined,
+      alreadyBooked: params.slotBooked === "1",
+    }
+  }, [params.slotId, params.slotDate, params.slotTime, params.slotBooked])
   const [mode, setMode] = useState<Mode>("direct")
   // Nilai prefill template dibersihkan SATU KALI di sini (bukan di initializer
   // state): parameter query tidak berubah saat layar hidup, jadi hasilnya
@@ -235,7 +255,10 @@ export default function CreateTransactionScreen() {
   const [counterpartReason, setCounterpartReason] = useState<string | undefined>()
   const [title, setTitle] = useState(templatePrefill.title ?? "")
   const [description, setDescription] = useState(templatePrefill.description ?? "")
-  const [orderType, setOrderType] = useState<OrderType>(templatePrefill.orderType ?? "SERVICE")
+  const [orderType, setOrderType] = useState<OrderType>(
+    // Batch 43: slot jasa dari detail etalase memaksa tipe SERVICE.
+    slotPrefill ? "SERVICE" : (templatePrefill.orderType ?? "SERVICE"),
+  )
   const [orderValue, setOrderValue] = useState(templatePrefill.amount ?? 0)
   // F10 (audit 2026-09-26): tenggat dipilih lewat kalender <DatePickerSheet>,
   // BUKAN input angka hari. `null` = belum dipilih → placeholder "Pilih
@@ -271,7 +294,21 @@ export default function CreateTransactionScreen() {
   }, [schedule, scheduleLoading])
   const [voucher, setVoucher] = useState<AppliedVoucher | null>(null)
   const [applyingVoucher, setApplyingVoucher] = useState(false)
+  // Batch 43 (item 2): alamat pengiriman terpilih — hanya untuk FISIK.
+  // Belum dikirim ke server (CreateOrderDto belum punya field alamat).
+  const [shippingAddress, setShippingAddress] = useState<Address | null>(null)
   const [voucherError, setVoucherError] = useState<string | undefined>()
+  // Batch 43 (item 9): voucher toko penjual — validasi via
+  // POST /v1/seller-vouchers/validate (butuh sellerId). Saling eksklusif
+  // dengan voucher platform: hanya satu kode yang dikirim sebagai
+  // `voucherCode` (server me-resolve dari tabel voucher yang sama).
+  const [sellerVoucher, setSellerVoucher] = useState<AppliedVoucher | null>(null)
+  const [applyingSellerVoucher, setApplyingSellerVoucher] = useState(false)
+  const [sellerVoucherError, setSellerVoucherError] = useState<string | undefined>()
+  const [counterpartUserId, setCounterpartUserId] = useState<string | null>(null)
+  const [myUserId, setMyUserId] = useState<string | null>(null)
+  /** Kode voucher efektif (satu-satunya yang dikirim ke server). */
+  const effectiveVoucherCode = sellerVoucher?.code ?? voucher?.code
   const [submitting, setSubmitting] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   /**
@@ -291,7 +328,7 @@ export default function CreateTransactionScreen() {
    * order GANDA.
    */
   const submitKeyRef = useRef<string | null>(null)
-  const feeKey = JSON.stringify([orderValue, feeResponsibility, role, voucher?.code, voucher?.discount])
+  const feeKey = JSON.stringify([orderValue, feeResponsibility, role, effectiveVoucherCode, voucher?.discount, sellerVoucher?.discount])
   const draft = useRef({ feeKey, counterpart: counterpart.trim() })
   draft.current = { feeKey, counterpart: counterpart.trim() }
   const [confirmedFeeKey, setConfirmedFeeKey] = useState<string | null>(null)
@@ -340,7 +377,7 @@ export default function CreateTransactionScreen() {
       const res = await api.orders.calculateFee({
         orderValue,
         feeResponsibility,
-        voucherCode: voucher?.code,
+        voucherCode: effectiveVoucherCode,
         role,
       })
       if (draft.current.feeKey !== started) return
@@ -372,6 +409,9 @@ export default function CreateTransactionScreen() {
         api.orders.validateCounterpart({ username: q }),
         api.users.getMeCached().catch(() => null),
       ])
+      // Batch 43 (item 9): simpan ID internal untuk validasi voucher toko.
+      setCounterpartUserId(res.user?.id ?? null)
+      setMyUserId(me?.id ?? null)
       if (draft.current.counterpart !== q) return
       const isSelf =
         (me?.id != null && res.user?.id != null && me.id === res.user.id) ||
@@ -458,6 +498,8 @@ export default function CreateTransactionScreen() {
           discount: Number.isFinite(v?.discountValue) ? v?.discountValue : undefined,
           title: v?.title,
         })
+        // Saling eksklusif dengan voucher toko (item 9).
+        setSellerVoucher(null)
       } catch (err) {
         // M-26 (audit end-to-end, issue #18): "Voucher tidak valid" HANYA untuk
         // penolakan pasti server. PARSE/jaringan = pemeriksaan gagal — voucher
@@ -476,6 +518,45 @@ export default function CreateTransactionScreen() {
     [orderValue, role],
   )
 
+  // Batch 43 (item 9): validasi voucher toko penjual. sellerId = lawan bila
+  // saya pembeli, atau diri sendiri bila saya penjual. Saling eksklusif
+  // dengan voucher platform — yang baru dipasang menggantikan yang lama.
+  const sellerIdForVoucher = role === "SELLER" ? myUserId : counterpartUserId
+  const handleApplySellerVoucher = useCallback(
+    async (code: string) => {
+      if (!sellerIdForVoucher) {
+        setSellerVoucherError(translate("Penjual belum teridentifikasi — pastikan lawan transaksi valid."))
+        return
+      }
+      setApplyingSellerVoucher(true)
+      setSellerVoucherError(undefined)
+      try {
+        const res = await api.commerce.validateSellerVoucher(code, orderValue, sellerIdForVoucher)
+        if (!res.valid) {
+          setSellerVoucherError(res.message ?? "Kode voucher toko tidak berlaku.")
+          return
+        }
+        setSellerVoucher({
+          code: res.code ?? code.toUpperCase(),
+          discount: Number.isFinite(res.discountIdr) ? (res.discountIdr as number) : undefined,
+          title: res.name ?? undefined,
+        })
+        setVoucher(null)
+      } catch (err) {
+        const uncertain =
+          !isApiError(err) || err.isTransient || err.code === "ABORTED" || err.code === "PARSE"
+        setSellerVoucherError(
+          uncertain
+            ? "Gagal memeriksa voucher — periksa koneksi, lalu coba lagi."
+            : userMessage(err),
+        )
+      } finally {
+        setApplyingSellerVoucher(false)
+      }
+    },
+    [orderValue, sellerIdForVoucher],
+  )
+
   const handleSubmit = useCallback(async () => {
     if (!canSubmit || submitLock.current) return
     // Dijaga `canSubmit` (detailValid menuntut deadlineDate != null); pengaman
@@ -484,6 +565,24 @@ export default function CreateTransactionScreen() {
     submitLock.current = true
     setSubmitting(true)
     try {
+      // Batch 43 (item 10): booking slot jasa dilakukan SAAT transaksi
+      // dikonfirmasi — gagal booking = transaksi dibatalkan (jangan buat
+      // order untuk slot yang tidak terpesan). Slot yang sudah di-booking
+      // di halaman detail tidak di-booking ulang.
+      if (slotPrefill && !slotPrefill.alreadyBooked) {
+        try {
+          await api.commerce.bookServiceSlot(slotPrefill.slotId)
+        } catch (slotErr) {
+          submitLock.current = false
+          setSubmitting(false)
+          toast.show({
+            title: translate("Slot jasa gagal dipesan"),
+            description: userMessage(slotErr),
+            tone: "danger",
+          })
+          return
+        }
+      }
       // Backend memakai `deliveryDeadlineAt` bila ada; `deliveryDeadlineDays`
       // tetap dikirim sebagai fallback = selisih hari kalender dari hari ini
       // (min 1, max ikut batas picker 14).
@@ -529,7 +628,7 @@ export default function CreateTransactionScreen() {
       const dto: CreateOrderDto = {
         ...base,
         counterpartUsername: counterpart.trim(),
-        voucherCode: voucher?.code,
+        voucherCode: effectiveVoucherCode,
       }
       const order = await api.orders.createOrder(
         dto,
@@ -698,6 +797,21 @@ export default function CreateTransactionScreen() {
 
         {step === 2 ? (
           <FormSection title="Detail pesanan">
+            {/* Batch 43 (item 10): slot jasa dari detail etalase — di-booking
+                saat transaksi dikonfirmasi (lihat handleSubmit). */}
+            {slotPrefill ? (
+              <View className="gap-1 rounded-md border border-info bg-info-soft p-3">
+                <Text variant="body" weight={600} tone="info">
+                  {translate("Slot jasa terpilih")}
+                </Text>
+                <Text variant="caption" tone="secondary">
+                  {slotPrefill.slotDate
+                    ? `${slotPrefill.slotDate}${slotPrefill.slotTime ? ` · ${slotPrefill.slotTime}` : ""}`
+                    : translate("Slot akan dipesan saat Anda menekan Buat transaksi.")}
+                  {slotPrefill.alreadyBooked ? ` — ${translate("sudah dipesan")}` : ""}
+                </Text>
+              </View>
+            ) : null}
             <Field label="Judul" required errorText={titleError}>
               <Input
                 value={title}
@@ -722,6 +836,15 @@ export default function CreateTransactionScreen() {
                 labels={ORDER_TYPE_LABELS}
               />
             </Field>
+            {/* Batch 43 (item 2): alamat pengiriman hanya untuk barang FISIK. */}
+            {orderType === "PHYSICAL_GOODS" ? (
+              <Field
+                label={translate("Alamat pengiriman")}
+                helperText={translate("Alamat tujuan barang dikirim — bisa diubah di buku alamat.")}
+              >
+                <AddressPicker selected={shippingAddress} onSelect={setShippingAddress} />
+              </Field>
+            ) : null}
             <AmountInput
               value={orderValue}
               onChange={setOrderValue}
@@ -807,6 +930,19 @@ export default function CreateTransactionScreen() {
               />
             ) : null}
 
+            {/* Batch 43 (item 9): voucher toko milik penjual — hanya bila
+                penjual teridentifikasi (lawan tervalidasi / diri sendiri). */}
+            {mode === "direct" && sellerIdForVoucher ? (
+              <VoucherSection
+                title={translate("Voucher toko penjual")}
+                applied={sellerVoucher ?? undefined}
+                onApply={(code) => void handleApplySellerVoucher(code)}
+                onRemove={() => setSellerVoucher(null)}
+                applying={applyingSellerVoucher}
+                errorText={sellerVoucherError}
+              />
+            ) : null}
+
             <OrderSummarySection
               mode={mode}
               role={role}
@@ -817,7 +953,12 @@ export default function CreateTransactionScreen() {
               orderValue={orderValue}
               deadlineDate={deadlineDate}
               feeResponsibility={feeResponsibility}
-              voucherCode={voucher?.code}
+              voucherCode={effectiveVoucherCode}
+              shippingAddressLabel={
+                orderType === "PHYSICAL_GOODS" && shippingAddress
+                  ? `${addressLabelText(shippingAddress)} — ${shippingAddress.recipientName}, ${shippingAddress.addressLine}, ${shippingAddress.city} ${shippingAddress.postalCode}`
+                  : undefined
+              }
             />
           </>
         ) : null}

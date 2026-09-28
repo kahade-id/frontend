@@ -214,6 +214,7 @@ export function VoucherSection({
   onRemove,
   applying,
   errorText,
+  title = "Voucher",
 }: {
   initialCode?: string
   applied?: AppliedVoucher
@@ -221,9 +222,11 @@ export function VoucherSection({
   onRemove: () => void
   applying: boolean
   errorText?: string
+  /** Batch 43 (item 9): judul khusus untuk voucher toko penjual. */
+  title?: string
 }) {
   return (
-    <FormSection title="Voucher" divider>
+    <FormSection title={title} divider>
       <VoucherRedeemBox
         initialCode={initialCode}
         applied={applied}
@@ -247,6 +250,7 @@ export function OrderSummarySection({
   deadlineDate,
   feeResponsibility,
   voucherCode,
+  shippingAddressLabel,
 }: {
   mode: "direct" | "link"
   role: OrderRoleValue
@@ -259,6 +263,8 @@ export function OrderSummarySection({
   deadlineDate: Date | null
   feeResponsibility: "BUYER" | "SELLER" | "SPLIT"
   voucherCode?: string
+  /** Batch 43 (item 2): alamat pengiriman terpilih (hanya FISIK). */
+  shippingAddressLabel?: string
 }) {
   return (
     <FormSection title="Ringkasan" divider>
@@ -270,6 +276,9 @@ export function OrderSummarySection({
         ) : null}
         <KeyValue label="Judul" value={title.trim()} />
         <KeyValue label="Jenis" value={ORDER_TYPE_LABELS[orderType]} />
+        {shippingAddressLabel ? (
+          <KeyValue label="Alamat kirim" value={shippingAddressLabel} />
+        ) : null}
         <KeyValue label="Nilai transaksi" value={formatRupiah(orderValue)} />
         <KeyValue label="Tenggat" value={deadlineDate ? formatDateLong(deadlineDate) : "—"} />
         <KeyValue

@@ -296,6 +296,11 @@ export type Order = {
   orderType: OrderType
   status: OrderStatus
   /**
+   * Batch 43 (item 14): ID etalase asal order (bila dibuat dari produk) —
+   * dipakai untuk mengambil aset digital. Tidak ada = undefined.
+   */
+  showcaseId?: string | null
+  /**
    * I-03 (audit end-to-end 2026-09-24): status SEBELUM alias A-08 dipetakan.
    * Gerbang aksi legacy (`canProcess` yang hanya berlaku di backend lama saat
    * status masih `PAID`) tidak bisa dibedakan dari `PROCESSING` hasil mapping
@@ -465,6 +470,8 @@ export function normalizeOrder(raw: Order & Record<string, unknown>): Order {
   return {
     id,
     title: typeof record.title === "string" ? record.title : "",
+    // Batch 43 (item 14): showcaseId opsional — tidak semua order punya.
+    showcaseId: pickString(record, ["showcaseId", "showcase_id"]) ?? null,
     description: typeof record.description === "string" ? record.description : "",
     orderType: (pickString(record, ["orderType", "order_type"]) ?? "OTHER") as OrderType,
     status,

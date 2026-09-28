@@ -215,6 +215,20 @@ export function cleanupUploads(fileKeys: string[]) {
   return http.post<void, CleanupFilesDto>("/v1/upload/cleanup", dto, { auth: "required" })
 }
 
+/**
+ * Batch 43 (item 14): unduh file privat milik sendiri —
+ * GET /v1/upload/my-file?key=<fileKey>. Hanya berhasil bila segmen userId
+ * pada key = peminta (dipakai pemilik untuk pratinjau aset digital FILE).
+ */
+export function downloadOwnFile(fileKey: string, signal?: AbortSignal) {
+  return http.get<Blob>("/v1/upload/my-file", {
+    auth: "required",
+    signal,
+    query: { key: fileKey },
+    responseType: "blob",
+  })
+}
+
 // ------------------------------------------------------------------
 // Upload video showcase (kontrak final Tim A, 2026-09-28)
 // ------------------------------------------------------------------
