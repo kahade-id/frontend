@@ -158,6 +158,7 @@ import { ChatCreateOrderSheet } from "@/components/ui/chat-create-order-sheet"
 import { ChatShowcasePickerSheet } from "@/components/ui/chat-showcase-picker-sheet"
 import { exportAndSaveChatRoom } from "@/lib/chat-export"
 import {
+  asProductCard,
   listStarredMessages,
   starChatMessage,
   unstarChatMessage,
@@ -165,6 +166,7 @@ import {
   type ChatTranslation,
 } from "@/lib/api/chat"
 import type { ShowcaseItem } from "@/lib/api/users"
+import { getMeCached } from "@/lib/api/users"
 import { useToast } from "@/components/ui/toast"
 import { ephemeralDurationLabel } from "@/lib/chat-ephemeral"
 import { isImageMime } from "@/lib/mime"
@@ -198,6 +200,10 @@ function failedToChatMessage(f: FailedChatMessage): ChatMessage {
     messageType: f.messageType,
     fromUser: f.fromUser,
     attachments: f.attachments?.map((a) => ({ ...a })),
+    // CHT-004/CHT-012: payload lokasi & kartu ikut direstore agar bubble
+    // gagal me-render benar dan retry mengirim payload yang sama.
+    location: f.location ? { ...f.location } : f.location ?? null,
+    card: f.card ? { ...f.card } : f.card ?? null,
     replyToId: f.replyToId ?? null,
     replyTo: f.replyTo
       ? {
@@ -229,6 +235,12 @@ function toFailedChatMessage(m: ChatMessage): FailedChatMessage {
       fileSize: a.fileSize,
       thumbnailUrl: a.thumbnailUrl,
     })),
+    // CHT-004/CHT-012: lokasi & kartu WAJIB ikut tersimpan — tanpanya retry
+    // setelah restart kehilangan payload aslinya.
+    location: m.location
+      ? { lat: m.location.lat, lng: m.location.lng, label: m.location.label ?? null }
+      : m.location ?? null,
+    card: m.card ? { ...m.card } : m.card ?? null,
     replyToId: m.replyToId ?? null,
     replyTo: m.replyTo
       ? {
@@ -577,6 +589,10 @@ export default function ChatRoomScreen() {
     setInlineSearchOpen(false)
     setInlineQuery("")
     setInlineActiveId(undefined)
+    // CHT-010: bar pencarian mem-focus input saat mount (keyboard terbuka);
+    // tombol X harus menutup keyboard juga, bukan membiarkannya mengambang
+    // tanpa input yang fokus.
+    Keyboard.dismiss()
   }, [])
 
   const jumpToInlineMatch = useCallback(
@@ -1470,10 +1486,45 @@ export default function ChatRoomScreen() {
     [roomId, isChatCompleted, ttlSeconds, viewOnceOn, mergeIncoming, toast.show],
   )
 
-  /** Kirim kartu produk (backend membekukan snapshot etalase). */
+  /**
+   * Kirim kartu produk (backend membekukan snapshot etalase).
+   *
+   * CHT-012: sebelumnya TANPA pesan optimistis — gagal = hanya toast, tanpa
+   * jejak di thread dan tidak bisa retry (inkonsisten dengan pola CN-015
+   * semua tipe pesan lain). Sekarang: bubble optimistis langsung tampil,
+   * gagal → status failed + tombol "Coba lagi" + masuk antrean persisten.
+   * Snapshot optimistis dibangun dari ShowcaseItem (kartu milik sendiri);
+   * snapshot RESMI backend menggantikannya saat kirim sukses.
+   */
   const sendProductCard = useCallback(
     async (item: ShowcaseItem) => {
       if (!roomId || isChatCompleted) return
+      const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2)}`
+      // Username penjual = user sendiri (picker hanya menampilkan etalase
+      // milik sendiri). getMeCached murah (cache 5 dtk); gagal → string
+      // kosong, baris "@" disembunyikan kartu (lihat ChatProductCard).
+      const me = await getMeCached().catch(() => null)
+      const optimisticCard: ChatProductCardPayload = {
+        kind: "PRODUCT_CARD",
+        showcaseId: item.id,
+        title: item.title ?? "",
+        priceMin: item.priceMin != null ? String(item.priceMin) : null,
+        priceMax: item.priceMax != null ? String(item.priceMax) : null,
+        imageUrl: item.coverImageUrl ?? item.imageUrl ?? null,
+        sellerUsername: me?.username ?? "",
+        snapshotAt: new Date().toISOString(),
+      }
+      const optimisticMsg: ChatMessage = {
+        id: tempId,
+        messageType: "PRODUCT_CARD",
+        fromUser: true,
+        card: { ...optimisticCard },
+        createdAt: new Date().toISOString(),
+        sendStatus: "sending",
+        ephemeralTtlSeconds: ttlSeconds ?? undefined,
+        viewOnce: viewOnceOn || undefined,
+      }
+      setMessages((prev) => [...prev, optimisticMsg])
       try {
         const msg = await api.chat.sendChatMessage(roomId, {
           messageType: "PRODUCT_CARD",
@@ -1481,10 +1532,16 @@ export default function ChatRoomScreen() {
           ephemeralTtlSeconds: ttlSeconds ?? undefined,
           viewOnce: viewOnceOn || undefined,
         })
-        setMessages((prev) => (prev.some((m) => m.id === msg.id) ? prev : [...prev, msg]))
+        setMessages((prev) => prev.map((m) => (m.id === tempId || m.id === msg.id ? msg : m)))
         mergeIncoming([msg], roomId)
         if (viewOnceOn) setViewOnceOn(false)
       } catch (err) {
+        // CN-015: jangan hapus diam-diam — tandai gagal agar bisa retry.
+        setMessages((prev) =>
+          prev.map((m) => (m.id === tempId ? { ...m, sendStatus: "failed" as const } : m)),
+        )
+        // B07: antrean persisten — selamat dari refresh/restart.
+        if (roomId) saveChatFailedMessage(roomId, toFailedChatMessage(optimisticMsg))
         toast.show({
           title: "Gagal mengirim kartu produk",
           description: isApiError(err) ? userMessage(err) : undefined,
@@ -1546,9 +1603,30 @@ export default function ChatRoomScreen() {
       try {
         // messageType ChatMessage bisa string bebas; DTO hanya terima union —
         // validasi defensif, fallback TEXT.
-        const messageType = ["TEXT", "IMAGE", "FILE", "VIDEO", "VOICE"].includes(failed.messageType)
-          ? (failed.messageType as "TEXT" | "IMAGE" | "FILE" | "VIDEO" | "VOICE")
+        // CHT-004: LOCATION & PRODUCT_CARD (batch 43) sebelumnya jatuh ke
+        // fallback TEXT dengan content undefined — "Coba lagi" pada pesan
+        // lokasi mengirim pesan kosong dan lokasinya hilang. Retry sekarang
+        // mempertahankan payload asli tiap tipe.
+        const RETRYABLE_TYPES = [
+          "TEXT",
+          "IMAGE",
+          "FILE",
+          "VIDEO",
+          "VOICE",
+          "LOCATION",
+          "PRODUCT_CARD",
+        ] as const
+        type RetryableType = (typeof RETRYABLE_TYPES)[number]
+        const messageType: RetryableType = (
+          RETRYABLE_TYPES as readonly string[]
+        ).includes(failed.messageType)
+          ? (failed.messageType as RetryableType)
           : "TEXT"
+        const retryLocation = messageType === "LOCATION" ? failed.location : null
+        const retryCard = messageType === "PRODUCT_CARD" ? asProductCard(failed.card) : null
+        // Pesan khusus batch 43 membawa flag ini saat kirim pertama; retry
+        // mereproduksi kiriman aslinya (jalur TEXT/IMAGE/dsb tidak berubah).
+        const isSpecialType = messageType === "LOCATION" || messageType === "PRODUCT_CARD"
         const msg = await api.chat.sendChatMessage(roomId, {
           messageType,
           content: failed.text || undefined,
@@ -1561,7 +1639,20 @@ export default function ChatRoomScreen() {
                 thumbnailUrl,
               }))
             : undefined,
+          // CHT-004: koordinat + label asli — bukan TEXT kosong.
+          location: retryLocation
+            ? {
+                lat: retryLocation.lat,
+                lng: retryLocation.lng,
+                label: retryLocation.label ?? undefined,
+              }
+            : undefined,
+          // CHT-012: kartu produk dikirim ulang via showcaseId; backend
+          // membekukan ulang snapshot etalase saat kirim.
+          showcaseId: retryCard?.showcaseId,
           replyToId: failed.replyToId ?? undefined,
+          ephemeralTtlSeconds: isSpecialType ? (failed.ephemeralTtlSeconds ?? undefined) : undefined,
+          viewOnce: isSpecialType ? (failed.viewOnce || undefined) : undefined,
         })
         // Samakan dengan jalur kirim: cocokkan id temp ATAU id server
         // (gema bisa tiba sebelum POST resolve — fix duplikat 2026-09-28).

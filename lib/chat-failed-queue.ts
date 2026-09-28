@@ -42,6 +42,18 @@ export type FailedChatMessage = {
     fileSize: number
     thumbnailUrl?: string
   }>
+  /**
+   * CHT-004: payload pesan LOCATION ({ lat, lng, label }) — tanpanya retry
+   * pesan lokasi mengirim TEXT kosong dan data lokasi hilang permanen
+   * setelah restart (antrean persisten tidak menyimpannya).
+   */
+  location?: { lat: number; lng: number; label?: string | null } | null
+  /**
+   * CHT-012: snapshot kartu pesan PRODUCT_CARD (dibangun optimistis dari
+   * ShowcaseItem; `showcaseId` di dalamnya dipakai retry) — tanpanya kartu
+   * produk yang gagal tidak bisa dikirim ulang setelah restart.
+   */
+  card?: Record<string, unknown> | null
   replyToId?: string | null
   replyTo?: {
     id: string

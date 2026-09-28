@@ -30,10 +30,10 @@
  *   - Tekan lama tetap masuk MODE PILIH (aksi massal Bisukan/Arsipkan);
  *     swipe dimatikan selama mode pilih supaya gesture tidak bentrok.
  */
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { ScrollView, View } from "react-native"
 import { Archive, BellSlash, BellZ, Chats, GearSix, NotePencil, PushPin, Trash, X } from "phosphor-react-native"
-import { router } from "expo-router"
+import { router, useFocusEffect } from "expo-router"
 
 import { api, isApiError, userMessage } from "@/lib/api"
 import {
@@ -46,6 +46,12 @@ import {
   setRoomMuted,
   type ChatRoom,
 } from "@/lib/api/chat"
+import {
+  CHAT_SOCKET_EVENTS,
+  TYPING_EXPIRY_MS,
+  type ChatTypingPayload,
+} from "@/lib/realtime/chat-events"
+import { useRealtime } from "@/lib/realtime/realtime-context"
 import { ORDER_STATUS_LABELS } from "@/lib/labels/status"
 import { formatTimeAgo, truncateMiddle } from "@/lib/format"
 import { haptic } from "@/lib/haptics"
@@ -119,6 +125,150 @@ function ChatSkeletonRow() {
 /** "Transaksi" = punya orderId atau type ORDER (DRIFT-06: backend mengirim `type`). */
 function isTransactionRoom(room: ChatRoom): boolean {
   return Boolean(room.orderId) || (room.type ?? room.roomType) === "ORDER"
+}
+
+/**
+ * CHT-008: indikator "mengetik…" di DAFTAR room.
+ *
+ * Server hanya mengirim `chat.typing` ke socket yang join `chat:<roomId>`,
+ * jadi layar daftar join room yang sedang tampil dan mendengarkan event
+ * typing global. Join dilakukan BERTAHAP (hemat kuota WS 30/10 dtk, jangan
+ * join puluhan room sekaligus). Tiap room punya timer expiry sendiri
+ * (TYPING_EXPIRY_MS) — sinyal `stop` yang hilang tidak membuat indikator
+ * macet. Join diulang saat: daftar room berubah, socket reconnect (epoch
+ * baru), dan tab kembali fokus (layar room melepas join-nya saat unmount —
+ * tanpa ini, indikator room yang baru dikunjungi mati diam-diam).
+ *
+ * Mengembalikan Set roomId yang sedang mengetik (selain diri sendiri).
+ */
+const TYPING_JOIN_BATCH = 10
+const TYPING_JOIN_GAP_MS = 2000
+
+function useChatListTyping(roomIds: string[]): Set<string> {
+  const { socket, status, epoch, viewerId, joinRoom, leaveRoom, unwrapEvent } = useRealtime()
+  const [typingRooms, setTypingRooms] = useState<Set<string>>(() => new Set())
+  /** Room yang sedang di-join sesi ini — untuk leave saat tak tampil lagi. */
+  const joinedRef = useRef<Set<string>>(new Set())
+  /** Timer expiry per room — sinyal stop yang hilang tetap clear. */
+  const timersRef = useRef(new Map<string, ReturnType<typeof setTimeout>>())
+  const epochRef = useRef(epoch)
+  const apiRef = useRef({ joinRoom, leaveRoom, unwrapEvent, viewerId })
+  apiRef.current = { joinRoom, leaveRoom, unwrapEvent, viewerId }
+  /** Dipicu ulang tiap tab kembali fokus (lihat docblock). */
+  const [focusTick, setFocusTick] = useState(0)
+  useFocusEffect(
+    useCallback(() => {
+      setFocusTick((t) => t + 1)
+    }, []),
+  )
+
+  const signalTyping = useCallback((roomId: string, isTyping: boolean) => {
+    const timers = timersRef.current
+    const prevTimer = timers.get(roomId)
+    if (prevTimer) {
+      clearTimeout(prevTimer)
+      timers.delete(roomId)
+    }
+    setTypingRooms((prev) => {
+      const has = prev.has(roomId)
+      if (has === isTyping) return prev
+      const next = new Set(prev)
+      if (isTyping) next.add(roomId)
+      else next.delete(roomId)
+      return next
+    })
+    if (isTyping) {
+      timers.set(
+        roomId,
+        setTimeout(() => {
+          timers.delete(roomId)
+          setTypingRooms((prev) => {
+            if (!prev.has(roomId)) return prev
+            const next = new Set(prev)
+            next.delete(roomId)
+            return next
+          })
+        }, TYPING_EXPIRY_MS),
+      )
+    }
+  }, [])
+
+  // Satu listener typing global per koneksi socket.
+  useEffect(() => {
+    if (!socket || status !== "connected") return
+    const onTyping = (raw: unknown) => {
+      const payload = apiRef.current.unwrapEvent(raw) as Partial<ChatTypingPayload> | null
+      const roomId = payload?.roomId
+      if (typeof roomId !== "string" || !roomId) return
+      // Gema sendiri diabaikan — server broadcast termasuk ke pengirim.
+      const me = apiRef.current.viewerId
+      if (me != null && payload?.userId === me) return
+      signalTyping(roomId, payload?.isTyping === true)
+    }
+    socket.on(CHAT_SOCKET_EVENTS.TYPING, onTyping)
+    return () => {
+      socket.off(CHAT_SOCKET_EVENTS.TYPING, onTyping)
+    }
+  }, [socket, status, epoch, signalTyping])
+
+  // Join bertahap room yang tampil; leave yang tak tampil lagi.
+  const roomKey = roomIds.join(",")
+  useEffect(() => {
+    if (!socket || status !== "connected") return
+    const api = apiRef.current
+    // Reconnect = join sisi server hilang semua — mulai dari nol.
+    if (epochRef.current !== epoch) {
+      epochRef.current = epoch
+      joinedRef.current.clear()
+    }
+    const wanted = new Set(roomIds)
+    const joined = joinedRef.current
+    for (const id of Array.from(joined)) {
+      if (!wanted.has(id)) {
+        joined.delete(id)
+        api.leaveRoom(id)
+      }
+    }
+    const toJoin = roomIds.filter((id) => !joined.has(id))
+    if (toJoin.length === 0) return
+    let cancelled = false
+    let timer: ReturnType<typeof setTimeout> | undefined
+    let i = 0
+    const step = () => {
+      if (cancelled) return
+      for (const id of toJoin.slice(i, i + TYPING_JOIN_BATCH)) {
+        // Tandai dulu agar tidak di-join ganda antar tick.
+        joined.add(id)
+        void api.joinRoom(id).then((ok) => {
+          if (!ok) joined.delete(id)
+        })
+      }
+      i += TYPING_JOIN_BATCH
+      if (i < toJoin.length) timer = setTimeout(step, TYPING_JOIN_GAP_MS)
+    }
+    step()
+    return () => {
+      cancelled = true
+      if (timer) clearTimeout(timer)
+    }
+    // roomKey: sengaja string agar effect tidak re-run tiap render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [socket, status, epoch, focusTick, roomKey])
+
+  // Unmount: lepas semua join + matikan timer expiry.
+  useEffect(() => {
+    const joined = joinedRef.current
+    const timers = timersRef.current
+    return () => {
+      const api = apiRef.current
+      for (const id of joined) api.leaveRoom(id)
+      joined.clear()
+      for (const t of timers.values()) clearTimeout(t)
+      timers.clear()
+    }
+  }, [])
+
+  return typingRooms
 }
 
 /**
@@ -209,6 +359,10 @@ export default function ChatScreen() {
           : base
     return sortRoomsPinnedFirst(filtered)
   }, [activeQuery.data, filter])
+
+  // CHT-008: indikator typing di daftar — join bertahap room yang tampil.
+  const roomIds = useMemo(() => shownRooms.map((r) => r.id), [shownRooms])
+  const typingRooms = useChatListTyping(roomIds)
 
   // Terapkan hasil arsip/mute ke baris list tanpa memuat ulang seluruhnya.
   // Untuk arsip, ini hanya umpan balik instan — `handleBatchArchive`
@@ -726,6 +880,11 @@ export default function ChatScreen() {
               <ChatRoomListItem
                 name={item.counterpart?.fullName ?? `@${item.counterpart?.username ?? "—"}`}
                 avatar={item.counterpart?.avatarUrl ? { uri: item.counterpart.avatarUrl } : undefined}
+                // CHT-009: badge seal lawan bicara di daftar (sebelumnya
+                // selalu fallback bool → tidak ada seal warna tier).
+                sealTier={item.counterpart?.sealTier ?? null}
+                // CHT-008: indikator "mengetik…" (server → chat.typing).
+                typing={typingRooms.has(item.id)}
                 online={item.isOnline === true}
                 muted={item.isMuted === true}
                 pinned={pinned}

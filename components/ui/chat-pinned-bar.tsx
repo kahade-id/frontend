@@ -19,6 +19,7 @@ import { translate } from "@/lib/i18n/translate"
 import { CaretDown, PushPin } from "phosphor-react-native"
 
 import type { ChatMessage } from "@/lib/api/chat"
+import { nonTextMessageLabel } from "@/lib/api/chat"
 import { cn } from "@/lib/cn"
 import { focusRingInset } from "@/lib/focus-ring"
 
@@ -48,7 +49,9 @@ export function ChatPinnedBar({
 }: ChatPinnedBarProps) {
   // UI-C009: label "(lampiran)" ikut katalog i18n — sheet pencarian sudah
   // menerjemahkannya; baris pin tidak boleh memakai string mentah.
-  const preview = message.text?.trim() || translate("(lampiran)")
+  // CHT-011: label konsisten antar permukaan via nonTextMessageLabel
+  // (lampiran → "(lampiran)"; lokasi/kartu → label spesifiknya).
+  const preview = message.text?.trim() || translate(nonTextMessageLabel(message.messageType))
 
   return (
     <PressableScale

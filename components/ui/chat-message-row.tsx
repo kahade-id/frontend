@@ -34,6 +34,7 @@ import type { ChatAttachmentDto } from "@/lib/api/types"
 import {
   asOrderCard,
   asProductCard,
+  nonTextMessageLabel,
   type ChatMessage,
   type ChatProductCardPayload,
 } from "@/lib/api/chat"
@@ -65,31 +66,12 @@ import { type SealTier } from "@/components/ui/verified-seal"
 const GROUP_WINDOW_MS = 5 * 60 * 1000
 
 /**
- * Label cadangan cuplikan kutipan balasan bila pesan yang dibalas tidak
- * punya teks (mis. hanya gambar/berkas). Dipakai <ChatMessageRow> untuk
- * prop `quote` bubble.
+ * CHT-011: label cadangan cuplikan kutipan balasan bila pesan yang dibalas
+ * tidak punya teks. Memakai `nonTextMessageLabel` (lib/api/chat) agar
+ * konsisten dengan pinned bar & daftar room — sebelumnya memakai
+ * "Gambar"/"Video"/… sementara permukaan lain "(lampiran)".
  */
-function quoteFallbackLabel(messageType?: string): string {
-  switch ((messageType ?? "").toUpperCase()) {
-    case "IMAGE":
-      return "Gambar"
-    case "VIDEO":
-      return "Video"
-    case "VOICE":
-      return "Pesan suara"
-    case "FILE":
-      return "Berkas"
-    // Batch 43: tipe pesan baru.
-    case "LOCATION":
-      return "Lokasi"
-    case "PRODUCT_CARD":
-      return "Kartu produk"
-    case "ORDER_CARD":
-      return "Kartu order"
-    default:
-      return "Pesan"
-  }
-}
+const quoteFallbackLabel = nonTextMessageLabel
 
 export type ChatMessageRowProps = {
   message: ChatMessage

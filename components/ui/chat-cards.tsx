@@ -66,17 +66,24 @@ export const ChatProductCard = memo(function ChatProductCard({
         />
       ) : null}
       <View className="gap-1 p-2.5">
-        <View className="flex-row items-center gap-1">
-          <Icon icon={Storefront} size={12} tone={outgoing ? "inverse" : "default"} />
-          <Text
-            variant="caption"
-            tone={outgoing ? "inverse" : "secondary"}
-            numberOfLines={1}
-            ellipsizeMode="tail"
-          >
-            @{card.sellerUsername}
-          </Text>
-        </View>
+        {/*
+          CHT-012: snapshot optimistis bisa belum tahu username penjual
+          (profil gagal dimuat) — baris "@" kosong disembunyikan daripada
+          tampil "@" menggantung.
+        */}
+        {card.sellerUsername ? (
+          <View className="flex-row items-center gap-1">
+            <Icon icon={Storefront} size={12} tone={outgoing ? "inverse" : "default"} />
+            <Text
+              variant="caption"
+              tone={outgoing ? "inverse" : "secondary"}
+              numberOfLines={1}
+              ellipsizeMode="tail"
+            >
+              @{card.sellerUsername}
+            </Text>
+          </View>
+        ) : null}
         <Text
           variant="body"
           weight={600}
@@ -86,7 +93,14 @@ export const ChatProductCard = memo(function ChatProductCard({
         >
           {card.title}
         </Text>
-        <Text variant="body" weight={700} tone="accent">
+        {/*
+          CHT-002: harga memakai tone accent TANPA mempertimbangkan outgoing —
+          accent.text = #000000 (light) / #FFFFFF (dark), SAMA dengan warna
+          bubble keluar (bg-primary) → hitam-di-atas-hitam / putih-di-atas-putih.
+          Di bubble sendiri pakai "inverse" (mode-aware: putih di light,
+          hitam di dark) seperti semua teks lain di kartu ini.
+        */}
+        <Text variant="body" weight={700} tone={outgoing ? "inverse" : "accent"}>
           {priceLabel(card)}
         </Text>
         <View className="mt-1 flex-row gap-2">
@@ -95,7 +109,10 @@ export const ChatProductCard = memo(function ChatProductCard({
             accessibilityRole="button"
             accessibilityLabel="Lihat etalase"
             className={`flex-1 flex-row items-center justify-center gap-1 rounded-sm py-2 ${
-              outgoing ? "bg-black/15" : "bg-surface"
+              // CHT-013: overlay harus terlihat di KEDUA mode — bubble keluar
+              // hitam (light) / putih (dark), jadi bg-black/15 saja hanya
+              // terlihat di dark. Putih-translusen di light, hitam di dark.
+              outgoing ? "bg-white/15 dark:bg-black/15" : "bg-surface"
             }`}
           >
             <Icon icon={ArrowSquareOut} size={14} tone={outgoing ? "inverse" : "active"} />
@@ -108,7 +125,13 @@ export const ChatProductCard = memo(function ChatProductCard({
               onPress={() => onBuy(card)}
               accessibilityRole="button"
               accessibilityLabel={`Beli ${card.title} via escrow`}
-              className="flex-1 items-center justify-center rounded-sm bg-primary py-2"
+              // CHT-013: bg-primary di atas bubble keluar (bg-primary) membuat
+              // bentuk tombol tak terlihat. Overlay translusen mode-aware
+              // (pola sama dengan tombol "Lihat"): putih/15 di light (bubble
+              // hitam), hitam/15 di dark (bubble putih).
+              className={`flex-1 items-center justify-center rounded-sm py-2 ${
+                outgoing ? "bg-white/15 dark:bg-black/15" : "bg-primary"
+              }`}
             >
               <Text variant="caption" weight={700} tone="inverse">
                 Beli
@@ -143,7 +166,9 @@ export const ChatOrderCard = memo(function ChatOrderCard({
     >
       <View className="flex-row items-center justify-between gap-2">
         <View className="flex-row items-center gap-1.5">
-          <Icon icon={Receipt} size={14} tone="accent" />
+          {/* CHT-002: sama seperti harga — accent tak terbaca di bubble
+              sendiri; pakai inverse saat outgoing. */}
+          <Icon icon={Receipt} size={14} tone={outgoing ? "inverse" : "accent"} />
           <Text variant="caption" weight={700} tone={outgoing ? "inverse" : "primary"}>
             {card.orderCode}
           </Text>
@@ -159,7 +184,8 @@ export const ChatOrderCard = memo(function ChatOrderCard({
       >
         {card.title}
       </Text>
-      <Text variant="body" weight={700} tone="accent">
+      {/* CHT-002: nominal — tone accent tak terbaca di bubble sendiri. */}
+      <Text variant="body" weight={700} tone={outgoing ? "inverse" : "accent"}>
         {Number.isFinite(value) ? formatRupiah(value) : card.orderValue}
       </Text>
       <Text variant="caption" weight={600} tone={outgoing ? "inverse" : "info"}>

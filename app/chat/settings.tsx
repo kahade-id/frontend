@@ -89,7 +89,9 @@ export default function ChatSettingsScreen() {
   }
 
   return (
-    <Screen edges={["top"]} padded={false}>
+    // CHT-006: daftar template (maks 50) harus bisa di-scroll, dan form
+    // "Template baru" di bawah tidak boleh tertutup keyboard.
+    <Screen edges={["top"]} padded={false} scroll keyboardAvoiding>
       <Header title="Pengaturan chat" />
       <View className="gap-5 px-5 pb-8 pt-3">
         <View className="gap-3">

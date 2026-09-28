@@ -51,6 +51,7 @@ import { Check, BellSlash, PushPin } from "phosphor-react-native"
 import { useWindowDimensions, View, type ViewProps } from "react-native"
 
 import { Avatar, type AvatarProps } from "@/components/ui/avatar"
+import { type SealTier } from "@/components/ui/verified-seal"
 import { Dot } from "@/components/ui/dot"
 import { Icon } from "@/components/ui/icon"
 import { PressableScale } from "@/components/ui/pressable-scale"
@@ -69,6 +70,13 @@ export type ChatRoomListItemProps = Omit<ViewProps, "children"> & {
   name: string
   avatar?: AvatarProps["source"]
   verified?: boolean
+  /**
+   * CHT-009: tier seal lawan bicara (dari GET /v1/chat/rooms →
+   * counterpart.sealTier) — badge avatar memakai warna tier, konsisten
+   * dengan header room & bubble. `verified` tetap didukung untuk pemanggil
+   * lama (fallback biru di Avatar).
+   */
+  sealTier?: SealTier | null
   online?: boolean
   lastMessage?: ChatRoomLastMessage
   /** Sudah diformat pemanggil: "14:32" / "Kemarin" / "12 Mar" */
@@ -124,6 +132,7 @@ export function ChatRoomListItem({
   name,
   avatar,
   verified = false,
+  sealTier = null,
   online = false,
   lastMessage,
   time,
@@ -182,7 +191,8 @@ export function ChatRoomListItem({
           source={avatar}
           name={name}
           size={compact ? "md" : "lg"}
-          verified={verified}
+          verified={verified || sealTier != null}
+          sealTier={sealTier ?? undefined}
           className={compact ? undefined : AVATAR_WIDE_CLASS}
         />
         {selecting ? (

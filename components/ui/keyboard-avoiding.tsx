@@ -40,7 +40,16 @@ export type KeyboardAvoidingProps = Omit<ViewProps, "children"> & {
   children?: ReactNode
   /** keyboardVerticalOffset — tinggi header/safe-area di atas area ini */
   offset?: number
-  /** Paksa behavior (default: ios "padding", android "height") */
+  /**
+   * Paksa behavior (default: ios "padding", android undefined).
+   *
+   * CHT-005: Android SENGAJA undefined — `windowSoftInputMode=adjustResize`
+   * (default Expo, tidak dioverride di app.json) sudah me-resize root saat
+   * keyboard terbuka; menambah "height"/"padding" di atasnya membuat konten
+   * melompat dua kali (terverifikasi di implementasi KeyboardAvoidingView RN:
+   * behavior "height" menghitung offset relatif terhadap frame yang SUDAH
+   * di-resize). Jangan ubah ke "height" tanpa pengujian di device Android.
+   */
   behavior?: "padding" | "height" | "position"
   className?: string
 }
@@ -91,7 +100,9 @@ export function KeyboardAvoiding({
 
   return (
     <KeyboardAvoidingView
-      behavior={behavior ?? (Platform.OS === "ios" ? "padding" : "height")}
+      // CHT-005: Android = undefined (docblock di atas) — adjustResize sudah
+      // me-resize root; "height" justru menggandakan pergeseran.
+      behavior={behavior ?? (Platform.OS === "ios" ? "padding" : undefined)}
       keyboardVerticalOffset={offset}
       className={cn("flex-1", className)}
       {...rest}
