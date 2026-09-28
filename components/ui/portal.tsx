@@ -147,6 +147,28 @@ function usePortalState(): PortalState {
 }
 
 /**
+ * WEB-012: kunci scroll <body> di web selama ada overlay pemblokir yang
+ * terbuka. Overlay dirender via Portal `absolute inset-0` di dalam tree app —
+ * tanpa ini, scroll mouse-wheel di atas backdrop ikut menggerakkan halaman
+ * di belakang sheet/modal. Ref-count: beberapa overlay pemblokir bisa
+ * bertumpuk (mis. Modal di atas BottomSheet); scroll kembali hanya saat
+ * semuanya tertutup. Di native no-op (tidak ada `document`).
+ */
+let bodyScrollLockCount = 0
+
+function lockBodyScroll(): void {
+  if (typeof document === "undefined") return
+  bodyScrollLockCount += 1
+  if (bodyScrollLockCount === 1) document.body.style.overflow = "hidden"
+}
+
+function unlockBodyScroll(): void {
+  if (typeof document === "undefined") return
+  bodyScrollLockCount = Math.max(0, bodyScrollLockCount - 1)
+  if (bodyScrollLockCount === 0) document.body.style.overflow = ""
+}
+
+/**
  * Daftarkan overlay sebagai PEMBLOKIR selama `active` (Modal, BottomSheet,
  * SearchOverlay, LoadingOverlay). Popover/tooltip/banner/toast non-blocking
  * TIDAK memanggil ini — konten latar tetap bisa dijangkau.
@@ -160,7 +182,12 @@ export function useBlockingOverlay(active: boolean): void {
   const { registerBlocking } = usePortalApi()
   useEffect(() => {
     if (!active) return
-    return registerBlocking()
+    const unregister = registerBlocking()
+    lockBodyScroll()
+    return () => {
+      unlockBodyScroll()
+      unregister()
+    }
   }, [active, registerBlocking])
 }
 

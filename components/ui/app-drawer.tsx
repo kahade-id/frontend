@@ -32,7 +32,7 @@
  * Reduced motion: buka/tutup instan tanpa spring maupun efek dorong.
  */
 import { useCallback, useEffect, useRef, useState } from "react"
-import { Dimensions, Pressable, ScrollView, TextInput, View } from "react-native"
+import { Pressable, ScrollView, TextInput, View, useWindowDimensions } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useRouter, type Href } from "expo-router"
 import { Gesture, GestureDetector } from "react-native-gesture-handler"
@@ -89,11 +89,20 @@ import {
   type DrawerMenuMeta,
 } from "@/lib/drawer-menu"
 
-/** Lebar panel: 85% layar, maksimal 340dp. */
-export const DRAWER_WIDTH = Math.min(
-  340,
-  Math.round(Dimensions.get("window").width * 0.85),
-)
+/**
+ * Lebar panel: 85% layar, maksimal 340dp.
+ *
+ * Hook (bukan konstanta module-level): `Dimensions.get("window")` hanya
+ * dibaca SEKALI saat modul dimuat, sehingga resize/rotate jendela di web
+ * tidak pernah memperbarui lebar drawer (audit web WEB-013).
+ * `useWindowDimensions()` me-render ulang saat dimensi berubah — drawer
+ * mengikuti ukuran jendela. Di native (hampir) tidak pernah resize, jadi
+ * perilaku di sana identik dengan sebelumnya.
+ */
+function useDrawerWidth(): number {
+  const { width } = useWindowDimensions()
+  return Math.min(340, Math.round(width * 0.85))
+}
 
 type DrawerMenuItem = DrawerMenuMeta & {
   icon: IconComponent
@@ -255,11 +264,20 @@ function DrawerUtilityBar() {
         {searchOpen ? (
           <Reanimated.View
             entering={reducedMotion ? undefined : FadeIn.duration(160)}
-            // backgroundColor INLINE dari token (bukan className="bg-..."):
-            // className di Reanimated.View tidak ter-compile ke background di
-            // web (bug 2026-09-27).
-            style={{ backgroundColor: barBg }}
-            className="h-12 flex-1 flex-row items-center gap-1 rounded-full pl-4 pr-1"
+            // Seluruh visual INLINE dari token (bukan className): className di
+            // Reanimated.View diabaikan TOTAL di web — bukan cuma bg-*
+            // (audit web WEB-010; bug 2026-09-27 hanya gejala pertamanya).
+            style={{
+              backgroundColor: barBg,
+              height: tokens.space[12],
+              flex: 1,
+              flexDirection: "row",
+              alignItems: "center",
+              gap: tokens.space[1],
+              borderRadius: tokens.radius.full,
+              paddingLeft: tokens.space[4],
+              paddingRight: tokens.space[1],
+            }}
           >
             <Icon icon={MagnifyingGlass} size="md" tone="inverse" weight="bold" />
             <TextInput
@@ -323,6 +341,8 @@ export function AppDrawer() {
   const open = useDrawerOpen()
   const { token } = useAuthSession()
   const reducedMotion = useReducedMotion()
+  // WEB-013: lebar responsif — mengikuti resize jendela web.
+  const drawerWidth = useDrawerWidth()
   // Status langganan untuk badge kartu Kahade Plus (satu-satunya sumber
   // status langganan di UI; aman untuk tamu — tidak menembak endpoint).
   const { isActive: isPlusActive } = useKahadePlus()
@@ -422,7 +442,7 @@ export function AppDrawer() {
   )
 
   const panelStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: (drawerProgress.value - 1) * DRAWER_WIDTH }],
+    transform: [{ translateX: (drawerProgress.value - 1) * drawerWidth }],
   }))
   const backdropStyle = useAnimatedStyle(() => ({
     opacity: drawerProgress.value * 0.5,
@@ -433,12 +453,12 @@ export function AppDrawer() {
     .activeOffsetX([-12, 12])
     .onUpdate((event) => {
       "worklet"
-      drawerProgress.value = Math.min(1, Math.max(0, 1 + event.translationX / DRAWER_WIDTH))
+      drawerProgress.value = Math.min(1, Math.max(0, 1 + event.translationX / drawerWidth))
     })
     .onEnd((event) => {
       "worklet"
       const shouldClose =
-        event.translationX < -DRAWER_WIDTH * 0.3 || event.velocityX < -500
+        event.translationX < -drawerWidth * 0.3 || event.velocityX < -500
       if (shouldClose) {
         runOnJS(closeDrawer)()
       } else {
@@ -478,7 +498,7 @@ export function AppDrawer() {
               top: 0,
               bottom: 0,
               left: 0,
-              width: DRAWER_WIDTH,
+              width: drawerWidth,
               backgroundColor: modes[themeMode].background,
               borderTopRightRadius: 20,
               borderBottomRightRadius: 20,

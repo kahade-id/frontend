@@ -351,12 +351,21 @@ function ToastItem({ toast, position = "top", onDismiss }: ToastItemProps) {
         {
           opacity,
           transform: [{ translateY }, { scale }],
-          // ATURAN KERAS: Animated.View tidak boleh className bg-* (tidak
-          // ter-compile jadi background di web) → backgroundColor inline.
+          // ATURAN KERAS: className di Animated.View diabaikan TOTAL di web
+          // (bukan cuma bg-*) — interop NativeWind hanya untuk komponen dasar,
+          // RNW tidak meneruskan className ke DOM. Seluruh visual inline.
           backgroundColor: modes[mode].surfaceElevated,
+          width: "100%",
+          flexDirection: "row",
+          alignItems: "flex-start",
+          gap: tokens.space[3],
+          borderRadius: tokens.radius.md,
+          borderWidth: tokens.borderWidth.default,
+          borderColor: modes[mode].borderDefault,
+          paddingHorizontal: tokens.space[4],
+          paddingVertical: tokens.space[3],
         },
       ]}
-      className="w-full flex-row items-start gap-3 rounded-md border border-border px-4 py-3"
     >
       {IconCmp ? (
         <View className="pt-[2px]">

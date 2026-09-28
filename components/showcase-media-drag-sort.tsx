@@ -11,8 +11,9 @@
  * berukuran tetap — posisi slot dihitung deterministik dari indeks, tanpa
  * measure per-sel.
  *
- * Aturan: jangan pakai `className="bg-..."` pada Animated.View di sini
- * (tidak ter-compile di web) — highlight hanya via border.
+ * Aturan: JANGAN pakai `className` pada Animated.View di sini — diabaikan
+ * TOTAL di web (bukan cuma bg-*). `cellClassName` dirender pada child <View>
+ * biasa; highlight hanya via border.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
@@ -56,7 +57,15 @@ export type DragSortListProps<T> = {
   onReorder: (from: number, to: number) => void
   /** Konten dalam sel (mengisi penuh wrapper). */
   renderItem: (item: T, index: number, state: DragSortRenderState) => ReactNode
-  /** Class layout untuk wrapper sel (tanpa bg-*). */
+  /**
+   * Class layout untuk wrapper sel (tanpa bg-*).
+   *
+   * WEB-014: class ini TIDAK lagi dipasang pada `<Animated.View>` — className
+   * di Animated.View diabaikan TOTAL di web (bukan cuma bg-*), sehingga sel
+   * kehilangan layout (flex-row, border, dsb). Class dirender pada child
+   * `<View>` biasa yang mengisi penuh container animasi; gesture, dimensi,
+   * zIndex, dan transform tetap pada Animated container.
+   */
   cellClassName?: string
   /** Style dimensi wrapper sel (width/height tetap). */
   cellStyle?: StyleProp<ViewStyle>
@@ -325,12 +334,24 @@ function SortableCell({
   return (
     <GestureDetector gesture={pan}>
       <Animated.View
-        className={cn(cellClassName)}
         style={[cellStyle, dragStyle]}
-        // ATURAN KERAS: jangan pakai className="bg-..." di Animated.View.
+        // WEB-014: JANGAN pasang className di sini — diabaikan total di web.
+        // Class sel (cellClassName) dirender pada child <View> biasa di bawah
+        // supaya interop NativeWind tetap jalan; cellStyle/dragStyle
+        // (dimensi, gesture transform, zIndex) tetap di container animasi.
       >
-        {children}
+        {cellClassName ? (
+          <View className={cn(cellClassName)} style={dragSortCellInner}>
+            {children}
+          </View>
+        ) : (
+          children
+        )}
       </Animated.View>
     </GestureDetector>
   )
 }
+
+// Inner wrapper untuk cellClassName — mengisi penuh container animasi
+// sehingga layout sel (flex-row, border, dsb) identik seperti sebelumnya.
+const dragSortCellInner: ViewStyle = { flex: 1 }

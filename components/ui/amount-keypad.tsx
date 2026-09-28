@@ -404,8 +404,14 @@ export function AmountKeypad({
               ? translate("Nominal {x}", { x: formatRupiah(value) })
               : translate("Nominal belum diisi")
           }
-          style={{ transform: [{ scale }] }}
-          className="flex-row items-end justify-center"
+          // flex-row/items-end/justify-center inline: className di
+          // Animated.View diabaikan total di web (audit web WEB-010).
+          style={{
+            transform: [{ scale }],
+            flexDirection: "row",
+            alignItems: "flex-end",
+            justifyContent: "center",
+          }}
         >
           <Text
             variant="monoBody"

@@ -57,6 +57,9 @@ export type VoiceNoteRecorderProps = {
 
 const TICK_MS = 250
 
+/** Diameter dot indikator rekaman (h-3.5/w-3.5) — tidak ada di skala space. */
+const RECORDING_DOT_SIZE = 14
+
 export function VoiceNoteRecorder({
   visible,
   onRequestClose,
@@ -384,8 +387,14 @@ export function VoiceNoteRecorder({
         {state === "recording" ? (
           <View className="flex-row items-center gap-3">
             <Animated.View
-              className="h-3.5 w-3.5 rounded-full"
+              // h-3.5/w-3.5/rounded-full inline: className di Animated.View
+              // diabaikan total di web (audit web WEB-010). 14px tidak ada di
+              // skala tokens.space — konstanta bernama, bukan magic number
+              // (audit #10); radius.full = lingkaran penuh.
               style={{
+                width: RECORDING_DOT_SIZE,
+                height: RECORDING_DOT_SIZE,
+                borderRadius: tokens.radius.full,
                 backgroundColor: dangerFill,
                 opacity: pulse,
                 transform: [{ scale: pulse }],
