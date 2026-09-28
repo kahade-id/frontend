@@ -160,8 +160,15 @@
     //  └──────────────────────────────────────────────────────────────────┘
     // ────────────────────────────────────────────────────────────────────
     "production": {
+      // Distribusi langsung (APK) — BUKAN via Play Store (belum ada akun).
+      // EAS generate keystore sendiri (credentialsSource remote).
+      "distribution": "internal",
       "channel": "production",
-      "autoIncrement": true
+      "autoIncrement": true,
+      "credentialsSource": "remote",
+      "android": {
+        "buildType": "apk"
+      }
     }
   },
 
