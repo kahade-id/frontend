@@ -46,7 +46,7 @@ import { useAuthSession } from "@/lib/use-auth-session"
 import { RealtimeProvider } from "@/lib/realtime/socket-provider"
 import { PendingActionsBanner } from "@/components/pending-actions-banner"
 import { MaintenanceGate } from "@/components/maintenance-screen"
-import { AUTHENTICATED_SCREENS, isProtectedPath } from "@/lib/protected-routes"
+import { AUTHENTICATED_SCREENS, isNativeGuardedPath, isProtectedPath } from "@/lib/protected-routes"
 import { GuestLoginPrompt } from "@/components/web-guest-gate"
 import { compareVersions, safeHttpsUrl } from "@/lib/version"
 import { useReducedMotion } from "@/lib/use-reduced-motion"
@@ -66,6 +66,7 @@ import {
   orderIdFromPushData,
 } from "@/lib/order-confirm"
 import { userMessage } from "@/lib/api/errors"
+import { setPendingNext } from "@/lib/login-redirect"
 import { initConnectivity } from "@/lib/connectivity"
 import {
   initOfflineQueue,
@@ -271,6 +272,25 @@ function AppShellInner() {
     })
   }, [router])
 
+  // NAV-007 (2026-09-28): deep link native ke rute proteksi saat logout
+  // (mis. kahade.id/order/xxx dari share WA → dibuka aplikasi via universal
+  // link) mendarat di layar KOSONG — `Stack.Protected` mencabut layarnya dari
+  // navigator tanpa fallback. Alihkan ke /login dengan tujuan tersimpan
+  // (`next` + setPendingNext) supaya alur login/welcome melanjutkannya.
+  // Web dikecualikan: guard web selalu true + GuestLoginPrompt menangani tamu.
+  const redirectedDeepLink = useRef(false)
+  useEffect(() => {
+    if (Platform.OS === "web") return
+    if (redirectedDeepLink.current) return
+    if (session.restoring || session.error || session.token) return
+    if (!isNativeGuardedPath(pathname)) return
+    redirectedDeepLink.current = true
+    setPendingNext(pathname)
+    // Literal "/login" (= ROUTES.login): bentuk objek `as const` butuh
+    // pathname literal agar lolos tipe Href expo-router.
+    router.replace({ pathname: "/login", params: { next: pathname } } as const)
+  }, [router, session.restoring, session.error, session.token, pathname])
+
   // Handler foreground + Android channel notification dipasang sekali di
   // boot (idempoten) — channel wajib ada sebelum notifikasi tampil di
   // Android 26+. Pendaftaran token ke backend tetap di Welcome/logout flow.
@@ -388,6 +408,17 @@ function AppShellInner() {
       // karena niat penggunanya jelas (mereka mengetuk notifikasinya).
       if (source === "cold-start" && !resolved) return
       const target = resolved ?? ROUTES.notifications
+      // NAV-007: tap notifikasi saat logout — simpan tujuan supaya alur
+      // login/welcome melanjutkannya (takePendingNext), bukan hilang.
+      if (!session.token) {
+        const targetPath =
+          typeof target === "string"
+            ? target
+            : typeof target?.pathname === "string"
+              ? target.pathname
+              : null
+        setPendingNext(targetPath)
+      }
       router.push(session.token ? target : ROUTES.login)
       if (session.token) {
         // CN-012: tap push = notifikasi dibaca. Backend menyertakan

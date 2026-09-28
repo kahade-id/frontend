@@ -53,8 +53,9 @@ const PUBLIC_SCREENS = new Set<string>([
   "faq",
   "feedback",
   "help/[slug]",
-  "live-support",
+  "landing", // NAV-010: landing page web publik (gate tamu di app/index.tsx); native redirect ke "/"
   "login-required",
+  "more", // NAV-010: redirect /more → /showcase (redesign 2026-09-27); publik seperti tujuannya
   "privacy-policy",
   "terms",
   "verify-email", // alur auth email

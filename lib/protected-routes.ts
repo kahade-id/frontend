@@ -32,6 +32,7 @@ export const AUTHENTICATED_SCREENS = [
   "change-pin",
   "chat/[roomId]",
   "chat",
+  "chat/settings", // NAV-004 (2026-09-28): GET /v1/chat/privacy auth-required — deep link native tanpa sesi = 401
   "contact",
   "create-transaction",
   "delete-account",
@@ -46,6 +47,7 @@ export const AUTHENTICATED_SCREENS = [
   "invoice/[orderId]",
   "kyc",
   "language",
+  "live-support", // NAV-005 (2026-09-28): listSupportTickets auth-required — tamu web/native tidak boleh menembak endpoint
   "milestones/[id]", // detail milestone escrow — GET ber-auth (Tim C, integrasi 2026-09-27)
   "notification/[id]",
   "notification-preferences",
@@ -101,6 +103,7 @@ export const AUTHENTICATED_SCREENS = [
   // ("user/[username]/showcase" kini publik; profil induknya tetap protected).
   "user/[username]",
   "vouchers",
+  "wallet", // NAV-006 (2026-09-28): satu kebijakan dengan 90+ layar lain — web tetap self-gate (lihat allowlist di bawah)
   "wallet-history",
   "wallet-transaction/[txId]",
   "welcome",
@@ -149,7 +152,11 @@ export const WEB_GUEST_ALLOWED_PATHS: readonly string[] = [
   "/help",
   "/about",
   "/feedback",
-  "/live-support",
+  // NAV-006: "/wallet" tetap boleh di-mount tamu web — wallet.tsx self-gate
+  // (GuestLoginPrompt bare, query digate hasSession), jadi overlay ganda
+  // dari isProtectedPath justru merusak. Entri registri di atas menutup
+  // celah native (deep link tanpa sesi).
+  "/wallet",
   "/terms",
   "/privacy-policy",
   // R2 (audit ronde-2, butir #69): preview order-link publik (auth:"none")
@@ -221,4 +228,32 @@ export function isProtectedPath(pathname: string): boolean {
   if (tabMatch && PROTECTED_TABS.has(tabMatch[1])) return true
 
   return PROTECTED_PATTERNS.some((re) => re.test(path))
+}
+
+// Pola guard NATIVE: seluruh AUTHENTICATED_SCREENS termasuk
+// "(auth)/setup-profile" (versi web mengecualikannya dari PROTECTED_PATTERNS
+// karena sudah ada di allowlist tamu). "(tabs)" ditangani terpisah lewat
+// TAB_ROUTE_NAMES di bawah — grup tab ikut dicabut guard saat tidak ada sesi.
+const NATIVE_GUARDED_PATTERNS = AUTHENTICATED_SCREENS.filter(
+  (name) => name !== "(tabs)",
+).map(routeToRegExp)
+
+/**
+ * NAV-007 (2026-09-28): true bila `pathname` disembunyikan guard sesi native
+ * (`Stack.Protected` dengan guard=false mencabut layarnya dari navigator).
+ *
+ * Beda dengan `isProtectedPath` (semantik tamu WEB): grup "(tabs)" ikut
+ * dicabut di native, jadi deep link dingin ke tab mana pun saat logout juga
+ * mendarat di layar kosong — bukan cuma layar stack. Dipakai root layout
+ * untuk mengalihkan ke /login dengan `next` alih-alih layar putih.
+ */
+export function isNativeGuardedPath(pathname: string): boolean {
+  const path = pathname.split("?")[0]
+  const tabMatch = path.match(/^\/([^/?#]+)\/?$/)
+  if (
+    tabMatch &&
+    (TAB_ROUTE_NAMES as readonly string[]).includes(tabMatch[1])
+  )
+    return true
+  return NATIVE_GUARDED_PATTERNS.some((re) => re.test(path))
 }
