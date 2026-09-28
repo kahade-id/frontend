@@ -540,17 +540,6 @@ function NotificationsScreen() {
         setConfirm("delete-read")
       },
     },
-    // Item 41: jalan pintas ke pengaturan notifikasi (dulu menu ⋮ hanya
-    // punya pilih/hapus — pengguna tidak bisa menemukan pengaturan).
-    {
-      key: "settings",
-      label: "Pengaturan notifikasi",
-      icon: GearSix,
-      onPress: () => {
-        setMenuOpen(false)
-        router.push(ROUTES.notificationSettings)
-      },
-    },
   ]
 
   return (
