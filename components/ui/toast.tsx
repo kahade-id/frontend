@@ -40,7 +40,7 @@ import { useTheme } from "@/components/theme-provider"
 import { cn } from "@/lib/cn"
 import { elevationStyle } from "@/lib/elevation"
 import { focusRing } from "@/lib/focus-ring"
-import { tokens } from "@/lib/tokens"
+import { modes, tokens } from "@/lib/tokens"
 import { motionDuration, useReducedMotion } from "@/lib/use-reduced-motion"
 import { Icon, type IconComponent, type IconTone } from "./icon"
 import { IconButton } from "./icon-button"
@@ -346,8 +346,17 @@ function ToastItem({ toast, position = "top", onDismiss }: ToastItemProps) {
     <Animated.View
       accessibilityRole="alert"
       accessibilityLiveRegion="polite"
-      style={[elevationStyle("medium", mode), { opacity, transform: [{ translateY }, { scale }] }]}
-      className="w-full flex-row items-start gap-3 rounded-md border border-border bg-surface-elevated px-4 py-3"
+      style={[
+        elevationStyle("medium", mode),
+        {
+          opacity,
+          transform: [{ translateY }, { scale }],
+          // ATURAN KERAS: Animated.View tidak boleh className bg-* (tidak
+          // ter-compile jadi background di web) → backgroundColor inline.
+          backgroundColor: modes[mode].surfaceElevated,
+        },
+      ]}
+      className="w-full flex-row items-start gap-3 rounded-md border border-border px-4 py-3"
     >
       {IconCmp ? (
         <View className="pt-[2px]">
