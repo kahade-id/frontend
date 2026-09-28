@@ -19,7 +19,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Platform, ScrollView, View, type ViewStyle } from "react-native"
 import { router } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { useIsFocused } from "@react-navigation/native"
 import { Lifebuoy, Star } from "phosphor-react-native"
 
 import { api, userMessage } from "@/lib/api"
@@ -29,6 +28,7 @@ import { formatTime } from "@/lib/format"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 import { useApiQuery } from "@/lib/use-api-query"
+import { usePolling } from "@/lib/use-polling"
 import { useHasSession } from "@/lib/guest-gate"
 import { translate } from "@/lib/i18n"
 import { onReconnect } from "@/lib/connectivity"
@@ -124,7 +124,6 @@ function autoGreeting(): ChatItem {
 
 export default function LiveSupportScreen() {
   const insets = useSafeAreaInsets()
-  const isFocused = useIsFocused()
   const toast = useToast()
   /**
    * NAV-005: endpoint tiket (GET /v1/support/tickets) semuanya auth-required.
@@ -176,14 +175,19 @@ export default function LiveSupportScreen() {
   const isClosedLike =
     ticket != null && (ticket.status === "CLOSED" || ticket.status === "RESOLVED")
 
-  useEffect(() => {
-    if (!isFocused || !ticketId || isClosedLike) return
-    const t = setInterval(() => {
-      void ticketQuery.refresh()
-    }, POLL_INTERVAL_MS)
-    return () => clearInterval(t)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isFocused, ticketId, isClosedLike])
+  /**
+   * NS-001 (audit performa): polling tiket via `usePolling`, bukan
+   * `setInterval` mentah — berhenti saat app pindah ke background / layar
+   * blur (dulu request 10-detik jalan terus di background) + anti-overlap
+   * (dulu respons >10 dtk menumpuk request).
+   */
+  usePolling(
+    async () => {
+      await ticketQuery.refresh()
+    },
+    POLL_INTERVAL_MS,
+    Boolean(ticketId && !isClosedLike),
+  )
 
   // ---- Pesan gabungan: sapaan otomatis + pesan tiket + pesan optimistis ----
   const items: ChatItem[] = useMemo(() => {
