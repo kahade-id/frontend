@@ -31,6 +31,7 @@ import { formatRupiah } from "@/lib/format"
 import { KAHADE_PLUS_BENEFITS } from "@/lib/kahade-plus-benefits"
 import { ROUTES } from "@/lib/routes"
 import { useApiQuery } from "@/lib/use-api-query"
+import { usePolling } from "@/lib/use-polling"
 import { useKahadePlus, invalidateKahadePlus } from "@/lib/use-kahade-plus"
 import { useResultTimer } from "@/lib/use-result-timer"
 import { isQrisExpired } from "@/lib/wallet-ui"
@@ -326,29 +327,52 @@ function QrisPaymentSheet({
   // tanpa tick, teks "kedaluwarsa" tak pernah muncul tepat waktu dan polling
   // jalan terus. Kini state + <Countdown> yang memicu render saat tenggat lewat.
   const [expired, setExpired] = useState(() => isQrisExpired(qris.expiredAt))
+  /**
+   * NS-002 (audit performa): backstop jumlah poll — pola `MAX_POLLS` dari
+   * `lib/use-qris-payment.ts`. `expired` (countdown QR) menghentikan polling
+   * lebih dulu pada kasus normal; ini jaring pengaman bila countdown tidak
+   * pernah selesai (mis. jam perangkat kacau). 360 × 5 dtk = 30 menit.
+   */
+  const pollCount = useRef(0)
+  const QRIS_SHEET_MAX_POLLS = 360
+  // true setelah backstop tercapai → `enabled` usePolling mati total
+  // (bukan sekadar tick no-op tiap 5 detik).
+  const [pollCapped, setPollCapped] = useState(false)
 
-  useEffect(() => {
-    if (expired) return
-    let cancelled = false
-    const poll = async () => {
-      try {
-        const res = await getQrisPaymentStatus(qris.subscriptionId)
-        if (cancelled) return
-        setStatus(res.status)
-        if (res.status === "ACTIVE") {
-          onSuccess()
-        }
-      } catch {
-        // abaikan error polling sesaat
+  const pollQrisStatus = useCallback(async () => {
+    try {
+      const res = await getQrisPaymentStatus(qris.subscriptionId)
+      setStatus(res.status)
+      if (res.status === "ACTIVE") {
+        onSuccess()
       }
+    } catch {
+      // abaikan error polling sesaat
     }
-    const timer = setInterval(poll, 5000)
-    void poll()
-    return () => {
-      cancelled = true
-      clearInterval(timer)
-    }
-  }, [qris.subscriptionId, expired, onSuccess])
+  }, [qris.subscriptionId, onSuccess])
+
+  // Poll pertama langsung (perilaku lama), tick berikutnya via usePolling.
+  useEffect(() => {
+    if (!expired) void pollQrisStatus()
+  }, [expired, pollQrisStatus])
+
+  /**
+   * NS-002 (audit performa): `setInterval` mentah → `usePolling` — berhenti
+   * saat app pindah ke background / sheet tidak fokus (dulu polling 5-detik
+   * jalan terus, mis. user mengunci HP dengan sheet terbuka) + anti-overlap.
+   */
+  usePolling(
+    async () => {
+      if (pollCount.current >= QRIS_SHEET_MAX_POLLS) {
+        setPollCapped(true)
+        return
+      }
+      pollCount.current += 1
+      await pollQrisStatus()
+    },
+    5000,
+    !expired && !pollCapped,
+  )
 
   return (
     <BottomSheet visible onRequestClose={onClose} title="Bayar dengan QRIS">
