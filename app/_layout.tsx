@@ -106,6 +106,31 @@ SplashScreen.setOptions({
 })
 
 /**
+ * ST-009 (PERF-FIX 2026-09-29): jalankan callback SETELAH first paint.
+ * Init berat (pembuatan channel notifikasi Android, restore + replay antrean
+ * offline) tidak dibutuhkan sebelum frame pertama ter-commit — menundanya
+ * satu frame mencegah init mencuri waktu render pertama. requestAnimationFrame
+ * di native terpicu setelah frame ter-render; fallback setTimeout untuk
+ * web/edge-case. Kembalikan fungsi pembatal.
+ */
+function afterFirstPaint(cb: () => void): () => void {
+  let raf = 0
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const run = () => {
+    timer = setTimeout(cb, 0)
+  }
+  if (typeof requestAnimationFrame === "function") {
+    raf = requestAnimationFrame(run)
+  } else {
+    run()
+  }
+  return () => {
+    if (raf) cancelAnimationFrame(raf)
+    if (timer !== undefined) clearTimeout(timer)
+  }
+}
+
+/**
  * NAV-007: ubah Href (string ATAU objek expo-router) menjadi path konkret
  * untuk `pendingNext`. Template segmen dinamis ("/order/[id]") disubstitusi
  * dari `params`; bila ada segmen yang tak terisi → null (login redirect
@@ -347,13 +372,18 @@ function AppShellInner() {
     router.replace({ pathname: "/login", params: { next: pathname } } as const)
   }, [router, session.restoring, session.error, session.token, pathname])
 
-  // Handler foreground + Android channel notification dipasang sekali di
-  // boot (idempoten) — channel wajib ada sebelum notifikasi tampil di
-  // Android 26+. Pendaftaran token ke backend tetap di Welcome/logout flow.
+  // ST-009: handler foreground + Android channel dipasang setelah first
+  // paint (idempoten) — channel wajib ada sebelum notifikasi tampil di
+  // Android 26+, tetapi tidak dibutuhkan untuk me-render frame pertama.
+  // Cold-start tap TIDAK ditunda: subscribeNotificationOpened (di bawah)
+  // tetap langsung, agar tap notifikasi yang meluncurkan app tidak terlewat.
   useEffect(() => {
-    void setupNotifications().catch((err) => {
-      if (__DEV__) console.warn("[kahade/push] setupNotification gagal:", err)
+    const cancel = afterFirstPaint(() => {
+      void setupNotifications().catch((err) => {
+        if (__DEV__) console.warn("[kahade/push] setupNotification gagal:", err)
+      })
     })
+    return cancel
   }, [])
 
   // Item #27 — konektivitas & antrean offline, sekali per proses:
@@ -362,8 +392,14 @@ function AppShellInner() {
   //   - `initOfflineQueue()`: pulihkan sisa antrean + eksekusi saat reconnect.
   //   - Feedback toast untuk kedua arah antrean (masuk & terkirim).
   useEffect(() => {
+    // Konektivitas tetap segera (murah: satu langganan NetInfo; dibutuhkan
+    // gerbang fail-closed transport sejak awal).
     initConnectivity()
-    initOfflineQueue()
+    // ST-009: restore antrean offline (baca storage + replay) ditunda
+    // setelah first paint — tidak dibutuhkan untuk me-render layar pertama.
+    const cancelDeferred = afterFirstPaint(() => {
+      initOfflineQueue()
+    })
     const show = toast.show
     const offQueued = onSocialActionQueued((label) => {
       show({
@@ -386,6 +422,7 @@ function AppShellInner() {
       })
     })
     return () => {
+      cancelDeferred()
       offQueued()
       offDrained()
     }

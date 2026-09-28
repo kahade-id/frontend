@@ -84,7 +84,12 @@
       "output": "static"
     },
     "plugins": [
-      "expo-router",
+      [
+        "expo-router",
+        {
+          "asyncRoutes": { "web": "production", "default": false }
+        }
+      ],
       "expo-font",
       "./plugins/withAppShortcuts",
       [
