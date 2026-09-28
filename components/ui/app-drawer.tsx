@@ -84,6 +84,7 @@ import { useAuthSession } from "@/lib/use-auth-session"
 import { useKahadePlus } from "@/lib/use-kahade-plus"
 import { useReducedMotion } from "@/lib/use-reduced-motion"
 import { useTheme } from "@/components/theme-provider"
+import { hitSlopToReach } from "@/lib/hit-slop"
 import {
   BOTTOM_MENU_META,
   MAIN_MENU_META,
@@ -618,7 +619,6 @@ export function AppDrawer() {
                   ) : null}
                 </View>
               </PressableScale>
-import { hitSlopToReach } from "@/lib/hit-slop"
             </View>
 
             {/* Menu utama. */}

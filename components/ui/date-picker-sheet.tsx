@@ -28,6 +28,7 @@ import { cn } from "@/lib/cn"
 import { dayName, formatDateLong, monthName } from "@/lib/format"
 import { translate } from "@/lib/i18n/translate"
 import { useLanguage } from "@/lib/i18n"
+import { hitSlopToReach } from "@/lib/hit-slop"
 
 export const DATE_PICKER_MIN_DAYS_AHEAD = 1
 export const DATE_PICKER_MAX_DAYS_AHEAD = 14
@@ -157,7 +158,6 @@ function DayCell({
           {date.getDate()}
         </Text>
       </PressableScale>
-import { hitSlopToReach } from "@/lib/hit-slop"
     </View>
   )
 }

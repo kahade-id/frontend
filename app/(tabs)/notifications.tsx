@@ -81,6 +81,7 @@ import {
 import { checkNotificationTarget } from "@/lib/notification-target"
 import { refreshUnreadCount } from "@/lib/unread-count"
 import { logWarn } from "@/lib/telemetry"
+import { hitSlopToReach } from "@/lib/hit-slop"
 
 import { ActionSheet, type ActionSheetItem } from "@/components/ui/action-sheet"
 import { Dialog } from "@/components/ui/modal"
@@ -202,7 +203,6 @@ function MarkAllReadButton({
         {translate("Tandai semua dibaca")}
       </Text>
     </PressableScale>
-import { hitSlopToReach } from "@/lib/hit-slop"
   )
 }
 
