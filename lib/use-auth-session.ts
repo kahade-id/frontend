@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, useSyncExternalStore } from "react"
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react"
 import { getSessionSnapshot, subscribeSession } from "@/lib/api/session"
 import { planSessionRestore, verifySessionInBackground } from "@/lib/auth-restore"
 import { userMessage } from "@/lib/api/errors"
@@ -57,5 +57,14 @@ export function useAuthSession() {
     }
   }, [attempt])
   const retry = useCallback(() => setAttempt((n) => n + 1), [])
-  return { token, restoring, verifying, error, retry }
+  /**
+   * NS-005 (audit performa): kembalikan objek STABIL — literal baru tiap
+   * render membuat konsumen yang memakai `session` utuh sebagai dep effect
+   * jalan ulang di setiap render induk, bukan tiap perubahan sesi.
+   * (Digabung dengan ST-002: `verifying` ikut dalam objek stabil.)
+   */
+  return useMemo(
+    () => ({ token, restoring, verifying, error, retry }),
+    [token, restoring, verifying, error, retry],
+  )
 }

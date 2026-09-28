@@ -334,6 +334,48 @@ function parseVideoUploadResponse(bodyText: string): DirectVideoUpload {
  * VIDEO_UNPROCESSABLE, UPLOAD_FAILED) dipetakan ke pesan Indonesia yang
  * bisa ditindaklanjuti (lihat VIDEO_UPLOAD_ERROR_COPY).
  */
+/**
+ * NP-006 (audit performa): upload besar single-attempt — putus di tengah =
+ * ulang dari NOL. Resume/chunked sejati butuh protokol backend baru
+ * (DEFERRED — lihat laporan: endpoint `POST /v1/upload/chunk` dkk. belum
+ * ada). Sementara itu, retry CERDAS sisi klien:
+ * - hanya error TRANSIEN (NETWORK/TIMEOUT/SERVER 5xx) yang diulang;
+ * - 4xx validasi (FILE_TOO_LARGE, MIME_TYPE_MISMATCH, ...) TIDAK di-retry
+ *   (mengulang tidak akan sukses); ABORTED (user batal) tidak di-retry;
+ * - backoff eksponensial 1s → 2s, maks 2x ulang (3 percobaan total).
+ *
+ * Jujur soal batasnya: ini tetap upload ulang PENUH dari byte 0 — menolong
+ * putus-awal/gangguan sesaat, bukan putus di 95%. Progress dilaporkan ulang
+ * dari 0 di tiap percobaan (pemanggil menampilkan "mencoba lagi").
+ */
+const MAX_VIDEO_UPLOAD_RETRIES = 2
+const VIDEO_UPLOAD_RETRY_BASE_MS = 1000
+
+function isRetriableVideoUploadError(err: unknown): boolean {
+  // `{ retriable401: true }` bukan ApiError — jalur refresh token sudah
+  // ditangani di attemptUpload; di sini bukan kandidat retry jaringan.
+  if (!(err instanceof ApiError)) return false
+  return err.isTransient
+}
+
+function sleepAbortable(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(new ApiError({ code: "ABORTED", message: "Unggahan dibatalkan." }))
+      return
+    }
+    const timer = setTimeout(() => {
+      signal?.removeEventListener("abort", onAbort)
+      resolve()
+    }, ms)
+    const onAbort = () => {
+      clearTimeout(timer)
+      reject(new ApiError({ code: "ABORTED", message: "Unggahan dibatalkan." }))
+    }
+    signal?.addEventListener("abort", onAbort, { once: true })
+  })
+}
+
 export function uploadDirectVideo(
   asset: PickedImage,
   opts: {
@@ -440,28 +482,42 @@ export function uploadDirectVideo(
 
     const run = async () => {
       try {
-        let token = await getAccessToken()
-        if (!token)
-          throw new ApiError({
-            code: "UNAUTHORIZED",
-            message: DEFAULT_ERROR_MESSAGES.UNAUTHORIZED,
-            path: "/v1/upload/direct",
-          })
-        try {
-          await sendOnce(token)
-        } catch (err) {
-          const retriable =
-            err && typeof err === "object" && (err as { retriable401?: unknown }).retriable401 === true
-          if (!retriable || signal?.aborted) throw err
-          const fresh = await refreshAccessToken()
-          if (!fresh)
-            throw new ApiError({
-              code: "UNAUTHORIZED",
-              message: DEFAULT_ERROR_MESSAGES.UNAUTHORIZED,
-              path: "/v1/upload/direct",
-            })
-          token = fresh
-          await sendOnce(token)
+        let attempt = 0
+        for (;;) {
+          try {
+            let token = await getAccessToken()
+            if (!token)
+              throw new ApiError({
+                code: "UNAUTHORIZED",
+                message: DEFAULT_ERROR_MESSAGES.UNAUTHORIZED,
+                path: "/v1/upload/direct",
+              })
+            try {
+              await sendOnce(token)
+            } catch (err) {
+              const retriable =
+                err && typeof err === "object" && (err as { retriable401?: unknown }).retriable401 === true
+              if (!retriable || signal?.aborted) throw err
+              const fresh = await refreshAccessToken()
+              if (!fresh)
+                throw new ApiError({
+                  code: "UNAUTHORIZED",
+                  message: DEFAULT_ERROR_MESSAGES.UNAUTHORIZED,
+                  path: "/v1/upload/direct",
+                })
+              await sendOnce(fresh)
+            }
+            return
+          } catch (err) {
+            // NP-006: retry cerdas — hanya transien, hormati abort.
+            const canRetry =
+              attempt < MAX_VIDEO_UPLOAD_RETRIES &&
+              !signal?.aborted &&
+              isRetriableVideoUploadError(err)
+            if (!canRetry) throw err
+            attempt += 1
+            await sleepAbortable(VIDEO_UPLOAD_RETRY_BASE_MS * 2 ** (attempt - 1), signal)
+          }
         }
       } catch (err) {
         reject(err)

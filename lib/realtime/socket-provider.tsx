@@ -68,6 +68,18 @@ export function RealtimeProvider({
   const socketRef = useRef<Socket | null>(null)
   const tokenRef = useRef<string | null>(token)
   tokenRef.current = token
+  /**
+   * NS-004 (audit performa): `viewerId` (turunan JWT `sub`) disimpan di ref,
+   * BUKAN dihitung inline di `useMemo` value — supaya `token` (yang berganti
+   * tiap silent refresh ~15 menit) tidak lagi menjadi dep `useMemo`, sehingga
+   * SEMUA konsumen `useRealtime` tidak re-render massal tiap refresh token.
+   * Aman: `sub` tidak berubah lintas refresh token (akun sama); saat logout
+   * (`token` → null) ref ikut di-nol-kan dan status → "disabled" memicu
+   * value baru lewat dep `status`. Auth socket tetap baca `tokenRef`
+   * (re-handshake by design tidak berubah).
+   */
+  const viewerIdRef = useRef<string | null>(getViewerIdFromToken(token))
+  viewerIdRef.current = getViewerIdFromToken(token)
   const pausedRef = useRef(false)
   /**
    * Kunci HMAC sesi dari event `session_hmac_token` server. Dipakai
@@ -353,17 +365,19 @@ export function RealtimeProvider({
     () => ({
       status,
       healthy: status === "connected",
-      viewerId: getViewerIdFromToken(token),
+      viewerId: viewerIdRef.current,
       socket: socketRef.current,
       epoch,
       joinRoom,
       leaveRoom,
       unwrapEvent,
     }),
-    // `socket` dari ref: nilai baca saat render; hook per-room membaca ulang
-    // lewat efek saat `status`/`epoch` berubah (itulah sinyal koneksi baru).
+    // NS-004: `token` SENGAJA tidak di deps — dibaca via ref (tokenRef /
+    // viewerIdRef). `socket` dari ref: nilai baca saat render; hook per-room
+    // membaca ulang lewat efek saat `status`/`epoch` berubah (itulah sinyal
+    // koneksi baru).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [status, epoch, token, joinRoom, leaveRoom, unwrapEvent],
+    [status, epoch, joinRoom, leaveRoom, unwrapEvent],
   )
 
   return <RealtimeContext.Provider value={value}>{children}</RealtimeContext.Provider>

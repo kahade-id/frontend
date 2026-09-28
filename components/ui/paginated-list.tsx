@@ -1,4 +1,4 @@
-import { useCallback, useMemo, type ReactElement, type ReactNode, type Ref } from "react"
+import { useCallback, useMemo, useRef, type ReactElement, type ReactNode, type Ref } from "react"
 import { View, type FlatList, type ListRenderItem, type StyleProp, type ViewStyle } from "react-native"
 import { ErrorState } from "@/components/ui/error-state"
 import { LoadMore } from "@/components/ui/load-more"
@@ -177,7 +177,20 @@ export function PaginatedList<T extends { id?: string }>({
   const handleRetry = useCallback(() => void onRetry(), [onRetry])
   const handleLoadMore = useCallback(() => void onLoadMore(), [onLoadMore])
 
+  /**
+   * LR-011 (audit performa): `onEndReached` FlatList bisa terpicu TANPA
+   * scroll pengguna — mis. saat mount awal (konten lebih pendek dari
+   * viewport) atau setelah data menyusut — memicu `onLoadMore` hantu
+   * beruntun. Gerbang momentum standar: hanya tembakan yang didahului
+   * scroll nyata yang diteruskan; satu tembakan per gestur.
+   */
+  const momentumRef = useRef(false)
+  const handleMomentumScrollBegin = useCallback(() => {
+    momentumRef.current = true
+  }, [])
   const handleEndReached = useCallback(() => {
+    if (!momentumRef.current) return
+    momentumRef.current = false
     if (hasMore && !loading && !refreshing && !loadingMore && !loadMoreError) void onLoadMore()
   }, [hasMore, loading, refreshing, loadingMore, loadMoreError, onLoadMore])
 
@@ -252,6 +265,7 @@ export function PaginatedList<T extends { id?: string }>({
       refreshEnabled={!loading}
       onEndReached={handleEndReached}
       onEndReachedThreshold={0.3}
+      onMomentumScrollBegin={handleMomentumScrollBegin}
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="on-drag"
       showsVerticalScrollIndicator={false}

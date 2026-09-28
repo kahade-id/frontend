@@ -690,8 +690,19 @@ async function performRequest<TResponse, TBody>(
     } catch (error) {
       if (count >= retry || !(error instanceof ApiError) || !error.isTransient || signal?.aborted)
         throw error
+      /**
+       * NP-010 (audit performa): backoff EKSPONENSIAL (`400 * 2^count`),
+       * bukan linear (`400 * (count + 1)`). Dengan batas maks 2 retry, jeda
+       * yang teramati sama (400ms, 800ms) — yang diperbaiki adalah pola
+       * pertumbuhannya: jeda kini tumbuh berlipat ganda bila jumlah retry
+       * dinaikkan di masa depan, memberi server yang kepayahan ruang pulih
+       * yang makin lebar. Batas tetap 2 retry; mutasi (non-GET) tetap TIDAK
+       * PERNAH di-retry otomatis (anti double-charge) — `retry = 0` untuk
+       * method selain GET di atas tidak berubah.
+       */
+      const backoffMs = 400 * 2 ** count
       await bounded(
-        () => new Promise<void>((resolve) => setTimeout(resolve, 400 * (count + 1))),
+        () => new Promise<void>((resolve) => setTimeout(resolve, backoffMs)),
         method,
         path,
         timeoutMs,
