@@ -72,6 +72,7 @@ import { getAuthLocation } from "@/lib/location"
 import { clearOtpFlow, getOtpFlow, patchOtpFlow } from "@/lib/otp-flow"
 import { clearPasswordResetState, setPasswordResetState } from "@/lib/password-reset"
 import { clearRegistrationState, setRegistrationState } from "@/lib/registration"
+import { isOfflineKnown, useIsOnline } from "@/lib/connectivity"
 import { ROUTES } from "@/lib/routes"
 import { useLeaveConfirm } from "@/lib/use-leave-confirm"
 import { Dialog } from "@/components/ui/modal"
@@ -113,6 +114,9 @@ export default function VerifyOtpScreen() {
   const [formError, setFormError] = useState<FormError>(null)
   const [verifying, setVerifying] = useState(false)
 
+  // A07 (batch 139): status koneksi — verifikasi OTP butuh jaringan.
+  const isOnline = useIsOnline()
+
   // Resend countdown
   const [canResend, setCanResend] = useState(false)
   const [resending, setResending] = useState(false)
@@ -148,6 +152,18 @@ export default function VerifyOtpScreen() {
       setVerifying(true)
       setFormError(null)
       setOtpError(undefined)
+
+      // A07: gagal cepat dengan pesan jelas saat jelas offline — jangan
+      // biarkan request timeout misterius.
+      if (isOfflineKnown()) {
+        setFormError({
+          kind: "generic",
+          message:
+            "Tidak ada koneksi internet. Sambungkan kembali lalu coba verifikasi lagi — kode Anda tetap tersimpan di sini.",
+        })
+        setVerifying(false)
+        return
+      }
 
       try {
         const location = (await getAuthLocation()) ?? undefined
@@ -249,6 +265,14 @@ export default function VerifyOtpScreen() {
    */
   const handleResend = useCallback(async () => {
     if (resending || !phoneNumber || !purpose) return
+    // A07: kirim ulang butuh koneksi — gagal cepat dengan pesan jelas.
+    if (isOfflineKnown()) {
+      setFormError({
+        kind: "generic",
+        message: "Tidak ada koneksi internet. Sambungkan kembali untuk meminta kode baru.",
+      })
+      return
+    }
     setResending(true)
     setFormError(null)
     setOtpError(undefined)
@@ -359,6 +383,14 @@ export default function VerifyOtpScreen() {
               accessibilityLabel="Kode verifikasi 6 digit"
             />
 
+            {/* A07: status koneksi — bedakan offline dari menunggu */}
+            {!isOnline ? (
+              <Alert tone="warning" title="Anda sedang offline">
+                Kode tidak bisa diverifikasi tanpa koneksi internet. Tetap di
+                layar ini — kode yang sudah diketik tidak hilang.
+              </Alert>
+            ) : null}
+
             {/* Tombol Verifikasi — manual submit, bukan auto */}
             <Button
               onPress={handleVerify}
@@ -387,7 +419,7 @@ export default function VerifyOtpScreen() {
           <View className="items-center gap-1">
             {canResend ? (
               <>
-                <TextLink onPress={handleResend} disabled={resending}>
+                <TextLink onPress={handleResend} disabled={resending || !isOnline}>
                   {resending ? "Meminta kode baru…" : "Kirim ulang kode"}
                 </TextLink>
                 {/*
