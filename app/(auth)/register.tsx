@@ -39,10 +39,10 @@
  *   - State alur (nomor + refCode + deeplink WA) disimpan di memori modul
  *     (lib/otp-flow), BUKAN query param URL — B-07/B-14.
  */
-import { useCallback, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { ScrollView, TextInput, View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { useRouter } from "expo-router"
+import { useLocalSearchParams, useRouter } from "expo-router"
 
 import { Alert } from "@/components/ui/alert"
 import { FadeIn } from "@/components/ui/fade-in"
@@ -57,6 +57,7 @@ import { Text } from "@/components/ui/text"
 import { TextLink } from "@/components/ui/text-link"
 import { api, isApiError, userMessage } from "@/lib/api"
 import { getAuthLocation } from "@/lib/location"
+import { setPendingNext } from "@/lib/login-redirect"
 import { setOtpFlow } from "@/lib/otp-flow"
 import { ROUTES } from "@/lib/routes"
 import { useLeaveConfirm } from "@/lib/use-leave-confirm"
@@ -71,6 +72,14 @@ export default function RegisterScreen() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
   const phoneRef = useRef<TextInput>(null)
+
+  // NAV-013: tujuan `next` dari GuestLoginPrompt — disimpan ke memori alur
+  // supaya welcome (takePendingNext) kembali ke tujuan setelah registrasi,
+  // konsisten dengan jalur "Masuk". Sanitiasi: hanya path absolut.
+  const { next } = useLocalSearchParams<{ next?: string }>()
+  useEffect(() => {
+    if (typeof next === "string" && next.startsWith("/")) setPendingNext(next)
+  }, [next])
 
   const [digits, setDigits] = useState("")
   const [phoneError, setPhoneError] = useState<string | undefined>()
@@ -92,12 +101,19 @@ export default function RegisterScreen() {
   }, [])
 
   const goLogin = useCallback(() => {
-    if (router.canGoBack()) {
+    // NAV-013: bawa `next` bila ada — pengguna yang ternyata sudah punya akun
+    // tetap kembali ke tujuan setelah masuk.
+    const hasNext = typeof next === "string" && next.startsWith("/")
+    const loginHref = hasNext ? ({ pathname: "/login", params: { next } } as const) : ROUTES.login
+    // Bila `next` ada, SELALU replace: GuestLoginPrompt membuka register via
+    // replace, jadi Back bisa mendarat di halaman sebelum target (bukan login)
+    // dan `next` hilang.
+    if (!hasNext && router.canGoBack()) {
       router.back()
     } else {
-      router.replace(ROUTES.login)
+      router.replace(loginHref)
     }
-  }, [router])
+  }, [router, next])
 
   const handleSubmit = useCallback(async () => {
     if (submitting) return

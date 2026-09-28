@@ -16,7 +16,6 @@ import {
   Lifebuoy,
   ShieldCheck,
   ChatTeardropDots,
-  ChatCircleDots,
 } from "phosphor-react-native"
 
 import { useCopy } from "@/lib/clipboard"
@@ -59,14 +58,6 @@ const LINKS: AboutLink[] = [
     subtitle: "Panduan otomatis; buat tiket untuk bantuan resmi",
     icon: Headset,
     href: ROUTES.liveSupport,
-    divider: true,
-  },
-  {
-    id: "contact",
-    title: "Hubungi Kami",
-    subtitle: "Buat tiket bantuan resmi",
-    icon: ChatCircleDots,
-    href: ROUTES.contact,
     divider: true,
   },
   {

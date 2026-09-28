@@ -18,9 +18,11 @@ import {
   type DmPolicy,
 } from "@/lib/api/chat"
 import { isApiError, userMessage } from "@/lib/api"
+import { useHasSession } from "@/lib/guest-gate"
 import { logWarn } from "@/lib/telemetry"
 
 import { Screen } from "@/components/ui/screen"
+import { GuestLoginPrompt } from "@/components/web-guest-gate"
 import { Header } from "@/components/ui/header"
 import { SectionHeader } from "@/components/ui/section"
 import { Switch } from "@/components/ui/switch"
@@ -45,10 +47,14 @@ import { CheckCircle, PencilSimple, Plus, Trash, X } from "phosphor-react-native
 
 export default function ChatSettingsScreen() {
   const toast = useToast()
+  /** NAV-004: endpoint privasi/template semuanya auth-required — jangan
+   *  menembak tanpa sesi (overlay web bisa me-mount layar ini). */
+  const hasSession = useHasSession()
   const [privacy, setPrivacy] = useState<ChatPrivacySettings | null>(null)
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
+    if (!hasSession) return
     let alive = true
     getChatPrivacy()
       .then((p) => {
@@ -66,7 +72,7 @@ export default function ChatSettingsScreen() {
     return () => {
       alive = false
     }
-  }, [toast])
+  }, [toast, hasSession])
 
   const patchPrivacy = async (patch: Partial<ChatPrivacySettings>) => {
     if (!privacy || saving) return
@@ -86,6 +92,16 @@ export default function ChatSettingsScreen() {
     } finally {
       setSaving(false)
     }
+  }
+
+  // NAV-004: tamu tidak melihat/mengubah pengaturan chat.
+  if (!hasSession) {
+    return (
+      <Screen edges={["top"]} padded={false}>
+        <Header title="Pengaturan chat" />
+        <GuestLoginPrompt bare next="/chat/settings" />
+      </Screen>
+    )
   }
 
   return (

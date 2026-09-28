@@ -139,9 +139,11 @@ export const ROUTES = {
   orderDetail: (orderId: string) =>
     // H-02 (audit escrow 2026-09-24): id kosong membentuk "/order/" yang 404
     // (akar sama dengan A-07/D-11). Tanpa id valid, jangan bentuk rute detail.
+    // NAV-002 (2026-09-28): fallback lama "/orders" TIDAK ADA rutenya
+    // (hanya app/order/[id].tsx) → +not-found. /transactions daftarnya.
     orderId
       ? ({ pathname: "/order/[id]", params: { id: orderId } } as unknown as Href)
-      : ("/orders" as Href),
+      : ROUTES.transactions,
   /** Buat transaksi baru (di-push dari FAB Tab Transaksi & quick action Beranda) */
   createTransaction: "/create-transaction" as Href,
   /** Buat transaksi dengan lawan transaksi terisi (dari profil publik) */
