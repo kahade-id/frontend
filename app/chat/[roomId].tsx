@@ -1537,7 +1537,7 @@ export default function ChatRoomScreen() {
         title: item.title ?? "",
         priceMin: item.priceMin != null ? String(item.priceMin) : null,
         priceMax: item.priceMax != null ? String(item.priceMax) : null,
-        imageUrl: item.coverImageUrl ?? item.imageUrl ?? null,
+        imageUrl: item.coverImageUrl ?? null,
         sellerUsername: me?.username ?? "",
         snapshotAt: new Date().toISOString(),
       }

@@ -80,7 +80,12 @@ export type ShowcaseSocialItem = {
    */
   images: ShowcaseMedia[]
   coverImageUrl?: string | null
-  /** Alias deprecated `imageUrl` = cover; tetap dikirim backend. */
+  /**
+   * NP-007 (perf-fix, 2026-09-29): alias top-level `imageUrl` DIHAPUS dari
+   * backend — tidak lagi dikirim. Field dipertahankan di tipe supaya kode
+   * lama tetap kompilasi, tetapi JANGAN dibaca: sumber kebenaran gambar
+   * adalah `images[]` + `coverImageUrl`.
+   */
   imageUrl?: string | null
   priceMin?: number | null
   priceMax?: number | null
@@ -287,6 +292,8 @@ export type ShowcaseCommentsPage = {
   totalPages: number
   hasNext: boolean
   hasPrev: boolean
+  /** NP-008: kursor keyset untuk halaman berikut (null = habis). */
+  nextCursor?: string | null
 }
 
 // ------------------------------------------------------------------
@@ -369,18 +376,27 @@ export function getShowcaseDetail(showcaseId: string, signal?: AbortSignal) {
 }
 
 /**
- * GET /v1/showcase/:showcaseId/comments — komentar bersarang (offset).
+ * GET /v1/showcase/:showcaseId/comments — komentar bersarang.
  * Root dipaginasi; tiap root menyertakan `replies` satu tingkat.
+ *
+ * NP-008 (perf-fix): `cursor` (dari `nextCursor` respons sebelumnya) memakai
+ * keyset pagination backend — tanpa `skip` besar. Tanpa cursor, offset
+ * (?page) lama tetap dipakai (kompatibel mundur).
  */
 export function listShowcaseComments(
   showcaseId: string,
-  params: { page?: number; limit?: number } = {},
+  params: { page?: number; limit?: number; cursor?: string | null } = {},
   signal?: AbortSignal,
 ) {
+  const query: Record<string, number | string> = {
+    page: params.page ?? 1,
+    limit: params.limit ?? 20,
+  }
+  if (params.cursor) query.cursor = params.cursor
   return http
     .get<unknown>(`/v1/showcase/${seg(showcaseId)}/comments`, {
       auth: "optional",
-      query: { page: params.page ?? 1, limit: params.limit ?? 20 },
+      query,
       retry: 1,
       signal,
     })
@@ -398,6 +414,7 @@ export function listShowcaseComments(
         totalPages: typeof record.totalPages === "number" ? record.totalPages : 1,
         hasNext: record.hasNext === true,
         hasPrev: record.hasPrev === true,
+        nextCursor: typeof record.nextCursor === "string" ? record.nextCursor : null,
       } satisfies ShowcaseCommentsPage
     })
 }
@@ -565,6 +582,8 @@ export type ShowcaseLikersPage = {
   totalPages: number
   hasNext: boolean
   hasPrev: boolean
+  /** NP-008: kursor keyset untuk halaman berikut (null = habis). */
+  nextCursor?: string | null
 }
 
 function parseShowcaseLikersPage(raw: unknown, timeField: "likedAt" | "savedAt"): ShowcaseLikersPage {
@@ -599,6 +618,7 @@ function parseShowcaseLikersPage(raw: unknown, timeField: "likedAt" | "savedAt")
     totalPages: num(record.totalPages, 1),
     hasNext: record.hasNext === true,
     hasPrev: record.hasPrev === true,
+    nextCursor: typeof record.nextCursor === "string" ? record.nextCursor : null,
   }
 }
 
@@ -616,16 +636,24 @@ export type SavedShowcasesPage = {
   totalPages: number
   hasNext: boolean
   hasPrev: boolean
+  /** NP-008: kursor keyset untuk halaman berikut (null = habis). */
+  nextCursor?: string | null
 }
 
 export function getSavedShowcases(
-  params: { page?: number; limit?: number } = {},
+  params: { page?: number; limit?: number; cursor?: string | null } = {},
   signal?: AbortSignal,
 ) {
+  const query: Record<string, number | string> = {
+    page: params.page ?? 1,
+    limit: params.limit ?? 20,
+  }
+  // NP-008: bila cursor diberikan, server memakai keyset pagination.
+  if (params.cursor) query.cursor = params.cursor
   return http
     .get<unknown>("/v1/showcase/saved", {
       auth: "required",
-      query: { page: params.page ?? 1, limit: params.limit ?? 20 },
+      query,
       retry: 1,
       signal,
     })
@@ -658,8 +686,10 @@ export function getSavedShowcases(
         limit,
         total,
         totalPages,
-        hasNext: record.hasNext === true,
+        hasNext: typeof record.nextCursor === "string" ? true : record.hasNext === true,
         hasPrev: record.hasPrev === true,
+        // NP-008: kehadiran nextCursor = masih ada halaman berikut.
+        nextCursor: typeof record.nextCursor === "string" ? record.nextCursor : null,
       } satisfies SavedShowcasesPage
     })
 }
@@ -684,16 +714,22 @@ export function removeSavedShowcase(showcaseId: string) {
 /**
  * GET /v1/showcase/:id/likers?page&limit — PUBLIK (kontrak final Tim A).
  * Idempoten → retry 1 aman.
+ * NP-008: `cursor` opsional memakai keyset pagination (tanpa skip besar).
  */
 export function getShowcaseLikers(
   showcaseId: string,
-  params: { page?: number; limit?: number } = {},
+  params: { page?: number; limit?: number; cursor?: string | null } = {},
   signal?: AbortSignal,
 ) {
+  const query: Record<string, number | string> = {
+    page: params.page ?? 1,
+    limit: params.limit ?? 20,
+  }
+  if (params.cursor) query.cursor = params.cursor
   return http
     .get<unknown>(`/v1/showcase/${seg(showcaseId)}/likers`, {
       auth: "optional",
-      query: { page: params.page ?? 1, limit: params.limit ?? 20 },
+      query,
       retry: 1,
       signal,
     })
@@ -704,16 +740,22 @@ export function getShowcaseLikers(
  * GET /v1/showcase/:id/savers?page&limit — HANYA PEMILIK (kontrak final Tim A).
  * anon → 401; bukan pemilik → 403 SHOWCASE_FORBIDDEN (pemanggil WAJIB
  * menyembunyikan tab, bukan menampilkan error).
+ * NP-008: `cursor` opsional memakai keyset pagination (tanpa skip besar).
  */
 export function getShowcaseSavers(
   showcaseId: string,
-  params: { page?: number; limit?: number } = {},
+  params: { page?: number; limit?: number; cursor?: string | null } = {},
   signal?: AbortSignal,
 ) {
+  const query: Record<string, number | string> = {
+    page: params.page ?? 1,
+    limit: params.limit ?? 20,
+  }
+  if (params.cursor) query.cursor = params.cursor
   return http
     .get<unknown>(`/v1/showcase/${seg(showcaseId)}/savers`, {
       auth: "required",
-      query: { page: params.page ?? 1, limit: params.limit ?? 20 },
+      query,
       retry: 1,
       signal,
     })
@@ -896,7 +938,8 @@ export function parseShowcaseItem(raw: unknown): ShowcaseSocialItem {
         : undefined,
     isActive: typeof value.isActive === "boolean" ? value.isActive : undefined,
     coverImageUrl: typeof value.coverImageUrl === "string" ? value.coverImageUrl : null,
-    imageUrl: typeof value.imageUrl === "string" ? value.imageUrl : null,
+    // NP-007: alias `imageUrl` tidak lagi dikirim backend — sengaja tidak
+    // diparse; pembaca memakai `coverImageUrl`/`images[]`.
     priceMin: num(value.priceMin),
     priceMax: num(value.priceMax),
     author: {

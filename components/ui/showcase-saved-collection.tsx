@@ -2,9 +2,9 @@
  * Kahade — <ShowcaseSavedCollection>: daftar karya tersimpan dari server.
  *
  * Mega-batch FE-IMP-1, item 54: dimigrasikan dari bookmark lokal + N+1 GET
- * detail per id ke endpoint backend `GET /v1/showcase/saved` (?page&limit,
- * kartu bentuk feed + `savedAt`). Server adalah source of truth; store lokal
- * hanya cache status simpan untuk kartu feed/detail.
+ * detail per id ke endpoint backend `GET /v1/showcase/saved` (?cursor&limit,
+ * NP-008 keyset, kartu bentuk feed + `savedAt`). Server adalah source of
+ * truth; store lokal hanya cache status simpan untuk kartu feed/detail.
  *
  * Perilaku:
  *  - Paginasi "Muat lagi" (hasNext dari server).
@@ -51,7 +51,8 @@ export function ShowcaseSavedCollection() {
   const toast = useToast()
   const [entries, setEntries] = useState<SavedShowcaseEntry[]>([])
   const [listState, setListState] = useState<ListState>({ status: "idle" })
-  const [page, setPage] = useState(1)
+  /** NP-008: cursor keyset menggantikan nomor halaman. */
+  const [nextCursor, setNextCursor] = useState<string | null>(null)
   const [hasNext, setHasNext] = useState(false)
   const [total, setTotal] = useState(0)
   const [loadingMore, setLoadingMore] = useState(false)
@@ -64,7 +65,7 @@ export function ShowcaseSavedCollection() {
   const [removingIds, setRemovingIds] = useState<ReadonlySet<string>>(new Set())
   const abortRef = useRef<AbortController | null>(null)
 
-  const load = useCallback(async (pageNum: number, append: boolean) => {
+  const load = useCallback(async (cursor: string | null, append: boolean) => {
     const rev = getSessionRevision()
     setLoadMoreError(null)
     if (append) setLoadingMore(true)
@@ -74,13 +75,13 @@ export function ShowcaseSavedCollection() {
     abortRef.current = controller
     try {
       const result = await getSavedShowcases(
-        { page: pageNum, limit: PAGE_LIMIT },
+        { cursor, limit: PAGE_LIMIT },
         controller.signal,
       )
       if (rev !== getSessionRevision()) return
       setEntries((prev) => (append ? [...prev, ...result.data] : result.data))
-      setPage(result.page)
-      setHasNext(result.hasNext)
+      setNextCursor(result.nextCursor ?? null)
+      setHasNext(result.nextCursor != null)
       setTotal(result.total)
       setListState({ status: "ready" })
     } catch (error) {
@@ -106,7 +107,7 @@ export function ShowcaseSavedCollection() {
       setListState({ status: "idle" })
       return
     }
-    void load(1, false)
+    void load(null, false)
     return () => {
       abortRef.current?.abort()
     }
@@ -116,8 +117,8 @@ export function ShowcaseSavedCollection() {
 
   const loadMore = useCallback(() => {
     if (loadingMore || !hasNext) return
-    void load(page + 1, true)
-  }, [loadingMore, hasNext, page, load])
+    void load(nextCursor, true)
+  }, [loadingMore, hasNext, nextCursor, load])
 
   const removeOne = useCallback(
     (id: string) => {
@@ -141,7 +142,7 @@ export function ShowcaseSavedCollection() {
             description: userMessage(error),
             tone: "danger",
           })
-          await load(1, false)
+          await load(null, false)
         } finally {
           if (rev === getSessionRevision()) {
             setRemovingIds((prev) => {
@@ -193,7 +194,7 @@ export function ShowcaseSavedCollection() {
           <Text variant="caption" tone="secondary">
             {listState.message || translate("Gagal memuat — coba lagi")}
           </Text>
-          <Button variant="ghost" onPress={() => load(1, false)}>
+          <Button variant="ghost" onPress={() => load(null, false)}>
             {translate("Coba lagi")}
           </Button>
         </View>
