@@ -44,12 +44,33 @@ export function isDefaultShowcaseFilters(f: ShowcaseFeedFilters): boolean {
   )
 }
 
-/** Jumlah dimensi filter yang aktif — badge di tombol funnel. */
+/**
+ * Jumlah dimensi filter yang aktif — badge di tombol funnel.
+ * (Hanya filter sheet: kondisi, rating, harga.)
+ */
 export function showcaseFilterBadgeCount(f: ShowcaseFeedFilters): number {
   let n = 0
   if (f.condition !== "ALL") n += 1
   if (f.minRating !== "ALL") n += 1
   if (f.price.min != null || f.price.max != null) n += 1
+  return n
+}
+
+/**
+ * C15 (batch 139): jumlah TOTAL filter aktif di feed — filter sheet +
+ * pencarian + kategori + lokasi. Dipakai badge tombol funnel supaya pengguna
+ * tidak lupa filter harga/kategori masih aktif.
+ */
+export function countActiveFeedFilters(input: {
+  search?: string
+  category?: string
+  location?: string
+  sheet: ShowcaseFeedFilters
+}): number {
+  let n = showcaseFilterBadgeCount(input.sheet)
+  if (input.search?.trim()) n += 1
+  if (input.category?.trim()) n += 1
+  if (input.location?.trim()) n += 1
   return n
 }
 

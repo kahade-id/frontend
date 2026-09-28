@@ -311,8 +311,19 @@ export function showcaseImages(item: ShowcaseSocialItem): { id: string; url: str
  * `spin360` sengaja TIDAK dimasukkan — viewer 360° dirender terpisah di
  * halaman detail (<Spin360Viewer> via `showcaseSpin360Groups`), bukan
  * sebagai slide karosel.
+ *
+ * C01 (batch 139): `aspectRatio` = rasio w/h media dari respons list
+ * (fallback 1 = persegi). Placeholder memakai rasio ini supaya konten tidak
+ * meloncat saat gambar/video selesai dimuat.
  */
-export type GalleryMedia = { id: string; kind: "image" | "video"; url: string; posterUrl?: string; durationSec?: number }
+export type GalleryMedia = {
+  id: string
+  kind: "image" | "video"
+  url: string
+  posterUrl?: string
+  durationSec?: number
+  aspectRatio?: number
+}
 
 /**
  * Daftar slide galeri karya (kontrak final Tim A, 2026-09-28).
@@ -322,10 +333,25 @@ export type GalleryMedia = { id: string; kind: "image" | "video"; url: string; p
  * per instance item (WeakMap) agar referensi stabil antar render.
  */
 const mediaCache = new WeakMap<ShowcaseSocialItem, GalleryMedia[]>()
+/**
+ * C01 (batch 139): rasio media dari respons list. `width`/`height` opsional
+ * di kontrak — bila hilang/tidak valid, fallback 1 (persegi, perilaku lama).
+ * Di-clamp ke rentang wajar agar data rusak tidak merusak layout feed.
+ */
+export function showcaseMediaAspectRatio(width: unknown, height: unknown): number {
+  const w = typeof width === "number" && Number.isFinite(width) ? width : 0
+  const h = typeof height === "number" && Number.isFinite(height) ? height : 0
+  if (w <= 0 || h <= 0) return 1
+  const ratio = w / h
+  if (!Number.isFinite(ratio)) return 1
+  return Math.min(4, Math.max(0.25, ratio))
+}
 export function showcaseMedia(item: ShowcaseSocialItem): GalleryMedia[] {
   const cached = mediaCache.get(item)
   if (cached) return cached
   const rich = item.images.flatMap((m): GalleryMedia[] => {
+    // C01: bawa rasio dari respons list ke tiap slide galeri.
+    const aspectRatio = showcaseMediaAspectRatio(m.width, m.height)
     if (m.kind === "video") {
       const url = resolveMediaUrl(m.imageUrl)
       if (!url) return []
@@ -336,18 +362,18 @@ export function showcaseMedia(item: ShowcaseSocialItem): GalleryMedia[] {
           ? Math.round(m.durationSec)
           : undefined
       return poster
-        ? [{ id: m.id, kind: m.kind, url, posterUrl: poster, durationSec }]
-        : [{ id: m.id, kind: m.kind, url, durationSec }]
+        ? [{ id: m.id, kind: m.kind, url, posterUrl: poster, durationSec, aspectRatio }]
+        : [{ id: m.id, kind: m.kind, url, durationSec, aspectRatio }]
     }
     if (m.kind === "image") {
       const url = resolveMediaUrl(m.imageUrl)
-      return url ? [{ id: m.id, kind: m.kind, url }] : []
+      return url ? [{ id: m.id, kind: m.kind, url, aspectRatio }] : []
     }
     return []
   })
   const result: GalleryMedia[] = rich.length > 0
     ? rich
-    : showcaseImages(item).map((g) => ({ id: g.id, kind: "image" as const, url: g.url }))
+    : showcaseImages(item).map((g) => ({ id: g.id, kind: "image" as const, url: g.url, aspectRatio: 1 }))
   mediaCache.set(item, result)
   return result
 }
