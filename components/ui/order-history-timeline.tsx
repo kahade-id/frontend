@@ -27,6 +27,7 @@
  *     tetap sumber kebenaran.
  */
 import { View, type ViewProps } from "react-native"
+import { useState } from "react"
 
 import {
   ORDER_STATUS_LABELS,
@@ -34,6 +35,9 @@ import {
   isOrderStatus,
   type OrderStatus,
 } from "@/components/ui/order-status-badge"
+import { OrderRoleBadge } from "@/components/ui/order-role-badge"
+import { Button } from "@/components/ui/button"
+import { splitTimelineLatest } from "@/lib/wallet-batch139"
 import { Timeline, type TimelineItem, type TimelineTone } from "@/components/ui/timeline"
 import { cn } from "@/lib/cn"
 import { hasOwn } from "@/lib/has-own"
@@ -166,6 +170,12 @@ export function mapOrderHistoryToTimeline(
       id: e.id,
       title: statusLabel,
       description: description || undefined,
+      // D14 (batch 139): badge peran yang SAMA dengan header & CTA —
+      // komponen badge bersama, bukan teks bebas "oleh Pembeli".
+      extra:
+        e.actor === "BUYER" || e.actor === "SELLER" ? (
+          <OrderRoleBadge role={e.actor} />
+        ) : undefined,
       timestamp: e.timestamp,
       status: i === lastIdx && active ? "current" : "done",
       tone: toneFor(e.toStatus),
@@ -200,10 +210,49 @@ export function OrderHistoryTimeline({
     statuses: { ...DEFAULT_LABELS.statuses, ...labels?.statuses },
   }
   const items = mapOrderHistoryToTimeline(entries, currentStatus, t, expectedNext)
+  /**
+   * D13 (batch 139): kejadian TERBARU selalu terbuka di atas; riwayat lama
+   * disembunyikan dalam ekspander agar timeline panjang tidak mendominasi
+   * layar. `expectedNext` (langkah berikut yang diprediksi) selalu ikut
+   * tampil bersama kejadian terbaru — bukan terkubur di ekspander.
+   */
+  const { older: olderItems, latest } = splitTimelineLatest(
+    items.filter((it) => it.id !== "__expected_next"),
+  )
+  // `expectedNext` (langkah berikut yang diprediksi) selalu ikut tampil
+  // bersama kejadian terbaru — bukan terkubur di ekspander.
+  const latestItems = [
+    ...(latest ? [latest] : []),
+    ...items.filter((it) => it.id === "__expected_next"),
+  ]
+  const [historyOpen, setHistoryOpen] = useState(false)
 
   return (
     <View className={cn("w-full", className)} {...rest}>
-      <Timeline items={items} accessibilityLabel="Riwayat status pesanan" />
+      {latestItems.length > 0 ? (
+        <Timeline items={latestItems} accessibilityLabel="Kejadian terbaru" />
+      ) : null}
+      {olderItems.length > 0 ? (
+        <View className="mt-2">
+          <Button
+            variant="secondary"
+            size="sm"
+            onPress={() => setHistoryOpen((v) => !v)}
+            accessibilityLabel={
+              historyOpen ? "Sembunyikan riwayat lama" : "Tampilkan riwayat lama"
+            }
+          >
+            {historyOpen
+              ? "Sembunyikan riwayat lama"
+              : `Riwayat lama (${olderItems.length})`}
+          </Button>
+          {historyOpen ? (
+            <View className="mt-2">
+              <Timeline items={[...olderItems]} accessibilityLabel="Riwayat lama" />
+            </View>
+          ) : null}
+        </View>
+      ) : null}
     </View>
   )
 }

@@ -28,6 +28,9 @@ import { invalidateQueryCache, useApiQuery } from "@/lib/use-api-query"
 import { useDebouncedValue } from "@/lib/use-debounced-value"
 import { useResultTimer } from "@/lib/use-result-timer"
 import { recordRecentRecipient, useRecentRecipients } from "@/lib/ui-prefs"
+import { resolveRevalidatedRecipient } from "@/lib/wallet-batch139"
+import { recordPendingAction, resolvePendingAction } from "@/lib/pending-actions"
+import { serverNow } from "@/lib/server-time"
 import { walletTransactionStatus } from "@/lib/wallet-labels"
 import { PencilSimpleLine } from "phosphor-react-native"
 import { Alert } from "@/components/ui/alert"
@@ -130,6 +133,60 @@ export default function TransferScreen() {
   const [txId, setTxId] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [transferStatus, setTransferStatus] = useState<string | undefined>()
+  /**
+   * D04 (batch 139): validasi ulang penerima TEPAT sebelum konfirmasi.
+   * Nama/identifier bisa basi setelah jeda panjang (penerima ganti nama,
+   * akun dihapus, dsb). Saat masuk langkah konfirmasi, identifier
+   * di-lookup ulang ke server:
+   *  - tidak resolve ke id yang sama → fail-closed: pilihan dibuang,
+   *    kembali ke langkah pilih penerima;
+   *  - nama berubah → nama tampilan diperbarui (bukan diam-diam);
+   *  - lookup gagal (jaringan) → konfirmasi DIKUNCI sampai validasi
+   *    berhasil — jangan kirim uang ke penerima yang belum tervalidasi.
+   */
+  const [revalidating, setRevalidating] = useState(false)
+  const [revalidateError, setRevalidateError] = useState<string | null>(null)
+  const [revalidateNonce, setRevalidateNonce] = useState(0)
+  const selectedId = selected?.id
+  const selectedUsername = selected?.username
+  useEffect(() => {
+    if (step !== "confirm" || !selectedId || !selectedUsername) return
+    let cancelled = false
+    setRevalidating(true)
+    setRevalidateError(null)
+    api.wallet
+      .lookupTransferRecipient(selectedUsername)
+      .then((results) => {
+        if (cancelled) return
+        const outcome = resolveRevalidatedRecipient(results, {
+          id: selectedId,
+          name: selected?.name ?? selectedUsername,
+        })
+        if (!outcome.valid) {
+          setSelected(null)
+          setFormSubStep("recipient")
+          setStep("form")
+          toast.show({
+            title: "Penerima tidak lagi valid — silakan pilih ulang",
+            tone: "danger",
+          })
+          return
+        }
+        setSelected((prev) => (prev && outcome.name !== prev.name ? { ...prev, name: outcome.name } : prev))
+      })
+      .catch(() => {
+        if (!cancelled)
+          setRevalidateError(
+            "Tidak dapat memvalidasi ulang penerima. Periksa koneksi, lalu coba lagi.",
+          )
+      })
+      .finally(() => {
+        if (!cancelled) setRevalidating(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [step, selectedId, selectedUsername, revalidateNonce, toast])
   // Overlay progres: muncul begitu PIN disubmit, hasil mengganti kontennya.
   const [progressState, setProgressState] = useState<ProgressState | null>(null)
   const [progressError, setProgressError] = useState<string | undefined>()
@@ -280,11 +337,25 @@ export default function TransferScreen() {
           pin: pinValue,
           note: note.trim() || undefined,
         }
-        const res = await api.wallet.transferFunds(
-          dto,
-          transferKeyRef.current ?? (transferKeyRef.current = createIdempotencyKey()),
-        )
+        const idemKey =
+          transferKeyRef.current ?? (transferKeyRef.current = createIdempotencyKey())
+        /*
+         * D07 (batch 139): status idempotensi DAPAT DIPULIHKAN — catat transfer
+         * yang sedang diproses (kunci idempotensi + tujuan + nominal). Bila
+         * app mati di tengah, banner menawarkan pemulihan via riwayat.
+         * Di-resolve saat hasil final diketahui (sukses / gagal pasti).
+         */
+        recordPendingAction({
+          kind: "transfer-uncertain",
+          idempotencyKey: idemKey,
+          recipientId: selected.id,
+          recipientName: selected.name,
+          amount,
+          createdAt: serverNow(),
+        })
+        const res = await api.wallet.transferFunds(dto, idemKey)
         transferKeyRef.current = null
+        resolvePendingAction("transfer-uncertain", idemKey)
         setTxId(res.txId ?? null)
         setTransferStatus(res.status)
         /*
@@ -310,7 +381,13 @@ export default function TransferScreen() {
           !isApiError(err) || err.isTransient || err.code === "ABORTED" || err.code === "PARSE"
         // M-08: gagal pasti = transfer baru boleh dicoba (kunci baru);
         // tak pasti menahan kunci yang sama (retry = transfer yang sama).
-        if (!uncertain) transferKeyRef.current = null
+        // D07: gagal PASTI → resolve catatan (hasil final diketahui);
+        // gagal TAK PASTI → catatan DIPERTAHANKAN agar bisa dipulihkan
+        // setelah app mati (banner → riwayat).
+        if (!uncertain) {
+          if (transferKeyRef.current) resolvePendingAction("transfer-uncertain", transferKeyRef.current)
+          transferKeyRef.current = null
+        }
         const base = userMessage(err)
         const msg = uncertain
           ? `${base} Status transfer mungkin sudah diproses — periksa riwayat sebelum mengirim ulang.`
@@ -561,6 +638,27 @@ export default function TransferScreen() {
                     amountTone="primary"
                     subtitle={selected ? `Ke @${selected.username} · ${selected.name}` : undefined}
                   >
+                    {/* D04 (batch 139): status validasi ulang penerima. */}
+                    {revalidating ? (
+                      <Text variant="caption" tone="secondary">
+                        Memvalidasi ulang penerima…
+                      </Text>
+                    ) : null}
+                    {revalidateError ? (
+                      <View className="gap-2">
+                        <Alert tone="danger" title="Validasi penerima gagal">
+                          {revalidateError}
+                        </Alert>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          fullWidth={false}
+                          onPress={() => setRevalidateNonce((n) => n + 1)}
+                        >
+                          Coba validasi lagi
+                        </Button>
+                      </View>
+                    ) : null}
                     {selected ? (
                       // FE-IMP-4 item 10: kartu penerima besar di konfirmasi —
                       // avatar + nama + username menonjol agar salah kirim
@@ -607,13 +705,31 @@ export default function TransferScreen() {
               className="w-full border-t border-border bg-background px-5 pt-4"
               style={{ paddingBottom: Math.max(tokens.space[4], insets.bottom) }}
             >
+              {/*
+               * D06 (batch 139): ringkasan total TETAP di area pin di atas CTA
+               * (bukan di dalam ScrollView) — saat konten di-scroll atau
+               * keyboard terbuka, total yang akan dibayar tetap terbaca tepat
+               * sebelum tombol konfirmasi.
+               */}
+              <Text variant="caption" tone="secondary" className="pb-3 text-center">
+                Total transfer {formatRupiah(amount)}
+                {selected ? ` ke @${selected.username}` : ""}
+              </Text>
               <Button
                 // FE-IMP-4 item 11: kunci ganda — tombol konfirmasi ikut
                 // disabled saat submit/progres berjalan (selain submitLock di
                 // handlePin). Overlay progres non-dismissible (backdrop/back
                 // Android tidak menutup saat progressState aktif).
+                // D04 (batch 139): konfirmasi dikunci sampai penerima
+                // tervalidasi ulang (revalidating / revalidateError).
                 onPress={() => setStep("pin")}
-                disabled={!canContinueForm || submitting || progressState != null}
+                disabled={
+                  !canContinueForm ||
+                  submitting ||
+                  progressState != null ||
+                  revalidating ||
+                  revalidateError != null
+                }
                 haptic
               >
                 Konfirmasi & masukkan PIN

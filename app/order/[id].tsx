@@ -64,7 +64,9 @@ import {
   durationHoursParts,
   formatDateTime,
   formatDateTimeWIB,
+  formatRupiah,
 } from "@/lib/format"
+import { Dialog } from "@/components/ui/modal"
 import { translate } from "@/lib/i18n"
 import { ROUTES } from "@/lib/routes"
 import { serverNow } from "@/lib/server-time"
@@ -140,7 +142,7 @@ const EARLY_STATUSES: readonly string[] = [
 ]
 
 export default function OrderDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>()
+  const { id, sheet: sheetParam } = useLocalSearchParams<{ id: string; sheet?: string }>()
   const insets = useSafeAreaInsets()
   const toast = useToast()
   const { copied, copy } = useCopy()
@@ -388,6 +390,19 @@ export default function OrderDetailScreen() {
   // Overlay progres saat membayar escrow dari saldo (PIN disubmit).
   const [payProgress, setPayProgress] = useState<"PROCESSING" | "SUCCESS" | "FAILURE" | null>(null)
   const [payProgressError, setPayProgressError] = useState<string | undefined>()
+  /**
+   * D08 (batch 139): total berubah sejak layar dibuka. `null` = tidak ada
+   * perubahan / belum dicek. PIN yang tertunda disimpan di ref — TIDAK di
+   * state render (jangan pernah render PIN ke layar).
+   */
+  const [priceChange, setPriceChange] = useState<{ oldTotal: number; newTotal: number } | null>(null)
+  const pendingPinRef = useRef<string | null>(null)
+  /**
+   * D08: total terbaru yang sudah disetujui pengguna via dialog — cek harga
+   * tidak boleh membuka dialog dua kali untuk angka yang sama (loop).
+   * Dibersihkan saat sheet bayar ditutup.
+   */
+  const acceptedTotalRef = useRef<number | null>(null)
 
   // A-03 (audit): tombol biometrik DIHAPUS dari sheet pembayaran escrow —
   // PayOrderDto mewajibkan `pin` mentah dan tidak ada jalur backend
@@ -471,8 +486,31 @@ export default function OrderDetailScreen() {
     setSheet(null)
     setPinError(undefined)
     setDisputeCategory(undefined)
+    // D08: persetujuan total tidak berlaku untuk siklus bayar berikutnya.
+    acceptedTotalRef.current = null
+    pendingPinRef.current = null
+    setPriceChange(null)
     qrisPayment.reset()
   }, [qrisPayment])
+
+  /**
+   * D11 (batch 139): resume checkout yang aman — `?sheet=pay` (dari banner
+   * aksi menggantung / kembali dari aplikasi bank) membuka ulang sheet
+   * bayar. Status & quote SELALU dibaca ulang dari server oleh query di
+   * atas; sheet hanya dibuka bila order memang masih bisa dibayar
+   * (fail-closed: param tak dikenal/tidak valid tidak memaksa sheet bayar).
+   */
+  const paySheetAutoOpened = useRef(false)
+  useEffect(() => {
+    if (sheetParam !== "pay" || paySheetAutoOpened.current) return
+    const o = query.data?.order
+    if (!o) return
+    const payable =
+      (o.status === "WAITING_PAYMENT" || o.status === "PENDING_PAYMENT") && o.myRole === "BUYER"
+    if (!payable) return
+    paySheetAutoOpened.current = true
+    setSheet("pay")
+  }, [sheetParam, query.data])
 
   /** Pembungkus aksi sederhana: loading, toast sukses/gagal, refetch. */
   const runAction = useCallback(
@@ -509,6 +547,40 @@ export default function OrderDetailScreen() {
       // R2 (butir #32): handler menolak bayar tanpa nominal escrow terverifikasi.
       if (fee?.buyerPays == null) {
         setPinError("Muat ulang rincian biaya sebelum membayar.")
+        return
+      }
+      /*
+       * D08 (batch 139): pemeriksaan perubahan harga SEBELUM bayar — harga,
+       * ongkir, atau diskon bisa berubah sejak layar dibuka. Quote terbaru
+       * diambil ulang (endpoint calculate-fee yang sudah ada) dan
+       * dibandingkan dengan total yang ditampilkan; bila berubah, minta
+       * persetujuan ulang lewat dialog — fail-closed: batal = tidak bayar.
+       *
+       * PARSIAL: backend G02 (quote berversi) BELUM ADA — pemeriksaan ini
+       * memakai hitung-ulang fee saat ini, bukan perbandingan versi quote
+       * server. Setelah G02 tersedia, ganti dengan perbandingan quote ID.
+       */
+      try {
+        const fresh = await api.orders.calculateFee({
+          orderValue: order.orderValue,
+          feeResponsibility: order.feeResponsibility,
+          role: "BUYER",
+          voucherCode: order.voucherCode ?? undefined,
+        })
+        if (
+          typeof fresh?.buyerPays === "number" &&
+          Number.isFinite(fresh.buyerPays) &&
+          fresh.buyerPays !== fee.buyerPays &&
+          // Total ini sudah disetujui lewat dialog — jangan tanya dua kali.
+          acceptedTotalRef.current !== fresh.buyerPays
+        ) {
+          pendingPinRef.current = pin
+          setPriceChange({ oldTotal: fee.buyerPays, newTotal: fresh.buyerPays })
+          return
+        }
+      } catch {
+        // Gagal memuat quote terbaru = jangan bayar buta (fail-closed).
+        setPinError("Tidak dapat memeriksa ulang total bayar. Periksa koneksi, lalu coba lagi.")
         return
       }
       submitLock.current = true
@@ -1002,6 +1074,10 @@ export default function OrderDetailScreen() {
                 qrDataUrl={orderPaymentQr}
                 ticketRef={orderTicketRef}
                 onShare={() => void shareReceipt(orderTicketRef.current)}
+                // D12 (batch 139): salin ID REFERENSI saja — bukan data
+                // sensitif lain. ID order dipakai sebagai referensi
+                // pembayaran di perbankan/konfirmasi manual.
+                onCopyReceiptId={(id) => void copy(id)}
               />
             </>
           ) : null}
@@ -1198,6 +1274,41 @@ export default function OrderDetailScreen() {
         state={payProgress ?? "PROCESSING"}
         feeBuyerPays={fee?.buyerPays}
         error={payProgressError}
+      />
+
+      {/*
+       * D08 (batch 139): persetujuan ulang bila total berubah sejak layar
+       * dibuka. "Lanjutkan" memakai PIN yang sudah dimasukkan (disimpan di
+       * ref, tidak dirender); "Batal" = fail-closed, tidak ada pembayaran.
+       */}
+      <Dialog
+        visible={priceChange != null}
+        title="Total bayar berubah"
+        description={
+          priceChange
+            ? `Total yang harus dibayar berubah dari ${formatRupiah(priceChange.oldTotal)} menjadi ${formatRupiah(priceChange.newTotal)} sejak Anda membuka halaman ini (perubahan biaya/diskon). Lanjutkan membayar dengan total terbaru?`
+            : ""
+        }
+        confirmLabel={`Bayar ${priceChange ? formatRupiah(priceChange.newTotal) : ""}`}
+        cancelLabel="Batal"
+        onConfirm={() => {
+          const pin = pendingPinRef.current
+          pendingPinRef.current = null
+          if (priceChange) acceptedTotalRef.current = priceChange.newTotal
+          setPriceChange(null)
+          // Refresh agar guard nominal & tampilan memakai angka terbaru.
+          void query.refresh()
+          if (pin) void handlePayPin(pin)
+        }}
+        onCancel={() => {
+          pendingPinRef.current = null
+          setPriceChange(null)
+          void query.refresh()
+        }}
+        onRequestClose={() => {
+          pendingPinRef.current = null
+          setPriceChange(null)
+        }}
       />
     </Screen>
   )

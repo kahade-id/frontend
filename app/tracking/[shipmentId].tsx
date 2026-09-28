@@ -5,12 +5,14 @@
  */
 import { useState } from "react"
 import { Text, View } from "react-native"
-import { useLocalSearchParams } from "expo-router"
+import { router, useLocalSearchParams } from "expo-router"
 
 import { api } from "@/lib/api"
 import type { Shipment, TrackingEvent } from "@/lib/api/courier"
 import { SHIPMENT_STATUS_LABEL, formatIdrSen } from "@/lib/api/courier"
 import { formatDateTime } from "@/lib/format"
+import { shortId } from "@/lib/short-id"
+import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 import { useApiQuery } from "@/lib/use-api-query"
 import { showMutationError } from "@/lib/mutation-toast"
@@ -21,6 +23,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { DataScreen } from "@/components/ui/data-screen"
+import { OrderStatusBadge } from "@/components/ui/order-status-badge"
 import { SectionHeader } from "@/components/ui/section"
 
 export default function TrackingScreen() {
@@ -44,6 +47,19 @@ export default function TrackingScreen() {
   )
   const shipment = shipmentQuery.data
   const events = timelineQuery.data ?? []
+  /**
+   * D17 (batch 139): status ORDER selalu terlihat — query independen dari
+   * query tracking. Kegagalan timeline tracking TIDAK PERNAH menutupi
+   * status order: kartu order di bawah dirender dari query-nya sendiri dan
+   * punya retry sendiri.
+   */
+  const orderQuery = useApiQuery(
+    `tracking-order:${shipment?.orderId ?? "none"}`,
+    (signal) => api.orders.getOrder(String(shipment?.orderId), signal),
+    !!shipment?.orderId,
+    { refreshOnFocus: true },
+  )
+  const trackedOrder = orderQuery.data
 
   async function refresh() {
     if (!shipmentId || refreshing) return
@@ -70,6 +86,45 @@ export default function TrackingScreen() {
     <DataScreen title="Lacak Pengiriman" state={shipmentQuery} loadingMessage="Memuat pengiriman…">
       {shipment ? (
         <View style={{ paddingVertical: tokens.space[4], gap: tokens.space[4] }}>
+          {/*
+           * D17 (batch 139): kartu status order — SELALU terlihat selama
+           * query order-nya sukses, apa pun yang terjadi pada tracking.
+           * Retry khusus order; tombol kembali ke detail order.
+           */}
+          {trackedOrder ? (
+            <Card>
+              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontWeight: "800", fontSize: 16 }} numberOfLines={2}>
+                    {trackedOrder.title}
+                  </Text>
+                  <Text style={{ color: c.textTertiary, marginTop: tokens.space[1] }}>
+                    Order #{shortId(trackedOrder.id)}
+                  </Text>
+                </View>
+                <OrderStatusBadge status={trackedOrder.status} size="sm" />
+              </View>
+              <View style={{ marginTop: tokens.space[3] }}>
+                <Button
+                  variant="secondary"
+                  onPress={() => router.push(ROUTES.orderDetail(trackedOrder.id))}
+                >
+                  Lihat detail order
+                </Button>
+              </View>
+            </Card>
+          ) : orderQuery.error ? (
+            <Card>
+              <Text style={{ color: c.textTertiary }}>
+                Status order tidak dapat dimuat: {orderQuery.error}
+              </Text>
+              <View style={{ marginTop: tokens.space[2] }}>
+                <Button variant="secondary" onPress={() => void orderQuery.reload()}>
+                  Muat ulang status order
+                </Button>
+              </View>
+            </Card>
+          ) : null}
           <Card>
             <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
               <Text style={{ fontWeight: "800", fontSize: 16 }}>

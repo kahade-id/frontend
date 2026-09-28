@@ -27,6 +27,12 @@ import { Text } from "@/components/ui/text"
 import { VoucherRedeemBox, type AppliedVoucher } from "@/components/ui/voucher-redeem-box"
 import type { FeeSchedule } from "@/lib/api/public"
 import { formatDateLong, formatDecimal, formatRupiah } from "@/lib/format"
+import type { Address } from "@/lib/api/commerce"
+import { addressLabelText } from "@/lib/api/commerce"
+import { addressMissingFields } from "@/lib/wallet-batch139"
+import { Alert } from "@/components/ui/alert"
+import { Badge } from "@/components/ui/badge"
+import { View } from "react-native"
 
 type Mode = "direct" | "link"
 
@@ -279,7 +285,10 @@ export function OrderSummarySection({
         {shippingAddressLabel ? (
           <KeyValue label="Alamat kirim" value={shippingAddressLabel} />
         ) : null}
-        <KeyValue label="Nilai transaksi" value={formatRupiah(orderValue)} />
+        <KeyValue
+          label="Nilai transaksi"
+          value={formatRupiah(orderValue)}
+        />
         <KeyValue label="Tenggat" value={deadlineDate ? formatDateLong(deadlineDate) : "—"} />
         <KeyValue
           label="Pembayar biaya"
@@ -287,6 +296,61 @@ export function OrderSummarySection({
         />
         {voucherCode ? <KeyValue label="Voucher" value={voucherCode} /> : null}
       </KeyValueList>
+    </FormSection>
+  )
+}
+
+/**
+ * D09 (batch 139): alamat aktif di ringkasan checkout barang fisik — dekat
+ * CTA. Menampilkan label + penerima + kota secara eksplisit; bila belum
+ * dipilih atau tidak lengkap, tampilkan peringatan + tombol kembali ke
+ * langkah detail (jangan biarkan order fisik tanpa alamat yang jelas).
+ */
+export function ShippingAddressSummaryCard({
+  address,
+  onFix,
+}: {
+  address: Address | null
+  onFix: () => void
+}) {
+  const missing = addressMissingFields(
+    address
+      ? {
+          label: addressLabelText(address),
+          recipientName: address.recipientName,
+          phone: address.phone,
+          addressLine: address.addressLine,
+          city: address.city,
+          postalCode: address.postalCode,
+        }
+      : null,
+  )
+  return (
+    <FormSection title="Alamat pengiriman" divider>
+      {missing.length > 0 ? (
+        <View className="gap-2">
+          <Alert tone="warning" title="Alamat pengiriman belum lengkap">
+            {missing.includes("alamat")
+              ? "Pilih alamat pengiriman untuk barang fisik ini."
+              : `Belum diisi: ${missing.join(", ")}.`}
+          </Alert>
+          <Button variant="secondary" size="sm" fullWidth={false} onPress={onFix}>
+            {address ? "Lengkapi alamat" : "Pilih alamat"}
+          </Button>
+        </View>
+      ) : (
+        <View className="gap-1 rounded-md border border-border bg-surface px-4 py-3">
+          <View className="flex-row items-center gap-2">
+            <Badge tone="info">{addressLabelText(address!)}</Badge>
+            <Text variant="body" weight={600} numberOfLines={1} className="flex-1">
+              {address!.recipientName}
+            </Text>
+          </View>
+          <Text variant="caption" tone="secondary" numberOfLines={2}>
+            {address!.addressLine}, {address!.city} {address!.postalCode}
+          </Text>
+        </View>
+      )}
     </FormSection>
   )
 }

@@ -60,6 +60,22 @@ export type PendingAction =
       createdAt: number
       expiresAt?: number
     }
+  /**
+   * D07 (batch 139): transfer yang status akhirnya TAK PASTI (timeout /
+   * respons hilang) — kunci idempotensi + tujuan + nominal dicatat agar
+   * bisa dipulihkan setelah app mati: banner mengarahkan ke riwayat
+   * (kebenaran server) sebelum pengguna mengirim ulang. Dicatat saat
+   * PROCESSING dimulai, di-resolve saat hasil final diketahui.
+   */
+  | {
+      kind: "transfer-uncertain"
+      idempotencyKey: string
+      recipientId: string
+      recipientName: string
+      amount: number
+      createdAt: number
+      expiresAt?: number
+    }
 
 /**
  * Normalisasi expiresAt server (epoch number ATAU ISO string) → epoch ms.
@@ -103,7 +119,9 @@ function actionKey(action: PendingAction): string {
     ? `${action.kind}:${action.txId}`
     : action.kind === "qris-payment"
       ? `${action.kind}:${action.orderId}`
-      : `${action.kind}:${action.paymentTxId}`
+      : action.kind === "topup-unpaid"
+        ? `${action.kind}:${action.paymentTxId}`
+        : `${action.kind}:${action.idempotencyKey}`
 }
 
 /**

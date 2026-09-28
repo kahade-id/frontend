@@ -45,7 +45,9 @@ function actionKey(action: PendingAction): string {
     ? `${action.kind}:${action.txId}`
     : action.kind === "qris-payment"
       ? `${action.kind}:${action.orderId}`
-      : `${action.kind}:${action.paymentTxId}`
+      : action.kind === "topup-unpaid"
+        ? `${action.kind}:${action.paymentTxId}`
+        : `${action.kind}:${action.idempotencyKey}`
 }
 
 function describe(action: PendingAction): { title: string; meta?: string } {
@@ -83,17 +85,43 @@ function describe(action: PendingAction): { title: string; meta?: string } {
           ? translate("Kode OTP berlaku sampai {x}", { x: formatDateTimeWIB(action.expiresAt) })
           : "Periksa status penarikan di layar Tarik Dana",
       }
+    case "transfer-uncertain":
+      // D07 (batch 139): jangan pernah mengklaim gagal/berhasil — status
+      // tak pasti; arahkan ke riwayat (kebenaran server).
+      return {
+        title: translate("Transfer belum pasti — {x} ke {y}", {
+          x: action.amount > 0 ? formatRupiah(action.amount) : "nominal belum diketahui",
+          y: action.recipientName,
+        }),
+        meta: "Periksa riwayat sebelum mengirim ulang",
+      }
   }
 }
 
 function targetOf(action: PendingAction) {
   switch (action.kind) {
     case "qris-payment":
-      return ROUTES.orderDetail(action.orderId)
+      // D11 (batch 139): pulihkan ke detail order BERDASAR ID server +
+      // buka ulang sheet bayar (?sheet=pay) — quote/status selalu dibaca
+      // ulang dari server saat layar dibuka, bukan state lokal basi.
+      return {
+        pathname: "/order/[id]" as "/order/[id]",
+        params: { id: action.orderId, sheet: "pay" },
+      }
     case "topup-unpaid":
-      return ROUTES.topup
+      // D11 (batch 139): pulihkan BERDASAR ID server — layar /topup membaca
+      // ?resumePayment=<paymentTxId> lalu GET status dari server (bukan state
+      // lokal yang sudah hilang saat app mati).
+      return {
+        pathname: "/topup" as "/topup",
+        params: { resumePayment: action.paymentTxId },
+      }
     case "withdraw-otp":
       return ROUTES.withdraw
+    case "transfer-uncertain":
+      // D07 (batch 139): pulihkan dengan memeriksa kebenaran server —
+      // riwayat transaksi, bukan mengulang kirim buta.
+      return ROUTES.walletHistory
   }
 }
 

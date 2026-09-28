@@ -21,6 +21,7 @@ import { Divider } from "@/components/ui/divider"
 import { IconButton } from "@/components/ui/icon-button"
 import { Text } from "@/components/ui/text"
 import { ORDER_STATUS_LABELS, OrderStatusBadge } from "@/components/ui/order-status-badge"
+import { OrderRoleBadge } from "@/components/ui/order-role-badge"
 import { cn } from "@/lib/cn"
 import { formatDate, formatTime } from "@/lib/format"
 import { translate } from "@/lib/i18n/translate"
@@ -85,7 +86,11 @@ export function OrderStatusHero({
             {statusLabel}
           </Text>
         </View>
-        <OrderStatusBadge status={status} role={role} size="md" />
+        {/* D14 (batch 139): badge peran yang SAMA dengan timeline & CTA. */}
+        <View className="items-end gap-1.5">
+          <OrderStatusBadge status={status} role={role} size="md" />
+          <OrderRoleBadge role={role} />
+        </View>
       </View>
 
       <View className="mt-4 gap-1">

@@ -50,6 +50,7 @@ import { cn } from "@/lib/cn"
 import { tokens } from "@/lib/tokens"
 import { formatRupiah, groupThousands } from "@/lib/format"
 import { translate } from "@/lib/i18n"
+import { disabledPresetReason } from "@/lib/wallet-batch139"
 import { useReducedMotion } from "@/lib/use-reduced-motion"
 import { haptic } from "@/lib/haptics"
 import { focusRing } from "@/lib/focus-ring"
@@ -166,6 +167,8 @@ export function AmountKeypad({
 
   const belowMin = min != null && value > 0 && value < min
   const aboveMax = max != null && value > max
+  // D05 (batch 139): alasan chip nominal cepat yang dinonaktifkan.
+  const presetReason = disabledPresetReason(presets, max, disabled, (v) => formatRupiah(v))
   const resolvedError =
     errorText ??
     (belowMin
@@ -448,10 +451,20 @@ export function AmountKeypad({
 
       {/* ----- Preset chip ----- */}
       {presets && presets.length > 0 ? (
-        // SATU baris, tanpa wrap: tiap chip `flex-1` sehingga lima nominal
-        // selalu muat selebar layar (label memakai format compact "Rp50 rb").
-        // `flex-nowrap` eksplisit — default RN sudah nowrap, tapi kelas ini
-        // menahan siapa pun mengembalikan wrap yang membuat keypad terdorong.
+        <>
+        {/*
+         * D05 (batch 139): chip yang dinonaktifkan karena melebihi `max`
+         * (limit/saldo efektif) harus MENJELASKAN alasannya — bukan sekadar
+         * redup. `max` di pemanggil = min(limit server, saldo tersedia),
+         * jadi "batas" mencakup kedua sebab tanpa menebak.
+         */}
+        {presetReason ? (
+          <View className="w-full px-4 pb-1">
+            <Text variant="caption" tone="tertiary" className="text-center">
+              {presetReason}
+            </Text>
+          </View>
+        ) : null}
         <View
           className={cn(
             "w-full flex-row flex-nowrap items-center gap-1.5 px-4",
@@ -472,6 +485,7 @@ export function AmountKeypad({
             </Chip>
           ))}
         </View>
+        </>
       ) : null}
 
       {/* Kartu konteks (metode / rekening / catatan) — selalu tepat di atas

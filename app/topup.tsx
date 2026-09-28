@@ -522,6 +522,46 @@ export default function TopupScreen() {
               className="w-full border-t border-border bg-background px-5 pt-4"
               style={{ paddingBottom: Math.max(tokens.space[4], insets.bottom) }}
             >
+              {/*
+               * D10 (batch 139): status metode dari server. Metode bisa masuk
+               * gangguan SETELAH dipilih (data metode di-cache) — jangan
+               * biarkan tombol Bayar mati diam-diam; jelaskan dan tawarkan
+               * ganti metode. Total tidak pernah diganti diam-diam: biaya
+               * selalu dihitung ulang dari metode yang dipilih.
+               */}
+              {selectedMethod?.unavailable ? (
+                <View className="pb-3">
+                  <Alert
+                    tone="warning"
+                    title="Metode pembayaran tidak tersedia"
+                  >
+                    {selectedMethod.unavailableReason ??
+                      "Metode ini sedang gangguan atau maintenance. Pilih metode lain untuk melanjutkan."}
+                  </Alert>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="mt-2"
+                    onPress={() => setMethodSheetOpen(true)}
+                  >
+                    Pilih metode lain
+                  </Button>
+                </View>
+              ) : null}
+              {/*
+               * D06 (batch 139): total TETAP di area pin di atas CTA — bukan
+               * hanya di dalam ScrollView. Saat keyboard terbuka (mis. dari
+               * sheet pilih metode) atau konten di-scroll, total yang dibayar
+               * tetap terbaca tepat sebelum tombol Bayar.
+               */}
+              <Text variant="caption" tone="secondary" className="pb-3 text-center">
+                {feeLoading
+                  ? "Menghitung total…"
+                  : `Total yang dibayar ${formatRupiah(displayTotal)}`}
+                {!feeLoading && displayFee > 0
+                  ? ` (termasuk biaya admin ${formatRupiah(displayFee)})`
+                  : ""}
+              </Text>
               <Button
                 onPress={() => void handlePay()}
                 loading={submitting}

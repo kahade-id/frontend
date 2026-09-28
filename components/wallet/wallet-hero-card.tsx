@@ -24,7 +24,7 @@
  * Rp350.000 ditahan di escrow") — sedangkan toggle mata kontrol fokusable
  * terpisah. Root kartu TIDAK berlabel.
  */
-import { Bank, CaretRight, Eye, EyeSlash, LockSimple, Wallet } from "phosphor-react-native"
+import { Bank, CaretRight, Eye, EyeSlash, Info, LockSimple, Wallet } from "phosphor-react-native"
 import { Pressable, View } from "react-native"
 
 import { Amount } from "@/components/ui/amount"
@@ -66,6 +66,11 @@ export type WalletHeroCardProps = {
    * tersedia → baris disembunyikan (bukan Rp 0 palsu).
    */
   withdrawLimitLeft?: number
+  /**
+   * D03 (batch 139): bila diisi, ikon info di samping label "Saldo Dompet"
+   * membuka rincian tersedia/tertahan/total (read-only).
+   */
+  onPressBreakdown?: () => void
   className?: string
 }
 
@@ -79,6 +84,7 @@ export function WalletHeroCard({
   onRetry,
   onPressHeld,
   withdrawLimitLeft,
+  onPressBreakdown,
   className,
 }: WalletHeroCardProps) {
   // Fail closed: error menggantikan kartu (bukan Rp 0 di dalam kartu).
@@ -146,6 +152,22 @@ export function WalletHeroCard({
                 <Text variant="caption" weight={600} tone="inverse">
                   Saldo Dompet
                 </Text>
+                {onPressBreakdown && !loading ? (
+                  // D03 (batch 139): rincian saldo tersedia/tertahan/total.
+                  // Kotak 44x44 pola toggle mata — tidak menambah tinggi baris.
+                  <Pressable
+                    onPress={onPressBreakdown}
+                    accessibilityRole="button"
+                    accessibilityLabel="Lihat rincian saldo"
+                    accessibilityHint="Menampilkan penjelasan saldo tersedia, ditahan di escrow, dan total"
+                    className={cn(
+                      "-my-2 -mr-2 min-h-11 min-w-11 items-center justify-center rounded-full",
+                      focusRing,
+                    )}
+                  >
+                    <Icon icon={Info} size="xs" tone="inverse" />
+                  </Pressable>
+                ) : null}
               </View>
               {loading ? (
                 <Skeleton height={tokens.typography.monoLarge.lineHeight} className="w-44" />

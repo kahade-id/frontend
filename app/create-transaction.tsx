@@ -81,6 +81,7 @@ import {
   FeeScheduleSheet,
   FeeServiceSection,
   OrderSummarySection,
+  ShippingAddressSummaryCard,
   VoucherSection,
 } from "@/components/create-transaction-review"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
@@ -960,6 +961,20 @@ export default function CreateTransactionScreen() {
                   : undefined
               }
             />
+
+            {/*
+             * D09 (batch 139): alamat aktif TERLIHAT di ringkasan, dekat CTA —
+             * label, penerima, dan kota ditampilkan eksplisit (bukan hanya
+             * di langkah detail). Bila belum dipilih/tidak lengkap, tampilkan
+             * peringatan + jalan kembali ke langkah detail — jangan biarkan
+             * order fisik terkirim tanpa alamat yang jelas.
+             */}
+            {orderType === "PHYSICAL_GOODS" ? (
+              <ShippingAddressSummaryCard
+                address={shippingAddress}
+                onFix={() => setStep(2)}
+              />
+            ) : null}
           </>
         ) : null}
         </FadeIn>
