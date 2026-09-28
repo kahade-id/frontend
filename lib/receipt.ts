@@ -11,6 +11,11 @@
  */
 
 import QRCode from "qrcode"
+// ST-008: entry utama dipertahankan di sini karena butuh `toDataURL()`
+// (renderer canvas — hanya bermakna di web; di native selalu gagal dan
+// mengembalikan null, sesuai kontrak defensif di bawah). Metro me-resolve
+// entry ini via field `browser` ke lib/browser.js, jadi tidak ada
+// dependensi server (pngjs/yargs/fs) yang ikut ke bundle.
 
 import { http } from "@/lib/api/client"
 import { formatDate, formatTime, WIB_TIME_ZONE } from "@/lib/format"
