@@ -41,6 +41,8 @@ import { showcasePriceLabelOrFallback } from "@/lib/showcase-labels"
 import { showcaseHtmlHasFormatting } from "@/lib/showcase-html"
 import { useShowcaseSocialActions } from "@/lib/use-showcase-social-actions"
 import { useApiQuery } from "@/lib/use-api-query"
+import { consumePrefetchedShowcaseDetail } from "@/lib/showcase-detail-prefetch"
+import { isShowcaseSoldOut } from "@/lib/showcase-stock"
 
 import { useSessionRevision } from "@/lib/guest-gate"
 import { useShowcaseOperation } from "@/lib/use-showcase-operation"
@@ -109,9 +111,24 @@ export default function ShowcaseDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
   const revision = useSessionRevision()
 
+  /**
+   * C05 (batch 139): hasil prefetch dari feed (press-in pada kartu) dipakai
+   * SEKALI sebagai respons pertama — halaman langsung render tanpa request
+   * ulang bila masih segar (TTL 90 dtk di lib). `useRef` initializer berjalan
+   * sekali per mount, selaras sifat sekali-pakai `consume…`.
+   */
+  const prefetchedRef = useRef<ShowcaseSocialItem | null>(
+    id ? consumePrefetchedShowcaseDetail(id) : null,
+  )
+
   const query = useApiQuery<ShowcaseSocialItem>(
     `showcase-detail:${revision}:${id}`,
-    (signal) => getShowcaseDetail(id, signal),
+    (signal) => {
+      const hit = prefetchedRef.current
+      prefetchedRef.current = null
+      if (hit) return Promise.resolve(hit)
+      return getShowcaseDetail(id, signal)
+    },
     Boolean(id),
     // D-08 (audit 2026-09-23): jangan `retry: 0` di lapis hook — satu
     // gangguan jaringan sesaat tidak boleh langsung layar error penuh.
@@ -613,6 +630,10 @@ function ShowcaseDetailContent({
   }, [commentsRefreshing, query, fetchComments])
 
   const priceLabel = showcasePriceLabelOrFallback(item)
+  // C06 (batch 139): status stok konsisten dengan kartu feed — CTA
+  // "Buat Transaksi" nonaktif saat stok habis. Graceful: tanpa field stok
+  // dari backend, perilaku sama seperti sebelumnya.
+  const soldOut = isShowcaseSoldOut(item)
 
   const canReply = (c: ShowcaseComment) => hasSession && !c.isHidden && c.parentId == null
   const isMine = (c: ShowcaseComment) => meId != null && c.author.userId === meId
@@ -706,17 +727,25 @@ function ShowcaseDetailContent({
                 <Text variant="h3" weight={700} numberOfLines={1} className="tabular-nums">
                   {priceLabel}
                 </Text>
+                {/* C06: status stok konsisten dengan badge di kartu feed. */}
+                {soldOut ? (
+                  <Text variant="caption" weight={700} tone="danger">
+                    {translate("Stok habis")}
+                  </Text>
+                ) : null}
                 <Text variant="caption" tone="secondary" numberOfLines={2}>
                   {translate("Dana ditahan escrow sampai barang Anda terima")}
                 </Text>
               </View>
               <Button
-                disabled={item.isActive === false}
+                disabled={item.isActive === false || soldOut}
                 onPress={handleCreateTransaction}
                 accessibilityHint={
-                  item.isActive === false
-                    ? translate("Karya ini sedang tidak aktif, jadi belum bisa ditransaksikan.")
-                    : undefined
+                  soldOut
+                    ? translate("Stok karya ini habis, jadi belum bisa ditransaksikan.")
+                    : item.isActive === false
+                      ? translate("Karya ini sedang tidak aktif, jadi belum bisa ditransaksikan.")
+                      : undefined
                 }
               >
                 {translate("Buat Transaksi")}

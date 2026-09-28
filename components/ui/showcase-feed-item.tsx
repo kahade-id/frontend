@@ -70,6 +70,12 @@ export type ShowcaseFeedItemProps = {
   item: ShowcaseSocialItem
   onPress?: () => void
   /**
+   * C05 (batch 139): niat buka detail terdeteksi (press-in pada judul) —
+   * pemanggil memicu `prefetchShowcaseDetail` agar navigasi terasa instan.
+   * Tidak memicu unduhan media apa pun (prefetch hanya metadata JSON).
+   */
+  onPressIn?: () => void
+  /**
    * Ketuk media → buka pratinjau gambar (index slide). Bila tidak disediakan,
    * ketuk media jatuh ke `onPress` (perilaku lama: buka detail karya).
    */
@@ -174,6 +180,7 @@ function CountAction({
 function ShowcaseFeedItemBase({
   item,
   onPress,
+  onPressIn,
   onOpenMedia,
   onToggleLike,
   onOpenComments,
@@ -481,6 +488,8 @@ function ShowcaseFeedItemBase({
           accessibilityLabel={onPress ? item.title : undefined}
           accessibilityHint={onPress ? translate("Buka detail karya") : undefined}
           onPress={onPress}
+          // C05: press-in = niat buka detail → prefetch metadata ringan.
+          onPressIn={nonInteractive ? undefined : onPressIn}
           containerClassName={cn("rounded-sm", focusRing)}
         >
           <View className="gap-1">

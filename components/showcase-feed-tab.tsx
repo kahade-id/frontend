@@ -63,9 +63,10 @@ import {
 } from "@/lib/showcase-social-prefs"
 import { applyShowcaseCommentCountDelta } from "@/lib/showcase-social"
 import { showcaseMedia } from "@/lib/showcase-social"
+import { prefetchShowcaseDetail } from "@/lib/showcase-detail-prefetch"
 import { tokens } from "@/lib/tokens"
 import { modes } from "@/lib/tokens"
-import { describeSheetFilters } from "@/lib/showcase-filters"
+import { describeSheetFilters, countActiveFeedFilters } from "@/lib/showcase-filters"
 import { useUiPrefs, parseShowcaseFeedTab, type ShowcaseFeedTab as SavedFeedTab } from "@/lib/ui-prefs"
 import { useCollapsingHeader } from "@/lib/use-collapsing-header"
 import { useShowcaseSocialActions } from "@/lib/use-showcase-social-actions"
@@ -88,7 +89,6 @@ import { ShowcaseFilterSheet } from "@/components/ui/showcase-filter-sheet"
 import {
   DEFAULT_SHOWCASE_FILTERS,
   isDefaultShowcaseFilters,
-  showcaseFilterBadgeCount,
   type ShowcaseFeedFilters,
 } from "@/components/ui/showcase-filter-sheet"
 import { ShowcaseReportSheet } from "@/components/ui/showcase-report-sheet"
@@ -196,6 +196,9 @@ const FeedCard = memo(function FeedCard({
     () => router.push(ROUTES.showcaseDetail(item.id, { kind })),
     [item.id, kind],
   )
+  // C05 (batch 139): press-in pada judul = niat buka detail → prefetch
+  // metadata ringan (hanya JSON; video TIDAK diunduh, aman mode hemat data).
+  const handlePressIn = useCallback(() => prefetchShowcaseDetail(item.id), [item.id])
   const handleComments = useCallback(() => onOpenComments(item), [onOpenComments, item])
   const handleReport = useCallback(() => onReport(item), [onReport, item])
   /** Viewer gambar layar penuh: ketuk media (bukan judul) membuka ini. */
@@ -222,6 +225,7 @@ const FeedCard = memo(function FeedCard({
       <ShowcaseFeedItem
         item={display}
         onPress={handlePress}
+        onPressIn={handlePressIn}
         onOpenMedia={handleOpenMedia}
         autoplayActive={visible}
         onToggleLike={toggleLike}
@@ -905,6 +909,32 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
     </View>
   ) : null
 
+  /**
+   * C15 (batch 139): aksi "Atur ulang" SELALU terlihat selama ada filter
+   * aktif — satu ketuk menghapus search + kategori + lokasi + filter sheet.
+   * (Chip individual di atas tetap ada untuk hapus satu per satu.)
+   */
+  const resetAllChip = filtersActive ? (
+    <View className="mt-3 flex-row items-center justify-between gap-2 rounded-full border border-border bg-surface py-1.5 pl-4 pr-1.5 mx-5">
+      <Text variant="caption" weight={600} className="flex-1" numberOfLines={1}>
+        {translate("{x} filter aktif", { x: countActiveFeedFilters({
+          search: activeSearch,
+          category,
+          location,
+          sheet: sheetFilters,
+        }) })}
+      </Text>
+      <Button
+        variant="ghost"
+        size="sm"
+        onPress={resetAllFilters}
+        accessibilityLabel={translate("Atur ulang semua filter")}
+      >
+        {translate("Atur ulang")}
+      </Button>
+    </View>
+  ) : null
+
   return (
     <View className="flex-1">
       {/* ── Header showcase — pensil kelola · logo · notifikasi + tab feed ── */}
@@ -920,7 +950,15 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
             onKindChange={setKind}
             tabs={feedTabs}
             onFilterPress={() => setFilterSheetVisible(true)}
-            filterBadgeCount={showcaseFilterBadgeCount(sheetFilters)}
+            // C15 (batch 139): badge menghitung SEMUA filter aktif (sheet +
+            // pencarian + kategori + lokasi) supaya pengguna tidak lupa
+            // filter harga/kategori masih aktif.
+            filterBadgeCount={countActiveFeedFilters({
+              search: activeSearch,
+              category,
+              location,
+              sheet: sheetFilters,
+            })}
           />
         </Animated.View>
       </Animated.View>
