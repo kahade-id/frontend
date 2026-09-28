@@ -886,8 +886,10 @@ function ShowcaseManagement() {
                 empty={
                   <EmptyState
                     icon={Images}
-                    title={translate("Belum ada foto")}
-                    description={translate("Tambahkan foto produk atau hasil kerja Anda.")}
+                    // T2-F09 (audit UI/UX 2026-09-28): ini daftar KARYA,
+                    // bukan daftar foto — copy salah konteks diperbaiki.
+                    title={translate("Belum ada karya")}
+                    description={translate("Buat karya pertama Anda — produk, jasa, atau hasil kerja.")}
                   />
                 }
               />
@@ -985,8 +987,8 @@ function ShowcaseManagement() {
         avoidKeyboard
         visible={imagesItem != null}
         onRequestClose={() => void closeImagesSheet()}
-        title={imagesItem ? translate("Foto: {x}", { x: labelOf(imagesItem) }) : translate("Foto karya")}
-        description={translate("{x} dari {y} foto. Foto pertama menjadi cover karya.", {
+        title={imagesItem ? translate("Media: {x}", { x: labelOf(imagesItem) }) : translate("Media karya")}
+        description={translate("{x} dari {y} media. Item pertama menjadi cover karya.", {
           x: imagesItem?.images?.length ?? 0,
           y: photoLimit,
         })}
@@ -999,7 +1001,7 @@ function ShowcaseManagement() {
             disabled={committingOrder || deletingImage || (imagesItem?.images?.length ?? 0) >= photoLimit}
             onPress={() => imagesItem && void handleAttachImage(imagesItem)}
           >
-            Tambah foto
+            {translate("Tambah media")}
           </Button>
         }
       >
@@ -1023,14 +1025,30 @@ function ShowcaseManagement() {
                 <View
                   accessible
                   accessibilityRole="button"
-                  accessibilityLabel={translate("Foto {x} — tahan lalu seret untuk mengubah urutan", { x: i + 1 })}
+                  accessibilityLabel={translate("{x} {y} — tahan lalu seret untuk mengubah urutan", {
+                    x: img.kind === "video" ? translate("Video") : translate("Foto"),
+                    y: i + 1,
+                  })}
                 >
                   <Icon icon={DotsSixVertical} size="md" tone="default" />
                 </View>
-                <Picture source={img.imageUrl} alt="" width={56} height={56} radius="sm" />
+                {/*
+                  T2-F05 (audit UI/UX 2026-09-28): entri video memakai
+                  thumbnailUrl sebagai pratinjau — imageUrl-nya berkas video
+                  (dulu URL video masuk ke image decoder → fallback rusak).
+                */}
+                <Picture
+                  source={img.kind === "video" ? (img.thumbnailUrl ?? img.imageUrl) : img.imageUrl}
+                  alt=""
+                  width={56}
+                  height={56}
+                  radius="sm"
+                />
                 <View className="flex-1 gap-0.5">
                   <Text variant="body" weight={500} tone="primary">
-                    {translate("Foto {x}", { x: i + 1 })}
+                    {img.kind === "video"
+                      ? translate("Video {x}", { x: i + 1 })
+                      : translate("Foto {x}", { x: i + 1 })}
                   </Text>
                   {i === 0 ? <Text variant="caption" tone="secondary">{translate("Cover karya")}</Text> : null}
                 </View>
@@ -1041,8 +1059,12 @@ function ShowcaseManagement() {
                     icon={Star}
                     size="sm"
                     variant="ghost"
-                    accessibilityLabel={translate("Jadikan sampul: foto {x}", { x: i + 1 })}
-                    accessibilityHint={translate("Pindahkan foto ini ke posisi pertama sebagai cover karya")}
+                    accessibilityLabel={
+                      img.kind === "video"
+                        ? translate("Jadikan sampul: video {x}", { x: i + 1 })
+                        : translate("Jadikan sampul: foto {x}", { x: i + 1 })
+                    }
+                    accessibilityHint={translate("Pindahkan media ini ke posisi pertama sebagai cover karya")}
                     disabled={committingOrder || attaching || deletingImage}
                     onPress={() => {
                       if (committingOrder || attaching || deletingImage) return
@@ -1054,7 +1076,11 @@ function ShowcaseManagement() {
                   icon={Trash}
                   size="sm"
                   variant="ghost"
-                  accessibilityLabel={translate("Hapus foto {x}", { x: i + 1 })}
+                  accessibilityLabel={
+                    img.kind === "video"
+                      ? translate("Hapus video {x}", { x: i + 1 })
+                      : translate("Hapus foto {x}", { x: i + 1 })
+                  }
                   disabled={deletingImage}
                   onPress={() => setDeleteImage(img)}
                 />
@@ -1067,18 +1093,22 @@ function ShowcaseManagement() {
           />
           {imageRows.length === 0 ? (
             <Text variant="caption" tone="secondary">
-              Belum ada foto — lampirkan foto pertama di bawah.
+              {translate("Belum ada media — lampirkan yang pertama di bawah.")}
             </Text>
           ) : null}
         </View>
       </BottomSheet>
 
       <Dialog
-        title={translate("Hapus foto ini?")}
+        title={
+          deleteImage?.kind === "video"
+            ? translate("Hapus video ini?")
+            : translate("Hapus foto ini?")
+        }
         description={
           deleteImage && imagesItem?.images?.[0]?.id === deleteImage.id
-            ? translate("Foto cover akan digantikan foto berikutnya.")
-            : translate("Foto akan dihapus permanen dari karya ini.")
+            ? translate("Cover karya akan digantikan media berikutnya.")
+            : translate("Media akan dihapus permanen dari karya ini.")
         }
         visible={!!deleteImage}
         destructive

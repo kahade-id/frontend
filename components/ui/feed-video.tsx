@@ -138,6 +138,11 @@ function VideoPoster({
         className,
       )}
       style={{ aspectRatio }}
+      // T2-F07 (audit UI/UX 2026-09-28): bila modul video native tidak ada
+      // (APK lama), poster ini INERT — jangan tampilkan ikon Play besar +
+      // label "Putar video" yang menyiratkan bisa diketuk padahal tap tidak
+      // melakukan apa-apa. Tanpa onPress: murni pratinjau visual.
+      accessibilityLabel={onPress ? undefined : (label ?? translate("Pratinjau video"))}
     >
       {posterSource ? (
         <Picture
@@ -149,15 +154,17 @@ function VideoPoster({
           className="absolute inset-0"
         />
       ) : null}
-      <View className="items-center justify-center rounded-full bg-overlay-media p-4">
-        <Icon
-          icon={Play}
-          size="lg"
-          weight="fill"
-          tone="inverse"
-          accessibilityLabel={label ?? translate("Putar video")}
-        />
-      </View>
+      {onPress ? (
+        <View className="items-center justify-center rounded-full bg-overlay-media p-4">
+          <Icon
+            icon={Play}
+            size="lg"
+            weight="fill"
+            tone="inverse"
+            accessibilityLabel={label ?? translate("Putar video")}
+          />
+        </View>
+      ) : null}
     </View>
   )
   if (!onPress) return body

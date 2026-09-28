@@ -38,12 +38,15 @@ type ShowcaseAuthorRowProps = {
 export function ShowcaseAuthorRow({ item, isOwner, hasSession, onReport }: ShowcaseAuthorRowProps) {
   // i18n: label aksesibilitas mengikuti bahasa aktif.
   useLanguage()
+  // T2-F12 (audit UI/UX 2026-09-28): fullName kosong/spasi → pakai username
+  // (pola defensif yang sama dengan kartu feed: fullName?.trim() || username).
+  const displayName = item.author.fullName?.trim() || item.author.username
   return (
     <View className="flex-row items-center gap-3 px-5 pt-4">
       <PressableScale
         accessibilityRole="button"
         accessibilityLabel={translate("Lihat profil {x}", {
-          x: item.author.fullName ?? item.author.username,
+          x: displayName,
         })}
         // H-04 (audit 2026-09-23): profil publik user terproteksi — tamu
         // diarahkan ke loginRequired dengan `next`, bukan menabrak dinding.
@@ -59,14 +62,14 @@ export function ShowcaseAuthorRow({ item, isOwner, hasSession, onReport }: Showc
       >
         <Avatar
           source={item.author.avatarUrl ? { uri: item.author.avatarUrl } : undefined}
-          name={item.author.fullName ?? item.author.username}
+          name={displayName}
           size="md"
         />
         <View className="flex-1 gap-0.5">
           {/* S1: seal 3-tier di samping nama (sumber: badge backend, sama
               dengan profil); fallback boolean KYC bila badge belum ada. */}
           <VerifiedName
-            name={item.author.fullName ?? item.author.username}
+            name={displayName}
             variant="body"
             badges={item.author.badges as unknown as VerificationBadge[]}
             verified={item.author.isKycVerified === true}
