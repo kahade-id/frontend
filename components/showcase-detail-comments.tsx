@@ -108,9 +108,11 @@ export function ShowcaseDetailComments({
               {formatNumber(commentTotal)}
             </Text>
           ) : null}
-          {/* Item 160: kontrol urutan — hanya bila ada ≥2 komentar. */}
+          {/* Item 160: kontrol urutan — hanya bila ada ≥2 komentar.
+              T2-F08: boleh wrap agar chip "Terbaru"/"Terlama" tidak terpotong
+              di layar sempit (320pt). */}
           {comments.length >= 2 ? (
-            <View className="ml-auto flex-row items-center gap-1.5">
+            <View className="ml-auto flex-row flex-wrap items-center justify-end gap-1.5">
               <Chip
                 selected={commentOrder === "newest"}
                 accessibilityState={{ selected: commentOrder === "newest" }}

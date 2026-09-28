@@ -55,11 +55,18 @@ export function ShowcaseSavedCollection() {
   const [hasNext, setHasNext] = useState(false)
   const [total, setTotal] = useState(0)
   const [loadingMore, setLoadingMore] = useState(false)
+  /**
+   * T2-F04 (audit UI/UX 2026-09-28): gagal load-more TIDAK boleh menghapus
+   * daftar yang sudah termuat — error ditampilkan inline dengan tombol
+   * "Coba lagi", daftar dipertahankan (pola product-stats-section.tsx).
+   */
+  const [loadMoreError, setLoadMoreError] = useState<string | null>(null)
   const [removingIds, setRemovingIds] = useState<ReadonlySet<string>>(new Set())
   const abortRef = useRef<AbortController | null>(null)
 
   const load = useCallback(async (pageNum: number, append: boolean) => {
     const rev = getSessionRevision()
+    setLoadMoreError(null)
     if (append) setLoadingMore(true)
     else setListState({ status: "loading" })
     abortRef.current?.abort()
@@ -79,6 +86,11 @@ export function ShowcaseSavedCollection() {
     } catch (error) {
       if (rev !== getSessionRevision()) return
       if (isApiError(error) && error.code === "ABORTED") return
+      // T2-F04: gagal APPEND (load-more) → pertahankan daftar, error inline.
+      if (append) {
+        setLoadMoreError(userMessage(error) || translate("Gagal memuat — coba lagi"))
+        return
+      }
       setListState({
         status: "error",
         message: userMessage(error),
@@ -199,6 +211,7 @@ export function ShowcaseSavedCollection() {
                 <Button
                   variant="ghost"
                   fullWidth={false}
+                  containerClassName="min-w-0 flex-1"
                   onPress={() => router.push(ROUTES.showcaseDetail(id))}
                   accessibilityLabel={translate("Buka karya {x}", { x: item.title || translate("Tanpa judul") })}
                 >
@@ -220,7 +233,9 @@ export function ShowcaseSavedCollection() {
                     ) : (
                       <View className="h-14 w-14 rounded-sm bg-surface" />
                     )}
-                    <View className="max-w-[180px] gap-0.5">
+                    {/* T2-F10: kolom teks fleksibel (dulu max-w-[180px] tetap) —
+                        judul panjang memanfaatkan ruang layar yang ada. */}
+                    <View className="min-w-0 flex-1 gap-0.5">
                       <Text variant="body" numberOfLines={1}>
                         {item.title || translate("Tanpa judul")}
                       </Text>
@@ -233,7 +248,6 @@ export function ShowcaseSavedCollection() {
                     </View>
                   </View>
                 </Button>
-                <View className="flex-1" />
                 <IconButton
                   icon={Trash}
                   variant="ghost"
@@ -248,9 +262,21 @@ export function ShowcaseSavedCollection() {
         : null}
 
       {listState.status === "ready" && hasNext ? (
-        <Button variant="secondary" onPress={loadMore} disabled={loadingMore}>
-          {loadingMore ? translate("Memuat…") : translate("Muat lagi")}
-        </Button>
+        loadMoreError ? (
+          // T2-F04: daftar tetap tampil di atas; error + retry inline di sini.
+          <View className="gap-2 rounded-md border border-border p-3">
+            <Text variant="caption" tone="secondary">
+              {loadMoreError}
+            </Text>
+            <Button variant="ghost" onPress={loadMore} disabled={loadingMore}>
+              {translate("Coba lagi")}
+            </Button>
+          </View>
+        ) : (
+          <Button variant="secondary" onPress={loadMore} disabled={loadingMore}>
+            {loadingMore ? translate("Memuat…") : translate("Muat lagi")}
+          </Button>
+        )
       ) : null}
 
       {listState.status === "ready" && entries.length === 0 ? (

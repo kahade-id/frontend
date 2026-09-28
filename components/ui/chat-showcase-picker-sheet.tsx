@@ -28,7 +28,12 @@ export type ChatShowcasePickerSheetProps = {
 }
 
 function coverOf(item: ShowcaseItem): string | null {
-  return item.coverImageUrl ?? item.images?.[0]?.imageUrl ?? item.imageUrl ?? null
+  const first = item.images?.[0]
+  // T2-F06 (audit UI/UX 2026-09-28): kontrak final Tim A — entri video
+  // memakai thumbnailUrl sebagai cover (imageUrl-nya = berkas video),
+  // selaras koleksi tersimpan. Tanpa thumbnail → null (placeholder).
+  if (first?.kind === "video") return first.thumbnailUrl ?? null
+  return item.coverImageUrl ?? first?.imageUrl ?? item.imageUrl ?? null
 }
 
 export function ChatShowcasePickerSheet({
@@ -96,9 +101,13 @@ export function ChatShowcasePickerSheet({
                 accessibilityLabel={`Kirim kartu produk: ${item.title ?? "Etalase"}`}
                 className="flex-row items-center gap-3 rounded-md border border-border bg-surface p-2.5"
               >
+                {/* T2-F11 (audit UI/UX 2026-09-28): placeholder media bila tanpa
+                    cover — baris tetap sejajar, selaras koleksi tersimpan. */}
                 {cover ? (
                   <Picture source={cover} alt={item.title ?? ""} width={52} height={52} radius="sm" bordered={false} />
-                ) : null}
+                ) : (
+                  <View className="h-[52px] w-[52px] shrink-0 rounded-sm bg-surface" />
+                )}
                 <View className="flex-1">
                   <Text variant="body" weight={600} tone="primary" numberOfLines={2}>
                     {item.title ?? "Etalase"}

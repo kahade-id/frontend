@@ -77,6 +77,8 @@ import { useToast } from "@/components/ui/toast"
 
 /** Komentar yang dimuat sekali buka — cukup untuk percakapan di feed. */
 const SHEET_COMMENT_LIMIT = 30
+/** T2-F03: balasan diringkas 3 baris (selaras layar detail). */
+const REPLY_PREVIEW = 3
 /** Kontrak DTO CreateShowcaseCommentDto (sumber: constraints.ts, D-08). */
 const COMMENT_MAX = API_CONSTRAINTS.CreateShowcaseCommentDto.content.maxLength
 
@@ -113,10 +115,24 @@ export function ShowcaseCommentsSheet({
   const [commentOrder, setCommentOrder] = useState<ShowcaseCommentOrder>("newest")
   /** Komentar yang ditulis dari komposer sheet (belum tentu ada di query). */
   const [localComments, setLocalComments] = useState<ShowcaseCommentWithReplies[]>([])
+  /**
+   * T2-F02 (audit UI/UX 2026-09-28): balasan yang induknya komentar SERVER
+   * tidak ada di `localComments`, jadi mapping lama tidak pernah menemukan
+   * induknya → balasan tak terlihat sampai sheet dibuka ulang. Sekarang
+   * balasan disimpan sebagai patch per parentId dan digabung ke induknya
+   * (lokal MAUPUN server) saat render.
+   */
+  const [replyPatches, setReplyPatches] = useState<Array<{ parentId: string; reply: ShowcaseComment }>>([])
   const [draft, setDraft] = useState("")
   const [sending, setSending] = useState(false)
   const [replyTo, setReplyTo] = useState<ShowcaseComment | null>(null)
   const [commentMenu, setCommentMenu] = useState<ShowcaseComment | null>(null)
+  /**
+   * T2-F03 (audit UI/UX 2026-09-28): semua balasan dirender penuh membuat
+   * sheet (maxHeight 55%) sangat panjang — komposer tak terjangkau. Lipat
+   * seperti layar detail (REPLY_PREVIEW 3 + tombol "Lihat {x} balasan").
+   */
+  const [expandedReplies, setExpandedReplies] = useState<ReadonlySet<string>>(new Set())
   const { copy } = useCopy()
   const [meId, setMeId] = useState<string | null>(null)
 
@@ -159,6 +175,9 @@ export function ShowcaseCommentsSheet({
               replies: (c.replies ?? []).filter((r) => r.id !== target.id),
             })),
         )
+        // T2-F02: buang juga patch balasan sesi ini (kalau tidak, reload di
+        // bawah menempelkannya kembali walau sudah dihapus).
+        setReplyPatches((prev) => prev.filter((p) => p.reply.id !== target.id))
         void query.reload()
       } catch (err) {
         toast.show({
@@ -202,6 +221,8 @@ export function ShowcaseCommentsSheet({
       setDraft(restored)
     }
     setLocalComments([])
+    setReplyPatches([])
+    setExpandedReplies(new Set())
     setSending(false)
     setReplyTo(null)
     setCommentMenu(null)
@@ -238,11 +259,8 @@ export function ShowcaseCommentsSheet({
       queueShowcaseCommentCount(showcaseId, 1)
       if (!task.valid()) return
       if (replyTo?.id) {
-        setLocalComments((previous) =>
-          previous.map((c) =>
-            c.id === replyTo.id ? { ...c, replies: [...(c.replies ?? []), saved] } : c,
-          ),
-        )
+        // T2-F02: gabung ke induk lokal MAUPUN server (patch per parentId).
+        setReplyPatches((previous) => [...previous, { parentId: replyTo.id, reply: saved }])
       } else {
         setLocalComments((previous) => [{ ...saved, replies: [] }, ...previous])
       }
@@ -268,10 +286,14 @@ export function ShowcaseCommentsSheet({
   const serverComments = query.data?.data.filter((c) => !localIds.has(c.id)) ?? []
   // Item 49: urutkan sisi klien (backend tidak punya param sort untuk
   // komentar) — deterministik, seri dipecah id.
-  const comments = useMemo(
-    () => sortShowcaseComments([...localComments, ...serverComments], commentOrder),
-    [localComments, serverComments, commentOrder],
-  )
+  // T2-F02: tempel balasan sesi ini ke induknya (lokal maupun server).
+  const comments = useMemo(() => {
+    const patched = [...localComments, ...serverComments].map((c) => {
+      const extra = replyPatches.filter((p) => p.parentId === c.id).map((p) => p.reply)
+      return extra.length > 0 ? { ...c, replies: [...(c.replies ?? []), ...extra] } : c
+    })
+    return sortShowcaseComments(patched, commentOrder)
+  }, [localComments, serverComments, commentOrder, replyPatches])
 
   /**
    * G-01: total = total server + komentar lokal yang BELUM tercakup server.
@@ -438,6 +460,10 @@ export function ShowcaseCommentsSheet({
                 paling bawah". */}
             {comments.map((root) => {
               const replies = root.replies ?? []
+              // T2-F03: ringkas balasan (3 pertama), tombol buka/tutup lipatan.
+              const expanded = expandedReplies.has(root.id)
+              const visibleReplies = expanded ? replies : replies.slice(0, REPLY_PREVIEW)
+              const hiddenCount = replies.length - visibleReplies.length
               return (
                 <View key={root.id}>
                   {/*
@@ -453,9 +479,9 @@ export function ShowcaseCommentsSheet({
                     menuable={true}
                     onReply={(c) => setReplyTo(c)}
                     onOpenMenu={(c) => setCommentMenu(c)}
-                    threaded={replies.length > 0}
+                    threaded={visibleReplies.length > 0}
                   >
-                    {replies.map((reply) => (
+                    {visibleReplies.map((reply) => (
                       <ShowcaseCommentRow
                         key={reply.id}
                         comment={reply}
@@ -466,6 +492,23 @@ export function ShowcaseCommentsSheet({
                         onOpenMenu={(c) => setCommentMenu(c)}
                       />
                     ))}
+                    {replies.length > REPLY_PREVIEW ? (
+                      <Button
+                        variant="ghost"
+                        onPress={() =>
+                          setExpandedReplies((current) => {
+                            const next = new Set(current)
+                            if (next.has(root.id)) next.delete(root.id)
+                            else next.add(root.id)
+                            return next
+                          })
+                        }
+                      >
+                        {expanded
+                          ? translate("Tutup balasan")
+                          : translate("Lihat {x} balasan", { x: hiddenCount })}
+                      </Button>
+                    ) : null}
                   </ShowcaseCommentRow>
                 </View>
               )

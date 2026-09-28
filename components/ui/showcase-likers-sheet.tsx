@@ -96,7 +96,17 @@ export function ShowcaseLikersSheet({
   const [saversForbidden, setSaversForbidden] = useState(false)
   const [likers, setLikers] = useState<TabState>(EMPTY_TAB)
   const [savers, setSavers] = useState<TabState>(EMPTY_TAB)
-  const abortRef = useRef<AbortController | null>(null)
+  /**
+   * T2-F01 (audit UI/UX 2026-09-28): satu abortRef untuk dua tab membuat
+   * ganti tab cepat MEMBUNUHKAN request tab lama — statusnya macet di
+   * "loading" selamanya (effect auto-fetch hanya jalan dari "idle").
+   * Controller kini di-scope PER TAB: tab lain tidak pernah dibatalkan,
+   * dua tab boleh memuat bersamaan.
+   */
+  const abortRefs = useRef<Record<LikersTab, AbortController | null>>({
+    likers: null,
+    savers: null,
+  })
 
   // Reset tiap dibuka.
   useEffect(() => {
@@ -109,9 +119,11 @@ export function ShowcaseLikersSheet({
 
   const fetchTab = useCallback(
     async (which: LikersTab, page: number, append: boolean) => {
-      abortRef.current?.abort()
+      // Batalkan hanya request TAB YANG SAMA yang masih berjalan (mis. spam
+      // "Muat lebih banyak") — request tab lain dibiarkan selesai.
+      abortRefs.current[which]?.abort()
       const controller = new AbortController()
-      abortRef.current = controller
+      abortRefs.current[which] = controller
       const setState = which === "likers" ? setLikers : setSavers
       setState((prev) => ({ ...prev, status: "loading" }))
       try {
@@ -148,7 +160,13 @@ export function ShowcaseLikersSheet({
     if (state.status === "idle" && state.page === 0) void fetchTab(tab, 1, false)
   }, [visible, tab, canViewSavers, saversForbidden, likers, savers, fetchTab])
 
-  useEffect(() => () => abortRef.current?.abort(), [])
+  useEffect(
+    () => () => {
+      abortRefs.current.likers?.abort()
+      abortRefs.current.savers?.abort()
+    },
+    [],
+  )
 
   const active: TabState = tab === "likers" ? likers : savers
   const showSaversTab = canViewSavers && !saversForbidden
