@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button"
 import { Countdown } from "@/components/ui/countdown"
 import { QRCodeDisplay } from "@/components/ui/qr-code-display"
 import { Text } from "@/components/ui/text"
+import { ScreenCaptureGuard } from "@/components/security/screen-capture-guard"
 import { formatDateTimeWIB, formatRupiah } from "@/lib/format"
 import { translate } from "@/lib/i18n/translate"
 import { toEpochMs } from "@/lib/pending-actions"
@@ -81,8 +82,10 @@ export function QrisPaymentPanel({
   checking = false,
 }: QrisPaymentPanelProps) {
   const failed = status === "EXPIRED" || status === "FAILED"
+  // L-1 (audit ronde-2): panel QRIS menampilkan QR + nominal pembayaran —
+  // layar sensitif seperti 8 layar lain yang sudah dibungkus guard ini.
   return (
-    <>
+    <ScreenCaptureGuard>
       {pollError ? (
         <Text variant="caption" tone="danger">
           Status belum diperbarui: {pollError}
@@ -156,6 +159,6 @@ export function QrisPaymentPanel({
           ) : null}
         </>
       )}
-    </>
+    </ScreenCaptureGuard>
   )
 }

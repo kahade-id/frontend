@@ -159,8 +159,12 @@ export function useChatRoomRealtime(
       void import("@/lib/api/chat")
         .then((m) => m.sendChatTyping(roomId, isTyping))
         .catch((err: unknown) => {
-          // eslint-disable-next-line no-console
-          console.warn("[chat] typing fallback gagal", err)
+          // L-3 (audit ronde-2): log internal hanya di dev — jangan bocor
+          // ke konsol produksi.
+          if (__DEV__) {
+            // eslint-disable-next-line no-console
+            console.warn("[chat] typing fallback gagal", err)
+          }
         })
     },
     [roomId, healthy, socket],

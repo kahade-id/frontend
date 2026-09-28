@@ -44,6 +44,7 @@ import {
 import { api } from "@/lib/api"
 import { useCopy } from "@/lib/clipboard"
 import { profileUrl } from "@/lib/deeplinks"
+import { safeHttpsLink } from "@/lib/external-url"
 import { useHasSession } from "@/lib/guest-gate"
 import { useUiPrefs } from "@/lib/ui-prefs"
 import { translate } from "@/lib/i18n/translate"
@@ -343,10 +344,21 @@ export default function ScanScreen() {
           router.push(`/transfer${params}` as never)
           break
         }
-        case "external-url":
-          // Anti-phishing: hanya dibuka atas ketukan eksplisit di sheet.
-          if (target.url) void Linking.openURL(target.url).catch(() => undefined)
+        case "external-url": {
+          // Anti-phishing: hanya dibuka atas ketukan eksplisit di sheet
+          // (sheet konfirmasi anti-phishing tetap dipertahankan), DAN hanya
+          // URL https bersih (tanpa kredensial) yang lolos gate R-1.
+          const safe = target.url ? safeHttpsLink(target.url) : undefined
+          if (safe) {
+            void Linking.openURL(safe).catch(() => undefined)
+          } else {
+            toast.show({
+              title: translate("Tautan tidak aman — tidak dibuka"),
+              tone: "danger",
+            })
+          }
           break
+        }
         case "text":
           void copy(result.raw)
           toast.show({ title: "Kode disalin", tone: "success" })

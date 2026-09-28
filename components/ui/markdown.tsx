@@ -7,8 +7,11 @@
  * keamanan:
  * - TIDAK ada `dangerouslySetInnerHTML` / WebView — semua lewat komponen
  *   React Native biasa, teks di-render sebagai string (escape otomatis).
- * - Tautan & gambar HANYA skema http/https — skema lain (javascript:,
- *   data:, file:) ditolak dan di-render sebagai teks polos.
+ * - Tautan & gambar HANYA skema https (tanpa kredensial userinfo) — skema
+ *   lain (javascript:, data:, file:) dan http: non-TLS ditolak lalu
+ *   di-render sebagai teks polos. Validasi terpusat di `safeHttpsLink`
+ *   (`lib/external-url.ts`) — satu gate dengan seluruh call-site
+ *   `Linking.openURL` (R-1 audit ronde-2).
  * - Konstruksi yang tidak dikenali di-render sebagai paragraf polos
  *   (fail-safe), bukan di-skip diam-diam.
  *
@@ -20,6 +23,7 @@ import { useMemo, useState } from "react"
 import { Image, Linking, Pressable, View, type ViewProps } from "react-native"
 
 import { Text } from "@/components/ui/text"
+import { safeHttpsLink } from "@/lib/external-url"
 import { logWarn } from "@/lib/telemetry"
 
 // ------------------------------------------------------------------
@@ -43,10 +47,14 @@ export type MarkdownBlock =
 // Validasi URL
 // ------------------------------------------------------------------
 
-/** Hanya http/https yang boleh dibuka/dimuat — sisanya teks polos. */
+/**
+ * Kompatibilitas mundur: dulu validator lokal lemah (regex, menerima http:
+ * dan URL berkredensial). Kini mendelegasikan ke `safeHttpsLink`
+ * (R-1 audit ronde-2) — dipakai juga di call-site sebagai penjaga
+ * defense-in-depth sebelum `Linking.openURL`.
+ */
 export function isSafeExternalUrl(url: string): boolean {
-  const trimmed = url.trim()
-  return /^https?:\/\/[^/\s]/i.test(trimmed)
+  return safeHttpsLink(url) !== undefined
 }
 
 // ------------------------------------------------------------------
@@ -73,15 +81,19 @@ export function parseInline(line: string): InlineSegment[] {
     if (imgAlt !== undefined) {
       // Gambar inline di tengah kalimat → render sebagai tautan berlabel
       // (gambar blok hanya untuk baris yang seluruhnya gambar).
+      // R-1: `safeHttpsLink` mengembalikan URL ternormalisasi bila lolos
+      // gate (menolak http: & URL berkredensial); selain itu teks polos.
+      const safeImg = safeHttpsLink(imgUrl)
       segments.push(
-        isSafeExternalUrl(imgUrl)
-          ? { kind: "link", value: imgAlt || imgUrl, url: imgUrl }
+        safeImg
+          ? { kind: "link", value: imgAlt || imgUrl, url: safeImg }
           : { kind: "text", value: full },
       )
     } else if (linkText !== undefined) {
+      const safeLink = safeHttpsLink(linkUrl)
       segments.push(
-        isSafeExternalUrl(linkUrl)
-          ? { kind: "link", value: linkText, url: linkUrl }
+        safeLink
+          ? { kind: "link", value: linkText, url: safeLink }
           : { kind: "text", value: full },
       )
     } else if (bold !== undefined) {
@@ -154,8 +166,10 @@ export function parseMarkdown(source: string): MarkdownBlock[] {
       flushParagraph()
       flushBullets()
       const uri = imageLine[2].trim()
-      if (isSafeExternalUrl(uri)) {
-        blocks.push({ kind: "image", uri, alt: imageLine[1] })
+      // R-1: gambar hanya dimuat dari URL https bersih (ternormalisasi).
+      const safeUri = safeHttpsLink(uri)
+      if (safeUri) {
+        blocks.push({ kind: "image", uri: safeUri, alt: imageLine[1] })
       } else {
         blocks.push({ kind: "paragraph", segments: parseInline(line) })
       }
@@ -209,8 +223,12 @@ function InlineText({ segments }: { segments: InlineSegment[] }) {
                 accessibilityRole="link"
                 accessibilityLabel={seg.value}
                 onPress={() => {
+                  // Defense-in-depth: segmen sudah divalidasi saat parse,
+                  // validasi ulang sebelum openURL (R-1).
                   if (!isSafeExternalUrl(seg.url)) return
-                  Linking.openURL(seg.url).catch((err: unknown) =>
+                  const safe = safeHttpsLink(seg.url)
+                  if (!safe) return
+                  Linking.openURL(safe).catch((err: unknown) =>
                     logWarn("markdown", err),
                   )
                 }}
@@ -236,7 +254,11 @@ function MarkdownImage({ uri, alt }: { uri: string; alt: string }) {
       <Pressable
         accessibilityRole="link"
         accessibilityLabel={alt || uri}
-        onPress={() => Linking.openURL(uri).catch(() => undefined)}
+        onPress={() => {
+          // R-1: fallback tautan gambar gagal-muat juga lewat gate https.
+          const safe = safeHttpsLink(uri)
+          if (safe) Linking.openURL(safe).catch(() => undefined)
+        }}
       >
         <Text variant="body" tone="primary" className="underline">
           {alt || uri}
