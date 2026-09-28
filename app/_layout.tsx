@@ -44,7 +44,7 @@
  */
 import "../global.css"
 
-import { useCallback, useEffect, useRef, useState } from "react"
+import { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react"
 import { AppState, Linking, Platform, View } from "react-native"
 import { GestureHandlerRootView } from "react-native-gesture-handler"
 import Reanimated, { useAnimatedStyle } from "react-native-reanimated"
@@ -67,7 +67,16 @@ import { RealtimeProvider } from "@/lib/realtime/socket-provider"
 import { PendingActionsBanner } from "@/components/pending-actions-banner"
 import { MaintenanceGate } from "@/components/maintenance-screen"
 import { AUTHENTICATED_SCREENS, isNativeGuardedPath, isProtectedPath } from "@/lib/protected-routes"
-import { GuestLoginPrompt } from "@/components/web-guest-gate"
+// ST-009 (PERF-FIX 2026-09-29): <GuestLoginPrompt> hanya dirender untuk
+// tamu WEB di rute terproteksi (bukan first paint) — dimuat lazy agar
+// modulnya (+ empty-state, screen) tidak dievaluasi saat boot dan tidak
+// masuk chunk entry web. Dipakai juga oleh layar-layar tab via import
+// statis mereka sendiri; yang di sini hanya menunda jalur root layout.
+const GuestLoginPrompt = lazy(() =>
+  import("@/components/web-guest-gate").then((m) => ({
+    default: m.GuestLoginPrompt,
+  })),
+)
 import { compareVersions, safeHttpsUrl } from "@/lib/version"
 import { useReducedMotion } from "@/lib/use-reduced-motion"
 import { Dialog } from "@/components/ui/modal"
@@ -79,7 +88,16 @@ import { fontAssetsBlocking, fontAssetsDeferred } from "@/lib/fonts"
 import { routeForPushData } from "@/lib/notification-routing"
 import { animationDurationForScreen, animationForScreen } from "@/lib/screen-transitions"
 import { setupNotifications, subscribeNotificationOpened } from "@/lib/push-notifications"
-import { subscribeWebPushMessages } from "@/lib/web-push"
+// ST-009: modul ini SENGAJA tetap statis. `subscribeNotificationOpened`
+// harus terpasang di efek boot segera — menundanya (dynamic import /
+// afterFirstPaint) berisiko menghilangkan tap notifikasi yang me-launch
+// app (cold start). `setupNotifications`-nya sendiri sudah ditunda via
+// afterFirstPaint di bawah; yang dievaluasi saat boot hanya modul JS-nya.
+// ST-009 (PERF-FIX 2026-09-29): `@/lib/web-push` SENGAJA tidak diimpor
+// statis. Varian web-nya (`lib/web-push.web.ts`) menarik `firebase/app` +
+// `firebase/messaging` yang berat ke chunk entry web; ia dimuat via dynamic
+// import di efek web di bawah (hanya berjalan di web). Di native, stub
+// `lib/web-push.ts` pun ditunda evaluasinya sampai efek berjalan.
 import {
   CONFIRM_RECEIPT_ACTION,
   confirmReceipt,
@@ -448,20 +466,31 @@ function AppShellInner() {
   // Pesan FCM Web saat tab terbuka (foreground) + klik notifikasi web.
   // Cermin handler tap native di bawah: pemetaan tunggal
   // lib/notification-routing. "foreground" hanya menyegarkan badge (tanpa
-  // navigasi — pengguna sedang memakai app); "tap" menavigasi. Di native,
-  // subscribeWebPushMessages adalah no-op (lihat lib/web-push.ts).
+  // navigasi — pengguna sedang memakai app); "tap" menavigasi.
+  // ST-009: modul dimuat via dynamic import (bukan import statis) agar
+  // `firebase/messaging` tidak masuk chunk entry web; di native, stub
+  // no-op `lib/web-push.ts` juga tidak dievaluasi saat boot.
   useEffect(() => {
     if (Platform.OS !== "web") return
     if (session.restoring || session.error) return
-    return subscribeWebPushMessages((data, source) => {
-      if (source === "foreground") {
+    let alive = true
+    let unsubscribe: (() => void) | undefined
+    void import("@/lib/web-push").then((m) => {
+      if (!alive) return
+      unsubscribe = m.subscribeWebPushMessages((data, source) => {
+        if (source === "foreground") {
+          if (session.token) void refreshUnreadCount()
+          return
+        }
+        const target = routeForPushData(data) ?? ROUTES.notifications
+        router.push(session.token ? target : ROUTES.login)
         if (session.token) void refreshUnreadCount()
-        return
-      }
-      const target = routeForPushData(data) ?? ROUTES.notifications
-      router.push(session.token ? target : ROUTES.login)
-      if (session.token) void refreshUnreadCount()
+      })
     })
+    return () => {
+      alive = false
+      unsubscribe?.()
+    }
   }, [router, session.restoring, session.error, session.token])
 
   // Tap notifikasi push → buka entitas terkait (order, sengketa, chat, …)
@@ -751,7 +780,12 @@ function AppShellInner() {
                 atas layar (Stack tetap terpasang di baliknya). */}
             {guestBlocked ? (
               <View className="absolute inset-0 bg-background">
-                <GuestLoginPrompt next={pathname} />
+                {/* ST-009: GuestLoginPrompt lazy — fallback null karena modul
+                    kecil dan tamu web jarang; overlay bg-background sudah
+                    menutupi layar di baliknya selama modul dimuat. */}
+                <Suspense fallback={null}>
+                  <GuestLoginPrompt next={pathname} />
+                </Suspense>
               </View>
             ) : null}
           </PortalScene>
