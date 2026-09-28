@@ -26,6 +26,7 @@ import {
   Handshake,
   IdentificationBadge,
   Image as ImageIcon,
+  Lock,
   PencilSimple,
   Prohibit,
   QrCode,
@@ -106,6 +107,7 @@ type ProfileTab = "content" | "questions" | "ratings" | "about"
 let sessionProfileTab: ProfileTab | null = null
 
 import { bioNeedsToggle } from "@/lib/profile-bio"
+import { BioText } from "@/components/ui/bio-text"
 
 /**
  * Item tab profil — dibuat di dalam komponen via useMemo (bukan konstanta
@@ -166,8 +168,62 @@ const BADGE_ICON: Partial<Record<string, IconComponent>> = {
   "envelope-check": Envelope,
 }
 
-export default function UserProfileScreen() {
-  const { username: rawUsername } = useLocalSearchParams<{
+/**
+ * Batch 139 E05/E06 — satu statistik sosial (Mengikuti/Pengikut).
+ *
+ * - `count === null` SETELAH profil selesai dimuat berarti server tidak
+ *   mengirim angka untuk statistik ini → diperlakukan sebagai
+ *   "disembunyikan oleh privasi" dan dirender sebagai ikon gembok + teks
+ *   "Privat", BUKAN "0". Backend belum punya flag privasi eksplisit untuk
+ *   counter, jadi ini fallback terbaik-effort (dilaporkan parsial/butuh API);
+ *   tidak ada tebakan "hidden vs error" di luar sinyal null-dari-server ini.
+ * - Selama profil masih dimuat, blok profil digantikan skeleton oleh
+ *   <Crossfade> di bawah — angka tidak pernah dirender sebagai 0 sementara.
+ * - Statistik yang disembunyikan tidak bisa diketuk membuka daftar.
+ */
+function SocialStat({
+  count,
+  label,
+  onPress,
+  openListLabel,
+}: {
+  count: number | null
+  label: string
+  onPress: () => void
+  openListLabel: string
+}) {
+  if (count === null) {
+    return (
+      <View
+        className="flex-row items-center gap-1"
+        accessibilityRole="text"
+        accessibilityLabel={translate("{x}: disembunyikan", { x: label })}
+      >
+        <Icon icon={Lock} tone="default" size={14} />
+        <Text variant="body" tone="tertiary">
+          {translate("Privat")}
+        </Text>
+      </View>
+    )
+  }
+  return (
+    <Pressable
+      accessibilityLabel={translate("{x} {y}", { x: formatNumber(count), y: label })}
+      accessibilityHint={openListLabel}
+      accessibilityRole="button"
+      onPress={onPress}
+    >
+      <Text variant="body" tone="secondary">
+        <Text variant="body" weight={700} tone="primary">
+          {formatNumber(count)}{" "}
+        </Text>
+        {label}
+      </Text>
+    </Pressable>
+  )
+}
+
+export default function UserProfileScreen() {  const { username: rawUsername } = useLocalSearchParams<{
     username: string
     self?: string
   }>()
@@ -1128,9 +1184,9 @@ export default function UserProfileScreen() {
                */}
               {profile.bio ? (
                 <View className="gap-1">
-                  <Text variant="body" tone="secondary" numberOfLines={bioExpanded ? undefined : 4}>
-                    {profile.bio}
-                  </Text>
+                  {/* Batch 139 E04: URL di bio menjadi tautan berpratinjau
+                      domain + konfirmasi sebelum dibuka (anti-phishing). */}
+                  <BioText bio={profile.bio} expanded={bioExpanded} />
                   {bioNeedsToggle(profile.bio) ? (
                     <Pressable
                       accessibilityRole="button"
@@ -1161,34 +1217,23 @@ export default function UserProfileScreen() {
               )}
 
               {/* ── Stats / Counter Strip (langsung di bawah bio) ── */}
+              {/* Batch 139 E05/E06: SocialStat menampilkan "Privat" (gembok)
+                  untuk count null = server tidak mengirim angka (sinyal
+                  privasi terbaik-effort; backend belum punya flag eksplisit),
+                  bukan angka 0. */}
               <View className="flex-row flex-wrap items-center gap-4 pt-1">
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={translate("{x} mengikuti", { x: formatNumber(followingCount ?? 0) })}
-                  hitSlop={TEXT_ROW_HIT_SLOP}
+                <SocialStat
+                  count={followingCount}
+                  label={translate("Mengikuti")}
                   onPress={() => router.push(ROUTES.followers(handle, "following"))}
-                >
-                  <Text variant="body" tone="secondary">
-                    <Text variant="body" weight={700} tone="primary">
-                      {formatNumber(followingCount ?? 0)}{" "}
-                    </Text>
-                    {translate("Mengikuti")}
-                  </Text>
-                </Pressable>
-
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={translate("{x} pengikut", { x: formatNumber(followerCount ?? 0) })}
-                  hitSlop={TEXT_ROW_HIT_SLOP}
+                  openListLabel={translate("Lihat daftar mengikuti")}
+                />
+                <SocialStat
+                  count={followerCount}
+                  label={translate("Pengikut")}
                   onPress={() => router.push(ROUTES.followers(handle))}
-                >
-                  <Text variant="body" tone="secondary">
-                    <Text variant="body" weight={700} tone="primary">
-                      {formatNumber(followerCount ?? 0)}{" "}
-                    </Text>
-                    {translate("Pengikut")}
-                  </Text>
-                </Pressable>
+                  openListLabel={translate("Lihat daftar pengikut")}
+                />
 
                 {profile.rating != null ? (
                   <Pressable

@@ -20,17 +20,17 @@ import { TextInput, View } from "react-native"
 import { Icon } from "@/components/ui/icon"
 import { Input, type InputProps } from "@/components/ui/input"
 import { Spinner } from "@/components/ui/spinner"
+import { Text } from "@/components/ui/text"
 import { translate } from "@/lib/i18n/translate"
 
 export type UsernameAvailability = "idle" | "checking" | "available" | "taken"
 
-export const USERNAME_MIN = 3
-export const USERNAME_MAX = 20
-const USERNAME_RE = /^[a-z0-9](?:[a-z0-9._]{1,18}[a-z0-9])?$/
+// Batch 139 E01: konstanta + normalisasi dipindah ke lib/username.ts (murni,
+// teruji). Re-export di sini menjaga kompatibilitas import yang sudah ada.
+import { normalizeUsername, USERNAME_MIN, USERNAME_MAX } from "@/lib/username"
+export { normalizeUsername, USERNAME_MIN, USERNAME_MAX }
 
-export function normalizeUsername(raw: string): string {
-  return raw.toLowerCase().replace(/[^a-z0-9._]/g, "").slice(0, USERNAME_MAX)
-}
+const USERNAME_RE = /^[a-z0-9](?:[a-z0-9._]{1,18}[a-z0-9])?$/
 
 export function validateUsername(value: string, labels: UsernameFieldLabels): string | undefined {
   if (!value) return undefined
@@ -78,10 +78,18 @@ export type UsernameFieldProps = Omit<
   onChangeText: (value: string) => void
   availability?: UsernameAvailability
   labels?: Partial<UsernameFieldLabels>
+  /**
+   * Batch 139 E01 — tampilkan bentuk FINAL username yang akan dicek
+   * ketersediaannya. Nilai field sudah dinormalisasi saat mengetik
+   * (lowercase, tanpa spasi/karakter asing), jadi yang tampil di sini
+   * persis string yang dikirim ke server — pengguna tidak lagi menebak
+   * apakah "Budi Santoso" dicek sebagai "budi santoso" atau "budisantoso".
+   */
+  showFinalFormPreview?: boolean
 }
 
 export const UsernameField = forwardRef<TextInput, UsernameFieldProps>(function UsernameField(
-  { value, onChangeText, availability = "idle", labels, label, helperText, errorText, ...rest },
+  { value, onChangeText, availability = "idle", labels, label, helperText, errorText, showFinalFormPreview = true, ...rest },
   ref,
 ) {
   const t = { ...defaultLabels(), ...labels }
@@ -116,6 +124,14 @@ export const UsernameField = forwardRef<TextInput, UsernameFieldProps>(function 
         helperText={statusHelper ?? helperText ?? t.hint}
         {...rest}
       />
+      {/* Batch 139 E01: bentuk final yang akan dicek ketersediaannya.
+          Normalisasi terjadi saat mengetik (lihat onChangeText di atas),
+          jadi nilai ini persis yang dikirim ke server. */}
+      {showFinalFormPreview && value && !resolvedError ? (
+        <Text variant="caption" tone="tertiary" className="pt-1">
+          {translate("Dicek sebagai: @{x}", { x: value })}
+        </Text>
+      ) : null}
       {/*
         Status kanan dirender sebagai overlay (bukan `rightIcon`) karena Input
         hanya menerima IconComponent dengan tone default, sedangkan di sini

@@ -44,6 +44,7 @@ import { Button } from "@/components/ui/button"
 import { HEADER_BAR_HEIGHT, Header } from "@/components/ui/header"
 import { Heading } from "@/components/ui/heading"
 import { Input } from "@/components/ui/input"
+import { UsernameField } from "@/components/ui/username-field"
 import { KeyboardAvoiding } from "@/components/ui/keyboard-avoiding"
 import { PasswordField } from "@/components/ui/password-field"
 import { Screen } from "@/components/ui/screen"
@@ -270,7 +271,11 @@ export default function RegisterSecurityScreen() {
                   disabled={submitting}
                 />
 
-                <Input
+                {/* Batch 139 E01: UsernameField menormalisasi saat mengetik
+                    (lowercase, tanpa spasi/karakter asing, maks 20) +
+                    pratinjau bentuk final yang dikirim ke server — sama
+                    seperti di edit profil. */}
+                <UsernameField
                   label="Username"
                   value={username}
                   onChangeText={(t) => {
@@ -281,8 +286,6 @@ export default function RegisterSecurityScreen() {
                   // SEBELUM submit (bukan hanya setelah error): 3–20 karakter,
                   // huruf kecil/angka/._ (sumber: UsernameField).
                   helperText="Opsional — 3–20 karakter, huruf kecil/angka/._"
-                  autoCapitalize="none"
-                  autoCorrect={false}
                   autoComplete="username"
                   textContentType="username"
                   returnKeyType="next"

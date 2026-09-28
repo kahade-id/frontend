@@ -75,6 +75,12 @@ export type UiPrefs = {
    * dengan `transactionsTab`). Preferensi perangkat: logout tidak mereset.
    */
   notificationsCategory: NotificationCategory
+  /**
+   * Batch 139 E14 — umpan balik pindaian QR (haptic + bunyi). Default ON.
+   * Preferensi perangkat (bukan akun): logout tidak meresetnya. Mode senyap
+   * perangkat tetap dihormati terpisah (bunyi tidak diputar saat senyap).
+   */
+  scanFeedback: boolean
 }
 
 const DEFAULT_PREFS: UiPrefs = {
@@ -86,6 +92,8 @@ const DEFAULT_PREFS: UiPrefs = {
   ratingSnoozeUntil: {},
   dataSaver: false,
   notificationsCategory: "TRANSAKSI",
+  // Batch 139 E14: umpan balik pindaian default ON.
+  scanFeedback: true,
 }
 
 export type RecentRecipient = {
@@ -142,7 +150,8 @@ export function hydrateUiPrefsSync(): void {
 // Hidrasi sinkron saat modul dimuat (web saja; no-op di native & test node).
 hydrateUiPrefsSync()
 
-function sanitizePrefs(raw: unknown): UiPrefs {
+/** Diekspor untuk test (Batch 139 E14): sanitizer preferensi murni. */
+export function sanitizePrefs(raw: unknown): UiPrefs {
   if (typeof raw !== "object" || raw === null) return DEFAULT_PREFS
   const rec = raw as Record<string, unknown>
   const snooze: Record<string, number> = {}
@@ -180,11 +189,14 @@ function sanitizePrefs(raw: unknown): UiPrefs {
       rec.notificationsCategory === "PROMOSI" || rec.notificationsCategory === "INFORMASI"
         ? rec.notificationsCategory
         : "TRANSAKSI",
+    // Batch 139 E14: default ON bila belum pernah disimpan; nilai non-boolean
+    // (data rusak) jatuh ke ON agar umpan balik tidak hilang diam-diam.
+    scanFeedback: rec.scanFeedback !== false,
   }
 }
 
 /** Validasi nilai searchScope dari storage — bukan enum terbuka. */
-function isSearchScope(v: unknown): v is SearchScope {
+export function isSearchScope(v: unknown): v is SearchScope {
   return (
     v === "all" ||
     v === "users" ||

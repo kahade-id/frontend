@@ -38,7 +38,7 @@
  *     ketikan dan "mencari…" akan menumpuk di antrean.
  */
 import { useEffect, useMemo, useRef, useState } from "react"
-import { View } from "react-native"
+import { Platform, View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { ArrowUpLeft, ChatCircleText, ClockCounterClockwise, Images, MagnifyingGlass, MapPin, TrendUp, X } from "phosphor-react-native"
 import { router, useLocalSearchParams } from "expo-router"
@@ -48,13 +48,13 @@ import { showcaseImages } from "@/lib/showcase-social"
 import { formatDateTime, formatNumber, formatRupiah } from "@/lib/format"
 import { resolveMediaUrl } from "@/lib/media"
 import { translate } from "@/lib/i18n/translate"
-import { buildResultMessage } from "@/lib/search-ui"
+import { buildResultMessage, getSearchEmptyStateCopy, pickDidYouMean } from "@/lib/search-ui"
 import { useLanguage } from "@/lib/i18n"
 import { cn } from "@/lib/cn"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 import { useApiQuery } from "@/lib/use-api-query"
-import { useUiPrefs, type SearchScope } from "@/lib/ui-prefs"
+import { isSearchScope, useUiPrefs, type SearchScope } from "@/lib/ui-prefs"
 import { useHasSession } from "@/lib/guest-gate"
 import { logWarn } from "@/lib/telemetry"
 import type { ChatSearchResult } from "@/lib/api/chat"
@@ -450,6 +450,25 @@ export default function SearchScreen() {
   )
 
   /**
+   * Batch 139 E08 — "Mungkin maksud Anda": saran backend ditawarkan sebagai
+   * CHIP PILIHAN, tidak pernah mengganti keyword otomatis. Dihitung dari
+   * saran mentah (semua cakupan), bukan suggestionChips yang dibatasi "all".
+   */
+  const didYouMean = useMemo(
+    () =>
+      pickDidYouMean(
+        keyword,
+        (suggestions.data ?? []).filter((s): s is string => typeof s === "string"),
+      ),
+    [keyword, suggestions.data],
+  )
+
+  /**
+   * Batch 139 E09 — copy empty state per cakupan (bukan generik).
+   */
+  const emptyCopy = getSearchEmptyStateCopy(scope)
+
+  /**
    * Pengumuman hasil untuk screen reader (<LiveRegion> §10). Error memakai
    * "assertive" agar tidak kalah antrean dari pengumuman sopan.
    * Pesan dibangun lewat helper teruji agar ikut bahasa aktif (UI-M005).
@@ -474,18 +493,58 @@ export default function SearchScreen() {
    * Item 86 (mega-batch 2026-09-28): effect kini MERESPONS perubahan `q`
    * (bukan hanya sekali saat mount) — mendorong /search?q=baru selagi layar
    * sudah terbuka kini benar-benar mengganti kata kunci.
+   *
+   * Batch 139 E10: `scope` & `location` juga dibaca dari URL (deep link /
+   * berbagi hasil pencarian di web). Hanya nilai whitelist yang diterima;
+   * location dibatasi 100 karakter.
    */
-  const params = useLocalSearchParams<{ q?: string | string[] }>()
+  const params = useLocalSearchParams<{ q?: string | string[]; scope?: string | string[]; location?: string | string[] }>()
   const deepLinkQ = Array.isArray(params.q) ? params.q[0] : params.q
+  const deepLinkScope = Array.isArray(params.scope) ? params.scope[0] : params.scope
+  const deepLinkLocation = Array.isArray(params.location) ? params.location[0] : params.location
   const lastAppliedQ = useRef<string | null>(null)
+  const lastAppliedScope = useRef<string | null>(null)
+  const lastAppliedLocation = useRef<string | null>(null)
   useEffect(() => {
     const q = typeof deepLinkQ === "string" ? deepLinkQ.trim() : ""
     if (q && q !== lastAppliedQ.current) {
       lastAppliedQ.current = q
       applyQuery(q)
     }
+    const s = typeof deepLinkScope === "string" ? deepLinkScope : ""
+    if (s && s !== lastAppliedScope.current && isSearchScope(s)) {
+      lastAppliedScope.current = s
+      setScope(s)
+    }
+    const loc = typeof deepLinkLocation === "string" ? deepLinkLocation.trim().slice(0, 100) : ""
+    if (loc && loc !== lastAppliedLocation.current) {
+      lastAppliedLocation.current = loc
+      setLocationSeed(loc)
+      setLocation(loc)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [deepLinkQ])
+  }, [deepLinkQ, deepLinkScope, deepLinkLocation])
+
+  /*
+   * Batch 139 E10: tulis kembali q/scope/location ke URL di WEB supaya hasil
+   * pencarian bisa dibagikan/disegarkan tanpa kehilangan konteks. Anti-loop:
+   * fingerprint guard + hanya memanggil setParams bila nilai URL memang
+   * berubah; tidak berjalan di native (tidak ada URL bar).
+   */
+  const lastSyncedUrl = useRef("")
+  useEffect(() => {
+    if (Platform.OS !== "web") return
+    const q = keyword.trim().slice(0, 100)
+    const loc = location.trim().slice(0, 100)
+    const fingerprint = `${q}|${scope}|${loc}`
+    if (fingerprint === lastSyncedUrl.current) return
+    lastSyncedUrl.current = fingerprint
+    const next: Record<string, string> = {}
+    if (q) next.q = q
+    if (scope !== "all") next.scope = scope
+    if (loc) next.location = loc
+    router.setParams(next)
+  }, [keyword, scope, location])
 
   /*
    * Tata letak (revisi 2026-09-26, permintaan produk): KOLOM CARI DI HEADER.
@@ -781,14 +840,13 @@ export default function SearchScreen() {
           ) : (
             <EmptyState
               icon={MagnifyingGlass}
-              title={enabled ? translate("Tidak ada hasil") : translate("Mulai mencari")}
+              title={enabled ? emptyCopy.title : translate("Mulai mencari")}
               description={
                 enabled
                   ? // DC-011: hint backend ditampilkan apa adanya (lebih
                     // spesifik dari kalimat generik — mis. "tapi ada artikel
                     // bantuan yang cocok").
-                    (result.data?.hint ??
-                    translate("Coba kata kunci yang lebih spesifik, atau perluas cakupan ke Semua."))
+                    (result.data?.hint ?? emptyCopy.description)
                   : translate("Masukkan setidaknya dua karakter untuk mencari postingan, pengguna, pesanan, dan mutasi.")
               }
               action={
@@ -809,6 +867,22 @@ export default function SearchScreen() {
                   >
                     Atur ulang pencarian
                   </Button>
+                ) : undefined
+              }
+              secondaryAction={
+                enabled && didYouMean.length > 0 ? (
+                  <View className="items-center gap-2 pt-1">
+                    <Text variant="caption" tone="secondary">
+                      {translate("Mungkin maksud Anda:")}
+                    </Text>
+                    <View className="flex-row flex-wrap justify-center gap-2">
+                      {didYouMean.map((s) => (
+                        <Chip key={`dym-${s}`} onPress={() => applyQuery(s)}>
+                          {s}
+                        </Chip>
+                      ))}
+                    </View>
+                  </View>
                 ) : undefined
               }
             />
@@ -931,7 +1005,9 @@ function RecentSearches({
       ) : null}
       <Card variant="elevated" className="gap-0 p-0">
         {entries.map((entry, index) => (
-          <View key={`${entry.query}-${index}`}>
+          // Batch 139 E12: key stabil tanpa index — query + timestamp agar
+          // entri yang sama tidak tertukar saat daftar berubah (hapus item).
+          <View key={`hist-${entry.query}::${entry.searchedAt ?? "x"}`}>
             {index > 0 ? <Divider /> : null}
             <View className="w-full flex-row items-center gap-1 px-2 py-1">
               <PressableScale
