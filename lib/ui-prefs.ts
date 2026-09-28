@@ -169,7 +169,7 @@ function sanitizePrefs(raw: unknown): UiPrefs {
 }
 
 /** Validasi nilai searchScope dari storage — bukan enum terbuka. */
-function isSearchScope(v: unknown): v is SearchScope {
+export function isSearchScope(v: unknown): v is SearchScope {
   return (
     v === "all" ||
     v === "users" ||

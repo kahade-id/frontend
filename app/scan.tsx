@@ -17,6 +17,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { Linking, Platform, Share, View } from "react-native"
 import { useRouter } from "expo-router"
+import * as Haptics from "expo-haptics"
 import { CameraView, scanFromURLAsync, useCameraPermissions } from "expo-camera"
 import * as Brightness from "expo-brightness"
 import { captureRef } from "react-native-view-shot"
@@ -30,9 +31,12 @@ import {
   Keyboard,
   Lightning,
   QrCode,
+  Receipt,
   ShareNetwork,
+  Storefront,
   Trash,
   User,
+  Wallet,
   Warning,
   X,
 } from "phosphor-react-native"
@@ -41,6 +45,7 @@ import { api } from "@/lib/api"
 import { useCopy } from "@/lib/clipboard"
 import { profileUrl } from "@/lib/deeplinks"
 import { useHasSession } from "@/lib/guest-gate"
+import { useUiPrefs } from "@/lib/ui-prefs"
 import { translate } from "@/lib/i18n/translate"
 import { pickImage } from "@/lib/image-picker"
 import { parseQrCode, type QrTarget } from "@/lib/qr-parse"
@@ -58,8 +63,9 @@ import { Avatar } from "@/components/ui/avatar"
 import { Alert } from "@/components/ui/alert"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Button } from "@/components/ui/button"
+import { Switch } from "@/components/ui/switch"
 import { Header } from "@/components/ui/header"
-import { Icon } from "@/components/ui/icon"
+import { Icon, type IconComponent } from "@/components/ui/icon"
 import { IconButton } from "@/components/ui/icon-button"
 import { Input } from "@/components/ui/input"
 import { QRCodeDisplay } from "@/components/ui/qr-code-display"
@@ -81,6 +87,95 @@ const isWeb = Platform.OS === "web"
 type DetectedResult = {
   target: QrTarget
   raw: string
+}
+
+/**
+ * Batch 139 E16 — salinan sheet hasil pindaian per jenis target.
+ *
+ * Setiap jenis QR mendapat judul, ikon, penjelasan, dan label CTA sendiri
+ * supaya pengguna langsung paham apa yang akan terjadi SEBELUM mengetuk.
+ * Khusus transfer: peringatan eksplisit + CTA "Lanjut ke Transfer" — aksi
+ * hanya MEMBUKA layar transfer untuk direview, TIDAK PERNAH mengeksekusi
+ * pemindahan dana (keputusan finansial tetap di tangan pengguna).
+ */
+function getScanResultCopy(target: QrTarget): {
+  title: string
+  icon: IconComponent
+  iconTone: "active" | "warning" | "default"
+  explainer: string
+  primaryCta: string
+  warnTransfer: boolean
+} {
+  switch (target.type) {
+    case "profile":
+      return {
+        title: translate("Profil Kahade"),
+        icon: User,
+        iconTone: "active",
+        explainer: target.username
+          ? translate("Kode ini membuka profil @{x} di Kahade.", { x: target.username })
+          : translate("Kode ini membuka sebuah profil di Kahade."),
+        primaryCta: translate("Lihat Profil"),
+        warnTransfer: false,
+      }
+    case "order":
+      return {
+        title: translate("Pesanan"),
+        icon: Receipt,
+        iconTone: "active",
+        explainer: translate("Kode ini membuka detail pesanan terkait."),
+        primaryCta: translate("Lihat Pesanan"),
+        warnTransfer: false,
+      }
+    case "order-link":
+      return {
+        title: translate("Tautan Pesanan"),
+        icon: Receipt,
+        iconTone: "active",
+        explainer: translate("Kode ini membuka tautan pembayaran pesanan."),
+        primaryCta: translate("Buka Tautan Pesanan"),
+        warnTransfer: false,
+      }
+    case "showcase":
+      return {
+        title: translate("Etalase"),
+        icon: Storefront,
+        iconTone: "active",
+        explainer: translate("Kode ini membuka sebuah etalase di Kahade."),
+        primaryCta: translate("Lihat Etalase"),
+        warnTransfer: false,
+      }
+    case "transfer":
+      return {
+        title: translate("Permintaan Transfer"),
+        icon: Wallet,
+        iconTone: "warning",
+        explainer: translate(
+          "Kode ini berisi permintaan transfer. Periksa kembali nama penerima dan nominal di layar berikutnya — dana TIDAK dikirim otomatis.",
+        ),
+        primaryCta: translate("Lanjut ke Transfer"),
+        warnTransfer: true,
+      }
+    case "external-url":
+      return {
+        title: translate("Tautan Luar"),
+        icon: Warning,
+        iconTone: "warning",
+        explainer: translate("Kode ini mengarah ke situs di luar Kahade."),
+        primaryCta: translate("Buka Tautan"),
+        warnTransfer: false,
+      }
+    case "text":
+    default:
+      return {
+        title: translate("Teks / Kode"),
+        icon: QrCode,
+        iconTone: "default",
+        explainer: translate("Kode berisi teks biasa — tidak ada aksi khusus."),
+        primaryCta: translate("Salin Kode"),
+        warnTransfer: false,
+      }
+  }
 }
 
 /** Contoh ketuk-isi untuk input manual (FE-IMP-4 item 20). */
@@ -109,6 +204,13 @@ export default function ScanScreen() {
   // Kunci anti-spam: satu kode diproses sekali sampai sheet ditutup.
   const scanLock = useRef(false)
 
+  // Batch 139 E14: preferensi umpan balik pindaian (per perangkat).
+  // Dibaca lewat ref agar callback scan tidak dibuat ulang setiap
+  // preferensi berubah.
+  const { prefs, setPrefs } = useUiPrefs()
+  const scanFeedbackRef = useRef(prefs.scanFeedback)
+  scanFeedbackRef.current = prefs.scanFeedback
+
   const meQuery = useApiQuery(
     "scan:me",
     (signal) => (hasSession ? api.users.getMe(signal) : Promise.resolve(null)),
@@ -129,6 +231,14 @@ export default function ScanScreen() {
     const text = raw.trim()
     if (!text) return
     const target = parseQrCode(text)
+    // Batch 139 E14: getaran konfirmasi saat kode berhasil dipindai — hanya
+    // bila pengguna mengaktifkannya di preferensi. Haptic tidak mengeluarkan
+    // bunyi sehingga otomatis menghormati mode senyap perangkat; bunyi
+    // sengaja TIDAK ditambahkan (butuh aset audio + konfigurasi audio yang
+    // terbukti tidak mengabaikan silent mode — dilaporkan sebagai batasan).
+    if (scanFeedbackRef.current && Platform.OS !== "web") {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined)
+    }
     // FE-IMP-4 item 21: catat ke riwayat per perangkat.
     void addScanHistory({
       raw: text,
@@ -316,6 +426,10 @@ export default function ScanScreen() {
 
   const cameraGranted = !isWeb && permission?.granted === true
 
+  // Batch 139 E16: salinan sheet hasil pindaian mengikuti jenis target
+  // (profil/pesanan/etalase/transfer/tautan luar/teks) — bukan generik.
+  const resultCopy = detected ? getScanResultCopy(detected.target) : null
+
   return (
     <Screen edges={["top"]} padded={false} className="bg-background">
       <Header
@@ -408,13 +522,33 @@ export default function ScanScreen() {
                       Aktifkan Kamera
                     </Button>
                   </>
-                ) : (
+                ) : permission.canAskAgain ? (
+                  // Batch 139 E13: penolakan SEMENTARA — masih bisa minta
+                  // ulang langsung, jangan lempar ke Pengaturan.
                   <>
                     <Text variant="body" weight={600} className="text-center">
-                      Akses kamera ditolak
+                      Izin kamera belum diberikan
                     </Text>
                     <Text variant="caption" tone="secondary" className="text-center">
-                      Aktifkan izin kamera di pengaturan perangkat untuk memindai kode QR.
+                      Kami membutuhkan akses kamera untuk memindai kode QR. Anda masih bisa memberikannya sekarang.
+                    </Text>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onPress={() => void requestPermission()}
+                    >
+                      Coba Lagi
+                    </Button>
+                  </>
+                ) : (
+                  // Batch 139 E13: penolakan PERMANEN ("jangan tanya lagi") —
+                  // satu-satunya jalan adalah Pengaturan perangkat.
+                  <>
+                    <Text variant="body" weight={600} className="text-center">
+                      Akses kamera diblokir
+                    </Text>
+                    <Text variant="caption" tone="secondary" className="text-center">
+                      Izin kamera dimatikan secara permanen di pengaturan perangkat. Aktifkan manual untuk memindai kode QR.
                     </Text>
                     <Button
                       variant="secondary"
@@ -451,6 +585,23 @@ export default function ScanScreen() {
                 >
                   Ketik Manual
                 </Button>
+              </View>
+              {/* Batch 139 E14: preferensi umpan balik pindaian (per perangkat,
+                  tersimpan lokal via ui-prefs). */}
+              <View className="w-full flex-row items-center justify-between rounded-xl border border-border bg-surface px-4 py-3">
+                <View className="min-w-0 flex-1 pr-3">
+                  <Text variant="body" weight={600}>
+                    Getaran saat berhasil
+                  </Text>
+                  <Text variant="caption" tone="secondary">
+                    Bergetar setiap kode QR berhasil dipindai.
+                  </Text>
+                </View>
+                <Switch
+                  value={prefs.scanFeedback}
+                  onChange={(v) => setPrefs({ scanFeedback: v })}
+                  accessibilityLabel="Getaran saat pindai berhasil"
+                />
               </View>
             </View>
           ) : null}
@@ -698,7 +849,7 @@ export default function ScanScreen() {
       <BottomSheet
         visible={detected !== null}
         onRequestClose={closeResult}
-        title="Kode Terdeteksi"
+        title={resultCopy?.title ?? "Kode Terdeteksi"}
         footer={
           <View className="flex-row gap-3">
             <Button
@@ -734,20 +885,20 @@ export default function ScanScreen() {
                 onPress={() => detected && handleResultAction(detected)}
                 containerClassName="flex-1"
               >
-                {detected?.target.type === "text" ? "Salin Kode" : "Buka Sekarang"}
+                {resultCopy?.primaryCta ?? "Buka Sekarang"}
               </Button>
             )}
           </View>
         }
       >
-        {detected ? (
+        {detected && resultCopy ? (
           <View className="gap-3 px-5 py-3">
             <View className="flex-row items-center gap-3 rounded-xl bg-surface p-4 border border-border">
               <View className="h-10 w-10 items-center justify-center rounded-full bg-surface-raised">
                 <Icon
-                  icon={detected.target.risky ? Warning : CheckCircle}
+                  icon={detected.target.risky ? Warning : resultCopy.icon}
                   size="md"
-                  tone={detected.target.risky ? "warning" : "active"}
+                  tone={detected.target.risky ? "warning" : resultCopy.iconTone}
                 />
               </View>
               <View className="flex-1 min-w-0">
@@ -759,6 +910,18 @@ export default function ScanScreen() {
                 </Text>
               </View>
             </View>
+            {/* E16: penjelasan per jenis — pengguna tahu apa yang akan terjadi. */}
+            <Text variant="caption" tone="secondary">
+              {resultCopy.explainer}
+            </Text>
+            {resultCopy.warnTransfer ? (
+              // E16: transfer tidak pernah dieksekusi dari sheet — hanya
+              // membuka layar transfer untuk direview pengguna.
+              <Alert tone="warning" title="Periksa sebelum mengirim">
+                Pastikan nama penerima dan nominal benar. Dana baru berpindah
+                setelah Anda menekan tombol kirim di layar berikutnya.
+              </Alert>
+            ) : null}
             {detected.target.risky ? (
               // Anti-phishing: kode asing tidak pernah dibuka otomatis.
               <Alert tone="warning" title="Tautan luar Kahade">
