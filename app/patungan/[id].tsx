@@ -438,7 +438,7 @@ export default function PatunganDetailScreen() {
         onRequestClose={() => setJoinOpen(false)}
         // FRM-017: field bawah tidak tertutup keyboard di layar kecil.
         avoidKeyboard
-      title={translate("Ikut patungan")}
+        title={translate("Ikut patungan")}
         footer={
           <Button fullWidth loading={joining} onPress={() => void handleJoin()}>
             {translate("Ikut")}
@@ -475,7 +475,7 @@ export default function PatunganDetailScreen() {
         onRequestClose={() => setLinkOpen(false)}
         // FRM-017: field bawah tidak tertutup keyboard di layar kecil.
         avoidKeyboard
-      title={translate("Tautkan order escrow")}
+        title={translate("Tautkan order escrow")}
         footer={
           <Button fullWidth loading={linking} onPress={() => void handleLink()}>
             {translate("Tautkan")}

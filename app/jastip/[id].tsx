@@ -502,7 +502,7 @@ export default function JastipDetailScreen() {
         onRequestClose={() => setJoinOpen(false)}
         // FRM-017: field bawah tidak tertutup keyboard di layar kecil.
         avoidKeyboard
-      title={translate("Ikut trip")}
+        title={translate("Ikut trip")}
         footer={
           <Button fullWidth loading={joining} onPress={() => void handleJoin()}>
             {translate("Ikut")}
@@ -534,7 +534,7 @@ export default function JastipDetailScreen() {
         onRequestClose={() => setItemOpen(false)}
         // FRM-017: field bawah tidak tertutup keyboard di layar kecil.
         avoidKeyboard
-      title={translate("Tambah item katalog")}
+        title={translate("Tambah item katalog")}
         footer={
           <Button fullWidth loading={addingItem} onPress={() => void handleAddItem()}>
             {translate("Tambah item")}
@@ -574,7 +574,7 @@ export default function JastipDetailScreen() {
         onRequestClose={() => setLockTarget(null)}
         // FRM-017: field bawah tidak tertutup keyboard di layar kecil.
         avoidKeyboard
-      title={translate("Kunci harga peserta")}
+        title={translate("Kunci harga peserta")}
         footer={
           <Button fullWidth loading={locking} onPress={() => void handleLock()}>
             {translate("Kunci harga")}
@@ -619,7 +619,7 @@ export default function JastipDetailScreen() {
         onRequestClose={() => setLinkTarget(null)}
         // FRM-017: field bawah tidak tertutup keyboard di layar kecil.
         avoidKeyboard
-      title={translate("Tautkan order escrow")}
+        title={translate("Tautkan order escrow")}
         footer={
           <Button fullWidth loading={linking} onPress={() => void handleLink()}>
             {translate("Tautkan")}
