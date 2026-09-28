@@ -28,6 +28,7 @@ import { PASSKEY_COPY } from "@/lib/passkey-instructions"
 import { Button } from "@/components/ui/button"
 import { DataScreen } from "@/components/ui/data-screen"
 import { Dialog } from "@/components/ui/modal"
+import { SensitiveConfirmDialog } from "@/components/ui/sensitive-confirm"
 import { Input } from "@/components/ui/input"
 import { PasswordField } from "@/components/ui/password-field"
 import { Text } from "@/components/ui/text"
@@ -378,20 +379,22 @@ export default function PasskeysScreen() {
         </View>
       </Dialog>
 
-      {/* Konfirmasi hapus */}
-      <Dialog
+      {/* Konfirmasi hapus — A11: pola konfirmasi sensitif seragam */}
+      <SensitiveConfirmDialog
         visible={revokeTarget !== null && !revokeReauthOpen}
-        onRequestClose={() => setRevokeTarget(null)}
         title="Hapus passkey?"
-        description={
+        description={isLastCredential ? PASSKEY_COPY.lastCredentialWarning : undefined}
+        consequences={
           isLastCredential
-            ? PASSKEY_COPY.lastCredentialWarning
-            : `Passkey “${revokeTarget?.deviceName}” tidak bisa lagi dipakai masuk setelah dihapus.`
+            ? ["Ini satu-satunya kredensial masuk Anda — pastikan masih ada cara lain untuk masuk."]
+            : [
+                `Passkey “${revokeTarget?.deviceName}” tidak bisa lagi dipakai untuk masuk setelah dihapus.`,
+                "Menghapus passkey tidak menghapus akun Anda.",
+              ]
         }
-        tone="danger"
-        destructive
         confirmLabel="Ya, hapus"
         onConfirm={confirmRevoke}
+        onCancel={() => setRevokeTarget(null)}
       />
 
       {/* Re-auth untuk hapus */}

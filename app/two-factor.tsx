@@ -46,6 +46,7 @@ import { Button } from "@/components/ui/button"
 import { ButtonGroup } from "@/components/ui/button-group"
 import { CopyableField } from "@/components/ui/copyable-field"
 import { Dialog } from "@/components/ui/modal"
+import { SensitiveConfirmDialog } from "@/components/ui/sensitive-confirm"
 import { Header } from "@/components/ui/header"
 import { OtpInput } from "@/components/ui/otp-input"
 import { PasswordField } from "@/components/ui/password-field"
@@ -567,18 +568,17 @@ export default function TwoFactorScreen() {
         onRequestClose={() => setAckOpen(false)}
       />
 
-      {/* ── Dialog: regenerasi kode cadangan ──────────────────────────────── */}
-      <Dialog
-        title="Buat kode cadangan baru?"
-        description="Semua kode cadangan lama akan hangus. Masukkan kata sandi dan kode dari aplikasi autentikator untuk melanjutkan."
+      {/* ── Dialog: regenerasi kode cadangan (A11: pola konfirmasi seragam) ── */}
+      <SensitiveConfirmDialog
         visible={regenOpen}
-        loading={regenerating}
+        title="Buat kode cadangan baru?"
+        description="Masukkan kata sandi dan kode dari aplikasi autentikator untuk melanjutkan."
+        consequences={["Semua kode cadangan lama akan hangus."]}
         confirmLabel="Buat Kode Baru"
-        cancelLabel="Batal"
-        confirmButtonProps={{ disabled: !regenPassword || regenCode.length !== TOTP_LENGTH }}
+        loading={regenerating}
+        confirmDisabled={!regenPassword || regenCode.length !== TOTP_LENGTH}
         onConfirm={() => void handleRegenerate()}
         onCancel={() => setRegenOpen(false)}
-        onRequestClose={() => setRegenOpen(false)}
       >
         <PasswordField
           label="Kata sandi akun"
@@ -599,7 +599,7 @@ export default function TwoFactorScreen() {
             disabled={regenerating}
           />
         </View>
-      </Dialog>
+      </SensitiveConfirmDialog>
     </Screen>
   )
 }
