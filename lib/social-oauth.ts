@@ -5,8 +5,11 @@
  *  - components/auth/social-login-buttons.tsx (login) → idToken → socialLogin
  *  - app/social-providers.tsx (tautkan dari akun login) → idToken → linkSocial
  *
- * Nonce acak diikat ke setiap percobaan (G011, anti-replay); backend
- * memverifikasi nonce untuk Apple dan (bila dikirim) untuk Google.
+ * Nonce:
+ *  - Apple: nonce WAJIB terbitan server (POST /v1/auth/apple/nonce); nonce
+ *    buatan klien 100% ditolak backend (kontrak Wave 1, 2026-09-28).
+ *  - Google: nonce acak klien masih dipakai (backend hanya memverifikasi
+ *    bila dikirim) — anti-replay G011.
  */
 
 import { Platform } from "react-native"
@@ -15,6 +18,7 @@ import * as AuthSession from "expo-auth-session"
 import * as WebBrowser from "expo-web-browser"
 
 import type { SocialProvider } from "@/lib/api/social"
+import { requestAppleNonce } from "@/lib/api/social"
 
 WebBrowser.maybeCompleteAuthSession()
 
@@ -93,12 +97,17 @@ async function getAppleIdToken(clientId: string, nonce: string): Promise<string>
 /**
  * Jalankan alur OAuth dan kembalikan { idToken, nonce }.
  * Melempar SocialCancelledError bila user membatalkan.
+ *
+ * Apple: nonce diambil dari SERVER (kontrak Wave 1) SEBELUM request Apple
+ * auth dimulai — Apple men-embed nonce ke identity token, jadi nonce server
+ * harus sudah ada sebelum dialog Apple tampil.
  */
 export async function getSocialIdToken(
   provider: SocialProvider,
   clientId: string,
 ): Promise<{ idToken: string; nonce: string }> {
-  const nonce = randomHex()
+  // Apple: nonce terbitan server; Google: nonce acak klien (G011).
+  const nonce = provider === "APPLE" ? await requestAppleNonce() : randomHex()
   try {
     const idToken =
       provider === "GOOGLE" ? await getGoogleIdToken(clientId, nonce) : await getAppleIdToken(clientId, nonce)

@@ -30,6 +30,7 @@ import { http } from "@/lib/api/client"
 import {
   getProviders,
   listLinked,
+  requestAppleNonce,
   socialLogin,
 } from "@/lib/api/social"
 
@@ -122,5 +123,33 @@ describe("listLinked envelope (G013)", () => {
     })
     const res = await listLinked()
     expect(res).toEqual([{ provider: "GOOGLE", linkedAt: "2026-09-27T00:00:00Z" }])
+  })
+})
+
+describe("requestAppleNonce (kontrak Wave 1, 2026-09-28)", () => {
+  it("POST /v1/auth/apple/nonce tanpa auth → mengembalikan nonce server", async () => {
+    post.mockResolvedValue({ nonce: "srv-nonce-abc123" })
+    const nonce = await requestAppleNonce()
+    expect(nonce).toBe("srv-nonce-abc123")
+    expect(post).toHaveBeenCalledWith("/v1/auth/apple/nonce", undefined, { auth: "none" })
+  })
+
+  it("melempar invalidResponse bila server tidak mengembalikan nonce", async () => {
+    post.mockResolvedValue({ foo: "bar" })
+    await expect(requestAppleNonce()).rejects.toThrow()
+  })
+
+  it("nonce server DITERUSKAN ke socialLogin (Apple tidak boleh pakai nonce klien)", async () => {
+    post
+      .mockResolvedValueOnce({ nonce: "srv-nonce-xyz" })
+      .mockResolvedValueOnce({ accessToken: "a", refreshToken: "r" })
+    const nonce = await requestAppleNonce()
+    const res = await socialLogin({ provider: "APPLE", idToken: "apple-id-token", nonce })
+    expect(post).toHaveBeenLastCalledWith(
+      "/v1/auth/social/login",
+      { provider: "APPLE", idToken: "apple-id-token", nonce: "srv-nonce-xyz" },
+      { auth: "none" },
+    )
+    expect(res.kind).toBe("session")
   })
 })
