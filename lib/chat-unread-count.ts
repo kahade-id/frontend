@@ -3,15 +3,9 @@
  *
  * Pola sama dengan `lib/unread-count.ts` (store modul-level + useSyncExternalStore).
  *
- * Root cause CN-011: badge tab Pesan memakai total unread NOTIFIKASI
- * (`GET /v1/notifications/unread-count`) — notifikasi order/promo/dompet ikut
- * menyalakan badge Pesan, dan status baca chat tidak tercermin. Backend tidak
- * punya endpoint unread khusus chat, jadi angka dihitung dari
- * `GET /v1/chat/rooms` (field `unreadCount` per ruang, dijumlahkan).
- *
- * Keterbatasan: hanya halaman pertama (50 ruang) yang dijumlahkan — cukup
- * untuk badge; pengguna dengan >50 ruang aktif yang semuanya unread adalah
- * kasus tepi yang bisa diremehkan untuk badge.
+ * NS-006 (perf-fix, 2026-09-29): badge TIDAK LAGI mengunduh 50 room tiap
+ * 60 detik — memakai `GET /v1/chat/unread-count` (satu angka agregat dari
+ * counter denormalisasi backend, bukan daftar room penuh).
  */
 import { useEffect, useSyncExternalStore } from "react"
 import { usePolling } from "@/lib/use-polling"
@@ -65,20 +59,19 @@ export function setChatUnreadCount(count: number | null) {
   })
 }
 
-/** Ambil ulang: jumlahkan unreadCount semua ruang di halaman pertama. */
+/** Ambil ulang: SATU angka dari GET /v1/chat/unread-count (NS-006). */
 export function refreshChatUnreadCount(): Promise<void> {
   if (inFlight) return inFlight
   const started = generation
   inFlight = (async () => {
     if (state.status === "idle") emit({ status: "loading", count: null })
     try {
-      const res = await api.chat.listChatRooms({ page: 1, limit: 50 })
-      const rooms = Array.isArray(res.data) ? res.data : []
-      const total = rooms.reduce(
-        (sum, r) => sum + (typeof r.unreadCount === "number" ? r.unreadCount : 0),
-        0,
-      )
-      if (started === generation) emit({ status: "success", count: total })
+      const body = await api.chat.getChatUnreadCount()
+      const count =
+        body && typeof body.unreadCount === "number" && Number.isFinite(body.unreadCount)
+          ? Math.max(0, Math.trunc(body.unreadCount))
+          : null
+      if (started === generation) emit({ status: "success", count })
     } catch (err) {
       if (started !== generation) return
       if (__DEV__ && !(isApiError(err) && err.code === "UNAUTHORIZED")) {

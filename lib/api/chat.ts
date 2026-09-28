@@ -315,6 +315,23 @@ export function listChatRooms(
     })
 }
 
+/** NS-006 (perf-fix, 2026-09-29): hasil GET /v1/chat/unread-count. */
+export type ChatUnreadCountResult = { unreadCount: number }
+
+/**
+ * GET /v1/chat/unread-count — total unread chat viewer (SATU angka agregat
+ * dari counter denormalisasi, bukan daftar 50 room). Pengganti ringan untuk
+ * badge tab Pesan yang sebelumnya menjumlahkan `unreadCount` halaman pertama
+ * `listChatRooms`.
+ */
+export function getChatUnreadCount(signal?: AbortSignal) {
+  return http.get<ChatUnreadCountResult>("/v1/chat/unread-count", {
+    auth: "required",
+    retry: 1,
+    signal,
+  })
+}
+
 /**
  * Cari ruang chat milik SATU order dengan memindai halaman ruang secara
  * beraturan dan BERHENTI begitu ketemu (maksimal `FIND_ROOM_MAX_PAGES` halaman).

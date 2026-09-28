@@ -58,12 +58,13 @@ type Person = {
 
 type TabState = {
   data: Person[]
-  page: number
+  /** NP-008: cursor halaman berikutnya (null = habis). Menggantikan nomor halaman. */
+  nextCursor: string | null
   hasNext: boolean
   status: "idle" | "loading" | "error" | "end"
 }
 
-const EMPTY_TAB: TabState = { data: [], page: 0, hasNext: false, status: "idle" }
+const EMPTY_TAB: TabState = { data: [], nextCursor: null, hasNext: false, status: "idle" }
 const PAGE_LIMIT = 20
 
 function toPerson(liker: ShowcaseLiker): Person {
@@ -118,7 +119,8 @@ export function ShowcaseLikersSheet({
   }, [visible, itemId, canViewSavers, initialTab])
 
   const fetchTab = useCallback(
-    async (which: LikersTab, page: number, append: boolean) => {
+    // NP-008: `cursor` null = halaman pertama; string = lanjutkan keyset.
+    async (which: LikersTab, cursor: string | null, append: boolean) => {
       // Batalkan hanya request TAB YANG SAMA yang masih berjalan (mis. spam
       // "Muat lebih banyak") — request tab lain dibiarkan selesai.
       abortRefs.current[which]?.abort()
@@ -129,14 +131,15 @@ export function ShowcaseLikersSheet({
       try {
         const res =
           which === "likers"
-            ? await getShowcaseLikers(itemId, { page, limit: PAGE_LIMIT }, controller.signal)
-            : await getShowcaseSavers(itemId, { page, limit: PAGE_LIMIT }, controller.signal)
+            ? await getShowcaseLikers(itemId, { cursor, limit: PAGE_LIMIT }, controller.signal)
+            : await getShowcaseSavers(itemId, { cursor, limit: PAGE_LIMIT }, controller.signal)
         if (controller.signal.aborted) return
         setState((prev) => ({
           data: append ? [...prev.data, ...res.data.map(toPerson)] : res.data.map(toPerson),
-          page,
-          hasNext: res.hasNext,
-          status: res.hasNext ? "idle" : "end",
+          // NP-008: habis bila server tak mengembalikan nextCursor.
+          nextCursor: res.nextCursor ?? null,
+          hasNext: res.nextCursor != null,
+          status: res.nextCursor != null ? "idle" : "end",
         }))
       } catch (error) {
         if (controller.signal.aborted) return
@@ -157,7 +160,7 @@ export function ShowcaseLikersSheet({
     if (!visible) return
     if (tab === "savers" && (!canViewSavers || saversForbidden)) return
     const state = tab === "likers" ? likers : savers
-    if (state.status === "idle" && state.page === 0) void fetchTab(tab, 1, false)
+    if (state.status === "idle" && state.data.length === 0) void fetchTab(tab, null, false)
   }, [visible, tab, canViewSavers, saversForbidden, likers, savers, fetchTab])
 
   useEffect(
@@ -211,7 +214,7 @@ export function ShowcaseLikersSheet({
             <Text variant="body" tone="secondary" className="text-center">
               {translate("Gagal memuat daftar. Periksa koneksi lalu coba lagi.")}
             </Text>
-            <Button variant="secondary" onPress={() => void fetchTab(tab, 1, false)}>
+            <Button variant="secondary" onPress={() => void fetchTab(tab, null, false)}>
               {translate("Coba lagi")}
             </Button>
           </View>
@@ -284,7 +287,7 @@ export function ShowcaseLikersSheet({
               <Button
                 variant="ghost"
                 fullWidth
-                onPress={() => void fetchTab(tab, active.page + 1, true)}
+                onPress={() => void fetchTab(tab, active.nextCursor, true)}
               >
                 {translate("Muat lebih banyak")}
               </Button>

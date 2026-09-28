@@ -32,7 +32,8 @@ export function ShowcaseRelatedCard({ rel }: { rel: ShowcaseSocialItem }) {
   useLanguage()
   // Item 166 (FE-IMP-1): quick-like — hook legal karena komponen per kartu.
   const { liked, likePending, toggleLike } = useShowcaseSocialActions(rel)
-  const cover = rel.coverImageUrl ?? rel.imageUrl ?? undefined
+  // NP-007: satu sumber kebenaran gambar — coverImageUrl/images[].
+  const cover = rel.coverImageUrl ?? undefined
 
   /*
    * Item 166: quick-like adalah OVERLAY sibling (bukan anak pressable kartu)

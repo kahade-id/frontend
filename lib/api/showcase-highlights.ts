@@ -198,7 +198,9 @@ export function deleteHighlight(id: string): Promise<void> {
 }
 
 /**
- * Cover highlight dari item etalase: coverImageUrl → images[0] → imageUrl.
+ * Cover highlight dari item etalase: coverImageUrl → images[0].
+ * NP-007 (perf-fix, 2026-09-29): alias top-level `imageUrl` dihapus dari
+ * backend — fallback ke sana dihapus.
  * Kontrak final Tim A (2026-09-28): entri video memakai thumbnailUrl sebagai
  * cover. Murni tampilan — dipakai strip & editor.
  */
@@ -210,7 +212,6 @@ export function highlightCoverOf(item: ShowcaseItem | undefined): string | null 
   return (
     item.coverImageUrl ??
     firstUrl ??
-    item.imageUrl ??
     null
   )
 }

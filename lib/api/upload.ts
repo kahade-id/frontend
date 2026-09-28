@@ -8,12 +8,13 @@
  */
 import { assertDtoConstraints } from "@/lib/financial"
 import { API_CONSTRAINTS } from "@/lib/api/constraints"
-import { ApiError, codeFromStatus, DEFAULT_ERROR_MESSAGES } from "@/lib/api/errors"
+import { ApiError, codeFromStatus, DEFAULT_ERROR_MESSAGES, type ApiErrorCode } from "@/lib/api/errors"
 import { safeHttpsUrl } from "@/lib/version"
 import { buildUrl, http, refreshAccessToken, seg } from "@/lib/api/client"
 import { getAccessToken } from "@/lib/api/session"
 import type { CleanupFilesDto, ConfirmUploadDto, PresignedUrlDto } from "@/lib/api/types"
-import { pickedImageToFormData, type PickedImage } from "@/lib/image-picker"
+import { pickedImageToBlob, pickedImageToFormData, type PickedImage } from "@/lib/image-picker"
+import { Platform } from "react-native"
 
 /** Hasil POST /v1/upload/presigned-url. */
 export type PresignedUpload = {
@@ -291,13 +292,7 @@ function videoUploadError(status: number, bodyText: string): ApiError {
   })
 }
 
-function parseVideoUploadResponse(bodyText: string): DirectVideoUpload {
-  let body: Record<string, unknown>
-  try {
-    body = JSON.parse(bodyText) as Record<string, unknown>
-  } catch {
-    throw new ApiError({ code: "PARSE", message: "Respons unggah video tidak valid." })
-  }
+function parseVideoUploadObject(body: Record<string, unknown>): DirectVideoUpload {
   const str = (v: unknown): string | undefined =>
     typeof v === "string" && v ? v : undefined
   const num = (v: unknown): number | undefined =>
@@ -321,6 +316,16 @@ function parseVideoUploadResponse(bodyText: string): DirectVideoUpload {
   return out
 }
 
+function parseVideoUploadResponse(bodyText: string): DirectVideoUpload {
+  let body: Record<string, unknown>
+  try {
+    body = JSON.parse(bodyText) as Record<string, unknown>
+  } catch {
+    throw new ApiError({ code: "PARSE", message: "Respons unggah video tidak valid." })
+  }
+  return parseVideoUploadObject(body)
+}
+
 /**
  * Upload video showcase via `POST /v1/upload/direct` (multipart
  * `file` + `purpose=SHOWCASE_VIDEO`) dengan LAPORAN PROGRESS.
@@ -336,9 +341,11 @@ function parseVideoUploadResponse(bodyText: string): DirectVideoUpload {
  */
 /**
  * NP-006 (audit performa): upload besar single-attempt — putus di tengah =
- * ulang dari NOL. Resume/chunked sejati butuh protokol backend baru
- * (DEFERRED — lihat laporan: endpoint `POST /v1/upload/chunk` dkk. belum
- * ada). Sementara itu, retry CERDAS sisi klien:
+ * ulang dari NOL. Resume/chunked sejati kini TERSEDIA via `uploadChunkedVideo`
+ * (protokol `POST /v1/upload/chunked/*`); fungsi ini dipertahankan sebagai
+ * jalur single-shot untuk file kecil (≤ 8MB) dan sebagai fallback jujur bila
+ * perangkat tak mendukung pembacaan parsial file. Sementara itu, retry CERDAS
+ * sisi klien:
  * - hanya error TRANSIEN (NETWORK/TIMEOUT/SERVER 5xx) yang diulang;
  * - 4xx validasi (FILE_TOO_LARGE, MIME_TYPE_MISMATCH, ...) TIDAK di-retry
  *   (mengulang tidak akan sukses); ABORTED (user batal) tidak di-retry;
@@ -525,6 +532,417 @@ export function uploadDirectVideo(
     }
     void run()
   })
+}
+
+// ------------------------------------------------------------------
+// Upload video chunked/resumable (NP-006, 2026-09-29)
+// ------------------------------------------------------------------
+
+/**
+ * Batas bawah ukuran file yang memakai jalur chunked — file ≤ ini tetap
+ * memakai `uploadDirectVideo` single-shot (lebih sedikit round-trip).
+ */
+export const CHUNKED_UPLOAD_THRESHOLD_BYTES = 8 * 1024 * 1024
+/**
+ * Ukuran chunk yang diminta ke server. Server me-clamp ke [512KiB, 8MiB];
+ * nilai ini hanya usulan — ukuran final selalu dari respons `init`.
+ */
+export const CHUNKED_UPLOAD_CHUNK_BYTES = 4 * 1024 * 1024
+
+interface ChunkedInitResponse {
+  sessionId?: unknown
+  chunkSize?: unknown
+  totalChunks?: unknown
+  totalSize?: unknown
+  expiresAt?: unknown
+}
+
+interface ChunkedStatusResponse {
+  sessionId?: unknown
+  chunkSize?: unknown
+  totalChunks?: unknown
+  totalSize?: unknown
+  received?: unknown
+  receivedBytes?: unknown
+  expiresAt?: unknown
+}
+
+interface ParsedChunkSession {
+  sessionId: string
+  chunkSize: number
+  totalChunks: number
+  totalSize: number
+}
+
+function parseChunkSession(raw: unknown, what: string): ParsedChunkSession {
+  const o = (raw ?? {}) as Record<string, unknown>
+  const sessionId = typeof o.sessionId === "string" ? o.sessionId : ""
+  const chunkSize = typeof o.chunkSize === "number" ? o.chunkSize : 0
+  const totalChunks = typeof o.totalChunks === "number" ? o.totalChunks : 0
+  const totalSize = typeof o.totalSize === "number" ? o.totalSize : 0
+  if (!/^[0-9a-f]{64}$/.test(sessionId) || chunkSize <= 0 || totalChunks <= 0 || totalSize <= 0) {
+    throw new ApiError({ code: "PARSE", message: `Respons ${what} tidak valid.` })
+  }
+  return { sessionId, chunkSize, totalChunks, totalSize }
+}
+
+function parseReceivedChunks(raw: unknown): Set<number> {
+  const o = (raw ?? {}) as Record<string, unknown>
+  const list = Array.isArray(o.received) ? o.received : []
+  const out = new Set<number>()
+  for (const v of list) {
+    if (typeof v === "number" && Number.isInteger(v) && v >= 0) out.add(v)
+  }
+  return out
+}
+
+/**
+ * Panjang byte chunk ke-`index` menurut kesepakatan sesi
+ * (chunk terakhir boleh parsial).
+ */
+function agreedChunkLength(index: number, chunkSize: number, totalChunks: number, totalSize: number): number {
+  if (index === totalChunks - 1) return totalSize - chunkSize * (totalChunks - 1)
+  return chunkSize
+}
+
+/**
+ * XHR multipart generik dengan auth + refresh token sekali saat 401 —
+ * dipakai endpoint chunked (bukan lewat `http` karena perlu progress).
+ */
+function xhrPostMultipart(
+  path: string,
+  formData: FormData,
+  opts: {
+    onProgress?: (loadedBytes: number) => void
+    signal?: AbortSignal
+    timeoutMs?: number
+  } = {},
+): Promise<string> {
+  const { onProgress, signal, timeoutMs = 600_000 } = opts
+  const url = buildUrl(path)
+  let currentXhr: XMLHttpRequest | null = null
+  if (signal?.aborted) {
+    return Promise.reject(new ApiError({ code: "ABORTED", message: "Unggahan dibatalkan." }))
+  }
+  const attempt = (token: string, retried401: boolean): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest()
+      currentXhr = xhr
+      let settled = false
+      const fail = (err: ApiError) => {
+        if (settled) return
+        settled = true
+        reject(err)
+      }
+      xhr.open("POST", url)
+      xhr.setRequestHeader("Authorization", `Bearer ${token}`)
+      xhr.timeout = timeoutMs
+      if (onProgress && xhr.upload) {
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable) onProgress(e.loaded)
+        }
+      }
+      xhr.onload = async () => {
+        const status = xhr.status
+        if (status === 401 && !retried401) {
+          try {
+            const fresh = await refreshAccessToken()
+            if (fresh) {
+              attempt(fresh, true).then(resolve, reject)
+              return
+            }
+          } catch {
+            // jatuh ke error 401 di bawah
+          }
+        }
+        if (status >= 200 && status < 300) {
+          settled = true
+          resolve(xhr.responseText ?? "")
+          return
+        }
+        let code: ApiErrorCode = codeFromStatus(status, false)
+        let message: string | undefined
+        try {
+          const parsed = JSON.parse(xhr.responseText || "{}") as { code?: unknown; message?: unknown }
+          if (typeof parsed.code === "string") code = parsed.code as ApiErrorCode
+          if (typeof parsed.message === "string") message = parsed.message
+        } catch {
+          // biarkan default
+        }
+        fail(
+          new ApiError({
+            code,
+            message: message ?? DEFAULT_ERROR_MESSAGES[code] ?? `Upload gagal (${status}).`,
+            status,
+          }),
+        )
+      }
+      xhr.onerror = () => fail(new ApiError({ code: "NETWORK", message: DEFAULT_ERROR_MESSAGES.NETWORK }))
+      xhr.ontimeout = () =>
+        fail(new ApiError({ code: "TIMEOUT", message: "Waktu upload chunk habis. Coba lagi." }))
+      xhr.onabort = () => fail(new ApiError({ code: "ABORTED", message: "Unggahan dibatalkan." }))
+      const onAbort = () => {
+        try {
+          xhr.abort()
+        } catch {
+          // abaikan
+        }
+      }
+      signal?.addEventListener("abort", onAbort, { once: true })
+      try {
+        xhr.send(formData)
+      } catch (err) {
+        fail(new ApiError({ code: "NETWORK", message: DEFAULT_ERROR_MESSAGES.NETWORK, cause: err }))
+      }
+    })
+  const outer = (async (): Promise<string> => {
+    const token = await getAccessToken()
+    if (!token) {
+      throw new ApiError({ code: "UNAUTHORIZED", message: DEFAULT_ERROR_MESSAGES.UNAUTHORIZED })
+    }
+    return attempt(token, false)
+  })()
+  if (signal) {
+    signal.addEventListener(
+      "abort",
+      () => {
+        try {
+          currentXhr?.abort()
+        } catch {
+          // abaikan
+        }
+      },
+      { once: true },
+    )
+  }
+  return outer
+}
+
+/**
+ * Tulis satu chunk ke file temporer cache (native saja). Byte dibaca sebagai
+ * range base64 TANPA memuat seluruh file ke memori — inilah yang membuat
+ * upload 100MB aman di HP. Mengembalikan URI file temporer (wajib dihapus
+ * pemanggil).
+ */
+async function writeNativeChunkTempFile(
+  sourceUri: string,
+  sessionId: string,
+  index: number,
+  position: number,
+  length: number,
+): Promise<string> {
+  const fsLegacy = await import("expo-file-system/legacy")
+  const cacheDir = fsLegacy.cacheDirectory
+  if (!cacheDir) {
+    throw new ApiError({ code: "CHUNK_SOURCE_UNSUPPORTED", message: "Cache penyimpanan tidak tersedia." })
+  }
+  let base64: string
+  try {
+    base64 = await fsLegacy.readAsStringAsync(sourceUri, { encoding: "base64", position, length })
+  } catch (err) {
+    throw new ApiError({
+      code: "CHUNK_SOURCE_UNSUPPORTED",
+      message: "Perangkat tidak mendukung pembacaan parsial file.",
+      cause: err,
+    })
+  }
+  // Guard jujur: pastikan yang terbaca benar-benar sepanjang yang diminta
+  // (beberapa URI content:// mengabaikan position/length).
+  const padding = base64.endsWith("==") ? 2 : base64.endsWith("=") ? 1 : 0
+  const decodedLen = Math.floor((base64.length * 3) / 4) - padding
+  if (decodedLen !== length) {
+    throw new ApiError({
+      code: "CHUNK_SOURCE_UNSUPPORTED",
+      message: "Perangkat tidak mendukung pembacaan parsial file.",
+    })
+  }
+  const tempUri = `${cacheDir}kahade-chunk-${sessionId}-${index}.bin`
+  await fsLegacy.writeAsStringAsync(tempUri, base64, { encoding: "base64" })
+  return tempUri
+}
+
+/**
+ * NP-006: upload video besar (di atas `CHUNKED_UPLOAD_THRESHOLD_BYTES`)
+ * secara chunked + resumable.
+ *
+ * Protokol: init → (status untuk resume) → kirim chunk yang hilang →
+ * complete. Gagal di tengah jalan (koneksi putus, app di-kill) → pemanggilan
+ * berikutnya otomatis melanjutkan dari chunk terakhir yang diterima server,
+ * BUKAN dari byte 0. Progress `onProgress` dihitung dari total file
+ * (tidak reset per attempt).
+ *
+ * Bila perangkat tidak mendukung pembacaan parsial file, otomatis fallback
+ * ke `uploadDirectVideo` single-shot (upload tetap jalan, hanya tanpa
+ * resume).
+ */
+export async function uploadChunkedVideo(
+  asset: PickedImage,
+  opts: {
+    purpose?: string
+    /** Fraksi 0–1 kemajuan upload (dihitung dari total file). */
+    onProgress?: (fraction: number) => void
+    signal?: AbortSignal
+    timeoutMs?: number
+    /** Usulan ukuran chunk (byte); default 4MiB. */
+    chunkSize?: number
+  } = {},
+): Promise<DirectVideoUpload> {
+  const { onProgress, signal, chunkSize = CHUNKED_UPLOAD_CHUNK_BYTES, ...directOpts } = opts
+  const totalBytes = typeof asset.size === "number" ? asset.size : 0
+  if (!totalBytes || totalBytes <= CHUNKED_UPLOAD_THRESHOLD_BYTES) {
+    // File kecil / ukuran tak diketahui → jalur direct biasa (lebih hemat round-trip).
+    return uploadDirectVideo(asset, opts)
+  }
+  if (signal?.aborted) {
+    throw new ApiError({ code: "ABORTED", message: "Unggahan dibatalkan." })
+  }
+  const isWeb = Platform.OS === "web"
+
+  // 1. init sesi (validasi purpose/batas/MIME gagal-cepat di server)
+  const initRaw = await http.post<ChunkedInitResponse, Record<string, unknown>>(
+    "/v1/upload/chunked/init",
+    {
+      purpose: directOpts.purpose ?? "SHOWCASE_VIDEO",
+      fileName: asset.name,
+      mimeType: asset.mimeType,
+      totalSize: totalBytes,
+      chunkSize,
+    },
+    { auth: "required", retry: 1, signal },
+  )
+  const session = parseChunkSession(initRaw, "init upload")
+  const { sessionId, chunkSize: serverChunkSize, totalChunks, totalSize } = session
+  const basePath = `/v1/upload/chunked/${seg(sessionId)}`
+
+  // 2. status → chunk mana yang sudah diterima (resume)
+  const received = new Set<number>()
+  try {
+    const statusRaw = await http.get<ChunkedStatusResponse>(`${basePath}/status`, {
+      auth: "required",
+      retry: 1,
+      signal,
+    })
+    const sessionCheck = parseChunkSession(statusRaw, "status upload")
+    if (sessionCheck.totalChunks !== totalChunks || sessionCheck.totalSize !== totalSize) {
+      throw new ApiError({ code: "PARSE", message: "Sesi upload tidak konsisten." })
+    }
+    for (const i of parseReceivedChunks(statusRaw)) {
+      if (i < totalChunks) received.add(i)
+    }
+  } catch (err) {
+    if (err instanceof ApiError && (err.code === "PARSE" || err.code === "CHUNK_SOURCE_UNSUPPORTED")) throw err
+    // 404/410/5xx pada status → anggap sesi baru/kosong (idempoten: chunk
+    // yang sebenarnya sudah ada akan dijawab 200 oleh server).
+  }
+
+  const report = (doneBytes: number) =>
+    onProgress?.(Math.min(1, Math.max(0, doneBytes / totalSize)))
+  let doneBytes = 0
+  for (const i of received) doneBytes += agreedChunkLength(i, serverChunkSize, totalChunks, totalSize)
+  report(doneBytes)
+
+  // Sumber byte: web → Blob.slice (tanpa baca ulang); native → range base64
+  // ke file temporer (tanpa memuat 100MB ke memori).
+  let webBlob: Blob | null = null
+  if (isWeb) {
+    try {
+      webBlob = await pickedImageToBlob(asset)
+    } catch (err) {
+      throw new ApiError({
+        code: "CHUNK_SOURCE_UNSUPPORTED",
+        message: "Gagal membaca file video.",
+        cause: err,
+      })
+    }
+  }
+  const tempFiles = new Set<string>()
+  const cleanupTempFiles = async () => {
+    if (isWeb || tempFiles.size === 0) return
+    try {
+      const fsLegacy = await import("expo-file-system/legacy")
+      await Promise.all(
+        [...tempFiles].map((uri) => fsLegacy.deleteAsync(uri, { idempotent: true }).catch(() => undefined)),
+      )
+    } catch {
+      // best-effort; cache OS akan membersihkan sendiri
+    }
+    tempFiles.clear()
+  }
+
+  try {
+    // 3. kirim chunk yang hilang, masing-masing dengan retry cerdas
+    for (let i = 0; i < totalChunks; i++) {
+      if (signal?.aborted) throw new ApiError({ code: "ABORTED", message: "Unggahan dibatalkan." })
+      if (received.has(i)) continue
+      const start = i * serverChunkSize
+      const length = agreedChunkLength(i, serverChunkSize, totalChunks, totalSize)
+
+      const buildFormData = async (): Promise<FormData> => {
+        const formData = new FormData()
+        if (isWeb) {
+          formData.append("chunk", (webBlob as Blob).slice(start, start + length), `chunk-${i}.bin`)
+        } else {
+          const tempUri = await writeNativeChunkTempFile(asset.uri, sessionId, i, start, length)
+          tempFiles.add(tempUri)
+          formData.append("chunk", {
+            uri: tempUri,
+            name: `chunk-${i}.bin`,
+            type: "application/octet-stream",
+          } as unknown as Blob)
+        }
+        formData.append("chunkIndex", String(i))
+        return formData
+      }
+
+      let attempt = 0
+      for (;;) {
+        try {
+          const formData = await buildFormData()
+          await xhrPostMultipart(`${basePath}/chunk`, formData, {
+            signal,
+            timeoutMs: 600_000,
+            onProgress: (loaded) => report(doneBytes + Math.min(loaded, length)),
+          })
+          break
+        } catch (err) {
+          const retriable = !signal?.aborted && attempt < 2 && isRetriableVideoUploadError(err)
+          if (!retriable) throw err
+          attempt += 1
+          await sleepAbortable(1000 * 2 ** (attempt - 1), signal)
+        }
+      }
+      doneBytes += length
+      received.add(i)
+      report(doneBytes)
+    }
+
+    // 4. complete → server merakit + menjalankan pipeline uploadDirect yang
+    // SAMA (validasi magic-byte, thumbnail ffmpeg). Timeout adaptif mengikuti
+    // pola uploadDirectVideo (pemrosesan video butuh waktu).
+    const completeTimeoutMs = Math.min(1_800_000, Math.max(600_000, 120_000 + totalSize / 100))
+    const completeRaw = await http.post<unknown, undefined>(`${basePath}/complete`, undefined, {
+      auth: "required",
+      retry: 0,
+      signal,
+      timeoutMs: completeTimeoutMs,
+    })
+    const result = parseVideoUploadObject(
+      (completeRaw ?? {}) as Record<string, unknown>,
+    )
+    if (!result.fileKey) {
+      throw new ApiError({ code: "PARSE", message: "Respons server tidak lengkap." })
+    }
+    report(1)
+    return result
+  } catch (err) {
+    // Fallback jujur: perangkat tak mendukung baca parsial → single-shot.
+    if (err instanceof ApiError && err.code === "CHUNK_SOURCE_UNSUPPORTED") {
+      return uploadDirectVideo(asset, opts)
+    }
+    throw err
+  } finally {
+    await cleanupTempFiles()
+  }
 }
 
 /**

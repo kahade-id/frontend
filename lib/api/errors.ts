@@ -33,6 +33,7 @@ export type ApiErrorCode =
   | "PIN_RATE_LIMITED" // 403 + code PIN_RATE_LIMITED — kebanyakan salah PIN, kunci 15 menit
   | "SERVER" // 5xx
   | "PARSE" // body bukan JSON padahal diharapkan JSON
+  | "CHUNK_SOURCE_UNSUPPORTED" // NP-006: perangkat tak mendukung baca parsial file (fallback single-shot)
   | "UNKNOWN"
 
 /**
@@ -361,6 +362,7 @@ export const DEFAULT_ERROR_MESSAGES: Record<ApiErrorCode, string> = {
   PIN_RATE_LIMITED: "Terlalu banyak percobaan PIN. Tunggu 15 menit lalu coba lagi.",
   SERVER: "Terjadi gangguan di server kami. Coba lagi nanti.",
   PARSE: "Respons server tidak dapat dibaca.",
+  CHUNK_SOURCE_UNSUPPORTED: "Perangkat tidak mendukung upload lanjutan. Mencoba cara biasa…",
   UNKNOWN: "Terjadi kesalahan. Coba lagi.",
 }
 

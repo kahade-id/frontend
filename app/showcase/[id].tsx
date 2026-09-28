@@ -365,34 +365,53 @@ function ShowcaseDetailContent({
    * yang menimpa daftar terbaru.
    */
   const commentsAbort = useRef<AbortController | null>(null)
-  const failedComments = useRef({ page: 1, append: false })
+  /**
+   * NP-008 (perf-fix): paginasi komentar memakai keyset cursor backend —
+   * tanpa `skip` besar. `commentsNextCursor` = kursor untuk langkah berikut;
+   * `commentsLoadCount` = jumlah pemuatan (guard kedalaman C14, ganti nomor
+   * halaman). `failedComments` menyimpan kursor yang gagal untuk retry.
+   */
+  const commentsNextCursor = useRef<string | null>(null)
+  const commentsLoadCount = useRef(0)
+  const failedComments = useRef<{ append: boolean; cursor: string | null }>({ append: false, cursor: null })
   const fetchComments = useCallback(
-    async (page: number, append: boolean) => {
+    async (append: boolean, cursorOverride?: string | null) => {
       if (mutationPending.current) return
-      failedComments.current = { page, append }
+      // Tanpa override: tambah = lanjutkan rantai cursor; segarkan = dari awal.
+      const startCursor = cursorOverride !== undefined ? cursorOverride : append ? commentsNextCursor.current : null
+      failedComments.current = { append, cursor: startCursor }
       commentsAbort.current?.abort()
       const controller = new AbortController()
       commentsAbort.current = controller
       try {
         setCommentsStatus("loading")
         let collected: ShowcaseCommentWithReplies[] = []
-        let lastPage = append ? page : 1
         let total = 0
         let hasNext = false
-        for (let cursor = append ? page : 1; cursor <= page; cursor++) {
-          const res = await listShowcaseComments(id, { page: cursor, limit: 20 }, controller.signal)
+        let next: string | null = startCursor
+        // Segarkan: pulihkan jumlah halaman yang sudah dimuat dengan mengikuti
+        // rantai cursor (bukan offset) — perilaku lama memuat ulang 1..N.
+        // Muat-berikutnya: tepat satu langkah cursor.
+        const targetLoads = append ? 1 : Math.max(1, commentsLoadCount.current)
+        let loads = 0
+        do {
+          const res = await listShowcaseComments(id, { limit: 20, cursor: next }, controller.signal)
           if (controller.signal.aborted) return
           collected = mergeComments(collected, res.data)
           total = res.total
           hasNext = res.hasNext
-          lastPage = cursor
-          if (!res.hasNext) break
-        }
-        setComments((prev) => append ? mergeComments(prev, collected) : collected)
-        if (!append && page === 1) setCommentRenderLimit(COMMENT_RENDER_STEP)
+          next = res.nextCursor ?? null
+          loads += 1
+        } while (!append && hasNext && loads < targetLoads)
+        if (controller.signal.aborted) return
+        setComments((prev) => (append ? mergeComments(prev, collected) : collected))
+        commentsLoadCount.current = append ? commentsLoadCount.current + loads : loads
+        commentsNextCursor.current = next
+        if (!append) setCommentRenderLimit(COMMENT_RENDER_STEP)
         setCommentTotal(total)
-        setCommentsPage(lastPage)
+        setCommentsPage(commentsLoadCount.current)
         setCommentsStatus(hasNext ? "idle" : "end")
+        failedComments.current = { append: false, cursor: null }
       } catch {
         if (controller.signal.aborted) return
         setCommentsStatus("error")
@@ -401,7 +420,7 @@ function ShowcaseDetailContent({
     [id],
   )
   useEffect(() => {
-    void fetchComments(1, false)
+    void fetchComments(false)
     return () => commentsAbort.current?.abort()
   }, [fetchComments])
 
@@ -424,7 +443,7 @@ function ShowcaseDetailContent({
     ) {
       return
     }
-    void fetchComments(commentsPage + 1, true)
+    void fetchComments(true)
   }, [highlightComment, comments, commentsStatus, commentsPage, fetchComments])
 
   /**
@@ -742,7 +761,7 @@ function ShowcaseDetailContent({
     if (commentsRefreshing) return
     setCommentsRefreshing(true)
     void query.refresh()
-    void fetchComments(1, false).finally(() => setCommentsRefreshing(false))
+    void fetchComments(false).finally(() => setCommentsRefreshing(false))
   }, [commentsRefreshing, query, fetchComments])
 
   const priceLabel = showcasePriceLabelOrFallback(item)
@@ -1133,8 +1152,13 @@ function ShowcaseDetailContent({
         onOpenMenu={setCommentMenu}
         onShowMore={() => setCommentRenderLimit((n) => n + COMMENT_RENDER_STEP)}
         onLoadMore={() => {
-          const request = commentsStatus === "error" ? failedComments.current : { page: commentsPage + 1, append: true }
-          void fetchComments(request.page, request.append)
+          // NP-008: error → ulangi kursor yang gagal; normal → satu langkah cursor.
+          if (commentsStatus === "error") {
+            const failed = failedComments.current
+            void fetchComments(failed.append, failed.cursor)
+          } else {
+            void fetchComments(true)
+          }
         }}
       />
 

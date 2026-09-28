@@ -106,11 +106,11 @@ export async function cleanupPendingShowcaseKeys(fileKeys: string[]): Promise<vo
 /**
  * Upload SATU video showcase (kontrak final Tim A #1, 2026-09-28).
  *
- * Alur: POST /v1/upload/direct (multipart file + purpose=SHOWCASE_VIDEO)
- * dengan laporan progress 0–1 via `onProgress`. Backend memproses video
- * (thumbnail otomatis) — hasilnya WAJIB menyertakan `thumbnailFileKey`
- * (fail-closed: tanpa itu, kirim sebagai video DITOLAK dengan pesan jelas,
- * bukan fail-open jadi gambar).
+ * Alur: video > 8MB memakai upload chunked/resumable (NP-006,
+ * `api.upload.uploadChunkedVideo`) — putus di tengah = lanjut dari chunk
+ * terakhir, bukan dari byte 0; video ≤ 8MB memakai POST /v1/upload/direct
+ * single-shot (lebih hemat round-trip). Progress 0–1 via `onProgress`
+ * dihitung dari total file (tidak reset per attempt).
  *
  * Error backend (FILE_TOO_LARGE, MIME_TYPE_MISMATCH, VIDEO_TOO_LONG,
  * VIDEO_UNPROCESSABLE, UPLOAD_FAILED) sudah dipetakan ke pesan Indonesia
@@ -143,7 +143,9 @@ export async function uploadShowcaseVideo(
         message: `Durasi video melebihi 3 menit (${Math.round(asset.durationMs / 1000)} dtk). Potong dulu sebelum mengunggah.`,
       })
     }
-    const result = await api.upload.uploadDirectVideo(asset, {
+    // NP-006: video > 8MB memakai jalur chunked/resumable (putus di tengah
+    // = lanjut dari chunk terakhir); ≤ 8MB tetap single-shot.
+    const result = await api.upload.uploadChunkedVideo(asset, {
       purpose: "SHOWCASE_VIDEO",
       onProgress,
       signal,

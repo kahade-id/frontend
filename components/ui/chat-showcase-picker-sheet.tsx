@@ -33,7 +33,8 @@ function coverOf(item: ShowcaseItem): string | null {
   // memakai thumbnailUrl sebagai cover (imageUrl-nya = berkas video),
   // selaras koleksi tersimpan. Tanpa thumbnail → null (placeholder).
   if (first?.kind === "video") return first.thumbnailUrl ?? null
-  return item.coverImageUrl ?? first?.imageUrl ?? item.imageUrl ?? null
+  // NP-007: alias top-level `imageUrl` dihapus backend — hanya coverImageUrl/images[].
+  return item.coverImageUrl ?? first?.imageUrl ?? null
 }
 
 export function ChatShowcasePickerSheet({

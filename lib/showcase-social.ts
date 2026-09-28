@@ -99,9 +99,12 @@ export type ShowcaseOwner = {
 
 /**
  * Cover item mentah (GET /v1/users/{username}/showcase & /me/showcase):
- * kanonik baru `coverImageUrl`/`images[0]`, lalu alias lama `imageUrl`,
- * terakhir `fileKey`. SATU resolver agar grid manajemen, galeri publik,
- * dan normalisasi sosial tidak lagi memilih key yang berbeda (E-01).
+ * kanonik `coverImageUrl`/`images[0]`, terakhir `fileKey`. SATU resolver agar
+ * grid manajemen, galeri publik, dan normalisasi sosial tidak lagi memilih
+ * key yang berbeda (E-01).
+ *
+ * NP-007 (perf-fix, 2026-09-29): alias top-level `imageUrl` DIHAPUS dari
+ * backend — fallback ke sana dihapus; satu sumber kebenaran gambar.
  *
  * Kontrak final Tim A (2026-09-28): entri video memakai `thumbnailUrl`
  * sebagai cover (imageUrl-nya = berkas video, bukan gambar).
@@ -116,7 +119,6 @@ export function showcaseCoverOf(item: ShowcaseItem): string | undefined {
   return (
     resolveMediaUrl(item.coverImageUrl) ??
     resolveMediaUrl(fromImages) ??
-    resolveMediaUrl(item.imageUrl) ??
     resolveMediaUrl(item.fileKey)
   )
 }
@@ -202,8 +204,9 @@ export function toSocialShowcaseItem(
     condition:
       raw.condition === "BARU" || raw.condition === "BEKAS" ? raw.condition : null,
     images,
-    coverImageUrl: item.coverImageUrl ?? item.imageUrl ?? null,
-    imageUrl: item.imageUrl ?? null,
+    // NP-007: satu sumber kebenaran gambar — `coverImageUrl`/`images[]`.
+    // Alias top-level `imageUrl` tidak lagi dikirim backend.
+    coverImageUrl: item.coverImageUrl ?? null,
     priceMin: item.priceMin ?? null,
     priceMax: item.priceMax ?? null,
     likeCount: clampShowcaseCount(raw.likeCount),
@@ -304,7 +307,7 @@ export function showcaseImages(item: ShowcaseSocialItem): { id: string; url: str
     const url = resolveMediaUrl(rawUrl)
     return url ? [{ id: image.id, url }] : []
   })
-  const cover = resolveMediaUrl(item.coverImageUrl) ?? resolveMediaUrl(item.imageUrl)
+  const cover = resolveMediaUrl(item.coverImageUrl)
   return images.length ? images : cover ? [{ id: item.id, url: cover }] : []
 }
 
