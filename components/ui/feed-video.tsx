@@ -27,13 +27,14 @@
  */
 import { Component, useEffect, useState, type ReactNode } from "react"
 import { View, type ViewProps } from "react-native"
-import { Play } from "phosphor-react-native"
+import { ArrowClockwise, Play } from "phosphor-react-native"
 import type { ImageSource } from "expo-image"
 import type { VideoPlayer } from "expo-video"
 
 import { Picture } from "@/components/ui/picture"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Icon } from "@/components/ui/icon"
+import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { translate } from "@/lib/i18n/translate"
 import { useLanguage } from "@/lib/i18n"

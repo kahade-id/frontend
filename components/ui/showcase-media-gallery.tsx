@@ -36,7 +36,7 @@ import type { GalleryMedia } from "@/lib/showcase-social"
  */
 const DOUBLE_TAP_MS = 300
 
-export function ShowcaseMediaGallery({ media, title, onOpen, onDoubleTap, autoplayActive = true }: {
+export function ShowcaseMediaGallery({ media, title, onOpen, onDoubleTap, autoplayActive = true, aspectRatio = 1 }: {
   /** Urutan media persis seperti yang dipakai `onOpen` (indeks = indeks media). */
   media: GalleryMedia[]
   title: string
@@ -48,6 +48,12 @@ export function ShowcaseMediaGallery({ media, title, onOpen, onDoubleTap, autopl
    * Kartu feed mengirim "kartu terlihat"; halaman detail mengirim true.
    */
   autoplayActive?: boolean
+  /**
+   * C01 (batch 139): rasio slide pertama dari respons list — dipakai
+   * placeholder di luar jendela render (±1 slide) agar pager tidak bergeser
+   * saat slide jauh dimuat. Tiap slide memakai rasionya sendiri bila ada.
+   */
+  aspectRatio?: number
 }) {
   // i18n: label mengikuti bahasa aktif.
   useLanguage()
@@ -190,12 +196,14 @@ export function ShowcaseMediaGallery({ media, title, onOpen, onDoubleTap, autopl
                   <PressableScale accessibilityRole="button"
                     accessibilityLabel={translate("Lihat foto {x} dari {y}", { x: index + 1, y: media.length })}
                     onPress={() => handleSlidePress(index)} containerClassName="w-full">
-                    <Picture source={m.url} alt={title} aspectRatio={1} radius="none" bordered={false} recyclingKey={m.id} preventDownload dataSaverGate />
+                    {/* C01: rasio dari respons list — placeholder tidak meloncat. */}
+                    <Picture source={m.url} alt={title} aspectRatio={m.aspectRatio ?? 1} radius="none" bordered={false} recyclingKey={m.id} preventDownload dataSaverGate />
                   </PressableScale>
                 )
               ) : (
                 // Placeholder seukuran (B-01): tata letak pager tidak bergeser.
-                <View className="aspect-square w-full bg-surface" />
+                // C01: pakai rasio slide sendiri (fallback rasio slide pertama).
+                <View className="w-full bg-surface" style={{ aspectRatio: m.aspectRatio ?? aspectRatio }} />
               )}
             </View>
           ))}
