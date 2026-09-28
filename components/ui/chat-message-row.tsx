@@ -25,6 +25,7 @@
  *   - Sorotan pilihan dipasang lewat `className` bubble (bukan pembungkus)
  *     supaya mengikuti lebar bubble dan padding horizontalnya.
  */
+import { memo, useCallback, useMemo } from "react"
 import { View } from "react-native"
 
 import { useTheme } from "@/components/theme-provider"
@@ -162,7 +163,7 @@ export type ChatMessageRowProps = {
   onQuotePress?: (replyToId: string) => void
 }
 
-export function ChatMessageRow({
+export function ChatMessageRowBase({
   message,
   previous,
   next,
@@ -200,15 +201,52 @@ export function ChatMessageRow({
    */
   const showTime = isLastInMinuteGroup(message, next)
   /**
-   * Aturan interaksi bubble: ketuk = no-op di luar mode pilih (toggle saat
-   * mode pilih aktif); tekan lama = buka aksi + popover reaksi.
+   * LR-001: aturan interaksi bubble distabilkan — objek `pressHandlers` baru
+   * tiap render sebelumnya membuat `memo` di <ChatMessageBubble> tidak
+   * pernah hit. Deps memakai referensi `message` (stabil via merge thread).
    */
-  const pressHandlers = resolveBubblePressHandlers({
-    selecting,
-    isDeleted: message.isDeleted,
-    onTap: () => onPress(message),
-    onLongPress: (anchor) => onLongPress(message, anchor),
-  })
+  const pressHandlers = useMemo(
+    () =>
+      resolveBubblePressHandlers({
+        selecting,
+        isDeleted: message.isDeleted,
+        onTap: () => onPress(message),
+        onLongPress: (anchor) => onLongPress(message, anchor),
+      }),
+    [selecting, message, onPress, onLongPress],
+  )
+  /**
+   * LR-001: prop turunan untuk bubble distabilkan (sebelumnya object literal
+   * / arrow inline baru tiap render row → memo bubble jebol).
+   */
+  const bubbleQuote = useMemo(
+    () =>
+      message.replyTo
+        ? {
+            senderName: message.replyTo.senderName,
+            preview: message.replyTo.isDeleted
+              ? "Pesan ini telah dihapus"
+              : message.replyTo.content?.trim() ||
+                quoteFallbackLabel(message.replyTo.messageType),
+          }
+        : null,
+    [message.replyTo],
+  )
+  const handleBubbleQuotePress = useCallback(() => {
+    if (onQuotePress && message.replyToId) onQuotePress(message.replyToId as string)
+  }, [onQuotePress, message.replyToId])
+  const handleBubbleSwipeReply = useCallback(() => {
+    onSwipeReply?.(message)
+  }, [onSwipeReply, message])
+  const handleBubbleReact = useCallback(
+    (emoji: string) => {
+      onReact?.(message, emoji)
+    },
+    [onReact, message],
+  )
+  const handleBubbleRetry = useCallback(() => {
+    onRetry?.(message)
+  }, [onRetry, message])
   /**
    * Voice note (2026-09-28): pesan VOICE dengan lampiran audio dirender
    * sebagai <VoiceNotePlayer> (putar/jeda, 1x/2x, waveform dekoratif) —
@@ -313,16 +351,7 @@ export function ChatMessageRow({
         starred={message.isStarred === true}
         // Kutipan balasan: backend mengirim `replyTo` (id, content,
         // messageType, isDeleted, senderName) bila pesan ini membalas pesan lain.
-        quote={
-          message.replyTo
-            ? {
-                senderName: message.replyTo.senderName,
-                preview: message.replyTo.isDeleted
-                  ? "Pesan ini telah dihapus"
-                  : (message.replyTo.content?.trim() || quoteFallbackLabel(message.replyTo.messageType)),
-              }
-            : null
-        }
+        quote={bubbleQuote}
         time={showTime ? formatTime(message.createdAt) : undefined}
         grouped={grouped}
         /*
@@ -347,14 +376,14 @@ export function ChatMessageRow({
         // B09: ketuk kutipan → lompat ke pesan asal + sorot. Hanya bila
         // replyToId ada (pesan asal bisa dicari di thread).
         onQuotePress={
-          onQuotePress && message.replyToId ? () => onQuotePress(message.replyToId as string) : undefined
+          onQuotePress && message.replyToId ? handleBubbleQuotePress : undefined
         }
         // Swipe kanan = jalan pintas balas (2026-09-28). Tekan lama "Balas"
         // tetap ada; gesture dimatikan saat mode pilih / pesan terhapus /
         // pesan sistem (batch 43).
         onSwipeReply={
           !selecting && !message.isDeleted && !isSystemMessage && onSwipeReply
-            ? () => onSwipeReply(message)
+            ? handleBubbleSwipeReply
             : undefined
         }
         // Pencarian inline: sorot kata kunci di teks pesan ini.
@@ -374,9 +403,9 @@ export function ChatMessageRow({
                     : "sent")
             : undefined
         }
-        onRetry={message.sendStatus === "failed" && onRetry ? () => onRetry(message) : undefined}
+        onRetry={message.sendStatus === "failed" && onRetry ? handleBubbleRetry : undefined}
         reactions={message.reactions}
-        onReact={selecting || !onReact ? undefined : (emoji) => onReact(message, emoji)}
+        onReact={selecting || !onReact ? undefined : handleBubbleReact}
         isPinned={message.isPinned}
         isEdited={message.isEdited}
         isDeleted={message.isDeleted}
@@ -389,3 +418,85 @@ export function ChatMessageRow({
     </View>
   )
 }
+
+/**
+ * LR-001 (2026-09-29): pembanding kustom untuk `memo` baris chat.
+ *
+ * `message`/`previous`/`next` dibandingkan by REFERENSI — merge thread
+ * (`mergeMessageLists`) mempertahankan identitas objek pesan yang tidak
+ * berubah, jadi pesan lama tidak ikut re-render saat pesan baru masuk atau
+ * saat layar me-render ulang (ketikan composer, dsb).
+ *
+ * Prop objek (`counterpart`, `translation`, `searchHighlight`) dibandingkan
+ * per FIELD (bukan referensi) sebagai pertahanan lapis kedua bila pemanggil
+ * lupa menstabilkan — isi sama = tidak re-render.
+ */
+function isSameCounterpart(
+  a: ChatMessageRowProps["counterpart"],
+  b: ChatMessageRowProps["counterpart"],
+): boolean {
+  if (a === b) return true
+  if (!a || !b) return false
+  return (
+    (a.name ?? null) === (b.name ?? null) &&
+    (a.avatarUrl ?? null) === (b.avatarUrl ?? null) &&
+    (a.sealTier ?? null) === (b.sealTier ?? null)
+  )
+}
+
+function isSameTranslation(
+  a: ChatMessageRowProps["translation"],
+  b: ChatMessageRowProps["translation"],
+): boolean {
+  if (a === b) return true
+  if (!a || !b) return false
+  return (
+    a.text === b.text &&
+    (a.sourceLang ?? null) === (b.sourceLang ?? null) &&
+    a.targetLang === b.targetLang
+  )
+}
+
+function isSameSearchHighlight(
+  a: ChatMessageRowProps["searchHighlight"],
+  b: ChatMessageRowProps["searchHighlight"],
+): boolean {
+  if (a === b) return true
+  if (!a || !b) return false
+  return a.query === b.query && a.focused === b.focused
+}
+
+function areRowPropsEqual(
+  prev: ChatMessageRowProps,
+  next: ChatMessageRowProps,
+): boolean {
+  return (
+    prev.message === next.message &&
+    prev.previous === next.previous &&
+    prev.next === next.next &&
+    prev.selecting === next.selecting &&
+    prev.selected === next.selected &&
+    prev.readByCounterpart === next.readByCounterpart &&
+    prev.showSenderIdentity === next.showSenderIdentity &&
+    prev.hideDaySeparator === next.hideDaySeparator &&
+    prev.highlighted === next.highlighted &&
+    prev.onPress === next.onPress &&
+    prev.onLongPress === next.onLongPress &&
+    prev.onReact === next.onReact &&
+    prev.onAttachmentPress === next.onAttachmentPress &&
+    prev.onRetry === next.onRetry &&
+    prev.onSwipeReply === next.onSwipeReply &&
+    prev.onBuyProductCard === next.onBuyProductCard &&
+    prev.onQuotePress === next.onQuotePress &&
+    isSameCounterpart(prev.counterpart, next.counterpart) &&
+    isSameTranslation(prev.translation, next.translation) &&
+    isSameSearchHighlight(prev.searchHighlight, next.searchHighlight)
+  )
+}
+
+/**
+ * LR-001: baris chat di-`memo` — mengetik di composer (atau perubahan state
+ * layar lain) tidak lagi me-render ulang semua bubble. Syaratnya dipenuhi
+ * di layar: `renderItem` via `useCallback` + semua handler/prop objek stabil.
+ */
+export const ChatMessageRow = memo(ChatMessageRowBase, areRowPropsEqual)

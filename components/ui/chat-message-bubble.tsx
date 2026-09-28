@@ -55,7 +55,7 @@
  *     `scaleOnPress={false}` karena baris chat yang ikut mengecil terasa
  *     "goyang" saat scroll cepat.
  */
-import { useEffect, useMemo, useRef, type ReactNode } from "react"
+import { memo, useEffect, useMemo, useRef, type ReactNode } from "react"
 import { Pressable, View, type GestureResponderEvent, type ViewProps } from "react-native"
 import { Gesture, GestureDetector } from "react-native-gesture-handler"
 import Animated, {
@@ -236,7 +236,7 @@ const DEFAULT_LABELS = { retry: "Coba lagi", failed: "Gagal terkirim", edited: "
  */
 const AVATAR_SPACER = { width: 24, height: 24 } as const
 
-export function ChatMessageBubble({
+function ChatMessageBubbleBase({
   direction,
   text,
   time,
@@ -747,6 +747,15 @@ export function ChatMessageBubble({
     </View>
   )
 }
+
+/**
+ * LR-001 (2026-09-29): bubble di-`memo` (shallow). Lapis pertahanan kedua
+ * setelah `memo` di <ChatMessageRow>: bila row me-render ulang karena prop
+ * non-bubble-nya berubah (mis. `highlighted`), bubble yang propnya identik
+ * tidak ikut me-render ulang. Syaratnya: <ChatMessageRow> menstabilkan
+ * semua prop turunan (quote, handler, pressHandlers) — lihat file row.
+ */
+export const ChatMessageBubble = memo(ChatMessageBubbleBase)
 
 /**
  * Ikon status kirim, 16px (§7 size xs). Semua tone "default" (text-tertiary)
