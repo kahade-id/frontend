@@ -25,7 +25,7 @@
  *     saat `POST` sedang berjalan atau hasilnya belum pasti (transport timeout
  *     bisa saja sudah tersimpan di server) — lihat `uncertainCreate`.
  */
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Linking, Platform, View } from "react-native"
 import { useNavigation, usePreventRemove, type NavigationAction } from "@react-navigation/native"
 import { useRouter } from "expo-router"
@@ -96,6 +96,9 @@ import { Text } from "@/components/ui/text"
 import { TextArea } from "@/components/ui/text-area"
 import { useToast } from "@/components/ui/toast"
 import { ValidationSummary } from "@/components/ui/validation-summary"
+import { BottomSheet } from "@/components/ui/bottom-sheet"
+import { ShowcaseFeedItem } from "@/components/ui/showcase-feed-item"
+import type { ShowcaseMedia, ShowcaseSocialItem } from "@/lib/api/showcase"
 
 /** Batas field — turunan dari kontrak backend, bukan angka lokal (D-08). */
 const TITLE_MAX = API_CONSTRAINTS.CreateShowcaseItemDto.title.maxLength
@@ -211,6 +214,11 @@ export default function ShowcaseCreateScreen() {
   const [photoError, setPhotoError] = useState<string | undefined>()
   const [priceError, setPriceError] = useState<string | undefined>()
   /**
+   * C11 (batch 139): pratinjau sebelum terbit — overlay berisi komponen kartu
+   * feed YANG SAMA (`ShowcaseFeedItem` mode non-interaktif).
+   */
+  const [previewVisible, setPreviewVisible] = useState(false)
+  /**
    * C10 (batch 139): relasi harga min–maks divalidasi LANGSUNG saat mengetik
    * (computed, bukan hanya saat submit) — mencegah "min > maks" lolos.
    */
@@ -289,6 +297,57 @@ export default function ShowcaseCreateScreen() {
    */
   const { isActive: isPlusActive } = useKahadePlus()
   const photoLimit = getShowcasePhotoLimit(isPlusActive)
+  /**
+   * C11 (batch 139): rakit item pratinjau dari state form saat ini — media
+   * memakai URI lokal (belum terbit), author "Anda", count nol. Kartu yang
+   * dirender adalah `ShowcaseFeedItem` yang sama dengan feed.
+   */
+  const previewItem: ShowcaseSocialItem | null = useMemo(() => {
+    if (!previewVisible) return null
+    const images: ShowcaseMedia[] = previews.map((preview, index) => ({
+      id: preview.fileKey,
+      kind: preview.video ? ("video" as const) : ("image" as const),
+      // Pratinjau memakai URI lokal (belum terbit): video = berkas lokal,
+      // thumbnail = poster backend bila sudah terunggah.
+      imageUrl: preview.asset.uri,
+      thumbnailUrl: preview.video?.thumbnailUrl ?? preview.asset.uri,
+      sortOrder: index,
+      width: preview.asset.width ?? undefined,
+      height: preview.asset.height ?? undefined,
+    }))
+    const rawDescription = form.description.trim()
+    // Plus: deskripsi HTML → teks polos untuk kartu (kartu feed hanya
+    // menampilkan teks; HTML penuh dirender di detail).
+    const description = rawDescription
+      ? isPlusActive
+        ? rawDescription.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim() || null
+        : rawDescription
+      : null
+    const now = new Date().toISOString()
+    return {
+      id: "preview-local",
+      title: form.title.trim() || translate("Tanpa judul"),
+      description,
+      category: form.category.trim() || null,
+      images,
+      priceMin: form.priceMin,
+      priceMax: form.priceMax,
+      likeCount: 0,
+      commentCount: 0,
+      viewCount: 0,
+      saveCount: 0,
+      isLiked: false,
+      isSaved: false,
+      isOwner: true,
+      createdAt: now,
+      updatedAt: now,
+      author: {
+        userId: "preview-local",
+        username: translate("Anda"),
+        fullName: null,
+      },
+    }
+  }, [previewVisible, previews, form, isPlusActive])
 
   useEffect(() => {
     mounted.current = true
@@ -813,6 +872,15 @@ export default function ShowcaseCreateScreen() {
               (message): message is string => message != null,
             )}
           />
+          {/* C11 (batch 139): pratinjau kartu sebelum terbit. */}
+          <Button
+            variant="secondary"
+            fullWidth
+            disabled={busy || previews.length === 0}
+            onPress={() => setPreviewVisible(true)}
+          >
+            {translate("Pratinjau")}
+          </Button>
           <Button
             variant="primary"
             fullWidth
@@ -1224,6 +1292,37 @@ export default function ShowcaseCreateScreen() {
         }}
         onRequestClose={() => setResumeDraft(null)}
       />
+
+      {/* C11 (batch 139): pratinjau sebelum terbit — komponen kartu feed YANG
+          SAMA (`ShowcaseFeedItem`, mode non-interaktif): media/aksi tidak
+          membuka apa pun, judul/deskripsi sebagai teks biasa. */}
+      <BottomSheet
+        visible={previewVisible}
+        onRequestClose={() => setPreviewVisible(false)}
+        title={translate("Pratinjau karya")}
+        description={translate("Tampilan kartu karya Anda di feed sebelum diterbitkan.")}
+        footer={
+          <View className="gap-2">
+            <Button
+              variant="primary"
+              fullWidth
+              loading={saving}
+              disabled={uploading || previews.length === 0}
+              onPress={() => {
+                setPreviewVisible(false)
+                void handleSave()
+              }}
+            >
+              {translate("Terbitkan karya")}
+            </Button>
+            <Button variant="ghost" fullWidth onPress={() => setPreviewVisible(false)}>
+              {translate("Kembali edit")}
+            </Button>
+          </View>
+        }
+      >
+        {previewItem ? <ShowcaseFeedItem item={previewItem} nonInteractive /> : null}
+      </BottomSheet>
     </Screen>
   )
 }

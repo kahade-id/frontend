@@ -1063,14 +1063,17 @@ function ShowcaseManagement() {
         <View className="gap-4">
           {/*
            * C12 (batch 139): status moderasi yang dapat ditindaklanjuti —
-           * alasan aman + waktu + aksi. `onResubmit` tidak dipasang: backend
-           * belum punya endpoint ajukan-ulang (per 2026-09-28); menyimpan
-           * perubahan di editor ini adalah jalur pengajuan ulang yang
+           * alasan aman + waktu + aksi. Backend belum punya endpoint
+           * ajukan-ulang khusus (per 2026-09-28): "Ajukan ulang" menyimpan
+           * perubahan editor ini — itulah jalur pengajuan ulang yang
            * tersedia. Graceful: tanpa field moderasi dari server, notice
            * me-render null.
            */}
           {editor ? (
-            <ShowcaseModerationNotice info={resolveShowcaseModeration(editor.item)} />
+            <ShowcaseModerationNotice
+              info={resolveShowcaseModeration(editor.item)}
+              onResubmit={() => void handleSave()}
+            />
           ) : null}
           <Input
             label={translate("Judul")}
