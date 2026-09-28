@@ -239,6 +239,12 @@ export type ResetPasswordDto = {
    * minLength 8 · maxLength 72
    */
   newPassword: string
+  /**
+   * WAJIB (kontrak Wave 1, 2026-09-28): reset-password menolak tanpa deviceId.
+   * Diisi otomatis via withDeviceId di lib/api/auth.ts — pemanggil tidak perlu
+   * mengirim manual.
+   */
+  deviceId: string
   /** Lokasi presisi perangkat (opsional) */
   location?: LocationDto
 }

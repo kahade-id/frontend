@@ -38,6 +38,25 @@ async function persistSocialTokens(record: Record<string, unknown>): Promise<voi
 
 export type SocialProvider = "GOOGLE" | "APPLE"
 
+/**
+ * POST /v1/auth/apple/nonce — minta nonce terbitan server untuk Apple Sign-in.
+ *
+ * KONTRAK Wave 1 backend (BREAKING, 2026-09-28): backend HANYA menerima nonce
+ * yang diterbitkannya sendiri. Nonce buatan klien 100% ditolak untuk Apple.
+ * Alur wajib:
+ *   1. requestAppleNonce() → nonce
+ *   2. pakai nonce itu di Apple auth request (expo-apple-authentication / web)
+ *   3. kirim nonce yang SAMA di socialLogin()/linkSocial()
+ * Nonce hanya berlaku untuk satu percobaan; gagal/cancel → minta lagi.
+ */
+export async function requestAppleNonce(): Promise<string> {
+  const raw = await http.post<unknown>("/v1/auth/apple/nonce", undefined, { auth: "none" })
+  const record = asRecord(raw)
+  const nonce = record ? pickString(record, ["nonce"]) : null
+  if (!nonce) throw invalidResponse("apple/nonce")
+  return nonce
+}
+
 export interface SocialProviderCapability {
   provider: SocialProvider
   enabled: boolean

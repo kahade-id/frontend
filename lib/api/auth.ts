@@ -175,7 +175,8 @@ type WithoutDeviceId<T> = Omit<T, "deviceId">
  * aktif global — field ekstra = 400 "property X should not exist"):
  *   - login / verify-2fa / verify-phone-otp: deviceId (wajib) + deviceInfo (opsional)
  *   - otp-trigger / phone-register / migrate-phone/confirm: deviceId (wajib)
- *   - forgot-password / reset-password: TANPA deviceId/deviceInfo
+ *   - reset-password: deviceId (wajib, kontrak Wave 1 2026-09-28)
+ *   - forgot-password: TANPA deviceId/deviceInfo
  * withDevice/withDeviceId dipakai sesuai DTO masing-masing.
  */
 async function withDeviceId<T extends { deviceId?: string }>(
@@ -586,17 +587,19 @@ export async function forgotPassword(dto: { identifier: string; location?: Locat
 /**
  * Reset kata sandi: tempToken dari verify-otp (status `password_reset`) +
  * kata sandi baru (min 8). Tidak ada lagi field email/otp/confirmPassword.
+ * deviceId WAJIB (kontrak Wave 1, 2026-09-28) — diisi otomatis dari device id
+ * per-install yang sama dipakai alur auth lain.
  */
 export async function resetPassword(dto: {
   tempToken: string
   newPassword: string
   location?: LocationDto
 }) {
-  const body: ResetPasswordDto = {
+  const body: ResetPasswordDto = await withDeviceId<ResetPasswordDto>({
     tempToken: dto.tempToken,
     newPassword: dto.newPassword,
     location: dto.location,
-  }
+  })
   return http.post<MessageResult, ResetPasswordDto>("/v1/auth/reset-password", body, {
     auth: "none",
   })
