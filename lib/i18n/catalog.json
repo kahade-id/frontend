@@ -4411,7 +4411,7 @@
    "n": 2
   },
   {
-   "s": "{x} ditahan di escrow. Ketuk untuk melihat rincian order penahan.",
+   "s": "{x} ditahan di escrow. Ketuk untuk melihat rincian pesanan penahan.",
    "n": 2
   },
   {
@@ -6575,7 +6575,7 @@
    "n": 2
   },
   {
-   "s": "Menampilkan daftar order yang menahan dana",
+   "s": "Menampilkan daftar pesanan yang menahan dana",
    "n": 2
   },
   {
@@ -12647,15 +12647,15 @@
    "n": 1
   },
   {
-   "s": "Detail order belum termuat — segarkan layar sebelum mengirim usulan.",
-   "n": 1
-  },
-  {
    "s": "Detail pesanan",
    "n": 1
   },
   {
    "s": "Detail pesanan belum termuat",
+   "n": 1
+  },
+  {
+   "s": "Detail pesanan belum termuat — segarkan layar sebelum mengirim usulan.",
    "n": 1
   },
   {
