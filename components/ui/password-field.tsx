@@ -68,6 +68,11 @@ export const PasswordField = forwardRef<TextInput, PasswordFieldProps>(function 
   // A02 (batch 139) [Web]: lacak fokus untuk peringatan Caps Lock.
   const [focused, setFocused] = useState(false)
   const capsLockOn = useCapsLockWarning(focused)
+  // A03 (batch 139): nama field untuk label a11y tombol tampil/sembunyi —
+  // "Konfirmasi kata sandi" → "Tampilkan konfirmasi kata sandi".
+  const resolvedLabel = label ?? (isConfirm ? t.confirmLabel : t.label)
+  const toggleName =
+    resolvedLabel.charAt(0).toLowerCase() + resolvedLabel.slice(1)
 
   const handleFocus = useCallback<NonNullable<TextInputProps["onFocus"]>>(
     (e) => {
@@ -92,13 +97,15 @@ export const PasswordField = forwardRef<TextInput, PasswordFieldProps>(function 
     <View className={containerClassName}>
       <Input
         ref={ref}
-        label={label ?? (isConfirm ? t.confirmLabel : t.label)}
+        label={resolvedLabel}
         value={value}
         onChangeText={onChangeText}
         onFocus={handleFocus}
         onBlur={handleBlur}
         leftIcon={LockKey}
         secureTextEntry
+        // A03: label a11y toggle mengikuti nama field ini.
+        secureToggleLabel={toggleName}
         autoCapitalize="none"
         autoCorrect={false}
         autoComplete={showStrength || isConfirm ? "new-password" : "current-password"}

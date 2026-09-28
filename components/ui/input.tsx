@@ -79,6 +79,12 @@ export type InputProps = Omit<TextInputProps, "style" | "editable"> &
     /** Tombol X untuk mengosongkan nilai (default true untuk search) */
     clearable?: boolean
     onClear?: () => void
+    /**
+     * A03 (batch 139): nama field untuk label aksesibilitas tombol
+     * tampil/sembunyikan kata sandi — mis. "kata sandi" vs "konfirmasi kata
+     * sandi". Default "kata sandi".
+     */
+    secureToggleLabel?: string
     /** Jumlah baris untuk multiline (tinggi = rows * lineHeight body + padding) */
     rows?: number
     className?: string
@@ -114,6 +120,7 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
     accessibilityHint,
     clearable,
     onClear,
+    secureToggleLabel,
     rows = 4,
     frame = "default",
     value,
@@ -345,8 +352,16 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
             onPress={() => setSecure((s) => !s)}
             hitSlop={ICON_SM_HIT_SLOP}
             accessibilityRole="button"
-            accessibilityLabel={secure ? "Tampilkan kata sandi" : "Sembunyikan kata sandi"}
-            accessibilityHint={secure ? "Menampilkan kata sandi sebagai teks" : "Menyembunyikan kata sandi"}
+            accessibilityLabel={
+              secure
+                ? `Tampilkan ${secureToggleLabel ?? "kata sandi"}`
+                : `Sembunyikan ${secureToggleLabel ?? "kata sandi"}`
+            }
+            accessibilityHint={
+              secure
+                ? `Menampilkan ${secureToggleLabel ?? "kata sandi"} sebagai teks`
+                : `Menyembunyikan ${secureToggleLabel ?? "kata sandi"}`
+            }
             accessibilityState={{ checked: !secure }}
             className={cn("ml-2 rounded-xs", focusRing)}
           >
