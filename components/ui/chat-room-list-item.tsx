@@ -48,6 +48,7 @@
  *     jari (lihat PressableScale — keputusan produk 2026-09-21).
  */
 import { Check, BellSlash, PushPin } from "phosphor-react-native"
+import { memo } from "react"
 import { useWindowDimensions, View, type ViewProps } from "react-native"
 
 import { Avatar, type AvatarProps } from "@/components/ui/avatar"
@@ -128,7 +129,7 @@ const AVATAR_WIDE_CLASS = "h-12 w-12"
 const DIVIDER_INSET_WIDE = tokens.space[4] + 48 + tokens.space[3]
 const DIVIDER_INSET_NARROW = tokens.space[4] + 40 + tokens.space[3]
 
-export function ChatRoomListItem({
+export function ChatRoomListItemBase({
   name,
   avatar,
   verified = false,
@@ -314,3 +315,85 @@ export function ChatRoomListItem({
     </View>
   )
 }
+
+/**
+ * LR-003 (2026-09-29): pembanding kustom untuk `memo`.
+ *
+ * `avatar` dan `lastMessage` adalah objek yang sering dibuat ulang pemanggil
+ * (literal `{ uri }` / `{ text, fromSelf }` per render) — dibandingkan per
+ * FIELD, bukan referensi. `labels` juga per-field sebagai pertahanan lapis
+ * kedua. Sisanya primitif/callback by-value/by-reference.
+ *
+ * `...rest` (ViewProps tambahan) TIDAK dibandingkan: pemanggil yang memakai
+ * prop ekstra harus menjaganya stabil sendiri. Pemakaian saat ini (daftar
+ * chat) tidak mengirim prop ekstra.
+ */
+function isSameAvatarSource(
+  a: ChatRoomListItemProps["avatar"],
+  b: ChatRoomListItemProps["avatar"],
+): boolean {
+  if (a === b) return true
+  if (a == null || b == null) return false
+  if (typeof a !== "object" || typeof b !== "object") return a === b
+  if (Array.isArray(a) || Array.isArray(b)) return false
+  return (a.uri ?? null) === (b.uri ?? null)
+}
+
+function isSameLastMessage(
+  a: ChatRoomListItemProps["lastMessage"],
+  b: ChatRoomListItemProps["lastMessage"],
+): boolean {
+  if (a === b) return true
+  if (!a || !b) return false
+  return a.text === b.text && !!a.fromSelf === !!b.fromSelf
+}
+
+function isSameLabels(
+  a: ChatRoomListItemProps["labels"],
+  b: ChatRoomListItemProps["labels"],
+): boolean {
+  if (a === b) return true
+  if (!a || !b) return false
+  return (
+    (a.you ?? null) === (b.you ?? null) &&
+    (a.typing ?? null) === (b.typing ?? null) &&
+    (a.unread ?? null) === (b.unread ?? null) &&
+    (a.selected ?? null) === (b.selected ?? null)
+  )
+}
+
+function areRoomItemPropsEqual(
+  prev: ChatRoomListItemProps,
+  next: ChatRoomListItemProps,
+): boolean {
+  return (
+    prev.name === next.name &&
+    isSameAvatarSource(prev.avatar, next.avatar) &&
+    prev.verified === next.verified &&
+    (prev.sealTier ?? null) === (next.sealTier ?? null) &&
+    prev.online === next.online &&
+    isSameLastMessage(prev.lastMessage, next.lastMessage) &&
+    prev.time === next.time &&
+    (prev.unreadCount ?? 0) === (next.unreadCount ?? 0) &&
+    prev.typing === next.typing &&
+    prev.muted === next.muted &&
+    prev.pinned === next.pinned &&
+    (prev.context ?? null) === (next.context ?? null) &&
+    prev.onPress === next.onPress &&
+    prev.onLongPress === next.onLongPress &&
+    prev.selecting === next.selecting &&
+    prev.selected === next.selected &&
+    prev.ripple === next.ripple &&
+    prev.divider === next.divider &&
+    prev.dividerTop === next.dividerTop &&
+    isSameLabels(prev.labels, next.labels) &&
+    (prev.className ?? null) === (next.className ?? null)
+  )
+}
+
+/**
+ * LR-003: baris daftar chat di-`memo` — update kecil di satu room (badge
+ * unread, status online, indikator mengetik) tidak lagi me-render ulang
+ * semua baris yang terlihat.
+ */
+export const ChatRoomListItem = memo(ChatRoomListItemBase, areRoomItemPropsEqual)

@@ -30,7 +30,7 @@
  *   - Tekan lama tetap masuk MODE PILIH (aksi massal Bisukan/Arsipkan);
  *     swipe dimatikan selama mode pilih supaya gesture tidak bentrok.
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { ScrollView, View } from "react-native"
 import { Archive, BellSlash, BellZ, Chats, GearSix, NotePencil, PushPin, Trash, X } from "phosphor-react-native"
 import { router, useFocusEffect } from "expo-router"
@@ -69,7 +69,7 @@ import {
   toggleRoomPinned,
 } from "@/lib/chat-pinned-rooms"
 
-import { ChatRoomListItem } from "@/components/ui/chat-room-list-item"
+import { ChatRoomListItem, type ChatRoomLastMessage } from "@/components/ui/chat-room-list-item"
 import { Button } from "@/components/ui/button"
 import { ChipGroup, type ChipOption } from "@/components/ui/chip"
 import { Dialog } from "@/components/ui/modal"
@@ -86,6 +86,8 @@ import { Text } from "@/components/ui/text"
 import {
   SwipeableListItem,
   useSwipeableGroup,
+  type SwipeAction,
+  type SwipeableGroup,
   type SwipeSide,
 } from "@/components/ui/swipeable-list-item"
 import { useToast } from "@/components/ui/toast"
@@ -297,6 +299,222 @@ function SelfChatEntry({ onOpen }: { onOpen: () => void }) {
     </PressableScale>
   )
 }
+
+/**
+ * LR-003 (2026-09-29): satu baris daftar chat sebagai komponen module-level
+ * yang di-`memo`.
+ *
+ * SEBELUMNYA `renderItem` inline di JSX membuat fungsi + SEMUA prop turunan
+ * baru tiap render layar: array literal `leftActions`/`rightActions`
+ * (dengan `onPress` arrow per baris), objek literal `lastMessage`/`avatar`,
+ * dan arrow `onPress`/`onLongPress`/`onSwipeFull`. Akibatnya setiap update
+ * kecil (badge unread, status online, indikator mengetik di SATU room)
+ * me-render ulang SEMUA baris yang terlihat.
+ *
+ * Di sini: aksi swipe/avatar/lastMessage dibangun via `useMemo`, handler
+ * via `useCallback`, dan `memo` memakai pembanding per-field — baris hanya
+ * me-render ulang bila kontennya sendiri berubah.
+ */
+type ChatRoomRowProps = {
+  room: ChatRoom
+  pinned: boolean
+  typing: boolean
+  selecting: boolean
+  selected: boolean
+  swipeGroup: SwipeableGroup
+  onOpenRoom: (room: ChatRoom) => void
+  onTogglePin: (room: ChatRoom) => void
+  onArchive: (room: ChatRoom) => void
+  onDelete: (room: ChatRoom) => void
+  onToggleSelect: (id: string) => void
+  onEnterSelect: (id: string) => void
+  onFullSwipe: (room: ChatRoom, side: SwipeSide) => void
+}
+
+/**
+ * Literal inline `["left", "right"]` di JSX membuat `confirmFull` baru tiap
+ * render → menjebol `memo` di <SwipeableListItem>. Di-hoist ke modul.
+ */
+const CHAT_ROW_CONFIRM_FULL: SwipeSide[] = ["left", "right"]
+
+function ChatRoomRowBase({
+  room: item,
+  pinned,
+  typing,
+  selecting,
+  selected,
+  swipeGroup,
+  onOpenRoom,
+  onTogglePin,
+  onArchive,
+  onDelete,
+  onToggleSelect,
+  onEnterSelect,
+  onFullSwipe,
+}: ChatRoomRowProps) {
+  const archived = item.isArchived === true
+
+  const handlePress = useCallback(() => onOpenRoom(item), [item, onOpenRoom])
+  const handleLongPress = useCallback(() => {
+    if (selecting) onToggleSelect(item.id)
+    else onEnterSelect(item.id)
+  }, [selecting, item.id, onToggleSelect, onEnterSelect])
+  const handleSwipeFull = useCallback(
+    (side: SwipeSide) => onFullSwipe(item, side),
+    [item, onFullSwipe],
+  )
+
+  const leftActions = useMemo<SwipeAction[]>(
+    () => [
+      {
+        key: "pin",
+        label: pinned ? "Lepas" : "Semat",
+        icon: PushPin,
+        onPress: () => void onTogglePin(item),
+      },
+    ],
+    [pinned, onTogglePin, item],
+  )
+  const rightActions = useMemo<SwipeAction[]>(
+    () => [
+      {
+        key: "archive",
+        label: archived ? "Buka" : "Arsip",
+        icon: Archive,
+        onPress: () => void onArchive(item),
+      },
+      {
+        key: "delete",
+        label: "Hapus",
+        icon: Trash,
+        destructive: true,
+        onPress: () => onDelete(item),
+      },
+    ],
+    [archived, onArchive, onDelete, item],
+  )
+
+  const avatarSource = useMemo(
+    () => (item.counterpart?.avatarUrl ? { uri: item.counterpart.avatarUrl } : undefined),
+    [item.counterpart?.avatarUrl],
+  )
+  const lastMessageView = useMemo<ChatRoomLastMessage | undefined>(
+    () =>
+      item.lastMessage
+        ? {
+            // UI-C002: pesan terakhir berisi lampiran saja (tanpa teks)
+            // menampilkan "(lampiran)", bukan baris kosong.
+            text: chatRoomPreview(item.lastMessage, translate("(lampiran)")),
+            fromSelf: item.lastMessage.fromUser,
+          }
+        : undefined,
+    [item.lastMessage],
+  )
+
+  return (
+    <SwipeableListItem
+      id={item.id}
+      group={swipeGroup}
+      disabled={selecting}
+      leftActions={leftActions}
+      rightActions={rightActions}
+      // Swipe penuh = aksi primer tiap sisi; hapus (destruktif) TIDAK
+      // pernah dieksekusi dari swipe penuh — harus lewat dialog.
+      onSwipeFull={handleSwipeFull}
+      confirmFull={CHAT_ROW_CONFIRM_FULL}
+    >
+      <ChatRoomListItem
+        name={item.counterpart?.fullName ?? `@${item.counterpart?.username ?? "—"}`}
+        avatar={avatarSource}
+        // CHT-009: badge seal lawan bicara di daftar.
+        sealTier={item.counterpart?.sealTier ?? null}
+        // CHT-008: indikator "mengetik…" (server → chat.typing).
+        typing={typing}
+        online={item.isOnline === true}
+        muted={item.isMuted === true}
+        pinned={pinned}
+        lastMessage={lastMessageView}
+        // UI-C001 (revisi 2026-09-28): cap waktu relatif `formatTimeAgo`
+        // ("5 menit lalu" / "Kemarin").
+        time={item.lastMessage ? formatTimeAgo(item.lastMessage.createdAt) : undefined}
+        unreadCount={item.unreadCount}
+        // Order id saja (tanpa kata "Pesanan") — metadata ringkas di kanan
+        // baris pertama; panjangnya dipotong di tengah.
+        context={item.orderId ? truncateMiddle(item.orderId, 6, 4) : undefined}
+        selecting={selecting}
+        selected={selected}
+        onPress={handlePress}
+        onLongPress={handleLongPress}
+      />
+    </SwipeableListItem>
+  )
+}
+
+/**
+ * Pembanding per-field: identitas objek `room` boleh berganti (mis. hasil
+ * `patchRoom` / refetch) selama ISI yang tampil sama — baris tidak ikut
+ * re-render. Semua yang memengaruhi tampilan tercakup: counterpart
+ * (nama/username/avatar/seal), pesan terakhir (id/teks/pengirim/waktu/tipe/
+ * lampiran/hapus), unread, orderId, flag arsip/bisu/online, subject
+ * (fallback nama di judul navigasi).
+ */
+function isSameRoomContent(a: ChatRoom, b: ChatRoom): boolean {
+  if (a === b) return true
+  const ca = a.counterpart
+  const cb = b.counterpart
+  const sameCounterpart =
+    ca === cb ||
+    (ca != null &&
+      cb != null &&
+      ca.id === cb.id &&
+      (ca.fullName ?? null) === (cb.fullName ?? null) &&
+      (ca.username ?? null) === (cb.username ?? null) &&
+      (ca.avatarUrl ?? null) === (cb.avatarUrl ?? null) &&
+      (ca.sealTier ?? null) === (cb.sealTier ?? null))
+  const la = a.lastMessage
+  const lb = b.lastMessage
+  const sameLastMessage =
+    la === lb ||
+    (la != null &&
+      lb != null &&
+      la.id === lb.id &&
+      (la.text ?? null) === (lb.text ?? null) &&
+      la.fromUser === lb.fromUser &&
+      la.createdAt === lb.createdAt &&
+      la.messageType === lb.messageType &&
+      (la.attachments?.length ?? 0) === (lb.attachments?.length ?? 0) &&
+      !!la.isDeleted === !!lb.isDeleted)
+  return (
+    sameCounterpart &&
+    sameLastMessage &&
+    a.unreadCount === b.unreadCount &&
+    (a.orderId ?? null) === (b.orderId ?? null) &&
+    (a.isArchived ?? false) === (b.isArchived ?? false) &&
+    (a.isMuted ?? false) === (b.isMuted ?? false) &&
+    (a.isOnline ?? false) === (b.isOnline ?? false) &&
+    (a.subject ?? null) === (b.subject ?? null)
+  )
+}
+
+function areChatRowPropsEqual(prev: ChatRoomRowProps, next: ChatRoomRowProps): boolean {
+  return (
+    isSameRoomContent(prev.room, next.room) &&
+    prev.pinned === next.pinned &&
+    prev.typing === next.typing &&
+    prev.selecting === next.selecting &&
+    prev.selected === next.selected &&
+    prev.swipeGroup === next.swipeGroup &&
+    prev.onOpenRoom === next.onOpenRoom &&
+    prev.onTogglePin === next.onTogglePin &&
+    prev.onArchive === next.onArchive &&
+    prev.onDelete === next.onDelete &&
+    prev.onToggleSelect === next.onToggleSelect &&
+    prev.onEnterSelect === next.onEnterSelect &&
+    prev.onFullSwipe === next.onFullSwipe
+  )
+}
+
+const ChatRoomRow = memo(ChatRoomRowBase, areChatRowPropsEqual)
 
 export default function ChatScreen() {
   const toast = useToast()
@@ -690,6 +908,71 @@ export default function ChatScreen() {
     [handleTogglePin, handleSingleArchive],
   )
 
+  /**
+   * LR-003: pembuka room stabil untuk baris memo — logika identik dengan
+   * `onPress` inline sebelumnya (mode pilih = toggle; biasa = navigasi).
+   * Nama room dikirim via param (C-06): layar ruang hanya mencari judul di
+   * 30 ruang pertama.
+   */
+  const openRoom = useCallback(
+    (room: ChatRoom) => {
+      if (selecting) {
+        toggleSelect(room.id)
+        return
+      }
+      router.push(
+        ROUTES.chatRoom(
+          room.id,
+          room.counterpart?.fullName ??
+            (room.counterpart?.username
+              ? `@${room.counterpart.username}`
+              : (room.subject ?? undefined)),
+        ),
+      )
+    },
+    [selecting, toggleSelect],
+  )
+
+  /**
+   * LR-003: `renderItem` via `useCallback` — SEBELUMNYA inline di JSX
+   * sehingga tiap render layar membuat fungsi baru + semua prop turunan
+   * inline (array aksi swipe, objek lastMessage/avatar, arrow handler).
+   * Barisnya sendiri (<ChatRoomRow>, module-level, di-memo) hanya
+   * me-render ulang bila kontennya berubah.
+   */
+  const renderChatRoomItem = useCallback(
+    ({ item }: { item: ChatRoom }) => (
+      <ChatRoomRow
+        room={item}
+        pinned={isRoomPinned(item.id)}
+        typing={typingRooms.has(item.id)}
+        selecting={selecting}
+        selected={selected.has(item.id)}
+        swipeGroup={swipeGroup}
+        onOpenRoom={openRoom}
+        onTogglePin={handleTogglePin}
+        onArchive={handleSingleArchive}
+        onDelete={requestDelete}
+        onToggleSelect={toggleSelect}
+        onEnterSelect={enterSelect}
+        onFullSwipe={fullSwipeAction}
+      />
+    ),
+    [
+      typingRooms,
+      selecting,
+      selected,
+      swipeGroup,
+      openRoom,
+      handleTogglePin,
+      handleSingleArchive,
+      requestDelete,
+      toggleSelect,
+      enterSelect,
+      fullSwipeAction,
+    ],
+  )
+
   return (
     <Screen edges={["top"]} padded={false}>
       {selecting ? (
@@ -842,101 +1125,7 @@ export default function ChatScreen() {
             />
           )
         }
-        renderItem={({ item }) => {
-          const pinned = isRoomPinned(item.id)
-          return (
-            <SwipeableListItem
-              id={item.id}
-              group={swipeGroup}
-              disabled={selecting}
-              leftActions={[
-                {
-                  key: "pin",
-                  label: pinned ? "Lepas" : "Semat",
-                  icon: PushPin,
-                  onPress: () => void handleTogglePin(item),
-                },
-              ]}
-              rightActions={[
-                {
-                  key: "archive",
-                  label: item.isArchived === true ? "Buka" : "Arsip",
-                  icon: Archive,
-                  onPress: () => void handleSingleArchive(item),
-                },
-                {
-                  key: "delete",
-                  label: "Hapus",
-                  icon: Trash,
-                  destructive: true,
-                  onPress: () => requestDelete(item),
-                },
-              ]}
-              // Swipe penuh = aksi primer tiap sisi; hapus (destruktif) TIDAK
-              // pernah dieksekusi dari swipe penuh — harus lewat dialog.
-              onSwipeFull={(side) => fullSwipeAction(item, side)}
-              confirmFull={["left", "right"]}
-            >
-              <ChatRoomListItem
-                name={item.counterpart?.fullName ?? `@${item.counterpart?.username ?? "—"}`}
-                avatar={item.counterpart?.avatarUrl ? { uri: item.counterpart.avatarUrl } : undefined}
-                // CHT-009: badge seal lawan bicara di daftar (sebelumnya
-                // selalu fallback bool → tidak ada seal warna tier).
-                sealTier={item.counterpart?.sealTier ?? null}
-                // CHT-008: indikator "mengetik…" (server → chat.typing).
-                typing={typingRooms.has(item.id)}
-                online={item.isOnline === true}
-                muted={item.isMuted === true}
-                pinned={pinned}
-                lastMessage={
-                  item.lastMessage
-                    ? {
-                        // UI-C002: pesan terakhir berisi lampiran saja (tanpa
-                        // teks) menampilkan "(lampiran)", bukan baris kosong —
-                        // konsisten dengan pinned-bar & sheet pencarian.
-                        text: chatRoomPreview(item.lastMessage, translate("(lampiran)")),
-                        fromSelf: item.lastMessage.fromUser,
-                      }
-                    : undefined
-                }
-                // UI-C001 (revisi 2026-09-28): cap waktu relatif `formatTimeAgo`
-                // ("5 menit lalu" / "Kemarin") agar konsisten dengan feed,
-                // notifikasi & transaksi; `formatChatListTime` pola WhatsApp
-                // ("14:32") tetap dipakai header ruang & "Terakhir dilihat".
-                time={item.lastMessage ? formatTimeAgo(item.lastMessage.createdAt) : undefined}
-                unreadCount={item.unreadCount}
-                // Order id saja (tanpa kata "Pesanan") — metadata ringkas di kanan
-                // baris pertama; panjangnya dipotong di tengah agar nomor tetap
-                // bisa dikenali dari kepala & ekornya.
-                context={item.orderId ? truncateMiddle(item.orderId, 6, 4) : undefined}
-                selecting={selecting}
-                selected={selected.has(item.id)}
-                onPress={() => {
-                  if (selecting) {
-                    toggleSelect(item.id)
-                    return
-                  }
-                  router.push(
-                    ROUTES.chatRoom(
-                      item.id,
-                      // C-06 (audit): layar ruang hanya mencari judul di 30 ruang
-                      // pertama — nama dikirim lewat param agar ruang ke-31+ tidak
-                      // jatuh ke "Percakapan".
-                      item.counterpart?.fullName ??
-                        (item.counterpart?.username
-                          ? `@${item.counterpart.username}`
-                          : (item.subject ?? undefined)),
-                    ),
-                  )
-                }}
-                onLongPress={() => {
-                  if (selecting) toggleSelect(item.id)
-                  else enterSelect(item.id)
-                }}
-              />
-            </SwipeableListItem>
-          )
-        }}
+        renderItem={renderChatRoomItem}
       />
       </ModeShiftFade>
 
