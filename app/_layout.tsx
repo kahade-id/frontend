@@ -24,6 +24,23 @@
  * - ThemeProvider menyuntikkan CSS variables + mengaktifkan varian dark:.
  * - §11 Web: di >= 768px (prefix `md:`) konten di-cap 520px dan di-center.
  * - StatusBar mengikuti mode efektif dari useTheme().
+ *
+ * ST-001 — BATASAN JUJUR asyncRoutes (PERF-FIX 2026-09-29):
+ * `app.json` memakai `"asyncRoutes": { "web": "production", "default": false }`.
+ * Klaim "asyncRoutes" HANYA berlaku untuk WEB production: di sana expo-router
+ * memecah bundle per rute (chunk terpisah, payload awal menyusut). Di NATIVE,
+ * pemisahan file TIDAK TERJADI — by design, "Native production builds still
+ * load routes synchronously" (docs Expo
+ * https://docs.expo.dev/router/web/async-routes/): artefak native tetap satu
+ * file .hbc (~10.1MB) dan semua modul rute dievaluasi saat boot.
+ * Penghematan native dicapai lewat PENUNDAAN EVALUASI modul, bukan pemisahan
+ * file: ST-003 (font non-kritis), ST-004 (konten legal via dynamic import),
+ * ST-005 (socket.io lazy), ST-009 (init setelah first paint + lazy di bawah),
+ * dan pola "thin shell + React.lazy" untuk layar berat di luar tab utama
+ * (contoh: app/scan.tsx → components/scan-screen.tsx).
+ * Code-splitting file-level di native = DEFERRED-BY-DESIGN: tidak didukung
+ * Expo Router; menunggu dukungan resmi Expo (bukan sesuatu yang bisa
+ * di-fix dari sisi aplikasi).
  */
 import "../global.css"
 
