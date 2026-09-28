@@ -2,8 +2,9 @@
  * Regresi 2026-09-27 — redesign navigasi mobile.
  *
  * Kontrak yang dikunci test ini:
- *   1. Bottom navbar TETAP: Etalase | Transaksi | (+) | Pesan | Notifikasi —
- *      tidak peduli mode tersimpan (commerce/wallet).
+ *   1. Bottom navbar TETAP: Etalase | Transaksi | (+) | Pesan | Notifikasi.
+ *      (NAV-011 2026-09-28: konsep mode commerce/wallet sudah mati total —
+ *      bar tidak membaca preferensi mode lagi.)
  *   2. Tab aktif mengikuti pathname (termasuk /notifications sebagai tab).
  *   3. Badge "Ada pembaruan" di tab Notifikasi saat unread notifikasi > 0;
  *      badge tab Pesan membaca unread CHAT (bukan total notifikasi).
@@ -21,7 +22,6 @@ import { router } from "expo-router"
 import { ThemeProvider } from "@/components/theme-provider"
 import { PortalHost, PortalProvider } from "@/components/ui/portal"
 import { ShellTabBar } from "@/components/ui/shell-tab-bar"
-import { resetAppModeForTest, setAppMode } from "@/lib/app-mode"
 import { resetChatUnreadCount, setChatUnreadCount } from "@/lib/chat-unread-count"
 import { resetUnreadCount, setUnreadCount } from "@/lib/unread-count"
 import { resetUiPrefsForTest } from "@/lib/ui-prefs"
@@ -48,7 +48,6 @@ function tabNames(): string[] {
 }
 
 beforeEach(() => {
-  resetAppModeForTest()
   resetUiPrefsForTest()
   resetUnreadCount()
   resetChatUnreadCount()
@@ -60,8 +59,7 @@ beforeEach(() => {
 afterEach(cleanup)
 
 describe("<ShellTabBar> struktur tetap", () => {
-  it("empat tab dengan urutan Etalase, Transaksi, Pesan, Notifikasi — mode commerce", () => {
-    setAppMode("commerce")
+  it("empat tab dengan urutan Etalase, Transaksi, Pesan, Notifikasi", () => {
     renderBar()
     expect(tabNames()).toEqual([
       "Tab Etalase",
@@ -76,8 +74,7 @@ describe("<ShellTabBar> struktur tetap", () => {
     expect(screen.queryByRole("tab", { name: "Tab Lainnya" })).toBeNull()
   })
 
-  it("struktur IDENTIK saat mode tersimpan = wallet", () => {
-    setAppMode("wallet")
+  it("struktur IDENTIK tanpa ketergantungan mode (NAV-011: mode mati)", () => {
     renderBar()
     expect(tabNames()).toEqual([
       "Tab Etalase",

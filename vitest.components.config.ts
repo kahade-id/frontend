@@ -55,6 +55,9 @@ export default defineConfig({
       // `expo-image-picker` ditarik lib/image-picker (dipakai lib/api/upload)
       // — native EventEmitter, tidak ada di jsdom.
       "expo-image-picker": stub("expo-image-picker"),
+      // `@react-native-community/netinfo` ditarik lib/connectivity — modul
+      // native, tidak bisa di-parse/di-eval di jsdom (SyntaxError tanpa stack).
+      "@react-native-community/netinfo": stub("netinfo"),
       // nativewind me-require `react-native` asli dari CJS (Flow) — stub.
       // Subpath JSX HARUS di-alias eksplisit dan DULUAN: Vitest 5 (oxc)
       // mengompilasi JSX test ke `nativewind/jsx-dev-runtime` karena

@@ -5,41 +5,21 @@
  * PersistentShellBar) agar tetap ada saat navigasi ke stack shell
  * (chat/vouchers/wallet-history/own profile) — sebelumnya bar dibuat
  * PER HALAMAN (Tabs bar + per-page <ShellTabBar/>) sehingga klik history
- * membuat bar ikut hilang. TabBar di sini hanya mendaftarkan navigator
- * untuk parkir, tanpa merender UI.
+ * membuat bar ikut hilang.
  *
- * `showcase` tetap terdaftar sebagai Tabs.Screen (rute /showcase hidup) tetapi
- * bukan slot commerce yang terlihat sampai mode commerce memilihnya sebagai
- * primer. Highlight slot datang dari pathname, bukan index tab.
+ * NAV-011 (2026-09-28): pendaftaran navigator tab untuk "parkir mode"
+ * dihapus bersama mesin mode-switcher yang mati — tabBar di sini murni
+ * menekan bar bawaan Tabs (return null), tanpa merender UI.
  *
  * Unread tetap dipoll SEKALI di layout ini (beberapa pemasangan = beberapa
  * timer). Badge Pesan membaca store yang sama.
  */
-import { useCallback, useEffect, type ComponentProps } from "react"
 import { Tabs } from "expo-router"
 
 import { TAB_ROUTE_NAMES } from "@/lib/routes"
 import { useAuthSession } from "@/lib/use-auth-session"
 import { useUnreadCount } from "@/lib/unread-count"
 import { useChatUnreadCount } from "@/lib/chat-unread-count"
-import { registerShellTabNavigator } from "@/lib/app-mode"
-
-type TabsTabBarProps = Parameters<NonNullable<ComponentProps<typeof Tabs>["tabBar"]>>[0]
-/**
- * Tipe navigation dari tabBar — dulu diimpor dari shell-tab-bar
- * (`ShellTabNavigation`); kini didefinisikan lokal karena shell-tab-bar
- * baru tidak lagi mengekspornya. Dipakai hanya untuk parkir navigator tab
- * (`parkShellTab`, dipakai logika pindah mode).
- */
-type ShellTabNavigation = TabsTabBarProps["navigation"]
-
-function TabsRegistrar({ navigation }: { navigation: ShellTabNavigation }) {
-  useEffect(() => {
-    registerShellTabNavigator(navigation)
-    return () => registerShellTabNavigator(null)
-  }, [navigation])
-  return null
-}
 
 export default function TabsLayout() {
   // B-05: poll DIGATE sesi — tamu web tidak menembak endpoint auth tiap 60 dtk.
@@ -48,18 +28,15 @@ export default function TabsLayout() {
   // CN-011: badge tab Pesan memakai unread CHAT (bukan total notifikasi).
   useChatUnreadCount({ enabled: Boolean(session.token) })
 
-  const renderTabBar = useCallback(
-    (props: TabsTabBarProps) => <TabsRegistrar navigation={props.navigation} />,
-    [],
-  )
-
   return (
     <Tabs
       initialRouteName="showcase"
       screenOptions={{
         headerShown: false,
       }}
-      tabBar={renderTabBar}
+      // Bar bawaan Tabs ditekan — bar asli dirender sekali di root layout
+      // (PersistentShellBar) supaya tetap ada di stack shell.
+      tabBar={() => null}
     >
       {TAB_ROUTE_NAMES.map((name) => (
         <Tabs.Screen key={name} name={name} />

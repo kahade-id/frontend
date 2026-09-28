@@ -19,7 +19,6 @@ import { ThemeProvider } from "@/components/theme-provider"
 import { PortalHost, PortalProvider } from "@/components/ui/portal"
 import { ShowcaseHeader } from "@/components/ui/showcase-header"
 import { ShellTabBar } from "@/components/ui/shell-tab-bar"
-import { resetAppModeForTest, setAppMode } from "@/lib/app-mode"
 import { resetUiPrefsForTest } from "@/lib/ui-prefs"
 import { __setPathname } from "./stubs/expo-router"
 
@@ -42,7 +41,6 @@ function iconsIn(el: Element): { name: string | null; weight: string | null }[] 
 }
 
 beforeEach(() => {
-  resetAppModeForTest()
   resetUiPrefsForTest()
   __setPathname("/showcase")
   if (typeof window !== "undefined" && !window.matchMedia) {
@@ -95,21 +93,20 @@ function renderShell() {
 }
 
 describe("kosakata ikon bottom navbar", () => {
-  it("empat tab memakai CardsThree / ShoppingBag / ChatCenteredText / BellSimple — di kedua mode", () => {
-    for (const mode of ["commerce", "wallet"] as const) {
-      setAppMode(mode)
-      const { container, unmount } = renderShell()
-      const names = iconsIn(container).map((icon) => icon.name)
-      expect(names).toContain("CardsThree")
-      expect(names).toContain("ShoppingBag")
-      expect(names).toContain("ChatCenteredText")
-      expect(names).toContain("BellSimple")
-      // Kosakata lama tidak boleh muncul di bar.
-      expect(names).not.toContain("Wallet")
-      expect(names).not.toContain("Percent")
-      expect(names).not.toContain("Scroll")
-      expect(names).not.toContain("SquaresFour")
-      unmount()
-    }
+  it("empat tab memakai CardsThree / ShoppingBag / ChatCenteredText / BellSimple", () => {
+    // NAV-011 (2026-09-28): pemilih mode mati total — tidak ada lagi varian
+    // per mode; bar dirender sekali dan kosakatanya dikunci.
+    const { container, unmount } = renderShell()
+    const names = iconsIn(container).map((icon) => icon.name)
+    expect(names).toContain("CardsThree")
+    expect(names).toContain("ShoppingBag")
+    expect(names).toContain("ChatCenteredText")
+    expect(names).toContain("BellSimple")
+    // Kosakata lama tidak boleh muncul di bar.
+    expect(names).not.toContain("Wallet")
+    expect(names).not.toContain("Percent")
+    expect(names).not.toContain("Scroll")
+    expect(names).not.toContain("SquaresFour")
+    unmount()
   })
 })
