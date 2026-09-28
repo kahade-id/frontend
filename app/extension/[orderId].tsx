@@ -380,7 +380,7 @@ export default function ExtensionScreen() {
           <View className="gap-3" style={{ paddingTop: tokens.space[3] }}>
             {order ? (
               <KeyValueList>
-                <KeyValue label="Order" value={order.title} />
+                <KeyValue label="Pesanan" value={order.title} />
                 <KeyValue
                   label="Tenggat saat ini"
                   // M-58 (audit end-to-end, issue #41/#95): `addDays(createdAt

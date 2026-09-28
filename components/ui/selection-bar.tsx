@@ -145,6 +145,9 @@ export function SelectionBar({
                 scaleOnPress={false}
                 ripple
                 onPress={() => quickReactions.onPick(emoji)}
+                // TOUCH-002: slop vertikal saja — slop horizontal akan
+                // menabrak tombol emoji sebelah (gap-1).
+                hitSlop={{ top: 4, bottom: 4 }}
                 containerClassName={cn("rounded-full", focusRing)}
                 className="h-9 flex-1 items-center justify-center rounded-full"
               >

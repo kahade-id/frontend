@@ -16,6 +16,7 @@
  */
 import { useEffect, useState } from "react"
 import { Pressable, View } from "react-native"
+import { hitSlopToReach } from "@/lib/hit-slop"
 
 import {
   createOrderFromChat,
@@ -204,7 +205,7 @@ export function ChatCreateOrderSheet({
         {!withShowcase ? (
           <>
             <Input
-              label="Judul order"
+              label="Judul pesanan"
               value={title}
               onChangeText={setTitle}
               placeholder="Mis. PS5 bekas + 2 stik"
@@ -253,6 +254,7 @@ export function ChatCreateOrderSheet({
               onPress={() => setQty((q) => Math.max(1, q + d))}
               accessibilityRole="button"
               accessibilityLabel={d < 0 ? "Kurangi jumlah" : "Tambah jumlah"}
+              hitSlop={hitSlopToReach(36)}
               className="h-9 w-9 items-center justify-center rounded-full border border-border"
             >
               <Text variant="body" weight={700} tone="primary">
@@ -266,7 +268,7 @@ export function ChatCreateOrderSheet({
         </View>
 
         <RadioRow
-          label="Jenis order"
+          label="Jenis pesanan"
           options={ORDER_TYPES}
           value={orderType ?? "PHYSICAL_GOODS"}
           onChange={setOrderType}

@@ -166,13 +166,13 @@ export default function PatunganDetailScreen() {
   const handleLink = useCallback(async () => {
     if (!myParticipation || linking) return
     if (orderId.trim().length < 4) {
-      setLinkError(translate("Masukkan ID order escrow yang sudah dibayar."))
+      setLinkError(translate("Masukkan ID pesanan escrow yang sudah dibayar."))
       return
     }
     setLinking(true)
     try {
       await api.commerce.linkPatunganOrder(myParticipation.id, orderId.trim())
-      toast.show({ title: translate("Order ditautkan"), tone: "success" })
+      toast.show({ title: translate("Pesanan ditautkan"), tone: "success" })
       setLinkOpen(false)
       setOrderId("")
       await load()
@@ -388,7 +388,7 @@ export default function PatunganDetailScreen() {
                     setLinkOpen(true)
                   }}
                 >
-                  {translate("Tautkan order yang sudah dibayar")}
+                  {translate("Tautkan pesanan yang sudah dibayar")}
                 </Button>
               </View>
             ) : null}
@@ -458,7 +458,7 @@ export default function PatunganDetailScreen() {
             />
           )}
           <Text variant="caption" tone="secondary">
-            {translate("Setelah ikut, bayar via escrow lalu tautkan order-mu. Target tercapai → cair ke host; gagal → refund otomatis.")}
+            {translate("Setelah ikut, bayar via escrow lalu tautkan pesanan Anda. Target tercapai → cair ke host; gagal → refund otomatis.")}
           </Text>
           {joinError ? (
             <Text variant="caption" tone="danger">
@@ -471,7 +471,7 @@ export default function PatunganDetailScreen() {
       <BottomSheet
         visible={linkOpen}
         onRequestClose={() => setLinkOpen(false)}
-        title={translate("Tautkan order escrow")}
+        title={translate("Tautkan pesanan escrow")}
         footer={
           <Button fullWidth loading={linking} onPress={() => void handleLink()}>
             {translate("Tautkan")}
@@ -480,10 +480,10 @@ export default function PatunganDetailScreen() {
       >
         <View className="gap-4">
           <Input
-            label={translate("ID order")}
+            label={translate("ID pesanan")}
             value={orderId}
             onChangeText={setOrderId}
-            placeholder={translate("ID order yang sudah dibayar")}
+            placeholder={translate("ID pesanan yang sudah dibayar")}
             autoCapitalize="none"
             maxLength={40}
           />

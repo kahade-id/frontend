@@ -59,6 +59,8 @@ export function unwrapResponse(value: unknown): unknown {
       // sinyal server (timeout, token kedaluwarsa, dsb.).
       code: codeFromBackend(parsed.backendCode) ?? (parsed.validationMessages?.length ? "VALIDATION" : "BAD_REQUEST"),
       message: parsed.message ?? DEFAULT_ERROR_MESSAGES.BAD_REQUEST,
+      // CPY-012: message bisa berasal dari body backend (bahasa tak terjamin).
+      clientMessage: false,
       backendCode: parsed.backendCode,
       validationMessages: parsed.validationMessages,
       raw: value,

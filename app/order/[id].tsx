@@ -836,7 +836,7 @@ export default function OrderDetailScreen() {
   if (error && !order) {
     return (
       <Screen edges={["top"]}>
-        <Header title="Detail Order" />
+        <Header title="Detail Pesanan" />
         <ErrorState title="Gagal memuat" description={error} onRetry={() => void query.reload()} />
       </Screen>
     )
@@ -890,7 +890,7 @@ export default function OrderDetailScreen() {
 
   return (
     <Screen edges={["top"]} padded={false}>
-      <Header title="Detail Order" />
+      <Header title="Detail Pesanan" />
       <PullToRefresh
         onRefresh={() => void query.refresh()}
         refreshing={refreshing}
@@ -923,7 +923,7 @@ export default function OrderDetailScreen() {
             <ErrorState
               compact
               title="Peran Anda belum terkonfirmasi"
-              description="Aksi transaksi dinonaktifkan sampai peran Anda pada order ini diketahui."
+              description="Aksi transaksi dinonaktifkan sampai peran Anda pada pesanan ini diketahui."
               onRetry={() => void query.reload()}
             />
           ) : null}
@@ -1068,7 +1068,7 @@ export default function OrderDetailScreen() {
               <SectionHeader title="Bukti pembayaran" />
               <ReceiptTicket
                 status={order.status === "CANCELLED" ? "REFUND" : "SUCCESS"}
-                title={`Pembayaran order #${shortId(order.id)}`}
+                title={`Pembayaran pesanan #${shortId(order.id)}`}
                 amount={fee?.buyerPays ?? order.orderValue}
                 amountTone="success"
                 rows={[
@@ -1134,7 +1134,7 @@ export default function OrderDetailScreen() {
           />
 
           {/* 14 — Butuh bantuan? */}
-          {/* Item 133: "Hubungi CS" membuka form Buat Tiket dengan kategori
+          {/* Item 133: "Hubungi Bantuan Langsung" membuka form Buat Tiket dengan kategori
               ORDER + order terisi — bukan live support kosong. */}
           <OrderHelpCard
             onContactSupport={() =>
@@ -1165,7 +1165,7 @@ export default function OrderDetailScreen() {
               compact
               icon={ClockCounterClockwise}
               title="Riwayat belum tersedia"
-              description="Perubahan status order akan tercatat di sini."
+              description="Perubahan status pesanan akan tercatat di sini."
             />
           )}
           {historyHasMore ? (

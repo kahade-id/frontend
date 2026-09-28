@@ -137,7 +137,8 @@ export const AmountInput = forwardRef<TextInput, AmountInputProps>(function Amou
           // Audit #018: placeholder Rp0 harus tertiary (dekoratif) vs text-secondary untuk label; AmountInput prefix Rp sudah primary, placeholder 0 boleh lebih halus
           selectionColor={palette.primary}
           cursorColor={palette.primary}
-          allowFontScaling={false}
+          // TEXT-003: alur uang — JANGAN paksa allowFontScaling={false};
+          // biarkan teks nominal mengikuti skala font sistem pengguna.
           accessibilityLabel={label}
           accessibilityValue={{ text: formatRupiah(value) }}
           className={cn(

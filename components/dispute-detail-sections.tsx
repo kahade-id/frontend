@@ -479,7 +479,7 @@ export function DisputeActionDialogs({
 
       <Dialog
         title="Setujui usulan penyelesaian?"
-        description={translate("Dana escrow akan langsung dibagi sesuai usulan berikut dan tidak bisa dibatalkan: {x} Pastikan kamu sudah setuju dengan pembagiannya.", { x: acceptSummary })}
+        description={translate("Dana escrow akan langsung dibagi sesuai usulan berikut dan tidak bisa dibatalkan: {x} Pastikan Anda sudah setuju dengan pembagiannya.", { x: acceptSummary })}
         visible={acceptOpen}
         loading={accepting}
         confirmLabel="Ya, setujui"

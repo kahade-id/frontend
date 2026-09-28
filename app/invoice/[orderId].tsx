@@ -192,7 +192,7 @@ export default function InvoiceScreen() {
     async (inv: Invoice) => {
       // R2 (audit ronde-2, butir #83): UUID mentah tidak ikut kalimat yang
       // dibagikan ke pihak luar — shortcode 8 heksa sudah cukup merujuk.
-      const message = `Invoice ${inv.invoiceNumber ?? `#${shortId(inv.order.id)}`} — ${formatRupiah(inv.total)} untuk order #${shortId(inv.order.id)}`
+      const message = `Invoice ${inv.invoiceNumber ?? `#${shortId(inv.order.id)}`} — ${formatRupiah(inv.total)} untuk pesanan #${shortId(inv.order.id)}`
       const outcome = await shareContent({ message, title: "Invoice Kahade" })
       if (outcome === "unavailable") {
         const ok = inv.invoiceNumber ? await copy(inv.invoiceNumber) : await copy(inv.order.id)
@@ -215,8 +215,8 @@ export default function InvoiceScreen() {
         <View className="flex-1 px-5">
           <EmptyState
             icon={Receipt}
-            title="Order tidak diketahui"
-            description="Tautan yang Anda buka tidak memuat identitas order."
+            title="Pesanan tidak diketahui"
+            description="Tautan yang Anda buka tidak memuat identitas pesanan."
           />
         </View>
       </Screen>

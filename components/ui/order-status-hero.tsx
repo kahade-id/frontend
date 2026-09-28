@@ -80,9 +80,9 @@ export function OrderStatusHero({
       <View className="flex-row items-center justify-between gap-3">
         <View className="flex-1 gap-1" accessible accessibilityRole="header">
           <Text variant="caption" tone="secondary">
-            {translate("Status order")}
+            {translate("Status pesanan")}
           </Text>
-          <Text variant="h1" accessibilityLabel={`${translate("Status order")}: ${statusLabel}`}>
+          <Text variant="h1" accessibilityLabel={`${translate("Status pesanan")}: ${statusLabel}`}>
             {statusLabel}
           </Text>
         </View>
@@ -95,7 +95,7 @@ export function OrderStatusHero({
 
       <View className="mt-4 gap-1">
         <Text variant="caption" tone="secondary">
-          {translate("Order")}
+          {translate("Pesanan")}
         </Text>
         <Text variant="h3" numberOfLines={3}>
           {title}

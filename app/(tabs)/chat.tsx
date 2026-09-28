@@ -451,14 +451,14 @@ export default function ChatScreen() {
               ORDER_STATUS_LABELS[order.status as keyof typeof ORDER_STATUS_LABELS] ??
               order.status
             setDeleteBlockedMessage(
-              `Chat transaksi hanya bisa dihapus setelah order selesai. Status order ini: ${label}.`,
+              `Chat transaksi hanya bisa dihapus setelah pesanan selesai. Status pesanan ini: ${label}.`,
             )
             setDeleteRoom(room)
           }
         })
         .catch(() => {
           setDeleteBlockedMessage(
-            "Status order tidak bisa diperiksa saat ini. Coba lagi nanti.",
+            "Status pesanan tidak bisa diperiksa saat ini. Coba lagi nanti.",
           )
           setDeleteRoom(room)
         })
@@ -507,7 +507,7 @@ export default function ChatScreen() {
         // Tampilkan sebagai pesan jelas di dialog (pola yang sama dengan
         // gate pra-konfirmasi di requestDelete).
         setDeleteBlockedMessage(
-          translate("Chat transaksi hanya bisa dihapus setelah order selesai (COMPLETED)."),
+          translate("Chat transaksi hanya bisa dihapus setelah pesanan selesai (COMPLETED)."),
         )
       } else if (backendCode === "NOT_ORDER_PARTICIPANT" || status === 403) {
         toast.show({
@@ -806,8 +806,8 @@ export default function ChatScreen() {
       {/* Status pemeriksaan aturan hapus (dialog diganti sementara). */}
       {deleteChecking ? (
         <Dialog
-          title={translate("Memeriksa status order…")}
-          description={translate("Aturan: chat transaksi hanya bisa dihapus setelah order selesai.")}
+          title={translate("Memeriksa status pesanan…")}
+          description={translate("Aturan: chat transaksi hanya bisa dihapus setelah pesanan selesai.")}
           visible
           hideCancel
           confirmLabel={translate("Tunggu")}

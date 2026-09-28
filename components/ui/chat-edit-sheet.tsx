@@ -1,5 +1,5 @@
 /**
- * Kahade — sheet "Edit pesan" untuk pesan teks milik sendiri.
+ * Kahade — sheet "Ubah pesan" untuk pesan teks milik sendiri.
  *
  * PUT /v1/chat/rooms/{roomId}/messages/{messageId}
  *
@@ -83,7 +83,7 @@ export function ChatEditSheet({ message, roomId, onClose, onSaved }: ChatEditShe
       avoidKeyboard
       visible={message != null}
       onRequestClose={onClose}
-      title="Edit pesan"
+      title="Ubah pesan"
       footer={
         <View className="gap-2">
           <Button fullWidth loading={saving} disabled={unchanged} onPress={() => void save()}>

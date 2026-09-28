@@ -214,7 +214,7 @@ export default function OrderLinkScreen() {
 
   return (
     <Screen edges={["top"]} padded={false}>
-      <Header title="Order Link" />
+      <Header title="Tautan Pesanan" />
       <PullToRefresh
         onRefresh={query.refresh}
         refreshing={query.refreshing}

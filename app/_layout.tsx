@@ -355,7 +355,7 @@ function AppShellInner() {
           if (!orderId) {
             toast.show({
               title: "Konfirmasi gagal",
-              description: "Notifikasi ini tidak menaut ke order yang valid.",
+              description: "Notifikasi ini tidak menaut ke pesanan yang valid.",
               tone: "danger",
             })
             return

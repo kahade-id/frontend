@@ -193,6 +193,7 @@ function MarkAllReadButton({
       ripple
       disabled={busy}
       onPress={onPress}
+      hitSlop={hitSlopToReach(40)}
       className="h-10 flex-row items-center gap-1.5 rounded-full bg-surface px-4"
     >
       <Icon icon={Checks} size="sm" tone="active" />
@@ -201,6 +202,7 @@ function MarkAllReadButton({
         {translate("Tandai semua dibaca")}
       </Text>
     </PressableScale>
+import { hitSlopToReach } from "@/lib/hit-slop"
   )
 }
 

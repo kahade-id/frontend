@@ -277,6 +277,8 @@ async function toApiError(res: Response, method: HttpMethod, path: string): Prom
     code,
     status: res.status,
     message: parsed.message ?? DEFAULT_ERROR_MESSAGES[code],
+    // CPY-012: message bisa berasal dari body backend (bahasa tak terjamin).
+    clientMessage: false,
     backendCode: parsed.backendCode,
     validationMessages: parsed.validationMessages,
     raw,

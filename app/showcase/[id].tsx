@@ -1216,7 +1216,7 @@ function ShowcaseDetailContent({
             ? [
                 {
                   key: "edit",
-                  label: translate("Edit"),
+                  label: translate("Ubah"),
                   icon: undefined,
                   onPress: () => {
                     setEditTarget(commentMenu)
@@ -1280,7 +1280,7 @@ function ShowcaseDetailContent({
         avoidKeyboard
         visible={editTarget != null}
         onRequestClose={() => setEditTarget(null)}
-        title={translate("Edit komentar")}
+        title={translate("Ubah komentar")}
         footer={
           <View className="gap-2">
             <Button

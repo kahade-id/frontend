@@ -95,12 +95,12 @@ export function OnboardingChecklistCard({ state, className }: OnboardingChecklis
     <View
       className={className}
       accessibilityRole="summary"
-      accessibilityLabel={translate("Checklist onboarding")}
+      accessibilityLabel={translate("Daftar periksa pengenalan")}
     >
       <View className="gap-3 rounded-md border border-border bg-surface p-4">
         <View className="gap-1">
           <Text variant="bodyLarge" weight={700}>
-            {translate("Lengkapi akunmu")}
+            {translate("Lengkapi akun Anda")}
           </Text>
           <Text variant="caption" tone="secondary">
             {loading

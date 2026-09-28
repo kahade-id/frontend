@@ -95,10 +95,10 @@ export async function checkConfirmReceiptEligible(
   try {
     order = await api.orders.getOrder(orderId)
   } catch {
-    return { eligible: false, reason: "Tidak dapat memuat status order saat ini." }
+    return { eligible: false, reason: "Tidak dapat memuat status pesanan saat ini." }
   }
   if (!order || typeof order !== "object") {
-    return { eligible: false, reason: "Data order tidak valid." }
+    return { eligible: false, reason: "Data pesanan tidak valid." }
   }
   if (order.myRole !== "BUYER") {
     return { eligible: false, reason: "Hanya pembeli yang dapat konfirmasi terima." }

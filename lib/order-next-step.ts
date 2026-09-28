@@ -23,9 +23,9 @@ export function orderNextStepHint(
   switch (status) {
     case "WAITING_CONFIRMATION":
       return role === "SELLER"
-        ? translate("Langkah berikutnya: konfirmasi order ini agar pembeli dapat membayar ke escrow.")
+        ? translate("Langkah berikutnya: konfirmasi pesanan ini agar pembeli dapat membayar ke escrow.")
         : role === "BUYER"
-          ? translate("Langkah berikutnya: menunggu penjual mengonfirmasi order Anda.")
+          ? translate("Langkah berikutnya: menunggu penjual mengonfirmasi pesanan Anda.")
           : null
     case "WAITING_PAYMENT":
     case "PENDING_PAYMENT":

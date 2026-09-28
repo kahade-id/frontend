@@ -548,7 +548,7 @@ export default function DeliveryProofScreen() {
               // E-02/H-01: bukan pihak order / peran tidak dikirim server —
               // bukan tombol rilis dana; jelaskan mengapa read-only.
               <ErrorState
-                title="Peran Anda di order ini tidak dikenal"
+                title="Peran Anda di pesanan ini tidak dikenal"
                 description="Aksi konfirmasi disembunyikan sampai server mengirim peran Anda. Hubungi bantuan bila ini pesanan Anda."
               />
             ) : null}

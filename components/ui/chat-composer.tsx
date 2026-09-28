@@ -312,7 +312,7 @@ export function ChatComposer({
             placeholderTextColor={palette.textSecondary}
             selectionColor={palette.primary}
             cursorColor={palette.primary}
-            allowFontScaling={false}
+            maxFontSizeMultiplier={2}
             onFocus={() => setFocused(true)}
             onBlur={() => setFocused(false)}
             onSelectionChange={(e) => setSelection(e.nativeEvent.selection)}

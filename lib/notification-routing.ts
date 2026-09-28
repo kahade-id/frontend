@@ -121,7 +121,7 @@ export function routeForNotificationReference(ref: NotificationReference): Href 
 }
 
 /**
- * Label CTA layar detail ("Lihat order", "Buka chat", …) untuk sebuah
+ * Label CTA layar detail ("Lihat pesanan", "Buka chat", …) untuk sebuah
  * referensi; `null` bila tidak dikenali (detail tetap tampil tanpa CTA).
  * Tabel sejajar dengan `routeForNotificationReference` di atas.
  * Bila `referenceType` kosong, label diturunkan dari `actionUrl`.
@@ -134,9 +134,9 @@ export function labelForNotificationReference(ref: NotificationReference): strin
     case "order":
     case "transaction":
     case "escrow":
-      return "Lihat order"
+      return "Lihat pesanan"
     case "orderlink":
-      return "Buka order link"
+      return "Buka tautan pesanan"
     case "dispute":
       return "Lihat sengketa"
     case "wallettransaction":
@@ -202,7 +202,7 @@ export function labelForActionUrl(actionUrl: string | null | undefined): string 
       return "Buka chat"
     case "order":
     case "o":
-      return "Lihat order"
+      return "Lihat pesanan"
     case "dispute":
       return "Lihat sengketa"
     case "showcase":

@@ -550,7 +550,7 @@ export default function EditProfileScreen() {
         </View>
       }
     >
-      <Header title={translate("Edit Profil")} />
+      <Header title={translate("Ubah Profil")} />
       <PullToRefresh
         onRefresh={() => void query.refresh()}
         refreshing={refreshing}

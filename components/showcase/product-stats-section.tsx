@@ -41,7 +41,7 @@ const STATS: { key: keyof ProductStats; label: string; icon: typeof Eye }[] = [
   { key: "likes", label: "Disukai", icon: Heart },
   { key: "shares", label: "Dibagikan", icon: ShareNetwork },
   { key: "purchases", label: "Terjual", icon: Package },
-  { key: "ordersTotal", label: "Total order", icon: Receipt },
+  { key: "ordersTotal", label: "Total pesanan", icon: Receipt },
 ]
 
 type StatsState =

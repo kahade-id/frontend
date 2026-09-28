@@ -128,11 +128,11 @@ export default function TransactionTemplatesScreen() {
       return
     }
     if (!form.title.trim()) {
-      toast.show({ title: "Judul order wajib diisi", tone: "danger" })
+      toast.show({ title: "Judul pesanan wajib diisi", tone: "danger" })
       return
     }
     if (form.orderValue < 10_000) {
-      toast.show({ title: "Nilai order minimal Rp10.000", tone: "danger" })
+      toast.show({ title: "Nilai pesanan minimal Rp10.000", tone: "danger" })
       return
     }
     if (form.deliveryDeadlineDays < 1) {
@@ -308,7 +308,7 @@ export default function TransactionTemplatesScreen() {
                     labels={ORDER_ROLE_LABELS}
                   />
                 </Field>
-                <Field label="Judul order default" required>
+                <Field label="Judul pesanan default" required>
                   <Input
                     value={form.title}
                     onChangeText={(v) => setForm({ ...form, title: v })}
@@ -327,7 +327,7 @@ export default function TransactionTemplatesScreen() {
                   value={form.orderValue}
                   onChange={(v) => setForm({ ...form, orderValue: v })}
                   min={10_000}
-                  label="Nilai order default"
+                  label="Nilai pesanan default"
                 />
                 <Field label="Tenggat (hari)" required>
                   <Input

@@ -74,7 +74,7 @@ export function ChatInlineSearchBar({
         placeholderTextColor={palette.textSecondary}
         selectionColor={palette.primary}
         cursorColor={palette.primary}
-        allowFontScaling={false}
+        maxFontSizeMultiplier={2}
         returnKeyType="search"
         accessibilityLabel={translate("Kata kunci pencarian")}
         className="min-h-10 flex-1 font-sans-400 text-bodyLarge text-text-primary"

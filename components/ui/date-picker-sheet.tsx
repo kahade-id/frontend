@@ -142,6 +142,7 @@ function DayCell({
         accessibilityState={{ disabled, selected }}
         disabled={disabled}
         onPress={() => onSelect(date)}
+        hitSlop={hitSlopToReach(40)}
         className={cn(
           "h-10 w-10 items-center justify-center rounded-full",
           selected && "bg-primary",
@@ -156,6 +157,7 @@ function DayCell({
           {date.getDate()}
         </Text>
       </PressableScale>
+import { hitSlopToReach } from "@/lib/hit-slop"
     </View>
   )
 }

@@ -82,6 +82,16 @@ export type ApiErrorInit = {
    * `Retry-After` (429/503). `undefined` bila server tidak mengirimnya.
    */
   retryAfterMs?: number
+  /**
+   * CPY-012 (audit UI/UX 2026-09-28): true bila `message` dikarang KLIEN
+   * (copy Indonesia, aman tampil ke user). WAJIB false bila `message`
+   * berasal — atau bisa berasal — dari body respons backend, yang bahasanya
+   * tidak terjamin (bisa Inggris) — `userMessage()` akan fail-closed ke
+   * copy Indonesia per kode. Default true: seluruh titik konstruksi yang ada
+   * memakai string Indonesia hardcoded; jalur yang mem-parsing body backend
+   * (`toApiError`, `unwrapResponse`, XHR upload chat) mengeset false eksplisit.
+   */
+  clientMessage?: boolean
 }
 
 export class ApiError extends Error {
@@ -92,6 +102,8 @@ export class ApiError extends Error {
   readonly method: string | undefined
   readonly path: string | undefined
   readonly retryAfterMs: number | undefined
+  /** Lihat `ApiErrorInit.clientMessage`. */
+  readonly clientMessage: boolean
 
   /**
    * D-11 (audit): body respons mentah disimpan di field privat dan hanya
@@ -119,6 +131,7 @@ export class ApiError extends Error {
     this.method = init.method
     this.path = init.path
     this.retryAfterMs = init.retryAfterMs
+    this.clientMessage = init.clientMessage ?? true
   }
 
   /** Body respons mentah — untuk log/debug; JANGAN tampilkan ke user. */
@@ -371,7 +384,13 @@ export function userMessage(err: unknown): string {
     ) {
       return DEFAULT_ERROR_MESSAGES[err.code]
     }
-    return err.message || DEFAULT_ERROR_MESSAGES[err.code]
+    // CPY-012/ERR-002: pesan backend (bahasa tidak terjamin — bisa Inggris)
+    // JANGAN diteruskan mentah ke user. Hanya pesan yang dikarang klien
+    // (clientMessage: true, copy Indonesia) boleh tampil apa adanya;
+    // sisanya fail-closed ke copy Indonesia per kode. JANGAN ngarang arti:
+    // kode yang belum dipetakan jatuh ke UNKNOWN generik.
+    if (err.clientMessage) return err.message || DEFAULT_ERROR_MESSAGES[err.code]
+    return DEFAULT_ERROR_MESSAGES[err.code]
   }
   return DEFAULT_ERROR_MESSAGES.UNKNOWN
 }

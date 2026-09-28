@@ -72,7 +72,7 @@ const DEFAULT_LABELS: BankAccountCardLabels = {
   primary: "Utama",
   unverified: "Belum diverifikasi",
   setPrimary: "Jadikan utama",
-  editName: "Edit nama",
+  editName: "Ubah nama",
   delete: "Hapus",
 }
 

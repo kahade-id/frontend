@@ -5,7 +5,7 @@
  * field yang paling sering diubah: foto profil, nama lengkap, username, bio.
  * Field sensitif/kompleks (email akun, HP, kontak publik, tautan sosial)
  * tetap di layar edit lengkap (`app/edit-profile.tsx`, dibuka lewat link
- * "Edit lengkap" di sheet ini).
+ * "Ubah lengkap" di sheet ini).
  *
  * API: PUT /v1/users/me (partial, `api.users.updateProfile`) — hanya field
  * yang berubah yang dikirim. Foto diunggah langsung saat dipilih
@@ -234,7 +234,7 @@ export function ProfileEditSheet({ visible, onRequestClose, profile, onSaved }: 
       <BottomSheet
         visible={visible}
         onRequestClose={onRequestClose}
-        title={translate("Edit profil")}
+        title={translate("Ubah profil")}
         avoidKeyboard
         footer={
           <View className="gap-2">
@@ -255,7 +255,7 @@ export function ProfileEditSheet({ visible, onRequestClose, profile, onSaved }: 
                 router.push(ROUTES.editProfile)
               }}
             >
-              {translate("Edit lengkap")}
+              {translate("Ubah lengkap")}
             </Button>
           </View>
         }

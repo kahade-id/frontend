@@ -1068,7 +1068,7 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
                     // (app/edit-profile.tsx) tetap ada via link di sheet.
                     onPress={() => setEditOpen(true)}
                   >
-                    {translate("Edit profil")}
+                    {translate("Ubah profil")}
                   </Button>
                 ) : (
                   <>
@@ -1574,7 +1574,7 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
         description={translate("Pertanyaan Anda akan tampil di profil ini dan dijawab oleh pemiliknya.")}
         visible={askOpen}
         loading={asking}
-        confirmLabel={translate("Kirim Pertanyaan")}
+        confirmLabel={translate("Kirim pertanyaan")}
         confirmButtonProps={{ disabled: askText.trim().length < 5 }}
         cancelLabel={translate("Batal")}
         onConfirm={() => void submitAsk()}

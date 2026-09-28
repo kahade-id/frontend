@@ -282,6 +282,7 @@ function DrawerUtilityBar() {
               accessibilityLabel={translate("Tutup pencarian")}
               haptic
               onPress={closeSearch}
+              hitSlop={hitSlopToReach(40)}
               className="h-10 w-10 items-center justify-center rounded-full"
             >
               <Icon icon={X} size="md" tone="inverse" weight="bold" />
@@ -545,6 +546,7 @@ export function AppDrawer() {
                 onPress={closeDrawer}
                 accessibilityRole="button"
                 accessibilityLabel={translate("Tutup menu")}
+                hitSlop={hitSlopToReach(40)}
                 className="h-10 w-10 items-center justify-center"
               >
                 <Icon icon={X} size="md" tone="default" weight="bold" />
@@ -591,6 +593,7 @@ export function AppDrawer() {
                   ) : null}
                 </View>
               </PressableScale>
+import { hitSlopToReach } from "@/lib/hit-slop"
             </View>
 
             {/* Menu utama. */}
