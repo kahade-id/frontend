@@ -87,6 +87,13 @@ export type PictureProps = Omit<ViewProps, "children"> & {
   cachePolicy?: ExpoImageProps["cachePolicy"]
   /** Untuk sel FlatList yang di-recycle */
   recyclingKey?: string
+  /**
+   * PERF-FIX (LR-009): prioritas unduhan expo-image. "high" untuk gambar yang
+   * sedang di viewport (slide galeri aktif) — bandwidth didahulukan ke yang
+   * terlihat, bukan ke tetangga yang belum tampil. Default expo-image
+   * ("normal") bila tidak diisi.
+   */
+  priority?: ExpoImageProps["priority"]
   className?: string
   /** Cegah download/save gambar (privacy showcase) — blok context menu & drag di web */
   preventDownload?: boolean
@@ -128,6 +135,7 @@ export function Picture({
   onError,
   cachePolicy = "memory-disk",
   recyclingKey,
+  priority,
   className,
   style,
   preventDownload = false,
@@ -236,6 +244,7 @@ export function Picture({
           contentPosition="center"
           cachePolicy={cachePolicy}
           recyclingKey={recyclingKey}
+          priority={priority}
           transition={reducedMotion ? 0 : tokens.motion.duration.fast}
           style={{ width: "100%", height: "100%" }}
           onLoad={(e: any) => {

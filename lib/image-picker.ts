@@ -71,7 +71,64 @@ export type PickImageOptions = {
 }
 
 const DEFAULT_MIME = "image/jpeg"
-const DEFAULT_QUALITY = 0.7
+/**
+ * PERF-FIX (NP-003): kualitas kompresi picker — 0.8 (audit menyarankan ~0.8;
+ * sebelumnya 0.7). Foto >1920px tetap dikecilkan di `resizePickedImage`.
+ */
+const DEFAULT_QUALITY = 0.8
+/**
+ * PERF-FIX (NP-003): dimensi terpanjang maksimum foto sebelum upload (px).
+ * Foto kamera modern 4000px+ dikecilkan ke 1920 — cukup untuk feed/detail,
+ * jauh lebih hemat kuota & mempercepat upload.
+ */
+export const SHOWCASE_PHOTO_MAX_DIMENSION = 1920
+
+/**
+ * PERF-FIX (NP-003): kecilkan foto ke dimensi terpanjang ≤
+ * `SHOWCASE_PHOTO_MAX_DIMENSION` (default 1920) + kompresi JPEG 0.8 sebelum
+ * upload. Aspect ratio dipertahankan (hanya width yang diberikan ke
+ * manipulator — height mengikuti proporsional).
+ *
+ * Fail-open: foto yang sudah cukup kecil (atau dimensinya tak diketahui)
+ * dikembalikan apa adanya; bila manipulasi/stat gagal, kembalikan asset
+ * asli (validasi server tetap berlaku sebagai jaring pengaman).
+ */
+export async function resizePickedImage(
+  asset: PickedImage,
+  maxDimension = SHOWCASE_PHOTO_MAX_DIMENSION,
+): Promise<PickedImage> {
+  const longest = Math.max(asset.width ?? 0, asset.height ?? 0)
+  if (longest <= 0 || longest <= maxDimension) return asset
+  try {
+    const { manipulateAsync, SaveFormat } = await import("expo-image-manipulator")
+    const result = await manipulateAsync(
+      asset.uri,
+      [{ resize: { width: maxDimension } }],
+      { compress: 0.8, format: SaveFormat.JPEG },
+    )
+    // Ukuran hasil resize — dipakai guard 5MB di pemanggil.
+    let size = 0
+    try {
+      const { File } = await import("expo-file-system")
+      const info = new File(result.uri).info()
+      if (typeof info.size === "number" && info.size > 0) size = info.size
+    } catch {
+      // biarkan 0 → pemanggil fail-open ke validasi server
+    }
+    const baseName = asset.name.replace(/\.[a-z0-9]+$/i, "")
+    return {
+      uri: result.uri,
+      name: `${baseName || "photo"}.jpg`,
+      mimeType: "image/jpeg",
+      size,
+      width: result.width,
+      height: result.height,
+      durationMs: asset.durationMs,
+    }
+  } catch {
+    return asset
+  }
+}
 
 function toPicked(asset: ImagePicker.ImagePickerAsset, fallbackName: string): PickedImage {
   // R2 (butir #34): MIME fallback mengikuti JENIS aset — video yang tidak

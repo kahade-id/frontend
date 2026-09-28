@@ -130,18 +130,21 @@ const EMPTY_FORM: FormState = {
 /**
  * Pratinjau media karya: foto, atau video (kontrak final Tim A #1/#2,
  * 2026-09-28). `video` terisi = entri video yang sudah diunggah
- * (fileKey + thumbnailFileKey wajib).
+ * (fileKey + thumbnailFileKey wajib). `thumbnailFileKey` di root =
+ * thumbnail FOTO auto-generate server-side (PERF-FIX NP-001) — dilampirkan
+ * sebagai `thumbnailFileKey` di `media[]` agar feed memuat varian kecil.
  */
-type Preview = { fileKey: string; asset: PickedImage; video?: ShowcaseVideoUploadOutcome }
+type Preview = { fileKey: string; asset: PickedImage; thumbnailFileKey?: string; video?: ShowcaseVideoUploadOutcome }
 
-/** Semua key server milik satu preview (video punya thumbnailFileKey juga). */
+/** Semua key server milik satu preview (video & foto punya thumbnailFileKey juga). */
 function previewServerKeys(preview: Preview): string[] {
   const keys = [preview.fileKey]
   if (preview.video?.thumbnailFileKey) keys.push(preview.video.thumbnailFileKey)
+  if (preview.thumbnailFileKey) keys.push(preview.thumbnailFileKey)
   return keys
 }
 
-/** Bangun `media[]` kontrak #2 dari previews (video wajib thumbnailFileKey). */
+/** Bangun `media[]` kontrak #2 dari previews (video wajib thumbnailFileKey; foto opsional — PERF-FIX NP-001). */
 function previewsToMediaInput(previews: Preview[]): ShowcaseMediaInput[] {
   return previews.map((preview): ShowcaseMediaInput => {
     if (preview.video) {
@@ -153,7 +156,9 @@ function previewsToMediaInput(previews: Preview[]): ShowcaseMediaInput[] {
       if (preview.video.durationSec != null) input.durationSec = preview.video.durationSec
       return input
     }
-    return { fileKey: preview.fileKey, kind: "image" }
+    const input: ShowcaseMediaInput = { fileKey: preview.fileKey, kind: "image" }
+    if (preview.thumbnailFileKey) input.thumbnailFileKey = preview.thumbnailFileKey
+    return input
   })
 }
 
@@ -496,7 +501,7 @@ export default function ShowcaseCreateScreen() {
           const asset = queue.shift()!
           try {
             const outcome = await uploadShowcasePhoto(asset, controller.signal)
-            uploaded.push({ fileKey: outcome.fileKey, asset })
+            uploaded.push({ fileKey: outcome.fileKey, asset, thumbnailFileKey: outcome.thumbnailFileKey })
           } catch (err) {
             if (controller.signal.aborted) throw new Error("aborted")
             // BUG #2: sebelumnya hanya asset yang disimpan tanpa pesan —
@@ -509,7 +514,7 @@ export default function ShowcaseCreateScreen() {
       })
       await Promise.all(workers)
       if (controller.signal.aborted || revision !== getSessionRevision()) {
-        void cleanupPendingShowcaseKeys(uploaded.map((entry) => entry.fileKey))
+        void cleanupPendingShowcaseKeys(uploaded.flatMap(previewServerKeys))
         return
       }
       // BUG #2: kegagalan per-foto sebelumnya ditelan tanpa toast; bila SEMUA
@@ -535,12 +540,12 @@ export default function ShowcaseCreateScreen() {
         }
       }
       const next = [...previews, ...uploaded]
-      pendingKeys.current = next.map((entry) => entry.fileKey)
+      pendingKeys.current = next.flatMap(previewServerKeys)
       setPreviews(next)
       setPhotoError(undefined)
       setFailedAssets((current) => [...current, ...failures])
     } catch (error) {
-      void cleanupPendingShowcaseKeys(uploaded.map((entry) => entry.fileKey))
+      void cleanupPendingShowcaseKeys(uploaded.flatMap(previewServerKeys))
       if (!controller.signal.aborted && mounted.current) {
         toast.show({ title: translate("Gagal mengunggah foto"), description: userMessage(error), tone: "danger" })
       }
@@ -672,17 +677,17 @@ export default function ShowcaseCreateScreen() {
         )
         try {
           const result = await uploadShowcasePhoto(failed.asset, controller.signal)
-          next.push({ fileKey: result.fileKey, asset: failed.asset })
+          next.push({ fileKey: result.fileKey, asset: failed.asset, thumbnailFileKey: result.thumbnailFileKey })
         } catch (err) {
           // BUG #2: pola yang sama — simpan pesan asli agar user tahu penyebabnya.
           failures.push({ asset: failed.asset, message: userMessage(err) })
         }
       }
       if (!mounted.current || revision !== getSessionRevision()) {
-        void cleanupPendingShowcaseKeys(next.slice(previews.length).map((entry) => entry.fileKey))
+        void cleanupPendingShowcaseKeys(next.slice(previews.length).flatMap(previewServerKeys))
         return
       }
-      pendingKeys.current = next.map((entry) => entry.fileKey)
+      pendingKeys.current = next.flatMap(previewServerKeys)
       setPreviews(next)
       setPhotoError(undefined)
       setFailedAssets(failures)

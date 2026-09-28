@@ -483,7 +483,9 @@ function ShowcaseDetailContent({
   const isOwner = item.isOwner === true || (hasSession && meId === item.author.userId)
 
   // Batch 19: slide galeri (gambar/video); viewer layar penuh hanya gambar.
-  const resolvedMedia = useMemo(() => showcaseMedia(item), [item])
+  // PERF-FIX (NP-001/LR-002): halaman detail memakai full-res (`thumbnails:
+  // false`) — feed-lah yang memakai varian thumbnail.
+  const resolvedMedia = useMemo(() => showcaseMedia(item, { thumbnails: false }), [item])
   // Kontrak final Tim A (2026-09-28): spin360 dirangkai dari entri images
   // (groupKey + groupOrder), bukan field `frames` terpisah.
   const spin360Frames = useMemo(() => showcaseSpin360Groups(item), [item])

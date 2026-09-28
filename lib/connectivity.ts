@@ -22,9 +22,21 @@ let initialized = false
 let online: boolean | null = null
 const listeners = new Set<() => void>()
 const reconnectListeners = new Set<() => void>()
+/**
+ * PERF-FIX (NP-002): tipe koneksi terakhir dari NetInfo ('wifi', 'cellular',
+ * 'unknown', ...). null = belum diketahui (belum init / NetInfo belum
+ * menjawab). Dipakai gerbang autoplay video — hanya 'cellular' yang
+ * diblokir; null = fail-open (jangan rusak cold start).
+ */
+let connectionType: string | null = null
+const typeListeners = new Set<() => void>()
 
 function emit() {
   for (const listener of listeners) listener()
+}
+
+function emitType() {
+  for (const listener of typeListeners) listener()
 }
 
 function applyState(state: NetInfoState) {
@@ -35,6 +47,12 @@ function applyState(state: NetInfoState) {
     state.isConnected === false || state.isInternetReachable === false ? false : true
   online = next
   emit()
+  // PERF-FIX (NP-002): catat tipe koneksi untuk gerbang autoplay video.
+  const nextType = state.type ?? null
+  if (nextType !== connectionType) {
+    connectionType = nextType
+    emitType()
+  }
   // Transisi false → true = momen mengeksekusi antrean offline (item #27).
   if (was === false && next === true) {
     for (const listener of reconnectListeners) {
@@ -80,6 +98,33 @@ export function initConnectivity(): void {
 /** Snapshot terakhir: true = online, false = offline, null = belum tahu. */
 export function getConnectivitySnapshot(): boolean | null {
   return online
+}
+
+/**
+ * PERF-FIX (NP-002): snapshot tipe koneksi terakhir ('wifi', 'cellular',
+ * 'unknown', ...); null = belum diketahui → pemanggil harus fail-open.
+ */
+export function getConnectionType(): string | null {
+  return connectionType
+}
+
+function subscribeType(listener: () => void) {
+  typeListeners.add(listener)
+  return () => {
+    typeListeners.delete(listener)
+  }
+}
+
+function getConnectionTypeSnapshot(): string | null {
+  return connectionType
+}
+
+/**
+ * PERF-FIX (NP-002): hook tipe koneksi — null bila belum diketahui
+ * (fail-open: jangan blokir autoplay sebelum NetInfo menjawab).
+ */
+export function useConnectionType(): string | null {
+  return useSyncExternalStore(subscribeType, getConnectionTypeSnapshot, getConnectionTypeSnapshot)
 }
 
 /** true hanya bila perangkat JELAS offline. `null` (belum tahu) = false. */

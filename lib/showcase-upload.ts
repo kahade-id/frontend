@@ -2,7 +2,7 @@
 import { api } from "@/lib/api"
 import { ApiError, isApiError } from "@/lib/api/errors"
 import type { PickedImage } from "@/lib/image-picker"
-import { pickedImageToFormData } from "@/lib/image-picker"
+import { pickedImageToFormData, resizePickedImage } from "@/lib/image-picker"
 import {
   SHOWCASE_IMAGE_MAX_BYTES,
   SHOWCASE_VIDEO_MAX_BYTES,
@@ -10,7 +10,17 @@ import {
 } from "@/lib/showcase-limits"
 import { logWarn } from "@/lib/telemetry"
 
-export type ShowcaseUploadOutcome = { kind: "fileKey"; fileKey: string }
+export type ShowcaseUploadOutcome = {
+  kind: "fileKey"
+  fileKey: string
+  /**
+   * PERF-FIX (NP-001): key thumbnail foto auto-generate server-side (sharp
+   * ~640px) — dilampirkan sebagai `thumbnailFileKey` di `media[]` agar feed
+   * memuat varian kecil. undefined = backend tidak mengembalikan (foto lama
+   * / thumbnail gagal — feed fallback ke imageUrl penuh).
+   */
+  thumbnailFileKey?: string
+}
 
 /**
  * Hasil upload video showcase — siap dilampirkan sebagai
@@ -27,19 +37,24 @@ export type ShowcaseVideoUploadOutcome = {
 
 export async function uploadShowcasePhoto(asset: PickedImage, signal?: AbortSignal): Promise<ShowcaseUploadOutcome> {
   let fileKey: string | undefined
+  let thumbnailFileKey: string | undefined
   let stage = "read"
   const check = () => {
     if (signal?.aborted) throw new ApiError({ code: "ABORTED", message: "Unggahan dibatalkan." })
   }
   try {
     check()
+    // PERF-FIX (NP-003): resize DULU (maks 1920px, JPEG 0.8) — guard 5MB
+    // diterapkan pada HASIL resize, bukan menolak foto besar sebelum sempat
+    // dikecilkan. Fail-open: resize gagal → asset asli dipakai.
+    const resized = await resizePickedImage(asset)
     // Item 60 (FE-IMP-1): guard foto terpusat — 5MB SEBELUM upload, pesan
     // jelas. `size` = 0 hanya bila platform tak melaporkan ukuran (fail-open
     // ke validasi server; tidak bisa dipastikan = jangan tolak buta).
-    if (asset.size > SHOWCASE_IMAGE_MAX_BYTES) {
+    if (resized.size > SHOWCASE_IMAGE_MAX_BYTES) {
       throw new ApiError({
         code: "PAYLOAD_TOO_LARGE",
-        message: `Ukuran foto melebihi 5 MB (${(asset.size / 1048576).toFixed(1)} MB). Pilih foto yang lebih kecil.`,
+        message: `Ukuran foto melebihi 5 MB (${(resized.size / 1048576).toFixed(1)} MB). Pilih foto yang lebih kecil.`,
       })
     }
     stage = "transfer"
@@ -47,17 +62,26 @@ export async function uploadShowcasePhoto(asset: PickedImage, signal?: AbortSign
     // Upload langsung multipart ke server: POST /v1/upload/direct
     // Pakai pickedImageToFormData (format {uri,name,type}) — Blob langsung
     // tidak terbaca Multer di React Native.
-    const formData = await pickedImageToFormData(asset, "file")
+    const formData = await pickedImageToFormData(resized, "file")
     formData.append("purpose", "SHOWCASE_IMAGE")
     const result = await api.upload.uploadDirect(formData, signal)
     if (!result.fileKey) throw new ApiError({ code: "PARSE", message: "Kunci unggahan tidak tersedia." })
     fileKey = result.fileKey
     check()
     // uploadDirect sudah auto-confirm di server — tidak perlu /upload/confirm
-    return { kind: "fileKey", fileKey }
+    // PERF-FIX (NP-001): teruskan thumbnailFileKey foto bila backend
+    // mengembalikannya (auto-generate sharp ~640px).
+    const outcome: ShowcaseUploadOutcome = { kind: "fileKey", fileKey }
+    if (result.thumbnailFileKey) {
+      outcome.thumbnailFileKey = result.thumbnailFileKey
+      thumbnailFileKey = result.thumbnailFileKey
+    }
+    return outcome
   } catch (error) {
     // No file is attached in this workflow: compensating cleanup is safe even after confirm.
-    if (fileKey) await cleanupPendingShowcaseKeys([fileKey])
+    // PERF-FIX (NP-001): bersihkan thumbnail foto juga bila sempat dibuat.
+    const pendingKeys = [fileKey, thumbnailFileKey].filter((k): k is string => !!k)
+    if (pendingKeys.length > 0) await cleanupPendingShowcaseKeys(pendingKeys)
     const diag = isApiError(error)
       ? `${error.code}${error.status ? `:${error.status}` : ""}${
           error.backendCode ? `:${error.backendCode}` : ""
