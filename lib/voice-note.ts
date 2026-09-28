@@ -3,7 +3,7 @@
  *
  * Dipakai <VoiceNoteRecorder> (perekaman) dan layar chat (validasi sebelum
  * antre ke unggahan). Konstanta batas diselaraskan dengan lampiran chat lain
- * (10 MB) supaya satu aturan ukuran di semua jalur kirim.
+ * (50 MB, B06) supaya satu aturan ukuran di semua jalur kirim.
  *
  * Bukan di sini: izin mikrofon & perekaman (expo-av, hanya di komponen),
  * pengunggahan (endpoint upload ruang yang sudah ada), dan pengiriman

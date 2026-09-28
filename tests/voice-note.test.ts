@@ -65,10 +65,10 @@ describe("validateVoiceNoteFile", () => {
   it("rekaman normal → ok", () => {
     expect(validateVoiceNoteFile({ size: 120_000, durationMs: 12_000 })).toEqual({ ok: true })
   })
-  it("> 10 MB → too-big", () => {
+  it("> 50 MB → too-big", () => {
     const r = validateVoiceNoteFile({ size: VOICE_NOTE_MAX_BYTES + 1, durationMs: 60_000 })
     expect(r).toEqual({ ok: false, reason: "too-big" })
-    expect(voiceNoteValidationMessage("too-big")).toContain("10 MB")
+    expect(voiceNoteValidationMessage("too-big")).toContain("50 MB")
   })
   it("< 1 detik → too-short", () => {
     const r = validateVoiceNoteFile({ size: 10_000, durationMs: 500 })
