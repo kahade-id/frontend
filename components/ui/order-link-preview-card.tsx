@@ -171,6 +171,24 @@ export function OrderLinkPreviewCard({
   const active = status === "ACTIVE"
   const canAccept = active && !locked && !!onAccept
   const amountText = formatRupiah(orderValue)
+  /**
+   * TRX-012 (audit UI/UX 2026-09-28): copy konsekuensi pembeli TIDAK BOLEH
+   * mengklaim total pasti bila pembeli menanggung (sebagian) biaya layanan
+   * dan angkanya belum dihitung server. `feeAmount` (dari
+   * POST /v1/orders/calculate-fee, dikirim pemanggil) membuat klaim total
+   * menjadi jujur; tanpanya, copy menyebut biaya secara eksplisit.
+   */
+  const buyerConsequence = (): string => {
+    if (!receiverIsBuyer) return t.consequenceSeller(amountText)
+    // Biaya ditanggung penjual → pembeli benar-benar membayar orderValue.
+    if (feeResponsibility === "SELLER") return t.consequenceBuyer(amountText)
+    // Biaya ditanggung pembeli + angka server ada → total pasti.
+    if (feeResponsibility === "BUYER" && feeAmount != null) {
+      return `Dengan menerima, Anda akan membayar ${formatRupiah(orderValue + feeAmount)} ke rekening escrow Kahade (termasuk biaya layanan ${formatRupiah(feeAmount)}).`
+    }
+    // Biaya (sebagian) di pembeli tapi angka belum ada → jujur, tanpa klaim.
+    return `Dengan menerima, Anda akan membayar ${amountText} ke rekening escrow Kahade, ditambah biaya layanan${feeResponsibility === "SPLIT" ? " (dibagi dua pihak)" : ""}. Rincian pasti dihitung saat Anda menekan Terima.`
+  }
 
   return (
     <Card className={cn("gap-5", className)} {...rest}>
@@ -224,7 +242,7 @@ export function OrderLinkPreviewCard({
 
       {canAccept ? (
         <Text variant="caption" tone="secondary">
-          {receiverIsBuyer ? t.consequenceBuyer(amountText) : t.consequenceSeller(amountText)}
+          {buyerConsequence()}
         </Text>
       ) : null}
 

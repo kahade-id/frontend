@@ -130,7 +130,7 @@ export function AddressPicker({
                   onSelect(address)
                   setSheetOpen(false)
                 }}
-                className={`gap-1 rounded-md border p-3 ${active ? "border-primary bg-primary-soft" : "border-border"}`}
+                className={`gap-1 rounded-md border p-3 ${active ? "border-primary bg-primary/10" : "border-border"}`}
               >
                 <View className="flex-row items-center gap-2">
                   <Text variant="body" weight={600} className="flex-1" numberOfLines={1}>

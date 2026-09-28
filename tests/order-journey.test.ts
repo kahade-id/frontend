@@ -135,3 +135,41 @@ describe("buildOrderJourney", () => {
     }
   })
 })
+
+describe("TRX-013/TRX-014 (audit UI/UX 2026-09-28)", () => {
+  it("TRX-013: CANCELLED tanpa pembayaran TIDAK mengklaim dana dikembalikan", () => {
+    const steps = buildOrderJourney({ ...base, status: "CANCELLED" })
+    const cancelled = steps.find((s) => s.key === "cancelled")!
+    expect(cancelled.hint).toMatch(/sebelum pembayaran/)
+    expect(cancelled.hint).not.toMatch(/dikembalikan/)
+  })
+
+  it("TRX-013: CANCELLED setelah bayar tetap menyebut refund", () => {
+    const steps = buildOrderJourney({
+      ...base,
+      status: "CANCELLED",
+      paidAt: "2026-09-21T09:00:00+07:00",
+    })
+    const cancelled = steps.find((s) => s.key === "cancelled")!
+    expect(cancelled.hint).toMatch(/dikembalikan/)
+  })
+
+  it("TRX-014: order JASA tidak menunggu 'Dikirim penjual'", () => {
+    const steps = buildOrderJourney({ ...base, status: "PROCESSING", orderType: "SERVICE" })
+    const shipped = steps.find((s) => s.key === "shipped")!
+    expect(shipped.label).toBe("Dikerjakan penjual")
+    expect(shipped.hint).not.toMatch(/mengirim/i)
+  })
+
+  it("TRX-014: order DIGITAL tidak menunggu 'Dikirim penjual'", () => {
+    const steps = buildOrderJourney({ ...base, status: "WAITING_PAYMENT", orderType: "DIGITAL_GOODS" })
+    const shipped = steps.find((s) => s.key === "shipped")!
+    expect(shipped.label).toBe("Disiapkan penjual")
+  })
+
+  it("TRX-014: tanpa orderType perilaku fisik lama dipertahankan", () => {
+    const steps = buildOrderJourney({ ...base, status: "PROCESSING" })
+    const shipped = steps.find((s) => s.key === "shipped")!
+    expect(shipped.label).toBe("Dikirim penjual")
+  })
+})

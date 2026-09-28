@@ -309,12 +309,15 @@ export default function OrderDetailScreen() {
         createdAt: order?.createdAt ?? null,
         paidAt: order?.paidAt ?? null,
         completedAt: order?.completedAt ?? null,
+        // TRX-014: jenis order agar label tahap pengiriman jujur
+        // (jasa/digital tidak menunggu "dikirim").
+        orderType: order?.orderType ?? null,
         history: history.map((h) => ({
           toStatus: String(h.toStatus ?? ""),
           createdAt: h.createdAt,
         })),
       }),
-    [order?.status, order?.createdAt, order?.paidAt, order?.completedAt, history],
+    [order?.status, order?.createdAt, order?.paidAt, order?.completedAt, order?.orderType, history],
   )
   /**
    * G-08 (audit escrow 2026-09-24): riwayat order dibatasi `HISTORY_LIMIT`
@@ -1040,6 +1043,7 @@ export default function OrderDetailScreen() {
             amount={fee?.buyerPays ?? order.orderValue}
             myRole={knownRole ? myRole : undefined}
             completedAt={order.completedAt}
+            paidAt={order.paidAt}
           />
 
           {/* 10 — Info transaksi */}

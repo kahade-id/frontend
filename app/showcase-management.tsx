@@ -914,13 +914,13 @@ function ShowcaseManagement() {
                   return (
                     <View
                       key={item.id}
-                      className="flex-row items-center gap-3 rounded-2xl border border-line bg-surface p-3"
+                      className="flex-row items-center gap-3 rounded-lg border border-border bg-surface p-3"
                     >
                       {item.coverUrl ? (
                         <Picture
                           source={item.coverUrl}
                           alt={item.title}
-                          className="h-12 w-12 rounded-xl"
+                          className="h-12 w-12 rounded-lg"
                         />
                       ) : null}
                       <View className="flex-1 gap-0.5">

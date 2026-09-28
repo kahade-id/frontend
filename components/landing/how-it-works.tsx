@@ -52,7 +52,7 @@ function StepNumber({ index, icon }: { index: number; icon: IconComponent }) {
   return (
     <View className="relative h-14 w-14 items-center justify-center rounded-full bg-primary">
       <Icon icon={icon} size="md" tone="inverse" />
-      <View className="absolute -bottom-1 -right-1 h-6 w-6 items-center justify-center rounded-full border-2 border-background bg-surfaceElevated">
+      <View className="absolute -bottom-1 -right-1 h-6 w-6 items-center justify-center rounded-full border-2 border-background bg-surface-elevated">
         <Text variant="caption" weight={700}>
           {index + 1}
         </Text>

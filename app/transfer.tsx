@@ -87,9 +87,17 @@ export default function TransferScreen() {
   // FE-IMP-4 item 27: QR "minta transfer" boleh membawa nominal
   // (`transfer?to=&amount=`) — di-prefill tapi tetap bisa diubah user dan
   // tetap divalidasi ulang oleh batas keypad + server.
-  const presetAmount =
+  // TRX-015: clamp diam-diam dilarang — bila QR meminta di atas maksimum,
+  // pembayar diberi tahu bahwa angka diminta berbeda dari yang terisi.
+  const presetAmountRaw =
     typeof params.amount === "string" && /^\d+$/.test(params.amount)
-      ? Math.min(Number(params.amount), AMOUNT_LIMITS.transfer.maximum)
+      ? Number(params.amount)
+      : undefined
+  const presetClamped =
+    presetAmountRaw != null && presetAmountRaw > AMOUNT_LIMITS.transfer.maximum
+  const presetAmount =
+    presetAmountRaw != null
+      ? Math.min(presetAmountRaw, AMOUNT_LIMITS.transfer.maximum)
       : undefined
   // Ambil saldo dompet untuk batas transfer & tampilkan di keypad.
   // A-09 (audit): error TIDAK lagi disamarkan menjadi `{ balance: 0 }` —
@@ -108,13 +116,17 @@ export default function TransferScreen() {
     {
       retry: 1,
       /*
-       * A-13 (audit 2026-09-22): `?? 0` mengubah respons sah-tapi-tanpa-field
-       * menjadi "Saldo tersedia Rp0" — angka uang yang salah di layar uang.
-       * `undefined` berarti tidak diketahui; keypad lalu menampilkan
-       * helperText, bukan saldo palsu.
+       * TRX-003 (audit UI/UX 2026-09-28): "Saldo tersedia" HARUS saldo yang
+       * benar-benar bisa dipakai = availableBalance (saldo minus dana escrow
+       * tertahan), BUKAN saldo bruto `balance`. GET /v1/wallet selalu
+       * mengirim ketiganya (availableBalance/escrowBalance/totalBalance —
+       * terverifikasi di wallet.service.ts). Bila server tidak mengirim
+       * availableBalance, perlakukan sebagai tidak diketahui (keypad
+       * menampilkan helperText) — jangan tampilkan angka bruto yang
+       * menyesatkan (pola A-13).
        */
       select: (w) => ({
-        balance: typeof w.balance === "number" ? w.balance : undefined,
+        balance: typeof w.availableBalance === "number" ? w.availableBalance : undefined,
       }),
     },
   )
@@ -569,6 +581,14 @@ export default function TransferScreen() {
                     Muat ulang saldo
                   </Button>
                 </View>
+              ) : null}
+              {/* TRX-015: nominal QR di atas batas transfer dipotong — beri
+                  tahu pembayar, jangan diam-diam. */}
+              {presetClamped ? (
+                <Alert tone="warning" title="Nominal dari QR disesuaikan">
+                  QR meminta {formatRupiah(presetAmountRaw ?? 0)} — melebihi batas transfer, jadi
+                  kolom diisi {formatRupiah(presetAmount ?? 0)} (maksimum). Sesuaikan manual bila perlu.
+                </Alert>
               ) : null}
             </ScrollView>
             {/* Catatan ditulis DI SINI lewat BottomSheet, bukan di langkah

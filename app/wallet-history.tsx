@@ -426,14 +426,20 @@ export default function WalletHistoryScreen() {
           hasActiveFilters || searching ? (
             <EmptyState
               icon={Funnel}
-              title={translate("Tidak ada mutasi yang cocok")}
+              // TRX-016 (audit UI/UX 2026-09-28): filter bersifat client-side
+              // di atas item yang SUDAH dimuat — judul/deskripsi tidak boleh
+              // dibaca sebagai kesimpulan final atas seluruh riwayat.
+              title={translate("Tidak ada yang cocok di mutasi yang dimuat")}
               description={
                 searching
                   ? translate(
                       'Tidak ada mutasi yang cocok dengan "{q}" di {n} mutasi yang dimuat.',
                       { q: search.trim(), n: formatNumber(items.length) },
                     )
-                  : translate("Coba longgarkan filter untuk melihat lebih banyak mutasi.")
+                  : translate(
+                      "Filter hanya berlaku pada {n} mutasi yang sudah dimuat. Coba longgarkan filter atau muat lebih banyak mutasi.",
+                      { n: formatNumber(items.length) },
+                    )
               }
               action={
                 <Button fullWidth={false} variant="secondary" onPress={resetAll}>

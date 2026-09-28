@@ -44,9 +44,12 @@ export default function Html({ children }: PropsWithChildren) {
         <link rel="apple-touch-icon" href="/apple-icon.png" />
         <link rel="manifest" href="/manifest.json" />
         <script src="/register-sw.js" defer />
-        {/* Bilah status/tema browser mengikuti mode terang & gelap. */}
-        <meta name="theme-color" media="(prefers-color-scheme: light)" content="#FAFAF9" />
-        <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#111110" />
+        {/* Bilah status/tema browser mengikuti mode terang & gelap.
+            Nilai awal = token background tiap mode; ThemeProvider
+            menimpa/menghapus gate `media` saat runtime supaya tema MANUAL
+            aplikasi yang menang (audit web WEB-011). */}
+        <meta name="theme-color" media="(prefers-color-scheme: light)" content="#FFFFFF" />
+        <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#000000" />
         <ScrollViewStyleReset />
       </head>
       <body>{children}</body>

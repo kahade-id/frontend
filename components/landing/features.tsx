@@ -107,7 +107,7 @@ export function LandingFeatures() {
             delay={(i % 3) * 90}
             className={feature.hero ? "md:col-span-2" : undefined}
           >
-            <View className="h-full rounded-2xl border border-border bg-surface-elevated p-5 md:p-6">
+            <View className="h-full rounded-lg border border-border bg-surface-elevated p-5 md:p-6">
               <View className="mb-4 h-12 w-12 items-center justify-center rounded-full bg-surface">
                 <Icon icon={feature.icon} size="md" tone="active" />
               </View>

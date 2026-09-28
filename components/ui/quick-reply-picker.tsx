@@ -25,6 +25,7 @@ import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { useToast } from "@/components/ui/toast"
 import { useTheme } from "@/components/theme-provider"
+import { elevationStyle } from "@/lib/elevation"
 import { tokens } from "@/lib/tokens"
 import { translate, useLanguage } from "@/lib/i18n"
 import {
@@ -131,7 +132,12 @@ export function QuickReplyPicker({ query, onSelect, onClose }: QuickReplyPickerP
       accessibilityRole="menu"
       accessibilityLabel={translate("Template balasan cepat")}
     >
-      <View className="overflow-hidden rounded-md border border-border-control bg-background shadow-lg">
+      <View
+        // shadow-lg mati (theme hanya punya none/DEFAULT) — elevasi lewat
+        // elevationStyle() (audit web WEB-009).
+        style={elevationStyle("medium", mode)}
+        className="overflow-hidden rounded-md border border-border-control bg-background"
+      >
         <View className="flex-row items-center justify-between border-b border-border px-4 py-2">
           <Text variant="label" weight={600} tone="primary">
             {manage ? translate("Kelola template") : translate("Balasan cepat")}

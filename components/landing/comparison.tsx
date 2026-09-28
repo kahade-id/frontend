@@ -89,7 +89,7 @@ function CompareCell({
     <View
       className={
         highlighted
-          ? "flex-1 items-center justify-center rounded-xl border border-border bg-surface-elevated p-4"
+          ? "flex-1 items-center justify-center rounded-lg border border-border bg-surface-elevated p-4"
           : "flex-1 items-center justify-center p-4"
       }
     >
@@ -120,7 +120,7 @@ export function LandingComparison() {
                   key={header}
                   className={
                     i === 0
-                      ? "flex-1 items-center justify-center gap-1.5 rounded-xl border border-border bg-surface-elevated p-4"
+                      ? "flex-1 items-center justify-center gap-1.5 rounded-lg border border-border bg-surface-elevated p-4"
                       : "flex-1 items-center justify-center p-4"
                   }
                 >
@@ -143,7 +143,7 @@ export function LandingComparison() {
                 key={row.label}
                 className={
                   rowIndex % 2 === 1
-                    ? "flex-row gap-2 rounded-xl bg-surface"
+                    ? "flex-row gap-2 rounded-lg bg-surface"
                     : "flex-row gap-2"
                 }
               >

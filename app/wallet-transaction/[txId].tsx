@@ -8,7 +8,7 @@ import { Crossfade } from "@/components/ui/fade-in"
 import { DetailLoading } from "@/components/ui/paginated-list"
 import { useRef } from "react"
 import { View } from "react-native"
-import { router, useLocalSearchParams } from "expo-router"
+import { router, useLocalSearchParams, type Href } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { api } from "@/lib/api"
@@ -42,6 +42,33 @@ function toReceiptStatus(status: string): ReceiptStatus {
   if (status === "SUCCESS") return "SUCCESS"
   if (status === "FAILED") return "FAILED"
   return "PENDING"
+}
+
+/**
+ * TRX-005 (audit UI/UX 2026-09-28): `referenceId` HANYA punya tujuan
+ * terverifikasi untuk sengketa & order. Mutasi TOP_UP / WITHDRAW /
+ * TRANSFER / FEE / dsb tidak punya layar detail terverifikasi — tautan
+ * disembunyikan (fail closed) daripada mengarah ke detail order yang salah.
+ * (Backend `/v1/wallet/transactions*` bahkan tidak mengirim `referenceId`;
+ * yang dikirim adalah objek `order` — nilai ini hanya muncul dari sumber
+ * lain seperti hasil pencarian.)
+ */
+const ORDER_LINKED_TXN_TYPES: ReadonlySet<string> = new Set([
+  "ORDER_LOCK",
+  "ORDER_RELEASE",
+  "ORDER_REFUND",
+  "MILESTONE_RELEASE",
+  // Alias lama (display-only, lihat lib/wallet-labels.ts).
+  "ORDER_ESCROW",
+  "REFUND",
+])
+
+function referenceTarget(txn: WalletTransaction): { href: Href; ref: string } | null {
+  const ref = txn.referenceId?.trim()
+  if (!ref) return null
+  if (txn.type === "DISPUTE_RELEASE") return { href: ROUTES.disputeDetail(ref), ref }
+  if (ORDER_LINKED_TXN_TYPES.has(txn.type)) return { href: ROUTES.orderDetail(ref), ref }
+  return null
 }
 
 export default function WalletTransactionScreen() {
@@ -143,22 +170,23 @@ export default function WalletTransactionScreen() {
               {txn.type === "WITHDRAW" || txn.type === "WITHDRAWAL" ? (
                 <WithdrawalTimeline status={txn.status} />
               ) : null}
-              {txn.referenceId ? (
+              {(() => {
+                const target = referenceTarget(txn)
+                if (!target) return null
                 // R2 (audit ronde-2, butir #81): referensi mutasi escrow adalah
                 // TAUTAN ke entitas terkait, bukan jalan buntu salin-tempel.
-                <TextLink
-                  onPress={() => {
-                    router.push(
-                      txn.type === "DISPUTE_RELEASE"
-                        ? ROUTES.disputeDetail(txn.referenceId!)
-                        : ROUTES.orderDetail(txn.referenceId!),
-                    )
-                  }}
-                  accessibilityLabel={translate("Buka referensi {x}", { x: txn.referenceId })}
-                >
-                  {translate("Buka referensi {x}", { x: shortId(txn.referenceId) })}
-                </TextLink>
-              ) : null}
+                // TRX-005: hanya dirender bila tujuannya terverifikasi benar.
+                return (
+                  <TextLink
+                    onPress={() => {
+                      router.push(target.href)
+                    }}
+                    accessibilityLabel={translate("Buka referensi {x}", { x: target.ref })}
+                  >
+                    {translate("Buka referensi {x}", { x: shortId(target.ref) })}
+                  </TextLink>
+                )
+              })()}
             </View>
           )}
         </Crossfade>

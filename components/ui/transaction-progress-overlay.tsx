@@ -67,6 +67,12 @@ export type TransactionProgressOverlayProps = {
  * Arc spinner: kontainer rounded-full dengan border transparan di 3 sisi dan
  * border warna di satu sisi, diputar loop. Diputar via useNativeDriver.
  */
+/**
+ * Ketebalan arc spinner — disamakan dengan ring `border-4` pada child di
+ * dalamnya (audit #10: tidak ada angka literal layout di inline style).
+ */
+const ARC_THICKNESS = 4
+
 function SpinningArc({ color }: { color: string }) {
   const rotate = useRef(new Animated.Value(0)).current
   const reducedMotion = useReducedMotion()
@@ -91,8 +97,18 @@ function SpinningArc({ color }: { color: string }) {
 
   return (
     <Animated.View
-      style={{ transform: [{ rotate: rotate.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] }) }] }}
-      className="h-16 w-16 items-center justify-center rounded-full border-4 border-transparent"
+      // Seluruh visual inline: className di Animated.View diabaikan TOTAL di
+      // web (audit web WEB-010) — interop NativeWind hanya untuk komponen dasar.
+      style={{
+        width: tokens.space[16],
+        height: tokens.space[16],
+        alignItems: "center",
+        justifyContent: "center",
+        borderRadius: tokens.radius.full,
+        borderWidth: ARC_THICKNESS,
+        borderColor: "transparent",
+        transform: [{ rotate: rotate.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] }) }],
+      }}
     >
       {/* Sisi "aktif" arc dibentuk ring luar tipis berwarna accent */}
       <View className="absolute inset-0 rounded-full border-4" style={{ borderTopColor: color }} />

@@ -332,7 +332,7 @@ export function ServiceSlotSection({
               onPress={() => setSelectedDate(d)}
               className={cn(
                 "rounded-full border px-3 py-1.5",
-                active ? "border-primary bg-primary-soft" : "border-border",
+                active ? "border-primary bg-primary/10" : "border-border",
               )}
             >
               <Text variant="caption" weight={active ? 600 : 400} tone={active ? "primary" : "secondary"}>

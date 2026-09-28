@@ -57,6 +57,14 @@ export type JourneyInput = {
   completedAt?: string | null
   /** Terurut kronologis menaik (terlama dulu) — sesuai respons backend. */
   history: readonly JourneyHistoryEntry[]
+  /**
+   * TRX-014 (audit UI/UX 2026-09-28): jenis order untuk label tahap
+   * "pengiriman" yang jujur. Order JASA/DIGITAL tidak punya konsep
+   * pengiriman — tanpa ini journey menyuruh pembeli menunggu "Dikirim
+   * penjual" yang tidak akan pernah ada. Opsional: bila tidak dikirim,
+   * perilaku lama (fisik) dipertahankan.
+   */
+  orderType?: string | null
 }
 
 const LABELS: Record<JourneyStepKey, string> = {
@@ -98,6 +106,25 @@ function step(
 }
 
 /**
+ * TRX-014: label + hint tahap "pengiriman" per jenis order. Kunci langkah
+ * tetap "shipped" (ikon/renderer tidak berubah) — hanya bahasanya yang
+ * jujur untuk non-fisik.
+ */
+function shipmentCopy(orderType?: string | null): { label: string; currentHint: string } {
+  switch ((orderType ?? "").toUpperCase()) {
+    case "SERVICE":
+      return { label: "Dikerjakan penjual", currentHint: "Penjual sedang mengerjakan pesanan" }
+    case "DIGITAL_GOODS":
+      return {
+        label: "Disiapkan penjual",
+        currentHint: "Menunggu penjual menyiapkan barang digital",
+      }
+    default:
+      return { label: "Dikirim penjual", currentHint: "Menunggu penjual mengirim pesanan" }
+  }
+}
+
+/**
  * Bangun langkah perjalanan order. Tidak pernah melempar untuk status tak
  * dikenal — status asing diperlakukan seperti WAITING_CONFIRMATION (tahap
  * awal) agar layar tetap informatif.
@@ -113,12 +140,24 @@ export function buildOrderJourney(input: JourneyInput): JourneyStep[] {
     step(key, "done", timestamp, tone)
   const upcoming = (key: JourneyStepKey, hint?: string) => step(key, "upcoming", null, "neutral", hint)
 
+  // TRX-014: varian tahap pengiriman yang sadar jenis order.
+  const shipment = shipmentCopy(input.orderType)
+  const shippedDone = (timestamp: string | null, tone?: JourneyStepTone): JourneyStep => ({
+    ...done("shipped", timestamp, tone),
+    label: shipment.label,
+  })
+  const shippedCurrent = (): JourneyStep => ({
+    ...step("shipped", "current", null, "info", shipment.currentHint),
+    label: shipment.label,
+  })
+  const shippedUpcoming = (): JourneyStep => ({ ...upcoming("shipped"), label: shipment.label })
+
   switch (status) {
     case "COMPLETED":
       return [
         done("created", createdAt),
         done("paid", paidAt),
-        done("shipped", shippedAt),
+        shippedDone(shippedAt),
         done("received", receivedAt),
         done("released", releasedAt),
       ]
@@ -128,7 +167,7 @@ export function buildOrderJourney(input: JourneyInput): JourneyStep[] {
       return [
         done("created", createdAt),
         done("paid", paidAt),
-        done("shipped", shippedAt ?? null),
+        shippedDone(shippedAt ?? null),
         step("received", "current", null, "info", "Menunggu konfirmasi penerimaan pembeli"),
         upcoming("released", "Dana diteruskan otomatis setelah konfirmasi"),
       ]
@@ -137,7 +176,7 @@ export function buildOrderJourney(input: JourneyInput): JourneyStep[] {
       return [
         done("created", createdAt),
         done("paid", paidAt),
-        step("shipped", "current", null, "info", "Menunggu penjual mengirim pesanan"),
+        shippedCurrent(),
         upcoming("received"),
         upcoming("released"),
       ]
@@ -146,7 +185,7 @@ export function buildOrderJourney(input: JourneyInput): JourneyStep[] {
       return [
         done("created", createdAt),
         step("paid", "current", null, "info", "Menunggu pembayaran pembeli"),
-        upcoming("shipped"),
+        shippedUpcoming(),
         upcoming("received"),
         upcoming("released"),
       ]
@@ -155,7 +194,7 @@ export function buildOrderJourney(input: JourneyInput): JourneyStep[] {
       return [
         done("created", createdAt),
         done("paid", paidAt),
-        ...(shippedAt ? [done("shipped", shippedAt)] : [upcoming("shipped")]),
+        ...(shippedAt ? [shippedDone(shippedAt)] : [shippedUpcoming()]),
         upcoming("received"),
         upcoming("released"),
         step("disputed", "failed", disputedAt, "danger", "Dana escrow dibekukan sampai sengketa selesai"),
@@ -163,10 +202,16 @@ export function buildOrderJourney(input: JourneyInput): JourneyStep[] {
     }
     case "CANCELLED": {
       const cancelledAt = firstTransition(history, ["CANCELLED"])
+      // TRX-013 (audit UI/UX 2026-09-28): jangan klaim "dana dikembalikan"
+      // untuk order yang dibatalkan SEBELUM pembayaran — tidak ada dana
+      // escrow yang pernah bergerak.
+      const cancelledHint = paidAt
+        ? "Dana escrow dikembalikan ke pembeli"
+        : "Order dibatalkan sebelum pembayaran — tidak ada dana yang sempat ditahan"
       return [
         done("created", createdAt),
         ...(paidAt ? [done("paid", paidAt)] : []),
-        step("cancelled", "failed", cancelledAt, "neutral", "Dana escrow dikembalikan ke pembeli"),
+        step("cancelled", "failed", cancelledAt, "neutral", cancelledHint),
       ]
     }
     case "REFUNDED": {
@@ -190,7 +235,7 @@ export function buildOrderJourney(input: JourneyInput): JourneyStep[] {
       return [
         done("created", createdAt),
         step("paid", "current", null, "info", "Menunggu penjual mengonfirmasi, lalu pembayaran"),
-        upcoming("shipped"),
+        shippedUpcoming(),
         upcoming("received"),
         upcoming("released"),
       ]

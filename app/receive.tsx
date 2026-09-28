@@ -15,6 +15,8 @@ import { Copy, QrCode as QrCodeIcon, ShareNetwork, Wallet } from "phosphor-react
 import { useRouter } from "expo-router"
 
 import { api } from "@/lib/api"
+import { AMOUNT_LIMITS } from "@/lib/financial"
+import { formatRupiah } from "@/lib/format"
 import { queryKeys } from "@/lib/query-keys"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
@@ -51,10 +53,29 @@ export default function ReceiveScreen() {
   const username = profile.data?.username
   const displayName = profile.data?.fullName?.trim() || username || "Pengguna Kahade"
 
-  const amount = useMemo(() => {
+  const requestedAmount = useMemo(() => {
     const n = Number(amountText.replace(/[^\d]/g, ""))
     return Number.isSafeInteger(n) && n > 0 ? n : undefined
   }, [amountText])
+  /**
+   * TRX-015 (audit UI/UX 2026-09-28): nominal QR dibatasi ke rentang transfer
+   * yang sah — layar Transfer memotong diam-diam ke maksimum, jadi QR tidak
+   * boleh menjanjikan angka yang tak akan terisi. Clamp dilakukan DI SINI
+   * dan helper text menjelaskannya secara eksplisit (tidak diam-diam).
+   */
+  const transferMax = AMOUNT_LIMITS.transfer.maximum
+  const transferMin = AMOUNT_LIMITS.transfer.minimum
+  const clampedToMax = requestedAmount != null && requestedAmount > transferMax
+  const belowMinimum = requestedAmount != null && requestedAmount < transferMin
+  const amount = requestedAmount != null ? Math.min(requestedAmount, transferMax) : undefined
+  const amountHelperText =
+    amount == null
+      ? "Kosongkan bila pembayar bebas menentukan nominal."
+      : clampedToMax
+        ? `Melebihi batas transfer — QR berisi permintaan ${formatRupiah(transferMax)} (maksimum).`
+        : belowMinimum
+          ? `QR berisi permintaan ${formatRupiah(amount)} — di bawah minimum transfer ${formatRupiah(transferMin)}, pembayar perlu menyesuaikan.`
+          : `QR berisi permintaan ${formatRupiah(amount)}.`
   const payload = useMemo(
     () => (username ? transferUrl(username, amount) : ""),
     [username, amount],
@@ -158,11 +179,7 @@ export default function ReceiveScreen() {
                 placeholder="cth: 50000"
                 keyboardType="numeric"
                 inputMode="numeric"
-                helperText={
-                  amount != null
-                    ? `QR berisi permintaan Rp${amount.toLocaleString("id-ID")}`
-                    : "Kosongkan bila pembayar bebas menentukan nominal."
-                }
+                helperText={amountHelperText}
               />
             </View>
           </Card>

@@ -384,8 +384,12 @@ export function VoiceNoteRecorder({
         {state === "recording" ? (
           <View className="flex-row items-center gap-3">
             <Animated.View
-              className="h-3.5 w-3.5 rounded-full"
+              // h-3.5/w-3.5/rounded-full inline: className di Animated.View
+              // diabaikan total di web (audit web WEB-010).
               style={{
+                width: 14,
+                height: 14,
+                borderRadius: 7,
                 backgroundColor: dangerFill,
                 opacity: pulse,
                 transform: [{ scale: pulse }],

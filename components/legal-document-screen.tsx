@@ -112,9 +112,9 @@ export function LegalDocumentScreen({ kind }: { kind: "terms" | "privacy" }) {
         >
           <View className="gap-6 px-5 pt-5">
             {/* ── Hero dokumen ── */}
-            <View className="gap-4 rounded-3xl bg-surface-raised p-5">
+            <View className="gap-4 rounded-lg bg-surface-elevated p-5">
               <View className="flex-row items-center gap-4">
-                <View className="h-14 w-14 items-center justify-center rounded-2xl bg-accent-soft">
+                <View className="h-14 w-14 items-center justify-center rounded-lg bg-accent-soft">
                   <Icon icon={HeroIcon} size="lg" tone="active" weight="duotone" />
                 </View>
                 <View className="flex-1 gap-1">
@@ -147,7 +147,7 @@ export function LegalDocumentScreen({ kind }: { kind: "terms" | "privacy" }) {
 
             {/* ── Ringkasan utama (kartu sorot) ── */}
             {doc.summary ? (
-              <View className="gap-3 rounded-3xl border-l-4 border-accent bg-accent-soft p-5">
+              <View className="gap-3 rounded-lg border-l-4 border-accent bg-accent-soft p-5">
                 <Text variant="bodyLarge" weight={700}>
                   {doc.summary.title}
                 </Text>
@@ -158,7 +158,7 @@ export function LegalDocumentScreen({ kind }: { kind: "terms" | "privacy" }) {
             {/* ── Daftar Isi inline ── */}
             <View className="gap-3">
               <Text variant="h3">Daftar Isi</Text>
-              <View className="overflow-hidden rounded-3xl bg-surface-raised">
+              <View className="overflow-hidden rounded-lg bg-surface-elevated">
                 {doc.parts.map((part) => (
                   <View key={part.id}>
                     <View className="px-5 pb-1 pt-4">
@@ -218,7 +218,7 @@ export function LegalDocumentScreen({ kind }: { kind: "terms" | "privacy" }) {
                 onPress={() => jumpTo(null)}
                 accessibilityRole="button"
                 accessibilityLabel="Kembali ke atas"
-                className="flex-row items-center gap-2 rounded-full bg-surface-raised px-5 py-3"
+                className="flex-row items-center gap-2 rounded-full bg-surface-elevated px-5 py-3"
               >
                 <Icon icon={ArrowUp} size="sm" tone="active" weight="bold" />
                 <Text variant="body" weight={600}>

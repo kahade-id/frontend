@@ -307,7 +307,10 @@ export default function TopupScreen() {
   }, [step])
 
   const handlePay = useCallback(async () => {
-    if (!canPay || !isTopupMethod(methodId) || submitLock.current) return
+    // TRX-001 (audit UI/UX 2026-09-28): jangan buat intent selagi estimasi
+    // biaya server belum selesai ("Menghitung total…") — angka yang
+    // disetujui user harus angka kanonis server, bukan fallback lokal.
+    if (!canPay || feeLoading || !isTopupMethod(methodId) || submitLock.current) return
     // M-1 (audit ronde-2): blokir pembuatan intent top-up di perangkat
     // rooted/jailbroken — sebelum intent dibuat & dana bergerak.
     if (!(await assertDeviceNotCompromised())) return
@@ -351,7 +354,7 @@ export default function TopupScreen() {
       submitLock.current = false
       setSubmitting(false)
     }
-  }, [canPay, amount, methodId, toast.show])
+  }, [canPay, feeLoading, amount, methodId, toast.show])
 
   // Intersep tombol back agar kembali ke langkah sebelumnya, bukan langsung
   // keluar layar, selama bukan di langkah hasil.
@@ -579,10 +582,14 @@ export default function TopupScreen() {
                   ? ` (termasuk biaya admin ${formatRupiah(displayFee)})`
                   : ""}
               </Text>
+              {/*
+               * TRX-001: tombol mati selama feeLoading — sinkron dengan teks
+               * "Menghitung total…" di atasnya. Lihat handlePay (guard ganda).
+               */}
               <Button
                 onPress={() => void handlePay()}
                 loading={submitting}
-                disabled={!canPay}
+                disabled={!canPay || feeLoading}
                 haptic
               >
                 Bayar sekarang

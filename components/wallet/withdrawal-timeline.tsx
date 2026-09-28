@@ -2,9 +2,15 @@
  * Kahade — timeline status penarikan di detail mutasi (FE-IMP-4 item 8).
  *
  * Read-only: memetakan status mentah dari server ke tiga tahap yang mudah
- * dipahami — "Menunggu OTP" → "Diproses bank" → "Terkirim". Gagal (FAILED /
- * REJECTED / CANCELLED / EXPIRED) ditandai merah di tahap tercapai.
- * Pull-to-refresh layar detail sudah ada, jadi timeline selalu segar.
+ * dipahami — "Menunggu OTP" → "Diproses bank" → "Terkirim".
+ *
+ * TRX-006 (audit UI/UX 2026-09-28): kegagalan DIBEDAKAN, bukan disamaratakan.
+ * Fakta backend (terverifikasi di wallet.service.ts): dompet DIDE BIT di
+ * awal saat permintaan penarikan dibuat (balanceAfter = total - amount),
+ * lalu dikembalikan (compensating credit) saat dibatalkan/kedaluwarsa. Jadi
+ * klaim lama "Dana tidak terpotong" SALAH untuk CANCELLED/EXPIRED — dana
+ * sempat ditahan lalu dikembalikan. Hint kini jujur per jenis kegagalan dan
+ * tidak mengklaim absolut soal dana.
  */
 
 import { View } from "react-native"
@@ -15,7 +21,7 @@ import { cn } from "@/lib/cn"
 import { Text } from "@/components/ui/text"
 import { Icon } from "@/components/ui/icon"
 
-type Phase = "otp" | "processing" | "done" | "failed" | "unknown"
+type Phase = "otp" | "processing" | "done" | "failed" | "cancelled" | "unknown"
 
 function phaseOf(status?: string | null): Phase {
   const s = (status ?? "").trim().toUpperCase()
@@ -24,8 +30,36 @@ function phaseOf(status?: string | null): Phase {
   if (["PENDING", "PROCESSING", "PENDING_PROCESS", "PENDING_SETTLEMENT", "WAITING", "REVIEW"].includes(s))
     return "processing"
   if (["SUCCESS", "COMPLETED", "SETTLED", "APPROVED", "RELEASED"].includes(s)) return "done"
-  if (["FAILED", "REJECTED", "CANCELLED", "EXPIRED"].includes(s)) return "failed"
+  // Dibatalkan pengguna = fase sendiri (bukan "gagal di bank").
+  if (s === "CANCELLED") return "cancelled"
+  if (["FAILED", "REJECTED", "EXPIRED"].includes(s)) return "failed"
   return "unknown"
+}
+
+/**
+ * Judul + hint jujur per status mentah. Tidak ada klaim absolut "dana tidak
+ * terpotong": untuk CANCELLED/EXPIRED dana sempat ditahan lalu dikembalikan
+ * (compensating credit di backend); untuk FAILED posisi dana tidak bisa
+ * dipastikan dari status saja — arahkan ke riwayat.
+ */
+function failureCopy(status?: string | null): { title: string; hint: string } {
+  const s = (status ?? "").trim().toUpperCase()
+  if (s === "CANCELLED") {
+    return {
+      title: "Penarikan dibatalkan",
+      hint: "Dibatalkan sebelum diproses. Dana yang sempat ditahan sudah dikembalikan ke saldo — periksa riwayat.",
+    }
+  }
+  if (s === "EXPIRED") {
+    return {
+      title: "Verifikasi kedaluwarsa",
+      hint: "Kode verifikasi kedaluwarsa sebelum penarikan diproses. Dana yang sempat ditahan sudah dikembalikan ke saldo.",
+    }
+  }
+  return {
+    title: "Penarikan gagal",
+    hint: "Penarikan tidak dapat diproses. Untuk kepastian status dana, periksa riwayat mutasi.",
+  }
 }
 
 const STEPS = [
@@ -36,9 +70,13 @@ const STEPS = [
 
 export function WithdrawalTimeline({ status }: { status?: string | null }) {
   const phase = phaseOf(status)
-  // Tahap gagal ditampilkan sebagai "berhenti" di tahap yang tercapai.
+  const failed = phase === "failed" || phase === "cancelled"
+  const failure = failed ? failureCopy(status) : null
+  // Tahap gagal/dibatalkan ditampilkan sebagai "berhenti" di tahap yang
+  // tercapai (best-effort: status saja tidak selalu tahu tahap pastinya —
+  // hint-lah yang membawa penjelasan jujur, bukan posisi marker).
   const reachedIndex =
-    phase === "done" ? 3 : phase === "processing" ? 1 : phase === "otp" ? 0 : phase === "failed" ? 1 : -1
+    phase === "done" ? 3 : phase === "processing" ? 1 : phase === "otp" ? 0 : failed ? 1 : -1
 
   return (
     <View
@@ -53,7 +91,7 @@ export function WithdrawalTimeline({ status }: { status?: string | null }) {
         {STEPS.map((step, index) => {
           const isDone = index < reachedIndex || phase === "done"
           const isActive = index === reachedIndex && phase !== "done"
-          const isFailedHere = phase === "failed" && index === reachedIndex
+          const isFailedHere = failed && index === reachedIndex
           const isLast = index === STEPS.length - 1
           return (
             <View key={step.key} className="flex-row gap-3">
@@ -78,13 +116,10 @@ export function WithdrawalTimeline({ status }: { status?: string | null }) {
                   weight={isActive || isDone ? 700 : 400}
                   tone={isFailedHere ? "danger" : "primary"}
                 >
-                  {step.label}
-                  {isFailedHere ? " — gagal" : ""}
+                  {isFailedHere && failure ? failure.title : step.label}
                 </Text>
                 <Text variant="caption" tone="secondary">
-                  {isFailedHere
-                    ? "Penarikan tidak dapat diproses. Dana tidak terpotong — periksa riwayat."
-                    : step.hint}
+                  {isFailedHere && failure ? failure.hint : step.hint}
                 </Text>
               </View>
             </View>

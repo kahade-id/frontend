@@ -86,7 +86,7 @@ export function DisputeDecisionSection({ decision }: { decision?: DisputeDecisio
             : "Keputusan mediator/admin"
         }
       />
-      <View className="gap-2 rounded-2xl bg-surface p-4">
+      <View className="gap-2 rounded-lg bg-surface p-4">
         <Text variant="body" weight={600}>
           {decisionWinnerLabel(decision.decisionType)}
         </Text>

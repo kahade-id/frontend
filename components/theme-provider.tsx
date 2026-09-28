@@ -50,7 +50,7 @@ import { useColorScheme, vars } from "nativewind"
 
 import { getSecureItem, setSecureItem, SecureKeys } from "@/lib/secure-storage"
 import { logWarn } from "@/lib/telemetry"
-import { toCssVariables, type ColorMode } from "@/lib/tokens"
+import { modes, toCssVariables, type ColorMode } from "@/lib/tokens"
 import {
   ensureKahadePlusLoaded,
   subscribeKahadePlusStore,
@@ -116,6 +116,20 @@ export function ThemeProvider({
   }, [preference, setColorScheme])
 
   const mode: ColorMode = colorScheme === "dark" ? "dark" : "light"
+
+  // WEB-011: <meta name="theme-color"> harus mengikuti tema MANUAL aplikasi
+  // (mode), bukan cuma preferensi OS. +html.tsx mendeklarasikan dua meta
+  // dengan media=(prefers-color-scheme) — tanpa intervensi, bilah browser
+  // tetap ikut OS walau user memaksa light/dark di pengaturan aplikasi.
+  useEffect(() => {
+    if (typeof document === "undefined") return
+    const metas = document.querySelectorAll('meta[name="theme-color"]')
+    metas.forEach((m) => {
+      m.setAttribute("content", modes[mode].background)
+      // Hapus gate media supaya nilai manual selalu menang.
+      m.removeAttribute("media")
+    })
+  }, [mode])
 
   const setPreference = useCallback(
     (p: ThemePreference) => {

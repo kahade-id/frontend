@@ -70,6 +70,14 @@ export const WALLET_TXN_LABELS: Record<string, string> = {
   ADMIN_CREDIT: "Penyesuaian Masuk",
   ADMIN_DEBIT: "Penyesuaian Keluar",
   /*
+   * TRX-004 (drive-by, terverifikasi): MILESTONE_RELEASE ada di enum
+   * WalletTransactionType backend (release dana per tahap milestone) tapi
+   * belum dikenal klien — tanpa label ini mutasi milestone tampil sebagai
+   * enum mentah. Hanya label/ikon/arah (display-only); chip filter tidak
+   * ditambah (di luar scope temuan).
+   */
+  MILESTONE_RELEASE: "Pencairan Milestone",
+  /*
    * Alias bentuk lama — HANYA untuk menampilkan data yang terlanjur tersimpan
    * di cache/riwayat lokal. Jangan pernah dipakai sebagai nilai filter: alias
    * inilah yang ditolak backend.
@@ -98,6 +106,8 @@ export const WALLET_TXN_STATUS_LABELS: Record<string, string> = {
   PENDING: "Menunggu",
   WAITING: "Menunggu",
   PENDING_OTP: "Menunggu OTP",
+  // TRX-004: dua status backend yang sebelumnya bocor sebagai enum mentah.
+  PENDING_PROCESS: "Menunggu diproses",
   PENDING_SETTLEMENT: "Menunggu penyelesaian",
   PROCESSING: "Diproses",
   REVIEW: "Ditinjau",
@@ -105,6 +115,7 @@ export const WALLET_TXN_STATUS_LABELS: Record<string, string> = {
   REJECTED: "Ditolak",
   EXPIRED: "Kedaluwarsa",
   CANCELLED: "Dibatalkan",
+  REVERSED: "Dibalikkan",
 }
 
 /** Chip filter jenis mutasi — dibangun HANYA dari enum yang sah di API. */
@@ -128,6 +139,8 @@ export const WALLET_TXN_KIND: Record<string, WalletTxKind> = {
   SUBSCRIPTION_PAYMENT: "subscription",
   ADMIN_CREDIT: "admin",
   ADMIN_DEBIT: "admin",
+  // TRX-004 (drive-by): ikon untuk MILESTONE_RELEASE — escrow_release.
+  MILESTONE_RELEASE: "escrow_release",
 
   // Alias lama (lihat catatan di WALLET_TXN_LABELS).
   TOPUP: "topup",
@@ -140,14 +153,36 @@ export const WALLET_TXN_KIND: Record<string, WalletTxKind> = {
   CASHBACK: "cashback",
 }
 
-/** Peta status API → status komponen (SUCCESS = default, tidak dirender). */
+/**
+ * Peta status API → status komponen (SUCCESS = default, tidak dirender).
+ *
+ * TRX-004 (audit UI/UX 2026-09-28): peta ini WAJIB mencakup semua status sah
+ * dari backend — diverifikasi dari enum Prisma (backend/prisma/schema.prisma):
+ *   - WalletTransactionStatus: PENDING, SUCCESS, FAILED, CANCELLED, REVERSED
+ *   - WithdrawStatus:          PENDING_OTP, PENDING_PROCESS, PROCESSING, SUCCESS, FAILED
+ *   - PaymentStatus (top-up):  PENDING, SUCCESS, FAILED, EXPIRED, CANCELLED, REFUNDED
+ *
+ * Catatan jujur: APPROVED / RELEASED / SETTLED / REVIEW / PENDING_SETTLEMENT
+ * TIDAK ADA di enum backend mana pun — label Indonesianya dipertahankan di
+ * WALLET_TXN_STATUS_LABELS (tampil apa adanya bila suatu saat muncul), tapi
+ * tidak ada di peta ini karena bukan status sah yang terverifikasi.
+ *
+ * Semantik pemetaan:
+ *   - REFUNDED / REVERSED → SUCCESS: siklus transaksi selesai (dana kembali),
+ *     bukan kegagalan — muncul di filter "Berhasil", bukan "Gagal".
+ *   - CANCELLED / EXPIRED → FAILED: terminal, dana tidak bergerak maju.
+ *   - PENDING_* / PROCESSING → PENDING.
+ */
 export const WALLET_TXN_STATUS: Record<string, WalletTxStatus> = {
   COMPLETED: "SUCCESS",
   SUCCESS: "SUCCESS",
   SETTLED: "SUCCESS",
+  REFUNDED: "SUCCESS",
+  REVERSED: "SUCCESS",
   PENDING: "PENDING",
   PROCESSING: "PENDING",
   PENDING_OTP: "PENDING",
+  PENDING_PROCESS: "PENDING",
   WAITING: "PENDING",
   FAILED: "FAILED",
   REJECTED: "FAILED",
@@ -175,6 +210,8 @@ const CREDIT_TYPES: ReadonlySet<string> = new Set([
   "CAMPAIGN_CASHBACK",
   "TRANSFER_RECEIVED",
   "ADMIN_CREDIT",
+  // TRX-004 (drive-by): release dana milestone = dana MASUK ke penerima.
+  "MILESTONE_RELEASE",
   // Alias lama.
   "TOPUP",
   "TRANSFER_IN",

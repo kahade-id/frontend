@@ -297,7 +297,7 @@ export default function NotificationDetailScreen() {
               Hanya tampil bila API mengonfirmasi order bisa dikonfirmasi
               (fail-closed: disembunyikan saat ragu). */}
           {confirmEligible && confirmOrderId ? (
-            <View className="gap-2 rounded-xl bg-success-soft p-4">
+            <View className="gap-2 rounded-lg bg-success-soft p-4">
               <Text variant="body" weight={600} tone="primary">
                 Pesanan sudah sampai?
               </Text>

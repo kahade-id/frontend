@@ -751,6 +751,49 @@ export default function WithdrawScreen() {
           </View>
         ) : (
           <View className="gap-3">
+            {/*
+             * TRX-002 (audit UI/UX 2026-09-28): konfirmasi PIN WAJIB
+             * menampilkan biaya admin + angka yang dipakai saat submit.
+             * Backend saat ini TIDAK memungut biaya admin penarikan dan TIDAK
+             * punya endpoint estimasi biaya withdraw (terverifikasi dari
+             * wallet.service.ts: debit = nominal penuh, tanpa FEE_DEDUCT;
+             * respons create/confirm-otp tanpa field fee/netAmount) — jadi
+             * angka yang ditampilkan di sini SAMA dengan yang didebit server:
+             * nominal penuh. Bila backend kelak menambah biaya withdraw,
+             * blok ini HARUS diganti membaca endpoint estimasi server
+             * (follow-up backend).
+             */}
+            <View className="gap-1 rounded-md bg-surface px-4 py-3">
+              <View className="flex-row items-center justify-between">
+                <Text variant="caption" tone="secondary">
+                  Nominal penarikan
+                </Text>
+                <Text variant="body" weight={600}>
+                  {formatRupiah(amount)}
+                </Text>
+              </View>
+              <View className="flex-row items-center justify-between">
+                <Text variant="caption" tone="secondary">
+                  Biaya admin
+                </Text>
+                <Text variant="body" weight={600}>
+                  {formatRupiah(0)}
+                </Text>
+              </View>
+              <View className="flex-row items-center justify-between">
+                {/* TRX-002: instruksi audit eksplisit — tampilkan "biaya admin +
+                    nominal bersih yang diterima". Fee withdraw server saat ini
+                    Rp0 (terverifikasi di wallet.service.ts), jadi bersih =
+                    nominal. Bila backend kelak menambah fee, wajib ada endpoint
+                    estimasi kanonis — bukan hitungan lokal. */}
+                <Text variant="caption" tone="secondary">
+                  Diterima bersih
+                </Text>
+                <Text variant="body" weight={600}>
+                  {formatRupiah(amount)}
+                </Text>
+              </View>
+            </View>
             <PinInput
               mode="enter"
               onComplete={(p) => void handlePin(p)}

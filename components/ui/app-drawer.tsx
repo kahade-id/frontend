@@ -270,14 +270,14 @@ function DrawerUtilityBar() {
             // (audit web WEB-010; bug 2026-09-27 hanya gejala pertamanya).
             style={{
               backgroundColor: barBg,
-              height: 48,
+              height: tokens.space[12],
               flex: 1,
               flexDirection: "row",
               alignItems: "center",
-              gap: 4,
-              borderRadius: 999,
-              paddingLeft: 16,
-              paddingRight: 4,
+              gap: tokens.space[1],
+              borderRadius: tokens.radius.full,
+              paddingLeft: tokens.space[4],
+              paddingRight: tokens.space[1],
             }}
           >
             <Icon icon={MagnifyingGlass} size="md" tone="inverse" weight="bold" />

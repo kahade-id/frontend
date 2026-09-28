@@ -7,7 +7,7 @@
  * yang menghormati prefers-reduced-motion).
  */
 import { useEffect, useState } from "react"
-import { Platform, Pressable, View } from "react-native"
+import { Platform, Pressable, View, type ViewStyle } from "react-native"
 
 import { cn } from "@/lib/cn"
 import { useTheme } from "@/components/theme-provider"
@@ -38,22 +38,36 @@ export function LandingNavbar() {
     return () => window.removeEventListener("scroll", onScroll)
   }, [])
 
+  // WEB-015: efek blur kaca saat scroll — inline web-only, bukan class
+  // `backdrop-blur-md`. Class memang ter-compile di komponen web-only ini,
+  // tetapi inline membuat efek eksplisit dan aman bila komponen kelak dipakai
+  // ulang lintas platform (utilitas backdrop tidak ada di native).
+  const blurStyle = {
+    ...(scrolled
+      ? {
+          backdropFilter: "blur(12px)",
+          WebkitBackdropFilter: "blur(12px)",
+        }
+      : null),
+  } as ViewStyle
+
   return (
     <View
       className={cn(
-        // sticky/top-0/z-50: posisi sticky hanya bermakna di web.
-        "sticky top-0 z-50 w-full",
-        scrolled && "border-b border-border backdrop-blur-md",
+        // sticky/top-0/z-sticky: posisi sticky hanya bermakna di web.
+        "sticky top-0 z-sticky w-full",
+        scrolled && "border-b border-border",
       )}
-      style={
+      style={[
         scrolled
           ? {
               // Alpha ditempel pada token background (bukan hex literal)
               // supaya blur terlihat di atas konten yang di-scroll.
               backgroundColor: `${modes[mode].background}E6`,
             }
-          : undefined
-      }
+          : undefined,
+        blurStyle,
+      ]}
     >
       <View className="mx-auto w-full max-w-6xl flex-row items-center justify-between px-5 py-3 md:px-8">
         <Pressable

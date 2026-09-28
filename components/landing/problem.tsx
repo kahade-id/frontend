@@ -51,7 +51,7 @@ export function LandingProblem() {
       <View className="flex-col gap-4 md:flex-row">
         {PROBLEMS.map((problem, index) => (
           <Reveal key={problem.title} delay={index * 120} className="md:flex-1">
-            <View className="h-full rounded-2xl border border-border bg-surfaceElevated p-6">
+            <View className="h-full rounded-lg border border-border bg-surface-elevated p-6">
               <View className="mb-4 flex-row items-center justify-between">
                 <View className="h-12 w-12 items-center justify-center rounded-full bg-surface">
                   <Icon icon={problem.icon} size="md" tone="active" />

@@ -16,9 +16,11 @@
 import { useState } from "react"
 import { Modal, Pressable, useWindowDimensions, View } from "react-native"
 
+import { useTheme } from "@/components/theme-provider"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { translate } from "@/lib/i18n"
+import { elevationStyle } from "@/lib/elevation"
 import {
   REACTION_POPOVER_EST_WIDTH,
   placeReactionPopover,
@@ -46,6 +48,7 @@ export function ChatReactionPopover({
   onDismiss,
 }: ChatReactionPopoverProps) {
   const { width: winW, height: winH } = useWindowDimensions()
+  const { mode } = useTheme()
   // Lebar pil diukur setelah mount (jumlah emoji bisa berubah); estimasi
   // dipakai untuk frame pertama supaya tidak berkedip di pojok.
   const [measuredW, setMeasuredW] = useState(REACTION_POPOVER_EST_WIDTH)
@@ -78,8 +81,8 @@ export function ChatReactionPopover({
           const w = e.nativeEvent.layout.width
           if (w > 0 && Math.abs(w - measuredW) > 1) setMeasuredW(w)
         }}
-        style={{ position: "absolute", top, left }}
-        className="flex-row items-center gap-0.5 rounded-full border border-border bg-surface-elevated px-2 py-1.5 shadow-lg"
+        style={[{ position: "absolute", top, left }, elevationStyle("medium", mode)]}
+        className="flex-row items-center gap-0.5 rounded-full border border-border bg-surface-elevated px-2 py-1.5"
       >
         {emojis.map((emoji) => (
           <PressableScale

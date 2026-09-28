@@ -59,7 +59,9 @@ import {
   type ScanHistoryItem,
 } from "@/lib/scan-history"
 import { shareContent } from "@/lib/share"
+import { elevationStyle } from "@/lib/elevation"
 
+import { useTheme } from "@/components/theme-provider"
 import { Avatar } from "@/components/ui/avatar"
 import { Alert } from "@/components/ui/alert"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
@@ -191,6 +193,7 @@ export default function ScanScreen() {
   const toast = useToast()
   const { copy } = useCopy()
   const hasSession = useHasSession()
+  const { mode } = useTheme()
 
   const [activeTab, setActiveTab] = useState<ScanTab>("scan")
   const [torchOn, setTorchOn] = useState(false)
@@ -486,7 +489,7 @@ export default function ScanScreen() {
           <View className="items-center py-4">
             {isWeb ? (
               // Fallback web rapi (FE-IMP-4 item 17): kamera tidak tersedia.
-              <View className="w-64 items-center gap-3 rounded-2xl border border-border bg-surface-raised p-6">
+              <View className="w-64 items-center gap-3 rounded-lg border border-border bg-surface-elevated p-6">
                 <Icon icon={Camera} size="lg" tone="default" />
                 <Text variant="body" weight={600} className="text-center">
                   Kamera tidak tersedia di web
@@ -504,7 +507,7 @@ export default function ScanScreen() {
                 </Button>
               </View>
             ) : cameraGranted ? (
-              <View className="relative h-64 w-64 overflow-hidden rounded-2xl bg-black">
+              <View className="relative h-64 w-64 overflow-hidden rounded-lg bg-black">
                 <CameraView
                   style={{ flex: 1 }}
                   facing="back"
@@ -522,7 +525,7 @@ export default function ScanScreen() {
               </View>
             ) : (
               // Status izin kamera (FE-IMP-4 item 17).
-              <View className="w-64 items-center gap-3 rounded-2xl border border-border bg-surface-raised p-6">
+              <View className="w-64 items-center gap-3 rounded-lg border border-border bg-surface-elevated p-6">
                 <Icon icon={Camera} size="lg" tone="default" />
                 {permission == null ? (
                   <>
@@ -606,7 +609,7 @@ export default function ScanScreen() {
               </View>
               {/* Batch 139 E14: preferensi umpan balik pindaian (per perangkat,
                   tersimpan lokal via ui-prefs). */}
-              <View className="w-full flex-row items-center justify-between rounded-xl border border-border bg-surface px-4 py-3">
+              <View className="w-full flex-row items-center justify-between rounded-lg border border-border bg-surface px-4 py-3">
                 <View className="min-w-0 flex-1 pr-3">
                   <Text variant="body" weight={600}>
                     Getaran saat berhasil
@@ -670,7 +673,12 @@ export default function ScanScreen() {
         /* ── Mode 2: Kode QR Saya ── */
         <View className="flex-1 items-center justify-center px-5 pb-8 pt-2">
           {hasSession ? (
-            <View className="w-full max-w-sm items-center gap-5 rounded-2xl border border-border bg-surface p-6 shadow-sm">
+            <View
+              // shadow-sm mati (theme hanya punya none/DEFAULT) — elevasi
+              // lewat elevationStyle() (audit web WEB-009).
+              style={elevationStyle("low", mode)}
+              className="w-full max-w-sm items-center gap-5 rounded-lg border border-border bg-surface p-6"
+            >
               <View className="items-center gap-2">
                 <Avatar
                   source={me?.avatarUrl ? { uri: me.avatarUrl } : undefined}
@@ -697,7 +705,7 @@ export default function ScanScreen() {
                   <View
                     ref={qrCardRef}
                     collapsable={false}
-                    className="items-center justify-center rounded-xl bg-surface-raised p-4 border border-border"
+                    className="items-center justify-center rounded-lg bg-surface-elevated p-4 border border-border"
                   >
                     <QRCodeDisplay
                       value={myProfileUrl}
@@ -757,7 +765,7 @@ export default function ScanScreen() {
                   </View>
                 </>
               ) : (
-                <View className="w-full items-center gap-2 rounded-xl border border-border bg-surface-raised p-6">
+                <View className="w-full items-center gap-2 rounded-lg border border-border bg-surface-elevated p-6">
                   <Icon icon={QrCode} size="lg" tone="default" />
                   <Text variant="body" tone="secondary" className="text-center">
                     {meQuery.loading
@@ -770,7 +778,7 @@ export default function ScanScreen() {
               )}
             </View>
           ) : (
-            <View className="w-full max-w-sm items-center gap-4 rounded-2xl border border-border bg-surface p-6 text-center">
+            <View className="w-full max-w-sm items-center gap-4 rounded-lg border border-border bg-surface p-6 text-center">
               <Icon icon={User} size="lg" tone="default" />
               <Text variant="h3" weight={600} className="text-center">
                 Masuk untuk Melihat QR Saya
@@ -846,7 +854,7 @@ export default function ScanScreen() {
           </View>
           {/* Validasi live */}
           {manualTarget ? (
-            <View className="flex-row items-center gap-3 rounded-xl bg-surface p-4 border border-border">
+            <View className="flex-row items-center gap-3 rounded-lg bg-surface p-4 border border-border">
               <Icon
                 icon={manualTarget.risky ? Warning : CheckCircle}
                 size="md"
@@ -913,8 +921,8 @@ export default function ScanScreen() {
       >
         {detected && resultCopy ? (
           <View className="gap-3 px-5 py-3">
-            <View className="flex-row items-center gap-3 rounded-xl bg-surface p-4 border border-border">
-              <View className="h-10 w-10 items-center justify-center rounded-full bg-surface-raised">
+            <View className="flex-row items-center gap-3 rounded-lg bg-surface p-4 border border-border">
+              <View className="h-10 w-10 items-center justify-center rounded-full bg-surface-elevated">
                 <Icon
                   icon={detected.target.risky ? Warning : resultCopy.icon}
                   size="md"
@@ -956,12 +964,12 @@ export default function ScanScreen() {
 
       {/* ── QR layar penuh + kecerahan maksimal (FE-IMP-4 item 28) ── */}
       {qrZoomed && myProfileUrl ? (
-        <View className="absolute inset-0 z-50 items-center justify-center bg-black px-8">
+        <View className="absolute inset-0 z-modal items-center justify-center bg-black px-8">
           <View className="items-center gap-6">
             <Text variant="label" className="text-white">
               Kode QR Profil
             </Text>
-            <View className="rounded-2xl bg-white p-6">
+            <View className="rounded-lg bg-white p-6">
               <QRCodeDisplay
                 value={myProfileUrl}
                 size={280}
