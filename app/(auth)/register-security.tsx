@@ -32,8 +32,8 @@
  *     setup-profile bisa menyapa user tanpa meminta ulang (state hanya
  *     dihapus setelah setup-profile selesai / user keluar dari alur).
  */
-import { useCallback, useEffect, useState } from "react"
-import { ScrollView } from "react-native"
+import { useCallback, useEffect, useRef, useState } from "react"
+import { ScrollView, type TextInput } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useRouter } from "expo-router"
 
@@ -48,9 +48,11 @@ import { KeyboardAvoiding } from "@/components/ui/keyboard-avoiding"
 import { PasswordField } from "@/components/ui/password-field"
 import { Screen } from "@/components/ui/screen"
 import { Text } from "@/components/ui/text"
+import { ValidationSummary, type ValidationIssue } from "@/components/ui/validation-summary"
 import { VStack } from "@/components/ui/stack"
 import { api, isApiError, userMessage } from "@/lib/api"
 import { PASSWORD_MAX, isPasswordValid } from "@/lib/auth-constants"
+import { focusFirstInvalid } from "@/lib/form-validation"
 import { getAuthLocation } from "@/lib/location"
 import {
   getRegistrationState,
@@ -93,7 +95,14 @@ export default function RegisterSecurityScreen() {
   const [passwordError, setPasswordError] = useState<string | undefined>()
   const [confirmError, setConfirmError] = useState<string | undefined>()
   const [formError, setFormError] = useState<string | null>(null)
+  // A04 (batch 139): ringkasan semua error validasi di atas tombol.
+  const [issues, setIssues] = useState<ValidationIssue[]>([])
+  const fullNameRef = useRef<TextInput>(null)
+  const passwordRef = useRef<TextInput>(null)
+  const confirmRef = useRef<TextInput>(null)
   const [submitting, setSubmitting] = useState(false)
+
+  const clearIssues = useCallback(() => setIssues([]), [])
 
   const isFormValid =
     fullName.trim().length > 0 && password.length > 0 && confirmPassword.length > 0
@@ -102,18 +111,27 @@ export default function RegisterSecurityScreen() {
     if (submitting || !tempToken || !phoneNumber) return
     setFormError(null)
 
+    // A04: kumpulkan SEMUA error sekaligus (bukan berhenti di yang pertama),
+    // tampilkan ringkasan di atas tombol, fokuskan field pertama yang salah.
+    const found: ValidationIssue[] = []
     if (fullName.trim().length === 0) {
       setFullNameError("Nama lengkap wajib diisi.")
-      return
+      found.push({ field: "Nama lengkap", message: "Wajib diisi." })
     }
     if (!isPasswordValid(password)) {
       setPasswordError("Kata sandi minimal 8 karakter.")
-      return
+      found.push({ field: "Kata sandi", message: "Minimal 8 karakter." })
     }
     if (confirmPassword !== password) {
       setConfirmError("Konfirmasi kata sandi tidak sama.")
+      found.push({ field: "Konfirmasi kata sandi", message: "Tidak sama dengan kata sandi." })
+    }
+    if (found.length > 0) {
+      setIssues(found)
+      focusFirstInvalid([fullNameRef, passwordRef, confirmRef])
       return
     }
+    setIssues([])
 
     setSubmitting(true)
     try {
@@ -186,11 +204,13 @@ export default function RegisterSecurityScreen() {
               <VStack gap={4}>
                 <Input
                   label="Nama lengkap"
+                  ref={fullNameRef}
                   value={fullName}
                   onChangeText={(t) => {
                     setFullName(t)
                     setFullNameError(undefined)
                     setFormError(null)
+                    clearIssues()
                   }}
                   errorText={fullNameError}
                   autoCapitalize="words"
@@ -226,11 +246,13 @@ export default function RegisterSecurityScreen() {
                     panjang 8–72. */}
                 <PasswordField
                   label="Kata sandi"
+                  ref={passwordRef}
                   value={password}
                   onChangeText={(t) => {
                     setPassword(t)
                     setPasswordError(undefined)
                     setFormError(null)
+                    clearIssues()
                   }}
                   errorText={passwordError}
                   helperText="Minimal 8 karakter"
@@ -242,11 +264,13 @@ export default function RegisterSecurityScreen() {
 
                 <PasswordField
                   label="Konfirmasi kata sandi"
+                  ref={confirmRef}
                   value={confirmPassword}
                   onChangeText={(t) => {
                     setConfirmPassword(t)
                     setConfirmError(undefined)
                     setFormError(null)
+                    clearIssues()
                   }}
                   errorText={confirmError}
                   maxLength={PASSWORD_MAX}
@@ -271,6 +295,9 @@ export default function RegisterSecurityScreen() {
                   </Text>
                 ) : null}
               </VStack>
+
+              {/* A04: ringkasan validasi di atas tombol submit */}
+              <ValidationSummary issues={issues} onDismiss={clearIssues} />
 
               <Button
                 onPress={() => void handleSubmit()}
