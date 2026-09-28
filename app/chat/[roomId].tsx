@@ -51,6 +51,7 @@ import {
   ArrowBendUpLeft,
   Chats,
   Copy,
+  EyeClosed,
   MagnifyingGlass,
   PaperPlaneRight,
   PencilSimple,
@@ -99,6 +100,7 @@ import type { ChatAttachmentDto, SendMessageDto } from "@/lib/api/types"
 import { useCopy } from "@/lib/clipboard"
 import { formatChatListTime, formatTime, truncateMiddle } from "@/lib/format"
 import { ChatSearchSnippet } from "@/components/ui/chat-search-snippet"
+import { ActionSheet } from "@/components/ui/action-sheet"
 import { haptic } from "@/lib/haptics"
 import { logWarn } from "@/lib/telemetry"
 import { pickImage, pickedImageToFormData, type PickedImage } from "@/lib/image-picker"
@@ -435,6 +437,8 @@ export default function ChatRoomScreen() {
    */
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
   const [deleteOpen, setDeleteOpen] = useState(false)
+  /** B08: sheet pilihan cakupan hapus ("untuk saya" vs "untuk semua pihak"). */
+  const [deleteScopeOpen, setDeleteScopeOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
   /** Menu ⋮ di header ruang (lihat pesanan, cari, bisukan, arsip, profil). */
   const [roomMenuOpen, setRoomMenuOpen] = useState(false)
@@ -1976,13 +1980,16 @@ export default function ChatRoomScreen() {
         },
       })
     }
-    if (allMine) {
+    // B08: "Hapus" selalu tersedia saat ada yang terpilih — cakupannya
+    // dipilih di sheet: "untuk saya" (lokal, pesan siapa pun) atau
+    // "untuk semua pihak" (API, hanya pesan sendiri).
+    if (selectedMessages.length > 0) {
       actions.push({
         key: "delete",
         label: "Hapus",
         icon: Trash,
         tone: "danger",
-        onPress: () => setDeleteOpen(true),
+        onPress: () => setDeleteScopeOpen(true),
       })
     }
     return actions
@@ -1998,13 +2005,49 @@ export default function ChatRoomScreen() {
 
   /** Jumlah pesan terpilih yang benar-benar bisa dihapus (milik sendiri). */
   const deletableCount = selectedMessages.filter((m) => m.fromUser).length
+  /** Semua yang terpilih milik sendiri → opsi "hapus untuk semua pihak" valid. */
+  const allSelectedMine =
+    selectedMessages.length > 0 && selectedMessages.every((m) => m.fromUser)
+
+  /**
+   * B08: "Hapus untuk saya" — sembunyikan lokal (perangkat ini saja).
+   * Berlaku untuk pesan siapa pun; tidak menyentuh server.
+   */
+  const handleHideSelected = useCallback(() => {
+    if (!roomId || selectedMessages.length === 0) return
+    for (const m of selectedMessages) hideMessageLocally(roomId, m.id)
+    setHiddenIds((prev) => {
+      const next = new Set(prev)
+      for (const m of selectedMessages) next.add(m.id)
+      return next
+    })
+    haptic("success")
+    toast.show({
+      title:
+        selectedMessages.length === 1
+          ? "Pesan disembunyikan dari perangkat ini"
+          : `${selectedMessages.length} pesan disembunyikan dari perangkat ini`,
+      tone: "success",
+      duration: 2500,
+    })
+    setDeleteScopeOpen(false)
+    exitSelect()
+  }, [exitSelect, roomId, selectedMessages, toast.show])
+
+  /** Pratinjau teks untuk dialog konfirmasi hapus (dipotong 120 karakter). */
+  const deletePreview = useMemo(() => {
+    const first = selectedMessages.find((m) => m.fromUser)
+    const text = first?.text?.trim() ?? ""
+    if (!text) return null
+    return text.length > 120 ? `${text.slice(0, 120)}…` : text
+  }, [selectedMessages])
 
   const deleteCopy = {
     title: deletableCount === 1 ? "Hapus pesan ini?" : "Hapus pesan yang dipilih?",
     description:
       deletableCount === 1
-        ? "Pesan akan dihapus untuk semua peserta ruang."
-        : `${deletableCount} pesan akan dihapus untuk semua peserta ruang.`,
+        ? `Pesan akan dihapus untuk semua peserta ruang.${deletePreview ? `\n\n"${deletePreview}"` : ""}`
+        : `${deletableCount} pesan akan dihapus untuk semua peserta ruang.${deletePreview ? `\n\n"${deletePreview}"` : ""}`,
   }
 
   const jumpToLatest = useCallback(() => {
@@ -2423,6 +2466,41 @@ export default function ChatRoomScreen() {
         counterpartName={counterpartName ?? undefined}
         onClose={() => setSearchOpen(false)}
         onJump={jumpToMessage}
+      />
+
+      {/* B08: pilihan cakupan hapus — opsi eksplisit, bukan dialog ambigu.
+          "Untuk saya" = lokal (pesan siapa pun); "untuk semua pihak" = API
+          (hanya pesan sendiri) → lanjut ke dialog konfirmasi destruktif. */}
+      <ActionSheet
+        visible={deleteScopeOpen}
+        onRequestClose={() => setDeleteScopeOpen(false)}
+        title={selectedMessages.length === 1 ? "Hapus pesan" : `Hapus ${selectedMessages.length} pesan`}
+        showCancel
+        cancelLabel="Batal"
+        actions={[
+          {
+            key: "hide-local",
+            label: "Hapus untuk saya",
+            description: "Hanya hilang dari perangkat ini.",
+            icon: EyeClosed,
+            onPress: () => handleHideSelected(),
+          },
+          ...(allSelectedMine
+            ? [
+                {
+                  key: "delete-everyone",
+                  label: "Hapus untuk semua pihak",
+                  description: "Hilang untuk semua peserta ruang.",
+                  icon: Trash,
+                  destructive: true,
+                  onPress: () => {
+                    setDeleteScopeOpen(false)
+                    setDeleteOpen(true)
+                  },
+                } as const,
+              ]
+            : []),
+        ]}
       />
 
       {/* Copy dialog dipecah ke object literal: ternary/template di atribut

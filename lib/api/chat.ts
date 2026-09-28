@@ -12,7 +12,7 @@
  *   - `GET /rooms` & `GET /rooms/{roomId}/attachments` memakai page/limit.
  */
 
-import { readList, readPage } from "@/lib/api/response"
+import { readList, readPage, unwrapResponse } from "@/lib/api/response"
 
 import { buildUrl, http, refreshAccessToken, seg } from "@/lib/api/client"
 import { ApiError, DEFAULT_ERROR_MESSAGES } from "@/lib/api/errors"
@@ -408,6 +408,33 @@ export function uploadChatAttachment(roomId: string, formData: FormData) {
 }
 
 /**
+ * B04: parse respons upload chat — unwrap envelope `{success,data}`/`{data}`
+ * persis seperti client fetch (`unwrapResponse`), lalu validasi bentuk DTO
+ * (fileName/fileUrl wajib string). Fail-closed: PARSE bila respons tidak
+ * valid, supaya lampiran rusak tidak lolos sebagai DTO palsu.
+ *
+ * Diekspor untuk test (dipakai internal oleh uploadChatAttachmentProgress).
+ */
+export function parseChatUploadResponse(bodyText: string): ChatAttachmentDto {
+  let body: unknown
+  try {
+    body = JSON.parse(bodyText)
+  } catch {
+    throw new ApiError({ code: "PARSE", message: "Respons unggahan tidak valid." })
+  }
+  const dto = unwrapResponse(body) as Record<string, unknown> | null
+  if (
+    !dto ||
+    typeof dto !== "object" ||
+    typeof dto.fileName !== "string" ||
+    typeof dto.fileUrl !== "string"
+  ) {
+    throw new ApiError({ code: "PARSE", message: "Respons unggahan tidak memuat lampiran." })
+  }
+  return dto as ChatAttachmentDto
+}
+
+/**
  * Unggah lampiran chat via `XMLHttpRequest` dengan LAPORAN PROGRESS (B04).
  *
  * `fetch` tidak melaporkan progress upload — pola sama dengan
@@ -487,11 +514,9 @@ export function uploadChatAttachmentProgress(
           if (xhr.status >= 200 && xhr.status < 300) {
             try {
               resolveXhr()
-              resolve(JSON.parse(bodyText) as ChatAttachmentDto)
-            } catch {
-              rejectXhr(
-                new ApiError({ code: "PARSE", message: "Respons unggahan tidak valid." }),
-              )
+              resolve(parseChatUploadResponse(bodyText))
+            } catch (err) {
+              rejectXhr(err)
             }
             return
           }
