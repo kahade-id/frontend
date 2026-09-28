@@ -30,6 +30,18 @@ import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 import { useApiQuery } from "@/lib/use-api-query"
 import { translate } from "@/lib/i18n"
+import { onReconnect } from "@/lib/connectivity"
+import {
+  bumpUnsentAttempts,
+  dequeueUnsentLiveMessage,
+  enqueueUnsentLiveMessage,
+  getUnsentLiveMessages,
+  type UnsentLiveMessage,
+} from "@/lib/live-support-outbox"
+import {
+  resolveSupportSenderRole,
+  type SupportSenderRole,
+} from "@/lib/support-message-meta"
 
 import { Button } from "@/components/ui/button"
 import { ChatComposer, type ChatComposerPayload } from "@/components/ui/chat-composer"
@@ -42,8 +54,10 @@ import { Icon } from "@/components/ui/icon"
 import { KeyboardAvoiding } from "@/components/ui/keyboard-avoiding"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Screen } from "@/components/ui/screen"
+import { SupportMessageMeta } from "@/components/ui/support-message-meta"
 import { Text } from "@/components/ui/text"
 import { TextArea } from "@/components/ui/text-area"
+import { TextLink } from "@/components/ui/text-link"
 import { useToast } from "@/components/ui/toast"
 
 // ---------------------------------------------------------------------------
@@ -67,13 +81,22 @@ type ChatItem = {
   fromSelf: boolean
   text: string
   at: Date
+  /** F16: peran pengirim — "bot" untuk sapaan otomatis. */
+  role: SupportSenderRole
   /** Nama pengirim untuk pesan masuk: "Asisten Otomatis" atau "Tim Kahade". */
   senderName?: string
   status?: "sending" | "sent"
+  /** F07: pesan gagal terkirim yang menunggu di antrean lokal. */
+  unsent?: boolean
+  attempts?: number
 }
 
 let seq = 0
 const nextId = () => `ls-${Date.now()}-${seq++}`
+
+function toUnsent(item: ChatItem, ticketId: string): Omit<UnsentLiveMessage, "attempts"> {
+  return { id: item.id, ticketId, text: item.text, createdAt: item.at.getTime() }
+}
 
 function isLiveChatTicket(t: SupportTicket): boolean {
   return (
@@ -86,6 +109,7 @@ function autoGreeting(): ChatItem {
   return {
     id: "auto-greeting",
     fromSelf: false,
+    role: "bot",
     senderName: translate("Asisten Otomatis"),
     text: translate(
       "Halo, saya Asisten Otomatis Kahade. Tulis pesan Anda dan Tim Kahade akan menindaklanjuti lewat percakapan ini.",
@@ -104,6 +128,8 @@ export default function LiveSupportScreen() {
   const [ticketId, setTicketId] = useState<string | null>(null)
   const [draft, setDraft] = useState("")
   const [pending, setPending] = useState<ChatItem[]>([])
+  /** F07: pesan gagal terkirim (antrean lokal, per sesi). */
+  const [unsent, setUnsent] = useState<ChatItem[]>([])
   const [sending, setSending] = useState(false)
   const [starting, setStarting] = useState(false)
   const [closeOpen, setCloseOpen] = useState(false)
@@ -155,17 +181,29 @@ export default function LiveSupportScreen() {
   const items: ChatItem[] = useMemo(() => {
     const base: ChatItem[] = [autoGreeting()]
     for (const m of ticket?.messages ?? []) {
+      const role = resolveSupportSenderRole({
+        fromUser: m.fromUser,
+        senderRole: m.senderRole,
+      })
       base.push({
         id: m.id,
         fromSelf: m.fromUser,
+        role,
         text: m.text,
         at: m.createdAt ? new Date(m.createdAt) : new Date(),
-        senderName: m.fromUser ? undefined : translate("Tim Kahade"),
+        senderName:
+          role === "bot"
+            ? translate("Asisten Otomatis")
+            : m.fromUser
+              ? undefined
+              : translate("Tim Kahade"),
         status: "sent",
       })
     }
-    return [...base, ...pending]
-  }, [ticket?.messages, pending])
+    // F07: pesan belum terkirim tampil PALING BAWAH dengan penanda jelas.
+    const failedSorted = [...unsent].sort((a, b) => a.at.getTime() - b.at.getTime())
+    return [...base, ...pending, ...failedSorted]
+  }, [ticket?.messages, pending, unsent])
 
   const scrollToEnd = useCallback((delay = 120) => {
     const t = setTimeout(() => {
@@ -238,6 +276,22 @@ export default function LiveSupportScreen() {
     [starting, toast.show],
   )
 
+  /**
+   * F07: kirim satu pesan. Gagal → pesan MASUK ANTREAN lokal (bukan dibuang)
+   * dengan penanda "Belum terkirim" + tombol coba lagi per pesan.
+   */
+  const sendOne = useCallback(
+    async (item: ChatItem, activeTicketId: string): Promise<boolean> => {
+      try {
+        await api.support.replySupportTicket(activeTicketId, item.text)
+        return true
+      } catch {
+        return false
+      }
+    },
+    [],
+  )
+
   const sendText = useCallback(
     async (text: string) => {
       const clean = text.trim()
@@ -245,6 +299,7 @@ export default function LiveSupportScreen() {
       const optimistic: ChatItem = {
         id: nextId(),
         fromSelf: true,
+        role: "user",
         text: clean,
         at: new Date(),
         status: "sending",
@@ -252,22 +307,110 @@ export default function LiveSupportScreen() {
       setPending((prev) => [...prev, optimistic])
       setSending(true)
       try {
-        await api.support.replySupportTicket(ticketId, clean)
-        await ticketQuery.refresh()
-        setPending((prev) => prev.filter((p) => p.id !== optimistic.id))
-      } catch (err: unknown) {
-        setPending((prev) => prev.filter((p) => p.id !== optimistic.id))
-        toast.show({
-          title: translate("Gagal mengirim pesan"),
-          description: userMessage(err),
-          tone: "danger",
-        })
+        const ok = await sendOne(optimistic, ticketId)
+        if (ok) {
+          await ticketQuery.refresh()
+        } else {
+          // F07: gagal → antrekan lokal, tandai belum terkirim.
+          await enqueueUnsentLiveMessage(toUnsent(optimistic, ticketId))
+          setUnsent((prev) => [...prev, { ...optimistic, unsent: true, attempts: 1 }])
+          toast.show({
+            title: translate("Pesan belum terkirim"),
+            description: translate("Koneksi bermasalah. Pesan disimpan dan bisa dikirim ulang."),
+            tone: "warning",
+            duration: 4000,
+          })
+        }
       } finally {
+        setPending((prev) => prev.filter((p) => p.id !== optimistic.id))
         setSending(false)
       }
     },
-    [ticketId, sending, isClosedLike, ticketQuery, toast.show],
+    [ticketId, sending, isClosedLike, ticketQuery, toast.show, sendOne],
   )
+
+  /** F07: coba lagi satu pesan dari antrean. */
+  const retryUnsent = useCallback(
+    async (item: ChatItem) => {
+      if (!ticketId || isClosedLike) return
+      const ok = await sendOne(item, ticketId)
+      if (ok) {
+        await dequeueUnsentLiveMessage(item.id)
+        setUnsent((prev) => prev.filter((u) => u.id !== item.id))
+        await ticketQuery.refresh()
+        toast.show({ title: translate("Pesan terkirim"), tone: "success", duration: 2500 })
+      } else {
+        await bumpUnsentAttempts(item.id)
+        setUnsent((prev) =>
+          prev.map((u) => (u.id === item.id ? { ...u, attempts: (u.attempts ?? 0) + 1 } : u)),
+        )
+        toast.show({
+          title: translate("Masih gagal terkirim"),
+          description: translate("Periksa koneksi Anda lalu coba lagi."),
+          tone: "danger",
+        })
+      }
+    },
+    [ticketId, isClosedLike, sendOne, ticketQuery, toast.show],
+  )
+
+  // F07: muat antrean pesan belum terkirim untuk sesi ini (reconnect ke sesi
+  // yang sama — sesi dikenali dari tiket "Live Chat" yang masih terbuka).
+  useEffect(() => {
+    if (!ticketId) {
+      setUnsent([])
+      return
+    }
+    let alive = true
+    void getUnsentLiveMessages(ticketId).then((list) => {
+      if (!alive) return
+      setUnsent(
+        list.map((m) => ({
+          id: m.id,
+          fromSelf: true,
+          role: "user" as SupportSenderRole,
+          text: m.text,
+          at: new Date(m.createdAt),
+          status: "sent" as const,
+          unsent: true,
+          attempts: m.attempts,
+        })),
+      )
+    })
+    return () => {
+      alive = false
+    }
+  }, [ticketId])
+
+  // F07: saat koneksi pulih → segarkan sesi yang sama + coba kirim ulang
+  // antrean sekali (best-effort; tombol manual tetap tersedia).
+  const unsentRef = useRef(unsent)
+  unsentRef.current = unsent
+  useEffect(() => {
+    return onReconnect(() => {
+      if (!ticketId || isClosedLike) return
+      toast.show({
+        title: translate("Koneksi pulih"),
+        description: translate("Menyambungkan ulang ke percakapan…"),
+        tone: "info",
+        duration: 3000,
+      })
+      void ticketQuery.refresh()
+      const queue = [...unsentRef.current]
+      void (async () => {
+        for (const item of queue) {
+          const ok = await sendOne(item, ticketId)
+          if (ok) {
+            await dequeueUnsentLiveMessage(item.id)
+            setUnsent((prev) => prev.filter((u) => u.id !== item.id))
+          } else {
+            await bumpUnsentAttempts(item.id)
+          }
+        }
+        if (queue.length > 0) void ticketQuery.refresh()
+      })()
+    })
+  }, [ticketId, isClosedLike, ticketQuery, toast.show, sendOne])
 
   const handleSend = useCallback(
     (payload: ChatComposerPayload) => {
@@ -378,6 +521,26 @@ export default function LiveSupportScreen() {
         </Text>
       </View>
 
+      {/* F06: posisi antrean — dari server bila ada; TANPA janji waktu palsu. */}
+      {statusOpen ? (
+        <View className="border-b border-border bg-surface px-4 py-2">
+          {ticket?.queuePosition != null ? (
+            <Text variant="caption" tone="secondary" className="text-center">
+              {translate("Posisi antrean Anda: #{x}", { x: ticket.queuePosition })}
+              {ticket.estimatedWaitMinutes != null
+                ? ` · estimasi ±${ticket.estimatedWaitMinutes} menit (dari server)`
+                : ""}
+            </Text>
+          ) : (
+            <Text variant="caption" tone="secondary" className="text-center">
+              {translate(
+                "Posisi antrean belum tersedia dari server — pesan Anda tercatat dan dibalas sesuai urutan.",
+              )}
+            </Text>
+          )}
+        </View>
+      ) : null}
+
       {listQuery.error && ticketId === null ? (
         <View className="flex-1 items-center justify-center px-6">
           <ErrorState
@@ -430,15 +593,42 @@ export default function LiveSupportScreen() {
                 const prev = items[index - 1]
                 const grouped = prev ? prev.fromSelf === message.fromSelf : false
                 return (
-                  <ChatMessageBubble
-                    key={message.id}
-                    direction={message.fromSelf ? "outgoing" : "incoming"}
-                    text={message.text}
-                    time={formatTime(message.at)}
-                    status={message.fromSelf ? message.status : undefined}
-                    grouped={grouped}
-                    senderName={message.fromSelf ? undefined : message.senderName}
-                  />
+                  <View key={message.id} className="gap-1">
+                    <ChatMessageBubble
+                      direction={message.fromSelf ? "outgoing" : "incoming"}
+                      text={message.text}
+                      time={formatTime(message.at)}
+                      status={message.fromSelf ? message.status : undefined}
+                      grouped={grouped}
+                      senderName={message.fromSelf ? undefined : message.senderName}
+                    />
+                    {/* F16: label peran + waktu relatif yang bisa diketuk → absolut. */}
+                    {!grouped ? (
+                      <SupportMessageMeta
+                        role={message.role}
+                        createdAt={message.at.getTime()}
+                        align={message.fromSelf ? "end" : "start"}
+                      />
+                    ) : null}
+                    {/* F07: pesan belum terkirim — penanda + aksi coba lagi. */}
+                    {message.unsent ? (
+                      <View className="flex-row items-center gap-2 self-end">
+                        <Text variant="caption" tone="danger">
+                          {translate("Belum terkirim")}
+                          {(message.attempts ?? 0) > 1
+                            ? ` · percobaan ke-${message.attempts}`
+                            : ""}
+                        </Text>
+                        <TextLink
+                          inline
+                          onPress={() => void retryUnsent(message)}
+                          accessibilityLabel={translate("Kirim ulang pesan")}
+                        >
+                          {translate("Coba lagi")}
+                        </TextLink>
+                      </View>
+                    ) : null}
+                  </View>
                 )
               })
             )}

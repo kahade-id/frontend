@@ -130,3 +130,34 @@ describe("routeForNotificationReference — non-regresi tipe lain", () => {
     expect(routeForNotificationReference({ referenceType: "BOGUS", referenceId: "x" })).toBeNull()
   })
 })
+
+/**
+ * Batch 139 F15 — deep-link notifikasi status tiket.
+ *
+ * Backend mengirim `SUPPORT_TICKET_UPDATE` + `ticketId` saat status tiket
+ * berubah (admin-support.service → emitNotificationCreated). Sisi klien
+ * memastikan tipe itu + actionUrl bentuk `/support/tickets/<id>` selalu
+ * membuka detail tiket, bukan tab Notifikasi.
+ */
+describe("routeForPushData — status tiket ke detail tiket (F15)", () => {
+  it("payload SUPPORT_TICKET_UPDATE + ticketId → /support/<id>", () => {
+    const href = routeForPushData({ type: "SUPPORT_TICKET_UPDATE", ticketId: "t123" })
+    expect(hrefPath(href)).toBe("/support/t123")
+  })
+
+  it("actionUrl /support/tickets/<id> → detail tiket", () => {
+    expect(hrefPath(routeForActionUrl("/support/tickets/t456"))).toBe("/support/t456")
+  })
+
+  it("actionUrl /support/<id> → detail tiket", () => {
+    expect(hrefPath(routeForActionUrl("/support/t789"))).toBe("/support/t789")
+  })
+
+  it("actionUrl /support → daftar tiket", () => {
+    expect(routeForActionUrl("/support")).toBe(ROUTES.support)
+  })
+
+  it("referenceType SUPPORT_TICKET tanpa id → daftar tiket", () => {
+    expect(routeForNotificationReference({ referenceType: "SUPPORT_TICKET" })).toBe(ROUTES.support)
+  })
+})

@@ -6,34 +6,63 @@
  * - 131: draft otomatis (restore/autosave/clear, akun-spesifik via clearSession).
  * - 132: pemilih pesanan terkait (bottom sheet, order terbaru).
  * - 133: prefill category/orderId/relatedArticleId dari search params.
+ *
+ * Item batch 139:
+ * - F08: validasi lampiran (tipe/ukuran/jumlah) sejak pemilihan + batas
+ *   dijelaskan eksplisit.
+ * - F09: urutan lampiran bisa diubah + keterangan singkat per lampiran.
+ * - F10: pratinjau data diagnostik (kategori Teknis) — daftar transparan,
+ *   item opsional bisa dihapus, wajib persetujuan sebelum ikut terkirim.
+ * - F11: draft dipisahkan PER KATEGORI + waktu kedaluwarsa yang jelas.
+ * - F14: peringatan tiket duplikat — tiket aktif terkait + pilihan
+ *   melanjutkan thread tersebut.
  */
 import { useCallback, useEffect, useRef, useState } from "react"
 import { ScrollView, View } from "react-native"
 import { router, useLocalSearchParams } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
+import { ArrowDown, ArrowUp, Paperclip, X } from "phosphor-react-native"
 
 import { api, userMessage } from "@/lib/api"
 import type { Order } from "@/lib/api/orders-shared"
+import type { SupportTicket } from "@/lib/api/support"
 import { pickImages } from "@/lib/image-picker"
 import { formatRupiah } from "@/lib/format"
 import { ORDER_STATUS_LABELS } from "@/lib/labels/status"
 import { ROUTES } from "@/lib/routes"
 import { serverNow } from "@/lib/server-time"
 import {
+  attachmentLimitSummary,
+  validateTicketAttachments,
+  TICKET_ATTACHMENT_MAX_COUNT,
+} from "@/lib/ticket-attachment-validation"
+import {
   clearSupportDraft,
+  draftTtlLabel,
   isEmptyDraft,
+  listDraftCategories,
   loadSupportDraft,
   saveSupportDraft,
   type SupportDraft,
 } from "@/lib/support-draft"
+import {
+  collectDiagnosticItems,
+  renderDiagnosticsBlock,
+  type DiagnosticItem,
+} from "@/lib/support-diagnostics"
 import { tokens } from "@/lib/tokens"
+import { useApiQuery } from "@/lib/use-api-query"
+import { logWarn } from "@/lib/telemetry"
 
+import { Alert } from "@/components/ui/alert"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Chip } from "@/components/ui/chip"
 import { Field } from "@/components/ui/field"
 import { FormSection } from "@/components/ui/form-section"
 import { Header } from "@/components/ui/header"
+import { Icon } from "@/components/ui/icon"
 import { Input } from "@/components/ui/input"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Screen } from "@/components/ui/screen"
@@ -60,7 +89,14 @@ function isTicketCategory(v: string): v is TicketCategory {
 }
 
 /** Maksimal lampiran per tiket — selaras CreateTicketDto (maxItems 5). */
-const MAX_ATTACHMENTS = 5
+const MAX_ATTACHMENTS = TICKET_ATTACHMENT_MAX_COUNT
+
+type AttachmentItem = {
+  fileKey: string
+  caption: string
+}
+
+const ACTIVE_TICKET_STATUSES = new Set(["OPEN", "IN_PROGRESS", "WAITING_USER"])
 
 export default function ContactScreen() {
   const insets = useSafeAreaInsets()
@@ -83,29 +119,59 @@ export default function ContactScreen() {
   const [orders, setOrders] = useState<Order[] | null>(null)
   const [ordersLoading, setOrdersLoading] = useState(false)
   const restoredRef = useRef(false)
-  // SP-024: lampiran tiket — backend POST /v1/support/tickets sudah menerima
-  // `attachments` (fileKey, max 5, diverifikasi); form mengekspos picker-nya.
-  const [attachments, setAttachments] = useState<string[]>([])
+  // F09: lampiran = urutan + keterangan per item.
+  const [attachments, setAttachments] = useState<AttachmentItem[]>([])
   const [uploading, setUploading] = useState(false)
+  // F11: label kedaluwarsa draft yang sedang dipulihkan + kategori berdraf.
+  const [draftNotice, setDraftNotice] = useState<string | null>(null)
+  const [draftCategories, setDraftCategories] = useState<string[]>([])
+  // F10: diagnostik (kategori Teknis).
+  const [diagEnabled, setDiagEnabled] = useState(false)
+  const [diagItems, setDiagItems] = useState<DiagnosticItem[] | null>(null)
+  const [diagRemoved, setDiagRemoved] = useState<Set<string>>(new Set())
+  const [diagConsent, setDiagConsent] = useState(false)
+  // F14: peringatan duplikat — "tetap buat baru" menutup peringatan sesi ini.
+  const [dismissDupWarning, setDismissDupWarning] = useState(false)
 
-  // Item 131: pulihkan draft sekali saat mount; search params selalu menang.
+  const applyDraft = useCallback((draft: SupportDraft) => {
+    setSubject(draft.subject)
+    setMessage(draft.message)
+    setAttachments(
+      draft.attachments.map((fileKey) => ({
+        fileKey,
+        caption: draft.attachmentCaptions?.[fileKey] ?? "",
+      })),
+    )
+    setOrderId(draft.orderId)
+    setRelatedArticleId(draft.relatedArticleId)
+    setDraftNotice(`Draft dipulihkan · kedaluwarsa ${draftTtlLabel(draft)}`)
+  }, [])
+
+  const clearForm = useCallback(() => {
+    setSubject("")
+    setMessage("")
+    setAttachments([])
+    setOrderId(undefined)
+    setRelatedArticleId(undefined)
+    setDraftNotice(null)
+  }, [])
+
+  // Item 131 + F11: pulihkan draft PER KATEGORI sekali saat mount; search
+  // params selalu menang.
   useEffect(() => {
     let alive = true
     void (async () => {
-      const draft = await loadSupportDraft()
+      const initialCategory =
+        params.category && isTicketCategory(params.category) ? params.category : "GENERAL"
+      setCategory(initialCategory)
+      const draft = await loadSupportDraft(initialCategory)
       if (!alive || restoredRef.current) return
       restoredRef.current = true
-      if (draft && !isEmptyDraft(draft)) {
-        setSubject(draft.subject)
-        setMessage(draft.message)
-        if (isTicketCategory(draft.category)) setCategory(draft.category)
-        setAttachments(draft.attachments)
-        setOrderId(draft.orderId)
-        setRelatedArticleId(draft.relatedArticleId)
-      }
+      if (draft && !isEmptyDraft(draft)) applyDraft(draft)
       if (params.category && isTicketCategory(params.category)) setCategory(params.category)
       if (params.orderId) setOrderId(params.orderId)
       if (params.relatedArticleId) setRelatedArticleId(params.relatedArticleId)
+      setDraftCategories(await listDraftCategories())
     })()
     return () => {
       alive = false
@@ -114,28 +180,65 @@ export default function ContactScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Item 131: autosave debounce 500ms setelah perubahan apa pun.
+  // F11: ganti kategori → simpan draft kategori lama, muat draft kategori baru.
+  const selectCategory = useCallback(
+    (next: TicketCategory) => {
+      if (next === category || !restoredRef.current) {
+        setCategory(next)
+        return
+      }
+      const current: Omit<SupportDraft, "expiresAt"> = {
+        category,
+        subject,
+        message,
+        attachments: attachments.map((a) => a.fileKey),
+        attachmentCaptions: Object.fromEntries(
+          attachments.filter((a) => a.caption.trim()).map((a) => [a.fileKey, a.caption.trim()]),
+        ),
+        orderId,
+        relatedArticleId,
+        savedAt: serverNow(),
+      }
+      if (!isEmptyDraft({ ...current, expiresAt: 0 })) {
+        void saveSupportDraft(current)
+      }
+      setCategory(next)
+      setDraftNotice(null)
+      void loadSupportDraft(next).then((draft) => {
+        if (draft && !isEmptyDraft(draft)) applyDraft(draft)
+        else clearForm()
+      })
+      void listDraftCategories().then(setDraftCategories)
+    },
+    [category, subject, message, attachments, orderId, relatedArticleId, applyDraft, clearForm],
+  )
+
+  // Item 131 + F11: autosave debounce 500ms ke draft kategori aktif.
   useEffect(() => {
     if (!restoredRef.current) return
-    const draft: SupportDraft = {
+    const draft: Omit<SupportDraft, "expiresAt"> = {
       category,
       subject,
       message,
-      attachments,
+      attachments: attachments.map((a) => a.fileKey),
+      attachmentCaptions: Object.fromEntries(
+        attachments.filter((a) => a.caption.trim()).map((a) => [a.fileKey, a.caption.trim()]),
+      ),
       orderId,
       relatedArticleId,
       savedAt: serverNow(),
     }
-    if (isEmptyDraft(draft)) {
-      void clearSupportDraft()
+    if (isEmptyDraft({ ...draft, expiresAt: 0 })) {
       return
     }
     const t = setTimeout(() => {
       void saveSupportDraft(draft)
+      void listDraftCategories().then(setDraftCategories)
     }, 500)
     return () => clearTimeout(t)
   }, [category, subject, message, attachments, orderId, relatedArticleId])
 
+  // ---- F08: validasi lampiran sejak pemilihan ----
   const handlePickAttachments = useCallback(async () => {
     const remaining = MAX_ATTACHMENTS - attachments.length
     if (remaining <= 0) return
@@ -155,14 +258,34 @@ export default function ContactScreen() {
       return
     }
     if (picked.status !== "picked") return
+    // F08: periksa tipe/ukuran/jumlah SEBELUM upload — yang tidak valid
+    // ditolak dengan penjelasan, bukan gagal diam-diam setelah submit.
+    const issues = validateTicketAttachments(
+      picked.assets.map((a) => ({ name: a.name, mimeType: a.mimeType, size: a.size })),
+      attachments.length,
+    )
+    const invalidIndexes = new Set(issues.map((i) => i.index))
+    if (issues.length > 0) {
+      toast.show({
+        title: "Sebagian lampiran tidak valid",
+        description: issues
+          .slice(0, 2)
+          .map((i) => i.message)
+          .join(" "),
+        tone: "warning",
+        duration: 5000,
+      })
+    }
+    const validAssets = picked.assets.filter((_, i) => !invalidIndexes.has(i))
+    if (validAssets.length === 0) return
     setUploading(true)
     try {
-      const keys: string[] = []
-      for (const asset of picked.assets) {
+      const next: AttachmentItem[] = []
+      for (const asset of validAssets) {
         const { fileKey } = await api.upload.uploadDirectImage(asset, "CHAT_ATTACHMENT")
-        keys.push(fileKey)
+        next.push({ fileKey, caption: "" })
       }
-      setAttachments((prev) => [...prev, ...keys].slice(0, MAX_ATTACHMENTS))
+      setAttachments((prev) => [...prev, ...next].slice(0, MAX_ATTACHMENTS))
     } catch (err) {
       toast.show({
         title: "Gagal mengunggah lampiran",
@@ -175,18 +298,69 @@ export default function ContactScreen() {
   }, [attachments.length, toast])
 
   const handleRemoveAttachment = useCallback((fileKey: string) => {
-    setAttachments((prev) => prev.filter((k) => k !== fileKey))
+    setAttachments((prev) => prev.filter((a) => a.fileKey !== fileKey))
   }, [])
+
+  // F09: ubah urutan lampiran.
+  const moveAttachment = useCallback((fileKey: string, dir: -1 | 1) => {
+    setAttachments((prev) => {
+      const i = prev.findIndex((a) => a.fileKey === fileKey)
+      const j = i + dir
+      if (i < 0 || j < 0 || j >= prev.length) return prev
+      const next = [...prev]
+      const [item] = next.splice(i, 1)
+      next.splice(j, 0, item)
+      return next
+    })
+  }, [])
+
+  const setAttachmentCaption = useCallback((fileKey: string, caption: string) => {
+    setAttachments((prev) =>
+      prev.map((a) => (a.fileKey === fileKey ? { ...a, caption: caption.slice(0, 140) } : a)),
+    )
+  }, [])
+
+  // ---- F10: diagnostik (kategori Teknis = lapor bug) ----
+  const toggleDiagnostics = useCallback((on: boolean) => {
+    setDiagEnabled(on)
+    if (on && !diagItems) {
+      try {
+        setDiagItems(collectDiagnosticItems())
+      } catch (err) {
+        logWarn("contact:diagnostics", err)
+        setDiagItems([])
+      }
+    }
+    if (!on) setDiagConsent(false)
+  }, [diagItems])
+
+  const removeDiagItem = useCallback((id: string) => {
+    setDiagRemoved((prev) => new Set(prev).add(id))
+  }, [])
+
+  const activeDiagItems = (diagItems ?? []).filter((i) => !diagRemoved.has(i.id))
+  const finalMessage = message.trim() + (diagEnabled && diagConsent && activeDiagItems.length > 0
+    ? renderDiagnosticsBlock(activeDiagItems)
+    : "")
 
   const handleSubmit = useCallback(async () => {
     if (!subject.trim() || !message.trim()) return
+    // F10: diagnostik hanya ikut bila disetujui eksplisit.
+    if (category === "TECHNICAL" && diagEnabled && !diagConsent) {
+      toast.show({
+        title: "Persetujuan diagnostik dibutuhkan",
+        description: "Centang persetujuan pengiriman data diagnostik, atau matikan opsinya.",
+        tone: "warning",
+      })
+      return
+    }
     setSubmitting(true)
     try {
       const res = await api.support.createSupportTicket({
         subject: subject.trim(),
-        message: message.trim(),
+        message: finalMessage,
         category,
-        attachments,
+        attachments: attachments.map((a) => a.fileKey),
         ...(orderId ? { orderId } : {}),
         ...(relatedArticleId ? { relatedArticleId } : {}),
       })
@@ -196,14 +370,13 @@ export default function ContactScreen() {
         tone: "success",
         duration: 4000,
       })
-      // Item 131: draft bersih setelah sukses terkirim.
-      await clearSupportDraft()
-      setSubject("")
-      setMessage("")
+      // F11: draft kategori ini bersih setelah sukses terkirim.
+      await clearSupportDraft(category)
+      clearForm()
       setCategory("GENERAL")
-      setAttachments([])
-      setOrderId(undefined)
-      setRelatedArticleId(undefined)
+      setDiagEnabled(false)
+      setDiagConsent(false)
+      setDiagRemoved(new Set())
       if (res?.id) router.replace(ROUTES.supportTicket(res.id))
       else router.replace(ROUTES.support)
     } catch (err: unknown) {
@@ -217,7 +390,21 @@ export default function ContactScreen() {
     } finally {
       setSubmitting(false)
     }
-  }, [category, subject, message, attachments, orderId, relatedArticleId, toast.show])
+  }, [category, subject, message, finalMessage, attachments, orderId, relatedArticleId, diagEnabled, diagConsent, toast.show, clearForm])
+
+  // ---- F14: peringatan tiket duplikat ----
+  const ticketsQuery = useApiQuery<SupportTicket[]>(
+    "support-tickets:duplicate-check",
+    (signal) => api.support.listSupportTickets(signal),
+    Boolean(subject.trim() || orderId),
+  )
+  const duplicateTickets = (ticketsQuery.data ?? []).filter((t) => {
+    if (!ACTIVE_TICKET_STATUSES.has(t.status)) return false
+    if (orderId) return t.orderId === orderId
+    return t.category === category
+  }).slice(0, 3)
+  const showDupWarning =
+    !dismissDupWarning && duplicateTickets.length > 0 && (Boolean(subject.trim()) || Boolean(orderId))
 
   // Item 132: pemilih pesanan — muat lazy saat sheet dibuka (20 terbaru).
   const openOrderSheet = useCallback(async () => {
@@ -273,16 +460,54 @@ export default function ContactScreen() {
           title="Buat tiket baru"
           description="Jelaskan kendala Anda. Balasan tim Kahade muncul di Tiket Bantuan."
         >
-          <Field label="Kategori">
+          {/* F14: peringatan duplikat — tawarkan lanjutkan thread yang ada. */}
+          {showDupWarning ? (
+            <Alert tone="warning">
+              <View className="gap-2">
+                <Text variant="body" weight={600}>
+                  Anda sudah punya tiket aktif yang terkait
+                </Text>
+                <Text variant="caption" tone="secondary">
+                  {orderId
+                    ? "Tiket berikut sudah membahas pesanan ini — melanjutkan di sana lebih cepat daripada membuka tiket baru."
+                    : "Tiket berikut sudah membahas kategori ini — melanjutkan di sana lebih cepat daripada membuka tiket baru."}
+                </Text>
+                {duplicateTickets.map((t) => (
+                  <TextLink
+                    key={t.id}
+                    inline
+                    onPress={() => router.push(ROUTES.supportTicket(t.id))}
+                  >
+                    Lanjutkan di tiket {t.ticketNumber} — {t.subject}
+                  </TextLink>
+                ))}
+                <TextLink inline onPress={() => setDismissDupWarning(true)}>
+                  Tetap buat tiket baru
+                </TextLink>
+              </View>
+            </Alert>
+          ) : null}
+          {draftNotice ? (
+            <Text variant="caption" tone="secondary">
+              {draftNotice}
+            </Text>
+          ) : null}
+          <Field label="Kategori" helperText="Draft disimpan terpisah per kategori.">
             <View className="flex-row flex-wrap gap-2">
               {TICKET_CATEGORIES.map((item) => (
                 <Chip
                   key={item.value}
                   selected={category === item.value}
-                  onPress={() => setCategory(item.value)}
+                  onPress={() => selectCategory(item.value)}
                   accessibilityRole="radio"
                 >
-                  {item.label}
+                  <View className="flex-row items-center gap-1.5">
+                    {item.label}
+                    {/* F11: titik penanda kategori yang punya draft tersimpan. */}
+                    {draftCategories.includes(item.value) && item.value !== category ? (
+                      <View className="h-1.5 w-1.5 rounded-full bg-info" />
+                    ) : null}
+                  </View>
                 </Chip>
               ))}
             </View>
@@ -326,19 +551,64 @@ export default function ContactScreen() {
               ) : null}
             </View>
           </Field>
-          <Field label="Lampiran (opsional)">
+          <Field
+            label="Lampiran (opsional)"
+            helperText={attachmentLimitSummary()}
+          >
             <View className="gap-2">
-              {attachments.map((fileKey, index) => (
+              {attachments.map((item, index) => (
                 <View
-                  key={fileKey}
-                  className="flex-row items-center justify-between rounded-xs bg-surface px-3 py-2"
+                  key={item.fileKey}
+                  className="gap-2 rounded-md border border-border bg-surface p-3"
                 >
-                  <Text variant="caption" tone="secondary" className="font-mono-500">
-                    Lampiran {index + 1}
-                  </Text>
-                  <TextLink inline onPress={() => handleRemoveAttachment(fileKey)}>
-                    Hapus
-                  </TextLink>
+                  <View className="flex-row items-center justify-between">
+                    <View className="flex-row items-center gap-2">
+                      <Icon icon={Paperclip} size="sm" tone="default" />
+                      <Text variant="caption" tone="secondary" weight={600}>
+                        Lampiran {index + 1} dari {attachments.length}
+                      </Text>
+                    </View>
+                    <View className="flex-row items-center gap-1">
+                      {/* F09: ubah urutan. */}
+                      <PressableScale
+                        onPress={() => moveAttachment(item.fileKey, -1)}
+                        disabled={index === 0}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Pindahkan lampiran ${index + 1} ke atas`}
+                        className="p-2"
+                      >
+                        <Icon icon={ArrowUp} size="sm" tone={index === 0 ? "disabled" : "default"} />
+                      </PressableScale>
+                      <PressableScale
+                        onPress={() => moveAttachment(item.fileKey, 1)}
+                        disabled={index === attachments.length - 1}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Pindahkan lampiran ${index + 1} ke bawah`}
+                        className="p-2"
+                      >
+                        <Icon
+                          icon={ArrowDown}
+                          size="sm"
+                          tone={index === attachments.length - 1 ? "disabled" : "default"}
+                        />
+                      </PressableScale>
+                      <PressableScale
+                        onPress={() => handleRemoveAttachment(item.fileKey)}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Hapus lampiran ${index + 1}`}
+                        className="p-2"
+                      >
+                        <Icon icon={X} size="sm" tone="default" />
+                      </PressableScale>
+                    </View>
+                  </View>
+                  {/* F09: keterangan singkat per lampiran. */}
+                  <Input
+                    value={item.caption}
+                    onChangeText={(v) => setAttachmentCaption(item.fileKey, v)}
+                    placeholder="Keterangan singkat (opsional)"
+                    maxLength={140}
+                  />
                 </View>
               ))}
               {attachments.length < MAX_ATTACHMENTS ? (
@@ -357,6 +627,57 @@ export default function ContactScreen() {
               ) : null}
             </View>
           </Field>
+          {/* F10: pratinjau data diagnostik — hanya kategori Teknis (lapor bug). */}
+          {category === "TECHNICAL" ? (
+            <Field label="Data diagnostik (opsional)">
+              <View className="gap-2">
+                <Checkbox
+                  checked={diagEnabled}
+                  onChange={toggleDiagnostics}
+                  label="Sertakan data diagnostik"
+                  description="Membantu tim teknis menelusuri bug lebih cepat. Anda bisa melihat dan menghapus item sebelum dikirim."
+                />
+                {diagEnabled ? (
+                  <View className="gap-2 rounded-md border border-border bg-surface p-3">
+                    <Text variant="label" tone="secondary">
+                      Data yang akan ikut terkirim:
+                    </Text>
+                    {(diagItems ?? []).filter((i) => !diagRemoved.has(i.id)).map((item) => (
+                      <View key={item.id} className="flex-row items-center justify-between gap-2">
+                        <Text variant="caption" tone="secondary" className="flex-1">
+                          {item.label}: {item.value}
+                        </Text>
+                        {item.removable ? (
+                          <TextLink inline onPress={() => removeDiagItem(item.id)}>
+                            Hapus
+                          </TextLink>
+                        ) : (
+                          <Text variant="caption" tone="secondary">
+                            wajib
+                          </Text>
+                        )}
+                      </View>
+                    ))}
+                    <Checkbox
+                      checked={diagConsent}
+                      onChange={setDiagConsent}
+                      label="Saya setuju data diagnostik di atas dikirim bersama tiket ini"
+                    />
+                    {diagConsent && activeDiagItems.length > 0 ? (
+                      <View className="gap-1 rounded-xs bg-background p-2">
+                        <Text variant="caption" tone="secondary" weight={600}>
+                          Pratinjau teks terkirim:
+                        </Text>
+                        <Text variant="caption" tone="secondary" numberOfLines={8}>
+                          {finalMessage || "(tulis pesan dulu untuk melihat pratinjau)"}
+                        </Text>
+                      </View>
+                    ) : null}
+                  </View>
+                ) : null}
+              </View>
+            </Field>
+          ) : null}
         </FormSection>
         <Text variant="body" tone="secondary">
           Sudah punya tiket?{" "}

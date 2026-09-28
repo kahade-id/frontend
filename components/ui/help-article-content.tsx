@@ -155,29 +155,48 @@ function parseBlocks(content: string): Block[] {
 export function HelpArticleContent({
   content,
   className,
+  /**
+   * Batch 139 (F03): dipanggil tiap heading di-render dengan
+   * (headingIndex, y) — posisi Y relatif terhadap konten scroll. Pemanggil
+   * (detail artikel) memakainya untuk daftar isi → lompat ke anchor.
+   * headingIndex selaras dengan `parseArticleHeadings(content)`.
+   */
+  onHeadingLayout,
   ...rest
-}: { content: string } & Omit<ViewProps, "children">) {
+}: {
+  content: string
+  onHeadingLayout?: (headingIndex: number, y: number) => void
+} & Omit<ViewProps, "children">) {
   const blocks = useMemo(() => parseBlocks(content ?? ""), [content])
   // Penomoran list: me-reset setiap blok non-ordered (dua list terpisah
   // tidak boleh menyambung nomornya).
   let orderedCounter = 0
+  let headingCounter = 0
   return (
     <View className={className} {...rest}>
       <View className="gap-3">
         {blocks.map((b, i) => {
           if (b.kind !== "ordered") orderedCounter = 0
           switch (b.kind) {
-            case "heading":
+            case "heading": {
+              const headingIndex = headingCounter
+              headingCounter += 1
               return (
-                <Text
+                <View
                   key={i}
-                  variant={b.level === 1 ? "h2" : "h3"}
-                  weight={700}
                   className={i === 0 ? "" : "mt-2"}
+                  onLayout={
+                    onHeadingLayout
+                      ? (e) => onHeadingLayout(headingIndex, e.nativeEvent.layout.y)
+                      : undefined
+                  }
                 >
-                  {b.text}
-                </Text>
+                  <Text variant={b.level === 1 ? "h2" : "h3"} weight={700}>
+                    {b.text}
+                  </Text>
+                </View>
               )
+            }
             case "bullet":
               return (
                 <View key={i} className="flex-row gap-2">

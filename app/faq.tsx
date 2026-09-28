@@ -1,30 +1,118 @@
 import type { HelpArticle, HelpCategory } from "@/lib/api/help-center"
-import { useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { Question, MagnifyingGlass } from "phosphor-react-native"
+import { useIsFocused } from "@react-navigation/native"
+import { router, useLocalSearchParams } from "expo-router"
+import { Lifebuoy, Question, MagnifyingGlass } from "phosphor-react-native"
 import { api } from "@/lib/api"
 import { translate, useLanguage } from "@/lib/i18n"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 import { useApiQuery } from "@/lib/use-api-query"
+import { clearHelpHistory, getHelpHistory, type HelpHistoryEntry } from "@/lib/help-history"
+import {
+  getLiveSupportAvailability,
+  liveSupportScheduleSummary,
+} from "@/lib/live-support-availability"
 import { DebouncedSearchField } from "@/components/ui/debounced-search-field"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { Header } from "@/components/ui/header"
 import { HelpArticleListItem } from "@/components/ui/help-article-list-item"
 import { HelpCategoryCard } from "@/components/ui/help-category-card"
+import { Button } from "@/components/ui/button"
+import { Dialog } from "@/components/ui/modal"
 import { FadeIn } from "@/components/ui/fade-in"
+import { Icon } from "@/components/ui/icon"
 import { ListLoading } from "@/components/ui/paginated-list"
 import { PullToRefreshFlatList } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
+import { SectionHeader } from "@/components/ui/section"
+import { Text } from "@/components/ui/text"
+import { TextLink } from "@/components/ui/text-link"
+
+/**
+ * F05: kartu status Bantuan Langsung — jam layanan, status buka/tutup
+ * (dari jadwal, BUKAN klaim "agen online"), petunjuk antrean, dan alternatif
+ * buat tiket saat tutup. CTA tidak lagi tampak selalu siap.
+ */
+function LiveSupportStatusCard() {
+  const availability = getLiveSupportAvailability()
+  return (
+    <View className="gap-2 rounded-md border border-border bg-surface p-4">
+      <View className="flex-row items-center gap-3">
+        <View className="h-10 w-10 items-center justify-center rounded-full bg-background">
+          <Icon icon={Lifebuoy} size="md" tone="active" />
+        </View>
+        <View className="flex-1 gap-0.5">
+          <Text variant="body" weight={600}>
+            Bantuan Langsung
+          </Text>
+          <View className="flex-row items-center gap-1.5">
+            <View
+              className={`h-2 w-2 rounded-full ${availability.open ? "bg-success" : "bg-border"}`}
+            />
+            <Text variant="caption" tone="secondary">
+              {availability.open
+                ? `Online (jadwal) · sampai ${availability.closesAt}`
+                : `Sedang offline · buka ${availability.opensAt}`}
+            </Text>
+          </View>
+        </View>
+      </View>
+      <Text variant="caption" tone="secondary">
+        Jam layanan: {liveSupportScheduleSummary()}.
+      </Text>
+      <Text variant="caption" tone="secondary">
+        {availability.queueHint}
+      </Text>
+      <View className="flex-row gap-2 pt-1">
+        {availability.open ? (
+          <Button
+            variant="secondary"
+            size="sm"
+            fullWidth={false}
+            onPress={() => router.push(ROUTES.liveSupport)}
+          >
+            Mulai percakapan
+          </Button>
+        ) : (
+          <Button
+            variant="secondary"
+            size="sm"
+            fullWidth={false}
+            onPress={() => router.push(ROUTES.contact)}
+          >
+            Buat tiket
+          </Button>
+        )}
+        <Button
+          variant="ghost"
+          size="sm"
+          fullWidth={false}
+          onPress={() => router.push(ROUTES.support)}
+        >
+          Tiket saya
+        </Button>
+      </View>
+    </View>
+  )
+}
 
 export default function FaqScreen() {
   // Langganan bahasa: placeholder kolom cari (prop string) harus langsung
   // ikut berganti saat pengguna mengubah bahasa (UI-M008).
   useLanguage()
   const insets = useSafeAreaInsets()
+  const isFocused = useIsFocused()
+  // F01: breadcrumb artikel menautkan kembali ke hasil pencarian — param `q`
+  // mengisi kolom cari agar kata pencarian tidak hilang.
+  const params = useLocalSearchParams<{ q?: string }>()
   const [keyword, setKeyword] = useState("")
+  useEffect(() => {
+    if (typeof params.q === "string" && params.q.trim()) setKeyword(params.q.trim())
+  }, [params.q])
   const categories = useApiQuery("help-categories", (signal) =>
     api.helpCenter.listHelpCategories(signal),
   )
@@ -39,6 +127,17 @@ export default function FaqScreen() {
     searching
       ? (search.data ?? []).map((article) => ({ id: article.id, article }))
       : (categories.data ?? []).map((category) => ({ id: category.slug, category }))
+
+  // F04: riwayat artikel terakhir dilihat (lokal, per akun) + aksi bersihkan.
+  const [history, setHistory] = useState<HelpHistoryEntry[]>([])
+  const [clearOpen, setClearOpen] = useState(false)
+  const reloadHistory = useCallback(() => {
+    void getHelpHistory().then(setHistory)
+  }, [])
+  useEffect(() => {
+    if (isFocused) reloadHistory()
+  }, [isFocused, reloadHistory])
+
   return (
     <Screen edges={["top"]} padded={false}>
       <Header title="Pusat Bantuan" />
@@ -47,6 +146,7 @@ export default function FaqScreen() {
       <FadeIn duration="fast" translate={false} className="px-5 pb-4">
         <DebouncedSearchField
           autoFocus={false}
+          initialQuery={keyword}
           onQueryChange={setKeyword}
           placeholder={translate("Cari bantuan")}
         />
@@ -60,6 +160,36 @@ export default function FaqScreen() {
           flexGrow: 1,
         }}
         ItemSeparatorComponent={() => <View className="h-3" />}
+        ListHeaderComponent={
+          searching ? null : (
+            <View className="gap-4 pb-3">
+              {/* F05: status ketersediaan Bantuan Langsung. */}
+              <LiveSupportStatusCard />
+              {/* F04: artikel terakhir dilihat. */}
+              {history.length > 0 ? (
+                <View className="gap-2">
+                  <SectionHeader
+                    title="Terakhir dilihat"
+                    action={
+                      <TextLink inline onPress={() => setClearOpen(true)}>
+                        Bersihkan
+                      </TextLink>
+                    }
+                  />
+                  {history.slice(0, 5).map((entry) => (
+                    <HelpArticleListItem
+                      key={`${entry.articleId || entry.slug}`}
+                      padded={false}
+                      title={entry.title}
+                      snippet={entry.categoryName}
+                      href={ROUTES.helpArticle(entry.articleId || entry.slug, entry.slug)}
+                    />
+                  ))}
+                </View>
+              ) : null}
+            </View>
+          )
+        }
         renderItem={({ item }) =>
           "article" in item ? (
             <HelpArticleListItem
@@ -104,6 +234,22 @@ export default function FaqScreen() {
         keyboardShouldPersistTaps="handled"
         initialNumToRender={8}
         windowSize={7}
+      />
+      <Dialog
+        title="Bersihkan riwayat?"
+        description="Daftar artikel yang terakhir Anda lihat akan dihapus dari perangkat ini. Tindakan ini tidak bisa dibatalkan."
+        visible={clearOpen}
+        destructive
+        confirmLabel="Bersihkan"
+        cancelLabel="Batal"
+        onConfirm={() => {
+          void clearHelpHistory().then(() => {
+            setHistory([])
+            setClearOpen(false)
+          })
+        }}
+        onCancel={() => setClearOpen(false)}
+        onRequestClose={() => setClearOpen(false)}
       />
     </Screen>
   )

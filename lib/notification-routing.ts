@@ -80,6 +80,9 @@ export function routeForNotificationReference(ref: NotificationReference): Href 
     case "supportticket":
     case "ticket":
     case "support":
+    // F15: backend mengirim `SUPPORT_TICKET_UPDATE` saat status tiket berubah
+    // (admin-support.service → emitNotificationCreated).
+    case "supportticketupdate":
       return id ? ROUTES.supportTicket(id) : ROUTES.support
     case "user":
     case "profile":
@@ -154,6 +157,7 @@ export function labelForNotificationReference(ref: NotificationReference): strin
     case "supportticket":
     case "ticket":
     case "support":
+    case "supportticketupdate":
       return "Lihat tiket bantuan"
     case "user":
     case "profile":
@@ -258,8 +262,8 @@ export function routeForPushData(data: unknown): Href | null {
 /**
  * Parse `actionUrl` backend menjadi route internal.
  * Format yang dikenal: `/chat/<id>`, `/order/<id>`, `/o/<id>`,
- * `/dispute/<id>`, `/showcase/<id>`, `/wallet/transaction?id=<txId>`,
- * `/notifications`, `/badges`. Return `null` bila tidak dikenali.
+ * `/dispute/<id>`, `/showcase/<id>`, `/support/tickets/<id>` (F15),
+ * `/wallet/transaction?id=<txId>`, `/notifications`, `/badges`. Return `null` bila tidak dikenali.
  */
 export function routeForActionUrl(actionUrl: string | null | undefined): Href | null {
   if (!actionUrl) return null
@@ -288,6 +292,12 @@ export function routeForActionUrl(actionUrl: string | null | undefined): Href | 
         return ROUTES.orderDetail(id)
       case "dispute":
         return ROUTES.disputeDetail(id)
+      case "support": {
+        // F15: `/support/tickets/<id>` atau `/support/<id>` (actionUrl push
+        // status tiket) → detail tiket; `/support` → daftar tiket.
+        const tail = rest[rest.length - 1]
+        return tail ? ROUTES.supportTicket(tail) : ROUTES.support
+      }
       case "showcase":
         return ROUTES.showcaseDetail(id)
       case "wallet": {
@@ -314,6 +324,8 @@ export function routeForActionUrl(actionUrl: string | null | undefined): Href | 
       }
       case "badges":
         return ROUTES.notifications
+      case "support":
+        return ROUTES.support
       default:
         break
     }
