@@ -116,6 +116,32 @@ function subscribe(listener: () => void) {
   }
 }
 
+/**
+ * D01 (batch 139): hidrasi sinkron preferensi dari localStorage web.
+ *
+ * `loadUiPrefs()` itu async — di render pertama `balanceHidden` masih
+ * DEFAULT (`false`) sampai SecureStore menjawab, sehingga ikon mata sempat
+ * terlihat "terbuka" walau pengguna menyembunyikan saldo sebelum restart.
+ * Di web, localStorage dapat dibaca sinkron: baca sekali saat modul dimuat
+ * agar preferensi sudah benar sebelum render pertama. Di native (tanpa
+ * `window`) ini no-op — skeleton saldo tetap menutupi nilai selama pemuatan
+ * sehingga tidak ada kebocoran angka.
+ */
+export function hydrateUiPrefsSync(): void {
+  try {
+    if (typeof window === "undefined" || typeof window.localStorage === "undefined") return
+    const raw = window.localStorage.getItem(SecureKeys.uiPrefs)
+    if (!raw) return
+    prefs = sanitizePrefs(safeJsonParse(raw))
+    emit()
+  } catch {
+    /* storage tidak tersedia — biarkan nilai default */
+  }
+}
+
+// Hidrasi sinkron saat modul dimuat (web saja; no-op di native & test node).
+hydrateUiPrefsSync()
+
 function sanitizePrefs(raw: unknown): UiPrefs {
   if (typeof raw !== "object" || raw === null) return DEFAULT_PREFS
   const rec = raw as Record<string, unknown>
@@ -244,17 +270,24 @@ export function setUiPrefs(patch: Partial<UiPrefs>): void {
  * `ratingSnoozeUntil` berkunci `orderId` akun yang sedang login — akun
  * berikutnya di perangkat yang sama tidak boleh mewarisi jejak transaksi itu
  * (alasan yang sama dengan `pendingActions`/`recentRecipients` di
- * `clearSession()`). `balanceHidden`, `transactionsTab`,
- * `notificationsCategory`, `appMode`, `showcaseFeedTab`, `searchScope`, dan
- * `dataSaver` sengaja TIDAK disentuh: preferensi perangkat yang berlaku
- * untuk siapa pun yang memakai perangkat ini.
+ * `clearSession()`).
+ *
+ * D18 (batch 139): `transactionsTab` kini ikut dibuang — filter tab
+ * Transaksi disimpan PER AKUN, bukan per perangkat. Akun berikutnya mulai
+ * dari default ("buyer") supaya tidak mewarisi saringan akun sebelumnya.
+ *
+ * `balanceHidden`, `notificationsCategory`, `appMode`, `showcaseFeedTab`,
+ * `searchScope`, dan `dataSaver` sengaja TIDAK disentuh: preferensi perangkat
+ * yang berlaku untuk siapa pun yang memakai perangkat ini.
  *
  * Tidak ada I/O saat tidak ada yang perlu dibersihkan (kasus paling sering:
- * logout tanpa pernah menunda pengingat ulasan).
+ * logout tanpa pernah menunda pengingat ulasan dan tanpa mengganti tab).
  */
 export function clearAccountPrefs(): void {
-  if (Object.keys(prefs.ratingSnoozeUntil).length === 0) return
-  setUiPrefs({ ratingSnoozeUntil: {} })
+  const needsClear =
+    Object.keys(prefs.ratingSnoozeUntil).length > 0 || prefs.transactionsTab !== "buyer"
+  if (!needsClear) return
+  setUiPrefs({ ratingSnoozeUntil: {}, transactionsTab: "buyer" })
 }
 
 /**

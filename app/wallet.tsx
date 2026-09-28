@@ -44,7 +44,7 @@ import { byTimestampDesc, usePaginatedQuery } from "@/lib/use-paginated-query"
 import { PaginatedList } from "@/components/ui/paginated-list"
 import { WalletTransactionRow } from "@/components/ui/wallet-transaction-row"
 import { OnboardingChecklistCard } from "@/components/ui/onboarding-checklist"
-import { useCallback, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { View } from "react-native"
 import { Wallet as WalletIcon } from "phosphor-react-native"
 
@@ -53,7 +53,7 @@ import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 import { cn } from "@/lib/cn"
 import { computeEscrowHolds, totalEscrowHeld } from "@/lib/wallet-escrow-holds"
-import { formatDate } from "@/lib/format"
+import { formatDate, formatTime } from "@/lib/format"
 
 import { EmptyState } from "@/components/ui/empty-state"
 import { ScreenCaptureGuard } from "@/components/security/screen-capture-guard"
@@ -68,6 +68,7 @@ import { Text } from "@/components/ui/text"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Button } from "@/components/ui/button"
 import { Amount } from "@/components/ui/amount"
+import { Alert } from "@/components/ui/alert"
 import { ListLoading } from "@/components/ui/paginated-list"
 import { ErrorState } from "@/components/ui/error-state"
 import { GuestLoginPrompt } from "@/components/web-guest-gate"
@@ -117,6 +118,19 @@ export default function WalletScreen() {
   const walletLoading = balance.loading
   const walletError = balance.error
   const fetchWallet = balance.reload
+  /**
+   * D02 (batch 139): kapan saldo terakhir berhasil disinkronkan.
+   * `balance.data` hanya berubah bila respons sukses — refresh yang gagal
+   * tidak menggeser stempel ini, sehingga "Diperbarui …" selalu jujur.
+   * Fail closed: refresh gagal + data lama ada → banner peringatan (bukan
+   * angka diam yang terlihat mutakhir); refresh gagal + tanpa data → kartu
+   * sudah menampilkan ErrorState (fail closed di WalletHeroCard).
+   */
+  const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(null)
+  useEffect(() => {
+    if (balance.data) setLastSyncedAt(Date.now())
+  }, [balance.data])
+  const syncFailed = balance.error != null && balance.data != null
   const handleRefresh = useCallback(async () => {
     await Promise.all([balance.refresh(), history.refresh()])
   }, [balance.refresh, history.refresh])
@@ -234,6 +248,35 @@ export default function WalletScreen() {
                 // FE-IMP-4 item 13: sisa limit tarik harian dari server.
                 withdrawLimitLeft={withdrawLimitLeft}
               />
+
+              {/*
+               * D02 (batch 139): stempel "Diperbarui …" + status sinkronisasi.
+               * Diletakkan tepat di bawah kartu saldo — satu-satunya tempat
+               * pengguna mempertanyakan kemutakhiran angka.
+               */}
+              <View className="flex-row items-center justify-between px-1">
+                <Text variant="caption" tone="tertiary">
+                  {lastSyncedAt
+                    ? `Diperbarui ${formatTime(lastSyncedAt)}`
+                    : walletLoading
+                      ? "Memuat saldo…"
+                      : "Belum diperbarui"}
+                </Text>
+                {balance.refreshing ? (
+                  <Text variant="caption" tone="secondary">
+                    Menyinkronkan…
+                  </Text>
+                ) : null}
+              </View>
+              {syncFailed ? (
+                <View className="-mt-4 px-1">
+                  <Alert tone="warning" title="Sinkronisasi gagal">
+                    Menampilkan saldo terakhir yang berhasil dimuat
+                    {lastSyncedAt ? ` (${formatTime(lastSyncedAt)})` : ""} — tarik
+                    untuk memuat ulang.
+                  </Alert>
+                </View>
+              ) : null}
 
               {/* Tiga CTA primer: Isi Saldo / Transfer / Tarik Dana. */}
               <WalletPrimaryActions />
