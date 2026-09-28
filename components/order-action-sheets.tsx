@@ -26,6 +26,7 @@ import { formatRupiah } from "@/lib/format"
 import { translate } from "@/lib/i18n"
 import { useQrisPayment } from "@/lib/use-qris-payment"
 import { ROUTES } from "@/lib/routes"
+import { validateTrackingInput } from "@/lib/wallet-batch139"
 import { useToast } from "@/components/ui/toast"
 import type { SubmitDisputeDto } from "@/lib/api/types"
 
@@ -229,6 +230,14 @@ export function OrderActionSheets({
 }) {
   // SEC-DSP-FE-02: konfirmasi akhir sebelum sengketa dibuka (dana dibekukan, tak bisa batal sepihak).
   const [disputeConfirmOpen, setDisputeConfirmOpen] = useState(false)
+  /**
+   * D16 (batch 139): dialog konfirmasi resi — penjual melihat kembali
+   * kurir + nomor resi persis seperti yang akan disimpan, sebelum data
+   * dikirim. Resi salah = pembeli tidak bisa melacak.
+   */
+  const [shipConfirmOpen, setShipConfirmOpen] = useState(false)
+  const trackingValidation = validateTrackingInput(courier, tracking, shippingRequired)
+  const trackingValid = !trackingValidation.courierError && !trackingValidation.trackingError
   return (
     <>
       {/* ── Batalkan ──────────────────────────────────────────── */}
@@ -413,25 +422,20 @@ export function OrderActionSheets({
           <Button
             fullWidth
             loading={submitting}
-            disabled={shippingRequired && (tracking.trim().length < 3 || courier.trim().length < 2)}
-            onPress={() =>
-              void runAction(
-                () =>
-                  updateShipping(order.id, {
-                    trackingNumber: tracking.trim() || undefined,
-                    courierName: courier.trim() || undefined,
-                  }),
-                "Info pengiriman disimpan",
-                "Gagal menyimpan info pengiriman",
-              )
-            }
+            // D16: validasi format resi/kurir — bukan sekadar panjang minimal.
+            disabled={!trackingValid}
+            onPress={() => setShipConfirmOpen(true)}
           >
             Simpan
           </Button>
         }
       >
         <View className="gap-4">
-          <Field label="Kurir" required={shippingRequired}>
+          <Field
+            label="Kurir"
+            required={shippingRequired}
+            errorText={trackingValidation.courierError}
+          >
             <Input
               value={courier}
               onChangeText={onChangeCourier}
@@ -441,7 +445,11 @@ export function OrderActionSheets({
               maxLength={100}
             />
           </Field>
-          <Field label="Nomor resi" required={shippingRequired}>
+          <Field
+            label="Nomor resi"
+            required={shippingRequired}
+            errorText={trackingValidation.trackingError}
+          >
             <Input
               value={tracking}
               onChangeText={onChangeTracking}
@@ -455,6 +463,33 @@ export function OrderActionSheets({
           </Field>
         </View>
       </BottomSheet>
+
+      {/*
+       * D16 (batch 139): ringkasan konfirmasi sebelum resi disimpan —
+       * kurir & nomor resi ditampilkan persis seperti yang akan dikirim.
+       */}
+      <Dialog
+        visible={shipConfirmOpen}
+        title="Simpan info pengiriman?"
+        description={`Kurir: ${courier.trim() || "—"}\nNomor resi: ${tracking.trim() || "—"}\n\nPastikan sudah benar — resi yang salah membuat pembeli tidak bisa melacak paket.`}
+        confirmLabel="Ya, simpan"
+        cancelLabel="Kembali"
+        loading={submitting}
+        onConfirm={() => {
+          setShipConfirmOpen(false)
+          void runAction(
+            () =>
+              updateShipping(order.id, {
+                trackingNumber: tracking.trim() || undefined,
+                courierName: courier.trim() || undefined,
+              }),
+            "Info pengiriman disimpan",
+            "Gagal menyimpan info pengiriman",
+          )
+        }}
+        onCancel={() => setShipConfirmOpen(false)}
+        onRequestClose={() => setShipConfirmOpen(false)}
+      />
     </>
   )
 }

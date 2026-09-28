@@ -40,6 +40,8 @@ const INVOICE_TERMINAL_STATUSES = new Set([
 import { saveBlobFile, saveTextFile } from "@/lib/export-file"
 
 import { Crossfade } from "@/components/ui/fade-in"
+import { Alert } from "@/components/ui/alert"
+import { Button } from "@/components/ui/button"
 import { DetailLoading } from "@/components/ui/paginated-list"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
@@ -55,7 +57,20 @@ export default function InvoiceScreen() {
   const insets = useSafeAreaInsets()
   const toast = useToast()
   const { copy } = useCopy()
-  const [downloading, setDownloading] = useState(false)
+  /**
+   * D19 (batch 139): state ekspor EKSPLISIT — idle | working | done | error,
+   * per format. Boolean `downloading` lama tidak bisa membedakan "gagal"
+   * dari "tidak jalan"; kegagalan kini terlihat di layar (bukan cuma toast
+   * yang hilang), dan lock `working` mencegah permintaan ganda.
+   */
+  type ExportFormat = "html" | "pdf"
+  type ExportState =
+    | { kind: "idle" }
+    | { kind: "working"; format: ExportFormat }
+    | { kind: "done"; format: ExportFormat; filename: string }
+    | { kind: "error"; format: ExportFormat; message: string }
+  const [exportState, setExportState] = useState<ExportState>({ kind: "idle" })
+  const exporting = exportState.kind === "working"
 
   /**
    * `useApiQuery`, bukan rakitan useState/useEffect: request dibatalkan saat
@@ -96,14 +111,15 @@ export default function InvoiceScreen() {
 
   const handleDownload = useCallback(
     async (id: string, invoiceNumber: string | undefined) => {
-      if (downloading) return
-      setDownloading(true)
+      if (exporting) return
+      setExportState({ kind: "working", format: "html" })
       try {
         const html = await api.orders.getReceiptHtml(id)
         // H-04 (audit escrow 2026-09-24): nama berkas memakai nomor ASLI dari
         // server; bila tidak ada, id order (klien tidak pernah mengarang
         // `INV-…` — B-14).
         const saved = await saveTextFile(html, `${invoiceNumber ?? `order-${id}`}.html`, "text/html")
+        setExportState({ kind: "done", format: "html", filename: saved.filename })
         toast.show({
           title: saved.kind === "downloaded" ? "Struk diunduh" : "Struk siap dibagikan",
           description: saved.filename,
@@ -111,16 +127,16 @@ export default function InvoiceScreen() {
           duration: 3000,
         })
       } catch (err: unknown) {
+        const message = userMessage(err)
+        setExportState({ kind: "error", format: "html", message })
         toast.show({
           title: "Gagal mengunduh struk",
-          description: userMessage(err),
+          description: message,
           tone: "danger",
         })
-      } finally {
-        setDownloading(false)
       }
     },
-    [downloading, toast.show],
+    [exporting, toast.show],
   )
 
   /**
@@ -130,11 +146,12 @@ export default function InvoiceScreen() {
    */
   const handleDownloadPdf = useCallback(
     async (id: string, invoiceNumber: string | undefined) => {
-      if (downloading) return
-      setDownloading(true)
+      if (exporting) return
+      setExportState({ kind: "working", format: "pdf" })
       try {
         const blob = await api.orders.getInvoicePdf(id)
         const saved = await saveBlobFile(blob, `${invoiceNumber ?? `order-${id}`}.pdf`, "application/pdf")
+        setExportState({ kind: "done", format: "pdf", filename: saved.filename })
         toast.show({
           title: saved.kind === "downloaded" ? "Struk PDF diunduh" : "Struk PDF siap dibagikan",
           description: saved.filename,
@@ -142,16 +159,16 @@ export default function InvoiceScreen() {
           duration: 3000,
         })
       } catch (err: unknown) {
+        const message = userMessage(err)
+        setExportState({ kind: "error", format: "pdf", message })
         toast.show({
           title: "Gagal mengunduh struk PDF",
-          description: userMessage(err),
+          description: message,
           tone: "danger",
         })
-      } finally {
-        setDownloading(false)
       }
     },
-    [downloading, toast.show],
+    [exporting, toast.show],
   )
 
   /**
@@ -226,6 +243,31 @@ export default function InvoiceScreen() {
           />
         ) : invoice ? (
           <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
+            {/*
+             * D19 (batch 139): kegagalan ekspor terlihat PERSISTEN di layar
+             * (bukan hanya toast yang hilang) — dengan tombol coba lagi.
+             */}
+            {exportState.kind === "error" ? (
+              <View className="gap-2">
+                <Alert
+                  tone="danger"
+                  title={`Gagal mengunduh struk ${exportState.format === "pdf" ? "PDF" : "HTML"}`}
+                >
+                  {exportState.message}
+                </Alert>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onPress={() =>
+                    exportState.format === "pdf"
+                      ? void handleDownloadPdf(invoice.order.id, invoice.invoiceNumber)
+                      : void handleDownload(invoice.order.id, invoice.invoiceNumber)
+                  }
+                >
+                  Coba lagi
+                </Button>
+              </View>
+            ) : null}
             <InvoiceReceiptView
               mode="invoice"
               number={invoice.invoiceNumber ?? "—"}
@@ -278,7 +320,7 @@ export default function InvoiceScreen() {
               onDownload={() => void handleDownload(invoice.order.id, invoice.invoiceNumber)}
               onDownloadPdf={() => void handleDownloadPdf(invoice.order.id, invoice.invoiceNumber)}
               onShare={() => void handleShare(invoice)}
-              downloading={downloading}
+              downloading={exporting}
             />
             </View>
           ) : null}

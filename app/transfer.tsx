@@ -29,6 +29,8 @@ import { useDebouncedValue } from "@/lib/use-debounced-value"
 import { useResultTimer } from "@/lib/use-result-timer"
 import { recordRecentRecipient, useRecentRecipients } from "@/lib/ui-prefs"
 import { resolveRevalidatedRecipient } from "@/lib/wallet-batch139"
+import { recordPendingAction, resolvePendingAction } from "@/lib/pending-actions"
+import { serverNow } from "@/lib/server-time"
 import { walletTransactionStatus } from "@/lib/wallet-labels"
 import { PencilSimpleLine } from "phosphor-react-native"
 import { Alert } from "@/components/ui/alert"
@@ -335,11 +337,25 @@ export default function TransferScreen() {
           pin: pinValue,
           note: note.trim() || undefined,
         }
-        const res = await api.wallet.transferFunds(
-          dto,
-          transferKeyRef.current ?? (transferKeyRef.current = createIdempotencyKey()),
-        )
+        const idemKey =
+          transferKeyRef.current ?? (transferKeyRef.current = createIdempotencyKey())
+        /*
+         * D07 (batch 139): status idempotensi DAPAT DIPULIHKAN — catat transfer
+         * yang sedang diproses (kunci idempotensi + tujuan + nominal). Bila
+         * app mati di tengah, banner menawarkan pemulihan via riwayat.
+         * Di-resolve saat hasil final diketahui (sukses / gagal pasti).
+         */
+        recordPendingAction({
+          kind: "transfer-uncertain",
+          idempotencyKey: idemKey,
+          recipientId: selected.id,
+          recipientName: selected.name,
+          amount,
+          createdAt: serverNow(),
+        })
+        const res = await api.wallet.transferFunds(dto, idemKey)
         transferKeyRef.current = null
+        resolvePendingAction("transfer-uncertain", idemKey)
         setTxId(res.txId ?? null)
         setTransferStatus(res.status)
         /*
@@ -365,7 +381,13 @@ export default function TransferScreen() {
           !isApiError(err) || err.isTransient || err.code === "ABORTED" || err.code === "PARSE"
         // M-08: gagal pasti = transfer baru boleh dicoba (kunci baru);
         // tak pasti menahan kunci yang sama (retry = transfer yang sama).
-        if (!uncertain) transferKeyRef.current = null
+        // D07: gagal PASTI → resolve catatan (hasil final diketahui);
+        // gagal TAK PASTI → catatan DIPERTAHANKAN agar bisa dipulihkan
+        // setelah app mati (banner → riwayat).
+        if (!uncertain) {
+          if (transferKeyRef.current) resolvePendingAction("transfer-uncertain", transferKeyRef.current)
+          transferKeyRef.current = null
+        }
         const base = userMessage(err)
         const msg = uncertain
           ? `${base} Status transfer mungkin sudah diproses — periksa riwayat sebelum mengirim ulang.`
