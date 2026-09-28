@@ -45,6 +45,7 @@ import { View } from "react-native"
 import { Amount } from "@/components/ui/amount"
 import type { IconComponent } from "@/components/ui/icon"
 import { IconBox } from "@/components/ui/icon-box"
+import { Highlight } from "@/components/ui/highlight"
 import { ListItem, type ListItemProps } from "@/components/ui/list-item"
 import { StatusIndicator } from "@/components/ui/status-indicator"
 import { cn } from "@/lib/cn"
@@ -132,6 +133,11 @@ export type WalletTransactionListItemProps = Omit<
    */
   statusAccent?: boolean
   labels?: Partial<WalletTransactionListItemLabels>
+  /**
+   * Item 80 (mega-batch 2026-09-28): substring yang ditonjolkan di judul
+   * (hasil pencarian). Kosong = render polos seperti sebelumnya.
+   */
+  highlight?: string
 }
 
 export function WalletTransactionListItem({
@@ -145,6 +151,7 @@ export function WalletTransactionListItem({
   reference,
   statusAccent = false,
   labels,
+  highlight,
   onPress,
   href,
   inset = true,
@@ -207,7 +214,13 @@ export function WalletTransactionListItem({
 
   return (
     <ListItem
-      title={title}
+      title={
+        highlight ? (
+          <Highlight text={title} query={highlight} variant="inherit" tone="primary" weight={500} matchWeight={600} />
+        ) : (
+          title
+        )
+      }
       subtitle={subtitle || undefined}
       leading={<IconBox icon={KIND_ICON[kind]} size="md" variant={iconVariant} />}
       trailing={

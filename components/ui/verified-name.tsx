@@ -13,6 +13,7 @@
 import { View } from "react-native"
 
 import { Text, type TextProps } from "@/components/ui/text"
+import { Highlight } from "@/components/ui/highlight"
 import { VerifiedSeal, type SealTier } from "@/components/ui/verified-seal"
 import type { VerificationBadge } from "@/lib/api/users"
 import { typography, type TypographyKey } from "@/lib/tokens"
@@ -40,6 +41,11 @@ export type VerifiedNameProps = {
   /** Props Text tambahan (weight, numberOfLines, className, dll) */
   textProps?: Omit<TextProps, "variant" | "children">
   className?: string
+  /**
+   * Item 80 (mega-batch 2026-09-28): substring yang ditonjolkan di nama
+   * (hasil pencarian). Kosong = render polos seperti sebelumnya.
+   */
+  highlight?: string
 }
 
 export function VerifiedName({
@@ -51,6 +57,7 @@ export function VerifiedName({
   sealSize,
   textProps,
   className,
+  highlight,
 }: VerifiedNameProps) {
   const fontSize = typography[variant]?.fontSize ?? typography.body.fontSize
   const size = sealSize ?? Math.round(fontSize * SEAL_SIZE_RATIO)
@@ -58,7 +65,18 @@ export function VerifiedName({
   return (
     <View className={cn("flex-row items-center gap-1", className)}>
       <Text variant={variant} numberOfLines={1} className="min-w-0 shrink" {...textProps}>
-        {name}
+        {highlight ? (
+          <Highlight
+            text={name}
+            query={highlight}
+            variant="inherit"
+            tone={textProps?.tone ?? "primary"}
+            weight={textProps?.weight ?? 500}
+            matchWeight={600}
+          />
+        ) : (
+          name
+        )}
       </Text>
       <VerifiedSeal badges={badges} verified={verified} tier={tier} size={size} />
     </View>

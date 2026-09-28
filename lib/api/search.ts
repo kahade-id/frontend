@@ -320,3 +320,18 @@ export function getSearchHistory(signal?: AbortSignal) {
 export function clearSearchHistory(signal?: AbortSignal) {
   return http.delete<unknown>("/v1/search/history", { auth: "required", signal })
 }
+
+/**
+ * DELETE /v1/search/history/:id — hapus SATU entri riwayat pencarian
+ * (item 75, mega-batch 2026-09-28; dikerjakan tim BE-IMP).
+ *
+ * `:id` = query yang di-URL-encode (`encodeURIComponent`). Backend
+ * mencocokkan entri berdasarkan query yang dinormalkan, jadi pengirim HARUS
+ * meng-encode (spasi, `&`, `?`, dsb. akan merusak path bila mentah).
+ */
+export function deleteSearchHistoryItem(query: string, signal?: AbortSignal) {
+  return http.delete<unknown>(`/v1/search/history/${encodeURIComponent(query)}`, {
+    auth: "required",
+    signal,
+  })
+}

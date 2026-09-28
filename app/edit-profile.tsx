@@ -35,9 +35,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Camera as CameraIcon, Image as ImageIcon, Images, Trash } from "phosphor-react-native"
 
 import { api, type UpdateProfileDto, userMessage } from "@/lib/api"
-import { pickImage, pickedImageToFormData, type PickImageOptions } from "@/lib/image-picker"
+import { pickImage, pickedImageToFormData, type PickedImage, type PickImageOptions } from "@/lib/image-picker"
 import { goBackOrNavigate } from "@/lib/navigation"
-import { logWarn } from "@/lib/telemetry"
+import { useAvatarUpload } from "@/lib/use-avatar-upload"
 import { resolveMediaUrl } from "@/lib/media"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
@@ -60,6 +60,7 @@ import { Icon } from "@/components/ui/icon"
 import { IconButton } from "@/components/ui/icon-button"
 import { Input } from "@/components/ui/input"
 import { PasswordField } from "@/components/ui/password-field"
+import { ProgressBar } from "@/components/ui/progress-bar"
 import { normalizePhoneId, PhoneInput, toE164Id } from "@/components/ui/phone-input"
 import { Picture } from "@/components/ui/picture"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
@@ -72,7 +73,6 @@ import { TextArea } from "@/components/ui/text-area"
 import { UsernameField, type UsernameAvailability } from "@/components/ui/username-field"
 import { useToast } from "@/components/ui/toast"
 
-const AVATAR_PICKER: PickImageOptions = { square: true }
 /** Sampul dipotong melebar (rasio ~2.6:1 di ProfileHeader), bukan persegi. */
 const COVER_PICKER: PickImageOptions = { allowsEditing: true, aspect: [16, 6] }
 /** Tinggi pratinjau sampul — harus sama dengan COVER_HEIGHT di ProfileHeader. */
@@ -140,7 +140,9 @@ export default function EditProfileScreen() {
   const [submitting, setSubmitting] = useState(false)
 
   const [avatarSheetOpen, setAvatarSheetOpen] = useState(false)
-  const [avatarBusy, setAvatarBusy] = useState(false)
+  // Item 66 (mega-batch 2026-09-28): progress bar saat mengunggah + tombol
+  // "Coba lagi" saat gagal, via hook terpadu useAvatarUpload.
+  const avatar = useAvatarUpload({ onAvatarUrl: setAvatarUrl })
 
   // Foto sampul (header image) profil — endpoint /v1/users/me/header/*.
   const [headerUrl, setHeaderUrl] = useState<string | null>(null)
@@ -324,80 +326,19 @@ export default function EditProfileScreen() {
     void save()
   }, [dirty, needsPassword, save, submitting])
 
-  // ── Avatar ─────────────────────────────────────────────────────────────
-  const uploadAvatar = useCallback(
-    async (source: PickImageOptions["source"]) => {
-      const picked = await pickImage({ ...AVATAR_PICKER, source })
-      if (picked.status === "denied") {
-        toast.show({
-          title: source === "camera" ? translate("Izin kamera ditolak") : translate("Izin galeri ditolak"),
-          description: translate("Aktifkan di pengaturan perangkat."),
-          tone: "danger",
-        })
-        return
-      }
-      if (picked.status !== "picked") return
-      setAvatarBusy(true)
-      /**
-       * G-04: avatarKey yang sudah terupload tetapi confirmAvatar-nya gagal
-       * adalah orphan di S3 — bersihkan best-effort. Kunci dianggap terpakai
-       * (di-clear) begitu confirm berhasil.
-       */
-      let orphanKey: string | undefined
-      try {
-        const uploaded = await api.users.uploadAvatarDirect(
-          await pickedImageToFormData(picked.asset),
-        )
-        orphanKey = uploaded.avatarKey ?? undefined
-        if (uploaded.avatarKey) {
-          await api.users.confirmAvatar({ avatarKey: uploaded.avatarKey })
-          orphanKey = undefined
-        }
-        if (uploaded.avatarUrl) setAvatarUrl(uploaded.avatarUrl)
-        toast.show({ title: translate("Foto profil diperbarui"), tone: "success" })
-      } catch (err: unknown) {
-        if (orphanKey) {
-          api.upload
-            .cleanupUploads([orphanKey])
-            .catch((cleanupErr: unknown) => logWarn("profile:avatar-cleanup", cleanupErr))
-        }
-        toast.show({
-          title: translate("Gagal mengunggah foto"),
-          description: userMessage(err),
-          tone: "danger",
-        })
-      } finally {
-        setAvatarBusy(false)
-      }
-    },
-    [toast.show],
-  )
-
-  const removeAvatar = useCallback(async () => {
-    setAvatarBusy(true)
-    try {
-      await api.users.deleteAvatar()
-      setAvatarUrl(null)
-      toast.show({ title: translate("Foto profil dihapus"), tone: "success" })
-    } catch (err: unknown) {
-      toast.show({ title: translate("Gagal menghapus foto"), description: userMessage(err), tone: "danger" })
-    } finally {
-      setAvatarBusy(false)
-    }
-  }, [toast.show])
-
+  // ── Avatar (via useAvatarUpload — progress + retry item 66) ──────────
   const avatarActions: ActionSheetItem[] = [
     {
       key: "camera",
       label: translate("Ambil foto"),
       icon: CameraIcon,
-      onPress: () => void uploadAvatar("camera"),
+      onPress: () => void avatar.upload("camera"),
     },
     {
       key: "gallery",
       label: translate("Pilih dari galeri"),
       icon: Images,
-      onPress: () => void uploadAvatar("library"),
+      onPress: () => void avatar.upload("library"),
     },
     ...(avatarUrl
       ? [
@@ -406,7 +347,7 @@ export default function EditProfileScreen() {
             label: translate("Hapus foto"),
             icon: Trash,
             destructive: true,
-            onPress: () => void removeAvatar(),
+            onPress: () => void avatar.remove(),
           } satisfies ActionSheetItem,
         ]
       : []),
@@ -414,11 +355,20 @@ export default function EditProfileScreen() {
 
   // ── Foto sampul (header image) ─────────────────────────────────────────
   /**
-   * Pola sama dengan avatar (direct upload → confirm bila server mengembalikan
-   * key): sampul bukan bagian dto profil, jadi diunggah saat dipilih dan tidak
-   * menunggu tombol "Simpan perubahan".
+   * Item 67 (mega-batch 2026-09-28): sampul tidak langsung diunggah saat
+   * dipilih — pengguna melihat pratinjau 16:6 dulu dan mengonfirmasi.
+   * Posisi/bingkai crop diatur di langkah picker (`allowsEditing` + aspect
+   * 16:6, pengguna menggeser bingkai di UI crop bawaan OS); dialog ini
+   * memastikan hasil akhirnya sesuai sebelum benar-benar di-upload (persist).
    */
-  const uploadHeader = useCallback(
+  const [pendingHeader, setPendingHeader] = useState<PickedImage | null>(null)
+  const [pendingHeaderSource, setPendingHeaderSource] = useState<PickImageOptions["source"] | null>(null)
+  /**
+   * Pola sama dengan avatar (direct upload → confirm bila server mengembalikan
+   * key): sampul bukan bagian dto profil, jadi diunggah saat dikonfirmasi dan
+   * tidak menunggu tombol "Simpan perubahan".
+   */
+  const pickHeader = useCallback(
     async (source: PickImageOptions["source"]) => {
       const picked = await pickImage({ ...COVER_PICKER, source })
       if (picked.status === "denied") {
@@ -430,26 +380,48 @@ export default function EditProfileScreen() {
         return
       }
       if (picked.status !== "picked") return
-      setHeaderBusy(true)
-      try {
-        const uploaded = await api.users.uploadHeaderDirect(
-          await pickedImageToFormData(picked.asset),
-        )
-        if (uploaded.headerKey) await api.users.confirmHeader({ headerKey: uploaded.headerKey })
-        if (uploaded.headerUrl) setHeaderUrl(uploaded.headerUrl)
-        toast.show({ title: translate("Foto sampul diperbarui"), tone: "success" })
-      } catch (err: unknown) {
-        toast.show({
-          title: translate("Gagal mengunggah foto sampul"),
-          description: userMessage(err),
-          tone: "danger",
-        })
-      } finally {
-        setHeaderBusy(false)
-      }
+      // Tahan dulu — unggah hanya setelah pengguna menekan "Simpan sampul".
+      setPendingHeader(picked.asset)
+      setPendingHeaderSource(source)
     },
     [toast.show],
   )
+
+  const confirmPendingHeader = useCallback(async () => {
+    if (!pendingHeader || headerBusy) return
+    setHeaderBusy(true)
+    try {
+      const uploaded = await api.users.uploadHeaderDirect(
+        await pickedImageToFormData(pendingHeader),
+      )
+      if (uploaded.headerKey) await api.users.confirmHeader({ headerKey: uploaded.headerKey })
+      if (uploaded.headerUrl) setHeaderUrl(uploaded.headerUrl)
+      setPendingHeader(null)
+      setPendingHeaderSource(null)
+      toast.show({ title: translate("Foto sampul diperbarui"), tone: "success" })
+    } catch (err: unknown) {
+      toast.show({
+        title: translate("Gagal mengunggah foto sampul"),
+        description: userMessage(err),
+        tone: "danger",
+      })
+    } finally {
+      setHeaderBusy(false)
+    }
+  }, [pendingHeader, headerBusy, toast.show])
+
+  /** Pilih ulang dari dialog pratinjau (sumber sama) untuk mengatur ulang posisi crop. */
+  const repickHeader = useCallback(() => {
+    const source = pendingHeaderSource
+    setPendingHeader(null)
+    if (source) void pickHeader(source)
+  }, [pendingHeaderSource, pickHeader])
+
+  const cancelPendingHeader = useCallback(() => {
+    if (headerBusy) return
+    setPendingHeader(null)
+    setPendingHeaderSource(null)
+  }, [headerBusy])
 
   const removeHeader = useCallback(async () => {
     setHeaderBusy(true)
@@ -473,13 +445,13 @@ export default function EditProfileScreen() {
       key: "camera",
       label: translate("Ambil foto"),
       icon: CameraIcon,
-      onPress: () => void uploadHeader("camera"),
+      onPress: () => void pickHeader("camera"),
     },
     {
       key: "gallery",
       label: translate("Pilih dari galeri"),
       icon: Images,
-      onPress: () => void uploadHeader("library"),
+      onPress: () => void pickHeader("library"),
     },
     ...(headerUrl
       ? [
@@ -600,12 +572,32 @@ export default function EditProfileScreen() {
                     size="sm"
                     shape="pill"
                     accessibilityLabel={translate("Ubah foto profil")}
-                    loading={avatarBusy}
-                    disabled={avatarBusy}
+                    loading={avatar.busy}
+                    disabled={avatar.busy}
                     onPress={() => setAvatarSheetOpen(true)}
                   />
                 </View>
               </View>
+              {/* Item 66 (2026-09-28): progress saat mengunggah + error inline
+                  dengan tombol "Coba lagi" (tanpa pilih ulang foto). */}
+              {avatar.busy ? (
+                <View className="w-44 items-center gap-1.5 pt-2">
+                  <ProgressBar size="sm" className="w-full" accessibilityLabel={translate("Mengunggah foto profil")} />
+                  <Text variant="caption" tone="secondary">
+                    {translate("Mengunggah foto…")}
+                  </Text>
+                </View>
+              ) : null}
+              {avatar.error && !avatar.busy ? (
+                <View className="items-center gap-1.5 pt-2">
+                  <Text variant="caption" tone="danger" className="text-center">
+                    {avatar.error}
+                  </Text>
+                  <Button size="sm" variant="secondary" fullWidth={false} onPress={() => void avatar.retry()}>
+                    {translate("Coba lagi")}
+                  </Button>
+                </View>
+              ) : null}
             </View>
 
             <FormSection title={translate("Informasi dasar")}>
@@ -744,6 +736,50 @@ export default function EditProfileScreen() {
         actions={headerActions}
         onRequestClose={() => setHeaderSheetOpen(false)}
       />
+
+      {/*
+       * Item 67: pratinjau sampul sebelum konfirmasi. Posisi crop sudah diatur
+       * di langkah picker (UI crop bawaan OS, bingkai 16:6 bisa digeser);
+       * "Pilih ulang" mengulang langkah itu dengan sumber yang sama.
+       */}
+      <Dialog
+        title={translate("Pratinjau sampul")}
+        description={translate(
+          "Ini tampilan sampul 16:6 persis seperti di profil. Belum diunggah — tekan Simpan sampul untuk mengunggah.",
+        )}
+        visible={pendingHeader !== null}
+        loading={headerBusy}
+        confirmLabel={translate("Simpan sampul")}
+        cancelLabel={translate("Batal")}
+        onConfirm={() => void confirmPendingHeader()}
+        onCancel={cancelPendingHeader}
+        onRequestClose={cancelPendingHeader}
+      >
+        {pendingHeader ? (
+          <View className="gap-3">
+            <View className="w-full overflow-hidden rounded-md border border-border bg-surface">
+              <Picture
+                source={{ uri: pendingHeader.uri }}
+                alt={translate("Pratinjau foto sampul")}
+                height={COVER_HEIGHT}
+                radius="none"
+                bordered={false}
+                className="w-full"
+                style={{ width: "100%", aspectRatio: undefined }}
+              />
+            </View>
+            <Button
+              variant="ghost"
+              size="sm"
+              fullWidth={false}
+              disabled={headerBusy}
+              onPress={repickHeader}
+            >
+              {translate("Pilih ulang")}
+            </Button>
+          </View>
+        ) : null}
+      </Dialog>
 
       <Dialog
         title={translate("Konfirmasi kata sandi")}

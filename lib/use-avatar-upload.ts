@@ -1,0 +1,137 @@
+/**
+ * useAvatarUpload — alur upload avatar terpadu (item 66, mega-batch 2026-09-28).
+ *
+ * Dipakai ProfileEditSheet (inline edit) dan app/edit-profile.tsx (layar edit
+ * lengkap); menggantikan dua salinan kode upload yang identik sebelumnya.
+ *
+ * Fitur item 66:
+ * - Progress bar saat mengunggah (ProgressBar indeterminate — fetch tidak
+ *   mengekspos progress byte, jadi jangan klaim persen palsu).
+ * - Pesan error inline + tombol "Coba lagi" saat gagal: aset yang sudah
+ *   dipilih disimpan (pendingRef) agar retry tidak memaksa pilih ulang.
+ *
+ * G-04 (dipertahankan dari implementasi lama): avatarKey yang sudah terupload
+ * tetapi confirm-nya gagal adalah orphan — dibersihkan best-effort.
+ */
+import { useCallback, useRef, useState } from "react"
+
+import { api, userMessage } from "@/lib/api"
+import { translate } from "@/lib/i18n/translate"
+import { pickImage, pickedImageToFormData, type PickedImage, type PickImageOptions } from "@/lib/image-picker"
+import { logWarn } from "@/lib/telemetry"
+import { useToast } from "@/components/ui/toast"
+
+const AVATAR_PICKER: PickImageOptions = { square: true }
+
+export type UseAvatarUploadOptions = {
+  /** Dipanggil dengan URL avatar baru (atau null bila avatar dihapus). */
+  onAvatarUrl: (url: string | null) => void
+  /** Dipanggil setelah upload/hapus berhasil (mis. refresh profil). */
+  onChanged?: () => void
+}
+
+export type UseAvatarUpload = {
+  /** true saat mengunggah/menghapus. */
+  busy: boolean
+  /** Pesan error terakhir (inline), atau null. */
+  error: string | null
+  /** Pilih dari kamera/galeri lalu unggah. */
+  upload: (source: PickImageOptions["source"]) => Promise<void>
+  /** Ulangi upload dengan aset yang sudah dipilih (item 66). */
+  retry: () => Promise<void>
+  /** Hapus avatar. */
+  remove: () => Promise<void>
+  clearError: () => void
+}
+
+export function useAvatarUpload({ onAvatarUrl, onChanged }: UseAvatarUploadOptions): UseAvatarUpload {
+  const toast = useToast()
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  // Aset yang sudah dipilih dipertahankan untuk retry tanpa pilih ulang.
+  const pendingRef = useRef<PickedImage | null>(null)
+
+  const performUpload = useCallback(async () => {
+    const asset = pendingRef.current
+    if (!asset) return
+    setBusy(true)
+    setError(null)
+    let orphanKey: string | undefined
+    try {
+      const uploaded = await api.users.uploadAvatarDirect(await pickedImageToFormData(asset))
+      orphanKey = uploaded.avatarKey ?? undefined
+      if (uploaded.avatarKey) {
+        await api.users.confirmAvatar({ avatarKey: uploaded.avatarKey })
+        orphanKey = undefined
+      }
+      pendingRef.current = null
+      if (uploaded.avatarUrl) onAvatarUrl(uploaded.avatarUrl)
+      onChanged?.()
+      toast.show({ title: translate("Foto profil diperbarui"), tone: "success" })
+    } catch (err: unknown) {
+      if (orphanKey) {
+        api.upload
+          .cleanupUploads([orphanKey])
+          .catch((cleanupErr: unknown) => logWarn("avatar-upload:cleanup", cleanupErr))
+      }
+      const message = userMessage(err)
+      setError(message)
+      toast.show({ title: translate("Gagal mengunggah foto"), description: message, tone: "danger" })
+    } finally {
+      setBusy(false)
+    }
+  }, [onAvatarUrl, onChanged, toast])
+
+  const upload = useCallback(
+    async (source: PickImageOptions["source"]) => {
+      if (busy) return
+      const picked = await pickImage({ ...AVATAR_PICKER, source })
+      if (picked.status === "denied") {
+        toast.show({
+          title: source === "camera" ? translate("Izin kamera ditolak") : translate("Izin galeri ditolak"),
+          description: translate("Aktifkan di pengaturan perangkat."),
+          tone: "danger",
+        })
+        return
+      }
+      if (picked.status !== "picked") return
+      pendingRef.current = picked.asset
+      await performUpload()
+    },
+    [busy, performUpload, toast],
+  )
+
+  const retry = useCallback(async () => {
+    if (busy) return
+    if (!pendingRef.current) {
+      // Tidak ada aset tertunda (mis. error datang dari retry lama) — biarkan
+      // pengguna memilih ulang lewat action sheet seperti biasa.
+      setError(null)
+      return
+    }
+    await performUpload()
+  }, [busy, performUpload])
+
+  const remove = useCallback(async () => {
+    if (busy) return
+    setBusy(true)
+    setError(null)
+    try {
+      await api.users.deleteAvatar()
+      pendingRef.current = null
+      onAvatarUrl(null)
+      onChanged?.()
+      toast.show({ title: translate("Foto profil dihapus"), tone: "success" })
+    } catch (err: unknown) {
+      const message = userMessage(err)
+      setError(message)
+      toast.show({ title: translate("Gagal menghapus foto"), description: message, tone: "danger" })
+    } finally {
+      setBusy(false)
+    }
+  }, [busy, onAvatarUrl, onChanged, toast])
+
+  const clearError = useCallback(() => setError(null), [])
+
+  return { busy, error, upload, retry, remove, clearError }
+}

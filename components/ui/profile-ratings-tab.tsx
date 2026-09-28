@@ -17,7 +17,9 @@ import { Button } from "@/components/ui/button"
 import { Chip } from "@/components/ui/chip"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ListLoading } from "@/components/ui/paginated-list"
+import { RatingDistributionBars } from "@/components/ui/rating-distribution"
 import { RatingReviewCard, type RatingPerson } from "@/components/ui/rating-review-card"
+import { Text } from "@/components/ui/text"
 import { useMemo } from "react"
 import { translate } from "@/lib/i18n/translate"
 import { useLanguage } from "@/lib/i18n"
@@ -36,11 +38,35 @@ function useRatingFilters(): { value: PublicRatingFilter; label: string }[] {
   )
 }
 
+/**
+ * Item 70 (mega-batch 2026-09-28): urutan ulasan di profil publik —
+ * Terbaru (urutan server, createdAt desc) atau Rating tertinggi (stars desc).
+ * Sort murni di klien atas halaman yang sudah dimuat (backend tidak
+ * menyediakan parameter sort di endpoint ini). Implementasi di
+ * `lib/ratings-sort.ts` (murni, unit-testable) — di sini hanya re-export tipe.
+ */
+export type { ProfileRatingSort } from "@/lib/ratings-sort"
+import { sortProfileRatings, type ProfileRatingSort } from "@/lib/ratings-sort"
+
+function useRatingSorts(): { value: ProfileRatingSort; label: string }[] {
+  const language = useLanguage()
+  return useMemo(
+    () => [
+      { value: "newest", label: translate("Terbaru") },
+      { value: "top", label: translate("Rating tertinggi") },
+    ],
+    [language],
+  )
+}
+
 export type ProfileRatingsTabProps = {
   ratings: Rating[]
   loading: boolean
   filter: PublicRatingFilter
   onFilterChange: (filter: PublicRatingFilter) => void
+  /** Item 70: urutan tampilan ulasan (dikendalikan pemanggil). */
+  sort: ProfileRatingSort
+  onSortChange: (sort: ProfileRatingSort) => void
   /** Username profil (tanpa @) — nama balasan penjual & copy empty state. */
   handle: string
   /** Apakah ini profil milik pengguna sendiri */
@@ -52,16 +78,43 @@ export function ProfileRatingsTab({
   loading,
   filter,
   onFilterChange,
+  sort,
+  onSortChange,
   handle,
   isSelf = false,
 }: ProfileRatingsTabProps) {
   const ratingFilters = useRatingFilters()
+  const ratingSorts = useRatingSorts()
+  const sorted = useMemo(() => sortProfileRatings(ratings, sort), [ratings, sort])
   return (
     <View className="px-5 pt-4 gap-4">
+      {/*
+       * Item 74c (keputusan batch-19 #4, mega-batch 2026-09-28): distribusi
+       * rating 1–5 TAMPIL di profil publik. <RatingDistributionBars> membaca
+       * ringkasannya sendiri dari GET /v1/users/:username/ratings dan
+       * menyembunyikan diri bila kontrak tak terpenuhi (fail closed).
+       */}
+      <RatingDistributionBars username={handle} />
       <View className="flex-row flex-wrap gap-2">
         {ratingFilters.map((f) => (
           <Chip key={f.value} selected={filter === f.value} onPress={() => onFilterChange(f.value)}>
             {f.label}
+          </Chip>
+        ))}
+      </View>
+      {/* Item 70: pilihan urutan ulasan. */}
+      <View className="flex-row flex-wrap items-center gap-2">
+        <Text variant="caption" tone="secondary">
+          {translate("Urutkan:")}
+        </Text>
+        {ratingSorts.map((s) => (
+          <Chip
+            key={s.value}
+            selected={sort === s.value}
+            accessibilityState={{ selected: sort === s.value }}
+            onPress={() => onSortChange(s.value)}
+          >
+            {s.label}
           </Chip>
         ))}
       </View>
@@ -84,7 +137,7 @@ export function ProfileRatingsTab({
         )
       ) : (
         <>
-          {ratings.map((r) => {
+          {sorted.map((r) => {
           const reviewer: RatingPerson = {
             name: r.authorUsername ?? translate("Pengguna"),
             avatar: r.authorAvatarUrl ? { uri: r.authorAvatarUrl } : undefined,

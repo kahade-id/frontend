@@ -51,6 +51,11 @@ export type UserListItemProps = Omit<ViewProps, "children"> & {
   sealTier?: SealTier | null
   /** Mis. "128 transaksi · 4,9" */
   stat?: string
+  /**
+   * Item 80 (mega-batch 2026-09-28): substring yang ditonjolkan di nama
+   * (hasil pencarian). Diteruskan ke <VerifiedName>.
+   */
+  highlight?: string
   /** Slot kanan: FollowButton / Button "Buka blokir" / Badge */
   action?: ReactNode
   /** Tampilkan CaretRight bila tanpa action */
@@ -71,6 +76,7 @@ export function UserListItem({
   verified = false,
   sealTier,
   stat,
+  highlight,
   action,
   chevron = false,
   blocked = false,
@@ -104,6 +110,7 @@ export function UserListItem({
           badges={null}
           verified={verified}
           tier={sealTier ?? null}
+          highlight={highlight}
           textProps={{ weight: 500, tone: "primary", ellipsizeMode: "tail" }}
         />
         {handle || stat ? (

@@ -43,6 +43,10 @@ export function parseShowcaseFeedTab(raw: unknown): ShowcaseFeedTab {
     : "forYou"
 }
 
+/** Cakupan hasil layar /search — diingat perangkat (item 77, mega-batch 2026-09-28). */
+/** Item 87 (mega-batch 2026-09-28): cakupan "chats" — pencarian lintas-room. */
+export type SearchScope = "all" | "users" | "posts" | "orders" | "transactions" | "chats"
+
 export type UiPrefs = {
   /** Saldo disembunyikan (privasi bahu-penumpang) — dipakai Beranda & Dompet. */
   balanceHidden: boolean
@@ -50,6 +54,8 @@ export type UiPrefs = {
   transactionsTab: TransactionsTab
   /** Tab feed Etalase terakhir yang dibuka (item 47). */
   showcaseFeedTab: ShowcaseFeedTab
+  /** Cakupan chip terakhir layar Pencarian (item 77, 2026-09-28). */
+  searchScope: SearchScope
   /**
    * Mode navbar (E-Commerce / E-Wallet). Preferensi perangkat, sama seperti
    * `balanceHidden`: logout tidak boleh mengembalikannya ke commerce.
@@ -69,6 +75,7 @@ const DEFAULT_PREFS: UiPrefs = {
   balanceHidden: false,
   transactionsTab: "buyer",
   showcaseFeedTab: "forYou",
+  searchScope: "all",
   appMode: "commerce",
   ratingSnoozeUntil: {},
   dataSaver: false,
@@ -126,12 +133,27 @@ function sanitizePrefs(raw: unknown): UiPrefs {
       rec.showcaseFeedTab === "popular"
         ? rec.showcaseFeedTab
         : "forYou",
+    // Item 77 (2026-09-28): cakupan chip Pencarian terakhir — sanitize ke
+    // salah satu nilai yang valid, selain itu "all".
+    searchScope: isSearchScope(rec.searchScope) ? rec.searchScope : "all",
     // Field-by-field: lupa menyalin appMode di sini membuat mode hilang saat load.
     appMode: rec.appMode === "wallet" ? "wallet" : "commerce",
     ratingSnoozeUntil: snooze,
     // Batch 19 (item 15): default OFF bila belum pernah disimpan.
     dataSaver: rec.dataSaver === true,
   }
+}
+
+/** Validasi nilai searchScope dari storage — bukan enum terbuka. */
+function isSearchScope(v: unknown): v is SearchScope {
+  return (
+    v === "all" ||
+    v === "users" ||
+    v === "posts" ||
+    v === "orders" ||
+    v === "transactions" ||
+    v === "chats"
+  )
 }
 
 function sanitizeRecents(raw: unknown): RecentRecipient[] {

@@ -74,6 +74,7 @@ import { FavoriteIconButton } from "@/components/ui/favorite-icon-button"
 import { FollowButton } from "@/components/ui/follow-button"
 import { Header } from "@/components/ui/header"
 import { Icon, type IconComponent } from "@/components/ui/icon"
+import { ImageViewer } from "@/components/ui/image-viewer"
 import { Picture } from "@/components/ui/picture"
 import { IconButton } from "@/components/ui/icon-button"
 import { Crossfade } from "@/components/ui/fade-in"
@@ -96,6 +97,15 @@ import { TextArea } from "@/components/ui/text-area"
 import { useToast } from "@/components/ui/toast"
 
 type ProfileTab = "content" | "questions" | "ratings" | "about"
+
+/**
+ * Item 72 (mega-batch 2026-09-28): tab profil TERAKHIR diingat PER SESI
+ * (memori modul — hilang saat app di-restart, bukan preferensi persisten).
+ * Pindah antar profil memulihkan tab terakhir, bukan selalu "Etalase".
+ */
+let sessionProfileTab: ProfileTab | null = null
+
+import { bioNeedsToggle } from "@/lib/profile-bio"
 
 /**
  * Item tab profil — dibuat di dalam komponen via useMemo (bukan konstanta
@@ -197,8 +207,13 @@ export default function UserProfileScreen() {
 
 
 
-  // Active tab state
-  const [activeTab, setActiveTab] = useState<ProfileTab>("content")
+  // Active tab state — item 72: inisial dari memori sesi (bukan selalu
+  // "content"); `selectTab` menulis balik agar sesi mengingatnya.
+  const [activeTab, setActiveTab] = useState<ProfileTab>(sessionProfileTab ?? "content")
+  const selectTab = useCallback((tab: ProfileTab) => {
+    sessionProfileTab = tab
+    setActiveTab(tab)
+  }, [])
 
   // Etalase / Showcase state — item MENTAH dari API; normalisasi ke bentuk
   // sosial + interaksinya milik <ProfileEtalaseTab> (ekstrak G-11).
@@ -257,6 +272,12 @@ export default function UserProfileScreen() {
   const [ratings, setRatings] = useState<Rating[]>([])
   const [ratingsLoading, setRatingsLoading] = useState(false)
   const [ratingFilter, setRatingFilter] = useState<PublicRatingFilter>("all")
+  /** Item 70 (2026-09-28): urutan ulasan — Terbaru (createdAt desc) / Rating tertinggi. */
+  const [ratingSort, setRatingSort] = useState<"newest" | "top">("newest")
+  /** Item 61 (2026-09-28): bio kepotong 4 baris + toggle Selengkapnya/Tutup. */
+  const [bioExpanded, setBioExpanded] = useState(false)
+  /** Item 73 (2026-09-28): ketuk avatar → foto ukuran penuh. */
+  const [avatarViewerOpen, setAvatarViewerOpen] = useState(false)
 
   // Safety / Block dialog
   const [blockOpen, setBlockOpen] = useState(false)
@@ -280,10 +301,14 @@ export default function UserProfileScreen() {
   useEffect(() => {
     if (prevUsernameRef.current === username) return
     prevUsernameRef.current = username
-    setActiveTab("content")
+    // Item 72: pulihkan tab terakhir sesi (bukan hard-reset ke "content").
+    selectTab(sessionProfileTab ?? "content")
     setQuestions([])
     setRatings([])
     setRatingFilter("all")
+    setRatingSort("newest")
+    setBioExpanded(false)
+    setAvatarViewerOpen(false)
     setFollowing(null)
     setFollowerCount(null)
     setFollowingCount(null)
@@ -297,7 +322,7 @@ export default function UserProfileScreen() {
     setAskOpen(false)
     setDeleteQ(null)
     setDeleteC(null)
-  }, [username])
+  }, [username, selectTab])
   // Fetch all tab contents
   const fetchTabContents = useCallback(
     async (targetName: string) => {
@@ -948,8 +973,21 @@ export default function UserProfileScreen() {
                 -mt-12 = 48px/60%); 70% sisanya berada di bawah kartu sehingga
                 nama & aksi tidak terdorong jauh ke bawah. */}
             <View className="flex-row items-end justify-between px-5 -mt-6">
+              {/* Item 73 (2026-09-28): ketuk avatar → lihat foto ukuran penuh
+                  (<ImageViewer>). Hanya bila ada foto — tanpa avatar, tidak ada
+                  yang bisa diperbesar. */}
               <View className="rounded-full border-4 border-background bg-background">
-                <Avatar source={profile.avatarUrl ? { uri: profile.avatarUrl } : undefined} name={profile.fullName ?? handle} size="xl" />
+                {profile.avatarUrl ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={translate("Lihat foto profil ukuran penuh")}
+                    onPress={() => setAvatarViewerOpen(true)}
+                  >
+                    <Avatar source={{ uri: profile.avatarUrl }} name={profile.fullName ?? handle} size="xl" />
+                  </Pressable>
+                ) : (
+                  <Avatar source={undefined} name={profile.fullName ?? handle} size="xl" />
+                )}
               </View>
 
               {/* A.4 — hierarki: aksi tersier (♡ Favorit, 🔖 Tersimpan, dan
@@ -1036,6 +1074,16 @@ export default function UserProfileScreen() {
                  * profil orang lain. <VerifiedName> di atas tidak diubah.
                  */}
                 {isSelf ? <GreyCheckBadge size={18} /> : null}
+                {/*
+                 * Item 62 (mega-batch 2026-09-28): chip "Mengikuti Anda" bila
+                 * `social.isFollowedBy=true` (field API sudah ada, PRF-003).
+                 * Hanya di profil orang lain — di profil sendiri tidak relevan.
+                 */}
+                {!isSelf && profile.social?.isFollowedBy === true ? (
+                  <Badge tone="accent" variant="soft">
+                    {translate("Mengikuti Anda")}
+                  </Badge>
+                ) : null}
               </View>
 
               {/* Badge verifikasi aktif — ketuk untuk melihat keterangan tiap badge. */}
@@ -1069,10 +1117,43 @@ export default function UserProfileScreen() {
                 </>
               ) : null}
 
+              {/*
+               * Item 61 (mega-batch 2026-09-28): bio kepotong 4 baris +
+               * toggle "Selengkapnya"/"Tutup". Toggle hanya muncul bila bio
+               * cukup panjang untuk benar-benar terpotong (heuristik
+               * BIO_PREVIEW_CHARS) — bio pendek tidak perlu tombol mati.
+               *
+               * Item 71 (mega-batch 2026-09-28): profil sendiri + bio kosong
+               * → CTA "Tambah bio" yang membuka sheet edit inline.
+               */}
               {profile.bio ? (
-                <Text variant="body" tone="secondary" numberOfLines={4}>
-                  {profile.bio}
-                </Text>
+                <View className="gap-1">
+                  <Text variant="body" tone="secondary" numberOfLines={bioExpanded ? undefined : 4}>
+                    {profile.bio}
+                  </Text>
+                  {bioNeedsToggle(profile.bio) ? (
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={bioExpanded ? translate("Tutup bio") : translate("Tampilkan bio selengkapnya")}
+                      hitSlop={TEXT_ROW_HIT_SLOP}
+                      onPress={() => setBioExpanded((v) => !v)}
+                    >
+                      <Text variant="caption" weight={600} tone="accent">
+                        {bioExpanded ? translate("Tutup") : translate("Selengkapnya")}
+                      </Text>
+                    </Pressable>
+                  ) : null}
+                </View>
+              ) : isSelf ? (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  fullWidth={false}
+                  leftIcon={PencilSimple}
+                  onPress={() => setEditOpen(true)}
+                >
+                  {translate("Tambah bio")}
+                </Button>
               ) : (
                 <Text variant="caption" tone="tertiary">
                   {translate("Pengguna terdaftar Kahade Escrow & Marketplace")}
@@ -1114,7 +1195,7 @@ export default function UserProfileScreen() {
                     accessibilityRole="button"
                     accessibilityLabel={translate("{x} dari {y}, buka ulasan", { x: formatDecimal(profile.rating), y: 5 })}
                     hitSlop={TEXT_ROW_HIT_SLOP}
-                    onPress={() => setActiveTab("ratings")}
+                    onPress={() => selectTab("ratings")}
                   >
                     <Text variant="body" tone="secondary">
                       <Text variant="body" weight={700} tone="primary">
@@ -1217,7 +1298,7 @@ export default function UserProfileScreen() {
               <Tabs<ProfileTab>
                 items={profileTabs}
                 value={activeTab}
-                onChange={setActiveTab}
+                onChange={selectTab}
               />
             </View>
 
@@ -1422,6 +1503,8 @@ export default function UserProfileScreen() {
                 loading={ratingsLoading}
                 filter={ratingFilter}
                 onFilterChange={setRatingFilter}
+                sort={ratingSort}
+                onSortChange={setRatingSort}
                 handle={handle}
                 isSelf={isSelf}
               />
@@ -1486,10 +1569,15 @@ export default function UserProfileScreen() {
         }}
       />
 
-      {/* ── Dialog Blokir ────────────────────────────────────── */}
+      {/* ── Dialog Blokir ──────────────────────────────────────
+          Item 69 (mega-batch 2026-09-28): dialog menjelaskan DAMPAK
+          pemblokiran sebelum pengguna menekan "Blokir" — bukan sekadar
+          "tidak akan melihat aktivitas". */}
       <Dialog
         title={translate("Blokir @{x}?", { x: handle })}
-        description={translate("Anda tidak akan lagi melihat aktivitas atau dapat bertransaksi dengan pengguna ini.")}
+        description={translate(
+          "Setelah diblokir:\n• Pengguna ini tidak bisa mengirimi Anda pesan atau melihat etalase Anda\n• Anda tidak bisa lagi bertransaksi dengannya\n• Anda tidak akan melihat aktivitas, postingan, atau ulasannya\n\nAnda bisa membukanya kembali kapan saja dari daftar pengguna diblokir di Pengaturan.",
+        )}
         visible={blockOpen}
         destructive
         loading={blocking}
@@ -1552,6 +1640,16 @@ export default function UserProfileScreen() {
 
       {/* Inquiry — buka ruang pra-transaksi (POST /v1/chat/inquiries) lalu
           langsung masuk ke ruang chat hasil inquiry. */}
+      {/* ── Item 73 (2026-09-28): foto profil ukuran penuh ────── */}
+      {profile?.avatarUrl ? (
+        <ImageViewer
+          visible={avatarViewerOpen}
+          images={[{ url: resolveMediaUrl(profile.avatarUrl) ?? profile.avatarUrl, alt: translate("Foto profil @{x}", { x: handle }) }]}
+          title={translate("Foto profil")}
+          onClose={() => setAvatarViewerOpen(false)}
+        />
+      ) : null}
+
       {/* ── Item 19 (2026-09-28): Kode QR profil ─────────────────
           QR berisi deep link profil https://kahade.id/user/<username>
           (lib/deeplinks.ts `profileUrl`), dipindai kamera HP lain. */}
