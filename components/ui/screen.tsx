@@ -47,7 +47,17 @@ export type ScreenProps = Omit<ViewProps, "children"> & {
   children?: ReactNode
   /** Body dapat di-scroll (ScrollView). Default false = View flex-1. */
   scroll?: boolean
-  /** Resize form body and sticky actions above the iOS keyboard (offset = Header 56 + inset.top). */
+  /**
+   * Resize form body and sticky actions above the iOS keyboard.
+   *
+   * CHT-014: offset default 0 — BENAR untuk semua pemakai saat ini karena
+   * <Header> dirender DI DALAM KeyboardAvoidingView, bukan di atasnya
+   * (klaim lama "offset = Header 56 + inset.top" tidak pernah
+   * diimplementasikan dan menyesatkan). Kalau suatu layar menaruh header
+   * native DI ATAS <Screen keyboardAvoiding>, teruskan offset eksplisit
+   * lewat <KeyboardAvoiding offset={...}> langsung — prop ini tidak
+   * meneruskannya.
+   */
   keyboardAvoiding?: boolean
   /** Padding horizontal 20px pada body. Default true. */
   padded?: boolean
