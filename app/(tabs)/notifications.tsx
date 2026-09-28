@@ -78,7 +78,6 @@ import {
   notificationRowId,
   type NotificationRow,
 } from "@/lib/notification-social-grouping"
-import { routeForNotificationReference } from "@/lib/notification-routing"
 import { checkNotificationTarget } from "@/lib/notification-target"
 import { refreshUnreadCount } from "@/lib/unread-count"
 import { logWarn } from "@/lib/telemetry"
@@ -403,20 +402,19 @@ function NotificationsScreen() {
       // (referenceType/referenceId atau actionUrl), langsung ke sana
       // seperti tap push; bila tidak, baru ke layar detail.
       // Grup: reference sama untuk semua anggota → pakai head.
-      const direct = routeForNotificationReference(head)
-      if (direct) {
-        const check = await checkNotificationTarget(head.referenceType, head.referenceId)
-        if (!check.ok) {
-          toast.show({
-            title: "Konten tidak tersedia",
-            description:
-              "Tujuan notifikasi ini sudah tidak tersedia — kemungkinan sudah dihapus.",
-            tone: "warning",
-          })
-          return
-        }
+      // B15: checkNotificationTarget me-resolve route + mem-probe
+      // keberadaan entitas (order/dispute/etalase); 404 → "unavailable"
+      // dan TIDAK dibuka — pengguna tetap di daftar dengan penjelasan.
+      const check = await checkNotificationTarget(head)
+      if (check.status === "unavailable") {
+        toast.show({
+          title: "Konten tidak tersedia",
+          description: `${check.entityLabel} sudah tidak tersedia — kemungkinan sudah dihapus.`,
+          tone: "warning",
+        })
+        return
       }
-      router.push(direct ?? ROUTES.notificationDetail(head.id))
+      router.push(check.status === "ok" ? check.route : ROUTES.notificationDetail(head.id))
     },
     [selecting, toggleSelectGroup, toggleSelect, handleReadGroup, handleRead, toast.show],
   )

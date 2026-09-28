@@ -130,7 +130,6 @@ import { presenceLabel } from "@/lib/chat-presence-label"
 import { firstUnreadMessageId } from "@/lib/chat-unread-anchor"
 import {
   loadChatFailedMessages,
-  peekChatFailedMessages,
   removeChatFailedMessage,
   saveChatFailedMessage,
   type FailedChatMessage,
@@ -1889,7 +1888,6 @@ export default function ChatRoomScreen() {
 
   // ── Aksi mode pilih pesan (ubin ikon+label di <SelectionBar>) ──────────
   const selectionActions: SelectionAction[] = useMemo(() => {
-    const allMine = selectedMessages.length > 0 && selectedMessages.every((m) => m.fromUser)
     const anyText = selectedMessages.some((m) => !!m.text?.trim())
     const editable =
       singleSelected != null &&

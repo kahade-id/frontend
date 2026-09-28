@@ -114,18 +114,20 @@ export default function NotificationDetailScreen() {
    * penjelasan, bukan mendarat di layar yang mati.
    */
   const handleOpenRelated = useCallback(async () => {
-    if (!relatedRoute || !notif) return
-    const check = await checkNotificationTarget(notif.referenceType, notif.referenceId)
-    if (!check.ok) {
+    if (!notif) return
+    const check = await checkNotificationTarget(notif)
+    if (check.status === "unavailable") {
       toast.show({
         title: "Konten tidak tersedia",
-        description: "Tujuan tautan ini sudah tidak tersedia — kemungkinan sudah dihapus.",
+        description: `${check.entityLabel} sudah tidak tersedia — kemungkinan sudah dihapus.`,
         tone: "warning",
       })
       return
     }
-    router.push(relatedRoute)
-  }, [relatedRoute, notif, toast.show])
+    // "unknown-route" tak mungkin di sini: CTA hanya tampil bila
+    // routeForNotificationReference mengembalikan route.
+    if (check.status === "ok") router.push(check.route)
+  }, [notif, toast.show])
 
   // Item #24 — "Konfirmasi terima" langsung dari notifikasi in-app.
   // orderId diambil dari referenceType/referenceId (fail-closed: null bila
