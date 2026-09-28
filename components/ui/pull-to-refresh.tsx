@@ -406,6 +406,9 @@ export function PullGestureSurface({
   onThresholdReached,
   enabled = true,
   onScroll,
+  // C14: hanya dipakai jalur Android (NativePullGestureSurface) — di sini
+  // diekstrak agar tidak bocor sebagai prop tak dikenal ke <View>.
+  onScrollWorklet: _unusedOnScrollWorklet,
   className,
   ...rest
 }: PullGestureSurfaceProps) {
@@ -752,6 +755,17 @@ export type PullToRefreshProps = Omit<ViewProps, "children"> & {
     "children" | "scrollEventThrottle" | "refreshControl"
   >
   className?: string
+  /**
+   * C14 (batch 139): ref ke ScrollView dalam — untuk scroll terprogram
+   * (mis. fokus komentar dari deep link). Opsional; tidak mengubah perilaku
+   * konsumen existing.
+   */
+  scrollRef?: Ref<ScrollView>
+  /**
+   * C14: worklet scroll per-frame (jalur Android — dipanggil dari JS thread;
+   * web/iOS memakai `scrollViewProps.onScroll`). Untuk pantau offset scroll.
+   */
+  onScrollWorklet?: (offsetY: number) => void
 }
 
 /** Pull-to-refresh custom untuk konten non-virtual berbasis ScrollView. */
@@ -765,6 +779,8 @@ export function PullToRefresh({
   contentContainerClassName,
   scrollViewProps,
   className,
+  scrollRef,
+  onScrollWorklet,
   ...rest
 }: PullToRefreshProps) {
   // Android: PTR kustom RNGH (lihat catatan NativePullGestureSurface).
@@ -777,11 +793,13 @@ export function PullToRefresh({
         onThresholdReached={onThresholdReached}
         enabled={enabled}
         onScroll={scrollViewProps?.onScroll}
+        onScrollWorklet={onScrollWorklet}
         className={className}
         {...rest}
       >
         {(scrollBindings) => (
           <ScrollView
+            ref={scrollRef}
             className="flex-1"
             contentContainerClassName={cn("grow", contentContainerClassName)}
             keyboardShouldPersistTaps="handled"
@@ -807,11 +825,13 @@ export function PullToRefresh({
       onThresholdReached={onThresholdReached}
       enabled={enabled}
       onScroll={scrollViewProps?.onScroll}
+      onScrollWorklet={onScrollWorklet}
       className={className}
       {...rest}
     >
       {(scrollBindings) => (
         <ScrollView
+          ref={scrollRef}
           className="flex-1"
           contentContainerClassName={cn("grow", contentContainerClassName)}
           keyboardShouldPersistTaps="handled"

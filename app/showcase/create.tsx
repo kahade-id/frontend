@@ -30,8 +30,6 @@ import { Linking, Platform, View } from "react-native"
 import { useNavigation, usePreventRemove, type NavigationAction } from "@react-navigation/native"
 import { useRouter } from "expo-router"
 import {
-  CaretLeft,
-  CaretRight,
   Eye,
   EyeSlash,
   Images,
@@ -71,7 +69,7 @@ import {
   type ShowcaseDraft,
 } from "@/lib/showcase-draft"
 import { showcasePriceLabelOrFallback } from "@/lib/showcase-labels"
-import { moveMediaToFront } from "@/lib/showcase-media-order"
+import { moveMediaToFront, moveMediaItem } from "@/lib/showcase-media-order"
 import { formatRupiahTyping, parseRupiahTyping } from "@/lib/rupiah-input"
 import { tokens } from "@/lib/tokens"
 import { translate } from "@/lib/i18n/translate"
@@ -83,11 +81,11 @@ import { Dialog } from "@/components/ui/modal"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Header } from "@/components/ui/header"
 import { Icon } from "@/components/ui/icon"
-import { IconButton } from "@/components/ui/icon-button"
 import { Input } from "@/components/ui/input"
 import { Picture } from "@/components/ui/picture"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Screen } from "@/components/ui/screen"
+import { DragSortList } from "@/components/showcase-media-drag-sort"
 import { SectionHeader } from "@/components/ui/section"
 import { ShowcaseCategoryInput } from "@/components/ui/showcase-category-input"
 import { ShowcaseConditionInput } from "@/components/ui/showcase-condition-input"
@@ -706,24 +704,35 @@ export default function ShowcaseCreateScreen() {
     }
   }, [failedAssets, previews, revision])
 
-  /** Geser atau buang satu pratinjau media (indeks 0 = cover). */
-  const movePreview = useCallback(
-    (index: number, direction: -1 | 0 | 1) => {
+  /** Buang satu pratinjau media. */
+  const removePreview = useCallback(
+    (index: number) => {
       if (uploadBusy.current || saveBusy.current || uncertainCreate) return
       const next = [...previews]
-      if (direction === 0) {
-        const [removed] = next.splice(index, 1)
-        // Video: bersihkan thumbnailFileKey juga (jangan sisakan orphan).
-        if (removed) void cleanupPendingShowcaseKeys(previewServerKeys(removed))
-      } else {
-        const destination = index + direction
-        if (destination < 0 || destination >= next.length) return
-        ;[next[index], next[destination]] = [next[destination], next[index]]
-      }
+      const [removed] = next.splice(index, 1)
+      if (!removed) return
+      // Video: bersihkan thumbnailFileKey juga (jangan sisakan orphan).
+      void cleanupPendingShowcaseKeys(previewServerKeys(removed))
       pendingKeys.current = next.flatMap(previewServerKeys)
       setPreviews(next)
     },
     [previews, uncertainCreate],
+  )
+
+  /**
+   * C09 (batch 139): drag-reorder — pindahkan media dari→ke. Aturan produk
+   * tetap: media pertama = sampul karya.
+   */
+  const reorderPreview = useCallback(
+    (from: number, to: number) => {
+      if (uploadBusy.current || saveBusy.current || uncertainCreate) return
+      setPreviews((current) => {
+        const next = moveMediaItem(current, from, to)
+        pendingKeys.current = next.flatMap(previewServerKeys)
+        return next
+      })
+    },
+    [uncertainCreate],
   )
 
   /**
@@ -905,7 +914,7 @@ export default function ShowcaseCreateScreen() {
             title={translate("Foto karya")}
             subtitle={
               previews.length
-                ? translate("Foto pertama menjadi cover · {x}/{y} foto", {
+                ? translate("Tahan & seret untuk menyusun · foto pertama menjadi cover · {x}/{y} foto", {
                     x: previews.length,
                     y: photoLimit,
                   })
@@ -913,16 +922,33 @@ export default function ShowcaseCreateScreen() {
             }
           />
           {previews.length > 0 ? (
-            <View className="flex-row flex-wrap gap-2">
-              {previews.map((preview, index) => {
+            /*
+             * C09 (batch 139): drag-reorder — tahan thumbnail lalu seret ke
+             * posisi baru. Media pertama = sampul karya (aturan produk).
+             */
+            <DragSortList
+              items={previews}
+              getId={(preview) => preview.fileKey}
+              columns="auto"
+              cellWidth={88}
+              cellHeight={88}
+              gap={8}
+              disabled={busy || uncertainCreate}
+              onReorder={reorderPreview}
+              cellStyle={{ width: 88, height: 88 }}
+              renderItem={(preview, index, { dropTarget }) => {
                 // Video: pratinjau memakai thumbnail backend + lencana play.
                 const thumb = preview.video?.thumbnailUrl ?? preview.asset.uri
                 const label = preview.video
                   ? translate("Video {x}", { x: index + 1 })
                   : translate("Foto {x}", { x: index + 1 })
                 return (
-                <View key={preview.fileKey} className="gap-1">
-                  <View className="relative">
+                  <View
+                    className="relative h-full w-full"
+                    accessible
+                    accessibilityRole="button"
+                    accessibilityLabel={translate("{x} — tahan lalu seret untuk mengubah urutan", { x: label })}
+                  >
                     <Picture
                       source={thumb}
                       alt={label}
@@ -940,9 +966,9 @@ export default function ShowcaseCreateScreen() {
                         </View>
                       </View>
                     ) : null}
-                    {/* C09 (batch 139): sampul = media pertama — penanda di
-                        sampul aktif, tombol bintang di lainnya untuk
-                        memindahkannya ke posisi sampul. */}
+                    {/* C09: sampul = media pertama — penanda di sampul aktif,
+                        tombol bintang di lainnya untuk memindahkannya ke
+                        posisi sampul. */}
                     {index === 0 ? (
                       <View className="absolute left-1 top-1 rounded-full bg-overlay-media px-1.5 py-0.5">
                         <Text variant="caption" weight={700} className="text-white">
@@ -963,37 +989,28 @@ export default function ShowcaseCreateScreen() {
                         </PressableScale>
                       </View>
                     )}
+                    <View className="absolute bottom-1 right-1">
+                      <PressableScale
+                        accessibilityRole="button"
+                        accessibilityLabel={translate("Hapus media {x}", { x: index + 1 })}
+                        disabled={busy || uncertainCreate}
+                        onPress={() => removePreview(index)}
+                        containerClassName="items-center justify-center rounded-full bg-overlay-media p-1.5"
+                      >
+                        <Icon icon={Trash} size="sm" tone="inverse" />
+                      </PressableScale>
+                    </View>
+                    {/* C09: penanda target drop — tanpa menggeser layout. */}
+                    {dropTarget ? (
+                      <View
+                        className="pointer-events-none absolute inset-0 rounded-sm border-2 border-accent"
+                        accessibilityLabel={translate("Lepaskan di sini")}
+                      />
+                    ) : null}
                   </View>
-                  <View className="flex-row items-center justify-between">
-                    <IconButton
-                      icon={CaretLeft}
-                      size="sm"
-                      variant="ghost"
-                      accessibilityLabel={translate("Geser media {x} ke kiri", { x: index + 1 })}
-                      disabled={busy || uncertainCreate || index === 0}
-                      onPress={() => movePreview(index, -1)}
-                    />
-                    <IconButton
-                      icon={Trash}
-                      size="sm"
-                      variant="ghost"
-                      accessibilityLabel={translate("Hapus media {x}", { x: index + 1 })}
-                      disabled={busy || uncertainCreate}
-                      onPress={() => movePreview(index, 0)}
-                    />
-                    <IconButton
-                      icon={CaretRight}
-                      size="sm"
-                      variant="ghost"
-                      accessibilityLabel={translate("Geser media {x} ke kanan", { x: index + 1 })}
-                      disabled={busy || uncertainCreate || index === previews.length - 1}
-                      onPress={() => movePreview(index, 1)}
-                    />
-                  </View>
-                </View>
                 )
-              })}
-            </View>
+              }}
+            />
           ) : (
             <EmptyState
               icon={Images}

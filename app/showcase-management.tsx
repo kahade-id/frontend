@@ -15,7 +15,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Linking, Platform, View } from "react-native"
 import { useNavigation, usePreventRemove, type NavigationAction } from "@react-navigation/native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { CalendarBlank, CaretLeft, CaretRight, Eye, EyeSlash, Images, PencilSimple, Plus, Star, Trash } from "phosphor-react-native"
+import { CalendarBlank, DotsSixVertical, Eye, EyeSlash, Images, PencilSimple, Plus, Star, Trash } from "phosphor-react-native"
 import { router, useLocalSearchParams } from "expo-router"
 import { translate } from "@/lib/i18n/translate"
 import { useLanguage } from "@/lib/i18n"
@@ -32,7 +32,7 @@ import {
   type CommerceFormValues,
 } from "@/components/ui/commerce-product-fields"
 import { validImageOrder, showcaseIsHidden } from "@/lib/showcase-state"
-import { moveMediaToFront } from "@/lib/showcase-media-order"
+import { moveMediaToFront, moveMediaItem } from "@/lib/showcase-media-order"
 import { formatRupiahTyping, parseRupiahTyping } from "@/lib/rupiah-input"
 import { getShowcasePhotoLimit } from "@/lib/showcase-limits"
 import { useKahadePlus } from "@/lib/use-kahade-plus"
@@ -59,6 +59,10 @@ import { tokens } from "@/lib/tokens"
 
 import { ActionSheet, type ActionSheetItem } from "@/components/ui/action-sheet"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
+import { DragSortList } from "@/components/showcase-media-drag-sort"
+import { Icon } from "@/components/ui/icon"
+import { ShowcaseFeedItem } from "@/components/ui/showcase-feed-item"
+import type { ShowcaseMedia, ShowcaseSocialItem } from "@/lib/api/showcase"
 import { Button } from "@/components/ui/button"
 import { Dialog } from "@/components/ui/modal"
 import { EmptyState } from "@/components/ui/empty-state"
@@ -236,6 +240,8 @@ function ShowcaseManagement() {
 
   const [editor, setEditor] = useState<Editor>(null)
   const [form, setForm] = useState<FormState>(EMPTY_FORM)
+  /** C11 (batch 139): pratinjau kartu feed dari draft editor. */
+  const [editorPreviewVisible, setEditorPreviewVisible] = useState(false)
   const [formError, setFormError] = useState<string | undefined>()
   /**
    * C10 (batch 139): relasi harga min–maks divalidasi LANGSUNG saat mengetik
@@ -628,16 +634,14 @@ function ShowcaseManagement() {
       : server
   }, [imagesItem, orderDraft])
 
-  const moveImage = useCallback(
-    (imageId: string, dir: -1 | 1) => {
+  /**
+   * C09 (batch 139): drag-reorder — pindahkan foto dari→ke dalam draft
+   * urutan (commit saat sheet ditutup).
+   */
+  const reorderImages = useCallback(
+    (from: number, to: number) => {
       if (committingOrder || attaching || deletingImage) return
-      const current = effectiveImageIds
-      const i = current.indexOf(imageId)
-      const j = i + dir
-      if (i < 0 || j < 0 || j >= current.length) return
-      const next = [...current]
-      ;[next[i], next[j]] = [next[j], next[i]]
-      setOrderDraft(next)
+      setOrderDraft(moveMediaItem(effectiveImageIds, from, to))
     },
     [effectiveImageIds, committingOrder, attaching, deletingImage],
   )
@@ -777,6 +781,56 @@ function ShowcaseManagement() {
     const img = (imagesItem?.images ?? []).find((entry) => entry.id === id)
     return img ? [img] : []
   })
+
+  /**
+   * C11 (batch 139): rakit item pratinjau dari draft editor — media milik
+   * item yang ada, judul/deskripsi/kategori/harga dari form. Kartu yang
+   * dirender adalah `ShowcaseFeedItem` yang sama dengan feed (non-interaktif).
+   */
+  const editorPreviewItem: ShowcaseSocialItem | null = useMemo(() => {
+    if (!editorPreviewVisible || !editor) return null
+    const item = editor.item
+    const images: ShowcaseMedia[] = (item.images ?? []).map((img, index) => ({
+      id: img.id,
+      kind: img.kind === "video" ? ("video" as const) : ("image" as const),
+      imageUrl: img.imageUrl,
+      thumbnailUrl: img.thumbnailUrl ?? img.imageUrl,
+      sortOrder: index,
+      width: img.width ?? undefined,
+      height: img.height ?? undefined,
+    }))
+    const rawDescription = form.description.trim()
+    // Plus: deskripsi HTML → teks polos untuk kartu (kartu feed hanya
+    // menampilkan teks; HTML penuh dirender di detail).
+    const description = rawDescription
+      ? isPlusActive
+        ? rawDescription.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim() || null
+        : rawDescription
+      : null
+    return {
+      id: item.id,
+      title: form.title.trim() || translate("Tanpa judul"),
+      description,
+      category: form.category.trim() || null,
+      images,
+      priceMin: form.priceMin,
+      priceMax: form.priceMax,
+      likeCount: 0,
+      commentCount: 0,
+      viewCount: 0,
+      saveCount: 0,
+      isLiked: false,
+      isSaved: false,
+      isOwner: true,
+      createdAt: item.createdAt,
+      updatedAt: item.createdAt,
+      author: {
+        userId: "preview-local",
+        username: translate("Anda"),
+        fullName: null,
+      },
+    }
+  }, [editorPreviewVisible, editor, form, isPlusActive])
 
   return (
     <Screen edges={["top"]} padded={false}>
@@ -951,60 +1005,67 @@ function ShowcaseManagement() {
         }
       >
         <View className="gap-2">
-          {imageRows.map((img, i) => (
-            <View
-              key={img.id}
-              className="flex-row items-center gap-2 rounded-md border border-border p-2"
-            >
-              <Picture source={img.imageUrl} alt="" width={56} height={56} radius="sm" />
-              <View className="flex-1 gap-0.5">
-                <Text variant="body" weight={500} tone="primary">
-                  {translate("Foto {x}", { x: i + 1 })}
-                </Text>
-                {i === 0 ? <Text variant="caption" tone="secondary">{translate("Cover karya")}</Text> : null}
-              </View>
-              <IconButton
-                icon={CaretLeft}
-                size="sm"
-                variant="ghost"
-                accessibilityLabel={translate("Geser foto {x} ke kiri", { x: i + 1 })}
-                disabled={i === 0}
-                onPress={() => moveImage(img.id, -1)}
-              />
-              <IconButton
-                icon={CaretRight}
-                size="sm"
-                variant="ghost"
-                accessibilityLabel={translate("Geser foto {x} ke kanan", { x: i + 1 })}
-                disabled={i === imageRows.length - 1}
-                onPress={() => moveImage(img.id, 1)}
-              />
-              {/* C09 (batch 139): pilih sampul eksplisit — foto pindah ke
-                  posisi pertama (cover karya). Commit saat sheet ditutup. */}
-              {i > 0 ? (
+          {/*
+           * C09 (batch 139): drag-reorder — tahan baris lalu seret ke posisi
+           * baru (commit saat sheet ditutup). Foto pertama = cover karya.
+           */}
+          <DragSortList
+            items={imageRows}
+            getId={(img) => img.id}
+            columns={1}
+            cellHeight={76}
+            gap={8}
+            disabled={committingOrder || attaching || deletingImage}
+            onReorder={reorderImages}
+            cellStyle={{ height: 76 }}
+            cellClassName="relative flex-row items-center gap-2 rounded-md border border-border px-2"
+            renderItem={(img, i, { dropTarget }) => (
+              <>
+                <View
+                  accessible
+                  accessibilityRole="button"
+                  accessibilityLabel={translate("Foto {x} — tahan lalu seret untuk mengubah urutan", { x: i + 1 })}
+                >
+                  <Icon icon={DotsSixVertical} size="md" tone="default" />
+                </View>
+                <Picture source={img.imageUrl} alt="" width={56} height={56} radius="sm" />
+                <View className="flex-1 gap-0.5">
+                  <Text variant="body" weight={500} tone="primary">
+                    {translate("Foto {x}", { x: i + 1 })}
+                  </Text>
+                  {i === 0 ? <Text variant="caption" tone="secondary">{translate("Cover karya")}</Text> : null}
+                </View>
+                {/* C09: pilih sampul eksplisit — foto pindah ke posisi pertama
+                    (cover karya). Commit saat sheet ditutup. */}
+                {i > 0 ? (
+                  <IconButton
+                    icon={Star}
+                    size="sm"
+                    variant="ghost"
+                    accessibilityLabel={translate("Jadikan sampul: foto {x}", { x: i + 1 })}
+                    accessibilityHint={translate("Pindahkan foto ini ke posisi pertama sebagai cover karya")}
+                    disabled={committingOrder || attaching || deletingImage}
+                    onPress={() => {
+                      if (committingOrder || attaching || deletingImage) return
+                      setOrderDraft(moveMediaToFront(effectiveImageIds, i))
+                    }}
+                  />
+                ) : null}
                 <IconButton
-                  icon={Star}
+                  icon={Trash}
                   size="sm"
                   variant="ghost"
-                  accessibilityLabel={translate("Jadikan sampul: foto {x}", { x: i + 1 })}
-                  accessibilityHint={translate("Pindahkan foto ini ke posisi pertama sebagai cover karya")}
-                  disabled={committingOrder || attaching || deletingImage}
-                  onPress={() => {
-                    if (committingOrder || attaching || deletingImage) return
-                    setOrderDraft(moveMediaToFront(effectiveImageIds, i))
-                  }}
+                  accessibilityLabel={translate("Hapus foto {x}", { x: i + 1 })}
+                  disabled={deletingImage}
+                  onPress={() => setDeleteImage(img)}
                 />
-              ) : null}
-              <IconButton
-                icon={Trash}
-                size="sm"
-                variant="ghost"
-                accessibilityLabel={translate("Hapus foto {x}", { x: i + 1 })}
-                disabled={deletingImage}
-                onPress={() => setDeleteImage(img)}
-              />
-            </View>
-          ))}
+                {/* C09: penanda target drop — tanpa menggeser layout. */}
+                {dropTarget ? (
+                  <View className="pointer-events-none absolute inset-0 rounded-md border-2 border-accent" />
+                ) : null}
+              </>
+            )}
+          />
           {imageRows.length === 0 ? (
             <Text variant="caption" tone="secondary">
               Belum ada foto — lampirkan foto pertama di bawah.
@@ -1051,6 +1112,10 @@ function ShowcaseManagement() {
         description={translate("Judul, kategori, dan rentang harga membantu calon pembeli memahami penawaran Anda.")}
         footer={
           <View className="gap-2">
+            {/* C11 (batch 139): pratinjau kartu feed dari draft sebelum simpan. */}
+            <Button variant="secondary" disabled={saving} onPress={() => setEditorPreviewVisible(true)} fullWidth>
+              {translate("Pratinjau")}
+            </Button>
             <Button variant="primary" loading={saving} onPress={() => void handleSave()} fullWidth>
               {translate("Simpan")}
             </Button>
@@ -1201,6 +1266,36 @@ function ShowcaseManagement() {
             />
           </View>
         </View>
+      </BottomSheet>
+
+      {/* C11 (batch 139): pratinjau sebelum simpan — komponen kartu feed YANG
+          SAMA (`ShowcaseFeedItem`, mode non-interaktif), dirakit dari draft
+          editor. */}
+      <BottomSheet
+        visible={editorPreviewVisible}
+        onRequestClose={() => setEditorPreviewVisible(false)}
+        title={translate("Pratinjau karya")}
+        description={translate("Tampilan kartu karya Anda di feed dengan perubahan saat ini.")}
+        footer={
+          <View className="gap-2">
+            <Button
+              variant="primary"
+              fullWidth
+              loading={saving}
+              onPress={() => {
+                setEditorPreviewVisible(false)
+                void handleSave()
+              }}
+            >
+              {translate("Simpan perubahan")}
+            </Button>
+            <Button variant="ghost" fullWidth onPress={() => setEditorPreviewVisible(false)}>
+              {translate("Kembali edit")}
+            </Button>
+          </View>
+        }
+      >
+        {editorPreviewItem ? <ShowcaseFeedItem item={editorPreviewItem} nonInteractive /> : null}
       </BottomSheet>
     </Screen>
   )

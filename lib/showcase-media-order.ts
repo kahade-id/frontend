@@ -22,3 +22,26 @@ export function moveMediaToFront<T>(list: readonly T[], index: number): T[] {
 export function canSetAsCover(length: number, index: number): boolean {
   return index > 0 && index < length
 }
+
+/**
+ * Pindahkan elemen dari indeks `from` ke indeks `to` (drag-reorder C09).
+ * Elemen lain bergeser mengisi. Indeks tak valid / sama → salinan tanpa
+ * perubahan (tidak throw).
+ */
+export function moveMediaItem<T>(list: readonly T[], from: number, to: number): T[] {
+  const next = [...list]
+  if (
+    !Number.isInteger(from) ||
+    !Number.isInteger(to) ||
+    from < 0 ||
+    from >= next.length ||
+    to < 0 ||
+    to >= next.length ||
+    from === to
+  ) {
+    return next
+  }
+  const [item] = next.splice(from, 1)
+  next.splice(to, 0, item)
+  return next
+}

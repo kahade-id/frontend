@@ -299,7 +299,13 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
    */
   const listRef = useRef<FlatList<ShowcaseSocialItem>>(null)
   const [showScrollTop, setShowScrollTop] = useState(false)
+  /**
+   * C02 (batch 139): offset terakhir selalu dicerminkan ke ref (bukan hanya
+   * state tombol) — bahan pemulihan posisi saat pindah tab/filter.
+   */
+  const scrollOffsetRef = useRef(0)
   const trackScrollOffset = useCallback((offsetY: number) => {
+    scrollOffsetRef.current = offsetY
     setShowScrollTop((prev) => (offsetY > 600 ? true : offsetY < 400 ? false : prev))
   }, [])
   const handleListScroll = useCallback(
@@ -377,6 +383,40 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
   const itemsCache = useRef<
     Partial<Record<ShowcaseFeedKind, { revision: number; filter: ShowcaseFeedFilter; items: ShowcaseSocialItem[]; hasMore: boolean }>>
   >({})
+  /**
+   * C02 (batch 139): cache POSISI scroll per (tab × filter × sesi) — pindah
+   * tab/filter lalu kembali memulihkan offset, bukan kembali ke atas.
+   * Kunci memakai JSON filter (objek datar berisi string/number/undefined).
+   */
+  const positionCache = useRef<Record<string, { offset: number; anchorId: string | null }>>({})
+  /** Kunci (tab × filter × sesi) yang terakhir aktif — untuk menyimpan posisi. */
+  const lastPositionKeyRef = useRef<string | null>(null)
+  /** Pemulihan offset yang menunggu daftar selesai di-render ulang. */
+  const pendingRestoreRef = useRef<{ offset: number } | null>(null)
+  const positionKey = useCallback(
+    (kindValue: ShowcaseFeedKind, filterValue: ShowcaseFeedFilter, revisionValue: number) =>
+      `${kindValue}:${revisionValue}:${JSON.stringify(filterValue)}`,
+    [],
+  )
+  /** Simpan offset + anchor tab/filter yang sedang aktif. */
+  const savePosition = useCallback(() => {
+    const key = lastPositionKeyRef.current
+    if (!key) return
+    positionCache.current[key] = {
+      offset: scrollOffsetRef.current,
+      anchorId: topVisibleRef.current?.id ?? null,
+    }
+  }, [])
+  /**
+   * Jadwalkan pemulihan offset untuk kunci ini. Anchor harus masih ada di
+   * dataset — bila tidak, dataset berubah dan posisi TIDAK dipulihkan.
+   */
+  const restorePosition = useCallback((key: string) => {
+    const saved = positionCache.current[key]
+    if (!saved || saved.offset <= 0) return
+    if (saved.anchorId && !itemsRef.current.some((item) => item.id === saved.anchorId)) return
+    pendingRestoreRef.current = { offset: saved.offset }
+  }, [])
   /** Cermin `items` untuk commit atomik cache (tanpa side-effect di updater). */
   const itemsRef = useRef<ShowcaseSocialItem[]>([])
   /** A-07: panjang list terkini untuk `divider` — renderItem tetap stabil. */
@@ -398,9 +438,16 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
    */
   const [visibleIds, setVisibleIds] = useState<ReadonlySet<string>>(() => new Set())
   const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 60, minimumViewTime: 250 }).current
+  /** C02 (batch 139): anchor = item terlihat paling atas (indeks terkecil). */
+  const topVisibleRef = useRef<{ id: string } | null>(null)
   const handleViewableItemsChanged = useCallback(
-    ({ viewableItems }: { viewableItems: { item: ShowcaseSocialItem }[] }) => {
+    ({ viewableItems }: { viewableItems: { item: ShowcaseSocialItem; index?: number | null }[] }) => {
       setVisibleIds(new Set(viewableItems.map((v) => v.item.id)))
+      let top: { item: ShowcaseSocialItem; index?: number | null } | null = null
+      for (const candidate of viewableItems) {
+        if (top == null || (candidate.index ?? Infinity) < (top.index ?? Infinity)) top = candidate
+      }
+      topVisibleRef.current = top ? { id: top.item.id } : null
     },
     [],
   )
@@ -648,7 +695,12 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
 
   // A-11/A-21: pindah tab/filter — pulihkan cache instan, fetch hanya bila
   // belum ada hasil tersimpan untuk himpunan (tab × filter × sesi) itu.
+  // C02 (batch 139): posisi scroll ikut dipulihkan bila dataset tidak berubah.
   useEffect(() => {
+    // Simpan posisi tab/filter LAMA sebelum beralih.
+    savePosition()
+    const key = positionKey(kind, filter, revision)
+    lastPositionKeyRef.current = key
     const cached = itemsCache.current[kind]
     if (cached && cached.revision === revision && sameFeedFilter(cached.filter, filter)) {
       itemsRef.current = cached.items
@@ -659,14 +711,40 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
       setLoadingMore(false)
       setError(null)
       setLoadMoreError(null)
+      restorePosition(key)
     } else {
       itemsRef.current = []
       setItems([])
       setHasMore(false)
       void fetchPage("initial")
     }
-    return () => activeRequest.current?.abort()
-  }, [fetchPage, revision, hasSession, kind, filter])
+    return () => {
+      activeRequest.current?.abort()
+      // C02: simpan posisi saat tab dilepas (unmount/ganti kunci).
+      savePosition()
+    }
+  }, [fetchPage, revision, hasSession, kind, filter, positionKey, savePosition, restorePosition])
+
+  /**
+   * C02 (batch 139): terapkan pemulihan offset SETELAH daftar ter-render
+   * ulang (dua frame — pastikan FlatList sudah me-layout item yang
+   * dipulihkan dari cache).
+   */
+  useEffect(() => {
+    const pending = pendingRestoreRef.current
+    if (!pending) return
+    pendingRestoreRef.current = null
+    let cancelled = false
+    const raf = requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (!cancelled) listRef.current?.scrollToOffset({ offset: pending.offset, animated: false })
+      })
+    })
+    return () => {
+      cancelled = true
+      cancelAnimationFrame(raf)
+    }
+  }, [items])
 
   /** Ganti sesi = ganti pemilik daftar following — buang cache-nya. */
   useEffect(() => {

@@ -43,8 +43,8 @@
  * + <FooterBar>), layar list virtual besar (<PaginatedList>/FlashList punya
  * kerangka sendiri), dan layar tanpa fetch.
  */
-import type { ReactNode } from "react"
-import { View } from "react-native"
+import type { ReactNode, Ref } from "react"
+import { ScrollView, View, type ScrollViewProps } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { EmptyState, type EmptyStateProps } from "@/components/ui/empty-state"
@@ -122,11 +122,23 @@ export type DataScreenProps = {
    * mengubah perilaku konsumen existing).
    */
   keyboardAvoiding?: boolean
+  /**
+   * C14 (batch 139): ref ke ScrollView dalam — untuk scroll terprogram
+   * (mis. fokus komentar dari deep link). Opsional; tidak mengubah perilaku
+   * konsumen existing.
+   */
+  scrollRef?: Ref<ScrollView>
+  /** C14: pantau offset scroll (bahan hitung posisi fokus). */
+  onScroll?: ScrollViewProps["onScroll"]
+  /**
+   * C14: worklet scroll per-frame (jalur Android; web/iOS memakai onScroll).
+   */
+  onScrollWorklet?: (offsetY: number) => void
   children?: ReactNode
 }
 
 /** Shared inset-aware scroller for data screens with either fixed or scrolling headers. */
-export function DataScroll({ children, onRefresh, refreshing, enabled = true, padded = true, docked = false, hasFooter = false }: {
+export function DataScroll({ children, onRefresh, refreshing, enabled = true, padded = true, docked = false, hasFooter = false, scrollRef, onScroll, onScrollWorklet }: {
   children: ReactNode
   onRefresh: () => void | Promise<void>
   refreshing: boolean
@@ -134,12 +146,26 @@ export function DataScroll({ children, onRefresh, refreshing, enabled = true, pa
   padded?: boolean
   docked?: boolean
   hasFooter?: boolean
+  /**
+   * C14 (batch 139): ref ke ScrollView dalam — untuk scroll terprogram
+   * (mis. fokus komentar dari deep link). Opsional.
+   */
+  scrollRef?: Ref<ScrollView>
+  /** C14: pantau offset scroll (bahan hitung posisi fokus). */
+  onScroll?: ScrollViewProps["onScroll"]
+  /**
+   * C14: worklet scroll per-frame (jalur Android; web/iOS memakai onScroll).
+   * Diteruskan ke PullToRefresh.
+   */
+  onScrollWorklet?: (offsetY: number) => void
 }) {
   const insets = useSafeAreaInsets()
   const paddingBottom = docked ? tokens.space[4] : (hasFooter ? 0 : insets.bottom) + tokens.space[8]
   return <PullToRefresh onRefresh={onRefresh} refreshing={refreshing} enabled={enabled}
     contentContainerClassName={cn(padded && "px-5")}
-    scrollViewProps={{ contentContainerStyle: { paddingBottom } }}>{children}</PullToRefresh>
+    scrollRef={scrollRef}
+    onScrollWorklet={onScrollWorklet}
+    scrollViewProps={{ contentContainerStyle: { paddingBottom }, onScroll }}>{children}</PullToRefresh>
 }
 
 export function DataScreen({
@@ -159,6 +185,9 @@ export function DataScreen({
   shiftFade = false,
   keyboardAvoiding,
   persistent,
+  scrollRef,
+  onScroll,
+  onScrollWorklet,
   children,
 }: DataScreenProps) {
   const { loading, refreshing = false, error, refresh, reload } = state
@@ -190,6 +219,9 @@ export function DataScreen({
       padded={padded}
       docked={!!dock}
       hasFooter={!!footer}
+      scrollRef={scrollRef}
+      onScroll={onScroll}
+      onScrollWorklet={onScrollWorklet}
     >
       {persistent}
       {body}

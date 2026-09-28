@@ -9,6 +9,8 @@
 import {
   getShowcaseSharePayload,
   type ShowcaseAuthor,
+  type ShowcaseComment,
+  type ShowcaseCommentWithReplies,
   type ShowcaseMedia,
   type ShowcaseSharePayload,
   type ShowcaseSocialItem,
@@ -432,4 +434,21 @@ export function sortShowcaseComments<T extends { id: string; createdAt: string }
     return order === "newest" ? -idDiff : idDiff
   })
   return sorted
+}
+
+/**
+ * C14 (batch 139): cari komentar deep link di utas yang sudah dimuat.
+ * Mengembalikan `{ root, reply }` — `reply` null bila target adalah komentar
+ * root. Murni & unit-testable (dipakai alur fokus `?comment=`).
+ */
+export function findShowcaseComment(
+  comments: readonly ShowcaseCommentWithReplies[],
+  commentId: string,
+): { root: ShowcaseCommentWithReplies; reply: ShowcaseComment | null } | null {
+  for (const root of comments) {
+    if (root.id === commentId) return { root, reply: null }
+    const reply = root.replies?.find((candidate) => candidate.id === commentId) ?? null
+    if (reply) return { root, reply }
+  }
+  return null
 }

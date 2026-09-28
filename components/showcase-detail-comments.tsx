@@ -11,6 +11,7 @@
  */
 import { useState } from "react"
 import { View } from "react-native"
+import type { Ref } from "react"
 
 import type { ShowcaseComment, ShowcaseCommentWithReplies } from "@/lib/api/showcase"
 import { formatNumber } from "@/lib/format"
@@ -30,6 +31,16 @@ export type ShowcaseDetailCommentsProps = {
   commentRenderLimit: number
   /** L-06: id komentar yang disorot dari deep link `?comment=`. */
   highlightComment?: string
+  /**
+   * C14 (batch 139): id komentar yang difokuskan (scroll otomatis).
+   * Biasanya sama dengan `highlightComment` saat datang dari deep link.
+   */
+  focusCommentId?: string
+  /**
+   * C14: ref dipasang pada pembungkus baris target — induk mengukur
+   * posisinya untuk scroll. `collapsable={false}` supaya terukur di Android.
+   */
+  focusRowRef?: Ref<View>
   isOwner: boolean
   hasSession: boolean
   isMine: (comment: ShowcaseComment) => boolean
@@ -58,6 +69,8 @@ export function ShowcaseDetailComments({
   commentsStatus,
   commentRenderLimit,
   highlightComment,
+  focusCommentId,
+  focusRowRef,
   isOwner,
   hasSession,
   isMine,
@@ -135,7 +148,13 @@ export function ShowcaseDetailComments({
           const visibleReplies = expanded ? replies : replies.slice(0, REPLY_PREVIEW)
           const hiddenCount = replies.length - visibleReplies.length
           return (
-            <View key={root.id}>
+            // C14: baris target deep link dibungkus untuk pengukuran posisi
+            // scroll (collapsable=false agar terukur di Android).
+            <View
+              key={root.id}
+              ref={root.id === focusCommentId ? focusRowRef : undefined}
+              collapsable={false}
+            >
               <ShowcaseCommentRow
                 comment={root}
                 // L-06: sorot baris yang dituju deep link.
@@ -154,19 +173,29 @@ export function ShowcaseDetailComments({
                 */
                 threaded={visibleReplies.length > 0}
               >
-                {visibleReplies.map((reply) => (
-                  <ShowcaseCommentRow
-                    key={reply.id}
-                    comment={reply}
-                    avatarSize="xs"
-                    className={reply.id === highlightComment ? HIGHLIGHT_ROW : undefined}
-                    isMine={isMine(reply)}
-                    canReply={false}
-                    menuable={isMine(reply) || isOwner || (!reply.isHidden && hasSession)}
-                    onReply={onReply}
-                    onOpenMenu={onOpenMenu}
-                  />
-                ))}
+                {visibleReplies.map((reply) => {
+                  const row = (
+                    <ShowcaseCommentRow
+                      key={reply.id}
+                      comment={reply}
+                      avatarSize="xs"
+                      className={reply.id === highlightComment ? HIGHLIGHT_ROW : undefined}
+                      isMine={isMine(reply)}
+                      canReply={false}
+                      menuable={isMine(reply) || isOwner || (!reply.isHidden && hasSession)}
+                      onReply={onReply}
+                      onOpenMenu={onOpenMenu}
+                    />
+                  )
+                  // C14: hanya balasan target yang dibungkus (pengukuran
+                  // posisi); sisanya dirender persis seperti sebelumnya.
+                  if (reply.id !== focusCommentId) return row
+                  return (
+                    <View key={reply.id} ref={focusRowRef} collapsable={false}>
+                      {row}
+                    </View>
+                  )
+                })}
                 {/* U-02: lipatan utas — jangan tumpahkan semua balasan. */}
                 {replies.length > REPLY_PREVIEW && !deepLinkInside ? (
                   <Button variant="ghost" onPress={() => toggleReplies(root.id)}>
