@@ -39,7 +39,7 @@ import {
 import { api, isApiError, userMessage } from "@/lib/api"
 import type { HiddenReason, PublicUserProfile, QuestionComment, QuestionItem, VerificationBadge } from "@/lib/api/users"
 import { readMyRatings, type PublicRatingFilter, type Rating } from "@/lib/api/ratings"
-import { getOrCreateDm } from "@/lib/api/chat"
+import { getOrCreateDm, isDmNotAllowedError } from "@/lib/api/chat"
 import { isOwnQuestion, isOwnQuestionComment, resolveFollowStatus } from "@/lib/api/users"
 import {
   readQuestionComments,
@@ -499,11 +499,23 @@ export default function UserProfileScreen() {
       const room = await getOrCreateDm(handle)
       router.push(ROUTES.chatRoom(room.id, profile?.fullName ?? `@${handle}`))
     } catch (err) {
-      toast.show({
-        title: translate("Gagal membuka chat"),
-        description: userMessage(err),
-        tone: "danger",
-      })
+      // Batch 43: CHAT_DM_NOT_ALLOWED (403) → penolakan sopan, bukan error
+      // generik — penerima membatasi siapa yang bisa mengirimi DM baru.
+      if (isDmNotAllowedError(err)) {
+        toast.show({
+          title: translate("Tidak bisa mengirim pesan"),
+          description: translate(
+            "Pengguna ini membatasi pesan langsung baru. Anda hanya bisa chat dengannya lewat transaksi.",
+          ),
+          tone: "info",
+        })
+      } else {
+        toast.show({
+          title: translate("Gagal membuka chat"),
+          description: userMessage(err),
+          tone: "danger",
+        })
+      }
     } finally {
       setDmLoading(false)
     }

@@ -91,6 +91,23 @@ export type ChatMessage = {
   readAt?: Record<string, string> | string | null
   /** Reaksi emoji tersummari (emoji, count, reactedByMe, users). */
   reactions?: ChatReaction[]
+  // ── Batch 43 FE-CHAT (2026-09-28) ────────────────────────────────
+  /** Pesan LOCATION — backend mengirim objek { lat, lng, label } atau null. */
+  location?: { lat: number; lng: number; label?: string | null } | null
+  /** Snapshot kartu (PRODUCT_CARD / ORDER_CARD) — type guard di asProductCard/asOrderCard. */
+  card?: Record<string, unknown> | null
+  /** Pesan sementara: TTL detik; null = bukan pesan sementara. */
+  ephemeralTtlSeconds?: number | null
+  /** Kapan pesan kedaluwarsa (ISO) — dihapus permanen oleh worker purge. */
+  expiresAt?: string | null
+  /** Sekali-lihat: hilang setelah dibaca lawan bicara (grace singkat). */
+  viewOnce?: boolean
+  /** Kapan pesan sekali-lihat dikonsumsi (ISO) — null = belum. */
+  viewOnceViewedAt?: string | null
+  /** Berbintang oleh saya (diisi client dari GET /starred). */
+  isStarred?: boolean
+  /** Kapan dibintangi (ISO) — dari GET /starred. */
+  starredAt?: string
 }
 
 /** Reaksi emoji pada pesan (summarizeReactions backend). */
@@ -676,4 +693,641 @@ export function markMessageRead(roomId: string, messageId: string) {
     undefined,
     { auth: "required" },
   )
+}
+
+// ====================================================================
+// Batch 43 FE-CHAT (2026-09-28): terjemahan, ekspor, privasi, bintang,
+// self-chat, polling, pin room (backend), template balasan "/", blokir,
+// lapor, buat order dari chat, lokasi, kartu, ephemeral/view-once.
+//
+// Kontrak backend: branch mega/be-chat, commit 9bd7dd9 (tsc 0, 115/115
+// test). Semua respons dinormalisasi defensif — shape backend
+// `Promise<object>` generik di controller, jadi field yang hilang
+// diperlakukan sebagai nilai default, bukan throw.
+// ====================================================================
+
+/** Kebijakan DM (GET/PATCH /v1/chat/privacy). */
+export type DmPolicy = "EVERYONE" | "FOLLOWING" | "NONE"
+
+export type ChatPrivacySettings = {
+  hideReadReceipts: boolean
+  dmPolicy: DmPolicy
+}
+
+const DM_POLICIES: DmPolicy[] = ["EVERYONE", "FOLLOWING", "NONE"]
+
+/** Opsi kebijakan DM untuk UI radio + copy penjelasan per opsi. */
+export const DM_POLICY_OPTIONS: { value: DmPolicy; label: string; description: string }[] = [
+  {
+    value: "EVERYONE",
+    label: "Semua orang",
+    description: "Siapa pun bisa mengirimi Anda pesan langsung baru.",
+  },
+  {
+    value: "FOLLOWING",
+    label: "Hanya yang saya ikuti",
+    description: "Hanya orang yang Anda follow yang bisa memulai DM baru.",
+  },
+  {
+    value: "NONE",
+    label: "Tidak ada",
+    description: "Tolak semua pesan langsung baru. Percakapan yang sudah ada tidak terpengaruh.",
+  },
+]
+
+function normalizePrivacy(raw: unknown): ChatPrivacySettings {
+  const record = (raw ?? {}) as Record<string, unknown>
+  const dmPolicy = DM_POLICIES.includes(record.dmPolicy as DmPolicy)
+    ? (record.dmPolicy as DmPolicy)
+    : "EVERYONE"
+  return {
+    hideReadReceipts: record.hideReadReceipts === true,
+    dmPolicy,
+  }
+}
+
+/** GET /v1/chat/privacy — pengaturan privasi chat milik sendiri. */
+export function getChatPrivacy(signal?: AbortSignal): Promise<ChatPrivacySettings> {
+  return http
+    .get<unknown>("/v1/chat/privacy", { auth: "required", retry: 1, signal })
+    .then(normalizePrivacy)
+}
+
+/** PATCH /v1/chat/privacy — ubah privasi chat milik sendiri. */
+export function updateChatPrivacy(
+  dto: Partial<ChatPrivacySettings>,
+): Promise<ChatPrivacySettings> {
+  return http
+    .patch<unknown, Partial<ChatPrivacySettings>>("/v1/chat/privacy", dto, {
+      auth: "required",
+    })
+    .then(normalizePrivacy)
+}
+
+// ── Terjemahan pesan ────────────────────────────────────────────────
+
+export type ChatTranslation = {
+  messageId: string
+  targetLang: string
+  translatedText: string
+  sourceLang: string | null
+}
+
+/**
+ * POST /v1/chat/rooms/{roomId}/messages/{messageId}/translate.
+ * Backend melempar 501 (TRANSLATION_NOT_CONFIGURED) bila provider belum
+ * dikonfigurasi — pemanggil UI WAJIB memetakan ke "belum tersedia", bukan
+ * error generik.
+ */
+export function translateChatMessage(
+  roomId: string,
+  messageId: string,
+  targetLang: string,
+): Promise<ChatTranslation> {
+  return http
+    .post<unknown, { targetLang: string }>(
+      `/v1/chat/rooms/${seg(roomId)}/messages/${seg(messageId)}/translate`,
+      { targetLang },
+      { auth: "required" },
+    )
+    .then((raw) => {
+      const record = (raw ?? {}) as Record<string, unknown>
+      return {
+        messageId: typeof record.messageId === "string" ? record.messageId : messageId,
+        targetLang: typeof record.targetLang === "string" ? record.targetLang : targetLang,
+        translatedText: typeof record.translatedText === "string" ? record.translatedText : "",
+        sourceLang: typeof record.sourceLang === "string" ? record.sourceLang : null,
+      }
+    })
+}
+
+/** Kode backend bila provider terjemahan belum dikonfigurasi (HTTP 501). */
+export const TRANSLATION_NOT_CONFIGURED = "TRANSLATION_NOT_CONFIGURED"
+
+/** Kode backend bila DM ditolak kebijakan penerima (HTTP 403). */
+export const CHAT_DM_NOT_ALLOWED = "CHAT_DM_NOT_ALLOWED"
+
+/** True bila error adalah penolakan DM karena kebijakan privasi penerima. */
+export function isDmNotAllowedError(err: unknown): boolean {
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    "backendCode" in err &&
+    (err as { backendCode?: unknown }).backendCode === CHAT_DM_NOT_ALLOWED
+  )
+}
+
+// ── Ekspor chat ─────────────────────────────────────────────────────
+
+export type ChatExport = {
+  filename: string
+  /** Isi txt (atau JSON sebagai string). */
+  content: string
+}
+
+/**
+ * GET /v1/chat/rooms/{roomId}/export?format=txt — riwayat sebagai teks.
+ * Backend membatasi 5000 pesan (CHAT_EXPORT_TOO_LARGE bila lewat).
+ */
+export async function exportChatRoom(
+  roomId: string,
+  format: "txt" | "json" = "txt",
+  signal?: AbortSignal,
+): Promise<ChatExport> {
+  const content = await http.get<string>(`/v1/chat/rooms/${seg(roomId)}/export`, {
+    query: { format },
+    auth: "required",
+    responseType: "text",
+    signal,
+  })
+  return { filename: `chat-export-${roomId}.${format}`, content }
+}
+
+// ── Pesan berbintang ────────────────────────────────────────────────
+
+/** POST /v1/chat/rooms/{roomId}/starred/{messageId} */
+export function starChatMessage(roomId: string, messageId: string) {
+  return http
+    .post<{ starred: boolean }>(`/v1/chat/rooms/${seg(roomId)}/starred/${seg(messageId)}`, undefined, {
+      auth: "required",
+    })
+    .then((raw) => ({ starred: (raw as { starred?: unknown })?.starred === true }))
+}
+
+/** DELETE /v1/chat/rooms/{roomId}/starred/{messageId} */
+export function unstarChatMessage(roomId: string, messageId: string) {
+  return http
+    .delete<{ starred: boolean }>(`/v1/chat/rooms/${seg(roomId)}/starred/${seg(messageId)}`, {
+      auth: "required",
+    })
+    .then((raw) => ({ starred: (raw as { starred?: unknown })?.starred === true }))
+}
+
+/** GET /v1/chat/rooms/{roomId}/starred — daftar pesan berbintang (per user). */
+export function listStarredMessages(roomId: string, signal?: AbortSignal) {
+  return http
+    .get<unknown>(`/v1/chat/rooms/${seg(roomId)}/starred`, { auth: "required", retry: 1, signal })
+    .then((raw) => {
+      const record = (raw ?? {}) as Record<string, unknown>
+      const list = Array.isArray(record.messages)
+        ? record.messages
+        : Array.isArray(record.items)
+          ? record.items
+          : []
+      return (list as (ChatMessage & Record<string, unknown>)[]).map((entry) => {
+        // Backend mengirim { starredAt, message } — terima juga pesan langsung.
+        const msg = (
+          entry && typeof entry === "object" && "message" in entry
+            ? (entry as { message?: unknown }).message ?? entry
+            : entry
+        ) as ChatMessage & Record<string, unknown>
+        const starredAt =
+          entry && typeof entry === "object" && "starredAt" in entry
+            ? (entry as { starredAt?: unknown }).starredAt
+            : undefined
+        return {
+          ...normalizeChatMessage(msg),
+          isStarred: true,
+          starredAt: typeof starredAt === "string" ? starredAt : undefined,
+        }
+      })
+    })
+}
+
+// ── Chat dengan diri sendiri ────────────────────────────────────────
+
+/** POST /v1/chat/self — get-or-create room "pesan tersimpan". */
+export function getOrCreateSelfRoom(): Promise<ChatRoom & { isSelf: true }> {
+  return http
+    .post<unknown>("/v1/chat/self", undefined, { auth: "required" })
+    .then((raw) => {
+      const record = (raw ?? {}) as Record<string, unknown>
+      const roomRaw = (record.room ?? record) as ChatRoom & Record<string, unknown>
+      return { ...normalizeChatRoom(roomRaw), isSelf: true as const }
+    })
+}
+
+// ── Polling ─────────────────────────────────────────────────────────
+
+export type ChatPollOption = { index: number; text: string; votes: number }
+
+export type ChatPoll = {
+  id: string
+  roomId: string
+  question: string
+  options: ChatPollOption[]
+  totalVotes: number
+  allowMultiple: boolean
+  deadline: string | null
+  isClosed: boolean
+  myVotes: number[]
+  createdBy: { userId: string; fullName?: string | null }
+  createdAt: string
+}
+
+/** Batas dari backend (app.constants): opsi 2–10, pertanyaan ≤300 char. */
+export const CHAT_POLL_MIN_OPTIONS = 2
+export const CHAT_POLL_MAX_OPTIONS = 10
+export const CHAT_POLL_QUESTION_MAX = 300
+
+function normalizePoll(raw: unknown): ChatPoll {
+  const record = (raw ?? {}) as Record<string, unknown>
+  const options = Array.isArray(record.options)
+    ? record.options.map((o, i) => {
+        const item = (o ?? {}) as Record<string, unknown>
+        return {
+          index: typeof item.index === "number" ? item.index : i,
+          text: typeof item.text === "string" ? item.text : "",
+          votes: typeof item.votes === "number" ? item.votes : 0,
+        }
+      })
+    : []
+  const createdBy = (record.createdBy ?? {}) as Record<string, unknown>
+  return {
+    id: typeof record.id === "string" ? record.id : "",
+    roomId: typeof record.roomId === "string" ? record.roomId : "",
+    question: typeof record.question === "string" ? record.question : "",
+    options,
+    totalVotes: typeof record.totalVotes === "number" ? record.totalVotes : 0,
+    allowMultiple: record.allowMultiple === true,
+    deadline: typeof record.deadline === "string" ? record.deadline : null,
+    isClosed: record.isClosed === true,
+    myVotes: Array.isArray(record.myVotes)
+      ? record.myVotes.filter((v): v is number => typeof v === "number")
+      : [],
+    createdBy: {
+      userId: typeof createdBy.userId === "string" ? createdBy.userId : "",
+      fullName: typeof createdBy.fullName === "string" ? createdBy.fullName : null,
+    },
+    createdAt: typeof record.createdAt === "string" ? record.createdAt : "",
+  }
+}
+
+/** POST /v1/chat/rooms/{roomId}/polls */
+export function createPoll(
+  roomId: string,
+  dto: { question: string; options: string[]; allowMultiple?: boolean; deadline?: string },
+) {
+  return http
+    .post<unknown, typeof dto>(`/v1/chat/rooms/${seg(roomId)}/polls`, dto, { auth: "required" })
+    .then(normalizePoll)
+}
+
+/** GET /v1/chat/rooms/{roomId}/polls */
+export function listPolls(roomId: string, signal?: AbortSignal) {
+  return http
+    .get<unknown>(`/v1/chat/rooms/${seg(roomId)}/polls`, { auth: "required", retry: 1, signal })
+    .then((raw) => {
+      const record = (raw ?? {}) as Record<string, unknown>
+      const list = Array.isArray(record.polls)
+        ? record.polls
+        : Array.isArray(raw)
+          ? raw
+          : []
+      return (list as unknown[]).map(normalizePoll)
+    })
+}
+
+/** GET /v1/chat/rooms/{roomId}/polls/{pollId} */
+export function getPoll(roomId: string, pollId: string, signal?: AbortSignal) {
+  return http
+    .get<unknown>(`/v1/chat/rooms/${seg(roomId)}/polls/${seg(pollId)}`, {
+      auth: "required",
+      retry: 1,
+      signal,
+    })
+    .then(normalizePoll)
+}
+
+/** POST /v1/chat/rooms/{roomId}/polls/{pollId}/vote */
+export function votePoll(roomId: string, pollId: string, optionIndexes: number[]) {
+  return http
+    .post<unknown, { optionIndexes: number[] }>(
+      `/v1/chat/rooms/${seg(roomId)}/polls/${seg(pollId)}/vote`,
+      { optionIndexes },
+      { auth: "required" },
+    )
+    .then(normalizePoll)
+}
+
+/** POST /v1/chat/rooms/{roomId}/polls/{pollId}/close (hanya pembuat). */
+export function closePoll(roomId: string, pollId: string) {
+  return http
+    .post<unknown>(`/v1/chat/rooms/${seg(roomId)}/polls/${seg(pollId)}/close`, undefined, {
+      auth: "required",
+    })
+    .then(normalizePoll)
+}
+
+// ── Pin room (tersinkron backend) ────────────────────────────────────
+
+export type PinnedChatRoom = {
+  roomId: string
+  position: number
+  pinnedAt: string
+}
+
+/** GET /v1/chat/pinned — ruang terpin milik sendiri, urut posisi. */
+export function listPinnedChatRooms(signal?: AbortSignal) {
+  return http
+    .get<unknown>("/v1/chat/pinned", { auth: "required", retry: 1, signal })
+    .then((raw) => {
+      const record = (raw ?? {}) as Record<string, unknown>
+      const list = Array.isArray(record.pinnedRooms)
+        ? record.pinnedRooms
+        : Array.isArray(raw)
+          ? raw
+          : []
+      return (list as Record<string, unknown>[])
+        .filter((p) => typeof p?.roomId === "string")
+        .map((p) => ({
+          roomId: p.roomId as string,
+          position: typeof p.position === "number" ? p.position : 0,
+          pinnedAt: typeof p.pinnedAt === "string" ? p.pinnedAt : "",
+        }))
+    })
+}
+
+/** POST /v1/chat/rooms/{roomId}/pin */
+export function pinChatRoomOnServer(roomId: string, position?: number) {
+  return http
+    .post<{ roomId: string; position: number }, { position?: number }>(
+      `/v1/chat/rooms/${seg(roomId)}/pin`,
+      position !== undefined ? { position } : {},
+      { auth: "required" },
+    )
+}
+
+/** DELETE /v1/chat/rooms/{roomId}/pin */
+export function unpinChatRoomOnServer(roomId: string) {
+  return http
+    .delete<{ unpinned: boolean }>(`/v1/chat/rooms/${seg(roomId)}/pin`, { auth: "required" })
+    .then((raw) => ({ unpinned: (raw as { unpinned?: unknown })?.unpinned !== false }))
+}
+
+// ── Template balasan "/" ────────────────────────────────────────────
+
+export type ChatReplyTemplate = {
+  id: string
+  shortcut: string
+  text: string
+  createdAt: string
+  updatedAt: string
+}
+
+/** Shortcut backend: huruf kecil/angka/underscore, ≤32. */
+export const REPLY_TEMPLATE_SHORTCUT_RE = /^[a-z0-9_]+$/
+export const REPLY_TEMPLATE_SHORTCUT_MAX = 32
+export const REPLY_TEMPLATE_TEXT_MAX = 500
+
+function normalizeReplyTemplate(raw: unknown): ChatReplyTemplate {
+  const record = (raw ?? {}) as Record<string, unknown>
+  return {
+    id: typeof record.id === "string" ? record.id : "",
+    shortcut: typeof record.shortcut === "string" ? record.shortcut : "",
+    text: typeof record.text === "string" ? record.text : "",
+    createdAt: typeof record.createdAt === "string" ? record.createdAt : "",
+    updatedAt: typeof record.updatedAt === "string" ? record.updatedAt : "",
+  }
+}
+
+/** GET /v1/chat/reply-templates */
+export function listReplyTemplates(signal?: AbortSignal) {
+  return http
+    .get<unknown>("/v1/chat/reply-templates", { auth: "required", retry: 1, signal })
+    .then((raw) => {
+      const record = (raw ?? {}) as Record<string, unknown>
+      const list = Array.isArray(record.templates)
+        ? record.templates
+        : Array.isArray(raw)
+          ? raw
+          : []
+      return (list as unknown[]).map(normalizeReplyTemplate)
+    })
+}
+
+/** POST /v1/chat/reply-templates */
+export function createReplyTemplate(dto: { shortcut: string; text: string }) {
+  return http
+    .post<unknown, typeof dto>("/v1/chat/reply-templates", dto, { auth: "required" })
+    .then((raw) => {
+      const record = (raw ?? {}) as Record<string, unknown>
+      return normalizeReplyTemplate(record.template ?? raw)
+    })
+}
+
+/** PATCH /v1/chat/reply-templates/{templateId} */
+export function updateReplyTemplate(
+  templateId: string,
+  dto: { shortcut?: string; text?: string },
+) {
+  return http
+    .patch<unknown, typeof dto>(`/v1/chat/reply-templates/${seg(templateId)}`, dto, {
+      auth: "required",
+    })
+    .then((raw) => {
+      const record = (raw ?? {}) as Record<string, unknown>
+      return normalizeReplyTemplate(record.template ?? raw)
+    })
+}
+
+/** DELETE /v1/chat/reply-templates/{templateId} */
+export function deleteReplyTemplate(templateId: string) {
+  return http.delete<unknown>(`/v1/chat/reply-templates/${seg(templateId)}`, {
+    auth: "required",
+  })
+}
+
+// ── Blokir & laporkan dari room ─────────────────────────────────────
+
+export type ChatReportCategory =
+  | "FRAUD"
+  | "FAKE_IDENTITY"
+  | "INAPPROPRIATE_CONTENT"
+  | "TNC_VIOLATION"
+  | "MONEY_LAUNDERING"
+  | "SPAM"
+  | "OTHER"
+
+/** Kategori laporan + label Indonesia untuk UI. */
+export const CHAT_REPORT_CATEGORIES: { value: ChatReportCategory; label: string }[] = [
+  { value: "FRAUD", label: "Penipuan" },
+  { value: "FAKE_IDENTITY", label: "Identitas palsu" },
+  { value: "INAPPROPRIATE_CONTENT", label: "Konten tidak pantas" },
+  { value: "TNC_VIOLATION", label: "Pelanggaran S&K" },
+  { value: "MONEY_LAUNDERING", label: "Pencucian uang" },
+  { value: "SPAM", label: "Spam" },
+  { value: "OTHER", label: "Lainnya" },
+]
+
+/**
+ * POST /v1/chat/rooms/{roomId}/block — blokir lawan bicara room ini.
+ * 409 USER_ALREADY_BLOCKED bila sudah diblokir.
+ */
+export function blockCounterpartFromRoom(roomId: string) {
+  return http
+    .post<{ message: string }>(`/v1/chat/rooms/${seg(roomId)}/block`, undefined, {
+      auth: "required",
+    })
+    .then((raw) => ({
+      message:
+        typeof (raw as { message?: unknown })?.message === "string"
+          ? (raw as { message: string }).message
+          : "",
+    }))
+}
+
+/**
+ * POST /v1/chat/rooms/{roomId}/report — laporkan lawan bicara room ini.
+ * description minimal 20 karakter (validasi backend).
+ */
+export function reportCounterpartFromRoom(
+  roomId: string,
+  dto: { category: ChatReportCategory; description: string; relatedMessageId?: string },
+) {
+  return http
+    .post<{ message: string; reportId: string }, typeof dto>(
+      `/v1/chat/rooms/${seg(roomId)}/report`,
+      dto,
+      { auth: "required" },
+    )
+    .then((raw) => {
+      const record = (raw ?? {}) as Record<string, unknown>
+      return {
+        message: typeof record.message === "string" ? record.message : "",
+        reportId: typeof record.reportId === "string" ? record.reportId : "",
+      }
+    })
+}
+
+// ── Buat order escrow dari chat ─────────────────────────────────────
+
+export type CreateOrderFromChatDto = {
+  /** ID etalase yang dinegosiasikan (penjual = pemilik etalase). */
+  showcaseId?: string
+  /** Judul order (wajib bila tanpa showcaseId, min 3). */
+  title?: string
+  /** Deskripsi order (wajib bila tanpa showcaseId, min 10). */
+  description?: string
+  /** Harga sepakati dalam RUPIAH (bila diisi; bila tidak pakai harga etalase). */
+  hargaSepakat?: number
+  qty?: number
+  /** Peran pemanggil bila tanpa showcaseId (default BUYER). */
+  role?: "BUYER" | "SELLER"
+  orderType?: "PHYSICAL_GOODS" | "DIGITAL_GOODS" | "SERVICE" | "OTHER"
+  deliveryDeadlineDays?: number
+  feeResponsibility?: "BUYER" | "SELLER" | "SPLIT"
+}
+
+export type CreatedOrderFromChat = {
+  order: {
+    /** Kode order publik (mis. KHD-…). */
+    orderId: string
+    status: string
+    feeCalculation?: unknown
+    confirmationDeadlineAt?: string | null
+  }
+  roomId: string
+}
+
+/**
+ * POST /v1/chat/rooms/{roomId}/order — buat order ESCROW 1-by-1 dari ruang
+ * negosiasi (INQUIRY). Uang HANYA lewat escrow: seluruh logika finansial
+ * didelegasikan ke OrdersService di backend. TIDAK ADA jalur kirim uang
+ * langsung — keputusan user, jangan pernah menambahkannya di sini.
+ */
+export function createOrderFromChat(
+  roomId: string,
+  dto: CreateOrderFromChatDto,
+): Promise<CreatedOrderFromChat> {
+  return http
+    .post<unknown, CreateOrderFromChatDto>(`/v1/chat/rooms/${seg(roomId)}/order`, dto, {
+      auth: "required",
+    })
+    .then((raw) => {
+      const record = (raw ?? {}) as Record<string, unknown>
+      const order = (record.order ?? {}) as Record<string, unknown>
+      return {
+        order: {
+          orderId: typeof order.orderId === "string" ? order.orderId : "",
+          status: typeof order.status === "string" ? order.status : "",
+          feeCalculation: order.feeCalculation,
+          confirmationDeadlineAt:
+            typeof order.confirmationDeadlineAt === "string"
+              ? order.confirmationDeadlineAt
+              : null,
+        },
+        roomId: typeof record.roomId === "string" ? record.roomId : roomId,
+      }
+    })
+}
+
+// ── Lokasi & kartu (tipe payload pesan) ─────────────────────────────
+
+export type ChatLocationPayload = {
+  lat: number
+  lng: number
+  label?: string | null
+}
+
+export type ChatProductCardPayload = {
+  kind: "PRODUCT_CARD"
+  showcaseId: string
+  title: string
+  priceMin: string | null
+  priceMax: string | null
+  imageUrl: string | null
+  sellerUsername: string
+  sellerName?: string | null
+  snapshotAt: string
+}
+
+export type ChatOrderCardPayload = {
+  kind: "ORDER_CARD"
+  /** ID internal (cuid) — untuk GET order lanjutan. */
+  orderId: string
+  /** Kode order publik. */
+  orderCode: string
+  title: string
+  status: string
+  orderValue: string
+  buyerUsername: string
+  sellerUsername: string
+  snapshotAt: string
+}
+
+/** Type guard: `card` backend → kartu produk. */
+export function asProductCard(card: unknown): ChatProductCardPayload | null {
+  if (!card || typeof card !== "object") return null
+  const c = card as Record<string, unknown>
+  if (c.kind !== "PRODUCT_CARD" || typeof c.showcaseId !== "string") return null
+  return {
+    kind: "PRODUCT_CARD",
+    showcaseId: c.showcaseId,
+    title: typeof c.title === "string" ? c.title : "",
+    priceMin: typeof c.priceMin === "string" ? c.priceMin : null,
+    priceMax: typeof c.priceMax === "string" ? c.priceMax : null,
+    imageUrl: typeof c.imageUrl === "string" ? c.imageUrl : null,
+    sellerUsername: typeof c.sellerUsername === "string" ? c.sellerUsername : "",
+    sellerName: typeof c.sellerName === "string" ? c.sellerName : null,
+    snapshotAt: typeof c.snapshotAt === "string" ? c.snapshotAt : "",
+  }
+}
+
+/** Type guard: `card` backend → kartu order. */
+export function asOrderCard(card: unknown): ChatOrderCardPayload | null {
+  if (!card || typeof card !== "object") return null
+  const c = card as Record<string, unknown>
+  if (c.kind !== "ORDER_CARD" || typeof c.orderId !== "string") return null
+  return {
+    kind: "ORDER_CARD",
+    orderId: c.orderId,
+    orderCode: typeof c.orderCode === "string" ? c.orderCode : "",
+    title: typeof c.title === "string" ? c.title : "",
+    status: typeof c.status === "string" ? c.status : "",
+    orderValue: typeof c.orderValue === "string" ? c.orderValue : "0",
+    buyerUsername: typeof c.buyerUsername === "string" ? c.buyerUsername : "",
+    sellerUsername: typeof c.sellerUsername === "string" ? c.sellerUsername : "",
+    snapshotAt: typeof c.snapshotAt === "string" ? c.snapshotAt : "",
+  }
 }

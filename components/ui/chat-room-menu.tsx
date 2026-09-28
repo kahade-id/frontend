@@ -25,8 +25,13 @@ import {
   Archive,
   BellSlash,
   BellZ,
+  ChartBar,
+  FileArrowDown,
+  Flag,
   MagnifyingGlass,
   Package,
+  Receipt,
+  Star,
   UserCircle,
 } from "phosphor-react-native"
 import { router } from "expo-router"
@@ -49,6 +54,19 @@ export type ChatRoomMenuProps = {
   onSearch: () => void
   /** Ruang diperbarui (bisu/arsip) — layar menambal state ruangnya. */
   onRoomChange: (patch: Partial<ChatRoom>) => void
+  // ── Batch 43 FE-CHAT ──────────────────────────────────────────────
+  /** Ekspor riwayat chat (TXT). */
+  onExport?: () => void
+  /** Buka sheet pesan berbintang. */
+  onOpenStarred?: () => void
+  /** Buka sheet polling. */
+  onOpenPolls?: () => void
+  /** Buka sheet buat transaksi (disembunyikan untuk self-chat). */
+  onOpenCreateOrder?: () => void
+  /** Buka sheet laporkan + blokir (disembunyikan untuk self-chat). */
+  onOpenReport?: () => void
+  /** Self-chat — sembunyikan blokir/lapor & buat transaksi. */
+  isSelfChat?: boolean
 }
 
 export function ChatRoomMenu({
@@ -58,6 +76,12 @@ export function ChatRoomMenu({
   onClose,
   onSearch,
   onRoomChange,
+  onExport,
+  onOpenStarred,
+  onOpenPolls,
+  onOpenCreateOrder,
+  onOpenReport,
+  isSelfChat = false,
 }: ChatRoomMenuProps) {
   const toast = useToast()
   const [busy, setBusy] = useState(false)
@@ -92,12 +116,44 @@ export function ChatRoomMenu({
       })
     }
     items.push({ key: "search", label: "Cari pesan", icon: MagnifyingGlass, onPress: onSearch })
+    // Batch 43: ekspor, bintang, polling — selalu tersedia di menu.
+    if (onExport) {
+      items.push({ key: "export", label: "Ekspor chat (TXT)", icon: FileArrowDown, onPress: onExport })
+    }
+    if (onOpenStarred) {
+      items.push({ key: "starred", label: "Pesan berbintang", icon: Star, onPress: onOpenStarred })
+    }
+    if (onOpenPolls) {
+      items.push({ key: "polls", label: "Polling", icon: ChartBar, onPress: onOpenPolls })
+    }
+    // Batch 43: buat transaksi dari chat — uang tetap via escrow, bukan
+    // transfer langsung (keputusan produk batch 43).
+    if (onOpenCreateOrder && !isSelfChat) {
+      items.push({
+        key: "create-order",
+        label: "Buat transaksi",
+        description: "Dana lewat escrow Kahade",
+        icon: Receipt,
+        onPress: onOpenCreateOrder,
+      })
+    }
     if (counterpartUsername) {
       items.push({
         key: "profile",
         label: "Lihat profil",
         icon: UserCircle,
         onPress: () => router.push(ROUTES.userProfile(counterpartUsername)),
+      })
+    }
+    // Batch 43: laporkan + blokir dari menu ruang — disembunyikan untuk
+    // self-chat (tidak ada lawan bicara untuk dilaporkan/diblokir).
+    if (onOpenReport && !isSelfChat && room?.counterpart) {
+      items.push({
+        key: "report",
+        label: "Laporkan / Blokir",
+        description: "Laporkan pesan atau blokir pengguna",
+        icon: Flag,
+        onPress: onOpenReport,
       })
     }
     if (room) {
@@ -139,7 +195,21 @@ export function ChatRoomMenu({
       })
     }
     return items
-  }, [busy, counterpartUsername, onRoomChange, onSearch, room, runBusy, toast.show])
+  }, [
+    busy,
+    counterpartUsername,
+    isSelfChat,
+    onExport,
+    onOpenCreateOrder,
+    onOpenPolls,
+    onOpenReport,
+    onOpenStarred,
+    onRoomChange,
+    onSearch,
+    room,
+    runBusy,
+    toast.show,
+  ])
 
   return (
     <ActionSheet

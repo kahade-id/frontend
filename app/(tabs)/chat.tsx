@@ -32,7 +32,7 @@
  */
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { ScrollView, View } from "react-native"
-import { Archive, BellSlash, BellZ, Chats, PushPin, Trash, X } from "phosphor-react-native"
+import { Archive, BellSlash, BellZ, Chats, GearSix, NotePencil, PushPin, Trash, X } from "phosphor-react-native"
 import { router } from "expo-router"
 
 import { api, isApiError, userMessage } from "@/lib/api"
@@ -41,6 +41,7 @@ import {
   canDeleteChatRoom,
   chatRoomPreview,
   deleteChatRoom,
+  getOrCreateSelfRoom,
   setRoomArchived,
   setRoomMuted,
   type ChatRoom,
@@ -68,11 +69,14 @@ import { ChipGroup, type ChipOption } from "@/components/ui/chip"
 import { Dialog } from "@/components/ui/modal"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Header } from "@/components/ui/header"
+import { Icon } from "@/components/ui/icon"
 import { IconButton } from "@/components/ui/icon-button"
 import { ModeShiftFade } from "@/components/ui/mode-switcher"
 import { PaginatedList } from "@/components/ui/paginated-list"
+import { PressableScale } from "@/components/ui/pressable-scale"
 import { Screen } from "@/components/ui/screen"
 import { Skeleton, SkeletonGroup } from "@/components/ui/skeleton"
+import { Text } from "@/components/ui/text"
 import {
   SwipeableListItem,
   useSwipeableGroup,
@@ -115,6 +119,33 @@ function ChatSkeletonRow() {
 /** "Transaksi" = punya orderId atau type ORDER (DRIFT-06: backend mengirim `type`). */
 function isTransactionRoom(room: ChatRoom): boolean {
   return Boolean(room.orderId) || (room.type ?? room.roomType) === "ORDER"
+}
+
+/**
+ * Batch 43: entri "Pesan untuk diri sendiri" di puncak daftar chat —
+ * membuka/membuat self room (POST /v1/chat/self).
+ */
+function SelfChatEntry({ onOpen }: { onOpen: () => void }) {
+  return (
+    <PressableScale
+      onPress={onOpen}
+      accessibilityRole="button"
+      accessibilityLabel="Pesan untuk diri sendiri"
+      className="flex-row items-center gap-3 px-4 py-2.5"
+    >
+      <View className="h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+        <Icon icon={NotePencil} size={22} tone="active" />
+      </View>
+      <View className="min-w-0 flex-1 gap-0.5">
+        <Text variant="body" weight={600} tone="primary" numberOfLines={1}>
+          Pesan untuk diri sendiri
+        </Text>
+        <Text variant="caption" tone="secondary" numberOfLines={1}>
+          Catatan, pengingat, dan draf untuk Anda
+        </Text>
+      </View>
+    </PressableScale>
+  )
 }
 
 export default function ChatScreen() {
@@ -190,6 +221,23 @@ export default function ChatScreen() {
     },
     [activeSetData],
   )
+
+  /**
+   * Batch 43: buka self-chat ("Pesan untuk diri sendiri") — POST /v1/chat/self
+   * bila belum ada. Gagal → toast sopan (bukan layar error).
+   */
+  const openSelfChat = useCallback(async () => {
+    try {
+      const room = await getOrCreateSelfRoom()
+      router.push(ROUTES.chatRoom(room.id, "Pesan untuk diri sendiri", true))
+    } catch (err) {
+      toast.show({
+        title: "Gagal membuka pesan untuk diri sendiri",
+        description: isApiError(err) ? userMessage(err) : undefined,
+        tone: "danger",
+      })
+    }
+  }, [toast.show])
 
   /** Hapus baris room dari daftar lokal (umpan balik instan setelah DELETE). */
   const removeRoom = useCallback(
@@ -322,13 +370,23 @@ export default function ChatScreen() {
   // ── Item 18: swipe per-baris ─────────────────────────────────────────
   const handleTogglePin = useCallback(
     async (room: ChatRoom) => {
-      const pinned = await toggleRoomPinned(room.id)
-      haptic("select")
-      toast.show({
-        title: pinned ? "Percakapan disematkan" : "Semat percakapan dilepas",
-        tone: "neutral",
-        duration: 2000,
-      })
+      // Batch 43: pin kini backend-backed (toggleRoomPinned → API) — gagal
+      // (mis. batas pin server) wajib toast error, bukan crash diam.
+      try {
+        const pinned = await toggleRoomPinned(room.id)
+        haptic("select")
+        toast.show({
+          title: pinned ? "Percakapan disematkan" : "Semat percakapan dilepas",
+          tone: "neutral",
+          duration: 2000,
+        })
+      } catch (err) {
+        toast.show({
+          title: "Gagal mengubah sematan",
+          description: isApiError(err) ? userMessage(err) : undefined,
+          tone: "danger",
+        })
+      }
     },
     [toast.show],
   )
@@ -540,6 +598,16 @@ export default function ChatScreen() {
           titleAlign="left"
           titleVariant="h2"
           title={archiveOpen ? "Diarsipkan" : "Pesan"}
+          // Batch 43: pintu masuk pengaturan privasi/template balasan.
+          right={
+            <IconButton
+              icon={GearSix}
+              variant="ghost"
+              size="md"
+              accessibilityLabel="Pengaturan chat"
+              onPress={() => router.push(ROUTES.chatSettings)}
+            />
+          }
         />
       )}
       {!selecting ? (
@@ -564,6 +632,9 @@ export default function ChatScreen() {
       <PaginatedList
         {...activeQuery}
         onScrollWorklet={onScrollWorklet}
+        // Batch 43: entri "Pesan untuk diri sendiri" di puncak daftar (hanya
+        // tab Semua; arsip/filter lain tidak menampilkan self-chat).
+        header={filter === "all" ? <SelfChatEntry onOpen={() => void openSelfChat()} /> : undefined}
         // ChatRoomListItem memasang px-4 sendiri. `padded` default menambah
         // paddingHorizontal 20px lagi di contentContainer -> baris menjorok
         // dan tidak sejajar Header di atasnya. Sama seperti app/notifications.tsx.

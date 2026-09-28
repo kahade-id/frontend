@@ -55,6 +55,13 @@ import {
   PencilSimple,
   PushPin,
   Trash,
+  // Batch 43 FE-CHAT: ikon aksi baru (terjemah, bintang, lokasi,
+  // kartu produk). Ekspor/buat-transaksi dipakai menu ruang.
+  ChartBar,
+  MapPin,
+  Star,
+  Storefront,
+  Translate,
 } from "phosphor-react-native"
 
 import { api, isApiError, userMessage } from "@/lib/api"
@@ -125,7 +132,25 @@ import { ListLoading } from "@/components/ui/paginated-list"
 import { Screen } from "@/components/ui/screen"
 import { ChatRoomFooter } from "@/components/ui/chat-room-footer"
 import { SelectionBar, type SelectionAction } from "@/components/ui/selection-bar"
+import { ChatTranslateSheet } from "@/components/ui/chat-translate-sheet"
+import { ChatStarredSheet } from "@/components/ui/chat-starred-sheet"
+import { ChatPollsSheet } from "@/components/ui/chat-polls-sheet"
+import { ChatLocationSheet } from "@/components/ui/chat-location-sheet"
+import { ChatEphemeralSheet } from "@/components/ui/chat-ephemeral-sheet"
+import { ChatReportSheet, ChatBlockDialog } from "@/components/ui/chat-report-sheet"
+import { ChatCreateOrderSheet } from "@/components/ui/chat-create-order-sheet"
+import { ChatShowcasePickerSheet } from "@/components/ui/chat-showcase-picker-sheet"
+import { exportAndSaveChatRoom } from "@/lib/chat-export"
+import {
+  listStarredMessages,
+  starChatMessage,
+  unstarChatMessage,
+  type ChatProductCardPayload,
+  type ChatTranslation,
+} from "@/lib/api/chat"
+import type { ShowcaseItem } from "@/lib/api/users"
 import { useToast } from "@/components/ui/toast"
+import { ephemeralDurationLabel } from "@/lib/chat-ephemeral"
 import { isImageMime } from "@/lib/mime"
 import type { ChatBubbleAnchor } from "@/lib/chat-bubble"
 
@@ -204,8 +229,13 @@ export default function ChatRoomScreen() {
   // C-06 (audit): `title` opsional dikirim saat navigasi dari daftar chat —
   // GET /rooms tidak punya endpoint detail dan pencarian ruang hanya memuat
   // 30 pertama, sehingga ruang ke-31+ kehilangan nama lawan bicara di header.
-  const { roomId, title } = useLocalSearchParams<{ roomId: string; title?: string }>()
+  const { roomId, title, self } = useLocalSearchParams<{ roomId: string; title?: string; self?: string }>()
   const titleParam = typeof title === "string" && title.trim() ? title.trim() : undefined
+  /**
+   * Self-chat ("Pesan untuk diri sendiri") — blokir/lapor & buat transaksi
+   * disembunyikan; penanda dari daftar chat (ROUTES.chatRoom self=1).
+   */
+  const isSelfChat = self === "1"
   const toast = useToast()
   const { copy } = useCopy()
 
@@ -249,6 +279,33 @@ export default function ChatRoomScreen() {
   const [attachSheetOpen, setAttachSheetOpen] = useState(false)
   /** Sheet perekam voice note. */
   const [voiceSheetOpen, setVoiceSheetOpen] = useState(false)
+  // ── Sheets batch 43 FE-CHAT ─────────────────────────────────────────
+  /** Terjemah: target pesan (null = sheet tertutup). */
+  const [translateTarget, setTranslateTarget] = useState<ChatMessage | null>(null)
+  /** Sheet pesan berbintang. */
+  const [starredOpen, setStarredOpen] = useState(false)
+  /** Sheet polling. */
+  const [pollsOpen, setPollsOpen] = useState(false)
+  /** Sheet kirim lokasi. */
+  const [locationSheetOpen, setLocationSheetOpen] = useState(false)
+  /** Sheet pesan sementara + sekali-lihat. */
+  const [ephemeralSheetOpen, setEphemeralSheetOpen] = useState(false)
+  /** Sheet laporkan + blokir. */
+  const [reportSheetOpen, setReportSheetOpen] = useState(false)
+  /** Dialog konfirmasi blokir lawan bicara. */
+  const [blockDialogOpen, setBlockDialogOpen] = useState(false)
+  /** Sheet buat transaksi dari chat. */
+  const [createOrderSheetOpen, setCreateOrderSheetOpen] = useState(false)
+  /** Kartu produk sumber tombol "Beli" (null = buat dari menu tanpa etalase). */
+  const [createOrderProduct, setCreateOrderProduct] = useState<ChatProductCardPayload | null>(null)
+  /** Sheet pilih etalase → kartu produk. */
+  const [showcasePickerOpen, setShowcasePickerOpen] = useState(false)
+  /** Hasil terjemahan per id pesan — dirender di bawah teks asli. */
+  const [translations, setTranslations] = useState<Record<string, ChatTranslation>>({})
+  /** Pesan sementara aktif (TTL detik, null = mati) — berlaku untuk pesan berikutnya. */
+  const [ttlSeconds, setTtlSeconds] = useState<number | null>(null)
+  /** Mode sekali-lihat — one-shot: reset setelah satu pesan terkirim. */
+  const [viewOnceOn, setViewOnceOn] = useState(false)
 
   const [viewerItem, setViewerItem] = useState<MediaViewerItem | null>(null)
   /**
@@ -961,6 +1018,9 @@ export default function ChatRoomScreen() {
             : null,
         createdAt: new Date().toISOString(),
         sendStatus: "sending",
+        // Batch 43: chip ephemeral/view-once tampil di pesan optimistis.
+        ephemeralTtlSeconds: ttlSeconds ?? undefined,
+        viewOnce: viewOnceOn || undefined,
       }
       setMessages((prev) => [...prev, optimisticMsg])
       setSending(true)
@@ -979,6 +1039,10 @@ export default function ChatRoomScreen() {
           content: content || undefined,
           attachments: dtoAttachments.length ? dtoAttachments : undefined,
           replyToId: payload.replyToId,
+          // Batch 43: mode pesan sementara + sekali-lihat untuk pesan
+          // berikutnya. viewOnce one-shot — direset setelah kirim.
+          ephemeralTtlSeconds: ttlSeconds ?? undefined,
+          viewOnce: viewOnceOn || undefined,
         })
         // Ganti optimistic dengan pesan asli dari server. Cocokkan juga
         // berdasar id server: bila gema realtime tiba lebih dulu, entri
@@ -999,6 +1063,8 @@ export default function ChatRoomScreen() {
         if (typingTimer.current) clearTimeout(typingTimer.current)
         typingActive.current = false
         sendTypingRealtime(false)
+        // Batch 43: sekali-lihat = one-shot, selalu direset setelah kirim.
+        if (viewOnceOn) setViewOnceOn(false)
         void refreshReadReceipts()
       } catch (err) {
         // CN-015: JANGAN hapus pesan — tandai gagal agar pengguna bisa retry.
@@ -1014,8 +1080,114 @@ export default function ChatRoomScreen() {
         setSending(false)
       }
     },
-    [roomId, attachments, toast.show, mergeIncoming, replyTarget, composerReplyTo],
+    [roomId, attachments, toast.show, mergeIncoming, replyTarget, composerReplyTo, ttlSeconds, viewOnceOn],
   )
+
+  // Batch 43: kirim pesan khusus (lokasi, kartu produk) ────────────
+  /**
+   * Kirim pesan LOCATION — pola optimistic sama dengan handleSend:
+   * pesan langsung tampil, gagal → status failed + bisa retry.
+   */
+  const sendLocation = useCallback(
+    async (payload: { latitude: number; longitude: number; label?: string }) => {
+      if (!roomId || isChatCompleted) return
+      const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2)}`
+      const optimisticMsg: ChatMessage = {
+        id: tempId,
+        messageType: "LOCATION",
+        fromUser: true,
+        location: { lat: payload.latitude, lng: payload.longitude, label: payload.label },
+        createdAt: new Date().toISOString(),
+        sendStatus: "sending",
+        ephemeralTtlSeconds: ttlSeconds ?? undefined,
+        viewOnce: viewOnceOn || undefined,
+      }
+      setMessages((prev) => [...prev, optimisticMsg])
+      try {
+        const msg = await api.chat.sendChatMessage(roomId, {
+          messageType: "LOCATION",
+          location: { lat: payload.latitude, lng: payload.longitude, label: payload.label },
+          ephemeralTtlSeconds: ttlSeconds ?? undefined,
+          viewOnce: viewOnceOn || undefined,
+        })
+        setMessages((prev) => prev.map((m) => (m.id === tempId || m.id === msg.id ? msg : m)))
+        mergeIncoming([msg], roomId)
+        if (viewOnceOn) setViewOnceOn(false)
+      } catch (err) {
+        setMessages((prev) =>
+          prev.map((m) => (m.id === tempId ? { ...m, sendStatus: "failed" as const } : m)),
+        )
+        toast.show({
+          title: "Gagal mengirim lokasi",
+          description: isApiError(err) ? userMessage(err) : undefined,
+          tone: "danger",
+        })
+      }
+    },
+    [roomId, isChatCompleted, ttlSeconds, viewOnceOn, mergeIncoming, toast.show],
+  )
+
+  /** Kirim kartu produk (backend membekukan snapshot etalase). */
+  const sendProductCard = useCallback(
+    async (item: ShowcaseItem) => {
+      if (!roomId || isChatCompleted) return
+      try {
+        const msg = await api.chat.sendChatMessage(roomId, {
+          messageType: "PRODUCT_CARD",
+          showcaseId: item.id,
+          ephemeralTtlSeconds: ttlSeconds ?? undefined,
+          viewOnce: viewOnceOn || undefined,
+        })
+        setMessages((prev) => (prev.some((m) => m.id === msg.id) ? prev : [...prev, msg]))
+        mergeIncoming([msg], roomId)
+        if (viewOnceOn) setViewOnceOn(false)
+      } catch (err) {
+        toast.show({
+          title: "Gagal mengirim kartu produk",
+          description: isApiError(err) ? userMessage(err) : undefined,
+          tone: "danger",
+        })
+      }
+    },
+    [roomId, isChatCompleted, ttlSeconds, viewOnceOn, mergeIncoming, toast.show],
+  )
+
+  // ── Batch 43: pesan berbintang — tandai bubble dari GET /starred ────
+  useEffect(() => {
+    if (!roomId) return
+    let alive = true
+    listStarredMessages(roomId)
+      .then((starred) => {
+        if (!alive) return
+        const ids = new Set(starred.map((s) => s.id))
+        setMessages((prev) => prev.map((m) => ({ ...m, isStarred: ids.has(m.id) })))
+      })
+      .catch(() => undefined) // non-kritis: ikon bintang tetap bisa di-toggle manual
+    return () => {
+      alive = false
+    }
+  }, [roomId])
+
+  /** Toggle star pesan-pesan yang dipilih (mode pilih). */
+  // ── Batch 43: ekspor riwayat chat (TXT) ─────────────────────────────
+  const handleExport = useCallback(async () => {
+    if (!roomId) return
+    try {
+      const { filename } = await exportAndSaveChatRoom(roomId)
+      toast.show({
+        title: "Riwayat chat diekspor",
+        description: filename,
+        tone: "success",
+        duration: 3000,
+      })
+    } catch (err) {
+      toast.show({
+        title: "Gagal mengekspor chat",
+        description: isApiError(err) ? userMessage(err) : undefined,
+        tone: "danger",
+      })
+    }
+  }, [roomId, toast.show])
 
   /**
    * CN-015: kirim ulang pesan yang gagal. Memakai konten & lampiran yang
@@ -1092,6 +1264,37 @@ export default function ChatRoomScreen() {
     // Popover reaksi selalu ikut tertutup saat mode pilih berakhir.
     setReactionPopover(null)
   }, [])
+
+  /**
+   * Batch 43: toggle star pesan-pesan yang dipilih (mode pilih).
+   * Dideklarasikan setelah exitSelect/selectedMessages (aturan context).
+   */
+  const handleToggleStarSelected = useCallback(async () => {
+    if (!roomId || selectedMessages.length === 0) return
+    const anyUnstarred = selectedMessages.some((m) => !m.isStarred)
+    const op = anyUnstarred ? starChatMessage : unstarChatMessage
+    try {
+      await Promise.all(selectedMessages.map((m) => op(roomId, m.id)))
+      setMessages((prev) =>
+        prev.map((m) =>
+          selectedIds.has(m.id) ? { ...m, isStarred: anyUnstarred } : m,
+        ),
+      )
+      toast.show({
+        title: anyUnstarred ? "Pesan dibintangi" : "Bintang dihapus",
+        tone: "success",
+        duration: 2000,
+      })
+    } catch (err) {
+      toast.show({
+        title: anyUnstarred ? "Gagal membintangi" : "Gagal menghapus bintang",
+        description: isApiError(err) ? userMessage(err) : undefined,
+        tone: "danger",
+      })
+    } finally {
+      exitSelect()
+    }
+  }, [roomId, selectedMessages, selectedIds, toast.show, exitSelect])
 
   const enterSelect = useCallback((id: string) => {
     haptic("select")
@@ -1378,6 +1581,33 @@ export default function ChatRoomScreen() {
       accessibilityHint: "Menyalin teks pesan yang dipilih",
       onPress: handleCopySelected,
     })
+    // Batch 43: terjemahkan satu pesan teks (POST /translate per pesan).
+    if (singleSelected && singleSelected.text?.trim()) {
+      const target = singleSelected
+      actions.push({
+        key: "translate",
+        label: "Terjemahkan",
+        icon: Translate,
+        accessibilityHint: "Menerjemahkan pesan yang dipilih",
+        onPress: () => {
+          exitSelect()
+          setTranslateTarget(target)
+        },
+      })
+    }
+    // Batch 43: bintang / batal bintang (bisa multi).
+    if (selectedMessages.length > 0) {
+      const anyUnstarred = selectedMessages.some((m) => !m.isStarred)
+      actions.push({
+        key: "star",
+        label: anyUnstarred ? "Bintangi" : "Batal bintang",
+        icon: Star,
+        accessibilityHint: anyUnstarred
+          ? "Membintangi pesan yang dipilih"
+          : "Menghapus bintang pesan yang dipilih",
+        onPress: () => void handleToggleStarSelected(),
+      })
+    }
     actions.push({
       key: "forward",
       label: "Teruskan",
@@ -1414,6 +1644,7 @@ export default function ChatRoomScreen() {
     exitSelect,
     handleCopySelected,
     handleTogglePin,
+    handleToggleStarSelected,
     openForward,
     selectedMessages,
     singleSelected,
@@ -1483,6 +1714,15 @@ export default function ChatRoomScreen() {
           disabled={loading}
           replyTo={composerReplyTo}
           onCancelReply={() => setReplyTarget(null)}
+          // Batch 43: strip mode pesan sementara + toolbar format teks.
+          ephemeralLabel={ttlSeconds != null ? ephemeralDurationLabel(ttlSeconds) : null}
+          viewOnceActive={viewOnceOn}
+          onOpenEphemeral={() => setEphemeralSheetOpen(true)}
+          onClearEphemeral={() => {
+            setTtlSeconds(null)
+            setViewOnceOn(false)
+          }}
+          formatBar
         />
         )
       }
@@ -1665,6 +1905,25 @@ export default function ChatRoomScreen() {
             }}
             onReact={(target, emoji) => void handleReact(target, emoji)}
             onAttachmentPress={openAttachment}
+            // Batch 43: hasil terjemahan per pesan + tombol Beli kartu produk.
+            // ChatTranslation (translatedText) → prop row ({ text, … }).
+            translation={
+              translations[m.id]
+                ? {
+                    text: translations[m.id].translatedText,
+                    sourceLang: translations[m.id].sourceLang,
+                    targetLang: translations[m.id].targetLang,
+                  }
+                : undefined
+            }
+            onBuyProductCard={
+              isSelfChat
+                ? undefined
+                : (card) => {
+                    setCreateOrderProduct(card)
+                    setCreateOrderSheetOpen(true)
+                  }
+            }
             // CN-015: kirim ulang pesan yang gagal.
             onRetry={(target) => void handleRetry(target)}
             // Pencarian inline: sorot kata kunci; hasil aktif lebih tegas.
@@ -1736,6 +1995,16 @@ export default function ChatRoomScreen() {
         onClose={() => setRoomMenuOpen(false)}
         onSearch={openSearch}
         onRoomChange={(patch) => setRoom((prev) => (prev ? { ...prev, ...patch } : prev))}
+        // Batch 43 FE-CHAT.
+        isSelfChat={isSelfChat}
+        onExport={() => void handleExport()}
+        onOpenStarred={() => setStarredOpen(true)}
+        onOpenPolls={() => setPollsOpen(true)}
+        onOpenCreateOrder={() => {
+          setCreateOrderProduct(null)
+          setCreateOrderSheetOpen(true)
+        }}
+        onOpenReport={() => setReportSheetOpen(true)}
       />
 
       {/* Edit pesan teks sendiri — draft + simpan di dalam komponen. */}
@@ -1786,7 +2055,8 @@ export default function ChatRoomScreen() {
         onRequestClose={() => setDeleteOpen(false)}
       />
 
-      {/* Menu lampiran (+) composer: Gambar / Video / File / Voice Note. */}
+      {/* Menu lampiran (+) composer: Gambar / Video / File / Voice Note
+          + aksi batch 43 (lokasi, polling, kartu produk). */}
       <ChatAttachmentSheet
         visible={attachSheetOpen}
         onRequestClose={() => setAttachSheetOpen(false)}
@@ -1797,6 +2067,115 @@ export default function ChatRoomScreen() {
           setAttachSheetOpen(false)
           setVoiceSheetOpen(true)
         }}
+        extraActions={[
+          {
+            key: "location",
+            label: "Lokasi",
+            description: "Bagikan lokasi GPS saat ini",
+            icon: MapPin,
+            onPress: () => setLocationSheetOpen(true),
+          },
+          {
+            key: "poll",
+            label: "Polling",
+            description: "Buat voting di percakapan ini",
+            icon: ChartBar,
+            onPress: () => setPollsOpen(true),
+          },
+          {
+            key: "product",
+            label: "Kartu produk",
+            description: "Bagikan salah satu etalase Anda",
+            icon: Storefront,
+            onPress: () => setShowcasePickerOpen(true),
+          },
+        ]}
+      />
+
+      {/* ── Sheets batch 43 FE-CHAT ──────────────────────────────────── */}
+      {/* Terjemah pesan (selection bar → sheet). */}
+      <ChatTranslateSheet
+        message={translateTarget}
+        roomId={roomId}
+        onRequestClose={() => setTranslateTarget(null)}
+        onApply={(messageId, translation) => {
+          setTranslations((prev) => ({ ...prev, [messageId]: translation }))
+        }}
+      />
+
+      {/* Pesan berbintang di ruang ini. */}
+      <ChatStarredSheet
+        roomId={roomId}
+        visible={starredOpen}
+        onRequestClose={() => setStarredOpen(false)}
+        onJumpToMessage={(id) => jumpToMessage(id)}
+        onUnstarred={(id) =>
+          setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, isStarred: false } : m)))
+        }
+      />
+
+      {/* Polling: list + buat + vote. */}
+      <ChatPollsSheet
+        roomId={roomId}
+        visible={pollsOpen}
+        onRequestClose={() => setPollsOpen(false)}
+      />
+
+      {/* Kirim lokasi GPS. */}
+      <ChatLocationSheet
+        visible={locationSheetOpen}
+        onRequestClose={() => setLocationSheetOpen(false)}
+        onSend={(loc) => void sendLocation({ latitude: loc.lat, longitude: loc.lng, label: loc.label })}
+      />
+
+      {/* Pesan sementara + sekali-lihat untuk pesan berikutnya. */}
+      <ChatEphemeralSheet
+        visible={ephemeralSheetOpen}
+        currentSeconds={ttlSeconds ?? 0}
+        viewOnce={viewOnceOn}
+        onRequestClose={() => setEphemeralSheetOpen(false)}
+        onSelect={(seconds) => setTtlSeconds(seconds > 0 ? seconds : null)}
+        onViewOnceChange={(v) => setViewOnceOn(v)}
+      />
+
+      {/* Laporkan pesan / blokir lawan bicara (room-based, tanpa userId). */}
+      <ChatReportSheet
+        roomId={roomId}
+        visible={reportSheetOpen}
+        onRequestClose={() => setReportSheetOpen(false)}
+        onOpenBlock={() => {
+          setReportSheetOpen(false)
+          setBlockDialogOpen(true)
+        }}
+      />
+      <ChatBlockDialog
+        visible={blockDialogOpen}
+        roomId={roomId}
+        counterpartName={counterpartName}
+        onDismiss={() => setBlockDialogOpen(false)}
+      />
+
+      {/* Buat transaksi dari chat (escrow). */}
+      <ChatCreateOrderSheet
+        roomId={roomId}
+        visible={createOrderSheetOpen}
+        productCard={createOrderProduct}
+        onRequestClose={() => {
+          setCreateOrderSheetOpen(false)
+          setCreateOrderProduct(null)
+        }}
+        onCreated={(created) => {
+          setCreateOrderSheetOpen(false)
+          setCreateOrderProduct(null)
+          router.push(ROUTES.orderDetail(created.order.orderId))
+        }}
+      />
+
+      {/* Pilih etalase → kirim kartu produk. */}
+      <ChatShowcasePickerSheet
+        visible={showcasePickerOpen}
+        onRequestClose={() => setShowcasePickerOpen(false)}
+        onPick={(item) => void sendProductCard(item)}
       />
 
       {/* Perekam voice note — hasil diantrekan ke unggahan ruang. */}

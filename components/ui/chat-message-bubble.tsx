@@ -63,9 +63,11 @@ import Animated, {
   withSpring,
   withTiming,
 } from "react-native-reanimated"
-import { ArrowBendUpLeft, Check, Checks, Clock, PushPin, WarningCircle } from "phosphor-react-native"
+import { ArrowBendUpLeft, Check, Checks, Clock, PushPin, Star, Timer, WarningCircle } from "phosphor-react-native"
 
 import { Avatar } from "@/components/ui/avatar"
+import { ChatFormattedText } from "@/components/ui/chat-formatted-text"
+import { ChatSystemCard } from "@/components/ui/chat-system-card"
 import { Icon } from "@/components/ui/icon"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
@@ -111,6 +113,18 @@ export type ChatMessageBubbleProps = Omit<ViewProps, "children"> & {
   quote?: { senderName?: string | null; preview: string } | null
   /** Slot lampiran, dirender di atas teks */
   children?: ReactNode
+  /**
+   * Batch 43 (2026-09-28): hasil terjemahan — dirender sebagai blok di
+   * bawah teks asli ("Terjemahan • id → en").
+   */
+  translation?: { text: string; sourceLang: string | null; targetLang: string } | null
+  /**
+   * Batch 43: label hitung mundur pesan sementara (mis. "59 mnt") —
+   * dirender di baris meta. null/undefined = bukan pesan sementara.
+   */
+  ephemeralChip?: string | null
+  /** Batch 43: pesan dibintangi — ikon bintang di baris meta. */
+  starred?: boolean
   /**
    * Pencarian inline dalam thread (2026-09-28): sorot kemunculan `query` di
    * teks pesan. `focused=true` menandai hasil yang sedang aktif (lebih
@@ -232,6 +246,9 @@ export function ChatMessageBubble({
   avatarUrl,
   avatarName,
   senderSealTier,
+  translation,
+  ephemeralChip,
+  starred = false,
   className,
   ...rest
 }: ChatMessageBubbleProps) {
@@ -299,15 +316,14 @@ export function ChatMessageBubble({
   })
 
   if (direction === "system") {
+    // Batch 43 (2026-09-28): pesan SYSTEM dirender sebagai kartu terpusat
+    // dengan ikon per jenis event (bukan caption polos).
     return (
       <View
-        accessibilityRole="text"
-        className={cn("w-full items-center px-5", grouped ? "mt-1" : "mt-3", className)}
+        className={cn("w-full", grouped ? "mt-1" : "mt-3", className)}
         {...rest}
       >
-        <Text variant="caption" tone="secondary" className="text-center">
-          {text}
-        </Text>
+        <ChatSystemCard text={text} />
       </View>
     )
   }
@@ -361,32 +377,62 @@ export function ChatMessageBubble({
       ) : null}
       {children ? <View className="gap-2">{children}</View> : null}
       {text ? (
-        <Text
-          variant="body"
-          tone={isDeleted ? "secondary" : outgoing ? "inverse" : "primary"}
-          className={isDeleted ? "italic" : undefined}
-          selectable={!isDeleted}
+        searchHighlight && searchHighlight.query.trim() && !isDeleted ? (
+          <Text
+            variant="body"
+            tone={outgoing ? "inverse" : "primary"}
+            selectable={!isDeleted}
+          >
+            {splitHighlightSpans(text, searchHighlight.query).map((span, i) =>
+              span.hit ? (
+                <Text
+                  key={i}
+                  variant="inherit"
+                  tone={searchHighlight.focused ? "warning" : "inherit"}
+                  weight={searchHighlight.focused ? 700 : undefined}
+                  className="bg-warning-soft"
+                >
+                  {span.text}
+                </Text>
+              ) : (
+                <Text key={i} variant="inherit">
+                  {span.text}
+                </Text>
+              ),
+            )}
+          </Text>
+        ) : (
+          // Batch 43 (2026-09-28): teks dirender lewat <ChatFormattedText>
+          // (**tebal**, _miring_, `mono`, __bawah__, ||spoiler||, tautan).
+          <ChatFormattedText
+            text={text}
+            outgoing={outgoing}
+            deleted={isDeleted}
+            selectable={!isDeleted}
+            className={isDeleted ? "italic" : undefined}
+          />
+        )
+      ) : null}
+      {/* Batch 43: blok terjemahan di bawah teks asli. */}
+      {translation && !isDeleted ? (
+        <View
+          className={cn(
+            "gap-0.5 rounded-sm border-l-2 px-2 py-1",
+            outgoing ? "border-white/70 bg-black/15" : "border-info bg-info-soft",
+          )}
         >
-          {searchHighlight && searchHighlight.query.trim() && !isDeleted
-            ? splitHighlightSpans(text, searchHighlight.query).map((span, i) =>
-                span.hit ? (
-                  <Text
-                    key={i}
-                    variant="inherit"
-                    tone={searchHighlight.focused ? "warning" : "inherit"}
-                    weight={searchHighlight.focused ? 700 : undefined}
-                    className="bg-warning-soft"
-                  >
-                    {span.text}
-                  </Text>
-                ) : (
-                  <Text key={i} variant="inherit">
-                    {span.text}
-                  </Text>
-                ),
-              )
-            : text}
-        </Text>
+          <Text
+            variant="caption"
+            weight={600}
+            tone={outgoing ? "inverse" : "info"}
+          >
+            Terjemahan
+            {translation.sourceLang ? ` • ${translation.sourceLang} → ${translation.targetLang}` : ""}
+          </Text>
+          <Text variant="body" tone={outgoing ? "inverse" : "primary"} selectable>
+            {translation.text}
+          </Text>
+        </View>
       ) : null}
     </View>
   )
@@ -566,7 +612,7 @@ export function ChatMessageBubble({
   )
 
   const metaBlock =
-    time || failed || isPinned || isEdited ? (
+    time || failed || isPinned || isEdited || ephemeralChip || starred ? (
       <View className="flex-row items-center gap-1 px-1">
         {failed ? (
           <>
@@ -593,6 +639,17 @@ export function ChatMessageBubble({
               </Text>
             ) : null}
             {isPinned ? <Icon icon={PushPin} size="xs" tone="default" /> : null}
+            {/* Batch 43: penanda pesan berbintang. */}
+            {starred ? <Icon icon={Star} size="xs" tone="warning" weight="fill" /> : null}
+            {/* Batch 43: hitung mundur pesan sementara. */}
+            {ephemeralChip ? (
+              <View className="flex-row items-center gap-0.5">
+                <Icon icon={Timer} size="xs" tone="default" />
+                <Text variant="caption" tone="secondary" className="tabular-nums">
+                  {ephemeralChip}
+                </Text>
+              </View>
+            ) : null}
             {outgoing && status && status !== "failed" ? (
               <StatusGlyph status={status} />
             ) : null}

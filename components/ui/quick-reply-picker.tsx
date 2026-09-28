@@ -1,10 +1,15 @@
 /**
- * Kahade — <QuickReplyPicker> (item 23, 2026-09-28).
+ * Kahade — <QuickReplyPicker> (revisi batch 43 FE-CHAT, 2026-09-28).
  *
  * Panel yang muncul di atas composer saat teks diawali "/" — daftar template
  * balasan cepat yang bisa dipilih; memilih memasukkan teks template ke
- * composer (mengganti token "/..."). Mode "Kelola" untuk tambah/ubah/hapus
- * template custom (per perangkat, lihat lib/quick-replies.ts).
+ * composer (mengganti token "/...").
+ *
+ * REVISI dari versi per-perangkat (item 23): template kini TERSINKRON
+ * backend (GET/POST/PATCH/DELETE /v1/chat/reply-templates) via
+ * `lib/reply-templates.ts` — ikut akun, sinkron antar perangkat. Backend
+ * mewajibkan `shortcut` (huruf kecil/angka/underscore, ≤32) + `text`
+ * (≤500); mode Kelola meminta keduanya. Maksimum 50 template.
  *
  * Panel dirender absolute di dalam container <ChatComposer> (relative) —
  * bukan overlay global: posisinya menempel composer dan hilang bersama
@@ -12,7 +17,7 @@
  * "/".
  */
 import { Plus, Trash, X } from "phosphor-react-native"
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useMemo, useState } from "react"
 import { ScrollView, TextInput, View } from "react-native"
 
 import { IconButton } from "@/components/ui/icon-button"
@@ -23,14 +28,20 @@ import { useTheme } from "@/components/theme-provider"
 import { tokens } from "@/lib/tokens"
 import { translate, useLanguage } from "@/lib/i18n"
 import {
-  addQuickReply,
-  filterQuickReplies,
-  loadQuickReplies,
-  QUICK_REPLY_MAX,
-  removeQuickReply,
-  updateQuickReply,
-  type QuickReplyTemplate,
-} from "@/lib/quick-replies"
+  addReplyTemplate,
+  editReplyTemplate,
+  filterReplyTemplates,
+  normalizeTemplateShortcut,
+  removeReplyTemplate,
+  useReplyTemplates,
+  validateTemplateInput,
+  REPLY_TEMPLATE_TEXT_MAX,
+  type ChatReplyTemplate,
+} from "@/lib/reply-templates"
+import { isApiError, userMessage } from "@/lib/api"
+
+/** Batas backend: maksimum 50 template per user. */
+const REPLY_TEMPLATE_LIMIT = 50
 
 export type QuickReplyPickerProps = {
   /** Teks setelah "/" — dipakai menyaring template. */
@@ -44,67 +55,79 @@ export function QuickReplyPicker({ query, onSelect, onClose }: QuickReplyPickerP
   const toast = useToast()
   const { mode } = useTheme()
   const palette = tokens.colors[mode]
-  const [templates, setTemplates] = useState<QuickReplyTemplate[] | null>(null)
+  const { templates, loading, refresh } = useReplyTemplates()
   const [manage, setManage] = useState(false)
+  const [shortcut, setShortcut] = useState("")
   const [draft, setDraft] = useState("")
-  const [editing, setEditing] = useState<QuickReplyTemplate | null>(null)
+  const [editing, setEditing] = useState<ChatReplyTemplate | null>(null)
   const [busy, setBusy] = useState(false)
 
-  const refresh = useCallback(async () => {
-    setTemplates(await loadQuickReplies())
-  }, [])
-
-  useEffect(() => {
-    void refresh()
-  }, [refresh])
-
   const matches = useMemo(
-    () => (templates ? filterQuickReplies(templates, query) : []),
+    () => (templates ? filterReplyTemplates(templates, query) : []),
     [templates, query],
   )
 
+  const validation = validateTemplateInput(shortcut, draft)
+
   const saveDraft = useCallback(async () => {
-    if (busy) return
+    if (busy || !validation.ok) {
+      if (!validation.ok)
+        toast.show({ title: translate("Template tidak valid"), description: validation.message, tone: "danger" })
+      return
+    }
     setBusy(true)
     try {
-      if (editing) await updateQuickReply(editing.id, draft)
-      else await addQuickReply(draft)
+      if (editing) {
+        await editReplyTemplate(editing.id, {
+          shortcut: normalizeTemplateShortcut(shortcut),
+          text: draft.trim(),
+        })
+      } else {
+        await addReplyTemplate(shortcut, draft)
+      }
+      setShortcut("")
       setDraft("")
       setEditing(null)
       await refresh()
       toast.show({
         title: translate(editing ? "Template diperbarui" : "Template ditambahkan"),
-        description: translate("Template tersimpan di perangkat ini."),
+        description: translate("Template tersinkron ke akun Anda."),
         tone: "success",
         duration: 2500,
       })
     } catch (err: unknown) {
       toast.show({
         title: translate("Gagal menyimpan template"),
-        description: err instanceof Error ? err.message : undefined,
+        description: isApiError(err) ? userMessage(err) : undefined,
         tone: "danger",
       })
     } finally {
       setBusy(false)
     }
-  }, [busy, draft, editing, refresh, toast.show])
+  }, [busy, validation, editing, shortcut, draft, refresh, toast])
 
   const handleRemove = useCallback(
-    async (t: QuickReplyTemplate) => {
+    async (t: ChatReplyTemplate) => {
       try {
-        await removeQuickReply(t.id)
+        await removeReplyTemplate(t.id)
         await refresh()
-      } catch {
-        toast.show({ title: translate("Gagal menghapus template"), tone: "danger" })
+      } catch (err: unknown) {
+        toast.show({
+          title: translate("Gagal menghapus template"),
+          description: isApiError(err) ? userMessage(err) : undefined,
+          tone: "danger",
+        })
       }
     },
-    [refresh, toast.show],
+    [refresh, toast],
   )
+
+  const atLimit = (templates?.length ?? 0) >= REPLY_TEMPLATE_LIMIT
 
   return (
     <View
       className="absolute bottom-full left-0 right-0 mb-2"
-      style={{ maxHeight: 300 }}
+      style={{ maxHeight: 320 }}
       accessibilityRole="menu"
       accessibilityLabel={translate("Template balasan cepat")}
     >
@@ -122,6 +145,7 @@ export function QuickReplyPicker({ query, onSelect, onClose }: QuickReplyPickerP
               onPress={() => {
                 setManage((v) => !v)
                 setEditing(null)
+                setShortcut("")
                 setDraft("")
               }}
             />
@@ -140,16 +164,21 @@ export function QuickReplyPicker({ query, onSelect, onClose }: QuickReplyPickerP
           keyboardShouldPersistTaps="handled"
           contentContainerClassName="py-1"
         >
-          {templates === null ? (
+          {loading || templates === null ? (
             <View className="px-4 py-3">
               <Text variant="caption" tone="secondary">
                 {translate("Memuat template…")}
               </Text>
             </View>
           ) : manage ? (
-            templates
-              .filter((t) => !t.builtin)
-              .map((t) => (
+            templates.length === 0 ? (
+              <View className="px-4 py-3">
+                <Text variant="caption" tone="secondary">
+                  {translate("Belum ada template. Tambahkan di bawah.")}
+                </Text>
+              </View>
+            ) : (
+              templates.map((t) => (
                 <View key={t.id} className="flex-row items-center gap-2 px-4 py-2">
                   <PressableScale
                     className="min-w-0 flex-1"
@@ -157,9 +186,13 @@ export function QuickReplyPicker({ query, onSelect, onClose }: QuickReplyPickerP
                     accessibilityLabel={translate("Ubah template")}
                     onPress={() => {
                       setEditing(t)
+                      setShortcut(t.shortcut)
                       setDraft(t.text)
                     }}
                   >
+                    <Text variant="caption" weight={700} tone="info" numberOfLines={1}>
+                      /{t.shortcut}
+                    </Text>
                     <Text variant="body" tone="primary" numberOfLines={2}>
                       {t.text}
                     </Text>
@@ -173,6 +206,7 @@ export function QuickReplyPicker({ query, onSelect, onClose }: QuickReplyPickerP
                   />
                 </View>
               ))
+            )
           ) : matches.length === 0 ? (
             <View className="px-4 py-3">
               <Text variant="caption" tone="secondary">
@@ -185,9 +219,12 @@ export function QuickReplyPicker({ query, onSelect, onClose }: QuickReplyPickerP
                 key={t.id}
                 className="px-4 py-2.5"
                 accessibilityRole="menuitem"
-                accessibilityLabel={t.text}
+                accessibilityLabel={`/${t.shortcut}: ${t.text}`}
                 onPress={() => onSelect(t.text)}
               >
+                <Text variant="caption" weight={700} tone="info" numberOfLines={1}>
+                  /{t.shortcut}
+                </Text>
                 <Text variant="body" tone="primary" numberOfLines={2}>
                   {highlightMatch(t.text, query)}
                 </Text>
@@ -198,29 +235,45 @@ export function QuickReplyPicker({ query, onSelect, onClose }: QuickReplyPickerP
 
         {manage ? (
           <View className="gap-2 border-t border-border p-3">
-            <View className="flex-row items-center gap-2 rounded-sm border border-border-control px-3">
-              <TextInput
-                value={draft}
-                onChangeText={(v) => setDraft(v.slice(0, QUICK_REPLY_MAX))}
-                placeholder={translate(editing ? "Ubah template…" : "Template baru…")}
-                placeholderTextColor={palette.textSecondary}
-                className="min-h-10 flex-1 py-2 font-sans-400 text-bodyLarge text-text-primary"
-                multiline
-                accessibilityLabel={translate("Teks template")}
-              />
+            <View className="flex-row items-center gap-2">
+              <View className="w-28 rounded-sm border border-border-control px-3">
+                <TextInput
+                  value={shortcut}
+                  onChangeText={(v) => setShortcut(v.slice(0, 32))}
+                  placeholder="/shortcut"
+                  placeholderTextColor={palette.textSecondary}
+                  className="min-h-10 py-2 font-sans-400 text-bodyLarge text-text-primary"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  accessibilityLabel={translate("Shortcut template")}
+                />
+              </View>
+              <View className="flex-1 rounded-sm border border-border-control px-3">
+                <TextInput
+                  value={draft}
+                  onChangeText={(v) => setDraft(v.slice(0, REPLY_TEMPLATE_TEXT_MAX))}
+                  placeholder={translate(editing ? "Ubah template…" : "Template baru…")}
+                  placeholderTextColor={palette.textSecondary}
+                  className="min-h-10 py-2 font-sans-400 text-bodyLarge text-text-primary"
+                  multiline
+                  accessibilityLabel={translate("Teks template")}
+                />
+              </View>
               <IconButton
                 icon={Plus}
                 size="sm"
                 variant="primary"
                 shape="pill"
                 accessibilityLabel={translate("Simpan template")}
-                disabled={busy || draft.trim().length === 0}
+                disabled={busy || !validation.ok || (!editing && atLimit)}
                 loading={busy}
                 onPress={() => void saveDraft()}
               />
             </View>
             <Text variant="caption" tone="secondary">
-              {translate("Template tersimpan di perangkat ini saja. Sinkronisasi akun belum tersedia.")}
+              {atLimit
+                ? translate("Batas 50 template tercapai.")
+                : translate("Shortcut: huruf kecil/angka/underscore. Tersinkron ke akun Anda.")}
             </Text>
           </View>
         ) : (
