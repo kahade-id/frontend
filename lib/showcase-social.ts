@@ -322,9 +322,26 @@ export type GalleryMedia = {
   id: string
   kind: "image" | "video"
   url: string
+  /**
+   * PERF-FIX (NP-001/LR-002): URL full-res (`imageUrl`) — dipakai viewer /
+   * detail fullscreen. Di feed, `url` memakai `thumbnailUrl` bila ada.
+   */
+  fullUrl?: string
   posterUrl?: string
   durationSec?: number
   aspectRatio?: number
+}
+
+/**
+ * Opsi `showcaseMedia` — PERF-FIX (NP-001/LR-002).
+ */
+export type ShowcaseMediaOptions = {
+  /**
+   * true (default) = slide gambar memakai `thumbnailUrl` bila ada (hemat
+   * kuota — dipakai FEED); false = selalu `imageUrl` penuh (viewer / detail
+   * fullscreen). Video tidak terpengaruh (url = berkas video asli).
+   */
+  thumbnails?: boolean
 }
 
 /**
@@ -332,9 +349,10 @@ export type GalleryMedia = {
  *
  * Dibangun dari `item.images` yang kaya: image → slide gambar, video →
  * slide video (url = berkas video, posterUrl = thumbnail). Hasil di-cache
- * per instance item (WeakMap) agar referensi stabil antar render.
+ * per instance item (WeakMap) agar referensi stabil antar render — kunci
+ * cache kini mencakup mode thumbnail/full karena hasilnya berbeda.
  */
-const mediaCache = new WeakMap<ShowcaseSocialItem, GalleryMedia[]>()
+const mediaCache = new WeakMap<ShowcaseSocialItem, Map<boolean, GalleryMedia[]>>()
 /**
  * C01 (batch 139): rasio media dari respons list. `width`/`height` opsional
  * di kontrak — bila hilang/tidak valid, fallback 1 (persegi, perilaku lama).
@@ -348,8 +366,11 @@ export function showcaseMediaAspectRatio(width: unknown, height: unknown): numbe
   if (!Number.isFinite(ratio)) return 1
   return Math.min(4, Math.max(0.25, ratio))
 }
-export function showcaseMedia(item: ShowcaseSocialItem): GalleryMedia[] {
-  const cached = mediaCache.get(item)
+export function showcaseMedia(item: ShowcaseSocialItem, opts: ShowcaseMediaOptions = {}): GalleryMedia[] {
+  // PERF-FIX (NP-001/LR-002): feed memuat varian kecil, bukan full-res.
+  const useThumbnails = opts.thumbnails !== false
+  const byMode = mediaCache.get(item)
+  const cached = byMode?.get(useThumbnails)
   if (cached) return cached
   const rich = item.images.flatMap((m): GalleryMedia[] => {
     // C01: bawa rasio dari respons list ke tiap slide galeri.
@@ -368,15 +389,22 @@ export function showcaseMedia(item: ShowcaseSocialItem): GalleryMedia[] {
         : [{ id: m.id, kind: m.kind, url, durationSec, aspectRatio }]
     }
     if (m.kind === "image") {
-      const url = resolveMediaUrl(m.imageUrl)
-      return url ? [{ id: m.id, kind: m.kind, url, aspectRatio }] : []
+      // PERF-FIX (NP-001/LR-002): di feed, slide gambar memakai thumbnail
+      // backend (~640px) bila tersedia — full-res hanya di viewer/detail.
+      const fullUrl = resolveMediaUrl(m.imageUrl)
+      if (!fullUrl) return []
+      const thumbUrl = useThumbnails && m.thumbnailUrl ? resolveMediaUrl(m.thumbnailUrl) : undefined
+      const url = thumbUrl ?? fullUrl
+      return [{ id: m.id, kind: m.kind, url, fullUrl, aspectRatio }]
     }
     return []
   })
   const result: GalleryMedia[] = rich.length > 0
     ? rich
     : showcaseImages(item).map((g) => ({ id: g.id, kind: "image" as const, url: g.url, aspectRatio: 1 }))
-  mediaCache.set(item, result)
+  const modes = mediaCache.get(item) ?? new Map<boolean, GalleryMedia[]>()
+  modes.set(useThumbnails, result)
+  mediaCache.set(item, modes)
   return result
 }
 

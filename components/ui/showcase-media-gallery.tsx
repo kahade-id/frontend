@@ -196,8 +196,10 @@ export function ShowcaseMediaGallery({ media, title, onOpen, onDoubleTap, autopl
                   <PressableScale accessibilityRole="button"
                     accessibilityLabel={translate("Lihat foto {x} dari {y}", { x: index + 1, y: media.length })}
                     onPress={() => handleSlidePress(index)} containerClassName="w-full">
-                    {/* C01: rasio dari respons list — placeholder tidak meloncat. */}
-                    <Picture source={m.url} alt={title} aspectRatio={m.aspectRatio ?? 1} radius="none" bordered={false} recyclingKey={m.id} preventDownload dataSaverGate />
+                    {/* C01: rasio dari respons list — placeholder tidak meloncat.
+                        PERF-FIX (LR-009): slide aktif prioritas "high" — bandwidth
+                        didahulukan ke gambar yang terlihat, bukan tetangga. */}
+                    <Picture source={m.url} alt={title} aspectRatio={m.aspectRatio ?? 1} radius="none" bordered={false} recyclingKey={m.id} preventDownload dataSaverGate priority={index === page ? "high" : "low"} />
                   </PressableScale>
                 )
               ) : (
@@ -392,7 +394,7 @@ function VideoSlide({
         onPress={onTap}
         containerClassName="w-full"
       >
-        <FeedVideo source={media.url} poster={media.posterUrl} alt={title} shouldPlay={effectiveShouldPlay} muted={muted} aspectRatio={slideAspectRatio} />
+        <FeedVideo source={media.url} poster={media.posterUrl} alt={title} shouldPlay={effectiveShouldPlay} muted={muted} aspectRatio={slideAspectRatio} userInitiatedPlay={userPlay} />
       </PressableScale>
       {muteButton}
       {/* Item 57: badge durasi ala TikTok/IG di thumbnail video. */}

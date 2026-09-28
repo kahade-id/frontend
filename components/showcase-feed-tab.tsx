@@ -29,7 +29,7 @@
  *  - A-16: debounce param URL dibuang (tidak ada input yang mengetiknya).
  *  - F-04: item yang sudah dilaporkan sesi ini disembunyikan dari feed.
  */
-import { useCallback, useEffect, useMemo, useRef, useState, memo } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState, memo, useSyncExternalStore } from "react"
 import { View, type FlatList } from "react-native"
 import Animated, { runOnJS } from "react-native-reanimated"
 import { Images, X, ArrowUp } from "phosphor-react-native"
@@ -162,6 +162,41 @@ function followedBy(keys: ReadonlySet<string>, item: ShowcaseSocialItem): boolea
 }
 
 /**
+ * PERF-FIX (LR-004): store visibilitas kartu — di luar React state.
+ *
+ * Masalah: `visibleIds` sebagai useState masuk deps `renderItem`
+ * (useCallback) → identitas renderItem berubah di SETIAP tick viewability →
+ * FlatList me-render ulang SEMUA sel yang terlihat (mahal: galeri + teks +
+ * bar aksi + animasi hati di-mount ulang, jank saat scroll).
+ *
+ * Pola baru: `onViewableItemsChanged` mem-publish ke store eksternal TANPA
+ * me-render induk; tiap FeedCard subscribe via `useSyncExternalStore` dan
+ * HANYA kartu yang visibilitasnya berubah yang render ulang. Autoplay video
+ * tetap akurat (sinyal yang sama, jalur yang lebih murah).
+ */
+type VisibilityListener = () => void
+const visibilityListeners = new Set<VisibilityListener>()
+let visibleIdsSnapshot: ReadonlySet<string> = new Set()
+function publishVisibleIds(next: ReadonlySet<string>): void {
+  visibleIdsSnapshot = next
+  for (const listener of visibilityListeners) listener()
+}
+function subscribeVisibleIds(listener: VisibilityListener): () => void {
+  visibilityListeners.add(listener)
+  return () => {
+    visibilityListeners.delete(listener)
+  }
+}
+function getVisibleIdsSnapshot(): ReadonlySet<string> {
+  return visibleIdsSnapshot
+}
+/** true bila kartu dengan id ini sedang terlihat di feed (→ video autoplay). */
+export function useFeedItemVisible(itemId: string): boolean {
+  const snapshot = useSyncExternalStore(subscribeVisibleIds, getVisibleIdsSnapshot)
+  return snapshot.has(itemId)
+}
+
+/**
  * Kartu memo (A-08/A-09): membaca state sosialnya sendiri lewat hook, sehingga
  * `renderItem` induk bisa useCallback dan FlatList tidak menggambar ulang
  * sel lain di setiap render induk. Override suka/simpan berasal dari store
@@ -172,8 +207,6 @@ function followedBy(keys: ReadonlySet<string>, item: ShowcaseSocialItem): boolea
 type FeedCardProps = {
   item: ShowcaseSocialItem
   divider: boolean
-  /** Batch 19 (item 16): true = kartu terlihat di layar → video autoplay. */
-  visible: boolean
   onOpenComments: (item: ShowcaseSocialItem) => void
   onReport: (item: ShowcaseSocialItem) => void
 }
@@ -181,12 +214,14 @@ type FeedCardProps = {
 const FeedCard = memo(function FeedCard({
   item,
   divider,
-  visible,
   onOpenComments,
   onReport,
 }: FeedCardProps) {
   const { liked, likeCount, saved, likePending, savedPending, toggleLike, toggleSave, share, shareSheetVisible, setShareSheetVisible } =
     useShowcaseSocialActions(item)
+  // PERF-FIX (LR-004): visibilitas dibaca dari store eksternal — kartu ini
+  // hanya render ulang bila visibilitasnya SENDIRI berubah.
+  const visible = useFeedItemVisible(item.id)
   const display = useMemo(
     () =>
       liked === (item.isLiked === true) && likeCount === item.likeCount
@@ -212,7 +247,9 @@ const FeedCard = memo(function FeedCard({
   // indeks media dipetakan ke indeks gambar (video tidak masuk viewer).
   const media = useMemo(() => showcaseMedia(display), [display])
   const viewerImages = useMemo(
-    () => media.filter((m) => m.kind === "image").map((m) => ({ url: m.url, alt: item.title })),
+    // PERF-FIX (NP-001/LR-002): viewer layar penuh memakai full-res
+    // (`fullUrl`), bukan varian thumbnail yang dipakai slide feed.
+    () => media.filter((m) => m.kind === "image").map((m) => ({ url: m.fullUrl ?? m.url, alt: item.title })),
     [media, item.title],
   )
   const handleOpenMedia = useCallback(
@@ -438,23 +475,30 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
   const itemsLengthRef = useRef(0)
   itemsLengthRef.current = visibleItems.length
   /**
-   * Batch 19 (item 16): id item yang terlihat di layar — penggerak autoplay
-   * video (hanya item terlihat yang `autoplayActive`). `onViewableItemsChanged`
-   * harus stabil (FlatList memaksa identitas) → useCallback kosong.
+   * Batch 19 (item 16) + PERF-FIX (LR-004): id item yang terlihat di layar —
+   * penggerak autoplay video (hanya item terlihat yang `autoplayActive`).
+   * `onViewableItemsChanged` harus stabil (FlatList memaksa identitas) →
+   * useCallback kosong. Hasilnya di-publish ke store eksternal (bukan
+   * useState) supaya `renderItem` tidak berubah identitas di setiap tick.
    */
-  const [visibleIds, setVisibleIds] = useState<ReadonlySet<string>>(() => new Set())
   const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 60, minimumViewTime: 250 }).current
   /** C02 (batch 139): anchor = item terlihat paling atas (indeks terkecil). */
   const topVisibleRef = useRef<{ id: string } | null>(null)
   const handleViewableItemsChanged = useCallback(
     ({ viewableItems }: { viewableItems: { item: ShowcaseSocialItem; index?: number | null }[] }) => {
-      setVisibleIds(new Set(viewableItems.map((v) => v.item.id)))
+      publishVisibleIds(new Set(viewableItems.map((v) => v.item.id)))
       // C02: anchor = item terlihat paling atas (indeks terkecil).
       const top = selectTopVisibleAnchor(viewableItems)
       topVisibleRef.current = top ? { id: top.id } : null
     },
     [],
   )
+  // LR-004: store visibilitas hidup di level modul — reset saat tab
+  // terpasang ulang supaya id basi dari mount sebelumnya tidak memicu
+  // autoplay kartu yang tak terlihat.
+  useEffect(() => {
+    publishVisibleIds(new Set())
+  }, [])
   /**
    * A-04: cache daftar following per akun — hidup selama tab terpasang
    * (antar pindah tab TANPA fetch ulang), dibuang saat ganti sesi/akun
@@ -818,22 +862,20 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
   }, [])
 
   /** A-07: renderItem STABIL — divider dihitung lewat ref, bukan closure items.
-   * Batch 19 (item 16): `visibleIds` masuk deps supaya `visible` tiap kartu
-   * akurat — trade-off sadar: perubahan visibilitas memang memicu re-render
-   * sel (itu tujuannya: play/pause video), tetapi frekuensinya dibatasi
-   * `minimumViewTime` 250ms di viewabilityConfig.
+   * PERF-FIX (LR-004): `visible` tidak lagi lewat prop — tiap FeedCard
+   * subscribe visibilitasnya sendiri via `useFeedItemVisible`, sehingga
+   * renderItem tidak berubah identitas di setiap tick viewability.
    */
   const renderItem = useCallback(
     ({ item, index }: { item: ShowcaseSocialItem; index: number }) => (
       <FeedCard
         item={item}
         divider={index < itemsLengthRef.current - 1}
-        visible={visibleIds.has(item.id)}
         onOpenComments={handleOpenComments}
         onReport={handleOpenReport}
       />
     ),
-    [handleOpenComments, handleOpenReport, visibleIds],
+    [handleOpenComments, handleOpenReport],
   )
 
   /**

@@ -135,6 +135,7 @@ export function ImageViewer({
               shouldPlay={visible && i === current}
               muted={false}
               allowTapToggle
+              userInitiatedPlay
               className="max-h-full"
             />
           </View>

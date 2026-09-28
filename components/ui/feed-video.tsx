@@ -18,8 +18,14 @@
  *     IntersectionObserver di dalam komponen: satu sumber kebenaran untuk
  *     "item terlihat" dipakai kartu (memo) agar tidak ada N observer per
  *     kartu yang berebut.
- *   - `muted` default true + `loop` default true: perilaku feed sosial;
- *     pemanggil (pratinjau upload) bisa mematikan loop.
+ *   - `muted` default true; `loop` default FALSE (PERF-FIX NP-002) — video
+ *     tidak mengulang otomatis (hemat kuota/CPU); pemanggil bisa
+ *     menyalakannya eksplisit bila dibutuhkan.
+ *   - PERF-FIX (NP-002): autoplay WiFi-only — di seluler tampilkan poster +
+ *     tombol putar; ketuk = niat eksplisit (override sesi ini). Pemanggil
+ *     yang sudah memastikan niat eksplisit (galeri: latch "Putar video";
+ *     viewer fullscreen: dibuka via ketuk) memakai `userInitiatedPlay`
+ *     untuk melewati gerbang.
  *   - Kontrol volume tidak ada di item ini (di luar cakupan); tap toggle
  *     play/pause hanya untuk pratinjau upload (`allowTapToggle`).
  *   - Player dibuat via `useVideoPlayer` (auto-release saat unmount) —
@@ -39,6 +45,7 @@ import { cn } from "@/lib/cn"
 import { translate } from "@/lib/i18n/translate"
 import { useLanguage } from "@/lib/i18n"
 import type { MediaSource } from "@/lib/media"
+import { useConnectionType } from "@/lib/connectivity"
 
 /** Hasil guarded-require expo-video; null = modul tak tersedia di bundle. */
 type ExpoVideoModule = typeof import("expo-video") | null
@@ -65,6 +72,29 @@ export function isExpoVideoAvailable(): boolean {
   return !!mod && typeof mod.VideoView === "function" && typeof mod.useVideoPlayer === "function"
 }
 
+/**
+ * PERF-FIX (NP-002): keputusan gerbang autoplay — diekstrak murni agar
+ * bisa di-unit-test tanpa me-render expo-video (native module).
+ *
+ * Autoplay (shouldPlay dari visibilitas) HANYA jalan bila:
+ * - wifiAllowed (koneksi WiFi), ATAU
+ * - userInitiatedPlay (pemanggil memastikan niat eksplisit user), ATAU
+ * - userPlayOverride (user mengetuk tombol putar pada poster gerbang).
+ */
+export function shouldGateVideoAutoplay(opts: {
+  shouldPlay: boolean
+  wifiAllowed: boolean
+  userInitiatedPlay: boolean
+  userPlayOverride: boolean
+}): boolean {
+  return (
+    opts.shouldPlay &&
+    !opts.wifiAllowed &&
+    !opts.userInitiatedPlay &&
+    !opts.userPlayOverride
+  )
+}
+
 class VideoErrorBoundary extends Component<
   { fallback: ReactNode; children: ReactNode },
   { failed: boolean }
@@ -88,17 +118,54 @@ export type FeedVideoProps = Omit<ViewProps, "children"> & {
   /** Thumbnail/gambar pengganti bila modul tak tersedia atau error. */
   poster?: MediaSource
   alt: string
-  /** true = item terlihat → autoplay; false = pause. */
+  /** true = item terlihat → autoplay; false = pause. PERF-FIX (NP-002): autoplay hanya saat WiFi. */
   shouldPlay?: boolean
   muted?: boolean
+  /** PERF-FIX (NP-002): default MATI — video tidak mengulang otomatis. */
   loop?: boolean
   /** Tampilkan kontrol native (pratinjau upload); feed memakai false. */
   nativeControls?: boolean
   /** Ketuk video = toggle play/pause (pratinjau upload). */
   allowTapToggle?: boolean
+  /**
+   * PERF-FIX (NP-002): true bila sinyal putar berasal dari NIAT EKSPLISIT
+   * pengguna (mis. mengetuk poster "Putar video", membuka viewer fullscreen).
+   * Melewati gerbang jaringan — pengguna sudah menyetujui pemakaian data.
+   * Autoplay murni (shouldPlay dari visibilitas) tetap WiFi-only.
+   */
+  userInitiatedPlay?: boolean
   /** C01 (batch 139): rasio slide — dipakai poster/frame agar tak meloncat. */
   aspectRatio?: number
   className?: string
+}
+
+/**
+ * PERF-FIX (NP-002): autoplay video HANYA saat WiFi. `shouldPlay` dari
+ * pemanggil diabaikan bila koneksi seluler terdeteksi — user melihat poster
+ * + tombol putar; ketuk = niat eksplisit, video tetap bisa diputar manual.
+ * Fail-open: tipe koneksi belum diketahui / NetInfo tak tersedia → autoplay
+ * seperti biasa (jangan rusak cold start / platform tanpa NetInfo).
+ * Tipe koneksi dibaca dari `lib/connectivity` (satu langganan NetInfo per
+ * proses) — bukan langganan baru di sini.
+ */
+
+/**
+ * Aturan boleh-autoplay dari tipe koneksi. Hanya koneksi seluler yang
+ * positif terdeteksi yang memblokir — hemat kuota tanpa false-positive di
+ * status 'unknown'/'none' (web) atau sebelum NetInfo menjawab.
+ */
+export function isAutoplayAllowedByConnection(connectionType: string | null | undefined): boolean {
+  // PERF-FIX (NP-002): WiFi-ONLY, fail-closed. Keputusan user eksplisit:
+  // autoplay hanya saat connectionType === "wifi". Seluler, ethernet, vpn,
+  // unknown, none, dan null/undefined semuanya TIDAK autoplay.
+  // (HLS/transcode deferred — tidak diimplementasikan di sini.)
+  return connectionType?.toLowerCase() === "wifi"
+}
+
+/** true bila video boleh autoplay sekarang (hanya WiFi), live. */
+export function useWifiAutoplayAllowed(): boolean {
+  const connectionType = useConnectionType()
+  return isAutoplayAllowedByConnection(connectionType)
 }
 
 /**
@@ -209,6 +276,7 @@ function ExpoVideoInner({
   loop,
   nativeControls,
   allowTapToggle,
+  userInitiatedPlay = false,
 }: {
   source: string
   poster?: MediaSource
@@ -220,11 +288,26 @@ function ExpoVideoInner({
   loop: boolean
   nativeControls: boolean
   allowTapToggle: boolean
+  /** PERF-FIX (NP-002): niat putar eksplisit user → lewati gerbang jaringan. */
+  userInitiatedPlay?: boolean
 }) {
   // i18n: label aksesibilitas mengikuti bahasa aktif.
   useLanguage()
   const [retryKey, setRetryKey] = useState(0)
   const [failed, setFailed] = useState(false)
+  // PERF-FIX (NP-002): autoplay hanya saat WiFi — di seluler, tampilkan
+  // poster + tombol putar. Ketuk = niat eksplisit user (override sesi ini).
+  // userInitiatedPlay = pemanggil sudah memastikan niat eksplisit (mis.
+  // poster "Putar video" diketuk / viewer fullscreen dibuka) → lewati gerbang.
+  const wifiAllowed = useWifiAutoplayAllowed()
+  const [userPlayOverride, setUserPlayOverride] = useState(false)
+  useEffect(() => {
+    if (!shouldPlay) setUserPlayOverride(false)
+  }, [shouldPlay])
+  const effectiveShouldPlay = shouldPlay && (wifiAllowed || userInitiatedPlay || userPlayOverride)
+  // PERF-FIX (NP-002): gerbang autoplay — diekstrak ke shouldGateVideoAutoplay
+  // agar logikanya teruji (lihat tests/feed-video-wifi-autoplay.test.tsx).
+  const gated = shouldGateVideoAutoplay({ shouldPlay, wifiAllowed, userInitiatedPlay, userPlayOverride })
 
   if (failed) {
     const posterSource = normalizePosterSource(poster)
@@ -266,12 +349,27 @@ function ExpoVideoInner({
     )
   }
 
+  // PERF-FIX (NP-002): autoplay diminta tapi koneksi seluler → jangan
+  // putar otomatis; poster + tombol putar, ketuk = niat eksplisit user.
+  // Dilewati bila pemanggil sudah memastikan niat eksplisit (userInitiatedPlay).
+  if (gated) {
+    return (
+      <VideoPoster
+        poster={poster}
+        alt={alt}
+        aspectRatio={aspectRatio}
+        label={translate("Putar video")}
+        onPress={() => setUserPlayOverride(true)}
+      />
+    )
+  }
+
   return (
     <ExpoVideoPlayer
       key={retryKey}
       source={source}
       aspectRatio={aspectRatio}
-      shouldPlay={shouldPlay}
+      shouldPlay={effectiveShouldPlay}
       muted={muted}
       loop={loop}
       nativeControls={nativeControls}
@@ -376,9 +474,10 @@ export function FeedVideo({
   alt,
   shouldPlay = false,
   muted = true,
-  loop = true,
+  loop = false,
   nativeControls = false,
   allowTapToggle = false,
+  userInitiatedPlay = false,
   aspectRatio = 1,
   className,
   ...rest
@@ -401,6 +500,7 @@ export function FeedVideo({
           loop={loop}
           nativeControls={nativeControls}
           allowTapToggle={allowTapToggle}
+          userInitiatedPlay={userInitiatedPlay}
         />
       </VideoErrorBoundary>
     </View>

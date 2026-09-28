@@ -37,6 +37,13 @@ export type ConfirmedUpload = {
 export type DirectUpload = {
   fileKey: string
   url: string
+  /**
+   * PERF-FIX (NP-001): hanya diisi untuk purpose=SHOWCASE_IMAGE — key + URL
+   * thumbnail JPEG ~640px auto-generate server-side (sharp). Dilampirkan
+   * sebagai `thumbnailFileKey` saat membuat media etalase.
+   */
+  thumbnailFileKey?: string
+  thumbnailUrl?: string
 }
 
 export function requestPresignedUrl(dto: PresignedUrlDto, signal?: AbortSignal) {

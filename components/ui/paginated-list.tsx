@@ -221,6 +221,18 @@ export function PaginatedList<T extends { id?: string }>({
     [loading, hasMore, loadingMore, loadMoreError, footer, handleLoadMore],
   )
 
+  /**
+   * PERF-FIX (LR-005): tuning render window.
+   * - initialNumToRender 6 (dulu 8): kartu feed berat (galeri + teks + bar
+   *   aksi + animasi hati); 8 kartu = first paint mahal.
+   * - maxToRenderPerBatch 6 (dulu 8): batch inkremental lebih kecil = scroll
+   *   lebih halus.
+   * - windowSize 11 (dulu 7): headroom saat fling cepat (+-5 viewport); RN
+   *   default 21 terlalu boros untuk kartu seberat ini.
+   * - removeClippedSubviews TETAP false (keputusan produk/UX): true
+   *   menyebabkan blank-scroll pada kartu tinggi (clip/unclip berulang saat
+   *   scroll cepat). Trade-off memori diterima.
+   */
   return (
     <PullToRefreshFlatList
       data={data}
@@ -243,9 +255,9 @@ export function PaginatedList<T extends { id?: string }>({
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="on-drag"
       showsVerticalScrollIndicator={false}
-      initialNumToRender={8}
-      maxToRenderPerBatch={8}
-      windowSize={7}
+      initialNumToRender={6}
+      maxToRenderPerBatch={6}
+      windowSize={11}
       removeClippedSubviews={false}
       collapsable={false}
       onViewableItemsChanged={onViewableItemsChanged}

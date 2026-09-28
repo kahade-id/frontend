@@ -1223,10 +1223,19 @@ export function removeDevice(deviceId: string) {
  * POST /v1/users/me/showcase/{id}/images — lampirkan object key hasil
  * presigned upload (purpose SHOWCASE_IMAGE) yang sudah di-confirm.
  */
-export function attachShowcaseImages(itemId: string, fileKeys: string[]) {
-  return http.post<object, { fileKeys: string[] }>(
+export function attachShowcaseImages(
+  itemId: string,
+  fileKeys: string[],
+  /**
+   * PERF-FIX (NP-001): peta fileKey gambar → thumbnailFileKey (thumbnail foto
+   * auto-generate server-side saat upload). Opsional — tanpa ini gambar
+   * dilampirkan tanpa thumbnail (feed fallback ke imageUrl penuh).
+   */
+  thumbnails?: Record<string, string>,
+) {
+  return http.post<object, { fileKeys: string[]; thumbnails?: Record<string, string> }>(
     `/v1/users/me/showcase/${seg(itemId)}/images`,
-    { fileKeys },
+    thumbnails && Object.keys(thumbnails).length > 0 ? { fileKeys, thumbnails } : { fileKeys },
     { auth: "required" },
   )
 }

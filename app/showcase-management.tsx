@@ -573,6 +573,9 @@ function ShowcaseManagement() {
     const controller = new AbortController()
     uploadAbort.current = controller
     const keys: string[] = []
+    // PERF-FIX (NP-001): kumpulkan thumbnail foto auto-generate server-side
+    // untuk dikirim bersama attach — tanpa ini thumbnail yatim di storage.
+    const thumbMap: Record<string, string> = {}
     let submitted = false
     try {
       const picked = await pickImages({ selectionLimit: slots })
@@ -592,10 +595,11 @@ function ShowcaseManagement() {
       for (const asset of picked.assets) {
         const result = await uploadShowcasePhoto(asset, controller.signal)
         keys.push(result.fileKey)
+        if (result.thumbnailFileKey) thumbMap[result.fileKey] = result.thumbnailFileKey
       }
       if (controller.signal.aborted || !task.valid()) return
       submitted = true
-      await api.users.attachShowcaseImages(item.id, keys)
+      await api.users.attachShowcaseImages(item.id, keys, thumbMap)
       if (!task.valid()) return
       touchFeed()
       setOrderDraft(null)
@@ -608,7 +612,8 @@ function ShowcaseManagement() {
       })
     } finally {
       // An ambiguous attach timeout may already have committed: never delete those objects.
-      if (!submitted) void cleanupPendingShowcaseKeys(keys)
+      // PERF-FIX (NP-001): bersihkan thumbnail foto yang ikut terunggah juga.
+      if (!submitted) void cleanupPendingShowcaseKeys([...keys, ...Object.values(thumbMap)])
       task.finish()
       uploadBusy.current = false
       if (uploadAbort.current === controller) uploadAbort.current = null
