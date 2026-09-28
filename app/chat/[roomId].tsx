@@ -96,7 +96,8 @@ import { findOptimisticMatch, mergeChatMessages } from "@/lib/chat-dedupe"
 import { useChatRoomRealtime } from "@/lib/realtime/use-chat-room"
 import type { ChatAttachmentDto, SendMessageDto } from "@/lib/api/types"
 import { useCopy } from "@/lib/clipboard"
-import { formatChatListTime, truncateMiddle } from "@/lib/format"
+import { formatChatListTime, formatTime, truncateMiddle } from "@/lib/format"
+import { ChatSearchSnippet } from "@/components/ui/chat-search-snippet"
 import { haptic } from "@/lib/haptics"
 import { logWarn } from "@/lib/telemetry"
 import { pickImage, pickedImageToFormData, type PickedImage } from "@/lib/image-picker"
@@ -122,6 +123,7 @@ import { ChatInlineSearchBar } from "@/components/ui/chat-inline-search"
 import { findMessageMatches } from "@/lib/chat-search"
 import { ChatDaySeparator, dayKey, dayLabel } from "@/components/ui/chat-day-separator"
 import { ChatUnreadSeparator } from "@/components/ui/chat-unread-separator"
+import { presenceLabel } from "@/lib/chat-presence-label"
 import { firstUnreadMessageId } from "@/lib/chat-unread-anchor"
 import {
   loadChatFailedMessages,
@@ -512,6 +514,12 @@ export default function ChatRoomScreen() {
   const [pinned, setPinned] = useState<ChatMessage[]>([])
   const [presence, setPresence] = useState<ChatPresence | null>(null)
   /**
+   * B11: kapan respons presence terakhir diterima klien — `presenceLabel`
+   * memakai ini untuk ambang kedaluwarsa supaya label tidak menyesatkan
+   * saat datanya basi.
+   */
+  const [presenceFetchedAt, setPresenceFetchedAt] = useState<number | null>(null)
+  /**
    * GAP-B2 (G110): indikator "mengetik…" lawan bicara dari event socket
    * `chat.typing` (bukan dari poll). `createTypingTracker` di hook memberi
    * expiry otomatis bila sinyal berhenti tak pernah tiba.
@@ -556,6 +564,11 @@ export default function ChatRoomScreen() {
   )
   const inlineMatchIds = useMemo(() => new Set(inlineMatches), [inlineMatches])
   const inlineIndex = inlineActiveId ? inlineMatches.indexOf(inlineActiveId) : -1
+  /** B12: pesan hasil aktif — untuk pratinjau cuplikan konteks keyword. */
+  const inlineActiveMessage = useMemo(
+    () => (inlineActiveId ? (messages.find((m) => m.id === inlineActiveId) ?? null) : null),
+    [messages, inlineActiveId],
+  )
   const closeInlineSearch = useCallback(() => {
     setInlineSearchOpen(false)
     setInlineQuery("")
@@ -722,10 +735,12 @@ export default function ChatRoomScreen() {
     if (!roomId) return
     try {
       setPresence(await getRoomPresence(roomId, signal))
+      setPresenceFetchedAt(Date.now())
     } catch (err) {
       if (signal?.aborted) return
       logWarn("chat:presence", err)
       setPresence(null)
+      setPresenceFetchedAt(null)
     }
   }, [roomId])
 
@@ -748,9 +763,11 @@ export default function ChatRoomScreen() {
       // unmount) tidak boleh menyentuh state ruang baru.
       if (sourceRoom !== undefined && sourceRoom !== roomIdRef.current) return 0
       let added = 0
+      let freshFromOther = false
       setMessages((prev) => {
         const result = mergeChatMessages(prev, incoming)
         added = result.added
+        freshFromOther = result.hasFreshFromOther
         if (!result.changed) return prev
         // Pesan masuk dari lawan bicara → badge tab Notifikasi harus turun
         // segera (ruang terbuka = terbaca), bukan menunggu poll 60 detik.
@@ -771,6 +788,11 @@ export default function ChatRoomScreen() {
         }
         return result.next
       })
+      // B03: pesan baru masuk saat pembaca menelusuri riwayat (tidak di
+      // dasar thread) → hitung untuk badge tombol "kembali ke pesan terbaru".
+      if (added > 0 && freshFromOther && !atBottomRef.current) {
+        setNewWhileAway((c) => c + added)
+      }
       return added
     },
     [],
@@ -894,6 +916,12 @@ export default function ChatRoomScreen() {
    */
   const atBottomRef = useRef(true)
   const [atBottom, setAtBottom] = useState(true)
+  /**
+   * B03: jumlah pesan baru yang masuk saat pembaca TIDAK di dasar thread.
+   * Ditampilkan sebagai badge di tombol mengambang "kembali ke pesan
+   * terbaru"; direset saat pengguna kembali ke dasar.
+   */
+  const [newWhileAway, setNewWhileAway] = useState(0)
   const handleScroll = useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
       const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent
@@ -902,6 +930,8 @@ export default function ChatRoomScreen() {
       if (atBottomRef.current !== bottom) {
         atBottomRef.current = bottom
         setAtBottom(bottom)
+        // B03: kembali ke dasar = pesan baru terlihat → badge di-reset.
+        if (bottom) setNewWhileAway(0)
         // Kembali ke dasar thread = pesan baru kini terlihat → tandai dibaca.
         // (mergeIncoming menahan mark-as-read selama user menelusuri riwayat.)
         if (bottom && roomIdRef.current) {
@@ -1813,21 +1843,25 @@ export default function ChatRoomScreen() {
   // ── Header ruang: identitas + status + order id ────────────────────────
   /**
    * Baris status di bawah nama. "mengetik…" menang atas online (lawan bicara
-   * yang sedang mengetik adalah informasi paling hidup), lalu online, lalu
-   * terakhir dilihat, lalu offline. `presence` null = belum termuat → baris
-   * status dikosongkan supaya tinggi header tidak melompat dua kali.
+   * yang sedang mengetik adalah informasi paling hidup).
+   *
+   * B11: label kehadiran tidak boleh menyesatkan — data basi (atau belum
+   * ada) jatuh ke fallback netral (baris status dikosongkan), BUKAN
+   * "Online"/"Offline"/waktu spesifik yang mengklaim kepastian. Ambang di
+   * lib/chat-presence-label: online basi > 60 dtk, last-seen basi > 5 mnt.
    */
+  const presenceStatus = presenceLabel(presence, presenceFetchedAt)
   const statusText = counterpartTyping
     ? "mengetik…"
-    : presence
-      ? presence.isOnline
-        ? "Online"
-        : presence.lastSeenAt
-          // UI-C003: cap waktu ringkas ("Kemarin"), bukan datetime penuh yang
+    : presenceStatus.kind === "online"
+      ? "Online"
+      : presenceStatus.kind === "last-seen"
+        ? // UI-C003: cap waktu ringkas ("Kemarin"), bukan datetime penuh yang
           // memadati baris status 2-baris di bawah nama.
-          ? `Terakhir dilihat ${formatChatListTime(presence.lastSeenAt)}`
-          : "Offline"
-      : undefined
+          `Terakhir dilihat ${formatChatListTime(presenceStatus.at)}`
+        : presenceStatus.kind === "offline"
+          ? "Offline"
+          : undefined
 
   // ── Aksi mode pilih pesan (ubin ikon+label di <SelectionBar>) ──────────
   const selectionActions: SelectionAction[] = useMemo(() => {
@@ -1956,6 +1990,8 @@ export default function ChatRoomScreen() {
   const jumpToLatest = useCallback(() => {
     atBottomRef.current = true
     setAtBottom(true)
+    // B03: pesan baru kini terlihat → badge di-reset.
+    setNewWhileAway(0)
     scrollRef.current?.scrollToEnd({ animated: true })
   }, [])
 
@@ -1985,6 +2021,7 @@ export default function ChatRoomScreen() {
         <ChatRoomFooter
           showJumpToLatest={atBottom === false && messages.length > 0}
           onJumpToLatest={jumpToLatest}
+          newMessageCount={newWhileAway}
           completed={isChatCompleted}
           closedNotice={closedNoticeText}
           orderId={room?.orderId}
@@ -2045,7 +2082,9 @@ export default function ChatRoomScreen() {
           }
           sealTier={room?.counterpart?.sealTier ?? null}
           status={statusText}
-          online={presence?.isOnline === true}
+          // B11: titik hijau "online" hanya bila datanya segar — data basi
+          // tidak boleh mengklaim kepastian.
+          online={presenceStatus.kind === "online"}
           loading={loading && !room}
           orderId={room?.orderId ? truncateMiddle(room.orderId, 6, 4) : undefined}
           onOrderPress={
@@ -2083,6 +2122,17 @@ export default function ChatRoomScreen() {
           onPrev={() => stepInlineMatch(-1)}
           onNext={() => stepInlineMatch(1)}
           onClose={closeInlineSearch}
+        />
+      ) : null}
+      {/* B12: pratinjau hasil aktif — cuplikan dengan konteks sebelum/sesudah
+          keyword; ketuk untuk melompat ke pesannya di thread. */}
+      {!selecting && inlineSearchOpen && inlineActiveId ? (
+        <ChatSearchSnippet
+          message={inlineActiveMessage}
+          query={inlineQuery}
+          counterpartName={counterpartName}
+          timeLabel={inlineActiveMessage ? formatTime(inlineActiveMessage.createdAt) : undefined}
+          onPress={() => jumpToInlineMatch(inlineActiveId)}
         />
       ) : null}
 

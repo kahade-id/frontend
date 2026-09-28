@@ -26,6 +26,8 @@ export type ChatRoomFooterProps = {
   /** Tombol lompat ke bawah hanya berguna saat pembaca sudah meninggalkan dasar. */
   showJumpToLatest: boolean
   onJumpToLatest: () => void
+  /** B03: jumlah pesan baru masuk saat pembaca di atas → badge di tombol. */
+  newMessageCount?: number
   /** Ruang sudah selesai → composer diganti panel informasi. */
   completed: boolean
   /** Kalimat penutup ruang (lihat `chatRoomClosedNotice`). */
@@ -66,6 +68,7 @@ export type ChatRoomFooterProps = {
 export function ChatRoomFooter({
   showJumpToLatest,
   onJumpToLatest,
+  newMessageCount = 0,
   completed,
   closedNotice,
   orderId,
@@ -98,6 +101,7 @@ export function ChatRoomFooter({
         visible={showJumpToLatest}
         onPress={onJumpToLatest}
         label="Gulir ke pesan terbaru"
+        count={newMessageCount}
         className="px-5 pb-2"
       />
 
