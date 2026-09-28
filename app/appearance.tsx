@@ -72,7 +72,22 @@ export default function AppearanceScreen() {
           {mapValue(PREFERENCE_HINT, preference, PREFERENCE_HINT.system)}
         </Text>
 
-        <KeyValue label="Sedang aktif" value={mapValue(MODE_LABEL, mode, mode)} />
+        <KeyValue
+          label="Sedang aktif"
+          value={
+            // A14 (batch 139): saat "Ikuti sistem", tampilkan mode EFEKTIF
+            // (terang/gelap) — nilai ini ikut berubah saat sistem berubah.
+            preference === "system"
+              ? `${mapValue(MODE_LABEL, mode, mode)} (mengikuti sistem)`
+              : mapValue(MODE_LABEL, mode, mode)
+          }
+        />
+        {preference === "system" ? (
+          <Text variant="caption" tone="secondary" className="text-pretty">
+            Mode efektif berubah otomatis mengikuti pengaturan terang/gelap
+            perangkat Anda.
+          </Text>
+        ) : null}
 
         {/* Batch 19 (item 15): mode hemat data — default MATI, tersimpan lokal. */}
         <SectionHeader

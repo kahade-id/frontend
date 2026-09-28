@@ -108,6 +108,15 @@ export const SecureKeys = {
   /** S7: draft teks form "Buat karya" (autosave lokal). */
   showcaseDraft: "kahade.showcase.draft",
   /**
+   * Batch 139 A05: draft NON-RAHASIA registrasi (nama lengkap, username, tipe
+   * akun) — dipulihkan bila app tertutup di tengah registrasi multi-langkah.
+   * BUKAN rahasia: TIDAK PERNAH berisi kata sandi atau OTP (dijaga di level
+   * tipe lib/registration-draft.ts). Boleh persist di localStorage web;
+   * dibersihkan eksplisit saat registrasi berhasil, bukan saat logout (draft
+   * yang ditinggalkan memang dimaksudkan untuk dipulihkan).
+   */
+  registrationDraft: "kahade.registration.draft",
+  /**
    * Preferensi UI non-sensitif (JSON kecil — lib/ui-prefs.ts): saldo
    * disembunyikan, tab transaksi terakhir, snooze pengingat ulasan.
    * BUKAN rahasia; boleh persist di localStorage web (tanpa PII/angka uang).
@@ -206,6 +215,9 @@ const WEB_PERSISTENT_KEYS = new Set<SecureKey>([
   SecureKeys.notificationLocalPrefs,
   SecureKeys.onboardingChecklistDone,
   SecureKeys.offlineSocialQueue,
+  // Batch 139 A05 — draft registrasi non-rahasia: boleh persist di web
+  // (bukan rahasia; tidak pernah berisi kata sandi/OTP).
+  SecureKeys.registrationDraft,
   /**
    * Item #28 — skala font A-/A+ (lib/font-scale.ts). Preferensi aksesibilitas
    * non-sensitif level perangkat: boleh persist di web seperti themePreference,

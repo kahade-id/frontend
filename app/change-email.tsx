@@ -42,6 +42,7 @@ import { Header } from "@/components/ui/header"
 import { PasswordField } from "@/components/ui/password-field"
 import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
+import { SensitiveConfirmDialog } from "@/components/ui/sensitive-confirm"
 import { SensitiveText } from "@/components/ui/sensitive-text"
 import { useToast } from "@/components/ui/toast"
 
@@ -59,6 +60,8 @@ export default function ChangeEmailScreen() {
   const emailValid = isValidEmail(trimmed)
   const unchanged = trimmed.toLowerCase() === currentEmail.trim().toLowerCase()
   const canSubmit = emailValid && !unchanged && password.length > 0 && !submitting
+  // A11 (batch 139): konfirmasi sensitif seragam sebelum email diganti.
+  const [confirmOpen, setConfirmOpen] = useState(false)
 
   const handleSubmit = useCallback(async () => {
     if (!canSubmit) return
@@ -90,7 +93,7 @@ export default function ChangeEmailScreen() {
       padded={false}
       footer={
         <View>
-          <Button fullWidth loading={submitting} disabled={!canSubmit} onPress={() => void handleSubmit()}>
+          <Button fullWidth loading={submitting} disabled={!canSubmit} onPress={() => setConfirmOpen(true)}>
             Simpan email baru
           </Button>
         </View>
@@ -140,6 +143,20 @@ export default function ChangeEmailScreen() {
           helperText="Dibutuhkan untuk membuktikan kepemilikan akun."
         />
       </ScrollView>
+
+      {/* A11: konfirmasi sensitif seragam sebelum email benar-benar diganti. */}
+      <SensitiveConfirmDialog
+        visible={confirmOpen}
+        title="Ganti email?"
+        consequences={[
+          `Email ${trimmed || "baru"} akan menjadi email utama akun Anda.`,
+          "Kode aktivasi dikirim ke alamat baru — email lama tidak bisa dipakai lagi setelah aktif.",
+        ]}
+        confirmLabel="Ya, ganti email"
+        loading={submitting}
+        onConfirm={() => { setConfirmOpen(false); void handleSubmit() }}
+        onCancel={() => setConfirmOpen(false)}
+      />
     </Screen>
   )
 }

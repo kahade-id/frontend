@@ -41,6 +41,7 @@ import { TextLink } from "@/components/ui/text-link"
 import { PinInput } from "@/components/ui/pin-input"
 import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
+import { SensitiveConfirmDialog } from "@/components/ui/sensitive-confirm"
 import { Text } from "@/components/ui/text"
 import { useToast } from "@/components/ui/toast"
 
@@ -57,6 +58,10 @@ export default function ChangePinScreen() {
   const [newError, setNewError] = useState<string | undefined>()
   const [verifying, setVerifying] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  // A11 (batch 139): konfirmasi sensitif seragam — PIN baru ditahan di sini
+  // sampai pengguna menyetujui dialog konfirmasi.
+  const [pendingPin, setPendingPin] = useState("")
+  const [confirmOpen, setConfirmOpen] = useState(false)
   /** null = belum diketahui (loading/gagal), true/false = status dari server */
   const [hasPin, setHasPin] = useState<boolean | null>(null)
 
@@ -253,7 +258,8 @@ export default function ChangePinScreen() {
             </Text>
             <PinInput
               mode="setup"
-              onComplete={(p) => void handleNewPin(p)}
+              // A11: jangan langsung submit — tahan PIN, minta konfirmasi dulu.
+              onComplete={(p) => { setPendingPin(p); setConfirmOpen(true) }}
               disabled={submitting}
               errorText={newError}
             />
@@ -268,6 +274,27 @@ export default function ChangePinScreen() {
           </>
         )}
       </ScrollView>
+
+      {/* A11: konfirmasi sensitif seragam sebelum PIN benar-benar diganti. */}
+      <SensitiveConfirmDialog
+        visible={confirmOpen}
+        title={isSetupMode ? "Buat PIN dompet?" : "Ubah PIN dompet?"}
+        consequences={
+          isSetupMode
+            ? [
+                "PIN 6 digit akan melindungi dompet Anda mulai sekarang.",
+                "Jangan bagikan PIN kepada siapa pun, termasuk pihak yang mengaku dari Kahade.",
+              ]
+            : [
+                "PIN dompet Anda akan diganti dengan yang baru.",
+                "PIN lama langsung tidak berlaku setelah berhasil.",
+              ]
+        }
+        confirmLabel={isSetupMode ? "Ya, buat PIN" : "Ya, ubah PIN"}
+        loading={submitting}
+        onConfirm={() => { setConfirmOpen(false); void handleNewPin(pendingPin) }}
+        onCancel={() => setConfirmOpen(false)}
+      />
       </Screen>
     </ScreenCaptureGuard>
   )

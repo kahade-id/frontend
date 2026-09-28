@@ -18,7 +18,7 @@
  *   - Gagal menulis cache perangkat (SecureStore) → biarkan; bahasa tetap
  *     aktif untuk sesi ini.
  */
-import { useCallback } from "react"
+import { useCallback, useState } from "react"
 
 import { api } from "@/lib/api"
 import { userMessage } from "@/lib/api/errors"
@@ -28,6 +28,7 @@ import { useApiQuery } from "@/lib/use-api-query"
 import { DataScreen } from "@/components/ui/data-screen"
 import { LanguagePicker, type LanguageCode } from "@/components/ui/language-picker"
 import { SectionHeader } from "@/components/ui/section"
+import { SensitiveConfirmDialog } from "@/components/ui/sensitive-confirm"
 import { Text } from "@/components/ui/text"
 import { useToast } from "@/components/ui/toast"
 
@@ -68,6 +69,27 @@ export default function LanguageScreen() {
     [language, toast.show],
   )
 
+  // A16 (batch 139): dialog dampak SEBELUM apply — user memilih dulu,
+  // dampak dijelaskan, baru diterapkan. Tidak ada navigasi pergi-pulang:
+  // user tetap di layar/rute ini (posisi tidak berubah).
+  const [pendingLang, setPendingLang] = useState<LanguageCode | null>(null)
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  const pendingName =
+    LANGUAGES.find((l) => l.code === pendingLang)?.nativeName ?? pendingLang ?? ""
+  const askChange = useCallback(
+    (next: LanguageCode) => {
+      if (next === language) return
+      setPendingLang(next)
+      setConfirmOpen(true)
+    },
+    [language],
+  )
+  const confirmChange = useCallback(() => {
+    setConfirmOpen(false)
+    if (pendingLang) void handleChange(pendingLang)
+    setPendingLang(null)
+  }, [pendingLang, handleChange])
+
   return (
     <DataScreen title="Bahasa" state={query} loadingMessage="Memuat preferensi bahasa…">
       <SectionHeader title="Preferensi bahasa akun" />
@@ -76,7 +98,8 @@ export default function LanguageScreen() {
       </Text>
       <LanguagePicker
         value={language}
-        onChange={(v) => void handleChange(v)}
+        // A16: jangan langsung apply — tampilkan dialog dampak dulu.
+        onChange={(v) => askChange(v)}
         options={LANGUAGES.map((l) => ({
           code: l.code,
           nativeName: l.nativeName,
@@ -88,6 +111,20 @@ export default function LanguageScreen() {
           Preferensi akun belum bisa dibaca — pilihan di bawah tetap berlaku di perangkat ini.
         </Text>
       ) : null}
+
+      {/* A16: dialog dampak sebelum apply; tetap di rute/posisi yang sama. */}
+      <SensitiveConfirmDialog
+        visible={confirmOpen}
+        title={`Ganti bahasa ke ${pendingName}?`}
+        description="Anda tetap di layar ini — tidak ada halaman yang tertutup atau dimuat ulang."
+        consequences={[
+          `Seluruh tampilan aplikasi langsung berganti ke ${pendingName}.`,
+          "Preferensi disimpan ke akun Anda dan berlaku di semua perangkat.",
+        ]}
+        confirmLabel="Ya, ganti bahasa"
+        onConfirm={confirmChange}
+        onCancel={() => { setConfirmOpen(false); setPendingLang(null) }}
+      />
     </DataScreen>
   )
 }

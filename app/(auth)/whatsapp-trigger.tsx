@@ -36,7 +36,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { Linking, View } from "react-native"
 import { useRouter } from "expo-router"
-import { WhatsappLogo } from "phosphor-react-native"
+import { ArrowsClockwise, WhatsappLogo, WifiSlash } from "phosphor-react-native"
 
 import { Alert } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -44,6 +44,7 @@ import { Countdown } from "@/components/ui/countdown"
 import { FooterBar } from "@/components/ui/footer-bar"
 import { Header } from "@/components/ui/header"
 import { Heading } from "@/components/ui/heading"
+import { Icon } from "@/components/ui/icon"
 import { KeyboardAvoiding } from "@/components/ui/keyboard-avoiding"
 import { Screen } from "@/components/ui/screen"
 import { Text } from "@/components/ui/text"
@@ -51,6 +52,7 @@ import { TextLink } from "@/components/ui/text-link"
 import { useToast } from "@/components/ui/toast"
 import { api, isApiError, userMessage } from "@/lib/api"
 import { copyToClipboard } from "@/lib/clipboard"
+import { isOfflineKnown, useIsOnline } from "@/lib/connectivity"
 import { safeWhatsAppLink } from "@/lib/external-url"
 import { formatPhoneId } from "@/lib/format"
 import { getAuthLocation } from "@/lib/location"
@@ -118,6 +120,12 @@ export default function WhatsappTriggerScreen() {
   const [done, setDone] = useState(false)
   const [requesting, setRequesting] = useState(false)
 
+  // A07 (batch 139): bedakan status koneksi polling — offline (jeda),
+  // menunggu balasan (normal), mencoba ulang (gagal jaringan beruntun).
+  const isOnline = useIsOnline()
+  const [netFailures, setNetFailures] = useState(0)
+  const connStatus = !isOnline ? "offline" : netFailures > 0 ? "retrying" : "waiting"
+
   // Polling status — rantai setTimeout dengan backoff, dibersihkan saat
   // unmount/selesai. Batas total mengikuti expiresInSeconds dari trigger
   // (default 10 menit); server yang menandai EXPIRED.
@@ -168,9 +176,19 @@ export default function WhatsappTriggerScreen() {
     }
 
     const tick = async () => {
+      // A07: perangkat JELAS offline → jangan hantam jaringan; jadwalkan
+      // ulang saja. Polling lanjut otomatis saat koneksi kembali.
+      if (isOfflineKnown()) {
+        if (!cancelled) {
+          attempt += 1
+          scheduleNext()
+        }
+        return
+      }
       try {
         const { status } = await api.auth.getOtpTriggerStatus(refCode)
         if (cancelled) return
+        setNetFailures(0)
         if (status === "COMPLETED") {
           goVerifyOtp()
         } else if (status === "FAILED" || status === "EXPIRED") {
@@ -183,7 +201,9 @@ export default function WhatsappTriggerScreen() {
       } catch {
         // Jaringan bergetar saat polling: coba lagi dengan backoff, jangan
         // reset jeda — kegagalan jaringan bukan sinyal balasan sudah dekat.
+        // A07: hitung kegagalan beruntun untuk status "mencoba ulang".
         if (!cancelled) {
+          setNetFailures((f) => f + 1)
           attempt += 1
           scheduleNext()
         }
@@ -203,6 +223,16 @@ export default function WhatsappTriggerScreen() {
   const [checkingNow, setCheckingNow] = useState(false)
   const handleSentMessage = useCallback(async () => {
     if (checkingNow || !refCode || done) return
+    // A07: cek manual butuh koneksi — jangan diam saat offline.
+    if (isOfflineKnown()) {
+      toast.show({
+        title: "Anda sedang offline",
+        description: "Pengecekan manual butuh koneksi internet. Polling otomatis lanjut saat online.",
+        tone: "warning",
+        duration: 4000,
+      })
+      return
+    }
     setCheckingNow(true)
     try {
       const { status } = await api.auth.getOtpTriggerStatus(refCode)
@@ -367,14 +397,44 @@ export default function WhatsappTriggerScreen() {
             </Text>
           </View>
 
-          {/* Langkah 2 — status menunggu balasan */}
+          {/* Langkah 2 — status menunggu balasan (A07: dibedakan per koneksi) */}
           <View className="gap-2 rounded-md border border-border bg-surface-elevated px-4 py-3">
-            <Text variant="body" weight={500}>
-              Menunggu balasan kode…
-            </Text>
-            <Text variant="caption" tone="secondary" className="text-pretty">
-              Layar ini otomatis lanjut begitu bot membalas kode verifikasi.
-            </Text>
+            {connStatus === "offline" ? (
+              <View className="flex-row items-start gap-2">
+                <Icon icon={WifiSlash} size="sm" tone="warning" />
+                <View className="flex-1 gap-1">
+                  <Text variant="body" weight={500}>
+                    Anda sedang offline
+                  </Text>
+                  <Text variant="caption" tone="secondary" className="text-pretty">
+                    Polling dijeda dan lanjut otomatis saat koneksi kembali.
+                    Kode referensi di atas tetap berlaku.
+                  </Text>
+                </View>
+              </View>
+            ) : connStatus === "retrying" ? (
+              <View className="flex-row items-start gap-2">
+                <Icon icon={ArrowsClockwise} size="sm" tone="warning" />
+                <View className="flex-1 gap-1">
+                  <Text variant="body" weight={500}>
+                    Koneksi bermasalah — mencoba lagi…
+                  </Text>
+                  <Text variant="caption" tone="secondary" className="text-pretty">
+                    Percobaan ulang ke-{netFailures + 1}. Pastikan koneksi
+                    internet stabil.
+                  </Text>
+                </View>
+              </View>
+            ) : (
+              <>
+                <Text variant="body" weight={500}>
+                  Menunggu balasan kode…
+                </Text>
+                <Text variant="caption" tone="secondary" className="text-pretty">
+                  Layar ini otomatis lanjut begitu bot membalas kode verifikasi.
+                </Text>
+              </>
+            )}
             {/*
              * FE-IMP-3 #107 — "Saya sudah kirim pesan": satu poll segera
              * (tanpa menunggu giliran backoff). Polling otomatis tetap jalan.

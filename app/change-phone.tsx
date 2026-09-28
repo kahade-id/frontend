@@ -12,6 +12,7 @@ import { PasswordField } from "@/components/ui/password-field"
 import { PhoneInput, isValidPhoneId, normalizePhoneId, toE164Id } from "@/components/ui/phone-input"
 import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
+import { SensitiveConfirmDialog } from "@/components/ui/sensitive-confirm"
 import { SensitiveText } from "@/components/ui/sensitive-text"
 import { useToast } from "@/components/ui/toast"
 import { api, clearSession, isApiError, type UserProfile, userMessage } from "@/lib/api"
@@ -38,6 +39,8 @@ export default function ChangePhoneScreen() {
   const [code, setCode] = useState("")
   const [error, setError] = useState<string>()
   const [submitting, setSubmitting] = useState(false)
+  // A11 (batch 139): konfirmasi sensitif seragam sebelum ganti nomor final.
+  const [confirmOpen, setConfirmOpen] = useState(false)
 
   const newPhone = useMemo(() => (isValidPhoneId(phone) ? toE164Id(phone) : ""), [phone])
   const unchanged = !!newPhone && newPhone === currentPhone
@@ -96,7 +99,8 @@ export default function ChangePhoneScreen() {
     <Screen keyboardAvoiding edges={["top"]} padded={false} footer={
       <View>
         <Button fullWidth loading={submitting} disabled={step === "request" ? !canRequest : !canConfirm}
-          onPress={() => void (step === "request" ? requestCode() : confirmCode())}>
+          // A11: langkah konfirmasi memakai dialog konfirmasi sensitif seragam.
+          onPress={() => void (step === "request" ? requestCode() : setConfirmOpen(true))}>
           {step === "request" ? "Kirim kode verifikasi" : "Verifikasi dan ganti nomor"}
         </Button>
       </View>
@@ -133,6 +137,22 @@ export default function ChangePhoneScreen() {
           </Button>
         </>}
       </ScrollView>
+
+      {/* A11: konfirmasi sensitif seragam sebelum nomor benar-benar diganti. */}
+      <SensitiveConfirmDialog
+        visible={confirmOpen}
+        title="Ganti nomor HP?"
+        description="Nomor baru sudah terverifikasi via WhatsApp."
+        consequences={[
+          `Nomor ${newPhone || "baru"} akan menjadi nomor utama akun Anda.`,
+          "Nomor lama tidak bisa lagi dipakai untuk masuk atau menerima OTP.",
+          "Setelah berhasil, semua sesi dicabut dan Anda harus masuk kembali.",
+        ]}
+        confirmLabel="Ya, ganti nomor"
+        loading={submitting}
+        onConfirm={() => { setConfirmOpen(false); void confirmCode() }}
+        onCancel={() => setConfirmOpen(false)}
+      />
     </Screen>
   )
 }

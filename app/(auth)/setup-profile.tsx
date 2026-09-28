@@ -82,6 +82,8 @@ import { VStack } from "@/components/ui/stack"
 import { api, getAccessToken, isApiError, userMessage } from "@/lib/api"
 import { clearRegistrationState, getRegistrationState } from "@/lib/registration"
 import { hasProfileChanges } from "@/lib/auth-ui"
+import { useLeaveConfirm } from "@/lib/use-leave-confirm"
+import { Dialog } from "@/components/ui/modal"
 import { pickImage, pickedImageToFormData, type PickedImage, type PickImageOptions } from "@/lib/image-picker"
 import { ROUTES } from "@/lib/routes"
 import { translate } from "@/lib/i18n/translate"
@@ -125,6 +127,20 @@ export default function SetupProfileScreen() {
   // hanya menambah foto tetap bisa memakai CTA utama "Simpan".
   const hasChanges = hasProfileChanges(bio, avatarUrl)
 
+  // A06 (batch 139): "Lewati" membuang bio/foto yang belum disimpan —
+  // konfirmasi hanya bila ada perubahan.
+  const doSkip = useCallback(() => {
+    clearRegistrationState()
+    router.replace(ROUTES.welcome({ newUser: true }))
+  }, [router])
+  const leaveConfirm = useLeaveConfirm(hasChanges && !submitting, {
+    title: "Lewati setup profil?",
+    description:
+      "Foto dan bio yang belum disimpan akan hilang. Anda bisa melengkapinya nanti dari Edit Profil.",
+    confirmLabel: "Ya, lewati",
+    onConfirmDiscard: doSkip,
+  })
+
   const handleBioChange = useCallback((text: string) => {
     setBio(text)
     setFormError(null)
@@ -143,6 +159,8 @@ export default function SetupProfileScreen() {
       // Sukses: bersihkan state registrasi dan tampilkan welcome.
       // `newUser` dibawa lewat param — welcome tidak bisa membaca state yang
       // baru saja dibersihkan.
+      // A06: simpan sukses = keluar yang disengaja.
+      leaveConfirm.markLeaving()
       clearRegistrationState()
       router.replace(ROUTES.welcome({ newUser: true }))
     } catch (err) {
@@ -157,12 +175,14 @@ export default function SetupProfileScreen() {
     } finally {
       setSubmitting(false)
     }
-  }, [submitting, bio, router])
+  }, [submitting, bio, router, leaveConfirm])
 
+  // A06: "Lewati" meminta konfirmasi hanya bila ada perubahan belum
+  // tersimpan; bila bersih langsung lewati.
   const handleSkip = useCallback(() => {
-    clearRegistrationState()
-    router.replace(ROUTES.welcome({ newUser: true }))
-  }, [router])
+    if (hasChanges) leaveConfirm.showConfirm()
+    else doSkip()
+  }, [hasChanges, leaveConfirm, doSkip])
 
   // ── Upload avatar ──────────────────────────────────────────────────
   const uploadAvatar = useCallback(async (asset: PickedImage) => {
@@ -368,6 +388,9 @@ export default function SetupProfileScreen() {
         description="Pilih cara untuk mengunggah foto profil Anda"
         actions={avatarActions}
       />
+
+      {/* A06: dialog konfirmasi "Lewati" — hanya bila ada perubahan */}
+      <Dialog {...leaveConfirm.dialogProps} />
     </Screen>
   )
 }

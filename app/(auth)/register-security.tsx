@@ -32,8 +32,8 @@
  *     setup-profile bisa menyapa user tanpa meminta ulang (state hanya
  *     dihapus setelah setup-profile selesai / user keluar dari alur).
  */
-import { useCallback, useEffect, useState } from "react"
-import { ScrollView } from "react-native"
+import { useCallback, useEffect, useRef, useState } from "react"
+import { ScrollView, type TextInput } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useRouter } from "expo-router"
 
@@ -48,10 +48,17 @@ import { KeyboardAvoiding } from "@/components/ui/keyboard-avoiding"
 import { PasswordField } from "@/components/ui/password-field"
 import { Screen } from "@/components/ui/screen"
 import { Text } from "@/components/ui/text"
+import { ValidationSummary, type ValidationIssue } from "@/components/ui/validation-summary"
 import { VStack } from "@/components/ui/stack"
 import { api, isApiError, userMessage } from "@/lib/api"
 import { PASSWORD_MAX, isPasswordValid } from "@/lib/auth-constants"
+import { focusFirstInvalid } from "@/lib/form-validation"
 import { getAuthLocation } from "@/lib/location"
+import {
+  clearRegistrationDraft,
+  getRegistrationDraft,
+  saveRegistrationDraft,
+} from "@/lib/registration-draft"
 import {
   getRegistrationState,
   setRegistrationState,
@@ -61,6 +68,8 @@ import {
   clearPendingSocialSignup,
   getPendingSocialSignup,
 } from "@/lib/social-signup"
+import { useLeaveConfirm } from "@/lib/use-leave-confirm"
+import { Dialog } from "@/components/ui/modal"
 import { useToast } from "@/components/ui/toast"
 
 /** Registrasi via HP: 4 langkah — ini langkah ke-4 (terakhir). */
@@ -89,11 +98,54 @@ export default function RegisterSecurityScreen() {
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
+  // A05 (batch 139): pulihkan draft NON-RAHASIA (nama, username) bila app
+  // tertutup di tengah registrasi. Kata sandi TIDAK PERNAH dipulihkan.
+  const [draftLoaded, setDraftLoaded] = useState(false)
+  useEffect(() => {
+    let alive = true
+    void getRegistrationDraft().then((draft) => {
+      if (!alive) return
+      if (draft.fullName) setFullName(draft.fullName)
+      if (draft.username) setUsername(draft.username)
+      setDraftLoaded(true)
+    })
+    return () => {
+      alive = false
+    }
+  }, [])
+
+  // Autosave draft (debounce 600ms) — hanya field non-rahasia.
+  useEffect(() => {
+    if (!draftLoaded) return
+    const timer = setTimeout(() => {
+      void saveRegistrationDraft({ fullName, username })
+    }, 600)
+    return () => clearTimeout(timer)
+  }, [draftLoaded, fullName, username])
+
   const [fullNameError, setFullNameError] = useState<string | undefined>()
   const [passwordError, setPasswordError] = useState<string | undefined>()
   const [confirmError, setConfirmError] = useState<string | undefined>()
   const [formError, setFormError] = useState<string | null>(null)
+  // A04 (batch 139): ringkasan semua error validasi di atas tombol.
+  const [issues, setIssues] = useState<ValidationIssue[]>([])
+  const fullNameRef = useRef<TextInput>(null)
+  const passwordRef = useRef<TextInput>(null)
+  const confirmRef = useRef<TextInput>(null)
   const [submitting, setSubmitting] = useState(false)
+
+  // A06 (batch 139): konfirmasi bila keluar dengan data yang belum disimpan.
+  const leaveConfirm = useLeaveConfirm(
+    (fullName.length > 0 || username.length > 0 || password.length > 0 || confirmPassword.length > 0) && !submitting,
+    {
+      title: "Batalkan pendaftaran?",
+      description: "Data yang sudah Anda isi akan hilang.",
+      confirmLabel: "Ya, batalkan",
+    },
+  )
+  const markLeaving = leaveConfirm.markLeaving
+
+  const clearIssues = useCallback(() => setIssues([]), [])
 
   const isFormValid =
     fullName.trim().length > 0 && password.length > 0 && confirmPassword.length > 0
@@ -102,18 +154,27 @@ export default function RegisterSecurityScreen() {
     if (submitting || !tempToken || !phoneNumber) return
     setFormError(null)
 
+    // A04: kumpulkan SEMUA error sekaligus (bukan berhenti di yang pertama),
+    // tampilkan ringkasan di atas tombol, fokuskan field pertama yang salah.
+    const found: ValidationIssue[] = []
     if (fullName.trim().length === 0) {
       setFullNameError("Nama lengkap wajib diisi.")
-      return
+      found.push({ field: "Nama lengkap", message: "Wajib diisi." })
     }
     if (!isPasswordValid(password)) {
       setPasswordError("Kata sandi minimal 8 karakter.")
-      return
+      found.push({ field: "Kata sandi", message: "Minimal 8 karakter." })
     }
     if (confirmPassword !== password) {
       setConfirmError("Konfirmasi kata sandi tidak sama.")
+      found.push({ field: "Konfirmasi kata sandi", message: "Tidak sama dengan kata sandi." })
+    }
+    if (found.length > 0) {
+      setIssues(found)
+      focusFirstInvalid([fullNameRef, passwordRef, confirmRef])
       return
     }
+    setIssues([])
 
     setSubmitting(true)
     try {
@@ -140,6 +201,10 @@ export default function RegisterSecurityScreen() {
       }
       // Simpan fullName untuk sapaan di setup-profile; token sesi sudah
       // disimpan otomatis oleh auth.ts. Password TIDAK disimpan.
+      // A05: draft non-rahasia tidak lagi dibutuhkan — akun sudah jadi.
+      void clearRegistrationDraft()
+      // A06: akun berhasil dibuat = keluar yang disengaja.
+      markLeaving()
       setRegistrationState({ tempToken: "", phoneNumber, fullName: fullName.trim() })
       router.replace(ROUTES.setupProfile)
     } catch (err) {
@@ -156,7 +221,7 @@ export default function RegisterSecurityScreen() {
     } finally {
       setSubmitting(false)
     }
-  }, [submitting, tempToken, phoneNumber, fullName, username, password, confirmPassword, router])
+  }, [submitting, tempToken, phoneNumber, fullName, username, password, confirmPassword, router, markLeaving])
 
   if (!tempToken) return null
 
@@ -186,11 +251,13 @@ export default function RegisterSecurityScreen() {
               <VStack gap={4}>
                 <Input
                   label="Nama lengkap"
+                  ref={fullNameRef}
                   value={fullName}
                   onChangeText={(t) => {
                     setFullName(t)
                     setFullNameError(undefined)
                     setFormError(null)
+                    clearIssues()
                   }}
                   errorText={fullNameError}
                   autoCapitalize="words"
@@ -226,11 +293,13 @@ export default function RegisterSecurityScreen() {
                     panjang 8–72. */}
                 <PasswordField
                   label="Kata sandi"
+                  ref={passwordRef}
                   value={password}
                   onChangeText={(t) => {
                     setPassword(t)
                     setPasswordError(undefined)
                     setFormError(null)
+                    clearIssues()
                   }}
                   errorText={passwordError}
                   helperText="Minimal 8 karakter"
@@ -242,11 +311,13 @@ export default function RegisterSecurityScreen() {
 
                 <PasswordField
                   label="Konfirmasi kata sandi"
+                  ref={confirmRef}
                   value={confirmPassword}
                   onChangeText={(t) => {
                     setConfirmPassword(t)
                     setConfirmError(undefined)
                     setFormError(null)
+                    clearIssues()
                   }}
                   errorText={confirmError}
                   maxLength={PASSWORD_MAX}
@@ -272,6 +343,9 @@ export default function RegisterSecurityScreen() {
                 ) : null}
               </VStack>
 
+              {/* A04: ringkasan validasi di atas tombol submit */}
+              <ValidationSummary issues={issues} onDismiss={clearIssues} />
+
               <Button
                 onPress={() => void handleSubmit()}
                 loading={submitting}
@@ -296,6 +370,9 @@ export default function RegisterSecurityScreen() {
           </Text>
         </FooterBar>
       </KeyboardAvoiding>
+
+      {/* A06: dialog konfirmasi keluar — hanya bila ada data belum disimpan */}
+      <Dialog {...leaveConfirm.dialogProps} />
     </Screen>
   )
 }

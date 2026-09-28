@@ -153,6 +153,14 @@ export default function SecurityActivityScreen() {
   const [revokingOthers, setRevokingOthers] = useState(false)
   const [confirmAll, setConfirmAll] = useState(false)
   const [revokingAll, setRevokingAll] = useState(false)
+  // A09 (batch 139): "Keluar dari semua perangkat" ikut mencabut SESI AKTIF
+  // (perangkat ini) — butuh konfirmasi ULANG (ketuk dua kali), bukan satu
+  // ketukan. State armed direset setiap dialog ditutup.
+  const [confirmAllArmed, setConfirmAllArmed] = useState(false)
+  const closeConfirmAll = useCallback(() => {
+    setConfirmAll(false)
+    setConfirmAllArmed(false)
+  }, [])
   const [removeTarget, setRemoveTarget] = useState<DeviceSession | null>(null)
   const [removingId, setRemovingId] = useState<string | null>(null)
 
@@ -239,6 +247,7 @@ export default function SecurityActivityScreen() {
       return
     }
     setConfirmAll(false)
+    setConfirmAllArmed(false)
     // Sesi server sudah mati semua — bersihkan sesi lokal lalu ke login.
     await api.auth.logout().catch(() => undefined)
     router.replace("/(auth)/login")
@@ -375,6 +384,16 @@ export default function SecurityActivityScreen() {
                 onLoadMore={() => void sessionsQuery.loadMore()}
                 hideEnd
               />
+              {/*
+               * A10 (batch 139): waktu sesi sudah absolut lokal (§13) +
+               * perangkat + lokasi perkiraan. Lokasi ditebak dari IP —
+               * jelaskan bisa tidak presisi supaya user tidak panik bila
+               * kota sedikit meleset.
+               */}
+              <Text variant="caption" tone="secondary" className="text-pretty">
+                Lokasi diperkirakan dari alamat IP dan bisa tidak presisi.
+                Waktu memakai zona waktu perangkat Anda.
+              </Text>
               <Button
                 variant="ghost"
                 onPress={() => setConfirmOthers(true)}
@@ -416,6 +435,11 @@ export default function SecurityActivityScreen() {
                 onLoadMore={() => void securityQuery.loadMore()}
                 hideEnd
               />
+              {/* A10: waktu absolut memakai zona waktu perangkat. Perangkat &
+                  lokasi per entri belum dikembalikan server (parsial). */}
+              <Text variant="caption" tone="secondary" className="text-pretty">
+                Waktu memakai zona waktu perangkat Anda.
+              </Text>
             </>
           ) : (
             <>
@@ -529,16 +553,21 @@ export default function SecurityActivityScreen() {
       <Dialog
         title="Keluar dari semua perangkat?"
         description={translate(
-          "Semua sesi termasuk perangkat ini akan dicabut. Anda harus masuk kembali di semua perangkat.",
+          "Semua sesi termasuk PERANGKAT INI akan dicabut. Anda harus masuk kembali di semua perangkat.",
         )}
         visible={confirmAll}
         destructive
         loading={revokingAll}
-        confirmLabel="Ya, keluarkan semua"
+        // A09: konfirmasi ulang — ketukan pertama mempersenjatai, ketukan
+        // kedua mengeksekusi. Mencegah cabut sesi aktif karena salah ketuk.
+        confirmLabel={confirmAllArmed ? "Ketuk lagi untuk mengonfirmasi" : "Ya, keluarkan semua"}
         cancelLabel="Batal"
-        onConfirm={() => void handleLogoutAll()}
-        onCancel={() => setConfirmAll(false)}
-        onRequestClose={() => setConfirmAll(false)}
+        onConfirm={() => {
+          if (confirmAllArmed) void handleLogoutAll()
+          else setConfirmAllArmed(true)
+        }}
+        onCancel={closeConfirmAll}
+        onRequestClose={closeConfirmAll}
       />
     </Screen>
   )
