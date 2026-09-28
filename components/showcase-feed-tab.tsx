@@ -645,6 +645,16 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
            */
           const collected: ShowcaseSocialItem[] = []
           let pageIndex = 0
+          /**
+           * NP-005 (audit performa): tampilkan parsial — halaman pertama yang
+           * lolos filter langsung di-commit ke layar (kartu tampil setelah
+           * ~1× RTT), halaman lanjutan tetap diambil di latar sampai
+           * FOLLOWING_MIN_ITEMS terkumpul / plafon tercapai. Dulu 3 halaman
+           * serial menahan paint kartu pertama sampai SEMUA selesai
+           * (3× RTT di 3G) + halaman mentah yang terbuang.
+           * Bukan renderItem/viewability (milik Tim A): hanya titik commit.
+           */
+          let partialCommitted = false
           for (; set.size > 0 && pageIndex < FOLLOWING_MAX_PAGES; pageIndex++) {
             const page = await getShowcaseFeed(
               { ...query, sort: "latest", cursor: slot.cursors.latest ?? undefined },
@@ -654,6 +664,17 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
             slot.cursors.latest = page.nextCursor
             slot.hasMore.latest = page.hasMore
             collected.push(...page.items.filter((item) => followedBy(set, item)))
+            if (!partialCommitted && collected.length > 0) {
+              partialCommitted = true
+              // Interim: data lama (refresh) diganti parsial — final commit di
+              // bawah menimpa lagi dengan hasil lengkap; mode "more" merge
+              // per-id (reconcileFeedItems) sehingga tidak ada duplikat.
+              const visiblePartial = collected.filter((item) => !isShowcaseReported(item.id))
+              const partialItems = reconcileFeedItems(mode, itemsRef.current, visiblePartial)
+              itemsRef.current = partialItems
+              setItems(partialItems)
+              if (mode === "initial") setLoading(false)
+            }
             if (collected.length >= FOLLOWING_MIN_ITEMS || !page.hasMore) break
           }
           truncatedFollowing = pageIndex >= FOLLOWING_MAX_PAGES && slot.hasMore.latest && set.size > 0
