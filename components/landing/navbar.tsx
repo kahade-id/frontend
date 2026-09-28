@@ -41,8 +41,8 @@ export function LandingNavbar() {
   return (
     <View
       className={cn(
-        // sticky/top-0/z-50: posisi sticky hanya bermakna di web.
-        "sticky top-0 z-50 w-full",
+        // sticky/top-0/z-sticky: posisi sticky hanya bermakna di web.
+        "sticky top-0 z-sticky w-full",
         scrolled && "border-b border-border backdrop-blur-md",
       )}
       style={

@@ -64,7 +64,7 @@ export function LandingSolution() {
       <View className="flex-col gap-4 md:flex-row">
         {PILLARS.map((pillar, index) => (
           <Reveal key={pillar.title} delay={index * 120} className="md:flex-1">
-            <View className="h-full rounded-2xl border border-border bg-surfaceElevated p-6">
+            <View className="h-full rounded-lg border border-border bg-surface-elevated p-6">
               <View className="mb-4 h-12 w-12 items-center justify-center rounded-full bg-surface">
                 <Icon icon={pillar.icon} size="md" tone="accent" weight="fill" />
               </View>

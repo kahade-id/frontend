@@ -108,7 +108,7 @@ export default function AppearanceScreen() {
           title={translate("Ukuran teks")}
           subtitle={translate("Perkecil atau perbesar semua teks di aplikasi.")}
         />
-        <View className="flex-row items-center justify-between gap-3 rounded-xl border border-border bg-surface p-4">
+        <View className="flex-row items-center justify-between gap-3 rounded-lg border border-border bg-surface p-4">
           <Button
             size="sm"
             variant="secondary"
@@ -148,7 +148,7 @@ export default function AppearanceScreen() {
          * components/ui/text.tsx), jadi paragraf ini membesar/mengecil
          * langsung saat A−/A+ diketuk — bukan sekadar angka persen.
          */}
-        <View className="rounded-xl border border-border bg-surface p-4">
+        <View className="rounded-lg border border-border bg-surface p-4">
           <Text variant="body" tone="primary" className="text-pretty">
             Contoh paragraf: dana escrow Rp2.500.000 untuk pesanan #KD-88213
             telah masuk dan menunggu konfirmasi penjual. Begini tampilan teks

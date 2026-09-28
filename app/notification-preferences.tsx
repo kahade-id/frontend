@@ -294,7 +294,7 @@ function QuietHoursSection({
         title={translate("Jangan ganggu")}
         subtitle={translate("Jadwal harian tanpa bunyi notifikasi push.")}
       />
-      <View className="gap-1 rounded-xl border border-border bg-surface p-4">
+      <View className="gap-1 rounded-lg border border-border bg-surface p-4">
         <View className="flex-row items-center justify-between gap-3">
           <View className="flex-1">
             <Text variant="body" weight={600} tone="primary">

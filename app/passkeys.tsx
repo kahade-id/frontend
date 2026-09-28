@@ -280,7 +280,7 @@ export default function PasskeysScreen() {
         }
         contentClassName="gap-3"
       >
-        <View className="rounded-2xl bg-surface p-4 gap-2">
+        <View className="rounded-lg bg-surface p-4 gap-2">
           <Text variant="body" weight={600}>
             {PASSKEY_COPY.vsDeviceBiometric.title}
           </Text>
@@ -293,7 +293,7 @@ export default function PasskeysScreen() {
         </View>
 
         {items.map((item) => (
-          <View key={item.id} className="rounded-2xl bg-surface p-4 gap-1">
+          <View key={item.id} className="rounded-lg bg-surface p-4 gap-1">
             <View className="flex-row items-center gap-3">
               <Fingerprint size={22} />
               <View className="flex-1">

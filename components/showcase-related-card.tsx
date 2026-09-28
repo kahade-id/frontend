@@ -45,7 +45,7 @@ export function ShowcaseRelatedCard({ rel }: { rel: ShowcaseSocialItem }) {
         accessibilityRole="button"
         accessibilityLabel={rel.title}
         onPress={() => router.push(ROUTES.showcaseDetail(rel.id))}
-        containerClassName={cn("w-36 overflow-hidden rounded-xl bg-surface-elevated", focusRing)}
+        containerClassName={cn("w-36 overflow-hidden rounded-lg bg-surface-elevated", focusRing)}
       >
         <View className="relative">
           {cover ? (

@@ -58,7 +58,7 @@ export function LandingTestimonials() {
       <View className="grid grid-cols-1 gap-4 md:grid-cols-3 md:gap-5">
         {TESTIMONIALS.map((t, i) => (
           <Reveal key={t.name} delay={i * 90}>
-            <View className="h-full rounded-2xl border border-border bg-surface-elevated p-6">
+            <View className="h-full rounded-lg border border-border bg-surface-elevated p-6">
               <View className="mb-4 flex-row items-center justify-between">
                 <Stars />
                 <View className="rounded-full border border-border px-3 py-1">

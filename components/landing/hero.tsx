@@ -37,7 +37,7 @@ function ShowcaseMockup() {
   return (
     <View>
       <View
-        className="mx-auto w-full max-w-sm overflow-hidden rounded-2xl border border-border bg-surfaceElevated"
+        className="mx-auto w-full max-w-sm overflow-hidden rounded-lg border border-border bg-surface-elevated"
         style={{ boxShadow: "0 24px 64px rgba(0,0,0,0.12)" }}
       >
         {/* Area "foto" produk — gradien dari CSS var mode-aware (--color-*),
@@ -87,7 +87,7 @@ function ShowcaseMockup() {
       </View>
 
       {/* Chip escrow melayang di bawah mockup */}
-      <View className="mx-auto mt-5 w-full max-w-sm flex-row items-center gap-3 rounded-2xl border border-border bg-surfaceElevated p-4">
+      <View className="mx-auto mt-5 w-full max-w-sm flex-row items-center gap-3 rounded-lg border border-border bg-surface-elevated p-4">
         <Icon icon={ShieldCheck} size="md" tone="accent" weight="fill" />
         <View className="flex-1">
           <Text variant="label">Dana ditahan escrow</Text>
@@ -99,11 +99,11 @@ function ShowcaseMockup() {
 
       {/* Cuplikan chat: negosiasi → sepakat → escrow. Menunjukkan sisi
           sosial + aman dalam satu alur yang familier. */}
-      <View className="mx-auto mt-4 w-full max-w-sm gap-2 rounded-2xl border border-border bg-surfaceElevated p-4">
-        <View className="self-start rounded-2xl rounded-bl-md bg-surface px-3.5 py-2.5">
+      <View className="mx-auto mt-4 w-full max-w-sm gap-2 rounded-lg border border-border bg-surface-elevated p-4">
+        <View className="self-start rounded-lg rounded-bl-md bg-surface px-3.5 py-2.5">
           <Text variant="body">Deal ya, Rp 850.000 🙏</Text>
         </View>
-        <View className="self-end rounded-2xl rounded-br-md bg-primary px-3.5 py-2.5">
+        <View className="self-end rounded-lg rounded-br-md bg-primary px-3.5 py-2.5">
           <Text variant="body" tone="inverse">
             Deal! Saya buatkan order escrow-nya ya
           </Text>
@@ -149,7 +149,7 @@ export function LandingHero() {
               main media sosial.
             </Text>
 
-            <View className="mt-8 flex-col gap-3 sm:flex-row">
+            <View className="mt-8 flex-col gap-3 md:flex-row">
               <Button
                 variant="primary"
                 size="md"

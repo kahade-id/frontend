@@ -62,7 +62,7 @@ export function LandingSecurity() {
           <Reveal
             key={item.title}
             delay={index * 80}
-            className="w-full sm:w-[calc(50%-8px)] lg:w-[calc(25%-12px)]"
+            className="w-full md:w-[calc(50%-8px)]"
           >
             <View className="items-center gap-3 rounded-md border border-border px-5 py-6">
               <Icon icon={item.icon} size="lg" tone="inverse" />

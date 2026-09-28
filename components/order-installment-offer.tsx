@@ -141,7 +141,7 @@ export function InstallmentOfferSection({
               maxLength={2}
             />
           </Field>
-          <View className="rounded-md bg-background-soft p-3">
+          <View className="rounded-md bg-surface p-3">
             <Text variant="caption" tone="secondary">
               {translate("DP {dp} + {n}× cicilan {x} tiap {d} hari", {
                 dp: formatRupiah(dpAmount),

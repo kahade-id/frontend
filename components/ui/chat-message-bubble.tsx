@@ -519,7 +519,7 @@ export function ChatMessageBubble({
         <View
           testID="message-reaction-badge"
           style={REACTION_BADGE_ANCHOR}
-          className="z-10 flex-row items-center rounded-full border border-border bg-surface-elevated px-1.5 py-0.5"
+          className="z-sticky flex-row items-center rounded-full border border-border bg-surface-elevated px-1.5 py-0.5"
         >
           {reactions.map((r) => (
             <PressableScale

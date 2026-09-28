@@ -43,11 +43,19 @@
 import { useEffect, useRef } from "react"
 import { Animated, Easing, View, type ViewProps } from "react-native"
 
+import { useTheme } from "@/components/theme-provider"
 import { Dot, type DotTone } from "@/components/ui/dot"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { formatRupiah } from "@/lib/format"
-import { tokens } from "@/lib/tokens"
+import {
+  chartMono,
+  chartMonoDark,
+  modes,
+  semantic,
+  tokens,
+  type ColorMode,
+} from "@/lib/tokens"
 import { useReducedMotion } from "@/lib/use-reduced-motion"
 import { translate } from "@/lib/i18n/translate"
 
@@ -122,6 +130,26 @@ function fillClassFor(series: ChartSeries, d: BarDatum, index: number): string {
   return d.highlighted === false ? "bg-text-tertiary" : "bg-primary"
 }
 
+/**
+ * Padanan HEX dari `fillClassFor()` untuk <Animated.View>.
+ *
+ * ATURAN KERAS (insiden 2026-09-27, dipertegas audit web 2026-09-28):
+ * `className` di <Animated.View> DIABAIKAN TOTAL di web — interop className
+ * NativeWind hanya terdaftar untuk komponen dasar, bukan Animated.View, dan
+ * react-native-web tidak meneruskan prop `className` ke DOM. Batang chart
+ * yang tumbuh (`GrowingBar`) adalah Animated.View, jadi warnanya harus
+ * `backgroundColor` inline yang mode-aware (lihat progress-bar.tsx).
+ * `fillClassFor()` tetap dipakai <ChartLegend> (View biasa — className aman).
+ */
+function fillColorFor(series: ChartSeries, d: BarDatum, index: number, mode: ColorMode): string {
+  if (series === "mono") {
+    const steps = mode === "dark" ? chartMonoDark : chartMono
+    return steps[index % steps.length]
+  }
+  if (series === "status") return semantic[d.tone ?? "info"][mode].fill
+  return d.highlighted === false ? modes[mode].textTertiary : modes[mode].primary
+}
+
 const DEFAULT_HEIGHT = 160
 const defaultFormat = (v: number) => formatRupiah(v, { compact: true, sign: "never" })
 
@@ -140,12 +168,13 @@ function stepIndex(step: number | undefined): 0 | 1 | 2 {
 function GrowingBar({
   ratio,
   orientation,
-  fillClass,
+  fill,
   animated,
 }: {
   ratio: number
   orientation: BarOrientation
-  fillClass: string
+  /** Warna HEX (lihat `fillColorFor`) — className mati di Animated.View (web) */
+  fill: string
   animated: boolean
 }) {
   const grow = useRef(new Animated.Value(animated ? 0 : 1)).current
@@ -170,14 +199,31 @@ function GrowingBar({
   const pct = `${Math.round(safeRatio * 100)}%` as const
   const vertical = orientation === "vertical"
 
+  // Seluruh visual inline: className di Animated.View diabaikan total di web.
+  // rounded-t-xs / rounded-r-xs = radius.xs (4px) hanya di sisi ujung batang.
   return (
     <Animated.View
       style={
         vertical
-          ? { height: pct, transformOrigin: "bottom", transform: [{ scaleY: grow }] }
-          : { width: pct, transformOrigin: "left", transform: [{ scaleX: grow }] }
+          ? {
+              height: pct,
+              width: "100%",
+              borderTopLeftRadius: tokens.radius.xs,
+              borderTopRightRadius: tokens.radius.xs,
+              backgroundColor: fill,
+              transformOrigin: "bottom",
+              transform: [{ scaleY: grow }],
+            }
+          : {
+              width: pct,
+              height: "100%",
+              borderTopRightRadius: tokens.radius.xs,
+              borderBottomRightRadius: tokens.radius.xs,
+              backgroundColor: fill,
+              transformOrigin: "left",
+              transform: [{ scaleX: grow }],
+            }
       }
-      className={cn(vertical ? "w-full rounded-t-xs" : "h-full rounded-r-xs", fillClass)}
     />
   )
 }
@@ -197,6 +243,7 @@ export function BarChart({
 }: BarChartProps) {
   // Nilai dari backend tidak divalidasi: NaN/Infinity di sini akan mengalir
   // menjadi `height: "NaN%"` — style yang ditolak RN dan mengosongkan chart.
+  const { mode } = useTheme()
   const max = data.reduce((acc, d) => (Number.isFinite(d.value) ? Math.max(acc, d.value) : acc), 0)
   const ratioOf = (v: number) =>
     max <= 0 || !Number.isFinite(v) ? 0 : Math.min(1, Math.max(0, v / max))
@@ -226,7 +273,7 @@ export function BarChart({
               <GrowingBar
                 ratio={ratioOf(d.value)}
                 orientation="horizontal"
-                fillClass={fillClassFor(series, d, i)}
+                fill={fillColorFor(series, d, i, mode)}
                 animated={animated}
               />
             </View>
@@ -275,7 +322,7 @@ export function BarChart({
                 <GrowingBar
                   ratio={ratioOf(d.value)}
                   orientation="vertical"
-                  fillClass={fillClassFor(series, d, i)}
+                  fill={fillColorFor(series, d, i, mode)}
                   animated={animated}
                 />
               </View>

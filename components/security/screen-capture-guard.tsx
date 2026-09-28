@@ -67,7 +67,7 @@ function CaptureDetectedOverlay({ onDismiss }: { onDismiss: () => void }) {
   return (
     <View
       style={StyleSheet.absoluteFill}
-      className="z-50 items-center justify-center gap-4 bg-background px-8"
+      className="z-banner items-center justify-center gap-4 bg-background px-8"
       accessibilityRole="alert"
       accessibilityLabel={translate("Konten sensitif disembunyikan")}
     >

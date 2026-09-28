@@ -19,8 +19,9 @@
 import { useEffect, useRef, useState } from "react"
 import { Animated, Easing, View, type ViewProps } from "react-native"
 
+import { useTheme } from "@/components/theme-provider"
 import { cn } from "@/lib/cn"
-import { tokens } from "@/lib/tokens"
+import { accent, modes, semantic, tokens, type ColorMode } from "@/lib/tokens"
 import { motionDuration, useReducedMotion } from "@/lib/use-reduced-motion"
 import { Text } from "./text"
 
@@ -38,13 +39,32 @@ export type ProgressBarProps = Omit<ViewProps, "children"> & {
   className?: string
 }
 
-const fillClass: Record<ProgressTone, string> = {
-  primary: "bg-primary",
-  success: "bg-success",
-  danger: "bg-danger",
-  warning: "bg-warning",
-  info: "bg-info",
-  accent: "bg-accent",
+/**
+ * Warna fill per tone, mode-aware — dipakai sebagai `backgroundColor` INLINE
+ * di <Animated.View>.
+ *
+ * ATURAN KERAS (insiden 2026-09-27, dipertegas audit web 2026-09-28):
+ * `className` di <Animated.View>/<Reanimated.View> DIABAIKAN TOTAL di web —
+ * bukan cuma `bg-*`. Interop className NativeWind (react-native-css-interop)
+ * hanya terdaftar untuk komponen dasar (View/Text/Pressable/dsb); identity
+ * Animated.View tidak ada di map, dan react-native-web tidak meneruskan
+ * prop `className` ke DOM. Jadi SEMUA visual di sini harus inline `style`.
+ */
+function fillColorFor(tone: ProgressTone, mode: ColorMode): string {
+  switch (tone) {
+    case "success":
+      return semantic.success[mode].fill
+    case "danger":
+      return semantic.danger[mode].fill
+    case "warning":
+      return semantic.warning[mode].fill
+    case "info":
+      return semantic.info[mode].fill
+    case "accent":
+      return accent[mode].fill
+    default:
+      return modes[mode].primary
+  }
 }
 
 const trackHeight: Record<ProgressSize, string> = {
@@ -64,8 +84,10 @@ export function ProgressBar({
   className,
   ...rest
 }: ProgressBarProps) {
+  const { mode: themeMode } = useTheme()
   const indeterminate = value === undefined
   const pct = indeterminate ? 0 : clamp(value)
+  const fill = fillColorFor(tone, themeMode)
 
   const width = useRef(new Animated.Value(pct)).current
   const shift = useRef(new Animated.Value(0)).current
@@ -152,13 +174,21 @@ export function ProgressBar({
       >
         {indeterminate ? (
           <Animated.View
-            className={cn("h-full rounded-full", fillClass[tone], reducedMotion && "opacity-disabled")}
-            style={{ width: segment, transform: [{ translateX }] }}
+            style={{
+              width: segment,
+              height: "100%",
+              borderRadius: tokens.radius.full,
+              backgroundColor: fill,
+              opacity: reducedMotion ? tokens.motion.opacity.disabled : 1,
+              transform: [{ translateX }],
+            }}
           />
         ) : (
           <Animated.View
-            className={cn("h-full rounded-full", fillClass[tone])}
             style={{
+              height: "100%",
+              borderRadius: tokens.radius.full,
+              backgroundColor: fill,
               width: width.interpolate({
                 inputRange: [0, 100],
                 outputRange: ["0%", "100%"],

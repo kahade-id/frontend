@@ -64,7 +64,7 @@ export function LandingCtaDownload() {
       title="Siap jual beli tanpa was-was?"
       description="Gratis. Tanpa kartu kredit. Verifikasi nomor HP kurang dari 2 menit."
     >
-      <View className="flex-col gap-10 lg:flex-row lg:items-center lg:gap-16">
+      <View className="flex-col gap-10 md:flex-row md:items-center md:gap-16">
         {/* Kiri: 3 langkah mini */}
         <Reveal className="flex-1">
           <View className="gap-6">

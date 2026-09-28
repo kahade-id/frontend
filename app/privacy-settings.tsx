@@ -664,7 +664,7 @@ export default function PrivacySettingsScreen() {
               key={fmt}
               accessibilityRole="button"
               onPress={() => setExportFormat(fmt)}
-              className={`flex-1 rounded-xl border px-4 py-3 ${exportFormat === fmt ? "border-emerald-500" : "border-neutral-700"}`}
+              className={`flex-1 rounded-lg border px-4 py-3 ${exportFormat === fmt ? "border-emerald-500" : "border-neutral-700"}`}
             >
               <Text variant="body" weight={500} className="text-center">
                 {fmt === "json" ? "JSON" : "CSV (ZIP)"}
