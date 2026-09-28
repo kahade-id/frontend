@@ -39,6 +39,59 @@ const VALIDATORS = [
 const LOCAL_VALIDATOR = /\bfunction\s+(safe[A-Za-z0-9_]*|assert[A-Za-z0-9_]*Url)\s*\(/
 const ALLOW_MARKER = "openurl-allow"
 
+/**
+ * Pabrik URL konstan-https: fungsi yang me-return template literal berawalan
+ * `https://<host>/`. Skema + host DIKUNCI oleh kode (template literal) —
+ * nilai interpolasi hanya bisa mendarat di path/query/fragment, tidak bisa
+ * menyuntik skema (`javascript:`) atau host lain. Contoh:
+ * `components/ui/chat-location-card.tsx` membangun URL OpenStreetMap dari
+ * koordinat lewat `mapUrl()` — gate lama menandainya false positive.
+ *
+ * Dikenali: `function name(...) { ... return \`https://...\` }` dan
+ * `const name = (...) => \`https://...\``.
+ */
+function findConstHttpsFactories(src) {
+  const names = new Set()
+  const fnRe =
+    /\bfunction\s+([A-Za-z0-9_]+)\s*\([^)]*\)\s*(?::\s*[A-Za-z0-9_<>\[\]|,\s]+)?\s*\{[^}]{0,400}?return\s*`https:\/\/[^`]+`/g
+  const arrowRe =
+    /\b(?:const|let|var)\s+([A-Za-z0-9_]+)\s*=\s*(?:\([^)]*\)|[A-Za-z0-9_]+)\s*=>\s*`https:\/\/[^`]+`/g
+  let m
+  while ((m = fnRe.exec(src))) names.add(m[1])
+  while ((m = arrowRe.exec(src))) names.add(m[1])
+  return names
+}
+
+/**
+ * Deteksi statis nilai BERBAHAYA yang tertulis literal di call-site
+ * (R-1 audit ronde-2): URL berkredensial (`https://user:pass@host` —
+ * menyembunyikan tujuan sebenarnya) dan skema `http:` non-TLS.
+ * Validator runtime (`lib/external-url.ts`) sudah menolak keduanya untuk
+ * nilai dinamis; pemeriksaan ini menangkap literal yang lolos ke kode.
+ */
+function findInsecureLiteral(line, constLiterals) {
+  const literals = []
+  const strRe = /(["'`])((?:\\\1|(?!\1).){0,500})\1/g
+  let m
+  while ((m = strRe.exec(line))) literals.push(m[2])
+  // Argumen berupa identifier yang dideklarasikan sebagai literal string.
+  const ident = line.match(/\.openURL\s*\(\s*([A-Za-z0-9_]+)\s*\)/)
+  if (ident && constLiterals.has(ident[1])) literals.push(constLiterals.get(ident[1]))
+  for (const lit of literals) {
+    if (/^[a-z][a-z0-9+.-]*:\/\/[^/]*@/i.test(lit)) return "URL berkredensial (userinfo user:pass@)"
+    if (/^http:\/\//i.test(lit)) return "skema http: non-TLS"
+  }
+  return null
+}
+
+function findConstStringLiterals(src) {
+  const map = new Map()
+  const re = /\bconst\s+([A-Za-z0-9_]+)\s*=\s*(["'])((?:\\\2|(?!\2).){0,500})\2/g
+  let m
+  while ((m = re.exec(src))) map.set(m[1], m[3])
+  return map
+}
+
 function walk(dir, out = []) {
   for (const name of readdirSync(dir)) {
     if (name === "node_modules" || name.startsWith(".")) continue
@@ -60,12 +113,31 @@ for (const abs of files) {
   const src = readFileSync(abs, "utf8")
   const rel = relative(root, abs).split("\\").join("/")
   const lines = src.split("\n")
+  const constFactories = findConstHttpsFactories(src)
+  const constLiterals = findConstStringLiterals(src)
   lines.forEach((line, index) => {
     if (!/\.openURL\s*\(/.test(line)) return
     callSites += 1
     const context = [lines[index - 1] ?? "", line, lines[index + 1] ?? ""].join("\n")
     if (context.includes(ALLOW_MARKER)) {
       notes.push(`${rel}:${index + 1} dikecualikan lewat penanda ${ALLOW_MARKER}`)
+      return
+    }
+    // R-1: tolak literal berbahaya walau "tervalidasi" — kredensial di URL
+    // dan http: non-TLS tidak boleh tertulis di call-site.
+    const insecure = findInsecureLiteral(line, constLiterals)
+    if (insecure) {
+      problems.push(`${rel}:${index + 1} — ${insecure} tertulis literal di openURL(). ` +
+        `Pakai https: tanpa userinfo, atau bangun URL lewat pabrik konstan.`)
+      return
+    }
+    // Pabrik URL konstan-https: argumen `mapUrl(location)` dkk. — skema &
+    // host terkunci template literal (bukan false positive lagi).
+    const factoryCall = [...constFactories].some((name) =>
+      new RegExp(`\\b${name}\\s*\\(`).test(line),
+    )
+    if (factoryCall) {
+      notes.push(`${rel}:${index + 1} aman — argumen dari pabrik URL konstan-https`)
       return
     }
     const validated =

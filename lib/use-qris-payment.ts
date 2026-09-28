@@ -20,6 +20,7 @@
 import { useCallback, useRef, useState } from "react"
 
 import { api, isApiError, userMessage } from "@/lib/api"
+import { assertDeviceNotCompromised } from "@/lib/device-integrity"
 import { createIdempotencyKey } from "@/lib/api/client"
 import type { QrisPayment } from "@/lib/api/orders"
 import { recordPendingAction, resolvePendingAction, toEpochMs } from "@/lib/pending-actions"
@@ -181,6 +182,9 @@ export function useQrisPayment({
       const synced = await syncStatus()
       if (synced == null || synced === "PAID" || !isTerminalStatus(synced)) return
     }
+    // M-1 (audit ronde-2): blokir pembuatan intent bayar di perangkat
+    // rooted/jailbroken — sebelum intent dibuat & dana bergerak.
+    if (!(await assertDeviceNotCompromised())) return
     creatingRef.current = true
     setCreating(true)
     try {

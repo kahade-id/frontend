@@ -8,13 +8,20 @@
  * tautan eksternal.
  *
  * Keputusan non-obvious:
- *   - Hanya skema http/https yang dianggap tautan — skema lain (javascript:,
- *     data:, dsb.) diperlakukan sebagai teks biasa (anti-XSS/phishing).
+ *   - Hanya skema HTTPS (tanpa kredensial userinfo) yang jadi tautan —
+ *     skema lain (javascript:, data:, dsb.) DAN http: non-TLS diperlakukan
+ *     sebagai teks biasa (anti-XSS/phishing; R-1 audit ronde-2). Validasi
+ *     lewat `safeHttpsLink` di `lib/external-url.ts` agar satu gate dengan
+ *     seluruh call-site `Linking.openURL`.
+ *   - URL berkredensial (`https://user:pass@host`) DITOLAK sebagai tautan:
+ *     domain yang tampil akan menyembunyikan kredensialnya.
  *   - URL tanpa skema ("kahade.id/x") TIDAK di-linkify: menebak skema bisa
- *     salah arah; pengguna harus menulis http(s):// agar menjadi tautan.
+ *     salah arah; pengguna harus menulis https:// agar menjadi tautan.
  *   - Domain dinormalisasi: huruf kecil, tanpa "www.", tanpa port, tanpa
  *     kredensial userinfo — yang tampil adalah identitas situs sebenarnya.
  */
+
+import { safeHttpsLink } from "./external-url"
 
 export type BioSegment =
   | { kind: "text"; text: string }
@@ -61,9 +68,13 @@ export function extractBioSegments(text: string): BioSegment[] {
     if (start > cursor) {
       segments.push({ kind: "text", text: text.slice(cursor, start) })
     }
-    const domain = getUrlDomain(url)
-    if (domain) {
-      segments.push({ kind: "link", url, domain })
+    // R-1 (audit ronde-2): hanya URL https bersih yang jadi tautan —
+    // `safeHttpsLink` menolak skema non-https DAN URL berkredensial
+    // (user:pass@host) yang getUrlDomain saja tidak tangkap.
+    const safe = safeHttpsLink(url)
+    const domain = safe ? getUrlDomain(safe) : null
+    if (safe && domain) {
+      segments.push({ kind: "link", url: safe, domain })
     } else {
       // Bukan URL yang aman di-linkify — kembalikan sebagai teks biasa.
       segments.push({ kind: "text", text: url })

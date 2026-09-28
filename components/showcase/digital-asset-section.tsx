@@ -29,6 +29,7 @@ import {
 import * as Clipboard from "expo-clipboard"
 
 import { api, isApiError, userMessage } from "@/lib/api"
+import { safeHttpsLink } from "@/lib/external-url"
 import {
   DIGITAL_ASSET_TYPE_LABELS,
   type DigitalAsset,
@@ -121,9 +122,13 @@ export function DigitalAssetsBuyerSection({ showcaseId }: { showcaseId: string }
   const openLink = useCallback(
     async (url: string) => {
       try {
-        const supported = await Linking.canOpenURL(url)
+        // R-1 (audit ronde-2): URL aset digital berasal dari server — wajib
+        // lolos gate https (menolak URL berkredensial & skema non-https).
+        const safe = safeHttpsLink(url)
+        if (!safe) throw new Error("unsafe-url")
+        const supported = await Linking.canOpenURL(safe)
         if (!supported) throw new Error("unsupported")
-        await Linking.openURL(url)
+        await Linking.openURL(safe)
       } catch {
         toast.show({ title: translate("Tautan tidak bisa dibuka"), tone: "danger" })
       }

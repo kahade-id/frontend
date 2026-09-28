@@ -22,6 +22,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Bank as BankIcon } from "phosphor-react-native"
 
 import { api, isApiError, userMessage, type WithdrawDto } from "@/lib/api"
+import { assertDeviceNotCompromised } from "@/lib/device-integrity"
 import { createIdempotencyKey } from "@/lib/api/client"
 import type { BankAccount } from "@/lib/api/bank-accounts"
 import { formatRupiah, maskAccountNumber } from "@/lib/format"
@@ -235,6 +236,8 @@ export default function WithdrawScreen() {
   const handlePin = useCallback(
     async (value: string) => {
       if (!canContinueAccount || submitLock.current) return
+      // M-1 (audit ronde-2): blokir penarikan di perangkat rooted/jailbroken.
+      if (!(await assertDeviceNotCompromised())) return
       submitLock.current = true
       setSubmitting(true)
       setPinError(undefined)

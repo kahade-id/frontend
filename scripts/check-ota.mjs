@@ -6,10 +6,30 @@ const cli = fileURLToPath(new URL("../node_modules/expo/bin/cli", import.meta.ur
 // Pakai "introspect": tipe "public" menyembunyikan field code signing
 // (codeSigningCertificate/codeSigningMetadata) sehingga SEC-401 tidak bisa
 // diperiksa.
-const raw = execFileSync(process.execPath, [cli, "config", "--type", "introspect", "--json"], {
-  encoding: "utf8",
-  env: { ...process.env, EXPO_OFFLINE: "1" },
-})
+let raw
+try {
+  // L-2 (audit ronde-2): execFileSync tanpa try/catch membuat skrip crash
+  // dengan stack trace bila expo CLI hilang/rusak — gagalkan dengan pesan
+  // yang jelas (fail-graceful), bukan crash.
+  raw = execFileSync(process.execPath, [cli, "config", "--type", "introspect", "--json"], {
+    encoding: "utf8",
+    env: { ...process.env, EXPO_OFFLINE: "1" },
+    // Tangkap stderr sendiri agar pesan gagalnya rapi (tidak bocor mentah).
+    stdio: ["ignore", "pipe", "pipe"],
+  })
+} catch (err) {
+  const stderrTail =
+    err != null && typeof err.stderr === "string" && err.stderr.trim()
+      ? `\n--- stderr expo CLI ---\n${err.stderr.trim().slice(-1500)}`
+      : ""
+  console.error(
+    "check-ota: tidak bisa menjalankan `expo config --type introspect --json`. " +
+      "Pastikan node_modules/expo terinstal DAN perintah itu berjalan manual " +
+      "tanpa error; " +
+      `detail: ${err instanceof Error ? err.message : String(err)}` + stderrTail,
+  )
+  process.exit(2)
+}
 const config = JSON.parse(raw)
 const problems = []
 const projectId = config.extra?.eas?.projectId

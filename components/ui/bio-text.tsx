@@ -15,11 +15,13 @@ import { useMemo, useState } from "react"
 import { Linking } from "react-native"
 
 import { extractBioSegments } from "@/lib/bio-links"
+import { safeHttpsLink } from "@/lib/external-url"
 import { translate } from "@/lib/i18n/translate"
 import { logWarn } from "@/lib/telemetry"
 
 import { Dialog } from "@/components/ui/modal"
 import { Text } from "@/components/ui/text"
+import { useToast } from "@/components/ui/toast"
 
 export type BioTextProps = {
   bio: string
@@ -29,12 +31,19 @@ export type BioTextProps = {
 export function BioText({ bio, expanded }: BioTextProps) {
   const segments = useMemo(() => extractBioSegments(bio), [bio])
   const [pending, setPending] = useState<{ url: string; domain: string } | null>(null)
+  const toast = useToast()
 
   const openPending = () => {
     const url = pending?.url
     setPending(null)
-    if (url) {
-      Linking.openURL(url).catch((err: unknown) => logWarn("bio-text:open-url", err))
+    // R-1 (audit ronde-2): segmen tautan sudah divalidasi saat ekstraksi,
+    // tapi validasi ulang di sini (defense-in-depth) sebelum openURL —
+    // menolak URL berkredensial & skema non-https.
+    const safe = url ? safeHttpsLink(url) : undefined
+    if (safe) {
+      Linking.openURL(safe).catch((err: unknown) => logWarn("bio-text:open-url", err))
+    } else {
+      toast.show({ title: translate("Tautan tidak bisa dibuka"), tone: "danger" })
     }
   }
 
