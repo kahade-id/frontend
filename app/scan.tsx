@@ -20,7 +20,7 @@ import { useRouter } from "expo-router"
 import * as Haptics from "expo-haptics"
 import { CameraView, scanFromURLAsync, useCameraPermissions } from "expo-camera"
 import * as Brightness from "expo-brightness"
-import { captureRef } from "react-native-view-shot"
+import { captureView } from "@/lib/capture-view"
 import {
   ArrowsOut,
   Camera,
@@ -400,12 +400,11 @@ export default function ScanScreen() {
   const qrCardRef = useRef<View | null>(null)
   const handleSaveQr = useCallback(async () => {
     try {
-      const uri = await captureRef(qrCardRef, {
+      const uri = await captureView(qrCardRef, {
         format: "png",
         quality: 1,
         result: isWeb ? "data-uri" : "tmpfile",
       })
-      if (!uri) throw new Error("capture-empty")
       if (isWeb && typeof document !== "undefined") {
         const anchor = document.createElement("a")
         anchor.href = uri
