@@ -190,6 +190,27 @@ export async function clearSession(): Promise<void> {
   // mewarisi jejak transaksi akun sebelumnya. `balanceHidden`/`transactionsTab`
   // sengaja TETAP: keduanya preferensi perangkat, bukan data akun.
   clearAccountPrefs()
+  /*
+   * Batch 139 E11 — riwayat pencarian tidak tercampur antar akun.
+   *
+   * Riwayat pencarian server (/v1/search/history) memang milik akun, tetapi
+   * salinan responsnya hidup di cache GET dalam-memori (`lib/query-cache`)
+   * dan di state hook layar yang mungkin masih ter-mount. Tanpa pembersihan
+   * eksplisit, akun berikutnya di perangkat yang sama bisa melihat riwayat
+   * milik akun sebelumnya sampai entri cache kedaluwarsa.
+   *
+   * Import DINAMIS (bukan statis): `lib/query-cache` mengimpor
+   * `getSessionRevision` dari modul ini — import statis di sini menciptakan
+   * siklus. Pemanggilan ini terjadi saat runtime (modul sudah termuat semua).
+   */
+  try {
+    const { invalidateQueryCache } = await import("@/lib/query-cache")
+    invalidateQueryCache()
+  } catch (error) {
+    // Cache gagal dibersihkan bukan alasan menggagalkan logout — entri basi
+    // tetap dibuang saat dibaca berkat pemeriksaan revisi sesi di dalamnya.
+    logWarn("session:invalidate-cache", error)
+  }
   await writeInOrder(async () => {
     // B-08 (audit): hapus dulu, BARU tandai "signed out".
     //

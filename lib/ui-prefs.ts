@@ -75,6 +75,12 @@ export type UiPrefs = {
    * dengan `transactionsTab`). Preferensi perangkat: logout tidak mereset.
    */
   notificationsCategory: NotificationCategory
+  /**
+   * Batch 139 E14 — umpan balik pindaian QR (haptic + bunyi). Default ON.
+   * Preferensi perangkat (bukan akun): logout tidak meresetnya. Mode senyap
+   * perangkat tetap dihormati terpisah (bunyi tidak diputar saat senyap).
+   */
+  scanFeedback: boolean
 }
 
 const DEFAULT_PREFS: UiPrefs = {
@@ -86,6 +92,8 @@ const DEFAULT_PREFS: UiPrefs = {
   ratingSnoozeUntil: {},
   dataSaver: false,
   notificationsCategory: "TRANSAKSI",
+  // Batch 139 E14: umpan balik pindaian default ON.
+  scanFeedback: true,
 }
 
 export type RecentRecipient = {
@@ -154,6 +162,9 @@ function sanitizePrefs(raw: unknown): UiPrefs {
       rec.notificationsCategory === "PROMOSI" || rec.notificationsCategory === "INFORMASI"
         ? rec.notificationsCategory
         : "TRANSAKSI",
+    // Batch 139 E14: default ON bila belum pernah disimpan; nilai non-boolean
+    // (data rusak) jatuh ke ON agar umpan balik tidak hilang diam-diam.
+    scanFeedback: rec.scanFeedback !== false,
   }
 }
 

@@ -31,3 +31,91 @@ export function buildResultMessage({ enabled, error, loading, count }: SearchRes
   if (count === 0) return translate("Tidak ada hasil")
   return translate("{x} hasil ditemukan", { x: formatNumber(count) })
 }
+
+/**
+ * Batch 139 E08 — "Mungkin maksud Anda" yang tidak memaksa.
+ *
+ * Dari daftar saran backend, pilih kandidat ejaan terdekat sebagai PILIHAN
+ * (chip yang diketuk), bukan pengganti otomatis. Aturan:
+ *   - kandidat yang sama persis dengan keyword (case-insensitive) dibuang —
+ *     menawarkan kata yang sama bukan koreksi;
+ *   - urutan backend dipertahankan (peringkat relevansi);
+ *   - dibatasi `max` agar tidak menjadi daftar saran kedua.
+ */
+export function pickDidYouMean(
+  keyword: string,
+  suggestions: readonly string[],
+  max = 3,
+): string[] {
+  const base = keyword.trim().toLowerCase()
+  if (!base) return []
+  const out: string[] = []
+  for (const s of suggestions) {
+    const candidate = s.trim()
+    if (!candidate || candidate.toLowerCase() === base) continue
+    if (out.some((o) => o.toLowerCase() === candidate.toLowerCase())) continue
+    out.push(candidate)
+    if (out.length >= max) break
+  }
+  return out
+}
+
+/**
+ * Batch 139 E09 — empty state berbeda per cakupan pencarian.
+ *
+ * Pesan kosong generik tidak menjelaskan JENIS apa yang tidak ditemukan;
+ * tiap tab mendapat judul + saran tindak lanjut yang sesuai dengan
+ * sumber datanya.
+ */
+export type SearchScopeKey = "all" | "users" | "posts" | "orders" | "transactions" | "chats"
+
+export function getSearchEmptyStateCopy(scope: SearchScopeKey): {
+  title: string
+  description: string
+} {
+  switch (scope) {
+    case "users":
+      return {
+        title: translate("Tidak ada pengguna ditemukan"),
+        description: translate(
+          "Periksa ejaan nama pengguna, atau coba nama lengkapnya.",
+        ),
+      }
+    case "posts":
+      return {
+        title: translate("Tidak ada postingan ditemukan"),
+        description: translate(
+          "Coba kata kunci yang lebih umum, atau hapus filter lokasi.",
+        ),
+      }
+    case "orders":
+      return {
+        title: translate("Tidak ada pesanan ditemukan"),
+        description: translate(
+          "Pencarian pesanan mencocokkan judul dan ID — coba potongan kata yang lebih pendek.",
+        ),
+      }
+    case "transactions":
+      return {
+        title: translate("Tidak ada mutasi ditemukan"),
+        description: translate(
+          "Coba nominal, keterangan, atau ID transaksi yang berbeda.",
+        ),
+      }
+    case "chats":
+      return {
+        title: translate("Tidak ada pesan ditemukan"),
+        description: translate(
+          "Pencarian pesan hanya mencakup percakapan Anda — coba kata yang pernah dikirim.",
+        ),
+      }
+    case "all":
+    default:
+      return {
+        title: translate("Tidak ada hasil"),
+        description: translate(
+          "Coba kata kunci yang lebih spesifik, atau persempit ke satu cakupan.",
+        ),
+      }
+  }
+}
