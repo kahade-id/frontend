@@ -231,6 +231,12 @@ export default function TwoFactorScreen() {
     setStep("disable")
   }, [])
 
+  // A13 (batch 139): konfirmasi pra-disable — jelaskan konsekuensi + pastikan
+  // metode pemulihan (email/autentikator/kata sandi) masih bisa diakses
+  // SEBELUM panel 3-bukti dibuka. UI-only; bukti tetap disyaratkan server.
+  const [disableConfirmOpen, setDisableConfirmOpen] = useState(false)
+  const backupCodesLeft = status?.backupCodesRemaining ?? null
+
   const handleSendEmailOtp = useCallback(async () => {
     setSendingEmailOtp(true)
     try {
@@ -347,7 +353,7 @@ export default function TwoFactorScreen() {
             backupCodesTotal={codes.length > 0 ? codes.length : BACKUP_CODES_TOTAL}
             loading={loading}
             onEnable={!enabled && step === "idle" ? handleStartEnable : undefined}
-            onManage={enabled ? openDisable : undefined}
+            onManage={enabled ? () => setDisableConfirmOpen(true) : undefined}
             onRegenerateBackup={enabled ? openRegenerate : undefined}
           />
 
@@ -468,8 +474,10 @@ export default function TwoFactorScreen() {
             <>
               <SectionHeader title="Matikan verifikasi dua langkah" />
               <Alert tone="warning" title="Akun Anda akan kurang aman">
-                Untuk keamanan, konfirmasi dengan password, kode autentikator, dan OTP yang dikirim
-                ke email Anda.
+                Setelah dimatikan, masuk hanya butuh kata sandi. Bila kata sandi
+                bocor atau ditebak orang lain, tidak ada lapisan kedua yang
+                melindungi akun. Untuk keamanan, konfirmasi dengan password,
+                kode autentikator, dan OTP yang dikirim ke email Anda.
               </Alert>
               <PasswordField
                 label="Kata sandi akun"
@@ -598,6 +606,40 @@ export default function TwoFactorScreen() {
             onChange={setRegenCode}
             disabled={regenerating}
           />
+        </View>
+      </SensitiveConfirmDialog>
+      {/* ── A13: konfirmasi pra-disable 2FA ─────────────────────────────── */}
+      <SensitiveConfirmDialog
+        visible={disableConfirmOpen}
+        title="Matikan verifikasi dua langkah?"
+        consequences={[
+          "Masuk ke akun hanya butuh kata sandi — lapisan kedua hilang.",
+          "Bila kata sandi bocor atau ditebak, akun bisa diambil alih tanpa halangan.",
+        ]}
+        confirmLabel="Ya, lanjut matikan"
+        onConfirm={() => { setDisableConfirmOpen(false); openDisable() }}
+        onCancel={() => setDisableConfirmOpen(false)}
+      >
+        <View className="gap-1 pt-1">
+          <Text variant="label" tone="secondary">
+            Sebelum lanjut, pastikan Anda masih bisa akses:
+          </Text>
+          <Text variant="body" tone="secondary">
+            • Email akun (untuk menerima OTP pemulihan)
+          </Text>
+          <Text variant="body" tone="secondary">
+            • Aplikasi autentikator Anda
+          </Text>
+          <Text variant="body" tone="secondary">
+            • Kata sandi akun
+          </Text>
+          {backupCodesLeft !== null ? (
+            <Text variant="caption" tone="secondary" className="pt-1 text-pretty">
+              Kode cadangan tersisa: {backupCodesLeft}. Simpan kode cadangan di
+              tempat aman — tanpanya, kehilangan akses autentikator berarti
+              kehilangan akun.
+            </Text>
+          ) : null}
         </View>
       </SensitiveConfirmDialog>
     </Screen>
