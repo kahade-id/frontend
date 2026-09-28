@@ -53,6 +53,7 @@ import { useReducedMotion } from "@/lib/use-reduced-motion"
 import { Dialog } from "@/components/ui/modal"
 import { PortalHost, PortalProvider, PortalScene } from "@/components/ui/portal"
 import { ToastProvider } from "@/components/ui/toast"
+import { DeviceIntegrityProvider } from "@/components/security/device-integrity-provider"
 import { api, onSessionExpired } from "@/lib/api"
 import { fontAssets } from "@/lib/fonts"
 import { routeForPushData } from "@/lib/notification-routing"
@@ -712,7 +713,10 @@ function AppShell() {
     // Tanpa provider ini, setiap komponen overlay melempar error saat mount.
     <PortalProvider>
       <ToastProvider>
-        <AppShellInner />
+        {/* M-1 (audit ronde-2): panaskan deteksi root/jailbreak saat start. */}
+        <DeviceIntegrityProvider>
+          <AppShellInner />
+        </DeviceIntegrityProvider>
       </ToastProvider>
     </PortalProvider>
   )

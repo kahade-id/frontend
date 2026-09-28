@@ -56,3 +56,24 @@ export const __store = {
     this.failSet = false
   },
 }
+
+/**
+ * Test helper M-1: kendali hasil `Device.isRootedExperimentalAsync()`.
+ * `checks` menghitung pemanggilan (untuk menguji cache per sesi).
+ */
+export const __device = {
+  rooted: false,
+  failCheck: false,
+  checks: 0,
+  reset() {
+    this.rooted = false
+    this.failCheck = false
+    this.checks = 0
+  },
+}
+
+export async function isRootedExperimentalAsync(): Promise<boolean> {
+  __device.checks += 1
+  if (__device.failCheck) throw new Error("root check unavailable")
+  return __device.rooted
+}

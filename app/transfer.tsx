@@ -17,6 +17,7 @@ import { ScrollView, View } from "react-native"
 import { router, useLocalSearchParams } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { api, userMessage, type TransferDto } from "@/lib/api"
+import { assertDeviceNotCompromised } from "@/lib/device-integrity"
 import { createIdempotencyKey } from "@/lib/api/client"
 import { formatRupiah } from "@/lib/format"
 import { dismissKeyboardOnDragProps } from "@/lib/keyboard"
@@ -325,6 +326,8 @@ export default function TransferScreen() {
   const handlePin = useCallback(
     async (pinValue: string) => {
       if (submitLock.current || !selected || !isValidAmount(amount, AMOUNT_LIMITS.transfer)) return
+      // M-1 (audit ronde-2): blokir transfer di perangkat rooted/jailbroken.
+      if (!(await assertDeviceNotCompromised())) return
       submitLock.current = true
       setSubmitting(true)
       setPinError(undefined)
