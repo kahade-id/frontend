@@ -71,9 +71,11 @@ import { SectionHeader } from "@/components/ui/section"
 import { ShowcaseCategoryInput } from "@/components/ui/showcase-category-input"
 import { ShowcaseConditionInput } from "@/components/ui/showcase-condition-input"
 import { ShowcaseGalleryGrid } from "@/components/ui/showcase-gallery-grid"
+import { ShowcaseModerationNotice } from "@/components/ui/showcase-moderation-notice"
 import { Switch } from "@/components/ui/switch"
 import { Text } from "@/components/ui/text"
 import { TextArea } from "@/components/ui/text-area"
+import { resolveShowcaseModeration } from "@/lib/showcase-moderation"
 import { useToast } from "@/components/ui/toast"
 
 /** Batas form — D-08: TURUNAN dari kontrak backend, bukan angka lokal. */
@@ -1033,6 +1035,17 @@ function ShowcaseManagement() {
         }
       >
         <View className="gap-4">
+          {/*
+           * C12 (batch 139): status moderasi yang dapat ditindaklanjuti —
+           * alasan aman + waktu + aksi. `onResubmit` tidak dipasang: backend
+           * belum punya endpoint ajukan-ulang (per 2026-09-28); menyimpan
+           * perubahan di editor ini adalah jalur pengajuan ulang yang
+           * tersedia. Graceful: tanpa field moderasi dari server, notice
+           * me-render null.
+           */}
+          {editor ? (
+            <ShowcaseModerationNotice info={resolveShowcaseModeration(editor.item)} />
+          ) : null}
           <Input
             label={translate("Judul")}
             value={form.title}

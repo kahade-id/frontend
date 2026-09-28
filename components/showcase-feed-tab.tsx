@@ -994,8 +994,8 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
         gap={tokens.space[5]}
         bottomPadding={bottomPadding}
         header={
-          searchChip || categoryChip || locationChip || followingPartialNotice ? (
-            <View>{searchChip}{categoryChip}{locationChip}{sheetFilterChip}{followingPartialNotice}</View>
+          searchChip || categoryChip || locationChip || followingPartialNotice || resetAllChip ? (
+            <View>{searchChip}{categoryChip}{locationChip}{sheetFilterChip}{resetAllChip}{followingPartialNotice}</View>
           ) : undefined
         }
         // Skeleton sebentuk <ShowcaseFeedItem> (anatomi: penulis · media ·
