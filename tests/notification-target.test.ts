@@ -29,9 +29,10 @@ vi.mock("@/lib/api", () => {
 })
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function getMock(ns: "orders" | "disputes" | "showcase", fn: string): Promise<any> {
+async function getMock(ns: "orders" | "disputes" | "showcase", fn: "getOrder" | "getDispute" | "getShowcaseDetail"): Promise<any> {
   const mod = await import("@/lib/api")
-  return (mod.api[ns][fn] as unknown as ReturnType<typeof vi.fn>)
+  const namespace = mod.api[ns] as unknown as Record<string, unknown>
+  return namespace[fn] as unknown as ReturnType<typeof vi.fn>
 }
 
 import { checkNotificationTarget } from "@/lib/notification-target"

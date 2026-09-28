@@ -9,8 +9,10 @@
  * lampiran sudah siap — tidak ada yang masih "uploading" (fileUrl belum ada;
  * mengirimnya membuat pesan ditolak server) atau "error".
  */
+import type { ChatAttachmentStatus } from "@/components/ui/chat-attachment-item"
+
 export type SendableAttachment = {
-  status?: "idle" | "uploading" | "error"
+  status?: ChatAttachmentStatus
 }
 
 export function canSendMessage(

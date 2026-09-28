@@ -28,6 +28,7 @@ import { CaretDown } from "phosphor-react-native"
 import { useTheme } from "@/components/theme-provider"
 import { Icon } from "@/components/ui/icon"
 import { PressableScale } from "@/components/ui/pressable-scale"
+import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { elevationStyle } from "@/lib/elevation"
 import { focusRing } from "@/lib/focus-ring"
@@ -43,6 +44,11 @@ export type ScrollToEndButtonProps = {
    * dan atribut JSX yang dipindai), jadi copy-nya harus ditulis di titik pakai.
    */
   label: string
+  /**
+   * Jumlah pesan baru yang masuk saat pembaca di atas (B03). > 0 →
+   * badge angka di sudut tombol.
+   */
+  count?: number
   /** Penataan letak pembungkus (mis. "items-end px-5 pb-2"). */
   className?: string
 }
@@ -51,6 +57,7 @@ export function ScrollToEndButton({
   visible,
   onPress,
   label,
+  count = 0,
   className,
 }: ScrollToEndButtonProps) {
   const { mode } = useTheme()
@@ -62,7 +69,7 @@ export function ScrollToEndButton({
         <PressableScale
           testID="scroll-to-end-button"
           accessibilityRole="button"
-          accessibilityLabel={label}
+          accessibilityLabel={count > 0 ? `${label} (${count} pesan baru)` : label}
           scaleOnPress={false}
           ripple
           onPress={onPress}
@@ -72,6 +79,17 @@ export function ScrollToEndButton({
           className="h-10 w-10 items-center justify-center rounded-full"
         >
           <Icon icon={CaretDown} size="sm" tone="active" weight="bold" />
+          {/* B03: badge jumlah pesan baru — pill merah di sudut kanan atas. */}
+          {count > 0 ? (
+            <View
+              className="absolute -right-1 -top-1 min-w-5 items-center justify-center rounded-full bg-danger px-1"
+              pointerEvents="none"
+            >
+              <Text variant="caption" weight={700} className="text-white tabular-nums" style={{ fontSize: 10 }}>
+                {count > 99 ? "99+" : String(count)}
+              </Text>
+            </View>
+          ) : null}
         </PressableScale>
       </View>
     </View>

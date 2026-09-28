@@ -65,6 +65,7 @@ import {
 } from "phosphor-react-native"
 
 import { api, isApiError, userMessage } from "@/lib/api"
+import { validateChatAttachment } from "@/lib/chat-attachment-limits"
 import { getOrder, type Order } from "@/lib/api/orders"
 import { refreshUnreadCount } from "@/lib/unread-count"
 import { refreshChatUnreadCount } from "@/lib/chat-unread-count"
@@ -270,6 +271,12 @@ export default function ChatRoomScreen() {
     }
   }, [roomId])
   const [attachments, setAttachments] = useState<LocalAttachment[]>([])
+  /**
+   * B04: AbortController per file yang sedang diunggah. Chip "Batal" dan X
+   * (hapus saat uploading) membatalkan request XHR yang berjalan — bukan
+   * sekadar menghapus chip.
+   */
+  const uploadControllersRef = useRef(new Map<string, AbortController>())
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   /** Room dihapus/dinonaktifkan (404) — tampilkan EmptyState khusus, bukan error generik. */
@@ -849,17 +856,32 @@ export default function ChatRoomScreen() {
     }
   }, [roomId, olderStatus, nextCursor, messages])
 
+  /**
+   * Unggah satu lampiran dengan LAPORAN PROGRESS (B04).
+   *
+   * `uploadChatAttachmentProgress` memakai XHR (fetch tidak bisa melaporkan
+   * progress upload). `signal` dibatalkan lewat chip "Batal"/X di composer —
+   * dibatalkan user → status "cancelled", gagal → status "error".
+   */
   const uploadAttachment = useCallback(
     async (localId: string, picked: PickedImage) => {
       if (!roomId) return
+      const controller = new AbortController()
+      uploadControllersRef.current.set(localId, controller)
       setAttachments((prev) =>
         prev.map((a) =>
-          a.localId === localId ? { ...a, status: "uploading", progress: undefined } : a,
+          a.localId === localId ? { ...a, status: "uploading", progress: 0 } : a,
         ),
       )
       try {
         const form = await pickedImageToFormData(picked)
-        const dto = await api.chat.uploadChatAttachment(roomId, form)
+        const dto = await api.chat.uploadChatAttachmentProgress(roomId, form, {
+          signal: controller.signal,
+          onProgress: (fraction) =>
+            setAttachments((prev) =>
+              prev.map((a) => (a.localId === localId ? { ...a, progress: fraction } : a)),
+            ),
+        })
         setAttachments((prev) =>
           prev.map((a) =>
             a.localId === localId
@@ -867,14 +889,26 @@ export default function ChatRoomScreen() {
               : a,
           ),
         )
-      } catch {
+      } catch (err) {
+        const cancelledByUser = isApiError(err) && err.code === "ABORTED"
         setAttachments((prev) =>
-          prev.map((a) => (a.localId === localId ? { ...a, status: "error" } : a)),
+          prev.map((a) =>
+            a.localId === localId
+              ? { ...a, status: cancelledByUser ? "cancelled" : "error", progress: undefined }
+              : a,
+          ),
         )
+      } finally {
+        uploadControllersRef.current.delete(localId)
       }
     },
     [roomId],
   )
+
+  /** B04: batalkan unggahan yang sedang berjalan (chip "Batal"). */
+  const handleCancelAttachment = useCallback((localId: string) => {
+    uploadControllersRef.current.get(localId)?.abort()
+  }, [])
 
   /**
    * Antrekan satu berkas ke composer lalu unggah ke endpoint upload ruang.
@@ -884,13 +918,14 @@ export default function ChatRoomScreen() {
    */
   const enqueueAndUpload = useCallback(
     async (picked: PickedImage) => {
-      // CN-016: validasi ukuran di klien — backend menolak > 10 MB.
-      // `size` 0 = platform tidak melaporkan; lewatkan (server tetap gate).
-      const CHAT_ATTACHMENT_MAX_BYTES = 10 * 1024 * 1024
-      if (picked.size > CHAT_ATTACHMENT_MAX_BYTES) {
+      // B06: validasi ukuran + tipe memakai batas SERVER (50 MB) — bukan
+      // hardcode 10 MB lama. `size` 0 = platform tidak melaporkan; lewatkan
+      // (server tetap gate).
+      const validation = validateChatAttachment({ size: picked.size, mimeType: picked.mimeType })
+      if (!validation.ok) {
         toast.show({
-          title: "File terlalu besar",
-          description: "Ukuran lampiran maksimal 10 MB.",
+          title: "File tidak dapat dilampirkan",
+          description: validation.message,
           tone: "danger",
         })
         return
@@ -913,16 +948,23 @@ export default function ChatRoomScreen() {
     [toast.show, uploadAttachment],
   )
 
-  const handlePickImage = useCallback(async () => {
-    setAttachSheetOpen(false)
-    const picked = await pickImage()
-    if (picked.status === "denied") {
-      toast.show({ title: "Akses galeri ditolak", tone: "danger" })
-      return
-    }
-    if (picked.status !== "picked") return
-    await enqueueAndUpload(picked.asset)
-  }, [toast.show, enqueueAndUpload])
+  /**
+   * B05: dua kualitas foto. "standard" = terkompresi (default picker 0.7),
+   * "file" = kualitas asli tanpa kompresi (quality 1).
+   */
+  const handlePickImage = useCallback(
+    async (quality: "standard" | "file" = "standard") => {
+      setAttachSheetOpen(false)
+      const picked = await pickImage({ quality: quality === "file" ? 1 : 0.7 })
+      if (picked.status === "denied") {
+        toast.show({ title: "Akses galeri ditolak", tone: "danger" })
+        return
+      }
+      if (picked.status !== "picked") return
+      await enqueueAndUpload(picked.asset)
+    },
+    [toast.show, enqueueAndUpload],
+  )
 
   const handlePickVideo = useCallback(async () => {
     setAttachSheetOpen(false)
@@ -1703,9 +1745,13 @@ export default function ChatRoomScreen() {
           attachments={composerAttachments}
           onAttach={() => setAttachSheetOpen(true)}
           onMicPress={() => setVoiceSheetOpen(true)}
-          onRemoveAttachment={(localId) =>
+          onRemoveAttachment={(localId) => {
+            // B04: menghapus chip saat upload berjalan ikut membatalkan
+            // request-nya — bukan sekadar menyembunyikan chip.
+            uploadControllersRef.current.get(localId)?.abort()
             setAttachments((prev) => prev.filter((a) => a.localId !== localId))
-          }
+          }}
+          onCancelAttachment={handleCancelAttachment}
           onRetryAttachment={(localId) => {
             const a = attachments.find((x) => x.localId === localId)
             if (a?.picked) void uploadAttachment(localId, a.picked)
@@ -2060,7 +2106,7 @@ export default function ChatRoomScreen() {
       <ChatAttachmentSheet
         visible={attachSheetOpen}
         onRequestClose={() => setAttachSheetOpen(false)}
-        onPickImage={() => void handlePickImage()}
+        onPickImage={(quality) => void handlePickImage(quality)}
         onPickVideo={() => void handlePickVideo()}
         onPickFile={() => void handlePickFile()}
         onRecordVoice={() => {

@@ -43,6 +43,8 @@ export type ChatRoomFooterProps = {
   onMicPress?: () => void
   onRemoveAttachment: (localId: string) => void
   onRetryAttachment: (localId: string) => void
+  /** B04: batalkan unggahan yang sedang berjalan. */
+  onCancelAttachment?: (localId: string) => void
   sending: boolean
   disabled: boolean
   /** Target balasan — strip "Membalas …" di atas composer (permintaan produk 2026-09-28). */
@@ -76,6 +78,7 @@ export function ChatRoomFooter({
   onMicPress,
   onRemoveAttachment,
   onRetryAttachment,
+  onCancelAttachment,
   sending,
   disabled,
   replyTo,
@@ -152,6 +155,7 @@ export function ChatRoomFooter({
             onMicPress={onMicPress}
             onRemoveAttachment={onRemoveAttachment}
             onRetryAttachment={onRetryAttachment}
+            onCancelAttachment={onCancelAttachment}
             replyTo={replyTo}
             onCancelReply={onCancelReply}
             sending={sending}
