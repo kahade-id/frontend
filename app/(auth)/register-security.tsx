@@ -55,6 +55,11 @@ import { PASSWORD_MAX, isPasswordValid } from "@/lib/auth-constants"
 import { focusFirstInvalid } from "@/lib/form-validation"
 import { getAuthLocation } from "@/lib/location"
 import {
+  clearRegistrationDraft,
+  getRegistrationDraft,
+  saveRegistrationDraft,
+} from "@/lib/registration-draft"
+import {
   getRegistrationState,
   setRegistrationState,
 } from "@/lib/registration"
@@ -91,7 +96,30 @@ export default function RegisterSecurityScreen() {
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
-  const [fullNameError, setFullNameError] = useState<string | undefined>()
+  // A05 (batch 139): pulihkan draft NON-RAHASIA (nama, username) bila app
+  // tertutup di tengah registrasi. Kata sandi TIDAK PERNAH dipulihkan.
+  const [draftLoaded, setDraftLoaded] = useState(false)
+  useEffect(() => {
+    let alive = true
+    void getRegistrationDraft().then((draft) => {
+      if (!alive) return
+      if (draft.fullName) setFullName(draft.fullName)
+      if (draft.username) setUsername(draft.username)
+      setDraftLoaded(true)
+    })
+    return () => {
+      alive = false
+    }
+  }, [])
+
+  // Autosave draft (debounce 600ms) — hanya field non-rahasia.
+  useEffect(() => {
+    if (!draftLoaded) return
+    const timer = setTimeout(() => {
+      void saveRegistrationDraft({ fullName, username })
+    }, 600)
+    return () => clearTimeout(timer)
+  }, [draftLoaded, fullName, username])  const [fullNameError, setFullNameError] = useState<string | undefined>()
   const [passwordError, setPasswordError] = useState<string | undefined>()
   const [confirmError, setConfirmError] = useState<string | undefined>()
   const [formError, setFormError] = useState<string | null>(null)
@@ -158,6 +186,8 @@ export default function RegisterSecurityScreen() {
       }
       // Simpan fullName untuk sapaan di setup-profile; token sesi sudah
       // disimpan otomatis oleh auth.ts. Password TIDAK disimpan.
+      // A05: draft non-rahasia tidak lagi dibutuhkan — akun sudah jadi.
+      void clearRegistrationDraft()
       setRegistrationState({ tempToken: "", phoneNumber, fullName: fullName.trim() })
       router.replace(ROUTES.setupProfile)
     } catch (err) {
