@@ -93,7 +93,11 @@ export default function InvoiceScreen() {
     Boolean(orderId),
     // R2 (audit ronde-2, butir #84): kembali dari layar pembayaran (invoice
     // tergenerasi async) menyegarkan otomatis — pelengkap polling #25.
-    { refreshOnFocus: true },
+    //
+    // NS-008 (audit performa): refreshOnFocus DIMATIKAN — layar ini sudah
+    // poll tiap 15 detik sampai status final, jadi refresh-on-focus hanya
+    // menambah request ganda (focus + tick poll berurutan <1 detik).
+    { refreshOnFocus: false },
   )
   const invoice = query.data
 
