@@ -16,6 +16,11 @@ export type SupportMessage = {
   createdAt: string
   /** Item 130: lampiran balasan (fileKey, maks 5 — BE-IMP ReplyTicketDto.attachments). */
   attachments?: string[]
+  /**
+   * Batch 139 (F16): peran pengirim — dibaca toleran dari `isBot` /
+   * `senderRole` bila backend mengirimnya; undefined = "agen" (fallback).
+   */
+  senderRole?: "agent" | "bot"
 }
 
 /** Tiket dukungan. */
@@ -32,6 +37,19 @@ export type SupportTicket = {
   /** Rating yang sudah terkirim (1–5) — `null` = belum memberi rating. */
   rating?: number | null
   ratingComment?: string | null
+  /**
+   * Batch 139 (F06): posisi antrean live support dari server.
+   * undefined = backend belum mengirim → UI menampilkan fallback jujur
+   * (bukan janji waktu palsu).
+   */
+  queuePosition?: number | null
+  /** Batch 139 (F06): estimasi tunggu (menit) dari server, bila ada. */
+  estimatedWaitMinutes?: number | null
+  /**
+   * Batch 139 (F12): batas respons SLA dari server (ISO string).
+   * undefined = belum tersedia → UI jujur "belum tersedia dari server".
+   */
+  slaDueAt?: string | null
 }
 
 /**
@@ -43,6 +61,14 @@ export type SupportTicket = {
  */
 function normalizeSupportMessage(raw: unknown): SupportMessage {
   const record = (raw ?? {}) as Record<string, unknown>
+  // Batch 139 (F16): peran pengirim — toleran terhadap `isBot` / `senderRole`.
+  const senderRoleRaw = record.senderRole
+  const senderRole: SupportMessage["senderRole"] =
+    record.isBot === true
+      ? "bot"
+      : typeof senderRoleRaw === "string" && senderRoleRaw.toLowerCase() === "bot"
+        ? "bot"
+        : undefined
   return {
     id: pickUserId(record),
     text:
@@ -64,7 +90,16 @@ function normalizeSupportMessage(raw: unknown): SupportMessage {
     attachments: Array.isArray(record.attachments)
       ? (record.attachments as unknown[]).filter((a): a is string => typeof a === "string")
       : undefined,
+    ...(senderRole ? { senderRole } : {}),
   }
+}
+
+function pickFiniteNumber(v: unknown): number | undefined {
+  return typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : undefined
+}
+
+function pickIsoString(v: unknown): string | undefined {
+  return typeof v === "string" && v ? v : undefined
 }
 
 function normalizeSupportTicket(raw: unknown): SupportTicket {
@@ -96,6 +131,16 @@ function normalizeSupportTicket(raw: unknown): SupportTicket {
       : undefined,
     rating: typeof record.rating === "number" ? record.rating : null,
     ratingComment: typeof record.ratingComment === "string" ? record.ratingComment : null,
+    // Batch 139 (F06/F12): field opsional dari server — dibaca toleran,
+    // undefined bila backend belum mengirim (UI menampilkan fallback jujur).
+    queuePosition:
+      pickFiniteNumber(record.queuePosition) ?? pickFiniteNumber(record.queue_number) ?? null,
+    estimatedWaitMinutes:
+      pickFiniteNumber(record.estimatedWaitMinutes) ??
+      pickFiniteNumber(record.estimated_wait_minutes) ??
+      null,
+    slaDueAt:
+      pickIsoString(record.slaDueAt) ?? pickIsoString(record.responseDueAt) ?? null,
   }
 }
 

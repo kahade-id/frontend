@@ -177,6 +177,31 @@ export const SecureKeys = {
    */
   supportDraft: "kahade.support.draft",
   /**
+   * Batch 139 (F11) — draft tiket dukungan PER KATEGORI (JSON map
+   * kategori → draft, lib/support-draft.ts). Menggantikan `supportDraft`
+   * (satu draft global yang tertimpa saat kategori berubah); kunci lama
+   * dibaca sekali sebagai migrasi. Data milik AKUN: dihapus
+   * `clearSession()`; memory-only di web.
+   */
+  supportDrafts: "kahade.support.drafts",
+  /**
+   * Batch 139 (F04) — riwayat artikel bantuan terakhir dilihat per akun
+   * (JSON — lib/help-history.ts). Dihapus `clearSession()`; memory-only
+   * di web supaya jejak baca tidak menetap di localStorage.
+   */
+  helpHistory: "kahade.help.history",
+  /**
+   * Batch 139 (F17) — pilihan umpan balik artikel per versi artikel
+   * (JSON — lib/help-feedback.ts). Dihapus `clearSession()`.
+   */
+  helpFeedback: "kahade.help.feedback",
+  /**
+   * Batch 139 (F07) — antrean pesan live support yang gagal terkirim
+   * (JSON — lib/live-support-outbox.ts). Data milik AKUN: dihapus
+   * `clearSession()`; memory-only di web.
+   */
+  liveSupportOutbox: "kahade.livesupport.outbox",
+  /**
    * Item #28 — skala ukuran font A-/A+ (0.85–1.3). String desimal, mis. "1.1".
    * Preferensi perangkat non-sensitif: persist di web, TIDAK ikut clearSession.
    */
@@ -304,6 +329,14 @@ export async function clearSession(): Promise<void> {
     deleteSecureItem(SecureKeys.supportOpenedAt),
     // Item mega-batch 131: draft tiket milik akun.
     deleteSecureItem(SecureKeys.supportDraft),
+    // Batch 139 (F11): draft tiket per kategori milik akun.
+    deleteSecureItem(SecureKeys.supportDrafts),
+    // Batch 139 (F04): riwayat artikel bantuan milik akun.
+    deleteSecureItem(SecureKeys.helpHistory),
+    // Batch 139 (F17): umpan balik artikel per versi milik akun.
+    deleteSecureItem(SecureKeys.helpFeedback),
+    // Batch 139 (F07): antrean pesan live support yang belum terkirim.
+    deleteSecureItem(SecureKeys.liveSupportOutbox),
   ])
 }
 
