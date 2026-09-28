@@ -1,37 +1,35 @@
 /**
- * Kahade — <ShowcaseSavedCollection> daftar karya tersimpan (perangkat ini).
+ * Kahade — <ShowcaseSavedCollection>: daftar karya tersimpan dari server.
  *
- * Revisi audit Etalase 2026-09-23 (J-area):
- *  - J-02/N+1: detail TIDAK lagi ditembak `ids.map(getShowcaseDetail)` setiap
- *    render/query-key berubah (25 simpanan = 25 GET tiap buka tab). Kini
- *    per-id, SINGLE-FLIGHT, dan di-cache per sesi — re-render & pindah tab
- *    tidak menghasilkan request sama sekali. (Inflasi viewCount per PERTAMA
- *    ambil tetap ada — sifat kontrak GET detail; lihat issues-etalase.md.)
- *  - J-03: menghapus satu item tidak memuat ulang item lain — cache per id
- *    (dulu kunci query memuat `ids.join` sehingga SEMUA id ditembak ulang).
- *  - J-04: kegagalan dibedakan — 404/403 (dihapus/privat) = auto-prune dari
- *    bookmark + hilang diam-diam; jaringan dsb. = "Gagal memuat — coba lagi"
- *    dengan tombol retry per baris.
- *  - J-05: baris kini memuat thumbnail, judul, penulis, dan harga — bukan
- *    dua tombol ghost tanpa identitas karya.
+ * Mega-batch FE-IMP-1, item 54: dimigrasikan dari bookmark lokal + N+1 GET
+ * detail per id ke endpoint backend `GET /v1/showcase/saved` (?page&limit,
+ * kartu bentuk feed + `savedAt`). Server adalah source of truth; store lokal
+ * hanya cache status simpan untuk kartu feed/detail.
+ *
+ * Perilaku:
+ *  - Paginasi "Muat lagi" (hasNext dari server).
+ *  - Hapus per baris: optimistis + rollback (muat ulang) bila gagal; store
+ *    lokal ikut disinkronkan agar kartu feed/detail tidak basi.
+ *  - Item rusak dilewati per-item oleh parser (DRIFT-04), tidak meruntuhkan
+ *    koleksi.
  */
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { View } from "react-native"
 
 import { Picture } from "@/components/ui/picture"
 import { Trash } from "phosphor-react-native"
 import { router } from "expo-router"
-import { api, isApiError, userMessage } from "@/lib/api"
-import { getShowcaseDetail, type ShowcaseSocialItem } from "@/lib/api/showcase"
+import { isApiError, userMessage } from "@/lib/api"
+import {
+  getSavedShowcases,
+  removeSavedShowcase,
+  type SavedShowcaseEntry,
+} from "@/lib/api/showcase"
 import { getSessionRevision } from "@/lib/api/session"
 import { useHasSession, useSessionRevision } from "@/lib/guest-gate"
-import {
-  loadShowcaseBookmarks,
-  toggleShowcaseSaved,
-  SHOWCASE_SAVED_LIMIT,
-  useShowcaseSavedIds,
-} from "@/lib/showcase-social-prefs"
+import { setShowcaseSavedState } from "@/lib/showcase-social-prefs"
 import { translate } from "@/lib/i18n/translate"
+import { formatRelativeTime } from "@/lib/format"
 import { ROUTES } from "@/lib/routes"
 import { Button } from "@/components/ui/button"
 import { Text } from "@/components/ui/text"
@@ -39,211 +37,225 @@ import { IconButton } from "@/components/ui/icon-button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useToast } from "@/components/ui/toast"
 
-type SavedDetailState =
+const PAGE_LIMIT = 20
+
+type ListState =
+  | { status: "idle" }
   | { status: "loading" }
-  | { status: "ready"; item: ShowcaseSocialItem }
-  /** 403/404 — privat atau sudah dihapus (J-04: auto-prune). */
-  | { status: "gone" }
+  | { status: "ready" }
   | { status: "error"; message: string }
 
-/**
- * Cache per id per sesi + penerbangan tunggal (single-flight).
- * Modul-level supaya pindah tab/mount ulang tidak mengulang GET detail
- * (J-02/J-03) — entri sesi lain selalu dianggap miss (stempel revisi).
- */
-const savedDetails = new Map<string, { revision: number; state: SavedDetailState }>()
-const savedFlights = new Map<string, Promise<void>>()
-
-/** Test helper: kosongkan cache antar-test (pengujian N+1 butuh keadaan awal). */
-export function __resetSavedCollectionCache(): void {
-  savedDetails.clear()
-  savedFlights.clear()
-}
-
-function loadSavedDetail(id: string, revision: number): Promise<void> {
-  // J-02/J-03: cache hidup per id per sesi — remount/tab-switch tanpa GET.
-  const cached = savedDetails.get(id)
-  if (cached && cached.revision === revision) return Promise.resolve()
-  const flight = savedFlights.get(id)
-  if (flight) return flight
-  const task = (async () => {
-    try {
-      const item = await getShowcaseDetail(id)
-      savedDetails.set(id, { revision: getSessionRevision(), state: { status: "ready", item } })
-    } catch (err) {
-      const gone = isApiError(err) && (err.status === 404 || err.status === 403)
-      savedDetails.set(id, {
-        revision: getSessionRevision(),
-        state: gone
-          ? { status: "gone" }
-          : { status: "error", message: userMessage(err) },
-      })
-    } finally {
-      savedFlights.delete(id)
-    }
-  })()
-  savedFlights.set(id, task)
-  return task
-}
-
 export function ShowcaseSavedCollection() {
-  const ids = useShowcaseSavedIds()
   const session = useHasSession()
   const revision = useSessionRevision()
   const toast = useToast()
-  const [states, setStates] = useState<Record<string, SavedDetailState>>({})
-  /** Pemicu ulang manual untuk tombol retry per baris (J-04). */
-  const [retryNonce, setRetryNonce] = useState(0)
+  const [entries, setEntries] = useState<SavedShowcaseEntry[]>([])
+  const [listState, setListState] = useState<ListState>({ status: "idle" })
+  const [page, setPage] = useState(1)
+  const [hasNext, setHasNext] = useState(false)
+  const [total, setTotal] = useState(0)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [removingIds, setRemovingIds] = useState<ReadonlySet<string>>(new Set())
+  const abortRef = useRef<AbortController | null>(null)
 
-  useEffect(() => {
-    if (!session) return
-    void api.users
-      .getMeCached()
-      .then(async (me) => {
-        if (revision === getSessionRevision()) await loadShowcaseBookmarks(me.id)
-      })
-      .catch((error) =>
-        toast.show({
-          title: "Gagal memuat karya tersimpan",
-          description: userMessage(error),
-          tone: "danger",
-        }),
+  const load = useCallback(async (pageNum: number, append: boolean) => {
+    const rev = getSessionRevision()
+    if (append) setLoadingMore(true)
+    else setListState({ status: "loading" })
+    abortRef.current?.abort()
+    const controller = new AbortController()
+    abortRef.current = controller
+    try {
+      const result = await getSavedShowcases(
+        { page: pageNum, limit: PAGE_LIMIT },
+        controller.signal,
       )
-  }, [session, revision, toast])
-
-  // ids dari store lokal — kunci efek pakai bentuk nilainya (bukan identitas
-  // array) agar render lain tidak memicu mutasi baca.
-  const idsKey = ids.join(",")
-  useEffect(() => {
-    if (!session || ids.length === 0) {
-      setStates({})
-      return
+      if (rev !== getSessionRevision()) return
+      setEntries((prev) => (append ? [...prev, ...result.data] : result.data))
+      setPage(result.page)
+      setHasNext(result.hasNext)
+      setTotal(result.total)
+      setListState({ status: "ready" })
+    } catch (error) {
+      if (rev !== getSessionRevision()) return
+      if (isApiError(error) && error.code === "ABORTED") return
+      setListState({
+        status: "error",
+        message: userMessage(error),
+      })
+    } finally {
+      if (rev === getSessionRevision()) setLoadingMore(false)
     }
-    let alive = true
-    void (async () => {
-      await Promise.all(ids.map((id) => loadSavedDetail(id, revision)))
-      if (!alive) return
-      const next: Record<string, SavedDetailState> = {}
-      for (const id of ids) {
-        const entry = savedDetails.get(id)
-        next[id] =
-          entry && entry.revision === revision
-            ? entry.state
-            : { status: "error", message: translate("Gagal memuat — coba lagi") }
-      }
-      setStates(next)
-      // J-04: auto-prune bookmark yang sudah hilang/privat — diam-diam.
-      for (const id of ids) {
-        if (next[id]?.status === "gone") toggleShowcaseSaved(id)
-      }
-    })()
-    return () => {
-      alive = false
-    }
-    // ids dibaca lewat idsKey (nilai, bukan identitas array) — lihat komentar di atas.
-  }, [session, revision, idsKey, retryNonce])
-
-  const retryOne = useCallback((id: string) => {
-    savedDetails.delete(id)
-    setRetryNonce((n) => n + 1)
   }, [])
 
-  const rows = useMemo(
-    () => ids.map((id) => ({ id, state: states[id] ?? { status: "loading" as const } })),
-    [ids, states],
+  useEffect(() => {
+    if (!session) {
+      setEntries([])
+      setListState({ status: "idle" })
+      return
+    }
+    void load(1, false)
+    return () => {
+      abortRef.current?.abort()
+    }
+    // Muat ulang saat sesi berubah (login/logout/ganti akun).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session, revision])
+
+  const loadMore = useCallback(() => {
+    if (loadingMore || !hasNext) return
+    void load(page + 1, true)
+  }, [loadingMore, hasNext, page, load])
+
+  const removeOne = useCallback(
+    (id: string) => {
+      if (removingIds.has(id)) return
+      setRemovingIds((prev) => new Set(prev).add(id))
+      // Optimistis: keluarkan dari daftar langsung.
+      setEntries((prev) => prev.filter((e) => e.item.id !== id))
+      setTotal((t) => Math.max(0, t - 1))
+      void (async () => {
+        const rev = getSessionRevision()
+        try {
+          await removeSavedShowcase(id)
+          if (rev !== getSessionRevision()) return
+          // Sinkronkan cache lokal agar kartu feed/detail tidak basi.
+          setShowcaseSavedState(id, false)
+        } catch (error) {
+          if (rev !== getSessionRevision()) return
+          // Rollback: muat ulang dari server (keadaan akhir pasti benar).
+          toast.show({
+            title: translate("Gagal menghapus simpanan"),
+            description: userMessage(error),
+            tone: "danger",
+          })
+          await load(1, false)
+        } finally {
+          if (rev === getSessionRevision()) {
+            setRemovingIds((prev) => {
+              const next = new Set(prev)
+              next.delete(id)
+              return next
+            })
+          }
+        }
+      })()
+    },
+    [removingIds, toast, load],
   )
+
+  if (!session) {
+    return (
+      <View className="gap-3 pb-5">
+        <Text variant="h3">Karya tersimpan</Text>
+        <Text tone="secondary">{translate("Masuk untuk melihat karya yang Anda simpan.")}</Text>
+      </View>
+    )
+  }
 
   return (
     <View className="gap-3 pb-5">
       <Text variant="h3">Karya tersimpan</Text>
-      {/* U-01 (audit 2026-09-24): kuota dulu hanya diketahui setelah gagal
-          menyimpan; sekarang terlihat berapa slot yang tersisa. */}
-      <Text variant="caption" tone="secondary">
-        {translate("{x}/{y} tersimpan di perangkat ini. Simpanan dihapus saat keluar akun.", {
-          x: ids.length,
-          y: SHOWCASE_SAVED_LIMIT,
-        })}
-      </Text>
-      {rows.map(({ id, state }) => {
-        if (state.status === "gone") return null
-        if (state.status === "loading") {
-          return (
-            <View key={id} className="flex-row items-center gap-3 rounded-md border border-border p-3">
+      {listState.status === "ready" ? (
+        <Text variant="caption" tone="secondary">
+          {translate("{x} karya tersimpan di akun Anda.", { x: total })}
+        </Text>
+      ) : null}
+
+      {listState.status === "loading" ? (
+        <View className="gap-3">
+          {[0, 1, 2].map((i) => (
+            <View key={i} className="flex-row items-center gap-3 rounded-md border border-border p-3">
               <Skeleton className="h-14 w-14" shape="card" />
               <View className="flex-1 gap-2">
                 <Skeleton className="h-4 w-3/5" />
                 <Skeleton className="h-3 w-2/5" />
               </View>
             </View>
-          )
-        }
-        if (state.status === "error") {
-          return (
-            <View key={id} className="gap-2 rounded-md border border-border p-3">
-              {/* J-04: gagal jaringan ≠ karya hilang — pesan & aksi berbeda. */}
-              <Text variant="caption" tone="secondary">
-                {state.message || translate("Gagal memuat — coba lagi")}
-              </Text>
-              <Button variant="ghost" onPress={() => retryOne(id)}>
-                Coba lagi
-              </Button>
-            </View>
-          )
-        }
-        const item = state.item
-        // Kontrak final Tim A (2026-09-28): entri video memakai thumbnailUrl
-        // sebagai cover (imageUrl-nya = berkas video).
-        const first = item.images[0]
-        const cover = first?.kind === "video" ? (first.thumbnailUrl ?? first.imageUrl) : first?.imageUrl
-        return (
-          <View key={id} className="flex-row items-center gap-3 rounded-md border border-border p-3">
-            <Button
-              variant="ghost"
-              fullWidth={false}
-              onPress={() => router.push(ROUTES.showcaseDetail(id))}
-              accessibilityLabel={translate("Buka karya {x}", { x: item.title || translate("Tanpa judul") })}
-            >
-              {/* J-05: thumbnail + identitas karya, bukan dua tombol telanjang. */}
-              <View className="flex-row items-center gap-3 pr-2">
-                {/* P-01 (audit 2026-09-24): <Picture> kanonik — paritas
-                    proteksi unggah/unduh (preventDownload) & recyclingKey
-                    dengan feed, detail, dan galeri. */}
-                {cover ? (
-                  <Picture
-                    source={cover}
-                    alt={item.title || translate("Foto karya")}
-                    width={56}
-                    height={56}
-                    radius="sm"
-                    preventDownload
-                    recyclingKey={id}
-                    className="bg-surface"
-                  />
-                ) : (
-                  <View className="h-14 w-14 rounded-sm bg-surface" />
-                )}
-                <View className="max-w-[180px] gap-0.5">
-                  <Text variant="body" numberOfLines={1}>
-                    {item.title || translate("Tanpa judul")}
-                  </Text>
-                  <Text variant="caption" tone="secondary" numberOfLines={1}>
-                    @{item.author.username}
-                  </Text>
-                </View>
+          ))}
+        </View>
+      ) : null}
+
+      {listState.status === "error" ? (
+        <View className="gap-2 rounded-md border border-border p-3">
+          <Text variant="caption" tone="secondary">
+            {listState.message || translate("Gagal memuat — coba lagi")}
+          </Text>
+          <Button variant="ghost" onPress={() => load(1, false)}>
+            {translate("Coba lagi")}
+          </Button>
+        </View>
+      ) : null}
+
+      {listState.status === "ready"
+        ? entries.map(({ item, savedAt }) => {
+            // Kontrak final Tim A (2026-09-28): entri video memakai thumbnailUrl
+            // sebagai cover (imageUrl-nya = berkas video).
+            const first = item.images[0]
+            const cover = first?.kind === "video" ? (first.thumbnailUrl ?? first.imageUrl) : first?.imageUrl
+            const id = item.id
+            return (
+              <View key={id} className="flex-row items-center gap-3 rounded-md border border-border p-3">
+                <Button
+                  variant="ghost"
+                  fullWidth={false}
+                  onPress={() => router.push(ROUTES.showcaseDetail(id))}
+                  accessibilityLabel={translate("Buka karya {x}", { x: item.title || translate("Tanpa judul") })}
+                >
+                  <View className="flex-row items-center gap-3 pr-2">
+                    {/* P-01 (audit 2026-09-24): <Picture> kanonik — paritas
+                        proteksi unggah/unduh (preventDownload) & recyclingKey
+                        dengan feed, detail, dan galeri. */}
+                    {cover ? (
+                      <Picture
+                        source={cover}
+                        alt={item.title || translate("Foto karya")}
+                        width={56}
+                        height={56}
+                        radius="sm"
+                        preventDownload
+                        recyclingKey={id}
+                        className="bg-surface"
+                      />
+                    ) : (
+                      <View className="h-14 w-14 rounded-sm bg-surface" />
+                    )}
+                    <View className="max-w-[180px] gap-0.5">
+                      <Text variant="body" numberOfLines={1}>
+                        {item.title || translate("Tanpa judul")}
+                      </Text>
+                      <Text variant="caption" tone="secondary" numberOfLines={1}>
+                        @{item.author.username}
+                      </Text>
+                      <Text variant="caption" tone="secondary" numberOfLines={1}>
+                        {translate("Disimpan {x}", { x: formatRelativeTime(savedAt) })}
+                      </Text>
+                    </View>
+                  </View>
+                </Button>
+                <View className="flex-1" />
+                <IconButton
+                  icon={Trash}
+                  variant="ghost"
+                  size="sm"
+                  accessibilityLabel={translate("Hapus karya tersimpan")}
+                  onPress={() => removeOne(id)}
+                  disabled={removingIds.has(id)}
+                />
               </View>
-            </Button>
-            <View className="flex-1" />
-            <IconButton
-              icon={Trash}
-              variant="ghost"
-              size="sm"
-              accessibilityLabel={translate("Hapus karya tersimpan")}
-              onPress={() => toggleShowcaseSaved(id)}
-            />
-          </View>
-        )
-      })}
-      {rows.length === 0 ? <Text tone="secondary">Belum ada karya tersimpan</Text> : null}
+            )
+          })
+        : null}
+
+      {listState.status === "ready" && hasNext ? (
+        <Button variant="secondary" onPress={loadMore} disabled={loadingMore}>
+          {loadingMore ? translate("Memuat…") : translate("Muat lagi")}
+        </Button>
+      ) : null}
+
+      {listState.status === "ready" && entries.length === 0 ? (
+        <Text tone="secondary">{translate("Belum ada karya tersimpan")}</Text>
+      ) : null}
     </View>
   )
 }

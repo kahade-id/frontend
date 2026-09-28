@@ -312,7 +312,7 @@ export function showcaseImages(item: ShowcaseSocialItem): { id: string; url: str
  * halaman detail (<Spin360Viewer> via `showcaseSpin360Groups`), bukan
  * sebagai slide karosel.
  */
-export type GalleryMedia = { id: string; kind: "image" | "video"; url: string; posterUrl?: string }
+export type GalleryMedia = { id: string; kind: "image" | "video"; url: string; posterUrl?: string; durationSec?: number }
 
 /**
  * Daftar slide galeri karya (kontrak final Tim A, 2026-09-28).
@@ -330,7 +330,14 @@ export function showcaseMedia(item: ShowcaseSocialItem): GalleryMedia[] {
       const url = resolveMediaUrl(m.imageUrl)
       if (!url) return []
       const poster = m.thumbnailUrl ? (resolveMediaUrl(m.thumbnailUrl) ?? undefined) : undefined
-      return poster ? [{ id: m.id, kind: m.kind, url, posterUrl: poster }] : [{ id: m.id, kind: m.kind, url }]
+      // Item 57 (FE-IMP-1): teruskan durasi untuk badge "1:25" di thumbnail.
+      const durationSec =
+        typeof m.durationSec === "number" && Number.isFinite(m.durationSec) && m.durationSec >= 0
+          ? Math.round(m.durationSec)
+          : undefined
+      return poster
+        ? [{ id: m.id, kind: m.kind, url, posterUrl: poster, durationSec }]
+        : [{ id: m.id, kind: m.kind, url, durationSec }]
     }
     if (m.kind === "image") {
       const url = resolveMediaUrl(m.imageUrl)
@@ -371,4 +378,32 @@ export function showcaseSpin360Groups(item: ShowcaseSocialItem): string[][] {
     .filter((list) => list.length >= 2)
     .sort((a, b) => a[0]!.sortOrder - b[0]!.sortOrder)
   return groups.map((list) => list.map((e) => e.url))
+}
+
+/**
+ * Urutan komentar (mega-batch FE-IMP-1, item 49/160).
+ *
+ * Backend TIDAK punya param sort untuk GET /v1/showcase/:id/comments
+ * (kontrak final Tim A tidak mendefinisikannya) → urutkan sisi klien secara
+ * deterministik dari komentar yang sudah dimuat. `createdAt` tidak valid
+ * diperlakukan sebagai 0 (paling tua); seri dipecah lewat `id` agar urutan
+ * stabil antar render.
+ */
+export type ShowcaseCommentOrder = "newest" | "oldest"
+
+export function sortShowcaseComments<T extends { id: string; createdAt: string }>(
+  comments: readonly T[],
+  order: ShowcaseCommentOrder,
+): T[] {
+  const sorted = [...comments]
+  sorted.sort((a, b) => {
+    const ta = Date.parse(a.createdAt)
+    const tb = Date.parse(b.createdAt)
+    const diff = (Number.isFinite(ta) ? ta : 0) - (Number.isFinite(tb) ? tb : 0)
+    if (diff !== 0) return order === "newest" ? -diff : diff
+    if (a.id === b.id) return 0
+    const idDiff = a.id < b.id ? -1 : 1
+    return order === "newest" ? -idDiff : idDiff
+  })
+  return sorted
 }

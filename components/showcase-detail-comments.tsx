@@ -15,9 +15,11 @@ import { View } from "react-native"
 import type { ShowcaseComment, ShowcaseCommentWithReplies } from "@/lib/api/showcase"
 import { formatNumber } from "@/lib/format"
 import { translate } from "@/lib/i18n/translate"
+import { sortShowcaseComments, type ShowcaseCommentOrder } from "@/lib/showcase-social"
 import { Divider } from "@/components/ui/divider"
 import { LoadMore, type LoadMoreStatus } from "@/components/ui/load-more"
 import { Button } from "@/components/ui/button"
+import { Chip } from "@/components/ui/chip"
 import { Text } from "@/components/ui/text"
 import { ShowcaseCommentRow } from "@/components/ui/showcase-comment-row"
 
@@ -67,6 +69,12 @@ export function ShowcaseDetailComments({
 }: ShowcaseDetailCommentsProps) {
   /** Root yang balasannya dibuka penuh (default: ringkas 3 baris). */
   const [expandedReplies, setExpandedReplies] = useState<ReadonlySet<string>>(new Set())
+  /**
+   * Item 160 (FE-IMP-1): urutan komentar di layar detail — sama seperti sheet
+   * (item 49). Backend tidak punya param sort → urutkan sisi klien.
+   */
+  const [commentOrder, setCommentOrder] = useState<ShowcaseCommentOrder>("newest")
+  const orderedComments = sortShowcaseComments(comments, commentOrder)
   const toggleReplies = (rootId: string) =>
     setExpandedReplies((current) => {
       const next = new Set(current)
@@ -79,7 +87,7 @@ export function ShowcaseDetailComments({
     <>
       {/* ── Komentar header: count di samping + separator ── */}
       <View className="gap-0 px-5 pb-0 pt-8">
-        <View className="flex-row items-baseline gap-2">
+        <View className="flex-row items-center gap-2">
           {/* UI-F011: header ikut kamus (sebelumnya hardcoded). */}
           <Text variant="h3">{translate("Komentar")}</Text>
           {commentTotal > 0 ? (
@@ -87,18 +95,39 @@ export function ShowcaseDetailComments({
               {formatNumber(commentTotal)}
             </Text>
           ) : null}
+          {/* Item 160: kontrol urutan — hanya bila ada ≥2 komentar. */}
+          {comments.length >= 2 ? (
+            <View className="ml-auto flex-row items-center gap-1.5">
+              <Chip
+                selected={commentOrder === "newest"}
+                accessibilityState={{ selected: commentOrder === "newest" }}
+                accessibilityLabel={translate("Urutkan komentar terbaru dulu")}
+                onPress={() => setCommentOrder("newest")}
+              >
+                {translate("Terbaru")}
+              </Chip>
+              <Chip
+                selected={commentOrder === "oldest"}
+                accessibilityState={{ selected: commentOrder === "oldest" }}
+                accessibilityLabel={translate("Urutkan komentar terlama dulu")}
+                onPress={() => setCommentOrder("oldest")}
+              >
+                {translate("Terlama")}
+              </Chip>
+            </View>
+          ) : null}
         </View>
         <Divider className="mt-3" />
       </View>
 
       <View className="gap-4 px-5 pb-6 pt-4">
         {/* F-06: status "loading" di awal — tanpa kilatan kosong/tombol. */}
-        {comments.length === 0 && commentsStatus !== "loading" && commentsStatus !== "error" ? (
+        {orderedComments.length === 0 && commentsStatus !== "loading" && commentsStatus !== "error" ? (
           <Text variant="body" tone="secondary">
             {translate("Belum ada komentar. Jadilah yang pertama!")}
           </Text>
         ) : null}
-        {comments.slice(0, commentRenderLimit).map((root) => {
+        {orderedComments.slice(0, commentRenderLimit).map((root) => {
           const replies = root.replies ?? []
           // Deep link ke balasan yang terlipat harus tetap terlihat.
           const deepLinkInside = replies.some((reply) => reply.id === highlightComment)

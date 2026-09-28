@@ -63,6 +63,7 @@ import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { focusRing } from "@/lib/focus-ring"
 import { shouldFireDoubleTapLike } from "@/lib/showcase-like-guard"
+import { FeedFollowButton } from "@/components/ui/feed-follow-button"
 
 export type ShowcaseFeedItemProps = {
   item: ShowcaseSocialItem
@@ -312,6 +313,12 @@ function ShowcaseFeedItemBase({
             </Text>
           </View>
         </PressableScale>
+        {/* Item 56 (FE-IMP-1): tombol Ikuti langsung dari feed — status
+            diambil sekali per username per sesi (lib/follow-status.ts), tanpa
+            N+1 request. Disembunyikan untuk karya sendiri. */}
+        {!item.isOwner ? (
+          <FeedFollowButton username={item.author.username} isOwner={item.isOwner} />
+        ) : null}
         {/* B-05: lapor tidak masuk akal untuk karya sendiri (selaras detail).
             Untuk karya sendiri tampilkan DotsThreeCircle (kelola: edit/hapus)
             bila onManage disediakan. */}

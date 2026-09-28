@@ -1,5 +1,5 @@
-import { useCallback, useMemo, type ReactElement, type ReactNode } from "react"
-import { View, type ListRenderItem, type StyleProp, type ViewStyle } from "react-native"
+import { useCallback, useMemo, type ReactElement, type ReactNode, type Ref } from "react"
+import { View, type FlatList, type ListRenderItem, type StyleProp, type ViewStyle } from "react-native"
 import { ErrorState } from "@/components/ui/error-state"
 import { LoadMore } from "@/components/ui/load-more"
 import {
@@ -55,6 +55,11 @@ export type PaginatedListProps<T extends { id?: string }> = {
    */
   onViewableItemsChanged?: PullToRefreshFlatListProps<T>["onViewableItemsChanged"]
   viewabilityConfig?: PullToRefreshFlatListProps<T>["viewabilityConfig"]
+  /**
+   * FE-IMP-1 item 58: ref ke FlatList dalam — mis. tombol "Kembali ke atas".
+   * Diteruskan apa adanya ke FlatList.
+   */
+  listRef?: Ref<FlatList<T>>
 }
 
 /** Style konstan: literal `{ flex: 1 }` inline membuat prop baru tiap render. */
@@ -116,6 +121,7 @@ export function PaginatedList<T extends { id?: string }>({
   keyExtractor: keyExtractorProp,
   onViewableItemsChanged,
   viewabilityConfig,
+  listRef,
 }: PaginatedListProps<T>) {  /*
    * Audit performa — semua prop di bawah ini DULU ditulis inline di JSX.
    *
@@ -220,6 +226,7 @@ export function PaginatedList<T extends { id?: string }>({
       data={data}
       onScroll={onScroll}
       onScrollWorklet={onScrollWorklet}
+      listRef={listRef}
       keyExtractor={keyExtractor}
       renderItem={renderItem}
       style={FILL}

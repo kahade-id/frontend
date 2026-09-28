@@ -69,6 +69,7 @@ import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
 import { ShowcaseCategoryInput } from "@/components/ui/showcase-category-input"
+import { ShowcaseConditionInput } from "@/components/ui/showcase-condition-input"
 import { ShowcaseGalleryGrid } from "@/components/ui/showcase-gallery-grid"
 import { Switch } from "@/components/ui/switch"
 import { Text } from "@/components/ui/text"
@@ -96,6 +97,11 @@ type FormState = {
   /** D-02: kategori & visibilitas ikut diisi dari aplikasi. */
   category: string
   isPublic: boolean
+  /**
+   * Item 53 (FE-IMP-1): kondisi barang — "" = belum dipilih (tidak dikirim
+   * ke backend; kontrak opsional).
+   */
+  condition: "" | "BARU" | "BEKAS"
 }
 const EMPTY_FORM: FormState = {
   title: "",
@@ -104,6 +110,7 @@ const EMPTY_FORM: FormState = {
   priceMax: null,
   category: "",
   isPublic: true,
+  condition: "",
 }
 
 type Editor = { mode: "edit"; item: ShowcaseItem } | null
@@ -130,18 +137,34 @@ function formToPayload(form: FormState) {
     priceMax,
     category: form.category.trim().replace(/\s+/g, " "),
     visibility: form.isPublic ? ("PUBLIC" as const) : ("PRIVATE" as const),
+    // Item 53: hanya kirim bila dipilih — backend opsional & case-insensitive.
+    ...(form.condition === "BARU" || form.condition === "BEKAS"
+      ? { condition: form.condition }
+      : null),
   }
 }
 
-/** Kategori/visibilitas dari respons mentah (ShowcaseItem belum mengetiknya). */
-function rawMeta(it: ShowcaseItem): { category: string; isPublic: boolean } {
-  const raw = it as ShowcaseItem & { category?: string | null; visibility?: string | null }
+/** Kategori/visibilitas/kondisi dari respons mentah (ShowcaseItem belum mengetiknya). */
+function rawMeta(it: ShowcaseItem): { category: string; isPublic: boolean; condition: "" | "BARU" | "BEKAS" } {
+  const raw = it as ShowcaseItem & {
+    category?: string | null
+    visibility?: string | null
+    condition?: string | null
+  }
   return {
     category: typeof raw.category === "string" ? raw.category : "",
     // SH-F-011 (audit 2026-09-27): fail-CLOSED — nilai asing (bukan "PUBLIC")
     // diperlakukan sebagai privat, bukan publik. Sebelumnya `!== "PRIVATE"`
     // membuat "FOLLOWERS"/"UNLISTED" masa depan tampil sebagai publik.
     isPublic: raw.visibility === "PUBLIC",
+    // Item 53: fail-closed — hanya "BARU"/"BEKAS" (case-insensitive, backend
+    // juga mentransformasi begitu) yang diisi ke form; sisanya "" (= tak dipilih).
+    condition:
+      typeof raw.condition === "string" && raw.condition.toUpperCase() === "BARU"
+        ? "BARU"
+        : typeof raw.condition === "string" && raw.condition.toUpperCase() === "BEKAS"
+          ? "BEKAS"
+          : "",
   }
 }
 
@@ -1057,6 +1080,12 @@ function ShowcaseManagement() {
             placeholder={translate("Jasa desain, kerajinan, digital…")}
             autoCapitalize="sentences"
             maxLength={CATEGORY_MAX}
+            disabled={saving}
+          />
+          {/* Item 53 (FE-IMP-1): kondisi barang BARU/BEKAS. */}
+          <ShowcaseConditionInput
+            value={form.condition}
+            onChange={(condition) => setForm((f) => ({ ...f, condition }))}
             disabled={saving}
           />
           <Input

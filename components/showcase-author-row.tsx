@@ -7,7 +7,7 @@
  */
 import { View } from "react-native"
 import { router } from "expo-router"
-import { Flag, PencilSimple } from "phosphor-react-native"
+import { CaretRight, Flag, PencilSimple } from "phosphor-react-native"
 
 import { translate } from "@/lib/i18n/translate"
 import { useLanguage } from "@/lib/i18n"
@@ -20,8 +20,10 @@ import type { VerificationBadge } from "@/lib/api/users"
 
 import { Avatar } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
+import { Icon } from "@/components/ui/icon"
 import { IconButton } from "@/components/ui/icon-button"
 import { PressableScale } from "@/components/ui/pressable-scale"
+import { FeedFollowButton } from "@/components/ui/feed-follow-button"
 import { Text } from "@/components/ui/text"
 import { VerifiedName } from "@/components/ui/verified-name"
 
@@ -76,7 +78,13 @@ export function ShowcaseAuthorRow({ item, isOwner, hasSession, onReport }: Showc
           </Text>
         </View>
         {isOwner ? <Badge variant="outline">Anda</Badge> : null}
+        {/* Item 153 (FE-IMP-1): chevron — menandakan baris penulis bisa
+            diketuk menuju profil (affordance yang selama ini implisit). */}
+        <Icon icon={CaretRight} size="sm" tone="default" />
       </PressableScale>
+      {/* Item 154 (FE-IMP-1): follow langsung dari detail (optimistis,
+          rollback, gate tamu) — sama seperti di kartu feed. */}
+      {!isOwner ? <FeedFollowButton username={item.author.username} isOwner={false} /> : null}
       {/* B-05 selaras: bendera disembunyikan untuk item sendiri. */}
       {!isOwner ? (
         <IconButton icon={Flag} variant="ghost" size="sm" accessibilityLabel={translate("Laporkan")} onPress={onReport} />

@@ -13,9 +13,11 @@ import { useLanguage } from "@/lib/i18n"
 import { formatNumber } from "@/lib/format"
 
 import {
+  BookmarkSimple,
   ChatCircle,
   Flag,
   PaperPlaneRight,
+  ShareNetwork,
   Trash,
 } from "phosphor-react-native"
 import { api, createIdempotencyKey, isApiError, userMessage } from "@/lib/api"
@@ -47,11 +49,17 @@ import { showcaseImages, showcaseMedia, showcaseSpin360Groups } from "@/lib/show
 import { markShowcaseDeleted } from "@/lib/showcase-deleted"
 import { markShowcaseFeedDirty, queueShowcaseCommentCount } from "@/lib/showcase-social-prefs"
 import { SHOWCASE_COMMENT_MESSAGES } from "@/lib/showcase-comment-messages"
+import {
+  clearShowcaseCommentDraft,
+  loadShowcaseCommentDraft,
+  saveShowcaseCommentDraft,
+} from "@/lib/showcase-comment-drafts"
 
 import { ActionSheet } from "@/components/ui/action-sheet"
 import { Badge } from "@/components/ui/badge"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Button } from "@/components/ui/button"
+import { CollapsibleText } from "@/components/ui/collapsible-text"
 import { DataScreen } from "@/components/ui/data-screen"
 import { Divider } from "@/components/ui/divider"
 import { useDocumentTitle } from "@/components/ui/header"
@@ -60,7 +68,6 @@ import { ImageViewer } from "@/components/ui/image-viewer"
 import { Input } from "@/components/ui/input"
 import type { LoadMoreStatus } from "@/components/ui/load-more"
 import { Dialog } from "@/components/ui/modal"
-import { Picture } from "@/components/ui/picture"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { ShowcaseAuthorRow } from "@/components/showcase-author-row"
 import { ShowcaseLikersSheet, type LikersTab } from "@/components/ui/showcase-likers-sheet"
@@ -78,6 +85,7 @@ import { Spin360Viewer } from "@/components/ui/spin360-viewer"
 import { ShowcaseDetailActions } from "@/components/ui/showcase-detail-actions"
 import { ShowcaseHtmlView } from "@/components/ui/showcase-html-description-editor"
 import { ShowcaseDetailComments } from "@/components/showcase-detail-comments"
+import { ShowcaseRelatedCard } from "@/components/showcase-related-card"
 import { ShowcaseReportSheet } from "@/components/ui/showcase-report-sheet"
 import { ShowcaseShareSheet } from "@/components/ui/showcase-share-sheet"
 import { Text } from "@/components/ui/text"
@@ -139,6 +147,13 @@ export default function ShowcaseDetailScreen() {
           icon: ChatCircle,
           title: translate("Karya tidak ditemukan"),
           description: translate("Karya ini mungkin sudah dihapus atau tidak lagi tersedia."),
+          // Item 167 (FE-IMP-1): CTA eksplisit — user punya jalan keluar
+          // yang jelas, bukan layar buntu.
+          action: (
+            <Button fullWidth={false} onPress={() => router.replace(ROUTES.showcase)}>
+              {translate("Lihat etalase lain")}
+            </Button>
+          ),
         }}
       />
     )
@@ -215,6 +230,28 @@ function ShowcaseDetailContent({
   const [commentsRefreshing, setCommentsRefreshing] = useState(false)
   const [replyTo, setReplyTo] = useState<ShowcaseComment | null>(null)
   const [draft, setDraft] = useState("")
+  /**
+   * Item 161 (FE-IMP-1): draft komentar persisten — dimuat sekali per item
+   * dari SecureStore (pola sama seperti draft chat). Tidak memblokir render
+   * awal: state mulai "", lalu diisi bila draft tersimpan ada.
+   */
+  useEffect(() => {
+    let alive = true
+    void loadShowcaseCommentDraft(id).then((text) => {
+      if (alive && text) setDraft(text)
+    })
+    return () => {
+      alive = false
+    }
+  }, [id])
+  const handleDraftChange = useCallback(
+    (text: string) => {
+      setDraft(text)
+      // Persist di-debounce 800ms di dalam lib — aman dipanggil tiap ketikan.
+      saveShowcaseCommentDraft(id, text)
+    },
+    [id],
+  )
   const [sendingComment, setSendingComment] = useState(false)
   /**
    * T4 (audit 2026-09-26): satu kunci idempotency per (item × isi komentar),
@@ -322,12 +359,9 @@ function ShowcaseDetailContent({
 
   /** Ketuk media → viewer layar penuh (pinch-zoom + swipe antar foto). */
   const openViewer = (index: number) => {
-    // `index` = indeks slide media; petakan ke indeks gambar (video dilewati).
-    const slide = resolvedMedia[index]
-    const imageIndex = resolvedMedia
-      .filter((m) => m.kind === "image")
-      .findIndex((m) => m.id === slide?.id)
-    if (imageIndex >= 0) setViewerIndex(imageIndex)
+    // Item 158 (FE-IMP-1): viewer kini campuran gambar+video — indeks slide
+    // media dipakai langsung (tidak lagi dipetakan ke indeks gambar).
+    if (index >= 0 && index < resolvedMedia.length) setViewerIndex(index)
   }
 
   const focusComposer = () => composerRef.current?.focus()
@@ -392,6 +426,8 @@ function ShowcaseDetailContent({
     insertLocalComment(optimistic)
     // Kosongkan draft segera — UX terasa instan.
     setDraft("")
+    // Item 161: draft tersimpan ikut dihapus — komentar sudah terkirim.
+    clearShowcaseCommentDraft(id)
     setReplyTo(null)
 
     try {
@@ -436,6 +472,10 @@ function ShowcaseDetailContent({
           })),
       )
       setCommentTotal((n) => Math.max(0, n - 1))
+      // Item 161: kirim gagal — kembalikan draft (state + SecureStore) supaya
+      // teks yang diketik pengguna tidak hilang.
+      setDraft(content)
+      saveShowcaseCommentDraft(id, content)
       toast.show({
         title: SHOWCASE_COMMENT_MESSAGES.sendFailed,
         description: isApiError(err) ? userMessage(err) : undefined,
@@ -652,8 +692,37 @@ function ShowcaseDetailContent({
       }}
       refreshable
       contentClassName="gap-0"
+      // Item 163: footer memuat komposer komentar — naik di atas keyboard.
+      keyboardAvoiding
       footer={
         <View className="border-t border-border bg-background py-3">
+          {/* Item 163/164 (FE-IMP-1): bar sticky harga + CTA "Buat Transaksi"
+              di atas komposer — selalu terlihat tanpa scroll. Disembunyikan
+              untuk pemilik (T5: pemilik tidak mentransaksikan karyanya
+              sendiri). Catatan escrow memakai kalimat persis sesuai brief. */}
+          {!isOwner ? (
+            <View className="mb-3 flex-row items-center gap-3 border-b border-border pb-3">
+              <View className="min-w-0 flex-1">
+                <Text variant="h3" weight={700} numberOfLines={1} className="tabular-nums">
+                  {priceLabel}
+                </Text>
+                <Text variant="caption" tone="secondary" numberOfLines={2}>
+                  {translate("Dana ditahan escrow sampai barang Anda terima")}
+                </Text>
+              </View>
+              <Button
+                disabled={item.isActive === false}
+                onPress={handleCreateTransaction}
+                accessibilityHint={
+                  item.isActive === false
+                    ? translate("Karya ini sedang tidak aktif, jadi belum bisa ditransaksikan.")
+                    : undefined
+                }
+              >
+                {translate("Buat Transaksi")}
+              </Button>
+            </View>
+          ) : null}
           {replyTo ? (
             <View className="mb-2 flex-row items-center gap-2 rounded-md bg-surface-elevated px-3 py-1.5">
               <Text variant="caption" tone="secondary" className="flex-1" numberOfLines={1}>
@@ -674,18 +743,25 @@ function ShowcaseDetailContent({
           ) : null}
           {hasSession ? (
             <View className="flex-row items-end gap-2">
-              <Input
-                ref={composerRef}
-                disabled={sendingComment}
-                value={draft}
-                onChangeText={setDraft}
-                placeholder={translate("Tulis komentar…")}
-                accessibilityLabel={translate("Komentar baru")}
-                containerClassName="flex-1"
-                maxLength={COMMENT_MAX}
-                onSubmitEditing={() => void handleSendComment()}
-                returnKeyType="send"
-              />
+              <View className="flex-1">
+                <Input
+                  ref={composerRef}
+                  disabled={sendingComment}
+                  value={draft}
+                  onChangeText={handleDraftChange}
+                  placeholder={translate("Tulis komentar…")}
+                  accessibilityLabel={translate("Komentar baru")}
+                  containerClassName="flex-1"
+                  maxLength={COMMENT_MAX}
+                  onSubmitEditing={() => void handleSendComment()}
+                  returnKeyType="send"
+                />
+                {/* Item 162 (FE-IMP-1): konter SELALU "X karakter tersisa"
+                    (bukan format ganda seperti "200/2000"). */}
+                <Text variant="caption" tone="secondary" className="pt-1 text-right tabular-nums">
+                  {translate("{x} karakter tersisa", { x: COMMENT_MAX - draft.length })}
+                </Text>
+              </View>
               <IconButton
                 icon={PaperPlaneRight}
                 variant="primary"
@@ -720,6 +796,11 @@ function ShowcaseDetailContent({
           media={resolvedMedia}
           title={item.title}
           onOpen={openViewer}
+          // Item 157 (FE-IMP-1): ketuk-ganda pada media = suka. (Galeri sudah
+          // punya deteksi double-tap; yang kurang hanya wiring ke toggleLike.)
+          onDoubleTap={() => {
+            if (!liked) toggleLike()
+          }}
           autoplayActive={viewerIndex == null}
         />
       </View>
@@ -774,9 +855,11 @@ function ShowcaseDetailContent({
             <ShowcaseHtmlView html={item.description} />
           </View>
         ) : (
-          <Text variant="body" tone="primary" className="px-5 pt-1">
-            {item.description}
-          </Text>
+          // Item 152 (FE-IMP-1): deskripsi panjang dilipat ke 4 baris +
+          // tautan "Selengkapnya"/"Tutup". (Deskripsi HTML Kahade+ sengaja
+          // tidak dilipat — struktur bloknya tidak bisa dihitung per-baris
+          // dengan andal.)
+          <CollapsibleText text={item.description} maxLines={4} className="px-5 pt-1" />
         )
       ) : null}
 
@@ -865,20 +948,10 @@ function ShowcaseDetailContent({
       <Divider inset className="mt-1" />
 
       <View className="px-5 pt-4">
-        {!isOwner ? (
-          // T3 (audit 2026-09-26): karya nonaktif tidak bisa ditransaksikan —
-          // gagal-cepat di UI, bukan di tengah alur transaksi.
-          <View className="gap-2">
-            <Button fullWidth disabled={item.isActive === false} onPress={handleCreateTransaction}>
-              {translate("Buat Transaksi")}
-            </Button>
-            {item.isActive === false ? (
-              <Text variant="caption" tone="secondary" className="text-center">
-                {translate("Karya ini sedang tidak aktif, jadi belum bisa ditransaksikan.")}
-              </Text>
-            ) : null}
-          </View>
-        ) : (
+        {/* Item 163 (FE-IMP-1): CTA transaksi kini sticky di footer — blok ini
+            hanya menyimpan catatan pemilik & aksi hapus. Untuk non-pemilik,
+            catatan "karya tidak aktif" pindah ke accessibilityHint CTA sticky. */}
+        {isOwner ? (
           // T5 (audit 2026-09-26): pemilik bisa menghapus karyanya dari sini.
           <View className="gap-2">
             <Text variant="caption" tone="secondary" className="text-center">
@@ -888,7 +961,7 @@ function ShowcaseDetailContent({
               {translate("Hapus karya")}
             </Button>
           </View>
-        )}
+        ) : null}
       </View>
 
       {/* G-11/S9: utas komentar diekstrak ke komponen sendiri. */}
@@ -911,14 +984,44 @@ function ShowcaseDetailContent({
         }}
       />
 
+      {/* Item 158/159 (FE-IMP-1): viewer fullscreen media CAMPURAN
+          (gambar + video) dengan aksi Bagikan & Simpan di chrome bawah. */}
       <ImageViewer
         visible={viewerIndex != null}
-        images={resolvedMedia
-          .filter((m) => m.kind === "image")
-          .map((m) => ({ url: m.url, alt: item.title }))}
+        images={resolvedMedia.map((m) => ({
+          url: m.url,
+          alt: item.title,
+          kind: m.kind === "video" ? "video" : "image",
+        }))}
         index={viewerIndex ?? 0}
         onClose={() => setViewerIndex(null)}
         title={item.title}
+        actions={
+          <>
+            <IconButton
+              icon={ShareNetwork}
+              variant="ghost"
+              accessibilityLabel={translate("Bagikan karya ini")}
+              // Item 159: tutup viewer dulu sebelum membuka sheet berbagi —
+              // dua Modal bertumpuk rawan sheet tertutup viewer.
+              onPress={() => {
+                setViewerIndex(null)
+                void share()
+              }}
+            />
+            <IconButton
+              icon={BookmarkSimple}
+              variant="ghost"
+              active={saved}
+              accessibilityLabel={
+                saved ? translate("Hapus dari simpanan") : translate("Simpan karya ini")
+              }
+              accessibilityState={{ selected: saved }}
+              loading={savedPending}
+              onPress={() => void toggleSave()}
+            />
+          </>
+        }
       />
 
       {/* Karya terkait — kategori sama, lalu populer sebagai pengisi. */}
@@ -933,45 +1036,11 @@ function ShowcaseDetailContent({
             showsHorizontalScrollIndicator={false}
             contentContainerClassName="gap-3 px-5 pb-2"
           >
-            {item.related.map((rel) => {
-              const cover = rel.coverImageUrl ?? rel.imageUrl ?? undefined
-              return (
-                <PressableScale
-                  key={rel.id}
-                  accessibilityRole="button"
-                  accessibilityLabel={rel.title}
-                  onPress={() => router.push(ROUTES.showcaseDetail(rel.id))}
-                  containerClassName={cn("w-36 overflow-hidden rounded-xl bg-surface-elevated", focusRing)}
-                >
-                  {cover ? (
-                    // SH-F-007: <Picture> (bukan RN Image mentah) — URL rusak
-                    // menampilkan fallback ikon, bukan kotak kosong.
-                    // bordered=false + radius=none: tampilan identik dengan sebelumnya.
-                    <Picture
-                      source={cover}
-                      alt={rel.title}
-                      className="h-24 w-36"
-                      radius="none"
-                      bordered={false}
-                    />
-                  ) : (
-                    <View className="h-24 w-36 items-center justify-center bg-surface">
-                      <Text variant="caption" tone="secondary">
-                        {translate("Etalase")}
-                      </Text>
-                    </View>
-                  )}
-                  <View className="p-2">
-                    <Text variant="caption" weight={600} numberOfLines={2}>
-                      {rel.title}
-                    </Text>
-                    <Text variant="caption" tone="secondary" numberOfLines={1} className="tabular-nums">
-                      {showcasePriceLabelOrFallback(rel)}
-                    </Text>
-                  </View>
-                </PressableScale>
-              )
-            })}
+            {/* Item 166 (FE-IMP-1): kartu diekstrak ke <ShowcaseRelatedCard>
+                — quick-like per kartu butuh hook (tidak legal di dalam .map). */}
+            {item.related.map((rel) => (
+              <ShowcaseRelatedCard key={rel.id} rel={rel} />
+            ))}
           </ScrollView>
         </View>
       ) : null}

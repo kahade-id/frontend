@@ -301,6 +301,16 @@ export function chatDraftKey(roomId: string): string {
 }
 
 /**
+ * Kunci draft komentar etalase per item (mega-batch FE-IMP-1, item 161 —
+ * "seperti draft chat"): pola sama dengan `chatDraftKey` — memory + SecureStore
+ * (web memory-only), tidak dihapus `clearSession()`.
+ */
+export function showcaseCommentDraftKey(showcaseId: string): string {
+  const safe = String(showcaseId ?? "").replace(/[^a-zA-Z0-9_-]/g, "-").slice(0, 128)
+  return `kahade.showcase.commentDraft.${safe}`
+}
+
+/**
  * Akses mentah untuk kunci dinamis (lihat `chatDraftKey`). Aturan yang sama
  * dengan API ber-tipe: di web kunci mentah TIDAK persist ke localStorage
  * (memory proses saja) — pemanggil yang butuh persist web harus menambah

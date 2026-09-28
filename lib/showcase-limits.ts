@@ -22,3 +22,12 @@ export function getShowcasePhotoLimit(isPlusActive: boolean): number {
 }
 /** S6: maks 5MB per foto — selaras backend `UploadPurpose.SHOWCASE_IMAGE`. */
 export const SHOWCASE_IMAGE_MAX_BYTES = 5 * 1024 * 1024
+
+/**
+ * Keputusan batch-19 #1 (2026-09-28, disetujui user — mega-batch item 60b):
+ * batas video showcase 100MB / 180 detik. Validasi klien menampilkan pesan
+ * jelas SEBELUM upload bila ukuran/durasi bisa dideteksi; validasi definitif
+ * tetap di server (FILE_TOO_LARGE / VIDEO_TOO_LONG).
+ */
+export const SHOWCASE_VIDEO_MAX_BYTES = 100 * 1024 * 1024
+export const SHOWCASE_VIDEO_MAX_SEC = 180

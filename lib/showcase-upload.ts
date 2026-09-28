@@ -3,6 +3,11 @@ import { api } from "@/lib/api"
 import { ApiError, isApiError } from "@/lib/api/errors"
 import type { PickedImage } from "@/lib/image-picker"
 import { pickedImageToFormData } from "@/lib/image-picker"
+import {
+  SHOWCASE_IMAGE_MAX_BYTES,
+  SHOWCASE_VIDEO_MAX_BYTES,
+  SHOWCASE_VIDEO_MAX_SEC,
+} from "@/lib/showcase-limits"
 import { logWarn } from "@/lib/telemetry"
 
 export type ShowcaseUploadOutcome = { kind: "fileKey"; fileKey: string }
@@ -28,6 +33,15 @@ export async function uploadShowcasePhoto(asset: PickedImage, signal?: AbortSign
   }
   try {
     check()
+    // Item 60 (FE-IMP-1): guard foto terpusat — 5MB SEBELUM upload, pesan
+    // jelas. `size` = 0 hanya bila platform tak melaporkan ukuran (fail-open
+    // ke validasi server; tidak bisa dipastikan = jangan tolak buta).
+    if (asset.size > SHOWCASE_IMAGE_MAX_BYTES) {
+      throw new ApiError({
+        code: "PAYLOAD_TOO_LARGE",
+        message: `Ukuran foto melebihi 5 MB (${(asset.size / 1048576).toFixed(1)} MB). Pilih foto yang lebih kecil.`,
+      })
+    }
     stage = "transfer"
     // Self-hosted (2026-09-26): tidak ada presigned URL R2 lagi.
     // Upload langsung multipart ke server: POST /v1/upload/direct
@@ -90,6 +104,21 @@ export async function uploadShowcaseVideo(
   let thumbnailFileKey: string | undefined
   try {
     if (signal?.aborted) throw new ApiError({ code: "ABORTED", message: "Unggahan dibatalkan." })
+    // Item 60b (FE-IMP-1): guard video SEBELUM upload — 100MB / 180 detik,
+    // sesuai keputusan user batch-19 #1. `size` = 0 / `durationMs` undefined
+    // hanya bila platform tak melaporkan (fail-open ke validasi server).
+    if (asset.size > SHOWCASE_VIDEO_MAX_BYTES) {
+      throw new ApiError({
+        code: "PAYLOAD_TOO_LARGE",
+        message: `Ukuran video melebihi 100 MB (${(asset.size / 1048576).toFixed(0)} MB). Pilih video yang lebih kecil atau lebih pendek.`,
+      })
+    }
+    if (asset.durationMs != null && asset.durationMs > SHOWCASE_VIDEO_MAX_SEC * 1000) {
+      throw new ApiError({
+        code: "VALIDATION",
+        message: `Durasi video melebihi 3 menit (${Math.round(asset.durationMs / 1000)} dtk). Potong dulu sebelum mengunggah.`,
+      })
+    }
     const result = await api.upload.uploadDirectVideo(asset, {
       purpose: "SHOWCASE_VIDEO",
       onProgress,

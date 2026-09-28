@@ -30,9 +30,9 @@
  *  - F-04: item yang sudah dilaporkan sesi ini disembunyikan dari feed.
  */
 import { useCallback, useEffect, useMemo, useRef, useState, memo } from "react"
-import { View } from "react-native"
-import Animated from "react-native-reanimated"
-import { Images, X } from "phosphor-react-native"
+import { View, type FlatList } from "react-native"
+import Animated, { runOnJS } from "react-native-reanimated"
+import { Images, X, ArrowUp } from "phosphor-react-native"
 import { router, useLocalSearchParams } from "expo-router"
 import { useIsFocused } from "@react-navigation/native"
 
@@ -64,10 +64,14 @@ import {
 import { applyShowcaseCommentCountDelta } from "@/lib/showcase-social"
 import { showcaseMedia } from "@/lib/showcase-social"
 import { tokens } from "@/lib/tokens"
+import { modes } from "@/lib/tokens"
 import { describeSheetFilters } from "@/lib/showcase-filters"
+import { useUiPrefs, parseShowcaseFeedTab, type ShowcaseFeedTab as SavedFeedTab } from "@/lib/ui-prefs"
 import { useCollapsingHeader } from "@/lib/use-collapsing-header"
 import { useShowcaseSocialActions } from "@/lib/use-showcase-social-actions"
 import { useToast } from "@/components/ui/toast"
+import { useTheme } from "@/components/theme-provider"
+import { elevationStyle } from "@/lib/elevation"
 
 import { translate } from "@/lib/i18n/translate"
 import { useLanguage } from "@/lib/i18n"
@@ -258,17 +262,61 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
   // i18n: label tab mengikuti bahasa aktif.
   const feedTabs = useFeedTabs()
   const params = useLocalSearchParams<{ kind?: string; search?: string }>()
-  const kind: ShowcaseFeedKind = params.kind === "following" || params.kind === "latest" || params.kind === "popular" ? params.kind : "forYou"
+  // Item 47 (FE-IMP-1): tab terakhir yang dibuka persist per perangkat
+  // (lib/ui-prefs `showcaseFeedTab`). Param URL (deep link) tetap menang
+  // bila ada; kalau tidak, pakai tab terakhir yang disimpan.
+  const { prefs: uiPrefs, setPrefs: setUiPrefs } = useUiPrefs()
+  const kindParam: ShowcaseFeedKind | undefined =
+    typeof params.kind === "string" ? parseShowcaseFeedTab(params.kind) : undefined
+  const kind: ShowcaseFeedKind = kindParam ?? parseShowcaseFeedTab(uiPrefs.showcaseFeedTab)
   // Pencarian inline DIHAPUS dari header (2026-09-23): satu-satunya kolom
   // cari kini layar /search. Param `search` tetap dibaca agar URL lama
   // `/showcase?search=…` (deep link/bookmark) masih terfilter dengan benar —
   // dan chip-nya kini bisa DIHAPUS (A-06).
   const search = typeof params.search === "string" ? params.search.slice(0, 100) : ""
-  const setKind = (next: ShowcaseFeedKind) => router.setParams({ kind: next })
+  const setKind = (next: ShowcaseFeedKind) => {
+    // Item 47: simpan tab terakhir supaya kembali ke sini saat feed dibuka lagi.
+    setUiPrefs({ showcaseFeedTab: next as SavedFeedTab })
+    router.setParams({ kind: next })
+  }
+  const { mode: themeMode } = useTheme()
   // A-16: debounce dibuang — tidak ada kolom ketik yang mengubah `search`
   // di layar ini; debounce hanya menunda fetch saat param URL berubah.
   const activeSearch = search.trim()
   const collapsing = useCollapsingHeader()
+
+  /**
+   * Item 58 (FE-IMP-1): tombol "Kembali ke atas". Muncul setelah scroll
+   * > 600px, hilang di < 400px (histeresis anti-kedip). Pelacakan offset
+   * digabung dengan collapsing header — TIDAK menggantikannya:
+   *   - web/iOS: onScroll JS biasa;
+   *   - Android: worklet offset (state React disentuh via runOnJS — worklet
+   *     tidak boleh menyentuh state langsung).
+   */
+  const listRef = useRef<FlatList<ShowcaseSocialItem>>(null)
+  const [showScrollTop, setShowScrollTop] = useState(false)
+  const trackScrollOffset = useCallback((offsetY: number) => {
+    setShowScrollTop((prev) => (offsetY > 600 ? true : offsetY < 400 ? false : prev))
+  }, [])
+  const handleListScroll = useCallback(
+    (event: { nativeEvent?: { contentOffset?: { y?: number } } }) => {
+      collapsing.onScroll(event as never)
+      const y = event?.nativeEvent?.contentOffset?.y
+      if (typeof y === "number" && Number.isFinite(y)) trackScrollOffset(y)
+    },
+    [collapsing, trackScrollOffset],
+  )
+  const handleListScrollWorklet = useCallback(
+    (offsetY: number) => {
+      "worklet"
+      collapsing.scrollWorklet(offsetY)
+      runOnJS(trackScrollOffset)(offsetY)
+    },
+    [collapsing, trackScrollOffset],
+  )
+  const scrollToTop = useCallback(() => {
+    listRef.current?.scrollToOffset({ offset: 0, animated: true })
+  }, [])
 
   const [items, setItems] = useState<ShowcaseSocialItem[]>([])
   const [hasMore, setHasMore] = useState(false)
@@ -700,6 +748,21 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
     [handleOpenComments, handleOpenReport, visibleIds],
   )
 
+  /**
+   * Item 55 (FE-IMP-1): satu tombol reset menghapus SEMUA filter aktif
+   * (search + kategori + lokasi + filter sheet). Didefinisikan di sini
+   * supaya dipakai empty state di bawah.
+   */
+  const filtersActive =
+    activeSearch !== "" || !!category || !!location || !isDefaultShowcaseFilters(sheetFilters)
+  const resetAllFilters = useCallback(() => {
+    setSheetFilters(DEFAULT_SHOWCASE_FILTERS)
+    onClearCategory?.()
+    onClearLocation?.()
+    // `search` hidup di param URL — hapus paramnya.
+    router.setParams({ search: undefined })
+  }, [onClearCategory, onClearLocation])
+
   const emptyState = (() => {
     if (kind === "following" && followingGuest) {
       return (
@@ -744,8 +807,16 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
             ? translate('Tidak ada hasil untuk "{x}".', { x: activeSearch })
             : translate("Karya publik dari pengguna Kahade akan muncul di sini.")
         }
-        // A-20 (audit 2026-09-23): CTA isi etalase untuk pemilik akun.
+        // Item 55 (FE-IMP-1): bila hasil KOSONG karena filter aktif, SATU
+        // tombol "Atur ulang filter" menghapus search + kategori + lokasi +
+        // filter sheet sekaligus — jangan biarkan pengguna menebak filter
+        // mana yang menyembunyikan hasil.
         action={
+          filtersActive ? (
+            <Button variant="secondary" fullWidth={false} onPress={resetAllFilters}>
+              {translate("Atur ulang filter")}
+            </Button>
+          ) : // A-20 (audit 2026-09-23): CTA isi etalase untuk pemilik akun.
           hasSession ? (
             <Button variant="secondary" fullWidth={false} onPress={() => router.push(ROUTES.showcaseManagement)}>
               {translate("Tambah karya")}
@@ -874,8 +945,9 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
         }}
         onRetry={() => void fetchPage("refresh")}
         onLoadMore={loadMore}
-        onScroll={collapsing.onScroll}
-        onScrollWorklet={collapsing.scrollWorklet}
+        onScroll={handleListScroll}
+        onScrollWorklet={handleListScrollWorklet}
+        listRef={listRef}
         // Feed bergaya postingan sosial: media full-bleed memotong gutter —
         // teks di dalam <ShowcaseFeedItem> membawa px-5 sendiri.
         padded={false}
@@ -898,6 +970,29 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
         viewabilityConfig={viewabilityConfig}
       />
       </ModeShiftFade>
+
+      {/* Item 58: tombol melayang "Kembali ke atas" — muncul hanya setelah
+          scroll jauh; posisi di atas bottom padding tab. */}
+      {showScrollTop ? (
+        <View
+          className="absolute bottom-6 right-5"
+          style={{ marginBottom: bottomPadding }}
+        >
+          <View
+            className="rounded-full"
+            style={[{ backgroundColor: modes[themeMode].surface }, elevationStyle("medium", themeMode)]}
+          >
+            <IconButton
+              icon={ArrowUp}
+              variant="ghost"
+              size="md"
+              accessibilityLabel={translate("Kembali ke atas")}
+              accessibilityHint={translate("Gulir feed ke posisi paling atas")}
+              onPress={scrollToTop}
+            />
+          </View>
+        </View>
+      ) : null}
 
       {/* Komentar dibaca & ditulis di sheet — pengguna tidak kehilangan posisi feed. */}
       <ShowcaseCommentsSheet item={commentItem} onRequestClose={() => setCommentItem(null)} />

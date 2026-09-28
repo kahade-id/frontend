@@ -30,6 +30,12 @@ export type PickedImage = {
   size: number
   width?: number
   height?: number
+  /**
+   * Durasi video dalam MILIDETIK (hanya untuk video; dari
+   * expo-image-picker `asset.duration`). Dipakai validasi batas durasi
+   * klien (item 60b) — undefined bila bukan video / tak dilaporkan.
+   */
+  durationMs?: number
 }
 
 export type PickImageResult =
@@ -78,6 +84,11 @@ function toPicked(asset: ImagePicker.ImagePickerAsset, fallbackName: string): Pi
     size: asset.fileSize ?? 0,
     width: asset.width,
     height: asset.height,
+    // Item 60b: durasi video (ms) untuk validasi batas 180 detik klien.
+    durationMs:
+      isVideo && typeof asset.duration === "number" && asset.duration > 0
+        ? asset.duration
+        : undefined,
   }
 }
 
