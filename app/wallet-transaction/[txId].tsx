@@ -23,7 +23,6 @@ import {
   WALLET_TXN_STATUS_LABELS,
   walletTransactionStatus,
   walletTransactionType,
-  isWalletCredit,
 } from "@/lib/wallet-labels"
 import { useCopy } from "@/lib/clipboard"
 import { receiptDateRows, type ReceiptStatus } from "@/lib/receipt"
@@ -93,6 +92,11 @@ export default function WalletTransactionScreen() {
               {(() => {
                 const rows: ReceiptRow[] = [
                   { label: "Jenis", value: mapValue(WALLET_TXN_LABELS, txn.type, txn.type) },
+                  // TRX-007: arah tak dikenal diberi label eksplisit — nominal
+                  // netral (tanpa tanda) saja masih bisa dibaca sebagai positif.
+                  ...(direction === "UNKNOWN"
+                    ? [{ label: "Arah dana", value: "Tidak diketahui" }]
+                    : []),
                   {
                     label: "Status",
                     // R2 (audit ronde-2, butir #80): enum mentah tidak dipaparkan;
@@ -111,13 +115,17 @@ export default function WalletTransactionScreen() {
                   <ReceiptTicket
                     status={toReceiptStatus(status)}
                     title={mapValue(WALLET_TXN_LABELS, txn.type, txn.type)}
+                    // TRX-007: DEBIT yang diketahui tetap minus; UNKNOWN tidak
+                    // dipaksa positif — nilai absolut netral + label "Arah dana".
                     amount={direction === "DEBIT" ? -Math.abs(txn.amount) : Math.abs(txn.amount)}
                     amountTone={
                       status !== "SUCCESS"
                         ? "primary"
-                        : isWalletCredit(txn)
+                        : direction === "CREDIT"
                           ? "success"
-                          : "danger"
+                          : direction === "DEBIT"
+                            ? "danger"
+                            : "primary"
                     }
                     rows={rows}
                     receiptId={txn.id}

@@ -220,3 +220,60 @@ describe("deviceLocation dikirim di body aksi sensitif", () => {
     expect(calls.some((c) => c.url.includes(ACTIONS[3].path))).toBe(true)
   })
 })
+
+describe("TRX-009: buyerLocation pada create order", () => {
+  const CREATE_ORDER = ACTIONS[0]
+
+  it("lokasi tersedia: buyerLocation dikirim dengan shape {latitude, longitude, accuracy?, capturedAt?}", async () => {
+    mockGetAuthLocation.mockResolvedValue(FIXTURE_LOCATION)
+    const body = await captureRequestBody(CREATE_ORDER)
+    expect(body).toHaveProperty("buyerLocation")
+    const bl = body.buyerLocation as Record<string, unknown>
+    expect(bl.latitude).toBe(FIXTURE_LOCATION.latitude)
+    expect(bl.longitude).toBe(FIXTURE_LOCATION.longitude)
+    expect(bl.accuracy).toBe(FIXTURE_LOCATION.accuracy)
+    expect(bl.capturedAt).toBe(FIXTURE_LOCATION.timestamp)
+    // Tidak ada field asing di kontrak buyerLocation.
+    expect(Object.keys(bl).sort()).toEqual(["accuracy", "capturedAt", "latitude", "longitude"])
+  })
+
+  it("lokasi tersedia tanpa accuracy/timestamp: field opsional tidak dikirim", async () => {
+    mockGetAuthLocation.mockResolvedValue({
+      latitude: -6.2088,
+      longitude: 106.8456,
+    })
+    const body = await captureRequestBody(CREATE_ORDER)
+    const bl = body.buyerLocation as Record<string, unknown>
+    expect(bl.latitude).toBe(-6.2088)
+    expect(bl.longitude).toBe(106.8456)
+    expect(bl).not.toHaveProperty("accuracy")
+    expect(bl).not.toHaveProperty("capturedAt")
+  })
+
+  it("lokasi null (izin ditolak): buyerLocation TIDAK dikirim, order tetap terkirim", async () => {
+    mockGetAuthLocation.mockResolvedValue(null)
+    const body = await captureRequestBody(CREATE_ORDER)
+    expect(body).not.toHaveProperty("buyerLocation")
+    // Kontrak lama tetap utuh.
+    expect(body).toHaveProperty("deviceLocation", null)
+    expect(body).toHaveProperty("title", "Kopi arabika 1kg")
+  })
+
+  it("koordinat tidak valid: buyerLocation TIDAK dikirim, order tetap terkirim", async () => {
+    mockGetAuthLocation.mockResolvedValue({
+      latitude: Number.NaN,
+      longitude: 106.8456,
+      accuracy: 10,
+      timestamp: "2026-09-28T00:00:00.000Z",
+    })
+    const body = await captureRequestBody(CREATE_ORDER)
+    expect(body).not.toHaveProperty("buyerLocation")
+    expect(body).toHaveProperty("title", "Kopi arabika 1kg")
+  })
+
+  it("satu pengambilan lokasi untuk deviceLocation + buyerLocation (tidak spam prompt)", async () => {
+    mockGetAuthLocation.mockResolvedValue(FIXTURE_LOCATION)
+    await captureRequestBody(CREATE_ORDER)
+    expect(mockGetAuthLocation).toHaveBeenCalledTimes(1)
+  })
+})

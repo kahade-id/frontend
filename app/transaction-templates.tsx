@@ -301,7 +301,12 @@ export default function TransactionTemplatesScreen() {
                     placeholder="Mis. Jasa desain logo"
                   />
                 </Field>
-                <Field label="Peran" required>
+                {/* TRX-011: peran TIDAK disimpan backend — hanya isian awal saat
+                    memakai template. Bukan required, bukan atribut tersimpan. */}
+                <Field
+                  label="Peran (isian awal)"
+                  helperText="Hanya mengisi otomatis kolom peran saat memakai template — tidak disimpan di template."
+                >
                   <OrderRoleSelector
                     value={form.role as OrderRoleValue}
                     onChange={(v) => setForm({ ...form, role: v })}
@@ -356,9 +361,11 @@ export default function TransactionTemplatesScreen() {
                     viewer={form.role}
                   />
                 </Field>
+                {/* TRX-011: username lawan TIDAK disimpan backend — hanya isian
+                    awal saat memakai template, tidak membatasi siapa pun. */}
                 <Field
-                  label="Username lawan (opsional)"
-                  helperText="Bila diisi, template hanya berlaku untuk lawan ini"
+                  label="Username lawan (isian awal)"
+                  helperText="Hanya mengisi otomatis kolom lawan saat memakai template — tidak disimpan dan tidak membatasi pemakaian template."
                 >
                   <Input
                     value={form.counterpartUsername ?? ""}

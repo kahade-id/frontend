@@ -14,10 +14,10 @@
  *              maks. diskon · kadaluarsa), CTA "Pakai" / tanda terpilih
  *
  * Keputusan non-obvious:
- *   - `status` ("active" | "used" | "expired") dihitung PEMANGGIL dari data
- *     voucher (usedAt / active / expiresAt) — komponen hanya memetakan ke
- *     Badge; tidak menebak sendiri supaya satu definisi status dipakai
- *     semua layar.
+ *   - `status` ("active" | "used" | "expired" | "inactive") dihitung PEMANGGIL
+ *     dari data voucher (usedAt / active / expiresAt) — komponen hanya
+ *     memetakan ke Badge; tidak menebak sendiri supaya satu definisi status
+ *     dipakai semua layar.
  *   - Kode disalin lewat `onCopyCode` milik pemanggil (clipboard + toast di
  *     sana), bukan di dalam komponen — komponen tidak menyentuh perangkat.
  *   - `discountType`: PERCENTAGE ("25%", Mono besar) atau FIXED (<Amount>
@@ -46,11 +46,11 @@ import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
 import { formatRupiah } from "@/lib/format"
 
-export type VoucherDiscountType = "PERCENTAGE" | "FIXED"
+export type VoucherDiscountType = "PERCENTAGE" | "FIXED" | "UNKNOWN"
 export type VoucherApplicableTo = "BUYER" | "SELLER" | "ALL"
 
 /** Status tiket voucher — dihitung pemanggil, bukan komponen. */
-export type VoucherStatus = "active" | "used" | "expired"
+export type VoucherStatus = "active" | "used" | "expired" | "inactive"
 
 export type VoucherCardLabels = {
   use: string
@@ -62,6 +62,7 @@ export type VoucherCardLabels = {
   active: string
   used: string
   expired: string
+  inactive: string
   code: string
   copyCode: string
   unavailable: string
@@ -77,6 +78,7 @@ const DEFAULT_LABELS: VoucherCardLabels = {
   active: "Aktif",
   used: "Terpakai",
   expired: "Kedaluwarsa",
+  inactive: "Nonaktif",
   code: "Kode voucher",
   copyCode: "Salin kode voucher",
   unavailable: "Belum tersedia",
@@ -86,12 +88,15 @@ const STATUS_BADGE_TONE: Record<VoucherStatus, BadgeTone> = {
   active: "success",
   used: "neutral",
   expired: "danger",
+  // TRX-022: nonaktif ≠ kedaluwarsa — netral, bukan merah.
+  inactive: "neutral",
 }
 
-const STATUS_BADGE_LABEL: Record<VoucherStatus, keyof Pick<VoucherCardLabels, "active" | "used" | "expired">> = {
+const STATUS_BADGE_LABEL: Record<VoucherStatus, keyof Pick<VoucherCardLabels, "active" | "used" | "expired" | "inactive">> = {
   active: "active",
   used: "used",
   expired: "expired",
+  inactive: "inactive",
 }
 
 export type VoucherCardProps = Omit<ViewProps, "children"> & {
@@ -148,11 +153,14 @@ export function VoucherCard({
 }: VoucherCardProps) {
   const t = { ...DEFAULT_LABELS, ...labels }
   const isPercent = discountType === "PERCENTAGE"
-  const discountText = !Number.isFinite(discountValue)
-    ? t.unavailable
-    : isPercent
-      ? `${discountValue}%`
-      : formatRupiah(discountValue)
+  // TRX-022: tipe diskon ASING tidak boleh ditebak — tampilkan "Belum
+  // tersedia" alih-alih default persen yang menyesatkan.
+  const discountText =
+    discountType === "UNKNOWN" || !Number.isFinite(discountValue)
+      ? t.unavailable
+      : isPercent
+        ? `${discountValue}%`
+        : formatRupiah(discountValue)
 
   const conditions = [
     minOrderValue != null ? `${t.minOrder} ${formatRupiah(minOrderValue)}` : undefined,

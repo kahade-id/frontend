@@ -880,6 +880,32 @@ export type CreateOrderDto = {
   attachments?: Array<string>
   /** Source inquiry room ID if order originates from an INQUIRY chat (links negotiation context) */
   inquiryRoomId?: string
+  /**
+   * ID alamat pengiriman dari buku alamat — WAJIB untuk PHYSICAL_GOODS
+   * (backend fail-closed). Diabaikan untuk tipe order lain.
+   */
+  shippingAddressId?: string
+  /**
+   * Lokasi presisi buyer saat order dibuat — opsional, tidak dikirim bila
+   * user menolak izin lokasi. Kontrak backend: { latitude, longitude,
+   * accuracy?, capturedAt? } (BuyerLocationDto).
+   */
+  buyerLocation?: BuyerLocation | null
+}
+
+/**
+ * Lokasi presisi buyer saat order dibuat (kontrak dengan backend).
+ * Selalu OPSIONAL — null/absent bila user menolak izin lokasi.
+ */
+export type BuyerLocation = {
+  /** Lintang (-90..90) */
+  latitude: number
+  /** Bujur (-180..180) */
+  longitude: number
+  /** Akurasi dalam meter (bila dilaporkan OS) */
+  accuracy?: number
+  /** Waktu pengambilan lokasi (ISO 8601) */
+  capturedAt?: string
 }
 
 export type ConfirmOrderDto = {
@@ -984,6 +1010,13 @@ export type CreateOrderLinkDto = {
   feeResponsibility: "BUYER" | "SELLER" | "SPLIT"
   /** maxLength 50 */
   counterpartUsername?: string
+  /**
+   * ID alamat pengiriman dari buku alamat pembuat link — WAJIB bila
+   * orderType PHYSICAL_GOODS dan pembuat berperan sebagai BUYER
+   * (backend fail-closed). Bila pembuat berperan SELLER, alamat diisi
+   * penerima (pembeli) saat accept link.
+   */
+  shippingAddressId?: string
 }
 
 export type SubmitDeliveryProofDto = {
