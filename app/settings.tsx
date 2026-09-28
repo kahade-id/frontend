@@ -69,6 +69,7 @@ import {
 import { api } from "@/lib/api"
 import { clearSession } from "@/lib/api/session"
 import type { UserProfile } from "@/lib/api/users"
+import { filterSettingsGroups } from "@/lib/settings-search"
 import type { NotificationPreferences } from "@/lib/api/notifications"
 import { unregisterPushDevice } from "@/lib/push-notifications"
 import { unregisterWebPushDevice } from "@/lib/web-push"
@@ -264,16 +265,8 @@ export default function SettingsScreen() {
   )
   const q = query.trim().toLowerCase()
   const filteredGroups = useMemo(
-    () =>
-      q
-        ? groups
-            .map((g) => ({
-              ...g,
-              items: g.items.filter((item) => item.label.toLowerCase().includes(q)),
-            }))
-            .filter((g) => g.items.length > 0)
-        : groups,
-    [groups, q],
+    () => filterSettingsGroups(groups, query),
+    [groups, query],
   )
   const searching = q.length > 0
   const noResults = searching && filteredGroups.length === 0
