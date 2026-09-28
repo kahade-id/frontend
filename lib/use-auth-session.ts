@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, useSyncExternalStore } from "react"
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react"
 import { Platform } from "react-native"
 import { getSecureItem, SecureKeys } from "@/lib/secure-storage"
 import { refreshAccessToken } from "@/lib/api/client"
@@ -79,5 +79,13 @@ export function useAuthSession() {
     }
   }, [attempt])
   const retry = useCallback(() => setAttempt((n) => n + 1), [])
-  return { token, restoring, error, retry }
+  /**
+   * NS-005 (audit performa): kembalikan objek STABIL — literal baru tiap
+   * render membuat konsumen yang memakai `session` utuh sebagai dep effect
+   * jalan ulang di setiap render induk, bukan tiap perubahan sesi.
+   */
+  return useMemo(
+    () => ({ token, restoring, error, retry }),
+    [token, restoring, error, retry],
+  )
 }
