@@ -10,8 +10,10 @@
  *     Button "Simpan kata sandi"
  *     Alert error (jika ada)
  *
- * Kontrak API (kontrak auth-rework 2026-09-26, frozen):
- *   POST /v1/auth/reset-password  body { tempToken, newPassword, location? }
+ * Kontrak API (kontrak auth-rework 2026-09-26 + Wave 1 2026-09-28, frozen):
+ *   POST /v1/auth/reset-password  body { tempToken, newPassword, deviceId, location? }
+ * - deviceId WAJIB (Wave 1) — diisi otomatis oleh api.auth.resetPassword()
+ *   dari device id per-install; layar ini tidak mengirim manual.
  *   - OTP sudah diverifikasi di /verify-otp (status password_reset) — layar
  *     ini TIDAK lagi menerima kode OTP; yang disimpan hanya tempToken di
  *     lib/password-reset.ts (memori modul, bukan route params).

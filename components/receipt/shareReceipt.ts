@@ -1,9 +1,10 @@
 /**
  * Kahade — bagikan struk tiket sebagai gambar.
  *
- * Alur: `react-native-view-shot` menangkap kartu tiket (via ref) -> berkas
- * PNG di direktori cache (`expo-file-system`) -> `expo-sharing` membuka share
- * sheet OS (`lib/share` memilih jalur file yang benar per platform).
+ * Alur: `captureView` (lib/capture-view.ts, lazy import react-native-view-shot)
+ * menangkap kartu tiket (via ref) -> berkas PNG di direktori cache
+ * (`expo-file-system`) -> `expo-sharing` membuka share sheet OS (`lib/share`
+ * memilih jalur file yang benar per platform).
  *
  * Fallback: Alert bila gagal — tidak melempar ke pemanggil.
  *
@@ -13,8 +14,8 @@
  * disengaja; share tetap dicoba dan kegagalan dilaporkan lewat Alert.
  */
 import { Alert, Platform, type View } from "react-native"
-import { captureRef } from "react-native-view-shot"
 
+import { captureView } from "@/lib/capture-view"
 import { shareContent } from "@/lib/share"
 import { translate } from "@/lib/i18n/translate"
 
@@ -24,13 +25,12 @@ async function captureReceiptUri(
   if (!ticket) throw new Error("ticket-ref-missing")
   // Web: `data-uri` agar bisa diunduh via anchor; native: `tmpfile` PNG di
   // direktori cache — siap dishare langsung.
-  const uri = await captureRef(ticket, {
+  // captureView melempar bila ref kosong / hasil kosong.
+  return captureView(ticket, {
     format: "png",
     quality: 1,
     result: Platform.OS === "web" ? "data-uri" : "tmpfile",
   })
-  if (!uri) throw new Error("capture-empty")
-  return uri
 }
 
 export async function shareReceipt(
