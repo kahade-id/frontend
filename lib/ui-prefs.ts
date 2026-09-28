@@ -124,7 +124,8 @@ function subscribe(listener: () => void) {
   }
 }
 
-function sanitizePrefs(raw: unknown): UiPrefs {
+/** Diekspor untuk test (Batch 139 E14): sanitizer preferensi murni. */
+export function sanitizePrefs(raw: unknown): UiPrefs {
   if (typeof raw !== "object" || raw === null) return DEFAULT_PREFS
   const rec = raw as Record<string, unknown>
   const snooze: Record<string, number> = {}

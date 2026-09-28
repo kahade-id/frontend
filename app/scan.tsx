@@ -228,8 +228,16 @@ export default function ScanScreen() {
   }, [])
 
   const handleDetected = useCallback((raw: string) => {
+    // Batch 139 E15: kunci terpusat — SEMUA sumber (kamera, galeri, manual)
+    // menghormati lock yang sama; satu kode diproses sekali sampai sheet
+    // ditutup ("Pindai Lagi").
+    if (scanLock.current) return
+    scanLock.current = true
     const text = raw.trim()
-    if (!text) return
+    if (!text) {
+      scanLock.current = false
+      return
+    }
     const target = parseQrCode(text)
     // Batch 139 E14: getaran konfirmasi saat kode berhasil dipindai — hanya
     // bila pengguna mengaktifkannya di preferensi. Haptic tidak mengeluarkan
@@ -251,8 +259,7 @@ export default function ScanScreen() {
 
   const handleBarcodeScanned = useCallback(
     ({ data }: { data: string }) => {
-      if (scanLock.current) return
-      scanLock.current = true
+      // E15: lock dicek di handleDetected (terpusat untuk semua sumber).
       handleDetected(data)
     },
     [handleDetected],

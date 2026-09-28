@@ -35,8 +35,19 @@ export type UseAvatarUpload = {
   busy: boolean
   /** Pesan error terakhir (inline), atau null. */
   error: string | null
-  /** Pilih dari kamera/galeri lalu unggah. */
+  /**
+   * Batch 139 E02 — aset yang menunggu konfirmasi pratinjau (null bila tidak
+   * ada). `upload()` TIDAK langsung mengunggah: ia memilih gambar lalu
+   * mengisi `preview`; konsumen menampilkan dialog pratinjau lingkaran +
+   * batas aman, dan memanggil `confirmPreview()` / `cancelPreview()`.
+   */
+  preview: PickedImage | null
+  /** Pilih dari kamera/galeri → tampilkan pratinjau (E02). */
   upload: (source: PickImageOptions["source"]) => Promise<void>
+  /** Unggah aset yang sedang dipratinjau. */
+  confirmPreview: () => Promise<void>
+  /** Batalkan pratinjau (buang aset yang dipilih). */
+  cancelPreview: () => void
   /** Ulangi upload dengan aset yang sudah dipilih (item 66). */
   retry: () => Promise<void>
   /** Hapus avatar. */
@@ -48,6 +59,7 @@ export function useAvatarUpload({ onAvatarUrl, onChanged }: UseAvatarUploadOptio
   const toast = useToast()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [preview, setPreview] = useState<PickedImage | null>(null)
   // Aset yang sudah dipilih dipertahankan untuk retry tanpa pilih ulang.
   const pendingRef = useRef<PickedImage | null>(null)
 
@@ -95,11 +107,26 @@ export function useAvatarUpload({ onAvatarUrl, onChanged }: UseAvatarUploadOptio
         return
       }
       if (picked.status !== "picked") return
+      // Batch 139 E02: TAHAN untuk pratinjau — jangan langsung unggah.
+      // Konsumen menampilkan dialog lingkaran + batas aman.
       pendingRef.current = picked.asset
-      await performUpload()
+      setPreview(picked.asset)
     },
-    [busy, performUpload, toast],
+    [busy, toast],
   )
+
+  /** Batch 139 E02: unggah aset yang sedang dipratinjau. */
+  const confirmPreview = useCallback(async () => {
+    if (busy || !pendingRef.current) return
+    setPreview(null)
+    await performUpload()
+  }, [busy, performUpload])
+
+  /** Batch 139 E02: batalkan pratinjau, buang aset yang dipilih. */
+  const cancelPreview = useCallback(() => {
+    pendingRef.current = null
+    setPreview(null)
+  }, [])
 
   const retry = useCallback(async () => {
     if (busy) return
@@ -133,5 +160,5 @@ export function useAvatarUpload({ onAvatarUrl, onChanged }: UseAvatarUploadOptio
 
   const clearError = useCallback(() => setError(null), [])
 
-  return { busy, error, upload, retry, remove, clearError }
+  return { busy, error, preview, upload, confirmPreview, cancelPreview, retry, remove, clearError }
 }

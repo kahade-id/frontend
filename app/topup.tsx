@@ -123,6 +123,19 @@ export default function TopupScreen() {
     null,
   )
   const [statusLoading, setStatusLoading] = useState(false)
+
+  /**
+   * Batch 139 E17 — penanda kedaluwarsa lokal dari <Countdown> (server-synced).
+   * Begitu hitung mundur mencapai nol, status efektif menjadi EXPIRED: CTA
+   * pembayaran (cek status/batalkan) diganti struk kedaluwarsa + CTA
+   * "Buat kode pembayaran baru". Ini berdasarkan waktu server, bukan jam
+   * perangkat; bila server ternyata masih PENDING, polling manual akan
+   * mengoreksi saat pengguna mengetuk periksa status.
+   */
+  const [locallyExpired, setLocallyExpired] = useState(false)
+  useEffect(() => {
+    setLocallyExpired(false)
+  }, [result?.paymentTxId])
   const [statusError, setStatusError] = useState<string | null>(null)
   const submitLock = useRef(false)
   /** M-08 (issue #5): satu `Idempotency-Key` per siklus top-up (lihat order/[id]). */
@@ -550,7 +563,11 @@ export default function TopupScreen() {
                   // Status final (SUCCESS/FAILED/EXPIRED/CANCELLED) → struk
                   // tiket; instruksi pembayaran (PENDING) tetap di
                   // TopupStatusCard.
-                  const finalStatus = mapValue(STATUS, result?.status, undefined)
+                  // Batch 139 E17: countdown lokal yang selesai membuat status
+                  // efektif EXPIRED — CTA pembayaran dinonaktifkan diganti
+                  // CTA regenerate.
+                  const effectiveStatus = locallyExpired ? "EXPIRED" : result?.status
+                  const finalStatus = mapValue(STATUS, effectiveStatus, undefined)
                   if (finalStatus) {
                     const ok = finalStatus === "SUCCESS"
                     // FE-IMP-4 item 25: QRIS/kode bayar kedaluwarsa ditonjolkan
@@ -632,6 +649,9 @@ export default function TopupScreen() {
                   reference={result?.reference ?? undefined}
                   expiresAt={result?.expiresAt ? new Date(result.expiresAt) : undefined}
                   refreshing={statusLoading}
+                  // Batch 139 E17: countdown selesai → tandai kedaluwarsa
+                  // lokal (server-synced), CTA pembayaran dinonaktifkan.
+                  onExpire={() => setLocallyExpired(true)}
                   onRefresh={() => result && void pollStatus(result.paymentTxId)}
                   onDone={() => router.replace(ROUTES.topupHistory)}
                   onRetry={() => {

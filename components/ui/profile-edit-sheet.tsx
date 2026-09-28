@@ -33,6 +33,7 @@ import { ROUTES } from "@/lib/routes"
 import { useAvatarUpload } from "@/lib/use-avatar-upload"
 
 import { ActionSheet, type ActionSheetItem } from "@/components/ui/action-sheet"
+import { AvatarPreviewDialog } from "@/components/ui/avatar-preview-dialog"
 import { Alert } from "@/components/ui/alert"
 import { Avatar } from "@/components/ui/avatar"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
@@ -354,6 +355,14 @@ export function ProfileEditSheet({ visible, onRequestClose, profile, onSaved }: 
         title={translate("Foto profil")}
         actions={avatarActions}
         onRequestClose={() => setAvatarSheetOpen(false)}
+      />
+
+      {/* Batch 139 E02: pratinjau lingkaran + batas aman sebelum upload avatar. */}
+      <AvatarPreviewDialog
+        asset={avatar.preview}
+        busy={avatar.busy}
+        onConfirm={() => void avatar.confirmPreview()}
+        onCancel={avatar.cancelPreview}
       />
 
       {/* Username berubah → kontrak DTO butuh currentPassword. */}

@@ -28,7 +28,7 @@
  *   - Avatar diunggah langsung saat dipilih (tidak menunggu "Simpan") — pola
  *     yang sama dengan Setup Profil; foto bukan bagian dari dto profil.
  */
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { View } from "react-native"
 import { router } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
@@ -50,6 +50,7 @@ import { Alert } from "@/components/ui/alert"
 import { Avatar } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Dialog } from "@/components/ui/modal"
+import { AvatarPreviewDialog } from "@/components/ui/avatar-preview-dialog"
 import { EmailField } from "@/components/ui/email-field"
 import { ErrorState } from "@/components/ui/error-state"
 import { Crossfade } from "@/components/ui/fade-in"
@@ -253,6 +254,55 @@ export default function EditProfileScreen() {
     dto.contactEmail !== undefined ||
     dto.contactPhone !== undefined
 
+  /**
+   * Batch 139 E03 — deteksi konflik best-effort sebelum simpan.
+   *
+   * Backend tidak mengekspos `updatedAt` profil di kontrak GET /v1/users/me,
+   * jadi tidak ada baseline versi yang bisa dibandingkan. Sebagai gantinya:
+   * sebelum menyimpan, profil diambil ulang (fresh, tanpa cache) dan setiap
+   * field yang AKAN disimpan dibandingkan dengan baseline saat form dimuat
+   * (`initial`). Bila nilai server kini berbeda dari baseline → field itu
+   * diubah di perangkat/sesi lain selama pengguna mengedit → konflik.
+   *
+   * Hanya field dalam dto yang diperiksa (tidak ada false positive dari
+   * field yang tidak disentuh). Gagal re-fetch → JANGAN blokir simpan
+   * (fail-open untuk kegagalan jaringan; konflik hanya dilaporkan bila
+   * terbukti ada).
+   */
+  const [conflictOpen, setConflictOpen] = useState(false)
+  const [conflictFields, setConflictFields] = useState<string[]>([])
+  const skipConflictRef = useRef(false)
+  const pendingPasswordRef = useRef<string | undefined>(undefined)
+
+  const detectConflicts = useCallback(async (): Promise<string[]> => {
+    let fresh: Awaited<ReturnType<typeof api.users.getMe>> | null = null
+    try {
+      fresh = await api.users.getMe()
+    } catch {
+      return []
+    }
+    if (!fresh) return []
+    const t = (v: unknown) => (typeof v === "string" ? v.trim() : (v ?? ""))
+    const fields: string[] = []
+    if (dto.fullName !== undefined && t(fresh.fullName) !== t(initial.fullName))
+      fields.push(translate("Nama lengkap"))
+    if (dto.username !== undefined && t(fresh.username) !== t(initial.username))
+      fields.push(translate("Nama pengguna"))
+    if (dto.bio !== undefined && t(fresh.bio) !== t(initial.bio)) fields.push(translate("Bio"))
+    if (dto.contactEmail !== undefined && t(fresh.contactEmail) !== t(initial.contactEmail))
+      fields.push(translate("Email kontak"))
+    if (
+      dto.contactPhone !== undefined &&
+      normalizePhoneId(fresh.contactPhone ?? "") !== initial.contactPhone
+    )
+      fields.push(translate("Nomor kontak"))
+    if (dto.showContactEmail !== undefined && Boolean(fresh.showContactEmail) !== initial.showContactEmail)
+      fields.push(translate("Tampilkan email"))
+    if (dto.showContactPhone !== undefined && Boolean(fresh.showContactPhone) !== initial.showContactPhone)
+      fields.push(translate("Tampilkan nomor"))
+    return fields
+  }, [dto, initial])
+
   const save = useCallback(
     async (password?: string) => {
       if (dto.username !== undefined && usernameAvailability !== "available") {
@@ -270,6 +320,18 @@ export default function EditProfileScreen() {
       setPasswordError(undefined)
       try {
         if (profileChanged) {
+          // Batch 139 E03: cek konflik SEBELUM menimpa — kecuali pengguna
+          // sudah memilih "Tetap simpan" di dialog konflik.
+          if (!skipConflictRef.current) {
+            const conflicts = await detectConflicts()
+            if (conflicts.length > 0) {
+              pendingPasswordRef.current = password
+              setConflictFields(conflicts)
+              setConflictOpen(true)
+              return
+            }
+          }
+          skipConflictRef.current = false
           await api.users.updateProfile(password ? { ...dto, currentPassword: password } : dto)
         }
         if (linksChanged) {
@@ -310,7 +372,7 @@ export default function EditProfileScreen() {
         setSubmitting(false)
       }
     },
-    [dto, links, linksChanged, profileChanged, toast.show, usernameAvailability],
+    [dto, links, linksChanged, profileChanged, toast.show, usernameAvailability, detectConflicts],
   )
 
   const handleSubmit = useCallback(() => {
@@ -730,6 +792,14 @@ export default function EditProfileScreen() {
         onRequestClose={() => setAvatarSheetOpen(false)}
       />
 
+      {/* Batch 139 E02: pratinjau lingkaran + batas aman sebelum upload avatar. */}
+      <AvatarPreviewDialog
+        asset={avatar.preview}
+        busy={avatar.busy}
+        onConfirm={() => void avatar.confirmPreview()}
+        onCancel={avatar.cancelPreview}
+      />
+
       <ActionSheet
         visible={headerSheetOpen}
         title={translate("Foto sampul")}
@@ -803,6 +873,42 @@ export default function EditProfileScreen() {
           returnKeyType="done"
           onSubmitEditing={() => currentPassword && void save(currentPassword)}
         />
+      </Dialog>
+
+      {/*
+       * Batch 139 E03: dialog konflik — profil berubah di perangkat/sesi lain
+       * selama pengguna mengedit. Pilihan: tetap simpan (timpa), muat ulang
+       * dari server (buang edit lokal), atau kembali mengedit.
+       */}
+      <Dialog
+        title={translate("Profil berubah di tempat lain")}
+        description={translate(
+          "Field berikut diubah di perangkat atau sesi lain sejak Anda mulai mengedit: {x}. Menyimpan sekarang akan menimpa perubahan tersebut.",
+          { x: conflictFields.join(", ") },
+        )}
+        visible={conflictOpen}
+        confirmLabel={translate("Tetap simpan")}
+        cancelLabel={translate("Kembali mengedit")}
+        onConfirm={() => {
+          setConflictOpen(false)
+          skipConflictRef.current = true
+          void save(pendingPasswordRef.current)
+        }}
+        onCancel={() => setConflictOpen(false)}
+        onRequestClose={() => setConflictOpen(false)}
+      >
+        <Button
+          variant="ghost"
+          fullWidth
+          onPress={() => {
+            setConflictOpen(false)
+            // Refresh memicu hidrasi ulang form dari data server terbaru
+            // (effect pada query.data) — edit lokal dibuang.
+            void query.refresh()
+          }}
+        >
+          {translate("Muat ulang dari server")}
+        </Button>
       </Dialog>
     </Screen>
   )

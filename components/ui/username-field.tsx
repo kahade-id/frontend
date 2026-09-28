@@ -25,13 +25,12 @@ import { translate } from "@/lib/i18n/translate"
 
 export type UsernameAvailability = "idle" | "checking" | "available" | "taken"
 
-export const USERNAME_MIN = 3
-export const USERNAME_MAX = 20
-const USERNAME_RE = /^[a-z0-9](?:[a-z0-9._]{1,18}[a-z0-9])?$/
+// Batch 139 E01: konstanta + normalisasi dipindah ke lib/username.ts (murni,
+// teruji). Re-export di sini menjaga kompatibilitas import yang sudah ada.
+import { normalizeUsername, USERNAME_MIN, USERNAME_MAX } from "@/lib/username"
+export { normalizeUsername, USERNAME_MIN, USERNAME_MAX }
 
-export function normalizeUsername(raw: string): string {
-  return raw.toLowerCase().replace(/[^a-z0-9._]/g, "").slice(0, USERNAME_MAX)
-}
+const USERNAME_RE = /^[a-z0-9](?:[a-z0-9._]{1,18}[a-z0-9])?$/
 
 export function validateUsername(value: string, labels: UsernameFieldLabels): string | undefined {
   if (!value) return undefined
