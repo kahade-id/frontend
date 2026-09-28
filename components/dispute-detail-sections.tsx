@@ -573,7 +573,7 @@ export function DisputeProposeSheet({
           // E-10 (audit escrow 2026-09-24): order gagal dimuat = usulan tidak
           // terkirim — alasan eksplisit, bukan tombol yang diam-diam batal.
           <Text variant="caption" tone="danger">
-            Detail order belum termuat — segarkan layar sebelum mengirim usulan.
+            Detail pesanan belum termuat — segarkan layar sebelum mengirim usulan.
           </Text>
         ) : null}
         <AmountInput

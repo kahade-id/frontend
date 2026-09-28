@@ -188,10 +188,10 @@ export function WalletHeroCard({
                   accessibilityRole={onPressHeld ? "button" : undefined}
                   accessibilityLabel={
                     onPressHeld
-                      ? `${formatRupiah(heldValue)} ditahan di escrow. Ketuk untuk melihat rincian order penahan.`
+                      ? `${formatRupiah(heldValue)} ditahan di escrow. Ketuk untuk melihat rincian pesanan penahan.`
                       : undefined
                   }
-                  accessibilityHint={onPressHeld ? "Menampilkan daftar order yang menahan dana" : undefined}
+                  accessibilityHint={onPressHeld ? "Menampilkan daftar pesanan yang menahan dana" : undefined}
                   className={cn(
                     "flex-row items-center gap-1.5",
                     onPressHeld && "-m-1 rounded-xs p-1",
