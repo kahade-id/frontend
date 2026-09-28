@@ -191,7 +191,7 @@ function Breadcrumb({
               accessibilityRole="link"
               accessibilityLabel={`Kembali ke ${c.label}`}
             >
-              <Text variant="caption" tone="active" numberOfLines={1} className="max-w-[160px] underline">
+              <Text variant="caption" tone="accent" numberOfLines={1} className="max-w-[160px] underline">
                 {c.label}
               </Text>
             </PressableScale>
@@ -363,11 +363,12 @@ export default function HelpScreen() {
                             accessibilityRole="link"
                             accessibilityLabel={`Lompat ke ${entry.text}`}
                             className="py-1.5"
-                            style={{ paddingLeft: (entry.level - 1) * 12 }}
                           >
-                            <Text variant="body" tone="active" numberOfLines={2} className="underline">
-                              {entry.text}
-                            </Text>
+                            <View style={{ paddingLeft: (entry.level - 1) * 12 }}>
+                              <Text variant="body" tone="accent" numberOfLines={2} className="underline">
+                                {entry.text}
+                              </Text>
+                            </View>
                           </PressableScale>
                         ))}
                       </View>
@@ -435,8 +436,8 @@ export default function HelpScreen() {
             onPress={scrollToTop}
             accessibilityRole="button"
             accessibilityLabel="Kembali ke atas artikel"
-            className="absolute bottom-6 right-5 h-12 w-12 items-center justify-center rounded-full bg-primary"
-            style={{ elevation: 4 }}
+            className="h-12 w-12 items-center justify-center rounded-full bg-primary"
+            containerClassName="absolute bottom-6 right-5"
           >
             <Icon icon={ArrowUp} size="md" tone="inverse" weight="bold" />
           </PressableScale>

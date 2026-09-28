@@ -31,7 +31,6 @@ import { tokens } from "@/lib/tokens"
 import { useApiQuery } from "@/lib/use-api-query"
 import { translate } from "@/lib/i18n"
 import { onReconnect } from "@/lib/connectivity"
-import { logWarn } from "@/lib/telemetry"
 import {
   bumpUnsentAttempts,
   dequeueUnsentLiveMessage,
@@ -529,7 +528,7 @@ export default function LiveSupportScreen() {
             <Text variant="caption" tone="secondary" className="text-center">
               {translate("Posisi antrean Anda: #{x}", { x: ticket.queuePosition })}
               {ticket.estimatedWaitMinutes != null
-                ? ` · ${translate("estimasi ±{x} menit (dari server)", { x: ticket.estimatedWaitMinutes })}`
+                ? ` · estimasi ±${ticket.estimatedWaitMinutes} menit (dari server)`
                 : ""}
             </Text>
           ) : (
@@ -617,7 +616,7 @@ export default function LiveSupportScreen() {
                         <Text variant="caption" tone="danger">
                           {translate("Belum terkirim")}
                           {(message.attempts ?? 0) > 1
-                            ? ` · ${translate("percobaan ke-{x}", { x: message.attempts })}`
+                            ? ` · percobaan ke-${message.attempts}`
                             : ""}
                         </Text>
                         <TextLink

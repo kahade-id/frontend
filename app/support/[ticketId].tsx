@@ -30,6 +30,8 @@ import { Star, Paperclip, X } from "phosphor-react-native"
 
 import { Button } from "@/components/ui/button"
 import { ChatMessageBubble } from "@/components/ui/chat-message-bubble"
+import { SupportMessageMeta } from "@/components/ui/support-message-meta"
+import { describeTicketSla } from "@/lib/ticket-sla"
 import { Dialog } from "@/components/ui/modal"
 import { ErrorState } from "@/components/ui/error-state"
 import { Header } from "@/components/ui/header"
@@ -256,6 +258,33 @@ export default function SupportTicketDetailScreen() {
               updatedAt={ticket.updatedAt ? formatDateTime(ticket.updatedAt) : undefined}
             />
 
+            {/* F12: kartu SLA — jujur bila server belum mengirim batas respons. */}
+            {(() => {
+              const sla = describeTicketSla(ticket)
+              const ownerLabel =
+                sla.nextOwner === "agent"
+                  ? "Tim Kahade"
+                  : sla.nextOwner === "user"
+                    ? "Anda"
+                    : "—"
+              return (
+                <View className="gap-1 rounded-md border border-border bg-surface p-3">
+                  <Text variant="label" tone="secondary">
+                    Status penanganan
+                  </Text>
+                  <Text variant="body">{sla.stage}</Text>
+                  <Text variant="caption" tone="secondary">
+                    {sla.nextStep} · {ownerLabel}
+                  </Text>
+                  <Text variant="caption" tone={sla.responseDueLabel ? undefined : "secondary"}>
+                    {sla.responseDueLabel
+                      ? `Batas respons: ${sla.responseDueLabel}`
+                      : "Batas respons belum tersedia dari server."}
+                  </Text>
+                </View>
+              )
+            })()}
+
             {ticket.attachmentKeys && ticket.attachmentKeys.length > 0 ? (
               <View className="gap-2">
                 <SectionHeader title="Lampiran" />
@@ -340,24 +369,37 @@ export default function SupportTicketDetailScreen() {
                 Belum ada pesan.
               </Text>
             ) : null}
-            {messages.map((m, i) => (
-              <ChatMessageBubble
-                key={m.id}
-                direction={m.fromUser ? "outgoing" : "incoming"}
-                text={m.text}
-                time={formatDateTime(m.createdAt)}
-                grouped={messages[i - 1]?.fromUser === m.fromUser}
-              >
-                {/* Item 130: lampiran per balasan (slot children = di atas teks). */}
-                {m.attachments && m.attachments.length > 0 ? (
-                  <View className="gap-1">
-                    {m.attachments.map((key, ai) => (
-                      <SupportAttachmentItem key={key || ai} fileKey={key} index={ai} />
-                    ))}
-                  </View>
-                ) : null}
-              </ChatMessageBubble>
-            ))}
+            {messages.map((m, i) => {
+              const prev = messages[i - 1]
+              const grouped = prev ? prev.fromUser === m.fromUser : false
+              return (
+                <View key={m.id} className="gap-1">
+                  <ChatMessageBubble
+                    direction={m.fromUser ? "outgoing" : "incoming"}
+                    text={m.text}
+                    time={formatDateTime(m.createdAt)}
+                    grouped={grouped}
+                  >
+                    {/* Item 130: lampiran per balasan (slot children = di atas teks). */}
+                    {m.attachments && m.attachments.length > 0 ? (
+                      <View className="gap-1">
+                        {m.attachments.map((key, ai) => (
+                          <SupportAttachmentItem key={key || ai} fileKey={key} index={ai} />
+                        ))}
+                      </View>
+                    ) : null}
+                  </ChatMessageBubble>
+                  {/* F16: label peran + waktu relatif yang bisa diketuk → absolut. */}
+                  {!grouped ? (
+                    <SupportMessageMeta
+                      role={m.senderRole ?? (m.fromUser ? "user" : "agent")}
+                      createdAt={m.createdAt}
+                      align={m.fromUser ? "end" : "start"}
+                    />
+                  ) : null}
+                </View>
+              )
+            })}
 
             <SectionHeader title="Balas" />
             {/* Item 130: composer diblokir untuk tiket selesai; lampiran maks 5. */}
@@ -428,12 +470,17 @@ export default function SupportTicketDetailScreen() {
 
       <Dialog
         title="Tutup tiket?"
-        description="Tiket ditutup dan dukungan dihentikan. Anda tetap bisa membukanya kembali kapan saja bila masalahnya belum selesai."
+        // F13: jelaskan konsekuensi — termasuk nasib draf balasan & opsi batal.
+        description={
+          reply.trim()
+            ? "Menutup tiket menghentikan dukungan. Teks balasan yang sedang Anda tulis tetap tersimpan di layar ini, tetapi balasan baru dinonaktifkan — Anda perlu membuka kembali tiket untuk mengirimnya. Tiket tetap bisa dibuka kembali kapan saja bila masalahnya belum selesai."
+            : "Menutup tiket menghentikan dukungan. Tiket tetap bisa dibuka kembali kapan saja bila masalahnya belum selesai."
+        }
         visible={closeOpen}
         destructive
         loading={closing}
         confirmLabel="Tutup tiket"
-        cancelLabel="Tetap di sini"
+        cancelLabel="Batal"
         onConfirm={() => void handleClose()}
         onCancel={() => setCloseOpen(false)}
         onRequestClose={() => setCloseOpen(false)}

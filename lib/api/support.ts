@@ -46,6 +46,11 @@ export type SupportTicket = {
   /** Batch 139 (F06): estimasi tunggu (menit) dari server, bila ada. */
   estimatedWaitMinutes?: number | null
   /**
+   * Batch 139 (F14): order terkait — dibaca toleran bila backend mengirimnya
+   * (dipakai peringatan tiket duplikat); undefined = tidak diketahui.
+   */
+  orderId?: string | null
+  /**
    * Batch 139 (F12): batas respons SLA dari server (ISO string).
    * undefined = belum tersedia → UI jujur "belum tersedia dari server".
    */
@@ -141,7 +146,20 @@ function normalizeSupportTicket(raw: unknown): SupportTicket {
       null,
     slaDueAt:
       pickIsoString(record.slaDueAt) ?? pickIsoString(record.responseDueAt) ?? null,
+    // Batch 139 (F14): order terkait — toleran (bisa `orderId` / `order.id`).
+    orderId: pickOrderId(record),
   }
+}
+
+function pickOrderId(record: Record<string, unknown>): string | null {
+  const direct = record.orderId
+  if (typeof direct === "string" && direct) return direct
+  const nested = record.order
+  if (nested && typeof nested === "object") {
+    const id = (nested as Record<string, unknown>).id
+    if (typeof id === "string" && id) return id
+  }
+  return null
 }
 
 export function listSupportTickets(signal?: AbortSignal) {

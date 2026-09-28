@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from "react"
 import { View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useIsFocused } from "@react-navigation/native"
-import { router } from "expo-router"
+import { router, useLocalSearchParams } from "expo-router"
 import { Lifebuoy, Question, MagnifyingGlass } from "phosphor-react-native"
 import { api } from "@/lib/api"
 import { translate, useLanguage } from "@/lib/i18n"
@@ -106,7 +106,13 @@ export default function FaqScreen() {
   useLanguage()
   const insets = useSafeAreaInsets()
   const isFocused = useIsFocused()
+  // F01: breadcrumb artikel menautkan kembali ke hasil pencarian — param `q`
+  // mengisi kolom cari agar kata pencarian tidak hilang.
+  const params = useLocalSearchParams<{ q?: string }>()
   const [keyword, setKeyword] = useState("")
+  useEffect(() => {
+    if (typeof params.q === "string" && params.q.trim()) setKeyword(params.q.trim())
+  }, [params.q])
   const categories = useApiQuery("help-categories", (signal) =>
     api.helpCenter.listHelpCategories(signal),
   )
@@ -140,6 +146,7 @@ export default function FaqScreen() {
       <FadeIn duration="fast" translate={false} className="px-5 pb-4">
         <DebouncedSearchField
           autoFocus={false}
+          initialQuery={keyword}
           onQueryChange={setKeyword}
           placeholder={translate("Cari bantuan")}
         />
