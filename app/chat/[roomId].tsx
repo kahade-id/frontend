@@ -1970,7 +1970,7 @@ export default function ChatRoomScreen() {
       const target = singleSelected
       actions.push({
         key: "edit",
-        label: "Edit",
+        label: "Ubah",
         icon: PencilSimple,
         onPress: () => {
           exitSelect()

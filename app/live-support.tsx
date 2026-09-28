@@ -1,5 +1,5 @@
 /**
- * Kahade — Live Support: kanal chat resmi ke Tim Kahade (G-020).
+ * Kahade — Bantuan Langsung: kanal chat resmi ke Tim Kahade (G-020).
  *
  * Arsitektur: layar ini BUKAN bot lokal lagi. Percakapan didukung backend
  * tiket bantuan yang sudah ada:
@@ -492,7 +492,7 @@ export default function LiveSupportScreen() {
   return (
     <Screen edges={["top"]} padded={false}>
       <Header
-        title={translate("Live Support")}
+        title={translate("Bantuan Langsung")}
         right={
           ticketId && statusOpen ? (
             <Button

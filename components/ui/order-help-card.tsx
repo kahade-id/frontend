@@ -33,16 +33,16 @@ export function OrderHelpCard({ onContactSupport, className, ...rest }: OrderHel
           <Icon icon={Headset} size={22} weight="bold" tone="info" />
         </View>
         <Text variant="body" tone="secondary" numberOfLines={2} className="flex-1">
-          {translate("Tim CS Kahade siap membantu kendala order Anda.")}
+          {translate("Tim Bantuan Langsung Kahade siap membantu kendala pesanan Anda.")}
         </Text>
       </View>
       <Button
         variant="secondary"
         leftIcon={Headset}
         onPress={onContactSupport}
-        accessibilityLabel={translate("Hubungi CS Kahade")}
+        accessibilityLabel={translate("Hubungi Bantuan Langsung Kahade")}
       >
-        {translate("Hubungi CS")}
+        {translate("Hubungi Bantuan Langsung")}
       </Button>
     </View>
   )

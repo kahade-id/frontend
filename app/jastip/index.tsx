@@ -78,7 +78,7 @@ export default function JastipScreen() {
       return
     }
     if (!deadline) {
-      setFormError(translate("Pilih deadline order."))
+      setFormError(translate("Pilih deadline pesanan."))
       return
     }
     const slots = slotTotal.trim() === "" ? undefined : Number.parseInt(slotTotal, 10)
@@ -130,7 +130,7 @@ export default function JastipScreen() {
           ? {
               icon: Package,
               title: translate("Belum ada trip"),
-              description: translate("Buat trip jastip: tentukan tujuan, deadline order, dan slot — harga dikunci setelah kamu konfirmasi ke peserta."),
+              description: translate("Buat trip jastip: tentukan tujuan, deadline pesanan, dan slot — harga dikunci setelah Anda mengonfirmasi ke peserta."),
               action: (
                 <Button fullWidth={false} onPress={openCreate}>
                   {translate("Buat trip")}
@@ -207,7 +207,7 @@ export default function JastipScreen() {
             multiline
             maxLength={500}
           />
-          <Field label={translate("Deadline order")}>
+          <Field label={translate("Deadline pesanan")}>
             <Button variant="secondary" fullWidth={false} onPress={() => setDateSheetOpen(true)}>
               {deadline ? formatDateLong(deadline.toISOString()) : translate("Pilih tanggal")}
             </Button>
@@ -237,7 +237,7 @@ export default function JastipScreen() {
           setFormError(undefined)
           setDateSheetOpen(false)
         }}
-        title={translate("Deadline order")}
+        title={translate("Deadline pesanan")}
       />
     </DataScreen>
   )

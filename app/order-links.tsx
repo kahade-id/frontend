@@ -210,7 +210,7 @@ export default function OrderLinksScreen() {
 
   return (
     <Screen edges={["top"]} padded={false}>
-      <Header title="Order Link" />
+      <Header title="Tautan Pesanan" />
       <PaginatedList
         {...query}
         data={items}
@@ -223,7 +223,7 @@ export default function OrderLinksScreen() {
           <EmptyState
             icon={LinkSimple}
             title="Belum ada tautan"
-            description="Buat order link dari layar buat transaksi, lalu bagikan ke lawan transaksi."
+            description="Buat tautan pesanan dari layar buat transaksi, lalu bagikan ke lawan transaksi."
             action={
               <Button
                 variant="secondary"

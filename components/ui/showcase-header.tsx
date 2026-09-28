@@ -142,7 +142,7 @@ export function ShowcaseHeader({ kind, onKindChange, tabs, onFilterPress, filter
                 />
                 {filterBadgeCount > 0 ? (
                   <View className="absolute -right-1 -top-1 h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1">
-                    <Text variant="caption" tone="inverse" className="text-[10px] tabular-nums">
+                    <Text variant="caption" tone="inverse" className="text-xs tabular-nums">
                       {filterBadgeCount}
                     </Text>
                   </View>

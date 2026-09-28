@@ -256,7 +256,7 @@ export const OtpInput = forwardRef<OtpInputHandle, OtpInputProps>(function OtpIn
         textContentType={secure ? "none" : "oneTimeCode"}
         secureTextEntry={secure}
         caretHidden
-        allowFontScaling={false}
+        maxFontSizeMultiplier={2}
         selectionColor={tokens.colors[mode].primary}
         /*
          * F-03: pembungkus di atas yang mengumumkan; di NATIVE input tersembunyi

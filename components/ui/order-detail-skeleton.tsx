@@ -27,12 +27,12 @@ function SkeletonSection({ children, className }: { children: React.ReactNode; c
 export function OrderDetailSkeleton(props: ViewProps) {
   return (
     <Screen edges={["top"]} padded={false} {...props}>
-      <Header title={translate("Detail Order")} />
+      <Header title={translate("Detail Pesanan")} />
       <View
         className="gap-7 px-5"
         accessible
         accessibilityRole="progressbar"
-        accessibilityLabel={translate("Memuat detail order")}
+        accessibilityLabel={translate("Memuat detail pesanan")}
       >
         {/* Hero — pita full-bleed */}
         <View className="-mx-5 -mt-3 bg-surface px-5 pb-7 pt-6">

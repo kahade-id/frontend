@@ -85,7 +85,7 @@ export function ScrollToEndButton({
               className="absolute -right-1 -top-1 min-w-5 items-center justify-center rounded-full bg-danger px-1"
               pointerEvents="none"
             >
-              <Text variant="caption" weight={700} className="text-white tabular-nums" style={{ fontSize: 10 }}>
+              <Text variant="caption" weight={700} className="text-white tabular-nums" style={{ fontSize: 12 }}>
                 {count > 99 ? "99+" : String(count)}
               </Text>
             </View>

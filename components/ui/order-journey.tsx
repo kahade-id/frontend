@@ -116,8 +116,8 @@ export function OrderJourney({ steps, title, className, ...rest }: OrderJourneyP
   // dengan section polos lain di layar detail order.
   return (
     <View className={cn("gap-4", className)} {...rest}>
-      <SectionHeader title={title ?? translate("Perjalanan order")} />
-      <View accessibilityRole="list" accessibilityLabel={title ?? translate("Perjalanan order")}>
+      <SectionHeader title={title ?? translate("Perjalanan pesanan")} />
+      <View accessibilityRole="list" accessibilityLabel={title ?? translate("Perjalanan pesanan")}>
         {steps.map((s, i) => {
           const isLast = i === steps.length - 1
           const upcoming = s.state === "upcoming"

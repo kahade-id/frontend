@@ -178,7 +178,7 @@ export default function SettingsScreen() {
   // ── Akun ────────────────────────────────────────────────────────
   const accountItems: MenuItemData[] = [
     { id: "saved", label: "Profil Tersimpan", icon: Bookmark, route: ROUTES.saved },
-    { id: "edit-profile", label: "Edit Profil", icon: User, route: ROUTES.editProfile },
+    { id: "edit-profile", label: "Ubah Profil", icon: User, route: ROUTES.editProfile },
     // Batch 43 (item 2): buku alamat pengiriman.
     { id: "addresses", label: "Buku Alamat", icon: MapPin, route: ROUTES.addresses },
     { id: "reports", label: "Laporan & Analitik", icon: FileText, route: ROUTES.analytics },

@@ -233,7 +233,7 @@ export async function setupNotifications(): Promise<void> {
     await Notifications.setNotificationChannelAsync(NOTIFICATION_CHANNELS.transaksi, {
       name: "Transaksi & escrow",
       description:
-        "Status order, dana masuk/keluar rekening escrow, dan batas waktu pembayaran. Sangat disarankan tetap aktif.",
+        "Status pesanan, dana masuk/keluar rekening escrow, dan batas waktu pembayaran. Sangat disarankan tetap aktif.",
       importance: Notifications.AndroidImportance.MAX,
       vibrationPattern: [0, 250, 250, 250],
       lockscreenVisibility: Notifications.AndroidNotificationVisibility.PRIVATE,

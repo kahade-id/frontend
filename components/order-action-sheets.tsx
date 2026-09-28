@@ -247,7 +247,7 @@ export function OrderActionSheets({
         avoidKeyboard
         visible={sheet === "cancel"}
         onRequestClose={onClose}
-        title="Batalkan order?"
+        title="Batalkan pesanan?"
         // EO-001 (audit 2026-09-26): janji refund dihapus. Gate `isCancellable`
         // kini hanya membuka WAITING_CONFIRMATION/WAITING_PAYMENT (selaras
         // backend `cancelOrder`) — status pra-bayar tidak punya dana di escrow,
@@ -293,7 +293,7 @@ export function OrderActionSheets({
         avoidKeyboard
         visible={sheet === "reject"}
         onRequestClose={onClose}
-        title="Tolak order?"
+        title="Tolak pesanan?"
         description="Pembeli akan diberi tahu beserta alasan Anda."
         footer={
           <Button
@@ -650,12 +650,12 @@ export function OrderConfirmDialogs({
   return (
     <>
       <Dialog
-        title="Terima order ini?"
+        title="Terima pesanan ini?"
         // N-02 (audit escrow 2026-09-24): `confirmOrder({action:"ACCEPT"})`
         // terjadi SEBELUM pembayaran — copy lama ("…setelah pembeli membayar")
         // membuat penjual menunggu pembayaran yang justru baru bisa dilakukan
         // setelah order diterima.
-        description="Order diterima, dan pembeli dapat melanjutkan pembayaran ke escrow. Selesaikan pekerjaan sesuai kesepakatan setelah dana masuk."
+        description="Pesanan diterima, dan pembeli dapat melanjutkan pembayaran ke escrow. Selesaikan pekerjaan sesuai kesepakatan setelah dana masuk."
         visible={acceptOpen}
         loading={acceptLoading}
         confirmLabel="Terima"

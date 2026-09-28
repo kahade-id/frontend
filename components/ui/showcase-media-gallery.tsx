@@ -255,7 +255,7 @@ export function ShowcaseMediaGallery({ media, title, onOpen, onDoubleTap, autopl
                   accessibilityLabel={translate("Ke media {x}", { x: index + 1 })}
                   accessibilityState={{ selected: index === page }}
                   onPress={() => move(index)}
-                  containerClassName="min-h-8 min-w-6 items-center justify-center rounded-full"
+                  containerClassName="min-h-11 min-w-11 items-center justify-center rounded-full"
                   className={cn(
                     "h-1.5 rounded-full",
                     index === page ? "w-4 bg-white" : "w-1.5 bg-white opacity-40",

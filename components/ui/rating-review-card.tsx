@@ -88,7 +88,7 @@ function useDefaultLabels(): RatingReviewCardLabels {
       remove: translate("Hapus"),
       buyer: translate("Pembeli"),
       seller: translate("Penjual"),
-      orderPrefix: translate("Order"),
+      orderPrefix: translate("Pesanan"),
     }),
     [language],
   )

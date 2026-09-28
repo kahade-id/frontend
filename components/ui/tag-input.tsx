@@ -149,7 +149,7 @@ export function TagInput({
             placeholderTextColor={palette.textSecondary}
             selectionColor={palette.primary}
             cursorColor={palette.primary}
-            allowFontScaling={false}
+            maxFontSizeMultiplier={2}
             autoCapitalize="none"
             autoCorrect={false}
             blurOnSubmit={false}

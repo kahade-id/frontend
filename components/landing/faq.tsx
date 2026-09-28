@@ -62,7 +62,7 @@ const FAQS: FaqItem[] = [
   {
     question: "Bagaimana cara mulai jualan di Kahade?",
     answer:
-      "Daftar dengan nomor HP (verifikasi via WhatsApp), lengkapi profil, lalu buat etalase pertamamu: foto produk, harga, dan deskripsi. Etalase bisa langsung dibagikan ke media sosial — pembeli yang tertarik akan membuat order escrow denganmu.",
+      "Daftar dengan nomor HP (verifikasi via WhatsApp), lengkapi profil, lalu buat etalase pertamamu: foto produk, harga, dan deskripsi. Etalase bisa langsung dibagikan ke media sosial — pembeli yang tertarik akan membuat pesanan escrow denganmu.",
   },
 ]
 

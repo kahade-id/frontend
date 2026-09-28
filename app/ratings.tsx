@@ -377,7 +377,7 @@ export default function RatingsScreen() {
               description={
                 segment === "RECEIVED"
                   ? translate("Ulasan dari lawan transaksi akan muncul di sini.")
-                  : translate("Beri ulasan dari halaman order yang sudah selesai.")
+                  : translate("Beri ulasan dari halaman pesanan yang sudah selesai.")
               }
             />
             {hasMore ? (
@@ -483,7 +483,7 @@ export default function RatingsScreen() {
         description={translate("Jaga nada tetap ramah dan profesional.")}
         visible={!!replyEditor}
         loading={sending}
-        confirmLabel={replyEditor?.mode === "edit" ? translate("Simpan") : translate("Kirim Balasan")}
+        confirmLabel={replyEditor?.mode === "edit" ? translate("Simpan") : translate("Kirim balasan")}
         cancelLabel={translate("Batal")}
         onConfirm={() => void handleSendReply()}
         onCancel={() => setReplyEditor(null)}

@@ -1,5 +1,4 @@
 {
-  "Aktifkan izin penyimpanan untuk memilih foto dari galeri.": "Enable storage permission to choose a photo from the gallery.",
   "Arahkan kamera ke kode QR untuk memindai transaksi, profil pengguna, atau tautan Kahade.": "Point the camera at a QR code to scan a transaction, a user profile, or a Kahade link.",
   "Contoh: @kahade atau KHD-{x}": "Example: @kahade or KHD-{x}",
   "Kata sandi berhasil diubah": "Password changed",
@@ -66,7 +65,6 @@
   "Memuat tiket…": "Loading tickets…",
   "Memuat tipe akun…": "Loading account type…",
   "Menampilkan indikator online pada profil Anda.": "Shows an online indicator on your profile.",
-  "Menganalisis kode QR dari gambar…": "Reading the QR code from the image…",
   "Mengubah username, nomor HP, atau kontak membutuhkan kata sandi akun.": "Changing your username, phone number, or contacts requires your account password.",
   "Menunggu": "Pending",
   "Menunggu konfirmasi lawan transaksi.": "Waiting for the counterparty's confirmation.",
@@ -93,8 +91,6 @@
   "Nama pemilik rekening": "Account holder's name",
   "Nama pengguna tidak tersedia": "Username not available",
   "Nama template": "Template name",
-  "Nilai order default": "Default order amount",
-  "Nilai order masuk": "Incoming order amount",
   "Nominal top-up": "Top-up amount",
   "Nomor HP akun": "Account phone number",
   "Nomor HP baru": "New phone number",
@@ -114,7 +110,6 @@
   "OTP email": "Email OTP",
   "Order Link dibuat": "Order link created",
   "Order link diterima": "Order link accepted",
-  "Order tidak diketahui": "Unknown order",
   "Pakai kode referral saya {x} saat daftar di Kahade — transaksi aman dengan escrow.": "Use my referral code {x} when signing up on Kahade — safe transactions with escrow.",
   "Panggilan diakhiri": "Call ended",
   "Panggilan diterima": "Call answered",
@@ -143,6 +138,5 @@
   "Pengirim akan melihat tautan sebagai dibatalkan.": "The sender will see the link as cancelled.",
   "Pindai Lagi": "Scan again",
   "Pindai QR": "Scan QR",
-  "Salin Kode": "Copy code",
   "Template Transaksi": "Transaction Templates"
 }

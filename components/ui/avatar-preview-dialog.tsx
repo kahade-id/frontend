@@ -37,7 +37,7 @@ export function AvatarPreviewDialog({
         "Foto profil tampil sebagai lingkaran — pastikan wajah atau objek penting berada di tengah.",
       )}
       visible={asset !== null}
-      confirmLabel={translate("Gunakan Foto Ini")}
+      confirmLabel={translate("Gunakan foto ini")}
       cancelLabel={translate("Batal")}
       loading={busy}
       onConfirm={onConfirm}

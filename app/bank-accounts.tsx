@@ -382,7 +382,7 @@ export default function BankAccountsScreen() {
       />
 
       <Dialog
-        title="Edit nama pemilik"
+        title="Ubah nama pemilik"
         /* Sama seperti dialog hapus: nomor rekening dimasker, bukan ditulis
            penuh (docblock <BankAccountListItem>: daftar rekening sering
            terlihat orang lain; dialog ikut dibacakan screen reader). */

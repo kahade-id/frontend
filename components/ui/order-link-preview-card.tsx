@@ -248,7 +248,7 @@ export function OrderLinkPreviewCardSkeleton({ className, ...rest }: Omit<ViewPr
   return (
     <View accessible accessibilityRole="progressbar"
       className={cn("w-full gap-5 rounded-md border border-border bg-surface p-5", className)}
-      accessibilityLabel="Memuat tautan order"
+      accessibilityLabel="Memuat tautan pesanan"
       {...rest}
     >
       <View className="flex-row items-center gap-3">

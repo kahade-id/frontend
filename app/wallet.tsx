@@ -225,7 +225,7 @@ export default function WalletScreen() {
         header={
           <FadeIn duration="base" distance={tokens.space[3]}>
             <View className="gap-6 pt-3">
-              {/* Kartu "Lengkapi akunmu" — hanya di halaman Dompet
+              {/* Kartu "Lengkapi akun Anda" — hanya di halaman Dompet
                   (keputusan 2026-09-28): etalase/feed tampil bersih. */}
               <OnboardingChecklistCard />
               {/*
@@ -379,7 +379,7 @@ export default function WalletScreen() {
         visible={holdsOpen}
         onRequestClose={() => setHoldsOpen(false)}
         title="Dana ditahan di escrow"
-        description="Order yang masih menahan dana Anda. Dana cair otomatis saat order selesai atau dibatalkan."
+        description="Pesanan yang masih menahan dana Anda. Dana cair otomatis saat pesanan selesai atau dibatalkan."
         footer={
           <Button onPress={() => setHoldsOpen(false)} containerClassName="flex-1">
             Tutup
@@ -399,8 +399,8 @@ export default function WalletScreen() {
           <View className="px-5 py-6">
             <EmptyState
               icon={WalletIcon}
-              title="Tidak ada order penahan"
-              description="Tidak ditemukan order yang masih menahan dana pada 100 mutasi terakhir."
+              title="Tidak ada pesanan penahan"
+              description="Tidak ditemukan pesanan yang masih menahan dana pada 100 mutasi terakhir."
             />
           </View>
         ) : (

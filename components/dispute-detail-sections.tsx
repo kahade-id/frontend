@@ -479,7 +479,7 @@ export function DisputeActionDialogs({
 
       <Dialog
         title="Setujui usulan penyelesaian?"
-        description={translate("Dana escrow akan langsung dibagi sesuai usulan berikut dan tidak bisa dibatalkan: {x} Pastikan kamu sudah setuju dengan pembagiannya.", { x: acceptSummary })}
+        description={translate("Dana escrow akan langsung dibagi sesuai usulan berikut dan tidak bisa dibatalkan: {x} Pastikan Anda sudah setuju dengan pembagiannya.", { x: acceptSummary })}
         visible={acceptOpen}
         loading={accepting}
         confirmLabel="Ya, setujui"
@@ -573,7 +573,7 @@ export function DisputeProposeSheet({
           // E-10 (audit escrow 2026-09-24): order gagal dimuat = usulan tidak
           // terkirim — alasan eksplisit, bukan tombol yang diam-diam batal.
           <Text variant="caption" tone="danger">
-            Detail order belum termuat — segarkan layar sebelum mengirim usulan.
+            Detail pesanan belum termuat — segarkan layar sebelum mengirim usulan.
           </Text>
         ) : null}
         <AmountInput

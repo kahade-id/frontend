@@ -69,7 +69,7 @@ const ORDER_CSV_HEADERS = [
   "Judul",
   "Jenis",
   "Status",
-  "Nilai order",
+  "Nilai pesanan",
   "Biaya platform",
   "Peran saya",
   "Pembeli",
@@ -224,7 +224,7 @@ export default function AnalyticsScreen() {
             hint:
               analytics?.avgOrderValue != null
                 ? `Rata-rata ${formatRupiah(analytics.avgOrderValue)}`
-                : "Nilai order masuk",
+                : "Nilai pesanan masuk",
           },
           {
             id: "rating",

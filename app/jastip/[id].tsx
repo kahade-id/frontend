@@ -241,13 +241,13 @@ export default function JastipDetailScreen() {
   const handleLink = useCallback(async () => {
     if (!linkTarget || linking) return
     if (orderId.trim().length < 4) {
-      setLinkError(translate("Masukkan ID order escrow yang sudah dibayar."))
+      setLinkError(translate("Masukkan ID pesanan escrow yang sudah dibayar."))
       return
     }
     setLinking(true)
     try {
       await api.commerce.linkJastipOrder(linkTarget.id, orderId.trim())
-      toast.show({ title: translate("Order ditautkan"), tone: "success" })
+      toast.show({ title: translate("Pesanan ditautkan"), tone: "success" })
       setLinkTarget(null)
       setOrderId("")
       await load()
@@ -429,7 +429,7 @@ export default function JastipDetailScreen() {
                       setLinkTarget(myParticipation)
                     }}
                   >
-                    {translate("Tautkan order yang sudah dibayar")}
+                    {translate("Tautkan pesanan yang sudah dibayar")}
                   </Button>
                 </View>
               ) : null}
@@ -519,7 +519,7 @@ export default function JastipDetailScreen() {
             maxLength={300}
           />
           <Text variant="caption" tone="secondary">
-            {translate("Request bebas — host akan mengunci harga (barang + fee + ongkir) sebelum kamu bayar via escrow.")}
+            {translate("Request bebas — host akan mengunci harga (barang + fee + ongkir) sebelum Anda membayar via escrow.")}
           </Text>
           {joinError ? (
             <Text variant="caption" tone="danger">
@@ -619,7 +619,7 @@ export default function JastipDetailScreen() {
         onRequestClose={() => setLinkTarget(null)}
         // FRM-017: field bawah tidak tertutup keyboard di layar kecil.
         avoidKeyboard
-        title={translate("Tautkan order escrow")}
+        title={translate("Tautkan pesanan escrow")}
         footer={
           <Button fullWidth loading={linking} onPress={() => void handleLink()}>
             {translate("Tautkan")}
@@ -628,15 +628,15 @@ export default function JastipDetailScreen() {
       >
         <View className="gap-4">
           <Input
-            label={translate("ID order")}
+            label={translate("ID pesanan")}
             value={orderId}
             onChangeText={(t) => { setOrderId(t); setLinkError(undefined) }}
-            placeholder={translate("ID order yang sudah dibayar")}
+            placeholder={translate("ID pesanan yang sudah dibayar")}
             autoCapitalize="none"
             maxLength={40}
           />
           <Text variant="caption" tone="secondary">
-            {translate("Buat order via tombol “Bayar via escrow” lalu masukkan ID-nya di sini.")}
+            {translate("Buat pesanan via tombol “Bayar via escrow” lalu masukkan ID-nya di sini.")}
           </Text>
           {linkError ? (
             <Text variant="caption" tone="danger">

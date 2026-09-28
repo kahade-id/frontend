@@ -542,6 +542,8 @@ export function uploadChatAttachmentProgress(
                       ? "BAD_REQUEST"
                       : "UNKNOWN",
               message,
+              // CPY-012: message bisa berasal dari body backend (bahasa tak terjamin).
+              clientMessage: false,
               path: `/v1/chat/rooms/${roomId}/upload`,
             }),
           )

@@ -3,7 +3,7 @@
  *
  * Kepala halaman profil publik (penjual/pembeli) dan profil sendiri.
  * Anatomi, dari atas: [Avatar lg | nama + handle + badge] -> bio ->
- * baris statistik (Mono) -> slot aksi (FollowButton / "Edit profil").
+ * baris statistik (Mono) -> slot aksi (FollowButton / "Ubah profil").
  *
  * Keputusan non-obvious:
  *   - Layout rata kiri (avatar di kiri, teks di kanan), BUKAN avatar besar

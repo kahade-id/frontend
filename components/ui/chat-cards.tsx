@@ -136,7 +136,7 @@ export const ChatOrderCard = memo(function ChatOrderCard({
     <Pressable
       onPress={() => router.push(ROUTES.orderDetail(card.orderId))}
       accessibilityRole="button"
-      accessibilityLabel={`Kartu order ${card.orderCode}: ${card.title}. Buka detail order.`}
+      accessibilityLabel={`Kartu pesanan ${card.orderCode}: ${card.title}. Buka detail pesanan.`}
       className={`gap-1.5 rounded-sm border p-2.5 ${
         outgoing ? "border-white/20 bg-black/10" : "border-border bg-background"
       }`}

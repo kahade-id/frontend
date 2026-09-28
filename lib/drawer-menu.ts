@@ -34,7 +34,7 @@ export const MAIN_MENU_META: readonly DrawerMenuMeta[] = [
   { id: "wallet", label: "Dompet Saya", href: ROUTES.wallet, accessibilityLabel: "Buka dompet saya" },
   { id: "etalase", label: "Kelola Etalase", href: ROUTES.showcaseManagement, accessibilityLabel: "Kelola etalase saya" },
   { id: "templates", label: "Template Transaksi", href: ROUTES.transactionTemplates, accessibilityLabel: "Buka template transaksi" },
-  { id: "order-links", label: "Order Link", href: ROUTES.orderLinks, accessibilityLabel: "Buka order link" },
+  { id: "order-links", label: "Tautan Pesanan", href: ROUTES.orderLinks, accessibilityLabel: "Buka tautan pesanan" },
   { id: "reports", label: "Laporan & Analitik", href: ROUTES.reports(), accessibilityLabel: "Buka laporan dan analitik" },
   { id: "messages", label: "Pesan", href: ROUTES.chat, accessibilityLabel: "Buka pesan" },
 ]

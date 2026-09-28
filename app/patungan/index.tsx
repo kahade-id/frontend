@@ -306,7 +306,7 @@ export default function PatunganScreen() {
             maxLength={4}
           />
           <Text variant="caption" tone="secondary">
-            {translate("Kelebihan dana (overfunding) dibagi rata sebagai pengurang per orang. Fee mengikuti aturan escrow normal per order peserta.")}
+            {translate("Kelebihan dana (overfunding) dibagi rata sebagai pengurang per orang. Fee mengikuti aturan escrow normal per pesanan peserta.")}
           </Text>
           {formError ? (
             <Text variant="caption" tone="danger">

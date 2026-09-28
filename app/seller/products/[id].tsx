@@ -165,7 +165,7 @@ export default function SellerProductFormScreen() {
     )
   }
   return (
-    <DataScreen title="Edit Produk" state={existingQuery} loadingMessage="Memuat produk…">
+    <DataScreen title="Ubah Produk" state={existingQuery} loadingMessage="Memuat produk…">
       {existing ? formFields : null}
     </DataScreen>
   )

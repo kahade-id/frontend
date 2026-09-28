@@ -136,7 +136,7 @@ export default function SetupProfileScreen() {
   const leaveConfirm = useLeaveConfirm(hasChanges && !submitting, {
     title: "Lewati setup profil?",
     description:
-      "Foto dan bio yang belum disimpan akan hilang. Anda bisa melengkapinya nanti dari Edit Profil.",
+      "Foto dan bio yang belum disimpan akan hilang. Anda bisa melengkapinya nanti dari Ubah Profil.",
     confirmLabel: "Ya, lewati",
     onConfirmDiscard: doSkip,
   })
@@ -327,11 +327,11 @@ export default function SetupProfileScreen() {
             ) : null}
             {/*
              * FE-IMP-3 #118 — upload gagal tidak memblokir alur: tegaskan foto
-             * bisa ditambahkan nanti dari Edit Profil.
+             * bisa ditambahkan nanti dari Ubah Profil.
              */}
             {avatarError ? (
               <Text variant="caption" tone="secondary" className="text-center">
-                Foto bisa ditambahkan nanti dari Edit Profil.
+                Foto bisa ditambahkan nanti dari Ubah Profil.
               </Text>
             ) : null}
           </VStack>

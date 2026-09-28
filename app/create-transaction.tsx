@@ -112,7 +112,7 @@ const STEPS = [
   {
     title: "Cara & peran",
     heading: "Bagaimana transaksinya?",
-    description: "Pilih cara membuat order dan peran Anda dalam transaksi ini.",
+    description: "Pilih cara membuat pesanan dan peran Anda dalam transaksi ini.",
   },
   {
     title: "Lawan",
@@ -127,7 +127,7 @@ const STEPS = [
   {
     title: "Biaya & kirim",
     heading: "Periksa & kirim",
-    description: "Periksa biaya dan ringkasan sebelum order dibuat.",
+    description: "Periksa biaya dan ringkasan sebelum pesanan dibuat.",
   },
 ] as const
 const LAST_STEP = STEPS.length - 1

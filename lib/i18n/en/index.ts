@@ -45,6 +45,9 @@ import screens8 from "./screens-8.json"
 // pemindai katalog — children ekspresi JSX, kalimat ber-`;`, dan argumen
 // `setFormError()` — plus 9 kunci Etalase yang memang belum pernah ada.
 import screens9 from "./screens-9.json"
+// screens-10 (audit UI/UX 2026-09-28, TEXT-004): sisa string Indonesia yang
+// belum punya padanan English — satu berkas per batch terjemahan.
+import screens10 from "./screens-10.json"
 import tabs from "./tabs.json"
 import ui from "./ui.json"
 
@@ -70,6 +73,7 @@ export const EN: Dict = {
   ...screens7,
   ...screens8,
   ...screens9,
+  ...screens10,
   // Pesan error & label status dari peta di lib/ — yang paling sering muncul
   // saat jaringan bermasalah, jadi jangan sampai jatuh ke Bahasa Indonesia.
   ...errors,

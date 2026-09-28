@@ -116,7 +116,7 @@ function getScanResultCopy(target: QrTarget): {
         explainer: target.username
           ? translate("Kode ini membuka profil @{x} di Kahade.", { x: target.username })
           : translate("Kode ini membuka sebuah profil di Kahade."),
-        primaryCta: translate("Lihat Profil"),
+        primaryCta: translate("Lihat profil"),
         warnTransfer: false,
       }
     case "order":
@@ -125,7 +125,7 @@ function getScanResultCopy(target: QrTarget): {
         icon: Receipt,
         iconTone: "active",
         explainer: translate("Kode ini membuka detail pesanan terkait."),
-        primaryCta: translate("Lihat Pesanan"),
+        primaryCta: translate("Lihat pesanan"),
         warnTransfer: false,
       }
     case "order-link":
@@ -134,7 +134,7 @@ function getScanResultCopy(target: QrTarget): {
         icon: Receipt,
         iconTone: "active",
         explainer: translate("Kode ini membuka tautan pembayaran pesanan."),
-        primaryCta: translate("Buka Tautan Pesanan"),
+        primaryCta: translate("Buka tautan pesanan"),
         warnTransfer: false,
       }
     case "showcase":
@@ -143,7 +143,7 @@ function getScanResultCopy(target: QrTarget): {
         icon: Storefront,
         iconTone: "active",
         explainer: translate("Kode ini membuka sebuah etalase di Kahade."),
-        primaryCta: translate("Lihat Etalase"),
+        primaryCta: translate("Lihat etalase"),
         warnTransfer: false,
       }
     case "transfer":
@@ -154,7 +154,7 @@ function getScanResultCopy(target: QrTarget): {
         explainer: translate(
           "Kode ini berisi permintaan transfer. Periksa kembali nama penerima dan nominal di layar berikutnya — dana TIDAK dikirim otomatis.",
         ),
-        primaryCta: translate("Lanjut ke Transfer"),
+        primaryCta: translate("Lanjut ke transfer"),
         warnTransfer: true,
       }
     case "external-url":
@@ -163,7 +163,7 @@ function getScanResultCopy(target: QrTarget): {
         icon: Warning,
         iconTone: "warning",
         explainer: translate("Kode ini mengarah ke situs di luar Kahade."),
-        primaryCta: translate("Buka Tautan"),
+        primaryCta: translate("Buka tautan"),
         warnTransfer: false,
       }
     case "text":
@@ -173,7 +173,7 @@ function getScanResultCopy(target: QrTarget): {
         icon: QrCode,
         iconTone: "default",
         explainer: translate("Kode berisi teks biasa — tidak ada aksi khusus."),
-        primaryCta: translate("Salin Kode"),
+        primaryCta: translate("Salin kode"),
         warnTransfer: false,
       }
   }

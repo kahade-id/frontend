@@ -214,7 +214,7 @@ export function NumberStepper({
               inputMode="numeric"
               returnKeyType="done"
               selectTextOnFocus
-              allowFontScaling={false}
+              maxFontSizeMultiplier={2}
               onFocus={() => setFocused(true)}
               onBlur={handleBlur}
               onChangeText={(t) => setDraft(t.replace(/[^\d]/g, ""))}

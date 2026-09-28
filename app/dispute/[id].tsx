@@ -768,7 +768,7 @@ export default function DisputeDetailScreen() {
       // jangan diam-diam return.
       if (!order)
         toast.show({
-          title: "Detail order belum termuat",
+          title: "Detail pesanan belum termuat",
           description: "Segarkan layar sebelum mengirim usulan penyelesaian.",
           tone: "danger",
         })
