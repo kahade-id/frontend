@@ -16,15 +16,17 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { ScrollView, View } from "react-native"
-import { useRouter } from "expo-router"
+import { useLocalSearchParams, useRouter } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Wallet as WalletIcon } from "phosphor-react-native"
 
 import { api, isApiError, userMessage, type TopupDto } from "@/lib/api"
+import type { TopupFeeEstimate } from "@/lib/api/wallet"
 import { createIdempotencyKey } from "@/lib/api/client"
 import { API_CONSTRAINTS } from "@/lib/api/constraints"
 import { AMOUNT_LIMITS, AMOUNT_PRESETS, isValidAmount } from "@/lib/financial"
 import { useCopy } from "@/lib/clipboard"
+import { useDebouncedValue } from "@/lib/use-debounced-value"
 import { formatRupiah } from "@/lib/format"
 import { toPaymentMethods } from "@/lib/payment-methods"
 import { ROUTES } from "@/lib/routes"
@@ -88,6 +90,14 @@ export default function TopupScreen() {
   const insets = useSafeAreaInsets()
   const toast = useToast()
   const { copied, copy } = useCopy()
+  const params = useLocalSearchParams<{ resumePayment?: string }>()
+
+  // FE-IMP-4 item 3: "Lanjutkan bayar" dari riwayat — deep link
+  // `/topup?resumePayment=<paymentTxId>` langsung membuka status pembayaran.
+  const resumePaymentId =
+    typeof params.resumePayment === "string" && params.resumePayment.trim()
+      ? params.resumePayment.trim()
+      : null
 
   const methodsQuery = useApiQuery<PaymentMethod[]>("topup-methods", async (signal) => {
     const raw = await api.wallet.getPaymentMethods(signal)
@@ -126,6 +136,37 @@ export default function TopupScreen() {
    * Sebelumnya polling mati diam-diam dan kartu terus terlihat "hidup".
    */
   const [pollStopped, setPollStopped] = useState(false)
+
+  // FE-IMP-4 item 3: resume pembayaran pending langsung ke kartu status.
+  useEffect(() => {
+    if (!resumePaymentId || result || statusLoading) return
+    let cancelled = false
+    setStatusLoading(true)
+    api.wallet
+      .getTopupStatus(resumePaymentId)
+      .then((st) => {
+        if (cancelled) return
+        setResult({ ...st, paymentTxId: resumePaymentId })
+        if (typeof st.amount === "number" && st.amount > 0) setAmount(st.amount)
+        if (typeof st.method === "string" && st.method) setMethodId(st.method)
+        setStep("result")
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return
+        toast.show({
+          title: "Gagal memuat status pembayaran",
+          description: userMessage(err),
+          tone: "danger",
+        })
+      })
+      .finally(() => {
+        if (!cancelled) setStatusLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resumePaymentId])
 
   // Progress bar — nilai kontinu mengikuti langkah aktif (register-style).
   const stepIndex: Record<Step, number> = { amount: 1, method: 2, result: 3 }
@@ -208,6 +249,28 @@ export default function TopupScreen() {
     canContinueAmount &&
     isTopupMethod(methodId) &&
     canUsePaymentMethod(selectedMethod, amount)
+
+  /**
+   * FE-IMP-4 item 5: estimasi biaya kanonis dari server (GET
+   * /v1/wallet/topup/fee-estimate) — memakai logika fee yang SAMA dengan
+   * jalur charge, jadi angka di konfirmasi = angka yang ditagih gateway.
+   * Kalkulasi lokal `selectedFee` hanya fallback bila server tidak menjawab
+   * (dilabeli "estimasi").
+   */
+  const debouncedAmount = useDebouncedValue(amount, 400)
+  const feeEstimateQuery = useApiQuery<TopupFeeEstimate>(
+    `topup-fee:${debouncedAmount}:${methodId ?? "none"}`,
+    (signal) => api.wallet.getTopupFeeEstimate(debouncedAmount, methodId ?? "", signal),
+    step === "method" &&
+      methodId != null &&
+      isTopupMethod(methodId) &&
+      isValidAmount(debouncedAmount, AMOUNT_LIMITS.topup),
+  )
+  const serverFeeEstimate = feeEstimateQuery.data
+  const displayFee = serverFeeEstimate != null ? serverFeeEstimate.fee : selectedFee
+  const displayTotal = serverFeeEstimate != null ? serverFeeEstimate.total : amount + selectedFee
+  const feeFromServer = serverFeeEstimate != null
+  const feeLoading = feeEstimateQuery.loading && serverFeeEstimate == null
 
   const goNext = useCallback(() => {
     if (step === "amount" && canContinueAmount) {
@@ -400,15 +463,17 @@ export default function TopupScreen() {
                     amountTone="primary"
                     subtitle={selectedMethod ? selectedMethod.name : "Pilih metode di bawah"}
                     totalLabel="Total yang dibayar"
-                    totalValue={amount + selectedFee}
+                    totalValue={displayTotal}
                     totalHint={
-                      // A-15 (audit): biaya dihitung KLIEN dari aturan metode
-                      // (server tetap sumber kebenaran tagihan) — label jujur
-                      // "estimasi" mencegah selisih pembulatan terbaca sebagai
-                      // kesalahan penagihan.
-                      selectedFee > 0
-                        ? "Termasuk biaya admin (estimasi — total final mengikuti tagihan channel)"
-                        : "Tanpa biaya admin"
+                      // FE-IMP-4 item 5: angka server = angka yang ditagih
+                      // gateway; label "estimasi" hanya untuk fallback lokal.
+                      feeFromServer
+                        ? "Termasuk biaya admin (dihitung server)"
+                        : feeLoading
+                          ? "Menghitung biaya admin…"
+                          : selectedFee > 0
+                            ? "Termasuk biaya admin (estimasi — total final mengikuti tagihan channel)"
+                            : "Tanpa biaya admin"
                     }
                   />
 
@@ -431,9 +496,10 @@ export default function TopupScreen() {
                       icon={selectedMethod ? paymentMethodKindIcon[selectedMethod.kind] : WalletIcon}
                       description={
                         selectedMethod
-                          ? selectedFee > 0
+                          ? displayFee > 0
                             ? translate("Biaya admin {x}", {
-                              x: formatRupiah(selectedFee, { sign: "always" }),
+                              // FE-IMP-4 item 5: angka server bila tersedia.
+                              x: formatRupiah(displayFee, { sign: "always" }),
                             })
                             : "Tanpa biaya admin"
                           : undefined
@@ -487,15 +553,25 @@ export default function TopupScreen() {
                   const finalStatus = mapValue(STATUS, result?.status, undefined)
                   if (finalStatus) {
                     const ok = finalStatus === "SUCCESS"
+                    // FE-IMP-4 item 25: QRIS/kode bayar kedaluwarsa ditonjolkan
+                    // dengan CTA regenerate — bukan sekadar struk "gagal".
+                    const expired = finalStatus === "EXPIRED"
                     const receiptStatus: ReceiptStatus = ok ? "SUCCESS" : "FAILED"
                     const methodLabel =
                       methods.find((m) => m.id === (result?.method ?? methodId))?.name ??
                       result?.method ??
                       ""
                     return (
-                      <ReceiptTicket
-                        status={receiptStatus}
-                        title={ok ? "Top-up berhasil" : "Top-up gagal"}
+                      <>
+                        <ReceiptTicket
+                          status={receiptStatus}
+                          title={
+                            ok
+                              ? "Top-up berhasil"
+                              : expired
+                                ? "Kode pembayaran kedaluwarsa"
+                                : "Top-up gagal"
+                          }
                         amount={result?.grossAmount ?? result?.amount ?? amount}
                         // Dana masuk — hijau, konsisten dengan baris riwayat.
                         amountTone={ok ? "success" : "primary"}
@@ -516,6 +592,19 @@ export default function TopupScreen() {
                         onShare={() => void shareReceipt(topupTicketRef.current)}
                         onCopyReceiptId={(id) => void copy(id)}
                       />
+                        {expired ? (
+                          <Button
+                            variant="primary"
+                            fullWidth
+                            onPress={() => {
+                              setResult(null)
+                              setStep("method")
+                            }}
+                          >
+                            Buat kode pembayaran baru
+                          </Button>
+                        ) : null}
+                      </>
                     )
                   }
                   return (

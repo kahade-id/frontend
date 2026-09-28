@@ -107,6 +107,12 @@
         }
       ],
       [
+        "expo-camera",
+        {
+          "cameraPermission": "Kahade butuh akses kamera untuk memindai kode QR."
+        }
+      ],
+      [
         "expo-image-picker",
         {
           "photosPermission": "Kahade butuh akses galeri untuk memilih foto KTP, selfie, atau bukti transfer.",

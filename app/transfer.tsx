@@ -32,6 +32,7 @@ import { walletTransactionStatus } from "@/lib/wallet-labels"
 import { PencilSimpleLine } from "phosphor-react-native"
 import { Alert } from "@/components/ui/alert"
 import { AmountKeypad } from "@/components/ui/amount-keypad"
+import { Avatar } from "@/components/ui/avatar"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Button } from "@/components/ui/button"
 import { ErrorState } from "@/components/ui/error-state"
@@ -77,8 +78,15 @@ type ProgressState = "PROCESSING" | "SUCCESS" | "FAILURE"
 export default function TransferScreen() {
   const insets = useSafeAreaInsets()
   const toast = useToast()
-  const params = useLocalSearchParams<{ to?: string }>()
+  const params = useLocalSearchParams<{ to?: string; amount?: string }>()
   const presetUsername = typeof params.to === "string" ? params.to : undefined
+  // FE-IMP-4 item 27: QR "minta transfer" boleh membawa nominal
+  // (`transfer?to=&amount=`) — di-prefill tapi tetap bisa diubah user dan
+  // tetap divalidasi ulang oleh batas keypad + server.
+  const presetAmount =
+    typeof params.amount === "string" && /^\d+$/.test(params.amount)
+      ? Math.min(Number(params.amount), AMOUNT_LIMITS.transfer.maximum)
+      : undefined
   // Ambil saldo dompet untuk batas transfer & tampilkan di keypad.
   // A-09 (audit): error TIDAK lagi disamarkan menjadi `{ balance: 0 }` —
   // saldo gagal dimuat ditampilkan apa adanya + retry, karena "Rp0" adalah
@@ -113,7 +121,7 @@ export default function TransferScreen() {
   // bukan state lokal yang hilang tiap masuk layar.
   const recent = useRecentRecipients()
   const [selected, setSelected] = useState<TransferRecipient | null>(null)
-  const [amount, setAmount] = useState(0)
+  const [amount, setAmount] = useState(presetAmount ?? 0)
   const [note, setNote] = useState("")
   const [noteDraft, setNoteDraft] = useState("")
   const [noteSheetOpen, setNoteSheetOpen] = useState(false)
@@ -554,6 +562,36 @@ export default function TransferScreen() {
                     subtitle={selected ? `Ke @${selected.username} · ${selected.name}` : undefined}
                   >
                     {selected ? (
+                      // FE-IMP-4 item 10: kartu penerima besar di konfirmasi —
+                      // avatar + nama + username menonjol agar salah kirim
+                      // lebih sulit terjadi.
+                      <View className="flex-row items-center gap-3 rounded-md bg-surface px-4 py-3">
+                        <Avatar
+                          source={selected.avatarUrl ? { uri: selected.avatarUrl } : undefined}
+                          name={selected.name}
+                          size="lg"
+                          verified={selected.kycVerified === true}
+                        />
+                        <View className="flex-1 gap-0.5">
+                          <Text variant="body" weight={700} numberOfLines={1}>
+                            {selected.name}
+                          </Text>
+                          <Text variant="caption" tone="secondary" numberOfLines={1}>
+                            @{selected.username}
+                          </Text>
+                        </View>
+                      </View>
+                    ) : null}
+                    {selected &&
+                    !favorites.some((f) => f.id === selected.id) ? (
+                      // FE-IMP-4 item 10: peringatan bila penerima bukan favorit.
+                      <Alert tone="warning" title="Bukan penerima favorit">
+                        Penerima ini tidak ada di daftar favorit Anda. Periksa
+                        kembali username sebelum mengirim — transfer yang sudah
+                        terkirim tidak bisa ditarik kembali.
+                      </Alert>
+                    ) : null}
+                    {selected ? (
                       <KeyValue label="Penerima" value={`${selected.name} · @${selected.username}`} />
                     ) : null}
                     {note.trim() ? <KeyValue label="Catatan" value={note.trim()} /> : null}
@@ -570,8 +608,12 @@ export default function TransferScreen() {
               style={{ paddingBottom: Math.max(tokens.space[4], insets.bottom) }}
             >
               <Button
+                // FE-IMP-4 item 11: kunci ganda — tombol konfirmasi ikut
+                // disabled saat submit/progres berjalan (selain submitLock di
+                // handlePin). Overlay progres non-dismissible (backdrop/back
+                // Android tidak menutup saat progressState aktif).
                 onPress={() => setStep("pin")}
-                disabled={!canContinueForm}
+                disabled={!canContinueForm || submitting || progressState != null}
                 haptic
               >
                 Konfirmasi & masukkan PIN

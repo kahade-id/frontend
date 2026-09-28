@@ -25,6 +25,7 @@
 import { useCallback, useEffect, useState } from "react"
 import { ScrollView, View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
+import { router } from "expo-router"
 
 import { api, isApiError, userMessage } from "@/lib/api"
 import { PASSWORD_MIN } from "@/lib/auth-constants"
@@ -36,6 +37,7 @@ import { Button } from "@/components/ui/button"
 import { ScreenCaptureGuard } from "@/components/security/screen-capture-guard"
 import { Header } from "@/components/ui/header"
 import { PasswordField } from "@/components/ui/password-field"
+import { TextLink } from "@/components/ui/text-link"
 import { PinInput } from "@/components/ui/pin-input"
 import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
@@ -204,6 +206,22 @@ export default function ChangePinScreen() {
               returnKeyType="next"
               onSubmitEditing={() => passwordOk && afterPassword()}
             />
+            {/* FE-IMP-4 item 12: backend TIDAK punya reset PIN wallet via OTP
+                (OtpType tidak punya jenis reset PIN; `set-pin` selalu butuh
+                PIN lama untuk PIN existing). JANGAN mengklaim reset kata
+                sandi bisa membuat PIN baru — itu salah. Arahkan ke dukungan. */}
+            <Text variant="caption" tone="secondary" className="text-pretty">
+              Lupa PIN wallet? Reset PIN mandiri belum didukung — hubungi{" "}
+              <TextLink
+                variant="caption"
+                inline
+                onPress={() => router.push(ROUTES.liveSupport)}
+                accessibilityLabel="Buka bantuan langsung"
+              >
+                bantuan langsung
+              </TextLink>{" "}
+              untuk verifikasi identitas dan bantuan reset.
+            </Text>
           </>
         ) : step === "current" ? (
           <>

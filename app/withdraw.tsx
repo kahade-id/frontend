@@ -139,11 +139,21 @@ export default function WithdrawScreen() {
       // Batas keypad memakai saldo TERSEDIA (bukan total): dana yang
       // tertahan di escrow tidak bisa ditarik, jadi user tidak perlu
       // ditolak server setelah memasukkan PIN.
-      select: (w) => ({ balance: w.availableBalance ?? w.balance ?? 0 }),
+      select: (w) => ({
+        balance: w.availableBalance ?? w.balance ?? 0,
+        // FE-IMP-4 item 13: limit tarik harian dari server (display-only —
+        // klien tidak menghitung ulang, hanya `limit - terpakai`).
+        todayWithdrawAmount: w.todayWithdrawAmount ?? 0,
+        dailyWithdrawLimit: w.dailyWithdrawLimit,
+      }),
     },
   )
   const balance = balanceQuery.data?.balance
   const balanceError = balanceQuery.error
+  const withdrawLimitLeft =
+    balanceQuery.data?.dailyWithdrawLimit != null
+      ? Math.max(0, balanceQuery.data.dailyWithdrawLimit - (balanceQuery.data.todayWithdrawAmount ?? 0))
+      : undefined
 
   const [amount, setAmount] = useState(0)
   const [accountId, setAccountId] = useState<string | null>(null)
@@ -460,7 +470,7 @@ export default function WithdrawScreen() {
               presets={PRESETS}
               balance={balance}
               slot={
-                <View className="px-5">
+                <View className="gap-2 px-5">
                   <KeypadOptionCard
                     label="Rekening tujuan"
                     value={selected ? `${selected.bankName ?? selected.bankCode}` : undefined}
@@ -473,6 +483,12 @@ export default function WithdrawScreen() {
                     }
                     onPress={() => setAccountSheetOpen(true)}
                   />
+                  {/* FE-IMP-4 item 13: sisa limit tarik hari ini (server). */}
+                  {withdrawLimitLeft != null && balance != null ? (
+                    <Text variant="caption" tone="secondary">
+                      Sisa limit tarik hari ini {formatRupiah(withdrawLimitLeft)}
+                    </Text>
+                  ) : null}
                 </View>
               }
             />
@@ -536,6 +552,32 @@ export default function WithdrawScreen() {
                       qrDataUrl={withdrawQr}
                       ticketRef={withdrawTicketRef}
                       onShare={() => void shareReceipt(withdrawTicketRef.current)}
+                      // FE-IMP-4 item 7: rincian biaya penarikan. Biaya & bersih
+                      // hanya ditampilkan bila SERVER mengirim fieldnya — klien
+                      // tidak menghitung biaya/net sendiri (fail closed: tanpa
+                      // data server, tidak ada baris biaya palsu).
+                      rows={[
+                        { label: "Nominal penarikan", value: formatRupiah(amount), mono: true },
+                        ...(() => {
+                          const res = result as { fee?: unknown; netAmount?: unknown } | null
+                          const fee = res?.fee
+                          if (typeof fee !== "number" || !Number.isFinite(fee) || fee < 0) {
+                            return []
+                          }
+                          const rows = [{ label: "Biaya admin", value: formatRupiah(fee), mono: true }]
+                          // Net hanya bila server mengirim netAmount — jangan
+                          // hitung amount - fee sendiri (aturan FE-IMP-4).
+                          const net = res?.netAmount
+                          if (typeof net === "number" && Number.isFinite(net) && net >= 0) {
+                            rows.push({
+                              label: "Diterima bersih",
+                              value: formatRupiah(net),
+                              mono: true,
+                            })
+                          }
+                          return rows
+                        })(),
+                      ]}
                     />
                   )
                 })()}
@@ -705,12 +747,21 @@ export default function WithdrawScreen() {
             </View>
           </View>
         ) : (
-          <PinInput
-            mode="enter"
-            onComplete={(p) => void handlePin(p)}
-            errorText={pinError}
-            disabled={submitting}
-          />
+          <View className="gap-3">
+            <PinInput
+              mode="enter"
+              onComplete={(p) => void handlePin(p)}
+              errorText={pinError}
+              disabled={submitting}
+            />
+            {/* FE-IMP-4 item 6: ETA di konfirmasi penarikan — informasi umum
+                (bukan janji per transaksi), agar user punya ekspektasi yang
+                jelas sebelum dana dipotong. */}
+            <Text variant="caption" tone="secondary" className="text-center">
+              Estimasi dana sampai: umumnya beberapa menit hingga 1 hari kerja,
+              tergantung jam operasional bank.
+            </Text>
+          </View>
         )}
       </BottomSheet>
 

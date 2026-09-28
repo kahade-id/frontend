@@ -34,8 +34,9 @@ import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
 import { TextLink } from "@/components/ui/text-link"
 import { ReceiptTicket, type ReceiptRow } from "@/components/receipt/ReceiptTicket"
-import { shareReceipt } from "@/components/receipt/shareReceipt"
-import { useReceiptQr } from "@/components/receipt/use-receipt-qr"
+import { downloadReceipt, shareReceipt } from "@/components/receipt/shareReceipt"
+import { useReceiptQrState } from "@/components/receipt/use-receipt-qr"
+import { WithdrawalTimeline } from "@/components/wallet/withdrawal-timeline"
 import { mapValue } from "@/lib/has-own"
 
 function toReceiptStatus(status: string): ReceiptStatus {
@@ -61,8 +62,9 @@ export default function WalletTransactionScreen() {
     Boolean(txId),
   )
   const txn = query.data
-  // QR verifikasi struk — defensif: null = tiket tanpa QR (lihat lib/receipt).
-  const qrDataUrl = useReceiptQr("WALLET_TX", txn?.id)
+  // QR verifikasi struk — FE-IMP-4 item 29: state gagal dibedakan dari
+  // loading agar bisa tampil tombol "Coba lagi".
+  const receiptQr = useReceiptQrState("WALLET_TX", txn?.id)
   const ticketRef = useRef<View | null>(null)
 
   const status = walletTransactionStatus(txn?.status)
@@ -119,13 +121,20 @@ export default function WalletTransactionScreen() {
                     }
                     rows={rows}
                     receiptId={txn.id}
-                    qrDataUrl={qrDataUrl}
+                    qrDataUrl={receiptQr.dataUrl}
+                    qrFailed={receiptQr.failed}
+                    onRetryQr={receiptQr.retry}
                     ticketRef={ticketRef}
                     onShare={() => void shareReceipt(ticketRef.current)}
+                    onDownload={() => void downloadReceipt(ticketRef.current)}
                     onCopyReceiptId={(id) => void copy(id)}
                   />
                 )
               })()}
+              {/* FE-IMP-4 item 8: timeline status khusus penarikan. */}
+              {txn.type === "WITHDRAW" || txn.type === "WITHDRAWAL" ? (
+                <WithdrawalTimeline status={txn.status} />
+              ) : null}
               {txn.referenceId ? (
                 // R2 (audit ronde-2, butir #81): referensi mutasi escrow adalah
                 // TAUTAN ke entitas terkait, bukan jalan buntu salin-tempel.

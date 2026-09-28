@@ -72,6 +72,17 @@ export type Wallet = {
   availableBalance?: number
   /** Apakah user sudah punya PIN wallet (dari backend GET /v1/wallet) */
   hasPin?: boolean
+  /**
+   * FE-IMP-4 item 13: pemakaian limit harian dari server — dipakai untuk
+   * menampilkan "sisa limit tarik hari ini". Display-only: klien TIDAK
+   * menghitung ulang limit, hanya `dailyWithdrawLimit - todayWithdrawAmount`.
+   */
+  todayTopupAmount?: number
+  todayWithdrawAmount?: number
+  todayTransferAmount?: number
+  dailyTopupLimit?: number
+  dailyWithdrawLimit?: number
+  dailyTransferLimit?: number
   updatedAt?: string
 }
 
@@ -407,6 +418,58 @@ export async function getTopupStatus(paymentTxId: string) {
     qrString: pickString(result, ["qrString", "qr_string"]) ?? result.qrString,
     expiresAt: pickString(result, ["expiresAt", "expires_at"]) ?? result.expiresAt,
   }
+}
+
+/**
+ * FE-IMP-4 item 5: estimasi biaya top-up kanonis dari server.
+ *
+ * GET /v1/wallet/topup/fee-estimate?amount=&method= — memakai logika fee yang
+ * SAMA dengan jalur charge (calculatePaymentFee di backend), jadi angka yang
+ * ditampilkan = angka yang ditagih gateway. Read-only. Klien TIDAK lagi
+ * menghitung biaya sendiri untuk tampilan konfirmasi.
+ */
+export type TopupFeeEstimate = {
+  amount: number
+  method: string
+  /** Biaya admin pasti menurut server. */
+  fee: number
+  /** Total yang dibayar = amount + fee (dari server). */
+  total: number
+  currency?: string
+}
+
+export function getTopupFeeEstimate(
+  amount: number,
+  method: string,
+  signal?: AbortSignal,
+): Promise<TopupFeeEstimate> {
+  return http
+    .get<unknown>("/v1/wallet/topup/fee-estimate", {
+      query: { amount, method },
+      auth: "required",
+      retry: 1,
+      signal,
+    })
+    .then((raw) => {
+      const record = (raw ?? {}) as Record<string, unknown>
+      const num = (v: unknown): number | undefined =>
+        typeof v === "number" && Number.isFinite(v) ? v : undefined
+      // FE-IMP-4: respons malformed TIDAK boleh menjadi fee 0 yang dianggap
+      // server-valid. `fee` dan `total` wajib angka finite dari server; bila
+      // tidak, lempar agar pemanggil jatuh ke estimasi lokal berlabel jujur.
+      const fee = num(record.fee)
+      const total = num(record.total)
+      if (fee == null || total == null || fee < 0 || total < 0) {
+        throw new Error("fee-estimate malformed")
+      }
+      return {
+        amount: num(record.amount) ?? amount,
+        method: typeof record.method === "string" ? record.method : method,
+        fee,
+        total,
+        currency: typeof record.currency === "string" ? record.currency : "IDR",
+      }
+    })
 }
 
 /** POST /v1/wallet/withdraw — tarik dana (bisa memerlukan OTP). */

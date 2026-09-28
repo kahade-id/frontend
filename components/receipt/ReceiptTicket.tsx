@@ -31,6 +31,7 @@ import {
   ArrowUDownLeft,
   CheckCircle,
   Clock,
+  DownloadSimple,
   Headset,
   ShareNetwork,
   XCircle,
@@ -85,9 +86,21 @@ export type ReceiptTicketProps = Omit<ViewProps, "children"> & {
   receiptId: string
   /** Data URL PNG QR verifikasi; kosong = QR tidak dirender (tanpa crash) */
   qrDataUrl?: string | null
+  /**
+   * FE-IMP-4 item 29: `true` bila QR gagal dimuat (bukan loading) — tampil
+   * state gagal + tombol coba lagi + verifikasi manual via ID struk.
+   */
+  qrFailed?: boolean
+  /** Coba muat ulang QR verifikasi. */
+  onRetryQr?: () => void
   /** Ref untuk capture (shareReceipt) — ditempel ke kartu tiket */
   ticketRef?: RefObject<View | null>
   onShare?: () => void
+  /**
+   * FE-IMP-4 item 16: unduh struk sebagai PNG. Bila tidak diisi, hanya tombol
+   * "Bagikan struk" yang tampil.
+   */
+  onDownload?: () => void
   /** Override tombol "Chat dengan CS" — default membuka /live-support */
   onChatSupport?: () => void
   onCopyReceiptId?: (id: string) => void
@@ -197,8 +210,11 @@ export function ReceiptTicket({
   recipientLabel = "Penerima",
   receiptId,
   qrDataUrl,
+  qrFailed = false,
+  onRetryQr,
   ticketRef,
   onShare,
+  onDownload,
   onChatSupport,
   onCopyReceiptId,
   className,
@@ -313,6 +329,22 @@ export function ReceiptTicket({
             Pindai untuk verifikasi keaslian struk
           </Text>
         </View>
+      ) : qrFailed ? (
+        // FE-IMP-4 item 29: QR gagal muat → state gagal + coba lagi +
+        // verifikasi manual via ID struk (fail closed, bukan diam).
+        <View className="items-center gap-2 px-5 pb-5">
+          <Text variant="caption" tone="secondary" className="text-center">
+            QR verifikasi gagal dimuat.
+          </Text>
+          {onRetryQr ? (
+            <Button size="sm" variant="secondary" onPress={onRetryQr}>
+              Coba lagi
+            </Button>
+          ) : null}
+          <Text variant="caption" tone="tertiary" className="text-center">
+            Struk tetap bisa diverifikasi manual memakai ID di atas.
+          </Text>
+        </View>
       ) : null}
 
       {/* Aksi: bagikan & chat CS */}
@@ -322,6 +354,13 @@ export function ReceiptTicket({
             <View className="flex-1">
               <Button variant="secondary" leftIcon={ShareNetwork} onPress={onShare}>
                 Bagikan struk
+              </Button>
+            </View>
+          ) : null}
+          {onDownload ? (
+            <View className="flex-1">
+              <Button variant="secondary" leftIcon={DownloadSimple} onPress={onDownload}>
+                Unduh
               </Button>
             </View>
           ) : null}

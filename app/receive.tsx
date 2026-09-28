@@ -2,9 +2,10 @@
  * Kahade — Terima (Receive) — layar QR kode agar pengguna lain bisa
  * mengirim saldo ke akun ini dengan memindai kode.
  *
- * QR berisi URL deep-link `kahade://transfer?to=<username>`; saat dipindai
- * (dibuka di perangkat yang punya app Kahade) langsung masuk ke layar
- * Transfer dengan penerima terisi otomatis ke username pemilik QR.
+ * QR berisi URL universal `https://kahade.id/transfer?to=<username>&amount=<n>`
+ * (FE-IMP-4 item 27); nominal opsional — bila diisi, pembayar tinggal
+ * konfirmasi. Saat dipindai dari aplikasi, langsung masuk ke layar Transfer
+ * dengan penerima (dan nominal) terisi otomatis.
  */
 import { useCallback, useMemo, useState } from "react"
 import { ScrollView, View } from "react-native"
@@ -19,6 +20,7 @@ import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 import { useApiQuery } from "@/lib/use-api-query"
 import { useCopy } from "@/lib/clipboard"
+import { transferUrl } from "@/lib/deeplinks"
 
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -27,6 +29,7 @@ import { FadeIn } from "@/components/ui/fade-in"
 import { Header } from "@/components/ui/header"
 import { Heading } from "@/components/ui/heading"
 import { Icon } from "@/components/ui/icon"
+import { Input } from "@/components/ui/input"
 import { QRCodeDisplay } from "@/components/ui/qr-code-display"
 import { Screen } from "@/components/ui/screen"
 import { Text } from "@/components/ui/text"
@@ -34,21 +37,28 @@ import { useToast } from "@/components/ui/toast"
 import { Avatar } from "@/components/ui/avatar"
 import { translate } from "@/lib/i18n/translate"
 
-/** Scheme deep-link app. */
-const SCHEME = "kahade://transfer?to="
-
 export default function ReceiveScreen() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
   const toast = useToast()
   const { copied, copy } = useCopy()
   const [qrSize, setQrSize] = useState(220)
+  // FE-IMP-4 item 27: nominal opsional yang dikodekan ke QR — pembayar tinggal
+  // konfirmasi di layar Transfer.
+  const [amountText, setAmountText] = useState("")
 
   const profile = useApiQuery(queryKeys.me(), (signal) => api.users.getMe(signal))
   const username = profile.data?.username
   const displayName = profile.data?.fullName?.trim() || username || "Pengguna Kahade"
 
-  const payload = useMemo(() => (username ? `${SCHEME}${encodeURIComponent(username)}` : ""), [username])
+  const amount = useMemo(() => {
+    const n = Number(amountText.replace(/[^\d]/g, ""))
+    return Number.isSafeInteger(n) && n > 0 ? n : undefined
+  }, [amountText])
+  const payload = useMemo(
+    () => (username ? transferUrl(username, amount) : ""),
+    [username, amount],
+  )
 
   const handleCopy = useCallback(() => {
     if (!username) return
@@ -136,6 +146,23 @@ export default function ReceiveScreen() {
                 mono
                 copied={copied}
                 onCopy={() => handleCopy()}
+              />
+            </View>
+
+            {/* FE-IMP-4 item 27: minta nominal tertentu. */}
+            <View className="w-full gap-1">
+              <Input
+                label="Nominal yang diminta (opsional)"
+                value={amountText}
+                onChangeText={(text) => setAmountText(text.replace(/[^\d]/g, ""))}
+                placeholder="cth: 50000"
+                keyboardType="numeric"
+                inputMode="numeric"
+                helperText={
+                  amount != null
+                    ? `QR berisi permintaan Rp${amount.toLocaleString("id-ID")}`
+                    : "Kosongkan bila pembayar bebas menentukan nominal."
+                }
               />
             </View>
           </Card>

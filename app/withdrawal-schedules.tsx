@@ -5,7 +5,7 @@
 
 import { Crossfade } from "@/components/ui/fade-in"
 import { ListLoading } from "@/components/ui/paginated-list"
-import { useCallback, useState } from "react"
+import { useCallback, useMemo, useState } from "react"
 import { View } from "react-native"
 import { router } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
@@ -55,6 +55,24 @@ export default function WithdrawalSchedulesScreen() {
     async (signal) => (await api.withdrawals.listWithdrawalSchedules(signal)) ?? [],
   )
   const items = query.data ?? []
+
+  // FE-IMP-4 item 14: ringkasan eksekusi — jadwal berikutnya yang terdekat
+  // (dari yang aktif) + eksekusi terakhir. Display-only dari field server.
+  const scheduleSummary = useMemo(() => {
+    let nearestNext: string | null = null
+    let latestLast: string | null = null
+    for (const item of items) {
+      const next = item.nextRunAt
+      if (item.isActive && next && (nearestNext == null || next < nearestNext)) {
+        nearestNext = next
+      }
+      const last = item.lastRunAt
+      if (last && (latestLast == null || last > latestLast)) {
+        latestLast = last
+      }
+    }
+    return { nearestNext, latestLast }
+  }, [items])
   const { loading, error, refreshing } = query
 
   // C-02 (audit): kunci disatukan dengan layar rekening/penarikan.
@@ -241,6 +259,25 @@ export default function WithdrawalSchedulesScreen() {
           />
         ) : (
           <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
+            {/* FE-IMP-4 item 14: ringkasan eksekusi jadwal. */}
+            {scheduleSummary.nearestNext || scheduleSummary.latestLast ? (
+              <View className="gap-1 rounded-md bg-surface px-4 py-3">
+                {scheduleSummary.nearestNext ? (
+                  <Text variant="body" tone="primary">
+                    Penarikan berikutnya: {formatDate(scheduleSummary.nearestNext)}
+                  </Text>
+                ) : null}
+                {scheduleSummary.latestLast ? (
+                  <Text variant="caption" tone="secondary">
+                    Eksekusi terakhir {formatRelativeTime(scheduleSummary.latestLast)}
+                  </Text>
+                ) : (
+                  <Text variant="caption" tone="secondary">
+                    Belum ada eksekusi tercatat.
+                  </Text>
+                )}
+              </View>
+            ) : null}
             <SectionHeader title="Jadwal aktif" />
             {items.map((item) => (
               <WithdrawalScheduleCard

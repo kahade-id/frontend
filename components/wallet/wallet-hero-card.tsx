@@ -24,7 +24,7 @@
  * Rp350.000 ditahan di escrow") — sedangkan toggle mata kontrol fokusable
  * terpisah. Root kartu TIDAK berlabel.
  */
-import { Eye, EyeSlash, LockSimple, Wallet } from "phosphor-react-native"
+import { Bank, CaretRight, Eye, EyeSlash, LockSimple, Wallet } from "phosphor-react-native"
 import { Pressable, View } from "react-native"
 
 import { Amount } from "@/components/ui/amount"
@@ -55,6 +55,17 @@ export type WalletHeroCardProps = {
   loading?: boolean
   error?: string | null
   onRetry?: () => void
+  /**
+   * FE-IMP-4 item 1: bila diisi, sub-baris "ditahan di escrow" menjadi tombol
+   * yang membuka rincian order penahan (read-only).
+   */
+  onPressHeld?: () => void
+  /**
+   * FE-IMP-4 item 13: sisa limit tarik hari ini dari server
+   * (`dailyWithdrawLimit - todayWithdrawAmount`). `undefined` = data tidak
+   * tersedia → baris disembunyikan (bukan Rp 0 palsu).
+   */
+  withdrawLimitLeft?: number
   className?: string
 }
 
@@ -66,6 +77,8 @@ export function WalletHeroCard({
   loading = false,
   error,
   onRetry,
+  onPressHeld,
+  withdrawLimitLeft,
   className,
 }: WalletHeroCardProps) {
   // Fail closed: error menggantikan kartu (bukan Rp 0 di dalam kartu).
@@ -147,11 +160,42 @@ export function WalletHeroCard({
               {loading ? (
                 <Skeleton height={tokens.typography.caption.lineHeight} className="w-36" />
               ) : showHeld ? (
+                <Pressable
+                  onPress={onPressHeld}
+                  disabled={!onPressHeld}
+                  accessibilityRole={onPressHeld ? "button" : undefined}
+                  accessibilityLabel={
+                    onPressHeld
+                      ? `${formatRupiah(heldValue)} ditahan di escrow. Ketuk untuk melihat rincian order penahan.`
+                      : undefined
+                  }
+                  accessibilityHint={onPressHeld ? "Menampilkan daftar order yang menahan dana" : undefined}
+                  className={cn(
+                    "flex-row items-center gap-1.5",
+                    onPressHeld && "-m-1 rounded-xs p-1",
+                    onPressHeld && focusRing,
+                  )}
+                >
+                  <View className="flex-row items-center gap-1.5">
+                    <Icon icon={LockSimple} size="xs" tone="inverse" />
+                    <Amount value={heldValue} size="body" tone="inverse" hidden={hidden} />
+                    <Text variant="caption" tone="inverse">
+                      ditahan di escrow
+                    </Text>
+                    {onPressHeld ? (
+                      <Icon icon={CaretRight} size="xs" tone="inverse" />
+                    ) : null}
+                  </View>
+                </Pressable>
+              ) : null}
+              {/* FE-IMP-4 item 13: sisa limit tarik harian (server). */}
+              {!loading && withdrawLimitLeft != null ? (
                 <View className="flex-row items-center gap-1.5">
-                  <Icon icon={LockSimple} size="xs" tone="inverse" />
-                  <Amount value={heldValue} size="body" tone="inverse" hidden={hidden} />
+                  <Icon icon={Bank} size="xs" tone="inverse" />
                   <Text variant="caption" tone="inverse">
-                    ditahan di escrow
+                    {hidden
+                      ? "Sisa limit tarik hari ini disembunyikan"
+                      : `Sisa limit tarik hari ini ${formatRupiah(withdrawLimitLeft)}`}
                   </Text>
                 </View>
               ) : null}
