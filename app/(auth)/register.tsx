@@ -59,6 +59,8 @@ import { api, isApiError, userMessage } from "@/lib/api"
 import { getAuthLocation } from "@/lib/location"
 import { setOtpFlow } from "@/lib/otp-flow"
 import { ROUTES } from "@/lib/routes"
+import { useLeaveConfirm } from "@/lib/use-leave-confirm"
+import { Dialog } from "@/components/ui/modal"
 
 /** Registrasi via HP: 4 langkah sebelum akun jadi; ini langkah ke-1 */
 const STEP_PROGRESS = 1 / 4
@@ -74,6 +76,14 @@ export default function RegisterScreen() {
   const [phoneError, setPhoneError] = useState<string | undefined>()
   const [formError, setFormError] = useState<FormError | null>(null)
   const [submitting, setSubmitting] = useState(false)
+
+  // A06 (batch 139): konfirmasi bila keluar dengan nomor yang belum terkirim.
+  const leaveConfirm = useLeaveConfirm(digits.length > 0 && !submitting, {
+    title: "Batalkan pendaftaran?",
+    description: "Nomor HP yang sudah Anda ketik akan hilang.",
+    confirmLabel: "Ya, batalkan",
+  })
+  const markLeaving = leaveConfirm.markLeaving
 
   const handleDigits = useCallback((next: string) => {
     setDigits(next)
@@ -124,6 +134,8 @@ export default function RegisterScreen() {
         triggerText: trigger.triggerText,
         expiresAt: trigger.expiresAt,
       })
+      // A06: keluar yang disengaja (kode terkirim) — matikan penjaga dulu.
+      markLeaving()
       router.push(ROUTES.whatsappTrigger)
     } catch (err) {
       if (isApiError(err)) {
@@ -148,7 +160,7 @@ export default function RegisterScreen() {
     } finally {
       setSubmitting(false)
     }
-  }, [digits, router, submitting])
+  }, [digits, router, submitting, markLeaving])
 
   // edges top saja: inset bawah dijumlahkan di footer (bukan di Screen) agar tidak ganda
   return (
@@ -236,6 +248,9 @@ export default function RegisterScreen() {
           </Text>
         </FooterBar>
       </KeyboardAvoiding>
+
+      {/* A06: dialog konfirmasi keluar — hanya bila ada nomor belum terkirim */}
+      <Dialog {...leaveConfirm.dialogProps} />
     </Screen>
   )
 }

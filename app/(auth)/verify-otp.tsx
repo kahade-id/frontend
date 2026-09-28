@@ -73,6 +73,8 @@ import { clearOtpFlow, getOtpFlow, patchOtpFlow } from "@/lib/otp-flow"
 import { clearPasswordResetState, setPasswordResetState } from "@/lib/password-reset"
 import { clearRegistrationState, setRegistrationState } from "@/lib/registration"
 import { ROUTES } from "@/lib/routes"
+import { useLeaveConfirm } from "@/lib/use-leave-confirm"
+import { Dialog } from "@/components/ui/modal"
 
 /** Progress: registrasi via HP = 4 langkah, ini langkah ke-2 */
 const STEP_PROGRESS = 2 / 4
@@ -116,6 +118,15 @@ export default function VerifyOtpScreen() {
   const [resending, setResending] = useState(false)
   const [countdownKey, setCountdownKey] = useState(0)
 
+  // A06 (batch 139): konfirmasi bila keluar dengan kode yang belum diverifikasi.
+  const leaveConfirm = useLeaveConfirm(code.length > 0 && !verifying, {
+    title: "Batalkan verifikasi?",
+    description:
+      "Kode yang sudah Anda ketik akan hilang. Anda bisa meminta kode baru kapan saja.",
+    confirmLabel: "Ya, batalkan",
+  })
+  const markLeaving = leaveConfirm.markLeaving
+
   const handleCodeChange = useCallback((next: string) => {
     setCode(next)
     // Hapus error saat user mengubah kode — memberi kesempatan kedua
@@ -148,6 +159,8 @@ export default function VerifyOtpScreen() {
 
         haptic("success")
         clearOtpFlow()
+        // A06: verifikasi sukses = keluar yang disengaja.
+        markLeaving()
 
         switch (result.status) {
           case "new_user":
@@ -222,7 +235,7 @@ export default function VerifyOtpScreen() {
         setVerifying(false)
       }
     },
-    [verifying, phoneNumber, purpose, router, goWelcome],
+    [verifying, phoneNumber, purpose, router, goWelcome, markLeaving],
   )
 
   const handleVerify = useCallback(() => {
@@ -268,6 +281,14 @@ export default function VerifyOtpScreen() {
     // FE-IMP-3 #117 — kembali ke input nomor SESUAI purpose, bukan
     // router.back() buta (stack tidak terduga bila masuk via deep-link /
     // reload web). UX-only: tidak mengubah alur verifikasi.
+    //
+    // A08 (batch 139): "Ubah nomor HP" adalah aksi eksplisit (bukan tombol
+    // kembali) — bersihkan challenge LAMA supaya kode referensi basi tidak
+    // dipakai ulang, sambil mempertahankan konteks purpose. markLeaving()
+    // mematikan penjaga A06 untuk navigasi yang disengaja ini.
+    const migrationToken = flow?.migrationToken
+    clearOtpFlow()
+    markLeaving()
     switch (purpose) {
       case "register":
         router.replace(ROUTES.register)
@@ -279,8 +300,8 @@ export default function VerifyOtpScreen() {
         router.replace(ROUTES.forgotPassword())
         break
       case "migrate_phone":
-        if (flow?.migrationToken) {
-          router.replace(ROUTES.phoneMigration(flow.migrationToken))
+        if (migrationToken) {
+          router.replace(ROUTES.phoneMigration(migrationToken))
         } else if (router.canGoBack()) {
           router.back()
         }
@@ -288,7 +309,7 @@ export default function VerifyOtpScreen() {
       default:
         if (router.canGoBack()) router.back()
     }
-  }, [router, purpose, flow])
+  }, [router, purpose, flow, markLeaving])
 
   // Jangan render tanpa alur aktif (effect akan redirect)
   if (!flow || !phoneNumber || !purpose) return null
@@ -397,6 +418,9 @@ export default function VerifyOtpScreen() {
         </FooterBar>
       </KeyboardAvoiding>
       </Screen>
+
+      {/* A06: dialog konfirmasi keluar — hanya bila ada kode belum diverifikasi */}
+      <Dialog {...leaveConfirm.dialogProps} />
     </ScreenCaptureGuard>
   )
 }

@@ -68,6 +68,8 @@ import {
   clearPendingSocialSignup,
   getPendingSocialSignup,
 } from "@/lib/social-signup"
+import { useLeaveConfirm } from "@/lib/use-leave-confirm"
+import { Dialog } from "@/components/ui/modal"
 import { useToast } from "@/components/ui/toast"
 
 /** Registrasi via HP: 4 langkah — ini langkah ke-4 (terakhir). */
@@ -119,7 +121,9 @@ export default function RegisterSecurityScreen() {
       void saveRegistrationDraft({ fullName, username })
     }, 600)
     return () => clearTimeout(timer)
-  }, [draftLoaded, fullName, username])  const [fullNameError, setFullNameError] = useState<string | undefined>()
+  }, [draftLoaded, fullName, username])
+
+  const [fullNameError, setFullNameError] = useState<string | undefined>()
   const [passwordError, setPasswordError] = useState<string | undefined>()
   const [confirmError, setConfirmError] = useState<string | undefined>()
   const [formError, setFormError] = useState<string | null>(null)
@@ -129,6 +133,17 @@ export default function RegisterSecurityScreen() {
   const passwordRef = useRef<TextInput>(null)
   const confirmRef = useRef<TextInput>(null)
   const [submitting, setSubmitting] = useState(false)
+
+  // A06 (batch 139): konfirmasi bila keluar dengan data yang belum disimpan.
+  const leaveConfirm = useLeaveConfirm(
+    (fullName.length > 0 || username.length > 0 || password.length > 0 || confirmPassword.length > 0) && !submitting,
+    {
+      title: "Batalkan pendaftaran?",
+      description: "Data yang sudah Anda isi akan hilang.",
+      confirmLabel: "Ya, batalkan",
+    },
+  )
+  const markLeaving = leaveConfirm.markLeaving
 
   const clearIssues = useCallback(() => setIssues([]), [])
 
@@ -188,6 +203,8 @@ export default function RegisterSecurityScreen() {
       // disimpan otomatis oleh auth.ts. Password TIDAK disimpan.
       // A05: draft non-rahasia tidak lagi dibutuhkan — akun sudah jadi.
       void clearRegistrationDraft()
+      // A06: akun berhasil dibuat = keluar yang disengaja.
+      markLeaving()
       setRegistrationState({ tempToken: "", phoneNumber, fullName: fullName.trim() })
       router.replace(ROUTES.setupProfile)
     } catch (err) {
@@ -204,7 +221,7 @@ export default function RegisterSecurityScreen() {
     } finally {
       setSubmitting(false)
     }
-  }, [submitting, tempToken, phoneNumber, fullName, username, password, confirmPassword, router])
+  }, [submitting, tempToken, phoneNumber, fullName, username, password, confirmPassword, router, markLeaving])
 
   if (!tempToken) return null
 
@@ -353,6 +370,9 @@ export default function RegisterSecurityScreen() {
           </Text>
         </FooterBar>
       </KeyboardAvoiding>
+
+      {/* A06: dialog konfirmasi keluar — hanya bila ada data belum disimpan */}
+      <Dialog {...leaveConfirm.dialogProps} />
     </Screen>
   )
 }
