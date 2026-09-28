@@ -38,6 +38,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
+  AppState,
   FlatList,
   Keyboard,
   View,
@@ -877,6 +878,10 @@ export default function ChatRoomScreen() {
     // via REST (kursor = halaman terbaru; mergeIncoming mendup).
     onReconnect: () => {
       void pollNewMessages()
+      // B16: rekonsiliasi unread eksplisit — badge tab & header bisa basi
+      // selama socket putus (polling store bisa tertunda).
+      void refreshUnreadCount()
+      void refreshChatUnreadCount()
     },
   })
 
@@ -887,6 +892,21 @@ export default function ChatRoomScreen() {
   const messagePollInterval = realtimeHealthy ? CHAT_POLL_IDLE_MS : pollInterval
   usePolling(pollNewMessages, messagePollInterval, Boolean(roomId) && !error && !loading)
   usePolling(refreshPresence, PRESENCE_POLL_MS, Boolean(roomId) && !realtimeHealthy)
+
+  /**
+   * B16: rekonsiliasi unread saat aplikasi kembali aktif — badge tab &
+   * header bisa basi selama aplikasi di background (push mungkin tidak
+   * sinkron dengan state store).
+   */
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") {
+        void refreshUnreadCount()
+        void refreshChatUnreadCount()
+      }
+    })
+    return () => sub.remove()
+  }, [])
 
   // ── Auto-scroll ke pesan terbaru ───────────────────────────────────────
   // Thread tumbuh ke bawah, tetapi ScrollView mulai di ATAS: membuka ruang

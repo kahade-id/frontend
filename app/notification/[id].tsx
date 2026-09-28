@@ -19,7 +19,7 @@
  *   - `id` kosong (deep link rusak) dirender sebagai EmptyState eksplisit,
  *     bukan spinner tanpa akhir — `enabled: Boolean(id)` mematikan fetch.
  */
-import { useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { View } from "react-native"
 import { router, useLocalSearchParams } from "expo-router"
 import { Bell, Trash } from "phosphor-react-native"
@@ -36,6 +36,7 @@ import {
   labelForNotificationReference,
   routeForNotificationReference,
 } from "@/lib/notification-routing"
+import { checkNotificationTarget } from "@/lib/notification-target"
 import {
   notificationCategoryLabel,
   notificationTypeUiCategory,
@@ -106,6 +107,25 @@ export default function NotificationDetailScreen() {
 
   const relatedRoute = notif ? routeForNotificationReference(notif) : null
   const relatedLabel = notif ? labelForNotificationReference(notif) : null
+
+  /**
+   * B15: validasi target CTA sebelum navigasi — target yang sudah dihapus
+   * (404 dari probe) tidak dibuka; pengguna tetap di detail notifikasi dengan
+   * penjelasan, bukan mendarat di layar yang mati.
+   */
+  const handleOpenRelated = useCallback(async () => {
+    if (!relatedRoute || !notif) return
+    const check = await checkNotificationTarget(notif.referenceType, notif.referenceId)
+    if (!check.ok) {
+      toast.show({
+        title: "Konten tidak tersedia",
+        description: "Tujuan tautan ini sudah tidak tersedia — kemungkinan sudah dihapus.",
+        tone: "warning",
+      })
+      return
+    }
+    router.push(relatedRoute)
+  }, [relatedRoute, notif, toast.show])
 
   // Item #24 — "Konfirmasi terima" langsung dari notifikasi in-app.
   // orderId diambil dari referenceType/referenceId (fail-closed: null bila
@@ -262,7 +282,7 @@ export default function NotificationDetailScreen() {
 
           {/* ── CTA ke entitas terkait ───────────────────────────── */}
           {relatedRoute && relatedLabel ? (
-            <Button variant="secondary" onPress={() => router.push(relatedRoute)}>
+            <Button variant="secondary" onPress={() => void handleOpenRelated()}>
               {relatedLabel}
             </Button>
           ) : (
