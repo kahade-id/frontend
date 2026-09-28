@@ -34,6 +34,7 @@ import { serverNow } from "@/lib/server-time"
 import { tokens } from "@/lib/tokens"
 import { usePolling } from "@/lib/use-polling"
 import { useApiQuery } from "@/lib/use-api-query"
+import { assertDeviceNotCompromised } from "@/lib/device-integrity"
 import { recordPendingAction, resolvePendingAction, toEpochMs } from "@/lib/pending-actions"
 import { Alert } from "@/components/ui/alert"
 import { AmountKeypad } from "@/components/ui/amount-keypad"
@@ -307,6 +308,9 @@ export default function TopupScreen() {
 
   const handlePay = useCallback(async () => {
     if (!canPay || !isTopupMethod(methodId) || submitLock.current) return
+    // M-1 (audit ronde-2): blokir pembuatan intent top-up di perangkat
+    // rooted/jailbroken — sebelum intent dibuat & dana bergerak.
+    if (!(await assertDeviceNotCompromised())) return
     submitLock.current = true
     setSubmitting(true)
     try {

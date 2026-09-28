@@ -54,6 +54,7 @@ import { usePolling } from "@/lib/use-polling"
 import { useClockTick } from "@/lib/use-clock-tick"
 import { resolveShippingCountdown } from "@/lib/order-shipping-countdown"
 import { useQrisPayment } from "@/lib/use-qris-payment"
+import { assertDeviceNotCompromised } from "@/lib/device-integrity"
 import { useOrderTracking } from "@/lib/use-order-tracking"
 import { useResultTimer } from "@/lib/use-result-timer"
 import type { DisputeCategoryValue } from "@/lib/labels/dispute"
@@ -549,6 +550,9 @@ export default function OrderDetailScreen() {
         setPinError("Muat ulang rincian biaya sebelum membayar.")
         return
       }
+      // M-1 (audit ronde-2): blokir pembayaran order di perangkat
+      // rooted/jailbroken — sebelum PIN diproses & dana bergerak.
+      if (!(await assertDeviceNotCompromised())) return
       /*
        * D08 (batch 139): pemeriksaan perubahan harga SEBELUM bayar — harga,
        * ongkir, atau diskon bisa berubah sejak layar dibuka. Quote terbaru

@@ -75,7 +75,8 @@ export function __resetDeviceIntegrityCache(): void {
  * membatalkan aksi finansialnya.
  *
  * Dipakai di titik commit dana: transfer (`transferFunds`), tarik dana
- * (`createWithdraw`), dan buat intent bayar QRIS (`payOrderQris`).
+ * (`createWithdraw`), bayar order via saldo wallet (`payOrder`), buat intent
+ * bayar QRIS (`payOrderQris`), dan buat intent top-up (`createTopup`).
  */
 export async function assertDeviceNotCompromised(): Promise<boolean> {
   // Web tidak didukung deteksi — lewati (transaksi web bukan jalur utama).
