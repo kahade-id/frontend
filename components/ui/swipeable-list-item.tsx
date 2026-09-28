@@ -46,7 +46,7 @@
  *     lewat `accessibilityActions` pada wrapper.
  */
 import type { ReactNode } from "react"
-import { useCallback, useMemo, useState } from "react"
+import { memo, useCallback, useMemo, useState } from "react"
 import { View, type AccessibilityActionEvent, type LayoutChangeEvent, type ViewProps } from "react-native"
 import { Gesture, GestureDetector } from "react-native-gesture-handler"
 import Animated, {
@@ -113,13 +113,20 @@ const FULL_RATIO = 0.6
 /** px/detik */
 const FULL_VELOCITY = 800
 
-export function SwipeableListItem({
+/**
+ * LR-003 (2026-09-29): nilai default `confirmFull` di-hoist ke konstanta
+ * modul — sebelumnya literal `["right"]` baru tiap render membuat `memo`
+ * di bawah tidak pernah hit untuk pemanggil yang tidak mengisi prop ini.
+ */
+const DEFAULT_CONFIRM_FULL: SwipeSide[] = ["right"]
+
+function SwipeableListItemBase({
   children,
   leftActions = [],
   rightActions = [],
   actionWidth = 80,
   onSwipeFull,
-  confirmFull = ["right"],
+  confirmFull = DEFAULT_CONFIRM_FULL,
   disabled = false,
   group,
   id,
@@ -280,6 +287,63 @@ export function SwipeableListItem({
     </View>
   )
 }
+
+/**
+ * LR-003 (2026-09-29): pembanding kustom untuk `memo`.
+ *
+ * `leftActions`/`rightActions` dibandingkan per-aksi (key, label, icon,
+ * destructive, onPress) — array literal yang isinya sama tidak memicu
+ * re-render. `children` dan callback lain tetap by-reference: pemanggil
+ * WAJIB menstabilkan (lihat `ChatRoomRow` di app/(tabs)/chat.tsx) —
+ * referensi baru = konten dianggap berubah, yang benar secara konservatif.
+ *
+ * `...rest` (ViewProps tambahan) TIDAK dibandingkan: pemanggil yang memakai
+ * prop ekstra harus menjaganya stabil sendiri. Pemakaian saat ini (daftar
+ * chat) tidak mengirim prop ekstra.
+ */
+function isSameSwipeAction(a: SwipeAction, b: SwipeAction): boolean {
+  return (
+    a === b ||
+    (a.key === b.key &&
+      a.label === b.label &&
+      a.icon === b.icon &&
+      a.onPress === b.onPress &&
+      !!a.destructive === !!b.destructive)
+  )
+}
+
+function isSameSwipeActions(
+  a: SwipeAction[] | undefined,
+  b: SwipeAction[] | undefined,
+): boolean {
+  if (a === b) return true
+  if (!a || !b || a.length !== b.length) return false
+  return a.every((action, i) => isSameSwipeAction(action, b[i]!))
+}
+
+function areSwipeablePropsEqual(
+  prev: SwipeableListItemProps,
+  next: SwipeableListItemProps,
+): boolean {
+  return (
+    prev.children === next.children &&
+    prev.id === next.id &&
+    prev.disabled === next.disabled &&
+    prev.actionWidth === next.actionWidth &&
+    prev.className === next.className &&
+    prev.group === next.group &&
+    prev.onSwipeFull === next.onSwipeFull &&
+    prev.confirmFull === next.confirmFull &&
+    isSameSwipeActions(prev.leftActions, next.leftActions) &&
+    isSameSwipeActions(prev.rightActions, next.rightActions)
+  )
+}
+
+/**
+ * LR-003: baris swipeable di-`memo` — update kecil di satu baris daftar
+ * (badge unread, status online) tidak lagi me-render ulang semua baris.
+ */
+export const SwipeableListItem = memo(SwipeableListItemBase, areSwipeablePropsEqual)
 
 function ActionButton({ action, width, onDone }: { action: SwipeAction; width: number; onDone: () => void }) {
   // Lebar lewat style (angka runtime dari prop) — bukan class arbitrer.

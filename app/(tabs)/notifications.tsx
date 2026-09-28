@@ -44,7 +44,7 @@ import { byTimestampDesc, usePaginatedQuery } from "@/lib/use-paginated-query"
 import { useScrollElevation } from "@/lib/use-scroll-elevation"
 import { PaginatedList } from "@/components/ui/paginated-list"
 import { useToast } from "@/components/ui/toast"
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { memo, useCallback, useEffect, useMemo, useState } from "react"
 import { View } from "react-native"
 import { router } from "expo-router"
 import {
@@ -215,6 +215,81 @@ function MarkAllReadButton({
  * bottom navbar. Tamu yang mengetuk tab ini mendapat ajakan login — tanpa
  * gate ini query notifikasi menembak 401 berulang (audit chat B-01).
  */
+/**
+ * LR-007 (perf-fix): satu baris notifikasi yang di-memo. Callback onPress /
+ * onLongPress dibuat stabil di dalam via useCallback, sehingga toggle satu
+ * baris (mis. mode pilih) tidak me-render ulang semua baris — tampilan dan
+ * perilaku tidak berubah.
+ */
+const NotificationRowView = memo(function NotificationRowView({
+  row,
+  showHeader,
+  groupLabel,
+  groupSub,
+  sameDayAsNext,
+  selecting,
+  isSelected,
+  onOpen,
+  onEnterSelectGroup,
+  onToggleSelectGroup,
+  onEnterSelect,
+  onToggleSelect,
+}: {
+  row: NotificationRow
+  showHeader: boolean
+  groupLabel: string
+  groupSub: string | null
+  sameDayAsNext: boolean
+  selecting: boolean
+  isSelected: boolean
+  onOpen: (head: AppNotification, isGroup: boolean, members: AppNotification[]) => void
+  onEnterSelectGroup: (items: AppNotification[]) => void
+  onToggleSelectGroup: (items: AppNotification[]) => void
+  onEnterSelect: (id: string) => void
+  onToggleSelect: (id: string) => void
+}) {
+  const head = notificationRowHead(row)
+  const isGroup = row.kind === "group"
+  const members = isGroup ? row.items : [head]
+
+  const handlePress = useCallback(
+    () => onOpen(head, isGroup, members),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [onOpen, isGroup, head.id],
+  )
+  const handleLongPress = useCallback(
+    () =>
+      isGroup
+        ? selecting
+          ? onToggleSelectGroup(row.items)
+          : onEnterSelectGroup(row.items)
+        : selecting
+          ? onToggleSelect(head.id)
+          : onEnterSelect(head.id),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [selecting, isGroup, onToggleSelectGroup, onEnterSelectGroup, onToggleSelect, onEnterSelect, head.id],
+  )
+
+  return (
+    <View>
+      {showHeader ? <NotificationDayHeader label={groupLabel} sub={groupSub} /> : null}
+      <NotificationListItem
+        title={isGroup ? describeSocialGroup(head.type ?? "", row.items) : head.title}
+        body={isGroup ? undefined : head.body || undefined}
+        category={notificationTypeUiCategory(head.type) ?? notificationUiCategory(head.category)}
+        timestamp={formatTimeAgo(head.createdAt)}
+        unread={isGroup ? true : !head.isRead}
+        selected={isSelected}
+        haptic
+        onPress={handlePress}
+        onLongPress={handleLongPress}
+        ripple
+        divider={sameDayAsNext}
+      />
+    </View>
+  )
+})
+
 export default function NotificationsTab() {
   const { token, restoring } = useAuthSession()
   if (restoring) return null
@@ -281,6 +356,11 @@ function NotificationsScreen() {
   // mengubah data/API. Transaksi/keuangan tidak pernah masuk grup (allowlist
   // di lib/notification-social-grouping).
   const rows = useMemo<NotificationRow[]>(() => groupSocialNotifications(notifs), [notifs])
+  /**
+   * LR-007 (perf-fix): renderItem stabil via useCallback + baris di-memo —
+   * identitas renderItem tidak berubah tiap render; setiap baris hanya
+   * re-render bila datanya sendiri berubah.
+   */
 
   // Menu "⋮" + mode pilih (batch read/delete) + konfirmasi hapus
   const [menuOpen, setMenuOpen] = useState(false)
@@ -427,6 +507,38 @@ function NotificationsScreen() {
     setSelecting(true)
     setSelected(new Set([id]))
   }, [])
+
+  const renderNotificationRow = useCallback(
+    ({ item: row, index }: { item: NotificationRow; index: number }) => {
+      const head = notificationRowHead(row)
+      const group = notificationDayGroup(head.createdAt)
+      const prevHead = index > 0 ? notificationRowHead(rows[index - 1]) : undefined
+      const showHeader =
+        index === 0 || (prevHead != null && notificationDayGroup(prevHead.createdAt).key !== group.key)
+      const nextHead = index < rows.length - 1 ? notificationRowHead(rows[index + 1]) : undefined
+      const sameDayAsNext =
+        nextHead != null && notificationDayGroup(nextHead.createdAt).key === group.key
+      const isGroup = row.kind === "group"
+      const members = isGroup ? row.items : [head]
+      return (
+        <NotificationRowView
+          row={row}
+          showHeader={showHeader}
+          groupLabel={group.label}
+          groupSub={group.sub}
+          sameDayAsNext={sameDayAsNext}
+          selecting={selecting}
+          isSelected={selecting && members.every((m) => selected.has(m.id))}
+          onOpen={handleOpenNotification}
+          onEnterSelectGroup={enterSelectGroup}
+          onToggleSelectGroup={toggleSelectGroup}
+          onEnterSelect={enterSelect}
+          onToggleSelect={toggleSelect}
+        />
+      )
+    },
+    [rows, selecting, selected, handleOpenNotification, enterSelectGroup, toggleSelectGroup, enterSelect, toggleSelect],
+  )
 
   const selectedIds = useMemo(() => Array.from(selected), [selected])
 
@@ -674,56 +786,7 @@ function NotificationsScreen() {
             }
           />
         }
-        renderItem={({ item: row, index }) => {
-          // Header grup hari (WIB): tampil di baris pertama tiap hari.
-          // Daftar diurutkan terbaru-di-atas (byTimestampDesc), jadi hari-hari
-          // selalu berurutan — tidak perlu struktur SectionList. Untuk baris
-          // grup, hari diambil dari item terbarunya (head).
-          const head = notificationRowHead(row)
-          const group = notificationDayGroup(head.createdAt)
-          const prevHead = index > 0 ? notificationRowHead(rows[index - 1]) : undefined
-          const showHeader =
-            index === 0 || (prevHead != null && notificationDayGroup(prevHead.createdAt).key !== group.key)
-          // Divider hanya antar baris dalam hari yang sama; antar grup yang
-          // memisahkan adalah header harinya sendiri.
-          const nextHead = index < rows.length - 1 ? notificationRowHead(rows[index + 1]) : undefined
-          const sameDayAsNext =
-            nextHead != null && notificationDayGroup(nextHead.createdAt).key === group.key
-
-          const isGroup = row.kind === "group"
-          const members = isGroup ? row.items : [head]
-          return (
-            <View>
-              {showHeader ? <NotificationDayHeader label={group.label} sub={group.sub} /> : null}
-              <NotificationListItem
-                title={isGroup ? describeSocialGroup(head.type ?? "", row.items) : head.title}
-                body={isGroup ? undefined : head.body || undefined}
-                category={notificationTypeUiCategory(head.type) ?? notificationUiCategory(head.category)}
-                // Timestamp relatif ("5 menit lalu", "Kemarin") — format
-                // eksplisit tetap tersedia di layar detail bila dibutuhkan.
-                timestamp={formatTimeAgo(head.createdAt)}
-                unread={isGroup ? true : !head.isRead}
-                selected={selecting && members.every((m) => selected.has(m.id))}
-                haptic
-                onPress={() => void handleOpenNotification(head, isGroup, members)}
-                // Tekan lama = masuk mode pilih (bukan ActionSheet per item).
-                // Di web affordance tekan-lama tidak ada, jadi hint baris
-                // menyebutnya eksplisit (lihat NotificationListItem).
-                onLongPress={() =>
-                  isGroup
-                    ? selecting
-                      ? toggleSelectGroup(row.items)
-                      : enterSelectGroup(row.items)
-                    : selecting
-                      ? toggleSelect(head.id)
-                      : enterSelect(head.id)
-                }
-                ripple
-                divider={sameDayAsNext}
-              />
-            </View>
-          )
-        }}
+        renderItem={renderNotificationRow}
       />
 
       <ActionSheet

@@ -47,6 +47,40 @@ import { useLanguage } from "@/lib/i18n"
 import type { MediaSource } from "@/lib/media"
 import { useConnectionType } from "@/lib/connectivity"
 
+/**
+ * LR-008 (perf-fix): batas player video konkuren. Setiap <FeedVideo> yang
+ * me-mount player native menambah hitungan; bila sudah mencapai batas,
+ * video menampilkan poster saja sampai ada slot bebas. Mencegah N player
+ * berebut decoder/memori saat beberapa video ter-mount bersamaan (mis.
+ * gallery + viewer + pratinjau).
+ */
+const MAX_CONCURRENT_VIDEO_PLAYERS = 2
+let activeVideoPlayers = 0
+const videoPlayerWaiters: Array<() => void> = []
+
+function acquireVideoPlayerSlot(): boolean {
+  if (activeVideoPlayers < MAX_CONCURRENT_VIDEO_PLAYERS) {
+    activeVideoPlayers += 1
+    return true
+  }
+  return false
+}
+
+function releaseVideoPlayerSlot() {
+  activeVideoPlayers = Math.max(0, activeVideoPlayers - 1)
+  const next = videoPlayerWaiters.shift()
+  if (next) {
+    activeVideoPlayers += 1
+    next()
+  }
+}
+
+function waitForVideoPlayerSlot(): Promise<void> {
+  return new Promise((resolve) => {
+    videoPlayerWaiters.push(resolve)
+  })
+}
+
 /** Hasil guarded-require expo-video; null = modul tak tersedia di bundle. */
 type ExpoVideoModule = typeof import("expo-video") | null
 
@@ -375,12 +409,49 @@ function ExpoVideoInner({
       nativeControls={nativeControls}
       allowTapToggle={allowTapToggle}
       onError={() => setFailed(true)}
+      poster={poster}
+      alt={alt}
     />
   )
 }
 
+/**
+ * LR-008: gate slot player konkuren. Bila slot penuh, tampilkan poster statis
+ * (tanpa membuat player native) sampai ada slot bebas — lalu me-mount player.
+ */
+function ExpoVideoPlayer(props: {
+  source: string
+  aspectRatio: number
+  shouldPlay: boolean
+  muted: boolean
+  loop: boolean
+  nativeControls: boolean
+  allowTapToggle: boolean
+  onError: () => void
+  poster?: MediaSource
+  alt: string
+}) {
+  const [hasSlot, setHasSlot] = useState(() => acquireVideoPlayerSlot())
+  useEffect(() => {
+    let cancelled = false
+    if (!hasSlot) {
+      void waitForVideoPlayerSlot().then(() => {
+        if (!cancelled) setHasSlot(true)
+      })
+    }
+    return () => {
+      cancelled = true
+      if (hasSlot) releaseVideoPlayerSlot()
+    }
+  }, [hasSlot])
+  if (!hasSlot) {
+    return <VideoPoster poster={props.poster} alt={props.alt} aspectRatio={props.aspectRatio} />
+  }
+  return <ExpoVideoPlayerInner {...props} />
+}
+
 /** Instans player tunggal — di-mount ulang (key) setiap "Coba lagi". */
-function ExpoVideoPlayer({
+function ExpoVideoPlayerInner({
   source,
   aspectRatio,
   shouldPlay,

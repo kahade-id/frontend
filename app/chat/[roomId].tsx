@@ -189,6 +189,30 @@ type ThreadRow =
   | { kind: "msg"; key: string; message: ChatMessage; index: number }
 
 /**
+ * LR-001 (2026-09-29): cache tampilan turunan per kunci konten — identitas
+ * objek prop stabil antar render layar sehingga `memo` baris chat
+ * benar-benar hit (bukan object literal inline baru tiap render). Entri
+ * tertua dibuang bila melebihi batas (Map menjaga urutan insersi).
+ */
+function getCachedRowView<T extends object>(
+  cache: Map<string, T>,
+  key: string,
+  build: () => T,
+  maxSize = 256,
+): T {
+  let view = cache.get(key)
+  if (!view) {
+    view = build()
+    cache.set(key, view)
+    if (cache.size > maxSize) {
+      const oldest = cache.keys().next()
+      if (!oldest.done) cache.delete(oldest.value)
+    }
+  }
+  return view
+}
+
+/**
  * B07: konversi FailedChatMessage (antrean persisten) → ChatMessage untuk
  * di-merge ke thread. Status "failed" membuat bubble menampilkan tombol
  * "Coba lagi" seperti pesan optimistis yang gagal (CN-015).
@@ -268,9 +292,8 @@ const CHAT_POLL_MS = 8000
  * (CN-005) — `chat.service.ts` mengirim `senderView` ke pengirim dan
  * `recipientView` ke penerima. Event socket juga bertanda tangan HMAC per
  * sesi (`session_hmac_token`); klien memverifikasi sebelum normalisasi
- * (`lib/realtime/hmac.ts`). Saat socket sehat, poll pesan melambat ke
- * interval idle dan poll presence dimatikan; saat socket mati, polling
- * penuh kembali mengambil alih otomatis.
+ * (`lib/realtime/hmac.ts`). Polling REST hanya fallback: dijeda total saat
+ * socket sehat (NP-004/NS-003, 2026-09-29), menyala lagi saat socket putus.
  */
 /**
  * F-07 (audit): setelah IDLE_AFTER_EMPTY_POLLS poll beruntun tanpa pesan
@@ -846,8 +869,8 @@ export default function ChatRoomScreen() {
   // Backend kini memakai serialisasi per-penerima untuk `chat.new_message`
   // (CN-004) dan `chat.reaction_updated` (CN-005) — payload yang diterima
   // hook ini sudah benar untuk viewer ini. Event melewati verifikasi
-  // envelope HMAC di dalam hook; REST polling di bawah tetap jalan sebagai
-  // fallback (G119) dan melambat saat socket sehat (G120).
+  // envelope HMAC di dalam hook; REST polling di bawah dijeda total saat
+  // socket sehat (NP-004/NS-003) dan hanya jalan sebagai fallback (G119).
   const { healthy: realtimeHealthy, sendTyping: sendTypingRealtime } = useChatRoomRealtime(roomId, {
     onMessage: (raw) => {
       try {
@@ -904,12 +927,16 @@ export default function ChatRoomScreen() {
     },
   })
 
-  // G119/G120: polling REST tetap sebagai fallback — tidak pernah
-  // dimatikan total karena socket bisa putus diam-diam tanpa event
-  // disconnect. Saat socket sehat, poll pesan melambat ke interval idle
-  // dan poll presence dimatikan (presence datang via socket).
-  const messagePollInterval = realtimeHealthy ? CHAT_POLL_IDLE_MS : pollInterval
-  usePolling(pollNewMessages, messagePollInterval, Boolean(roomId) && !error && !loading)
+  // G119/G120 (revisi 2026-09-29, NP-004/NS-003): polling REST adalah
+  // fallback SEMATA — dijeda total saat socket sehat (0 request), menyala
+  // lagi otomatis saat socket putus. Socket.io punya heartbeat ping/pong,
+  // jadi socket yang mati diam-diam terdeteksi dan status `healthy`
+  // berubah → poll kembali jalan. Pesan yang terlewat saat reconnect
+  // diambil eksplisit di `onReconnect` di atas, dan read-receipt/pin
+  // mengalir via event socket (`onRead`/`onPin`) selama socket sehat.
+  // Fallback TIDAK PERNAH dihapus: tanpa ini chat berhenti update saat
+  // socket mati.
+  usePolling(pollNewMessages, pollInterval, Boolean(roomId) && !error && !loading && !realtimeHealthy)
   usePolling(refreshPresence, PRESENCE_POLL_MS, Boolean(roomId) && !realtimeHealthy)
 
   /**
@@ -2155,6 +2182,194 @@ export default function ChatRoomScreen() {
     )
   }, [pinned])
 
+  // ── LR-001: prop stabil untuk baris chat (memo) ──────────────────────
+  // Semua handler di bawah `useCallback` + semua objek prop di-`useMemo`/
+  // cache — tanpa ini `memo` di <ChatMessageRow> tidak pernah hit karena
+  // tiap render layar membuat identitas prop baru (inilah penyebab
+  // re-render total tiap keystroke di composer).
+  /** Info lawan bicara — SATU objek stabil, bukan literal baru tiap render. */
+  const counterpartInfo = useMemo(
+    () => ({
+      name: counterpartName,
+      avatarUrl: room?.counterpart?.avatarUrl,
+      sealTier: room?.counterpart?.sealTier ?? null,
+    }),
+    [counterpartName, room?.counterpart?.avatarUrl, room?.counterpart?.sealTier],
+  )
+  /** Ketuk bubble: NO-OP di luar mode pilih; toggle pilihan saat memilih. */
+  const handleRowPress = useCallback(
+    (target: ChatMessage) => {
+      if (selecting) toggleSelect(target.id)
+    },
+    [selecting, toggleSelect],
+  )
+  /** Tekan lama bubble: masuk mode pilih + popover reaksi mengambang. */
+  const handleRowLongPress = useCallback(
+    (target: ChatMessage, anchor: ChatBubbleAnchor) => {
+      if (!selecting) enterSelect(target.id)
+      setReactionPopover({ message: target, anchor })
+    },
+    [selecting, enterSelect],
+  )
+  /** Reaksi emoji dari badge bubble. */
+  const handleRowReact = useCallback(
+    (target: ChatMessage, emoji: string) => {
+      void handleReact(target, emoji)
+    },
+    [handleReact],
+  )
+  /** CN-015: kirim ulang pesan yang gagal. */
+  const handleRowRetry = useCallback(
+    (target: ChatMessage) => {
+      void handleRetry(target)
+    },
+    [handleRetry],
+  )
+  /**
+   * Swipe kanan bubble = balas. Gate mode-pilih sudah ada DI DALAM
+   * <ChatMessageRow> (ia menonaktifkan swipe saat `selecting`), jadi di
+   * sini handler selalu stabil — perilaku identik dengan
+   * `selecting ? undefined : (m) => setReplyTarget(m)` sebelumnya.
+   */
+  const handleRowSwipeReply = useCallback((target: ChatMessage) => {
+    setReplyTarget(target)
+  }, [])
+  /** Tombol "Beli" kartu produk → sheet buat transaksi escrow. */
+  const handleRowBuyProductCard = useCallback((card: ChatProductCardPayload) => {
+    setCreateOrderProduct(card)
+    setCreateOrderSheetOpen(true)
+  }, [])
+  /**
+   * Terjemahan per pesan sebagai objek tampilan STABIL (cache per konten).
+   * Tanpa cache, `translations[m.id] ? {...} : undefined` membuat objek
+   * baru tiap render layar dan menjebol memo semua baris.
+   */
+  const translationViewCacheRef = useRef(
+    new Map<string, { text: string; sourceLang: string | null; targetLang: string }>(),
+  )
+  const getTranslationView = useCallback(
+    (messageId: string) => {
+      const t = translations[messageId]
+      if (!t) return undefined
+      return getCachedRowView(
+        translationViewCacheRef.current,
+        [messageId, t.sourceLang ?? "", t.targetLang, t.translatedText].join(""),
+        () => ({
+          text: t.translatedText,
+          sourceLang: t.sourceLang,
+          targetLang: t.targetLang,
+        }),
+      )
+    },
+    [translations],
+  )
+  /**
+   * Sorotan pencarian inline sebagai objek STABIL (cache per konten) —
+   * alasan sama seperti terjemahan di atas.
+   */
+  const searchHighlightCacheRef = useRef(
+    new Map<string, { query: string; focused: boolean }>(),
+  )
+  const getSearchHighlightView = useCallback(
+    (m: ChatMessage) => {
+      if (!inlineSearchOpen || !inlineMatchIds.has(m.id)) return undefined
+      const focused = m.id === inlineActiveId
+      return getCachedRowView(
+        searchHighlightCacheRef.current,
+        [m.id, inlineQuery, focused ? "1" : "0"].join(""),
+        () => ({ query: inlineQuery, focused }),
+      )
+    },
+    [inlineSearchOpen, inlineMatchIds, inlineQuery, inlineActiveId],
+  )
+  /**
+   * LR-001: `renderItem` thread via `useCallback` — SEBELUMNYA inline di
+   * JSX sehingga tiap render layar (termasuk tiap keystroke composer)
+   * membuat fungsi baru → FlatList me-render ulang SEMUA bubble.
+   */
+  const renderThreadRow = useCallback(
+    ({ item: row }: { item: ThreadRow }) => {
+      // B10: pemisah hari sebagai baris sticky (bukan di dalam row).
+      if (row.kind === "day") {
+        return <ChatDaySeparator label={row.label} />
+      }
+      // B02: pemisah "Belum dibaca" — ketuk = kembali ke titik itu.
+      if (row.kind === "unread") {
+        return (
+          <ChatUnreadSeparator count={row.count} onPress={() => jumpToMessage(row.anchorId)} />
+        )
+      }
+      const m = row.message
+      const index = row.index
+      return (
+        <ChatMessageRow
+          message={m}
+          previous={index > 0 ? visibleMessages[index - 1] : undefined}
+          // Pesan tepat di bawahnya — penentu "bubble terakhir grup menit"
+          // (jam hanya tampil di situ, ala WhatsApp).
+          next={index < visibleMessages.length - 1 ? visibleMessages[index + 1] : undefined}
+          // B10: pemisah hari sudah jadi baris sticky tersendiri.
+          hideDaySeparator
+          // B09: sorot pesan asal balasan + navigasi konteks kutipan.
+          highlighted={highlightedId === m.id}
+          onQuotePress={handleQuotePress}
+          selecting={selecting}
+          selected={selectedIds.has(m.id)}
+          readByCounterpart={readByCounterpart.has(m.id)}
+          // Foto + nama lawan bicara untuk gelembung masuk (2026-09-26).
+          // Revisi 2026-09-27 (UI polish): sealTier ikut diteruskan agar
+          // seal verifikasi tampil di samping nama pengirim bubble.
+          // Revisi 2026-09-28 (produk): DM 1:1 → disembunyikan total
+          // (showSenderIdentity=false); ruang transaksi/grup → tetap tampil.
+          counterpart={counterpartInfo}
+          showSenderIdentity={showPeerIdentity}
+          // Swipe kanan bubble = jalan pintas balas (2026-09-28).
+          // Tekan lama "Balas" di SelectionBar TETAP ADA — gesture ini
+          // hanya memanggil setReplyTarget yang sama. Nonaktif saat mode
+          // pilih agar tidak bentrok dengan toggle pilihan (gate di row).
+          onSwipeReply={handleRowSwipeReply}
+          // Revisi 2026-09-27: KETUKAN bubble teks = NO-OP di luar mode
+          // pilih (tidak membuka apa pun); saat mode pilih aktif ketukan
+          // men-toggle pilihan. Aksi (menu/reaksi) HANYA lewat tekan lama
+          // → masuk mode pilih + popover reaksi mengambang di dekat bubble.
+          onPress={handleRowPress}
+          onLongPress={handleRowLongPress}
+          onReact={handleRowReact}
+          onAttachmentPress={openAttachment}
+          // Batch 43: hasil terjemahan per pesan + tombol Beli kartu produk.
+          // ChatTranslation (translatedText) → prop row ({ text, … }).
+          translation={getTranslationView(m.id)}
+          onBuyProductCard={isSelfChat ? undefined : handleRowBuyProductCard}
+          // CN-015: kirim ulang pesan yang gagal.
+          onRetry={handleRowRetry}
+          // Pencarian inline: sorot kata kunci; hasil aktif lebih tegas.
+          searchHighlight={getSearchHighlightView(m)}
+        />
+      )
+    },
+    [
+      visibleMessages,
+      highlightedId,
+      handleQuotePress,
+      selecting,
+      selectedIds,
+      readByCounterpart,
+      counterpartInfo,
+      showPeerIdentity,
+      handleRowSwipeReply,
+      handleRowPress,
+      handleRowLongPress,
+      handleRowReact,
+      openAttachment,
+      getTranslationView,
+      isSelfChat,
+      handleRowBuyProductCard,
+      handleRowRetry,
+      getSearchHighlightView,
+      jumpToMessage,
+    ],
+  )
+
   return (
     <Screen
       keyboardAvoiding
@@ -2366,93 +2581,7 @@ export default function ChatRoomScreen() {
             />
           )
         }
-        renderItem={({ item: row }) => {
-          // B10: pemisah hari sebagai baris sticky (bukan di dalam row).
-          if (row.kind === "day") {
-            return <ChatDaySeparator label={row.label} />
-          }
-          // B02: pemisah "Belum dibaca" — ketuk = kembali ke titik itu.
-          if (row.kind === "unread") {
-            return (
-              <ChatUnreadSeparator count={row.count} onPress={() => jumpToMessage(row.anchorId)} />
-            )
-          }
-          const m = row.message
-          const index = row.index
-          return (
-            <ChatMessageRow
-              message={m}
-              previous={index > 0 ? visibleMessages[index - 1] : undefined}
-              // Pesan tepat di bawahnya — penentu "bubble terakhir grup menit"
-              // (jam hanya tampil di situ, ala WhatsApp).
-              next={index < visibleMessages.length - 1 ? visibleMessages[index + 1] : undefined}
-              // B10: pemisah hari sudah jadi baris sticky tersendiri.
-              hideDaySeparator
-              // B09: sorot pesan asal balasan + navigasi konteks kutipan.
-              highlighted={highlightedId === m.id}
-              onQuotePress={handleQuotePress}
-            selecting={selecting}
-            selected={selectedIds.has(m.id)}
-            readByCounterpart={readByCounterpart.has(m.id)}
-            // Foto + nama lawan bicara untuk gelembung masuk (2026-09-26).
-            // Revisi 2026-09-27 (UI polish): sealTier ikut diteruskan agar
-            // seal verifikasi tampil di samping nama pengirim bubble.
-            // Revisi 2026-09-28 (produk): DM 1:1 → disembunyikan total
-            // (showSenderIdentity=false); ruang transaksi/grup → tetap tampil.
-            counterpart={{
-              name: counterpartName,
-              avatarUrl: room?.counterpart?.avatarUrl,
-              sealTier: room?.counterpart?.sealTier ?? null,
-            }}
-            showSenderIdentity={showPeerIdentity}
-            // Swipe kanan bubble = jalan pintas balas (2026-09-28).
-            // Tekan lama "Balas" di SelectionBar TETAP ADA — gesture ini
-            // hanya memanggil setReplyTarget yang sama. Nonaktif saat mode
-            // pilih agar tidak bentrok dengan toggle pilihan.
-            onSwipeReply={selecting ? undefined : (m) => setReplyTarget(m)}
-            // Revisi 2026-09-27: KETUKAN bubble teks = NO-OP di luar mode
-            // pilih (tidak membuka apa pun); saat mode pilih aktif ketukan
-            // men-toggle pilihan. Aksi (menu/reaksi) HANYA lewat tekan lama
-            // → masuk mode pilih + popover reaksi mengambang di dekat bubble.
-            onPress={(target) => {
-              if (selecting) toggleSelect(target.id)
-            }}
-            onLongPress={(target, anchor) => {
-              if (!selecting) enterSelect(target.id)
-              setReactionPopover({ message: target, anchor })
-            }}
-            onReact={(target, emoji) => void handleReact(target, emoji)}
-            onAttachmentPress={openAttachment}
-            // Batch 43: hasil terjemahan per pesan + tombol Beli kartu produk.
-            // ChatTranslation (translatedText) → prop row ({ text, … }).
-            translation={
-              translations[m.id]
-                ? {
-                    text: translations[m.id].translatedText,
-                    sourceLang: translations[m.id].sourceLang,
-                    targetLang: translations[m.id].targetLang,
-                  }
-                : undefined
-            }
-            onBuyProductCard={
-              isSelfChat
-                ? undefined
-                : (card) => {
-                    setCreateOrderProduct(card)
-                    setCreateOrderSheetOpen(true)
-                  }
-            }
-            // CN-015: kirim ulang pesan yang gagal.
-            onRetry={(target) => void handleRetry(target)}
-            // Pencarian inline: sorot kata kunci; hasil aktif lebih tegas.
-            searchHighlight={
-              inlineSearchOpen && inlineMatchIds.has(m.id)
-                ? { query: inlineQuery, focused: m.id === inlineActiveId }
-                : undefined
-            }
-            />
-          )
-        }}
+        renderItem={renderThreadRow}
         // Scroll ke puncak = muat riwayat lebih lama (tombol eksplisit tetap
         // ada di header list untuk status error).
         onStartReached={() => {
