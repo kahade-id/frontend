@@ -4,7 +4,10 @@
  * Tanggung jawab file ini (urutan boot):
  *   1. Tahan native splash (preventAutoHideAsync) — dipanggil di module scope,
  *      SEBELUM komponen mount / font mulai load, sesuai docs expo-splash-screen.
- *   2. Load 7 font offline via expo-font `useFonts(fontAssets)`.
+ *   2. Load font KRITIS (PlusJakartaSans, 4 file) offline via expo-font
+ *      `useFonts(fontAssetsBlocking)` — ST-003: EBGaramond (392KB, teks
+ *      legal) + AzeretMono dimuat LAZY setelah first paint, tidak menahan
+ *      splash.
  *      Key = nama di `fontFamilyByWeight` (dijamin oleh `satisfies` di fonts.ts).
  *   3. Saat font siap ATAU gagal: sembunyikan native splash dan serahkan ke
  *      <AnimatedSplash> (JS overlay) yang fade-out → app terlihat.
@@ -31,7 +34,7 @@ import Reanimated, { useAnimatedStyle } from "react-native-reanimated"
 import { Stack, usePathname, useRouter, type Href } from "expo-router"
 import { StatusBar } from "expo-status-bar"
 import * as SplashScreen from "expo-splash-screen"
-import { useFonts } from "expo-font"
+import { useFonts, loadAsync as loadFontsAsync } from "expo-font"
 import { installedAppVersion } from "@/lib/runtime-info"
 
 import { I18nProvider } from "@/components/i18n-provider"
@@ -55,7 +58,7 @@ import { PortalHost, PortalProvider, PortalScene } from "@/components/ui/portal"
 import { ToastProvider } from "@/components/ui/toast"
 import { DeviceIntegrityProvider } from "@/components/security/device-integrity-provider"
 import { api, onSessionExpired } from "@/lib/api"
-import { fontAssets } from "@/lib/fonts"
+import { fontAssetsBlocking, fontAssetsDeferred } from "@/lib/fonts"
 import { routeForPushData } from "@/lib/notification-routing"
 import { animationDurationForScreen, animationForScreen } from "@/lib/screen-transitions"
 import { setupNotifications, subscribeNotificationOpened } from "@/lib/push-notifications"
@@ -128,7 +131,9 @@ function hrefToConcretePath(href: Href): string | null {
 }
 
 export default function RootLayout() {
-  const [fontsLoaded, fontError] = useFonts(fontAssets)
+  // ST-003: hanya font kritis (PlusJakartaSans) yang blocking — splash tidak
+  // menunggu EBGaramond (392KB) + AzeretMono yang tidak dipakai layar pertama.
+  const [fontsLoaded, fontError] = useFonts(fontAssetsBlocking)
 
   // Handler global telemetri (unhandled rejection + JS exception) dipasang
   // sekali per proses — idempoten terhadap Hot Reload (D-03).
@@ -143,6 +148,26 @@ export default function RootLayout() {
   // loading). Native tetap menunggu font siap di balik AnimatedSplash.
   const ready = Platform.OS === "web" || fontsLoaded || fontError != null
   const [splashDone, setSplashDone] = useState(Platform.OS === "web")
+
+  // ST-003: font non-kritis (EBGaramond + AzeretMono) dimuat LAZY setelah
+  // first paint — fire-and-forget, tidak menahan render/splash. Gagal load
+  // tidak fatal: komponen yang memakainya fallback ke system font sampai
+  // font tersedia (pemakaian: teks legal, grafik, chat format-bar — semuanya
+  // di luar layar pertama).
+  useEffect(() => {
+    if (!ready) return
+    let alive = true
+    void loadFontsAsync(fontAssetsDeferred)
+      .then(() => {
+        if (__DEV__ && alive) console.debug("[kahade/fonts] deferred fonts loaded")
+      })
+      .catch((err: unknown) => {
+        if (alive) captureError("fonts:deferred", err)
+      })
+    return () => {
+      alive = false
+    }
+  }, [ready])
 
   useEffect(() => {
     if (fontError) {
