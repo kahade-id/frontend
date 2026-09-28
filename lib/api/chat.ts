@@ -170,6 +170,33 @@ export function chatRoomPreview(
 }
 
 /**
+ * CHT-011 (audit UI/UX 2026-09-28): label konsisten untuk pesan tanpa teks
+ * di semua permukaan (kutipan balasan, pinned bar, daftar room).
+ *
+ * Sebelumnya kutipan balasan memakai "Gambar"/"Video"/"Pesan suara"/"Berkas"
+ * sementara permukaan lain memakai "(lampiran)" untuk pesan yang SAMA.
+ * Tipe lampiran (IMAGE/VIDEO/VOICE/FILE) memakai "(lampiran)" — selaras
+ * dengan keputusan UI-C002 yang sudah diuji (tests/chat-uiux.test.ts).
+ * Tipe khusus batch 43 yang BUKAN lampiran (lokasi, kartu produk/order)
+ * memakai label spesifiknya, karena "(lampiran)" menyesatkan untuknya.
+ *
+ * Mengembalikan string Indonesia ( = kunci i18n); pemanggil membungkus
+ * dengan translate() bila perlu bahasa lain. Murni, bisa di-unit-test.
+ */
+export function nonTextMessageLabel(messageType?: string | null): string {
+  switch ((messageType ?? "").toUpperCase()) {
+    case "LOCATION":
+      return "Lokasi"
+    case "PRODUCT_CARD":
+      return "Kartu produk"
+    case "ORDER_CARD":
+      return "Kartu order"
+    default:
+      return "(lampiran)"
+  }
+}
+
+/**
  * Normalisasi satu pesan chat dari respons REST ATAU payload realtime
  * (`chat.new_message` / `chat.message_updated`) — serializer SAMA untuk
  * kedua jalur (G107). Diekspor agar lapisan realtime tidak menduplikasi

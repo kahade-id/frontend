@@ -19,6 +19,7 @@ import { Linking } from "react-native"
 import { parseChatMarkup, hasChatMarkup, type ChatSegment } from "@/lib/chat-format"
 import { safeHttpsLink } from "@/lib/external-url"
 import { logWarn } from "@/lib/telemetry"
+import { truncateMiddle } from "@/lib/format"
 
 import { useTheme } from "@/components/theme-provider"
 import { Text } from "@/components/ui/text"
@@ -67,6 +68,21 @@ function ChatSpoilerSegment({
   )
 }
 
+/**
+ * CHT-003: React Native tidak bisa memutus baris pada string tanpa spasi —
+ * URL 150+ karakter melebar melewati max-w bubble dan keluar layar. Label
+ * yang tampil dipotong di tengah (kepala domain + ekor token tetap
+ * dikenali); href PENUH tetap dipakai onPress & accessibilityLabel.
+ * Hanya untuk string tanpa whitespace: kalimat normal tetap wrap utuh.
+ */
+const UNBROKEN_DISPLAY_MAX = 60
+function unbrokenDisplay(text: string): string {
+  if (text.length > UNBROKEN_DISPLAY_MAX && !/\s/.test(text)) {
+    return truncateMiddle(text, 24, 12)
+  }
+  return text
+}
+
 function ChatLinkSegment({
   segment,
   outgoing,
@@ -89,7 +105,7 @@ function ChatLinkSegment({
       accessibilityLabel={`Buka tautan ${segment.linkUrl}`}
       className="underline"
     >
-      {segment.text}
+      {unbrokenDisplay(segment.text)}
     </Text>
   )
 }
@@ -112,6 +128,9 @@ function ChatSegmentView({
       variant="inherit"
       className={cn(segment.italic && "italic", segment.underline && "underline")}
       weight={segment.bold ? 700 : undefined}
+      // CHT-003: segmen mono panjang tanpa spasi memakai proteksi yang sama
+      // dengan tautan — teks penuh tetap di accessibilityLabel.
+      accessibilityLabel={segment.mono ? segment.text : undefined}
       style={
         segment.mono
           ? {
@@ -124,7 +143,7 @@ function ChatSegmentView({
             : undefined
       }
     >
-      {segment.text}
+      {segment.mono ? unbrokenDisplay(segment.text) : segment.text}
     </Text>
   )
 }

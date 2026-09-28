@@ -34,9 +34,11 @@
  *     <ChatMessageRow> via `isLastInMinuteGroup`, ala WhatsApp) — prop `time`
  *     yang diterima sudah memperhitungkannya; komponen ini hanya merender.
  *   - Status kirim hanya di outgoing (incoming tidak punya status). Ikon
- *     16px tone inverse dengan opacity lebih rendah untuk sending/sent/
- *     delivered; `read` = Checks weight bold + opacity penuh. Tidak ada
- *     warna biru "sudah dibaca" — sistem monokrom (§2.3).
+ *     16px tone inverse dengan opacity lebih rendah untuk sending/sent;
+ *     `read` = Checks weight bold + opacity penuh. Tidak ada warna biru
+ *     "sudah dibaca" — sistem monokrom (§2.3). CHT-007: tidak ada status
+ *     "delivered" (centang ganda abu) — backend tidak menyediakan delivered
+ *     receipt, jadi "sent" (centang satu) langsung naik ke "read".
  *   - `failed`: gelembung tetap bg-primary (isi pesan tetap terbaca), tetapi
  *     baris meta berubah jadi ikon WarningCircle danger + tautan "Coba
  *     lagi" (`onRetry`) DI LUAR gelembung — sesuai §2.3 link = primary +
@@ -91,7 +93,15 @@ import {
 } from "@/lib/chat-bubble"
 
 export type ChatMessageDirection = "incoming" | "outgoing" | "system"
-export type ChatMessageStatus = "sending" | "sent" | "delivered" | "read" | "failed"
+/**
+ * CHT-007: "delivered" DIHAPUS dari union — dead branch. Backend tidak punya
+ * delivered receipt (tidak ada `deliveredAt`, tidak ada event
+ * `chat.message_delivered`; satu-satunya sinyal baca adalah read receipt).
+ * Menampilkannya dari tebakan (mis. "lawan online") adalah fabrikasi status
+ * yang menyesatkan. Selama backend belum menyediakan delivered receipt,
+ * "sent" (centang satu) = diterima server, "read" (centang ganda) = dibaca.
+ */
+export type ChatMessageStatus = "sending" | "sent" | "read" | "failed"
 
 export type ChatMessageBubbleProps = Omit<ViewProps, "children"> & {
   direction: ChatMessageDirection
@@ -473,7 +483,7 @@ export function ChatMessageBubble({
     onLongPress?.()
   }
 
-  const statusText = !outgoing ? undefined : status === "sending" ? "Mengirim" : status === "sent" ? "Terkirim" : status === "delivered" ? "Sampai" : status === "read" ? "Dibaca" : undefined
+  const statusText = !outgoing ? undefined : status === "sending" ? "Mengirim" : status === "sent" ? "Terkirim" : status === "read" ? "Dibaca" : undefined
   const a11yLabel = [
     outgoing ? "Anda" : senderName ?? "Pesan masuk",
     text,
@@ -749,8 +759,8 @@ function StatusGlyph({ status }: { status: Exclude<ChatMessageStatus, "failed"> 
       return <Icon icon={Clock} size="xs" tone="default" />
     case "sent":
       return <Icon icon={Check} size="xs" tone="default" />
-    case "delivered":
-      return <Icon icon={Checks} size="xs" tone="default" />
+    // CHT-007: case "delivered" dihapus — tidak pernah bisa tercapai
+    // (backend tidak menyediakan delivered receipt).
     case "read":
       return (
         <Icon icon={Checks} size="xs" tone="active" weight="bold" />

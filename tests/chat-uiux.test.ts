@@ -12,7 +12,7 @@ import { describe, expect, it } from "vitest"
 
 import { formatChatListTime } from "@/lib/format"
 import { canSendMessage, type SendableAttachment } from "@/lib/chat-send-ready"
-import { chatRoomPreview } from "@/lib/api/chat"
+import { chatRoomPreview, nonTextMessageLabel } from "@/lib/api/chat"
 
 /** Komponen tanggal lokal (zona perangkat) — hasil tak bergantung TZ mesin CI. */
 function localIso(year: number, month: number, day: number, h = 12, min = 0): string {
@@ -152,5 +152,25 @@ describe("chatRoomPreview (UI-C002)", () => {
   it("null/undefined → string kosong", () => {
     expect(chatRoomPreview(null)).toBe("")
     expect(chatRoomPreview(undefined)).toBe("")
+  })
+})
+
+describe("nonTextMessageLabel (CHT-011)", () => {
+  it("tipe lampiran → '(lampiran)' (konsisten UI-C002)", () => {
+    for (const t of ["IMAGE", "VIDEO", "VOICE", "FILE", "image"]) {
+      expect(nonTextMessageLabel(t)).toBe("(lampiran)")
+    }
+  })
+
+  it("tipe khusus batch 43 → label spesifik (bukan '(lampiran)')", () => {
+    expect(nonTextMessageLabel("LOCATION")).toBe("Lokasi")
+    expect(nonTextMessageLabel("PRODUCT_CARD")).toBe("Kartu produk")
+    expect(nonTextMessageLabel("ORDER_CARD")).toBe("Kartu order")
+  })
+
+  it("tipe tak dikenal/kosong → '(lampiran)'", () => {
+    expect(nonTextMessageLabel("STICKER")).toBe("(lampiran)")
+    expect(nonTextMessageLabel(undefined)).toBe("(lampiran)")
+    expect(nonTextMessageLabel(null)).toBe("(lampiran)")
   })
 })
