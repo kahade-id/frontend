@@ -53,6 +53,7 @@ import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 import { cn } from "@/lib/cn"
 import { computeEscrowHolds, totalEscrowHeld } from "@/lib/wallet-escrow-holds"
+import { breakdownAddsUp } from "@/lib/wallet-batch139"
 import { formatDate, formatTime } from "@/lib/format"
 
 import { EmptyState } from "@/components/ui/empty-state"
@@ -141,6 +142,8 @@ export default function WalletScreen() {
   // hanya saat sheet dibuka; dihitung dari mutasi ORDER_LOCK yang belum ada
   // pelepasannya (lihat lib/wallet-escrow-holds.ts).
   const [holdsOpen, setHoldsOpen] = useState(false)
+  /** D03 (batch 139): sheet rincian saldo tersedia/tertahan/total. */
+  const [breakdownOpen, setBreakdownOpen] = useState(false)
   const holdsQuery = useApiQuery<WalletTransaction[]>(
     "wallet-escrow-holds",
     (signal) =>
@@ -247,6 +250,8 @@ export default function WalletScreen() {
                 onPressHeld={heldValue > 0 ? () => setHoldsOpen(true) : undefined}
                 // FE-IMP-4 item 13: sisa limit tarik harian dari server.
                 withdrawLimitLeft={withdrawLimitLeft}
+                // D03 (batch 139): ikon info → sheet rincian saldo.
+                onPressBreakdown={() => setBreakdownOpen(true)}
               />
 
               {/*
@@ -307,6 +312,67 @@ export default function WalletScreen() {
       />
       </ModeShiftFade>
       </Screen>
+
+      {/* D03 (batch 139): rincian saldo — penjelasan + angka dari GET /v1/wallet. */}
+      <BottomSheet
+        visible={breakdownOpen}
+        onRequestClose={() => setBreakdownOpen(false)}
+        title="Rincian saldo"
+        description="Angka-angka ini dibaca langsung dari catatan dompet Anda."
+        footer={
+          <Button onPress={() => setBreakdownOpen(false)} containerClassName="flex-1">
+            Tutup
+          </Button>
+        }
+      >
+        <View className="gap-2 px-5 py-2">
+          {wallet?.availableBalance != null ? (
+            <View className="gap-1 rounded-md border border-border bg-surface px-4 py-3">
+              <View className="flex-row items-baseline justify-between gap-3">
+                <Text variant="body" weight={600}>
+                  Saldo tersedia
+                </Text>
+                <Amount value={wallet.availableBalance} tone="primary" hidden={prefs.balanceHidden} />
+              </View>
+              <Text variant="caption" tone="secondary">
+                Dana yang bisa dipakai untuk transfer, tarik dana, dan pembayaran.
+              </Text>
+            </View>
+          ) : null}
+          {heldValue > 0 ? (
+            <View className="gap-1 rounded-md border border-border bg-surface px-4 py-3">
+              <View className="flex-row items-baseline justify-between gap-3">
+                <Text variant="body" weight={600}>
+                  Ditahan di escrow
+                </Text>
+                <Amount value={heldValue} tone="primary" hidden={prefs.balanceHidden} />
+              </View>
+              <Text variant="caption" tone="secondary">
+                Dana terkunci untuk order yang masih berjalan. Cair otomatis saat
+                order selesai atau dibatalkan.
+              </Text>
+            </View>
+          ) : null}
+          {wallet?.balance != null ? (
+            <View className="gap-1 rounded-md border border-border bg-surface px-4 py-3">
+              <View className="flex-row items-baseline justify-between gap-3">
+                <Text variant="body" weight={600}>
+                  Total saldo
+                </Text>
+                <Amount value={wallet.balance} tone="primary" hidden={prefs.balanceHidden} />
+              </View>
+              <Text variant="caption" tone="secondary">
+                {breakdownAddsUp(wallet?.availableBalance, heldValue, wallet?.balance)
+                  ? "Total saldo = saldo tersedia + dana ditahan di escrow."
+                  : "Jumlah seluruh dana di dompet Anda."}
+              </Text>
+            </View>
+          ) : null}
+          <Text variant="caption" tone="tertiary" className="px-1 pt-1">
+            Mutasi yang masih diproses tampil di riwayat dengan status "Pending".
+          </Text>
+        </View>
+      </BottomSheet>
 
       {/* FE-IMP-4 item 1: rincian dana ditahan escrow — read-only. */}
       <BottomSheet
