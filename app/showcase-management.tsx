@@ -15,7 +15,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Linking, Platform, View } from "react-native"
 import { useNavigation, usePreventRemove, type NavigationAction } from "@react-navigation/native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { CalendarBlank, CaretLeft, CaretRight, Eye, EyeSlash, Images, PencilSimple, Plus, Trash } from "phosphor-react-native"
+import { CalendarBlank, CaretLeft, CaretRight, Eye, EyeSlash, Images, PencilSimple, Plus, Star, Trash } from "phosphor-react-native"
 import { router, useLocalSearchParams } from "expo-router"
 import { translate } from "@/lib/i18n/translate"
 import { useLanguage } from "@/lib/i18n"
@@ -32,6 +32,8 @@ import {
   type CommerceFormValues,
 } from "@/components/ui/commerce-product-fields"
 import { validImageOrder, showcaseIsHidden } from "@/lib/showcase-state"
+import { moveMediaToFront } from "@/lib/showcase-media-order"
+import { formatRupiahTyping, parseRupiahTyping } from "@/lib/rupiah-input"
 import { getShowcasePhotoLimit } from "@/lib/showcase-limits"
 import { useKahadePlus } from "@/lib/use-kahade-plus"
 import { ShowcaseHtmlDescriptionEditor } from "@/components/ui/showcase-html-description-editor"
@@ -235,6 +237,14 @@ function ShowcaseManagement() {
   const [editor, setEditor] = useState<Editor>(null)
   const [form, setForm] = useState<FormState>(EMPTY_FORM)
   const [formError, setFormError] = useState<string | undefined>()
+  /**
+   * C10 (batch 139): relasi harga min–maks divalidasi LANGSUNG saat mengetik
+   * (computed, bukan hanya saat simpan).
+   */
+  const priceRangeError =
+    form.priceMin != null && form.priceMax != null && form.priceMin > form.priceMax
+      ? translate("Harga minimum tidak boleh lebih besar dari harga maksimum.")
+      : undefined
   // Batch 43 (commerce): field commerce editor — prefill dari cache sesi
   // (backend belum mengeksposnya lewat GET showcase mana pun).
   const [commerce, setCommerce] = useState<CommerceFormValues>(EMPTY_COMMERCE_FORM)
@@ -969,6 +979,22 @@ function ShowcaseManagement() {
                 disabled={i === imageRows.length - 1}
                 onPress={() => moveImage(img.id, 1)}
               />
+              {/* C09 (batch 139): pilih sampul eksplisit — foto pindah ke
+                  posisi pertama (cover karya). Commit saat sheet ditutup. */}
+              {i > 0 ? (
+                <IconButton
+                  icon={Star}
+                  size="sm"
+                  variant="ghost"
+                  accessibilityLabel={translate("Jadikan sampul: foto {x}", { x: i + 1 })}
+                  accessibilityHint={translate("Pindahkan foto ini ke posisi pertama sebagai cover karya")}
+                  disabled={committingOrder || attaching || deletingImage}
+                  onPress={() => {
+                    if (committingOrder || attaching || deletingImage) return
+                    setOrderDraft(moveMediaToFront(effectiveImageIds, i))
+                  }}
+                />
+              ) : null}
               <IconButton
                 icon={Trash}
                 size="sm"
@@ -1104,37 +1130,35 @@ function ShowcaseManagement() {
           <Input
             label="Harga minimum (opsional)"
             keyboardType="number-pad"
-            value={form.priceMin == null ? "" : String(form.priceMin)}
-            maxLength={15}
+            // C10 (batch 139): pemisah ribuan live; state tetap angka.
+            value={formatRupiahTyping(form.priceMin)}
             onChangeText={(raw) => {
-              // S4: terima paste "1.000.000" — buang pemisah ribuan.
-              const digits = raw.replace(/[.\s,]/g, "")
-              if (!/^\d*$/.test(digits)) return
-              const v = digits === "" ? null : Number(digits)
-              setForm((f) => ({ ...f, priceMin: v }))
+              const parsed = parseRupiahTyping(raw)
+              // undefined = ketikan tak valid (negatif/huruf/>15 digit) — abaikan.
+              if (parsed === undefined) return
+              setForm((f) => ({ ...f, priceMin: parsed }))
               setFormError(undefined)
             }}
             helperText={
               form.priceMin === 0
                 ? translate("Harga {x} ditampilkan sebagai Gratis.", { x: 0 })
-                : undefined
+                : translate("Maksimal 15 digit; nilai negatif ditolak.")
             }
             disabled={saving}
           />
           <Input
             label="Harga maksimum (opsional)"
             keyboardType="number-pad"
-            value={form.priceMax == null ? "" : String(form.priceMax)}
-            maxLength={15}
+            value={formatRupiahTyping(form.priceMax)}
             onChangeText={(raw) => {
-              // S4: terima paste "1.000.000" — buang pemisah ribuan.
-              const digits = raw.replace(/[.\s,]/g, "")
-              if (!/^\d*$/.test(digits)) return
-              const v = digits === "" ? null : Number(digits)
-              setForm((f) => ({ ...f, priceMax: v }))
+              const parsed = parseRupiahTyping(raw)
+              if (parsed === undefined) return
+              setForm((f) => ({ ...f, priceMax: parsed }))
               setFormError(undefined)
             }}
-            errorText={formError && form.title.trim() ? formError : undefined}
+            // C10: error relasi min–maks tampil langsung saat mengetik.
+            errorText={priceRangeError ?? (formError && form.title.trim() ? formError : undefined)}
+            helperText={priceRangeError || formError ? undefined : translate("Maksimal 15 digit; nilai negatif ditolak.")}
             disabled={saving}
           />
           {/* IMP-F-013: pratinjau label harga live — verifikasi "Rp 1.500.000"

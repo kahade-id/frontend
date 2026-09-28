@@ -37,6 +37,7 @@ import {
   Images,
   Play,
   Plus,
+  Star,
   Trash,
   VideoCamera,
 } from "phosphor-react-native"
@@ -70,6 +71,8 @@ import {
   type ShowcaseDraft,
 } from "@/lib/showcase-draft"
 import { showcasePriceLabelOrFallback } from "@/lib/showcase-labels"
+import { moveMediaToFront } from "@/lib/showcase-media-order"
+import { formatRupiahTyping, parseRupiahTyping } from "@/lib/rupiah-input"
 import { tokens } from "@/lib/tokens"
 import { translate } from "@/lib/i18n/translate"
 import { useLanguage } from "@/lib/i18n"
@@ -83,6 +86,7 @@ import { Icon } from "@/components/ui/icon"
 import { IconButton } from "@/components/ui/icon-button"
 import { Input } from "@/components/ui/input"
 import { Picture } from "@/components/ui/picture"
+import { PressableScale } from "@/components/ui/pressable-scale"
 import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
 import { ShowcaseCategoryInput } from "@/components/ui/showcase-category-input"
@@ -91,6 +95,7 @@ import { Switch } from "@/components/ui/switch"
 import { Text } from "@/components/ui/text"
 import { TextArea } from "@/components/ui/text-area"
 import { useToast } from "@/components/ui/toast"
+import { ValidationSummary } from "@/components/ui/validation-summary"
 
 /** Batas field — turunan dari kontrak backend, bukan angka lokal (D-08). */
 const TITLE_MAX = API_CONSTRAINTS.CreateShowcaseItemDto.title.maxLength
@@ -205,6 +210,14 @@ export default function ShowcaseCreateScreen() {
   const [titleError, setTitleError] = useState<string | undefined>()
   const [photoError, setPhotoError] = useState<string | undefined>()
   const [priceError, setPriceError] = useState<string | undefined>()
+  /**
+   * C10 (batch 139): relasi harga min–maks divalidasi LANGSUNG saat mengetik
+   * (computed, bukan hanya saat submit) — mencegah "min > maks" lolos.
+   */
+  const priceRangeError =
+    form.priceMin != null && form.priceMax != null && form.priceMin > form.priceMax
+      ? translate("Harga minimum tidak boleh lebih besar dari harga maksimum.")
+      : undefined
   const [previews, setPreviews] = useState<Preview[]>([])
   const [failedAssets, setFailedAssets] = useState<FailedPhoto[]>([])
   const [uploading, setUploading] = useState(false)
@@ -654,6 +667,23 @@ export default function ShowcaseCreateScreen() {
     [previews, uncertainCreate],
   )
 
+  /**
+   * C09 (batch 139): "pilih sampul" eksplisit — media pindah ke indeks 0
+   * (aturan produk: media pertama = sampul karya). Urutan lain tidak berubah.
+   */
+  const setAsCover = useCallback(
+    (index: number) => {
+      if (uploadBusy.current || saveBusy.current || uncertainCreate) return
+      setPreviews((current) => {
+        if (index <= 0 || index >= current.length) return current
+        const next = moveMediaToFront(current, index)
+        pendingKeys.current = next.flatMap(previewServerKeys)
+        return next
+      })
+    },
+    [uncertainCreate],
+  )
+
   // ── Simpan ──────────────────────────────────────────────────────────
   const handleSave = useCallback(async () => {
     // T1 (audit 2026-09-26): `uncertainCreate` TIDAK memblokir retry —
@@ -776,6 +806,13 @@ export default function ShowcaseCreateScreen() {
       padded={false}
       footer={
         <View className="gap-2">
+          {/* C10 (batch 139): ringkasan error tepat di atas tombol terbit —
+              pengguna tidak perlu mencari field yang salah satu per satu. */}
+          <ValidationSummary
+            errors={[titleError, photoError, priceRangeError].filter(
+              (message): message is string => message != null,
+            )}
+          />
           <Button
             variant="primary"
             fullWidth
@@ -835,6 +872,29 @@ export default function ShowcaseCreateScreen() {
                         </View>
                       </View>
                     ) : null}
+                    {/* C09 (batch 139): sampul = media pertama — penanda di
+                        sampul aktif, tombol bintang di lainnya untuk
+                        memindahkannya ke posisi sampul. */}
+                    {index === 0 ? (
+                      <View className="absolute left-1 top-1 rounded-full bg-overlay-media px-1.5 py-0.5">
+                        <Text variant="caption" weight={700} className="text-white">
+                          {translate("Sampul")}
+                        </Text>
+                      </View>
+                    ) : (
+                      <View className="absolute right-1 top-1">
+                        <PressableScale
+                          accessibilityRole="button"
+                          accessibilityLabel={translate("Jadikan sampul: {x}", { x: label })}
+                          accessibilityHint={translate("Pindahkan media ini ke posisi pertama sebagai sampul karya")}
+                          disabled={busy || uncertainCreate}
+                          onPress={() => setAsCover(index)}
+                          containerClassName="items-center justify-center rounded-full bg-overlay-media p-1.5"
+                        >
+                          <Icon icon={Star} size="sm" tone="inverse" />
+                        </PressableScale>
+                      </View>
+                    )}
                   </View>
                   <View className="flex-row items-center justify-between">
                     <IconButton
@@ -1018,14 +1078,14 @@ export default function ShowcaseCreateScreen() {
           <Input
             label={translate("Harga minimum (opsional)")}
             keyboardType="number-pad"
-            value={form.priceMin == null ? "" : String(form.priceMin)}
-            maxLength={15}
+            // C10 (batch 139): tampilkan pemisah ribuan saat mengetik
+            // ("1500000" → "1.500.000"); state tetap angka.
+            value={formatRupiahTyping(form.priceMin)}
             onChangeText={(raw) => {
-              // S4: terima paste "1.000.000" / "1,000,000" — buang pemisah ribuan.
-              const digits = raw.replace(/[.\s,]/g, "")
-              if (!/^\d*$/.test(digits)) return
-              const value = digits === "" ? null : Number(digits)
-              setForm((current) => ({ ...current, priceMin: value }))
+              const parsed = parseRupiahTyping(raw)
+              // undefined = ketikan tak valid (negatif/huruf/>15 digit) — abaikan.
+              if (parsed === undefined) return
+              setForm((current) => ({ ...current, priceMin: parsed }))
               setPriceError(undefined)
             }}
             helperText={
@@ -1033,24 +1093,28 @@ export default function ShowcaseCreateScreen() {
                 ? translate("Harga {x} ditampilkan sebagai Gratis.", { x: 0 })
                 : form.priceMin != null && form.priceMax == null
                   ? translate("Tanpa harga maksimum, ini ditampilkan sebagai harga pasti.")
-                  : undefined
+                  : translate("Maksimal 15 digit; nilai negatif ditolak.")
             }
             disabled={busy || uncertainCreate}
           />
           <Input
             label={translate("Harga maksimum (opsional)")}
             keyboardType="number-pad"
-            value={form.priceMax == null ? "" : String(form.priceMax)}
-            maxLength={15}
+            value={formatRupiahTyping(form.priceMax)}
             onChangeText={(raw) => {
-              // S4: terima paste "1.000.000" / "1,000,000" — buang pemisah ribuan.
-              const digits = raw.replace(/[.\s,]/g, "")
-              if (!/^\d*$/.test(digits)) return
-              const value = digits === "" ? null : Number(digits)
-              setForm((current) => ({ ...current, priceMax: value }))
+              const parsed = parseRupiahTyping(raw)
+              if (parsed === undefined) return
+              setForm((current) => ({ ...current, priceMax: parsed }))
               setPriceError(undefined)
             }}
-            errorText={priceError}
+            // C10 (batch 139): validasi relasi min–maks LANGSUNG saat mengetik,
+            // bukan hanya saat submit.
+            errorText={priceError ?? priceRangeError}
+            helperText={
+              priceError ?? priceRangeError
+                ? undefined
+                : translate("Maksimal 15 digit; nilai negatif ditolak.")
+            }
             disabled={busy || uncertainCreate}
           />
           {/* IMP-F-013: pratinjau label harga live — pengguna memverifikasi

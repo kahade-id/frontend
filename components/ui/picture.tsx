@@ -144,7 +144,13 @@ export function Picture({
    */
   const src = resolveMediaSource(source as MediaSource | readonly MediaSource[])
   const hasSource = src != null
-  const sourceKey = `${recyclingKey ?? ""}:${typeof src === "number" ? String(src) : (src?.uri ?? "")}`
+  /**
+   * C04 (batch 139): "coba lagi" per gambar — menaikkan `retrySeq` me-mount
+   * ulang <Image> (key berubah) sehingga unduhan dicoba lagi; info produk di
+   * kartu feed/detail tidak ikut disembunyikan.
+   */
+  const [retrySeq, setRetrySeq] = useState(0)
+  const sourceKey = `${recyclingKey ?? ""}:${typeof src === "number" ? String(src) : (src?.uri ?? "")}:${retrySeq}`
   // Sumber yang tidak bisa dinormalkan tidak punya apa pun untuk ditunggu:
   // langsung ke fallback "gambar gagal", bukan Skeleton yang tak pernah usai.
   const [status, setStatus] = useState<"loading" | "loaded" | "error">(
@@ -183,7 +189,10 @@ export function Picture({
 
   return (
     <View
-      accessible={!decorative}
+      // C04: saat error, overlay "Coba lagi" harus tetap terjangkau screen
+      // reader — jangan group-kan seluruh view (iOS menyembunyikan anak
+      // interaktif bila induk `accessible`).
+      accessible={!decorative && status !== "error"}
       accessibilityRole={decorative ? undefined : "image"}
       accessibilityLabel={decorative ? undefined : alt}
       accessibilityElementsHidden={decorative}
@@ -248,13 +257,31 @@ export function Picture({
       ) : null}
 
       {status === "error" ? (
-        <View className="absolute inset-0 items-center justify-center">
-          {/* v2: ikon di atas lingkaran bg-background — fallback terbaca sebagai
-              "kartu" kecil yang disengaja, bukan ikon yang tercecer. */}
-          <View className="items-center justify-center rounded-full bg-background p-4">
-            <Icon icon={ImageBroken} size="lg" accessibilityLabel="Gambar gagal dimuat" />
+        // C04 (batch 139): fallback + "coba lagi" per gambar — overlay ini
+        // tombol tersendiri; stopPropagation supaya pressable induk (mis.
+        // slide galeri feed) tidak ikut terbuka di web.
+        <PressableScale
+          accessibilityRole="button"
+          accessibilityLabel={translate("Muat ulang gambar")}
+          accessibilityHint={translate("Coba unduh gambar lagi")}
+          onPress={(event) => {
+            ;(event as unknown as { stopPropagation?: () => void })?.stopPropagation?.()
+            setRetrySeq((n) => n + 1)
+            setStatus(hasSource ? "loading" : "error")
+          }}
+          containerClassName="absolute inset-0 items-center justify-center"
+        >
+          <View className="items-center justify-center gap-1.5 px-6">
+            {/* v2: ikon di atas lingkaran bg-background — fallback terbaca sebagai
+                "kartu" kecil yang disengaja, bukan ikon yang tercecer. */}
+            <View className="items-center justify-center rounded-full bg-background p-4">
+              <Icon icon={ImageBroken} size="lg" accessibilityLabel={translate("Gambar gagal dimuat")} />
+            </View>
+            <Text variant="caption" weight={600}>
+              {translate("Coba lagi")}
+            </Text>
           </View>
-        </View>
+        </PressableScale>
       ) : null}
 
       {/* Privacy: overlay transparent di atas gambar untuk menyerap long-press/save di native/web
