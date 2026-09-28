@@ -92,7 +92,7 @@ import {
   applyDeletedTombstone,
   applyReactionSummary,
 } from "@/lib/realtime/chat-events"
-import { mergeChatMessages } from "@/lib/chat-dedupe"
+import { findOptimisticMatch, mergeChatMessages } from "@/lib/chat-dedupe"
 import { useChatRoomRealtime } from "@/lib/realtime/use-chat-room"
 import type { ChatAttachmentDto, SendMessageDto } from "@/lib/api/types"
 import { useCopy } from "@/lib/clipboard"
@@ -120,6 +120,17 @@ import { ChatRoomMenu } from "@/components/ui/chat-room-menu"
 import { ChatSearchSheet } from "@/components/ui/chat-search-sheet"
 import { ChatInlineSearchBar } from "@/components/ui/chat-inline-search"
 import { findMessageMatches } from "@/lib/chat-search"
+import { ChatDaySeparator, dayKey, dayLabel } from "@/components/ui/chat-day-separator"
+import { ChatUnreadSeparator } from "@/components/ui/chat-unread-separator"
+import { firstUnreadMessageId } from "@/lib/chat-unread-anchor"
+import {
+  loadChatFailedMessages,
+  peekChatFailedMessages,
+  removeChatFailedMessage,
+  saveChatFailedMessage,
+  type FailedChatMessage,
+} from "@/lib/chat-failed-queue"
+import { hideMessageLocally, loadHiddenMessageIds } from "@/lib/chat-hidden-messages"
 import { type ChatComposerPayload, type ComposerAttachment, type ComposerReplyTarget } from "@/components/ui/chat-composer"
 import { clearChatDraft, loadChatDraft, saveChatDraft } from "@/lib/chat-drafts"
 import { Dialog } from "@/components/ui/modal"
@@ -158,6 +169,77 @@ import type { ChatBubbleAnchor } from "@/lib/chat-bubble"
 
 /** Lampiran composer + berkas lokal untuk unggah ulang bila gagal. */
 type LocalAttachment = ComposerAttachment & { picked?: PickedImage }
+
+/**
+ * Baris thread untuk FlatList (B02/B10):
+ * - "day": pemisah hari — STICKY di atas list saat digulir (B10).
+ * - "unread": pemisah "Belum dibaca" tepat di atas pesan jangkar (B02).
+ * - "msg": satu bubble; `index` = posisi di `visibleMessages` (untuk
+ *   previous/next grouping — bukan indeks baris).
+ */
+type ThreadRow =
+  | { kind: "day"; key: string; label: string }
+  | { kind: "unread"; key: string; anchorId: string; count: number }
+  | { kind: "msg"; key: string; message: ChatMessage; index: number }
+
+/**
+ * B07: konversi FailedChatMessage (antrean persisten) → ChatMessage untuk
+ * di-merge ke thread. Status "failed" membuat bubble menampilkan tombol
+ * "Coba lagi" seperti pesan optimistis yang gagal (CN-015).
+ */
+function failedToChatMessage(f: FailedChatMessage): ChatMessage {
+  return {
+    id: f.id,
+    text: f.text,
+    messageType: f.messageType,
+    fromUser: f.fromUser,
+    attachments: f.attachments?.map((a) => ({ ...a })),
+    replyToId: f.replyToId ?? null,
+    replyTo: f.replyTo
+      ? {
+          id: f.replyTo.id,
+          content: f.replyTo.content,
+          messageType: f.replyTo.messageType,
+          isDeleted: f.replyTo.isDeleted,
+          senderName: f.replyTo.senderName,
+        }
+      : null,
+    createdAt: f.createdAt,
+    sendStatus: "failed",
+    ephemeralTtlSeconds: f.ephemeralTtlSeconds ?? null,
+    viewOnce: f.viewOnce,
+  }
+}
+
+/** B07: konversi balik — menyimpan pesan yang gagal ke antrean persisten. */
+function toFailedChatMessage(m: ChatMessage): FailedChatMessage {
+  return {
+    id: m.id,
+    text: m.text,
+    messageType: m.messageType,
+    fromUser: m.fromUser,
+    attachments: m.attachments?.map((a) => ({
+      fileName: a.fileName,
+      fileUrl: a.fileUrl,
+      mimeType: a.mimeType,
+      fileSize: a.fileSize,
+      thumbnailUrl: a.thumbnailUrl,
+    })),
+    replyToId: m.replyToId ?? null,
+    replyTo: m.replyTo
+      ? {
+          id: m.replyTo.id,
+          content: m.replyTo.content ?? null,
+          messageType: m.replyTo.messageType,
+          isDeleted: m.replyTo.isDeleted,
+          senderName: m.replyTo.senderName ?? null,
+        }
+      : null,
+    createdAt: m.createdAt,
+    ephemeralTtlSeconds: m.ephemeralTtlSeconds ?? undefined,
+    viewOnce: m.viewOnce,
+  }
+}
 
 /** Jarak poll pesan baru saat ruang AKTIF. Push tetap pemicu utama. */
 const CHAT_POLL_MS = 8000
@@ -242,6 +324,27 @@ export default function ChatRoomScreen() {
 
   const [room, setRoom] = useState<ChatRoom | null>(null)
   const [messages, setMessages] = useState<ChatMessage[]>([])
+  /**
+   * B08: id pesan yang disembunyikan lokal ("hapus untuk saya") — dimuat
+   * sekali saat room dibuka (lib/chat-hidden-messages), thread memfilter.
+   * Yang disimpan hanya id (non-sensitif).
+   */
+  const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set())
+  /**
+   * B02: unreadCount room yang ditangkap SEBELUM `markChatRoomRead` pertama.
+   * Dipakai menghitung jangkar "pesan pertama yang belum dibaca" — layar
+   * menandai terbaca segera setelah dibuka, jadi angka ini harus diabadikan
+   * dulu (lihat lib/chat-unread-anchor).
+   */
+  const initialUnreadRef = useRef<number | null>(null)
+  /** B02: id jangkar pesan pertama yang belum dibaca (null = tidak ada). */
+  const [unreadAnchorId, setUnreadAnchorId] = useState<string | null>(null)
+  /**
+   * B09: pesan yang sedang disorot setelah pengguna mengetuk kutipan
+   * balasan — dibersihkan otomatis setelah ~2,5 detik.
+   */
+  const [highlightedId, setHighlightedId] = useState<string | null>(null)
+  const highlightTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [nextCursor, setNextCursor] = useState<string | null>(null)
   const [olderStatus, setOlderStatus] = useState<LoadMoreStatus>("idle")
   const [draft, setDraft] = useState("")
@@ -508,7 +611,7 @@ export default function ChatRoomScreen() {
     setError(null)
     setRoomGone(false)
     try {
-      const [page, rooms] = await Promise.all([
+      const [page, rooms, failed] = await Promise.all([
         api.chat.getChatMessages(roomId, { limit: CHAT_PAGE_SIZE }, controller.signal),
         api.chat.listChatRooms({ page: 1, limit: CHAT_PAGE_SIZE }, controller.signal).catch((err) => {
           logWarn("chat:rooms-lookup", err)
@@ -517,15 +620,50 @@ export default function ChatRoomScreen() {
             meta: { page: 1, limit: CHAT_PAGE_SIZE, totalPages: 1 },
           }
         }),
+        // B07: antrean pesan gagal yang persisten — selamat dari refresh.
+        loadChatFailedMessages(roomId),
       ])
       if (controller.signal.aborted) return
       const items = sortByTime(page.items)
-      setMessages(items)
+      // B07: rekonsiliasi — pesan gagal yang ternyata SUDAH ada di server
+      // (POST sukses tapi respons hilang) tidak di-merge ulang; antreannya
+      // dibersihkan supaya tidak duplikat.
+      const failedSending = failed.map((f) => ({
+        ...failedToChatMessage(f),
+        sendStatus: "sending" as const,
+      }))
+      const confirmedIds = new Set<string>()
+      for (const s of items) {
+        const match = findOptimisticMatch(failedSending, s)
+        if (match) confirmedIds.add(match.id)
+      }
+      const stillFailed = failed.filter((f) => {
+        if (confirmedIds.has(f.id)) {
+          removeChatFailedMessage(roomId, f.id)
+          return false
+        }
+        return true
+      })
+      setMessages(
+        stillFailed.length > 0
+          ? mergeChatMessages(items, stillFailed.map(failedToChatMessage)).next
+          : items,
+      )
       setNextCursor(
         page.nextCursor ?? (page.items.length >= CHAT_PAGE_SIZE ? (items[0]?.id ?? null) : null),
       )
       setOlderStatus(page.items.length < CHAT_PAGE_SIZE ? "end" : "idle")
-      setRoom(rooms.data.find((r) => r.id === roomId) ?? null)
+      const roomRow = rooms.data.find((r) => r.id === roomId) ?? null
+      setRoom(roomRow)
+      // B02: abadikan unreadCount SEBELUM `markChatRoomRead` di bawah —
+      // setelah itu angka server sudah 0 dan jangkar tak bisa dihitung.
+      if (initialUnreadRef.current === null) {
+        initialUnreadRef.current = roomRow?.unreadCount ?? 0
+      }
+      // B08: muat id pesan "hapus untuk saya".
+      void loadHiddenMessageIds(roomId).then((ids) => {
+        if (!controller.signal.aborted) setHiddenIds(ids)
+      })
       await api.chat.markChatRoomRead(roomId).catch((err) => logWarn("chat:mark-read-open", err))
       // Ruang sudah dibuka dan ditandai terbaca → segarkan badge tab agar
       // angka unread turun segera, bukan menunggu poll 60 detik.
@@ -737,7 +875,7 @@ export default function ChatRoomScreen() {
   // F-06 (audit): thread dirender <FlatList> (virtualisasi) — sebelumnya
   // ScrollView + messages.map menahan 200+ bubble ter-mount penuh dengan
   // gambar; memori & FPS jatuh di Android low-end.
-  const scrollRef = useRef<FlatList<ChatMessage>>(null)
+  const scrollRef = useRef<FlatList<ThreadRow>>(null)
   const lastSeenEndId = useRef<string | undefined>(undefined)
   const lastMessageId = messages[messages.length - 1]?.id
   const handleContentSizeChange = useCallback(() => {
@@ -772,8 +910,95 @@ export default function ChatRoomScreen() {
             .catch((err) => logWarn("chat:mark-read-scroll", err))
           void refreshUnreadCount()
           void refreshChatUnreadCount()
+          // B02: pengguna sudah melewati titik "Belum dibaca" → separator
+          // tidak lagi relevan; hapus agar tidak menumpuk.
+          setUnreadAnchorId((prev) => (prev ? null : prev))
         }
       }
+    },
+    [],
+  )
+
+  /**
+   * B08: thread yang terlihat = pesan minus yang disembunyikan lokal.
+   * Semua logika berbasis indeks (previous/next, lompat) memakai array ini.
+   */
+  const visibleMessages = useMemo(
+    () => messages.filter((m) => !hiddenIds.has(m.id)),
+    [messages, hiddenIds],
+  )
+
+  /**
+   * B02: hitung jangkar "pesan pertama yang belum dibaca" dari unreadCount
+   * yang diabadikan saat room dibuka. Dihitung ulang sampai ketemu (pesan
+   * jangkar bisa berada di halaman riwayat yang belum dimuat).
+   */
+  useEffect(() => {
+    if (unreadAnchorId) return
+    const total = initialUnreadRef.current
+    if (total == null || total <= 0 || visibleMessages.length === 0) return
+    const anchor = firstUnreadMessageId(
+      visibleMessages.map((m) => ({
+        id: m.id,
+        fromUser: m.fromUser,
+        messageType: m.messageType,
+      })),
+      total,
+    )
+    if (anchor) setUnreadAnchorId(anchor)
+  }, [visibleMessages, unreadAnchorId])
+
+  /**
+   * B10: baris thread untuk FlatList — pemisah hari (sticky), pemisah
+   * "Belum dibaca" (B02), dan bubble. Pemisah hari TIDAK lagi dirender di
+   * dalam <ChatMessageRow> (hideDaySeparator) supaya bisa sticky.
+   */
+  const threadRows = useMemo<ThreadRow[]>(() => {
+    const rows: ThreadRow[] = []
+    let lastDay = ""
+    visibleMessages.forEach((m, index) => {
+      const day = dayKey(m.createdAt)
+      if (day !== lastDay) {
+        lastDay = day
+        rows.push({ kind: "day", key: `day-${day}`, label: dayLabel(m.createdAt) })
+      }
+      if (unreadAnchorId && m.id === unreadAnchorId) {
+        rows.push({
+          kind: "unread",
+          key: "unread-separator",
+          anchorId: m.id,
+          count: initialUnreadRef.current ?? 0,
+        })
+      }
+      rows.push({ kind: "msg", key: m.id, message: m, index })
+    })
+    return rows
+  }, [visibleMessages, unreadAnchorId])
+
+  /** B10: indeks baris "day" — FlatList menempelkannya di atas saat digulir. */
+  const stickyDayIndices = useMemo(() => {
+    const indices: number[] = []
+    threadRows.forEach((row, i) => {
+      if (row.kind === "day") indices.push(i)
+    })
+    return indices
+  }, [threadRows])
+
+  /**
+   * B09: sorot pesan asal balasan selama ~2,5 detik setelah kutipan diketuk.
+   */
+  const flashHighlight = useCallback((messageId: string) => {
+    if (highlightTimer.current) clearTimeout(highlightTimer.current)
+    setHighlightedId(messageId)
+    highlightTimer.current = setTimeout(() => {
+      setHighlightedId((prev) => (prev === messageId ? null : prev))
+      highlightTimer.current = null
+    }, 2500)
+  }, [])
+
+  useEffect(
+    () => () => {
+      if (highlightTimer.current) clearTimeout(highlightTimer.current)
     },
     [],
   )
@@ -803,7 +1028,9 @@ export default function ChatRoomScreen() {
    */
   const jumpToMessage = useCallback(
     (messageId: string) => {
-      const index = messages.findIndex((m) => m.id === messageId)
+      // B10: thread kini berisi baris campuran (hari/pemisah/pesan) — cari
+      // indeks BARIS pesan, bukan indeks pesan.
+      const index = threadRows.findIndex((r) => r.kind === "msg" && r.message.id === messageId)
       setSearchOpen(false)
       if (index >= 0) {
         scrollRef.current?.scrollToIndex({ index, animated: true, viewPosition: 0.5 })
@@ -815,7 +1042,23 @@ export default function ChatRoomScreen() {
         })
       }
     },
-    [messages, toast.show],
+    [threadRows, toast.show],
+  )
+
+  /**
+   * B09: ketuk kutipan balasan → scroll ke pesan asal + sorot ~2,5 detik.
+   * Bila pesan asal belum termuat, jumpToMessage menampilkan panduan
+   * "muat pesan sebelumnya" (tidak ada toast ganda di sini).
+   */
+  const handleQuotePress = useCallback(
+    (replyToId: string) => {
+      jumpToMessage(replyToId)
+      // Sorot hanya bila pesannya memang ada di thread saat ini.
+      if (threadRows.some((r) => r.kind === "msg" && r.message.id === replyToId)) {
+        flashHighlight(replyToId)
+      }
+    },
+    [jumpToMessage, threadRows, flashHighlight],
   )
 
   const loadOlder = useCallback(async () => {
@@ -1113,6 +1356,9 @@ export default function ChatRoomScreen() {
         setMessages((prev) =>
           prev.map((m) => (m.id === tempId ? { ...m, sendStatus: "failed" as const } : m)),
         )
+        // B07: simpan ke antrean persisten — status gagal selamat dari
+        // refresh/restart, bisa kirim ulang atau hapus lokal.
+        if (roomId) saveChatFailedMessage(roomId, toFailedChatMessage(optimisticMsg))
         toast.show({
           title: "Gagal mengirim pesan",
           description: isApiError(err) ? userMessage(err) : undefined,
@@ -1159,6 +1405,8 @@ export default function ChatRoomScreen() {
         setMessages((prev) =>
           prev.map((m) => (m.id === tempId ? { ...m, sendStatus: "failed" as const } : m)),
         )
+        // B07: antrean persisten — selamat dari refresh/restart.
+        if (roomId) saveChatFailedMessage(roomId, toFailedChatMessage(optimisticMsg))
         toast.show({
           title: "Gagal mengirim lokasi",
           description: isApiError(err) ? userMessage(err) : undefined,
@@ -1265,6 +1513,8 @@ export default function ChatRoomScreen() {
         // Samakan dengan jalur kirim: cocokkan id temp ATAU id server
         // (gema bisa tiba sebelum POST resolve — fix duplikat 2026-09-28).
         setMessages((prev) => prev.map((m) => (m.id === tempId || m.id === msg.id ? msg : m)))
+        // B07: retry sukses → keluar dari antrean persisten.
+        removeChatFailedMessage(roomId, tempId)
         mergeIncoming([msg], roomId)
         emptyPolls.current = 0
         setPollInterval(CHAT_POLL_MS)
@@ -1856,8 +2106,10 @@ export default function ChatRoomScreen() {
         ref={scrollRef}
         className="flex-1"
         removeClippedSubviews={false}
-        data={messages}
-        keyExtractor={(m) => m.id}
+        // B10: baris campuran (hari/pemisah/pesan); baris "day" sticky.
+        data={threadRows}
+        keyExtractor={(row) => row.key}
+        stickyHeaderIndices={stickyDayIndices}
         // Revisi 2026-09-27: gutter horizontal HANYA dari baris bubble
         // (`px-5` di <ChatMessageBubble>) — padding di sini DOBEL (40px)
         // dan membuat inset kiri/kanan tidak proporsional.
@@ -1912,13 +2164,31 @@ export default function ChatRoomScreen() {
             />
           )
         }
-        renderItem={({ item: m, index }) => (
-          <ChatMessageRow
-            message={m}
-            previous={index > 0 ? messages[index - 1] : undefined}
-            // Pesan tepat di bawahnya — penentu "bubble terakhir grup menit"
-            // (jam hanya tampil di situ, ala WhatsApp).
-            next={index < messages.length - 1 ? messages[index + 1] : undefined}
+        renderItem={({ item: row }) => {
+          // B10: pemisah hari sebagai baris sticky (bukan di dalam row).
+          if (row.kind === "day") {
+            return <ChatDaySeparator label={row.label} />
+          }
+          // B02: pemisah "Belum dibaca" — ketuk = kembali ke titik itu.
+          if (row.kind === "unread") {
+            return (
+              <ChatUnreadSeparator count={row.count} onPress={() => jumpToMessage(row.anchorId)} />
+            )
+          }
+          const m = row.message
+          const index = row.index
+          return (
+            <ChatMessageRow
+              message={m}
+              previous={index > 0 ? visibleMessages[index - 1] : undefined}
+              // Pesan tepat di bawahnya — penentu "bubble terakhir grup menit"
+              // (jam hanya tampil di situ, ala WhatsApp).
+              next={index < visibleMessages.length - 1 ? visibleMessages[index + 1] : undefined}
+              // B10: pemisah hari sudah jadi baris sticky tersendiri.
+              hideDaySeparator
+              // B09: sorot pesan asal balasan + navigasi konteks kutipan.
+              highlighted={highlightedId === m.id}
+              onQuotePress={handleQuotePress}
             selecting={selecting}
             selected={selectedIds.has(m.id)}
             readByCounterpart={readByCounterpart.has(m.id)}
@@ -1978,8 +2248,9 @@ export default function ChatRoomScreen() {
                 ? { query: inlineQuery, focused: m.id === inlineActiveId }
                 : undefined
             }
-          />
-        )}
+            />
+          )
+        }}
         // Scroll ke puncak = muat riwayat lebih lama (tombol eksplisit tetap
         // ada di header list untuk status error).
         onStartReached={() => {

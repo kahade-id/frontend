@@ -54,7 +54,7 @@
  *     "goyang" saat scroll cepat.
  */
 import { useEffect, useMemo, useRef, type ReactNode } from "react"
-import { View, type GestureResponderEvent, type ViewProps } from "react-native"
+import { Pressable, View, type GestureResponderEvent, type ViewProps } from "react-native"
 import { Gesture, GestureDetector } from "react-native-gesture-handler"
 import Animated, {
   runOnJS,
@@ -111,6 +111,11 @@ export type ChatMessageBubbleProps = Omit<ViewProps, "children"> & {
    * pesan asli, `preview` = cuplikannya (sudah dipotong pemanggil).
    */
   quote?: { senderName?: string | null; preview: string } | null
+  /**
+   * B09: ketuk kutipan balasan → lompat ke pesan asal + sorot. Bila diisi,
+   * blok kutipan dirender sebagai tombol (bukan View statis).
+   */
+  onQuotePress?: () => void
   /** Slot lampiran, dirender di atas teks */
   children?: ReactNode
   /**
@@ -229,6 +234,7 @@ export function ChatMessageBubble({
   grouped = false,
   senderName,
   quote,
+  onQuotePress,
   children,
   searchHighlight,
   onLongPress,
@@ -347,11 +353,12 @@ export function ChatMessageBubble({
       )}
     >
       {quote ? (
-        <View
+        <QuoteBlock
           className={cn(
             "rounded-sm border-l-2 px-2 py-1",
             outgoing ? "border-white/70 bg-black/15" : "border-border-focus bg-background",
           )}
+          onPress={onQuotePress}
         >
           {/* DM 1:1 — baris nama pengirim kutipan disembunyikan total. */}
           {hideQuoteSenderName ? null : (
@@ -373,7 +380,7 @@ export function ChatMessageBubble({
           >
             {quote.preview}
           </Text>
-        </View>
+        </QuoteBlock>
       ) : null}
       {children ? <View className="gap-2">{children}</View> : null}
       {text ? (
@@ -749,4 +756,33 @@ function StatusGlyph({ status }: { status: Exclude<ChatMessageStatus, "failed"> 
         <Icon icon={Checks} size="xs" tone="active" weight="bold" />
       )
   }
+}
+
+/**
+ * B09: blok kutipan balasan. Tanpa `onPress` = View statis (perilaku lama);
+ * dengan `onPress` = tombol yang membawa ke pesan asal. Dibuat komponen
+ * kecil agar JSX bubble tidak bercabang dua.
+ */
+function QuoteBlock({
+  className,
+  onPress,
+  children,
+}: {
+  className?: string
+  onPress?: () => void
+  children: ReactNode
+}) {
+  if (!onPress) {
+    return <View className={className}>{children}</View>
+  }
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityHint="Lihat pesan yang dibalas"
+      className={className}
+    >
+      {children}
+    </Pressable>
+  )
 }
