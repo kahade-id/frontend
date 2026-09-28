@@ -89,9 +89,21 @@ function describe(action: PendingAction): { title: string; meta?: string } {
 function targetOf(action: PendingAction) {
   switch (action.kind) {
     case "qris-payment":
-      return ROUTES.orderDetail(action.orderId)
+      // D11 (batch 139): pulihkan ke detail order BERDASAR ID server +
+      // buka ulang sheet bayar (?sheet=pay) — quote/status selalu dibaca
+      // ulang dari server saat layar dibuka, bukan state lokal basi.
+      return {
+        pathname: "/order/[id]" as "/order/[id]",
+        params: { id: action.orderId, sheet: "pay" },
+      }
     case "topup-unpaid":
-      return ROUTES.topup
+      // D11 (batch 139): pulihkan BERDASAR ID server — layar /topup membaca
+      // ?resumePayment=<paymentTxId> lalu GET status dari server (bukan state
+      // lokal yang sudah hilang saat app mati).
+      return {
+        pathname: "/topup" as "/topup",
+        params: { resumePayment: action.paymentTxId },
+      }
     case "withdraw-otp":
       return ROUTES.withdraw
   }

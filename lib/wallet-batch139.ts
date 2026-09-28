@@ -70,3 +70,126 @@ export function breakdownAddsUp(
     available + held === total
   )
 }
+
+/** D15 (batch 139): peran aktor order untuk alasan CTA. */
+export type OrderActorRole139 = "BUYER" | "SELLER"
+
+/**
+ * D15 (batch 139): alasan tombol aksi tidak tersedia, diturunkan murni dari
+ * status × peran — prasyarat yang bisa dijelaskan tanpa menebak (status pihak
+ * lain, bukti kirim, tenggat). Sengaja TIDAK menyebut KYC/verifikasi akun:
+ * klien tidak tahu status verifikasi di titik ini, jangan mengarang syarat.
+ *
+ * Mengembalikan daftar alasan (bisa kosong = tidak ada yang perlu
+ * dijelaskan, mis. status terminal).
+ */
+export function ctaUnavailableReasons(
+  status: string,
+  role: OrderActorRole139 | undefined,
+): string[] {
+  switch (status) {
+    case "WAITING_CONFIRMATION":
+      return role === "BUYER"
+        ? ["Menunggu penjual mengonfirmasi order — tombol bayar aktif setelah penjual menerima."]
+        : []
+    case "WAITING_PAYMENT":
+    case "PENDING_PAYMENT":
+      return role === "SELLER"
+        ? ["Menunggu pembeli membayar ke escrow — aksi penjual dibuka setelah pembayaran masuk."]
+        : []
+    case "PROCESSING":
+      return role === "BUYER"
+        ? ["Menunggu penjual mengisi nomor resi dan mengirim pesanan Anda."]
+        : []
+    case "IN_DELIVERY":
+    case "SHIPPED":
+    case "DELIVERED":
+      return role === "SELLER"
+        ? ["Menunggu pembeli mengonfirmasi penerimaan barang — atau dana cair otomatis saat tenggat habis."]
+        : []
+    case "DISPUTED":
+      return ["Sengketa sedang ditangani tim Kahade — aksi transaksi dikunci sampai ada keputusan."]
+    default:
+      // COMPLETED / CANCELLED / REFUNDED / EXPIRED / tak dikenal: tidak ada
+      // aksi yang ditunggu — jangan mengarang alasan.
+      return []
+  }
+}
+
+/** D16 (batch 139): hasil validasi format input pengiriman. */
+export type TrackingValidation = {
+  courierError?: string
+  trackingError?: string
+}
+
+/**
+ * D16 (batch 139): validasi format kurir + nomor resi SEBELUM disimpan.
+ *
+ * - Barang fisik (`physical=true`): keduanya wajib. Resi harus alfanumerik
+ *   (boleh strip) 6–40 karakter — pola umum nomor resi kurir Indonesia;
+ *   spasi di dalam resi hampir pasti salah ketik → ditolak dengan pesan
+ *   yang menjelaskan, bukan diam-diam disimpan.
+ * - Jasa/digital (`physical=false`): keduanya opsional; bila diisi tetap
+ *   divalidasi formatnya (jangan simpan resi rusak "nanti saja").
+ */
+export function validateTrackingInput(
+  courier: string,
+  tracking: string,
+  physical: boolean,
+): TrackingValidation {
+  const out: TrackingValidation = {}
+  const c = courier.trim()
+  const t = tracking.trim()
+  if (physical) {
+    if (c.length < 2) out.courierError = "Isi nama kurir (mis. JNE, SiCepat, J&T)."
+  }
+  if (t.length === 0) {
+    if (physical) out.trackingError = "Nomor resi wajib diisi untuk barang fisik."
+  } else if (!/^[A-Za-z0-9-]{6,40}$/.test(t)) {
+    out.trackingError =
+      "Format resi tidak valid — 6–40 karakter huruf/angka (boleh tanda -), tanpa spasi."
+  }
+  return out
+}
+
+/** D09 (batch 139): alamat pengiriman minimal untuk ringkasan checkout. */
+export type CheckoutAddress = {
+  label: string
+  recipientName: string
+  phone: string
+  addressLine: string
+  city: string
+  postalCode: string
+} | null
+
+/**
+ * D09 (batch 139): kelengkapan alamat aktif untuk checkout barang fisik.
+ * Mengembalikan field yang kosong agar pemanggil bisa memberi peringatan
+ * spesifik ("belum ada alamat" vs "kota belum diisi"), bukan vonis generik.
+ */
+export function addressMissingFields(address: CheckoutAddress): string[] {
+  if (!address) return ["alamat"]
+  const missing: string[] = []
+  if (!address.label.trim()) missing.push("label alamat")
+  if (!address.recipientName.trim()) missing.push("nama penerima")
+  if (!address.phone.trim()) missing.push("nomor HP penerima")
+  if (!address.addressLine.trim()) missing.push("alamat jalan")
+  if (!address.city.trim()) missing.push("kota")
+  if (!address.postalCode.trim()) missing.push("kode pos")
+  return missing
+}
+
+/**
+ * D13 (batch 139): pisahkan kejadian TERBARU dari riwayat lama.
+ *
+ * Entri dianggap kronologis naik (terlama dulu — sesuai kontrak
+ * <OrderHistoryTimeline>). Mengembalikan kejadian terakhir + hitungan
+ * entri lama untuk label ekspander ("Lihat N kejadian sebelumnya").
+ */
+export function splitTimelineLatest<T>(entries: readonly T[]): {
+  latest: T | null
+  older: readonly T[]
+} {
+  if (entries.length === 0) return { latest: null, older: [] }
+  return { latest: entries[entries.length - 1]!, older: entries.slice(0, -1) }
+}

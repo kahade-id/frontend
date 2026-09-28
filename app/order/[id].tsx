@@ -140,7 +140,7 @@ const EARLY_STATUSES: readonly string[] = [
 ]
 
 export default function OrderDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>()
+  const { id, sheet: sheetParam } = useLocalSearchParams<{ id: string; sheet?: string }>()
   const insets = useSafeAreaInsets()
   const toast = useToast()
   const { copied, copy } = useCopy()
@@ -473,6 +473,25 @@ export default function OrderDetailScreen() {
     setDisputeCategory(undefined)
     qrisPayment.reset()
   }, [qrisPayment])
+
+  /**
+   * D11 (batch 139): resume checkout yang aman — `?sheet=pay` (dari banner
+   * aksi menggantung / kembali dari aplikasi bank) membuka ulang sheet
+   * bayar. Status & quote SELALU dibaca ulang dari server oleh query di
+   * atas; sheet hanya dibuka bila order memang masih bisa dibayar
+   * (fail-closed: param tak dikenal/tidak valid tidak memaksa sheet bayar).
+   */
+  const paySheetAutoOpened = useRef(false)
+  useEffect(() => {
+    if (sheetParam !== "pay" || paySheetAutoOpened.current) return
+    const o = query.data?.order
+    if (!o) return
+    const payable =
+      (o.status === "WAITING_PAYMENT" || o.status === "PENDING_PAYMENT") && o.myRole === "BUYER"
+    if (!payable) return
+    paySheetAutoOpened.current = true
+    setSheet("pay")
+  }, [sheetParam, query.data])
 
   /** Pembungkus aksi sederhana: loading, toast sukses/gagal, refetch. */
   const runAction = useCallback(

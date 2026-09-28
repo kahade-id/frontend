@@ -683,6 +683,16 @@ export default function TransferScreen() {
               className="w-full border-t border-border bg-background px-5 pt-4"
               style={{ paddingBottom: Math.max(tokens.space[4], insets.bottom) }}
             >
+              {/*
+               * D06 (batch 139): ringkasan total TETAP di area pin di atas CTA
+               * (bukan di dalam ScrollView) — saat konten di-scroll atau
+               * keyboard terbuka, total yang akan dibayar tetap terbaca tepat
+               * sebelum tombol konfirmasi.
+               */}
+              <Text variant="caption" tone="secondary" className="pb-3 text-center">
+                Total transfer {formatRupiah(amount)}
+                {selected ? ` ke @${selected.username}` : ""}
+              </Text>
               <Button
                 // FE-IMP-4 item 11: kunci ganda — tombol konfirmasi ikut
                 // disabled saat submit/progres berjalan (selain submitLock di

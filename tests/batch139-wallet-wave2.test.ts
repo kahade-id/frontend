@@ -4,9 +4,13 @@
  */
 import { describe, expect, it } from "vitest"
 import {
+  addressMissingFields,
   breakdownAddsUp,
+  ctaUnavailableReasons,
   disabledPresetReason,
   resolveRevalidatedRecipient,
+  splitTimelineLatest,
+  validateTrackingInput,
 } from "../lib/wallet-batch139"
 
 // ---------------------------------------------------------------- D04
@@ -98,5 +102,128 @@ describe("D03 breakdownAddsUp", () => {
 
   it("true bila ditahan nol dan tersedia = total", () => {
     expect(breakdownAddsUp(100_000, 0, 100_000)).toBe(true)
+  })
+})
+
+// ---------------------------------------------------------------- D15
+describe("D15 ctaUnavailableReasons", () => {
+  it("pembeli menunggu konfirmasi penjual (WAITING_CONFIRMATION)", () => {
+    const r = ctaUnavailableReasons("WAITING_CONFIRMATION", "BUYER")
+    expect(r).toHaveLength(1)
+    expect(r[0]).toMatch(/penjual/i)
+  })
+
+  it("penjual menunggu pembayaran pembeli", () => {
+    const r = ctaUnavailableReasons("WAITING_PAYMENT", "SELLER")
+    expect(r).toHaveLength(1)
+    expect(r[0]).toMatch(/pembeli/i)
+  })
+
+  it("pembeli menunggu resi penjual (PROCESSING)", () => {
+    const r = ctaUnavailableReasons("PROCESSING", "BUYER")
+    expect(r).toHaveLength(1)
+    expect(r[0]).toMatch(/resi/i)
+  })
+
+  it("penjual menunggu konfirmasi terima (IN_DELIVERY)", () => {
+    const r = ctaUnavailableReasons("IN_DELIVERY", "SELLER")
+    expect(r).toHaveLength(1)
+  })
+
+  it("sengketa mengunci aksi transaksi", () => {
+    const r = ctaUnavailableReasons("DISPUTED", "BUYER")
+    expect(r).toHaveLength(1)
+    expect(r[0]).toMatch(/sengketa/i)
+  })
+
+  it("status terminal tidak mengarang alasan", () => {
+    expect(ctaUnavailableReasons("COMPLETED", "BUYER")).toEqual([])
+    expect(ctaUnavailableReasons("CANCELLED", "SELLER")).toEqual([])
+    expect(ctaUnavailableReasons("REFUNDED", undefined)).toEqual([])
+  })
+
+  it("peran yang bisa beraksi tidak diberi alasan", () => {
+    expect(ctaUnavailableReasons("WAITING_CONFIRMATION", "SELLER")).toEqual([])
+    expect(ctaUnavailableReasons("WAITING_PAYMENT", "BUYER")).toEqual([])
+  })
+})
+
+// ---------------------------------------------------------------- D16
+describe("D16 validateTrackingInput", () => {
+  it("fisik: resi valid lolos", () => {
+    expect(validateTrackingInput("JNE", "SPXID0123456789", true)).toEqual({})
+  })
+
+  it("fisik: resi kosong ditolak", () => {
+    const v = validateTrackingInput("JNE", "  ", true)
+    expect(v.trackingError).toMatch(/wajib/i)
+  })
+
+  it("fisik: resi berspasi ditolak dengan penjelasan", () => {
+    const v = validateTrackingInput("JNE", "SPX 123 456", true)
+    expect(v.trackingError).toMatch(/tanpa spasi/i)
+  })
+
+  it("fisik: resi terlalu pendek / karakter aneh ditolak", () => {
+    expect(validateTrackingInput("JNE", "AB12", true).trackingError).toBeTruthy()
+    expect(validateTrackingInput("JNE", "SPX#123456", true).trackingError).toBeTruthy()
+  })
+
+  it("fisik: kurir kosong ditolak", () => {
+    const v = validateTrackingInput("", "SPXID0123456789", true)
+    expect(v.courierError).toMatch(/kurir/i)
+  })
+
+  it("jasa/digital: kosong boleh, terisi tetap divalidasi", () => {
+    expect(validateTrackingInput("", "", false)).toEqual({})
+    expect(validateTrackingInput("", "xx", false).trackingError).toBeTruthy()
+  })
+})
+
+// ---------------------------------------------------------------- D09
+describe("D09 addressMissingFields", () => {
+  const full = {
+    label: "Rumah",
+    recipientName: "Budi",
+    phone: "081234567890",
+    addressLine: "Jl. Mawar No. 1",
+    city: "Jakarta",
+    postalCode: "10110",
+  }
+
+  it("alamat lengkap tidak ada yang hilang", () => {
+    expect(addressMissingFields(full)).toEqual([])
+  })
+
+  it("null = belum ada alamat", () => {
+    expect(addressMissingFields(null)).toEqual(["alamat"])
+  })
+
+  it("field kosong dilaporkan spesifik", () => {
+    const missing = addressMissingFields({ ...full, city: "  ", postalCode: "" })
+    expect(missing).toContain("kota")
+    expect(missing).toContain("kode pos")
+    expect(missing).not.toContain("nama penerima")
+  })
+})
+
+// ---------------------------------------------------------------- D13
+describe("D13 splitTimelineLatest", () => {
+  it("kejadian terakhir dipisah dari yang lama", () => {
+    const { latest, older } = splitTimelineLatest(["a", "b", "c"])
+    expect(latest).toBe("c")
+    expect(older).toEqual(["a", "b"])
+  })
+
+  it("kosong aman", () => {
+    const { latest, older } = splitTimelineLatest([])
+    expect(latest).toBeNull()
+    expect(older).toEqual([])
+  })
+
+  it("satu entri = terbaru tanpa riwayat lama", () => {
+    const { latest, older } = splitTimelineLatest(["a"])
+    expect(latest).toBe("a")
+    expect(older).toEqual([])
   })
 })
