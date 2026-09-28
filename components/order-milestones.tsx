@@ -17,7 +17,7 @@ import { router } from "expo-router"
 
 import { api, userMessage, type OrderMilestone } from "@/lib/api"
 import { remainingRevisions } from "@/lib/api/milestones"
-import { formatRupiah, formatDateTime } from "@/lib/format"
+import { formatRupiah, formatDateTimeWIB } from "@/lib/format"
 import { ROUTES } from "@/lib/routes"
 import { translate } from "@/lib/i18n"
 import { logWarn } from "@/lib/telemetry"
@@ -108,7 +108,10 @@ function MilestoneRow({
       </View>
       {milestone.deadline ? (
         <Text variant="caption" tone="secondary">
-          Tenggat: {formatDateTime(milestone.deadline)}
+          {/* TRX-017: tenggat milestone mengikat (keterlambatan →
+              dispute/refund) — wajib berlabel WIB, bukan waktu lokal
+              perangkat yang ambigu. */}
+          Tenggat: {formatDateTimeWIB(milestone.deadline)}
         </Text>
       ) : null}
       {changePending ? (

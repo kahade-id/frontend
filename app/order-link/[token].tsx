@@ -10,7 +10,7 @@ import { View } from "react-native"
 import { useLocalSearchParams, router } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
-import { api, isApiError, type OrderLink } from "@/lib/api"
+import { api, isApiError, type FeeBreakdown, type OrderLink } from "@/lib/api"
 import { showMutationError } from "@/lib/mutation-toast"
 import { formatDateTimeWIB } from "@/lib/format"
 import { useHasSession } from "@/lib/guest-gate"
@@ -103,6 +103,35 @@ export default function OrderLinkScreen() {
     const ms = toEpochMs(link.expiresAt)
     return ms != null && ms <= serverNow()
   }, [link?.expiresAt, link])
+
+  /**
+   * TRX-012 (audit UI/UX 2026-09-28): bila PENERIMA adalah pembeli dan ia
+   * menanggung (sebagian) biaya layanan, hitung biaya sebenarnya via
+   * POST /v1/orders/calculate-fee agar preview menampilkan total jujur.
+   * Fail-soft: calculate-fee butuh sesi (tamu publik tidak dihitung) dan
+   * kegagalan fetch TIDAK memblokir preview — kartu menampilkan copy jujur
+   * "ditambah biaya layanan" tanpa klaim angka.
+   */
+  const receiverIsBuyer = link?.role === "SELLER"
+  const feeResponsibility = link?.feeResponsibility
+  const feeQuery = useApiQuery<FeeBreakdown>(
+    `order-link-fee:${token}`,
+    (signal) =>
+      api.orders.calculateFee(
+        {
+          orderValue: link!.orderValue,
+          feeResponsibility: feeResponsibility as "BUYER" | "SELLER" | "SPLIT",
+        },
+        signal,
+      ),
+    hasSession &&
+      receiverIsBuyer &&
+      (feeResponsibility === "BUYER" || feeResponsibility === "SPLIT") &&
+      Number.isSafeInteger(link?.orderValue) &&
+      (link?.orderValue ?? 0) >= 10000 &&
+      (link?.orderValue ?? 0) <= 1000000000,
+  )
+  const feeAmount = feeQuery.data?.platformFee
 
   const handleAccept = useCallback(async () => {
     if (!link) return
@@ -245,6 +274,7 @@ export default function OrderLinkScreen() {
               orderValue={link.orderValue}
               deliveryDeadlineDays={link.deliveryDeadlineDays}
               feeResponsibility={link.feeResponsibility}
+              feeAmount={feeAmount}
               status={orderLinkStatus(link.status)}
               expiresLabel={
                 link.expiresAt ? `Berlaku hingga ${formatDateTimeWIB(link.expiresAt)}` : undefined

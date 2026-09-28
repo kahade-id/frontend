@@ -24,12 +24,19 @@ export type OrderEscrowCardProps = Omit<ViewProps, "children"> & {
   amount: number
   myRole?: "BUYER" | "SELLER"
   completedAt?: string | null
+  /**
+   * TRX-013: kapan order dibayar (null = belum pernah dibayar). Menentukan
+   * apakah copy "dana dikembalikan" jujur untuk CANCELLED — order yang batal
+   * sebelum bayar tidak punya dana escrow yang bergerak.
+   */
+  paidAt?: string | null
   className?: string
 }
 
 function escrowCopy(
   status: string,
   myRole: "BUYER" | "SELLER" | undefined,
+  paidAt?: string | null,
 ): { title: string; body: string } {
   switch (status) {
     case "COMPLETED":
@@ -40,7 +47,23 @@ function escrowCopy(
           { x: COMPANY },
         ),
       }
+    // TRX-013: CANCELLED tanpa pembayaran = tidak ada dana yang bergerak.
     case "CANCELLED":
+      if (!paidAt) {
+        return {
+          title: translate("Order dibatalkan"),
+          body: translate(
+            "Order dibatalkan sebelum pembayaran — tidak ada dana yang sempat ditahan di escrow.",
+          ),
+        }
+      }
+      return {
+        title: translate("Dana dikembalikan"),
+        body: translate(
+          "Order tidak berlanjut — dana escrow telah dikembalikan ke pembeli oleh {x}.",
+          { x: COMPANY },
+        ),
+      }
     case "REFUNDED":
       return {
         title: translate("Dana dikembalikan"),
@@ -101,10 +124,11 @@ export function OrderEscrowCard({
   amount,
   myRole,
   completedAt,
+  paidAt,
   className,
   ...rest
 }: OrderEscrowCardProps) {
-  const { title, body } = escrowCopy(status, myRole)
+  const { title, body } = escrowCopy(status, myRole, paidAt)
   return (
     <Card
       padded

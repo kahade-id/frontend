@@ -18,7 +18,7 @@ import { Receipt } from "phosphor-react-native"
 
 import { api, isApiError, userMessage } from "@/lib/api"
 import { orderPartyName, type Invoice } from "@/lib/api/orders"
-import { formatDateTime, formatRupiah } from "@/lib/format"
+import { formatDateTimeWIB, formatRupiah } from "@/lib/format"
 import { tokens } from "@/lib/tokens"
 import { shareContent } from "@/lib/share"
 import { shortId } from "@/lib/short-id"
@@ -295,7 +295,8 @@ export default function InvoiceScreen() {
               }))}
               total={invoice.total}
               meta={[
-                { label: "Terbit", value: formatDateTime(invoice.issuedAt) },
+                // TRX-017: tanggal terbit invoice berlabel zona eksplisit.
+                { label: "Terbit", value: formatDateTimeWIB(invoice.issuedAt) },
                 // UI-T010 (audit UI/UX 2026-09-27): tampilkan shortcode, bukan UUID
         // mentah 36 karakter (konsisten dengan jalur share yang sudah disensor).
         { label: "Order", value: `#${shortId(invoice.order.id)}` },
