@@ -35,7 +35,7 @@
  *  - "Laporan & Analitik" → /analytics = angka ringkasan + unduh riwayat
  *    transaksi/dompet + tautan ke daftar laporan (/reports).
  */
-import { useCallback, useState } from "react"
+import { useCallback, useMemo, useState } from "react"
 import { Platform, ScrollView, View } from "react-native"
 import { router, type Href } from "expo-router"
 import Constants from "expo-constants"
@@ -87,7 +87,9 @@ import { Button } from "@/components/ui/button"
 import { Stagger } from "@/components/ui/fade-in"
 import { Header } from "@/components/ui/header"
 import { type IconComponent } from "@/components/ui/icon"
+import { Input } from "@/components/ui/input"
 import { ListItem } from "@/components/ui/list-item"
+import { Text } from "@/components/ui/text"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Dialog } from "@/components/ui/modal"
 import { MenuGroupLabel } from "@/components/ui/section"
@@ -247,6 +249,35 @@ export default function SettingsScreen() {
     { id: "privacy-policy", label: "Kebijakan Privasi", icon: Shield, route: ROUTES.privacyPolicy },
   ]
 
+  // ── A15 (batch 139): pencarian LOKAL — hanya memfilter menu pengaturan
+  // yang SUDAH ADA di atas. Tidak ada destinasi/tujuan baru.
+  const [query, setQuery] = useState("")
+  const groups = useMemo(
+    () => [
+      { title: "Akun", items: accountItems },
+      { title: "Toko & Pesanan", items: shopItems },
+      { title: "Preferensi", items: preferenceItems },
+      { title: "Bantuan", items: supportItems },
+      { title: "Legal", items: legalItems },
+    ],
+    [accountItems, shopItems, preferenceItems, supportItems, legalItems],
+  )
+  const q = query.trim().toLowerCase()
+  const filteredGroups = useMemo(
+    () =>
+      q
+        ? groups
+            .map((g) => ({
+              ...g,
+              items: g.items.filter((item) => item.label.toLowerCase().includes(q)),
+            }))
+            .filter((g) => g.items.length > 0)
+        : groups,
+    [groups, q],
+  )
+  const searching = q.length > 0
+  const noResults = searching && filteredGroups.length === 0
+
   const renderGroup = (items: MenuItemData[]) => (
     <View className={MENU_GROUP}>
       {items.map((item) => (
@@ -277,43 +308,41 @@ export default function SettingsScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View className="gap-4 px-5 pt-3">
+          {/* A15: pencarian lokal — hanya memfilter menu yang sudah ada. */}
+          <Input
+            variant="search"
+            value={query}
+            onChangeText={setQuery}
+            placeholder="Cari pengaturan"
+            accessibilityLabel="Cari pengaturan"
+            returnKeyType="search"
+            clearButtonMode="while-editing"
+          />
           {/*
            * v2: 4 grup menu reveal bertingkat. Jarak geser kecil (4px, bukan
            * 8px) karena daftar menu rapat — gerak mengikuti densitas. Tombol
            * Keluar SENGAJA statis: tombol destruktif tidak boleh bergeser
            * saat jari mendekat.
            */}
-          <Stagger duration="fast" step={50} distance={tokens.space[1]}>
-            {/* ── Akun ─────────────────────────────────────────── */}
-            <View className="gap-2">
-              <MenuGroupLabel>Akun</MenuGroupLabel>
-              {renderGroup(accountItems)}
+          {noResults ? (
+            <View className="items-center gap-1 py-8">
+              <Text variant="body" weight={600}>
+                Tidak ditemukan
+              </Text>
+              <Text variant="caption" tone="secondary" className="text-center text-pretty">
+                Tidak ada pengaturan yang cocok dengan “{query.trim()}”.
+              </Text>
             </View>
-
-            {/* ── Toko & Pesanan ───────────────────────────────── */}
-            <View className="gap-2">
-              <MenuGroupLabel>Toko &amp; Pesanan</MenuGroupLabel>
-              {renderGroup(shopItems)}
-            </View>
-
-            {/* ── Preferensi ───────────────────────────────────── */}
-            <View className="gap-2">
-              <MenuGroupLabel>Preferensi</MenuGroupLabel>
-              {renderGroup(preferenceItems)}
-            </View>
-
-            {/* ── Bantuan ──────────────────────────────────────── */}
-            <View className="gap-2">
-              <MenuGroupLabel>Bantuan</MenuGroupLabel>
-              {renderGroup(supportItems)}
-            </View>
-
-            {/* ── Legal ────────────────────────────────────────── */}
-            <View className="gap-2">
-              <MenuGroupLabel>Legal</MenuGroupLabel>
-              {renderGroup(legalItems)}
-            </View>
-          </Stagger>
+          ) : (
+            <Stagger duration="fast" step={50} distance={tokens.space[1]}>
+              {filteredGroups.map((group) => (
+                <View key={group.title} className="gap-2">
+                  <MenuGroupLabel>{group.title}</MenuGroupLabel>
+                  {renderGroup(group.items)}
+                </View>
+              ))}
+            </Stagger>
+          )}
 
           {/* ── Keluar ───────────────────────────────────────── */}
           <View className="pt-2">
