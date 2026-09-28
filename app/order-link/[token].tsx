@@ -23,14 +23,17 @@ import { tokens } from "@/lib/tokens"
 import { useApiQuery } from "@/lib/use-api-query"
 
 import { Alert } from "@/components/ui/alert"
+import { AddressPicker } from "@/components/ui/address-picker"
 import { Button } from "@/components/ui/button"
 import { Dialog } from "@/components/ui/modal"
 import { ErrorState } from "@/components/ui/error-state"
+import { Field } from "@/components/ui/field"
 import { Header } from "@/components/ui/header"
 import { OrderLinkPreviewCard } from "@/components/ui/order-link-preview-card"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
 import { useToast } from "@/components/ui/toast"
+import type { Address } from "@/lib/api/commerce"
 
 export default function OrderLinkScreen() {
   const { token } = useLocalSearchParams<{ token: string }>()
@@ -40,6 +43,9 @@ export default function OrderLinkScreen() {
   const [accepting, setAccepting] = useState(false)
   const [declineOpen, setDeclineOpen] = useState(false)
   const [declining, setDeclining] = useState(false)
+  // TRX-009: alamat pengiriman penerima untuk link barang fisik yang dibuat
+  // dengan peran SELLER (penerima = pembeli). Wajib sebelum Terima.
+  const [acceptAddress, setAcceptAddress] = useState<Address | null>(null)
 
   /**
    * `useApiQuery`, bukan rakitan useState/useEffect: request dibatalkan saat
@@ -104,6 +110,11 @@ export default function OrderLinkScreen() {
     return ms != null && ms <= serverNow()
   }, [link?.expiresAt, link])
 
+  // TRX-009: link barang fisik yang dibuat dengan peran SELLER — penerima
+  // bertindak sebagai PEMBELI sehingga wajib memilih alamat pengiriman dari
+  // buku alamatnya sebelum menekan Terima (backend fail-closed).
+  const needsAcceptAddress = link?.orderType === "PHYSICAL_GOODS" && link?.role === "SELLER"
+
   const handleAccept = useCallback(async () => {
     if (!link) return
     // R2 (audit ronde-2, butir #69): tamu publik yang menekan Terima dialihkan
@@ -121,9 +132,22 @@ export default function OrderLinkScreen() {
       })
       return
     }
+    // TRX-009: link barang fisik yang dibuat SELLER — penerima adalah pembeli,
+    // alamat pengiriman wajib dipilih sebelum accept (backend fail-closed).
+    if (needsAcceptAddress && !acceptAddress) {
+      toast.show({
+        title: "Pilih alamat pengiriman",
+        description: "Alamat pengiriman wajib diisi untuk menerima order barang fisik ini.",
+        tone: "warning",
+      })
+      return
+    }
     setAccepting(true)
     try {
-      const order = await api.orders.acceptOrderLink(link.token)
+      const order = await api.orders.acceptOrderLink(
+        link.token,
+        needsAcceptAddress && acceptAddress ? { shippingAddressId: acceptAddress.id } : undefined,
+      )
       toast.show({
         title: "Order link diterima",
         description: "Pesanan berhasil dibuat.",
@@ -156,7 +180,7 @@ export default function OrderLinkScreen() {
     } finally {
       setAccepting(false)
     }
-  }, [link, isExpiredLocally, toast.show, router, query])
+  }, [link, isExpiredLocally, toast.show, router, query, needsAcceptAddress, acceptAddress])
 
   const handleDecline = useCallback(async () => {
     if (!link) return
@@ -212,6 +236,11 @@ export default function OrderLinkScreen() {
   const active =
     link != null && (link.status === "ACTIVE" || !KNOWN_FINAL.has(link.status))
 
+  // TRX-018: selama query identitas masih loading, JANGAN tampilkan tombol
+  // aksi — cegah flicker "Terima" pada tautan milik sendiri.
+  const identityLoading = hasSession && meQuery.loading
+  const canAct = active && !isOwnLink && !isExpiredLocally && !identityLoading
+
   return (
     <Screen edges={["top"]} padded={false}>
       <Header title="Tautan Pesanan" />
@@ -250,9 +279,12 @@ export default function OrderLinkScreen() {
                 link.expiresAt ? `Berlaku hingga ${formatDateTimeWIB(link.expiresAt)}` : undefined
               }
               lockedToUsername={link.counterpartUsername ?? undefined}
-              onAccept={active && !isOwnLink && !isExpiredLocally ? () => void handleAccept() : undefined}
+              // TRX-010: teruskan username pemakai agar warning "tautan dikunci
+              // untuk @x" benar-benar bisa muncul.
+              currentUsername={meQuery.data?.username ?? undefined}
+              onAccept={canAct ? () => void handleAccept() : undefined}
               onDecline={
-                active && !isOwnLink && !isExpiredLocally
+                canAct
                   ? () => {
                       if (!hasSession) {
                         router.push(ROUTES.loginRequired(`/order-link/${encodeURIComponent(link.token)}`))
@@ -264,6 +296,20 @@ export default function OrderLinkScreen() {
               }
               accepting={accepting}
             />
+            {/* TRX-009: alamat pengiriman penerima (pembeli) untuk link barang
+                fisik buatan SELLER — wajib sebelum Terima. */}
+            {canAct && needsAcceptAddress ? (
+              <Field
+                label="Alamat pengiriman"
+                required
+                helperText="Barang fisik akan dikirim ke alamat ini."
+                errorText={
+                  acceptAddress ? undefined : "Pilih alamat pengiriman untuk menerima order ini."
+                }
+              >
+                <AddressPicker selected={acceptAddress} onSelect={setAcceptAddress} />
+              </Field>
+            ) : null}
             {active && isOwnLink ? (
               // R2 (butir #73): kreator membuka tautannya sendiri (mis. dari
               // riwayat berbagi) — jangan biarkan menghadapi 422 server.

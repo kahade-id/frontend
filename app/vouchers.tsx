@@ -112,10 +112,12 @@ const FLAT_DISCOUNT_VALUES = new Set([
   "NOMINAL",
 ])
 
-/** Enum diskon UI hanya mengenal PERCENTAGE/FIXED; nilai lain dibaca longgar. */
-function discountTypeOf(v: Voucher): "FIXED" | "PERCENTAGE" {
+/** Enum diskon UI mengenal PERCENTAGE/FIXED/UNKNOWN; nilai asing TIDAK boleh
+ *  ditebak sebagai persen (TRX-022) — kartu menampilkan "Belum tersedia". */
+function discountTypeOf(v: Voucher): "FIXED" | "PERCENTAGE" | "UNKNOWN" {
   const raw = (v.discountType ?? v.voucherType ?? "").toUpperCase()
-  return FLAT_DISCOUNT_VALUES.has(raw) ? "FIXED" : "PERCENTAGE"
+  if (!raw) return "UNKNOWN"
+  return FLAT_DISCOUNT_VALUES.has(raw) ? "FIXED" : raw === "PERCENTAGE" || raw === "PERCENT" ? "PERCENTAGE" : "UNKNOWN"
 }
 
 function expiresSoon(v: Voucher): boolean {
@@ -126,12 +128,13 @@ function expiresSoon(v: Voucher): boolean {
 
 /**
  * Status tiket voucher untuk Badge AKTIF (hijau) / TERPAKAI (abu) /
- * KEDALUWARSA (merah) — satu definisi dipakai semua kartu di layar ini
- * (komponen hanya memetakan status -> Badge, tidak menebak sendiri).
+ * KEDALUWARSA (merah) / NONAKTIF (abu) — satu definisi dipakai semua kartu
+ * di layar ini (komponen hanya memetakan status -> Badge, tidak menebak
+ * sendiri). TRX-022: voucher nonaktif (active=false) BUKAN kedaluwarsa.
  */
 function voucherStatusOf(v: Voucher): VoucherStatus {
   if (v.usedAt) return "used"
-  if (!v.active) return "expired"
+  if (!v.active) return "inactive"
   if (v.expiresAt) {
     const time = new Date(v.expiresAt).getTime()
     if (Number.isFinite(time) && time < Date.now()) return "expired"

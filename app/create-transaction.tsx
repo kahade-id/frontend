@@ -56,6 +56,7 @@ import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 
 import { AmountInput } from "@/components/ui/amount-input"
+import { Alert } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { ButtonGroup } from "@/components/ui/button-group"
 import {
@@ -95,6 +96,7 @@ import type { AppliedVoucher } from "@/components/ui/voucher-redeem-box"
 import { AddressPicker } from "@/components/ui/address-picker"
 import type { Address } from "@/lib/api/commerce"
 import { addressLabelText } from "@/lib/api/commerce"
+import { addressMissingFields } from "@/lib/wallet-batch139"
 import { translate } from "@/lib/i18n/translate"
 import { cn } from "@/lib/cn"
 import { formatDateLong } from "@/lib/format"
@@ -296,8 +298,8 @@ export default function CreateTransactionScreen() {
   }, [schedule, scheduleLoading])
   const [voucher, setVoucher] = useState<AppliedVoucher | null>(null)
   const [applyingVoucher, setApplyingVoucher] = useState(false)
-  // Batch 43 (item 2): alamat pengiriman terpilih — hanya untuk FISIK.
-  // Belum dikirim ke server (CreateOrderDto belum punya field alamat).
+  // TRX-009: alamat pengiriman terpilih — WAJIB untuk FISIK, dikirim sebagai
+  // `shippingAddressId` (backend fail-closed untuk PHYSICAL_GOODS).
   const [shippingAddress, setShippingAddress] = useState<Address | null>(null)
   const [voucherError, setVoucherError] = useState<string | undefined>()
   // Batch 43 (item 9): voucher toko penjual — validasi via
@@ -414,11 +416,33 @@ export default function CreateTransactionScreen() {
     deadlineTouched && deadlineDate == null
       ? translate("Pilih tanggal tenggat pengiriman terlebih dahulu.")
       : undefined
+  // TRX-009: alamat pengiriman WAJIB & LENGKAP untuk barang fisik. Mode link
+  // yang dibuat sebagai SELLER dikecualikan — alamat diisi penerima saat
+  // accept link (kontrak accept mendukung shippingAddressId).
+  const shippingAddressRequired =
+    orderType === "PHYSICAL_GOODS" && (mode === "direct" || role === "BUYER")
+  const shippingAddressMissing = shippingAddressRequired
+    ? addressMissingFields(
+        shippingAddress
+          ? {
+              label: addressLabelText(shippingAddress),
+              recipientName: shippingAddress.recipientName,
+              phone: shippingAddress.phone,
+              addressLine: shippingAddress.addressLine,
+              city: shippingAddress.city,
+              postalCode: shippingAddress.postalCode,
+            }
+          : null,
+      )
+    : []
+  const shippingAddressValid = shippingAddressMissing.length === 0
   const detailValid =
     titleTrimmed.length >= MIN_TITLE &&
     descriptionTrimmed.length >= MIN_DESCRIPTION &&
     isValidAmount(orderValue, AMOUNT_LIMITS.order) &&
-    deadlineDate != null
+    deadlineDate != null &&
+    // TRX-009: barang fisik tidak bisa lanjut/submit tanpa alamat lengkap.
+    shippingAddressValid
   const feeValid = confirmedFeeKey === feeKey && !feeLoading && !!fee
   const stepValid = [true, counterpartValid, detailValid, feeValid && counterpartValid && detailValid]
   const canSubmit =
@@ -669,6 +693,11 @@ export default function CreateTransactionScreen() {
         const dto: CreateOrderLinkDto = {
           ...base,
           counterpartUsername: counterpart.trim() || undefined,
+          // TRX-009: pembuat link sebagai BUYER wajib menyertakan alamatnya;
+          // sebagai SELLER, alamat diisi penerima saat accept link.
+          ...(shippingAddressRequired && shippingAddress
+            ? { shippingAddressId: shippingAddress.id }
+            : {}),
         }
         const link = await api.orders.createOrderLink(
           dto,
@@ -691,6 +720,10 @@ export default function CreateTransactionScreen() {
         ...base,
         counterpartUsername: counterpart.trim(),
         voucherCode: effectiveVoucherCode,
+        // TRX-009: alamat pengiriman untuk barang fisik (backend fail-closed).
+        ...(orderType === "PHYSICAL_GOODS" && shippingAddress
+          ? { shippingAddressId: shippingAddress.id }
+          : {}),
       }
       const order = await api.orders.createOrder(
         dto,
@@ -900,14 +933,30 @@ export default function CreateTransactionScreen() {
                 labels={ORDER_TYPE_LABELS}
               />
             </Field>
-            {/* Batch 43 (item 2): alamat pengiriman hanya untuk barang FISIK. */}
-            {orderType === "PHYSICAL_GOODS" ? (
+            {/* TRX-009: alamat pengiriman WAJIB untuk barang FISIK — tombol
+                Lanjut/submit diblokir sampai alamat lengkap terpilih.
+                Link yang dibuat sebagai SELLER: alamat diisi penerima
+                (pembeli) saat accept link, bukan di sini. */}
+            {orderType === "PHYSICAL_GOODS" && shippingAddressRequired ? (
               <Field
                 label={translate("Alamat pengiriman")}
+                required
                 helperText={translate("Alamat tujuan barang dikirim — bisa diubah di buku alamat.")}
+                errorText={
+                  shippingAddressMissing.length > 0
+                    ? shippingAddressMissing.includes("alamat")
+                      ? translate("Pilih alamat pengiriman untuk barang fisik ini.")
+                      : translate("Alamat belum lengkap: {x}.", { x: shippingAddressMissing.join(", ") })
+                    : undefined
+                }
               >
                 <AddressPicker selected={shippingAddress} onSelect={setShippingAddress} />
               </Field>
+            ) : null}
+            {orderType === "PHYSICAL_GOODS" && mode === "link" && role === "SELLER" ? (
+              <Alert tone="info" title={translate("Alamat pengiriman")}>
+                {translate("Alamat pengiriman akan diisi oleh pembeli saat menerima tautan ini.")}
+              </Alert>
             ) : null}
             <AmountInput
               value={orderValue}
@@ -1034,7 +1083,10 @@ export default function CreateTransactionScreen() {
              * peringatan + jalan kembali ke langkah detail — jangan biarkan
              * order fisik terkirim tanpa alamat yang jelas.
              */}
-            {orderType === "PHYSICAL_GOODS" ? (
+            {/* TRX-009: hanya tampilkan kartu alamat bila alamat memang wajib
+                di langkah ini — mode link SELLER dikecualikan (pembeli mengisi
+                alamat saat accept link). */}
+            {shippingAddressRequired ? (
               <ShippingAddressSummaryCard
                 address={shippingAddress}
                 onFix={() => setStep(2)}

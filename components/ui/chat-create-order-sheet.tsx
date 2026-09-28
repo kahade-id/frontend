@@ -24,7 +24,10 @@ import {
   type CreatedOrderFromChat,
   type CreateOrderFromChatDto,
 } from "@/lib/api/chat"
+import { calculateFee } from "@/lib/api/orders-endpoints"
+import type { FeeBreakdown } from "@/lib/api/orders-shared"
 import { isApiError, userMessage } from "@/lib/api"
+import { formatRupiah } from "@/lib/format"
 import { logWarn } from "@/lib/telemetry"
 
 import { AmountInput } from "@/components/ui/amount-input"
@@ -122,6 +125,13 @@ export function ChatCreateOrderSheet({
   const [feeBy, setFeeBy] =
     useState<NonNullable<CreateOrderFromChatDto["feeResponsibility"]>>("BUYER")
   const [sending, setSending] = useState(false)
+  // TRX-019: langkah review — ringkasan + kalkulasi biaya dari SERVER sebelum
+  // submit. Sheet ini tidak boleh mengirim order tanpa pengguna melihat
+  // nominal final.
+  const [step, setStep] = useState<"form" | "review">("form")
+  const [fee, setFee] = useState<FeeBreakdown | null>(null)
+  const [feeLoading, setFeeLoading] = useState(false)
+  const [feeError, setFeeError] = useState<string | null>(null)
 
   useEffect(() => {
     if (visible) {
@@ -134,6 +144,10 @@ export function ChatCreateOrderSheet({
       setOrderType("PHYSICAL_GOODS")
       setFeeBy("BUYER")
       setSending(false)
+      setStep("form")
+      setFee(null)
+      setFeeLoading(false)
+      setFeeError(null)
     }
   }, [visible, productCard])
 
@@ -147,8 +161,35 @@ export function ChatCreateOrderSheet({
     qty >= 1 &&
     (withShowcase || (titleLen >= 3 && titleLen <= 100 && descLen >= 10 && descLen <= 500))
 
+  const orderValue = price * qty
+
+  /** TRX-019: ambil kalkulasi biaya dari server untuk langkah review. */
+  const loadFee = async () => {
+    setFeeLoading(true)
+    setFeeError(null)
+    try {
+      const res = await calculateFee({ orderValue, feeResponsibility: feeBy })
+      setFee(res)
+    } catch (err) {
+      logWarn("chat:create-order-fee", err)
+      setFee(null)
+      setFeeError(isApiError(err) ? userMessage(err) : "Gagal menghitung biaya.")
+    } finally {
+      setFeeLoading(false)
+    }
+  }
+
+  const goToReview = () => {
+    if (!canSubmit) return
+    setStep("review")
+    void loadFee()
+  }
+
   const submit = async () => {
     if (!canSubmit || !roomId) return
+    // TRX-019: submit hanya dari langkah review dengan fee server yang valid —
+    // jangan biarkan pengguna mengonfirmasi nominal yang belum dihitung.
+    if (step !== "review" || feeLoading || !fee) return
     setSending(true)
     try {
       const dto: CreateOrderFromChatDto = {
@@ -194,15 +235,17 @@ export function ChatCreateOrderSheet({
       avoidKeyboard
     >
       <View className="gap-3">
-        <View className="flex-row items-center gap-2 rounded-md bg-success-soft p-3">
-          <Icon icon={ShieldCheck} size={20} tone="success" />
-          <Text variant="caption" tone="primary" className="flex-1">
-            Dana pembeli dikunci di escrow Kahade dan baru cair setelah barang
-            diterima. Bukan transfer langsung.
-          </Text>
-        </View>
+        {step === "form" ? (
+          <>
+            <View className="flex-row items-center gap-2 rounded-md bg-success-soft p-3">
+              <Icon icon={ShieldCheck} size={20} tone="success" />
+              <Text variant="caption" tone="primary" className="flex-1">
+                Dana pembeli dikunci di escrow Kahade dan baru cair setelah barang
+                diterima. Bukan transfer langsung.
+              </Text>
+            </View>
 
-        {!withShowcase ? (
+            {!withShowcase ? (
           <>
             <Input
               label="Judul pesanan"
@@ -280,8 +323,8 @@ export function ChatCreateOrderSheet({
           onChange={setFeeBy}
         />
 
-        <Button onPress={() => void submit()} disabled={!canSubmit} loading={sending}>
-          Buat transaksi via escrow
+        <Button onPress={goToReview} disabled={!canSubmit}>
+          Lanjut: review & biaya
         </Button>
         {!withShowcase && (titleLen > 0 && titleLen < 3 || descLen > 0 && descLen < 10) ? (
           <View className="flex-row items-center gap-1.5">
@@ -291,7 +334,150 @@ export function ChatCreateOrderSheet({
             </Text>
           </View>
         ) : null}
+      </>
+        ) : (
+          <ReviewStep
+            title={withShowcase ? (productCard?.title ?? "") : title.trim()}
+            description={withShowcase ? undefined : description.trim()}
+            role={role}
+            orderType={orderType ?? "PHYSICAL_GOODS"}
+            price={price}
+            qty={qty}
+            feeBy={feeBy}
+            fee={fee}
+            feeLoading={feeLoading}
+            feeError={feeError}
+            onRetryFee={() => void loadFee()}
+            onBack={() => setStep("form")}
+            onSubmit={() => void submit()}
+            sending={sending}
+            canSubmit={canSubmit && !feeLoading && fee != null}
+          />
+        )}
       </View>
     </BottomSheet>
+  )
+}
+
+function SummaryRow({ label, value }: { label: string; value: string }) {
+  return (
+    <View className="flex-row items-start justify-between gap-3 py-1.5">
+      <Text variant="caption" tone="secondary" className="flex-1">
+        {label}
+      </Text>
+      <Text variant="body" weight={600} tone="primary" className="flex-1 text-right">
+        {value}
+      </Text>
+    </View>
+  )
+}
+
+/**
+ * TRX-019: langkah review — ringkasan order + rincian biaya dari SERVER.
+ * Submit diblokir sampai kalkulasi server berhasil dimuat.
+ */
+function ReviewStep({
+  title,
+  description,
+  role,
+  orderType,
+  price,
+  qty,
+  feeBy,
+  fee,
+  feeLoading,
+  feeError,
+  onRetryFee,
+  onBack,
+  onSubmit,
+  sending,
+  canSubmit,
+}: {
+  title: string
+  description?: string
+  role: "BUYER" | "SELLER"
+  orderType: string
+  price: number
+  qty: number
+  feeBy: "BUYER" | "SELLER" | "SPLIT"
+  fee: FeeBreakdown | null
+  feeLoading: boolean
+  feeError: string | null
+  onRetryFee: () => void
+  onBack: () => void
+  onSubmit: () => void
+  sending: boolean
+  canSubmit: boolean
+}) {
+  const orderTypeLabel =
+    ORDER_TYPES.find((o) => o.value === orderType)?.label ?? orderType
+  const feeByLabel = FEE_OPTIONS.find((o) => o.value === feeBy)?.label ?? feeBy
+
+  return (
+    <View className="gap-4">
+      <View>
+        <Text variant="caption" weight={600} tone="secondary" className="mb-1">
+          Ringkasan order
+        </Text>
+        <View className="rounded-md border border-border bg-surface px-3 py-1">
+          {title ? <SummaryRow label="Judul" value={title} /> : null}
+          {description ? (
+            <SummaryRow
+              label="Deskripsi"
+              value={description.length > 80 ? `${description.slice(0, 80)}…` : description}
+            />
+          ) : null}
+          <SummaryRow label="Saya sebagai" value={role === "BUYER" ? "Pembeli" : "Penjual"} />
+          <SummaryRow label="Jenis order" value={orderTypeLabel} />
+          <SummaryRow label="Harga × jumlah" value={`${formatRupiah(price)} × ${qty}`} />
+          <SummaryRow label="Biaya layanan ditanggung" value={feeByLabel} />
+        </View>
+      </View>
+
+      <View>
+        <Text variant="caption" weight={600} tone="secondary" className="mb-1">
+          Rincian biaya (dihitung server)
+        </Text>
+        {feeLoading ? (
+          <View className="rounded-md border border-border bg-surface p-4">
+            <Text variant="caption" tone="secondary">
+              Menghitung biaya layanan…
+            </Text>
+          </View>
+        ) : feeError ? (
+          <View className="gap-2 rounded-md border border-danger/40 bg-danger/5 p-4">
+            <Text variant="caption" tone="danger">
+              {feeError}
+            </Text>
+            <Button variant="secondary" onPress={onRetryFee}>
+              Coba hitung ulang
+            </Button>
+          </View>
+        ) : fee ? (
+          <View className="rounded-md border border-border bg-surface px-3 py-1">
+            <SummaryRow label="Nilai order" value={formatRupiah(fee.orderValue)} />
+            <SummaryRow label="Biaya layanan" value={formatRupiah(fee.platformFee)} />
+            <SummaryRow label="Pembeli membayar" value={formatRupiah(fee.buyerPays)} />
+            <SummaryRow label="Penjual menerima" value={formatRupiah(fee.sellerReceives)} />
+          </View>
+        ) : null}
+        <Text variant="caption" tone="secondary" className="mt-1.5">
+          Dana pembeli dikunci di escrow Kahade dan baru cair setelah barang diterima.
+        </Text>
+      </View>
+
+      <View className="flex-row gap-2">
+        <View className="flex-1">
+          <Button variant="secondary" onPress={onBack} disabled={sending}>
+            Kembali
+          </Button>
+        </View>
+        <View className="flex-1">
+          <Button onPress={onSubmit} disabled={!canSubmit} loading={sending}>
+            Buat transaksi via escrow
+          </Button>
+        </View>
+      </View>
+    </View>
   )
 }

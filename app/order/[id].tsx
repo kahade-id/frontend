@@ -1271,6 +1271,9 @@ export default function OrderDetailScreen() {
         completeLoading={submitting}
         onCompleteConfirm={handleCompleteOrder}
         onCompleteClose={() => setConfirmComplete(false)}
+        // TRX-020: nominal dana escrow yang dilepas ke penjual saat konfirmasi.
+        // Pakai hitungan server (sellerReceives) bila ada, fallback ke nilai order.
+        escrowAmount={fee?.sellerReceives ?? order.orderValue}
       />
 
       <OrderPayProgressOverlay

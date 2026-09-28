@@ -632,6 +632,7 @@ export function OrderConfirmDialogs({
   completeLoading,
   onCompleteConfirm,
   onCompleteClose,
+  escrowAmount,
 }: {
   acceptOpen: boolean
   acceptLoading: boolean
@@ -646,6 +647,8 @@ export function OrderConfirmDialogs({
   completeLoading: boolean
   onCompleteConfirm: () => void
   onCompleteClose: () => void
+  /** TRX-020: nominal dana escrow yang akan dilepas ke penjual — wajib tampil. */
+  escrowAmount?: number
 }) {
   return (
     <>
@@ -687,7 +690,25 @@ export function OrderConfirmDialogs({
         onConfirm={onCompleteConfirm}
         onCancel={onCompleteClose}
         onRequestClose={onCompleteClose}
-      />
+      >
+        {/* TRX-020: nominal dana escrow yang dilepas — keputusan finansial
+            tidak boleh diambil tanpa melihat angkanya. */}
+        {typeof escrowAmount === "number" && Number.isFinite(escrowAmount) ? (
+          <View
+            className="mt-3 rounded-md border border-border bg-surface p-4"
+            accessible
+            accessibilityRole="text"
+            accessibilityLabel={`Dana escrow yang akan dilepas: ${formatRupiah(escrowAmount)}`}
+          >
+            <Text variant="caption" tone="secondary">
+              Dana escrow yang dilepas ke penjual
+            </Text>
+            <Text variant="h2" weight={700} tone="primary" className="tabular-nums">
+              {formatRupiah(escrowAmount)}
+            </Text>
+          </View>
+        ) : null}
+      </Dialog>
     </>
   )
 }

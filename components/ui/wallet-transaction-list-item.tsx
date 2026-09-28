@@ -159,6 +159,9 @@ export function WalletTransactionListItem({
 }: WalletTransactionListItemProps) {
   const t = { ...DEFAULT_LABELS, ...labels }
   const isCredit = type === "CREDIT"
+  // TRX-008: arah UNKNOWN tidak boleh dipaksa jadi positif maupun negatif —
+  // nominal dirender netral (tanpa tanda) + label arah eksplisit.
+  const isUnknownDirection = type === "UNKNOWN"
   const failed = status === "FAILED"
   const pending = status === "PENDING"
   const succeeded = status === "SUCCESS"
@@ -183,15 +186,20 @@ export function WalletTransactionListItem({
 
   // Gaya vivid: nominal tegas — hijau masuk, merah keluar. Default: DEBIT
   // netral (uang keluar yang disengaja bukan kabar buruk).
+  // TRX-008: arah UNKNOWN tidak diwarnai seolah debit (danger) — netral.
   const amountTone = statusAccent
     ? isCredit
       ? "success"
-      : "danger"
+      : isUnknownDirection
+        ? "secondary"
+        : "danger"
     : status !== "SUCCESS"
       ? "secondary"
       : isCredit
         ? "success"
-        : "primary"
+        : isUnknownDirection
+          ? "secondary"
+          : "primary"
 
   const subtitle = [timestamp, reference ? truncateMiddle(reference, 6, 4) : undefined]
     .filter(Boolean)
@@ -199,7 +207,7 @@ export function WalletTransactionListItem({
 
   const a11y = [
     title,
-    `${isCredit ? "masuk" : type === "DEBIT" ? "keluar" : ""} ${Math.abs(amount)} rupiah`,
+    `${isCredit ? "masuk" : type === "DEBIT" ? "keluar" : "arah tidak diketahui"} ${Math.abs(amount)} rupiah`,
     status === "PENDING"
       ? t.pending
       : failed
@@ -228,10 +236,15 @@ export function WalletTransactionListItem({
           <Amount
             value={signed}
             size="body"
-            sign={type === "UNKNOWN" ? "never" : isCredit ? "always" : "auto"}
+            sign={isUnknownDirection ? "never" : isCredit ? "always" : "auto"}
             tone={amountTone}
             className={cn(failed && "line-through", statusAccent && "font-sans-600")}
           />
+          {/* TRX-008: arah tak dikenal diberi label eksplisit — nominal tanpa
+              tanda saja masih bisa dibaca sebagai "positif". */}
+          {isUnknownDirection ? (
+            <StatusIndicator label="Arah tidak diketahui" tone="neutral" size="sm" />
+          ) : null}
           {status === "PENDING" ? (
             <StatusIndicator label={t.pending} tone="warning" size="sm" />
           ) : null}

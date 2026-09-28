@@ -47,6 +47,7 @@ import {
   type QrisPayment,
 } from "@/lib/api/orders-shared"
 import type {
+  BuyerLocation,
   CalculateFeeDto,
   CancelOrderDto,
   ConfirmOrderDto,
@@ -99,6 +100,15 @@ export async function createOrder(dto: CreateOrderDto, idempotencyKey?: string) 
   // Lokasi presisi aksi sensitif (kontrak lintas tim 2026-09-27): diambil
   // tepat sebelum request dikirim, setelah validasi lolos.
   const body = await withDeviceLocation(dto)
+  // Lokasi presisi buyer (kontrak backend BuyerLocationDto): dipakai ulang
+  // dari hasil capture di atas — SATU pengambilan lokasi untuk dua field,
+  // tanpa prompt izin ganda. Izin ditolak/gagal → field tidak dikirim
+  // (backend nullable) dan transaksi TETAP JALAN.
+  const buyerLocation = toBuyerLocation(body.deviceLocation ?? null)
+  if (buyerLocation) {
+    ;(body as WithDeviceLocation<CreateOrderDto> & { buyerLocation?: BuyerLocation }).buyerLocation =
+      buyerLocation
+  }
   return http.post<Order & Record<string, unknown>, WithDeviceLocation<CreateOrderDto>>(
     "/v1/orders",
     body,
@@ -107,6 +117,32 @@ export async function createOrder(dto: CreateOrderDto, idempotencyKey?: string) 
       ...(idempotencyKey ? { headers: { "Idempotency-Key": idempotencyKey } } : {}),
     },
   ).then((raw) => normalizeOrder(readEntity<Order & Record<string, unknown>>(raw, "order")))
+}
+
+/**
+ * Petakan hasil capture lokasi aksi ke kontrak `buyerLocation` backend:
+ * `{ latitude, longitude, accuracy?, capturedAt? }`. Mengembalikan `null`
+ * bila tidak ada lokasi (izin ditolak/gagal) — pemanggil tidak mengirim
+ * field sama sekali dalam kasus itu.
+ */
+function toBuyerLocation(loc: LocationDto | null): BuyerLocation | null {
+  if (
+    !loc ||
+    typeof loc.latitude !== "number" ||
+    typeof loc.longitude !== "number" ||
+    !Number.isFinite(loc.latitude) ||
+    !Number.isFinite(loc.longitude)
+  ) {
+    return null
+  }
+  const out: BuyerLocation = { latitude: loc.latitude, longitude: loc.longitude }
+  if (typeof loc.accuracy === "number" && Number.isFinite(loc.accuracy) && loc.accuracy >= 0) {
+    out.accuracy = loc.accuracy
+  }
+  if (typeof loc.timestamp === "string" && loc.timestamp.length > 0) {
+    out.capturedAt = loc.timestamp
+  }
+  return out
 }
 
 /**

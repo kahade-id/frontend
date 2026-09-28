@@ -5,13 +5,15 @@
  * Satu entri `GET /v1/transaction-templates`; aksi ke `PUT/DELETE .../{id}`
  * dan "Gunakan" yang mengisi form buat order (CreateOrderDto) dari templat.
  * CreateTemplateDto di spec kosong (di-infer dari CreateOrderDto): name,
- * role, title, description, orderType, orderValue, deliveryDeadlineDays,
- * feeResponsibility, counterpartUsername opsional, usageCount/lastUsedAt.
+ * title, description, orderType, orderValue, deliveryDeadlineDays,
+ * feeResponsibility, usageCount/lastUsedAt. TRX-011: `role` dan
+ * `counterpartUsername` TIDAK disimpan backend — tidak dirender sebagai
+ * atribut template (hanya isian awal form "Pakai").
  *
  * Anatomi:
- *   ikon jenis order (IconBox) · nama templat (H3) · Badge peran ("Saya penjual")
+ *   ikon jenis order (IconBox) · nama templat (H3)
  *   judul order default (body) + deskripsi 2 baris (caption)
- *   nominal <Amount body> · "n hari" · fee responsibility · lawan tetap (@user)
+ *   nominal <Amount body> · "n hari" · fee responsibility
  *   footer: "Dipakai 12x · terakhir 3 Sep" (caption secondary)
  *   aksi: Gunakan (primary sm, flex-1) · Ubah · Hapus (icon buttons ghost)
  *
@@ -34,14 +36,12 @@ import { PencilSimple, Trash } from "phosphor-react-native"
 import { View, type ViewProps } from "react-native"
 
 import { Amount } from "@/components/ui/amount"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, type CardProps } from "@/components/ui/card"
 import type { FeeResponsibility } from "@/components/ui/fee-breakdown"
 import { IconBox } from "@/components/ui/icon-box"
 import { IconButton } from "@/components/ui/icon-button"
 import {
-  ORDER_ROLE_LABELS,
   ORDER_TYPE_ICONS,
   ORDER_TYPE_LABELS,
   type OrderRoleValue,
@@ -117,7 +117,8 @@ export function TransactionTemplateCard({
   // menolaknya dan seluruh kartu jatuh ke error boundary. Lihat lib/has-own.
   const typeIcon = mapValue(ORDER_TYPE_ICONS, template.orderType, ORDER_TYPE_ICONS.OTHER)
   const typeLabel = mapValue(ORDER_TYPE_LABELS, template.orderType, template.orderType)
-  const roleLabel = mapValue(ORDER_ROLE_LABELS, template.role, template.role)
+  // TRX-011: `role` TIDAK disimpan backend (bukti audit) — jangan tampilkan
+  // sebagai atribut template yang tersimpan.
 
   const usage =
     template.usageCount && template.usageCount > 0
@@ -128,7 +129,7 @@ export function TransactionTemplateCard({
 
   const a11y =
     accessibilityLabel ??
-    [template.name, roleLabel, typeLabel, `${template.orderValue} rupiah`, usage].join(", ")
+    [template.name, typeLabel, `${template.orderValue} rupiah`, usage].join(", ")
 
   return (
     <Card onPress={onPress} className={cn("gap-4", className)} accessibilityLabel={a11y} {...rest}>
@@ -139,9 +140,7 @@ export function TransactionTemplateCard({
           <Text ellipsizeMode="tail" variant="h3" tone="primary" numberOfLines={1}>
             {template.name}
           </Text>
-          <Badge tone="neutral" variant="outline" className="self-start">
-            {roleLabel}
-          </Badge>
+          {/* TRX-011: badge peran dihapus — backend tidak menyimpan role. */}
         </View>
       </View>
 
@@ -172,16 +171,7 @@ export function TransactionTemplateCard({
         <Text variant="caption" tone="secondary">
           {t.fee[template.feeResponsibility]}
         </Text>
-        {template.counterpartUsername ? (
-          <>
-            <Text variant="caption" tone="secondary">
-              ·
-            </Text>
-            <Text variant="caption" tone="secondary" numberOfLines={1}>
-              @{template.counterpartUsername}
-            </Text>
-          </>
-        ) : null}
+        {/* TRX-011: counterpart dihapus — backend tidak menyimpan counterpartUsername. */}
       </View>
 
       <Text variant="caption" tone="secondary" numberOfLines={1}>

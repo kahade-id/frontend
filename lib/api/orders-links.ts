@@ -162,9 +162,17 @@ export function previewOrderLink(token: string, signal?: AbortSignal): Promise<O
 }
 
 /** F-04: hasil accept dinormalisasi (dulu cast — `order.id` bisa `undefined`). */
-export function acceptOrderLink(token: string) {
+/**
+ * TRX-009: `dto.shippingAddressId` opsional — WAJIB diisi pemanggil untuk link
+ * PHYSICAL_GOODS yang dibuat dengan peran SELLER (penerima = pembeli).
+ */
+export function acceptOrderLink(token: string, dto?: { shippingAddressId?: string }) {
   return http
-    .post<unknown>(`/v1/orders/links/${seg(token)}/accept`, undefined, { auth: "required" })
+    .post<unknown, { shippingAddressId?: string } | undefined>(
+      `/v1/orders/links/${seg(token)}/accept`,
+      dto,
+      { auth: "required" },
+    )
     .then((raw) => {
       const record = asRecord(raw)
       const orderLike = asRecord(record?.order) ?? record

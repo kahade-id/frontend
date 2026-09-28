@@ -151,10 +151,15 @@ export function InstallmentOfferSection({
               })}
             </Text>
           </View>
+          {/* TRX-021: copy lama ("Pembeli dan saya menyetujui…") SALAH — backend
+              hanya mengizinkan SELLER membuat skema dan milestone langsung
+              dibuat; tidak ada persetujuan pembeli di langkah ini. */}
           <Checkbox
             checked={agreed}
             onChange={setAgreed}
-            label={translate("Pembeli dan saya menyetujui skema ini (opt-in)")}
+            label={translate(
+              "Saya membuat skema cicilan ini — milestone langsung dibuat sesuai skema di atas",
+            )}
           />
           {formError ? (
             <Text variant="caption" tone="danger">
