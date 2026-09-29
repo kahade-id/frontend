@@ -1,5 +1,5 @@
 /**
- * Redesign detail order 2026-09-27 — mengunci kontrak tampilan komponen baru.
+ * Redesign detail order 2026-09-30 (permintaan produk: SEBERSIH website Apple).
  *
  * Yang diuji (pohon render + teks; API tidak ditembak):
  *  1. <OrderStatusHero>: hierarki STATUS → JUDUL → ID TRANSAKSI → TANGGAL /
@@ -8,12 +8,17 @@
  *  2. <OrderJourney>: me-render 5 tahap + timestamp dari buildOrderJourney.
  *  3. <OrderProductCard>: judul, chip tipe, dan NILAI TRANSAKSI TEPAT —
  *     tidak mengarang foto/varian/jumlah.
- *  4. <OrderDetailActions>: hanya me-render aksi yang diminta (gerbang milik
- *     pemanggil); tombol Bayar terkunci bila buyerPays null (M-30); countdown
- *     auto-release tampil bila diberikan.
- *  5. <OrderEscrowCard>: menyebut PT Kawal Hak Dengan Aman; copy sesuai status.
- *  6. <OrderHelpCard>: tombol CS memanggil onContactSupport.
- *  7. <OrderRatingReminder>: tidak me-render apa pun bila visible=false.
+ *  4. <OrderCounterpartyCard>: SATU lawan transaksi — pembeli hanya melihat
+ *     penjual, penjual hanya melihat pembeli.
+ *  5. <OrderDetailInfo>: info kontekstual (badge peran, countdown, hint,
+ *     galat nominal) — TIDAK me-render tombol aksi.
+ *  6. <OrderFooterActions>: bottom navbar — Chat selalu ada; CTA hanya yang
+ *     diminta; tombol Bayar terkunci bila buyerPays null (M-30).
+ *  7. <OrderPaymentBreakdown>: collapsible — header selalu menampilkan total
+ *     + caret buka/tutup.
+ *  8. <OrderEscrowCard>: menyebut PT Kawal Hak Dengan Aman; copy sesuai status.
+ *  9. <OrderHelpCard>: tombol CS memanggil onContactSupport.
+ *  10. <OrderRatingReminder>: tidak me-render apa pun bila visible=false.
  *
  * Dijalankan dengan config komponen (repo convention):
  *   npx vitest run --config vitest.components.config.ts tests/order-detail-redesign.test.tsx
@@ -22,7 +27,8 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { ThemeProvider } from "@/components/theme-provider"
-import { OrderDetailActions, OrderRatingReminder } from "@/components/order-detail-actions"
+import { OrderDetailInfo, OrderRatingReminder } from "@/components/order-detail-actions"
+import { OrderFooterActions } from "@/components/order-footer-actions"
 import { OrderEscrowCard } from "@/components/ui/order-escrow-card"
 import { OrderHelpCard } from "@/components/ui/order-help-card"
 import {
@@ -30,7 +36,8 @@ import {
   type OrderHistoryEntry,
 } from "@/components/ui/order-history-timeline"
 import { OrderJourney } from "@/components/ui/order-journey"
-import { OrderPartiesCard } from "@/components/ui/order-parties-card"
+import { OrderCounterpartyCard } from "@/components/ui/order-counterparty-card"
+import { OrderPaymentBreakdown } from "@/components/ui/order-payment-breakdown"
 import { OrderProductCard } from "@/components/ui/order-product-card"
 import { OrderStatusHero } from "@/components/ui/order-status-hero"
 import { buildOrderJourney } from "@/lib/order-journey"
@@ -92,7 +99,11 @@ describe("<OrderJourney>", () => {
       history: [{ toStatus: "IN_DELIVERY", createdAt: "2026-09-22T14:00:00+07:00" }],
     })
     renderWithTheme(<OrderJourney steps={steps} />)
-    expect(screen.getByText("Perjalanan order")).toBeTruthy()
+    // FE-092: judul visual "Perjalanan order" dihapus — timeline status
+    // sudah self-explanatory; label aksesibilitas dipertahankan.
+    expect(
+      screen.getByRole("list", { name: /perjalanan pesanan/i }),
+    ).toBeTruthy()
     expect(screen.getByText("Order dibuat")).toBeTruthy()
     expect(screen.getByText("Dibayar ke escrow")).toBeTruthy()
     expect(screen.getByText("Dikirim penjual")).toBeTruthy()
@@ -127,60 +138,146 @@ describe("<OrderProductCard>", () => {
   })
 })
 
-describe("<OrderPartiesCard>", () => {
-  it("menampilkan pembeli & penjual dengan penanda Anda sesuai peran", () => {
+describe("<OrderCounterpartyCard>", () => {
+  const buyer = { username: "pembeli1", fullName: "Pembeli Satu" } as never
+  const seller = { username: "penjual1", fullName: "Penjual Satu" } as never
+
+  it("pembeli HANYA melihat penjual", () => {
     renderWithTheme(
-      <OrderPartiesCard
-        buyer={{ username: "pembeli1", displayName: "Pembeli Satu" } as never}
-        seller={{ username: "penjual1", displayName: "Penjual Satu" } as never}
-        myRole="BUYER"
-        onOpenProfile={noop}
-      />,
+      <OrderCounterpartyCard buyer={buyer} seller={seller} myRole="BUYER" onOpenProfile={noop} />,
+    )
+    expect(screen.getByText("Penjual")).toBeTruthy()
+    expect(screen.getByText("Penjual Satu")).toBeTruthy()
+    expect(screen.getByText("@penjual1")).toBeTruthy()
+    // Lawan transaksi TIDAK tampil.
+    const text = document.body.textContent ?? ""
+    expect(text).not.toMatch(/pembeli1/i)
+    expect(text).not.toMatch(/Pembeli Satu/)
+  })
+
+  it("penjual HANYA melihat pembeli", () => {
+    renderWithTheme(
+      <OrderCounterpartyCard buyer={buyer} seller={seller} myRole="SELLER" onOpenProfile={noop} />,
     )
     expect(screen.getByText("Pembeli")).toBeTruthy()
-    expect(screen.getByText("Penjual")).toBeTruthy()
-    expect(screen.getByText("Anda")).toBeTruthy()
+    expect(screen.getByText("Pembeli Satu")).toBeTruthy()
+    expect(screen.getByText("@pembeli1")).toBeTruthy()
+    const text = document.body.textContent ?? ""
+    expect(text).not.toMatch(/penjual1/i)
+    expect(text).not.toMatch(/Penjual Satu/)
+  })
+
+  it("klik kartu membuka profil lawan transaksi", () => {
+    const onOpenProfile = vi.fn()
+    renderWithTheme(
+      <OrderCounterpartyCard
+        buyer={buyer}
+        seller={seller}
+        myRole="BUYER"
+        onOpenProfile={onOpenProfile}
+      />,
+    )
+    fireEvent.click(screen.getByRole("button", { name: /lihat profil penjual/i }))
+    expect(onOpenProfile).toHaveBeenCalledWith("penjual1")
   })
 })
 
-describe("<OrderDetailActions>", () => {
+describe("<OrderDetailInfo>", () => {
+  const baseProps = {
+    status: "WAITING_PAYMENT",
+    myRole: "BUYER" as const,
+    hasPrimaryAction: false,
+    autoReleaseAt: null,
+    shippingCountdownInput: null,
+    confirmCountdownInput: null,
+  }
+
+  it("hanya me-render info — TIDAK ada tombol aksi di badan layar", () => {
+    renderWithTheme(<OrderDetailInfo {...baseProps} />)
+    const text = document.body.textContent ?? ""
+    // Badge peran tampil sebagai info.
+    expect(screen.getByText("Pembeli")).toBeTruthy()
+    expect(text).not.toMatch(/bayar sekarang/i)
+    expect(text).not.toMatch(/konfirmasi terima/i)
+  })
+
+  it("countdown auto-release tampil bila diberikan", () => {
+    // FE-001: layar hanya meneruskan string `at` yang stabil; detik hitung
+    // mundur dihitung per tick di dalam <AutoReleaseCountdownBox>.
+    const future = new Date(Date.now() + 3600_000).toISOString()
+    renderWithTheme(<OrderDetailInfo {...baseProps} autoReleaseAt={future} />)
+    expect(screen.getByText("Batas konfirmasi")).toBeTruthy()
+    expect(screen.getByText(/dana cair otomatis/i)).toBeTruthy()
+  })
+
+  it("item 34: tanpa aksi primer → hint langkah berikutnya per status × peran", () => {
+    const { rerender } = renderWithTheme(
+      <OrderDetailInfo {...baseProps} status="WAITING_CONFIRMATION" myRole="SELLER" />,
+    )
+    expect(document.body.textContent).toMatch(/konfirmasi pesanan ini/i)
+
+    rerender(
+      <ThemeProvider>
+        <OrderDetailInfo {...baseProps} status="WAITING_PAYMENT" myRole="SELLER" />
+      </ThemeProvider>,
+    )
+    expect(document.body.textContent).toMatch(/menunggu pembeli membayar/i)
+  })
+
+  it("galat nominal pembayaran + tombol muat ulang", () => {
+    const onReloadPayAmount = vi.fn()
+    renderWithTheme(
+      <OrderDetailInfo
+        {...baseProps}
+        payAmountMissing
+        onReloadPayAmount={onReloadPayAmount}
+      />,
+    )
+    expect(screen.getByText("Rincian biaya belum tersedia")).toBeTruthy()
+    fireEvent.click(screen.getByRole("button", { name: "Coba lagi" }))
+    expect(onReloadPayAmount).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe("<OrderFooterActions> (bottom navbar)", () => {
   const baseProps = {
     canPay: false,
     canConfirm: false,
     canShip: false,
     canReviewDelivery: false,
     canRate: false,
-    canViewProof: false,
-    canReturn: false,
-    buyerPays: null as number | null,
-    shippingRequired: true,
     canReturnPrimary: false,
+    buyerPays: null as number | null | undefined,
+    shippingRequired: true,
     submitting: false,
-    status: "WAITING_PAYMENT",
-    myRole: "BUYER" as const,
-    autoReleaseAt: null,
-    shippingCountdownInput: null,
-    confirmCountdownInput: null,
+    chatBusy: false,
     onPay: noop,
     onAccept: noop,
     onReject: noop,
     onShipping: noop,
-    onDeliveryProof: noop,
     onComplete: noop,
     onRate: noop,
     onReturn: noop,
-    onReload: noop,
+    onOpenChat: noop,
   }
 
-  it("hanya me-render aksi yang diminta — tidak memutuskan sendiri", () => {
-    renderWithTheme(<OrderDetailActions {...baseProps} />)
+  it("Chat selalu tampil; CTA hanya yang diminta", () => {
+    renderWithTheme(<OrderFooterActions {...baseProps} />)
+    expect(screen.getByRole("button", { name: /chat dengan lawan transaksi/i })).toBeTruthy()
     const text = document.body.textContent ?? ""
     expect(text).not.toMatch(/bayar/i)
     expect(text).not.toMatch(/terima pesanan/i)
   })
 
+  it("chat memanggil handler", () => {
+    const onOpenChat = vi.fn()
+    renderWithTheme(<OrderFooterActions {...baseProps} onOpenChat={onOpenChat} />)
+    fireEvent.click(screen.getByRole("button", { name: /chat dengan lawan transaksi/i }))
+    expect(onOpenChat).toHaveBeenCalledTimes(1)
+  })
+
   it("tombol Bayar terkunci (label Bayar —) bila buyerPays null", () => {
-    renderWithTheme(<OrderDetailActions {...baseProps} canPay buyerPays={null} />)
+    renderWithTheme(<OrderFooterActions {...baseProps} canPay buyerPays={null} />)
     // M-30: selama nominal belum terlihat, label menampilkan "—" — bukan
     // angka yang lebih kecil. Prop `disabled={buyerPays == null}` dikunci di
     // sumber komponen (tidak ada sinyal DOM yang andal di RNW).
@@ -188,90 +285,84 @@ describe("<OrderDetailActions>", () => {
   })
 
   it("tombol Bayar menampilkan nominal tepat bila buyerPays ada", () => {
-    renderWithTheme(<OrderDetailActions {...baseProps} canPay buyerPays={255000} />)
+    renderWithTheme(<OrderFooterActions {...baseProps} canPay buyerPays={255000} />)
     expect(screen.getByRole("button", { name: /bayar/i }).textContent).toMatch(/255\.000/)
   })
 
-  it("countdown auto-release tampil bila diberikan", () => {
-    // FE-001: layar hanya meneruskan string `at` yang stabil; detik hitung
-    // mundur dihitung per tick di dalam <AutoReleaseCountdownBox>.
-    const future = new Date(Date.now() + 3600_000).toISOString()
-    renderWithTheme(<OrderDetailActions {...baseProps} autoReleaseAt={future} />)
-    expect(screen.getByText("Batas konfirmasi")).toBeTruthy()
-    expect(screen.getByText(/dana cair otomatis/i)).toBeTruthy()
-  })
-
-  it("aksi penjual: terima/tolak, kirim, unggah bukti", () => {
+  it("aksi penjual: terima/tolak muncul BERSAMA; kirim pesanan; konfirmasi terima; ulasan; retur", () => {
     const onAccept = vi.fn()
+    const onReturn = vi.fn()
     renderWithTheme(
-      <OrderDetailActions {...baseProps} canConfirm canShip onAccept={onAccept} />,
+      <OrderFooterActions
+        {...baseProps}
+        canConfirm
+        canShip
+        canReviewDelivery
+        canRate
+        canReturnPrimary
+        onAccept={onAccept}
+        onReturn={onReturn}
+      />,
     )
     expect(screen.getByRole("button", { name: /terima pesanan/i })).toBeTruthy()
     expect(screen.getByRole("button", { name: /tolak pesanan/i })).toBeTruthy()
     expect(screen.getByRole("button", { name: /isi resi pengiriman/i })).toBeTruthy()
+    expect(screen.getByRole("button", { name: "Konfirmasi terima" })).toBeTruthy()
+    expect(screen.getByRole("button", { name: /beri ulasan/i })).toBeTruthy()
+    expect(document.body.textContent).not.toMatch(/Tandai selesai/)
     fireEvent.click(screen.getByRole("button", { name: /terima pesanan/i }))
     expect(onAccept).toHaveBeenCalledTimes(1)
-  })
-
-  it("item 31: tombol rilis escrow bernama 'Konfirmasi terima'", () => {
-    renderWithTheme(<OrderDetailActions {...baseProps} canReviewDelivery />)
-    expect(screen.getByRole("button", { name: "Konfirmasi terima" })).toBeTruthy()
-    expect(document.body.textContent).not.toMatch(/Tandai selesai/)
-  })
-
-  it("item 34: area aksi kosong → hint langkah berikutnya per status × peran", () => {
-    const { rerender } = renderWithTheme(
-      <OrderDetailActions {...baseProps} status="WAITING_CONFIRMATION" myRole="SELLER" />,
-    )
-    expect(document.body.textContent).toMatch(/menunggu penjual mengonfirmasi|konfirmasi order ini/i)
-
-    rerender(
-      <ThemeProvider>
-        <OrderDetailActions {...baseProps} status="WAITING_PAYMENT" myRole="SELLER" />
-      </ThemeProvider>,
-    )
-    expect(document.body.textContent).toMatch(/menunggu pembeli membayar/i)
-  })
-
-  it("item 35: countdown memakai label kontekstual Batas kirim / Batas konfirmasi", () => {
-    // FE-001: input mentah countdown; tampil/sembunyi di-resolve per tick di
-    // dalam <ShippingCountdownBox>.
-    const future = new Date(Date.now() + 3600_000).toISOString()
-    renderWithTheme(
-      <OrderDetailActions
-        {...baseProps}
-        shippingCountdownInput={{
-          status: "IN_DELIVERY",
-          paidAt: "2026-09-27T10:00:00+07:00",
-          shippingDeadline: future,
-          shippedBy: null,
-        }}
-      />,
-    )
-    expect(screen.getByText("Batas kirim")).toBeTruthy()
-
-    const later = new Date(Date.now() + 7200_000).toISOString()
-    renderWithTheme(
-      <OrderDetailActions
-        {...baseProps}
-        shippingCountdownInput={null}
-        autoReleaseAt={later}
-        myRole="BUYER"
-        status="IN_DELIVERY"
-      />,
-    )
-    expect(screen.getByText("Batas konfirmasi")).toBeTruthy()
-    // FE-003: copy dipadatkan jadi maks 2 baris.
-    expect(document.body.textContent).toMatch(/ajukan sengketa sebelum itu/i)
-  })
-
-  it("item 46: 'Ajukan retur' primer bila canReturnPrimary", () => {
-    const onReturn = vi.fn()
-    renderWithTheme(
-      <OrderDetailActions {...baseProps} canReturnPrimary onReturn={onReturn} />,
-    )
     fireEvent.click(screen.getByRole("button", { name: "Ajukan retur" }))
     expect(onReturn).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe("<OrderPaymentBreakdown> (collapsible)", () => {
+  const feeProps = {
+    orderValue: 250000,
+    feeAmount: 5000,
+    feeResponsibility: "BUYER" as const,
+    buyerPays: 255000,
+    sellerGets: 245000,
+  }
+
+  it("header selalu menampilkan total — pembeli melihat yang dibayar", () => {
+    renderWithTheme(<OrderPaymentBreakdown {...feeProps} role="BUYER" />)
+    // Header: label + total (accessible name memuat total); isi: tabel
+    // invoice (default terbuka).
+    expect(screen.getByText("Rincian pembayaran")).toBeTruthy()
+    expect(
+      screen.getByRole("button", { name: /rincian pembayaran, total rp255\.000/i }),
+    ).toBeTruthy()
+    expect(screen.getByText("Nilai transaksi")).toBeTruthy()
+  })
+
+  it("penjual melihat total yang diterima", () => {
+    renderWithTheme(<OrderPaymentBreakdown {...feeProps} role="SELLER" />)
+    expect(
+      screen.getByRole("button", { name: /rincian pembayaran, total rp245\.000/i }),
+    ).toBeTruthy()
+  })
+
+  it("caret/header membuka-menutup isi", () => {
+    renderWithTheme(<OrderPaymentBreakdown {...feeProps} role="BUYER" />)
+    const header = screen.getByRole("button", { name: /rincian pembayaran/i })
+    // Default terbuka → klik menutup.
+    fireEvent.click(header)
+    expect(document.body.textContent).not.toMatch(/Nilai transaksi/)
+    // Klik lagi → terbuka kembali.
+    fireEvent.click(header)
+    expect(screen.getByText("Nilai transaksi")).toBeTruthy()
+  })
+
+  it("defaultOpen=false: isi tersembunyi, total tetap terlihat", () => {
+    renderWithTheme(
+      <OrderPaymentBreakdown {...feeProps} role="BUYER" defaultOpen={false} />,
+    )
+    expect(
+      screen.getByRole("button", { name: /rincian pembayaran, total rp255\.000/i }),
+    ).toBeTruthy()
+    expect(document.body.textContent).not.toMatch(/Nilai transaksi/)
   })
 })
 
@@ -366,7 +457,7 @@ describe("mapOrderHistoryToTimeline (item 44)", () => {
 describe("<OrderHelpCard> & <OrderRatingReminder>", () => {  it("tombol Hubungi CS memanggil onContactSupport", () => {
     const onContactSupport = vi.fn()
     renderWithTheme(<OrderHelpCard onContactSupport={onContactSupport} />)
-    fireEvent.click(screen.getByRole("button", { name: /hubungi cs/i }))
+    fireEvent.click(screen.getByRole("button", { name: /hubungi bantuan langsung/i }))
     expect(onContactSupport).toHaveBeenCalledTimes(1)
   })
 

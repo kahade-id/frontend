@@ -22,6 +22,7 @@ import {
   readPage,
 } from "@/lib/api/response"
 import { http, seg } from "@/lib/api/client"
+import { isApiError } from "@/lib/api/errors"
 import {
   deviceLocationOnlyBody,
   withDeviceLocation,
@@ -355,6 +356,215 @@ export function getPaymentStatus(orderId: string) {
   return http
     .get<unknown>(`/v1/orders/${seg(orderId)}/payment-status`, { auth: "required" })
     .then(normalizePaymentStatus)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Mode Tanpa Wallet Internal (BI-safe) — checkout via DANA (provider utama).
+//
+// KONTRAK BELUM TERVERIFIKASI (tim backend DANA paralel, 2026-09-29):
+//   GET  /v1/orders/{id}/payment-methods → daftar metode yang boleh dipakai
+//        untuk order ini (QRIS, VA bank, DANA, dst. — TIDAK di-hardcode).
+//   POST /v1/orders/{id}/payments { paymentMethod: "<code>" } → intent
+//        pembayaran (QR string / nomor VA / URL redirect) per metode.
+// Buyer membayar langsung per transaksi; tidak ada top-up.
+// Fail-closed: daftar/list tidak bisa diparse → gagal total (bukan diam);
+// fallback DANA statis dipakai hanya bila endpoint belum tersedia (404).
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Metode pembayaran order dari backend (DANA). `code` adalah kunci stabil
+ * (mis. "QRIS", "VA_BCA", "DANA") yang dikirim balik ke POST /payments.
+ * `category` membedakan cara render: qris | va | bank | ewallet | redirect | wallet.
+ */
+export type OrderPaymentMethod = {
+  id: string
+  code: string
+  name: string
+  category?: string
+  logoUrl?: string
+  fee?: number
+  minAmount?: number
+  maxAmount?: number
+  enabled: boolean
+  recommended?: boolean
+}
+
+export async function getOrderPaymentMethods(
+  orderId: string,
+  signal?: AbortSignal,
+): Promise<OrderPaymentMethod[]> {
+  return http
+    .get<unknown>(`/v1/orders/${seg(orderId)}/payment-methods`, {
+      auth: "required",
+      signal,
+    })
+    .then((raw) => {
+      const methods = normalizeOrderPaymentMethods(raw)
+      if (!methods) throw invalidResponse("order-payment-methods")
+      return methods
+    })
+}
+
+/**
+ * Normalizer daftar metode — toleran bentuk: array polos, {methods},
+ * {data:{methods}}, {items}. Entri TANPA code/name/enabled eksplisit dibuang
+ * (fail-closed); `enabled` default true bila absen agar provider yang tidak
+ * mengirim flag tidak mengosongkan checkout.
+ */
+export function normalizeOrderPaymentMethods(raw: unknown): OrderPaymentMethod[] | undefined {
+  const list = extractMethodList(raw)
+  if (!list) return undefined
+  const methods: OrderPaymentMethod[] = []
+  for (const entry of list) {
+    const rec = asRecord(entry)
+    if (!rec) continue
+    const code = pickString(rec, ["code", "methodCode", "method", "id"])
+    const name = pickString(rec, ["name", "label", "title"])
+    if (!code || !name) continue
+    methods.push({
+      id: pickString(rec, ["id"]) ?? code,
+      code,
+      name,
+      category: pickString(rec, ["category", "type", "kind"]) ?? undefined,
+      logoUrl: pickString(rec, ["logoUrl", "logo_url", "iconUrl", "icon"]) ?? undefined,
+      fee: toAmount(rec.fee) ?? undefined,
+      minAmount: toAmount(rec.minAmount ?? rec.min_amount) ?? undefined,
+      maxAmount: toAmount(rec.maxAmount ?? rec.max_amount) ?? undefined,
+      enabled: pickBoolean(rec, ["enabled", "isEnabled", "is_enabled", "active"]) ?? true,
+      recommended: pickBoolean(rec, ["recommended", "isRecommended", "is_recommended"]) ?? false,
+    })
+  }
+  return methods
+}
+
+/** Ambil array metode dari berbagai bungkus respons (array polos, {methods}, {data:{methods}}, {items}). */
+function extractMethodList(raw: unknown): unknown[] | undefined {
+  if (Array.isArray(raw)) return raw
+  const record = asRecord(raw)
+  if (!record) return undefined
+  const data = asRecord(record.data)
+  const candidates = [record.methods, record.items, record.paymentMethods, data?.methods]
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate)) return candidate
+  }
+  return undefined
+}
+
+/**
+ * Intent pembayaran DANA untuk SATU metode: berisi salah satu dari
+ * `qrString` (QRIS), `vaNumber` (Virtual Account), atau `redirectUrl`
+ * (DANA app / halaman bayar) — dinormalisasi toleran dari respons backend.
+ */
+export type OrderPaymentIntent = {
+  /** Kode metode yang dipakai membuat intent (echo dari pemanggil). */
+  method: string
+  qrString?: string
+  qrUrl?: string
+  vaNumber?: string
+  vaBankName?: string
+  accountName?: string
+  redirectUrl?: string
+  /** C-03: bisa hilang — panel menampilkan tanpa countdown. */
+  expiresAt?: string | null
+  amount: number
+  paymentTxId?: string
+  instructions?: string[]
+}
+
+export async function createOrderPayment(
+  orderId: string,
+  methodCode: string,
+  idempotencyKey?: string,
+): Promise<OrderPaymentIntent> {
+  // Kontrak lintas tim 2026-09-27: body membawa deviceLocation opsional.
+  const body = await deviceLocationOnlyBody()
+  try {
+    const raw = await http.post<unknown, { deviceLocation: LocationDto | null; paymentMethod: string }>(
+      `/v1/orders/${seg(orderId)}/payments`,
+      { ...body, paymentMethod: methodCode },
+      {
+        auth: "required",
+        // I-07 (audit end-to-end): intent ganda = dua tagihan untuk satu
+        // order saat retry manual — kunci pemanggil (satu per sesi intent).
+        ...(idempotencyKey ? { headers: { "Idempotency-Key": idempotencyKey } } : {}),
+      },
+    )
+    const intent = normalizeOrderPaymentIntent(raw)
+    if (!intent) throw invalidResponse("order-payment")
+    return { ...intent, method: methodCode }
+  } catch (err) {
+    // TRANSISI (2026-09-29): backend DANA belum tentu live saat branch ini
+    // dipakai — untuk QRIS (satu-satunya metode dengan jalur lama yang
+    // terbukti) fallback ke POST /pay-qris supaya checkout tidak mati total.
+    // Metode lain TIDAK punya fallback: gagal dengan error asli.
+    if (methodCode === "QRIS" && isApiError(err) && err.status === 404) {
+      const legacy = await payOrderQris(orderId, idempotencyKey)
+      return {
+        method: methodCode,
+        qrString: legacy.qrString,
+        qrUrl: legacy.qrUrl,
+        expiresAt: legacy.expiresAt,
+        amount: legacy.amount,
+        paymentTxId: legacy.paymentTxId,
+      }
+    }
+    throw err
+  }
+}
+
+/**
+ * Normalizer intent pembayaran — bentuk umum; backend boleh menaruh payload
+ * di {payment}/{data}/{result} atau root. Tanpa SATU PUN payload yang bisa
+ * ditindaklanjuti (qrString/vaNumber/redirectUrl) → undefined (fail-closed,
+ * bukan panel kosong).
+ */
+export function normalizeOrderPaymentIntent(raw: unknown): Omit<OrderPaymentIntent, "method"> | undefined {
+  const record = asRecord(raw)
+  if (!record) return undefined
+  const nested =
+    asRecord(record.payment) ?? asRecord(record.data) ?? asRecord(record.result) ?? record
+  const qrString = pickString(nested, ["qrString", "qr_string", "qr", "qrCode", "qr_code"])
+  const vaNumber = pickString(nested, [
+    "vaNumber",
+    "va_number",
+    "virtualAccount",
+    "virtual_account",
+    "virtualAccountNumber",
+    "accountNumber",
+    "account_number",
+    // Kontrak no-wallet: VA DANA dikembalikan sebagai `paymentCode`.
+    "paymentCode",
+    "payment_code",
+  ])
+  const redirectUrl = pickString(nested, [
+    "redirectUrl",
+    "redirect_url",
+    "paymentUrl",
+    "payment_url",
+    "deeplink",
+    "deepLink",
+    // Kontrak no-wallet: otorisasi DANA Balance = `webRedirectUrl`.
+    "webRedirectUrl",
+    "web_redirect_url",
+  ])
+  if (!qrString && !vaNumber && !redirectUrl) return undefined
+  const instructionsRaw = nested.instructions ?? nested.steps
+  const instructions = Array.isArray(instructionsRaw)
+    ? instructionsRaw.filter((s): s is string => typeof s === "string")
+    : undefined
+  const amount = toAmount(nested.amount ?? nested.total ?? nested.amountDue)
+  return {
+    qrString: qrString ?? undefined,
+    qrUrl: pickString(nested, ["qrUrl", "qr_url", "url"]) ?? undefined,
+    vaNumber: vaNumber ?? undefined,
+    vaBankName: pickString(nested, ["vaBankName", "bankName", "bank_name", "bank"]) ?? undefined,
+    accountName: pickString(nested, ["accountName", "account_name", "holderName"]) ?? undefined,
+    redirectUrl: redirectUrl ?? undefined,
+    expiresAt: pickString(nested, ["expiresAt", "expires_at", "expiredAt", "expiry"]) ?? null,
+    amount: amount ?? 0,
+    paymentTxId: pickString(nested, ["paymentTxId", "payment_tx_id", "txId", "transactionId"]) ?? undefined,
+    instructions,
+  }
 }
 
 /**

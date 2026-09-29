@@ -1,8 +1,13 @@
 /**
  * Test untuk penjaga kontrak pada alur langganan, pencarian, dan transfer.
  *
- * Yang terpenting di sini adalah butir `subscribe`: test ini MENGOREKSI sebuah
- * perubahan yang sempat dibuat berdasarkan premis keliru.
+ * Butir `subscribe` era-dompet/Flash DIHAPUS 2026-09-29 (Mode Tanpa Wallet
+ * Internal): fungsi `subscribe()` tidak ada lagi; penjaga kontrak pembayaran
+ * langganan kini dikunci di tests/subscription-payments.test.ts. Blok describe
+ * di bawah hanya menegaskan penghapusan itu agar tak hidup kembali diam-diam.
+ *
+ * (Catatan sejarah: test lama MENGOREKSI sebuah perubahan yang sempat dibuat
+ * berdasarkan premis keliru.
  *
  * Premis keliru itu: "kode metode di luar enum akan menghasilkan 400 dengan
  * pesan validasi NestJS mentah, jadi layar perlu penjaga enum sendiri."
@@ -44,10 +49,8 @@ vi.mock("@/lib/api/session", () => ({
 const fetchMock = vi.fn()
 vi.stubGlobal("fetch", fetchMock)
 
-const { subscribe } = await import("@/lib/api/subscriptions")
 const { lookupTransferRecipient } = await import("@/lib/api/wallet")
 const { getSearchSuggestions } = await import("@/lib/api/search")
-const { isApiError } = await import("@/lib/api/errors")
 
 const reply = (body: unknown) =>
   Promise.resolve({
@@ -59,48 +62,15 @@ const reply = (body: unknown) =>
 
 beforeEach(() => fetchMock.mockReset())
 
-describe("subscribe — enum paymentMethod", () => {
-  /**
-   * `subscribe()` BUKAN `async`: `assertDtoConstraints` melempar secara
-   * SINKRON sebelum promise dibuat. Jadi `.rejects`/`.catch()` tidak berlaku —
-   * harus ditangkap dengan `expect(() => …).toThrow()` atau try/catch.
-   * (Versi pertama test ini salah di titik itu.)
-   */
-  it("menolak kode di luar enum SEBELUM request dikirim", () => {
-    expect(() =>
-      subscribe({ plan: "MONTHLY", pin: "123456", paymentMethod: "METODE_BARU_BACKEND" as never }),
-    ).toThrow()
-    // Kunci perilakunya: tidak ada satu pun panggilan jaringan.
-    expect(fetchMock).not.toHaveBeenCalled()
-  })
-
-  it("error-nya ApiError VALIDATION, sehingga layar menampilkan pesan Indonesia", () => {
-    let err: unknown
-    try {
-      subscribe({ plan: "MONTHLY", pin: "123456", paymentMethod: "PAYPAL" as never })
-    } catch (e) {
-      err = e
-    }
-    expect(isApiError(err)).toBe(true)
-    if (!isApiError(err)) return
-    expect(err.code).toBe("VALIDATION")
-    // `app/subscriptions.tsx` merender `userMessage(err)`, jadi yang muncul
-    // sudah bahasa Indonesia — bukan body validasi NestJS mentah.
-    expect(err.message).toMatch(/paymentMethod/)
-  })
-
-  it("meloloskan kode yang memang ada di enum", async () => {
-    fetchMock.mockImplementationOnce(() => reply({ active: true, plan: "MONTHLY" }))
-    const res = await subscribe({ plan: "MONTHLY", pin: "123456", paymentMethod: "QRIS" })
-    expect(res.active).toBe(true)
-    expect(fetchMock).toHaveBeenCalledTimes(1)
-  })
-
-  it("tetap meloloskan saat paymentMethod tidak diisi (opsional di DTO)", async () => {
-    fetchMock.mockImplementationOnce(() => reply({ active: true }))
-    // `YEARLY` (bukan `ANNUAL`): enum backend SubscriptionPlan = MONTHLY|YEARLY.
-    // Contract drift ANNUAL diperbaiki 2026-09-26.
-    await expect(subscribe({ plan: "YEARLY", pin: "123456" })).resolves.toBeTruthy()
+describe("subscribe — enum paymentMethod (dihapus 2026-09-29)", () => {
+  // Mode Tanpa Wallet Internal (BI-safe): `subscribe()` era-dompet/Flash
+  // DIHAPUS dari lib/api/subscriptions.ts. Perilaku penjaga kontrak
+  // pembayaran langganan kini dikunci di tests/subscription-payments.test.ts:
+  // metode disaring dari daftar backend, KAHADE_WALLET selalu dibuang, dan
+  // respons tak berbentuk → fail-closed (tanpa request lanjutan).
+  it("fungsi subscribe era-dompet tidak ada lagi", async () => {
+    const mod = await import("@/lib/api/subscriptions")
+    expect("subscribe" in mod).toBe(false)
   })
 })
 

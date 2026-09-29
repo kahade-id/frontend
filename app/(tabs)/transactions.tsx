@@ -65,6 +65,7 @@ import { groupOrdersByDay, type OrderDayGroup } from "@/lib/transaction-grouping
 import { TAB_BAR_HEIGHT } from "@/components/ui/bottom-tab-bar"
 import type { Order } from "@/lib/api/orders"
 import { useHasSession } from "@/lib/guest-gate"
+import { useWalletEnabled } from "@/lib/use-wallet-enabled"
 import { useApiQuery } from "@/lib/use-api-query"
 import { byTimestampDesc, usePaginatedQuery } from "@/lib/use-paginated-query"
 import { useSetUiPrefs, useUiPref } from "@/lib/ui-prefs"
@@ -245,6 +246,9 @@ export default function TransactionsScreen() {
    */
   const hasSession = useHasSession()
   const router = useRouter()
+  // Mode Tanpa Wallet Internal (BI-safe): chip saldo mini disembunyikan —
+  // aplikasi tidak boleh menampilkan saldo dompet internal saat flag false.
+  const walletEnabled = useWalletEnabled()
   /**
    * T5-003-minimal: jalan pintas visual ke Dompet — chip saldo mini di
    * header. Memakai kunci cache `wallet` yang SAMA dengan layar Dompet
@@ -254,7 +258,9 @@ export default function TransactionsScreen() {
   const walletQuery = useApiQuery(
     queryKeys.wallet(),
     (signal) => api.wallet.getWallet(signal),
-    hasSession,
+    // Mode Tanpa Wallet Internal: jangan menembak endpoint dompet saat
+    // kill-switch mati (backend menonaktifkannya; hemat 401/403).
+    hasSession && walletEnabled,
   )
   const walletBalance = walletQuery.data?.balance
   const query = usePaginatedQuery(
@@ -284,31 +290,35 @@ export default function TransactionsScreen() {
   const filtered = status !== ALL_STATUS
 
   // FE-064: prop `right` header di-memo agar memo <Header> bisa bail-out.
-  // Deps: walletBalance (label chip) + filtered (state tombol funnel).
+  // Deps: walletBalance (label chip) + filtered (state tombol funnel) +
+  // walletEnabled (chip disembunyikan saat kill-switch dompet mati).
   const headerRight = useMemo(
     () => (
       <View className="flex-row items-center gap-2">
-        {/*
-         * T5-003-minimal: chip saldo mini → Dompet. Satu ketukan, tanpa
-         * menambah tab (keputusan produk: tab penuh di-defer).
-         */}
-        <PressableScale
-          onPress={() => router.push(ROUTES.wallet)}
-          accessibilityRole="button"
-          accessibilityLabel={
-            typeof walletBalance === "number"
-              ? `Buka Dompet, saldo ${formatRupiah(walletBalance)}`
-              : "Buka Dompet"
-          }
-          className="flex-row items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1.5"
-        >
-          <Icon icon={Wallet} size="sm" tone="active" />
-          <Text variant="caption" weight={600}>
-            {typeof walletBalance === "number"
-              ? formatRupiah(walletBalance)
-              : "Dompet"}
-          </Text>
-        </PressableScale>
+        {walletEnabled ? (
+          /*
+           * T5-003-minimal: chip saldo mini → Dompet. Satu ketukan, tanpa
+           * menambah tab (keputusan produk: tab penuh di-defer).
+           * Mode Tanpa Wallet Internal: disembunyikan saat flag false.
+           */
+          <PressableScale
+            onPress={() => router.push(ROUTES.wallet)}
+            accessibilityRole="button"
+            accessibilityLabel={
+              typeof walletBalance === "number"
+                ? `Buka Dompet, saldo ${formatRupiah(walletBalance)}`
+                : "Buka Dompet"
+            }
+            className="flex-row items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1.5"
+          >
+            <Icon icon={Wallet} size="sm" tone="active" />
+            <Text variant="caption" weight={600}>
+              {typeof walletBalance === "number"
+                ? formatRupiah(walletBalance)
+                : "Dompet"}
+            </Text>
+          </PressableScale>
+        ) : null}
         <IconButton
           icon={Funnel}
           variant="ghost"
@@ -321,7 +331,7 @@ export default function TransactionsScreen() {
         />
       </View>
     ),
-    [walletBalance, filtered],
+    [walletBalance, filtered, walletEnabled],
   )
 
   /**

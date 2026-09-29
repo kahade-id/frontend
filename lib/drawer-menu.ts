@@ -64,3 +64,28 @@ export const BOTTOM_MENU_META: readonly DrawerMenuMeta[] = [
   { id: "live-support", label: "Bantuan Langsung", href: ROUTES.liveSupport, accessibilityLabel: "Buka bantuan langsung" },
   { id: "support-tickets", label: "Tiket Bantuan", href: ROUTES.support, accessibilityLabel: "Buka tiket bantuan" },
 ]
+
+/**
+ * Mode Tanpa Wallet Internal (BI-safe): menu utama yang sadar kill-switch.
+ *
+ * - Flag true  → MAIN_MENU_META apa adanya ("Dompet Saya").
+ * - Flag false → item "Dompet Saya" DIGANTI "Rekening Bank" (dana escrow
+ *   kini mengalir ke bank; seller wajib punya rekening terdaftar). Tidak
+ *   ada rute dompet yang tersisa di drawer.
+ *
+ * Fungsi murni (boolean in, array out) supaya tetap bisa di-unit-test di
+ * vitest node env — pemanggil (AppDrawer) memakai `useWalletEnabled()`.
+ */
+export function getMainMenuMeta(walletEnabled: boolean): readonly DrawerMenuMeta[] {
+  if (walletEnabled) return MAIN_MENU_META
+  return MAIN_MENU_META.map((item) =>
+    item.id === "wallet"
+      ? {
+          id: "bank-accounts",
+          label: "Rekening Bank",
+          href: ROUTES.bankAccounts,
+          accessibilityLabel: "Kelola rekening bank",
+        }
+      : item,
+  )
+}

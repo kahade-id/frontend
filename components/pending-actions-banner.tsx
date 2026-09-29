@@ -32,6 +32,7 @@ import {
   type PendingAction,
 } from "@/lib/pending-actions"
 import { ROUTES } from "@/lib/routes"
+import { useWalletEnabled } from "@/lib/use-wallet-enabled"
 import { serverNow } from "@/lib/server-time"
 import { useAuthSession } from "@/lib/use-auth-session"
 import { cn } from "@/lib/cn"
@@ -43,11 +44,13 @@ import { Text } from "@/components/ui/text"
 function actionKey(action: PendingAction): string {
   return action.kind === "withdraw-otp"
     ? `${action.kind}:${action.txId}`
-    : action.kind === "qris-payment"
+    : action.kind === "qris-payment" || action.kind === "order-payment"
       ? `${action.kind}:${action.orderId}`
-      : action.kind === "topup-unpaid"
-        ? `${action.kind}:${action.paymentTxId}`
-        : `${action.kind}:${action.idempotencyKey}`
+      : action.kind === "subscription-payment"
+        ? `${action.kind}:${action.plan}`
+        : action.kind === "topup-unpaid"
+          ? `${action.kind}:${action.paymentTxId}`
+          : `${action.kind}:${action.idempotencyKey}`
 }
 
 function describe(action: PendingAction): { title: string; meta?: string } {
@@ -63,6 +66,31 @@ function describe(action: PendingAction): { title: string; meta?: string } {
         meta: action.expiresAt
           ? translate("QRIS berlaku sampai {x}", { x: formatDateTimeWIB(action.expiresAt) })
           : "Periksa status pembayaran pesanan Anda",
+      }
+    case "order-payment":
+      return {
+        title: translate("Pembayaran pesanan menunggu — {x}", {
+          x: action.amount > 0 ? formatRupiah(action.amount) : "nominal belum diketahui",
+        }),
+        meta: action.expiresAt
+          ? translate("{m} berlaku sampai {x}", {
+              m: action.methodName ?? "Kode bayar",
+              x: formatDateTimeWIB(action.expiresAt),
+            })
+          : "Periksa status pembayaran pesanan Anda",
+      }
+    case "subscription-payment":
+      return {
+        // M-33: nominal 0 tidak dicetak "Rp0" — belum diketahui, bukan nol.
+        title: translate("Pembayaran Kahade+ menunggu — {x}", {
+          x: action.amount > 0 ? formatRupiah(action.amount) : "nominal belum diketahui",
+        }),
+        meta: action.expiresAt
+          ? translate("{m} berlaku sampai {x}", {
+              m: action.methodName ?? "Kode bayar",
+              x: formatDateTimeWIB(action.expiresAt),
+            })
+          : "Selesaikan pembayaran di layar paket Kahade+",
       }
     case "topup-unpaid":
       return {
@@ -101,6 +129,7 @@ function describe(action: PendingAction): { title: string; meta?: string } {
 function targetOf(action: PendingAction) {
   switch (action.kind) {
     case "qris-payment":
+    case "order-payment":
       // D11 (batch 139): pulihkan ke detail order BERDASAR ID server +
       // buka ulang sheet bayar (?sheet=pay) — quote/status selalu dibaca
       // ulang dari server saat layar dibuka, bukan state lokal basi.
@@ -116,6 +145,10 @@ function targetOf(action: PendingAction) {
         pathname: "/topup" as "/topup",
         params: { resumePayment: action.paymentTxId },
       }
+    case "subscription-payment":
+      // Pulihkan ke daftar paket — status dibaca ulang dari server saat
+      // layar dibuka; sheet bayar tidak dipaksa terbuka dari catatan basi.
+      return ROUTES.kahadePlusPlans
     case "withdraw-otp":
       return ROUTES.withdraw
     case "transfer-uncertain":
@@ -129,6 +162,10 @@ export function PendingActionsBanner() {
   const { token } = useAuthSession()
   const actions = usePendingActions()
   const [dismissed, setDismissed] = useState<Set<string>>(new Set())
+  // Mode Tanpa Wallet Internal (BI-safe): aksi dompet yang tidak lagi bisa
+  // diselesaikan (top-up, transfer) disembunyikan — hanya penarikan (jalur
+  // saldo lama) & pembayaran order yang tetap ditampilkan.
+  const walletEnabled = useWalletEnabled()
 
   const visible = useMemo(() => {
     // E-03 (audit 2026-09-22): `expiresAt` datang dari respons server (domain
@@ -140,8 +177,13 @@ export function PendingActionsBanner() {
     return actions
       .filter((a) => !a.expiresAt || a.expiresAt > now)
       .filter((a) => !dismissed.has(actionKey(a)))
+      .filter(
+        (a) =>
+          walletEnabled ||
+          (a.kind !== "topup-unpaid" && a.kind !== "transfer-uncertain"),
+      )
       .sort((a, b) => (a.expiresAt ?? Infinity) - (b.expiresAt ?? Infinity))
-  }, [actions, dismissed])
+  }, [actions, dismissed, walletEnabled])
 
   if (!token || visible.length === 0) return null
   const primary = visible[0]

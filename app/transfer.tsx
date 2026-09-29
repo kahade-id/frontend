@@ -26,6 +26,7 @@ import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 import { AMOUNT_LIMITS, AMOUNT_PRESETS, isValidAmount } from "@/lib/financial"
 import { invalidateQueryCache, useApiQuery } from "@/lib/use-api-query"
+import { useWalletGate } from "@/lib/use-wallet-enabled"
 import { useDebouncedValue } from "@/lib/use-debounced-value"
 import { useResultTimer } from "@/lib/use-result-timer"
 import { recordRecentRecipient, useRecentRecipients } from "@/lib/ui-prefs"
@@ -63,6 +64,7 @@ import {
   type TransferRecipient,
 } from "@/components/ui/transfer-recipient-picker"
 import { useToast } from "@/components/ui/toast"
+import { WalletDisabledScreen } from "@/components/ui/wallet-disabled"
 import { isApiError, isPinNotSetError } from "@/lib/api"
 import { translate } from "@/lib/i18n/translate"
 const MIN_AMOUNT = AMOUNT_LIMITS.transfer.minimum
@@ -80,6 +82,9 @@ type Step = "form" | "confirm" | "pin" | "done"
 /** State overlay progres setelah PIN disubmit (processing → sukses/gagal). */
 type ProgressState = "PROCESSING" | "SUCCESS" | "FAILURE"
 export default function TransferScreen() {
+  // Mode Tanpa Wallet Internal (BI-safe): flag false = layar diganti
+  // <WalletDisabledScreen/> (deep link ikut tertutup).
+  const walletGate = useWalletGate()
   const insets = useSafeAreaInsets()
   const toast = useToast()
   const params = useLocalSearchParams<{ to?: string; amount?: string }>()
@@ -470,6 +475,12 @@ export default function TransferScreen() {
   // Penerima dipilih: tombol "Lanjut" muncul di area CTA; user bisa
   // mengganti pilihan sebelum masuk ke langkah nominal. Kita TIDAK auto-advance
   // supaya user tetap merasa memegang kendali (§12).
+
+  // Mode Tanpa Wallet Internal (BI-safe): flag false = layar blokir.
+  if (walletGate === "off") {
+    return <WalletDisabledScreen />
+  }
+
   return (
     // SEC-404: proteksi screen-capture iOS di layar transfer (PIN + nominal).
     <ScreenCaptureGuard>

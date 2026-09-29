@@ -40,6 +40,7 @@ import { formatRupiahTypingText, parseRupiahTypingText } from "@/lib/rupiah-inpu
 import { pickImage } from "@/lib/image-picker"
 import { translate } from "@/lib/i18n"
 import { useApiQuery } from "@/lib/use-api-query"
+import { useWalletEnabled } from "@/lib/use-wallet-enabled"
 
 import { Button } from "@/components/ui/button"
 import { DataScreen } from "@/components/ui/data-screen"
@@ -78,6 +79,9 @@ const SUBMITTABLE = ["AWAITING_ACTIVATION", "REVISION_REQUESTED"] as const
 export default function MilestoneDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
   const toast = useToast()
+  // Mode Tanpa Wallet Internal: pencairan tahap = disbursement DANA ke
+  // rekening bank penjual (bukan ke dompet) — copy disesuaikan.
+  const walletEnabled = useWalletEnabled()
 
   const query = useApiQuery<{
     milestone: OrderMilestone
@@ -231,7 +235,7 @@ export default function MilestoneDetailScreen() {
                 emphasis
               />
               <KeyValue
-                label="Dicairkan ke penjual"
+                label={walletEnabled ? "Dicairkan ke penjual" : "Cair ke rekening penjual"}
                 value={<Text variant="monoBody">{formatRupiah(milestone.sellerAmount)}</Text>}
               />
               {milestone.escrowHeld > 0 ? (
@@ -565,9 +569,14 @@ export default function MilestoneDetailScreen() {
 
           <Dialog
             title="Terima tahap ini?"
-            description={translate("Dana {x} akan dicairkan ke penjual. Lanjutkan?", {
-              x: formatRupiah(milestone.sellerAmount),
-            })}
+            description={translate(
+              walletEnabled
+                ? "Dana {x} akan dicairkan ke penjual. Lanjutkan?"
+                : "Dana {x} akan dicairkan ke rekening bank penjual. Lanjutkan?",
+              {
+                x: formatRupiah(milestone.sellerAmount),
+              },
+            )}
             visible={confirmAccept}
             loading={busy}
             confirmLabel="Ya, terima & cairkan"
@@ -575,7 +584,9 @@ export default function MilestoneDetailScreen() {
             onConfirm={() =>
               void runAction(
                 () => api.milestones.acceptMilestone(milestone.id),
-                "Tahap diterima — dana dicairkan ke penjual",
+                walletEnabled
+                  ? "Tahap diterima — dana dicairkan ke penjual"
+                  : "Tahap diterima — dana dicairkan ke rekening bank penjual",
                 "Gagal menerima tahap",
               ).then(() => setConfirmAccept(false))
             }

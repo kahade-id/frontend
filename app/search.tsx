@@ -83,6 +83,7 @@ import { Text } from "@/components/ui/text"
 import { DebouncedSearchField } from "@/components/ui/debounced-search-field"
 import { UserListItem } from "@/components/ui/user-list-item"
 import { WalletTransactionRow } from "@/components/ui/wallet-transaction-row"
+import { useWalletEnabled } from "@/lib/use-wallet-enabled"
 import { focusRing } from "@/lib/focus-ring"
 
 type ResultRow = { id: string } & (
@@ -280,6 +281,9 @@ function OrderRowBody({ order, keyword }: { order: Order; keyword: string }) {
 }
 
 export default function SearchScreen() {
+  // Mode Tanpa Wallet Internal (BI-safe): hasil mutasi dompet disembunyikan
+  // saat kill-switch mati (tidak ada rute dompet yang bisa dibuka).
+  const walletEnabled = useWalletEnabled()
   const scopes = useScopes()
   const sectionTitle = useSectionTitle()
   const insets = useSafeAreaInsets()
@@ -507,13 +511,16 @@ export default function SearchScreen() {
         kind: "order" as const,
         order,
       })),
-      ...(scope === "users" || scope === "posts" || scope === "chats" ? [] : (result.data?.transactions ?? [])).map(
-        (transaction) => ({
-          id: `transaction:${transaction.id}`,
-          kind: "transaction" as const,
-          transaction,
-        }),
-      ),
+      ...(!walletEnabled
+        ? []
+        : scope === "users" || scope === "posts" || scope === "chats"
+          ? []
+          : (result.data?.transactions ?? [])
+      ).map((transaction) => ({
+        id: `transaction:${transaction.id}`,
+        kind: "transaction" as const,
+        transaction,
+      })),
       ...(scope === "all" ? (result.data?.helpCenter ?? []) : []).map((article) => ({
         id: `article:${article.id}`,
         kind: "article" as const,
@@ -707,7 +714,8 @@ export default function SearchScreen() {
    */
   const showAllPosts = wantPosts && (postsResult.data?.hasMore ?? false)
   const showAllOrders = (scope === "all" || scope === "orders") && counts.order >= 20
-  const showAllTransactions = (scope === "all" || scope === "transactions") && counts.transaction >= 20
+  const showAllTransactions =
+    walletEnabled && (scope === "all" || scope === "transactions") && counts.transaction >= 20
 
   /**
    * R1-005/R1-006 (2026-09-29, audit render-perf): prop list distabilkan —

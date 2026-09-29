@@ -2,12 +2,7 @@
  * Kahade — domain `subscriptions` (paket premium bulanan/tahunan).
  */
 
-import { API_CONSTRAINTS } from "@/lib/api/constraints"
-import { assertDtoConstraints } from "@/lib/financial"
-
 import { http } from "@/lib/api/client"
-import type { RenewDto, SubscribeDto } from "@/lib/api/types"
-import { ApiError } from "@/lib/api/errors"
 import { invalidResponse, readList } from "@/lib/api/response"
 
 export type { SubscriptionPlan } from "@/lib/api/public-contract"
@@ -101,18 +96,13 @@ export function getSubscriptionPlans(signal?: AbortSignal) {
     .then(normalizeSubscriptionPlans)
 }
 
-export function subscribe(dto: SubscribeDto) {
-  assertDtoConstraints(dto, API_CONSTRAINTS.SubscribeDto)
-  return http.post<SubscriptionStatus, SubscribeDto>("/v1/subscriptions/subscribe", dto, {
-    auth: "required",
-  })
-}
+// DIHAPUS (Mode Tanpa Wallet Internal, BI-safe): `POST /v1/subscriptions/subscribe`
+// era-dompet (PIN) diganti alur DANA — lihat lib/api/subscription-payments.ts
+// + lib/use-subscription-payment.ts. Jangan hidupkan kembali tanpa kontrak baru.
 
-export function renewSubscription(dto: RenewDto) {
-  return http.post<SubscriptionStatus, RenewDto>("/v1/subscriptions/renew", dto, {
-    auth: "required",
-  })
-}
+// DIHAPUS (Mode Tanpa Wallet Internal, BI-safe): `POST /v1/subscriptions/renew`
+// memakai PIN dompet. Perpanjangan kini = langganan ulang via paket
+// (app/kahade-plus/plans.tsx) yang dibayar langsung via DANA.
 
 export function cancelSubscription() {
   return http.post<SubscriptionStatus>("/v1/subscriptions/cancel", undefined, { auth: "required" })
@@ -140,19 +130,9 @@ export function resumeSubscription() {
   })
 }
 
-/**
- * POST /v1/subscriptions/upgrade — ganti paket dengan proration (11.1).
- * `newPlan` = key paket server ("MONTHLY" | "ANNUAL"); `pin` = PIN dompet
- * (biaya prorasi dipotong dari saldo). Dipagari KycRequiredGuard di backend.
- * Respons = objek hasil upgrade (bukan bentuk /status) → `query.refresh()`.
- */
-export function upgradeSubscription(dto: { newPlan: "MONTHLY" | "ANNUAL"; pin: string }) {
-  return http.post<Record<string, unknown>, { newPlan: "MONTHLY" | "ANNUAL"; pin: string }>(
-    "/v1/subscriptions/upgrade",
-    dto,
-    { auth: "required" },
-  )
-}
+// DIHAPUS (Mode Tanpa Wallet Internal, BI-safe): `POST /v1/subscriptions/upgrade`
+// memotong biaya prorasi dari saldo dompet + PIN. Ganti paket kini lewat
+// langganan ulang di app/kahade-plus/plans.tsx (DANA, tanpa saldo/PIN).
 
 // ============================================================================
 // Kahade+ — KONTRAK API BARU (tetap, prefix https://api.kahade.id/v1).
@@ -276,28 +256,9 @@ export function getKahadePlusPlans(signal?: AbortSignal) {
     .then(normalizeKahadePlusPlans)
 }
 
-/** Body POST /v1/subscriptions/subscribe — kontrak baru: hanya plan + PIN. */
-export type KahadePlusSubscribeDto = { plan: KahadePlusPlanKey; pin: string }
-
-function assertKahadePlusSubscribeDto(dto: KahadePlusSubscribeDto): void {
-  if (dto.plan !== "MONTHLY" && dto.plan !== "YEARLY")
-    throw new ApiError({ code: "VALIDATION", message: "Paket tidak dikenal." })
-  if (!/^\d{6}$/.test(dto.pin))
-    throw new ApiError({ code: "VALIDATION", message: "PIN dompet harus 6 digit angka." })
-}
-
-/**
- * POST /v1/subscriptions/subscribe { plan, pin } — pin = PIN dompet 6 digit,
- * TIDAK butuh KYC. Biaya dipotong dari saldo dompet. Respons = status baru.
- */
-export function subscribeKahadePlus(dto: KahadePlusSubscribeDto) {
-  assertKahadePlusSubscribeDto(dto)
-  return http
-    .post<unknown, KahadePlusSubscribeDto>("/v1/subscriptions/subscribe", dto, {
-      auth: "required",
-    })
-    .then(normalizeKahadePlusStatus)
-}
+// DIHAPUS (Mode Tanpa Wallet Internal, BI-safe): `POST /v1/subscriptions/subscribe`
+// { plan, pin } — biaya dipotong dari saldo dompet. Diganti alur DANA
+// (lib/api/subscription-payments.ts + lib/use-subscription-payment.ts).
 
 /** POST /v1/subscriptions/cancel — tanpa body. Benefit tetap aktif sampai akhir periode. Respons = status baru. */
 export function cancelKahadePlus() {
@@ -313,27 +274,7 @@ export function reactivateKahadePlus() {
     .then(normalizeKahadePlusStatus)
 }
 
-/** QRIS subscription payment (Flash Mobile). */
-export interface QrisSubscribeResult {
-  subscriptionId: string;
-  subscription: SubscriptionStatus;
-  qrString: string;
-  expiredAt: string;
-  flashTransactionId: string;
-}
+// DIHAPUS (Mode Tanpa Wallet Internal, BI-safe): `POST /v1/subscriptions/subscribe-qris`
+// + `GET /v1/subscriptions/qris-status/:id` (Flash Mobile) — provider lama.
+// Pembayaran langganan kini via DANA (lib/api/subscription-payments.ts).
 
-/** POST /v1/subscriptions/subscribe-qris — buat pembayaran QRIS, kembalikan qrString untuk dirender. PIN wajib. */
-export function subscribeQrisKahadePlus(dto: SubscribeDto) {
-  assertDtoConstraints(dto, API_CONSTRAINTS.SubscribeDto)
-  return http.post<QrisSubscribeResult, SubscribeDto>("/v1/subscriptions/subscribe-qris", dto, {
-    auth: "required",
-  })
-}
-
-/** GET /v1/subscriptions/qris-status/:id — polling status pembayaran QRIS (PENDING/ACTIVE). */
-export function getQrisPaymentStatus(subscriptionId: string) {
-  return http.get<{ status: string; qrString: string | null; expiredAt: string | null }>(
-    `/v1/subscriptions/qris-status/${encodeURIComponent(subscriptionId)}`,
-    { auth: "required" },
-  )
-}

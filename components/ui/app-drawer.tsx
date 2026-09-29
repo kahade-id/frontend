@@ -32,7 +32,7 @@
  *
  * Reduced motion: buka/tutup instan tanpa spring maupun efek dorong.
  */
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Pressable, ScrollView, TextInput, View, useWindowDimensions } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useRouter, type Href } from "expo-router"
@@ -46,6 +46,7 @@ import Reanimated, {
 import {
   AirplaneTilt,
   ArrowUDownLeft,
+  Bank,
   CalendarCheck,
   ChartBar,
   ChatCenteredText,
@@ -97,8 +98,10 @@ import {
   BOTTOM_MENU_META,
   MAIN_MENU_META,
   SHOP_MENU_META,
+  getMainMenuMeta,
   type DrawerMenuMeta,
 } from "@/lib/drawer-menu"
+import { useWalletEnabled } from "@/lib/use-wallet-enabled"
 
 /**
  * Lebar panel: 85% layar, maksimal 340dp.
@@ -127,6 +130,7 @@ type DrawerMenuItem = DrawerMenuMeta & {
 const MENU_ICONS: Record<string, IconComponent> = {
   profile: User,
   wallet: Wallet,
+  "bank-accounts": Bank,
   etalase: Storefront,
   shop: ShoppingBag,
   templates: FileText,
@@ -152,8 +156,21 @@ function withIcons(
   return meta.map((m) => ({ ...m, icon: MENU_ICONS[m.id] ?? User }))
 }
 
-/** Menu utama — label & urutan dari MAIN_MENU_META (revisi 2026-09-28). */
+/** Menu utama — label & urutan dari MAIN_MENU_META (revisi 2026-09-28).
+ *
+ * Kompat: snapshot statis saat flag NYALA. Pemakaian baru harus memakai
+ * `useMainMenu()` (sadar kill-switch dompet) — lihat AppDrawer.
+ */
 export const MAIN_MENU: readonly DrawerMenuItem[] = withIcons(MAIN_MENU_META)
+
+/**
+ * Menu utama yang sadar kill-switch dompet (Mode Tanpa Wallet Internal,
+ * BI-safe): flag false → "Dompet Saya" diganti "Rekening Bank".
+ */
+export function useMainMenu(): readonly DrawerMenuItem[] {
+  const walletEnabled = useWalletEnabled()
+  return useMemo(() => withIcons(getMainMenuMeta(walletEnabled)), [walletEnabled])
+}
 
 /** Menu bawah — revisi 2026-09-28 (permintaan produk). */
 export const BOTTOM_MENU: readonly DrawerMenuItem[] = withIcons(BOTTOM_MENU_META)
@@ -374,6 +391,9 @@ export function AppDrawer() {
   // Status langganan untuk badge kartu Kahade Plus (satu-satunya sumber
   // status langganan di UI; aman untuk tamu — tidak menembak endpoint).
   const { isActive: isPlusActive } = useKahadePlus()
+  // Mode Tanpa Wallet Internal (BI-safe): menu utama sadar kill-switch —
+  // flag false → "Dompet Saya" diganti "Rekening Bank".
+  const mainMenu = useMainMenu()
   const { mode: themeMode } = useTheme()
   const [mounted, setMounted] = useState(open)
   // FE-098: sheet "Toko Saya" — dibuka dari item drawer "Toko Saya".
@@ -690,7 +710,7 @@ export function AppDrawer() {
 
             {/* Menu utama. */}
             <View className="py-1">
-              {MAIN_MENU.map((item) => (
+              {mainMenu.map((item) => (
                 <DrawerMenuRow
                   key={item.id}
                   item={item}

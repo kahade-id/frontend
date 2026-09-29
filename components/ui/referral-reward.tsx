@@ -3,11 +3,14 @@
  * §3.1 Mono, §11 Form, §13 format).
  * API: GET /v1/referral/rewards, POST /v1/referral/apply
  *
- * RewardListItem — satu hadiah yang MASUK ke saldo: IconBox Gift -> judul
+ * RewardListItem — satu hadiah undangan: IconBox Gift -> judul
  *   ("Hadiah undangan · Budi") + tanggal -> <Amount sign="always"> hijau di
  *   kanan. Berbeda dari ReferralHistoryListItem (status per orang yang
  *   diundang), ini ledger uang — maka nominal Mono adalah elemen utama,
  *   sejajar dengan WalletTransactionListItem.
+ *   Label default "Masuk saldo" bisa dioverride via prop `labels` (mode
+ *   Tanpa Wallet Internal memakai "Dicairkan" — disbursement DANA ke
+ *   rekening bank).
  *   - status PENDING (hadiah dijanjikan, belum cair) -> nominal secondary +
  *     Badge "Menunggu"; hanya CREDITED yang hijau. Uang yang belum ada
  *     tidak boleh terlihat sudah ada.

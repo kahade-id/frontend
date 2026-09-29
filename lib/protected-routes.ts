@@ -157,6 +157,9 @@ export const WEB_GUEST_ALLOWED_PATHS: readonly string[] = [
   // (GuestLoginPrompt bare, query digate hasSession), jadi overlay ganda
   // dari isProtectedPath justru merusak. Entri registri di atas menutup
   // celah native (deep link tanpa sesi).
+  // Mode Tanpa Wallet Internal (BI-safe): SEMUA layar dompet juga self-gate
+  // kill-switch (useWalletGate → <WalletDisabledScreen/> saat flag false),
+  // jadi deep link / push ke rute dompet tidak pernah membuka konten dompet.
   "/wallet",
   "/terms",
   "/privacy-policy",

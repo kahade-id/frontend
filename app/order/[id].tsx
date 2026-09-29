@@ -34,8 +34,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { View } from "react-native"
 import { useLocalSearchParams, router, type Href } from "expo-router"
-import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { ClockCounterClockwise, ShieldCheck, X } from "phosphor-react-native"
+import { ArrowUDownLeft, ClockCounterClockwise, DotsThreeVertical, Package, Plus, Question, Receipt, ShieldCheck, ShieldWarning, Timer, Truck, X, XCircle } from "phosphor-react-native"
 
 import { api, isApiError, userMessage, type Order, type Wallet } from "@/lib/api"
 import { createIdempotencyKey } from "@/lib/api/client"
@@ -52,7 +51,13 @@ import {
 import { RATING_SNOOZE_MS, isRatingSnoozed, snoozeRatingReminder, useUiPref } from "@/lib/ui-prefs"
 import { usePolling } from "@/lib/use-polling"
 import type { ConfirmCountdownInput } from "@/lib/order-confirm-countdown"
-import { useQrisPayment } from "@/lib/use-qris-payment"
+import { useOrderPayment } from "@/lib/use-order-payment"
+import {
+  resolveCheckoutPaymentMethods,
+  selectDefaultCheckoutMethod,
+  type OrderPaymentMethod,
+} from "@/lib/dana-payment"
+import { useWalletEnabled } from "@/lib/use-wallet-enabled"
 import { assertDeviceNotCompromised } from "@/lib/device-integrity"
 import { useOrderTracking } from "@/lib/use-order-tracking"
 import { useResultTimer } from "@/lib/use-result-timer"
@@ -67,6 +72,7 @@ import {
   formatRupiah,
 } from "@/lib/format"
 import { Dialog } from "@/components/ui/modal"
+import { ActionSheet, type ActionSheetItem } from "@/components/ui/action-sheet"
 import { translate } from "@/lib/i18n"
 import { ROUTES } from "@/lib/routes"
 import { serverNow } from "@/lib/server-time"
@@ -76,7 +82,7 @@ import { logWarn } from "@/lib/telemetry"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
-import { FeeBreakdown } from "@/components/ui/fee-breakdown"
+import { OrderPaymentBreakdown } from "@/components/ui/order-payment-breakdown"
 import { FadeIn } from "@/components/ui/fade-in"
 import { Header } from "@/components/ui/header"
 import { KeyValue, KeyValueList } from "@/components/ui/key-value"
@@ -86,7 +92,6 @@ import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
 import {
   OrderActionSheets,
-  OrderSecondaryActions,
   OrderConfirmDialogs,
   OrderPayProgressOverlay,
   OrderPaymentSheet,
@@ -111,7 +116,8 @@ import { receiptDateRows } from "@/lib/receipt"
 import { shortId } from "@/lib/short-id"
 import { useToast } from "@/components/ui/toast"
 import { buildOrderJourney } from "@/lib/order-journey"
-import { OrderDetailActions, OrderRatingReminder } from "@/components/order-detail-actions"
+import { OrderDetailInfo, OrderRatingReminder } from "@/components/order-detail-actions"
+import { OrderFooterActions } from "@/components/order-footer-actions"
 import { OrderStatusHero } from "@/components/ui/order-status-hero"
 import {
   ShippingOverdueBanner,
@@ -119,9 +125,8 @@ import {
 import type { ShippingCountdownInput } from "@/lib/order-shipping-countdown"
 import { OrderJourney } from "@/components/ui/order-journey"
 import { OrderProductCard } from "@/components/ui/order-product-card"
-import { OrderPartiesCard } from "@/components/ui/order-parties-card"
+import { OrderCounterpartyCard } from "@/components/ui/order-counterparty-card"
 import { OrderEscrowCard } from "@/components/ui/order-escrow-card"
-import { OrderHelpCard } from "@/components/ui/order-help-card"
 import { OrderDetailSkeleton } from "@/components/ui/order-detail-skeleton"
 
 const HISTORY_LIMIT = 50
@@ -139,8 +144,6 @@ const DISPUTE_CLAIM_MAX = 2000
 // G-12 (audit): kategori sengketa & alasan batal kini dari lib/labels/dispute
 // (satu sumber, ditipe dari DTO yang di-generate).
 
-type PayMethod = "balance" | "qris"
-
 type SheetKind = "pay" | "cancel" | "reject" | "dispute" | "shipping" | null
 
 /** Status yang masih butuh rincian biaya dihitung ulang (belum final). */
@@ -156,8 +159,15 @@ const EARLY_STATUSES: readonly string[] = [
  * U5-013 (journey): banner escrow SEKALI-TAMPIL saat penjual membuka detail
  * order. Copy: edukasi alur dana (ditahan escrow → cair setelah pembeli
  * konfirmasi). Dismissible; tidak menyentuh status/order logic.
+ * Mode tanpa wallet: "rekening bank Anda", bukan "wallet Anda".
  */
-function SellerEscrowBanner({ onDismiss }: { onDismiss: () => void }) {
+function SellerEscrowBanner({
+  onDismiss,
+  walletEnabled,
+}: {
+  onDismiss: () => void
+  walletEnabled: boolean
+}) {
   return (
     <View
       accessibilityRole="alert"
@@ -165,8 +175,9 @@ function SellerEscrowBanner({ onDismiss }: { onDismiss: () => void }) {
     >
       <Icon icon={ShieldCheck} size="sm" tone="accent" />
       <Text variant="caption" tone="secondary" className="flex-1 text-pretty">
-        Dana pembeli ditahan escrow — kirim barang dulu, dana cair ke wallet
-        Anda setelah pembeli konfirmasi terima.
+        {walletEnabled
+          ? "Dana pembeli ditahan escrow — kirim barang dulu, dana cair ke wallet Anda setelah pembeli konfirmasi terima."
+          : "Dana pembeli ditahan escrow — kirim barang dulu, dana dicairkan ke rekening bank Anda setelah pembeli konfirmasi terima."}
       </Text>
       <IconButton
         icon={X}
@@ -181,7 +192,6 @@ function SellerEscrowBanner({ onDismiss }: { onDismiss: () => void }) {
 
 export default function OrderDetailScreen() {
   const { id, sheet: sheetParam } = useLocalSearchParams<{ id: string; sheet?: string }>()
-  const insets = useSafeAreaInsets()
   const toast = useToast()
   const { copied, copy } = useCopy()
   /**
@@ -470,23 +480,40 @@ export default function OrderDetailScreen() {
 
   const [sheet, setSheet] = useState<SheetKind>(null)
   const [confirmAccept, setConfirmAccept] = useState(false)
+  // Menu titik-tiga header: aksi sekunder (bantuan, invoice, sengketa, batal).
+  const [moreOpen, setMoreOpen] = useState(false)
   // Item 32: dialog konfirmasi SEBELUM dana escrow dilepas.
   const [confirmComplete, setConfirmComplete] = useState(false)
 
-  // Pembayaran
-  const [payMethod, setPayMethod] = useState<PayMethod>("balance")
+  // Pembayaran — Mode Tanpa Wallet Internal (BI-safe): metode checkout
+  // diambil dari backend DANA (`GET /v1/orders/{id}/payment-methods`), bukan
+  // hardcode. Saldo Kahade hanya muncul bila kill-switch dompet NYALA.
+  const walletEnabled = useWalletEnabled()
+  const [methodCode, setMethodCode] = useState<string | null>(null)
+  const methodsQuery = useApiQuery<{ methods: OrderPaymentMethod[]; fromFallback: boolean }>(
+    `order-payment-methods:${id}:${walletEnabled ? "w" : "nw"}`,
+    (signal) =>
+      id
+        ? resolveCheckoutPaymentMethods(id, { walletEnabled, signal })
+        : Promise.reject(new Error("order belum siap")),
+    sheet === "pay" && id != null,
+  )
+  const checkoutMethods = methodsQuery.data?.methods ?? []
+  const selectedMethod = checkoutMethods.find((m) => m.code === methodCode) ?? null
+  const methodsError = methodsQuery.error
   /**
    * U5-010/U5-011 (UX-deep 2026-09-29): saldo dompet — HANYA diambil saat
-   * sheet bayar dibuka, untuk (a) banner inline "saldo kurang" + tombol
-   * "Isi Saldo" di titik bayar, dan (b) default metode QRIS bila saldo <
-   * tagihan. Murni baca tampilan: tidak mengubah logika bayar/refund/PIN.
-   * (Ditaruh setelah `sheet`/`payMethod` dideklarasikan — hook ini memakai
+   * sheet bayar dibuka DAN dompet nyala, untuk (a) banner inline "saldo
+   * kurang" + tombol "Isi Saldo" di titik bayar, dan (b) default metode
+   * saldo bila cukup (fallback ke rekomendasi backend bila kurang).
+   * Murni baca tampilan: tidak mengubah logika bayar/refund/PIN.
+   * (Ditaruh setelah `sheet`/`methodCode` dideklarasikan — hook ini memakai
    * keduanya.)
    */
   const walletQuery = useApiQuery<Wallet>(
     `wallet-for-pay:${id}`,
     (signal) => api.wallet.getWallet(signal),
-    sheet === "pay",
+    sheet === "pay" && walletEnabled,
     // U5-010: kembali dari layar topup (push di atas layar ini; sheet tetap
     // terbuka di belakang) → saldo disegarkan supaya banner "kurang RpY"
     // langsung mencerminkan topup yang baru selesai.
@@ -494,19 +521,26 @@ export default function OrderDetailScreen() {
   )
   const walletBalance = walletQuery.data?.balance ?? null
   /**
-   * U5-011: default metode bayar = QRIS bila saldo < tagihan. Hanya
-   * auto-default — pilihan eksplisit user (payMethodTouchedRef) tidak
-   * pernah ditimpa. Flag di-reset di closeSheet supaya pembukaan
-   * berikutnya mengevaluasi ulang dari saldo terbaru.
+   * Auto-default metode: saldo cukup → Saldo Kahade; kurang/tidak ada →
+   * rekomendasi backend (biasanya QRIS). Hanya auto — pilihan eksplisit user
+   * (methodTouchedRef) tidak pernah ditimpa. Flag + pilihan di-reset di
+   * closeSheet supaya pembukaan berikutnya mengevaluasi ulang.
    */
-  const payMethodTouchedRef = useRef(false)
+  const methodTouchedRef = useRef(false)
   useEffect(() => {
-    if (sheet !== "pay" || payMethodTouchedRef.current) return
+    if (sheet !== "pay" || methodTouchedRef.current) return
+    const methods = methodsQuery.data?.methods
+    if (!methods || methods.length === 0) return
+    // Bila pilihan lama tidak ada di daftar baru (mis. daftar di-refresh),
+    // evaluasi ulang default — jangan pertahankan kode basi.
+    if (methodCode != null && methods.some((m) => m.code === methodCode)) return
     const total = fee?.buyerPays
-    if (walletBalance != null && total != null && walletBalance < total) {
-      setPayMethod("qris")
-    }
-  }, [sheet, walletBalance, fee?.buyerPays])
+    const walletOk =
+      walletEnabled && walletBalance != null && total != null && walletBalance >= total
+    const walletMethod = walletOk ? methods.find((m) => m.code === "KAHADE_WALLET") : undefined
+    const def = walletMethod ?? selectDefaultCheckoutMethod(methods)
+    if (def) setMethodCode(def.code)
+  }, [sheet, methodsQuery.data, methodCode, walletEnabled, walletBalance, fee?.buyerPays])
   /**
    * U5-010: "Isi Saldo" dari sheet bayar — dorong layar topup; tombol back
    * di sana kembali ke layar ini dengan sheet masih terbuka (state `sheet`
@@ -568,24 +602,28 @@ export default function OrderDetailScreen() {
   const completeKeyRef = useRef<string | null>(null)
 
   /**
-   * Pembayaran QRIS: intent + polling + rekonsiliasi pindah ke hook
-   * (lib/use-qris-payment.ts) supaya layar ini tidak menambah baris di atas
+   * Pembayaran DANA: intent + polling + rekonsiliasi pindah ke hook
+   * (lib/use-order-payment.ts) supaya layar ini tidak menambah baris di atas
    * plafon S9 — dan supaya A-14/A-02 punya satu tempat yang bisa diuji.
+   * Berlaku untuk SEMUA metode DANA (QRIS, VA bank, DANA); saldo internal
+   * tetap lewat jalur PIN (`handlePayPin`).
    */
-  const qrisPayment = useQrisPayment({
+  const payment = useOrderPayment({
     orderId: id ?? null,
+    methodCode: methodCode ?? "QRIS",
+    methodLabel: selectedMethod?.name,
     fallbackAmount: order?.orderValue ?? 0,
     active: sheet === "pay",
-    canCreate: order?.myRole === "BUYER",
+    canCreate: order?.myRole === "BUYER" && selectedMethod != null,
     onPaid: () => {
-      toast.show({ title: "Pembayaran QRIS diterima", tone: "success", duration: 3000 })
+      toast.show({ title: "Pembayaran diterima", tone: "success", duration: 3000 })
       closeSheet()
       void query.refresh()
     },
     onError: (message) =>
-      toast.show({ title: "Gagal membuat QRIS", description: message, tone: "danger" }),
+      toast.show({ title: "Gagal membuat pembayaran", description: message, tone: "danger" }),
   })
-  const { status: qrisStatus, pollError, creating: qrisCreating } = qrisPayment
+  const { creating: payCreating } = payment
 
   // Alasan / form
   const [cancelReason, setCancelReason] = useState<ReasonValue>({ code: undefined, note: "" })
@@ -629,14 +667,15 @@ export default function OrderDetailScreen() {
     setPinError(undefined)
     setDisputeCategory(undefined)
     // U5-011: reset penanda pilihan metode — pembukaan sheet berikutnya
-    // mengevaluasi ulang auto-default QRIS dari saldo terbaru.
-    payMethodTouchedRef.current = false
+    // mengevaluasi ulang auto-default dari daftar metode + saldo terbaru.
+    methodTouchedRef.current = false
+    setMethodCode(null)
     // D08: persetujuan total tidak berlaku untuk siklus bayar berikutnya.
     acceptedTotalRef.current = null
     pendingPinRef.current = null
     setPriceChange(null)
-    qrisPayment.reset()
-  }, [qrisPayment])
+    payment.reset()
+  }, [payment])
 
   /**
    * D11 (batch 139): resume checkout yang aman — `?sheet=pay` (dari banner
@@ -793,16 +832,16 @@ export default function OrderDetailScreen() {
   )
 
   /**
-   * Pembeli memilih "Tampilkan kode QRIS" / "Buat ulang QRIS". Seluruh logika
-   * (guard intent ganda, cap polling, rekonsiliasi kegagalan tak pasti) ada di
-   * lib/use-qris-payment.ts.
+   * Pembeli memilih "Bayar dengan {metode}". Seluruh logika (guard intent
+   * ganda, cap polling, rekonsiliasi kegagalan tak pasti) ada di
+   * lib/use-order-payment.ts.
    */
-  const handlePayQris = useCallback(() => qrisPayment.createIntent(), [qrisPayment])
+  const handleCreateIntent = useCallback(() => payment.createIntent(), [payment])
 
-  // R2 (audit ronde-2, butir #18): "Buat ulang QRIS" = ganti transaksi QRIS
-  // aktif server-side — destruktif bila pengguna baru saja membayar QR lama.
+  // R2 (audit ronde-2, butir #18): "Buat ulang" = ganti intent aktif
+  // server-side — destruktif bila pengguna baru saja membayar kode lama.
   // Wajib konfirmasi eksplisit; cabang gagal-tak-pasti sudah di hook (A-14).
-  const [confirmRecreateQris, setConfirmRecreateQris] = useState(false)
+  const [confirmRecreatePayment, setConfirmRecreatePayment] = useState(false)
 
   const openChatBusyRef = useRef(false)
   // Lacak pengiriman (Gap-D) — logika di lib/use-order-tracking.ts (S9).
@@ -1027,6 +1066,12 @@ export default function OrderDetailScreen() {
   const canPay = (order.status === "WAITING_PAYMENT" || order.status === "PENDING_PAYMENT") && isBuyer
   const canConfirm = order.status === "WAITING_CONFIRMATION" && isSeller
   const canShip = order.status === "PROCESSING" && isSeller
+  /** Penjual melihat bukti pengiriman saat order dalam pengiriman. */
+  const canViewProof =
+    !isBuyer &&
+    (order.status === "IN_DELIVERY" ||
+      order.status === "SHIPPED" ||
+      order.status === "DELIVERED")
   const canReviewDelivery =
     (order.status === "IN_DELIVERY" ||
       order.status === "SHIPPED" ||
@@ -1049,16 +1094,170 @@ export default function OrderDetailScreen() {
     Boolean(cancelReason.code) &&
     (cancelReason.code !== "OTHER" || cancelReason.note.trim().length > 0)
   const shippingRequired = order.orderType === "PHYSICAL_GOODS"
+  // Item 46: "Ajukan retur" sebagai aksi PRIMER selama jendela retur berlaku.
+  const canReturnPrimary = query.data?.returnEligible === true
+  // Footer (bottom navbar) menampilkan ≥1 aksi utama bila ada yang relevan.
+  const hasPrimaryAction =
+    canPay || canConfirm || canShip || canReviewDelivery || canRate || canReturnPrimary
+
+  /**
+   * Menu titik-tiga header (2026-09-30, permintaan produk): Bantuan,
+   * Invoice, dan aksi sekunder — yang dipindah ke sini DIHAPUS dari badan
+   * layar (tidak diduplikasi). Pola <ActionSheet> yang sama seperti profil.
+   * Urutan: Bantuan → Invoice → kontekstual → Batalkan (destruktif, terakhir).
+   */
+  const moreActions: ActionSheetItem[] = [
+    {
+      key: "help",
+      label: translate("Bantuan"),
+      icon: Question,
+      onPress: () =>
+        router.push({
+          pathname: "/contact",
+          params: { category: "ORDER", orderId: order.id },
+        } as Href),
+    },
+  ]
+  // H-08: invoice "belum diterbitkan" untuk WAITING_CONFIRMATION/CANCELLED.
+  if (order.status !== "WAITING_CONFIRMATION" && order.status !== "CANCELLED") {
+    moreActions.push({
+      key: "invoice",
+      label: translate("Invoice"),
+      icon: Receipt,
+      onPress: () => router.push(ROUTES.invoice(order.id)),
+    })
+  }
+  if (shippingRequired && (order.trackingNumber || order.courierName)) {
+    moreActions.push({
+      key: "track",
+      label: translate("Lacak pengiriman"),
+      icon: Truck,
+      onPress: () => void openTracking(),
+    })
+  }
+  if (isSeller && canShip) {
+    moreActions.push({
+      key: "proof",
+      label: translate("Unggah bukti pengiriman"),
+      icon: Package,
+      onPress: () => router.push(ROUTES.deliveryProof(order.id)),
+    })
+  } else if (isSeller && canViewProof) {
+    moreActions.push({
+      key: "proof",
+      label: translate("Bukti pengiriman"),
+      icon: Package,
+      onPress: () => router.push(ROUTES.deliveryProof(order.id)),
+    })
+  } else if (isBuyer && canReviewDelivery) {
+    moreActions.push({
+      key: "proof",
+      label: translate("Periksa bukti pengiriman"),
+      icon: Package,
+      onPress: () => router.push(ROUTES.deliveryProof(order.id)),
+    })
+  }
+  if (canExtend) {
+    moreActions.push({
+      key: "extend",
+      label: translate("Perpanjang tenggat"),
+      icon: Timer,
+      onPress: () => router.push(ROUTES.extension(order.id)),
+    })
+  }
+  if (isDisputed) {
+    moreActions.push({
+      key: "dispute-view",
+      label: translate("Lihat sengketa"),
+      icon: ShieldWarning,
+      onPress: () => router.push(ROUTES.disputes),
+    })
+  } else if (isBuyer && canDispute) {
+    moreActions.push({
+      key: "dispute",
+      // FE-046: label jujur — membuka sengketa formal (membekukan dana).
+      label: translate("Ajukan sengketa"),
+      icon: ShieldWarning,
+      onPress: () => setSheet("dispute"),
+    })
+  }
+  if (isBuyer && order.status === "COMPLETED" && !canReturnPrimary) {
+    moreActions.push({
+      key: "return",
+      label: translate("Ajukan retur"),
+      icon: ArrowUDownLeft,
+      onPress: () => router.push(ROUTES.newReturn(order.id)),
+    })
+  }
+  if (order.status === "REFUNDED" || order.status === "EXPIRED") {
+    // A-11: jalan keluar eksplisit setelah dana kembali — tanpa menyebut
+    // dompet (mode tanpa wallet): "Lihat mutasi dana" tidak ditampilkan.
+    moreActions.push({
+      key: "new",
+      label: translate("Buat transaksi baru"),
+      icon: Plus,
+      onPress: () => router.push(ROUTES.createTransaction),
+    })
+  }
+  if (canCancel) {
+    moreActions.push({
+      key: "cancel",
+      label: translate("Batalkan pesanan"),
+      icon: XCircle,
+      destructive: true,
+      onPress: () => setSheet("cancel"),
+    })
+  }
 
   return (
-    <Screen edges={["top"]} padded={false}>
-      <Header title="Detail Pesanan" />
+    <Screen
+      edges={["top"]}
+      padded={false}
+      footer={
+        knownRole ? (
+          <OrderFooterActions
+            canPay={canPay}
+            canConfirm={canConfirm}
+            canShip={canShip}
+            canReviewDelivery={canReviewDelivery}
+            canRate={canRate}
+            canReturnPrimary={canReturnPrimary}
+            buyerPays={fee?.buyerPays}
+            shippingRequired={shippingRequired}
+            submitting={submitting}
+            chatBusy={chatBusy}
+            onPay={() => setSheet("pay")}
+            onAccept={() => setConfirmAccept(true)}
+            onReject={() => setSheet("reject")}
+            onShipping={() => setSheet("shipping")}
+            onComplete={() => setConfirmComplete(true)}
+            onRate={() => router.push(ROUTES.rateOrder(order.id))}
+            onReturn={() => router.push(ROUTES.newReturn(order.id))}
+            onOpenChat={() => void openChat()}
+          />
+        ) : undefined
+      }
+    >
+      <Header
+        title="Detail Pesanan"
+        right={
+          <IconButton
+            icon={DotsThreeVertical}
+            variant="ghost"
+            accessibilityLabel={translate("Pilihan lainnya")}
+            onPress={() => setMoreOpen(true)}
+          />
+        }
+      />
       <PullToRefresh
         onRefresh={() => void query.refresh()}
         refreshing={refreshing}
         contentContainerClassName="px-5"
         scrollViewProps={{
-          contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
+          // Footer sticky (Screen.footer) sudah menampung bottom safe-area
+          // via <FooterBar> — konten hanya butuh ruang napas di atas footer,
+          // tanpa menghitung insets.bottom dua kali.
+          contentContainerStyle: { paddingBottom: tokens.space[8] },
         }}
       >
         {/* v2: konten detail reveal (fast) — key per order agar reveal terulang
@@ -1083,7 +1282,7 @@ export default function OrderDetailScreen() {
 
           {/* U5-013 (journey): banner escrow sekali-tampil untuk penjual. */}
           {isSeller && escrowBannerVisible ? (
-            <SellerEscrowBanner onDismiss={dismissEscrowBanner} />
+            <SellerEscrowBanner onDismiss={dismissEscrowBanner} walletEnabled={walletEnabled} />
           ) : null}
 
           {!knownRole ? (
@@ -1099,50 +1298,27 @@ export default function OrderDetailScreen() {
               diterima → dana cair, masing-masing dengan timestamp. */}
           <OrderJourney steps={journeySteps} />
 
-          {/* 3 — Aksi kontekstual sesuai status × peran (gerbang milik layar,
-              komponen hanya me-render yang diminta). */}
-          <OrderDetailActions
-            canPay={canPay}
-            canConfirm={canConfirm}
-            canShip={canShip}
-            canReviewDelivery={canReviewDelivery}
-            canRate={canRate}
-            canViewProof={
-              !isBuyer &&
-              (order.status === "IN_DELIVERY" ||
-                order.status === "SHIPPED" ||
-                order.status === "DELIVERED")
-            }
-            canReturnPrimary={query.data?.returnEligible === true}
-            buyerPays={fee?.buyerPays}
-            shippingRequired={shippingRequired}
-            submitting={submitting}
+          {/* 3 — Info kontekstual: badge peran, countdown, hint langkah
+              berikut. Tombol aksi utama + Chat pindah ke bottom navbar
+              (prop `footer` milik <Screen>). */}
+          <OrderDetailInfo
             status={order.status}
             myRole={knownRole ? myRole : undefined}
+            hasPrimaryAction={hasPrimaryAction}
             autoReleaseAt={autoReleaseAt}
             shippingCountdownInput={shippingCountdownInput}
             // FE-110: input mentah countdown "Batas konfirmasi" — tick
             // terisolasi di <ConfirmCountdownBox> (ter-memo).
             confirmCountdownInput={confirmCountdownInput}
-            // Item 34: panduan "langkah berikutnya" dihitung di dalam
-            // OrderDetailActions bila area aksi kosong.
-            // Item 35: label countdown kontekstual ("Batas kirim"/"Batas konfirmasi").
-            onPay={() => setSheet("pay")}
-            onAccept={() => setConfirmAccept(true)}
-            onReject={() => setSheet("reject")}
-            onShipping={() => setSheet("shipping")}
-            onDeliveryProof={() => router.push(ROUTES.deliveryProof(order.id))}
-            // Item 32: rilis escrow WAJIB lewat dialog konfirmasi dulu.
-            onComplete={() => setConfirmComplete(true)}
-            onRate={() => router.push(ROUTES.rateOrder(order.id))}
-            // Item 46: buka form retur dengan order terisi.
-            onReturn={() => router.push(ROUTES.newReturn(order.id))}
-            onReload={() => void query.reload()}
             // T2-009: tombol "Laporkan masalah" di kartu "Batas kirim" saat
             // penjual melewati tenggat — sheet sengketa yang sama.
             onDispute={
               isBuyer && canDispute && !isDisputed ? () => setSheet("dispute") : undefined
             }
+            // M-30: tombol Bayar di footer terkunci selama nominal belum
+            // terlihat — galat ringkas tampil di sini.
+            payAmountMissing={canPay && fee?.buyerPays == null}
+            onReloadPayAmount={() => void query.reload()}
           />
 
           {/* 4 — Pengingat ulasan (jendela 7 hari backend, bisa ditunda). */}
@@ -1160,39 +1336,43 @@ export default function OrderDetailScreen() {
             orderValue={order.orderValue}
           />
 
-          {/* 6 — Rincian pembayaran: tabel invoice sesungguhnya (bare, tanpa
-              card) — baris + hairline divider, total menonjol. */}
-          {fee && knownRole ? (
-            <>
-              <SectionHeader title="Rincian pembayaran" />
-              <FeeBreakdown
-                bare
-                orderValue={order.orderValue}
-                feeAmount={fee.platformFee}
-                feeResponsibility={order.feeResponsibility}
-                role={isBuyer ? "BUYER" : "SELLER"}
-                discountAmount={fee.discount}
-                // B-01: teruskan angka FINAL server — dulu kartu menghitung
-                // ulang lokal sehingga angka kartu bisa berbeda dari tombol
-                // "Bayar".
-                buyerPays={fee.buyerPays}
-                sellerGets={fee.sellerReceives}
-                // T2-004: baris ongkir untuk barang fisik (tanpa mengubah total).
-                showShippingNote={order.orderType === "PHYSICAL_GOODS"}
-              />
-            </>
+          {/* 6 — Lawan transaksi: SATU pihak saja — pembeli melihat
+              penjual, penjual melihat pembeli. */}
+          {knownRole ? (
+            <OrderCounterpartyCard
+              buyer={order.buyer}
+              seller={order.seller}
+              myRole={myRole === "BUYER" ? "BUYER" : "SELLER"}
+              onOpenProfile={(username) => router.push(ROUTES.userProfile(username))}
+            />
           ) : null}
 
-          {/* 7 — Pihak transaksi */}
-          <OrderPartiesCard
-            buyer={order.buyer}
-            seller={order.seller}
-            myRole={knownRole ? myRole : undefined}
-            onOpenProfile={(username) => router.push(ROUTES.userProfile(username))}
-          />
+          {/* 7 — Rincian pembayaran: COLLAPSIBLE — header selalu
+              menampilkan total + caret buka/tutup; isi tabel invoice tampil
+              saat dibuka. Order aktif default terbuka, order terminal
+              default tertutup (rapi). */}
+          {fee && knownRole ? (
+            <OrderPaymentBreakdown
+              defaultOpen={!ORDER_TERMINAL_STATUSES.includes(order.status)}
+              orderValue={order.orderValue}
+              feeAmount={fee.platformFee}
+              feeResponsibility={order.feeResponsibility}
+              role={isBuyer ? "BUYER" : "SELLER"}
+              discountAmount={fee.discount}
+              // B-01: teruskan angka FINAL server — dulu kartu menghitung
+              // ulang lokal sehingga angka kartu bisa berbeda dari tombol
+              // "Bayar".
+              buyerPays={fee.buyerPays}
+              sellerGets={fee.sellerReceives}
+              // T2-004: baris ongkir untuk barang fisik (tanpa mengubah total).
+              showShippingNote={order.orderType === "PHYSICAL_GOODS"}
+            />
+          ) : null}
 
-          {/* 8 — Pengiriman: kurir + resi (salin/lacak). Item 43: khusus
-              PHYSICAL_GOODS — jasa/digital TIDAK menampilkan info kirim. */}
+          {/* 8 — Pengiriman: kurir + resi (salin). Item 43: khusus
+              PHYSICAL_GOODS — jasa/digital TIDAK menampilkan info kirim.
+              Aksi "Isi resi" pindah ke bottom navbar; "Lacak" pindah ke menu
+              titik-tiga — kartu ini murni informatif. */}
           {shippingRequired ? (
             <ShippingInfoCard
               shipping={
@@ -1203,9 +1383,6 @@ export default function OrderDetailScreen() {
                     }
                   : null
               }
-              canEdit={canShip}
-              onEdit={() => setSheet("shipping")}
-              onTrack={() => void openTracking()}
               onCopy={(v) => void copy(v)}
               copied={copied}
             />
@@ -1218,6 +1395,7 @@ export default function OrderDetailScreen() {
             myRole={knownRole ? myRole : undefined}
             completedAt={order.completedAt}
             paidAt={order.paidAt}
+            walletEnabled={walletEnabled}
           />
 
           {/* 10 — Info transaksi */}
@@ -1295,8 +1473,9 @@ export default function OrderDetailScreen() {
             <DigitalAssetsBuyerSection showcaseId={order.showcaseId} />
           ) : null}
 
-          {/* 13 — Aksi sekunder */}
-          <SectionHeader title="Lainnya" />
+          {/* 13 — Banner proaktif bila penjual melewati batas kirim
+              (ajakan sengketa kontekstual; aksi sekunder umum pindah ke menu
+              titik-tiga). */}
           {/*
            * FE-001 + T2-006: banner proaktif bila penjual melewati batas
            * kirim — detak terisolasi di dalam komponen ter-memo ini.
@@ -1306,33 +1485,8 @@ export default function OrderDetailScreen() {
             visible={isBuyer && canDispute && !isDisputed}
             onOpenDispute={() => setSheet("dispute")}
           />
-          <OrderSecondaryActions
-            order={order}
-            chatBusy={chatBusy}
-            onOpenChat={() => void openChat()}
-            canExtend={canExtend}
-            isDisputed={isDisputed}
-            canDispute={canDispute}
-            canCancel={canCancel}
-            canReturn={isBuyer && order.status === "COMPLETED"}
-            returnIsPrimary={query.data?.returnEligible === true}
-            submitting={submitting}
-            onOpenSheet={(kind) => setSheet(kind)}
-          />
 
-          {/* 14 — Butuh bantuan? */}
-          {/* Item 133: "Hubungi Bantuan Langsung" membuka form Buat Tiket dengan kategori
-              ORDER + order terisi — bukan live support kosong. */}
-          <OrderHelpCard
-            onContactSupport={() =>
-              router.push({
-                pathname: "/contact",
-                params: { category: "ORDER", orderId: order.id },
-              })
-            }
-          />
-
-          {/* 15 — Riwayat */}
+          {/* 14 — Riwayat */}
           <SectionHeader title="Riwayat" />
           {history.length > 0 ? (
             <OrderHistoryTimeline
@@ -1363,43 +1517,53 @@ export default function OrderDetailScreen() {
         </FadeIn>
       </PullToRefresh>
 
+      {/* ── Menu titik-tiga: aksi sekunder (bantuan, invoice, sengketa,
+          batal, dsb.) — pola <ActionSheet> yang sama seperti profil. */}
+      <ActionSheet
+        title={translate("Pilihan lainnya")}
+        visible={moreOpen}
+        onRequestClose={() => setMoreOpen(false)}
+        actions={moreActions}
+      />
+
       {/* ── Bayar ─────────────────────────────────────────────── */}
       <OrderPaymentSheet
         open={sheet === "pay"}
         onClose={closeSheet}
         feeBuyerPays={fee?.buyerPays ?? null}
-        payMethod={payMethod}
-        onChangePayMethod={(v) => {
+        paymentMethods={checkoutMethods}
+        selectedMethod={selectedMethod}
+        onSelectMethod={(code) => {
           // U5-011: pilihan eksplisit — auto-default tidak boleh menimpanya.
-          payMethodTouchedRef.current = true
-          setPayMethod(v)
+          methodTouchedRef.current = true
+          setMethodCode(code)
           setPinError(undefined)
         }}
+        methodsLoading={methodsQuery.loading}
+        methodsError={methodsError}
+        onRetryMethods={() => void methodsQuery.refresh()}
+        payment={payment}
         submitting={submitting}
         pinError={pinError}
         // U5-010: banner inline "saldo kurang" + tombol "Isi Saldo".
         walletBalance={walletBalance}
         onTopup={handleTopupFromPay}
         onPayPin={(p) => void handlePayPin(p)}
-        qrisPayment={qrisPayment}
-        qrisStatus={qrisStatus}
-        pollError={pollError}
         copied={copied}
         onCopy={(value) => void copy(value)}
-        onRequestRecreate={() => setConfirmRecreateQris(true)}
+        onRequestRecreate={() => setConfirmRecreatePayment(true)}
         onUseOtherMethod={() => {
-          // R2 (audit ronde-2, butir #29/#30): lepas intent QRIS aktif —
-          // SegmentedControl terbuka lagi dan pengguna bisa pindah ke
-          // saldo/PIN. Intent di server tetap terminal-sendiri bila
-          // kedaluwarsa (reset hanya urusan klien).
-          qrisPayment.reset()
+          // R2 (audit ronde-2, butir #29/#30): lepas intent aktif — pemilih
+          // metode terbuka lagi. Intent di server tetap terminal-sendiri
+          // bila kedaluwarsa (reset hanya urusan klien).
+          payment.reset()
           toast.show({
             title: "Silakan pilih metode pembayaran lain.",
             tone: "info",
             duration: 2500,
           })
         }}
-        onShowQris={() => void handlePayQris()}
+        onCreateIntent={() => void handleCreateIntent()}
       />
 
       <OrderActionSheets
@@ -1445,13 +1609,13 @@ export default function OrderDetailScreen() {
           )
         }
         onAcceptClose={() => setConfirmAccept(false)}
-        recreateOpen={confirmRecreateQris}
-        recreateLoading={submitting || qrisCreating}
+        recreateOpen={confirmRecreatePayment}
+        recreateLoading={submitting || payCreating}
         onRecreateConfirm={() => {
-          setConfirmRecreateQris(false)
-          void handlePayQris()
+          setConfirmRecreatePayment(false)
+          void handleCreateIntent()
         }}
-        onRecreateClose={() => setConfirmRecreateQris(false)}
+        onRecreateClose={() => setConfirmRecreatePayment(false)}
         completeOpen={confirmComplete}
         completeLoading={submitting}
         onCompleteConfirm={handleCompleteOrder}

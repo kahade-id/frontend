@@ -37,10 +37,15 @@ import { QRCodeDisplay } from "@/components/ui/qr-code-display"
 import { Screen } from "@/components/ui/screen"
 import { Text } from "@/components/ui/text"
 import { useToast } from "@/components/ui/toast"
+import { WalletDisabledScreen } from "@/components/ui/wallet-disabled"
 import { Avatar } from "@/components/ui/avatar"
 import { translate } from "@/lib/i18n/translate"
+import { useWalletGate } from "@/lib/use-wallet-enabled"
 
 export default function ReceiveScreen() {
+  // Mode Tanpa Wallet Internal (BI-safe): flag false = layar diganti
+  // <WalletDisabledScreen/> (deep link ikut tertutup).
+  const walletGate = useWalletGate()
   const router = useRouter()
   const insets = useSafeAreaInsets()
   const toast = useToast()
@@ -98,6 +103,11 @@ export default function ReceiveScreen() {
       /* user membatalkan */
     }
   }, [payload, username])
+
+  // Mode Tanpa Wallet Internal (BI-safe): flag false = layar blokir.
+  if (walletGate === "off") {
+    return <WalletDisabledScreen />
+  }
 
   return (
     <Screen edges={["top"]} padded={false}>

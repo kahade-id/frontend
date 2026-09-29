@@ -18,6 +18,7 @@ import { shortId } from "@/lib/short-id"
 import { translate } from "@/lib/i18n/translate"
 import { tokens } from "@/lib/tokens"
 import { useApiQuery } from "@/lib/use-api-query"
+import { useWalletGate } from "@/lib/use-wallet-enabled"
 import {
   WALLET_TXN_LABELS,
   WALLET_TXN_STATUS_LABELS,
@@ -32,6 +33,7 @@ import { Header } from "@/components/ui/header"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
 import { TextLink } from "@/components/ui/text-link"
+import { WalletDisabledScreen } from "@/components/ui/wallet-disabled"
 import { Text } from "@/components/ui/text"
 import { ReceiptTicket, type ReceiptRow } from "@/components/receipt/ReceiptTicket"
 import { downloadReceipt, shareReceipt } from "@/components/receipt/shareReceipt"
@@ -73,6 +75,9 @@ function referenceTarget(txn: WalletTransaction): { href: Href; ref: string } | 
 }
 
 export default function WalletTransactionScreen() {
+  // Mode Tanpa Wallet Internal (BI-safe): flag false = layar blokir
+  // (deep link ikut tertutup).
+  const walletGate = useWalletGate()
   const { txId } = useLocalSearchParams<{ txId: string }>()
   const insets = useSafeAreaInsets()
   const { copy } = useCopy()
@@ -96,6 +101,11 @@ export default function WalletTransactionScreen() {
 
   const status = walletTransactionStatus(txn?.status)
   const direction = txn ? walletTransactionType(txn) : "UNKNOWN"
+
+  // Mode Tanpa Wallet Internal (BI-safe): flag false = layar blokir.
+  if (walletGate === "off") {
+    return <WalletDisabledScreen />
+  }
 
   return (
     <Screen edges={["top"]} padded={false}>
