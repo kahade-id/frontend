@@ -6,7 +6,7 @@
  * membatalkan (POST /v1/commerce/service-slots/bookings/:id/cancel).
  * Booking dibuat dari kalender slot di detail produk jasa.
  */
-import { useCallback } from "react"
+import { useCallback, useState } from "react"
 import { View } from "react-native"
 import { CalendarBlank, CalendarX } from "phosphor-react-native"
 
@@ -30,16 +30,22 @@ function BookingCard({ booking, onCancelled }: { booking: SlotBooking; onCancell
   const toast = useToast()
   const slot = booking.slot
   const active = (booking.status ?? "").toUpperCase() !== "CANCELLED"
+  // FE-053: kunci double-tap — ketuk ganda tidak mengirim 2 request cancel.
+  const [cancelling, setCancelling] = useState(false)
 
   const handleCancel = useCallback(async () => {
+    if (cancelling) return
+    setCancelling(true)
     try {
       await api.commerce.cancelSlotBooking(booking.id)
       toast.show({ title: translate("Booking dibatalkan"), tone: "success" })
       onCancelled()
     } catch (err) {
       toast.show({ title: translate("Gagal membatalkan"), description: userMessage(err), tone: "danger" })
+    } finally {
+      setCancelling(false)
     }
-  }, [booking.id, toast, onCancelled])
+  }, [booking.id, toast, onCancelled, cancelling])
 
   return (
     <Card variant="outline" className="gap-2 p-4">
@@ -58,7 +64,7 @@ function BookingCard({ booking, onCancelled }: { booking: SlotBooking; onCancell
         </Text>
       ) : null}
       {active ? (
-        <Button variant="secondary" fullWidth={false} onPress={() => void handleCancel()}>
+        <Button variant="secondary" fullWidth={false} loading={cancelling} disabled={cancelling} onPress={() => void handleCancel()}>
           {translate("Batalkan booking")}
         </Button>
       ) : null}
