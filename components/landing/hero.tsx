@@ -132,7 +132,7 @@ export function LandingHero() {
           <Reveal>
             <View className="mb-5 self-start rounded-full border border-border bg-surface px-4 py-1.5">
               <Text variant="label" tone="secondary">
-                Rekber otomatis · Etalase sosial
+                Escrow otomatis · Etalase sosial
               </Text>
             </View>
 

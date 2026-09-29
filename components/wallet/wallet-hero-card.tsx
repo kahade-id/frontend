@@ -12,7 +12,7 @@
  *  - Toggle mata (Eye/EyeSlash) terhubung ke `prefs.balanceHidden` dari
  *    useUiPrefs — preferensi yang SAMA dengan Beranda (J-05), bukan state
  *    lokal. Pemanggil yang me-wire `hidden`/`onToggleHidden`.
- *  - Sub-baris "Rp X ditahan sebagai jaminan transaksi" bila ada dana tertahan.
+ *  - Sub-baris "Ditahan di escrow: Rp X" bila ada dana tertahan.
  *  - Loading = skeleton pada angka (label & kontrol tetap tampil, layout
  *    stabil — pola HomeOverviewCard).
  *  - Error = <ErrorState compact> + retry DI LUAR kartu gelap (bukan di
@@ -110,7 +110,7 @@ export function WalletHeroCard({
       : summarize([
           "Saldo tersedia",
           formatRupiah(available ?? Number.NaN),
-          showHeld ? `${formatRupiah(heldValue)} ditahan sebagai jaminan transaksi` : undefined,
+          showHeld ? `Ditahan di escrow: ${formatRupiah(heldValue)}` : undefined,
         ])
 
   return (
@@ -159,7 +159,7 @@ export function WalletHeroCard({
                     onPress={onPressBreakdown}
                     accessibilityRole="button"
                     accessibilityLabel="Lihat rincian saldo"
-                    accessibilityHint="Menampilkan penjelasan saldo tersedia, ditahan sebagai jaminan transaksi, dan total"
+                    accessibilityHint="Menampilkan penjelasan saldo tersedia, dana ditahan di escrow, dan total"
                     className={cn(
                       "-my-2 -mr-2 min-h-11 min-w-11 items-center justify-center rounded-full",
                       focusRing,
@@ -179,11 +179,6 @@ export function WalletHeroCard({
                     tone="inverse"
                     hidden={hidden}
                   />
-                  {/* T3-006 (audit UI/UX): caption kecil menegaskan angka hero
-                      adalah saldo yang bisa dipakai — bukan total. */}
-                  <Text variant="caption" tone="inverse" className="opacity-70">
-                    yang bisa dipakai sekarang
-                  </Text>
                 </View>
               )}
               {loading ? (
@@ -195,7 +190,7 @@ export function WalletHeroCard({
                   accessibilityRole={onPressHeld ? "button" : undefined}
                   accessibilityLabel={
                     onPressHeld
-                      ? `${formatRupiah(heldValue)} ditahan sebagai jaminan transaksi. Ketuk untuk melihat rincian pesanan penahan.`
+                      ? `Ditahan di escrow: ${formatRupiah(heldValue)}. Ketuk untuk melihat rincian.`
                       : undefined
                   }
                   accessibilityHint={onPressHeld ? "Menampilkan daftar pesanan yang menahan dana" : undefined}
@@ -210,16 +205,17 @@ export function WalletHeroCard({
                       <Icon icon={LockSimple} size="xs" tone="inverse" />
                       <Amount value={heldValue} size="body" tone="inverse" hidden={hidden} />
                       <Text variant="caption" tone="inverse">
-                        ditahan sebagai jaminan transaksi
+                        Ditahan di escrow
                       </Text>
                       {onPressHeld ? (
                         <Icon icon={CaretRight} size="xs" tone="inverse" />
                       ) : null}
                     </View>
-                    {/* T3-005 (audit UI/UX): "escrow" bukan kata sehari-hari —
-                        caption kecil menjelaskan uang jaminan ini cair otomatis. */}
+                    {/* FE-130 (§9): satu istilah baku "Ditahan di escrow" —
+                        definisi satu kalimat escrow milik FE-114 (Tim D), tidak
+                        diduplikasi di sini. */}
                     <Text variant="caption" tone="inverse" className="opacity-70">
-                      Uang jaminan untuk pesanan yang belum selesai — cair otomatis kalau pesanan selesai
+                      Ditahan di escrow untuk pesanan yang belum selesai — cair otomatis kalau pesanan selesai
                       atau batal.
                     </Text>
                   </View>

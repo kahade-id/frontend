@@ -35,7 +35,7 @@ const PILLARS: Pillar[] = [
     title: "Chat langsung di app",
     description:
       "Nego harga, kirim bukti transfer, pantau status kiriman — semua tercatat rapi dalam satu chat, tidak tercecer.",
-    answers: "Menjawab 02 · Rekber manual ribet",
+    answers: "Menjawab 02 · Escrow manual ribet",
   },
   {
     icon: Storefront,

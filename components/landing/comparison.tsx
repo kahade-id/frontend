@@ -1,6 +1,6 @@
 /**
  * Kahade landing — <LandingComparison>: tabel perbandingan Kahade vs
- * marketplace biasa vs rekber manual.
+ * marketplace biasa vs escrow manual.
  *
  * Mobile: ScrollView horizontal agar kolom tidak gepeng. Kolom Kahade
  * di-highlight (bg-surface-elevated + border).
@@ -22,7 +22,7 @@ const STATUS_ICON: Record<CellStatus, { icon: IconComponent; tone: "success" | "
   bad: { icon: X, tone: "danger" },
 }
 
-const HEADERS = ["Kahade", "Marketplace biasa", "Rekber manual"] as const
+const HEADERS = ["Kahade", "Marketplace biasa", "Escrow manual"] as const
 
 const ROWS: { label: string; cells: { text: string; status: CellStatus }[] }[] = [
   {
