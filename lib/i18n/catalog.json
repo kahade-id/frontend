@@ -27,12 +27,12 @@
    "n": 27
   },
   {
-   "s": "{x}: {y}",
-   "n": 24
+   "s": "Tutup",
+   "n": 25
   },
   {
-   "s": "Tutup",
-   "n": 23
+   "s": "{x}: {y}",
+   "n": 24
   },
   {
    "s": "Kembali",
@@ -48,6 +48,10 @@
   },
   {
    "s": "Penjual",
+   "n": 17
+  },
+  {
+   "s": "Tambah alamat",
    "n": 17
   },
   {
@@ -163,6 +167,10 @@
    "n": 11
   },
   {
+   "s": "Minimal {x} karakter.",
+   "n": 11
+  },
+  {
    "s": "Pesanan",
    "n": 11
   },
@@ -192,10 +200,6 @@
   },
   {
    "s": "Retensi:",
-   "n": 10
-  },
-  {
-   "s": "Tambah alamat",
    "n": 10
   },
   {
@@ -435,6 +439,10 @@
    "n": 6
   },
   {
+   "s": "Alamat",
+   "n": 6
+  },
+  {
    "s": "Aset digital",
    "n": 6
   },
@@ -579,6 +587,10 @@
    "n": 6
   },
   {
+   "s": "Jalan, nomor rumah/gedung, patokan",
+   "n": 6
+  },
+  {
    "s": "Jam mulai",
    "n": 6
   },
@@ -607,6 +619,10 @@
    "n": 6
   },
   {
+   "s": "Kode pos",
+   "n": 6
+  },
+  {
    "s": "Kode QR profil",
    "n": 6
   },
@@ -620,6 +636,10 @@
   },
   {
    "s": "Komentar baru",
+   "n": 6
+  },
+  {
+   "s": "Kota",
    "n": 6
   },
   {
@@ -667,6 +687,14 @@
    "n": 6
   },
   {
+   "s": "Nama penerima",
+   "n": 6
+  },
+  {
+   "s": "Nomor HP",
+   "n": 6
+  },
+  {
    "s": "Nomor HP kontak",
    "n": 6
   },
@@ -708,6 +736,10 @@
   },
   {
    "s": "Produk",
+   "n": 6
+  },
+  {
+   "s": "Provinsi (opsional)",
    "n": 6
   },
   {
@@ -959,10 +991,6 @@
    "n": 5
   },
   {
-   "s": "Lanjut",
-   "n": 5
-  },
-  {
    "s": "Laporkan karya",
    "n": 5
   },
@@ -976,10 +1004,6 @@
   },
   {
    "s": "Mengunggah foto…",
-   "n": 5
-  },
-  {
-   "s": "Minimal {x} karakter.",
    "n": 5
   },
   {
@@ -1088,6 +1112,10 @@
   },
   {
    "s": "Aktifkan di pengaturan perangkat.",
+   "n": 4
+  },
+  {
+   "s": "Alamat ditambahkan",
    "n": 4
   },
   {
@@ -1343,6 +1371,10 @@
    "n": 4
   },
   {
+   "s": "Lanjut",
+   "n": 4
+  },
+  {
    "s": "Laporan terkirim",
    "n": 4
   },
@@ -1559,6 +1591,10 @@
    "n": 4
   },
   {
+   "s": "Tersedia",
+   "n": 4
+  },
+  {
    "s": "Tolak",
    "n": 4
   },
@@ -1768,10 +1804,6 @@
   },
   {
    "s": "Akun yang diikuti @{x} akan tampil di sini.",
-   "n": 3
-  },
-  {
-   "s": "Alamat",
    "n": 3
   },
   {
@@ -2747,10 +2779,6 @@
    "n": 3
   },
   {
-   "s": "Jalan, nomor rumah/gedung, patokan",
-   "n": 3
-  },
-  {
    "s": "Jam",
    "n": 3
   },
@@ -2975,10 +3003,6 @@
    "n": 3
   },
   {
-   "s": "Kode pos",
-   "n": 3
-  },
-  {
    "s": "Kode QR profil @{x}",
    "n": 3
   },
@@ -3044,10 +3068,6 @@
   },
   {
    "s": "Kosongkan kondisi barang",
-   "n": 3
-  },
-  {
-   "s": "Kota",
    "n": 3
   },
   {
@@ -3435,10 +3455,6 @@
    "n": 3
   },
   {
-   "s": "Nama penerima",
-   "n": 3
-  },
-  {
    "s": "Nama pengguna",
    "n": 3
   },
@@ -3488,10 +3504,6 @@
   },
   {
    "s": "Nominal per orang (Rp)",
-   "n": 3
-  },
-  {
-   "s": "Nomor HP",
    "n": 3
   },
   {
@@ -3812,10 +3824,6 @@
   },
   {
    "s": "Promo",
-   "n": 3
-  },
-  {
-   "s": "Provinsi (opsional)",
    "n": 3
   },
   {
@@ -4207,10 +4215,6 @@
    "n": 3
   },
   {
-   "s": "Tersedia",
-   "n": 3
-  },
-  {
    "s": "Teruskan ke {x}",
    "n": 3
   },
@@ -4248,6 +4252,10 @@
   },
   {
    "s": "Tidak pantas",
+   "n": 3
+  },
+  {
+   "s": "Tidak tersedia",
    "n": 3
   },
   {
@@ -4459,6 +4467,10 @@
    "n": 2
   },
   {
+   "s": "\"{x}\" terlihat seperti dokumen identitas. Bukti sengketa dilihat mediator dan lawan transaksi. Tetap lampirkan?",
+   "n": 2
+  },
+  {
    "s": "(diedit)",
    "n": 2
   },
@@ -4659,10 +4671,6 @@
    "n": 2
   },
   {
-   "s": "Alamat ditambahkan",
-   "n": 2
-  },
-  {
    "s": "Alamat ini sama dengan email terdaftar.",
    "n": 2
   },
@@ -4839,7 +4847,7 @@
    "n": 2
   },
   {
-   "s": "Belum ada alamat — kelola buku alamat untuk menambah.",
+   "s": "Belum ada alamat tersimpan.",
    "n": 2
   },
   {
@@ -5524,10 +5532,6 @@
   },
   {
    "s": "Frasa tidak sesuai",
-   "n": 2
-  },
-  {
-   "s": "Gagal dapat barang — pengembalian dana otomatis",
    "n": 2
   },
   {
@@ -7879,6 +7883,10 @@
    "n": 2
   },
   {
+   "s": "Tandai gagal dapat barang",
+   "n": 2
+  },
+  {
    "s": "Tangkapan layar terdeteksi. Konten sensitif disembunyikan demi keamanan akun Anda.",
    "n": 2
   },
@@ -8111,10 +8119,6 @@
    "n": 2
   },
   {
-   "s": "Tidak tersedia",
-   "n": 2
-  },
-  {
    "s": "Tidak tertarik",
    "n": 2
   },
@@ -8164,6 +8168,10 @@
   },
   {
    "s": "Total",
+   "n": 2
+  },
+  {
+   "s": "Total dikunci: {x}",
    "n": 2
   },
   {
@@ -8375,7 +8383,15 @@
    "n": 2
   },
   {
+   "s": "Ya, cabut kepercayaan",
+   "n": 2
+  },
+  {
    "s": "Ya, keluarkan semua",
+   "n": 2
+  },
+  {
+   "s": "Ya, percayai perangkat",
    "n": 2
   },
   {
@@ -8496,10 +8512,6 @@
   },
   {
    "s": "\"{x}\" bukan gambar yang didukung — pilih file JPG, PNG, atau WebP.",
-   "n": 1
-  },
-  {
-   "s": "\"{x}\" terlihat seperti dokumen identitas. Bukti sengketa dilihat mediator dan lawan transaksi. Tetap lampirkan?",
    "n": 1
   },
   {
@@ -12331,6 +12343,10 @@
    "n": 1
   },
   {
+   "s": "Cek status penghapusan",
+   "n": 1
+  },
+  {
    "s": "Cek status sekarang",
    "n": 1
   },
@@ -13448,6 +13464,10 @@
   },
   {
    "s": "Eskalasi ke Sengketa",
+   "n": 1
+  },
+  {
+   "s": "Eskalasi ke sengketa?",
    "n": 1
   },
   {
@@ -15043,6 +15063,10 @@
    "n": 1
   },
   {
+   "s": "Kasus sengketa yang sudah ada akan dipakai ulang dan penjual akan diberi tahu.",
+   "n": 1
+  },
+  {
    "s": "Kata kunci pencarian pesan",
    "n": 1
   },
@@ -15740,10 +15764,6 @@
   },
   {
    "s": "Koneksi terputus di tengah pengiriman — periksa daftar bukti; foto pilihan tetap tersimpan, tekan kirim ulang tanpa memilih ulang.",
-   "n": 1
-  },
-  {
-   "s": "Konfirmasi",
    "n": 1
   },
   {
@@ -19183,6 +19203,10 @@
    "n": 1
   },
   {
+   "s": "Pratinjau:",
+   "n": 1
+  },
+  {
    "s": "Preferensi",
    "n": 1
   },
@@ -22099,6 +22123,10 @@
    "n": 1
   },
   {
+   "s": "Ya, eskalasi ke sengketa",
+   "n": 1
+  },
+  {
    "s": "Ya, ganti bahasa",
    "n": 1
   },
@@ -22165,10 +22193,6 @@
   {
    "s": "Zona Berbahaya",
    "n": 1
-  },
-  {
-   "s": "Terlalu banyak percobaan. Tunggu beberapa saat sebelum mencoba lagi.",
-   "n": 3
   }
  ]
 }

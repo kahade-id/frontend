@@ -36,6 +36,7 @@ import {
 } from "@/lib/api"
 import { logWarn } from "@/lib/telemetry"
 import { formatDateTime, formatDateLong, formatDateTimeWIB, formatRupiah, parseRupiah } from "@/lib/format"
+import { formatRupiahTypingText, parseRupiahTypingText } from "@/lib/rupiah-input"
 import { pickImage } from "@/lib/image-picker"
 import { translate } from "@/lib/i18n"
 import { useApiQuery } from "@/lib/use-api-query"
@@ -414,8 +415,14 @@ export default function MilestoneDetailScreen() {
                     </Field>
                     <Field label="Nilai baru (opsional, rupiah)">
                       <Input
-                        value={propAmount}
-                        onChangeText={setPropAmount}
+                        // FE-052: pemisah ribuan saat mengetik; state digit
+                        // mentah — nilai ke backend tidak berubah.
+                        value={formatRupiahTypingText(propAmount)}
+                        onChangeText={(t) => {
+                          const parsed = parseRupiahTypingText(t)
+                          if (parsed === null) return
+                          setPropAmount(parsed)
+                        }}
                         placeholder="cth. 1500000"
                         keyboardType="numeric"
                       />

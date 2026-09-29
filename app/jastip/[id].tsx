@@ -31,6 +31,7 @@ import {
 import { useHasSession } from "@/lib/guest-gate"
 import { translate } from "@/lib/i18n/translate"
 import { formatDateLong, formatRupiah } from "@/lib/format"
+import { formatRupiahTypingText, parseRupiahTypingText } from "@/lib/rupiah-input"
 import { ROUTES } from "@/lib/routes"
 import { useToast } from "@/components/ui/toast"
 
@@ -592,25 +593,45 @@ export default function JastipDetailScreen() {
           </Text>
           <Input
             label={translate("Harga barang (Rp)")}
-            value={goods}
-            onChangeText={(t) => { setGoods(t); setLockError(undefined) }}
+            // FE-052: pemisah ribuan saat mengetik; state digit mentah —
+            // nilai escrow yang dikunci tidak berubah.
+            value={formatRupiahTypingText(goods)}
+            onChangeText={(t) => {
+              const parsed = parseRupiahTypingText(t)
+              if (parsed === null) return
+              setGoods(parsed)
+              setLockError(undefined)
+            }}
             keyboardType="number-pad"
-            maxLength={15}
           />
           <Input
             label={translate("Fee jastip (Rp)")}
-            value={fee}
-            onChangeText={(t) => { setFee(t); setLockError(undefined) }}
+            value={formatRupiahTypingText(fee)}
+            onChangeText={(t) => {
+              const parsed = parseRupiahTypingText(t)
+              if (parsed === null) return
+              setFee(parsed)
+              setLockError(undefined)
+            }}
             keyboardType="number-pad"
-            maxLength={15}
           />
           <Input
             label={translate("Ongkir (Rp)")}
-            value={shipping}
-            onChangeText={(t) => { setShipping(t); setLockError(undefined) }}
+            value={formatRupiahTypingText(shipping)}
+            onChangeText={(t) => {
+              const parsed = parseRupiahTypingText(t)
+              if (parsed === null) return
+              setShipping(parsed)
+              setLockError(undefined)
+            }}
             keyboardType="number-pad"
-            maxLength={15}
           />
+          {/* FE-052: pratinjau total yang akan dikunci — layar paling berisiko. */}
+          <Text variant="caption" tone="secondary">
+            {translate("Total dikunci: {x}", {
+              x: formatRupiah((Number(goods) || 0) + (Number(fee) || 0) + (Number(shipping) || 0)),
+            })}
+          </Text>
           {lockError ? (
             <Text variant="caption" tone="danger">
               {lockError}
