@@ -114,8 +114,10 @@ export default function ForgotPasswordScreen() {
           <FadeIn duration="fast">
             <VStack gap={8}>
               <VStack gap={2}>
+                {/* T1-008: bedakan dari H1 register ("Masukkan nomor HP
+                    Anda") — satu kata "akun" cukup untuk disambiguasi. */}
                 <Heading level={1} className="text-balance">
-                  Masukkan nomor HP Anda
+                  Nomor HP akun Anda
                 </Heading>
                 <Text variant="body" tone="secondary" className="text-pretty">
                   Kami akan memandu Anda mengirim pesan ke WhatsApp resmi
@@ -155,6 +157,13 @@ export default function ForgotPasswordScreen() {
           <Button onPress={() => void handleSubmit()} loading={submitting}>
             Kirim kode
           </Button>
+          {/*
+           * T1-007: submit auth memicu dialog izin lokasi (getAuthLocation)
+           * — jelaskan dulu di UI supaya tidak mengejutkan.
+           */}
+          <Text variant="caption" tone="secondary" className="text-center text-pretty">
+            Demi keamanan, kami mencatat lokasi saat Anda masuk.
+          </Text>
           {/*
            * FE-IMP-3 #112 — reset HANYA via nomor HP (tidak ada jalur email).
            * Nomor tidak aktif = tidak bisa terima balasan WA → tautan bantuan.

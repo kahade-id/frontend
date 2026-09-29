@@ -45,13 +45,13 @@ const ITEM_META: Record<
   bankAccount: {
     icon: Bank,
     title: "Tambah rekening bank",
-    description: "Untuk pencairan dana ke rekeningmu",
+    description: "Untuk pencairan dana ke rekening Anda",
     href: ROUTES.bankAccounts,
   },
   firstShowcase: {
     icon: Storefront,
     title: "Buat etalase pertama",
-    description: "Pasang karya pertamamu untuk mulai berjualan",
+    description: "Pasang karya pertama Anda untuk mulai berjualan",
     href: ROUTES.showcaseCreate,
   },
 }

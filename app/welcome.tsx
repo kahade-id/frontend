@@ -94,7 +94,9 @@ export default function WelcomeScreen() {
             </DisplayHeading>
             <Text variant="body" tone="secondary" className="text-center">
               {isNewUser
-                ? "Akun Anda sudah siap. Mari mulai transaksi aman bersama Kahade."
+                ? // T1-006: jelaskan MANFAAT izin notifikasi di copy UI —
+                  // dialog sistem muncul tepat setelah tombol diketuk.
+                  "Ketuk Mulai — kami akan meminta izin notifikasi agar Anda tahu saat dana masuk, barang dikirim, atau ada sengketa."
                 : "Transaksi escrow aman, mudah, dan terpercaya."}
             </Text>
           </View>
@@ -102,6 +104,16 @@ export default function WelcomeScreen() {
           <Button onPress={handleStart} loading={starting}>
             {isNewUser ? "Mulai" : "Masuk ke beranda"}
           </Button>
+          {/*
+           * T1-006: caption penenang di bawah tombol — notifikasi hanya untuk
+           * hal penting dan bisa diubah kapan saja.
+           */}
+          {isNewUser ? (
+            <Text variant="caption" tone="secondary" className="text-center text-pretty">
+              Notifikasi hanya untuk hal penting transaksi. Bisa diubah kapan
+              saja di Pengaturan.
+            </Text>
+          ) : null}
         </VStack>
       </FadeIn>
     </Screen>

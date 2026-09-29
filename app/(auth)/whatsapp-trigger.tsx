@@ -51,6 +51,7 @@ import { Text } from "@/components/ui/text"
 import { TextLink } from "@/components/ui/text-link"
 import { useToast } from "@/components/ui/toast"
 import { api, isApiError, userMessage } from "@/lib/api"
+import { otpStepProgress } from "@/lib/auth-progress"
 import { copyToClipboard } from "@/lib/clipboard"
 import { isOfflineKnown, useIsOnline } from "@/lib/connectivity"
 import { safeWhatsAppLink } from "@/lib/external-url"
@@ -328,7 +329,15 @@ export default function WhatsappTriggerScreen() {
 
   return (
     <Screen padded={false} edges={["top"]}>
-      <Header title="Verifikasi WhatsApp" safeArea={false} />
+      {/*
+       * T1-002: progress per purpose — register 2/4, forgot_password 2/3,
+       * login/migrasi disembunyikan (bukan bagian wizard pendaftaran).
+       */}
+      <Header
+        title="Verifikasi WhatsApp"
+        safeArea={false}
+        progress={purpose ? otpStepProgress(purpose) : undefined}
+      />
 
       <KeyboardAvoiding>
         <View className="flex-1 gap-8 px-5 pb-8 pt-8">
@@ -492,6 +501,40 @@ export default function WhatsappTriggerScreen() {
             <Button variant="secondary" onPress={() => void handleRequestNew()} loading={requesting}>
               Minta kode baru
             </Button>
+            {/*
+             * T1-001: petunjuk lintas-alur GENERIK sejak awal (tampil untuk
+             * semua purpose — bukan sinyal pembeda nomor terdaftar vs tidak,
+             * jadi aman terhadap enumerasi). Menyelamatkan user yang salah
+             * alur (mis. nomor terdaftar masuk alur Daftar) sebelum menunggu
+             * decoy kedaluwarsa.
+             */}
+            <Text variant="caption" tone="secondary" className="text-center text-pretty">
+              Sudah pernah daftar tapi tidak ada balasan? Coba{" "}
+              <TextLink
+                inline
+                onPress={() => {
+                  stopPolling()
+                  router.replace(ROUTES.login)
+                }}
+              >
+                Masuk
+              </TextLink>{" "}
+              di sini.
+            </Text>
+            {/*
+             * T1-010: alur lupa kata sandi + nomor salah ketik/tidak aktif =
+             * decoy yang tidak pernah selesai. Saat gagal, tawarkan jalan ke
+             * live support (pola yang sama dengan layar forgot-password).
+             * Generik untuk semua kegagalan purpose ini — tidak enumerating.
+             */}
+            {purpose === "forgot_password" && formError ? (
+              <Text variant="caption" tone="secondary" className="text-center text-pretty">
+                Nomor HP tidak aktif atau salah ketik?{" "}
+                <TextLink inline onPress={() => router.push(ROUTES.liveSupport)}>
+                  Minta bantuan
+                </TextLink>
+              </Text>
+            ) : null}
             <TextLink
               onPress={() => {
                 if (router.canGoBack()) router.back()

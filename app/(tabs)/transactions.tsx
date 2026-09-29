@@ -50,19 +50,22 @@
  */
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { View } from "react-native"
-import { Funnel, Receipt, ShoppingBag, Storefront } from "phosphor-react-native"
+import { Funnel, Receipt, ShoppingBag, Storefront, Wallet } from "phosphor-react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
+import { useRouter } from "expo-router"
 import { api } from "@/lib/api"
 import { ORDER_STATUS_FILTERS } from "@/lib/api/orders"
-import { formatTimeAgo, formatNumber } from "@/lib/format"
+import { formatRupiah, formatTimeAgo, formatNumber } from "@/lib/format"
 import { translate } from "@/lib/i18n/translate"
 import { toEpochMs } from "@/lib/pending-actions"
 import { ROUTES } from "@/lib/routes"
+import { queryKeys } from "@/lib/query-keys"
 import { tokens } from "@/lib/tokens"
 import { groupOrdersByDay, type OrderDayGroup } from "@/lib/transaction-grouping"
 import { TAB_BAR_HEIGHT } from "@/components/ui/bottom-tab-bar"
 import type { Order } from "@/lib/api/orders"
 import { useHasSession } from "@/lib/guest-gate"
+import { useApiQuery } from "@/lib/use-api-query"
 import { byTimestampDesc, usePaginatedQuery } from "@/lib/use-paginated-query"
 import { useUiPrefs } from "@/lib/ui-prefs"
 import { useScrollElevation } from "@/lib/use-scroll-elevation"
@@ -72,10 +75,12 @@ import { GuestLoginPrompt } from "@/components/web-guest-gate"
 import { EmptyState } from "@/components/ui/empty-state"
 import { FadeIn } from "@/components/ui/fade-in"
 import { Header } from "@/components/ui/header"
+import { Icon } from "@/components/ui/icon"
 import { IconButton } from "@/components/ui/icon-button"
 import { ModeShiftFade } from "@/components/ui/mode-switcher"
 import { OrderCard, OrderCardSkeleton } from "@/components/ui/order-card"
 import { PaginatedList } from "@/components/ui/paginated-list"
+import { PressableScale } from "@/components/ui/pressable-scale"
 import { Screen } from "@/components/ui/screen"
 import { Text } from "@/components/ui/text"
 import { SegmentedControl, type SegmentItem } from "@/components/ui/segmented-control"
@@ -239,6 +244,19 @@ export default function TransactionsScreen() {
    * `expireSession`. Tamu kini melihat ajakan masuk, bukan daftar kosong.
    */
   const hasSession = useHasSession()
+  const router = useRouter()
+  /**
+   * T5-003-minimal: jalan pintas visual ke Dompet — chip saldo mini di
+   * header. Memakai kunci cache `wallet` yang SAMA dengan layar Dompet
+   * (F-03), jadi tidak menembak GET ganda bila Dompet baru dibuka.
+   * BUKAN tab baru (keputusan produk — tab penuh di-defer).
+   */
+  const walletQuery = useApiQuery(
+    queryKeys.wallet(),
+    (signal) => api.wallet.getWallet(signal),
+    hasSession,
+  )
+  const walletBalance = walletQuery.data?.balance
   const query = usePaginatedQuery(
     `orders:${role}:${status}`,
     (page, signal) =>
@@ -336,16 +354,39 @@ export default function TransactionsScreen() {
         separator={false}
         elevated={elevated}
         right={
-          <IconButton
-            icon={Funnel}
-            variant="ghost"
-            active={filtered}
-            accessibilityLabel={translate("Filter status transaksi")}
-            accessibilityHint={
-              filtered ? translate("Filter aktif, ketuk untuk mengubah") : translate("Ketuk untuk memfilter")
-            }
-            onPress={() => setSheetOpen(true)}
-          />
+          <View className="flex-row items-center gap-2">
+            {/*
+             * T5-003-minimal: chip saldo mini → Dompet. Satu ketukan, tanpa
+             * menambah tab (keputusan produk: tab penuh di-defer).
+             */}
+            <PressableScale
+              onPress={() => router.push(ROUTES.wallet)}
+              accessibilityRole="button"
+              accessibilityLabel={
+                typeof walletBalance === "number"
+                  ? `Buka Dompet, saldo ${formatRupiah(walletBalance)}`
+                  : "Buka Dompet"
+              }
+              className="flex-row items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1.5"
+            >
+              <Icon icon={Wallet} size="sm" tone="active" />
+              <Text variant="caption" weight={600}>
+                {typeof walletBalance === "number"
+                  ? formatRupiah(walletBalance, { compact: true })
+                  : "Dompet"}
+              </Text>
+            </PressableScale>
+            <IconButton
+              icon={Funnel}
+              variant="ghost"
+              active={filtered}
+              accessibilityLabel={translate("Filter status transaksi")}
+              accessibilityHint={
+                filtered ? translate("Filter aktif, ketuk untuk mengubah") : translate("Ketuk untuk memfilter")
+              }
+              onPress={() => setSheetOpen(true)}
+            />
+          </View>
         }
       />
       <ModeShiftFade>
@@ -391,12 +432,16 @@ export default function TransactionsScreen() {
               filtered
                 ? "Tidak ada transaksi yang cocok dengan saringan ini."
                 : role === "seller"
-                  ? "Transaksi Anda sebagai penjual akan muncul di sini."
-                  : "Transaksi Anda sebagai pembeli akan muncul di sini."
+                  ? // T1-004: beri tahu penjual cara MULAI menerima order.
+                    "Bagikan etalase Anda atau buat tautan pembayaran untuk mulai menerima order."
+                  : // T1-004: beri tahu pembeli cara memulai transaksi pertama.
+                    "Belum ada transaksi. Mulai dengan membeli dari etalase, atau minta tautan pembayaran ke penjual."
             }
             // Jalan keluar satu ketukan: empty state yang hanya menyuruh
             // "ubah filter" membiarkan pengguna mencari sendiri chip mana yang
             // tadi ditekan. Tombol ini me-reset kedua sumbu sekaligus.
+            // T1-004: empty state non-filter mendapat tombol aksi primer —
+            // user baru tahu cara memulai transaksi pertama.
             action={
               filtered ? (
                 <Button
@@ -409,7 +454,23 @@ export default function TransactionsScreen() {
                 >
                   Hapus filter
                 </Button>
-              ) : undefined
+              ) : role === "seller" ? (
+                <Button
+                  size="sm"
+                  fullWidth={false}
+                  onPress={() => router.push(ROUTES.createTransaction)}
+                >
+                  Buat tautan pembayaran
+                </Button>
+              ) : (
+                <Button
+                  size="sm"
+                  fullWidth={false}
+                  onPress={() => router.push(ROUTES.showcase)}
+                >
+                  Lihat etalase
+                </Button>
+              )
             }
           />
         }

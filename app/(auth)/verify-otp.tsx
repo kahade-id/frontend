@@ -66,6 +66,7 @@ import { Screen } from "@/components/ui/screen"
 import { Text } from "@/components/ui/text"
 import { TextLink } from "@/components/ui/text-link"
 import { api, isApiError, userMessage } from "@/lib/api"
+import { otpStepProgress } from "@/lib/auth-progress"
 import { formatPhoneId } from "@/lib/format"
 import { haptic } from "@/lib/haptics"
 import { getAuthLocation } from "@/lib/location"
@@ -77,8 +78,6 @@ import { ROUTES } from "@/lib/routes"
 import { useLeaveConfirm } from "@/lib/use-leave-confirm"
 import { Dialog } from "@/components/ui/modal"
 
-/** Progress: registrasi via HP = 4 langkah, ini langkah ke-2 */
-const STEP_PROGRESS = 2 / 4
 /** Cooldown default kirim ulang (detik) */
 const DEFAULT_COOLDOWN = 60
 
@@ -228,19 +227,20 @@ export default function VerifyOtpScreen() {
               err.code === "UNAUTHORIZED") &&
             mentionsCode
           ) {
+            // T4-002: jangan tampilkan err.message mentah (bisa Inggris) —
+            // kode salah/kedaluwarsa selalu mendapat arahan Indonesia yang
+            // menunjuk ke "Minta kode baru".
             setOtpError(
-              err.message || "Kode tidak valid. Periksa kembali dan coba lagi.",
+              "Kode salah atau sudah kedaluwarsa. Minta kode baru, lalu kirim pesan lagi ke WhatsApp resmi Kahade.",
             )
             return
           }
 
-          // Rate limited → alert khusus
+          // Rate limited → alert khusus (fail-closed Indonesia via userMessage)
           if (err.code === "RATE_LIMITED") {
             setFormError({
               kind: "generic",
-              message:
-                err.message ||
-                "Terlalu banyak percobaan. Tunggu beberapa saat lalu coba lagi.",
+              message: userMessage(err),
             })
             return
           }
@@ -342,7 +342,8 @@ export default function VerifyOtpScreen() {
     // SEC-404: proteksi screen-capture iOS di layar OTP.
     <ScreenCaptureGuard>
       <Screen padded={false} edges={["top"]}>
-      <Header title="Verifikasi OTP" progress={STEP_PROGRESS} safeArea={false} />
+      {/* T1-002: progress per purpose — register 2/4, forgot_password 2/3, login/migrasi disembunyikan */}
+      <Header title="Verifikasi OTP" progress={otpStepProgress(purpose)} safeArea={false} />
 
       <KeyboardAvoiding offset={insets.top + HEADER_BAR_HEIGHT}>
         <ScrollView

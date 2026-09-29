@@ -125,3 +125,29 @@ export async function getSocialIdToken(
 export function isAppleButtonSupported(): boolean {
   return Platform.OS === "ios" || Platform.OS === "web"
 }
+
+/**
+ * Klasifikasi error login sosial untuk copy yang jujur (UI-UX T4-011).
+ *
+ *  - "cancelled" → user sengaja membatalkan → DIAM (tanpa error).
+ *  - "network"   → "Periksa koneksi internet lalu coba lagi."
+ *  - "other"     → "Coba lagi, atau masuk dengan nomor HP." (jangan tuduh
+ *                    koneksi bila masalahnya bukan jaringan; jangan tampilkan
+ *                    pesan mentah SDK yang bisa berbahasa Inggris).
+ *
+ * Pesan mentah TIDAK pernah keluar dari sini — hanya klasifikasi; copy
+ * Bahasa Indonesia disusun pemanggil.
+ */
+export type SocialErrorKind = "cancelled" | "network" | "other"
+
+export function classifySocialError(err: unknown): SocialErrorKind {
+  if (err instanceof SocialCancelledError) return "cancelled"
+  // ApiError dari api.social.* — kode jaringan/timeout terstandar.
+  const code = (err as { code?: unknown } | null)?.code
+  if (code === "NETWORK" || code === "TIMEOUT") return "network"
+  // Error polos SDK/native (expo-auth-session, fetch): heuristik konservatif
+  // pada teksnya. Tidak cocok → "other" (fail-closed, bukan network).
+  const msg = err instanceof Error ? err.message : String(err ?? "")
+  if (/network|timeout|econn|socket|offline|fetch failed/i.test(msg)) return "network"
+  return "other"
+}

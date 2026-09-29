@@ -123,15 +123,19 @@ export default function VerifyTwoFactorScreen() {
     } catch (err) {
       haptic("error")
       if (isApiError(err)) {
-        const msg = err.message || ""
+        // T4-001: JANGAN tampilkan err.message mentah (bisa Inggris — mis.
+        // pesan class-validator backend). `raw` hanya dipakai untuk
+        // KLASIFIKASI (kedaluwarsa tempToken vs kode salah), tidak pernah
+        // dirender; yang tampil selalu copy Indonesia tetap / userMessage.
+        const raw = err.message || ""
         // tempToken kedaluwarsa/tidak valid → harus login ulang
-        if (err.code === "UNAUTHORIZED" && /token|sesi|session|expired|kedaluwarsa/i.test(msg)) {
+        if (err.code === "UNAUTHORIZED" && /token|sesi|session|expired|kedaluwarsa/i.test(raw)) {
           setTokenExpired(true)
           setFormError("Sesi verifikasi sudah kedaluwarsa. Silakan masuk kembali.")
           return
         }
         if (err.code === "UNAUTHORIZED" || err.code === "BAD_REQUEST" || err.code === "VALIDATION") {
-          setFieldError(msg || "Kode tidak valid. Periksa kembali dan coba lagi.")
+          setFieldError("Kode tidak valid. Periksa kembali 6 digit kode lalu coba lagi.")
           if (mode === "totp") {
             setTotp("")
             otpRef.current?.focus()
@@ -139,7 +143,7 @@ export default function VerifyTwoFactorScreen() {
           return
         }
         if (err.code === "RATE_LIMITED") {
-          setFormError(msg || "Terlalu banyak percobaan. Tunggu beberapa saat lalu coba lagi.")
+          setFormError(userMessage(err))
           return
         }
       }
