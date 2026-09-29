@@ -35,6 +35,7 @@ import { formatDateLong, formatRupiah } from "@/lib/format"
 import { ROUTES } from "@/lib/routes"
 import { shareContent } from "@/lib/share"
 import { useToast } from "@/components/ui/toast"
+import { useWalletEnabled } from "@/lib/use-wallet-enabled"
 
 import { Badge } from "@/components/ui/badge"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
@@ -83,6 +84,8 @@ function ParticipantRow({ p, perPerson }: { p: PatunganParticipant; perPerson: n
 export default function PatunganDetailScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>()
   const toast = useToast()
+  // Mode Tanpa Wallet Internal: pencairan patungan ke rekening bank host.
+  const walletEnabled = useWalletEnabled()
   const hasSession = useHasSession()
   const [group, setGroup] = useState<PatunganGroup | null>(null)
   const [loading, setLoading] = useState(true)
@@ -460,7 +463,11 @@ export default function PatunganDetailScreen() {
             />
           )}
           <Text variant="caption" tone="secondary">
-            {translate("Setelah ikut, bayar via escrow lalu tautkan pesanan Anda. Target tercapai → cair ke host; gagal → pengembalian dana otomatis.")}
+            {translate(
+              walletEnabled
+                ? "Setelah ikut, bayar via escrow lalu tautkan pesanan Anda. Target tercapai → cair ke host; gagal → pengembalian dana otomatis."
+                : "Setelah ikut, bayar lalu tautkan pesanan Anda. Target tercapai → cair ke rekening host; gagal → pengembalian dana otomatis.",
+            )}
           </Text>
           {joinError ? (
             <Text variant="caption" tone="danger">
