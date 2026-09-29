@@ -158,6 +158,7 @@ function SearchItemSeparator() {
 type SearchResultRowProps = {
   item: ResultRow
   showSection: boolean
+  showSectionLabel: boolean
   sectionLabel: string
   sectionCount: number
   keyword: string
@@ -173,6 +174,7 @@ type SearchResultRowProps = {
 const SearchResultRow = memo(function SearchResultRow({
   item,
   showSection,
+  showSectionLabel,
   sectionLabel,
   sectionCount,
   keyword,
@@ -227,17 +229,27 @@ const SearchResultRow = memo(function SearchResultRow({
   return (
     <View className="gap-2">
       {showSection ? (
-        // Judul kelompok + jumlah: dalam daftar campur, nama jenis saja
-        // tidak memberi tahu seberapa banyak yang menunggu di bawahnya
-        // tanpa menggulir.
-        <View className="flex-row items-baseline justify-between gap-3 pt-1">
-          <Text variant="label" tone="secondary">
-            {sectionLabel}
-          </Text>
-          <Text variant="caption" tone="tertiary">
-            {formatNumber(sectionCount)}
-          </Text>
-        </View>
+        // FE-086 (audit 2026-09-29): bila satu cakupan aktif, judul section
+        // menduplikasi chip cakupan — sisakan angka jumlahnya saja.
+        showSectionLabel ? (
+          // Judul kelompok + jumlah: dalam daftar campur, nama jenis saja
+          // tidak memberi tahu seberapa banyak yang menunggu di bawahnya
+          // tanpa menggulir.
+          <View className="flex-row items-baseline justify-between gap-3 pt-1">
+            <Text variant="label" tone="secondary">
+              {sectionLabel}
+            </Text>
+            <Text variant="caption" tone="tertiary">
+              {formatNumber(sectionCount)}
+            </Text>
+          </View>
+        ) : (
+          <View className="flex-row justify-end pt-1">
+            <Text variant="caption" tone="tertiary">
+              {formatNumber(sectionCount)}
+            </Text>
+          </View>
+        )
       ) : null}
       {body}
     </View>
@@ -721,6 +733,9 @@ export default function SearchScreen() {
         <SearchResultRow
           item={item}
           showSection={showSection}
+          // FE-086 (audit 2026-09-29): judul section hanya saat daftar campur
+          // ("all"); bila satu cakupan aktif, judul menduplikasi chip cakupan.
+          showSectionLabel={scope === "all"}
           sectionLabel={sectionTitle[item.kind]}
           sectionCount={counts[item.kind]}
           keyword={keyword}
@@ -728,7 +743,7 @@ export default function SearchScreen() {
         />
       )
     },
-    [rows, sectionTitle, counts, keyword, openUserProfile],
+    [rows, scope, sectionTitle, counts, keyword, openUserProfile],
   )
   const searchContentStyle = useMemo(
     () => ({
@@ -838,13 +853,8 @@ export default function SearchScreen() {
               ) : null}
             </View>
           ) : null}
-          {/* #12 (audit Discovery 2026-09-26): chip saran hanya hidup di
-              cakupan "Semua" — beri tahu alasannya agar tidak dikira bug. */}
-          {scope !== "all" ? (
-            <Text variant="caption" tone="tertiary">
-              {translate("Saran pencarian hanya tampil pada cakupan Semua.")}
-            </Text>
-          ) : null}
+          {/* FE-085: catatan aturan internal dihapus — user tidak perlu tahu
+              kenapa saran tidak muncul; saran ditampilkan apa adanya. */}
         </View>
       ) : history.length > 0 || trending.length > 0 ? (
         <View className="gap-2 pb-4 pt-1">

@@ -109,6 +109,7 @@ import { computeEscrowHolds, totalEscrowHeld } from "@/lib/wallet-escrow-holds"
 import { ESCROW_HELD_EXPLANATION } from "@/lib/labels/escrow"
 import { breakdownAddsUp } from "@/lib/wallet-batch139"
 import { formatDate, formatTime } from "@/lib/format"
+import { translate } from "@/lib/i18n"
 
 import { EmptyState } from "@/components/ui/empty-state"
 import { ScreenCaptureGuard } from "@/components/security/screen-capture-guard"
@@ -301,30 +302,27 @@ export default function WalletScreen() {
                * D02 (batch 139): stempel "Diperbarui …" + status sinkronisasi.
                * Diletakkan tepat di bawah kartu saldo — satu-satunya tempat
                * pengguna mempertanyakan kemutakhiran angka.
+               * FE-094: tiga mekanisme status (stempel + "Menyinkronkan…" +
+               * Alert panjang) digabung jadi SATU indikator kecil; alert
+               * gagal cukup "Gagal memuat saldo terbaru."
                */}
-              <View className="flex-row items-center justify-between px-1">
-                <Text variant="caption" tone="tertiary">
-                  {lastSyncedAt
-                    ? `Diperbarui ${formatTime(lastSyncedAt)}`
-                    : walletLoading
-                      ? "Memuat saldo…"
-                      : "Belum diperbarui"}
-                </Text>
-                {balance.refreshing ? (
-                  <Text variant="caption" tone="secondary">
-                    Menyinkronkan…
-                  </Text>
-                ) : null}
-              </View>
               {syncFailed ? (
-                <View className="-mt-4 px-1">
-                  <Alert tone="warning" title="Sinkronisasi gagal">
-                    Menampilkan saldo terakhir yang berhasil dimuat
-                    {lastSyncedAt ? ` (${formatTime(lastSyncedAt)})` : ""} — tarik
-                    untuk memuat ulang.
-                  </Alert>
+                <View className="px-1">
+                  <Alert tone="warning" title={translate("Gagal memuat saldo terbaru.")} />
                 </View>
-              ) : null}
+              ) : (
+                <View className="flex-row items-center px-1">
+                  <Text variant="caption" tone="tertiary">
+                    {balance.refreshing
+                      ? "Menyinkronkan…"
+                      : lastSyncedAt
+                        ? `Diperbarui ${formatTime(lastSyncedAt)}`
+                        : walletLoading
+                          ? "Memuat saldo…"
+                          : "Belum diperbarui"}
+                  </Text>
+                </View>
+              )}
 
               {/* Tiga CTA primer: Isi Saldo / Transfer / Tarik Dana. */}
               <WalletPrimaryActions />

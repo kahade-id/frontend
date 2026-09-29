@@ -199,7 +199,7 @@ export function FeeBreakdown({
         <KeyValue
           label={translate("Ongkir")}
           value={translate("Disepakati di luar aplikasi")}
-          hint={translate("Biaya kirim belum termasuk. Sepakati dengan penjual sebelum bayar.")}
+          hint={translate("Biaya kirim belum termasuk.")}
         />
       ) : null}
 

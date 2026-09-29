@@ -1070,11 +1070,14 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
     </View>
   ) : null
 
-  /** A-06: chip filter aktif di atas list (scroll ikut konten). */
+  /** A-06: chip filter aktif di atas list (scroll ikut konten).
+      FE-082: chip hanya berisi nilainya ("Elektronik") tanpa awalan
+      "Kategori:" — konteksnya sudah jelas dari ikon funnel + tombol
+      "Atur ulang". */
   const categoryChip = category ? (
     <View className="mt-3 flex-row items-center justify-between gap-2 rounded-full border border-border bg-surface py-1.5 pl-4 pr-1.5 mx-5">
       <Text variant="caption" tone="secondary" className="flex-1" numberOfLines={1}>
-        {translate("Kategori: {x}", { x: category })}
+        {category}
       </Text>
       <IconButton
         icon={X}
@@ -1086,11 +1089,12 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
     </View>
   ) : null
 
-  /** Chip `?location=` — pola sama dengan chip kategori (A-06/A-12). */
+  /** Chip `?location=` — pola sama dengan chip kategori (A-06/A-12).
+      FE-082: tanpa awalan "Lokasi:". */
   const locationChip = location ? (
     <View className="mt-3 flex-row items-center justify-between gap-2 rounded-full border border-border bg-surface py-1.5 pl-4 pr-1.5 mx-5">
       <Text variant="caption" tone="secondary" className="flex-1" numberOfLines={1}>
-        {translate("Lokasi: {x}", { x: location })}
+        {location}
       </Text>
       <IconButton
         icon={X}
@@ -1102,11 +1106,12 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
     </View>
   ) : null
 
-  /** A-06: chip `?search=` kini bisa dihapus, bukan mengunci feed selamanya. */
+  /** A-06: chip `?search=` kini bisa dihapus, bukan mengunci feed selamanya.
+      FE-082: tanpa awalan "Cari:" — cukup nilai pencariannya. */
   const searchChip = activeSearch ? (
     <View className="mt-3 flex-row items-center justify-between gap-2 rounded-full border border-border bg-surface py-1.5 pl-4 pr-1.5 mx-5">
       <Text variant="caption" tone="secondary" className="flex-1" numberOfLines={1}>
-        {translate('Cari: "{x}"', { x: activeSearch })}
+        {activeSearch}
       </Text>
       <IconButton
         icon={X}
@@ -1138,17 +1143,11 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
    * C15 (batch 139): aksi "Atur ulang" SELALU terlihat selama ada filter
    * aktif — satu ketuk menghapus search + kategori + lokasi + filter sheet.
    * (Chip individual di atas tetap ada untuk hapus satu per satu.)
+   * FE-082: teks "{x} filter aktif" dihapus — badge angka di ikon funnel
+   * sudah memberi tahu jumlahnya; baris ini tinggal tombol reset.
    */
   const resetAllChip = filtersActive ? (
-    <View className="mt-3 flex-row items-center justify-between gap-2 rounded-full border border-border bg-surface py-1.5 pl-4 pr-1.5 mx-5">
-      <Text variant="caption" weight={600} className="flex-1" numberOfLines={1}>
-        {translate("{x} filter aktif", { x: countActiveFeedFilters({
-          search: activeSearch,
-          category,
-          location,
-          sheet: sheetFilters,
-        }) })}
-      </Text>
+    <View className="mt-3 flex-row items-center justify-end gap-2 rounded-full border border-border bg-surface py-1.5 pl-4 pr-1.5 mx-5">
       <Button
         variant="ghost"
         size="sm"

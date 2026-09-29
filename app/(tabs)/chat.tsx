@@ -293,8 +293,10 @@ function SelfChatEntry({ onOpen }: { onOpen: () => void }) {
         <Text variant="body" weight={600} tone="primary" numberOfLines={1}>
           Pesan untuk diri sendiri
         </Text>
+        {/* FE-087: "Catatan, pengingat, dan draf untuk Anda" = tiga sinonim
+            untuk satu fungsi — cukup "Catatan untuk Anda". */}
         <Text variant="caption" tone="secondary" numberOfLines={1}>
-          Catatan, pengingat, dan draf untuk Anda
+          {translate("Catatan untuk Anda")}
         </Text>
       </View>
     </PressableScale>
@@ -995,30 +997,28 @@ export default function ChatScreen() {
     [],
   )
   const chatListEmpty = useMemo(
+    // FE-088: description yang mengulang judul dihapus — empty state =
+    // judul + CTA (§9 aturan 7).
     () =>
       archiveOpen ? (
         <EmptyState
           icon={Archive}
           title="Belum ada percakapan terarsip"
-          description="Percakapan yang Anda arsipkan akan tersimpan di sini."
         />
       ) : filter === "unread" ? (
         <EmptyState
           icon={Chats}
           title="Tidak ada yang belum dibaca"
-          description="Semua percakapan sudah Anda baca."
         />
       ) : filter === "transaction" ? (
         <EmptyState
           icon={Chats}
           title="Belum ada pesan transaksi"
-          description="Pesan dengan lawan transaksi Anda akan muncul di sini."
         />
       ) : (
         <EmptyState
           icon={Chats}
           title="Belum ada percakapan"
-          description="Mulai chat dengan lawan transaksi Anda."
           // UI-C004: empty state wajib punya jalan keluar yang bisa
           // diketuk — chat selalu bermula dari sebuah transaksi.
           action={

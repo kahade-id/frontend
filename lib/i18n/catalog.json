@@ -455,10 +455,6 @@
    "n": 6
   },
   {
-   "s": "Biaya admin {x}",
-   "n": 6
-  },
-  {
    "s": "Buat grup patungan",
    "n": 6
   },
@@ -675,14 +671,6 @@
    "n": 6
   },
   {
-   "s": "Perjalanan pesanan",
-   "n": 6
-  },
-  {
-   "s": "Pertanyaan Anda akan tampil di profil ini dan dijawab oleh pemiliknya.",
-   "n": 6
-  },
-  {
    "s": "Pertanyaan dihapus",
    "n": 6
   },
@@ -871,6 +859,10 @@
    "n": 5
   },
   {
+   "s": "Diperbarui {x}",
+   "n": 5
+  },
+  {
    "s": "Disukai",
    "n": 5
   },
@@ -979,10 +971,6 @@
    "n": 5
   },
   {
-   "s": "Notifikasi",
-   "n": 5
-  },
-  {
    "s": "Ongkir",
    "n": 5
   },
@@ -1012,10 +1000,6 @@
   },
   {
    "s": "Tanggal",
-   "n": 5
-  },
-  {
-   "s": "Tanpa biaya admin",
    "n": 5
   },
   {
@@ -1411,6 +1395,10 @@
    "n": 4
   },
   {
+   "s": "Notifikasi",
+   "n": 4
+  },
+  {
    "s": "Pakai kode referral saya {x} saat daftar di Kahade — transaksi aman dengan escrow.",
    "n": 4
   },
@@ -1556,6 +1544,10 @@
   },
   {
    "s": "Terlaris",
+   "n": 4
+  },
+  {
+   "s": "Toko Saya",
    "n": 4
   },
   {
@@ -1975,7 +1967,15 @@
    "n": 3
   },
   {
-   "s": "Biaya kirim belum termasuk. Sepakati dengan penjual sebelum bayar.",
+   "s": "Biaya admin",
+   "n": 3
+  },
+  {
+   "s": "Biaya admin {x}",
+   "n": 3
+  },
+  {
+   "s": "Biaya kirim belum termasuk.",
    "n": 3
   },
   {
@@ -2259,10 +2259,6 @@
    "n": 3
   },
   {
-   "s": "Diperbarui {x}",
-   "n": 3
-  },
-  {
    "s": "Disembunyikan dari profil publik",
    "n": 3
   },
@@ -2363,10 +2359,6 @@
    "n": 3
   },
   {
-   "s": "Filter hanya berlaku pada {n} mutasi yang sudah dimuat. Coba longgarkan filter atau muat lebih banyak mutasi.",
-   "n": 3
-  },
-  {
    "s": "Filter kategori {x}",
    "n": 3
   },
@@ -2443,6 +2435,10 @@
    "n": 3
   },
   {
+   "s": "Gagal memuat saldo terbaru.",
+   "n": 3
+  },
+  {
    "s": "Gagal mencari",
    "n": 3
   },
@@ -2476,6 +2472,10 @@
   },
   {
    "s": "Garis bawah",
+   "n": 3
+  },
+  {
+   "s": "Gratis",
    "n": 3
   },
   {
@@ -2999,11 +2999,7 @@
    "n": 3
   },
   {
-   "s": "Komentar tidak lagi tampil untuk pengguna lain. Tindakan dapat dibatalkan lewat moderasi.",
-   "n": 3
-  },
-  {
-   "s": "Komentar tidak lagi terlihat publik, tetapi tetap bisa Anda tampilkan kembali.",
+   "s": "Komentar tidak lagi tampil untuk pengguna lain.",
    "n": 3
   },
   {
@@ -3591,6 +3587,10 @@
    "n": 3
   },
   {
+   "s": "Perjalanan pesanan",
+   "n": 3
+  },
+  {
    "s": "Perkecil atau perbesar semua teks di aplikasi.",
    "n": 3
   },
@@ -3604,6 +3604,10 @@
   },
   {
    "s": "Pertanyaan Anda akan dihapus dari profil pengguna tersebut.",
+   "n": 3
+  },
+  {
+   "s": "Pertanyaan Anda akan tampil di profil ini dan dijawab oleh pemiliknya.",
    "n": 3
   },
   {
@@ -3716,10 +3720,6 @@
   },
   {
    "s": "Pindahkan media ini ke posisi pertama sebagai sampul karya",
-   "n": 3
-  },
-  {
-   "s": "Pindai kode ini untuk membuka profil @{x}.",
    "n": 3
   },
   {
@@ -4479,15 +4479,11 @@
    "n": 2
   },
   {
-   "s": "{x} ditahan sebagai jaminan transaksi. Ketuk untuk melihat rincian pesanan penahan.",
+   "s": "{x} ditahan di escrow. Ketuk untuk melihat rincian pesanan penahan.",
    "n": 2
   },
   {
    "s": "{x} file bukti tidak dapat dimuat server. Periksa dengan penjual sebelum mengonfirmasi.",
-   "n": 2
-  },
-  {
-   "s": "{x} filter aktif",
    "n": 2
   },
   {
@@ -4575,6 +4571,10 @@
    "n": 2
   },
   {
+   "s": "Ajukan sengketa sebelum itu bila ada masalah.",
+   "n": 2
+  },
+  {
    "s": "Ajukan ulang",
    "n": 2
   },
@@ -4652,10 +4652,6 @@
   },
   {
    "s": "Anda bukan anggota percakapan ini.",
-   "n": 2
-  },
-  {
-   "s": "Anda masih bisa memeriksa barang & mengajukan sengketa sampai {x}.",
    "n": 2
   },
   {
@@ -4764,10 +4760,6 @@
   },
   {
    "s": "Batas highlight tercapai",
-   "n": 2
-  },
-  {
-   "s": "Batas ini berhenti bila Anda membuka sengketa.",
    "n": 2
   },
   {
@@ -4948,10 +4940,6 @@
   },
   {
    "s": "Biasanya sekitar {x} jam",
-   "n": 2
-  },
-  {
-   "s": "Biaya admin",
    "n": 2
   },
   {
@@ -5191,15 +5179,15 @@
    "n": 2
   },
   {
-   "s": "Cari: \"{x}\"",
-   "n": 2
-  },
-  {
    "s": "Cashback",
    "n": 2
   },
   {
    "s": "Catatan penjual",
+   "n": 2
+  },
+  {
+   "s": "Catatan untuk Anda",
    "n": 2
   },
   {
@@ -5255,15 +5243,15 @@
    "n": 2
   },
   {
-   "s": "Dana akan cair otomatis dalam {x}.",
-   "n": 2
-  },
-  {
    "s": "Dana akan segera diteruskan ke penjual.",
    "n": 2
   },
   {
    "s": "Dana cair ke penjual",
+   "n": 2
+  },
+  {
+   "s": "Dana cair otomatis {x}.",
    "n": 2
   },
   {
@@ -5335,15 +5323,15 @@
    "n": 2
   },
   {
+   "s": "Dihitung server",
+   "n": 2
+  },
+  {
    "s": "Dikembalikan",
    "n": 2
   },
   {
    "s": "Dikirim penjual",
-   "n": 2
-  },
-  {
-   "s": "Diperbarui {x} (waktu perangkat)",
    "n": 2
   },
   {
@@ -5412,6 +5400,14 @@
   },
   {
    "s": "Estimasi",
+   "n": 2
+  },
+  {
+   "s": "Estimasi — total final mengikuti tagihan channel",
+   "n": 2
+  },
+  {
+   "s": "Estimasi sampai: maks. {x} hari kerja.",
    "n": 2
   },
   {
@@ -5739,10 +5735,6 @@
    "n": 2
   },
   {
-   "s": "Gratis",
-   "n": 2
-  },
-  {
    "s": "Grup patungan dibuat",
    "n": 2
   },
@@ -5963,10 +5955,6 @@
    "n": 2
   },
   {
-   "s": "Jika tidak ada konfirmasi atau sengketa sebelum {x}, dana otomatis diteruskan ke penjual.",
-   "n": 2
-  },
-  {
    "s": "Judul minimal {x} karakter.",
    "n": 2
   },
@@ -6088,10 +6076,6 @@
   },
   {
    "s": "Kategori:",
-   "n": 2
-  },
-  {
-   "s": "Kategori: {x}",
    "n": 2
   },
   {
@@ -6511,10 +6495,6 @@
    "n": 2
   },
   {
-   "s": "Lokasi: {x}",
-   "n": 2
-  },
-  {
    "s": "Lompat ke {x}",
    "n": 2
   },
@@ -6679,11 +6659,11 @@
    "n": 2
   },
   {
-   "s": "Menampilkan {x} sebagai teks",
+   "s": "Menampilkan {x} hari terakhir · filter berlaku untuk data yang dimuat.",
    "n": 2
   },
   {
-   "s": "Menampilkan daftar pesanan yang menahan dana",
+   "s": "Menampilkan {x} sebagai teks",
    "n": 2
   },
   {
@@ -6692,6 +6672,10 @@
   },
   {
    "s": "Menampilkan data terakhir.",
+   "n": 2
+  },
+  {
+   "s": "Menampilkan rincian dana yang ditahan di escrow",
    "n": 2
   },
   {
@@ -6712,6 +6696,10 @@
   },
   {
    "s": "Menghitung biaya",
+   "n": 2
+  },
+  {
+   "s": "Menghitung…",
    "n": 2
   },
   {
@@ -6903,10 +6891,6 @@
    "n": 2
   },
   {
-   "s": "Notifikasi yang dipilih akan dihapus dari daftar.",
-   "n": 2
-  },
-  {
    "s": "Nyalakan kamera",
    "n": 2
   },
@@ -7052,10 +7036,6 @@
   },
   {
    "s": "Penjual melewati batas kirim — dana TIDAK akan cair otomatis sampai masalah ini selesai.",
-   "n": 2
-  },
-  {
-   "s": "Penjual punya waktu {x} hari untuk mengirim. Lewat dari itu, dana kembali otomatis.",
    "n": 2
   },
   {
@@ -7447,10 +7427,6 @@
    "n": 2
   },
   {
-   "s": "Saran pencarian hanya tampil pada cakupan Semua.",
-   "n": 2
-  },
-  {
    "s": "Satu karya dapat memuat paling banyak {x} foto.",
    "n": 2
   },
@@ -7540,10 +7516,6 @@
   },
   {
    "s": "Semua notifikasi pada kategori ini sudah Anda baca.",
-   "n": 2
-  },
-  {
-   "s": "Semua notifikasi yang sudah dibaca akan dihapus dari daftar.",
    "n": 2
   },
   {
@@ -7847,6 +7819,10 @@
    "n": 2
   },
   {
+   "s": "Tanpa biaya admin",
+   "n": 2
+  },
+  {
    "s": "tanpa nama",
    "n": 2
   },
@@ -7984,6 +7960,10 @@
   },
   {
    "s": "Terjemahkan",
+   "n": 2
+  },
+  {
+   "s": "Terkirim bersama tiket ini:",
    "n": 2
   },
   {
@@ -8367,10 +8347,6 @@
    "n": 1
   },
   {
-   "s": "— tarik untuk memuat ulang.",
-   "n": 1
-  },
-  {
    "s": "— tersisa",
    "n": 1
   },
@@ -8492,10 +8468,6 @@
   },
   {
    "s": "(sisa pembulatan ke pembeli)",
-   "n": 1
-  },
-  {
-   "s": "(termasuk biaya admin {x})",
    "n": 1
   },
   {
@@ -11871,6 +11843,10 @@
    "n": 1
   },
   {
+   "s": "Buka booking jasa",
+   "n": 1
+  },
+  {
    "s": "Buka daftar isi",
    "n": 1
   },
@@ -11903,6 +11879,14 @@
    "n": 1
   },
   {
+   "s": "Buka jastip saya",
+   "n": 1
+  },
+  {
+   "s": "Buka katalog produk",
+   "n": 1
+  },
+  {
    "s": "Buka kembali tiket",
    "n": 1
   },
@@ -11912,6 +11896,14 @@
   },
   {
    "s": "Buka laporan dan analitik",
+   "n": 1
+  },
+  {
+   "s": "Buka menu toko saya",
+   "n": 1
+  },
+  {
+   "s": "Buka patungan",
    "n": 1
   },
   {
@@ -11927,7 +11919,15 @@
    "n": 1
   },
   {
+   "s": "Buka produk saya",
+   "n": 1
+  },
+  {
    "s": "Buka profil lawan bicara",
+   "n": 1
+  },
+  {
+   "s": "Buka retur saya",
    "n": 1
   },
   {
@@ -11956,6 +11956,10 @@
   },
   {
    "s": "Buka umpan balik",
+   "n": 1
+  },
+  {
+   "s": "Buka voucher toko",
    "n": 1
   },
   {
@@ -12287,10 +12291,6 @@
    "n": 1
   },
   {
-   "s": "Catatan, pengingat, dan draf untuk Anda",
-   "n": 1
-  },
-  {
    "s": "Catatan: aplikasi hanya menyembunyikan isi secara visual — pesan tetap tersimpan di server sesuai kebijakan backend.",
    "n": 1
   },
@@ -12495,11 +12495,11 @@
    "n": 1
   },
   {
-   "s": "Dana akan ditahan setelah Anda membayar. {x} menahan dana dengan aman sampai Anda mengonfirmasi penerimaan.",
+   "s": "Dana akan ditahan di escrow setelah Anda membayar, sampai Anda mengonfirmasi penerimaan.",
    "n": 1
   },
   {
-   "s": "Dana akan ditahan setelah pembeli membayar. Anda dapat memproses order setelah pembayaran masuk ke escrow {x}.",
+   "s": "Dana akan ditahan di escrow setelah pembeli membayar — Anda dapat memproses order setelah pembayaran masuk.",
    "n": 1
   },
   {
@@ -12516,6 +12516,14 @@
   },
   {
    "s": "Dana Aman",
+   "n": 1
+  },
+  {
+   "s": "Dana Anda ditahan di escrow oleh {x} — hanya diteruskan ke penjual setelah Anda mengonfirmasi penerimaan, atau otomatis setelah tenggat tanpa sengketa.",
+   "n": 1
+  },
+  {
+   "s": "Dana Anda ditahan di escrow oleh {x} sampai Anda mengonfirmasi penerimaan — cair otomatis setelah tenggat tanpa sengketa, atau kembali otomatis bila penjual tidak kirim dalam {x} hari.",
    "n": 1
   },
   {
@@ -12636,10 +12644,6 @@
   },
   {
    "s": "Dana sudah sampai di rekening",
-   "n": 1
-  },
-  {
-   "s": "Dana terkunci untuk order yang masih berjalan. Cair otomatis saat order selesai atau dibatalkan.",
    "n": 1
   },
   {
@@ -12819,10 +12823,6 @@
    "n": 1
   },
   {
-   "s": "Data yang akan ikut terkirim:",
-   "n": 1
-  },
-  {
    "s": "Data yang Anda masukkan, unggah, sampaikan, pilih, atau konfirmasi ketika mendaftar, bertransaksi, melakukan KYC, mengelola profil, menghubungi CS, atau menggunakan fitur.",
    "n": 1
   },
@@ -12872,10 +12872,6 @@
   },
   {
    "s": "Dengan membuat akun, mengakses fitur yang memerlukan persetujuan, atau melanjutkan transaksi setelah memperoleh kesempatan yang wajar untuk membaca dokumen ini, Pengguna menyatakan telah membaca dan memahami ketentuan yang relevan. Persetujuan tidak menghapus hak yang tidak dapat dikesampingkan berdasarkan hukum Indonesia.",
-   "n": 1
-  },
-  {
-   "s": "Dengan mengirim, Anda setuju masukan ini (beserta kontak di atas, bila diisi) disimpan sementara di perangkat ini maksimal {x} hari saat offline, lalu dikirim otomatis dan dihapus. Antrean lokal juga dibersihkan saat Anda keluar dari akun.",
    "n": 1
   },
   {
@@ -13159,11 +13155,11 @@
    "n": 1
   },
   {
-   "s": "Ditahan di escrow",
+   "s": "ditahan di escrow",
    "n": 1
   },
   {
-   "s": "ditahan sebagai jaminan transaksi",
+   "s": "Ditahan di escrow",
    "n": 1
   },
   {
@@ -13428,10 +13424,6 @@
   },
   {
    "s": "Estimasi dan kuitansi biaya perbaikan yang wajar.",
-   "n": 1
-  },
-  {
-   "s": "Estimasi dana sampai: umumnya beberapa menit hingga {x} hari kerja, tergantung jam operasional bank.",
    "n": 1
   },
   {
@@ -16439,6 +16431,10 @@
    "n": 1
   },
   {
+   "s": "Masukan offline tersimpan di perangkat maks. {x} hari.",
+   "n": 1
+  },
+  {
    "s": "Masukan tersimpan",
    "n": 1
   },
@@ -16831,11 +16827,7 @@
    "n": 1
   },
   {
-   "s": "Menampilkan penjelasan saldo tersedia, ditahan sebagai jaminan transaksi, dan total",
-   "n": 1
-  },
-  {
-   "s": "Menampilkan saldo terakhir yang berhasil dimuat",
+   "s": "Menampilkan penjelasan saldo tersedia, ditahan di escrow, dan total",
    "n": 1
   },
   {
@@ -16923,19 +16915,11 @@
    "n": 1
   },
   {
-   "s": "Menghitung biaya admin…",
-   "n": 1
-  },
-  {
    "s": "Menghitung biaya layanan…",
    "n": 1
   },
   {
    "s": "Menghitung biaya…",
-   "n": 1
-  },
-  {
-   "s": "Menghitung total…",
    "n": 1
   },
   {
@@ -17272,10 +17256,6 @@
   },
   {
    "s": "Mulai {x}",
-   "n": 1
-  },
-  {
-   "s": "Mulai chat dengan lawan transaksi Anda.",
    "n": 1
   },
   {
@@ -18223,6 +18203,10 @@
    "n": 1
   },
   {
+   "s": "Penjual punya waktu {x} hari untuk mengirim. Lewat dari itu, dana kembali otomatis.",
+   "n": 1
+  },
+  {
    "s": "Penjual sedang mengerjakan pesanan",
    "n": 1
   },
@@ -18460,10 +18444,6 @@
   },
   {
    "s": "Percakapan tidak tersedia",
-   "n": 1
-  },
-  {
-   "s": "Percakapan yang Anda arsipkan akan tersimpan di sini.",
    "n": 1
   },
   {
@@ -18771,10 +18751,6 @@
    "n": 1
   },
   {
-   "s": "Pesan dengan lawan transaksi Anda akan muncul di sini.",
-   "n": 1
-  },
-  {
    "s": "Pesan diarsipkan",
    "n": 1
   },
@@ -18896,10 +18872,6 @@
   },
   {
    "s": "Pesanan tidak ditemukan",
-   "n": 1
-  },
-  {
-   "s": "Pesanan yang masih menahan dana Anda. Dana cair otomatis saat pesanan selesai atau dibatalkan.",
    "n": 1
   },
   {
@@ -19075,10 +19047,6 @@
    "n": 1
   },
   {
-   "s": "Pilihan untuk versi artikel ini sudah final.",
-   "n": 1
-  },
-  {
    "s": "Pin",
    "n": 1
   },
@@ -19148,10 +19116,6 @@
   },
   {
    "s": "Potongan voucher",
-   "n": 1
-  },
-  {
-   "s": "Pratinjau teks terkirim:",
    "n": 1
   },
   {
@@ -19807,7 +19771,7 @@
    "n": 1
   },
   {
-   "s": "Selama sengketa berjalan, dana escrow dibekukan oleh {x} dan hanya dilepas sesuai hasil penyelesaian. Tidak ada pihak yang bisa menariknya sepihak.",
+   "s": "Selama sengketa, dana dibekukan oleh {x} dan hanya dilepas sesuai hasil penyelesaian.",
    "n": 1
   },
   {
@@ -19915,10 +19879,6 @@
    "n": 1
   },
   {
-   "s": "Semua percakapan sudah Anda baca.",
-   "n": 1
-  },
-  {
    "s": "Semua rating",
    "n": 1
   },
@@ -20000,10 +19960,6 @@
   },
   {
    "s": "Server melaporkan status lain — periksa tautan.",
-   "n": 1
-  },
-  {
-   "s": "Server membatasi riwayat {x} hari terakhir. Unduh CSV untuk rentang lengkap yang disediakan server.",
    "n": 1
   },
   {
@@ -20192,10 +20148,6 @@
   },
   {
    "s": "Simulasi nominal",
-   "n": 1
-  },
-  {
-   "s": "Sinkronisasi gagal",
    "n": 1
   },
   {
@@ -20947,14 +20899,6 @@
    "n": 1
   },
   {
-   "s": "Termasuk biaya admin (dihitung server)",
-   "n": 1
-  },
-  {
-   "s": "Termasuk biaya admin (estimasi — total final mengikuti tagihan channel)",
-   "n": 1
-  },
-  {
    "s": "Terpilih",
    "n": 1
   },
@@ -21095,11 +21039,11 @@
    "n": 1
   },
   {
-   "s": "Tidak ditemukan kode QR pada gambar tersebut.",
+   "s": "Tidak ditemukan dana yang ditahan di escrow pada {x} mutasi terakhir.",
    "n": 1
   },
   {
-   "s": "Tidak ditemukan pesanan yang masih menahan dana pada {x} mutasi terakhir.",
+   "s": "Tidak ditemukan kode QR pada gambar tersebut.",
    "n": 1
   },
   {
@@ -21239,10 +21183,6 @@
    "n": 1
   },
   {
-   "s": "Toko & Pesanan",
-   "n": 1
-  },
-  {
    "s": "Toko aplikasi tidak dapat dibuka. Periksa koneksi, lalu coba kembali.",
    "n": 1
   },
@@ -21319,7 +21259,7 @@
    "n": 1
   },
   {
-   "s": "Total yang dibayar {x}",
+   "s": "Total yang dibayar",
    "n": 1
   },
   {
@@ -21484,18 +21424,6 @@
   },
   {
    "s": "Uang aman di penampungan",
-   "n": 1
-  },
-  {
-   "s": "Uang Anda ditahan dengan aman oleh {x}. Dana hanya diteruskan ke penjual setelah Anda mengonfirmasi penerimaan barang/jasa — atau otomatis setelah tenggat tanpa sengketa.",
-   "n": 1
-  },
-  {
-   "s": "Uang Anda ditahan dengan aman oleh {x}. Dana hanya diteruskan ke penjual setelah Anda mengonfirmasi penerimaan barang/jasa — atau otomatis setelah tenggat tanpa sengketa. {deadline}",
-   "n": 1
-  },
-  {
-   "s": "Uang jaminan untuk pesanan yang belum selesai — cair otomatis kalau pesanan selesai atau batal.",
    "n": 1
   },
   {
@@ -22112,10 +22040,6 @@
   },
   {
    "s": "Yakin sudah menyimpan kode cadangan?",
-   "n": 1
-  },
-  {
-   "s": "yang bisa dipakai sekarang",
    "n": 1
   },
   {

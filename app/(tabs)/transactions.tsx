@@ -122,30 +122,23 @@ const STATUS_CHIPS: ReadonlyArray<{ label: string; value: string }> = [
 ]
 
 /**
- * Kepala kelompok hari: label hari (600) + tanggal pendek + jumlah order.
- * Dipisah sebagai komponen supaya `renderItem` PaginatedList tetap ramping.
+ * Kepala kelompok hari: label hari (600) + jumlah order.
+ * FE-089: sub tanggal pendek dihapus (redundan) — lihat
+ * lib/transaction-grouping.ts. Dipisah sebagai komponen supaya `renderItem`
+ * PaginatedList tetap ramping.
  */
 function TransactionDayHeader({
   label,
-  sub,
   count,
 }: {
   label: string
-  sub: string | null
   count: number
 }) {
   return (
     <View className="flex-row items-baseline justify-between gap-3 px-1">
-      <View className="min-w-0 flex-1 flex-row items-baseline gap-2">
-        <Text variant="body" weight={600} tone="primary" numberOfLines={1}>
-          {label}
-        </Text>
-        {sub ? (
-          <Text variant="caption" tone="secondary" numberOfLines={1}>
-            {sub}
-          </Text>
-        ) : null}
-      </View>
+      <Text variant="body" weight={600} tone="primary" numberOfLines={1} className="min-w-0 flex-1">
+        {label}
+      </Text>
       <Text variant="caption" tone="tertiary" className="shrink-0 tabular-nums">
         {translate("{n} transaksi", { n: formatNumber(count) })}
       </Text>
@@ -384,7 +377,7 @@ export default function TransactionsScreen() {
   const renderGroup = useCallback(
     ({ item: group }: { item: OrderDayGroup<Order> }) => (
       <View className="gap-3">
-        <TransactionDayHeader label={group.label} sub={group.sub} count={group.count} />
+        <TransactionDayHeader label={group.label} count={group.count} />
         {group.orders.map((order) => (
           <TransactionOrderCard key={order.id} order={order} onDeadline={scheduleRefresh} />
         ))}
