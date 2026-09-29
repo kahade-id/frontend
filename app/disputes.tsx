@@ -18,6 +18,7 @@ import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 import { useApiQuery } from "@/lib/use-api-query"
 import { usePaginatedQuery } from "@/lib/use-paginated-query"
+import { prefetchDisputeDetail } from "@/lib/entity-detail-prefetch"
 
 import { DisputeCard } from "@/components/ui/dispute-card"
 import { EmptyState } from "@/components/ui/empty-state"
@@ -92,6 +93,9 @@ export default function DisputesScreen() {
               awaitingYou={myRole != null && myClaimedAt == null}
               updatedAt={formatDateTime(item.updatedAt ?? item.createdAt)}
               href={ROUTES.disputeDetail(item.id)}
+              // PERF-FIX (P1 nav): prefetch detail saat niat buka terdeteksi
+              // (press-in) — halaman detail memakai hasil ini bila masih segar.
+              onPressIn={() => prefetchDisputeDetail(item.id)}
             />
           )
         }}

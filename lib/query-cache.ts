@@ -77,20 +77,38 @@ export const CACHE_REVALIDATE_AFTER_MS = 2_000
  * memang yang paling tidak mungkin masih dipakai (TTL-nya cuma 5 detik).
  */
 export const QUERY_CACHE_MAX = 200
+/** Batas total estimasi byte seluruh entri (~2MB — respons API tipikal <50KB). */
+export const QUERY_CACHE_MAX_BYTES = 2_000_000
 
 export type QueryCacheHit<T> = { data: T; at: number; revalidating: boolean }
 
-const queryCache = new Map<string, { revision: number; at: number; data: unknown; revalidating: boolean }>()
+const queryCache = new Map<
+  string,
+  { revision: number; at: number; data: unknown; revalidating: boolean; bytes: number }
+>()
+let queryCacheBytes = 0
+
+/** Estimasi byte sebuah nilai via JSON — murah, hanya dipanggil saat tulis. */
+function estimateBytes(data: unknown): number {
+  try {
+    const s = JSON.stringify(data)
+    return s ? s.length : 0
+  } catch {
+    return 0
+  }
+}
 
 export function readQueryCacheEntry<T>(key: string): QueryCacheHit<T> | null {
   const entry = queryCache.get(key)
   if (!entry) return null
   // Sesi berganti (login/logout) → cache akun sebelumnya tidak boleh bocor.
   if (entry.revision !== getSessionRevision()) {
+    queryCacheBytes -= entry.bytes
     queryCache.delete(key)
     return null
   }
   if (Date.now() - entry.at > queryCacheTtlMs(key)) {
+    queryCacheBytes -= entry.bytes
     queryCache.delete(key)
     return null
   }
@@ -98,11 +116,22 @@ export function readQueryCacheEntry<T>(key: string): QueryCacheHit<T> | null {
 }
 
 export function writeQueryCache(key: string, data: unknown, now = Date.now()): void {
-  if (!queryCache.has(key) && queryCache.size >= QUERY_CACHE_MAX) {
+  const bytes = estimateBytes(data)
+  const prev = queryCache.get(key)
+  if (prev) queryCacheBytes -= prev.bytes
+  // Eviksi FIFO sampai muat: entri tertua memang yang paling tidak mungkin
+  // masih dipakai (TTL-nya pendek). Dua batas: jumlah entri DAN total byte.
+  while (queryCache.size >= QUERY_CACHE_MAX || queryCacheBytes + bytes > QUERY_CACHE_MAX_BYTES) {
     const oldest = queryCache.keys().next().value
-    if (oldest !== undefined) queryCache.delete(oldest)
+    if (oldest === undefined) break
+    const removed = queryCache.get(oldest)
+    if (removed) queryCacheBytes -= removed.bytes
+    queryCache.delete(oldest)
+    // Jangan eviksi key yang sedang ditulis bila ia satu-satunya entri.
+    if (oldest === key) break
   }
-  queryCache.set(key, { revision: getSessionRevision(), at: now, data, revalidating: false })
+  queryCache.set(key, { revision: getSessionRevision(), at: now, data, revalidating: false, bytes })
+  queryCacheBytes += bytes
 }
 
 /**
@@ -181,6 +210,16 @@ export function releaseQueryRevalidation(key: string): void {
  * `signal` opsional: pemanggil yang punya AbortController tetap mengendalikan
  * pembatalannya.
  */
+/**
+ * PERF-FIX (state audit): janji in-flight per key. Tanpa ini, dua cache miss
+ * paralel untuk key yang sama (mount ganda saat tab berpindah cepat) menembak
+ * jaringan dua kali. Pola yang sama dipakai `lib/unread-count.ts`.
+ * Dedupe hanya untuk pemanggil TANPA signal sendiri — pemanggil yang membawa
+ * AbortController mengelola pembatalannya sendiri dan tidak boleh berbagi
+ * janji dengan pemanggil lain.
+ */
+const inFlightFetches = new Map<string, Promise<unknown>>()
+
 export async function fetchViaQueryCache<T>(
   key: string,
   fetcher: (signal: AbortSignal) => Promise<T>,
@@ -188,9 +227,28 @@ export async function fetchViaQueryCache<T>(
 ): Promise<T> {
   const cached = readQueryCacheEntry<T>(key)
   if (cached !== null) return cached.data
-  const data = await fetcher(signal ?? new AbortController().signal)
-  writeQueryCache(key, data)
-  return data
+  if (signal === undefined) {
+    const existing = inFlightFetches.get(key)
+    if (existing) return existing as Promise<T>
+  }
+  // PERF-FIX (TIM1): `run` dipakai di `finally` sebelum assignment selesai —
+  // bungkus dalam holder agar TS tidak error TS2454 (runtime tidak berubah:
+  // `finally` baru jalan setelah `holder.run` ter-assign).
+  const holder: { run?: Promise<T> } = {}
+  holder.run = (async () => {
+    try {
+      const data = await fetcher(signal ?? new AbortController().signal)
+      writeQueryCache(key, data)
+      return data
+    } finally {
+      if (signal === undefined && inFlightFetches.get(key) === holder.run) {
+        inFlightFetches.delete(key)
+      }
+    }
+  })()
+  const run = holder.run
+  if (signal === undefined) inFlightFetches.set(key, run)
+  return run
 }
 
 /** Jumlah entri saat ini — dipakai test batas ukuran (C-03). */
@@ -200,7 +258,13 @@ export function queryCacheSize(): number {
 
 /** Invalidate a feature family without discarding unrelated financial queries. */
 export function invalidateQueryPrefix(prefix: string) {
-  for (const key of queryCache.keys()) if (key.startsWith(prefix)) queryCache.delete(key)
+  for (const key of queryCache.keys()) {
+    if (key.startsWith(prefix)) {
+      const entry = queryCache.get(key)
+      if (entry) queryCacheBytes -= entry.bytes
+      queryCache.delete(key)
+    }
+  }
   // PERF-FIX (network P1): beri tahu pendengar SECARA TERARAH — hook yang
   // kuncinya tidak cocok dengan prefix ini diam saja (tidak ada badai refetch
   // lintas layar; lihat filter cakupan di lib/use-api-query.ts).

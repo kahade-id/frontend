@@ -17,7 +17,8 @@
  * `isShellTabPath`), jadi setiap penekanan adalah perpindahan antar-tab:
  * `router.navigate` cukup — tidak ada logika park/leave-to-tab.
  */
-import { useCallback, useMemo } from "react"
+import { useCallback, useEffect, useMemo } from "react"
+import { InteractionManager, Platform } from "react-native"
 import { usePathname, useRouter } from "expo-router"
 import { QrCode } from "phosphor-react-native"
 
@@ -84,8 +85,32 @@ export function ShellTabBar() {
 
   const onScan = useCallback(() => {
     haptic("light")
-    router.push(ROUTES.scan)
-  }, [router])
+    // PERF-FIX (P1 nav): dedup — jangan tumpuk /scan bila sudah di sana;
+    // router.navigate kembali ke instance yang ada bila sudah di stack.
+    if (pathname === ROUTES.scan) return
+    router.navigate(ROUTES.scan)
+  }, [router, pathname])
+
+  // PERF-FIX (P2 nav): panaskan modul lazy tab tetangga saat idle — pindah
+  // tab pertama kali tidak lagi cold-mount modul berat (chat 1237 baris,
+  // notifikasi, transaksi). Dijalankan sekali, 2.5 dtk setelah bar tampil
+  // dan setelah interaksi selesai; aman diulang (module cache).
+  useEffect(() => {
+    if (Platform.OS === "web") return
+    let cancelled = false
+    const timer = setTimeout(() => {
+      InteractionManager.runAfterInteractions(() => {
+        if (cancelled) return
+        void import("@/components/screens/chat-tab-screen")
+        void import("@/components/screens/notifications-tab-screen")
+        void import("@/components/screens/transactions-tab-screen")
+      })
+    }, 2500)
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+  }, [])
 
   return (
     <BottomTabBar

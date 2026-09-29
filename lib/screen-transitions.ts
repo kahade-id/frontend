@@ -77,6 +77,28 @@ const STABLE_BAR_SCREENS: ReadonlySet<string> = new Set([
   "vouchers",
   "wallet-history",
   "user/[username]",
+  // PERF-FIX (P2 nav): samakan untuk semua destinasi setara tab —
+  // notifications & transactions juga tab utama, bar tidak boleh bergeser.
+  "notifications",
+  "transactions",
+])
+
+/**
+ * PERF-FIX (P1 nav): layar berat (>1000 baris implementasi, kini thin shell
+ * + lazy) — animasi push dipersingkat agar tidak berebut JS thread dengan
+ * mount modul lazy. Transisi tetap terasa, tapi frame drop berkurang.
+ */
+const HEAVY_SCREENS: ReadonlySet<string> = new Set([
+  "chat/[roomId]",
+  "user/[username]",
+  "order/[id]",
+  "showcase/[id]",
+  "showcase/create",
+  "search",
+  "showcase-management",
+  "chat",
+  "notifications",
+  "transactions",
 ])
 
 export function animationForScreen(name: string, reducedMotion: boolean): ScreenAnimation {
@@ -87,6 +109,25 @@ export function animationForScreen(name: string, reducedMotion: boolean): Screen
   return "slide_from_right"
 }
 
-export function animationDurationForScreen(): number {
+export function animationDurationForScreen(name?: string): number {
+  // PERF-FIX (P1 nav): layar berat = durasi lebih pendek (200ms vs 300ms)
+  // agar animasi tidak jank saat JS thread sibuk mount modul lazy.
+  if (name && HEAVY_SCREENS.has(name)) return Math.round(tokens.motion.duration.base * 0.67)
   return tokens.motion.duration.base
+}
+
+/**
+ * PERF-FIX (P1 nav): `getId` untuk rute dinamis — tanpa ini, `router.push`
+ * ke id berbeda selalu membuat instance screen baru (A→B→A = 3 entri).
+ * Dengan getId, expo-router me-reuse/mengganti dengan benar.
+ * Mengembalikan undefined untuk rute statis (perilaku default).
+ */
+export function getScreenId(name: string): ((params: { params?: Record<string, string | string[]> }) => string) | undefined {
+  const match = name.match(/\[([^\]]+)\]/)
+  if (!match) return undefined
+  const paramName = match[1]
+  return ({ params }) => {
+    const value = params?.[paramName]
+    return `${name}:${Array.isArray(value) ? value[0] : value ?? "index"}`
+  }
 }
