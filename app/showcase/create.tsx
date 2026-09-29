@@ -130,6 +130,13 @@ const EMPTY_FORM: FormState = {
 }
 
 /**
+ * TIM-8 (audit performa 2026-09-30): bentuk kanonis EMPTY_FORM dihitung
+ * sekali di module scope — sebelumnya `JSON.stringify(EMPTY_FORM)` jalan
+ * tiap render.
+ */
+const EMPTY_FORM_JSON = JSON.stringify(EMPTY_FORM)
+
+/**
  * Pratinjau media karya: foto, atau video (kontrak final Tim A #1/#2,
  * 2026-09-28). `video` terisi = entri video yang sudah diunggah
  * (fileKey + thumbnailFileKey wajib). `thumbnailFileKey` di root =
@@ -365,8 +372,13 @@ export default function ShowcaseCreateScreen() {
     }
   }, [])
 
-  const dirty =
-    previews.length > 0 || JSON.stringify(form) !== JSON.stringify(EMPTY_FORM)
+  // TIM-8 (audit performa 2026-09-30): dirty check di-memo — sebelumnya
+  // `JSON.stringify(form)` 2× per render (tiap keystroke) hanya untuk
+  // perbandingan boolean.
+  const dirty = useMemo(
+    () => previews.length > 0 || JSON.stringify(form) !== EMPTY_FORM_JSON,
+    [previews.length, form],
+  )
 
   /** Foto + ketikan belum tersimpan — minta konfirmasi sebelum keluar. */
   const requestClose = useCallback(() => {

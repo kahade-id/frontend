@@ -17,8 +17,14 @@
  *   - Pencarian mencocokkan nama & kode bank, case-insensitive, tanpa diakritik.
  */
 import { Bank, Check } from "phosphor-react-native"
-import { useMemo, useState } from "react"
-import { ScrollView, useWindowDimensions, View, type ViewProps } from "react-native"
+import { useCallback, useMemo, useState } from "react"
+import {
+  FlatList,
+  useWindowDimensions,
+  View,
+  type ListRenderItemInfo,
+  type ViewProps,
+} from "react-native"
 
 import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { EmptyState } from "@/components/ui/empty-state"
@@ -77,6 +83,20 @@ function normalize(s: string) {
   return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
 }
 
+/**
+ * Baris sheet dinormalisasi jadi data FlatList agar direktori bank yang
+ * panjang tervirtualisasi (sebelumnya ScrollView + .map me-render ratusan
+ * baris berlogo dalam satu frame).
+ */
+type SheetRow =
+  | { kind: "section"; key: string; label: string }
+  | { kind: "bank"; key: string; bank: BankOption }
+
+/** h-14 — tinggi baris BankRow tetap */
+const BANK_ROW_HEIGHT = 56
+/** pt-3(12) + label lineHeight(18) + pb-2(8) — SectionLabel */
+const SECTION_LABEL_HEIGHT = 38
+
 export function BankSelect({ banks, value, onChange, popularCodes, label, labels, disabled, ...rest }: BankSelectProps) {
   const t = { ...DEFAULT_LABELS, ...labels }
   const { height } = useWindowDimensions()
@@ -96,10 +116,50 @@ export function BankSelect({ banks, value, onChange, popularCodes, label, labels
     [popularCodes, banks, query],
   )
 
-  const select = (code: string) => {
-    onChange(code)
-    setOpen(false)
-  }
+  const select = useCallback(
+    (code: string) => {
+      onChange(code)
+      setOpen(false)
+    },
+    [onChange],
+  )
+
+  const sheetRows = useMemo<SheetRow[]>(() => {
+    const rows: SheetRow[] = []
+    if (popular.length > 0) {
+      rows.push({ kind: "section", key: "section-popular", label: t.popular })
+      for (const b of popular) rows.push({ kind: "bank", key: `p-${b.code}`, bank: b })
+      rows.push({ kind: "section", key: "section-all", label: t.all })
+    }
+    for (const b of filtered) rows.push({ kind: "bank", key: b.code, bank: b })
+    return rows
+  }, [popular, filtered, t.popular, t.all])
+
+  const renderSheetRow = useCallback(
+    ({ item }: ListRenderItemInfo<SheetRow>) => {
+      if (item.kind === "section") return <SectionLabel>{item.label}</SectionLabel>
+      const b = item.bank
+      return <BankRow bank={b} selected={b.code === value} onPress={() => select(b.code)} />
+    },
+    [value, select],
+  )
+
+  const sheetKeyExtractor = useCallback((item: SheetRow) => item.key, [])
+
+  const sheetGetItemLayout = useCallback(
+    (data: ArrayLike<SheetRow> | null | undefined, index: number) => {
+      // Offset kumulatif dari tinggi baris tetap (bank 56px, section 38px).
+      let offset = 0
+      for (let i = 0; i < index; i++) {
+        const it = data?.[i]
+        offset += it?.kind === "section" ? SECTION_LABEL_HEIGHT : BANK_ROW_HEIGHT
+      }
+      const item = data?.[index]
+      const length = item?.kind === "section" ? SECTION_LABEL_HEIGHT : BANK_ROW_HEIGHT
+      return { length, offset, index }
+    },
+    [],
+  )
 
   return (
     <>
@@ -127,25 +187,21 @@ export function BankSelect({ banks, value, onChange, popularCodes, label, labels
         </View>
 
         {/* Tinggi maks 60% window: nilai runtime -> style, bukan className */}
-        <ScrollView style={{ maxHeight: height * 0.6 }} keyboardShouldPersistTaps="handled">
-          {filtered.length === 0 ? (
+        <FlatList
+          style={{ maxHeight: height * 0.6 }}
+          keyboardShouldPersistTaps="handled"
+          data={sheetRows}
+          keyExtractor={sheetKeyExtractor}
+          renderItem={renderSheetRow}
+          getItemLayout={sheetGetItemLayout}
+          initialNumToRender={12}
+          maxToRenderPerBatch={10}
+          windowSize={5}
+          ListEmptyComponent={
             <EmptyState icon={Bank} title={t.emptyTitle} description={t.emptyDescription} compact />
-          ) : (
-            <>
-              {popular.length > 0 ? (
-                <>
-                  <SectionLabel>{t.popular}</SectionLabel>
-                  {popular.map((b) => <BankRow key={`p-${b.code}`} bank={b} selected={b.code === value} onPress={() => select(b.code)} />)}
-                  <SectionLabel>{t.all}</SectionLabel>
-                </>
-              ) : null}
-              {filtered.map((b) => (
-                <BankRow key={b.code} bank={b} selected={b.code === value} onPress={() => select(b.code)} />
-              ))}
-            </>
-          )}
-          <View className="h-6" />
-        </ScrollView>
+          }
+          contentContainerStyle={{ paddingBottom: 24 }}
+        />
       </BottomSheet>
     </>
   )
