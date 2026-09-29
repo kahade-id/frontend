@@ -77,11 +77,15 @@ export function OnboardingChecklistCard({ state, className }: OnboardingChecklis
       bar.setValue(progress.fraction)
       return
     }
-    Animated.timing(bar, {
+    // PERF-FIX (P0): cleanup — tiap tick progress sebelumnya memicu animasi
+    // baru yang menumpuk di atas yang lama (JS thread, width) → jank.
+    const a = Animated.timing(bar, {
       toValue: progress.fraction,
       duration: 400,
       useNativeDriver: false,
-    }).start()
+    })
+    a.start()
+    return () => a.stop()
   }, [progress.fraction, reducedMotion, bar])
 
   if (dismissed) return null

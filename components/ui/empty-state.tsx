@@ -25,6 +25,7 @@
  */
 import { useEffect, useRef, type ReactNode } from "react"
 import { Animated, Easing, View, type ViewProps } from "react-native"
+import { useIsFocused } from "@react-navigation/native"
 
 import { cn } from "@/lib/cn"
 import { tokens } from "@/lib/tokens"
@@ -74,9 +75,12 @@ export function EmptyState({
   const breath = useRef(new Animated.Value(1)).current
   const reducedMotion = useReducedMotion()
   const still = !animated || reducedMotion
+  // PERF-FIX (P2): hentikan loop napas saat layar tidak fokus — empty state
+  // di tab tersembunyi tidak perlu berdenyut.
+  const isFocused = useIsFocused()
 
   useEffect(() => {
-    if (still) {
+    if (still || !isFocused) {
       breath.setValue(1)
       return
     }
@@ -98,7 +102,7 @@ export function EmptyState({
     )
     loop.start()
     return () => loop.stop()
-  }, [breath, still])
+  }, [breath, still, isFocused])
 
   const breathOpacity = breath.interpolate({ inputRange: [0, 1], outputRange: [0.55, 1] })
   const breathScale = breath.interpolate({

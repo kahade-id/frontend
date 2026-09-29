@@ -20,6 +20,12 @@
  *     (di parent) harus membawa `accessibilityState={{ expanded }}`.
  *   - `unmountOnClose`: unmount konten setelah animasi tutup selesai — untuk
  *     konten berat (chart). Default false agar state input di dalam terjaga.
+ *
+ * PERF-NOTE (audit 2026-09-30 TIM 7): `height` adalah properti layout yang
+ * tidak didukung native driver — animasi jalan di JS thread. Cleanup
+ * `anim.stop()` sudah ada, tapi buka/tutup konten tinggi/kompleks tetap
+ * bisa jank di Android Go (known limitation). Kandidat migrasi: Reanimated
+ * `measure()` + `withTiming` di UI thread.
  */
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { Animated, Easing, View, type LayoutChangeEvent, type ViewProps } from "react-native"

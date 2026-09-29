@@ -172,12 +172,16 @@ function GrowingBar({
       return
     }
     grow.setValue(0)
-    Animated.timing(grow, {
+    // PERF-FIX (P1): cleanup — deps menyertakan `ratio`, tiap perubahan
+    // me-restart animasi tanpa stop sebelumnya → animasi menumpuk.
+    const a = Animated.timing(grow, {
       toValue: 1,
       duration: tokens.motion.duration.slow,
       easing: Easing.bezier(...tokens.motion.easing.standard),
       useNativeDriver: true,
-    }).start()
+    })
+    a.start()
+    return () => a.stop()
   }, [animated, grow, ratio, reducedMotion])
 
   const safeRatio = Number.isFinite(ratio) ? Math.min(1, Math.max(0, ratio)) : 0

@@ -870,6 +870,15 @@ export type PullToRefreshFlatListProps<ItemT> = Omit<
    * React 19: ref diteruskan eksplisit, bukan lewat rest-spread.
    */
   listRef?: Ref<FlatList<ItemT>>
+  /**
+   * PERF-NOTE (audit 2026-09-30 TIM 7): FlatList dalam di-hardcode
+   * `removeClippedSubviews={false} collapsable={false}` — menonaktifkan
+   * view recycling agar animasi pull-to-refresh tidak glitch. Trade-off:
+   * list SANGAT panjang menahan ratusan view di memori. `removeClippedSubviews`
+   * (dan `collapsable`) BISA di-override lewat props ini karena `...listProps`
+   * di-spread SETELAH nilai default — pakai `removeClippedSubviews={true}`
+   * untuk list panjang yang animasi pull-nya tidak kritis.
+   */
 }
 
 /** FlatList virtual dengan gesture custom yang sama, tanpa ScrollView luar. */

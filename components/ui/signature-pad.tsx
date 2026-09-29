@@ -15,10 +15,13 @@
  *     supaya titik/goresan pendek (titik di atas "i") tetap terekam dan jari
  *     yang keluar area tidak memutus goresan. Titik dikumpulkan di
  *     `useSharedValue<number[]>` di UI thread dan di-flush ke state React
- *     lewat `runOnJS` per event `onChange` — SVG <Path> tidak bisa
- *     dianimasikan lewat worklet tanpa `createAnimatedComponent` + setNativeProps
- *     yang di web tidak jalan; trade-off ini diterima karena frekuensi
- *     `onChange` (~60Hz) masih murah untuk satu setState string.
+ *     lewat `runOnJS` yang di-throttle maksimal 1× per frame (~16ms) —
+ *     tanpa throttle, tiap touchmove menyeberang bridge + setState +
+ *     re-render SVG <Path> (O(n²) dengan spread copy per event).
+ *     SVG <Path> tidak bisa dianimasikan lewat worklet tanpa
+ *     `createAnimatedComponent` + setNativeProps yang di web tidak jalan;
+ *     trade-off ini diterima karena flush ter-throttle tetap murah untuk
+ *     satu setState string per frame.
  *   - Smoothing: segmen dirender sebagai quadratic bezier ke titik tengah
  *     dua sampel berurutan (teknik "midpoint smoothing"), bukan polyline —
  *     menghilangkan sudut kasar tanpa algoritma Catmull-Rom yang lebih berat.
@@ -137,6 +140,10 @@ export function SignaturePad({
   const [current, setCurrent] = useState<string>("")
   const [size, setSize] = useState({ w: 0, h: height })
   const points = useSharedValue<Point[]>([])
+  // PERF-FIX (P0): throttle flush ke JS thread — onChange bisa fire >60Hz;
+  // tanpa throttle tiap event menyeberang bridge + setState + re-render SVG.
+  // Batas ~1 flush per frame (16ms) cukup untuk stroke yang mulus.
+  const lastFlushMs = useSharedValue(0)
 
   const isEmpty = paths.length === 0 && current === ""
 
@@ -168,8 +175,16 @@ export function SignaturePad({
           runOnJS(drawing)(true)
         })
         .onChange((e) => {
-          points.value = [...points.value, { x: e.x, y: e.y }]
-          runOnJS(update)(points.value)
+          // PERF-FIX (P0): push O(1) — spread [...points.value, p] adalah
+          // O(n) per event → O(n²) untuk satu goresan. Flush ke JS
+          // di-throttle 1×/frame; titik di antaranya tetap terekam penuh
+          // (tidak ada yang hilang, hanya pengiriman yang digabung).
+          points.value.push({ x: e.x, y: e.y })
+          const now = Date.now()
+          if (now - lastFlushMs.value >= 16) {
+            lastFlushMs.value = now
+            runOnJS(update)(points.value)
+          }
         })
         .onFinalize(() => {
           const pts = points.value
@@ -177,7 +192,7 @@ export function SignaturePad({
           runOnJS(commit)(pts)
           runOnJS(drawing)(false)
         }),
-    [commit, disabled, drawing, points, update],
+    [commit, disabled, drawing, lastFlushMs, points, update],
   )
 
   const handleClear = useCallback(() => {

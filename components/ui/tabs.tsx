@@ -185,10 +185,17 @@ export function Tabs<V extends string = string>({
   }, [activeIndex, frames, offsets, reducedMotion, dotX, dotW, items])
 
   const dotStyle = useAnimatedStyle(
-    () => ({
-      transform: [{ translateX: dotX.value }],
-      width: dotW.value,
-    }),
+    // PERF-FIX (P1): animasikan scaleX, bukan width — perubahan width memicu
+    // layout pass native tiap frame (jank); scaleX murni composite. View
+    // di-layout selebar 1px; anchor kiri dijaga via kompensasi translateX
+    // (scaleX berpusat di tengah → geser sebesar -0.5 + w/2).
+    () => {
+      const w = dotW.value
+      return {
+        width: 1,
+        transform: [{ translateX: dotX.value - 0.5 + w / 2 }, { scaleX: Math.max(w, 0.001) }],
+      }
+    },
     [],
   )
 

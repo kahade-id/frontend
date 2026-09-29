@@ -174,12 +174,16 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
   // Reduce Motion (audit #2): label melayang pindah posisi instan.
   const reducedMotion = useReducedMotion()
   useEffect(() => {
-    Animated.timing(progress, {
+    // PERF-FIX (P1): stop animasi lama sebelum start baru — focus/blur cepat
+    // berturut-turut (tap cepat antar field) menumpuk animasi label.
+    const a = Animated.timing(progress, {
       toValue: floated ? 1 : 0,
       duration: motionDuration(reducedMotion, tokens.motion.duration.fast),
       easing: Easing.bezier(...tokens.motion.easing.standard),
       useNativeDriver: true,
-    }).start()
+    })
+    a.start()
+    return () => a.stop()
   }, [floated, progress, reducedMotion])
 
   const labelStyle = {

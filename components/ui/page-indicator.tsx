@@ -38,12 +38,16 @@ function Dot({ active, inverse }: { active: boolean; inverse: boolean }) {
   const reducedMotion = useReducedMotion()
 
   useEffect(() => {
-    Animated.timing(width, {
+    // PERF-FIX (P0): cleanup — swipe cepat antar halaman menumpuk animasi
+    // dot (JS thread, width) tanpa stop → jank.
+    const a = Animated.timing(width, {
       toValue: active ? ACTIVE_DOT : DOT,
       duration: motionDuration(reducedMotion, tokens.motion.duration.base),
       easing: Easing.bezier(...tokens.motion.easing.standard),
       useNativeDriver: false,
-    }).start()
+    })
+    a.start()
+    return () => a.stop()
   }, [active, width, reducedMotion])
 
   return (

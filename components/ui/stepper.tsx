@@ -49,12 +49,17 @@ export function StepProgress({ value, step, total, segmented = false, className,
   const reducedMotion = useReducedMotion()
 
   useEffect(() => {
-    Animated.timing(anim, {
+    // PERF-FIX (P0): stop animasi lama sebelum start baru — tanpa cleanup,
+    // perubahan ratio cepat menumpuk puluhan animasi JS-thread (width tidak
+    // didukung native driver) yang saling fighting → jank.
+    const a = Animated.timing(anim, {
       toValue: ratio,
       duration: motionDuration(reducedMotion, tokens.motion.duration.base),
       easing: Easing.bezier(...tokens.motion.easing.standard),
       useNativeDriver: false,
-    }).start()
+    })
+    a.start()
+    return () => a.stop()
   }, [ratio, anim, reducedMotion])
 
   const a11y = {
