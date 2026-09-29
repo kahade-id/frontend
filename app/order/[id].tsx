@@ -279,7 +279,11 @@ export default function OrderDetailScreen() {
   // QR verifikasi struk bukti pembayaran — defensif: null = tiket tanpa QR
   // (lib/receipt). Hook selalu dipanggil; referenceId null = tidak fetch.
   const orderTicketRef = useRef<View | null>(null)
-  const orderPaymentQr = useReceiptQr("ORDER_PAYMENT", order?.id ?? null)
+  // D1-007: QR struk hanya di-fetch bila tiket benar-benar dirender
+  // (order.paidAt) — bukan untuk semua order yang dibuka.
+  const orderPaymentQr = useReceiptQr("ORDER_PAYMENT", order?.id ?? null, {
+    enabled: Boolean(order?.paidAt),
+  })
   // R2 (audit ronde-2, butir #21): status pihak lawan (bayar/kirim/konfirmasi)
   // menyegar otomatis tiap 15 detik selama layar terbuka — tanpa pull-to-
   // refresh. Order status terminal berhenti dipoll. Galat ditelan oleh

@@ -290,7 +290,11 @@ export default function TransferScreen() {
   )
   // QR verifikasi struk transfer — defensif: null = tiket tanpa QR (lib/receipt).
   const ticketRef = useRef<View | null>(null)
-  const transferQr = useReceiptQr("TRANSFER", txId)
+  const transferQr = useReceiptQr("TRANSFER", txId, {
+    // D1-007: tiket struk hanya dirender pada step "done" (txId sudah diset
+    // ~1,4 d sebelum overlay sukses selesai — jangan fetch lebih awal).
+    enabled: step === "done",
+  })
   const transferReceiptStatus: ReceiptStatus =
     walletTransactionStatus(transferStatus) === "SUCCESS"
       ? "SUCCESS"
