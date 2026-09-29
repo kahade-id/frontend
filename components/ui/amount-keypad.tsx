@@ -359,13 +359,18 @@ export function AmountKeypad({
   const scale = useRef(new Animated.Value(1)).current
   useEffect(() => {
     if (reducedMotion) return
+    // PERF-FIX (P1): cleanup — ketik cepat menumpuk animasi scale yang
+    // saling menimpa nilai (cleanup effect sebelumnya stop animasi lama
+    // sebelum setValue + start baru di bawah).
     scale.setValue(0.96)
-    Animated.timing(scale, {
+    const a = Animated.timing(scale, {
       toValue: 1,
       duration: tokens.motion.duration.fast,
       easing: Easing.bezier(...tokens.motion.easing.enter),
       useNativeDriver: true,
-    }).start()
+    })
+    a.start()
+    return () => a.stop()
   }, [digits, scale, reducedMotion])
 
   return (

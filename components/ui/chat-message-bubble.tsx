@@ -295,30 +295,34 @@ function ChatMessageBubbleBase({
    * `failOffsetY(8)` — pan hanya diklaim setelah gerakan horizontal jelas,
    * scroll vertikal FlatList tidak terganggu.
    */
-  const swipePan = useMemo(
-    () =>
-      Gesture.Pan()
-        .activeOffsetX(12)
-        .failOffsetY(8)
-        .onUpdate((e) => {
-          "worklet"
-          swipeX.value = Math.max(0, Math.min(e.translationX, SWIPE_REPLY_MAX_PX))
-        })
-        .onEnd((e) => {
-          "worklet"
-          if (shouldTriggerSwipeReply(swipeX.value, e.velocityX)) {
-            const cb = swipeReplyRef.current
-            if (cb) runOnJS(cb)()
-          }
-          // Reduce Motion: snap-back INSTAN tanpa spring — yang
-          // dipertahankan hanya translasi mengikuti jari (esensial untuk
-          // fungsi, pengecualian WCAG 2.3.3).
-          swipeX.value = reduceMotion
-            ? withTiming(0, { duration: 0 })
-            : withSpring(0, tokens.motion.spring)
-        }),
-    [reduceMotion, swipeX],
-  )
+  const swipePan = useMemo(() => {
+    // PERF-FIX (P1): jangan pasang worklet closures untuk bubble yang tidak
+    // bisa swipe-reply (system/deleted/tanpa handler) — GestureDetector hanya
+    // di-render bila canSwipeReply, tapi pembuatan Pan() + 2 closure worklet
+    // per bubble tetap membebani mount thread chat panjang (500 pesan =
+    // 500 gesture + 1000 closure sia-sia).
+    if (!canSwipeReply) return Gesture.Pan().enabled(false)
+    return Gesture.Pan()
+      .activeOffsetX(12)
+      .failOffsetY(8)
+      .onUpdate((e) => {
+        "worklet"
+        swipeX.value = Math.max(0, Math.min(e.translationX, SWIPE_REPLY_MAX_PX))
+      })
+      .onEnd((e) => {
+        "worklet"
+        if (shouldTriggerSwipeReply(swipeX.value, e.velocityX)) {
+          const cb = swipeReplyRef.current
+          if (cb) runOnJS(cb)()
+        }
+        // Reduce Motion: snap-back INSTAN tanpa spring — yang
+        // dipertahankan hanya translasi mengikuti jari (esensial untuk
+        // fungsi, pengecualian WCAG 2.3.3).
+        swipeX.value = reduceMotion
+          ? withTiming(0, { duration: 0 })
+          : withSpring(0, tokens.motion.spring)
+      })
+  }, [canSwipeReply, reduceMotion, swipeX])
   const swipeBubbleStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: swipeX.value }],
   }))

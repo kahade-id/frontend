@@ -32,7 +32,17 @@ export function useCountUp(value: number, enabled = true): number {
     }
     if (from.current === value) return
     const v = new Animated.Value(from.current)
-    const id = v.addListener(({ value: current }) => setDisplay(Math.round(current)))
+    // PERF-FIX (P1): throttle listener ke ~12fps — setDisplay tiap frame
+    // (60fps) memaksa re-render React 48× selama 800ms; 12fps cukup untuk
+    // angka yang "terasa bergerak". Nilai final selalu di-set saat selesai.
+    const lastUiUpdate = { at: 0 }
+    const id = v.addListener(({ value: current }) => {
+      const now = Date.now()
+      if (now - lastUiUpdate.at >= 80) {
+        lastUiUpdate.at = now
+        setDisplay(Math.round(current))
+      }
+    })
     const enter = tokens.motion.easing.enter
     const anim = Animated.timing(v, {
       toValue: value,

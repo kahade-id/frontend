@@ -18,6 +18,12 @@
  * Tidak dimasukkan ke <Screen> (non-obvious): perilakunya bergantung pada
  * ada/tidaknya header native & tab bar di route tersebut, sehingga lebih
  * aman dipasang eksplisit oleh layar yang memang berisi input.
+ *
+ * PERF-NOTE (audit 2026-09-30 TIM 7): `LayoutAnimation.configureNext`
+ * bersifat global — memicu layout ulang seluruh subtree yang berubah, bukan
+ * hanya view ini. Kandidat migrasi: Reanimated `useAnimatedKeyboard` yang
+ * granular per-view. Belum dimigrasi karena perilaku keyboard sangat
+ * fragile (CHT-005) — migrasi butuh pengujian device iOS + Android.
  */
 import { useEffect, type ReactNode } from "react"
 import {

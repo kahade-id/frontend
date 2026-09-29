@@ -18,8 +18,14 @@
  *      hanya gerak ringnya). Instan saat reduced motion; matikan via
  *      `animated={false}`.
  */
-import { useEffect, useRef, type ReactNode } from "react"
-import { Animated, Easing, View, type ViewProps } from "react-native"
+import { useEffect, type ReactNode } from "react"
+import { View, type ViewProps } from "react-native"
+import Animated, {
+  Easing as ReEasing,
+  useAnimatedProps,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated"
 import Svg, { Circle } from "react-native-svg"
 
 import { cn } from "@/lib/cn"
@@ -82,26 +88,27 @@ export function ProgressRing({
   const c = 2 * Math.PI * r
 
   // v2: nilai 0..100 dianimasikan (kurva enter, durasi moment). Reduced /
-  // animated=false → setValue langsung. strokeDashoffset bukan transform/
-  // opacity sehingga native driver tidak bisa dipakai — satu-satunya
-  // Animated non-native di komponen ini, terisolasi di sini saja.
-  const anim = useRef(new Animated.Value(0)).current
+  // animated=false → setValue langsung.
+  // PERF-FIX (P1): strokeDashoffset dianimasikan via Reanimated
+  // `useAnimatedProps` di UI thread — sebelumnya `Animated.timing` JS-driver
+  // (strokeDashoffset bukan transform/opacity) menjalankan tiap frame di JS
+  // thread; bermasalah bila banyak ring di satu layar (dashboard).
+  const progress = useSharedValue(0)
   useEffect(() => {
     if (!animated || reducedMotion) {
-      anim.setValue(pct)
+      progress.value = pct
       return
     }
     const enter = tokens.motion.easing.enter
-    const a = Animated.timing(anim, {
-      toValue: pct,
+    progress.value = withTiming(pct, {
       duration: tokens.motion.duration.moment,
-      easing: Easing.bezier(enter[0], enter[1], enter[2], enter[3]),
-      useNativeDriver: false,
+      easing: ReEasing.bezier(enter[0], enter[1], enter[2], enter[3]),
     })
-    a.start()
-    return () => a.stop()
-  }, [anim, pct, animated, reducedMotion])
-  const dashOffset = anim.interpolate({ inputRange: [0, 100], outputRange: [c, 0] })
+  }, [progress, pct, animated, reducedMotion])
+  const animatedProps = useAnimatedProps(() => ({
+    // Sama seperti interpolate lama: 0 → c (kosong), 100 → 0 (penuh).
+    strokeDashoffset: c - (progress.value / 100) * c,
+  }))
 
   return (
     <View
@@ -136,7 +143,7 @@ export function ProgressRing({
           fill="none"
           strokeLinecap="butt"
           strokeDasharray={`${c} ${c}`}
-          strokeDashoffset={dashOffset}
+          animatedProps={animatedProps}
           // Mulai dari jam 12
           rotation={-90}
           origin={`${size / 2}, ${size / 2}`}
