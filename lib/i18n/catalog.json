@@ -87,6 +87,10 @@
    "n": 14
   },
   {
+   "s": "Unggahan dibatalkan.",
+   "n": 14
+  },
+  {
    "s": "Akses galeri ditolak",
    "n": 13
   },
@@ -128,6 +132,10 @@
   },
   {
    "s": "Minimal {x} karakter",
+   "n": 12
+  },
+  {
+   "s": "Putar video",
    "n": 12
   },
   {
@@ -259,10 +267,6 @@
    "n": 9
   },
   {
-   "s": "Putar video",
-   "n": 9
-  },
-  {
    "s": "Semua",
    "n": 9
   },
@@ -331,10 +335,6 @@
    "n": 8
   },
   {
-   "s": "Unggahan dibatalkan.",
-   "n": 8
-  },
-  {
    "s": "Ya, batalkan",
    "n": 8
   },
@@ -380,6 +380,10 @@
   },
   {
    "s": "Izin galeri ditolak",
+   "n": 7
+  },
+  {
+   "s": "Kebijakan Privasi",
    "n": 7
   },
   {
@@ -723,6 +727,10 @@
    "n": 6
   },
   {
+   "s": "Syarat & Ketentuan",
+   "n": 6
+  },
+  {
    "s": "Tanggal tidak tersedia",
    "n": 6
   },
@@ -804,6 +812,10 @@
   },
   {
    "s": "Batalkan SPK",
+   "n": 5
+  },
+  {
+   "s": "Beli via Escrow",
    "n": 5
   },
   {
@@ -896,10 +908,6 @@
   },
   {
    "s": "Jadwal jasa",
-   "n": 5
-  },
-  {
-   "s": "Kebijakan Privasi",
    "n": 5
   },
   {
@@ -1379,6 +1387,10 @@
    "n": 4
   },
   {
+   "s": "Ongkir",
+   "n": 4
+  },
+  {
    "s": "Pakai kode referral saya {x} saat daftar di Kahade — transaksi aman dengan escrow.",
    "n": 4
   },
@@ -1476,10 +1488,6 @@
   },
   {
    "s": "Skor",
-   "n": 4
-  },
-  {
-   "s": "Syarat & Ketentuan",
    "n": 4
   },
   {
@@ -1763,7 +1771,7 @@
    "n": 3
   },
   {
-   "s": "Anda belum menambahkan karya atau produk ke etalase.",
+   "s": "Anda belum menambahkan karya ke etalase.",
    "n": 3
   },
   {
@@ -1852,10 +1860,6 @@
   },
   {
    "s": "Batasi hasil postingan ke lokasi penjual",
-   "n": 3
-  },
-  {
-   "s": "Bayar",
    "n": 3
   },
   {
@@ -1951,6 +1955,10 @@
    "n": 3
   },
   {
+   "s": "Biaya kirim belum termasuk. Sepakati dengan penjual sebelum bayar.",
+   "n": 3
+  },
+  {
    "s": "Biaya layanan",
    "n": 3
   },
@@ -1960,10 +1968,6 @@
   },
   {
    "s": "Blokir @{x}?",
-   "n": 3
-  },
-  {
-   "s": "Booking jasa saya",
    "n": 3
   },
   {
@@ -3063,6 +3067,10 @@
    "n": 3
   },
   {
+   "s": "Laporkan masalah",
+   "n": 3
+  },
+  {
    "s": "Laporkan postingan \"{x}\" jika melanggar panduan komunitas.",
    "n": 3
   },
@@ -3311,10 +3319,6 @@
    "n": 3
   },
   {
-   "s": "Menunggu konfirmasi",
-   "n": 3
-  },
-  {
    "s": "Menyimpan…",
    "n": 3
   },
@@ -3491,10 +3495,6 @@
    "n": 3
   },
   {
-   "s": "Order Link",
-   "n": 3
-  },
-  {
    "s": "Paling banyak {x} foto",
    "n": 3
   },
@@ -3624,6 +3624,10 @@
   },
   {
    "s": "Pesan terpin: {x}",
+   "n": 3
+  },
+  {
+   "s": "Pesanan jasa saya",
    "n": 3
   },
   {
@@ -3871,7 +3875,7 @@
    "n": 3
   },
   {
-   "s": "Semua peserta yang sudah bayar akan mendapat refund otomatis.",
+   "s": "Semua peserta yang sudah bayar akan mendapat pengembalian dana otomatis.",
    "n": 3
   },
   {
@@ -4383,7 +4387,7 @@
    "n": 3
   },
   {
-   "s": "Ya, refund otomatis",
+   "s": "Ya, pengembalian dana otomatis",
    "n": 3
   },
   {
@@ -4555,10 +4559,6 @@
    "n": 2
   },
   {
-   "s": "Ajukan sengketa",
-   "n": 2
-  },
-  {
    "s": "Ajukan ulang",
    "n": 2
   },
@@ -4620,6 +4620,10 @@
   },
   {
    "s": "Ambang stok menipis",
+   "n": 2
+  },
+  {
+   "s": "Anda akan menerima: {x}{x}",
    "n": 2
   },
   {
@@ -4739,7 +4743,15 @@
    "n": 2
   },
   {
+   "s": "Batas ini berhenti bila Anda membuka sengketa.",
+   "n": 2
+  },
+  {
    "s": "Batas waktu",
+   "n": 2
+  },
+  {
+   "s": "Bayar",
    "n": 2
   },
   {
@@ -4768,10 +4780,6 @@
   },
   {
    "s": "Belum ada balasan. Jadilah yang pertama membalas.",
-   "n": 2
-  },
-  {
-   "s": "Belum ada booking",
    "n": 2
   },
   {
@@ -4808,6 +4816,10 @@
   },
   {
    "s": "Belum ada pesan.",
+   "n": 2
+  },
+  {
+   "s": "Belum ada pesanan jasa",
    "n": 2
   },
   {
@@ -4967,7 +4979,7 @@
    "n": 2
   },
   {
-   "s": "Buat grup patungan — semua peserta bayar ke escrow dulu; target tercapai baru cair ke host, gagal otomatis refund.",
+   "s": "Buat grup patungan — semua peserta bayar ke escrow dulu; target tercapai baru cair ke host, gagal → pengembalian dana otomatis.",
    "n": 2
   },
   {
@@ -5004,14 +5016,6 @@
   },
   {
    "s": "Buat tiket",
-   "n": 2
-  },
-  {
-   "s": "Buat Transaksi",
-   "n": 2
-  },
-  {
-   "s": "Buat transaksi escrow",
    "n": 2
   },
   {
@@ -5199,10 +5203,6 @@
    "n": 2
   },
   {
-   "s": "Dalam pengiriman",
-   "n": 2
-  },
-  {
    "s": "Dalam proses",
    "n": 2
   },
@@ -5212,6 +5212,10 @@
   },
   {
    "s": "Dana akan segera diteruskan ke penjual.",
+   "n": 2
+  },
+  {
+   "s": "Dana cair ke penjual",
    "n": 2
   },
   {
@@ -5308,6 +5312,10 @@
   },
   {
    "s": "Disembunyikan karena melanggar pedoman komunitas.",
+   "n": 2
+  },
+  {
+   "s": "Disepakati di luar aplikasi",
    "n": 2
   },
   {
@@ -5435,7 +5443,7 @@
    "n": 2
   },
   {
-   "s": "Gagal dapat barang — refund otomatis",
+   "s": "Gagal dapat barang — pengembalian dana otomatis",
    "n": 2
   },
   {
@@ -6275,6 +6283,10 @@
    "n": 2
   },
   {
+   "s": "Konfirmasi penerimaan",
+   "n": 2
+  },
+  {
    "s": "Konfirmasi terima barang?",
    "n": 2
   },
@@ -6675,10 +6687,6 @@
    "n": 2
   },
   {
-   "s": "Menunggu pembayaran",
-   "n": 2
-  },
-  {
    "s": "Menutup layar ini",
    "n": 2
   },
@@ -6879,6 +6887,10 @@
    "n": 2
   },
   {
+   "s": "Order Link",
+   "n": 2
+  },
+  {
    "s": "Order tidak berlanjut — dana escrow telah dikembalikan ke pembeli oleh {x}.",
    "n": 2
   },
@@ -6975,7 +6987,7 @@
    "n": 2
   },
   {
-   "s": "Penjual melewati batas waktu kirim.",
+   "s": "Penjual melewati batas kirim — dana TIDAK akan cair otomatis sampai masalah ini selesai.",
    "n": 2
   },
   {
@@ -7000,6 +7012,10 @@
   },
   {
    "s": "Perangkat tepercaya melewati {x}FA saat masuk. Masukkan kata sandi akun untuk konfirmasi.",
+   "n": 2
+  },
+  {
+   "s": "Perangkat tidak mendukung pembacaan parsial file.",
    "n": 2
   },
   {
@@ -7347,10 +7363,6 @@
    "n": 2
   },
   {
-   "s": "Rp {x}",
-   "n": 2
-  },
-  {
    "s": "Saldo tersedia",
    "n": 2
   },
@@ -7487,7 +7499,7 @@
    "n": 2
   },
   {
-   "s": "Setelah ikut, bayar via escrow lalu tautkan pesanan Anda. Target tercapai → cair ke host; gagal → refund otomatis.",
+   "s": "Setelah ikut, bayar via escrow lalu tautkan pesanan Anda. Target tercapai → cair ke host; gagal → pengembalian dana otomatis.",
    "n": 2
   },
   {
@@ -7855,10 +7867,6 @@
    "n": 2
   },
   {
-   "s": "Tenggat kirim adalah {x}.",
-   "n": 2
-  },
-  {
    "s": "Tenggat kirim: {x}.",
    "n": 2
   },
@@ -8111,7 +8119,7 @@
    "n": 2
   },
   {
-   "s": "Trip ditandai gagal — refund otomatis diproses",
+   "s": "Trip ditandai gagal — pengembalian dana otomatis diproses",
    "n": 2
   },
   {
@@ -10395,6 +10403,10 @@
    "n": 1
   },
   {
+   "s": "Ajukan sengketa",
+   "n": 1
+  },
+  {
    "s": "Akan dikirim otomatis saat tersambung kembali.",
    "n": 1
   },
@@ -10636,6 +10648,10 @@
   },
   {
    "s": "Anda akan diberi tahu saat lawan menerima.",
+   "n": 1
+  },
+  {
+   "s": "Anda akan menerima",
    "n": 1
   },
   {
@@ -11191,15 +11207,15 @@
    "n": 1
   },
   {
+   "s": "Bayar ke Escrow ·",
+   "n": 1
+  },
+  {
    "s": "Bayar sekarang",
    "n": 1
   },
   {
    "s": "Bebas biaya layanan",
-   "n": 1
-  },
-  {
-   "s": "Beli",
    "n": 1
   },
   {
@@ -11539,6 +11555,18 @@
    "n": 1
   },
   {
+   "s": "biaya layanan ditanggung bersama",
+   "n": 1
+  },
+  {
+   "s": "biaya layanan ditanggung pembeli",
+   "n": 1
+  },
+  {
+   "s": "biaya layanan ditanggung penjual",
+   "n": 1
+  },
+  {
    "s": "Biaya layanan transaksi digratiskan sampai batas kuota setiap periode langganan.",
    "n": 1
   },
@@ -11659,10 +11687,6 @@
    "n": 1
   },
   {
-   "s": "Buat Order Link",
-   "n": 1
-  },
-  {
    "s": "Buat polling",
    "n": 1
   },
@@ -11672,6 +11696,10 @@
   },
   {
    "s": "Buat polling pertama untuk voting bersama di ruang ini.",
+   "n": 1
+  },
+  {
+   "s": "Buat tautan pesanan",
    "n": 1
   },
   {
@@ -12047,6 +12075,10 @@
    "n": 1
   },
   {
+   "s": "Cache penyimpanan tidak tersedia.",
+   "n": 1
+  },
+  {
    "s": "Cadangan dilindungi dengan kontrol akses dan, jika diterapkan, enkripsi. Proses pemulihan diuji secara berkala sesuai tingkat kritikalitas.",
    "n": 1
   },
@@ -12323,6 +12355,10 @@
    "n": 1
   },
   {
+   "s": "Dalam pengiriman",
+   "n": 1
+  },
+  {
    "s": "Dalam peninjauan",
    "n": 1
   },
@@ -12360,10 +12396,6 @@
   },
   {
    "s": "Dana cair",
-   "n": 1
-  },
-  {
-   "s": "Dana cair ke penjual",
    "n": 1
   },
   {
@@ -13403,6 +13435,10 @@
    "n": 1
   },
   {
+   "s": "Gagal membaca file video.",
+   "n": 1
+  },
+  {
    "s": "Gagal membaca gambar",
    "n": 1
   },
@@ -13435,10 +13471,6 @@
    "n": 1
   },
   {
-   "s": "Gagal membuat Order Link",
-   "n": 1
-  },
-  {
    "s": "Gagal membuat PIN",
    "n": 1
   },
@@ -13448,6 +13480,10 @@
   },
   {
    "s": "Gagal membuat QRIS",
+   "n": 1
+  },
+  {
+   "s": "Gagal membuat tautan pesanan",
    "n": 1
   },
   {
@@ -14207,7 +14243,7 @@
    "n": 1
   },
   {
-   "s": "Hingga Rp {x}",
+   "s": "Hingga {x}",
    "n": 1
   },
   {
@@ -15503,10 +15539,6 @@
    "n": 1
   },
   {
-   "s": "Konfirmasi penerimaan",
-   "n": 1
-  },
-  {
    "s": "Konfirmasi penerimaan untuk meneruskan dana escrow ke penjual.",
    "n": 1
   },
@@ -16759,6 +16791,10 @@
    "n": 1
   },
   {
+   "s": "Menunggu konfirmasi",
+   "n": 1
+  },
+  {
    "s": "Menunggu konfirmasi lawan transaksi.",
    "n": 1
   },
@@ -16767,7 +16803,15 @@
    "n": 1
   },
   {
+   "s": "Menunggu konfirmasi penjual",
+   "n": 1
+  },
+  {
    "s": "Menunggu moderasi",
+   "n": 1
+  },
+  {
+   "s": "Menunggu pembayaran",
    "n": 1
   },
   {
@@ -16935,7 +16979,7 @@
    "n": 1
   },
   {
-   "s": "Minta tautan baru kepada pembuat order.",
+   "s": "Minta tautan baru kepada pembuat pesanan.",
    "n": 1
   },
   {
@@ -17027,6 +17071,10 @@
    "n": 1
   },
   {
+   "s": "Mulai {x}",
+   "n": 1
+  },
+  {
    "s": "Mulai chat dengan lawan transaksi Anda.",
    "n": 1
   },
@@ -17036,10 +17084,6 @@
   },
   {
    "s": "Mulai percakapan Anda.",
-   "n": 1
-  },
-  {
-   "s": "Mulai Rp {x}",
    "n": 1
   },
   {
@@ -17359,10 +17403,6 @@
    "n": 1
   },
   {
-   "s": "Ongkir",
-   "n": 1
-  },
-  {
    "s": "Ongkir aktual",
    "n": 1
   },
@@ -17427,15 +17467,7 @@
    "n": 1
   },
   {
-   "s": "Order Link dibuat",
-   "n": 1
-  },
-  {
    "s": "Order link diterima",
-   "n": 1
-  },
-  {
-   "s": "Order Link mungkin sudah dibuat",
    "n": 1
   },
   {
@@ -17476,6 +17508,10 @@
   },
   {
    "s": "Paket",
+   "n": 1
+  },
+  {
+   "s": "Paket dikirim",
    "n": 1
   },
   {
@@ -17620,6 +17656,10 @@
   },
   {
    "s": "pembatasan penghapusan karena Sengketa, investigasi, audit, tuntutan, atau kewajiban hukum.",
+   "n": 1
+  },
+  {
+   "s": "Pembayaran diproses",
    "n": 1
   },
   {
@@ -17947,6 +17987,10 @@
    "n": 1
   },
   {
+   "s": "Penjual melewati batas kirim",
+   "n": 1
+  },
+  {
    "s": "Penjual melihat dana sudah aman sebelum memproses pesanan.",
    "n": 1
   },
@@ -18108,6 +18152,10 @@
   },
   {
    "s": "Perangkat tidak dikenal",
+   "n": 1
+  },
+  {
+   "s": "Perangkat tidak mendukung upload lanjutan. Mencoba cara biasa…",
    "n": 1
   },
   {
@@ -19127,11 +19175,19 @@
    "n": 1
   },
   {
+   "s": "Respons {x} tidak valid.",
+   "n": 1
+  },
+  {
    "s": "Respons mungkin sudah dicatat — memuat ulang…",
    "n": 1
   },
   {
    "s": "Respons server tidak dapat dibaca.",
+   "n": 1
+  },
+  {
+   "s": "Respons server tidak lengkap.",
    "n": 1
   },
   {
@@ -19300,10 +19356,6 @@
   },
   {
    "s": "Riwayat undangan",
-   "n": 1
-  },
-  {
-   "s": "Rp {x} – {y}",
    "n": 1
   },
   {
@@ -19736,6 +19788,10 @@
   },
   {
    "s": "Sesi unggah kedaluwarsa. Coba unggah ulang.",
+   "n": 1
+  },
+  {
+   "s": "Sesi upload tidak konsisten.",
    "n": 1
   },
   {
@@ -20367,6 +20423,10 @@
    "n": 1
   },
   {
+   "s": "Tautan ini seperti kunci: hanya bagikan ke orang yang Anda maksud. Siapa pun yang membuka tautan bisa menjadi lawan transaksi Anda.",
+   "n": 1
+  },
+  {
    "s": "Tautan konfirmasi tidak valid atau kedaluwarsa. Ulangi login sosial Anda.",
    "n": 1
   },
@@ -20380,6 +20440,18 @@
   },
   {
    "s": "Tautan mungkin sudah diterima — memuat ulang…",
+   "n": 1
+  },
+  {
+   "s": "Tautan pesanan",
+   "n": 1
+  },
+  {
+   "s": "Tautan pesanan dibuat",
+   "n": 1
+  },
+  {
+   "s": "Tautan pesanan mungkin sudah dibuat",
    "n": 1
   },
   {
@@ -21383,6 +21455,10 @@
    "n": 1
   },
   {
+   "s": "Upload gagal ({x}).",
+   "n": 1
+  },
+  {
    "s": "URL unggah tidak aman.",
    "n": 1
   },
@@ -21668,6 +21744,10 @@
   },
   {
    "s": "Waktu memakai zona waktu perangkat Anda.",
+   "n": 1
+  },
+  {
+   "s": "Waktu upload chunk habis. Coba lagi.",
    "n": 1
   },
   {
