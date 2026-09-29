@@ -42,6 +42,7 @@ import {
   FlatList,
   Keyboard,
   View,
+  type LayoutChangeEvent,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
 } from "react-native"
@@ -2444,6 +2445,60 @@ export default function ChatRoomScreen() {
       ) : null,
     [messages.length, olderStatus, loadOlder],
   )
+  /**
+   * FE-058 (audit 2026-09-29): ListEmptyComponent kondisional di-hoist —
+   * elemen JSX baru tiap render menggagalkan bail-out kontainer FlatList.
+   */
+  const threadListEmpty = useMemo(
+    () =>
+      loading ? (
+        <View className="pt-3">
+          <ListLoading />
+        </View>
+      ) : roomGone ? (
+        <EmptyState
+          icon={Chats}
+          title="Percakapan tidak tersedia"
+          description="Ruang chat ini telah dihapus atau dinonaktifkan."
+          action={
+            <Button onPress={() => router.replace(ROUTES.chat)}>
+              Kembali ke daftar chat
+            </Button>
+          }
+        />
+      ) : error ? (
+        <ErrorState
+          title="Gagal memuat"
+          description={error}
+          onRetry={() => void fetchMessages()}
+        />
+      ) : (
+        <EmptyState
+          icon={Chats}
+          title="Belum ada pesan"
+          description="Mulai percakapan Anda."
+        />
+      ),
+    [loading, roomGone, error, fetchMessages],
+  )
+  /**
+   * FE-059/FE-060 (audit 2026-09-29): handler stabil untuk ChatPinnedBar
+   * (memo) dan MediaViewer (memo + mount kondisional).
+   */
+  const handlePinnedPress = useCallback((m: ChatMessage) => jumpToMessage(m.id), [jumpToMessage])
+  const handlePinnedUnpin = useCallback(
+    (m: ChatMessage) => void handleTogglePin(m),
+    [handleTogglePin],
+  )
+  const handlePinnedLayout = useCallback(
+    (e: LayoutChangeEvent) => setPinnedBarHeight(e.nativeEvent.layout.height),
+    [],
+  )
+  const handleViewerClose = useCallback(() => setViewerItem(null), [])
+  const handleViewerOpenError = useCallback(
+    (msg: string) => toast.show({ title: msg, tone: "danger" }),
+    [toast.show],
+  )
   const handleStartReached = useCallback(() => {
     if (olderStatus === "idle" && messages.length > 0) void loadOlder()
   }, [olderStatus, messages.length, loadOlder])
@@ -2616,9 +2671,9 @@ export default function ChatRoomScreen() {
         <ChatPinnedBar
           message={latestPinned}
           count={pinned.length}
-          onPress={(m) => jumpToMessage(m.id)}
-          onUnpin={(m) => void handleTogglePin(m)}
-          onLayout={(e) => setPinnedBarHeight(e.nativeEvent.layout.height)}
+          onPress={handlePinnedPress}
+          onUnpin={handlePinnedUnpin}
+          onLayout={handlePinnedLayout}
         />
       ) : null}
       {/* F-06 (audit): FlatList menggantikan ScrollView + messages.map —
@@ -2644,36 +2699,7 @@ export default function ChatRoomScreen() {
         onScroll={handleScroll}
         scrollEventThrottle={SCROLL_EVENT_THROTTLE}
         ListHeaderComponent={threadListHeader}
-        ListEmptyComponent={
-          loading ? (
-            <View className="pt-3">
-              <ListLoading />
-            </View>
-          ) : roomGone ? (
-            <EmptyState
-              icon={Chats}
-              title="Percakapan tidak tersedia"
-              description="Ruang chat ini telah dihapus atau dinonaktifkan."
-              action={
-                <Button onPress={() => router.replace(ROUTES.chat)}>
-                  Kembali ke daftar chat
-                </Button>
-              }
-            />
-          ) : error ? (
-            <ErrorState
-              title="Gagal memuat"
-              description={error}
-              onRetry={() => void fetchMessages()}
-            />
-          ) : (
-            <EmptyState
-              icon={Chats}
-              title="Belum ada pesan"
-              description="Mulai percakapan Anda."
-            />
-          )
-        }
+        ListEmptyComponent={threadListEmpty}
         renderItem={renderThreadRow}
         // Scroll ke puncak = muat riwayat lebih lama (tombol eksplisit tetap
         // ada di header list untuk status error).
@@ -2687,11 +2713,13 @@ export default function ChatRoomScreen() {
       // blank saat scroll di Android — view terpotong tak selalu direstorasi.
       />
 
-      <MediaViewer
-        item={viewerItem}
-        onClose={() => setViewerItem(null)}
-        onOpenError={(msg) => toast.show({ title: msg, tone: "danger" })}
-      />
+      {viewerItem ? (
+        <MediaViewer
+          item={viewerItem}
+          onClose={handleViewerClose}
+          onOpenError={handleViewerOpenError}
+        />
+      ) : null}
 
       <ImageViewer
         visible={imageViewer != null}

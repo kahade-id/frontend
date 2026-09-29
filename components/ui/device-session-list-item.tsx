@@ -48,7 +48,7 @@
  *     …, perlu ditinjau" sebagai satu elemen; tombol "Keluar" berlabel
  *     "Keluar dari {nama perangkat}" agar jelas saat difokuskan terpisah.
  */
-import type { ReactNode } from "react"
+import { memo, type ReactNode } from "react"
 import { Desktop, DeviceMobile, DeviceTablet, GlobeSimple, Laptop, ShieldCheck, ShieldSlash, SignOut } from "phosphor-react-native"
 import { View, type ViewProps } from "react-native"
 
@@ -138,7 +138,8 @@ const DEFAULT_LABELS: DeviceSessionLabels = {
   untrust: "Cabut kepercayaan",
 }
 
-export function DeviceSessionListItem({
+// FE-011 (audit 2026-09-29): di-memo — daftar aktivitas memakai handler inline.
+export const DeviceSessionListItem = memo(function DeviceSessionListItem({
   deviceName,
   platform = "mobile",
   icon,
@@ -302,4 +303,4 @@ export function DeviceSessionListItem({
         /> : null}
     </View>
   )
-}
+})

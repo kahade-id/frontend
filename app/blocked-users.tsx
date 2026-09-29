@@ -7,7 +7,7 @@
  * memakai `userMessage(err)` — bukan copy tetap yang menyembunyikan alasan
  * sebenarnya (mis. "pengguna sudah tidak diblokir").
  */
-import { useCallback, useRef, useState } from "react"
+import { memo, useCallback, useRef, useState } from "react"
 import { Prohibit } from "phosphor-react-native"
 
 import { api } from "@/lib/api"
@@ -22,6 +22,51 @@ import { Dialog } from "@/components/ui/modal"
 import { UserListItem } from "@/components/ui/user-list-item"
 import { useToast } from "@/components/ui/toast"
 import { translate, useLanguage } from "@/lib/i18n"
+
+type BlockedUserRowProps = {
+  user: BlockedUser
+  stat: string | undefined
+  busy: boolean
+  divider: boolean
+  onRequestUnblock: (user: BlockedUser) => void
+}
+
+// FE-065 (audit 2026-09-29): baris di-memo — `action` (tombol "Buka blokir")
+// dibuat di dalam render baris sendiri, bukan inline di `.map` induk,
+// sehingga satu aksi unblock tidak me-render ulang semua baris.
+// `useLanguage()` membuat baris ikut ter-render saat bahasa berganti
+// (pola ShowcaseFeedItem); UserListItem sendiri sudah di-memo (FE-014).
+const BlockedUserRow = memo(function BlockedUserRow({
+  user,
+  stat,
+  busy,
+  divider,
+  onRequestUnblock,
+}: BlockedUserRowProps) {
+  useLanguage()
+  return (
+    <UserListItem
+      name={user.fullName ?? user.username}
+      username={user.username}
+      avatar={{ source: user.avatarUrl ?? undefined }}
+      blocked
+      // FE-IMP-3 #98 — tanggal diblokir per baris (caption di bawah handle).
+      stat={stat}
+      action={
+        <Button
+          variant="ghost"
+          size="sm"
+          fullWidth={false}
+          loading={busy}
+          onPress={() => onRequestUnblock(user)}
+        >
+          {translate("Buka blokir")}
+        </Button>
+      }
+      divider={divider}
+    />
+  )
+})
 
 export default function BlockedUsersScreen() {
   const toast = useToast()
@@ -60,6 +105,11 @@ export default function BlockedUsersScreen() {
     [setData, toast.show],
   )
 
+  // FE-065: handler stabil per-id untuk baris yang di-memo.
+  const requestUnblock = useCallback((user: BlockedUser) => {
+    setConfirmTarget(user)
+  }, [])
+
   return (
     <>
       <DataScreen
@@ -76,26 +126,13 @@ export default function BlockedUsersScreen() {
         contentClassName="gap-1"
       >
         {items.map((u, i) => (
-          <UserListItem
+          <BlockedUserRow
             key={u.id}
-            name={u.fullName ?? u.username}
-            username={u.username}
-            avatar={{ source: u.avatarUrl ?? undefined }}
-            blocked
-            // FE-IMP-3 #98 — tanggal diblokir per baris (caption di bawah handle).
+            user={u}
             stat={u.blockedAt ? translate("Diblokir {x}", { x: formatDate(u.blockedAt) }) : undefined}
-            action={
-              <Button
-                variant="ghost"
-                size="sm"
-                fullWidth={false}
-                loading={unblockingId === u.id}
-                onPress={() => setConfirmTarget(u)}
-              >
-                {translate("Buka blokir")}
-              </Button>
-            }
+            busy={unblockingId === u.id}
             divider={i < items.length - 1}
+            onRequestUnblock={requestUnblock}
           />
         ))}
       </DataScreen>

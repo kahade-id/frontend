@@ -10,10 +10,11 @@ import { ShowcaseSavedCollection } from "@/components/ui/showcase-saved-collecti
  * Meta respons (total/page/limit) di top-level — adapter sudah menormalkan,
  * jadi layar cukup useApiQuery satu halaman pertama (daftar pribadi, kecil).
  */
-import { useState } from "react"
+import { memo, useCallback, useState } from "react"
 import { Bookmark } from "phosphor-react-native"
 import { router } from "expo-router"
 import { translate } from "@/lib/i18n/translate"
+import { useLanguage } from "@/lib/i18n"
 
 import { api, userMessage } from "@/lib/api"
 import type { SavedProfileEntry } from "@/lib/api/users"
@@ -28,6 +29,52 @@ import { SectionHeader } from "@/components/ui/section"
 import { UserListItem } from "@/components/ui/user-list-item"
 import { useToast } from "@/components/ui/toast"
 
+type SavedProfileRowProps = {
+  entry: SavedProfileEntry
+  stat: string | undefined
+  busy: boolean
+  divider: boolean
+  onOpenProfile: (username: string) => void
+  onUnsave: (entry: SavedProfileEntry) => void
+}
+
+// FE-065 (audit 2026-09-29): baris di-memo — `action` (IconButton unsave)
+// dibuat di dalam render baris sendiri, bukan inline di `.map` induk.
+// `useLanguage()` agar label aksesibilitas ikut berganti bahasa
+// (pola ShowcaseFeedItem); UserListItem sendiri sudah di-memo (FE-014).
+const SavedProfileRow = memo(function SavedProfileRow({
+  entry,
+  stat,
+  busy,
+  divider,
+  onOpenProfile,
+  onUnsave,
+}: SavedProfileRowProps) {
+  useLanguage()
+  const { user } = entry
+  return (
+    <UserListItem
+      name={user.fullName ?? user.username}
+      username={user.username}
+      avatar={{ source: user.avatarUrl || undefined }}
+      verified={user.kycStatus === "APPROVED"}
+      stat={stat}
+      divider={divider}
+      onPress={() => onOpenProfile(user.username)}
+      action={
+        <IconButton
+          icon={Bookmark}
+          variant="ghost"
+          size="sm"
+          accessibilityLabel={translate("Hapus {x} dari tersimpan", { x: user.fullName ?? user.username })}
+          loading={busy}
+          onPress={() => void onUnsave(entry)}
+        />
+      }
+    />
+  )
+})
+
 export default function SavedProfilesScreen() {
   const toast = useToast()
   const query = useApiQuery("saved-profiles", (signal) =>
@@ -35,25 +82,37 @@ export default function SavedProfilesScreen() {
   )
   const items = query.data?.data ?? []
   const [unsavingId, setUnsavingId] = useState<string | null>(null)
+  // FE-065: destruktur setter stabil untuk useCallback di bawah.
+  const { setData: setSavedData } = query
 
-  const handleUnsave = async (entry: SavedProfileEntry) => {
-    setUnsavingId(entry.user.userId)
-    try {
-      await api.users.unsaveProfile(entry.user.username)
-      query.setData((prev) =>
-        prev ? { ...prev, data: prev.data.filter((e) => e.user.userId !== entry.user.userId) } : prev,
-      )
-      toast.show({ title: "Profil dihapus dari tersimpan", tone: "success", duration: 2500 })
-    } catch (err) {
-      toast.show({
-        title: "Gagal menghapus simpanan",
-        description: userMessage(err),
-        tone: "danger",
-      })
-    } finally {
-      setUnsavingId(null)
-    }
-  }
+  // FE-065: useCallback — memakai setData fungsional sehingga tidak bergantung
+  // pada data (identitas stabil antar render).
+  const handleUnsave = useCallback(
+    async (entry: SavedProfileEntry) => {
+      setUnsavingId(entry.user.userId)
+      try {
+        await api.users.unsaveProfile(entry.user.username)
+        setSavedData((prev) =>
+          prev ? { ...prev, data: prev.data.filter((e) => e.user.userId !== entry.user.userId) } : prev,
+        )
+        toast.show({ title: "Profil dihapus dari tersimpan", tone: "success", duration: 2500 })
+      } catch (err) {
+        toast.show({
+          title: "Gagal menghapus simpanan",
+          description: userMessage(err),
+          tone: "danger",
+        })
+      } finally {
+        setUnsavingId(null)
+      }
+    },
+    [setSavedData, toast.show],
+  )
+
+  // FE-065: handler navigasi stabil per-id untuk baris yang di-memo.
+  const openProfile = useCallback((username: string) => {
+    router.push(ROUTES.userProfile(username))
+  }, [])
 
   return (
     <DataScreen
@@ -81,29 +140,18 @@ export default function SavedProfilesScreen() {
     >
       <SectionHeader title="Profil tersimpan" />
       {items.map((entry, i) => (
-        <UserListItem
+        <SavedProfileRow
           key={entry.user.userId}
-          name={entry.user.fullName ?? entry.user.username}
-          username={entry.user.username}
-          avatar={{ source: entry.user.avatarUrl || undefined }}
-          verified={entry.user.kycStatus === "APPROVED"}
+          entry={entry}
           stat={
             entry.user.stats
               ? `${formatNumber(entry.user.stats.totalOrdersCompleted)} transaksi · ${entry.user.stats.averageRating}`
               : undefined
           }
+          busy={unsavingId === entry.user.userId}
           divider={i < items.length - 1}
-          onPress={() => router.push(ROUTES.userProfile(entry.user.username))}
-          action={
-            <IconButton
-              icon={Bookmark}
-              variant="ghost"
-              size="sm"
-              accessibilityLabel={translate("Hapus {x} dari tersimpan", { x: entry.user.fullName ?? entry.user.username })}
-              loading={unsavingId === entry.user.userId}
-              onPress={() => void handleUnsave(entry)}
-            />
-          }
+          onOpenProfile={openProfile}
+          onUnsave={handleUnsave}
         />
       ))}
     </DataScreen>

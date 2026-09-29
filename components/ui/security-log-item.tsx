@@ -50,7 +50,7 @@
  *     tautan lapor berlabel "Laporkan: bukan Anda?" agar konteksnya jelas
  *     saat difokuskan terpisah dari baris.
  */
-import type { ReactNode } from "react"
+import { memo, type ReactNode } from "react"
 import {
   DeviceMobile,
   Fingerprint,
@@ -156,7 +156,8 @@ const DEFAULT_LABELS: SecurityLogLabels = {
   reportA11y: "Laporkan: bukan Anda?",
 }
 
-export function SecurityLogItem({
+// FE-011 (audit 2026-09-29): di-memo — daftar aktivitas memakai handler inline.
+export const SecurityLogItem = memo(function SecurityLogItem({
   title,
   kind = "login",
   icon,
@@ -264,4 +265,4 @@ export function SecurityLogItem({
         /> : null}
     </View>
   )
-}
+})

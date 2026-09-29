@@ -27,7 +27,7 @@
  *     tetap sumber kebenaran.
  */
 import { View, type ViewProps } from "react-native"
-import { useState } from "react"
+import { memo, useState } from "react"
 
 import {
   ORDER_STATUS_LABELS,
@@ -195,7 +195,9 @@ export function mapOrderHistoryToTimeline(
   return items
 }
 
-export function OrderHistoryTimeline({
+// FE-007 (audit 2026-09-29): di-memo — induk menstabilkan `entries` via
+// useMemo agar tick countdown 1 Hz tidak me-render ulang timeline tiap detik.
+export const OrderHistoryTimeline = memo(function OrderHistoryTimeline({
   entries,
   currentStatus,
   expectedNext,
@@ -255,4 +257,4 @@ export function OrderHistoryTimeline({
       ) : null}
     </View>
   )
-}
+})
