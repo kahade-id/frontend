@@ -668,7 +668,9 @@ export function OrderSecondaryActions({
           leftIcon={ShieldWarning}
           onPress={() => onOpenSheet("dispute")}
         >
-          Laporkan masalah
+          {/* FE-046: label jujur — tombol ini langsung membuka ajuan sengketa
+              (yang membekukan dana), bukan sekadar "laporan". */}
+          Ajukan sengketa
         </Button>
       ) : null}
       {canReturn && !returnIsPrimary ? (

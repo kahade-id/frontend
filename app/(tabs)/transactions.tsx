@@ -215,6 +215,10 @@ function TransactionListSkeleton() {
 }
 
 export default function TransactionsScreen() {
+  // FE-064: elemen header kiri yang stabil — <DrawerMenuButton> tanpa prop,
+  // aman dipakai ulang antar render agar memo <Header> bisa bail-out.
+  const headerLeft = useMemo(() => <DrawerMenuButton />, [])
+
   const insets = useSafeAreaInsets()
   /**
    * J-08 (audit): tab peran dibaca dari preferensi persisten (default
@@ -278,6 +282,47 @@ export default function TransactionsScreen() {
     },
   )
   const filtered = status !== ALL_STATUS
+
+  // FE-064: prop `right` header di-memo agar memo <Header> bisa bail-out.
+  // Deps: walletBalance (label chip) + filtered (state tombol funnel).
+  const headerRight = useMemo(
+    () => (
+      <View className="flex-row items-center gap-2">
+        {/*
+         * T5-003-minimal: chip saldo mini → Dompet. Satu ketukan, tanpa
+         * menambah tab (keputusan produk: tab penuh di-defer).
+         */}
+        <PressableScale
+          onPress={() => router.push(ROUTES.wallet)}
+          accessibilityRole="button"
+          accessibilityLabel={
+            typeof walletBalance === "number"
+              ? `Buka Dompet, saldo ${formatRupiah(walletBalance)}`
+              : "Buka Dompet"
+          }
+          className="flex-row items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1.5"
+        >
+          <Icon icon={Wallet} size="sm" tone="active" />
+          <Text variant="caption" weight={600}>
+            {typeof walletBalance === "number"
+              ? formatRupiah(walletBalance)
+              : "Dompet"}
+          </Text>
+        </PressableScale>
+        <IconButton
+          icon={Funnel}
+          variant="ghost"
+          active={filtered}
+          accessibilityLabel={translate("Filter status transaksi")}
+          accessibilityHint={
+            filtered ? translate("Filter aktif, ketuk untuk mengubah") : translate("Ketuk untuk memfilter")
+          }
+          onPress={() => setSheetOpen(true)}
+        />
+      </View>
+    ),
+    [walletBalance, filtered],
+  )
 
   /**
    * R1-005 (2026-09-29, audit render-perf): placeholder & empty distabilkan —
@@ -415,42 +460,8 @@ export default function TransactionsScreen() {
         elevated={elevated}
         // T5-002 (audit UI/UX intuitif 2026-09-29): drawer bisa dibuka dari
         // semua tab, bukan cuma Etalase.
-        left={<DrawerMenuButton />}
-        right={
-          <View className="flex-row items-center gap-2">
-            {/*
-             * T5-003-minimal: chip saldo mini → Dompet. Satu ketukan, tanpa
-             * menambah tab (keputusan produk: tab penuh di-defer).
-             */}
-            <PressableScale
-              onPress={() => router.push(ROUTES.wallet)}
-              accessibilityRole="button"
-              accessibilityLabel={
-                typeof walletBalance === "number"
-                  ? `Buka Dompet, saldo ${formatRupiah(walletBalance)}`
-                  : "Buka Dompet"
-              }
-              className="flex-row items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1.5"
-            >
-              <Icon icon={Wallet} size="sm" tone="active" />
-              <Text variant="caption" weight={600}>
-                {typeof walletBalance === "number"
-                  ? formatRupiah(walletBalance)
-                  : "Dompet"}
-              </Text>
-            </PressableScale>
-            <IconButton
-              icon={Funnel}
-              variant="ghost"
-              active={filtered}
-              accessibilityLabel={translate("Filter status transaksi")}
-              accessibilityHint={
-                filtered ? translate("Filter aktif, ketuk untuk mengubah") : translate("Ketuk untuk memfilter")
-              }
-              onPress={() => setSheetOpen(true)}
-            />
-          </View>
-        }
+        left={headerLeft}
+        right={headerRight}
       />
       <ModeShiftFade>
       {/* v2: kontrol filter fade-in cepat TANPA geser — kontrol fungsional

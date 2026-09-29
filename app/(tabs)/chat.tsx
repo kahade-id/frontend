@@ -538,6 +538,10 @@ function areChatRowPropsEqual(prev: ChatRoomRowProps, next: ChatRoomRowProps): b
 
 const ChatRoomRow = memo(ChatRoomRowBase, areChatRowPropsEqual)
 
+// FE-064: elemen header kiri yang stabil — <DrawerMenuButton> tanpa prop,
+// aman dipakai ulang antar render agar memo <Header> bisa bail-out.
+const CHAT_HEADER_LEFT = <DrawerMenuButton />
+
 export default function ChatScreen() {
   const toast = useToast()
   const insets = useSafeAreaInsets()
@@ -586,6 +590,21 @@ export default function ChatScreen() {
   const [batchBusy, setBatchBusy] = useState(false)
   // Efek scroll: header terangkat (bayangan) saat daftar digulir.
   const { elevated, onScrollWorklet } = useScrollElevation()
+
+  // FE-064: prop `right` header di-memo agar memo <Header> bisa bail-out.
+  // Handler stabil — tidak ada state yang berubah per render.
+  const headerRight = useMemo(
+    () => (
+      <IconButton
+        icon={GearSix}
+        variant="ghost"
+        size="md"
+        accessibilityLabel="Pengaturan chat"
+        onPress={() => router.push(ROUTES.chatSettings)}
+      />
+    ),
+    [],
+  )
 
   // Query aktif mengikuti tab — tiap tab datanya sudah difilter server
   // (utama = non-arsip, arsip = ?archived=true). "Belum dibaca"/"Transaksi"
@@ -1117,17 +1136,9 @@ export default function ChatScreen() {
           title={archiveOpen ? "Diarsipkan" : "Pesan"}
           // T5-002 (audit UI/UX intuitif 2026-09-29): drawer bisa dibuka dari
           // semua tab, bukan cuma Etalase.
-          left={<DrawerMenuButton />}
+          left={CHAT_HEADER_LEFT}
           // Batch 43: pintu masuk pengaturan privasi/template balasan.
-          right={
-            <IconButton
-              icon={GearSix}
-              variant="ghost"
-              size="md"
-              accessibilityLabel="Pengaturan chat"
-              onPress={() => router.push(ROUTES.chatSettings)}
-            />
-          }
+          right={headerRight}
         />
       )}
       {!selecting ? (
