@@ -160,7 +160,8 @@ export default function SellerProductFormScreen() {
     return (
       <Screen edges={["top"]} padded={false}>
         <Header title="Tambah Produk" />
-        <ScrollView>{formFields}</ScrollView>
+        {/* FE-115: ketukan tombol tidak tertelan saat keyboard terbuka */}
+        <ScrollView keyboardShouldPersistTaps="handled">{formFields}</ScrollView>
       </Screen>
     )
   }
