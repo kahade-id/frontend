@@ -1000,7 +1000,7 @@
   "{x} dari {x} selesai": "{x} of {x} done",
   "{x} dari {y} foto gagal diunggah": "{x} of {y} photos failed to upload",
   "{x} disalin": "{x} copied",
-  "{x} ditahan di escrow. Ketuk untuk melihat rincian pesanan penahan.": "{x} held in escrow. Tap to see the holding-order details.",
+  "Ditahan di escrow: {x}. Ketuk untuk melihat rincian.": "Held in escrow: {x}. Tap to see details.",
   "{x} kali dibagikan": "Shared {x} times",
   "{x} karakter tersisa": "{x} characters left",
   "{x} karya tersimpan di akun Anda.": "{x} works saved to your account.",

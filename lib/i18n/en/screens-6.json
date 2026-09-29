@@ -113,9 +113,8 @@
   "Tenggat pengiriman": "Delivery deadline",
   "Ukuran berkas melebihi {x} MB.": "File size exceeds {x} MB.",
   "Berkas terlalu besar": "File too large",
-  "Dana akan cair otomatis dalam {x}.": "Funds will be released automatically in {x}.",
   "Dana akan segera diteruskan ke penjual.": "Funds will soon be forwarded to the seller.",
-  "Jika tidak ada konfirmasi atau sengketa sebelum {x}, dana otomatis diteruskan ke penjual.": "If there is no confirmation or dispute before {x}, the funds will automatically be forwarded to the seller.",
+  "Dana cair otomatis {x}.": "Funds will be released automatically {x}.",
   "Barang retur sudah diterima?": "Return item received?",
   "Pastikan barang retur sudah benar-benar Anda terima dan periksa kondisinya. Setelah dikonfirmasi, retur lanjut ke tahap penyelesaian.": "Make sure you have actually received the returned item and checked its condition. Once confirmed, the return moves to the resolution stage.",
   "Ya, barang retur sudah diterima": "Yes, the return item has been received"
