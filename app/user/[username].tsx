@@ -1571,7 +1571,8 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
       {/* ── Dialog Bertanya ──────────────────────────────────── */}
       <Dialog
         title={translate("Bertanya kepada @{x}", { x: handle })}
-        description={translate("Pertanyaan Anda akan tampil di profil ini dan dijawab oleh pemiliknya.")}
+        // FE-096: description dihapus — user yang menekan "Ajukan pertanyaan"
+        // di profil seseorang sudah paham konteksnya.
         visible={askOpen}
         loading={asking}
         confirmLabel={translate("Kirim pertanyaan")}
@@ -1702,7 +1703,7 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
         visible={qrOpen}
         onRequestClose={() => setQrOpen(false)}
         title={translate("Kode QR profil")}
-        description={translate("Pindai kode ini untuk membuka profil @{x}.", { x: handle })}
+        // FE-095: description dihapus — QR + username sudah cukup jelas.
       >
         <View className="items-center px-5 pb-4">
           <QRCodeDisplay
@@ -1736,7 +1737,8 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
         visible={hideC != null}
         onRequestClose={() => setHideC(null)}
         title={translate("Sembunyikan komentar")}
-        description={translate("Komentar tidak lagi tampil untuk pengguna lain. Tindakan dapat dibatalkan lewat moderasi.")}
+        // FE-097: "lewat moderasi" adalah detail internal — cukup kalimat pertama.
+        description={translate("Komentar tidak lagi tampil untuk pengguna lain.")}
         footer={
           <Button
             fullWidth
