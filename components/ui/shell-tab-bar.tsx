@@ -53,18 +53,24 @@ export function ShellTabBar() {
   }, [pathname])
 
   const items = useMemo<BottomTabItem<string>[]>(() => {
-    return SHELL_TABS.map((tab) => ({
-      key: tab.key,
-      label: translate(tab.label),
-      icon: tab.icon,
-      accessibilityLabel: translate(tab.accessibilityLabel),
-      badge:
+    return SHELL_TABS.map((tab) => {
+      // T5-005: badge tab Pesan & Notifikasi menampilkan ANGKA ("99+"
+      // bila > 99), bukan cuma titik.
+      const badgeCount =
         tab.key === "chat"
-          ? (chatUnread.count ?? 0) > 0
+          ? (chatUnread.count ?? 0)
           : tab.key === "notifications"
-            ? (unread.count ?? 0) > 0
-            : false,
-    }))
+            ? (unread.count ?? 0)
+            : 0
+      return {
+        key: tab.key,
+        label: translate(tab.label),
+        icon: tab.icon,
+        accessibilityLabel: translate(tab.accessibilityLabel),
+        badge: badgeCount > 0,
+        badgeCount,
+      }
+    })
   }, [unread.count, chatUnread.count])
 
   const onChange = useCallback(
@@ -90,6 +96,8 @@ export function ShellTabBar() {
         icon: QrCode,
         accessibilityLabel: translate("Pindai QR"),
         accessibilityHint: translate("Membuka pemindai kode QR"),
+        // T5-006: label mikro di bawah ikon QR tengah.
+        label: translate("Pindai"),
         onPress: onScan,
       }}
       // Coach mark sekali saja (2026-09-28): pengenal ikon QR yang baru.

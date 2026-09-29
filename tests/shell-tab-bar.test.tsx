@@ -6,8 +6,11 @@
  *      (NAV-011 2026-09-28: konsep mode commerce/wallet sudah mati total —
  *      bar tidak membaca preferensi mode lagi.)
  *   2. Tab aktif mengikuti pathname (termasuk /notifications sebagai tab).
- *   3. Badge "Ada pembaruan" di tab Notifikasi saat unread notifikasi > 0;
- *      badge tab Pesan membaca unread CHAT (bukan total notifikasi).
+ *   3. Badge ANGKA unread di tab Notifikasi & Pesan (T5-005, 2026-09-29):
+ *      pil merah berisi angka ("99+" bila > 99), BUKAN titik "Ada
+ *      pembaruan"; badge tab Pesan membaca unread CHAT (bukan total
+ *      notifikasi). Titik tanpa angka hanya untuk "ada yang baru" tanpa
+ *      hitungan (bukan kasus kedua tab ini).
  *   4. Tombol (+) membuka action sheet "Buat baru" berisi "Buat Karya"
  *      (pengambil-alih fungsi pensil lama → /showcase/create).
  *   5. Menekan tab lain memanggil `router.navigate` ke href tab itu.
@@ -112,12 +115,24 @@ describe("<ShellTabBar> struktur tetap", () => {
 })
 
 describe("<ShellTabBar> badge", () => {
-  it("tab Notifikasi berbadge saat unread notifikasi > 0", () => {
+  // T5-005 (audit UI/UX intuitif 2026-09-29): badge tab kini PIL ANGKA,
+  // bukan titik "Ada pembaruan".
+  it("tab Notifikasi menampilkan angka unread (bukan titik)", () => {
     setUnreadCount(3)
     setChatUnreadCount(0)
     renderBar()
     const tab = screen.getByRole("tab", { name: "Tab Notifikasi" })
-    expect(within(tab).getByLabelText("Ada pembaruan")).toBeTruthy()
+    expect(within(tab).getByLabelText("3 Notifikasi belum dibaca")).toBeTruthy()
+    expect(within(tab).getByText("3")).toBeTruthy()
+    expect(within(tab).queryByLabelText("Ada pembaruan")).toBeNull()
+  })
+
+  it("angka dipadatkan menjadi 99+ bila > 99", () => {
+    setUnreadCount(120)
+    renderBar()
+    const tab = screen.getByRole("tab", { name: "Tab Notifikasi" })
+    expect(within(tab).getByLabelText("99+ Notifikasi belum dibaca")).toBeTruthy()
+    expect(within(tab).getByText("99+")).toBeTruthy()
   })
 
   it("tab Notifikasi TANPA badge saat unread = 0", () => {
@@ -127,12 +142,13 @@ describe("<ShellTabBar> badge", () => {
     expect(within(tab).queryByLabelText("Ada pembaruan")).toBeNull()
   })
 
-  it("tab Pesan berbadge dari unread CHAT, bukan total notifikasi", () => {
+  it("tab Pesan menampilkan angka dari unread CHAT, bukan total notifikasi", () => {
     setUnreadCount(9)
     setChatUnreadCount(2)
     renderBar()
     const chatTab = screen.getByRole("tab", { name: "Tab Pesan" })
-    expect(within(chatTab).getByLabelText("Ada pembaruan")).toBeTruthy()
+    expect(within(chatTab).getByLabelText("2 Pesan belum dibaca")).toBeTruthy()
+    expect(within(chatTab).getByText("2")).toBeTruthy()
   })
 
   it("tab Pesan tanpa badge saat chat unread = 0 walau notifikasi > 0", () => {
@@ -141,6 +157,15 @@ describe("<ShellTabBar> badge", () => {
     renderBar()
     const chatTab = screen.getByRole("tab", { name: "Tab Pesan" })
     expect(within(chatTab).queryByLabelText("Ada pembaruan")).toBeNull()
+  })
+})
+
+describe("<ShellTabBar> tombol QR tengah", () => {
+  // T5-006 (audit UI/UX intuitif 2026-09-29): label mikro di bawah ikon QR
+  // — konsisten dengan semua tab lain yang berlabel.
+  it("menampilkan label 'Pindai' di bawah ikon QR", () => {
+    renderBar()
+    expect(screen.getByText("Pindai")).toBeTruthy()
   })
 })
 

@@ -266,7 +266,7 @@ export default function KahadePlusPlansScreen() {
                 )}
                 accessibilityRole="radio"
                 accessibilityState={{ selected: active, disabled: submitting }}
-                accessibilityLabel={m === "WALLET" ? "Bayar dengan saldo wallet" : "Bayar dengan QRIS"}
+                accessibilityLabel={m === "WALLET" ? "Bayar dengan saldo dompet" : "Bayar dengan QRIS"}
               >
                 <Text variant="body" weight={600} tone={active ? "inverse" : "secondary"}>
                   {m === "WALLET" ? "Saldo Wallet" : "QRIS"}

@@ -23,7 +23,9 @@
  *
  *   1. Urutan state. Beberapa layar mengecek `error` sebelum `loading`,
  *      sebagian sebaliknya, sebagian lupa `empty`. Di sini urutannya SATU:
- *      loading → error → empty → konten.
+ *      loading → error → empty → konten. T4-008 (2026-09-29): `error` =
+ *      fatal (belum ada data) → ErrorState penuh; `refreshError` =
+ *      refresh gagal padahal data ada → data lama + banner inline.
  *   2. Bottom inset. `insets.bottom + tokens.space[8]` diulang 40+ kali;
  *      satu layar yang lupa menambahkannya akan menyembunyikan baris terakhir
  *      di balik home indicator. Sekarang dihitung sekali di sini.
@@ -47,6 +49,8 @@ import type { ReactNode, Ref } from "react"
 import { ScrollView, View, type ScrollViewProps } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
+import { Alert } from "@/components/ui/alert"
+import { Button } from "@/components/ui/button"
 import { EmptyState, type EmptyStateProps } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { Crossfade } from "@/components/ui/fade-in"
@@ -56,6 +60,7 @@ import { ModeShiftFade } from "@/components/ui/mode-switcher"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { Screen, type ScreenBackground } from "@/components/ui/screen"
 import { cn } from "@/lib/cn"
+import { translate } from "@/lib/i18n/translate"
 import { tokens } from "@/lib/tokens"
 
 /**
@@ -69,6 +74,13 @@ export type DataScreenState = {
   refreshing?: boolean
   /** Pesan siap tampil dari `userMessage(err)` — bukan copy hardcode per layar. */
   error: string | null
+  /**
+   * T4-008 (audit UI/UX intuitif 2026-09-29): error NON-FATAL dari refresh
+   * yang gagal padahal data sudah ada. Bila terisi (dan `error` kosong),
+   * konten lama tetap dirender + banner inline "Gagal memperbarui" dengan
+   * tombol "Coba lagi" — layar TIDAK diganti ErrorState penuh.
+   */
+  refreshError?: string | null
   /** Dipanggil oleh gesture custom saat dilepas melewati ambang tarik. */
   refresh: () => void | Promise<void>
   /** Dipanggil oleh tombol "Coba lagi" di <ErrorState>. */
@@ -190,18 +202,41 @@ export function DataScreen({
   onScrollWorklet,
   children,
 }: DataScreenProps) {
-  const { loading, refreshing = false, error, refresh, reload } = state
+  const { loading, refreshing = false, error, refresh, reload, refreshError } = state
 
   // v2: loading → isi crossfade (signature moment), bukan swap keras. Berlaku
   // untuk ketiga hasil (konten/error/kosong) — error yang muncul halus tetap
   // instan secara fungsional (muncul di frame yang sama, hanya opacity yang
   // jalan 250ms). Refresh (PTR) tidak memicu reveal ulang: `loading` false.
+  //
+  // T4-008 (audit UI/UX intuitif 2026-09-29): `error` = fatal (belum ada data
+  // sama sekali) → ErrorState penuh. `refreshError` = refresh gagal padahal
+  // data lama ada → data lama tetap tampil + banner inline "Gagal
+  // memperbarui — menampilkan data terakhir" dengan tombol "Coba lagi".
   const content = error ? (
     <ErrorState title={errorTitle} description={error} onRetry={() => void reload()} />
-  ) : empty ? (
-    <EmptyState {...empty} />
   ) : (
-    <View className={cn("gap-4 pt-3", contentClassName)}>{children}</View>
+    <>
+      {refreshError ? (
+        <Alert
+          banner
+          tone="warning"
+          title={translate("Gagal memperbarui")}
+          action={
+            <Button size="sm" variant="ghost" onPress={() => void refresh()}>
+              {translate("Coba lagi")}
+            </Button>
+          }
+        >
+          {translate("Menampilkan data terakhir.")}
+        </Alert>
+      ) : null}
+      {empty ? (
+        <EmptyState {...empty} />
+      ) : (
+        <View className={cn("gap-4 pt-3", contentClassName)}>{children}</View>
+      )}
+    </>
   )
   const body = (
     <Crossfade loading={loading} skeleton={<LoadingScreen message={loadingMessage} />}>

@@ -350,7 +350,7 @@ export default function PasskeysScreen() {
         onRequestClose={() => setReauthFor(null)}
         title="Verifikasi ulang"
         description="Demi keamanan, verifikasi ulang identitas Anda sebelum mendaftarkan passkey."
-        confirmLabel="Lanjut"
+        confirmLabel="Verifikasi & daftarkan"
         onConfirm={() => reauthFor && void doAddWithReauth(reauthInput)}
         loading={working}
       >

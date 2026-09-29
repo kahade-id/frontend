@@ -128,3 +128,37 @@ export function NotificationDot({ visible = true, className }: { visible?: boole
     />
   )
 }
+
+/**
+ * <NotificationCount> — pil merah berisi angka unread (T5-005, audit UI/UX
+ * intuitif 2026-09-29): tab Pesan & Notifikasi kini menampilkan angka
+ * ("99+" bila > 99) seperti WhatsApp/Instagram, bukan cuma titik. Posisi
+ * absolute top-right; parent harus `relative`.
+ */
+export function NotificationCount({
+  count,
+  accessibilityLabel,
+  className,
+}: {
+  count: number
+  accessibilityLabel?: string
+  className?: string
+}) {
+  if (count <= 0) return null
+  const label = count > 99 ? "99+" : String(count)
+  return (
+    <View
+      accessible
+      accessibilityRole="text"
+      accessibilityLabel={accessibilityLabel ?? `${label} belum dibaca`}
+      className={cn(
+        "absolute -right-2.5 -top-1.5 h-4 min-w-4 items-center justify-center rounded-full border border-background bg-danger px-1",
+        className,
+      )}
+    >
+      <Text variant="caption" weight={700} tone="inverse" className="text-[10px] leading-none tabular-nums">
+        {label}
+      </Text>
+    </View>
+  )
+}

@@ -281,9 +281,10 @@ function HighlightEditor({
           ? translate("Maksimal {x} highlight per akun. Hapus salah satu dulu.", {
               x: String(HIGHLIGHTS_MAX),
             })
-          : err instanceof Error
-            ? err.message
-            : undefined,
+          : // T4-005 (audit UI/UX intuitif 2026-09-29): jangan bocorkan
+            // err.message mentah (bisa Inggris) — userMessage fail-closed
+            // ke Bahasa Indonesia.
+            userMessage(err),
         tone: "danger",
       })
     } finally {
@@ -301,7 +302,9 @@ function HighlightEditor({
     } catch (err: unknown) {
       toast.show({
         title: translate("Gagal menghapus highlight"),
-        description: err instanceof Error ? err.message : undefined,
+        // T4-005 (audit UI/UX intuitif 2026-09-29): userMessage, bukan
+        // err.message mentah.
+        description: userMessage(err),
         tone: "danger",
       })
     } finally {

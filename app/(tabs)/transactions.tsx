@@ -77,6 +77,7 @@ import { FadeIn } from "@/components/ui/fade-in"
 import { Header } from "@/components/ui/header"
 import { Icon } from "@/components/ui/icon"
 import { IconButton } from "@/components/ui/icon-button"
+import { DrawerMenuButton } from "@/components/ui/drawer-menu-button"
 import { ModeShiftFade } from "@/components/ui/mode-switcher"
 import { OrderCard, OrderCardSkeleton } from "@/components/ui/order-card"
 import { PaginatedList } from "@/components/ui/paginated-list"
@@ -353,6 +354,9 @@ export default function TransactionsScreen() {
         showBack={false}
         separator={false}
         elevated={elevated}
+        // T5-002 (audit UI/UX intuitif 2026-09-29): drawer bisa dibuka dari
+        // semua tab, bukan cuma Etalase.
+        left={<DrawerMenuButton />}
         right={
           <View className="flex-row items-center gap-2">
             {/*
