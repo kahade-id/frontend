@@ -849,8 +849,9 @@ export default function WithdrawScreen() {
                 (bukan janji per transaksi), agar user punya ekspektasi yang
                 jelas sebelum dana dipotong. */}
             <Text variant="caption" tone="secondary" className="text-center">
-              Estimasi dana sampai: umumnya beberapa menit hingga 1 hari kerja,
-              tergantung jam operasional bank.
+              {/* FE-103: rentang "beberapa menit hingga 1 hari kerja" nyaris
+                  tidak informatif — cukup batas atasnya. */}
+              {translate("Estimasi sampai: maks. 1 hari kerja.")}
             </Text>
           </View>
         )}
