@@ -386,7 +386,7 @@ function AppShellInner() {
   // (mis. kahade.id/order/xxx dari share WA → dibuka aplikasi via universal
   // link) mendarat di layar KOSONG — `Stack.Protected` mencabut layarnya dari
   // navigator tanpa fallback. Alihkan ke /login dengan tujuan tersimpan
-  // (`next` + setPendingNext) supaya alur login/welcome melanjutkannya.
+  // (`next` + setPendingNext) supaya alur login melanjutkannya (U5-003: tanpa layar welcome).
   // Web dikecualikan: guard web selalu true + GuestLoginPrompt menangani tamu.
   const redirectedDeepLink = useRef(false)
   useEffect(() => {
@@ -548,7 +548,7 @@ function AppShellInner() {
       if (source === "cold-start" && !resolved) return
       const target = resolved ?? ROUTES.notifications
       // NAV-007: tap notifikasi saat logout — simpan tujuan supaya alur
-      // login/welcome melanjutkannya (takePendingNext), bukan hilang.
+      // login melanjutkannya (takePendingNext; U5-003: tanpa layar welcome), bukan hilang.
       // Href objek harus dikonkretkan dulu: menyimpan template mentah
       // ("/order/[id]") membuat redirect login mendarat di 404.
       if (!session.token) {

@@ -69,6 +69,7 @@ const PUBLIC_SCREENS = new Set<string>([
   "products/[id]", // detail produk publik — GET /v1/products/:id @Public() (GAP-D, integrasi 2026-09-27)
   "patungan/index", // daftar grup patungan publik — GET /v1/patungan/groups auth:"optional" (batch 43, item 16)
   "patungan/[id]", // detail grup patungan publik — GET /v1/patungan/groups/:id auth:"optional" (batch 43, item 16)
+  "patungan/how-it-works", // U5-014 (journey): edukasi publik, konsisten dengan seksi patungan
   "scan",
 ])
 

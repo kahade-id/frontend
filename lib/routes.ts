@@ -177,6 +177,9 @@ export const ROUTES = {
           orderLink.orderValueValid && typeof orderLink.orderValue === "number"
             ? String(orderLink.orderValue)
             : undefined,
+        // U5-006 (journey): penanda eksplisit "Beli" dari Etalase — wizard
+        // membuka langsung di langkah Detail bila prefill lengkap & valid.
+        fromShowcase: "1",
       },
     }) as unknown as Href,
   /**
@@ -565,6 +568,8 @@ export const ROUTES = {
   sellerVouchers: "/seller/vouchers" as Href,
   /** Jastip — daftar trip host (batch 43, item 15 — /v1/jastip) */
   jastip: "/jastip" as Href,
+  /** Jastip — "Cara kerja" + simulasi nominal (U5-014, journey). */
+  jastipHowItWorks: "/jastip/how-it-works" as Href,
   /** Jastip — detail trip (host & peserta) */
   jastipDetail: (tripId: string) =>
     tripId
@@ -572,6 +577,8 @@ export const ROUTES = {
       : ("/jastip" as Href),
   /** Patungan — daftar grup publik (batch 43, item 16 — /v1/patungan) */
   patungan: "/patungan" as Href,
+  /** Patungan — "Cara kerja" + simulasi nominal (U5-014, journey). */
+  patunganHowItWorks: "/patungan/how-it-works" as Href,
   /** Booking jasa saya (batch 43, item 12 — /v1/commerce/service-slots/bookings) */
   serviceBookings: "/service-bookings" as Href,
   /** Patungan — detail grup */

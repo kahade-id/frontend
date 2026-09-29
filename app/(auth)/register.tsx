@@ -74,8 +74,9 @@ export default function RegisterScreen() {
   const phoneRef = useRef<TextInput>(null)
 
   // NAV-013: tujuan `next` dari GuestLoginPrompt — disimpan ke memori alur
-  // supaya welcome (takePendingNext) kembali ke tujuan setelah registrasi,
-  // konsisten dengan jalur "Masuk". Sanitiasi: hanya path absolut.
+  // supaya alur pasca-registrasi (takePendingNext, U5-003: langsung ke
+  // tujuan/Beranda tanpa layar welcome) kembali ke tujuan, konsisten dengan
+  // jalur "Masuk". Sanitiasi: hanya path absolut.
   const { next } = useLocalSearchParams<{ next?: string }>()
   useEffect(() => {
     if (typeof next === "string" && next.startsWith("/")) setPendingNext(next)

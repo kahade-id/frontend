@@ -104,6 +104,7 @@ import {
 } from "@/lib/showcase-feed-position"
 import { ShowcaseFeedSkeleton } from "@/components/ui/showcase-feed-skeleton"
 import { PushRationaleSheet } from "@/components/ui/push-rationale-sheet"
+import { WebGuestBanner } from "@/components/ui/web-guest-banner"
 import { Text } from "@/components/ui/text"
 import {
   hasSeenFeedOrientation,
@@ -1142,6 +1143,8 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
 
   return (
     <View className="flex-1">
+      {/* U5-017 (journey): banner ramping tamu web — di atas header. */}
+      <WebGuestBanner />
       {/* ── Header showcase — pensil kelola · logo · notifikasi + tab feed ── */}
       <Animated.View
         style={[

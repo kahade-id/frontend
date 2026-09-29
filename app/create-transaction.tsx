@@ -177,7 +177,7 @@ export default function CreateTransactionScreen() {
   const insets = useSafeAreaInsets()
   const toast = useToast()
 
-  const [step, setStep] = useState(0)
+  // `step` diinisialisasi SETELAH templatePrefill di bawah (U5-006).
   // `counterpart` dari query (ROUTES.createTransactionWith /
   // createTransactionFromTemplate) — profil publik / template mengisi lawan
   // transaksi lebih dulu; validasi tetap jalan via debounce.
@@ -192,6 +192,8 @@ export default function CreateTransactionScreen() {
     deadline?: string
     fee?: string
     description?: string
+    /** U5-006 (journey): "1" = dibuka dari tombol Beli Etalase. */
+    fromShowcase?: string
     /** Batch 43 (item 10): slot jasa dari detail etalase — di-booking saat submit. */
     slotId?: string
     slotDate?: string
@@ -248,6 +250,23 @@ export default function CreateTransactionScreen() {
       description: params.description?.trim() || undefined,
     }
   }, [params.amount, params.title, params.orderType, params.deadline, params.fee, params.description, params.role])
+  /**
+   * U5-006 (journey): "Beli" dari Etalase (`fromShowcase=1`). Bila prefill
+   * lengkap & valid — peran BUYER, lawan terisi, judul & nominal valid —
+   * wizard langsung dibuka di langkah "Detail" (2): "Cara & peran" dan
+   * "Lawan" sudah terjawab oleh konteks karya. Field yang TIDAK dibawa
+   * kontrak showcase (tipe order, deadline, pembagi biaya) tetap diisi
+   * manual di sini — tidak dikarang. Bila prefill tidak lengkap → mulai
+   * dari langkah 0 seperti biasa (fail-closed). Validasi lawan tetap
+   * berjalan di latar dan MENGUNCI submit (`counterpartConfirmed`).
+   */
+  const showcasePrefillComplete =
+    params.fromShowcase === "1" &&
+    templatePrefill.role === "BUYER" &&
+    (params.counterpart?.trim().length ?? 0) >= MIN_USERNAME &&
+    (templatePrefill.title?.length ?? 0) > 0 &&
+    (templatePrefill.amount ?? 0) > 0
+  const [step, setStep] = useState(showcasePrefillComplete ? 2 : 0)
   const [role, setRole] = useState<OrderRoleValue>(templatePrefill.role ?? "BUYER")
   const [counterpart, setCounterpart] = useState(params.counterpart?.trim() ?? "")
   const [counterpartState, setCounterpartState] = useState<CounterpartState>("loading")

@@ -13,7 +13,7 @@
  */
 import { useCallback, useState } from "react"
 import { View } from "react-native"
-import { CalendarBlank, Plus, Users, UsersThree } from "phosphor-react-native"
+import { CalendarBlank, Plus, Question, Users, UsersThree } from "phosphor-react-native"
 import { router } from "expo-router"
 
 import { api, userMessage } from "@/lib/api"
@@ -201,11 +201,19 @@ export default function PatunganScreen() {
       title={translate("Patungan")}
       header={{
         right: hasSession ? (
-          <IconButton
-            icon={Plus}
-            accessibilityLabel={translate("Buat grup patungan")}
-            onPress={openCreate}
-          />
+          <View className="flex-row items-center gap-1">
+            {/* U5-014 (journey): pintu "Cara kerja" Patungan. */}
+            <IconButton
+              icon={Question}
+              accessibilityLabel={translate("Cara kerja Patungan")}
+              onPress={() => router.push(ROUTES.patunganHowItWorks)}
+            />
+            <IconButton
+              icon={Plus}
+              accessibilityLabel={translate("Buat grup patungan")}
+              onPress={openCreate}
+            />
+          </View>
         ) : undefined,
       }}
       above={
@@ -230,6 +238,12 @@ export default function PatunganScreen() {
                   {translate("Buat grup")}
                 </Button>
               ) : undefined,
+              // U5-014 (journey): pintu "Cara kerja" dari empty state.
+              secondaryAction: (
+                <Button variant="ghost" fullWidth={false} onPress={() => router.push(ROUTES.patunganHowItWorks)}>
+                  {translate("Cara kerja Patungan")}
+                </Button>
+              ),
             }
           : undefined
       }

@@ -32,6 +32,7 @@ import { Header } from "@/components/ui/header"
 import { OrderLinkPreviewCard } from "@/components/ui/order-link-preview-card"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
+import { Text } from "@/components/ui/text"
 import { useToast } from "@/components/ui/toast"
 import type { Address } from "@/lib/api/commerce"
 
@@ -327,6 +328,16 @@ export default function OrderLinkScreen() {
               }
               accepting={accepting}
             />
+            {/*
+              U5-015 (journey): tamu tanpa sesi yang bisa menekan "Terima &
+              lanjutkan" akan diminta membuat akun (verifikasi WhatsApp)
+              sebelum membayar — sampaikan SEBELUM mereka menekan tombol.
+            */}
+            {canAct && !hasSession ? (
+              <Text variant="caption" tone="secondary" className="text-pretty">
+                Anda akan diminta membuat akun (verifikasi WhatsApp) sebelum membayar.
+              </Text>
+            ) : null}
             {/* TRX-009: alamat pengiriman penerima (pembeli) untuk link barang
                 fisik buatan SELLER — wajib sebelum Terima. */}
             {canAct && needsAcceptAddress ? (

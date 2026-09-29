@@ -35,7 +35,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { View } from "react-native"
 import { useLocalSearchParams, router } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { ClockCounterClockwise } from "phosphor-react-native"
+import { ClockCounterClockwise, ShieldCheck, X } from "phosphor-react-native"
 
 import { api, isApiError, userMessage, type Order } from "@/lib/api"
 import { createIdempotencyKey } from "@/lib/api/client"
@@ -93,6 +93,13 @@ import {
   OrderPaymentSheet,
 } from "@/components/order-action-sheets"
 import { SectionHeader } from "@/components/ui/section"
+import { Text } from "@/components/ui/text"
+import { Icon } from "@/components/ui/icon"
+import { IconButton } from "@/components/ui/icon-button"
+import {
+  hasSeenSellerEscrowBanner,
+  markSellerEscrowBannerSeen,
+} from "@/lib/first-run"
 import { MilestoneSection } from "@/components/order-milestones"
 import { InstallmentOfferSection } from "@/components/order-installment-offer"
 import { OrderAgreementSection } from "@/components/order-agreement-section"
@@ -142,11 +149,44 @@ const EARLY_STATUSES: readonly string[] = [
   "PAID",
 ]
 
+/**
+ * U5-013 (journey): banner escrow SEKALI-TAMPIL saat penjual membuka detail
+ * order. Copy: edukasi alur dana (ditahan escrow → cair setelah pembeli
+ * konfirmasi). Dismissible; tidak menyentuh status/order logic.
+ */
+function SellerEscrowBanner({ onDismiss }: { onDismiss: () => void }) {
+  return (
+    <View
+      accessibilityRole="alert"
+      className="flex-row items-start gap-2 rounded-md bg-accent-soft p-3"
+    >
+      <Icon icon={ShieldCheck} size="sm" tone="accent" />
+      <Text variant="caption" tone="secondary" className="flex-1 text-pretty">
+        Dana pembeli ditahan escrow — kirim barang dulu, dana cair ke wallet
+        Anda setelah pembeli konfirmasi terima.
+      </Text>
+      <IconButton
+        icon={X}
+        variant="ghost"
+        size="sm"
+        accessibilityLabel="Tutup info escrow"
+        onPress={onDismiss}
+      />
+    </View>
+  )
+}
+
 export default function OrderDetailScreen() {
   const { id, sheet: sheetParam } = useLocalSearchParams<{ id: string; sheet?: string }>()
   const insets = useSafeAreaInsets()
   const toast = useToast()
   const { copied, copy } = useCopy()
+  /**
+   * U5-013 (journey): banner escrow sekali-tampil untuk penjual. Ditempatkan
+   * di atas (sebelum early return `if (!order)`) — visibility dikunci saat
+   * order termuat sebagai SELLER.
+   */
+  const [escrowBannerVisible, setEscrowBannerVisible] = useState(false)
 
   /**
    * Audit: state async dirakit manual. Cacat terbukti dari kode lama:
@@ -276,6 +316,22 @@ export default function OrderDetailScreen() {
     Boolean(id),
   )
   const order = query.data?.order ?? null
+  // U5-013 (journey): banner escrow sekali-tampil — hanya saat peran termuat
+  // sebagai SELLER dan flag belum pernah tampil.
+  useEffect(() => {
+    if (order?.myRole !== "SELLER") return
+    let alive = true
+    void hasSeenSellerEscrowBanner().then((seen) => {
+      if (alive && !seen) setEscrowBannerVisible(true)
+    })
+    return () => {
+      alive = false
+    }
+  }, [order?.myRole])
+  const dismissEscrowBanner = useCallback(() => {
+    void markSellerEscrowBannerSeen()
+    setEscrowBannerVisible(false)
+  }, [])
   // QR verifikasi struk bukti pembayaran — defensif: null = tiket tanpa QR
   // (lib/receipt). Hook selalu dipanggil; referenceId null = tidak fetch.
   const orderTicketRef = useRef<View | null>(null)
@@ -921,6 +977,11 @@ export default function OrderDetailScreen() {
             copied={copied}
             onCopyId={() => void copy(order.id)}
           />
+
+          {/* U5-013 (journey): banner escrow sekali-tampil untuk penjual. */}
+          {isSeller && escrowBannerVisible ? (
+            <SellerEscrowBanner onDismiss={dismissEscrowBanner} />
+          ) : null}
 
           {!knownRole ? (
             <ErrorState
