@@ -4,7 +4,7 @@
  "strings": [
   {
    "s": "Batal",
-   "n": 144
+   "n": 146
   },
   {
    "s": "Hapus",
@@ -87,6 +87,10 @@
    "n": 14
   },
   {
+   "s": "Selesai",
+   "n": 14
+  },
+  {
    "s": "Unggahan dibatalkan.",
    "n": 14
   },
@@ -96,10 +100,6 @@
   },
   {
    "s": "Buka {x}",
-   "n": 13
-  },
-  {
-   "s": "Selesai",
    "n": 13
   },
   {
@@ -184,6 +184,10 @@
   },
   {
    "s": "Gagal menghapus",
+   "n": 10
+  },
+  {
+   "s": "Lanjutkan",
    "n": 10
   },
   {
@@ -324,10 +328,6 @@
   },
   {
    "s": "Konfirmasi kata sandi",
-   "n": 8
-  },
-  {
-   "s": "Lanjutkan",
    "n": 8
   },
   {
@@ -824,6 +824,10 @@
   },
   {
    "s": "Batalkan SPK",
+   "n": 5
+  },
+  {
+   "s": "Batas konfirmasi",
    "n": 5
   },
   {
@@ -1879,10 +1883,6 @@
    "n": 3
   },
   {
-   "s": "Batas konfirmasi",
-   "n": 3
-  },
-  {
    "s": "Batasi hasil postingan ke lokasi penjual",
    "n": 3
   },
@@ -2008,6 +2008,10 @@
   },
   {
    "s": "Buat karya pertama Anda — produk, jasa, atau hasil kerja.",
+   "n": 3
+  },
+  {
+   "s": "Buat PIN sekarang",
    "n": 3
   },
   {
@@ -2939,19 +2943,11 @@
    "n": 3
   },
   {
-   "s": "Kirim kode",
-   "n": 3
-  },
-  {
    "s": "Kirim Pesan",
    "n": 3
   },
   {
    "s": "Kirim rating",
-   "n": 3
-  },
-  {
-   "s": "Kirim ulang kode",
    "n": 3
   },
   {
@@ -3104,10 +3100,6 @@
   },
   {
    "s": "Laporkan karya ini",
-   "n": 3
-  },
-  {
-   "s": "Laporkan masalah",
    "n": 3
   },
   {
@@ -4615,6 +4607,10 @@
    "n": 2
   },
   {
+   "s": "Ajukan sengketa",
+   "n": 2
+  },
+  {
    "s": "Ajukan ulang",
    "n": 2
   },
@@ -5071,10 +5067,6 @@
    "n": 2
   },
   {
-   "s": "Buat PIN sekarang",
-   "n": 2
-  },
-  {
    "s": "Buat skema cicilan",
    "n": 2
   },
@@ -5307,10 +5299,6 @@
    "n": 2
   },
   {
-   "s": "Dana escrow akan DIBEKUKAN sampai mediator Kahade memutuskan. Sengketa yang sudah dibuka tidak bisa dibatalkan sepihak. Pastikan klaim sudah jelas — bukti foto/video bisa ditambahkan setelah sengketa dibuat.",
-   "n": 2
-  },
-  {
    "s": "Dana escrow diteruskan ke penjual.",
    "n": 2
   },
@@ -5480,6 +5468,10 @@
   },
   {
    "s": "Foto berikut gagal diunggah. Coba lagi atau keluarkan dari pilihan sebelum menyimpan.",
+   "n": 2
+  },
+  {
+   "s": "Foto dan bio yang belum disimpan akan hilang. Anda bisa melengkapinya nanti dari Ubah Profil.",
    "n": 2
   },
   {
@@ -6275,6 +6267,10 @@
    "n": 2
   },
   {
+   "s": "Kirim ulang kode",
+   "n": 2
+  },
+  {
    "s": "Kirim ulang verifikasi",
    "n": 2
   },
@@ -6399,10 +6395,6 @@
    "n": 2
   },
   {
-   "s": "Kurir: {x} Nomor resi: {x} Pastikan sudah benar — resi yang salah membuat pembeli tidak bisa melacak paket.",
-   "n": 2
-  },
-  {
    "s": "KYC:",
    "n": 2
   },
@@ -6459,6 +6451,10 @@
    "n": 2
   },
   {
+   "s": "Laporkan masalah",
+   "n": 2
+  },
+  {
    "s": "Lawan",
    "n": 2
   },
@@ -6476,6 +6472,10 @@
   },
   {
    "s": "Lepas tautan",
+   "n": 2
+  },
+  {
+   "s": "Lewat batas waktu, pesanan dibatalkan otomatis — belum ada dana yang ditahan.",
    "n": 2
   },
   {
@@ -6611,11 +6611,11 @@
    "n": 2
   },
   {
-   "s": "Masukkan kode verifikasi",
+   "s": "Masukkan kode OTP yang dikirim via SMS ke nomor terdaftar untuk menyelesaikan penarikan.",
    "n": 2
   },
   {
-   "s": "Masukkan kode verifikasi yang dikirim oleh layanan untuk menyelesaikan penarikan.",
+   "s": "Masukkan kode verifikasi",
    "n": 2
   },
   {
@@ -6808,6 +6808,10 @@
   },
   {
    "s": "Minta bantuan",
+   "n": 2
+  },
+  {
+   "s": "Minta kode baru",
    "n": 2
   },
   {
@@ -7079,7 +7083,15 @@
    "n": 2
   },
   {
+   "s": "Penjual harus mengonfirmasi dalam {x}.",
+   "n": 2
+  },
+  {
    "s": "Penjual melewati batas kirim — dana TIDAK akan cair otomatis sampai masalah ini selesai.",
+   "n": 2
+  },
+  {
+   "s": "Penjual melewati batas konfirmasi — pesanan akan dibatalkan otomatis.",
    "n": 2
   },
   {
@@ -10507,10 +10519,6 @@
    "n": 1
   },
   {
-   "s": "Ajukan sengketa",
-   "n": 1
-  },
-  {
    "s": "Akan dikirim otomatis saat tersambung kembali.",
    "n": 1
   },
@@ -10651,6 +10659,10 @@
    "n": 1
   },
   {
+   "s": "Akun belum terdaftar",
+   "n": 1
+  },
+  {
    "s": "Akun bisnis menampilkan profil usaha Anda di marketplace, termasuk produk dan riwayat penjualan.",
    "n": 1
   },
@@ -10760,6 +10772,10 @@
   },
   {
    "s": "Anda akan diminta membuat akun (verifikasi WhatsApp) sebelum membayar.",
+   "n": 1
+  },
+  {
+   "s": "Anda akan diminta mengirim pesan ke WhatsApp kami terlebih dahulu.",
    "n": 1
   },
   {
@@ -11204,6 +11220,10 @@
   },
   {
    "s": "Barang palsu atau penggunaan merek tanpa hak.",
+   "n": 1
+  },
+  {
+   "s": "Barang retur sudah diterima?",
    "n": 1
   },
   {
@@ -11824,6 +11844,10 @@
   },
   {
    "s": "Buat kode referral baru?",
+   "n": 1
+  },
+  {
+   "s": "Buat PIN dulu",
    "n": 1
   },
   {
@@ -12619,6 +12643,10 @@
    "n": 1
   },
   {
+   "s": "Dana escrow akan dibekukan sampai mediator Kahade memutuskan. Sengketa yang sudah dibuka tidak bisa dibatalkan sepihak.",
+   "n": 1
+  },
+  {
    "s": "Dana escrow akan dilepas ke penjual",
    "n": 1
   },
@@ -12712,10 +12740,6 @@
   },
   {
    "s": "Data akun yang boleh dilihat pengunjung profil Anda. Default: disembunyikan.",
-   "n": 1
-  },
-  {
-   "s": "Data belum lengkap",
    "n": 1
   },
   {
@@ -12888,6 +12912,10 @@
   },
   {
    "s": "Deal! Saya buatkan order escrow-nya ya",
+   "n": 1
+  },
+  {
+   "s": "Demi keamanan, verifikasi tambahan diperlukan setelah beberapa percobaan gagal.",
    "n": 1
   },
   {
@@ -13564,10 +13592,6 @@
   },
   {
    "s": "Foto bisa ditambahkan nanti dari Ubah Profil.",
-   "n": 1
-  },
-  {
-   "s": "Foto dan bio yang belum disimpan akan hilang. Anda bisa melengkapinya nanti dari Ubah Profil.",
    "n": 1
   },
   {
@@ -14479,6 +14503,10 @@
    "n": 1
   },
   {
+   "s": "Identitas Google/Apple ini belum terdaftar. Daftar dulu dengan nomor HP — akun akan ditautkan otomatis setelah nomor terverifikasi.",
+   "n": 1
+  },
+  {
    "s": "Identitas kedua pihak terverifikasi (KYC)",
    "n": 1
   },
@@ -15203,6 +15231,14 @@
    "n": 1
   },
   {
+   "s": "Kembali bayar",
+   "n": 1
+  },
+  {
+   "s": "Kembali bayar {x}",
+   "n": 1
+  },
+  {
    "s": "Kembali ke atas artikel",
    "n": 1
   },
@@ -15236,6 +15272,10 @@
   },
   {
    "s": "Kembali tanpa balasan? Pastikan pesan berisi kode terkirim dari nomor",
+   "n": 1
+  },
+  {
+   "s": "Kembali tanpa menyimpan?",
    "n": 1
   },
   {
@@ -15371,11 +15411,11 @@
    "n": 1
   },
   {
-   "s": "Kirim kode OTP",
+   "s": "Kirim kode",
    "n": 1
   },
   {
-   "s": "Kirim kode via WhatsApp",
+   "s": "Kirim kode OTP",
    "n": 1
   },
   {
@@ -15775,6 +15815,10 @@
    "n": 1
   },
   {
+   "s": "Konfirmasi penjual",
+   "n": 1
+  },
+  {
    "s": "Konfirmasi transfer",
    "n": 1
   },
@@ -16052,6 +16096,10 @@
   },
   {
    "s": "Lanjut: review & biaya",
+   "n": 1
+  },
+  {
+   "s": "Lanjutkan daftar",
    "n": 1
   },
   {
@@ -17059,10 +17107,6 @@
    "n": 1
   },
   {
-   "s": "Menunggu pembayaran… status diperbarui otomatis.",
-   "n": 1
-  },
-  {
    "s": "Menunggu penjual mengirim pesanan",
    "n": 1
   },
@@ -17183,11 +17227,11 @@
    "n": 1
   },
   {
-   "s": "Minta kode baru",
+   "s": "Minta kode OTP via WhatsApp ke nomor HP terdaftar Anda, verifikasi, lalu daftarkan passkey baru. Kami akan memberi tahu Anda bila permintaan datang dari perangkat yang belum dikenal.",
    "n": 1
   },
   {
-   "s": "Minta kode OTP via WhatsApp ke nomor HP terdaftar Anda, verifikasi, lalu daftarkan passkey baru. Kami akan memberi tahu Anda bila permintaan datang dari perangkat yang belum dikenal.",
+   "s": "Minta kode verifikasi",
    "n": 1
   },
   {
@@ -17843,6 +17887,10 @@
    "n": 1
   },
   {
+   "s": "Pastikan barang retur sudah benar-benar Anda terima dan periksa kondisinya. Setelah dikonfirmasi, retur lanjut ke tahap penyelesaian.",
+   "n": 1
+  },
+  {
    "s": "Pastikan nama penerima dan nominal benar. Dana baru berpindah setelah Anda menekan tombol kirim di layar berikutnya.",
    "n": 1
   },
@@ -18003,6 +18051,10 @@
    "n": 1
   },
   {
+   "s": "Penarikan dana memerlukan PIN dompet. Buat PIN dulu sebelum memasukkan nominal.",
+   "n": 1
+  },
+  {
    "s": "Penarikan gagal. Coba lagi.",
    "n": 1
   },
@@ -18016,6 +18068,10 @@
   },
   {
    "s": "Penarikan otomatis pada jadwal ini akan dihentikan.",
+   "n": 1
+  },
+  {
+   "s": "Penarikan tertentu memerlukan OTP tambahan via SMS ke nomor terdaftar.",
    "n": 1
   },
   {
@@ -20103,6 +20159,10 @@
    "n": 1
   },
   {
+   "s": "Setelah membayar di aplikasi bank, kembali ke sini — status diperbarui otomatis.",
+   "n": 1
+  },
+  {
    "s": "setiap tindakan terhadap Data Pribadi, termasuk memperoleh, menyimpan, menggunakan, mengungkapkan, memperbarui, membatasi, menghapus, atau memusnahkan.",
    "n": 1
   },
@@ -20180,10 +20240,6 @@
   },
   {
    "s": "Simpan email baru",
-   "n": 1
-  },
-  {
-   "s": "Simpan info pengiriman?",
    "n": 1
   },
   {
@@ -20283,10 +20339,6 @@
    "n": 1
   },
   {
-   "s": "SKU, nama, kategori, dan harga valid wajib diisi.",
-   "n": 1
-  },
-  {
    "s": "SKU, wajib diisi",
    "n": 1
   },
@@ -20316,6 +20368,10 @@
   },
   {
    "s": "Statistik yang disembunyikan dari pengunjung profil:",
+   "n": 1
+  },
+  {
+   "s": "Status antrean: ditinjau mediator · Tim kami merespons maksimal {x}×{x} jam.",
    "n": 1
   },
   {
@@ -22087,6 +22143,10 @@
    "n": 1
   },
   {
+   "s": "Ya, barang retur sudah diterima",
+   "n": 1
+  },
+  {
    "s": "Ya, batalkan retur",
    "n": 1
   },
@@ -22115,6 +22175,10 @@
    "n": 1
   },
   {
+   "s": "Ya, kembali",
+   "n": 1
+  },
+  {
    "s": "Ya, konfirmasi",
    "n": 1
   },
@@ -22136,10 +22200,6 @@
   },
   {
    "s": "Ya, setujui",
-   "n": 1
-  },
-  {
-   "s": "Ya, simpan",
    "n": 1
   },
   {
@@ -22165,10 +22225,6 @@
   {
    "s": "Zona Berbahaya",
    "n": 1
-  },
-  {
-   "s": "Terlalu banyak percobaan. Tunggu beberapa saat sebelum mencoba lagi.",
-   "n": 3
   }
  ]
 }
