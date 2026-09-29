@@ -145,7 +145,7 @@ function useFeedTabs() {
 type FollowingIndex = { owner: string; keys: ReadonlySet<string> }
 
 /** A-12: kunci identitas berikut — `u:{userId}` (stabil) ATAU `n:{username-lowercase}`. */
-function followingKeysOf(users: readonly { userId?: string; username?: string }[]): Set<string> {
+function followingKeysOf(users: readonly { userId?: string | null; username?: string | null }[]): Set<string> {
   const keys = new Set<string>()
   for (const user of users) {
     if (user?.userId) keys.add(`u:${user.userId}`)
@@ -549,10 +549,12 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
   )
 
   /**
-   * Muat daftar akun yang diikuti (A-03: maks FOLLOWING_INDEX_MAX_PAGES × 50,
-   * paralel batch FOLLOWING_INDEX_PARALLEL). Hanya 401/403 yang berarti tamu;
-   * error lain di-RETHROW supaya pemanggil menampilkan ErrorState, bukan
-   * pseudologin. A-04: cache per akun (ref tab) — hanya fetch saat miss.
+   * D1-006 (perf 2026-09-29): SATU request `GET /v1/users/me/following-ids`
+   * (satu query follow.findMany di backend) — gantikan loop hingga
+   * FOLLOWING_INDEX_MAX_PAGES halaman getFollowing. Hanya 401/403 yang
+   * berarti tamu; error lain di-RETHROW supaya pemanggil menampilkan
+   * ErrorState, bukan pseudologin. A-04: cache per akun (ref tab) — hanya
+   * fetch saat miss; dibuang saat ganti sesi/akun atau tarik-segarkan.
    */
   const ensureFollowingSet = useCallback(
     async (signal: AbortSignal): Promise<ReadonlySet<string>> => {
@@ -573,23 +575,10 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
           setFollowingGuest(false)
           return cached.keys
         }
-        const first = await api.users.getFollowing(username, { page: 1, limit: 50 }, signal)
-        const pages = [first]
-        const total = Math.min(
-          Math.max(typeof first.meta?.totalPages === "number" ? first.meta.totalPages : 1, 1),
-          FOLLOWING_INDEX_MAX_PAGES,
-        )
-        for (let start = 2; start <= total; start += FOLLOWING_INDEX_PARALLEL) {
-          if (signal.aborted) throw new Error("Aborted")
-          const batch: number[] = []
-          for (let page = start; page < Math.min(start + FOLLOWING_INDEX_PARALLEL, total + 1); page++) batch.push(page)
-          const results = await Promise.all(
-            batch.map((page) => api.users.getFollowing(username, { page, limit: 50 }, signal)),
-          )
-          pages.push(...results)
-        }
         if (signal.aborted) throw new Error("Aborted")
-        const keys = followingKeysOf(pages.flatMap((res) => res.data))
+        const rows = await api.users.getMyFollowingIds(signal)
+        if (signal.aborted) throw new Error("Aborted")
+        const keys = followingKeysOf(rows)
         followingIndexRef.current = { owner: username, keys }
         setFollowingSet(keys)
         setFollowingGuest(false)

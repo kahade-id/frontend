@@ -86,6 +86,7 @@ import {
   sendChatTyping,
   unpinChatMessage,
   type ChatMessage,
+  type ChatMessagesPage,
   type ChatPresence,
   type ChatReaction,
   type ChatRoom,
@@ -582,6 +583,10 @@ export default function ChatRoomScreen() {
   const [pollInterval, setPollInterval] = useState(CHAT_POLL_MS)
   const emptyPolls = useRef(0)
   const pollTick = useRef(0)
+  // D1-004: jangkar delta poll fallback — id pesan terakhir yang terkonfirmasi
+  // server (pesan optimistis "sending"/"failed" TIDAK boleh jadi jangkar:
+  // id lokal tidak dikenal server → 400).
+  const newestMessageIdRef = useRef<string | null>(null)
 
   // J-07 (audit): pencarian pesan dalam ruang — adapter searchRoomMessages
   // sudah ada sejak API-GAP 2026-09-15, UI-nya yang belum. Kata kunci,
@@ -682,6 +687,8 @@ export default function ChatRoomScreen() {
       ])
       if (controller.signal.aborted) return
       const items = sortByTime(page.items)
+      // D1-004: inisialisasi jangkar delta dari halaman awal.
+      newestMessageIdRef.current = items.length > 0 ? items[items.length - 1].id : null
       // B07: rekonsiliasi — pesan gagal yang ternyata SUDAH ada di server
       // (POST sukses tapi respons hilang) tidak di-merge ulang; antreannya
       // dibersihkan supaya tidak duplikat.
@@ -812,6 +819,12 @@ export default function ChatRoomScreen() {
         added = result.added
         freshFromOther = result.hasFreshFromOther
         if (!result.changed) return prev
+        // D1-004: majukan jangkar delta ke pesan terakhir yang terkonfirmasi
+        // server (lewati pesan optimistis yang masih sending/failed).
+        const lastConfirmed = [...result.next]
+          .reverse()
+          .find((m) => m.sendStatus !== "sending" && m.sendStatus !== "failed")
+        if (lastConfirmed) newestMessageIdRef.current = lastConfirmed.id
         // Pesan masuk dari lawan bicara → badge tab Notifikasi harus turun
         // segera (ruang terbuka = terbaca), bukan menunggu poll 60 detik.
         // Namun HANYA bila user sedang di dasar thread: yang sedang scroll
@@ -845,7 +858,26 @@ export default function ChatRoomScreen() {
     async (signal?: AbortSignal) => {
       if (!roomId) return
       const targetRoom = roomId
-      const page = await api.chat.getChatMessages(roomId, { limit: CHAT_PAGE_SIZE }, signal)
+      // D1-004: poll fallback memakai DELTA (afterMessageId) — hanya pesan
+      // baru sejak jangkar terakhir, bukan 30 pesan penuh tiap 8 detik.
+      // Full page hanya saat buka awal (fetchMessages) atau saat delta gagal.
+      const anchor = newestMessageIdRef.current
+      let page: ChatMessagesPage
+      try {
+        page = await api.chat.getChatMessages(
+          roomId,
+          anchor ? { afterMessageId: anchor, limit: CHAT_PAGE_SIZE } : { limit: CHAT_PAGE_SIZE },
+          signal,
+        )
+        // Pengaman: delta yang penuh (limit tercapai) berarti ada pesan yang
+        // terlewat → sinkronkan ulang satu halaman penuh.
+        if (anchor && page.items.length >= CHAT_PAGE_SIZE) {
+          page = await api.chat.getChatMessages(roomId, { limit: CHAT_PAGE_SIZE }, signal)
+        }
+      } catch {
+        // Jangkar basi (mis. id optimistis lolos) → fallback halaman penuh.
+        page = await api.chat.getChatMessages(roomId, { limit: CHAT_PAGE_SIZE }, signal)
+      }
       const added = mergeIncoming(sortByTime(page.items), targetRoom)
       // F-07: adaptive interval — poll kosong beruntun menaikkan interval;
       // satu pesan baru saja sudah cukup untuk kembali ke interval cepat.

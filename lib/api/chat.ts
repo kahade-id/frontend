@@ -402,6 +402,11 @@ export type ChatMessagesQuery = {
   limit?: number
   /** Id pesan yang sudah dimiliki klien (dikirim dipisah koma) */
   excludeIds?: string[]
+  /**
+   * D1-004 (perf 2026-09-29): hanya pesan yang LEBIH BARU dari id ini
+   * (mode delta untuk poll fallback — bukan 30 pesan penuh tiap tick).
+   */
+  afterMessageId?: string
 }
 
 export type ChatMessagesPage = {
@@ -436,6 +441,7 @@ export async function getChatMessages(
       cursor: query.cursor,
       limit: query.limit ?? CHAT_PAGE_SIZE,
       excludeIds: query.excludeIds?.length ? query.excludeIds.join(",") : undefined,
+      afterMessageId: query.afterMessageId,
     },
     auth: "required",
     retry: 1,

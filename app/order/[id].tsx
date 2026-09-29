@@ -286,9 +286,17 @@ export default function OrderDetailScreen() {
   // useApiQuery (masuk state error), callback ini tidak melempar.
   // R2 #108: status terminal dipusatkan pada satu konstanta (dipakai polling
   // stop DAN pintasan riwayat terminal di fetcher).
+  // D1-005 (perf 2026-09-29): poll hanya mengambil STATUS RINGAN
+  // (GET /v1/orders/:id/status, 3 kolom). Bundle penuh (detail + 50 riwayat +
+  // durasi + fee) di-refresh HANYA bila status berubah — bukan setiap 15 detik.
   usePolling(
     async () => {
-      await query.refresh().catch(() => {})
+      const oid = id as string
+      const light = await api.orders.getOrderStatus(oid).catch(() => null)
+      const current = query.data?.order?.status
+      if (light && current && light.status !== current) {
+        await query.refresh().catch(() => {})
+      }
     },
     15_000,
     Boolean(id && order && !ORDER_TERMINAL_STATUSES.includes(order.status)),
