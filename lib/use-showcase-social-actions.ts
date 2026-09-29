@@ -219,20 +219,31 @@ export function useShowcaseSocialActions(item: ShowcaseSocialItem): ShowcaseSoci
         setShowcaseLikeState(item.id, { isLiked: res.liked, likeCount: res.likeCount })
       } catch (err) {
         if (revision !== getSessionRevision()) return
-        setShowcaseLikeState(item.id, previous)
         // SHOWCASE_ALREADY_LIKED (race) bukan error pengguna — cukup sinkronkan.
         const isRace = isApiError(err) && err.backendCode === "SHOWCASE_ALREADY_LIKED"
         if (isRace) {
+          setShowcaseLikeState(item.id, previous)
           try {
             const fresh = await getShowcaseDetail(item.id)
             if (revision === getSessionRevision()) setShowcaseLikeState(item.id, {
               isLiked: fresh.isLiked === true, likeCount: fresh.likeCount,
             })
           } catch {
+            // D1-009: sinkronisasi ulang ikut gagal -> batalkan juga toggle
+            // yang tertahan (alasan sama seperti di bawah).
+            queuedLike.current = false
             if (revision === getSessionRevision()) clearShowcaseLikeOverride(item.id)
             toast.show({ title: "Gagal memperbarui suka", tone: "danger" })
           }
         } else {
+          // D1-009 (perf 2026-09-29): request GAGAL -> batalkan toggle yang
+          // tertahan, lalu rollback ke snapshot `previous`. Toggle tertahan
+          // dibuat RELATIF terhadap state optimistis yang kini di-rollback;
+          // mengeksekusinya akan membalik ke arah yang SALAH: skenario
+          // double-toggle + request pertama gagal berakhir "suka", padahal
+          // keinginan bersih pengguna = batal (dua tap saling meniadakan).
+          queuedLike.current = false
+          setShowcaseLikeState(item.id, previous)
           toast.show({
             title: "Gagal memperbarui suka",
             description: userMessage(err),
