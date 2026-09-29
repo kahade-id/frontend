@@ -15,7 +15,7 @@
  *     terbaca serupa; string sudah diformat pemanggil (§13).
  *   - Divider inset ml-[72px] = px-5 (20) + IconBox md (40) + gap-3 (12).
  */
-import type { ReactNode } from "react"
+import { memo, type ReactNode } from "react"
 import {
   ArrowsLeftRight,
   ChatCircleText,
@@ -76,7 +76,8 @@ const CATEGORY_ICON: Record<ActivityLogCategory, IconComponent> = {
   transfer: ArrowsLeftRight,
 }
 
-export function ActivityLogItem({
+// FE-011 (audit 2026-09-29): di-memo — daftar aktivitas memakai handler inline.
+export const ActivityLogItem = memo(function ActivityLogItem({
   title,
   description,
   category = "order",
@@ -150,4 +151,4 @@ export function ActivityLogItem({
         /> : null}
     </View>
   )
-}
+})
