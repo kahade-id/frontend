@@ -18,6 +18,7 @@ import { QRCodeDisplay } from "@/components/ui/qr-code-display"
 import { Text } from "@/components/ui/text"
 import { ScreenCaptureGuard } from "@/components/security/screen-capture-guard"
 import { formatDateTimeWIB, formatRupiah } from "@/lib/format"
+import { PAYMENT_COUNTDOWN_DANGER_SECONDS } from "@/lib/order-countdown"
 import { translate } from "@/lib/i18n/translate"
 import { toEpochMs } from "@/lib/pending-actions"
 
@@ -124,6 +125,10 @@ export function QrisPaymentPanel({
           })()}
           prefix="Kedaluwarsa dalam"
           tone="primary"
+          // FE-134 (audit frontend 2026-09-29): tenggat pembayaran hitungan
+          // menit — eskalasi ke danger di bawah 5 menit, selaras dengan
+          // countdown order (<24 jam = danger).
+          dangerUnderSeconds={PAYMENT_COUNTDOWN_DANGER_SECONDS}
           onComplete={onExpire}
         />
       ) : null}
