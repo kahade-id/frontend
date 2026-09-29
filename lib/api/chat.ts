@@ -315,6 +315,22 @@ export function listChatRooms(
     })
 }
 
+/**
+ * D1-003 (perf 2026-09-29): GET /v1/chat/rooms/:roomId — SATU room ringan
+ * untuk header layar percakapan. Pengganti `listChatRooms({page:1})` yang
+ * sebelumnya di-fetch ulang hanya untuk menemukan 1 baris header.
+ * Bentuk respons SAMA dengan satu entri daftar (tipe ChatRoom).
+ */
+export function getChatRoom(roomId: string, signal?: AbortSignal) {
+  return http
+    .get<unknown>(`/v1/chat/rooms/${seg(roomId)}`, {
+      auth: "required",
+      retry: 1,
+      signal,
+    })
+    .then((raw) => normalizeChatRoom(raw as ChatRoom & Record<string, unknown>))
+}
+
 /** NS-006 (perf-fix, 2026-09-29): hasil GET /v1/chat/unread-count. */
 export type ChatUnreadCountResult = { unreadCount: number }
 
@@ -386,6 +402,11 @@ export type ChatMessagesQuery = {
   limit?: number
   /** Id pesan yang sudah dimiliki klien (dikirim dipisah koma) */
   excludeIds?: string[]
+  /**
+   * D1-004 (perf 2026-09-29): hanya pesan yang LEBIH BARU dari id ini
+   * (mode delta untuk poll fallback — bukan 30 pesan penuh tiap tick).
+   */
+  afterMessageId?: string
 }
 
 export type ChatMessagesPage = {
@@ -420,6 +441,7 @@ export async function getChatMessages(
       cursor: query.cursor,
       limit: query.limit ?? CHAT_PAGE_SIZE,
       excludeIds: query.excludeIds?.length ? query.excludeIds.join(",") : undefined,
+      afterMessageId: query.afterMessageId,
     },
     auth: "required",
     retry: 1,

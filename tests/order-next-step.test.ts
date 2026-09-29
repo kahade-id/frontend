@@ -31,9 +31,9 @@ describe("orderNextStepHint (item 34)", () => {
     expect(orderNextStepHint("WAITING_PAYMENT", "BUYER")).toBeNull()
   })
 
-  it("pembeli PROCESSING → penjual menyiapkan", () => {
+  it("pembeli PROCESSING → tenggat 2 hari + auto-refund (U5-012)", () => {
     expect(orderNextStepHint("PROCESSING", "BUYER")).toMatch(
-      /menyiapkan dan mengirim/i,
+      /Penjual punya waktu 2 hari untuk mengirim\. Lewat dari itu, dana kembali otomatis\./,
     )
   })
 

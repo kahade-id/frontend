@@ -13,6 +13,7 @@
  * ini di dalam footer membuat layar cukup berkata "apa keadaan ruangnya".
  */
 import { CheckCircle, Clock, EyeSlash, X } from "phosphor-react-native"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { View } from "react-native"
 
 import { Button } from "@/components/ui/button"
@@ -36,7 +37,20 @@ export type ChatRoomFooterProps = {
   orderId?: string | null | undefined
   onOpenOrder: (orderId: string) => void
   // ── Composer (diabaikan bila `completed`) ──
-  draft: string
+  /**
+   * R1-001 (2026-09-29, audit render-perf): draft ketikan DIKURUNG di sini
+   * (pola DebouncedSearchField) — bukan di state layar. Tiap keystroke dulu
+   * me-render ulang seluruh layar room (~2700 baris) + kontainer FlatList.
+   * Nilai awal asinkron dari `loadChatDraft` (layar) — tidak menimpa
+   * ketikan yang sudah ada.
+   */
+  initialDraft?: string
+  /** Sinyal dari layar: naikkan angkanya agar draft dikosongkan (setelah kirim). */
+  draftResetKey?: number
+  /**
+   * Notifikasi per ketikan — BUKAN pengatur state layar. Dipakai layar
+   * untuk typing indicator + persist draft (murah, tanpa render ulang).
+   */
   onDraftChange: (value: string) => void
   onSend: (payload: ChatComposerPayload) => void
   attachments: ComposerAttachment[]
@@ -73,7 +87,8 @@ export function ChatRoomFooter({
   closedNotice,
   orderId,
   onOpenOrder,
-  draft,
+  initialDraft = "",
+  draftResetKey = 0,
   onDraftChange,
   onSend,
   attachments,
@@ -93,6 +108,26 @@ export function ChatRoomFooter({
   formatBar = false,
 }: ChatRoomFooterProps) {
   const ephemeralActive = ephemeralLabel != null || viewOnceActive
+
+  // R1-001: state draft milik footer — keystroke hanya me-render ulang
+  // subtree ini, bukan layar room.
+  const [draft, setDraft] = useState(initialDraft)
+  // Ref pola DebouncedSearchField: identitas handler layar boleh berubah
+  // tanpa membuat ulang handler lokal ini.
+  const onDraftChangeRef = useRef(onDraftChange)
+  onDraftChangeRef.current = onDraftChange
+  // Restore draft tersimpan: jangan timpa ketikan yang sudah ada.
+  useEffect(() => {
+    if (initialDraft) setDraft((prev) => (prev ? prev : initialDraft))
+  }, [initialDraft])
+  // Layar menaikkan draftResetKey setelah pesan terkirim → kosongkan.
+  useEffect(() => {
+    if (draftResetKey > 0) setDraft("")
+  }, [draftResetKey])
+  const handleLocalDraftChange = useCallback((text: string) => {
+    setDraft(text)
+    onDraftChangeRef.current(text)
+  }, [])
   return (
     <View>
       {/* Kembali ke dasar thread — muncul hanya saat pembaca
@@ -152,7 +187,7 @@ export function ChatRoomFooter({
           ) : null}
           <ChatComposer
             value={draft}
-            onChangeText={onDraftChange}
+            onChangeText={handleLocalDraftChange}
             onSend={onSend}
             attachments={attachments}
             onAttach={onAttach}

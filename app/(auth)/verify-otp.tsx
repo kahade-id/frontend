@@ -48,7 +48,7 @@
  *     (FE-IMP-3 #117).
  */
 import { useCallback, useEffect, useRef, useState } from "react"
-import { Platform, ScrollView, View } from "react-native"
+import { ScrollView, View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useRouter } from "expo-router"
 
@@ -138,9 +138,8 @@ export default function VerifyOtpScreen() {
   }, [])
 
   const goWelcome = useCallback(() => {
-    // Web guest mode: langsung ke Beranda; native: Welcome (cek permissions).
-    if (Platform.OS === "web") router.replace(ROUTES.home)
-    else router.replace(ROUTES.welcome())
+    // U5-003 (journey): layar welcome dihapus — langsung ke Beranda.
+    router.replace(ROUTES.home)
   }, [router])
 
   const doVerify = useCallback(

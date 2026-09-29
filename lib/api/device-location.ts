@@ -12,14 +12,24 @@
  * (backend mencatat locationDenied=true); transaksi TIDAK boleh gagal
  * karena ini.
  */
-import { getAuthLocation } from "@/lib/location"
 import type { LocationDto } from "@/lib/api/types"
+// N1-002 (PERF): JANGAN impor statis `@/lib/location` di sini — rantai
+// itu menarik `expo-location` ke graph evaluasi boot (via lib/api →
+// account-deletion → file ini), padahal lokasi hanya dipakai saat aksi
+// sensitif benar-benar berjalan. `getAuthLocation` dimuat via dynamic
+// import tepat saat dibutuhkan (pola ST-005); perilaku IDENTIK.
 
 /**
  * Alias konteks aksi untuk `getAuthLocation` — perilaku IDENTIK: tidak
  * pernah throw, timeout 8 detik, `null` bila izin ditolak/gagal.
+ *
+ * Modul `@/lib/location` (dan `expo-location` di bawahnya) baru dievaluasi
+ * pada pemanggilan pertama, bukan saat boot.
  */
-export const captureActionLocation = getAuthLocation
+export async function captureActionLocation(): Promise<LocationDto | null> {
+  const { getAuthLocation } = await import("@/lib/location")
+  return getAuthLocation()
+}
 
 /** Body request yang membawa `deviceLocation` (kontrak lintas tim). */
 export type WithDeviceLocation<T> = T & { deviceLocation?: LocationDto | null }

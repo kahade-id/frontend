@@ -33,7 +33,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { ChatCircle, Copy, Flag, PaperPlaneRight, Trash, X } from "phosphor-react-native"
-import { ScrollView, View, useWindowDimensions } from "react-native"
+import { FlatList, View, useWindowDimensions } from "react-native"
 import { router } from "expo-router"
 
 import {
@@ -60,6 +60,7 @@ import { useLanguage } from "@/lib/i18n"
 import { useHasSession } from "@/lib/guest-gate"
 import { ROUTES } from "@/lib/routes"
 import { useApiQuery } from "@/lib/use-api-query"
+import { tokens } from "@/lib/tokens"
 
 import { ActionSheet } from "@/components/ui/action-sheet"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
@@ -315,6 +316,89 @@ export function ShowcaseCommentsSheet({
     router.push(ROUTES.showcaseDetail(showcaseId))
   }, [showcaseId, onRequestClose])
 
+  /**
+   * R1-004 (2026-09-29, audit render-perf): daftar komentar tervirtualisasi
+   * — dulu ScrollView + map me-mount ~120 baris sekaligus (30 root × 3
+   * balasan preview). `renderItem` stabil via useCallback + baris di-memo.
+   */
+  const commentKeyExtractor = useCallback((c: ShowcaseCommentWithReplies) => c.id, [])
+  const handleCommentReply = useCallback((c: ShowcaseComment) => setReplyTo(c), [])
+  const handleCommentMenu = useCallback((c: ShowcaseComment) => setCommentMenu(c), [])
+  const handleToggleReplies = useCallback((rootId: string) => {
+    setExpandedReplies((current) => {
+      const next = new Set(current)
+      if (next.has(rootId)) next.delete(rootId)
+      else next.add(rootId)
+      return next
+    })
+  }, [])
+  const renderComment = useCallback(
+    ({ item: root }: { item: ShowcaseCommentWithReplies }) => {
+      const replies = root.replies ?? []
+      // T2-F03: ringkas balasan (3 pertama), tombol buka/tutup lipatan.
+      const expanded = expandedReplies.has(root.id)
+      const visibleReplies = expanded ? replies : replies.slice(0, REPLY_PREVIEW)
+      const hiddenCount = replies.length - visibleReplies.length
+      return (
+        // Balasan dikirim sebagai ANAK komentar induk (revisi 2026-09-26):
+        // garis utas di kolom avatar induk turun menyambung balasan, dan
+        // indentasinya mengikuti lebar avatar + gap.
+        <ShowcaseCommentRow
+          comment={root}
+          isMine={isMine(root)}
+          canReply={hasSession}
+          menuable={true}
+          onReply={handleCommentReply}
+          onOpenMenu={handleCommentMenu}
+          threaded={visibleReplies.length > 0}
+        >
+          {visibleReplies.map((reply) => (
+            <ShowcaseCommentRow
+              key={reply.id}
+              comment={reply}
+              avatarSize="xs"
+              isMine={isMine(reply)}
+              canReply={false}
+              menuable={true}
+              onOpenMenu={handleCommentMenu}
+            />
+          ))}
+          {replies.length > REPLY_PREVIEW ? (
+            <Button variant="ghost" onPress={() => handleToggleReplies(root.id)}>
+              {expanded
+                ? translate("Tutup balasan")
+                : translate("Lihat {x} balasan", { x: hiddenCount })}
+            </Button>
+          ) : null}
+        </ShowcaseCommentRow>
+      )
+    },
+    [expandedReplies, hasSession, isMine, handleCommentReply, handleCommentMenu, handleToggleReplies],
+  )
+  // Tinggi maks 55% window: nilai runtime -> style, bukan className.
+  const commentListStyle = useMemo(() => ({ maxHeight: windowHeight * 0.55 }), [windowHeight])
+  // List selaras title: px-5 sama dengan header sheet (gap & indent konsisten).
+  // Nilai = className lama "gap-4 px-5 pb-6 pt-1" pada View pembungkus.
+  const commentListContentStyle = useMemo(
+    () => ({
+      gap: tokens.space[4],
+      paddingHorizontal: tokens.space[5],
+      paddingBottom: tokens.space[6],
+      paddingTop: tokens.space[1],
+    }),
+    [],
+  )
+  const commentListFooter = useMemo(
+    () =>
+      // G-02: jalan membaca komentar di luar 30 pertama.
+      maybeMore ? (
+        <Button variant="secondary" onPress={handleSeeAll}>
+          Lihat semua komentar
+        </Button>
+      ) : null,
+    [maybeMore, handleSeeAll],
+  )
+
   // Header: "Komentar  12" — count di samping. E-02: lewat `translate`.
   const headerTitle = total > 0 ? translate("Komentar {x}", { x: formatNumber(total) }) : translate("Komentar")
 
@@ -446,81 +530,20 @@ export function ShowcaseCommentsSheet({
           </Text>
         </View>
       ) : (
-        // Tinggi maks 55% window: nilai runtime -> style, bukan className.
-        // List selaras title: px-5 sama dengan header sheet (gap & indent konsisten)
-        <ScrollView
-          style={{ maxHeight: windowHeight * 0.55 }}
+        <FlatList
+          data={comments}
+          keyExtractor={commentKeyExtractor}
+          renderItem={renderComment}
+          style={commentListStyle}
+          contentContainerStyle={commentListContentStyle}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
-        >
-          <View className="gap-4 px-5 pb-6 pt-1">
-            {/* Pemisah antar komentar DIHAPUS (2026-09-23): jarak (gap-4) cukup
-                memisahkan utas; satu-satunya garis di sheet ini adalah di bawah
-                title (full-bleed) dan border atas footer komposer — "atas aksi
-                paling bawah". */}
-            {comments.map((root) => {
-              const replies = root.replies ?? []
-              // T2-F03: ringkas balasan (3 pertama), tombol buka/tutup lipatan.
-              const expanded = expandedReplies.has(root.id)
-              const visibleReplies = expanded ? replies : replies.slice(0, REPLY_PREVIEW)
-              const hiddenCount = replies.length - visibleReplies.length
-              return (
-                <View key={root.id}>
-                  {/*
-                    Balasan dikirim sebagai ANAK komentar induk (revisi
-                    2026-09-26): garis utas di kolom avatar induk turun
-                    menyambung balasan, dan indentasinya mengikuti lebar
-                    avatar + gap — bukan angka ml-8 yang dirawat terpisah.
-                  */}
-                  <ShowcaseCommentRow
-                    comment={root}
-                    isMine={isMine(root)}
-                    canReply={hasSession}
-                    menuable={true}
-                    onReply={(c) => setReplyTo(c)}
-                    onOpenMenu={(c) => setCommentMenu(c)}
-                    threaded={visibleReplies.length > 0}
-                  >
-                    {visibleReplies.map((reply) => (
-                      <ShowcaseCommentRow
-                        key={reply.id}
-                        comment={reply}
-                        avatarSize="xs"
-                        isMine={isMine(reply)}
-                        canReply={false}
-                        menuable={true}
-                        onOpenMenu={(c) => setCommentMenu(c)}
-                      />
-                    ))}
-                    {replies.length > REPLY_PREVIEW ? (
-                      <Button
-                        variant="ghost"
-                        onPress={() =>
-                          setExpandedReplies((current) => {
-                            const next = new Set(current)
-                            if (next.has(root.id)) next.delete(root.id)
-                            else next.add(root.id)
-                            return next
-                          })
-                        }
-                      >
-                        {expanded
-                          ? translate("Tutup balasan")
-                          : translate("Lihat {x} balasan", { x: hiddenCount })}
-                      </Button>
-                    ) : null}
-                  </ShowcaseCommentRow>
-                </View>
-              )
-            })}
-            {maybeMore ? (
-              // G-02: jalan membaca komentar di luar 30 pertama.
-              <Button variant="secondary" onPress={handleSeeAll}>
-                Lihat semua komentar
-              </Button>
-            ) : null}
-          </View>
-        </ScrollView>
+          ListFooterComponent={commentListFooter}
+          initialNumToRender={10}
+          maxToRenderPerBatch={10}
+          windowSize={7}
+          removeClippedSubviews={false}
+        />
       )}
 
       <ActionSheet

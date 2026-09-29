@@ -671,6 +671,26 @@ export function getFollowing(
     .then((raw) => readPage<UserConnection>(raw, query, ["following", "users"]))
 }
 
+/**
+ * D1-006 (perf 2026-09-29): SATU request — daftar userId/username yang saya
+ * ikuti. Menggantikan loop hingga 20 halaman `getFollowing` di
+ * `ensureFollowingSet` (showcase-feed-tab).
+ */
+export type MyFollowingIds = {
+  userId: string
+  username: string | null
+}
+
+export function getMyFollowingIds(signal?: AbortSignal) {
+  return http
+    .get<{ following?: MyFollowingIds[] }>(`/v1/users/me/following-ids`, {
+      auth: "required",
+      retry: 1,
+      signal,
+    })
+    .then((raw) => (Array.isArray(raw?.following) ? raw.following : []))
+}
+
 export function followUser(username: string) {
   return http.post<void>(`/v1/users/${seg(username)}/follow`, undefined, {
     auth: "required",

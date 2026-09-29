@@ -53,7 +53,7 @@ import {
 } from "@/lib/realtime/chat-events"
 import { useRealtime } from "@/lib/realtime/realtime-context"
 import { ORDER_STATUS_LABELS } from "@/lib/labels/status"
-import { formatTimeAgo, truncateMiddle } from "@/lib/format"
+import { formatTimeAgo } from "@/lib/format"
 import { haptic } from "@/lib/haptics"
 import { translate } from "@/lib/i18n"
 import { ROUTES } from "@/lib/routes"
@@ -439,9 +439,10 @@ function ChatRoomRowBase({
         // ("5 menit lalu" / "Kemarin").
         time={item.lastMessage ? formatTimeAgo(item.lastMessage.createdAt) : undefined}
         unreadCount={item.unreadCount}
-        // Order id saja (tanpa kata "Pesanan") — metadata ringkas di kanan
-        // baris pertama; panjangnya dipotong di tengah.
-        context={item.orderId ? truncateMiddle(item.orderId, 6, 4) : undefined}
+        // U5-009 (UX-deep 2026-09-29): room ber-orderId ditandai badge
+        // kecil "Escrow", bukan kode order mentah (user baru tidak tahu
+        // "KHD-…" artinya chat terikat transaksi).
+        orderBadge={item.orderId != null}
         selecting={selecting}
         selected={selected}
         onPress={handlePress}
@@ -974,6 +975,62 @@ export default function ChatScreen() {
     ],
   )
 
+  /**
+   * R1-005 (2026-09-29, audit render-perf): elemen header/empty/loading
+   * distabilkan — identitas baru tiap render membatalkan `useMemo` di dalam
+   * <PaginatedList> dan memaksa VirtualizedList render ulang kontainer.
+   */
+  const chatListHeader = useMemo(
+    () => (filter === "all" ? <SelfChatEntry onOpen={() => void openSelfChat()} /> : undefined),
+    [filter, openSelfChat],
+  )
+  const chatListLoading = useMemo(
+    () => (
+      <SkeletonGroup>
+        {Array.from({ length: SKELETON_COUNT }, (_, index) => (
+          <ChatSkeletonRow key={index} />
+        ))}
+      </SkeletonGroup>
+    ),
+    [],
+  )
+  const chatListEmpty = useMemo(
+    () =>
+      archiveOpen ? (
+        <EmptyState
+          icon={Archive}
+          title="Belum ada percakapan terarsip"
+          description="Percakapan yang Anda arsipkan akan tersimpan di sini."
+        />
+      ) : filter === "unread" ? (
+        <EmptyState
+          icon={Chats}
+          title="Tidak ada yang belum dibaca"
+          description="Semua percakapan sudah Anda baca."
+        />
+      ) : filter === "transaction" ? (
+        <EmptyState
+          icon={Chats}
+          title="Belum ada pesan transaksi"
+          description="Pesan dengan lawan transaksi Anda akan muncul di sini."
+        />
+      ) : (
+        <EmptyState
+          icon={Chats}
+          title="Belum ada percakapan"
+          description="Mulai chat dengan lawan transaksi Anda."
+          // UI-C004: empty state wajib punya jalan keluar yang bisa
+          // diketuk — chat selalu bermula dari sebuah transaksi.
+          action={
+            <Button fullWidth={false} onPress={() => router.push(ROUTES.transactions)}>
+              Lihat transaksi
+            </Button>
+          }
+        />
+      ),
+    [archiveOpen, filter],
+  )
+
   return (
     <Screen edges={["top"]} padded={false}>
       {selecting ? (
@@ -1075,7 +1132,7 @@ export default function ChatScreen() {
         onScrollWorklet={onScrollWorklet}
         // Batch 43: entri "Pesan untuk diri sendiri" di puncak daftar (hanya
         // tab Semua; arsip/filter lain tidak menampilkan self-chat).
-        header={filter === "all" ? <SelfChatEntry onOpen={() => void openSelfChat()} /> : undefined}
+        header={chatListHeader}
         // ChatRoomListItem memasang px-4 sendiri. `padded` default menambah
         // paddingHorizontal 20px lagi di contentContainer -> baris menjorok
         // dan tidak sejajar Header di atasnya. Sama seperti app/notifications.tsx.
@@ -1087,48 +1144,9 @@ export default function ChatScreen() {
         // Baris chat punya padding vertikal sendiri; gap antar baris 0 menjaga
         // irama rapat ala aplikasi pesan (satu layar memuat lebih banyak ruang).
         gap={0}
-        loadingPlaceholder={
-          <SkeletonGroup>
-            {Array.from({ length: SKELETON_COUNT }, (_, index) => (
-              <ChatSkeletonRow key={index} />
-            ))}
-          </SkeletonGroup>
-        }
+        loadingPlaceholder={chatListLoading}
         bottomPadding={insets.bottom + TAB_BAR_HEIGHT + tokens.space[4]}
-        empty={
-          archiveOpen ? (
-            <EmptyState
-              icon={Archive}
-              title="Belum ada percakapan terarsip"
-              description="Percakapan yang Anda arsipkan akan tersimpan di sini."
-            />
-          ) : filter === "unread" ? (
-            <EmptyState
-              icon={Chats}
-              title="Tidak ada yang belum dibaca"
-              description="Semua percakapan sudah Anda baca."
-            />
-          ) : filter === "transaction" ? (
-            <EmptyState
-              icon={Chats}
-              title="Belum ada pesan transaksi"
-              description="Pesan dengan lawan transaksi Anda akan muncul di sini."
-            />
-          ) : (
-            <EmptyState
-              icon={Chats}
-              title="Belum ada percakapan"
-              description="Mulai chat dengan lawan transaksi Anda."
-              // UI-C004: empty state wajib punya jalan keluar yang bisa
-              // diketuk — chat selalu bermula dari sebuah transaksi.
-              action={
-                <Button fullWidth={false} onPress={() => router.push(ROUTES.transactions)}>
-                  Lihat transaksi
-                </Button>
-              }
-            />
-          )
-        }
+        empty={chatListEmpty}
         renderItem={renderChatRoomItem}
       />
       </ModeShiftFade>

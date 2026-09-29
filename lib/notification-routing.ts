@@ -297,6 +297,21 @@ export function routeForPushData(data: unknown): Href | null {
 }
 
 /**
+ * E1-001: `decodeURIComponent` MELEMPAR `URIError` untuk sekuens persen
+ * malformed (mis. `%` mentah atau `%zz` di `actionUrl` payload push dari
+ * backend yang rusak/berubah format). Tanpa guard, satu payload nakal
+ * membunuh seluruh handler tap notifikasi tanpa feedback. Fallback ke
+ * nilai mentah — rute tetap terbentuk dengan id apa adanya.
+ */
+function safeDecodeSegment(value: string): string {
+  try {
+    return decodeURIComponent(value)
+  } catch {
+    return value
+  }
+}
+
+/**
  * Parse `actionUrl` backend menjadi route internal.
  * Format yang dikenal: `/chat/<id>`, `/order/<id>`, `/o/<id>`,
  * `/dispute/<id>`, `/showcase/<id>`, `/support/tickets/<id>` (F15),
@@ -317,7 +332,7 @@ export function routeForActionUrl(actionUrl: string | null | undefined): Href | 
 
   if (segments.length >= 2) {
     const [head, ...rest] = segments
-    const id = decodeURIComponent(rest.join("/"))
+    const id = safeDecodeSegment(rest.join("/"))
     // Query diparse di sini juga: bentuk `/wallet/transaction?id=<txId>`
     // (payload push backend) punya DUA segmen, bukan satu.
     const params = new URLSearchParams(query ?? "")

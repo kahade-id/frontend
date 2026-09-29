@@ -51,7 +51,7 @@
 
 import { Image, type ImageProps as ExpoImageProps, type ImageSource } from "expo-image"
 import { CloudSlash, ImageBroken } from "phosphor-react-native"
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { View, type ImageResizeMode, type ViewProps } from "react-native"
 
 import { Icon } from "@/components/ui/icon"
@@ -150,7 +150,12 @@ export function Picture({
    * browser terhadap ORIGIN PREVIEW, bukan host API — gambar lalu 404 tanpa
    * pesan apa pun. `resolveMediaSource` (lib/media.ts) menormalkannya.
    */
-  const src = resolveMediaSource(source as MediaSource | readonly MediaSource[])
+  // R1-007 (2026-09-29, audit render-perf): memo-kan — normalisasi URL tidak
+  // perlu diulang tiap render; identitas stabil juga menjaga `sourceKey`.
+  const src = useMemo(
+    () => resolveMediaSource(source as MediaSource | readonly MediaSource[]),
+    [source],
+  )
   const hasSource = src != null
   /**
    * C04 (batch 139): "coba lagi" per gambar — menaikkan `retrySeq` me-mount

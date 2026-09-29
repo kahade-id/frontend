@@ -12,6 +12,13 @@
 import { useSyncExternalStore } from "react"
 
 let open = false
+/**
+ * U5-004 (journey): sheet pernah dibuka minimal sekali dalam sesi ini —
+ * gerbang coach mark "+" (hanya untuk user yang membuka sheet buat, bukan
+ * semua pengunjung feed pertama). Tidak persisten: coach mark-nya sendiri
+ * yang sekali-tampil via flag SecureStore.
+ */
+let everOpened = false
 const listeners = new Set<() => void>()
 
 function emit() {
@@ -22,6 +29,7 @@ function emit() {
 export function openCreateSheet() {
   if (open) return
   open = true
+  everOpened = true
   emit()
 }
 
@@ -40,6 +48,7 @@ export function isCreateSheetOpen() {
 /** Reset khusus test. */
 export function resetCreateSheetForTest() {
   open = false
+  everOpened = false
   emit()
 }
 
@@ -54,7 +63,19 @@ function getSnapshot() {
   return open
 }
 
+function getEverOpenedSnapshot() {
+  return everOpened
+}
+
 /** Langganan status buka/tutup sheet. */
 export function useCreateSheetOpen() {
   return useSyncExternalStore(subscribe, getSnapshot, getSnapshot)
+}
+
+/**
+ * U5-004 (journey): true bila sheet "Buat baru" pernah dibuka sesi ini —
+ * dipakai menggerbangkan coach mark "+" di header Etalase.
+ */
+export function useCreateSheetEverOpened() {
+  return useSyncExternalStore(subscribe, getEverOpenedSnapshot, getEverOpenedSnapshot)
 }

@@ -77,6 +77,7 @@ export const AUTHENTICATED_SCREENS = [
   "seller/vouchers", // batch 43, item 9: voucher toko penjual
   "jastip/index", // batch 43, item 15: trip jastip host
   "jastip/[id]", // batch 43, item 15: detail trip jastip
+  "jastip/how-it-works", // U5-014 (journey): konsisten dengan seksi jastip (butuh sesi)
   "service-bookings", // batch 43, item 12: booking jasa buyer
   "settings",
   "showcase",
@@ -106,7 +107,7 @@ export const AUTHENTICATED_SCREENS = [
   "wallet", // NAV-006 (2026-09-28): satu kebijakan dengan 90+ layar lain — web tetap self-gate (lihat allowlist di bawah)
   "wallet-history",
   "wallet-transaction/[txId]",
-  "welcome",
+  // U5-003 (journey): layar "welcome" dihapus.
   "withdraw-history",
   "withdraw",
   "withdrawal-schedules",

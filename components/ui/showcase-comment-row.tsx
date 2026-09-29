@@ -29,7 +29,7 @@ import { CONTENT_REPORT_REASONS } from "@/lib/labels/report"
  *     cukup tampil statis tanpa affordance yang tidak berfungsi.
  */
 import { DotsThree, Heart } from "phosphor-react-native"
-import { useState, type ReactNode } from "react"
+import { memo, useState, type ReactNode } from "react"
 import { View } from "react-native"
 import { router, usePathname } from "expo-router"
 import { translate } from "@/lib/i18n/translate"
@@ -93,7 +93,12 @@ export type ShowcaseCommentRowProps = {
   avatarSize?: "xs" | "sm"
 }
 
-export function ShowcaseCommentRow({
+/**
+ * R1-004 (2026-09-29, audit render-perf): di-memo agar FlatList
+ * tervirtualisasi tidak me-render ulang baris yang datanya sama (sheet
+ * komentar bisa memuat ~120 baris sekaligus).
+ */
+export const ShowcaseCommentRow = memo(function ShowcaseCommentRow({
   comment,
   isMine = false,
   canReply = false,
@@ -314,4 +319,4 @@ export function ShowcaseCommentRow({
       </View>
     </View>
   )
-}
+})

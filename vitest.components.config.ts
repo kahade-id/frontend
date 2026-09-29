@@ -44,6 +44,7 @@ export default defineConfig({
       "phosphor-react-native": `${stub("phosphor-react-native")}x`,
       "react-native-svg": `${stub("react-native-svg")}x`,
       "expo-haptics": stub("expo-haptics"),
+      "expo-notifications": stub("expo-notifications"),
       "expo-image": `${stub("expo-image")}x`,
       "expo-router": `${stub("expo-router")}x`,
       "expo-clipboard": stub("expo-clipboard"),

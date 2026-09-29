@@ -35,9 +35,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { View } from "react-native"
 import { useLocalSearchParams, router } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { ClockCounterClockwise } from "phosphor-react-native"
+import { ClockCounterClockwise, ShieldCheck, X } from "phosphor-react-native"
 
-import { api, isApiError, userMessage, type Order } from "@/lib/api"
+import { api, isApiError, userMessage, type Order, type Wallet } from "@/lib/api"
 import { createIdempotencyKey } from "@/lib/api/client"
 import { normalizeOrder } from "@/lib/api/orders"
 import {
@@ -49,7 +49,7 @@ import {
   nextOrderStatus,
   type AverageDurations,
 } from "@/lib/api/orders"
-import { RATING_SNOOZE_MS, isRatingSnoozed, snoozeRatingReminder, useUiPrefs } from "@/lib/ui-prefs"
+import { RATING_SNOOZE_MS, isRatingSnoozed, snoozeRatingReminder, useUiPref } from "@/lib/ui-prefs"
 import { usePolling } from "@/lib/use-polling"
 import { useClockTick } from "@/lib/use-clock-tick"
 import { resolveShippingCountdown } from "@/lib/order-shipping-countdown"
@@ -93,6 +93,13 @@ import {
   OrderPaymentSheet,
 } from "@/components/order-action-sheets"
 import { SectionHeader } from "@/components/ui/section"
+import { Text } from "@/components/ui/text"
+import { Icon } from "@/components/ui/icon"
+import { IconButton } from "@/components/ui/icon-button"
+import {
+  hasSeenSellerEscrowBanner,
+  markSellerEscrowBannerSeen,
+} from "@/lib/first-run"
 import { MilestoneSection } from "@/components/order-milestones"
 import { InstallmentOfferSection } from "@/components/order-installment-offer"
 import { OrderAgreementSection } from "@/components/order-agreement-section"
@@ -142,11 +149,44 @@ const EARLY_STATUSES: readonly string[] = [
   "PAID",
 ]
 
+/**
+ * U5-013 (journey): banner escrow SEKALI-TAMPIL saat penjual membuka detail
+ * order. Copy: edukasi alur dana (ditahan escrow → cair setelah pembeli
+ * konfirmasi). Dismissible; tidak menyentuh status/order logic.
+ */
+function SellerEscrowBanner({ onDismiss }: { onDismiss: () => void }) {
+  return (
+    <View
+      accessibilityRole="alert"
+      className="flex-row items-start gap-2 rounded-md bg-accent-soft p-3"
+    >
+      <Icon icon={ShieldCheck} size="sm" tone="accent" />
+      <Text variant="caption" tone="secondary" className="flex-1 text-pretty">
+        Dana pembeli ditahan escrow — kirim barang dulu, dana cair ke wallet
+        Anda setelah pembeli konfirmasi terima.
+      </Text>
+      <IconButton
+        icon={X}
+        variant="ghost"
+        size="sm"
+        accessibilityLabel="Tutup info escrow"
+        onPress={onDismiss}
+      />
+    </View>
+  )
+}
+
 export default function OrderDetailScreen() {
   const { id, sheet: sheetParam } = useLocalSearchParams<{ id: string; sheet?: string }>()
   const insets = useSafeAreaInsets()
   const toast = useToast()
   const { copied, copy } = useCopy()
+  /**
+   * U5-013 (journey): banner escrow sekali-tampil untuk penjual. Ditempatkan
+   * di atas (sebelum early return `if (!order)`) — visibility dikunci saat
+   * order termuat sebagai SELLER.
+   */
+  const [escrowBannerVisible, setEscrowBannerVisible] = useState(false)
 
   /**
    * Audit: state async dirakit manual. Cacat terbukti dari kode lama:
@@ -276,19 +316,47 @@ export default function OrderDetailScreen() {
     Boolean(id),
   )
   const order = query.data?.order ?? null
+  // U5-013 (journey): banner escrow sekali-tampil — hanya saat peran termuat
+  // sebagai SELLER dan flag belum pernah tampil.
+  useEffect(() => {
+    if (order?.myRole !== "SELLER") return
+    let alive = true
+    void hasSeenSellerEscrowBanner().then((seen) => {
+      if (alive && !seen) setEscrowBannerVisible(true)
+    })
+    return () => {
+      alive = false
+    }
+  }, [order?.myRole])
+  const dismissEscrowBanner = useCallback(() => {
+    void markSellerEscrowBannerSeen()
+    setEscrowBannerVisible(false)
+  }, [])
   // QR verifikasi struk bukti pembayaran — defensif: null = tiket tanpa QR
   // (lib/receipt). Hook selalu dipanggil; referenceId null = tidak fetch.
   const orderTicketRef = useRef<View | null>(null)
-  const orderPaymentQr = useReceiptQr("ORDER_PAYMENT", order?.id ?? null)
+  // D1-007: QR struk hanya di-fetch bila tiket benar-benar dirender
+  // (order.paidAt) — bukan untuk semua order yang dibuka.
+  const orderPaymentQr = useReceiptQr("ORDER_PAYMENT", order?.id ?? null, {
+    enabled: Boolean(order?.paidAt),
+  })
   // R2 (audit ronde-2, butir #21): status pihak lawan (bayar/kirim/konfirmasi)
   // menyegar otomatis tiap 15 detik selama layar terbuka — tanpa pull-to-
   // refresh. Order status terminal berhenti dipoll. Galat ditelan oleh
   // useApiQuery (masuk state error), callback ini tidak melempar.
   // R2 #108: status terminal dipusatkan pada satu konstanta (dipakai polling
   // stop DAN pintasan riwayat terminal di fetcher).
+  // D1-005 (perf 2026-09-29): poll hanya mengambil STATUS RINGAN
+  // (GET /v1/orders/:id/status, 3 kolom). Bundle penuh (detail + 50 riwayat +
+  // durasi + fee) di-refresh HANYA bila status berubah — bukan setiap 15 detik.
   usePolling(
     async () => {
-      await query.refresh().catch(() => {})
+      const oid = id as string
+      const light = await api.orders.getOrderStatus(oid).catch(() => null)
+      const current = query.data?.order?.status
+      if (light && current && light.status !== current) {
+        await query.refresh().catch(() => {})
+      }
     },
     15_000,
     Boolean(id && order && !ORDER_TERMINAL_STATUSES.includes(order.status)),
@@ -390,6 +458,47 @@ export default function OrderDetailScreen() {
 
   // Pembayaran
   const [payMethod, setPayMethod] = useState<PayMethod>("balance")
+  /**
+   * U5-010/U5-011 (UX-deep 2026-09-29): saldo dompet — HANYA diambil saat
+   * sheet bayar dibuka, untuk (a) banner inline "saldo kurang" + tombol
+   * "Isi Saldo" di titik bayar, dan (b) default metode QRIS bila saldo <
+   * tagihan. Murni baca tampilan: tidak mengubah logika bayar/refund/PIN.
+   * (Ditaruh setelah `sheet`/`payMethod` dideklarasikan — hook ini memakai
+   * keduanya.)
+   */
+  const walletQuery = useApiQuery<Wallet>(
+    `wallet-for-pay:${id}`,
+    (signal) => api.wallet.getWallet(signal),
+    sheet === "pay",
+    // U5-010: kembali dari layar topup (push di atas layar ini; sheet tetap
+    // terbuka di belakang) → saldo disegarkan supaya banner "kurang RpY"
+    // langsung mencerminkan topup yang baru selesai.
+    { refreshOnFocus: true },
+  )
+  const walletBalance = walletQuery.data?.balance ?? null
+  /**
+   * U5-011: default metode bayar = QRIS bila saldo < tagihan. Hanya
+   * auto-default — pilihan eksplisit user (payMethodTouchedRef) tidak
+   * pernah ditimpa. Flag di-reset di closeSheet supaya pembukaan
+   * berikutnya mengevaluasi ulang dari saldo terbaru.
+   */
+  const payMethodTouchedRef = useRef(false)
+  useEffect(() => {
+    if (sheet !== "pay" || payMethodTouchedRef.current) return
+    const total = fee?.buyerPays
+    if (walletBalance != null && total != null && walletBalance < total) {
+      setPayMethod("qris")
+    }
+  }, [sheet, walletBalance, fee?.buyerPays])
+  /**
+   * U5-010: "Isi Saldo" dari sheet bayar — dorong layar topup; tombol back
+   * di sana kembali ke layar ini dengan sheet masih terbuka (state `sheet`
+   * tidak di-reset saat push), lalu saldo di-refresh via refreshOnFocus di
+   * atas. PIN tetap wajib untuk bayar via saldo — logika otorisasi utuh.
+   */
+  const handleTopupFromPay = useCallback(() => {
+    router.push(ROUTES.topup)
+  }, [])
   const [pinError, setPinError] = useState<string | undefined>()
   // Overlay progres saat membayar escrow dari saldo (PIN disubmit).
   const [payProgress, setPayProgress] = useState<"PROCESSING" | "SUCCESS" | "FAILURE" | null>(null)
@@ -490,6 +599,9 @@ export default function OrderDetailScreen() {
     setSheet(null)
     setPinError(undefined)
     setDisputeCategory(undefined)
+    // U5-011: reset penanda pilihan metode — pembukaan sheet berikutnya
+    // mengevaluasi ulang auto-default QRIS dari saldo terbaru.
+    payMethodTouchedRef.current = false
     // D08: persetujuan total tidak berlaku untuk siklus bayar berikutnya.
     acceptedTotalRef.current = null
     pendingPinRef.current = null
@@ -789,7 +901,9 @@ export default function OrderDetailScreen() {
    * the previous render" → layar jatuh ke ErrorBoundary ("Halaman tidak dapat
    * ditampilkan") tepat saat data masuk. `order` dijaga di dalam callback.
    */
-  useUiPrefs()
+  // R1-002: hanya key ratingSnoozeUntil yang dibaca di layar ini
+  // (isRatingSnoozed) — selector per-key, bukan seluruh blob.
+  useUiPref("ratingSnoozeUntil")
   /**
    * Countdown auto-release dana (IN_DELIVERY + `autoCompleteAt` dari backend).
    * Detak 1-Hz bersama via `useClockTick` (aktif hanya selama kartu tampil)
@@ -921,6 +1035,11 @@ export default function OrderDetailScreen() {
             copied={copied}
             onCopyId={() => void copy(order.id)}
           />
+
+          {/* U5-013 (journey): banner escrow sekali-tampil untuk penjual. */}
+          {isSeller && escrowBannerVisible ? (
+            <SellerEscrowBanner onDismiss={dismissEscrowBanner} />
+          ) : null}
 
           {!knownRole ? (
             <ErrorState
@@ -1203,11 +1322,16 @@ export default function OrderDetailScreen() {
         feeBuyerPays={fee?.buyerPays ?? null}
         payMethod={payMethod}
         onChangePayMethod={(v) => {
+          // U5-011: pilihan eksplisit — auto-default tidak boleh menimpanya.
+          payMethodTouchedRef.current = true
           setPayMethod(v)
           setPinError(undefined)
         }}
         submitting={submitting}
         pinError={pinError}
+        // U5-010: banner inline "saldo kurang" + tombol "Isi Saldo".
+        walletBalance={walletBalance}
+        onTopup={handleTopupFromPay}
         onPayPin={(p) => void handlePayPin(p)}
         qrisPayment={qrisPayment}
         qrisStatus={qrisStatus}

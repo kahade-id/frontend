@@ -86,6 +86,7 @@ import {
   sendChatTyping,
   unpinChatMessage,
   type ChatMessage,
+  type ChatMessagesPage,
   type ChatPresence,
   type ChatReaction,
   type ChatRoom,
@@ -126,6 +127,7 @@ import { ChatSearchSheet } from "@/components/ui/chat-search-sheet"
 import { ChatInlineSearchBar } from "@/components/ui/chat-inline-search"
 import { findMessageMatches } from "@/lib/chat-search"
 import { ChatDaySeparator, dayKey, dayLabel } from "@/components/ui/chat-day-separator"
+import { DmEscrowWarning } from "@/components/ui/dm-escrow-warning"
 import { ChatUnreadSeparator } from "@/components/ui/chat-unread-separator"
 import { presenceLabel } from "@/lib/chat-presence-label"
 import { firstUnreadMessageId } from "@/lib/chat-unread-anchor"
@@ -387,16 +389,26 @@ export default function ChatRoomScreen() {
   const highlightTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [nextCursor, setNextCursor] = useState<string | null>(null)
   const [olderStatus, setOlderStatus] = useState<LoadMoreStatus>("idle")
-  const [draft, setDraft] = useState("")
   /**
-   * Draft ketikan per-room (lib/chat-drafts): teks ditulis ke store sinkron
-   * tiap ketikan (persist di-debounce ke SecureStore), dimuat sekali saat
-   * room dibuka, dan dihapus saat pesan terkirim. Menutup room lalu kembali
-   * — atau restart app — tidak lagi menghilangkan ketikan.
+   * R1-001 (2026-09-29, audit render-perf): draft ketikan TIDAK lagi di
+   * state layar — tiap keystroke dulu me-render ulang seluruh komponen
+   * layar + kontainer FlatList (PureComponent gagal shallow-compare 5 prop
+   * inline). Draft kini dikurung di <ChatRoomFooter> (state lokal, pola
+   * DebouncedSearchField); layar hanya menerima notifikasi per ketikan
+   * untuk typing indicator + persist — keduanya murah dan tanpa setState.
    */
+  const [restoredDraft, setRestoredDraft] = useState("")
+  /** Dinaikkan tiap pesan terkirim → footer mengosongkan draft-nya. */
+  const [draftResetKey, setDraftResetKey] = useState(0)
+  /**
+   * Penghubung ke notifyTyping (didefinisikan lebih bawah, setelah hook
+   * realtime): dipanggil per ketikan TANPA setState sehingga layar tidak
+   * render ulang saat pengguna mengetik.
+   */
+  const notifyTypingRef = useRef<() => void>(() => {})
   const handleDraftChange = useCallback(
     (text: string) => {
-      setDraft(text)
+      if (text.trim()) notifyTypingRef.current()
       if (roomId) saveChatDraft(roomId, text)
     },
     [roomId],
@@ -406,8 +418,9 @@ export default function ChatRoomScreen() {
     let cancelled = false
     void loadChatDraft(roomId).then((stored) => {
       if (cancelled || !stored) return
-      // Jangan timpa ketikan yang sudah ada (mis. restore cepat + ketik).
-      setDraft((prev) => (prev ? prev : stored))
+      // Diteruskan sebagai initialDraft ke footer — footer yang menjaga
+      // agar tidak menimpa ketikan yang sudah ada.
+      setRestoredDraft(stored)
     })
     return () => {
       cancelled = true
@@ -582,6 +595,10 @@ export default function ChatRoomScreen() {
   const [pollInterval, setPollInterval] = useState(CHAT_POLL_MS)
   const emptyPolls = useRef(0)
   const pollTick = useRef(0)
+  // D1-004: jangkar delta poll fallback — id pesan terakhir yang terkonfirmasi
+  // server (pesan optimistis "sending"/"failed" TIDAK boleh jadi jangkar:
+  // id lokal tidak dikenal server → 400).
+  const newestMessageIdRef = useRef<string | null>(null)
 
   // J-07 (audit): pencarian pesan dalam ruang — adapter searchRoomMessages
   // sudah ada sejak API-GAP 2026-09-15, UI-nya yang belum. Kata kunci,
@@ -668,20 +685,22 @@ export default function ChatRoomScreen() {
     setError(null)
     setRoomGone(false)
     try {
-      const [page, rooms, failed] = await Promise.all([
+      // D1-003: header room diambil via GET /v1/chat/rooms/:roomId (ringan) —
+      // tidak lagi fetch ulang seluruh daftar room (halaman 1, 30 baris join
+      // berat) hanya untuk menemukan 1 baris.
+      const [page, roomRow, failed] = await Promise.all([
         api.chat.getChatMessages(roomId, { limit: CHAT_PAGE_SIZE }, controller.signal),
-        api.chat.listChatRooms({ page: 1, limit: CHAT_PAGE_SIZE }, controller.signal).catch((err) => {
-          logWarn("chat:rooms-lookup", err)
-          return {
-            data: [] as ChatRoom[],
-            meta: { page: 1, limit: CHAT_PAGE_SIZE, totalPages: 1 },
-          }
+        api.chat.getChatRoom(roomId, controller.signal).catch((err) => {
+          logWarn("chat:room-lookup", err)
+          return null
         }),
         // B07: antrean pesan gagal yang persisten — selamat dari refresh.
         loadChatFailedMessages(roomId),
       ])
       if (controller.signal.aborted) return
       const items = sortByTime(page.items)
+      // D1-004: inisialisasi jangkar delta dari halaman awal.
+      newestMessageIdRef.current = items.length > 0 ? items[items.length - 1].id : null
       // B07: rekonsiliasi — pesan gagal yang ternyata SUDAH ada di server
       // (POST sukses tapi respons hilang) tidak di-merge ulang; antreannya
       // dibersihkan supaya tidak duplikat.
@@ -710,7 +729,6 @@ export default function ChatRoomScreen() {
         page.nextCursor ?? (page.items.length >= CHAT_PAGE_SIZE ? (items[0]?.id ?? null) : null),
       )
       setOlderStatus(page.items.length < CHAT_PAGE_SIZE ? "end" : "idle")
-      const roomRow = rooms.data.find((r) => r.id === roomId) ?? null
       setRoom(roomRow)
       // B02: abadikan unreadCount SEBELUM `markChatRoomRead` di bawah —
       // setelah itu angka server sudah 0 dan jangkar tak bisa dihitung.
@@ -813,6 +831,12 @@ export default function ChatRoomScreen() {
         added = result.added
         freshFromOther = result.hasFreshFromOther
         if (!result.changed) return prev
+        // D1-004: majukan jangkar delta ke pesan terakhir yang terkonfirmasi
+        // server (lewati pesan optimistis yang masih sending/failed).
+        const lastConfirmed = [...result.next]
+          .reverse()
+          .find((m) => m.sendStatus !== "sending" && m.sendStatus !== "failed")
+        if (lastConfirmed) newestMessageIdRef.current = lastConfirmed.id
         // Pesan masuk dari lawan bicara → badge tab Notifikasi harus turun
         // segera (ruang terbuka = terbaca), bukan menunggu poll 60 detik.
         // Namun HANYA bila user sedang di dasar thread: yang sedang scroll
@@ -846,7 +870,26 @@ export default function ChatRoomScreen() {
     async (signal?: AbortSignal) => {
       if (!roomId) return
       const targetRoom = roomId
-      const page = await api.chat.getChatMessages(roomId, { limit: CHAT_PAGE_SIZE }, signal)
+      // D1-004: poll fallback memakai DELTA (afterMessageId) — hanya pesan
+      // baru sejak jangkar terakhir, bukan 30 pesan penuh tiap 8 detik.
+      // Full page hanya saat buka awal (fetchMessages) atau saat delta gagal.
+      const anchor = newestMessageIdRef.current
+      let page: ChatMessagesPage
+      try {
+        page = await api.chat.getChatMessages(
+          roomId,
+          anchor ? { afterMessageId: anchor, limit: CHAT_PAGE_SIZE } : { limit: CHAT_PAGE_SIZE },
+          signal,
+        )
+        // Pengaman: delta yang penuh (limit tercapai) berarti ada pesan yang
+        // terlewat → sinkronkan ulang satu halaman penuh.
+        if (anchor && page.items.length >= CHAT_PAGE_SIZE) {
+          page = await api.chat.getChatMessages(roomId, { limit: CHAT_PAGE_SIZE }, signal)
+        }
+      } catch {
+        // Jangkar basi (mis. id optimistis lolos) → fallback halaman penuh.
+        page = await api.chat.getChatMessages(roomId, { limit: CHAT_PAGE_SIZE }, signal)
+      }
       const added = mergeIncoming(sortByTime(page.items), targetRoom)
       // F-07: adaptive interval — poll kosong beruntun menaikkan interval;
       // satu pesan baru saja sudah cukup untuk kembali ke interval cepat.
@@ -1437,7 +1480,8 @@ export default function ChatRoomScreen() {
         // Pengguna aktif → poll kembali cepat bila sedang idle.
         emptyPolls.current = 0
         setPollInterval(CHAT_POLL_MS)
-        setDraft("")
+        // R1-001: draft milik footer — naikkan sinyal agar dikosongkan.
+        setDraftResetKey((k) => k + 1)
         clearChatDraft(roomId)
         setAttachments([])
         setReplyTarget(null)
@@ -1941,9 +1985,12 @@ export default function ChatRoomScreen() {
     }, 3000)
   }, [roomId, sendTypingRealtime])
 
+  // R1-001: draft kini milik <ChatRoomFooter> — ref ini menghubungkan
+  // notifikasi ketikan (handleDraftChange) ke notifyTyping yang
+  // didefinisikan di sini, tanpa state draft di layar.
   useEffect(() => {
-    if (draft.trim()) notifyTyping()
-  }, [draft, notifyTyping])
+    notifyTypingRef.current = notifyTyping
+  }, [notifyTyping])
 
   useEffect(() => {
     return () => {
@@ -2371,6 +2418,47 @@ export default function ChatRoomScreen() {
     ],
   )
 
+  /**
+   * R1-001: 5 prop FlatList distabilkan — VirtualizedList adalah
+   * PureComponent; prop inline beridentitas baru tiap render (dulu tiap
+   * keystroke) memaksa render ulang kontainer list.
+   */
+  const threadKeyExtractor = useCallback((row: ThreadRow) => row.key, [])
+  const threadContentStyle = useMemo(
+    () => ({ paddingBottom: insets.bottom + tokens.space[4], flexGrow: 1 }),
+    [insets.bottom],
+  )
+  const threadListHeader = useMemo(
+    () =>
+      messages.length > 0 ? (
+        // px-5: kompensasi gutter list yang dihapus (lihat atas) —
+        // tombol "Muat pesan sebelumnya" tetap sejajar dengan bubble.
+        <View style={{ paddingTop: tokens.space[3] }} className="px-5">
+          <LoadMore
+            status={olderStatus}
+            onLoadMore={() => void loadOlder()}
+            hideEnd
+            idleLabel="Muat pesan sebelumnya"
+          />
+        </View>
+      ) : null,
+    [messages.length, olderStatus, loadOlder],
+  )
+  const handleStartReached = useCallback(() => {
+    if (olderStatus === "idle" && messages.length > 0) void loadOlder()
+  }, [olderStatus, messages.length, loadOlder])
+  const handleScrollToIndexFailed = useCallback(
+    (info: { averageItemLength: number; index: number }) => {
+      // Tinggi bubble variabel — perkirakan lewat averageItemLength
+      // (dipakai lompat-ke-hasil-pencarian J-07).
+      scrollRef.current?.scrollToOffset({
+        offset: info.averageItemLength * info.index,
+        animated: true,
+      })
+    },
+    [],
+  )
+
   return (
     <Screen
       keyboardAvoiding
@@ -2394,7 +2482,8 @@ export default function ChatRoomScreen() {
           closedNotice={closedNoticeText}
           orderId={room?.orderId}
           onOpenOrder={(id) => router.push(ROUTES.orderDetail(id))}
-          draft={draft}
+          initialDraft={restoredDraft}
+          draftResetKey={draftResetKey}
           onDraftChange={handleDraftChange}
           onSend={(p) => void handleSend(p)}
           attachments={composerAttachments}
@@ -2482,6 +2571,20 @@ export default function ChatRoomScreen() {
         />
       )}
 
+      {/* U5-008 (UX-deep 2026-09-29): banner anti-tipu PERSISTEN di DM
+          tanpa orderId — DM tampil identik chat transaksi dan tidak boleh
+          mengundang transfer langsung. Dilewati untuk: ruang ber-order,
+          self-chat, ruang ORDER/grup, dan lawan bicara ber-badge verifikasi
+          (sealTier abu-abu/biru/emas). CTA = sheet "Buat transaksi" yang sama
+          dengan menu ⋮ (jalur escrow, bukan jalur baru). Hook-in minimal:
+          satu blok kondisional di bawah header. */}
+      {!selecting &&
+      room != null &&
+      isOneToOneChatRoom(room) &&
+      !isSelfChat &&
+      room.counterpart?.sealTier == null ? (
+        <DmEscrowWarning onCreateOrder={() => setCreateOrderSheetOpen(true)} />
+      ) : null}
       {/* Bar pencarian inline: di bawah header, di atas thread. */}
       {!selecting && inlineSearchOpen ? (
         <ChatInlineSearchBar
@@ -2528,32 +2631,19 @@ export default function ChatRoomScreen() {
         removeClippedSubviews={false}
         // B10: baris campuran (hari/pemisah/pesan); baris "day" sticky.
         data={threadRows}
-        keyExtractor={(row) => row.key}
+        keyExtractor={threadKeyExtractor}
         stickyHeaderIndices={stickyDayIndices}
         // Revisi 2026-09-27: gutter horizontal HANYA dari baris bubble
         // (`px-5` di <ChatMessageBubble>) — padding di sini DOBEL (40px)
         // dan membuat inset kiri/kanan tidak proporsional.
-        contentContainerStyle={{ paddingBottom: insets.bottom + tokens.space[4], flexGrow: 1 }}
+        contentContainerStyle={threadContentStyle}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         onScrollBeginDrag={() => Keyboard.dismiss()}
         onContentSizeChange={handleContentSizeChange}
         onScroll={handleScroll}
         scrollEventThrottle={SCROLL_EVENT_THROTTLE}
-        ListHeaderComponent={
-          messages.length > 0 ? (
-            // px-5: kompensasi gutter list yang dihapus (lihat atas) —
-            // tombol "Muat pesan sebelumnya" tetap sejajar dengan bubble.
-            <View style={{ paddingTop: tokens.space[3] }} className="px-5">
-              <LoadMore
-                status={olderStatus}
-                onLoadMore={() => void loadOlder()}
-                hideEnd
-                idleLabel="Muat pesan sebelumnya"
-              />
-            </View>
-          ) : null
-        }
+        ListHeaderComponent={threadListHeader}
         ListEmptyComponent={
           loading ? (
             <View className="pt-3">
@@ -2587,18 +2677,9 @@ export default function ChatRoomScreen() {
         renderItem={renderThreadRow}
         // Scroll ke puncak = muat riwayat lebih lama (tombol eksplisit tetap
         // ada di header list untuk status error).
-        onStartReached={() => {
-          if (olderStatus === "idle" && messages.length > 0) void loadOlder()
-        }}
+        onStartReached={handleStartReached}
         onStartReachedThreshold={120}
-        onScrollToIndexFailed={(info) => {
-          // Tinggi bubble variabel — perkirakan lewat averageItemLength
-          // (dipakai lompat-ke-hasil-pencarian J-07).
-          scrollRef.current?.scrollToOffset({
-            offset: info.averageItemLength * info.index,
-            animated: true,
-          })
-        }}
+        onScrollToIndexFailed={handleScrollToIndexFailed}
         initialNumToRender={12}
         maxToRenderPerBatch={8}
         windowSize={9}

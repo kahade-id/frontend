@@ -52,7 +52,7 @@ import { addDays, OrderExtensionCard } from "@/components/ui/order-extension-car
 import { formatDateTime, formatDateTimeWIB } from "@/lib/format"
 import { tokens } from "@/lib/tokens"
 import { useApiQuery } from "@/lib/use-api-query"
-import { usePolling } from "@/lib/use-polling"
+import { useFingerprintPoll } from "@/lib/use-fingerprint-poll"
 import { showMutationError } from "@/lib/mutation-toast"
 
 import { BottomSheet } from "@/components/ui/bottom-sheet"
@@ -147,10 +147,12 @@ export default function ExtensionScreen() {
 
   // R2 (audit ronde-2, butir #24): persetujuan/penolakan perpanjangan dari
   // pihak lawan menyegar tiap 20 detik saat layar terbuka.
-  usePolling(
-    async () => {
-      await query.refresh().catch(() => {})
-    },
+  // D1-010 (perf 2026-09-29): poll hanya fingerprint ringan (total +
+  // max updatedAt); bundle penuh (order + halaman-1) hanya bila
+  // fingerprint berubah.
+  useFingerprintPoll(
+    (signal) => api.orders.getExtensionsFingerprint(orderId as string, signal),
+    () => query.refresh(),
     20_000,
     Boolean(orderId),
   )

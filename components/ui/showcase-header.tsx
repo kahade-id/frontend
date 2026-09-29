@@ -43,7 +43,7 @@ import { useRef } from "react"
 import type { View as RNView } from "react-native"
 import { useRouter } from "expo-router"
 
-import { openCreateSheet } from "@/lib/create-sheet"
+import { openCreateSheet, useCreateSheetEverOpened } from "@/lib/create-sheet"
 import { openDrawer } from "@/lib/drawer"
 import { cn } from "@/lib/cn"
 import { hitSlopToReach } from "@/lib/hit-slop"
@@ -91,6 +91,10 @@ export function ShowcaseHeader({ kind, onKindChange, tabs, onFilterPress, filter
   // (bukan PressableScale) supaya ref selalu ke host View yang terukur.
   const createRef = useRef<RNView>(null)
   const router = useRouter()
+  // U5-004 (journey): coach mark "+" HANYA untuk user yang pernah membuka
+  // sheet buat — kunjungan pertama ke feed kini mendapat coach mark
+  // orientasi BELI (U5-004, di ShowcaseFeedTab) + overlay orientasi (U5-005).
+  const sheetEverOpened = useCreateSheetEverOpened()
   return (
     <View className="bg-background">
       {/* ── Baris atas: menu (hamburger) · logo · cari ── */}
@@ -183,13 +187,16 @@ export function ShowcaseHeader({ kind, onKindChange, tabs, onFilterPress, filter
               <Icon icon={Plus} size="md" weight="regular" tone="active" />
             </PressableScale>
           </View>
-          {/* Coach mark sekali saja (2026-09-28): pengenal tombol (+) baru. */}
-          <CoachMark
-            id="create"
-            targetRef={createRef}
-            message={translate("Ketuk + untuk buat karya")}
-            delayMs={700}
-          />
+          {/* U5-004 (journey): coach mark "+" sekali saja — hanya setelah user
+              pernah membuka sheet buat (bukan panduan pertama di feed). */}
+          {sheetEverOpened ? (
+            <CoachMark
+              id="create"
+              targetRef={createRef}
+              message={translate("Ketuk + untuk buat karya")}
+              delayMs={700}
+            />
+          ) : null}
         </View>
       </View>
 

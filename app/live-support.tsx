@@ -28,7 +28,7 @@ import { formatTime } from "@/lib/format"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 import { useApiQuery } from "@/lib/use-api-query"
-import { usePolling } from "@/lib/use-polling"
+import { useFingerprintPoll } from "@/lib/use-fingerprint-poll"
 import { useHasSession } from "@/lib/guest-gate"
 import { translate } from "@/lib/i18n"
 import { onReconnect } from "@/lib/connectivity"
@@ -180,11 +180,12 @@ export default function LiveSupportScreen() {
    * `setInterval` mentah — berhenti saat app pindah ke background / layar
    * blur (dulu request 10-detik jalan terus di background) + anti-overlap
    * (dulu respons >10 dtk menumpuk request).
+   * D1-010 (perf 2026-09-29): poll hanya fingerprint ringan; bundle penuh
+   * hanya bila fingerprint berubah.
    */
-  usePolling(
-    async () => {
-      await ticketQuery.refresh()
-    },
+  useFingerprintPoll(
+    (signal) => api.support.getSupportTicketFingerprint(ticketId as string, signal),
+    () => ticketQuery.refresh(),
     POLL_INTERVAL_MS,
     Boolean(ticketId && !isClosedLike),
   )

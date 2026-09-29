@@ -176,6 +176,26 @@ export function getSupportTicket(ticketId: string, signal?: AbortSignal) {
   }).then(normalizeSupportTicket)
 }
 
+/**
+ * D1-010 (perf 2026-09-29): fingerprint ringan untuk poll — status +
+ * updatedAt + jumlah balasan. Bundle penuh (`getSupportTicket`) hanya
+ * di-refresh bila fingerprint berubah.
+ */
+export type SupportTicketFingerprint = {
+  ticketId: string
+  status: string
+  updatedAt: string
+  replyCount: number
+}
+
+export function getSupportTicketFingerprint(ticketId: string, signal?: AbortSignal) {
+  return http.get<SupportTicketFingerprint>(`/v1/support/tickets/${seg(ticketId)}/fingerprint`, {
+    auth: "required",
+    retry: 1,
+    signal,
+  })
+}
+
 /** POST /v1/support/tickets — DTO spec hanya attachments; subject dikirim di body juga (toleran). */
 export function createSupportTicket(dto: CreateTicketDto & { subject?: string; message?: string }) {
   return http.post<SupportTicket, CreateTicketDto & { subject?: string; message?: string }>(

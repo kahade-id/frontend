@@ -187,8 +187,12 @@ export default function TopupScreen() {
   const progress = stepIndex[step] / TOTAL_STEPS
 
   // QR verifikasi struk top-up — defensif: null = tiket tanpa QR (lib/receipt).
+  // D1-007: hanya fetch bila tiket struk benar-benar dirender (status final;
+  // fase instruksi PENDING tidak menampilkan tiket).
   const topupTicketRef = useRef<View | null>(null)
-  const topupQr = useReceiptQr("TOPUP", result?.paymentTxId)
+  const topupQr = useReceiptQr("TOPUP", result?.paymentTxId, {
+    enabled: locallyExpired || (result != null && result.status in STATUS),
+  })
 
   useEffect(() => {
     if (methods.length === 0) return

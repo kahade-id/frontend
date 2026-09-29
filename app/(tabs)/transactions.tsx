@@ -67,7 +67,7 @@ import type { Order } from "@/lib/api/orders"
 import { useHasSession } from "@/lib/guest-gate"
 import { useApiQuery } from "@/lib/use-api-query"
 import { byTimestampDesc, usePaginatedQuery } from "@/lib/use-paginated-query"
-import { useUiPrefs } from "@/lib/ui-prefs"
+import { useSetUiPrefs, useUiPref } from "@/lib/ui-prefs"
 import { useScrollElevation } from "@/lib/use-scroll-elevation"
 import { ORDER_STATUS_LABELS } from "@/components/ui/order-status-badge"
 import { Button } from "@/components/ui/button"
@@ -232,8 +232,9 @@ export default function TransactionsScreen() {
    * Mengingat status membuat daftar terasa hilang tanpa sebab saat layar
    * dibuka minggu depan.
    */
-  const { prefs, setPrefs } = useUiPrefs()
-  const role: RoleTab = prefs.transactionsTab
+  const transactionsTab = useUiPref("transactionsTab")
+  const setPrefs = useSetUiPrefs()
+  const role: RoleTab = transactionsTab
   const [status, setStatus] = useState(ALL_STATUS)
   const [sheetOpen, setSheetOpen] = useState(false)
   // Efek scroll: header terangkat (bayangan) saat daftar digulir.
@@ -283,6 +284,70 @@ export default function TransactionsScreen() {
     },
   )
   const filtered = status !== ALL_STATUS
+
+  /**
+   * R1-005 (2026-09-29, audit render-perf): placeholder & empty distabilkan —
+   * identitas baru tiap render membatalkan `useMemo` di dalam <PaginatedList>
+   * dan memaksa VirtualizedList render ulang kontainer.
+   */
+  const trxListLoading = useMemo(() => <TransactionListSkeleton />, [])
+  const trxListEmpty = useMemo(
+    () => (
+      <EmptyState
+        icon={Receipt}
+        title={filtered ? "Tidak ada hasil" : "Belum ada transaksi"}
+        // Dua string peran ditulis INLINE (bukan di map): generator
+        // katalog i18n hanya memindai nilai pada atribut/properti bernama
+        // teks, jadi string di dalam map `Record<Role, string>` tidak
+        // pernah masuk katalog dan tidak akan ikut diterjemahkan.
+        description={
+          filtered
+            ? "Tidak ada transaksi yang cocok dengan saringan ini."
+            : role === "seller"
+              ? // T1-004: beri tahu penjual cara MULAI menerima order.
+                "Bagikan etalase Anda atau buat tautan pembayaran untuk mulai menerima order."
+              : // T1-004: beri tahu pembeli cara memulai transaksi pertama.
+                "Belum ada transaksi. Mulai dengan membeli dari etalase, atau minta tautan pembayaran ke penjual."
+        }
+        // Jalan keluar satu ketukan: empty state yang hanya menyuruh
+        // "ubah filter" membiarkan pengguna mencari sendiri chip mana yang
+        // tadi ditekan. Tombol ini me-reset kedua sumbu sekaligus.
+        // T1-004: empty state non-filter mendapat tombol aksi primer —
+        // user baru tahu cara memulai transaksi pertama.
+        action={
+          filtered ? (
+            <Button
+              variant="secondary"
+              size="sm"
+              fullWidth={false}
+              onPress={() => {
+                setStatus(ALL_STATUS)
+              }}
+            >
+              Hapus filter
+            </Button>
+          ) : role === "seller" ? (
+            <Button
+              size="sm"
+              fullWidth={false}
+              onPress={() => router.push(ROUTES.createTransaction)}
+            >
+              Buat tautan pembayaran
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              fullWidth={false}
+              onPress={() => router.push(ROUTES.showcase)}
+            >
+              Lihat etalase
+            </Button>
+          )
+        }
+      />
+    ),
+    [filtered, role],
+  )
   /**
    * G-03 (audit escrow 2026-09-24): N kartu yang countdown tenggatnya habis
    * bersamaan (batch order) dulu memicu N `query.refresh()` beruntun yang
@@ -423,61 +488,8 @@ export default function TransactionsScreen() {
         onRetry={query.reload}
         onLoadMore={query.loadMore}
         bottomPadding={insets.bottom + TAB_BAR_HEIGHT + tokens.space[4]}
-        loadingPlaceholder={<TransactionListSkeleton />}
-        empty={
-          <EmptyState
-            icon={Receipt}
-            title={filtered ? "Tidak ada hasil" : "Belum ada transaksi"}
-            // Dua string peran ditulis INLINE (bukan di map): generator
-            // katalog i18n hanya memindai nilai pada atribut/properti bernama
-            // teks, jadi string di dalam map `Record<Role, string>` tidak
-            // pernah masuk katalog dan tidak akan ikut diterjemahkan.
-            description={
-              filtered
-                ? "Tidak ada transaksi yang cocok dengan saringan ini."
-                : role === "seller"
-                  ? // T1-004: beri tahu penjual cara MULAI menerima order.
-                    "Bagikan etalase Anda atau buat tautan pembayaran untuk mulai menerima order."
-                  : // T1-004: beri tahu pembeli cara memulai transaksi pertama.
-                    "Belum ada transaksi. Mulai dengan membeli dari etalase, atau minta tautan pembayaran ke penjual."
-            }
-            // Jalan keluar satu ketukan: empty state yang hanya menyuruh
-            // "ubah filter" membiarkan pengguna mencari sendiri chip mana yang
-            // tadi ditekan. Tombol ini me-reset kedua sumbu sekaligus.
-            // T1-004: empty state non-filter mendapat tombol aksi primer —
-            // user baru tahu cara memulai transaksi pertama.
-            action={
-              filtered ? (
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  fullWidth={false}
-                  onPress={() => {
-                    setStatus(ALL_STATUS)
-                  }}
-                >
-                  Hapus filter
-                </Button>
-              ) : role === "seller" ? (
-                <Button
-                  size="sm"
-                  fullWidth={false}
-                  onPress={() => router.push(ROUTES.createTransaction)}
-                >
-                  Buat tautan pembayaran
-                </Button>
-              ) : (
-                <Button
-                  size="sm"
-                  fullWidth={false}
-                  onPress={() => router.push(ROUTES.showcase)}
-                >
-                  Lihat etalase
-                </Button>
-              )
-            }
-          />
-        }
+        loadingPlaceholder={trxListLoading}
+        empty={trxListEmpty}
         renderItem={renderGroup}
       />
       </ModeShiftFade>

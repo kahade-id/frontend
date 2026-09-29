@@ -30,7 +30,7 @@
  *  - F-04: item yang sudah dilaporkan sesi ini disembunyikan dari feed.
  */
 import { useCallback, useEffect, useMemo, useRef, useState, memo, useSyncExternalStore } from "react"
-import { View, type FlatList } from "react-native"
+import { View, type FlatList, type View as RNView } from "react-native"
 import Animated, { runOnJS } from "react-native-reanimated"
 import { Images, X, ArrowUp } from "phosphor-react-native"
 import { router, useLocalSearchParams } from "expo-router"
@@ -67,7 +67,7 @@ import { prefetchShowcaseDetail } from "@/lib/showcase-detail-prefetch"
 import { tokens } from "@/lib/tokens"
 import { modes } from "@/lib/tokens"
 import { describeSheetFilters, countActiveFeedFilters } from "@/lib/showcase-filters"
-import { useUiPrefs, parseShowcaseFeedTab, type ShowcaseFeedTab as SavedFeedTab } from "@/lib/ui-prefs"
+import { useSetUiPrefs, useUiPref, parseShowcaseFeedTab, type ShowcaseFeedTab as SavedFeedTab } from "@/lib/ui-prefs"
 import { useCollapsingHeader } from "@/lib/use-collapsing-header"
 import { useShowcaseSocialActions } from "@/lib/use-showcase-social-actions"
 import { useToast } from "@/components/ui/toast"
@@ -79,7 +79,9 @@ import { useLanguage } from "@/lib/i18n"
 
 import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Button } from "@/components/ui/button"
+import { CoachMark } from "@/components/ui/coach-mark"
 import { EmptyState } from "@/components/ui/empty-state"
+import { FeedOrientationOverlay } from "@/components/ui/feed-orientation-overlay"
 import { IconButton } from "@/components/ui/icon-button"
 import { ImageViewer } from "@/components/ui/image-viewer"
 import { PaginatedList } from "@/components/ui/paginated-list"
@@ -101,7 +103,15 @@ import {
   selectTopVisibleAnchor,
 } from "@/lib/showcase-feed-position"
 import { ShowcaseFeedSkeleton } from "@/components/ui/showcase-feed-skeleton"
+import { PushRationaleSheet } from "@/components/ui/push-rationale-sheet"
+import { WebGuestBanner } from "@/components/ui/web-guest-banner"
 import { Text } from "@/components/ui/text"
+import {
+  hasSeenFeedOrientation,
+  markFeedOrientationSeen,
+  hasSeenPushRationale,
+  markPushRationaleSeen,
+} from "@/lib/first-run"
 
 const FEED_LIMIT = 20
 /**
@@ -112,15 +122,6 @@ const FEED_LIMIT = 20
  */
 const FOLLOWING_MIN_ITEMS = 5
 const FOLLOWING_MAX_PAGES = 3
-/**
- * A-03: batas atas halaman daftar following (50 akun/halaman → 1.000 akun)
- * yang diambil per sesi, di paralel batch kecil. 5.000 follow tidak lagi
- * berarti 100 request serial sebelum paint; cache A-04 memastikan ini hanya
- * terjadi sekali per akun per sesi. Solusi penuh = endpoint server (A-17).
- */
-const FOLLOWING_INDEX_MAX_PAGES = 20
-const FOLLOWING_INDEX_PARALLEL = 4
-
 // ------------------------------------------------------------------
 // Tab Showcase (cursor/keyset) — header lipat + tab feed gaya profil publik
 // ------------------------------------------------------------------
@@ -145,7 +146,7 @@ function useFeedTabs() {
 type FollowingIndex = { owner: string; keys: ReadonlySet<string> }
 
 /** A-12: kunci identitas berikut — `u:{userId}` (stabil) ATAU `n:{username-lowercase}`. */
-function followingKeysOf(users: readonly { userId?: string; username?: string }[]): Set<string> {
+function followingKeysOf(users: readonly { userId?: string | null; username?: string | null }[]): Set<string> {
   const keys = new Set<string>()
   for (const user of users) {
     if (user?.userId) keys.add(`u:${user.userId}`)
@@ -209,6 +210,12 @@ type FeedCardProps = {
   divider: boolean
   onOpenComments: (item: ShowcaseSocialItem) => void
   onReport: (item: ShowcaseSocialItem) => void
+  /**
+   * R1-003 (2026-09-29, audit render-perf): tab feed aktif dari param rute,
+   * dibaca SEKALI di induk — bukan `useLocalSearchParams` per kartu (tiap
+   * kartu dulu berlangganan 2x: di sini + di <ShowcaseFeedItem>).
+   */
+  feedKind?: string
 }
 
 const FeedCard = memo(function FeedCard({
@@ -216,6 +223,7 @@ const FeedCard = memo(function FeedCard({
   divider,
   onOpenComments,
   onReport,
+  feedKind,
 }: FeedCardProps) {
   const { liked, likeCount, saved, likePending, savedPending, toggleLike, toggleSave, share, shareSheetVisible, setShareSheetVisible } =
     useShowcaseSocialActions(item)
@@ -230,11 +238,11 @@ const FeedCard = memo(function FeedCard({
     [item, liked, likeCount],
   )
   // L-01/L-06: `kind` dibawa ke detail supaya badge kategori di sana
-  // mempertahankan tab aktif.
-  const { kind } = useLocalSearchParams<{ kind?: string }>()
+  // mempertahankan tab aktif. R1-003: dioper dari induk sebagai prop —
+  // bukan `useLocalSearchParams` per kartu.
   const handlePress = useCallback(
-    () => router.push(ROUTES.showcaseDetail(item.id, { kind })),
-    [item.id, kind],
+    () => router.push(ROUTES.showcaseDetail(item.id, { kind: feedKind })),
+    [item.id, feedKind],
   )
   // C05 (batch 139): press-in pada judul = niat buka detail → prefetch
   // metadata ringan (hanya JSON; video TIDAK diunduh, aman mode hemat data).
@@ -266,6 +274,7 @@ const FeedCard = memo(function FeedCard({
     <>
       <ShowcaseFeedItem
         item={display}
+        feedKind={feedKind}
         onPress={handlePress}
         onPressIn={handlePressIn}
         onOpenMedia={handleOpenMedia}
@@ -311,10 +320,17 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
   // Item 47 (FE-IMP-1): tab terakhir yang dibuka persist per perangkat
   // (lib/ui-prefs `showcaseFeedTab`). Param URL (deep link) tetap menang
   // bila ada; kalau tidak, pakai tab terakhir yang disimpan.
-  const { prefs: uiPrefs, setPrefs: setUiPrefs } = useUiPrefs()
+  // R1-002: selector per-key — hanya perubahan tab yang membangunkan.
+  const showcaseFeedTab = useUiPref("showcaseFeedTab")
+  const setUiPrefs = useSetUiPrefs()
   const kindParam: ShowcaseFeedKind | undefined =
     typeof params.kind === "string" ? parseShowcaseFeedTab(params.kind) : undefined
-  const kind: ShowcaseFeedKind = kindParam ?? parseShowcaseFeedTab(uiPrefs.showcaseFeedTab)
+  const kind: ShowcaseFeedKind = kindParam ?? parseShowcaseFeedTab(showcaseFeedTab)
+  /**
+   * R1-003: nilai mentah param `kind` untuk diteruskan ke kartu —
+   * `useLocalSearchParams` hanya dipanggil sekali di sini, bukan per kartu.
+   */
+  const routeKind = typeof params.kind === "string" ? params.kind : undefined
   // Pencarian inline DIHAPUS dari header (2026-09-23): satu-satunya kolom
   // cari kini layar /search. Param `search` tetap dibaca agar URL lama
   // `/showcase?search=…` (deep link/bookmark) masih terfilter dengan benar —
@@ -521,6 +537,41 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
   hasSessionRef.current = hasSession
   const revisionRef = useRef(revision)
   revisionRef.current = revision
+  /**
+   * U5-003/U5-005 (journey): mesin fase first-run di feed — BERURUTAN, tidak
+   * bertumpuk: (1) overlay orientasi 3 kartu (U5-005, semua user termasuk
+   * tamu), (2) bottom sheet rationale notifikasi (U5-003, hanya yang login),
+   * (3) selesai → coach mark orientasi beli boleh tampil (U5-004).
+   */
+  type FirstRunPhase = "checking" | "orientation" | "push" | "done"
+  const [firstRunPhase, setFirstRunPhase] = useState<FirstRunPhase>("checking")
+  useEffect(() => {
+    let alive = true
+    void (async () => {
+      const [orientationSeen, pushSeen] = await Promise.all([
+        hasSeenFeedOrientation(),
+        hasSeenPushRationale(),
+      ])
+      if (!alive) return
+      if (!orientationSeen) setFirstRunPhase("orientation")
+      else if (hasSession && !pushSeen) setFirstRunPhase("push")
+      else setFirstRunPhase("done")
+    })()
+    return () => {
+      alive = false
+    }
+  }, [hasSession])
+  const dismissOrientation = useCallback(() => {
+    void markFeedOrientationSeen()
+    // Setelah orientasi: lanjut ke sheet notifikasi bila login & belum pernah.
+    void hasSeenPushRationale().then((seen) => {
+      setFirstRunPhase(hasSessionRef.current && !seen ? "push" : "done")
+    })
+  }, [])
+  const closePushSheet = useCallback(() => {
+    void markPushRationaleSeen()
+    setFirstRunPhase("done")
+  }, [])
 
   const markGuest = useCallback(() => {
     followingIndexRef.current = null
@@ -549,10 +600,12 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
   )
 
   /**
-   * Muat daftar akun yang diikuti (A-03: maks FOLLOWING_INDEX_MAX_PAGES × 50,
-   * paralel batch FOLLOWING_INDEX_PARALLEL). Hanya 401/403 yang berarti tamu;
-   * error lain di-RETHROW supaya pemanggil menampilkan ErrorState, bukan
-   * pseudologin. A-04: cache per akun (ref tab) — hanya fetch saat miss.
+   * D1-006 (perf 2026-09-29): SATU request `GET /v1/users/me/following-ids`
+   * (satu query follow.findMany di backend) — gantikan loop hingga
+   * FOLLOWING_INDEX_MAX_PAGES halaman getFollowing. Hanya 401/403 yang
+   * berarti tamu; error lain di-RETHROW supaya pemanggil menampilkan
+   * ErrorState, bukan pseudologin. A-04: cache per akun (ref tab) — hanya
+   * fetch saat miss; dibuang saat ganti sesi/akun atau tarik-segarkan.
    */
   const ensureFollowingSet = useCallback(
     async (signal: AbortSignal): Promise<ReadonlySet<string>> => {
@@ -573,23 +626,10 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
           setFollowingGuest(false)
           return cached.keys
         }
-        const first = await api.users.getFollowing(username, { page: 1, limit: 50 }, signal)
-        const pages = [first]
-        const total = Math.min(
-          Math.max(typeof first.meta?.totalPages === "number" ? first.meta.totalPages : 1, 1),
-          FOLLOWING_INDEX_MAX_PAGES,
-        )
-        for (let start = 2; start <= total; start += FOLLOWING_INDEX_PARALLEL) {
-          if (signal.aborted) throw new Error("Aborted")
-          const batch: number[] = []
-          for (let page = start; page < Math.min(start + FOLLOWING_INDEX_PARALLEL, total + 1); page++) batch.push(page)
-          const results = await Promise.all(
-            batch.map((page) => api.users.getFollowing(username, { page, limit: 50 }, signal)),
-          )
-          pages.push(...results)
-        }
         if (signal.aborted) throw new Error("Aborted")
-        const keys = followingKeysOf(pages.flatMap((res) => res.data))
+        const rows = await api.users.getMyFollowingIds(signal)
+        if (signal.aborted) throw new Error("Aborted")
+        const keys = followingKeysOf(rows)
         followingIndexRef.current = { owner: username, keys }
         setFollowingSet(keys)
         setFollowingGuest(false)
@@ -886,17 +926,35 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
    * PERF-FIX (LR-004): `visible` tidak lagi lewat prop — tiap FeedCard
    * subscribe visibilitasnya sendiri via `useFeedItemVisible`, sehingga
    * renderItem tidak berubah identitas di setiap tick viewability.
+   *
+   * R1-003: `kind` rute dibaca sekali di induk → oper sebagai prop
+   * `feedKind` (bukan 2 langganan useLocalSearchParams per kartu).
+   *
+   * U5-004 (journey): kartu pertama dibungkus View ber-ref sebagai jangkar
+   * coach mark orientasi beli ("feed-buy"). Wrapper polos tanpa style —
+   * tidak mengubah layout (kolom flex default).
    */
+  const firstCardRef = useRef<RNView | null>(null)
   const renderItem = useCallback(
-    ({ item, index }: { item: ShowcaseSocialItem; index: number }) => (
-      <FeedCard
-        item={item}
-        divider={index < itemsLengthRef.current - 1}
-        onOpenComments={handleOpenComments}
-        onReport={handleOpenReport}
-      />
-    ),
-    [handleOpenComments, handleOpenReport],
+    ({ item, index }: { item: ShowcaseSocialItem; index: number }) => {
+      const card = (
+        <FeedCard
+          item={item}
+          divider={index < itemsLengthRef.current - 1}
+          onOpenComments={handleOpenComments}
+          onReport={handleOpenReport}
+          feedKind={routeKind}
+        />
+      )
+      return index === 0 ? (
+        <View ref={firstCardRef} collapsable={false}>
+          {card}
+        </View>
+      ) : (
+        card
+      )
+    },
+    [handleOpenComments, handleOpenReport, routeKind],
   )
 
   /**
@@ -1084,6 +1142,8 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
 
   return (
     <View className="flex-1">
+      {/* U5-017 (journey): banner ramping tamu web — di atas header. */}
+      <WebGuestBanner />
       {/* ── Header showcase — pensil kelola · logo · notifikasi + tab feed ── */}
       <Animated.View
         style={[
@@ -1214,6 +1274,37 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
         onApply={setSheetFilters}
         onRequestClose={() => setFilterSheetVisible(false)}
       />
+
+      {/*
+       * U5-005 (journey): overlay orientasi first-run — 3 kartu konsep +
+       * 1 baris per tab. Tampil sekali; fase "push" menyusul setelahnya.
+       */}
+      <FeedOrientationOverlay
+        visible={firstRunPhase === "orientation"}
+        onDismiss={dismissOrientation}
+      />
+      {/*
+       * U5-003 (journey): rationale izin notifikasi sebagai bottom sheet di
+       * feed pada login pertama (pengganti layar welcome). "Nanti" = tutup.
+       */}
+      <PushRationaleSheet
+        visible={firstRunPhase === "push"}
+        onClose={closePushSheet}
+      />
+      {/*
+       * U5-004 (journey): coach mark orientasi BELI — kunjungan pertama ke
+       * feed, didahulukan dari coach mark "+". Jangkar = kartu feed pertama.
+       * Baru di-mount setelah fase first-run selesai agar tidak bertumpuk
+       * dengan overlay/sheet di atas.
+       */}
+      {firstRunPhase === "done" ? (
+        <CoachMark
+          id="feed-buy"
+          targetRef={firstCardRef}
+          message="Ini feed produk — ketuk barang untuk lihat detail & beli via escrow"
+          delayMs={900}
+        />
+      ) : null}
     </View>
   )
 }

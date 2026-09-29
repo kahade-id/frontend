@@ -29,9 +29,6 @@
     },
     "ios": {
       "bundleIdentifier": "id.kahade",
-      "entitlements": {
-        "aps-environment": "development"
-      },
       "associatedDomains": [
         "applinks:kahade.id",
         "applinks:www.kahade.id"

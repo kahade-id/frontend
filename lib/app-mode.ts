@@ -18,7 +18,7 @@
  *   - helper path murni (`normalizeShellPath`, `pathMatchesBase`).
  */
 
-import { useUiPrefs, type UiPrefs } from "@/lib/ui-prefs"
+import { useUiPref, type UiPrefs } from "@/lib/ui-prefs"
 
 export type AppMode = UiPrefs["appMode"]
 
@@ -94,6 +94,6 @@ export function resetAppModeForTest(): void {
 }
 
 export function useAppMode(): AppMode {
-  const { prefs } = useUiPrefs()
-  return prefs.appMode
+  // R1-002: selector per-key — tulis preferensi lain tidak membangunkan.
+  return useUiPref("appMode")
 }

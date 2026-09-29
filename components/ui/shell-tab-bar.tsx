@@ -28,14 +28,14 @@ import {
 import { haptic } from "@/lib/haptics"
 import { ROUTES } from "@/lib/routes"
 import { useLanguage, translate } from "@/lib/i18n"
-import { useChatUnreadCountState } from "@/lib/chat-unread-count"
+import { useChatUnreadCountNumber } from "@/lib/chat-unread-count"
 import {
   SHELL_TABS,
   isShellTabPath,
   shellTabForPath,
   type ShellTabKey,
 } from "@/lib/shell-tabs"
-import { useUnreadCountState } from "@/lib/unread-count"
+import { useUnreadCountNumber } from "@/lib/unread-count"
 
 export { isShellTabPath }
 
@@ -44,8 +44,8 @@ export function ShellTabBar() {
   useLanguage()
   const pathname = usePathname()
   const router = useRouter()
-  const unread = useUnreadCountState()
-  const chatUnread = useChatUnreadCountState()
+  const unreadCount = useUnreadCountNumber()
+  const chatUnreadCount = useChatUnreadCountNumber()
 
   const activeKey = useMemo<ShellTabKey | null>(() => {
     const tab = shellTabForPath(pathname)
@@ -58,9 +58,9 @@ export function ShellTabBar() {
       // bila > 99), bukan cuma titik.
       const badgeCount =
         tab.key === "chat"
-          ? (chatUnread.count ?? 0)
+          ? (chatUnreadCount ?? 0)
           : tab.key === "notifications"
-            ? (unread.count ?? 0)
+            ? (unreadCount ?? 0)
             : 0
       return {
         key: tab.key,
@@ -71,7 +71,7 @@ export function ShellTabBar() {
         badgeCount,
       }
     })
-  }, [unread.count, chatUnread.count])
+  }, [unreadCount, chatUnreadCount])
 
   const onChange = useCallback(
     (key: string) => {

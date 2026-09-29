@@ -5,18 +5,20 @@
  * component hanya boleh menyusut. Di sini juga tempat aksi pemilik
  * (D-21 audit 2026-09-23: shortcut "Ubah karya") dan pelapor (B-05).
  */
+import { useEffect, useState } from "react"
 import { View } from "react-native"
 import { router } from "expo-router"
-import { CaretRight, Flag, PencilSimple } from "phosphor-react-native"
+import { CaretRight, Flag, PencilSimple, Star } from "phosphor-react-native"
 
 import { translate } from "@/lib/i18n/translate"
 import { useLanguage } from "@/lib/i18n"
 import { ROUTES } from "@/lib/routes"
 import { cn } from "@/lib/cn"
 import { focusRing } from "@/lib/focus-ring"
-import { formatDateTime } from "@/lib/format"
+import { formatDateTime, formatDecimal } from "@/lib/format"
 import type { ShowcaseSocialItem } from "@/lib/api/showcase"
 import type { VerificationBadge } from "@/lib/api/users"
+import { getPublicRatingSummary, type PublicRatingSummary } from "@/lib/api/ratings"
 
 import { Avatar } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -33,6 +35,48 @@ type ShowcaseAuthorRowProps = {
   hasSession: boolean
   /** Buka sheet laporan untuk item ini. */
   onReport: () => void
+}
+
+/**
+ * U5-007 (journey): cuplikan rating penjual di baris penulis (layar detail).
+ * `GET /v1/users/:username/ratings?page=1&limit=1` — tanpa endpoint baru.
+ * Fail closed: bila ringkasan tak tersedia/gagal dimuat, baris disembunyikan
+ * (JANGAN mengarang — khususnya "98% selesai" yang tidak ada di payload).
+ * Ketuk → profil penulis (tab Ulasan tersedia di sana).
+ */
+function SellerRatingLine({ username, hasSession }: { username: string; hasSession: boolean }) {
+  const [summary, setSummary] = useState<PublicRatingSummary | null>(null)
+  useEffect(() => {
+    const ctrl = new AbortController()
+    void getPublicRatingSummary(username, ctrl.signal)
+      .then((result) => setSummary(result))
+      .catch(() => {
+        // ringkasan opsional — kegagalan = sembunyikan, bukan error
+      })
+    return () => ctrl.abort()
+  }, [username])
+  if (summary == null || summary.averageRating == null || summary.distribution.total <= 0) {
+    return null
+  }
+  const goProfile = () =>
+    router.push(
+      hasSession
+        ? ROUTES.userProfile(username)
+        : ROUTES.loginRequired(`/user/${encodeURIComponent(username)}`),
+    )
+  return (
+    <PressableScale
+      accessibilityRole="button"
+      accessibilityLabel={translate("Lihat ulasan {x}", { x: username })}
+      onPress={goProfile}
+      className="flex-row items-center gap-1 self-start"
+    >
+      <Icon icon={Star} size="xs" tone="warning" weight="fill" />
+      <Text variant="caption" tone="secondary" className="tabular-nums">
+        {`${formatDecimal(summary.averageRating, 1)} · ${summary.distribution.total} ${translate("ulasan")}`}
+      </Text>
+    </PressableScale>
+  )
 }
 
 export function ShowcaseAuthorRow({ item, isOwner, hasSession, onReport }: ShowcaseAuthorRowProps) {
@@ -79,6 +123,8 @@ export function ShowcaseAuthorRow({ item, isOwner, hasSession, onReport }: Showc
           <Text variant="caption" tone="secondary" numberOfLines={1} className="tabular-nums">
             {`@${item.author.username} · ${formatDateTime(item.createdAt)}`}
           </Text>
+          {/* U5-007: cuplikan rating penjual (opsional, fail closed). */}
+          <SellerRatingLine username={item.author.username} hasSession={hasSession} />
         </View>
         {isOwner ? <Badge variant="outline">Anda</Badge> : null}
         {/* Item 153 (FE-IMP-1): chevron — menandakan baris penulis bisa

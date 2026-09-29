@@ -34,9 +34,9 @@
  * itu `/whatsapp-trigger?...` menjadi open-redirect / peluncur skema arbitrary.
  */
 import { useCallback, useEffect, useRef, useState } from "react"
-import { Linking, View } from "react-native"
+import { AppState, Linking, View } from "react-native"
 import { useRouter } from "expo-router"
-import { ArrowsClockwise, WhatsappLogo, WifiSlash } from "phosphor-react-native"
+import { ArrowsClockwise, WarningCircle, WhatsappLogo, WifiSlash } from "phosphor-react-native"
 
 import { Alert } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -120,6 +120,15 @@ export default function WhatsappTriggerScreen() {
   const [altAuth, setAltAuth] = useState<"login" | "register" | null>(null)
   const [done, setDone] = useState(false)
   const [requesting, setRequesting] = useState(false)
+  /**
+   * U5-002 (journey): jaring pengaman "kembali dengan tangan kosong".
+   * `settledRef` = alur sudah selesai/gagal (poll tak perlu lagi);
+   * `returnedEmpty` = user kembali foreground saat masih menunggu →
+   * tampilkan hint inline + picu satu poll segera. Alur tetap
+   * customer-initiated — hanya panduannya yang diperkuat.
+   */
+  const [returnedEmpty, setReturnedEmpty] = useState(false)
+  const settledRef = useRef(false)
 
   // A07 (batch 139): bedakan status koneksi polling — offline (jeda),
   // menunggu balasan (normal), mencoba ulang (gagal jaringan beruntun).
@@ -142,6 +151,7 @@ export default function WhatsappTriggerScreen() {
 
   const goVerifyOtp = useCallback(() => {
     setDone(true)
+    settledRef.current = true
     stopPolling()
     router.replace(ROUTES.verifyOtp)
   }, [router, stopPolling])
@@ -154,6 +164,8 @@ export default function WhatsappTriggerScreen() {
   const handleTerminalStatus = useCallback(
     (status: "FAILED" | "EXPIRED") => {
       stopPolling()
+      settledRef.current = true
+      setReturnedEmpty(false)
       setAltAuth(
         purpose === "register" ? "login" : purpose === "login" ? "register" : null,
       )
@@ -258,6 +270,27 @@ export default function WhatsappTriggerScreen() {
     }
   }, [checkingNow, refCode, done, goVerifyOtp, handleTerminalStatus, toast.show])
 
+  /**
+   * U5-002 (journey): saat app kembali foreground (mis. dari WhatsApp) dan
+   * alur belum selesai → tampilkan hint inline "kembali tanpa balasan" +
+   * picu SATU poll segera (pakai ulang handleSentMessage — poll manual yang
+   * sama, tanpa menunggu giliran backoff). Alur tidak diubah.
+   * `prevRef` memastikan hanya TRANSISI background/inactive → active yang
+   * bereaksi (bukan pemanggilan awal saat mount di state active).
+   */
+  const appPrevRef = useRef<string>("active")
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (state) => {
+      const wasBackground = appPrevRef.current === "background" || appPrevRef.current === "inactive"
+      appPrevRef.current = state
+      if (state !== "active" || !wasBackground) return
+      if (settledRef.current) return
+      setReturnedEmpty(true)
+      void handleSentMessage()
+    })
+    return () => sub.remove()
+  }, [handleSentMessage])
+
   // FE-IMP-3 #107 — salin kode referensi untuk pengiriman manual.
   const handleCopyCode = useCallback(async () => {
     if (!refCode) return
@@ -314,6 +347,8 @@ export default function WhatsappTriggerScreen() {
       // Ganti refCode aktif → effect polling restart dengan kode baru.
       setRefCode(trigger.refCode)
       setDone(false)
+      settledRef.current = false
+      setReturnedEmpty(false)
       startedAt.current = Date.now()
     } catch (err) {
       setFormError(
@@ -389,6 +424,15 @@ export default function WhatsappTriggerScreen() {
               {refCode}
             </Text>
             {/*
+             * U5-001 (journey): tegaskan DUA kode berbeda — kode referensi di
+             * layar ini (kode pengiriman pesan) BUKAN kode verifikasi 6 digit
+             * yang diminta layar berikutnya. Satu baris pencegah salah salin.
+             */}
+            <Text variant="caption" tone="secondary" className="text-pretty">
+              Ini kode pengiriman pesan — kode verifikasi 6 digit dikirim bot
+              sebagai balasan.
+            </Text>
+            {/*
              * FE-IMP-3 #106 — countdown kedaluwarsa kode referensi (timestamp
              * absolut dari server; tetap benar walau app ke background).
              */}
@@ -442,6 +486,23 @@ export default function WhatsappTriggerScreen() {
                 <Text variant="caption" tone="secondary" className="text-pretty">
                   Layar ini otomatis lanjut begitu bot membalas kode verifikasi.
                 </Text>
+                {/*
+                 * U5-002 (journey): hint "kembali dengan tangan kosong" —
+                 * muncul saat user kembali ke app ini tanpa balasan terdeteksi.
+                 */}
+                {returnedEmpty ? (
+                  <View className="flex-row items-start gap-2 rounded-md bg-warning-soft px-3 py-2">
+                    <Icon icon={WarningCircle} size="sm" tone="warning" />
+                    <Text variant="caption" tone="secondary" className="flex-1 text-pretty">
+                      Kembali tanpa balasan? Pastikan pesan berisi kode terkirim
+                      dari nomor{" "}
+                      <Text variant="monoBody" weight={600}>
+                        {displayPhone}
+                      </Text>
+                      .
+                    </Text>
+                  </View>
+                ) : null}
               </>
             )}
             {/*

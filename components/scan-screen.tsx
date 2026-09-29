@@ -25,6 +25,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { Linking, Platform, Share, View } from "react-native"
 import { useRouter } from "expo-router"
+import { useIsFocused } from "@react-navigation/native"
 import * as Haptics from "expo-haptics"
 import { CameraView, scanFromURLAsync, useCameraPermissions } from "expo-camera"
 import * as Brightness from "expo-brightness"
@@ -54,7 +55,7 @@ import { useCopy } from "@/lib/clipboard"
 import { profileUrl } from "@/lib/deeplinks"
 import { safeHttpsLink } from "@/lib/external-url"
 import { useHasSession } from "@/lib/guest-gate"
-import { useUiPrefs } from "@/lib/ui-prefs"
+import { useSetUiPrefs, useUiPref } from "@/lib/ui-prefs"
 import { translate } from "@/lib/i18n/translate"
 import { pickImage } from "@/lib/image-picker"
 import { parseQrCode, type QrTarget } from "@/lib/qr-parse"
@@ -68,6 +69,7 @@ import {
 } from "@/lib/scan-history"
 import { shareContent } from "@/lib/share"
 import { elevationStyle } from "@/lib/elevation"
+import { logWarn } from "@/lib/telemetry"
 
 import { useTheme } from "@/components/theme-provider"
 import { Avatar } from "@/components/ui/avatar"
@@ -209,6 +211,13 @@ export default function ScanScreen() {
   const [manualCode, setManualCode] = useState("")
   const [detected, setDetected] = useState<DetectedResult | null>(null)
   const [history, setHistory] = useState<ScanHistoryItem[]>([])
+  // N1-001 (PERF): layar /scan menumpuk di stack saat router.push hasil —
+  // tanpa gating ini CameraView tetap mounted dan sesi kamera terus jalan
+  // di background (drain baterai/CPU). `active` pause/resume sesi native
+  // tanpa unmount; juga berhenti saat tab internal "QR Saya" atau sheet
+  // hasil terbuka (tidak ada frame barcode yang diproses sia-sia).
+  const isFocused = useIsFocused()
+  const cameraActive = isFocused && activeTab === "scan" && !detected
 
   // Kamera nyata (expo-camera). Izin diminta eksplisit — tidak auto-request
   // saat layar dibuka agar tidak mengejutkan pengguna.
@@ -219,9 +228,11 @@ export default function ScanScreen() {
   // Batch 139 E14: preferensi umpan balik pindaian (per perangkat).
   // Dibaca lewat ref agar callback scan tidak dibuat ulang setiap
   // preferensi berubah.
-  const { prefs, setPrefs } = useUiPrefs()
-  const scanFeedbackRef = useRef(prefs.scanFeedback)
-  scanFeedbackRef.current = prefs.scanFeedback
+  // R1-002: selector per-key — hanya perubahan scanFeedback yang membangunkan.
+  const scanFeedback = useUiPref("scanFeedback")
+  const setPrefs = useSetUiPrefs()
+  const scanFeedbackRef = useRef(scanFeedback)
+  scanFeedbackRef.current = scanFeedback
 
   const meQuery = useApiQuery(
     "scan:me",
@@ -265,7 +276,12 @@ export default function ScanScreen() {
       type: target.type,
       label: target.label,
       detail: target.detail,
-    }).then(setHistory)
+    })
+      .then(setHistory)
+      // E1-003: kontrak Promise mengizinkan reject bila implementasi
+      // berubah di masa depan — jangan biarkan unhandled rejection
+      // diam-diam (riwayat tak tersimpan tanpa feedback).
+      .catch((err) => logWarn("scan:history", err))
     setDetected({ target, raw: text })
   }, [])
 
@@ -519,6 +535,7 @@ export default function ScanScreen() {
                 <CameraView
                   style={{ flex: 1 }}
                   facing="back"
+                  active={cameraActive}
                   enableTorch={torchOn}
                   barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
                   onBarcodeScanned={handleBarcodeScanned}
@@ -627,7 +644,7 @@ export default function ScanScreen() {
                   </Text>
                 </View>
                 <Switch
-                  value={prefs.scanFeedback}
+                  value={scanFeedback}
                   onChange={(v) => setPrefs({ scanFeedback: v })}
                   accessibilityLabel="Getaran saat pindai berhasil"
                 />

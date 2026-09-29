@@ -189,6 +189,25 @@ export function getOrder(orderId: string, signal?: AbortSignal) {
     })
 }
 
+/**
+ * D1-005 (perf 2026-09-29): status order ringan — dipakai poll 15 detik.
+ * Klien hanya me-refresh bundle penuh (`getOrder` + riwayat) bila status
+ * BERUBAH, bukan setiap tick.
+ */
+export type OrderStatusLight = {
+  orderId: string
+  status: string
+  updatedAt: string
+}
+
+export function getOrderStatus(orderId: string, signal?: AbortSignal) {
+  return http.get<OrderStatusLight>(`/v1/orders/${seg(orderId)}/status`, {
+    auth: "required",
+    retry: 1,
+    signal,
+  })
+}
+
 export function getOrdersSummary(signal?: AbortSignal) {
   // D-07 (audit escrow 2026-09-24): divalidasi bentuknya — dulu di-cast
   // mentah sehingga objek error/aneh terbaca sebagai angka ringkasan.

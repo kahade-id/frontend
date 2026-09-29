@@ -51,14 +51,9 @@ export const ROUTES = {
     ({ pathname: "/phone-migration", params: { migrationToken } }) as unknown as Href,
   /** Screen #6 — Setup Profil: foto + bio (opsional, setelah akun jadi) */
   setupProfile: "/setup-profile" as Href,
-  /**
-   * Welcome Screen — landing page setelah auth (cek permissions).
-   * `newUser` menentukan sapaan ("Selamat datang di Kahade" vs "kembali").
-   * Dibawa lewat param, BUKAN dibaca dari registration state: state itu
-   * sudah dibersihkan oleh Setup Profil sebelum pindah ke sini.
-   */
-  welcome: (opts: { newUser?: boolean } = {}) =>
-    ({ pathname: "/welcome", params: opts.newUser ? { newUser: "1" } : {} }) as unknown as Href,
+  // U5-003 (journey 2026-09-29): layar welcome DIHAPUS — dulu landing page
+  // setelah auth (cek permissions); kini semua alur auth langsung ke tujuan/
+  // Beranda, rationale izin notifikasi menjadi bottom sheet di feed.
   /**
    * Screen #7 — Login: identifier (username / email / nomor HP) + password,
    * plus opsi "Masuk dengan WhatsApp" (OTP, purpose=login).
@@ -182,6 +177,9 @@ export const ROUTES = {
           orderLink.orderValueValid && typeof orderLink.orderValue === "number"
             ? String(orderLink.orderValue)
             : undefined,
+        // U5-006 (journey): penanda eksplisit "Beli" dari Etalase — wizard
+        // membuka langsung di langkah Detail bila prefill lengkap & valid.
+        fromShowcase: "1",
       },
     }) as unknown as Href,
   /**
@@ -570,6 +568,8 @@ export const ROUTES = {
   sellerVouchers: "/seller/vouchers" as Href,
   /** Jastip — daftar trip host (batch 43, item 15 — /v1/jastip) */
   jastip: "/jastip" as Href,
+  /** Jastip — "Cara kerja" + simulasi nominal (U5-014, journey). */
+  jastipHowItWorks: "/jastip/how-it-works" as Href,
   /** Jastip — detail trip (host & peserta) */
   jastipDetail: (tripId: string) =>
     tripId
@@ -577,6 +577,8 @@ export const ROUTES = {
       : ("/jastip" as Href),
   /** Patungan — daftar grup publik (batch 43, item 16 — /v1/patungan) */
   patungan: "/patungan" as Href,
+  /** Patungan — "Cara kerja" + simulasi nominal (U5-014, journey). */
+  patunganHowItWorks: "/patungan/how-it-works" as Href,
   /** Booking jasa saya (batch 43, item 12 — /v1/commerce/service-slots/bookings) */
   serviceBookings: "/service-bookings" as Href,
   /** Patungan — detail grup */
