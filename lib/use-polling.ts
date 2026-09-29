@@ -24,6 +24,14 @@ export function usePolling(
     let cancelled = false
     let timer: ReturnType<typeof setTimeout> | undefined
     let inflight: AbortController | null = null
+    /**
+     * PERF-FIX (network P1): iOS mengenal status `inactive` (transisi
+     * foreground ↔ background, mis. Control Center / panggilan masuk) —
+     * sebelumnya hanya `active` yang dianggap terlihat sehingga polling
+     * terus menembak saat app setengah-tersembunyi. Kini hanya `active`
+     * (dan `null` = tidak diketahui, mis. beberapa build web) yang
+     * dianggap terlihat.
+     */
     const visible = () =>
       (AppState.currentState == null || AppState.currentState === "active") &&
       (Platform.OS !== "web" ||
@@ -37,11 +45,16 @@ export function usePolling(
      * karena `retryAfterMs` hanya dibaca jalur retry `useApiQuery`. Callback
      * polling yang menelan galatnya sendiri tidak bisa melihatnya — jadi
      * sinyalnya diambil dari transport (`lib/api/backpressure.ts`).
+     *
+     * PERF-FIX (network P1): + jitter ±15% per tick — puluhan perangkat yang
+     * membuka layar yang sama pada detik yang sama (mis. setelah push massal)
+     * tidak lagi menembak server dalam gelombang sinkron (thundering herd).
      */
     const schedule = () => {
       if (cancelled || !visible()) return
-      const delay = Math.max(intervalMs, backpressureRemainingMs())
-      timer = setTimeout(tick, delay)
+      const base = Math.max(intervalMs, backpressureRemainingMs())
+      const jitter = base * 0.15 * (Math.random() * 2 - 1)
+      timer = setTimeout(tick, Math.max(1_000, Math.round(base + jitter)))
     }
     const tick = async () => {
       if (cancelled || !visible()) return

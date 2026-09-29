@@ -71,7 +71,17 @@ import { WalletDisabledScreen } from "@/components/ui/wallet-disabled"
 import { mapValue } from "@/lib/has-own"
 import { translate } from "@/lib/i18n/translate"
 
-const POLL_MS = 5000
+const POLL_MS_FAST = 5000
+const POLL_MS_SLOW = 15000
+/**
+ * PERF-FIX (network P1): polling adaptif dua fase (cermin disiplin
+ * `useDanaIntent`). Fase cepat 5 dtk selama ~60 dtk pertama — responsif saat
+ * user baru membayar; fase lambat 15 dtk setelahnya. Dulu flat 5 dtk × 180;
+ * kini anggaran wall-clock SAMA (~15 menit) dengan ~2,6× lebih sedikit
+ * request. Terminal-stop tidak berubah (lihat `enabled` di bawah).
+ */
+const FAST_POLLS = 12 // 12 × 5 dtk = 60 dtk
+const MAX_POLL_COUNT = 68 // 60 dtk + 56 × 15 dtk ≈ 15 menit
 const TOTAL_STEPS = 3 // nominal → metode → instruksi (separator progress)
 
 const STATUS: Partial<Record<string, PaymentStatus>> = {
@@ -162,7 +172,10 @@ export default function TopupScreen() {
   const payKeyRef = useRef<string | null>(null)
   const pollLock = useRef(false)
   const pollCount = useRef(0)
-  const MAX_POLL_COUNT = 180 // Max 15 minutes at 5s interval
+  // PERF-FIX (network P1): fase polling — `false` = 5 dtk (60 dtk pertama),
+  // `true` = 15 dtk. Berpindah sekali; `usePolling` menjadwal ulang dengan
+  // interval baru karena `intervalMs` masuk deps effect-nya.
+  const [pollSlow, setPollSlow] = useState(false)
   /**
    * A-12 (audit): true setelah cap polling tercapai — UI memberi tahu bahwa
    * pemantauan otomatis berhenti dan "Periksa status" adalah jalur manualnya.
@@ -252,10 +265,13 @@ export default function TopupScreen() {
           return
         }
         pollCount.current += 1
+        // PERF-FIX (network P1): tepat sekali, setelah 60 dtk pertama —
+        // turunkan laju 5 dtk → 15 dtk untuk sisa masa tunggu.
+        if (pollCount.current === FAST_POLLS) setPollSlow(true)
         await pollStatus(result.paymentTxId)
       }
     },
-    POLL_MS,
+    pollSlow ? POLL_MS_SLOW : POLL_MS_FAST,
     Boolean(result?.paymentTxId && !mapValue(STATUS, result.status, undefined) && pollCount.current < MAX_POLL_COUNT),
   )
 
@@ -350,6 +366,7 @@ export default function TopupScreen() {
       setStep("result")
       setStatusError(null)
       pollCount.current = 0
+      setPollSlow(false)
       setPollStopped(false)
       // J-04: catat top-up belum dibayar — bila layar ditutup/app mati,
       // Beranda menawarkan pemulihan ("periksa riwayat top-up").
