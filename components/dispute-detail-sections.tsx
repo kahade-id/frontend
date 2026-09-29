@@ -18,6 +18,7 @@ import { orderFallbackLabel } from "@/lib/short-id"
 import { DISPUTE_CATEGORY_LABELS, type DisputeCategoryValue } from "@/lib/labels/dispute"
 import { translate } from "@/lib/i18n/translate"
 import { ROUTES } from "@/lib/routes"
+import { useWalletEnabled } from "@/lib/use-wallet-enabled"
 
 import { AmountInput } from "@/components/ui/amount-input"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
@@ -51,9 +52,13 @@ const CALL_OUTCOME: Partial<Record<string, DisputeCallOutcome>> = {
 /* ------------------------------------------------------------------ */
 
 /** Label pemenang putusan dari decisionType backend. */
-function decisionWinnerLabel(decisionType: string): string {
-  if (decisionType === "FULL_BUYER") return "Dana kembali ke pembeli"
-  if (decisionType === "FULL_SELLER") return "Dana diteruskan ke penjual"
+function decisionWinnerLabel(decisionType: string, walletEnabled = true): string {
+  // Mode Tanpa Wallet Internal: refund kembali ke METODE PEMBAYARAN asal
+  // (bukan ke dompet) — copy harus menyebutnya dengan jujur.
+  if (decisionType === "FULL_BUYER")
+    return walletEnabled ? "Dana kembali ke pembeli" : "Dana kembali ke metode pembayaran pembeli"
+  if (decisionType === "FULL_SELLER")
+    return walletEnabled ? "Dana diteruskan ke penjual" : "Dana dicairkan ke rekening bank penjual"
   if (decisionType === "SPLIT") return "Dana dibagi kedua pihak"
   return decisionType || "Keputusan"
 }
@@ -64,6 +69,7 @@ function decisionWinnerLabel(decisionType: string): string {
  * Nominal SUDAH IDR dari backend (jangan konversi lagi — DP-005).
  */
 export function DisputeDecisionSection({ decision }: { decision?: DisputeDecision | null }) {
+  const walletEnabled = useWalletEnabled()
   if (!decision) return null
   const rows: Array<{ label: string; value: string }> = []
   if (typeof decision.buyerAmount === "number") {
@@ -88,7 +94,7 @@ export function DisputeDecisionSection({ decision }: { decision?: DisputeDecisio
       />
       <View className="gap-2 rounded-lg bg-surface p-4">
         <Text variant="body" weight={600}>
-          {decisionWinnerLabel(decision.decisionType)}
+          {decisionWinnerLabel(decision.decisionType, walletEnabled)}
         </Text>
         {rows.map((r) => (
           <View key={r.label} className="flex-row items-center justify-between gap-3">

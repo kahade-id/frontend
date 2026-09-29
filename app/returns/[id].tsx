@@ -23,6 +23,7 @@ import { useApiQuery } from "@/lib/use-api-query"
 import { showMutationError } from "@/lib/mutation-toast"
 import { useTheme } from "@/components/theme-provider"
 import { useToast } from "@/components/ui/toast"
+import { useWalletEnabled } from "@/lib/use-wallet-enabled"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -58,6 +59,9 @@ export default function ReturnDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
   const { mode } = useTheme()
   const toast = useToast()
+  // Mode Tanpa Wallet Internal: refund retur kembali ke metode pembayaran
+  // asal (bukan ke dompet) — copy disesuaikan.
+  const walletEnabled = useWalletEnabled()
   const c = tokens.colors[mode]
   const warningText = tokens.colors.semantic.warning[mode].text
   const [note, setNote] = useState("")
@@ -128,6 +132,13 @@ export default function ReturnDetailScreen() {
               <Text style={{ marginTop: tokens.space[1] }}>
                 Penyelesaian: {detail.resolutionType ? (RETURN_RESOLUTION_LABEL[detail.resolutionType] ?? detail.resolutionType) : "—"}
                 {detail.refundAmount != null ? ` · ${formatIdrSen(detail.refundAmount)}` : ""}
+              </Text>
+            ) : null}
+            {detail.resolutionType === "REFUND" && detail.refundAmount != null ? (
+              <Text style={{ color: c.textTertiary, marginTop: tokens.space[1] }}>
+                {walletEnabled
+                  ? "Dana dikembalikan ke dompet Anda."
+                  : "Dana dikembalikan ke metode pembayaran Anda."}
               </Text>
             ) : null}
             {detail.sellerRespondBy && (detail.status === "REQUESTED" || detail.status === "SELLER_REVIEW") ? (
