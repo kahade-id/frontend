@@ -532,6 +532,9 @@ export function normalizeOrderPaymentIntent(raw: unknown): Omit<OrderPaymentInte
     "virtualAccountNumber",
     "accountNumber",
     "account_number",
+    // Kontrak no-wallet: VA DANA dikembalikan sebagai `paymentCode`.
+    "paymentCode",
+    "payment_code",
   ])
   const redirectUrl = pickString(nested, [
     "redirectUrl",
@@ -540,6 +543,9 @@ export function normalizeOrderPaymentIntent(raw: unknown): Omit<OrderPaymentInte
     "payment_url",
     "deeplink",
     "deepLink",
+    // Kontrak no-wallet: otorisasi DANA Balance = `webRedirectUrl`.
+    "webRedirectUrl",
+    "web_redirect_url",
   ])
   if (!qrString && !vaNumber && !redirectUrl) return undefined
   const instructionsRaw = nested.instructions ?? nested.steps

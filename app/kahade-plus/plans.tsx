@@ -2,11 +2,12 @@
  * Screen — Kahade+ : daftar paket.
  *
  * Mode Tanpa Wallet Internal (BI-safe): langganan/perpanjangan dibayar
- * LANGSUNG via DANA — daftar metode dinamis dari backend
- * (`GET /v1/subscriptions/payment-methods`, fallback DANA statis bila
- * endpoint belum tersedia), intent via `POST /v1/subscriptions/payments`,
- * polling status sampai PAID. TIDAK ADA PIN dompet, TIDAK ADA pilihan
- * "Saldo Wallet" — langganan tidak bisa dibayar dari saldo.
+ * LANGSUNG via DANA — daftar metode = cerminan kontrak backend
+ * (QRIS/VA/BALANCE, `lib/subscription-checkout.ts`), intent via
+ * `POST /v1/subscriptions/subscribe-dana`, polling
+ * `GET /v1/subscriptions/dana-status/:id` sampai ACTIVE. TIDAK ADA PIN
+ * dompet, TIDAK ADA pilihan "Saldo Wallet" — langganan tidak bisa dibayar
+ * dari saldo.
  *
  * Fail-closed: pembayaran gagal/kedaluwarsa → langganan TIDAK aktif, pesan
  * eksplisit + tombol coba lagi / ganti metode. Status langganan dibaca dari
