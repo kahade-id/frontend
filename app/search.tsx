@@ -923,7 +923,7 @@ export default function SearchScreen() {
                 // spesifik dari kalimat generik — mis. "tapi ada artikel
                 // bantuan yang cocok").
                 (result.data?.hint ?? emptyCopy.description)
-              : translate("Masukkan setidaknya dua karakter untuk mencari postingan, pengguna, pesanan, dan mutasi.")
+              : translate("Ketik minimal 2 huruf untuk mulai mencari.")
           }
           action={
             enabled ? (

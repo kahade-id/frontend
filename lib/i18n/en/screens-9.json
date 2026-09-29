@@ -4,7 +4,6 @@
   "Akhiri panggilan": "End call",
   "Aktif sekarang": "Active now",
   "Batalkan permintaan": "Cancel request",
-  "Batas maksimal kembali ke limit transfer; server tetap memvalidasi saldo Anda.": "The cap returns to your transfer limit; the server still validates your balance.",
   "Belum Verifikasi": "Not Verified",
   "Belum ada karya untuk ditampilkan": "No works to show yet",
   "Belum ada kejadian tercatat di sesi ini.": "No events recorded in this session yet.",
@@ -52,7 +51,6 @@
   "Menunggu pembayaran… status diperbarui otomatis.": "Waiting for payment… the status updates automatically.",
   "Muat komentar berikutnya": "Load more comments",
   "Mulai": "Start",
-  "Nominal tetap bisa dimasukkan; server memvalidasi saldo saat penarikan.": "You can still enter an amount; the server validates the balance at withdrawal.",
   "Nonaktif": "Inactive",
   "Panduan otomatis; buat tiket untuk bantuan resmi": "Automated guidance; create a ticket for official help",
   "Pegang KTP di samping wajah; jangan tertutup jari.": "Hold your ID next to your face; do not cover it with your fingers.",
@@ -95,5 +93,7 @@
   "{x}/{y} foto": "{x}/{y} photos",
   "{x}–{y} digit; titik & strip diizinkan.": "{x}–{y} digits; dots & dashes allowed.",
   "· Terverifikasi": "· Verified",
-  "— (belum ada skor)": "— (no score yet)"
+  "— (belum ada skor)": "— (no score yet)",
+  "Batas maksimal kembali ke limit transfer.": "The maximum falls back to the transfer limit.",
+  "Nominal tetap bisa dimasukkan.": "You can still enter an amount."
 }

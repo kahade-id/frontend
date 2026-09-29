@@ -362,8 +362,8 @@ export default function SettingsScreen() {
           // FE-IMP-3 #93 — tampilkan akun yang akan keluar supaya tidak salah
           // akun (perangkat bersama / multi-akun).
           me?.username
-            ? `Keluar dari akun ${me.fullName || me.username} (@${me.username}) di perangkat ini? Perangkat ini akan berhenti menerima notifikasi akun. Anda bisa masuk kembali kapan saja.`
-            : "Perangkat ini akan berhenti menerima notifikasi akun. Anda bisa masuk kembali kapan saja."
+            ? `Keluar dari akun @${me.username} di perangkat ini?`
+            : "Keluar dari Kahade di perangkat ini?"
         }
         confirmLabel="Keluar"
         cancelLabel="Batal"

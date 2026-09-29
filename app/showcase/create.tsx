@@ -77,6 +77,7 @@ import { translate } from "@/lib/i18n/translate"
 import { useLanguage } from "@/lib/i18n"
 
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { ProgressBar } from "@/components/ui/progress-bar"
 import { Dialog } from "@/components/ui/modal"
 import { EmptyState } from "@/components/ui/empty-state"
@@ -917,15 +918,24 @@ export default function ShowcaseCreateScreen() {
         <View className="gap-3">
           <SectionHeader
             title={translate("Foto karya")}
-            subtitle={
-              previews.length
-                ? translate("Tahan & seret untuk menyusun · foto pertama menjadi cover · {x}/{y} foto", {
-                    x: previews.length,
-                    y: photoLimit,
-                  })
-                : translate("Paling banyak {x} foto", { x: photoLimit })
+            action={
+              <Badge>
+                {translate("{x}/{y}", { x: previews.length, y: photoLimit })}
+              </Badge>
             }
           />
+          {previews.length ? (
+            // FE-037: "foto pertama = cover" sebagai hint kecil sekali saja;
+            // counter jadi badge angka di header; instruksi tahan-seret
+            // dihapus (drag sudah discoverable dari UI DragSortList).
+            <Text variant="caption" tone="secondary">
+              {translate("Foto pertama menjadi cover.")}
+            </Text>
+          ) : (
+            <Text variant="caption" tone="secondary">
+              {translate("Paling banyak {x} foto", { x: photoLimit })}
+            </Text>
+          )}
           {previews.length > 0 ? (
             /*
              * C09 (batch 139): drag-reorder — tahan thumbnail lalu seret ke
@@ -1096,7 +1106,7 @@ export default function ShowcaseCreateScreen() {
 
         {/* ── DETAIL ── */}
         <View className="gap-4">
-          <SectionHeader title={translate("Detail karya")} subtitle={translate("Judul, kategori, dan harga membantu calon pembeli memahami penawaran Anda.")} />
+          <SectionHeader title={translate("Detail karya")} />
 
           {uncertainCreate ? (
             <View className="gap-2 rounded-md border border-border p-3">

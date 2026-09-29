@@ -1210,11 +1210,7 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
                 >
                   {translate("Tambah bio")}
                 </Button>
-              ) : (
-                <Text variant="caption" tone="tertiary">
-                  {translate("Pengguna terdaftar Kahade Escrow & Marketplace")}
-                </Text>
-              )}
+              ) : null}
 
               {/* ── Stats / Counter Strip (langsung di bawah bio) ── */}
               {/* Batch 139 E05/E06: SocialStat menampilkan "Privat" (gembok)

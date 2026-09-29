@@ -311,15 +311,12 @@ export function ServiceSlotSection({
 
   return (
     <View className="gap-3 px-5 pt-4">
-      <SectionHeader
-        title={translate("Jadwal jasa")}
-        subtitle={translate("Pilih slot ketersediaan penjual")}
-      />
+      <SectionHeader title={translate("Jadwal jasa")} />
 
       {myBooking ? (
         <View className="gap-2 rounded-md border border-success bg-success-soft p-3">
           <Text variant="body" weight={600} tone="success">
-            {translate("Slot Anda terpesan")}
+            {translate("Terpesan")}
           </Text>
           <Text variant="caption" tone="secondary">
             {myBooking.slot

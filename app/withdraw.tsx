@@ -467,7 +467,7 @@ export default function WithdrawScreen() {
               {balanceError ? (
                 <View>
                   <Alert tone="warning" title="Saldo tidak dapat dimuat">
-                    Nominal tetap bisa dimasukkan; server memvalidasi saldo saat penarikan.
+                    Nominal tetap bisa dimasukkan.
                   </Alert>
                   <Button
                     variant="ghost"

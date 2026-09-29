@@ -478,8 +478,7 @@ export default function TopupScreen() {
                       Konfirmasi pembayaran
                     </Heading>
                     <Text variant="body" tone="secondary" className="text-pretty">
-                      Periksa nominal dan metode pembayaran Anda. Ketuk kartu
-                      metode untuk menggantinya.
+                      Periksa nominal dan metode pembayaran Anda.
                     </Text>
                   </View>
 

@@ -587,7 +587,7 @@ export default function TransferScreen() {
               {balanceError ? (
                 <View>
                   <Alert tone="warning" title="Saldo tidak dapat dimuat">
-                    Batas maksimal kembali ke limit transfer; server tetap memvalidasi saldo Anda.
+                    Batas maksimal kembali ke limit transfer.
                   </Alert>
                   <Button
                     variant="ghost"

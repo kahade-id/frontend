@@ -1124,9 +1124,6 @@ function ShowcaseDetailContent({
         {isOwner ? (
           // T5 (audit 2026-09-26): pemilik bisa menghapus karyanya dari sini.
           <View className="gap-2">
-            <Text variant="caption" tone="secondary" className="text-center">
-              {translate("Karya Anda — komentar di sini bisa Anda moderasi.")}
-            </Text>
             <Button variant="ghost" fullWidth onPress={() => setDeleteOpen(true)}>
               {translate("Hapus karya")}
             </Button>
