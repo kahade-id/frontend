@@ -40,8 +40,9 @@ describe("menu drawer — label Bahasa Indonesia", () => {
       "Lihat Profil",
       "Dompet Saya",
       "Kelola Etalase",
+      "Toko Saya",
       "Template Transaksi",
-      "Order Link",
+      "Tautan Pesanan",
       "Laporan & Analitik",
       "Pesan",
     ])
@@ -69,6 +70,7 @@ describe("menu drawer — label Bahasa Indonesia", () => {
       profile: "Lihat profil saya",
       wallet: "Buka dompet saya",
       etalase: "Kelola etalase saya",
+      shop: "Buka menu toko saya",
       reports: "Buka laporan dan analitik",
     })
   })

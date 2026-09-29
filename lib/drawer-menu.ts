@@ -33,10 +33,29 @@ export const MAIN_MENU_META: readonly DrawerMenuMeta[] = [
   { id: "profile", label: "Lihat Profil", accessibilityLabel: "Lihat profil saya" },
   { id: "wallet", label: "Dompet Saya", href: ROUTES.wallet, accessibilityLabel: "Buka dompet saya" },
   { id: "etalase", label: "Kelola Etalase", href: ROUTES.showcaseManagement, accessibilityLabel: "Kelola etalase saya" },
+  // FE-098 (§9 minimalisme): grup "Toko & Pesanan" dipindah keluar dari
+  // Pengaturan — dibuka sebagai sheet "Toko Saya" dari drawer (tanpa href =
+  // aksi khusus, pola sama seperti "profile").
+  { id: "shop", label: "Toko Saya", accessibilityLabel: "Buka menu toko saya" },
   { id: "templates", label: "Template Transaksi", href: ROUTES.transactionTemplates, accessibilityLabel: "Buka template transaksi" },
   { id: "order-links", label: "Tautan Pesanan", href: ROUTES.orderLinks, accessibilityLabel: "Buka tautan pesanan" },
   { id: "reports", label: "Laporan & Analitik", href: ROUTES.reports(), accessibilityLabel: "Buka laporan dan analitik" },
   { id: "messages", label: "Pesan", href: ROUTES.chat, accessibilityLabel: "Buka pesan" },
+]
+
+/**
+ * FE-098: isi sheet "Toko Saya" — 7 item yang sebelumnya menjadi grup
+ * "Toko & Pesanan" di Pengaturan. Rute TIDAK berubah (semua layar
+ * app/* tetap ada); hanya titik masuknya yang pindah.
+ */
+export const SHOP_MENU_META: readonly DrawerMenuMeta[] = [
+  { id: "shop-products", label: "Katalog Produk", href: ROUTES.products, accessibilityLabel: "Buka katalog produk" },
+  { id: "shop-returns", label: "Retur Saya", href: ROUTES.returns, accessibilityLabel: "Buka retur saya" },
+  { id: "shop-seller-products", label: "Produk Saya", href: ROUTES.sellerProducts, accessibilityLabel: "Buka produk saya" },
+  { id: "shop-seller-vouchers", label: "Voucher Toko", href: ROUTES.sellerVouchers, accessibilityLabel: "Buka voucher toko" },
+  { id: "shop-jastip", label: "Jastip Saya", href: ROUTES.jastip, accessibilityLabel: "Buka jastip saya" },
+  { id: "shop-patungan", label: "Patungan", href: ROUTES.patungan, accessibilityLabel: "Buka patungan" },
+  { id: "shop-service-bookings", label: "Booking Jasa", href: ROUTES.serviceBookings, accessibilityLabel: "Buka booking jasa" },
 ]
 
 /** Menu bawah — revisi 2026-09-28 (permintaan produk). */
