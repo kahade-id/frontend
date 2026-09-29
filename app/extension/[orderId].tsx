@@ -150,11 +150,17 @@ export default function ExtensionScreen() {
   // D1-010 (perf 2026-09-29): poll hanya fingerprint ringan (total +
   // max updatedAt); bundle penuh (order + halaman-1) hanya bila
   // fingerprint berubah.
+  // PERF-FIX (network P1): hentikan poll bila tidak ada pengajuan PENDING —
+  // daftar hanya berubah saat approve/reject dari pihak lawan. Gate memakai
+  // halaman-1 bundle (pengajuan terbaru selalu di halaman-1). Saat poll
+  // berhenti lalu pengajuan baru dibuat, aksi user sendiri memicu refresh
+  // dan poll kembali hidup.
+  const hasPendingPage1 = (bundle?.list.items ?? []).some((e) => e.status === "PENDING")
   useFingerprintPoll(
     (signal) => api.orders.getExtensionsFingerprint(orderId as string, signal),
     () => query.refresh(),
     20_000,
-    Boolean(orderId),
+    Boolean(orderId) && hasPendingPage1,
   )
   const [items, setItems] = useState<OrderExtension[]>([])
   const [page, setPage] = useState(1)

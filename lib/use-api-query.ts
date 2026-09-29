@@ -29,6 +29,16 @@ export type UseApiQueryOptions<TRaw = unknown, T = TRaw> = {
    */
   refreshOnFocus?: boolean
   /**
+   * PERF-FIX (network P0): batasi refresh-on-focus agar tidak menembak
+   * jaringan setiap kali layar kembali fokus. Bila di-set (ms), refresh saat
+   * fokus DILEWATI bila entri cache untuk key ini masih lebih muda dari
+   * ambang — layar tetap menampilkan data segar tanpa request. Mutasi yang
+   * mengubah data WAJIB menginvalidasi key/prefix-nya (lihat
+   * `invalidateQueryPrefix`) supaya perubahan tetap terlihat saat kembali.
+   * Tanpa opsi ini perilaku lama dipertahankan (selalu refresh saat fokus).
+   */
+  refreshOnFocusStaleMs?: number
+  /**
    * Percobaan ulang otomatis untuk error transient (NETWORK/TIMEOUT/SERVER).
    * F-11: default 1 (satu retry, backoff 800 ms) — jaringan seluler goyah
    * sekali tidak boleh memaksa interaksi manual. `retryAfterMs` dari
@@ -287,10 +297,13 @@ export function useApiQuery<TRaw, T = TRaw>(
    * data basi sampai pull-to-refresh manual; kini hook yang terpasang ikut
    * menyegarkan di latar (tanpa spinner, penanda revalidasi tunggal mencegah
    * tembakan ganda lintas-hook).
+   * PERF-FIX (network P1): invalidasi PREFIX hanya membangunkan hook yang
+   * kuncinya cocok (filter `scope` di bawah) — push chat tidak me-refresh
+   * layar dompet, dsb.
    */
   useEffect(() => {
     if (!active) return
-    return onQueryCacheInvalidation(() => {
+    return onQueryCacheInvalidation((scope) => {
       if (!latest.current.enabled) return
       /**
        * NS-007 (audit performa): lewati revalidasi bila tidak ada sesi.
@@ -302,6 +315,18 @@ export function useApiQuery<TRaw, T = TRaw>(
        * Aman: hook tetap memuat awal saat mount via effect `[load]`.
        */
       if (getSessionSnapshot() == null) return
+      /**
+       * PERF-FIX (network P1): invalidasi terarah — hanya revalidasi bila
+       * kunci query ini termasuk dalam cakupan. `scope === undefined` =
+       * invalidasi penuh (perilaku lama). Push foreground kini hanya
+       * membangunkan layar yang datanya benar-benar berubah.
+       */
+      if (scope !== undefined) {
+        const inScope =
+          scope.keys?.includes(key) === true ||
+          scope.prefixes?.some((prefix) => key.startsWith(prefix)) === true
+        if (!inScope) return
+      }
       if (markQueryRevalidating(key)) void latest.current.load(true, true)
     })
   }, [active, key])
@@ -326,6 +351,12 @@ export function useApiQuery<TRaw, T = TRaw>(
     if (!focused) return
     if (!latest.current.enabled) return
     if (hasData.current) {
+      // PERF-FIX (network P0): lewati refresh bila data cache masih segar —
+      // pindah tab bolak-balik dalam hitungan detik tidak mengunduh ulang.
+      if (opts.refreshOnFocusStaleMs != null) {
+        const cached = readQueryCacheEntry(key)
+        if (cached !== null && Date.now() - cached.at < opts.refreshOnFocusStaleMs) return
+      }
       void latest.current.load(true)
       return
     }
@@ -335,7 +366,7 @@ export function useApiQuery<TRaw, T = TRaw>(
     // Sengaja hanya reaksi pada transisi fokus; load/enabled dibaca lewat ref
     // agar perubahan fetcher tidak memicu muat ulang ganda (effect [load]
     // di atas sudah menangani itu).
-  }, [focused, opts.refreshOnFocus])
+  }, [focused, opts.refreshOnFocus, opts.refreshOnFocusStaleMs])
 
   const refresh = useCallback(() => load(true), [load])
   const reload = useCallback(() => load(), [load])

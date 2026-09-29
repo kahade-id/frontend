@@ -34,6 +34,10 @@ const QUERY_CACHE_TTL_RULES: ReadonlyArray<[prefix: string, ttlMs: number]> = [
   ["support-ticket:", 60_000], // daftar/detail tiket bantuan
   ["help:", 60_000], // artikel bantuan (publikasi tulen)
   ["article:", 60_000],
+  // PERF-FIX (network P0): katalog etalase milik sendiri — berubah hanya
+  // lewat mutasi yang menginvalidasi prefix ini; navigasi bolak-balik ≤60 dtk
+  // tidak mengunduh ulang seluruh katalog.
+  ["my-showcase:", 60_000], // app/showcase-management.tsx
 ]
 
 /** TTL efektif untuk sebuah kunci cache. */
@@ -106,19 +110,39 @@ export function writeQueryCache(key: string, data: unknown, now = Date.now()): v
  * sendiri (10 menit, kuota) dan tidak disimpan di `queryCache`; tanpa
  * pemberitahuan ini mutasi uang tidak pernah menyegarkan angka estimasi itu.
  */
-const invalidateListeners = new Set<() => void>()
+/**
+ * PERF-FIX (network P1): cakupan invalidasi terarah.
+ *
+ * `undefined` = seluruh cache (perilaku lama: SEMUA pendengar bereaksi →
+ * badai refetch). Dengan `prefixes`/`keys`, pendengar HANYA bereaksi bila
+ * kuncinya cocok — push foreground tidak lagi membangunkan semua query yang
+ * sedang mount.
+ */
+export type QueryInvalidationScope = {
+  keys?: readonly string[]
+  prefixes?: readonly string[]
+}
 
-export function onQueryCacheInvalidation(listener: () => void): () => void {
+const invalidateListeners = new Set<(scope: QueryInvalidationScope | undefined) => void>()
+
+export function onQueryCacheInvalidation(
+  listener: (scope: QueryInvalidationScope | undefined) => void,
+): () => void {
   invalidateListeners.add(listener)
   return () => {
     invalidateListeners.delete(listener)
   }
 }
 
+function notifyInvalidation(scope: QueryInvalidationScope | undefined): void {
+  for (const listener of [...invalidateListeners]) listener(scope)
+}
+
 export function invalidateQueryCache(key?: string): void {
   if (key === undefined) queryCache.clear()
   else queryCache.delete(key)
-  for (const listener of [...invalidateListeners]) listener()
+  // Invalidasi penuh = siaran ke semua pendengar (perilaku lama dipertahankan).
+  notifyInvalidation(undefined)
 }
 
 /** Tandai bahwa penyegaran latar untuk key ini sedang berjalan (C-04). */
@@ -170,4 +194,8 @@ export function queryCacheSize(): number {
 /** Invalidate a feature family without discarding unrelated financial queries. */
 export function invalidateQueryPrefix(prefix: string) {
   for (const key of queryCache.keys()) if (key.startsWith(prefix)) queryCache.delete(key)
+  // PERF-FIX (network P1): beri tahu pendengar SECARA TERARAH — hook yang
+  // kuncinya tidak cocok dengan prefix ini diam saja (tidak ada badai refetch
+  // lintas layar; lihat filter cakupan di lib/use-api-query.ts).
+  notifyInvalidation({ prefixes: [prefix] })
 }

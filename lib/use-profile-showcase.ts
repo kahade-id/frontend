@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { useIsFocused } from "@react-navigation/native"
 import { api, userMessage } from "@/lib/api"
 import type { ShowcaseItem } from "@/lib/api/users"
+import { fetchViaQueryCache } from "@/lib/query-cache"
+import { queryKeys } from "@/lib/query-keys"
 import { useSessionRevision } from "@/lib/guest-gate"
 import { useShowcaseDirtyVersion } from "@/lib/showcase-social-prefs"
 
@@ -34,7 +36,15 @@ export function useProfileShowcase() {
     target.current = username
     // H-01: refresh diam tidak menyentuh `loading` (tanpa skeleton).
     if (!silent) setLoading(true)
-    void api.users.getPublicShowcase(username, controller.signal).then((result) => {
+    // PERF-FIX (network P0): katalog publik di-cache di kunci kanonis
+    // `public-showcase:{username}` — kunjungan ulang / buka-tutup tab dalam
+    // jendela TTL tidak mengunduh ulang seluruh katalog seller. Cache hanya
+    // ditulis saat sukses, jadi retry setelah gagal tetap menembak jaringan.
+    void fetchViaQueryCache(
+      queryKeys.publicShowcase(username),
+      (signal) => api.users.getPublicShowcase(username, signal),
+      controller.signal,
+    ).then((result) => {
       if (controller.signal.aborted) return
       setItems(result)
       setError(null)

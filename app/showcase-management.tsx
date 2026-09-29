@@ -205,7 +205,13 @@ function ShowcaseManagement() {
     `my-showcase:${revision}`,
     async (signal) => (await api.users.getMyShowcase(signal)) ?? [],
     true,
-    { refreshOnFocus: true, useCache: false },
+    // PERF-FIX (network P0): dulu `useCache: false` + refresh tiap fokus =
+    // seluruh katalog diunduh ulang setiap kembali ke layar. Kini cache 60 dtk
+    // (lihat QUERY_CACHE_TTL_RULES) + refresh saat fokus hanya bila data
+    // lebih tua dari 60 dtk. Mutasi di layar ini memanggil query.refresh()
+    // eksplisit; create/update dari layar lain menginvalidasi prefix
+    // "my-showcase" (lihat app/showcase/create.tsx).
+    { refreshOnFocus: true, refreshOnFocusStaleMs: 60_000 },
   )
   const items = query.data ?? []
   const [renderLimit, setRenderLimit] = useState(60)

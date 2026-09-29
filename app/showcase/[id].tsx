@@ -53,6 +53,7 @@ import { mergeComments, patchComments } from "@/lib/showcase-state"
 import { showcaseImages, showcaseMedia, showcaseSpin360Groups, findShowcaseComment, shouldFetchNextCommentPage, sortShowcaseComments } from "@/lib/showcase-social"
 import { markShowcaseDeleted } from "@/lib/showcase-deleted"
 import { markShowcaseFeedDirty, queueShowcaseCommentCount } from "@/lib/showcase-social-prefs"
+import { invalidateQueryPrefix } from "@/lib/query-cache"
 import { SHOWCASE_COMMENT_MESSAGES } from "@/lib/showcase-comment-messages"
 import {
   clearShowcaseCommentDraft,
@@ -822,6 +823,8 @@ function ShowcaseDetailContent({
         coverUrl: item ? (showcaseImages(item)?.[0]?.url ?? undefined) : undefined,
       })
       markShowcaseFeedDirty()
+      // PERF-FIX (network P0): item dihapus — cache "Etalase Saya" basi.
+      invalidateQueryPrefix("my-showcase")
       toast.show({ title: translate("Karya dihapus. Dapat dipulihkan dalam 30 hari."), tone: "success", duration: 2500 })
       setDeleteOpen(false)
       router.back()

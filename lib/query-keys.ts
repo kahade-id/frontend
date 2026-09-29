@@ -36,6 +36,15 @@ export const queryKeys = {
    * tetap berkunci sendiri karena bentuk datanya berbeda (doktrin C-02).
    */
   order: (orderId: string) => `order:${orderId}`,
+  /**
+   * PERF-FIX (network P0): `GET /v1/users/{username}/showcase` — katalog
+   * publik seller. Backend belum mendukung paginasi untuk endpoint ini, jadi
+   * respons penuh di-cache di kunci kanonis agar dua layar profil
+   * (`app/user/[username].tsx` via useProfileShowcase dan
+   * `app/user/[username]/showcase.tsx`) tidak mengunduh ulang payload yang
+   * sama dalam jendela TTL.
+   */
+  publicShowcase: (username: string) => `public-showcase:${username}`,
 } as const
 
 /**
