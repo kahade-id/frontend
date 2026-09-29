@@ -466,8 +466,9 @@ function ShowcaseFeedItemBase({
               )
             ) : null}
             {/* Batch 43: badge commerce (Terlaris/Diskon) di kartu feed —
-                hanya untuk produk commerce (orderLink ada). */}
-            {item.orderLink ? <CommerceBadgesCompact showcaseId={item.id} /> : null}
+                hanya untuk produk commerce. D1-001/D1-011: pemicu eksplisit
+                `isCommerce` + badge dari payload (tanpa N+1 fetch). */}
+            {item.isCommerce ? <CommerceBadgesCompact showcaseId={item.id} badges={item.badges} /> : null}
           </View>
         ) : null}
         {/* C11: pratinjau — judul/deskripsi sebagai teks biasa. */}

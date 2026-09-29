@@ -118,6 +118,17 @@ export type ShowcaseSocialItem = {
     counterpartUsername?: string
   } | null
   shareUrl?: string
+  /**
+   * D1-001 (perf 2026-09-29): badge commerce (["TERLARIS","DISKON"]) diserialkan
+   * LANGSUNG di payload feed — kartu tidak lagi N+1
+   * GET /v1/commerce/products/:id/badges per kartu.
+   */
+  badges?: string[]
+  /**
+   * D1-011: flag commerce EKSPLISIT pengganti pemicu lama "orderLink ada"
+   * (yang selalu truthy). true = harga valid & bisa dipesan.
+   */
+  isCommerce?: boolean
   /** Karya terkait (kategori sama → populer). Diisi backend di detail. */
   related?: ShowcaseSocialItem[]
 }
@@ -975,6 +986,13 @@ export function parseShowcaseItem(raw: unknown): ShowcaseSocialItem {
       value.condition === "BARU" || value.condition === "BEKAS" ? value.condition : null,
     orderLink,
     shareUrl: typeof value.shareUrl === "string" && value.shareUrl ? value.shareUrl : undefined,
+    // D1-001: badge commerce dari payload feed (TERLARIS/DISKON) — whitelist
+    // string supaya nilai asing tidak dirender.
+    badges: Array.isArray(value.badges)
+      ? value.badges.filter((b): b is string => typeof b === "string" && (b === "TERLARIS" || b === "DISKON"))
+      : undefined,
+    // D1-011: flag commerce eksplisit (pengganti pemicu "orderLink ada").
+    isCommerce: value.isCommerce === true,
     // Karya terkait (audit Discovery 2026-09-26): backend mengirim `related`
     // (maks 6, bentuk serialize sama) di respons detail — parser sebelumnya
     // MEMBUANG field ini sehingga section "Karya terkait" di [id].tsx tidak
