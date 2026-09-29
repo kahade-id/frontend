@@ -52,6 +52,7 @@ import {
   type CreateOrderLinkDto,
 } from "@/lib/api"
 import type { FeeSchedule } from "@/lib/api/public"
+import { fetchViaQueryCache } from "@/lib/query-cache"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 
@@ -320,7 +321,10 @@ export default function CreateTransactionScreen() {
     if (schedule || scheduleLoading) return
     setScheduleLoading(true)
     try {
-      setSchedule(await api.public.getFeeSchedule())
+      // PERF-FIX (network P2): jadwal biaya nyaris-statis — lewat query
+      // cache kanonik `fee-schedule` (TTL 60 dtk), bukan fetch mentah per
+      // mount. Guard state lokal tetap mencegah fetch ganda dalam satu mount.
+      setSchedule(await fetchViaQueryCache("fee-schedule", (signal) => api.public.getFeeSchedule(signal)))
     } catch {
       setSchedule(null)
     } finally {

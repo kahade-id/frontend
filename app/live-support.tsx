@@ -176,6 +176,31 @@ export default function LiveSupportScreen() {
     ticket != null && (ticket.status === "CLOSED" || ticket.status === "RESOLVED")
 
   /**
+   * PERF-FIX (network P2): mutual exclusion fingerprint-poller vs refresh
+   * bundle. Setiap bundle penuh termuat (fetch awal, refresh fokus, refresh
+   * manual, atau refresh karena fingerprint berubah), poller fingerprint
+   * dijeda 30 dtk — datanya baru saja segar, polling 10-detik dalam jendela
+   * itu hanya membuang request. Timer di-reset bila bundle termuat lagi.
+   */
+  const [fingerprintPaused, setFingerprintPaused] = useState(false)
+  const fingerprintPauseTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => {
+    if (ticket == null) return
+    setFingerprintPaused(true)
+    if (fingerprintPauseTimer.current) clearTimeout(fingerprintPauseTimer.current)
+    fingerprintPauseTimer.current = setTimeout(() => setFingerprintPaused(false), 30_000)
+    return () => {
+      if (fingerprintPauseTimer.current) clearTimeout(fingerprintPauseTimer.current)
+    }
+  }, [ticket])
+  useEffect(
+    () => () => {
+      if (fingerprintPauseTimer.current) clearTimeout(fingerprintPauseTimer.current)
+    },
+    [],
+  )
+
+  /**
    * NS-001 (audit performa): polling tiket via `usePolling`, bukan
    * `setInterval` mentah — berhenti saat app pindah ke background / layar
    * blur (dulu request 10-detik jalan terus di background) + anti-overlap
@@ -187,7 +212,7 @@ export default function LiveSupportScreen() {
     (signal) => api.support.getSupportTicketFingerprint(ticketId as string, signal),
     () => ticketQuery.refresh(),
     POLL_INTERVAL_MS,
-    Boolean(ticketId && !isClosedLike),
+    Boolean(ticketId && !isClosedLike) && !fingerprintPaused,
   )
 
   // ---- Pesan gabungan: sapaan otomatis + pesan tiket + pesan optimistis ----

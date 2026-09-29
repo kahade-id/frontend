@@ -64,6 +64,7 @@ import {
 import { applyShowcaseCommentCountDelta } from "@/lib/showcase-social"
 import { showcaseMedia } from "@/lib/showcase-social"
 import { prefetchShowcaseDetail } from "@/lib/showcase-detail-prefetch"
+import { prefetchFeedAheadImages } from "@/lib/prefetch-neighbors"
 import { tokens } from "@/lib/tokens"
 import { modes } from "@/lib/tokens"
 import { describeSheetFilters, countActiveFeedFilters } from "@/lib/showcase-filters"
@@ -332,6 +333,11 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
   // R1-002: selector per-key — hanya perubahan tab yang membangunkan.
   const showcaseFeedTab = useUiPref("showcaseFeedTab")
   const setUiPrefs = useSetUiPrefs()
+  // PERF-FIX (network P1): prefetch gambar kartu feed menghormati mode hemat
+  // data — dibaca lewat ref supaya `handleViewableItemsChanged` tetap stabil.
+  const dataSaver = useUiPref("dataSaver")
+  const dataSaverRef = useRef(dataSaver)
+  dataSaverRef.current = dataSaver
   const kindParam: ShowcaseFeedKind | undefined =
     typeof params.kind === "string" ? parseShowcaseFeedTab(params.kind) : undefined
   const kind: ShowcaseFeedKind = kindParam ?? parseShowcaseFeedTab(showcaseFeedTab)
@@ -499,6 +505,10 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
   }, [items, hiddenIds])
   const itemsLengthRef = useRef(0)
   itemsLengthRef.current = visibleItems.length
+  // PERF-FIX (network P1): ref array item untuk prefetch gambar kartu
+  // berikutnya — `handleViewableItemsChanged` harus stabil (deps kosong).
+  const visibleItemsRef = useRef(visibleItems)
+  visibleItemsRef.current = visibleItems
   /**
    * Batch 19 (item 16) + PERF-FIX (LR-004): id item yang terlihat di layar —
    * penggerak autoplay video (hanya item terlihat yang `autoplayActive`).
@@ -515,6 +525,17 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
       // C02: anchor = item terlihat paling atas (indeks terkecil).
       const top = selectTopVisibleAnchor(viewableItems)
       topVisibleRef.current = top ? { id: top.id } : null
+      // PERF-FIX (network P1): prefetch gambar ~3 kartu BERIKUTNYA dari kartu
+      // paling atas yang terlihat — kartu yang akan di-scroll sudah punya
+      // gambar di cache. Hormat dataSaver; fire-and-forget.
+      let topIndex: number | null = null
+      for (const v of viewableItems) {
+        if (v.index == null) continue
+        if (topIndex == null || v.index < topIndex) topIndex = v.index
+      }
+      if (topIndex != null) {
+        prefetchFeedAheadImages(visibleItemsRef.current, topIndex, dataSaverRef.current)
+      }
     },
     [],
   )

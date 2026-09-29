@@ -220,8 +220,11 @@ export default function WalletScreen() {
   const holdsQuery = useApiQuery<WalletTransaction[]>(
     "wallet-escrow-holds",
     (signal) =>
+      // PERF-FIX (network P1): limit 100 → 30 — sheet rincian hanya butuh
+      // mutasi TERBARU untuk menghitung penahan; total tertahan tetap dari
+      // server (`wallet.holdBalance`), jadi angka utama tidak terpengaruh.
       api.wallet
-        .getWalletTransactions({ page: 1, limit: 100 }, signal)
+        .getWalletTransactions({ page: 1, limit: 30 }, signal)
         .then((page) => page.data),
     hasSession && holdsOpen,
   )

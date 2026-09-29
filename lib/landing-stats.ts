@@ -53,8 +53,32 @@ export function parsePublicStats(json: unknown): PublicStats | null {
 /**
  * Ambil statistik publik. Hanya dipanggil di web (lihat stats.tsx).
  * Tidak pernah throw — gagal dalam bentuk apa pun → null.
+ *
+ * PERF-FIX (network P2): cache modul — angka agregat tidak berubah tiap
+ * detik; kunjungan ulang / remount dalam 5 menit tidak menembak ulang.
+ * Hasil sukses di-cache 5 menit, kegagalan (null) hanya 60 dtk supaya
+ * pemulihan backend tidak tertutup lama.
  */
+const STATS_CACHE_TTL_MS = 5 * 60 * 1000
+const STATS_FAILURE_TTL_MS = 60 * 1000
+let statsCache: { at: number; value: PublicStats | null } | null = null
+
+export function clearPublicStatsCache(): void {
+  statsCache = null
+}
+
 export async function fetchPublicStats(): Promise<PublicStats | null> {
+  const now = Date.now()
+  if (statsCache) {
+    const ttl = statsCache.value == null ? STATS_FAILURE_TTL_MS : STATS_CACHE_TTL_MS
+    if (now - statsCache.at < ttl) return statsCache.value
+  }
+  const result = await fetchPublicStatsUncached()
+  statsCache = { at: Date.now(), value: result }
+  return result
+}
+
+async function fetchPublicStatsUncached(): Promise<PublicStats | null> {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), STATS_TIMEOUT_MS)
   try {

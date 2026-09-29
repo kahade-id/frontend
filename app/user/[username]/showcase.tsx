@@ -30,6 +30,7 @@ import { ROUTES } from "@/lib/routes"
 import { showcaseCoverOf } from "@/lib/showcase-social"
 import { tokens } from "@/lib/tokens"
 import { useApiQuery } from "@/lib/use-api-query"
+import { queryKeys } from "@/lib/query-keys"
 
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
@@ -65,7 +66,9 @@ export default function PublicShowcaseScreen() {
    * `userMessage(err)`. `enabled` menggantikan guard `if (!username) return`.
    */
   const showcase = useApiQuery<ShowcaseItem[]>(
-    `public-showcase:${revision}:${username}`,
+    // PERF-FIX (network P0): kunci kanonis bersama useProfileShowcase —
+    // revisi sesi sudah dijaga readQueryCacheEntry, jadi tidak perlu di key.
+    queryKeys.publicShowcase(username ?? ""),
     (signal) => api.users.getPublicShowcase(username, signal),
     Boolean(username),
     { refreshOnFocus: true },

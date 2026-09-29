@@ -22,6 +22,7 @@ import {
   readPage,
 } from "@/lib/api/response"
 import { http, seg } from "@/lib/api/client"
+import { API_TIMEOUT_INTERACTIVE_MS } from "@/lib/api/config"
 import { isApiError } from "@/lib/api/errors"
 import {
   deviceLocationOnlyBody,
@@ -201,6 +202,15 @@ export type OrderStatusLight = {
   updatedAt: string
 }
 
+/**
+ * GET /v1/orders/:id/status — status ringan order (dipakai sebagai
+ * fingerprint polling, mis. layar invoice).
+ *
+ * PERF-NET (network P2): kontrak RINGAN dipin di sini — endpoint ini HANYA
+ * boleh mengembalikan kolom status (`OrderStatusLight`); jangan memperkaya
+ * dengan payload berat karena dipoll tiap 15 dtk sebagai pendeteksi
+ * perubahan (bukan pembawa data).
+ */
 export function getOrderStatus(orderId: string, signal?: AbortSignal) {
   return http.get<OrderStatusLight>(`/v1/orders/${seg(orderId)}/status`, {
     auth: "required",
@@ -269,8 +279,29 @@ let averageDurationsCache: { revision: number; at: number; value: AverageDuratio
  * tidak pernah menyegarkan estimasi timeline, dan hasil parsing yang gagal
  * (envelope error yang lolos, lihat B-04) ikut ter-cache. `getAverageDurations`
  * kini melempar sebelum menulis cache bila bentuknya salah (D-07).
+ * PERF-FIX (network P1): invalidasi terarah — estimasi durasi pengiriman
+ * hanya relevan untuk keluarga order/transaksi; push chat/promo/showcase
+ * tidak perlu membuang cache 10 menit ini (satu request hemat).
  */
-onQueryCacheInvalidation(() => {
+const ORDER_FAMILY_PREFIXES = [
+  "order",
+  "tracking-order",
+  "delivery-proof",
+  "dispute",
+  "milestone",
+  "transactions",
+  "wallet",
+  "escrow",
+] as const
+
+onQueryCacheInvalidation((scope) => {
+  if (scope !== undefined) {
+    const keyTouchesOrders = (key: string): boolean =>
+      ORDER_FAMILY_PREFIXES.some((family) => key.startsWith(family) || family.startsWith(key))
+    const touchesOrders =
+      scope.keys?.some(keyTouchesOrders) === true || scope.prefixes?.some(keyTouchesOrders) === true
+    if (!touchesOrders) return
+  }
   averageDurationsCache = null
 })
 
@@ -651,12 +682,16 @@ export function updateShipping(orderId: string, dto: UpdateShippingDto) {
 export async function completeOrder(orderId: string, idempotencyKey?: string) {
   // R2 (audit ronde-2, butir #17): pelepasan dana berlindung idempotensi
   // (pola C-06 createOrder/payOrder) — aman bila backend mengabaikan header.
+  // PERF-FIX (network P1): timeout interaktif 10 dtk (bukan 20 dtk) — mutasi
+  // tidak pernah di-retry otomatis, jadi gagal cepat + ketuk ulang lebih
+  // baik daripada menggantung 20 dtk; idempotency key mencegah ganda.
   const body = await deviceLocationOnlyBody()
   return http.post<Order, { deviceLocation: LocationDto | null }>(
     `/v1/orders/${seg(orderId)}/complete`,
     body,
     {
       auth: "required",
+      timeoutMs: API_TIMEOUT_INTERACTIVE_MS,
       ...(idempotencyKey ? { headers: { "Idempotency-Key": idempotencyKey } } : {}),
     },
   )

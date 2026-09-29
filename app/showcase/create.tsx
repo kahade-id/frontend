@@ -51,6 +51,7 @@ import { getSessionRevision } from "@/lib/api/session"
 import { useSessionRevision } from "@/lib/guest-gate"
 import { pickImage, pickImages, pickedImageToBlob, resizePickedImage, type PickedImage } from "@/lib/image-picker"
 import { markShowcaseFeedDirty } from "@/lib/showcase-social-prefs"
+import { invalidateQueryPrefix } from "@/lib/query-cache"
 import { partitionAssetsBySize, resolveCreateAttempt } from "@/lib/showcase-state"
 import { SHOWCASE_IMAGE_MAX_BYTES, getShowcasePhotoLimit } from "@/lib/showcase-limits"
 import { useKahadePlus } from "@/lib/use-kahade-plus"
@@ -869,6 +870,11 @@ export default function ShowcaseCreateScreen() {
       void clearShowcaseDraft()
       if (!mounted.current || revision !== getSessionRevision()) return
       markShowcaseFeedDirty()
+      // PERF-FIX (network P0): item baru membuat cache "Etalase Saya" basi —
+      // invalidasi agar refresh saat kembali ke layar Kelola Etalase
+      // mengunduh daftar terbaru (lihat refreshOnFocusStaleMs di
+      // app/showcase-management.tsx).
+      invalidateQueryPrefix("my-showcase")
       toast.show({ title: translate("Karya ditambahkan"), tone: "success", duration: 3000 })
       // Jangan `router.back()` langsung di sini: dispatch expo-router
       // tertunda ke effect berikutnya, saat itu `saveBusy` sudah false dan

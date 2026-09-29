@@ -38,10 +38,11 @@ import * as Device from "expo-device"
 import * as Notifications from "expo-notifications"
 import { Platform } from "react-native"
 
-import { invalidateQueryCache } from "@/lib/query-cache"
+import { invalidateQueryCache, invalidateQueryPrefix } from "@/lib/query-cache"
 import {
   ensureLocalNotificationPrefs,
   localKindForPushData,
+  type LocalNotificationKind,
 } from "@/lib/notification-local-prefs"
 import { SecureKeys, deleteSecureItem, getOrCreateDeviceId, getSecureItem, setSecureItem } from "@/lib/secure-storage"
 import { logWarn } from "@/lib/telemetry"
@@ -51,6 +52,31 @@ import {
 } from "@/lib/order-confirm"
 
 export type PushPlatform = "android" | "ios" | "web"
+
+/**
+ * PERF-FIX (network P1): pemetaan jenis push → prefix kunci cache yang
+ * diinvalidasi saat push foreground tiba. `invalidateQueryPrefix` memakai
+ * `startsWith`, jadi satu prefix keluarga mencakup varian kunci
+ * (`order` → `order:`, `order-detail:`, `orders:`, …). Sengaja murah:
+ * over-invalidate sedikit masih jauh lebih baik daripada membersihkan
+ * seluruh cache (perilaku lama) — dan jenis tak dikenal tetap fail-open ke
+ * invalidasi penuh di listener.
+ */
+const PUSH_KIND_CACHE_PREFIXES: Record<LocalNotificationKind, readonly string[]> = {
+  chat: ["chat-rooms", "chat-room", "chat-messages"],
+  transaction: [
+    "order",
+    "tracking-order",
+    "delivery-proof",
+    "dispute",
+    "milestone",
+    "transactions",
+    "wallet",
+    "escrow",
+  ],
+  showcase: ["showcase", "feed", "public-showcase", "my-showcase"],
+  promo: ["voucher", "campaign", "subscription", "kahade-plus", "referral"],
+}
 
 /** Body `RegisterDeviceDto` persis seperti OpenAPI */
 export type RegisterDeviceDto = {
@@ -219,9 +245,22 @@ export async function setupNotifications(): Promise<void> {
      * menginvalidasi cache query: hook `useApiQuery` yang terpasang
      * (disubscribe di sana) langsung me-revalidate diam-diam di latar, dan
      * layar yang dibuka berikutnya selalu membaca data segar.
+     *
+     * PERF-FIX (network P1): invalidasi TERTARGET per jenis push, bukan
+     * seluruh cache. Dulu tiap push foreground membersihkan SEMUA key
+     * sehingga semua `useApiQuery` yang ter-mount revalidasi serentak —
+     * push storm (promo massal / ledakan chat) = thundering herd refetch
+     * payload penuh tersinkron. Klasifier `localKindForPushData` sudah ada
+     * (dipakai toggle banner di atas); jenis tak dikenal (`null`) tetap
+     * fail-open → invalidasi penuh seperti perilaku lama.
      */
-    Notifications.addNotificationReceivedListener(() => {
-      invalidateQueryCache()
+    Notifications.addNotificationReceivedListener((notification) => {
+      const kind = localKindForPushData(notification.request.content.data)
+      if (kind === null) {
+        invalidateQueryCache()
+        return
+      }
+      for (const prefix of PUSH_KIND_CACHE_PREFIXES[kind]) invalidateQueryPrefix(prefix)
     })
     handlerInstalled = true
   }

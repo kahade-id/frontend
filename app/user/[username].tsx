@@ -651,12 +651,17 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
       // setState pertama diterapkan), seperti pada follow (SH-F-004).
       const release = acquireShowcaseMutation(`favorite:${handle}`)
       if (!release) return
+      // PERF-FIX (network P2): optimistis seperti handleFollow — set dulu,
+      // rollback ke snapshot saat gagal. Sebelumnya: menunggu round-trip
+      // sebelum tombol berubah.
+      const prevFavorite = favorite
+      setFavorite(next)
       setFavLoading(true)
       try {
         if (next) await api.users.addFavorite(handle)
         else await api.users.removeFavorite(handle)
-        setFavorite(next)
       } catch (err: unknown) {
+        setFavorite(prevFavorite)
         toast.show({
           title: translate("Gagal memperbarui favorit"),
           description: userMessage(err),
@@ -667,7 +672,7 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
         setFavLoading(false)
       }
     },
-    [handle, requireSession, toast],
+    [handle, requireSession, toast, favorite],
   )
 
   const handleUpvote = useCallback(

@@ -40,6 +40,7 @@ import {
 } from "@/lib/api/wallet-contract"
 import { AMOUNT_LIMITS, assertValidAmount } from "@/lib/financial"
 import { http, seg } from "@/lib/api/client"
+import { API_TIMEOUT_INTERACTIVE_MS } from "@/lib/api/config"
 import { withDeviceLocation, type WithDeviceLocation } from "@/lib/api/device-location"
 import type {
   ConfirmWithdrawOtpDto,
@@ -483,6 +484,10 @@ export async function createWithdraw(dto: WithdrawDto, idempotencyKey?: string) 
     body,
     {
       auth: "required",
+      // PERF-FIX (network P1): timeout interaktif 10 dtk — mutasi tidak
+      // di-retry otomatis; idempotency key (I-16) mencegah tarik ganda bila
+      // pengguna mengetuk ulang setelah timeout.
+      timeoutMs: API_TIMEOUT_INTERACTIVE_MS,
       // I-16: lihat createTopup — penarikan ganda = dua kali keluar dana.
       ...(idempotencyKey ? { headers: { "Idempotency-Key": idempotencyKey } } : {}),
     },

@@ -198,6 +198,18 @@ export default function WhatsappTriggerScreen() {
         }
         return
       }
+      // PERF-FIX (network P1): jeda saat app di background — hasil poll tak
+      // bisa ditindaklanjuti sampai user kembali (goVerifyOtp hanya relevan
+      // di foreground). Listener AppState di bawah sudah memicu SATU poll
+      // segera saat kembali foreground, jadi tick di sini cukup dijadwalkan
+      // ulang tanpa menembak jaringan.
+      if (AppState.currentState === "background") {
+        if (!cancelled) {
+          attempt += 1
+          scheduleNext()
+        }
+        return
+      }
       try {
         const { status } = await api.auth.getOtpTriggerStatus(refCode)
         if (cancelled) return
@@ -234,8 +246,17 @@ export default function WhatsappTriggerScreen() {
   // menunggu giliran backoff) + petunjuk salin kode bila balasan belum ada.
   // Polling otomatis tetap berjalan; ini hanya pengecekan ekstra.
   const [checkingNow, setCheckingNow] = useState(false)
+  /**
+   * PERF-FIX (network P2): debounce 2,5 dtk untuk cek manual. `checkingNow`
+   * hanya menjaga konkurensi — tombol masih bisa di-mash tepat setelah check
+   * selesai, menambah poll ekstra tak terjadwal di atas chain yang berjalan.
+   */
+  const lastManualCheckAt = useRef(0)
   const handleSentMessage = useCallback(async () => {
     if (checkingNow || !refCode || done) return
+    const nowMs = Date.now()
+    if (nowMs - lastManualCheckAt.current < 2500) return
+    lastManualCheckAt.current = nowMs
     // A07: cek manual butuh koneksi — jangan diam saat offline.
     if (isOfflineKnown()) {
       toast.show({

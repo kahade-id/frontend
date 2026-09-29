@@ -68,6 +68,7 @@ import {
   subscribePinnedRooms,
   toggleRoomPinned,
 } from "@/lib/chat-pinned-rooms"
+import { seedChatRoomPrefetch } from "@/lib/chat-room-prefetch"
 
 import { ChatRoomListItem, type ChatRoomLastMessage } from "@/components/ui/chat-room-list-item"
 import { Button } from "@/components/ui/button"
@@ -974,6 +975,10 @@ export default function ChatScreen() {
         toggleSelect(room.id)
         return
       }
+      // PERF-FIX (network P1): titipkan objek room dari daftar ke cache
+      // consume-once — layar room memakai ini untuk header dan melewatkan
+      // `GET /v1/chat/rooms/:roomId` (lihat lib/chat-room-prefetch.ts).
+      seedChatRoomPrefetch(room)
       router.push(
         ROUTES.chatRoom(
           room.id,
