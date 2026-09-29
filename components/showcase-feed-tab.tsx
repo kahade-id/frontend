@@ -978,7 +978,6 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
         <EmptyState
           icon={Images}
           title={translate("Masuk untuk melihat feed mengikuti")}
-          description={translate("Masuk terlebih dahulu agar kami bisa menampilkan karya dari akun yang Anda ikuti.")}
           action={
             <Button fullWidth={false} onPress={() => router.push(ROUTES.loginRequired("/showcase?kind=following"))}>{translate("Masuk")}</Button>
           }
