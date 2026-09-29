@@ -30,7 +30,7 @@ import { mapValue } from "@/lib/has-own"
  * Enum `type` mutasi wallet yang diterima backend — PERSIS, tanpa alias.
  * Urutan mengikuti alur yang paling sering dicari pengguna di riwayat
  * (uang masuk → uang keluar → escrow → sistem), bukan abjad: chip filter
- * dibaca sekali lalu, dan "Topup" harus ketemu tanpa menggeser.
+ * dibaca sekali lalu, dan "Isi Saldo" harus ketemu tanpa menggeser.
  */
 export const WALLET_TXN_TYPES = [
   "TOP_UP",
@@ -54,8 +54,10 @@ export type WalletTxnType = (typeof WALLET_TXN_TYPES)[number]
 
 /** Label tampilan. Nilai asing dari backend tetap ditampilkan apa adanya. */
 export const WALLET_TXN_LABELS: Record<string, string> = {
-  TOP_UP: "Topup",
-  TOPUP_BONUS: "Bonus Topup",
+  // T3-008 (audit UI/UX): istilah baku user-facing = "Isi Saldo" —
+  // "Topup"/"Top-up" hanya istilah teknis di kode/API.
+  TOP_UP: "Isi Saldo",
+  TOPUP_BONUS: "Bonus Isi Saldo",
   WITHDRAW: "Penarikan",
   TRANSFER_RECEIVED: "Transfer Masuk",
   TRANSFER_SENT: "Transfer Keluar",
@@ -82,7 +84,7 @@ export const WALLET_TXN_LABELS: Record<string, string> = {
    * di cache/riwayat lokal. Jangan pernah dipakai sebagai nilai filter: alias
    * inilah yang ditolak backend.
    */
-  TOPUP: "Topup",
+  TOPUP: "Isi Saldo",
   WITHDRAWAL: "Penarikan",
   TRANSFER_IN: "Transfer Masuk",
   TRANSFER_OUT: "Transfer Keluar",
@@ -108,7 +110,10 @@ export const WALLET_TXN_STATUS_LABELS: Record<string, string> = {
   PENDING_OTP: "Menunggu OTP",
   // TRX-004: dua status backend yang sebelumnya bocor sebagai enum mentah.
   PENDING_PROCESS: "Menunggu diproses",
-  PENDING_SETTLEMENT: "Menunggu penyelesaian",
+  // T3-011 (audit UI/UX): "penyelesaian" adalah terjemahan harfiah istilah
+  // backend (settlement) — user tidak tahu apa yang ditunggu. Bahasa user:
+  // yang ditunggu adalah konfirmasi bank.
+  PENDING_SETTLEMENT: "Menunggu konfirmasi bank",
   PROCESSING: "Diproses",
   REVIEW: "Ditinjau",
   FAILED: "Gagal",
@@ -170,7 +175,9 @@ export const WALLET_TXN_KIND: Record<string, WalletTxKind> = {
  * Semantik pemetaan:
  *   - REFUNDED / REVERSED → SUCCESS: siklus transaksi selesai (dana kembali),
  *     bukan kegagalan — muncul di filter "Berhasil", bukan "Gagal".
- *   - CANCELLED / EXPIRED → FAILED: terminal, dana tidak bergerak maju.
+ *   - CANCELLED / EXPIRED → CANCELLED: grup sendiri "Dibatalkan" (T3-007).
+ *     Pembatalan oleh user (mis. penarikan menunggu OTP yang dibatalkan)
+ *     BUKAN kegagalan — "gagal" untuk orang awam berarti ada yang rusak.
  *   - PENDING_* / PROCESSING → PENDING.
  */
 export const WALLET_TXN_STATUS: Record<string, WalletTxStatus> = {
@@ -186,8 +193,8 @@ export const WALLET_TXN_STATUS: Record<string, WalletTxStatus> = {
   WAITING: "PENDING",
   FAILED: "FAILED",
   REJECTED: "FAILED",
-  CANCELLED: "FAILED",
-  EXPIRED: "FAILED",
+  CANCELLED: "CANCELLED",
+  EXPIRED: "CANCELLED",
 }
 
 /**

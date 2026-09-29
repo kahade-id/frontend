@@ -2,9 +2,10 @@
  * Tab #3 — Dompet (redesign 2026-09-27, TIM WALLET PAGE)
  *
  * Tampilan ala e-wallet premium (DANA/OVO/GoPay):
- *  - <WalletHeroCard> — kartu saldo hero gelap premium: "Saldo Dompet" besar
- *    + toggle mata (prefs.balanceHidden dari useUiPrefs, dibagi dengan
- *    Beranda — J-05) + sub-baris "Rp X ditahan di escrow". Skeleton saat
+ *  - <WalletHeroCard> — kartu saldo hero gelap premium: "Saldo Tersedia"
+ *    besar + caption "yang bisa dipakai sekarang" + toggle mata
+ *    (prefs.balanceHidden dari useUiPrefs, dibagi dengan Beranda — J-05) +
+ *    sub-baris "Rp X ditahan sebagai jaminan transaksi". Skeleton saat
  *    loading; ErrorState + retry saat error (fail closed: tidak pernah
  *    menampilkan Rp 0 palsu).
  *  - <WalletPrimaryActions> — tiga tombol besar: Isi Saldo / Transfer /
@@ -169,7 +170,9 @@ export default function WalletScreen() {
   if (!hasSession) {
     return (
       <Screen edges={["top"]} padded={false}>
-        <Header showBack={false} title="Dompet" />
+        {/* T5-001 (audit UI/UX): tombol kembali TAMPIL (default Header) —
+            fallback cerdas Header: replace("/showcase") bila tidak bisa back. */}
+        <Header title="Dompet" />
         <GuestLoginPrompt bare next="/wallet" />
       </Screen>
     )
@@ -179,7 +182,8 @@ export default function WalletScreen() {
     // SEC-404: proteksi screen-capture iOS di layar saldo.
     <ScreenCaptureGuard>
       <Screen edges={["top"]} padded={false}>
-      <Header showBack={false} title="Dompet" />
+      {/* T5-001: tombol kembali tampil; fallback Header → replace("/showcase"). */}
+      <Header title="Dompet" />
 
       <ModeShiftFade>
       <PaginatedList

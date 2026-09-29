@@ -51,7 +51,7 @@ export const WALLET_PRIMARY_ACTIONS: readonly WalletMenuItem[] = [
 
 /** Lima menu cepat ikon-bertumpuk-label. */
 export const WALLET_QUICK_MENU: readonly WalletMenuItem[] = [
-  { key: "receive", label: "Terima", icon: QrCode, route: ROUTES.receive },
+  { key: "receive", label: "Terima Saldo", icon: QrCode, route: ROUTES.receive },
   { key: "history", label: "Riwayat", icon: ClockCounterClockwise, route: ROUTES.walletHistory },
   { key: "vouchers", label: "Voucher", icon: Ticket, route: ROUTES.vouchers },
   { key: "banks", label: "Bank", icon: Bank, route: ROUTES.bankAccounts },

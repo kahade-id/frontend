@@ -410,6 +410,26 @@ export function isPinRateLimited(err: unknown): boolean {
 }
 
 /**
+ * T3-004 (audit UI/UX): true bila server menolak karena PIN dompet BELUM
+ * PERNAH diatur — bukan PIN yang salah. Backend (verifyWalletPin) memakai
+ * HTTP 400 dengan body `code: "NOT_FOUND"` + pesan "Wallet PIN has not been
+ * set" (kode khusus tidak ada). Dicek lewat backendCode + pesan mentah agar
+ * tidak tertukar dengan 400 lain. Pakai ini untuk menampilkan jalan
+ * "Buat PIN" di dalam alur, bukan error "PIN salah".
+ */
+export function isPinNotSetError(err: unknown): boolean {
+  if (!isApiError(err)) return false
+  if ((err.backendCode ?? "").toUpperCase() !== "NOT_FOUND") return false
+  const raw = err.raw
+  const rawMessage =
+    typeof raw === "object" && raw !== null
+      ? (raw as Record<string, unknown>).message
+      : undefined
+  const text = typeof rawMessage === "string" ? rawMessage : err.message
+  return /pin has not been set/i.test(text)
+}
+
+/**
  * Parse header `Retry-After` → milidetik.
  *
  * Header ini punya dua bentuk sah (RFC 9110 §10.2.3): delta-detik

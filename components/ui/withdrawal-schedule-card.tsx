@@ -65,6 +65,8 @@ export type WithdrawalScheduleCardLabels = {
   never: string
   edit: string
   remove: string
+  /** T3-003: penjelas jujur — yang ditarik SELURUH saldo tersedia. */
+  wholeBalanceNote: string
 }
 
 const DEFAULT_LABELS: WithdrawalScheduleCardLabels = {
@@ -79,6 +81,8 @@ const DEFAULT_LABELS: WithdrawalScheduleCardLabels = {
   never: "Belum pernah",
   edit: "Ubah jadwal",
   remove: "Hapus",
+  wholeBalanceNote:
+    "Saat saldo mencapai batas ini, seluruh saldo tersedia akan otomatis ditarik ke rekening Anda — bukan hanya sebesar batasnya.",
 }
 
 export type WithdrawalScheduleCardProps = Omit<CardProps, "children" | "padded" | "onPress"> & {
@@ -125,6 +129,7 @@ export function WithdrawalScheduleCard({
     `${bankAccount.bankName} ${maskAccountNumber(bankAccount.accountNumber)}`,
     bankAccount.accountHolder,
     minAmount ? `${t.minAmount} ${minAmount} rupiah` : t.anyBalance,
+    t.wholeBalanceNote,
     `${t.nextRun} ${isActive && nextRunLabel ? nextRunLabel : "—"}`,
     `${t.lastRun} ${lastRunLabel ?? t.never}`,
   ])
@@ -190,6 +195,11 @@ export function WithdrawalScheduleCard({
           <KeyValue label={t.nextRun} value={isActive && nextRunLabel ? nextRunLabel : "—"} />
           <KeyValue label={t.lastRun} value={lastRunLabel ?? t.never} />
         </KeyValueList>
+        {/* T3-003: kejutan finansial paling berbahaya di area wallet —
+            tegaskan bahwa yang ditarik seluruh saldo, bukan nominal pemicu. */}
+        <Text variant="caption" tone="secondary">
+          {t.wholeBalanceNote}
+        </Text>
       </View>
 
       {onEdit || onDelete ? (

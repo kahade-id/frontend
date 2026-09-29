@@ -117,11 +117,13 @@ export function groupByDay(items: WalletTransaction[]): DayGroup[] {
 export type DirectionFilter = "ALL" | "CREDIT" | "DEBIT"
 /**
  * Status client-side memakai keluaran `walletTransactionStatus`
- * (SUCCESS/PENDING/FAILED) — hanya status yang dipetakan backend; status
- * tak dikenal ("UNKNOWN") hanya tampil di "Semua status" (jujur, bukan
+ * (SUCCESS/PENDING/FAILED/CANCELLED) — hanya status yang dipetakan backend;
+ * status tak dikenal ("UNKNOWN") hanya tampil di "Semua status" (jujur, bukan
  * disamarkan ke kategori yang salah).
+ * T3-007: CANCELLED/EXPIRED punya grup sendiri "Dibatalkan" — pembatalan
+ * oleh user bukan kegagalan.
  */
-export type StatusFilter = "ALL" | "PENDING" | "SUCCESS" | "FAILED"
+export type StatusFilter = "ALL" | "PENDING" | "SUCCESS" | "FAILED" | "CANCELLED"
 
 export type WalletHistoryFilters = {
   /** Client-side. */
@@ -170,6 +172,8 @@ export const HISTORY_STATUS_FILTERS: ReadonlyArray<{
   { value: "SUCCESS", label: "Berhasil" },
   { value: "PENDING", label: "Menunggu" },
   { value: "FAILED", label: "Gagal" },
+  // T3-007: chip ke-5 — penarikan/top-up yang dibatalkan user sendiri.
+  { value: "CANCELLED", label: "Dibatalkan" },
 ]
 
 /** Rentang ISO untuk query server — dihitung saat query dimulai (bukan per render). */
