@@ -9,7 +9,7 @@ import { useLocalSearchParams } from "expo-router"
 import { api } from "@/lib/api"
 import type { Product } from "@/lib/api/products"
 import { PRODUCT_STATUS_LABEL, productStatusBadgeTone, sellableQty, variantLabel } from "@/lib/api/products"
-import { formatRupiah } from "@/lib/format"
+import { formatRupiah, formatRupiahFromSen } from "@/lib/format"
 import { tokens } from "@/lib/tokens"
 import { useApiQuery } from "@/lib/use-api-query"
 import { showMutationError } from "@/lib/mutation-toast"
@@ -49,7 +49,7 @@ export default function ProductDetailScreen() {
       const res = await api.products.preCheckoutValidate([{ sku: variant?.sku ?? p.sku, qty }])
       const line = res.lines[0]
       if (res.allOk && line?.sufficient) {
-        Alert.alert("Tersedia", `${p.name} × ${qty} — ${formatSenToRupiah(line.currentPriceSen)}. Harga & stok terkonfirmasi server.`)
+        Alert.alert("Tersedia", `${p.name} × ${qty} — ${formatRupiahFromSen(line.currentPriceSen)}. Harga & stok terkonfirmasi server.`)
       } else {
         Alert.alert("Tidak tersedia", line?.message ?? "Stok atau harga berubah. Silakan muat ulang.")
         await query.reload()
@@ -165,15 +165,11 @@ function priceOf(p: Product, selectedVariant: string | null) {
 }
 
 /**
+ * FE-055: konversi sen -> Rupiah kini memakai helper kanonis
+ * `formatRupiahFromSen` dari `@/lib/format` (satu aturan validasi §13).
  * `POST /v1/inventory/pre-checkout` mengembalikan `currentPriceSen` dalam SEN
  * (string BigInt). Satu-satunya field sen di domain produk — konversi lokal.
  */
-function formatSenToRupiah(sen: string | null): string {
-  if (sen == null) return "—"
-  const n = Number(sen)
-  if (!Number.isFinite(n)) return "—"
-  return formatRupiah(Math.round(n / 100))
-}
 
 function stockOf(p: Product, selectedVariant: string | null) {
   const active = (p.variants ?? []).find((v) => v.id === selectedVariant) ?? null

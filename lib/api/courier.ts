@@ -145,9 +145,5 @@ export function requestShippingRefund(shipmentId: string, body: { amount: number
   return http.post(`/v1/courier/shipments/${shipmentId}/refunds`, body, { auth: "required" })
 }
 
-export function formatIdrSen(sen: string | number | null | undefined): string {
-  if (sen === null || sen === undefined) return "—"
-  const n = typeof sen === "string" ? Number(sen) : sen
-  if (!Number.isFinite(n)) return "—"
-  return `Rp${Math.round(n / 100).toLocaleString("id-ID")}`
-}
+/** FE-055: `formatIdrSen` kini alias helper kanonis — definisi duplikat dihapus. */
+export { formatRupiahFromSen as formatIdrSen } from "../format"
