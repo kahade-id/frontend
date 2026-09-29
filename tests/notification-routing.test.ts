@@ -115,6 +115,34 @@ describe("routeForActionUrl — non-regresi tipe lain", () => {
   })
 })
 
+/**
+ * E1-001 — `actionUrl` dengan sekuens persen malformed (mis. `%` mentah
+ * dari payload push backend yang rusak) TIDAK boleh melempar URIError;
+ * fallback ke id mentah tanpa decode.
+ */
+describe("routeForActionUrl — E1-001 sekuens persen malformed", () => {
+  it("tidak throw untuk `%` mentah", () => {
+    expect(() => routeForActionUrl("/order/ord%zz")).not.toThrow()
+  })
+
+  it("tidak throw untuk `%` di akhir segmen", () => {
+    expect(() => routeForActionUrl("/chat/room%")).not.toThrow()
+  })
+
+  it("id malformed dipakai mentah (rute tetap terbentuk)", () => {
+    expect(hrefPath(routeForActionUrl("/order/ord%zz"))).toBe("/order/ord%zz")
+    expect(hrefPath(routeForActionUrl("/chat/room%"))).toBe("/chat/room%")
+  })
+
+  it("id valid tetap di-decode normal", () => {
+    expect(hrefPath(routeForActionUrl("/order/ord%20a"))).toBe("/order/ord a")
+  })
+
+  it("routeForPushData dengan actionUrl malformed tidak throw", () => {
+    expect(() => routeForPushData({ actionUrl: "/dispute/dsp%zz" })).not.toThrow()
+  })
+})
+
 describe("routeForNotificationReference — non-regresi tipe lain", () => {
   it("order/dispute/wallet tidak berubah", () => {
     expect(hrefPath(routeForNotificationReference({ referenceType: "ORDER", referenceId: "o1" }))).toBe(

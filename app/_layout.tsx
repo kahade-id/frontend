@@ -501,77 +501,88 @@ function AppShellInner() {
   useEffect(() => {
     if (session.restoring || session.error) return
     return subscribeNotificationOpened((data, source, actionIdentifier) => {
-      // Item #24 — action button "Konfirmasi terima" dari push: verifikasi
-      // ulang kelayakan via API (fail-closed) lalu eksekusi; setelah aksi,
-      // buka detail order agar pengguna melihat status terbaru.
-      if (actionIdentifier === CONFIRM_RECEIPT_ACTION) {
-        void (async () => {
-          if (!session.token) {
-            router.push(ROUTES.login)
-            return
-          }
-          const orderId = orderIdFromPushData(data)
-          if (!orderId) {
-            toast.show({
-              title: "Konfirmasi gagal",
-              description: "Notifikasi ini tidak menaut ke pesanan yang valid.",
-              tone: "danger",
-            })
-            return
-          }
-          try {
-            await confirmReceipt(orderId)
-            toast.show({
-              title: "Pesanan dikonfirmasi diterima",
-              description: "Dana escrow diteruskan ke penjual.",
-              tone: "success",
-              duration: 4000,
-            })
-          } catch (err: unknown) {
-            toast.show({
-              title: "Konfirmasi gagal",
-              description: userMessage(err),
-              tone: "danger",
-            })
-          }
-          router.push(ROUTES.orderDetail(orderId))
-          void refreshUnreadCount()
-        })()
-        return
-      }
-      const resolved = routeForPushData(data)
-      // Cold start: hanya navigasi bila payload menunjuk entitas SPESIFIK.
-      // Payload kosong/tak dikenal = tetap di Beranda (initial route) —
-      // fallback ke Notifikasi di sini membuat setiap cold start mendarat
-      // di tab yang salah. Tap saat app hidup tetap jatuh ke Notifikasi
-      // karena niat penggunanya jelas (mereka mengetuk notifikasinya).
-      if (source === "cold-start" && !resolved) return
-      const target = resolved ?? ROUTES.notifications
-      // NAV-007: tap notifikasi saat logout — simpan tujuan supaya alur
-      // login/welcome melanjutkannya (takePendingNext), bukan hilang.
-      // Href objek harus dikonkretkan dulu: menyimpan template mentah
-      // ("/order/[id]") membuat redirect login mendarat di 404.
-      if (!session.token) {
-        setPendingNext(hrefToConcretePath(target))
-      }
-      router.push(session.token ? target : ROUTES.login)
-      if (session.token) {
-        // CN-012: tap push = notifikasi dibaca. Backend menyertakan
-        // `notificationId` (notifId publik) di payload push.
-        const d = (data ?? {}) as Record<string, unknown>
-        const notifId =
-          typeof d.notificationId === "string"
-            ? d.notificationId
-            : typeof d.notifId === "string"
-              ? d.notifId
-              : null
-        if (notifId) {
-          api.notifications.markNotificationRead(notifId).catch(() => {
-            // Sunyi: badge di-refresh di bawah; kegagalan sesekali tidak
-            // boleh mengganggu navigasi.
-          })
+      // E1-001: callback listener native — ErrorBoundary TIDAK menangkap
+      // throw di sini (bukan render). Satu payload rusak tidak boleh
+      // membunuh seluruh handler tap: catat lalu fallback ke Notifikasi.
+      try {
+        // Item #24 — action button "Konfirmasi terima" dari push: verifikasi
+        // ulang kelayakan via API (fail-closed) lalu eksekusi; setelah aksi,
+        // buka detail order agar pengguna melihat status terbaru.
+        if (actionIdentifier === CONFIRM_RECEIPT_ACTION) {
+          void (async () => {
+            if (!session.token) {
+              router.push(ROUTES.login)
+              return
+            }
+            const orderId = orderIdFromPushData(data)
+            if (!orderId) {
+              toast.show({
+                title: "Konfirmasi gagal",
+                description: "Notifikasi ini tidak menaut ke pesanan yang valid.",
+                tone: "danger",
+              })
+              return
+            }
+            try {
+              await confirmReceipt(orderId)
+              toast.show({
+                title: "Pesanan dikonfirmasi diterima",
+                description: "Dana escrow diteruskan ke penjual.",
+                tone: "success",
+                duration: 4000,
+              })
+              // E1-004: navigasi pasca-aksi ikut dijaga di dalam try — bila
+              // router belum siap (tap push saat cold start), IIFE tidak
+              // reject tanpa handler.
+              router.push(ROUTES.orderDetail(orderId))
+              void refreshUnreadCount()
+            } catch (err: unknown) {
+              toast.show({
+                title: "Konfirmasi gagal",
+                description: userMessage(err),
+                tone: "danger",
+              })
+            }
+          })()
+          return
         }
-        void refreshUnreadCount()
+        const resolved = routeForPushData(data)
+        // Cold start: hanya navigasi bila payload menunjuk entitas SPESIFIK.
+        // Payload kosong/tak dikenal = tetap di Beranda (initial route) —
+        // fallback ke Notifikasi di sini membuat setiap cold start mendarat
+        // di tab yang salah. Tap saat app hidup tetap jatuh ke Notifikasi
+        // karena niat penggunanya jelas (mereka mengetuk notifikasinya).
+        if (source === "cold-start" && !resolved) return
+        const target = resolved ?? ROUTES.notifications
+        // NAV-007: tap notifikasi saat logout — simpan tujuan supaya alur
+        // login/welcome melanjutkannya (takePendingNext), bukan hilang.
+        // Href objek harus dikonkretkan dulu: menyimpan template mentah
+        // ("/order/[id]") membuat redirect login mendarat di 404.
+        if (!session.token) {
+          setPendingNext(hrefToConcretePath(target))
+        }
+        router.push(session.token ? target : ROUTES.login)
+        if (session.token) {
+          // CN-012: tap push = notifikasi dibaca. Backend menyertakan
+          // `notificationId` (notifId publik) di payload push.
+          const d = (data ?? {}) as Record<string, unknown>
+          const notifId =
+            typeof d.notificationId === "string"
+              ? d.notificationId
+              : typeof d.notifId === "string"
+                ? d.notifId
+                : null
+          if (notifId) {
+            api.notifications.markNotificationRead(notifId).catch(() => {
+              // Sunyi: badge di-refresh di bawah; kegagalan sesekali tidak
+              // boleh mengganggu navigasi.
+            })
+          }
+          void refreshUnreadCount()
+        }
+      } catch (err) {
+        logWarn("notif:opened", err)
+        router.push(ROUTES.notifications)
       }
     })
   }, [router, session.restoring, session.error, session.token])
