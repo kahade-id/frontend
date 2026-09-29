@@ -55,6 +55,11 @@ export function ChatPollsSheet({ visible, roomId, myUserId, onRequestClose }: Ch
   const [polls, setPolls] = useState<ChatPoll[] | null>(null)
   const [loading, setLoading] = useState(false)
   const [creating, setCreating] = useState(false)
+  /**
+   * FE-120: kunci request buat polling — ketuk ganda cepat tidak membuat dua
+   * polling identik (bukan `creating`, yang menandai mode form, bukan request).
+   */
+  const [submittingPoll, setSubmittingPoll] = useState(false)
   const [votingId, setVotingId] = useState<string | null>(null)
   const [closingId, setClosingId] = useState<string | null>(null)
 
@@ -140,8 +145,9 @@ export function ChatPollsSheet({ visible, roomId, myUserId, onRequestClose }: Ch
     validOptions.every((o) => o.length <= 120)
 
   const handleCreate = async () => {
-    if (!roomId || !canCreate) return
+    if (!roomId || !canCreate || submittingPoll) return
     const preset = DEADLINE_PRESETS.find((p) => p.key === deadlineKey)
+    setSubmittingPoll(true)
     try {
       const created = await createPoll(roomId, {
         question: question.trim(),
@@ -165,6 +171,8 @@ export function ChatPollsSheet({ visible, roomId, myUserId, onRequestClose }: Ch
         description: isApiError(err) ? userMessage(err) : undefined,
         tone: "danger",
       })
+    } finally {
+      setSubmittingPoll(false)
     }
   }
 
@@ -266,7 +274,7 @@ export function ChatPollsSheet({ visible, roomId, myUserId, onRequestClose }: Ch
               </Button>
             </View>
             <View className="flex-1">
-              <Button onPress={() => void handleCreate()} disabled={!canCreate}>
+              <Button onPress={() => void handleCreate()} disabled={!canCreate || submittingPoll} loading={submittingPoll}>
                 Buat polling
               </Button>
             </View>

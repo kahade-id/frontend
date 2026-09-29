@@ -28,6 +28,7 @@ import {
   formatNumber,
   formatPhoneId,
   formatRupiah,
+  formatRupiahFromSen,
   formatTime,
   formatTimeAgo,
   WIB_TIME_ZONE,
@@ -470,5 +471,26 @@ describe("deviceTimeZoneShort (item 38)", () => {
     } finally {
       ;(Intl as { DateTimeFormat: typeof Intl.DateTimeFormat }).DateTimeFormat = orig
     }
+  })
+})
+
+describe("formatRupiahFromSen (FE-055: helper kanonis sen→Rupiah)", () => {
+  it("konversi dasar: sen / 100 dengan format §13", () => {
+    expect(formatRupiahFromSen(150_000_00)).toBe("Rp150.000")
+    expect(formatRupiahFromSen("250000")).toBe("Rp2.500")
+    expect(formatRupiahFromSen(0)).toBe("Rp0")
+  })
+
+  it("nilai rusak → '—' (bukan pembulatan diam-diam)", () => {
+    expect(formatRupiahFromSen(null)).toBe("—")
+    expect(formatRupiahFromSen(undefined)).toBe("—")
+    expect(formatRupiahFromSen("bukan-angka")).toBe("—")
+    expect(formatRupiahFromSen(Number.NaN)).toBe("—")
+    // 1050 sen = Rp10,5 — pecahan Rupiah tidak valid → "—"
+    expect(formatRupiahFromSen(1050)).toBe("—")
+  })
+
+  it("negatif memakai aturan tanda formatRupiah", () => {
+    expect(formatRupiahFromSen(-50_000)).toBe("-Rp500")
   })
 })

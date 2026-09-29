@@ -26,6 +26,7 @@ import {
 import { useHasSession } from "@/lib/guest-gate"
 import { translate } from "@/lib/i18n/translate"
 import { formatDateLong, formatRupiah } from "@/lib/format"
+import { formatRupiahTypingText, parseRupiahTypingText } from "@/lib/rupiah-input"
 import { ROUTES } from "@/lib/routes"
 import { useApiQuery } from "@/lib/use-api-query"
 import { useToast } from "@/components/ui/toast"
@@ -293,18 +294,28 @@ export default function PatunganScreen() {
           </Field>
           <Input
             label={translate("Target dana (Rp)")}
-            value={target}
-            onChangeText={(t) => { setTarget(t); setFormError(undefined) }}
+            // FE-052: pemisah ribuan saat mengetik; state digit mentah —
+            // nilai ke backend tidak berubah.
+            value={formatRupiahTypingText(target)}
+            onChangeText={(t) => {
+              const parsed = parseRupiahTypingText(t)
+              if (parsed === null) return
+              setTarget(parsed)
+              setFormError(undefined)
+            }}
             keyboardType="number-pad"
-            maxLength={15}
           />
           {mode === "BAGI_RATA" ? (
             <Input
               label={translate("Nominal per orang (Rp)")}
-              value={perPerson}
-              onChangeText={(t) => { setPerPerson(t); setFormError(undefined) }}
+              value={formatRupiahTypingText(perPerson)}
+              onChangeText={(t) => {
+                const parsed = parseRupiahTypingText(t)
+                if (parsed === null) return
+                setPerPerson(parsed)
+                setFormError(undefined)
+              }}
               keyboardType="number-pad"
-              maxLength={15}
             />
           ) : null}
           <Field label={translate("Deadline")}>

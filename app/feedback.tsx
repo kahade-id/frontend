@@ -45,6 +45,10 @@ import { translate } from "@/lib/i18n/translate"
 const MESSAGE_MIN = 10
 const MESSAGE_MAX = 1000
 
+/** FE-118: pola validasi format ringan untuk field kontak. */
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const USERNAME_RE = /^@[\w.]{1,30}$/
+
 export default function FeedbackScreen() {
   const insets = useSafeAreaInsets()
   const toast = useToast()
@@ -80,9 +84,21 @@ export default function FeedbackScreen() {
 
   const trimmed = message.trim()
   const valid = trimmed.length >= MESSAGE_MIN
+  /**
+   * FE-118: validasi format ringan untuk "Kontak (opsional)" — satu field
+   * menerima email ATAU @username, jadi format salah harus ditolak inline,
+   * bukan diam-diam dikirim ke tim support yang tak bisa menindaklanjuti.
+   */
+  const contactTrimmed = contact.trim()
+  const contactError = !contactTrimmed
+    ? undefined
+    : EMAIL_RE.test(contactTrimmed) || USERNAME_RE.test(contactTrimmed)
+      ? undefined
+      : "Format tidak valid — isi email (cth. nama@contoh.com) atau username diawali @."
+  const contactValid = !contactError
 
   const handleSubmit = useCallback(async () => {
-    if (!valid || submitting) return
+    if (!valid || !contactValid || submitting) return
     setSubmitting(true)
     try {
       const result = await submitFeedback({
@@ -120,7 +136,7 @@ export default function FeedbackScreen() {
     } finally {
       setSubmitting(false)
     }
-  }, [category, contact, contactConsent, submitting, toast, trimmed, valid])
+  }, [category, contact, contactConsent, contactValid, submitting, toast, trimmed, valid])
 
   return (
     <Screen
@@ -134,7 +150,7 @@ export default function FeedbackScreen() {
           className="bg-background"
           style={{ paddingBottom: Math.max(tokens.space[4], insets.bottom) }}
         >
-          <Button onPress={() => void handleSubmit()} loading={submitting} disabled={!valid}>
+          <Button onPress={() => void handleSubmit()} loading={submitting} disabled={!valid || !contactValid}>
             Kirim masukan
           </Button>
         </View>
@@ -207,6 +223,7 @@ export default function FeedbackScreen() {
             <Field
               label="Kontak (opsional)"
               helperText="Email atau username bila Anda ingin kami menindaklanjuti."
+              errorText={contactError}
             >
               <Input
                 value={contact}
@@ -220,6 +237,8 @@ export default function FeedbackScreen() {
             <Checkbox
               checked={contactConsent}
               onChange={setContactConsent}
+              // FE-118: persetujuan kontak tak bermakna bila kontak kosong/tidak valid.
+              disabled={!contactTrimmed || !!contactError}
               label="Boleh dihubungi terkait masukan ini"
               description="Tim Kahade boleh menghubungi Anda untuk menindaklanjuti masukan ini. Kontak tamu dihapus otomatis setelah 90 hari."
             />

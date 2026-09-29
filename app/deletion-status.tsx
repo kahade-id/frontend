@@ -216,8 +216,9 @@ export default function DeletionStatusScreen() {
               disabled={busy}
               autoFocus
             />
+            {/* FE-122: label eksplisit — layar sensitif, aksi harus jelas. */}
             <Button onPress={() => void handleLookup()} loading={busy} disabled={!identifier.trim()}>
-              Lanjut
+              Cek status penghapusan
             </Button>
             <Button variant="ghost" onPress={() => router.replace(ROUTES.login)}>
               Kembali ke Masuk
