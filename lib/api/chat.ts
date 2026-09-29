@@ -315,6 +315,22 @@ export function listChatRooms(
     })
 }
 
+/**
+ * D1-003 (perf 2026-09-29): GET /v1/chat/rooms/:roomId — SATU room ringan
+ * untuk header layar percakapan. Pengganti `listChatRooms({page:1})` yang
+ * sebelumnya di-fetch ulang hanya untuk menemukan 1 baris header.
+ * Bentuk respons SAMA dengan satu entri daftar (tipe ChatRoom).
+ */
+export function getChatRoom(roomId: string, signal?: AbortSignal) {
+  return http
+    .get<unknown>(`/v1/chat/rooms/${seg(roomId)}`, {
+      auth: "required",
+      retry: 1,
+      signal,
+    })
+    .then((raw) => normalizeChatRoom(raw as ChatRoom & Record<string, unknown>))
+}
+
 /** NS-006 (perf-fix, 2026-09-29): hasil GET /v1/chat/unread-count. */
 export type ChatUnreadCountResult = { unreadCount: number }
 

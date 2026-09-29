@@ -668,14 +668,14 @@ export default function ChatRoomScreen() {
     setError(null)
     setRoomGone(false)
     try {
-      const [page, rooms, failed] = await Promise.all([
+      // D1-003: header room diambil via GET /v1/chat/rooms/:roomId (ringan) —
+      // tidak lagi fetch ulang seluruh daftar room (halaman 1, 30 baris join
+      // berat) hanya untuk menemukan 1 baris.
+      const [page, roomRow, failed] = await Promise.all([
         api.chat.getChatMessages(roomId, { limit: CHAT_PAGE_SIZE }, controller.signal),
-        api.chat.listChatRooms({ page: 1, limit: CHAT_PAGE_SIZE }, controller.signal).catch((err) => {
-          logWarn("chat:rooms-lookup", err)
-          return {
-            data: [] as ChatRoom[],
-            meta: { page: 1, limit: CHAT_PAGE_SIZE, totalPages: 1 },
-          }
+        api.chat.getChatRoom(roomId, controller.signal).catch((err) => {
+          logWarn("chat:room-lookup", err)
+          return null
         }),
         // B07: antrean pesan gagal yang persisten — selamat dari refresh.
         loadChatFailedMessages(roomId),
@@ -710,7 +710,6 @@ export default function ChatRoomScreen() {
         page.nextCursor ?? (page.items.length >= CHAT_PAGE_SIZE ? (items[0]?.id ?? null) : null),
       )
       setOlderStatus(page.items.length < CHAT_PAGE_SIZE ? "end" : "idle")
-      const roomRow = rooms.data.find((r) => r.id === roomId) ?? null
       setRoom(roomRow)
       // B02: abadikan unreadCount SEBELUM `markChatRoomRead` di bawah —
       // setelah itu angka server sudah 0 dan jangkar tak bisa dihitung.
