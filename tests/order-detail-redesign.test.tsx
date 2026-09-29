@@ -53,11 +53,13 @@ describe("<OrderStatusHero>", () => {
     onCopyId: vi.fn(),
   }
 
-  it("menampilkan label ID Transaksi, Tanggal, dan Waktu secara terpisah", () => {
+  it("menampilkan label ID Transaksi dan tanggal-waktu gabungan", () => {
     renderWithTheme(<OrderStatusHero {...props} />)
     expect(screen.getByText("ID Transaksi")).toBeTruthy()
-    expect(screen.getByText("Tanggal")).toBeTruthy()
-    expect(screen.getByText("Waktu")).toBeTruthy()
+    // FE-002: tanggal + waktu digabung satu baris ("27 September 2026 · 03:00 WIB"
+    // di UTC / "10:00 WIB" di WIB), bukan dua label terpisah — lebih ringkas.
+    expect(document.body.textContent).toMatch(/27 September 2026/)
+    expect(document.body.textContent).toMatch(/[0-9]{2}:[0-9]{2} WIB/)
     expect(screen.getByText("ORD-20260927-0001")).toBeTruthy()
     expect(screen.getByText("Jasa desain logo")).toBeTruthy()
   })
@@ -274,14 +276,16 @@ describe("<OrderDetailActions>", () => {
 })
 
 describe("<OrderEscrowCard>", () => {
-  it("menyebut PT Kawal Hak Dengan Aman dan menyesuaikan copy per status", () => {
+  it("menyesuaikan copy per status (FE-090: satu kalimat)", () => {
     const { rerender } = renderWithTheme(
       <OrderEscrowCard status="WAITING_PAYMENT" amount={250000} myRole="BUYER" />,
     )
-    expect(document.body.textContent).toMatch(/PT Kawal Hak Dengan Aman/)
     // Item 33: pra-bayar — dana BELUM ditahan, copy jujur mengatakannya.
-    expect(screen.getByText(/dana akan ditahan di escrow/i)).toBeTruthy()
-    expect(document.body.textContent).toMatch(/Dana akan ditahan setelah Anda membayar/)
+    expect(
+      screen.getByText(
+        /Dana akan ditahan di escrow setelah Anda membayar, sampai Anda mengonfirmasi penerimaan\./,
+      ),
+    ).toBeTruthy()
 
     rerender(
       <ThemeProvider>
@@ -303,7 +307,9 @@ describe("<OrderEscrowCard>", () => {
     renderWithTheme(
       <OrderEscrowCard status="WAITING_CONFIRMATION" amount={250000} myRole="SELLER" />,
     )
-    expect(document.body.textContent).toMatch(/Dana akan ditahan setelah pembeli membayar/)
+    expect(document.body.textContent).toMatch(
+      /Dana akan ditahan di escrow setelah pembeli membayar/,
+    )
   })
 })
 
@@ -374,9 +380,9 @@ describe("<OrderHelpCard> & <OrderRatingReminder>", () => {  it("tombol Hubungi 
   it("rating reminder tampil dengan jendela 7 hari bila visible", () => {
     const onSnooze = vi.fn()
     renderWithTheme(<OrderRatingReminder visible onRate={noop} onSnooze={onSnooze} />)
-    expect(screen.getByText(/7 hari/i)).toBeTruthy()
-    // Item 39: copy formal "Anda" (bukan "ulasanmu").
-    expect(document.body.textContent).toMatch(/ulasan Anda/i)
+    // FE-029: satu caption jendela ulasan, bukan dua kalimat persuasif.
+    expect(screen.getByText(/Maksimal 7 hari setelah transaksi selesai\./)).toBeTruthy()
+    expect(screen.getByRole("button", { name: "Beri ulasan" })).toBeTruthy()
     fireEvent.click(screen.getByRole("button", { name: /ingatkan nanti/i }))
     expect(onSnooze).toHaveBeenCalledTimes(1)
   })
