@@ -18,6 +18,7 @@
  *     karena skala bintang lebih cepat dipindai daripada teks.
  */
 import type { ReactNode } from "react"
+import { useMemo } from "react"
 import { View, type ViewProps } from "react-native"
 
 import { Button } from "@/components/ui/button"
@@ -80,7 +81,9 @@ export function FilterSheetContent({
 }: FilterSheetContentProps) {
   const t = { ...DEFAULT_LABELS, ...labels }
   const set = (key: string, v: unknown) => onChange({ ...value, [key]: v })
-  const active = countActiveFilters(value, defaultValue)
+  // TIM 8 (perf): hitungan badge di-memo — sebelumnya JSON.stringify per key
+  // filter dihitung ulang tiap render.
+  const active = useMemo(() => countActiveFilters(value, defaultValue), [value, defaultValue])
 
   return (
     <View className={cn("w-full gap-8", className)} {...rest}>

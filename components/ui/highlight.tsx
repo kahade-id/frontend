@@ -33,10 +33,32 @@ function escapeRegExp(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
 }
 
+/**
+ * Tim8 P2: cache RegExp per query string — <Highlight> dipakai per baris
+ * hasil pencarian; tanpa cache tiap baris mengkompilasi ulang regex yang
+ * sama di tiap keystroke. Aman dibagi: `String.split` mengkloning regex
+ * (tidak memakai/mengubah `lastIndex` instance cache).
+ */
+const HIGHLIGHT_REGEX_CACHE = new Map<string, RegExp>()
+const HIGHLIGHT_REGEX_CACHE_MAX = 32
+function regexForQuery(query: string): RegExp {
+  const q = query.trim()
+  let re = HIGHLIGHT_REGEX_CACHE.get(q)
+  if (!re) {
+    re = new RegExp(`(${escapeRegExp(q)})`, "ig")
+    if (HIGHLIGHT_REGEX_CACHE.size >= HIGHLIGHT_REGEX_CACHE_MAX) {
+      const oldest = HIGHLIGHT_REGEX_CACHE.keys().next().value
+      if (oldest !== undefined) HIGHLIGHT_REGEX_CACHE.delete(oldest)
+    }
+    HIGHLIGHT_REGEX_CACHE.set(q, re)
+  }
+  return re
+}
+
 function splitByQuery(text: string, query: string): Segment[] {
   const q = query.trim()
   if (!q) return [{ value: text, match: false }]
-  const re = new RegExp(`(${escapeRegExp(q)})`, "ig")
+  const re = regexForQuery(query)
   return text
     .split(re)
     .filter((part) => part.length > 0)

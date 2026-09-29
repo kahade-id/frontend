@@ -1070,6 +1070,7 @@ export default function SearchScreen() {
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         initialNumToRender={8}
+        maxToRenderPerBatch={8}
         windowSize={7}
       />
     </Screen>

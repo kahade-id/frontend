@@ -454,17 +454,20 @@ export function sortShowcaseComments<T extends { id: string; createdAt: string }
   comments: readonly T[],
   order: ShowcaseCommentOrder,
 ): T[] {
-  const sorted = [...comments]
-  sorted.sort((a, b) => {
-    const ta = Date.parse(a.createdAt)
-    const tb = Date.parse(b.createdAt)
-    const diff = (Number.isFinite(ta) ? ta : 0) - (Number.isFinite(tb) ? tb : 0)
+  // TIM-8 (audit performa 2026-09-30): decorate-sort-undecorate — `Date.parse`
+  // sekali per item, bukan per perbandingan (sebelumnya O(n log n) parse).
+  const decorated = comments.map((item) => {
+    const parsed = Date.parse(item.createdAt)
+    return { item, time: Number.isFinite(parsed) ? parsed : 0 }
+  })
+  decorated.sort((a, b) => {
+    const diff = a.time - b.time
     if (diff !== 0) return order === "newest" ? -diff : diff
-    if (a.id === b.id) return 0
-    const idDiff = a.id < b.id ? -1 : 1
+    if (a.item.id === b.item.id) return 0
+    const idDiff = a.item.id < b.item.id ? -1 : 1
     return order === "newest" ? -idDiff : idDiff
   })
-  return sorted
+  return decorated.map((d) => d.item)
 }
 
 /**

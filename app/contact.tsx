@@ -17,7 +17,7 @@
  * - F14: peringatan tiket duplikat — tiket aktif terkait + pilihan
  *   melanjutkan thread tersebut.
  */
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { ScrollView, TextInput, View } from "react-native"
 import { router, useLocalSearchParams } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
@@ -401,11 +401,19 @@ export default function ContactScreen() {
     (signal) => api.support.listSupportTickets(signal),
     Boolean(subject.trim() || orderId),
   )
-  const duplicateTickets = (ticketsQuery.data ?? []).filter((t) => {
-    if (!ACTIVE_TICKET_STATUSES.has(t.status)) return false
-    if (orderId) return t.orderId === orderId
-    return t.category === category
-  }).slice(0, 3)
+  // TIM 8 (perf): filter duplikat di-memo — sebelumnya di body render
+  // (jalan tiap keystroke form).
+  const duplicateTickets = useMemo(
+    () =>
+      (ticketsQuery.data ?? [])
+        .filter((t) => {
+          if (!ACTIVE_TICKET_STATUSES.has(t.status)) return false
+          if (orderId) return t.orderId === orderId
+          return t.category === category
+        })
+        .slice(0, 3),
+    [ticketsQuery.data, orderId, category],
+  )
   const showDupWarning =
     !dismissDupWarning && duplicateTickets.length > 0 && (Boolean(subject.trim()) || Boolean(orderId))
 

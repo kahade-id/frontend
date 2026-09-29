@@ -14,7 +14,13 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { ScrollView, View } from "react-native"
+import { View } from "react-native"
+import Animated, {
+  runOnJS,
+  useAnimatedScrollHandler,
+  useAnimatedStyle,
+  useSharedValue,
+} from "react-native-reanimated"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useLocalSearchParams, router, type Href } from "expo-router"
 import { Article, ArrowUp, CaretDown, Check, ListBullets, ShareNetwork, X } from "phosphor-react-native"
@@ -22,7 +28,7 @@ import { api } from "@/lib/api"
 import { ROUTES } from "@/lib/routes"
 import { helpArticleUrl } from "@/lib/deeplinks"
 import { shareContent } from "@/lib/share"
-import { tokens } from "@/lib/tokens"
+import { tokens, modes } from "@/lib/tokens"
 import { useApiQuery } from "@/lib/use-api-query"
 import { logWarn } from "@/lib/telemetry"
 import { getHelpFeedback, saveHelpFeedback, type HelpFeedbackChoice } from "@/lib/help-feedback"
@@ -41,6 +47,7 @@ import { DetailLoading } from "@/components/ui/paginated-list"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Screen } from "@/components/ui/screen"
 import { Text } from "@/components/ui/text"
+import { useTheme } from "@/components/theme-provider"
 
 /**
  * F17: umpan balik sekali per VERSI artikel. Pilihan disimpan lokal per
@@ -240,7 +247,7 @@ export default function HelpScreen() {
   // F03: daftar isi dari heading yang ada.
   const toc = useMemo(() => parseArticleHeadings(content), [content])
   const [tocOpen, setTocOpen] = useState(true)
-  const scrollRef = useRef<ScrollView | null>(null)
+  const scrollRef = useRef<React.ComponentRef<typeof Animated.ScrollView> | null>(null)
   /** F03: posisi Y tiap heading (relatif ke konten scroll). */
   const headingY = useRef(new Map<number, number>())
   /** F03: offset Y HelpArticleContent di dalam konten scroll. */
@@ -262,12 +269,32 @@ export default function HelpScreen() {
   }, [anchor, toc.length, jumpToHeading, selected?.id])
 
   // F02: progres baca (0–1) + tombol kembali ke atas.
-  const [progress, setProgress] = useState(0)
-  const handleScroll = useCallback((e: { nativeEvent: { contentOffset: { y: number }; contentSize: { height: number }; layoutMeasurement: { height: number } } }) => {
-    const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent
-    const max = contentSize.height - layoutMeasurement.height
-    setProgress(max > 0 ? Math.min(1, Math.max(0, contentOffset.y / max)) : 0)
-  }, [])
+  // TIM 8 (perf): progres di UI thread via reanimated shared value — pola
+  // components/legal-document-screen.tsx. Sebelumnya `setProgress` tiap
+  // scroll event (throttle 16) me-render ulang layar tiap frame.
+  const { mode } = useTheme()
+  const progress = useSharedValue(0)
+  // F02: tombol "kembali ke atas" muncul setelah pengguna menggulir cukup
+  // jauh. Boolean ini hanya berubah saat MELEWATI ambang 0.15 — bukan tiap
+  // frame — jadi re-render tetap jarang walau progres bar di UI thread.
+  const [showTop, setShowTop] = useState(false)
+  const showTopRef = useRef(false)
+  const handleScroll = useAnimatedScrollHandler((e) => {
+    const max = e.contentSize.height - e.layoutMeasurement.height
+    const p = max > 0 ? Math.min(1, Math.max(0, e.contentOffset.y / max)) : 0
+    progress.value = p
+    const over = p > 0.15
+    if (over !== showTopRef.current) {
+      showTopRef.current = over
+      runOnJS(setShowTop)(over)
+    }
+  })
+  // `bg-primary` tidak ter-compile jadi background di Reanimated.View pada
+  // web (lihat AGENTS.md) — pakai backgroundColor inline mode-aware.
+  const progressBarStyle = useAnimatedStyle(() => ({
+    width: `${progress.value * 100}%`,
+    backgroundColor: modes[mode].primary,
+  }))
   const scrollToTop = useCallback(() => {
     scrollRef.current?.scrollTo({ y: 0, animated: true })
   }, [])
@@ -306,12 +333,12 @@ export default function HelpScreen() {
       />
       {/* F02: progress bar tipis di bawah header (hanya mode artikel). */}
       {article ? (
-        <View className="h-[3px] w-full bg-border" accessibilityRole="progressbar" accessibilityLabel={`Progres baca ${Math.round(progress * 100)} persen`}>
-          <View className="h-[3px] bg-primary" style={{ width: `${Math.round(progress * 100)}%` }} />
+        <View className="h-[3px] w-full bg-border" accessibilityRole="progressbar" accessibilityLabel="Progres baca">
+          <Animated.View className="h-[3px]" style={progressBarStyle} />
         </View>
       ) : null}
       <View className="flex-1">
-        <ScrollView
+        <Animated.ScrollView
           ref={scrollRef}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
@@ -426,9 +453,9 @@ export default function HelpScreen() {
               </>
             )}
           </Crossfade>
-        </ScrollView>
+        </Animated.ScrollView>
         {/* F02: kembali ke atas — hanya menggulir, tidak menutup isi. */}
-        {article && progress > 0.15 ? (
+        {article && showTop ? (
           <PressableScale
             onPress={scrollToTop}
             accessibilityRole="button"

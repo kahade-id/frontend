@@ -21,12 +21,12 @@ import { safeHttpsLink } from "@/lib/external-url"
 import { translate } from "@/lib/i18n/translate"
 import {
   parseShowcaseHtmlBlocks,
-  sanitizeShowcaseHtml,
   type ShowcaseHtmlBlock,
   type ShowcaseHtmlSegment,
 } from "@/lib/showcase-html"
 import { logWarn } from "@/lib/telemetry"
 import { tokens } from "@/lib/tokens"
+import { useDebouncedValue } from "@/lib/use-debounced-value"
 
 function SegmentText({ segment }: { segment: ShowcaseHtmlSegment }) {
   const inner = (
@@ -153,8 +153,11 @@ const INSERT_SNIPPET: Record<InsertKind, string> = {
 
 /**
  * Editor deskripsi HTML untuk anggota Kahade+. Nilai yang disimpan adalah
- * HTML mentah ketikan user; sanitasi (`sanitizeShowcaseHtml`) dilakukan saat
- * pratinjau dan WAJIB diulang sebelum dikirim ke backend (lihat call site).
+ * HTML mentah ketikan user; sanitasi dilakukan SATU KALI di dalam
+ * <ShowcaseHtmlView> (via parseShowcaseHtmlBlocks) — editor tidak perlu
+ * menyanitasi sendiri (sebelumnya 2× sanitasi per ketikan). Pratinjau
+ * di-debounce 350ms supaya sanitasi+parse berat tidak jalan tiap keystroke.
+ * Sanit before-send ke backend tetap WAJIB di call site (lihat call site).
  */
 export function ShowcaseHtmlDescriptionEditor({
   label,
@@ -165,7 +168,10 @@ export function ShowcaseHtmlDescriptionEditor({
   disabled,
 }: ShowcaseHtmlDescriptionEditorProps) {
   const [previewOpen, setPreviewOpen] = useState(true)
-  const sanitized = useMemo(() => sanitizeShowcaseHtml(value), [value])
+  // TIM-8 (audit performa 2026-09-30): debounce pratinjau — sanitasi+parse
+  // HTML (s.d. 50k char) hanya jalan 350ms setelah user berhenti mengetik,
+  // bukan tiap keystroke.
+  const debouncedValue = useDebouncedValue(value, 350)
 
   const insert = (kind: InsertKind) => {
     if (disabled) return
@@ -222,7 +228,7 @@ export function ShowcaseHtmlDescriptionEditor({
           <Text variant="caption" weight={600} tone="tertiary" className="mb-2">
             {translate("Pratinjau")}
           </Text>
-          <ShowcaseHtmlView html={sanitized} />
+          <ShowcaseHtmlView html={debouncedValue} />
         </View>
       ) : null}
     </View>

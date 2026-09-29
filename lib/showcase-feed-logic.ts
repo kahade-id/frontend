@@ -117,8 +117,18 @@ export function mergeById(
 }
 
 /**
+ * TIM-8 (audit performa 2026-09-30): cap jumlah item feed per tab. Kartu feed
+ * adalah item terberat (galeri + video + animasi) — tanpa cap, infinite
+ * scroll menumpuk ratusan objek + shadow view di sesi panjang. Saat
+ * terlampaui, halaman TERLAMA (yang dimuat paling awal = depan array)
+ * dibuang; paginasi ke bawah (hasMore) tidak terpengaruh.
+ */
+export const FEED_MAX_ITEMS = 300
+
+/**
  * C03 (batch 139): rekonsiliasi daftar setelah fetch.
- * - "more": halaman baru DIGABUNG ke data lama (posisi lama dipertahankan).
+ * - "more": halaman baru DIGABUNG ke data lama (posisi lama dipertahankan),
+ *   lalu di-cap ke FEED_MAX_ITEMS (buang yang terlama).
  * - "initial"/"refresh": daftar DIGANTI data baru — komponen tidak
  *   mengosongkan `items` sebelum respons sukses, sehingga data lama tetap
  *   tampil selama indikator refresh kecil berjalan; gagal = data lama utuh.
@@ -128,6 +138,9 @@ export function reconcileFeedItems(
   previous: ShowcaseSocialItem[],
   incoming: ShowcaseSocialItem[],
 ): ShowcaseSocialItem[] {
-  if (mode === "more") return mergeById(previous, incoming)
+  if (mode === "more") {
+    const merged = mergeById(previous, incoming)
+    return merged.length > FEED_MAX_ITEMS ? merged.slice(merged.length - FEED_MAX_ITEMS) : merged
+  }
   return [...incoming]
 }

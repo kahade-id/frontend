@@ -24,6 +24,26 @@ export type NotificationDayGroup = {
 const DAY_MS = 86_400_000
 
 /**
+ * TIM 8 (perf, P0): instance formatter di-cache lazy di module scope —
+ * `wibCalendarDay` dipanggil 3× per `notificationDayGroup`, yang tadinya
+ * membangun `Intl.DateTimeFormat` baru tiap panggilan (≈ 9× per baris
+ * notifikasi per render). `formatToParts` aman dipakai ulang.
+ */
+let wibDayFormatter: Intl.DateTimeFormat | null = null
+
+function getWibDayFormatter(): Intl.DateTimeFormat {
+  if (!wibDayFormatter) {
+    wibDayFormatter = new Intl.DateTimeFormat("en-US", {
+      timeZone: WIB_TIME_ZONE,
+      year: "numeric",
+      month: "numeric",
+      day: "numeric",
+    })
+  }
+  return wibDayFormatter
+}
+
+/**
  * Hari kalender WIB dari sebuah Date — kunci grup + Date "tengah malam lokal".
  * Date tengah-malam-lokal HANYA untuk pelabelan (formatDateLong/formatDate
  * membaca bagian kalender lokalnya, yang identik dengan bagian WIB yang
@@ -31,12 +51,7 @@ const DAY_MS = 86_400_000
  */
 function wibCalendarDay(d: Date): { key: string; date: Date } | null {
   try {
-    const parts = new Intl.DateTimeFormat("en-US", {
-      timeZone: WIB_TIME_ZONE,
-      year: "numeric",
-      month: "numeric",
-      day: "numeric",
-    }).formatToParts(d)
+    const parts = getWibDayFormatter().formatToParts(d)
     const value = (type: string) => Number(parts.find((p) => p.type === type)?.value ?? NaN)
     const year = value("year")
     const month = value("month")

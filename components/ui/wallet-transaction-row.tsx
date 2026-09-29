@@ -43,6 +43,9 @@ export const WalletTransactionRow = memo(function WalletTransactionRow({
    */
   highlight?: string
 }) {
+  // TIM 8 (perf, P0): `formatDateTimeWIB` dihitung SEKALI per baris —
+  // versi lama memanggilnya 2× (accessibilityLabel + prop timestamp).
+  const timestamp = formatDateTimeWIB(tx.createdAt)
   return (
     <WalletTransactionListItem
       padded={false}
@@ -60,7 +63,7 @@ export const WalletTransactionRow = memo(function WalletTransactionRow({
         walletStatusLabel(tx.status),
         // UI-W001: tanggal selalu WIB — konsisten dengan pengelompokan
         // riwayat dan layar detail, bukan zona perangkat.
-        formatDateTimeWIB(tx.createdAt),
+        timestamp,
         tx.referenceId ?? undefined,
       ])}
       title={mapValue(WALLET_TXN_LABELS, tx.type, tx.type)}
@@ -69,7 +72,7 @@ export const WalletTransactionRow = memo(function WalletTransactionRow({
       kind={mapValue(WALLET_TXN_KIND, tx.type, "other")}
       status={walletTransactionStatus(tx.status)}
       statusLabel={walletStatusLabel(tx.status)}
-      timestamp={formatDateTimeWIB(tx.createdAt)}
+      timestamp={timestamp}
       reference={tx.referenceId ?? undefined}
       statusAccent={vivid}
       highlight={highlight}

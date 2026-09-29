@@ -74,7 +74,12 @@ export async function getDeletedShowcaseItems(): Promise<DeletedShowcaseItem[]> 
   if (valid.length !== items.length) {
     await writeAll(valid)
   }
-  return valid.sort((a, b) => Date.parse(b.deletedAt) - Date.parse(a.deletedAt))
+  // TIM-8 (audit performa 2026-09-30): decorate-sort-undecorate — `Date.parse`
+  // sekali per item, bukan per perbandingan di comparator.
+  return valid
+    .map((it) => ({ it, t: Date.parse(it.deletedAt) }))
+    .sort((a, b) => b.t - a.t)
+    .map((d) => d.it)
 }
 
 /** Sisa hari pemulihan (dibulatkan ke atas). */

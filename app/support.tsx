@@ -8,7 +8,7 @@
  * - 124: pencarian + filter status (filter lokal — API belum punya query filter).
  * - 126: dot unread dari jejak "terakhir dibuka" lokal (lib/support-unread).
  */
-import { ChatCircleText, MagnifyingGlass } from "phosphor-react-native"
+import { ChatCircleText } from "phosphor-react-native"
 import { router } from "expo-router"
 import { useEffect, useMemo, useState } from "react"
 import { View } from "react-native"
@@ -23,7 +23,7 @@ import { useApiQuery } from "@/lib/use-api-query"
 import { Button } from "@/components/ui/button"
 import { Chip } from "@/components/ui/chip"
 import { DataScreen } from "@/components/ui/data-screen"
-import { Input } from "@/components/ui/input"
+import { DebouncedSearchField } from "@/components/ui/debounced-search-field"
 import { SectionHeader } from "@/components/ui/section"
 import { SupportTicketCard } from "@/components/ui/support-ticket-card"
 
@@ -95,11 +95,13 @@ export default function SupportScreen() {
       <SectionHeader title="Semua tiket" />
       {/* Item 124: pencarian + filter status. */}
       <View className="gap-2">
-        <Input
-          value={search}
-          onChangeText={setSearch}
+        {/* Item 124: pencarian + filter status. TIM 8 (perf): state mentah
+            dikurung di <DebouncedSearchField> — filter client-side 3 field
+            hanya jalan atas nilai yang sudah tenang (pola app/faq.tsx). */}
+        <DebouncedSearchField
+          initialQuery={search}
+          onQueryChange={setSearch}
           placeholder="Cari subjek atau nomor tiket"
-          leftIcon={MagnifyingGlass}
           returnKeyType="search"
           accessibilityLabel="Cari tiket"
         />

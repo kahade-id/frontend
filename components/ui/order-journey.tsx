@@ -69,14 +69,16 @@ const STATE_LABEL: Record<JourneyStepState, string> = {
  * dihitung dari zona perangkat, sehingga pengguna WITA/WIT melihat jam lokal
  * dengan label yang salah.
  */
-function formatJourneyTime(iso: string): string {
+function formatJourneyTime(iso: string, zone: string): string {
   // Item 38: cap waktu aktivitas memakai ZONA PERANGKAT — singkatan zona
   // diambil dari Intl perangkat (WIB/WITA/WIT/…), bukan "WIB" yang di-hardcode.
   // Tanpa dukungan Intl → tanpa label (label salah lebih buruk, pola E-05).
+  // TIM 8 (perf, P1): `zone` dihitung SEKALI di induk per render (bukan per
+  // step) — hasilnya identik sepanjang sesi. `deviceTimeZoneShort` sendiri
+  // TIDAK di-cache di lib/format agar tetap bisa diuji dengan Intl mock.
   const date = formatDate(iso, { long: true })
   const time = formatTime(iso)
   if (time === "—") return date
-  const zone = deviceTimeZoneShort()
   return zone ? `${date} · ${time} ${zone}` : `${date} · ${time}`
 }
 
@@ -112,6 +114,11 @@ export type OrderJourneyProps = Omit<ViewProps, "children"> & {
 }
 
 export function OrderJourney({ steps, title, className, ...rest }: OrderJourneyProps) {
+  // TIM 8 (perf, P1): singkatan zona perangkat identik sepanjang sesi —
+  // baca SEKALI per render komponen, teruskan ke tiap step (bukan
+  // `deviceTimeZoneShort()` per step per render → `new Intl.DateTimeFormat`
+  // per step).
+  const zone = deviceTimeZoneShort()
   if (steps.length === 0) return null
   // Iterasi de-card 2026-09-27: rel vertikal menyatu dengan alur halaman —
   // tanpa bungkus <Card>.
@@ -124,7 +131,7 @@ export function OrderJourney({ steps, title, className, ...rest }: OrderJourneyP
         {steps.map((s, i) => {
           const isLast = i === steps.length - 1
           const upcoming = s.state === "upcoming"
-          const label = [s.label, STATE_LABEL[s.state], s.timestamp ? formatJourneyTime(s.timestamp) : null]
+          const label = [s.label, STATE_LABEL[s.state], s.timestamp ? formatJourneyTime(s.timestamp, zone) : null]
             .filter(Boolean)
             .join(", ")
           return (
@@ -153,7 +160,7 @@ export function OrderJourney({ steps, title, className, ...rest }: OrderJourneyP
                 ) : null}
                 {s.timestamp ? (
                   <Text variant="caption" tone="secondary">
-                    {formatJourneyTime(s.timestamp)}
+                    {formatJourneyTime(s.timestamp, zone)}
                   </Text>
                 ) : s.state === "upcoming" && s.hint ? (
                   <Text variant="caption" tone="tertiary">

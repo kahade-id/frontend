@@ -269,6 +269,7 @@ export default function FaqScreen() {
         refreshEnabled={!state.loading}
         keyboardShouldPersistTaps="handled"
         initialNumToRender={8}
+        maxToRenderPerBatch={8}
         windowSize={7}
       />
       <Dialog

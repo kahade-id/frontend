@@ -277,14 +277,22 @@ export default function WalletHistoryScreen() {
     setSearch("")
   }
 
-  /** Ringkasan mutasi yang TAMPIL — bukan total akun (lihat catatan file). */
+  /**
+   * Ringkasan mutasi yang TAMPIL — bukan total akun (lihat catatan file).
+   * TIM 8 (perf): satu pass reduce di-memo per `visibleItems` — sebelumnya
+   * dua kali `.filter().reduce()` penuh dihitung tiap render.
+   */
   // WF-029: Math.abs — tahan terhadap amount negatif dari backend.
-  const loadedIn = visibleItems
-    .filter((tx) => walletTransactionType(tx) === "CREDIT")
-    .reduce((sum, tx) => sum + Math.abs(tx.amount || 0), 0)
-  const loadedOut = visibleItems
-    .filter((tx) => walletTransactionType(tx) === "DEBIT")
-    .reduce((sum, tx) => sum + Math.abs(tx.amount || 0), 0)
+  const { loadedIn, loadedOut } = useMemo(() => {
+    let loadedIn = 0
+    let loadedOut = 0
+    for (const tx of visibleItems) {
+      const type = walletTransactionType(tx)
+      if (type === "CREDIT") loadedIn += Math.abs(tx.amount || 0)
+      else if (type === "DEBIT") loadedOut += Math.abs(tx.amount || 0)
+    }
+    return { loadedIn, loadedOut }
+  }, [visibleItems])
   const inShare = loadedIn + loadedOut > 0 ? loadedIn / (loadedIn + loadedOut) : 0.5
   /**
    * Selisih masuk-keluar adalah angka yang sebenarnya dicari orang di riwayat

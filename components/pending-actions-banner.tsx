@@ -174,15 +174,17 @@ export function PendingActionsBanner() {
     // jamnya maju (padahal pembayaran masih hidup) atau bertahan setelah
     // kedaluwarsa di perangkat yang jamnya mundur.
     const now = serverNow()
-    return actions
-      .filter((a) => !a.expiresAt || a.expiresAt > now)
-      .filter((a) => !dismissed.has(actionKey(a)))
-      .filter(
-        (a) =>
-          walletEnabled ||
-          (a.kind !== "topup-unpaid" && a.kind !== "transfer-uncertain"),
-      )
-      .sort((a, b) => (a.expiresAt ?? Infinity) - (b.expiresAt ?? Infinity))
+    // TIM 8 (perf): satu pass — sebelumnya rantai 3× .filter() (3 alokasi
+    // array + 3 scan) sebelum .sort().
+    const kept: PendingAction[] = []
+    for (const a of actions) {
+      if (a.expiresAt && a.expiresAt <= now) continue
+      if (dismissed.has(actionKey(a))) continue
+      if (!walletEnabled && (a.kind === "topup-unpaid" || a.kind === "transfer-uncertain")) continue
+      kept.push(a)
+    }
+    kept.sort((a, b) => (a.expiresAt ?? Infinity) - (b.expiresAt ?? Infinity))
+    return kept
   }, [actions, dismissed, walletEnabled])
 
   if (!token || visible.length === 0) return null

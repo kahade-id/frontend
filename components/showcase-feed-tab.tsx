@@ -994,7 +994,12 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
     router.setParams({ search: undefined })
   }, [onClearCategory, onClearLocation])
 
-  const emptyState = (() => {
+  /**
+   * TIM-8 (audit performa 2026-09-30): IIFE -> useMemo — elemen empty state
+   * stabil antar render supaya prop `empty` PaginatedList tidak memicu
+   * re-render penuh tiap render induk (mis. tiap keystroke draft komentar).
+   */
+  const emptyState = useMemo(() => {
     if (kind === "following" && followingGuest) {
       return (
         <EmptyState
@@ -1054,7 +1059,7 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
         }
       />
     )
-  })()
+  }, [kind, followingGuest, followingSet, hasMore, activeSearch, filtersActive, resetAllFilters, hasSession])
 
   /**
    * F-05: tab "Mengikuti" memakai filter sisi klien (plafon
@@ -1159,6 +1164,38 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
     </View>
   ) : null
 
+  /**
+   * TIM-8 (audit performa 2026-09-30): header chip -> useMemo + handler
+   * refresh/retry -> useCallback. Prop `header`/`onRefresh`/`onRetry`
+   * PaginatedList stabil antar render induk (stabilisasi prop LR-005/FE-013).
+   */
+  const header = useMemo(
+    () =>
+      searchChip || categoryChip || locationChip || followingPartialNotice || resetAllChip ? (
+        <View>
+          {searchChip}
+          {categoryChip}
+          {locationChip}
+          {sheetFilterChip}
+          {resetAllChip}
+          {followingPartialNotice}
+        </View>
+      ) : undefined,
+    [searchChip, categoryChip, locationChip, followingPartialNotice, resetAllChip, sheetFilterChip],
+  )
+
+  const handleRefresh = useCallback(() => {
+    // A-13: hanya tab "Mengikuti" yang punya cache hubungan follow —
+    // jangan reset state following di tab lain (empty-state ikut kedip).
+    if (kind === "following") {
+      followingIndexRef.current = null
+      setFollowingSet(null)
+    }
+    void fetchPage("refresh")
+  }, [kind, fetchPage])
+
+  const handleRetry = useCallback(() => void fetchPage("refresh"), [fetchPage])
+
   return (
     <View className="flex-1">
       {/* U5-017 (journey): banner ramping tamu web — di atas header. */}
@@ -1198,16 +1235,8 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
         hasMore={hasMore}
         error={error}
         loadMoreError={loadMoreError}
-        onRefresh={() => {
-          // A-13: hanya tab "Mengikuti" yang punya cache hubungan follow —
-          // jangan reset state following di tab lain (empty-state ikut kedip).
-          if (kind === "following") {
-            followingIndexRef.current = null
-            setFollowingSet(null)
-          }
-          void fetchPage("refresh")
-        }}
-        onRetry={() => void fetchPage("refresh")}
+        onRefresh={handleRefresh}
+        onRetry={handleRetry}
         onLoadMore={loadMore}
         onScroll={handleListScroll}
         onScrollWorklet={handleListScrollWorklet}
@@ -1219,11 +1248,7 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
         // hampir tepat di tengah celah (lihat <ShowcaseFeedItem divider>).
         gap={tokens.space[5]}
         bottomPadding={bottomPadding}
-        header={
-          searchChip || categoryChip || locationChip || followingPartialNotice || resetAllChip ? (
-            <View>{searchChip}{categoryChip}{locationChip}{sheetFilterChip}{resetAllChip}{followingPartialNotice}</View>
-          ) : undefined
-        }
+        header={header}
         // Skeleton sebentuk <ShowcaseFeedItem> (anatomi: penulis · media ·
         // teks · baris aksi) — layout tidak melompat saat data tiba.
         loadingPlaceholder={<ShowcaseFeedSkeleton />}

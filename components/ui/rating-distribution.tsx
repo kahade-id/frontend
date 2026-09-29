@@ -13,7 +13,7 @@
  * menyesatkan).
  */
 import { Star } from "phosphor-react-native"
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { View } from "react-native"
 
 import { Icon } from "@/components/ui/icon"
@@ -68,7 +68,8 @@ export function RatingDistributionBars({ username, selectedStars = null, onSelec
   const { counts, total } = summary.distribution
   // Rata-rata dari server; fallback = hitung dari distribusi server (bukan
   // dari halaman daftar yang dimuat — itu menyesatkan).
-  const fallbackSum = counts.reduce((acc, c, i) => acc + c * (i + 1), 0)
+  // TIM 8 (perf): di-memo — sebelumnya reduce tiap render walau jarang berubah.
+  const fallbackSum = useMemo(() => counts.reduce((acc, c, i) => acc + c * (i + 1), 0), [counts])
   const average = summary.averageRating ?? (total > 0 ? fallbackSum / total : 0)
 
   return (

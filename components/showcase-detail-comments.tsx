@@ -9,7 +9,7 @@
  * dituju lewat `className` (prop yang sudah terdokumentasi di
  * <ShowcaseCommentRow>).
  */
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { View } from "react-native"
 import type { Ref } from "react"
 
@@ -87,7 +87,12 @@ export function ShowcaseDetailComments({
    * (item 49). Backend tidak punya param sort → urutkan sisi klien.
    */
   const [commentOrder, setCommentOrder] = useState<ShowcaseCommentOrder>("newest")
-  const orderedComments = sortShowcaseComments(comments, commentOrder)
+  // TIM-8 (audit performa 2026-09-30): sort di-memo — sebelumnya re-sort
+  // seluruh komentar tiap render (tiap keystroke draft komentar di parent).
+  const orderedComments = useMemo(
+    () => sortShowcaseComments(comments, commentOrder),
+    [comments, commentOrder],
+  )
   const toggleReplies = (rootId: string) =>
     setExpandedReplies((current) => {
       const next = new Set(current)

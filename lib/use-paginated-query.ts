@@ -35,13 +35,25 @@ export function byTimestampDesc<T extends { id?: string }>(
     const parsed = Date.parse(value)
     return Number.isFinite(parsed) ? parsed : 0
   }
+  // Tim8 P1: cache hasil parse per objek item — comparator sort dipanggil
+  // O(N log N) kali; tanpa cache `Date.parse` jalan di tiap perbandingan.
+  // WeakMap aman: item yang diperbarui selalu datang sebagai objek BARU dari
+  // `mergeById` (entri lama ter-GC otomatis); hasil parse deterministik.
+  const parsedCache = new WeakMap<T, number>()
+  const timeOfItem = (item: T): number => {
+    const cached = parsedCache.get(item)
+    if (cached !== undefined) return cached
+    const ts = timeOf(pick(item))
+    parsedCache.set(item, ts)
+    return ts
+  }
   return (a: T, b: T) => {
     // G-07 (audit escrow 2026-09-24): `createdAt` bisa IDENTIK antar item dalam
     // satu batch (mis. beberapa Order Link dibuat berbarengan) — tanpa
     // tiebreaker, perbandingan `0` membuat urutan antar-merge tidak
     // deterministik. Kunci akhir `id` menjamin urutan stabil kapan pun
     // digabung/urut ulang.
-    const diff = timeOf(pick(b)) - timeOf(pick(a))
+    const diff = timeOfItem(b) - timeOfItem(a)
     if (diff !== 0) return diff
     const aId = a.id ?? ""
     const bId = b.id ?? ""
@@ -92,7 +104,18 @@ export type UsePaginatedQueryOptions<T> = {
    * Default false (perilaku lama untuk daftar lain).
    */
   keepPreviousOnKeyChange?: boolean
+  /**
+   * Tim8 P1: batas jumlah baris yang disimpan — infinite scroll tanpa batas
+   * menumpuk ratusan objek berat di state + shadow tree. Saat terlampaui,
+   * halaman/konten terlama dibuang dari ekor (Set `ids` dijaga sinkron);
+   * `hasMore` tetap dari meta server sehingga halaman yang dibuang bisa
+   * dimuat ulang. Default 300 (aktif untuk semua pemanggil).
+   */
+  maxItems?: number
 }
+
+/** Tim8 P1: batas default baris tersimpan `usePaginatedQuery` (lihat opsi `maxItems`). */
+const DEFAULT_MAX_ITEMS = 300
 
 /** Shared pagination for every long list: latest query wins, load-more single-flight, retry keeps rows. */
 export function usePaginatedQuery<T extends { id?: string }>(
@@ -107,6 +130,9 @@ export function usePaginatedQuery<T extends { id?: string }>(
   // R1 (audit 2026-09-26): kunci dedup mengikuti `getKey` bila diberikan.
   const getKeyRef = useRef(opts.getKey)
   getKeyRef.current = opts.getKey
+  // Tim8 P1: batas item mengikuti pola ref yang sama (baca di `load`).
+  const maxItemsRef = useRef(opts.maxItems)
+  maxItemsRef.current = opts.maxItems
   const activeRequest = useRef<AbortController | null>(null)
   /**
    * Jenis request yang sedang terbang — C-10 (audit).
@@ -178,7 +204,16 @@ export function usePaginatedQuery<T extends { id?: string }>(
         setData((previous) => {
           const merged = mergeById(reset ? [] : previous, result.data, getKey)
           const compare = compareRef.current
-          return compare ? [...merged].sort(compare) : merged
+          const sorted = compare ? [...merged].sort(compare) : merged
+          // Tim8 P1: cap — buang dari ekor saat melampaui batas (konten
+          // terlama untuk comparator desc; tanpa comparator = halaman yang
+          // paling akhir dimuat). `Set.delete` idempoten → aman bila updater
+          // dijalankan ulang; `reset` selalu mulai dari [] sehingga trim
+          // tidak pernah memengaruhi refresh.
+          const maxItems = maxItemsRef.current ?? DEFAULT_MAX_ITEMS
+          if (sorted.length <= maxItems) return sorted
+          for (const item of sorted.slice(maxItems)) ids.current.delete(getKey(item))
+          return sorted.slice(0, maxItems)
         })
         nextPage.current = page + 1
         // F-09: `hasNewIds` sebelumnya menghentikan paginasi bila satu

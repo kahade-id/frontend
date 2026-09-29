@@ -72,9 +72,7 @@ function sameTarget(a: AppNotification, b: AppNotification): boolean {
   )
 }
 
-function withinWindow(a: AppNotification, b: AppNotification): boolean {
-  const ta = new Date(a.createdAt).getTime()
-  const tb = new Date(b.createdAt).getTime()
+function withinWindowEpoch(ta: number, tb: number): boolean {
   if (!Number.isFinite(ta) || !Number.isFinite(tb)) return false
   return Math.abs(ta - tb) <= SOCIAL_GROUP_WINDOW_MS
 }
@@ -86,6 +84,19 @@ function withinWindow(a: AppNotification, b: AppNotification): boolean {
 export function groupSocialNotifications(items: AppNotification[]): NotificationRow[] {
   const rows: NotificationRow[] = []
   let pending: AppNotification[] = []
+
+  // TIM 8 (perf, P2): epoch-ms dihitung SEKALI per item di awal —
+  // versi lama mem-parse `createdAt` ulang (`new Date(...).getTime()`)
+  // untuk tiap pasangan yang dibandingkan di `withinWindow`.
+  const epochMs = new Map<AppNotification, number>()
+  const epochOf = (n: AppNotification): number => {
+    let ms = epochMs.get(n)
+    if (ms === undefined) {
+      ms = new Date(n.createdAt).getTime()
+      epochMs.set(n, ms)
+    }
+    return ms
+  }
 
   const flush = () => {
     if (pending.length >= 2) {
@@ -104,7 +115,7 @@ export function groupSocialNotifications(items: AppNotification[]): Notification
       isGroupableNotification(last) &&
       item.type === last.type &&
       sameTarget(item, last) &&
-      withinWindow(item, last)
+      withinWindowEpoch(epochOf(item), epochOf(last))
     ) {
       pending.push(item)
     } else {

@@ -42,7 +42,7 @@
  *   - Dua daftar voucher tidak berbagi satu EmptyState global: bila voucher
  *     tersedia kosong TAPI riwayat ada, riwayat tetap dirender.
  */
-import { useCallback, useState } from "react"
+import { useCallback, useMemo, useState } from "react"
 import { View } from "react-native"
 import { CaretRight, Medal, Ticket } from "phosphor-react-native"
 import { router } from "expo-router"
@@ -142,14 +142,28 @@ function voucherStatusOf(v: Voucher): VoucherStatus {
   return "active"
 }
 
+/** Kunci urutan voucher yang dihitung SEKALI per voucher (bukan per
+ *  perbandingan) — decorate-sort-undecorate (audit perf TIM 8). `now`
+ *  dibekukan per pass agar hasil konsisten. */
+type UrgencyKey = { soon: boolean; expiresMs: number; discount: number }
+function urgencyKeyOf(v: Voucher, now: number): UrgencyKey {
+  const expiresMs = v.expiresAt ? new Date(v.expiresAt).getTime() : Number.POSITIVE_INFINITY
+  return {
+    soon:
+      v.expiresAt != null
+        ? Number.isFinite(expiresMs) && expiresMs - now < EXPIRES_SOON_MS
+        : false,
+    expiresMs,
+    discount: v.discountValue ?? 0,
+  }
+}
+
 /** Paling mendesak dulu: hampir hangus → tenggat terdekat → potongan terbesar. */
-function byUrgency(a: Voucher, b: Voucher): number {
-  const soonDiff = Number(expiresSoon(b)) - Number(expiresSoon(a))
+function byUrgencyKeys(a: UrgencyKey, b: UrgencyKey): number {
+  const soonDiff = Number(b.soon) - Number(a.soon)
   if (soonDiff !== 0) return soonDiff
-  const ta = a.expiresAt ? new Date(a.expiresAt).getTime() : Number.POSITIVE_INFINITY
-  const tb = b.expiresAt ? new Date(b.expiresAt).getTime() : Number.POSITIVE_INFINITY
-  if (ta !== tb) return ta - tb
-  return (b.discountValue ?? 0) - (a.discountValue ?? 0)
+  if (a.expiresMs !== b.expiresMs) return a.expiresMs - b.expiresMs
+  return b.discount - a.discount
 }
 
 // ------------------------------------------------------------------
@@ -420,7 +434,16 @@ export default function VouchersScreen() {
     }
   }, [copy, referralCode, toast])
 
-  const sorted = [...available].sort(byUrgency)
+  // TIM 8 (perf): kunci urutan di-precompute per voucher lalu sort atas
+  // kunci numerik — sebelumnya `new Date()` + `Date.now()` per perbandingan
+  // (O(n log n) konstruksi Date tiap render layar Promo).
+  const sorted = useMemo(() => {
+    const now = Date.now()
+    return available
+      .map((v) => ({ v, key: urgencyKeyOf(v, now) }))
+      .sort((a, b) => byUrgencyKeys(a.key, b.key))
+      .map(({ v }) => v)
+  }, [available])
 
   // Tamu web: seluruh endpoint promo auth-required — ajakan masuk, bukan error.
   if (!hasSession) {

@@ -55,7 +55,7 @@ import { useRealtime } from "@/lib/realtime/realtime-context"
 import { ORDER_STATUS_LABELS } from "@/lib/labels/status"
 import { formatTimeAgo } from "@/lib/format"
 import { haptic } from "@/lib/haptics"
-import { translate } from "@/lib/i18n"
+import { translate, useLanguage } from "@/lib/i18n"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 import { byTimestampDesc, usePaginatedQuery } from "@/lib/use-paginated-query"
@@ -549,6 +549,17 @@ export default function ChatScreen() {
   const firstRowRef = useRef<RNView | null>(null)
   const [filter, setFilter] = useState<ChatFilter>("all")
   const archiveOpen = filter === "archived"
+  /**
+   * TIM 8 (perf): opsi chip filter di-memo — sebelumnya
+   * `FILTER_OPTIONS.map((o) => ({ ...o, label: translate(o.label) }))`
+   * mengalokasi array+objek tiap render sehingga prop ChipGroup tidak stabil.
+   * Pola app/search.tsx: `useLanguage()` agar label ikut berganti bahasa.
+   */
+  const language = useLanguage()
+  const filterOptions = useMemo(
+    () => FILTER_OPTIONS.map((o) => ({ ...o, label: translate(o.label) })),
+    [language],
+  )
   const mainQuery = usePaginatedQuery<ChatRoom>(
     "chat-rooms",
     (page, signal) => api.chat.listChatRooms({ page, limit: CHAT_PAGE_SIZE }, signal),
@@ -1150,7 +1161,7 @@ export default function ChatScreen() {
         >
           <ChipGroup
             single
-            options={FILTER_OPTIONS.map((o) => ({ ...o, label: translate(o.label) }))}
+            options={filterOptions}
             value={[filter]}
             onChange={(next) => {
               const picked = next[0]

@@ -20,7 +20,7 @@
  *   scroll-snap RN-web.
  * - Hormat `useReducedMotion`: modal tanpa animasi fade.
  */
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import {
   FlatList,
   Modal,
@@ -169,10 +169,25 @@ export function ImageViewer({
     [width, height, title, images.length, visible, current],
   )
 
+  /**
+   * TIM-8 (audit performa 2026-09-30): kunci stabil dari identitas item
+   * (kind + url), BUKAN index — index di key memicu remount seluruh slide
+   * saat data di-reorder. Duplikat url+kind yang identik diberi nomor urut
+   * kemunculan (stabil selama himpunan item sama).
+   */
+  const viewerKeys = useMemo(() => {
+    const counts = new Map<string, number>()
+    return images.map((item) => {
+      const base = `${item.kind ?? "image"}:${item.url}`
+      const n = counts.get(base) ?? 0
+      counts.set(base, n + 1)
+      return n === 0 ? base : `${base}#${n}`
+    })
+  }, [images])
+
   if (!visible || images.length === 0) return null
   const safeCurrent = Math.min(current, images.length - 1)
   const counterLabel = translate("{x} dari {y}", { x: safeCurrent + 1, y: images.length })
-
   return (
     <Modal
       visible
@@ -187,7 +202,7 @@ export function ImageViewer({
         <FlatList
           ref={listRef}
           data={images}
-          keyExtractor={(item, i) => `${item.url}#${i}`}
+          keyExtractor={(_item, i) => viewerKeys[i]}
           horizontal
           pagingEnabled
           showsHorizontalScrollIndicator={false}

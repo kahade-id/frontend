@@ -8,7 +8,7 @@
  * hilang). Footer selalu menunjukkan waktu pembaruan terakhir (waktu
  * perangkat — backend belum mengirim metadata rentang).
  */
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { View } from "react-native"
 import {
   ArrowClockwise,
@@ -166,6 +166,9 @@ export function ProductStatsSection({ showcaseId }: { showcaseId: string }) {
 
   const { stats, lastUpdatedAt } = state
   const isEmpty = STATS.every((s) => Number(stats[s.key] ?? 0) === 0)
+  // TIM 8 (perf, P2): `toLocaleTimeString()` membangun formatter Intl di
+  // balik layar — memo per `lastUpdatedAt`, bukan per render.
+  const updatedTime = useMemo(() => new Date(lastUpdatedAt).toLocaleTimeString(), [lastUpdatedAt])
 
   return (
     <View className="gap-2 px-5 pt-4">
@@ -185,7 +188,7 @@ export function ProductStatsSection({ showcaseId }: { showcaseId: string }) {
       <Text variant="caption" tone="tertiary">
         {/* FE-084: "(waktu perangkat)" = noise teknis — user tidak peduli zona waktu perangkat. */}
         {translate("Diperbarui {x}", {
-          x: new Date(lastUpdatedAt).toLocaleTimeString(),
+          x: updatedTime,
         })}
       </Text>
     </View>

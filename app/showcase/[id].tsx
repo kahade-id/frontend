@@ -838,6 +838,14 @@ function ShowcaseDetailContent({
     }
   }, [id, isOwner, operation, toast.show])
 
+  // TIM-8 (audit performa 2026-09-30): `showcaseHtmlHasFormatting` = parse +
+  // sanitasi penuh — di-memo per description supaya tidak jalan ulang tiap
+  // render (mis. tiap keystroke draft komentar).
+  const descriptionHasFormatting = useMemo(
+    () => (item?.description ? showcaseHtmlHasFormatting(item.description) : false),
+    [item?.description],
+  )
+
   return (
     <DataScreen
       title={translate("Etalase")}
@@ -1021,7 +1029,7 @@ function ShowcaseDetailContent({
           <ShowcaseHtmlView html={item.descriptionHtml} />
         </View>
       ) : item.description ? (
-        showcaseHtmlHasFormatting(item.description) ? (
+        descriptionHasFormatting ? (
           /* Benefit 7 Kahade+: deskripsi HTML anggota Plus di-render
              tersanitasi via <ShowcaseHtmlView> — JANGAN render mentah. */
           <View className="px-5 pt-1">
