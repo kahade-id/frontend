@@ -2,7 +2,7 @@
  * Kahade — Buat Kata Sandi Baru (reset setelah OTP WhatsApp terverifikasi).
  *
  * Struktur:
- *   <Header title="Kata Sandi Baru" progress={3/3}>
+ *   <Header title="Kata Sandi Baru" progress={4/4}>
  *   VStack gap={8}:
  *     VStack (H1 + penjelasan)
  *     PasswordField (kata sandi baru)
@@ -51,8 +51,8 @@ import { getAuthLocation } from "@/lib/location"
 import { clearPasswordResetState, getPasswordResetState } from "@/lib/password-reset"
 import { ROUTES } from "@/lib/routes"
 
-/** Lupa kata sandi = 3 langkah: nomor → trigger WA → OTP → kata sandi baru. */
-const STEP_PROGRESS = 3 / 3
+/** FE-040: nomor → trigger WA (2/4) → OTP (3/4) → kata sandi baru (4/4). */
+const STEP_PROGRESS = 4 / 4
 
 export default function ResetPasswordScreen() {
   const router = useRouter()

@@ -260,7 +260,7 @@ export default function RegisterScreen() {
             onPress={() => void handleSubmit()}
             loading={submitting}
           >
-            Kirim kode
+            Lanjutkan
           </Button>
           {/*
            * T1-007: submit auth memicu dialog izin lokasi (getAuthLocation)
