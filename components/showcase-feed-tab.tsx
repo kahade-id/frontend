@@ -30,7 +30,7 @@
  *  - F-04: item yang sudah dilaporkan sesi ini disembunyikan dari feed.
  */
 import { useCallback, useEffect, useMemo, useRef, useState, memo, useSyncExternalStore } from "react"
-import { View, type FlatList } from "react-native"
+import { View, type FlatList, type View as RNView } from "react-native"
 import Animated, { runOnJS } from "react-native-reanimated"
 import { Images, X, ArrowUp } from "phosphor-react-native"
 import { router, useLocalSearchParams } from "expo-router"
@@ -79,7 +79,9 @@ import { useLanguage } from "@/lib/i18n"
 
 import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Button } from "@/components/ui/button"
+import { CoachMark } from "@/components/ui/coach-mark"
 import { EmptyState } from "@/components/ui/empty-state"
+import { FeedOrientationOverlay } from "@/components/ui/feed-orientation-overlay"
 import { IconButton } from "@/components/ui/icon-button"
 import { ImageViewer } from "@/components/ui/image-viewer"
 import { PaginatedList } from "@/components/ui/paginated-list"
@@ -101,7 +103,14 @@ import {
   selectTopVisibleAnchor,
 } from "@/lib/showcase-feed-position"
 import { ShowcaseFeedSkeleton } from "@/components/ui/showcase-feed-skeleton"
+import { PushRationaleSheet } from "@/components/ui/push-rationale-sheet"
 import { Text } from "@/components/ui/text"
+import {
+  hasSeenFeedOrientation,
+  markFeedOrientationSeen,
+  hasSeenPushRationale,
+  markPushRationaleSeen,
+} from "@/lib/first-run"
 
 const FEED_LIMIT = 20
 /**
@@ -521,6 +530,41 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
   hasSessionRef.current = hasSession
   const revisionRef = useRef(revision)
   revisionRef.current = revision
+  /**
+   * U5-003/U5-005 (journey): mesin fase first-run di feed — BERURUTAN, tidak
+   * bertumpuk: (1) overlay orientasi 3 kartu (U5-005, semua user termasuk
+   * tamu), (2) bottom sheet rationale notifikasi (U5-003, hanya yang login),
+   * (3) selesai → coach mark orientasi beli boleh tampil (U5-004).
+   */
+  type FirstRunPhase = "checking" | "orientation" | "push" | "done"
+  const [firstRunPhase, setFirstRunPhase] = useState<FirstRunPhase>("checking")
+  useEffect(() => {
+    let alive = true
+    void (async () => {
+      const [orientationSeen, pushSeen] = await Promise.all([
+        hasSeenFeedOrientation(),
+        hasSeenPushRationale(),
+      ])
+      if (!alive) return
+      if (!orientationSeen) setFirstRunPhase("orientation")
+      else if (hasSession && !pushSeen) setFirstRunPhase("push")
+      else setFirstRunPhase("done")
+    })()
+    return () => {
+      alive = false
+    }
+  }, [hasSession])
+  const dismissOrientation = useCallback(() => {
+    void markFeedOrientationSeen()
+    // Setelah orientasi: lanjut ke sheet notifikasi bila login & belum pernah.
+    void hasSeenPushRationale().then((seen) => {
+      setFirstRunPhase(hasSessionRef.current && !seen ? "push" : "done")
+    })
+  }, [])
+  const closePushSheet = useCallback(() => {
+    void markPushRationaleSeen()
+    setFirstRunPhase("done")
+  }, [])
 
   const markGuest = useCallback(() => {
     followingIndexRef.current = null
@@ -886,16 +930,30 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
    * PERF-FIX (LR-004): `visible` tidak lagi lewat prop — tiap FeedCard
    * subscribe visibilitasnya sendiri via `useFeedItemVisible`, sehingga
    * renderItem tidak berubah identitas di setiap tick viewability.
+   *
+   * U5-004 (journey): kartu pertama dibungkus View ber-ref sebagai jangkar
+   * coach mark orientasi beli ("feed-buy"). Wrapper polos tanpa style —
+   * tidak mengubah layout (kolom flex default).
    */
+  const firstCardRef = useRef<RNView | null>(null)
   const renderItem = useCallback(
-    ({ item, index }: { item: ShowcaseSocialItem; index: number }) => (
-      <FeedCard
-        item={item}
-        divider={index < itemsLengthRef.current - 1}
-        onOpenComments={handleOpenComments}
-        onReport={handleOpenReport}
-      />
-    ),
+    ({ item, index }: { item: ShowcaseSocialItem; index: number }) => {
+      const card = (
+        <FeedCard
+          item={item}
+          divider={index < itemsLengthRef.current - 1}
+          onOpenComments={handleOpenComments}
+          onReport={handleOpenReport}
+        />
+      )
+      return index === 0 ? (
+        <View ref={firstCardRef} collapsable={false}>
+          {card}
+        </View>
+      ) : (
+        card
+      )
+    },
     [handleOpenComments, handleOpenReport],
   )
 
@@ -1214,6 +1272,37 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
         onApply={setSheetFilters}
         onRequestClose={() => setFilterSheetVisible(false)}
       />
+
+      {/*
+       * U5-005 (journey): overlay orientasi first-run — 3 kartu konsep +
+       * 1 baris per tab. Tampil sekali; fase "push" menyusul setelahnya.
+       */}
+      <FeedOrientationOverlay
+        visible={firstRunPhase === "orientation"}
+        onDismiss={dismissOrientation}
+      />
+      {/*
+       * U5-003 (journey): rationale izin notifikasi sebagai bottom sheet di
+       * feed pada login pertama (pengganti layar welcome). "Nanti" = tutup.
+       */}
+      <PushRationaleSheet
+        visible={firstRunPhase === "push"}
+        onClose={closePushSheet}
+      />
+      {/*
+       * U5-004 (journey): coach mark orientasi BELI — kunjungan pertama ke
+       * feed, didahulukan dari coach mark "+". Jangkar = kartu feed pertama.
+       * Baru di-mount setelah fase first-run selesai agar tidak bertumpuk
+       * dengan overlay/sheet di atas.
+       */}
+      {firstRunPhase === "done" ? (
+        <CoachMark
+          id="feed-buy"
+          targetRef={firstCardRef}
+          message="Ini feed produk — ketuk barang untuk lihat detail & beli via escrow"
+          delayMs={900}
+        />
+      ) : null}
     </View>
   )
 }

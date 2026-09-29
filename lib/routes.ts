@@ -51,14 +51,9 @@ export const ROUTES = {
     ({ pathname: "/phone-migration", params: { migrationToken } }) as unknown as Href,
   /** Screen #6 — Setup Profil: foto + bio (opsional, setelah akun jadi) */
   setupProfile: "/setup-profile" as Href,
-  /**
-   * Welcome Screen — landing page setelah auth (cek permissions).
-   * `newUser` menentukan sapaan ("Selamat datang di Kahade" vs "kembali").
-   * Dibawa lewat param, BUKAN dibaca dari registration state: state itu
-   * sudah dibersihkan oleh Setup Profil sebelum pindah ke sini.
-   */
-  welcome: (opts: { newUser?: boolean } = {}) =>
-    ({ pathname: "/welcome", params: opts.newUser ? { newUser: "1" } : {} }) as unknown as Href,
+  // U5-003 (journey 2026-09-29): layar welcome DIHAPUS — dulu landing page
+  // setelah auth (cek permissions); kini semua alur auth langsung ke tujuan/
+  // Beranda, rationale izin notifikasi menjadi bottom sheet di feed.
   /**
    * Screen #7 — Login: identifier (username / email / nomor HP) + password,
    * plus opsi "Masuk dengan WhatsApp" (OTP, purpose=login).

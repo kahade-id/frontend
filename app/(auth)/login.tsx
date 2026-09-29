@@ -82,7 +82,7 @@ import { CAPTCHA_MESSAGES } from "@/lib/captcha-messages"
 import { PASSWORD_MAX } from "@/lib/auth-constants"
 import { getAuthLocation } from "@/lib/location"
 import { clearLoginIdentifier, getLoginIdentifier, setLoginIdentifier } from "@/lib/login-identifier"
-import { setPendingNext } from "@/lib/login-redirect"
+import { setPendingNext, takePendingNext } from "@/lib/login-redirect"
 import { setOtpFlow } from "@/lib/otp-flow"
 import { ROUTES } from "@/lib/routes"
 import { setPendingSocialSignup } from "@/lib/social-signup"
@@ -160,13 +160,15 @@ export default function LoginScreen() {
     // A01: sesi formulir selesai → identifier tidak perlu dipertahankan.
     clearLoginIdentifier()
     // Web guest mode tidak memakai layar Welcome/splash: langsung kembali
-    // ke tujuan (atau Beranda). Native tetap melalui Welcome (izin push).
+    // ke tujuan (atau Beranda).
     if (Platform.OS === "web") {
       router.replace((nextPath as never) ?? ROUTES.home)
       return
     }
-    // Login berhasil → welcome screen (cek permissions). Bukan user baru.
-    router.replace(ROUTES.welcome())
+    // U5-003 (journey): layar welcome dihapus — native langsung ke tujuan
+    // tertunda (atau Beranda). Rationale izin notifikasi kini bottom sheet
+    // di feed pada login pertama.
+    router.replace((takePendingNext() as never) ?? ROUTES.home)
   }, [router, nextPath])
 
   const handleLogin = useCallback(async () => {

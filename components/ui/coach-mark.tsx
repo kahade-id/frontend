@@ -57,7 +57,10 @@ export type CoachMarkPlacement = "auto" | "top" | "bottom"
 export type { CoachMarkId }
 
 export type CoachMarkProps = {
-  /** Elemen yang diperkenalkan: "create" (tombol +) atau "qr" (ikon QR). */
+  /**
+   * Elemen yang diperkenalkan: "create" (tombol +), "qr" (ikon QR), atau
+   * "feed-buy" (U5-004: orientasi beli pada kartu feed pertama).
+   */
   id: CoachMarkId
   /** Ref ke view target — diukur via measureInWindow untuk posisi bubble. */
   targetRef: RefObject<RNView | null>

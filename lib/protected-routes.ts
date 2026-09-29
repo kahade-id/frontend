@@ -106,7 +106,7 @@ export const AUTHENTICATED_SCREENS = [
   "wallet", // NAV-006 (2026-09-28): satu kebijakan dengan 90+ layar lain — web tetap self-gate (lihat allowlist di bawah)
   "wallet-history",
   "wallet-transaction/[txId]",
-  "welcome",
+  // U5-003 (journey): layar "welcome" dihapus.
   "withdraw-history",
   "withdraw",
   "withdrawal-schedules",
