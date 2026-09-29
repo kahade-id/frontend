@@ -129,6 +129,24 @@ export function shouldGateVideoAutoplay(opts: {
   )
 }
 
+/**
+ * FE-016: keputusan mount player — diekstrak murni agar bisa di-unit-test.
+ *
+ * `useVideoPlayer({ uri })` dapat memicu buffering walau `shouldPlay=false`,
+ * jadi player native JANGAN di-mount sebelum waktunya: hanya bila video
+ * benar-benar akan diputar (`effectiveShouldPlay`), atau ada niat eksplisit
+ * user (`userInitiatedPlay` — mis. latch "Putar video" / viewer dibuka via
+ * ketuk). `allowTapToggle` (pratinjau upload) selalu mount: ketuk-toggle
+ * butuh player yang sudah ada.
+ */
+export function shouldMountVideoPlayer(opts: {
+  effectiveShouldPlay: boolean
+  userInitiatedPlay: boolean
+  allowTapToggle: boolean
+}): boolean {
+  return opts.effectiveShouldPlay || opts.userInitiatedPlay || opts.allowTapToggle
+}
+
 class VideoErrorBoundary extends Component<
   { fallback: ReactNode; children: ReactNode },
   { failed: boolean }
@@ -342,7 +360,6 @@ function ExpoVideoInner({
   // PERF-FIX (NP-002): gerbang autoplay — diekstrak ke shouldGateVideoAutoplay
   // agar logikanya teruji (lihat tests/feed-video-wifi-autoplay.test.tsx).
   const gated = shouldGateVideoAutoplay({ shouldPlay, wifiAllowed, userInitiatedPlay, userPlayOverride })
-
   if (failed) {
     const posterSource = normalizePosterSource(poster)
     return (
@@ -396,6 +413,15 @@ function ExpoVideoInner({
         onPress={() => setUserPlayOverride(true)}
       />
     )
+  }
+
+  // FE-016: belum waktunya diputar dan tanpa niat eksplisit → JANGAN mount
+  // player native (`useVideoPlayer({ uri })` dapat memicu buffering walau
+  // shouldPlay=false). Tampilkan poster inert sampai kartu benar-benar
+  // shouldPlay / user mengetuk. allowTapToggle dikecualikan (pratinjau
+  // upload butuh player untuk ketuk-toggle) — lihat shouldMountVideoPlayer.
+  if (!shouldMountVideoPlayer({ effectiveShouldPlay, userInitiatedPlay, allowTapToggle })) {
+    return <VideoPoster poster={poster} alt={alt} aspectRatio={aspectRatio} />
   }
 
   return (
