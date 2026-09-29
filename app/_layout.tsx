@@ -4,10 +4,10 @@
  * Tanggung jawab file ini (urutan boot):
  *   1. Tahan native splash (preventAutoHideAsync) — dipanggil di module scope,
  *      SEBELUM komponen mount / font mulai load, sesuai docs expo-splash-screen.
- *   2. Load font KRITIS (PlusJakartaSans, 4 file) offline via expo-font
- *      `useFonts(fontAssetsBlocking)` — ST-003: EBGaramond (392KB, teks
- *      legal) + AzeretMono dimuat LAZY setelah first paint, tidak menahan
- *      splash.
+ *   2. Load font KRITIS (PlusJakartaSans Regular/Medium) offline via expo-font
+ *      `useFonts(fontAssetsBlocking)` — ST-003 + FE-073: SemiBold/Bold,
+ *      EBGaramond (392KB, teks legal) + AzeretMono dimuat LAZY setelah first
+ *      paint, tidak menahan splash.
  *      Key = nama di `fontFamilyByWeight` (dijamin oleh `satisfies` di fonts.ts).
  *   3. Saat font siap ATAU gagal: sembunyikan native splash dan serahkan ke
  *      <AnimatedSplash> (JS overlay) yang fade-out → app terlihat.
@@ -191,8 +191,9 @@ function hrefToConcretePath(href: Href): string | null {
 }
 
 export default function RootLayout() {
-  // ST-003: hanya font kritis (PlusJakartaSans) yang blocking — splash tidak
-  // menunggu EBGaramond (392KB) + AzeretMono yang tidak dipakai layar pertama.
+  // ST-003 + FE-073: hanya font kritis (PlusJakartaSans Regular/Medium) yang
+  // blocking — splash tidak menunggu SemiBold/Bold, EBGaramond (392KB),
+  // maupun AzeretMono.
   const [fontsLoaded, fontError] = useFonts(fontAssetsBlocking)
 
   // Handler global telemetri (unhandled rejection + JS exception) dipasang
@@ -209,11 +210,10 @@ export default function RootLayout() {
   const ready = Platform.OS === "web" || fontsLoaded || fontError != null
   const [splashDone, setSplashDone] = useState(Platform.OS === "web")
 
-  // ST-003: font non-kritis (EBGaramond + AzeretMono) dimuat LAZY setelah
-  // first paint — fire-and-forget, tidak menahan render/splash. Gagal load
-  // tidak fatal: komponen yang memakainya fallback ke system font sampai
-  // font tersedia (pemakaian: teks legal, grafik, chat format-bar — semuanya
-  // di luar layar pertama).
+  // ST-003 + FE-073: font non-kritis (PlusJakartaSans SemiBold/Bold,
+  // EBGaramond, AzeretMono) dimuat LAZY setelah first paint — fire-and-forget,
+  // tidak menahan render/splash. Gagal load tidak fatal: komponen yang
+  // memakainya fallback ke system font sampai font tersedia.
   useEffect(() => {
     if (!ready) return
     let alive = true
