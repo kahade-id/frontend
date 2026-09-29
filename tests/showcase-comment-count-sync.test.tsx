@@ -24,7 +24,9 @@ vi.mock("expo-router", () => ({
   router: { push: vi.fn(), setParams: vi.fn() },
   useLocalSearchParams: () => mocks.params,
 }))
-vi.mock("phosphor-react-native", () => ({ Images: () => null, X: () => null, ChatCircle: () => null, PaperPlaneRight: () => null }))
+// phosphor-react-native: memakai stub global tests/stubs/phosphor-react-native.tsx
+// (auto-generated, kini lengkap). expo-notifications juga di-stub di
+// vitest.components.config.ts untuk rantai PushRationaleSheet.
 vi.mock("react-native-reanimated", () => ({ default: { View: ({ children }: { children: ReactNode }) => <>{children}</> } }))
 vi.mock("@react-navigation/native", () => ({ useIsFocused: () => true }))
 vi.mock("@/lib/api", () => ({
@@ -121,6 +123,7 @@ vi.mock("@/components/ui/text", () => ({ Text: ({ children }: { children: ReactN
 vi.mock("@/components/ui/toast", () => ({ useToast: () => ({ show: mocks.toast }) }))
 
 import { ThemeProvider } from "@/components/theme-provider"
+import { PortalProvider } from "@/components/ui/portal"
 import { ShowcaseFeedTab } from "@/components/showcase-feed-tab"
 import { ShowcaseCommentsSheet } from "@/components/ui/showcase-comments-sheet"
 import {
@@ -165,7 +168,7 @@ describe("feed + komentar (F-01/C-01)", () => {
     mocks.feed
       .mockResolvedValueOnce(page([item("a", 1)], "c1"))
       .mockResolvedValueOnce(page([item("b", 0)]))
-    render(<ThemeProvider><ShowcaseFeedTab bottomPadding={0} /></ThemeProvider>)
+    render(<ThemeProvider><PortalProvider><ShowcaseFeedTab bottomPadding={0} /></PortalProvider></ThemeProvider>)
     await screen.findByTestId("card-a")
 
     fireEvent.click(screen.getByText("more"))
@@ -186,7 +189,7 @@ describe("feed + komentar (F-01/C-01)", () => {
 
   it("delta negatif (hapus komentar) tidak pernah menurunkan hitungan di bawah nol", async () => {
     mocks.feed.mockResolvedValue(page([item("a", 1)]))
-    render(<ThemeProvider><ShowcaseFeedTab bottomPadding={0} /></ThemeProvider>)
+    render(<ThemeProvider><PortalProvider><ShowcaseFeedTab bottomPadding={0} /></PortalProvider></ThemeProvider>)
     await screen.findByTestId("card-a")
     act(() => queueShowcaseCommentCount("a", -5))
     await waitFor(() => expect(screen.getByTestId("card-a").textContent).toBe("a:0"))
@@ -197,7 +200,7 @@ describe("sheet komentar (F-02: tidak ada dirty lagi)", () => {
   it("mengirim komentar mendaftarkan delta +1 dan TIDAK menaikkan dirty version", async () => {
     const dirtyBefore = showcaseFeedDirtyVersion()
     const seqBefore = showcaseCommentCountSeq()
-    render(<ThemeProvider><ShowcaseCommentsSheet item={item("a", 0)} onRequestClose={() => {}} /></ThemeProvider>)
+    render(<ThemeProvider><PortalProvider><ShowcaseCommentsSheet item={item("a", 0)} onRequestClose={() => {}} /></PortalProvider></ThemeProvider>)
     fireEvent.change(screen.getByLabelText("draft"), { target: { value: "halo" } })
     fireEvent.click(screen.getByText("send"))
     await waitFor(() => expect(mocks.send).toHaveBeenCalledTimes(1))
