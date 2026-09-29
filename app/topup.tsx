@@ -431,7 +431,7 @@ export default function TopupScreen() {
                       selectedMethod
                         ? selectedFee > 0
                           ? translate("Biaya admin {x}", {
-                              x: formatRupiah(selectedFee, { sign: "always" }),
+                              x: formatRupiah(selectedFee),
                             })
                           : "Tanpa biaya admin"
                         : undefined
@@ -519,7 +519,10 @@ export default function TopupScreen() {
                           ? displayFee > 0
                             ? translate("Biaya admin {x}", {
                               // FE-IMP-4 item 5: angka server bila tersedia.
-                              x: formatRupiah(displayFee, { sign: "always" }),
+                              // T3-001 (audit UI/UX): tanpa sign "always" —
+                              // "+" menempel di biaya terbaca sebagai dana
+                              // masuk; biaya bukan pemasukan.
+                              x: formatRupiah(displayFee),
                             })
                             : "Tanpa biaya admin"
                           : undefined
@@ -586,14 +589,23 @@ export default function TopupScreen() {
                * TRX-001: tombol mati selama feeLoading — sinkron dengan teks
                * "Menghitung total…" di atasnya. Lihat handlePay (guard ganda).
                */}
+              {/*
+               * T3-009 (audit UI/UX): tombol ini TIDAK membayar — ia membuat
+               * kode pembayaran (VA/QRIS/retail). Label jujur + baris bawah
+               * menegaskan user masih harus membayar manual sebelum
+               * kedaluwarsa.
+               */}
               <Button
                 onPress={() => void handlePay()}
                 loading={submitting}
                 disabled={!canPay || feeLoading}
                 haptic
               >
-                Bayar sekarang
+                Buat kode pembayaran
               </Button>
+              <Text variant="caption" tone="secondary" className="pb-1 text-center">
+                Setelah ini Anda membayar via aplikasi bank/e-wallet sebelum kode kedaluwarsa.
+              </Text>
               <Button variant="ghost" onPress={handleBack} disabled={submitting}>
                 Kembali
               </Button>

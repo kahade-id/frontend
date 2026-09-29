@@ -29,6 +29,8 @@ export type ScheduleFieldLabels = {
   days: readonly [string, string, string, string, string, string, string]
   dayNames: readonly [string, string, string, string, string, string, string]
   summary: (day: string, amount: string) => string
+  /** T3-003: penjelas jujur — yang ditarik SELURUH saldo tersedia. */
+  wholeBalanceNote: string
 }
 
 const DEFAULT_LABELS: ScheduleFieldLabels = {
@@ -36,7 +38,9 @@ const DEFAULT_LABELS: ScheduleFieldLabels = {
   amountLabel: "Saldo minimum pemicu",
   days: ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"],
   dayNames: ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"],
-  summary: (day, amount) => `Setiap ${day}, saat saldo mencapai ${amount}`,
+  summary: (day, amount) => `Setiap ${day}, saat saldo mencapai ${amount} → seluruh saldo ditarik otomatis.`,
+  wholeBalanceNote:
+    "Saat saldo mencapai batas ini, seluruh saldo tersedia akan otomatis ditarik ke rekening Anda — bukan hanya sebesar batasnya.",
 }
 
 export type ScheduleFieldProps = Omit<ViewProps, "children"> & {
@@ -121,9 +125,14 @@ export function ScheduleField({
       />
 
       {complete ? (
-        <Text variant="body" tone="secondary">
-          {t.summary(t.dayNames[value.dayOfWeek as number], formatRupiah(value.minAmount as number))}
-        </Text>
+        <View className="gap-1">
+          <Text variant="body" tone="secondary">
+            {t.summary(t.dayNames[value.dayOfWeek as number], formatRupiah(value.minAmount as number))}
+          </Text>
+          <Text variant="caption" tone="secondary">
+            {t.wholeBalanceNote}
+          </Text>
+        </View>
       ) : null}
 
       <FieldHelper helperText={helperText} errorText={errorText} />

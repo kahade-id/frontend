@@ -37,6 +37,7 @@ import { formatRupiah } from "@/lib/format"
 import { ROUTES } from "@/lib/routes"
 import type { WalletTransaction } from "@/lib/api/wallet"
 import { deleteSecureItem, SecureKeys } from "@/lib/secure-storage"
+import { PortalProvider } from "@/components/ui/portal"
 import WalletScreen from "@/app/wallet"
 
 // ------------------------------------------------------------------
@@ -57,16 +58,33 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@/lib/guest-gate", () => ({
   useHasSession: () => mocks.hasSession,
+  // useOnboardingChecklist (via OnboardingChecklistCard di app/wallet.tsx)
+  // memakai revisi sesi sebagai dep query — cukup angka stabil di test.
+  useSessionRevision: () => 0,
 }))
 vi.mock("@/lib/use-api-query", () => ({
-  useApiQuery: () => ({
-    data: mocks.balanceData,
-    loading: mocks.balanceLoading,
-    refreshing: false,
-    error: mocks.balanceError,
-    refresh: vi.fn(),
-    reload: mocks.balanceReload,
-  }),
+  // Key-aware: query "wallet-escrow-holds" (app/wallet.tsx, FE-IMP-4 item 1)
+  // memakai computeEscrowHolds yang butuh array transaksi — mock generik
+  // yang selalu mengembalikan payload balance membuat seluruh <WalletScreen>
+  // crash ("transactions is not iterable").
+  useApiQuery: (key: string) =>
+    key === "wallet-escrow-holds"
+      ? {
+          data: [],
+          loading: false,
+          refreshing: false,
+          error: null,
+          refresh: vi.fn(),
+          reload: vi.fn(),
+        }
+      : {
+          data: mocks.balanceData,
+          loading: mocks.balanceLoading,
+          refreshing: false,
+          error: mocks.balanceError,
+          refresh: vi.fn(),
+          reload: mocks.balanceReload,
+        },
 }))
 vi.mock("@/lib/use-paginated-query", () => ({
   byTimestampDesc: (get: (tx: WalletTransaction) => string) => get,
@@ -102,7 +120,13 @@ function HeroWithPrefs(props: Omit<WalletHeroCardProps, "hidden" | "onToggleHidd
 }
 
 function renderThemed(ui: React.ReactElement) {
-  return render(<ThemeProvider>{ui}</ThemeProvider>)
+  // app/wallet.tsx memakai <BottomSheet> (sheet rincian holds/breakdown)
+  // yang butuh <PortalProvider> di atasnya.
+  return render(
+    <ThemeProvider>
+      <PortalProvider>{ui}</PortalProvider>
+    </ThemeProvider>,
+  )
 }
 
 let pushSpy: ReturnType<typeof vi.spyOn>
@@ -146,7 +170,7 @@ describe("peta route aksi dompet", () => {
 
   it("lima menu cepat memetakan ke route yang benar", () => {
     expect(WALLET_QUICK_MENU.map((a) => [a.label, a.route])).toEqual([
-      ["Terima", ROUTES.receive],
+      ["Terima Saldo", ROUTES.receive],
       ["Riwayat", ROUTES.walletHistory],
       ["Voucher", ROUTES.vouchers],
       ["Bank", ROUTES.bankAccounts],
@@ -179,10 +203,10 @@ describe("<WalletPrimaryActions> / <WalletQuickMenu>", () => {
     expect(pushSpy).toHaveBeenCalledTimes(3)
   })
 
-  it("menu cepat menavigasi: Terima, Riwayat, Voucher, Bank, Bantuan", () => {
+  it("menu cepat menavigasi: Terima Saldo, Riwayat, Voucher, Bank, Bantuan", () => {
     renderThemed(<WalletQuickMenu />)
     const cases = [
-      ["Terima", ROUTES.receive],
+      ["Terima Saldo", ROUTES.receive],
       ["Riwayat", ROUTES.walletHistory],
       ["Voucher", ROUTES.vouchers],
       ["Bank", ROUTES.bankAccounts],
@@ -211,12 +235,12 @@ describe("<WalletHeroCard> + useUiPrefs", () => {
     await waitFor(() => expect(screen.getByText(formatRupiah(BALANCE))).toBeTruthy())
   }
 
-  it("menampilkan saldo exact dari API + dana tertahan escrow", async () => {
+  it("menampilkan saldo exact dari API + dana tertahan jaminan transaksi", async () => {
     await renderHeroSettled()
-    expect(screen.getByText("Saldo Dompet")).toBeTruthy()
+    expect(screen.getByText("Saldo Tersedia")).toBeTruthy()
     expect(screen.getByText(formatRupiah(BALANCE))).toBeTruthy()
     expect(screen.getByText(formatRupiah(HELD))).toBeTruthy()
-    expect(screen.getByText("ditahan di escrow")).toBeTruthy()
+    expect(screen.getByText("ditahan sebagai jaminan transaksi")).toBeTruthy()
   })
 
   it("mata menyembunyikan saldo dan menulis prefs.balanceHidden", async () => {
@@ -261,7 +285,7 @@ describe("<WalletHeroCard> + useUiPrefs", () => {
     const onRetry = vi.fn()
     renderThemed(<HeroWithPrefs available={BALANCE} error="Jaringan bermasalah" onRetry={onRetry} />)
     expect(screen.getByText("Gagal memuat saldo")).toBeTruthy()
-    expect(screen.queryByText("Saldo Dompet")).toBeNull()
+    expect(screen.queryByText("Saldo Tersedia")).toBeNull()
     expect(screen.queryByText(formatRupiah(BALANCE))).toBeNull()
     fireEvent.click(screen.getByRole("button", { name: "Coba lagi" }))
     expect(onRetry).toHaveBeenCalledTimes(1)
@@ -306,18 +330,19 @@ describe("<WalletScreen>", () => {
     return container
   }
 
-  it("TIDAK ada tombol kembali — Dompet destinasi top-level", async () => {
+  it("ADA tombol kembali (T5-001) — Dompet adalah layar stack, user tidak boleh terdampar", async () => {
     renderScreen()
     await waitFor(() => expect(screen.getByText("Dompet")).toBeTruthy())
-    expect(screen.queryByRole("button", { name: "Kembali" })).toBeNull()
-    expect(screen.queryByRole("button", { name: "Tutup" })).toBeNull()
+    // Header default: tombol Kembali tampil; fallback bila tidak bisa back
+    // → replace("/showcase").
+    expect(screen.getByRole("button", { name: "Kembali" })).toBeTruthy()
   })
 
   it("menampilkan saldo exact + escrow via escrowBalance (fallback backend)", async () => {
     renderScreen()
     await waitFor(() => expect(screen.getByText(formatRupiah(2_500_000))).toBeTruthy())
     expect(screen.getByText(formatRupiah(150_000))).toBeTruthy()
-    expect(screen.getByText("ditahan di escrow")).toBeTruthy()
+    expect(screen.getByText("ditahan sebagai jaminan transaksi")).toBeTruthy()
   })
 
   it("holdBalance diprioritaskan di atas escrowBalance", async () => {
@@ -337,7 +362,7 @@ describe("<WalletScreen>", () => {
     mocks.balanceError = "Jaringan bermasalah"
     renderScreen()
     await waitFor(() => expect(screen.getByText("Gagal memuat saldo")).toBeTruthy())
-    expect(screen.queryByText("Saldo Dompet")).toBeNull()
+    expect(screen.queryByText("Saldo Tersedia")).toBeNull()
     fireEvent.click(screen.getByRole("button", { name: "Coba lagi" }))
     expect(mocks.balanceReload).toHaveBeenCalled()
   })

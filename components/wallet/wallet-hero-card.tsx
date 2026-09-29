@@ -7,12 +7,12 @@
  * monokrom §2.1 tidak punya warna jenuh untuk gradient).
  *
  * Isi:
- *  - Label "Saldo Dompet" + nominal besar (<Amount> exact dari API, tanpa
- *    pembulatan tampilan).
+ *  - Label "Saldo Tersedia" + nominal besar (<Amount> exact dari API, tanpa
+ *    pembulatan tampilan) + caption "yang bisa dipakai sekarang".
  *  - Toggle mata (Eye/EyeSlash) terhubung ke `prefs.balanceHidden` dari
  *    useUiPrefs — preferensi yang SAMA dengan Beranda (J-05), bukan state
  *    lokal. Pemanggil yang me-wire `hidden`/`onToggleHidden`.
- *  - Sub-baris "Rp X ditahan di escrow" bila ada dana tertahan.
+ *  - Sub-baris "Rp X ditahan sebagai jaminan transaksi" bila ada dana tertahan.
  *  - Loading = skeleton pada angka (label & kontrol tetap tampil, layout
  *    stabil — pola HomeOverviewCard).
  *  - Error = <ErrorState compact> + retry DI LUAR kartu gelap (bukan di
@@ -67,7 +67,7 @@ export type WalletHeroCardProps = {
    */
   withdrawLimitLeft?: number
   /**
-   * D03 (batch 139): bila diisi, ikon info di samping label "Saldo Dompet"
+   * D03 (batch 139): bila diisi, ikon info di samping label "Saldo Tersedia"
    * membuka rincian tersedia/tertahan/total (read-only).
    */
   onPressBreakdown?: () => void
@@ -108,9 +108,9 @@ export function WalletHeroCard({
     : hidden
       ? "Saldo dompet disembunyikan"
       : summarize([
-          "Saldo dompet",
+          "Saldo tersedia",
           formatRupiah(available ?? Number.NaN),
-          showHeld ? `${formatRupiah(heldValue)} ditahan di escrow` : undefined,
+          showHeld ? `${formatRupiah(heldValue)} ditahan sebagai jaminan transaksi` : undefined,
         ])
 
   return (
@@ -150,7 +150,7 @@ export function WalletHeroCard({
               <View className="flex-row items-center gap-2">
                 <Icon icon={Wallet} size="xs" tone="inverse" />
                 <Text variant="caption" weight={600} tone="inverse">
-                  Saldo Dompet
+                  Saldo Tersedia
                 </Text>
                 {onPressBreakdown && !loading ? (
                   // D03 (batch 139): rincian saldo tersedia/tertahan/total.
@@ -159,7 +159,7 @@ export function WalletHeroCard({
                     onPress={onPressBreakdown}
                     accessibilityRole="button"
                     accessibilityLabel="Lihat rincian saldo"
-                    accessibilityHint="Menampilkan penjelasan saldo tersedia, ditahan di escrow, dan total"
+                    accessibilityHint="Menampilkan penjelasan saldo tersedia, ditahan sebagai jaminan transaksi, dan total"
                     className={cn(
                       "-my-2 -mr-2 min-h-11 min-w-11 items-center justify-center rounded-full",
                       focusRing,
@@ -172,12 +172,19 @@ export function WalletHeroCard({
               {loading ? (
                 <Skeleton height={tokens.typography.monoLarge.lineHeight} className="w-44" />
               ) : (
-                <Amount
-                  value={available ?? Number.NaN}
-                  size="large"
-                  tone="inverse"
-                  hidden={hidden}
-                />
+                <View className="gap-1">
+                  <Amount
+                    value={available ?? Number.NaN}
+                    size="large"
+                    tone="inverse"
+                    hidden={hidden}
+                  />
+                  {/* T3-006 (audit UI/UX): caption kecil menegaskan angka hero
+                      adalah saldo yang bisa dipakai — bukan total. */}
+                  <Text variant="caption" tone="inverse" className="opacity-70">
+                    yang bisa dipakai sekarang
+                  </Text>
+                </View>
               )}
               {loading ? (
                 <Skeleton height={tokens.typography.caption.lineHeight} className="w-36" />
@@ -188,7 +195,7 @@ export function WalletHeroCard({
                   accessibilityRole={onPressHeld ? "button" : undefined}
                   accessibilityLabel={
                     onPressHeld
-                      ? `${formatRupiah(heldValue)} ditahan di escrow. Ketuk untuk melihat rincian pesanan penahan.`
+                      ? `${formatRupiah(heldValue)} ditahan sebagai jaminan transaksi. Ketuk untuk melihat rincian pesanan penahan.`
                       : undefined
                   }
                   accessibilityHint={onPressHeld ? "Menampilkan daftar pesanan yang menahan dana" : undefined}
@@ -198,15 +205,23 @@ export function WalletHeroCard({
                     onPressHeld && focusRing,
                   )}
                 >
-                  <View className="flex-row items-center gap-1.5">
-                    <Icon icon={LockSimple} size="xs" tone="inverse" />
-                    <Amount value={heldValue} size="body" tone="inverse" hidden={hidden} />
-                    <Text variant="caption" tone="inverse">
-                      ditahan di escrow
+                  <View className="gap-1">
+                    <View className="flex-row items-center gap-1.5">
+                      <Icon icon={LockSimple} size="xs" tone="inverse" />
+                      <Amount value={heldValue} size="body" tone="inverse" hidden={hidden} />
+                      <Text variant="caption" tone="inverse">
+                        ditahan sebagai jaminan transaksi
+                      </Text>
+                      {onPressHeld ? (
+                        <Icon icon={CaretRight} size="xs" tone="inverse" />
+                      ) : null}
+                    </View>
+                    {/* T3-005 (audit UI/UX): "escrow" bukan kata sehari-hari —
+                        caption kecil menjelaskan uang jaminan ini cair otomatis. */}
+                    <Text variant="caption" tone="inverse" className="opacity-70">
+                      Uang jaminan untuk pesanan yang belum selesai — cair otomatis kalau pesanan selesai
+                      atau batal.
                     </Text>
-                    {onPressHeld ? (
-                      <Icon icon={CaretRight} size="xs" tone="inverse" />
-                    ) : null}
                   </View>
                 </Pressable>
               ) : null}

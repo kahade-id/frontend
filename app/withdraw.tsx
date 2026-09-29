@@ -21,7 +21,7 @@ import { router, useLocalSearchParams } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Bank as BankIcon } from "phosphor-react-native"
 
-import { api, isApiError, userMessage, type WithdrawDto } from "@/lib/api"
+import { api, isApiError, isPinNotSetError, userMessage, type WithdrawDto } from "@/lib/api"
 import { assertDeviceNotCompromised } from "@/lib/device-integrity"
 import { createIdempotencyKey } from "@/lib/api/client"
 import type { BankAccount } from "@/lib/api/bank-accounts"
@@ -146,11 +146,17 @@ export default function WithdrawScreen() {
         // klien tidak menghitung ulang, hanya `limit - terpakai`).
         todayWithdrawAmount: w.todayWithdrawAmount ?? 0,
         dailyWithdrawLimit: w.dailyWithdrawLimit,
+        // T3-004 (audit UI/UX): sinyal "belum punya PIN" untuk jalan
+        // "Buat PIN" di dalam sheet PIN.
+        hasPin: w.hasPin ?? undefined,
       }),
     },
   )
   const balance = balanceQuery.data?.balance
   const balanceError = balanceQuery.error
+  // T3-004: `false` = user terkonfirmasi belum punya PIN dompet —
+  // sheet PIN menawarkan jalan "Buat PIN", bukan error "PIN salah".
+  const hasPin = balanceQuery.data?.hasPin
   const withdrawLimitLeft =
     balanceQuery.data?.dailyWithdrawLimit != null
       ? Math.max(0, balanceQuery.data.dailyWithdrawLimit - (balanceQuery.data.todayWithdrawAmount ?? 0))
@@ -162,6 +168,9 @@ export default function WithdrawScreen() {
   const [step, setStep] = useState<Step>("amount")
   const [verifyMode, setVerifyMode] = useState<"pin" | "otp">("pin")
   const [pinError, setPinError] = useState<string | undefined>()
+  // T3-004: true bila server menolak karena PIN belum pernah diatur —
+  // melengkapi sinyal `hasPin === false` dari GET /v1/wallet.
+  const [pinNotSet, setPinNotSet] = useState(false)
   const [otpError, setOtpError] = useState<string | undefined>()
   const [txId, setTxId] = useState<string | null>(null)
   const submitLock = useRef(false)
@@ -229,6 +238,7 @@ export default function WithdrawScreen() {
   const handleSubmitForm = useCallback(() => {
     if (!canContinueAccount) return
     setPinError(undefined)
+    setPinNotSet(false)
     setVerifyMode("pin")
     setStep("verify")
   }, [canContinueAccount])
@@ -241,6 +251,7 @@ export default function WithdrawScreen() {
       submitLock.current = true
       setSubmitting(true)
       setPinError(undefined)
+      setPinNotSet(false)
       setProgressError(undefined)
       setProgressState("PROCESSING")
       try {
@@ -294,6 +305,9 @@ export default function WithdrawScreen() {
           : base
         setProgressError(msg)
         setProgressState("FAILURE")
+        // T3-004: penolakan "PIN belum diatur" BUKAN PIN salah — sheet PIN
+        // beralih ke ajakan buat PIN.
+        setPinNotSet(isPinNotSetError(err))
         scheduleResult(() => {
           setProgressState(null)
           setPinError(msg)
@@ -469,7 +483,11 @@ export default function WithdrawScreen() {
               value={amount}
               onChange={setAmount}
               min={withdrawLimits.minimum}
-              max={balance && balance > 0 ? Math.min(withdrawLimits.maximum, balance) : withdrawLimits.maximum}
+              // T3-002 (audit UI/UX): pola A-05 transfer — nol dan
+              // tidak-diketahui dibedakan. Saldo Rp0 tidak boleh
+              // dilonggarkan ke batas server (user mengetik + masukkan PIN
+              // baru ditolak server); validasi akhir tetap di server.
+              max={balance == null ? withdrawLimits.maximum : Math.min(withdrawLimits.maximum, Math.max(0, balance))}
               presets={PRESETS}
               balance={balance}
               slot={
@@ -490,6 +508,14 @@ export default function WithdrawScreen() {
                   {withdrawLimitLeft != null && balance != null ? (
                     <Text variant="caption" tone="secondary">
                       Sisa limit tarik hari ini {formatRupiah(withdrawLimitLeft)}
+                    </Text>
+                  ) : null}
+                  {/* T3-002: hint jujur saat saldo habis — jangan biarkan
+                      user mengetik nominal lalu memasukkan PIN untuk ditolak
+                      server. */}
+                  {balance === 0 ? (
+                    <Text variant="caption" tone="secondary">
+                      Saldo Anda Rp0 — isi saldo dulu untuk menarik dana.
                     </Text>
                   ) : null}
                 </View>
@@ -703,6 +729,7 @@ export default function WithdrawScreen() {
           }
           setStep("amount")
           setVerifyMode("pin")
+          setPinNotSet(false)
         }}
         title={verifyMode === "otp" ? "Konfirmasi OTP" : "Verifikasi PIN"}
         description={
@@ -794,12 +821,26 @@ export default function WithdrawScreen() {
                 </Text>
               </View>
             </View>
-            <PinInput
-              mode="enter"
-              onComplete={(p) => void handlePin(p)}
-              errorText={pinError}
-              disabled={submitting}
-            />
+            {hasPin === false || pinNotSet ? (
+              // T3-004 (audit UI/UX): user belum punya PIN — satu-satunya
+              // jalan yang benar adalah membuatnya, bukan menebak 6 digit
+              // sampai kena rate-limit.
+              <View className="gap-3">
+                <Text variant="body" tone="secondary">
+                  Anda belum punya PIN dompet. Buat PIN dulu untuk menarik dana.
+                </Text>
+                <Button onPress={() => router.push(ROUTES.changePin)} haptic>
+                  Buat PIN sekarang
+                </Button>
+              </View>
+            ) : (
+              <PinInput
+                mode="enter"
+                onComplete={(p) => void handlePin(p)}
+                errorText={pinError}
+                disabled={submitting}
+              />
+            )}
             {/* FE-IMP-4 item 6: ETA di konfirmasi penarikan — informasi umum
                 (bukan janji per transaksi), agar user punya ekspektasi yang
                 jelas sebelum dana dipotong. */}

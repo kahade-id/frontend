@@ -70,6 +70,7 @@ export {
   ApiError,
   DEFAULT_ERROR_MESSAGES,
   isApiError,
+  isPinNotSetError,
   isUncertainMutationError,
   userMessage,
   type ApiErrorCode,

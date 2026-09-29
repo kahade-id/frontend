@@ -63,7 +63,7 @@ import {
   type TransferRecipient,
 } from "@/components/ui/transfer-recipient-picker"
 import { useToast } from "@/components/ui/toast"
-import { isApiError } from "@/lib/api"
+import { isApiError, isPinNotSetError } from "@/lib/api"
 import { translate } from "@/lib/i18n/translate"
 const MIN_AMOUNT = AMOUNT_LIMITS.transfer.minimum
 const MAX_AMOUNT = AMOUNT_LIMITS.transfer.maximum
@@ -127,11 +127,17 @@ export default function TransferScreen() {
        */
       select: (w) => ({
         balance: typeof w.availableBalance === "number" ? w.availableBalance : undefined,
+        // T3-004 (audit UI/UX): sinyal "belum punya PIN" untuk jalan
+        // "Buat PIN" di dalam sheet PIN — GET /v1/wallet selalu mengirimnya.
+        hasPin: w.hasPin ?? undefined,
       }),
     },
   )
   const balance = balanceQuery.data?.balance
   const balanceError = balanceQuery.error
+  // T3-004: `false` = user terkonfirmasi belum punya PIN dompet —
+  // sheet PIN menawarkan jalan "Buat PIN", bukan error "PIN salah".
+  const hasPin = balanceQuery.data?.hasPin
   const [query, setQuery] = useState(presetUsername ?? "")
   // J-06 (audit): penerima terakhir PERSISTEN antar-sesi (lib/ui-prefs),
   // bukan state lokal yang hilang tiap masuk layar.
@@ -143,6 +149,9 @@ export default function TransferScreen() {
   const [noteSheetOpen, setNoteSheetOpen] = useState(false)
   const [step, setStep] = useState<Step>("form")
   const [pinError, setPinError] = useState<string | undefined>()
+  // T3-004: true bila server menolak karena PIN belum pernah diatur
+  // (isPinNotSetError) — melengkapi sinyal `hasPin === false`.
+  const [pinNotSet, setPinNotSet] = useState(false)
   const [txId, setTxId] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [transferStatus, setTransferStatus] = useState<string | undefined>()
@@ -343,6 +352,7 @@ export default function TransferScreen() {
       submitLock.current = true
       setSubmitting(true)
       setPinError(undefined)
+      setPinNotSet(false)
       setProgressError(undefined)
       setProgressState("PROCESSING")
       try {
@@ -409,6 +419,9 @@ export default function TransferScreen() {
           : base
         setProgressError(msg)
         setProgressState("FAILURE")
+        // T3-004: penolakan "PIN belum diatur" BUKAN PIN salah — jangan
+        // biarkan user menebak-nebak; sheet PIN beralih ke ajakan buat PIN.
+        setPinNotSet(isPinNotSetError(err))
         /*
          * A-15 (audit 2026-09-22): pada kegagalan tak pasti klien tidak tahu
          * apakah debit sudah terjadi — teks saja tidak cukup. Saldo disegarkan
@@ -885,6 +898,7 @@ export default function TransferScreen() {
           // boleh sempat dirender basi di overlay percobaan berikutnya.
           setProgressError(undefined)
           setPinError(undefined)
+          setPinNotSet(false)
           setStep("confirm")
         }}
         title="Verifikasi PIN"
@@ -894,12 +908,27 @@ export default function TransferScreen() {
         )}
         avoidKeyboard
       >
-        <PinInput
-          mode="enter"
-          onComplete={(p) => void handlePin(p)}
-          errorText={pinError}
-          disabled={submitting}
-        />
+        {hasPin === false || pinNotSet ? (
+          // T3-004 (audit UI/UX): user belum punya PIN — satu-satunya jalan
+          // yang benar adalah membuatnya, bukan menebak 6 digit sampai kena
+          // rate-limit. Tombol mengarah ke layar Buat PIN; kembali ke sini
+          // user bisa langsung memasukkan PIN barunya.
+          <View className="gap-3">
+            <Text variant="body" tone="secondary">
+              Anda belum punya PIN dompet. Buat PIN dulu untuk mengirim uang.
+            </Text>
+            <Button onPress={() => router.push(ROUTES.changePin)} haptic>
+              Buat PIN sekarang
+            </Button>
+          </View>
+        ) : (
+          <PinInput
+            mode="enter"
+            onComplete={(p) => void handlePin(p)}
+            errorText={pinError}
+            disabled={submitting}
+          />
+        )}
       </BottomSheet>
       </Screen>
     </ScreenCaptureGuard>

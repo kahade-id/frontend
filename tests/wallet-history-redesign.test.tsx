@@ -220,8 +220,9 @@ describe("filterWalletTransactions (client-side)", () => {
   })
 
   it("pencarian cocok dengan label jenis (case-insensitive)", () => {
-    // WALLET_TXN_LABELS: TOP_UP → "Topup".
-    const out = filterWalletTransactions(items, { ...base, query: "topup" })
+    // WALLET_TXN_LABELS: TOP_UP → "Isi Saldo" (T3-008) — pencarian user
+    // memakai label baru, case-insensitive.
+    const out = filterWalletTransactions(items, { ...base, query: "ISI SALDO" })
     expect(out.map((t) => t.id)).toEqual(["1"])
     const out2 = filterWalletTransactions(items, { ...base, query: "  PENARIKAN " })
     expect(out2.map((t) => t.id)).toEqual(["2"])
@@ -272,7 +273,7 @@ describe("<WalletHistoryFilterSheet>", () => {
     expect(screen.getByText("Rentang tanggal")).toBeTruthy()
     expect(screen.getByText("Status")).toBeTruthy()
     // Chip jenis dibangun dari enum API persis — bukan alias lama.
-    expect(screen.getByText("Topup")).toBeTruthy()
+    expect(screen.getByText("Isi Saldo")).toBeTruthy()
     expect(screen.getByText("Semua jenis")).toBeTruthy()
   })
 

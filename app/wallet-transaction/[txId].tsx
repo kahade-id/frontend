@@ -32,6 +32,7 @@ import { Header } from "@/components/ui/header"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
 import { TextLink } from "@/components/ui/text-link"
+import { Text } from "@/components/ui/text"
 import { ReceiptTicket, type ReceiptRow } from "@/components/receipt/ReceiptTicket"
 import { downloadReceipt, shareReceipt } from "@/components/receipt/shareReceipt"
 import { useReceiptQrState } from "@/components/receipt/use-receipt-qr"
@@ -167,6 +168,15 @@ export default function WalletTransactionScreen() {
                 )
               })()}
               {/* FE-IMP-4 item 8: timeline status khusus penarikan. */}
+              {txn.status === "PENDING_SETTLEMENT" ? (
+                // T3-011 (audit UI/UX): status tidak menjelaskan apa yang
+                // ditunggu user — beri ekspektasi durasi + penegasan user
+                // tidak perlu berbuat apa-apa.
+                <Text variant="caption" tone="secondary" className="text-pretty">
+                  Biasanya selesai dalam beberapa menit hingga 1 hari kerja. Anda tidak perlu
+                  melakukan apa-apa.
+                </Text>
+              ) : null}
               {txn.type === "WITHDRAW" || txn.type === "WITHDRAWAL" ? (
                 <WithdrawalTimeline status={txn.status} />
               ) : null}

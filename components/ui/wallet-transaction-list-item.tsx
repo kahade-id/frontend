@@ -52,7 +52,7 @@ import { cn } from "@/lib/cn"
 import { truncateMiddle } from "@/lib/format"
 
 export type WalletTxType = "CREDIT" | "DEBIT" | "UNKNOWN"
-export type WalletTxStatus = "SUCCESS" | "PENDING" | "FAILED" | "UNKNOWN"
+export type WalletTxStatus = "SUCCESS" | "PENDING" | "FAILED" | "CANCELLED" | "UNKNOWN"
 export type WalletTxKind =
   | "topup"
   | "bonus"
@@ -104,11 +104,14 @@ const KIND_ICON: Record<WalletTxKind, IconComponent> = {
 export type WalletTransactionListItemLabels = {
   pending: string
   failed: string
+  /** T3-007: dibatalkan BUKAN gagal — label netral, bukan merah. */
+  cancelled: string
 }
 
 const DEFAULT_LABELS: WalletTransactionListItemLabels = {
   pending: "Diproses",
   failed: "Gagal",
+  cancelled: "Dibatalkan",
 }
 
 export type WalletTransactionListItemProps = Omit<
@@ -212,9 +215,11 @@ export function WalletTransactionListItem({
       ? t.pending
       : failed
         ? t.failed
-        : status === "UNKNOWN"
-          ? statusLabel
-          : undefined,
+        : status === "CANCELLED"
+          ? t.cancelled
+          : status === "UNKNOWN"
+            ? statusLabel
+            : undefined,
     timestamp,
   ]
     .filter(Boolean)
@@ -247,6 +252,11 @@ export function WalletTransactionListItem({
           ) : null}
           {status === "PENDING" ? (
             <StatusIndicator label={t.pending} tone="warning" size="sm" />
+          ) : null}
+          {status === "CANCELLED" ? (
+            // T3-007: pembatalan user sendiri ditampilkan netral —
+            // "dibatalkan" bukan "gagal", tidak ada yang rusak.
+            <StatusIndicator label={t.cancelled} tone="neutral" size="sm" />
           ) : null}
           {status === "UNKNOWN" ? (
             <StatusIndicator label={statusLabel} tone="neutral" size="sm" />

@@ -67,7 +67,7 @@ export function WalletHistoryScreen({ kind }: { kind: "topup" | "withdraw" }) {
 
   return (
     <Screen edges={["top"]} padded={false}>
-      <Header title={kind === "topup" ? "Riwayat Top-up" : "Riwayat Penarikan"} />
+      <Header title={kind === "topup" ? "Riwayat Isi Saldo" : "Riwayat Penarikan"} />
       <PaginatedList
         {...query}
         onRefresh={query.refresh}
