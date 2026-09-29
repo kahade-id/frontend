@@ -39,17 +39,32 @@ function hourLabel(h: number): string {
 }
 
 /**
+ * TIM 8 (perf, P2): instance `Intl.DateTimeFormat` di-cache lazy di module
+ * scope — `getLiveSupportAvailability` dipanggil per render app/faq.tsx dan
+ * tadinya membangun formatter baru tiap panggilan. `formatToParts` aman
+ * dipakai ulang.
+ */
+let availabilityFormatter: Intl.DateTimeFormat | null = null
+
+function getAvailabilityFormatter(): Intl.DateTimeFormat {
+  if (!availabilityFormatter) {
+    availabilityFormatter = new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Asia/Jakarta",
+      weekday: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    })
+  }
+  return availabilityFormatter
+}
+
+/**
  * Hitung ketersediaan dari `now` (default: sekarang). Waktu dikonversi ke
  * Asia/Jakarta via Intl agar benar di perangkat berzona lain.
  */
 export function getLiveSupportAvailability(now: Date = new Date()): LiveSupportAvailability {
-  const parts = new Intl.DateTimeFormat("en-GB", {
-    timeZone: "Asia/Jakarta",
-    weekday: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23",
-  }).formatToParts(now)
+  const parts = getAvailabilityFormatter().formatToParts(now)
   const get = (t: string) => parts.find((p) => p.type === t)?.value ?? ""
   // weekday short en-GB: "Mon".."Sun"
   const wd = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(get("weekday"))

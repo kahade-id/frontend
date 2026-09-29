@@ -42,14 +42,29 @@ export type DayGroup = {
  * Sebelumnya memakai getFullYear()/getMonth()/getDate() perangkat sehingga
  * user WITA/WIT melihat mutasi 00:30 WIB di hari yang berbeda dari backend.
  */
-export function wibCalendarDay(d: Date): { key: string; date: Date } | null {
-  try {
-    const parts = new Intl.DateTimeFormat("en-US", {
+/**
+ * TIM 8 (perf, P0): instance formatter di-cache lazy di module scope —
+ * `wibCalendarDay` dipanggil per transaksi di `groupByDay` (N=200 mutasi →
+ * 202 konstruksi per pass). Dipakai ulang juga oleh
+ * lib/transaction-grouping.ts lewat fungsi yang sama ini.
+ */
+let wibDayFormatter: Intl.DateTimeFormat | null = null
+
+function getWibDayFormatter(): Intl.DateTimeFormat {
+  if (!wibDayFormatter) {
+    wibDayFormatter = new Intl.DateTimeFormat("en-US", {
       timeZone: WIB_TIME_ZONE,
       year: "numeric",
       month: "numeric",
       day: "numeric",
-    }).formatToParts(d)
+    })
+  }
+  return wibDayFormatter
+}
+
+export function wibCalendarDay(d: Date): { key: string; date: Date } | null {
+  try {
+    const parts = getWibDayFormatter().formatToParts(d)
     const value = (type: string) => Number(parts.find((p) => p.type === type)?.value ?? NaN)
     const year = value("year")
     const month = value("month")

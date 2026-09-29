@@ -359,6 +359,16 @@ function NotificationsScreen() {
   // di lib/notification-social-grouping).
   const rows = useMemo<NotificationRow[]>(() => groupSocialNotifications(notifs), [notifs])
   /**
+   * TIM 8 (perf, P0): grup hari ("Hari ini"/"Kemarin"/tanggal) dihitung
+   * SEKALI per baris dari `rows` — bukan 3× `notificationDayGroup` per
+   * renderItem (versi lama membangun hingga 9 `Intl.DateTimeFormat` per
+   * baris per render). SATU `now` dipakai bersama untuk semua baris.
+   */
+  const rowGroups = useMemo(() => {
+    const now = new Date()
+    return rows.map((row) => notificationDayGroup(notificationRowHead(row).createdAt, now))
+  }, [rows])
+  /**
    * LR-007 (perf-fix): renderItem stabil via useCallback + baris di-memo —
    * identitas renderItem tidak berubah tiap render; setiap baris hanya
    * re-render bila datanya sendiri berubah.
@@ -513,13 +523,11 @@ function NotificationsScreen() {
   const renderNotificationRow = useCallback(
     ({ item: row, index }: { item: NotificationRow; index: number }) => {
       const head = notificationRowHead(row)
-      const group = notificationDayGroup(head.createdAt)
-      const prevHead = index > 0 ? notificationRowHead(rows[index - 1]) : undefined
+      const group = rowGroups[index]
       const showHeader =
-        index === 0 || (prevHead != null && notificationDayGroup(prevHead.createdAt).key !== group.key)
-      const nextHead = index < rows.length - 1 ? notificationRowHead(rows[index + 1]) : undefined
+        index === 0 || (index > 0 && rowGroups[index - 1].key !== group.key)
       const sameDayAsNext =
-        nextHead != null && notificationDayGroup(nextHead.createdAt).key === group.key
+        index < rowGroups.length - 1 && rowGroups[index + 1].key === group.key
       const isGroup = row.kind === "group"
       const members = isGroup ? row.items : [head]
       return (
@@ -539,7 +547,7 @@ function NotificationsScreen() {
         />
       )
     },
-    [rows, selecting, selected, handleOpenNotification, enterSelectGroup, toggleSelectGroup, enterSelect, toggleSelect],
+    [rowGroups, selecting, selected, handleOpenNotification, enterSelectGroup, toggleSelectGroup, enterSelect, toggleSelect],
   )
 
   const selectedIds = useMemo(() => Array.from(selected), [selected])

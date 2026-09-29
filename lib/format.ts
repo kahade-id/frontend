@@ -460,9 +460,19 @@ type ZonedParts = { year: number; month: number; day: number; hour: number; minu
  * ke zona perangkat dan kejadiannya dicatat sekali supaya terlihat di
  * telemetri — sama seperti fallback `formatDateTimeWIB` (E-05).
  */
-function zonedParts(date: Date, timeZone: string): ZonedParts | null {
-  try {
-    const parts = new Intl.DateTimeFormat("en-US", {
+/**
+ * TIM 8 (perf, P0): instance `Intl.DateTimeFormat` untuk `zonedParts`
+ * di-cache per `timeZone` di module scope. Konstruksi ≈ 0,2–2 ms di Hermes
+ * dan `zonedParts` dipanggil per baris daftar lewat `formatDateTimeWIB`
+ * (wallet-transaction-row memanggilnya 2× per baris). `formatToParts`
+ * aman dipakai ulang dari satu instance.
+ */
+const zonedPartsFormatters = new Map<string, Intl.DateTimeFormat>()
+
+function zonedPartsFormatter(timeZone: string): Intl.DateTimeFormat {
+  let formatter = zonedPartsFormatters.get(timeZone)
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat("en-US", {
       timeZone,
       day: "numeric",
       month: "numeric",
@@ -470,7 +480,15 @@ function zonedParts(date: Date, timeZone: string): ZonedParts | null {
       hour: "2-digit",
       minute: "2-digit",
       hour12: false,
-    }).formatToParts(date)
+    })
+    zonedPartsFormatters.set(timeZone, formatter)
+  }
+  return formatter
+}
+
+function zonedParts(date: Date, timeZone: string): ZonedParts | null {
+  try {
+    const parts = zonedPartsFormatter(timeZone).formatToParts(date)
     const value = (type: string) => Number(parts.find((p) => p.type === type)?.value ?? NaN)
     const [year, month, day, hour, minute] = [
       value("year"),
@@ -659,11 +677,19 @@ export function formatDateTimeWIB(d: Date | number | string): string {
  * bisa menentukan (Hermes tanpa full-ICU) — pemanggil menampilkan tanpa
  * label zona daripada menebak.
  */
+/** TIM 8 (perf, P2): cache lazy instance formatter `deviceTimeZoneAbbreviation`. */
+let deviceTzAbbrFormatter: Intl.DateTimeFormat | null = null
+
 export function deviceTimeZoneAbbreviation(): string {
   try {
-    const parts = new Intl.DateTimeFormat("id", { timeZoneName: "short" }).formatToParts(
-      new Date(),
-    )
+    // TIM 8 (perf, P2): instance formatter di-cache lazy di module scope —
+    // konstruksinya yang mahal, bukan formatToParts-nya. Hasil string TIDAK
+    // di-cache agar fungsi tetap bisa diuji dengan Intl yang di-mock
+    // (pola tests/format.test.ts untuk deviceTimeZoneShort).
+    if (!deviceTzAbbrFormatter) {
+      deviceTzAbbrFormatter = new Intl.DateTimeFormat("id", { timeZoneName: "short" })
+    }
+    const parts = deviceTzAbbrFormatter.formatToParts(new Date())
     const tz = parts.find((p) => p.type === "timeZoneName")?.value?.trim()
     return tz && tz !== "id" ? tz : ""
   } catch {

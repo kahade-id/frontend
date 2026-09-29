@@ -41,10 +41,29 @@ function pickSlaDue(raw: unknown): string | undefined {
   return typeof v === "string" && v ? v : undefined
 }
 
+/**
+ * TIM 8 (perf, P2): `toLocaleString("id-ID", …)` membangun instance
+ * `Intl.DateTimeFormat` di balik layar tiap panggilan `describeTicketSla`.
+ * Instance di-cache lazy di module scope — keluarannya identik.
+ */
+let slaDueFormatter: Intl.DateTimeFormat | null = null
+
+function getSlaDueFormatter(): Intl.DateTimeFormat {
+  if (!slaDueFormatter) {
+    slaDueFormatter = new Intl.DateTimeFormat("id-ID", {
+      day: "numeric",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+    })
+  }
+  return slaDueFormatter
+}
+
 export function describeTicketSla(ticket: SupportTicket & Record<string, unknown>): TicketSlaStage {
   const dueRaw = pickSlaDue(ticket)
   const responseDueLabel = dueRaw
-    ? new Date(dueRaw).toLocaleString("id-ID", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })
+    ? getSlaDueFormatter().format(new Date(dueRaw))
     : undefined
   switch (ticket.status) {
     case "OPEN":
