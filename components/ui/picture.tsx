@@ -52,7 +52,7 @@
 import { Image, type ImageProps as ExpoImageProps, type ImageSource } from "expo-image"
 import { CloudSlash, ImageBroken } from "phosphor-react-native"
 import { useEffect, useMemo, useState } from "react"
-import { View, type ImageResizeMode, type ViewProps } from "react-native"
+import { View, type ImageResizeMode, type ViewProps, Platform } from "react-native"
 
 import { Icon } from "@/components/ui/icon"
 import { PressableScale } from "@/components/ui/pressable-scale"
@@ -94,6 +94,12 @@ export type PictureProps = Omit<ViewProps, "children"> & {
    * ("normal") bila tidak diisi.
    */
   priority?: ExpoImageProps["priority"]
+  /**
+   * PERF-FIX (2026-09-30): placeholder blurhash opsional — ditampilkan
+   * expo-image selama gambar remote dimuat. Tipe mengikuti
+   * `ExpoImageProps["placeholder"]`; tidak butuh perubahan backend.
+   */
+  placeholder?: ExpoImageProps["placeholder"]
   className?: string
   /** Cegah download/save gambar (privacy showcase) — blok context menu & drag di web */
   preventDownload?: boolean
@@ -136,6 +142,7 @@ export function Picture({
   cachePolicy = "memory-disk",
   recyclingKey,
   priority,
+  placeholder,
   className,
   style,
   preventDownload = false,
@@ -250,7 +257,10 @@ export function Picture({
           cachePolicy={cachePolicy}
           recyclingKey={recyclingKey}
           priority={priority}
-          transition={reducedMotion ? 0 : tokens.motion.duration.fast}
+          placeholder={placeholder}
+          // P2 PERF-FIX (2026-09-30): tanpa transisi fade di web (composite cost
+          // saat scroll cepat) atau saat reduced-motion.
+          transition={reducedMotion || Platform.OS === "web" ? 0 : tokens.motion.duration.fast}
           style={{ width: "100%", height: "100%" }}
           onLoad={(e: any) => {
             setStatus("loaded")

@@ -49,7 +49,7 @@ import type { CreateShowcaseItemDto, ShowcaseMediaInput } from "@/lib/api/types"
 import { API_CONSTRAINTS } from "@/lib/api/constraints"
 import { getSessionRevision } from "@/lib/api/session"
 import { useSessionRevision } from "@/lib/guest-gate"
-import { pickImage, pickImages, pickedImageToBlob, type PickedImage } from "@/lib/image-picker"
+import { pickImage, pickImages, pickedImageToBlob, resizePickedImage, type PickedImage } from "@/lib/image-picker"
 import { markShowcaseFeedDirty } from "@/lib/showcase-social-prefs"
 import { partitionAssetsBySize, resolveCreateAttempt } from "@/lib/showcase-state"
 import { SHOWCASE_IMAGE_MAX_BYTES, getShowcasePhotoLimit } from "@/lib/showcase-limits"
@@ -494,21 +494,27 @@ export default function ShowcaseCreateScreen() {
       }
       setUploading(true)
       setUploadProgress(0)
+      // PERF-FIX (2026-09-30): resize SEBELUM preview dirender — pratinjau
+      // 88px tidak butuh file kamera 4000px di memori (8 foto × full-res).
+      // Fail-open: resizePickedImage mengembalikan aset asli bila gagal.
+      // Upload di bawah juga me-resize (idempoten — sudah kecil = no-op).
+      const resizedAssets = await Promise.all(sizedAssets.map((a) => resizePickedImage(a)))
+      if (controller.signal.aborted) return
       // S6: upload konkuren maks 2 — lebih cepat dari sekuensial, tetap ramah
       // memori/jaringan dibanding Promise.all tak terbatas.
       const CONCURRENCY = 2
       let completed = 0
       const bump = () => {
         completed += 1
-        setUploadProgress(completed / sizedAssets.length)
+        setUploadProgress(completed / resizedAssets.length)
         setProgress(
           translate("Mengunggah foto {x} dari {y}", {
             x: completed,
-            y: sizedAssets.length,
+            y: resizedAssets.length,
           }),
         )
       }
-      const queue = [...sizedAssets]
+      const queue = [...resizedAssets]
       const workers = Array.from({ length: Math.min(CONCURRENCY, queue.length) }, async () => {
         while (queue.length > 0) {
           if (controller.signal.aborted) return
@@ -546,7 +552,7 @@ export default function ShowcaseCreateScreen() {
           toast.show({
             title: translate("{x} dari {y} foto gagal diunggah", {
               x: failures.length,
-              y: sizedAssets.length,
+              y: resizedAssets.length,
             }),
             description: detail,
             tone: "warning",

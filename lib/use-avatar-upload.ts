@@ -17,7 +17,7 @@ import { useCallback, useRef, useState } from "react"
 
 import { api, userMessage } from "@/lib/api"
 import { translate } from "@/lib/i18n/translate"
-import { pickImage, pickedImageToFormData, type PickedImage, type PickImageOptions } from "@/lib/image-picker"
+import { pickImage, pickedImageToFormData, resizePickedImage, type PickedImage, type PickImageOptions } from "@/lib/image-picker"
 import { logWarn } from "@/lib/telemetry"
 import { useToast } from "@/components/ui/toast"
 
@@ -70,7 +70,8 @@ export function useAvatarUpload({ onAvatarUrl, onChanged }: UseAvatarUploadOptio
     setError(null)
     let orphanKey: string | undefined
     try {
-      const uploaded = await api.users.uploadAvatarDirect(await pickedImageToFormData(asset))
+      // PERF-FIX (2026-09-30): resize avatar sebelum upload (fail-open).
+      const uploaded = await api.users.uploadAvatarDirect(await pickedImageToFormData(await resizePickedImage(asset)))
       orphanKey = uploaded.avatarKey ?? undefined
       if (uploaded.avatarKey) {
         await api.users.confirmAvatar({ avatarKey: uploaded.avatarKey })

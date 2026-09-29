@@ -25,7 +25,8 @@
  *     menambahkan fill di sana.
  *   - Tidak pakai <Text> RN langsung — tetap lewat wrapper (§3 fixed scale).
  */
-import { Image, View, type ImageSourcePropType, type ViewProps } from "react-native"
+import { View, type ViewProps } from "react-native"
+import { Image, type ImageSource } from "expo-image"
 import Svg, { G, Path } from "react-native-svg"
 
 import { LOGO_PATHS, LOGO_VIEWBOX } from "@/assets/brand/logo-paths"
@@ -43,7 +44,7 @@ export type LogoProps = Omit<ViewProps, "children"> & {
   size?: LogoSize
   tone?: LogoTone
   /** Aset mark final (require("…/logo-kahade.png")). Kosong = placeholder. */
-  source?: ImageSourcePropType
+  source?: ImageSource
   className?: string
 }
 
@@ -92,10 +93,11 @@ export function Logo({
   const wordTone = tone === "inverse" ? "inverse" : "primary"
 
   const mark = source ? (
+    // PERF-FIX (2026-09-30): expo-image (bukan RN Image) — konsistensi cache
+    // dengan seluruh bitmap lain; aset lokal kecil, dampak minimal.
     <Image
       source={source}
-      accessibilityIgnoresInvertColors
-      resizeMode="contain"
+      contentFit="contain"
       style={{ width: px, height: px }}
     />
   ) : (

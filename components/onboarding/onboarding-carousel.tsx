@@ -107,10 +107,11 @@ export const OnboardingCarousel = forwardRef<OnboardingCarouselHandle, Onboardin
             onScroll={syncIndex}
             scrollEventThrottle={64}
             getItemLayout={(_, i) => ({ length: width, offset: width * i, index: i })}
-            // Slide sedikit; render semuanya sekali supaya swipe cepat tidak
-            // menampilkan halaman kosong.
-            initialNumToRender={slides.length}
-            windowSize={slides.length}
+            // PERF-FIX (2026-09-30): windowSize=3 + initialNumToRender=1 —
+            // pola contoh yang benar (slide tanpa gambar, jadi dampak kecil,
+            // tapi pola ini rawan ditiru ke daftar bergambar).
+            initialNumToRender={1}
+            windowSize={3}
             accessibilityRole="adjustable"
             accessibilityLabel="Slide pengenalan"
             accessibilityValue={{

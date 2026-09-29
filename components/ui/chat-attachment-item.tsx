@@ -17,10 +17,12 @@
  *   "row"   — baris ListItem 56px untuk halaman lampiran ruang chat
  *
  * Keputusan non-obvious:
- *   - Gambar (mimeType image/*) menampilkan thumbnail asli; tipe lain memakai
- *     ikon Phosphor per keluarga MIME (PDF, dokumen, arsip, lainnya) dalam
- *     <IconBox surface>. Tidak ada warna per tipe file — kategori bukan status
- *     (§2.3), semua monokrom.
+ *   - Gambar (mimeType image/*) menampilkan thumbnail backend bila tersedia
+ *     (`thumbnailUrl`); bila kosong, tile/baris memakai ikon Phosphor (tidak
+ *     mengunduh file asli penuh untuk pratinjau 24–72px — PERF-FIX 2026-09-30).
+ *     Tipe lain memakai ikon Phosphor per keluarga MIME (PDF, dokumen, arsip,
+ *     lainnya) dalam <IconBox surface>. Tidak ada warna per tipe file —
+ *     kategori bukan status (§2.3), semua monokrom.
  *   - Progress upload (`progress` 0–1) digambar sebagai garis 2px di dasar
  *     chip/tile memakai <ProgressBar>, bukan overlay spinner: spinner menutup
  *     thumbnail dan tidak memberi tahu "sudah berapa persen".
@@ -136,12 +138,15 @@ export function ChatAttachmentItem({
   ...rest
 }: ChatAttachmentItemProps) {
   const t = { ...DEFAULT_LABELS, ...labels }
-  const image = isImageAttachment(attachment)
   const icon = attachmentIcon(attachment.mimeType)
   const errored = status === "error"
   const uploading = status === "uploading"
   const cancelled = status === "cancelled"
-  const thumb = attachment.thumbnailUrl ?? (image ? attachment.fileUrl : undefined)
+  // PERF-FIX (2026-09-30): fail-closed ke placeholder bila backend tidak mengirim
+  // thumbnailUrl — tile 24–72px tidak boleh memicu unduhan file asli penuh
+  // (2–5 MB) hanya untuk pratinjau. Ikon fallback di bawah sudah menangani
+  // kasus thumb undefined; ketuk tetap membuka file penuh via onPress.
+  const thumb = attachment.thumbnailUrl
 
   const a11y = [
     attachment.fileName,

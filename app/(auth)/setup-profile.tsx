@@ -84,7 +84,7 @@ import { clearRegistrationState, getRegistrationState } from "@/lib/registration
 import { hasProfileChanges } from "@/lib/auth-ui"
 import { useLeaveConfirm } from "@/lib/use-leave-confirm"
 import { Dialog } from "@/components/ui/modal"
-import { pickImage, pickedImageToFormData, type PickedImage, type PickImageOptions } from "@/lib/image-picker"
+import { pickImage, pickedImageToFormData, resizePickedImage, type PickedImage, type PickImageOptions } from "@/lib/image-picker"
 import { ROUTES } from "@/lib/routes"
 import { takePendingNext } from "@/lib/login-redirect"
 import { translate } from "@/lib/i18n/translate"
@@ -213,7 +213,8 @@ export default function SetupProfileScreen() {
     setAvatarError(null)
     try {
       // Langkah 1: POST /v1/users/me/avatar/direct (multipart)
-      const uploaded = await api.users.uploadAvatarDirect(await pickedImageToFormData(asset))
+      // PERF-FIX (2026-09-30): resize avatar sebelum upload (fail-open).
+      const uploaded = await api.users.uploadAvatarDirect(await pickedImageToFormData(await resizePickedImage(asset)))
       // Langkah 2: POST /v1/users/me/avatar/confirm — hanya bila server
       // mengembalikan avatarKey (kontrak ConfirmAvatarDto).
       if (uploaded.avatarKey) {

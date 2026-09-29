@@ -150,6 +150,10 @@ export const MediaViewer = memo(function MediaViewer({ item, onClose, onOpenErro
             bordered={false}
             radius="sm"
             style={{ maxHeight: windowHeight * MAX_HEIGHT_RATIO }}
+            // PERF-FIX (2026-09-30): modal bukti/dokumen = file besar —
+            // prioritaskan unduhannya; tidak ada pembatalan prioritas saat
+            // modal ditutup cepat tanpa ini.
+            priority="high"
             onLoad={(e) => {
               const { width, height } = e.source
               if (width > 0 && height > 0) setAspect(width / height)

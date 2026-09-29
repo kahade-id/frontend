@@ -37,6 +37,7 @@ export function ZoomableImage({
   height,
   onZoomChange,
   resizeMode = "cover",
+  priority,
 }: {
   source: string
   alt?: string
@@ -50,6 +51,11 @@ export function ZoomableImage({
   onZoomChange?: (zoomed: boolean) => void
   /** "contain" untuk viewer layar penuh; default "cover" (perilaku lama). */
   resizeMode?: "cover" | "contain"
+  /**
+   * PERF-FIX (2026-09-30): prioritas unduhan — slide aktif viewer "high"
+   * agar tidak berebut bandwidth dengan prefetch tetangga.
+   */
+  priority?: "high" | "normal" | "low"
 }) {
   const scale = useSharedValue(1)
   const savedScale = useSharedValue(1)
@@ -157,7 +163,10 @@ export function ZoomableImage({
         accessibilityLabel={alt || "Gambar lampiran — cubit untuk memperbesar"}
       >
         <Animated.View style={animatedStyle}>
-          <Picture source={source} alt={alt} width={width} height={height} radius="none" bordered={false} resizeMode={resizeMode} />
+          {/* P2 (2026-09-30): bitmap di-decode pada resolusi layar lalu di-scale
+              GPU — zoom >2× terlihat buram. Full-res swap saat scale > 2
+              adalah peningkatan lanjutan (belum diimplementasikan). */}
+          <Picture source={source} alt={alt} width={width} height={height} radius="none" bordered={false} resizeMode={resizeMode} priority={priority} />
         </Animated.View>
       </Animated.View>
     </GestureDetector>

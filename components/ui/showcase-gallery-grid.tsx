@@ -167,7 +167,9 @@ export function ShowcaseGalleryGrid({
                       // "low" — bandwidth didahulukan ke 3 baris pertama yang
                       // terlihat. Hanya memengaruhi penjadwalan unduhan
                       // expo-image; tampilan tidak berubah.
-                      priority={index < columns * 3 ? undefined : "low"}
+                      // PERF-FIX (2026-09-30): baris PERTAMA yang terlihat
+                      // diberi "high" — sebelumnya berebut dengan prefetch.
+                      priority={index < columns ? "high" : index < columns * 3 ? undefined : "low"}
                     />
                   ) : (
                     <View

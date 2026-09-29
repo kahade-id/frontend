@@ -110,7 +110,7 @@ import { ChatSearchSnippet } from "@/components/ui/chat-search-snippet"
 import { ActionSheet } from "@/components/ui/action-sheet"
 import { haptic } from "@/lib/haptics"
 import { logWarn } from "@/lib/telemetry"
-import { pickImage, pickedImageToFormData, type PickedImage } from "@/lib/image-picker"
+import { pickImage, pickedImageToFormData, resizePickedImage, type PickedImage } from "@/lib/image-picker"
 import * as DocumentPicker from "expo-document-picker"
 import { ChatAttachmentSheet } from "@/components/ui/chat-attachment-sheet"
 import { VoiceNoteRecorder, type VoiceNoteFile } from "@/components/ui/voice-note-recorder"
@@ -1388,7 +1388,12 @@ export default function ChatRoomScreen() {
         ),
       )
       try {
-        const form = await pickedImageToFormData(picked)
+        // PERF-FIX (2026-09-30): resize foto sebelum upload — lampiran chat
+        // volume tinggi; hanya untuk gambar (video/dokumen dilewati);
+        // fail-open bila manipulasi gagal.
+        const isImage = (picked.mimeType ?? "").startsWith("image/")
+        const resized = isImage ? await resizePickedImage(picked) : picked
+        const form = await pickedImageToFormData(resized)
         const dto = await api.chat.uploadChatAttachmentProgress(roomId, form, {
           signal: controller.signal,
           onProgress: (fraction) =>
