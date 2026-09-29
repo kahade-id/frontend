@@ -102,9 +102,17 @@ export function refreshWalletStatus(signal?: AbortSignal): Promise<boolean | nul
           serverStatus = status
           emit()
         }
+        // PERF-FIX (state audit): hasil null (gagal/tak dikenal) JANGAN
+        // di-cache selamanya — satu kegagalan jaringan dulu mengunci kill-switch
+        // dalam keputusan basi selama proses hidup. Reset agar percobaan
+        // berikutnya boleh jalan.
+        if (status == null) serverStatusPromise = null
         return status
       })
-      .catch(() => null)
+      .catch(() => {
+        serverStatusPromise = null
+        return null
+      })
   }
   return serverStatusPromise
 }

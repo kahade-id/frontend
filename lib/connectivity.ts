@@ -45,8 +45,12 @@ function applyState(state: NetInfoState) {
   // sebagai sinyal utama; reachable=false yang eksplisit ikut dihitung.
   const next =
     state.isConnected === false || state.isInternetReachable === false ? false : true
+  // PERF-FIX (state audit): jangan emit bila snapshot tidak berubah. NetInfo
+  // mengirim event untuk perubahan detail (wifi→seluler, SSID, dsb.) yang
+  // tidak mengubah status online — tiap event membangunkan SEMUA subscriber.
+  const changed = next !== online
   online = next
-  emit()
+  if (changed) emit()
   // PERF-FIX (NP-002): catat tipe koneksi untuk gerbang autoplay video.
   const nextType = state.type ?? null
   if (nextType !== connectionType) {

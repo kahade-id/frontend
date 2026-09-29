@@ -5,7 +5,7 @@
  * UI-T002 (audit UI/UX 2026-09-27): daftar kini dipaginasi (sebelumnya hanya
  * halaman 1 / limit 50 — pengajuan ke-51+ tidak bisa dijangkau).
  */
-import { useState } from "react"
+import { memo, useCallback, useState } from "react"
 import { Package } from "phosphor-react-native"
 import { useRouter } from "expo-router"
 
@@ -32,12 +32,56 @@ type Role = "buyer" | "seller"
 
 const PAGE_LIMIT = 50
 
+/** PERF-FIX (TIM1-P1): baris di-memo — onPress stabil per id, tidak ada
+ * closure inline per render. */
+const ReturnRow = memo(function ReturnRow({
+  item,
+  onSelect,
+  textTertiary,
+}: {
+  item: ReturnListItem
+  onSelect: (id: string) => void
+  textTertiary: string
+}) {
+  const handlePress = useCallback(() => onSelect(item.id), [onSelect, item.id])
+
+  return (
+    <Pressable
+      onPress={handlePress}
+      accessibilityRole="button"
+      accessibilityLabel={`Retur ${returnIdShort(item)}, ${RETURN_STATUS_LABEL[item.status] ?? item.status}`}
+    >
+      <Card>
+        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+          <Text style={{ fontWeight: "700" }}>{returnIdShort(item)}</Text>
+          <Badge>{RETURN_STATUS_LABEL[item.status] ?? item.status}</Badge>
+        </View>
+        <Text style={{ color: textTertiary, marginTop: tokens.space[1] }}>
+          {RETURN_REASON_LABEL[item.reasonCode] ?? item.reasonCode}
+        </Text>
+        <Text style={{ color: textTertiary, fontSize: 12 }}>
+          Diajukan {formatDateTime(item.createdAt)}
+        </Text>
+      </Card>
+    </Pressable>
+  )
+})
+
 export default function ReturnsScreen() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
   const { mode } = useTheme()
   const c = tokens.colors[mode]
   const [role, setRole] = useState<Role>("buyer")
+  // PERF-FIX (TIM1-P1): handler + renderItem stabil — identitas tidak berubah
+  // tiap render layar.
+  const handleSelectReturn = useCallback((id: string) => router.push(ROUTES.returnDetail(id)), [router])
+  const renderReturnItem = useCallback(
+    ({ item }: { item: ReturnListItem }) => (
+      <ReturnRow item={item} onSelect={handleSelectReturn} textTertiary={c.textTertiary} />
+    ),
+    [handleSelectReturn, c.textTertiary],
+  )
   const query = usePaginatedQuery<ReturnListItem>(
     `returns:${role}`,
     (page, signal) => api.returns.listMyReturns({ page, limit: PAGE_LIMIT, role }, signal),
@@ -103,26 +147,7 @@ export default function ReturnsScreen() {
             }
           />
         }
-        renderItem={({ item }: { item: ReturnListItem }) => (
-          <Pressable
-            onPress={() => router.push(ROUTES.returnDetail(item.id))}
-            accessibilityRole="button"
-            accessibilityLabel={`Retur ${returnIdShort(item)}, ${RETURN_STATUS_LABEL[item.status] ?? item.status}`}
-          >
-            <Card>
-              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-                <Text style={{ fontWeight: "700" }}>{returnIdShort(item)}</Text>
-                <Badge>{RETURN_STATUS_LABEL[item.status] ?? item.status}</Badge>
-              </View>
-              <Text style={{ color: c.textTertiary, marginTop: tokens.space[1] }}>
-                {RETURN_REASON_LABEL[item.reasonCode] ?? item.reasonCode}
-              </Text>
-              <Text style={{ color: c.textTertiary, fontSize: 12 }}>
-                Diajukan {formatDateTime(item.createdAt)}
-              </Text>
-            </Card>
-          </Pressable>
-        )}
+        renderItem={renderReturnItem}
       />
     </Screen>
   )

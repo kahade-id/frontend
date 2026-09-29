@@ -155,8 +155,11 @@ export function PaginatedList<T extends { id?: string }>({
     [padded, bottomPadding, contentContainerStyle],
   )
 
+  // PERF-FIX (TIM1-P1): fallback ke index bila id absen — cegah kunci ""
+  // duplikat yang membuat reconciler salah me-reuse sel.
   const keyExtractor = useCallback(
-    (item: T) => (keyExtractorProp ? keyExtractorProp(item) : (item.id ?? "")),
+    (item: T, index: number) =>
+      keyExtractorProp ? keyExtractorProp(item) : (item.id ?? `idx-${index}`),
     [keyExtractorProp],
   )
   /*

@@ -163,6 +163,29 @@ export type ChatMessageRowProps = {
   onQuotePress?: (replyToId: string) => void
 }
 
+/** PERF-FIX (TIM1-P1): lampiran di-memo per item — onPress stabil via
+ * useCallback, tidak ada closure inline per render baris. */
+const RowAttachmentItem = memo(function RowAttachmentItem({
+  attachment,
+  onAttachmentPress,
+}: {
+  attachment: ChatAttachmentDto
+  onAttachmentPress: (attachment: ChatAttachmentDto) => void
+}) {
+  const handlePress = useCallback(() => onAttachmentPress(attachment), [onAttachmentPress, attachment])
+  const layout = useMemo(
+    () => (isImageMedia({ url: attachment.fileUrl, mimeType: attachment.mimeType }) ? ("tile" as const) : ("row" as const)),
+    [attachment.fileUrl, attachment.mimeType],
+  )
+  return (
+    <ChatAttachmentItem
+      attachment={attachment}
+      layout={layout}
+      onPress={handlePress}
+    />
+  )
+})
+
 export function ChatMessageRowBase({
   message,
   previous,
@@ -282,11 +305,10 @@ export function ChatMessageRowBase({
   ) : message.attachments?.length ? (
     <View className="gap-2">
       {message.attachments.map((a, j) => (
-        <ChatAttachmentItem
+        <RowAttachmentItem
           key={`${message.id}-${j}`}
           attachment={a}
-          layout={isImageMedia({ url: a.fileUrl, mimeType: a.mimeType }) ? "tile" : "row"}
-          onPress={() => onAttachmentPress(a)}
+          onAttachmentPress={onAttachmentPress}
         />
       ))}
     </View>

@@ -168,7 +168,20 @@ export function ThemeProvider({
   useEffect(() => {
     ensureKahadePlusLoaded()
     ensureKahadePlusThemeLoaded()
-    const bump = () => setThemeTick((t) => t + 1)
+    /**
+     * PERF-FIX (state audit): bump HANYA bila effective theme ID berubah.
+     * Dulu setiap perubahan salah satu store (mis. status langganan
+     * active→expired sementara theme tetap "default") memanggil setThemeTick
+     * → me-render ulang root provider + SELURUH subtree aplikasi.
+     */
+    let lastEffective = getEffectiveKahadePlusThemeId()
+    const bump = () => {
+      const next = getEffectiveKahadePlusThemeId()
+      if (next !== lastEffective) {
+        lastEffective = next
+        setThemeTick((t) => t + 1)
+      }
+    }
     // Sinkronisasi awal: status langganan bisa sudah ada sebelum subscribe.
     setThemeTick((t) => t + 1)
     const unsubPlus = subscribeKahadePlusStore(bump)

@@ -8,7 +8,7 @@
  * dengan penerima (dan nominal) terisi otomatis.
  */
 import { useCallback, useMemo, useState } from "react"
-import { ScrollView, View } from "react-native"
+import { ScrollView, View, type LayoutChangeEvent } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Share } from "react-native"
 import { Copy, QrCode as QrCodeIcon, ShareNetwork, Wallet } from "phosphor-react-native"
@@ -51,6 +51,12 @@ export default function ReceiveScreen() {
   const toast = useToast()
   const { copied, copy } = useCopy()
   const [qrSize, setQrSize] = useState(220)
+  // PERF-FIX (TIM1-P2): onLayout stabil + guard — nilai di-clamp sehingga
+  // stabil setelah 1-2 pass; tanpa guard, setState tiap layout memicu loop.
+  const handleQrLayout = useCallback((e: LayoutChangeEvent) => {
+    const next = Math.min(240, Math.max(180, e.nativeEvent.layout.width - 120))
+    setQrSize((prev) => (prev === next ? prev : next))
+  }, [])
   // FE-IMP-4 item 27: nominal opsional yang dikodekan ke QR — pembayar tinggal
   // konfirmasi di layar Transfer.
   const [amountText, setAmountText] = useState("")
@@ -130,7 +136,7 @@ export default function ReceiveScreen() {
         </FadeIn>
 
         <FadeIn duration="fast" className="mt-2">
-          <Card variant="elevated" className="items-center gap-5 p-6" onLayout={(e) => setQrSize(Math.min(240, Math.max(180, e.nativeEvent.layout.width - 120)))}>
+          <Card variant="elevated" className="items-center gap-5 p-6" onLayout={handleQrLayout}>
             {profile.loading || !username ? (
               <View className="h-[200px] w-[200px] items-center justify-center">
                 <Icon icon={QrCodeIcon} size="xl" tone="disabled" />

@@ -53,9 +53,12 @@ function getSnapshot() {
 export function setChatUnreadCount(count: number | null) {
   generation += 1
   inFlight = null
+  const nextCount = count === null || !Number.isFinite(count) ? null : Math.max(0, Math.trunc(count))
+  // PERF-FIX (state audit): guard equality — lihat setUnreadCount.
+  if (state.status === "success" && state.count === nextCount) return
   emit({
     status: "success",
-    count: count === null || !Number.isFinite(count) ? null : Math.max(0, Math.trunc(count)),
+    count: nextCount,
   })
 }
 

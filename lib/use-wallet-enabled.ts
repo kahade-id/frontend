@@ -6,7 +6,7 @@
  * layar dompet: kembalikan konten bila "on", varian penarikan-saldo-lama bila
  * "legacy", atau <WalletDisabledScreen/> bila "off".
  */
-import { useEffect, useReducer } from "react"
+import { useEffect, useSyncExternalStore } from "react"
 
 import {
   getWalletEnabled,
@@ -16,12 +16,13 @@ import {
 
 /** Nilai efektif kill-switch dompet; reaktif terhadap fetch status server. */
 export function useWalletEnabled(): boolean {
-  const [, forceRender] = useReducer((x: number) => x + 1, 0)
-  useEffect(() => subscribeWalletFlag(forceRender), [forceRender])
+  // PERF-FIX (state audit): useSyncExternalStore agar React bisa bail out
+  // saat emit terjadi tanpa perubahan nilai efektif — dulu useReducer +
+  // forceRender me-render ulang SELALU di tiap emit.
   useEffect(() => {
     void refreshWalletStatus()
   }, [])
-  return getWalletEnabled()
+  return useSyncExternalStore(subscribeWalletFlag, getWalletEnabled, getWalletEnabled)
 }
 
 /**

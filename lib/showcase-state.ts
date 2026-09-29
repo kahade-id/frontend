@@ -16,15 +16,39 @@ export function patchComments(
   comments: ShowcaseCommentWithReplies[],
   patch: (comment: ShowcaseComment) => ShowcaseComment | null,
 ): ShowcaseCommentWithReplies[] {
-  return comments.flatMap((root) => {
+  let changed = false
+  const result = comments.flatMap((root) => {
     const next = patch(root)
-    const replies = (root.replies ?? []).flatMap((reply) => {
-      const updated = patch(reply)
-      return updated ? [updated] : []
-    })
     // A deleted root cannot remain actionable. Fetch the canonical thread after delete.
-    return next ? [{ ...next, replies }] : []
+    if (!next) {
+      changed = true
+      return []
+    }
+    const replies = root.replies ?? []
+    let repliesChanged = false
+    const nextReplies = replies.flatMap((reply) => {
+      const updated = patch(reply)
+      if (!updated) {
+        repliesChanged = true
+        return []
+      }
+      if (updated !== reply) repliesChanged = true
+      return [updated]
+    })
+    /**
+     * PERF-FIX (state audit): hanya clone bila benar-benar berubah.
+     * Dulu `{ ...next, replies }` membuat objek baru untuk SETIAP root dan
+     * reply di tiap aksi — like/hapus satu reply = O(n) clone + seluruh
+     * subtree komentar re-render karena semua referensi baru. Kini pemanggil
+     * mengembalikan referensi identik untuk item tak berubah (pola
+     * `c.id === target ? {...c} : c`), sehingga hanya item yang berubah yang
+     * mendapat referensi baru.
+     */
+    if (next === root && !repliesChanged) return [root]
+    changed = true
+    return [{ ...next, replies: nextReplies }]
   })
+  return changed ? result : comments
 }
 
 export function validImageOrder(draft: string[] | null, server: string[]): boolean {

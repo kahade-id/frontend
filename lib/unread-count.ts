@@ -80,9 +80,13 @@ export function setUnreadCount(count: number | null) {
   // A poll started before a confirmed read-all must not restore the old count.
   generation += 1
   inFlight = null
+  const nextCount = count === null || !Number.isFinite(count) ? null : Math.max(0, Math.trunc(count))
+  // PERF-FIX (state audit): jangan emit bila count tidak berubah — polling
+  // memanggil ini berkala dan tiap emit me-render ulang semua consumer badge.
+  if (state.status === "success" && state.count === nextCount) return
   emit({
     status: "success",
-    count: count === null || !Number.isFinite(count) ? null : Math.max(0, Math.trunc(count)),
+    count: nextCount,
   })
 }
 

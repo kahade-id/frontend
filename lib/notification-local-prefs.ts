@@ -111,6 +111,10 @@ export function useLocalNotificationPrefs(): LocalNotificationPrefs {
  * bukan data kritis, state memori tetap benar untuk sesi ini).
  */
 export function setLocalNotificationPref(kind: LocalNotificationKind, value: boolean): void {
+  // PERF-FIX (state audit): no-op bila nilai sama — tanpa ini, tap ganda /
+  // re-apply saat boot tetap membuat objek baru, emit, re-render consumer,
+  // DAN menulis SecureStore (I/O mahal).
+  if (prefs[kind] === value) return
   prefs = { ...prefs, [kind]: value }
   emit()
   void setSecureItem(SecureKeys.notificationLocalPrefs, JSON.stringify(prefs)).catch((err) =>

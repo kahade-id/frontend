@@ -9,6 +9,7 @@
  * 50 sengketa pertama yang bisa dibuka tanpa jalan memuat lebih banyak.
  */
 import { ShieldWarning } from "phosphor-react-native"
+import { useCallback } from "react"
 
 import { api } from "@/lib/api"
 import type { DisputeListItem } from "@/lib/api/disputes"
@@ -48,6 +49,46 @@ export default function DisputesScreen() {
     { refreshOnFocus: true },
   )
 
+  // PERF-FIX (TIM1-P1): renderItem stabil via useCallback — identitas tidak
+  // berubah tiap render layar, memo PaginatedList tidak jebol.
+  const renderDisputeItem = useCallback(
+    ({ item }: { item: DisputeListItem }) => {
+      // Kartu diperkaya dari field daftar (bukan lagi terdegradasi):
+      // peran saya dari buyerId/sellerId order + id sendiri.
+      const order = item.order
+      const myRole =
+        meId && order
+          ? order.buyerId === meId
+            ? "buyer"
+            : order.sellerId === meId
+              ? "seller"
+              : undefined
+          : undefined
+      const openedByMe =
+        myRole && item.initiatedBy
+          ? (item.initiatedBy === "BUYER") === (myRole === "buyer")
+          : undefined
+      // Giliran saya: status masih aktif dan klaim pihak saya belum masuk.
+      const myClaimedAt = myRole === "buyer" ? item.buyerClaimedAt : myRole === "seller" ? item.sellerClaimedAt : undefined
+      return (
+        <DisputeCard
+          disputeId={item.id}
+          orderTitle={order?.title || orderFallbackLabel(item.orderId)}
+          status={item.status}
+          openedByMe={openedByMe}
+          heldAmount={order?.orderValue}
+          awaitingYou={myRole != null && myClaimedAt == null}
+          updatedAt={formatDateTime(item.updatedAt ?? item.createdAt)}
+          href={ROUTES.disputeDetail(item.id)}
+          // PERF-FIX (P1 nav): prefetch detail saat niat buka terdeteksi
+          // (press-in) — halaman detail memakai hasil ini bila masih segar.
+          onPressIn={() => prefetchDisputeDetail(item.id)}
+        />
+      )
+    },
+    [meId],
+  )
+
   return (
     <Screen edges={["top"]} padded={false}>
       <Header title="Sengketa" />
@@ -65,40 +106,7 @@ export default function DisputesScreen() {
             description="Sengketa pesanan akan muncul di sini."
           />
         }
-        renderItem={({ item }) => {
-          // Kartu diperkaya dari field daftar (bukan lagi terdegradasi):
-          // peran saya dari buyerId/sellerId order + id sendiri.
-          const order = item.order
-          const myRole =
-            meId && order
-              ? order.buyerId === meId
-                ? "buyer"
-                : order.sellerId === meId
-                  ? "seller"
-                  : undefined
-              : undefined
-          const openedByMe =
-            myRole && item.initiatedBy
-              ? (item.initiatedBy === "BUYER") === (myRole === "buyer")
-              : undefined
-          // Giliran saya: status masih aktif dan klaim pihak saya belum masuk.
-          const myClaimedAt = myRole === "buyer" ? item.buyerClaimedAt : myRole === "seller" ? item.sellerClaimedAt : undefined
-          return (
-            <DisputeCard
-              disputeId={item.id}
-              orderTitle={order?.title || orderFallbackLabel(item.orderId)}
-              status={item.status}
-              openedByMe={openedByMe}
-              heldAmount={order?.orderValue}
-              awaitingYou={myRole != null && myClaimedAt == null}
-              updatedAt={formatDateTime(item.updatedAt ?? item.createdAt)}
-              href={ROUTES.disputeDetail(item.id)}
-              // PERF-FIX (P1 nav): prefetch detail saat niat buka terdeteksi
-              // (press-in) — halaman detail memakai hasil ini bila masih segar.
-              onPressIn={() => prefetchDisputeDetail(item.id)}
-            />
-          )
-        }}
+        renderItem={renderDisputeItem}
       />
     </Screen>
   )

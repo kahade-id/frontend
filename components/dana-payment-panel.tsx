@@ -15,6 +15,7 @@
  * intent, poll, refresh) tetap di layar/hook; panel hanya menerima nilai dan
  * memanggil balik. Panel tidak memutuskan status pembayaran.
  */
+import { useCallback } from "react"
 import { Linking, View } from "react-native"
 import { Bank, Copy, Check } from "phosphor-react-native"
 
@@ -139,6 +140,8 @@ export function VaPaymentPanel({
   instructions,
   ...monitor
 }: VaPaymentPanelProps) {
+  // PERF-FIX (TIM1-P2): handler stabil — bukan closure inline.
+  const handleCopy = useCallback(() => onCopy(vaNumber), [onCopy, vaNumber])
   return (
     <ScreenCaptureGuard>
       <View className="gap-3">
@@ -160,7 +163,7 @@ export function VaPaymentPanel({
             variant="ghost"
             size="sm"
             leftIcon={copied ? Check : Copy}
-            onPress={() => onCopy(vaNumber)}
+            onPress={handleCopy}
             accessibilityLabel="Salin nomor Virtual Account"
           >
             {copied ? "Tersalin" : "Salin nomor"}
@@ -218,6 +221,10 @@ export function DanaRedirectPanel({
   ...monitor
 }: DanaRedirectPanelProps) {
   const canOpen = !!redirectUrl
+  // PERF-FIX (TIM1-P2): handler stabil — bukan closure inline.
+  const handleOpen = useCallback(() => {
+    if (redirectUrl) void Linking.openURL(redirectUrl)
+  }, [redirectUrl])
   return (
     <ScreenCaptureGuard>
       <View className="gap-3">
@@ -230,9 +237,7 @@ export function DanaRedirectPanel({
         {canOpen ? (
           <Button
             loading={monitor.submitting}
-            onPress={() => {
-              if (redirectUrl) void Linking.openURL(redirectUrl)
-            }}
+            onPress={handleOpen}
           >
             {translate("Buka {m}", { m: methodName })}
           </Button>

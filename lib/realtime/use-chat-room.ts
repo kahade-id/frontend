@@ -33,7 +33,7 @@ import {
   type ChatReadPayload,
   type ChatTypingPayload,
 } from "./chat-events"
-import { useRealtime } from "./realtime-context"
+import { useRealtime, useRealtimeActions } from "./realtime-context"
 
 export type ChatRoomRealtimeCallbacks = {
   /** Payload mentah `chat.new_message` (belum dinormalisasi). */
@@ -138,7 +138,9 @@ export function useChatRoomRealtime(
   /** G112: kirim sinyal mengetik via socket bila sehat, fallback REST. */
   sendTyping: (isTyping: boolean) => void
 } {
-  const { socket, status, epoch, viewerId, joinRoom, leaveRoom, unwrapEvent } = useRealtime()
+  const { socket, status, epoch } = useRealtime()
+  // PERF-FIX (state audit): aksi stabil via context terpisah.
+  const { viewerId, joinRoom, leaveRoom, unwrapEvent } = useRealtimeActions()
   const enabled = opts?.enabled !== false
   const callbacksRef = useRef(callbacks)
   callbacksRef.current = callbacks

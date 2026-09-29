@@ -76,6 +76,15 @@ export const CACHE_REVALIDATE_AFTER_MS = 2_000
  * manfaat. Eviksi FIFO: `Map` JS menjaga urutan penyisipan, dan entri tertua
  * memang yang paling tidak mungkin masih dipakai (TTL-nya cuma 5 detik).
  */
+/**
+ * Batas ukuran cache (C-03 audit).
+ *
+ * PERF-FIX (state audit): batas berbasis estimasi BYTE, bukan jumlah entri.
+ * 200 respons mentah yang besar/nested (feed, detail) bisa menahan memori jauh
+ * lebih besar dari 200 respons kecil — batas per-count tidak proporsional
+ * dengan biaya memori. Estimasi murah: panjang JSON saat tulis (dihitung
+ * sekali per write, bukan per read).
+ */
 export const QUERY_CACHE_MAX = 200
 /** Batas total estimasi byte seluruh entri (~2MB — respons API tipikal <50KB). */
 export const QUERY_CACHE_MAX_BYTES = 2_000_000
@@ -175,8 +184,14 @@ function notifyInvalidation(scope: QueryInvalidationScope | undefined): void {
 }
 
 export function invalidateQueryCache(key?: string): void {
-  if (key === undefined) queryCache.clear()
-  else queryCache.delete(key)
+  if (key === undefined) {
+    queryCache.clear()
+    queryCacheBytes = 0
+  } else {
+    const entry = queryCache.get(key)
+    if (entry) queryCacheBytes -= entry.bytes
+    queryCache.delete(key)
+  }
   // Invalidasi penuh = siaran ke semua pendengar (perilaku lama dipertahankan).
   notifyInvalidation(undefined)
 }

@@ -84,7 +84,9 @@ export function applyLanguage(next: LanguageCode, options: { persist?: boolean }
   if (!isLanguageCode(next)) return false
   const changed = publish(next)
   preloadDictionary(next)
-  if (options.persist) void writeCache(next)
+  // PERF-FIX (state audit): jangan antre SecureStore write bila bahasa tidak
+  // berubah — memilih bahasa yang sudah aktif tetap menulis sebelumnya.
+  if (options.persist && changed) void writeCache(next)
   return changed
 }
 

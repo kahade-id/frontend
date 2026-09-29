@@ -238,6 +238,9 @@ export function ShowcaseCommentsSheet({
   const [sending, setSending] = useState(false)
   const [replyTo, setReplyTo] = useState<ShowcaseComment | null>(null)
   const [commentMenu, setCommentMenu] = useState<ShowcaseComment | null>(null)
+  // PERF-FIX (TIM1-P2): handler sheet stabil.
+  const handleRetryComments = useCallback(() => void query.reload(), [query])
+  const handleCloseCommentMenu = useCallback(() => setCommentMenu(null), [])
   /**
    * T2-F03 (audit UI/UX 2026-09-28): semua balasan dirender penuh membuat
    * sheet (maxHeight 55%) sangat panjang — komposer tak terjangkau. Lipat
@@ -592,7 +595,8 @@ export function ShowcaseCommentsSheet({
       {loading ? (
         <SkeletonGroup className="gap-4 px-5 py-2">
           {Array.from({ length: 3 }, (_, index) => (
-            <View key={index} className="flex-row items-start gap-2">
+            // PERF-FIX (state audit): key stabil ber-prefix.
+            <View key={`comment-skeleton-${index}`} className="flex-row items-start gap-2">
               <Skeleton shape="circle" width={24} height={24} />
               <View className="flex-1 gap-2">
                 <Skeleton height={14} className="w-2/5" />
@@ -610,7 +614,7 @@ export function ShowcaseCommentsSheet({
             compact
             title="Gagal memuat komentar"
             description={query.error}
-            onRetry={() => void query.reload()}
+            onRetry={handleRetryComments}
           />
         </View>
       ) : comments.length === 0 ? (
@@ -639,7 +643,7 @@ export function ShowcaseCommentsSheet({
 
       <ActionSheet
         visible={commentMenu != null}
-        onRequestClose={() => setCommentMenu(null)}
+        onRequestClose={handleCloseCommentMenu}
         title="Opsi Komentar"
         actions={[
           ...(commentMenu && !commentMenu.parentId && hasSession

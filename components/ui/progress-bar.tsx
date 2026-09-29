@@ -16,7 +16,8 @@
  *   5. `label`/`showValue` opsional: teks caption text-secondary di atas bar,
  *      angka mono (mono = angka finansial/persen, §3).
  */
-import { useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
+import { type LayoutChangeEvent } from "react-native"
 import { Animated, Easing, View, type ViewProps } from "react-native"
 
 import { useTheme } from "@/components/theme-provider"
@@ -92,6 +93,11 @@ export function ProgressBar({
   const width = useRef(new Animated.Value(pct)).current
   const shift = useRef(new Animated.Value(0)).current
   const [trackW, setTrackW] = useState(0)
+  // PERF-FIX (TIM1-P2): onLayout stabil + guard nilai sama.
+  const handleTrackLayout = useCallback((e: LayoutChangeEvent) => {
+    const w = e.nativeEvent.layout.width
+    setTrackW((prev) => (prev === w ? prev : w))
+  }, [])
   // Reduce Motion (audit #2): progress adalah informasi ESENSIAL, jadi tetap
   // tampil — determinate langsung lompat ke nilai baru (tanpa tween);
   // indeterminate menjadi segmen statis selebar track dengan opacity
@@ -99,19 +105,19 @@ export function ProgressBar({
   // role progressbar tanpa nilai.
   const reducedMotion = useReducedMotion()
 
-  // Determinate: animasikan perubahan value
+  // Determinate: animasikan perubahan value.
+  // PERF (tim7): cleanup menghentikan animasi lama saat `pct` berubah cepat
+  // (mis. progress upload) — tanpa ini puluhan animasi JS-thread menumpuk.
   useEffect(() => {
     if (indeterminate) return
-    // PERF-FIX (P0): stop animasi lama sebelum start baru — progress update
-    // cepat (mis. upload) menumpuk animasi JS-thread tanpa cleanup → jank.
-    const a = Animated.timing(width, {
+    const anim = Animated.timing(width, {
       toValue: pct,
       duration: motionDuration(reducedMotion, tokens.motion.duration.base),
       easing: Easing.bezier(...tokens.motion.easing.standard),
       useNativeDriver: false,
     })
-    a.start()
-    return () => a.stop()
+    anim.start()
+    return () => anim.stop()
   }, [pct, indeterminate, width, reducedMotion])
 
   // Indeterminate: loop bolak-balik
@@ -170,7 +176,7 @@ export function ProgressBar({
         accessibilityRole="progressbar"
         accessibilityValue={indeterminate ? undefined : { min: 0, max: 100, now: pct }}
         accessibilityLabel={label}
-        onLayout={(e) => setTrackW(e.nativeEvent.layout.width)}
+        onLayout={handleTrackLayout}
         className={cn(
           "w-full overflow-hidden rounded-full border border-border bg-surface",
           trackHeight[size],

@@ -35,14 +35,25 @@
  */
 import Constants from "expo-constants"
 import * as Device from "expo-device"
-import * as Notifications from "expo-notifications"
 import { Platform } from "react-native"
+
+// PERF-FIX (bundle): `expo-notifications` (±1.6MB — modul native terbesar di
+// boot graph) JANGAN diimpor statis. Modul ini diimpor banyak rute
+// (settings, delete-account, notification-preferences, …) yang di native
+// semuanya dievaluasi saat boot — import statis di sini berarti
+// expo-notifications selalu dievaluasi saat boot padahal hanya dipakai di
+// dalam fungsi async. Muat lazy via loadNotifications() di bawah.
+type ExpoNotificationsModule = typeof import("expo-notifications")
+let notificationsPromise: Promise<ExpoNotificationsModule> | null = null
+function loadNotifications(): Promise<ExpoNotificationsModule> {
+  if (!notificationsPromise) notificationsPromise = import("expo-notifications")
+  return notificationsPromise
+}
 
 import { invalidateQueryCache, invalidateQueryPrefix } from "@/lib/query-cache"
 import {
   ensureLocalNotificationPrefs,
   localKindForPushData,
-  type LocalNotificationKind,
 } from "@/lib/notification-local-prefs"
 import { SecureKeys, deleteSecureItem, getOrCreateDeviceId, getSecureItem, setSecureItem } from "@/lib/secure-storage"
 import { logWarn } from "@/lib/telemetry"
@@ -52,31 +63,6 @@ import {
 } from "@/lib/order-confirm"
 
 export type PushPlatform = "android" | "ios" | "web"
-
-/**
- * PERF-FIX (network P1): pemetaan jenis push → prefix kunci cache yang
- * diinvalidasi saat push foreground tiba. `invalidateQueryPrefix` memakai
- * `startsWith`, jadi satu prefix keluarga mencakup varian kunci
- * (`order` → `order:`, `order-detail:`, `orders:`, …). Sengaja murah:
- * over-invalidate sedikit masih jauh lebih baik daripada membersihkan
- * seluruh cache (perilaku lama) — dan jenis tak dikenal tetap fail-open ke
- * invalidasi penuh di listener.
- */
-const PUSH_KIND_CACHE_PREFIXES: Record<LocalNotificationKind, readonly string[]> = {
-  chat: ["chat-rooms", "chat-room", "chat-messages"],
-  transaction: [
-    "order",
-    "tracking-order",
-    "delivery-proof",
-    "dispute",
-    "milestone",
-    "transactions",
-    "wallet",
-    "escrow",
-  ],
-  showcase: ["showcase", "feed", "public-showcase", "my-showcase"],
-  promo: ["voucher", "campaign", "subscription", "kahade-plus", "referral"],
-}
 
 /** Body `RegisterDeviceDto` persis seperti OpenAPI */
 export type RegisterDeviceDto = {
@@ -167,45 +153,61 @@ export function subscribeNotificationOpened(
     actionIdentifier: string,
   ) => void,
 ): () => void {
-  const sub = Notifications.addNotificationResponseReceivedListener((response) => {
-    onOpen(
-      response.notification.request.content.data,
-      "tap",
-      response.actionIdentifier ?? Notifications.DEFAULT_ACTION_IDENTIFIER,
-    )
-  })
-  if (!coldStartHandled) {
-    coldStartHandled = true
-    void Notifications.getLastNotificationResponseAsync()
-      .then(async (response) => {
-        if (!response) return
-        // Satu respons hanya boleh menavigasi SEKALI per perangkat: respons
-        // terakhir bisa dikembalikan lagi di peluncuran berikutnya (perilaku
-        // platform), yang membuat app "selalu" mendarat di Notifikasi walau
-        // dibuka dari ikon. Identifier yang sudah ditangani dilewati.
-        const id = response.notification.request.identifier
-        // B-10 (audit): cek memori lebih dulu — murah dan tetap bekerja saat
-        // penyimpanan tidak bisa ditulis.
-        if (lastColdStartId === id) return
-        try {
-          const handled = await getSecureItem(SecureKeys.lastNotificationResponse)
-          if (handled === id) return
-          await setSecureItem(SecureKeys.lastNotificationResponse, id)
-        } catch (error) {
-          // Storage gagal: tetap navigasi sekali ini, jangan blokir cold start —
-          // tetapi catat supaya penanganan ganda punya jejak di log.
-          logWarn("push:cold-start-dedupe", error)
-        }
-        lastColdStartId = id
+  // PERF-FIX (bundle): langganan dipasang setelah modul notifikasi selesai
+  // dimuat (hitungan ms). Tap cold-start tetap terbaca via
+  // getLastNotificationResponseAsync() — respons terakhir di-cache di level
+  // OS, tidak hilang karena keterlambatan ms ini.
+  let alive = true
+  let sub: { remove(): void } | undefined
+  // Tandai sinkron (seperti semula) agar cold-start hanya diproses sekali
+  // per proses walau fungsi dipanggil dua kali sebelum import selesai.
+  const doColdStart = !coldStartHandled
+  coldStartHandled = true
+  void loadNotifications()
+    .then((Notifications) => {
+      if (!alive) return
+      sub = Notifications.addNotificationResponseReceivedListener((response) => {
         onOpen(
           response.notification.request.content.data,
-          "cold-start",
+          "tap",
           response.actionIdentifier ?? Notifications.DEFAULT_ACTION_IDENTIFIER,
         )
       })
-      .catch((err) => logWarn("push:cold-start", err))
+      if (!doColdStart) return
+      void Notifications.getLastNotificationResponseAsync()
+        .then(async (response) => {
+          if (!response) return
+          // Satu respons hanya boleh menavigasi SEKALI per perangkat: respons
+          // terakhir bisa dikembalikan lagi di peluncuran berikutnya (perilaku
+          // platform), yang membuat app "selalu" mendarat di Notifikasi walau
+          // dibuka dari ikon. Identifier yang sudah ditangani dilewati.
+          const id = response.notification.request.identifier
+          // B-10 (audit): cek memori lebih dulu — murah dan tetap bekerja saat
+          // penyimpanan tidak bisa ditulis.
+          if (lastColdStartId === id) return
+          try {
+            const handled = await getSecureItem(SecureKeys.lastNotificationResponse)
+            if (handled === id) return
+            await setSecureItem(SecureKeys.lastNotificationResponse, id)
+          } catch (error) {
+            // Storage gagal: tetap navigasi sekali ini, jangan blokir cold start —
+            // tetapi catat supaya penanganan ganda punya jejak di log.
+            logWarn("push:cold-start-dedupe", error)
+          }
+          lastColdStartId = id
+          onOpen(
+            response.notification.request.content.data,
+            "cold-start",
+            response.actionIdentifier ?? Notifications.DEFAULT_ACTION_IDENTIFIER,
+          )
+        })
+        .catch((err) => logWarn("push:cold-start", err))
+    })
+    .catch((err) => logWarn("push:subscribe", err))
+  return () => {
+    alive = false
+    sub?.remove()
   }
-  return () => sub.remove()
 }
 
 /**
@@ -213,6 +215,8 @@ export function subscribeNotificationOpened(
  * root layout setelah app siap.
  */
 export async function setupNotifications(): Promise<void> {
+  // PERF-FIX (bundle): expo-notifications dimuat lazy — lihat loadNotifications.
+  const Notifications = await loadNotifications()
   if (!handlerInstalled) {
     Notifications.setNotificationHandler({
       handleNotification: async (notification) => {
@@ -245,22 +249,38 @@ export async function setupNotifications(): Promise<void> {
      * menginvalidasi cache query: hook `useApiQuery` yang terpasang
      * (disubscribe di sana) langsung me-revalidate diam-diam di latar, dan
      * layar yang dibuka berikutnya selalu membaca data segar.
-     *
-     * PERF-FIX (network P1): invalidasi TERTARGET per jenis push, bukan
-     * seluruh cache. Dulu tiap push foreground membersihkan SEMUA key
-     * sehingga semua `useApiQuery` yang ter-mount revalidasi serentak —
-     * push storm (promo massal / ledakan chat) = thundering herd refetch
-     * payload penuh tersinkron. Klasifier `localKindForPushData` sudah ada
-     * (dipakai toggle banner di atas); jenis tak dikenal (`null`) tetap
-     * fail-open → invalidasi penuh seperti perilaku lama.
      */
     Notifications.addNotificationReceivedListener((notification) => {
+      /**
+       * PERF-FIX (state audit): invalidasi SELEKTIF per jenis push, bukan
+       * global. Dulu setiap notifikasi foreground membangunkan SEMUA hook
+       * query yang ter-mount (burst request + re-render di semua layar aktif).
+       * `localKindForPushData` memetakan payload ke jenis toggle lokal yang
+       * sudah ada; jenis tak dikenal (null) tetap fail-open ke global agar
+       * tidak ada data basi yang lolos.
+       */
       const kind = localKindForPushData(notification.request.content.data)
-      if (kind === null) {
+      if (kind === "chat") {
+        invalidateQueryPrefix("chat")
+        invalidateQueryPrefix("conversations")
+      } else if (kind === "transaction") {
+        invalidateQueryPrefix("order")
+        invalidateQueryPrefix("wallet")
+        invalidateQueryPrefix("transaction")
+        invalidateQueryPrefix("dispute")
+        invalidateQueryPrefix("milestone")
+      } else if (kind === "showcase") {
+        invalidateQueryPrefix("showcase")
+        invalidateQueryPrefix("feed")
+      } else if (kind === "promo") {
+        invalidateQueryPrefix("voucher")
+        invalidateQueryPrefix("promo")
+        invalidateQueryPrefix("campaign")
+        invalidateQueryPrefix("subscription")
+        invalidateQueryPrefix("referral")
+      } else {
         invalidateQueryCache()
-        return
       }
-      for (const prefix of PUSH_KIND_CACHE_PREFIXES[kind]) invalidateQueryPrefix(prefix)
     })
     handlerInstalled = true
   }
@@ -372,6 +392,8 @@ export async function getDevicePushPermissionGranted(): Promise<boolean | null> 
       return window.Notification.permission === "granted"
     }
     if (!Device.isDevice) return null
+    // PERF-FIX (bundle): expo-notifications dimuat lazy — lihat loadNotifications.
+    const Notifications = await loadNotifications()
     const { status } = await Notifications.getPermissionsAsync()
     return status === "granted"
   } catch (err) {
@@ -387,6 +409,8 @@ export async function getDevicePushPermissionGranted(): Promise<boolean | null> 
 export async function getPushToken(): Promise<string | null> {
   if (Platform.OS === "web" || !Device.isDevice) return null
 
+  // PERF-FIX (bundle): expo-notifications dimuat lazy — lihat loadNotifications.
+  const Notifications = await loadNotifications()
   const current = await Notifications.getPermissionsAsync()
   let status = current.status
   if (status !== "granted") {
