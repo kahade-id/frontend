@@ -84,7 +84,6 @@
   "Mode pemindai": "Scanner mode",
   "Mode warna": "Colour mode",
   "Muat ulang untuk menampilkan jumlah yang harus dibayar.": "Reload to show the amount due.",
-  "Mulai chat dengan lawan transaksi Anda.": "Start a chat with your counterparty.",
   "Mulai percakapan Anda.": "Start your first conversation.",
   "Nama": "Name",
   "Nama lengkap Anda": "Your full name",
@@ -132,11 +131,15 @@
   "Pengguna diblokir": "User blocked",
   "Pengguna favorit": "Favourite users",
   "Pengguna lain bisa melihat profil Anda.": "Other users can see your profile.",
-  "Pengguna terdaftar Kahade Escrow & Marketplace": "Registered Kahade Escrow & Marketplace user",
   "Pengguna yang Anda blokir akan muncul di sini.": "Users you block will appear here.",
   "Pengguna yang disarankan untuk Anda akan muncul di sini.": "Users suggested for you will appear here.",
   "Pengirim akan melihat tautan sebagai dibatalkan.": "The sender will see the link as cancelled.",
   "Pindai Lagi": "Scan again",
   "Pindai QR": "Scan QR",
-  "Template Transaksi": "Transaction Templates"
+  "Template Transaksi": "Transaction Templates",
+  "Penarikan tertentu memerlukan OTP tambahan via SMS ke nomor terdaftar.": "Certain withdrawals require an additional OTP via SMS to your registered number.",
+  "Masukkan kode OTP yang dikirim via SMS ke nomor terdaftar untuk menyelesaikan penarikan.": "Enter the OTP code sent via SMS to your registered number to complete the withdrawal.",
+  "Buat PIN dulu": "Create a PIN first",
+  "Penarikan dana memerlukan PIN dompet. Buat PIN dulu sebelum memasukkan nominal.": "Withdrawing funds requires a wallet PIN. Create a PIN first before entering an amount.",
+  "Buat PIN sekarang": "Create a PIN now"
 }

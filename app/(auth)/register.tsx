@@ -173,7 +173,9 @@ export default function RegisterScreen() {
           /phone|nomor/i.test(m),
         )
         if ((err.code === "VALIDATION" || err.code === "BAD_REQUEST") && mentionsPhone) {
-          setPhoneError("Nomor HP tidak valid. Gunakan format 08xx, 10–13 digit.")
+          // FE-105: satu aturan + satu pesan dengan cabang client-side —
+          // digit nasional tanpa 0 di depan, diawali 8, 9–12 digit.
+          setPhoneError("Nomor HP tidak valid. Gunakan nomor Indonesia yang diawali 8, 9–12 digit.")
           phoneRef.current?.focus()
           return
         }
@@ -260,7 +262,7 @@ export default function RegisterScreen() {
             onPress={() => void handleSubmit()}
             loading={submitting}
           >
-            Kirim kode
+            Lanjutkan
           </Button>
           {/*
            * T1-007: submit auth memicu dialog izin lokasi (getAuthLocation)

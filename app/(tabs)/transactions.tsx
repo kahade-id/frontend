@@ -55,7 +55,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useRouter } from "expo-router"
 import { api } from "@/lib/api"
 import { ORDER_STATUS_FILTERS } from "@/lib/api/orders"
-import { formatRupiah, formatTimeAgo, formatNumber } from "@/lib/format"
+import { formatDateTimeWIB, formatNumber, formatRupiah } from "@/lib/format"
 import { translate } from "@/lib/i18n/translate"
 import { toEpochMs } from "@/lib/pending-actions"
 import { ROUTES } from "@/lib/routes"
@@ -122,30 +122,23 @@ const STATUS_CHIPS: ReadonlyArray<{ label: string; value: string }> = [
 ]
 
 /**
- * Kepala kelompok hari: label hari (600) + tanggal pendek + jumlah order.
- * Dipisah sebagai komponen supaya `renderItem` PaginatedList tetap ramping.
+ * Kepala kelompok hari: label hari (600) + jumlah order.
+ * FE-089: sub tanggal pendek dihapus (redundan) — lihat
+ * lib/transaction-grouping.ts. Dipisah sebagai komponen supaya `renderItem`
+ * PaginatedList tetap ramping.
  */
 function TransactionDayHeader({
   label,
-  sub,
   count,
 }: {
   label: string
-  sub: string | null
   count: number
 }) {
   return (
     <View className="flex-row items-baseline justify-between gap-3 px-1">
-      <View className="min-w-0 flex-1 flex-row items-baseline gap-2">
-        <Text variant="body" weight={600} tone="primary" numberOfLines={1}>
-          {label}
-        </Text>
-        {sub ? (
-          <Text variant="caption" tone="secondary" numberOfLines={1}>
-            {sub}
-          </Text>
-        ) : null}
-      </View>
+      <Text variant="body" weight={600} tone="primary" numberOfLines={1} className="min-w-0 flex-1">
+        {label}
+      </Text>
       <Text variant="caption" tone="tertiary" className="shrink-0 tabular-nums">
         {translate("{n} transaksi", { n: formatNumber(count) })}
       </Text>
@@ -185,10 +178,11 @@ const TransactionOrderCard = memo(function TransactionOrderCard({
         name: counterpart?.fullName ?? counterpart?.username ?? "Identitas belum tersedia",
         avatar: counterpart?.avatarUrl ?? undefined,
       }}
-      // Revisi 2026-09-28: daftar memakai waktu relatif ("5 menit lalu"/
-      // "Kemarin") agar konsisten dengan feed/chat/notifikasi; cap waktu
-      // WIB eksplisit tetap tampil di layar detail transaksi (§13).
-      timestamp={formatTimeAgo(order.createdAt)}
+      // FE-128 (audit frontend 2026-09-29): daftar transaksi memakai waktu
+      // ABSOLUT WIB — semua yang berbau uang satu konvensi; waktu relatif
+      // hanya untuk konteks sosial/chat/notifikasi. Cap WIB eksplisit juga
+      // tampil di layar detail transaksi (§13).
+      timestamp={formatDateTimeWIB(order.createdAt)}
       deadlineAt={
         // M-54 (audit end-to-end, issue #72): `toEpochMs` (domain jam
         // C-04) — `new Date("1700000000")` string epoch-detik = Invalid
@@ -221,6 +215,10 @@ function TransactionListSkeleton() {
 }
 
 export default function TransactionsScreen() {
+  // FE-064: elemen header kiri yang stabil — <DrawerMenuButton> tanpa prop,
+  // aman dipakai ulang antar render agar memo <Header> bisa bail-out.
+  const headerLeft = useMemo(() => <DrawerMenuButton />, [])
+
   const insets = useSafeAreaInsets()
   /**
    * J-08 (audit): tab peran dibaca dari preferensi persisten (default
@@ -284,6 +282,47 @@ export default function TransactionsScreen() {
     },
   )
   const filtered = status !== ALL_STATUS
+
+  // FE-064: prop `right` header di-memo agar memo <Header> bisa bail-out.
+  // Deps: walletBalance (label chip) + filtered (state tombol funnel).
+  const headerRight = useMemo(
+    () => (
+      <View className="flex-row items-center gap-2">
+        {/*
+         * T5-003-minimal: chip saldo mini → Dompet. Satu ketukan, tanpa
+         * menambah tab (keputusan produk: tab penuh di-defer).
+         */}
+        <PressableScale
+          onPress={() => router.push(ROUTES.wallet)}
+          accessibilityRole="button"
+          accessibilityLabel={
+            typeof walletBalance === "number"
+              ? `Buka Dompet, saldo ${formatRupiah(walletBalance)}`
+              : "Buka Dompet"
+          }
+          className="flex-row items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1.5"
+        >
+          <Icon icon={Wallet} size="sm" tone="active" />
+          <Text variant="caption" weight={600}>
+            {typeof walletBalance === "number"
+              ? formatRupiah(walletBalance)
+              : "Dompet"}
+          </Text>
+        </PressableScale>
+        <IconButton
+          icon={Funnel}
+          variant="ghost"
+          active={filtered}
+          accessibilityLabel={translate("Filter status transaksi")}
+          accessibilityHint={
+            filtered ? translate("Filter aktif, ketuk untuk mengubah") : translate("Ketuk untuk memfilter")
+          }
+          onPress={() => setSheetOpen(true)}
+        />
+      </View>
+    ),
+    [walletBalance, filtered],
+  )
 
   /**
    * R1-005 (2026-09-29, audit render-perf): placeholder & empty distabilkan —
@@ -384,7 +423,7 @@ export default function TransactionsScreen() {
   const renderGroup = useCallback(
     ({ item: group }: { item: OrderDayGroup<Order> }) => (
       <View className="gap-3">
-        <TransactionDayHeader label={group.label} sub={group.sub} count={group.count} />
+        <TransactionDayHeader label={group.label} count={group.count} />
         {group.orders.map((order) => (
           <TransactionOrderCard key={order.id} order={order} onDeadline={scheduleRefresh} />
         ))}
@@ -421,42 +460,8 @@ export default function TransactionsScreen() {
         elevated={elevated}
         // T5-002 (audit UI/UX intuitif 2026-09-29): drawer bisa dibuka dari
         // semua tab, bukan cuma Etalase.
-        left={<DrawerMenuButton />}
-        right={
-          <View className="flex-row items-center gap-2">
-            {/*
-             * T5-003-minimal: chip saldo mini → Dompet. Satu ketukan, tanpa
-             * menambah tab (keputusan produk: tab penuh di-defer).
-             */}
-            <PressableScale
-              onPress={() => router.push(ROUTES.wallet)}
-              accessibilityRole="button"
-              accessibilityLabel={
-                typeof walletBalance === "number"
-                  ? `Buka Dompet, saldo ${formatRupiah(walletBalance)}`
-                  : "Buka Dompet"
-              }
-              className="flex-row items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1.5"
-            >
-              <Icon icon={Wallet} size="sm" tone="active" />
-              <Text variant="caption" weight={600}>
-                {typeof walletBalance === "number"
-                  ? formatRupiah(walletBalance, { compact: true })
-                  : "Dompet"}
-              </Text>
-            </PressableScale>
-            <IconButton
-              icon={Funnel}
-              variant="ghost"
-              active={filtered}
-              accessibilityLabel={translate("Filter status transaksi")}
-              accessibilityHint={
-                filtered ? translate("Filter aktif, ketuk untuk mengubah") : translate("Ketuk untuk memfilter")
-              }
-              onPress={() => setSheetOpen(true)}
-            />
-          </View>
-        }
+        left={headerLeft}
+        right={headerRight}
       />
       <ModeShiftFade>
       {/* v2: kontrol filter fade-in cepat TANPA geser — kontrol fungsional

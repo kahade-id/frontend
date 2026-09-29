@@ -23,6 +23,7 @@ export type JourneyStepTone = "success" | "info" | "neutral" | "warning" | "dang
 
 export type JourneyStepKey =
   | "created"
+  | "confirmed"
   | "paid"
   | "shipped"
   | "received"
@@ -69,6 +70,9 @@ export type JourneyInput = {
 
 const LABELS: Record<JourneyStepKey, string> = {
   created: "Order dibuat",
+  // FE-045: langkah eksplisit antara "dibuat" dan "dibayar" — pada tahap
+  // ini BELUM ADA dana yang bergerak.
+  confirmed: "Konfirmasi penjual",
   paid: "Dibayar ke escrow",
   shipped: "Dikirim penjual",
   received: "Diterima pembeli",
@@ -232,9 +236,12 @@ export function buildOrderJourney(input: JourneyInput): JourneyStep[] {
     }
     case "WAITING_CONFIRMATION":
     default:
+      // FE-045: "Dibayar ke escrow" TIDAK boleh jadi current — pada tahap
+      // ini uang BELUM bergerak. Langkah "Konfirmasi penjual" yang current.
       return [
         done("created", createdAt),
-        step("paid", "current", null, "info", "Menunggu penjual mengonfirmasi, lalu pembayaran"),
+        step("confirmed", "current", null, "info", "Menunggu penjual mengonfirmasi pesanan"),
+        upcoming("paid"),
         shippedUpcoming(),
         upcoming("received"),
         upcoming("released"),

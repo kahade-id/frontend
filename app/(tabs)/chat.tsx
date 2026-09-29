@@ -30,8 +30,8 @@
  *   - Tekan lama tetap masuk MODE PILIH (aksi massal Bisukan/Arsipkan);
  *     swipe dimatikan selama mode pilih supaya gesture tidak bentrok.
  */
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { ScrollView, View } from "react-native"
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react"
+import { ScrollView, View, type View as RNView } from "react-native"
 import { Archive, BellSlash, BellZ, Chats, GearSix, NotePencil, PushPin, Trash, X } from "phosphor-react-native"
 import { router, useFocusEffect } from "expo-router"
 
@@ -72,6 +72,7 @@ import {
 import { ChatRoomListItem, type ChatRoomLastMessage } from "@/components/ui/chat-room-list-item"
 import { Button } from "@/components/ui/button"
 import { ChipGroup, type ChipOption } from "@/components/ui/chip"
+import { CoachMark } from "@/components/ui/coach-mark"
 import { Dialog } from "@/components/ui/modal"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Header } from "@/components/ui/header"
@@ -293,8 +294,10 @@ function SelfChatEntry({ onOpen }: { onOpen: () => void }) {
         <Text variant="body" weight={600} tone="primary" numberOfLines={1}>
           Pesan untuk diri sendiri
         </Text>
+        {/* FE-087: "Catatan, pengingat, dan draf untuk Anda" = tiga sinonim
+            untuk satu fungsi — cukup "Catatan untuk Anda". */}
         <Text variant="caption" tone="secondary" numberOfLines={1}>
-          Catatan, pengingat, dan draf untuk Anda
+          {translate("Catatan untuk Anda")}
         </Text>
       </View>
     </PressableScale>
@@ -330,6 +333,11 @@ type ChatRoomRowProps = {
   onToggleSelect: (id: string) => void
   onEnterSelect: (id: string) => void
   onFullSwipe: (room: ChatRoom, side: SwipeSide) => void
+  /**
+   * FE-129: diisi hanya untuk baris pertama — View penjangkar coach mark
+   * sekali-tampil gesture swipe. Stabil per mount, jadi tidak menjebol memo.
+   */
+  rowAnchor?: RefObject<RNView | null>
 }
 
 /**
@@ -352,6 +360,7 @@ function ChatRoomRowBase({
   onToggleSelect,
   onEnterSelect,
   onFullSwipe,
+  rowAnchor,
 }: ChatRoomRowProps) {
   const archived = item.isArchived === true
 
@@ -412,7 +421,7 @@ function ChatRoomRowBase({
     [item.lastMessage],
   )
 
-  return (
+  const row = (
     <SwipeableListItem
       id={item.id}
       group={swipeGroup}
@@ -449,6 +458,16 @@ function ChatRoomRowBase({
         onLongPress={handleLongPress}
       />
     </SwipeableListItem>
+  )
+  // FE-129 (audit frontend 2026-09-29): hanya baris pertama (rowAnchor
+  // diisi) dibungkus View penjangkar coach mark sekali-tampil gesture
+  // swipe (kanan = semat, kiri = arsip/hapus) — baris lain tidak tersentuh.
+  return rowAnchor ? (
+    <View ref={rowAnchor} collapsable={false}>
+      {row}
+    </View>
+  ) : (
+    row
   )
 }
 
@@ -512,15 +531,22 @@ function areChatRowPropsEqual(prev: ChatRoomRowProps, next: ChatRoomRowProps): b
     prev.onDelete === next.onDelete &&
     prev.onToggleSelect === next.onToggleSelect &&
     prev.onEnterSelect === next.onEnterSelect &&
-    prev.onFullSwipe === next.onFullSwipe
+    prev.onFullSwipe === next.onFullSwipe &&
+    prev.rowAnchor === next.rowAnchor
   )
 }
 
 const ChatRoomRow = memo(ChatRoomRowBase, areChatRowPropsEqual)
 
+// FE-064: elemen header kiri yang stabil — <DrawerMenuButton> tanpa prop,
+// aman dipakai ulang antar render agar memo <Header> bisa bail-out.
+const CHAT_HEADER_LEFT = <DrawerMenuButton />
+
 export default function ChatScreen() {
   const toast = useToast()
   const insets = useSafeAreaInsets()
+  // FE-129: jangkar coach mark sekali-tampil gesture swipe di baris pertama.
+  const firstRowRef = useRef<RNView | null>(null)
   const [filter, setFilter] = useState<ChatFilter>("all")
   const archiveOpen = filter === "archived"
   const mainQuery = usePaginatedQuery<ChatRoom>(
@@ -564,6 +590,21 @@ export default function ChatScreen() {
   const [batchBusy, setBatchBusy] = useState(false)
   // Efek scroll: header terangkat (bayangan) saat daftar digulir.
   const { elevated, onScrollWorklet } = useScrollElevation()
+
+  // FE-064: prop `right` header di-memo agar memo <Header> bisa bail-out.
+  // Handler stabil — tidak ada state yang berubah per render.
+  const headerRight = useMemo(
+    () => (
+      <IconButton
+        icon={GearSix}
+        variant="ghost"
+        size="md"
+        accessibilityLabel="Pengaturan chat"
+        onPress={() => router.push(ROUTES.chatSettings)}
+      />
+    ),
+    [],
+  )
 
   // Query aktif mengikuti tab — tiap tab datanya sudah difilter server
   // (utama = non-arsip, arsip = ?archived=true). "Belum dibaca"/"Transaksi"
@@ -943,7 +984,7 @@ export default function ChatScreen() {
    * me-render ulang bila kontennya berubah.
    */
   const renderChatRoomItem = useCallback(
-    ({ item }: { item: ChatRoom }) => (
+    ({ item, index }: { item: ChatRoom; index: number }) => (
       <ChatRoomRow
         room={item}
         pinned={isRoomPinned(item.id)}
@@ -951,6 +992,8 @@ export default function ChatScreen() {
         selecting={selecting}
         selected={selected.has(item.id)}
         swipeGroup={swipeGroup}
+        // FE-129: baris pertama menjadi jangkar coach mark gesture swipe.
+        rowAnchor={index === 0 ? firstRowRef : undefined}
         onOpenRoom={openRoom}
         onTogglePin={handleTogglePin}
         onArchive={handleSingleArchive}
@@ -995,30 +1038,28 @@ export default function ChatScreen() {
     [],
   )
   const chatListEmpty = useMemo(
+    // FE-088: description yang mengulang judul dihapus — empty state =
+    // judul + CTA (§9 aturan 7).
     () =>
       archiveOpen ? (
         <EmptyState
           icon={Archive}
           title="Belum ada percakapan terarsip"
-          description="Percakapan yang Anda arsipkan akan tersimpan di sini."
         />
       ) : filter === "unread" ? (
         <EmptyState
           icon={Chats}
           title="Tidak ada yang belum dibaca"
-          description="Semua percakapan sudah Anda baca."
         />
       ) : filter === "transaction" ? (
         <EmptyState
           icon={Chats}
           title="Belum ada pesan transaksi"
-          description="Pesan dengan lawan transaksi Anda akan muncul di sini."
         />
       ) : (
         <EmptyState
           icon={Chats}
           title="Belum ada percakapan"
-          description="Mulai chat dengan lawan transaksi Anda."
           // UI-C004: empty state wajib punya jalan keluar yang bisa
           // diketuk — chat selalu bermula dari sebuah transaksi.
           action={
@@ -1095,17 +1136,9 @@ export default function ChatScreen() {
           title={archiveOpen ? "Diarsipkan" : "Pesan"}
           // T5-002 (audit UI/UX intuitif 2026-09-29): drawer bisa dibuka dari
           // semua tab, bukan cuma Etalase.
-          left={<DrawerMenuButton />}
+          left={CHAT_HEADER_LEFT}
           // Batch 43: pintu masuk pengaturan privasi/template balasan.
-          right={
-            <IconButton
-              icon={GearSix}
-              variant="ghost"
-              size="md"
-              accessibilityLabel="Pengaturan chat"
-              onPress={() => router.push(ROUTES.chatSettings)}
-            />
-          }
+          right={headerRight}
         />
       )}
       {!selecting ? (
@@ -1148,6 +1181,19 @@ export default function ChatScreen() {
         bottomPadding={insets.bottom + TAB_BAR_HEIGHT + tokens.space[4]}
         empty={chatListEmpty}
         renderItem={renderChatRoomItem}
+      />
+      {/*
+       * FE-129 (audit frontend 2026-09-29): coach mark SEKALI-tampil untuk
+       * gesture swipe (kanan = semat, kiri = arsip/hapus) — satu-satunya
+       * petunjuk discoverability di UI. Jangkar = baris pertama; bila daftar
+       * kosong, target tak terukur dan flag tidak ditandai (kesempatan tampil
+       * tidak hilang).
+       */}
+      <CoachMark
+        id="chat-swipe"
+        targetRef={firstRowRef}
+        message={translate("Geser baris ke kanan untuk menyemat, ke kiri untuk mengarsip atau menghapus")}
+        delayMs={900}
       />
       </ModeShiftFade>
 

@@ -54,7 +54,7 @@
  *   - Loading = <OrderCardSkeleton> terpisah dengan tinggi sama (≈132px)
  *     supaya list tidak melompat saat data masuk.
  */
-import { useEffect, useRef, useState } from "react"
+import { memo, useEffect, useRef, useState } from "react"
 import { View, type ViewProps } from "react-native"
 import { ArrowDownLeft, ArrowUpRight, Clock } from "phosphor-react-native"
 import { translate } from "@/lib/i18n/translate"
@@ -195,7 +195,69 @@ export type OrderCardProps = Omit<CardProps, "children" | "variant" | "padded" |
   highlight?: string
 }
 
-export function OrderCard({
+/**
+ * FE-063 (audit 2026-09-29): komparator kustom untuk `memo` — pemanggil
+ * (tab Transaksi) membangun objek `counterpart` inline tiap render, jadi
+ * shallow-compare bawaan tidak akan pernah hit. Objek kecil ini dibanding
+ * per-field; sisanya primitif/referensi.
+ */
+function counterpartEqual(a?: OrderCounterpart, b?: OrderCounterpart) {
+  return (
+    a === b ||
+    (a != null &&
+      b != null &&
+      a.name === b.name &&
+      a.avatar === b.avatar &&
+      a.verified === b.verified)
+  )
+}
+
+function orderCardLabelsEqual(
+  a?: Partial<OrderCardLabels>,
+  b?: Partial<OrderCardLabels>,
+) {
+  return (
+    a === b ||
+    (a != null &&
+      b != null &&
+      a.seller === b.seller &&
+      a.buyer === b.buyer &&
+      a.deadline === b.deadline)
+  )
+}
+
+function deadlineEqual(a?: Date | number, b?: Date | number) {
+  if (a === b) return true
+  const ams = a instanceof Date ? a.getTime() : a
+  const bms = b instanceof Date ? b.getTime() : b
+  return ams === bms
+}
+
+function shallowRestEqual(a: Record<string, unknown>, b: Record<string, unknown>) {
+  if (a === b) return true
+  const ka = Object.keys(a)
+  if (ka.length !== Object.keys(b).length) return false
+  return ka.every((k) => a[k] === b[k])
+}
+
+function orderCardPropsEqual(prev: OrderCardProps, next: OrderCardProps) {
+  const { counterpart: pc, labels: pl, deadlineAt: pd, ...prest } = prev
+  const { counterpart: nc, labels: nl, deadlineAt: nd, ...nrest } = next
+  return (
+    counterpartEqual(pc, nc) &&
+    orderCardLabelsEqual(pl, nl) &&
+    deadlineEqual(pd, nd) &&
+    shallowRestEqual(
+      prest as Record<string, unknown>,
+      nrest as Record<string, unknown>,
+    )
+  )
+}
+
+// FE-063: di-memo — detak 1 Hz `useClockTick` sudah terisolasi di
+// <OrderCardDeadline> (kecil, di bawah); kartu sendiri kini bail-out saat
+// daftar me-render ulang (polling, filter, dsb).
+export const OrderCard = memo(function OrderCard({
   orderId,
   title,
   amount,
@@ -361,7 +423,7 @@ export function OrderCard({
       ) : null}
     </Card>
   )
-}
+}, orderCardPropsEqual)
 
 /**
  * R2 (audit ronde-2, butir #64+#65): countdown kartu BERBAGI satu detak 1-Hz
@@ -370,7 +432,9 @@ export function OrderCard({
  * server (`serverNow` di dalam tick) bukan Date baru per render cell (#65).
  * `onComplete` ditembak sekali di batas habis; berhenti subscribe setelahnya.
  */
-function OrderCardDeadline({
+// FE-063: di-memo — satu-satunya consumer detak 1 Hz; prop primitif +
+// onComplete stabil dari pemanggil.
+const OrderCardDeadline = memo(function OrderCardDeadline({
   until,
   onComplete,
 }: {
@@ -418,7 +482,7 @@ function OrderCardDeadline({
       {valid ? formatCountdown(remainingSec ?? 0) : "—"}
     </Text>
   )
-}
+})
 
 /** Placeholder dengan tinggi menyamai OrderCard tanpa tenggat */
 export function OrderCardSkeleton({

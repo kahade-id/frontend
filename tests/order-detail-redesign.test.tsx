@@ -53,11 +53,13 @@ describe("<OrderStatusHero>", () => {
     onCopyId: vi.fn(),
   }
 
-  it("menampilkan label ID Transaksi, Tanggal, dan Waktu secara terpisah", () => {
+  it("menampilkan label ID Transaksi dan tanggal-waktu gabungan", () => {
     renderWithTheme(<OrderStatusHero {...props} />)
     expect(screen.getByText("ID Transaksi")).toBeTruthy()
-    expect(screen.getByText("Tanggal")).toBeTruthy()
-    expect(screen.getByText("Waktu")).toBeTruthy()
+    // FE-002: tanggal + waktu digabung satu baris ("27 September 2026 · 03:00 WIB"
+    // di UTC / "10:00 WIB" di WIB), bukan dua label terpisah — lebih ringkas.
+    expect(document.body.textContent).toMatch(/27 September 2026/)
+    expect(document.body.textContent).toMatch(/[0-9]{2}:[0-9]{2} WIB/)
     expect(screen.getByText("ORD-20260927-0001")).toBeTruthy()
     expect(screen.getByText("Jasa desain logo")).toBeTruthy()
   })
@@ -156,8 +158,9 @@ describe("<OrderDetailActions>", () => {
     submitting: false,
     status: "WAITING_PAYMENT",
     myRole: "BUYER" as const,
-    autoRelease: null,
-    shippingCountdown: null,
+    autoReleaseAt: null,
+    shippingCountdownInput: null,
+    confirmCountdownInput: null,
     onPay: noop,
     onAccept: noop,
     onReject: noop,
@@ -190,13 +193,12 @@ describe("<OrderDetailActions>", () => {
   })
 
   it("countdown auto-release tampil bila diberikan", () => {
-    renderWithTheme(
-      <OrderDetailActions
-        {...baseProps}
-        autoRelease={{ secondsLeft: 3600, at: "2026-09-28T10:00:00+07:00" }}
-      />,
-    )
-    expect(screen.getByText(/dana akan cair otomatis/i)).toBeTruthy()
+    // FE-001: layar hanya meneruskan string `at` yang stabil; detik hitung
+    // mundur dihitung per tick di dalam <AutoReleaseCountdownBox>.
+    const future = new Date(Date.now() + 3600_000).toISOString()
+    renderWithTheme(<OrderDetailActions {...baseProps} autoReleaseAt={future} />)
+    expect(screen.getByText("Batas konfirmasi")).toBeTruthy()
+    expect(screen.getByText(/dana cair otomatis/i)).toBeTruthy()
   })
 
   it("aksi penjual: terima/tolak, kirim, unggah bukti", () => {
@@ -232,30 +234,35 @@ describe("<OrderDetailActions>", () => {
   })
 
   it("item 35: countdown memakai label kontekstual Batas kirim / Batas konfirmasi", () => {
+    // FE-001: input mentah countdown; tampil/sembunyi di-resolve per tick di
+    // dalam <ShippingCountdownBox>.
+    const future = new Date(Date.now() + 3600_000).toISOString()
     renderWithTheme(
       <OrderDetailActions
         {...baseProps}
-        shippingCountdown={{
-          kind: "countdown",
-          secondsLeft: 3600,
-          at: "2026-09-28T10:00:00+07:00",
+        shippingCountdownInput={{
+          status: "IN_DELIVERY",
+          paidAt: "2026-09-27T10:00:00+07:00",
+          shippingDeadline: future,
+          shippedBy: null,
         }}
       />,
     )
     expect(screen.getByText("Batas kirim")).toBeTruthy()
 
+    const later = new Date(Date.now() + 7200_000).toISOString()
     renderWithTheme(
       <OrderDetailActions
         {...baseProps}
-        shippingCountdown={null}
-        autoRelease={{ secondsLeft: 7200, at: "2026-09-29T10:00:00+07:00" }}
+        shippingCountdownInput={null}
+        autoReleaseAt={later}
         myRole="BUYER"
         status="IN_DELIVERY"
       />,
     )
     expect(screen.getByText("Batas konfirmasi")).toBeTruthy()
-    // Item 45: pembeli masih bisa sengketa sampai tenggat.
-    expect(document.body.textContent).toMatch(/masih bisa memeriksa barang/i)
+    // FE-003: copy dipadatkan jadi maks 2 baris.
+    expect(document.body.textContent).toMatch(/ajukan sengketa sebelum itu/i)
   })
 
   it("item 46: 'Ajukan retur' primer bila canReturnPrimary", () => {
@@ -269,14 +276,16 @@ describe("<OrderDetailActions>", () => {
 })
 
 describe("<OrderEscrowCard>", () => {
-  it("menyebut PT Kawal Hak Dengan Aman dan menyesuaikan copy per status", () => {
+  it("menyesuaikan copy per status (FE-090: satu kalimat)", () => {
     const { rerender } = renderWithTheme(
       <OrderEscrowCard status="WAITING_PAYMENT" amount={250000} myRole="BUYER" />,
     )
-    expect(document.body.textContent).toMatch(/PT Kawal Hak Dengan Aman/)
     // Item 33: pra-bayar — dana BELUM ditahan, copy jujur mengatakannya.
-    expect(screen.getByText(/dana akan ditahan di escrow/i)).toBeTruthy()
-    expect(document.body.textContent).toMatch(/Dana akan ditahan setelah Anda membayar/)
+    expect(
+      screen.getByText(
+        /Dana akan ditahan di escrow setelah Anda membayar, sampai Anda mengonfirmasi penerimaan\./,
+      ),
+    ).toBeTruthy()
 
     rerender(
       <ThemeProvider>
@@ -298,7 +307,9 @@ describe("<OrderEscrowCard>", () => {
     renderWithTheme(
       <OrderEscrowCard status="WAITING_CONFIRMATION" amount={250000} myRole="SELLER" />,
     )
-    expect(document.body.textContent).toMatch(/Dana akan ditahan setelah pembeli membayar/)
+    expect(document.body.textContent).toMatch(
+      /Dana akan ditahan di escrow setelah pembeli membayar/,
+    )
   })
 })
 
@@ -369,9 +380,9 @@ describe("<OrderHelpCard> & <OrderRatingReminder>", () => {  it("tombol Hubungi 
   it("rating reminder tampil dengan jendela 7 hari bila visible", () => {
     const onSnooze = vi.fn()
     renderWithTheme(<OrderRatingReminder visible onRate={noop} onSnooze={onSnooze} />)
-    expect(screen.getByText(/7 hari/i)).toBeTruthy()
-    // Item 39: copy formal "Anda" (bukan "ulasanmu").
-    expect(document.body.textContent).toMatch(/ulasan Anda/i)
+    // FE-029: satu caption jendela ulasan, bukan dua kalimat persuasif.
+    expect(screen.getByText(/Maksimal 7 hari setelah transaksi selesai\./)).toBeTruthy()
+    expect(screen.getByRole("button", { name: "Beri ulasan" })).toBeTruthy()
     fireEvent.click(screen.getByRole("button", { name: /ingatkan nanti/i }))
     expect(onSnooze).toHaveBeenCalledTimes(1)
   })

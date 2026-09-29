@@ -20,7 +20,7 @@ import { Check, Copy } from "phosphor-react-native"
 import { Divider } from "@/components/ui/divider"
 import { IconButton } from "@/components/ui/icon-button"
 import { Text } from "@/components/ui/text"
-import { ORDER_STATUS_LABELS, OrderStatusBadge } from "@/components/ui/order-status-badge"
+import { ORDER_STATUS_LABELS } from "@/components/ui/order-status-badge"
 import { OrderRoleBadge } from "@/components/ui/order-role-badge"
 import { cn } from "@/lib/cn"
 import { formatDate, formatTime } from "@/lib/format"
@@ -76,7 +76,11 @@ export function OrderStatusHero({
   const heroBg = STATUS_HERO_BG[status] ?? "bg-info-soft"
   return (
     <View className={cn("-mx-5 -mt-3 px-5 pb-7 pt-6", heroBg, className)} {...rest}>
-      {/* Baris status — elemen paling menonjol di layar */}
+      {/*
+       * FE-002: SATU representasi status yang besar (H1) — <OrderStatusBadge>
+       * yang menampilkan label status yang SAMA dihapus; badge kecil
+       * dipertahankan hanya untuk peran (<OrderRoleBadge>).
+       */}
       <View className="flex-row items-center justify-between gap-3">
         <View className="flex-1 gap-1" accessible accessibilityRole="header">
           <Text variant="caption" tone="secondary">
@@ -88,7 +92,6 @@ export function OrderStatusHero({
         </View>
         {/* D14 (batch 139): badge peran yang SAMA dengan timeline & CTA. */}
         <View className="items-end gap-1.5">
-          <OrderStatusBadge status={status} role={role} size="md" />
           <OrderRoleBadge role={role} />
         </View>
       </View>
@@ -127,22 +130,9 @@ export function OrderStatusHero({
           />
         </View>
         <View className="flex-row gap-3">
-          <View className="flex-1 gap-1">
-            <Text variant="caption" tone="secondary">
-              {translate("Tanggal")}
-            </Text>
-            <Text variant="body" weight={600}>
-              {date}
-            </Text>
-          </View>
-          <View className="flex-1 gap-1">
-            <Text variant="caption" tone="secondary">
-              {translate("Waktu")}
-            </Text>
-            <Text variant="body" weight={600}>
-              {time === "—" ? "—" : `${time} WIB`}
-            </Text>
-          </View>
+          <Text variant="body" weight={600}>
+            {time === "—" ? `${date} · —` : `${date} · ${time} WIB`}
+          </Text>
         </View>
       </View>
     </View>

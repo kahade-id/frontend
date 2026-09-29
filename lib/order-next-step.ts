@@ -52,7 +52,9 @@ export function orderNextStepHint(
         : null
     case "DISPUTED":
       return translate(
-        "Langkah berikutnya: sengketa sedang ditangani tim Kahade. Pantau perkembangannya di halaman sengketa.",
+        // FE-047: cantumkan SLA respons mediator agar pengguna tahu kapan
+        // sengketa mulai ditangani.
+        "Langkah berikutnya: sengketa sedang ditangani tim Kahade (respons maksimal 1×24 jam). Pantau perkembangannya di halaman sengketa.",
       )
     default:
       // COMPLETED / CANCELLED / REFUNDED / EXPIRED / tak dikenal — tidak ada langkah berikut.

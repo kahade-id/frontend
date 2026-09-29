@@ -3,13 +3,13 @@
  * GET /v1/products/[id] · kebijakan harga, varian & ketersediaan pre-checkout.
  */
 import { useState } from "react"
-import { Pressable, Text, View, Alert } from "react-native"
+import { Pressable, Text, View } from "react-native"
 import { useLocalSearchParams } from "expo-router"
 
 import { api } from "@/lib/api"
 import type { Product } from "@/lib/api/products"
 import { PRODUCT_STATUS_LABEL, productStatusBadgeTone, sellableQty, variantLabel } from "@/lib/api/products"
-import { formatRupiah } from "@/lib/format"
+import { formatRupiah, formatRupiahFromSen } from "@/lib/format"
 import { tokens } from "@/lib/tokens"
 import { useApiQuery } from "@/lib/use-api-query"
 import { showMutationError } from "@/lib/mutation-toast"
@@ -20,6 +20,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { DataScreen } from "@/components/ui/data-screen"
+import { Dialog } from "@/components/ui/modal"
 import { SectionHeader } from "@/components/ui/section"
 
 export default function ProductDetailScreen() {
@@ -33,6 +34,8 @@ export default function ProductDetailScreen() {
   const [selectedVariant, setSelectedVariant] = useState<string | null>(null)
   const [qty, setQty] = useState(1)
   const [checking, setChecking] = useState(false)
+  /** FE-054: hasil validasi ketersediaan memakai <Dialog> bermerek (bukan Alert.alert). */
+  const [availability, setAvailability] = useState<{ ok: boolean; message: string } | null>(null)
   const query = useApiQuery<Product>(
     `product:${String(id)}`,
     (signal) => api.products.getProduct(String(id), signal),
@@ -49,9 +52,9 @@ export default function ProductDetailScreen() {
       const res = await api.products.preCheckoutValidate([{ sku: variant?.sku ?? p.sku, qty }])
       const line = res.lines[0]
       if (res.allOk && line?.sufficient) {
-        Alert.alert("Tersedia", `${p.name} × ${qty} — ${formatSenToRupiah(line.currentPriceSen)}. Harga & stok terkonfirmasi server.`)
+        setAvailability({ ok: true, message: `${p.name} × ${qty} — ${formatRupiahFromSen(line.currentPriceSen)}. Harga & stok terkonfirmasi server.` })
       } else {
-        Alert.alert("Tidak tersedia", line?.message ?? "Stok atau harga berubah. Silakan muat ulang.")
+        setAvailability({ ok: false, message: line?.message ?? "Stok atau harga berubah. Silakan muat ulang." })
         await query.reload()
       }
     } catch (e) {
@@ -70,6 +73,7 @@ export default function ProductDetailScreen() {
   }
 
   return (
+    <>
     <DataScreen title="Detail Produk" state={query} loadingMessage="Memuat produk…">
       {p ? (
         <View style={{ paddingVertical: tokens.space[4], gap: tokens.space[4] }}>
@@ -156,6 +160,18 @@ export default function ProductDetailScreen() {
         </View>
       ) : null}
     </DataScreen>
+      {/* FE-054: dialog hasil validasi bermerek (menggantikan Alert.alert informatif). */}
+      <Dialog
+        visible={availability != null}
+        onRequestClose={() => setAvailability(null)}
+        title={availability?.ok ? "Tersedia" : "Tidak tersedia"}
+        description={availability?.message}
+        tone={availability?.ok ? "success" : "danger"}
+        confirmLabel="Tutup"
+        hideCancel
+        onConfirm={() => setAvailability(null)}
+      />
+    </>
   )
 }
 
@@ -165,15 +181,11 @@ function priceOf(p: Product, selectedVariant: string | null) {
 }
 
 /**
+ * FE-055: konversi sen -> Rupiah kini memakai helper kanonis
+ * `formatRupiahFromSen` dari `@/lib/format` (satu aturan validasi §13).
  * `POST /v1/inventory/pre-checkout` mengembalikan `currentPriceSen` dalam SEN
  * (string BigInt). Satu-satunya field sen di domain produk — konversi lokal.
  */
-function formatSenToRupiah(sen: string | null): string {
-  if (sen == null) return "—"
-  const n = Number(sen)
-  if (!Number.isFinite(n)) return "—"
-  return formatRupiah(Math.round(n / 100))
-}
 
 function stockOf(p: Product, selectedVariant: string | null) {
   const active = (p.variants ?? []).find((v) => v.id === selectedVariant) ?? null

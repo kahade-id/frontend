@@ -75,8 +75,10 @@ function escrowCopy(
     case "DISPUTED":
       return {
         title: translate("Dana dibekukan sementara"),
+        // FE-090: satu kalimat — "Tidak ada pihak yang bisa menariknya
+        // sepihak" sudah tercakup "hanya dilepas sesuai hasil penyelesaian".
         body: translate(
-          "Selama sengketa berjalan, dana escrow dibekukan oleh {x} dan hanya dilepas sesuai hasil penyelesaian. Tidak ada pihak yang bisa menariknya sepihak.",
+          "Selama sengketa, dana dibekukan oleh {x} dan hanya dilepas sesuai hasil penyelesaian.",
           { x: COMPANY },
         ),
       }
@@ -88,16 +90,17 @@ function escrowCopy(
       return myRole === "SELLER"
         ? {
             title: translate("Dana akan ditahan di escrow"),
+            // FE-090: satu kalimat — gabungkan "setelah pembeli membayar"
+            // dengan "setelah pembayaran masuk".
             body: translate(
-              "Dana akan ditahan setelah pembeli membayar. Anda dapat memproses order setelah pembayaran masuk ke escrow {x}.",
-              { x: COMPANY },
+              "Dana akan ditahan di escrow setelah pembeli membayar — Anda dapat memproses order setelah pembayaran masuk.",
             ),
           }
         : {
             title: translate("Dana akan ditahan di escrow"),
+            // FE-090: satu kalimat; istilah baku "Ditahan di escrow" (§9).
             body: translate(
-              "Dana akan ditahan setelah Anda membayar. {x} menahan dana dengan aman sampai Anda mengonfirmasi penerimaan.",
-              { x: COMPANY },
+              "Dana akan ditahan di escrow setelah Anda membayar, sampai Anda mengonfirmasi penerimaan.",
             ),
           }
     // U5-012 (UX-deep 2026-09-29, keputusan produk): saat PROCESSING,
@@ -115,14 +118,11 @@ function escrowCopy(
           }
         : {
             title: translate("Dana aman di escrow"),
+            // FE-090: satu kalimat — jaminan auto-refund 2 hari (U5-012,
+            // keputusan produk) digabung dengan em-dash, bukan kalimat terpisah.
             body: translate(
-              "Uang Anda ditahan dengan aman oleh {x}. Dana hanya diteruskan ke penjual setelah Anda mengonfirmasi penerimaan barang/jasa — atau otomatis setelah tenggat tanpa sengketa. {deadline}",
-              {
-                x: COMPANY,
-                deadline: translate(
-                  "Penjual punya waktu 2 hari untuk mengirim. Lewat dari itu, dana kembali otomatis.",
-                ),
-              },
+              "Dana Anda ditahan di escrow oleh {x} sampai Anda mengonfirmasi penerimaan — cair otomatis setelah tenggat tanpa sengketa, atau kembali otomatis bila penjual tidak kirim dalam 2 hari.",
+              { x: COMPANY },
             ),
           }
     default:
@@ -136,8 +136,9 @@ function escrowCopy(
           }
         : {
             title: translate("Dana aman di escrow"),
+            // FE-090: satu kalimat; istilah baku "Ditahan di escrow" (§9).
             body: translate(
-              "Uang Anda ditahan dengan aman oleh {x}. Dana hanya diteruskan ke penjual setelah Anda mengonfirmasi penerimaan barang/jasa — atau otomatis setelah tenggat tanpa sengketa.",
+              "Dana Anda ditahan di escrow oleh {x} — hanya diteruskan ke penjual setelah Anda mengonfirmasi penerimaan, atau otomatis setelah tenggat tanpa sengketa.",
               { x: COMPANY },
             ),
           }

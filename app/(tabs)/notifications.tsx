@@ -624,6 +624,71 @@ function NotificationsScreen() {
     }
   }, [batchBusy, hasUnread])
 
+  // FE-064: prop header di-memo agar memo <Header> bisa bail-out.
+  // Ditaruh setelah exitSelect/handleReadSelected/handleReadAll dideklarasikan.
+  const selectHeaderLeft = useMemo(
+    () => (
+      <IconButton
+        icon={X}
+        variant="ghost"
+        accessibilityLabel={translate("Batal memilih")}
+        onPress={exitSelect}
+      />
+    ),
+    [exitSelect],
+  )
+  const selectHeaderRight = useMemo(
+    () => (
+      <>
+        <IconButton
+          icon={Checks}
+          variant="ghost"
+          accessibilityLabel={translate("Tandai yang dipilih dibaca")}
+          disabled={selectedCount === 0 || batchBusy}
+          onPress={() => void handleReadSelected()}
+        />
+        <IconButton
+          icon={Trash}
+          variant="ghost"
+          accessibilityLabel={translate("Hapus yang dipilih")}
+          disabled={selectedCount === 0 || batchBusy}
+          onPress={() => setConfirm("delete-selected")}
+        />
+      </>
+    ),
+    [selectedCount, batchBusy, handleReadSelected],
+  )
+  const headerLeft = useMemo(() => <DrawerMenuButton />, [])
+  const headerRight = useMemo(
+    () => (
+      <>
+        {hasUnread ? (
+          <MarkAllReadButton busy={batchBusy} onPress={() => void handleReadAll()} />
+        ) : null}
+        <IconButton
+          icon={FunnelSimple}
+          variant="ghost"
+          active={unreadOnly}
+          accessibilityLabel={
+            unreadOnly ? translate("Lihat semua notifikasi") : translate("Hanya yang belum dibaca")
+          }
+          accessibilityHint={translate("Saring daftar antara semua dan belum dibaca")}
+          disabled={!hasUnread && !unreadOnly}
+          onPress={() => setUnreadOnly((v) => !v)}
+        />
+        {notifs.length > 0 ? (
+          <IconButton
+            icon={DotsThreeVertical}
+            variant="ghost"
+            accessibilityLabel={translate("Opsi notifikasi")}
+            onPress={() => setMenuOpen(true)}
+          />
+        ) : null}
+      </>
+    ),
+    [hasUnread, batchBusy, handleReadAll, unreadOnly, notifs.length],
+  )
+
   const menuActions: ActionSheetItem[] = [
     {
       key: "select",
@@ -699,32 +764,8 @@ function NotificationsScreen() {
           showBack={false}
           separator={false}
           elevated={elevated}
-          left={
-            <IconButton
-              icon={X}
-              variant="ghost"
-              accessibilityLabel={translate("Batal memilih")}
-              onPress={exitSelect}
-            />
-          }
-          right={
-            <>
-              <IconButton
-                icon={Checks}
-                variant="ghost"
-                accessibilityLabel={translate("Tandai yang dipilih dibaca")}
-                disabled={selectedCount === 0 || batchBusy}
-                onPress={() => void handleReadSelected()}
-              />
-              <IconButton
-                icon={Trash}
-                variant="ghost"
-                accessibilityLabel={translate("Hapus yang dipilih")}
-                disabled={selectedCount === 0 || batchBusy}
-                onPress={() => setConfirm("delete-selected")}
-              />
-            </>
-          }
+          left={selectHeaderLeft}
+          right={selectHeaderRight}
         />
       ) : (
         <Header
@@ -738,33 +779,8 @@ function NotificationsScreen() {
           elevated={elevated}
           // T5-002 (audit UI/UX intuitif 2026-09-29): drawer bisa dibuka dari
           // semua tab, bukan cuma Etalase.
-          left={<DrawerMenuButton />}
-          right={
-            <>
-              {hasUnread ? (
-                <MarkAllReadButton busy={batchBusy} onPress={() => void handleReadAll()} />
-              ) : null}
-              <IconButton
-                icon={FunnelSimple}
-                variant="ghost"
-                active={unreadOnly}
-                accessibilityLabel={
-                  unreadOnly ? translate("Tampilkan semua notifikasi") : translate("Hanya yang belum dibaca")
-                }
-                accessibilityHint={translate("Saring daftar antara semua dan belum dibaca")}
-                disabled={!hasUnread && !unreadOnly}
-                onPress={() => setUnreadOnly((v) => !v)}
-              />
-              {notifs.length > 0 ? (
-                <IconButton
-                  icon={DotsThreeVertical}
-                  variant="ghost"
-                  accessibilityLabel={translate("Opsi notifikasi")}
-                  onPress={() => setMenuOpen(true)}
-                />
-              ) : null}
-            </>
-          }
+          left={headerLeft}
+          right={headerRight}
         />
       )}
 
@@ -804,10 +820,11 @@ function NotificationsScreen() {
         renderItem={renderNotificationRow}
       />
 
+      {/* FE-099: judul "Notifikasi" dihapus — menduplikasi judul layar;
+          sheet opsi berdiri tanpa judul. */}
       <ActionSheet
         visible={menuOpen}
         onRequestClose={() => setMenuOpen(false)}
-        title="Notifikasi"
         actions={hasRead ? menuActions : menuActions.filter((a) => a.key !== "delete-read")}
       />
 
@@ -817,11 +834,7 @@ function NotificationsScreen() {
             ? "Hapus notifikasi yang sudah dibaca?"
             : translate("Hapus {x} notifikasi?", { x: selectedCount })
         }
-        description={
-          confirm === "delete-read"
-            ? "Semua notifikasi yang sudah dibaca akan dihapus dari daftar."
-            : "Notifikasi yang dipilih akan dihapus dari daftar."
-        }
+        // FE-100: description mengulang judul dialog — dihapus (§9 aturan 2).
         visible={confirm !== null}
         destructive
         loading={batchBusy}

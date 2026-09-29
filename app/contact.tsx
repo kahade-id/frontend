@@ -31,6 +31,7 @@ import { formatRupiah } from "@/lib/format"
 import { ORDER_STATUS_LABELS } from "@/lib/labels/status"
 import { ROUTES } from "@/lib/routes"
 import { serverNow } from "@/lib/server-time"
+import { translate } from "@/lib/i18n"
 import {
   attachmentLimitSummary,
   validateTicketAttachments,
@@ -644,8 +645,9 @@ export default function ContactScreen() {
                 />
                 {diagEnabled ? (
                   <View className="gap-2 rounded-md border border-border bg-surface p-3">
+                    {/* FE-101: satu label saja — "Terkirim bersama tiket ini:". */}
                     <Text variant="label" tone="secondary">
-                      Data yang akan ikut terkirim:
+                      {translate("Terkirim bersama tiket ini:")}
                     </Text>
                     {(diagItems ?? []).filter((i) => !diagRemoved.has(i.id)).map((item) => (
                       <View key={item.id} className="flex-row items-center justify-between gap-2">
@@ -669,10 +671,9 @@ export default function ContactScreen() {
                       label="Saya setuju data diagnostik di atas dikirim bersama tiket ini"
                     />
                     {diagConsent && activeDiagItems.length > 0 ? (
+                      // FE-101: label "Pratinjau teks terkirim:" dihapus —
+                      // isi pratinjau sudah jelas dari konteksnya.
                       <View className="gap-1 rounded-xs bg-background p-2">
-                        <Text variant="caption" tone="secondary" weight={600}>
-                          Pratinjau teks terkirim:
-                        </Text>
                         <Text variant="caption" tone="secondary" numberOfLines={8}>
                           {finalMessage || "(tulis pesan dulu untuk melihat pratinjau)"}
                         </Text>

@@ -341,8 +341,8 @@ export default function VerifyOtpScreen() {
     // SEC-404: proteksi screen-capture iOS di layar OTP.
     <ScreenCaptureGuard>
       <Screen padded={false} edges={["top"]}>
-      {/* T1-002: progress per purpose — register 2/4, forgot_password 2/3, login/migrasi disembunyikan */}
-      <Header title="Verifikasi OTP" progress={otpStepProgress(purpose)} safeArea={false} />
+      {/* T1-002: progress per purpose — register/forgot 3/4 (langkah "masukkan OTP"; FE-040), login/migrasi disembunyikan */}
+      <Header title="Verifikasi OTP" progress={otpStepProgress(purpose, "otp")} safeArea={false} />
 
       <KeyboardAvoiding offset={insets.top + HEADER_BAR_HEIGHT}>
         <ScrollView
@@ -420,8 +420,13 @@ export default function VerifyOtpScreen() {
             {canResend ? (
               <>
                 <TextLink onPress={handleResend} disabled={resending || !isOnline}>
-                  {resending ? "Meminta kode baru…" : "Kirim ulang kode"}
+                  {resending ? "Meminta kode baru…" : "Minta kode baru"}
                 </TextLink>
+                {/*
+                 * FE-041: label "Kirim ulang kode" menyesatkan — kode TIDAK
+                 * dikirim ulang, user harus mengirim pesan pemicu lagi.
+                 * Handler tidak berubah: tetap meminta kode baru via trigger.
+                 */}
                 {/*
                  * FE-IMP-3 #119 — jelaskan: kode baru dikirim sebagai balasan
                  * SETELAH pesan pemicu dikirim lagi (bukan OTP langsung).

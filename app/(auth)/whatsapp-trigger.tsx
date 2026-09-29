@@ -367,11 +367,12 @@ export default function WhatsappTriggerScreen() {
       {/*
        * T1-002: progress per purpose — register 2/4, forgot_password 2/3,
        * login/migrasi disembunyikan (bukan bagian wizard pendaftaran).
+       * FE-040: layar ini = langkah "kirim pesan WA" (2/4); layar OTP = 3/4.
        */}
       <Header
         title="Verifikasi WhatsApp"
         safeArea={false}
-        progress={purpose ? otpStepProgress(purpose) : undefined}
+        progress={purpose ? otpStepProgress(purpose, "trigger") : undefined}
       />
 
       <KeyboardAvoiding>

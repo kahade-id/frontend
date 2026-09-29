@@ -17,6 +17,9 @@ import { afterEach, describe, expect, it } from "vitest"
 
 import { Text } from "@/components/ui/text"
 import { applyLanguage, clearTranslationCache } from "@/lib/i18n"
+// FE-072: kamus English dimuat lazy di produksi — test yang butuh terjemahan
+// sinkron mengimpor `./en` langsung agar terdaftar sebelum render.
+import "@/lib/i18n/en"
 
 afterEach(() => {
   cleanup()

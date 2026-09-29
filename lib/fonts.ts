@@ -48,12 +48,12 @@ export type FontAssetName = {
  * dengan tokens: kurang satu, atau salah ketik satu huruf, langsung gagal
  * type-check. `require()` harus literal statis agar Metro bisa bundle.
  *
- * ST-003 (PERF-FIX 2026-09-29): peta dipecah dua — KRITIS (PlusJakartaSans,
- * dipakai layar pertama → blocking di splash) dan TANGGUH (EBGaramond 392KB
- * + AzeretMono, hanya dipakai teks legal/grafik/format-bar → dimuat lazy
- * setelah first paint via `Font.loadAsync`). Pengecekan exhaustiveness tetap
- * di `allFontAssets`; dua peta turunan dijamin mencakup semua key lewat
- * `satisfies`.
+ * ST-003 (PERF-FIX 2026-09-29) + FE-073: peta dipecah dua — KRITIS
+ * (PlusJakartaSans Regular/Medium, dipakai layar pertama → blocking di
+ * splash) dan TANGGUH (PlusJakartaSans SemiBold/Bold + EBGaramond 392KB +
+ * AzeretMono → dimuat lazy setelah first paint via `Font.loadAsync`).
+ * Pengecekan exhaustiveness tetap di `allFontAssets`; dua peta turunan
+ * dijamin mencakup semua key lewat `satisfies`.
  */
 const allFontAssets = {
   "PlusJakartaSans-Regular": require("../assets/fonts/PlusJakartaSans-Regular.ttf"),
@@ -66,18 +66,26 @@ const allFontAssets = {
 } satisfies Record<FontAssetName, number>
 
 /**
- * ST-003: subset KRITIS untuk `useFonts()` blocking — hanya PlusJakartaSans
- * (dipakai layar pertama). Splash tidak lagi menunggu EBGaramond/AzeretMono.
+ * ST-003: subset KRITIS untuk `useFonts()` blocking.
+ *
+ * FE-073: hanya Regular + Medium yang blocking — SemiBold/Bold pindah ke
+ * `fontAssetsDeferred` (dimuat lazy tepat setelah first paint). Keempatnya
+ * satu keluarga font yang sama sehingga swap weight tidak merusak layout
+ * berarti; splash/cold start tidak lagi menunggu 4 file.
  */
 export const fontAssetsBlocking = {
   "PlusJakartaSans-Regular": allFontAssets["PlusJakartaSans-Regular"],
   "PlusJakartaSans-Medium": allFontAssets["PlusJakartaSans-Medium"],
-  "PlusJakartaSans-SemiBold": allFontAssets["PlusJakartaSans-SemiBold"],
-  "PlusJakartaSans-Bold": allFontAssets["PlusJakartaSans-Bold"],
 } as const
 
-/** ST-003: font lazy — dimuat setelah first paint, tidak menahan splash. */
+/**
+ * ST-003 + FE-073: font lazy — dimuat setelah first paint, tidak menahan
+ * splash. PlusJakartaSans SemiBold/Bold (dipakai heading/button — di luar
+ * paint pertama) + EBGaramond/AzeretMono.
+ */
 export const fontAssetsDeferred = {
+  "PlusJakartaSans-SemiBold": allFontAssets["PlusJakartaSans-SemiBold"],
+  "PlusJakartaSans-Bold": allFontAssets["PlusJakartaSans-Bold"],
   "EBGaramond-Medium": allFontAssets["EBGaramond-Medium"],
   "AzeretMono-Medium": allFontAssets["AzeretMono-Medium"],
   "AzeretMono-SemiBold": allFontAssets["AzeretMono-SemiBold"],

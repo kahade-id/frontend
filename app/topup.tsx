@@ -37,6 +37,7 @@ import { useApiQuery } from "@/lib/use-api-query"
 import { assertDeviceNotCompromised } from "@/lib/device-integrity"
 import { recordPendingAction, resolvePendingAction, toEpochMs } from "@/lib/pending-actions"
 import { Alert } from "@/components/ui/alert"
+import { Amount } from "@/components/ui/amount"
 import { AmountKeypad } from "@/components/ui/amount-keypad"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Button } from "@/components/ui/button"
@@ -47,6 +48,7 @@ import { HEADER_BAR_HEIGHT, Header } from "@/components/ui/header"
 import { Heading } from "@/components/ui/heading"
 import { KeypadOptionCard } from "@/components/ui/keypad-option-card"
 import { KeyboardAvoiding } from "@/components/ui/keyboard-avoiding"
+import { KeyValue } from "@/components/ui/key-value"
 import { ListLoading } from "@/components/ui/paginated-list"
 import {
   PaymentMethodSelector,
@@ -91,7 +93,7 @@ export default function TopupScreen() {
   const insets = useSafeAreaInsets()
   const toast = useToast()
   const { copied, copy } = useCopy()
-  const params = useLocalSearchParams<{ resumePayment?: string }>()
+  const params = useLocalSearchParams<{ resumePayment?: string; from?: string; orderId?: string; amount?: string }>()
 
   // FE-IMP-4 item 3: "Lanjutkan bayar" dari riwayat — deep link
   // `/topup?resumePayment=<paymentTxId>` langsung membuka status pembayaran.
@@ -99,6 +101,18 @@ export default function TopupScreen() {
     typeof params.resumePayment === "string" && params.resumePayment.trim()
       ? params.resumePayment.trim()
       : null
+
+  /**
+   * FE-043: konteks "isi saldo dari sheet bayar order". Bila ada, struk
+   * sukses menampilkan CTA "Kembali bayar RpX" (kembali ke order — sheet
+   * pembayaran masih terbuka di bawahnya) dan header back menuju order,
+   * bukan dompet.
+   */
+  const fromOrderPay = params.from === "order-pay"
+  const returnPayAmount = (() => {
+    const n = Number(params.amount)
+    return params.amount != null && params.amount !== "" && Number.isFinite(n) && n > 0 ? n : null
+  })()
 
   const methodsQuery = useApiQuery<PaymentMethod[]>("topup-methods", async (signal) => {
     const raw = await api.wallet.getPaymentMethods(signal)
@@ -379,9 +393,10 @@ export default function TopupScreen() {
         progress={progress}
         // UI-W009: langkah nominal dulu tanpa tombol back sama sekali
         // (showBack hanya true di "method") — inkonsisten dengan
-        // tarik/transfer. Hasil tetap tanpa back (pembayaran aktif).
-        onBack={step === "result" ? undefined : handleBack}
-        showBack={step !== "result"}
+        // tarik/transfer. FE-043: hasil SELALU punya back (struk sukses
+        // butuh jalan keluar eksplisit — CTA di bawah + back header).
+        onBack={handleBack}
+        showBack={step !== "amount"}
         safeArea={false}
       />
 
@@ -476,30 +491,37 @@ export default function TopupScreen() {
                       Konfirmasi pembayaran
                     </Heading>
                     <Text variant="body" tone="secondary" className="text-pretty">
-                      Periksa nominal dan metode pembayaran Anda. Ketuk kartu
-                      metode untuk menggantinya.
+                      Periksa nominal dan metode pembayaran Anda.
                     </Text>
                   </View>
 
+                  {/*
+                   * FE-005: SATU total final hanya di area pin tepat di atas
+                   * tombol Bayar — kartu ringkasan ini hanya memuat rincian
+                   * (biaya admin), bukan total kedua.
+                   */}
                   <TransactionSummary
                     label="Nominal top-up"
                     amount={amount}
                     amountTone="primary"
                     subtitle={selectedMethod ? selectedMethod.name : "Pilih metode di bawah"}
-                    totalLabel="Total yang dibayar"
-                    totalValue={displayTotal}
-                    totalHint={
-                      // FE-IMP-4 item 5: angka server = angka yang ditagih
-                      // gateway; label "estimasi" hanya untuk fallback lokal.
-                      feeFromServer
-                        ? "Termasuk biaya admin (dihitung server)"
-                        : feeLoading
-                          ? "Menghitung biaya admin…"
-                          : selectedFee > 0
-                            ? "Termasuk biaya admin (estimasi — total final mengikuti tagihan channel)"
-                            : "Tanpa biaya admin"
-                    }
-                  />
+                  >
+                    <KeyValue
+                      label="Biaya admin"
+                      value={feeLoading ? "Menghitung…" : displayFee > 0 ? formatRupiah(displayFee) : "Gratis"}
+                      hint={
+                        // FE-IMP-4 item 5: angka server = angka yang ditagih
+                        // gateway; label "estimasi" hanya untuk fallback lokal.
+                        feeFromServer
+                          ? "Dihitung server"
+                          : feeLoading
+                            ? undefined
+                            : selectedFee > 0
+                              ? "Estimasi — total final mengikuti tagihan channel"
+                              : undefined
+                      }
+                    />
+                  </TransactionSummary>
 
                   {/* Pemilihan metode ada di halaman nominal lewat BottomSheet
                       (ketuk kartu metode di atas keypad). Halaman ini hanya
@@ -518,19 +540,8 @@ export default function TopupScreen() {
                       label="Metode pembayaran"
                       value={selectedMethod?.name}
                       icon={selectedMethod ? paymentMethodKindIcon[selectedMethod.kind] : WalletIcon}
-                      description={
-                        selectedMethod
-                          ? displayFee > 0
-                            ? translate("Biaya admin {x}", {
-                              // FE-IMP-4 item 5: angka server bila tersedia.
-                              // T3-001 (audit UI/UX): tanpa sign "always" —
-                              // "+" menempel di biaya terbaca sebagai dana
-                              // masuk; biaya bukan pemasukan.
-                              x: formatRupiah(displayFee),
-                            })
-                            : "Tanpa biaya admin"
-                          : undefined
-                      }
+                      // FE-005: rincian biaya hanya di dalam kartu ringkasan
+                      // di atas — bukan ganda di kartu metode.
                       onPress={() => setMethodSheetOpen(true)}
                       accessibilityHint="Ketuk untuk mengganti metode pembayaran"
                     />
@@ -576,22 +587,29 @@ export default function TopupScreen() {
                 </View>
               ) : null}
               {/*
+               * FE-005: SATU total final BESAR tepat di atas tombol Bayar —
+               * satu-satunya tampilan "Total yang dibayar" di layar ini.
+               * Rincian biaya hanya di dalam kartu ringkasan di atas.
                * D06 (batch 139): total TETAP di area pin di atas CTA — bukan
                * hanya di dalam ScrollView. Saat keyboard terbuka (mis. dari
                * sheet pilih metode) atau konten di-scroll, total yang dibayar
                * tetap terbaca tepat sebelum tombol Bayar.
                */}
-              <Text variant="caption" tone="secondary" className="pb-3 text-center">
-                {feeLoading
-                  ? "Menghitung total…"
-                  : `Total yang dibayar ${formatRupiah(displayTotal)}`}
-                {!feeLoading && displayFee > 0
-                  ? ` (termasuk biaya admin ${formatRupiah(displayFee)})`
-                  : ""}
-              </Text>
+              <View className="flex-row items-end justify-between gap-4 pb-3">
+                <Text variant="body" weight={600} tone="secondary">
+                  Total yang dibayar
+                </Text>
+                {feeLoading ? (
+                  <Text variant="body" tone="secondary">
+                    Menghitung…
+                  </Text>
+                ) : (
+                  <Amount value={displayTotal} size="large" tone="primary" animated={false} />
+                )}
+              </View>
               {/*
                * TRX-001: tombol mati selama feeLoading — sinkron dengan teks
-               * "Menghitung total…" di atasnya. Lihat handlePay (guard ganda).
+               * "Menghitung…" di atasnya. Lihat handlePay (guard ganda).
                */}
               {/*
                * T3-009 (audit UI/UX): tombol ini TIDAK membayar — ia membuat
@@ -688,6 +706,34 @@ export default function TopupScreen() {
                             Buat kode pembayaran baru
                           </Button>
                         ) : null}
+                        {/*
+                         * FE-043: struk sukses selalu punya CTA eksplisit.
+                         * Dari sheet bayar order → "Kembali bayar RpX" (kembali
+                         * ke order; sheet pembayaran masih terbuka). Dari
+                         * dompet → "Selesai" (kembali ke dompet).
+                         */}
+                        {ok ? (
+                          <Button
+                            variant="primary"
+                            fullWidth
+                            onPress={() => {
+                              if (fromOrderPay) {
+                                // Sheet pembayaran masih terbuka di bawah layar
+                                // ini — back cukup. Fallback: dorong detail order.
+                                if (router.canGoBack()) router.back()
+                                else if (typeof params.orderId === "string" && params.orderId)
+                                  router.replace(ROUTES.orderDetail(params.orderId))
+                                else router.replace(ROUTES.wallet)
+                              } else router.replace(ROUTES.wallet)
+                            }}
+                          >
+                            {fromOrderPay
+                              ? returnPayAmount != null
+                                ? `Kembali bayar ${formatRupiah(returnPayAmount)}`
+                                : "Kembali bayar"
+                              : "Selesai"}
+                          </Button>
+                        ) : null}
                       </>
                     )
                   }
@@ -726,6 +772,11 @@ export default function TopupScreen() {
                     setStatusError(null)
                     setStep("method")
                   }}
+                  // FE-108 PARKIR (2026-09-29): "Ubah nominal" saat PENDING
+                  // DIHAPUS — backend tidak punya endpoint cancel top-up
+                  // intent; membuang state lokal membuat intent ganda
+                  // (kode lama tetap valid di server). User menunggu
+                  // kedaluwarsa alami atau membayar kode aktif.
                   // Salin 1-ketuk nomor VA/kode bayar + toast "Tersalin" (§9.11).
                   onCopy={(value) => {
                     void copy(value).then((ok) => {

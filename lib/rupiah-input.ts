@@ -54,3 +54,25 @@ export function parseRupiahTyping(raw: string): number | null | undefined {
   if (!Number.isSafeInteger(value)) return undefined
   return value
 }
+
+/**
+ * FE-052 (audit frontend 2026-09-29): adaptor untuk input nominal yang
+ * state-nya STRING digit mentah (layar lama yang parse-nya
+ * `v.replace(/\D/g, "")` — tetap jalan tanpa diubah). Tampilan berformat
+ * ribuan; state & nilai ke backend tetap digit mentah (murni tampilan).
+ */
+
+/** String digit → teks tampilan ("1500000" → "1.500.000"; "" → ""). */
+export function formatRupiahTypingText(digits: string): string {
+  return digits === "" ? "" : formatRupiahTyping(Number(digits))
+}
+
+/**
+ * Teks ketikan → string digit. `null` = ketikan tak valid (huruf/>15 digit);
+ * panggilannya harus MENGABAIKAN ketikan itu, bukan mengosongkan field.
+ */
+export function parseRupiahTypingText(raw: string): string | null {
+  const parsed = parseRupiahTyping(raw)
+  if (parsed === undefined) return null
+  return parsed === null ? "" : String(parsed)
+}

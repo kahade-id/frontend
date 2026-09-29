@@ -24,7 +24,7 @@ import {
 } from "phosphor-react-native"
 
 import { getProductStats, type ProductStats } from "@/lib/api/commerce"
-import { formatNumber } from "@/lib/format"
+import { formatDateTime, formatNumber } from "@/lib/format"
 import { translate } from "@/lib/i18n/translate"
 import { useLanguage } from "@/lib/i18n"
 
@@ -142,7 +142,7 @@ export function ProductStatsSection({ showcaseId }: { showcaseId: string }) {
             <StatsGrid stats={lastGood} />
             {lastUpdatedAt ? (
               <Text variant="caption" tone="tertiary">
-                {translate("Data terakhir: {x}", { x: new Date(lastUpdatedAt).toLocaleString() })}
+                {translate("Data terakhir: {x}", { x: formatDateTime(lastUpdatedAt) })}
               </Text>
             ) : null}
           </>
@@ -183,7 +183,8 @@ export function ProductStatsSection({ showcaseId }: { showcaseId: string }) {
         <StatsGrid stats={stats} />
       )}
       <Text variant="caption" tone="tertiary">
-        {translate("Diperbarui {x} (waktu perangkat)", {
+        {/* FE-084: "(waktu perangkat)" = noise teknis — user tidak peduli zona waktu perangkat. */}
+        {translate("Diperbarui {x}", {
           x: new Date(lastUpdatedAt).toLocaleTimeString(),
         })}
       </Text>

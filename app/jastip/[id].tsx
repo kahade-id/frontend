@@ -31,6 +31,7 @@ import {
 import { useHasSession } from "@/lib/guest-gate"
 import { translate } from "@/lib/i18n/translate"
 import { formatDateLong, formatRupiah } from "@/lib/format"
+import { formatRupiahTypingText, parseRupiahTypingText } from "@/lib/rupiah-input"
 import { ROUTES } from "@/lib/routes"
 import { useToast } from "@/components/ui/toast"
 
@@ -490,9 +491,10 @@ export default function JastipDetailScreen() {
             )}
           </View>
 
+          {/* FE-119: label tombol ringkas; penjelasan refund otomatis ada di dialog konfirmasi. */}
           {isHost && (trip.status === "OPEN" || trip.status === "CLOSED") ? (
             <Button variant="destructive" fullWidth loading={failing} onPress={() => setFailOpen(true)}>
-              {translate("Gagal dapat barang — pengembalian dana otomatis")}
+              {translate("Tandai gagal dapat barang")}
             </Button>
           ) : null}
         </View>
@@ -504,7 +506,8 @@ export default function JastipDetailScreen() {
         avoidKeyboard
         title={translate("Ikut trip")}
         footer={
-          <Button fullWidth loading={joining} onPress={() => void handleJoin()}>
+          // FE-121: tombol mati sampai syarat minimum terpenuhi (hint ada di field).
+          <Button fullWidth loading={joining} onPress={() => void handleJoin()} disabled={itemSummary.trim().length < 3}>
             {translate("Ikut")}
           </Button>
         }
@@ -515,6 +518,7 @@ export default function JastipDetailScreen() {
             value={itemSummary}
             onChangeText={(t) => { setItemSummary(t); setJoinError(undefined) }}
             placeholder={translate("cth: Sepatu sneakers ukuran 42, warna hitam")}
+            helperText={translate("Minimal 3 karakter.")}
             multiline
             maxLength={300}
           />
@@ -536,7 +540,8 @@ export default function JastipDetailScreen() {
         avoidKeyboard
         title={translate("Tambah item katalog")}
         footer={
-          <Button fullWidth loading={addingItem} onPress={() => void handleAddItem()}>
+          // FE-121: tombol mati sampai nama item minimal 2 karakter.
+          <Button fullWidth loading={addingItem} onPress={() => void handleAddItem()} disabled={itemName.trim().length < 2}>
             {translate("Tambah item")}
           </Button>
         }
@@ -546,6 +551,7 @@ export default function JastipDetailScreen() {
             label={translate("Nama item")}
             value={itemName}
             onChangeText={(t) => { setItemName(t); setItemError(undefined) }}
+            helperText={translate("Minimal 2 karakter.")}
             maxLength={120}
           />
           <Input
@@ -587,25 +593,45 @@ export default function JastipDetailScreen() {
           </Text>
           <Input
             label={translate("Harga barang (Rp)")}
-            value={goods}
-            onChangeText={(t) => { setGoods(t); setLockError(undefined) }}
+            // FE-052: pemisah ribuan saat mengetik; state digit mentah —
+            // nilai escrow yang dikunci tidak berubah.
+            value={formatRupiahTypingText(goods)}
+            onChangeText={(t) => {
+              const parsed = parseRupiahTypingText(t)
+              if (parsed === null) return
+              setGoods(parsed)
+              setLockError(undefined)
+            }}
             keyboardType="number-pad"
-            maxLength={15}
           />
           <Input
             label={translate("Fee jastip (Rp)")}
-            value={fee}
-            onChangeText={(t) => { setFee(t); setLockError(undefined) }}
+            value={formatRupiahTypingText(fee)}
+            onChangeText={(t) => {
+              const parsed = parseRupiahTypingText(t)
+              if (parsed === null) return
+              setFee(parsed)
+              setLockError(undefined)
+            }}
             keyboardType="number-pad"
-            maxLength={15}
           />
           <Input
             label={translate("Ongkir (Rp)")}
-            value={shipping}
-            onChangeText={(t) => { setShipping(t); setLockError(undefined) }}
+            value={formatRupiahTypingText(shipping)}
+            onChangeText={(t) => {
+              const parsed = parseRupiahTypingText(t)
+              if (parsed === null) return
+              setShipping(parsed)
+              setLockError(undefined)
+            }}
             keyboardType="number-pad"
-            maxLength={15}
           />
+          {/* FE-052: pratinjau total yang akan dikunci — layar paling berisiko. */}
+          <Text variant="caption" tone="secondary">
+            {translate("Total dikunci: {x}", {
+              x: formatRupiah((Number(goods) || 0) + (Number(fee) || 0) + (Number(shipping) || 0)),
+            })}
+          </Text>
           {lockError ? (
             <Text variant="caption" tone="danger">
               {lockError}

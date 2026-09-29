@@ -31,6 +31,7 @@
  *     ditolak/gagal, dan alur TIDAK boleh diblokir karenanya.
  */
 import { http } from "@/lib/api/client"
+import { API_TIMEOUT_INTERACTIVE_MS } from "@/lib/api/config"
 import {
   asRecord as responseRecord,
   invalidResponse,
@@ -398,6 +399,8 @@ export async function verifyOtp(dto: {
   const body = await withDevice<VerifyPhoneOtpDto & { location?: LocationDto }>(dto)
   const result = await http.post<unknown, Record<string, unknown>>("/v1/auth/verify-otp", body, {
     auth: "none",
+    // FE-077: interaksi login — gagal cepat (10s), bukan 20s.
+    timeoutMs: API_TIMEOUT_INTERACTIVE_MS,
   })
   if (!responseRecord(result)) throw invalidResponse("verify-otp")
 
@@ -463,6 +466,8 @@ export async function phoneRegister(dto: {
     body,
     {
       auth: "none",
+      // FE-077: interaksi registrasi — gagal cepat (10s), bukan 20s.
+      timeoutMs: API_TIMEOUT_INTERACTIVE_MS,
     },
   )
   await persistTokens(result)
@@ -501,7 +506,11 @@ export function setUsername(dto: SetUsernameDto) {
 
 export async function login(dto: WithoutDevice<LoginDto> & { location?: LocationDto }) {
   const body = await withDevice<LoginDto & { location?: LocationDto }>(dto)
-  const result = await http.post<LoginResult, LoginDto>("/v1/auth/login", body, { auth: "none" })
+  const result = await http.post<LoginResult, LoginDto>("/v1/auth/login", body, {
+    auth: "none",
+    // FE-077: interaksi login — gagal cepat (10s), bukan 20s.
+    timeoutMs: API_TIMEOUT_INTERACTIVE_MS,
+  })
   if (!responseRecord(result)) throw invalidResponse("login")
 
   // Normalize response keys that might be snake_case

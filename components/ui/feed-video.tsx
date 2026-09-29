@@ -31,7 +31,7 @@
  *   - Player dibuat via `useVideoPlayer` (auto-release saat unmount) —
  *     jangan `createVideoPlayer` manual kecuali di luar React tree.
  */
-import { Component, useEffect, useState, type ReactNode } from "react"
+import { Component, memo, useCallback, useEffect, useMemo, useState, type ReactNode } from "react"
 import { View, type ViewProps } from "react-native"
 import { ArrowClockwise, Play } from "phosphor-react-native"
 import type { ImageSource } from "expo-image"
@@ -127,6 +127,24 @@ export function shouldGateVideoAutoplay(opts: {
     !opts.userInitiatedPlay &&
     !opts.userPlayOverride
   )
+}
+
+/**
+ * FE-016: keputusan mount player — diekstrak murni agar bisa di-unit-test.
+ *
+ * `useVideoPlayer({ uri })` dapat memicu buffering walau `shouldPlay=false`,
+ * jadi player native JANGAN di-mount sebelum waktunya: hanya bila video
+ * benar-benar akan diputar (`effectiveShouldPlay`), atau ada niat eksplisit
+ * user (`userInitiatedPlay` — mis. latch "Putar video" / viewer dibuka via
+ * ketuk). `allowTapToggle` (pratinjau upload) selalu mount: ketuk-toggle
+ * butuh player yang sudah ada.
+ */
+export function shouldMountVideoPlayer(opts: {
+  effectiveShouldPlay: boolean
+  userInitiatedPlay: boolean
+  allowTapToggle: boolean
+}): boolean {
+  return opts.effectiveShouldPlay || opts.userInitiatedPlay || opts.allowTapToggle
 }
 
 class VideoErrorBoundary extends Component<
@@ -338,11 +356,12 @@ function ExpoVideoInner({
   useEffect(() => {
     if (!shouldPlay) setUserPlayOverride(false)
   }, [shouldPlay])
+  // FE-061: callback error stabil agar memo ExpoVideoPlayerInner hit.
+  const handlePlayerError = useCallback(() => setFailed(true), [])
   const effectiveShouldPlay = shouldPlay && (wifiAllowed || userInitiatedPlay || userPlayOverride)
   // PERF-FIX (NP-002): gerbang autoplay — diekstrak ke shouldGateVideoAutoplay
   // agar logikanya teruji (lihat tests/feed-video-wifi-autoplay.test.tsx).
   const gated = shouldGateVideoAutoplay({ shouldPlay, wifiAllowed, userInitiatedPlay, userPlayOverride })
-
   if (failed) {
     const posterSource = normalizePosterSource(poster)
     return (
@@ -398,6 +417,15 @@ function ExpoVideoInner({
     )
   }
 
+  // FE-016: belum waktunya diputar dan tanpa niat eksplisit → JANGAN mount
+  // player native (`useVideoPlayer({ uri })` dapat memicu buffering walau
+  // shouldPlay=false). Tampilkan poster inert sampai kartu benar-benar
+  // shouldPlay / user mengetuk. allowTapToggle dikecualikan (pratinjau
+  // upload butuh player untuk ketuk-toggle) — lihat shouldMountVideoPlayer.
+  if (!shouldMountVideoPlayer({ effectiveShouldPlay, userInitiatedPlay, allowTapToggle })) {
+    return <VideoPoster poster={poster} alt={alt} aspectRatio={aspectRatio} />
+  }
+
   return (
     <ExpoVideoPlayer
       key={retryKey}
@@ -408,7 +436,7 @@ function ExpoVideoInner({
       loop={loop}
       nativeControls={nativeControls}
       allowTapToggle={allowTapToggle}
-      onError={() => setFailed(true)}
+      onError={handlePlayerError}
       poster={poster}
       alt={alt}
     />
@@ -451,7 +479,9 @@ function ExpoVideoPlayer(props: {
 }
 
 /** Instans player tunggal — di-mount ulang (key) setiap "Coba lagi". */
-function ExpoVideoPlayerInner({
+// FE-061 (audit 2026-09-29): di-memo — identitas source object + callback
+// setup yang stabil membuat memo ini benar-benar hit.
+const ExpoVideoPlayerInner = memo(function ExpoVideoPlayerInner({
   source,
   aspectRatio,
   shouldPlay,
@@ -476,10 +506,17 @@ function ExpoVideoPlayerInner({
   // (bukan di sini) yang memutuskan komponen ini boleh di-mount.
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { VideoView, useVideoPlayer } = require("expo-video") as typeof import("expo-video")
-  const player = useVideoPlayer({ uri: source }, (p) => {
-    p.loop = loop
-    p.muted = muted
-  })
+  // FE-061 (audit 2026-09-29): identitas source object + callback setup
+  // distabilkan — inline literal membuat player di-setup ulang tiap render.
+  const videoSource = useMemo(() => ({ uri: source }), [source])
+  const setupPlayer = useCallback(
+    (pl: VideoPlayer) => {
+      pl.loop = loop
+      pl.muted = muted
+    },
+    [loop, muted],
+  )
+  const player = useVideoPlayer(videoSource, setupPlayer)
   useSyncPlayer(player, shouldPlay, muted, loop)
 
   useEffect(() => {
@@ -537,7 +574,7 @@ function ExpoVideoPlayerInner({
       {frame}
     </PressableScale>
   )
-}
+})
 
 export function FeedVideo({
   source,

@@ -20,7 +20,7 @@
  *     pemblokiran adalah preferensi pengguna, bukan error.
  *   - Divider inset ml-[72px] = px-5 (20) + Avatar md (40) + gap-3 (12).
  */
-import type { ReactNode } from "react"
+import { memo, type ReactNode } from "react"
 import { CaretRight } from "phosphor-react-native"
 import { View, type ViewProps } from "react-native"
 
@@ -68,7 +68,7 @@ export type UserListItemProps = Omit<ViewProps, "children"> & {
   className?: string
 }
 
-export function UserListItem({
+export function UserListItemView({
   name,
   padded = true,
   username,
@@ -169,3 +169,50 @@ export function UserListItem({
     </View>
   )
 }
+/**
+ * FE-014 (audit 2026-09-29): baris pengguna generik dipakai 6 layar daftar —
+ * `memo` dengan pembanding per-field agar render ulang induk tidak merambat
+ * ke semua baris. `avatar` dibandingkan lewat `.source` (call site umum:
+ * `avatar={{ source: url }}` inline → identitas objek selalu baru, tapi nilai
+ * sumbernya stabil). `action`/`onPress` tetap referensial: call site yang
+ * ingin bail-out penuh harus menstabilkannya (lihat FE-010/FE-065).
+ * Bahasa: `useLanguage()` memakai useSyncExternalStore, jadi ganti bahasa
+ * tetap me-render ulang walau props sama — perilaku i18n tidak berubah.
+ */
+function userListItemPropsEqual(
+  prev: UserListItemProps,
+  next: UserListItemProps,
+): boolean {
+  if (
+    prev.name !== next.name ||
+    prev.padded !== next.padded ||
+    prev.username !== next.username ||
+    prev.avatar?.source !== next.avatar?.source ||
+    prev.verified !== next.verified ||
+    prev.sealTier !== next.sealTier ||
+    prev.stat !== next.stat ||
+    prev.highlight !== next.highlight ||
+    prev.action !== next.action ||
+    prev.chevron !== next.chevron ||
+    prev.blocked !== next.blocked ||
+    prev.onPress !== next.onPress ||
+    prev.divider !== next.divider ||
+    prev.className !== next.className
+  ) {
+    return false
+  }
+  // `...rest` (ViewProps tambahan) — call site saat ini tidak memakainya,
+  // tapi bandingkan dangkal agar aman bila ada yang menambahkannya.
+  const { ...prevRest } = prev
+  const { ...nextRest } = next
+  const prevKeys = Object.keys(prevRest)
+  const nextKeys = Object.keys(nextRest)
+  if (prevKeys.length !== nextKeys.length) return false
+  return prevKeys.every(
+    (k) =>
+      (prevRest as Record<string, unknown>)[k] ===
+      (nextRest as Record<string, unknown>)[k],
+  )
+}
+
+export const UserListItem = memo(UserListItemView, userListItemPropsEqual)

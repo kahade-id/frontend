@@ -17,6 +17,7 @@ import { useEffect, useRef, useState } from "react"
 import { ScrollView, View } from "react-native"
 import { CaretLeft, CaretRight, Play, SpeakerHigh, SpeakerSimpleX } from "phosphor-react-native"
 import { cn } from "@/lib/cn"
+import { brand } from "@/lib/tokens"
 import { Picture } from "@/components/ui/picture"
 import { FeedVideo } from "@/components/ui/feed-video"
 import { Icon } from "@/components/ui/icon"
@@ -26,6 +27,7 @@ import { formatCountdown } from "@/lib/format"
 import { translate } from "@/lib/i18n/translate"
 import { useLanguage } from "@/lib/i18n"
 import { useDataSaver } from "@/lib/ui-prefs"
+import { prefetchNeighborImages } from "@/lib/prefetch-neighbors"
 import { resolveVideoShouldPlay, toggleDataSaverPlayIntent } from "@/lib/showcase-video-play"
 import type { GalleryMedia } from "@/lib/showcase-social"
 
@@ -94,6 +96,15 @@ export function ShowcaseMediaGallery({ media, title, onOpen, onDoubleTap, autopl
   const signature = media.map((m) => m.id).join("|")
   useEffect(() => { setPage(0); scroll.current?.scrollTo({ x: 0, animated: false }) }, [signature])
   useEffect(() => { scroll.current?.scrollTo({ x: pageRef.current * width, animated: false }) }, [width])
+  // FE-068: halaman berubah → prefetch 1 slide tetangga (gambar saja;
+  // video dilewati, mode hemat data dihormati — lihat lib/prefetch-neighbors).
+  useEffect(() => {
+    prefetchNeighborImages(
+      media.map((m) => (m.kind === "image" ? m.url : undefined)),
+      page,
+      dataSaver,
+    )
+  }, [page, media, dataSaver])
   const move = (index: number) => {
     const next = Math.max(0, Math.min(media.length - 1, index))
     setPage(next)
@@ -238,7 +249,7 @@ export function ShowcaseMediaGallery({ media, title, onOpen, onDoubleTap, autopl
             onPress={() => move(page - 1)}
             containerClassName="min-h-8 min-w-8 items-center justify-center rounded-full"
           >
-            <CaretLeft size={18} color="#FFFFFF" weight="bold" />
+            <CaretLeft size={18} color={brand.white} weight="bold" />
           </PressableScale>
           <View className="flex-row items-center gap-3">
             {/* Item 155 (FE-IMP-1): titik indikator BISA diketuk → lompat ke
@@ -271,7 +282,7 @@ export function ShowcaseMediaGallery({ media, title, onOpen, onDoubleTap, autopl
             onPress={() => move(page + 1)}
             containerClassName="min-h-8 min-w-8 items-center justify-center rounded-full"
           >
-            <CaretRight size={18} color="#FFFFFF" weight="bold" />
+            <CaretRight size={18} color={brand.white} weight="bold" />
           </PressableScale>
         </View>
       ) : null}

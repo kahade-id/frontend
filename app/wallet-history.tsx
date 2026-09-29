@@ -466,10 +466,11 @@ export default function WalletHistoryScreen() {
           </FadeIn>
         }
         footer={
+          // FE-104: dua footnote teknis digabung jadi satu — tanpa jargon
+          // "server" (§9 aturan 3).
           <View className="gap-2 pt-4">
             <Text variant="caption" tone="tertiary">
-              Server membatasi riwayat 90 hari terakhir. Unduh CSV untuk rentang lengkap yang
-              disediakan server.
+              {translate("Menampilkan 90 hari terakhir · filter berlaku untuk data yang dimuat.")}
             </Text>
           </View>
         }
@@ -481,16 +482,15 @@ export default function WalletHistoryScreen() {
               // di atas item yang SUDAH dimuat — judul/deskripsi tidak boleh
               // dibaca sebagai kesimpulan final atas seluruh riwayat.
               title={translate("Tidak ada yang cocok di mutasi yang dimuat")}
+              // FE-104: description filter dihapus — sudah tercakup footnote
+              // "filter berlaku untuk data yang dimuat"; judul + CTA cukup.
               description={
                 searching
                   ? translate(
                       'Tidak ada mutasi yang cocok dengan "{q}" di {n} mutasi yang dimuat.',
                       { q: search.trim(), n: formatNumber(items.length) },
                     )
-                  : translate(
-                      "Filter hanya berlaku pada {n} mutasi yang sudah dimuat. Coba longgarkan filter atau muat lebih banyak mutasi.",
-                      { n: formatNumber(items.length) },
-                    )
+                  : undefined
               }
               action={
                 <Button fullWidth={false} variant="secondary" onPress={resetAll}>

@@ -156,7 +156,9 @@ export function NotificationCount({
         className,
       )}
     >
-      <Text variant="caption" weight={700} tone="inverse" className="text-[10px] leading-none tabular-nums">
+      {/* FE-056: teks badge minimal 12px (varian caption) — 10px di bawah
+          ambang baca. Pil h-4 tetap, jadi ukuran visual tidak berubah. */}
+      <Text variant="caption" weight={700} tone="inverse" className="leading-none tabular-nums">
         {label}
       </Text>
     </View>

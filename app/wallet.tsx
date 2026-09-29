@@ -5,7 +5,7 @@
  *  - <WalletHeroCard> — kartu saldo hero gelap premium: "Saldo Tersedia"
  *    besar + caption "yang bisa dipakai sekarang" + toggle mata
  *    (balanceHidden dari useUiPref, dibagi dengan Beranda — J-05) +
- *    sub-baris "Rp X ditahan sebagai jaminan transaksi". Skeleton saat
+ *    sub-baris "Ditahan di escrow: Rp X". Skeleton saat
  *    loading; ErrorState + retry saat error (fail closed: tidak pernah
  *    menampilkan Rp 0 palsu).
  *  - <WalletPrimaryActions> — tiga tombol besar: Isi Saldo / Transfer /
@@ -44,8 +44,60 @@ import { useApiQuery } from "@/lib/use-api-query"
 import { byTimestampDesc, usePaginatedQuery } from "@/lib/use-paginated-query"
 import { PaginatedList } from "@/components/ui/paginated-list"
 import { WalletTransactionRow } from "@/components/ui/wallet-transaction-row"
+
+type RecentTransactionRowProps = {
+  item: WalletTransaction
+  index: number
+  last: boolean
+}
+
+/**
+ * FE-057 (audit 2026-09-29): baris "Transaksi terakhir" di-memo —
+ * `renderItem` inline menjebol memo internal PaginatedList.
+ */
+const RecentTransactionRow = memo(function RecentTransactionRow({
+  item,
+  index,
+  last,
+}: RecentTransactionRowProps) {
+  // Kartu "Transaksi terakhir": baris pertama = sudut atas kartu,
+  // baris terakhir = sudut bawah kartu, semua = border kiri-kanan.
+  return (
+    <View
+      className={cn(
+        "border-border bg-surface-elevated px-5",
+        index === 0 && "mt-3 rounded-t-md border-x border-t pt-2",
+        index > 0 && "border-x",
+        last && "rounded-b-md border-b pb-2",
+      )}
+    >
+      <WalletTransactionRow
+        transaction={item}
+        href={ROUTES.walletTransaction(item.id)}
+        divider={!last}
+        vivid
+      />
+    </View>
+  )
+})
+
+/**
+ * FE-057: empty state statis — identitas stabil agar memo internal
+ * PaginatedList tidak jebol.
+ */
+function RecentEmptyState() {
+  // FE-135 (audit frontend 2026-09-29): <EmptyState> langsung tanpa bungkus
+  // kartu kustom — konsisten dengan empty state layar lain.
+  return (
+    <EmptyState
+      icon={WalletIcon}
+      title="Belum ada riwayat"
+      description="Transaksi dompet Anda akan muncul di sini."
+    />
+  )
+}
 import { OnboardingChecklistCard } from "@/components/ui/onboarding-checklist"
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { memo, useCallback, useEffect, useMemo, useState } from "react"
 import { View } from "react-native"
 import { Wallet as WalletIcon } from "phosphor-react-native"
 
@@ -54,8 +106,10 @@ import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 import { cn } from "@/lib/cn"
 import { computeEscrowHolds, totalEscrowHeld } from "@/lib/wallet-escrow-holds"
+import { ESCROW_HELD_EXPLANATION } from "@/lib/labels/escrow"
 import { breakdownAddsUp } from "@/lib/wallet-batch139"
 import { formatDate, formatTime } from "@/lib/format"
+import { translate } from "@/lib/i18n"
 
 import { EmptyState } from "@/components/ui/empty-state"
 import { ScreenCaptureGuard } from "@/components/security/screen-capture-guard"
@@ -141,6 +195,16 @@ export default function WalletScreen() {
 
   const recent = history.data
 
+  // FE-057 (audit 2026-09-29): renderItem + empty distabilkan — PaginatedList
+  // mem-memo internalnya ber-deps pada identitas prop ini.
+  const renderRecentItem = useCallback(
+    ({ item, index }: { item: WalletTransaction; index: number }) => (
+      <RecentTransactionRow item={item} index={index} last={index === recent.length - 1} />
+    ),
+    [recent.length],
+  )
+  const recentEmpty = useMemo(() => <RecentEmptyState />, [])
+
   // FE-IMP-4 item 1: rincian order penahan escrow (read-only). Dimuat malas
   // hanya saat sheet dibuka; dihitung dari mutasi ORDER_LOCK yang belum ada
   // pelepasannya (lihat lib/wallet-escrow-holds.ts).
@@ -200,34 +264,8 @@ export default function WalletScreen() {
         refreshing={balance.refreshing || history.refreshing}
         onRetry={history.reload}
         onLoadMore={history.loadMore}
-        renderItem={({ item, index }) => (
-          // Kartu "Transaksi terakhir": baris pertama = sudut atas kartu,
-          // baris terakhir = sudut bawah kartu, semua = border kiri-kanan.
-          <View
-            className={cn(
-              "border-border bg-surface-elevated px-5",
-              index === 0 && "mt-3 rounded-t-md border-x border-t pt-2",
-              index > 0 && "border-x",
-              index === recent.length - 1 && "rounded-b-md border-b pb-2",
-            )}
-          >
-            <WalletTransactionRow
-              transaction={item}
-              href={ROUTES.walletTransaction(item.id)}
-              divider={index < recent.length - 1}
-              vivid
-            />
-          </View>
-        )}
-        empty={
-          <View className="mt-3 rounded-md border border-border bg-surface-elevated px-5 py-4">
-            <EmptyState
-              icon={WalletIcon}
-              title="Belum ada riwayat"
-              description="Transaksi dompet Anda akan muncul di sini."
-            />
-          </View>
-        }
+        renderItem={renderRecentItem}
+        empty={recentEmpty}
         header={
           <FadeIn duration="base" distance={tokens.space[3]}>
             <View className="gap-6 pt-3">
@@ -264,30 +302,27 @@ export default function WalletScreen() {
                * D02 (batch 139): stempel "Diperbarui …" + status sinkronisasi.
                * Diletakkan tepat di bawah kartu saldo — satu-satunya tempat
                * pengguna mempertanyakan kemutakhiran angka.
+               * FE-094: tiga mekanisme status (stempel + "Menyinkronkan…" +
+               * Alert panjang) digabung jadi SATU indikator kecil; alert
+               * gagal cukup "Gagal memuat saldo terbaru."
                */}
-              <View className="flex-row items-center justify-between px-1">
-                <Text variant="caption" tone="tertiary">
-                  {lastSyncedAt
-                    ? `Diperbarui ${formatTime(lastSyncedAt)}`
-                    : walletLoading
-                      ? "Memuat saldo…"
-                      : "Belum diperbarui"}
-                </Text>
-                {balance.refreshing ? (
-                  <Text variant="caption" tone="secondary">
-                    Menyinkronkan…
-                  </Text>
-                ) : null}
-              </View>
               {syncFailed ? (
-                <View className="-mt-4 px-1">
-                  <Alert tone="warning" title="Sinkronisasi gagal">
-                    Menampilkan saldo terakhir yang berhasil dimuat
-                    {lastSyncedAt ? ` (${formatTime(lastSyncedAt)})` : ""} — tarik
-                    untuk memuat ulang.
-                  </Alert>
+                <View className="px-1">
+                  <Alert tone="warning" title={translate("Gagal memuat saldo terbaru.")} />
                 </View>
-              ) : null}
+              ) : (
+                <View className="flex-row items-center px-1">
+                  <Text variant="caption" tone="tertiary">
+                    {balance.refreshing
+                      ? "Menyinkronkan…"
+                      : lastSyncedAt
+                        ? `Diperbarui ${formatTime(lastSyncedAt)}`
+                        : walletLoading
+                          ? "Memuat saldo…"
+                          : "Belum diperbarui"}
+                  </Text>
+                </View>
+              )}
 
               {/* Tiga CTA primer: Isi Saldo / Transfer / Tarik Dana. */}
               <WalletPrimaryActions />
@@ -354,8 +389,7 @@ export default function WalletScreen() {
                 <Amount value={heldValue} tone="primary" hidden={balanceHidden} />
               </View>
               <Text variant="caption" tone="secondary">
-                Dana terkunci untuk order yang masih berjalan. Cair otomatis saat
-                order selesai atau dibatalkan.
+                {ESCROW_HELD_EXPLANATION}
               </Text>
             </View>
           ) : null}
@@ -385,7 +419,7 @@ export default function WalletScreen() {
         visible={holdsOpen}
         onRequestClose={() => setHoldsOpen(false)}
         title="Dana ditahan di escrow"
-        description="Pesanan yang masih menahan dana Anda. Dana cair otomatis saat pesanan selesai atau dibatalkan."
+        description={ESCROW_HELD_EXPLANATION}
         footer={
           <Button onPress={() => setHoldsOpen(false)} containerClassName="flex-1">
             Tutup
@@ -406,7 +440,7 @@ export default function WalletScreen() {
             <EmptyState
               icon={WalletIcon}
               title="Tidak ada pesanan penahan"
-              description="Tidak ditemukan pesanan yang masih menahan dana pada 100 mutasi terakhir."
+              description="Tidak ditemukan dana yang ditahan di escrow pada 100 mutasi terakhir."
             />
           </View>
         ) : (

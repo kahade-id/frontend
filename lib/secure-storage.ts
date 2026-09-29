@@ -165,6 +165,20 @@ export const SecureKeys = {
    */
   coachMarkFeedBuySeen: "kahade.coachMark.feedBuySeen",
   /**
+   * FE-114: definisi escrow satu kalimat ("Escrow = dana ditahan Kahade,
+   * baru diteruskan ke penjual setelah Anda konfirmasi terima") — tampil
+   * SEKALI di sheet pembayaran order pertama, lalu tidak pernah lagi.
+   * BUKAN rahasia — preferensi level perangkat, tidak dihapus logout.
+   */
+  escrowDefinitionSeen: "kahade.escrowDefinition.seen",
+  /**
+   * FE-129 (audit frontend 2026-09-29): coach mark sekali-tampil untuk
+   * gesture swipe di daftar chat (kanan = semat, kiri = arsip/hapus).
+   * Aksi swipe tidak punya affordance visual, jadi pengenal sekali-tampil
+   * adalah satu-satunya petunjuk keberadaan.
+   */
+  coachMarkChatSwipeSeen: "kahade.coachMark.chatSwipeSeen",
+  /**
    * U5-005 (journey): overlay orientasi first-run di feed (3 kartu + 1 baris
    * per tab). "1" bila sudah pernah tampil/ditutup — tampil sekali saja.
    */
@@ -263,6 +277,8 @@ const WEB_PERSISTENT_KEYS = new Set<SecureKey>([
   SecureKeys.coachMarkCreateSeen,
   SecureKeys.coachMarkQrSeen,
   SecureKeys.coachMarkFeedBuySeen,
+  SecureKeys.escrowDefinitionSeen,
+  SecureKeys.coachMarkChatSwipeSeen,
   SecureKeys.feedOrientationSeen,
   SecureKeys.pushRationaleSeen,
   SecureKeys.sellerEscrowBannerSeen,

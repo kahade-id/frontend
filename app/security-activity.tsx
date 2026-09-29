@@ -28,7 +28,7 @@
 
 import { Crossfade } from "@/components/ui/fade-in"
 import { ListLoading } from "@/components/ui/paginated-list"
-import { useCallback, useState } from "react"
+import { memo, useCallback, useState } from "react"
 import { View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { router } from "expo-router"
@@ -87,6 +87,89 @@ function listPage<T extends { id: string }>(rows: T[], page: number): Page<T> {
     },
   }
 }
+
+/**
+ * FE-011 (audit 2026-09-29): baris-baris di-memo — handler inline di `.map`
+ * (`onToggleTrust={(next) => ...}`, `onRevoke={() => ...}`,
+ * `onLongPress={() => ...}`) me-render ulang seluruh daftar tiap interaksi.
+ * Closure kini dibuat stabil di dalam baris sendiri (useCallback per item)
+ * dari handler stabil level layar, sehingga satu aksi hanya me-render ulang
+ * baris yang berubah (identitas objek item dipertahankan `usePaginatedQuery`).
+ */
+const DeviceSessionRow = memo(function DeviceSessionRow({
+  session,
+  divider,
+  togglingTrust,
+  revoking,
+  onToggleTrust,
+  onRequestRevoke,
+  onRequestRemove,
+}: {
+  session: DeviceSession
+  divider: boolean
+  togglingTrust: boolean
+  revoking: boolean
+  onToggleTrust: (session: DeviceSession, next: boolean) => void
+  onRequestRevoke: (session: DeviceSession) => void
+  onRequestRemove: (session: DeviceSession) => void
+}) {
+  const s = session
+  const handleToggleTrust = useCallback((next: boolean) => onToggleTrust(s, next), [s, onToggleTrust])
+  const handleRevoke = useCallback(() => onRequestRevoke(s), [s, onRequestRevoke])
+  const handleLongPress = useCallback(() => onRequestRemove(s), [s, onRequestRemove])
+  return (
+    <DeviceSessionListItem
+      deviceName={s.deviceName}
+      client={s.platform ? `${s.platform}${s.browser ? ` · ${s.browser}` : ""}` : undefined}
+      location={s.location}
+      ip={s.ip}
+      lastActiveAt={s.lastActiveAt ? formatDateTime(s.lastActiveAt) : undefined}
+      lastActiveLabel={s.current ? "Aktif sekarang" : undefined}
+      current={s.current}
+      trusted={s.trusted}
+      onToggleTrust={handleToggleTrust}
+      togglingTrust={togglingTrust}
+      onRevoke={s.current ? undefined : handleRevoke}
+      revoking={revoking}
+      onLongPress={s.current || !s.deviceId ? undefined : handleLongPress}
+      divider={divider}
+    />
+  )
+})
+
+const SecurityLogRow = memo(function SecurityLogRow({
+  entry,
+  divider,
+}: {
+  entry: SecurityLogEntry
+  divider: boolean
+}) {
+  return (
+    <SecurityLogItem
+      title={entry.action}
+      ip={entry.ip}
+      timestamp={formatDateTime(entry.createdAt)}
+      divider={divider}
+    />
+  )
+})
+
+const ActivityLogRow = memo(function ActivityLogRow({
+  entry,
+  divider,
+}: {
+  entry: ActivityLogEntry
+  divider: boolean
+}) {
+  return (
+    <ActivityLogItem
+      title={entry.action}
+      description={entry.description}
+      timestamp={formatDateTime(entry.createdAt)}
+      divider={divider}
+    />
+  )
+})
 
 export default function SecurityActivityScreen() {
   const insets = useSafeAreaInsets()
@@ -270,6 +353,14 @@ export default function SecurityActivityScreen() {
     setTrustTarget({ session, next })
   }, [toast.show])
 
+  // FE-011: handler stabil per-id untuk baris DeviceSessionRow yang di-memo.
+  const requestRevoke = useCallback((s: DeviceSession) => {
+    setConfirmRevoke(s)
+  }, [])
+  const requestRemove = useCallback((s: DeviceSession) => {
+    setRemoveTarget(s)
+  }, [])
+
   const handleToggleTrustConfirm = useCallback(async () => {
     const target = trustTarget
     const password = trustPassword.trim()
@@ -347,26 +438,15 @@ export default function SecurityActivityScreen() {
                 <EmptyState icon={DeviceMobile} title="Tidak ada sesi aktif" />
               ) : (
                 sessions.map((s, i) => (
-                  <DeviceSessionListItem
+                  <DeviceSessionRow
                     key={s.id}
-                    deviceName={s.deviceName}
-                    client={
-                      s.platform ? `${s.platform}${s.browser ? ` · ${s.browser}` : ""}` : undefined
-                    }
-                    location={s.location}
-                    ip={s.ip}
-                    lastActiveAt={s.lastActiveAt ? formatDateTime(s.lastActiveAt) : undefined}
-                    lastActiveLabel={s.current ? "Aktif sekarang" : undefined}
-                    current={s.current}
-                    trusted={s.trusted}
-                    onToggleTrust={(next) => void handleToggleTrust(s, next)}
-                    togglingTrust={trustingId === s.id}
-                    onRevoke={s.current ? undefined : () => setConfirmRevoke(s)}
-                    revoking={revokingId === s.id}
-                    onLongPress={
-                      s.current || !s.deviceId ? undefined : () => setRemoveTarget(s)
-                    }
+                    session={s}
                     divider={i < sessions.length - 1}
+                    togglingTrust={trustingId === s.id}
+                    revoking={revokingId === s.id}
+                    onToggleTrust={handleToggleTrust}
+                    onRequestRevoke={requestRevoke}
+                    onRequestRemove={requestRemove}
                   />
                 ))
               )}
@@ -412,13 +492,7 @@ export default function SecurityActivityScreen() {
                 <EmptyState icon={ShieldWarning} title="Belum ada aktivitas keamanan" />
               ) : (
                 securityLog.map((l, i) => (
-                  <SecurityLogItem
-                    key={l.id}
-                    title={l.action}
-                    ip={l.ip}
-                    timestamp={formatDateTime(l.createdAt)}
-                    divider={i < securityLog.length - 1}
-                  />
+                  <SecurityLogRow key={l.id} entry={l} divider={i < securityLog.length - 1} />
                 ))
               )}
               <LoadMore
@@ -448,13 +522,7 @@ export default function SecurityActivityScreen() {
                 <EmptyState icon={ChartLine} title="Belum ada aktivitas" />
               ) : (
                 activityLog.map((l, i) => (
-                  <ActivityLogItem
-                    key={l.id}
-                    title={l.action}
-                    description={l.description}
-                    timestamp={formatDateTime(l.createdAt)}
-                    divider={i < activityLog.length - 1}
-                  />
+                  <ActivityLogRow key={l.id} entry={l} divider={i < activityLog.length - 1} />
                 ))
               )}
               <LoadMore
@@ -519,7 +587,10 @@ export default function SecurityActivityScreen() {
         visible={!!trustTarget}
         destructive={!trustTarget?.next}
         loading={trustingId !== null}
-        confirmLabel="Konfirmasi"
+        // FE-116: label konfirmasi eksplisit per aksi (bukan "Konfirmasi" generik).
+        confirmLabel={trustTarget?.next ? "Ya, percayai perangkat" : "Ya, cabut kepercayaan"}
+        // FE-117: tombol mati saat kata sandi kosong — klik tidak "bisu" lagi.
+        confirmButtonProps={{ disabled: !trustPassword.trim() }}
         cancelLabel="Batal"
         onConfirm={() => void handleToggleTrustConfirm()}
         onCancel={() => setTrustTarget(null)}

@@ -26,21 +26,30 @@
 import type { ReactNode } from "react"
 
 import { collapse, fillTokens, interpolate, shapeOf } from "./shape"
-import { SOURCE_LANGUAGE } from "./languages"
+import { SOURCE_LANGUAGE, type LanguageCode } from "./languages"
+import { getDictionary, onDictionaryLoaded } from "./dictionaries"
 import { getLanguage } from "./store"
-import { EN } from "./en"
 
 export type TranslateVars = Record<string, string | number> | readonly (string | number)[]
 
 type Dict = Record<string, string>
 
-/** Kamus per bahasa target. "id" = bahasa sumber, tidak butuh kamus. */
-const DICTS: Partial<Record<string, Dict>> = { en: EN }
+/** Kamus per bahasa target — dibaca dari registry (FE-072: `./en` tidak lagi
+ *  di static-import di sini; kamus English dimuat lazy via `ensureDictionary`).
+ *  "id" = bahasa sumber, tidak butuh kamus. */
+function dictFor(lang: LanguageCode): Dict | undefined {
+  return getDictionary(lang)
+}
 
 /** Cache hasil terjemahan per (bahasa, kunci). Kunci UI itu sedikit tapi banyak;
  *  dibatasi supaya list panjang (ribuan baris transaksi) tidak menambah memori tanpa batas. */
 const CACHE_MAX = 4000
 const cache = new Map<string, string>()
+
+// FE-072: kamus bisa tiba belakangan (lazy) — hasil lookup yang ter-cache
+// saat kamus belum ada menyimpan fallback Indonesia; kosongkan saat kamus
+// tiba supaya render ulang setelahnya memakai terjemahan asli.
+onDictionaryLoaded(() => cache.clear())
 
 /**
  * Bersihkan cache terjemahan. Dipakai tes yang menukar bahasa
@@ -79,7 +88,7 @@ export function translate(source: unknown, vars?: TranslateVars): string {
   if (typeof source !== "string" || source.length === 0) return (source as string) ?? ""
 
   const lang = getLanguage()
-  const dict = lang === SOURCE_LANGUAGE ? undefined : DICTS[lang]
+  const dict = lang === SOURCE_LANGUAGE ? undefined : dictFor(lang)
 
   let out: string
   if (!dict) {
@@ -145,7 +154,7 @@ export function localizeChildren(children: ReactNode): ReactNode {
 
 /** Apakah `source` punya terjemahan di bahasa aktif? (dipakai tes cakupan) */
 export function hasTranslation(source: string, lang = getLanguage()): boolean {
-  const dict = lang === SOURCE_LANGUAGE ? undefined : DICTS[lang]
+  const dict = lang === SOURCE_LANGUAGE ? undefined : dictFor(lang)
   if (!dict) return true
   return lookup(dict, source) !== undefined
 }

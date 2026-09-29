@@ -56,6 +56,16 @@ export const OnboardingCarousel = forwardRef<OnboardingCarouselHandle, Onboardin
       if (w > 0) setWidth(w)
     }, [])
 
+    // FE-062 (audit 2026-09-29): keyExtractor + renderItem stabil —
+    // identitas baru tiap render menggagalkan memo internal FlatList.
+    const carouselKeyExtractor = useCallback((sl: OnboardingSlide) => sl.key, [])
+    const renderCarouselItem = useCallback(
+      ({ item, index: i }: { item: OnboardingSlide; index: number }) => (
+        <OnboardingSlideView slide={item} width={width} active={i === index} />
+      ),
+      [width, index],
+    )
+
     const syncIndex = useCallback(
       (e: NativeSyntheticEvent<NativeScrollEvent>) => {
         if (width <= 0) return
@@ -84,8 +94,8 @@ export const OnboardingCarousel = forwardRef<OnboardingCarouselHandle, Onboardin
           <FlatList
             ref={listRef}
             data={slides}
-            keyExtractor={(s) => s.key}
-            renderItem={({ item, index: i }) => <OnboardingSlideView slide={item} width={width} active={i === index} />}
+            keyExtractor={carouselKeyExtractor}
+            renderItem={renderCarouselItem}
             // `index` ikut dalam extraData supaya slide non-aktif dirender ulang
             // saat halaman berganti (renderItem menutup nilai `index` lama).
             extraData={index}

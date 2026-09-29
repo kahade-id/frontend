@@ -11,6 +11,7 @@
  *    lihat WEB_GUEST_TAB_SCREENS di lib/protected-routes.ts.
  */
 import { router, useLocalSearchParams } from "expo-router"
+import { useCallback } from "react"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { ShowcaseFeedTab } from "@/components/showcase-feed-tab"
@@ -33,14 +34,23 @@ export default function SocialShowcaseScreen() {
     ? params.location.trim().slice(0, 100)
     : undefined
 
+  // FE-067 (audit 2026-09-29): handler clear stabil — tanpa ini memo di
+  // <ShowcaseFeedTab> tidak pernah hit saat layar me-render ulang.
+  const handleClearCategory = useCallback(() => {
+    router.setParams({ category: undefined })
+  }, [])
+  const handleClearLocation = useCallback(() => {
+    router.setParams({ location: undefined })
+  }, [])
+
   return (
     <Screen edges={["top"]} padded={false}>
       <ShowcaseFeedTab
         bottomPadding={insets.bottom + tokens.space[8]}
         category={category}
-        onClearCategory={() => router.setParams({ category: undefined })}
+        onClearCategory={handleClearCategory}
         location={location}
-        onClearLocation={() => router.setParams({ location: undefined })}
+        onClearLocation={handleClearLocation}
       />
     </Screen>
   )

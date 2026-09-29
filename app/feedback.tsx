@@ -10,6 +10,7 @@
  */
 import { useCallback, useEffect, useState } from "react"
 import { ScrollView, View } from "react-native"
+import { router } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { userMessage } from "@/lib/api"
@@ -22,6 +23,7 @@ import {
   type FeedbackCategory,
 } from "@/lib/feedback"
 import { tokens } from "@/lib/tokens"
+import { ROUTES } from "@/lib/routes"
 import { logWarn } from "@/lib/telemetry"
 
 import { Alert } from "@/components/ui/alert"
@@ -35,12 +37,17 @@ import { Input } from "@/components/ui/input"
 import { Screen } from "@/components/ui/screen"
 import { Text } from "@/components/ui/text"
 import { TextArea } from "@/components/ui/text-area"
+import { TextLink } from "@/components/ui/text-link"
 import { useToast } from "@/components/ui/toast"
 import { Platform } from "react-native"
 import { translate } from "@/lib/i18n/translate"
 
 const MESSAGE_MIN = 10
 const MESSAGE_MAX = 1000
+
+/** FE-118: pola validasi format ringan untuk field kontak. */
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const USERNAME_RE = /^@[\w.]{1,30}$/
 
 export default function FeedbackScreen() {
   const insets = useSafeAreaInsets()
@@ -77,9 +84,21 @@ export default function FeedbackScreen() {
 
   const trimmed = message.trim()
   const valid = trimmed.length >= MESSAGE_MIN
+  /**
+   * FE-118: validasi format ringan untuk "Kontak (opsional)" — satu field
+   * menerima email ATAU @username, jadi format salah harus ditolak inline,
+   * bukan diam-diam dikirim ke tim support yang tak bisa menindaklanjuti.
+   */
+  const contactTrimmed = contact.trim()
+  const contactError = !contactTrimmed
+    ? undefined
+    : EMAIL_RE.test(contactTrimmed) || USERNAME_RE.test(contactTrimmed)
+      ? undefined
+      : "Format tidak valid — isi email (cth. nama@contoh.com) atau username diawali @."
+  const contactValid = !contactError
 
   const handleSubmit = useCallback(async () => {
-    if (!valid || submitting) return
+    if (!valid || !contactValid || submitting) return
     setSubmitting(true)
     try {
       const result = await submitFeedback({
@@ -117,7 +136,7 @@ export default function FeedbackScreen() {
     } finally {
       setSubmitting(false)
     }
-  }, [category, contact, contactConsent, submitting, toast, trimmed, valid])
+  }, [category, contact, contactConsent, contactValid, submitting, toast, trimmed, valid])
 
   return (
     <Screen
@@ -131,7 +150,7 @@ export default function FeedbackScreen() {
           className="bg-background"
           style={{ paddingBottom: Math.max(tokens.space[4], insets.bottom) }}
         >
-          <Button onPress={() => void handleSubmit()} loading={submitting} disabled={!valid}>
+          <Button onPress={() => void handleSubmit()} loading={submitting} disabled={!valid || !contactValid}>
             Kirim masukan
           </Button>
         </View>
@@ -154,14 +173,17 @@ export default function FeedbackScreen() {
               </Alert>
             ) : null}
 
+            {/* FE-034: 1 baris pembuka + tautan kecil tiket bantuan. */}
             <View className="gap-1">
               <Text variant="body" tone="primary">
-                Punya saran atau menemui kendala?
+                {translate("Ceritakan saran atau kendala Anda.")}
               </Text>
-              <Text variant="caption" tone="secondary">
-                Tuliskan masukan Anda. Masukan ini bukan tiket bantuan. Untuk
-                kendala transaksi yang butuh tindakan, buat tiket bantuan resmi.
-              </Text>
+              <TextLink
+                variant="caption"
+                onPress={() => router.push(ROUTES.support)}
+              >
+                {translate("Butuh bantuan transaksi? Buat tiket bantuan.")}
+              </TextLink>
             </View>
 
             <Field label="Jenis masukan">
@@ -201,6 +223,7 @@ export default function FeedbackScreen() {
             <Field
               label="Kontak (opsional)"
               helperText="Email atau username bila Anda ingin kami menindaklanjuti."
+              errorText={contactError}
             >
               <Input
                 value={contact}
@@ -214,18 +237,17 @@ export default function FeedbackScreen() {
             <Checkbox
               checked={contactConsent}
               onChange={setContactConsent}
+              // FE-118: persetujuan kontak tak bermakna bila kontak kosong/tidak valid.
+              disabled={!contactTrimmed || !!contactError}
               label="Boleh dihubungi terkait masukan ini"
               description="Tim Kahade boleh menghubungi Anda untuk menindaklanjuti masukan ini. Kontak tamu dihapus otomatis setelah 90 hari."
             />
 
             {/* D-12 (audit): persetujuan eksplisit penyimpanan lokal —
                 antrean luring bisa memuat email/konteks transaksi (PII).
-                Pengguna diberitahu batas & lifecycle-nya, bukan diam-diam. */}
+                FE-006: 1 kalimat — bukan dinding teks legal. */}
             <Text variant="caption" tone="secondary" className="text-pretty">
-              Dengan mengirim, Anda setuju masukan ini (beserta kontak di atas,
-              bila diisi) disimpan sementara di perangkat ini maksimal 7 hari
-              saat offline, lalu dikirim otomatis dan dihapus. Antrean lokal
-              juga dibersihkan saat Anda keluar dari akun.
+              Masukan offline tersimpan di perangkat maks. 7 hari.
             </Text>
           </View>
         </FadeIn>

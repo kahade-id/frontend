@@ -63,9 +63,11 @@ describe("U5-012 <OrderEscrowCard> PROCESSING (pembeli)", () => {
     renderInTheme(
       <OrderEscrowCard status="PROCESSING" amount={100_000} myRole="BUYER" />,
     )
+    // FE-090: satu kalimat — jaminan auto-refund 2 hari digabung dengan
+    // em-dash (bukan kalimat terpisah).
     expect(
       screen.getByText(
-        /Penjual punya waktu 2 hari untuk mengirim\. Lewat dari itu, dana kembali otomatis\./,
+        /kembali otomatis bila penjual tidak kirim dalam 2 hari\./,
       ),
     ).toBeTruthy()
   })
@@ -74,6 +76,6 @@ describe("U5-012 <OrderEscrowCard> PROCESSING (pembeli)", () => {
     renderInTheme(
       <OrderEscrowCard status="PROCESSING" amount={100_000} myRole="SELLER" />,
     )
-    expect(screen.queryByText(/Penjual punya waktu 2 hari/)).toBeNull()
+    expect(screen.queryByText(/tidak kirim dalam 2 hari/)).toBeNull()
   })
 })

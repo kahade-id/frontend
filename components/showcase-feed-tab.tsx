@@ -39,7 +39,7 @@ import { useIsFocused } from "@react-navigation/native"
 import { api, isApiError, userMessage } from "@/lib/api"
 import { getShowcaseFeed, type ShowcaseFeedSort, type ShowcaseSocialItem } from "@/lib/api/showcase"
 import { useHasSession, useSessionRevision } from "@/lib/guest-gate"
-import { fetchViaQueryCache } from "@/lib/query-cache"
+import { fetchViaQueryCache, readQueryCacheEntry } from "@/lib/query-cache"
 import { queryKeys } from "@/lib/query-keys"
 import { ROUTES } from "@/lib/routes"
 import {
@@ -122,6 +122,15 @@ const FEED_LIMIT = 20
  */
 const FOLLOWING_MIN_ITEMS = 5
 const FOLLOWING_MAX_PAGES = 3
+/**
+ * FE-079: halaman MENTAH tab "Mengikuti" memakai limit 50 (= batas maksimum
+ * yang dijamin backend: `SHOWCASE_FEED_MAX_LIMIT` di
+ * `backend/src/common/constants/app.constants.ts`). Cursor halaman N+1 baru
+ * diketahui setelah respons halaman N, jadi request paralel mustahil — satu
+ * halaman besar memangkas jumlah RTT serial yang dibutuhkan filter klien
+ * untuk mengumpulkan FOLLOWING_MIN_ITEMS kartu. Sort lain tetap 20.
+ */
+const FEED_LIMIT_FOLLOWING = 50
 // ------------------------------------------------------------------
 // Tab Showcase (cursor/keyset) — header lipat + tab feed gaya profil publik
 // ------------------------------------------------------------------
@@ -614,21 +623,29 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
         return new Set()
       }
       try {
-        const me = await fetchViaQueryCache(queryKeys.me(), (s) => api.users.getMe(s), signal)
+        // FE-076: baca cache `me` SINKRON dulu. Bila hit dan following ref
+        // milik owner yang sama → tidak ada request sama sekali (manfaat
+        // followingIndexRef dipertahankan, bukan dibatalkan).
+        const cachedUsername = readQueryCacheEntry<{ username?: string }>(queryKeys.me())?.data?.username
+        const indexCache = followingIndexRef.current
+        if (cachedUsername && indexCache && indexCache.owner === cachedUsername) {
+          setFollowingSet(indexCache.keys)
+          setFollowingGuest(false)
+          return indexCache.keys
+        }
+        // FE-076: `getMe` + `getMyFollowingIds` dijalankan PARALEL — keduanya
+        // independen (tidak ada yang memakai hasil satu sama lain). Versi lama
+        // menunggu `getMe` selesai dulu (waterfall 2-RTT).
+        const [me, rows] = await Promise.all([
+          fetchViaQueryCache(queryKeys.me(), (s) => api.users.getMe(s), signal),
+          api.users.getMyFollowingIds(signal),
+        ])
+        if (signal.aborted) throw new Error("Aborted")
         const username = me?.username
         if (!username) {
           markGuest()
           return new Set()
         }
-        const cached = followingIndexRef.current
-        if (cached && cached.owner === username) {
-          setFollowingSet(cached.keys)
-          setFollowingGuest(false)
-          return cached.keys
-        }
-        if (signal.aborted) throw new Error("Aborted")
-        const rows = await api.users.getMyFollowingIds(signal)
-        if (signal.aborted) throw new Error("Aborted")
         const keys = followingKeysOf(rows)
         followingIndexRef.current = { owner: username, keys }
         setFollowingSet(keys)
@@ -741,7 +758,12 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
           let partialCommitted = false
           for (; set.size > 0 && pageIndex < FOLLOWING_MAX_PAGES; pageIndex++) {
             const page = await getShowcaseFeed(
-              { ...query, sort: "latest", cursor: slot.cursors.latest ?? undefined },
+              {
+                ...query,
+                limit: FEED_LIMIT_FOLLOWING,
+                sort: "latest",
+                cursor: slot.cursors.latest ?? undefined,
+              },
               controller.signal,
             )
             if (controller.signal.aborted) return
@@ -978,7 +1000,6 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
         <EmptyState
           icon={Images}
           title={translate("Masuk untuk melihat feed mengikuti")}
-          description={translate("Masuk terlebih dahulu agar kami bisa menampilkan karya dari akun yang Anda ikuti.")}
           action={
             <Button fullWidth={false} onPress={() => router.push(ROUTES.loginRequired("/showcase?kind=following"))}>{translate("Masuk")}</Button>
           }
@@ -990,7 +1011,6 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
         <EmptyState
           icon={Images}
           title={translate("Anda belum mengikuti siapa pun")}
-          description={translate("Temukan penjual lewat tab Temukan, ikuti mereka, dan karyanya akan muncul di sini.")}
           // A-18 (audit 2026-09-23): tombol ke tujuan yang disebut copy-nya.
           action={<Button fullWidth={false} onPress={() => router.push(ROUTES.discover)}>{translate("Buka Temukan")}</Button>}
         />
@@ -1050,11 +1070,14 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
     </View>
   ) : null
 
-  /** A-06: chip filter aktif di atas list (scroll ikut konten). */
+  /** A-06: chip filter aktif di atas list (scroll ikut konten).
+      FE-082: chip hanya berisi nilainya ("Elektronik") tanpa awalan
+      "Kategori:" — konteksnya sudah jelas dari ikon funnel + tombol
+      "Atur ulang". */
   const categoryChip = category ? (
     <View className="mt-3 flex-row items-center justify-between gap-2 rounded-full border border-border bg-surface py-1.5 pl-4 pr-1.5 mx-5">
       <Text variant="caption" tone="secondary" className="flex-1" numberOfLines={1}>
-        {translate("Kategori: {x}", { x: category })}
+        {category}
       </Text>
       <IconButton
         icon={X}
@@ -1066,11 +1089,12 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
     </View>
   ) : null
 
-  /** Chip `?location=` — pola sama dengan chip kategori (A-06/A-12). */
+  /** Chip `?location=` — pola sama dengan chip kategori (A-06/A-12).
+      FE-082: tanpa awalan "Lokasi:". */
   const locationChip = location ? (
     <View className="mt-3 flex-row items-center justify-between gap-2 rounded-full border border-border bg-surface py-1.5 pl-4 pr-1.5 mx-5">
       <Text variant="caption" tone="secondary" className="flex-1" numberOfLines={1}>
-        {translate("Lokasi: {x}", { x: location })}
+        {location}
       </Text>
       <IconButton
         icon={X}
@@ -1082,11 +1106,12 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
     </View>
   ) : null
 
-  /** A-06: chip `?search=` kini bisa dihapus, bukan mengunci feed selamanya. */
+  /** A-06: chip `?search=` kini bisa dihapus, bukan mengunci feed selamanya.
+      FE-082: tanpa awalan "Cari:" — cukup nilai pencariannya. */
   const searchChip = activeSearch ? (
     <View className="mt-3 flex-row items-center justify-between gap-2 rounded-full border border-border bg-surface py-1.5 pl-4 pr-1.5 mx-5">
       <Text variant="caption" tone="secondary" className="flex-1" numberOfLines={1}>
-        {translate('Cari: "{x}"', { x: activeSearch })}
+        {activeSearch}
       </Text>
       <IconButton
         icon={X}
@@ -1118,17 +1143,11 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
    * C15 (batch 139): aksi "Atur ulang" SELALU terlihat selama ada filter
    * aktif — satu ketuk menghapus search + kategori + lokasi + filter sheet.
    * (Chip individual di atas tetap ada untuk hapus satu per satu.)
+   * FE-082: teks "{x} filter aktif" dihapus — badge angka di ikon funnel
+   * sudah memberi tahu jumlahnya; baris ini tinggal tombol reset.
    */
   const resetAllChip = filtersActive ? (
-    <View className="mt-3 flex-row items-center justify-between gap-2 rounded-full border border-border bg-surface py-1.5 pl-4 pr-1.5 mx-5">
-      <Text variant="caption" weight={600} className="flex-1" numberOfLines={1}>
-        {translate("{x} filter aktif", { x: countActiveFeedFilters({
-          search: activeSearch,
-          category,
-          location,
-          sheet: sheetFilters,
-        }) })}
-      </Text>
+    <View className="mt-3 flex-row items-center justify-end gap-2 rounded-full border border-border bg-surface py-1.5 pl-4 pr-1.5 mx-5">
       <Button
         variant="ghost"
         size="sm"

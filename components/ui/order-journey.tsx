@@ -15,6 +15,7 @@ import {
   CheckCircle,
   Circle,
   Coins,
+  Handshake,
   Package,
   Receipt,
   Scales,
@@ -26,7 +27,6 @@ import {
 } from "phosphor-react-native"
 
 import { Icon, type IconComponent, type IconTone } from "@/components/ui/icon"
-import { SectionHeader } from "@/components/ui/section"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { formatDate, formatTime, deviceTimeZoneShort } from "@/lib/format"
@@ -35,6 +35,8 @@ import type { JourneyStep, JourneyStepKey, JourneyStepState, JourneyStepTone } f
 
 const STEP_ICONS: Record<JourneyStepKey, IconComponent> = {
   created: Receipt,
+  // FE-045: langkah "Konfirmasi penjual" — handshake = kesepakatan dua pihak.
+  confirmed: Handshake,
   paid: ShieldCheck,
   shipped: Truck,
   received: Package,
@@ -112,11 +114,12 @@ export type OrderJourneyProps = Omit<ViewProps, "children"> & {
 export function OrderJourney({ steps, title, className, ...rest }: OrderJourneyProps) {
   if (steps.length === 0) return null
   // Iterasi de-card 2026-09-27: rel vertikal menyatu dengan alur halaman —
-  // tanpa bungkus <Card>. Judul memakai SectionHeader agar ritmenya selaras
-  // dengan section polos lain di layar detail order.
+  // tanpa bungkus <Card>.
+  // FE-092: judul "Perjalanan pesanan" dihapus — timeline status
+  // (Selesai/Berjalan/Menunggu) sudah self-explanatory. Prop `title`
+  // dipertahankan untuk label aksesibilitas.
   return (
     <View className={cn("gap-4", className)} {...rest}>
-      <SectionHeader title={title ?? translate("Perjalanan pesanan")} />
       <View accessibilityRole="list" accessibilityLabel={title ?? translate("Perjalanan pesanan")}>
         {steps.map((s, i) => {
           const isLast = i === steps.length - 1

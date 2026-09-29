@@ -13,6 +13,7 @@
  * Interaksi: ketuk = lompat ke pesannya; tekan lama = lepas pin (jalan keluar
  * yang sama dengan aksi "Lepas pin" di baris mode pilih).
  */
+import { memo, useCallback } from "react"
 import { View, type LayoutChangeEvent } from "react-native"
 import { translate } from "@/lib/i18n/translate"
 
@@ -40,7 +41,8 @@ export type ChatPinnedBarProps = {
   onLayout?: (event: LayoutChangeEvent) => void
 }
 
-export function ChatPinnedBar({
+// FE-059 (audit 2026-09-29): di-memo — layar menstabilkan onPress/onUnpin/onLayout.
+export const ChatPinnedBar = memo(function ChatPinnedBar({
   message,
   count,
   onPress,
@@ -52,6 +54,9 @@ export function ChatPinnedBar({
   // CHT-011: label konsisten antar permukaan via nonTextMessageLabel
   // (lampiran → "(lampiran)"; lokasi/kartu → label spesifiknya).
   const preview = message.text?.trim() || translate(nonTextMessageLabel(message.messageType))
+  // FE-059: closure stabil — bukan inline per render.
+  const handlePress = useCallback(() => onPress(message), [onPress, message])
+  const handleLongPress = useCallback(() => onUnpin(message), [onUnpin, message])
 
   return (
     <PressableScale
@@ -60,8 +65,8 @@ export function ChatPinnedBar({
       accessibilityHint="Membuka pesan terpin di percakapan, atau tekan lama untuk melepas pin"
       scaleOnPress={false}
       ripple
-      onPress={() => onPress(message)}
-      onLongPress={() => onUnpin(message)}
+      onPress={handlePress}
+      onLongPress={handleLongPress}
       onLayout={onLayout}
       containerClassName={cn("w-full border-b border-border bg-surface", focusRingInset)}
       // min-h-11: tinggi minimum = target sentuh; isi 2 baris caption tetap
@@ -87,4 +92,4 @@ export function ChatPinnedBar({
       <Icon icon={CaretDown} size="xs" tone="default" />
     </PressableScale>
   )
-}
+})

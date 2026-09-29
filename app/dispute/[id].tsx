@@ -31,7 +31,7 @@
  *     evidence, bukan pesan.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { Alert, View } from "react-native"
+import { View } from "react-native"
 import { useLocalSearchParams } from "expo-router"
 
 import { api, createIdempotencyKey } from "@/lib/api"
@@ -66,6 +66,7 @@ import { tokens } from "@/lib/tokens"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { Button } from "@/components/ui/button"
+import { Dialog } from "@/components/ui/modal"
 import { ActionSheet } from "@/components/ui/action-sheet"
 import { ChatComposer } from "@/components/ui/chat-composer"
 import { DisputeClaimForm } from "@/components/ui/dispute-claim-form"
@@ -377,6 +378,15 @@ export default function DisputeDetailScreen() {
   // dokumen identitas) memicu dialog konfirmasi (G145) sebelum dikirim.
   const [msgAttachments, setMsgAttachments] = useState<QueuedMessageAttachment[]>([])
   const [msgAttachSheetOpen, setMsgAttachSheetOpen] = useState(false)
+  /**
+   * FE-054: kandidat berkas sensitif menunggu konfirmasi <Dialog> bermerek
+   * (menggantikan Alert.alert di `enqueueMessageAttachment`).
+   */
+  const [sensitiveCandidate, setSensitiveCandidate] = useState<{
+    candidate: DisputeAttachmentCandidate
+    file: { uri: string; name: string; mimeType: string; size: number }
+    kind: "image" | "document"
+  } | null>(null)
   /** G144: konteks sengketa saat upload dimulai — berubah → kirim dikunci. */
   const msgUploadContextRef = useRef<DisputeContext | null>(null)
   /** G137: cegah kirim ganda (tap dua kali / retry agresif). */
@@ -435,6 +445,37 @@ export default function DisputeDetailScreen() {
     [id, currentDisputeContext, patchMsgAttachment],
   )
 
+  /**
+   * FE-054: mulai upload lampiran pesan — diekstrak dari
+   * `enqueueMessageAttachment` agar bisa dipicu dari <Dialog> konfirmasi
+   * berkas sensitif maupun langsung tanpa konfirmasi.
+   */
+  const beginMessageAttachmentUpload = useCallback(
+    (
+      candidate: DisputeAttachmentCandidate,
+      file: { uri: string; name: string; mimeType: string; size: number },
+      kind: "image" | "document",
+    ) => {
+      const localId = `${Date.now()}-${Math.random().toString(36).slice(2)}`
+      setMsgAttachments((prev) => [
+        ...prev,
+        {
+          localId,
+          fileName: candidate.name,
+          fileUrl: "",
+          mimeType: candidate.mimeType,
+          fileSize: candidate.size,
+          status: "uploading",
+          progress: 0,
+          _uri: file.uri,
+          _kind: kind,
+        },
+      ])
+      void uploadMessageFile(localId, file, kind)
+    },
+    [uploadMessageFile],
+  )
+
   const enqueueMessageAttachment = useCallback(
     (candidate: DisputeAttachmentCandidate, file: { uri: string; name: string; mimeType: string; size: number }, kind: "image" | "document") => {
       // G128: validasi terhadap KESELURUHAN antrean (bukan per aksi pilih).
@@ -447,39 +488,15 @@ export default function DisputeDetailScreen() {
         toast.show({ title: "Lampiran tidak valid", description: validation.errors[0], tone: "danger" })
         return
       }
-      const proceed = () => {
-        const localId = `${Date.now()}-${Math.random().toString(36).slice(2)}`
-        setMsgAttachments((prev) => [
-          ...prev,
-          {
-            localId,
-            fileName: candidate.name,
-            fileUrl: "",
-            mimeType: candidate.mimeType,
-            fileSize: candidate.size,
-            status: "uploading",
-            progress: 0,
-            _uri: file.uri,
-            _kind: kind,
-          },
-        ])
-        void uploadMessageFile(localId, file, kind)
-      }
-      // G145: heuristik dokumen sensitif → konfirmasi eksplisit.
+      // G145: heuristik dokumen sensitif → konfirmasi eksplisit
+      // (FE-054: <Dialog> bermerek, bukan Alert.alert).
       if (isSensitiveAttachment(candidate.name, candidate.mimeType)) {
-        Alert.alert(
-          "Berkas sensitif?",
-          `"${candidate.name}" terlihat seperti dokumen identitas. Bukti sengketa dilihat mediator dan lawan transaksi. Tetap lampirkan?`,
-          [
-            { text: "Batal", style: "cancel" },
-            { text: "Tetap lampirkan", onPress: proceed },
-          ],
-        )
+        setSensitiveCandidate({ candidate, file, kind })
         return
       }
-      proceed()
+      beginMessageAttachmentUpload(candidate, file, kind)
     },
-    [msgAttachments, toast, uploadMessageFile],
+    [msgAttachments, toast, beginMessageAttachmentUpload],
   )
 
   const handleSend = useCallback(
@@ -1286,6 +1303,26 @@ export default function DisputeDetailScreen() {
             onPress: () => void doPickEvidence("library"),
           },
         ]}
+      />
+
+      {/* FE-054: konfirmasi berkas sensitif memakai <Dialog> bermerek
+          (menggantikan Alert.alert di `enqueueMessageAttachment`). */}
+      <Dialog
+        visible={sensitiveCandidate != null}
+        onRequestClose={() => setSensitiveCandidate(null)}
+        title="Berkas sensitif?"
+        description={
+          sensitiveCandidate
+            ? `"${sensitiveCandidate.candidate.name}" terlihat seperti dokumen identitas. Bukti sengketa dilihat mediator dan lawan transaksi. Tetap lampirkan?`
+            : undefined
+        }
+        cancelLabel="Batal"
+        confirmLabel="Tetap lampirkan"
+        onConfirm={() => {
+          const pending = sensitiveCandidate
+          setSensitiveCandidate(null)
+          if (pending) beginMessageAttachmentUpload(pending.candidate, pending.file, pending.kind)
+        }}
       />
     </Screen>
   )

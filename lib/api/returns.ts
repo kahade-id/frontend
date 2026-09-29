@@ -193,12 +193,8 @@ export function answerClarification(id: string, body: { message: string }) {
   return http.post(`/v1/returns/${id}/clarify`, body, { auth: "required" })
 }
 
-export function formatIdrSen(sen: string | number | null | undefined): string {
-  if (sen === null || sen === undefined) return "—"
-  const n = typeof sen === "string" ? Number(sen) : sen
-  if (!Number.isFinite(n)) return "—"
-  return `Rp${Math.round(n / 100).toLocaleString("id-ID")}`
-}
+/** FE-055: `formatIdrSen` kini alias helper kanonis — definisi duplikat dihapus. */
+export { formatRupiahFromSen as formatIdrSen } from "../format"
 
 export function returnIdShort(r: Pick<ReturnListItem, "returnId">): string {
   return pickString(r as unknown as Record<string, unknown>, ["returnId"]) || "—"

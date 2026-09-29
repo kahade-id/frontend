@@ -31,7 +31,8 @@
  */
 import { Image } from "expo-image"
 import { SealCheck, User } from "phosphor-react-native"
-import { SEAL_TIER_COLOR } from "@/components/ui/verified-seal"
+import { sealTierColor } from "@/components/ui/verified-seal"
+import { useTheme } from "@/components/theme-provider"
 import { useEffect, useMemo, useState } from "react"
 import { View, type ImageSourcePropType, type ViewProps } from "react-native"
 
@@ -92,6 +93,9 @@ export function Avatar({
   ...rest
 }: AvatarProps) {
   const [failed, setFailed] = useState(false)
+  // FE-131: seal tier gray mengikuti token `badgeGray` per-mode (AA di
+  // light & dark); emas/biru tetap identitas brand.
+  const { mode } = useTheme()
 
   /*
    * URL dari backend TIDAK selalu absolut (`/uploads/x.jpg`, `//cdn/x.jpg`,
@@ -169,7 +173,7 @@ export function Avatar({
             icon={SealCheck}
             size={sealSize[size]}
             weight="fill"
-            color={SEAL_TIER_COLOR[sealTier ?? "blue"]}
+            color={sealTierColor(sealTier ?? "blue", mode)}
           />
         </View>
       ) : null}

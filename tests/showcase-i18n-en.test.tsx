@@ -21,6 +21,9 @@ vi.mock("@/lib/guest-gate", () => ({
 }))
 
 import { applyLanguage, clearTranslationCache, translate } from "@/lib/i18n"
+// FE-072: kamus English dimuat lazy di produksi — test yang butuh terjemahan
+// sinkron mengimpor `./en` langsung agar terdaftar sebelum render.
+import "@/lib/i18n/en"
 import { ThemeProvider } from "@/components/theme-provider"
 import { ShowcaseCommentRow, isEditedComment } from "@/components/ui/showcase-comment-row"
 import { ShowcaseFeedItem } from "@/components/ui/showcase-feed-item"

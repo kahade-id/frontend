@@ -58,8 +58,9 @@ export type { CoachMarkId }
 
 export type CoachMarkProps = {
   /**
-   * Elemen yang diperkenalkan: "create" (tombol +), "qr" (ikon QR), atau
-   * "feed-buy" (U5-004: orientasi beli pada kartu feed pertama).
+   * Elemen yang diperkenalkan: "create" (tombol +), "qr" (ikon QR),
+   * "feed-buy" (U5-004: orientasi beli pada kartu feed pertama), atau
+   * "chat-swipe" (FE-129: gesture swipe pin/arsip/hapus di daftar chat).
    */
   id: CoachMarkId
   /** Ref ke view target — diukur via measureInWindow untuk posisi bubble. */

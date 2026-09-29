@@ -209,6 +209,16 @@ export const light = {
   textSecondary: "#404040", // gray.700 — body, caption, label: 10.37/9.42
   textTertiary: "#525252", // ← HEX brand gray.600 — ikon, teks besar >=18px: 7.82/7.10
   textDisabled: "#A1A1AA",
+  /**
+   * FE-131 (audit frontend 2026-09-29): warna abu IDENTITAS lencana/seal
+   * (tier gray <VerifiedSeal>, <GreyCheckBadge>). BUKAN text-tertiary: ini
+   * penanda kepercayaan yang harus tetap terbaca di dark mode.
+   * Light: #6B7280 (gray.500 — 4.83 vs bg, lolos AA).
+   * Dark: #9CA3AF (gray.400 — 7.65 vs bg, 6.34 vs surface, lolos AA;
+   * #6B7280 di dark hanya ±3.94 vs bg — di bawah ambang AA untuk elemen
+   * informatif, makanya tidak dipakai ulang di sini).
+   */
+  badgeGray: "#6B7280",
   primary: "#000000", // ← HEX brand
   primaryForeground: "#FFFFFF",
   /**
@@ -261,6 +271,8 @@ export const dark = {
   textSecondary: "#9CA3AF", // 7.65 vs bg, 6.34 vs surface
   textTertiary: "#9CA3AF", // sama dgn secondary — kontras di dark sudah aman
   textDisabled: "#525252", // ← HEX brand — disabled, tanpa ambang kontras
+  /** Lihat `badgeGray` di light — di dark memakai gray.400 agar lolos AA. */
+  badgeGray: "#9CA3AF",
   primary: "#FFFFFF", // invert di dark mode
   primaryForeground: "#000000",
   overlay: "rgba(0, 0, 0, 0.6)",
@@ -855,6 +867,10 @@ export function toTailwindTheme() {
       overlay: "var(--color-overlay)",
       "overlay-media": "var(--color-overlay-media)",
       pressed: "var(--color-pressed)",
+      // FE-131: abu identitas lencana/seal per-mode (AA di light & dark).
+      badge: {
+        gray: "var(--color-badge-gray)",
+      },
       success: {
         DEFAULT: "var(--color-success-fill)",
         text: "var(--color-success-text)",
@@ -986,6 +1002,7 @@ export function toCssVariables(mode: ColorMode): Record<string, string> {
     "--color-overlay": m.overlay,
     "--color-overlay-media": m.overlayMedia,
     "--color-pressed": m.pressed,
+    "--color-badge-gray": m.badgeGray,
     "--color-success-fill": semantic.success[mode].fill,
     "--color-success-text": semantic.success[mode].text,
     "--color-success-soft": semantic.success[mode].bgSoft,

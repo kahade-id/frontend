@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { memo, useCallback, useEffect, useMemo, useState } from "react"
 import { View } from "react-native"
 import { useLocalSearchParams, router } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
@@ -26,6 +26,61 @@ import { Text } from "@/components/ui/text"
 import { UserListItem } from "@/components/ui/user-list-item"
 
 type Tab = "followers" | "following"
+
+// FE-010 (audit 2026-09-29): keyExtractor stabil di level modul —
+// `UserConnection` memakai username (unik) sebagai kunci (R1 audit 2026-09-26).
+const connectionKeyExtractor = (item: UserConnection): string => item.username
+
+type FollowerRowProps = {
+  item: UserConnection
+  /** true = tampilkan FollowButton (daftar "Mengikuti" milik sendiri). */
+  showAction: boolean
+  busy: boolean
+  busyAny: boolean
+  onOpenProfile: (username: string) => void
+  onUnfollow: (target: UserConnection) => void
+}
+
+// FE-010 (audit 2026-09-29): baris di-memo — keystroke kolom "cari di daftar"
+// tidak lagi me-render ulang seluruh baris. Handler diterima stabil per-id;
+// closure per baris (`onPress`, `onToggle`) dibuat di dalam render baris
+// sendiri sehingga tidak menjebol bail-out UserListItem antar render.
+const FollowerRow = memo(function FollowerRow({
+  item,
+  showAction,
+  busy,
+  busyAny,
+  onOpenProfile,
+  onUnfollow,
+}: FollowerRowProps) {
+  return (
+    <UserListItem
+      padded={false}
+      name={item.fullName ?? item.username}
+      username={item.username}
+      avatar={{ source: item.avatarUrl ?? undefined }}
+      sealTier={item.sealTier ?? null}
+      chevron={!showAction}
+      divider
+      onPress={() => onOpenProfile(item.username)}
+      // Item 64: tombol Ikuti/Mengikuti per baris — hanya di daftar
+      // "Mengikuti" milik sendiri. Aksi di LUAR Pressable baris
+      // (sibling) agar tap tombol tidak membuka profil (pola komponen).
+      action={
+        showAction ? (
+          <FollowButton
+            size="sm"
+            following
+            loading={busy}
+            disabled={busyAny}
+            onToggle={() => onUnfollow(item)}
+          />
+        ) : undefined
+      }
+    />
+  )
+})
+
 export default function FollowersScreen() {
   const { username, tab: initialTab } = useLocalSearchParams<{ username: string; tab?: Tab }>()
   const [tab, setTab] = useState<Tab>(initialTab === "following" ? "following" : "followers")
@@ -86,6 +141,9 @@ export default function FollowersScreen() {
     // menembak /v1/users/undefined/followers sebelum rute selesai di-resolve.
     { getKey: (item) => item.username, enabled: Boolean(username) },
   )
+  // FE-010: destruktur agar useCallback di bawah hanya bergantung pada nilai
+  // yang benar-benar dipakai (`query` sendiri objek literal baru tiap render).
+  const { data: queryData, setData: setQueryData } = query
 
   // Item 63 (lanjutan): filter klien untuk tab "Mengikuti" (backend tidak
   // punya ?search= di endpoint ini). Bila backend kelak mendukungnya, hapus
@@ -106,39 +164,50 @@ export default function FollowersScreen() {
   // Item 64 (mega-batch 2026-09-28): tombol Ikuti/Mengikuti per baris di
   // daftar "Mengikuti" — hanya daftar MILIK SENDIRI (semua baris pasti
   // diikuti; tap = berhenti mengikuti dengan rollback optimistis).
+  // FE-010: dibungkus useCallback agar identitas stabil antar render
+  // (diteruskan ke baris yang di-memo).
   const [unfollowBusy, setUnfollowBusy] = useState<string | null>(null)
-  const handleUnfollow = async (target: UserConnection) => {
-    if (unfollowBusy) return
-    // P3 (audit 2026-09-26): tamu di-gate login sebelum aksi sosial.
-    if (!hasSession) {
-      router.push(ROUTES.loginRequired(`/followers/${encodeURIComponent(username ?? "")}`))
-      return
-    }
-    setUnfollowBusy(target.username)
-    const prev = query.data
-    query.setData(prev.filter((u) => u.username !== target.username))
-    try {
-      await api.users.unfollowUser(target.username)
-      toast.show({
-        title: translate("Berhenti mengikuti @{x}", { x: target.username }),
-        tone: "neutral",
-        duration: 2500,
-      })
-    } catch (err) {
-      query.setData(prev)
-      toast.show({
-        title: translate("Gagal berhenti mengikuti"),
-        description: userMessage(err),
-        tone: "danger",
-      })
-    } finally {
-      setUnfollowBusy(null)
-    }
-  }
+  const handleUnfollow = useCallback(
+    async (target: UserConnection) => {
+      if (unfollowBusy) return
+      // P3 (audit 2026-09-26): tamu di-gate login sebelum aksi sosial.
+      if (!hasSession) {
+        router.push(ROUTES.loginRequired(`/followers/${encodeURIComponent(username ?? "")}`))
+        return
+      }
+      setUnfollowBusy(target.username)
+      const prev = queryData
+      setQueryData(prev.filter((u) => u.username !== target.username))
+      try {
+        await api.users.unfollowUser(target.username)
+        toast.show({
+          title: translate("Berhenti mengikuti @{x}", { x: target.username }),
+          tone: "neutral",
+          duration: 2500,
+        })
+      } catch (err) {
+        setQueryData(prev)
+        toast.show({
+          title: translate("Gagal berhenti mengikuti"),
+          description: userMessage(err),
+          tone: "danger",
+        })
+      } finally {
+        setUnfollowBusy(null)
+      }
+    },
+    [unfollowBusy, hasSession, username, queryData, setQueryData, toast],
+  )
 
-  // Item 74 (mega-batch 2026-09-28): empty state pengikut di profil sendiri →
+  // FE-010: handler navigasi stabil per-id (bukan closure per baris).
+  const openProfile = useCallback((targetUsername: string) => {
+    router.push(ROUTES.userProfile(targetUsername))
+  }, [])
+
+  // Item 74 (mega-batch 2026-09-29): empty state pengikut di profil sendiri →
   // tombol "Bagikan profil" (pola share dari app/user/[username].tsx).
-  const handleShareProfile = async () => {
+  // FE-010: useCallback agar stabil sebagai dep useMemo emptyState.
+  const handleShareProfile = useCallback(async () => {
     if (!username) return
     const url = profileUrl(username)
     const outcome = await shareContent({
@@ -153,39 +222,61 @@ export default function FollowersScreen() {
         tone: ok ? "success" : "danger",
       })
     }
-  }
+  }, [username, copy, toast])
 
-  const emptyState =
-    tab === "followers" && isOwnList ? (
-      <EmptyState
-        icon={Users}
-        title={translate("Belum ada pengikut")}
-        description={translate("Bagikan profil Anda agar lebih banyak orang menemukan dan mengikuti Anda.")}
-        action={
-          <Button variant="secondary" fullWidth={false} leftIcon={ShareNetwork} onPress={() => void handleShareProfile()}>
-            {translate("Bagikan profil")}
-          </Button>
-        }
+  // FE-010: empty state di-memo — elemen inline (dengan onPress inline di
+  // tombol "Bagikan profil") sebelumnya menjebol memo internal PaginatedList.
+  const emptyState = useMemo(
+    () =>
+      tab === "followers" && isOwnList ? (
+        <EmptyState
+          icon={Users}
+          title={translate("Belum ada pengikut")}
+          description={translate("Bagikan profil Anda agar lebih banyak orang menemukan dan mengikuti Anda.")}
+          action={
+            <Button variant="secondary" fullWidth={false} leftIcon={ShareNetwork} onPress={() => void handleShareProfile()}>
+              {translate("Bagikan profil")}
+            </Button>
+          }
+        />
+      ) : (
+        <EmptyState
+          icon={Users}
+          title={
+            searchLower
+              ? translate("Tidak ada hasil")
+              : tab === "followers"
+                ? translate("Belum ada pengikut")
+                : translate("Belum mengikuti siapa pun")
+          }
+          description={
+            searchLower
+              ? translate("Coba nama atau username lain.")
+              : tab === "followers"
+                ? translate("Pengguna yang mengikuti @{x} akan tampil di sini.", { x: username ?? "" })
+                : translate("Akun yang diikuti @{x} akan tampil di sini.", { x: username ?? "" })
+          }
+        />
+      ),
+    [tab, isOwnList, searchLower, username, handleShareProfile],
+  )
+
+  // FE-010: renderItem stabil — komputasi per baris (busy per-id) dihitung di
+  // sini sebagai boolean agar baris memo hanya me-render ulang bila
+  // miliknya sendiri yang berubah.
+  const renderItem = useCallback(
+    ({ item }: { item: UserConnection }) => (
+      <FollowerRow
+        item={item}
+        showAction={tab === "following" && isOwnList}
+        busy={unfollowBusy === item.username}
+        busyAny={unfollowBusy != null}
+        onOpenProfile={openProfile}
+        onUnfollow={handleUnfollow}
       />
-    ) : (
-      <EmptyState
-        icon={Users}
-        title={
-          searchLower
-            ? translate("Tidak ada hasil")
-            : tab === "followers"
-              ? translate("Belum ada pengikut")
-              : translate("Belum mengikuti siapa pun")
-        }
-        description={
-          searchLower
-            ? translate("Coba nama atau username lain.")
-            : tab === "followers"
-              ? translate("Pengguna yang mengikuti @{x} akan tampil di sini.", { x: username ?? "" })
-              : translate("Akun yang diikuti @{x} akan tampil di sini.", { x: username ?? "" })
-        }
-      />
-    )
+    ),
+    [tab, isOwnList, unfollowBusy, openProfile, handleUnfollow],
+  )
 
   return (
     <Screen edges={["top"]} padded={false}>
@@ -220,39 +311,15 @@ export default function FollowersScreen() {
         {...query}
         data={visibleRows}
         // R1 (audit 2026-09-26): backend tidak mengirim id — pakai username (unik) sebagai kunci.
-        keyExtractor={(item) => item.username}
+        // FE-010: keyExtractor + renderItem stabil (hoist/useCallback).
+        keyExtractor={connectionKeyExtractor}
         onRefresh={query.refresh}
         onRetry={query.reload}
         onLoadMore={query.loadMore}
         gap={0}
         bottomPadding={insets.bottom + tokens.space[8]}
         empty={emptyState}
-        renderItem={({ item }) => (
-          <UserListItem
-            padded={false}
-            name={item.fullName ?? item.username}
-            username={item.username}
-            avatar={{ source: item.avatarUrl ?? undefined }}
-            sealTier={item.sealTier ?? null}
-            chevron={!(tab === "following" && isOwnList)}
-            divider
-            onPress={() => router.push(ROUTES.userProfile(item.username))}
-            // Item 64: tombol Ikuti/Mengikuti per baris — hanya di daftar
-            // "Mengikuti" milik sendiri. Aksi di LUAR Pressable baris
-            // (sibling) agar tap tombol tidak membuka profil (pola komponen).
-            action={
-              tab === "following" && isOwnList ? (
-                <FollowButton
-                  size="sm"
-                  following
-                  loading={unfollowBusy === item.username}
-                  disabled={unfollowBusy != null}
-                  onToggle={() => void handleUnfollow(item)}
-                />
-              ) : undefined
-            }
-          />
-        )}
+        renderItem={renderItem}
       />
     </Screen>
   )

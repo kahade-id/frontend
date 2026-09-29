@@ -24,7 +24,7 @@
  *     H1 di baris kedua untuk layar utama tab (Beranda, Riwayat).
  *   - Di web dibatasi `md:max-w-content` (§11), sejajar kolom konten.
  */
-import { useContext, useEffect, useState, type ReactNode } from "react"
+import { memo, useContext, useEffect, useState, type ReactNode } from "react"
 import { Platform, View, type ViewProps, type ViewStyle } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { ArrowLeft, X } from "phosphor-react-native"
@@ -129,7 +129,11 @@ export type HeaderProps = Omit<ViewProps, "children"> & {
   className?: string
 }
 
-export function Header({
+// FE-064 (audit 2026-09-29): di-memo — header me-render di SETIAP layar dan
+// menjadi korban re-render parent (polling, keystroke). Prop `left`/`right`
+// berupa node inline dari pemanggil tetap menggagalkan bail-out per layar;
+// stabilkan di layar yang disentuh temuan lain bila relevan.
+export const Header = memo(function Header({
   title,
   largeTitle,
   showBack,
@@ -302,4 +306,4 @@ export function Header({
       ) : null}
     </View>
   )
-}
+})

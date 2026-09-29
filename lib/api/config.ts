@@ -17,6 +17,18 @@ export const API_ENV = configuration.env
 export const API_BASE_URL = configuration.baseUrl
 export const resolveApiEnv = () => API_ENV
 export const API_TIMEOUT_MS = 20_000
+/**
+ * FE-077: timeout per kategori, bukan satu angka global. 20s + 1 retry =
+ * ~41s gantung — terlalu lama untuk interaksi sekelas login, tapi angka
+ * global tidak boleh diturunkan begitu saja (ada request JSON lambat yang
+ * sah, mis. laporan). Kategori:
+ * - INTERACTIVE (10s): login/OTP/register — gagal cepat, pengguna mengetuk
+ *   ulang; mutasi TIDAK pernah di-retry otomatis jadi tidak ada risiko
+ *   submit ganda.
+ * - default 20s: bacaan JSON umum.
+ * - upload: punya timeout sendiri (60s–600s, XHR) — tidak tersentuh.
+ */
+export const API_TIMEOUT_INTERACTIVE_MS = 10_000
 export const HEADER_DEVICE_ID = "X-Device-Id"
 export const HEADER_DEVICE_INFO = "X-Device-Info"
 export const HEADER_APP_VERSION = "X-App-Version"

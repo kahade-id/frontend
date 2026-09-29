@@ -94,21 +94,18 @@ function FeedbackBlock({ articleId, content }: { articleId: string; content: str
               ? "Terima kasih, catatan Anda sudah dicatat."
               : "Terima kasih atas umpan baliknya."}
           </Text>
-          {/* F17: koreksi tunggal bila belum dipakai. */}
-          {!corrected ? (
-            <Button
-              variant="ghost"
-              size="sm"
-              fullWidth={false}
-              onPress={() => send(choice !== "helpful")}
-            >
-              Ubah pilihan (1x)
-            </Button>
-          ) : (
-            <Text variant="caption" tone="secondary" className="text-center">
-              Pilihan untuk versi artikel ini sudah final.
-            </Text>
-          )}
+          {/* F17: koreksi tunggal bila belum dipakai.
+              FE-102: pilihan final = tombol dinonaktifkan secara visual,
+              bukan teks aturan internal ("…sudah final"). */}
+          <Button
+            variant="ghost"
+            size="sm"
+            fullWidth={false}
+            disabled={corrected}
+            onPress={() => send(choice !== "helpful")}
+          >
+            Ubah pilihan (1x)
+          </Button>
           {/* Item 123: "Tidak membantu" → tawarkan buat tiket, artikel
               terkait terisi otomatis (relatedArticleId). */}
           {choice === "not_helpful" ? (

@@ -6,8 +6,9 @@
  *  2. <AppDrawer> tidak merender apa pun saat tertutup; saat dibuka
  *     menampilkan struktur tetap (tanpa mode aplikasi):
  *     header profil → kartu Kahade Plus → menu utama
- *     (Lihat Profil, Dompet Saya, Kelola Etalase, Template Transaksi,
- *     Order Link, Laporan & Analitik, Pesan — revisi label 2026-09-28) →
+ *     (Lihat Profil, Dompet Saya, Kelola Etalase, Toko Saya [FE-098],
+ *     Template Transaksi, Order Link, Laporan & Analitik, Pesan —
+ *     revisi label 2026-09-28) →
  *     menu bawah (Umpan Balik, Bantuan Langsung, Tiket Bantuan).
  *  3. TIDAK ada ModeSwitcher ("Mode aplikasi") dan TIDAK ada menu lama
  *     berbasis mode (tersimpan, sengketa, isi saldo, dsb.).
@@ -26,6 +27,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { ThemeProvider } from "@/components/theme-provider"
 import { AppDrawer } from "@/components/ui/app-drawer"
+import { PortalProvider } from "@/components/ui/portal"
 import {
   closeDrawer,
   isDrawerOpen,
@@ -54,7 +56,9 @@ vi.mock("@/lib/api", () => ({
 function renderDrawer() {
   return render(
     <ThemeProvider>
-      <AppDrawer />
+      <PortalProvider>
+        <AppDrawer />
+      </PortalProvider>
     </ThemeProvider>,
   )
 }
@@ -65,6 +69,7 @@ const EXPECTED_MENUITEM_ORDER = [
   "Lihat profil saya",
   "Buka dompet saya",
   "Kelola etalase saya",
+  "Buka menu toko saya",
   "Buka template transaksi",
   "Buka order link",
   "Buka laporan dan analitik",

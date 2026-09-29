@@ -798,7 +798,10 @@ function ShowcaseDetailContent({
   const handleCreateTransaction = useCallback(() => {
     const target = item.orderLink
       ? ROUTES.createTransactionFromShowcase(item.orderLink, item.author.username)
-      : ROUTES.createTransactionWith(item.author.username)
+      : // FE-044: tanpa orderLink, tombol "Beli via Escrow" dari etalase tetap
+        // membawa flag fromShowcase — wizard mulai dari langkah 1 (mode &
+        // peran sudah pasti), bukan langkah 0.
+        ROUTES.createTransactionWith(item.author.username, { fromShowcase: true })
     router.push(hasSession ? target : ROUTES.loginRequired(`/showcase/${encodeURIComponent(item.id)}`))
   }, [item, hasSession])
 
@@ -1124,9 +1127,6 @@ function ShowcaseDetailContent({
         {isOwner ? (
           // T5 (audit 2026-09-26): pemilik bisa menghapus karyanya dari sini.
           <View className="gap-2">
-            <Text variant="caption" tone="secondary" className="text-center">
-              {translate("Karya Anda — komentar di sini bisa Anda moderasi.")}
-            </Text>
             <Button variant="ghost" fullWidth onPress={() => setDeleteOpen(true)}>
               {translate("Hapus karya")}
             </Button>
@@ -1335,9 +1335,10 @@ function ShowcaseDetailContent({
       <Dialog
         title={confirmKind === "hide" ? translate("Sembunyikan komentar ini?") : translate("Hapus komentar ini?")}
         description={
-          confirmKind === "hide"
-            ? translate("Komentar tidak lagi terlihat publik, tetapi tetap bisa Anda tampilkan kembali.")
-            : translate("Komentar dihapus permanen.")
+          // FE-083: judul "Sembunyikan komentar ini?" + tombol "Sembunyikan"
+          // sudah jelas — description hanya mengulang. Varian hapus tetap
+          // memakai description (sifat permanennya perlu ditegaskan).
+          confirmKind === "hide" ? undefined : translate("Komentar dihapus permanen.")
         }
         visible={confirmTarget != null}
         destructive

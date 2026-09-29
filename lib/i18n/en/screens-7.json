@@ -10,7 +10,6 @@
   "Cari teks dalam percakapan ini.": "Search text in this conversation.",
   "Coba lagi setelah hitung mundur selesai.": "Try again after the countdown ends.",
   "Daftar pengikut": "Followers list",
-  "Dengan mengirim, Anda setuju masukan ini (beserta kontak di atas, bila diisi) disimpan sementara di perangkat ini maksimal {x} hari saat offline, lalu dikirim otomatis dan dihapus. Antrean lokal juga dibersihkan saat Anda keluar dari akun.": "By submitting, you agree that this feedback (along with the contact info above, if provided) may be stored temporarily on this device for up to {x} days while offline, then sent automatically and deleted. The local queue is also cleared when you sign out.",
   "Diagnostik": "Diagnostics",
   "Dihapus dari favorit": "Removed from favorites",
   "Durasi {x}": "Duration {x}",
@@ -104,7 +103,6 @@
   "Tidak ada pesan yang cocok dengan kata kunci itu.": "No messages match that keyword.",
   "Top-up belum dibayar — {x}": "Unpaid top-up — {x}",
   "Ubah nomor HP akun": "Change account phone number",
-  "Ulas sekarang": "Review now",
   "Versi baru Kahade tersedia": "A new version of Kahade is available",
   "Ya, sudah saya simpan": "Yes, I've saved them",
   "Yakin sudah menyimpan kode cadangan?": "Are you sure you've saved the backup codes?",
@@ -116,5 +114,6 @@
   "{x} komentar": "{x} comment",
   "{x} pesan dihapus": "{x} messages deleted",
   "{x} pesan dipilih": "{x} messages selected",
-  "{x} pesan diteruskan": "{x} messages forwarded"
+  "{x} pesan diteruskan": "{x} messages forwarded",
+  "Maksimal {x} hari setelah transaksi selesai.": "Up to {x} days after the transaction is completed."
 }

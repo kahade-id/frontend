@@ -17,9 +17,45 @@ import { getShowcaseDetail, type ShowcaseSocialItem } from "@/lib/api/showcase"
 /** Umur cache prefetch — cukup untuk jeda press-in → render detail. */
 export const SHOWCASE_DETAIL_PREFETCH_TTL_MS = 90_000
 
+/**
+ * FE-080: batas ukuran cache. Map TANPA eviksi tumbuh tanpa batas bila
+ * pengguna menelusuri banyak kartu tanpa membuka detail (setiap press-in
+ * menambah satu entri). 50 ≈ jauh di atas pola pakai wajar.
+ */
+export const SHOWCASE_DETAIL_PREFETCH_MAX_ENTRIES = 50
+
 type PrefetchEntry = { at: number; item: ShowcaseSocialItem }
 
 const cache = new Map<string, PrefetchEntry>()
+
+/**
+ * FE-080: sapu entri kedaluwarsa di setiap write — tanpa ini entri basi
+ * menumpuk sampai ada yang mengonsumsinya (yang sering tidak terjadi).
+ * Penanda in-flight (`item == null`, request sedang berjalan) TIDAK
+ * disentuh: menghapusnya memicu fetch ganda.
+ */
+function sweepExpired(now: number): void {
+  for (const [key, entry] of cache) {
+    if (entry.item != null && now - entry.at >= SHOWCASE_DETAIL_PREFETCH_TTL_MS) {
+      cache.delete(key)
+    }
+  }
+}
+
+/**
+ * FE-080: eviksi kelebihan kapasitas. Map menjaga urutan insersi, jadi
+ * hapus dari yang tertua. LRU eksplisit tidak diperlukan: entri bersifat
+ * SEKALI PAKAI (`consumePrefetchedShowcaseDetail` menghapus saat dibaca),
+ * jadi tidak ada pola akses-ulang yang perlu dilacak — urutan insersi
+ * sudah cukup sebagai aproksimasi.
+ */
+function evictOverflow(): void {
+  for (const [key, entry] of cache) {
+    if (cache.size <= SHOWCASE_DETAIL_PREFETCH_MAX_ENTRIES) break
+    if (entry.item == null) continue
+    cache.delete(key)
+  }
+}
 
 function fresh(entry: PrefetchEntry | undefined, now: number): entry is PrefetchEntry {
   return !!entry && now - entry.at < SHOWCASE_DETAIL_PREFETCH_TTL_MS
@@ -31,12 +67,20 @@ function fresh(entry: PrefetchEntry | undefined, now: number): entry is Prefetch
  */
 export function prefetchShowcaseDetail(id: string, now: number = Date.now()): void {
   if (!id) return
+  sweepExpired(now)
   if (fresh(cache.get(id), now)) return
   // Tandai langsung agar ketukan ganda tidak menembak dua request.
   cache.set(id, { at: now, item: undefined as unknown as ShowcaseSocialItem })
+  // FE-080: jaga batas ukuran setelah write.
+  evictOverflow()
   void getShowcaseDetail(id)
     .then((item) => {
       cache.set(id, { at: Date.now(), item })
+      // FE-080 (koreksi): eviksi juga SETELAH settle — bila >MAX request
+      // masih in-flight bersamaan, placeholder dilewati evictOverflow saat
+      // write dan map bisa tetap >MAX setelah semuanya settle.
+      sweepExpired(Date.now())
+      evictOverflow()
     })
     .catch(() => {
       // Gagal = buang penanda supaya percobaan berikutnya boleh mencoba lagi.

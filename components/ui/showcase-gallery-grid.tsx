@@ -48,7 +48,7 @@ import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { focusRing } from "@/lib/focus-ring"
 import { formatNumber } from "@/lib/format"
-import { space } from "@/lib/tokens"
+import { brand, space } from "@/lib/tokens"
 import { translate } from "@/lib/i18n/translate"
 
 export type ShowcaseItem = {
@@ -163,6 +163,11 @@ export function ShowcaseGalleryGrid({
                       bordered={false}
                       recyclingKey={item.id}
                       preventDownload
+                      // FE-081: sel di bawah viewport awal diunduh prioritas
+                      // "low" — bandwidth didahulukan ke 3 baris pertama yang
+                      // terlihat. Hanya memengaruhi penjadwalan unduhan
+                      // expo-image; tampilan tidak berubah.
+                      priority={index < columns * 3 ? undefined : "low"}
                     />
                   ) : (
                     <View
@@ -185,7 +190,7 @@ export function ShowcaseGalleryGrid({
                       <View className="absolute right-1 top-1 rounded-full bg-overlay-media p-1">
                         {/* Putih eksplisit — scrim hitam di kedua mode (sama
                             seperti label "+N" di bawah). */}
-                        <EyeSlash size={16} color="#FFFFFF" weight="fill" />
+                        <EyeSlash size={16} color={brand.white} weight="fill" />
                       </View>
                     </View>
                   ) : null}

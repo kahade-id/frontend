@@ -206,6 +206,24 @@ export function formatRupiah(
   return `${prefix}Rp${body}`
 }
 
+/**
+ * FE-055 (audit frontend 2026-09-29): SATU helper kanonis konversi
+ * SEN → Rupiah tampilan. Menggantikan `formatIdrSen` yang diduplikasi di
+ * `lib/api/courier.ts` dan `lib/api/returns.ts` serta `formatSenToRupiah`
+ * lokal di `app/products/[id].tsx`.
+ *
+ * Mendelegasikan ke `formatRupiah` (kontrak §13): pemisah ribuan titik,
+ * "Rp" tanpa spasi, dan "—" untuk data rusak (sen bukan kelipatan 100
+ * adalah pecahan Rupiah yang tidak valid — ditampilkan "—", BUKAN
+ * dibulatkan diam-diam seperti implementasi lama).
+ */
+export function formatRupiahFromSen(sen: string | number | null | undefined): string {
+  if (sen === null || sen === undefined) return "—"
+  const n = typeof sen === "string" ? Number(sen) : sen
+  if (!Number.isFinite(n)) return "—"
+  return formatRupiah(n / 100)
+}
+
 /** Backend fields are cast, not validated: never let a non-string reach `.replace`. */
 function asText(value: unknown): string {
   return typeof value === "string" ? value : value == null ? "" : String(value)

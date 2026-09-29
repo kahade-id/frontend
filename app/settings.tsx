@@ -23,11 +23,11 @@
  * Struktur:
  *  - Akun: Profil Tersimpan, Edit Profil, Laporan & Analitik, Keamanan,
  *    Tipe Akun, Verifikasi Bisnis.
- *  - Toko & Pesanan: Katalog Produk, Retur Saya, Produk Saya.
  *  - Preferensi: Tampilan, Notifikasi, Bahasa, Versi Aplikasi.
  *  - Bantuan: Tentang Kami, Umpan Balik, Asisten Bantuan, Tiket Bantuan.
  *  - Legal: Syarat & ketentuan, Kebijakan privasi.
  *  - Keluar: Dialog konfirmasi destruktif + unregister push device + clear session.
+ *  - FE-098: grup "Toko & Pesanan" dipindah ke drawer sebagai sheet "Toko Saya".
  *
  * Navigasi:
  *  - "Keamanan" → /security = PUSAT pengaturan keamanan (ganti nomor HP,
@@ -40,7 +40,6 @@ import { Platform, ScrollView, View } from "react-native"
 import { router, type Href } from "expo-router"
 import Constants from "expo-constants"
 import {
-  ArrowUDownLeft,
   Bell,
   Briefcase,
   Buildings,
@@ -54,13 +53,8 @@ import {
   Scales,
   Shield,
   ShieldCheck,
-  ShoppingBag,
   SignOut,
   Storefront,
-  Ticket,
-  AirplaneTilt,
-  UsersThree,
-  CalendarCheck,
   Translate,
   User,
   Bookmark,
@@ -192,20 +186,11 @@ export default function SettingsScreen() {
     },
   ]
 
-  // ── Toko & Pesanan (Gap-D: katalog, retur, produk seller) ──────────────
-  const shopItems: MenuItemData[] = [
-    { id: "products", label: "Katalog Produk", icon: ShoppingBag, route: ROUTES.products },
-    { id: "returns", label: "Retur Saya", icon: ArrowUDownLeft, route: ROUTES.returns },
-    { id: "seller-products", label: "Produk Saya", icon: Storefront, route: ROUTES.sellerProducts },
-    // Batch 43 (item 9): voucher toko penjual.
-    { id: "seller-vouchers", label: "Voucher Toko", icon: Ticket, route: ROUTES.sellerVouchers },
-    // Batch 43 (item 15): trip jastip host.
-    { id: "jastip", label: "Jastip Saya", icon: AirplaneTilt, route: ROUTES.jastip },
-    // Batch 43 (item 16): grup patungan.
-    { id: "patungan", label: "Patungan", icon: UsersThree, route: ROUTES.patungan },
-    // Batch 43 (item 12): booking jasa buyer.
-    { id: "service-bookings", label: "Booking Jasa", icon: CalendarCheck, route: ROUTES.serviceBookings },
-  ]
+  // ── FE-098 (§9 minimalisme): grup "Toko & Pesanan" (Katalog Produk,
+  // Retur Saya, Produk Saya, Voucher Toko, Jastip Saya, Patungan,
+  // Booking Jasa) DIPINDAH keluar dari Pengaturan — dibuka sebagai sheet
+  // "Toko Saya" dari drawer (lib/drawer-menu.ts SHOP_MENU_META).
+  // Pengaturan kembali menjadi pengaturan, bukan direktori.
 
   // ── Preferensi ──────────────────────────────────────────────────
   const preferenceItems: MenuItemData[] = [
@@ -256,12 +241,11 @@ export default function SettingsScreen() {
   const groups = useMemo(
     () => [
       { title: "Akun", items: accountItems },
-      { title: "Toko & Pesanan", items: shopItems },
       { title: "Preferensi", items: preferenceItems },
       { title: "Bantuan", items: supportItems },
       { title: "Legal", items: legalItems },
     ],
-    [accountItems, shopItems, preferenceItems, supportItems, legalItems],
+    [accountItems, preferenceItems, supportItems, legalItems],
   )
   const q = query.trim().toLowerCase()
   const filteredGroups = useMemo(
@@ -362,8 +346,8 @@ export default function SettingsScreen() {
           // FE-IMP-3 #93 — tampilkan akun yang akan keluar supaya tidak salah
           // akun (perangkat bersama / multi-akun).
           me?.username
-            ? `Keluar dari akun ${me.fullName || me.username} (@${me.username}) di perangkat ini? Perangkat ini akan berhenti menerima notifikasi akun. Anda bisa masuk kembali kapan saja.`
-            : "Perangkat ini akan berhenti menerima notifikasi akun. Anda bisa masuk kembali kapan saja."
+            ? `Keluar dari akun @${me.username} di perangkat ini?`
+            : "Keluar dari Kahade di perangkat ini?"
         }
         confirmLabel="Keluar"
         cancelLabel="Batal"

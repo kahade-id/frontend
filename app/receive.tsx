@@ -17,6 +17,7 @@ import { useRouter } from "expo-router"
 import { api } from "@/lib/api"
 import { AMOUNT_LIMITS } from "@/lib/financial"
 import { formatRupiah } from "@/lib/format"
+import { formatRupiahTypingText, parseRupiahTypingText } from "@/lib/rupiah-input"
 import { queryKeys } from "@/lib/query-keys"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
@@ -174,8 +175,14 @@ export default function ReceiveScreen() {
             <View className="w-full gap-1">
               <Input
                 label="Nominal yang diminta (opsional)"
-                value={amountText}
-                onChangeText={(text) => setAmountText(text.replace(/[^\d]/g, ""))}
+                // FE-052: pemisah ribuan saat mengetik; state tetap digit
+                // mentah — nilai ke QR/backend tidak berubah.
+                value={formatRupiahTypingText(amountText)}
+                onChangeText={(text) => {
+                  const parsed = parseRupiahTypingText(text)
+                  if (parsed === null) return
+                  setAmountText(parsed)
+                }}
                 placeholder="cth: 50000"
                 keyboardType="numeric"
                 inputMode="numeric"

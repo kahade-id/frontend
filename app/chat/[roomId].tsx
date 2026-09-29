@@ -42,6 +42,7 @@ import {
   FlatList,
   Keyboard,
   View,
+  type LayoutChangeEvent,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
 } from "react-native"
@@ -96,6 +97,11 @@ import {
   applyReactionSummary,
 } from "@/lib/realtime/chat-events"
 import { findOptimisticMatch, mergeChatMessages } from "@/lib/chat-dedupe"
+import {
+  CHAT_WINDOW_MAX_MESSAGES,
+  trimNewestSide,
+  trimOldestSide,
+} from "@/lib/chat-window"
 import { useChatRoomRealtime } from "@/lib/realtime/use-chat-room"
 import type { ChatAttachmentDto, SendMessageDto } from "@/lib/api/types"
 import { useCopy } from "@/lib/clipboard"
@@ -367,6 +373,12 @@ export default function ChatRoomScreen() {
   const [room, setRoom] = useState<ChatRoom | null>(null)
   const [messages, setMessages] = useState<ChatMessage[]>([])
   /**
+   * FE-019: baca thread terkini dari callback ber-deps-kosong (handleScroll)
+   * tanpa menambah deps — pola yang sama dengan tokenRef di socket-provider.
+   */
+  const messagesRef = useRef(messages)
+  messagesRef.current = messages
+  /**
    * B08: id pesan yang disembunyikan lokal ("hapus untuk saya") — dimuat
    * sekali saat room dibuka (lib/chat-hidden-messages), thread memfilter.
    * Yang disimpan hanya id (non-sensitif).
@@ -599,6 +611,14 @@ export default function ChatRoomScreen() {
   // server (pesan optimistis "sending"/"failed" TIDAK boleh jadi jangkar:
   // id lokal tidak dikenal server → 400).
   const newestMessageIdRef = useRef<string | null>(null)
+  /**
+   * FE-019: jendela thread terbatas dua arah. `loadOlder` yang melewati
+   * `CHAT_WINDOW_MAX_MESSAGES` membuang sisi terbaru (ref ini = true =
+   * "halaman baru terpotong"); kembali ke dasar thread mengambil ulang yang
+   * terpotong via `afterMessageId`, lalu sisi terlama ikut dibatasi.
+   */
+  const newestTruncatedRef = useRef(false)
+  const refetchingNewestRef = useRef(false)
 
   // J-07 (audit): pencarian pesan dalam ruang — adapter searchRoomMessages
   // sudah ada sejak API-GAP 2026-09-15, UI-nya yang belum. Kata kunci,
@@ -725,6 +745,9 @@ export default function ChatRoomScreen() {
           ? mergeChatMessages(items, stillFailed.map(failedToChatMessage)).next
           : items,
       )
+      // FE-019: muat ulang penuh = jendela di-reset; penanda potongan lama
+      // tidak berlaku lagi.
+      newestTruncatedRef.current = false
       setNextCursor(
         page.nextCursor ?? (page.items.length >= CHAT_PAGE_SIZE ? (items[0]?.id ?? null) : null),
       )
@@ -831,9 +854,17 @@ export default function ChatRoomScreen() {
         added = result.added
         freshFromOther = result.hasFreshFromOther
         if (!result.changed) return prev
+        let next = result.next
+        // FE-019: jendela terbatas dua arah — pesan masuk (poll/realtime/
+        // fetch-ulang) yang melewati batas membuang sisi terlama. Hanya saat
+        // pengguna di dasar thread: yang menelusuri riwayat tidak boleh
+        // viewport-nya bergeser oleh trim.
+        if (atBottomRef.current && next.length > CHAT_WINDOW_MAX_MESSAGES) {
+          next = trimOldestSide(next).next
+        }
         // D1-004: majukan jangkar delta ke pesan terakhir yang terkonfirmasi
         // server (lewati pesan optimistis yang masih sending/failed).
-        const lastConfirmed = [...result.next]
+        const lastConfirmed = [...next]
           .reverse()
           .find((m) => m.sendStatus !== "sending" && m.sendStatus !== "failed")
         if (lastConfirmed) newestMessageIdRef.current = lastConfirmed.id
@@ -854,7 +885,7 @@ export default function ChatRoomScreen() {
           void refreshUnreadCount()
           void refreshChatUnreadCount()
         }
-        return result.next
+        return next
       })
       // B03: pesan baru masuk saat pembaca menelusuri riwayat (tidak di
       // dasar thread) → hitung untuk badge tombol "kembali ke pesan terbaru".
@@ -865,6 +896,40 @@ export default function ChatRoomScreen() {
     },
     [],
   )
+
+  /**
+   * FE-019: ambil ulang sisi terbaru yang terpotong trim jendela. Jangkar =
+   * pesan terkonfirmasi terakhir DI DALAM jendela — bukan `newestMessageIdRef`
+   * (pesan di antara jendela & jangkar global sengaja dibuang saat trim dan
+   * harus diambil ulang di sini). Gagal → flag tetap, coba lagi saat
+   * berikutnya kembali ke dasar.
+   */
+  const refetchNewestAfterTrim = useCallback(async () => {
+    const rid = roomIdRef.current
+    if (!rid || refetchingNewestRef.current) return
+    const win = messagesRef.current
+    const anchor = [...win].reverse().find((m) => !m.sendStatus)?.id
+    if (!anchor) return
+    refetchingNewestRef.current = true
+    try {
+      const page = await api.chat.getChatMessages(rid, {
+        afterMessageId: anchor,
+        limit: CHAT_PAGE_SIZE,
+      })
+      if (roomIdRef.current !== rid) return
+      // mergeIncoming saat atBottom: append + buang sisi terlama bila
+      // melewati batas — jendela dua arah tetap terbatas.
+      mergeIncoming(sortByTime(page.items), rid)
+      newestTruncatedRef.current = false
+    } catch (err) {
+      logWarn("chat:refetch-newest", err)
+    } finally {
+      refetchingNewestRef.current = false
+    }
+  }, [mergeIncoming])
+  /** FE-019: rujukan stabil untuk handleScroll (deps kosong). */
+  const refetchNewestAfterTrimRef = useRef(refetchNewestAfterTrim)
+  refetchNewestAfterTrimRef.current = refetchNewestAfterTrim
 
   const pollNewMessages = useCallback(
     async (signal?: AbortSignal) => {
@@ -1054,6 +1119,19 @@ export default function ChatRoomScreen() {
           // tidak lagi relevan; hapus agar tidak menumpuk.
           setUnreadAnchorId((prev) => (prev ? null : prev))
         }
+        if (bottom) {
+          // FE-019: sisi terbaru pernah dipotong trim jendela → ambil ulang
+          // yang hilang via afterMessageId (jangkar = isi jendela saat ini).
+          if (newestTruncatedRef.current) void refetchNewestAfterTrimRef.current()
+          // FE-019: kembali ke dasar = momen aman membatasi sisi terlama
+          // (viewport di dasar; yang dibuang bukan yang sedang dibaca).
+          // Clamp native menahan offset di dasar baru saat konten menyusut.
+          if (messagesRef.current.length > CHAT_WINDOW_MAX_MESSAGES) {
+            setMessages((prev) =>
+              prev.length > CHAT_WINDOW_MAX_MESSAGES ? trimOldestSide(prev).next : prev,
+            )
+          }
+        }
       }
     },
     [],
@@ -1228,7 +1306,14 @@ export default function ChatRoomScreen() {
         freshCount = fresh.length
         oldestId = fresh[0]?.id
         if (!freshCount) return prev
-        return sortByTime([...fresh, ...prev])
+        const merged = sortByTime([...fresh, ...prev])
+        // FE-019: jendela terbatas — buang sisi terbaru (non-pending) bila
+        // melewati batas. Pengguna di puncak thread: scroll anchor aman
+        // (yang dibuang jauh dari viewport). Idempoten → aman dari
+        // double-invoke StrictMode.
+        const trimmed = trimNewestSide(merged)
+        if (trimmed.dropped > 0) newestTruncatedRef.current = true
+        return trimmed.next
       })
       setNextCursor(page.nextCursor ?? oldestId ?? null)
       setOlderStatus(freshCount === 0 || page.items.length < CHAT_PAGE_SIZE ? "end" : "idle")
@@ -2444,6 +2529,60 @@ export default function ChatRoomScreen() {
       ) : null,
     [messages.length, olderStatus, loadOlder],
   )
+  /**
+   * FE-058 (audit 2026-09-29): ListEmptyComponent kondisional di-hoist —
+   * elemen JSX baru tiap render menggagalkan bail-out kontainer FlatList.
+   */
+  const threadListEmpty = useMemo(
+    () =>
+      loading ? (
+        <View className="pt-3">
+          <ListLoading />
+        </View>
+      ) : roomGone ? (
+        <EmptyState
+          icon={Chats}
+          title="Percakapan tidak tersedia"
+          description="Ruang chat ini telah dihapus atau dinonaktifkan."
+          action={
+            <Button onPress={() => router.replace(ROUTES.chat)}>
+              Kembali ke daftar chat
+            </Button>
+          }
+        />
+      ) : error ? (
+        <ErrorState
+          title="Gagal memuat"
+          description={error}
+          onRetry={() => void fetchMessages()}
+        />
+      ) : (
+        <EmptyState
+          icon={Chats}
+          title="Belum ada pesan"
+          description="Mulai percakapan Anda."
+        />
+      ),
+    [loading, roomGone, error, fetchMessages],
+  )
+  /**
+   * FE-059/FE-060 (audit 2026-09-29): handler stabil untuk ChatPinnedBar
+   * (memo) dan MediaViewer (memo + mount kondisional).
+   */
+  const handlePinnedPress = useCallback((m: ChatMessage) => jumpToMessage(m.id), [jumpToMessage])
+  const handlePinnedUnpin = useCallback(
+    (m: ChatMessage) => void handleTogglePin(m),
+    [handleTogglePin],
+  )
+  const handlePinnedLayout = useCallback(
+    (e: LayoutChangeEvent) => setPinnedBarHeight(e.nativeEvent.layout.height),
+    [],
+  )
+  const handleViewerClose = useCallback(() => setViewerItem(null), [])
+  const handleViewerOpenError = useCallback(
+    (msg: string) => toast.show({ title: msg, tone: "danger" }),
+    [toast.show],
+  )
   const handleStartReached = useCallback(() => {
     if (olderStatus === "idle" && messages.length > 0) void loadOlder()
   }, [olderStatus, messages.length, loadOlder])
@@ -2616,9 +2755,9 @@ export default function ChatRoomScreen() {
         <ChatPinnedBar
           message={latestPinned}
           count={pinned.length}
-          onPress={(m) => jumpToMessage(m.id)}
-          onUnpin={(m) => void handleTogglePin(m)}
-          onLayout={(e) => setPinnedBarHeight(e.nativeEvent.layout.height)}
+          onPress={handlePinnedPress}
+          onUnpin={handlePinnedUnpin}
+          onLayout={handlePinnedLayout}
         />
       ) : null}
       {/* F-06 (audit): FlatList menggantikan ScrollView + messages.map —
@@ -2644,36 +2783,7 @@ export default function ChatRoomScreen() {
         onScroll={handleScroll}
         scrollEventThrottle={SCROLL_EVENT_THROTTLE}
         ListHeaderComponent={threadListHeader}
-        ListEmptyComponent={
-          loading ? (
-            <View className="pt-3">
-              <ListLoading />
-            </View>
-          ) : roomGone ? (
-            <EmptyState
-              icon={Chats}
-              title="Percakapan tidak tersedia"
-              description="Ruang chat ini telah dihapus atau dinonaktifkan."
-              action={
-                <Button onPress={() => router.replace(ROUTES.chat)}>
-                  Kembali ke daftar chat
-                </Button>
-              }
-            />
-          ) : error ? (
-            <ErrorState
-              title="Gagal memuat"
-              description={error}
-              onRetry={() => void fetchMessages()}
-            />
-          ) : (
-            <EmptyState
-              icon={Chats}
-              title="Belum ada pesan"
-              description="Mulai percakapan Anda."
-            />
-          )
-        }
+        ListEmptyComponent={threadListEmpty}
         renderItem={renderThreadRow}
         // Scroll ke puncak = muat riwayat lebih lama (tombol eksplisit tetap
         // ada di header list untuk status error).
@@ -2687,11 +2797,13 @@ export default function ChatRoomScreen() {
       // blank saat scroll di Android — view terpotong tak selalu direstorasi.
       />
 
-      <MediaViewer
-        item={viewerItem}
-        onClose={() => setViewerItem(null)}
-        onOpenError={(msg) => toast.show({ title: msg, tone: "danger" })}
-      />
+      {viewerItem ? (
+        <MediaViewer
+          item={viewerItem}
+          onClose={handleViewerClose}
+          onOpenError={handleViewerOpenError}
+        />
+      ) : null}
 
       <ImageViewer
         visible={imageViewer != null}

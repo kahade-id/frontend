@@ -440,6 +440,21 @@ export default function WithdrawScreen() {
 
       <KeyboardAvoiding offset={insets.top + HEADER_BAR_HEIGHT}>
         {step === "amount" ? (
+          hasPin === false ? (
+            // FE-049: belum punya PIN — JANGAN biarkan user mengisi nominal
+            // dulu baru tahu di sheet verifikasi. Callout + CTA langsung di
+            // langkah nominal, sebelum keypad/form. Fallback `pinNotSet` di
+            // sheet tetap dipertahankan (server bisa baru mengungkapkannya
+            // saat submit).
+            <View className="flex-1 justify-center gap-4 px-5">
+              <Alert tone="warning" title="Buat PIN dulu">
+                Penarikan dana memerlukan PIN dompet. Buat PIN dulu sebelum memasukkan nominal.
+              </Alert>
+              <Button onPress={() => router.push(ROUTES.changePin)} haptic>
+                Buat PIN sekarang
+              </Button>
+            </View>
+          ) : (
           <View className="flex-1">
             {/* Judul + peringatan saldo adalah SATU-SATUNYA bagian yang
                 menggulir (`shrink`); keypad terpin di bawah sehingga baris
@@ -460,6 +475,11 @@ export default function WithdrawScreen() {
                   <Text variant="body" tone="secondary" className="text-center text-pretty">
                     Masukkan jumlah dana yang akan ditarik ke rekening bank Anda.
                   </Text>
+                  {/* FE-048: ekspektasi jujur di awal — threshold OTP ditentukan
+                      server (`requiresOtp`), jadi tidak ada angka yang dikarang. */}
+                  <Text variant="caption" tone="secondary" className="text-center text-pretty">
+                    Penarikan tertentu memerlukan OTP tambahan via SMS ke nomor terdaftar.
+                  </Text>
                 </View>
               </FadeIn>
 
@@ -467,7 +487,7 @@ export default function WithdrawScreen() {
               {balanceError ? (
                 <View>
                   <Alert tone="warning" title="Saldo tidak dapat dimuat">
-                    Nominal tetap bisa dimasukkan; server memvalidasi saldo saat penarikan.
+                    Nominal tetap bisa dimasukkan.
                   </Alert>
                   <Button
                     variant="ghost"
@@ -539,6 +559,7 @@ export default function WithdrawScreen() {
               </Button>
             </View>
           </View>
+          )
         ) : step === "done" ? (
           <ScrollView
             className="flex-1"
@@ -738,7 +759,9 @@ export default function WithdrawScreen() {
         title={verifyMode === "otp" ? "Konfirmasi OTP" : "Verifikasi PIN"}
         description={
           verifyMode === "otp"
-            ? "Masukkan kode verifikasi yang dikirim oleh layanan untuk menyelesaikan penarikan."
+            ? // FE-048: kanal OTP = SMS (komentar kode menyebut biaya SMS) —
+              // jangan samarkan sebagai "dikirim oleh layanan".
+              "Masukkan kode OTP yang dikirim via SMS ke nomor terdaftar untuk menyelesaikan penarikan."
             : translate("Masukkan PIN dompet Anda untuk menarik {x} ke {y} {z}.", {
                 x: formatRupiah(amount),
                 y: selected?.bankName ?? "rekening Anda",
@@ -849,8 +872,9 @@ export default function WithdrawScreen() {
                 (bukan janji per transaksi), agar user punya ekspektasi yang
                 jelas sebelum dana dipotong. */}
             <Text variant="caption" tone="secondary" className="text-center">
-              Estimasi dana sampai: umumnya beberapa menit hingga 1 hari kerja,
-              tergantung jam operasional bank.
+              {/* FE-103: rentang "beberapa menit hingga 1 hari kerja" nyaris
+                  tidak informatif — cukup batas atasnya. */}
+              {translate("Estimasi sampai: maks. 1 hari kerja.")}
             </Text>
           </View>
         )}

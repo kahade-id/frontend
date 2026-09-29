@@ -139,6 +139,10 @@ export default function LoginScreen() {
   const showPasskey = Platform.OS === "web"
   const [pkSubmitting, setPkSubmitting] = useState(false)
   const [pkNativeInfo, setPkNativeInfo] = useState(false)
+  // FE-042: token tautan sosial menunggu konfirmasi user di dialog sebelum
+  // dibawa ke register. null = tidak ada yang menunggu.
+  const [pendingLinkToken, setPendingLinkToken] = useState<string | null>(null)
+  const [linkConfirmOpen, setLinkConfirmOpen] = useState(false)
 
   const isFormValid = identifier.trim().length > 0 && password.length > 0
 
@@ -335,11 +339,12 @@ export default function LoginScreen() {
         return
       }
       if (outcome.kind === "linkRequired") {
-        // Identitas sosial baru: registrasi TETAP nomor HP + OTP WhatsApp.
-        // linkToken dibawa (memori modul) ke phone-register untuk ditautkan
-        // setelah nomor terverifikasi.
-        setPendingSocialSignup(outcome.linkToken)
-        router.push(ROUTES.register)
+        // FE-042: jangan lempar langsung ke register — user sosial tidak
+        // diberitahu akunnya ditautkan ke nomor HP baru. Dialog dulu;
+        // linkToken disimpan sementara di state, hanya dipakai saat user
+        // menekan "Lanjutkan daftar". Batal = tetap di layar login.
+        setPendingLinkToken(outcome.linkToken)
+        setLinkConfirmOpen(true)
         return
       }
       // Konflik email: buktikan kepemilikan akun lama sebelum menautkan.
@@ -521,16 +526,22 @@ export default function LoginScreen() {
               />
 
               {challenge ? (
-                <CaptchaSlider
-                  targetX={challenge.targetX}
-                  resetKey={challenge.captchaId}
-                  solved={captchaAnswer !== null}
-                  loading={captchaLoading}
-                  disabled={submitting}
-                  onSolve={setCaptchaAnswer}
-                  onRefresh={() => void loadCaptcha()}
-                  errorText={captchaError}
-                />
+                <>
+                  {/* FE-107: captcha muncul tanpa konteks — satu baris jelaskan kenapa. */}
+                  <Text variant="caption" tone="secondary">
+                    Demi keamanan, verifikasi tambahan diperlukan setelah beberapa percobaan gagal.
+                  </Text>
+                  <CaptchaSlider
+                    targetX={challenge.targetX}
+                    resetKey={challenge.captchaId}
+                    solved={captchaAnswer !== null}
+                    loading={captchaLoading}
+                    disabled={submitting}
+                    onSolve={setCaptchaAnswer}
+                    onRefresh={() => void loadCaptcha()}
+                    errorText={captchaError}
+                  />
+                </>
               ) : null}
             </VStack>
 
@@ -610,7 +621,7 @@ export default function LoginScreen() {
                     loading={waSubmitting}
                     leftIcon={WhatsappLogo}
                   >
-                    Kirim kode via WhatsApp
+                    Minta kode verifikasi
                   </Button>
                   <Text variant="caption" tone="secondary" className="text-pretty">
                     Kami akan meminta Anda mengirim pesan ke WhatsApp resmi
@@ -709,6 +720,30 @@ export default function LoginScreen() {
           </View>
         </FooterBar>
       </KeyboardAvoiding>
+
+      {/* FE-042: identitas sosial belum terdaftar — konfirmasi dulu sebelum
+          tautan dibawa ke alur registrasi nomor HP. */}
+      <Dialog
+        title="Akun belum terdaftar"
+        description="Identitas Google/Apple ini belum terdaftar. Daftar dulu dengan nomor HP — akun akan ditautkan otomatis setelah nomor terverifikasi."
+        visible={linkConfirmOpen}
+        confirmLabel="Lanjutkan daftar"
+        cancelLabel="Batal"
+        onConfirm={() => {
+          setLinkConfirmOpen(false)
+          if (pendingLinkToken) setPendingSocialSignup(pendingLinkToken)
+          setPendingLinkToken(null)
+          router.push(ROUTES.register)
+        }}
+        onCancel={() => {
+          setLinkConfirmOpen(false)
+          setPendingLinkToken(null)
+        }}
+        onRequestClose={() => {
+          setLinkConfirmOpen(false)
+          setPendingLinkToken(null)
+        }}
+      />
     </Screen>
   )
 }
