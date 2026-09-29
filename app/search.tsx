@@ -37,8 +37,8 @@
  *     State `loading` SENGAJA tidak diumumkan — kata kunci berubah tiap
  *     ketikan dan "mencari…" akan menumpuk di antrean.
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { Platform, View } from "react-native"
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { Platform, View, type ListRenderItem } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { ArrowUpLeft, ChatCircleText, ClockCounterClockwise, Images, MagnifyingGlass, MapPin, TrendUp, X } from "phosphor-react-native"
 import { router, useLocalSearchParams } from "expo-router"
@@ -153,6 +153,118 @@ const MIN_KEYWORD = 2
  */
 function SearchItemSeparator() {
   return <View className="h-3" />
+}
+
+type SearchResultRowProps = {
+  item: ResultRow
+  showSection: boolean
+  sectionLabel: string
+  sectionCount: number
+  keyword: string
+  onOpenUserProfile: (username: string) => void
+}
+
+/**
+ * FE-008 (audit 2026-09-29): baris hasil pencarian di-memo — `renderItem`
+ * inline yang berat (komputasi per jenis, IIFE baris order, translate per
+ * baris) dipindah ke sini, hanya berjalan saat baris sendiri berubah.
+ * `useLanguage()` agar label ikut berganti bahasa (pola ShowcaseFeedItem).
+ */
+const SearchResultRow = memo(function SearchResultRow({
+  item,
+  showSection,
+  sectionLabel,
+  sectionCount,
+  keyword,
+  onOpenUserProfile,
+}: SearchResultRowProps) {
+  useLanguage()
+  const handleUserPress = useCallback(() => {
+    if (item.kind === "user" && item.user.username) onOpenUserProfile(item.user.username)
+  }, [item, onOpenUserProfile])
+
+  const body =
+    item.kind === "user" ? (
+      <UserListItem
+        padded={false}
+        name={item.user.fullName || item.user.username || "Identitas belum tersedia"}
+        username={item.user.username ?? undefined}
+        avatar={item.user.avatarUrl ? { source: item.user.avatarUrl } : undefined}
+        sealTier={item.user.sealTier ?? null}
+        // Item 80: keyword ditonjolkan di nama. Item 84: rank
+        // keanggotaan tampil di baris hasil (dari GET /v1/users/search).
+        highlight={keyword}
+        stat={
+          item.user.membershipRank
+            ? translate("Anggota {x}", { x: item.user.membershipRank })
+            : undefined
+        }
+        chevron
+        onPress={item.user.username ? handleUserPress : undefined}
+      />
+    ) : item.kind === "transaction" ? (
+      <WalletTransactionRow
+        transaction={item.transaction}
+        href={ROUTES.walletTransaction(item.transaction.id)}
+        highlight={keyword}
+      />
+    ) : item.kind === "article" ? (
+      <HelpArticleListItem
+        padded={false}
+        title={item.article.title}
+        snippet={item.article.snippet}
+        highlight={keyword}
+        href={ROUTES.helpArticle(item.article.slug, undefined, item.article.title)}
+      />
+    ) : item.kind === "showcase" ? (
+      <ShowcaseResultRow item={item.showcase} keyword={keyword} />
+    ) : item.kind === "chat" ? (
+      <ChatResultRow result={item.chat} keyword={keyword} />
+    ) : (
+      <OrderRowBody order={item.order} keyword={keyword} />
+    )
+
+  return (
+    <View className="gap-2">
+      {showSection ? (
+        // Judul kelompok + jumlah: dalam daftar campur, nama jenis saja
+        // tidak memberi tahu seberapa banyak yang menunggu di bawahnya
+        // tanpa menggulir.
+        <View className="flex-row items-baseline justify-between gap-3 pt-1">
+          <Text variant="label" tone="secondary">
+            {sectionLabel}
+          </Text>
+          <Text variant="caption" tone="tertiary">
+            {formatNumber(sectionCount)}
+          </Text>
+        </View>
+      ) : null}
+      {body}
+    </View>
+  )
+})
+
+/** FE-008: komputasi per-baris jenis order (role/counterpart) — hanya dihitung saat baris di-memo me-render. */
+function OrderRowBody({ order, keyword }: { order: Order; keyword: string }) {
+  const role =
+    order.myRole === "BUYER" ? "buyer" : order.myRole === "SELLER" ? "seller" : undefined
+  const counterpart =
+    role === "buyer" ? order.seller : role === "seller" ? order.buyer : undefined
+  return (
+    <OrderCard
+      orderId={order.id}
+      title={order.title}
+      amount={order.orderValue}
+      status={order.status}
+      role={role}
+      counterpart={{
+        name: counterpart?.fullName ?? counterpart?.username ?? "Identitas belum tersedia",
+      }}
+      timestamp={formatDateTime(order.createdAt)}
+      href={ROUTES.orderDetail(order.id)}
+      highlight={keyword}
+    />
+  )
 }
 
 export default function SearchScreen() {
@@ -591,6 +703,33 @@ export default function SearchScreen() {
    * render ulang kontainer, terasa sebagai "kedip" tiap hasil tiba.
    */
   const searchKeyExtractor = useCallback((row: ResultRow) => row.id, [])
+  // FE-008 (audit 2026-09-29): handler navigasi stabil per-username untuk
+  // baris hasil yang di-memo (tidak ada closure per baris di renderItem).
+  const openUserProfile = useCallback((username: string) => {
+    router.push(ROUTES.userProfile(username))
+  }, [])
+  /**
+   * FE-008 (audit 2026-09-29): renderItem stabil via useCallback —
+   * komputasi berat dipindah ke SearchResultRow (memo); di sini hanya
+   * boolean showSection yang murah dari `rows[index - 1]`.
+   */
+  const searchRenderItem: ListRenderItem<ResultRow> = useCallback(
+    ({ item, index }) => {
+      const prev = rows[index - 1]
+      const showSection = !prev || prev.kind !== item.kind
+      return (
+        <SearchResultRow
+          item={item}
+          showSection={showSection}
+          sectionLabel={sectionTitle[item.kind]}
+          sectionCount={counts[item.kind]}
+          keyword={keyword}
+          onOpenUserProfile={openUserProfile}
+        />
+      )
+    },
+    [rows, sectionTitle, counts, keyword, openUserProfile],
+  )
   const searchContentStyle = useMemo(
     () => ({
       flexGrow: 1,
@@ -900,103 +1039,7 @@ export default function SearchScreen() {
         contentContainerStyle={searchContentStyle}
         ListHeaderComponent={searchListHeader}
         ItemSeparatorComponent={SearchItemSeparator}
-        renderItem={({ item, index }) => {
-          const prev = rows[index - 1]
-          const showSection = !prev || prev.kind !== item.kind
-          const body =
-            item.kind === "user" ? (
-              <UserListItem
-                padded={false}
-                name={item.user.fullName || item.user.username || "Identitas belum tersedia"}
-                username={item.user.username ?? undefined}
-                avatar={item.user.avatarUrl ? { source: item.user.avatarUrl } : undefined}
-                sealTier={item.user.sealTier ?? null}
-                // Item 80: keyword ditonjolkan di nama. Item 84: rank
-                // keanggotaan tampil di baris hasil (dari GET /v1/users/search).
-                highlight={keyword}
-                stat={
-                  item.user.membershipRank
-                    ? translate("Anggota {x}", { x: item.user.membershipRank })
-                    : undefined
-                }
-                chevron
-                onPress={
-                  item.user.username
-                    ? () => router.push(ROUTES.userProfile(item.user.username!))
-                    : undefined
-                }
-              />
-            ) : item.kind === "transaction" ? (
-              <WalletTransactionRow
-                transaction={item.transaction}
-                href={ROUTES.walletTransaction(item.transaction.id)}
-                highlight={keyword}
-              />
-            ) : item.kind === "article" ? (
-              <HelpArticleListItem
-                padded={false}
-                title={item.article.title}
-                snippet={item.article.snippet}
-                highlight={keyword}
-                href={ROUTES.helpArticle(item.article.slug, undefined, item.article.title)}
-              />
-            ) : item.kind === "showcase" ? (
-              <ShowcaseResultRow item={item.showcase} keyword={keyword} />
-            ) : item.kind === "chat" ? (
-              <ChatResultRow result={item.chat} keyword={keyword} />
-            ) : (
-              (() => {
-                const role =
-                  item.order.myRole === "BUYER"
-                    ? "buyer"
-                    : item.order.myRole === "SELLER"
-                      ? "seller"
-                      : undefined
-                const counterpart =
-                  role === "buyer"
-                    ? item.order.seller
-                    : role === "seller"
-                      ? item.order.buyer
-                      : undefined
-                return (
-                  <OrderCard
-                    orderId={item.order.id}
-                    title={item.order.title}
-                    amount={item.order.orderValue}
-                    status={item.order.status}
-                    role={role}
-                    counterpart={{
-                      name:
-                        counterpart?.fullName ??
-                        counterpart?.username ??
-                        "Identitas belum tersedia",
-                    }}
-                    timestamp={formatDateTime(item.order.createdAt)}
-                    href={ROUTES.orderDetail(item.order.id)}
-                    highlight={keyword}
-                  />
-                )
-              })()
-            )
-          return (
-            <View className="gap-2">
-              {showSection ? (
-                /* Judul kelompok + jumlah: dalam daftar campur, nama jenis
-                   saja tidak memberi tahu seberapa banyak yang menunggu di
-                   bawahnya tanpa menggulir. */
-                <View className="flex-row items-baseline justify-between gap-3 pt-1">
-                  <Text variant="label" tone="secondary">
-                    {sectionTitle[item.kind]}
-                  </Text>
-                  <Text variant="caption" tone="tertiary">
-                    {formatNumber(counts[item.kind])}
-                  </Text>
-                </View>
-              ) : null}
-              {body}
-            </View>
-          )
-        }}
+        renderItem={searchRenderItem}
         ListEmptyComponent={searchListEmpty}
         // L-03 (audit 2026-09-23): postingan dibatasi 12 — tautan penelusuran
         // lanjutan ke feed Etalase (search=) saat hasil masih terpotong.
