@@ -28,6 +28,7 @@ import { Dialog } from "@/components/ui/modal"
 import { SectionHeader } from "@/components/ui/section"
 import { Text } from "@/components/ui/text"
 import { useToast } from "@/components/ui/toast"
+import { useWalletEnabled } from "@/lib/use-wallet-enabled"
 
 export const MILESTONE_STATUS_LABEL: Record<string, string> = {
   DRAFT: "Draf",
@@ -65,6 +66,8 @@ function MilestoneRow({
   const toast = useToast()
   const [confirmAccept, setConfirmAccept] = useState(false)
   const [accepting, setAccepting] = useState(false)
+  // Mode Tanpa Wallet Internal: pencairan tahap ke rekening bank penjual.
+  const walletEnabled = useWalletEnabled()
 
   const isSeller = role === "SELLER"
   const isBuyer = role === "BUYER"
@@ -82,7 +85,12 @@ function MilestoneRow({
     try {
       await api.milestones.acceptMilestone(milestone.id)
       setConfirmAccept(false)
-      toast.show({ title: "Tahap diterima — dana dicairkan ke penjual", tone: "success" })
+      toast.show({
+        title: walletEnabled
+          ? "Tahap diterima — dana dicairkan ke penjual"
+          : "Tahap diterima — dana dicairkan ke rekening bank penjual",
+        tone: "success",
+      })
       onChanged()
     } catch (e) {
       toast.show({ title: "Gagal menerima tahap", description: userMessage(e), tone: "danger" })
@@ -160,9 +168,14 @@ function MilestoneRow({
 
       <Dialog
         title="Terima tahap ini?"
-        description={translate("Dana {x} akan dicairkan ke penjual. Lanjutkan?", {
-          x: formatRupiah(milestone.sellerAmount),
-        })}
+        description={translate(
+          walletEnabled
+            ? "Dana {x} akan dicairkan ke penjual. Lanjutkan?"
+            : "Dana {x} akan dicairkan ke rekening bank penjual. Lanjutkan?",
+          {
+            x: formatRupiah(milestone.sellerAmount),
+          },
+        )}
         visible={confirmAccept}
         loading={accepting}
         confirmLabel="Ya, terima & cairkan"
@@ -182,6 +195,8 @@ export function MilestoneSection({
   role?: OrderMilestoneRole
 }) {
   const [milestones, setMilestones] = useState<OrderMilestone[] | null>(null)
+  // Mode Tanpa Wallet Internal: copy pencairan ke rekening bank penjual.
+  const walletEnabled = useWalletEnabled()
 
   const load = useCallback(async () => {
     try {
@@ -204,7 +219,11 @@ export function MilestoneSection({
     <View className="gap-3">
       <SectionHeader
         title="Tahapan Pembayaran"
-        subtitle="Dana escrow dilepas per tahap setelah hasil diterima."
+        subtitle={
+          walletEnabled
+            ? "Dana escrow dilepas per tahap setelah hasil diterima."
+            : "Dana escrow dicairkan ke rekening bank penjual per tahap setelah hasil diterima."
+        }
       />
       {milestones.map((m) => (
         <MilestoneRow key={m.id} milestone={m} role={role} onChanged={() => void load()} />

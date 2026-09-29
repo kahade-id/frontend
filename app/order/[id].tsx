@@ -1249,6 +1249,7 @@ export default function OrderDetailScreen() {
             myRole={knownRole ? myRole : undefined}
             completedAt={order.completedAt}
             paidAt={order.paidAt}
+            walletEnabled={walletEnabled}
           />
 
           {/* 10 — Info transaksi */}

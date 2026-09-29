@@ -30,6 +30,12 @@ export type OrderEscrowCardProps = Omit<ViewProps, "children"> & {
    * sebelum bayar tidak punya dana escrow yang bergerak.
    */
   paidAt?: string | null
+  /**
+   * Mode Tanpa Wallet Internal: false → copy "diteruskan ke dompet"
+   * diganti "dicairkan ke rekening bank" / "kembali ke metode pembayaran".
+   * Default true (perilaku lama) agar pemanggil lama tidak berubah.
+   */
+  walletEnabled?: boolean
   className?: string
 }
 
@@ -37,13 +43,16 @@ function escrowCopy(
   status: string,
   myRole: "BUYER" | "SELLER" | undefined,
   paidAt?: string | null,
+  walletEnabled = true,
 ): { title: string; body: string } {
   switch (status) {
     case "COMPLETED":
       return {
         title: translate("Dana telah diteruskan"),
         body: translate(
-          "Dana escrow telah diteruskan ke penjual oleh {x} setelah order dikonfirmasi selesai.",
+          walletEnabled
+            ? "Dana escrow telah diteruskan ke penjual oleh {x} setelah order dikonfirmasi selesai."
+            : "Dana escrow telah dicairkan ke rekening bank penjual oleh {x} setelah order dikonfirmasi selesai.",
           { x: COMPANY },
         ),
       }
@@ -60,7 +69,9 @@ function escrowCopy(
       return {
         title: translate("Dana dikembalikan"),
         body: translate(
-          "Order tidak berlanjut — dana escrow telah dikembalikan ke pembeli oleh {x}.",
+          walletEnabled
+            ? "Order tidak berlanjut — dana escrow telah dikembalikan ke pembeli oleh {x}."
+            : "Order tidak berlanjut — dana escrow telah dikembalikan ke metode pembayaran pembeli oleh {x}.",
           { x: COMPANY },
         ),
       }
@@ -68,7 +79,9 @@ function escrowCopy(
       return {
         title: translate("Dana dikembalikan"),
         body: translate(
-          "Order tidak berlanjut — dana escrow telah dikembalikan ke pembeli oleh {x}.",
+          walletEnabled
+            ? "Order tidak berlanjut — dana escrow telah dikembalikan ke pembeli oleh {x}."
+            : "Order tidak berlanjut — dana escrow telah dikembalikan ke metode pembayaran pembeli oleh {x}.",
           { x: COMPANY },
         ),
       }
@@ -112,7 +125,9 @@ function escrowCopy(
         ? {
             title: translate("Dana aman di escrow"),
             body: translate(
-              "Pembayaran ditahan dengan aman oleh {x} dan akan diteruskan ke dompet Anda setelah pembeli mengonfirmasi penerimaan — atau otomatis setelah tenggat tanpa sengketa.",
+              walletEnabled
+                ? "Pembayaran ditahan dengan aman oleh {x} dan akan diteruskan ke dompet Anda setelah pembeli mengonfirmasi penerimaan — atau otomatis setelah tenggat tanpa sengketa."
+                : "Pembayaran ditahan dengan aman oleh {x} dan akan dicairkan ke rekening bank Anda setelah pembeli mengonfirmasi penerimaan — atau otomatis setelah tenggat tanpa sengketa.",
               { x: COMPANY },
             ),
           }
@@ -130,7 +145,9 @@ function escrowCopy(
         ? {
             title: translate("Dana aman di escrow"),
             body: translate(
-              "Pembayaran ditahan dengan aman oleh {x} dan akan diteruskan ke dompet Anda setelah pembeli mengonfirmasi penerimaan — atau otomatis setelah tenggat tanpa sengketa.",
+              walletEnabled
+                ? "Pembayaran ditahan dengan aman oleh {x} dan akan diteruskan ke dompet Anda setelah pembeli mengonfirmasi penerimaan — atau otomatis setelah tenggat tanpa sengketa."
+                : "Pembayaran ditahan dengan aman oleh {x} dan akan dicairkan ke rekening bank Anda setelah pembeli mengonfirmasi penerimaan — atau otomatis setelah tenggat tanpa sengketa.",
               { x: COMPANY },
             ),
           }
@@ -151,10 +168,11 @@ export function OrderEscrowCard({
   myRole,
   completedAt,
   paidAt,
+  walletEnabled = true,
   className,
   ...rest
 }: OrderEscrowCardProps) {
-  const { title, body } = escrowCopy(status, myRole, paidAt)
+  const { title, body } = escrowCopy(status, myRole, paidAt, walletEnabled)
   return (
     <Card
       padded
