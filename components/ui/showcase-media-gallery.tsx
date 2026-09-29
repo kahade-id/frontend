@@ -13,8 +13,8 @@
  * off-screen (item 16); mode hemat data menunda unduhan gambar & video
  * sampai diketuk (item 15).
  */
-import { useEffect, useRef, useState } from "react"
-import { ScrollView, View } from "react-native"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { ScrollView, View, type LayoutChangeEvent, type NativeScrollEvent, type NativeSyntheticEvent } from "react-native"
 import { CaretLeft, CaretRight, Play, SpeakerHigh, SpeakerSimpleX } from "phosphor-react-native"
 import { cn } from "@/lib/cn"
 import { brand } from "@/lib/tokens"
@@ -65,6 +65,11 @@ export function ShowcaseMediaGallery({ media, title, onOpen, onDoubleTap, autopl
   const [page, setPage] = useState(0)
   const pageRef = useRef(page)
   pageRef.current = page
+  // PERF-FIX (TIM1-P1): ref untuk handleScroll stabil.
+  const widthRef = useRef(width)
+  widthRef.current = width
+  const mediaRef = useRef(media)
+  mediaRef.current = media
   /** Ref untuk handler (dipakai di dalam timeout) agar identitas stabil. */
   const onOpenRef = useRef(onOpen)
   onOpenRef.current = onOpen
@@ -161,23 +166,75 @@ export function ShowcaseMediaGallery({ media, title, onOpen, onDoubleTap, autopl
   }
   /** B-01: jendela render ±1 slide — di luar itu placeholder seukuran. */
   const inWindow = (index: number) => Math.abs(index - page) <= 1
+  // PERF-FIX (TIM1-P1): handler stabil — tidak ada closure inline per render.
+  // onLayout: guard nilai sama agar tidak setState sia-sia saat rotasi/
+  // font-scale memicu layout ulang dengan lebar identik.
+  const handleLayout = useCallback((event: LayoutChangeEvent) => {
+    const w = event.nativeEvent.layout.width
+    setWidth((prev) => (prev === w ? prev : w))
+  }, [])
+  // onScroll: baca page via ref agar identitas stabil (tidak tergantung page).
+  const handleScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const w = widthRef.current
+      if (w > 0) {
+        const next = Math.max(
+          0,
+          Math.min(mediaRef.current.length - 1, Math.round(event.nativeEvent.contentOffset.x / w)),
+        )
+        // Update render window from scrolling, not momentum events (which differ on web).
+        if (next !== pageRef.current) setPage(next)
+      }
+    },
+    [],
+  )
+  // style slide stabil — tidak alokasi objek baru per slide per render.
+  const slideStyle = useMemo(() => ({ width }), [width])
+  // onTap per slide: cache handler per indeks, delegasi via ref agar selalu
+  // memanggil handleSlidePress terbaru tanpa membuat closure baru.
+  const handleSlidePressRef = useRef(handleSlidePress)
+  handleSlidePressRef.current = handleSlidePress
+  const slideTapHandlersRef = useRef(new Map<number, () => void>())
+  const getSlideTapHandler = useCallback((index: number) => {
+    let h = slideTapHandlersRef.current.get(index)
+    if (!h) {
+      h = () => handleSlidePressRef.current(index)
+      slideTapHandlersRef.current.set(index, h)
+    }
+    return h
+  }, [])
+  // onRequestPlay per video: hanya memakai setState stabil + id → aman di-cache.
+  const requestPlayHandlersRef = useRef(new Map<string, () => void>())
+  const getRequestPlayHandler = useCallback((id: string) => {
+    let h = requestPlayHandlersRef.current.get(id)
+    if (!h) {
+      h = () => {
+        setManualPlay((prev) => ({ ...prev, [id]: true }))
+        // Ketuk "Putar video" = niat eksplisit → langsung putar.
+        setPlayLatch((prev) => ({ ...prev, [id]: true }))
+        setPaused((prev) => ({ ...prev, [id]: false }))
+      }
+      requestPlayHandlersRef.current.set(id, h)
+    }
+    return h
+  }, [])
+  // Bersihkan cache handler bila daftar media berganti (indeks/id basi).
+  const mediaSignature = media.map((m) => m.id).join("|")
+  useEffect(() => {
+    slideTapHandlersRef.current.clear()
+    requestPlayHandlersRef.current.clear()
+  }, [mediaSignature])
   return (
-    <View className="overflow-hidden rounded-sm border border-border" onLayout={(event) => setWidth(event.nativeEvent.layout.width)}>
+    <View className="overflow-hidden rounded-sm border border-border" onLayout={handleLayout}>
       {media.length === 0 ? (
         // B-08: seukuran slide (1:1), bukan h-64.
         <View className="aspect-square w-full items-center justify-center bg-surface"><Text>{translate("Tidak ada gambar")}</Text></View>
       ) : (
         <ScrollView ref={scroll} horizontal pagingEnabled showsHorizontalScrollIndicator={false}
           scrollEventThrottle={32}
-          onScroll={(event) => {
-            if (width > 0) {
-              const next = Math.max(0, Math.min(media.length - 1, Math.round(event.nativeEvent.contentOffset.x / width)))
-              // Update render window from scrolling, not momentum events (which differ on web).
-              if (next !== page) setPage(next)
-            }
-          }}>
+          onScroll={handleScroll}>
           {media.map((m, index) => (
-            <View key={m.id} style={{ width }}>
+            <View key={m.id} style={slideStyle}>
               {inWindow(index) ? (
                 m.kind === "video" ? (
                   <VideoSlide
@@ -192,18 +249,13 @@ export function ShowcaseMediaGallery({ media, title, onOpen, onDoubleTap, autopl
                     userPlay={playLatch[m.id] === true && !paused[m.id]}
                     // Item 15: tunda unduhan video sampai diketuk.
                     gated={dataSaver && !manualPlay[m.id]}
-                    onTap={() => handleSlidePress(index)}
-                    onRequestPlay={() => {
-                      setManualPlay((prev) => ({ ...prev, [m.id]: true }))
-                      // Ketuk "Putar video" = niat eksplisit → langsung putar.
-                      setPlayLatch((prev) => ({ ...prev, [m.id]: true }))
-                      setPaused((prev) => ({ ...prev, [m.id]: false }))
-                    }}
+                    onTap={getSlideTapHandler(index)}
+                    onRequestPlay={getRequestPlayHandler(m.id)}
                   />
                 ) : (
                   <PressableScale accessibilityRole="button"
                     accessibilityLabel={translate("Lihat foto {x} dari {y}", { x: index + 1, y: media.length })}
-                    onPress={() => handleSlidePress(index)} containerClassName="w-full">
+                    onPress={getSlideTapHandler(index)} containerClassName="w-full">
                     {/* C01: rasio dari respons list — placeholder tidak meloncat.
                         PERF-FIX (LR-009): slide aktif prioritas "high" — bandwidth
                         didahulukan ke gambar yang terlihat, bukan tetangga. */}

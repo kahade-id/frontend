@@ -13,7 +13,7 @@
  * ini di dalam footer membuat layar cukup berkata "apa keadaan ruangnya".
  */
 import { CheckCircle, Clock, EyeSlash, X } from "phosphor-react-native"
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState, memo } from "react"
 import { View } from "react-native"
 
 import { Button } from "@/components/ui/button"
@@ -79,7 +79,10 @@ export type ChatRoomFooterProps = {
   formatBar?: boolean
 }
 
-export function ChatRoomFooter({
+/** PERF-FIX (TIM1-P1): di-memo seperti ChatPinnedBar (FE-059) — footer
+ * composer tidak ikut render ulang saat state layar chat yang tidak terkait
+ * input berubah. */
+export const ChatRoomFooter = memo(function ChatRoomFooter({
   showJumpToLatest,
   onJumpToLatest,
   newMessageCount = 0,
@@ -205,4 +208,4 @@ export function ChatRoomFooter({
       )}
     </View>
   )
-}
+})

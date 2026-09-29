@@ -10,11 +10,12 @@
  * ulang untuk checkout langganan Kahade+ maupun konteks DANA lain.
  */
 import type { ReactNode } from "react"
+import { memo, useCallback } from "react"
 import { View } from "react-native"
 
 import type { OrderPaymentMethod } from "@/lib/api/orders"
 import { useDanaIntent } from "@/lib/use-dana-intent"
-import { toCheckoutMethodItems, type DanaMethodKind } from "@/lib/dana-payment"
+import { toCheckoutMethodItems, type CheckoutMethodItem, type DanaMethodKind } from "@/lib/dana-payment"
 import { cn } from "@/lib/cn"
 import { translate } from "@/lib/i18n"
 import { useToast } from "@/components/ui/toast"
@@ -79,6 +80,65 @@ export type DanaCheckoutSheetProps = {
   /** Konten tambahan di dalam alert "tidak ada metode" (mis. saran hubungi penjual). */
   emptyMethodsExtra?: ReactNode
 }
+
+/** PERF-FIX (TIM1-P1): baris metode di-memo — onPress stabil per id,
+ * tidak ada closure inline per baris per render sheet. */
+const PaymentMethodRow = memo(function PaymentMethodRow({
+  item,
+  active,
+  disabled,
+  onSelect,
+}: {
+  item: CheckoutMethodItem
+  active: boolean
+  disabled: boolean
+  onSelect: (id: string) => void
+}) {
+  const handlePress = useCallback(() => onSelect(item.id), [onSelect, item.id])
+  return (
+    <PressableScale
+      accessibilityRole="radio"
+      accessibilityState={{ checked: active }}
+      accessibilityLabel={item.name}
+      disabled={disabled}
+      onPress={handlePress}
+      className={cn(
+        "flex-row items-center gap-3 rounded-2xl border px-4 py-3",
+        active ? "border-primary bg-primary/5" : "border-border",
+      )}
+    >
+      <Icon
+        icon={paymentMethodKindIcon[item.kind]}
+        size="md"
+        tone={active ? "active" : "default"}
+      />
+      <View className="flex-1 gap-0.5">
+        <Text variant="body" tone="primary">
+          {item.name}
+          {item.recommended ? (
+            <Text variant="caption" tone="primary">
+              {" "}
+              · Disarankan
+            </Text>
+          ) : null}
+        </Text>
+        {METHOD_KIND_HINT[item.kind] ? (
+          <Text variant="caption" tone="secondary">
+            {METHOD_KIND_HINT[item.kind]}
+          </Text>
+        ) : null}
+      </View>
+      <View
+        className={cn(
+          "h-5 w-5 items-center justify-center rounded-full border",
+          active ? "border-primary" : "border-border",
+        )}
+      >
+        {active ? <View className="h-2.5 w-2.5 rounded-full bg-primary" /> : null}
+      </View>
+    </PressableScale>
+  )
+})
 
 export function DanaCheckoutSheet({
   open,
@@ -178,56 +238,18 @@ export function DanaCheckoutSheet({
               accessibilityLabel="Metode pembayaran"
               className="gap-2"
             >
-              {checkoutItems.map((item) => {
-                const active = selectedMethod?.code === item.id
-                return (
-                  <PressableScale
-                    key={item.id}
-                    accessibilityRole="radio"
-                    accessibilityState={{ checked: active }}
-                    accessibilityLabel={item.name}
-                    disabled={payment.creating}
-                    onPress={() => onSelectMethod(item.id)}
-                    className={cn(
-                      "flex-row items-center gap-3 rounded-2xl border px-4 py-3",
-                      active ? "border-primary bg-primary/5" : "border-border",
-                    )}
-                  >
-                    <Icon
-                      icon={paymentMethodKindIcon[item.kind]}
-                      size="md"
-                      tone={active ? "active" : "default"}
-                    />
-                    <View className="flex-1 gap-0.5">
-                      <Text variant="body" tone="primary">
-                        {item.name}
-                        {item.recommended ? (
-                          <Text variant="caption" tone="primary">
-                            {" "}
-                            · Disarankan
-                          </Text>
-                        ) : null}
-                      </Text>
-                      {METHOD_KIND_HINT[item.kind] ? (
-                        <Text variant="caption" tone="secondary">
-                          {METHOD_KIND_HINT[item.kind]}
-                        </Text>
-                      ) : null}
-                    </View>
-                    <View
-                      className={cn(
-                        "h-5 w-5 items-center justify-center rounded-full border",
-                        active ? "border-primary" : "border-border",
-                      )}
-                    >
-                      {active ? <View className="h-2.5 w-2.5 rounded-full bg-primary" /> : null}
-                    </View>
-                  </PressableScale>
-                )
-              })}
+              {checkoutItems.map((item) => (
+                <PaymentMethodRow
+                  key={item.id}
+                  item={item}
+                  active={selectedMethod?.code === item.id}
+                  disabled={payment.creating}
+                  onSelect={onSelectMethod}
+                />
+              ))}
             </View>
             {methodAction}
-            <Text variant="caption" tone="secondary" style={{ textAlign: "center" }}>
+            <Text variant="caption" tone="secondary" className="text-center">
               Pembayaran diproses aman oleh DANA
             </Text>
           </>

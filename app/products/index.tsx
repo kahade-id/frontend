@@ -3,7 +3,7 @@
  * GET /v1/products · filter kategori/harga/ketersediaan.
  * Terpisah dari konten showcase sosial (G251).
  */
-import { useState } from "react"
+import { memo, useCallback, useState } from "react"
 import { Pressable, Text, TextInput, View } from "react-native"
 import { useRouter } from "expo-router"
 
@@ -26,6 +26,50 @@ import { PaginatedList } from "@/components/ui/paginated-list"
 import { Screen } from "@/components/ui/screen"
 import { Package } from "phosphor-react-native"
 
+/** PERF-FIX (TIM1-P1): baris di-memo — onPress stabil per id, tidak ada
+ * closure inline per render. */
+const ProductRow = memo(function ProductRow({
+  item,
+  onSelect,
+  textTertiary,
+  successText,
+  dangerText,
+}: {
+  item: Product
+  onSelect: (id: string) => void
+  textTertiary: string
+  successText: string
+  dangerText: string
+}) {
+  const handlePress = useCallback(() => onSelect(item.id), [onSelect, item.id])
+  const qty = sellableQty(item)
+
+  return (
+    <Pressable
+      onPress={handlePress}
+      // UI-F004: kartu butuh role + label — screen reader mengumumkan
+      // nama, harga, dan stok.
+      accessibilityRole="button"
+      accessibilityLabel={`${item.name}, ${formatRupiah(item.priceRupiah)}, ${qty > 0 ? `stok ${qty}` : "stok habis"}`}
+      style={{ paddingHorizontal: tokens.space[4], marginBottom: tokens.space[3] }}
+    >
+      <Card>
+        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+          <Text style={{ fontWeight: "700", flex: 1 }} numberOfLines={2}>{item.name}</Text>
+          <Badge tone={productStatusBadgeTone(item.status)}>{PRODUCT_STATUS_LABEL[item.status]}</Badge>
+        </View>
+        <Text style={{ color: textTertiary, fontSize: 12 }}>{item.category} · SKU {item.sku}</Text>
+        <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: tokens.space[1] }}>
+          <Text style={{ fontWeight: "800" }}>{formatRupiah(item.priceRupiah)}</Text>
+          <Text style={{ color: qty > 0 ? successText : dangerText }}>
+            {qty > 0 ? `Stok ${qty}` : "Habis"}
+          </Text>
+        </View>
+      </Card>
+    </Pressable>
+  )
+})
+
 export default function CatalogScreen() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
@@ -33,6 +77,20 @@ export default function CatalogScreen() {
   const c = tokens.colors[mode]
   const successText = tokens.colors.semantic.success[mode].text
   const dangerText = tokens.colors.semantic.danger[mode].text
+  // PERF-FIX (TIM1-P1): handler + renderItem stabil.
+  const handleSelectProduct = useCallback((id: string) => router.push(ROUTES.productDetail(id)), [router])
+  const renderProductItem = useCallback(
+    ({ item }: { item: Product }) => (
+      <ProductRow
+        item={item}
+        onSelect={handleSelectProduct}
+        textTertiary={c.textTertiary}
+        successText={successText}
+        dangerText={dangerText}
+      />
+    ),
+    [handleSelectProduct, c.textTertiary, successText, dangerText],
+  )
   const [q, setQ] = useState("")
   const [inStockOnly, setInStockOnly] = useState(true)
   // UI-F001 (audit UI/UX 2026-09-27): debounce — tiap keystroke sebelumnya
@@ -74,30 +132,7 @@ export default function CatalogScreen() {
         onLoadMore={query.loadMore}
         bottomPadding={insets.bottom + tokens.space[8]}
         empty={<EmptyState icon={Package} title="Tidak ada produk" description="Coba kata kunci lain." />}
-        renderItem={({ item }) => (
-          <Pressable
-            onPress={() => router.push(ROUTES.productDetail(item.id))}
-            // UI-F004: kartu butuh role + label — screen reader mengumumkan
-            // nama, harga, dan stok.
-            accessibilityRole="button"
-            accessibilityLabel={`${item.name}, ${formatRupiah(item.priceRupiah)}, ${sellableQty(item) > 0 ? `stok ${sellableQty(item)}` : "stok habis"}`}
-            style={{ paddingHorizontal: tokens.space[4], marginBottom: tokens.space[3] }}
-          >
-            <Card>
-              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-                <Text style={{ fontWeight: "700", flex: 1 }} numberOfLines={2}>{item.name}</Text>
-                <Badge tone={productStatusBadgeTone(item.status)}>{PRODUCT_STATUS_LABEL[item.status]}</Badge>
-              </View>
-              <Text style={{ color: c.textTertiary, fontSize: 12 }}>{item.category} · SKU {item.sku}</Text>
-              <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: tokens.space[1] }}>
-                <Text style={{ fontWeight: "800" }}>{formatRupiah(item.priceRupiah)}</Text>
-                <Text style={{ color: sellableQty(item) > 0 ? successText : dangerText }}>
-                  {sellableQty(item) > 0 ? `Stok ${sellableQty(item)}` : "Habis"}
-                </Text>
-              </View>
-            </Card>
-          </Pressable>
-        )}
+        renderItem={renderProductItem}
       />
     </Screen>
   )

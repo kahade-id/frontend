@@ -2,6 +2,7 @@
  * Screen — Kelola Produk Saya (GAP-D G262, G264, G273).
  * GET /v1/products/seller/mine · /v1/inventory/low-stock.
  */
+import { memo, useCallback } from "react"
 import { Pressable, Text, View } from "react-native"
 import { useRouter } from "expo-router"
 
@@ -26,6 +27,52 @@ import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
 import { Package, Plus } from "phosphor-react-native"
 
+/** PERF-FIX (TIM1-P1): baris di-memo — onPress stabil per id, tidak ada
+ * closure inline per render. */
+const SellerProductRow = memo(function SellerProductRow({
+  item,
+  onSelect,
+  textTertiary,
+  textPrimary,
+  dangerText,
+}: {
+  item: Product
+  onSelect: (id: string) => void
+  textTertiary: string
+  textPrimary: string
+  dangerText: string
+}) {
+  const handlePress = useCallback(() => onSelect(item.id), [onSelect, item.id])
+  const qty = sellableQty(item)
+  return (
+    <Pressable
+      onPress={handlePress}
+      // UI-F005: role + label untuk screen reader.
+      accessibilityRole="button"
+      accessibilityLabel={`${item.name}, ${formatRupiah(item.priceRupiah)}, ${PRODUCT_STATUS_LABEL[item.status]}`}
+      style={{ paddingHorizontal: tokens.space[4], marginBottom: tokens.space[3] }}
+    >
+      <Card>
+        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+          <Text style={{ fontWeight: "700", flex: 1 }} numberOfLines={1}>{item.name}</Text>
+          {/* UI-F006: tone semantik per status. */}
+          <Badge tone={productStatusBadgeTone(item.status)}>{PRODUCT_STATUS_LABEL[item.status]}</Badge>
+        </View>
+        <Text style={{ color: textTertiary, fontSize: 12 }}>
+          SKU {item.sku} · {PRODUCT_MODERATION_LABEL[item.moderationStatus]}
+        </Text>
+        <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: tokens.space[1] }}>
+          <Text style={{ fontWeight: "700" }}>{formatRupiah(item.priceRupiah)}</Text>
+          <Text style={{ color: qty > 0 ? textPrimary : dangerText }}>
+            {/* UI-F015: guard null dari API — jangan tampilkan "dicadangkan ". */}
+            Stok {qty} (dicadangkan {item.quantityReserved ?? 0})
+          </Text>
+        </View>
+      </Card>
+    </Pressable>
+  )
+})
+
 export default function SellerProductsScreen() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
@@ -40,6 +87,24 @@ export default function SellerProductsScreen() {
   )
   const lowStockQuery = useApiQuery<Product[]>("low-stock", (signal) => api.products.listLowStock(signal))
   const lowStock = lowStockQuery.data ?? []
+
+  // PERF-FIX (TIM1-P1): handler + renderItem stabil.
+  const handleSelectSellerProduct = useCallback(
+    (id: string) => router.push(ROUTES.sellerProductDetail(id)),
+    [router],
+  )
+  const renderSellerProductItem = useCallback(
+    ({ item }: { item: Product }) => (
+      <SellerProductRow
+        item={item}
+        onSelect={handleSelectSellerProduct}
+        textTertiary={c.textTertiary}
+        textPrimary={c.textPrimary}
+        dangerText={dangerText}
+      />
+    ),
+    [handleSelectSellerProduct, c.textTertiary, c.textPrimary, dangerText],
+  )
 
   return (
     <Screen edges={["top"]} padded={false}>
@@ -77,33 +142,7 @@ export default function SellerProductsScreen() {
         onLoadMore={query.loadMore}
         bottomPadding={insets.bottom + tokens.space[8]}
         empty={<EmptyState icon={Package} title="Belum ada produk" description="Tambahkan produk pertama Anda." />}
-        renderItem={({ item }) => (
-          <Pressable
-            onPress={() => router.push(ROUTES.sellerProductDetail(item.id))}
-            // UI-F005: role + label untuk screen reader.
-            accessibilityRole="button"
-            accessibilityLabel={`${item.name}, ${formatRupiah(item.priceRupiah)}, ${PRODUCT_STATUS_LABEL[item.status]}`}
-            style={{ paddingHorizontal: tokens.space[4], marginBottom: tokens.space[3] }}
-          >
-            <Card>
-              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-                <Text style={{ fontWeight: "700", flex: 1 }} numberOfLines={1}>{item.name}</Text>
-                {/* UI-F006: tone semantik per status. */}
-                <Badge tone={productStatusBadgeTone(item.status)}>{PRODUCT_STATUS_LABEL[item.status]}</Badge>
-              </View>
-              <Text style={{ color: c.textTertiary, fontSize: 12 }}>
-                SKU {item.sku} · {PRODUCT_MODERATION_LABEL[item.moderationStatus]}
-              </Text>
-              <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: tokens.space[1] }}>
-                <Text style={{ fontWeight: "700" }}>{formatRupiah(item.priceRupiah)}</Text>
-                <Text style={{ color: sellableQty(item) > 0 ? c.textPrimary : dangerText }}>
-                  {/* UI-F015: guard null dari API — jangan tampilkan "dicadangkan ". */}
-                  Stok {sellableQty(item)} (dicadangkan {item.quantityReserved ?? 0})
-                </Text>
-              </View>
-            </Card>
-          </Pressable>
-        )}
+        renderItem={renderSellerProductItem}
       />
     </Screen>
   )

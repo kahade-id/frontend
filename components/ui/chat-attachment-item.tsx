@@ -32,6 +32,7 @@
  *     disembunyikan (ruang sempit) kecuali status error.
  */
 import { File, FileArchive, FilePdf, FileText, Image as ImageIcon, Warning, X } from "phosphor-react-native"
+import { memo } from "react"
 import { Pressable, View, type ViewProps } from "react-native"
 
 import { Icon, type IconComponent } from "@/components/ui/icon"
@@ -120,7 +121,9 @@ export type ChatAttachmentItemProps = Omit<ViewProps, "children"> & {
 
 const TILE = 72
 
-export function ChatAttachmentItem({
+/** PERF-FIX (TIM1-P1): di-memo — baris chat me-render ulang tidak perlu
+ * ikut me-render ulang lampiran yang tidak berubah. */
+export const ChatAttachmentItem = memo(function ChatAttachmentItem({
   attachment,
   layout = "chip",
   status = "idle",
@@ -284,4 +287,4 @@ export function ChatAttachmentItem({
       {uploading ? <ProgressBar value={progress == null ? undefined : Math.round(progress * 100)} size="sm" className="absolute bottom-0 left-0 right-0" /> : null}
     </View>
   )
-}
+})

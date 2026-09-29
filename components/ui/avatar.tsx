@@ -33,7 +33,7 @@ import { Image } from "expo-image"
 import { SealCheck, User } from "phosphor-react-native"
 import { sealTierColor } from "@/components/ui/verified-seal"
 import { useTheme } from "@/components/theme-provider"
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState, memo } from "react"
 import { View, type ImageSourcePropType, type ViewProps } from "react-native"
 
 import { Icon } from "@/components/ui/icon"
@@ -83,7 +83,9 @@ const sealSize: Record<AvatarSize, number> = { xs: 10, sm: 12, md: 16, lg: 20, x
 /** expo-image tidak di-interop NativeWind; ukuran lewat style konstan. */
 const FILL = { width: "100%", height: "100%" } as const
 
-export function Avatar({
+/** PERF-FIX (TIM1-P1): Avatar di-memo — dipakai di setiap kartu feed,
+ * bubble chat, baris komentar; prop primitif + source stabil. */
+export const Avatar = memo(function Avatar({
   source,
   name,
   size = "md",
@@ -179,7 +181,7 @@ export function Avatar({
       ) : null}
     </View>
   )
-}
+})
 
 // ------------------------------------------------------------------
 

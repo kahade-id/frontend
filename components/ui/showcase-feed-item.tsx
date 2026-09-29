@@ -65,6 +65,7 @@ import { focusRing } from "@/lib/focus-ring"
 import { shouldFireDoubleTapLike } from "@/lib/showcase-like-guard"
 import { isShowcaseSoldOut } from "@/lib/showcase-stock"
 import { FeedFollowButton } from "@/components/ui/feed-follow-button"
+import { prefetchUserProfile } from "@/lib/entity-detail-prefetch"
 
 export type ShowcaseFeedItemProps = {
   item: ShowcaseSocialItem
@@ -208,6 +209,32 @@ function ShowcaseFeedItemBase({
   useLanguage()
   // H-04: gate tap penulis untuk tamu (profil = layar terproteksi).
   const hasSession = useHasSession()
+  // PERF-FIX (TIM1-P1): onPress penulis stabil — tidak jebol memo kartu.
+  const handleAuthorPress = useCallback(
+    () =>
+      router.push(
+        hasSession
+          ? ROUTES.userProfile(item.author.username)
+          : ROUTES.loginRequired(`/user/${encodeURIComponent(item.author.username)}`),
+      ),
+    [hasSession, item.author.username],
+  )
+  // PERF-FIX (P1 nav): prefetch profil penulis saat niat buka terdeteksi
+  // (press-in) — halaman profil memakai hasil ini bila masih segar.
+  const handleAuthorPressIn = useCallback(
+    () => {
+      if (hasSession) prefetchUserProfile(item.author.username)
+    },
+    [hasSession, item.author.username],
+  )
+  // PERF-FIX (TIM1-P1): objek {uri} stabil — prop Avatar tidak "berubah"
+  // tiap render.
+  const avatarSource = useMemo(
+    () => (item.author.avatarUrl ? { uri: item.author.avatarUrl } : undefined),
+    [item.author.avatarUrl],
+  )
+  // PERF-FIX (TIM1-P2): formatTimeAgo sekali per kartu, bukan 2x.
+  const timeAgo = useMemo(() => formatTimeAgo(item.createdAt), [item.createdAt])
   // Batch 19: slide galeri (gambar/video) — referensi stabil via cache WeakMap
   // di `showcaseMedia` agar memo galeri tidak re-render sia-sia.
   const gallery = useMemo(() => showcaseMedia(item), [item])
@@ -271,9 +298,14 @@ function ShowcaseFeedItemBase({
   // (field backend belum ada) = tidak ada badge.
   const soldOut = isShowcaseSoldOut(item)
   // C11 (batch 139): pratinjau — media tidak membuka apa pun.
-  const handleOpenMedia = nonInteractive
-    ? () => {}
-    : (index: number) => (onOpenMedia ? onOpenMedia(index) : onPress?.())
+  // PERF-FIX (TIM1-P1): useCallback — identitas stabil, tidak jebol memo
+  // <ShowcaseMediaGallery>.
+  const handleOpenMedia = useCallback(
+    nonInteractive
+      ? (_index: number) => {}
+      : (index: number) => (onOpenMedia ? onOpenMedia(index) : onPress?.()),
+    [nonInteractive, onOpenMedia, onPress],
+  )
 
   const likeRow = (
     // Revisi 2026-09-23: suka = MERAH + motion pop/ring (<LikeAction>) —
@@ -326,7 +358,7 @@ function ShowcaseFeedItemBase({
                 textProps={{ weight: 600 }}
               />
               <Text variant="caption" tone="secondary" numberOfLines={1}>
-                {`@${item.author.username} · ${formatTimeAgo(item.createdAt)}`}
+                {`@${item.author.username} · ${timeAgo}`}
               </Text>
             </View>
           </View>
@@ -335,18 +367,13 @@ function ShowcaseFeedItemBase({
           accessibilityRole="button"
           accessibilityLabel={translate("Lihat profil {x}", { x: item.author.fullName?.trim() || item.author.username })}
           accessibilityHint={`@${item.author.username}`}
-          onPress={() =>
-            router.push(
-              hasSession
-                ? ROUTES.userProfile(item.author.username)
-                : ROUTES.loginRequired(`/user/${encodeURIComponent(item.author.username)}`),
-            )
-          }
+          onPress={handleAuthorPress}
+          onPressIn={handleAuthorPressIn}
           containerClassName={cn("min-w-0 flex-1 rounded-md", focusRing)}
           className="flex-row items-center gap-3"
         >
           <Avatar
-            source={item.author.avatarUrl ? { uri: item.author.avatarUrl } : undefined}
+            source={avatarSource}
             name={item.author.fullName?.trim() || item.author.username}
             size="md"
           />
@@ -362,7 +389,7 @@ function ShowcaseFeedItemBase({
               textProps={{ weight: 600 }}
             />
             <Text variant="caption" tone="secondary" numberOfLines={1}>
-              {`@${item.author.username} · ${formatTimeAgo(item.createdAt)}`}
+              {`@${item.author.username} · ${timeAgo}`}
             </Text>
           </View>
         </PressableScale>
