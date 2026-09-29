@@ -25,6 +25,7 @@ import { getSecureItem, setSecureItem, SecureKeys } from "@/lib/secure-storage"
 
 import { logWarn } from "@/lib/telemetry"
 import { isLanguageCode, SOURCE_LANGUAGE, type LanguageCode } from "./languages"
+import { ensureDictionary, getDictionary } from "./dictionaries"
 
 let current: LanguageCode = SOURCE_LANGUAGE
 let revision = 0
@@ -55,12 +56,34 @@ function publish(next: LanguageCode): boolean {
 }
 
 /**
+ * FE-072: naikkan revisi TANPA mengganti bahasa — dipakai saat kamus lazy
+ * tiba (pengguna English sempat melihat teks sumber Indonesia selama kamus
+ * ±256KB dimuat; render ulang menggantikannya dengan terjemahan).
+ */
+function bumpRevision(): void {
+  revision += 1
+  for (const listener of [...listeners]) listener()
+}
+
+/**
+ * FE-072: pastikan kamus bahasa target tersedia. Bahasa dipublish segera
+ * (UI tidak boleh menunggu I/O), lalu render ulang dipicu saat kamus tiba.
+ */
+function preloadDictionary(next: LanguageCode): void {
+  if (next === SOURCE_LANGUAGE || getDictionary(next)) return
+  void ensureDictionary(next).then(bumpRevision, (err: unknown) =>
+    logWarn("i18n:load-dict", err),
+  )
+}
+
+/**
  * Terapkan nilai. `persist: true` menulis cache lokal (juga dipakai untuk
  * menyimpan nilai yang baru saja dikonfirmasi backend).
  */
 export function applyLanguage(next: LanguageCode, options: { persist?: boolean } = {}): boolean {
   if (!isLanguageCode(next)) return false
   const changed = publish(next)
+  preloadDictionary(next)
   if (options.persist) void writeCache(next)
   return changed
 }
@@ -118,6 +141,7 @@ export async function initLanguage(fallback: LanguageCode): Promise<LanguageCode
   const cached = await readCachedLanguage()
   const resolved = cached ?? fallback
   publish(resolved)
+  preloadDictionary(resolved)
   return resolved
 }
 
@@ -128,6 +152,7 @@ export async function initLanguage(fallback: LanguageCode): Promise<LanguageCode
 export async function adoptAccountLanguage(value: unknown): Promise<boolean> {
   if (!isLanguageCode(value)) return false
   const changed = publish(value)
+  preloadDictionary(value)
   if (value !== (await readCachedLanguage())) await writeCache(value)
   return changed
 }
