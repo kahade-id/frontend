@@ -22,7 +22,7 @@ import { pickImages } from "@/lib/image-picker"
 import { markSupportTicketOpened } from "@/lib/support-unread"
 import { tokens } from "@/lib/tokens"
 import { useApiQuery } from "@/lib/use-api-query"
-import { usePolling } from "@/lib/use-polling"
+import { useFingerprintPoll } from "@/lib/use-fingerprint-poll"
 import { logWarn } from "@/lib/telemetry"
 import { translate, useLanguage } from "@/lib/i18n"
 
@@ -135,10 +135,12 @@ export default function SupportTicketDetailScreen() {
   }, [ticket])
 
   // Item 127: polling diam tiap 10 dtk saat tiket belum selesai.
-  usePolling(
-    async () => {
-      await query.refresh().catch(() => {})
-    },
+  // D1-010 (perf 2026-09-29): poll hanya fingerprint ringan (status +
+  // updatedAt + jumlah balasan); bundle penuh (tiket + semua balasan)
+  // hanya bila fingerprint berubah.
+  useFingerprintPoll(
+    (signal) => api.support.getSupportTicketFingerprint(ticketId as string, signal),
+    () => query.refresh(),
     10_000,
     Boolean(ticketId && ticket && !isClosedLike),
   )

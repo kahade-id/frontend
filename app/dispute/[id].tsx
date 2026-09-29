@@ -48,7 +48,7 @@ import type {
   MutualResolutionRespondBody,
 } from "@/lib/api/disputes"
 import { useApiQuery } from "@/lib/use-api-query"
-import { usePolling } from "@/lib/use-polling"
+import { useFingerprintPoll } from "@/lib/use-fingerprint-poll"
 import { pickImage, type PickedImage } from "@/lib/image-picker"
 import * as DocumentPicker from "expo-document-picker"
 import {
@@ -201,10 +201,12 @@ export default function DisputeDetailScreen() {
   // R2 (audit ronde-2, butir #22): mediasi adalah PERCAKAPAN — pesan/proposal/
   // bukti pihak lawan tiba tiap 15 detik tanpa menunggu pull-to-refresh.
   // Effect E-04 menjamin draft klaim yang sedang diketik tidak tertimpa.
-  usePolling(
-    async () => {
-      await query.refresh().catch(() => {})
-    },
+  // D1-010 (perf 2026-09-29): poll hanya fingerprint ringan (status +
+  // updatedAt + jumlah pesan); bundle penuh (detail + evidences + signed
+  // URLs + calls) hanya bila fingerprint berubah.
+  useFingerprintPoll(
+    (signal) => api.disputes.getDisputeFingerprint(id as string, signal),
+    () => query.refresh(),
     15_000,
     Boolean(id) && dispute != null && dispute.status !== "RESOLVED" && dispute.status !== "CLOSED",
   )

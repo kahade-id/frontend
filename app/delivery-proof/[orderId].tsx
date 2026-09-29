@@ -28,7 +28,7 @@ import { Crossfade } from "@/components/ui/fade-in"
 import { DetailLoading } from "@/components/ui/paginated-list"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useApiQuery } from "@/lib/use-api-query"
-import { usePolling } from "@/lib/use-polling"
+import { useFingerprintPoll } from "@/lib/use-fingerprint-poll"
 import { Text } from "@/components/ui/text"
 import { Pressable, View } from "react-native"
 import { useLocalSearchParams } from "expo-router"
@@ -209,10 +209,12 @@ export default function DeliveryProofScreen() {
 
   // R2 (audit ronde-2, butir #23): status bukti/penolakan pihak lawan menyegar
   // tiap 20 detik saat layar terbuka; berhenti setelah CONFIRMED (final).
-  usePolling(
-    async () => {
-      await query.refresh().catch(() => {})
-    },
+  // D1-010 (perf 2026-09-29): poll hanya fingerprint ringan (count +
+  // max updatedAt); bundle penuh (termasuk sign URL per file) hanya bila
+  // fingerprint berubah.
+  useFingerprintPoll(
+    (signal) => api.orders.getDeliveryProofFingerprint(orderId as string, signal),
+    () => query.refresh(),
     20_000,
     Boolean(orderId) && latest?.status !== "CONFIRMED",
   )

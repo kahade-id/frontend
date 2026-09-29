@@ -112,15 +112,6 @@ const FEED_LIMIT = 20
  */
 const FOLLOWING_MIN_ITEMS = 5
 const FOLLOWING_MAX_PAGES = 3
-/**
- * A-03: batas atas halaman daftar following (50 akun/halaman → 1.000 akun)
- * yang diambil per sesi, di paralel batch kecil. 5.000 follow tidak lagi
- * berarti 100 request serial sebelum paint; cache A-04 memastikan ini hanya
- * terjadi sekali per akun per sesi. Solusi penuh = endpoint server (A-17).
- */
-const FOLLOWING_INDEX_MAX_PAGES = 20
-const FOLLOWING_INDEX_PARALLEL = 4
-
 // ------------------------------------------------------------------
 // Tab Showcase (cursor/keyset) — header lipat + tab feed gaya profil publik
 // ------------------------------------------------------------------
