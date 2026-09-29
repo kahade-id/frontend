@@ -165,9 +165,17 @@ export default function SetupProfileScreen() {
       router.replace(ROUTES.welcome({ newUser: true }))
     } catch (err) {
       if (isApiError(err)) {
-        // Error validasi bio → tampilkan di form
+        // Error validasi bio → tampilkan di form.
+        // T4-007: JANGAN err.message mentah (bisa Inggris dari
+        // class-validator). `raw` hanya untuk klasifikasi, tidak dirender:
+        // bila menyebut bio/panjang → pesan spesifik; sisanya fail-closed.
         if (err.code === "VALIDATION" || err.code === "BAD_REQUEST") {
-          setFormError(err.message || "Bio tidak valid. Maksimal 500 karakter.")
+          const raw = (err.validationMessages ?? [err.message ?? ""]).join(" ")
+          setFormError(
+            /bio|panjang|karakter|length|max/i.test(raw)
+              ? "Bio terlalu panjang. Maksimal 500 karakter."
+              : userMessage(err),
+          )
           return
         }
       }

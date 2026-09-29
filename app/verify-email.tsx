@@ -134,7 +134,9 @@ export default function VerifyEmailScreen() {
     } catch (err) {
       haptic("error")
       if (isApiError(err) && (err.code === "BAD_REQUEST" || err.code === "UNAUTHORIZED" || err.code === "VALIDATION")) {
-        setOtpError(err.message || "Kode tidak valid atau sudah kedaluwarsa.")
+        // T4-006: JANGAN err.message mentah (bisa Inggris) — kode salah /
+        // kedaluwarsa selalu mendapat arahan Indonesia ke "kirim ulang".
+        setOtpError("Kode salah atau sudah kedaluwarsa. Minta kode baru lalu coba lagi.")
         setOtp("")
         otpRef.current?.focus()
       } else {

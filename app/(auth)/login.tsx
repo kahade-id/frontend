@@ -17,6 +17,11 @@
  *     TextLink "Lupa kata sandi?"
  *     Text "Belum punya akun? Daftar"
  *
+ * T1-003 (progressive disclosure): dua jalur utama tampil langsung — form
+ * kata sandi + tombol "Masuk dengan WhatsApp". Passkey (web saja; di native
+ * disembunyikan sepenuhnya) dan login sosial Google/Apple pindah ke
+ * expandable "Cara masuk lainnya".
+ *
  * Kontrak API (kontrak auth-rework 2026-09-26, frozen):
  *   POST /v1/auth/login  body { identifier, password, deviceId, deviceInfo?, location? }
  *   - `identifier` = username ATAU email ATAU nomor HP.
@@ -56,7 +61,7 @@ import { useLocalSearchParams, useRouter } from "expo-router"
 import { WhatsappLogo, Fingerprint } from "phosphor-react-native"
 
 import { Alert } from "@/components/ui/alert"
-import { Badge } from "@/components/ui/badge"
+import { Accordion, AccordionItem } from "@/components/ui/accordion"
 import { Divider } from "@/components/ui/divider"
 import { FadeIn } from "@/components/ui/fade-in"
 import { FooterBar } from "@/components/ui/footer-bar"
@@ -83,7 +88,7 @@ import { ROUTES } from "@/lib/routes"
 import { setPendingSocialSignup } from "@/lib/social-signup"
 import { setPendingTwoFactorLogin } from "@/lib/two-factor-login"
 import { Dialog } from "@/components/ui/modal"
-import { SocialLoginButtons, type SocialOutcome } from "@/components/auth/social-login-buttons"
+import { SocialLoginButtons, type SocialOutcome, type SocialErrorInfo } from "@/components/auth/social-login-buttons"
 import {
   getPasskeyCapabilitySync,
   startPasskeyAuthentication,
@@ -127,8 +132,11 @@ export default function LoginScreen() {
   const [captchaLoading, setCaptchaLoading] = useState(false)
   const [captchaError, setCaptchaError] = useState<string | null>(null)
 
-  // Passkey (GAP-A G033): alur penuh hanya di web; native menampilkan info.
+  // Passkey (GAP-A G033): alur penuh hanya di web; di native tombol
+  // disembunyikan sepenuhnya (T1-003) — badge "Web saja" yang lama
+  // membingungkan ("saya kan lagi di aplikasi").
   const passkeySupported = getPasskeyCapabilitySync().supported
+  const showPasskey = Platform.OS === "web"
   const [pkSubmitting, setPkSubmitting] = useState(false)
   const [pkNativeInfo, setPkNativeInfo] = useState(false)
 
@@ -229,9 +237,10 @@ export default function LoginScreen() {
           setFormError("Terlalu banyak percobaan. Tunggu beberapa saat sebelum mencoba lagi.")
           return
         }
-        // Validation error
+        // Validation error — T4-003: JANGAN err.message mentah (bisa
+        // Inggris dari class-validator); fail-closed ke Indonesia.
         if (err.code === "VALIDATION" || err.code === "BAD_REQUEST") {
-          setFormError(err.message || "Data tidak valid. Periksa kembali data masuk Anda.")
+          setFormError(userMessage(err))
           return
         }
       }
@@ -294,7 +303,7 @@ export default function LoginScreen() {
           return
         }
         if (err.code === "VALIDATION" || err.code === "BAD_REQUEST") {
-          setFormError(err.message || "Data tidak valid. Periksa kembali data masuk Anda.")
+          setFormError(userMessage(err))
           return
         }
       }
@@ -342,6 +351,20 @@ export default function LoginScreen() {
     },
     [goAfterLogin, router],
   )
+
+  // ── T4-011: error login sosial dipetakan dulu, jangan tuduh koneksi ──
+  //  - batal oleh user → diam saja (SocialLoginButtons tidak memanggil ini)
+  //  - network → "Periksa koneksi internet lalu coba lagi."
+  //  - lainnya → "Coba lagi, atau masuk dengan nomor HP." (pesan mentah SDK
+  //    yang bisa Inggris TIDAK pernah ditampilkan; hanya di-log telemetri)
+  const handleSocialError = useCallback((info: SocialErrorInfo) => {
+    const { label, kind } = info
+    setFormError(
+      kind === "network"
+        ? `Login ${label} gagal. Periksa koneksi internet lalu coba lagi.`
+        : `Login ${label} gagal. Coba lagi, atau masuk dengan nomor HP.`,
+    )
+  }, [])
 
   // Autofill passkey (conditional mediation, web saja — G041/G043): browser
   // menampilkan saran passkey di kolom username tanpa dialog modal.
@@ -518,6 +541,14 @@ export default function LoginScreen() {
               Masuk
             </Button>
 
+            {/*
+             * T1-007: submit auth memicu dialog izin lokasi (getAuthLocation)
+             * — jelaskan dulu di UI supaya tidak mengejutkan.
+             */}
+            <Text variant="caption" tone="secondary" className="text-center text-pretty">
+              Demi keamanan, kami mencatat lokasi saat Anda masuk.
+            </Text>
+
             {/* Error alert */}
             {formError ? (
               <Alert
@@ -587,51 +618,57 @@ export default function LoginScreen() {
               )}
             </VStack>
 
-            {/* Opsi ketiga: passkey (GAP-A G033). Terpisah visual dari kunci
-                biometrik perangkat (app-lock lokal — bukan metode masuk). */}
+            {/*
+             * T1-003 — progressive disclosure: dua jalur utama tampil langsung
+             * (form kata sandi di atas + WhatsApp di bawah). Passkey dan login
+             * sosial pindah ke expandable "Cara masuk lainnya" di bawah.
+             * Badge "Web saja" dihapus — passkey disembunyikan sepenuhnya di
+             * native (tidak pernah berfungsi di sana; tombolnya hanya membuka
+             * dialog info).
+             */}
             <Divider label="atau" />
-            <VStack gap={2}>
-              <View className="flex-row items-center gap-2">
-                <View className="flex-1">
-                  <Button
-                    variant="secondary"
-                    leftIcon={Fingerprint}
-                    onPress={() => void handlePasskeyLogin()}
-                    loading={pkSubmitting}
-                    disabled={submitting || waSubmitting}
-                  >
-                    {PASSKEY_COPY.loginButton}
-                  </Button>
-                </View>
-                {/*
-                 * FE-IMP-3 #115 — badge "Web saja" tampil SEBELUM tombol
-                 * ditekan: passkey penuh hanya didukung di web (G033).
-                 */}
-                <Badge tone="neutral" variant="outline">
-                  Web saja
-                </Badge>
-              </View>
-              {passkeySupported ? (
-                <Text variant="caption" tone="secondary" className="text-pretty">
-                  {PASSKEY_COPY.loginHintWeb}
-                </Text>
-              ) : (
-                <Text variant="caption" tone="secondary" className="text-pretty">
-                  Passkey tersedia di web — ketuk untuk info selengkapnya.
-                </Text>
-              )}
-            </VStack>
+            <Accordion>
+              <AccordionItem
+                value="other"
+                title="Cara masuk lainnya"
+                subtitle={showPasskey ? "Passkey atau akun Google / Apple" : "Akun Google / Apple"}
+                last
+              >
+                <VStack gap={4}>
+                  {showPasskey ? (
+                    <VStack gap={2}>
+                      <Button
+                        variant="secondary"
+                        leftIcon={Fingerprint}
+                        onPress={() => void handlePasskeyLogin()}
+                        loading={pkSubmitting}
+                        disabled={submitting || waSubmitting}
+                      >
+                        {PASSKEY_COPY.loginButton}
+                      </Button>
+                      <Text variant="caption" tone="secondary" className="text-pretty">
+                        {passkeySupported
+                          ? PASSKEY_COPY.loginHintWeb
+                          : "Perangkat ini belum mendukung passkey."}
+                      </Text>
+                    </VStack>
+                  ) : null}
 
-            {/* Opsi keempat: login sosial Google / Apple (GAP-A G001–G025).
-                Tombol hanya tampil bila server mengonfirmasi provider tersedia
-                (GET /v1/auth/social/providers). Registrasi tetap nomor HP:
-                identitas baru diarahkan daftar nomor HP dulu. */}
-            <Divider label="atau" />
-            <SocialLoginButtons
-              onBeforeStart={() => setPendingNext(nextPath)}
-              onOutcome={handleSocialOutcome}
-              onError={(msg) => setFormError(`Login sosial gagal: ${msg}`)}
-            />
+                  {/*
+                   * Login sosial Google / Apple (GAP-A G001–G025). Tombol hanya
+                   * tampil bila server mengonfirmasi provider tersedia
+                   * (GET /v1/auth/social/providers). Registrasi tetap nomor HP:
+                   * identitas baru diarahkan daftar nomor HP dulu.
+                   */}
+                  {showPasskey ? <Divider label="atau" /> : null}
+                  <SocialLoginButtons
+                    onBeforeStart={() => setPendingNext(nextPath)}
+                    onOutcome={handleSocialOutcome}
+                    onError={handleSocialError}
+                  />
+                </VStack>
+              </AccordionItem>
+            </Accordion>
           </VStack>
           </FadeIn>
         </ScrollView>

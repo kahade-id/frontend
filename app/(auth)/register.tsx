@@ -156,18 +156,23 @@ export default function RegisterScreen() {
     } catch (err) {
       if (isApiError(err)) {
         if (err.code === "CONFLICT") {
+          // T4-004: JANGAN err.message mentah (bisa Inggris) — selalu copy
+          // Indonesia tetap + tautan login (sudah ada via kind "conflict").
           setFormError({
             kind: "conflict",
-            message: err.message || "Nomor HP ini sudah terdaftar.",
+            message:
+              "Nomor HP ini sudah terdaftar. Masuk dengan nomor ini, atau gunakan nomor lain.",
           })
           return
         }
         // Pesan validasi yang menyebut nomor -> tempel ke field, bukan Alert.
+        // T4-004: JANGAN tempel mentionsPhone mentah (bisa Inggris dari
+        // class-validator) — selalu copy Indonesia tetap.
         const mentionsPhone = (err.validationMessages ?? [err.message]).find((m) =>
           /phone|nomor/i.test(m),
         )
         if ((err.code === "VALIDATION" || err.code === "BAD_REQUEST") && mentionsPhone) {
-          setPhoneError(mentionsPhone)
+          setPhoneError("Nomor HP tidak valid. Gunakan format 08xx, 10–13 digit.")
           phoneRef.current?.focus()
           return
         }
@@ -235,7 +240,7 @@ export default function RegisterScreen() {
                 action={
                   formError.kind === "conflict" ? (
                     <TextLink onPress={goLogin} variant="caption">
-                      Masuk dengan akun tersebut
+                      Masuk dengan nomor ini
                     </TextLink>
                   ) : undefined
                 }
@@ -256,6 +261,13 @@ export default function RegisterScreen() {
           >
             Kirim kode
           </Button>
+          {/*
+           * T1-007: submit auth memicu dialog izin lokasi (getAuthLocation)
+           * — jelaskan dulu di UI supaya tidak mengejutkan.
+           */}
+          <Text variant="caption" tone="secondary" className="text-center text-pretty">
+            Demi keamanan, kami mencatat lokasi saat Anda masuk.
+          </Text>
           <Text variant="body" tone="secondary" className="text-center">
             Sudah punya akun?{" "}
             <TextLink inline onPress={goLogin}>

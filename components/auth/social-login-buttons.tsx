@@ -12,8 +12,8 @@
  *  - Registrasi TETAP nomor HP: identitas social tanpa akun tertaut →
  *    `linkRequired` → pemanggil mengarahkan ke pendaftaran nomor HP; linkToken
  *    dipakai untuk menautkan setelah nomor terverifikasi.
- *  - Status: loading per-provider, dibatalkan user (diam), error + coba lagi,
- *    callback kedaluwarsa (G017).
+ *  - Status: loading per-provider, dibatalkan user (diam — T4-011), error
+ *    terklasifikasi network/lainnya (T4-011), callback kedaluwarsa (G017).
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react"
@@ -23,7 +23,7 @@ import * as AppleAuthentication from "expo-apple-authentication"
 import { api } from "@/lib/api"
 import type { SocialLoginResult, SocialProvider, SocialProviderCapability } from "@/lib/api/social"
 import {
-  SocialCancelledError,
+  classifySocialError,
   getSocialIdToken,
   isAppleButtonSupported,
 } from "@/lib/social-oauth"
@@ -42,13 +42,26 @@ interface SocialLoginButtonsProps {
   /** Dipanggil sebelum OAuth dimulai (mis. simpan nextPath). */
   onBeforeStart?: () => void
   onOutcome: (outcome: SocialOutcome) => void
-  onError?: (message: string) => void
+  /**
+   * T4-011: error sudah diklasifikasi — TIDAK ada pesan mentah SDK/backend
+   * di sini. `kind` menentukan copy Indonesia yang disusun pemanggil.
+   * Pembatalan user ("cancelled") TIDAK memanggil callback ini (diam saja).
+   */
+  onError?: (info: SocialErrorInfo) => void
+}
+
+/** Info error terklasifikasi untuk `onError` (T4-011). */
+export type SocialErrorInfo = {
+  provider: SocialProvider
+  /** "Google" / "Apple" — untuk copy. */
+  label: string
+  /** "network" → pesan koneksi; "other" → pesan generik + arahan nomor HP. */
+  kind: "network" | "other"
 }
 
 export function SocialLoginButtons({ onBeforeStart, onOutcome, onError }: SocialLoginButtonsProps) {
   const [capabilities, setCapabilities] = useState<SocialProviderCapability[] | null>(null)
   const [activeProvider, setActiveProvider] = useState<SocialProvider | null>(null)
-  const [cancelled, setCancelled] = useState(false)
   const [failed, setFailed] = useState<string | null>(null)
 
   const byProvider = useMemo(() => {
@@ -93,7 +106,6 @@ export function SocialLoginButtons({ onBeforeStart, onOutcome, onError }: Social
       const cap = byProvider.get(provider)
       const clientId = cap?.appId
       if (!cap || !clientId || activeProvider) return
-      setCancelled(false)
       setFailed(null)
       onBeforeStart?.()
       setActiveProvider(provider)
@@ -102,14 +114,21 @@ export function SocialLoginButtons({ onBeforeStart, onOutcome, onError }: Social
         const result = await api.social.socialLogin({ provider, idToken, nonce })
         await finish(result)
       } catch (err) {
-        if (err instanceof SocialCancelledError) {
-          setCancelled(true)
-          return
-        }
+        // T4-011: petakan penyebab SEBELUM tampil.
+        //  - batal oleh user → diam saja (tanpa error, tanpa info).
+        //  - network → "Periksa koneksi internet lalu coba lagi."
+        //  - lainnya → "Coba lagi, atau masuk dengan nomor HP."
+        // Pesan mentah SDK/backend (bisa Inggris) hanya masuk telemetri.
+        const kind = classifySocialError(err)
+        if (kind === "cancelled") return
         const label = provider === "GOOGLE" ? "Google" : "Apple"
-        setFailed(`Login ${label} gagal. Periksa koneksi lalu coba lagi.`)
+        setFailed(
+          kind === "network"
+            ? `Login ${label} gagal. Periksa koneksi internet lalu coba lagi.`
+            : `Login ${label} gagal. Coba lagi, atau masuk dengan nomor HP.`,
+        )
         const msg = err instanceof Error ? err.message : String(err ?? "")
-        onError?.(msg)
+        onError?.({ provider, label, kind })
         logWarn("social:login-failed", { provider, msg })
       } finally {
         setActiveProvider(null)
@@ -155,9 +174,7 @@ export function SocialLoginButtons({ onBeforeStart, onOutcome, onError }: Social
           </Button>
         )
       ) : null}
-      {cancelled ? (
-        <Alert tone="info">Login dibatalkan. Anda bisa mencoba lagi kapan saja.</Alert>
-      ) : null}
+      {/* T4-011: pembatalan user = diam (tanpa Alert apa pun) */}
       {failed ? <Alert tone="danger">{failed}</Alert> : null}
     </View>
   )

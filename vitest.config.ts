@@ -26,6 +26,14 @@ export default defineConfig({
       // tests/stubs/expo.ts.
       "expo-constants": stub("expo-constants"),
       "expo-device": stub("expo-device"),
+      // Login sosial Google: expo-auth-session & expo-web-browser memanggil
+      // expo-modules-core (butuh global native). Lihat
+      // tests/stubs/expo-auth-session.ts & tests/stubs/expo-web-browser.ts.
+      "expo-auth-session": stub("expo-auth-session"),
+      "expo-web-browser": stub("expo-web-browser"),
+      // Login sosial Apple: expo-apple-authentication memanggil
+      // expo-modules-core. Lihat tests/stubs/expo-apple-authentication.ts.
+      "expo-apple-authentication": stub("expo-apple-authentication"),
       "expo-application": stub("expo-application"),
       "expo-secure-store": stub("expo-secure-store"),
       // Bahasa perangkat tidak boleh menentukan hasil test: lihat
