@@ -38,6 +38,13 @@ const QUERY_CACHE_TTL_RULES: ReadonlyArray<[prefix: string, ttlMs: number]> = [
   // lewat mutasi yang menginvalidasi prefix ini; navigasi bolak-balik ≤60 dtk
   // tidak mengunduh ulang seluruh katalog.
   ["my-showcase:", 60_000], // app/showcase-management.tsx
+  // PERF-FIX (network P2): data nyaris statis — berubah hanya lewat mutasi
+  // yang me-refresh eksplisit (atau pull-to-refresh); navigasi bolak-balik
+  // ≤60 dtk tidak mengunduh ulang.
+  ["kahade-plus-plans", 60_000], // app/kahade-plus/plans.tsx — katalog paket
+  ["bank-accounts", 60_000], // queryKeys.bankAccounts() — tambah/hapus refresh eksplisit
+  ["topup-fee:", 60_000], // app/topup.tsx — estimasi per nominal+metode
+  ["fee-schedule", 60_000], // app/create-transaction.tsx — jadwal biaya publik
 ]
 
 /** TTL efektif untuk sebuah kunci cache. */

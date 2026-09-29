@@ -202,6 +202,15 @@ export type OrderStatusLight = {
   updatedAt: string
 }
 
+/**
+ * GET /v1/orders/:id/status — status ringan order (dipakai sebagai
+ * fingerprint polling, mis. layar invoice).
+ *
+ * PERF-NET (network P2): kontrak RINGAN dipin di sini — endpoint ini HANYA
+ * boleh mengembalikan kolom status (`OrderStatusLight`); jangan memperkaya
+ * dengan payload berat karena dipoll tiap 15 dtk sebagai pendeteksi
+ * perubahan (bukan pembawa data).
+ */
 export function getOrderStatus(orderId: string, signal?: AbortSignal) {
   return http.get<OrderStatusLight>(`/v1/orders/${seg(orderId)}/status`, {
     auth: "required",

@@ -12,7 +12,9 @@
  *    DITUTUP — tidak ada jendela listing basi.
  *  - G-04: membuka ulang item meng-RELOAD query (lihat kunci `useApiQuery`
  *    yang memuat showcaseId — enabled flip → muat ulang); data komentar dari
- *    kunjungan sebelumnya tidak diasumsikan masih segar.
+ *    kunjungan sebelumnya tidak diasumsikan masih segar. PERF-FIX (network
+ *    P2): reload ini memakai cache standar 5 dtk — buka-tutup dalam 5 dtk
+ *    tidak menembak jaringan; di atas itu tetap fetch segar.
  *  - F-04 kelas yang sama: komposer dibatasi 1000 karakter (kontrak DTO).
  *  - A-05 kelas yang sama: tamu tidak melihat komposer — tombol "Masuk"
  *    sebagai gantinya (membaca komentar tetap boleh, endpoint publik).
@@ -212,7 +214,10 @@ export function ShowcaseCommentsSheet({
     (signal) =>
       listShowcaseComments(showcaseId as string, { page: 1, limit: SHEET_COMMENT_LIMIT }, signal),
     Boolean(showcaseId),
-    { useCache: false },
+    // PERF-FIX (network P2): cache standar 5 dtk (hapus `useCache: false`) —
+    // buka-tutup sheet dalam 5 dtk tidak mengunduh ulang komentar yang baru
+    // dibaca. Komentar yang diposting dari sheet tampil via state lokal
+    // (`localComments`), jadi cache 5 dtk tidak menyembunyikan kiriman.
   )
 
   /** Item 49 (FE-IMP-1): urutan komentar — Terbaru / Terlama. */

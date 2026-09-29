@@ -544,25 +544,37 @@ function NotificationsScreen() {
 
   const selectedIds = useMemo(() => Array.from(selected), [selected])
 
-  const handleReadSelected = useCallback(async () => {
+  const handleReadSelected = useCallback(() => {
     if (selectedIds.length === 0 || batchBusy) return
-    setBatchBusy(true)
-    try {
-      await api.notifications.markNotificationsReadBatch(selectedIds)
-      const ids = new Set(selectedIds)
-      setNotifs((prev) => prev.map((n) => (ids.has(n.id) ? { ...n, isRead: true } : n)))
-      void refreshUnreadCount()
-      exitSelect()
-    } catch (err: unknown) {
-      toast.show({
-        title: "Notifikasi belum dapat ditandai",
-        description: userMessage(err),
-        tone: "danger",
-      })
-    } finally {
-      setBatchBusy(false)
+    // PERF-FIX (network P2): UI optimistis dulu (konsisten dengan tap satuan),
+    // lalu kirim chunk 20 id per POST di background — satu POST 50 id bisa
+    // 413/berat di beberapa proxy. Rollback + toast bila ada chunk yang gagal.
+    const ids = new Set(selectedIds)
+    const previous = notifs
+    setNotifs((prev) => prev.map((n) => (ids.has(n.id) ? { ...n, isRead: true } : n)))
+    void refreshUnreadCount()
+    exitSelect()
+    const chunks: string[][] = []
+    for (let i = 0; i < selectedIds.length; i += 20) {
+      chunks.push(selectedIds.slice(i, i + 20))
     }
-  }, [selectedIds, batchBusy, exitSelect])
+    void (async () => {
+      try {
+        for (const chunk of chunks) {
+          await api.notifications.markNotificationsReadBatch(chunk)
+        }
+      } catch (err: unknown) {
+        setNotifs(previous)
+        void refreshUnreadCount()
+        logWarn("notifications:mark-read-batch", err)
+        toast.show({
+          title: "Notifikasi belum dapat ditandai",
+          description: userMessage(err),
+          tone: "danger",
+        })
+      }
+    })()
+  }, [selectedIds, batchBusy, exitSelect, notifs, toast.show])
 
   const handleDeleteSelected = useCallback(async () => {
     if (selectedIds.length === 0 || batchBusy) return
@@ -605,24 +617,29 @@ function NotificationsScreen() {
   }, [batchBusy])
 
   /** Tandai semua dibaca — tombol Checks di header mode normal. */
-  const handleReadAll = useCallback(async () => {
+  const handleReadAll = useCallback(() => {
     if (batchBusy || !hasUnread) return
-    setBatchBusy(true)
-    try {
-      await api.notifications.markAllNotificationsRead()
-      setNotifs((prev) => prev.map((n) => ({ ...n, isRead: true })))
-      void refreshUnreadCount()
-      toast.show({ title: "Semua notifikasi ditandai dibaca", tone: "success", duration: 2000 })
-    } catch (err: unknown) {
-      toast.show({
-        title: "Notifikasi belum dapat ditandai",
-        description: userMessage(err),
-        tone: "danger",
-      })
-    } finally {
-      setBatchBusy(false)
-    }
-  }, [batchBusy, hasUnread])
+    // PERF-FIX (network P2): optimistis (pola handleReadGroup) — UI + badge
+    // langsung hilang; rollback ke snapshot bila request gagal.
+    const previous = notifs
+    setNotifs((prev) => prev.map((n) => ({ ...n, isRead: true })))
+    void refreshUnreadCount()
+    toast.show({ title: "Semua notifikasi ditandai dibaca", tone: "success", duration: 2000 })
+    void (async () => {
+      try {
+        await api.notifications.markAllNotificationsRead()
+      } catch (err: unknown) {
+        setNotifs(previous)
+        void refreshUnreadCount()
+        logWarn("notifications:mark-all-read", err)
+        toast.show({
+          title: "Notifikasi belum dapat ditandai",
+          description: userMessage(err),
+          tone: "danger",
+        })
+      }
+    })()
+  }, [batchBusy, hasUnread, notifs, toast.show])
 
   // FE-064: prop header di-memo agar memo <Header> bisa bail-out.
   // Ditaruh setelah exitSelect/handleReadSelected/handleReadAll dideklarasikan.

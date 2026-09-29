@@ -296,6 +296,24 @@ function toFailedChatMessage(m: ChatMessage): FailedChatMessage {
 /** Jarak poll pesan baru saat ruang AKTIF. Push tetap pemicu utama. */
 const CHAT_POLL_MS = 8000
 /**
+ * PERF-FIX (network P2): jalankan task async dengan batas konkurensi —
+ * bulk-star 50 pesan tidak boleh membuka 50 koneksi serentak di HP kentang.
+ * Semantik gagal = Promise.all: throw pertama membatalkan keseluruhan.
+ */
+async function runWithConcurrency<T>(tasks: Array<() => Promise<T>>, limit: number): Promise<T[]> {
+  const results: T[] = new Array(tasks.length)
+  let next = 0
+  const workers = Array.from({ length: Math.min(limit, tasks.length) }, async () => {
+    while (next < tasks.length) {
+      const index = next
+      next += 1
+      results[index] = await tasks[index]()
+    }
+  })
+  await Promise.all(workers)
+  return results
+}
+/**
  * GAP-B2 (implementasi 2026-09-26): chat memakai WebSocket realtime
  * (`useChatRoomRealtime`) DENGAN polling REST sebagai fallback.
  *
@@ -316,7 +334,7 @@ const CHAT_POLL_MS = 8000
 const CHAT_POLL_IDLE_MS = 20000
 const IDLE_AFTER_EMPTY_POLLS = 10
 /** Jarak poll status online lawan bicara (REST; WS realtime belum ada di app). */
-const PRESENCE_POLL_MS = 30000
+const PRESENCE_POLL_MS = 60000
 /**
  * C-02 (audit): batas id yang dikirim sebagai `excludeIds`. Thread panjang
  * (ratusan pesan) pernah mengirim SEMUA id di query string — risiko 414 dan
@@ -614,6 +632,19 @@ export default function ChatRoomScreen() {
   const [pollInterval, setPollInterval] = useState(CHAT_POLL_MS)
   const emptyPolls = useRef(0)
   const pollTick = useRef(0)
+  /**
+   * PERF-FIX (network P2): warmup polling fallback — 45 dtk pertama setelah
+   * layar dibuka, data sudah segar dari fetch awal; socket biasanya
+   * tersambung dalam hitungan detik sehingga poller fallback hanya membuang
+   * request. Setelah warmup, perilaku fallback normal (menyala saat socket
+   * down). Di-reset saat roomId berganti (instance di-reuse router).
+   */
+  const [fallbackWarmupDone, setFallbackWarmupDone] = useState(false)
+  useEffect(() => {
+    setFallbackWarmupDone(false)
+    const timer = setTimeout(() => setFallbackWarmupDone(true), 45_000)
+    return () => clearTimeout(timer)
+  }, [roomId])
   // D1-004: jangkar delta poll fallback — id pesan terakhir yang terkonfirmasi
   // server (pesan optimistis "sending"/"failed" TIDAK boleh jadi jangkar:
   // id lokal tidak dikenal server → 400).
@@ -1049,6 +1080,30 @@ export default function ChatRoomScreen() {
     },
   })
 
+  /**
+   * PERF-FIX (network P2): grace delay transisi — fallback poll hanya
+   * dipersenjatai bila socket tidak sehat selama >10 dtk berturut-turut.
+   * Flap singkat (false→true→false) saat reconnect tidak memicu tembakan
+   * REST; socket.io biasanya pulih dalam hitungan detik.
+   */
+  const [fallbackArmed, setFallbackArmed] = useState(false)
+  const unhealthySinceRef = useRef<number | null>(null)
+  useEffect(() => {
+    if (realtimeHealthy) {
+      unhealthySinceRef.current = null
+      setFallbackArmed(false)
+      return
+    }
+    if (unhealthySinceRef.current == null) unhealthySinceRef.current = Date.now()
+    const elapsed = Date.now() - unhealthySinceRef.current
+    if (elapsed >= 10_000) {
+      setFallbackArmed(true)
+      return
+    }
+    const timer = setTimeout(() => setFallbackArmed(true), 10_000 - elapsed)
+    return () => clearTimeout(timer)
+  }, [realtimeHealthy])
+
   // G119/G120 (revisi 2026-09-29, NP-004/NS-003): polling REST adalah
   // fallback SEMATA — dijeda total saat socket sehat (0 request), menyala
   // lagi otomatis saat socket putus. Socket.io punya heartbeat ping/pong,
@@ -1058,9 +1113,20 @@ export default function ChatRoomScreen() {
   // mengalir via event socket (`onRead`/`onPin`) selama socket sehat.
   // Fallback TIDAK PERNAH dihapus: tanpa ini chat berhenti update saat
   // socket mati.
-  usePolling(pollNewMessages, pollInterval, Boolean(roomId) && !error && !loading && !realtimeHealthy)
-  usePolling(refreshPresence, PRESENCE_POLL_MS, Boolean(roomId) && !realtimeHealthy)
-
+  // PERF-FIX (network P2): + `fallbackWarmupDone` (45 dtk pertama tanpa
+  // fallback — data awal segar) + `fallbackArmed` (grace 10 dtk setelah
+  // transisi healthy→unhealthy — flap reconnect tidak menembak REST);
+  // presence juga 30 dtk → 60 dtk.
+  usePolling(
+    pollNewMessages,
+    pollInterval,
+    Boolean(roomId) && !error && !loading && !realtimeHealthy && fallbackWarmupDone && fallbackArmed,
+  )
+  usePolling(
+    refreshPresence,
+    PRESENCE_POLL_MS,
+    Boolean(roomId) && !realtimeHealthy && fallbackWarmupDone && fallbackArmed,
+  )
   /**
    * B16: rekonsiliasi unread saat aplikasi kembali aktif — badge tab &
    * header bisa basi selama aplikasi di background (push mungkin tidak
@@ -1880,7 +1946,12 @@ export default function ChatRoomScreen() {
     const anyUnstarred = selectedMessages.some((m) => !m.isStarred)
     const op = anyUnstarred ? starChatMessage : unstarChatMessage
     try {
-      await Promise.all(selectedMessages.map((m) => op(roomId, m.id)))
+      // PERF-FIX (network P2): konkurensi dibatasi 5 (bukan Promise.all
+      // mentah) — 50 request serentak bisa menghabiskan socket di HP kentang.
+      await runWithConcurrency(
+        selectedMessages.map((m) => () => op(roomId, m.id)),
+        5,
+      )
       setMessages((prev) =>
         prev.map((m) =>
           selectedIds.has(m.id) ? { ...m, isStarred: anyUnstarred } : m,
