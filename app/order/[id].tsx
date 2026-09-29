@@ -33,7 +33,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { View } from "react-native"
-import { useLocalSearchParams, router } from "expo-router"
+import { useLocalSearchParams, router, type Href } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { ClockCounterClockwise, ShieldCheck, X } from "phosphor-react-native"
 
@@ -51,6 +51,7 @@ import {
 } from "@/lib/api/orders"
 import { RATING_SNOOZE_MS, isRatingSnoozed, snoozeRatingReminder, useUiPref } from "@/lib/ui-prefs"
 import { usePolling } from "@/lib/use-polling"
+import type { ConfirmCountdownInput } from "@/lib/order-confirm-countdown"
 import { useQrisPayment } from "@/lib/use-qris-payment"
 import { assertDeviceNotCompromised } from "@/lib/device-integrity"
 import { useOrderTracking } from "@/lib/use-order-tracking"
@@ -511,10 +512,22 @@ export default function OrderDetailScreen() {
    * di sana kembali ke layar ini dengan sheet masih terbuka (state `sheet`
    * tidak di-reset saat push), lalu saldo di-refresh via refreshOnFocus di
    * atas. PIN tetap wajib untuk bayar via saldo — logika otorisasi utuh.
+   *
+   * FE-043: bawa konteks kembali (sumber order + total bayar) — layar topup
+   * menampilkan CTA "Kembali bayar RpX" pada struk sukses dan tombol back
+   * header mengarah ke order ini, bukan ke dompet.
    */
   const handleTopupFromPay = useCallback(() => {
-    router.push(ROUTES.topup)
-  }, [])
+    if (!order) return
+    router.push({
+      pathname: ROUTES.topup,
+      params: {
+        from: "order-pay",
+        orderId: order.id,
+        amount: fee?.buyerPays != null ? String(fee.buyerPays) : "",
+      },
+    } as Href)
+  }, [order, fee?.buyerPays])
   const [pinError, setPinError] = useState<string | undefined>()
   // Overlay progres saat membayar escrow dari saldo (PIN disubmit).
   const [payProgress, setPayProgress] = useState<"PROCESSING" | "SUCCESS" | "FAILURE" | null>(null)
@@ -953,6 +966,19 @@ export default function OrderDetailScreen() {
       shippedBy: order.shippedBy,
     }
   }, [order])
+  /**
+   * FE-110: input mentah countdown "Batas konfirmasi penjual" — stabil per
+   * data order; tampil/sembunyi di-resolve per tick di dalam
+   * <ConfirmCountdownBox> (ter-memo), pola sama seperti countdown lain.
+   */
+  const confirmCountdownInput = useMemo<ConfirmCountdownInput | null>(() => {
+    if (!order || order.status !== "WAITING_CONFIRMATION" || !order.confirmationDeadlineAt)
+      return null
+    return {
+      status: order.status,
+      confirmationDeadlineAt: order.confirmationDeadlineAt,
+    }
+  }, [order])
   const snoozeRatingReminderForOrder = useCallback(() => {
     if (!order) return
     // E-03: snooze dibandingkan terhadap jam SERVER (serverNow) di ui-prefs,
@@ -1095,6 +1121,9 @@ export default function OrderDetailScreen() {
             myRole={knownRole ? myRole : undefined}
             autoReleaseAt={autoReleaseAt}
             shippingCountdownInput={shippingCountdownInput}
+            // FE-110: input mentah countdown "Batas konfirmasi" — tick
+            // terisolasi di <ConfirmCountdownBox> (ter-memo).
+            confirmCountdownInput={confirmCountdownInput}
             // Item 34: panduan "langkah berikutnya" dihitung di dalam
             // OrderDetailActions bila area aksi kosong.
             // Item 35: label countdown kontekstual ("Batas kirim"/"Batas konfirmasi").

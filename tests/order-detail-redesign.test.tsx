@@ -158,6 +158,7 @@ describe("<OrderDetailActions>", () => {
     myRole: "BUYER" as const,
     autoReleaseAt: null,
     shippingCountdownInput: null,
+    confirmCountdownInput: null,
     onPay: noop,
     onAccept: noop,
     onReject: noop,

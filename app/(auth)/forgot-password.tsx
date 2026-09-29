@@ -2,7 +2,7 @@
  * Kahade — Lupa Kata Sandi (phone-based, customer-initiated WhatsApp).
  *
  * Struktur:
- *   <Header title="Lupa Kata Sandi" progress={1/3} showBack>
+ *   <Header title="Lupa Kata Sandi" progress={1/4} showBack>
  *   VStack gap={8}:
  *     VStack (H1 + penjelasan)
  *     PhoneInput (nomor HP akun)
@@ -46,8 +46,8 @@ import { getAuthLocation } from "@/lib/location"
 import { setOtpFlow } from "@/lib/otp-flow"
 import { ROUTES } from "@/lib/routes"
 
-/** Lupa kata sandi = 3 langkah: nomor → trigger WA → OTP → kata sandi baru. */
-const STEP_PROGRESS = 1 / 3
+/** FE-040: nomor → trigger WA (2/4) → OTP (3/4) → kata sandi baru (4/4). */
+const STEP_PROGRESS = 1 / 4
 
 export default function ForgotPasswordScreen() {
   const router = useRouter()
@@ -155,8 +155,16 @@ export default function ForgotPasswordScreen() {
 
         <FooterBar>
           <Button onPress={() => void handleSubmit()} loading={submitting}>
-            Kirim kode
+            Lanjutkan
           </Button>
+          {/*
+           * FE-039: alur OTP bersifat customer-initiated — tegaskan bahwa
+           * user yang akan diminta mengirim pesan ke WhatsApp kami, bukan
+           * aplikasi yang mengirim kode ke user.
+           */}
+          <Text variant="caption" tone="secondary" className="text-center text-pretty">
+            Anda akan diminta mengirim pesan ke WhatsApp kami terlebih dahulu.
+          </Text>
           {/*
            * T1-007: submit auth memicu dialog izin lokasi (getAuthLocation)
            * — jelaskan dulu di UI supaya tidak mengejutkan.

@@ -326,6 +326,14 @@ export type Order = {
    */
   shippingDeadline?: string | null
   /**
+   * FE-110: batas waktu konfirmasi penjual — diekspos backend di
+   * GET /v1/orders/:id sebagai `confirmationDeadlineAt` (di-set saat order
+   * dibuat = 2 hari; ExpireUnconfirmedOrdersService membatalkan order yang
+   * lewat tenggat). Klien menampilkan countdown "Batas konfirmasi" di
+   * detail selama status WAITING_CONFIRMATION.
+   */
+  confirmationDeadlineAt?: string | null
+  /**
    * Waktu pengiriman aktual — diekspos backend sebagai `shippedBy`
    * (= shippedAt). Ada nilainya = countdown batas kirim tidak lagi tampil.
    */
@@ -488,6 +496,9 @@ export function normalizeOrder(raw: Order & Record<string, unknown>): Order {
     // (additive, nullable — fail closed bila backend belum mengirimnya).
     shippingDeadline: optionalText(record.shippingDeadline ?? record.shipping_deadline),
     shippedBy: pickString(record, ["shippedBy", "shipped_by"]) ?? null,
+    // FE-110: batas konfirmasi penjual (additive, nullable — fail closed
+    // bila backend belum mengirimnya).
+    confirmationDeadlineAt: optionalText(record.confirmationDeadlineAt ?? record.confirmation_deadline_at),
     buyer: normalizeParty(record.buyer),
     seller: normalizeParty(record.seller),
     myRole: (pickString(record, ["myRole", "role", "my_role"]) ?? undefined) as OrderRole | undefined,

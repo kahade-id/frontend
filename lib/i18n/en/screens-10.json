@@ -1020,5 +1020,13 @@
   "Terpesan": "Booked",
   "Keluar dari akun @{x} di perangkat ini?": "Log out of account @{x} on this device?",
   "Keluar dari Kahade di perangkat ini?": "Log out of Kahade on this device?",
-  "Foto pertama menjadi cover.": "The first photo becomes the cover."
+  "Foto pertama menjadi cover.": "The first photo becomes the cover.",
+  "Setelah membayar di aplikasi bank, kembali ke sini — status diperbarui otomatis.": "After paying in your bank app, come back here — the status updates automatically.",
+  "Kembali bayar": "Back to payment",
+  "Kembali bayar {x}": "Back to pay {x}",
+  "Penjual harus mengonfirmasi dalam {x}.": "The seller must confirm within {x}.",
+  "Penjual melewati batas konfirmasi — pesanan akan dibatalkan otomatis.": "The seller missed the confirmation deadline — the order will be cancelled automatically.",
+  "Lewat batas waktu, pesanan dibatalkan otomatis — belum ada dana yang ditahan.": "Past the deadline, the order is cancelled automatically — no funds were held.",
+  "Status antrean: ditinjau mediator · Tim kami merespons maksimal {x}×{x} jam.": "Queue status: under mediator review · Our team responds within {x}×{x} hours.",
+  "Dana escrow akan dibekukan sampai mediator Kahade memutuskan. Sengketa yang sudah dibuka tidak bisa dibatalkan sepihak.": "Escrow funds will be frozen until a Kahade mediator decides. An opened dispute cannot be cancelled unilaterally."
 }

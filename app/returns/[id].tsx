@@ -65,6 +65,9 @@ export default function ReturnDetailScreen() {
   const [mutating, setMutating] = useState(false)
   /** T4-010: dialog konfirmasi batal retur (menggantikan Alert.alert). */
   const [cancelOpen, setCancelOpen] = useState(false)
+  // FE-050: konfirmasi penerimaan barang retur — dialog dulu, bukan
+  // sekali-ketuk. Aksi ini menggerakkan dana/resolusi.
+  const [confirmReceiveOpen, setConfirmReceiveOpen] = useState(false)
   const query = useApiQuery<ReturnDetail>(
     `return:${String(id)}`,
     (signal) => api.returns.getReturn(String(id), signal),
@@ -249,7 +252,7 @@ export default function ReturnDetailScreen() {
             {detail.status === "RETURN_SHIPPING" ? (
               <Button
                 loading={mutating}
-                onPress={() => run("Konfirmasi terima", "Gagal mengonfirmasi penerimaan", () => api.returns.confirmReturnReceived(detail.id))}
+                onPress={() => setConfirmReceiveOpen(true)}
               >
                 Konfirmasi Barang Diterima (Penjual)
               </Button>
@@ -265,6 +268,26 @@ export default function ReturnDetailScreen() {
             ) : null}
           </View>
 
+          {/*
+            FE-050 (audit UI/UX intuitif 2026-09-29): konfirmasi penerimaan
+            barang retur memakai <Dialog> — sekali-ketuk terlalu mudah untuk
+            aksi yang menggerakkan resolusi. Label konfirmasi eksplisit.
+          */}
+          <Dialog
+            visible={confirmReceiveOpen}
+            onRequestClose={() => setConfirmReceiveOpen(false)}
+            title="Barang retur sudah diterima?"
+            description="Pastikan barang retur sudah benar-benar Anda terima dan periksa kondisinya. Setelah dikonfirmasi, retur lanjut ke tahap penyelesaian."
+            cancelLabel="Kembali"
+            confirmLabel="Ya, barang retur sudah diterima"
+            loading={mutating}
+            onConfirm={() => {
+              setConfirmReceiveOpen(false)
+              void run("Konfirmasi terima", "Gagal mengonfirmasi penerimaan", () =>
+                api.returns.confirmReturnReceived(detail.id),
+              )
+            }}
+          />
           {/*
             T4-010 (audit UI/UX intuitif 2026-09-29): konfirmasi pembatalan
             memakai <Dialog> bermerek dengan konsekuensi eksplisit, bukan

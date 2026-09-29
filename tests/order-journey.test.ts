@@ -24,8 +24,8 @@ function states(input: JourneyInput) {
 }
 
 describe("buildOrderJourney", () => {
-  it("selalu memuat 5 tahap untuk order aktif", () => {
-    for (const status of ["WAITING_CONFIRMATION", "WAITING_PAYMENT", "PROCESSING", "IN_DELIVERY"]) {
+  it("selalu memuat 5 tahap untuk order aktif (6 untuk WAITING_CONFIRMATION — ada langkah konfirmasi)", () => {
+    for (const status of ["WAITING_PAYMENT", "PROCESSING", "IN_DELIVERY"]) {
       const steps = buildOrderJourney({ ...base, status })
       expect(steps).toHaveLength(5)
       expect(steps.map((s) => s.key)).toEqual([
@@ -36,16 +36,35 @@ describe("buildOrderJourney", () => {
         "released",
       ])
     }
+    // FE-045: WAITING_CONFIRMATION menyisipkan langkah "confirmed".
+    const wc = buildOrderJourney({ ...base, status: "WAITING_CONFIRMATION" })
+    expect(wc).toHaveLength(6)
+    expect(wc.map((s) => s.key)).toEqual([
+      "created",
+      "confirmed",
+      "paid",
+      "shipped",
+      "received",
+      "released",
+    ])
   })
 
-  it("WAITING_CONFIRMATION: dibuat selesai, bayar berjalan", () => {
+  it("WAITING_CONFIRMATION: dibuat selesai, KONFIRMASI berjalan (bukan bayar)", () => {
     expect(states(base)).toEqual([
       "created:done",
-      "paid:current",
+      "confirmed:current",
+      "paid:upcoming",
       "shipped:upcoming",
       "received:upcoming",
       "released:upcoming",
     ])
+  })
+
+  it("WAITING_CONFIRMATION: langkah konfirmasi punya hint menunggu penjual", () => {
+    const steps = buildOrderJourney(base)
+    const confirmed = steps.find((s) => s.key === "confirmed")!
+    expect(confirmed.label).toBe("Konfirmasi penjual")
+    expect(confirmed.hint).toMatch(/menunggu penjual/i)
   })
 
   it("WAITING_PAYMENT: tahap bayar berjalan dengan hint", () => {
@@ -124,7 +143,8 @@ describe("buildOrderJourney", () => {
 
   it("status tak dikenal tidak melempar dan tampil seperti tahap awal", () => {
     const steps = buildOrderJourney({ ...base, status: "SOMETHING_NEW" })
-    expect(steps).toHaveLength(5)
+    // FE-045: 6 tahap (termasuk "Konfirmasi penjual").
+    expect(steps).toHaveLength(6)
     expect(steps[0].state).toBe("done")
   })
 

@@ -798,7 +798,10 @@ function ShowcaseDetailContent({
   const handleCreateTransaction = useCallback(() => {
     const target = item.orderLink
       ? ROUTES.createTransactionFromShowcase(item.orderLink, item.author.username)
-      : ROUTES.createTransactionWith(item.author.username)
+      : // FE-044: tanpa orderLink, tombol "Beli via Escrow" dari etalase tetap
+        // membawa flag fromShowcase — wizard mulai dari langkah 1 (mode &
+        // peran sudah pasti), bukan langkah 0.
+        ROUTES.createTransactionWith(item.author.username, { fromShowcase: true })
     router.push(hasSession ? target : ROUTES.loginRequired(`/showcase/${encodeURIComponent(item.id)}`))
   }, [item, hasSession])
 

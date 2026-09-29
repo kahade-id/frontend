@@ -22,6 +22,10 @@ import {
   resolveShippingCountdown,
   type ShippingCountdownInput,
 } from "@/lib/order-shipping-countdown"
+import {
+  resolveConfirmCountdown,
+  type ConfirmCountdownInput,
+} from "@/lib/order-confirm-countdown"
 import { translate } from "@/lib/i18n/translate"
 
 /**
@@ -134,6 +138,8 @@ export const ShippingCountdownBox = memo(function ShippingCountdownBox({
           </Text>
           {/* T2-009: jalur bantuan langsung dari kartu tenggat. */}
           {onDispute ? (
+            // FE-046: label jujur — tombol ini MEMBUKA sengketa (dana
+            // dibekukan), bukan sekadar "melaporkan".
             <Button
               variant="secondary"
               size="sm"
@@ -141,7 +147,7 @@ export const ShippingCountdownBox = memo(function ShippingCountdownBox({
               onPress={onDispute}
               className="mt-1"
             >
-              Laporkan masalah
+              Ajukan sengketa
             </Button>
           ) : null}
         </>
@@ -180,8 +186,53 @@ export const ShippingOverdueBanner = memo(function ShippingOverdueBanner({
         leftIcon={ShieldWarning}
         onPress={onOpenDispute}
       >
-        Laporkan masalah
+        {/* FE-046: label jujur — membuka sengketa formal, bukan sekadar "melaporkan". */}
+        Ajukan sengketa
       </Button>
+    </View>
+  )
+})
+
+/**
+ * FE-110 (audit 2026-09-29): countdown "Batas konfirmasi penjual" —
+ * tampil HANYA di WAITING_CONFIRMATION dengan `confirmationDeadlineAt`
+ * dari backend. Deadline lewat → status jujur "melewati batas" (backend
+ * membatalkan otomatis; klien hanya menampilkan, bukan berasumsi).
+ *
+ * Tick diisolasi di sini (memo) — layar tidak me-render ulang tiap detik.
+ */
+export const ConfirmCountdownBox = memo(function ConfirmCountdownBox({
+  input,
+}: {
+  /** Input mentah untuk `resolveConfirmCountdown` (stabil per data order). */
+  input: ConfirmCountdownInput
+}) {
+  const nowMs = useClockTick(true)
+  const countdown = resolveConfirmCountdown(input, nowMs)
+  if (!countdown) return null
+  const tone = countdownTone(
+    countdown.kind === "countdown" ? countdown.secondsLeft : null,
+    countdown.kind === "overdue",
+  )
+  return (
+    <View className={`gap-1 rounded-lg p-3 ${COUNTDOWN_BOX_BG[tone]}`}>
+      <Text variant="label" tone="secondary">
+        {translate("Batas konfirmasi")}
+      </Text>
+      {countdown.kind === "countdown" ? (
+        <Text variant="body" weight={600} tone={COUNTDOWN_TITLE_TONE[tone]}>
+          {translate("Penjual harus mengonfirmasi dalam {x}.", {
+            x: formatDurationWords(countdown.secondsLeft),
+          })}
+        </Text>
+      ) : (
+        <Text variant="body" weight={600} tone={COUNTDOWN_TITLE_TONE[tone]}>
+          {translate("Penjual melewati batas konfirmasi — pesanan akan dibatalkan otomatis.")}
+        </Text>
+      )}
+      <Text variant="caption" tone="secondary">
+        {translate("Lewat batas waktu, pesanan dibatalkan otomatis — belum ada dana yang ditahan.")}
+      </Text>
     </View>
   )
 })

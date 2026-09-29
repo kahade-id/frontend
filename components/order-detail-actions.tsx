@@ -21,9 +21,11 @@ import { ctaUnavailableReasons } from "@/lib/wallet-batch139"
 import { OrderRoleBadge } from "@/components/ui/order-role-badge"
 import {
   AutoReleaseCountdownBox,
+  ConfirmCountdownBox,
   ShippingCountdownBox,
 } from "@/components/order-countdown"
 import type { ShippingCountdownInput } from "@/lib/order-shipping-countdown"
+import type { ConfirmCountdownInput } from "@/lib/order-confirm-countdown"
 
 export type OrderDetailActionsProps = Omit<ViewProps, "children"> & {
   /** Gerbang tampil — dihitung di layar dari status × peran. */
@@ -55,6 +57,11 @@ export type OrderDetailActionsProps = Omit<ViewProps, "children"> & {
    * milik layar; resolve per-tick di dalam <ShippingCountdownBox>.
    */
   shippingCountdownInput: ShippingCountdownInput | null
+  /**
+   * FE-110: input mentah countdown batas konfirmasi penjual — gerbang
+   * tampil milik layar; resolve per-tick di dalam <ConfirmCountdownBox>.
+   */
+  confirmCountdownInput: ConfirmCountdownInput | null
   onPay: () => void
   onAccept: () => void
   onReject: () => void
@@ -127,6 +134,7 @@ export function OrderDetailActions({
   myRole,
   autoReleaseAt,
   shippingCountdownInput,
+  confirmCountdownInput,
   onPay,
   onAccept,
   onReject,
@@ -179,6 +187,13 @@ export function OrderDetailActions({
         {shippingCountdownInput ? (
           <ShippingCountdownBox input={shippingCountdownInput} onDispute={onDispute} />
         ) : null}
+        {/*
+         * FE-110: kartu "Batas konfirmasi" — pembeli (dan penjual) melihat
+         * tenggat konfirmasi + apa yang terjadi bila lewat (batal otomatis).
+         * Detak terisolasi di dalam <ConfirmCountdownBox> (ter-memo).
+         * Satu-satunya sumber tenggat = `confirmationDeadlineAt` backend.
+         */}
+        {confirmCountdownInput ? <ConfirmCountdownBox input={confirmCountdownInput} /> : null}
         {/* Item 46: "Ajukan retur" sebagai aksi PRIMER selama jendela retur berlaku. */}
         {canReturnPrimary ? (
           <Button leftIcon={ArrowUDownLeft} onPress={onReturn}>

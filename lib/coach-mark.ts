@@ -22,12 +22,14 @@
  */
 import { getSecureItem, SecureKeys, setSecureItem } from "@/lib/secure-storage"
 
-export type CoachMarkId = "create" | "qr" | "feed-buy"
+export type CoachMarkId = "create" | "qr" | "feed-buy" | "escrow-definition"
 
 const KEY_BY_ID: Record<CoachMarkId, (typeof SecureKeys)[keyof typeof SecureKeys]> = {
   create: SecureKeys.coachMarkCreateSeen,
   qr: SecureKeys.coachMarkQrSeen,
   "feed-buy": SecureKeys.coachMarkFeedBuySeen,
+  // FE-114: definisi escrow sekali-tampil di sheet bayar order pertama.
+  "escrow-definition": SecureKeys.escrowDefinitionSeen,
 }
 
 /** true bila coach mark untuk elemen ini sudah pernah tampil/ditutup. */

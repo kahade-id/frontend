@@ -31,10 +31,10 @@
  *   - Header TANPA progress bar (§9.22): setup profil BUKAN bagian dari alur
  *     registrasi 4 langkah. Ini langkah opsional pasca-registrasi, seperti
  *     "welcome tour". Tidak ada "Langkah X/Y" yang relevan.
- *   - Back button disembunyikan (`showBack={false}`): tidak ada screen sebelumnya
- *     yang masuk akal untuk kembali (screen #5 sudah submit ke server; kembali
- *     akan membuat user mengulang form data diri). Satu-satunya jalan keluar
- *     adalah "Lewati" (footer) atau "Simpan".
+ *   - FE-106: tombol back ADA, tapi tujuannya memperbaiki data via
+ *     ROUTES.editProfile — BUKAN mundur ke wizard registrasi (screen #5 sudah
+ *     submit ke server; kembali ke sana berisiko submit registrasi ulang).
+ *     Satu-satunya jalan keluar lain adalah "Lewati" (footer) atau "Simpan".
  *   - Guard: butuh access token. Kalau tidak ada (langsung ke URL tanpa
  *     phone-register), redirect ke login. Token didapat dari SecureStore
  *     lewat `getAccessToken()`.
@@ -193,6 +193,20 @@ export default function SetupProfileScreen() {
     else doSkip()
   }, [hasChanges, leaveConfirm, doSkip])
 
+  // FE-106: tombol back memakai guard yang SAMA dengan "Lewati" — konfirmasi
+  // bila bio/foto berubah, tapi tujuannya ROUTES.editProfile (perbaiki data),
+  // bukan mundur ke wizard registrasi. Registration state TIDAK dibersihkan
+  // (akun sudah tercipta; user hanya pindah ke layar Ubah Profil normal).
+  const [backConfirmOpen, setBackConfirmOpen] = useState(false)
+  const handleBack = useCallback(() => {
+    if (hasChanges) setBackConfirmOpen(true)
+    else router.push(ROUTES.editProfile)
+  }, [hasChanges, router])
+  const confirmBack = useCallback(() => {
+    setBackConfirmOpen(false)
+    router.push(ROUTES.editProfile)
+  }, [router])
+
   // ── Upload avatar ──────────────────────────────────────────────────
   const uploadAvatar = useCallback(async (asset: PickedImage) => {
     setAvatarUploading(true)
@@ -264,7 +278,17 @@ export default function SetupProfileScreen() {
   // ── Tampilan Form ──────────────────────────────────────────────
   return (
     <Screen padded={false} edges={["top"]} keyboardAvoiding>
-      <Header title="Setup Profil" safeArea={false} showBack={false} />
+      {/*
+       * FE-106: tombol back KEMBALI, tapi tujuannya memperbaiki data via
+       * ROUTES.editProfile — BUKAN mundur ke wizard registrasi (akun sudah
+       * tercipta; submit ulang berisiko). Guard konfirmasi perubahan
+       * bio/foto memakai pola yang sama dengan "Lewati" (handleBack).
+       */}
+      <Header
+        title="Setup Profil"
+        safeArea={false}
+        onBack={handleBack}
+      />
 
       <ScrollView
         className="flex-1"
@@ -400,6 +424,17 @@ export default function SetupProfileScreen() {
 
       {/* A06: dialog konfirmasi "Lewati" — hanya bila ada perubahan */}
       <Dialog {...leaveConfirm.dialogProps} />
+
+      {/* FE-106: dialog konfirmasi back — hanya bila bio/foto berubah. */}
+      <Dialog
+        visible={backConfirmOpen}
+        onRequestClose={() => setBackConfirmOpen(false)}
+        title="Kembali tanpa menyimpan?"
+        description="Foto dan bio yang belum disimpan akan hilang. Anda bisa melengkapinya nanti dari Ubah Profil."
+        cancelLabel="Batal"
+        confirmLabel="Ya, kembali"
+        onConfirm={confirmBack}
+      />
     </Screen>
   )
 }
