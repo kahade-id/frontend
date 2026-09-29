@@ -42,6 +42,7 @@ import { ListLoading } from "@/components/ui/paginated-list"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
+import { Text } from "@/components/ui/text"
 import { ScreenCaptureGuard } from "@/components/security/screen-capture-guard"
 import { useToast } from "@/components/ui/toast"
 import { translate } from "@/lib/i18n/translate"
@@ -159,8 +160,22 @@ export default function BankAccountsScreen() {
         accountNumber: cleanAccountNumber,
         accountName: accountName.trim(),
       }
-      await api.bankAccounts.addBankAccount(dto)
-      toast.show({ title: "Rekening berhasil ditambahkan", tone: "success", duration: 3000 })
+      await api.bankAccounts.addBankAccount(dto).then((added) => {
+        // Verifikasi nama ke bank berjalan otomatis di backend. Bila gagal
+        // (nama tidak cocok), rekening tetap tersimpan TAPI tidak bisa
+        // menerima pencairan — user harus tahu sekarang, bukan saat dana
+        // tertahan.
+        if (added.isVerified === false) {
+          toast.show({
+            title: "Rekening ditambahkan — belum terverifikasi",
+            description: "Nama pemilik tidak cocok dengan data bank. Periksa lalu tambah ulang.",
+            tone: "warning",
+            duration: 5000,
+          })
+        } else {
+          toast.show({ title: "Rekening berhasil ditambahkan", tone: "success", duration: 3000 })
+        }
+      })
       setAdding(false)
       setBankName("")
       setAccountNumber("")
@@ -252,6 +267,12 @@ export default function BankAccountsScreen() {
         {!walletEnabled ? (
           <Alert tone="info" title="Wajib untuk penjual" className="mb-3">
             Pencairan dana transaksi dikirim ke rekening utama Anda.
+          </Alert>
+        ) : null}
+        {accounts.some((a) => a.isVerified === false) ? (
+          <Alert tone="warning" title="Ada rekening belum terverifikasi" className="mb-3">
+            Pencairan dana hanya dikirim ke rekening terverifikasi. Pastikan
+            nama pemilik sesuai data bank, lalu tambah ulang rekening tersebut.
           </Alert>
         ) : null}
         <Crossfade loading={loading} skeleton={<ListLoading />}>
@@ -360,6 +381,9 @@ export default function BankAccountsScreen() {
                   maxLength={100}
                 />
               </Field>
+              <Text variant="caption" tone="secondary">
+                Nama pemilik diverifikasi otomatis ke data bank.
+              </Text>
               <Button
                 loading={submitting}
                 onPress={() => void handleAdd()}
