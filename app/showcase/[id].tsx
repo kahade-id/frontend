@@ -1335,9 +1335,10 @@ function ShowcaseDetailContent({
       <Dialog
         title={confirmKind === "hide" ? translate("Sembunyikan komentar ini?") : translate("Hapus komentar ini?")}
         description={
-          confirmKind === "hide"
-            ? translate("Komentar tidak lagi terlihat publik, tetapi tetap bisa Anda tampilkan kembali.")
-            : translate("Komentar dihapus permanen.")
+          // FE-083: judul "Sembunyikan komentar ini?" + tombol "Sembunyikan"
+          // sudah jelas — description hanya mengulang. Varian hapus tetap
+          // memakai description (sifat permanennya perlu ditegaskan).
+          confirmKind === "hide" ? undefined : translate("Komentar dihapus permanen.")
         }
         visible={confirmTarget != null}
         destructive
