@@ -17,6 +17,33 @@ export function mergeById<T extends { id?: string }>(
 }
 
 /**
+ * PERF-FIX (TIM1-P2): gabung dua array TERURUT menjadi satu array terurut —
+ * O(n), bukan O(n log n) sort ulang seluruh list tiap halaman tiba.
+ * Dipakai `usePaginatedQuery` saat `compare` ada: `previous` sudah terurut
+ * dari pemuatan sebelumnya, hanya item baru yang di-sort dulu (O(k log k),
+ * k = ukuran halaman) lalu di-merge.
+ */
+export function mergeSorted<T>(
+  a: readonly T[],
+  b: readonly T[],
+  compare: (x: T, y: T) => number,
+): T[] {
+  if (a.length === 0) return [...b]
+  if (b.length === 0) return [...a]
+  const out: T[] = new Array(a.length + b.length)
+  let i = 0
+  let j = 0
+  let k = 0
+  while (i < a.length && j < b.length) {
+    if (compare(a[i], b[j]) <= 0) out[k++] = a[i++]
+    else out[k++] = b[j++]
+  }
+  while (i < a.length) out[k++] = a[i++]
+  while (j < b.length) out[k++] = b[j++]
+  return out
+}
+
+/**
  * PERF (tim8-komputasi P1): batas default item yang disimpan hook paginasi —
  * infinite scroll tanpa cap membuat array + biaya render tumbuh tanpa batas
  * (notifikasi, transaksi, feed, dsb.).
@@ -209,7 +236,36 @@ export function usePaginatedQuery<T extends { id?: string }>(
         for (const item of result.data) ids.current.add(getKey(item))
         const maxItems = maxItemsRef.current ?? DEFAULT_MAX_ITEMS
         setData((previous) => {
-          const merged = mergeById(reset ? [] : previous, result.data, getKey)
+          const compare = compareRef.current
+          const getKey = getKeyRef.current ?? ((item: T) => item.id ?? "")
+          let merged: T[]
+          if (!compare) {
+            merged = mergeById(reset ? [] : previous, result.data, getKey)
+          } else if (reset || previous.length === 0) {
+            // Muat awal / reset: previous kosong — sort langsung.
+            merged = [...result.data].sort(compare)
+          } else {
+            // PERF-FIX (TIM1-P2): insertion-merge — `previous` sudah terurut
+            // dari pemuatan sebelumnya. Pisahkan item baru vs update,
+            // sort hanya yang baru (O(k log k)), lalu merge O(n).
+            const prevKeys = new Set<string>()
+            for (const item of previous) prevKeys.add(getKey(item))
+            const fresh: T[] = []
+            const updated = new Map<string, T>()
+            for (const item of result.data) {
+              const key = getKey(item)
+              if (prevKeys.has(key)) updated.set(key, item)
+              else fresh.push(item)
+            }
+            // Update di tempat — kunci urut (mis. timestamp) tidak berubah
+            // saat item di-update, jadi posisi urut tetap valid.
+            const withUpdates =
+              updated.size > 0
+                ? previous.map((item) => updated.get(getKey(item)) ?? item)
+                : previous
+            fresh.sort(compare)
+            merged = mergeSorted(withUpdates, fresh, compare)
+          }
           // PERF (tim8-komputasi P1): batasi panjang array — item terlama
           // (ekor urutan unduhan) dibuang; `ids` dijaga sinkron.
           let capped = merged
@@ -217,8 +273,7 @@ export function usePaginatedQuery<T extends { id?: string }>(
             capped = merged.slice(0, maxItems)
             for (let i = maxItems; i < merged.length; i++) ids.current.delete(getKey(merged[i]))
           }
-          const compare = compareRef.current
-          return compare ? [...capped].sort(compare) : capped
+          return capped
         })
         nextPage.current = page + 1
         // F-09: `hasNewIds` sebelumnya menghentikan paginasi bila satu

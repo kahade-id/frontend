@@ -8,7 +8,7 @@
  * dengan `useApiQuery` + <DataScreen>.
  * Ditambahkan juga mutasi hapus favorit langsung dari daftar.
  */
-import { memo, useCallback, useState } from "react"
+import { memo, useCallback, useMemo, useState } from "react"
 import { Heart } from "phosphor-react-native"
 import { router } from "expo-router"
 import { translate } from "@/lib/i18n/translate"
@@ -79,6 +79,17 @@ export default function FavoritesScreen() {
   const toast = useToast()
   const query = useApiQuery("favorites", (signal) => api.users.getFavorites(signal))
   const items = query.data ?? []
+  // PERF-FIX (TIM1-P2): objek empty di-memo — bukan objek inline yang
+  // membuat prop `empty` <DataScreen> churn tiap render.
+  const emptyState = useMemo(
+    () =>
+      items.length === 0 && {
+        icon: Heart,
+        title: "Belum ada favorit",
+        description: "Simpan pengguna favorit dari profil mereka.",
+      },
+    [items.length],
+  )
   const [removingId, setRemovingId] = useState<string | null>(null)
   // FE-065: destruktur agar useCallback di bawah tidak bergantung pada objek
   // `query` (identitasnya berubah saat data berubah — itu wajar; yang
@@ -117,13 +128,7 @@ export default function FavoritesScreen() {
       title="Favorit"
       state={query}
       loadingMessage="Memuat favorit…"
-      empty={
-        items.length === 0 && {
-          icon: Heart,
-          title: "Belum ada favorit",
-          description: "Simpan pengguna favorit dari profil mereka.",
-        }
-      }
+      empty={emptyState}
       contentClassName="gap-1"
     >
       <SectionHeader title="Pengguna favorit" />

@@ -215,17 +215,22 @@ export async function fetchViaQueryCache<T>(
     const existing = inFlightFetches.get(key)
     if (existing) return existing as Promise<T>
   }
-  const run = (async () => {
+  // PERF-FIX (TIM1): `run` dipakai di `finally` sebelum assignment selesai —
+  // bungkus dalam holder agar TS tidak error TS2454 (runtime tidak berubah:
+  // `finally` baru jalan setelah `holder.run` ter-assign).
+  const holder: { run?: Promise<T> } = {}
+  holder.run = (async () => {
     try {
       const data = await fetcher(signal ?? new AbortController().signal)
       writeQueryCache(key, data)
       return data
     } finally {
-      if (signal === undefined && inFlightFetches.get(key) === run) {
+      if (signal === undefined && inFlightFetches.get(key) === holder.run) {
         inFlightFetches.delete(key)
       }
     }
   })()
+  const run = holder.run
   if (signal === undefined) inFlightFetches.set(key, run)
   return run
 }

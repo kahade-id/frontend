@@ -346,17 +346,20 @@ function areSwipeablePropsEqual(
 export const SwipeableListItem = memo(SwipeableListItemBase, areSwipeablePropsEqual)
 
 function ActionButton({ action, width, onDone }: { action: SwipeAction; width: number; onDone: () => void }) {
+  // PERF-FIX (TIM1-P2): style + onPress stabil — bukan objek/closure inline.
+  const containerStyle = useMemo(() => ({ width }), [width])
+  const handlePress = useCallback(() => {
+    onDone()
+    action.onPress()
+  }, [onDone, action])
   // Lebar lewat style (angka runtime dari prop) — bukan class arbitrer.
   return (
-    <View style={{ width }} className="h-full">
+    <View style={containerStyle} className="h-full">
       <PressableScale
         accessibilityRole="button"
         accessibilityLabel={action.label}
         scaleOnPress={false}
-        onPress={() => {
-          onDone()
-          action.onPress()
-        }}
+        onPress={handlePress}
         containerClassName={cn("h-full w-full", focusRingInset)}
         className={cn(
           "h-full w-full items-center justify-center gap-1 px-2",

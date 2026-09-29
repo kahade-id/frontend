@@ -36,7 +36,7 @@
  *   - Cari pesan dalam ruang (J-07): sheet + GET /rooms/{id}/search; hasil
  *     yang termuat di thread dilompati via scrollToIndex.
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   AppState,
   FlatList,
@@ -68,11 +68,13 @@ import {
 } from "phosphor-react-native"
 
 import { api, isApiError, userMessage } from "@/lib/api"
+import { consumePrefetchedChatRoom } from "@/lib/entity-detail-prefetch"
 import { validateChatAttachment } from "@/lib/chat-attachment-limits"
 import { getOrder, type Order } from "@/lib/api/orders"
 import { refreshUnreadCount } from "@/lib/unread-count"
 import { refreshChatUnreadCount } from "@/lib/chat-unread-count"
 import { usePolling } from "@/lib/use-polling"
+import { useDebouncedValue } from "@/lib/use-debounced-value"
 import {
   CHAT_PAGE_SIZE,
   QUICK_REACTIONS,
@@ -350,13 +352,30 @@ function messageTypeFor(
 }
 
 function sortByTime(items: ChatMessage[]): ChatMessage[] {
-  return [...items].sort(
-    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
-  )
+  // PERF (tim8-komputasi P1): decorate-sort-undecorate — 1 parse per item,
+  // bukan O(N log N). Dipakai di 5 titik termasuk merge realtime.
+  return items
+    .map((m) => ({ m, t: new Date(m.createdAt).getTime() }))
+    .sort((a, b) => a.t - b.t)
+    .map(({ m }) => m)
 }
 
-export default function ChatRoomScreen() {
-  const insets = useSafeAreaInsets()
+/** PERF-FIX (TIM1-P2): pemisah "belum dibaca" di-memo — onPress stabil per
+ * anchorId, tidak ada closure inline di renderThreadRow. */
+const UnreadSeparatorRow = memo(function UnreadSeparatorRow({
+  count,
+  anchorId,
+  onJump,
+}: {
+  count: number
+  anchorId: string
+  onJump: (anchorId: string) => void
+}) {
+  const handlePress = useCallback(() => onJump(anchorId), [onJump, anchorId])
+  return <ChatUnreadSeparator count={count} onPress={handlePress} />
+})
+
+export default function ChatRoomScreen() {  const insets = useSafeAreaInsets()
   // C-06 (audit): `title` opsional dikirim saat navigasi dari daftar chat —
   // GET /rooms tidak punya endpoint detail dan pencarian ruang hanya memuat
   // 30 pertama, sehingga ruang ke-31+ kehilangan nama lawan bicara di header.
@@ -369,6 +388,14 @@ export default function ChatRoomScreen() {
   const isSelfChat = self === "1"
   const toast = useToast()
   const { copy } = useCopy()
+  /**
+   * PERF-FIX (P1 nav): hasil prefetch press-in dari tab Pesan dipakai SEKALI
+   * untuk slot getChatRoom di fetchMessages — header room langsung tersedia
+   * tanpa request ulang bila masih segar (TTL 90 dtk).
+   */
+  const prefetchedRoomRef = useRef<Awaited<ReturnType<typeof api.chat.getChatRoom>> | null>(
+    typeof roomId === "string" && roomId ? consumePrefetchedChatRoom(roomId) : null,
+  )
 
   const [room, setRoom] = useState<ChatRoom | null>(null)
   const [messages, setMessages] = useState<ChatMessage[]>([])
@@ -633,11 +660,18 @@ export default function ChatRoomScreen() {
    */
   const [inlineSearchOpen, setInlineSearchOpen] = useState(false)
   const [inlineQuery, setInlineQuery] = useState("")
+  /**
+   * PERF (tim8-komputasi P0): pencarian inline tanpa debounce memindai
+   * seluruh pesan termuat per keystroke — debounce 300ms (pola
+   * chat-search-sheet) supaya `findMessageMatches` hanya jalan setelah
+   * pengguna berhenti mengetik.
+   */
+  const debouncedInlineQuery = useDebouncedValue(inlineQuery, 300)
   /** Id hasil yang sedang aktif — index diturunkan dari `inlineMatches`. */
   const [inlineActiveId, setInlineActiveId] = useState<string | undefined>(undefined)
   const inlineMatches = useMemo(
-    () => (inlineSearchOpen ? findMessageMatches(messages, inlineQuery) : []),
-    [inlineSearchOpen, messages, inlineQuery],
+    () => (inlineSearchOpen ? findMessageMatches(messages, debouncedInlineQuery) : []),
+    [inlineSearchOpen, messages, debouncedInlineQuery],
   )
   const inlineMatchIds = useMemo(() => new Set(inlineMatches), [inlineMatches])
   const inlineIndex = inlineActiveId ? inlineMatches.indexOf(inlineActiveId) : -1
@@ -708,12 +742,17 @@ export default function ChatRoomScreen() {
       // D1-003: header room diambil via GET /v1/chat/rooms/:roomId (ringan) —
       // tidak lagi fetch ulang seluruh daftar room (halaman 1, 30 baris join
       // berat) hanya untuk menemukan 1 baris.
+      // PERF-FIX (P1 nav): prefetch press-in diutamakan bila segar.
+      const prefetchedRoom = prefetchedRoomRef.current
+      prefetchedRoomRef.current = null
       const [page, roomRow, failed] = await Promise.all([
         api.chat.getChatMessages(roomId, { limit: CHAT_PAGE_SIZE }, controller.signal),
-        api.chat.getChatRoom(roomId, controller.signal).catch((err) => {
-          logWarn("chat:room-lookup", err)
-          return null
-        }),
+        prefetchedRoom
+          ? Promise.resolve(prefetchedRoom)
+          : api.chat.getChatRoom(roomId, controller.signal).catch((err) => {
+              logWarn("chat:room-lookup", err)
+              return null
+            }),
         // B07: antrean pesan gagal yang persisten — selamat dari refresh.
         loadChatFailedMessages(roomId),
       ])
@@ -1845,6 +1884,12 @@ export default function ChatRoomScreen() {
     message: ChatMessage
     anchor: ChatBubbleAnchor
   } | null>(null)
+  // PERF-FIX (TIM1-P2): ref ke popover agar onPick stabil.
+  const reactionPopoverRef = useRef(reactionPopover)
+  reactionPopoverRef.current = reactionPopover
+  // PERF-FIX (TIM1-P2): handler FlatList stabil.
+  const handleScrollBeginDrag = useCallback(() => Keyboard.dismiss(), [])
+  const handleReactionDismiss = useCallback(() => setReactionPopover(null), [])
   const selectedMessages = useMemo(
     () => messages.filter((m) => selectedIds.has(m.id)),
     [messages, selectedIds],
@@ -2004,6 +2049,18 @@ export default function ChatRoomScreen() {
       }
     },
     [roomId, patchMessage, toast.show],
+  )
+  // PERF-FIX (TIM1-P2): onPick popover stabil — baca popover via ref.
+  const handleReactionPick = useCallback(
+    (emoji: string) => {
+      const target = reactionPopoverRef.current?.message
+      setReactionPopover(null)
+      if (target) {
+        exitSelect()
+        void handleReact(target, emoji)
+      }
+    },
+    [exitSelect, handleReact],
   )
 
   // ── Pin / unpin ──
@@ -2429,7 +2486,7 @@ export default function ChatRoomScreen() {
       // B02: pemisah "Belum dibaca" — ketuk = kembali ke titik itu.
       if (row.kind === "unread") {
         return (
-          <ChatUnreadSeparator count={row.count} onPress={() => jumpToMessage(row.anchorId)} />
+          <UnreadSeparatorRow count={row.count} anchorId={row.anchorId} onJump={jumpToMessage} />
         )
       }
       const m = row.message
@@ -2778,7 +2835,7 @@ export default function ChatRoomScreen() {
         contentContainerStyle={threadContentStyle}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
-        onScrollBeginDrag={() => Keyboard.dismiss()}
+        onScrollBeginDrag={handleScrollBeginDrag}
         onContentSizeChange={handleContentSizeChange}
         onScroll={handleScroll}
         scrollEventThrottle={SCROLL_EVENT_THROTTLE}
@@ -2819,15 +2876,8 @@ export default function ChatRoomScreen() {
       <ChatReactionPopover
         target={reactionPopover}
         emojis={QUICK_REACTIONS}
-        onPick={(emoji) => {
-          const target = reactionPopover?.message
-          setReactionPopover(null)
-          if (target) {
-            exitSelect()
-            void handleReact(target, emoji)
-          }
-        }}
-        onDismiss={() => setReactionPopover(null)}
+        onPick={handleReactionPick}
+        onDismiss={handleReactionDismiss}
       />
 
       {/* Menu ⋮ RUANG (bukan per pesan): lihat pesanan, cari pesan, profil

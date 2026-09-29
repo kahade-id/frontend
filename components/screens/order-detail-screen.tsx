@@ -37,6 +37,7 @@ import { useLocalSearchParams, router, type Href } from "expo-router"
 import { ArrowUDownLeft, ClockCounterClockwise, DotsThreeVertical, Package, Plus, Question, Receipt, ShieldCheck, ShieldWarning, Timer, Truck, X, XCircle } from "phosphor-react-native"
 
 import { api, isApiError, userMessage, type Order, type Wallet } from "@/lib/api"
+import { consumePrefetchedOrderDetail } from "@/lib/entity-detail-prefetch"
 import { createIdempotencyKey } from "@/lib/api/client"
 import { normalizeOrder } from "@/lib/api/orders"
 import {
@@ -131,6 +132,10 @@ import { OrderDetailSkeleton } from "@/components/ui/order-detail-skeleton"
 
 const HISTORY_LIMIT = 50
 
+// PERF-FIX (TIM1-P2): style statis di level modul — bukan objek inline.
+const SECTION_PADDING_TOP = { paddingTop: tokens.space[3] }
+const HISTORY_MARGIN_TOP = { marginTop: tokens.space[3] }
+
 const NOTE_MAX = 500
 /** R2 #108: status terminal — polling berhenti & riwayat penuh dimuat lazy. */
 const ORDER_TERMINAL_STATUSES: readonly string[] = [
@@ -202,6 +207,16 @@ export default function OrderDetailScreen() {
   const [escrowBannerVisible, setEscrowBannerVisible] = useState(false)
 
   /**
+   * PERF-FIX (P1 nav): hasil prefetch press-in dari tab Transaksi dipakai
+   * SEKALI sebagai respons getOrder pertama — halaman langsung render tanpa
+   * request ulang bila masih segar (TTL 90 dtk). `useRef` initializer jalan
+   * sekali per mount, selaras sifat sekali-pakai `consume…`.
+   */
+  const prefetchedOrderRef = useRef<Awaited<ReturnType<typeof api.orders.getOrder>> | null>(
+    id ? consumePrefetchedOrderDetail(id as string) : null,
+  )
+
+  /**
    * Audit: state async dirakit manual. Cacat terbukti dari kode lama:
    * `handleRefresh` memanggil `fetchOrder()` yang sama dengan muat-awal, dan
    * fungsi itu membuka dengan `setLoading(true)` — tarik-untuk-menyegarkan
@@ -232,12 +247,15 @@ export default function OrderDetailScreen() {
     `order-detail:${id}`,
     async (signal) => {
       const oid = id as string
+      // PERF-FIX (P1 nav): prefetch diutamakan untuk slot getOrder.
+      const prefetchedOrder = prefetchedOrderRef.current
+      prefetchedOrderRef.current = null
       // F-05 (audit): `getMe` TIDAK lagi ditarik setiap buka order — hanya
       // fallback bila backend tidak mengisi `myRole` (peran diinfer dari
       // id/username). `average-durations` (statistik global) lewat cache
       // 10 menit per sesi (getAverageDurationsCached).
       const [o, h, d] = await Promise.all([
-        api.orders.getOrder(oid, signal),
+        prefetchedOrder ? Promise.resolve(prefetchedOrder) : api.orders.getOrder(oid, signal),
         api.orders
           .getOrderHistory(oid, { page: 1, limit: HISTORY_LIMIT }, signal)
           .catch((err) => {
@@ -482,6 +500,10 @@ export default function OrderDetailScreen() {
   const [confirmAccept, setConfirmAccept] = useState(false)
   // Menu titik-tiga header: aksi sekunder (bantuan, invoice, sengketa, batal).
   const [moreOpen, setMoreOpen] = useState(false)
+  // PERF-FIX (TIM1-P2): handler stabil — bukan closure inline.
+  const handleMoreOpen = useCallback(() => setMoreOpen(true), [])
+  const handleMoreClose = useCallback(() => setMoreOpen(false), [])
+  const handleLoadMoreHistory = useCallback(() => void loadMoreHistory(), [loadMoreHistory])
   // Item 32: dialog konfirmasi SEBELUM dana escrow dilepas.
   const [confirmComplete, setConfirmComplete] = useState(false)
 
@@ -1247,7 +1269,7 @@ export default function OrderDetailScreen() {
             icon={DotsThreeVertical}
             variant="ghost"
             accessibilityLabel={translate("Pilihan lainnya")}
-            onPress={() => setMoreOpen(true)}
+            onPress={handleMoreOpen}
           />
         }
       />
@@ -1269,7 +1291,7 @@ export default function OrderDetailScreen() {
         {/* Iterasi de-card 2026-09-27: ritme antar-section space.8 (32px)
             sesuai §4 — section polos butuh ruang napas lebih lega
             dibanding tumpukan kartu. */}
-        <View className="gap-7" style={{ paddingTop: tokens.space[3] }}>
+        <View className="gap-7" style={SECTION_PADDING_TOP}>
           {/* 1 — Hero: status menonjol + judul + ID transaksi + tanggal/waktu.
               Hierarki baca: STATUS → JUDUL → ID TRANSAKSI → TANGGAL/WAKTU. */}
           <OrderStatusHero
@@ -1505,11 +1527,11 @@ export default function OrderDetailScreen() {
             />
           )}
           {historyHasMore ? (
-            <View style={{ marginTop: tokens.space[3] }}>
+            <View style={HISTORY_MARGIN_TOP}>
               <Button
                 variant="ghost"
                 loading={historyLoadingMore}
-                onPress={() => void loadMoreHistory()}
+                onPress={handleLoadMoreHistory}
               >
                 Muat lebih riwayat
               </Button>
@@ -1524,7 +1546,7 @@ export default function OrderDetailScreen() {
       <ActionSheet
         title={translate("Pilihan lainnya")}
         visible={moreOpen}
-        onRequestClose={() => setMoreOpen(false)}
+        onRequestClose={handleMoreClose}
         actions={moreActions}
       />
 

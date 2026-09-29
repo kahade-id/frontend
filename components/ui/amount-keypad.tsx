@@ -38,7 +38,7 @@
  *   - Tampilan selalu diformat groupThousands agar terasa "hidup" saat
  *     digit bertambah — momen yang sama dengan count-up Amount.
  */
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { Animated, Easing, View, useWindowDimensions, type ViewProps } from "react-native"
 import { Backspace, Check } from "phosphor-react-native"
 
@@ -133,6 +133,31 @@ export const KEYPAD_KEY_SIZE = { default: 64, compact: 56 } as const
 /** Jarak minimum antar tombol (px) — `gap` baris, bukan hitSlop. */
 export const KEYPAD_KEY_GAP = 8
 
+/**
+ * PERF-FIX (TIM1-P2): kursor berkedip diisolasi ke sub-komponen kecil —
+ * `setInterval` 2x/detik hanya me-render ulang kursor, bukan seluruh keypad
+ * (tombol-tombol). Berhenti berkedip bila reduced motion.
+ */
+const BlinkingCursor = memo(function BlinkingCursor({ reducedMotion }: { reducedMotion: boolean }) {
+  const [visible, setVisible] = useState(true)
+  useEffect(() => {
+    if (reducedMotion) {
+      setVisible(false)
+      return
+    }
+    setVisible(true)
+    const t = setInterval(() => setVisible((v) => !v), CURSOR_BLINK_MS)
+    return () => clearInterval(t)
+  }, [reducedMotion])
+  // Kursor berkedip: opacity dianimasikan; warna & dimensi via className token.
+  return (
+    <View
+      className="mb-1.5 ml-0.5 h-8 w-0.5 bg-primary"
+      style={{ opacity: visible ? 1 : 0 }}
+    />
+  )
+})
+
 export function AmountKeypad({
   value,
   onChange,
@@ -158,7 +183,6 @@ export function AmountKeypad({
   // natural (tidak melompat saat ribuan bertambah); value ke pemanggil
   // adalah hasil parseInt.
   const digits = useMemo(() => digitsFromValue(value), [value])
-  const [cursorVisible, setCursorVisible] = useState(true)
 
   const displayed = useMemo(() => {
     if (digits.length === 0) return "0"
@@ -176,18 +200,6 @@ export function AmountKeypad({
       : aboveMax
         ? `Maksimal ${formatRupiah(max ?? 0)}`
         : undefined)
-
-  // Kursor berkedip hanya saat keypad aktif, tidak disabled, dan belum
-  // ada error. Berhenti berkedip bila reduced motion.
-  useEffect(() => {
-    if (disabled || reducedMotion) {
-      setCursorVisible(false)
-      return
-    }
-    setCursorVisible(true)
-    const t = setInterval(() => setCursorVisible((v) => !v), CURSOR_BLINK_MS)
-    return () => clearInterval(t)
-  }, [disabled, reducedMotion])
 
   /**
    * A-06/H-02 (audit 2026-09-22): dulu batas panjang 12 digit hanya ditegakkan
@@ -355,17 +367,22 @@ export function AmountKeypad({
     [disabled, canPressAction, compact],
   )
 
-  // Tampilan nominal — animasi scale kecil saat berubah (kena tombol)
+  // Tampilan nominal — animasi scale kecil saat berubah (kena tombol).
+  // PERF (tim7): stop animasi lama sebelum start baru — ketik cepat
+  // sebelumnya menumpuk animasi scale.
   const scale = useRef(new Animated.Value(1)).current
   useEffect(() => {
     if (reducedMotion) return
+    scale.stopAnimation()
     scale.setValue(0.96)
-    Animated.timing(scale, {
+    const anim = Animated.timing(scale, {
       toValue: 1,
       duration: tokens.motion.duration.fast,
       easing: Easing.bezier(...tokens.motion.easing.enter),
       useNativeDriver: true,
-    }).start()
+    })
+    anim.start()
+    return () => anim.stop()
   }, [digits, scale, reducedMotion])
 
   return (
@@ -430,13 +447,10 @@ export function AmountKeypad({
             >
               {displayed}
             </Text>
-            {/* Kursor */}
+            {/* Kursor — PERF-FIX (TIM1-P2): diisolasi ke <BlinkingCursor> agar
+                kedip 2x/detik tidak me-render ulang seluruh keypad. */}
             {!disabled && digits.length > 0 && !resolvedError ? (
-              // Kursor berkedip: opacity dianimasikan; warna & dimensi via className token.
-              <View
-                className="mb-1.5 ml-0.5 h-8 w-0.5 bg-primary"
-                style={{ opacity: cursorVisible ? 1 : 0 }}
-              />
+              <BlinkingCursor reducedMotion={reducedMotion} />
             ) : null}
           </View>
         </Animated.View>
