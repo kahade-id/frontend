@@ -53,6 +53,7 @@ import { useWindowDimensions, View, type ViewProps } from "react-native"
 
 import { Avatar, type AvatarProps } from "@/components/ui/avatar"
 import { type SealTier } from "@/components/ui/verified-seal"
+import { Badge } from "@/components/ui/badge"
 import { Dot } from "@/components/ui/dot"
 import { Icon } from "@/components/ui/icon"
 import { PressableScale } from "@/components/ui/pressable-scale"
@@ -92,6 +93,13 @@ export type ChatRoomListItemProps = Omit<ViewProps, "children"> & {
    * "Pesanan". Dirender Mono caption text-secondary.
    */
   context?: string
+  /**
+   * U5-009 (UX-deep 2026-09-29): badge kecil "Escrow" di kanan baris
+   * pertama MENGGANTIKAN kode order mentah (`context`) — user baru tidak
+   * tahu "KHD-…" artinya chat terikat transaksi escrow. `context` tetap
+   * didukung untuk pemanggil lain (tidak ada lagi saat ini).
+   */
+  orderBadge?: boolean
   onPress?: () => void
   onLongPress?: () => void
   /** Mode pilih-banyak aktif: baris menjadi toggle, lencana Check tampil. */
@@ -103,7 +111,7 @@ export type ChatRoomListItemProps = Omit<ViewProps, "children"> & {
   divider?: boolean
   /** Garis batas ATAS — untuk baris pertama yang butuh bingkai (kartu dst). */
   dividerTop?: boolean
-  labels?: { you?: string; typing?: string; unread?: string; selected?: string }
+  labels?: { you?: string; typing?: string; unread?: string; selected?: string; escrow?: string }
   className?: string
 }
 
@@ -112,6 +120,7 @@ const DEFAULT_LABELS = {
   typing: "mengetik…",
   unread: "belum dibaca",
   selected: "dipilih",
+  escrow: "Escrow",
 }
 
 /**
@@ -142,6 +151,7 @@ export function ChatRoomListItemBase({
   muted = false,
   pinned = false,
   context,
+  orderBadge = false,
   onPress,
   onLongPress,
   selecting = false,
@@ -169,7 +179,7 @@ export function ChatRoomListItemBase({
     selecting && selected ? t.selected : undefined,
     name,
     preview,
-    context,
+    orderBadge ? t.escrow : context,
     time,
     hasUnread ? `${unreadCount} ${t.unread}` : undefined,
     muted ? "dibisukan" : undefined,
@@ -227,7 +237,13 @@ export function ChatRoomListItemBase({
             {name}
           </Text>
           {pinned ? <Icon icon={PushPin} size="xs" tone="default" /> : null}
-          {context ? (
+          {orderBadge ? (
+            // U5-009: room ber-orderId ditandai badge "Escrow" (tone accent =
+            // momen trust & escrow, §9.7) — bukan kode mentah.
+            <Badge tone="accent" variant="outline" className="shrink-0">
+              {t.escrow}
+            </Badge>
+          ) : context ? (
             <Text
               variant="caption"
               tone="secondary"
@@ -379,6 +395,7 @@ function areRoomItemPropsEqual(
     prev.muted === next.muted &&
     prev.pinned === next.pinned &&
     (prev.context ?? null) === (next.context ?? null) &&
+    (prev.orderBadge ?? false) === (next.orderBadge ?? false) &&
     prev.onPress === next.onPress &&
     prev.onLongPress === next.onLongPress &&
     prev.selecting === next.selecting &&

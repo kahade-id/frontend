@@ -53,7 +53,7 @@ import {
 } from "@/lib/realtime/chat-events"
 import { useRealtime } from "@/lib/realtime/realtime-context"
 import { ORDER_STATUS_LABELS } from "@/lib/labels/status"
-import { formatTimeAgo, truncateMiddle } from "@/lib/format"
+import { formatTimeAgo } from "@/lib/format"
 import { haptic } from "@/lib/haptics"
 import { translate } from "@/lib/i18n"
 import { ROUTES } from "@/lib/routes"
@@ -439,9 +439,10 @@ function ChatRoomRowBase({
         // ("5 menit lalu" / "Kemarin").
         time={item.lastMessage ? formatTimeAgo(item.lastMessage.createdAt) : undefined}
         unreadCount={item.unreadCount}
-        // Order id saja (tanpa kata "Pesanan") — metadata ringkas di kanan
-        // baris pertama; panjangnya dipotong di tengah.
-        context={item.orderId ? truncateMiddle(item.orderId, 6, 4) : undefined}
+        // U5-009 (UX-deep 2026-09-29): room ber-orderId ditandai badge
+        // kecil "Escrow", bukan kode order mentah (user baru tidak tahu
+        // "KHD-…" artinya chat terikat transaksi).
+        orderBadge={item.orderId != null}
         selecting={selecting}
         selected={selected}
         onPress={handlePress}
