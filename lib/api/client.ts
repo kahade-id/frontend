@@ -18,6 +18,7 @@ import {
 import { asRecord, invalidResponse, unwrapResponse } from "@/lib/api/response"
 import { recordServerDate } from "@/lib/server-time"
 import { recordBackpressure, clearBackpressure } from "@/lib/api/backpressure"
+import { getStoredEtag, getStoredEtagBody, storeEtagEntry } from "@/lib/api/etag-cache"
 import { verifyMaintenanceFrom503 } from "@/lib/api/maintenance"
 import { invalidateQueryCache } from "@/lib/query-cache"
 import { logWarn } from "@/lib/telemetry"
@@ -311,10 +312,26 @@ async function exchange(
       // §5.6.7). Di web header ini bisa tidak terekspos CORS — null diabaikan,
       // countdown jatuh ke jam perangkat seperti sebelumnya.
       recordServerDate(response.headers?.get?.("Date"))
+      // PERF-FIX (network P1): 304 = server menyatakan body tidak berubah
+      // sejak ETag yang kita kirim via If-None-Match — pakai body tersimpan
+      // tanpa mengunduh ulang (lihat lib/api/etag-cache.ts). Hanya mungkin
+      // bila kita memang mengirim If-None-Match; tanpa simpanan, jatuh ke
+      // jalur galat biasa (seharusnya tak terjadi).
+      if (response.status === 304) {
+        const stored = getStoredEtagBody(url)
+        if (stored.found) return { status: 304, value: stored.body }
+      }
       if (!response.ok)
         return { status: response.status, error: await toApiError(response, method, path) }
       const body = await parseBody(response, type)
-      return { status: response.status, value: type === "json" ? unwrapResponse(body) : body }
+      const value = type === "json" ? unwrapResponse(body) : body
+      // PERF-FIX (network P1): simpan ETag untuk revalidasi berikutnya.
+      // Fail-open: backend yang tidak mengirim ETag tidak mengubah apa pun.
+      if (method === "GET" && type === "json") {
+        const etag = response.headers?.get?.("ETag")
+        if (etag) storeEtagEntry(url, etag, value)
+      }
+      return { status: response.status, value }
     },
     method,
     path,
@@ -583,6 +600,14 @@ async function performRequest<TResponse, TBody>(
     if (idempotencyKey && !headers["Idempotency-Key"]) headers["Idempotency-Key"] = idempotencyKey
     // G478: correlation ID end-to-end (tidak menimpa bila sudah diset).
     ensureRequestId(headers)
+    // PERF-FIX (network P1): revalidasi ETag — bila URL ini pernah dibaca
+    // dengan ETag, tanyakan dulu apakah berubah (server yang mendukung
+    // menjawab 304 + tanpa body). Fail-open: tanpa ETag tersimpan, header
+    // tidak ditambahkan dan perilaku identik seperti sebelumnya.
+    if (method === "GET" && headers["If-None-Match"] == null) {
+      const etag = getStoredEtag(url)
+      if (etag) headers["If-None-Match"] = etag
+    }
     if (body !== undefined) headers["Content-Type"] = "application/json"
     if (formData)
       for (const name of Object.keys(headers))
@@ -636,7 +661,8 @@ async function performRequest<TResponse, TBody>(
      */
     if (reply.status === 429 || reply.status === 503) {
       recordBackpressure(reply.error?.retryAfterMs)
-    } else if (reply.status >= 200 && reply.status < 300) {
+    } else if (reply.status === 304 || (reply.status >= 200 && reply.status < 300)) {
+      // 304 (ETag revalidasi, PERF-FIX network P1) = sukses: server sehat.
       clearBackpressure()
     }
     /**
