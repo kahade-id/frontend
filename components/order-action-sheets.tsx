@@ -565,7 +565,6 @@ export function OrderSecondaryActions({
   canReturn,
   returnIsPrimary,
   submitting,
-  shippingOverdue,
   onOpenSheet,
 }: {
   order: Order
@@ -583,32 +582,10 @@ export function OrderSecondaryActions({
    */
   returnIsPrimary: boolean
   submitting: boolean
-  /**
-   * T2-006: true bila penjual melewati batas kirim — tampilkan banner
-   * proaktif "Penjual melewati batas kirim" agar jalur bantuan menemukan
-   * user, bukan sebaliknya.
-   */
-  shippingOverdue?: boolean
   onOpenSheet: (sheet: "dispute" | "cancel") => void
 }) {
   return (
     <>
-      {/* T2-006: banner proaktif saat penjual melewati batas kirim. */}
-      {shippingOverdue && canDispute && !isDisputed ? (
-        <View className="mb-2 gap-2 rounded-lg bg-warning-soft p-3">
-          <Text variant="body" weight={600} tone="primary">
-            Penjual melewati batas kirim
-          </Text>
-          <Button
-            variant="secondary"
-            size="sm"
-            leftIcon={ShieldWarning}
-            onPress={() => onOpenSheet("dispute")}
-          >
-            Laporkan masalah
-          </Button>
-        </View>
-      ) : null}
       <View className="flex-row flex-wrap gap-2">
       {/* H-08 (audit escrow 2026-09-24): invoice "belum diterbitkan" untuk
           WAITING_CONFIRMATION dan CANCELLED — tombol disembunyikan, bukan

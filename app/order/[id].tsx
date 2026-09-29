@@ -51,8 +51,6 @@ import {
 } from "@/lib/api/orders"
 import { RATING_SNOOZE_MS, isRatingSnoozed, snoozeRatingReminder, useUiPref } from "@/lib/ui-prefs"
 import { usePolling } from "@/lib/use-polling"
-import { useClockTick } from "@/lib/use-clock-tick"
-import { resolveShippingCountdown } from "@/lib/order-shipping-countdown"
 import { useQrisPayment } from "@/lib/use-qris-payment"
 import { assertDeviceNotCompromised } from "@/lib/device-integrity"
 import { useOrderTracking } from "@/lib/use-order-tracking"
@@ -114,6 +112,10 @@ import { useToast } from "@/components/ui/toast"
 import { buildOrderJourney } from "@/lib/order-journey"
 import { OrderDetailActions, OrderRatingReminder } from "@/components/order-detail-actions"
 import { OrderStatusHero } from "@/components/ui/order-status-hero"
+import {
+  ShippingOverdueBanner,
+} from "@/components/order-countdown"
+import type { ShippingCountdownInput } from "@/lib/order-shipping-countdown"
 import { OrderJourney } from "@/components/ui/order-journey"
 import { OrderProductCard } from "@/components/ui/order-product-card"
 import { OrderPartiesCard } from "@/components/ui/order-parties-card"
@@ -905,35 +907,38 @@ export default function OrderDetailScreen() {
   // (isRatingSnoozed) — selector per-key, bukan seluruh blob.
   useUiPref("ratingSnoozeUntil")
   /**
-   * Countdown auto-release dana (IN_DELIVERY + `autoCompleteAt` dari backend).
-   * Detak 1-Hz bersama via `useClockTick` (aktif hanya selama kartu tampil)
-   * dan jam server (E-03/F-13) agar perangkat dengan jam meleset tidak melihat
-   * hitungan yang salah. Hook di sini (sebelum early return) — lihat J-14.
+   * FE-001: countdown memakai detak 1-Hz TERISOLASI di dalam
+   * <AutoReleaseCountdownBox> / <ShippingCountdownBox> /
+   * <ShippingOverdueBanner> (ter-memo, masing-masing berlangganan sendiri).
+   * Layar hanya meneruskan data STABIL — tidak ada lagi `useClockTick` di
+   * level layar yang me-render ulang seluruh layar tiap detik. Jam
+   * perbandingan tetap jam server (E-03/F-13): `useClockTick` berakar di
+   * `serverNow()`, jadi perangkat dengan jam meleset tidak melihat hitungan
+   * yang salah. Hook di sini (sebelum early return) — lihat J-14.
+   *
+   * Countdown auto-release dana: IN_DELIVERY + `autoCompleteAt` dari
+   * backend. Fail closed: `autoCompleteAt` invalid → tidak tampil.
    */
-  const autoReleaseTicking = order?.status === "IN_DELIVERY" && !!order?.autoCompleteAt
-  /**
-   * Countdown "Batas waktu kirim penjual" — tampil HANYA bila order sudah
-   * dibayar & belum dikirim & `shippingDeadline` masih di masa depan (logika
-   * tampil/sembunyi di `resolveShippingCountdown`, pola sama seperti
-   * auto-release di atas). Deadline lewat → kartu tampil sebagai status
-   * jujur "melewati batas", konsisten dengan kartu auto-release yang tidak
-   * disembunyikan saat habis.
-   */
-  const shippingTicking = !!order?.shippingDeadline && !order?.shippedBy
-  const nowMs = useClockTick(autoReleaseTicking || shippingTicking)
-  const autoRelease = useMemo(() => {
+  const autoReleaseAt = useMemo(() => {
     if (!order || order.status !== "IN_DELIVERY" || !order.autoCompleteAt) return null
     const target = new Date(order.autoCompleteAt).getTime()
     if (!Number.isFinite(target)) return null
+    return order.autoCompleteAt
+  }, [order])
+  /**
+   * Countdown "Batas waktu kirim penjual" — input mentah yang stabil;
+   * tampil/sembunyi di-resolve per tick di dalam komponen countdown
+   * (pola sama seperti auto-release di atas).
+   */
+  const shippingCountdownInput = useMemo<ShippingCountdownInput | null>(() => {
+    if (!order || order.shippedBy || !order.shippingDeadline) return null
     return {
-      at: order.autoCompleteAt,
-      secondsLeft: Math.max(0, Math.floor((target - nowMs) / 1000)),
+      status: order.status,
+      paidAt: order.paidAt ?? null,
+      shippingDeadline: order.shippingDeadline,
+      shippedBy: order.shippedBy,
     }
-  }, [order, nowMs])
-  const shippingCountdown = useMemo(
-    () => resolveShippingCountdown(order, nowMs),
-    [order, nowMs],
-  )
+  }, [order])
   const snoozeRatingReminderForOrder = useCallback(() => {
     if (!order) return
     // E-03: snooze dibandingkan terhadap jam SERVER (serverNow) di ui-prefs,
@@ -1074,8 +1079,8 @@ export default function OrderDetailScreen() {
             submitting={submitting}
             status={order.status}
             myRole={knownRole ? myRole : undefined}
-            autoRelease={autoRelease}
-            shippingCountdown={shippingCountdown}
+            autoReleaseAt={autoReleaseAt}
+            shippingCountdownInput={shippingCountdownInput}
             // Item 34: panduan "langkah berikutnya" dihitung di dalam
             // OrderDetailActions bila area aksi kosong.
             // Item 35: label countdown kontekstual ("Batas kirim"/"Batas konfirmasi").
@@ -1249,6 +1254,15 @@ export default function OrderDetailScreen() {
 
           {/* 13 — Aksi sekunder */}
           <SectionHeader title="Lainnya" />
+          {/*
+           * FE-001 + T2-006: banner proaktif bila penjual melewati batas
+           * kirim — detak terisolasi di dalam komponen ter-memo ini.
+           */}
+          <ShippingOverdueBanner
+            input={shippingCountdownInput}
+            visible={isBuyer && canDispute && !isDisputed}
+            onOpenDispute={() => setSheet("dispute")}
+          />
           <OrderSecondaryActions
             order={order}
             chatBusy={chatBusy}
@@ -1260,8 +1274,6 @@ export default function OrderDetailScreen() {
             canReturn={isBuyer && order.status === "COMPLETED"}
             returnIsPrimary={query.data?.returnEligible === true}
             submitting={submitting}
-            // T2-006: banner proaktif bila penjual melewati batas kirim.
-            shippingOverdue={isBuyer && shippingCountdown?.kind === "overdue"}
             onOpenSheet={(kind) => setSheet(kind)}
           />
 

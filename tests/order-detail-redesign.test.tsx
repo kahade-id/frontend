@@ -156,8 +156,8 @@ describe("<OrderDetailActions>", () => {
     submitting: false,
     status: "WAITING_PAYMENT",
     myRole: "BUYER" as const,
-    autoRelease: null,
-    shippingCountdown: null,
+    autoReleaseAt: null,
+    shippingCountdownInput: null,
     onPay: noop,
     onAccept: noop,
     onReject: noop,
@@ -190,13 +190,12 @@ describe("<OrderDetailActions>", () => {
   })
 
   it("countdown auto-release tampil bila diberikan", () => {
-    renderWithTheme(
-      <OrderDetailActions
-        {...baseProps}
-        autoRelease={{ secondsLeft: 3600, at: "2026-09-28T10:00:00+07:00" }}
-      />,
-    )
-    expect(screen.getByText(/dana akan cair otomatis/i)).toBeTruthy()
+    // FE-001: layar hanya meneruskan string `at` yang stabil; detik hitung
+    // mundur dihitung per tick di dalam <AutoReleaseCountdownBox>.
+    const future = new Date(Date.now() + 3600_000).toISOString()
+    renderWithTheme(<OrderDetailActions {...baseProps} autoReleaseAt={future} />)
+    expect(screen.getByText("Batas konfirmasi")).toBeTruthy()
+    expect(screen.getByText(/dana cair otomatis/i)).toBeTruthy()
   })
 
   it("aksi penjual: terima/tolak, kirim, unggah bukti", () => {
@@ -232,30 +231,35 @@ describe("<OrderDetailActions>", () => {
   })
 
   it("item 35: countdown memakai label kontekstual Batas kirim / Batas konfirmasi", () => {
+    // FE-001: input mentah countdown; tampil/sembunyi di-resolve per tick di
+    // dalam <ShippingCountdownBox>.
+    const future = new Date(Date.now() + 3600_000).toISOString()
     renderWithTheme(
       <OrderDetailActions
         {...baseProps}
-        shippingCountdown={{
-          kind: "countdown",
-          secondsLeft: 3600,
-          at: "2026-09-28T10:00:00+07:00",
+        shippingCountdownInput={{
+          status: "IN_DELIVERY",
+          paidAt: "2026-09-27T10:00:00+07:00",
+          shippingDeadline: future,
+          shippedBy: null,
         }}
       />,
     )
     expect(screen.getByText("Batas kirim")).toBeTruthy()
 
+    const later = new Date(Date.now() + 7200_000).toISOString()
     renderWithTheme(
       <OrderDetailActions
         {...baseProps}
-        shippingCountdown={null}
-        autoRelease={{ secondsLeft: 7200, at: "2026-09-29T10:00:00+07:00" }}
+        shippingCountdownInput={null}
+        autoReleaseAt={later}
         myRole="BUYER"
         status="IN_DELIVERY"
       />,
     )
     expect(screen.getByText("Batas konfirmasi")).toBeTruthy()
-    // Item 45: pembeli masih bisa sengketa sampai tenggat.
-    expect(document.body.textContent).toMatch(/masih bisa memeriksa barang/i)
+    // FE-003: copy dipadatkan jadi maks 2 baris.
+    expect(document.body.textContent).toMatch(/ajukan sengketa sebelum itu/i)
   })
 
   it("item 46: 'Ajukan retur' primer bila canReturnPrimary", () => {
