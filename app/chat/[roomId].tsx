@@ -387,16 +387,26 @@ export default function ChatRoomScreen() {
   const highlightTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [nextCursor, setNextCursor] = useState<string | null>(null)
   const [olderStatus, setOlderStatus] = useState<LoadMoreStatus>("idle")
-  const [draft, setDraft] = useState("")
   /**
-   * Draft ketikan per-room (lib/chat-drafts): teks ditulis ke store sinkron
-   * tiap ketikan (persist di-debounce ke SecureStore), dimuat sekali saat
-   * room dibuka, dan dihapus saat pesan terkirim. Menutup room lalu kembali
-   * — atau restart app — tidak lagi menghilangkan ketikan.
+   * R1-001 (2026-09-29, audit render-perf): draft ketikan TIDAK lagi di
+   * state layar — tiap keystroke dulu me-render ulang seluruh komponen
+   * layar + kontainer FlatList (PureComponent gagal shallow-compare 5 prop
+   * inline). Draft kini dikurung di <ChatRoomFooter> (state lokal, pola
+   * DebouncedSearchField); layar hanya menerima notifikasi per ketikan
+   * untuk typing indicator + persist — keduanya murah dan tanpa setState.
    */
+  const [restoredDraft, setRestoredDraft] = useState("")
+  /** Dinaikkan tiap pesan terkirim → footer mengosongkan draft-nya. */
+  const [draftResetKey, setDraftResetKey] = useState(0)
+  /**
+   * Penghubung ke notifyTyping (didefinisikan lebih bawah, setelah hook
+   * realtime): dipanggil per ketikan TANPA setState sehingga layar tidak
+   * render ulang saat pengguna mengetik.
+   */
+  const notifyTypingRef = useRef<() => void>(() => {})
   const handleDraftChange = useCallback(
     (text: string) => {
-      setDraft(text)
+      if (text.trim()) notifyTypingRef.current()
       if (roomId) saveChatDraft(roomId, text)
     },
     [roomId],
@@ -406,8 +416,9 @@ export default function ChatRoomScreen() {
     let cancelled = false
     void loadChatDraft(roomId).then((stored) => {
       if (cancelled || !stored) return
-      // Jangan timpa ketikan yang sudah ada (mis. restore cepat + ketik).
-      setDraft((prev) => (prev ? prev : stored))
+      // Diteruskan sebagai initialDraft ke footer — footer yang menjaga
+      // agar tidak menimpa ketikan yang sudah ada.
+      setRestoredDraft(stored)
     })
     return () => {
       cancelled = true
@@ -1437,7 +1448,8 @@ export default function ChatRoomScreen() {
         // Pengguna aktif → poll kembali cepat bila sedang idle.
         emptyPolls.current = 0
         setPollInterval(CHAT_POLL_MS)
-        setDraft("")
+        // R1-001: draft milik footer — naikkan sinyal agar dikosongkan.
+        setDraftResetKey((k) => k + 1)
         clearChatDraft(roomId)
         setAttachments([])
         setReplyTarget(null)
@@ -1941,9 +1953,12 @@ export default function ChatRoomScreen() {
     }, 3000)
   }, [roomId, sendTypingRealtime])
 
+  // R1-001: draft kini milik <ChatRoomFooter> — ref ini menghubungkan
+  // notifikasi ketikan (handleDraftChange) ke notifyTyping yang
+  // didefinisikan di sini, tanpa state draft di layar.
   useEffect(() => {
-    if (draft.trim()) notifyTyping()
-  }, [draft, notifyTyping])
+    notifyTypingRef.current = notifyTyping
+  }, [notifyTyping])
 
   useEffect(() => {
     return () => {
@@ -2371,6 +2386,47 @@ export default function ChatRoomScreen() {
     ],
   )
 
+  /**
+   * R1-001: 5 prop FlatList distabilkan — VirtualizedList adalah
+   * PureComponent; prop inline beridentitas baru tiap render (dulu tiap
+   * keystroke) memaksa render ulang kontainer list.
+   */
+  const threadKeyExtractor = useCallback((row: ThreadRow) => row.key, [])
+  const threadContentStyle = useMemo(
+    () => ({ paddingBottom: insets.bottom + tokens.space[4], flexGrow: 1 }),
+    [insets.bottom],
+  )
+  const threadListHeader = useMemo(
+    () =>
+      messages.length > 0 ? (
+        // px-5: kompensasi gutter list yang dihapus (lihat atas) —
+        // tombol "Muat pesan sebelumnya" tetap sejajar dengan bubble.
+        <View style={{ paddingTop: tokens.space[3] }} className="px-5">
+          <LoadMore
+            status={olderStatus}
+            onLoadMore={() => void loadOlder()}
+            hideEnd
+            idleLabel="Muat pesan sebelumnya"
+          />
+        </View>
+      ) : null,
+    [messages.length, olderStatus, loadOlder],
+  )
+  const handleStartReached = useCallback(() => {
+    if (olderStatus === "idle" && messages.length > 0) void loadOlder()
+  }, [olderStatus, messages.length, loadOlder])
+  const handleScrollToIndexFailed = useCallback(
+    (info: { averageItemLength: number; index: number }) => {
+      // Tinggi bubble variabel — perkirakan lewat averageItemLength
+      // (dipakai lompat-ke-hasil-pencarian J-07).
+      scrollRef.current?.scrollToOffset({
+        offset: info.averageItemLength * info.index,
+        animated: true,
+      })
+    },
+    [],
+  )
+
   return (
     <Screen
       keyboardAvoiding
@@ -2394,7 +2450,8 @@ export default function ChatRoomScreen() {
           closedNotice={closedNoticeText}
           orderId={room?.orderId}
           onOpenOrder={(id) => router.push(ROUTES.orderDetail(id))}
-          draft={draft}
+          initialDraft={restoredDraft}
+          draftResetKey={draftResetKey}
           onDraftChange={handleDraftChange}
           onSend={(p) => void handleSend(p)}
           attachments={composerAttachments}
@@ -2528,32 +2585,19 @@ export default function ChatRoomScreen() {
         removeClippedSubviews={false}
         // B10: baris campuran (hari/pemisah/pesan); baris "day" sticky.
         data={threadRows}
-        keyExtractor={(row) => row.key}
+        keyExtractor={threadKeyExtractor}
         stickyHeaderIndices={stickyDayIndices}
         // Revisi 2026-09-27: gutter horizontal HANYA dari baris bubble
         // (`px-5` di <ChatMessageBubble>) — padding di sini DOBEL (40px)
         // dan membuat inset kiri/kanan tidak proporsional.
-        contentContainerStyle={{ paddingBottom: insets.bottom + tokens.space[4], flexGrow: 1 }}
+        contentContainerStyle={threadContentStyle}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         onScrollBeginDrag={() => Keyboard.dismiss()}
         onContentSizeChange={handleContentSizeChange}
         onScroll={handleScroll}
         scrollEventThrottle={SCROLL_EVENT_THROTTLE}
-        ListHeaderComponent={
-          messages.length > 0 ? (
-            // px-5: kompensasi gutter list yang dihapus (lihat atas) —
-            // tombol "Muat pesan sebelumnya" tetap sejajar dengan bubble.
-            <View style={{ paddingTop: tokens.space[3] }} className="px-5">
-              <LoadMore
-                status={olderStatus}
-                onLoadMore={() => void loadOlder()}
-                hideEnd
-                idleLabel="Muat pesan sebelumnya"
-              />
-            </View>
-          ) : null
-        }
+        ListHeaderComponent={threadListHeader}
         ListEmptyComponent={
           loading ? (
             <View className="pt-3">
@@ -2587,18 +2631,9 @@ export default function ChatRoomScreen() {
         renderItem={renderThreadRow}
         // Scroll ke puncak = muat riwayat lebih lama (tombol eksplisit tetap
         // ada di header list untuk status error).
-        onStartReached={() => {
-          if (olderStatus === "idle" && messages.length > 0) void loadOlder()
-        }}
+        onStartReached={handleStartReached}
         onStartReachedThreshold={120}
-        onScrollToIndexFailed={(info) => {
-          // Tinggi bubble variabel — perkirakan lewat averageItemLength
-          // (dipakai lompat-ke-hasil-pencarian J-07).
-          scrollRef.current?.scrollToOffset({
-            offset: info.averageItemLength * info.index,
-            animated: true,
-          })
-        }}
+        onScrollToIndexFailed={handleScrollToIndexFailed}
         initialNumToRender={12}
         maxToRenderPerBatch={8}
         windowSize={9}
