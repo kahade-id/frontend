@@ -86,20 +86,15 @@ export function OrderRatingReminder({
     <View className={className} {...rest}>
       <View className="gap-3 rounded-lg bg-info-soft p-3">
         <View className="gap-1">
-          {/* Item 39: copy formal "Anda" (dulu "ulasanmu"). */}
+          {/* FE-029: satu caption jendela ulasan (RATING_WINDOW_DAYS backend),
+              bukan dua kalimat persuasif+informatif. */}
           <Text variant="caption" tone="secondary">
-            Transaksi selesai — ulasan Anda membantu pengguna lain memutuskan.
-          </Text>
-          {/* F9: komunikasikan jendela ulasan 7 hari (RATING_WINDOW_DAYS
-              backend) agar user tidak mengira tombol "Ulas sekarang"
-              tersedia selamanya. */}
-          <Text variant="caption" tone="secondary">
-            {translate("Ulasan dapat diberikan dalam 7 hari setelah transaksi selesai.")}
+            {translate("Maksimal 7 hari setelah transaksi selesai.")}
           </Text>
         </View>
         <View className="flex-row flex-wrap gap-2">
           <Button size="sm" onPress={onRate}>
-            Ulas sekarang
+            {translate("Beri ulasan")}
           </Button>
           <Button size="sm" variant="ghost" onPress={onSnooze}>
             Ingatkan nanti
