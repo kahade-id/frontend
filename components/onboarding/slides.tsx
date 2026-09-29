@@ -24,7 +24,7 @@
  *   - Slide 3 memakai IconText, bukan BulletList: poin keamanan butuh ikon
  *     Phosphor spesifik (KYC / PIN / mediasi), tetap text-tertiary (§7).
  */
-import type { ReactNode } from "react"
+import { memo, type ReactNode } from "react"
 import { View } from "react-native"
 import { IdentificationCard, LockKey, Scales } from "phosphor-react-native"
 
@@ -190,7 +190,8 @@ export type OnboardingSlideViewProps = {
   active: boolean
 }
 
-export function OnboardingSlideView({ slide, width, active }: OnboardingSlideViewProps) {
+// FE-062 (audit 2026-09-29): di-memo — carousel kini memakai renderItem stabil.
+export const OnboardingSlideView = memo(function OnboardingSlideView({ slide, width, active }: OnboardingSlideViewProps) {
   return (
     // Lebar = lebar viewport pager, nilai runtime -> style, bukan className.
     // Semua slide ter-mount sekaligus di FlatList; tanpa penyembunyian ini
@@ -217,4 +218,4 @@ export function OnboardingSlideView({ slide, width, active }: OnboardingSlideVie
       </VStack>
     </View>
   )
-}
+})
