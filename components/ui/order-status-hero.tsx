@@ -127,22 +127,9 @@ export function OrderStatusHero({
           />
         </View>
         <View className="flex-row gap-3">
-          <View className="flex-1 gap-1">
-            <Text variant="caption" tone="secondary">
-              {translate("Tanggal")}
-            </Text>
-            <Text variant="body" weight={600}>
-              {date}
-            </Text>
-          </View>
-          <View className="flex-1 gap-1">
-            <Text variant="caption" tone="secondary">
-              {translate("Waktu")}
-            </Text>
-            <Text variant="body" weight={600}>
-              {time === "—" ? "—" : `${time} WIB`}
-            </Text>
-          </View>
+          <Text variant="body" weight={600}>
+            {time === "—" ? `${date} · —` : `${date} · ${time} WIB`}
+          </Text>
         </View>
       </View>
     </View>
