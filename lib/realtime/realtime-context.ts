@@ -55,3 +55,21 @@ export function useRealtime(): RealtimeContextValue {
   if (!ctx) throw new Error("useRealtime harus dipakai di dalam <RealtimeProvider>")
   return ctx
 }
+
+/**
+ * PERF-FIX (state audit): aksi realtime yang stabil (tidak pernah berubah
+ * identitasnya selama sesi). Dipisah dari `useRealtime` agar consumer yang
+ * hanya butuh aksi tidak ikut me-render ulang saat status/epoch berubah.
+ */
+export type RealtimeActions = Pick<
+  RealtimeContextValue,
+  "joinRoom" | "leaveRoom" | "unwrapEvent" | "viewerId"
+>
+
+export const RealtimeActionsContext = createContext<RealtimeActions | null>(null)
+
+export function useRealtimeActions(): RealtimeActions {
+  const ctx = useContext(RealtimeActionsContext)
+  if (!ctx) throw new Error("useRealtimeActions harus dipakai di dalam <RealtimeProvider>")
+  return ctx
+}

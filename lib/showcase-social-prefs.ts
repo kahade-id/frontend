@@ -321,7 +321,21 @@ export function loadShowcaseBookmarks(owner: string): Promise<void> {
   promise.catch(() => { if (hydration?.promise === promise) hydration = null })
   return promise
 }
+/**
+ * PERF-FIX (state audit): debounce persist bookmark. Dulu setiap toggle
+ * langsung men-serialize + menulis SELURUH daftar bookmark — toggle cepat
+ * beberapa item = N write penuh berurutan. Kini tulis dijadwalkan 500ms
+ * setelah toggle terakhir; antrean `bookmarkQueue` tetap menjaga urutan tulis.
+ */
+let bookmarkPersistTimer: ReturnType<typeof setTimeout> | null = null
 function persistBookmarks() {
+  if (bookmarkPersistTimer !== null) clearTimeout(bookmarkPersistTimer)
+  bookmarkPersistTimer = setTimeout(() => {
+    bookmarkPersistTimer = null
+    persistBookmarksNow()
+  }, 500)
+}
+function persistBookmarksNow() {
   if (!bookmarkOwner) return
   const revision = getSessionRevision()
   const payload = JSON.stringify({ owner: bookmarkOwner, ids: Object.keys(state.saved) })

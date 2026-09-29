@@ -11,12 +11,19 @@
  * per tick hanya Math pada angka yang sudah ada.
  */
 import { useEffect, useState } from "react"
+import { AppState } from "react-native"
+
 import { serverNow } from "@/lib/server-time"
 
 const listeners = new Set<(nowMs: number) => void>()
 let interval: ReturnType<typeof setInterval> | null = null
 
 function tick() {
+  // PERF-FIX (state audit): lewati tick saat app tidak aktif — tanpa ini,
+  // setiap kartu countdown yang ter-mount (termasuk di stack bawah layar
+  // aktif) me-render ulang tiap detik walau pengguna tidak melihatnya.
+  // Pola visibility-gate mengikuti lib/use-polling.ts.
+  if (AppState.currentState != null && AppState.currentState !== "active") return
   const now = serverNow()
   for (const fn of listeners) fn(now)
 }

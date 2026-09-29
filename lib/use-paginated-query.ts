@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useIsFocused } from "@react-navigation/native"
 import { userMessage } from "@/lib/api/errors"
 import { useGuestPathBlocked } from "@/lib/guest-gate"
@@ -17,6 +17,13 @@ export function mergeById<T extends { id?: string }>(
 }
 
 /**
+ * PERF (tim8-komputasi P1): batas default item yang disimpan hook paginasi —
+ * infinite scroll tanpa cap membuat array + biaya render tumbuh tanpa batas
+ * (notifikasi, transaksi, feed, dsb.).
+ */
+export const DEFAULT_MAX_ITEMS = 300
+
+/**
  * Pembanding untuk daftar KRONOLOGIS (C-08 audit).
  *
  * `mergeById` mempertahankan posisi baris lama: bila data server berubah di
@@ -27,14 +34,28 @@ export function mergeById<T extends { id?: string }>(
  * pengisiannya satu baris dan konsisten (terbaru di atas, toleran tanda waktu
  * yang hilang/tidak valid).
  */
+/**
+ * PERF (tim8-komputasi P1): cache hasil `Date.parse` per string cap waktu.
+ * Komparator sort memanggil `timeOf` O(N log N) kali untuk N item yang sama
+ * — tanpa cache, 200 item ≈ 1500+ parse per sort. Dipakai 8 layar
+ * (chat, notifikasi, transaksi, questions, ratings, order-links, returns).
+ */
+const timestampParseCache = new Map<string, number>()
+function cachedParseTimestamp(value: string | null | undefined): number {
+  if (!value) return 0
+  const cached = timestampParseCache.get(value)
+  if (cached !== undefined) return cached
+  const parsed = Date.parse(value)
+  const result = Number.isFinite(parsed) ? parsed : 0
+  if (timestampParseCache.size >= 500) timestampParseCache.clear()
+  timestampParseCache.set(value, result)
+  return result
+}
+
 export function byTimestampDesc<T extends { id?: string }>(
   pick: (item: T) => string | null | undefined,
 ) {
-  const timeOf = (value: string | null | undefined) => {
-    if (!value) return 0
-    const parsed = Date.parse(value)
-    return Number.isFinite(parsed) ? parsed : 0
-  }
+  const timeOf = (value: string | null | undefined) => cachedParseTimestamp(value)
   return (a: T, b: T) => {
     // G-07 (audit escrow 2026-09-24): `createdAt` bisa IDENTIK antar item dalam
     // satu batch (mis. beberapa Order Link dibuat berbarengan) — tanpa
@@ -92,6 +113,14 @@ export type UsePaginatedQueryOptions<T> = {
    * Default false (perilaku lama untuk daftar lain).
    */
   keepPreviousOnKeyChange?: boolean
+  /**
+   * PERF (tim8-komputasi P1): batas maksimum item yang disimpan — infinite
+   * scroll tanpa cap membuat array + biaya render tumbuh tanpa batas. Item
+   * terlama dibuang saat cap tercapai dan paginasi berhenti di situ.
+   * Default {@link DEFAULT_MAX_ITEMS} (300); isi `0` untuk menonaktifkan
+   * bila daftar memang harus lengkap.
+   */
+  maxItems?: number
 }
 
 /** Shared pagination for every long list: latest query wins, load-more single-flight, retry keeps rows. */
@@ -107,6 +136,9 @@ export function usePaginatedQuery<T extends { id?: string }>(
   // R1 (audit 2026-09-26): kunci dedup mengikuti `getKey` bila diberikan.
   const getKeyRef = useRef(opts.getKey)
   getKeyRef.current = opts.getKey
+  // PERF (tim8-komputasi P1): cap jumlah item (default 300).
+  const maxItemsRef = useRef(opts.maxItems)
+  maxItemsRef.current = opts.maxItems
   const activeRequest = useRef<AbortController | null>(null)
   /**
    * Jenis request yang sedang terbang — C-10 (audit).
@@ -175,10 +207,18 @@ export function usePaginatedQuery<T extends { id?: string }>(
         if (reset) ids.current.clear()
         const getKey = getKeyRef.current ?? ((item: T) => item.id ?? "")
         for (const item of result.data) ids.current.add(getKey(item))
+        const maxItems = maxItemsRef.current ?? DEFAULT_MAX_ITEMS
         setData((previous) => {
           const merged = mergeById(reset ? [] : previous, result.data, getKey)
+          // PERF (tim8-komputasi P1): batasi panjang array — item terlama
+          // (ekor urutan unduhan) dibuang; `ids` dijaga sinkron.
+          let capped = merged
+          if (maxItems > 0 && merged.length > maxItems) {
+            capped = merged.slice(0, maxItems)
+            for (let i = maxItems; i < merged.length; i++) ids.current.delete(getKey(merged[i]))
+          }
           const compare = compareRef.current
-          return compare ? [...merged].sort(compare) : merged
+          return compare ? [...capped].sort(compare) : capped
         })
         nextPage.current = page + 1
         // F-09: `hasNewIds` sebelumnya menghentikan paginasi bila satu
@@ -187,6 +227,12 @@ export function usePaginatedQuery<T extends { id?: string }>(
         // `totalPages` mengatakan masih ada halaman. Duplikat sudah diurus
         // mergeById; sumber kebenaran "masih ada halaman" adalah meta server.
         hasNext.current = result.data.length > 0 && page < result.meta.totalPages
+        // PERF (tim8-komputasi P1): cap tercapai → hentikan paginasi agar
+        // tidak fetch halaman sia-sia. `rowCount` = panjang data render
+        // terakhir; reset memulai ulang dari halaman 1.
+        if (!reset && maxItems > 0 && rowCount.current >= maxItems) {
+          hasNext.current = false
+        }
         setHasMore(hasNext.current)
       } catch (error) {
         if (controller.signal.aborted) return
@@ -270,17 +316,33 @@ export function usePaginatedQuery<T extends { id?: string }>(
   const refresh = useCallback(() => load(true, true), [load])
   const reload = useCallback(() => load(true), [load])
   const loadMore = useCallback(() => load(false), [load])
-  return {
-    data,
-    setData,
-    loading,
-    refreshing,
-    loadingMore,
-    error,
-    loadMoreError,
-    hasMore,
-    refresh,
-    reload,
-    loadMore,
-  }
+  // PERF-FIX (state audit): objek return stabil via useMemo — consumer yang
+  // memakai hasil sebagai dependency effect tidak re-run tiap render.
+  return useMemo(
+    () => ({
+      data,
+      setData,
+      loading,
+      refreshing,
+      loadingMore,
+      error,
+      loadMoreError,
+      hasMore,
+      refresh,
+      reload,
+      loadMore,
+    }),
+    [
+      data,
+      loading,
+      refreshing,
+      loadingMore,
+      error,
+      loadMoreError,
+      hasMore,
+      refresh,
+      reload,
+      loadMore,
+    ],
+  )
 }

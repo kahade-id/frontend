@@ -51,7 +51,7 @@ import {
   TYPING_EXPIRY_MS,
   type ChatTypingPayload,
 } from "@/lib/realtime/chat-events"
-import { useRealtime } from "@/lib/realtime/realtime-context"
+import { useRealtime, useRealtimeActions } from "@/lib/realtime/realtime-context"
 import { ORDER_STATUS_LABELS } from "@/lib/labels/status"
 import { formatTimeAgo } from "@/lib/format"
 import { haptic } from "@/lib/haptics"
@@ -149,7 +149,11 @@ const TYPING_JOIN_BATCH = 10
 const TYPING_JOIN_GAP_MS = 2000
 
 function useChatListTyping(roomIds: string[]): Set<string> {
-  const { socket, status, epoch, viewerId, joinRoom, leaveRoom, unwrapEvent } = useRealtime()
+  // PERF-FIX (state audit): aksi stabil via context terpisah — tidak ikut
+  // me-render ulang saat status/epoch berubah. State koneksi tetap dari
+  // useRealtime (socket/status/epoch memang dibutuhkan efek di bawah).
+  const { socket, status, epoch } = useRealtime()
+  const { viewerId, joinRoom, leaveRoom, unwrapEvent } = useRealtimeActions()
   const [typingRooms, setTypingRooms] = useState<Set<string>>(() => new Set())
   /** Room yang sedang di-join sesi ini — untuk leave saat tak tampil lagi. */
   const joinedRef = useRef<Set<string>>(new Set())
@@ -548,6 +552,16 @@ export default function ChatScreen() {
   // FE-129: jangkar coach mark sekali-tampil gesture swipe di baris pertama.
   const firstRowRef = useRef<RNView | null>(null)
   const [filter, setFilter] = useState<ChatFilter>("all")
+  // PERF-FIX (TIM1-P1): opsi chip + onChange stabil — sebelumnya .map dan
+  // closure inline dibuat ulang di setiap render tab.
+  const translatedFilterOptions = useMemo(
+    () => FILTER_OPTIONS.map((o) => ({ ...o, label: translate(o.label) })),
+    [],
+  )
+  const handleFilterChange = useCallback((next: ChatFilter[]) => {
+    const picked = next[0]
+    if (picked) setFilter(picked)
+  }, [])
   const archiveOpen = filter === "archived"
   const mainQuery = usePaginatedQuery<ChatRoom>(
     "chat-rooms",
@@ -1031,7 +1045,9 @@ export default function ChatScreen() {
     () => (
       <SkeletonGroup>
         {Array.from({ length: SKELETON_COUNT }, (_, index) => (
-          <ChatSkeletonRow key={index} />
+          // PERF-FIX (state audit): key stabil ber-prefix agar tidak tertukar
+          // dengan baris data nyata saat skeleton diganti daftar asli.
+          <ChatSkeletonRow key={`chat-skeleton-${index}`} />
         ))}
       </SkeletonGroup>
     ),
@@ -1150,12 +1166,9 @@ export default function ChatScreen() {
         >
           <ChipGroup
             single
-            options={FILTER_OPTIONS.map((o) => ({ ...o, label: translate(o.label) }))}
+            options={translatedFilterOptions}
             value={[filter]}
-            onChange={(next) => {
-              const picked = next[0]
-              if (picked) setFilter(picked)
-            }}
+            onChange={handleFilterChange}
           />
         </ScrollView>
       ) : null}

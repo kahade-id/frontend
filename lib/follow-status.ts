@@ -12,14 +12,20 @@
  * memperlakukannya sebagai "tidak diketahui".
  */
 
-import { useEffect, useSyncExternalStore } from "react"
+import { useEffect, useMemo, useSyncExternalStore } from "react"
 
 import { getSessionRevision, subscribeSession } from "@/lib/api/session"
 import { getUserByUsername, resolveFollowStatus } from "@/lib/api/users"
 
 const cache = new Map<string, boolean | null>()
 const inflight = new Map<string, Promise<boolean | null>>()
-const listeners = new Set<() => void>()
+/**
+ * PERF-FIX (state audit): listener per-username, bukan satu set global.
+ * Dulu satu update follow menjalankan callback SEMUA kartu follow yang
+ * ter-mount (O(n) pemanggilan per toggle) — kini hanya kartu untuk username
+ * yang berubah yang dibangunkan.
+ */
+const listenersByUsername = new Map<string, Set<() => void>>()
 
 let sessionRevision = getSessionRevision()
 subscribeSession(() => {
@@ -30,20 +36,35 @@ subscribeSession(() => {
   emit()
 })
 
-function emit() {
-  for (const listener of listeners) listener()
+function emit(username?: string) {
+  if (username === undefined) {
+    for (const set of listenersByUsername.values()) for (const l of [...set]) l()
+    return
+  }
+  const set = listenersByUsername.get(username)
+  if (set) for (const l of [...set]) l()
 }
 
-function subscribe(listener: () => void) {
-  listeners.add(listener)
-  return () => void listeners.delete(listener)
+function subscribeFor(username: string) {
+  return (listener: () => void) => {
+    let set = listenersByUsername.get(username)
+    if (!set) {
+      set = new Set()
+      listenersByUsername.set(username, set)
+    }
+    set.add(listener)
+    return () => {
+      set!.delete(listener)
+      if (set!.size === 0) listenersByUsername.delete(username)
+    }
+  }
 }
 
 /** Tulis manual (dipakai toggle optimistis & pemanggil lain yang tahu status). */
 export function setFollowStatus(username: string, following: boolean | null): void {
   if (cache.get(username) !== following) {
     cache.set(username, following)
-    emit()
+    emit(username)
   }
 }
 
@@ -71,7 +92,7 @@ export function fetchFollowStatus(username: string): Promise<boolean | null> {
     })
     .finally(() => {
       inflight.delete(username)
-      emit()
+      emit(username)
     })
   inflight.set(username, request)
   return request
@@ -85,6 +106,9 @@ export function useFollowStatus(username: string): {
   following: boolean | null
   loading: boolean
 } {
+  // subscribe stabil per username (useMemo) — hanya kartu username ini yang
+  // dibangunkan saat statusnya berubah (PERF-FIX: dulu satu set global).
+  const subscribe = useMemo(() => subscribeFor(username), [username])
   const cached = useSyncExternalStore(subscribe, () => peekFollowStatus(username), () => undefined)
   useEffect(() => {
     if (cached === undefined) void fetchFollowStatus(username)

@@ -43,9 +43,9 @@ import { verifyAndUnwrapEvent, type UnwrappedEvent } from "./hmac"
 // Tipe + context + hook dipisah ke `realtime-context.ts` (file `.ts` murni)
 // supaya lapisan logika & test tidak menarik `nativewind/jsx-runtime` lewat
 // file `.tsx` ini. Re-export di sini agar import lama tetap jalan.
-export { RealtimeContext, useRealtime } from "./realtime-context"
-export type { RealtimeContextValue, RealtimeStatus } from "./realtime-context"
-import { RealtimeContext } from "./realtime-context"
+export { RealtimeContext, useRealtime, RealtimeActionsContext, useRealtimeActions } from "./realtime-context"
+export type { RealtimeContextValue, RealtimeStatus, RealtimeActions } from "./realtime-context"
+import { RealtimeActionsContext, RealtimeContext, type RealtimeActions } from "./realtime-context"
 import type { RealtimeContextValue, RealtimeStatus } from "./realtime-context"
 
 /** Metrik koneksi tanpa isi sensitif (G124). */
@@ -380,5 +380,23 @@ export function RealtimeProvider({
     [status, epoch, joinRoom, leaveRoom, unwrapEvent],
   )
 
-  return <RealtimeContext.Provider value={value}>{children}</RealtimeContext.Provider>
+  // PERF-FIX (state audit): aksi stabil dipisah ke context sendiri — consumer
+  // yang hanya butuh aksi tidak me-render ulang saat status/epoch berubah.
+  const actions = useMemo<RealtimeActions>(
+    () => ({
+      joinRoom,
+      leaveRoom,
+      unwrapEvent,
+      viewerId: viewerIdRef.current,
+    }),
+    // viewerId dari JWT, stabil selama sesi (dibaca via ref).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [joinRoom, leaveRoom, unwrapEvent],
+  )
+
+  return (
+    <RealtimeActionsContext.Provider value={actions}>
+      <RealtimeContext.Provider value={value}>{children}</RealtimeContext.Provider>
+    </RealtimeActionsContext.Provider>
+  )
 }

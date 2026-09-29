@@ -301,9 +301,26 @@ export function setUiPrefs(patch: Partial<UiPrefs>): void {
   if (!changed) return
   prefs = { ...prefs, ...patch }
   emitPrefs()
-  void setSecureItem(SecureKeys.uiPrefs, JSON.stringify(prefs)).catch((err) =>
-    logWarn("ui-prefs:save", err),
-  )
+  // PERF-FIX (state audit): debounce persist — perubahan beruntun (swipe tab
+  // feed, scroll position) tidak lagi menulis SecureStore berkali-kali
+  // berurutan (I/O mahal + race urutan tulis).
+  scheduleUiPrefsPersist()
+}
+
+/**
+ * PERF-FIX (state audit): antrean tulis tunggal untuk ui-prefs.
+ * Pola mengikuti `writeCache` di lib/i18n/store.ts.
+ */
+let uiPrefsPersistTimer: ReturnType<typeof setTimeout> | null = null
+function scheduleUiPrefsPersist(): void {
+  if (uiPrefsPersistTimer !== null) clearTimeout(uiPrefsPersistTimer)
+  uiPrefsPersistTimer = setTimeout(() => {
+    uiPrefsPersistTimer = null
+    const snapshot = prefs
+    void setSecureItem(SecureKeys.uiPrefs, JSON.stringify(snapshot)).catch((err) =>
+      logWarn("ui-prefs:save", err),
+    )
+  }, 500)
 }
 
 /**

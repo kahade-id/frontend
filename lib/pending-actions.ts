@@ -317,6 +317,41 @@ export function hasPendingLive(kind: PendingAction["kind"]): boolean {
 
 const EMPTY: readonly PendingAction[] = []
 
+/**
+ * PERF-FIX (state audit): timer prune + listener AppState di module-level
+ * (sekali per proses). Sebelumnya dipasang per invocation `usePendingActions()`
+ * — consumer kedua diam-diam menggandakan timer 60 detik.
+ */
+let pruneTimer: ReturnType<typeof setInterval> | null = null
+let pruneSubscribers = 0
+
+function ensurePruneLoop(): () => void {
+  pruneSubscribers += 1
+  if (pruneTimer == null) {
+    pruneTimer = setInterval(() => prunePendingActions(), PRUNE_INTERVAL_MS)
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state === "active") prunePendingActions()
+    })
+    // Simpan unsubscribe di timer itu sendiri via closure terpisah.
+    const stop = () => {
+      subscription.remove()
+      if (pruneTimer != null) {
+        clearInterval(pruneTimer)
+        pruneTimer = null
+      }
+    }
+    ;(ensurePruneLoop as { stop?: () => void }).stop = stop
+  }
+  return () => {
+    pruneSubscribers -= 1
+    if (pruneSubscribers <= 0) {
+      pruneSubscribers = 0
+      ;(ensurePruneLoop as { stop?: () => void }).stop?.()
+      ;(ensurePruneLoop as { stop?: () => void }).stop = undefined
+    }
+  }
+}
+
 /** Hook daftar aksi menggantung (sudah disaring basi saat load). */
 export function usePendingActions(): readonly PendingAction[] {
   const snapshot = useSyncExternalStore(subscribe, getPendingActionsSnapshot, () => EMPTY)
@@ -325,14 +360,7 @@ export function usePendingActions(): readonly PendingAction[] {
     // I-04: buang catatan yang kedaluwarsa SELAMA sesi berjalan, bukan hanya
     // saat boot — dan periksa lagi begitu app kembali ke depan (pengguna
     // menutup app lebih lama dari TTL).
-    const timer = setInterval(() => prunePendingActions(), PRUNE_INTERVAL_MS)
-    const subscription = AppState.addEventListener("change", (state) => {
-      if (state === "active") prunePendingActions()
-    })
-    return () => {
-      clearInterval(timer)
-      subscription.remove()
-    }
+    return ensurePruneLoop()
   }, [])
   return snapshot
 }

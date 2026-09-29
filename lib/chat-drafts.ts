@@ -18,8 +18,9 @@
  *     karakter, CHAT_MESSAGE_MAX) hampir selalu muat.
  *   - Di web persist jatuh ke memory proses (lihat `setRawItem`) — isi chat
  *     tidak boleh mendarat di localStorage.
- *   - Draft TIDAK dihapus `clearSession()`: preferensi level perangkat,
- *     seperti `onboardingSeen` — logout bukan alasan membuang ketikan.
+ *   - PERF-FIX (state audit): draft di-memory DIHAPUS saat sesi berganti
+ *     (logout/login) — mencegah kebocoran ketikan antar-akun di perangkat
+ *     yang sama. Persist SecureStore per-room tetap ada (bukan per-akun).  
  *   - Draft dihapus saat pesan TERKIRIM (`clearChatDraft`), bukan saat layar
  *     ditutup — menutup room di tengah mengetik lalu kembali = draft kembali.
  */
@@ -29,6 +30,7 @@ import {
   getRawItem,
   setRawItem,
 } from "@/lib/secure-storage"
+import { getSessionRevision, subscribeSession } from "@/lib/api/session"
 
 /** Jeda debounce tulis persist setelah ketikan terakhir (ms). */
 export const CHAT_DRAFT_PERSIST_DEBOUNCE_MS = 800
@@ -39,6 +41,19 @@ const memory = new Map<string, string>()
 const pendingTimers = new Map<string, ReturnType<typeof setTimeout>>()
 /** roomId yang sudah dimuat dari storage ke memory sesi ini. */
 const hydrated = new Set<string>()
+
+/**
+ * PERF-FIX (state audit): bersihkan draft saat sesi berganti (logout/login).
+ * Draft menahan isi ketikan per room di memori proses — tanpa reset, akun B
+ * yang login di perangkat yang sama dapat melihat sisa draft akun A
+ * (kebocoran data antar-sesi + pertumbuhan memori tak terbatas).
+ */
+let draftSessionRevision = getSessionRevision()
+subscribeSession(() => {
+  if (draftSessionRevision === getSessionRevision()) return
+  draftSessionRevision = getSessionRevision()
+  __resetChatDraftsForTest()
+})
 
 function byteLength(text: string): number {
   // TextEncoder tidak ada di semua runtime RN lama — hitung manual.

@@ -63,9 +63,36 @@ function isEmptyValue(v: unknown): boolean {
   return false
 }
 
+/**
+ * PERF-FIX (state audit): perbandingan dalam tanpa JSON.stringify — berhenti
+ * di perbedaan pertama, tanpa alokasi string besar per filter per render.
+ */
+function valuesEqual(a: unknown, b: unknown): boolean {
+  if (a === b) return true
+  if (a == null || b == null) return a === b
+  if (Array.isArray(a) || Array.isArray(b)) {
+    if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false
+    for (let i = 0; i < a.length; i++) if (!valuesEqual(a[i], b[i])) return false
+    return true
+  }
+  if (typeof a === "object" && typeof b === "object") {
+    const ka = Object.keys(a as Record<string, unknown>)
+    const kb = Object.keys(b as Record<string, unknown>)
+    if (ka.length !== kb.length) return false
+    for (const k of ka) {
+      if (!valuesEqual((a as Record<string, unknown>)[k], (b as Record<string, unknown>)[k]))
+        return false
+    }
+    return true
+  }
+  return false
+}
+
 /** Jumlah section yang punya nilai aktif — untuk badge di tombol Filter */
 export function countActiveFilters(value: FilterValues, defaultValue: FilterValues = {}): number {
-  return Object.entries(value).filter(([k, v]) => !isEmptyValue(v) && JSON.stringify(v) !== JSON.stringify(defaultValue[k])).length
+  return Object.entries(value).filter(
+    ([k, v]) => !isEmptyValue(v) && !valuesEqual(v, defaultValue[k]),
+  ).length
 }
 
 export function FilterSheetContent({
