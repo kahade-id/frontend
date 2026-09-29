@@ -34,8 +34,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { View } from "react-native"
 import { useLocalSearchParams, router, type Href } from "expo-router"
-import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { ClockCounterClockwise, ShieldCheck, X } from "phosphor-react-native"
+import { ArrowUDownLeft, ClockCounterClockwise, DotsThreeVertical, Package, Plus, Question, Receipt, ShieldCheck, ShieldWarning, Timer, Truck, X, XCircle } from "phosphor-react-native"
 
 import { api, isApiError, userMessage, type Order, type Wallet } from "@/lib/api"
 import { createIdempotencyKey } from "@/lib/api/client"
@@ -73,6 +72,7 @@ import {
   formatRupiah,
 } from "@/lib/format"
 import { Dialog } from "@/components/ui/modal"
+import { ActionSheet, type ActionSheetItem } from "@/components/ui/action-sheet"
 import { translate } from "@/lib/i18n"
 import { ROUTES } from "@/lib/routes"
 import { serverNow } from "@/lib/server-time"
@@ -82,7 +82,7 @@ import { logWarn } from "@/lib/telemetry"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
-import { FeeBreakdown } from "@/components/ui/fee-breakdown"
+import { OrderPaymentBreakdown } from "@/components/ui/order-payment-breakdown"
 import { FadeIn } from "@/components/ui/fade-in"
 import { Header } from "@/components/ui/header"
 import { KeyValue, KeyValueList } from "@/components/ui/key-value"
@@ -92,7 +92,6 @@ import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
 import {
   OrderActionSheets,
-  OrderSecondaryActions,
   OrderConfirmDialogs,
   OrderPayProgressOverlay,
   OrderPaymentSheet,
@@ -117,7 +116,8 @@ import { receiptDateRows } from "@/lib/receipt"
 import { shortId } from "@/lib/short-id"
 import { useToast } from "@/components/ui/toast"
 import { buildOrderJourney } from "@/lib/order-journey"
-import { OrderDetailActions, OrderRatingReminder } from "@/components/order-detail-actions"
+import { OrderDetailInfo, OrderRatingReminder } from "@/components/order-detail-actions"
+import { OrderFooterActions } from "@/components/order-footer-actions"
 import { OrderStatusHero } from "@/components/ui/order-status-hero"
 import {
   ShippingOverdueBanner,
@@ -125,9 +125,8 @@ import {
 import type { ShippingCountdownInput } from "@/lib/order-shipping-countdown"
 import { OrderJourney } from "@/components/ui/order-journey"
 import { OrderProductCard } from "@/components/ui/order-product-card"
-import { OrderPartiesCard } from "@/components/ui/order-parties-card"
+import { OrderCounterpartyCard } from "@/components/ui/order-counterparty-card"
 import { OrderEscrowCard } from "@/components/ui/order-escrow-card"
-import { OrderHelpCard } from "@/components/ui/order-help-card"
 import { OrderDetailSkeleton } from "@/components/ui/order-detail-skeleton"
 
 const HISTORY_LIMIT = 50
@@ -160,8 +159,15 @@ const EARLY_STATUSES: readonly string[] = [
  * U5-013 (journey): banner escrow SEKALI-TAMPIL saat penjual membuka detail
  * order. Copy: edukasi alur dana (ditahan escrow → cair setelah pembeli
  * konfirmasi). Dismissible; tidak menyentuh status/order logic.
+ * Mode tanpa wallet: "rekening bank Anda", bukan "wallet Anda".
  */
-function SellerEscrowBanner({ onDismiss }: { onDismiss: () => void }) {
+function SellerEscrowBanner({
+  onDismiss,
+  walletEnabled,
+}: {
+  onDismiss: () => void
+  walletEnabled: boolean
+}) {
   return (
     <View
       accessibilityRole="alert"
@@ -169,8 +175,9 @@ function SellerEscrowBanner({ onDismiss }: { onDismiss: () => void }) {
     >
       <Icon icon={ShieldCheck} size="sm" tone="accent" />
       <Text variant="caption" tone="secondary" className="flex-1 text-pretty">
-        Dana pembeli ditahan escrow — kirim barang dulu, dana cair ke wallet
-        Anda setelah pembeli konfirmasi terima.
+        {walletEnabled
+          ? "Dana pembeli ditahan escrow — kirim barang dulu, dana cair ke wallet Anda setelah pembeli konfirmasi terima."
+          : "Dana pembeli ditahan escrow — kirim barang dulu, dana dicairkan ke rekening bank Anda setelah pembeli konfirmasi terima."}
       </Text>
       <IconButton
         icon={X}
@@ -185,7 +192,6 @@ function SellerEscrowBanner({ onDismiss }: { onDismiss: () => void }) {
 
 export default function OrderDetailScreen() {
   const { id, sheet: sheetParam } = useLocalSearchParams<{ id: string; sheet?: string }>()
-  const insets = useSafeAreaInsets()
   const toast = useToast()
   const { copied, copy } = useCopy()
   /**
@@ -474,6 +480,8 @@ export default function OrderDetailScreen() {
 
   const [sheet, setSheet] = useState<SheetKind>(null)
   const [confirmAccept, setConfirmAccept] = useState(false)
+  // Menu titik-tiga header: aksi sekunder (bantuan, invoice, sengketa, batal).
+  const [moreOpen, setMoreOpen] = useState(false)
   // Item 32: dialog konfirmasi SEBELUM dana escrow dilepas.
   const [confirmComplete, setConfirmComplete] = useState(false)
 
@@ -1058,6 +1066,12 @@ export default function OrderDetailScreen() {
   const canPay = (order.status === "WAITING_PAYMENT" || order.status === "PENDING_PAYMENT") && isBuyer
   const canConfirm = order.status === "WAITING_CONFIRMATION" && isSeller
   const canShip = order.status === "PROCESSING" && isSeller
+  /** Penjual melihat bukti pengiriman saat order dalam pengiriman. */
+  const canViewProof =
+    !isBuyer &&
+    (order.status === "IN_DELIVERY" ||
+      order.status === "SHIPPED" ||
+      order.status === "DELIVERED")
   const canReviewDelivery =
     (order.status === "IN_DELIVERY" ||
       order.status === "SHIPPED" ||
@@ -1080,16 +1094,170 @@ export default function OrderDetailScreen() {
     Boolean(cancelReason.code) &&
     (cancelReason.code !== "OTHER" || cancelReason.note.trim().length > 0)
   const shippingRequired = order.orderType === "PHYSICAL_GOODS"
+  // Item 46: "Ajukan retur" sebagai aksi PRIMER selama jendela retur berlaku.
+  const canReturnPrimary = query.data?.returnEligible === true
+  // Footer (bottom navbar) menampilkan ≥1 aksi utama bila ada yang relevan.
+  const hasPrimaryAction =
+    canPay || canConfirm || canShip || canReviewDelivery || canRate || canReturnPrimary
+
+  /**
+   * Menu titik-tiga header (2026-09-30, permintaan produk): Bantuan,
+   * Invoice, dan aksi sekunder — yang dipindah ke sini DIHAPUS dari badan
+   * layar (tidak diduplikasi). Pola <ActionSheet> yang sama seperti profil.
+   * Urutan: Bantuan → Invoice → kontekstual → Batalkan (destruktif, terakhir).
+   */
+  const moreActions: ActionSheetItem[] = [
+    {
+      key: "help",
+      label: translate("Bantuan"),
+      icon: Question,
+      onPress: () =>
+        router.push({
+          pathname: "/contact",
+          params: { category: "ORDER", orderId: order.id },
+        } as Href),
+    },
+  ]
+  // H-08: invoice "belum diterbitkan" untuk WAITING_CONFIRMATION/CANCELLED.
+  if (order.status !== "WAITING_CONFIRMATION" && order.status !== "CANCELLED") {
+    moreActions.push({
+      key: "invoice",
+      label: translate("Invoice"),
+      icon: Receipt,
+      onPress: () => router.push(ROUTES.invoice(order.id)),
+    })
+  }
+  if (shippingRequired && (order.trackingNumber || order.courierName)) {
+    moreActions.push({
+      key: "track",
+      label: translate("Lacak pengiriman"),
+      icon: Truck,
+      onPress: () => void openTracking(),
+    })
+  }
+  if (isSeller && canShip) {
+    moreActions.push({
+      key: "proof",
+      label: translate("Unggah bukti pengiriman"),
+      icon: Package,
+      onPress: () => router.push(ROUTES.deliveryProof(order.id)),
+    })
+  } else if (isSeller && canViewProof) {
+    moreActions.push({
+      key: "proof",
+      label: translate("Bukti pengiriman"),
+      icon: Package,
+      onPress: () => router.push(ROUTES.deliveryProof(order.id)),
+    })
+  } else if (isBuyer && canReviewDelivery) {
+    moreActions.push({
+      key: "proof",
+      label: translate("Periksa bukti pengiriman"),
+      icon: Package,
+      onPress: () => router.push(ROUTES.deliveryProof(order.id)),
+    })
+  }
+  if (canExtend) {
+    moreActions.push({
+      key: "extend",
+      label: translate("Perpanjang tenggat"),
+      icon: Timer,
+      onPress: () => router.push(ROUTES.extension(order.id)),
+    })
+  }
+  if (isDisputed) {
+    moreActions.push({
+      key: "dispute-view",
+      label: translate("Lihat sengketa"),
+      icon: ShieldWarning,
+      onPress: () => router.push(ROUTES.disputes),
+    })
+  } else if (isBuyer && canDispute) {
+    moreActions.push({
+      key: "dispute",
+      // FE-046: label jujur — membuka sengketa formal (membekukan dana).
+      label: translate("Ajukan sengketa"),
+      icon: ShieldWarning,
+      onPress: () => setSheet("dispute"),
+    })
+  }
+  if (isBuyer && order.status === "COMPLETED" && !canReturnPrimary) {
+    moreActions.push({
+      key: "return",
+      label: translate("Ajukan retur"),
+      icon: ArrowUDownLeft,
+      onPress: () => router.push(ROUTES.newReturn(order.id)),
+    })
+  }
+  if (order.status === "REFUNDED" || order.status === "EXPIRED") {
+    // A-11: jalan keluar eksplisit setelah dana kembali — tanpa menyebut
+    // dompet (mode tanpa wallet): "Lihat mutasi dana" tidak ditampilkan.
+    moreActions.push({
+      key: "new",
+      label: translate("Buat transaksi baru"),
+      icon: Plus,
+      onPress: () => router.push(ROUTES.createTransaction),
+    })
+  }
+  if (canCancel) {
+    moreActions.push({
+      key: "cancel",
+      label: translate("Batalkan pesanan"),
+      icon: XCircle,
+      destructive: true,
+      onPress: () => setSheet("cancel"),
+    })
+  }
 
   return (
-    <Screen edges={["top"]} padded={false}>
-      <Header title="Detail Pesanan" />
+    <Screen
+      edges={["top"]}
+      padded={false}
+      footer={
+        knownRole ? (
+          <OrderFooterActions
+            canPay={canPay}
+            canConfirm={canConfirm}
+            canShip={canShip}
+            canReviewDelivery={canReviewDelivery}
+            canRate={canRate}
+            canReturnPrimary={canReturnPrimary}
+            buyerPays={fee?.buyerPays}
+            shippingRequired={shippingRequired}
+            submitting={submitting}
+            chatBusy={chatBusy}
+            onPay={() => setSheet("pay")}
+            onAccept={() => setConfirmAccept(true)}
+            onReject={() => setSheet("reject")}
+            onShipping={() => setSheet("shipping")}
+            onComplete={() => setConfirmComplete(true)}
+            onRate={() => router.push(ROUTES.rateOrder(order.id))}
+            onReturn={() => router.push(ROUTES.newReturn(order.id))}
+            onOpenChat={() => void openChat()}
+          />
+        ) : undefined
+      }
+    >
+      <Header
+        title="Detail Pesanan"
+        right={
+          <IconButton
+            icon={DotsThreeVertical}
+            variant="ghost"
+            accessibilityLabel={translate("Pilihan lainnya")}
+            onPress={() => setMoreOpen(true)}
+          />
+        }
+      />
       <PullToRefresh
         onRefresh={() => void query.refresh()}
         refreshing={refreshing}
         contentContainerClassName="px-5"
         scrollViewProps={{
-          contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
+          // Footer sticky (Screen.footer) sudah menampung bottom safe-area
+          // via <FooterBar> — konten hanya butuh ruang napas di atas footer,
+          // tanpa menghitung insets.bottom dua kali.
+          contentContainerStyle: { paddingBottom: tokens.space[8] },
         }}
       >
         {/* v2: konten detail reveal (fast) — key per order agar reveal terulang
@@ -1114,7 +1282,7 @@ export default function OrderDetailScreen() {
 
           {/* U5-013 (journey): banner escrow sekali-tampil untuk penjual. */}
           {isSeller && escrowBannerVisible ? (
-            <SellerEscrowBanner onDismiss={dismissEscrowBanner} />
+            <SellerEscrowBanner onDismiss={dismissEscrowBanner} walletEnabled={walletEnabled} />
           ) : null}
 
           {!knownRole ? (
@@ -1130,50 +1298,27 @@ export default function OrderDetailScreen() {
               diterima → dana cair, masing-masing dengan timestamp. */}
           <OrderJourney steps={journeySteps} />
 
-          {/* 3 — Aksi kontekstual sesuai status × peran (gerbang milik layar,
-              komponen hanya me-render yang diminta). */}
-          <OrderDetailActions
-            canPay={canPay}
-            canConfirm={canConfirm}
-            canShip={canShip}
-            canReviewDelivery={canReviewDelivery}
-            canRate={canRate}
-            canViewProof={
-              !isBuyer &&
-              (order.status === "IN_DELIVERY" ||
-                order.status === "SHIPPED" ||
-                order.status === "DELIVERED")
-            }
-            canReturnPrimary={query.data?.returnEligible === true}
-            buyerPays={fee?.buyerPays}
-            shippingRequired={shippingRequired}
-            submitting={submitting}
+          {/* 3 — Info kontekstual: badge peran, countdown, hint langkah
+              berikut. Tombol aksi utama + Chat pindah ke bottom navbar
+              (prop `footer` milik <Screen>). */}
+          <OrderDetailInfo
             status={order.status}
             myRole={knownRole ? myRole : undefined}
+            hasPrimaryAction={hasPrimaryAction}
             autoReleaseAt={autoReleaseAt}
             shippingCountdownInput={shippingCountdownInput}
             // FE-110: input mentah countdown "Batas konfirmasi" — tick
             // terisolasi di <ConfirmCountdownBox> (ter-memo).
             confirmCountdownInput={confirmCountdownInput}
-            // Item 34: panduan "langkah berikutnya" dihitung di dalam
-            // OrderDetailActions bila area aksi kosong.
-            // Item 35: label countdown kontekstual ("Batas kirim"/"Batas konfirmasi").
-            onPay={() => setSheet("pay")}
-            onAccept={() => setConfirmAccept(true)}
-            onReject={() => setSheet("reject")}
-            onShipping={() => setSheet("shipping")}
-            onDeliveryProof={() => router.push(ROUTES.deliveryProof(order.id))}
-            // Item 32: rilis escrow WAJIB lewat dialog konfirmasi dulu.
-            onComplete={() => setConfirmComplete(true)}
-            onRate={() => router.push(ROUTES.rateOrder(order.id))}
-            // Item 46: buka form retur dengan order terisi.
-            onReturn={() => router.push(ROUTES.newReturn(order.id))}
-            onReload={() => void query.reload()}
             // T2-009: tombol "Laporkan masalah" di kartu "Batas kirim" saat
             // penjual melewati tenggat — sheet sengketa yang sama.
             onDispute={
               isBuyer && canDispute && !isDisputed ? () => setSheet("dispute") : undefined
             }
+            // M-30: tombol Bayar di footer terkunci selama nominal belum
+            // terlihat — galat ringkas tampil di sini.
+            payAmountMissing={canPay && fee?.buyerPays == null}
+            onReloadPayAmount={() => void query.reload()}
           />
 
           {/* 4 — Pengingat ulasan (jendela 7 hari backend, bisa ditunda). */}
@@ -1191,39 +1336,43 @@ export default function OrderDetailScreen() {
             orderValue={order.orderValue}
           />
 
-          {/* 6 — Rincian pembayaran: tabel invoice sesungguhnya (bare, tanpa
-              card) — baris + hairline divider, total menonjol. */}
-          {fee && knownRole ? (
-            <>
-              <SectionHeader title="Rincian pembayaran" />
-              <FeeBreakdown
-                bare
-                orderValue={order.orderValue}
-                feeAmount={fee.platformFee}
-                feeResponsibility={order.feeResponsibility}
-                role={isBuyer ? "BUYER" : "SELLER"}
-                discountAmount={fee.discount}
-                // B-01: teruskan angka FINAL server — dulu kartu menghitung
-                // ulang lokal sehingga angka kartu bisa berbeda dari tombol
-                // "Bayar".
-                buyerPays={fee.buyerPays}
-                sellerGets={fee.sellerReceives}
-                // T2-004: baris ongkir untuk barang fisik (tanpa mengubah total).
-                showShippingNote={order.orderType === "PHYSICAL_GOODS"}
-              />
-            </>
+          {/* 6 — Lawan transaksi: SATU pihak saja — pembeli melihat
+              penjual, penjual melihat pembeli. */}
+          {knownRole ? (
+            <OrderCounterpartyCard
+              buyer={order.buyer}
+              seller={order.seller}
+              myRole={myRole === "BUYER" ? "BUYER" : "SELLER"}
+              onOpenProfile={(username) => router.push(ROUTES.userProfile(username))}
+            />
           ) : null}
 
-          {/* 7 — Pihak transaksi */}
-          <OrderPartiesCard
-            buyer={order.buyer}
-            seller={order.seller}
-            myRole={knownRole ? myRole : undefined}
-            onOpenProfile={(username) => router.push(ROUTES.userProfile(username))}
-          />
+          {/* 7 — Rincian pembayaran: COLLAPSIBLE — header selalu
+              menampilkan total + caret buka/tutup; isi tabel invoice tampil
+              saat dibuka. Order aktif default terbuka, order terminal
+              default tertutup (rapi). */}
+          {fee && knownRole ? (
+            <OrderPaymentBreakdown
+              defaultOpen={!ORDER_TERMINAL_STATUSES.includes(order.status)}
+              orderValue={order.orderValue}
+              feeAmount={fee.platformFee}
+              feeResponsibility={order.feeResponsibility}
+              role={isBuyer ? "BUYER" : "SELLER"}
+              discountAmount={fee.discount}
+              // B-01: teruskan angka FINAL server — dulu kartu menghitung
+              // ulang lokal sehingga angka kartu bisa berbeda dari tombol
+              // "Bayar".
+              buyerPays={fee.buyerPays}
+              sellerGets={fee.sellerReceives}
+              // T2-004: baris ongkir untuk barang fisik (tanpa mengubah total).
+              showShippingNote={order.orderType === "PHYSICAL_GOODS"}
+            />
+          ) : null}
 
-          {/* 8 — Pengiriman: kurir + resi (salin/lacak). Item 43: khusus
-              PHYSICAL_GOODS — jasa/digital TIDAK menampilkan info kirim. */}
+          {/* 8 — Pengiriman: kurir + resi (salin). Item 43: khusus
+              PHYSICAL_GOODS — jasa/digital TIDAK menampilkan info kirim.
+              Aksi "Isi resi" pindah ke bottom navbar; "Lacak" pindah ke menu
+              titik-tiga — kartu ini murni informatif. */}
           {shippingRequired ? (
             <ShippingInfoCard
               shipping={
@@ -1234,9 +1383,6 @@ export default function OrderDetailScreen() {
                     }
                   : null
               }
-              canEdit={canShip}
-              onEdit={() => setSheet("shipping")}
-              onTrack={() => void openTracking()}
               onCopy={(v) => void copy(v)}
               copied={copied}
             />
@@ -1327,8 +1473,9 @@ export default function OrderDetailScreen() {
             <DigitalAssetsBuyerSection showcaseId={order.showcaseId} />
           ) : null}
 
-          {/* 13 — Aksi sekunder */}
-          <SectionHeader title="Lainnya" />
+          {/* 13 — Banner proaktif bila penjual melewati batas kirim
+              (ajakan sengketa kontekstual; aksi sekunder umum pindah ke menu
+              titik-tiga). */}
           {/*
            * FE-001 + T2-006: banner proaktif bila penjual melewati batas
            * kirim — detak terisolasi di dalam komponen ter-memo ini.
@@ -1338,33 +1485,8 @@ export default function OrderDetailScreen() {
             visible={isBuyer && canDispute && !isDisputed}
             onOpenDispute={() => setSheet("dispute")}
           />
-          <OrderSecondaryActions
-            order={order}
-            chatBusy={chatBusy}
-            onOpenChat={() => void openChat()}
-            canExtend={canExtend}
-            isDisputed={isDisputed}
-            canDispute={canDispute}
-            canCancel={canCancel}
-            canReturn={isBuyer && order.status === "COMPLETED"}
-            returnIsPrimary={query.data?.returnEligible === true}
-            submitting={submitting}
-            onOpenSheet={(kind) => setSheet(kind)}
-          />
 
-          {/* 14 — Butuh bantuan? */}
-          {/* Item 133: "Hubungi Bantuan Langsung" membuka form Buat Tiket dengan kategori
-              ORDER + order terisi — bukan live support kosong. */}
-          <OrderHelpCard
-            onContactSupport={() =>
-              router.push({
-                pathname: "/contact",
-                params: { category: "ORDER", orderId: order.id },
-              })
-            }
-          />
-
-          {/* 15 — Riwayat */}
+          {/* 14 — Riwayat */}
           <SectionHeader title="Riwayat" />
           {history.length > 0 ? (
             <OrderHistoryTimeline
@@ -1394,6 +1516,15 @@ export default function OrderDetailScreen() {
         </View>
         </FadeIn>
       </PullToRefresh>
+
+      {/* ── Menu titik-tiga: aksi sekunder (bantuan, invoice, sengketa,
+          batal, dsb.) — pola <ActionSheet> yang sama seperti profil. */}
+      <ActionSheet
+        title={translate("Pilihan lainnya")}
+        visible={moreOpen}
+        onRequestClose={() => setMoreOpen(false)}
+        actions={moreActions}
+      />
 
       {/* ── Bayar ─────────────────────────────────────────────── */}
       <OrderPaymentSheet

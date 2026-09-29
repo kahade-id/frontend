@@ -1,20 +1,20 @@
 /**
- * Kahade — <OrderDetailActions>.
+ * Kahade — <OrderDetailInfo>.
  *
- * Tombol aksi KONTEKSTUAL halaman detail order — diekstrak dari
+ * Info KONTEKSTUAL halaman detail order — diekstrak dari
  * app/order/[id].tsx agar layar tidak menjadi god-component (plafon Q-25).
  *
- * GERBANG TAMPIL 100% milik pemanggil (canPay/canConfirm/…): komponen ini
- * TIDAK memutuskan kapan tombol muncul — hanya me-render yang diminta.
- * Seluruh handler (runAction, sheet, navigasi) diteruskan sebagai props.
+ * Tombol aksi utama + Chat tinggal di <OrderFooterActions> (bottom navbar
+ * via prop `footer` milik <Screen>); komponen ini hanya me-render info:
+ * badge peran, countdown, hint langkah berikut, dan galat kesiapan nominal.
+ * GERBANG TAMPIL 100% milik pemanggil: komponen ini TIDAK memutuskan kapan
+ * sesuatu muncul — hanya me-render yang diminta.
  */
 import { View, type ViewProps } from "react-native"
-import { ArrowUDownLeft, Package, Truck } from "phosphor-react-native"
 
 import { Button } from "@/components/ui/button"
 import { ErrorState } from "@/components/ui/error-state"
 import { Text } from "@/components/ui/text"
-import { formatRupiah } from "@/lib/format"
 import { translate } from "@/lib/i18n/translate"
 import { orderNextStepHint, type OrderActorRole } from "@/lib/order-next-step"
 import { ctaUnavailableReasons } from "@/lib/wallet-batch139"
@@ -27,25 +27,13 @@ import {
 import type { ShippingCountdownInput } from "@/lib/order-shipping-countdown"
 import type { ConfirmCountdownInput } from "@/lib/order-confirm-countdown"
 
-export type OrderDetailActionsProps = Omit<ViewProps, "children"> & {
-  /** Gerbang tampil — dihitung di layar dari status × peran. */
-  canPay: boolean
-  canConfirm: boolean
-  canShip: boolean
-  canReviewDelivery: boolean
-  canRate: boolean
-  /** Penjual melihat bukti pengiriman saat order dalam pengiriman. */
-  canViewProof: boolean
-  /** Item 46: "Ajukan retur" sebagai aksi PRIMER selama jendela retur berlaku. */
-  canReturnPrimary: boolean
-  /** Nominal bayar terverifikasi; null = tombol Bayar terkunci. */
-  buyerPays: number | null | undefined
-  shippingRequired: boolean
-  submitting: boolean
+export type OrderDetailInfoProps = Omit<ViewProps, "children"> & {
   /** Status order mentah — untuk label countdown & hint langkah berikut. */
   status: string
   /** Peran user — untuk hint langkah berikut. */
   myRole?: OrderActorRole
+  /** true bila footer menampilkan >=1 aksi utama (hint langkah disembunyikan). */
+  hasPrimaryAction: boolean
   /**
    * FE-001: tenggat auto-release dana (IN_DELIVERY + autoCompleteAt) —
    * hanya string `at` yang stabil; detik hitung mundur dihitung di dalam
@@ -62,18 +50,14 @@ export type OrderDetailActionsProps = Omit<ViewProps, "children"> & {
    * tampil milik layar; resolve per-tick di dalam <ConfirmCountdownBox>.
    */
   confirmCountdownInput: ConfirmCountdownInput | null
-  onPay: () => void
-  onAccept: () => void
-  onReject: () => void
-  onShipping: () => void
-  onDeliveryProof: () => void
-  onComplete: () => void
-  /** T2-009: dibuka dari kartu "Batas kirim" saat penjual melewati tenggat
-      (sheet sengketa yang sama dipakai aksi sekunder). */
+  /** T2-009: dibuka dari kartu "Batas kirim" saat penjual melewati tenggat. */
   onDispute?: () => void
-  onRate: () => void
-  onReturn: () => void
-  onReload: () => void
+  /**
+   * M-30: tombol Bayar (di footer) butuh nominal terverifikasi yang belum
+   * tersedia — tampilkan galat ringkas + tombol muat ulang di sini.
+   */
+  payAmountMissing?: boolean
+  onReloadPayAmount?: () => void
   className?: string
 }
 
@@ -119,49 +103,32 @@ export function OrderRatingReminder({
   )
 }
 
-export function OrderDetailActions({
-  canPay,
-  canConfirm,
-  canShip,
-  canReviewDelivery,
-  canRate,
-  canViewProof,
-  canReturnPrimary,
-  buyerPays,
-  shippingRequired,
-  submitting,
+export function OrderDetailInfo({
   status,
   myRole,
+  hasPrimaryAction,
   autoReleaseAt,
   shippingCountdownInput,
   confirmCountdownInput,
-  onPay,
-  onAccept,
-  onReject,
-  onShipping,
-  onDeliveryProof,
-  onComplete,
   onDispute,
-  onRate,
-  onReturn,
-  onReload,
+  payAmountMissing,
+  onReloadPayAmount,
   className,
   ...rest
-}: OrderDetailActionsProps) {
-  // Item 34: area aksi kosong → tampilkan "langkah berikutnya" per status × peran.
-  const hasAnyAction =
-    canPay || canConfirm || canShip || canReviewDelivery || canRate || canViewProof || canReturnPrimary
-  const nextStepHint = !hasAnyAction ? orderNextStepHint(status, myRole) : null
+}: OrderDetailInfoProps) {
+  // Item 34: tidak ada aksi utama di footer → tampilkan "langkah
+  // berikutnya" per status × peran.
+  const nextStepHint = !hasPrimaryAction ? orderNextStepHint(status, myRole) : null
   /**
    * D15 (batch 139): alasan eksplisit mengapa TIDAK ADA tombol yang bisa
    * ditekan — per status × peran. Diutamakan di atas hint umum bila ada.
    */
-  const unavailableReasons = !hasAnyAction ? ctaUnavailableReasons(status, myRole) : []
+  const unavailableReasons = !hasPrimaryAction ? ctaUnavailableReasons(status, myRole) : []
   return (
     <View className={className} {...rest}>
       {/*
        * D14 (batch 139): peran konsisten — badge "Pembeli"/"Penjual" yang
-       * SAMA dengan header & timeline, tepat di atas tombol aksi.
+       * SAMA dengan header & timeline, tepat di atas area aksi.
        */}
       {myRole ? (
         <View className="mb-2 flex-row items-center gap-2">
@@ -194,11 +161,13 @@ export function OrderDetailActions({
          * Satu-satunya sumber tenggat = `confirmationDeadlineAt` backend.
          */}
         {confirmCountdownInput ? <ConfirmCountdownBox input={confirmCountdownInput} /> : null}
-        {/* Item 46: "Ajukan retur" sebagai aksi PRIMER selama jendela retur berlaku. */}
-        {canReturnPrimary ? (
-          <Button leftIcon={ArrowUDownLeft} onPress={onReturn}>
-            Ajukan retur
-          </Button>
+        {payAmountMissing ? (
+          <ErrorState
+            compact
+            title="Rincian biaya belum tersedia"
+            description="Muat ulang untuk menampilkan jumlah yang harus dibayar."
+            onRetry={onReloadPayAmount}
+          />
         ) : null}
         {unavailableReasons.length > 0 ? (
           <View className="gap-1.5 rounded-lg bg-info-soft p-3">
@@ -214,72 +183,6 @@ export function OrderDetailActions({
               {nextStepHint}
             </Text>
           </View>
-        ) : null}
-        {canPay ? (
-          <>
-            {buyerPays == null ? (
-              <ErrorState
-                compact
-                title="Rincian biaya belum tersedia"
-                description="Muat ulang untuk menampilkan jumlah yang harus dibayar."
-                onRetry={onReload}
-              />
-            ) : null}
-            {/* M-30: tombol Bayar terkunci SELAMA nominal belum terlihat —
-                label "Bayar —" = membayar tanpa nominal terlihat. */}
-            <Button disabled={buyerPays == null} onPress={onPay}>
-              {/* B-05: label tidak pernah mencetak `orderValue` sebagai total
-                  bayar (tanpa fee/diskon) — saat fee belum terhitung tampil
-                  "—", bukan angka yang lebih kecil. */}
-              Bayar ke Escrow · {buyerPays != null ? formatRupiah(buyerPays) : "—"}
-            </Button>
-          </>
-        ) : null}
-        {canConfirm ? (
-          <>
-            <Button onPress={onAccept}>Terima pesanan</Button>
-            <Button variant="secondary" onPress={onReject}>
-              Tolak pesanan
-            </Button>
-          </>
-        ) : null}
-        {canShip ? (
-          <>
-            <Button leftIcon={Truck} onPress={onShipping}>
-              {shippingRequired ? "Isi resi pengiriman" : "Tandai dikirim"}
-            </Button>
-            <Button variant="secondary" leftIcon={Package} onPress={onDeliveryProof}>
-              Unggah bukti pengiriman
-            </Button>
-          </>
-        ) : null}
-        {canReviewDelivery ? (
-          <>
-            {/* T2-003: "Konfirmasi terima" MELEPAS dana escrow ke penjual —
-                aksi penggerak uang harus jadi tombol PRIMER (dulu sekunder,
-                sehingga dana penjual tertahan sampai auto-release). */}
-            <Button loading={submitting} onPress={onComplete}>
-              Konfirmasi terima
-            </Button>
-            <Text variant="caption" tone="secondary" className="text-center">
-              Dana cair ke penjual
-            </Text>
-            <Button variant="secondary" leftIcon={Package} onPress={onDeliveryProof}>
-              Periksa bukti pengiriman
-            </Button>
-            {/* Item 31: satu nama untuk rilis escrow — "Konfirmasi terima"
-                (selaras label di notifikasi/push, item #24). */}
-          </>
-        ) : null}
-        {canViewProof ? (
-          <Button variant="secondary" leftIcon={Package} onPress={onDeliveryProof}>
-            Bukti pengiriman
-          </Button>
-        ) : null}
-        {canRate ? (
-          <Button variant="secondary" onPress={onRate}>
-            Beri ulasan
-          </Button>
         ) : null}
       </View>
     </View>
