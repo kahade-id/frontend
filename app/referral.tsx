@@ -43,11 +43,15 @@ import { useApiQuery } from "@/lib/use-api-query"
 import { useCopy } from "@/lib/clipboard"
 import { logWarn } from "@/lib/telemetry"
 import { useToast } from "@/components/ui/toast"
+import { useWalletEnabled } from "@/lib/use-wallet-enabled"
 
 export default function ReferralScreen() {
   const insets = useSafeAreaInsets()
   const toast = useToast()
   const { copied, copy } = useCopy()
+  // Mode Tanpa Wallet Internal: reward referral dicairkan via disbursement
+  // DANA ke rekening bank (bukan masuk saldo) — label status disesuaikan.
+  const walletEnabled = useWalletEnabled()
 
   /**
    * Audit: empat state data + loading/error/refreshing dirakit manual. Cacat
@@ -298,13 +302,24 @@ export default function ReferralScreen() {
 
             {rewards.length > 0 ? (
               <>
-                <SectionHeader title="Reward" />
+                <SectionHeader
+                  title="Reward"
+                  subtitle={
+                    walletEnabled
+                      ? undefined
+                      : "Reward dicairkan ke rekening bank terdaftar Anda."
+                  }
+                />
                 {rewards.map((r) => (
                   <ReferralRewardListItem
                     key={r.id}
                     amount={r.amount}
                     status={r.status}
                     date={formatDateTimeWIB(r.createdAt)}
+                    // Tanpa wallet: "Masuk saldo" -> "Dicairkan" (disbursement
+                    // DANA ke rekening; PENDING tetap "Menunggu" — dana belum
+                    // ada tidak boleh terlihat sudah ada).
+                    labels={walletEnabled ? undefined : { CREDITED: "Dicairkan" }}
                   />
                 ))}
               </>
