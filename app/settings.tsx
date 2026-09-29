@@ -83,7 +83,7 @@ import { Button } from "@/components/ui/button"
 import { Stagger } from "@/components/ui/fade-in"
 import { Header } from "@/components/ui/header"
 import { type IconComponent } from "@/components/ui/icon"
-import { Input } from "@/components/ui/input"
+import { DebouncedSearchField } from "@/components/ui/debounced-search-field"
 import { ListItem } from "@/components/ui/list-item"
 import { Text } from "@/components/ui/text"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
@@ -289,11 +289,12 @@ export default function SettingsScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View className="gap-4 px-5 pt-3">
-          {/* A15: pencarian lokal — hanya memfilter menu yang sudah ada. */}
-          <Input
-            variant="search"
-            value={query}
-            onChangeText={setQuery}
+          {/* A15: pencarian lokal — hanya memfilter menu yang sudah ada.
+              TIM 8 (perf): state mentah dikurung di <DebouncedSearchField>;
+              filter hanya jalan atas nilai yang sudah tenang (pola app/faq.tsx). */}
+          <DebouncedSearchField
+            initialQuery={query}
+            onQueryChange={setQuery}
             placeholder="Cari pengaturan"
             accessibilityLabel="Cari pengaturan"
             returnKeyType="search"

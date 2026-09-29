@@ -254,13 +254,19 @@ export default function TransferScreen() {
     "wallet-favorites",
     (signal) => api.wallet.getFavoriteRecipients(signal),
   )
-  const favorites: TransferRecipient[] = (favoritesQuery.data ?? []).map((f) => ({
-    id: f.recipient.id,
-    // `label` (alias opsional, maks 50 kar) menggantikan nama di baris.
-    name: f.label && f.label.trim() ? f.label : f.recipient.fullName,
-    username: f.recipient.username ?? "",
-    avatarUrl: f.recipient.avatarUrl ?? undefined,
-  }))
+  // TIM 8 (perf): di-memo seperti `results` di atas — sebelumnya `.map()` +
+  // `trim()` di body render membuat array baru tiap render.
+  const favorites: TransferRecipient[] = useMemo(
+    () =>
+      (favoritesQuery.data ?? []).map((f) => ({
+        id: f.recipient.id,
+        // `label` (alias opsional, maks 50 kar) menggantikan nama di baris.
+        name: f.label && f.label.trim() ? f.label : f.recipient.fullName,
+        username: f.recipient.username ?? "",
+        avatarUrl: f.recipient.avatarUrl ?? undefined,
+      })),
+    [favoritesQuery.data],
+  )
   const [togglingFavoriteId, setTogglingFavoriteId] = useState<string | null>(null)
   const handleToggleFavorite = useCallback(
     async (recipient: TransferRecipient, nextFavorite: boolean) => {

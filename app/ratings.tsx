@@ -211,18 +211,18 @@ export default function RatingsScreen() {
     [me],
   )
 
-  const visible = useMemo(
-    () => items.filter((r) => (segment === "GIVEN" ? isGivenByMe(r) : !isGivenByMe(r))),
-    [items, segment, isGivenByMe],
-  )
-
   // Item 21 (2026-09-28): filter bintang dari bar distribusi — menyambung ke
   // daftar yang SUDAH ADA (bukan filter baru/duplikat). Komponen bar
   // menyembunyikan dirinya sendiri sampai kontrak TIM A tiba.
+  // TIM 8 (perf): dua filter berantai digabung jadi satu pass.
   const [starsFilter, setStarsFilter] = useState<number | null>(null)
   const filtered = useMemo(
-    () => (starsFilter === null ? visible : visible.filter((r) => r.stars === starsFilter)),
-    [visible, starsFilter],
+    () =>
+      items.filter((r) => {
+        if (!(segment === "GIVEN" ? isGivenByMe(r) : !isGivenByMe(r))) return false
+        return starsFilter === null || r.stars === starsFilter
+      }),
+    [items, segment, isGivenByMe, starsFilter],
   )
 
   // ── Balasan ────────────────────────────────────────────────────────

@@ -36,6 +36,7 @@
  *     ("3 Sep 2026, 14:30"), konsisten dengan komponen domain lain.
  */
 import { Copy, DownloadSimple, ShareNetwork } from "phosphor-react-native"
+import { useMemo } from "react"
 import { View, type ViewProps } from "react-native"
 import { translate } from "@/lib/i18n/translate"
 
@@ -174,8 +175,13 @@ export function InvoiceReceiptView({
   ...rest
 }: InvoiceReceiptViewProps) {
   const t = { ...DEFAULT_LABELS, ...labels }
-  const subtotal = items.reduce((s, it) => s + it.amount, 0)
-  const computedTotal = total ?? subtotal + adjustments.reduce((s, a) => s + a.amount, 0)
+  // TIM 8 (perf): ringkasan angka di-memo — sebelumnya dua reduce di body
+  // render komponen presentasional.
+  const { subtotal, computedTotal } = useMemo(() => {
+    const subtotal = items.reduce((s, it) => s + it.amount, 0)
+    const computedTotal = total ?? subtotal + adjustments.reduce((s, a) => s + a.amount, 0)
+    return { subtotal, computedTotal }
+  }, [items, adjustments, total])
   const title = mode === "invoice" ? t.invoiceTitle : t.receiptTitle
 
   return (
