@@ -519,7 +519,10 @@ export default function SecurityActivityScreen() {
         visible={!!trustTarget}
         destructive={!trustTarget?.next}
         loading={trustingId !== null}
-        confirmLabel="Konfirmasi"
+        // FE-116: label konfirmasi eksplisit per aksi (bukan "Konfirmasi" generik).
+        confirmLabel={trustTarget?.next ? "Ya, percayai perangkat" : "Ya, cabut kepercayaan"}
+        // FE-117: tombol mati saat kata sandi kosong — klik tidak "bisu" lagi.
+        confirmButtonProps={{ disabled: !trustPassword.trim() }}
         cancelLabel="Batal"
         onConfirm={() => void handleToggleTrustConfirm()}
         onCancel={() => setTrustTarget(null)}
