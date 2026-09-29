@@ -78,6 +78,8 @@ import { ROUTES } from "@/lib/routes"
 import { serverNow } from "@/lib/server-time"
 import { tokens } from "@/lib/tokens"
 import { logWarn } from "@/lib/telemetry"
+import { fetchViaQueryCache } from "@/lib/query-cache"
+import { queryKeys } from "@/lib/query-keys"
 
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
@@ -236,8 +238,12 @@ export default function OrderDetailScreen() {
       // fallback bila backend tidak mengisi `myRole` (peran diinfer dari
       // id/username). `average-durations` (statistik global) lewat cache
       // 10 menit per sesi (getAverageDurationsCached).
+      // PERF-FIX (network P1): order mentah lewat cache kanonis
+      // `queryKeys.order(oid)` (doktrin C-02) — daftar transaksi menitipkan
+      // hasil prefetch press-in ke kunci yang sama, jadi request ini sering
+      // tidak menembak jaringan sama sekali.
       const [o, h, d] = await Promise.all([
-        api.orders.getOrder(oid, signal),
+        fetchViaQueryCache(queryKeys.order(oid), (s) => api.orders.getOrder(oid, s), signal),
         api.orders
           .getOrderHistory(oid, { page: 1, limit: HISTORY_LIMIT }, signal)
           .catch((err) => {

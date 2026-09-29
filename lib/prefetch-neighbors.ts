@@ -30,3 +30,48 @@ export function prefetchNeighborImages(
     }
   }
 }
+
+/**
+ * PERF-FIX (network P1): prefetch gambar ~3 kartu feed BERIKUTNYA.
+ *
+ * Dipanggil dari `onViewableItemsChanged` daftar feed — kartu yang akan
+ * di-scroll sudah punya gambar sampul di cache saat tampil, tanpa menunggu
+ * render kartu. Yang di-prefetch HANYA satu gambar per kartu:
+ * - `coverImageUrl` bila ada,
+ * - fallback media pertama: `imageUrl` untuk image/spin360, `thumbnailUrl`
+ *   (poster) untuk video — berkas VIDEO tidak pernah di-prefetch.
+ *
+ * Batasan (sama seperti prefetch tetangga galeri):
+ * - Hormati mode hemat data: tidak ada prefetch sama sekali.
+ * - Fire-and-forget: kegagalan diabaikan; URL yang sama tidak diulang
+ *   (set sesi) supaya scroll bolak-balik tidak menembak ulang.
+ */
+import type { ShowcaseMedia, ShowcaseSocialItem } from "@/lib/api/showcase"
+
+const FEED_PREFETCH_AHEAD = 3
+const feedPrefetchedUrls = new Set<string>()
+
+function feedCardImageUrl(item: ShowcaseSocialItem): string | undefined {
+  if (item.coverImageUrl) return item.coverImageUrl
+  const media: ShowcaseMedia | undefined = item.images[0]
+  if (!media) return undefined
+  // Video: hanya poster. imageUrl milik video = berkas video (mahal).
+  if (media.kind === "video") return media.thumbnailUrl ?? undefined
+  return media.imageUrl
+}
+
+export function prefetchFeedAheadImages(
+  items: readonly ShowcaseSocialItem[],
+  fromIndex: number,
+  dataSaver: boolean,
+): void {
+  if (dataSaver || fromIndex < 0) return
+  for (let offset = 1; offset <= FEED_PREFETCH_AHEAD; offset++) {
+    const item = items[fromIndex + offset]
+    if (!item) break
+    const url = feedCardImageUrl(item)
+    if (!url || feedPrefetchedUrls.has(url)) continue
+    feedPrefetchedUrls.add(url)
+    Image.prefetch(url, "memory-disk").catch(() => undefined)
+  }
+}

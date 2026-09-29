@@ -60,6 +60,7 @@ import { translate } from "@/lib/i18n/translate"
 import { toEpochMs } from "@/lib/pending-actions"
 import { ROUTES } from "@/lib/routes"
 import { queryKeys } from "@/lib/query-keys"
+import { writeQueryCache } from "@/lib/query-cache"
 import { tokens } from "@/lib/tokens"
 import { groupOrdersByDay, type OrderDayGroup } from "@/lib/transaction-grouping"
 import { TAB_BAR_HEIGHT } from "@/components/ui/bottom-tab-bar"
@@ -164,6 +165,13 @@ const TransactionOrderCard = memo(function TransactionOrderCard({
   order: Order
   onDeadline: () => void
 }) {
+  // PERF-FIX (network P1): prefetch press-in — titipkan Order lengkap dari
+  // daftar ke cache kanonis `queryKeys.order(id)`; layar detail
+  // mengonsumsinya via `fetchViaQueryCache` tanpa request `getOrder` ulang
+  // (doktrin C-02). Stabil per `order` agar tidak menjebol memo.
+  const handlePressIn = useCallback(() => {
+    writeQueryCache(queryKeys.order(order.id), order)
+  }, [order])
   const cardRole =
     order.myRole === "SELLER" ? "seller" : order.myRole === "BUYER" ? "buyer" : undefined
   const counterpart =
@@ -195,6 +203,7 @@ const TransactionOrderCard = memo(function TransactionOrderCard({
       }
       onDeadline={onDeadline}
       href={ROUTES.orderDetail(order.id)}
+      onPressIn={handlePressIn}
     />
   )
 })

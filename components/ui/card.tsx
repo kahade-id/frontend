@@ -48,7 +48,10 @@ import { focusRing } from "@/lib/focus-ring"
 export type CardVariant = "default" | "elevated" | "inverted" | "outline"
 
 export type CardProps = Omit<ViewProps, "children"> &
-  Pick<PressableScaleProps, "onPress" | "onLongPress" | "accessibilityLabel" | "accessibilityHint"> & {
+  Pick<
+    PressableScaleProps,
+    "onPress" | "onPressIn" | "onLongPress" | "accessibilityLabel" | "accessibilityHint"
+  > & {
     /**
      * Audit (web a11y): kartu yang BERPINDAH LAYAR harus berupa tautan, bukan
      * tombol. Tanpa `href`, kartu interaktif dirender sebagai

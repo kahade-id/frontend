@@ -189,6 +189,11 @@ export type OrderCardProps = Omit<CardProps, "children" | "variant" | "padded" |
   unread?: boolean
   labels?: Partial<OrderCardLabels>
   /**
+   * PERF-FIX (network P1): prefetch saat press-in (mis. daftar transaksi
+   * menitipkan Order ke cache kanonis sebelum navigasi). Diteruskan ke <Card>.
+   */
+  onPressIn?: () => void
+  /**
    * Item 80 (mega-batch 2026-09-28): substring yang ditonjolkan di judul
    * (hasil pencarian). Kosong = render polos seperti sebelumnya.
    */
@@ -271,6 +276,7 @@ export const OrderCard = memo(function OrderCard({
   labels,
   highlight,
   onPress,
+  onPressIn,
   href,
   accessibilityLabel,
   className,
@@ -316,6 +322,7 @@ export const OrderCard = memo(function OrderCard({
       variant="default"
       elevation="flat"
       onPress={onPress}
+      onPressIn={onPressIn}
       href={href}
       testID="order-card"
       accessibilityLabel={a11y}

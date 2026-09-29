@@ -70,6 +70,9 @@ import {
 import { api, isApiError, userMessage } from "@/lib/api"
 import { validateChatAttachment } from "@/lib/chat-attachment-limits"
 import { getOrder, type Order } from "@/lib/api/orders"
+import { consumePrefetchedChatRoom } from "@/lib/chat-room-prefetch"
+import { fetchViaQueryCache } from "@/lib/query-cache"
+import { queryKeys } from "@/lib/query-keys"
 import { refreshUnreadCount } from "@/lib/unread-count"
 import { refreshChatUnreadCount } from "@/lib/chat-unread-count"
 import { usePolling } from "@/lib/use-polling"
@@ -510,7 +513,11 @@ export default function ChatRoomScreen() {
       return
     }
     let cancelled = false
-    getOrder(room.orderId)
+    // PERF-FIX (network P1): lewat cache kanonis `order:{id}` (doktrin C-02)
+    // — buka-tutup room yang sama tidak mengunduh ulang payload order mentah
+    // yang identik dengan yang dipakai layar order.
+    const orderId = room.orderId
+    void fetchViaQueryCache(queryKeys.order(orderId), (signal) => getOrder(orderId, signal))
       .then((ord) => {
         if (!cancelled) setOrder(ord)
       })
@@ -708,12 +715,18 @@ export default function ChatRoomScreen() {
       // D1-003: header room diambil via GET /v1/chat/rooms/:roomId (ringan) —
       // tidak lagi fetch ulang seluruh daftar room (halaman 1, 30 baris join
       // berat) hanya untuk menemukan 1 baris.
+      // PERF-FIX (network P1): daftar chat menitipkan objek room via
+      // `seedChatRoomPrefetch` saat baris dibuka — konsumsi di sini dan
+      // lewatkan GET header bila masih segar (sekali pakai, TTL 90 dtk).
+      const prefetchedRoom = consumePrefetchedChatRoom(roomId)
       const [page, roomRow, failed] = await Promise.all([
         api.chat.getChatMessages(roomId, { limit: CHAT_PAGE_SIZE }, controller.signal),
-        api.chat.getChatRoom(roomId, controller.signal).catch((err) => {
-          logWarn("chat:room-lookup", err)
-          return null
-        }),
+        prefetchedRoom
+          ? Promise.resolve<ChatRoom | null>(prefetchedRoom)
+          : api.chat.getChatRoom(roomId, controller.signal).catch((err) => {
+              logWarn("chat:room-lookup", err)
+              return null
+            }),
         // B07: antrean pesan gagal yang persisten — selamat dari refresh.
         loadChatFailedMessages(roomId),
       ])
