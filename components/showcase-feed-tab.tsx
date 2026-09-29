@@ -122,6 +122,15 @@ const FEED_LIMIT = 20
  */
 const FOLLOWING_MIN_ITEMS = 5
 const FOLLOWING_MAX_PAGES = 3
+/**
+ * FE-079: halaman MENTAH tab "Mengikuti" memakai limit 50 (= batas maksimum
+ * yang dijamin backend: `SHOWCASE_FEED_MAX_LIMIT` di
+ * `backend/src/common/constants/app.constants.ts`). Cursor halaman N+1 baru
+ * diketahui setelah respons halaman N, jadi request paralel mustahil — satu
+ * halaman besar memangkas jumlah RTT serial yang dibutuhkan filter klien
+ * untuk mengumpulkan FOLLOWING_MIN_ITEMS kartu. Sort lain tetap 20.
+ */
+const FEED_LIMIT_FOLLOWING = 50
 // ------------------------------------------------------------------
 // Tab Showcase (cursor/keyset) — header lipat + tab feed gaya profil publik
 // ------------------------------------------------------------------
@@ -749,7 +758,12 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
           let partialCommitted = false
           for (; set.size > 0 && pageIndex < FOLLOWING_MAX_PAGES; pageIndex++) {
             const page = await getShowcaseFeed(
-              { ...query, sort: "latest", cursor: slot.cursors.latest ?? undefined },
+              {
+                ...query,
+                limit: FEED_LIMIT_FOLLOWING,
+                sort: "latest",
+                cursor: slot.cursors.latest ?? undefined,
+              },
               controller.signal,
             )
             if (controller.signal.aborted) return
