@@ -14,7 +14,7 @@
  *     CANCELLED=neutral — mengikuti §2.3 (semantic hanya untuk status).
  */
 
-import { useCallback, useState } from "react"
+import { useCallback, useMemo, useState } from "react"
 import { LinkSimple } from "phosphor-react-native"
 import { router } from "expo-router"
 
@@ -39,6 +39,10 @@ import { orderLinkStatusMeta } from "@/lib/order-link-labels"
 import { useToast } from "@/components/ui/toast"
 
 const PAGE_SIZE = 20
+
+// FE-066 (audit 2026-09-29): header statis — konstanta modul, bukan JSX baru
+// tiap render (identitas stabil untuk memo internal PaginatedList).
+const ORDER_LINKS_HEADER = <SectionHeader title="Tautan saya" />
 
 export default function OrderLinksScreen() {
   const toast = useToast()
@@ -83,6 +87,29 @@ export default function OrderLinksScreen() {
     },
   )
   const items = query.data
+
+  // FE-066: onPress tombol "Buat tautan baru" stabil (dipakai empty + footer).
+  const handleCreateLink = useCallback(() => {
+    router.push(ROUTES.createTransaction)
+  }, [])
+
+  // FE-066: empty state di-hoist — elemen baru tiap render menggagalkan
+  // bail-out kontainer daftar.
+  const linksEmpty = useMemo(
+    () => (
+      <EmptyState
+        icon={LinkSimple}
+        title="Belum ada tautan"
+        description="Buat tautan pesanan dari layar buat transaksi, lalu bagikan ke lawan transaksi."
+        action={
+          <Button variant="secondary" fullWidth={false} onPress={handleCreateLink}>
+            Buat tautan baru
+          </Button>
+        }
+      />
+    ),
+    [handleCreateLink],
+  )
 
   const handleShare = useCallback(
     async (payload: { url: string; message: string }, title: string) => {
@@ -218,29 +245,14 @@ export default function OrderLinksScreen() {
         onRefresh={query.refresh}
         onRetry={query.reload}
         onLoadMore={query.loadMore}
-        header={<SectionHeader title="Tautan saya" />}
-        empty={
-          <EmptyState
-            icon={LinkSimple}
-            title="Belum ada tautan"
-            description="Buat tautan pesanan dari layar buat transaksi, lalu bagikan ke lawan transaksi."
-            action={
-              <Button
-                variant="secondary"
-                fullWidth={false}
-                onPress={() => router.push(ROUTES.createTransaction)}
-              >
-                Buat tautan baru
-              </Button>
-            }
-          />
-        }
+        header={ORDER_LINKS_HEADER}
+        empty={linksEmpty}
         footer={
           // Tombol bawah disembunyikan saat daftar kosong — empty state sudah
           // punya tombol "Buat tautan baru" yang sama (dobel bila keduanya
           // tampil; laporan produk 2026-09-28).
           items.length > 0 ? (
-            <Button variant="secondary" onPress={() => router.push(ROUTES.createTransaction)}>
+            <Button variant="secondary" onPress={handleCreateLink}>
               Buat tautan baru
             </Button>
           ) : null
