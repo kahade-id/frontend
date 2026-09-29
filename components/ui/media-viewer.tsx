@@ -27,7 +27,7 @@
  *     kebutuhan utama adalah "lihat lebih besar dari thumbnail 3 kolom" —
  *     cukup layar penuh; zoom dicatat sebagai peningkatan lanjutan.
  */
-import { useCallback, useState, type ReactNode } from "react"
+import { memo, useCallback, useState, type ReactNode } from "react"
 import { Linking, View, useWindowDimensions } from "react-native"
 import { ArrowSquareOut, FilePdf, X } from "phosphor-react-native"
 
@@ -99,7 +99,8 @@ export type MediaViewerProps = {
   actions?: ReactNode
 }
 
-export function MediaViewer({ item, onClose, onOpenError, labels, actions }: MediaViewerProps) {
+// FE-060 (audit 2026-09-29): di-memo + mount kondisional dari layar.
+export const MediaViewer = memo(function MediaViewer({ item, onClose, onOpenError, labels, actions }: MediaViewerProps) {
   const t = { ...DEFAULT_LABELS, ...labels }
   const { height: windowHeight } = useWindowDimensions()
   const [aspect, setAspect] = useState(DEFAULT_ASPECT)
@@ -176,4 +177,4 @@ export function MediaViewer({ item, onClose, onOpenError, labels, actions }: Med
       </View>
     </Modal>
   )
-}
+})
