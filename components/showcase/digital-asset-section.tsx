@@ -302,9 +302,6 @@ export function DigitalAssetsSellerManager({ showcaseId }: { showcaseId: string 
           }}
         />
       </View>
-      <Text variant="caption" tone="secondary">
-        {translate("File, tautan, atau kode lisensi yang otomatis diterima pembeli setelah bayar.")}
-      </Text>
       {assets.map((asset) => (
         <AssetRow
           key={asset.id}
