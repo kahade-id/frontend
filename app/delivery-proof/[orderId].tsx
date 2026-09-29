@@ -30,10 +30,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useApiQuery } from "@/lib/use-api-query"
 import { useFingerprintPoll } from "@/lib/use-fingerprint-poll"
 import { Text } from "@/components/ui/text"
+import { Icon } from "@/components/ui/icon"
 import { Pressable, View } from "react-native"
 import { useLocalSearchParams } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { Package } from "phosphor-react-native"
+import { Package, CaretRight } from "phosphor-react-native"
 
 import { api, createIdempotencyKey, isApiError, userMessage, type Order } from "@/lib/api"
 import { showMutationError } from "@/lib/mutation-toast"
@@ -617,21 +618,35 @@ export default function DeliveryProofScreen() {
                 />
                 {pastProofs.map((p) => {
                   const atts = toAttachments(p)
+                  const openable = atts.items.length > 0
                   return (
                     <Pressable
                       key={p.id || p.createdAt}
-                      onPress={atts.items.length > 0 ? () => openProofAttachment(p) : undefined}
-                      disabled={atts.items.length === 0}
+                      onPress={openable ? () => openProofAttachment(p) : undefined}
+                      disabled={!openable}
                       accessibilityRole="button"
+                      // FE-133 (audit frontend 2026-09-29): label ringkas —
+                      // SR tidak lagi membaca gabungan teks anak yang panjang.
+                      accessibilityLabel={translate("Lihat lampiran bukti {x}", {
+                        x: proofHistoryLabel(p.status),
+                      })}
                       className="rounded-sm border border-border bg-surface p-3"
                     >
                       <View className="flex-row items-center justify-between gap-2">
                         <Text variant="body" weight={500}>
                           {proofHistoryLabel(p.status)}
                         </Text>
-                        <Text variant="caption" tone="secondary">
-                          {formatDateTime(p.createdAt)}
-                        </Text>
+                        <View className="flex-row items-center gap-1">
+                          <Text variant="caption" tone="secondary">
+                            {formatDateTime(p.createdAt)}
+                          </Text>
+                          {openable ? (
+                            // FE-133: affordance visual (chevron) HANYA saat
+                            // kartu memang bisa dibuka — kartu tanpa lampiran
+                            // terlihat statis dan memang tidak bisa ditekan.
+                            <Icon icon={CaretRight} size="sm" tone="default" />
+                          ) : null}
+                        </View>
                       </View>
                       {p.description ? (
                         <Text variant="caption" tone="secondary" numberOfLines={2}>
