@@ -183,7 +183,8 @@ export function ProductStatsSection({ showcaseId }: { showcaseId: string }) {
         <StatsGrid stats={stats} />
       )}
       <Text variant="caption" tone="tertiary">
-        {translate("Diperbarui {x} (waktu perangkat)", {
+        {/* FE-084: "(waktu perangkat)" = noise teknis — user tidak peduli zona waktu perangkat. */}
+        {translate("Diperbarui {x}", {
           x: new Date(lastUpdatedAt).toLocaleTimeString(),
         })}
       </Text>
