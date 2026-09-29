@@ -24,8 +24,8 @@
  *     H1 di baris kedua untuk layar utama tab (Beranda, Riwayat).
  *   - Di web dibatasi `md:max-w-content` (§11), sejajar kolom konten.
  */
-import { memo, useContext, useEffect, useState, type ReactNode } from "react"
-import { Platform, View, type ViewProps, type ViewStyle } from "react-native"
+import { memo, useCallback, useContext, useEffect, useState, type ReactNode } from "react"
+import { Platform, View, type LayoutChangeEvent, type ViewProps, type ViewStyle } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { ArrowLeft, X } from "phosphor-react-native"
 import { usePathname, useRouter } from "expo-router"
@@ -164,6 +164,17 @@ export const Header = memo(function Header({
   useDocumentTitle(translateProp(largeTitle ?? title))
   const [leftWidth, setLeftWidth] = useState(0)
   const [rightWidth, setRightWidth] = useState(0)
+  // PERF-FIX (TIM1-P2): onLayout stabil + guard nilai sama — Header dipakai
+  // hampir semua layar; tanpa guard, rotasi/font-scale memicu setState →
+  // re-render header tiap perubahan layout.
+  const handleLeftLayout = useCallback((e: LayoutChangeEvent) => {
+    const w = e.nativeEvent.layout.width
+    setLeftWidth((prev) => (prev === w ? prev : w))
+  }, [])
+  const handleRightLayout = useCallback((e: LayoutChangeEvent) => {
+    const w = e.nativeEvent.layout.width
+    setRightWidth((prev) => (prev === w ? prev : w))
+  }, [])
   const sideWidth = Math.max(tokens.space[12], leftWidth, rightWidth)
 
   const canBack = showBack ?? true
@@ -229,7 +240,7 @@ export const Header = memo(function Header({
               judul menempel ke tepi kiri, node kiri tampil inline. */}
           {titleAlign === "left" ? null : (
             <View style={{ width: sideWidth }} className="items-start justify-center">
-              <View onLayout={(e) => setLeftWidth(e.nativeEvent.layout.width)}>{leftNode}</View>
+              <View onLayout={handleLeftLayout}>{leftNode}</View>
             </View>
           )}
 
@@ -274,7 +285,7 @@ export const Header = memo(function Header({
           {/* Kolom kanan: minimal 1 slot agar judul tetap center saat kosong */}
           <View style={{ width: sideWidth }} className="items-end justify-center">
             <View
-              onLayout={(e) => setRightWidth(e.nativeEvent.layout.width)}
+              onLayout={handleRightLayout}
               className="flex-row items-center gap-1"
             >
               {right}

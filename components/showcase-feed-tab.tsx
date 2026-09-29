@@ -172,6 +172,22 @@ function followedBy(keys: ReadonlySet<string>, item: ShowcaseSocialItem): boolea
 }
 
 /**
+ * PERF-FIX (TIM1-P1): Set id item dengan cache identitas-array — alokasi
+ * O(n) hanya saat array items benar-benar berganti, bukan tiap pemanggilan.
+ */
+function getCachedItemIds(
+  cacheRef: { current: { items: readonly ShowcaseSocialItem[]; ids: Set<string> } | null },
+  items: readonly ShowcaseSocialItem[],
+): Set<string> {
+  const cached = cacheRef.current
+  if (cached && cached.items === items) return cached.ids
+  const ids = new Set<string>()
+  for (const item of items) ids.add(item.id)
+  cacheRef.current = { items, ids }
+  return ids
+}
+
+/**
  * PERF-FIX (LR-004): store visibilitas kartu — di luar React state.
  *
  * Masalah: `visibleIds` sebagai useState masuk deps `renderItem`
@@ -185,25 +201,47 @@ function followedBy(keys: ReadonlySet<string>, item: ShowcaseSocialItem): boolea
  * tetap akurat (sinyal yang sama, jalur yang lebih murah).
  */
 type VisibilityListener = () => void
-const visibilityListeners = new Set<VisibilityListener>()
+/** PERF-FIX (TIM1-P0): listener per itemId — hanya kartu yang keanggotaannya
+ * berubah yang di-notify, bukan semua subscriber. */
+const visibilityListenersById = new Map<string, Set<VisibilityListener>>()
 let visibleIdsSnapshot: ReadonlySet<string> = new Set()
 function publishVisibleIds(next: ReadonlySet<string>): void {
+  const prev = visibleIdsSnapshot
   visibleIdsSnapshot = next
-  for (const listener of visibilityListeners) listener()
-}
-function subscribeVisibleIds(listener: VisibilityListener): () => void {
-  visibilityListeners.add(listener)
-  return () => {
-    visibilityListeners.delete(listener)
+  // Kumpulkan id yang keanggotaannya berubah (masuk ATAU keluar set).
+  const changed: string[] = []
+  for (const id of prev) if (!next.has(id)) changed.push(id)
+  for (const id of next) if (!prev.has(id)) changed.push(id)
+  for (const id of changed) {
+    const listeners = visibilityListenersById.get(id)
+    if (listeners) for (const listener of listeners) listener()
   }
 }
-function getVisibleIdsSnapshot(): ReadonlySet<string> {
-  return visibleIdsSnapshot
+function subscribeVisibleId(itemId: string, listener: VisibilityListener): () => void {
+  let set = visibilityListenersById.get(itemId)
+  if (!set) {
+    set = new Set()
+    visibilityListenersById.set(itemId, set)
+  }
+  set.add(listener)
+  return () => {
+    const s = visibilityListenersById.get(itemId)
+    if (s) {
+      s.delete(listener)
+      if (s.size === 0) visibilityListenersById.delete(itemId)
+    }
+  }
 }
 /** true bila kartu dengan id ini sedang terlihat di feed (→ video autoplay). */
 export function useFeedItemVisible(itemId: string): boolean {
-  const snapshot = useSyncExternalStore(subscribeVisibleIds, getVisibleIdsSnapshot)
-  return snapshot.has(itemId)
+  // Snapshot boolean per-itemId: identitas hanya berubah bila keanggotaan
+  // id ini berubah → kartu lain tidak ikut render ulang tiap tick viewability.
+  const subscribe = useCallback(
+    (listener: VisibilityListener) => subscribeVisibleId(itemId, listener),
+    [itemId],
+  )
+  const getSnapshot = useCallback(() => visibleIdsSnapshot.has(itemId), [itemId])
+  return useSyncExternalStore(subscribe, getSnapshot)
 }
 
 /**
@@ -279,6 +317,9 @@ const FeedCard = memo(function FeedCard({
     },
     [media],
   )
+  // PERF-FIX (TIM1-P2): onClose sheet stabil — bukan closure inline.
+  const handleCloseShareSheet = useCallback(() => setShareSheetVisible(false), [])
+  const handleCloseViewer = useCallback(() => setViewerIndex(null), [])
   return (
     <>
       <ShowcaseFeedItem
@@ -298,13 +339,13 @@ const FeedCard = memo(function FeedCard({
         onOptions={handleReport}
         divider={divider}
       />
-      <ShowcaseShareSheet visible={shareSheetVisible} item={display} onClose={() => setShareSheetVisible(false)} />
+      <ShowcaseShareSheet visible={shareSheetVisible} item={display} onClose={handleCloseShareSheet} />
       {viewerIndex != null ? (
         <ImageViewer
           visible
           images={viewerImages}
           index={viewerIndex}
-          onClose={() => setViewerIndex(null)}
+          onClose={handleCloseViewer}
           title={item.title}
         />
       ) : null}
@@ -481,12 +522,16 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
    */
   const restorePosition = useCallback((key: string) => {
     const saved = positionCache.current[key]
-    // C02: guard murni — offset positif + anchor masih ada.
-    if (!isFeedPositionRestorable(saved, itemsRef.current.map((item) => item.id))) return
+    // PERF-FIX (TIM1-P1): teruskan Set langsung ke isFeedPositionRestorable —
+    // hindari alokasi array O(n) tiap ganti tab/filter. Cache di ref,
+    // diinvalidasi otomatis bila array items berganti identitas.
+    if (!isFeedPositionRestorable(saved, getCachedItemIds(itemIdsCacheRef, itemsRef.current))) return
     pendingRestoreRef.current = { offset: saved.offset }
   }, [])
   /** Cermin `items` untuk commit atomik cache (tanpa side-effect di updater). */
   const itemsRef = useRef<ShowcaseSocialItem[]>([])
+  /** PERF-FIX (TIM1-P1): cache Set id — lihat restorePosition. */
+  const itemIdsCacheRef = useRef<{ items: readonly ShowcaseSocialItem[]; ids: Set<string> } | null>(null)
   /** A-07: panjang list terkini untuk `divider` — renderItem tetap stabil. */
   const visibleItems = useMemo(() => {
     const seen = new Set<string>()
@@ -994,14 +1039,25 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
     router.setParams({ search: undefined })
   }, [onClearCategory, onClearLocation])
 
-  const emptyState = (() => {
+  // PERF-FIX (TIM1-P1): handler navigasi empty state stabil — dipakai
+  // emptyState yang di-memo di bawah.
+  const handleLoginPress = useCallback(
+    () => router.push(ROUTES.loginRequired("/showcase?kind=following")),
+    [],
+  )
+  const handleDiscoverPress = useCallback(() => router.push(ROUTES.discover), [])
+  const handleAddWorkPress = useCallback(() => router.push(ROUTES.showcaseManagement), [])
+
+  // PERF-FIX (TIM1-P1): empty state di-memo — sebelumnya IIFE membangun
+  // ulang seluruh subtree di setiap render feed.
+  const emptyState = useMemo(() => {
     if (kind === "following" && followingGuest) {
       return (
         <EmptyState
           icon={Images}
           title={translate("Masuk untuk melihat feed mengikuti")}
           action={
-            <Button fullWidth={false} onPress={() => router.push(ROUTES.loginRequired("/showcase?kind=following"))}>{translate("Masuk")}</Button>
+            <Button fullWidth={false} onPress={handleLoginPress}>{translate("Masuk")}</Button>
           }
         />
       )
@@ -1012,7 +1068,7 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
           icon={Images}
           title={translate("Anda belum mengikuti siapa pun")}
           // A-18 (audit 2026-09-23): tombol ke tujuan yang disebut copy-nya.
-          action={<Button fullWidth={false} onPress={() => router.push(ROUTES.discover)}>{translate("Buka Temukan")}</Button>}
+          action={<Button fullWidth={false} onPress={handleDiscoverPress}>{translate("Buka Temukan")}</Button>}
         />
       )
     }
@@ -1047,14 +1103,72 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
             </Button>
           ) : // A-20 (audit 2026-09-23): CTA isi etalase untuk pemilik akun.
           hasSession ? (
-            <Button variant="secondary" fullWidth={false} onPress={() => router.push(ROUTES.showcaseManagement)}>
+            <Button variant="secondary" fullWidth={false} onPress={handleAddWorkPress}>
               {translate("Tambah karya")}
             </Button>
           ) : undefined
         }
       />
     )
-  })()
+  }, [
+    kind,
+    followingGuest,
+    followingSet,
+    hasMore,
+    activeSearch,
+    filtersActive,
+    resetAllFilters,
+    hasSession,
+    handleLoginPress,
+    handleDiscoverPress,
+    handleAddWorkPress,
+  ])
+
+  // PERF-FIX (TIM1-P1): prop PaginatedList stabil — sebelumnya closure &
+  // elemen inline dibuat ulang di setiap render feed.
+  const handleRefresh = useCallback(() => {
+    // A-13: hanya tab "Mengikuti" yang punya cache hubungan follow —
+    // jangan reset state following di tab lain (empty-state ikut kedip).
+    if (kind === "following") {
+      followingIndexRef.current = null
+      setFollowingSet(null)
+    }
+    void fetchPage("refresh")
+  }, [fetchPage, kind])
+  const handleRetry = useCallback(() => void fetchPage("refresh"), [fetchPage])
+  const handleFilterPress = useCallback(() => setFilterSheetVisible(true), [])
+  const listLoadingPlaceholder = useMemo(() => <ShowcaseFeedSkeleton />, [])
+  // PERF-FIX (TIM1-P1): aksi BottomSheet stabil — bukan closure multi-
+  // statement inline yang dibuat ulang tiap render feed.
+  const handleDismissAction = useCallback(() => {
+    if (actionItem) {
+      const dismissed = actionItem.id
+      dismissShowcase(dismissed)
+      // S-04 (audit 2026-09-24): tindakan yang menghilangkan kartu
+      // tanpa jejak harus bisa dibatalkan.
+      toast.show({
+        title: translate("Karya disembunyikan dari feed"),
+        action: { label: translate("Urungkan"), onPress: () => undismissShowcase(dismissed) },
+      })
+    }
+    setActionItem(null)
+  }, [actionItem, dismissShowcase, undismissShowcase, toast])
+  const handleReportAction = useCallback(() => {
+    setReportItem(actionItem)
+    setActionItem(null)
+  }, [actionItem])
+  const handleCloseActionSheet = useCallback(() => setActionItem(null), [])
+  const handleCloseCommentsSheet = useCallback(() => setCommentItem(null), [])
+  const handleCloseReportSheet = useCallback(() => setReportItem(null), [])
+  const handleCloseFilterSheet = useCallback(() => setFilterSheetVisible(false), [])
+  // PERF-FIX (TIM1-P2): style header stabil — bukan array+objek inline.
+  const headerContainerStyle = useMemo(
+    () => [
+      collapsing.containerStyle,
+      { pointerEvents: collapsing.collapsed ? ("none" as const) : ("auto" as const) },
+    ],
+    [collapsing.containerStyle, collapsing.collapsed],
+  )
 
   /**
    * F-05: tab "Mengikuti" memakai filter sisi klien (plafon
@@ -1159,23 +1273,29 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
     </View>
   ) : null
 
+  // PERF-FIX (TIM1-P1): header list di-memo — didefinisikan setelah semua chip.
+  const listHeader = useMemo(
+    () =>
+      searchChip || categoryChip || locationChip || followingPartialNotice || resetAllChip ? (
+        <View>{searchChip}{categoryChip}{locationChip}{sheetFilterChip}{resetAllChip}{followingPartialNotice}</View>
+      ) : undefined,
+    [searchChip, categoryChip, locationChip, sheetFilterChip, resetAllChip, followingPartialNotice],
+  )
+
   return (
     <View className="flex-1">
       {/* U5-017 (journey): banner ramping tamu web — di atas header. */}
       <WebGuestBanner />
       {/* ── Header showcase — pensil kelola · logo · notifikasi + tab feed ── */}
       <Animated.View
-        style={[
-          collapsing.containerStyle,
-          { pointerEvents: collapsing.collapsed ? "none" : "auto" },
-        ]}
+        style={headerContainerStyle}
       >
         <Animated.View style={collapsing.contentStyle} onLayout={collapsing.onHeaderLayout}>
           <ShowcaseHeader
             kind={kind}
             onKindChange={setKind}
             tabs={feedTabs}
-            onFilterPress={() => setFilterSheetVisible(true)}
+            onFilterPress={handleFilterPress}
             // C15 (batch 139): badge menghitung SEMUA filter aktif (sheet +
             // pencarian + kategori + lokasi) supaya pengguna tidak lupa
             // filter harga/kategori masih aktif.
@@ -1198,16 +1318,8 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
         hasMore={hasMore}
         error={error}
         loadMoreError={loadMoreError}
-        onRefresh={() => {
-          // A-13: hanya tab "Mengikuti" yang punya cache hubungan follow —
-          // jangan reset state following di tab lain (empty-state ikut kedip).
-          if (kind === "following") {
-            followingIndexRef.current = null
-            setFollowingSet(null)
-          }
-          void fetchPage("refresh")
-        }}
-        onRetry={() => void fetchPage("refresh")}
+        onRefresh={handleRefresh}
+        onRetry={handleRetry}
         onLoadMore={loadMore}
         onScroll={handleListScroll}
         onScrollWorklet={handleListScrollWorklet}
@@ -1219,14 +1331,10 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
         // hampir tepat di tengah celah (lihat <ShowcaseFeedItem divider>).
         gap={tokens.space[5]}
         bottomPadding={bottomPadding}
-        header={
-          searchChip || categoryChip || locationChip || followingPartialNotice || resetAllChip ? (
-            <View>{searchChip}{categoryChip}{locationChip}{sheetFilterChip}{resetAllChip}{followingPartialNotice}</View>
-          ) : undefined
-        }
+        header={listHeader}
         // Skeleton sebentuk <ShowcaseFeedItem> (anatomi: penulis · media ·
         // teks · baris aksi) — layout tidak melompat saat data tiba.
-        loadingPlaceholder={<ShowcaseFeedSkeleton />}
+        loadingPlaceholder={listLoadingPlaceholder}
         empty={emptyState}
         renderItem={renderItem}
         // Batch 19 (item 16): lacak item terlihat untuk autoplay video feed.
@@ -1259,39 +1367,24 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
       ) : null}
 
       {/* Komentar dibaca & ditulis di sheet — pengguna tidak kehilangan posisi feed. */}
-      <ShowcaseCommentsSheet item={commentItem} onRequestClose={() => setCommentItem(null)} />
+      <ShowcaseCommentsSheet item={commentItem} onRequestClose={handleCloseCommentsSheet} />
 
-      <BottomSheet visible={!!actionItem} onRequestClose={() => setActionItem(null)} title={translate("Pilihan karya")}>
+      <BottomSheet visible={!!actionItem} onRequestClose={handleCloseActionSheet} title={translate("Pilihan karya")}>
         <View className="gap-3">
-          <Button variant="ghost" onPress={() => {
-            if (actionItem) {
-              const dismissed = actionItem.id
-              dismissShowcase(dismissed)
-              // S-04 (audit 2026-09-24): tindakan yang menghilangkan kartu
-              // tanpa jejak harus bisa dibatalkan.
-              toast.show({
-                title: translate("Karya disembunyikan dari feed"),
-                action: { label: translate("Urungkan"), onPress: () => undismissShowcase(dismissed) },
-              })
-            }
-            setActionItem(null)
-          }}>{translate("Tidak tertarik")}</Button>
-          <Button variant="ghost" onPress={() => {
-            setReportItem(actionItem)
-            setActionItem(null)
-          }}>{translate("Laporkan karya")}</Button>
+          <Button variant="ghost" onPress={handleDismissAction}>{translate("Tidak tertarik")}</Button>
+          <Button variant="ghost" onPress={handleReportAction}>{translate("Laporkan karya")}</Button>
         </View>
       </BottomSheet>
 
       {/* A-11: SATU sheet laporan (audit: disalin dari versi inline lama). */}
-      <ShowcaseReportSheet item={reportItem} onRequestClose={() => setReportItem(null)} />
+      <ShowcaseReportSheet item={reportItem} onRequestClose={handleCloseReportSheet} />
 
       {/* Kontrak final Tim A #D: sheet filter kondisi/rating/harga. */}
       <ShowcaseFilterSheet
         visible={filterSheetVisible}
         initial={sheetFilters}
         onApply={setSheetFilters}
-        onRequestClose={() => setFilterSheetVisible(false)}
+        onRequestClose={handleCloseFilterSheet}
       />
 
       {/*
