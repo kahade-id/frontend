@@ -91,7 +91,7 @@ export default function TopupScreen() {
   const insets = useSafeAreaInsets()
   const toast = useToast()
   const { copied, copy } = useCopy()
-  const params = useLocalSearchParams<{ resumePayment?: string }>()
+  const params = useLocalSearchParams<{ resumePayment?: string; from?: string; orderId?: string; amount?: string }>()
 
   // FE-IMP-4 item 3: "Lanjutkan bayar" dari riwayat — deep link
   // `/topup?resumePayment=<paymentTxId>` langsung membuka status pembayaran.
@@ -99,6 +99,18 @@ export default function TopupScreen() {
     typeof params.resumePayment === "string" && params.resumePayment.trim()
       ? params.resumePayment.trim()
       : null
+
+  /**
+   * FE-043: konteks "isi saldo dari sheet bayar order". Bila ada, struk
+   * sukses menampilkan CTA "Kembali bayar RpX" (kembali ke order — sheet
+   * pembayaran masih terbuka di bawahnya) dan header back menuju order,
+   * bukan dompet.
+   */
+  const fromOrderPay = params.from === "order-pay"
+  const returnPayAmount = (() => {
+    const n = Number(params.amount)
+    return params.amount != null && params.amount !== "" && Number.isFinite(n) && n > 0 ? n : null
+  })()
 
   const methodsQuery = useApiQuery<PaymentMethod[]>("topup-methods", async (signal) => {
     const raw = await api.wallet.getPaymentMethods(signal)
@@ -379,9 +391,10 @@ export default function TopupScreen() {
         progress={progress}
         // UI-W009: langkah nominal dulu tanpa tombol back sama sekali
         // (showBack hanya true di "method") — inkonsisten dengan
-        // tarik/transfer. Hasil tetap tanpa back (pembayaran aktif).
-        onBack={step === "result" ? undefined : handleBack}
-        showBack={step !== "result"}
+        // tarik/transfer. FE-043: hasil SELALU punya back (struk sukses
+        // butuh jalan keluar eksplisit — CTA di bawah + back header).
+        onBack={handleBack}
+        showBack={step !== "amount"}
         safeArea={false}
       />
 
@@ -688,6 +701,34 @@ export default function TopupScreen() {
                             Buat kode pembayaran baru
                           </Button>
                         ) : null}
+                        {/*
+                         * FE-043: struk sukses selalu punya CTA eksplisit.
+                         * Dari sheet bayar order → "Kembali bayar RpX" (kembali
+                         * ke order; sheet pembayaran masih terbuka). Dari
+                         * dompet → "Selesai" (kembali ke dompet).
+                         */}
+                        {ok ? (
+                          <Button
+                            variant="primary"
+                            fullWidth
+                            onPress={() => {
+                              if (fromOrderPay) {
+                                // Sheet pembayaran masih terbuka di bawah layar
+                                // ini — back cukup. Fallback: dorong detail order.
+                                if (router.canGoBack()) router.back()
+                                else if (typeof params.orderId === "string" && params.orderId)
+                                  router.replace(ROUTES.orderDetail(params.orderId))
+                                else router.replace(ROUTES.wallet)
+                              } else router.replace(ROUTES.wallet)
+                            }}
+                          >
+                            {fromOrderPay
+                              ? returnPayAmount != null
+                                ? `Kembali bayar ${formatRupiah(returnPayAmount)}`
+                                : "Kembali bayar"
+                              : "Selesai"}
+                          </Button>
+                        ) : null}
                       </>
                     )
                   }
@@ -726,6 +767,11 @@ export default function TopupScreen() {
                     setStatusError(null)
                     setStep("method")
                   }}
+                  // FE-108 PARKIR (2026-09-29): "Ubah nominal" saat PENDING
+                  // DIHAPUS — backend tidak punya endpoint cancel top-up
+                  // intent; membuang state lokal membuat intent ganda
+                  // (kode lama tetap valid di server). User menunggu
+                  // kedaluwarsa alami atau membayar kode aktif.
                   // Salin 1-ketuk nomor VA/kode bayar + toast "Tersalin" (§9.11).
                   onCopy={(value) => {
                     void copy(value).then((ok) => {

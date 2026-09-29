@@ -82,6 +82,11 @@ export function QrisPaymentPanel({
   checking = false,
 }: QrisPaymentPanelProps) {
   const failed = status === "EXPIRED" || status === "FAILED"
+  const stuckWithoutQr = status === "UNKNOWN" || pollStopped
+  // FE-111 PARKIR (2026-09-29): "Ganti ke saldo" saat QR AKTIF DIHAPUS —
+  // backend tidak punya endpoint cancel QR intent; reset lokal membuat QR
+  // lama tetap bisa dibayar (risiko bayar ganda). Jalur UNKNOWN/pollStopped
+  // ("Bayar dengan metode lain") tetap ada — itu state non-aktif yang aman.
   // L-1 (audit ronde-2): panel QRIS menampilkan QR + nominal pembayaran —
   // layar sensitif seperti 8 layar lain yang sudah dibungkus guard ini.
   return (
@@ -139,7 +144,8 @@ export function QrisPaymentPanel({
                 "Status pembayaran belum pasti — cek status sekarang, atau bayar dengan metode lain."
               : pollStopped
                 ? "Pemantauan otomatis dihentikan setelah 15 menit — gunakan Cek status sekarang."
-                : "Menunggu pembayaran… status diperbarui otomatis."}
+                : // FE-109: copy pending tepat satu baris, tanpa duplikat.
+                  "Setelah membayar di aplikasi bank, kembali ke sini — status diperbarui otomatis."}
       </Text>
       {failed ? (
         <Button variant="secondary" loading={submitting} onPress={onRecreate}>
@@ -150,7 +156,7 @@ export function QrisPaymentPanel({
           <Button variant="ghost" loading={checking} onPress={onCheckStatus}>
             Cek status sekarang
           </Button>
-          {onUseOtherMethod && (status === "UNKNOWN" || pollStopped) ? (
+          {onUseOtherMethod && stuckWithoutQr ? (
             // R2 (butir #29/#30): copy UNKNOWN menjanjikan "bayar dengan
             // metode lain" — tombolnya kini benar-benar ada.
             <Button variant="secondary" disabled={submitting} onPress={onUseOtherMethod}>
