@@ -22,12 +22,13 @@
  */
 import { getSecureItem, SecureKeys, setSecureItem } from "@/lib/secure-storage"
 
-export type CoachMarkId = "create" | "qr" | "feed-buy"
+export type CoachMarkId = "create" | "qr" | "feed-buy" | "chat-swipe"
 
 const KEY_BY_ID: Record<CoachMarkId, (typeof SecureKeys)[keyof typeof SecureKeys]> = {
   create: SecureKeys.coachMarkCreateSeen,
   qr: SecureKeys.coachMarkQrSeen,
   "feed-buy": SecureKeys.coachMarkFeedBuySeen,
+  "chat-swipe": SecureKeys.coachMarkChatSwipeSeen,
 }
 
 /** true bila coach mark untuk elemen ini sudah pernah tampil/ditutup. */
