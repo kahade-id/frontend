@@ -490,9 +490,10 @@ export default function JastipDetailScreen() {
             )}
           </View>
 
+          {/* FE-119: label tombol ringkas; penjelasan refund otomatis ada di dialog konfirmasi. */}
           {isHost && (trip.status === "OPEN" || trip.status === "CLOSED") ? (
             <Button variant="destructive" fullWidth loading={failing} onPress={() => setFailOpen(true)}>
-              {translate("Gagal dapat barang — pengembalian dana otomatis")}
+              {translate("Tandai gagal dapat barang")}
             </Button>
           ) : null}
         </View>
@@ -504,7 +505,8 @@ export default function JastipDetailScreen() {
         avoidKeyboard
         title={translate("Ikut trip")}
         footer={
-          <Button fullWidth loading={joining} onPress={() => void handleJoin()}>
+          // FE-121: tombol mati sampai syarat minimum terpenuhi (hint ada di field).
+          <Button fullWidth loading={joining} onPress={() => void handleJoin()} disabled={itemSummary.trim().length < 3}>
             {translate("Ikut")}
           </Button>
         }
@@ -515,6 +517,7 @@ export default function JastipDetailScreen() {
             value={itemSummary}
             onChangeText={(t) => { setItemSummary(t); setJoinError(undefined) }}
             placeholder={translate("cth: Sepatu sneakers ukuran 42, warna hitam")}
+            helperText={translate("Minimal 3 karakter.")}
             multiline
             maxLength={300}
           />
@@ -536,7 +539,8 @@ export default function JastipDetailScreen() {
         avoidKeyboard
         title={translate("Tambah item katalog")}
         footer={
-          <Button fullWidth loading={addingItem} onPress={() => void handleAddItem()}>
+          // FE-121: tombol mati sampai nama item minimal 2 karakter.
+          <Button fullWidth loading={addingItem} onPress={() => void handleAddItem()} disabled={itemName.trim().length < 2}>
             {translate("Tambah item")}
           </Button>
         }
@@ -546,6 +550,7 @@ export default function JastipDetailScreen() {
             label={translate("Nama item")}
             value={itemName}
             onChangeText={(t) => { setItemName(t); setItemError(undefined) }}
+            helperText={translate("Minimal 2 karakter.")}
             maxLength={120}
           />
           <Input
