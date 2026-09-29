@@ -102,12 +102,16 @@ export function ProgressBar({
   // Determinate: animasikan perubahan value
   useEffect(() => {
     if (indeterminate) return
-    Animated.timing(width, {
+    // PERF-FIX (P0): stop animasi lama sebelum start baru — progress update
+    // cepat (mis. upload) menumpuk animasi JS-thread tanpa cleanup → jank.
+    const a = Animated.timing(width, {
       toValue: pct,
       duration: motionDuration(reducedMotion, tokens.motion.duration.base),
       easing: Easing.bezier(...tokens.motion.easing.standard),
       useNativeDriver: false,
-    }).start()
+    })
+    a.start()
+    return () => a.stop()
   }, [pct, indeterminate, width, reducedMotion])
 
   // Indeterminate: loop bolak-balik
