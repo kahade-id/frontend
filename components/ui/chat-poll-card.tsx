@@ -10,6 +10,7 @@ import { memo, useMemo, useState } from "react"
 import { Pressable, View } from "react-native"
 
 import type { ChatPoll } from "@/lib/api/chat"
+import { formatDateTimeWIB } from "@/lib/format"
 
 import { Text } from "@/components/ui/text"
 import { Icon } from "@/components/ui/icon"
@@ -133,7 +134,7 @@ export const ChatPollCard = memo(function ChatPollCard({
             <View className="flex-row items-center gap-1">
               <Icon icon={Clock} size={12} tone="default" />
               <Text variant="caption" tone="secondary">
-                Tenggat: {new Date(poll.deadline).toLocaleString("id-ID")}
+                Tenggat: {formatDateTimeWIB(poll.deadline)}
               </Text>
             </View>
           ) : null}
