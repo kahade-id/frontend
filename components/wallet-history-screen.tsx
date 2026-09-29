@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { memo, useCallback, useState } from "react"
 import { View } from "react-native"
 import { useRouter } from "expo-router"
 import { ArrowCircleDown, ArrowCircleUp } from "phosphor-react-native"
@@ -16,6 +16,50 @@ import { Dialog } from "@/components/ui/modal"
 import { PaginatedList } from "@/components/ui/paginated-list"
 import { Screen } from "@/components/ui/screen"
 import { WalletTransactionRow } from "@/components/ui/wallet-transaction-row"
+
+type WalletHistoryRowProps = {
+  item: WalletTransaction
+  kind: "topup" | "withdraw"
+  /** Handler stabil per-id — bukan closure per baris (FE-009). */
+  onOpen: (id: string) => void
+  onRequestCancel: (item: WalletTransaction) => void
+}
+
+/**
+ * FE-009 (audit 2026-09-29): baris riwayat wallet di-memo — `renderItem`
+ * inline + `onPress` inline per baris menjebol `memo` WalletTransactionRow.
+ * Handler navigasi stabil menerima id; komputasi canCancel murah.
+ */
+const WalletHistoryRow = memo(function WalletHistoryRow({
+  item,
+  kind,
+  onOpen,
+  onRequestCancel,
+}: WalletHistoryRowProps) {
+  const canCancel =
+    kind === "withdraw" && String(item.status ?? "").toUpperCase() === "PENDING_OTP"
+  const handleOpen = useCallback(() => onOpen(item.id), [onOpen, item.id])
+  const handleCancel = useCallback(() => onRequestCancel(item), [onRequestCancel, item])
+  return (
+    <View>
+      {/* Gaya "vivid" (permintaan produk 2026-09-27): ikon berwarna
+          mengikuti status (hijau sukses, kuning proses, merah gagal),
+          nominal tegas (hijau masuk / merah keluar), tanggal selalu WIB
+          (konsisten — lihat UI-W001 di wallet-transaction-row). */}
+      <WalletTransactionRow transaction={item} vivid onPress={handleOpen} />
+      {canCancel ? (
+        <View className="-mt-1 flex-row gap-2 px-5 pb-3">
+          {/* FE-IMP-4 item 3 — DITAHAN (fail closed, 2026-09-28): CTA
+              "Lanjutkan bayar" dari riwayat butuh `paymentTxId` yang tidak
+              ada di topup-history — jangan menebak identifier. */}
+          <Button size="sm" variant="secondary" onPress={handleCancel}>
+            Batalkan
+          </Button>
+        </View>
+      ) : null}
+    </View>
+  )
+})
 
 export function WalletHistoryScreen({ kind }: { kind: "topup" | "withdraw" }) {
   const router = useRouter()
@@ -65,6 +109,26 @@ export function WalletHistoryScreen({ kind }: { kind: "topup" | "withdraw" }) {
     }
   }
 
+  // FE-009: handler stabil — navigasi menerima id, bukan closure per baris.
+  const openTransaction = useCallback(
+    (id: string) => router.push(ROUTES.walletTransaction(id)),
+    [router],
+  )
+  const requestCancel = useCallback((item: WalletTransaction) => {
+    setCancelTarget(item)
+  }, [])
+  const renderHistoryItem = useCallback(
+    ({ item }: { item: WalletTransaction }) => (
+      <WalletHistoryRow
+        item={item}
+        kind={kind}
+        onOpen={openTransaction}
+        onRequestCancel={requestCancel}
+      />
+    ),
+    [kind, openTransaction, requestCancel],
+  )
+
   return (
     <Screen edges={["top"]} padded={false}>
       <Header title={kind === "topup" ? "Riwayat Isi Saldo" : "Riwayat Penarikan"} />
@@ -91,40 +155,7 @@ export function WalletHistoryScreen({ kind }: { kind: "topup" | "withdraw" }) {
             }
           />
         }
-        renderItem={({ item }) => {
-          // FE-IMP-4 item 3 — DITAHAN (fail closed, 2026-09-28): CTA "Lanjutkan
-          // bayar" dari riwayat butuh `paymentTxId` (= midtransOrderId) yang
-          // dicari `GET /v1/wallet/topup-status/:paymentTxId`. Namun
-          // `GET /v1/wallet/topup-history` hanya mengembalikan id/txId ledger
-          // (WLT-xxx) — TIDAK ada paymentTxId. Melempar id ledger ke endpoint
-          // itu pasti 404. Jangan menebak identifier: resume dari riwayat
-          // butuh backend mengekspos paymentTxId di topup-history (atau
-          // endpoint resume-by-wallettx). Resume dalam-sesi (deep link dari
-          // hasil top-up baru, yang membawa paymentTxId asli) tetap jalan di
-          // app/topup.tsx.
-          const canCancel =
-            kind === "withdraw" && String(item.status ?? "").toUpperCase() === "PENDING_OTP"
-          return (
-            <View>
-              {/* Gaya "vivid" (permintaan produk 2026-09-27): ikon berwarna
-                  mengikuti status (hijau sukses, kuning proses, merah gagal),
-                  nominal tegas (hijau masuk / merah keluar), tanggal selalu WIB
-                  (konsisten — lihat UI-W001 di wallet-transaction-row). */}
-              <WalletTransactionRow
-                transaction={item}
-                vivid
-                onPress={() => router.push(ROUTES.walletTransaction(item.id))}
-              />
-              {canCancel ? (
-                <View className="-mt-1 flex-row gap-2 px-5 pb-3">
-                  <Button size="sm" variant="secondary" onPress={() => setCancelTarget(item)}>
-                    Batalkan
-                  </Button>
-                </View>
-              ) : null}
-            </View>
-          )
-        }}
+        renderItem={renderHistoryItem}
       />
       <Dialog
         visible={cancelTarget != null}
