@@ -989,7 +989,6 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
         <EmptyState
           icon={Images}
           title={translate("Anda belum mengikuti siapa pun")}
-          description={translate("Temukan penjual lewat tab Temukan, ikuti mereka, dan karyanya akan muncul di sini.")}
           // A-18 (audit 2026-09-23): tombol ke tujuan yang disebut copy-nya.
           action={<Button fullWidth={false} onPress={() => router.push(ROUTES.discover)}>{translate("Buka Temukan")}</Button>}
         />
