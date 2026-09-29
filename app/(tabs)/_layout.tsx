@@ -33,6 +33,12 @@ export default function TabsLayout() {
       initialRouteName="showcase"
       screenOptions={{
         headerShown: false,
+        // PERF-FIX (P2 nav): kontrak eksplisit — tab di-mount malas saat
+        // pertama dibuka dan di-freeze saat blur (bukan unmount: state tab
+        // tetap, tapi render berhenti). Tanpa ini, perilaku mount tab
+        // implisit mengikuti default expo-router yang bisa berubah.
+        lazy: true,
+        freezeOnBlur: true,
       }}
       // Bar bawaan Tabs ditekan — bar asli dirender sekali di root layout
       // (PersistentShellBar) supaya tetap ada di stack shell.

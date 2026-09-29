@@ -44,7 +44,7 @@
  */
 import "../global.css"
 
-import { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react"
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { AppState, Linking, Platform, View } from "react-native"
 import { GestureHandlerRootView } from "react-native-gesture-handler"
 import Reanimated, { useAnimatedStyle } from "react-native-reanimated"
@@ -86,7 +86,7 @@ import { DeviceIntegrityProvider } from "@/components/security/device-integrity-
 import { api, onSessionExpired } from "@/lib/api"
 import { fontAssetsBlocking, fontAssetsDeferred } from "@/lib/fonts"
 import { routeForPushData } from "@/lib/notification-routing"
-import { animationDurationForScreen, animationForScreen } from "@/lib/screen-transitions"
+import { animationDurationForScreen, animationForScreen, getScreenId } from "@/lib/screen-transitions"
 import { setupNotifications, subscribeNotificationOpened } from "@/lib/push-notifications"
 // ST-009: modul ini SENGAJA tetap statis. `subscribeNotificationOpened`
 // harus terpasang di efek boot segera — menundanya (dynamic import /
@@ -181,6 +181,11 @@ function afterFirstPaint(cb: () => void): () => void {
  * dari `params`; bila ada segmen yang tak terisi → null (login redirect
  * tidak boleh mendarat di 404).
  */
+// PERF-FIX (P2 nav): cache konkretisasi href — regex + encodeURIComponent
+// tidak diulang untuk href objek identik yang muncul di tiap render (deep
+// link guard, pending-next login, dsb). Map.has dipakai agar hasil `null`
+// yang valid ikut ter-cache.
+const concretePathCache = new Map<string, string | null>()
 function hrefToConcretePath(href: Href): string | null {
   if (typeof href === "string") return href || null
   const obj = href as { pathname?: unknown; params?: unknown }
@@ -189,6 +194,8 @@ function hrefToConcretePath(href: Href): string | null {
     obj.params != null && typeof obj.params === "object"
       ? (obj.params as Record<string, unknown>)
       : {}
+  const cacheKey = `${obj.pathname}|${JSON.stringify(params)}`
+  if (concretePathCache.has(cacheKey)) return concretePathCache.get(cacheKey) ?? null
   const path = obj.pathname.replace(/\[([^\]/]+)\]/g, (_m, key: string) => {
     const value = params[key]
     return typeof value === "string" || typeof value === "number"
@@ -196,7 +203,11 @@ function hrefToConcretePath(href: Href): string | null {
       : ""
   })
   // Segmen dinamis tersisa (mis. catch-all) = tidak bisa dikonkretkan.
-  if (path.includes("[") || path.includes("]")) return null
+  if (path.includes("[") || path.includes("]")) {
+    concretePathCache.set(cacheKey, null)
+    return null
+  }
+  concretePathCache.set(cacheKey, path)
   return path
 }
 
@@ -390,6 +401,27 @@ function AppShellInner() {
   const isWebGuest = Platform.OS === "web" && !session.token
   const guestBlocked = isWebGuest && isProtectedPath(pathname)
 
+  // PERF-FIX (P2 nav): memoize daftar layar ber-auth — 40+ <Stack.Screen>
+  // dibuat sekali per sesi login/logout, bukan tiap render AppShellInner
+  // (re-render dari unread count, deep link, dsb). `getId` menjaga identity
+  // rute dinamis (chat/[roomId] dkk) tetap stabil walau remount.
+  const authenticatedScreens = useMemo(
+    () =>
+      AUTHENTICATED_SCREENS.map((name) => (
+        <Stack.Screen
+          key={name}
+          name={name}
+          options={{
+            headerShown: false,
+            animation: animationForScreen(name, reducedMotion).animation,
+            animationDuration: animationDurationForScreen(name, reducedMotion),
+          }}
+          getId={getScreenId(name)}
+        />
+      )),
+    [reducedMotion],
+  )
+
   // FE-074: koneksi socket realtime DITUNDA sampai kebutuhan chat pertama.
   // Provider TETAP mount (layar chat mengandalkan context), tapi token hanya
   // diteruskan setelah pengguna masuk tab/room chat (`/chat*`). Latch tetap
@@ -524,7 +556,9 @@ function AppShellInner() {
           return
         }
         const target = routeForPushData(data) ?? ROUTES.notifications
-        router.push(session.token ? target : ROUTES.login)
+        // PERF-FIX (P1 nav): replace → navigate (dedup stack): tap push ke
+        // rute yang sudah terbuka tidak menumpuk duplikat.
+        router.navigate(session.token ? target : ROUTES.login)
         if (session.token) void refreshUnreadCount()
       })
     })
@@ -575,7 +609,9 @@ function AppShellInner() {
               // E1-004: navigasi pasca-aksi ikut dijaga di dalam try — bila
               // router belum siap (tap push saat cold start), IIFE tidak
               // reject tanpa handler.
-              router.push(ROUTES.orderDetail(orderId))
+              // PERF-FIX (P1 nav): push → navigate: bila user sudah di
+              // detail order itu (mis. via notifikasi), tidak ada duplikat.
+              router.navigate(ROUTES.orderDetail(orderId))
               void refreshUnreadCount()
             } catch (err: unknown) {
               toast.show({
@@ -602,7 +638,8 @@ function AppShellInner() {
         if (!session.token) {
           setPendingNext(hrefToConcretePath(target))
         }
-        router.push(session.token ? target : ROUTES.login)
+        // PERF-FIX (P1 nav): dedup — tap push ke rute aktif tidak menumpuk.
+        router.navigate(session.token ? target : ROUTES.login)
         if (session.token) {
           // CN-012: tap push = notifikasi dibaca. Backend menyertakan
           // `notificationId` (notifId publik) di payload push.
@@ -814,17 +851,7 @@ function AppShellInner() {
                 <Stack.Protected
                   guard={Platform.OS === "web" ? true : Boolean(session.token)}
                 >
-                  {AUTHENTICATED_SCREENS.map((name) => (
-                    <Stack.Screen
-                      key={name}
-                      name={name}
-                      options={{
-                        // v2: push vs modal-like vs list→detail (lib/screen-transitions).
-                        animation: animationForScreen(name, reducedMotion),
-                        animationDuration: animationDurationForScreen(),
-                      }}
-                    />
-                  ))}
+                  {authenticatedScreens}
                 </Stack.Protected>
               </Stack>
             )}

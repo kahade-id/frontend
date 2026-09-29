@@ -113,25 +113,63 @@ export function useOverlayPresence(
  * Tutup overlay lewat tombol Back (Android) atau Escape (web) selama `active`.
  * Handler Android mengembalikan true agar back TIDAK meneruskan ke router
  * (pop layar) saat overlay terbuka — overlay yang harus tutup lebih dulu.
+ *
+ * PERF-FIX (P1 nav): dispatcher back terpusat dengan tumpukan LIFO. Dulu
+ * tiap overlay mendaftarkan listener BackHandler sendiri — bila beberapa
+ * overlay mount bersamaan, listener menumpuk (double-registration) dan
+ * urutan tutup tidak deterministik. Kini hanya SATU listener global yang
+ * selalu memanggil dismiss paling atas (terakhir dibuka). API hook tidak
+ * berubah, jadi semua pemakai lama (Modal, BottomSheet, Drawer, …) aman.
+ * Layar dengan sub-state bertingkat (mis. chat room: sheet → reply →
+ * attachment) cukup memanggil hook ini per sub-state; back menutup dari
+ * yang terdalam.
  */
+const backDismissStack: Array<() => void> = []
+let backPressSub: { remove(): void } | null = null
+
+function ensureBackPressListener(): void {
+  if (backPressSub) return
+  backPressSub = BackHandler.addEventListener("hardwareBackPress", () => {
+    const top = backDismissStack[backDismissStack.length - 1]
+    if (top) {
+      top()
+      return true
+    }
+    return false
+  })
+}
+
+function releaseBackPressListener(): void {
+  if (backDismissStack.length === 0 && backPressSub) {
+    backPressSub.remove()
+    backPressSub = null
+  }
+}
+
 export function useOverlayDismissKeys(active: boolean, onDismiss?: () => void) {
+  const onDismissRef = useRef(onDismiss)
+  onDismissRef.current = onDismiss
+
   useEffect(() => {
-    if (!active || !onDismiss) return
+    if (!active) return
 
     if (Platform.OS === "web") {
       const handler = (e: KeyboardEvent) => {
-        if (e.key === "Escape") onDismiss()
+        if (e.key === "Escape") onDismissRef.current?.()
       }
       window.addEventListener("keydown", handler)
       return () => window.removeEventListener("keydown", handler)
     }
 
-    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
-      onDismiss()
-      return true
-    })
-    return () => sub.remove()
-  }, [active, onDismiss])
+    const dismiss = () => onDismissRef.current?.()
+    backDismissStack.push(dismiss)
+    ensureBackPressListener()
+    return () => {
+      const i = backDismissStack.lastIndexOf(dismiss)
+      if (i >= 0) backDismissStack.splice(i, 1)
+      releaseBackPressListener()
+    }
+  }, [active])
 }
 
 export type BackdropProps = {
