@@ -44,8 +44,60 @@ import { useApiQuery } from "@/lib/use-api-query"
 import { byTimestampDesc, usePaginatedQuery } from "@/lib/use-paginated-query"
 import { PaginatedList } from "@/components/ui/paginated-list"
 import { WalletTransactionRow } from "@/components/ui/wallet-transaction-row"
+
+type RecentTransactionRowProps = {
+  item: WalletTransaction
+  index: number
+  last: boolean
+}
+
+/**
+ * FE-057 (audit 2026-09-29): baris "Transaksi terakhir" di-memo —
+ * `renderItem` inline menjebol memo internal PaginatedList.
+ */
+const RecentTransactionRow = memo(function RecentTransactionRow({
+  item,
+  index,
+  last,
+}: RecentTransactionRowProps) {
+  // Kartu "Transaksi terakhir": baris pertama = sudut atas kartu,
+  // baris terakhir = sudut bawah kartu, semua = border kiri-kanan.
+  return (
+    <View
+      className={cn(
+        "border-border bg-surface-elevated px-5",
+        index === 0 && "mt-3 rounded-t-md border-x border-t pt-2",
+        index > 0 && "border-x",
+        last && "rounded-b-md border-b pb-2",
+      )}
+    >
+      <WalletTransactionRow
+        transaction={item}
+        href={ROUTES.walletTransaction(item.id)}
+        divider={!last}
+        vivid
+      />
+    </View>
+  )
+})
+
+/**
+ * FE-057: empty state statis — identitas stabil agar memo internal
+ * PaginatedList tidak jebol.
+ */
+function RecentEmptyState() {
+  return (
+    <View className="mt-3 rounded-md border border-border bg-surface-elevated px-5 py-4">
+      <EmptyState
+        icon={WalletIcon}
+        title="Belum ada riwayat"
+        description="Transaksi dompet Anda akan muncul di sini."
+      />
+    </View>
+  )
+}
 import { OnboardingChecklistCard } from "@/components/ui/onboarding-checklist"
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { memo, useCallback, useEffect, useMemo, useState } from "react"
 import { View } from "react-native"
 import { Wallet as WalletIcon } from "phosphor-react-native"
 
@@ -141,6 +193,16 @@ export default function WalletScreen() {
 
   const recent = history.data
 
+  // FE-057 (audit 2026-09-29): renderItem + empty distabilkan — PaginatedList
+  // mem-memo internalnya ber-deps pada identitas prop ini.
+  const renderRecentItem = useCallback(
+    ({ item, index }: { item: WalletTransaction; index: number }) => (
+      <RecentTransactionRow item={item} index={index} last={index === recent.length - 1} />
+    ),
+    [recent.length],
+  )
+  const recentEmpty = useMemo(() => <RecentEmptyState />, [])
+
   // FE-IMP-4 item 1: rincian order penahan escrow (read-only). Dimuat malas
   // hanya saat sheet dibuka; dihitung dari mutasi ORDER_LOCK yang belum ada
   // pelepasannya (lihat lib/wallet-escrow-holds.ts).
@@ -200,34 +262,8 @@ export default function WalletScreen() {
         refreshing={balance.refreshing || history.refreshing}
         onRetry={history.reload}
         onLoadMore={history.loadMore}
-        renderItem={({ item, index }) => (
-          // Kartu "Transaksi terakhir": baris pertama = sudut atas kartu,
-          // baris terakhir = sudut bawah kartu, semua = border kiri-kanan.
-          <View
-            className={cn(
-              "border-border bg-surface-elevated px-5",
-              index === 0 && "mt-3 rounded-t-md border-x border-t pt-2",
-              index > 0 && "border-x",
-              index === recent.length - 1 && "rounded-b-md border-b pb-2",
-            )}
-          >
-            <WalletTransactionRow
-              transaction={item}
-              href={ROUTES.walletTransaction(item.id)}
-              divider={index < recent.length - 1}
-              vivid
-            />
-          </View>
-        )}
-        empty={
-          <View className="mt-3 rounded-md border border-border bg-surface-elevated px-5 py-4">
-            <EmptyState
-              icon={WalletIcon}
-              title="Belum ada riwayat"
-              description="Transaksi dompet Anda akan muncul di sini."
-            />
-          </View>
-        }
+        renderItem={renderRecentItem}
+        empty={recentEmpty}
         header={
           <FadeIn duration="base" distance={tokens.space[3]}>
             <View className="gap-6 pt-3">
