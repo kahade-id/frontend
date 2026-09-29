@@ -95,4 +95,28 @@ describe("FE-080 — batas ukuran & expiry cache prefetch", () => {
     await flush()
     expect(consumePrefetchedShowcaseDetail("slow")).toMatchObject({ id: "slow" })
   })
+
+  it("settle serentak >MAX request in-flight → tetap ≤ MAX_ENTRIES", async () => {
+    // Koreksi FE-080: sebelum eviksi-di-settle, skenario ini meninggalkan
+    // `total` entri (> MAX) karena evictOverflow saat write melewati semua
+    // placeholder in-flight.
+    const total = SHOWCASE_DETAIL_PREFETCH_MAX_ENTRIES + 10
+    const resolvers = new Map<string, (v: ShowcaseSocialItem) => void>()
+    mockedGetDetail.mockImplementation(
+      (id: string) =>
+        new Promise<ShowcaseSocialItem>((resolve) => {
+          resolvers.set(id, resolve)
+        }),
+    )
+    for (let i = 0; i < total; i++) prefetchShowcaseDetail(`burst-${i}`)
+    expect(mockedGetDetail).toHaveBeenCalledTimes(total)
+    // Settle SEMUA tanpa flush di antaranya.
+    for (const [id, resolve] of resolvers) resolve(item(id))
+    await flush()
+    let alive = 0
+    for (let i = 0; i < total; i++) {
+      if (consumePrefetchedShowcaseDetail(`burst-${i}`) !== null) alive++
+    }
+    expect(alive).toBe(SHOWCASE_DETAIL_PREFETCH_MAX_ENTRIES)
+  })
 })

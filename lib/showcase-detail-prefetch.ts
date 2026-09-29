@@ -76,6 +76,11 @@ export function prefetchShowcaseDetail(id: string, now: number = Date.now()): vo
   void getShowcaseDetail(id)
     .then((item) => {
       cache.set(id, { at: Date.now(), item })
+      // FE-080 (koreksi): eviksi juga SETELAH settle — bila >MAX request
+      // masih in-flight bersamaan, placeholder dilewati evictOverflow saat
+      // write dan map bisa tetap >MAX setelah semuanya settle.
+      sweepExpired(Date.now())
+      evictOverflow()
     })
     .catch(() => {
       // Gagal = buang penanda supaya percobaan berikutnya boleh mencoba lagi.
