@@ -203,7 +203,7 @@ export default function SearchScreen() {
   // user mengira riwayat terhapus padahal tidak).
   const [historyError, setHistoryError] = useState<string | null>(null)
   // Item 76 (mega-batch 2026-09-28): riwayat dibatasi 8 dengan toggle
-  // "Tampilkan semua".
+  // "Lihat semua".
   const [historyExpanded, setHistoryExpanded] = useState(false)
   // Item 75 (mega-batch 2026-09-28): hapus per item + umpan balik gagal.
   const [deletingItem, setDeletingItem] = useState<string | null>(null)
@@ -1026,7 +1026,7 @@ export default function SearchScreen() {
  *
  * Item 75 (mega-batch 2026-09-28): tiap baris punya tombol hapus (X) —
  * optimistis dengan rollback bila gagal. Item 76: bila riwayat > 8, toggle
- * "Tampilkan semua" membuka seluruh daftar.
+ * "Lihat semua" membuka seluruh daftar.
  */
 function RecentSearches({
   entries,
@@ -1122,7 +1122,7 @@ function RecentSearches({
         <Button variant="ghost" size="sm" fullWidth={false} onPress={onToggleExpanded}>
           {expanded
             ? translate("Tampilkan lebih sedikit")
-            : translate("Tampilkan semua ({x})", { x: formatNumber(totalCount) })}
+            : translate("Lihat semua ({x})", { x: formatNumber(totalCount) })}
         </Button>
       ) : null}
     </View>

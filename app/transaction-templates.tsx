@@ -279,7 +279,7 @@ export default function TransactionTemplatesScreen() {
             )}
             {hiddenCount > 0 ? (
               <Button variant="ghost" onPress={() => setShowAllTemplates(true)}>
-                {translate("Tampilkan semua {x} template", { x: items.length })}
+                {translate("Lihat semua {x} template", { x: items.length })}
               </Button>
             ) : null}
 

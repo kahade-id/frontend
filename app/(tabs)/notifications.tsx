@@ -749,7 +749,7 @@ function NotificationsScreen() {
                 variant="ghost"
                 active={unreadOnly}
                 accessibilityLabel={
-                  unreadOnly ? translate("Tampilkan semua notifikasi") : translate("Hanya yang belum dibaca")
+                  unreadOnly ? translate("Lihat semua notifikasi") : translate("Hanya yang belum dibaca")
                 }
                 accessibilityHint={translate("Saring daftar antara semua dan belum dibaca")}
                 disabled={!hasUnread && !unreadOnly}
