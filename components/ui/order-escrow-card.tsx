@@ -100,6 +100,31 @@ function escrowCopy(
               { x: COMPANY },
             ),
           }
+    // U5-012 (UX-deep 2026-09-29, keputusan produk): saat PROCESSING,
+    // pembeli diberi tahu tenggat kirim 2 hari + jaminan auto-refund —
+    // "2 hari" boleh hardcode. Dibuat case eksplisit supaya status lain
+    // yang jatuh ke default (mis. SHIPPED) tidak ikut dapat copy ini.
+    case "PROCESSING":
+      return myRole === "SELLER"
+        ? {
+            title: translate("Dana aman di escrow"),
+            body: translate(
+              "Pembayaran ditahan dengan aman oleh {x} dan akan diteruskan ke dompet Anda setelah pembeli mengonfirmasi penerimaan — atau otomatis setelah tenggat tanpa sengketa.",
+              { x: COMPANY },
+            ),
+          }
+        : {
+            title: translate("Dana aman di escrow"),
+            body: translate(
+              "Uang Anda ditahan dengan aman oleh {x}. Dana hanya diteruskan ke penjual setelah Anda mengonfirmasi penerimaan barang/jasa — atau otomatis setelah tenggat tanpa sengketa. {deadline}",
+              {
+                x: COMPANY,
+                deadline: translate(
+                  "Penjual punya waktu 2 hari untuk mengirim. Lewat dari itu, dana kembali otomatis.",
+                ),
+              },
+            ),
+          }
     default:
       return myRole === "SELLER"
         ? {

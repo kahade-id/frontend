@@ -34,9 +34,14 @@ export function orderNextStepHint(
         ? translate("Langkah berikutnya: menunggu pembeli membayar ke escrow.")
         : null
     case "PROCESSING":
-      // Penjual melihat tombol kirim — hint hanya untuk pembeli.
+      // U5-012 (UX-deep 2026-09-29, keputusan produk): tenggat kirim 2 hari
+      // + jaminan auto-refund HARUS dikomunikasikan ke pembeli saat menunggu
+      // — "2 hari" boleh hardcode. Penjual melihat tombol kirim — hint hanya
+      // untuk pembeli.
       return role === "BUYER"
-        ? translate("Langkah berikutnya: penjual sedang menyiapkan dan mengirim pesanan Anda.")
+        ? translate(
+            "Penjual punya waktu 2 hari untuk mengirim. Lewat dari itu, dana kembali otomatis.",
+          )
         : null
     case "IN_DELIVERY":
     case "SHIPPED":

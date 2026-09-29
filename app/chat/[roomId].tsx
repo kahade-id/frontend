@@ -126,6 +126,7 @@ import { ChatSearchSheet } from "@/components/ui/chat-search-sheet"
 import { ChatInlineSearchBar } from "@/components/ui/chat-inline-search"
 import { findMessageMatches } from "@/lib/chat-search"
 import { ChatDaySeparator, dayKey, dayLabel } from "@/components/ui/chat-day-separator"
+import { DmEscrowWarning } from "@/components/ui/dm-escrow-warning"
 import { ChatUnreadSeparator } from "@/components/ui/chat-unread-separator"
 import { presenceLabel } from "@/lib/chat-presence-label"
 import { firstUnreadMessageId } from "@/lib/chat-unread-anchor"
@@ -2482,6 +2483,20 @@ export default function ChatRoomScreen() {
         />
       )}
 
+      {/* U5-008 (UX-deep 2026-09-29): banner anti-tipu PERSISTEN di DM
+          tanpa orderId — DM tampil identik chat transaksi dan tidak boleh
+          mengundang transfer langsung. Dilewati untuk: ruang ber-order,
+          self-chat, ruang ORDER/grup, dan lawan bicara ber-badge verifikasi
+          (sealTier abu-abu/biru/emas). CTA = sheet "Buat transaksi" yang sama
+          dengan menu ⋮ (jalur escrow, bukan jalur baru). Hook-in minimal:
+          satu blok kondisional di bawah header. */}
+      {!selecting &&
+      room != null &&
+      isOneToOneChatRoom(room) &&
+      !isSelfChat &&
+      room.counterpart?.sealTier == null ? (
+        <DmEscrowWarning onCreateOrder={() => setCreateOrderSheetOpen(true)} />
+      ) : null}
       {/* Bar pencarian inline: di bawah header, di atas thread. */}
       {!selecting && inlineSearchOpen ? (
         <ChatInlineSearchBar

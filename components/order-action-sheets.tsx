@@ -31,6 +31,7 @@ import { useToast } from "@/components/ui/toast"
 import type { SubmitDisputeDto } from "@/lib/api/types"
 
 import { BottomSheet } from "@/components/ui/bottom-sheet"
+import { Alert } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Field } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
@@ -69,6 +70,8 @@ export function OrderPaymentSheet({
   onRequestRecreate,
   onUseOtherMethod,
   onShowQris,
+  walletBalance,
+  onTopup,
 }: {
   open: boolean
   onClose: () => void
@@ -86,6 +89,15 @@ export function OrderPaymentSheet({
   onRequestRecreate: () => void
   onUseOtherMethod: () => void
   onShowQris: () => void
+  /**
+   * U5-010/U5-011 (UX-deep 2026-09-29): saldo dompet saat sheet dibuka
+   * (null = belum termuat) — untuk banner inline "saldo kurang" + tombol
+   * "Isi Saldo" dan hint metode QRIS. Murni tampilan; PIN tetap wajib
+   * untuk bayar via saldo.
+   */
+  walletBalance?: number | null
+  /** Deep link ke topup; kembali ke sheet setelah sukses (diurus pemanggil). */
+  onTopup: () => void
 }) {
   const qris: QrisPayment | null = qrisPayment.qris
   const toast = useToast()
@@ -117,6 +129,13 @@ export function OrderPaymentSheet({
       })
     })
   }
+  // U5-010/U5-011 (UX-deep 2026-09-29): saldo < tagihan → banner inline +
+  // CTA "Isi Saldo" (cabang saldo) dan hint QRIS (cabang QRIS). Kondisinya
+  // persisten sehingga banner ikut tampil pasca-gagal bayar — dead-end
+  // "saldo tidak cukup" selalu punya jalan keluar di titik bayar.
+  const insufficientBalance =
+    walletBalance != null && feeBuyerPays != null && walletBalance < feeBuyerPays
+  const shortfall = insufficientBalance ? feeBuyerPays! - walletBalance! : 0
   return (
     <BottomSheet
       avoidKeyboard
@@ -139,6 +158,24 @@ export function OrderPaymentSheet({
         />
         {payMethod === "balance" ? (
           <>
+            {insufficientBalance ? (
+              <Alert
+                tone="warning"
+                title={translate("Saldo belum cukup")}
+                action={
+                  <Button size="sm" variant="secondary" onPress={onTopup}>
+                    {translate("Isi Saldo")}
+                  </Button>
+                }
+              >
+                <Text variant="caption" tone="secondary">
+                  {translate("Saldo Anda {balance} — kurang {short}.", {
+                    balance: formatRupiah(walletBalance ?? 0),
+                    short: formatRupiah(shortfall),
+                  })}
+                </Text>
+              </Alert>
+            ) : null}
             <Text variant="body" tone="secondary">
               Masukkan PIN dompet untuk membayar dari saldo Kahade.
             </Text>
@@ -155,26 +192,40 @@ export function OrderPaymentSheet({
         ) : qris ? (
           /* Panel QRIS diekstrak ke components/qris-payment-panel.tsx (S9):
              state & mutasi tetap di layar ini, panel hanya presentasi. */
-          <QrisPaymentPanel
-            qrString={qris.qrString}
-            amount={qris.amount}
-            expiresAt={qris.expiresAt}
-            status={qrisStatus}
-            pollError={pollError}
-            pollStopped={qrisPayment.stopped}
-            submitting={submitting || qrisPayment.creating}
-            copied={copied}
-            onCopy={onCopy}
-            onExpire={qrisPayment.expireLocally}
-            onRecreate={onRequestRecreate}
-            onUseOtherMethod={onUseOtherMethod}
-            onCheckStatus={handleCheckStatus}
-            checking={qrisPayment.syncing}
-          />
+          <>
+            {insufficientBalance ? (
+              <Text variant="caption" tone="secondary">
+                {translate("Saldo belum cukup — QRIS bisa langsung dari m-banking.")}
+              </Text>
+            ) : null}
+            <QrisPaymentPanel
+              qrString={qris.qrString}
+              amount={qris.amount}
+              expiresAt={qris.expiresAt}
+              status={qrisStatus}
+              pollError={pollError}
+              pollStopped={qrisPayment.stopped}
+              submitting={submitting || qrisPayment.creating}
+              copied={copied}
+              onCopy={onCopy}
+              onExpire={qrisPayment.expireLocally}
+              onRecreate={onRequestRecreate}
+              onUseOtherMethod={onUseOtherMethod}
+              onCheckStatus={handleCheckStatus}
+              checking={qrisPayment.syncing}
+            />
+          </>
         ) : (
-          <Button loading={submitting || qrisPayment.creating} onPress={onShowQris}>
-            Tampilkan kode QRIS
-          </Button>
+          <>
+            {insufficientBalance ? (
+              <Text variant="caption" tone="secondary">
+                {translate("Saldo belum cukup — QRIS bisa langsung dari m-banking.")}
+              </Text>
+            ) : null}
+            <Button loading={submitting || qrisPayment.creating} onPress={onShowQris}>
+              Tampilkan kode QRIS
+            </Button>
+          </>
         )}
       </View>
     </BottomSheet>

@@ -37,7 +37,7 @@ import { useLocalSearchParams, router } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { ClockCounterClockwise } from "phosphor-react-native"
 
-import { api, isApiError, userMessage, type Order } from "@/lib/api"
+import { api, isApiError, userMessage, type Order, type Wallet } from "@/lib/api"
 import { createIdempotencyKey } from "@/lib/api/client"
 import { normalizeOrder } from "@/lib/api/orders"
 import {
@@ -390,6 +390,47 @@ export default function OrderDetailScreen() {
 
   // Pembayaran
   const [payMethod, setPayMethod] = useState<PayMethod>("balance")
+  /**
+   * U5-010/U5-011 (UX-deep 2026-09-29): saldo dompet — HANYA diambil saat
+   * sheet bayar dibuka, untuk (a) banner inline "saldo kurang" + tombol
+   * "Isi Saldo" di titik bayar, dan (b) default metode QRIS bila saldo <
+   * tagihan. Murni baca tampilan: tidak mengubah logika bayar/refund/PIN.
+   * (Ditaruh setelah `sheet`/`payMethod` dideklarasikan — hook ini memakai
+   * keduanya.)
+   */
+  const walletQuery = useApiQuery<Wallet>(
+    `wallet-for-pay:${id}`,
+    (signal) => api.wallet.getWallet(signal),
+    sheet === "pay",
+    // U5-010: kembali dari layar topup (push di atas layar ini; sheet tetap
+    // terbuka di belakang) → saldo disegarkan supaya banner "kurang RpY"
+    // langsung mencerminkan topup yang baru selesai.
+    { refreshOnFocus: true },
+  )
+  const walletBalance = walletQuery.data?.balance ?? null
+  /**
+   * U5-011: default metode bayar = QRIS bila saldo < tagihan. Hanya
+   * auto-default — pilihan eksplisit user (payMethodTouchedRef) tidak
+   * pernah ditimpa. Flag di-reset di closeSheet supaya pembukaan
+   * berikutnya mengevaluasi ulang dari saldo terbaru.
+   */
+  const payMethodTouchedRef = useRef(false)
+  useEffect(() => {
+    if (sheet !== "pay" || payMethodTouchedRef.current) return
+    const total = fee?.buyerPays
+    if (walletBalance != null && total != null && walletBalance < total) {
+      setPayMethod("qris")
+    }
+  }, [sheet, walletBalance, fee?.buyerPays])
+  /**
+   * U5-010: "Isi Saldo" dari sheet bayar — dorong layar topup; tombol back
+   * di sana kembali ke layar ini dengan sheet masih terbuka (state `sheet`
+   * tidak di-reset saat push), lalu saldo di-refresh via refreshOnFocus di
+   * atas. PIN tetap wajib untuk bayar via saldo — logika otorisasi utuh.
+   */
+  const handleTopupFromPay = useCallback(() => {
+    router.push(ROUTES.topup)
+  }, [])
   const [pinError, setPinError] = useState<string | undefined>()
   // Overlay progres saat membayar escrow dari saldo (PIN disubmit).
   const [payProgress, setPayProgress] = useState<"PROCESSING" | "SUCCESS" | "FAILURE" | null>(null)
@@ -490,6 +531,9 @@ export default function OrderDetailScreen() {
     setSheet(null)
     setPinError(undefined)
     setDisputeCategory(undefined)
+    // U5-011: reset penanda pilihan metode — pembukaan sheet berikutnya
+    // mengevaluasi ulang auto-default QRIS dari saldo terbaru.
+    payMethodTouchedRef.current = false
     // D08: persetujuan total tidak berlaku untuk siklus bayar berikutnya.
     acceptedTotalRef.current = null
     pendingPinRef.current = null
@@ -1203,11 +1247,16 @@ export default function OrderDetailScreen() {
         feeBuyerPays={fee?.buyerPays ?? null}
         payMethod={payMethod}
         onChangePayMethod={(v) => {
+          // U5-011: pilihan eksplisit — auto-default tidak boleh menimpanya.
+          payMethodTouchedRef.current = true
           setPayMethod(v)
           setPinError(undefined)
         }}
         submitting={submitting}
         pinError={pinError}
+        // U5-010: banner inline "saldo kurang" + tombol "Isi Saldo".
+        walletBalance={walletBalance}
+        onTopup={handleTopupFromPay}
         onPayPin={(p) => void handlePayPin(p)}
         qrisPayment={qrisPayment}
         qrisStatus={qrisStatus}
