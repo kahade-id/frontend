@@ -113,16 +113,17 @@ describe("hasOpenSupportTicket — dot tiket bantuan", () => {
 
 describe("header tab — Indonesia + judul lebih besar", () => {
   it("header tab chat berjudul Pesan (bukan Chat)", () => {
-    const chatSrc = src("app/(tabs)/chat.tsx")
+    // PERF-FIX (2026-09-30): tab kini thin shell — implementasi di components/screens/.
+    const chatSrc = src("components/screens/chat-tab-screen.tsx")
     expect(chatSrc).toContain('title={archiveOpen ? "Diarsipkan" : "Pesan"}')
     expect(chatSrc).not.toContain('"Chat"}')
   })
 
   it("tiga header tab memakai judul h2 yang lebih besar", () => {
     for (const p of [
-      "app/(tabs)/transactions.tsx",
-      "app/(tabs)/chat.tsx",
-      "app/(tabs)/notifications.tsx",
+      "components/screens/transactions-tab-screen.tsx",
+      "components/screens/chat-tab-screen.tsx",
+      "components/screens/notifications-tab-screen.tsx",
     ]) {
       expect(src(p)).toContain('titleVariant="h2"')
     }
