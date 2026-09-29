@@ -15,6 +15,7 @@ import {
   CheckCircle,
   Circle,
   Coins,
+  Handshake,
   Package,
   Receipt,
   Scales,
@@ -35,6 +36,8 @@ import type { JourneyStep, JourneyStepKey, JourneyStepState, JourneyStepTone } f
 
 const STEP_ICONS: Record<JourneyStepKey, IconComponent> = {
   created: Receipt,
+  // FE-045: langkah "Konfirmasi penjual" — handshake = kesepakatan dua pihak.
+  confirmed: Handshake,
   paid: ShieldCheck,
   shipped: Truck,
   received: Package,

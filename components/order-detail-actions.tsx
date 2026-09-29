@@ -20,6 +20,7 @@ import { orderNextStepHint, type OrderActorRole } from "@/lib/order-next-step"
 import { ctaUnavailableReasons } from "@/lib/wallet-batch139"
 import { OrderRoleBadge } from "@/components/ui/order-role-badge"
 import type { ShippingCountdown } from "@/lib/order-shipping-countdown"
+import type { ConfirmCountdown } from "@/lib/order-confirm-countdown"
 
 export type OrderDetailActionsProps = Omit<ViewProps, "children"> & {
   /** Gerbang tampil — dihitung di layar dari status × peran. */
@@ -48,6 +49,12 @@ export type OrderDetailActionsProps = Omit<ViewProps, "children"> & {
    * `resolveShippingCountdown`); komponen hanya me-render yang diminta.
    */
   shippingCountdown: ShippingCountdown | null
+  /**
+   * FE-110: countdown batas konfirmasi penjual — tampil hanya di
+   * WAITING_CONFIRMATION dengan `confirmationDeadlineAt` dari backend.
+   * Gerbang milik layar (via `resolveConfirmCountdown`).
+   */
+  confirmCountdown: ConfirmCountdown | null
   onPay: () => void
   onAccept: () => void
   onReject: () => void
@@ -146,6 +153,7 @@ export function OrderDetailActions({
   myRole,
   autoRelease,
   shippingCountdown,
+  confirmCountdown,
   onPay,
   onAccept,
   onReject,
@@ -166,6 +174,11 @@ export function OrderDetailActions({
   const shippingTone = countdownTone(
     shippingCountdown?.kind === "countdown" ? shippingCountdown.secondsLeft : null,
     shippingCountdown?.kind === "overdue",
+  )
+  // FE-110: tone kartu "Batas konfirmasi" — pola sama seperti kartu kirim.
+  const confirmTone = countdownTone(
+    confirmCountdown?.kind === "countdown" ? confirmCountdown.secondsLeft : null,
+    confirmCountdown?.kind === "overdue",
   )
   // Item 34: area aksi kosong → tampilkan "langkah berikutnya" per status × peran.
   const hasAnyAction =
@@ -263,6 +276,8 @@ export function OrderDetailActions({
                 </Text>
                 {/* T2-009: jalur bantuan langsung dari kartu tenggat. */}
                 {onDispute ? (
+                  // FE-046: label jujur — tombol ini MEMBUKA sengketa (dana
+                  // dibekukan), bukan sekadar "melaporkan".
                   <Button
                     variant="secondary"
                     size="sm"
@@ -270,11 +285,37 @@ export function OrderDetailActions({
                     onPress={onDispute}
                     className="mt-1"
                   >
-                    Laporkan masalah
+                    Ajukan sengketa
                   </Button>
                 ) : null}
               </>
             )}
+          </View>
+        ) : null}
+        {/*
+         * FE-110: kartu "Batas konfirmasi" — pembeli (dan penjual) melihat
+         * tenggat konfirmasi + apa yang terjadi bila lewat (batal otomatis).
+         * Satu-satunya sumber tenggat = `confirmationDeadlineAt` backend.
+         */}
+        {confirmCountdown ? (
+          <View className={`gap-1 rounded-lg p-3 ${COUNTDOWN_BOX_BG[confirmTone]}`}>
+            <Text variant="label" tone="secondary">
+              {translate("Batas konfirmasi")}
+            </Text>
+            {confirmCountdown.kind === "countdown" ? (
+              <Text variant="body" weight={600} tone={COUNTDOWN_TITLE_TONE[confirmTone]}>
+                {translate("Penjual harus mengonfirmasi dalam {x}.", {
+                  x: formatDurationWords(confirmCountdown.secondsLeft),
+                })}
+              </Text>
+            ) : (
+              <Text variant="body" weight={600} tone={COUNTDOWN_TITLE_TONE[confirmTone]}>
+                {translate("Penjual melewati batas konfirmasi — pesanan akan dibatalkan otomatis.")}
+              </Text>
+            )}
+            <Text variant="caption" tone="secondary">
+              {translate("Lewat batas waktu, pesanan dibatalkan otomatis — belum ada dana yang ditahan.")}
+            </Text>
           </View>
         ) : null}
         {/* Item 46: "Ajukan retur" sebagai aksi PRIMER selama jendela retur berlaku. */}

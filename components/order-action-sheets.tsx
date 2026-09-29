@@ -7,7 +7,7 @@
  * adanya; state & mutasi tetap di layar, komponen ini murni presentasi +
  * meneruskan callback. `OrderPaymentSheet` juga dipakai tes komponen.
  */
-import { useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { TextInput, View } from "react-native"
 import { router } from "expo-router"
 import { ArrowUDownLeft, ChatCircleDots, Receipt, ShieldWarning, Timer } from "phosphor-react-native"
@@ -25,6 +25,7 @@ import { CANCEL_REASONS, DISPUTE_CATEGORIES, type DisputeCategoryValue } from "@
 import { formatRupiah } from "@/lib/format"
 import { translate } from "@/lib/i18n"
 import { useQrisPayment } from "@/lib/use-qris-payment"
+import { hasSeenCoachMark, markCoachMarkSeen } from "@/lib/coach-mark"
 import { ROUTES } from "@/lib/routes"
 import { validateTrackingInput } from "@/lib/wallet-batch139"
 import { useToast } from "@/components/ui/toast"
@@ -101,6 +102,27 @@ export function OrderPaymentSheet({
 }) {
   const qris: QrisPayment | null = qrisPayment.qris
   const toast = useToast()
+  /**
+   * FE-114: definisi escrow satu kalimat — tampil SEKALI di sheet bayar
+   * order pertama user, lalu tidak pernah lagi (flag persisten per
+   * perangkat; logout bukan alasan menampilkan ulang). JANGAN duplikasi
+   * kalimat ini di tempat lain.
+   */
+  const [showEscrowDef, setShowEscrowDef] = useState(false)
+  useEffect(() => {
+    if (!open) return
+    let alive = true
+    void hasSeenCoachMark("escrow-definition").then((seen) => {
+      if (!alive) return
+      if (!seen) {
+        setShowEscrowDef(true)
+        void markCoachMarkSeen("escrow-definition")
+      }
+    })
+    return () => {
+      alive = false
+    }
+  }, [open ])
   const handleCheckStatus = () => {
     // N-07 (audit escrow 2026-09-24): "Cek status sekarang" memberi umpan
     // balik hasil — dulu hanya diam (atau `pollError` bila gagal), pengguna
@@ -149,6 +171,11 @@ export function OrderPaymentSheet({
       }
     >
       <View className="gap-4">
+        {showEscrowDef ? (
+          <Text variant="caption" tone="secondary">
+            Escrow = dana ditahan Kahade, baru diteruskan ke penjual setelah Anda konfirmasi terima.
+          </Text>
+        ) : null}
         <SegmentedControl<PayMethod>
           items={PAY_METHODS}
           accessibilityLabel="Metode pembayaran"
@@ -286,7 +313,7 @@ export function OrderActionSheets({
    * kurir + nomor resi persis seperti yang akan disimpan, sebelum data
    * dikirim. Resi salah = pembeli tidak bisa melacak.
    */
-  const [shipConfirmOpen, setShipConfirmOpen] = useState(false)
+  // FE-112: state dialog konfirmasi resi dihapus — tidak ada dialog kedua.
   // FRM-008: rantai fokus Next Kurir -> Nomor resi.
   const trackingRef = useRef<TextInput>(null)
   const trackingValidation = validateTrackingInput(courier, tracking, shippingRequired)
@@ -426,10 +453,13 @@ export function OrderActionSheets({
         </Field>
       </BottomSheet>
 
-      {/* SEC-DSP-FE-02: dialog konfirmasi akhir — dana dibekukan, tak bisa batal sepihak. */}
+      {/* SEC-DSP-FE-02: dialog konfirmasi akhir — dana dibekukan, tak bisa batal sepihak.
+          FE-113: deskripsi dialog FOKUS konsekuensi; penjelasan bukti sudah
+          ada di sheet ("Bukti foto bisa ditambahkan setelah sengketa
+          dibuat") — tidak diulang di sini. */}
       <Dialog
         title="Buka sengketa?"
-        description={`Dana escrow akan DIBEKUKAN sampai mediator Kahade memutuskan. Sengketa yang sudah dibuka tidak bisa dibatalkan sepihak.\n\nPastikan klaim sudah jelas — bukti foto/video bisa ditambahkan setelah sengketa dibuat.`}
+        description="Dana escrow akan dibekukan sampai mediator Kahade memutuskan. Sengketa yang sudah dibuka tidak bisa dibatalkan sepihak."
         visible={disputeConfirmOpen}
         destructive
         loading={submitting}
@@ -476,8 +506,21 @@ export function OrderActionSheets({
             fullWidth
             loading={submitting}
             // D16: validasi format resi/kurir — bukan sekadar panjang minimal.
+            // FE-112: "Simpan" langsung menyimpan (validasi/submit existing) —
+            // TANPA dialog konfirmasi kedua. Resi bisa diedit kapan saja, jadi
+            // ringkasan "apa yang akan dikirim" tidak menambah keamanan.
             disabled={!trackingValid}
-            onPress={() => setShipConfirmOpen(true)}
+            onPress={() =>
+              void runAction(
+                () =>
+                  updateShipping(order.id, {
+                    trackingNumber: tracking.trim() || undefined,
+                    courierName: courier.trim() || undefined,
+                  }),
+                "Info pengiriman disimpan",
+                "Gagal menyimpan info pengiriman",
+              )
+            }
           >
             Simpan
           </Button>
@@ -520,32 +563,8 @@ export function OrderActionSheets({
         </View>
       </BottomSheet>
 
-      {/*
-       * D16 (batch 139): ringkasan konfirmasi sebelum resi disimpan —
-       * kurir & nomor resi ditampilkan persis seperti yang akan dikirim.
-       */}
-      <Dialog
-        visible={shipConfirmOpen}
-        title="Simpan info pengiriman?"
-        description={`Kurir: ${courier.trim() || "—"}\nNomor resi: ${tracking.trim() || "—"}\n\nPastikan sudah benar — resi yang salah membuat pembeli tidak bisa melacak paket.`}
-        confirmLabel="Ya, simpan"
-        cancelLabel="Kembali"
-        loading={submitting}
-        onConfirm={() => {
-          setShipConfirmOpen(false)
-          void runAction(
-            () =>
-              updateShipping(order.id, {
-                trackingNumber: tracking.trim() || undefined,
-                courierName: courier.trim() || undefined,
-              }),
-            "Info pengiriman disimpan",
-            "Gagal menyimpan info pengiriman",
-          )
-        }}
-        onCancel={() => setShipConfirmOpen(false)}
-        onRequestClose={() => setShipConfirmOpen(false)}
-      />
+      {/* FE-112: dialog konfirmasi kedua DIHAPUS — "Simpan" di sheet langsung menyimpan. */}
+
     </>
   )
 }

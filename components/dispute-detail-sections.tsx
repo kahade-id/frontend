@@ -24,7 +24,7 @@ import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Button } from "@/components/ui/button"
 import { Dialog } from "@/components/ui/modal"
 import { DisputeCallLogItem, type DisputeCallOutcome } from "@/components/ui/dispute-call-log-item"
-import { DisputeStatusBadge } from "@/components/ui/dispute-status-badge"
+import { DisputeStatusBadge, isDisputeActive } from "@/components/ui/dispute-status-badge"
 import { ListGroup } from "@/components/ui/list-item"
 import { MutualResolutionCard } from "@/components/ui/mutual-resolution-card"
 import { SectionHeader } from "@/components/ui/section"
@@ -149,6 +149,16 @@ export function DisputeDetailHeader({
         </View>
         <DisputeStatusBadge status={dispute.status} />
       </View>
+      {/*
+       * FE-047: ekspektasi antrean pada sengketa nonterminal — user tahu
+       * posisinya (ditinjau mediator) dan SLA respons (1×24 jam).
+       * Status terminal (RESOLVED) tidak menampilkan ini.
+       */}
+      {isDisputeActive(dispute.status) ? (
+        <Text variant="caption" tone="secondary">
+          Status antrean: ditinjau mediator · Tim kami merespons maksimal 1×24 jam.
+        </Text>
+      ) : null}
       {dispute.orderId ? (
         <Button
           variant="ghost"

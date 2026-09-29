@@ -142,10 +142,20 @@ export const ROUTES = {
   /** Buat transaksi baru (di-push dari FAB Tab Transaksi & quick action Beranda) */
   createTransaction: "/create-transaction" as Href,
   /** Buat transaksi dengan lawan transaksi terisi (dari profil publik) */
-  createTransactionWith: (username: string) =>
+  createTransactionWith: (username: string, opts?: { fromShowcase?: boolean }) =>
     // L-04 (audit 2026-09-23): penonton karya orang lain pasti PEMBELI —
     // peran BUYER di-prefill, bukan disuruh memilih manual.
-    ({ pathname: "/create-transaction", params: { counterpart: username, role: "BUYER" } }) as unknown as Href,
+    // FE-044: `fromShowcase` — tombol "Beli via Escrow" dari etalase membawa
+    // flag ini agar wizard mulai dari langkah 1 (bukan 0): mode & peran sudah
+    // pasti (direct + BUYER), hanya detail order yang perlu diisi.
+    ({
+      pathname: "/create-transaction",
+      params: {
+        counterpart: username,
+        role: "BUYER",
+        ...(opts?.fromShowcase ? { fromShowcase: "1" } : {}),
+      },
+    }) as unknown as Href,
   /**
    * Buat transaksi ter-prefill dari `orderLink` item showcase (audit F-01).
    * Kontrak backend hanya membawa title/description/orderValue(+valid flag)/

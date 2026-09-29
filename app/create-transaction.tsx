@@ -266,7 +266,19 @@ export default function CreateTransactionScreen() {
     (params.counterpart?.trim().length ?? 0) >= MIN_USERNAME &&
     (templatePrefill.title?.length ?? 0) > 0 &&
     (templatePrefill.amount ?? 0) > 0
-  const [step, setStep] = useState(showcasePrefillComplete ? 2 : 0)
+  /**
+   * FE-044: etalase TANPA orderLink (hanya counterpart + role=BUYER dari
+   * tombol "Beli via Escrow") — prefill tidak lengkap, tapi "Cara & peran"
+   * sudah terjawab konteks karya (direct + BUYER). Mulai dari langkah
+   * "Lawan" (1), bukan "Cara & peran" (0). Tipe order/deadline/fee TIDAK
+   * dikarang — tetap diisi manual di langkah Detail.
+   */
+  const showcasePrefillPartial =
+    !showcasePrefillComplete &&
+    params.fromShowcase === "1" &&
+    templatePrefill.role === "BUYER" &&
+    (params.counterpart?.trim().length ?? 0) >= MIN_USERNAME
+  const [step, setStep] = useState(showcasePrefillComplete ? 2 : showcasePrefillPartial ? 1 : 0)
   const [role, setRole] = useState<OrderRoleValue>(templatePrefill.role ?? "BUYER")
   const [counterpart, setCounterpart] = useState(params.counterpart?.trim() ?? "")
   const [counterpartState, setCounterpartState] = useState<CounterpartState>("loading")
