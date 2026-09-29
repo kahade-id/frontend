@@ -220,12 +220,9 @@ export default function FeedbackScreen() {
 
             {/* D-12 (audit): persetujuan eksplisit penyimpanan lokal —
                 antrean luring bisa memuat email/konteks transaksi (PII).
-                Pengguna diberitahu batas & lifecycle-nya, bukan diam-diam. */}
+                FE-006: 1 kalimat — bukan dinding teks legal. */}
             <Text variant="caption" tone="secondary" className="text-pretty">
-              Dengan mengirim, Anda setuju masukan ini (beserta kontak di atas,
-              bila diisi) disimpan sementara di perangkat ini maksimal 7 hari
-              saat offline, lalu dikirim otomatis dan dihapus. Antrean lokal
-              juga dibersihkan saat Anda keluar dari akun.
+              Masukan offline tersimpan di perangkat maks. 7 hari.
             </Text>
           </View>
         </FadeIn>
