@@ -12,7 +12,13 @@
  * Expo SDK 50+ (sudah termasuk di babel-preset-expo).
  */
 module.exports = function (api) {
-  api.cache(true)
+  // PERF-FIX (bundle): kunci cache mencakup versi phosphor-react-native +
+  // NODE_ENV. Plugin `babel-phosphor-imports` membaca filesystem paket
+  // tersebut (fs.existsSync per ikon), sehingga `api.cache(true)` murni
+  // berisiko memakai transform basi setelah upgrade/downgrade paket atau
+  // ganti env (dev vs production).
+  const phosphorVersion = require("phosphor-react-native/package.json").version
+  api.cache.using(() => `${phosphorVersion}:${process.env.NODE_ENV ?? "development"}`)
   return {
     plugins: [require.resolve("./scripts/babel-phosphor-imports.cjs")],
     presets: [

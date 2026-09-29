@@ -50,7 +50,7 @@
  *     tetapi ikon tetap diberi `hitSlop` agar label/ikon kecil tetap nyaman
  *     disentuh di web/mobile pada area tengah tab.
  */
-import { useEffect, useRef, useState, type ReactNode } from "react"
+import { Suspense, lazy, useEffect, useRef, useState, type ReactNode } from "react"
 import { Animated, Easing, View, type ViewProps, type View as RNView } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { type Href } from "expo-router"
@@ -62,10 +62,19 @@ import {
   ShoppingBag,
 } from "phosphor-react-native"
 
-import { ActionSheet, type ActionSheetItem } from "@/components/ui/action-sheet"
+// PERF-FIX (bundle): ActionSheet (sheet penuh) & CoachMark (overlay
+// onboarding) tidak pernah tampil di frame pertama — lazy agar subtree-nya
+// tidak dievaluasi saat boot. Tipe tetap import type (terhapus saat kompilasi).
+import type { ActionSheetItem } from "@/components/ui/action-sheet"
+const ActionSheet = lazy(() =>
+  import("@/components/ui/action-sheet").then((m) => ({ default: m.ActionSheet })),
+)
+import type { CoachMarkId } from "@/components/ui/coach-mark"
+const CoachMark = lazy(() =>
+  import("@/components/ui/coach-mark").then((m) => ({ default: m.CoachMark })),
+)
 import { Avatar } from "@/components/ui/avatar"
 import { NotificationCount, NotificationDot } from "@/components/ui/badge"
-import { CoachMark, type CoachMarkId } from "@/components/ui/coach-mark"
 import { Icon, type IconComponent } from "@/components/ui/icon"
 import type { BottomTabBarProps as RNNBottomTabBarProps } from "@react-navigation/bottom-tabs"
 
@@ -441,12 +450,14 @@ function CenterActionButton({
         </Text>
       ) : null}
       {coachMark ? (
-        <CoachMark
-          id={coachMark.id}
-          targetRef={targetRef}
-          message={coachMark.message}
-          delayMs={coachMark.delayMs ?? 1200}
-        />
+        <Suspense fallback={null}>
+          <CoachMark
+            id={coachMark.id}
+            targetRef={targetRef}
+            message={coachMark.message}
+            delayMs={coachMark.delayMs ?? 1200}
+          />
+        </Suspense>
       ) : null}
     </View>
   )
@@ -636,13 +647,15 @@ export function BottomTabBar<K extends string = string>({
       </View>
 
       {actions ? (
-        <ActionSheet
-          visible={centerOpen}
-          onRequestClose={() => setCenterOpen(false)}
-          title="Buat baru"
-          description="Pilih yang mau Anda kerjakan."
-          actions={actions}
-        />
+        <Suspense fallback={null}>
+          <ActionSheet
+            visible={centerOpen}
+            onRequestClose={() => setCenterOpen(false)}
+            title="Buat baru"
+            description="Pilih yang mau Anda kerjakan."
+            actions={actions}
+          />
+        </Suspense>
       ) : null}
     </View>
   )

@@ -38,21 +38,22 @@
  *   - Tidak ada animasi/gradient/rounded-dots pada modul (§1 flat, presisi):
  *     modul bulat menurunkan keterbacaan scanner murah.
  */
-// ST-008 (PERF-FIX 2026-09-29): hanya inti pembuatan matriks QR yang
-// diimpor (`qrcode/lib/core/qrcode`), bukan entry utama `qrcode`.
-// Entry utama di-resolve Metro via field `browser` ke lib/browser.js yang
-// ikut menarik renderer canvas (butuh DOM — mati di native) dan svg-tag
-// (tidak dipakai; path SVG dibangun sendiri dari matriks di bawah).
-// Inti ini murni: core/qrcode + dijkstrajs, tanpa dependensi server.
-import { create as createQrCode } from "qrcode/lib/core/qrcode"
+// PERF-FIX (bundle, 2026-09-30): inti qrcode dimuat LAZY — dievaluasi hanya
+// saat komponen pertama kali di-mount, bukan saat modul ini dievaluasi.
+// (ST-008 2026-09-29 sudah memangkas dari entry utama ke
+// `qrcode/lib/core/qrcode`; ini menunda evaluasinya sepenuhnya.)
+// Selama inti dimuat, tampil skeleton netral — BUKAN pesan error
+// "Data terlalu panjang" (itu hanya untuk encode yang benar-benar gagal).
+import type { create as createQrCodeType } from "qrcode/lib/core/qrcode"
 import { QrCode } from "phosphor-react-native"
-import { useMemo } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { View, type ViewProps } from "react-native"
 import Svg, { Path, Rect } from "react-native-svg"
 
 import { CopyableField } from "@/components/ui/copyable-field"
 import { Icon } from "@/components/ui/icon"
 import { Picture, type PictureProps } from "@/components/ui/picture"
+import { Skeleton } from "@/components/ui/skeleton"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { tokens } from "@/lib/tokens"
@@ -82,6 +83,13 @@ export type QRCodeDisplayProps = Omit<ViewProps, "children"> & {
 
 const QUIET_ZONE = 4
 const LOGO_RATIO = 0.2
+
+type QrCoreModule = typeof import("qrcode/lib/core/qrcode")
+let qrCorePromise: Promise<QrCoreModule> | null = null
+function loadQrCore(): Promise<QrCoreModule> {
+  if (!qrCorePromise) qrCorePromise = import("qrcode/lib/core/qrcode")
+  return qrCorePromise
+}
 
 function buildModulesPath(data: Uint8Array, count: number, scale: number, offset: number): string {
   // Gabungkan modul horizontal berurutan jadi satu rect per run — path lebih pendek.
@@ -119,17 +127,35 @@ export function QRCodeDisplay({
 }: QRCodeDisplayProps) {
   const ec: QRErrorCorrection = errorCorrection ?? (logo ? "H" : "M")
 
+  // PERF-FIX (bundle): inti qrcode dimuat saat mount, bukan saat evaluasi modul.
+  const [createQrCode, setCreateQrCode] = useState<typeof createQrCodeType | null>(null)
+  useEffect(() => {
+    let alive = true
+    loadQrCore()
+      .then((m) => {
+        if (alive) setCreateQrCode(() => m.create)
+      })
+      .catch(() => {
+        // Import gagal: encoded di bawah jatuh ke status error seperti
+        // encode gagal (tidak melempar ke render tree).
+      })
+    return () => {
+      alive = false
+    }
+  }, [])
+
   const encoded = useMemo(() => {
+    if (!createQrCode) return { path: "", ok: false as const, loading: true as const }
     try {
       const qr = createQrCode(value, { errorCorrectionLevel: ec })
       const count = qr.modules.size
       const scale = size / (count + QUIET_ZONE * 2)
       const offset = QUIET_ZONE * scale
-      return { path: buildModulesPath(qr.modules.data, count, scale, offset), ok: true as const }
+      return { path: buildModulesPath(qr.modules.data, count, scale, offset), ok: true as const, loading: false as const }
     } catch {
-      return { path: "", ok: false as const }
+      return { path: "", ok: false as const, loading: false as const }
     }
-  }, [value, ec, size])
+  }, [createQrCode, value, ec, size])
 
   const captionText = caption === undefined ? value : caption
   const logoSize = Math.round(size * LOGO_RATIO)
@@ -155,6 +181,10 @@ export function QRCodeDisplay({
             <Rect x={0} y={0} width={size} height={size} fill={tokens.colors.brand.white} />
             <Path d={encoded.path} fill={tokens.colors.brand.black} />
           </Svg>
+        ) : encoded.loading ? (
+          // PERF-FIX (bundle): inti qrcode masih dimuat — skeleton netral,
+          // bukan pesan error.
+          <Skeleton width={size - 16} height={size - 16} />
         ) : (
           <View className="items-center gap-2 px-4">
             <Icon icon={QrCode} size="xl" />

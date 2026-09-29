@@ -19,7 +19,11 @@
  *     kenyamanan, tidak boleh menghalangi boot.
  */
 import { Platform } from "react-native"
-import * as Updates from "expo-updates"
+
+// PERF-FIX (bundle): `expo-updates` (±260KB) JANGAN diimpor statis — modul
+// ini dipakai root layout di efek GlobalNotices (setelah mount), bukan saat
+// boot. Muat lazy di dalam consumeOtaUpdateNotice().
+type ExpoUpdatesModule = typeof import("expo-updates")
 
 import { getSecureItem, setSecureItem, SecureKeys } from "@/lib/secure-storage"
 import { logWarn } from "@/lib/telemetry"
@@ -35,6 +39,8 @@ export type OtaUpdateNotice = {
  */
 export async function consumeOtaUpdateNotice(): Promise<OtaUpdateNotice | null> {
   if (Platform.OS === "web") return null
+  // PERF-FIX (bundle): expo-updates dimuat lazy — lihat komentar import di atas.
+  const Updates: ExpoUpdatesModule = await import("expo-updates")
   const current = Updates.updateId
   if (!current) return null
   let previous: string | null = null
