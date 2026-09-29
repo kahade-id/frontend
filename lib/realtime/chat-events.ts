@@ -167,9 +167,35 @@ export function buildSocketOptions(token: string): Partial<ManagerOptions & Sock
 }
 
 function sortByTime(items: ChatMessage[]): ChatMessage[] {
-  return [...items].sort(
-    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
-  )
+  // Tim8 P1: decorate-sort-undecorate — `new Date()` per perbandingan =
+  // O(N log N) parse; sekarang tepat 1 parse per item. Hasil urutan identik
+  // (sort stabil; ts sama → urutan asal dipertahankan).
+  return items
+    .map((m) => ({ m, ts: new Date(m.createdAt).getTime() }))
+    .sort((a, b) => a.ts - b.ts)
+    .map(({ m }) => m)
+}
+
+/**
+ * Tim8 P1: perbandingan reaksi dangkal (panjang + emoji/count/reactedByMe
+ * per posisi) — pengganti `JSON.stringify` per pesan per event realtime.
+ * Order-sensitive seperti `JSON.stringify` array (server mengirim ringkasan
+ * wholesale dengan urutan konsisten).
+ */
+function sameReactions(
+  a: ChatReaction[] | undefined,
+  b: ChatReaction[] | undefined,
+): boolean {
+  const ra = a ?? []
+  const rb = b ?? []
+  if (ra.length !== rb.length) return false
+  for (let i = 0; i < ra.length; i++) {
+    const x = ra[i]
+    const y = rb[i]
+    if (x.emoji !== y.emoji || x.count !== y.count || x.reactedByMe !== y.reactedByMe)
+      return false
+  }
+  return true
 }
 
 export type MergeResult = {
@@ -200,10 +226,12 @@ export function mergeMessageLists(
   incoming: ChatMessage[],
 ): MergeResult {
   const known = new Map(prev.map((m) => [m.id, m]))
+  // Tim8 P1: `incoming.find(...)` per pesan = O(N·M); index sekali → O(N+M).
+  const incomingById = new Map(incoming.map((m) => [m.id, m]))
   const fresh = incoming.filter((m) => !known.has(m.id))
   let changed = fresh.length > 0
   const patched = prev.map((m) => {
-    const next = known.get(m.id) ? incoming.find((i) => i.id === m.id) : undefined
+    const next = incomingById.get(m.id)
     if (!next) return m
     const fromUser = m.fromUser || next.fromUser === true
     const same =
@@ -211,7 +239,7 @@ export function mergeMessageLists(
       next.isEdited === m.isEdited &&
       next.text === m.text &&
       fromUser === m.fromUser &&
-      JSON.stringify(next.reactions ?? []) === JSON.stringify(m.reactions ?? [])
+      sameReactions(next.reactions, m.reactions)
     if (same) return m
     changed = true
     return {
@@ -258,7 +286,7 @@ export function applyReactionSummary(
   let changed = false
   const next = prev.map((m) => {
     if (m.id !== messageId) return m
-    if (JSON.stringify(m.reactions ?? []) === JSON.stringify(reactions ?? [])) return m
+    if (sameReactions(m.reactions, reactions)) return m
     changed = true
     return { ...m, reactions }
   })

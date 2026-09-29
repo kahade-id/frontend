@@ -9,6 +9,7 @@
  * dengan keyword di-highlight. Ketuk kartu = lompat ke pesannya di thread.
  */
 import { Pressable, View } from "react-native"
+import { useMemo } from "react"
 
 import { useTheme } from "@/components/theme-provider"
 import { Text } from "@/components/ui/text"
@@ -54,8 +55,14 @@ export function ChatSearchSnippet({
   timeLabel,
   onPress,
 }: ChatSearchSnippetProps) {
+  // Tim8 P2: `buildSearchSnippet` memindai teks + membangun segmen —
+  // memo per (message, query) agar cuplikan tidak dihitung ulang tiap
+  // render layar (mis. tiap keystroke sebelum debounce).
+  const spans = useMemo(
+    () => (message && query.trim() ? buildSearchSnippet(message.text ?? "", query) : []),
+    [message, query],
+  )
   if (!message || !query.trim()) return null
-  const spans = buildSearchSnippet(message.text ?? "", query)
   if (spans.length === 0) return null
   const sender = message.fromUser ? translate("Anda") : (counterpartName ?? translate("Lawan bicara"))
   return (

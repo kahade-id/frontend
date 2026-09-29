@@ -41,9 +41,33 @@ export type ChatMergeResult = {
 }
 
 function sortByTimeAsc(items: ChatMessage[]): ChatMessage[] {
-  return [...items].sort(
-    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
-  )
+  // Tim8 P1: decorate-sort-undecorate — `new Date()` per perbandingan =
+  // O(N log N) parse; sekarang tepat 1 parse per item. Hasil urutan identik
+  // (sort stabil; ts sama → urutan asal dipertahankan).
+  return items
+    .map((m) => ({ m, ts: new Date(m.createdAt).getTime() }))
+    .sort((a, b) => a.ts - b.ts)
+    .map(({ m }) => m)
+}
+
+/**
+ * Tim8 P1: perbandingan reaksi dangkal (panjang + emoji/count/reactedByMe
+ * per posisi) — pengganti `JSON.stringify` per pesan per merge.
+ */
+function sameReactions(
+  a: { emoji: string; count: number; reactedByMe: boolean }[] | undefined,
+  b: { emoji: string; count: number; reactedByMe: boolean }[] | undefined,
+): boolean {
+  const ra = a ?? []
+  const rb = b ?? []
+  if (ra.length !== rb.length) return false
+  for (let i = 0; i < ra.length; i++) {
+    const x = ra[i]
+    const y = rb[i]
+    if (x.emoji !== y.emoji || x.count !== y.count || x.reactedByMe !== y.reactedByMe)
+      return false
+  }
+  return true
 }
 
 export function mergeChatMessages(
@@ -77,15 +101,17 @@ export function mergeChatMessages(
   // poll (reaksi, pin, edit, teks) — sebelumnya reaksi/read dari lawan
   // bicara tidak pernah muncul sampai keluar-masuk ruang.
   let changed = fresh.length > 0 || replacedOptimistic
+  // Tim8 P1: `incoming.find(...)` per pesan = O(N·M); index sekali → O(N+M).
+  const incomingById = new Map(incoming.map((m) => [m.id, m]))
   const patched = working.map((m) => {
-    const next = known.get(m.id) ? incoming.find((i) => i.id === m.id) : undefined
+    const next = incomingById.get(m.id)
     if (!next) return m
     const same =
       next.isPinned === m.isPinned &&
       next.isEdited === m.isEdited &&
       next.isDeleted === m.isDeleted &&
       next.text === m.text &&
-      JSON.stringify(next.reactions ?? []) === JSON.stringify(m.reactions ?? [])
+      sameReactions(next.reactions, m.reactions)
     if (same) return m
     changed = true
     return {

@@ -273,6 +273,19 @@ function ChatMessageBubbleBase({
   const geometry = chatBubbleGeometry(direction)
   const hasReactions = !!reactions && reactions.length > 0
   /**
+   * Tim8 P1: `splitHighlightSpans` mengkompilasi `new RegExp` per panggilan —
+   * tanpa memo tiap bubble me-regex ulang teksnya di setiap render layar
+   * selama pencarian inline aktif. Memo per (text, query); `focused` tidak
+   * ikut karena hanya mengubah tone/weight, bukan segmennya.
+   */
+  const highlightQuery = searchHighlight?.query ?? ""
+  const showSearchHighlight =
+    !!text && !!searchHighlight && highlightQuery.trim() !== "" && !isDeleted
+  const highlightSpans = useMemo(
+    () => (showSearchHighlight && text ? splitHighlightSpans(text, highlightQuery) : null),
+    [showSearchHighlight, text, highlightQuery],
+  )
+  /**
    * Ref pembungkus bubble: jangkar `measureInWindow` untuk popover reaksi
    * mengambang. `collapsable={false}` supaya node native-nya tidak
    * dioptimasi hilang di Android.
@@ -394,13 +407,13 @@ function ChatMessageBubbleBase({
       ) : null}
       {children ? <View className="gap-2">{children}</View> : null}
       {text ? (
-        searchHighlight && searchHighlight.query.trim() && !isDeleted ? (
+        showSearchHighlight ? (
           <Text
             variant="body"
             tone={outgoing ? "inverse" : "primary"}
             selectable={!isDeleted}
           >
-            {splitHighlightSpans(text, searchHighlight.query).map((span, i) =>
+            {highlightSpans?.map((span, i) =>
               span.hit ? (
                 <Text
                   key={i}
