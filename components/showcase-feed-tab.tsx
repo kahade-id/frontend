@@ -39,7 +39,7 @@ import { useIsFocused } from "@react-navigation/native"
 import { api, isApiError, userMessage } from "@/lib/api"
 import { getShowcaseFeed, type ShowcaseFeedSort, type ShowcaseSocialItem } from "@/lib/api/showcase"
 import { useHasSession, useSessionRevision } from "@/lib/guest-gate"
-import { fetchViaQueryCache } from "@/lib/query-cache"
+import { fetchViaQueryCache, readQueryCacheEntry } from "@/lib/query-cache"
 import { queryKeys } from "@/lib/query-keys"
 import { ROUTES } from "@/lib/routes"
 import {
@@ -614,21 +614,29 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
         return new Set()
       }
       try {
-        const me = await fetchViaQueryCache(queryKeys.me(), (s) => api.users.getMe(s), signal)
+        // FE-076: baca cache `me` SINKRON dulu. Bila hit dan following ref
+        // milik owner yang sama → tidak ada request sama sekali (manfaat
+        // followingIndexRef dipertahankan, bukan dibatalkan).
+        const cachedUsername = readQueryCacheEntry<{ username?: string }>(queryKeys.me())?.data?.username
+        const indexCache = followingIndexRef.current
+        if (cachedUsername && indexCache && indexCache.owner === cachedUsername) {
+          setFollowingSet(indexCache.keys)
+          setFollowingGuest(false)
+          return indexCache.keys
+        }
+        // FE-076: `getMe` + `getMyFollowingIds` dijalankan PARALEL — keduanya
+        // independen (tidak ada yang memakai hasil satu sama lain). Versi lama
+        // menunggu `getMe` selesai dulu (waterfall 2-RTT).
+        const [me, rows] = await Promise.all([
+          fetchViaQueryCache(queryKeys.me(), (s) => api.users.getMe(s), signal),
+          api.users.getMyFollowingIds(signal),
+        ])
+        if (signal.aborted) throw new Error("Aborted")
         const username = me?.username
         if (!username) {
           markGuest()
           return new Set()
         }
-        const cached = followingIndexRef.current
-        if (cached && cached.owner === username) {
-          setFollowingSet(cached.keys)
-          setFollowingGuest(false)
-          return cached.keys
-        }
-        if (signal.aborted) throw new Error("Aborted")
-        const rows = await api.users.getMyFollowingIds(signal)
-        if (signal.aborted) throw new Error("Aborted")
         const keys = followingKeysOf(rows)
         followingIndexRef.current = { owner: username, keys }
         setFollowingSet(keys)
