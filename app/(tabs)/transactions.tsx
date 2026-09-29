@@ -55,7 +55,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useRouter } from "expo-router"
 import { api } from "@/lib/api"
 import { ORDER_STATUS_FILTERS } from "@/lib/api/orders"
-import { formatRupiah, formatTimeAgo, formatNumber } from "@/lib/format"
+import { formatDateTimeWIB, formatNumber, formatRupiah } from "@/lib/format"
 import { translate } from "@/lib/i18n/translate"
 import { toEpochMs } from "@/lib/pending-actions"
 import { ROUTES } from "@/lib/routes"
@@ -185,10 +185,11 @@ const TransactionOrderCard = memo(function TransactionOrderCard({
         name: counterpart?.fullName ?? counterpart?.username ?? "Identitas belum tersedia",
         avatar: counterpart?.avatarUrl ?? undefined,
       }}
-      // Revisi 2026-09-28: daftar memakai waktu relatif ("5 menit lalu"/
-      // "Kemarin") agar konsisten dengan feed/chat/notifikasi; cap waktu
-      // WIB eksplisit tetap tampil di layar detail transaksi (§13).
-      timestamp={formatTimeAgo(order.createdAt)}
+      // FE-128 (audit frontend 2026-09-29): daftar transaksi memakai waktu
+      // ABSOLUT WIB — semua yang berbau uang satu konvensi; waktu relatif
+      // hanya untuk konteks sosial/chat/notifikasi. Cap WIB eksplisit juga
+      // tampil di layar detail transaksi (§13).
+      timestamp={formatDateTimeWIB(order.createdAt)}
       deadlineAt={
         // M-54 (audit end-to-end, issue #72): `toEpochMs` (domain jam
         // C-04) — `new Date("1700000000")` string epoch-detik = Invalid
@@ -441,7 +442,7 @@ export default function TransactionsScreen() {
               <Icon icon={Wallet} size="sm" tone="active" />
               <Text variant="caption" weight={600}>
                 {typeof walletBalance === "number"
-                  ? formatRupiah(walletBalance, { compact: true })
+                  ? formatRupiah(walletBalance)
                   : "Dompet"}
               </Text>
             </PressableScale>
