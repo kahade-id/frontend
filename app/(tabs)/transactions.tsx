@@ -67,7 +67,7 @@ import type { Order } from "@/lib/api/orders"
 import { useHasSession } from "@/lib/guest-gate"
 import { useApiQuery } from "@/lib/use-api-query"
 import { byTimestampDesc, usePaginatedQuery } from "@/lib/use-paginated-query"
-import { useUiPrefs } from "@/lib/ui-prefs"
+import { useSetUiPrefs, useUiPref } from "@/lib/ui-prefs"
 import { useScrollElevation } from "@/lib/use-scroll-elevation"
 import { ORDER_STATUS_LABELS } from "@/components/ui/order-status-badge"
 import { Button } from "@/components/ui/button"
@@ -232,8 +232,9 @@ export default function TransactionsScreen() {
    * Mengingat status membuat daftar terasa hilang tanpa sebab saat layar
    * dibuka minggu depan.
    */
-  const { prefs, setPrefs } = useUiPrefs()
-  const role: RoleTab = prefs.transactionsTab
+  const transactionsTab = useUiPref("transactionsTab")
+  const setPrefs = useSetUiPrefs()
+  const role: RoleTab = transactionsTab
   const [status, setStatus] = useState(ALL_STATUS)
   const [sheetOpen, setSheetOpen] = useState(false)
   // Efek scroll: header terangkat (bayangan) saat daftar digulir.

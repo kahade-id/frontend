@@ -67,7 +67,7 @@ import { prefetchShowcaseDetail } from "@/lib/showcase-detail-prefetch"
 import { tokens } from "@/lib/tokens"
 import { modes } from "@/lib/tokens"
 import { describeSheetFilters, countActiveFeedFilters } from "@/lib/showcase-filters"
-import { useUiPrefs, parseShowcaseFeedTab, type ShowcaseFeedTab as SavedFeedTab } from "@/lib/ui-prefs"
+import { useSetUiPrefs, useUiPref, parseShowcaseFeedTab, type ShowcaseFeedTab as SavedFeedTab } from "@/lib/ui-prefs"
 import { useCollapsingHeader } from "@/lib/use-collapsing-header"
 import { useShowcaseSocialActions } from "@/lib/use-showcase-social-actions"
 import { useToast } from "@/components/ui/toast"
@@ -311,10 +311,12 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
   // Item 47 (FE-IMP-1): tab terakhir yang dibuka persist per perangkat
   // (lib/ui-prefs `showcaseFeedTab`). Param URL (deep link) tetap menang
   // bila ada; kalau tidak, pakai tab terakhir yang disimpan.
-  const { prefs: uiPrefs, setPrefs: setUiPrefs } = useUiPrefs()
+  // R1-002: selector per-key — hanya perubahan tab yang membangunkan.
+  const showcaseFeedTab = useUiPref("showcaseFeedTab")
+  const setUiPrefs = useSetUiPrefs()
   const kindParam: ShowcaseFeedKind | undefined =
     typeof params.kind === "string" ? parseShowcaseFeedTab(params.kind) : undefined
-  const kind: ShowcaseFeedKind = kindParam ?? parseShowcaseFeedTab(uiPrefs.showcaseFeedTab)
+  const kind: ShowcaseFeedKind = kindParam ?? parseShowcaseFeedTab(showcaseFeedTab)
   // Pencarian inline DIHAPUS dari header (2026-09-23): satu-satunya kolom
   // cari kini layar /search. Param `search` tetap dibaca agar URL lama
   // `/showcase?search=…` (deep link/bookmark) masih terfilter dengan benar —

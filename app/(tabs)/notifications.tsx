@@ -67,7 +67,7 @@ import { haptic } from "@/lib/haptics"
 import { translate, useLanguage } from "@/lib/i18n"
 import { tokens } from "@/lib/tokens"
 import { ROUTES } from "@/lib/routes"
-import { useUiPrefs } from "@/lib/ui-prefs"
+import { useSetUiPrefs, useUiPref } from "@/lib/ui-prefs"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { notificationTypeUiCategory, notificationUiCategory } from "@/lib/notification-category"
 import { notificationDayGroup } from "@/lib/notification-grouping"
@@ -317,8 +317,9 @@ function NotificationsScreen() {
   // Item 40: kategori tersimpan di preferensi perangkat (useUiPrefs) —
   // pilihan tidak hilang setiap buka tab (pola sama dengan tab Transaksi).
   // State lokal menampung pemilihan sampai preferensi termuat.
-  const { prefs, setPrefs } = useUiPrefs()
-  const category = categoryState ?? prefs.notificationsCategory
+  const notificationsCategory = useUiPref("notificationsCategory")
+  const setPrefs = useSetUiPrefs()
+  const category = categoryState ?? notificationsCategory
   const setCategory = useCallback(
     (next: NotificationCategory) => {
       setCategoryState(next)

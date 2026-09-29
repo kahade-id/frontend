@@ -4,7 +4,7 @@
  * Tampilan ala e-wallet premium (DANA/OVO/GoPay):
  *  - <WalletHeroCard> — kartu saldo hero gelap premium: "Saldo Tersedia"
  *    besar + caption "yang bisa dipakai sekarang" + toggle mata
- *    (prefs.balanceHidden dari useUiPrefs, dibagi dengan Beranda — J-05) +
+ *    (balanceHidden dari useUiPref, dibagi dengan Beranda — J-05) +
  *    sub-baris "Rp X ditahan sebagai jaminan transaksi". Skeleton saat
  *    loading; ErrorState + retry saat error (fail closed: tidak pernah
  *    menampilkan Rp 0 palsu).
@@ -62,7 +62,7 @@ import { ScreenCaptureGuard } from "@/components/security/screen-capture-guard"
 import { FadeIn } from "@/components/ui/fade-in"
 import { Header } from "@/components/ui/header"
 import { ModeShiftFade } from "@/components/ui/mode-switcher"
-import { useUiPrefs } from "@/lib/ui-prefs"
+import { useSetUiPrefs, useUiPref } from "@/lib/ui-prefs"
 import { RouteLink } from "@/components/ui/route-link"
 import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
@@ -93,7 +93,9 @@ const RECENT_LIMIT = 10
 
 export default function WalletScreen() {
   // J-05 (audit): preferensi "sembunyikan saldo" dibagi dengan Beranda.
-  const { prefs, setPrefs } = useUiPrefs()
+  // R1-002: selector per-key — tulis preferensi lain tidak me-render ulang layar ini.
+  const balanceHidden = useUiPref("balanceHidden")
+  const setPrefs = useSetUiPrefs()
   // refreshOnFocus: tab Dompet tetap ter-mount, jadi tanpa ini saldo tidak
   // pernah diperbarui setelah top-up/withdraw/transfer di layar lain.
   /**
@@ -244,8 +246,8 @@ export default function WalletScreen() {
                 // J-05 (audit): "sembunyikan saldo" = preferensi persisten
                 // yang dibagi dengan Beranda (privasi bahu-penumpang
                 // konsisten antar layar).
-                hidden={prefs.balanceHidden}
-                onToggleHidden={() => setPrefs({ balanceHidden: !prefs.balanceHidden })}
+                hidden={balanceHidden}
+                onToggleHidden={() => setPrefs({ balanceHidden: !balanceHidden })}
                 loading={walletLoading}
                 error={walletError}
                 onRetry={() => void fetchWallet()}
@@ -336,7 +338,7 @@ export default function WalletScreen() {
                 <Text variant="body" weight={600}>
                   Saldo tersedia
                 </Text>
-                <Amount value={wallet.availableBalance} tone="primary" hidden={prefs.balanceHidden} />
+                <Amount value={wallet.availableBalance} tone="primary" hidden={balanceHidden} />
               </View>
               <Text variant="caption" tone="secondary">
                 Dana yang bisa dipakai untuk transfer, tarik dana, dan pembayaran.
@@ -349,7 +351,7 @@ export default function WalletScreen() {
                 <Text variant="body" weight={600}>
                   Ditahan di escrow
                 </Text>
-                <Amount value={heldValue} tone="primary" hidden={prefs.balanceHidden} />
+                <Amount value={heldValue} tone="primary" hidden={balanceHidden} />
               </View>
               <Text variant="caption" tone="secondary">
                 Dana terkunci untuk order yang masih berjalan. Cair otomatis saat
@@ -363,7 +365,7 @@ export default function WalletScreen() {
                 <Text variant="body" weight={600}>
                   Total saldo
                 </Text>
-                <Amount value={wallet.balance} tone="primary" hidden={prefs.balanceHidden} />
+                <Amount value={wallet.balance} tone="primary" hidden={balanceHidden} />
               </View>
               <Text variant="caption" tone="secondary">
                 {breakdownAddsUp(wallet?.availableBalance, heldValue, wallet?.balance)
@@ -416,7 +418,7 @@ export default function WalletScreen() {
               <Amount
                 value={totalEscrowHeld(holds)}
                 tone="primary"
-                hidden={prefs.balanceHidden}
+                hidden={balanceHidden}
               />
             </View>
             {holds.map((hold) => (
@@ -435,7 +437,7 @@ export default function WalletScreen() {
                 <Amount
                   value={hold.amount}
                   tone="primary"
-                  hidden={prefs.balanceHidden}
+                  hidden={balanceHidden}
                 />
               </View>
             ))}

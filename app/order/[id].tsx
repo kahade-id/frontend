@@ -49,7 +49,7 @@ import {
   nextOrderStatus,
   type AverageDurations,
 } from "@/lib/api/orders"
-import { RATING_SNOOZE_MS, isRatingSnoozed, snoozeRatingReminder, useUiPrefs } from "@/lib/ui-prefs"
+import { RATING_SNOOZE_MS, isRatingSnoozed, snoozeRatingReminder, useUiPref } from "@/lib/ui-prefs"
 import { usePolling } from "@/lib/use-polling"
 import { useClockTick } from "@/lib/use-clock-tick"
 import { resolveShippingCountdown } from "@/lib/order-shipping-countdown"
@@ -789,7 +789,9 @@ export default function OrderDetailScreen() {
    * the previous render" → layar jatuh ke ErrorBoundary ("Halaman tidak dapat
    * ditampilkan") tepat saat data masuk. `order` dijaga di dalam callback.
    */
-  useUiPrefs()
+  // R1-002: hanya key ratingSnoozeUntil yang dibaca di layar ini
+  // (isRatingSnoozed) — selector per-key, bukan seluruh blob.
+  useUiPref("ratingSnoozeUntil")
   /**
    * Countdown auto-release dana (IN_DELIVERY + `autoCompleteAt` dari backend).
    * Detak 1-Hz bersama via `useClockTick` (aktif hanya selama kartu tampil)

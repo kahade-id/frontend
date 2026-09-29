@@ -54,7 +54,7 @@ import { useCopy } from "@/lib/clipboard"
 import { profileUrl } from "@/lib/deeplinks"
 import { safeHttpsLink } from "@/lib/external-url"
 import { useHasSession } from "@/lib/guest-gate"
-import { useUiPrefs } from "@/lib/ui-prefs"
+import { useSetUiPrefs, useUiPref } from "@/lib/ui-prefs"
 import { translate } from "@/lib/i18n/translate"
 import { pickImage } from "@/lib/image-picker"
 import { parseQrCode, type QrTarget } from "@/lib/qr-parse"
@@ -219,9 +219,11 @@ export default function ScanScreen() {
   // Batch 139 E14: preferensi umpan balik pindaian (per perangkat).
   // Dibaca lewat ref agar callback scan tidak dibuat ulang setiap
   // preferensi berubah.
-  const { prefs, setPrefs } = useUiPrefs()
-  const scanFeedbackRef = useRef(prefs.scanFeedback)
-  scanFeedbackRef.current = prefs.scanFeedback
+  // R1-002: selector per-key — hanya perubahan scanFeedback yang membangunkan.
+  const scanFeedback = useUiPref("scanFeedback")
+  const setPrefs = useSetUiPrefs()
+  const scanFeedbackRef = useRef(scanFeedback)
+  scanFeedbackRef.current = scanFeedback
 
   const meQuery = useApiQuery(
     "scan:me",
@@ -627,7 +629,7 @@ export default function ScanScreen() {
                   </Text>
                 </View>
                 <Switch
-                  value={prefs.scanFeedback}
+                  value={scanFeedback}
                   onChange={(v) => setPrefs({ scanFeedback: v })}
                   accessibilityLabel="Getaran saat pindai berhasil"
                 />

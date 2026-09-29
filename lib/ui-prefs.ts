@@ -110,17 +110,35 @@ const RECENT_MAX = 5
 
 let prefs: UiPrefs = DEFAULT_PREFS
 let recents: RecentRecipient[] = []
-const listeners = new Set<() => void>()
+/**
+ * R1-002 (2026-09-29, audit render-perf): emitter DIPISAH — `prefs` dan
+ * `recents` punya listener set sendiri. Sebelumnya `recordRecentRecipient`
+ * membangunkan seluruh subscriber preferensi app-wide (dan sebaliknya
+ * `setUiPrefs` membangunkan subscriber daftar penerima).
+ */
+const prefsListeners = new Set<() => void>()
+const recentsListeners = new Set<() => void>()
 let loadPromise: Promise<void> | null = null
 
-function emit() {
-  for (const listener of listeners) listener()
+function emitPrefs() {
+  for (const listener of prefsListeners) listener()
 }
 
-function subscribe(listener: () => void) {
-  listeners.add(listener)
+function emitRecents() {
+  for (const listener of recentsListeners) listener()
+}
+
+function subscribePrefs(listener: () => void) {
+  prefsListeners.add(listener)
   return () => {
-    listeners.delete(listener)
+    prefsListeners.delete(listener)
+  }
+}
+
+function subscribeRecents(listener: () => void) {
+  recentsListeners.add(listener)
+  return () => {
+    recentsListeners.delete(listener)
   }
 }
 
@@ -141,7 +159,7 @@ export function hydrateUiPrefsSync(): void {
     const raw = window.localStorage.getItem(SecureKeys.uiPrefs)
     if (!raw) return
     prefs = sanitizePrefs(safeJsonParse(raw))
-    emit()
+    emitPrefs()
   } catch {
     /* storage tidak tersedia — biarkan nilai default */
   }
@@ -242,7 +260,8 @@ export function loadUiPrefs(): Promise<void> {
       .then(([prefsRaw, recentsRaw]) => {
         prefs = sanitizePrefs(prefsRaw ? safeJsonParse(prefsRaw) : null)
         recents = sanitizeRecents(recentsRaw ? safeJsonParse(recentsRaw) : null)
-        emit()
+        emitPrefs()
+        emitRecents()
       })
       .catch((err) => {
         logWarn("ui-prefs:load-failed", err)
@@ -269,8 +288,19 @@ export function getRecentRecipientsSnapshot(): readonly RecentRecipient[] {
 
 /** Ubah sebagian preferensi; persist async (kegagalan hanya dicatat). */
 export function setUiPrefs(patch: Partial<UiPrefs>): void {
+  // R1-002: emit HANYA bila ada key yang nilainya benar-benar berubah
+  // (shallow-compare patch). Tulis no-op — mis. set tab yang sama — tidak
+  // lagi membangunkan ratusan subscriber (Picture, galeri, dsb).
+  let changed = false
+  for (const key of Object.keys(patch) as (keyof UiPrefs)[]) {
+    if (!Object.is(prefs[key], patch[key])) {
+      changed = true
+      break
+    }
+  }
+  if (!changed) return
   prefs = { ...prefs, ...patch }
-  emit()
+  emitPrefs()
   void setSecureItem(SecureKeys.uiPrefs, JSON.stringify(prefs)).catch((err) =>
     logWarn("ui-prefs:save", err),
   )
@@ -344,7 +374,7 @@ export function recordRecentRecipient(
     ...recents.filter((r) => r.id !== recipient.id),
   ].slice(0, RECENT_MAX)
   recents = next
-  emit()
+  emitRecents()
   void setSecureItem(SecureKeys.recentRecipients, JSON.stringify(recents)).catch((err) =>
     logWarn("ui-prefs:save-recent", err),
   )
@@ -355,13 +385,36 @@ export function resetUiPrefsForTest(): void {
   prefs = DEFAULT_PREFS
   recents = []
   loadPromise = null
-  emit()
+  emitPrefs()
+  emitRecents()
+}
+
+/**
+ * R1-002: selector per-key — snapshot mengembalikan SATU nilai key
+ * (primitif untuk semua key kecuali `ratingSnoozeUntil`); `useSyncExternalStore`
+ * bail-out otomatis via Object.is bila key lain yang berubah.
+ */
+export function useUiPref<K extends keyof UiPrefs>(key: K): UiPrefs[K] {
+  const snapshot = useSyncExternalStore(
+    subscribePrefs,
+    () => prefs[key],
+    () => DEFAULT_PREFS[key],
+  )
+  useEffect(() => {
+    void loadUiPrefs()
+  }, [])
+  return snapshot
+}
+
+/** Setter tanpa langganan — untuk layar yang hanya menulis preferensi. */
+export function useSetUiPrefs(): (patch: Partial<UiPrefs>) => void {
+  return useCallback((patch: Partial<UiPrefs>) => setUiPrefs(patch), [])
 }
 
 /** Hook baca semua preferensi + pastikan pemuatan dimulai. */
 export function useUiPrefs() {
-  const snapshot = useSyncExternalStore(subscribe, getUiPrefsSnapshot, () => DEFAULT_PREFS)
-  const set = useCallback((patch: Partial<UiPrefs>) => setUiPrefs(patch), [])
+  const snapshot = useSyncExternalStore(subscribePrefs, getUiPrefsSnapshot, () => DEFAULT_PREFS)
+  const set = useSetUiPrefs()
   useEffect(() => {
     void loadUiPrefs()
   }, [])
@@ -372,10 +425,13 @@ export function useUiPrefs() {
  * Batch 19 (item 15) — baca status mode hemat data + pastikan pemuatan
  * dimulai. Dipakai <Picture dataSaverGate>, <ShowcaseMediaGallery>, dan
  * <FeedVideo>/galeri video.
+ *
+ * R1-002: kini selector per-key — tulis preferensi lain (ganti tab feed,
+ * snooze rating, catat penerima transfer) TIDAK lagi me-render ulang
+ * ratusan instance Picture/galeri.
  */
 export function useDataSaver(): boolean {
-  const { prefs } = useUiPrefs()
-  return prefs.dataSaver
+  return useUiPref("dataSaver")
 }
 
 /** Batch 19 (item 15) — ubah mode hemat data (persist lokal). */
@@ -386,7 +442,7 @@ export function setDataSaver(enabled: boolean): void {
 /** Hook daftar penerima terakhir (sudah terurut terbaru dulu). */
 export function useRecentRecipients() {
   const snapshot = useSyncExternalStore(
-    subscribe,
+    subscribeRecents,
     getRecentRecipientsSnapshot,
     () => [] as readonly RecentRecipient[],
   )

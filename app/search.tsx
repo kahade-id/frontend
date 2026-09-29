@@ -54,7 +54,7 @@ import { cn } from "@/lib/cn"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 import { useApiQuery } from "@/lib/use-api-query"
-import { isSearchScope, useUiPrefs, type SearchScope } from "@/lib/ui-prefs"
+import { isSearchScope, useSetUiPrefs, useUiPref, type SearchScope } from "@/lib/ui-prefs"
 import { useHasSession } from "@/lib/guest-gate"
 import { logWarn } from "@/lib/telemetry"
 import type { ChatSearchResult } from "@/lib/api/chat"
@@ -175,8 +175,9 @@ export default function SearchScreen() {
   const [seedNonce, setSeedNonce] = useState(0)
   // Item 77 (mega-batch 2026-09-28): cakupan PERSISTEN via ui-prefs — pilihan
   // terakhir ("Semua" | "Pengguna" | …) diingat antar sesi.
-  const { prefs, setPrefs } = useUiPrefs()
-  const scope: Scope = prefs.searchScope
+  const searchScope = useUiPref("searchScope")
+  const setPrefs = useSetUiPrefs()
+  const scope: Scope = searchScope
   const setScope = (next: Scope) => setPrefs({ searchScope: next })
   /*
    * Filter lokasi (free-text, mis. "Jakarta"): hanya memengaruhi hasil
