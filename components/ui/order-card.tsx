@@ -62,7 +62,7 @@ import { translateProp } from "@/lib/i18n"
 import { formatCountdown } from "@/lib/format"
 import { countdownDeadlineLabel, isCountdownUrgent } from "@/lib/order-countdown"
 import { shortId } from "@/lib/short-id"
-import { useClockTick } from "@/lib/use-clock-tick"
+import { useFocusedClockTick } from "@/lib/use-clock-tick"
 
 import { Amount } from "@/components/ui/amount"
 import { Avatar, type AvatarProps } from "@/components/ui/avatar"
@@ -445,7 +445,7 @@ const OrderCardDeadline = memo(function OrderCardDeadline({
     until instanceof Date ? until.getTime() : typeof until === "number" ? until : NaN
   const valid = Number.isFinite(untilMs)
   const [done, setDone] = useState(false)
-  const now = useClockTick(valid && !done)
+  const now = useFocusedClockTick(valid && !done)
   const firedRef = useRef(false)
   // Reset saat target tenggat berganti (kartu didaur ulang FlatList).
   useEffect(() => {

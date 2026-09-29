@@ -21,6 +21,7 @@
  */
 import { useEffect, useRef } from "react"
 import { Animated, Easing, View, type ViewProps } from "react-native"
+import { useIsFocused } from "@react-navigation/native"
 import { translate } from "@/lib/i18n/translate"
 
 import { Dot, type DotTone } from "@/components/ui/dot"
@@ -66,9 +67,12 @@ export function StatusIndicator({
   // Reduce Motion (audit #2): kedip berulang dimatikan; dot statis. Makna
   // "sedang berjalan" tetap ada di `label` yang dibaca screen reader.
   const reducedMotion = useReducedMotion()
+  // PERF-FIX (P2): hentikan loop pulse saat layar tidak fokus (tab lain /
+  // stack di atas) — native driver tetap menguras baterai walau murah.
+  const isFocused = useIsFocused()
 
   useEffect(() => {
-    if (!pulse || reducedMotion) {
+    if (!pulse || reducedMotion || !isFocused) {
       opacity.setValue(1)
       return
     }
@@ -87,7 +91,7 @@ export function StatusIndicator({
     )
     loop.start()
     return () => loop.stop()
-  }, [pulse, opacity, reducedMotion])
+  }, [pulse, opacity, reducedMotion, isFocused])
 
   return (
     <View

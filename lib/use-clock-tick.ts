@@ -11,6 +11,7 @@
  * per tick hanya Math pada angka yang sudah ada.
  */
 import { useEffect, useState } from "react"
+import { useIsFocused } from "@react-navigation/native"
 import { serverNow } from "@/lib/server-time"
 
 const listeners = new Set<(nowMs: number) => void>()
@@ -46,4 +47,15 @@ export function useClockTick(active: boolean): number {
     return subscribe(setNowMs)
   }, [active])
   return nowMs
+}
+
+/**
+ * PERF-FIX (P2): varian focus-aware dari `useClockTick` — berhenti
+ * berlangganan detak 1-Hz saat layar tidak fokus (tab lain / stack di atas).
+ * Puluhan kartu countdown sebelumnya me-render ulang tiap detik walau user
+ * sedang di tab lain. Pakai ini untuk countdown di dalam layar/list.
+ */
+export function useFocusedClockTick(active: boolean): number {
+  const isFocused = useIsFocused()
+  return useClockTick(active && isFocused)
 }

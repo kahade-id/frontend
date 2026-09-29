@@ -16,7 +16,7 @@ import { ShieldWarning } from "phosphor-react-native"
 
 import { Button } from "@/components/ui/button"
 import { Text } from "@/components/ui/text"
-import { useClockTick } from "@/lib/use-clock-tick"
+import { useFocusedClockTick } from "@/lib/use-clock-tick"
 import { formatDateTimeWIB, formatDurationWords } from "@/lib/format"
 import {
   resolveShippingCountdown,
@@ -62,7 +62,7 @@ export const AutoReleaseCountdownBox = memo(function AutoReleaseCountdownBox({
   at: string
 }) {
   const target = new Date(at).getTime()
-  const nowMs = useClockTick(true)
+  const nowMs = useFocusedClockTick(true)
   const secondsLeft = Math.max(0, Math.floor((target - nowMs) / 1000))
   const expired = secondsLeft <= 0
   const tone = countdownTone(secondsLeft, expired)
@@ -103,7 +103,7 @@ export const ShippingCountdownBox = memo(function ShippingCountdownBox({
   /** T2-009: dibuka dari kartu "Batas kirim" saat penjual melewati tenggat. */
   onDispute?: () => void
 }) {
-  const nowMs = useClockTick(true)
+  const nowMs = useFocusedClockTick(true)
   const countdown = resolveShippingCountdown(input, nowMs)
   if (!countdown) return null
   const tone = countdownTone(
@@ -172,7 +172,7 @@ export const ShippingOverdueBanner = memo(function ShippingOverdueBanner({
   visible: boolean
   onOpenDispute: () => void
 }) {
-  const nowMs = useClockTick(visible && !!input)
+  const nowMs = useFocusedClockTick(visible && !!input)
   const overdue = !!input && resolveShippingCountdown(input, nowMs)?.kind === "overdue"
   if (!visible || !overdue) return null
   return (
@@ -207,7 +207,7 @@ export const ConfirmCountdownBox = memo(function ConfirmCountdownBox({
   /** Input mentah untuk `resolveConfirmCountdown` (stabil per data order). */
   input: ConfirmCountdownInput
 }) {
-  const nowMs = useClockTick(true)
+  const nowMs = useFocusedClockTick(true)
   const countdown = resolveConfirmCountdown(input, nowMs)
   if (!countdown) return null
   const tone = countdownTone(

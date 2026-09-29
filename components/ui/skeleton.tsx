@@ -77,10 +77,18 @@ function usePulseLoop(value: Animated.Value, enabled: boolean) {
 
 function usePulse(): Animated.Value {
   const shared = useContext(PulseContext)
-  const own = useRef(new Animated.Value(1)).current
+  // PERF-FIX (P2): lazy-init — sebelumnya `useRef(new Animated.Value(1))`
+  // mengevaluasi konstruktor tiap render DAN mengalokasi value yang tak
+  // terpakai saat PulseContext shared tersedia (layar loading dengan 20+
+  // skeleton = 20 Animated.Value + subscription sia-sia).
+  const ownRef = useRef<Animated.Value | null>(null)
+  if (shared == null && ownRef.current == null) {
+    ownRef.current = new Animated.Value(1)
+  }
+  const value: Animated.Value = shared ?? (ownRef.current as Animated.Value)
   // Ada group -> group yang mengelola loop; hook tetap dipanggil (aturan hooks).
-  usePulseLoop(own, !shared)
-  return shared ?? own
+  usePulseLoop(value, shared == null)
+  return value
 }
 
 export type SkeletonShape = "rect" | "card" | "circle"
