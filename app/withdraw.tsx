@@ -35,6 +35,7 @@ import { invalidateQueryCache, useApiQuery } from "@/lib/use-api-query"
 import { useResultTimer } from "@/lib/use-result-timer"
 import { recordPendingAction, resolvePendingAction, toEpochMs } from "@/lib/pending-actions"
 import { walletTransactionStatus } from "@/lib/wallet-labels"
+import { useWalletGate } from "@/lib/use-wallet-enabled"
 
 import { Alert } from "@/components/ui/alert"
 import { AmountKeypad } from "@/components/ui/amount-keypad"
@@ -83,6 +84,13 @@ const DEFAULT_OTP_COOLDOWN_S = 60
 export default function WithdrawScreen() {
   const insets = useSafeAreaInsets()
   const toast = useToast()
+  /**
+   * Mode Tanpa Wallet Internal: layar ini satu-satunya yang diizinkan tetap
+   * hidup saat flag mati — sebagai jalur SATU ARAH mengosongkan sisa saldo
+   * lama ke rekening bank. Top-up/transfer/terima/riwayat tetap tertutup.
+   */
+  const walletGate = useWalletGate({ allowLegacyWithdrawal: true })
+  const isLegacy = walletGate === "legacy"
   /**
    * FX-010 (audit): batas nominal diambil dari server (`GET /v1/wallet/limits`)
    * agar selaras dengan guard of record. Fallback = salinan statis
@@ -429,14 +437,14 @@ export default function WithdrawScreen() {
       return
     }
     if (router.canGoBack()) router.back()
-    else router.replace(ROUTES.wallet)
-  }, [step, verifyMode, txId, submitting, cancelling])
+    else router.replace(isLegacy ? ROUTES.bankAccounts : ROUTES.wallet)
+  }, [step, verifyMode, txId, submitting, cancelling, isLegacy])
 
   return (
     // SEC-404: proteksi screen-capture iOS di layar tarik dana (PIN + nominal).
     <ScreenCaptureGuard>
       <Screen edges={["top"]} padded={false}>
-      <Header title="Tarik Dana" progress={progress} safeArea={false} onBack={handleHeaderBack} />
+      <Header title={isLegacy ? "Tarik Saldo Lama" : "Tarik Dana"} progress={progress} safeArea={false} onBack={handleHeaderBack} />
 
       <KeyboardAvoiding offset={insets.top + HEADER_BAR_HEIGHT}>
         {step === "amount" ? (
@@ -472,9 +480,15 @@ export default function WithdrawScreen() {
                   <Heading level={1} className="text-center text-balance">
                     Tarik ke rekening
                   </Heading>
-                  <Text variant="body" tone="secondary" className="text-center text-pretty">
-                    Masukkan jumlah dana yang akan ditarik ke rekening bank Anda.
-                  </Text>
+                  {isLegacy ? (
+                    <Text variant="body" tone="secondary" className="text-center text-pretty">
+                      Dompet Kahade tidak lagi aktif — tarik sisa saldo lamamu ke rekening bank.
+                    </Text>
+                  ) : (
+                    <Text variant="body" tone="secondary" className="text-center text-pretty">
+                      Masukkan jumlah dana yang akan ditarik ke rekening bank Anda.
+                    </Text>
+                  )}
                   {/* FE-048: ekspektasi jujur di awal — threshold OTP ditentukan
                       server (`requiresOtp`), jadi tidak ada angka yang dikarang. */}
                   <Text variant="caption" tone="secondary" className="text-center text-pretty">
@@ -536,10 +550,12 @@ export default function WithdrawScreen() {
                   ) : null}
                   {/* T3-002: hint jujur saat saldo habis — jangan biarkan
                       user mengetik nominal lalu memasukkan PIN untuk ditolak
-                      server. */}
+                      server. Mode legacy: tidak ada "isi saldo" (top-up mati). */}
                   {balance === 0 ? (
                     <Text variant="caption" tone="secondary">
-                      Saldo Anda Rp0 — isi saldo dulu untuk menarik dana.
+                      {isLegacy
+                        ? "Tidak ada sisa saldo lama."
+                        : "Saldo Anda Rp0 — isi saldo dulu untuk menarik dana."}
                     </Text>
                   ) : null}
                 </View>
@@ -642,11 +658,19 @@ export default function WithdrawScreen() {
                     : "Permintaan penarikan Anda sedang diproses. Periksa riwayat untuk status terakhir."}
                 </Text>
 
-                <Button variant="secondary" onPress={() => router.replace(ROUTES.withdrawHistory)}>
-                  Lihat riwayat penarikan
-                </Button>
-                <Button variant="ghost" fullWidth={false} onPress={() => router.replace(ROUTES.wallet)}>
-                  Kembali ke dompet
+                {/* Mode legacy: riwayat penarikan & dompet mati — jangan tawarkan
+                    tombol ke layar yang diblokir. */}
+                {isLegacy ? null : (
+                  <Button variant="secondary" onPress={() => router.replace(ROUTES.withdrawHistory)}>
+                    Lihat riwayat penarikan
+                  </Button>
+                )}
+                <Button
+                  variant="ghost"
+                  fullWidth={false}
+                  onPress={() => router.replace(isLegacy ? ROUTES.bankAccounts : ROUTES.wallet)}
+                >
+                  {isLegacy ? "Kembali ke rekening" : "Kembali ke dompet"}
                 </Button>
               </View>
             </FadeIn>

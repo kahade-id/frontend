@@ -13,15 +13,19 @@
  */
 import { useCallback, useMemo, useState, useRef } from "react"
 import { TextInput, View } from "react-native"
+import { router } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Bank, Plus } from "phosphor-react-native"
 
 import { api, type AddBankAccountDto, userMessage } from "@/lib/api"
 import type { BankAccount } from "@/lib/api/bank-accounts"
 import { maskAccountNumber } from "@/lib/format"
+import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 import { useApiQuery } from "@/lib/use-api-query"
+import { useWalletEnabled } from "@/lib/use-wallet-enabled"
 
+import { Alert } from "@/components/ui/alert"
 import { BankAccountCard } from "@/components/ui/bank-account-card"
 import { BankSelect, type BankOption } from "@/components/ui/bank-select"
 import { Button } from "@/components/ui/button"
@@ -45,6 +49,10 @@ import { translate } from "@/lib/i18n/translate"
 export default function BankAccountsScreen() {
   const insets = useSafeAreaInsets()
   const toast = useToast()
+  // Mode Tanpa Wallet Internal: penjual WAJIB punya rekening — pencairan
+  // dana transaksi dikirim ke rekening utama. Saldo lama hanya bisa ditarik
+  // satu arah ke rekening (CTA di bawah daftar).
+  const walletEnabled = useWalletEnabled()
 
   /*
    * Audit: layar ini merakit sendiri state async (loading/error/refreshing +
@@ -241,6 +249,11 @@ export default function BankAccountsScreen() {
         }}
       >
         <SectionHeader title="Rekening terdaftar" />
+        {!walletEnabled ? (
+          <Alert tone="info" title="Wajib untuk penjual" className="mb-3">
+            Pencairan dana transaksi dikirim ke rekening utama Anda.
+          </Alert>
+        ) : null}
         <Crossfade loading={loading} skeleton={<ListLoading />}>
           {error ? (
             <ErrorState title="Gagal memuat" description={error} onRetry={() => void query.reload()} />
@@ -281,6 +294,16 @@ export default function BankAccountsScreen() {
             </View>
           )}
         </Crossfade>
+
+        {!walletEnabled ? (
+          <Button
+            variant="secondary"
+            className="mt-3"
+            onPress={() => router.push(ROUTES.withdraw)}
+          >
+            Tarik sisa saldo lama
+          </Button>
+        ) : null}
 
         <SectionHeader title="Tambah rekening" />
         {!adding ? (

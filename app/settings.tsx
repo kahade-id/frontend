@@ -40,6 +40,7 @@ import { Platform, ScrollView, View } from "react-native"
 import { router, type Href } from "expo-router"
 import Constants from "expo-constants"
 import {
+  Bank,
   Bell,
   Briefcase,
   Buildings,
@@ -175,6 +176,9 @@ export default function SettingsScreen() {
     { id: "edit-profile", label: "Ubah Profil", icon: User, route: ROUTES.editProfile },
     // Batch 43 (item 2): buku alamat pengiriman.
     { id: "addresses", label: "Buku Alamat", icon: MapPin, route: ROUTES.addresses },
+    // Mode Tanpa Wallet Internal: rekening bank adalah tujuan pencairan dana
+    // transaksi & penarikan saldo lama — selalu terlihat di Pengaturan.
+    { id: "bank-accounts", label: "Rekening Bank", icon: Bank, route: ROUTES.bankAccounts },
     { id: "reports", label: "Laporan & Analitik", icon: FileText, route: ROUTES.analytics },
     { id: "security", label: "Keamanan", icon: ShieldCheck, route: ROUTES.security, trailing: securityTrailing },
     { id: "account-type", label: "Tipe Akun", icon: Briefcase, route: ROUTES.accountType },

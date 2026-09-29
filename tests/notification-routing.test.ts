@@ -12,7 +12,7 @@
  * Item inbox (GET /v1/notifications):
  *   { referenceType: "CHAT_ROOM", referenceId: "<id>" }
  */
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, afterEach } from "vitest"
 
 import {
   labelForNotificationReference,
@@ -22,6 +22,10 @@ import {
   routeForPushData,
 } from "@/lib/notification-routing"
 import { ROUTES } from "@/lib/routes"
+import {
+  __resetWalletFlagForTests,
+  __setWalletServerStatusForTests,
+} from "@/lib/wallet-flag"
 
 /** Ekstrak path aktual dari Href object `{ pathname: "/chat/[roomId]", params }`. */
 function hrefPath(href: unknown): string | null {
@@ -100,9 +104,16 @@ describe("routeForActionUrl — non-regresi tipe lain", () => {
     expect(hrefPath(routeForActionUrl("/dispute/dsp-1"))).toBe("/dispute/dsp-1")
   })
 
-  it("/wallet/transaction?id=<tx> tetap ke detail mutasi", () => {
-    const href = routeForActionUrl("/wallet/transaction?id=tx-1")
-    expect(hrefPath(href)).toContain("tx-1")
+  it("/wallet/transaction?id=<tx> → detail mutasi bila wallet nyala; /transactions bila mati", () => {
+    __setWalletServerStatusForTests(true)
+    const hrefOn = routeForActionUrl("/wallet/transaction?id=tx-1")
+    expect(hrefPath(hrefOn)).toContain("tx-1")
+
+    __setWalletServerStatusForTests(false)
+    const hrefOff = routeForActionUrl("/wallet/transaction?id=tx-1")
+    expect(hrefOff).toBe("/transactions" as never)
+
+    __resetWalletFlagForTests()
   })
 
   it("/showcase/<id> tetap ke detail karya", () => {
@@ -144,15 +155,28 @@ describe("routeForActionUrl — E1-001 sekuens persen malformed", () => {
 })
 
 describe("routeForNotificationReference — non-regresi tipe lain", () => {
-  it("order/dispute/wallet tidak berubah", () => {
+  afterEach(() => {
+    __resetWalletFlagForTests()
+  })
+
+  it("order/dispute tidak berubah oleh kill-switch", () => {
+    __setWalletServerStatusForTests(false)
     expect(hrefPath(routeForNotificationReference({ referenceType: "ORDER", referenceId: "o1" }))).toBe(
       "/order/o1",
     )
     expect(hrefPath(routeForNotificationReference({ referenceType: "DISPUTE", referenceId: "d1" }))).toBe(
       "/dispute/d1",
     )
-    const wallet = routeForNotificationReference({ referenceType: "WALLET" })
-    expect(wallet).toBe(ROUTES.wallet)
+  })
+
+  it("wallet: nyala → /wallet; mati → /bank-accounts (fallback)", () => {
+    __setWalletServerStatusForTests(true)
+    expect(routeForNotificationReference({ referenceType: "WALLET" })).toBe(ROUTES.wallet)
+
+    __setWalletServerStatusForTests(false)
+    expect(routeForNotificationReference({ referenceType: "WALLET" })).toBe(
+      "/bank-accounts" as never,
+    )
   })
 
   it("tipe tak dikenal → null", () => {

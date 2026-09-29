@@ -19,6 +19,8 @@
 import type { Href } from "expo-router"
 
 import { ROUTES } from "@/lib/routes"
+import { getWalletEnabled } from "@/lib/wallet-flag"
+import { hrefPathname, isWalletOnlyPath, walletRouteFallback } from "@/lib/wallet-routes"
 
 export type NotificationReference = {
   referenceType?: string | null
@@ -40,11 +42,38 @@ function normalizeType(t: string): string {
 }
 
 /**
+ * Mode Tanpa Wallet Internal: tulis ulang target notifikasi/push yang
+ * menunjuk layar khusus-dompet saat kill-switch mati.
+ *
+ * - `/withdraw` (legacy, penarikan saldo lama) dibiarkan — layar itu
+ *   satu-satunya yang tetap hidup.
+ * - riwayat & detail mutasi → `/transactions` (konteks terdekat yang hidup);
+ *   dompet/topup/transfer/receive/jadwal → `/bank-accounts`.
+ * - wallet nyala / target bukan dompet → tidak diubah.
+ *
+ * Idempoten: hasil fallback bukan path dompet, jadi pemanggilan ganda aman.
+ */
+function applyWalletFallback(target: Href | null): Href | null {
+  if (!target || getWalletEnabled()) return target
+  const path = hrefPathname(target)
+  if (!isWalletOnlyPath(path)) return target
+  return walletRouteFallback(path) as Href
+}
+
+/**
  * Route untuk sebuah referensi; `null` bila tidak dikenali / id kosong.
  * Tipe tanpa id (KYC, WALLET) tetap punya tujuan.
  * Bila `referenceType` kosong, coba parse `actionUrl` sebagai fallback.
+ *
+ * Mode Tanpa Wallet Internal: hasil akhir dilewatkan `applyWalletFallback` —
+ * tap notifikasi tidak boleh mendarat di layar blokir dompet.
  */
 export function routeForNotificationReference(ref: NotificationReference): Href | null {
+  return applyWalletFallback(routeForNotificationReferenceRaw(ref))
+}
+
+/** Pemetaan mentah referensi → route, tanpa fallback kill-switch dompet. */
+function routeForNotificationReferenceRaw(ref: NotificationReference): Href | null {
   const type = ref.referenceType ? normalizeType(ref.referenceType) : ""
   const id = ref.referenceId?.trim() ?? ""
   if (!type) return routeForActionUrl(ref.actionUrl)
@@ -264,6 +293,11 @@ export function labelForActionUrl(actionUrl: string | null | undefined): string 
  *      `id | orderId | disputeId | roomId | ticketId | txId | username | token`.
  */
 export function routeForPushData(data: unknown): Href | null {
+  return applyWalletFallback(routeForPushDataRaw(data))
+}
+
+/** Pemetaan mentah payload push → route, tanpa fallback kill-switch dompet. */
+function routeForPushDataRaw(data: unknown): Href | null {
   if (!data || typeof data !== "object") return null
   const d = data as Record<string, unknown>
   const str = (k: string) => (typeof d[k] === "string" ? (d[k] as string) : undefined)
@@ -318,6 +352,11 @@ function safeDecodeSegment(value: string): string {
  * `/wallet/transaction?id=<txId>`, `/notifications`, `/badges`. Return `null` bila tidak dikenali.
  */
 export function routeForActionUrl(actionUrl: string | null | undefined): Href | null {
+  return applyWalletFallback(routeForActionUrlRaw(actionUrl))
+}
+
+/** Parse mentah `actionUrl` backend → route internal, tanpa fallback dompet. */
+function routeForActionUrlRaw(actionUrl: string | null | undefined): Href | null {
   if (!actionUrl) return null
   // Hanya path internal; abaikan URL absolut eksternal.
   const path = actionUrl.startsWith("http")
