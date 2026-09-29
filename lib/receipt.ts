@@ -10,12 +10,20 @@
  *   - `receiptQrDataUrl()` mengembalikan `null` bila encode gagal.
  */
 
-import QRCode from "qrcode"
-// ST-008: entry utama dipertahankan di sini karena butuh `toDataURL()`
-// (renderer canvas — hanya bermakna di web; di native selalu gagal dan
-// mengembalikan null, sesuai kontrak defensif di bawah). Metro me-resolve
-// entry ini via field `browser` ke lib/browser.js, jadi tidak ada
-// dependensi server (pngjs/yargs/fs) yang ikut ke bundle.
+import type * as QRCodeModule from "qrcode"
+// N1-004 (PERF): JANGAN impor statis entry utama `qrcode` di sini.
+// Entry itu di-resolve Metro via field `browser` ke lib/browser.js yang
+// ikut menarik renderer canvas/svg ke chunk struk — padahal `toDataURL()`
+// hanya dibutuhkan saat struk benar-benar dirender (route-level, bukan
+// boot). Modul dimuat lazy pada pemakaian pertama dan di-cache.
+// (ST-008: core `qrcode/lib/core/qrcode` tidak cukup — butuh `toDataURL()`,
+// renderer canvas yang hanya bermakna di web; di native selalu gagal dan
+// mengembalikan null, sesuai kontrak defensif di bawah.)
+let qrCodeModulePromise: Promise<typeof QRCodeModule> | null = null
+function loadQrCodeModule(): Promise<typeof QRCodeModule> {
+  if (!qrCodeModulePromise) qrCodeModulePromise = import("qrcode")
+  return qrCodeModulePromise
+}
 
 import { http } from "@/lib/api/client"
 import { formatDate, formatTime, WIB_TIME_ZONE } from "@/lib/format"
@@ -108,6 +116,7 @@ export function receiptDateRows(
 export async function receiptQrDataUrl(payload: string): Promise<string | null> {
   if (!payload) return null
   try {
+    const QRCode = await loadQrCodeModule()
     return await QRCode.toDataURL(payload, {
       errorCorrectionLevel: "M",
       margin: 2,
