@@ -209,6 +209,12 @@ type FeedCardProps = {
   divider: boolean
   onOpenComments: (item: ShowcaseSocialItem) => void
   onReport: (item: ShowcaseSocialItem) => void
+  /**
+   * R1-003 (2026-09-29, audit render-perf): tab feed aktif dari param rute,
+   * dibaca SEKALI di induk — bukan `useLocalSearchParams` per kartu (tiap
+   * kartu dulu berlangganan 2x: di sini + di <ShowcaseFeedItem>).
+   */
+  feedKind?: string
 }
 
 const FeedCard = memo(function FeedCard({
@@ -216,6 +222,7 @@ const FeedCard = memo(function FeedCard({
   divider,
   onOpenComments,
   onReport,
+  feedKind,
 }: FeedCardProps) {
   const { liked, likeCount, saved, likePending, savedPending, toggleLike, toggleSave, share, shareSheetVisible, setShareSheetVisible } =
     useShowcaseSocialActions(item)
@@ -230,11 +237,11 @@ const FeedCard = memo(function FeedCard({
     [item, liked, likeCount],
   )
   // L-01/L-06: `kind` dibawa ke detail supaya badge kategori di sana
-  // mempertahankan tab aktif.
-  const { kind } = useLocalSearchParams<{ kind?: string }>()
+  // mempertahankan tab aktif. R1-003: dioper dari induk sebagai prop —
+  // bukan `useLocalSearchParams` per kartu.
   const handlePress = useCallback(
-    () => router.push(ROUTES.showcaseDetail(item.id, { kind })),
-    [item.id, kind],
+    () => router.push(ROUTES.showcaseDetail(item.id, { kind: feedKind })),
+    [item.id, feedKind],
   )
   // C05 (batch 139): press-in pada judul = niat buka detail → prefetch
   // metadata ringan (hanya JSON; video TIDAK diunduh, aman mode hemat data).
@@ -266,6 +273,7 @@ const FeedCard = memo(function FeedCard({
     <>
       <ShowcaseFeedItem
         item={display}
+        feedKind={feedKind}
         onPress={handlePress}
         onPressIn={handlePressIn}
         onOpenMedia={handleOpenMedia}
@@ -317,6 +325,11 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
   const kindParam: ShowcaseFeedKind | undefined =
     typeof params.kind === "string" ? parseShowcaseFeedTab(params.kind) : undefined
   const kind: ShowcaseFeedKind = kindParam ?? parseShowcaseFeedTab(showcaseFeedTab)
+  /**
+   * R1-003: nilai mentah param `kind` untuk diteruskan ke kartu —
+   * `useLocalSearchParams` hanya dipanggil sekali di sini, bukan per kartu.
+   */
+  const routeKind = typeof params.kind === "string" ? params.kind : undefined
   // Pencarian inline DIHAPUS dari header (2026-09-23): satu-satunya kolom
   // cari kini layar /search. Param `search` tetap dibaca agar URL lama
   // `/showcase?search=…` (deep link/bookmark) masih terfilter dengan benar —
@@ -896,9 +909,10 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
         divider={index < itemsLengthRef.current - 1}
         onOpenComments={handleOpenComments}
         onReport={handleOpenReport}
+        feedKind={routeKind}
       />
     ),
-    [handleOpenComments, handleOpenReport],
+    [handleOpenComments, handleOpenReport, routeKind],
   )
 
   /**

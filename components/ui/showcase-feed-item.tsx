@@ -29,7 +29,7 @@
 
 import { memo, useCallback, useMemo, useState } from "react"
 import { BookmarkSimple, ChatCircle, DotsThreeCircle, Flag, Heart, ShareNetwork } from "phosphor-react-native"
-import { router, useLocalSearchParams } from "expo-router"
+import { router } from "expo-router"
 import { View } from "react-native"
 import Animated, {
   runOnJS,
@@ -114,6 +114,12 @@ export type ShowcaseFeedItemProps = {
   nonInteractive?: boolean
   divider?: boolean
   className?: string
+  /**
+   * R1-003 (2026-09-29, audit render-perf): tab feed aktif dari param rute,
+   * dioper dari induk — komponen ini TIDAK lagi memanggil
+   * `useLocalSearchParams` sendiri (dulu tiap kartu berlangganan).
+   */
+  feedKind?: string
 }
 
 /**
@@ -196,11 +202,10 @@ function ShowcaseFeedItemBase({
   nonInteractive = false,
   divider = false,
   className,
+  feedKind,
 }: ShowcaseFeedItemProps) {
   // i18n: label aksesibilitas mengikuti bahasa aktif.
   useLanguage()
-  // L-01: tab feed aktif dari param rute (hook harus di body render).
-  const { kind } = useLocalSearchParams<{ kind?: string }>()
   // H-04: gate tap penulis untuk tamu (profil = layar terproteksi).
   const hasSession = useHasSession()
   // Batch 19: slide galeri (gambar/video) — referensi stabil via cache WeakMap
@@ -258,8 +263,9 @@ function ShowcaseFeedItemBase({
   /** A-12: kategori sebagai filter feed — tab /showcase menerima param kategori. */
   const handleCategoryPress = useCallback(() => {
     // L-01 (audit 2026-09-23): teruskan tab feed aktif — dulu selalu forYou.
-    if (item.category) router.push(ROUTES.showcaseWithCategory(item.category, kind))
-  }, [item.category, kind])
+    // R1-003: dari prop `feedKind` (induk), bukan useLocalSearchParams.
+    if (item.category) router.push(ROUTES.showcaseWithCategory(item.category, feedKind))
+  }, [item.category, feedKind])
 
   // C06 (batch 139): badge "Stok habis" di kartu — graceful: status unknown
   // (field backend belum ada) = tidak ada badge.
