@@ -390,6 +390,21 @@ function AppShellInner() {
   const isWebGuest = Platform.OS === "web" && !session.token
   const guestBlocked = isWebGuest && isProtectedPath(pathname)
 
+  // FE-074: koneksi socket realtime DITUNDA sampai kebutuhan chat pertama.
+  // Provider TETAP mount (layar chat mengandalkan context), tapi token hanya
+  // diteruskan setelah pengguna masuk tab/room chat (`/chat*`). Latch tetap
+  // aktif untuk sisa sesi; reset saat logout. Cold start pengguna login tidak
+  // lagi membuka socket — push foreground sudah menginvalidasi cache query,
+  // jadi data tetap segar tanpa socket di boot.
+  const [realtimeNeeded, setRealtimeNeeded] = useState(false)
+  useEffect(() => {
+    if (!session.token) {
+      setRealtimeNeeded(false)
+      return
+    }
+    if (pathname === "/chat" || pathname.startsWith("/chat/")) setRealtimeNeeded(true)
+  }, [pathname, session.token])
+
   // Satu-satunya tempat yang mendengarkan "sesi habis" dari API client
   // (client.ts memanggil emitSessionExpired saat 401 tak bisa di-refresh).
   // Client tidak boleh import expo-router (arah dependency UI → lib), jadi
@@ -752,7 +767,7 @@ function AppShellInner() {
           saat start; saat aktif, seluruh konten diganti layar informatif
           (pesan server + tombol coba lagi), bukan crash. */}
       <MaintenanceGate>
-      <RealtimeProvider token={session.token}>
+      <RealtimeProvider token={realtimeNeeded ? session.token : null}>
       <View className="flex-1 items-center">
         {/*
           Efek dorong konten ala X saat drawer dibuka (2026-09-27):
