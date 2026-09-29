@@ -53,6 +53,7 @@ import { mergeComments, patchComments } from "@/lib/showcase-state"
 import { showcaseImages, showcaseMedia, showcaseSpin360Groups, findShowcaseComment, shouldFetchNextCommentPage, sortShowcaseComments } from "@/lib/showcase-social"
 import { markShowcaseDeleted } from "@/lib/showcase-deleted"
 import { markShowcaseFeedDirty, queueShowcaseCommentCount } from "@/lib/showcase-social-prefs"
+import { invalidateQueryPrefix } from "@/lib/query-cache"
 import { SHOWCASE_COMMENT_MESSAGES } from "@/lib/showcase-comment-messages"
 import {
   clearShowcaseCommentDraft,
@@ -502,9 +503,11 @@ function ShowcaseDetailContent({
   const isOwner = item.isOwner === true || (hasSession && meId === item.author.userId)
 
   // Batch 19: slide galeri (gambar/video); viewer layar penuh hanya gambar.
-  // PERF-FIX (NP-001/LR-002): halaman detail memakai full-res (`thumbnails:
-  // false`) — feed-lah yang memakai varian thumbnail.
-  const resolvedMedia = useMemo(() => showcaseMedia(item, { thumbnails: false }), [item])
+  // PERF-FIX (2026-09-30): halaman detail memakai thumbnail untuk semua slide
+  // (`thumbnails` default true); slide AKTIF di-upgrade ke full-res via
+  // `activeFullRes` di galeri — bukan full-res untuk semua slide sekaligus
+  // (8 slide × 2–5 MB = ~40 MB bila user swipe semua).
+  const resolvedMedia = useMemo(() => showcaseMedia(item), [item])
   // Kontrak final Tim A (2026-09-28): spin360 dirangkai dari entri images
   // (groupKey + groupOrder), bukan field `frames` terpisah.
   const spin360Frames = useMemo(() => showcaseSpin360Groups(item), [item])
@@ -822,6 +825,8 @@ function ShowcaseDetailContent({
         coverUrl: item ? (showcaseImages(item)?.[0]?.url ?? undefined) : undefined,
       })
       markShowcaseFeedDirty()
+      // PERF-FIX (network P0): item dihapus — cache "Etalase Saya" basi.
+      invalidateQueryPrefix("my-showcase")
       toast.show({ title: translate("Karya dihapus. Dapat dipulihkan dalam 30 hari."), tone: "success", duration: 2500 })
       setDeleteOpen(false)
       router.back()
@@ -837,6 +842,14 @@ function ShowcaseDetailContent({
       task.finish()
     }
   }, [id, isOwner, operation, toast.show])
+
+  // TIM-8 (audit performa 2026-09-30): `showcaseHtmlHasFormatting` = parse +
+  // sanitasi penuh — di-memo per description supaya tidak jalan ulang tiap
+  // render (mis. tiap keystroke draft komentar).
+  const descriptionHasFormatting = useMemo(
+    () => (item?.description ? showcaseHtmlHasFormatting(item.description) : false),
+    [item?.description],
+  )
 
   return (
     <DataScreen
@@ -975,6 +988,8 @@ function ShowcaseDetailContent({
           autoplayActive={viewerIndex == null}
           // C01: rasio slide pertama untuk placeholder di luar jendela render.
           aspectRatio={resolvedMedia[0]?.aspectRatio ?? 1}
+          // PERF-FIX (2026-09-30): slide aktif full-res, sisanya thumbnail.
+          activeFullRes
         />
       </View>
 
@@ -1021,7 +1036,7 @@ function ShowcaseDetailContent({
           <ShowcaseHtmlView html={item.descriptionHtml} />
         </View>
       ) : item.description ? (
-        showcaseHtmlHasFormatting(item.description) ? (
+        descriptionHasFormatting ? (
           /* Benefit 7 Kahade+: deskripsi HTML anggota Plus di-render
              tersanitasi via <ShowcaseHtmlView> — JANGAN render mentah. */
           <View className="px-5 pt-1">
@@ -1167,7 +1182,8 @@ function ShowcaseDetailContent({
       <ImageViewer
         visible={viewerIndex != null}
         images={resolvedMedia.map((m) => ({
-          url: m.url,
+          // PERF-FIX (2026-09-30): viewer fullscreen selalu full-res.
+          url: m.fullUrl ?? m.url,
           alt: item.title,
           kind: m.kind === "video" ? "video" : "image",
         }))}

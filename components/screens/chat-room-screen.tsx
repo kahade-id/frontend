@@ -36,7 +36,7 @@
  *   - Cari pesan dalam ruang (J-07): sheet + GET /rooms/{id}/search; hasil
  *     yang termuat di thread dilompati via scrollToIndex.
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   AppState,
   FlatList,
@@ -70,6 +70,9 @@ import {
 import { api, isApiError, userMessage } from "@/lib/api"
 import { validateChatAttachment } from "@/lib/chat-attachment-limits"
 import { getOrder, type Order } from "@/lib/api/orders"
+import { consumePrefetchedChatRoom } from "@/lib/chat-room-prefetch"
+import { fetchViaQueryCache } from "@/lib/query-cache"
+import { queryKeys } from "@/lib/query-keys"
 import { refreshUnreadCount } from "@/lib/unread-count"
 import { refreshChatUnreadCount } from "@/lib/chat-unread-count"
 import { usePolling } from "@/lib/use-polling"
@@ -110,7 +113,7 @@ import { ChatSearchSnippet } from "@/components/ui/chat-search-snippet"
 import { ActionSheet } from "@/components/ui/action-sheet"
 import { haptic } from "@/lib/haptics"
 import { logWarn } from "@/lib/telemetry"
-import { pickImage, pickedImageToFormData, type PickedImage } from "@/lib/image-picker"
+import { pickImage, pickedImageToFormData, resizePickedImage, type PickedImage } from "@/lib/image-picker"
 import * as DocumentPicker from "expo-document-picker"
 import { ChatAttachmentSheet } from "@/components/ui/chat-attachment-sheet"
 import { VoiceNoteRecorder, type VoiceNoteFile } from "@/components/ui/voice-note-recorder"
@@ -132,6 +135,7 @@ import { ChatRoomMenu } from "@/components/ui/chat-room-menu"
 import { ChatSearchSheet } from "@/components/ui/chat-search-sheet"
 import { ChatInlineSearchBar } from "@/components/ui/chat-inline-search"
 import { findMessageMatches } from "@/lib/chat-search"
+import { useDebouncedValue } from "@/lib/use-debounced-value"
 import { ChatDaySeparator, dayKey, dayLabel } from "@/components/ui/chat-day-separator"
 import { DmEscrowWarning } from "@/components/ui/dm-escrow-warning"
 import { ChatUnreadSeparator } from "@/components/ui/chat-unread-separator"
@@ -293,6 +297,24 @@ function toFailedChatMessage(m: ChatMessage): FailedChatMessage {
 /** Jarak poll pesan baru saat ruang AKTIF. Push tetap pemicu utama. */
 const CHAT_POLL_MS = 8000
 /**
+ * PERF-FIX (network P2): jalankan task async dengan batas konkurensi —
+ * bulk-star 50 pesan tidak boleh membuka 50 koneksi serentak di HP kentang.
+ * Semantik gagal = Promise.all: throw pertama membatalkan keseluruhan.
+ */
+async function runWithConcurrency<T>(tasks: Array<() => Promise<T>>, limit: number): Promise<T[]> {
+  const results: T[] = new Array(tasks.length)
+  let next = 0
+  const workers = Array.from({ length: Math.min(limit, tasks.length) }, async () => {
+    while (next < tasks.length) {
+      const index = next
+      next += 1
+      results[index] = await tasks[index]()
+    }
+  })
+  await Promise.all(workers)
+  return results
+}
+/**
  * GAP-B2 (implementasi 2026-09-26): chat memakai WebSocket realtime
  * (`useChatRoomRealtime`) DENGAN polling REST sebagai fallback.
  *
@@ -313,7 +335,7 @@ const CHAT_POLL_MS = 8000
 const CHAT_POLL_IDLE_MS = 20000
 const IDLE_AFTER_EMPTY_POLLS = 10
 /** Jarak poll status online lawan bicara (REST; WS realtime belum ada di app). */
-const PRESENCE_POLL_MS = 30000
+const PRESENCE_POLL_MS = 60000
 /**
  * C-02 (audit): batas id yang dikirim sebagai `excludeIds`. Thread panjang
  * (ratusan pesan) pernah mengirim SEMUA id di query string — risiko 414 dan
@@ -349,11 +371,33 @@ function messageTypeFor(
   return "FILE"
 }
 
+/** Tim8 P1: fallback tinggi baris untuk `getItemLayout` sebelum terukur. */
+const ROW_HEIGHT_ESTIMATE = 76
+
 function sortByTime(items: ChatMessage[]): ChatMessage[] {
-  return [...items].sort(
-    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
-  )
+  // Tim8 P1: decorate-sort-undecorate — `new Date()` per perbandingan =
+  // O(N log N) parse; sekarang tepat 1 parse per item. Hasil urutan identik
+  // (sort stabil; ts sama → urutan asal dipertahankan).
+  return items
+    .map((m) => ({ m, ts: new Date(m.createdAt).getTime() }))
+    .sort((a, b) => a.ts - b.ts)
+    .map(({ m }) => m)
 }
+
+/** PERF-FIX (TIM1-P2): pemisah "belum dibaca" di-memo — onPress stabil per
+ * anchorId, tidak ada closure inline di renderThreadRow. */
+const UnreadSeparatorRow = memo(function UnreadSeparatorRow({
+  count,
+  anchorId,
+  onJump,
+}: {
+  count: number
+  anchorId: string
+  onJump: (anchorId: string) => void
+}) {
+  const handlePress = useCallback(() => onJump(anchorId), [onJump, anchorId])
+  return <ChatUnreadSeparator count={count} onPress={handlePress} />
+})
 
 export default function ChatRoomScreen() {
   const insets = useSafeAreaInsets()
@@ -510,7 +554,11 @@ export default function ChatRoomScreen() {
       return
     }
     let cancelled = false
-    getOrder(room.orderId)
+    // PERF-FIX (network P1): lewat cache kanonis `order:{id}` (doktrin C-02)
+    // — buka-tutup room yang sama tidak mengunduh ulang payload order mentah
+    // yang identik dengan yang dipakai layar order.
+    const orderId = room.orderId
+    void fetchViaQueryCache(queryKeys.order(orderId), (signal) => getOrder(orderId, signal))
       .then((ord) => {
         if (!cancelled) setOrder(ord)
       })
@@ -607,6 +655,19 @@ export default function ChatRoomScreen() {
   const [pollInterval, setPollInterval] = useState(CHAT_POLL_MS)
   const emptyPolls = useRef(0)
   const pollTick = useRef(0)
+  /**
+   * PERF-FIX (network P2): warmup polling fallback — 45 dtk pertama setelah
+   * layar dibuka, data sudah segar dari fetch awal; socket biasanya
+   * tersambung dalam hitungan detik sehingga poller fallback hanya membuang
+   * request. Setelah warmup, perilaku fallback normal (menyala saat socket
+   * down). Di-reset saat roomId berganti (instance di-reuse router).
+   */
+  const [fallbackWarmupDone, setFallbackWarmupDone] = useState(false)
+  useEffect(() => {
+    setFallbackWarmupDone(false)
+    const timer = setTimeout(() => setFallbackWarmupDone(true), 45_000)
+    return () => clearTimeout(timer)
+  }, [roomId])
   // D1-004: jangkar delta poll fallback — id pesan terakhir yang terkonfirmasi
   // server (pesan optimistis "sending"/"failed" TIDAK boleh jadi jangkar:
   // id lokal tidak dikenal server → 400).
@@ -633,11 +694,18 @@ export default function ChatRoomScreen() {
    */
   const [inlineSearchOpen, setInlineSearchOpen] = useState(false)
   const [inlineQuery, setInlineQuery] = useState("")
+  /**
+   * Tim8 P0: pencarian inline TANPA debounce memindai seluruh pesan termuat
+   * (`findMessageMatches`, `toLocaleLowerCase` per pesan) di SETIAP keystroke.
+   * Input tetap controlled oleh `inlineQuery` mentah agar responsif; hasil,
+   * highlight, dan cuplikan memakai nilai debounced (pola chat-search-sheet).
+   */
+  const debouncedInlineQuery = useDebouncedValue(inlineQuery, 300)
   /** Id hasil yang sedang aktif — index diturunkan dari `inlineMatches`. */
   const [inlineActiveId, setInlineActiveId] = useState<string | undefined>(undefined)
   const inlineMatches = useMemo(
-    () => (inlineSearchOpen ? findMessageMatches(messages, inlineQuery) : []),
-    [inlineSearchOpen, messages, inlineQuery],
+    () => (inlineSearchOpen ? findMessageMatches(messages, debouncedInlineQuery) : []),
+    [inlineSearchOpen, messages, debouncedInlineQuery],
   )
   const inlineMatchIds = useMemo(() => new Set(inlineMatches), [inlineMatches])
   const inlineIndex = inlineActiveId ? inlineMatches.indexOf(inlineActiveId) : -1
@@ -708,12 +776,18 @@ export default function ChatRoomScreen() {
       // D1-003: header room diambil via GET /v1/chat/rooms/:roomId (ringan) —
       // tidak lagi fetch ulang seluruh daftar room (halaman 1, 30 baris join
       // berat) hanya untuk menemukan 1 baris.
+      // PERF-FIX (network P1): daftar chat menitipkan objek room via
+      // `seedChatRoomPrefetch` saat baris dibuka — konsumsi di sini dan
+      // lewatkan GET header bila masih segar (sekali pakai, TTL 90 dtk).
+      const prefetchedRoom = consumePrefetchedChatRoom(roomId)
       const [page, roomRow, failed] = await Promise.all([
         api.chat.getChatMessages(roomId, { limit: CHAT_PAGE_SIZE }, controller.signal),
-        api.chat.getChatRoom(roomId, controller.signal).catch((err) => {
-          logWarn("chat:room-lookup", err)
-          return null
-        }),
+        prefetchedRoom
+          ? Promise.resolve<ChatRoom | null>(prefetchedRoom)
+          : api.chat.getChatRoom(roomId, controller.signal).catch((err) => {
+              logWarn("chat:room-lookup", err)
+              return null
+            }),
         // B07: antrean pesan gagal yang persisten — selamat dari refresh.
         loadChatFailedMessages(roomId),
       ])
@@ -1036,6 +1110,30 @@ export default function ChatRoomScreen() {
     },
   })
 
+  /**
+   * PERF-FIX (network P2): grace delay transisi — fallback poll hanya
+   * dipersenjatai bila socket tidak sehat selama >10 dtk berturut-turut.
+   * Flap singkat (false→true→false) saat reconnect tidak memicu tembakan
+   * REST; socket.io biasanya pulih dalam hitungan detik.
+   */
+  const [fallbackArmed, setFallbackArmed] = useState(false)
+  const unhealthySinceRef = useRef<number | null>(null)
+  useEffect(() => {
+    if (realtimeHealthy) {
+      unhealthySinceRef.current = null
+      setFallbackArmed(false)
+      return
+    }
+    if (unhealthySinceRef.current == null) unhealthySinceRef.current = Date.now()
+    const elapsed = Date.now() - unhealthySinceRef.current
+    if (elapsed >= 10_000) {
+      setFallbackArmed(true)
+      return
+    }
+    const timer = setTimeout(() => setFallbackArmed(true), 10_000 - elapsed)
+    return () => clearTimeout(timer)
+  }, [realtimeHealthy])
+
   // G119/G120 (revisi 2026-09-29, NP-004/NS-003): polling REST adalah
   // fallback SEMATA — dijeda total saat socket sehat (0 request), menyala
   // lagi otomatis saat socket putus. Socket.io punya heartbeat ping/pong,
@@ -1045,9 +1143,20 @@ export default function ChatRoomScreen() {
   // mengalir via event socket (`onRead`/`onPin`) selama socket sehat.
   // Fallback TIDAK PERNAH dihapus: tanpa ini chat berhenti update saat
   // socket mati.
-  usePolling(pollNewMessages, pollInterval, Boolean(roomId) && !error && !loading && !realtimeHealthy)
-  usePolling(refreshPresence, PRESENCE_POLL_MS, Boolean(roomId) && !realtimeHealthy)
-
+  // PERF-FIX (network P2): + `fallbackWarmupDone` (45 dtk pertama tanpa
+  // fallback — data awal segar) + `fallbackArmed` (grace 10 dtk setelah
+  // transisi healthy→unhealthy — flap reconnect tidak menembak REST);
+  // presence juga 30 dtk → 60 dtk.
+  usePolling(
+    pollNewMessages,
+    pollInterval,
+    Boolean(roomId) && !error && !loading && !realtimeHealthy && fallbackWarmupDone && fallbackArmed,
+  )
+  usePolling(
+    refreshPresence,
+    PRESENCE_POLL_MS,
+    Boolean(roomId) && !realtimeHealthy && fallbackWarmupDone && fallbackArmed,
+  )
   /**
    * B16: rekonsiliasi unread saat aplikasi kembali aktif — badge tab &
    * header bisa basi selama aplikasi di background (push mungkin tidak
@@ -1192,6 +1301,37 @@ export default function ChatRoomScreen() {
     })
     return rows
   }, [visibleMessages, unreadAnchorId])
+
+  /**
+   * Tim8 P1: cache tinggi baris thread (kunci = `row.key`, stabil antar
+   * render) + `getItemLayout` dari cache dengan fallback estimasi.
+   * Tanpa ini `scrollToIndex` (lompat ke hasil pencarian inline) memakai
+   * estimasi rata-rata → offset meleset di thread bergambar. Tinggi diukur
+   * via `onLayout` pembungkus baris di `renderThreadRow` (ChatMessageRow
+   * sendiri milik file lain — tidak disentuh).
+   */
+  const rowHeightCacheRef = useRef(new Map<string, number>())
+  const threadRowsRef = useRef(threadRows)
+  threadRowsRef.current = threadRows
+  const handleRowLayout = useCallback(
+    (key: string) => (e: LayoutChangeEvent) => {
+      rowHeightCacheRef.current.set(key, e.nativeEvent.layout.height)
+    },
+    [],
+  )
+  const getThreadItemLayout = useCallback(
+    (_data: ArrayLike<ThreadRow> | null | undefined, index: number) => {
+      const rows = threadRowsRef.current
+      const cache = rowHeightCacheRef.current
+      let offset = 0
+      for (let i = 0; i < index; i++) {
+        offset += cache.get(rows[i]?.key ?? "") ?? ROW_HEIGHT_ESTIMATE
+      }
+      const length = cache.get(rows[index]?.key ?? "") ?? ROW_HEIGHT_ESTIMATE
+      return { length, offset, index }
+    },
+    [],
+  )
 
   /** B10: indeks baris "day" — FlatList menempelkannya di atas saat digulir. */
   const stickyDayIndices = useMemo(() => {
@@ -1342,7 +1482,12 @@ export default function ChatRoomScreen() {
         ),
       )
       try {
-        const form = await pickedImageToFormData(picked)
+        // PERF-FIX (2026-09-30): resize foto sebelum upload — lampiran chat
+        // volume tinggi; hanya untuk gambar (video/dokumen dilewati);
+        // fail-open bila manipulasi gagal.
+        const isImage = (picked.mimeType ?? "").startsWith("image/")
+        const resized = isImage ? await resizePickedImage(picked) : picked
+        const form = await pickedImageToFormData(resized)
         const dto = await api.chat.uploadChatAttachmentProgress(roomId, form, {
           signal: controller.signal,
           onProgress: (fraction) =>
@@ -1845,6 +1990,12 @@ export default function ChatRoomScreen() {
     message: ChatMessage
     anchor: ChatBubbleAnchor
   } | null>(null)
+  // PERF-FIX (TIM1-P2): ref ke popover agar onPick stabil.
+  const reactionPopoverRef = useRef(reactionPopover)
+  reactionPopoverRef.current = reactionPopover
+  // PERF-FIX (TIM1-P2): handler FlatList stabil.
+  const handleScrollBeginDrag = useCallback(() => Keyboard.dismiss(), [])
+  const handleReactionDismiss = useCallback(() => setReactionPopover(null), [])
   const selectedMessages = useMemo(
     () => messages.filter((m) => selectedIds.has(m.id)),
     [messages, selectedIds],
@@ -1867,7 +2018,12 @@ export default function ChatRoomScreen() {
     const anyUnstarred = selectedMessages.some((m) => !m.isStarred)
     const op = anyUnstarred ? starChatMessage : unstarChatMessage
     try {
-      await Promise.all(selectedMessages.map((m) => op(roomId, m.id)))
+      // PERF-FIX (network P2): konkurensi dibatasi 5 (bukan Promise.all
+      // mentah) — 50 request serentak bisa menghabiskan socket di HP kentang.
+      await runWithConcurrency(
+        selectedMessages.map((m) => () => op(roomId, m.id)),
+        5,
+      )
       setMessages((prev) =>
         prev.map((m) =>
           selectedIds.has(m.id) ? { ...m, isStarred: anyUnstarred } : m,
@@ -2004,6 +2160,18 @@ export default function ChatRoomScreen() {
       }
     },
     [roomId, patchMessage, toast.show],
+  )
+  // PERF-FIX (TIM1-P2): onPick popover stabil — baca popover via ref.
+  const handleReactionPick = useCallback(
+    (emoji: string) => {
+      const target = reactionPopoverRef.current?.message
+      setReactionPopover(null)
+      if (target) {
+        exitSelect()
+        void handleReact(target, emoji)
+      }
+    },
+    [exitSelect, handleReact],
   )
 
   // ── Pin / unpin ──
@@ -2309,10 +2477,18 @@ export default function ChatRoomScreen() {
 
   /** Pesan terpin terbaru — yang ditampilkan baris pin di atas thread. */
   const latestPinned = useMemo(() => {
+    // Tim8 P2: 1 parse per pesan (bukan 2× per perbandingan reduce).
     if (pinned.length === 0) return null
-    return pinned.reduce((latest, m) =>
-      new Date(m.createdAt).getTime() > new Date(latest.createdAt).getTime() ? m : latest,
-    )
+    let latest = pinned[0]
+    let latestTs = new Date(latest.createdAt).getTime()
+    for (let i = 1; i < pinned.length; i++) {
+      const ts = new Date(pinned[i].createdAt).getTime()
+      if (ts > latestTs) {
+        latest = pinned[i]
+        latestTs = ts
+      }
+    }
+    return latest
   }, [pinned])
 
   // ── LR-001: prop stabil untuk baris chat (memo) ──────────────────────
@@ -2409,11 +2585,11 @@ export default function ChatRoomScreen() {
       const focused = m.id === inlineActiveId
       return getCachedRowView(
         searchHighlightCacheRef.current,
-        [m.id, inlineQuery, focused ? "1" : "0"].join(""),
-        () => ({ query: inlineQuery, focused }),
+        [m.id, debouncedInlineQuery, focused ? "1" : "0"].join(""),
+        () => ({ query: debouncedInlineQuery, focused }),
       )
     },
-    [inlineSearchOpen, inlineMatchIds, inlineQuery, inlineActiveId],
+    [inlineSearchOpen, inlineMatchIds, debouncedInlineQuery, inlineActiveId],
   )
   /**
    * LR-001: `renderItem` thread via `useCallback` — SEBELUMNYA inline di
@@ -2424,60 +2600,68 @@ export default function ChatRoomScreen() {
     ({ item: row }: { item: ThreadRow }) => {
       // B10: pemisah hari sebagai baris sticky (bukan di dalam row).
       if (row.kind === "day") {
-        return <ChatDaySeparator label={row.label} />
+        return (
+          <View onLayout={handleRowLayout(row.key)}>
+            <ChatDaySeparator label={row.label} />
+          </View>
+        )
       }
       // B02: pemisah "Belum dibaca" — ketuk = kembali ke titik itu.
       if (row.kind === "unread") {
         return (
-          <ChatUnreadSeparator count={row.count} onPress={() => jumpToMessage(row.anchorId)} />
+          <View onLayout={handleRowLayout(row.key)}>
+            <UnreadSeparatorRow count={row.count} anchorId={row.anchorId} onJump={jumpToMessage} />
+          </View>
         )
       }
       const m = row.message
       const index = row.index
       return (
-        <ChatMessageRow
-          message={m}
-          previous={index > 0 ? visibleMessages[index - 1] : undefined}
-          // Pesan tepat di bawahnya — penentu "bubble terakhir grup menit"
-          // (jam hanya tampil di situ, ala WhatsApp).
-          next={index < visibleMessages.length - 1 ? visibleMessages[index + 1] : undefined}
-          // B10: pemisah hari sudah jadi baris sticky tersendiri.
-          hideDaySeparator
-          // B09: sorot pesan asal balasan + navigasi konteks kutipan.
-          highlighted={highlightedId === m.id}
-          onQuotePress={handleQuotePress}
-          selecting={selecting}
-          selected={selectedIds.has(m.id)}
-          readByCounterpart={readByCounterpart.has(m.id)}
-          // Foto + nama lawan bicara untuk gelembung masuk (2026-09-26).
-          // Revisi 2026-09-27 (UI polish): sealTier ikut diteruskan agar
-          // seal verifikasi tampil di samping nama pengirim bubble.
-          // Revisi 2026-09-28 (produk): DM 1:1 → disembunyikan total
-          // (showSenderIdentity=false); ruang transaksi/grup → tetap tampil.
-          counterpart={counterpartInfo}
-          showSenderIdentity={showPeerIdentity}
-          // Swipe kanan bubble = jalan pintas balas (2026-09-28).
-          // Tekan lama "Balas" di SelectionBar TETAP ADA — gesture ini
-          // hanya memanggil setReplyTarget yang sama. Nonaktif saat mode
-          // pilih agar tidak bentrok dengan toggle pilihan (gate di row).
-          onSwipeReply={handleRowSwipeReply}
-          // Revisi 2026-09-27: KETUKAN bubble teks = NO-OP di luar mode
-          // pilih (tidak membuka apa pun); saat mode pilih aktif ketukan
-          // men-toggle pilihan. Aksi (menu/reaksi) HANYA lewat tekan lama
-          // → masuk mode pilih + popover reaksi mengambang di dekat bubble.
-          onPress={handleRowPress}
-          onLongPress={handleRowLongPress}
-          onReact={handleRowReact}
-          onAttachmentPress={openAttachment}
-          // Batch 43: hasil terjemahan per pesan + tombol Beli kartu produk.
-          // ChatTranslation (translatedText) → prop row ({ text, … }).
-          translation={getTranslationView(m.id)}
-          onBuyProductCard={isSelfChat ? undefined : handleRowBuyProductCard}
-          // CN-015: kirim ulang pesan yang gagal.
-          onRetry={handleRowRetry}
-          // Pencarian inline: sorot kata kunci; hasil aktif lebih tegas.
-          searchHighlight={getSearchHighlightView(m)}
-        />
+        <View onLayout={handleRowLayout(row.key)}>
+          <ChatMessageRow
+            message={m}
+            previous={index > 0 ? visibleMessages[index - 1] : undefined}
+            // Pesan tepat di bawahnya — penentu "bubble terakhir grup menit"
+            // (jam hanya tampil di situ, ala WhatsApp).
+            next={index < visibleMessages.length - 1 ? visibleMessages[index + 1] : undefined}
+            // B10: pemisah hari sudah jadi baris sticky tersendiri.
+            hideDaySeparator
+            // B09: sorot pesan asal balasan + navigasi konteks kutipan.
+            highlighted={highlightedId === m.id}
+            onQuotePress={handleQuotePress}
+            selecting={selecting}
+            selected={selectedIds.has(m.id)}
+            readByCounterpart={readByCounterpart.has(m.id)}
+            // Foto + nama lawan bicara untuk gelembung masuk (2026-09-26).
+            // Revisi 2026-09-27 (UI polish): sealTier ikut diteruskan agar
+            // seal verifikasi tampil di samping nama pengirim bubble.
+            // Revisi 2026-09-28 (produk): DM 1:1 → disembunyikan total
+            // (showSenderIdentity=false); ruang transaksi/grup → tetap tampil.
+            counterpart={counterpartInfo}
+            showSenderIdentity={showPeerIdentity}
+            // Swipe kanan bubble = jalan pintas balas (2026-09-28).
+            // Tekan lama "Balas" di SelectionBar TETAP ADA — gesture ini
+            // hanya memanggil setReplyTarget yang sama. Nonaktif saat mode
+            // pilih agar tidak bentrok dengan toggle pilihan (gate di row).
+            onSwipeReply={handleRowSwipeReply}
+            // Revisi 2026-09-27: KETUKAN bubble teks = NO-OP di luar mode
+            // pilih (tidak membuka apa pun); saat mode pilih aktif ketukan
+            // men-toggle pilihan. Aksi (menu/reaksi) HANYA lewat tekan lama
+            // → masuk mode pilih + popover reaksi mengambang di dekat bubble.
+            onPress={handleRowPress}
+            onLongPress={handleRowLongPress}
+            onReact={handleRowReact}
+            onAttachmentPress={openAttachment}
+            // Batch 43: hasil terjemahan per pesan + tombol Beli kartu produk.
+            // ChatTranslation (translatedText) → prop row ({ text, … }).
+            translation={getTranslationView(m.id)}
+            onBuyProductCard={isSelfChat ? undefined : handleRowBuyProductCard}
+            // CN-015: kirim ulang pesan yang gagal.
+            onRetry={handleRowRetry}
+            // Pencarian inline: sorot kata kunci; hasil aktif lebih tegas.
+            searchHighlight={getSearchHighlightView(m)}
+          />
+        </View>
       )
     },
     [
@@ -2500,6 +2684,7 @@ export default function ChatRoomScreen() {
       handleRowRetry,
       getSearchHighlightView,
       jumpToMessage,
+      handleRowLayout,
     ],
   )
 
@@ -2741,7 +2926,7 @@ export default function ChatRoomScreen() {
       {!selecting && inlineSearchOpen && inlineActiveId ? (
         <ChatSearchSnippet
           message={inlineActiveMessage}
-          query={inlineQuery}
+          query={debouncedInlineQuery}
           counterpartName={counterpartName}
           timeLabel={inlineActiveMessage ? formatTime(inlineActiveMessage.createdAt) : undefined}
           onPress={() => jumpToInlineMatch(inlineActiveId)}
@@ -2778,7 +2963,7 @@ export default function ChatRoomScreen() {
         contentContainerStyle={threadContentStyle}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
-        onScrollBeginDrag={() => Keyboard.dismiss()}
+        onScrollBeginDrag={handleScrollBeginDrag}
         onContentSizeChange={handleContentSizeChange}
         onScroll={handleScroll}
         scrollEventThrottle={SCROLL_EVENT_THROTTLE}
@@ -2790,6 +2975,9 @@ export default function ChatRoomScreen() {
         onStartReached={handleStartReached}
         onStartReachedThreshold={120}
         onScrollToIndexFailed={handleScrollToIndexFailed}
+        // Tim8 P1: tinggi baris dari cache onLayout (fallback estimasi) —
+        // `scrollToIndex` akurat di thread bergambar.
+        getItemLayout={getThreadItemLayout}
         initialNumToRender={12}
         maxToRenderPerBatch={8}
         windowSize={9}
@@ -2819,15 +3007,8 @@ export default function ChatRoomScreen() {
       <ChatReactionPopover
         target={reactionPopover}
         emojis={QUICK_REACTIONS}
-        onPick={(emoji) => {
-          const target = reactionPopover?.message
-          setReactionPopover(null)
-          if (target) {
-            exitSelect()
-            void handleReact(target, emoji)
-          }
-        }}
-        onDismiss={() => setReactionPopover(null)}
+        onPick={handleReactionPick}
+        onDismiss={handleReactionDismiss}
       />
 
       {/* Menu ⋮ RUANG (bukan per pesan): lihat pesanan, cari pesan, profil

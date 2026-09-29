@@ -49,8 +49,9 @@ import type { CreateShowcaseItemDto, ShowcaseMediaInput } from "@/lib/api/types"
 import { API_CONSTRAINTS } from "@/lib/api/constraints"
 import { getSessionRevision } from "@/lib/api/session"
 import { useSessionRevision } from "@/lib/guest-gate"
-import { pickImage, pickImages, pickedImageToBlob, type PickedImage } from "@/lib/image-picker"
+import { pickImage, pickImages, pickedImageToBlob, resizePickedImage, type PickedImage } from "@/lib/image-picker"
 import { markShowcaseFeedDirty } from "@/lib/showcase-social-prefs"
+import { invalidateQueryPrefix } from "@/lib/query-cache"
 import { partitionAssetsBySize, resolveCreateAttempt } from "@/lib/showcase-state"
 import { SHOWCASE_IMAGE_MAX_BYTES, getShowcasePhotoLimit } from "@/lib/showcase-limits"
 import { useKahadePlus } from "@/lib/use-kahade-plus"
@@ -128,6 +129,13 @@ const EMPTY_FORM: FormState = {
   isPublic: true,
   condition: "",
 }
+
+/**
+ * TIM-8 (audit performa 2026-09-30): bentuk kanonis EMPTY_FORM dihitung
+ * sekali di module scope — sebelumnya `JSON.stringify(EMPTY_FORM)` jalan
+ * tiap render.
+ */
+const EMPTY_FORM_JSON = JSON.stringify(EMPTY_FORM)
 
 /**
  * Pratinjau media karya: foto, atau video (kontrak final Tim A #1/#2,
@@ -365,8 +373,13 @@ export default function ShowcaseCreateScreen() {
     }
   }, [])
 
-  const dirty =
-    previews.length > 0 || JSON.stringify(form) !== JSON.stringify(EMPTY_FORM)
+  // TIM-8 (audit performa 2026-09-30): dirty check di-memo — sebelumnya
+  // `JSON.stringify(form)` 2× per render (tiap keystroke) hanya untuk
+  // perbandingan boolean.
+  const dirty = useMemo(
+    () => previews.length > 0 || JSON.stringify(form) !== EMPTY_FORM_JSON,
+    [previews.length, form],
+  )
 
   /** Foto + ketikan belum tersimpan — minta konfirmasi sebelum keluar. */
   const requestClose = useCallback(() => {
@@ -482,21 +495,27 @@ export default function ShowcaseCreateScreen() {
       }
       setUploading(true)
       setUploadProgress(0)
+      // PERF-FIX (2026-09-30): resize SEBELUM preview dirender — pratinjau
+      // 88px tidak butuh file kamera 4000px di memori (8 foto × full-res).
+      // Fail-open: resizePickedImage mengembalikan aset asli bila gagal.
+      // Upload di bawah juga me-resize (idempoten — sudah kecil = no-op).
+      const resizedAssets = await Promise.all(sizedAssets.map((a) => resizePickedImage(a)))
+      if (controller.signal.aborted) return
       // S6: upload konkuren maks 2 — lebih cepat dari sekuensial, tetap ramah
       // memori/jaringan dibanding Promise.all tak terbatas.
       const CONCURRENCY = 2
       let completed = 0
       const bump = () => {
         completed += 1
-        setUploadProgress(completed / sizedAssets.length)
+        setUploadProgress(completed / resizedAssets.length)
         setProgress(
           translate("Mengunggah foto {x} dari {y}", {
             x: completed,
-            y: sizedAssets.length,
+            y: resizedAssets.length,
           }),
         )
       }
-      const queue = [...sizedAssets]
+      const queue = [...resizedAssets]
       const workers = Array.from({ length: Math.min(CONCURRENCY, queue.length) }, async () => {
         while (queue.length > 0) {
           if (controller.signal.aborted) return
@@ -534,7 +553,7 @@ export default function ShowcaseCreateScreen() {
           toast.show({
             title: translate("{x} dari {y} foto gagal diunggah", {
               x: failures.length,
-              y: sizedAssets.length,
+              y: resizedAssets.length,
             }),
             description: detail,
             tone: "warning",
@@ -851,6 +870,11 @@ export default function ShowcaseCreateScreen() {
       void clearShowcaseDraft()
       if (!mounted.current || revision !== getSessionRevision()) return
       markShowcaseFeedDirty()
+      // PERF-FIX (network P0): item baru membuat cache "Etalase Saya" basi —
+      // invalidasi agar refresh saat kembali ke layar Kelola Etalase
+      // mengunduh daftar terbaru (lihat refreshOnFocusStaleMs di
+      // app/showcase-management.tsx).
+      invalidateQueryPrefix("my-showcase")
       toast.show({ title: translate("Karya ditambahkan"), tone: "success", duration: 3000 })
       // Jangan `router.back()` langsung di sini: dispatch expo-router
       // tertunda ke effect berikutnya, saat itu `saveBusy` sudah false dan

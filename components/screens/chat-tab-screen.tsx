@@ -51,11 +51,11 @@ import {
   TYPING_EXPIRY_MS,
   type ChatTypingPayload,
 } from "@/lib/realtime/chat-events"
-import { useRealtime } from "@/lib/realtime/realtime-context"
+import { useRealtime, useRealtimeActions } from "@/lib/realtime/realtime-context"
 import { ORDER_STATUS_LABELS } from "@/lib/labels/status"
 import { formatTimeAgo } from "@/lib/format"
 import { haptic } from "@/lib/haptics"
-import { translate } from "@/lib/i18n"
+import { translate, useLanguage } from "@/lib/i18n"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 import { byTimestampDesc, usePaginatedQuery } from "@/lib/use-paginated-query"
@@ -68,6 +68,7 @@ import {
   subscribePinnedRooms,
   toggleRoomPinned,
 } from "@/lib/chat-pinned-rooms"
+import { seedChatRoomPrefetch } from "@/lib/chat-room-prefetch"
 
 import { ChatRoomListItem, type ChatRoomLastMessage } from "@/components/ui/chat-room-list-item"
 import { Button } from "@/components/ui/button"
@@ -149,7 +150,11 @@ const TYPING_JOIN_BATCH = 10
 const TYPING_JOIN_GAP_MS = 2000
 
 function useChatListTyping(roomIds: string[]): Set<string> {
-  const { socket, status, epoch, viewerId, joinRoom, leaveRoom, unwrapEvent } = useRealtime()
+  // PERF-FIX (state audit): aksi stabil via context terpisah — tidak ikut
+  // me-render ulang saat status/epoch berubah. State koneksi tetap dari
+  // useRealtime (socket/status/epoch memang dibutuhkan efek di bawah).
+  const { socket, status, epoch } = useRealtime()
+  const { viewerId, joinRoom, leaveRoom, unwrapEvent } = useRealtimeActions()
   const [typingRooms, setTypingRooms] = useState<Set<string>>(() => new Set())
   /** Room yang sedang di-join sesi ini — untuk leave saat tak tampil lagi. */
   const joinedRef = useRef<Set<string>>(new Set())
@@ -548,7 +553,24 @@ export default function ChatScreen() {
   // FE-129: jangkar coach mark sekali-tampil gesture swipe di baris pertama.
   const firstRowRef = useRef<RNView | null>(null)
   const [filter, setFilter] = useState<ChatFilter>("all")
+  // PERF-FIX (TIM1-P1): onChange chip stabil — sebelumnya closure inline
+  // dibuat ulang di setiap render tab.
+  const handleFilterChange = useCallback((next: ChatFilter[]) => {
+    const picked = next[0]
+    if (picked) setFilter(picked)
+  }, [])
   const archiveOpen = filter === "archived"
+  /**
+   * TIM 8 (perf): opsi chip filter di-memo — sebelumnya
+   * `FILTER_OPTIONS.map((o) => ({ ...o, label: translate(o.label) }))`
+   * mengalokasi array+objek tiap render sehingga prop ChipGroup tidak stabil.
+   * Pola app/search.tsx: `useLanguage()` agar label ikut berganti bahasa.
+   */
+  const language = useLanguage()
+  const filterOptions = useMemo(
+    () => FILTER_OPTIONS.map((o) => ({ ...o, label: translate(o.label) })),
+    [language],
+  )
   const mainQuery = usePaginatedQuery<ChatRoom>(
     "chat-rooms",
     (page, signal) => api.chat.listChatRooms({ page, limit: CHAT_PAGE_SIZE }, signal),
@@ -963,6 +985,10 @@ export default function ChatScreen() {
         toggleSelect(room.id)
         return
       }
+      // PERF-FIX (network P1): titipkan objek room dari daftar ke cache
+      // consume-once — layar room memakai ini untuk header dan melewatkan
+      // `GET /v1/chat/rooms/:roomId` (lihat lib/chat-room-prefetch.ts).
+      seedChatRoomPrefetch(room)
       router.push(
         ROUTES.chatRoom(
           room.id,
@@ -1031,7 +1057,9 @@ export default function ChatScreen() {
     () => (
       <SkeletonGroup>
         {Array.from({ length: SKELETON_COUNT }, (_, index) => (
-          <ChatSkeletonRow key={index} />
+          // PERF-FIX (state audit): key stabil ber-prefix agar tidak tertukar
+          // dengan baris data nyata saat skeleton diganti daftar asli.
+          <ChatSkeletonRow key={`chat-skeleton-${index}`} />
         ))}
       </SkeletonGroup>
     ),
@@ -1150,12 +1178,9 @@ export default function ChatScreen() {
         >
           <ChipGroup
             single
-            options={FILTER_OPTIONS.map((o) => ({ ...o, label: translate(o.label) }))}
+            options={filterOptions}
             value={[filter]}
-            onChange={(next) => {
-              const picked = next[0]
-              if (picked) setFilter(picked)
-            }}
+            onChange={handleFilterChange}
           />
         </ScrollView>
       ) : null}

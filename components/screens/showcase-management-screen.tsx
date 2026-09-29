@@ -205,7 +205,13 @@ function ShowcaseManagement() {
     `my-showcase:${revision}`,
     async (signal) => (await api.users.getMyShowcase(signal)) ?? [],
     true,
-    { refreshOnFocus: true, useCache: false },
+    // PERF-FIX (network P0): dulu `useCache: false` + refresh tiap fokus =
+    // seluruh katalog diunduh ulang setiap kembali ke layar. Kini cache 60 dtk
+    // (lihat QUERY_CACHE_TTL_RULES) + refresh saat fokus hanya bila data
+    // lebih tua dari 60 dtk. Mutasi di layar ini memanggil query.refresh()
+    // eksplisit; create/update dari layar lain menginvalidasi prefix
+    // "my-showcase" (lihat app/showcase/create.tsx).
+    { refreshOnFocus: true, refreshOnFocusStaleMs: 60_000 },
   )
   const items = query.data ?? []
   const [renderLimit, setRenderLimit] = useState(60)
@@ -331,19 +337,21 @@ function ShowcaseManagement() {
     pendingNavigation.current = null
     if (action) navigation.dispatch(action)
   }, [editor, navigation])
+  // TIM 8 (perf): satu flag dirty di-memo dipakai bersama — sebelumnya
+  // 4× JSON.stringify per render (2 di requestCloseEditor + 2 di dirtyEditor).
+  const dirtyEditor = useMemo(
+    () =>
+      editor != null &&
+      (JSON.stringify(form) !== JSON.stringify(initialForm.current) ||
+        JSON.stringify(commerce) !== JSON.stringify(initialCommerce.current)),
+    [editor, form, commerce],
+  )
   const requestCloseEditor = useCallback(() => {
     if (saveBusy.current || uploadBusy.current) return
-    if (
-      JSON.stringify(form) !== JSON.stringify(initialForm.current) ||
-      JSON.stringify(commerce) !== JSON.stringify(initialCommerce.current)
-    ) setDiscardOpen(true)
+    if (dirtyEditor) setDiscardOpen(true)
     else closeEditor()
-  }, [editor, form, commerce, closeEditor])
+  }, [dirtyEditor, closeEditor])
 
-  const dirtyEditor =
-    editor != null &&
-    (JSON.stringify(form) !== JSON.stringify(initialForm.current) ||
-      JSON.stringify(commerce) !== JSON.stringify(initialCommerce.current))
   usePreventRemove(dirtyEditor, ({ data }) => {
     if (saveBusy.current || uploadBusy.current) return
     pendingNavigation.current = data.action
@@ -778,13 +786,48 @@ function ShowcaseManagement() {
       ]
     : []
 
-  const hiddenCount = items.filter(showcaseIsHidden).length
+  // TIM 8 (perf): full scan hanya saat `items` berubah — sebelumnya
+  // dihitung tiap render.
+  const hiddenCount = useMemo(() => items.filter(showcaseIsHidden).length, [items])
 
-  /** Baris foto mengikuti effectiveImageIds (draft D-10). */
-  const imageRows = effectiveImageIds.flatMap((id) => {
-    const img = (imagesItem?.images ?? []).find((entry) => entry.id === id)
-    return img ? [img] : []
-  })
+  /**
+   * Baris foto mengikuti effectiveImageIds (draft D-10).
+   * TIM 8 (perf): Map id→image menggantikan `.find` linear per id (O(n×m)
+   * tiap render) + di-memo.
+   */
+  const imageRows = useMemo(() => {
+    const byId = new Map((imagesItem?.images ?? []).map((entry) => [entry.id, entry]))
+    return effectiveImageIds.flatMap((id) => {
+      const img = byId.get(id)
+      return img ? [img] : []
+    })
+  }, [imagesItem, effectiveImageIds])
+
+  /**
+   * TIM 8 (perf): transform API→view model grid di-memo — sebelumnya
+   * `items.slice(0, renderLimit).map(...)` + 2 `translate()` per item di body
+   * render; array+objek baru tiap render membatalkan memo ShowcaseGalleryGrid.
+   */
+  const galleryItems = useMemo(
+    () =>
+      items.slice(0, renderLimit).map((it) => {
+        const isHidden = showcaseIsHidden(it)
+        return {
+          id: it.id,
+          // E-01 kelas yang sama: satu resolver cover bersama.
+          source: showcaseCoverOf(it) ?? "",
+          alt: `${labelOf(it)}${isHidden ? " (disembunyikan)" : ""}`,
+          hidden: isHidden,
+          // M-05 (audit 2026-09-24): kuota foto dulu hanya terlihat
+          // setelah membuka editor galeri; sekarang tampil di sel.
+          meta: translate("{x}/{y} foto", {
+            x: it.images?.length ?? 0,
+            y: photoLimit,
+          }),
+        }
+      }),
+    [items, renderLimit, photoLimit],
+  )
 
   /**
    * C11 (batch 139): rakit item pratinjau dari draft editor — media milik
@@ -870,22 +913,7 @@ function ShowcaseManagement() {
             {/* D-07: skeleton = grid persegi (bentuk cocok dengan konten). */}
             <Crossfade loading={loading} skeleton={<ShowcaseGalleryGrid items={[]} loading />}>
               <ShowcaseGalleryGrid
-                items={items.slice(0, renderLimit).map((it) => {
-                  const isHidden = showcaseIsHidden(it)
-                  return {
-                    id: it.id,
-                    // E-01 kelas yang sama: satu resolver cover bersama.
-                    source: showcaseCoverOf(it) ?? "",
-                    alt: `${labelOf(it)}${isHidden ? " (disembunyikan)" : ""}`,
-                    hidden: isHidden,
-                    // M-05 (audit 2026-09-24): kuota foto dulu hanya terlihat
-                    // setelah membuka editor galeri; sekarang tampil di sel.
-                    meta: translate("{x}/{y} foto", {
-                      x: it.images?.length ?? 0,
-                      y: photoLimit,
-                    }),
-                  }
-                })}
+                items={galleryItems}
                 onPressItem={(_, index) => setMenuItem(items[index] ?? null)}
                 loading={false}
                 empty={

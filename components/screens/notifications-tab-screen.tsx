@@ -44,8 +44,8 @@ import { byTimestampDesc, usePaginatedQuery } from "@/lib/use-paginated-query"
 import { useScrollElevation } from "@/lib/use-scroll-elevation"
 import { PaginatedList } from "@/components/ui/paginated-list"
 import { useToast } from "@/components/ui/toast"
-import { memo, useCallback, useEffect, useMemo, useState } from "react"
-import { View } from "react-native"
+import { memo, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react"
+import { StyleSheet, View } from "react-native"
 import { router } from "expo-router"
 import {
   Bell,
@@ -131,25 +131,32 @@ const SKELETON_COUNT = 5
 
 function NotifSkeletonRow() {
   return (
-    <View
-      style={{
-        flexDirection: "row",
-        alignItems: "flex-start",
-        // Sebentuk baris aslinya: chip ikon 40 + gap 12 + padding layar 20.
-        gap: tokens.space[3],
-        paddingHorizontal: tokens.layout.screenPaddingX,
-        paddingVertical: tokens.space[3],
-      }}
-    >
+    <View style={skeletonStyles.row}>
       <Skeleton shape="circle" width={40} height={40} />
-      <View style={{ flex: 1, gap: tokens.space[2] }}>
-        <Skeleton height={14} style={{ width: "70%" }} />
-        <Skeleton height={12} style={{ width: "88%" }} />
-        <Skeleton height={12} style={{ width: "45%" }} />
+      <View style={skeletonStyles.textCol}>
+        <Skeleton height={14} style={skeletonStyles.w70} />
+        <Skeleton height={12} style={skeletonStyles.w88} />
+        <Skeleton height={12} style={skeletonStyles.w45} />
       </View>
     </View>
   )
 }
+
+// PERF-FIX (TIM1-P2): style skeleton statis — bukan objek inline per render.
+const skeletonStyles = StyleSheet.create({
+  row: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    // Sebentuk baris aslinya: chip ikon 40 + gap 12 + padding layar 20.
+    gap: tokens.space[3],
+    paddingHorizontal: tokens.layout.screenPaddingX,
+    paddingVertical: tokens.space[3],
+  },
+  textCol: { flex: 1, gap: tokens.space[2] },
+  w70: { width: "70%" },
+  w88: { width: "88%" },
+  w45: { width: "45%" },
+})
 
 // ------------------------------------------------------------------
 // Header grup hari ("Hari ini" / "Kemarin" / tanggal)
@@ -221,15 +228,42 @@ function MarkAllReadButton({
  * onLongPress dibuat stabil di dalam via useCallback, sehingga toggle satu
  * baris (mis. mode pilih) tidak me-render ulang semua baris — tampilan dan
  * perilaku tidak berubah.
+ *
+ * PERF-FIX (TIM1-P2): status seleksi dibaca per-baris via
+ * `useSyncExternalStore` dari `selectionStore` — `renderNotificationRow`
+ * tidak lagi ber-dep pada `selected`/`selecting`, sehingga toggle satu
+ * notifikasi tidak mengubah identitas renderItem dan tidak me-render ulang
+ * semua baris terlihat. Hanya baris yang status `isSelected`-nya berubah
+ * yang me-render ulang (snapshot boolean per baris).
  */
+type NotificationSelectionState = { selecting: boolean; selected: ReadonlySet<string> }
+
+function createNotificationSelectionStore() {
+  let state: NotificationSelectionState = { selecting: false, selected: new Set<string>() }
+  const listeners = new Set<() => void>()
+  return {
+    subscribe: (listener: () => void) => {
+      listeners.add(listener)
+      return () => {
+        listeners.delete(listener)
+      }
+    },
+    getState: () => state,
+    setState: (next: NotificationSelectionState) => {
+      state = next
+      listeners.forEach((l) => l())
+    },
+  }
+}
+type NotificationSelectionStore = ReturnType<typeof createNotificationSelectionStore>
+
 const NotificationRowView = memo(function NotificationRowView({
   row,
   showHeader,
   groupLabel,
   groupSub,
   sameDayAsNext,
-  selecting,
-  isSelected,
+  selectionStore,
   onOpen,
   onEnterSelectGroup,
   onToggleSelectGroup,
@@ -241,8 +275,7 @@ const NotificationRowView = memo(function NotificationRowView({
   groupLabel: string
   groupSub: string | null
   sameDayAsNext: boolean
-  selecting: boolean
-  isSelected: boolean
+  selectionStore: NotificationSelectionStore
   onOpen: (head: AppNotification, isGroup: boolean, members: AppNotification[]) => void
   onEnterSelectGroup: (items: AppNotification[]) => void
   onToggleSelectGroup: (items: AppNotification[]) => void
@@ -252,6 +285,20 @@ const NotificationRowView = memo(function NotificationRowView({
   const head = notificationRowHead(row)
   const isGroup = row.kind === "group"
   const members = isGroup ? row.items : [head]
+  // Id anggota stabil per baris — untuk snapshot seleksi per baris.
+  const memberIds = useMemo(() => members.map((m) => m.id), [row]) // eslint-disable-line react-hooks/exhaustive-deps
+  // PERF-FIX (TIM1-P2): baca seleksi via store — bukan prop dari renderItem.
+  const selecting = useSyncExternalStore(
+    selectionStore.subscribe,
+    () => selectionStore.getState().selecting,
+  )
+  const isSelected = useSyncExternalStore(
+    selectionStore.subscribe,
+    () => {
+      const s = selectionStore.getState()
+      return s.selecting && memberIds.every((id) => s.selected.has(id))
+    },
+  )
 
   const handlePress = useCallback(
     () => onOpen(head, isGroup, members),
@@ -379,6 +426,14 @@ function NotificationsScreen() {
   const [selected, setSelected] = useState<Set<string>>(() => new Set())
   const [batchBusy, setBatchBusy] = useState(false)
   const [confirm, setConfirm] = useState<"delete-selected" | "delete-read" | null>(null)
+  // PERF-FIX (TIM1-P2): store seleksi untuk dibaca per-baris via
+  // useSyncExternalStore (lihat NotificationRowView) — renderItem stabil.
+  const selectionStoreRef = useRef<NotificationSelectionStore | null>(null)
+  if (!selectionStoreRef.current) selectionStoreRef.current = createNotificationSelectionStore()
+  const selectionStore = selectionStoreRef.current
+  useEffect(() => {
+    selectionStore.setState({ selecting, selected })
+  }, [selecting, selected, selectionStore])
 
   const hasUnread = notifs.some((n) => !n.isRead)
   const hasRead = notifs.some((n) => n.isRead)
@@ -528,9 +583,6 @@ function NotificationsScreen() {
         index === 0 || (rowGroups[index - 1] != null && rowGroups[index - 1].key !== group.key)
       const sameDayAsNext =
         rowGroups[index + 1] != null && rowGroups[index + 1].key === group.key
-      const isGroup = row.kind === "group"
-      const head = notificationRowHead(row)
-      const members = isGroup ? row.items : [head]
       return (
         <NotificationRowView
           row={row}
@@ -538,8 +590,7 @@ function NotificationsScreen() {
           groupLabel={group.label}
           groupSub={group.sub}
           sameDayAsNext={sameDayAsNext}
-          selecting={selecting}
-          isSelected={selecting && members.every((m) => selected.has(m.id))}
+          selectionStore={selectionStore}
           onOpen={handleOpenNotification}
           onEnterSelectGroup={enterSelectGroup}
           onToggleSelectGroup={toggleSelectGroup}
@@ -548,30 +599,42 @@ function NotificationsScreen() {
         />
       )
     },
-    [rowGroups, selecting, selected, handleOpenNotification, enterSelectGroup, toggleSelectGroup, enterSelect, toggleSelect],
+    [rowGroups, selectionStore, handleOpenNotification, enterSelectGroup, toggleSelectGroup, enterSelect, toggleSelect],
   )
 
   const selectedIds = useMemo(() => Array.from(selected), [selected])
 
-  const handleReadSelected = useCallback(async () => {
+  const handleReadSelected = useCallback(() => {
     if (selectedIds.length === 0 || batchBusy) return
-    setBatchBusy(true)
-    try {
-      await api.notifications.markNotificationsReadBatch(selectedIds)
-      const ids = new Set(selectedIds)
-      setNotifs((prev) => prev.map((n) => (ids.has(n.id) ? { ...n, isRead: true } : n)))
-      void refreshUnreadCount()
-      exitSelect()
-    } catch (err: unknown) {
-      toast.show({
-        title: "Notifikasi belum dapat ditandai",
-        description: userMessage(err),
-        tone: "danger",
-      })
-    } finally {
-      setBatchBusy(false)
+    // PERF-FIX (network P2): UI optimistis dulu (konsisten dengan tap satuan),
+    // lalu kirim chunk 20 id per POST di background — satu POST 50 id bisa
+    // 413/berat di beberapa proxy. Rollback + toast bila ada chunk yang gagal.
+    const ids = new Set(selectedIds)
+    const previous = notifs
+    setNotifs((prev) => prev.map((n) => (ids.has(n.id) ? { ...n, isRead: true } : n)))
+    void refreshUnreadCount()
+    exitSelect()
+    const chunks: string[][] = []
+    for (let i = 0; i < selectedIds.length; i += 20) {
+      chunks.push(selectedIds.slice(i, i + 20))
     }
-  }, [selectedIds, batchBusy, exitSelect])
+    void (async () => {
+      try {
+        for (const chunk of chunks) {
+          await api.notifications.markNotificationsReadBatch(chunk)
+        }
+      } catch (err: unknown) {
+        setNotifs(previous)
+        void refreshUnreadCount()
+        logWarn("notifications:mark-read-batch", err)
+        toast.show({
+          title: "Notifikasi belum dapat ditandai",
+          description: userMessage(err),
+          tone: "danger",
+        })
+      }
+    })()
+  }, [selectedIds, batchBusy, exitSelect, notifs, toast.show])
 
   const handleDeleteSelected = useCallback(async () => {
     if (selectedIds.length === 0 || batchBusy) return
@@ -614,24 +677,29 @@ function NotificationsScreen() {
   }, [batchBusy])
 
   /** Tandai semua dibaca — tombol Checks di header mode normal. */
-  const handleReadAll = useCallback(async () => {
+  const handleReadAll = useCallback(() => {
     if (batchBusy || !hasUnread) return
-    setBatchBusy(true)
-    try {
-      await api.notifications.markAllNotificationsRead()
-      setNotifs((prev) => prev.map((n) => ({ ...n, isRead: true })))
-      void refreshUnreadCount()
-      toast.show({ title: "Semua notifikasi ditandai dibaca", tone: "success", duration: 2000 })
-    } catch (err: unknown) {
-      toast.show({
-        title: "Notifikasi belum dapat ditandai",
-        description: userMessage(err),
-        tone: "danger",
-      })
-    } finally {
-      setBatchBusy(false)
-    }
-  }, [batchBusy, hasUnread])
+    // PERF-FIX (network P2): optimistis (pola handleReadGroup) — UI + badge
+    // langsung hilang; rollback ke snapshot bila request gagal.
+    const previous = notifs
+    setNotifs((prev) => prev.map((n) => ({ ...n, isRead: true })))
+    void refreshUnreadCount()
+    toast.show({ title: "Semua notifikasi ditandai dibaca", tone: "success", duration: 2000 })
+    void (async () => {
+      try {
+        await api.notifications.markAllNotificationsRead()
+      } catch (err: unknown) {
+        setNotifs(previous)
+        void refreshUnreadCount()
+        logWarn("notifications:mark-all-read", err)
+        toast.show({
+          title: "Notifikasi belum dapat ditandai",
+          description: userMessage(err),
+          tone: "danger",
+        })
+      }
+    })()
+  }, [batchBusy, hasUnread, notifs, toast.show])
 
   // FE-064: prop header di-memo agar memo <Header> bisa bail-out.
   // Ditaruh setelah exitSelect/handleReadSelected/handleReadAll dideklarasikan.

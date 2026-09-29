@@ -60,6 +60,7 @@ import { translate } from "@/lib/i18n/translate"
 import { toEpochMs } from "@/lib/pending-actions"
 import { ROUTES } from "@/lib/routes"
 import { queryKeys } from "@/lib/query-keys"
+import { writeQueryCache } from "@/lib/query-cache"
 import { tokens } from "@/lib/tokens"
 import { groupOrdersByDay, type OrderDayGroup } from "@/lib/transaction-grouping"
 import { TAB_BAR_HEIGHT } from "@/components/ui/bottom-tab-bar"
@@ -164,6 +165,13 @@ const TransactionOrderCard = memo(function TransactionOrderCard({
   order: Order
   onDeadline: () => void
 }) {
+  // PERF-FIX (network P1): prefetch press-in — titipkan Order lengkap dari
+  // daftar ke cache kanonis `queryKeys.order(id)`; layar detail
+  // mengonsumsinya via `fetchViaQueryCache` tanpa request `getOrder` ulang
+  // (doktrin C-02). Stabil per `order` agar tidak menjebol memo.
+  const handlePressIn = useCallback(() => {
+    writeQueryCache(queryKeys.order(order.id), order)
+  }, [order])
   const cardRole =
     order.myRole === "SELLER" ? "seller" : order.myRole === "BUYER" ? "buyer" : undefined
   const counterpart =
@@ -195,6 +203,7 @@ const TransactionOrderCard = memo(function TransactionOrderCard({
       }
       onDeadline={onDeadline}
       href={ROUTES.orderDetail(order.id)}
+      onPressIn={handlePressIn}
     />
   )
 })
@@ -292,8 +301,13 @@ export default function TransactionsScreen() {
   // FE-064: prop `right` header di-memo agar memo <Header> bisa bail-out.
   // Deps: walletBalance (label chip) + filtered (state tombol funnel) +
   // walletEnabled (chip disembunyikan saat kill-switch dompet mati).
-  const headerRight = useMemo(
-    () => (
+  // PERF-FIX (TIM1-P2): handler tombol stabil via useCallback.
+  const handleWalletPress = useCallback(() => router.push(ROUTES.wallet), [router])
+  const handleFilterSheetOpen = useCallback(() => setSheetOpen(true), [])
+  const handleClearStatusFilter = useCallback(() => setStatus(ALL_STATUS), [])
+  const handleCreateTransactionPress = useCallback(() => router.push(ROUTES.createTransaction), [router])
+  const handleShowcasePress = useCallback(() => router.push(ROUTES.showcase), [router])
+  const headerRight = useMemo(    () => (
       <View className="flex-row items-center gap-2">
         {walletEnabled ? (
           /*
@@ -302,7 +316,7 @@ export default function TransactionsScreen() {
            * Mode Tanpa Wallet Internal: disembunyikan saat flag false.
            */
           <PressableScale
-            onPress={() => router.push(ROUTES.wallet)}
+            onPress={handleWalletPress}
             accessibilityRole="button"
             accessibilityLabel={
               typeof walletBalance === "number"
@@ -327,11 +341,11 @@ export default function TransactionsScreen() {
           accessibilityHint={
             filtered ? translate("Filter aktif, ketuk untuk mengubah") : translate("Ketuk untuk memfilter")
           }
-          onPress={() => setSheetOpen(true)}
+          onPress={handleFilterSheetOpen}
         />
       </View>
     ),
-    [walletBalance, filtered, walletEnabled],
+    [walletBalance, filtered, walletEnabled, handleWalletPress, handleFilterSheetOpen],
   )
 
   /**
@@ -369,9 +383,7 @@ export default function TransactionsScreen() {
               variant="secondary"
               size="sm"
               fullWidth={false}
-              onPress={() => {
-                setStatus(ALL_STATUS)
-              }}
+              onPress={handleClearStatusFilter}
             >
               Hapus filter
             </Button>
@@ -379,7 +391,7 @@ export default function TransactionsScreen() {
             <Button
               size="sm"
               fullWidth={false}
-              onPress={() => router.push(ROUTES.createTransaction)}
+              onPress={handleCreateTransactionPress}
             >
               Buat tautan pembayaran
             </Button>
@@ -387,7 +399,7 @@ export default function TransactionsScreen() {
             <Button
               size="sm"
               fullWidth={false}
-              onPress={() => router.push(ROUTES.showcase)}
+              onPress={handleShowcasePress}
             >
               Lihat etalase
             </Button>
@@ -395,7 +407,7 @@ export default function TransactionsScreen() {
         }
       />
     ),
-    [filtered, role],
+    [filtered, role, handleClearStatusFilter, handleCreateTransactionPress, handleShowcasePress],
   )
   /**
    * G-03 (audit escrow 2026-09-24): N kartu yang countdown tenggatnya habis
