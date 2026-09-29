@@ -804,10 +804,11 @@ function NotificationsScreen() {
         renderItem={renderNotificationRow}
       />
 
+      {/* FE-099: judul "Notifikasi" dihapus — menduplikasi judul layar;
+          sheet opsi berdiri tanpa judul. */}
       <ActionSheet
         visible={menuOpen}
         onRequestClose={() => setMenuOpen(false)}
-        title="Notifikasi"
         actions={hasRead ? menuActions : menuActions.filter((a) => a.key !== "delete-read")}
       />
 
@@ -817,11 +818,7 @@ function NotificationsScreen() {
             ? "Hapus notifikasi yang sudah dibaca?"
             : translate("Hapus {x} notifikasi?", { x: selectedCount })
         }
-        description={
-          confirm === "delete-read"
-            ? "Semua notifikasi yang sudah dibaca akan dihapus dari daftar."
-            : "Notifikasi yang dipilih akan dihapus dari daftar."
-        }
+        // FE-100: description mengulang judul dialog — dihapus (§9 aturan 2).
         visible={confirm !== null}
         destructive
         loading={batchBusy}
