@@ -59,7 +59,6 @@ export function CreateSheet() {
       visible={open}
       onRequestClose={closeCreateSheet}
       title={translate("Buat baru")}
-      description={translate("Pilih yang mau Anda kerjakan.")}
       actions={CREATE_SHEET_ITEMS}
     />
   )
