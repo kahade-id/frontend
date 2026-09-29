@@ -104,7 +104,6 @@
   "Tidak ada pesan yang cocok dengan kata kunci itu.": "No messages match that keyword.",
   "Top-up belum dibayar — {x}": "Unpaid top-up — {x}",
   "Ubah nomor HP akun": "Change account phone number",
-  "Ulas sekarang": "Review now",
   "Versi baru Kahade tersedia": "A new version of Kahade is available",
   "Ya, sudah saya simpan": "Yes, I've saved them",
   "Yakin sudah menyimpan kode cadangan?": "Are you sure you've saved the backup codes?",
@@ -116,5 +115,6 @@
   "{x} komentar": "{x} comment",
   "{x} pesan dihapus": "{x} messages deleted",
   "{x} pesan dipilih": "{x} messages selected",
-  "{x} pesan diteruskan": "{x} messages forwarded"
+  "{x} pesan diteruskan": "{x} messages forwarded",
+  "Maksimal {x} hari setelah transaksi selesai.": "Up to {x} days after the transaction is completed."
 }
