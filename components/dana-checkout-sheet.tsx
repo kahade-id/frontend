@@ -14,7 +14,7 @@ import { View } from "react-native"
 
 import type { OrderPaymentMethod } from "@/lib/api/orders"
 import { useDanaIntent } from "@/lib/use-dana-intent"
-import { toCheckoutMethodItems } from "@/lib/dana-payment"
+import { toCheckoutMethodItems, type DanaMethodKind } from "@/lib/dana-payment"
 import { cn } from "@/lib/cn"
 import { translate } from "@/lib/i18n"
 import { useToast } from "@/components/ui/toast"
@@ -31,6 +31,18 @@ import { Text } from "@/components/ui/text"
 
 /** Bundle siklus intent — sama untuk order & langganan. */
 export type DanaIntentBundle = ReturnType<typeof useDanaIntent>
+
+/**
+ * Petunjuk satu baris per jenis metode — membuat pilihan jelas tanpa
+ * penjelasan panjang (standar desain minimalis). Hanya presentasi; tidak
+ * memengaruhi metode apa pun.
+ */
+const METHOD_KIND_HINT: Record<DanaMethodKind, string | null> = {
+  qris: "Pindai dengan aplikasi apa pun",
+  bank: "Kode bayar sesuai bank pilihan",
+  ewallet: "Otorisasi di aplikasi DANA",
+  balance: null,
+}
 
 export type DanaCheckoutSheetProps = {
   open: boolean
@@ -196,6 +208,11 @@ export function DanaCheckoutSheet({
                           </Text>
                         ) : null}
                       </Text>
+                      {METHOD_KIND_HINT[item.kind] ? (
+                        <Text variant="caption" tone="secondary">
+                          {METHOD_KIND_HINT[item.kind]}
+                        </Text>
+                      ) : null}
                     </View>
                     <View
                       className={cn(
@@ -210,6 +227,9 @@ export function DanaCheckoutSheet({
               })}
             </View>
             {methodAction}
+            <Text variant="caption" tone="secondary" style={{ textAlign: "center" }}>
+              Pembayaran diproses aman oleh DANA
+            </Text>
           </>
         ) : selectedMethod && intent.qrString ? (
           /* QRIS (DANA) */

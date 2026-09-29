@@ -59,7 +59,7 @@ export const DANA_PAYMENT_METHODS_FALLBACK: readonly OrderPaymentMethod[] = [
     category: "va",
     enabled: true,
   },
-  { id: "DANA", code: "DANA", name: "DANA", category: "ewallet", enabled: true },
+  { id: "DANA", code: "DANA", name: "Saldo DANA", category: "ewallet", enabled: true },
 ]
 
 const KAHADE_WALLET_METHOD: OrderPaymentMethod = {
