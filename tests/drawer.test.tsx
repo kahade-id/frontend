@@ -27,6 +27,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { ThemeProvider } from "@/components/theme-provider"
 import { AppDrawer } from "@/components/ui/app-drawer"
+import { PortalProvider } from "@/components/ui/portal"
 import {
   closeDrawer,
   isDrawerOpen,
@@ -55,7 +56,9 @@ vi.mock("@/lib/api", () => ({
 function renderDrawer() {
   return render(
     <ThemeProvider>
-      <AppDrawer />
+      <PortalProvider>
+        <AppDrawer />
+      </PortalProvider>
     </ThemeProvider>,
   )
 }

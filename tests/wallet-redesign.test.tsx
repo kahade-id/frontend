@@ -240,7 +240,7 @@ describe("<WalletHeroCard> + useUiPrefs", () => {
     expect(screen.getByText("Saldo Tersedia")).toBeTruthy()
     expect(screen.getByText(formatRupiah(BALANCE))).toBeTruthy()
     expect(screen.getByText(formatRupiah(HELD))).toBeTruthy()
-    expect(screen.getByText("ditahan di escrow")).toBeTruthy()
+    expect(screen.getByText("Ditahan di escrow")).toBeTruthy()
   })
 
   it("mata menyembunyikan saldo dan menulis prefs.balanceHidden", async () => {
@@ -271,7 +271,7 @@ describe("<WalletHeroCard> + useUiPrefs", () => {
   it("sub-baris escrow disembunyikan bila tidak ada dana tertahan", async () => {
     renderThemed(<HeroWithPrefs available={BALANCE} />)
     await waitFor(() => expect(screen.getByText(formatRupiah(BALANCE))).toBeTruthy())
-    expect(screen.queryByText("ditahan di escrow")).toBeNull()
+    expect(screen.queryByText("Ditahan di escrow")).toBeNull()
   })
 
   it("loading menampilkan skeleton, bukan angka", () => {
@@ -342,7 +342,7 @@ describe("<WalletScreen>", () => {
     renderScreen()
     await waitFor(() => expect(screen.getByText(formatRupiah(2_500_000))).toBeTruthy())
     expect(screen.getByText(formatRupiah(150_000))).toBeTruthy()
-    expect(screen.getByText("ditahan di escrow")).toBeTruthy()
+    expect(screen.getByText("Ditahan di escrow")).toBeTruthy()
   })
 
   it("holdBalance diprioritaskan di atas escrowBalance", async () => {
