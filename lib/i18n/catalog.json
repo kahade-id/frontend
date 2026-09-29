@@ -2483,6 +2483,10 @@
    "n": 3
   },
   {
+   "s": "Geser baris ke kanan untuk menyemat, ke kiri untuk mengarsip atau menghapus",
+   "n": 3
+  },
+  {
    "s": "Gulir feed ke posisi paling atas",
    "n": 3
   },
@@ -3155,6 +3159,10 @@
    "n": 3
   },
   {
+   "s": "Lihat lampiran bukti {x}",
+   "n": 3
+  },
+  {
    "s": "Lihat penyimpan",
    "n": 3
   },
@@ -3176,6 +3184,10 @@
   },
   {
    "s": "Lihat semua",
+   "n": 3
+  },
+  {
+   "s": "Lihat semua notifikasi",
    "n": 3
   },
   {
@@ -4083,10 +4095,6 @@
    "n": 3
   },
   {
-   "s": "Tampilkan semua notifikasi",
-   "n": 3
-  },
-  {
    "s": "Tampilkan waktu pasti",
    "n": 3
   },
@@ -4512,10 +4520,6 @@
   },
   {
    "s": "{x} disalin",
-   "n": 2
-  },
-  {
-   "s": "{x} ditahan sebagai jaminan transaksi. Ketuk untuk melihat rincian pesanan penahan.",
    "n": 2
   },
   {
@@ -5408,6 +5412,14 @@
   },
   {
    "s": "Ditagih setiap bulan",
+   "n": 2
+  },
+  {
+   "s": "Ditahan di escrow",
+   "n": 2
+  },
+  {
+   "s": "Ditahan di escrow: {x}. Ketuk untuk melihat rincian.",
    "n": 2
   },
   {
@@ -6520,6 +6532,14 @@
   },
   {
    "s": "Lihat sebagai galeri",
+   "n": 2
+  },
+  {
+   "s": "Lihat semua ({x})",
+   "n": 2
+  },
+  {
+   "s": "Lihat semua {x} template",
    "n": 2
   },
   {
@@ -7864,14 +7884,6 @@
   },
   {
    "s": "Tampilkan saldo",
-   "n": 2
-  },
-  {
-   "s": "Tampilkan semua ({x})",
-   "n": 2
-  },
-  {
-   "s": "Tampilkan semua {x} template",
    "n": 2
   },
   {
@@ -13191,11 +13203,7 @@
    "n": 1
   },
   {
-   "s": "Ditahan di escrow",
-   "n": 1
-  },
-  {
-   "s": "ditahan sebagai jaminan transaksi",
+   "s": "Ditahan di escrow untuk pesanan yang belum selesai — cair otomatis kalau pesanan selesai atau batal.",
    "n": 1
   },
   {
@@ -13435,7 +13443,15 @@
    "n": 1
   },
   {
+   "s": "Escrow manual ribet",
+   "n": 1
+  },
+  {
    "s": "Escrow otomatis",
+   "n": 1
+  },
+  {
+   "s": "Escrow otomatis · Etalase sosial",
    "n": 1
   },
   {
@@ -16863,7 +16879,7 @@
    "n": 1
   },
   {
-   "s": "Menampilkan penjelasan saldo tersedia, ditahan sebagai jaminan transaksi, dan total",
+   "s": "Menampilkan penjelasan saldo tersedia, dana ditahan di escrow, dan total",
    "n": 1
   },
   {
@@ -19379,14 +19395,6 @@
    "n": 1
   },
   {
-   "s": "Rekber manual ribet",
-   "n": 1
-  },
-  {
-   "s": "Rekber otomatis · Etalase sosial",
-   "n": 1
-  },
-  {
    "s": "Rekening Bank",
    "n": 1
   },
@@ -21535,10 +21543,6 @@
    "n": 1
   },
   {
-   "s": "Uang jaminan untuk pesanan yang belum selesai — cair otomatis kalau pesanan selesai atau batal.",
-   "n": 1
-  },
-  {
    "s": "Uang pembeli ditahan dulu — penjual tidak bisa kabur bawa uang.",
    "n": 1
   },
@@ -22159,16 +22163,8 @@
    "n": 1
   },
   {
-   "s": "yang bisa dipakai sekarang",
-   "n": 1
-  },
-  {
    "s": "Zona Berbahaya",
    "n": 1
-  },
-  {
-   "s": "Terlalu banyak percobaan. Tunggu beberapa saat sebelum mencoba lagi.",
-   "n": 3
   }
  ]
 }
