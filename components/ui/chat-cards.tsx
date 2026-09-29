@@ -134,7 +134,7 @@ export const ChatProductCard = memo(function ChatProductCard({
               }`}
             >
               <Text variant="caption" weight={700} tone="inverse">
-                Beli
+                Beli via Escrow
               </Text>
             </Pressable>
           ) : null}

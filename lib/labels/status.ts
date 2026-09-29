@@ -38,17 +38,17 @@ export type StatusKind = "order" | "dispute" | "kyc" | "ticket" | "subscription"
 
 /** Label status pesanan. Kunci = enum backend (lihat lib/api/orders). */
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
-  WAITING_CONFIRMATION: "Menunggu konfirmasi",
+  WAITING_CONFIRMATION: "Menunggu konfirmasi penjual",
   WAITING_PAYMENT: "Menunggu pembayaran",
   PROCESSING: "Diproses penjual",
   IN_DELIVERY: "Dalam pengiriman",
   COMPLETED: "Selesai",
   DISPUTED: "Sengketa",
   CANCELLED: "Dibatalkan",
-  PENDING_PAYMENT: "Menunggu pembayaran",
+  PENDING_PAYMENT: "Pembayaran diproses",
   PAID: "Dana di escrow",
-  SHIPPED: "Dalam pengiriman",
-  DELIVERED: "Menunggu konfirmasi",
+  SHIPPED: "Paket dikirim",
+  DELIVERED: "Konfirmasi penerimaan",
   REFUNDED: "Dana dikembalikan",
   EXPIRED: "Kedaluwarsa",
 }

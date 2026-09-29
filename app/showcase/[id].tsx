@@ -887,7 +887,7 @@ function ShowcaseDetailContent({
                       : undefined
                 }
               >
-                {translate("Buat Transaksi")}
+                {translate("Beli via Escrow")}
               </Button>
             </View>
           ) : null}

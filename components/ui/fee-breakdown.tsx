@@ -94,6 +94,12 @@ export type FeeBreakdownProps = Omit<ViewProps, "children" | "role"> & {
   sellerGets?: number
   loading?: boolean
   /**
+   * T2-004: tampilkan baris "Ongkir" (tanpa mengubah kalkulasi total) untuk
+   * barang fisik — biaya kirim tidak ditagih lewat escrow, jadi total di
+   * layar TIDAK boleh dibaca sebagai total seluruh kewajiban.
+   */
+  showShippingNote?: boolean
+  /**
    * Iterasi de-card 2026-09-27: `bare` me-render baris-baris invoice TANPA
    * bungkus <Card> — dipakai layar detail order yang sudah punya
    * <SectionHeader>. Konsumen lain (invoice, review transaksi) tidak berubah.
@@ -114,6 +120,7 @@ export function FeeBreakdown({
   sellerGets,
   loading = false,
   bare = false,
+  showShippingNote = false,
   labels,
   className,
   ...rest
@@ -185,6 +192,14 @@ export function FeeBreakdown({
         <KeyValue
           label={voucherCode ? `${t.voucher} · ${voucherCode}` : t.voucher}
           value={<Amount value={-discount} size="body" sign="auto" tone="success" />}
+        />
+      ) : null}
+      {/* T2-004: ongkir TIDAK masuk total — baris informasi saja. */}
+      {showShippingNote ? (
+        <KeyValue
+          label={translate("Ongkir")}
+          value={translate("Disepakati di luar aplikasi")}
+          hint={translate("Biaya kirim belum termasuk. Sepakati dengan penjual sebelum bayar.")}
         />
       ) : null}
 

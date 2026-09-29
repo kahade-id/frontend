@@ -514,6 +514,7 @@ export function OrderSecondaryActions({
   canReturn,
   returnIsPrimary,
   submitting,
+  shippingOverdue,
   onOpenSheet,
 }: {
   order: Order
@@ -531,10 +532,33 @@ export function OrderSecondaryActions({
    */
   returnIsPrimary: boolean
   submitting: boolean
+  /**
+   * T2-006: true bila penjual melewati batas kirim — tampilkan banner
+   * proaktif "Penjual melewati batas kirim" agar jalur bantuan menemukan
+   * user, bukan sebaliknya.
+   */
+  shippingOverdue?: boolean
   onOpenSheet: (sheet: "dispute" | "cancel") => void
 }) {
   return (
-    <View className="flex-row flex-wrap gap-2">
+    <>
+      {/* T2-006: banner proaktif saat penjual melewati batas kirim. */}
+      {shippingOverdue && canDispute && !isDisputed ? (
+        <View className="mb-2 gap-2 rounded-lg bg-warning-soft p-3">
+          <Text variant="body" weight={600} tone="primary">
+            Penjual melewati batas kirim
+          </Text>
+          <Button
+            variant="secondary"
+            size="sm"
+            leftIcon={ShieldWarning}
+            onPress={() => onOpenSheet("dispute")}
+          >
+            Laporkan masalah
+          </Button>
+        </View>
+      ) : null}
+      <View className="flex-row flex-wrap gap-2">
       {/* H-08 (audit escrow 2026-09-24): invoice "belum diterbitkan" untuk
           WAITING_CONFIRMATION dan CANCELLED — tombol disembunyikan, bukan
           membuka layar struk kosong. */}
@@ -592,12 +616,12 @@ export function OrderSecondaryActions({
         </Button>
       ) : canDispute ? (
         <Button
-          variant="ghost"
+          variant="secondary"
           size="sm"
           leftIcon={ShieldWarning}
           onPress={() => onOpenSheet("dispute")}
         >
-          Ajukan sengketa
+          Laporkan masalah
         </Button>
       ) : null}
       {canReturn && !returnIsPrimary ? (
@@ -616,6 +640,7 @@ export function OrderSecondaryActions({
         </Button>
       ) : null}
     </View>
+    </>
   )
 }
 
@@ -633,6 +658,8 @@ export function OrderConfirmDialogs({
   onCompleteConfirm,
   onCompleteClose,
   escrowAmount,
+  acceptSellerAmount,
+  acceptFeeNote,
 }: {
   acceptOpen: boolean
   acceptLoading: boolean
@@ -649,6 +676,14 @@ export function OrderConfirmDialogs({
   onCompleteClose: () => void
   /** TRX-020: nominal dana escrow yang akan dilepas ke penjual — wajib tampil. */
   escrowAmount?: number
+  /**
+   * T2-008: nominal bersih yang diterima penjual (dari `fee.sellerReceives`
+   * di layar) — keputusan finansial menerima beban biaya tidak boleh
+   * diambil tanpa melihat angkanya.
+   */
+  acceptSellerAmount?: number
+  /** T2-008: catatan siapa menanggung biaya layanan. */
+  acceptFeeNote?: string
 }) {
   return (
     <>
@@ -666,7 +701,30 @@ export function OrderConfirmDialogs({
         onConfirm={onAcceptConfirm}
         onCancel={onAcceptClose}
         onRequestClose={onAcceptClose}
-      />
+      >
+        {/* T2-008: blok nominal di dialog terima pesanan — pola sama seperti
+            dialog konfirmasi terima (TRX-020). */}
+        {typeof acceptSellerAmount === "number" && Number.isFinite(acceptSellerAmount) ? (
+          <View
+            className="mt-3 rounded-md border border-border bg-surface p-4"
+            accessible
+            accessibilityRole="text"
+            accessibilityLabel={`Anda akan menerima: ${formatRupiah(acceptSellerAmount)}${acceptFeeNote ? ` (${acceptFeeNote})` : ""}`}
+          >
+            <Text variant="caption" tone="secondary">
+              Anda akan menerima
+            </Text>
+            <Text variant="h2" weight={700} tone="primary" className="tabular-nums">
+              {formatRupiah(acceptSellerAmount)}
+            </Text>
+            {acceptFeeNote ? (
+              <Text variant="caption" tone="secondary">
+                ({acceptFeeNote})
+              </Text>
+            ) : null}
+          </View>
+        ) : null}
+      </Dialog>
 
       <Dialog
         title="Buat ulang QRIS?"

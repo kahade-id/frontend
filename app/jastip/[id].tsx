@@ -264,7 +264,7 @@ export default function JastipDetailScreen() {
     try {
       const t = await api.commerce.failJastipTrip(id, failReason.trim() || undefined)
       if (t) setTrip(t)
-      toast.show({ title: translate("Trip ditandai gagal — refund otomatis diproses"), tone: "warning" })
+      toast.show({ title: translate("Trip ditandai gagal — pengembalian dana otomatis diproses"), tone: "warning" })
       setFailOpen(false)
     } catch (err) {
       toast.show({ title: translate("Gagal menandai trip"), description: userMessage(err), tone: "danger" })
@@ -492,7 +492,7 @@ export default function JastipDetailScreen() {
 
           {isHost && (trip.status === "OPEN" || trip.status === "CLOSED") ? (
             <Button variant="destructive" fullWidth loading={failing} onPress={() => setFailOpen(true)}>
-              {translate("Gagal dapat barang — refund otomatis")}
+              {translate("Gagal dapat barang — pengembalian dana otomatis")}
             </Button>
           ) : null}
         </View>
@@ -648,11 +648,11 @@ export default function JastipDetailScreen() {
 
       <Dialog
         title={translate("Tandai trip gagal?")}
-        description={translate("Semua peserta yang sudah bayar akan mendapat refund otomatis.")}
+        description={translate("Semua peserta yang sudah bayar akan mendapat pengembalian dana otomatis.")}
         visible={failOpen}
         destructive
         loading={failing}
-        confirmLabel={translate("Ya, refund otomatis")}
+        confirmLabel={translate("Ya, pengembalian dana otomatis")}
         cancelLabel={translate("Batal")}
         onConfirm={() => void handleFail()}
         onCancel={() => setFailOpen(false)}

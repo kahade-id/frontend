@@ -38,7 +38,7 @@ type Mode = "direct" | "link"
 
 const MODE_ITEMS: { value: Mode; label: string }[] = [
   { value: "direct", label: "Lawan tertentu" },
-  { value: "link", label: "Order Link" },
+  { value: "link", label: "Tautan pesanan" },
 ]
 
 /** Langkah 0: cara membuat + peran pengguna pada transaksi. */
@@ -67,6 +67,15 @@ export function CreateIntroStep({
             ? "Buat tautan yang bisa dibagikan; siapa pun yang membuka dan menyetujui menjadi lawan transaksi."
             : "Transaksi langsung dikirim ke pengguna Kahade yang Anda tentukan."}
         </Text>
+        {/* T2-007: tautan bersifat bearer — peringatkan risikonya. */}
+        {mode === "link" ? (
+          <Alert tone="warning" className="mt-2">
+            <Text variant="caption" tone="primary">
+              Tautan ini seperti kunci: hanya bagikan ke orang yang Anda maksud. Siapa pun yang
+              membuka tautan bisa menjadi lawan transaksi Anda.
+            </Text>
+          </Alert>
+        ) : null}
       </FormSection>
 
       <FormSection title="Peran Anda" divider>
@@ -165,6 +174,7 @@ export function FeeServiceSection({
   voucherDiscount,
   feeLoading,
   onOpenSchedule,
+  showShippingNote,
 }: {
   feeResponsibility: "BUYER" | "SELLER" | "SPLIT"
   onChangeFeeResponsibility: (value: "BUYER" | "SELLER" | "SPLIT") => void
@@ -175,6 +185,8 @@ export function FeeServiceSection({
   voucherDiscount?: number
   feeLoading: boolean
   onOpenSchedule: () => void
+  /** T2-004: teruskan ke <FeeBreakdown> — baris ongkir untuk barang fisik. */
+  showShippingNote?: boolean
 }) {
   return (
     <FormSection title="Biaya layanan">
@@ -203,6 +215,7 @@ export function FeeServiceSection({
           buyerPays={fee.buyerPays}
           sellerGets={fee.sellerReceives}
           loading={feeLoading}
+          showShippingNote={showShippingNote}
         />
       ) : (
         <Text variant="body" tone="secondary">
