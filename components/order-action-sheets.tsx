@@ -25,16 +25,11 @@ import { CANCEL_REASONS, DISPUTE_CATEGORIES, type DisputeCategoryValue } from "@
 import { formatRupiah } from "@/lib/format"
 import { translate } from "@/lib/i18n"
 import { useOrderPayment } from "@/lib/use-order-payment"
-import {
-  isWalletCheckoutMethod,
-  toCheckoutMethodItems,
-} from "@/lib/dana-payment"
+import { isWalletCheckoutMethod } from "@/lib/dana-payment"
 import { hasSeenCoachMark, markCoachMarkSeen } from "@/lib/coach-mark"
 import { ROUTES } from "@/lib/routes"
 import { validateTrackingInput } from "@/lib/wallet-batch139"
 import { useWalletEnabled } from "@/lib/use-wallet-enabled"
-import { cn } from "@/lib/cn"
-import { useToast } from "@/components/ui/toast"
 import type { SubmitDisputeDto } from "@/lib/api/types"
 
 import { BottomSheet } from "@/components/ui/bottom-sheet"
@@ -44,11 +39,7 @@ import { Field } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { Dialog } from "@/components/ui/modal"
 import { PinInput } from "@/components/ui/pin-input"
-import { QrisPaymentPanel } from "@/components/qris-payment-panel"
-import { DanaRedirectPanel, VaPaymentPanel } from "@/components/dana-payment-panel"
-import { Icon } from "@/components/ui/icon"
-import { paymentMethodKindIcon } from "@/components/ui/payment-method-selector"
-import { PressableScale } from "@/components/ui/pressable-scale"
+import { DanaCheckoutSheet } from "@/components/dana-checkout-sheet"
 import { Radio, RadioGroup } from "@/components/ui/radio"
 import { ReasonPicker, type ReasonValue } from "@/components/ui/reason-picker"
 import { Text } from "@/components/ui/text"
@@ -114,8 +105,6 @@ export function OrderPaymentSheet({
   /** Deep link ke topup; kembali ke sheet setelah sukses (diurus pemanggil). */
   onTopup: () => void
 }) {
-  const intent = payment.intent
-  const toast = useToast()
   /**
    * FE-114: definisi escrow satu kalimat — tampil SEKALI di sheet bayar
    * order pertama user, lalu tidak pernah lagi (flag persisten per
@@ -137,34 +126,6 @@ export function OrderPaymentSheet({
       alive = true
     }
   }, [open ])
-  const handleCheckStatus = () => {
-    // N-07 (audit escrow 2026-09-24): "Cek status sekarang" memberi umpan
-    // balik hasil — dulu hanya diam (atau `pollError` bila gagal), pengguna
-    // tidak tahu status sudah dicek.
-    void payment.syncStatus().then((s) => {
-      if (s == null) return
-      toast.show({
-        title:
-          s === "PAID"
-            ? "Pembayaran diterima"
-            : s === "PENDING"
-              ? "Status diperbarui — belum terbayar"
-              : // M-32 (audit end-to-end, issue #78): enum mentah ("EXPIRED",
-                // "UNKNOWN", …) tidak dipaparkan ke user.
-                s === "EXPIRED"
-              ? "Kode bayar sudah kedaluwarsa"
-              : s === "FAILED"
-                ? "Pembayaran gagal"
-                : s === "CANCELLED"
-                  ? "Pembayaran dibatalkan"
-                  : s === "UNKNOWN"
-                    ? "Status belum pasti — cek lagi sebentar lagi"
-                    : "Status diperbarui",
-        tone: s === "PAID" ? "success" : "info",
-        duration: 2500,
-      })
-    })
-  }
   // U5-010/U5-011 (UX-deep 2026-09-29): saldo < tagihan → banner inline +
   // CTA "Isi Saldo" (cabang saldo) dan hint metode DANA (cabang DANA).
   // Kondisinya persisten sehingga banner ikut tampil pasca-gagal bayar —
@@ -173,211 +134,93 @@ export function OrderPaymentSheet({
     walletBalance != null && feeBuyerPays != null && walletBalance < feeBuyerPays
   const shortfall = insufficientBalance ? feeBuyerPays! - walletBalance! : 0
   const isBalance = selectedMethod != null && isWalletCheckoutMethod(selectedMethod.code)
-  const checkoutItems = toCheckoutMethodItems(paymentMethods)
+
+  const methodAction = isBalance ? (
+    <>
+      {insufficientBalance ? (
+        <Alert
+          tone="warning"
+          title={translate("Saldo belum cukup")}
+          action={
+            <Button size="sm" variant="secondary" onPress={onTopup}>
+              {translate("Isi Saldo")}
+            </Button>
+          }
+        >
+          <Text variant="caption" tone="secondary">
+            {translate("Saldo Anda {balance} — kurang {short}.", {
+              balance: formatRupiah(walletBalance ?? 0),
+              short: formatRupiah(shortfall),
+            })}
+          </Text>
+        </Alert>
+      ) : null}
+      <Text variant="body" tone="secondary">
+        Masukkan PIN dompet untuk membayar dari saldo Kahade.
+      </Text>
+      <PinInput
+        mode="enter"
+        onComplete={onPayPin}
+        errorText={pinError}
+        // R2 (audit ronde-2, butir #32): TANPA rincian biaya terverifikasi
+        // (`fee.buyerPays`) PIN HARUS mati — pembayaran buta (otorisasi
+        // nominal yang tak pernah dilihat) dilarang, bukan cuma diperingatkan.
+        disabled={submitting || feeBuyerPays == null}
+      />
+    </>
+  ) : selectedMethod ? (
+    <>
+      {insufficientBalance ? (
+        <Text variant="caption" tone="secondary">
+          {translate("Saldo belum cukup — bayar langsung lewat {m}.", {
+            m: selectedMethod.name,
+          })}
+        </Text>
+      ) : null}
+      <Button loading={payment.creating} onPress={onCreateIntent}>
+        {translate("Bayar dengan {m}", { m: selectedMethod.name })}
+      </Button>
+    </>
+  ) : null
+
   return (
-    <BottomSheet
-      avoidKeyboard
-      visible={open}
-      onRequestClose={onClose}
+    <DanaCheckoutSheet
+      open={open}
+      onClose={onClose}
       title="Pembayaran"
       description={
         feeBuyerPays != null
           ? translate("Total {x} masuk ke escrow Kahade.", { x: formatRupiah(feeBuyerPays) })
           : "Total pembayaran belum terkonfirmasi. Muat ulang rincian biaya sebelum membayar."
       }
-    >
-      <View className="gap-4">
-        {showEscrowDef ? (
+      topExtra={
+        showEscrowDef ? (
           <Text variant="caption" tone="secondary">
             Escrow = dana ditahan Kahade, baru diteruskan ke penjual setelah Anda konfirmasi terima.
           </Text>
-        ) : null}
-        {methodsLoading ? (
-          <Text variant="body" tone="secondary">
-            Memuat metode pembayaran…
+        ) : undefined
+      }
+      methods={paymentMethods}
+      selectedMethod={selectedMethod}
+      onSelectMethod={onSelectMethod}
+      methodsLoading={methodsLoading}
+      methodsError={methodsError}
+      onRetryMethods={onRetryMethods}
+      payment={payment}
+      methodAction={methodAction}
+      intentTopExtra={
+        insufficientBalance && payment.intent?.qrString ? (
+          <Text variant="caption" tone="secondary">
+            {translate("Saldo belum cukup — QRIS bisa langsung dari m-banking.")}
           </Text>
-        ) : methodsError ? (
-          <Alert
-            tone="danger"
-            title="Gagal memuat metode pembayaran"
-            action={
-              <Button size="sm" variant="secondary" onPress={onRetryMethods}>
-                {translate("Coba lagi")}
-              </Button>
-            }
-          >
-            <Text variant="caption" tone="secondary">
-              {methodsError}
-            </Text>
-          </Alert>
-        ) : checkoutItems.length === 0 ? (
-          <Alert tone="warning" title="Tidak ada metode pembayaran tersedia">
-            <Text variant="caption" tone="secondary">
-              Coba lagi nanti atau hubungi penjual.
-            </Text>
-          </Alert>
-        ) : intent == null ? (
-          <>
-            <View
-              accessibilityRole="radiogroup"
-              accessibilityLabel="Metode pembayaran"
-              className="gap-2"
-            >
-              {checkoutItems.map((item) => {
-                const active = selectedMethod?.code === item.id
-                return (
-                  <PressableScale
-                    key={item.id}
-                    accessibilityRole="radio"
-                    accessibilityState={{ checked: active }}
-                    accessibilityLabel={item.name}
-                    disabled={payment.creating}
-                    onPress={() => onSelectMethod(item.id)}
-                    className={cn(
-                      "flex-row items-center gap-3 rounded-2xl border px-4 py-3",
-                      active ? "border-primary bg-primary/5" : "border-border",
-                    )}
-                  >
-                    <Icon
-                      icon={paymentMethodKindIcon[item.kind]}
-                      size="md"
-                      tone={active ? "active" : "default"}
-                    />
-                    <View className="flex-1 gap-0.5">
-                      <Text variant="body" tone="primary">
-                        {item.name}
-                        {item.recommended ? (
-                          <Text variant="caption" tone="primary">
-                            {" "}
-                            · Disarankan
-                          </Text>
-                        ) : null}
-                      </Text>
-                    </View>
-                    <View
-                      className={cn(
-                        "h-5 w-5 items-center justify-center rounded-full border",
-                        active ? "border-primary" : "border-border",
-                      )}
-                    >
-                      {active ? <View className="h-2.5 w-2.5 rounded-full bg-primary" /> : null}
-                    </View>
-                  </PressableScale>
-                )
-              })}
-            </View>
-            {isBalance ? (
-              <>
-                {insufficientBalance ? (
-                  <Alert
-                    tone="warning"
-                    title={translate("Saldo belum cukup")}
-                    action={
-                      <Button size="sm" variant="secondary" onPress={onTopup}>
-                        {translate("Isi Saldo")}
-                      </Button>
-                    }
-                  >
-                    <Text variant="caption" tone="secondary">
-                      {translate("Saldo Anda {balance} — kurang {short}.", {
-                        balance: formatRupiah(walletBalance ?? 0),
-                        short: formatRupiah(shortfall),
-                      })}
-                    </Text>
-                  </Alert>
-                ) : null}
-                <Text variant="body" tone="secondary">
-                  Masukkan PIN dompet untuk membayar dari saldo Kahade.
-                </Text>
-                <PinInput
-                  mode="enter"
-                  onComplete={onPayPin}
-                  errorText={pinError}
-                  // R2 (audit ronde-2, butir #32): TANPA rincian biaya terverifikasi
-                  // (`fee.buyerPays`) PIN HARUS mati — pembayaran buta (otorisasi
-                  // nominal yang tak pernah dilihat) dilarang, bukan cuma diperingatkan.
-                  disabled={submitting || feeBuyerPays == null}
-                />
-              </>
-            ) : selectedMethod ? (
-              <>
-                {insufficientBalance ? (
-                  <Text variant="caption" tone="secondary">
-                    {translate("Saldo belum cukup — bayar langsung lewat {m}.", {
-                      m: selectedMethod.name,
-                    })}
-                  </Text>
-                ) : null}
-                <Button loading={payment.creating} onPress={onCreateIntent}>
-                  {translate("Bayar dengan {m}", { m: selectedMethod.name })}
-                </Button>
-              </>
-            ) : null}
-          </>
-        ) : selectedMethod && intent.qrString ? (
-          /* QRIS (DANA) — panel yang sama seperti jalur lama. */
-          <>
-            {insufficientBalance ? (
-              <Text variant="caption" tone="secondary">
-                {translate("Saldo belum cukup — QRIS bisa langsung dari m-banking.")}
-              </Text>
-            ) : null}
-            <QrisPaymentPanel
-              qrString={intent.qrString}
-              amount={intent.amount}
-              expiresAt={intent.expiresAt}
-              status={payment.status}
-              pollError={payment.pollError}
-              pollStopped={payment.stopped}
-              submitting={submitting || payment.creating}
-              copied={copied}
-              onCopy={onCopy}
-              onExpire={payment.expireLocally}
-              onRecreate={onRequestRecreate}
-              onUseOtherMethod={onUseOtherMethod}
-              onCheckStatus={handleCheckStatus}
-              checking={payment.syncing}
-            />
-          </>
-        ) : selectedMethod && intent.vaNumber ? (
-          <VaPaymentPanel
-            vaNumber={intent.vaNumber}
-            vaBankName={intent.vaBankName}
-            accountName={intent.accountName}
-            amount={intent.amount}
-            expiresAt={intent.expiresAt}
-            copied={copied}
-            onCopy={onCopy}
-            instructions={intent.instructions}
-            status={payment.status}
-            pollError={payment.pollError}
-            pollStopped={payment.stopped}
-            submitting={submitting || payment.creating}
-            checking={payment.syncing}
-            onExpire={payment.expireLocally}
-            onRecreate={onRequestRecreate}
-            onCheckStatus={handleCheckStatus}
-            onUseOtherMethod={onUseOtherMethod}
-          />
-        ) : selectedMethod ? (
-          <DanaRedirectPanel
-            methodName={selectedMethod.name}
-            amount={intent.amount}
-            redirectUrl={intent.redirectUrl}
-            expiresAt={intent.expiresAt}
-            status={payment.status}
-            pollError={payment.pollError}
-            pollStopped={payment.stopped}
-            submitting={submitting || payment.creating}
-            checking={payment.syncing}
-            onExpire={payment.expireLocally}
-            onRecreate={onRequestRecreate}
-            onCheckStatus={handleCheckStatus}
-            onUseOtherMethod={onUseOtherMethod}
-          />
-        ) : null}
-      </View>
-    </BottomSheet>
+        ) : undefined
+      }
+      copied={copied}
+      onCopy={onCopy}
+      onRequestRecreate={onRequestRecreate}
+      onUseOtherMethod={onUseOtherMethod}
+      emptyMethodsExtra=" atau hubungi penjual."
+    />
   )
 }
 
