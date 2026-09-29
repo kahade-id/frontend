@@ -34,6 +34,7 @@ import { serverNow } from "@/lib/server-time"
 import { tokens } from "@/lib/tokens"
 import { usePolling } from "@/lib/use-polling"
 import { useApiQuery } from "@/lib/use-api-query"
+import { useWalletGate } from "@/lib/use-wallet-enabled"
 import { assertDeviceNotCompromised } from "@/lib/device-integrity"
 import { recordPendingAction, resolvePendingAction, toEpochMs } from "@/lib/pending-actions"
 import { Alert } from "@/components/ui/alert"
@@ -66,6 +67,7 @@ import { shareReceipt } from "@/components/receipt/shareReceipt"
 import { useReceiptQr } from "@/components/receipt/use-receipt-qr"
 import { makeReceiptId, type ReceiptStatus } from "@/lib/receipt"
 import { useToast } from "@/components/ui/toast"
+import { WalletDisabledScreen } from "@/components/ui/wallet-disabled"
 import { mapValue } from "@/lib/has-own"
 import { translate } from "@/lib/i18n/translate"
 
@@ -89,6 +91,9 @@ function isTopupMethod(value: string | null): value is TopupDto["method"] {
 type Step = "amount" | "method" | "result"
 
 export default function TopupScreen() {
+  // Mode Tanpa Wallet Internal (BI-safe): flag false = layar diganti
+  // <WalletDisabledScreen/> (deep link ikut tertutup).
+  const walletGate = useWalletGate()
   const router = useRouter()
   const insets = useSafeAreaInsets()
   const toast = useToast()
@@ -382,6 +387,10 @@ export default function TopupScreen() {
       else router.replace(ROUTES.wallet)
     }
   }, [goBack, router])
+
+  if (walletGate === "off") {
+    return <WalletDisabledScreen />
+  }
 
   return (
     // SEC-404 (selective): layar top-up menampilkan nominal + kode bayar —

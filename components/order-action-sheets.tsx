@@ -28,6 +28,7 @@ import { useQrisPayment } from "@/lib/use-qris-payment"
 import { hasSeenCoachMark, markCoachMarkSeen } from "@/lib/coach-mark"
 import { ROUTES } from "@/lib/routes"
 import { validateTrackingInput } from "@/lib/wallet-batch139"
+import { useWalletEnabled } from "@/lib/use-wallet-enabled"
 import { useToast } from "@/components/ui/toast"
 import type { SubmitDisputeDto } from "@/lib/api/types"
 
@@ -603,6 +604,9 @@ export function OrderSecondaryActions({
   submitting: boolean
   onOpenSheet: (sheet: "dispute" | "cancel") => void
 }) {
+  // Mode Tanpa Wallet Internal (BI-safe): tombol "Lihat mutasi dana"
+  // disembunyikan saat kill-switch dompet mati.
+  const walletEnabled = useWalletEnabled()
   return (
     <>
       <View className="flex-row flex-wrap gap-2">
@@ -633,13 +637,17 @@ export function OrderSecondaryActions({
         // dulu hanya punya badge — pengguna tidak tahu harus berbuat apa
         // setelah dananya kembali. Dua jalur keluar eksplisit: buat
         // transaksi baru, atau periksa mutasi pengembalian dana.
+        // Mode Tanpa Wallet Internal (BI-safe): tombol "Lihat mutasi dana"
+        // disembunyikan saat kill-switch dompet mati.
         <>
           <Button variant="secondary" size="sm" onPress={() => router.push(ROUTES.createTransaction)}>
             Buat transaksi baru
           </Button>
-          <Button variant="secondary" size="sm" onPress={() => router.push(ROUTES.walletHistory)}>
-            Lihat mutasi dana
-          </Button>
+          {walletEnabled ? (
+            <Button variant="secondary" size="sm" onPress={() => router.push(ROUTES.walletHistory)}>
+              Lihat mutasi dana
+            </Button>
+          ) : null}
         </>
       ) : null}
       {canExtend ? (

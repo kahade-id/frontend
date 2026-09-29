@@ -76,6 +76,7 @@ import { api, type WalletTransaction } from "@/lib/api"
 import { formatNumber } from "@/lib/format"
 import { ROUTES } from "@/lib/routes"
 import { byTimestampDesc, usePaginatedQuery } from "@/lib/use-paginated-query"
+import { useWalletGate } from "@/lib/use-wallet-enabled"
 import { WALLET_TXN_FILTERS, walletTransactionType } from "@/lib/wallet-labels"
 import { useWalletExport } from "@/lib/use-wallet-export"
 import {
@@ -104,6 +105,7 @@ import { Icon } from "@/components/ui/icon"
 import { IconButton } from "@/components/ui/icon-button"
 import { PaginatedList } from "@/components/ui/paginated-list"
 import { Screen } from "@/components/ui/screen"
+import { WalletDisabledScreen } from "@/components/ui/wallet-disabled"
 import { ScrollRow } from "@/components/ui/scroll-row"
 import { Skeleton, SkeletonGroup } from "@/components/ui/skeleton"
 import { Text } from "@/components/ui/text"
@@ -193,6 +195,9 @@ const WalletHistoryDayGroup = memo(function WalletHistoryDayGroup({
 })
 
 export default function WalletHistoryScreen() {
+  // Mode Tanpa Wallet Internal (BI-safe): flag false = layar blokir
+  // (deep link ikut tertutup).
+  const walletGate = useWalletGate()
   const insets = useSafeAreaInsets()
   const [filters, setFilters] = useState<WalletHistoryFilters>(DEFAULT_HISTORY_FILTERS)
   const [sheetOpen, setSheetOpen] = useState(false)
@@ -293,6 +298,11 @@ export default function WalletHistoryScreen() {
         n: formatNumber(items.length),
       })
     : translate("{n} mutasi dimuat", { n: formatNumber(items.length) })
+
+  // Mode Tanpa Wallet Internal (BI-safe): flag false = layar blokir.
+  if (walletGate === "off") {
+    return <WalletDisabledScreen />
+  }
 
   return (
     // SEC-404 (selective): riwayat mutasi menampilkan nominal dana —

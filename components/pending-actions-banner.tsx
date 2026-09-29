@@ -32,6 +32,7 @@ import {
   type PendingAction,
 } from "@/lib/pending-actions"
 import { ROUTES } from "@/lib/routes"
+import { useWalletEnabled } from "@/lib/use-wallet-enabled"
 import { serverNow } from "@/lib/server-time"
 import { useAuthSession } from "@/lib/use-auth-session"
 import { cn } from "@/lib/cn"
@@ -129,6 +130,10 @@ export function PendingActionsBanner() {
   const { token } = useAuthSession()
   const actions = usePendingActions()
   const [dismissed, setDismissed] = useState<Set<string>>(new Set())
+  // Mode Tanpa Wallet Internal (BI-safe): aksi dompet yang tidak lagi bisa
+  // diselesaikan (top-up, transfer) disembunyikan — hanya penarikan (jalur
+  // saldo lama) & pembayaran order yang tetap ditampilkan.
+  const walletEnabled = useWalletEnabled()
 
   const visible = useMemo(() => {
     // E-03 (audit 2026-09-22): `expiresAt` datang dari respons server (domain
@@ -140,8 +145,13 @@ export function PendingActionsBanner() {
     return actions
       .filter((a) => !a.expiresAt || a.expiresAt > now)
       .filter((a) => !dismissed.has(actionKey(a)))
+      .filter(
+        (a) =>
+          walletEnabled ||
+          (a.kind !== "topup-unpaid" && a.kind !== "transfer-uncertain"),
+      )
       .sort((a, b) => (a.expiresAt ?? Infinity) - (b.expiresAt ?? Infinity))
-  }, [actions, dismissed])
+  }, [actions, dismissed, walletEnabled])
 
   if (!token || visible.length === 0) return null
   const primary = visible[0]

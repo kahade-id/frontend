@@ -8,6 +8,7 @@ import type { WalletTransaction } from "@/lib/api/wallet"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 import { byTimestampDesc, usePaginatedQuery } from "@/lib/use-paginated-query"
+import { useWalletGate } from "@/lib/use-wallet-enabled"
 import { useToast } from "@/components/ui/toast"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Button } from "@/components/ui/button"
@@ -15,6 +16,7 @@ import { Header } from "@/components/ui/header"
 import { Dialog } from "@/components/ui/modal"
 import { PaginatedList } from "@/components/ui/paginated-list"
 import { Screen } from "@/components/ui/screen"
+import { WalletDisabledScreen } from "@/components/ui/wallet-disabled"
 import { WalletTransactionRow } from "@/components/ui/wallet-transaction-row"
 
 type WalletHistoryRowProps = {
@@ -62,6 +64,9 @@ const WalletHistoryRow = memo(function WalletHistoryRow({
 })
 
 export function WalletHistoryScreen({ kind }: { kind: "topup" | "withdraw" }) {
+  // Mode Tanpa Wallet Internal (BI-safe): flag false = layar blokir
+  // (mencakup route /topup-history & /withdraw-history).
+  const walletGate = useWalletGate()
   const router = useRouter()
   const toast = useToast()
   const insets = useSafeAreaInsets()
@@ -128,6 +133,11 @@ export function WalletHistoryScreen({ kind }: { kind: "topup" | "withdraw" }) {
     ),
     [kind, openTransaction, requestCancel],
   )
+
+  // Mode Tanpa Wallet Internal (BI-safe): flag false = layar blokir.
+  if (walletGate === "off") {
+    return <WalletDisabledScreen />
+  }
 
   return (
     <Screen edges={["top"]} padded={false}>

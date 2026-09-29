@@ -7,6 +7,10 @@
  *
  * Isi: tiga aksi "membuat sesuatu" yang paling sering dipakai. Dikelompokkan
  * di satu sheet karena ketiganya bukan TEMPAT (tab) melainkan aksi sesekali.
+ *
+ * Data aksi (label/deskripsi/href) hidup di `lib/create-sheet-items.ts`
+ * (modul murni, bisa di-unit-test); komponen ini hanya memetakan ikon
+ * Phosphor + handler navigasi.
  */
 import { router } from "expo-router"
 import { CardsThree, Lightning, Wallet } from "phosphor-react-native"
@@ -17,36 +21,50 @@ import {
   useCreateSheetOpen,
 } from "@/lib/create-sheet"
 import { useLanguage, translate } from "@/lib/i18n"
-import { ROUTES } from "@/lib/routes"
+import {
+  CREATE_SHEET_ITEMS_META,
+  getCreateSheetItemsMeta,
+  type CreateSheetItemMeta,
+} from "@/lib/create-sheet-items"
+import { useWalletEnabled } from "@/lib/use-wallet-enabled"
+import type { IconComponent } from "@/components/ui/icon"
+
+const CREATE_SHEET_ICONS: Record<CreateSheetItemMeta["icon"], IconComponent> = {
+  showcase: CardsThree,
+  transaction: Lightning,
+  topup: Wallet,
+}
 
 /**
  * Item sheet "Buat baru". Dipindah dari bottom-tab-bar (2026-09-28) agar
  * reusable dari header Etalase & drawer — bottom-tab-bar me-re-export
  * `CENTER_ACTION_ITEMS` untuk kompatibilitas.
+ *
+ * Kompat: snapshot statis (flag dompet NYALA). Pemakaian baru: rakit dari
+ * `getCreateSheetItemsMeta(walletEnabled)` + `toActionSheetItem`.
  */
-export const CREATE_SHEET_ITEMS: readonly ActionSheetItem[] = [
-  {
-    key: "create-showcase",
-    label: "Buat Karya",
-    description: "Unggah karya atau produk baru ke etalase Anda",
-    icon: CardsThree,
-    onPress: () => router.push(ROUTES.showcaseCreate),
-  },
-  {
-    key: "create-transaction",
-    label: "Buat transaksi",
-    description: "Jual atau beli dengan dana dijaga escrow",
-    icon: Lightning,
-    onPress: () => router.push(ROUTES.createTransaction),
-  },
-  {
-    key: "topup",
-    label: "Isi saldo dompet",
-    description: "Top up lewat bank, QRIS, atau gerai ritel",
-    icon: Wallet,
-    onPress: () => router.push(ROUTES.topup),
-  },
-]
+export const CREATE_SHEET_ITEMS: readonly ActionSheetItem[] = CREATE_SHEET_ITEMS_META.map(
+  toActionSheetItem,
+)
+
+function toActionSheetItem(meta: CreateSheetItemMeta): ActionSheetItem {
+  return {
+    key: meta.key,
+    label: meta.label,
+    description: meta.description,
+    icon: CREATE_SHEET_ICONS[meta.icon],
+    onPress: () => router.push(meta.href),
+  }
+}
+
+/**
+ * Mode Tanpa Wallet Internal (BI-safe): item sheet yang sadar kill-switch —
+ * flag false = aksi "Isi saldo dompet" disembunyikan (top-up tidak ada
+ * dalam mode ini; bayar langsung per transaksi via DANA).
+ */
+export function getCreateSheetItems(walletEnabled: boolean): readonly ActionSheetItem[] {
+  return getCreateSheetItemsMeta(walletEnabled).map(toActionSheetItem)
+}
 
 /** Kompat: nama lama yang dipakai shell-tab-bar/bottom-tab-bar. */
 export const CENTER_ACTION_ITEMS = CREATE_SHEET_ITEMS
@@ -54,12 +72,13 @@ export const CENTER_ACTION_ITEMS = CREATE_SHEET_ITEMS
 export function CreateSheet() {
   useLanguage()
   const open = useCreateSheetOpen()
+  const walletEnabled = useWalletEnabled()
   return (
     <ActionSheet
       visible={open}
       onRequestClose={closeCreateSheet}
       title={translate("Buat baru")}
-      actions={CREATE_SHEET_ITEMS}
+      actions={getCreateSheetItems(walletEnabled)}
     />
   )
 }

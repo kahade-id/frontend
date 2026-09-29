@@ -57,6 +57,7 @@ import { ListItem } from "@/components/ui/list-item"
 import { SectionHeader } from "@/components/ui/section"
 import { SegmentedControl } from "@/components/ui/segmented-control"
 import { useToast } from "@/components/ui/toast"
+import { useWalletEnabled } from "@/lib/use-wallet-enabled"
 
 const DEFAULT_PERIOD: AnalyticsPeriod = "30d"
 
@@ -96,6 +97,9 @@ function orderCsvRow(order: Order): Array<string | number | null> {
 
 export default function AnalyticsScreen() {
   const toast = useToast()
+  // Mode Tanpa Wallet Internal (BI-safe): baris riwayat dompet/top-up/
+  // penarikan disembunyikan saat kill-switch mati.
+  const walletEnabled = useWalletEnabled()
 
   const [period, setPeriod] = useState<AnalyticsPeriod>(DEFAULT_PERIOD)
   const query = useApiQuery(`analytics:${period}`, (signal) =>
@@ -300,27 +304,35 @@ export default function AnalyticsScreen() {
       {/* ── Riwayat & laporan ─────────────────────────────── */}
       <SectionHeader title="Riwayat" level="h3" />
       <View className="w-full overflow-hidden bg-surface">
-        <ListItem
-          title="Riwayat dompet"
-          titleVariant="bodyLarge"
-          leading={WalletIcon}
-          chevron
-          href={ROUTES.walletHistory}
-        />
-        <ListItem
-          title="Riwayat top-up"
-          titleVariant="bodyLarge"
-          leading={ArrowCircleDown}
-          chevron
-          href={ROUTES.topupHistory}
-        />
-        <ListItem
-          title="Riwayat penarikan"
-          titleVariant="bodyLarge"
-          leading={ArrowCircleUp}
-          chevron
-          href={ROUTES.withdrawHistory}
-        />
+        {/*
+         * Mode Tanpa Wallet Internal (BI-safe): baris riwayat dompet hanya
+         * tampil saat kill-switch dompet nyala.
+         */}
+        {walletEnabled ? (
+          <>
+            <ListItem
+              title="Riwayat dompet"
+              titleVariant="bodyLarge"
+              leading={WalletIcon}
+              chevron
+              href={ROUTES.walletHistory}
+            />
+            <ListItem
+              title="Riwayat top-up"
+              titleVariant="bodyLarge"
+              leading={ArrowCircleDown}
+              chevron
+              href={ROUTES.topupHistory}
+            />
+            <ListItem
+              title="Riwayat penarikan"
+              titleVariant="bodyLarge"
+              leading={ArrowCircleUp}
+              chevron
+              href={ROUTES.withdrawHistory}
+            />
+          </>
+        ) : null}
         <ListItem
           title="Semua transaksi"
           titleVariant="bodyLarge"

@@ -19,6 +19,7 @@ import { formatRupiah, formatDate, formatRelativeTime, maskAccountNumber } from 
 import { queryKeys } from "@/lib/query-keys"
 import { ROUTES } from "@/lib/routes"
 import { useApiQuery } from "@/lib/use-api-query"
+import { useWalletGate } from "@/lib/use-wallet-enabled"
 import { tokens } from "@/lib/tokens"
 
 import { BottomSheet } from "@/components/ui/bottom-sheet"
@@ -36,9 +37,13 @@ import { Select, SelectOptionList } from "@/components/ui/select"
 import { Text } from "@/components/ui/text"
 import { useToast } from "@/components/ui/toast"
 import { WithdrawalScheduleCard } from "@/components/ui/withdrawal-schedule-card"
+import { WalletDisabledScreen } from "@/components/ui/wallet-disabled"
 import { translate } from "@/lib/i18n/translate"
 
 export default function WithdrawalSchedulesScreen() {
+  // Mode Tanpa Wallet Internal (BI-safe): flag false = layar blokir
+  // (deep link ikut tertutup).
+  const walletGate = useWalletGate()
   const insets = useSafeAreaInsets()
   const toast = useToast()
 
@@ -231,6 +236,11 @@ export default function WithdrawalSchedulesScreen() {
       setDeleting(false)
     }
   }, [deleteTarget, toast.show, query])
+
+  // Mode Tanpa Wallet Internal (BI-safe): flag false = layar blokir.
+  if (walletGate === "off") {
+    return <WalletDisabledScreen />
+  }
 
   return (
     <Screen edges={["top"]} padded={false}>

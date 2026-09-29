@@ -40,6 +40,7 @@
 
 import { queryKeys } from "@/lib/query-keys"
 import { useHasSession } from "@/lib/guest-gate"
+import { useWalletGate } from "@/lib/use-wallet-enabled"
 import { useApiQuery } from "@/lib/use-api-query"
 import { byTimestampDesc, usePaginatedQuery } from "@/lib/use-paginated-query"
 import { PaginatedList } from "@/components/ui/paginated-list"
@@ -128,6 +129,7 @@ import { Alert } from "@/components/ui/alert"
 import { ListLoading } from "@/components/ui/paginated-list"
 import { ErrorState } from "@/components/ui/error-state"
 import { GuestLoginPrompt } from "@/components/web-guest-gate"
+import { WalletDisabledScreen } from "@/components/ui/wallet-disabled"
 import { WalletHeroCard } from "@/components/wallet/wallet-hero-card"
 import { WalletPrimaryActions, WalletQuickMenu } from "@/components/wallet/wallet-menu"
 
@@ -146,6 +148,10 @@ const RECENT_LIMIT = 10
 // ------------------------------------------------------------------
 
 export default function WalletScreen() {
+  // Mode Tanpa Wallet Internal (BI-safe): kill-switch terpusat — flag false =
+  // SELURUH layar dompet diganti <WalletDisabledScreen/> (deep link ikut
+  // tertutup). Kode dompet tetap ada, hanya digate.
+  const walletGate = useWalletGate()
   // J-05 (audit): preferensi "sembunyikan saldo" dibagi dengan Beranda.
   // R1-002: selector per-key — tulis preferensi lain tidak me-render ulang layar ini.
   const balanceHidden = useUiPref("balanceHidden")
@@ -242,6 +248,12 @@ export default function WalletScreen() {
         <GuestLoginPrompt bare next="/wallet" />
       </Screen>
     )
+  }
+
+  // Kill-switch dompet (BI-safe): tamu tetap melihat ajakan masuk di atas;
+  // yang login melihat layar blokir, bukan konten dompet.
+  if (walletGate === "off") {
+    return <WalletDisabledScreen />
   }
 
   return (
