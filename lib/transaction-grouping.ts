@@ -12,7 +12,7 @@
  *
  * TIDAK menyentuh nilai apa pun — hanya mengelompokkan referensi item.
  */
-import { formatDate, formatDateLong } from "@/lib/format"
+import { formatDateLong } from "@/lib/format"
 import { wibCalendarDay } from "@/lib/wallet-history-grouping"
 import { translate } from "@/lib/i18n/translate"
 
@@ -22,8 +22,6 @@ export type OrderDayGroup<T> = {
   id: string
   /** "Hari ini" / "Kemarin" / "Senin, 8 September 2026". */
   label: string
-  /** Sub-label tanggal pendek untuk "Hari ini"/"Kemarin" ("8 Sep 2026"). */
-  sub: string | null
   /** Jumlah order di kelompok ini (untuk "N transaksi"). */
   count: number
   /** Order-order hari itu, urutan masuk dipertahankan (sudah diurut server). */
@@ -58,7 +56,9 @@ export function groupOrdersByDay<T extends { id: string; createdAt: string }>(
             : wib
               ? formatDateLong(wib.date)
               : translate("Tanggal tidak tersedia"),
-        sub: isToday || isYesterday ? (wib ? formatDate(wib.date) : null) : null,
+        // FE-089: sub tanggal pendek dihapus — "Hari ini"/"Kemarin" tidak
+        // perlu tanggal, hari lama sudah memakai tanggal panjang sebagai
+        // label. Hasil: "Hari ini · N transaksi".
         count: 0,
         orders: [],
       }

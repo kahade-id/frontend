@@ -2,7 +2,8 @@
  * Redesign tab Transaksi 2026-09-27 — pengelompokan order per hari (murni).
  *
  * Mengunci lib/transaction-grouping.ts:
- *  1. Label "Hari ini" / "Kemarin" / tanggal panjang + sub tanggal pendek.
+ *  1. Label "Hari ini" / "Kemarin" / tanggal panjang (FE-089: tanpa sub
+ *     tanggal pendek — hari lama sudah memakai tanggal panjang).
  *  2. Batas hari memakai WIB (Asia/Jakarta), bukan tanggal perangkat/UTC.
  *  3. Order se-hari menjadi satu kelompok; urutan masuk dipertahankan.
  *  4. createdAt tidak valid → kelompok "Tanggal tidak tersedia".
@@ -35,15 +36,12 @@ describe("groupOrdersByDay", () => {
     expect(groups).toHaveLength(3)
     expect(groups[0].id).toBe("txday:2026-9-27")
     expect(groups[0].label).toBe("Hari ini")
-    expect(groups[0].sub).toBeTruthy()
     expect(groups[0].orders.map((o) => o.id)).toEqual(["a"])
     expect(groups[0].count).toBe(1)
     expect(groups[1].label).toBe("Kemarin")
-    expect(groups[1].sub).toBeTruthy()
     expect(groups[2].label).toContain("2026")
     expect(groups[2].label).not.toBe("Hari ini")
     expect(groups[2].label).not.toBe("Kemarin")
-    expect(groups[2].sub).toBeNull()
   })
 
   it("batas WIB: 23:59 WIB masuk Kemarin, 00:00 WIB masuk Hari ini (bukan UTC)", () => {
