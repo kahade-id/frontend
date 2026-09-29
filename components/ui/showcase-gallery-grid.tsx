@@ -163,6 +163,11 @@ export function ShowcaseGalleryGrid({
                       bordered={false}
                       recyclingKey={item.id}
                       preventDownload
+                      // FE-081: sel di bawah viewport awal diunduh prioritas
+                      // "low" — bandwidth didahulukan ke 3 baris pertama yang
+                      // terlihat. Hanya memengaruhi penjadwalan unduhan
+                      // expo-image; tampilan tidak berubah.
+                      priority={index < columns * 3 ? undefined : "low"}
                     />
                   ) : (
                     <View

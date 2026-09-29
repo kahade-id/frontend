@@ -40,8 +40,10 @@ import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
 import { ShowcaseGalleryGrid } from "@/components/ui/showcase-gallery-grid"
 
-/** E-04: jumlah sel yang dirender per langkah (grid bertahap). */
-const GALLERY_RENDER_STEP = 60
+/** E-04: jumlah sel yang dirender per langkah (grid bertahap). FE-081: 24
+ * (bukan 60) — 60 sel mount sekaligus menghambat thread JS; pola
+ * "Tampilkan lainnya" tidak berubah. */
+const GALLERY_RENDER_STEP = 24
 
 export default function PublicShowcaseScreen() {
   // i18n: label mengikuti bahasa aktif.
