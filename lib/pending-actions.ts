@@ -11,6 +11,8 @@
  *   - withdraw-otp : { txId, amount, expiresAt } → layar Tarik Dana bisa
  *     RESUME ke langkah OTP (confirm-otp hanya butuh txId+otp).
  *   - qris-payment : { orderId } → kembali ke detail order, sheet bayar.
+ *   - order-payment : { orderId, methodName? } → sama, untuk metode DANA
+ *     non-QRIS (VA bank, DANA, …).
  *   - topup-unpaid : { paymentTxId, amount } → riwayat top-up (instruksi
  *     pembayaran tidak bisa dipulihkan penuh tanpa paymentCode dari server).
  *
@@ -49,6 +51,21 @@ export type PendingAction =
   | {
       kind: "qris-payment"
       orderId: string
+      amount: number
+      createdAt: number
+      expiresAt?: number
+    }
+  /**
+   * Mode Tanpa Wallet Internal (BI-safe): pembayaran order via metode DANA
+   * non-QRIS (VA bank, DANA, …) yang ditinggalkan sebelum lunas — banner
+   * mengarahkan kembali ke detail order (sheet bayar). `qris-payment`
+   * dipertahankan untuk kompatibilitas catatan lama.
+   */
+  | {
+      kind: "order-payment"
+      orderId: string
+      /** Nama metode untuk copy banner (mis. "Virtual Account BCA"). */
+      methodName?: string
       amount: number
       createdAt: number
       expiresAt?: number
@@ -117,7 +134,7 @@ let loadPromise: Promise<void> | null = null
 function actionKey(action: PendingAction): string {
   return action.kind === "withdraw-otp"
     ? `${action.kind}:${action.txId}`
-    : action.kind === "qris-payment"
+    : action.kind === "qris-payment" || action.kind === "order-payment"
       ? `${action.kind}:${action.orderId}`
       : action.kind === "topup-unpaid"
         ? `${action.kind}:${action.paymentTxId}`
@@ -166,6 +183,9 @@ function sanitize(raw: unknown): PendingAction[] {
       result.push({ kind: "withdraw-otp", txId: rec.txId, amount, createdAt, expiresAt })
     } else if (rec.kind === "qris-payment" && typeof rec.orderId === "string" && rec.orderId) {
       result.push({ kind: "qris-payment", orderId: rec.orderId, amount, createdAt, expiresAt })
+    } else if (rec.kind === "order-payment" && typeof rec.orderId === "string" && rec.orderId) {
+      const methodName = typeof rec.methodName === "string" ? rec.methodName : undefined
+      result.push({ kind: "order-payment", orderId: rec.orderId, methodName, amount, createdAt, expiresAt })
     } else if (
       rec.kind === "topup-unpaid" &&
       typeof rec.paymentTxId === "string" &&

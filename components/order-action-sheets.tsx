@@ -19,16 +19,21 @@ import {
   updateShipping,
   type CancelReason,
   type Order,
-  type QrisPayment,
+  type OrderPaymentMethod,
 } from "@/lib/api/orders"
 import { CANCEL_REASONS, DISPUTE_CATEGORIES, type DisputeCategoryValue } from "@/lib/labels/dispute"
 import { formatRupiah } from "@/lib/format"
 import { translate } from "@/lib/i18n"
-import { useQrisPayment } from "@/lib/use-qris-payment"
+import { useOrderPayment } from "@/lib/use-order-payment"
+import {
+  isWalletCheckoutMethod,
+  toCheckoutMethodItems,
+} from "@/lib/dana-payment"
 import { hasSeenCoachMark, markCoachMarkSeen } from "@/lib/coach-mark"
 import { ROUTES } from "@/lib/routes"
 import { validateTrackingInput } from "@/lib/wallet-batch139"
 import { useWalletEnabled } from "@/lib/use-wallet-enabled"
+import { cn } from "@/lib/cn"
 import { useToast } from "@/components/ui/toast"
 import type { SubmitDisputeDto } from "@/lib/api/types"
 
@@ -40,68 +45,76 @@ import { Input } from "@/components/ui/input"
 import { Dialog } from "@/components/ui/modal"
 import { PinInput } from "@/components/ui/pin-input"
 import { QrisPaymentPanel } from "@/components/qris-payment-panel"
+import { DanaRedirectPanel, VaPaymentPanel } from "@/components/dana-payment-panel"
+import { Icon } from "@/components/ui/icon"
+import { paymentMethodKindIcon } from "@/components/ui/payment-method-selector"
+import { PressableScale } from "@/components/ui/pressable-scale"
 import { Radio, RadioGroup } from "@/components/ui/radio"
 import { ReasonPicker, type ReasonValue } from "@/components/ui/reason-picker"
-import { SegmentedControl } from "@/components/ui/segmented-control"
 import { Text } from "@/components/ui/text"
 import { TextArea } from "@/components/ui/text-area"
 import { TransactionProgressOverlay } from "@/components/ui/transaction-progress-overlay"
 
-type PayMethod = "balance" | "qris"
-const PAY_METHODS: { value: PayMethod; label: string }[] = [
-  { value: "balance", label: "Saldo Kahade" },
-  { value: "qris", label: "QRIS" },
-]
-
-type QrisBundle = ReturnType<typeof useQrisPayment>
+type PaymentBundle = ReturnType<typeof useOrderPayment>
 
 export function OrderPaymentSheet({
   open,
   onClose,
   feeBuyerPays,
-  payMethod,
-  onChangePayMethod,
+  paymentMethods,
+  selectedMethod,
+  onSelectMethod,
+  methodsLoading,
+  methodsError,
+  onRetryMethods,
+  payment,
   submitting,
   pinError,
   onPayPin,
-  qrisPayment,
-  qrisStatus,
-  pollError,
   copied,
   onCopy,
   onRequestRecreate,
   onUseOtherMethod,
-  onShowQris,
+  onCreateIntent,
   walletBalance,
   onTopup,
 }: {
   open: boolean
   onClose: () => void
   feeBuyerPays: number | null | undefined
-  payMethod: PayMethod
-  onChangePayMethod: (method: PayMethod) => void
+  /**
+   * Mode Tanpa Wallet Internal (BI-safe): daftar metode dari backend DANA
+   * (`GET /v1/orders/{id}/payment-methods`), bukan hardcode. Saldo Kahade
+   * hanya ada di daftar bila kill-switch dompet NYALA.
+   */
+  paymentMethods: OrderPaymentMethod[]
+  selectedMethod: OrderPaymentMethod | null
+  onSelectMethod: (code: string) => void
+  methodsLoading: boolean
+  methodsError: string | null
+  onRetryMethods: () => void
+  /** Siklus intent DANA (lib/use-order-payment.ts) untuk metode terpilih. */
+  payment: PaymentBundle
+  /** Submitting PIN saldo (cabang dompet saja). */
   submitting: boolean
   pinError: string | undefined
   onPayPin: (pin: string) => void
-  qrisPayment: QrisBundle
-  qrisStatus: QrisBundle["status"]
-  pollError: QrisBundle["pollError"]
   copied: boolean
   onCopy: (value: string) => void
   onRequestRecreate: () => void
   onUseOtherMethod: () => void
-  onShowQris: () => void
+  onCreateIntent: () => void
   /**
    * U5-010/U5-011 (UX-deep 2026-09-29): saldo dompet saat sheet dibuka
-   * (null = belum termuat) — untuk banner inline "saldo kurang" + tombol
-   * "Isi Saldo" dan hint metode QRIS. Murni tampilan; PIN tetap wajib
-   * untuk bayar via saldo.
+   * (null = belum termuat / dompet mati) — untuk banner inline "saldo
+   * kurang" + tombol "Isi Saldo". Murni tampilan; PIN tetap wajib untuk
+   * bayar via saldo.
    */
   walletBalance?: number | null
   /** Deep link ke topup; kembali ke sheet setelah sukses (diurus pemanggil). */
   onTopup: () => void
 }) {
-  const qris: QrisPayment | null = qrisPayment.qris
+  const intent = payment.intent
   const toast = useToast()
   /**
    * FE-114: definisi escrow satu kalimat — tampil SEKALI di sheet bayar
@@ -121,14 +134,14 @@ export function OrderPaymentSheet({
       }
     })
     return () => {
-      alive = false
+      alive = true
     }
   }, [open ])
   const handleCheckStatus = () => {
     // N-07 (audit escrow 2026-09-24): "Cek status sekarang" memberi umpan
     // balik hasil — dulu hanya diam (atau `pollError` bila gagal), pengguna
     // tidak tahu status sudah dicek.
-    void qrisPayment.syncStatus().then((s) => {
+    void payment.syncStatus().then((s) => {
       if (s == null) return
       toast.show({
         title:
@@ -139,26 +152,28 @@ export function OrderPaymentSheet({
               : // M-32 (audit end-to-end, issue #78): enum mentah ("EXPIRED",
                 // "UNKNOWN", …) tidak dipaparkan ke user.
                 s === "EXPIRED"
-                ? "QRIS sudah kedaluwarsa"
-                : s === "FAILED"
-                  ? "Pembayaran gagal"
-                  : s === "CANCELLED"
-                    ? "Pembayaran dibatalkan"
-                    : s === "UNKNOWN"
-                      ? "Status belum pasti — cek lagi sebentar lagi"
-                      : "Status diperbarui",
+              ? "Kode bayar sudah kedaluwarsa"
+              : s === "FAILED"
+                ? "Pembayaran gagal"
+                : s === "CANCELLED"
+                  ? "Pembayaran dibatalkan"
+                  : s === "UNKNOWN"
+                    ? "Status belum pasti — cek lagi sebentar lagi"
+                    : "Status diperbarui",
         tone: s === "PAID" ? "success" : "info",
         duration: 2500,
       })
     })
   }
   // U5-010/U5-011 (UX-deep 2026-09-29): saldo < tagihan → banner inline +
-  // CTA "Isi Saldo" (cabang saldo) dan hint QRIS (cabang QRIS). Kondisinya
-  // persisten sehingga banner ikut tampil pasca-gagal bayar — dead-end
-  // "saldo tidak cukup" selalu punya jalan keluar di titik bayar.
+  // CTA "Isi Saldo" (cabang saldo) dan hint metode DANA (cabang DANA).
+  // Kondisinya persisten sehingga banner ikut tampil pasca-gagal bayar —
+  // dead-end "saldo tidak cukup" selalu punya jalan keluar di titik bayar.
   const insufficientBalance =
     walletBalance != null && feeBuyerPays != null && walletBalance < feeBuyerPays
   const shortfall = insufficientBalance ? feeBuyerPays! - walletBalance! : 0
+  const isBalance = selectedMethod != null && isWalletCheckoutMethod(selectedMethod.code)
+  const checkoutItems = toCheckoutMethodItems(paymentMethods)
   return (
     <BottomSheet
       avoidKeyboard
@@ -177,49 +192,130 @@ export function OrderPaymentSheet({
             Escrow = dana ditahan Kahade, baru diteruskan ke penjual setelah Anda konfirmasi terima.
           </Text>
         ) : null}
-        <SegmentedControl<PayMethod>
-          items={PAY_METHODS}
-          accessibilityLabel="Metode pembayaran"
-          value={payMethod}
-          onChange={onChangePayMethod}
-          disabled={submitting || qris != null}
-        />
-        {payMethod === "balance" ? (
-          <>
-            {insufficientBalance ? (
-              <Alert
-                tone="warning"
-                title={translate("Saldo belum cukup")}
-                action={
-                  <Button size="sm" variant="secondary" onPress={onTopup}>
-                    {translate("Isi Saldo")}
-                  </Button>
-                }
-              >
-                <Text variant="caption" tone="secondary">
-                  {translate("Saldo Anda {balance} — kurang {short}.", {
-                    balance: formatRupiah(walletBalance ?? 0),
-                    short: formatRupiah(shortfall),
-                  })}
-                </Text>
-              </Alert>
-            ) : null}
-            <Text variant="body" tone="secondary">
-              Masukkan PIN dompet untuk membayar dari saldo Kahade.
+        {methodsLoading ? (
+          <Text variant="body" tone="secondary">
+            Memuat metode pembayaran…
+          </Text>
+        ) : methodsError ? (
+          <Alert
+            tone="danger"
+            title="Gagal memuat metode pembayaran"
+            action={
+              <Button size="sm" variant="secondary" onPress={onRetryMethods}>
+                {translate("Coba lagi")}
+              </Button>
+            }
+          >
+            <Text variant="caption" tone="secondary">
+              {methodsError}
             </Text>
-            <PinInput
-              mode="enter"
-              onComplete={onPayPin}
-              errorText={pinError}
-              // R2 (audit ronde-2, butir #32): TANPA rincian biaya terverifikasi
-              // (`fee.buyerPays`) PIN HARUS mati — pembayaran buta (otorisasi
-              // nominal yang tak pernah dilihat) dilarang, bukan cuma diperingatkan.
-              disabled={submitting || feeBuyerPays == null}
-            />
+          </Alert>
+        ) : checkoutItems.length === 0 ? (
+          <Alert tone="warning" title="Tidak ada metode pembayaran tersedia">
+            <Text variant="caption" tone="secondary">
+              Coba lagi nanti atau hubungi penjual.
+            </Text>
+          </Alert>
+        ) : intent == null ? (
+          <>
+            <View
+              accessibilityRole="radiogroup"
+              accessibilityLabel="Metode pembayaran"
+              className="gap-2"
+            >
+              {checkoutItems.map((item) => {
+                const active = selectedMethod?.code === item.id
+                return (
+                  <PressableScale
+                    key={item.id}
+                    accessibilityRole="radio"
+                    accessibilityState={{ checked: active }}
+                    accessibilityLabel={item.name}
+                    disabled={payment.creating}
+                    onPress={() => onSelectMethod(item.id)}
+                    className={cn(
+                      "flex-row items-center gap-3 rounded-2xl border px-4 py-3",
+                      active ? "border-primary bg-primary/5" : "border-border",
+                    )}
+                  >
+                    <Icon
+                      icon={paymentMethodKindIcon[item.kind]}
+                      size="md"
+                      tone={active ? "active" : "default"}
+                    />
+                    <View className="flex-1 gap-0.5">
+                      <Text variant="body" tone="primary">
+                        {item.name}
+                        {item.recommended ? (
+                          <Text variant="caption" tone="primary">
+                            {" "}
+                            · Disarankan
+                          </Text>
+                        ) : null}
+                      </Text>
+                    </View>
+                    <View
+                      className={cn(
+                        "h-5 w-5 items-center justify-center rounded-full border",
+                        active ? "border-primary" : "border-border",
+                      )}
+                    >
+                      {active ? <View className="h-2.5 w-2.5 rounded-full bg-primary" /> : null}
+                    </View>
+                  </PressableScale>
+                )
+              })}
+            </View>
+            {isBalance ? (
+              <>
+                {insufficientBalance ? (
+                  <Alert
+                    tone="warning"
+                    title={translate("Saldo belum cukup")}
+                    action={
+                      <Button size="sm" variant="secondary" onPress={onTopup}>
+                        {translate("Isi Saldo")}
+                      </Button>
+                    }
+                  >
+                    <Text variant="caption" tone="secondary">
+                      {translate("Saldo Anda {balance} — kurang {short}.", {
+                        balance: formatRupiah(walletBalance ?? 0),
+                        short: formatRupiah(shortfall),
+                      })}
+                    </Text>
+                  </Alert>
+                ) : null}
+                <Text variant="body" tone="secondary">
+                  Masukkan PIN dompet untuk membayar dari saldo Kahade.
+                </Text>
+                <PinInput
+                  mode="enter"
+                  onComplete={onPayPin}
+                  errorText={pinError}
+                  // R2 (audit ronde-2, butir #32): TANPA rincian biaya terverifikasi
+                  // (`fee.buyerPays`) PIN HARUS mati — pembayaran buta (otorisasi
+                  // nominal yang tak pernah dilihat) dilarang, bukan cuma diperingatkan.
+                  disabled={submitting || feeBuyerPays == null}
+                />
+              </>
+            ) : selectedMethod ? (
+              <>
+                {insufficientBalance ? (
+                  <Text variant="caption" tone="secondary">
+                    {translate("Saldo belum cukup — bayar langsung lewat {m}.", {
+                      m: selectedMethod.name,
+                    })}
+                  </Text>
+                ) : null}
+                <Button loading={payment.creating} onPress={onCreateIntent}>
+                  {translate("Bayar dengan {m}", { m: selectedMethod.name })}
+                </Button>
+              </>
+            ) : null}
           </>
-        ) : qris ? (
-          /* Panel QRIS diekstrak ke components/qris-payment-panel.tsx (S9):
-             state & mutasi tetap di layar ini, panel hanya presentasi. */
+        ) : selectedMethod && intent.qrString ? (
+          /* QRIS (DANA) — panel yang sama seperti jalur lama. */
           <>
             {insufficientBalance ? (
               <Text variant="caption" tone="secondary">
@@ -227,34 +323,59 @@ export function OrderPaymentSheet({
               </Text>
             ) : null}
             <QrisPaymentPanel
-              qrString={qris.qrString}
-              amount={qris.amount}
-              expiresAt={qris.expiresAt}
-              status={qrisStatus}
-              pollError={pollError}
-              pollStopped={qrisPayment.stopped}
-              submitting={submitting || qrisPayment.creating}
+              qrString={intent.qrString}
+              amount={intent.amount}
+              expiresAt={intent.expiresAt}
+              status={payment.status}
+              pollError={payment.pollError}
+              pollStopped={payment.stopped}
+              submitting={submitting || payment.creating}
               copied={copied}
               onCopy={onCopy}
-              onExpire={qrisPayment.expireLocally}
+              onExpire={payment.expireLocally}
               onRecreate={onRequestRecreate}
               onUseOtherMethod={onUseOtherMethod}
               onCheckStatus={handleCheckStatus}
-              checking={qrisPayment.syncing}
+              checking={payment.syncing}
             />
           </>
-        ) : (
-          <>
-            {insufficientBalance ? (
-              <Text variant="caption" tone="secondary">
-                {translate("Saldo belum cukup — QRIS bisa langsung dari m-banking.")}
-              </Text>
-            ) : null}
-            <Button loading={submitting || qrisPayment.creating} onPress={onShowQris}>
-              Tampilkan kode QRIS
-            </Button>
-          </>
-        )}
+        ) : selectedMethod && intent.vaNumber ? (
+          <VaPaymentPanel
+            vaNumber={intent.vaNumber}
+            vaBankName={intent.vaBankName}
+            accountName={intent.accountName}
+            amount={intent.amount}
+            expiresAt={intent.expiresAt}
+            copied={copied}
+            onCopy={onCopy}
+            instructions={intent.instructions}
+            status={payment.status}
+            pollError={payment.pollError}
+            pollStopped={payment.stopped}
+            submitting={submitting || payment.creating}
+            checking={payment.syncing}
+            onExpire={payment.expireLocally}
+            onRecreate={onRequestRecreate}
+            onCheckStatus={handleCheckStatus}
+            onUseOtherMethod={onUseOtherMethod}
+          />
+        ) : selectedMethod ? (
+          <DanaRedirectPanel
+            methodName={selectedMethod.name}
+            amount={intent.amount}
+            redirectUrl={intent.redirectUrl}
+            expiresAt={intent.expiresAt}
+            status={payment.status}
+            pollError={payment.pollError}
+            pollStopped={payment.stopped}
+            submitting={submitting || payment.creating}
+            checking={payment.syncing}
+            onExpire={payment.expireLocally}
+            onRecreate={onRequestRecreate}
+            onCheckStatus={handleCheckStatus}
+            onUseOtherMethod={onUseOtherMethod}
+          />
+        ) : null}
       </View>
     </BottomSheet>
   )
@@ -784,8 +905,8 @@ export function OrderConfirmDialogs({
       </Dialog>
 
       <Dialog
-        title="Buat ulang QRIS?"
-        description="Kode QR aktif akan dibuang dan diganti kode baru. Jika Anda sudah membayar kode lama, cek status dulu — pembayaran yang sudah masuk tetap tercatat."
+        title="Buat ulang pembayaran?"
+        description="Kode bayar aktif akan dibuang dan diganti kode baru. Jika Anda sudah membayar kode lama, cek status dulu — pembayaran yang sudah masuk tetap tercatat."
         visible={recreateOpen}
         loading={recreateLoading}
         confirmLabel="Ya, buat ulang"

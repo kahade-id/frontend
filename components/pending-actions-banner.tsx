@@ -44,7 +44,7 @@ import { Text } from "@/components/ui/text"
 function actionKey(action: PendingAction): string {
   return action.kind === "withdraw-otp"
     ? `${action.kind}:${action.txId}`
-    : action.kind === "qris-payment"
+    : action.kind === "qris-payment" || action.kind === "order-payment"
       ? `${action.kind}:${action.orderId}`
       : action.kind === "topup-unpaid"
         ? `${action.kind}:${action.paymentTxId}`
@@ -63,6 +63,18 @@ function describe(action: PendingAction): { title: string; meta?: string } {
         }),
         meta: action.expiresAt
           ? translate("QRIS berlaku sampai {x}", { x: formatDateTimeWIB(action.expiresAt) })
+          : "Periksa status pembayaran pesanan Anda",
+      }
+    case "order-payment":
+      return {
+        title: translate("Pembayaran pesanan menunggu — {x}", {
+          x: action.amount > 0 ? formatRupiah(action.amount) : "nominal belum diketahui",
+        }),
+        meta: action.expiresAt
+          ? translate("{m} berlaku sampai {x}", {
+              m: action.methodName ?? "Kode bayar",
+              x: formatDateTimeWIB(action.expiresAt),
+            })
           : "Periksa status pembayaran pesanan Anda",
       }
     case "topup-unpaid":
@@ -102,6 +114,7 @@ function describe(action: PendingAction): { title: string; meta?: string } {
 function targetOf(action: PendingAction) {
   switch (action.kind) {
     case "qris-payment":
+    case "order-payment":
       // D11 (batch 139): pulihkan ke detail order BERDASAR ID server +
       // buka ulang sheet bayar (?sheet=pay) — quote/status selalu dibaca
       // ulang dari server saat layar dibuka, bukan state lokal basi.

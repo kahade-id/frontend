@@ -52,7 +52,13 @@ import {
 import { RATING_SNOOZE_MS, isRatingSnoozed, snoozeRatingReminder, useUiPref } from "@/lib/ui-prefs"
 import { usePolling } from "@/lib/use-polling"
 import type { ConfirmCountdownInput } from "@/lib/order-confirm-countdown"
-import { useQrisPayment } from "@/lib/use-qris-payment"
+import { useOrderPayment } from "@/lib/use-order-payment"
+import {
+  resolveCheckoutPaymentMethods,
+  selectDefaultCheckoutMethod,
+  type OrderPaymentMethod,
+} from "@/lib/dana-payment"
+import { useWalletEnabled } from "@/lib/use-wallet-enabled"
 import { assertDeviceNotCompromised } from "@/lib/device-integrity"
 import { useOrderTracking } from "@/lib/use-order-tracking"
 import { useResultTimer } from "@/lib/use-result-timer"
@@ -138,8 +144,6 @@ const DISPUTE_CLAIM_MIN = 20
 const DISPUTE_CLAIM_MAX = 2000
 // G-12 (audit): kategori sengketa & alasan batal kini dari lib/labels/dispute
 // (satu sumber, ditipe dari DTO yang di-generate).
-
-type PayMethod = "balance" | "qris"
 
 type SheetKind = "pay" | "cancel" | "reject" | "dispute" | "shipping" | null
 
@@ -473,20 +477,35 @@ export default function OrderDetailScreen() {
   // Item 32: dialog konfirmasi SEBELUM dana escrow dilepas.
   const [confirmComplete, setConfirmComplete] = useState(false)
 
-  // Pembayaran
-  const [payMethod, setPayMethod] = useState<PayMethod>("balance")
+  // Pembayaran — Mode Tanpa Wallet Internal (BI-safe): metode checkout
+  // diambil dari backend DANA (`GET /v1/orders/{id}/payment-methods`), bukan
+  // hardcode. Saldo Kahade hanya muncul bila kill-switch dompet NYALA.
+  const walletEnabled = useWalletEnabled()
+  const [methodCode, setMethodCode] = useState<string | null>(null)
+  const methodsQuery = useApiQuery<{ methods: OrderPaymentMethod[]; fromFallback: boolean }>(
+    `order-payment-methods:${id}:${walletEnabled ? "w" : "nw"}`,
+    (signal) =>
+      id
+        ? resolveCheckoutPaymentMethods(id, { walletEnabled, signal })
+        : Promise.reject(new Error("order belum siap")),
+    sheet === "pay" && id != null,
+  )
+  const checkoutMethods = methodsQuery.data?.methods ?? []
+  const selectedMethod = checkoutMethods.find((m) => m.code === methodCode) ?? null
+  const methodsError = methodsQuery.error
   /**
    * U5-010/U5-011 (UX-deep 2026-09-29): saldo dompet — HANYA diambil saat
-   * sheet bayar dibuka, untuk (a) banner inline "saldo kurang" + tombol
-   * "Isi Saldo" di titik bayar, dan (b) default metode QRIS bila saldo <
-   * tagihan. Murni baca tampilan: tidak mengubah logika bayar/refund/PIN.
-   * (Ditaruh setelah `sheet`/`payMethod` dideklarasikan — hook ini memakai
+   * sheet bayar dibuka DAN dompet nyala, untuk (a) banner inline "saldo
+   * kurang" + tombol "Isi Saldo" di titik bayar, dan (b) default metode
+   * saldo bila cukup (fallback ke rekomendasi backend bila kurang).
+   * Murni baca tampilan: tidak mengubah logika bayar/refund/PIN.
+   * (Ditaruh setelah `sheet`/`methodCode` dideklarasikan — hook ini memakai
    * keduanya.)
    */
   const walletQuery = useApiQuery<Wallet>(
     `wallet-for-pay:${id}`,
     (signal) => api.wallet.getWallet(signal),
-    sheet === "pay",
+    sheet === "pay" && walletEnabled,
     // U5-010: kembali dari layar topup (push di atas layar ini; sheet tetap
     // terbuka di belakang) → saldo disegarkan supaya banner "kurang RpY"
     // langsung mencerminkan topup yang baru selesai.
@@ -494,19 +513,26 @@ export default function OrderDetailScreen() {
   )
   const walletBalance = walletQuery.data?.balance ?? null
   /**
-   * U5-011: default metode bayar = QRIS bila saldo < tagihan. Hanya
-   * auto-default — pilihan eksplisit user (payMethodTouchedRef) tidak
-   * pernah ditimpa. Flag di-reset di closeSheet supaya pembukaan
-   * berikutnya mengevaluasi ulang dari saldo terbaru.
+   * Auto-default metode: saldo cukup → Saldo Kahade; kurang/tidak ada →
+   * rekomendasi backend (biasanya QRIS). Hanya auto — pilihan eksplisit user
+   * (methodTouchedRef) tidak pernah ditimpa. Flag + pilihan di-reset di
+   * closeSheet supaya pembukaan berikutnya mengevaluasi ulang.
    */
-  const payMethodTouchedRef = useRef(false)
+  const methodTouchedRef = useRef(false)
   useEffect(() => {
-    if (sheet !== "pay" || payMethodTouchedRef.current) return
+    if (sheet !== "pay" || methodTouchedRef.current) return
+    const methods = methodsQuery.data?.methods
+    if (!methods || methods.length === 0) return
+    // Bila pilihan lama tidak ada di daftar baru (mis. daftar di-refresh),
+    // evaluasi ulang default — jangan pertahankan kode basi.
+    if (methodCode != null && methods.some((m) => m.code === methodCode)) return
     const total = fee?.buyerPays
-    if (walletBalance != null && total != null && walletBalance < total) {
-      setPayMethod("qris")
-    }
-  }, [sheet, walletBalance, fee?.buyerPays])
+    const walletOk =
+      walletEnabled && walletBalance != null && total != null && walletBalance >= total
+    const walletMethod = walletOk ? methods.find((m) => m.code === "KAHADE_WALLET") : undefined
+    const def = walletMethod ?? selectDefaultCheckoutMethod(methods)
+    if (def) setMethodCode(def.code)
+  }, [sheet, methodsQuery.data, methodCode, walletEnabled, walletBalance, fee?.buyerPays])
   /**
    * U5-010: "Isi Saldo" dari sheet bayar — dorong layar topup; tombol back
    * di sana kembali ke layar ini dengan sheet masih terbuka (state `sheet`
@@ -568,24 +594,28 @@ export default function OrderDetailScreen() {
   const completeKeyRef = useRef<string | null>(null)
 
   /**
-   * Pembayaran QRIS: intent + polling + rekonsiliasi pindah ke hook
-   * (lib/use-qris-payment.ts) supaya layar ini tidak menambah baris di atas
+   * Pembayaran DANA: intent + polling + rekonsiliasi pindah ke hook
+   * (lib/use-order-payment.ts) supaya layar ini tidak menambah baris di atas
    * plafon S9 — dan supaya A-14/A-02 punya satu tempat yang bisa diuji.
+   * Berlaku untuk SEMUA metode DANA (QRIS, VA bank, DANA); saldo internal
+   * tetap lewat jalur PIN (`handlePayPin`).
    */
-  const qrisPayment = useQrisPayment({
+  const payment = useOrderPayment({
     orderId: id ?? null,
+    methodCode: methodCode ?? "QRIS",
+    methodLabel: selectedMethod?.name,
     fallbackAmount: order?.orderValue ?? 0,
     active: sheet === "pay",
-    canCreate: order?.myRole === "BUYER",
+    canCreate: order?.myRole === "BUYER" && selectedMethod != null,
     onPaid: () => {
-      toast.show({ title: "Pembayaran QRIS diterima", tone: "success", duration: 3000 })
+      toast.show({ title: "Pembayaran diterima", tone: "success", duration: 3000 })
       closeSheet()
       void query.refresh()
     },
     onError: (message) =>
-      toast.show({ title: "Gagal membuat QRIS", description: message, tone: "danger" }),
+      toast.show({ title: "Gagal membuat pembayaran", description: message, tone: "danger" }),
   })
-  const { status: qrisStatus, pollError, creating: qrisCreating } = qrisPayment
+  const { creating: payCreating } = payment
 
   // Alasan / form
   const [cancelReason, setCancelReason] = useState<ReasonValue>({ code: undefined, note: "" })
@@ -629,14 +659,15 @@ export default function OrderDetailScreen() {
     setPinError(undefined)
     setDisputeCategory(undefined)
     // U5-011: reset penanda pilihan metode — pembukaan sheet berikutnya
-    // mengevaluasi ulang auto-default QRIS dari saldo terbaru.
-    payMethodTouchedRef.current = false
+    // mengevaluasi ulang auto-default dari daftar metode + saldo terbaru.
+    methodTouchedRef.current = false
+    setMethodCode(null)
     // D08: persetujuan total tidak berlaku untuk siklus bayar berikutnya.
     acceptedTotalRef.current = null
     pendingPinRef.current = null
     setPriceChange(null)
-    qrisPayment.reset()
-  }, [qrisPayment])
+    payment.reset()
+  }, [payment])
 
   /**
    * D11 (batch 139): resume checkout yang aman — `?sheet=pay` (dari banner
@@ -793,16 +824,16 @@ export default function OrderDetailScreen() {
   )
 
   /**
-   * Pembeli memilih "Tampilkan kode QRIS" / "Buat ulang QRIS". Seluruh logika
-   * (guard intent ganda, cap polling, rekonsiliasi kegagalan tak pasti) ada di
-   * lib/use-qris-payment.ts.
+   * Pembeli memilih "Bayar dengan {metode}". Seluruh logika (guard intent
+   * ganda, cap polling, rekonsiliasi kegagalan tak pasti) ada di
+   * lib/use-order-payment.ts.
    */
-  const handlePayQris = useCallback(() => qrisPayment.createIntent(), [qrisPayment])
+  const handleCreateIntent = useCallback(() => payment.createIntent(), [payment])
 
-  // R2 (audit ronde-2, butir #18): "Buat ulang QRIS" = ganti transaksi QRIS
-  // aktif server-side — destruktif bila pengguna baru saja membayar QR lama.
+  // R2 (audit ronde-2, butir #18): "Buat ulang" = ganti intent aktif
+  // server-side — destruktif bila pengguna baru saja membayar kode lama.
   // Wajib konfirmasi eksplisit; cabang gagal-tak-pasti sudah di hook (A-14).
-  const [confirmRecreateQris, setConfirmRecreateQris] = useState(false)
+  const [confirmRecreatePayment, setConfirmRecreatePayment] = useState(false)
 
   const openChatBusyRef = useRef(false)
   // Lacak pengiriman (Gap-D) — logika di lib/use-order-tracking.ts (S9).
@@ -1368,38 +1399,39 @@ export default function OrderDetailScreen() {
         open={sheet === "pay"}
         onClose={closeSheet}
         feeBuyerPays={fee?.buyerPays ?? null}
-        payMethod={payMethod}
-        onChangePayMethod={(v) => {
+        paymentMethods={checkoutMethods}
+        selectedMethod={selectedMethod}
+        onSelectMethod={(code) => {
           // U5-011: pilihan eksplisit — auto-default tidak boleh menimpanya.
-          payMethodTouchedRef.current = true
-          setPayMethod(v)
+          methodTouchedRef.current = true
+          setMethodCode(code)
           setPinError(undefined)
         }}
+        methodsLoading={methodsQuery.loading}
+        methodsError={methodsError}
+        onRetryMethods={() => void methodsQuery.refresh()}
+        payment={payment}
         submitting={submitting}
         pinError={pinError}
         // U5-010: banner inline "saldo kurang" + tombol "Isi Saldo".
         walletBalance={walletBalance}
         onTopup={handleTopupFromPay}
         onPayPin={(p) => void handlePayPin(p)}
-        qrisPayment={qrisPayment}
-        qrisStatus={qrisStatus}
-        pollError={pollError}
         copied={copied}
         onCopy={(value) => void copy(value)}
-        onRequestRecreate={() => setConfirmRecreateQris(true)}
+        onRequestRecreate={() => setConfirmRecreatePayment(true)}
         onUseOtherMethod={() => {
-          // R2 (audit ronde-2, butir #29/#30): lepas intent QRIS aktif —
-          // SegmentedControl terbuka lagi dan pengguna bisa pindah ke
-          // saldo/PIN. Intent di server tetap terminal-sendiri bila
-          // kedaluwarsa (reset hanya urusan klien).
-          qrisPayment.reset()
+          // R2 (audit ronde-2, butir #29/#30): lepas intent aktif — pemilih
+          // metode terbuka lagi. Intent di server tetap terminal-sendiri
+          // bila kedaluwarsa (reset hanya urusan klien).
+          payment.reset()
           toast.show({
             title: "Silakan pilih metode pembayaran lain.",
             tone: "info",
             duration: 2500,
           })
         }}
-        onShowQris={() => void handlePayQris()}
+        onCreateIntent={() => void handleCreateIntent()}
       />
 
       <OrderActionSheets
@@ -1445,13 +1477,13 @@ export default function OrderDetailScreen() {
           )
         }
         onAcceptClose={() => setConfirmAccept(false)}
-        recreateOpen={confirmRecreateQris}
-        recreateLoading={submitting || qrisCreating}
+        recreateOpen={confirmRecreatePayment}
+        recreateLoading={submitting || payCreating}
         onRecreateConfirm={() => {
-          setConfirmRecreateQris(false)
-          void handlePayQris()
+          setConfirmRecreatePayment(false)
+          void handleCreateIntent()
         }}
-        onRecreateClose={() => setConfirmRecreateQris(false)}
+        onRecreateClose={() => setConfirmRecreatePayment(false)}
         completeOpen={confirmComplete}
         completeLoading={submitting}
         onCompleteConfirm={handleCompleteOrder}
