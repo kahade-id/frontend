@@ -4,10 +4,10 @@
  * Tanggung jawab file ini (urutan boot):
  *   1. Tahan native splash (preventAutoHideAsync) — dipanggil di module scope,
  *      SEBELUM komponen mount / font mulai load, sesuai docs expo-splash-screen.
- *   2. Load font KRITIS (PlusJakartaSans, 4 file) offline via expo-font
- *      `useFonts(fontAssetsBlocking)` — ST-003: EBGaramond (392KB, teks
- *      legal) + AzeretMono dimuat LAZY setelah first paint, tidak menahan
- *      splash.
+ *   2. Load font KRITIS (PlusJakartaSans Regular/Medium) offline via expo-font
+ *      `useFonts(fontAssetsBlocking)` — ST-003 + FE-073: SemiBold/Bold,
+ *      EBGaramond (392KB, teks legal) + AzeretMono dimuat LAZY setelah first
+ *      paint, tidak menahan splash.
  *      Key = nama di `fontFamilyByWeight` (dijamin oleh `satisfies` di fonts.ts).
  *   3. Saat font siap ATAU gagal: sembunyikan native splash dan serahkan ke
  *      <AnimatedSplash> (JS overlay) yang fade-out → app terlihat.
@@ -122,9 +122,19 @@ import { translate } from "@/lib/i18n/translate"
 import { getLanguage, subscribeLanguage } from "@/lib/i18n/store"
 import { AppLockGate } from "@/components/app-lock-gate"
 import { ShellTabBar, isShellTabPath } from "@/components/ui/shell-tab-bar"
-import { AppDrawer } from "@/components/ui/app-drawer"
-import { CreateSheet } from "@/components/ui/create-sheet"
-import { drawerProgress } from "@/lib/drawer"
+// FE-075: drawer & sheet dimuat LAZY — modul beratnya (beserta seluruh
+// subtree importnya) baru diunduh/dieksekusi saat pertama dibutuhkan, bukan
+// saat boot. `lazy` SAJA tidak cukup bila komponen tetap dirender langsung
+// (import dimulai saat boot) — render di bawah di-gate oleh latch
+// `drawerNeeded`/`createSheetNeeded`.
+const AppDrawer = lazy(() =>
+  import("@/components/ui/app-drawer").then((m) => ({ default: m.AppDrawer })),
+)
+const CreateSheet = lazy(() =>
+  import("@/components/ui/create-sheet").then((m) => ({ default: m.CreateSheet })),
+)
+import { drawerProgress, useDrawerOpen } from "@/lib/drawer"
+import { useCreateSheetOpen } from "@/lib/create-sheet"
 import { useToast } from "@/components/ui/toast"
 
 export { AppErrorBoundary as ErrorBoundary } from "@/components/app-error-boundary"
@@ -191,8 +201,9 @@ function hrefToConcretePath(href: Href): string | null {
 }
 
 export default function RootLayout() {
-  // ST-003: hanya font kritis (PlusJakartaSans) yang blocking — splash tidak
-  // menunggu EBGaramond (392KB) + AzeretMono yang tidak dipakai layar pertama.
+  // ST-003 + FE-073: hanya font kritis (PlusJakartaSans Regular/Medium) yang
+  // blocking — splash tidak menunggu SemiBold/Bold, EBGaramond (392KB),
+  // maupun AzeretMono.
   const [fontsLoaded, fontError] = useFonts(fontAssetsBlocking)
 
   // Handler global telemetri (unhandled rejection + JS exception) dipasang
@@ -209,11 +220,10 @@ export default function RootLayout() {
   const ready = Platform.OS === "web" || fontsLoaded || fontError != null
   const [splashDone, setSplashDone] = useState(Platform.OS === "web")
 
-  // ST-003: font non-kritis (EBGaramond + AzeretMono) dimuat LAZY setelah
-  // first paint — fire-and-forget, tidak menahan render/splash. Gagal load
-  // tidak fatal: komponen yang memakainya fallback ke system font sampai
-  // font tersedia (pemakaian: teks legal, grafik, chat format-bar — semuanya
-  // di luar layar pertama).
+  // ST-003 + FE-073: font non-kritis (PlusJakartaSans SemiBold/Bold,
+  // EBGaramond, AzeretMono) dimuat LAZY setelah first paint — fire-and-forget,
+  // tidak menahan render/splash. Gagal load tidak fatal: komponen yang
+  // memakainya fallback ke system font sampai font tersedia.
   useEffect(() => {
     if (!ready) return
     let alive = true
@@ -342,6 +352,22 @@ function AppShellInner() {
   // Dipakai oleh efek item #24/#27 di bawah (push action + antrean offline).
   const toast = useToast()
 
+  // FE-075: latch "pernah dibutuhkan" untuk drawer & sheet. Store
+  // (useDrawerOpen/useCreateSheetOpen) ringan — langganan ini tidak memicu
+  // import modul berat. Saat store pertama dibuka, latch memasang komponen
+  // lazy (import dimulai); setelah itu komponen tetap mount agar animasi
+  // penutupan tidak terpotong dan buka-berikutnya instan.
+  const drawerOpen = useDrawerOpen()
+  const createSheetOpen = useCreateSheetOpen()
+  const [drawerNeeded, setDrawerNeeded] = useState(false)
+  const [createSheetNeeded, setCreateSheetNeeded] = useState(false)
+  useEffect(() => {
+    if (drawerOpen) setDrawerNeeded(true)
+  }, [drawerOpen])
+  useEffect(() => {
+    if (createSheetOpen) setCreateSheetNeeded(true)
+  }, [createSheetOpen])
+
   // Efek dorong konten ala X saat drawer dibuka (2026-09-27): konten sedikit
   // bergeser kanan + mengecil dengan sudut membulat, mengikuti progress
   // animasi drawer (`drawerProgress`). Reduced motion: tanpa transform.
@@ -363,6 +389,21 @@ function AppShellInner() {
   const pathname = usePathname()
   const isWebGuest = Platform.OS === "web" && !session.token
   const guestBlocked = isWebGuest && isProtectedPath(pathname)
+
+  // FE-074: koneksi socket realtime DITUNDA sampai kebutuhan chat pertama.
+  // Provider TETAP mount (layar chat mengandalkan context), tapi token hanya
+  // diteruskan setelah pengguna masuk tab/room chat (`/chat*`). Latch tetap
+  // aktif untuk sisa sesi; reset saat logout. Cold start pengguna login tidak
+  // lagi membuka socket — push foreground sudah menginvalidasi cache query,
+  // jadi data tetap segar tanpa socket di boot.
+  const [realtimeNeeded, setRealtimeNeeded] = useState(false)
+  useEffect(() => {
+    if (!session.token) {
+      setRealtimeNeeded(false)
+      return
+    }
+    if (pathname === "/chat" || pathname.startsWith("/chat/")) setRealtimeNeeded(true)
+  }, [pathname, session.token])
 
   // Satu-satunya tempat yang mendengarkan "sesi habis" dari API client
   // (client.ts memanggil emitSessionExpired saat 401 tak bisa di-refresh).
@@ -726,7 +767,7 @@ function AppShellInner() {
           saat start; saat aktif, seluruh konten diganti layar informatif
           (pesan server + tombol coba lagi), bukan crash. */}
       <MaintenanceGate>
-      <RealtimeProvider token={session.token}>
+      <RealtimeProvider token={realtimeNeeded ? session.token : null}>
       <View className="flex-1 items-center">
         {/*
           Efek dorong konten ala X saat drawer dibuka (2026-09-27):
@@ -808,10 +849,21 @@ function AppShellInner() {
           Drawer/sidebar navigasi (2026-09-27): overlay di atas konten,
           di bawah AppLockGate — kunci aplikasi tetap menutupi semuanya.
         */}
-        <AppDrawer />
-        {/* Sheet global "Buat baru" (2026-09-28): dibuka dari (+) header
-            Etalase & pensil drawer via `openCreateSheet()`. */}
-        <CreateSheet />
+        {/* FE-075: drawer/sidebar — modul berat, di-render (dan di-import)
+            hanya setelah pertama dibutuhkan. */}
+        {drawerNeeded ? (
+          <Suspense fallback={null}>
+            <AppDrawer />
+          </Suspense>
+        ) : null}
+        {/* FE-075: sheet global "Buat baru" (2026-09-28): dibuka dari (+)
+            header Etalase & pensil drawer via `openCreateSheet()` — lazy
+            seperti drawer. */}
+        {createSheetNeeded ? (
+          <Suspense fallback={null}>
+            <CreateSheet />
+          </Suspense>
+        ) : null}
         {/* A-04 (audit): kunci aplikasi (§14 re-auth setelah background >1
             menit). Dirender SETELAH konten agar menutupi seluruh tree saat
             terkunci; no-op di web dan tanpa sesi. */}

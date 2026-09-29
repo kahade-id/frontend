@@ -36,6 +36,8 @@ import { IconButton } from "@/components/ui/icon-button"
 import { Text } from "@/components/ui/text"
 import { ZoomableImage } from "@/components/ui/zoomable-image"
 import { useReducedMotion } from "@/lib/use-reduced-motion"
+import { useDataSaver } from "@/lib/ui-prefs"
+import { prefetchNeighborImages } from "@/lib/prefetch-neighbors"
 import { translate } from "@/lib/i18n/translate"
 
 export type ImageViewerItem = {
@@ -77,11 +79,23 @@ export function ImageViewer({
 }: ImageViewerProps) {
   const { width, height } = useWindowDimensions()
   const reducedMotion = useReducedMotion()
+  const dataSaver = useDataSaver()
   const listRef = useRef<FlatList<ImageViewerItem>>(null)
   const [current, setCurrent] = useState(() => Math.min(Math.max(index, 0), Math.max(images.length - 1, 0)))
   const [zoomed, setZoomed] = useState(false)
   const onIndexChangeRef = useRef(onIndexChange)
   onIndexChangeRef.current = onIndexChange
+
+  // FE-068: foto berubah → prefetch 1 tetangga (gambar saja; video dilewati,
+  // mode hemat data dihormati — lihat lib/prefetch-neighbors).
+  useEffect(() => {
+    if (!visible) return
+    prefetchNeighborImages(
+      images.map((it) => (it.kind === "video" ? undefined : it.url)),
+      current,
+      dataSaver,
+    )
+  }, [visible, current, images, dataSaver])
 
   // Buka (atau index awal berubah) → reset ke index yang diminta.
   useEffect(() => {

@@ -78,3 +78,9 @@ export const EN: Dict = {
   // saat jaringan bermasalah, jadi jangan sampai jatuh ke Bahasa Indonesia.
   ...errors,
 }
+
+// FE-072: side-effect registration — test/alat yang mengimpor `./en` langsung
+// mendapat kamus terdaftar secara sinkron; graph boot produksi TIDAK menarik
+// modul ini (kamus dimuat lewat `ensureDictionary` di dictionaries.ts).
+import { registerDictionary } from "../dictionaries"
+registerDictionary("en", EN)

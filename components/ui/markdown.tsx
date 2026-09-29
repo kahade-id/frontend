@@ -20,8 +20,9 @@
  * `[teks](url)`, dan gambar `![alt](url)` satu baris penuh.
  */
 import { useMemo, useState } from "react"
-import { Image, Linking, Pressable, View, type ViewProps } from "react-native"
+import { Linking, Pressable, View, type ViewProps } from "react-native"
 
+import { Picture } from "@/components/ui/picture"
 import { Text } from "@/components/ui/text"
 import { safeHttpsLink } from "@/lib/external-url"
 import { logWarn } from "@/lib/telemetry"
@@ -268,11 +269,13 @@ function MarkdownImage({ uri, alt }: { uri: string; alt: string }) {
   }
   return (
     <View className="gap-1">
-      <Image
-        source={{ uri }}
-        accessibilityLabel={alt || "Gambar artikel"}
+      <Picture
+        source={uri}
+        alt={alt || "Gambar artikel"}
+        aspectRatio={16 / 9}
+        radius="md"
+        bordered={false}
         resizeMode="contain"
-        style={{ width: "100%", aspectRatio: 16 / 9, borderRadius: 8 }}
         onError={() => setFailed(true)}
       />
       {alt ? (
