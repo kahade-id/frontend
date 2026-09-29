@@ -122,9 +122,19 @@ import { translate } from "@/lib/i18n/translate"
 import { getLanguage, subscribeLanguage } from "@/lib/i18n/store"
 import { AppLockGate } from "@/components/app-lock-gate"
 import { ShellTabBar, isShellTabPath } from "@/components/ui/shell-tab-bar"
-import { AppDrawer } from "@/components/ui/app-drawer"
-import { CreateSheet } from "@/components/ui/create-sheet"
-import { drawerProgress } from "@/lib/drawer"
+// FE-075: drawer & sheet dimuat LAZY — modul beratnya (beserta seluruh
+// subtree importnya) baru diunduh/dieksekusi saat pertama dibutuhkan, bukan
+// saat boot. `lazy` SAJA tidak cukup bila komponen tetap dirender langsung
+// (import dimulai saat boot) — render di bawah di-gate oleh latch
+// `drawerNeeded`/`createSheetNeeded`.
+const AppDrawer = lazy(() =>
+  import("@/components/ui/app-drawer").then((m) => ({ default: m.AppDrawer })),
+)
+const CreateSheet = lazy(() =>
+  import("@/components/ui/create-sheet").then((m) => ({ default: m.CreateSheet })),
+)
+import { drawerProgress, useDrawerOpen } from "@/lib/drawer"
+import { useCreateSheetOpen } from "@/lib/create-sheet"
 import { useToast } from "@/components/ui/toast"
 
 export { AppErrorBoundary as ErrorBoundary } from "@/components/app-error-boundary"
@@ -341,6 +351,22 @@ function AppShellInner() {
   const [skipRestoreError, setSkipRestoreError] = useState(false)
   // Dipakai oleh efek item #24/#27 di bawah (push action + antrean offline).
   const toast = useToast()
+
+  // FE-075: latch "pernah dibutuhkan" untuk drawer & sheet. Store
+  // (useDrawerOpen/useCreateSheetOpen) ringan — langganan ini tidak memicu
+  // import modul berat. Saat store pertama dibuka, latch memasang komponen
+  // lazy (import dimulai); setelah itu komponen tetap mount agar animasi
+  // penutupan tidak terpotong dan buka-berikutnya instan.
+  const drawerOpen = useDrawerOpen()
+  const createSheetOpen = useCreateSheetOpen()
+  const [drawerNeeded, setDrawerNeeded] = useState(false)
+  const [createSheetNeeded, setCreateSheetNeeded] = useState(false)
+  useEffect(() => {
+    if (drawerOpen) setDrawerNeeded(true)
+  }, [drawerOpen])
+  useEffect(() => {
+    if (createSheetOpen) setCreateSheetNeeded(true)
+  }, [createSheetOpen])
 
   // Efek dorong konten ala X saat drawer dibuka (2026-09-27): konten sedikit
   // bergeser kanan + mengecil dengan sudut membulat, mengikuti progress
@@ -808,10 +834,21 @@ function AppShellInner() {
           Drawer/sidebar navigasi (2026-09-27): overlay di atas konten,
           di bawah AppLockGate — kunci aplikasi tetap menutupi semuanya.
         */}
-        <AppDrawer />
-        {/* Sheet global "Buat baru" (2026-09-28): dibuka dari (+) header
-            Etalase & pensil drawer via `openCreateSheet()`. */}
-        <CreateSheet />
+        {/* FE-075: drawer/sidebar — modul berat, di-render (dan di-import)
+            hanya setelah pertama dibutuhkan. */}
+        {drawerNeeded ? (
+          <Suspense fallback={null}>
+            <AppDrawer />
+          </Suspense>
+        ) : null}
+        {/* FE-075: sheet global "Buat baru" (2026-09-28): dibuka dari (+)
+            header Etalase & pensil drawer via `openCreateSheet()` — lazy
+            seperti drawer. */}
+        {createSheetNeeded ? (
+          <Suspense fallback={null}>
+            <CreateSheet />
+          </Suspense>
+        ) : null}
         {/* A-04 (audit): kunci aplikasi (§14 re-auth setelah background >1
             menit). Dirender SETELAH konten agar menutupi seluruh tree saat
             terkunci; no-op di web dan tanpa sesi. */}
