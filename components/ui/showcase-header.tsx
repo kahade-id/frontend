@@ -43,7 +43,7 @@ import { useRef } from "react"
 import type { View as RNView } from "react-native"
 import { useRouter } from "expo-router"
 
-import { openCreateSheet, useCreateSheetEverOpened } from "@/lib/create-sheet"
+import { openCreateSheet } from "@/lib/create-sheet"
 import { openDrawer } from "@/lib/drawer"
 import { cn } from "@/lib/cn"
 import { hitSlopToReach } from "@/lib/hit-slop"
@@ -51,7 +51,6 @@ import { focusRing } from "@/lib/focus-ring"
 import { translate } from "@/lib/i18n"
 import { ROUTES } from "@/lib/routes"
 
-import { CoachMark } from "@/components/ui/coach-mark"
 import { Logo } from "@/components/ui/logo"
 import { Icon } from "@/components/ui/icon"
 import { PressableScale } from "@/components/ui/pressable-scale"
@@ -87,14 +86,10 @@ const ACTION_BOX = 40
 const ACTION_HIT_SLOP = hitSlopToReach(ACTION_BOX)
 
 export function ShowcaseHeader({ kind, onKindChange, tabs, onFilterPress, filterBadgeCount = 0 }: ShowcaseHeaderProps) {
-  // Target ukur coach mark "sekali saja" untuk tombol (+) — View pembungkus
-  // (bukan PressableScale) supaya ref selalu ke host View yang terukur.
+  // Ref tombol (+) buat karya — View pembungkus (bukan PressableScale)
+  // supaya ref selalu ke host View yang terukur.
   const createRef = useRef<RNView>(null)
   const router = useRouter()
-  // U5-004 (journey): coach mark "+" HANYA untuk user yang pernah membuka
-  // sheet buat — kunjungan pertama ke feed kini mendapat coach mark
-  // orientasi BELI (U5-004, di ShowcaseFeedTab) + overlay orientasi (U5-005).
-  const sheetEverOpened = useCreateSheetEverOpened()
   return (
     <View className="bg-background">
       {/* ── Baris atas: menu (hamburger) · logo · cari ── */}
@@ -187,16 +182,6 @@ export function ShowcaseHeader({ kind, onKindChange, tabs, onFilterPress, filter
               <Icon icon={Plus} size="md" weight="regular" tone="active" />
             </PressableScale>
           </View>
-          {/* U5-004 (journey): coach mark "+" sekali saja — hanya setelah user
-              pernah membuka sheet buat (bukan panduan pertama di feed). */}
-          {sheetEverOpened ? (
-            <CoachMark
-              id="create"
-              targetRef={createRef}
-              message={translate("Ketuk + untuk buat karya")}
-              delayMs={700}
-            />
-          ) : null}
         </View>
       </View>
 
