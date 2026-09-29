@@ -272,24 +272,33 @@ export default function AnalyticsScreen() {
           onPress={() => void handleExportOrders()}
           trailing={exportingOrders ? "Menyiapkan…" : undefined}
         />
-        <ListItem
-          title="Riwayat dompet (CSV)"
-          titleVariant="bodyLarge"
-          leading={FileCsv}
-          chevron
-          disabled={exporting !== null}
-          onPress={() => void exportWallet("csv")}
-          trailing={exporting === "csv" ? "Menyiapkan…" : undefined}
-        />
-        <ListItem
-          title="Riwayat dompet (cetak)"
-          titleVariant="bodyLarge"
-          leading={FileText}
-          chevron
-          disabled={exporting !== null}
-          onPress={() => void exportWallet("pdf")}
-          trailing={exporting === "pdf" ? "Menyiapkan…" : undefined}
-        />
+        {/*
+         * Mode Tanpa Wallet Internal (BI-safe): ekspor riwayat dompet hanya
+         * tampil saat kill-switch dompet nyala — endpoint ekspor dompet mati
+         * bersama wallet.
+         */}
+        {walletEnabled ? (
+          <>
+            <ListItem
+              title="Riwayat dompet (CSV)"
+              titleVariant="bodyLarge"
+              leading={FileCsv}
+              chevron
+              disabled={exporting !== null}
+              onPress={() => void exportWallet("csv")}
+              trailing={exporting === "csv" ? "Menyiapkan…" : undefined}
+            />
+            <ListItem
+              title="Riwayat dompet (cetak)"
+              titleVariant="bodyLarge"
+              leading={FileText}
+              chevron
+              disabled={exporting !== null}
+              onPress={() => void exportWallet("pdf")}
+              trailing={exporting === "pdf" ? "Menyiapkan…" : undefined}
+            />
+          </>
+        ) : null}
         <ListItem
           title="Ekspor data pribadi"
           titleVariant="bodyLarge"

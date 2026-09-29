@@ -66,6 +66,7 @@ import { getBiometricCapability, type BiometricCapability } from "@/lib/biometri
 import { ROUTES } from "@/lib/routes"
 import { useApiQuery } from "@/lib/use-api-query"
 import { logWarn } from "@/lib/telemetry"
+import { useWalletEnabled } from "@/lib/use-wallet-enabled"
 
 import { DataScreen } from "@/components/ui/data-screen"
 import { ListItem } from "@/components/ui/list-item"
@@ -83,7 +84,12 @@ type SecurityHub = {
 }
 
 export default function SecurityScreen() {
-  const query = useApiQuery<SecurityHub>("security-hub", async (signal) => {
+  // Mode Tanpa Wallet Internal: status PIN dibaca dari endpoint dompet —
+  // jangan operasikan API wallet saat flag mati. Baris "Buat/Ganti PIN"
+  // tetap tampil (PIN dibutuhkan untuk penarikan saldo lama); statusnya
+  // netral (null) di mode ini.
+  const walletEnabled = useWalletEnabled()
+  const query = useApiQuery<SecurityHub>(`security-hub:${walletEnabled ? "w" : "nw"}`, async (signal) => {
     const [me, twoFactor, biometric, wallet] = await Promise.all([
       api.users.getMe(signal),
       api.auth.get2faStatus(signal).catch((err) => {
@@ -91,7 +97,7 @@ export default function SecurityScreen() {
         return null
       }),
       getBiometricCapability().catch(() => NO_BIOMETRIC),
-      api.wallet.getWallet(signal).catch((err) => {
+      (walletEnabled ? api.wallet.getWallet(signal) : Promise.resolve(null)).catch((err) => {
         logWarn("security:wallet-pin-status", err)
         return null
       }),
