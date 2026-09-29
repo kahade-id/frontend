@@ -10,6 +10,7 @@
  */
 import { useCallback, useEffect, useState } from "react"
 import { ScrollView, View } from "react-native"
+import { router } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { userMessage } from "@/lib/api"
@@ -22,6 +23,7 @@ import {
   type FeedbackCategory,
 } from "@/lib/feedback"
 import { tokens } from "@/lib/tokens"
+import { ROUTES } from "@/lib/routes"
 import { logWarn } from "@/lib/telemetry"
 
 import { Alert } from "@/components/ui/alert"
@@ -35,6 +37,7 @@ import { Input } from "@/components/ui/input"
 import { Screen } from "@/components/ui/screen"
 import { Text } from "@/components/ui/text"
 import { TextArea } from "@/components/ui/text-area"
+import { TextLink } from "@/components/ui/text-link"
 import { useToast } from "@/components/ui/toast"
 import { Platform } from "react-native"
 import { translate } from "@/lib/i18n/translate"
@@ -154,14 +157,17 @@ export default function FeedbackScreen() {
               </Alert>
             ) : null}
 
+            {/* FE-034: 1 baris pembuka + tautan kecil tiket bantuan. */}
             <View className="gap-1">
               <Text variant="body" tone="primary">
-                Punya saran atau menemui kendala?
+                {translate("Ceritakan saran atau kendala Anda.")}
               </Text>
-              <Text variant="caption" tone="secondary">
-                Tuliskan masukan Anda. Masukan ini bukan tiket bantuan. Untuk
-                kendala transaksi yang butuh tindakan, buat tiket bantuan resmi.
-              </Text>
+              <TextLink
+                variant="caption"
+                onPress={() => router.push(ROUTES.support)}
+              >
+                {translate("Butuh bantuan transaksi? Buat tiket bantuan.")}
+              </TextLink>
             </View>
 
             <Field label="Jenis masukan">
