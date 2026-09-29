@@ -362,6 +362,20 @@ export default function OrderDetailScreen() {
     Boolean(id && order && !ORDER_TERMINAL_STATUSES.includes(order.status)),
   )
   const history = query.data?.history ?? []
+  // FE-007 (audit 2026-09-29): identitas `entries` stabil — tick countdown
+  // 1 Hz tidak lagi me-render ulang <OrderHistoryTimeline>.
+  const historyEntries = useMemo(
+    () =>
+      history.map((h) => ({
+        id: h.id,
+        toStatus: h.toStatus,
+        fromStatus: h.fromStatus ?? undefined,
+        actor: h.actorId ?? undefined,
+        note: h.note ?? undefined,
+        timestamp: formatDateTime(h.createdAt),
+      })),
+    [history],
+  )
   const historyHasMore = query.data?.historyHasMore ?? false
   const durations = query.data?.durations ?? null
   const fee = query.data?.fee ?? null
@@ -1281,14 +1295,7 @@ export default function OrderDetailScreen() {
           <SectionHeader title="Riwayat" />
           {history.length > 0 ? (
             <OrderHistoryTimeline
-              entries={history.map((h) => ({
-                id: h.id,
-                toStatus: h.toStatus,
-                fromStatus: h.fromStatus ?? undefined,
-                actor: h.actorId ?? undefined,
-                note: h.note ?? undefined,
-                timestamp: formatDateTime(h.createdAt),
-              }))}
+              entries={historyEntries}
               currentStatus={order.status}
               expectedNext={expectedNext}
             />
