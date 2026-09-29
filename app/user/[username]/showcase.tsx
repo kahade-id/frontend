@@ -66,7 +66,7 @@ export default function PublicShowcaseScreen() {
     `public-showcase:${revision}:${username}`,
     (signal) => api.users.getPublicShowcase(username, signal),
     Boolean(username),
-    { refreshOnFocus: true, useCache: false },
+    { refreshOnFocus: true },
   )
   const items = showcase.data ?? []
 
