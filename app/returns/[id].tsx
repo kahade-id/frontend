@@ -4,7 +4,7 @@
  * aksi buyer/seller sesuai status.
  */
 import { useState } from "react"
-import { Text, TextInput, View, Alert } from "react-native"
+import { Alert, Text, TextInput, View } from "react-native"
 import { useLocalSearchParams } from "expo-router"
 
 import { api } from "@/lib/api"
@@ -28,6 +28,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { DataScreen } from "@/components/ui/data-screen"
+import { Dialog } from "@/components/ui/modal"
 import { SectionHeader } from "@/components/ui/section"
 
 function Timeline({ detail, dot, muted }: { detail: ReturnDetail; dot: string; muted: string }) {
@@ -62,6 +63,8 @@ export default function ReturnDetailScreen() {
   const [note, setNote] = useState("")
   const [tracking, setTracking] = useState("")
   const [mutating, setMutating] = useState(false)
+  /** T4-010: dialog konfirmasi batal retur (menggantikan Alert.alert). */
+  const [cancelOpen, setCancelOpen] = useState(false)
   const query = useApiQuery<ReturnDetail>(
     `return:${String(id)}`,
     (signal) => api.returns.getReturn(String(id), signal),
@@ -70,11 +73,22 @@ export default function ReturnDetailScreen() {
   )
   const detail = query.data
 
-  async function run(label: string, failTitle: string, fn: () => Promise<unknown>, confirmMsg?: string) {
+  async function run(
+    label: string,
+    failTitle: string,
+    fn: () => Promise<unknown>,
+    opts?: {
+      /** Pesan konfirmasi Alert (alur lama; batal-retur kini memakai <Dialog>). */
+      confirmMsg?: string
+      /** T4-009: toast sukses setelah aksi berhasil (mis. "Resi terkirim"). */
+      successTitle?: string
+    },
+  ) {
     const go = async () => {
       setMutating(true)
       try {
         await fn()
+        if (opts?.successTitle) toast.show({ title: opts.successTitle, tone: "success" })
         await query.reload()
       } catch (e) {
         if (
@@ -92,8 +106,10 @@ export default function ReturnDetailScreen() {
         setMutating(false)
       }
     }
-    if (confirmMsg) {
-      Alert.alert(label, confirmMsg, [{ text: "Batal" }, { text: "Ya", onPress: go }])
+    if (opts?.confirmMsg) {
+      // Jalur konfirmasi Alert tersisa untuk eskalasi; pembatalan retur
+      // memakai <Dialog> bermerek (T4-010) — lihat tombol di bawah.
+      Alert.alert(label, opts.confirmMsg, [{ text: "Batal" }, { text: "Ya", onPress: go }])
     } else {
       await go()
     }
@@ -155,7 +171,15 @@ export default function ReturnDetailScreen() {
               <View style={{ marginTop: tokens.space[2] }}>
                 <Button
                   disabled={!tracking.trim() || mutating}
-                  onPress={() => run("Kirim resi", "Gagal mengirim resi", () => api.returns.submitReturnTracking(detail.id, { trackingNumber: tracking.trim() }))}
+                  loading={mutating}
+                  onPress={() =>
+                    run(
+                      "Kirim resi",
+                      "Gagal mengirim resi",
+                      () => api.returns.submitReturnTracking(detail.id, { trackingNumber: tracking.trim() }),
+                      { successTitle: "Resi terkirim" },
+                    )
+                  }
                 >
                   Kirim Resi
                 </Button>
@@ -189,7 +213,18 @@ export default function ReturnDetailScreen() {
             <View style={{ marginTop: tokens.space[2] }}>
               <Button
                 disabled={!note.trim() || mutating}
-                onPress={() => run("Kirim pesan", "Gagal mengirim pesan", async () => { await api.returns.addReturnNote(detail.id, { message: note.trim() }); setNote("") })}
+                loading={mutating}
+                onPress={() =>
+                  run(
+                    "Kirim pesan",
+                    "Gagal mengirim pesan",
+                    async () => {
+                      await api.returns.addReturnNote(detail.id, { message: note.trim() })
+                      setNote("")
+                    },
+                    { successTitle: "Pesan terkirim" },
+                  )
+                }
               >
                 Kirim Pesan
               </Button>
@@ -205,13 +240,15 @@ export default function ReturnDetailScreen() {
             {["REQUESTED", "SELLER_REVIEW", "CLARIFICATION_NEEDED"].includes(detail.status) ? (
               <Button
                 variant="secondary"
-                onPress={() => run("Batalkan", "Gagal membatalkan retur", () => api.returns.cancelReturn(detail.id), "Batalkan pengajuan retur ini?")}
+                loading={mutating}
+                onPress={() => setCancelOpen(true)}
               >
                 Batalkan Pengajuan
               </Button>
             ) : null}
             {detail.status === "RETURN_SHIPPING" ? (
               <Button
+                loading={mutating}
                 onPress={() => run("Konfirmasi terima", "Gagal mengonfirmasi penerimaan", () => api.returns.confirmReturnReceived(detail.id))}
               >
                 Konfirmasi Barang Diterima (Penjual)
@@ -220,12 +257,36 @@ export default function ReturnDetailScreen() {
             {!["RESOLVED_REFUND", "RESOLVED_EXCHANGE", "RESOLVED_REPAIR", "ESCALATED", "CANCELLED", "EXPIRED", "REJECTED"].includes(detail.status) ? (
               <Button
                 variant="secondary"
-                onPress={() => run("Eskalasi", "Gagal melakukan eskalasi", () => api.returns.escalateReturn(detail.id), "Eskalasi ke sengketa? Kasus sengketa yang sudah ada akan dipakai ulang.")}
+                loading={mutating}
+                onPress={() => run("Eskalasi", "Gagal melakukan eskalasi", () => api.returns.escalateReturn(detail.id), { confirmMsg: "Eskalasi ke sengketa? Kasus sengketa yang sudah ada akan dipakai ulang." })}
               >
                 Eskalasi ke Sengketa
               </Button>
             ) : null}
           </View>
+
+          {/*
+            T4-010 (audit UI/UX intuitif 2026-09-29): konfirmasi pembatalan
+            memakai <Dialog> bermerek dengan konsekuensi eksplisit, bukan
+            Alert.alert. Fakta backend (returns.service.ts `buyerCancel`):
+            status → CANCELLED, penjual diberi tahu; dana/order tidak
+            bergerak (retur tidak mengubah status order); pengajuan ulang
+            bisa selama masih dalam masa retur (cek duplikat hanya menolak
+            retur AKTIF).
+          */}
+          <Dialog
+            visible={cancelOpen}
+            onRequestClose={() => setCancelOpen(false)}
+            title="Batalkan pengajuan retur?"
+            description="Pengajuan retur akan ditutup dan penjual diberi tahu. Dana tidak bergerak — pembatalan ini hanya menutup pengajuan. Anda bisa mengajukan retur ulang selama masih dalam masa retur."
+            cancelLabel="Kembali"
+            confirmLabel="Ya, batalkan retur"
+            loading={mutating}
+            onConfirm={() => {
+              setCancelOpen(false)
+              void run("Batalkan", "Gagal membatalkan retur", () => api.returns.cancelReturn(detail.id))
+            }}
+          />
         </View>
       ) : null}
     </DataScreen>

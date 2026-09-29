@@ -3,15 +3,17 @@
  *
  * Layout (revisi 2026-09-28, permintaan produk):
  *
- *      [ = menu ]  [ (logo) ]  [ + buat ]
+ *      [ = menu ]  [ (logo) ]  [ 🔍 cari ] [ + buat ]
  *      [ tab feed: Untuk Anda · Mengikuti · Terbaru · Populer ]
  *
- *   1. Baris atas TIGA elemen simetris: equal (BUKA DRAWER) di kiri,
- *      logo Kahade tepat di tengah, (+) di kanan — membuka sheet global
- *      "Buat baru" (Buat Karya → /showcase/create, Buat transaksi,
- *      Isi saldo dompet). Pencarian PINDAH ke utility bar bawah drawer.
- *      Ikon memakai weight "regular" (BUKAN bold/fill) dan TANPA background.
- *      Glif: Equals dan Plus.
+ *   1. Baris atas: equal (BUKA DRAWER) di kiri, logo Kahade tepat di tengah,
+ *      kanan = pencarian global + (+) "Buat baru". T5-004 (audit UI/UX
+ *      intuitif 2026-09-29): ikon kaca pembesar KEMBALI ke header — langsung
+ *      membuka /search (drawer tetap jadi pintu kedua, bukan satu-satunya).
+ *      (+) membuka sheet global "Buat baru" (Buat Karya → /showcase/create,
+ *      Buat transaksi, Isi saldo dompet). Ikon memakai weight "regular"
+ *      (BUKAN bold/fill) dan TANPA background.
+ *      Glif: Equals, MagnifyingGlass, dan Plus.
  *   2. Sheet "Buat baru" adalah komponen global reusable (<CreateSheet>,
  *      dibuka via `openCreateSheet()` dari `lib/create-sheet`) — satu pintu
  *      pembuatan untuk seluruh app, diakses dari (+) header Etalase dan
@@ -31,6 +33,7 @@ import {
   ClockCounterClockwise,
   Equals,
   Funnel,
+  MagnifyingGlass,
   Plus,
   Sparkle,
   TrendUp,
@@ -38,6 +41,7 @@ import {
 } from "phosphor-react-native"
 import { useRef } from "react"
 import type { View as RNView } from "react-native"
+import { useRouter } from "expo-router"
 
 import { openCreateSheet } from "@/lib/create-sheet"
 import { openDrawer } from "@/lib/drawer"
@@ -45,6 +49,7 @@ import { cn } from "@/lib/cn"
 import { hitSlopToReach } from "@/lib/hit-slop"
 import { focusRing } from "@/lib/focus-ring"
 import { translate } from "@/lib/i18n"
+import { ROUTES } from "@/lib/routes"
 
 import { CoachMark } from "@/components/ui/coach-mark"
 import { Logo } from "@/components/ui/logo"
@@ -85,6 +90,7 @@ export function ShowcaseHeader({ kind, onKindChange, tabs, onFilterPress, filter
   // Target ukur coach mark "sekali saja" untuk tombol (+) — View pembungkus
   // (bukan PressableScale) supaya ref selalu ke host View yang terukur.
   const createRef = useRef<RNView>(null)
+  const router = useRouter()
   return (
     <View className="bg-background">
       {/* ── Baris atas: menu (hamburger) · logo · cari ── */}
@@ -118,10 +124,23 @@ export function ShowcaseHeader({ kind, onKindChange, tabs, onFilterPress, filter
           <Logo variant="mark" size="md" />
         </View>
 
-        {/* Tombol (+) di kanan — membuka sheet global "Buat baru"
-            (revisi 2026-09-28): kiri = menu drawer, kanan = buat baru.
-            Pencarian pindah ke utility bar bawah drawer. */}
+        {/* Kanan: cari + filter (opsional) + buat baru.
+            T5-004 (audit UI/UX intuitif 2026-09-29): ikon kaca pembesar
+            kembali ke header — ketuk langsung membuka pencarian global
+            (/search). Drawer tetap jadi pintu kedua. */}
         <View className="flex-row items-center justify-end gap-1 min-w-[84px]">
+          <PressableScale
+            accessibilityRole="button"
+            accessibilityLabel={translate("Cari")}
+            accessibilityHint={translate("Buka pencarian barang dan pengguna")}
+            haptic
+            hitSlop={ACTION_HIT_SLOP}
+            onPress={() => router.push(ROUTES.search)}
+            containerClassName={cn("rounded-md", focusRing)}
+            className="h-10 w-10 items-center justify-center"
+          >
+            <Icon icon={MagnifyingGlass} size="md" weight="regular" tone="active" />
+          </PressableScale>
           {onFilterPress ? (
             <PressableScale
               accessibilityRole="button"

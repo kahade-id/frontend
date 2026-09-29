@@ -77,6 +77,7 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { Header } from "@/components/ui/header"
 import { Icon } from "@/components/ui/icon"
 import { IconButton } from "@/components/ui/icon-button"
+import { DrawerMenuButton } from "@/components/ui/drawer-menu-button"
 import { ModeShiftFade } from "@/components/ui/mode-switcher"
 import { PaginatedList } from "@/components/ui/paginated-list"
 import { PressableScale } from "@/components/ui/pressable-scale"
@@ -727,7 +728,7 @@ export default function ChatScreen() {
         const res = await setRoomArchived(room.id, !room.isArchived)
         return { isArchived: res.isArchived }
       },
-      archiveOpen ? "Percakapan dikeluarkan dari arsip" : "Percakapan diarsipkan",
+      archiveOpen ? "Pesan dikeluarkan dari arsip" : "Pesan diarsipkan",
       "Gagal memperbarui arsip percakapan",
     )
     // B4: arsip/unarsip memindahkan room antar tab DI SERVER. Patch lokal
@@ -771,7 +772,7 @@ export default function ChatScreen() {
         patchRoom(room.id, { isArchived: res.isArchived })
         haptic("success")
         toast.show({
-          title: unarchive ? "Percakapan dikeluarkan dari arsip" : "Percakapan diarsipkan",
+          title: unarchive ? "Pesan dikeluarkan dari arsip" : "Pesan diarsipkan",
           tone: "neutral",
           duration: 2000,
         })
@@ -852,7 +853,7 @@ export default function ChatScreen() {
       // Umpan balik instan + rekonsiliasi kedua query dengan server (seperti arsip).
       removeRoom(roomId)
       haptic("success")
-      toast.show({ title: translate("Percakapan dihapus"), tone: "neutral" })
+      toast.show({ title: translate("Pesan dihapus"), tone: "neutral" })
       closeDelete()
       mainQuery.refresh()
       archivedQuery.refresh()
@@ -1035,6 +1036,9 @@ export default function ChatScreen() {
           titleAlign="left"
           titleVariant="h2"
           title={archiveOpen ? "Diarsipkan" : "Pesan"}
+          // T5-002 (audit UI/UX intuitif 2026-09-29): drawer bisa dibuka dari
+          // semua tab, bukan cuma Etalase.
+          left={<DrawerMenuButton />}
           // Batch 43: pintu masuk pengaturan privasi/template balasan.
           right={
             <IconButton
@@ -1107,8 +1111,8 @@ export default function ChatScreen() {
           ) : filter === "transaction" ? (
             <EmptyState
               icon={Chats}
-              title="Belum ada chat transaksi"
-              description="Chat dengan lawan transaksi Anda akan muncul di sini."
+              title="Belum ada pesan transaksi"
+              description="Pesan dengan lawan transaksi Anda akan muncul di sini."
             />
           ) : (
             <EmptyState

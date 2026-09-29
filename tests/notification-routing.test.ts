@@ -16,6 +16,7 @@ import { describe, expect, it } from "vitest"
 
 import {
   labelForNotificationReference,
+  logicalParentForPath,
   routeForActionUrl,
   routeForNotificationReference,
   routeForPushData,
@@ -159,5 +160,45 @@ describe("routeForPushData — status tiket ke detail tiket (F15)", () => {
 
   it("referenceType SUPPORT_TICKET tanpa id → daftar tiket", () => {
     expect(routeForNotificationReference({ referenceType: "SUPPORT_TICKET" })).toBe(ROUTES.support)
+  })
+})
+
+describe("logicalParentForPath — fallback back sadar konteks (T5-009)", () => {
+  it("ruang chat → /chat (bukan Etalase)", () => {
+    expect(logicalParentForPath("/chat/room-123")).toBe(ROUTES.chat)
+  })
+
+  it("query string & hash diabaikan", () => {
+    expect(logicalParentForPath("/chat/room-123?x=1#y")).toBe(ROUTES.chat)
+  })
+
+  it("detail pesanan → /transactions", () => {
+    expect(logicalParentForPath("/order/ORD-1")).toBe(ROUTES.transactions)
+  })
+
+  it("detail karya → /showcase", () => {
+    expect(logicalParentForPath("/showcase/abc")).toBe(ROUTES.showcase)
+  })
+
+  it("detail notifikasi → /notifications", () => {
+    expect(logicalParentForPath("/notifications/n1")).toBe(ROUTES.notifications)
+  })
+
+  it("detail sengketa → /disputes", () => {
+    expect(logicalParentForPath("/dispute/d9")).toBe(ROUTES.disputes)
+  })
+
+  it("dompet → /wallet", () => {
+    expect(logicalParentForPath("/wallet")).toBe(ROUTES.wallet)
+  })
+
+  it("segmen pertama case-insensitive", () => {
+    expect(logicalParentForPath("/CHAT/room-1")).toBe(ROUTES.chat)
+  })
+
+  it("rute tak dikenal & root → Etalase (ROUTES.home)", () => {
+    expect(logicalParentForPath("/kebijakan-privasi")).toBe(ROUTES.home)
+    expect(logicalParentForPath("/")).toBe(ROUTES.home)
+    expect(logicalParentForPath("")).toBe(ROUTES.home)
   })
 })

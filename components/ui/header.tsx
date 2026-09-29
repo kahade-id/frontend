@@ -28,7 +28,7 @@ import { useContext, useEffect, useState, type ReactNode } from "react"
 import { Platform, View, type ViewProps, type ViewStyle } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { ArrowLeft, X } from "phosphor-react-native"
-import { useRouter } from "expo-router"
+import { usePathname, useRouter } from "expo-router"
 
 import { IconButton } from "@/components/ui/icon-button"
 import { StepProgress } from "@/components/ui/stepper"
@@ -37,7 +37,7 @@ import { ScreenInsetsContext } from "@/components/ui/screen"
 import { useTheme } from "@/components/theme-provider"
 import { elevationStyle } from "@/lib/elevation"
 import { tokens } from "@/lib/tokens"
-import { ROUTES } from "@/lib/routes"
+import { logicalParentForPath } from "@/lib/notification-routing"
 import { cn } from "@/lib/cn"
 import { translateProp, useLanguage } from "@/lib/i18n"
 import { translate } from "@/lib/i18n/translate"
@@ -151,6 +151,7 @@ export function Header({
   const { mode: themeMode } = useTheme()
   const insets = useSafeAreaInsets()
   const router = useRouter()
+  const pathname = usePathname()
   const providedInsets = useContext(ScreenInsetsContext)
   // largeTitle (H1 konten) lebih mewakili layar daripada title bar bila ada.
   // Judul TAB web adalah satu-satunya teks yang tidak lewat <Text> di sini,
@@ -162,8 +163,16 @@ export function Header({
   const sideWidth = Math.max(tokens.space[12], leftWidth, rightWidth)
 
   const canBack = showBack ?? true
+  // T5-009 (audit UI/UX intuitif 2026-09-29): fallback back sadar konteks —
+  // bila stack kosong (mis. cold start dari deep link), kembali ke "layar
+  // induk logis" rute ini (chat room → /chat, detail pesanan →
+  // /transactions, …), bukan selalu ke Etalase.
   const handleBack =
-    onBack ?? (() => (router.canGoBack() ? router.back() : router.replace(ROUTES.home)))
+    onBack ??
+    (() =>
+      router.canGoBack()
+        ? router.back()
+        : router.replace(logicalParentForPath(pathname)))
 
   const leftNode =
     left ??

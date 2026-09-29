@@ -87,6 +87,7 @@ import { ActionSheet, type ActionSheetItem } from "@/components/ui/action-sheet"
 import { Dialog } from "@/components/ui/modal"
 import { Icon } from "@/components/ui/icon"
 import { IconButton } from "@/components/ui/icon-button"
+import { DrawerMenuButton } from "@/components/ui/drawer-menu-button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { FadeIn } from "@/components/ui/fade-in"
 import { Header } from "@/components/ui/header"
@@ -700,6 +701,9 @@ function NotificationsScreen() {
           showBack={false}
           separator={false}
           elevated={elevated}
+          // T5-002 (audit UI/UX intuitif 2026-09-29): drawer bisa dibuka dari
+          // semua tab, bukan cuma Etalase.
+          left={<DrawerMenuButton />}
           right={
             <>
               {hasUnread ? (

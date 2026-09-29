@@ -110,6 +110,7 @@ import { VoiceNoteRecorder, type VoiceNoteFile } from "@/components/ui/voice-not
 import { isAudioMime, validateVoiceNoteFile, voiceNoteValidationMessage } from "@/lib/voice-note"
 import { translate } from "@/lib/i18n"
 import { ROUTES } from "@/lib/routes"
+import { logicalParentForPath } from "@/lib/notification-routing"
 import { tokens } from "@/lib/tokens"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
@@ -2462,7 +2463,9 @@ export default function ChatRoomScreen() {
               ? () => router.push(ROUTES.userProfile(counterpartUsername))
               : undefined
           }
-          onBack={() => (router.canGoBack() ? router.back() : router.replace(ROUTES.home))}
+          // T5-009: fallback sadar konteks — cold start dari deep link chat
+          // kembali ke daftar Pesan (/chat), bukan Etalase.
+          onBack={() => (router.canGoBack() ? router.back() : router.replace(logicalParentForPath(`/chat/${roomId ?? ""}`)))}
           onMenuPress={() => setRoomMenuOpen(true)}
           // Pencarian inline client-side (2026-09-28): ikon kaca pembesar di
           // kiri menu — membuka bar cari di bawah header (highlight +

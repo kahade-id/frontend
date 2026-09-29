@@ -73,6 +73,7 @@ import { api, type UserProfile } from "@/lib/api"
 import { hasOpenSupportTicket } from "@/lib/api/support"
 import { refreshChatUnreadCount, useChatUnreadCountState } from "@/lib/chat-unread-count"
 import { closeDrawer, drawerProgress, useDrawerOpen } from "@/lib/drawer"
+import { isShellTabPath } from "@/lib/shell-tabs"
 import { openCreateSheet } from "@/lib/create-sheet"
 import { elevationStyle } from "@/lib/elevation"
 import { haptic } from "@/lib/haptics"
@@ -416,7 +417,13 @@ export function AppDrawer() {
     (href: Href) => {
       haptic("select")
       closeDrawer()
-      router.push(href)
+      // T5-007 (audit UI/UX intuitif 2026-09-29): tujuan yang merupakan TAB
+      // (Pesan, dll) memakai `navigate`, bukan `push` — tidak menumpuk layar
+      // duplikat di atas stack sehingga tombol back sistem tetap masuk akal.
+      // Layar stack (Dompet, Pengaturan, …) tetap `push`.
+      const path = typeof href === "string" ? href : href.pathname ?? ""
+      if (isShellTabPath(path)) router.navigate(href)
+      else router.push(href)
     },
     [router],
   )

@@ -16,8 +16,9 @@
  *     weight Fill (`active`).
  *   - Label inaktif `text-secondary` (BUKAN tertiary — AA untuk 12px), aktif
  *     text-primary weight 600.
- *   - Notification badge = <NotificationDot> merah solid tanpa angka di
- *     top-right ikon.
+ *   - Notification badge = <NotificationCount> pil merah berisi angka unread
+ *     ("99+" bila > 99; T5-005) — titik <NotificationDot> tanpa angka hanya
+ *     untuk "ada yang baru" tanpa hitungan.
  *   - Dipertahankan di web pada lebar mobile; kolom dibatasi
  *     `md:max-w-content` (§11) agar item tidak terpencar di viewport lebar.
  *
@@ -63,7 +64,7 @@ import {
 
 import { ActionSheet, type ActionSheetItem } from "@/components/ui/action-sheet"
 import { Avatar } from "@/components/ui/avatar"
-import { NotificationDot } from "@/components/ui/badge"
+import { NotificationCount, NotificationDot } from "@/components/ui/badge"
 import { CoachMark, type CoachMarkId } from "@/components/ui/coach-mark"
 import { Icon, type IconComponent } from "@/components/ui/icon"
 import type { BottomTabBarProps as RNNBottomTabBarProps } from "@react-navigation/bottom-tabs"
@@ -85,8 +86,13 @@ export type BottomTabItem<K extends string = string> = {
   icon: IconComponent
   avatarUrl?: string | null
   avatarName?: string
-  /** Titik merah "ada yang baru" (§9.14) */
+  /** Titik merah "ada yang baru" (§9.14). Diabaikan bila `badgeCount` > 0. */
   badge?: boolean
+  /**
+   * T5-005 (audit UI/UX intuitif 2026-09-29): angka unread di tab
+   * ("99+" bila > 99). Bila > 0, pil angka menggantikan titik `badge`.
+   */
+  badgeCount?: number
   accessibilityLabel?: string
 }
 
@@ -203,6 +209,11 @@ export type BottomTabCenter = {
   icon: IconComponent
   accessibilityLabel: string
   accessibilityHint: string
+  /**
+   * T5-006: label mikro di bawah ikon tengah (mis. "Pindai"). Tidak dikirim
+   * = tanpa label (jalur generik "Buat baru").
+   */
+  label?: string
   onPress: () => void
 }
 
@@ -383,6 +394,7 @@ function CenterActionButton({
   icon = Plus,
   accessibilityLabel,
   accessibilityHint,
+  label,
   motionKey,
   coachMark,
 }: {
@@ -390,6 +402,7 @@ function CenterActionButton({
   icon?: IconComponent
   accessibilityLabel?: string
   accessibilityHint?: string
+  label?: string
   motionKey?: string
   coachMark?: BottomTabCenterCoachMark
 }) {
@@ -416,6 +429,17 @@ function CenterActionButton({
           <CenterGlyph icon={icon} motionKey={motionKey} />
         </PressableScale>
       </View>
+      {label ? (
+        <Text
+          variant="caption"
+          weight={500}
+          tone="secondary"
+          numberOfLines={1}
+          className="mt-0.5 leading-none"
+        >
+          {label}
+        </Text>
+      ) : null}
       {coachMark ? (
         <CoachMark
           id={coachMark.id}
@@ -550,7 +574,19 @@ export function BottomTabBar<K extends string = string>({
           ) : (
             <TabIcon icon={item.icon} active={active} />
           )}
-          <NotificationDot visible={!!item.badge} />
+          {/* T5-005: angka unread ("99+" bila > 99); titik hanya bila tidak
+              ada angka. */}
+          {(item.badgeCount ?? 0) > 0 ? (
+            <NotificationCount
+              count={item.badgeCount!}
+              accessibilityLabel={translate("{x} {label} belum dibaca", {
+                x: item.badgeCount! > 99 ? "99+" : String(item.badgeCount),
+                label: item.label,
+              })}
+            />
+          ) : (
+            <NotificationDot visible={!!item.badge} />
+          )}
         </View>
         <Text ellipsizeMode="tail"
           variant="caption"
@@ -581,6 +617,7 @@ export function BottomTabBar<K extends string = string>({
               icon={center?.icon}
               accessibilityLabel={center?.accessibilityLabel}
               accessibilityHint={center?.accessibilityHint}
+              label={center?.label}
               motionKey={motionKey}
               coachMark={centerCoachMark}
               onPress={() => {

@@ -121,6 +121,43 @@ export function routeForNotificationReference(ref: NotificationReference): Href 
 }
 
 /**
+ * T5-009 (audit UI/UX intuitif 2026-09-29): peta "layar induk logis" per rute.
+ *
+ * Fallback tombol kembali saat `router.canGoBack()` false — mis. aplikasi
+ * dibuka dari tap notifikasi push dalam keadaan mati (cold start), sehingga
+ * stack hanya berisi layar tujuan. Sebelumnya fallback selalu
+ * `replace(ROUTES.home)` (tab Etalase): user membaca chat, menekan kembali,
+ * malah terlempar ke beranda jualan. Kini kembali ke konteks asal:
+ * ruang chat → /chat, detail pesanan → /transactions, detail karya →
+ * /showcase, detail notifikasi → /notifications.
+ *
+ * Serumah dengan `routeForNotificationReference` karena keduanya memetakan
+ * "rute dalam → konteks navigasi".
+ */
+export function logicalParentForPath(pathname: string): Href {
+  const base = pathname.split("?")[0]?.split("#")[0] ?? "/"
+  const head = base.split("/").filter(Boolean)[0]?.toLowerCase() ?? ""
+  switch (head) {
+    case "chat":
+      return ROUTES.chat
+    case "order":
+    case "o":
+      return ROUTES.transactions
+    case "dispute":
+      return ROUTES.disputes
+    case "showcase":
+      return ROUTES.showcase
+    case "notifications":
+    case "badges":
+      return ROUTES.notifications
+    case "wallet":
+      return ROUTES.wallet
+    default:
+      return ROUTES.home
+  }
+}
+
+/**
  * Label CTA layar detail ("Lihat pesanan", "Buka chat", …) untuk sebuah
  * referensi; `null` bila tidak dikenali (detail tetap tampil tanpa CTA).
  * Tabel sejajar dengan `routeForNotificationReference` di atas.

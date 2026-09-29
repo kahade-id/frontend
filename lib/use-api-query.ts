@@ -111,6 +111,22 @@ export function useApiQuery<TRaw, T = TRaw>(
   const [loading, setLoading] = useState(active)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  /**
+   * T4-008 (audit UI/UX intuitif 2026-09-29): error NON-FATAL dari refresh
+   * (pull-to-refresh / refresh-on-focus / revalidasi) yang gagal padahal
+   * data lama sudah ada. Data lama tetap tampil; konsumen (DataScreen)
+   * menampilkan banner inline "Gagal memperbarui" alih-alih menghancurkan
+   * layar dengan ErrorState penuh. `error` tetap untuk kegagalan fatal
+   * (load awal tanpa data).
+   */
+  const [refreshError, setRefreshError] = useState<string | null>(null)
+  /**
+   * Ada/tidaknya data — dibaca di dalam `load` (callback yang di-memo)
+   * supaya keputusan fatal-vs-refresh memakai nilai terbaru, bukan yang
+   * tertangkap saat callback dibuat. Nilainya ditulis tiap render di bawah
+   * (setelah `data` dihitung).
+   */
+  const hasData = useRef(false)
 
   const load = useCallback(
     async (refresh = false, background = false) => {
@@ -124,6 +140,8 @@ export function useApiQuery<TRaw, T = TRaw>(
         setLoading(false)
         setRefreshing(false)
         setError(null)
+        // T4-008: ikut direset — data ikut di-nul-kan di bawah.
+        setRefreshError(null)
         setRaw(null)
         releaseMarker()
         return
@@ -138,6 +156,10 @@ export function useApiQuery<TRaw, T = TRaw>(
           setLoading(false)
           setRefreshing(false)
           setError(null)
+          // T4-008: cache-hit juga membersihkan banner refresh-error lama —
+          // data segar dari cache berarti tidak ada lagi yang perlu
+          // diperingatkan.
+          setRefreshError(null)
           /**
            * C-04 (audit): stale-while-revalidate. Entri yang sudah berumur
            * melewati CACHE_REVALIDATE_AFTER_MS TIDAK boleh disajikan sebagai
@@ -178,6 +200,9 @@ export function useApiQuery<TRaw, T = TRaw>(
         } else if (refresh) setRefreshing(true)
         else setLoading(true)
         if (!background) setError(null)
+        // T4-008: banner refresh-error lama ikut dibersihkan saat percobaan
+        // baru dimulai — ia akan muncul lagi bila percobaan ini juga gagal.
+        if (!background) setRefreshError(null)
         try {
           const next = await fetchRef.current(controller.signal)
           if (controller.signal.aborted) {
@@ -220,7 +245,14 @@ export function useApiQuery<TRaw, T = TRaw>(
               return // aborted saat menunggu
             }
           }
-          setError(userMessage(error))
+          // T4-008: gagal memuat padahal data lama sudah tampil → error
+          // NON-FATAL, apa pun pemicunya (refresh maupun reload). Data lama
+          // tetap sahih; layar tidak dihancurkan (konsumen menampilkan
+          // banner inline via `refreshError`). Tanpa data sama sekali →
+          // error fatal seperti sebelumnya.
+          const msg = userMessage(error)
+          if (hasData.current) setRefreshError(msg)
+          else setError(msg)
           settle()
           return
         }
@@ -276,7 +308,8 @@ export function useApiQuery<TRaw, T = TRaw>(
 
   // Refresh saat layar kembali fokus — lihat UseApiQueryOptions.refreshOnFocus.
   const focused = useIsFocused()
-  const hasData = useRef(false)
+  // Ditulis tiap render (setelah `data` dihitung di atas); deklarasi ref-nya
+  // di atas supaya `load` bisa membedakan error fatal vs refreshError.
   hasData.current = data != null
   const latest = useRef({ load, enabled: active, error })
   latest.current = { load, enabled: active, error }
@@ -327,7 +360,7 @@ export function useApiQuery<TRaw, T = TRaw>(
   }, [])
 
   return useMemo(
-    () => ({ data, setData, loading, refreshing, error, refresh, reload }),
-    [data, setData, loading, refreshing, error, refresh, reload],
+    () => ({ data, setData, loading, refreshing, error, refreshError, refresh, reload }),
+    [data, setData, loading, refreshing, error, refreshError, refresh, reload],
   )
 }
