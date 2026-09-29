@@ -656,6 +656,40 @@ function NotificationsScreen() {
     },
   ]
 
+  /**
+   * R1-005 (2026-09-29, audit render-perf): placeholder & empty distabilkan —
+   * identitas baru tiap render membatalkan `useMemo` di dalam <PaginatedList>
+   * dan memaksa VirtualizedList render ulang kontainer.
+   */
+  const notifListLoading = useMemo(
+    () => (
+      <SkeletonGroup>
+        {Array.from({ length: SKELETON_COUNT }, (_, index) => (
+          <NotifSkeletonRow key={index} />
+        ))}
+      </SkeletonGroup>
+    ),
+    [],
+  )
+  const notifListEmpty = useMemo(
+    () => (
+      <EmptyState
+        icon={EMPTY_ICON[category]}
+        title={unreadOnly ? "Tidak ada notifikasi belum dibaca" : "Belum ada notifikasi"}
+        description={
+          unreadOnly
+            ? "Semua notifikasi pada kategori ini sudah Anda baca."
+            : category === "TRANSAKSI"
+              ? "Notifikasi transaksi Anda akan muncul di sini."
+              : category === "PROMOSI"
+                ? "Promo dan penawaran menarik untuk Anda akan muncul di sini."
+                : "Info penting dari Kahade akan muncul di sini."
+        }
+      />
+    ),
+    [category, unreadOnly],
+  )
+
   return (
     <Screen edges={["top"]} padded={false}>
       {selecting ? (
@@ -758,13 +792,7 @@ function NotificationsScreen() {
         // Audit: default <ListLoading/> merender 4 kartu h-24; baris
         // notifikasi jauh lebih rapat, sehingga daftar "melompat" saat data
         // tiba. Skeleton sebentuk barisnya dipasang di sini.
-        loadingPlaceholder={
-          <SkeletonGroup>
-            {Array.from({ length: SKELETON_COUNT }, (_, index) => (
-              <NotifSkeletonRow key={index} />
-            ))}
-          </SkeletonGroup>
-        }
+        loadingPlaceholder={notifListLoading}
         // Gap 0: pemisahnya adalah divider inset di tiap baris. Gap + divider
         // sekaligus membuat daftar terlihat bergaris ganda.
         gap={0}
@@ -772,25 +800,7 @@ function NotificationsScreen() {
         onRefresh={query.refresh}
         onRetry={query.reload}
         onLoadMore={query.loadMore}
-        empty={
-          <EmptyState
-            icon={EMPTY_ICON[category]}
-            title={
-              unreadOnly
-                ? "Tidak ada notifikasi belum dibaca"
-                : "Belum ada notifikasi"
-            }
-            description={
-              unreadOnly
-                ? "Semua notifikasi pada kategori ini sudah Anda baca."
-                : category === "TRANSAKSI"
-                  ? "Notifikasi transaksi Anda akan muncul di sini."
-                  : category === "PROMOSI"
-                    ? "Promo dan penawaran menarik untuk Anda akan muncul di sini."
-                    : "Info penting dari Kahade akan muncul di sini."
-            }
-          />
-        }
+        empty={notifListEmpty}
         renderItem={renderNotificationRow}
       />
 

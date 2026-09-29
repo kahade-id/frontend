@@ -974,6 +974,62 @@ export default function ChatScreen() {
     ],
   )
 
+  /**
+   * R1-005 (2026-09-29, audit render-perf): elemen header/empty/loading
+   * distabilkan — identitas baru tiap render membatalkan `useMemo` di dalam
+   * <PaginatedList> dan memaksa VirtualizedList render ulang kontainer.
+   */
+  const chatListHeader = useMemo(
+    () => (filter === "all" ? <SelfChatEntry onOpen={() => void openSelfChat()} /> : undefined),
+    [filter, openSelfChat],
+  )
+  const chatListLoading = useMemo(
+    () => (
+      <SkeletonGroup>
+        {Array.from({ length: SKELETON_COUNT }, (_, index) => (
+          <ChatSkeletonRow key={index} />
+        ))}
+      </SkeletonGroup>
+    ),
+    [],
+  )
+  const chatListEmpty = useMemo(
+    () =>
+      archiveOpen ? (
+        <EmptyState
+          icon={Archive}
+          title="Belum ada percakapan terarsip"
+          description="Percakapan yang Anda arsipkan akan tersimpan di sini."
+        />
+      ) : filter === "unread" ? (
+        <EmptyState
+          icon={Chats}
+          title="Tidak ada yang belum dibaca"
+          description="Semua percakapan sudah Anda baca."
+        />
+      ) : filter === "transaction" ? (
+        <EmptyState
+          icon={Chats}
+          title="Belum ada pesan transaksi"
+          description="Pesan dengan lawan transaksi Anda akan muncul di sini."
+        />
+      ) : (
+        <EmptyState
+          icon={Chats}
+          title="Belum ada percakapan"
+          description="Mulai chat dengan lawan transaksi Anda."
+          // UI-C004: empty state wajib punya jalan keluar yang bisa
+          // diketuk — chat selalu bermula dari sebuah transaksi.
+          action={
+            <Button fullWidth={false} onPress={() => router.push(ROUTES.transactions)}>
+              Lihat transaksi
+            </Button>
+          }
+        />
+      ),
+    [archiveOpen, filter],
+  )
+
   return (
     <Screen edges={["top"]} padded={false}>
       {selecting ? (
@@ -1075,7 +1131,7 @@ export default function ChatScreen() {
         onScrollWorklet={onScrollWorklet}
         // Batch 43: entri "Pesan untuk diri sendiri" di puncak daftar (hanya
         // tab Semua; arsip/filter lain tidak menampilkan self-chat).
-        header={filter === "all" ? <SelfChatEntry onOpen={() => void openSelfChat()} /> : undefined}
+        header={chatListHeader}
         // ChatRoomListItem memasang px-4 sendiri. `padded` default menambah
         // paddingHorizontal 20px lagi di contentContainer -> baris menjorok
         // dan tidak sejajar Header di atasnya. Sama seperti app/notifications.tsx.
@@ -1087,48 +1143,9 @@ export default function ChatScreen() {
         // Baris chat punya padding vertikal sendiri; gap antar baris 0 menjaga
         // irama rapat ala aplikasi pesan (satu layar memuat lebih banyak ruang).
         gap={0}
-        loadingPlaceholder={
-          <SkeletonGroup>
-            {Array.from({ length: SKELETON_COUNT }, (_, index) => (
-              <ChatSkeletonRow key={index} />
-            ))}
-          </SkeletonGroup>
-        }
+        loadingPlaceholder={chatListLoading}
         bottomPadding={insets.bottom + TAB_BAR_HEIGHT + tokens.space[4]}
-        empty={
-          archiveOpen ? (
-            <EmptyState
-              icon={Archive}
-              title="Belum ada percakapan terarsip"
-              description="Percakapan yang Anda arsipkan akan tersimpan di sini."
-            />
-          ) : filter === "unread" ? (
-            <EmptyState
-              icon={Chats}
-              title="Tidak ada yang belum dibaca"
-              description="Semua percakapan sudah Anda baca."
-            />
-          ) : filter === "transaction" ? (
-            <EmptyState
-              icon={Chats}
-              title="Belum ada pesan transaksi"
-              description="Pesan dengan lawan transaksi Anda akan muncul di sini."
-            />
-          ) : (
-            <EmptyState
-              icon={Chats}
-              title="Belum ada percakapan"
-              description="Mulai chat dengan lawan transaksi Anda."
-              // UI-C004: empty state wajib punya jalan keluar yang bisa
-              // diketuk — chat selalu bermula dari sebuah transaksi.
-              action={
-                <Button fullWidth={false} onPress={() => router.push(ROUTES.transactions)}>
-                  Lihat transaksi
-                </Button>
-              }
-            />
-          )
-        }
+        empty={chatListEmpty}
         renderItem={renderChatRoomItem}
       />
       </ModeShiftFade>

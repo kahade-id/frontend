@@ -98,6 +98,15 @@ export function useChatUnreadCountState(): ChatUnreadState {
 }
 
 /**
+ * R1-007 (2026-09-29, audit render-perf): selector primitif — konsumen yang
+ * hanya butuh angka (badge tab) berlangganan `count` saja, sehingga transisi
+ * `status` tanpa perubahan angka tidak memicu re-render.
+ */
+export function useChatUnreadCountNumber(): number | null {
+  return useSyncExternalStore(subscribe, () => state.count, () => state.count)
+}
+
+/**
  * Baca store + fetch awal, poll berkala, refresh saat app aktif.
  * Pasang SEKALI di layout yang hidup selama user login.
  */

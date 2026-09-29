@@ -122,6 +122,16 @@ export function useUnreadCountState(): UnreadCountState {
 }
 
 /**
+ * R1-007 (2026-09-29, audit render-perf): selector primitif — konsumen yang
+ * hanya butuh angka (badge tab) berlangganan `count` saja, sehingga transisi
+ * `status` (idle→loading→success) tanpa perubahan angka tidak memicu
+ * re-render.
+ */
+export function useUnreadCountNumber(): number | null {
+  return useSyncExternalStore(subscribe, () => state.count, () => state.count)
+}
+
+/**
  * Baca store + jalankan fetch awal, poll berkala, dan refresh saat app aktif.
  * Pasang SEKALI di layout yang hidup selama user login (tab layout), bukan
  * di tiap screen — beberapa pemasangan berarti beberapa timer.

@@ -91,9 +91,6 @@ export function ShowcaseMediaGallery({ media, title, onOpen, onDoubleTap, autopl
   useEffect(() => {
     if (dataSaver) setPlayLatch({})
   }, [page, dataSaver])
-  useEffect(() => () => {
-    if (pendingSingleRef.current) clearTimeout(pendingSingleRef.current)
-  }, [])
   const signature = media.map((m) => m.id).join("|")
   useEffect(() => { setPage(0); scroll.current?.scrollTo({ x: 0, animated: false }) }, [signature])
   useEffect(() => { scroll.current?.scrollTo({ x: pageRef.current * width, animated: false }) }, [width])
