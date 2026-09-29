@@ -31,7 +31,7 @@
  *    ketikan; kembali ke item lama memulihkannya. Ganti sesi membuang semua.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from "react"
 import { ChatCircle, Copy, Flag, PaperPlaneRight, Trash, X } from "phosphor-react-native"
 import { FlatList, View, useWindowDimensions } from "react-native"
 import { router } from "expo-router"
@@ -83,6 +83,109 @@ const REPLY_PREVIEW = 3
 /** Kontrak DTO CreateShowcaseCommentDto (sumber: constraints.ts, D-08). */
 const COMMENT_MAX = API_CONSTRAINTS.CreateShowcaseCommentDto.content.maxLength
 
+type ComposerHandle = { clear: () => void }
+
+type CommentComposerFooterProps = {
+  composerRef: MutableRefObject<ComposerHandle | null>
+  initialDraft: string
+  replyToUsername: string | null
+  sending: boolean
+  onCancelReply: () => void
+  /** Dipanggil dengan isi mentah; induk mengurus trim + API + clear. */
+  onSend: (content: string) => Promise<void>
+  /** Menulis ke ref draf induk (tanpa setState) — untuk draf per item (E-05). */
+  onDraftChange: (value: string) => void
+}
+
+/**
+ * FE-012 (audit 2026-09-29): komposer footer tersendiri — state draf
+ * dikunci di komponen anak (pola composer chat R1-001), sehingga keystroke
+ * hanya me-render ulang footer kecil ini, bukan seluruh sheet + FlatList
+ * komentar. Induk tetap memegang `draftRef` (draf per item, E-05) lewat
+ * `onDraftChange` yang tidak memicu render.
+ */
+const CommentComposerFooter = memo(function CommentComposerFooter({
+  composerRef,
+  initialDraft,
+  replyToUsername,
+  sending,
+  onCancelReply,
+  onSend,
+  onDraftChange,
+}: CommentComposerFooterProps) {
+  // i18n: label mengikuti bahasa aktif.
+  useLanguage()
+  const [text, setText] = useState(initialDraft)
+
+  useEffect(() => {
+    composerRef.current = { clear: () => setText("") }
+    return () => {
+      composerRef.current = null
+    }
+  }, [composerRef])
+
+  const handleChange = useCallback(
+    (value: string) => {
+      setText(value)
+      onDraftChange(value)
+    },
+    [onDraftChange],
+  )
+  const handleSendPress = useCallback(() => {
+    const content = text.trim()
+    if (!content || sending) return
+    void onSend(text)
+  }, [text, sending, onSend])
+
+  return (
+    // Wrapper footer sheet sudah px-5 -> tanpa padding horizontal lagi.
+    <View className="pb-1">
+      {replyToUsername ? (
+        <View className="mb-2 flex-row items-center justify-between rounded bg-surface px-3 py-1.5">
+          <Text variant="caption" tone="secondary" numberOfLines={1} className="flex-1">
+            {translate("Membalas @{x}", { x: replyToUsername })}
+          </Text>
+          <IconButton
+            icon={X}
+            variant="ghost"
+            size="sm"
+            accessibilityLabel={translate("Batalkan balasan")}
+            onPress={onCancelReply}
+          />
+        </View>
+      ) : null}
+      <View className="flex-row items-end gap-2">
+        <Input
+          disabled={sending}
+          value={text}
+          onChangeText={handleChange}
+          placeholder={replyToUsername ? translate("Tulis balasan…") : "Tulis komentar…"}
+          accessibilityLabel={translate("Komentar baru")}
+          containerClassName="flex-1"
+          maxLength={COMMENT_MAX}
+          onSubmitEditing={handleSendPress}
+          returnKeyType="send"
+        />
+        <IconButton
+          icon={PaperPlaneRight}
+          variant="primary"
+          size="sm"
+          accessibilityLabel={translate("Kirim komentar")}
+          accessibilityHint={translate("Kirim komentar")}
+          loading={sending}
+          disabled={!text.trim()}
+          onPress={handleSendPress}
+        />
+      </View>
+      {/* Item 162 (FE-IMP-1): konter SELALU "X karakter tersisa"
+          (bukan format ganda "n/2000"). */}
+      <Text variant="caption" tone="secondary" className="pt-1 text-right tabular-nums">
+        {translate("{x} karakter tersisa", { x: COMMENT_MAX - text.length })}
+      </Text>
+    </View>
+  )
+})
+
 import { useShowcaseOperation } from "@/lib/use-showcase-operation"
 import { useSessionRevision } from "@/lib/guest-gate"
 
@@ -124,7 +227,9 @@ export function ShowcaseCommentsSheet({
    * (lokal MAUPUN server) saat render.
    */
   const [replyPatches, setReplyPatches] = useState<Array<{ parentId: string; reply: ShowcaseComment }>>([])
-  const [draft, setDraft] = useState("")
+  // FE-012: TIDAK ada lagi `draft` state di level sheet — draf dikunci di
+  // <CommentComposerFooter>. `draftRef` tetap di sini untuk draf per item
+  // (E-05): ditulis via onDraftChange tanpa setState.
   const [sending, setSending] = useState(false)
   const [replyTo, setReplyTo] = useState<ShowcaseComment | null>(null)
   const [commentMenu, setCommentMenu] = useState<ShowcaseComment | null>(null)
@@ -201,10 +306,14 @@ export function ShowcaseCommentsSheet({
   const sendKey = useRef<{ item: string; content: string; key: string } | null>(null)
   const draftOwner = useRef<string | null>(null)
   const draftRef = useRef("")
-  const updateDraft = useCallback((value: string) => {
+  /** FE-012: imperative handle komposer anak — untuk mengosongkan input setelah kirim sukses. */
+  const composerRef = useRef<ComposerHandle | null>(null)
+  // FE-012: draf ditulis ke ref saja (tanpa setState) — keystroke tidak
+  // me-render ulang sheet.
+  const handleDraftChange = useCallback((value: string) => {
     draftRef.current = value
-    setDraft(value)
   }, [])
+  const cancelReply = useCallback(() => setReplyTo(null), [])
 
   /**
    * G-03/C-08: tutup sheet = buang komentar lokal (listing basi). E-05:
@@ -217,9 +326,8 @@ export function ShowcaseCommentsSheet({
     if (prev !== next) {
       if (prev != null && draftRef.current) draftsFor.current.set(prev, draftRef.current)
       draftOwner.current = next
-      const restored = (next != null ? draftsFor.current.get(next) : undefined) ?? ""
-      draftRef.current = restored
-      setDraft(restored)
+      // FE-012: restore draf untuk komposer anak (key = draftKey di bawah me-remount).
+      draftRef.current = (next != null ? draftsFor.current.get(next) : undefined) ?? ""
     }
     setLocalComments([])
     setReplyPatches([])
@@ -233,12 +341,17 @@ export function ShowcaseCommentsSheet({
   useEffect(() => {
     draftsFor.current.clear()
     draftRef.current = ""
-    setDraft("")
   }, [revision])
 
-  const handleSend = useCallback(async () => {
-    if (!showcaseId || !hasSession) return
-    const content = draft.trim()
+  // FE-012: kunci remount komposer = item × sesi; draf awal dipulihkan dari
+  // draftsFor (E-05) saat render — tanpa state draf di level sheet.
+  const composerKey = `${showcaseId ?? "none"}:${revision}`
+  const composerInitialDraft = showcaseId != null ? (draftsFor.current.get(showcaseId) ?? "") : ""
+
+  const handleSend = useCallback(
+    async (rawContent: string) => {
+      if (!showcaseId || !hasSession) return
+    const content = rawContent.trim()
     if (!content || sending) return
     const task = operation.begin()
     if (!task) return
@@ -268,7 +381,12 @@ export function ShowcaseCommentsSheet({
       // Kiriman ini tuntas — teks yang sama berikutnya adalah aksi BARU.
       sendKey.current = null
       setReplyTo(null)
-      if (draftRef.current.trim() === content) updateDraft("")
+      // FE-012: kosongkan komposer anak hanya bila draf tak berubah selama
+      // kirim (penjaga balapan — perilaku lama via updateDraft("")).
+      if (draftRef.current.trim() === content) {
+        draftRef.current = ""
+        composerRef.current?.clear()
+      }
     } catch (err) {
       if (!task.valid()) return
       toast.show({
@@ -281,7 +399,7 @@ export function ShowcaseCommentsSheet({
       if (task.valid()) setSending(false)
       task.finish()
     }
-  }, [showcaseId, draft, sending, toast.show, hasSession, operation, replyTo, updateDraft])
+  }, [showcaseId, sending, toast.show, hasSession, operation, replyTo])
 
   const localIds = new Set(localComments.map((c) => c.id))
   const serverComments = query.data?.data.filter((c) => !localIds.has(c.id)) ?? []
@@ -412,50 +530,18 @@ export function ShowcaseCommentsSheet({
       footer={
         // Wrapper footer sheet sudah px-5 -> tanpa padding horizontal lagi.
         hasSession ? (
-          <View className="pb-1">
-            {replyTo ? (
-              <View className="mb-2 flex-row items-center justify-between rounded bg-surface px-3 py-1.5">
-                <Text variant="caption" tone="secondary" numberOfLines={1} className="flex-1">
-                  {translate("Membalas @{x}", { x: replyTo.author.username })}
-                </Text>
-                <IconButton
-                  icon={X}
-                  variant="ghost"
-                  size="sm"
-                  accessibilityLabel={translate("Batalkan balasan")}
-                  onPress={() => setReplyTo(null)}
-                />
-              </View>
-            ) : null}
-            <View className="flex-row items-end gap-2">
-              <Input
-                disabled={sending}
-                value={draft}
-                onChangeText={updateDraft}
-                placeholder={replyTo ? translate("Tulis balasan…") : "Tulis komentar…"}
-                accessibilityLabel={translate("Komentar baru")}
-                containerClassName="flex-1"
-                maxLength={COMMENT_MAX}
-                onSubmitEditing={() => void handleSend()}
-                returnKeyType="send"
-              />
-              <IconButton
-                icon={PaperPlaneRight}
-                variant="primary"
-                size="sm"
-                accessibilityLabel={translate("Kirim komentar")}
-                accessibilityHint={translate("Kirim komentar")}
-                loading={sending}
-                disabled={!draft.trim()}
-                onPress={() => void handleSend()}
-              />
-            </View>
-            {/* Item 162 (FE-IMP-1): konter SELALU "X karakter tersisa"
-                (bukan format ganda "n/2000"). */}
-            <Text variant="caption" tone="secondary" className="pt-1 text-right tabular-nums">
-              {translate("{x} karakter tersisa", { x: COMMENT_MAX - draft.length })}
-            </Text>
-          </View>
+          // FE-012: draf dikunci di komponen anak (key = item × sesi) —
+          // keystroke tidak me-render ulang sheet/list.
+          <CommentComposerFooter
+            key={composerKey}
+            composerRef={composerRef}
+            initialDraft={composerInitialDraft}
+            replyToUsername={replyTo?.author.username ?? null}
+            sending={sending}
+            onCancelReply={cancelReply}
+            onSend={handleSend}
+            onDraftChange={handleDraftChange}
+          />
         ) : (
           // A-05 (kelas): tamu tidak melihat komposer — ajakan login.
           <View className="pb-1">
