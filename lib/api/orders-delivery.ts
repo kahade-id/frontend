@@ -50,6 +50,42 @@ export function listExtensions(orderId: string, query: PageQuery, signal?: Abort
     })
 }
 
+/**
+ * D1-010 (perf 2026-09-29): fingerprint ringan untuk poll — total +
+ * max(updatedAt). Bundle penuh (`listExtensions`) hanya di-refresh bila
+ * fingerprint berubah.
+ */
+export type ExtensionsFingerprint = {
+  total: number
+  latestUpdatedAt: string | null
+}
+
+export function getExtensionsFingerprint(orderId: string, signal?: AbortSignal) {
+  return http.get<ExtensionsFingerprint>(`/v1/orders/${seg(orderId)}/extensions/fingerprint`, {
+    auth: "required",
+    retry: 1,
+    signal,
+  })
+}
+
+/**
+ * D1-010 (perf 2026-09-29): fingerprint ringan untuk poll — count +
+ * max(updatedAt). Bundle penuh (`listDeliveryProofs`, termasuk sign URL per
+ * file) hanya di-refresh bila fingerprint berubah.
+ */
+export type DeliveryProofFingerprint = {
+  count: number
+  latestUpdatedAt: string | null
+}
+
+export function getDeliveryProofFingerprint(orderId: string, signal?: AbortSignal) {
+  return http.get<DeliveryProofFingerprint>(`/v1/orders/${seg(orderId)}/delivery-proof/fingerprint`, {
+    auth: "required",
+    retry: 1,
+    signal,
+  })
+}
+
 export function normalizeOrderExtension(raw: unknown): OrderExtension {
   const item = asRecord(raw) ?? {}
   return {

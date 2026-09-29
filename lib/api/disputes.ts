@@ -293,6 +293,26 @@ export function getDispute(disputeId: string, signal?: AbortSignal) {
 }
 
 /**
+ * D1-010 (perf 2026-09-29): fingerprint ringan untuk poll — status +
+ * updatedAt + jumlah pesan. Bundle penuh (`getDispute`) hanya di-refresh
+ * bila fingerprint berubah.
+ */
+export type DisputeFingerprint = {
+  disputeId: string
+  status: string
+  updatedAt: string
+  messageCount: number
+}
+
+export function getDisputeFingerprint(disputeId: string, signal?: AbortSignal) {
+  return http.get<DisputeFingerprint>(`/v1/disputes/${seg(disputeId)}/fingerprint`, {
+    auth: "required",
+    retry: 1,
+    signal,
+  })
+}
+
+/**
  * DP-020: kembalikan juga `total` dari respons paginasi backend
  * (PaginatedResponse {data,total,page,limit,...}) agar UI bisa menampilkan
  * "Menampilkan X dari Y bukti". Bila backend tak mengirim total, undefined —

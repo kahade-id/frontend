@@ -224,8 +224,12 @@ export default function WithdrawScreen() {
   const progress = stepIndex[step] / TOTAL_STEPS
 
   // QR verifikasi struk penarikan — defensif: null = tiket tanpa QR (lib/receipt).
+  // D1-007: hanya fetch bila tiket benar-benar dirender (step "done") —
+  // resume PENDING_OTP menyetel txId saat masih di step "verify".
   const withdrawTicketRef = useRef<View | null>(null)
-  const withdrawQr = useReceiptQr("WITHDRAWAL", result?.txId ?? txId)
+  const withdrawQr = useReceiptQr("WITHDRAWAL", result?.txId ?? txId, {
+    enabled: step === "done",
+  })
 
   const canContinueAmount =
     isValidAmount(amount, withdrawLimits) &&

@@ -23,7 +23,7 @@ import { tokens } from "@/lib/tokens"
 import { shareContent } from "@/lib/share"
 import { shortId } from "@/lib/short-id"
 import { useApiQuery } from "@/lib/use-api-query"
-import { usePolling } from "@/lib/use-polling"
+import { useFingerprintPoll } from "@/lib/use-fingerprint-poll"
 import { FEE_RESPONSIBILITY_LABELS } from "@/components/ui/fee-breakdown"
 
 /** R2 (#25): status invoice yang final — polling berhenti di sini. */
@@ -104,10 +104,11 @@ export default function InvoiceScreen() {
   // R2 (audit ronde-2, butir #25): invoice digenerasikan async setelah
   // pembayaran — poll 15 detik sampai status final (PAID/EXPIRED/CANCELLED)
   // tercapai; jangan paksa pengguna menutup-membuka layar untuk melihatnya.
-  usePolling(
-    async () => {
-      await query.refresh().catch(() => {})
-    },
+  // D1-010 (perf 2026-09-29): invoice diturunkan dari baris order — poll
+  // status order ringan (D1-005); bundle penuh hanya bila status berubah.
+  useFingerprintPoll(
+    (signal) => api.orders.getOrderStatus(orderId as string, signal),
+    () => query.refresh(),
     15_000,
     Boolean(orderId) &&
       !INVOICE_TERMINAL_STATUSES.has((invoice?.status ?? "").toUpperCase()),

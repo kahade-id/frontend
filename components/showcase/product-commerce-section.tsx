@@ -83,14 +83,30 @@ const compactBadgeInflight = new Map<string, Promise<string[]>>()
 /**
  * Chip TERLARIS / DISKON ringkas untuk kartu feed (batch 43, item "badge
  * commerce pada kartu/feed"). Render HANYA bila pemanggil memastikan item
- * adalah produk commerce (`orderLink` ada) — endpoint publik, gagal = diam.
+ * adalah produk commerce (`isCommerce` dari payload).
+ *
+ * D1-001 (perf 2026-09-29): badge kini diserialkan LANGSUNG di payload feed
+ * (`item.badges`) — teruskan via prop `badges` dan TIDAK ada request
+ * /v1/commerce/products/:id/badges per kartu. Bila `badges` tidak diberikan
+ * (undefined — mis. data lama/detail), fallback ke fetch lama per kartu.
  */
-export function CommerceBadgesCompact({ showcaseId }: { showcaseId: string }) {
+export function CommerceBadgesCompact({
+  showcaseId,
+  badges: badgesProp,
+}: {
+  showcaseId: string
+  badges?: string[] | null
+}) {
   const [badges, setBadges] = useState<string[] | null>(
-    () => compactBadgeCache.get(showcaseId) ?? null,
+    () => badgesProp ?? compactBadgeCache.get(showcaseId) ?? null,
   )
 
   useEffect(() => {
+    // D1-001: badge dari payload — tidak perlu fetch sama sekali.
+    if (badgesProp !== undefined && badgesProp !== null) {
+      setBadges(badgesProp)
+      return
+    }
     if (compactBadgeCache.has(showcaseId)) return
     let alive = true
     let pending = compactBadgeInflight.get(showcaseId)
@@ -109,7 +125,7 @@ export function CommerceBadgesCompact({ showcaseId }: { showcaseId: string }) {
     return () => {
       alive = false
     }
-  }, [showcaseId])
+  }, [showcaseId, badgesProp])
 
   if (!badges || badges.length === 0) return null
   return (

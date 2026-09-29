@@ -279,16 +279,28 @@ export default function OrderDetailScreen() {
   // QR verifikasi struk bukti pembayaran — defensif: null = tiket tanpa QR
   // (lib/receipt). Hook selalu dipanggil; referenceId null = tidak fetch.
   const orderTicketRef = useRef<View | null>(null)
-  const orderPaymentQr = useReceiptQr("ORDER_PAYMENT", order?.id ?? null)
+  // D1-007: QR struk hanya di-fetch bila tiket benar-benar dirender
+  // (order.paidAt) — bukan untuk semua order yang dibuka.
+  const orderPaymentQr = useReceiptQr("ORDER_PAYMENT", order?.id ?? null, {
+    enabled: Boolean(order?.paidAt),
+  })
   // R2 (audit ronde-2, butir #21): status pihak lawan (bayar/kirim/konfirmasi)
   // menyegar otomatis tiap 15 detik selama layar terbuka — tanpa pull-to-
   // refresh. Order status terminal berhenti dipoll. Galat ditelan oleh
   // useApiQuery (masuk state error), callback ini tidak melempar.
   // R2 #108: status terminal dipusatkan pada satu konstanta (dipakai polling
   // stop DAN pintasan riwayat terminal di fetcher).
+  // D1-005 (perf 2026-09-29): poll hanya mengambil STATUS RINGAN
+  // (GET /v1/orders/:id/status, 3 kolom). Bundle penuh (detail + 50 riwayat +
+  // durasi + fee) di-refresh HANYA bila status berubah — bukan setiap 15 detik.
   usePolling(
     async () => {
-      await query.refresh().catch(() => {})
+      const oid = id as string
+      const light = await api.orders.getOrderStatus(oid).catch(() => null)
+      const current = query.data?.order?.status
+      if (light && current && light.status !== current) {
+        await query.refresh().catch(() => {})
+      }
     },
     15_000,
     Boolean(id && order && !ORDER_TERMINAL_STATUSES.includes(order.status)),
