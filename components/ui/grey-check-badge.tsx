@@ -19,11 +19,10 @@ import { SealCheck } from "phosphor-react-native"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Icon } from "@/components/ui/icon"
 import { Text } from "@/components/ui/text"
+import { useTheme } from "@/components/theme-provider"
 import { translate } from "@/lib/i18n/translate"
+import { modes } from "@/lib/tokens"
 import { useKahadePlus } from "@/lib/use-kahade-plus"
-
-/** Warna abu identitas — sama dengan tier gray <VerifiedSeal>. */
-export const GREY_CHECK_COLOR = "#6B7280"
 
 export type GreyCheckBadgeProps = {
   /** Diameter lingkaran (px). Default 20. */
@@ -32,9 +31,14 @@ export type GreyCheckBadgeProps = {
 
 export function GreyCheckBadge({ size = 20 }: GreyCheckBadgeProps) {
   const { showGreyBadge } = useKahadePlus()
+  const { mode } = useTheme()
   const [open, setOpen] = useState(false)
 
   if (!showGreyBadge) return null
+
+  // FE-131: abu identitas dari token `badgeGray` per-mode (AA di light &
+  // dark) — sama dengan tier gray <VerifiedSeal>, bukan literal #6B7280.
+  const badgeColor = modes[mode].badgeGray
 
   return (
     <>
@@ -47,9 +51,9 @@ export function GreyCheckBadge({ size = 20 }: GreyCheckBadgeProps) {
       >
         <View
           className="items-center justify-center rounded-full"
-          style={{ width: size, height: size, backgroundColor: `${GREY_CHECK_COLOR}1A` }}
+          style={{ width: size, height: size, backgroundColor: `${badgeColor}1A` }}
         >
-          <Icon icon={SealCheck} size={size * 0.75} weight="fill" color={GREY_CHECK_COLOR} />
+          <Icon icon={SealCheck} size={size * 0.75} weight="fill" color={badgeColor} />
         </View>
       </Pressable>
       <BottomSheet

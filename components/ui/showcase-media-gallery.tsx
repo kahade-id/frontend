@@ -17,6 +17,7 @@ import { useEffect, useRef, useState } from "react"
 import { ScrollView, View } from "react-native"
 import { CaretLeft, CaretRight, Play, SpeakerHigh, SpeakerSimpleX } from "phosphor-react-native"
 import { cn } from "@/lib/cn"
+import { brand } from "@/lib/tokens"
 import { Picture } from "@/components/ui/picture"
 import { FeedVideo } from "@/components/ui/feed-video"
 import { Icon } from "@/components/ui/icon"
@@ -248,7 +249,7 @@ export function ShowcaseMediaGallery({ media, title, onOpen, onDoubleTap, autopl
             onPress={() => move(page - 1)}
             containerClassName="min-h-8 min-w-8 items-center justify-center rounded-full"
           >
-            <CaretLeft size={18} color="#FFFFFF" weight="bold" />
+            <CaretLeft size={18} color={brand.white} weight="bold" />
           </PressableScale>
           <View className="flex-row items-center gap-3">
             {/* Item 155 (FE-IMP-1): titik indikator BISA diketuk → lompat ke
@@ -281,7 +282,7 @@ export function ShowcaseMediaGallery({ media, title, onOpen, onDoubleTap, autopl
             onPress={() => move(page + 1)}
             containerClassName="min-h-8 min-w-8 items-center justify-center rounded-full"
           >
-            <CaretRight size={18} color="#FFFFFF" weight="bold" />
+            <CaretRight size={18} color={brand.white} weight="bold" />
           </PressableScale>
         </View>
       ) : null}

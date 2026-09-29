@@ -44,6 +44,7 @@ import { Divider } from "@/components/ui/divider"
 import { KeyValue } from "@/components/ui/key-value"
 import { QRCodeDisplay } from "@/components/ui/qr-code-display"
 import { StatusIndicator } from "@/components/ui/status-indicator"
+import { PAYMENT_COUNTDOWN_DANGER_SECONDS } from "@/lib/order-countdown"
 import { Text } from "@/components/ui/text"
 import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
@@ -287,7 +288,14 @@ export function TopupStatusCard({
               <Text variant="caption" tone="secondary">
                 {t.payBefore}
               </Text>
-              <Countdown until={expiresAt} tone="primary" onComplete={onExpire} />
+              {/* FE-134: tenggat pembayaran top-up — eskalasi ke danger di
+                  bawah 5 menit, selaras dengan countdown order. */}
+              <Countdown
+                until={expiresAt}
+                tone="primary"
+                dangerUnderSeconds={PAYMENT_COUNTDOWN_DANGER_SECONDS}
+                onComplete={onExpire}
+              />
             </View>
           ) : null}
         </>

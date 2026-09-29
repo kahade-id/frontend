@@ -15,6 +15,14 @@ import { translate } from "@/lib/i18n/translate"
 export const COUNTDOWN_URGENT_SECONDS = 24 * 60 * 60
 
 /**
+ * FE-134 (audit frontend 2026-09-29): ambang eskalasi countdown tenggat
+ * PEMBAYARAN (QRIS/top-up — hitungan menit, lebih mendesak dari order yang
+ * ambangnya 24 jam). Di bawah 5 menit tone naik ke danger. Dipakai
+ * `<Countdown dangerUnderSeconds>` di qris-payment-panel & topup-status-card.
+ */
+export const PAYMENT_COUNTDOWN_DANGER_SECONDS = 5 * 60
+
+/**
  * Label kontekstual untuk countdown tenggat sesuai status order.
  * - WAITING_CONFIRMATION        → "Batas konfirmasi" (penjual mengonfirmasi)
  * - WAITING_PAYMENT/PENDING_PAYMENT → "Batas bayar"
@@ -42,4 +50,12 @@ export function countdownDeadlineLabel(status: string): string {
 /** True bila sisa waktu di bawah ambang 24 jam → naik ke tone warning/danger. */
 export function isCountdownUrgent(secondsLeft: number): boolean {
   return Number.isFinite(secondsLeft) && secondsLeft < COUNTDOWN_URGENT_SECONDS
+}
+
+/**
+ * FE-134: true bila sisa waktu di bawah ambang 5 menit → countdown tenggat
+ * pembayaran naik ke tone danger.
+ */
+export function isPaymentCountdownDanger(secondsLeft: number): boolean {
+  return Number.isFinite(secondsLeft) && secondsLeft < PAYMENT_COUNTDOWN_DANGER_SECONDS
 }

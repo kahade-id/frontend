@@ -30,7 +30,10 @@ import {
 import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Icon, type IconComponent } from "@/components/ui/icon"
 import { Text } from "@/components/ui/text"
+import { useTheme } from "@/components/theme-provider"
 import { translate } from "@/lib/i18n/translate"
+import { formatDate } from "@/lib/format"
+import { modes, type ColorMode } from "@/lib/tokens"
 import type { VerificationBadge } from "@/lib/api/users"
 import { cn } from "@/lib/cn"
 
@@ -42,7 +45,20 @@ export type SealTier = "gold" | "blue" | "gray"
 export const SEAL_TIER_COLOR: Record<SealTier, string> = {
   gold: "#C9A227",
   blue: "#1D9BF0",
+  // FE-131: `gray` literal DIHENTIKAN — pakai `sealTierColor()` agar abu
+  // mengikuti token `badgeGray` per-mode (AA di light & dark). Nilai ini
+  // dipertahankan hanya sebagai fallback historis, bukan untuk render.
   gray: "#6B7280",
+}
+
+/**
+ * FE-131 (audit frontend 2026-09-29): warna tier seal yang theme-aware.
+ * Emas/biru = identitas brand, sengaja tetap di kedua mode; abu = token
+ * `badgeGray` per-mode (light #6B7280, dark #9CA3AF — keduanya lolos AA,
+ * sedangkan #6B7280 di dark hanya ±3.94:1 vs background).
+ */
+export function sealTierColor(tier: SealTier, mode: ColorMode): string {
+  return tier === "gray" ? modes[mode].badgeGray : SEAL_TIER_COLOR[tier]
 }
 
 const SEAL_TIER_LABEL: Record<SealTier, string> = {
@@ -83,7 +99,7 @@ const BADGE_ICON_MAP: Partial<Record<string, IconComponent>> = {
 }
 
 /** Warna ikon tiap badge di dalam sheet — selaras dengan tier seal. */
-function badgeIconColor(type: string): string {
+function badgeIconColor(type: string, mode: ColorMode): string {
   switch (type) {
     case "TRUSTED_BY_KAHADE":
       return SEAL_TIER_COLOR.gold
@@ -92,7 +108,7 @@ function badgeIconColor(type: string): string {
     case "KAHADE_PLUS":
       return "#8B5CF6"
     default:
-      return SEAL_TIER_COLOR.gray
+      return sealTierColor("gray", mode)
   }
 }
 
@@ -129,10 +145,11 @@ export type VerifiedSealProps = {
 
 export function VerifiedSeal({ badges, verified = false, tier: tierProp, size = 16, className }: VerifiedSealProps) {
   const [sheetOpen, setSheetOpen] = useState(false)
+  const { mode } = useTheme()
   const tier = tierProp ?? getSealTier(badges) ?? (verified ? "gray" : null)
   if (!tier) return null
 
-  const color = SEAL_TIER_COLOR[tier]
+  const color = sealTierColor(tier, mode)
   const label = SEAL_TIER_LABEL[tier]
 
   return (
@@ -167,6 +184,7 @@ export type VerificationSheetProps = {
 
 /** Sheet detail verifikasi — dipakai VerifiedSeal & baris chip badge. */
 export function VerificationSheet({ visible, onRequestClose, badges, tier }: VerificationSheetProps) {
+  const { mode } = useTheme()
   return (
     <BottomSheet
       visible={visible}
@@ -181,9 +199,9 @@ export function VerificationSheet({ visible, onRequestClose, badges, tier }: Ver
             <View key={b.type} className="flex-row items-start gap-3 py-2.5">
               <View
                 className="h-10 w-10 items-center justify-center rounded-full"
-                style={{ backgroundColor: `${badgeIconColor(b.type)}1A` }}
+                style={{ backgroundColor: `${badgeIconColor(b.type, mode)}1A` }}
               >
-                <Icon icon={IconCmp} size={20} color={badgeIconColor(b.type)} />
+                <Icon icon={IconCmp} size={20} color={badgeIconColor(b.type, mode)} />
               </View>
               <View className="flex-1">
                 <Text variant="body" weight={600}>
@@ -207,13 +225,8 @@ export function VerificationSheet({ visible, onRequestClose, badges, tier }: Ver
 }
 
 function formatBadgeDate(iso: string): string {
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return iso
-  try {
-    return d.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })
-  } catch {
-    return iso
-  }
+  // FE-124: helper tanggal baku (§13) — bukan toLocaleDateString mentah.
+  return formatDate(iso, { long: true })
 }
 
 // Re-ekspor agar call site lama tidak perlu impor phosphor langsung.

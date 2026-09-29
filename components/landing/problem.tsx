@@ -28,7 +28,7 @@ const PROBLEMS: Problem[] = [
   },
   {
     icon: Handshake,
-    title: "Rekber manual ribet",
+    title: "Escrow manual ribet",
     description:
       "Harus cari admin yang bisa dipercaya, transfer manual, catat mutasi sendiri. Satu transaksi bisa makan waktu berjam-jam.",
   },

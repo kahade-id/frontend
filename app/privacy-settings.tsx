@@ -23,6 +23,7 @@ import { Linking, Pressable, View } from "react-native"
 import { CaretRight, DownloadSimple } from "phosphor-react-native"
 
 import { api, userMessage } from "@/lib/api"
+import { formatDate } from "@/lib/format"
 import { translate, useLanguage } from "@/lib/i18n"
 import { safeHttpsUrl } from "@/lib/version"
 import type {
@@ -555,7 +556,7 @@ export default function PrivacySettingsScreen() {
               <View key={`${h.type}-${h.createdAt}-${i}`} className="px-5 py-2">
                 <Text variant="caption" tone="secondary">
                   {CONSENT_LABELS[h.type]?.title ?? h.type} — {h.granted ? "disetujui" : "ditarik"} · v{h.policyVersion} ·{" "}
-                  {new Date(h.createdAt).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}
+                  {formatDate(h.createdAt)}
                 </Text>
               </View>
             ))}
@@ -606,15 +607,11 @@ export default function PrivacySettingsScreen() {
                       {item.format === "CSV" ? "Arsip CSV (ZIP)" : "Arsip JSON"}
                     </Text>
                     <Text variant="caption" tone="secondary">
-                      {new Date(item.requestedAt).toLocaleDateString("id-ID", {
-                        day: "numeric",
-                        month: "short",
-                        year: "numeric",
-                      })}
+                      {formatDate(item.requestedAt)}
                       {expired
                         ? " · Kedaluwarsa"
                         : ready && item.expiresAt
-                          ? ` · Berlaku hingga ${new Date(item.expiresAt).toLocaleDateString("id-ID", { day: "numeric", month: "short" })}`
+                          ? ` · Berlaku hingga ${formatDate(item.expiresAt)}`
                           : ""}
                       {item.downloadCount > 0 ? ` · Diunduh ${item.downloadCount}×` : ""}
                     </Text>
@@ -651,11 +648,7 @@ export default function PrivacySettingsScreen() {
         <Text variant="caption" tone="secondary" className="pt-1">
           Terakhir diminta:{" "}
           {lastExportAt
-            ? new Date(lastExportAt).toLocaleDateString("id-ID", {
-                day: "numeric",
-                month: "short",
-                year: "numeric",
-              })
+            ? formatDate(lastExportAt)
             : "belum pernah"}
         </Text>
         <View className="flex-row gap-2 pt-2">

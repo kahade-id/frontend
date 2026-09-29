@@ -5,7 +5,7 @@
  *  - <WalletHeroCard> — kartu saldo hero gelap premium: "Saldo Tersedia"
  *    besar + caption "yang bisa dipakai sekarang" + toggle mata
  *    (balanceHidden dari useUiPref, dibagi dengan Beranda — J-05) +
- *    sub-baris "Rp X ditahan di escrow". Skeleton saat
+ *    sub-baris "Ditahan di escrow: Rp X". Skeleton saat
  *    loading; ErrorState + retry saat error (fail closed: tidak pernah
  *    menampilkan Rp 0 palsu).
  *  - <WalletPrimaryActions> — tiga tombol besar: Isi Saldo / Transfer /
@@ -86,14 +86,14 @@ const RecentTransactionRow = memo(function RecentTransactionRow({
  * PaginatedList tidak jebol.
  */
 function RecentEmptyState() {
+  // FE-135 (audit frontend 2026-09-29): <EmptyState> langsung tanpa bungkus
+  // kartu kustom — konsisten dengan empty state layar lain.
   return (
-    <View className="mt-3 rounded-md border border-border bg-surface-elevated px-5 py-4">
-      <EmptyState
-        icon={WalletIcon}
-        title="Belum ada riwayat"
-        description="Transaksi dompet Anda akan muncul di sini."
-      />
-    </View>
+    <EmptyState
+      icon={WalletIcon}
+      title="Belum ada riwayat"
+      description="Transaksi dompet Anda akan muncul di sini."
+    />
   )
 }
 import { OnboardingChecklistCard } from "@/components/ui/onboarding-checklist"

@@ -162,6 +162,15 @@ export type CountdownProps = Omit<ViewProps, "children"> &
      * detik tetap per detik (di situlah angkanya penting). 1 = perilaku lama.
      */
     announceEverySeconds?: number
+    /**
+     * FE-134 (audit frontend 2026-09-29): eskalasi tone countdown tenggat
+     * pembayaran — bila sisa detik di bawah ambang ini, tone naik ke
+     * "danger" (selaras dengan countdown order yang eskalasi di bawah
+     * COUNTDOWN_URGENT_SECONDS; ambang pembayaran disesuaikan, mis. 300
+     * untuk <5 menit = danger). Opsional — tanpa ini perilaku lama
+     * dipertahankan.
+     */
+    dangerUnderSeconds?: number
   }
 
 export function Countdown({
@@ -176,6 +185,7 @@ export function Countdown({
   className,
   invalidLabel = "—",
   announceEverySeconds: _announceEverySeconds = 5,
+  dangerUnderSeconds,
   ...rest
 }: CountdownProps) {
   const { formatted, remaining, invalid } = useCountdown({ seconds, until, onComplete, autoStart })
@@ -199,6 +209,11 @@ export function Countdown({
    */
   const label = [translateProp(prefix), spoken, translateProp(suffix)].filter(Boolean).join(" ")
 
+  // FE-134: eskalasi tone di bawah ambang (countdown re-render tiap tick,
+  // jadi eskalasi ikut hidup). Sumber waktu rusak → tone tidak dipaksa.
+  const resolvedTone =
+    dangerUnderSeconds != null && !invalid && remaining < dangerUnderSeconds ? "danger" : tone
+
   return (
     <View
       /*
@@ -215,15 +230,15 @@ export function Countdown({
       {...rest}
     >
       {prefix ? (
-        <Text variant={large ? "body" : "caption"} tone={tone}>
+        <Text variant={large ? "body" : "caption"} tone={resolvedTone}>
           {prefix}
         </Text>
       ) : null}
-      <Text variant={large ? "monoLarge" : "monoBody"} tone={tone}>
+      <Text variant={large ? "monoLarge" : "monoBody"} tone={resolvedTone}>
         {formatted}
       </Text>
       {suffix ? (
-        <Text variant={large ? "body" : "caption"} tone={tone}>
+        <Text variant={large ? "body" : "caption"} tone={resolvedTone}>
           {suffix}
         </Text>
       ) : null}

@@ -12,7 +12,7 @@
  *  - Toggle mata (Eye/EyeSlash) terhubung ke `prefs.balanceHidden` dari
  *    useUiPrefs — preferensi yang SAMA dengan Beranda (J-05), bukan state
  *    lokal. Pemanggil yang me-wire `hidden`/`onToggleHidden`.
- *  - Sub-baris "Rp X ditahan di escrow" bila ada dana tertahan.
+ *  - Sub-baris "Ditahan di escrow: Rp X" bila ada dana tertahan.
  *  - Loading = skeleton pada angka (label & kontrol tetap tampil, layout
  *    stabil — pola HomeOverviewCard).
  *  - Error = <ErrorState compact> + retry DI LUAR kartu gelap (bukan di
@@ -111,7 +111,7 @@ export function WalletHeroCard({
       : summarize([
           "Saldo tersedia",
           formatRupiah(available ?? Number.NaN),
-          showHeld ? `${formatRupiah(heldValue)} ditahan di escrow` : undefined,
+          showHeld ? `Ditahan di escrow: ${formatRupiah(heldValue)}` : undefined,
         ])
 
   return (
@@ -160,7 +160,7 @@ export function WalletHeroCard({
                     onPress={onPressBreakdown}
                     accessibilityRole="button"
                     accessibilityLabel="Lihat rincian saldo"
-                    accessibilityHint="Menampilkan penjelasan saldo tersedia, ditahan di escrow, dan total"
+                    accessibilityHint="Menampilkan penjelasan saldo tersedia, dana ditahan di escrow, dan total"
                     className={cn(
                       "-my-2 -mr-2 min-h-11 min-w-11 items-center justify-center rounded-full",
                       focusRing,
@@ -191,7 +191,7 @@ export function WalletHeroCard({
                   accessibilityRole={onPressHeld ? "button" : undefined}
                   accessibilityLabel={
                     onPressHeld
-                      ? `${formatRupiah(heldValue)} ditahan di escrow. Ketuk untuk melihat rincian pesanan penahan.`
+                      ? `Ditahan di escrow: ${formatRupiah(heldValue)}. Ketuk untuk melihat rincian.`
                       : undefined
                   }
                   accessibilityHint={onPressHeld ? "Menampilkan rincian dana yang ditahan di escrow" : undefined}
@@ -206,7 +206,7 @@ export function WalletHeroCard({
                       <Icon icon={LockSimple} size="xs" tone="inverse" />
                       <Amount value={heldValue} size="body" tone="inverse" hidden={hidden} />
                       <Text variant="caption" tone="inverse">
-                        ditahan di escrow
+                        Ditahan di escrow
                       </Text>
                       {onPressHeld ? (
                         <Icon icon={CaretRight} size="xs" tone="inverse" />
@@ -216,6 +216,8 @@ export function WalletHeroCard({
                      * FE-004: satu kalimat penjelasan baku untuk dana yang
                      * ditahan — dipakai ulang di hero, sheet rincian, dan
                      * sheet holds (lihat lib/labels/escrow.ts).
+                     * FE-130: istilah "Ditahan di escrow" sudah baku di
+                     * konstanta tersebut; tidak diduplikasi di sini.
                      */}
                     <Text variant="caption" tone="inverse" className="opacity-70">
                       {ESCROW_HELD_EXPLANATION}
