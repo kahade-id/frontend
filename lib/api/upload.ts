@@ -13,7 +13,18 @@ import { safeHttpsUrl } from "@/lib/version"
 import { buildUrl, http, refreshAccessToken, seg } from "@/lib/api/client"
 import { getAccessToken } from "@/lib/api/session"
 import type { CleanupFilesDto, ConfirmUploadDto, PresignedUrlDto } from "@/lib/api/types"
-import { pickedImageToBlob, pickedImageToFormData, type PickedImage } from "@/lib/image-picker"
+import type { PickedImage } from "@/lib/image-picker"
+
+// PERF-FIX (bundle): `@/lib/image-picker` menarik `expo-image-picker`
+// (±788KB) — modul ini ada di barrel `@/lib/api` yang diimpor 152 file.
+// Muat hanya saat fungsi upload benar-benar dipanggil (preseden dynamic
+// import sudah ada di file ini: `expo-file-system/legacy`).
+type ImagePickerModule = typeof import("@/lib/image-picker")
+let imagePickerPromise: Promise<ImagePickerModule> | null = null
+function loadImagePicker(): Promise<ImagePickerModule> {
+  if (!imagePickerPromise) imagePickerPromise = import("@/lib/image-picker")
+  return imagePickerPromise
+}
 import { Platform } from "react-native"
 
 /** Hasil POST /v1/upload/presigned-url. */
@@ -422,6 +433,8 @@ export function uploadDirectVideo(
     }
 
     const sendOnce = async (token: string): Promise<void> => {
+      // PERF-FIX (bundle): image-picker dimuat lazy (lihat loadImagePicker).
+      const { pickedImageToFormData } = await loadImagePicker()
       const formData = await pickedImageToFormData(asset, "file")
       formData.append("purpose", purpose)
       await new Promise<void>((resolveXhr, rejectXhr) => {
@@ -846,6 +859,8 @@ export async function uploadChunkedVideo(
   let webBlob: Blob | null = null
   if (isWeb) {
     try {
+      // PERF-FIX (bundle): image-picker dimuat lazy (lihat loadImagePicker).
+      const { pickedImageToBlob } = await loadImagePicker()
       webBlob = await pickedImageToBlob(asset)
     } catch (err) {
       throw new ApiError({
@@ -959,6 +974,8 @@ export async function uploadDirectImage(
   purpose: string,
   signal?: AbortSignal,
 ): Promise<{ fileKey: string }> {
+  // PERF-FIX (bundle): image-picker dimuat lazy (lihat loadImagePicker).
+  const { pickedImageToFormData } = await loadImagePicker()
   const formData = await pickedImageToFormData(img, "file")
   formData.append("purpose", purpose)
   const result = await uploadDirect(formData, signal)

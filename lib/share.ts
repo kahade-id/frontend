@@ -22,8 +22,17 @@
  *   - Web: `navigator.share` bila ada (mobile browser), kalau tidak
  *     "unavailable" — pemanggil jatuh ke tombol Salin (<CopyableField>).
  */
-import * as Sharing from "expo-sharing"
 import { Platform, Share } from "react-native"
+
+// PERF-FIX (bundle): `expo-sharing` hanya dipakai untuk berbagi FILE
+// (shareFile) — bukan untuk teks/URL. Muat lazy agar modul native tidak
+// dievaluasi saat boot; shareContent() dipanggil dari banyak layar.
+type ExpoSharingModule = typeof import("expo-sharing")
+let sharingPromise: Promise<ExpoSharingModule> | null = null
+function loadSharing(): Promise<ExpoSharingModule> {
+  if (!sharingPromise) sharingPromise = import("expo-sharing")
+  return sharingPromise
+}
 
 export type ShareTextPayload = {
   /** Kalimat siap kirim */
@@ -92,6 +101,8 @@ async function shareText({ message, url, title }: ShareTextPayload): Promise<Sha
 }
 
 async function shareFile({ fileUri, mimeType, dialogTitle, uti }: ShareFilePayload): Promise<ShareOutcome> {
+  // PERF-FIX (bundle): expo-sharing dimuat lazy — lihat loadSharing.
+  const Sharing = await loadSharing()
   if (!(await Sharing.isAvailableAsync())) return "unavailable"
   try {
     await Sharing.shareAsync(fileUri, { mimeType, dialogTitle, UTI: uti })

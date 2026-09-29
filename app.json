@@ -20,7 +20,8 @@
       "codeSigningMetadata": {
         "keyid": "main",
         "alg": "rsa-v1_5-sha256"
-      }
+      },
+      "assetPatternsToBeBundled": ["assets/fonts/*", "assets/images/splash-icon.png", "assets/images/icon.png"]
     },
     "extra": {
       "eas": {

@@ -58,7 +58,9 @@ import { I18nProvider } from "@/components/i18n-provider"
 import { ThemeProvider, useTheme } from "@/components/theme-provider"
 import { AnimatedSplash } from "@/components/ui/animated-splash"
 import { ContentContainer } from "@/components/ui/content-container"
-import { APP_TITLE } from "@/components/ui/header"
+// PERF-FIX (bundle): APP_TITLE dari leaf module `@/lib/app-meta` (tanpa
+// import) — bukan dari `@/components/ui/header` yang menarik ~10 modul UI.
+import { APP_TITLE } from "@/lib/app-meta"
 import { ListLoading } from "@/components/ui/paginated-list"
 import { Button } from "@/components/ui/button"
 import { ErrorState } from "@/components/ui/error-state"
@@ -83,16 +85,23 @@ import { Dialog } from "@/components/ui/modal"
 import { PortalHost, PortalProvider, PortalScene } from "@/components/ui/portal"
 import { ToastProvider } from "@/components/ui/toast"
 import { DeviceIntegrityProvider } from "@/components/security/device-integrity-provider"
-import { api, onSessionExpired } from "@/lib/api"
+// PERF-FIX (bundle): import domain langsung, bukan barrel `@/lib/api`
+// (±35 domain, ~700KB + rantai expo-image-picker) — root layout dievaluasi
+// paling awal saat boot. Preseden: components/maintenance-screen.tsx:18.
+import * as notificationsApi from "@/lib/api/notifications"
+import * as publicApi from "@/lib/api/public"
+import { onSessionExpired } from "@/lib/api/session"
 import { fontAssetsBlocking, fontAssetsDeferred } from "@/lib/fonts"
 import { routeForPushData } from "@/lib/notification-routing"
 import { animationDurationForScreen, animationForScreen } from "@/lib/screen-transitions"
 import { setupNotifications, subscribeNotificationOpened } from "@/lib/push-notifications"
-// ST-009: modul ini SENGAJA tetap statis. `subscribeNotificationOpened`
-// harus terpasang di efek boot segera — menundanya (dynamic import /
-// afterFirstPaint) berisiko menghilangkan tap notifikasi yang me-launch
-// app (cold start). `setupNotifications`-nya sendiri sudah ditunda via
-// afterFirstPaint di bawah; yang dievaluasi saat boot hanya modul JS-nya.
+// PERF-FIX (bundle, 2026-09-30): `expo-notifications` (±1.6MB) kini dimuat
+// LAZY di dalam `lib/push-notifications.ts` (loadNotifications) — import
+// statis modul ini sudah murah dan tidak lagi menarik modul native saat
+// boot. `subscribeNotificationOpened` tetap dipasang di efek boot segera;
+// tap cold-start tetap terbaca via getLastNotificationResponseAsync()
+// (respons di-cache di level OS). `setupNotifications`-nya sendiri sudah
+// ditunda via afterFirstPaint di bawah.
 // ST-009 (PERF-FIX 2026-09-29): `@/lib/web-push` SENGAJA tidak diimpor
 // statis. Varian web-nya (`lib/web-push.web.ts`) menarik `firebase/app` +
 // `firebase/messaging` yang berat ke chunk entry web; ia dimuat via dynamic
@@ -120,7 +129,13 @@ import { installSentrySink } from "@/lib/telemetry-sentry"
 import { consumeOtaUpdateNotice } from "@/lib/ota-notice"
 import { translate } from "@/lib/i18n/translate"
 import { getLanguage, subscribeLanguage } from "@/lib/i18n/store"
-import { AppLockGate } from "@/components/app-lock-gate"
+// PERF-FIX (bundle, pola FE-075): AppLockGate menarik expo-local-authentication
+// + pin-input + phosphor + expo-haptics — dievaluasi saat boot untuk SEMUA
+// pengguna padahal no-op tanpa sesi. Lazy + latch: import dimulai hanya saat
+// sesi pertama ada.
+const AppLockGate = lazy(() =>
+  import("@/components/app-lock-gate").then((m) => ({ default: m.AppLockGate })),
+)
 import { ShellTabBar, isShellTabPath } from "@/components/ui/shell-tab-bar"
 // FE-075: drawer & sheet dimuat LAZY — modul beratnya (beserta seluruh
 // subtree importnya) baru diunduh/dieksekusi saat pertama dibutuhkan, bukan
@@ -361,12 +376,21 @@ function AppShellInner() {
   const createSheetOpen = useCreateSheetOpen()
   const [drawerNeeded, setDrawerNeeded] = useState(false)
   const [createSheetNeeded, setCreateSheetNeeded] = useState(false)
+  // PERF-FIX (bundle): latch yang sama untuk AppLockGate — gate no-op tanpa
+  // sesi, jadi import modulnya (expo-local-authentication dkk) ditunda
+  // sampai sesi pertama ada. Setelah latch, tetap mount agar kunci setelah
+  // background >1 menit tetap menutupi seluruh tree.
+  const [lockGateNeeded, setLockGateNeeded] = useState(false)
   useEffect(() => {
     if (drawerOpen) setDrawerNeeded(true)
   }, [drawerOpen])
   useEffect(() => {
     if (createSheetOpen) setCreateSheetNeeded(true)
   }, [createSheetOpen])
+  useEffect(() => {
+    if (session.token) setLockGateNeeded(true)
+  }, [session.token])
+
 
   // Efek dorong konten ala X saat drawer dibuka (2026-09-27): konten sedikit
   // bergeser kanan + mengecil dengan sudut membulat, mengikuti progress
@@ -468,12 +492,14 @@ function AppShellInner() {
   //   - `initOfflineQueue()`: pulihkan sisa antrean + eksekusi saat reconnect.
   //   - Feedback toast untuk kedua arah antrean (masuk & terkirim).
   useEffect(() => {
-    // Konektivitas tetap segera (murah: satu langganan NetInfo; dibutuhkan
-    // gerbang fail-closed transport sejak awal).
-    initConnectivity()
-    // ST-009: restore antrean offline (baca storage + replay) ditunda
-    // setelah first paint — tidak dibutuhkan untuk me-render layar pertama.
+    // PERF-FIX (bundle, 2026-09-30): `initConnectivity()` ikut ditunda
+    // setelah first paint seperti `initOfflineQueue()`. `NetInfo.fetch()`
+    // pertama di Android dapat menempati JS thread 50–200ms dan berkompetisi
+    // dengan render pertama. Jendela satu frame tanpa langganan NetInfo aman:
+    // gerbang fail-closed transport default "online" sampai status pasti
+    // diketahui (perilaku yang sama seperti sebelum init dipanggil).
     const cancelDeferred = afterFirstPaint(() => {
+      initConnectivity()
       initOfflineQueue()
     })
     const show = toast.show
@@ -614,7 +640,7 @@ function AppShellInner() {
                 ? d.notifId
                 : null
           if (notifId) {
-            api.notifications.markNotificationRead(notifId).catch(() => {
+            notificationsApi.markNotificationRead(notifId).catch(() => {
               // Sunyi: badge di-refresh di bawah; kegagalan sesekali tidak
               // boleh mengganggu navigasi.
             })
@@ -657,7 +683,7 @@ function AppShellInner() {
     lastVersionCheckAt.current = Date.now()
     const appVersion = installedAppVersion()
     let alive = true
-    api.public
+    publicApi
       .getAppVersion()
       .then((v) => {
         // Bandingkan SEKALI dan simpan hasilnya: sebelumnya compareVersions
@@ -866,8 +892,14 @@ function AppShellInner() {
         ) : null}
         {/* A-04 (audit): kunci aplikasi (§14 re-auth setelah background >1
             menit). Dirender SETELAH konten agar menutupi seluruh tree saat
-            terkunci; no-op di web dan tanpa sesi. */}
-        {Platform.OS !== "web" ? <AppLockGate sessionActive={Boolean(session.token)} /> : null}
+            terkunci; no-op di web dan tanpa sesi.
+            PERF-FIX (bundle): lazy + latch — modul baru dievaluasi setelah
+            sesi pertama ada, bukan saat boot. */}
+        {Platform.OS !== "web" && lockGateNeeded ? (
+          <Suspense fallback={null}>
+            <AppLockGate sessionActive={Boolean(session.token)} />
+          </Suspense>
+        ) : null}
       </View>
       </RealtimeProvider>
       </MaintenanceGate>

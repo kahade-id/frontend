@@ -28,7 +28,9 @@ import { useCallback, useEffect, useState } from "react"
 import { Platform } from "react-native"
 import { Redirect, type Href } from "expo-router"
 
-import { getAccessToken } from "@/lib/api"
+// PERF-FIX (bundle): import langsung dari domain, bukan barrel `@/lib/api`
+// (±35 domain, ~700KB) — rute root dievaluasi paling awal saat boot.
+import { getAccessToken } from "@/lib/api/session"
 import { hasSeenOnboarding } from "@/lib/onboarding"
 import { logWarn } from "@/lib/telemetry"
 import { ROUTES } from "@/lib/routes"
