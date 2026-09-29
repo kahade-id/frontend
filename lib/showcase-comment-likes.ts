@@ -23,27 +23,33 @@ export type ShowcaseCommentLikeState = { isLiked: boolean; likeCount: number }
 const overrides = new Map<string, boolean>()
 const listeners = new Set<() => void>()
 /**
- * Counter versi store — dipakai sebagai snapshot `useSyncExternalStore`
- * (angka stabil secara referensi), BUKAN hasil `resolve…` yang membangun
- * object baru tiap panggilan dan bisa memicu loop render.
+ * PERF-FIX (state audit): versi per-commentId, bukan satu counter global.
+ * Satu toggle like dulu menaikkan `storeVersion` global sehingga SEMUA kartu
+ * komentar yang ter-mount me-render ulang (render storm O(n) per like).
+ * Kini snapshot `useSyncExternalStore` berupa string `${epoch}:${version}` per
+ * id — hanya hook untuk commentId yang berubah yang melihat snapshot berbeda
+ * dan me-render ulang.
  */
-let storeVersion = 0
+const versions = new Map<string, number>()
+/** Naik setiap reset global (logout/login, clear manual) — membatalkan semua snapshot. */
+let epoch = 0
 
 function subscribe(listener: () => void) {
   listeners.add(listener)
   return () => void listeners.delete(listener)
 }
 
-function getVersion() {
-  return storeVersion
+function getVersionFor(commentId: string): string {
+  return `${epoch}:${versions.get(commentId) ?? 0}`
 }
 
-function getServerVersion() {
-  return 0
+function getServerVersionFor() {
+  return "0:0"
 }
 
-function emit() {
-  storeVersion += 1
+function emit(commentId?: string) {
+  if (commentId === undefined) epoch += 1
+  else versions.set(commentId, (versions.get(commentId) ?? 0) + 1)
   for (const listener of listeners) listener()
 }
 
@@ -53,6 +59,7 @@ subscribeSession(() => {
   if (sessionRevision === getSessionRevision()) return
   sessionRevision = getSessionRevision()
   overrides.clear()
+  versions.clear()
   emit()
 })
 
@@ -82,7 +89,7 @@ export function toggleShowcaseCommentLike(
 ): ShowcaseCommentLikeState {
   const current = resolveShowcaseCommentLike(commentId, base)
   overrides.set(commentId, !current.isLiked)
-  emit()
+  emit(commentId)
   return resolveShowcaseCommentLike(commentId, base)
 }
 
@@ -91,9 +98,14 @@ export function useShowcaseCommentLike(
   commentId: string,
   base?: { isLiked?: boolean; likeCount?: number },
 ): ShowcaseCommentLikeState {
-  // Snapshot berupa angka versi (stabil) — object hasil resolve dibangun
-  // lewat useMemo agar referentially stable antar render.
-  const version = useSyncExternalStore(subscribe, getVersion, getServerVersion)
+  // Snapshot berupa versi per-commentId (stabil) — object hasil resolve dibangun
+  // lewat useMemo agar referentially stable antar render. Hanya commentId yang
+  // di-toggle yang melihat snapshot berubah (PERF-FIX: dulu versi global).
+  const version = useSyncExternalStore(
+    subscribe,
+    () => getVersionFor(commentId),
+    getServerVersionFor,
+  )
   const isLiked = base?.isLiked ?? false
   const likeCount = base?.likeCount ?? 0
   return useMemo(
@@ -105,5 +117,6 @@ export function useShowcaseCommentLike(
 /** Reset manual (dipakai test). */
 export function clearShowcaseCommentLikes() {
   overrides.clear()
+  versions.clear()
   emit()
 }

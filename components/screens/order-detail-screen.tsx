@@ -63,7 +63,7 @@ import { useOrderTracking } from "@/lib/use-order-tracking"
 import { useResultTimer } from "@/lib/use-result-timer"
 import type { DisputeCategoryValue } from "@/lib/labels/dispute"
 import { type ReasonValue } from "@/components/ui/reason-picker"
-import { invalidateQueryCache, useApiQuery } from "@/lib/use-api-query"
+import { invalidateQueryPrefix, useApiQuery } from "@/lib/use-api-query"
 import { useCopy } from "@/lib/clipboard"
 import {
   durationHoursParts,
@@ -808,7 +808,9 @@ export default function OrderDetailScreen() {
         // baru; kegagalan tak pasti MENAHAN kunci yang sama untuk rekonfirmasi.
         if (!uncertain) payKeyRef.current = null
         if (uncertain) {
-          invalidateQueryCache()
+          // PERF-FIX (state audit): invalidasi selektif — hanya keluarga
+          // query order yang terdampak, bukan seluruh cache global.
+          invalidateQueryPrefix("order")
           void query.refresh()
         }
         // C-09 (audit escrow 2026-09-24): pesan PIN/kesalahan langsung tampil

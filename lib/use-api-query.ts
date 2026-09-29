@@ -68,6 +68,7 @@ const RETRY_AFTER_CAP_MS = 10_000
 export {
   CACHE_REVALIDATE_AFTER_MS,
   invalidateQueryCache,
+  invalidateQueryPrefix,
   QUERY_CACHE_TTL_MS,
   queryCacheSize,
 } from "@/lib/query-cache"
