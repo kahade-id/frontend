@@ -172,19 +172,14 @@ export function WalletHeroCard({
               {loading ? (
                 <Skeleton height={tokens.typography.monoLarge.lineHeight} className="w-44" />
               ) : (
-                <View className="gap-1">
-                  <Amount
-                    value={available ?? Number.NaN}
-                    size="large"
-                    tone="inverse"
-                    hidden={hidden}
-                  />
-                  {/* T3-006 (audit UI/UX): caption kecil menegaskan angka hero
-                      adalah saldo yang bisa dipakai — bukan total. */}
-                  <Text variant="caption" tone="inverse" className="opacity-70">
-                    yang bisa dipakai sekarang
-                  </Text>
-                </View>
+                /* FE-093: caption "yang bisa dipakai sekarang" dihapus —
+                   hanya mengulang label "Saldo Tersedia". */
+                <Amount
+                  value={available ?? Number.NaN}
+                  size="large"
+                  tone="inverse"
+                  hidden={hidden}
+                />
               )}
               {loading ? (
                 <Skeleton height={tokens.typography.caption.lineHeight} className="w-36" />
