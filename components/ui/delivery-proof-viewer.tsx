@@ -73,7 +73,7 @@ import { summarize } from "@/lib/a11y"
 export type DeliveryProofStatus = "pending" | "confirmed" | "rejected"
 
 export type DeliveryProofAttachment =
-  | { kind: "image"; uri: string; alt?: string }
+  | { kind: "image"; uri: string; alt?: string; thumbnailUrl?: string }
   | { kind: "pdf"; uri: string; name: string; size?: number }
 
 /** Batas `RejectDeliveryDto.note` */
@@ -170,14 +170,31 @@ function ImageTile({
   aspectRatio,
   onOpen,
   label,
+  priority,
 }: {
   att: Extract<DeliveryProofAttachment, { kind: "image" }>
   index: number
   aspectRatio: number
   onOpen?: (i: number) => void
   label: string
+  /**
+   * PERF-FIX (2026-09-30): prioritas unduhan expo-image — hero "high",
+   * thumbs grid "low". Bandwidth didahulukan ke foto utama.
+   */
+  priority?: "high" | "normal" | "low"
 }) {
-  const picture = <Picture source={att.uri} alt={att.alt ?? label} aspectRatio={aspectRatio} className="w-full" />
+  // PERF-FIX (2026-09-30): pakai thumbnail backend bila tersedia — hero 4:3
+  // dan grid 110px tidak butuh full-res 2–5 MB. Fallback ke URI penuh bila
+  // backend belum mengirim thumbnail (kontrak lama).
+  const picture = (
+    <Picture
+      source={att.thumbnailUrl ?? att.uri}
+      alt={att.alt ?? label}
+      aspectRatio={aspectRatio}
+      className="w-full"
+      priority={priority}
+    />
+  )
   if (!onOpen) return picture
   return (
     <PressableScale
@@ -252,6 +269,7 @@ export function DeliveryProofViewer({
             aspectRatio={4 / 3}
             onOpen={onOpenAttachment}
             label={t.openAttachment(indexOf(hero), total)}
+            priority="high"
           />
           {thumbs.length > 0 ? (
             <View className="flex-row flex-wrap gap-2">
@@ -263,6 +281,7 @@ export function DeliveryProofViewer({
                     aspectRatio={1}
                     onOpen={onOpenAttachment}
                     label={t.openAttachment(indexOf(a), total)}
+                    priority="low"
                   />
                 </View>
               ))}

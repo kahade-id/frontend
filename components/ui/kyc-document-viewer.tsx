@@ -202,6 +202,10 @@ function DocumentImage({
       aspectRatio={aspectByType[doc.type]}
       resizeMode="contain"
       className="w-full"
+      // PERF-FIX (2026-09-30): dokumen KYC wajib tampil — prioritas "high"
+      // + recyclingKey stabil. Sengaja TANPA dataSaverGate (konten wajib).
+      priority="high"
+      recyclingKey={doc.id}
     />
   )
 

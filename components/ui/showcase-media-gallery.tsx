@@ -38,7 +38,7 @@ import type { GalleryMedia } from "@/lib/showcase-social"
  */
 const DOUBLE_TAP_MS = 300
 
-export function ShowcaseMediaGallery({ media, title, onOpen, onDoubleTap, autoplayActive = true, aspectRatio = 1 }: {
+export function ShowcaseMediaGallery({ media, title, onOpen, onDoubleTap, autoplayActive = true, aspectRatio = 1, activeFullRes = false }: {
   /** Urutan media persis seperti yang dipakai `onOpen` (indeks = indeks media). */
   media: GalleryMedia[]
   title: string
@@ -56,6 +56,13 @@ export function ShowcaseMediaGallery({ media, title, onOpen, onDoubleTap, autopl
    * saat slide jauh dimuat. Tiap slide memakai rasionya sendiri bila ada.
    */
   aspectRatio?: number
+  /**
+   * PERF-FIX (2026-09-30): true = slide AKTIF memakai full-res (`fullUrl`),
+   * slide lain tetap thumbnail. Dipakai halaman detail — 8 slide full-res
+   * sekaligus (±40 MB) diganti 1 full-res + sisanya thumbnail ~640px.
+   * Feed tidak memakai ini (thumbnail cukup untuk ukuran kartu feed).
+   */
+  activeFullRes?: boolean
 }) {
   // i18n: label mengikuti bahasa aktif.
   useLanguage()
@@ -183,6 +190,8 @@ export function ShowcaseMediaGallery({ media, title, onOpen, onDoubleTap, autopl
                   <VideoSlide
                     media={m}
                     title={title}
+                    // PERF-FIX (2026-09-30): poster slide aktif prioritas high.
+                    active={index === page}
                     // Item 16: autoplay hanya bila slide aktif & terlihat & tidak di-pause manual.
                     shouldPlay={autoplayActive && index === page && !paused[m.id]}
                     // Item 59 strict: dalam mode hemat data, autoplay TIDAK
@@ -206,8 +215,10 @@ export function ShowcaseMediaGallery({ media, title, onOpen, onDoubleTap, autopl
                     onPress={() => handleSlidePress(index)} containerClassName="w-full">
                     {/* C01: rasio dari respons list — placeholder tidak meloncat.
                         PERF-FIX (LR-009): slide aktif prioritas "high" — bandwidth
-                        didahulukan ke gambar yang terlihat, bukan tetangga. */}
-                    <Picture source={m.url} alt={title} aspectRatio={m.aspectRatio ?? 1} radius="none" bordered={false} recyclingKey={m.id} preventDownload dataSaverGate priority={index === page ? "high" : "low"} />
+                        didahulukan ke gambar yang terlihat, bukan tetangga.
+                        PERF-FIX (2026-09-30): `activeFullRes` — slide aktif
+                        memakai full-res, sisanya thumbnail (halaman detail). */}
+                    <Picture source={activeFullRes && index === page && m.fullUrl ? m.fullUrl : m.url} alt={title} aspectRatio={m.aspectRatio ?? 1} radius="none" bordered={false} recyclingKey={m.id} preventDownload dataSaverGate priority={index === page ? "high" : "low"} />
                   </PressableScale>
                 )
               ) : (
@@ -303,6 +314,7 @@ function VideoSlide({
   gated,
   onTap,
   onRequestPlay,
+  active,
 }: {
   media: GalleryMedia
   title: string
@@ -314,6 +326,8 @@ function VideoSlide({
   gated: boolean
   onTap: () => void
   onRequestPlay: () => void
+  /** PERF-FIX (2026-09-30): slide aktif → poster prioritas "high". */
+  active: boolean
 }) {
   /**
    * Item 50 (FE-IMP-1): toggle speaker per video. State lokal per slide —
@@ -402,7 +416,7 @@ function VideoSlide({
         onPress={onTap}
         containerClassName="w-full"
       >
-        <FeedVideo source={media.url} poster={media.posterUrl} alt={title} shouldPlay={effectiveShouldPlay} muted={muted} aspectRatio={slideAspectRatio} userInitiatedPlay={userPlay} />
+        <FeedVideo source={media.url} poster={media.posterUrl} alt={title} shouldPlay={effectiveShouldPlay} muted={muted} aspectRatio={slideAspectRatio} userInitiatedPlay={userPlay} posterPriority={active ? "high" : "low"} />
       </PressableScale>
       {muteButton}
       {/* Item 57: badge durasi ala TikTok/IG di thumbnail video. */}

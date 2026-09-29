@@ -11,7 +11,8 @@
  * Dipakai edit-profile.tsx dan profile-edit-sheet.tsx (keduanya memakai
  * useAvatarUpload yang kini menahan aset di `preview`).
  */
-import { Image, View } from "react-native"
+import { View } from "react-native"
+import { Image } from "expo-image"
 
 import type { PickedImage } from "@/lib/image-picker"
 import { translate } from "@/lib/i18n/translate"
@@ -46,12 +47,16 @@ export function AvatarPreviewDialog({
     >
       {asset ? (
         <View className="items-center gap-3 py-2">
-          {/* Masker lingkaran 160px — replika Avatar size besar */}
+          {/* Masker lingkaran 160px — replika Avatar size besar.
+              PERF-FIX (2026-09-30): expo-image (bukan RN Image) — decode di
+              background thread + disk cache; foto picker 4000px+ tidak
+              menjank dialog. */}
           <View className="h-40 w-40 overflow-hidden rounded-full bg-surface">
             <Image
               source={{ uri: asset.uri }}
               style={{ width: 160, height: 160 }}
-              resizeMode="cover"
+              contentFit="cover"
+              cachePolicy="memory-disk"
               accessibilityLabel={translate("Pratinjau foto profil baru")}
             />
           </View>

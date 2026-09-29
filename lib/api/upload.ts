@@ -13,7 +13,7 @@ import { safeHttpsUrl } from "@/lib/version"
 import { buildUrl, http, refreshAccessToken, seg } from "@/lib/api/client"
 import { getAccessToken } from "@/lib/api/session"
 import type { CleanupFilesDto, ConfirmUploadDto, PresignedUrlDto } from "@/lib/api/types"
-import { pickedImageToBlob, pickedImageToFormData, type PickedImage } from "@/lib/image-picker"
+import { pickedImageToBlob, pickedImageToFormData, resizePickedImage, type PickedImage } from "@/lib/image-picker"
 import { Platform } from "react-native"
 
 /** Hasil POST /v1/upload/presigned-url. */
@@ -959,7 +959,12 @@ export async function uploadDirectImage(
   purpose: string,
   signal?: AbortSignal,
 ): Promise<{ fileKey: string }> {
-  const formData = await pickedImageToFormData(img, "file")
+  // PERF-FIX (2026-09-30): resize TERPUSAT untuk semua purpose (KYC, sengketa,
+  // bukti kirim, dsb) — foto kamera 4000px+ dikecilkan ke 1920px sebelum
+  // upload. Hanya gambar; fail-open (aset asli bila gagal), idempoten.
+  // Video tidak lewat sini (uploadDirectVideo terpisah).
+  const resized = (img.mimeType ?? "").startsWith("image/") ? await resizePickedImage(img) : img
+  const formData = await pickedImageToFormData(resized, "file")
   formData.append("purpose", purpose)
   const result = await uploadDirect(formData, signal)
   if (!result.fileKey) throw new ApiError({ code: "PARSE", message: "Kunci unggahan tidak tersedia." })

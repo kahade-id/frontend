@@ -151,6 +151,8 @@ export function ImageViewer({
               allowTapToggle
               userInitiatedPlay
               className="max-h-full"
+              // PERF-FIX (2026-09-30): viewer fullscreen = konten utama.
+              posterPriority="high"
             />
           </View>
         )
@@ -163,6 +165,9 @@ export function ImageViewer({
           height={height}
           resizeMode="contain"
           onZoomChange={setZoomed}
+          // PERF-FIX (2026-09-30): slide aktif prioritas "high" — bandwidth
+          // didahulukan ke foto yang terlihat, bukan prefetch tetangga.
+          priority={i === current ? "high" : "low"}
         />
       )
     },
@@ -204,7 +209,10 @@ export function ImageViewer({
           }}
           renderItem={renderItem}
           // Gambar tetangga ikut di-render agar swipe terasa instan.
-          windowSize={3}
+          // PERF-FIX (2026-09-30): jendela 3 terlalu sempit — swipe cepat 2+
+          // foto = blank (prefetch mati total di mode hemat data). 5 saat
+          // bukan data-saver; tetap 3 di mode hemat data.
+          windowSize={dataSaver ? 3 : 5}
           initialNumToRender={2}
           maxToRenderPerBatch={2}
         />

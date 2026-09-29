@@ -139,7 +139,7 @@ export function EvidenceTile({ item, onOpen, onRemove, canDelete = false, labels
       >
         {isImage || item.thumbnailUrl ? (
           <View className="h-full w-full">
-            <Picture source={item.thumbnailUrl ?? item.url} alt="" aspectRatio={1} radius="none" resizeMode="cover" recyclingKey={item.id} className="h-full w-full" />
+            <Picture source={item.thumbnailUrl ?? item.url} alt="" aspectRatio={1} radius="none" resizeMode="cover" recyclingKey={item.id} className="h-full w-full" priority="low" />
             {isVideo ? (
               /* R2 (butir #36): thumbnail video tetap diberi penanda supaya
                  tidak disangka foto diam. */

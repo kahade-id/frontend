@@ -11,7 +11,7 @@
  * Aksesibilitas: tombol panah prev/next + label "Frame x dari n" (live
  * region) untuk keyboard/screen reader — drag bukan satu-satunya jalan.
  */
-import { useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { PanResponder, View } from "react-native"
 import { CaretLeft, CaretRight, ArrowClockwise } from "phosphor-react-native"
 
@@ -23,6 +23,8 @@ import { cn } from "@/lib/cn"
 import { translate } from "@/lib/i18n/translate"
 import { useLanguage } from "@/lib/i18n"
 import { spinFrameIndex } from "@/lib/spin360"
+import { prefetchNeighborImages } from "@/lib/prefetch-neighbors"
+import { useDataSaver } from "@/lib/ui-prefs"
 
 // Re-export agar pemanggil cukup import dari komponen.
 export { SPIN_DRAG_PX_PER_TURN } from "@/lib/spin360"
@@ -36,6 +38,7 @@ export type Spin360ViewerProps = {
 export function Spin360Viewer({ frames, alt, className }: Spin360ViewerProps) {
   // i18n: label mengikuti bahasa aktif.
   useLanguage()
+  const dataSaver = useDataSaver()
   const count = frames.length
   const [index, setIndex] = useState(0)
   const startIndex = useRef(0)
@@ -62,6 +65,13 @@ export function Spin360Viewer({ frames, alt, className }: Spin360ViewerProps) {
   const safeIndex = Math.min(index, count - 1)
 
   const go = (delta: number) => setIndex((i) => (i + delta + count) % count)
+
+  // PERF-FIX (2026-09-30): prefetch frame ±1 saat indeks berubah — drag cepat
+  // tidak lagi memicu unduhan fresh per frame (spinner beruntun). Pola sama
+  // seperti FE-068 di galeri; mode hemat data dihormati di dalam helper.
+  useEffect(() => {
+    prefetchNeighborImages(frames, safeIndex, dataSaver)
+  }, [frames, safeIndex, dataSaver])
 
   return (
     <View

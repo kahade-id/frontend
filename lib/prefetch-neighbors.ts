@@ -16,6 +16,24 @@
  */
 import { Image } from "expo-image"
 
+/**
+ * PERF-FIX (2026-09-30): batas prefetch aktif bersamaan — dipanggil dari 3+
+ * tempat (image-viewer, showcase-media-gallery, spin360-viewer); swipe cepat
+ * di dua galeri bisa menumpuk prefetch tanpa throttle → spike bandwidth.
+ */
+const MAX_ACTIVE_PREFETCH = 4
+let activePrefetch = 0
+const prefetchQueue: Array<() => void> = []
+
+function pumpQueue(): void {
+  while (activePrefetch < MAX_ACTIVE_PREFETCH && prefetchQueue.length > 0) {
+    const run = prefetchQueue.shift()
+    if (!run) break
+    activePrefetch += 1
+    run()
+  }
+}
+
 export function prefetchNeighborImages(
   /** URL per slide; `undefined` = bukan gambar / jangan prefetch. */
   urls: readonly (string | undefined)[],
@@ -26,7 +44,16 @@ export function prefetchNeighborImages(
   for (const index of [current - 1, current + 1]) {
     const url = urls[index]
     if (url) {
-      Image.prefetch(url, "memory-disk").catch(() => undefined)
+      // Fire-and-forget via antrean terbatas; kegagalan diabaikan.
+      prefetchQueue.push(() => {
+        Image.prefetch(url, "memory-disk")
+          .catch(() => undefined)
+          .finally(() => {
+            activePrefetch = Math.max(0, activePrefetch - 1)
+            pumpQueue()
+          })
+      })
     }
   }
+  pumpQueue()
 }

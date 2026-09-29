@@ -189,6 +189,12 @@ export type FeedVideoProps = Omit<ViewProps, "children"> & {
   /** C01 (batch 139): rasio slide — dipakai poster/frame agar tak meloncat. */
   aspectRatio?: number
   className?: string
+  /**
+   * PERF-FIX (2026-09-30): prioritas unduhan poster/thumbnail — galeri video
+   * aktif mengirim "high"/"low" sesuai visibilitas slide. Diteruskan ke
+   * semua <Picture> poster & state gagal.
+   */
+  posterPriority?: "high" | "normal" | "low"
 }
 
 /**
@@ -238,6 +244,7 @@ function VideoPoster({
   aspectRatio = 1,
   onPress,
   className,
+  priority,
 }: {
   poster?: MediaSource
   alt: string
@@ -246,6 +253,8 @@ function VideoPoster({
   aspectRatio?: number
   onPress?: () => void
   className?: string
+  /** PERF-FIX (2026-09-30): prioritas unduhan poster. */
+  priority?: "high" | "normal" | "low"
 }) {
   // i18n: label aksesibilitas mengikuti bahasa aktif.
   useLanguage()
@@ -271,6 +280,7 @@ function VideoPoster({
           radius="none"
           bordered={false}
           className="absolute inset-0"
+          priority={priority}
         />
       ) : null}
       {onPress ? (
@@ -329,6 +339,7 @@ function ExpoVideoInner({
   nativeControls,
   allowTapToggle,
   userInitiatedPlay = false,
+  posterPriority,
 }: {
   source: string
   poster?: MediaSource
@@ -342,6 +353,8 @@ function ExpoVideoInner({
   allowTapToggle: boolean
   /** PERF-FIX (NP-002): niat putar eksplisit user → lewati gerbang jaringan. */
   userInitiatedPlay?: boolean
+  /** PERF-FIX (2026-09-30): prioritas unduhan poster/fallback. */
+  posterPriority?: "high" | "normal" | "low"
 }) {
   // i18n: label aksesibilitas mengikuti bahasa aktif.
   useLanguage()
@@ -377,6 +390,7 @@ function ExpoVideoInner({
             radius="none"
             bordered={false}
             className="absolute inset-0"
+            priority={posterPriority}
           />
         ) : null}
         <PressableScale
@@ -413,6 +427,7 @@ function ExpoVideoInner({
         aspectRatio={aspectRatio}
         label={translate("Putar video")}
         onPress={() => setUserPlayOverride(true)}
+        priority={posterPriority}
       />
     )
   }
@@ -423,7 +438,7 @@ function ExpoVideoInner({
   // shouldPlay / user mengetuk. allowTapToggle dikecualikan (pratinjau
   // upload butuh player untuk ketuk-toggle) — lihat shouldMountVideoPlayer.
   if (!shouldMountVideoPlayer({ effectiveShouldPlay, userInitiatedPlay, allowTapToggle })) {
-    return <VideoPoster poster={poster} alt={alt} aspectRatio={aspectRatio} />
+    return <VideoPoster poster={poster} alt={alt} aspectRatio={aspectRatio} priority={posterPriority} />
   }
 
   return (
@@ -439,6 +454,7 @@ function ExpoVideoInner({
       onError={handlePlayerError}
       poster={poster}
       alt={alt}
+      posterPriority={posterPriority}
     />
   )
 }
@@ -458,6 +474,8 @@ function ExpoVideoPlayer(props: {
   onError: () => void
   poster?: MediaSource
   alt: string
+  /** PERF-FIX (2026-09-30): prioritas unduhan poster saat slot penuh. */
+  posterPriority?: "high" | "normal" | "low"
 }) {
   const [hasSlot, setHasSlot] = useState(() => acquireVideoPlayerSlot())
   useEffect(() => {
@@ -473,7 +491,7 @@ function ExpoVideoPlayer(props: {
     }
   }, [hasSlot])
   if (!hasSlot) {
-    return <VideoPoster poster={props.poster} alt={props.alt} aspectRatio={props.aspectRatio} />
+    return <VideoPoster poster={props.poster} alt={props.alt} aspectRatio={props.aspectRatio} priority={props.posterPriority} />
   }
   return <ExpoVideoPlayerInner {...props} />
 }
@@ -499,6 +517,11 @@ const ExpoVideoPlayerInner = memo(function ExpoVideoPlayerInner({
   nativeControls: boolean
   allowTapToggle: boolean
   onError: () => void
+  /**
+   * PERF-FIX (2026-09-30): diterima dari spread ExpoVideoPlayer — tidak
+   * dipakai player (tanpa poster), hanya agar tipe spread tetap valid.
+   */
+  posterPriority?: "high" | "normal" | "low"
 }) {
   // i18n: label aksesibilitas mengikuti bahasa aktif.
   useLanguage()
@@ -588,12 +611,13 @@ export function FeedVideo({
   userInitiatedPlay = false,
   aspectRatio = 1,
   className,
+  posterPriority,
   ...rest
 }: FeedVideoProps) {
   // i18n: label aksesibilitas mengikuti bahasa aktif.
   useLanguage()
   const available = isExpoVideoAvailable()
-  const fallback = <VideoPoster poster={poster} alt={alt} aspectRatio={aspectRatio} className={className} />
+  const fallback = <VideoPoster poster={poster} alt={alt} aspectRatio={aspectRatio} className={className} priority={posterPriority} />
   if (!available) return <View className={cn("w-full", className)} {...rest}>{fallback}</View>
   return (
     <View className={cn("w-full", className)} {...rest}>
@@ -609,6 +633,7 @@ export function FeedVideo({
           nativeControls={nativeControls}
           allowTapToggle={allowTapToggle}
           userInitiatedPlay={userInitiatedPlay}
+          posterPriority={posterPriority}
         />
       </VideoErrorBoundary>
     </View>

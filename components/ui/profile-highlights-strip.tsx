@@ -165,7 +165,7 @@ function HighlightCircle({
         {action ? (
           <Icon icon={Plus} size="md" tone="default" />
         ) : cover ? (
-          <Picture source={{ uri: cover }} alt={label} width={64} height={64} bordered={false} />
+          <Picture source={{ uri: cover }} alt={label} width={64} height={64} bordered={false} priority="low" />
         ) : (
           <Icon icon={Sparkle} size="md" tone="default" />
         )}
@@ -388,7 +388,7 @@ function HighlightEditor({
                 >
                   <View className="h-14 w-14 items-center justify-center overflow-hidden rounded-full border-2 border-border-control">
                     {cover ? (
-                      <Picture source={{ uri: cover }} alt={h.title} width={56} height={56} bordered={false} />
+                      <Picture source={{ uri: cover }} alt={h.title} width={56} height={56} bordered={false} priority="low" />
                     ) : (
                       <Icon icon={Sparkle} size="md" tone="default" />
                     )}
@@ -458,7 +458,7 @@ function HighlightEditor({
                       onPress={() => toggleItem(item.id)}
                     >
                       {cover ? (
-                        <Picture source={{ uri: cover }} alt={item.title ?? ""} width={80} height={80} bordered={false} />
+                        <Picture source={{ uri: cover }} alt={item.title ?? ""} width={80} height={80} bordered={false} priority="low" />
                       ) : (
                         <View className="h-full w-full items-center justify-center bg-surface">
                           <Icon icon={Sparkle} size="md" tone="default" />
