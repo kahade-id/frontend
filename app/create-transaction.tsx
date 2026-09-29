@@ -705,7 +705,7 @@ export default function CreateTransactionScreen() {
         )
         submitKeyRef.current = null
         toast.show({
-          title: "Order Link dibuat",
+          title: "Tautan pesanan dibuat",
           description: "Bagikan tautan ke lawan transaksi.",
           tone: "success",
           duration: 4000,
@@ -754,10 +754,10 @@ export default function CreateTransactionScreen() {
         toast.show({
           title: uncertain
             ? mode === "link"
-              ? "Order Link mungkin sudah dibuat"
+              ? "Tautan pesanan mungkin sudah dibuat"
               : "Transaksi mungkin sudah dibuat"
             : mode === "link"
-              ? "Gagal membuat Order Link"
+              ? "Gagal membuat tautan pesanan"
               : "Gagal membuat transaksi",
           description: uncertain
             ? "Koneksi terputus di tengah pemeriksaan server — periksa daftar transaksi sebelum mengirim ulang."
@@ -835,7 +835,7 @@ export default function CreateTransactionScreen() {
               </Button>
             ) : (
               <Button loading={submitting} disabled={!canSubmit} onPress={() => void handleSubmit()}>
-                {mode === "link" ? "Buat Order Link" : "Buat transaksi"}
+                {mode === "link" ? "Buat tautan pesanan" : "Buat transaksi"}
               </Button>
             )}
           </ButtonGroup>
@@ -1030,6 +1030,7 @@ export default function CreateTransactionScreen() {
               voucherDiscount={voucher?.discount}
               feeLoading={feeLoading}
               onOpenSchedule={() => void openSchedule()}
+              showShippingNote={orderType === "PHYSICAL_GOODS"}
             />
 
             {mode === "direct" ? (

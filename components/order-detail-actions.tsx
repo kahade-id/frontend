@@ -9,7 +9,7 @@
  * Seluruh handler (runAction, sheet, navigasi) diteruskan sebagai props.
  */
 import { View, type ViewProps } from "react-native"
-import { ArrowUDownLeft, Package, Truck } from "phosphor-react-native"
+import { ArrowUDownLeft, Package, ShieldWarning, Truck } from "phosphor-react-native"
 
 import { Button } from "@/components/ui/button"
 import { ErrorState } from "@/components/ui/error-state"
@@ -54,6 +54,9 @@ export type OrderDetailActionsProps = Omit<ViewProps, "children"> & {
   onShipping: () => void
   onDeliveryProof: () => void
   onComplete: () => void
+  /** T2-009: dibuka dari kartu "Batas kirim" saat penjual melewati tenggat
+      (sheet sengketa yang sama dipakai aksi sekunder). */
+  onDispute?: () => void
   onRate: () => void
   onReturn: () => void
   onReload: () => void
@@ -149,6 +152,7 @@ export function OrderDetailActions({
   onShipping,
   onDeliveryProof,
   onComplete,
+  onDispute,
   onRate,
   onReturn,
   onReload,
@@ -219,6 +223,10 @@ export function OrderDetailActions({
                 })}
               </Text>
             ) : null}
+            {/* T2-009: jelaskan hubungan batas konfirmasi dengan sengketa. */}
+            <Text variant="caption" tone="secondary">
+              {translate("Batas ini berhenti bila Anda membuka sengketa.")}
+            </Text>
           </View>
         ) : null}
         {/*
@@ -249,13 +257,22 @@ export function OrderDetailActions({
             ) : (
               <>
                 <Text variant="body" weight={600} tone={COUNTDOWN_TITLE_TONE[shippingTone]}>
-                  {translate("Penjual melewati batas waktu kirim.")}
+                  {translate(
+                    "Penjual melewati batas kirim — dana TIDAK akan cair otomatis sampai masalah ini selesai.",
+                  )}
                 </Text>
-                <Text variant="caption" tone="secondary">
-                  {translate("Tenggat kirim adalah {x}.", {
-                    x: formatDateTimeWIB(shippingCountdown.at),
-                  })}
-                </Text>
+                {/* T2-009: jalur bantuan langsung dari kartu tenggat. */}
+                {onDispute ? (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    leftIcon={ShieldWarning}
+                    onPress={onDispute}
+                    className="mt-1"
+                  >
+                    Laporkan masalah
+                  </Button>
+                ) : null}
               </>
             )}
           </View>
@@ -297,7 +314,7 @@ export function OrderDetailActions({
               {/* B-05: label tidak pernah mencetak `orderValue` sebagai total
                   bayar (tanpa fee/diskon) — saat fee belum terhitung tampil
                   "—", bukan angka yang lebih kecil. */}
-              Bayar {buyerPays != null ? formatRupiah(buyerPays) : "—"}
+              Bayar ke Escrow · {buyerPays != null ? formatRupiah(buyerPays) : "—"}
             </Button>
           </>
         ) : null}
@@ -321,14 +338,20 @@ export function OrderDetailActions({
         ) : null}
         {canReviewDelivery ? (
           <>
-            <Button leftIcon={Package} onPress={onDeliveryProof}>
+            {/* T2-003: "Konfirmasi terima" MELEPAS dana escrow ke penjual —
+                aksi penggerak uang harus jadi tombol PRIMER (dulu sekunder,
+                sehingga dana penjual tertahan sampai auto-release). */}
+            <Button loading={submitting} onPress={onComplete}>
+              Konfirmasi terima
+            </Button>
+            <Text variant="caption" tone="secondary" className="text-center">
+              Dana cair ke penjual
+            </Text>
+            <Button variant="secondary" leftIcon={Package} onPress={onDeliveryProof}>
               Periksa bukti pengiriman
             </Button>
             {/* Item 31: satu nama untuk rilis escrow — "Konfirmasi terima"
                 (selaras label di notifikasi/push, item #24). */}
-            <Button variant="secondary" loading={submitting} onPress={onComplete}>
-              Konfirmasi terima
-            </Button>
           </>
         ) : null}
         {canViewProof ? (

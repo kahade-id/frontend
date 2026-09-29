@@ -224,7 +224,7 @@ export default function PatunganScreen() {
           ? {
               icon: UsersThree,
               title: translate("Belum ada grup"),
-              description: translate("Buat grup patungan — semua peserta bayar ke escrow dulu; target tercapai baru cair ke host, gagal otomatis refund."),
+              description: translate("Buat grup patungan — semua peserta bayar ke escrow dulu; target tercapai baru cair ke host, gagal → pengembalian dana otomatis."),
               action: hasSession ? (
                 <Button fullWidth={false} onPress={openCreate}>
                   {translate("Buat grup")}

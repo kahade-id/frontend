@@ -237,7 +237,7 @@ export function ProfileEtalaseTab({
               <EmptyState
                 icon={Images}
                 title={translate("Belum ada etalase")}
-                description={translate("Anda belum menambahkan karya atau produk ke etalase.")}
+                description={translate("Anda belum menambahkan karya ke etalase.")}
                 action={
                   <Button
                     variant="secondary"

@@ -80,7 +80,7 @@ export default function ServiceBookingsScreen() {
 
   return (
     <DataScreen
-      title={translate("Booking jasa saya")}
+      title={translate("Pesanan jasa saya")}
       state={query}
       loadingMessage={translate("Memuat booking")}
       errorTitle={translate("Gagal memuat booking")}
@@ -88,7 +88,7 @@ export default function ServiceBookingsScreen() {
         bookings.length === 0
           ? {
               icon: CalendarX,
-              title: translate("Belum ada booking"),
+              title: translate("Belum ada pesanan jasa"),
               description: translate("Booking slot jasa dari kalender ketersediaan di halaman produk jasa."),
             }
           : undefined

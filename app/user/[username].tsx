@@ -1324,7 +1324,7 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
                       leftIcon={Handshake}
                       onPress={() => router.push(ROUTES.createTransactionWith(handle))}
                     >
-                      {translate("Buat transaksi escrow")}
+                      {translate("Beli via Escrow")}
                     </Button>
                   </View>
                 </>

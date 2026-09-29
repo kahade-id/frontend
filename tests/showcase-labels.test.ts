@@ -18,15 +18,15 @@ import type { ShowcaseSocialItem } from "@/lib/api/showcase"
 
 describe("showcasePriceLabel — satu implementasi untuk semua layar", () => {
   const cases: { name: string; input: { priceMin?: number | null; priceMax?: number | null }; expected: string | null }[] = [
-    { name: "min < max → rentang dengan SATU prefiks Rp", input: { priceMin: 100_000, priceMax: 250_000 }, expected: "Rp 100.000 – 250.000" },
-    { name: "min == max → harga pasti", input: { priceMin: 100_000, priceMax: 100_000 }, expected: "Rp 100.000" },
+    { name: "min < max → rentang format formatRupiah", input: { priceMin: 100_000, priceMax: 250_000 }, expected: "Rp100.000 – Rp250.000" },
+    { name: "min == max → harga pasti", input: { priceMin: 100_000, priceMax: 100_000 }, expected: "Rp100.000" },
     // 2026-09-26: penjual yang menetapkan SATU harga cuma mengisi kolom
     // minimum → ini HARGA PASTI, bukan "mulai dari".
-    { name: "hanya min → harga pasti (tanpa kata Mulai)", input: { priceMin: 100_000, priceMax: null }, expected: "Rp 100.000" },
-    { name: "hanya max → Hingga", input: { priceMin: null, priceMax: 250_000 }, expected: "Hingga Rp 250.000" },
+    { name: "hanya min → harga pasti (tanpa kata Mulai)", input: { priceMin: 100_000, priceMax: null }, expected: "Rp100.000" },
+    { name: "hanya max → Hingga", input: { priceMin: null, priceMax: 250_000 }, expected: "Hingga Rp250.000" },
     { name: "nol = gratis (bukan angka telanjang)", input: { priceMin: 0, priceMax: 0 }, expected: "Gratis" },
     { name: "dua-duanya kosong → null", input: {}, expected: null },
-    { name: "rentang terbalik (data lama) → pakai batas bawah", input: { priceMin: 250_000, priceMax: 100_000 }, expected: "Mulai Rp 250.000" },
+    { name: "rentang terbalik (data lama) → pakai batas bawah", input: { priceMin: 250_000, priceMax: 100_000 }, expected: "Mulai Rp250.000" },
   ]
 
   for (const testCase of cases) {
@@ -37,7 +37,7 @@ describe("showcasePriceLabel — satu implementasi untuk semua layar", () => {
 
   it("fallback non-null untuk kartu yang butuh label", () => {
     expect(showcasePriceLabelOrFallback({})).toBeTruthy()
-    expect(showcasePriceLabelOrFallback({ priceMin: 50_000 })).toBe("Rp 50.000")
+    expect(showcasePriceLabelOrFallback({ priceMin: 50_000 })).toBe("Rp50.000")
   })
 })
 

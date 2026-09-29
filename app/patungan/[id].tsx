@@ -460,7 +460,7 @@ export default function PatunganDetailScreen() {
             />
           )}
           <Text variant="caption" tone="secondary">
-            {translate("Setelah ikut, bayar via escrow lalu tautkan pesanan Anda. Target tercapai → cair ke host; gagal → refund otomatis.")}
+            {translate("Setelah ikut, bayar via escrow lalu tautkan pesanan Anda. Target tercapai → cair ke host; gagal → pengembalian dana otomatis.")}
           </Text>
           {joinError ? (
             <Text variant="caption" tone="danger">

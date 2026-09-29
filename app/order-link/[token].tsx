@@ -157,7 +157,7 @@ export default function OrderLinkScreen() {
     if (isExpiredLocally) {
       toast.show({
         title: "Tautan sudah kedaluwarsa",
-        description: "Minta tautan baru kepada pembuat order.",
+        description: "Minta tautan baru kepada pembuat pesanan.",
         tone: "warning",
       })
       return

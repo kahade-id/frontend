@@ -971,6 +971,11 @@ export default function OrderDetailScreen() {
             // Item 46: buka form retur dengan order terisi.
             onReturn={() => router.push(ROUTES.newReturn(order.id))}
             onReload={() => void query.reload()}
+            // T2-009: tombol "Laporkan masalah" di kartu "Batas kirim" saat
+            // penjual melewati tenggat — sheet sengketa yang sama.
+            onDispute={
+              isBuyer && canDispute && !isDisputed ? () => setSheet("dispute") : undefined
+            }
           />
 
           {/* 4 — Pengingat ulasan (jendela 7 hari backend, bisa ditunda). */}
@@ -1005,6 +1010,8 @@ export default function OrderDetailScreen() {
                 // "Bayar".
                 buyerPays={fee.buyerPays}
                 sellerGets={fee.sellerReceives}
+                // T2-004: baris ongkir untuk barang fisik (tanpa mengubah total).
+                showShippingNote={order.orderType === "PHYSICAL_GOODS"}
               />
             </>
           ) : null}
@@ -1134,6 +1141,8 @@ export default function OrderDetailScreen() {
             canReturn={isBuyer && order.status === "COMPLETED"}
             returnIsPrimary={query.data?.returnEligible === true}
             submitting={submitting}
+            // T2-006: banner proaktif bila penjual melewati batas kirim.
+            shippingOverdue={isBuyer && shippingCountdown?.kind === "overdue"}
             onOpenSheet={(kind) => setSheet(kind)}
           />
 
@@ -1278,6 +1287,18 @@ export default function OrderDetailScreen() {
         // TRX-020: nominal dana escrow yang dilepas ke penjual saat konfirmasi.
         // Pakai hitungan server (sellerReceives) bila ada, fallback ke nilai order.
         escrowAmount={fee?.sellerReceives ?? order.orderValue}
+        // T2-008: blok nominal di dialog terima pesanan (penjual) — pakai
+        // angka server; catatan beban biaya mengikuti feeResponsibility.
+        acceptSellerAmount={fee?.sellerReceives}
+        acceptFeeNote={
+          order.feeResponsibility === "SELLER"
+            ? "biaya layanan ditanggung penjual"
+            : order.feeResponsibility === "SPLIT"
+              ? "biaya layanan ditanggung bersama"
+              : order.feeResponsibility === "BUYER"
+                ? "biaya layanan ditanggung pembeli"
+                : undefined
+        }
       />
 
       <OrderPayProgressOverlay

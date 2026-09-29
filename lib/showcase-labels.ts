@@ -14,10 +14,10 @@
  * (`tests/showcase-labels.test.ts`) sehingga tidak bisa drift lagi.
  *
  * Semantik (disepakati dari union tiga layar):
- *   min & max berbeda → "Rp {min} – {max}" (satu prefiks Rp)
- *   min == max        → "Rp {min}" (harga pasti, bukan rentang)
- *   hanya min         → "Rp {min}" (HARGA PASTI — lihat catatan 2026-09-26)
- *   hanya max         → "Hingga Rp {max}" (penjual menutup di harga tsb.)
+ *   min & max berbeda → "Rp100.000 – Rp250.000" (format formatRupiah)
+ *   min == max        → "Rp100.000" (harga pasti, bukan rentang)
+ *   hanya min         → "Rp100.000" (HARGA PASTI — lihat catatan 2026-09-26)
+ *   hanya max         → "Hingga Rp250.000" (penjual menutup di harga tsb.)
  *   keduanya kosong   → "Harga lewat diskusi"
  *
  * Revisi 2026-09-26 (permintaan produk): "hanya min" tidak lagi ditulis
@@ -31,7 +31,7 @@
  * `translate()` dipanggil dengan LITERAL eksplisit (bukan variabel) supaya
  * pemindai `gen:i18n` menangkap bentuknya dengan token {x}.
  */
-import { formatNumber } from "@/lib/format"
+import { formatRupiah } from "@/lib/format"
 import { translate } from "@/lib/i18n/translate"
 
 export type ShowcasePriceLike = {
@@ -62,14 +62,14 @@ export function showcasePriceLabel(item: ShowcasePriceLike): string | null {
     (Nol tetap bermakna "gratis" bila ia satu-satunya batas, lihat B-06.)
   */
   const upper = hi === 0 && lo != null && lo > 0 ? null : hi
-  if (lo != null && upper != null && upper < lo) return translate("Mulai Rp {x}", { x: formatNumber(lo) })
+  if (lo != null && upper != null && upper < lo) return translate("Mulai {x}", { x: formatRupiah(lo) })
   if (lo != null && upper != null) {
-    if (lo === upper) return translate("Rp {x}", { x: formatNumber(lo) })
-    return translate("Rp {x} – {y}", { x: formatNumber(lo), y: formatNumber(upper) })
+    if (lo === upper) return formatRupiah(lo)
+    return `${formatRupiah(lo)} – ${formatRupiah(upper)}`
   }
   // Satu-satunya terikat = harga PASTI, bukan "mulai dari" (2026-09-26).
-  if (lo != null) return translate("Rp {x}", { x: formatNumber(lo) })
-  if (upper != null) return translate("Hingga Rp {x}", { x: formatNumber(upper) })
+  if (lo != null) return formatRupiah(lo)
+  if (upper != null) return translate("Hingga {x}", { x: formatRupiah(upper) })
   return null
 }
 
