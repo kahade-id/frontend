@@ -4,12 +4,14 @@
  * Dipanggil sebagai /seller/products/new atau /seller/products/[id].
  */
 import { useEffect, useState } from "react"
-import { ScrollView, Text, TextInput, View, Alert } from "react-native"
+import { ScrollView, Text, TextInput, View } from "react-native"
 import { useLocalSearchParams, useRouter } from "expo-router"
 
 import { api } from "@/lib/api"
 import type { Product, ProductStatus } from "@/lib/api/products"
 import { PRODUCT_STATUS_LABEL } from "@/lib/api/products"
+import { formatRupiah } from "@/lib/format"
+import { formatRupiahTyping, parseRupiahTyping } from "@/lib/rupiah-input"
 import { tokens } from "@/lib/tokens"
 import { useApiQuery } from "@/lib/use-api-query"
 import { showMutationError } from "@/lib/mutation-toast"
@@ -20,6 +22,7 @@ import { Button } from "@/components/ui/button"
 import { Header } from "@/components/ui/header"
 import { Screen } from "@/components/ui/screen"
 import { DataScreen } from "@/components/ui/data-screen"
+import { Dialog } from "@/components/ui/modal"
 
 const STATUSES: ProductStatus[] = ["DRAFT", "ACTIVE", "OUT_OF_STOCK", "ARCHIVED"]
 
@@ -44,11 +47,15 @@ export default function SellerProductFormScreen() {
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
   const [category, setCategory] = useState("")
-  const [priceIdr, setPriceIdr] = useState("")
+  // FE-052: state menyimpan ANGKA (rupiah); tampilan berformat "1.500.000"
+  // via formatRupiahTyping — pola yang sama dengan showcase/create.tsx.
+  const [priceIdr, setPriceIdr] = useState<number | null>(null)
   const [stock, setStock] = useState("0")
   const [weight, setWeight] = useState("")
   const [lowStock, setLowStock] = useState("5")
   const [status, setStatus] = useState<ProductStatus>("DRAFT")
+  /** FE-054: dialog validasi bermerek (menggantikan Alert.alert generik). */
+  const [incompleteOpen, setIncompleteOpen] = useState(false)
   const [hydrated, setHydrated] = useState(false)
 
   const existingQuery = useApiQuery<Product>(
@@ -65,7 +72,7 @@ export default function SellerProductFormScreen() {
       setName(existing.name)
       setDescription(existing.description ?? "")
       setCategory(existing.category)
-      setPriceIdr(String(existing.priceRupiah))
+      setPriceIdr(existing.priceRupiah)
       setStock(String(existing.quantityAvailable))
       setWeight(existing.weightGrams ? String(existing.weightGrams) : "")
       setLowStock(String(existing.lowStockThreshold))
@@ -85,9 +92,11 @@ export default function SellerProductFormScreen() {
 
   async function save() {
     // Kontrak backend: priceRupiah dalam RUPIAH bulat (server konversi ke sen).
-    const priceRupiah = Math.round(Number(priceIdr.replace(/\D/g, "")))
+    // State priceIdr sudah angka (FE-052) — nilai mentah ke backend tak berubah.
+    const priceRupiah = priceIdr ?? NaN
     if (!sku.trim() || !name.trim() || !category.trim() || !Number.isFinite(priceRupiah) || priceRupiah <= 0) {
-      Alert.alert("Data belum lengkap", "SKU, nama, kategori, dan harga valid wajib diisi.")
+      // FE-054: <Dialog> bermerek, bukan Alert.alert generik.
+      setIncompleteOpen(true)
       return
     }
     const body = {
@@ -129,7 +138,28 @@ export default function SellerProductFormScreen() {
       <Field label="SKU *"><TextInput value={sku} onChangeText={setSku} autoCapitalize="characters" editable={isNew} accessibilityLabel="SKU, wajib diisi" placeholderTextColor={c.textTertiary} style={inputStyle()} /></Field>
       <Field label="Nama produk *"><TextInput value={name} onChangeText={setName} accessibilityLabel="Nama produk, wajib diisi" placeholderTextColor={c.textTertiary} style={inputStyle()} /></Field>
       <Field label="Kategori *"><TextInput value={category} onChangeText={setCategory} accessibilityLabel="Kategori, wajib diisi" placeholderTextColor={c.textTertiary} style={inputStyle()} /></Field>
-      <Field label="Harga (Rp) *"><TextInput value={priceIdr} onChangeText={setPriceIdr} keyboardType="numeric" accessibilityLabel="Harga dalam rupiah, wajib diisi" placeholderTextColor={c.textTertiary} style={inputStyle()} /></Field>
+      <Field label="Harga (Rp) *">
+        <TextInput
+          // FE-052: pemisah ribuan saat mengetik ("1500000" → "1.500.000");
+          // state tetap angka — nilai ke backend tetap mentah.
+          value={formatRupiahTyping(priceIdr)}
+          onChangeText={(raw) => {
+            const parsed = parseRupiahTyping(raw)
+            // undefined = ketikan tak valid (huruf/>15 digit) — abaikan.
+            if (parsed === undefined) return
+            setPriceIdr(parsed)
+          }}
+          keyboardType="numeric"
+          accessibilityLabel="Harga dalam rupiah, wajib diisi"
+          placeholderTextColor={c.textTertiary}
+          style={inputStyle()}
+        />
+      </Field>
+      {priceIdr != null && priceIdr > 0 ? (
+        <Text style={{ color: c.textTertiary, fontSize: 12 }}>
+          Pratinjau: {formatRupiah(priceIdr)}
+        </Text>
+      ) : null}
       <Field label="Stok awal"><TextInput value={stock} onChangeText={setStock} keyboardType="numeric" accessibilityLabel="Stok awal" placeholderTextColor={c.textTertiary} style={inputStyle()} /></Field>
       <Field label="Berat (gram)"><TextInput value={weight} onChangeText={setWeight} keyboardType="numeric" accessibilityLabel="Berat dalam gram" placeholderTextColor={c.textTertiary} style={inputStyle()} /></Field>
       <Field label="Ambang stok menipis"><TextInput value={lowStock} onChangeText={setLowStock} keyboardType="numeric" accessibilityLabel="Ambang stok menipis" placeholderTextColor={c.textTertiary} style={inputStyle()} /></Field>
@@ -153,6 +183,16 @@ export default function SellerProductFormScreen() {
       <Button disabled={saving} onPress={save}>
         {saving ? "Menyimpan…" : "Simpan Produk"}
       </Button>
+      {/* FE-054: dialog validasi bermerek (menggantikan Alert.alert generik). */}
+      <Dialog
+        visible={incompleteOpen}
+        onRequestClose={() => setIncompleteOpen(false)}
+        title="Data belum lengkap"
+        description="SKU, nama, kategori, dan harga valid wajib diisi."
+        confirmLabel="Tutup"
+        hideCancel
+        onConfirm={() => setIncompleteOpen(false)}
+      />
     </View>
   )
 

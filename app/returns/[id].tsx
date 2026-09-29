@@ -4,7 +4,7 @@
  * aksi buyer/seller sesuai status.
  */
 import { useState } from "react"
-import { Alert, Text, TextInput, View } from "react-native"
+import { Text, TextInput, View } from "react-native"
 import { useLocalSearchParams } from "expo-router"
 
 import { api } from "@/lib/api"
@@ -65,6 +65,8 @@ export default function ReturnDetailScreen() {
   const [mutating, setMutating] = useState(false)
   /** T4-010: dialog konfirmasi batal retur (menggantikan Alert.alert). */
   const [cancelOpen, setCancelOpen] = useState(false)
+  /** FE-054: dialog konfirmasi eskalasi ke sengketa (menggantikan Alert.alert "Ya" ambigu). */
+  const [escalateOpen, setEscalateOpen] = useState(false)
   const query = useApiQuery<ReturnDetail>(
     `return:${String(id)}`,
     (signal) => api.returns.getReturn(String(id), signal),
@@ -74,12 +76,9 @@ export default function ReturnDetailScreen() {
   const detail = query.data
 
   async function run(
-    label: string,
     failTitle: string,
     fn: () => Promise<unknown>,
     opts?: {
-      /** Pesan konfirmasi Alert (alur lama; batal-retur kini memakai <Dialog>). */
-      confirmMsg?: string
       /** T4-009: toast sukses setelah aksi berhasil (mis. "Resi terkirim"). */
       successTitle?: string
     },
@@ -106,13 +105,9 @@ export default function ReturnDetailScreen() {
         setMutating(false)
       }
     }
-    if (opts?.confirmMsg) {
-      // Jalur konfirmasi Alert tersisa untuk eskalasi; pembatalan retur
-      // memakai <Dialog> bermerek (T4-010) — lihat tombol di bawah.
-      Alert.alert(label, opts.confirmMsg, [{ text: "Batal" }, { text: "Ya", onPress: go }])
-    } else {
-      await go()
-    }
+    // FE-054: jalur konfirmasi Alert.alert lama dihapus — eskalasi kini
+    // memakai <Dialog> bermerek (state `escalateOpen`).
+    await go()
   }
 
   return (
@@ -174,7 +169,6 @@ export default function ReturnDetailScreen() {
                   loading={mutating}
                   onPress={() =>
                     run(
-                      "Kirim resi",
                       "Gagal mengirim resi",
                       () => api.returns.submitReturnTracking(detail.id, { trackingNumber: tracking.trim() }),
                       { successTitle: "Resi terkirim" },
@@ -216,7 +210,6 @@ export default function ReturnDetailScreen() {
                 loading={mutating}
                 onPress={() =>
                   run(
-                    "Kirim pesan",
                     "Gagal mengirim pesan",
                     async () => {
                       await api.returns.addReturnNote(detail.id, { message: note.trim() })
@@ -249,7 +242,7 @@ export default function ReturnDetailScreen() {
             {detail.status === "RETURN_SHIPPING" ? (
               <Button
                 loading={mutating}
-                onPress={() => run("Konfirmasi terima", "Gagal mengonfirmasi penerimaan", () => api.returns.confirmReturnReceived(detail.id))}
+                onPress={() => run("Gagal mengonfirmasi penerimaan", () => api.returns.confirmReturnReceived(detail.id))}
               >
                 Konfirmasi Barang Diterima (Penjual)
               </Button>
@@ -258,7 +251,7 @@ export default function ReturnDetailScreen() {
               <Button
                 variant="secondary"
                 loading={mutating}
-                onPress={() => run("Eskalasi", "Gagal melakukan eskalasi", () => api.returns.escalateReturn(detail.id), { confirmMsg: "Eskalasi ke sengketa? Kasus sengketa yang sudah ada akan dipakai ulang." })}
+                onPress={() => setEscalateOpen(true)}
               >
                 Eskalasi ke Sengketa
               </Button>
@@ -284,7 +277,25 @@ export default function ReturnDetailScreen() {
             loading={mutating}
             onConfirm={() => {
               setCancelOpen(false)
-              void run("Batalkan", "Gagal membatalkan retur", () => api.returns.cancelReturn(detail.id))
+              void run("Gagal membatalkan retur", () => api.returns.cancelReturn(detail.id))
+            }}
+          />
+          {/*
+            FE-054 (audit frontend 2026-09-29): konfirmasi eskalasi memakai
+            <Dialog> bermerek — jalur Alert.alert lama dihapus. Label
+            konfirmasi eksplisit "Ya, eskalasi ke sengketa", bukan "Ya" ambigu.
+          */}
+          <Dialog
+            visible={escalateOpen}
+            onRequestClose={() => setEscalateOpen(false)}
+            title="Eskalasi ke sengketa?"
+            description="Kasus sengketa yang sudah ada akan dipakai ulang dan penjual akan diberi tahu."
+            cancelLabel="Batal"
+            confirmLabel="Ya, eskalasi ke sengketa"
+            loading={mutating}
+            onConfirm={() => {
+              setEscalateOpen(false)
+              void run("Gagal melakukan eskalasi", () => api.returns.escalateReturn(detail.id))
             }}
           />
         </View>
