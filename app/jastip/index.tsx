@@ -11,7 +11,7 @@
  */
 import { useCallback, useState } from "react"
 import { View } from "react-native"
-import { CalendarBlank, Package, Plus, Users } from "phosphor-react-native"
+import { CalendarBlank, Package, Plus, Question, Users } from "phosphor-react-native"
 import { router } from "expo-router"
 
 import { api, userMessage } from "@/lib/api"
@@ -115,11 +115,19 @@ export default function JastipScreen() {
       title={translate("Jastip saya")}
       header={{
         right: (
-          <IconButton
-            icon={Plus}
-            accessibilityLabel={translate("Buat trip jastip")}
-            onPress={openCreate}
-          />
+          <View className="flex-row items-center gap-1">
+            {/* U5-014 (journey): pintu "Cara kerja" Jastip. */}
+            <IconButton
+              icon={Question}
+              accessibilityLabel={translate("Cara kerja Jastip")}
+              onPress={() => router.push(ROUTES.jastipHowItWorks)}
+            />
+            <IconButton
+              icon={Plus}
+              accessibilityLabel={translate("Buat trip jastip")}
+              onPress={openCreate}
+            />
+          </View>
         ),
       }}
       state={query}
@@ -134,6 +142,12 @@ export default function JastipScreen() {
               action: (
                 <Button fullWidth={false} onPress={openCreate}>
                   {translate("Buat trip")}
+                </Button>
+              ),
+              // U5-014 (journey): pintu "Cara kerja" dari empty state.
+              secondaryAction: (
+                <Button variant="ghost" fullWidth={false} onPress={() => router.push(ROUTES.jastipHowItWorks)}>
+                  {translate("Cara kerja Jastip")}
                 </Button>
               ),
             }

@@ -159,6 +159,31 @@ export const SecureKeys = {
   coachMarkCreateSeen: "kahade.coachMark.createSeen",
   coachMarkQrSeen: "kahade.coachMark.qrSeen",
   /**
+   * U5-004 (journey): coach mark orientasi BELI ("feed-buy") — "Ini feed
+   * produk — ketuk barang untuk lihat detail & beli via escrow". Tampil
+   * SEKALI pada kunjungan pertama ke feed, didahulukan dari coach mark "+".
+   */
+  coachMarkFeedBuySeen: "kahade.coachMark.feedBuySeen",
+  /**
+   * U5-005 (journey): overlay orientasi first-run di feed (3 kartu + 1 baris
+   * per tab). "1" bila sudah pernah tampil/ditutup — tampil sekali saja.
+   */
+  feedOrientationSeen: "kahade.feed.orientationSeen",
+  /**
+   * U5-003 (journey): rationale izin notifikasi sebagai bottom sheet di feed
+   * (pengganti layar welcome). "1" bila sheet sudah pernah tampil/ditutup.
+   */
+  pushRationaleSeen: "kahade.push.rationaleSeen",
+  /**
+   * U5-013 (journey): banner edukasi escrow sekali-tampil untuk penjual saat
+   * pertama kali membuka detail order sebagai penjual.
+   */
+  sellerEscrowBannerSeen: "kahade.seller.escrowBannerSeen",
+  /**
+   * U5-017 (journey): banner "mode tamu" web yang di-dismiss user.
+   */
+  webGuestBannerDismissed: "kahade.web.guestBannerDismissed",
+  /**
    * Toggle notifikasi granular per jenis (JSON — lib/notification-local-prefs.ts):
    * Chat, Transaksi, Etalase, Promo. BUKAN rahasia — hanya boolean preferensi
    * tampilan banner, tanpa PII/angka uang: boleh persist di web seperti
@@ -237,6 +262,11 @@ const WEB_PERSISTENT_KEYS = new Set<SecureKey>([
   SecureKeys.kahadePlusTheme,
   SecureKeys.coachMarkCreateSeen,
   SecureKeys.coachMarkQrSeen,
+  SecureKeys.coachMarkFeedBuySeen,
+  SecureKeys.feedOrientationSeen,
+  SecureKeys.pushRationaleSeen,
+  SecureKeys.sellerEscrowBannerSeen,
+  SecureKeys.webGuestBannerDismissed,
   SecureKeys.notificationLocalPrefs,
   SecureKeys.onboardingChecklistDone,
   SecureKeys.offlineSocialQueue,

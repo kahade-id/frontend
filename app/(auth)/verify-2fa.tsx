@@ -36,7 +36,7 @@
  *     "token"), user diarahkan login ulang lewat Alert + tautan.
  */
 import { useCallback, useEffect, useRef, useState } from "react"
-import { Platform, ScrollView, View } from "react-native"
+import { ScrollView, View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useRouter } from "expo-router"
 
@@ -114,12 +114,9 @@ export default function VerifyTwoFactorScreen() {
       await api.auth.verify2faLogin({ tempToken: pending.tempToken, code })
       clearPendingTwoFactorLogin()
       haptic("success")
-      // Web guest mode tidak memakai Welcome: langsung ke tujuan/Beranda.
-      if (Platform.OS === "web") {
-        router.replace((takePendingNext() as never) ?? ROUTES.home)
-        return
-      }
-      router.replace(ROUTES.welcome())
+      // U5-003 (journey): layar welcome dihapus — semua platform langsung ke
+      // tujuan tertunda/Beranda.
+      router.replace((takePendingNext() as never) ?? ROUTES.home)
     } catch (err) {
       haptic("error")
       if (isApiError(err)) {

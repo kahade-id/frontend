@@ -17,7 +17,7 @@
  *   POST /v1/auth/otp-trigger  body { phoneNumber, purpose: "migrate_phone",
  *     migrationToken, deviceId, location? }
  *   - verify-otp dengan status migration_verified → confirmPhoneMigration({
- *     tempToken, location? }) → sesi penuh → welcome.
+ *     tempToken, location? }) → sesi penuh → Beranda (U5-003: tanpa welcome).
  *   - migrationToken diteruskan saat resend di verify-otp via otp-flow state.
  *
  * Keputusan non-obvious:

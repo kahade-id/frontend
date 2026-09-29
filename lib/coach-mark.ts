@@ -6,6 +6,11 @@
  * tampil SEKALI saat user pertama kali melihatnya setelah update, lalu tidak
  * pernah lagi setelah dilihat/ditutup.
  *
+ * U5-004 (journey, 2026-09-29): ditambah "feed-buy" — coach mark orientasi
+ * BELI ("Ini feed produk — ketuk barang untuk lihat detail & beli via
+ * escrow") yang tampil pada kunjungan pertama ke feed dan DIDAHULUKAN dari
+ * coach mark "+" (yang kini hanya untuk user yang membuka sheet buat).
+ *
  * Pola mengikuti lib/onboarding.ts: flag "1" di SecureStore (bukan karena
  * rahasia, tapi karena itu satu-satunya storage persisten yang terpasang;
  * lihat komentar key-nya). Level perangkat, TIDAK dihapus `clearSession()`
@@ -17,11 +22,12 @@
  */
 import { getSecureItem, SecureKeys, setSecureItem } from "@/lib/secure-storage"
 
-export type CoachMarkId = "create" | "qr"
+export type CoachMarkId = "create" | "qr" | "feed-buy"
 
 const KEY_BY_ID: Record<CoachMarkId, (typeof SecureKeys)[keyof typeof SecureKeys]> = {
   create: SecureKeys.coachMarkCreateSeen,
   qr: SecureKeys.coachMarkQrSeen,
+  "feed-buy": SecureKeys.coachMarkFeedBuySeen,
 }
 
 /** true bila coach mark untuk elemen ini sudah pernah tampil/ditutup. */

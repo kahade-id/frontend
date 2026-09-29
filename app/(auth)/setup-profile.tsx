@@ -13,8 +13,8 @@
  *   <TextArea "Tentang Anda"> (max 500 char)
  *   ── footer: [Lewati]  •  [Simpan]
  *
- *   Setelah simpan/lewati → Welcome screen (`ROUTES.welcome({ newUser: true })`)
- *   yang menyapa user baru dan meminta izin kamera/notifikasi/biometrik.
+ *   Setelah simpan/lewati → langsung ke Beranda (U5-003: layar welcome
+ *   dihapus; rationale izin notifikasi menjadi bottom sheet di feed).
  *
  * Kontrak API (docs/api/kahade-api-mobile.json):
  *   PUT /v1/users/me  body UpdateProfileDto { bio: string (max 500) }
@@ -86,6 +86,7 @@ import { useLeaveConfirm } from "@/lib/use-leave-confirm"
 import { Dialog } from "@/components/ui/modal"
 import { pickImage, pickedImageToFormData, type PickedImage, type PickImageOptions } from "@/lib/image-picker"
 import { ROUTES } from "@/lib/routes"
+import { takePendingNext } from "@/lib/login-redirect"
 import { translate } from "@/lib/i18n/translate"
 
 /** Crop persegi + kompresi avatar sebelum upload (§9.19: klien mengirim JPG/PNG). */
@@ -131,7 +132,8 @@ export default function SetupProfileScreen() {
   // konfirmasi hanya bila ada perubahan.
   const doSkip = useCallback(() => {
     clearRegistrationState()
-    router.replace(ROUTES.welcome({ newUser: true }))
+    // U5-003 (journey): layar welcome dihapus — langsung ke tujuan/Beranda.
+    router.replace((takePendingNext() as never) ?? ROUTES.home)
   }, [router])
   const leaveConfirm = useLeaveConfirm(hasChanges && !submitting, {
     title: "Lewati setup profil?",
@@ -156,13 +158,12 @@ export default function SetupProfileScreen() {
         bio: bio.trim() || undefined,
       })
 
-      // Sukses: bersihkan state registrasi dan tampilkan welcome.
-      // `newUser` dibawa lewat param — welcome tidak bisa membaca state yang
-      // baru saja dibersihkan.
+      // Sukses: bersihkan state registrasi lalu langsung ke tujuan/Beranda
+      // (U5-003: layar welcome dihapus).
       // A06: simpan sukses = keluar yang disengaja.
       leaveConfirm.markLeaving()
       clearRegistrationState()
-      router.replace(ROUTES.welcome({ newUser: true }))
+      router.replace((takePendingNext() as never) ?? ROUTES.home)
     } catch (err) {
       if (isApiError(err)) {
         // Error validasi bio → tampilkan di form.
