@@ -5,7 +5,7 @@
  *  - <WalletHeroCard> — kartu saldo hero gelap premium: "Saldo Tersedia"
  *    besar + caption "yang bisa dipakai sekarang" + toggle mata
  *    (balanceHidden dari useUiPref, dibagi dengan Beranda — J-05) +
- *    sub-baris "Rp X ditahan sebagai jaminan transaksi". Skeleton saat
+ *    sub-baris "Rp X ditahan di escrow". Skeleton saat
  *    loading; ErrorState + retry saat error (fail closed: tidak pernah
  *    menampilkan Rp 0 palsu).
  *  - <WalletPrimaryActions> — tiga tombol besar: Isi Saldo / Transfer /
@@ -54,6 +54,7 @@ import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 import { cn } from "@/lib/cn"
 import { computeEscrowHolds, totalEscrowHeld } from "@/lib/wallet-escrow-holds"
+import { ESCROW_HELD_EXPLANATION } from "@/lib/labels/escrow"
 import { breakdownAddsUp } from "@/lib/wallet-batch139"
 import { formatDate, formatTime } from "@/lib/format"
 
@@ -354,8 +355,7 @@ export default function WalletScreen() {
                 <Amount value={heldValue} tone="primary" hidden={balanceHidden} />
               </View>
               <Text variant="caption" tone="secondary">
-                Dana terkunci untuk order yang masih berjalan. Cair otomatis saat
-                order selesai atau dibatalkan.
+                {ESCROW_HELD_EXPLANATION}
               </Text>
             </View>
           ) : null}
@@ -385,7 +385,7 @@ export default function WalletScreen() {
         visible={holdsOpen}
         onRequestClose={() => setHoldsOpen(false)}
         title="Dana ditahan di escrow"
-        description="Pesanan yang masih menahan dana Anda. Dana cair otomatis saat pesanan selesai atau dibatalkan."
+        description={ESCROW_HELD_EXPLANATION}
         footer={
           <Button onPress={() => setHoldsOpen(false)} containerClassName="flex-1">
             Tutup
@@ -406,7 +406,7 @@ export default function WalletScreen() {
             <EmptyState
               icon={WalletIcon}
               title="Tidak ada pesanan penahan"
-              description="Tidak ditemukan pesanan yang masih menahan dana pada 100 mutasi terakhir."
+              description="Tidak ditemukan dana yang ditahan di escrow pada 100 mutasi terakhir."
             />
           </View>
         ) : (
