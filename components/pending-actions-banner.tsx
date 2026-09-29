@@ -46,9 +46,11 @@ function actionKey(action: PendingAction): string {
     ? `${action.kind}:${action.txId}`
     : action.kind === "qris-payment" || action.kind === "order-payment"
       ? `${action.kind}:${action.orderId}`
-      : action.kind === "topup-unpaid"
-        ? `${action.kind}:${action.paymentTxId}`
-        : `${action.kind}:${action.idempotencyKey}`
+      : action.kind === "subscription-payment"
+        ? `${action.kind}:${action.plan}`
+        : action.kind === "topup-unpaid"
+          ? `${action.kind}:${action.paymentTxId}`
+          : `${action.kind}:${action.idempotencyKey}`
 }
 
 function describe(action: PendingAction): { title: string; meta?: string } {
@@ -76,6 +78,19 @@ function describe(action: PendingAction): { title: string; meta?: string } {
               x: formatDateTimeWIB(action.expiresAt),
             })
           : "Periksa status pembayaran pesanan Anda",
+      }
+    case "subscription-payment":
+      return {
+        // M-33: nominal 0 tidak dicetak "Rp0" — belum diketahui, bukan nol.
+        title: translate("Pembayaran Kahade+ menunggu — {x}", {
+          x: action.amount > 0 ? formatRupiah(action.amount) : "nominal belum diketahui",
+        }),
+        meta: action.expiresAt
+          ? translate("{m} berlaku sampai {x}", {
+              m: action.methodName ?? "Kode bayar",
+              x: formatDateTimeWIB(action.expiresAt),
+            })
+          : "Selesaikan pembayaran di layar paket Kahade+",
       }
     case "topup-unpaid":
       return {
@@ -130,6 +145,10 @@ function targetOf(action: PendingAction) {
         pathname: "/topup" as "/topup",
         params: { resumePayment: action.paymentTxId },
       }
+    case "subscription-payment":
+      // Pulihkan ke daftar paket — status dibaca ulang dari server saat
+      // layar dibuka; sheet bayar tidak dipaksa terbuka dari catatan basi.
+      return ROUTES.kahadePlusPlans
     case "withdraw-otp":
       return ROUTES.withdraw
     case "transfer-uncertain":

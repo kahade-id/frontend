@@ -70,6 +70,21 @@ export type PendingAction =
       createdAt: number
       expiresAt?: number
     }
+  /**
+   * Mode Tanpa Wallet Internal: pembayaran langganan Kahade+ via DANA yang
+   * ditinggalkan sebelum lunas — banner mengarahkan kembali ke daftar paket
+   * (status dibaca ulang dari server, bukan state lokal basi).
+   */
+  | {
+      kind: "subscription-payment"
+      /** Kunci paket ("MONTHLY" | "YEARLY") — satu catatan per paket. */
+      plan: string
+      /** Nama metode untuk copy banner (mis. "QRIS"). */
+      methodName?: string
+      amount: number
+      createdAt: number
+      expiresAt?: number
+    }
   | {
       kind: "topup-unpaid"
       paymentTxId: string
@@ -136,6 +151,8 @@ function actionKey(action: PendingAction): string {
     ? `${action.kind}:${action.txId}`
     : action.kind === "qris-payment" || action.kind === "order-payment"
       ? `${action.kind}:${action.orderId}`
+      : action.kind === "subscription-payment"
+        ? `${action.kind}:${action.plan}`
       : action.kind === "topup-unpaid"
         ? `${action.kind}:${action.paymentTxId}`
         : `${action.kind}:${action.idempotencyKey}`
@@ -186,6 +203,13 @@ function sanitize(raw: unknown): PendingAction[] {
     } else if (rec.kind === "order-payment" && typeof rec.orderId === "string" && rec.orderId) {
       const methodName = typeof rec.methodName === "string" ? rec.methodName : undefined
       result.push({ kind: "order-payment", orderId: rec.orderId, methodName, amount, createdAt, expiresAt })
+    } else if (
+      rec.kind === "subscription-payment" &&
+      typeof rec.plan === "string" &&
+      rec.plan
+    ) {
+      const methodName = typeof rec.methodName === "string" ? rec.methodName : undefined
+      result.push({ kind: "subscription-payment", plan: rec.plan, methodName, amount, createdAt, expiresAt })
     } else if (
       rec.kind === "topup-unpaid" &&
       typeof rec.paymentTxId === "string" &&
