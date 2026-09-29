@@ -1,6 +1,6 @@
 import type { HelpArticle, HelpCategory } from "@/lib/api/help-center"
-import { useCallback, useEffect, useState } from "react"
-import { View } from "react-native"
+import { useCallback, useEffect, useMemo, useState } from "react"
+import { View, type ListRenderItem } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useIsFocused } from "@react-navigation/native"
 import { router, useLocalSearchParams } from "expo-router"
@@ -31,6 +31,17 @@ import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
 import { Text } from "@/components/ui/text"
 import { TextLink } from "@/components/ui/text-link"
+
+/**
+ * FE-013 (audit 2026-09-29): separator sebagai komponen bernama — arrow
+ * inline = tipe komponen baru tiap render → React unmount/mount ulang
+ * SEMUA separator tiap render layar.
+ */
+function FaqItemSeparator() {
+  return <View className="h-3" />
+}
+
+type FaqRow = { id: string } & ({ article: HelpArticle } | { category: HelpCategory })
 
 /**
  * F05: kartu status Bantuan Langsung — jam layanan, status buka/tutup
@@ -123,10 +134,14 @@ export default function FaqScreen() {
   )
   const searching = Boolean(keyword)
   const state = searching ? search : categories
-  const rows: Array<{ id: string } & ({ article: HelpArticle } | { category: HelpCategory })> =
-    searching
-      ? (search.data ?? []).map((article) => ({ id: article.id, article }))
-      : (categories.data ?? []).map((category) => ({ id: category.slug, category }))
+  // FE-013: `data` ikut di-memo — array baru tiap render menjebol bail-out FlatList.
+  const rows = useMemo<FaqRow[]>(
+    () =>
+      searching
+        ? (search.data ?? []).map((article) => ({ id: article.id, article }))
+        : (categories.data ?? []).map((category) => ({ id: category.slug, category })),
+    [searching, search.data, categories.data],
+  )
 
   // F04: riwayat artikel terakhir dilihat (lokal, per akun) + aksi bersihkan.
   const [history, setHistory] = useState<HelpHistoryEntry[]>([])
@@ -137,6 +152,96 @@ export default function FaqScreen() {
   useEffect(() => {
     if (isFocused) reloadHistory()
   }, [isFocused, reloadHistory])
+
+  /**
+   * FE-013 (audit 2026-09-29): SEMUA prop list di-hoist — tiap keystroke
+   * pencarian sebelumnya me-render ulang seluruh daftar (keyExtractor,
+   * style, separator, header, renderItem, empty, onRefresh semuanya inline).
+   */
+  const faqKeyExtractor = useCallback((row: FaqRow) => row.id, [])
+  const faqContentStyle = useMemo(
+    () => ({
+      paddingHorizontal: tokens.layout.screenPaddingX,
+      paddingBottom: insets.bottom + tokens.space[8],
+      flexGrow: 1,
+    }),
+    [insets.bottom],
+  )
+  const faqListHeader = useMemo(
+    () =>
+      searching ? null : (
+        <View className="gap-4 pb-3">
+          {/* F05: status ketersediaan Bantuan Langsung. */}
+          <LiveSupportStatusCard />
+          {/* F04: artikel terakhir dilihat. */}
+          {history.length > 0 ? (
+            <View className="gap-2">
+              <SectionHeader
+                title="Terakhir dilihat"
+                action={
+                  <TextLink inline onPress={() => setClearOpen(true)}>
+                    Bersihkan
+                  </TextLink>
+                }
+              />
+              {history.slice(0, 5).map((entry) => (
+                <HelpArticleListItem
+                  key={`${entry.articleId || entry.slug}`}
+                  padded={false}
+                  title={entry.title}
+                  snippet={entry.categoryName}
+                  href={ROUTES.helpArticle(entry.articleId || entry.slug, entry.slug)}
+                />
+              ))}
+            </View>
+          ) : null}
+        </View>
+      ),
+    [searching, history],
+  )
+  const faqRenderItem: ListRenderItem<FaqRow> = useCallback(
+    ({ item }) =>
+      "article" in item ? (
+        <HelpArticleListItem
+          padded={false}
+          title={item.article.title}
+          highlight={keyword}
+          href={ROUTES.helpArticle(
+            item.article.slug ?? item.article.id,
+            item.article.category,
+            item.article.title,
+          )}
+        />
+      ) : (
+        <HelpCategoryCard
+          name={item.category.name}
+          description={item.category.description}
+          articleCount={item.category.articleCount}
+          href={ROUTES.helpCategory(item.category.slug)}
+        />
+      ),
+    [keyword],
+  )
+  const faqListEmpty = useMemo(
+    () =>
+      state.loading ? (
+        <ListLoading />
+      ) : state.error ? (
+        <ErrorState description={state.error} onRetry={() => void state.reload()} />
+      ) : (
+        <EmptyState
+          icon={searching ? MagnifyingGlass : Question}
+          title={searching ? "Tidak ada hasil" : "Kategori bantuan belum tersedia"}
+          description={
+            searching
+              ? "Coba kata kunci lain."
+              : "Artikel akan ditampilkan setelah dipublikasikan oleh Kahade."
+          }
+        />
+      ),
+    [state, searching],
+  )
+  const faqRefresh = useCallback(() => void state.refresh(), [state])
 
   return (
     <Screen edges={["top"]} padded={false}>
@@ -153,83 +258,14 @@ export default function FaqScreen() {
       </FadeIn>
       <PullToRefreshFlatList
         data={rows}
-        keyExtractor={(row) => row.id}
-        contentContainerStyle={{
-          paddingHorizontal: tokens.layout.screenPaddingX,
-          paddingBottom: insets.bottom + tokens.space[8],
-          flexGrow: 1,
-        }}
-        ItemSeparatorComponent={() => <View className="h-3" />}
-        ListHeaderComponent={
-          searching ? null : (
-            <View className="gap-4 pb-3">
-              {/* F05: status ketersediaan Bantuan Langsung. */}
-              <LiveSupportStatusCard />
-              {/* F04: artikel terakhir dilihat. */}
-              {history.length > 0 ? (
-                <View className="gap-2">
-                  <SectionHeader
-                    title="Terakhir dilihat"
-                    action={
-                      <TextLink inline onPress={() => setClearOpen(true)}>
-                        Bersihkan
-                      </TextLink>
-                    }
-                  />
-                  {history.slice(0, 5).map((entry) => (
-                    <HelpArticleListItem
-                      key={`${entry.articleId || entry.slug}`}
-                      padded={false}
-                      title={entry.title}
-                      snippet={entry.categoryName}
-                      href={ROUTES.helpArticle(entry.articleId || entry.slug, entry.slug)}
-                    />
-                  ))}
-                </View>
-              ) : null}
-            </View>
-          )
-        }
-        renderItem={({ item }) =>
-          "article" in item ? (
-            <HelpArticleListItem
-              padded={false}
-              title={item.article.title}
-              highlight={keyword}
-              href={ROUTES.helpArticle(
-                item.article.slug ?? item.article.id,
-                item.article.category,
-                item.article.title,
-              )}
-            />
-          ) : (
-            <HelpCategoryCard
-              name={item.category.name}
-              description={item.category.description}
-              articleCount={item.category.articleCount}
-              href={ROUTES.helpCategory(item.category.slug)}
-            />
-          )
-        }
-        ListEmptyComponent={
-          state.loading ? (
-            <ListLoading />
-          ) : state.error ? (
-            <ErrorState description={state.error} onRetry={() => void state.reload()} />
-          ) : (
-            <EmptyState
-              icon={searching ? MagnifyingGlass : Question}
-              title={searching ? "Tidak ada hasil" : "Kategori bantuan belum tersedia"}
-              description={
-                searching
-                  ? "Coba kata kunci lain."
-                  : "Artikel akan ditampilkan setelah dipublikasikan oleh Kahade."
-              }
-            />
-          )
-        }
+        keyExtractor={faqKeyExtractor}
+        contentContainerStyle={faqContentStyle}
+        ItemSeparatorComponent={FaqItemSeparator}
+        ListHeaderComponent={faqListHeader}
+        renderItem={faqRenderItem}
+        ListEmptyComponent={faqListEmpty}
         refreshing={state.refreshing}
-        onRefresh={() => void state.refresh()}
+        onRefresh={faqRefresh}
         refreshEnabled={!state.loading}
         keyboardShouldPersistTaps="handled"
         initialNumToRender={8}
