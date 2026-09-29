@@ -29,10 +29,6 @@
     },
     "ios": {
       "bundleIdentifier": "id.kahade",
-      // N1-005: `aps-environment` JANGAN di-hardcode di sini — nilai
-      // "development" akan ikut ke build production dan membuat push
-      // via APNs production tidak sampai (token terdaftar di sandbox).
-      // EAS mengatur entitlement ini otomatis per build profile.
       "associatedDomains": [
         "applinks:kahade.id",
         "applinks:www.kahade.id"
