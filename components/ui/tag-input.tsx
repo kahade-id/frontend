@@ -30,7 +30,7 @@ import { Chip } from "@/components/ui/chip"
 import { Field, type FieldProps } from "@/components/ui/field"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
-import { translateProp, useLanguage } from "@/lib/i18n"
+import { translate, translateProp, useLanguage } from "@/lib/i18n"
 import { tokens } from "@/lib/tokens"
 
 export type TagInputProps = Omit<ViewProps, "children"> &
@@ -69,6 +69,9 @@ export function TagInput({
   const inputRef = useRef<TextInput>(null)
   const [draft, setDraft] = useState("")
   const [focused, setFocused] = useState(false)
+  // FRM-010: tag yang melebihi maxTagLength dulu dipotong diam-diam.
+  // Sekarang draft dibatasi + user diberi tahu saat menyentuh batas.
+  const [hitLimit, setHitLimit] = useState(false)
   // Placeholder dibaca langsung oleh TextInput native → kamus + langganan bahasa.
   useLanguage()
 
@@ -97,6 +100,14 @@ export function TagInput({
   )
 
   const handleChange = (text: string) => {
+    if (text.length > maxTagLength) {
+      // FRM-010: tolak kelebihan karakter + tampilkan umpan balik, jangan
+      // potong diam-diam di commit.
+      setHitLimit(true)
+      setDraft(text.slice(0, maxTagLength))
+      return
+    }
+    setHitLimit(false)
     const sep = splitOnSpace ? /[,\s]/ : /,/
     if (sep.test(text)) commit(text)
     else setDraft(text)
@@ -173,6 +184,12 @@ export function TagInput({
           </Text>
         ) : null}
       </View>
+      {/* FRM-010: umpan balik saat draft menyentuh batas panjang tag. */}
+      {hitLimit ? (
+        <Text variant="caption" tone="danger" className="mt-1">
+          {translate("Maksimal {n} karakter per tag", { n: maxTagLength })}
+        </Text>
+      ) : null}
     </Field>
   )
 }
