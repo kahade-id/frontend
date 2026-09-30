@@ -26,7 +26,8 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { Header } from "@/components/ui/header"
 import { PaginatedList } from "@/components/ui/paginated-list"
 import { Screen } from "@/components/ui/screen"
-import { Pressable, Text, View } from "react-native"
+import { Text } from "@/components/ui/text"
+import { Pressable, View } from "react-native"
 
 type Role = "buyer" | "seller"
 
@@ -37,11 +38,9 @@ const PAGE_LIMIT = 50
 const ReturnRow = memo(function ReturnRow({
   item,
   onSelect,
-  textTertiary,
 }: {
   item: ReturnListItem
   onSelect: (id: string) => void
-  textTertiary: string
 }) {
   const handlePress = useCallback(() => onSelect(item.id), [onSelect, item.id])
 
@@ -53,13 +52,13 @@ const ReturnRow = memo(function ReturnRow({
     >
       <Card>
         <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-          <Text style={{ fontWeight: "700" }}>{returnIdShort(item)}</Text>
+          <Text variant="monoBody">{returnIdShort(item)}</Text>
           <Badge>{RETURN_STATUS_LABEL[item.status] ?? item.status}</Badge>
         </View>
-        <Text style={{ color: textTertiary, marginTop: tokens.space[1] }}>
+        <Text variant="body" tone="secondary" style={{ marginTop: tokens.space[1] }}>
           {RETURN_REASON_LABEL[item.reasonCode] ?? item.reasonCode}
         </Text>
-        <Text style={{ color: textTertiary, fontSize: 12 }}>
+        <Text variant="caption" tone="secondary">
           Diajukan {formatDateTime(item.createdAt)}
         </Text>
       </Card>
@@ -78,9 +77,9 @@ export default function ReturnsScreen() {
   const handleSelectReturn = useCallback((id: string) => router.push(ROUTES.returnDetail(id)), [router])
   const renderReturnItem = useCallback(
     ({ item }: { item: ReturnListItem }) => (
-      <ReturnRow item={item} onSelect={handleSelectReturn} textTertiary={c.textTertiary} />
+      <ReturnRow item={item} onSelect={handleSelectReturn} />
     ),
-    [handleSelectReturn, c.textTertiary],
+    [handleSelectReturn],
   )
   const query = usePaginatedQuery<ReturnListItem>(
     `returns:${role}`,
@@ -130,7 +129,7 @@ export default function ReturnsScreen() {
                   backgroundColor: role === r ? c.primary : c.surface,
                 }}
               >
-                <Text style={{ color: role === r ? c.primaryForeground : c.textPrimary }}>
+                <Text tone="inherit" style={{ color: role === r ? c.primaryForeground : c.textPrimary }}>
                   {r === "buyer" ? "Sebagai pembeli" : "Sebagai penjual"}
                 </Text>
               </Pressable>

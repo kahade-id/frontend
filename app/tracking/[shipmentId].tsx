@@ -4,7 +4,7 @@
  * Lokasi termasking, tanpa alamat lengkap (G238).
  */
 import { useState } from "react"
-import { Text, View } from "react-native"
+import { View } from "react-native"
 import { router, useLocalSearchParams } from "expo-router"
 
 import { api } from "@/lib/api"
@@ -25,13 +25,13 @@ import { Card } from "@/components/ui/card"
 import { DataScreen } from "@/components/ui/data-screen"
 import { OrderStatusBadge } from "@/components/ui/order-status-badge"
 import { SectionHeader } from "@/components/ui/section"
+import { Text } from "@/components/ui/text"
 
 export default function TrackingScreen() {
   const { shipmentId } = useLocalSearchParams<{ shipmentId: string }>()
   const { mode } = useTheme()
   const toast = useToast()
   const c = tokens.colors[mode]
-  const warningText = tokens.colors.semantic.warning[mode].text
   const [refreshing, setRefreshing] = useState(false)
   const shipmentQuery = useApiQuery<Shipment>(
     `shipment:${String(shipmentId)}`,
@@ -98,10 +98,10 @@ export default function TrackingScreen() {
             <Card>
               <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontWeight: "800", fontSize: 16 }} numberOfLines={2}>
+                  <Text variant="bodyLarge" weight={700} numberOfLines={2}>
                     {trackedOrder.title}
                   </Text>
-                  <Text style={{ color: c.textTertiary, marginTop: tokens.space[1] }}>
+                  <Text variant="body" tone="secondary" style={{ marginTop: tokens.space[1] }}>
                     Order #{shortId(trackedOrder.id)}
                   </Text>
                 </View>
@@ -118,7 +118,7 @@ export default function TrackingScreen() {
             </Card>
           ) : orderQuery.error ? (
             <Card>
-              <Text style={{ color: c.textTertiary }}>
+              <Text tone="secondary">
                 Status order tidak dapat dimuat: {orderQuery.error}
               </Text>
               <View style={{ marginTop: tokens.space[2] }}>
@@ -130,31 +130,31 @@ export default function TrackingScreen() {
           ) : null}
           <Card>
             <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-              <Text style={{ fontWeight: "800", fontSize: 16 }}>
+              <Text variant="monoBody">
                 {shipment.trackingNumber ?? shipment.manualTrackingNumber ?? "—"}
               </Text>
               {/* UI-T009 (audit UI/UX 2026-09-27): fallback nilai mentah bila
                   backend mengirim status asing — sebelumnya Badge kosong. */}
               <Badge>{SHIPMENT_STATUS_LABEL[shipment.status] ?? shipment.status}</Badge>
             </View>
-            <Text style={{ color: c.textTertiary, marginTop: tokens.space[1] }}>
+            <Text variant="body" tone="secondary" style={{ marginTop: tokens.space[1] }}>
               {shipment.providerCode.toUpperCase()}
               {shipment.serviceCode ? ` · ${shipment.serviceCode}` : ""}
               {shipment.isManual ? " · Resi manual" : ""}
             </Text>
             {shipment.status === "UNKNOWN" ? (
-              <Text style={{ color: warningText, marginTop: tokens.space[1] }}>
+              <Text tone="warning" style={{ marginTop: tokens.space[1] }}>
                 Status belum diketahui — provider tidak merespons atau timeout. Bukan berarti gagal.
               </Text>
             ) : null}
             <View style={{ flexDirection: "row", gap: tokens.space[4], marginTop: tokens.space[2] }}>
               <View>
-                <Text style={{ fontSize: 12, color: c.textTertiary }}>Estimasi ongkir</Text>
-                <Text style={{ fontWeight: "700" }}>{formatIdrSen(shipment.estimatedCost)}</Text>
+                <Text variant="caption" tone="secondary">Estimasi ongkir</Text>
+                <Text variant="monoBody">{formatIdrSen(shipment.estimatedCost)}</Text>
               </View>
               <View>
-                <Text style={{ fontSize: 12, color: c.textTertiary }}>Ongkir aktual</Text>
-                <Text style={{ fontWeight: "700" }}>{formatIdrSen(shipment.actualCost)}</Text>
+                <Text variant="caption" tone="secondary">Ongkir aktual</Text>
+                <Text variant="monoBody">{formatIdrSen(shipment.actualCost)}</Text>
               </View>
             </View>
             <View style={{ marginTop: tokens.space[3] }}>
@@ -169,26 +169,26 @@ export default function TrackingScreen() {
           <Card>
             <SectionHeader title="Perjalanan paket" />
             {timelineQuery.loading && events.length === 0 ? (
-              <Text style={{ color: c.textTertiary }}>Memuat perjalanan paket…</Text>
+              <Text tone="secondary">Memuat perjalanan paket…</Text>
             ) : timelineQuery.error ? (
               <View style={{ gap: tokens.space[2] }}>
-                <Text style={{ color: c.textTertiary }}>{timelineQuery.error}</Text>
+                <Text tone="secondary">{timelineQuery.error}</Text>
                 <Button variant="secondary" onPress={() => void timelineQuery.reload()}>
                   Coba lagi
                 </Button>
               </View>
             ) : events.length === 0 ? (
-              <Text style={{ color: c.textTertiary }}>Belum ada event tracking.</Text>
+              <Text tone="secondary">Belum ada event tracking.</Text>
             ) : (
               <View style={{ gap: tokens.space[3] }}>
                 {events.map((ev) => (
                   <View key={ev.id} style={{ flexDirection: "row", gap: tokens.space[2] }}>
                     <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: c.primary, marginTop: 6 }} />
                     <View style={{ flex: 1 }}>
-                      <Text style={{ fontWeight: "600" }}>{SHIPMENT_STATUS_LABEL[ev.status] ?? ev.status}</Text>
-                      {ev.locationMasked ? <Text style={{ color: c.textTertiary }}>{ev.locationMasked}</Text> : null}
-                      {ev.description ? <Text style={{ fontSize: 13 }}>{ev.description}</Text> : null}
-                      <Text style={{ color: c.textTertiary, fontSize: 12 }}>
+                      <Text variant="body" weight={600}>{SHIPMENT_STATUS_LABEL[ev.status] ?? ev.status}</Text>
+                      {ev.locationMasked ? <Text tone="secondary">{ev.locationMasked}</Text> : null}
+                      {ev.description ? <Text variant="body">{ev.description}</Text> : null}
+                      <Text variant="caption" tone="secondary">
                         {formatDateTime(ev.occurredAt ?? ev.createdAt)}
                       </Text>
                     </View>

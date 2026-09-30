@@ -3,7 +3,7 @@
  * GET /v1/products/[id] · kebijakan harga, varian & ketersediaan pre-checkout.
  */
 import { useState } from "react"
-import { Pressable, Text, View } from "react-native"
+import { Pressable, View } from "react-native"
 import { useLocalSearchParams } from "expo-router"
 
 import { api } from "@/lib/api"
@@ -16,21 +16,20 @@ import { showMutationError } from "@/lib/mutation-toast"
 import { useTheme } from "@/components/theme-provider"
 import { useToast } from "@/components/ui/toast"
 
+import { Amount } from "@/components/ui/amount"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { DataScreen } from "@/components/ui/data-screen"
 import { Dialog } from "@/components/ui/modal"
 import { SectionHeader } from "@/components/ui/section"
+import { Text } from "@/components/ui/text"
 
 export default function ProductDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
   const { mode } = useTheme()
   const toast = useToast()
   const c = tokens.colors[mode]
-  const successText = tokens.colors.semantic.success[mode].text
-  const dangerText = tokens.colors.semantic.danger[mode].text
-  const warningText = tokens.colors.semantic.warning[mode].text
   const [selectedVariant, setSelectedVariant] = useState<string | null>(null)
   const [qty, setQty] = useState(1)
   const [checking, setChecking] = useState(false)
@@ -79,19 +78,23 @@ export default function ProductDetailScreen() {
         <View style={{ paddingVertical: tokens.space[4], gap: tokens.space[4] }}>
           <Card>
             <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-              <Text style={{ fontWeight: "800", fontSize: 18, flex: 1 }}>{p.name}</Text>
+              <Text variant="h3" style={{ flex: 1 }}>{p.name}</Text>
               <Badge tone={productStatusBadgeTone(p.status)}>{PRODUCT_STATUS_LABEL[p.status]}</Badge>
             </View>
-            <Text style={{ color: c.textTertiary, marginTop: tokens.space[1] }}>
+            <Text variant="body" tone="secondary" style={{ marginTop: tokens.space[1] }}>
               {p.category} · SKU {p.sku}
             </Text>
-            {p.description ? <Text style={{ marginTop: tokens.space[2] }}>{p.description}</Text> : null}
-            <Text style={{ fontWeight: "800", fontSize: 20, marginTop: tokens.space[2] }}>{formatRupiah(priceOf(p, selectedVariant))}</Text>
-            <Text style={{ color: stockOf(p, selectedVariant) > 0 ? successText : dangerText, marginTop: tokens.space[1] }}>
+            {p.description ? <Text variant="body" style={{ marginTop: tokens.space[2] }}>{p.description}</Text> : null}
+            <Amount value={priceOf(p, selectedVariant)} size="body" style={{ marginTop: tokens.space[2] }} />
+            <Text
+              variant="body"
+              tone={stockOf(p, selectedVariant) > 0 ? "success" : "danger"}
+              style={{ marginTop: tokens.space[1] }}
+            >
               {stockOf(p, selectedVariant) > 0 ? `Stok tersedia: ${stockOf(p, selectedVariant)}` : "Stok habis"}
             </Text>
             {p.requiresBusinessVerification ? (
-              <Text style={{ color: warningText, fontSize: 12, marginTop: tokens.space[1] }}>
+              <Text variant="caption" tone="warning" style={{ marginTop: tokens.space[1] }}>
                 Hanya dapat dibeli dari penjual terverifikasi bisnis.
               </Text>
             ) : null}
@@ -115,8 +118,8 @@ export default function ProductDetailScreen() {
                       borderColor: selectedVariant === v.id ? c.primary : c.borderDefault,
                     }}
                   >
-                    <Text style={{ fontWeight: "600" }}>{variantLabel(v)}</Text>
-                    <Text style={{ color: c.textTertiary, fontSize: 12 }}>
+                    <Text variant="body" weight={600}>{variantLabel(v)}</Text>
+                    <Text variant="caption" tone="secondary">
                       {v.sku} · {formatRupiah(v.priceRupiah ?? p.priceRupiah)} · Stok {Math.max(0, v.quantityAvailable - v.quantityReserved)}
                     </Text>
                   </Pressable>
@@ -136,16 +139,16 @@ export default function ProductDetailScreen() {
                 accessibilityLabel="Kurangi jumlah"
                 style={{ minHeight: 44, minWidth: 44, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: c.borderDefault, borderRadius: tokens.radius.md }}
               >
-                <Text style={{ fontSize: 18 }}>−</Text>
+                <Text variant="h3">−</Text>
               </Pressable>
-              <Text style={{ fontSize: 18, fontWeight: "700" }} accessibilityLabel={`Jumlah ${qty}`}>{qty}</Text>
+              <Text variant="h3" accessibilityLabel={`Jumlah ${qty}`}>{qty}</Text>
               <Pressable
                 onPress={() => setQty((x) => Math.min(99, x + 1))}
                 accessibilityRole="button"
                 accessibilityLabel="Tambah jumlah"
                 style={{ minHeight: 44, minWidth: 44, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: c.borderDefault, borderRadius: tokens.radius.md }}
               >
-                <Text style={{ fontSize: 18 }}>+</Text>
+                <Text variant="h3">+</Text>
               </Pressable>
             </View>
             <View style={{ marginTop: tokens.space[3] }}>
@@ -153,7 +156,7 @@ export default function ProductDetailScreen() {
                 {checking ? "Memvalidasi…" : "Cek Ketersediaan & Harga"}
               </Button>
             </View>
-            <Text style={{ color: c.textTertiary, fontSize: 12, marginTop: tokens.space[2] }}>
+            <Text variant="caption" tone="secondary" style={{ marginTop: tokens.space[2] }}>
               Harga dan stok dikunci saat checkout berdasarkan data server terkini, bukan tampilan ini.
             </Text>
           </Card>
