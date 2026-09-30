@@ -33,12 +33,21 @@ import { toEpochMs } from "@/lib/pending-actions"
  * Status intent yang sudah terminal — countdown tidak lagi relevan dan
  * pemantauan otomatis berhenti. "PAID" termasuk: setelah dibayar, yang tampil
  * adalah keberhasilan, bukan hitung mundur. "UNKNOWN" juga (M-17, issue #12).
+ * "SUCCESS"/"REFUNDED" (ESI-001/MFE-005): status terminal backend yang lolos
+ * normalizer — polling tidak boleh jalan untuk keduanya.
  */
-const TERMINAL_STATUS = new Set(["PAID", "EXPIRED", "FAILED", "CANCELLED", "UNKNOWN"])
+const TERMINAL_STATUS = new Set(["PAID", "EXPIRED", "FAILED", "CANCELLED", "UNKNOWN", "SUCCESS", "REFUNDED"])
 
 type MonitorProps = {
-  /** Status intent dari `GET /v1/orders/:orderId/payment-status` */
+  /** Status intent dari `GET /v1/orders/:orderId/dana-payment-status` */
   status?: string | null
+  /**
+   * MFE-006: info refund async — bila status REFUNDED, footer menampilkan
+   * "Dana dikembalikan {formatRupiah}" + referensi. Bukan carry-over antar
+   * intent (hook me-reset saat intent baru dibuat).
+   */
+  refundedAmount?: number
+  refundReference?: string | null
   /**
    * Error pemantauan terakhir. Sengaja ditampilkan, bukan ditelan: status yang
    * terlihat di panel bisa BASI, dan untuk pembayaran diam-diam salah lebih
@@ -62,6 +71,8 @@ type MonitorProps = {
 
 function MonitorFooter({
   status,
+  refundedAmount = 0,
+  refundReference,
   pollError,
   pollStopped = false,
   submitting = false,
@@ -77,6 +88,9 @@ function MonitorFooter({
 }) {
   const failed = status === "EXPIRED" || status === "FAILED"
   const stuckWithoutCode = status === "UNKNOWN" || pollStopped
+  // MFE-006: REFUNDED = terminal sukses-pembalikan — tampilkan nominal yang
+  // dikembalikan (bukan klaim "berhasil dibayar" atau "gagal").
+  const refunded = status === "REFUNDED"
   return (
     <>
       {pollError ? (
@@ -84,19 +98,26 @@ function MonitorFooter({
           Status belum diperbarui: {pollError}
         </Text>
       ) : null}
-      <Text variant="caption" tone={failed ? "danger" : "secondary"}>
-        {status === "EXPIRED"
-          ? "Kode bayar kedaluwarsa — buat ulang untuk mencoba lagi."
-          : status === "FAILED"
-            ? "Pembayaran gagal — buat ulang untuk mencoba lagi."
-            : status === "UNKNOWN"
-              ? // M-17: status tak dikenal bukan "masih menunggu" — klaim palsu
-                // selagi uang bisa sudah berpindah. Arahkan ke jalur nyata.
-                "Status pembayaran belum pasti — cek status sekarang, atau bayar dengan metode lain."
-              : pollStopped
-                ? "Pemantauan otomatis dihentikan setelah 15 menit — gunakan Cek status sekarang."
-                : pendingHint}
-      </Text>
+      {refunded ? (
+        <Text variant="caption" tone="success">
+          Dana dikembalikan {formatRupiah(refundedAmount)}
+          {refundReference ? ` · Ref ${refundReference}` : ""}
+        </Text>
+      ) : (
+        <Text variant="caption" tone={failed ? "danger" : "secondary"}>
+          {status === "EXPIRED"
+            ? "Kode bayar kedaluwarsa — buat ulang untuk mencoba lagi."
+            : status === "FAILED"
+              ? "Pembayaran gagal — buat ulang untuk mencoba lagi."
+              : status === "UNKNOWN"
+                ? // M-17: status tak dikenal bukan "masih menunggu" — klaim palsu
+                  // selagi uang bisa sudah berpindah. Arahkan ke jalur nyata.
+                  "Status pembayaran belum pasti — cek status sekarang, atau bayar dengan metode lain."
+                : pollStopped
+                  ? "Pemantauan otomatis dihentikan setelah 15 menit — gunakan Cek status sekarang."
+                  : pendingHint}
+        </Text>
+      )}
       {failed ? (
         <Button variant="secondary" loading={submitting} onPress={onRecreate}>
           {recreateLabel}

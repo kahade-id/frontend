@@ -189,9 +189,17 @@ export function OrderPaymentSheet({
       onClose={onClose}
       title="Pembayaran"
       description={
-        feeBuyerPays != null
-          ? translate("Total {x} masuk ke escrow Kahade.", { x: formatRupiah(feeBuyerPays) })
-          : "Total pembayaran belum terkonfirmasi. Muat ulang rincian biaya sebelum membayar."
+        // MFE-007: nominal yang ditampilkan HARUS = nominal yang ditagih
+        // DANA. `intent.amount` = `grossAmount` (escrow + fee provider, kontrak
+        // kanonis `DanaDirectPayResult`); `feeBuyerPays` tidak memuat fee
+        // provider sehingga total lama lebih KECIL dari tagihan sebenarnya.
+        payment.intent
+          ? translate("Total {x} (termasuk biaya) masuk escrow Kahade.", {
+              x: formatRupiah(payment.intent.amount),
+            })
+          : feeBuyerPays != null
+            ? translate("Total {x} masuk ke escrow Kahade.", { x: formatRupiah(feeBuyerPays) })
+            : "Total pembayaran belum terkonfirmasi. Muat ulang rincian biaya sebelum membayar."
       }
       topExtra={
         showEscrowDef ? (
