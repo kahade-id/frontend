@@ -48,7 +48,9 @@ export type ConfirmedUpload = {
 /** Hasil POST /v1/upload/direct — menerima FormData multipart. */
 export type DirectUpload = {
   fileKey: string
-  url: string
+  // BFI-100: BE (DirectUploadResult) mengembalikan `fileUrl`, BUKAN `url`.
+  // Field `url` dihapus agar tipe tidak berbohong (runtime-nya undefined).
+  fileUrl?: string
   /**
    * PERF-FIX (NP-001): hanya diisi untuk purpose=SHOWCASE_IMAGE — key + URL
    * thumbnail JPEG ~640px auto-generate server-side (sharp). Dilampirkan
@@ -270,6 +272,9 @@ export type DirectVideoUpload = {
 /** Copy Indonesia per kode error upload video backend (kontrak #1). */
 const VIDEO_UPLOAD_ERROR_COPY: Record<string, string> = {
   FILE_TOO_LARGE: "Video terlalu besar. Pilih video yang lebih kecil lalu coba lagi.",
+  // BFI-098: kode ini dipakai BE untuk SHOWCASE_VIDEO yang melebihi 100 MiB
+  // (sebelumnya tidak dipetakan → fallback generik).
+  VIDEO_TOO_LARGE: "Ukuran video melebihi batas maksimal 100 MB. Maksimal 100 MB / 180 detik.",
   MIME_TYPE_MISMATCH: "Format video tidak didukung. Gunakan MP4, MOV, atau WebM.",
   VIDEO_TOO_LONG: "Durasi video melebihi batas yang diizinkan. Pilih video yang lebih pendek.",
   VIDEO_UNPROCESSABLE: "Video tidak dapat diproses. Coba dengan video lain.",
@@ -280,7 +285,12 @@ const VIDEO_UPLOAD_ERROR_COPY: Record<string, string> = {
 function videoUploadBackendCode(bodyText: string): string | undefined {
   try {
     const body = JSON.parse(bodyText) as Record<string, unknown>
+    // BFI-061: envelope BE yang sebenarnya adalah
+    // `{ success:false, message, data:null, errors:{ code, message, ... } }`
+    // (http-exception.filter.ts) — kode ada di `errors.code`, bukan di root.
+    const errors = body.errors as Record<string, unknown> | undefined
     const code =
+      (typeof errors?.code === "string" && errors.code) ||
       (typeof body.code === "string" && body.code) ||
       (typeof (body.error as Record<string, unknown> | undefined)?.code === "string" &&
         (body.error as Record<string, unknown>).code) ||
@@ -676,9 +686,14 @@ function xhrPostMultipart(
         let code: ApiErrorCode = codeFromStatus(status, false)
         let message: string | undefined
         try {
-          const parsed = JSON.parse(xhr.responseText || "{}") as { code?: unknown; message?: unknown }
-          if (typeof parsed.code === "string") code = parsed.code as ApiErrorCode
-          if (typeof parsed.message === "string") message = parsed.message
+          const parsed = JSON.parse(xhr.responseText || "{}") as { code?: unknown; message?: unknown; errors?: unknown }
+          // BFI-061: envelope BE → kode ada di `errors.code`
+          // (http-exception.filter.ts), bukan di root.
+          const errors = (parsed.errors ?? {}) as { code?: unknown; message?: unknown }
+          const rawCode = errors.code ?? parsed.code
+          if (typeof rawCode === "string") code = rawCode as ApiErrorCode
+          const rawMessage = errors.message ?? parsed.message
+          if (typeof rawMessage === "string") message = rawMessage
         } catch {
           // biarkan default
         }
@@ -812,20 +827,23 @@ export async function uploadChunkedVideo(
   const isWeb = Platform.OS === "web"
 
   // 1. init sesi (validasi purpose/batas/MIME gagal-cepat di server)
-  const initRaw = await http.post<ChunkedInitResponse, Record<string, unknown>>(
-    "/v1/upload/chunked/init",
-    {
-      purpose: directOpts.purpose ?? "SHOWCASE_VIDEO",
-      fileName: asset.name,
-      mimeType: asset.mimeType,
-      totalSize: totalBytes,
-      chunkSize,
-    },
-    { auth: "required", retry: 1, signal },
-  )
-  const session = parseChunkSession(initRaw, "init upload")
-  const { sessionId, chunkSize: serverChunkSize, totalChunks, totalSize } = session
-  const basePath = `/v1/upload/chunked/${seg(sessionId)}`
+  const initDto = {
+    purpose: directOpts.purpose ?? "SHOWCASE_VIDEO",
+    fileName: asset.name,
+    mimeType: asset.mimeType,
+    totalSize: totalBytes,
+    chunkSize,
+  }
+  const doInit = async (what: string): Promise<ParsedChunkSession> => {
+    const initRaw = await http.post<ChunkedInitResponse, Record<string, unknown>>(
+      "/v1/upload/chunked/init",
+      initDto,
+      { auth: "required", retry: 1, signal },
+    )
+    return parseChunkSession(initRaw, what)
+  }
+  let session = await doInit("init upload")
+  let basePath = `/v1/upload/chunked/${seg(session.sessionId)}`
 
   // 2. status → chunk mana yang sudah diterima (resume)
   const received = new Set<number>()
@@ -836,17 +854,26 @@ export async function uploadChunkedVideo(
       signal,
     })
     const sessionCheck = parseChunkSession(statusRaw, "status upload")
-    if (sessionCheck.totalChunks !== totalChunks || sessionCheck.totalSize !== totalSize) {
+    if (sessionCheck.totalChunks !== session.totalChunks || sessionCheck.totalSize !== session.totalSize) {
       throw new ApiError({ code: "PARSE", message: "Sesi upload tidak konsisten." })
     }
     for (const i of parseReceivedChunks(statusRaw)) {
-      if (i < totalChunks) received.add(i)
+      if (i < session.totalChunks) received.add(i)
     }
   } catch (err) {
     if (err instanceof ApiError && (err.code === "PARSE" || err.code === "CHUNK_SOURCE_UNSUPPORTED")) throw err
-    // 404/410/5xx pada status → anggap sesi baru/kosong (idempoten: chunk
+    if (err instanceof ApiError && (err.status === 404 || err.status === 410)) {
+      // BFI-109: sesi HILANG (404 CHUNK_SESSION_NOT_FOUND) / KEDALUWARSA (410
+      // CHUNK_SESSION_EXPIRED) — kirim chunk ke sesi mati hanya membuang N
+      // request 404. Init ulang SEKALI lalu anggap sesi baru/kosong.
+      session = await doInit("init ulang upload")
+      basePath = `/v1/upload/chunked/${seg(session.sessionId)}`
+      received.clear()
+    }
+    // 5xx / lainnya pada status → anggap sesi baru/kosong (idempoten: chunk
     // yang sebenarnya sudah ada akan dijawab 200 oleh server).
   }
+  const { chunkSize: serverChunkSize, totalChunks, totalSize } = session
 
   const report = (doneBytes: number) =>
     onProgress?.(Math.min(1, Math.max(0, doneBytes / totalSize)))
@@ -897,7 +924,7 @@ export async function uploadChunkedVideo(
         if (isWeb) {
           formData.append("chunk", (webBlob as Blob).slice(start, start + length), `chunk-${i}.bin`)
         } else {
-          const tempUri = await writeNativeChunkTempFile(asset.uri, sessionId, i, start, length)
+          const tempUri = await writeNativeChunkTempFile(asset.uri, session.sessionId, i, start, length)
           tempFiles.add(tempUri)
           formData.append("chunk", {
             uri: tempUri,
