@@ -446,10 +446,12 @@ export default function VouchersScreen() {
   }, [available])
 
   // Tamu web: seluruh endpoint promo auth-required — ajakan masuk, bukan error.
+  // UX-NAV-012: judul disamakan dengan label menu dompet ("Voucher") —
+  // layar berisi KODE PROMO + VOUCHER AKTIF, jadi "Voucher & Promo".
   if (!hasSession) {
     return (
       <Screen edges={["top"]} padded={false}>
-        <Header showBack={false} title="Promo" />
+        <Header showBack={false} title="Voucher & Promo" />
         <GuestLoginPrompt bare next="/vouchers" />
       </Screen>
     )
@@ -457,7 +459,7 @@ export default function VouchersScreen() {
 
   return (
     <DataScreen
-      title="Promo"
+      title="Voucher & Promo"
       shiftFade
       state={query}
       loadingMessage="Memuat promo…"
