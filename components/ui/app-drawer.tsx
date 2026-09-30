@@ -6,11 +6,13 @@
  *      rata kiri). TANPA chevron. Tombol X tepat di pojok kanan atas header.
  *   2. Kahade Plus — kartu section tersendiri yang menonjol.
  *   3. Menu utama: Lihat Profil, Dompet Saya, Kelola Etalase, Toko Saya
- *      (sheet submenu — FE-098), Template Transaksi, Order Link,
- *      Laporan & Analitik, Pesan (revisi label 2026-09-28). Dot unread di
- *      "Pesan" (store yang sama dengan badge tab — lib/chat-unread-count)
- *      dan "Tiket Bantuan" (dot = ada tiket terbuka; backend tidak punya
- *      unread per tiket).
+ *      (sheet submenu — FE-098, satu-satunya item ber-chevron bawah),
+ *      Template Transaksi, Tautan Pesanan, Sengketa Saya (UX-NAV-002),
+ *      Laporan Saya (UX-NAV-003: → /reports; dasbor angka tetap
+ *      "Laporan & Analitik" di Pengaturan → /analytics). Item "Pesan"
+ *      dihapus dari drawer (UX-NAV-007) — tab bawah sudah mencakupnya.
+ *      Dot unread di "Tiket Bantuan" (dot = ada tiket terbuka; backend
+ *      tidak punya unread per tiket).
  *   4. Menu bawah: Umpan Balik, Bantuan Langsung, Tiket Bantuan
  *      (revisi 2026-09-28, permintaan produk).
  *   5. Utility bar di kaki drawer (revisi 2026-09-28): TIGA circle card
@@ -21,7 +23,9 @@
  *      reduced motion = instan.
  *
  * Desain list: ikon TANPA background, varian Phosphor bold, judul BOLD,
- * TANPA chevron di semua item. Light/dark via token.
+ * TANPA chevron di semua item — KECUALI "Toko Saya" yang membuka sheet
+ * submenu (UX-NAV-013: chevron bawah sebagai affordance). Light/dark via
+ * token.
  *
  * Motion premium ala X (tidak diubah):
  * - panel meluncur dari kiri dengan spring `tokens.motion.spring`,
@@ -48,8 +52,8 @@ import {
   ArrowUDownLeft,
   Bank,
   CalendarCheck,
+  CaretDown,
   ChartBar,
-  ChatCenteredText,
   ChatCircle,
   CrownSimple,
   FileText,
@@ -58,6 +62,7 @@ import {
   LinkSimple,
   MagnifyingGlass,
   Pencil,
+  ShieldWarning,
   ShoppingBag,
   SignIn,
   Storefront,
@@ -136,7 +141,8 @@ const MENU_ICONS: Record<string, IconComponent> = {
   templates: FileText,
   "order-links": LinkSimple,
   reports: ChartBar,
-  messages: ChatCenteredText,
+  // UX-NAV-002: ikon item "Sengketa Saya".
+  disputes: ShieldWarning,
   feedback: ChatCircle,
   "live-support": Headset,
   "support-tickets": Ticket,

@@ -51,7 +51,7 @@ import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } fro
 import { AppState, Linking, Platform, View } from "react-native"
 import { GestureHandlerRootView } from "react-native-gesture-handler"
 import Reanimated, { useAnimatedStyle } from "react-native-reanimated"
-import { Stack, usePathname, useRouter, type Href } from "expo-router"
+import { Stack, useGlobalSearchParams, usePathname, useRouter, type Href } from "expo-router"
 import { StatusBar } from "expo-status-bar"
 import * as SplashScreen from "expo-splash-screen"
 import { useFonts, loadAsync as loadFontsAsync } from "expo-font"
@@ -482,18 +482,64 @@ function AppShellInner() {
   // menangani mereka per B-03.
   const hadSessionRef = useRef(false)
   const [webSessionExpired, setWebSessionExpired] = useState(false)
+  // `next` saat modal "Sesi berakhir" (web) ditekan — disimpan di ref karena
+  // onConfirm berjalan belakangan, bukan saat event kedaluwarsa.
+  const webExpiredNextRef = useRef<string | null>(null)
   useEffect(() => {
     if (session.token) hadSessionRef.current = true
   }, [session.token])
+
+  // UX-NAV-009: `next` dibangun dari pathname + query string (mis.
+  // /order/123?tab=milestones), bukan pathname saja — deep link yang lewat
+  // login tidak boleh kehilangan konteks tab/filter. Param rute dinamis
+  // (mis. id) ikut terserialisasi sebagai query — diabaikan layar tujuan
+  // yang membaca param rutenya sendiri, jadi tidak merusak apa pun.
+  // Pintu masuk auth dikecualikan agar tak terbentuk loop login → login.
+  const searchParams = useGlobalSearchParams()
+  const buildNext = useCallback((): string | null => {
+    if (pathname === "/login" || pathname === "/login-required") return null
+    const parts: string[] = []
+    for (const [key, value] of Object.entries(searchParams)) {
+      if (value == null) continue
+      const values = Array.isArray(value) ? value : [value]
+      for (const v of values) parts.push(`${encodeURIComponent(key)}=${encodeURIComponent(v)}`)
+    }
+    return parts.length > 0 ? `${pathname}?${parts.join("&")}` : pathname
+  }, [pathname, searchParams])
+
+  // Mengalihkan ke /login dengan membawa `next` (bila ada) — dipakai baik
+  // oleh handler sesi-kedaluwarsa (UX-NAV-001) maupun guard deep-link
+  // NAV-007 di bawah, supaya polanya konsisten.
+  const redirectToLoginWithNext = useCallback(
+    (next: string | null) => {
+      if (next) {
+        setPendingNext(next)
+        // Literal "/login" (= ROUTES.login): bentuk objek `as const` butuh
+        // pathname literal agar lolos tipe Href expo-router.
+        router.replace({ pathname: "/login", params: { next } } as const)
+      } else {
+        router.replace(ROUTES.login)
+      }
+    },
+    [router],
+  )
+
   useEffect(() => {
     return onSessionExpired(() => {
+      // UX-NAV-001: sesi kedaluwarsa di tengah tugas (mis. mengisi form
+      // sengketa) — SIMPAN tujuan dulu, konsisten dengan guard NAV-007 di
+      // bawah, supaya login ulang kembali ke konteks semula, bukan Beranda.
+      const next = buildNext()
       if (Platform.OS === "web") {
-        if (hadSessionRef.current) setWebSessionExpired(true)
+        if (hadSessionRef.current) {
+          webExpiredNextRef.current = next
+          setWebSessionExpired(true)
+        }
         return
       }
-      router.replace(ROUTES.login)
+      redirectToLoginWithNext(next)
     })
-  }, [router])
+  }, [router, buildNext, redirectToLoginWithNext])
 
   // NAV-007 (2026-09-28): deep link native ke rute proteksi saat logout
   // (mis. kahade.id/order/xxx dari share WA → dibuka aplikasi via universal
@@ -514,11 +560,11 @@ function AppShellInner() {
     if (redirectedDeepLink.current) return
     if (session.restoring || session.error) return
     redirectedDeepLink.current = true
-    setPendingNext(pathname)
-    // Literal "/login" (= ROUTES.login): bentuk objek `as const` butuh
-    // pathname literal agar lolos tipe Href expo-router.
-    router.replace({ pathname: "/login", params: { next: pathname } } as const)
-  }, [router, session.restoring, session.error, session.token, pathname])
+    // UX-NAV-009: bawa query string dalam `next` (buildNext), bukan cuma
+    // pathname — deep link /order/123?tab=milestones tetap mendarat di tab
+    // yang dibagikan setelah login.
+    redirectToLoginWithNext(buildNext())
+  }, [router, session.restoring, session.error, session.token, pathname, buildNext, redirectToLoginWithNext])
 
   // ST-009: handler foreground + Android channel dipasang setelah first
   // paint (idempoten) — channel wajib ada sebelum notifikasi tampil di
@@ -1009,7 +1055,11 @@ function AppShellInner() {
         onConfirm={() => {
           setWebSessionExpired(false)
           hadSessionRef.current = false
-          router.replace(ROUTES.login)
+          // UX-NAV-001 (web): bawa tujuan yang tersimpan saat sesi berakhir
+          // supaya login ulang kembali ke tugas semula, bukan Beranda.
+          const next = webExpiredNextRef.current
+          webExpiredNextRef.current = null
+          redirectToLoginWithNext(next)
         }}
         onRequestClose={() => undefined}
         destructive={false}

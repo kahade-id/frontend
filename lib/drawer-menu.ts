@@ -25,9 +25,18 @@ export type DrawerMenuMeta = {
  * Menu utama — urutan sesuai spesifikasi user. Label Bahasa Indonesia
  * (revisi 2026-09-28, permintaan produk).
  *
- * "Pesan" menaut ke tab Pesan (/chat) supaya badge unread chat juga terlihat
- * dari drawer — angkanya dari store yang SAMA dengan badge tab
- * (`lib/chat-unread-count`), bukan endpoint baru.
+ * UX-NAV-007: item "Pesan" DIHAPUS dari drawer — tab bawah "Pesan" (/chat)
+ * sudah mencakupnya (badge unread tetap di tab). Drawer bukan tempat
+ * duplikat tab.
+ *
+ * UX-NAV-002: "Sengketa Saya" (/disputes) — daftar sengketa sebelumnya
+ * hanya bisa dibuka dari CTA di detail order; kini ada pintu masuk tetap
+ * di navigasi utama.
+ *
+ * UX-NAV-003: "Laporan Saya" (bukan "Laporan & Analitik") — menuju /reports
+ * (daftar laporan konten milik saya). Dasbor angka tetap "Laporan &
+ * Analitik" di Pengaturan (→ /analytics). Dua label berbeda untuk dua
+ * layar berbeda.
  */
 export const MAIN_MENU_META: readonly DrawerMenuMeta[] = [
   { id: "profile", label: "Lihat Profil", accessibilityLabel: "Lihat profil saya" },
@@ -39,8 +48,10 @@ export const MAIN_MENU_META: readonly DrawerMenuMeta[] = [
   { id: "shop", label: "Toko Saya", accessibilityLabel: "Buka menu toko saya" },
   { id: "templates", label: "Template Transaksi", href: ROUTES.transactionTemplates, accessibilityLabel: "Buka template transaksi" },
   { id: "order-links", label: "Tautan Pesanan", href: ROUTES.orderLinks, accessibilityLabel: "Buka tautan pesanan" },
-  { id: "reports", label: "Laporan & Analitik", href: ROUTES.reports(), accessibilityLabel: "Buka laporan dan analitik" },
-  { id: "messages", label: "Pesan", href: ROUTES.chat, accessibilityLabel: "Buka pesan" },
+  // UX-NAV-002: pintu masuk tetap ke daftar sengketa.
+  { id: "disputes", label: "Sengketa Saya", href: ROUTES.disputes, accessibilityLabel: "Buka sengketa saya" },
+  // UX-NAV-003: "Laporan Saya" (→ /reports), bukan "Laporan & Analitik".
+  { id: "reports", label: "Laporan Saya", href: ROUTES.reports(), accessibilityLabel: "Buka laporan saya" },
 ]
 
 /**
@@ -49,9 +60,13 @@ export const MAIN_MENU_META: readonly DrawerMenuMeta[] = [
  * app/* tetap ada); hanya titik masuknya yang pindah.
  */
 export const SHOP_MENU_META: readonly DrawerMenuMeta[] = [
-  { id: "shop-products", label: "Katalog Produk", href: ROUTES.products, accessibilityLabel: "Buka katalog produk" },
+  // UX-NAV-005: "Katalog Publik" (jelajah katalog, GET /v1/products) dibedakan
+  // tegas dari "Produk & Stok Saya" (produk milik sendiri + stok,
+  // GET /v1/products/seller/mine). Keduanya bukan "Kelola Etalase" (menu utama
+  // → etalase sosial).
+  { id: "shop-products", label: "Katalog Publik", href: ROUTES.products, accessibilityLabel: "Jelajahi katalog produk publik" },
   { id: "shop-returns", label: "Retur Saya", href: ROUTES.returns, accessibilityLabel: "Buka retur saya" },
-  { id: "shop-seller-products", label: "Produk Saya", href: ROUTES.sellerProducts, accessibilityLabel: "Buka produk saya" },
+  { id: "shop-seller-products", label: "Produk & Stok Saya", href: ROUTES.sellerProducts, accessibilityLabel: "Kelola produk dan stok saya" },
   { id: "shop-seller-vouchers", label: "Voucher Toko", href: ROUTES.sellerVouchers, accessibilityLabel: "Buka voucher toko" },
   { id: "shop-jastip", label: "Jastip Saya", href: ROUTES.jastip, accessibilityLabel: "Buka jastip saya" },
   { id: "shop-patungan", label: "Patungan", href: ROUTES.patungan, accessibilityLabel: "Buka patungan" },
