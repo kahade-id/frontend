@@ -76,7 +76,7 @@ export function FormSection({
         <View className="gap-1" accessibilityRole="header">
           {title ? (
             <View className="flex-row items-baseline gap-2">
-              <Text variant="h3" tone="primary">
+              <Text variant="h3" accessibilityRole="header" tone="primary">
                 {title}
               </Text>
               {optional ? (

@@ -165,7 +165,7 @@ export default function PaymentFinishScreen() {
         {verifying ? (
           <>
             <ActivityIndicator size="large" />
-            <Text variant="h2" style={{ textAlign: "center" }}>
+            <Text variant="h2" accessibilityRole="header" style={{ textAlign: "center" }}>
               Memverifikasi pembayaran…
             </Text>
             <Text variant="body" tone="secondary" style={{ textAlign: "center" }}>
@@ -175,7 +175,7 @@ export default function PaymentFinishScreen() {
         ) : (
           <>
             <Icon icon={icon} tone={tone} size={64} />
-            <Text variant="h2" style={{ textAlign: "center" }}>
+            <Text variant="h2" accessibilityRole="header" style={{ textAlign: "center" }}>
               {copy.title}
             </Text>
             <Text variant="body" tone="secondary" style={{ textAlign: "center" }}>

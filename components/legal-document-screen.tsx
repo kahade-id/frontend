@@ -156,7 +156,7 @@ function LegalDocumentContent({ kind, doc }: { kind: "terms" | "privacy"; doc: L
                   <Icon icon={HeroIcon} size="lg" tone="active" weight="duotone" />
                 </View>
                 <View className="flex-1 gap-1">
-                  <Text variant="h2">{doc.title}</Text>
+                  <Text variant="h2" accessibilityRole="header">{doc.title}</Text>
                   <Text variant="caption" tone="secondary">
                     {doc.company}
                   </Text>
@@ -195,7 +195,7 @@ function LegalDocumentContent({ kind, doc }: { kind: "terms" | "privacy"; doc: L
 
             {/* ── Daftar Isi inline ── */}
             <View className="gap-3">
-              <Text variant="h3">Daftar Isi</Text>
+              <Text variant="h3" accessibilityRole="header">Daftar Isi</Text>
               <View className="overflow-hidden rounded-lg bg-surface-elevated">
                 {doc.parts.map((part) => (
                   <View key={part.id}>

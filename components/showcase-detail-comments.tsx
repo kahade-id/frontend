@@ -107,7 +107,7 @@ export function ShowcaseDetailComments({
       <View className="gap-0 px-5 pb-0 pt-8">
         <View className="flex-row items-center gap-2">
           {/* UI-F011: header ikut kamus (sebelumnya hardcoded). */}
-          <Text variant="h3">{translate("Komentar")}</Text>
+          <Text variant="h3" accessibilityRole="header">{translate("Komentar")}</Text>
           {commentTotal > 0 ? (
             <Text variant="body" tone="secondary" className="tabular-nums">
               {formatNumber(commentTotal)}

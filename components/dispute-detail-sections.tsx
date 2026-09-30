@@ -137,7 +137,7 @@ export function DisputeDetailHeader({
     <>
       <View className="flex-row items-center justify-between gap-3">
         <View className="flex-1">
-          <Text variant="h3" numberOfLines={2}>
+          <Text variant="h3" accessibilityRole="header" numberOfLines={2}>
             {order?.title ?? orderFallbackLabel(dispute.orderId)}
           </Text>
           <Text variant="caption" tone="secondary">

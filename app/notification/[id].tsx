@@ -274,7 +274,7 @@ export default function NotificationDetailScreen() {
                 </Badge>
               ) : null}
             </View>
-            <Text variant="h2">{notif.title}</Text>
+            <Text variant="h2" accessibilityRole="header">{notif.title}</Text>
           </View>
 
           {/* ── Isi penuh (daftar hanya memotong 2 baris) ─────────── */}

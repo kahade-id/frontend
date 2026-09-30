@@ -130,7 +130,7 @@ export function EmptyState({
             {title}
           </Text>
         ) : (
-          <Text variant="h3" className="text-center">
+          <Text variant="h3" accessibilityRole="header" className="text-center">
             {title}
           </Text>
         )}

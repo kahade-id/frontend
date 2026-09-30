@@ -304,7 +304,7 @@ export default function JastipDetailScreen() {
         <View className="gap-4">
           <Card variant="outline" className="gap-2 p-4">
             <View className="flex-row items-center gap-2">
-              <Text variant="h3" className="flex-1">
+              <Text variant="h3" accessibilityRole="header" className="flex-1">
                 {trip.title}
               </Text>
               <Badge tone={trip.status === "OPEN" ? "success" : trip.status === "CANCELLED" ? "danger" : "neutral"}>

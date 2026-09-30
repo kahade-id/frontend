@@ -232,7 +232,8 @@ export default function MilestoneDetailScreen() {
             <View className="flex-row items-start justify-between gap-3">
               <View className="flex-1">
                 {/* TYP-009: disamakan dengan jastip/patungan — h3, bukan h2. */}
-                <Text variant="h3" numberOfLines={3}>
+                {/* UX-A11Y-009: tandai sebagai heading untuk screen reader. */}
+                <Text variant="h3" accessibilityRole="header" numberOfLines={3}>
                   {milestone.title}
                 </Text>
                 {milestone.description ? (

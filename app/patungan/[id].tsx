@@ -258,7 +258,7 @@ export default function PatunganDetailScreen() {
       <View className="gap-4 px-5 pb-8 pt-3">
         <Card variant="outline" className="gap-2 p-4">
           <View className="flex-row items-center gap-2">
-            <Text variant="h3" className="flex-1">
+            <Text variant="h3" accessibilityRole="header" className="flex-1">
               {group.title}
             </Text>
             <Badge tone={STATUS_TONE[group.status] ?? "neutral"}>

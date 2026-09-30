@@ -713,7 +713,7 @@ export default function ScanScreen() {
                   verified={(me as unknown as { isKycVerified?: boolean })?.isKycVerified}
                 />
                 <View className="items-center">
-                  <Text variant="h3" weight={600} numberOfLines={1}>
+                  <Text variant="h3" accessibilityRole="header" weight={600} numberOfLines={1}>
                     {me?.fullName || me?.username}
                   </Text>
                   <Text variant="caption" tone="secondary">
@@ -806,7 +806,7 @@ export default function ScanScreen() {
           ) : (
             <View className="w-full max-w-sm items-center gap-4 rounded-lg border border-border bg-surface p-6 text-center">
               <Icon icon={User} size="lg" tone="default" />
-              <Text variant="h3" weight={600} className="text-center">
+              <Text variant="h3" accessibilityRole="header" weight={600} className="text-center">
                 Masuk untuk Melihat QR Saya
               </Text>
               <Text variant="body" tone="secondary" className="text-center">

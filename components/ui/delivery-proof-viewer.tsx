@@ -249,7 +249,7 @@ export function DeliveryProofViewer({
   return (
     <Card padded className={cn("gap-5", className)} {...rest}>
       <View className="flex-row items-start gap-2">
-        <Text variant="h3" className="flex-1">
+        <Text variant="h3" accessibilityRole="header" className="flex-1">
           {sellerName ? t.titleFrom(sellerName) : t.title}
         </Text>
         <Badge tone={statusTone[status]}>{t.status[status]}</Badge>

@@ -265,7 +265,7 @@ export function KycDocumentViewer({
 
   return (
     <Card padded className={cn("gap-6", className)} {...rest}>
-      {showTitle ? <Text variant="h3">{t.title}</Text> : null}
+      {showTitle ? <Text variant="h3" accessibilityRole="header">{t.title}</Text> : null}
 
       {documents.map((doc, i) => {
         const label = doc.label ?? t.type[doc.type]
