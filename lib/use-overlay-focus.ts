@@ -31,8 +31,10 @@
  *     urutan Tab). Elemen aktif sebelum buka disimpan otomatis dari
  *     `document.activeElement` — `returnFocusRef` tetap dihormati bila ada.
  *   - Native tidak punya "elemen yang sedang difokus" yang bisa dibaca, maka
- *     pengembalian fokus HANYA terjadi bila pemanggil memberi `returnFocusRef`
- *     (ref ke tombol pemicu). Tanpa itu kita tidak menebak.
+ *     pengembalian fokus memakai `returnFocusRef` bila diberikan; bila tidak,
+ *     UX-A11Y-010 memakai snapshot "pemicu tekan terakhir" yang dicatat
+ *     <PressableScale> saat `onPressIn` (alur tekan→buka overlay sinkron di
+ *     tick yang sama). Tanpa keduanya kita tidak menebak.
  *   - Fokus dikembalikan saat `active` -> false, yaitu SEBELUM animasi keluar
  *     selesai (overlay masih mounted). Disengaja: pemicu sudah terlihat lagi
  *     di bawah scrim yang memudar, dan menunggu `onHidden` membuat jeda
@@ -47,15 +49,15 @@ export type A11yNodeRef = RefObject<Component | null>
 export type OverlayFocusOptions = {
   /**
    * Elemen pemicu yang menerima fokus kembali saat overlay tutup.
-   * Wajib untuk pengembalian fokus di native; opsional di web (fallback ke
-   * `document.activeElement` sebelum buka).
+   * Opsional di semua platform: native memakai snapshot pemicu tekan
+   * terakhir bila kosong; web memakai `document.activeElement` sebelum buka.
    */
   returnFocusRef?: A11yNodeRef
 }
 
 /** Pindahkan fokus screen reader / keyboard ke `node`. Aman dipanggil dengan null. */
-export function focusAccessibility(node: Component | null | undefined): void {
-  if (!node) return
+
+export function focusAccessibility(node: Component | null | undefined): void {  if (!node) return
 
   if (Platform.OS === "web") {
     // RN-Web: ref host component adalah HTMLElement.
@@ -70,6 +72,32 @@ export function focusAccessibility(node: Component | null | undefined): void {
   if (tag != null) AccessibilityInfo.setAccessibilityFocus(tag)
 }
 
+/**
+ * UX-A11Y-010: "pemicu tekan terakhir" — default pengembalian fokus native.
+ *
+ * `returnFocusRef` eksplisit tidak pernah diisi di satu pun call site
+ * (grep: 0), padahal native tidak punya `document.activeElement` untuk
+ * dibaca. <PressableScale> (primitif semua tombol/baris: Button,
+ * IconButton, Chip, Card, dsb) mencatat host view-nya di sini setiap
+ * `onPressIn`. Alur tipikal "tekan tombol → sheet/modal terbuka" berjalan
+ * sinkron di tick yang sama, jadi saat overlay dibuka, entri ini = pemicu.
+ *
+ * Fail-safe: diambil SEKALI saat overlay dibuka lalu dikonsumsi (tidak ada
+ * kebocoran antar-overlay); bila pemicu sudah unmount,
+ * `focusAccessibility` no-op via `findNodeHandle` → null.
+ */
+let lastPressedTrigger: Component | null = null
+
+export function recordPressedTrigger(node: Component | null | undefined): void {
+  if (node) lastPressedTrigger = node
+}
+
+function takeLastPressedTrigger(): Component | null {
+  const node = lastPressedTrigger
+  lastPressedTrigger = null
+  return node
+}
+
 export function useOverlayFocus(
   active: boolean,
   contentRef: A11yNodeRef,
@@ -77,6 +105,14 @@ export function useOverlayFocus(
 ): void {
   const previousWebElement = useRef<HTMLElement | null>(null)
   const wasActive = useRef(false)
+  /**
+   * UX-A11Y-010: snapshot pemicu saat overlay dibuka. Urutan prioritas:
+   * `returnFocusRef` eksplisit > pemicu tekan terakhir (PressableScale) >
+   * `document.activeElement` (web, sudah ada). Snapshot diambil saat buka
+   * (bukan saat tutup) karena `onPressIn` pemicu terjadi tepat sebelum
+   * `active` menjadi true.
+   */
+  const returnTargetRef = useRef<Component | null>(null)
 
   useEffect(() => {
     if (active) {
@@ -84,6 +120,8 @@ export function useOverlayFocus(
       if (Platform.OS === "web" && typeof document !== "undefined") {
         previousWebElement.current = document.activeElement as HTMLElement | null
       }
+      returnTargetRef.current =
+        returnFocusRef?.current ?? (Platform.OS === "web" ? null : takeLastPressedTrigger())
       const task = InteractionManager.runAfterInteractions(() => {
         focusAccessibility(contentRef.current)
       })
@@ -95,8 +133,10 @@ export function useOverlayFocus(
     if (!wasActive.current) return
     wasActive.current = false
 
-    if (returnFocusRef?.current) {
-      focusAccessibility(returnFocusRef.current)
+    const target = returnFocusRef?.current ?? returnTargetRef.current
+    returnTargetRef.current = null
+    if (target) {
+      focusAccessibility(target)
       return
     }
     if (Platform.OS === "web") {

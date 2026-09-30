@@ -64,6 +64,7 @@ import { useTransformAwarePressable } from "@/components/ui/gesture-pressable"
 import { translateProp, useLanguage } from "@/lib/i18n"
 import { haptic as fireHaptic, type HapticKind } from "@/lib/haptics"
 import { tokens } from "@/lib/tokens"
+import { recordPressedTrigger } from "@/lib/use-overlay-focus"
 import { useReducedMotion } from "@/lib/use-reduced-motion"
 
 export type PressableScaleProps = Omit<PressableProps, "style" | "children"> & {
@@ -119,6 +120,22 @@ export const PressableScale = forwardRef<RNView, PressableScaleProps>(function P
 
   const scale = useRef(new Animated.Value(1)).current
   const activeAnimation = useRef<Animated.CompositeAnimation | null>(null)
+  /**
+   * UX-A11Y-010: ref internal ke host view, digabung dengan ref terusan.
+   * `onPressIn` mencatat node ini sebagai "pemicu tekan terakhir" sehingga
+   * `useOverlayFocus` bisa mengembalikan fokus SR ke pemicu saat overlay
+   * (BottomSheet/Modal/Dialog/SearchOverlay) tutup — tanpa mengharuskan
+   * tiap call site meneruskan `returnFocusRef` (grep: 0 call site).
+   */
+  const hostRef = useRef<RNView | null>(null)
+  const setHostRef = useCallback(
+    (node: RNView | null) => {
+      hostRef.current = node
+      if (typeof ref === "function") ref(node)
+      else if (ref) (ref as { current: RNView | null }).current = node
+    },
+    [ref],
+  )
   // Reduce Motion (audit #2): scale press adalah gerakan non-esensial ->
   // dimatikan total. Feedback pressed tetap ada lewat haptic (bila opt-in)
   // dan state a11y; komponen turunan (Button, Chip, Card) otomatis ikut.
@@ -184,6 +201,9 @@ export const PressableScale = forwardRef<RNView, PressableScaleProps>(function P
   const handlePressIn = useCallback(
     (e: GestureResponderEvent) => {
       onPressIn?.(e)
+      // UX-A11Y-010: catat pemicu tekan terakhir (default return-focus
+      // overlay di native). Murah: satu assignment per pressIn.
+      recordPressedTrigger(hostRef.current)
       if (shouldScale) animateTo(tokens.motion.scale.press)
       if (useUnderlay) setPressed(true)
       if (haptic) fireHaptic(haptic === true ? "light" : haptic)
@@ -205,7 +225,7 @@ export const PressableScale = forwardRef<RNView, PressableScaleProps>(function P
 
   return (
     <PressableComponent
-      ref={ref}
+      ref={setHostRef}
       disabled={disabled}
       unstable_pressDelay={Platform.OS === "android" ? 50 : undefined}
       onPressIn={handlePressIn}
