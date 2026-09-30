@@ -72,6 +72,16 @@ export type ProfileEtalaseTabProps = {
 /**
  * Kartu memo: membaca state sosialnya sendiri (store bersama) — menekan ♥
  * di sini langsung terlihat di feed/detail dan sebaliknya (A-07/C-06).
+ *
+ * FS-001 (audit performa): `autoplayActive={false}` SELALU — kartu ini
+ * dirender di dalam ScrollView profil tanpa viewability wiring seperti feed
+ * utama, jadi default `true` membuat 2 video pertama memegang slot player
+ * (cap LR-008) dan terus memutar walau off-screen. Video profil hanya
+ * diputar via ketuk eksplisit (konsisten dengan gerbang WiFi-only NP-002).
+ *
+ * FS-002 (audit performa): memo yang TIDAK jebol — `display` di-memo dan
+ * semua callback ke <ShowcaseFeedItem> stabil (useCallback), sehingga
+ * buka/tutup sheet komentar tidak me-render ulang semua kartu.
  */
 const EtalaseCard = memo(function EtalaseCard({
   item,
@@ -88,33 +98,59 @@ const EtalaseCard = memo(function EtalaseCard({
 }) {
   const { liked, likeCount, saved, likePending, savedPending, toggleLike, toggleSave, share, shareSheetVisible, setShareSheetVisible } =
     useShowcaseSocialActions(item)
-  const display =
-    liked === (item.isLiked === true) && likeCount === item.likeCount
-      ? item
-      : { ...item, isLiked: liked, likeCount }
+  const display = useMemo(
+    () =>
+      liked === (item.isLiked === true) && likeCount === item.likeCount
+        ? item
+        : { ...item, isLiked: liked, likeCount },
+    [liked, likeCount, item],
+  )
   // C05 (batch 139): prefetch metadata ringan saat niat buka terdeteksi.
   const handlePressIn = useCallback(() => prefetchShowcaseDetail(item.id), [item.id])
+  const handleOpenDetail = useCallback(() => router.push(ROUTES.showcaseDetail(item.id)), [item.id])
+  const handleOpenComments = useCallback(() => onOpenComments(item), [onOpenComments, item])
+  const handleReport = useCallback(() => onReport(item), [onReport, item])
+  const handleManage = useCallback(() => onManage(item), [onManage, item])
+  const handleCloseShare = useCallback(() => setShareSheetVisible(false), [setShareSheetVisible])
   return (
     <>
       <ShowcaseFeedItem
         item={display}
-        onPress={() => router.push(ROUTES.showcaseDetail(item.id))}
+        onPress={handleOpenDetail}
         onPressIn={handlePressIn}
         onToggleLike={toggleLike}
-        onOpenComments={() => onOpenComments(item)}
+        onOpenComments={handleOpenComments}
         onToggleSave={toggleSave}
         saved={saved}
         likePending={likePending}
         savePending={savedPending}
         onShare={share}
-        onReport={() => onReport(item)}
-        onManage={() => onManage(item)}
+        onReport={handleReport}
+        onManage={handleManage}
         divider={divider}
+        autoplayActive={false}
       />
-      <ShowcaseShareSheet visible={shareSheetVisible} item={display} onClose={() => setShareSheetVisible(false)} />
+      <ShowcaseShareSheet visible={shareSheetVisible} item={display} onClose={handleCloseShare} />
     </>
   )
 })
+
+/**
+ * FS-002 (audit performa): windowing inkremental.
+ *
+ * Tab ini hidup di dalam ScrollView profil (user-profile-screen), BUKAN
+ * FlatList ber-viewability seperti feed utama. FlatList yang bersarang di
+ * ScrollView searah tidak mem-virtualisasi (viewport-nya terukur selebar
+ * seluruh konten → semua item ter-render) dan di iOS menjebak gesture
+ * scroll halaman — jadi `.map()` + batas render TETAP menjadi mekanisme
+ * windowing di sini, dengan dua perbaikan:
+ *   1. Jendela awal 10 kartu (dulu 20): mount awal ≈ ½ biaya sebelumnya.
+ *      Tombol "Tampilkan karya lainnya" (+20 per ketuk) DIPERTAHANKAN.
+ *   2. memo(EtalaseCard) tidak lagi jebol (callback stabil, display di-memo)
+ *      — buka/tutup sheet tidak me-render ulang semua kartu.
+ */
+const INITIAL_RENDER_LIMIT = 10
+const RENDER_LIMIT_STEP = 20
 
 export function ProfileEtalaseTab({
   items,
@@ -125,9 +161,9 @@ export function ProfileEtalaseTab({
   owner,
   isSelf = false,
 }: ProfileEtalaseTabProps) {
+  const [renderLimit, setRenderLimit] = useState(INITIAL_RENDER_LIMIT)
+  useEffect(() => { setRenderLimit(INITIAL_RENDER_LIMIT) }, [handle])
   /** Item yang komentarnya sedang dibuka (null = tertutup). */
-  const [renderLimit, setRenderLimit] = useState(20)
-  useEffect(() => { setRenderLimit(20) }, [handle])
   const [commentItem, setCommentItem] = useState<ShowcaseSocialItem | null>(null)
   /** C-03: item yang sedang dilaporkan (null = tertutup). */
   const [reportItem, setReportItem] = useState<ShowcaseSocialItem | null>(null)
@@ -213,6 +249,10 @@ export function ProfileEtalaseTab({
   const handleOpenReport = useCallback((item: ShowcaseSocialItem) => {
     setReportItem(item)
   }, [])
+  // FS-002: stabil — inline arrow di sini menjebol memo(EtalaseCard).
+  const handleManage = useCallback((item: ShowcaseSocialItem) => {
+    router.push(ROUTES.showcaseDetail(item.id))
+  }, [])
 
   return (
     <>
@@ -271,10 +311,10 @@ export function ProfileEtalaseTab({
                 divider={index < Math.min(renderLimit, patchedItems.length) - 1}
                 onOpenComments={handleOpenComments}
                 onReport={handleOpenReport}
-                onManage={(item) => router.push(ROUTES.showcaseDetail(item.id))}
+                onManage={handleManage}
               />
             ))}
-            {patchedItems.length > renderLimit ? <Button variant="ghost" onPress={() => setRenderLimit((limit) => limit + 20)}>{translate("Tampilkan karya lainnya")}</Button> : null}
+            {patchedItems.length > renderLimit ? <Button variant="ghost" onPress={() => setRenderLimit((limit) => limit + RENDER_LIMIT_STEP)}>{translate("Tampilkan karya lainnya")}</Button> : null}
             {/* E-03: taut ke layar galeri grid publik (jangan biarkan kode mati). */}
             <View className="px-5">
               <Button

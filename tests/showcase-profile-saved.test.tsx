@@ -205,10 +205,11 @@ describe("ProfileEtalaseTab (H-05)", () => {
     render(
       h(ProfileEtalaseTab, { items, loading: false, handle: "penjual", owner, isSelf: true }),
     )
-    await waitFor(() => expect(mocks.feedProps.length).toBe(20))
+    // FS-002 (audit performa): jendela awal 10 kartu (dulu 20).
+    await waitFor(() => expect(mocks.feedProps.length).toBe(10))
     expect(screen.getByText("Tampilkan karya lainnya")).toBeTruthy()
-    expect(mocks.feedProps[18].divider).toBe(true)
-    expect(mocks.feedProps[19].divider).toBe(false) // H-05
+    expect(mocks.feedProps[8].divider).toBe(true)
+    expect(mocks.feedProps[9].divider).toBe(false) // H-05
   })
 })
 
