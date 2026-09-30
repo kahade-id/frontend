@@ -30,13 +30,22 @@
  *
  * Background: `bg-background` default. Layar yang dominan card memakai
  * `surface` agar card putih (surface-elevated) terlihat "naik" (§6).
+ *
+ * Aksesibilitas (UX-A11Y-003): saat mount (navigasi ke layar baru), fokus
+ * screen reader dipindahkan ke konten layar setelah interaksi selesai
+ * (InteractionManager) — pola yang sama dengan `useOverlayFocus` untuk
+ * overlay. Di iOS VoiceOver memilih elemen pertama di dalam container bila
+ * node target bukan elemen a11y; di Android target adalah ScrollView/View
+ * konten. Matikan per-layar dengan `focusOnMount={false}` bila layar
+ * di-render di dalam overlay yang sudah mengelola fokus sendiri.
  */
-import { createContext, type ReactNode } from "react"
-import { ScrollView, View, type ScrollViewProps, type ViewProps } from "react-native"
+import { createContext, useEffect, useRef, type ReactNode, type Ref } from "react"
+import { InteractionManager, ScrollView, View, type ScrollViewProps, type ViewProps } from "react-native"
 import { useSafeAreaInsets, type Edge } from "react-native-safe-area-context"
 
 import { FooterBar } from "@/components/ui/footer-bar"
 import { KeyboardAvoiding } from "@/components/ui/keyboard-avoiding"
+import { focusAccessibility } from "@/lib/use-overlay-focus"
 import { cn } from "@/lib/cn"
 
 export const ScreenInsetsContext = createContext({ top: false })
@@ -70,6 +79,12 @@ export type ScreenProps = Omit<ViewProps, "children"> & {
   contentContainerClassName?: string
   scrollViewProps?: Omit<ScrollViewProps, "children" | "contentContainerStyle">
   className?: string
+  /**
+   * UX-A11Y-003: pindahkan fokus screen reader ke konten layar saat mount.
+   * Default true. Set false bila layar di-render di dalam overlay yang
+   * sudah mengelola fokus (Modal/BottomSheet via useOverlayFocus).
+   */
+  focusOnMount?: boolean
 }
 
 const bgClass: Record<ScreenBackground, string> = {
@@ -89,6 +104,7 @@ export function Screen({
   scrollViewProps,
   className,
   style,
+  focusOnMount = true,
   ...rest
 }: ScreenProps) {
   const insets = useSafeAreaInsets()
@@ -104,6 +120,18 @@ export function Screen({
   const bodyPad = padded && "px-5"
 
   const Body = keyboardAvoiding ? KeyboardAvoiding : View
+
+  // UX-A11Y-003: navigasi antar-layar memindahkan fokus screen reader ke
+  // konten layar yang baru di-mount. Ref ke ScrollView/View konten
+  // (host component), bukan ke Body — KeyboardAvoiding tidak meneruskan ref.
+  const contentRef = useRef<ScrollView | View | null>(null)
+  useEffect(() => {
+    if (!focusOnMount) return
+    const task = InteractionManager.runAfterInteractions(() => {
+      focusAccessibility(contentRef.current)
+    })
+    return () => task.cancel()
+  }, [focusOnMount])
 
   return (
     <ScreenInsetsContext.Provider value={{ top: edges.includes("top") }}>
@@ -121,6 +149,7 @@ export function Screen({
       >
         {scroll ? (
           <ScrollView
+            ref={contentRef as Ref<ScrollView>}
             collapsable={false}
             className="flex-1"
             contentContainerClassName={cn("grow", bodyPad, contentContainerClassName)}
@@ -132,7 +161,7 @@ export function Screen({
             {children}
           </ScrollView>
         ) : (
-          <View collapsable={false} className={cn("flex-1", bodyPad)}>{children}</View>
+          <View ref={contentRef as Ref<View>} collapsable={false} className={cn("flex-1", bodyPad)}>{children}</View>
         )}
 
         {footer ? <FooterBar>{footer}</FooterBar> : null}
