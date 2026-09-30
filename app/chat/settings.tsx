@@ -32,6 +32,7 @@ import { Spinner } from "@/components/ui/spinner"
 import { EmptyState } from "@/components/ui/empty-state"
 import { IconButton } from "@/components/ui/icon-button"
 import { Input } from "@/components/ui/input"
+import { PressableScale } from "@/components/ui/pressable-scale"
 import { useToast } from "@/components/ui/toast"
 import {
   addReplyTemplate,
@@ -135,7 +136,9 @@ export default function ChatSettingsScreen() {
                 {DM_POLICY_OPTIONS.map((opt) => {
                   const active = privacy.dmPolicy === opt.value
                   return (
-                    <Pressable
+                    // UX-TCH-019: PressableScale (feedback scale saat ditekan);
+                    // sebelumnya Pressable polos tanpa feedback.
+                    <PressableScale
                       key={opt.value}
                       onPress={() => void patchPrivacy({ dmPolicy: opt.value as DmPolicy })}
                       disabled={saving}
@@ -156,7 +159,7 @@ export default function ChatSettingsScreen() {
                       {active ? (
                         <Icon icon={CheckCircle} size={20} tone="active" weight="fill" />
                       ) : null}
-                    </Pressable>
+                    </PressableScale>
                   )
                 })}
               </View>

@@ -20,6 +20,7 @@ import { Amount } from "@/components/ui/amount"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
+import { PressableScale } from "@/components/ui/pressable-scale"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Header } from "@/components/ui/header"
 import { PaginatedList } from "@/components/ui/paginated-list"
@@ -40,12 +41,15 @@ const SellerProductRow = memo(function SellerProductRow({
   const handlePress = useCallback(() => onSelect(item.id), [onSelect, item.id])
   const qty = sellableQty(item)
   return (
-    <Pressable
+    // UX-TCH-022: PressableScale (feedback scale saat ditekan); sebelumnya
+    // Pressable polos. `mb-3 px-4` = tokens.space[3]/[4], sama persis dengan
+    // style lama — tata letak tidak berubah.
+    <PressableScale
       onPress={handlePress}
       // UI-F005: role + label untuk screen reader.
       accessibilityRole="button"
       accessibilityLabel={`${item.name}, ${formatRupiah(item.priceRupiah)}, ${PRODUCT_STATUS_LABEL[item.status]}`}
-      style={{ paddingHorizontal: tokens.space[4], marginBottom: tokens.space[3] }}
+      containerClassName="mb-3 px-4"
     >
       <Card>
         <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
@@ -64,7 +68,7 @@ const SellerProductRow = memo(function SellerProductRow({
           </Text>
         </View>
       </Card>
-    </Pressable>
+    </PressableScale>
   )
 })
 

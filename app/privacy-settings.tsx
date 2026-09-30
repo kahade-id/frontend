@@ -43,6 +43,7 @@ import { Button } from "@/components/ui/button"
 import { DataScreen } from "@/components/ui/data-screen"
 import { Icon } from "@/components/ui/icon"
 import { Dialog } from "@/components/ui/modal"
+import { PressableScale } from "@/components/ui/pressable-scale"
 import { PrivacyToggleList } from "@/components/ui/privacy-toggle-list"
 import { SectionHeader } from "@/components/ui/section"
 import { Switch } from "@/components/ui/switch"
@@ -654,16 +655,20 @@ export default function PrivacySettingsScreen() {
         </Text>
         <View className="flex-row gap-2 pt-2">
           {(["json", "csv"] as const).map((fmt) => (
-            <Pressable
+            // UX-TCH-020: PressableScale (feedback scale saat ditekan);
+            // sebelumnya Pressable polos tanpa feedback. `flex-1` ditaruh di
+            // containerClassName supaya layout baris tetap terbagi rata.
+            <PressableScale
               key={fmt}
               accessibilityRole="button"
               onPress={() => setExportFormat(fmt)}
-              className={`flex-1 rounded-lg border px-4 py-3 ${exportFormat === fmt ? "border-emerald-500" : "border-neutral-700"}`}
+              containerClassName="flex-1"
+              className={`rounded-lg border px-4 py-3 ${exportFormat === fmt ? "border-emerald-500" : "border-neutral-700"}`}
             >
               <Text variant="body" weight={500} className="text-center">
                 {fmt === "json" ? "JSON" : "CSV (ZIP)"}
               </Text>
-            </Pressable>
+            </PressableScale>
           ))}
         </View>
       </Dialog>

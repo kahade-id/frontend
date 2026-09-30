@@ -21,6 +21,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Amount } from "@/components/ui/amount"
 import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
+import { PressableScale } from "@/components/ui/pressable-scale"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Header } from "@/components/ui/header"
 import { PaginatedList } from "@/components/ui/paginated-list"
@@ -42,13 +43,16 @@ const ProductRow = memo(function ProductRow({
   const qty = sellableQty(item)
 
   return (
-    <Pressable
+    // UX-TCH-021: PressableScale (feedback scale saat ditekan); sebelumnya
+    // Pressable polos. `mb-3 px-4` = tokens.space[3]/[4], sama persis dengan
+    // style lama — tata letak tidak berubah.
+    <PressableScale
       onPress={handlePress}
       // UI-F004: kartu butuh role + label — screen reader mengumumkan
       // nama, harga, dan stok.
       accessibilityRole="button"
       accessibilityLabel={`${item.name}, ${formatRupiah(item.priceRupiah)}, ${qty > 0 ? `stok ${qty}` : "stok habis"}`}
-      style={{ paddingHorizontal: tokens.space[4], marginBottom: tokens.space[3] }}
+      containerClassName="mb-3 px-4"
     >
       <Card>
         <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
@@ -63,7 +67,7 @@ const ProductRow = memo(function ProductRow({
           </Text>
         </View>
       </Card>
-    </Pressable>
+    </PressableScale>
   )
 })
 
