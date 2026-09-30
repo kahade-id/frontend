@@ -41,10 +41,15 @@ export type UseApiQueryOptions<TRaw = unknown, T = TRaw> = {
    */
   refreshOnFocusStaleMs?: number
   /**
-   * Percobaan ulang otomatis untuk error transient (NETWORK/TIMEOUT/SERVER).
-   * F-11: default 1 (satu retry, backoff 800 ms) — jaringan seluler goyah
-   * sekali tidak boleh memaksa interaksi manual. `retryAfterMs` dari
-   * transport (429/503) dihormati sebagai backoff minimum.
+   * Percobaan ulang HOOK-LEVEL untuk error transient (NETWORK/TIMEOUT/SERVER).
+   *
+   * NC-002 (audit performa): DEFAULT = 0 (mati). Lapisan retry kini SATU
+   * saja — di transport (`lib/api/client.ts`: backoff eksponensial 400/800ms
+   * untuk GET + sinyal Retry-After via backpressure). Retry hook DAN retry
+   * transport membuat satu GET gagal menembak hingga 4× (~1,6 dtk) sebelum
+   * error offline muncul. Isi opsi ini (≥1) hanya bila fetcher TIDAK lewat
+   * transport dan butuh retry; `retryAfterMs` dari ApiError dihormati
+   * sebagai backoff minimum.
    */
   retry?: number
   /**
@@ -66,8 +71,17 @@ export type UseApiQueryOptions<TRaw = unknown, T = TRaw> = {
   select?: (raw: TRaw) => T
 }
 
-/** Jumlah retry default untuk error transient (F-11). */
-const DEFAULT_RETRY = 1
+/**
+ * Jumlah retry HOOK-LEVEL default untuk error transient.
+ *
+ * NC-002 (audit performa): 0 — retry hook dimatikan secara default karena
+ * transport (`lib/api/client.ts`) sudah me-retry GET transient dengan
+ * backoff eksponensial. Satu lapis retry = error offline muncul cepat
+ * (bukan setelah ~1,6 dtk tumpukan retry hook×transport) dan radio seluler
+ * tidak dibangunkan 4× sia-sia per layar. Retry eksplisit via opsi `retry`
+ * tetap didukung untuk fetcher non-transport.
+ */
+const DEFAULT_RETRY = 0
 const RETRY_BACKOFF_MS = 800
 /** Backoff maksimum yang dihormati dari Retry-After (jangan gantung UI menit-menitan). */
 const RETRY_AFTER_CAP_MS = 10_000
@@ -274,7 +288,9 @@ export function useApiQuery<TRaw, T = TRaw>(
             releaseQueryRevalidation(key)
             return
           }
-          // F-11: retry transient (GET idempoten — hook ini memang hanya GET).
+          // F-11 / NC-002: retry transient OPT-IN via opsi `retry` (fetcher
+          // non-transport — hook ini memang hanya GET). Default mati:
+          // transport sudah me-retry, jadi retry ganda bertumpuk dilarang.
           // Selama menunggu retry, `loading` SENGAJA tidak dimatikan —
           // daftar/skeleton tidak boleh berkedip di antara dua percobaan.
           const transient = error instanceof ApiError && error.isTransient

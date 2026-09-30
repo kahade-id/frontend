@@ -73,7 +73,7 @@ describe("useApiQuery", () => {
     expect(result.current.data).toBeNull()
   })
 
-  it("F-11: error transient di-retry otomatis (default 1×) lalu pulih", async () => {
+  it("F-11: retry transient OPT-IN (retry: 1) lalu pulih", async () => {
     let calls = 0
     const { result } = renderHook(() =>
       useApiQuery(
@@ -84,13 +84,33 @@ describe("useApiQuery", () => {
           return { v: calls }
         },
         true,
-        { useCache: false },
+        // NC-002: retry hook kini opt-in — default mati (transport me-retry).
+        { useCache: false, retry: 1 },
       ),
     )
     // Backoff 800ms berjalan real-time; waitFor menoleransi.
     await waitFor(() => expect(result.current.data).toEqual({ v: 2 }), { timeout: 4000 })
     expect(calls).toBe(2)
     expect(result.current.error).toBeNull()
+  })
+
+  it("NC-002: default TIDAK me-retry — error transient langsung tampil (satu lapis di transport)", async () => {
+    let calls = 0
+    const { result } = renderHook(() =>
+      useApiQuery(
+        "h02-noretry-default",
+        async () => {
+          calls += 1
+          throw new ApiError({ code: "NETWORK", message: "Tidak ada koneksi." })
+        },
+        true,
+        { useCache: false },
+      ),
+    )
+    await waitFor(() => expect(result.current.error).not.toBeNull())
+    expect(result.current.error).toContain("Tidak ada koneksi")
+    expect(calls).toBe(1)
+    expect(result.current.loading).toBe(false)
   })
 
   it("error permanen TIDAK di-retry dan pesannya siap tampil", async () => {
@@ -433,6 +453,48 @@ describe("C-08: compare mengurutkan ulang hasil merge", () => {
     await waitFor(() => expect(result.current.data).toHaveLength(2))
     expect(result.current.data.map((row) => row.id)).toEqual(["z", "a"])
   })
+
+  it("NC-006: halaman-1 di-cache — remount dalam jendela TTL tanpa request", async () => {
+    let calls = 0
+    const fetcher = async (p: number) => {
+      calls += 1
+      return page(
+        [{ id: "a", v: 1 }, { id: "b", v: 1 }],
+        1,
+        p,
+      )
+    }
+    const first = renderHook(() => usePaginatedQuery<Row>("nc006-cache", fetcher))
+    await waitFor(() => expect(first.result.current.data).toHaveLength(2))
+    expect(calls).toBe(1)
+    first.unmount()
+
+    // Remount layar yang sama (navigasi stack bolak-balik): halaman-1 diambil
+    // dari cache, fetcher tidak dipanggil lagi.
+    const second = renderHook(() => usePaginatedQuery<Row>("nc006-cache", fetcher))
+    await waitFor(() => expect(second.result.current.data).toHaveLength(2))
+    expect(calls).toBe(1)
+    expect(second.result.current.loading).toBe(false)
+    second.unmount()
+  })
+
+  it("NC-006: refresh eksplisit menembus cache halaman-1", async () => {
+    let calls = 0
+    const fetcher = async (p: number) => {
+      calls += 1
+      return page([{ id: `r${p}-${calls}`, v: 1 }], 1, p)
+    }
+    const { result } = renderHook(() => usePaginatedQuery<Row>("nc006-refresh", fetcher))
+    await waitFor(() => expect(result.current.data).toHaveLength(1))
+    expect(calls).toBe(1)
+
+    await act(async () => {
+      result.current.refresh()
+    })
+    await waitFor(() => expect(calls).toBe(2))
+    // Refresh memuat data baru (bukan salinan cache).
+    expect(result.current.data[0]?.id).toBe("r1-2")
+  })
 })
 
 // ------------------------------------------------------------------
@@ -512,9 +574,11 @@ describe("C-09: usePolling memperlambat saat server menekan", () => {
       }, 1_000),
     )
 
-    // Tick pertama jatuh setelah interval (1 dtk); sesudahnya cooldown 5 detik
-    // menahan tick berikutnya meski interval permintaannya hanya 1 detik.
-    await vi.advanceTimersByTimeAsync(1_000)
+    // Tick pertama jatuh setelah interval (≤1.150 dtk karena jitter ±15%
+    // PERF-FIX network P1 — PAKAI 1.200 agar deterministik, bukan tepat
+    // 1.000); sesudahnya cooldown 5 detik menahan tick berikutnya meski
+    // interval permintaannya hanya 1 detik.
+    await vi.advanceTimersByTimeAsync(1_200)
     expect(ticks).toHaveLength(1)
 
     await vi.advanceTimersByTimeAsync(1_500)
@@ -533,11 +597,13 @@ describe("C-09: usePolling memperlambat saat server menekan", () => {
       }, 1_000),
     )
 
-    await vi.advanceTimersByTimeAsync(1_000)
+    // Jitter ±15% per tick: tiap tick bisa jatuh hingga 150ms setelah
+    // kelipatan interval — maju 1.200ms per langkah agar deterministik.
+    await vi.advanceTimersByTimeAsync(1_200)
     expect(ticks).toHaveLength(1)
-    await vi.advanceTimersByTimeAsync(1_000)
+    await vi.advanceTimersByTimeAsync(1_200)
     expect(ticks).toHaveLength(2)
-    await vi.advanceTimersByTimeAsync(1_000)
+    await vi.advanceTimersByTimeAsync(1_200)
     expect(ticks).toHaveLength(3)
     expect(backpressureRemainingMs()).toBe(0)
   })

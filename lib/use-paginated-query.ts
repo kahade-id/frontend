@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useIsFocused } from "@react-navigation/native"
 import { userMessage } from "@/lib/api/errors"
 import { useGuestPathBlocked } from "@/lib/guest-gate"
+import { fetchViaQueryCache } from "@/lib/query-cache"
 import type { Page } from "@/lib/api/response"
 
 export function mergeById<T extends { id?: string }>(
@@ -199,7 +200,7 @@ export function usePaginatedQuery<T extends { id?: string }>(
   const active = (opts.enabled ?? true) && !guestBlocked
 
   const load = useCallback(
-    async (reset: boolean, refresh = false) => {
+    async (reset: boolean, refresh = false, viaCache = false) => {
       if (!active) {
         // Bersihkan sisa data akun sebelumnya; tamu tidak boleh melihat baris
         // milik sesi lain, dan skeleton tidak boleh berputar selamanya.
@@ -229,7 +230,26 @@ export function usePaginatedQuery<T extends { id?: string }>(
       } else setLoadingMore(true)
       setLoadMoreError(null)
       try {
-        const result = await fetchRef.current(page, controller.signal)
+        /**
+         * NC-006 (audit performa): cache halaman-1 per `key` dengan TTL pendek
+         * (`QUERY_CACHE_TTL_MS` via `fetchViaQueryCache`, sesi-aware).
+         * Navigasi stack bolak-balik ke layar ber-daftar (disputes,
+         * wallet-history, chat, …) tidak lagi mengunduh ulang halaman pertama
+         * bila baru dibuka beberapa detik lalu — kembali ke daftar instan
+         * (0-RTT) dalam jendela TTL.
+         *
+         * Yang MENEMBUS cache (perilaku tak berubah): halaman lanjut
+         * (load-more selalu data baru), pull-to-refresh, dan silent refresh
+         * (`refresh = true`) — kesegaran data uang/status tetap dijamin.
+         */
+        const result =
+          reset && !refresh && viaCache
+            ? await fetchViaQueryCache<Page<T>>(
+                `paginated:page1:${key}`,
+                (s) => fetchRef.current(1, s),
+                controller.signal,
+              )
+            : await fetchRef.current(page, controller.signal)
         if (controller.signal.aborted) return
         if (reset) ids.current.clear()
         const getKey = getKeyRef.current ?? ((item: T) => item.id ?? "")
@@ -324,7 +344,10 @@ export function usePaginatedQuery<T extends { id?: string }>(
     hasNext.current = true
     // Baris lama dipertahankan → muat-awal kunci baru sebagai REFRESH senyap
     // (indikator tarik-ulang tipis), bukan skeleton penuh (#110).
-    void load(true, keepPrevious && hasRows)
+    // NC-006: muat-awal (bukan refresh) boleh lewat cache halaman-1 — remount
+    // dalam jendela TTL menjadi 0-RTT. `reload`/pull/focus-refresh tetap
+    // menembus cache (`viaCache = false`).
+    void load(true, keepPrevious && hasRows, !(keepPrevious && hasRows))
     return () => {
       activeRequest.current?.abort()
       busy.current = false
