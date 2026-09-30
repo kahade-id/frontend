@@ -173,12 +173,12 @@ export function OrderAgreementSection({
           </View>
           <View className="flex-row gap-2">
             {canAgree ? (
-              <Button className="flex-1" loading={acting} onPress={() => void handleAgree()}>
+              <Button containerClassName="flex-1" loading={acting} onPress={() => void handleAgree()}>
                 {translate("Saya setuju")}
               </Button>
             ) : null}
             {canCancel ? (
-              <Button variant="destructive" className="flex-1" onPress={() => setCancelOpen(true)}>
+              <Button variant="destructive" containerClassName="flex-1" onPress={() => setCancelOpen(true)}>
                 {translate("Batalkan SPK")}
               </Button>
             ) : null}

@@ -324,10 +324,10 @@ export function ServiceSlotSection({
               : translate("Lihat detail di Booking saya.")}
           </Text>
           <View className="flex-row gap-2 pt-1">
-            <Button size="sm" onPress={() => goTransact(myBooking)}>
+            <Button containerClassName="flex-1" size="sm" onPress={() => goTransact(myBooking)}>
               {translate("Buat transaksi")}
             </Button>
-            <Button size="sm" variant="secondary" onPress={() => setCancelOpen(true)}>
+            <Button containerClassName="flex-1" size="sm" variant="secondary" onPress={() => setCancelOpen(true)}>
               {translate("Batalkan")}
             </Button>
           </View>
@@ -373,6 +373,7 @@ export function ServiceSlotSection({
             </View>
             {!isOwner && !myBooking ? (
               <Button
+                fullWidth={false}
                 size="sm"
                 variant="secondary"
                 disabled={slot.remaining != null && slot.remaining <= 0}

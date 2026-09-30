@@ -399,7 +399,7 @@ export function DisputeCallsSection({
                     <Button
                       size="sm"
                       variant="primary"
-                      className="flex-1"
+                      containerClassName="flex-1"
                       loading={callActionBusy === "accept"}
                       disabled={callActionBusy !== null}
                       onPress={() => onCallAction("accept", c.id)}
@@ -409,7 +409,7 @@ export function DisputeCallsSection({
                     <Button
                       size="sm"
                       variant="secondary"
-                      className="flex-1"
+                      containerClassName="flex-1"
                       loading={callActionBusy === "reject"}
                       disabled={callActionBusy !== null}
                       onPress={() => onCallAction("reject", c.id)}

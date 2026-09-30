@@ -132,10 +132,10 @@ function FeedbackBlock({ articleId, content }: { articleId: string; content: str
         </View>
       ) : (
         <View className="flex-row gap-3">
-          <Button variant="secondary" size="sm" leftIcon={Check} onPress={() => send(true)}>
+          <Button containerClassName="flex-1" variant="secondary" size="sm" leftIcon={Check} onPress={() => send(true)}>
             Ya, membantu
           </Button>
-          <Button variant="ghost" size="sm" leftIcon={X} onPress={() => send(false)}>
+          <Button containerClassName="flex-1" variant="ghost" size="sm" leftIcon={X} onPress={() => send(false)}>
             Tidak
           </Button>
         </View>

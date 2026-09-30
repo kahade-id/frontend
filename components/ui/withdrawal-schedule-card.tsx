@@ -205,12 +205,12 @@ export function WithdrawalScheduleCard({
       {onEdit || onDelete ? (
         <View className="flex-row gap-2">
           {onEdit ? (
-            <Button variant="secondary" size="sm" leftIcon={PencilSimple} onPress={onEdit} className="flex-1">
+            <Button variant="secondary" size="sm" leftIcon={PencilSimple} onPress={onEdit} containerClassName="flex-1">
               {t.edit}
             </Button>
           ) : null}
           {onDelete ? (
-            <Button variant="ghost" size="sm" leftIcon={Trash} onPress={onDelete}>
+            <Button fullWidth={false} variant="ghost" size="sm" leftIcon={Trash} onPress={onDelete}>
               {t.remove}
             </Button>
           ) : null}

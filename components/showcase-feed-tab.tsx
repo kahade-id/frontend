@@ -1263,6 +1263,7 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
   const resetAllChip = filtersActive ? (
     <View className="mt-3 flex-row items-center justify-end gap-2 rounded-full border border-border bg-surface py-1.5 pl-4 pr-1.5 mx-5">
       <Button
+        fullWidth={false}
         variant="ghost"
         size="sm"
         onPress={resetAllFilters}

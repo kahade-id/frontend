@@ -130,6 +130,7 @@ function MilestoneRow({
 
       <View className="flex-row flex-wrap gap-2">
         <Button
+          fullWidth={false}
           size="sm"
           variant="ghost"
           onPress={() => router.push(ROUTES.milestoneDetail(milestone.id))}
@@ -137,16 +138,17 @@ function MilestoneRow({
           Detail tahap
         </Button>
         {isSeller && canSubmit ? (
-          <Button size="sm" onPress={() => router.push(ROUTES.milestoneDetail(milestone.id))}>
+          <Button fullWidth={false} size="sm" onPress={() => router.push(ROUTES.milestoneDetail(milestone.id))}>
             Kirim hasil
           </Button>
         ) : null}
         {isBuyer && submitted ? (
           <>
-            <Button size="sm" onPress={() => setConfirmAccept(true)}>
+            <Button fullWidth={false} size="sm" onPress={() => setConfirmAccept(true)}>
               Terima &amp; cairkan
             </Button>
             <Button
+              fullWidth={false}
               size="sm"
               variant="secondary"
               onPress={() => router.push(ROUTES.milestoneDetail(milestone.id))}
@@ -157,6 +159,7 @@ function MilestoneRow({
         ) : null}
         {role && (canSubmit || submitted) ? (
           <Button
+            fullWidth={false}
             size="sm"
             variant="ghost"
             onPress={() => router.push(ROUTES.milestoneDetail(milestone.id))}

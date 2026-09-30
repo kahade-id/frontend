@@ -62,12 +62,12 @@ export function ShowcaseModerationNotice({
       {!pending ? (
         <View className="flex-row gap-2 pt-1">
           {onEdit ? (
-            <Button variant="secondary" size="sm" onPress={onEdit} leftIcon={PencilSimple} className="flex-1">
+            <Button variant="secondary" size="sm" onPress={onEdit} leftIcon={PencilSimple} containerClassName="flex-1">
               {translate("Ubah karya")}
             </Button>
           ) : null}
           {onResubmit ? (
-            <Button variant="primary" size="sm" onPress={onResubmit} leftIcon={ArrowClockwise} className="flex-1">
+            <Button variant="primary" size="sm" onPress={onResubmit} leftIcon={ArrowClockwise} containerClassName="flex-1">
               {translate("Ajukan ulang")}
             </Button>
           ) : null}

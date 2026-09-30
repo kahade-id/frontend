@@ -200,12 +200,12 @@ export function TwoFactorStatusCard({
         {enabled ? (
           <>
             {onManage ? (
-              <Button variant="secondary" size="sm" onPress={onManage} className="flex-1">
+              <Button variant="secondary" size="sm" onPress={onManage} containerClassName="flex-1">
                 {t.manage}
               </Button>
             ) : null}
             {lowBackup && onRegenerateBackup ? (
-              <Button variant="primary" size="sm" onPress={onRegenerateBackup} className="flex-1">
+              <Button variant="primary" size="sm" onPress={onRegenerateBackup} containerClassName="flex-1">
                 {t.regenerate}
               </Button>
             ) : null}

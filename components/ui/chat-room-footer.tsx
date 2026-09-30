@@ -172,6 +172,7 @@ export const ChatRoomFooter = memo(function ChatRoomFooter({
                 {viewOnceActive && ephemeralLabel != null ? " · sekali-lihat" : ""}
               </Text>
               <Button
+                fullWidth={false}
                 variant="ghost"
                 size="sm"
                 accessibilityLabel="Ubah pengaturan pesan sementara"

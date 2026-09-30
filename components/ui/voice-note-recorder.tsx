@@ -405,6 +405,7 @@ export function VoiceNoteRecorder({
         {state === "review" ? (
           <View className="w-full flex-row items-center gap-3 rounded-md border border-border bg-surface px-4 py-3">
             <Button
+              fullWidth={false}
               variant="secondary"
               onPress={() => void togglePreview()}
               leftIcon={playing ? Pause : Play}

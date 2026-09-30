@@ -110,6 +110,7 @@ export default function AppearanceScreen() {
         />
         <View className="flex-row items-center justify-between gap-3 rounded-lg border border-border bg-surface p-4">
           <Button
+            fullWidth={false}
             size="sm"
             variant="secondary"
             onPress={() => decreaseFontScale()}
@@ -122,6 +123,7 @@ export default function AppearanceScreen() {
             {`${Math.round(fontScale * 100)}%`}
           </Text>
           <Button
+            fullWidth={false}
             size="sm"
             variant="secondary"
             onPress={() => increaseFontScale()}
@@ -136,7 +138,7 @@ export default function AppearanceScreen() {
             {translate("Pratinjau: teks contoh mengikuti ukuran yang dipilih.")}
           </Text>
           {fontScale !== 1 ? (
-            <Button size="sm" variant="ghost" onPress={() => resetFontScale()}>
+            <Button fullWidth={false} size="sm" variant="ghost" onPress={() => resetFontScale()}>
               {translate("Atur ulang")}
             </Button>
           ) : null}
