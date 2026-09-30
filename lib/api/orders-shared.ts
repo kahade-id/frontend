@@ -76,12 +76,17 @@ export type OrderStatus =
   // tombol Bayar/Kirim/Konfirmasi tidak pernah muncul. Nilai lama dipertahankan
   // HANYA sebagai toleransi tampilan (label + tone tetap ada) supaya data lama
   // di cache tidak tampil sebagai enum mentah; jangan dipakai untuk logika baru.
+  //
+  // ESI-004/ESI-021 (audit integrasi 2026-09-30): `REFUNDED`/`EXPIRED` DIHAPUS
+  // dari union ini — keduanya BUKAN anggota enum backend `OrderStatus`
+  // (WAITING_CONFIRMATION|WAITING_PAYMENT|PROCESSING|IN_DELIVERY|COMPLETED|
+  // DISPUTED|CANCELLED) dan bukan alias lama yang sah; keduanya inventaris
+  // FE yang menyesatkan (chip filter + label untuk status yang tak pernah
+  // dikirim server).
   | "PENDING_PAYMENT"
   | "PAID"
   | "SHIPPED"
   | "DELIVERED"
-  | "REFUNDED"
-  | "EXPIRED"
   | (string & {}) // toleransi nilai baru dari backend tanpa runtime error
 
 /**
@@ -221,11 +226,11 @@ export const ORDER_STATUS_FILTERS = [
   "COMPLETED",
   "DISPUTED",
   "CANCELLED",
-  // M-53 (audit end-to-end 2026-09-24, issue #77): `REFUNDED`/`EXPIRED` ADA di
-  // `OrderStatusFilter` dan enum backend — dulu tidak punya chip, transaksi
-  // yang direfund/kedaluwarsa tidak bisa difilter.
-  "REFUNDED",
-  "EXPIRED",
+  // ESI-004 (audit integrasi 2026-09-30): `REFUNDED`/`EXPIRED` DIHAPUS dari
+  // chip filter — keduanya TIDAK ADA di enum backend `OrderStatus`.
+  // Komentar lama M-53 salah kaprah (mengklaim keduanya "ADA di enum backend");
+  // chip yang mengirim nilai tak dikenal ke `GET /v1/orders?status=` hanya
+  // menghasilkan hasil kosong/misleading.
 ] as const satisfies readonly OrderStatus[]
 
 /**
@@ -246,14 +251,16 @@ export const ORDER_LIFECYCLE = [
  * Alias lama yang masih ditoleransi untuk TAMPILAN data cache (label+tone),
  * bukan untuk logika. `normalizeOrder` sudah memetakan ini ke enum backend —
  * daftar ini hanya cadangan terakhir bila nilai alias lolos tanpa normalisasi.
+ *
+ * ESI-004/ESI-021 (audit integrasi 2026-09-30): `REFUNDED`/`EXPIRED` DIHAPUS —
+ * bukan alias lama yang sah, melainkan inventaris FE yang tak pernah dikirim
+ * backend (lihat komentar di tipe `OrderStatus`).
  */
 export const LEGACY_ORDER_STATUSES = [
   "PENDING_PAYMENT",
   "PAID",
   "SHIPPED",
   "DELIVERED",
-  "REFUNDED",
-  "EXPIRED",
 ] as const satisfies readonly OrderStatus[]
 
 export type OrderStatusFilter =
@@ -265,8 +272,6 @@ export type OrderStatusFilter =
   | "COMPLETED"
   | "CANCELLED"
   | "DISPUTED"
-  | "REFUNDED"
-  | "EXPIRED"
   | (string & {})
 
 export type OrderParty = {
@@ -378,6 +383,11 @@ export type Order = {
 /**
  * Alias status lama → enum backend canonical (A-08 audit escrow 2026-09-24).
  * Dipetakan SEKALI di `normalizeOrder` sehingga cukup satu rantai status.
+ *
+ * ESI-004/ESI-021 (audit integrasi 2026-09-30): `REFUNDED`/`EXPIRED` sengaja
+ * TIDAK ada di peta ini — keduanya bukan alias lama yang sah, melainkan
+ * inventaris FE yang tak pernah dikirim backend (tidak ada di enum
+ * `OrderStatus` Prisma). Jangan ditambahkan kembali.
  */
 const LEGACY_STATUS_ALIASES: Record<string, OrderStatus> = Object.assign(Object.create(null), {
   PENDING_PAYMENT: "WAITING_PAYMENT",
@@ -721,7 +731,8 @@ export type OrderExtension = {
   id: string
   extensionDays: number
   reason: string
-  status: "PENDING" | "APPROVED" | "REJECTED" | (string & {})
+  /** Selaras enum backend `DeadlineExtensionStatus` (PENDING|APPROVED|REJECTED|EXPIRED). */
+  status: "PENDING" | "APPROVED" | "REJECTED" | "EXPIRED" | (string & {})
   note?: string | null
   /** F-06: pihak yang mengajukan — fallback ke peran bila server tidak mengirim. */
   requesterId?: string | null
