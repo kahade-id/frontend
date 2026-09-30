@@ -187,7 +187,7 @@ export const ShowcaseCommentRow = memo(function ShowcaseCommentRow({
               (samping nama); Avatar kolom kiri tetap tanpa seal.
             */}
             <View className="flex-row items-center gap-1">
-              <Text variant="caption" tone="secondary" weight={400} numberOfLines={1} className="shrink">
+              <Text variant="label" tone="secondary" numberOfLines={1} className="shrink">
                 @{username}
               </Text>
               <VerifiedSeal
@@ -251,12 +251,12 @@ export const ShowcaseCommentRow = memo(function ShowcaseCommentRow({
         </Text>
 
         {hidden && !comment.hiddenReason ? (
-          <Text variant="caption" tone="secondary">
+          <Text variant="bodySmall" tone="secondary">
             {translate("Disembunyikan karena melanggar pedoman komunitas.")}
           </Text>
         ) : null}
         {hidden && comment.hiddenReason ? (
-          <Text variant="caption" tone="secondary">
+          <Text variant="bodySmall" tone="secondary">
             {translate("Alasan: {x}", {
               x: translate(CONTENT_REPORT_REASONS.find((reason) => reason.value === comment.hiddenReason)?.label ?? "Lainnya"),
             })}
