@@ -100,6 +100,9 @@ export default function JastipDetailScreen() {
   const [itemPrice, setItemPrice] = useState("")
   const [itemNote, setItemNote] = useState("")
   const [itemError, setItemError] = useState<string | undefined>()
+  // FRM-004: error validasi klien ditempel ke field penyebabnya, bukan slot bersama.
+  const [itemNameError, setItemNameError] = useState<string | undefined>()
+  const [itemPriceError, setItemPriceError] = useState<string | undefined>()
   const [addingItem, setAddingItem] = useState(false)
 
   const [lockTarget, setLockTarget] = useState<JastipParticipant | null>(null)
@@ -182,12 +185,12 @@ export default function JastipDetailScreen() {
   const handleAddItem = useCallback(async () => {
     if (!id || addingItem) return
     if (itemName.trim().length < 2) {
-      setItemError(translate("Nama item minimal 2 karakter."))
+      setItemNameError(translate("Nama item minimal 2 karakter."))
       return
     }
     const price = itemPrice.trim() === "" ? undefined : Number.parseInt(itemPrice.replace(/\D/g, ""), 10)
     if (price !== undefined && (!Number.isFinite(price) || price < 0)) {
-      setItemError(translate("Estimasi harga tidak valid."))
+      setItemPriceError(translate("Estimasi harga tidak valid — isi dengan angka saja."))
       return
     }
     setAddingItem(true)
@@ -353,6 +356,8 @@ export default function JastipDetailScreen() {
                   accessibilityLabel={translate("Tambah item")}
                   onPress={() => {
                     setItemError(undefined)
+                    setItemNameError(undefined)
+                    setItemPriceError(undefined)
                     setItemOpen(true)
                   }}
                 />
@@ -547,15 +552,17 @@ export default function JastipDetailScreen() {
           <Input
             label={translate("Nama item")}
             value={itemName}
-            onChangeText={(t) => { setItemName(t); setItemError(undefined) }}
+            onChangeText={(t) => { setItemName(t); setItemError(undefined); setItemNameError(undefined) }}
             helperText={translate("Minimal 2 karakter.")}
+            errorText={itemNameError}
             maxLength={120}
           />
           <Input
             label={translate("Estimasi harga (Rp, opsional)")}
             value={itemPrice}
-            onChangeText={(t) => { setItemPrice(t); setItemError(undefined) }}
+            onChangeText={(t) => { setItemPrice(t); setItemError(undefined); setItemPriceError(undefined) }}
             keyboardType="number-pad"
+            errorText={itemPriceError}
             maxLength={15}
           />
           <Input
@@ -564,6 +571,8 @@ export default function JastipDetailScreen() {
             onChangeText={(t) => { setItemNote(t); setItemError(undefined) }}
             maxLength={200}
           />
+          {/* FRM-004: slot bersama kini khusus error server; error validasi
+              klien ditempel via errorText masing-masing field. */}
           {itemError ? (
             <Text variant="caption" tone="danger">
               {itemError}
