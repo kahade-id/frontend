@@ -34,9 +34,9 @@
  *     handler-nya ada; panggilan suara otomatis jadi 2 toggle + Tutup.
  *     Lebar tiap slot tetap `w-16` supaya label panjang ("Kamera mati") tidak
  *     menggeser tombol lain saat state berubah.
- *   - Latar `bg-surface-elevated` + `border-t border-border` tanpa radius —
- *     bar menempel tepi bawah layar (full-bleed, §5 catatan Surface). Pemanggil
- *     bertanggung jawab atas safe-area bottom.
+ *   - Latar `bg-surface-elevated` tanpa radius — bar dipakai di slot `footer`
+ *     <Screen>; divider `border-t`, padding, dan safe-area bottom disediakan
+ *     <FooterBar>, jadi komponen ini tidak membawa chrome-nya sendiri.
  */
 import { View, type ViewProps } from "react-native"
 import { translate } from "@/lib/i18n/translate"
@@ -127,13 +127,13 @@ export function InCallControlsBar({
   const mediaDisabled = disabled || mediaControlsUnavailableReason != null
   const showFlip = onFlipCamera != null && videoOn !== false
 
+  // UX-SPA-003: dipakai di slot footer <Screen> — divider border-t,
+  // padding, dan bottom safe-area disediakan <FooterBar>. Jangan tambah
+  // border-t/px/pt/pb sendiri (dulu dobel: dua divider, px 40, pt 32).
   return (
     <View
       accessibilityRole="toolbar"
-      className={cn(
-        "w-full items-center gap-4 border-t border-border bg-surface-elevated px-5 pb-6 pt-4",
-        className,
-      )}
+      className={cn("w-full items-center gap-4 bg-surface-elevated", className)}
       {...rest}
     >
       {mediaControlsUnavailableReason ? (

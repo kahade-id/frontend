@@ -230,9 +230,13 @@ export function ChatComposer({
     [submit],
   )
 
+  // UX-SPA-001/002: tanpa border-t/px-4 di root — dua dari tiga pemakaian
+  // (chat-room, dispute-detail) duduk di slot footer <Screen> yang sudah
+  // dibungkus <FooterBar> (divider + px-5 + safe-area). Pemakaian manual
+  // (live-support) menambahkan chrome-nya sendiri di wrapper.
   return (
     <View
-      className={cn("relative w-full gap-2 border-t border-border bg-background px-4 pb-2 pt-2", className)}
+      className={cn("relative w-full gap-2 bg-background pb-2 pt-2", className)}
       accessibilityRole="toolbar"
       {...rest}
     >

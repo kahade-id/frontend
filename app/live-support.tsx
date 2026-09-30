@@ -804,7 +804,12 @@ export default function LiveSupportScreen() {
                 ))}
               </ScrollView>
 
-              <View style={{ paddingBottom: Math.max(0, insets.bottom - tokens.space[2]) }}>
+              {/* UX-SPA-002: <ChatComposer> tidak lagi membawa border-t/px-4
+                  sendiri — pemakaian manual di sini menambahkan chrome-nya. */}
+              <View
+                className="border-t border-border px-4"
+                style={{ paddingBottom: Math.max(0, insets.bottom - tokens.space[2]) }}
+              >
                 <ChatComposer
                   value={draft}
                   onChangeText={setDraft}

@@ -144,7 +144,9 @@ export const ChatRoomFooter = memo(function ChatRoomFooter({
       />
 
       {completed ? (
-        <View className="border-t border-border bg-surface px-4 py-3">
+        // UX-SPA-001: dipakai di slot footer <Screen> — divider border-t,
+        // px, dan bottom safe-area sudah disediakan <FooterBar>.
+        <View className="bg-surface py-3">
           <View className="items-center justify-center gap-1.5 rounded-lg bg-surface-elevated px-4 py-3">
             <View className="flex-row items-center gap-2">
               <Icon icon={CheckCircle} size="sm" tone="default" />
@@ -163,7 +165,9 @@ export const ChatRoomFooter = memo(function ChatRoomFooter({
         <View>
           {/* Batch 43: strip mode pesan sementara / sekali-lihat aktif. */}
           {ephemeralActive ? (
-            <View className="flex-row items-center gap-2 border-t border-border bg-surface px-4 py-1.5">
+            // UX-SPA-001: tanpa border-t/px-4 — <FooterBar> sudah memberi
+            // divider + px-5; strip ini banner di dalam footer.
+            <View className="flex-row items-center gap-2 bg-surface py-1.5">
               <Icon icon={ephemeralLabel != null ? Clock : EyeSlash} size="sm" tone="warning" />
               <Text variant="caption" tone="secondary" className="flex-1" numberOfLines={1}>
                 {ephemeralLabel != null
