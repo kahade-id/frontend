@@ -1,24 +1,26 @@
 /**
  * Kahade — <Input> / TextField (§9.2).
  *
- * Outlined + floating label. Varian:
+ * Filled + floating label (gaya Apple). Varian:
  *   - "text"     : default, floating label (tinggi 56 agar label punya ruang)
  *   - "search"   : ikon MagnifyingGlass kiri, tombol clear kanan, TANPA label
  *                  (tinggi 48). Dipakai juga oleh overlay Search §9.23.
  *   - "multiline": textarea, label float ke atas, tinggi mengikuti `rows`.
- * State: default, focus (border-focus 1.5px hitam/putih), error (border-error,
- * helper merah — ikon di dalam field TETAP text-tertiary §7), disabled
- * (opacity 40%, editable=false).
+ * State: default (bg-surface tanpa border), focus (border-focus 1.5px
+ * hitam/putih), error (border-error, helper merah — ikon di dalam field
+ * TETAP text-tertiary §7), disabled (opacity 40%, editable=false).
  *
  * Keputusan non-obvious:
+ *   - Gaya filled (bukan outlined): input dibedakan dari card lewat
+ *     background gray (bg-surface), bukan garis border. Card tetap pakai
+ *     outline/border; input pakai fill.
+ *   - Border resting = transparent dengan lebar SAMA (1.5px) seperti
+ *     focus/error — tidak ada layout jump saat state berubah, tidak perlu
+ *     kompensasi padding.
  *   - Floating label pakai RN `Animated` (translateY + scale) karena posisi
  *     label adalah transform yang tidak bisa di-className. Warna & font label
- *     tetap className. Saat float, label diberi `bg-background px-1` supaya
- *     "memotong" garis border seperti outlined text field klasik.
- *   - Border width fokus 1.5 vs resting 1 menggeser konten 0.5px. Untuk
- *     menghindari layout jump, container fokus mengompensasi lewat padding
- *     (`px-[15px]`) — nilai arbitrary ini satu-satunya yang diizinkan karena
- *     merupakan turunan langsung dari borderWidth token (16 - (1.5 - 1)).
+ *     tetap className. Tidak perlu background chip "pemotong border" seperti
+ *     gaya outlined dulu.
  *   - `placeholderTextColor`, `selectionColor`, `cursorColor` adalah prop RN,
  *     bukan style — di-resolve dari tokens lewat useTheme() (pengecualian yang
  *     sama seperti Icon). Placeholder hanya muncul saat label sudah float
@@ -26,9 +28,6 @@
  *     Warna placeholder = text-secondary (bukan text-disabled): placeholder
  *     adalah teks yang harus terbaca (WCAG 1.4.3, 4.5:1) — text-disabled
  *     hanya 2.07:1 dan dikhususkan untuk state disabled.
- *   - Border resting = `border-border-control` (bukan `border-border`):
- *     outline form control wajib >= 3:1 vs background (WCAG 1.4.11).
- *     `border-border` tetap untuk card/divider (struktural, dikecualikan).
  *   - Tidak ada shake pada error (§8) — cukup border + helper text.
  *   - `secureTextEntry` otomatis menyediakan toggle Eye/EyeSlash di kanan
  *     kecuali `rightIcon` dikirim eksplisit.
@@ -91,12 +90,9 @@ export type InputProps = Omit<TextInputProps, "style" | "editable"> &
     containerClassName?: string
     /**
      * H-06 (audit 2026-09-22): kontrak EKSPLISIT untuk field yang tidak ingin
-     * border bawaan (mis. kolom pencarian berbentuk pil dengan latar permukaan).
-     * Sebelumnya pemanggil menulis `border-0` di `className` dan hasilnya
-     * bergantung tailwind-merge: `border-0` (lebar) vs `border-error`/
-     * `border-focus` (varian state) bisa dianggap properti berbeda sehingga
-     * garis error/focus tetap muncul. `frame="none"` melepas SELURUH kelas
-     * frame (border + padding kompensasinya) dari komponen.
+     * frame bawaan (mis. kolom pencarian berbentuk pil dengan latar permukaan).
+     * `frame="none"` melepas SELURUH kelas frame (border + background) dari
+     * komponen — pemanggil bertanggung jawab penuh atas tampilannya.
      */
     frame?: "default" | "none"
   }
@@ -174,12 +170,16 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
   // Reduce Motion (audit #2): label melayang pindah posisi instan.
   const reducedMotion = useReducedMotion()
   useEffect(() => {
-    Animated.timing(progress, {
+    // PERF (tim7): stop animasi sebelumnya — focus/blur cepat berturut-turut
+    // sebelumnya menumpuk animasi floating label.
+    const anim = Animated.timing(progress, {
       toValue: floated ? 1 : 0,
       duration: motionDuration(reducedMotion, tokens.motion.duration.fast),
       easing: Easing.bezier(...tokens.motion.easing.standard),
       useNativeDriver: true,
-    }).start()
+    })
+    anim.start()
+    return () => anim.stop()
   }, [floated, progress, reducedMotion])
 
   const labelStyle = {
@@ -239,17 +239,18 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
     >
       <View
         className={cn(
-          "w-full flex-row rounded-sm",
-          focused ? "bg-background" : "bg-surface",
+          "w-full flex-row rounded-md bg-surface",
           isMultiline ? "items-start py-4" : "items-center",
-          // Border: resting 1px default -> focus/error 1.5px, padding dikompensasi
+          // Filled: border transparent saat resting (lebar sama 1.5px agar
+          // tidak layout jump), border-focus/error saat state aktif.
+          // Tidak ada lagi bg-background/bg-surface toggle — selalu filled.
           frame === "none"
             ? "border-0 px-4"
             : hasError
-              ? "border-error border-border-error px-[15px]"
+              ? "border-[1.5px] border-border-error px-4"
               : focused
-                ? "border-focus border-border-focus px-[15px]"
-                : "border border-border-control px-4",
+                ? "border-[1.5px] border-border-focus px-4"
+                : "border-[1.5px] border-transparent px-4",
           boxHeight,
           disabled && "opacity-disabled",
           className,
@@ -274,21 +275,19 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
               )}
             >
               <Animated.View style={[labelStyle, { transformOrigin: "left center" }]}>
-                {/* bg-background/bg-surface + px-1 "memotong" garis border saat float */}
-                <View className={cn("-mx-1 px-1", floated && (focused ? "bg-background" : "bg-surface"))}>
-                  <Text ellipsizeMode="tail"
-                    variant="bodyLarge"
-                    tone={hasError ? "danger" : focused ? "primary" : "secondary"}
-                    numberOfLines={1}
-                  >
-                    {label}
-                    {required ? (
-                      <Text variant="bodyLarge" tone="danger">
-                        {" *"}
-                      </Text>
-                    ) : null}
-                  </Text>
-                </View>
+                {/* Filled: tidak perlu chip bg "pemotong border" — label langsung float */}
+                <Text ellipsizeMode="tail"
+                  variant="bodyLarge"
+                  tone={hasError ? "danger" : focused ? "primary" : "secondary"}
+                  numberOfLines={1}
+                >
+                  {label}
+                  {required ? (
+                    <Text variant="bodyLarge" tone="danger">
+                      {" *"}
+                    </Text>
+                  ) : null}
+                </Text>
               </Animated.View>
             </View>
           ) : null}

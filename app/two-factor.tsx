@@ -524,9 +524,13 @@ export default function TwoFactorScreen() {
                       ? "Periksa kotak masuk email Anda."
                       : "Tekan Kirim OTP untuk menerima kode."
                   }
-                  errorText={disableError}
                 />
               </View>
+              {disableError ? (
+                <Alert tone="danger" title="Gagal mematikan verifikasi dua langkah">
+                  {disableError}
+                </Alert>
+              ) : null}
               <ButtonGroup equal={false}>
                 <Button
                   variant="ghost"

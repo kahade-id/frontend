@@ -38,7 +38,6 @@ import { API_CONSTRAINTS } from "@/lib/api/constraints"
 import { AMOUNT_LIMITS, isValidAmount } from "@/lib/financial"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { View } from "react-native"
-import { CalendarBlank } from "phosphor-react-native"
 import { router, useLocalSearchParams } from "expo-router"
 import { useNavigation, usePreventRemove, type NavigationAction } from "@react-navigation/native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
@@ -62,13 +61,13 @@ import { ButtonGroup } from "@/components/ui/button-group"
 import {
   type CounterpartState,
 } from "@/components/ui/counterpart-validation-card"
-import { DatePickerSheet, addDays, normalizePickerDate } from "@/components/ui/date-picker-sheet"
+import { addDays, normalizePickerDate } from "@/components/ui/date-picker-sheet"
+import { DateField } from "@/components/ui/date-field"
 import { FadeIn } from "@/components/ui/fade-in"
 import { Field } from "@/components/ui/field"
 import { FormSection } from "@/components/ui/form-section"
 import { Header } from "@/components/ui/header"
 import { Heading } from "@/components/ui/heading"
-import { Icon } from "@/components/ui/icon"
 import { Input } from "@/components/ui/input"
 import { Dialog } from "@/components/ui/modal"
 import {
@@ -87,7 +86,6 @@ import {
   VoucherSection,
 } from "@/components/create-transaction-review"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
-import { PressableScale } from "@/components/ui/pressable-scale"
 import { Screen } from "@/components/ui/screen"
 import { Text } from "@/components/ui/text"
 import { TextArea } from "@/components/ui/text-area"
@@ -98,8 +96,6 @@ import type { Address } from "@/lib/api/commerce"
 import { addressLabelText } from "@/lib/api/commerce"
 import { addressMissingFields } from "@/lib/wallet-batch139"
 import { translate } from "@/lib/i18n/translate"
-import { cn } from "@/lib/cn"
-import { formatDateLong } from "@/lib/format"
 
 const DEBOUNCE_MS = 400
 const MIN_ORDER_VALUE = AMOUNT_LIMITS.order.minimum
@@ -302,7 +298,6 @@ export default function CreateTransactionScreen() {
   const [deadlineDate, setDeadlineDate] = useState<Date | null>(() =>
     templatePrefill.deadline != null ? addDays(new Date(), templatePrefill.deadline) : null,
   )
-  const [deadlineSheetOpen, setDeadlineSheetOpen] = useState(false)
   // Sheet pernah dibuka-tutup tanpa memilih tanggal → error "pilih tanggal"
   // boleh tampil (user tahu kenapa "Lanjut" tertahan).
   const [deadlineTouched, setDeadlineTouched] = useState(false)
@@ -997,53 +992,26 @@ export default function CreateTransactionScreen() {
               label="Nilai transaksi"
             />
             {/* F10 (audit 2026-09-26): input angka hari diganti kalender
-                <DatePickerSheet> — tanpa native module (OTA-compatible).
+                <DateField> — tanpa native module (OTA-compatible).
                 Belum pilih = placeholder "Pilih tanggal", bukan auto-fill "1". */}
-            <Field
+            <DateField
               label="Tenggat pengiriman"
               required
               helperText={translate("Tanggal yang bisa dipilih: besok hingga {x} hari ke depan.", {
                 x: MAX_DEADLINE_DAYS,
               })}
               errorText={deadlineError}
-            >
-              <PressableScale
-                accessibilityRole="button"
-                accessibilityLabel="Tenggat pengiriman"
-                accessibilityValue={{
-                  text: deadlineDate ? formatDateLong(deadlineDate) : translate("Pilih tanggal"),
-                }}
-                onPress={() => setDeadlineSheetOpen(true)}
-                className={cn(
-                  "h-14 w-full flex-row items-center rounded-sm border bg-background px-4",
-                  deadlineError ? "border-error" : "border-border-control",
-                )}
-              >
-                <Text
-                  variant="body"
-                  tone={deadlineDate ? undefined : "tertiary"}
-                  numberOfLines={1}
-                  className="flex-1"
-                >
-                  {deadlineDate ? formatDateLong(deadlineDate) : translate("Pilih tanggal")}
-                </Text>
-                <Icon icon={CalendarBlank} size="sm" tone="default" />
-              </PressableScale>
-            </Field>
-            <DatePickerSheet
-              visible={deadlineSheetOpen}
-              onRequestClose={() => {
-                setDeadlineSheetOpen(false)
+              value={deadlineDate}
+              onChange={(date) => {
+                setDeadlineDate(date)
+                setDeadlineTouched(false)
+              }}
+              onClose={() => {
                 // Sheet ditutup (tanpa memilih) = field sudah disentuh — error
                 // "pilih tanggal" boleh tampil. Jalur pilih-tanggal juga lewat
                 // sini (auto-close), tapi tanggalnya sudah terisi sehingga
                 // `deadlineError` tetap null.
                 setDeadlineTouched(true)
-              }}
-              value={deadlineDate}
-              onSelect={(date) => {
-                setDeadlineDate(date)
-                setDeadlineTouched(false)
               }}
             />
           </FormSection>

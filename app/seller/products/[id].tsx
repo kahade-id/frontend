@@ -4,7 +4,7 @@
  * Dipanggil sebagai /seller/products/new atau /seller/products/[id].
  */
 import { useEffect, useState } from "react"
-import { ScrollView, Text, TextInput, View } from "react-native"
+import { ScrollView, View } from "react-native"
 import { useLocalSearchParams, useRouter } from "expo-router"
 
 import { api } from "@/lib/api"
@@ -15,31 +15,17 @@ import { formatRupiahTyping, parseRupiahTyping } from "@/lib/rupiah-input"
 import { tokens } from "@/lib/tokens"
 import { useApiQuery } from "@/lib/use-api-query"
 import { showMutationError } from "@/lib/mutation-toast"
-import { useTheme } from "@/components/theme-provider"
 import { useToast } from "@/components/ui/toast"
 
 import { Button } from "@/components/ui/button"
 import { Header } from "@/components/ui/header"
+import { Input } from "@/components/ui/input"
 import { Screen } from "@/components/ui/screen"
+import { Text } from "@/components/ui/text"
+import { TextArea } from "@/components/ui/text-area"
 import { DataScreen } from "@/components/ui/data-screen"
 
 const STATUSES: ProductStatus[] = ["DRAFT", "ACTIVE", "OUT_OF_STOCK", "ARCHIVED"]
-
-function Field({ label, errorText, children }: { label: string; errorText?: string; children: React.ReactNode }) {
-  const { mode } = useTheme()
-  // FE-051: error inline per field — bukan Alert generik. Warna danger.text
-  // dari tokens (mode-aware).
-  const errorColor = mode === "dark" ? "#F87171" : "#B42318"
-  return (
-    <View style={{ gap: tokens.space[1] }}>
-      <Text style={{ fontWeight: "600" }}>{label}</Text>
-      {children}
-      {errorText ? (
-        <Text style={{ color: errorColor, fontSize: 12 }}>{errorText}</Text>
-      ) : null}
-    </View>
-  )
-}
 
 /** FE-051: validasi per field — harga memakai state ANGKA (FE-052). */
 type ProductField = "sku" | "name" | "category" | "price"
@@ -63,9 +49,7 @@ export default function SellerProductFormScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
   const isNew = id === "new"
   const router = useRouter()
-  const { mode } = useTheme()
   const toast = useToast()
-  const c = tokens.colors[mode]
   const [saving, setSaving] = useState(false)
   const [sku, setSku] = useState("")
   const [name, setName] = useState("")
@@ -115,16 +99,6 @@ export default function SellerProductFormScreen() {
       setStatus(existing.status)
     }
   }, [existing, hydrated])
-
-  function inputStyle() {
-    return {
-      borderWidth: 1,
-      borderColor: c.borderDefault,
-      borderRadius: tokens.radius.md,
-      padding: tokens.space[3],
-      color: c.textPrimary,
-    }
-  }
 
   async function save() {
     // Kontrak backend: priceRupiah dalam RUPIAH bulat (server konversi ke sen).
@@ -177,43 +151,87 @@ export default function SellerProductFormScreen() {
 
   const formFields = (
     <View style={{ padding: tokens.space[4], gap: tokens.space[3] }}>
-      <Field label="SKU *" errorText={errors.sku}><TextInput value={sku} onChangeText={(v) => changeField("sku", v, setSku)} onBlur={() => touchField("sku", sku)} autoCapitalize="characters" editable={isNew} accessibilityLabel="SKU, wajib diisi" placeholderTextColor={c.textTertiary} style={inputStyle()} /></Field>
-      <Field label="Nama produk *" errorText={errors.name}><TextInput value={name} onChangeText={(v) => changeField("name", v, setName)} onBlur={() => touchField("name", name)} accessibilityLabel="Nama produk, wajib diisi" placeholderTextColor={c.textTertiary} style={inputStyle()} /></Field>
-      <Field label="Kategori *" errorText={errors.category}><TextInput value={category} onChangeText={(v) => changeField("category", v, setCategory)} onBlur={() => touchField("category", category)} accessibilityLabel="Kategori, wajib diisi" placeholderTextColor={c.textTertiary} style={inputStyle()} /></Field>
-      <Field label="Harga (Rp) *" errorText={errors.price}>
-        <TextInput
-          // FE-052: pemisah ribuan saat mengetik ("1500000" → "1.500.000");
-          // state tetap angka — nilai ke backend tetap mentah.
-          value={formatRupiahTyping(priceIdr)}
-          onChangeText={(raw) => {
-            const parsed = parseRupiahTyping(raw)
-            // undefined = ketikan tak valid (huruf/>15 digit) — abaikan.
-            if (parsed === undefined) return
-            setPriceIdr(parsed)
-            // FE-051: perbarui error harga yang sudah aktif saat mengetik.
-            setErrors((prev) =>
-              prev.price ? { ...prev, price: validateProductField("price", parsed) } : prev,
-            )
-          }}
-          onBlur={() =>
-            setErrors((prev) => ({ ...prev, price: validateProductField("price", priceIdr) }))
-          }
-          keyboardType="numeric"
-          accessibilityLabel="Harga dalam rupiah, wajib diisi"
-          placeholderTextColor={c.textTertiary}
-          style={inputStyle()}
-        />
-      </Field>
+      <Input
+        label="SKU"
+        required
+        value={sku}
+        onChangeText={(v) => changeField("sku", v, setSku)}
+        onBlur={() => touchField("sku", sku)}
+        autoCapitalize="characters"
+        disabled={!isNew}
+        errorText={errors.sku}
+        accessibilityLabel="SKU, wajib diisi"
+      />
+      <Input
+        label="Nama produk"
+        required
+        value={name}
+        onChangeText={(v) => changeField("name", v, setName)}
+        onBlur={() => touchField("name", name)}
+        errorText={errors.name}
+        accessibilityLabel="Nama produk, wajib diisi"
+      />
+      <Input
+        label="Kategori"
+        required
+        value={category}
+        onChangeText={(v) => changeField("category", v, setCategory)}
+        onBlur={() => touchField("category", category)}
+        errorText={errors.category}
+        accessibilityLabel="Kategori, wajib diisi"
+      />
+      <Input
+        label="Harga (Rp)"
+        required
+        // FE-052: pemisah ribuan saat mengetik ("1500000" → "1.500.000");
+        // state tetap angka — nilai ke backend tetap mentah.
+        value={formatRupiahTyping(priceIdr)}
+        onChangeText={(raw) => {
+          const parsed = parseRupiahTyping(raw)
+          // undefined = ketikan tak valid (huruf/>15 digit) — abaikan.
+          if (parsed === undefined) return
+          setPriceIdr(parsed)
+          // FE-051: perbarui error harga yang sudah aktif saat mengetik.
+          setErrors((prev) =>
+            prev.price ? { ...prev, price: validateProductField("price", parsed) } : prev,
+          )
+        }}
+        onBlur={() =>
+          setErrors((prev) => ({ ...prev, price: validateProductField("price", priceIdr) }))
+        }
+        keyboardType="numeric"
+        errorText={errors.price}
+        accessibilityLabel="Harga dalam rupiah, wajib diisi"
+      />
       {priceIdr != null && priceIdr > 0 ? (
-        <Text style={{ color: c.textTertiary, fontSize: 12 }}>
+        <Text variant="caption" tone="secondary">
           Pratinjau: {formatRupiah(priceIdr)}
         </Text>
       ) : null}
-      <Field label="Stok awal"><TextInput value={stock} onChangeText={setStock} keyboardType="numeric" accessibilityLabel="Stok awal" placeholderTextColor={c.textTertiary} style={inputStyle()} /></Field>
-      <Field label="Berat (gram)"><TextInput value={weight} onChangeText={setWeight} keyboardType="numeric" accessibilityLabel="Berat dalam gram" placeholderTextColor={c.textTertiary} style={inputStyle()} /></Field>
-      <Field label="Ambang stok menipis"><TextInput value={lowStock} onChangeText={setLowStock} keyboardType="numeric" accessibilityLabel="Ambang stok menipis" placeholderTextColor={c.textTertiary} style={inputStyle()} /></Field>
+      <Input
+        label="Stok awal"
+        value={stock}
+        onChangeText={setStock}
+        keyboardType="numeric"
+        accessibilityLabel="Stok awal"
+      />
+      <Input
+        label="Berat (gram)"
+        value={weight}
+        onChangeText={setWeight}
+        keyboardType="numeric"
+        accessibilityLabel="Berat dalam gram"
+      />
+      <Input
+        label="Ambang stok menipis"
+        value={lowStock}
+        onChangeText={setLowStock}
+        keyboardType="numeric"
+        accessibilityLabel="Ambang stok menipis"
+      />
       {!isNew ? (
-        <Field label="Status">
+        <View style={{ gap: tokens.space[1] }}>
+          <Text weight={600}>Status</Text>
           <View style={{ flexDirection: "row", flexWrap: "wrap", gap: tokens.space[2] }}>
             {STATUSES.map((s) => (
               <Button key={s} variant={status === s ? "primary" : "secondary"} onPress={() => setStatus(s)}>
@@ -221,12 +239,16 @@ export default function SellerProductFormScreen() {
               </Button>
             ))}
           </View>
-        </Field>
+        </View>
       ) : null}
-      <Field label="Deskripsi">
-        <TextInput value={description} onChangeText={setDescription} multiline accessibilityLabel="Deskripsi produk" numberOfLines={4} textAlignVertical="top" placeholderTextColor={c.textTertiary} style={inputStyle()} />
-      </Field>
-      <Text style={{ color: c.textTertiary, fontSize: 12 }}>
+      <TextArea
+        label="Deskripsi"
+        value={description}
+        onChangeText={setDescription}
+        rows={4}
+        accessibilityLabel="Deskripsi produk"
+      />
+      <Text variant="caption" tone="secondary">
         Harga dikirim ke server dalam rupiah; penyimpanan presisi (sen) ditangani server.
       </Text>
       <Button disabled={saving} onPress={save}>

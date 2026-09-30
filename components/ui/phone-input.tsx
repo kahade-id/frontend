@@ -134,12 +134,12 @@ export const PhoneInput = forwardRef<TextInput, PhoneInputProps>(function PhoneI
     >
       <View
         className={cn(
-          "h-12 w-full flex-row items-center rounded-sm bg-background",
+          "h-12 w-full flex-row items-center rounded-md bg-surface",
           hasError
-            ? "border-error border-border-error px-[15px]"
+            ? "border-[1.5px] border-border-error px-4"
             : focused
-              ? "border-focus border-border-focus px-[15px]"
-              : "border border-border-control px-4",
+              ? "border-[1.5px] border-border-focus px-4"
+              : "border-[1.5px] border-transparent px-4",
           disabled && "opacity-disabled",
           className,
         )}

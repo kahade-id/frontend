@@ -4,7 +4,7 @@
  * Terpisah dari konten showcase sosial (G251).
  */
 import { memo, useCallback, useState } from "react"
-import { Pressable, Text, TextInput, View } from "react-native"
+import { Pressable, View } from "react-native"
 import { useRouter } from "expo-router"
 
 import { ROUTES } from "@/lib/routes"
@@ -24,6 +24,8 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { Header } from "@/components/ui/header"
 import { PaginatedList } from "@/components/ui/paginated-list"
 import { Screen } from "@/components/ui/screen"
+import { SearchField } from "@/components/ui/search-field"
+import { Text } from "@/components/ui/text"
 import { Package } from "phosphor-react-native"
 
 /** PERF-FIX (TIM1-P1): baris di-memo — onPress stabil per id, tidak ada
@@ -31,15 +33,9 @@ import { Package } from "phosphor-react-native"
 const ProductRow = memo(function ProductRow({
   item,
   onSelect,
-  textTertiary,
-  successText,
-  dangerText,
 }: {
   item: Product
   onSelect: (id: string) => void
-  textTertiary: string
-  successText: string
-  dangerText: string
 }) {
   const handlePress = useCallback(() => onSelect(item.id), [onSelect, item.id])
   const qty = sellableQty(item)
@@ -55,13 +51,13 @@ const ProductRow = memo(function ProductRow({
     >
       <Card>
         <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-          <Text style={{ fontWeight: "700", flex: 1 }} numberOfLines={2}>{item.name}</Text>
+          <Text weight={700} numberOfLines={2} className="flex-1">{item.name}</Text>
           <Badge tone={productStatusBadgeTone(item.status)}>{PRODUCT_STATUS_LABEL[item.status]}</Badge>
         </View>
-        <Text style={{ color: textTertiary, fontSize: 12 }}>{item.category} · SKU {item.sku}</Text>
+        <Text variant="caption" tone="secondary">{item.category} · SKU {item.sku}</Text>
         <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: tokens.space[1] }}>
-          <Text style={{ fontWeight: "800" }}>{formatRupiah(item.priceRupiah)}</Text>
-          <Text style={{ color: qty > 0 ? successText : dangerText }}>
+          <Text weight={700}>{formatRupiah(item.priceRupiah)}</Text>
+          <Text tone={qty > 0 ? "success" : "danger"}>
             {qty > 0 ? `Stok ${qty}` : "Habis"}
           </Text>
         </View>
@@ -75,8 +71,6 @@ export default function CatalogScreen() {
   const insets = useSafeAreaInsets()
   const { mode } = useTheme()
   const c = tokens.colors[mode]
-  const successText = tokens.colors.semantic.success[mode].text
-  const dangerText = tokens.colors.semantic.danger[mode].text
   // PERF-FIX (TIM1-P1): handler + renderItem stabil.
   const handleSelectProduct = useCallback((id: string) => router.push(ROUTES.productDetail(id)), [router])
   const renderProductItem = useCallback(
@@ -84,12 +78,9 @@ export default function CatalogScreen() {
       <ProductRow
         item={item}
         onSelect={handleSelectProduct}
-        textTertiary={c.textTertiary}
-        successText={successText}
-        dangerText={dangerText}
       />
     ),
-    [handleSelectProduct, c.textTertiary, successText, dangerText],
+    [handleSelectProduct],
   )
   const [q, setQ] = useState("")
   const [inStockOnly, setInStockOnly] = useState(true)
@@ -106,12 +97,13 @@ export default function CatalogScreen() {
     <Screen edges={["top"]} padded={false}>
       <Header title="Katalog Produk" />
       <View style={{ padding: tokens.space[4], gap: tokens.space[2] }}>
-        <TextInput
+        {/* Inline search (bukan overlay): tanpa autoFocus agar keyboard
+            tidak muncul saat layar dibuka. */}
+        <SearchField
           value={q}
           onChangeText={setQ}
           placeholder="Cari produk…"
-          placeholderTextColor={c.textTertiary}
-          style={{ borderWidth: 1, borderColor: c.borderDefault, borderRadius: tokens.radius.md, padding: tokens.space[3], color: c.textPrimary }}
+          autoFocus={false}
         />
         <Pressable
           onPress={() => setInStockOnly((v) => !v)}

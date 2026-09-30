@@ -35,22 +35,22 @@ import {
   type OrderMilestone,
 } from "@/lib/api"
 import { logWarn } from "@/lib/telemetry"
-import { formatDateTime, formatDateLong, formatDateTimeWIB, formatRupiah, parseRupiah } from "@/lib/format"
-import { formatRupiahTypingText, parseRupiahTypingText } from "@/lib/rupiah-input"
+import { formatDateTime, formatDateTimeWIB, formatRupiah, parseRupiah } from "@/lib/format"
 import { pickImage } from "@/lib/image-picker"
 import { translate } from "@/lib/i18n"
 import { useApiQuery } from "@/lib/use-api-query"
 import { useWalletEnabled } from "@/lib/use-wallet-enabled"
 
 import { Button } from "@/components/ui/button"
+import { AmountInput } from "@/components/ui/amount-input"
 import { DataScreen } from "@/components/ui/data-screen"
-import { DatePickerSheet, normalizePickerDate } from "@/components/ui/date-picker-sheet"
+import { DateField } from "@/components/ui/date-field"
+import { normalizePickerDate } from "@/components/ui/date-picker-sheet"
 import { Dialog } from "@/components/ui/modal"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Field } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { KeyValue, KeyValueList } from "@/components/ui/key-value"
-import { PressableScale } from "@/components/ui/pressable-scale"
 import { SectionHeader } from "@/components/ui/section"
 import { Text } from "@/components/ui/text"
 import { TextArea } from "@/components/ui/text-area"
@@ -121,7 +121,6 @@ export default function MilestoneDetailScreen() {
   // UI-T005 (audit UI/UX 2026-09-27): tenggat dipilih lewat kalender, bukan
   // ketik ISO mentah — format yang dikirim ke API tetap string ISO.
   const [propDeadlineDate, setPropDeadlineDate] = useState<Date | null>(null)
-  const [propDeadlineOpen, setPropDeadlineOpen] = useState(false)
   const [propNote, setPropNote] = useState("")
 
   const runAction = useCallback(
@@ -417,50 +416,22 @@ export default function MilestoneDetailScreen() {
                         maxLength={120}
                       />
                     </Field>
-                    <Field label="Nilai baru (opsional, rupiah)">
-                      <Input
-                        // FE-052: pemisah ribuan saat mengetik; state digit
-                        // mentah — nilai ke backend tidak berubah.
-                        value={formatRupiahTypingText(propAmount)}
-                        onChangeText={(t) => {
-                          const parsed = parseRupiahTypingText(t)
-                          if (parsed === null) return
-                          setPropAmount(parsed)
-                        }}
-                        placeholder="cth. 1500000"
-                        keyboardType="numeric"
-                      />
-                    </Field>
-                    <Field label="Tenggat baru (opsional)">
-                      <PressableScale
-                        accessibilityRole="button"
-                        accessibilityLabel="Tenggat baru (opsional)"
-                        accessibilityValue={{
-                          text: propDeadlineDate ? formatDateLong(propDeadlineDate) : "Pilih tanggal",
-                        }}
-                        onPress={() => setPropDeadlineOpen(true)}
-                        className="h-14 w-full flex-row items-center rounded-sm border border-border-control bg-background px-4"
-                      >
-                        <Text
-                          variant="body"
-                          tone={propDeadlineDate ? undefined : "tertiary"}
-                          numberOfLines={1}
-                          className="flex-1"
-                        >
-                          {propDeadlineDate ? formatDateLong(propDeadlineDate) : "Pilih tanggal"}
-                        </Text>
-                      </PressableScale>
-                      <DatePickerSheet
-                        visible={propDeadlineOpen}
-                        onRequestClose={() => setPropDeadlineOpen(false)}
-                        value={propDeadlineDate}
-                        onSelect={(d) => {
-                          setPropDeadlineDate(normalizePickerDate(d))
-                          setPropDeadlineOpen(false)
-                        }}
-                        title="Tenggat baru"
-                      />
-                    </Field>
+                    {/* FE-052: <AmountInput> tervalidasi — pemisah ribuan saat
+                        mengetik; state digit mentah (string) — nilai ke
+                        backend tidak berubah. */}
+                    <AmountInput
+                      label="Nilai baru (opsional, rupiah)"
+                      value={propAmount ? Number(propAmount) : 0}
+                      onChange={(n) => setPropAmount(n > 0 ? String(n) : "")}
+                      placeholder="cth. 1.500.000"
+                      reserveHelperSpace={false}
+                    />
+                    <DateField
+                      label="Tenggat baru (opsional)"
+                      value={propDeadlineDate}
+                      onChange={(d) => setPropDeadlineDate(normalizePickerDate(d))}
+                      title="Tenggat baru"
+                    />
                     <Field label="Catatan">
                       <TextArea
                         value={propNote}
