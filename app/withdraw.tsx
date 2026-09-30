@@ -734,7 +734,7 @@ export default function WithdrawScreen() {
                 key={acc.id}
                 bankName={acc.bankName ?? acc.bankCode}
                 bankCode={acc.bankCode}
-                accountNumber={acc.accountNumber}
+                accountNumber={acc.accountNumber ?? ""}
                 accountHolder={acc.accountName}
                 primary={acc.isPrimary}
                 verified={acc.isVerified}

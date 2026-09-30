@@ -790,7 +790,7 @@ export function formatDurationWords(totalSeconds: number, placeholder = "—"): 
  * Sekarang grup dibentuk dari bagian tersembunyi, dan ekor yang terlihat
  * selalu menjadi satu grup utuh.
  */
-export function maskAccountNumber(account: string, visible = 4): string {
+export function maskAccountNumber(account: string | undefined, visible = 4): string {
   const digits = asText(account).replace(/\s/g, "")
   const shown = Math.max(0, Math.min(visible, digits.length))
   const hidden = digits.length - shown

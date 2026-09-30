@@ -149,7 +149,8 @@ export default function SettingsScreen() {
       const deviceApi = {
         registerDevice: (dto: Parameters<typeof api.notifications.registerDevice>[0]) =>
           api.notifications.registerDevice(dto),
-        unregisterDevice: () => api.notifications.unregisterDevice(),
+        unregisterDevice: (deviceId: string) =>
+          api.notifications.unregisterDevice(deviceId),
       }
       if (Platform.OS === "web")
         await unregisterWebPushDevice(deviceApi).catch((err) => logWarn("settings:unregister-push", err))

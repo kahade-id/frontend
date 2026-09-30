@@ -419,7 +419,8 @@ function WebPushOptIn() {
       const token = await registerWebPushDevice(
         {
           registerDevice: (dto) => api.notifications.registerDevice(dto),
-          unregisterDevice: () => api.notifications.unregisterDevice(),
+          unregisterDevice: (deviceId: string) =>
+            api.notifications.unregisterDevice(deviceId),
         },
         { force: true },
       )
