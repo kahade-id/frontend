@@ -14,7 +14,7 @@
  *     untuk error format; ketersediaan adalah informasi, bukan kesalahan input.
  */
 import { At, Check, X } from "phosphor-react-native"
-import { forwardRef, useMemo } from "react"
+import { forwardRef, useMemo, useState } from "react"
 import { TextInput, View } from "react-native"
 
 import { Icon } from "@/components/ui/icon"
@@ -89,11 +89,18 @@ export type UsernameFieldProps = Omit<
 }
 
 export const UsernameField = forwardRef<TextInput, UsernameFieldProps>(function UsernameField(
-  { value, onChangeText, availability = "idle", labels, label, helperText, errorText, showFinalFormPreview = true, ...rest },
+  { value, onChangeText, availability = "idle", labels, label, helperText, errorText, showFinalFormPreview = true, onBlur, ...rest },
   ref,
 ) {
   const t = { ...defaultLabels(), ...labels }
-  const formatError = useMemo(() => validateUsername(value, t), [value, t])
+  // FRM-008: error "minimal 3 karakter" memerah sejak keystroke pertama —
+  // tampilkan hanya setelah blur; saat mengetik cukup hint netral.
+  const [blurred, setBlurred] = useState(false)
+  const formatError = useMemo(() => {
+    const err = validateUsername(value, t)
+    if (!blurred && err === t.tooShort) return undefined
+    return err
+  }, [value, t, blurred])
   const resolvedError = errorText ?? formatError
 
   const statusHelper =
@@ -113,7 +120,15 @@ export const UsernameField = forwardRef<TextInput, UsernameFieldProps>(function 
         ref={ref}
         label={label ?? t.label}
         value={value}
-        onChangeText={(v) => onChangeText(normalizeUsername(v))}
+        onChangeText={(v) => {
+          const next = normalizeUsername(v)
+          if (!next) setBlurred(false)
+          onChangeText(next)
+        }}
+        onBlur={(e) => {
+          setBlurred(true)
+          onBlur?.(e)
+        }}
         leftIcon={At}
         autoCapitalize="none"
         autoCorrect={false}
