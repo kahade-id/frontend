@@ -442,7 +442,7 @@ export function AmountKeypad({
               variant="monoLarge"
               tone={digits.length === 0 ? "disabled" : resolvedError ? "danger" : "primary"}
               adjustsFontSizeToFit
-              minimumFontScale={0.6}
+              minimumFontScale={0.75}
               numberOfLines={1}
             >
               {displayed}

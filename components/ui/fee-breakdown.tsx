@@ -235,9 +235,9 @@ export function FeeBreakdown({
             {t.responsibility.SPLIT}
           </Text>
           {" — "}
-          <Amount value={share.buyer} size="body" tone="inherit" className="text-caption" />
+          <Amount value={share.buyer} size="body" tone="inherit" />
           {" / "}
-          <Amount value={share.seller} size="body" tone="inherit" className="text-caption" />
+          <Amount value={share.seller} size="body" tone="inherit" />
           {/* B-11: sisa pembulatan 1 Rupiah dibebankan ke pembeli —
               dieksplisitkan, bukan diam-diam tersembunyi di angka baris atas. */}
           {share.buyer !== share.seller ? " (sisa pembulatan ke pembeli)" : ""}

@@ -239,7 +239,7 @@ export function ChatCreateOrderSheet({
           <>
             <View className="flex-row items-center gap-2 rounded-md bg-success-soft p-3">
               <Icon icon={ShieldCheck} size={20} tone="success" />
-              <Text variant="caption" tone="primary" className="flex-1">
+              <Text variant="body" tone="primary" className="flex-1">
                 Dana pembeli dikunci di escrow Kahade dan baru cair setelah barang
                 diterima. Bukan transfer langsung.
               </Text>
@@ -416,7 +416,7 @@ function ReviewStep({
   return (
     <View className="gap-4">
       <View>
-        <Text variant="caption" weight={600} tone="secondary" className="mb-1">
+        <Text variant="label" weight={600} tone="secondary" className="mb-1">
           Ringkasan order
         </Text>
         <View className="rounded-md border border-border bg-surface px-3 py-1">
@@ -435,7 +435,7 @@ function ReviewStep({
       </View>
 
       <View>
-        <Text variant="caption" weight={600} tone="secondary" className="mb-1">
+        <Text variant="label" weight={600} tone="secondary" className="mb-1">
           Rincian biaya (dihitung server)
         </Text>
         {feeLoading ? (
@@ -461,7 +461,7 @@ function ReviewStep({
             <SummaryRow label="Penjual menerima" value={formatRupiah(fee.sellerReceives)} />
           </View>
         ) : null}
-        <Text variant="caption" tone="secondary" className="mt-1.5">
+        <Text variant="body" tone="secondary" className="mt-1.5">
           Dana pembeli dikunci di escrow Kahade dan baru cair setelah barang diterima.
         </Text>
       </View>

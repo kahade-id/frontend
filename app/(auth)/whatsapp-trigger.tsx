@@ -442,7 +442,7 @@ export default function WhatsappTriggerScreen() {
                 Salin kode
               </TextLink>
             </View>
-            <Text variant="monoBody" weight={700} className="text-lg tracking-widest">
+            <Text variant="monoBody" weight={600} className="text-lg tracking-widest">
               {refCode}
             </Text>
             {/*

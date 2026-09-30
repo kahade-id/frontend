@@ -37,6 +37,7 @@ import { shareContent } from "@/lib/share"
 import { useToast } from "@/components/ui/toast"
 import { useWalletEnabled } from "@/lib/use-wallet-enabled"
 
+import { Amount } from "@/components/ui/amount"
 import { Badge } from "@/components/ui/badge"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Button } from "@/components/ui/button"
@@ -67,7 +68,7 @@ function ParticipantRow({ p, perPerson }: { p: PatunganParticipant; perPerson: n
   return (
     <Card variant="outline" className="gap-1 p-3">
       <View className="flex-row items-center gap-2">
-        <Text variant="caption" tone="secondary" className="flex-1 tabular-nums" numberOfLines={1}>
+        <Text variant="monoBody" tone="secondary" className="flex-1" numberOfLines={1}>
           {p.amountIdr != null ? formatRupiah(p.amountIdr) : perPerson != null ? formatRupiah(perPerson) : "—"}
         </Text>
         <Badge tone="neutral">{PATUNGAN_PARTICIPANT_STATUS_LABELS[p.status] ?? p.status}</Badge>
@@ -258,7 +259,7 @@ export default function PatunganDetailScreen() {
       <View className="gap-4 px-5 pb-8 pt-3">
         <Card variant="outline" className="gap-2 p-4">
           <View className="flex-row items-center gap-2">
-            <Text variant="h3" weight={700} className="flex-1">
+            <Text variant="h3" className="flex-1">
               {group.title}
             </Text>
             <Badge tone={STATUS_TONE[group.status] ?? "neutral"}>
@@ -275,11 +276,11 @@ export default function PatunganDetailScreen() {
           </Badge>
           <ProgressBar value={pct} />
           <View className="flex-row justify-between">
-            <Text variant="caption" tone="secondary" className="tabular-nums">
-              {translate("Terkumpul")}: {formatRupiah(group.totalPaidIdr)}
+            <Text variant="caption" tone="secondary">
+              {translate("Terkumpul")}: <Amount value={group.totalPaidIdr} size="body" tone="inherit" animated={false} />
             </Text>
-            <Text variant="caption" tone="secondary" className="tabular-nums">
-              {translate("Target")}: {group.targetAmountIdr != null ? formatRupiah(group.targetAmountIdr) : "—"}
+            <Text variant="caption" tone="secondary">
+              {translate("Target")}: {group.targetAmountIdr != null ? <Amount value={group.targetAmountIdr} size="body" tone="inherit" animated={false} /> : "—"}
             </Text>
           </View>
           <View className="flex-row items-center gap-4">
@@ -300,8 +301,8 @@ export default function PatunganDetailScreen() {
             </View>
           </View>
           {group.remainingIdr > 0 ? (
-            <Text variant="caption" tone="secondary" className="tabular-nums">
-              {translate("Sisa")}: {formatRupiah(group.remainingIdr)}
+            <Text variant="caption" tone="secondary">
+              {translate("Sisa")}: <Amount value={group.remainingIdr} size="body" tone="inherit" animated={false} />
             </Text>
           ) : null}
           {group.inviteCode ? (
@@ -329,9 +330,9 @@ export default function PatunganDetailScreen() {
             <Text variant="body" weight={600}>
               {translate("Kelebihan dana")}
             </Text>
-            <Text variant="caption" tone="secondary" className="tabular-nums">
-              {translate("Total lebih")}: {formatRupiah(group.overfundingIdr)} →{" "}
-              {translate("pengurang")} {formatRupiah(group.overfundingPerPersonIdr)}/{translate("orang")}
+            <Text variant="caption" tone="secondary">
+              {translate("Total lebih")}: <Amount value={group.overfundingIdr} size="body" tone="inherit" animated={false} /> →{" "}
+              {translate("pengurang")} <Amount value={group.overfundingPerPersonIdr} size="body" tone="inherit" animated={false} />/{translate("orang")}
             </Text>
           </Card>
         ) : null}
@@ -363,8 +364,8 @@ export default function PatunganDetailScreen() {
                 {PATUNGAN_PARTICIPANT_STATUS_LABELS[myParticipation.status] ?? myParticipation.status}
               </Badge>
             </View>
-            <Text variant="caption" tone="secondary" className="tabular-nums">
-              {translate("Iuran")}: {myParticipation.amountIdr != null ? formatRupiah(myParticipation.amountIdr) : "—"}
+            <Text variant="caption" tone="secondary">
+              {translate("Iuran")}: {myParticipation.amountIdr != null ? <Amount value={myParticipation.amountIdr} size="body" tone="inherit" animated={false} /> : "—"}
             </Text>
             {(myParticipation.status === "JOINED" || myParticipation.status === "PAID") &&
             !myParticipation.orderId &&

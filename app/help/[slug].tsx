@@ -415,7 +415,7 @@ export default function HelpScreen() {
                 <FeedbackBlock articleId={selected.id} content={content} />
                 {related.length > 0 ? (
                   <View className="gap-2">
-                    <Text variant="h3" weight={700}>
+                    <Text variant="h3">
                       Artikel terkait
                     </Text>
                     {related.map((item) => (

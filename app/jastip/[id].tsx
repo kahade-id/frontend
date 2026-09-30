@@ -35,6 +35,7 @@ import { formatRupiahTypingText, parseRupiahTypingText } from "@/lib/rupiah-inpu
 import { ROUTES } from "@/lib/routes"
 import { useToast } from "@/components/ui/toast"
 
+import { Amount } from "@/components/ui/amount"
 import { Badge } from "@/components/ui/badge"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Button } from "@/components/ui/button"
@@ -64,9 +65,7 @@ function PriceBreakdown({ p }: { p: JastipParticipant }) {
             <Text variant="caption" tone="secondary">
               {label}
             </Text>
-            <Text variant="caption" className="tabular-nums">
-              {formatRupiah(value)}
-            </Text>
+            <Amount value={value} size="body" animated={false} />
           </View>
         ) : null,
       )}
@@ -75,9 +74,7 @@ function PriceBreakdown({ p }: { p: JastipParticipant }) {
           <Text variant="caption" weight={700}>
             {translate("Total")}
           </Text>
-          <Text variant="caption" weight={700} className="tabular-nums">
-            {formatRupiah(p.totalLockedIdr)}
-          </Text>
+          <Amount value={p.totalLockedIdr} size="body" animated={false} />
         </View>
       ) : null}
     </View>
@@ -307,7 +304,7 @@ export default function JastipDetailScreen() {
         <View className="gap-4">
           <Card variant="outline" className="gap-2 p-4">
             <View className="flex-row items-center gap-2">
-              <Text variant="h3" weight={700} className="flex-1">
+              <Text variant="h3" className="flex-1">
                 {trip.title}
               </Text>
               <Badge tone={trip.status === "OPEN" ? "success" : trip.status === "FAILED" ? "danger" : "neutral"}>

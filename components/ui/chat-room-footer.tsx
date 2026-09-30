@@ -148,7 +148,7 @@ export const ChatRoomFooter = memo(function ChatRoomFooter({
           <View className="items-center justify-center gap-1.5 rounded-lg bg-surface-elevated px-4 py-3">
             <View className="flex-row items-center gap-2">
               <Icon icon={CheckCircle} size="sm" tone="default" />
-              <Text variant="caption" tone="secondary" className="text-center font-medium">
+              <Text variant="caption" tone="secondary" weight={500} className="text-center">
                 {closedNotice}
               </Text>
             </View>

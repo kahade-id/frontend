@@ -735,7 +735,7 @@ export function OrderConfirmDialogs({
             <Text variant="caption" tone="secondary">
               Anda akan menerima
             </Text>
-            <Text variant="h2" weight={700} tone="primary" className="tabular-nums">
+            <Text variant="h2" tone="primary" className="tabular-nums">
               {formatRupiah(acceptSellerAmount)}
             </Text>
             {acceptFeeNote ? (
@@ -782,7 +782,7 @@ export function OrderConfirmDialogs({
             <Text variant="caption" tone="secondary">
               Dana escrow yang dilepas ke penjual
             </Text>
-            <Text variant="h2" weight={700} tone="primary" className="tabular-nums">
+            <Text variant="h2" tone="primary" className="tabular-nums">
               {formatRupiah(escrowAmount)}
             </Text>
           </View>
