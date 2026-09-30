@@ -229,7 +229,7 @@ export async function setupNotifications(): Promise<void> {
   if (!handlerInstalled) {
     Notifications.setNotificationHandler({
       handleNotification: async (notification) => {
-        // Toggle granular lokal (layar "Pengaturan Notifikasi"): jenis yang
+        // Toggle granular lokal (layar "Notifikasi Perangkat Ini"): jenis yang
         // dimatikan pengguna tidak memunculkan banner/tray saat app
         // foreground. Fail-open: tipe tak dikenal (`null`) tetap tampil.
         // Badge tetap dihitung — tab Notifikasi in-app tidak disembunyikan.

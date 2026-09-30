@@ -32,7 +32,7 @@
  *    seperti punya dua target sentuh padahal seluruh baris adalah tombol.
  *  - Mode pilih (maks 50 = BatchNotificationIdsDto): read-batch & delete-batch.
  *  - Menu ⋮ → "Pilih beberapa", "Hapus yang sudah dibaca"
- *    (`POST /v1/notifications/delete-read`), dan "Pengaturan notifikasi".
+ *    (`POST /v1/notifications/delete-read`), dan "Notifikasi perangkat ini".
  *  - Infinite scroll (page/limit, spec: max 100, default 20) + pull-to-refresh.
  *  - Skeleton loading pertama, EmptyState, ErrorState eksplisit.
  *
@@ -784,7 +784,7 @@ function NotificationsScreen() {
     // Item 41: jalan pintas ke pengaturan notifikasi dari menu.
     {
       key: "settings",
-      label: "Pengaturan notifikasi",
+      label: "Notifikasi perangkat ini",
       icon: GearSix,
       onPress: () => {
         setMenuOpen(false)

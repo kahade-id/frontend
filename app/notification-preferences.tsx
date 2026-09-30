@@ -158,7 +158,7 @@ export default function NotificationPreferencesScreen() {
 
   return (
     <DataScreen
-      title="Preferensi Notifikasi"
+      title={translate("Preferensi Notifikasi Server")}
       state={query}
       loadingMessage="Memuat preferensi…"
     >

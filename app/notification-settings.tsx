@@ -1,5 +1,5 @@
 /**
- * Screen — Pengaturan Notifikasi (toggle granular per jenis).
+ * Screen — Notifikasi Perangkat Ini (toggle granular per jenis, lokal).
  *
  * PENTING: ini PREFERENSI LOKAL perangkat (SecureStore), bukan preferensi
  * server. Toggle di sini hanya menahan banner + entri tray sistem untuk
@@ -62,7 +62,7 @@ export default function NotificationSettingsScreen() {
 
   return (
     <Screen edges={["top"]}>
-      <Header title={translate("Pengaturan Notifikasi")} />
+      <Header title={translate("Notifikasi Perangkat Ini")} />
       <View className="gap-4 px-5 pt-3">
         <SectionHeader
           title={translate("Jenis notifikasi")}
