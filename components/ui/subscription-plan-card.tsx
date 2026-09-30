@@ -118,7 +118,12 @@ export function useInverseScopeVars() {
       "--color-primary": p.primaryForeground,
       "--color-primary-foreground": p.primary,
       "--color-text-primary": p.primaryForeground,
-      "--color-text-secondary": p.primaryForeground,
+      // UX-COL-014 (audit UI/UX 2026-10-01): secondary = 70% primaryForeground
+      // (dulu identik dengan text-primary → hierarki runtuh untuk komponen
+      // bertoken di scope ini yang memakai text-secondary). #FFFFFFB3 di
+      // atas hitam = 11.4:1; #000000B3 di atas putih ≈ 10.4:1 — tetap jauh
+      // di atas AA, jadi aman dari kekhawatiran opacity di docblock §9.6.
+      "--color-text-secondary": `${p.primaryForeground}B3`,
       "--color-border-default": p.primaryForeground,
     })
   }, [mode])

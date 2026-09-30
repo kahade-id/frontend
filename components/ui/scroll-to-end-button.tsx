@@ -85,7 +85,10 @@ export function ScrollToEndButton({
               className="absolute -right-1 -top-1 min-w-5 items-center justify-center rounded-full bg-danger px-1"
               pointerEvents="none"
             >
-              <Text variant="caption" weight={700} tone="inverse" className="tabular-nums">
+              {/* UX-COL-002 (audit UI/UX 2026-10-01): bg-danger di dark = #F87171
+                  (terang) — text-white polos hanya 2.77:1. Ikuti pola
+                  button.tsx:77 / count-badge.tsx:58: dark:text-gray-950. */}
+              <Text variant="caption" weight={700} className="text-white dark:text-gray-950 tabular-nums">
                 {count > 99 ? "99+" : String(count)}
               </Text>
             </View>

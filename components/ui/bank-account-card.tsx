@@ -110,6 +110,9 @@ function BankAvatar({
         logo ? "bg-white" : avatarColor(bankCode ?? bankName),
       )}
     >
+      {/* UX-COL-003 (audit UI/UX 2026-10-01): inisial PUTIH eksplisit di kedua
+          mode. tone="inverse" = hitam di dark mode (2.51-3.94:1 di atas palet
+          -700); semua -700 >= 5:1 vs putih. */}
       {logo ? (
         <Picture
           source={logo}
@@ -120,7 +123,7 @@ function BankAvatar({
           radius="none"
         />
       ) : (
-        <Text variant="h3" weight={700} tone="inverse">
+        <Text variant="h3" weight={700} className="text-white">
           {initial}
         </Text>
       )}

@@ -70,7 +70,9 @@ export const ChatViewOnce = memo(function ChatViewOnce({
         accessibilityLabel="Buka pesan sekali lihat"
         accessibilityHint="Pesan akan hilang setelah dibuka"
         className={`flex-row items-center gap-2 rounded-sm px-3 py-2 ${
-          outgoing ? "bg-black/15" : "bg-background"
+          // UX-COL-005: pola CHT-013 — bg-black/15 tak terlihat di bubble
+          // hitam (light mode); pakai putih di light, hitam di dark.
+          outgoing ? "bg-white/15 dark:bg-black/15" : "bg-background"
         }`}
       >
         <Icon icon={Eye} size={16} tone={outgoing ? "inverse" : "info"} />

@@ -103,6 +103,14 @@ export const gray = {
  * satu kolom "Fill (dark)"; fill terang di atas bgSoft gelap sudah > AA di
  * semua ukuran teks, jadi tidak perlu dipisah — sama seperti keputusan
  * text-tertiary == text-secondary di dark mode.
+ *
+ * PENGECUALIAN RESMI (UX-COL-012, audit UI/UX 2026-10-01): `danger` dipakai
+ * sebagai bahasa "suka" — <LikeAction> (hati merah) dan overlay hati merah
+ * di feed. Ini keputusan produk yang disadari, mengikuti konvensi Instagram:
+ * merah di sini BUKAN status error; pembedanya adalah bentuk (ikon hati) +
+ * konteks (feed), bukan warna. Jangan meniru pola "danger = makna positif"
+ * di tempat lain — status/aksi positif tetap memakai `success` atau tone
+ * semestinya.
  */
 export const semantic = {
   success: {

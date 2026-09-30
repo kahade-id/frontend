@@ -41,7 +41,11 @@ import { cn } from "@/lib/cn"
 
 export type SealTier = "gold" | "blue" | "gray"
 
-/** Warna seal per tier — identitas visual tetap di light & dark mode. */
+/**
+ * Warna seal per tier — nilai single-mode HISTORIS. Jangan dipakai untuk
+ * render langsung; pakai `sealTierColor(tier, mode)` yang theme-aware
+ * (UX-COL-006/015). Dipertahankan sebagai export agar kompatibel.
+ */
 export const SEAL_TIER_COLOR: Record<SealTier, string> = {
   gold: "#C9A227",
   blue: "#1D9BF0",
@@ -52,13 +56,31 @@ export const SEAL_TIER_COLOR: Record<SealTier, string> = {
 }
 
 /**
- * FE-131 (audit frontend 2026-09-29): warna tier seal yang theme-aware.
- * Emas/biru = identitas brand, sengaja tetap di kedua mode; abu = token
- * `badgeGray` per-mode (light #6B7280, dark #9CA3AF — keduanya lolos AA,
- * sedangkan #6B7280 di dark hanya ±3.94:1 vs background).
+ * UX-COL-006/015 (audit UI/UX 2026-10-01): emas & biru kini theme-aware
+ * seperti gray (FE-131). Versi light digelapkan agar lolos AA di atas
+ * putih — ikon seal adalah grafis bermakna (ambang WCAG 1.4.11 = 3:1,
+ * target kami ≥ 4.5:1 agar ada margin antar-perangkat):
+ * - gold: light #8C6D1F (4.86:1 vs putih) · dark #C9A227 (7.19:1 vs surface)
+ * - blue: light #0F7AB8 (4.67:1 vs putih) · dark #1D9BF0 (5.80:1 vs surface)
+ */
+const SEAL_TIER_LIGHT: Record<Exclude<SealTier, "gray">, string> = {
+  gold: "#8C6D1F",
+  blue: "#0F7AB8",
+}
+const SEAL_TIER_DARK: Record<Exclude<SealTier, "gray">, string> = {
+  gold: "#C9A227",
+  blue: "#1D9BF0",
+}
+
+/**
+ * FE-131 (audit frontend 2026-09-29) + UX-COL-006/015: warna tier seal yang
+ * theme-aware. Abu = token `badgeGray` per-mode (light #6B7280, dark
+ * #9CA3AF — keduanya lolos AA, sedangkan #6B7280 di dark hanya ±3.94:1
+ * vs background).
  */
 export function sealTierColor(tier: SealTier, mode: ColorMode): string {
-  return tier === "gray" ? modes[mode].badgeGray : SEAL_TIER_COLOR[tier]
+  if (tier === "gray") return modes[mode].badgeGray
+  return (mode === "dark" ? SEAL_TIER_DARK : SEAL_TIER_LIGHT)[tier]
 }
 
 const SEAL_TIER_LABEL: Record<SealTier, string> = {
@@ -102,11 +124,14 @@ const BADGE_ICON_MAP: Partial<Record<string, IconComponent>> = {
 function badgeIconColor(type: string, mode: ColorMode): string {
   switch (type) {
     case "TRUSTED_BY_KAHADE":
-      return SEAL_TIER_COLOR.gold
+      return sealTierColor("gold", mode)
     case "BUSINESS_VERIFIED":
-      return SEAL_TIER_COLOR.blue
+      return sealTierColor("blue", mode)
     case "KAHADE_PLUS":
-      return "#8B5CF6"
+      // UX-COL-008: theme-aware (dulu hardcode #8B5CF6 — 4.23:1 di light,
+      // 4.11:1 di dark surface, di bawah ambang teks 4.5).
+      // light #7C3AED (5.70:1 vs putih) · dark #A78BFA (6.40:1 vs #1A1A1A).
+      return mode === "dark" ? "#A78BFA" : "#7C3AED"
     default:
       return sealTierColor("gray", mode)
   }

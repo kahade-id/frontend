@@ -67,7 +67,9 @@ export const ChatLocationCard = memo(function ChatLocationCard({
       <View className="flex-row items-center gap-2">
         <View
           className={`h-9 w-9 items-center justify-center rounded-full ${
-            outgoing ? "bg-black/15" : "bg-info-soft"
+            // UX-COL-011: pola CHT-013 — bg-black/15 tak terlihat di bubble
+            // hitam (light mode); pakai putih di light, hitam di dark.
+            outgoing ? "bg-white/15 dark:bg-black/15" : "bg-info-soft"
           }`}
         >
           <Icon icon={MapPin} size={18} tone={outgoing ? "inverse" : "info"} weight="fill" />
@@ -92,7 +94,9 @@ export const ChatLocationCard = memo(function ChatLocationCard({
         accessibilityRole="link"
         accessibilityLabel={`Buka lokasi di peta: ${label}`}
         className={`flex-row items-center justify-center gap-1.5 rounded-sm py-1.5 ${
-          outgoing ? "bg-black/15" : "bg-background"
+          // UX-COL-004: pola CHT-013 — bg-black/15 tak terlihat di bubble
+          // hitam (light mode); pakai putih di light, hitam di dark.
+          outgoing ? "bg-white/15 dark:bg-black/15" : "bg-background"
         }`}
       >
         <Icon icon={NavigationArrow} size={14} tone={outgoing ? "inverse" : "info"} />

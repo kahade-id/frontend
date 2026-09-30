@@ -63,7 +63,10 @@ export const KAHADE_PLUS_THEMES: KahadePlusThemeDef[] = [
     description: "Aksen emas khas anggota premium.",
     appIconId: "icon-gold",
     colors: {
-      light: { fill: "#C9A227", text: "#8C6D1F", bgSoft: "#FBF3DC", onFill: "#FFFFFF" },
+      // UX-COL-009 (audit UI/UX 2026-10-01): text #8C6D1F di bgSoft #FBF3DC
+      // hanya 4.39:1 (< 4.5). #7A5F1A = 5.45:1 — digelapkan selagi belum
+      // dipakai untuk teks, agar siap-AA saat dipakai.
+      light: { fill: "#C9A227", text: "#7A5F1A", bgSoft: "#FBF3DC", onFill: "#FFFFFF" },
       dark: { fill: "#E3B93B", text: "#EBCB6B", bgSoft: "#3A2E0C", onFill: "#1A1405" },
     },
   },

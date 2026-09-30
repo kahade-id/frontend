@@ -520,8 +520,11 @@ export function AppDrawer() {
   const panelStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: (drawerProgress.value - 1) * drawerWidth }],
   }))
+  // UX-COL-010: base kini token overlay (0.4 light / 0.6 dark) — pengali
+  // 0.5 lama hanya kompensasi base "#000" opak; tanpa pengali, hasil akhir
+  // ≈ 0.5 lama (0.4/0.6 vs 0.5) dan konsisten dengan scrim lain.
   const backdropStyle = useAnimatedStyle(() => ({
-    opacity: drawerProgress.value * 0.5,
+    opacity: drawerProgress.value,
   }))
 
   // Swipe kiri untuk menutup; swipe kanan tidak membuka (hanya hamburger).
@@ -569,8 +572,10 @@ export function AppDrawer() {
       accessibilityRole="menu"
       accessibilityLabel={translate("Menu navigasi")}
     >
-      {/* Backdrop memudar — ketuk untuk menutup. */}
-      <Reanimated.View style={[{ flex: 1, backgroundColor: "#000" }, backdropStyle]}>
+      {/* Backdrop memudar — ketuk untuk menutup.
+          UX-COL-010: pakai token overlay (bukan literal "#000") agar konsisten
+          dengan scrim BottomSheet/Modal/ActionSheet bila token disesuaikan. */}
+      <Reanimated.View style={[{ flex: 1, backgroundColor: modes[themeMode].overlay }, backdropStyle]}>
         <Pressable
           style={{ flex: 1 }}
           onPress={closeDrawer}

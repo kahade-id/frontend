@@ -76,6 +76,7 @@ import { Avatar } from "@/components/ui/avatar"
 import { Alert } from "@/components/ui/alert"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Button } from "@/components/ui/button"
+import { PressableScale } from "@/components/ui/pressable-scale"
 import { Switch } from "@/components/ui/switch"
 import { Header } from "@/components/ui/header"
 import { Icon, type IconComponent } from "@/components/ui/icon"
@@ -1004,13 +1005,23 @@ export default function ScanScreen() {
             <Text variant="body" className="text-white text-center">
               @{myUsername}
             </Text>
-            <Button
-              variant="secondary"
-              leftIcon={X}
+            {/* UX-COL-001 (audit UI/UX 2026-10-01, P0): overlay ini SELALU
+                hitam permanen — tombol pakai putih EKSPLISIT (bukan token
+                adaptif). variant="secondary" memakai text-text-primary yang
+                hitam di light mode → 1:1 di atas bg-black, tombol tak terbaca
+                dan user terjebak. */}
+            <PressableScale
+              accessibilityRole="button"
+              accessibilityLabel={translate("Tutup pratinjau kode QR")}
               onPress={() => void closeQrZoom()}
+              containerClassName="w-full"
+              className="w-full flex-row items-center justify-center gap-2 rounded-sm border border-white/60 px-5 py-3"
             >
-              Tutup
-            </Button>
+              <Icon icon={X} size="sm" color="#FFFFFF" />
+              <Text variant="body" weight={600} className="text-center text-white">
+                {translate("Tutup")}
+              </Text>
+            </PressableScale>
           </View>
         </View>
       ) : null}
