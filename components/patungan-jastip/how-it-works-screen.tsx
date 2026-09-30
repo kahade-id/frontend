@@ -76,7 +76,9 @@ export function HowItWorksScreen({ mode }: { mode: HowItWorksMode }) {
   const steps = isPatungan ? PATUNGAN_STEPS : JASTIP_STEPS
 
   return (
-    <Screen edges={["top"]} padded={false}>
+    // UX-SPA-010: konten ~950pt (intro + 7 langkah + simulasi) — tanpa scroll
+    // bagian bawah terpotong di layar kecil (mis. iPhone SE 667pt).
+    <Screen edges={["top"]} padded={false} scroll>
       <Header title={title} />
       <View className="gap-6 px-5 pb-10 pt-4">
         <Text variant="body" tone="secondary" className="text-pretty">

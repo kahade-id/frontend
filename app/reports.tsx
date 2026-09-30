@@ -163,7 +163,9 @@ export default function ReportsScreen() {
           </View>
         ) : null}
 
-        <View className="gap-3" style={{ paddingTop: tokens.space[3] }}>
+        {/* UX-SPA-017: gap-4 seperti transaction-templates.tsx:249 untuk pola
+            daftar kartu yang sama. */}
+        <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
           <SectionHeader title="Laporan saya" />
           <Crossfade loading={reports.loading} skeleton={<ListLoading />}>
             {reports.error ? (

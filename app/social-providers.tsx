@@ -141,7 +141,8 @@ export default function SocialProvidersScreen() {
         <MenuGroupLabel>Tertaut ke akun ini</MenuGroupLabel>
         <View className="w-full overflow-hidden rounded-md bg-surface">
           {linked.length === 0 ? (
-            <Text variant="body" tone="secondary" className="px-4 py-3">
+            // UX-SPA-015: px-5 agar sejajar baris ListItem saat daftar terisi.
+            <Text variant="body" tone="secondary" className="px-5 py-3">
               Belum ada akun Google/Apple yang tertaut. Menautkan memberi Anda cara masuk
               cadangan selain kata sandi.
             </Text>

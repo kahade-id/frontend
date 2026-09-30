@@ -286,8 +286,8 @@ export default function SettingsScreen() {
           trailing={item.trailing}
           chevron
           divider={false}
-          padded={false}
-          className="px-4 py-3"
+          // UX-SPA-014: pakai default ListItem (px-5) — px-4 membuat baris
+          // menjorok 4px vs label seksi & layar menu sibling.
           href={item.route}
         />
       ))}
@@ -300,7 +300,9 @@ export default function SettingsScreen() {
 
       <ScrollView
         contentContainerStyle={{
-          paddingBottom: insets.bottom + tokens.space[16],
+          // UX-SPA-013: standar space[8] (32px) seperti layar menu sibling
+          // & DataScreen — space[16] (64px) memberi ruang kosong berlebih.
+          paddingBottom: insets.bottom + tokens.space[8],
         }}
         showsVerticalScrollIndicator={false}
       >
