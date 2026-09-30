@@ -130,7 +130,7 @@ export function FeeResponsibilitySelector({
   const options: ToggleOption<FeeResponsibility>[] = (["BUYER", "SELLER", "SPLIT"] as const).map((v) => {
     let hint: string | undefined
     if (feeAmount != null) {
-      // splitFee = sumber tunggal pembagian (SPLIT: pembulatan ke atas di pembeli)
+      // splitFee = sumber tunggal pembagian (SPLIT: sisa pembulatan ke penjual, mirror backend — DBL-001)
       const share = splitFee(feeAmount, v)
       hint = formatRupiah(viewer === "BUYER" ? share.buyer : share.seller)
     }

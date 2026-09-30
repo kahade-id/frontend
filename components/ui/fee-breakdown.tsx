@@ -13,8 +13,10 @@
  *     sama. Sisi user diberi `emphasis` (KeyValue total), sisi lawan tetap
  *     baris biasa — hierarki dari ukuran, bukan disembunyikan.
  *   - Porsi biaya per pihak dihitung DI SINI hanya untuk tampilan dari
- *     `feeAmount` + `feeResponsibility` (SPLIT = dibagi dua, pembulatan ke
- *     atas di pembeli agar jumlah pas). Angka akhir `buyerPays`/`sellerGets`
+ *     `feeAmount` + `feeResponsibility` (SPLIT = dibagi dua; sisa pembulatan
+ *     fee ganjil ke PENJUAL, mirror backend `fee-calculator.service.ts`
+ *     case 'SPLIT' — DBL-001 audit integrasi 2026-10-01). Angka akhir
+ *     `buyerPays`/`sellerGets`
  *     WAJIB dari server — server adalah sumber kebenaran; bila pemanggil
  *     tidak mengirimnya, baris total menampilkan "—" (WF-024), bukan
  *     hitungan lokal yang berpotensi beda dari backend.
@@ -238,9 +240,9 @@ export function FeeBreakdown({
           <Amount value={share.buyer} size="body" tone="inherit" />
           {" / "}
           <Amount value={share.seller} size="body" tone="inherit" />
-          {/* B-11: sisa pembulatan 1 Rupiah dibebankan ke pembeli —
+          {/* DBL-001: sisa pembulatan 1 Rupiah ditanggung penjual (mirror backend) —
               dieksplisitkan, bukan diam-diam tersembunyi di angka baris atas. */}
-          {share.buyer !== share.seller ? " (sisa pembulatan ke pembeli)" : ""}
+          {share.buyer !== share.seller ? " (sisa pembulatan ke penjual)" : ""}
         </Text>
       ) : null}
     </>

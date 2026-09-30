@@ -7,11 +7,13 @@
  * ini untuk string non-uang, dengan strategi mask per jenis data:
  *   - "all"     : 8 bullet tetap — panjang tidak membocorkan panjang nilai
  *                 (keputusan sama dengan <Amount hidden>)
- *   - "account" : "•••• •••• 1234" (lib/format maskAccountNumber) — 4 digit
+ *   - "account" : "••••••1234" (lib/format maskAccountNumber) — 4 digit
  *                 akhir tetap terlihat karena itu yang dipakai user untuk
- *                 memverifikasi rekening tujuan
- *   - "email"   : "b•••@domain.com" — huruf pertama + domain
- *   - "phone"   : 4 digit akhir terlihat, sisanya bullet, tetap berkelompok
+ *                 memverifikasi rekening tujuan (DBL-014: gaya kanonis admin)
+ *   - "email"   : "bu•••@domain.com" — dua huruf pertama + domain
+ *                 (DBL-012: gaya kanonis admin)
+ *   - "phone"   : "+62••• ••• 7890" — kode negara + 4 digit akhir terlihat
+ *                 (DBL-013: gaya kanonis admin)
  *   - function  : mask kustom (value) => string
  *
  * Keputusan non-obvious:
@@ -35,7 +37,7 @@ import { Eye, EyeSlash } from "phosphor-react-native"
 import { IconButton } from "@/components/ui/icon-button"
 import { Text, type TextProps } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
-import { maskAccountNumber } from "@/lib/format"
+import { maskAccountNumber, maskEmail, maskPhone } from "@/lib/format"
 
 export type SensitiveMask = "all" | "account" | "email" | "phone" | ((value: string) => string)
 
@@ -54,18 +56,8 @@ const DEFAULT_LABELS: SensitiveTextLabels = {
 const BULLET = "\u2022"
 const ALL_HIDDEN = BULLET.repeat(8)
 
-function maskEmail(v: string): string {
-  const at = v.indexOf("@")
-  if (at <= 0) return ALL_HIDDEN
-  return `${v[0]}${BULLET.repeat(3)}${v.slice(at)}`
-}
-
-function maskPhone(v: string): string {
-  const digits = v.replace(/\D/g, "")
-  if (digits.length < 4) return ALL_HIDDEN
-  const tail = digits.slice(-4)
-  return `+62 ${BULLET.repeat(3)}-${BULLET.repeat(4)}-${tail}`
-}
+// DBL-012/013/014: masker email & phone didelegasikan ke implementasi kanonis
+// di lib/format (gaya admin pii.ts) — satu implementasi, bukan duplikat lokal.
 
 export function maskSensitive(value: string, mask: SensitiveMask): string {
   if (typeof mask === "function") return mask(value)

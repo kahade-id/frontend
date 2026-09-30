@@ -13,9 +13,24 @@ export const TICKET_ATTACHMENT_MAX_COUNT = 5
 /** 10 MB per file — di atas ini upload rawan gagal di koneksi seluler. */
 export const TICKET_ATTACHMENT_MAX_SIZE_BYTES = 10 * 1024 * 1024
 
-/** Tipe yang diterima endpoint upload gambar (selaras `pickImages`). */
-const ALLOWED_MIME_PREFIXES = ["image/"] as const
-const ALLOWED_MIME_EXACT = new Set(["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"])
+/**
+ * DBL-011 (audit integrasi 2026-10-01): allowlist PERSIS backend
+ * `ALLOWED_MIME_TYPES[REPORT_EVIDENCE]` (`src/modules/upload/upload.service.ts`):
+ * image/jpeg, image/png, image/webp, image/heic, image/heif, application/pdf.
+ *
+ * Dulu memakai prefix `image/*` — `image/gif`/`image/bmp`/`image/svg+xml`
+ * lolos validasi klien lalu DITOLAK server (MIME_TYPE_MISMATCH); sebaliknya
+ * `application/pdf` DITERIMA server untuk lampiran laporan tapi DIBLOKIR
+ * klien. Tidak ada lagi prefix longgar: hanya 6 MIME ini yang lolos.
+ */
+const ALLOWED_MIME_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/heic",
+  "image/heif",
+  "application/pdf",
+])
 
 export type AttachmentCandidate = {
   name: string
@@ -37,13 +52,12 @@ function formatMB(bytes: number): string {
 }
 
 export function attachmentLimitSummary(): string {
-  return `Maksimal ${TICKET_ATTACHMENT_MAX_COUNT} gambar (JPG/PNG/WebP), masing-masing maksimal ${formatMB(TICKET_ATTACHMENT_MAX_SIZE_BYTES)}.`
+  return `Maksimal ${TICKET_ATTACHMENT_MAX_COUNT} lampiran (JPG/PNG/WebP/HEIC/HEIF/PDF), masing-masing maksimal ${formatMB(TICKET_ATTACHMENT_MAX_SIZE_BYTES)}.`
 }
 
 function isAllowedMime(mimeType: string): boolean {
   const m = (mimeType || "").toLowerCase().split(";")[0].trim()
-  if (ALLOWED_MIME_EXACT.has(m)) return true
-  return ALLOWED_MIME_PREFIXES.some((p) => m.startsWith(p))
+  return ALLOWED_MIME_TYPES.has(m)
 }
 
 /**
@@ -62,7 +76,7 @@ export function validateTicketAttachments(
         index: i,
         name: c.name,
         reason: "type",
-        message: `"${c.name}" bukan gambar yang didukung — pilih file JPG, PNG, atau WebP.`,
+        message: `"${c.name}" bukan lampiran yang didukung — pilih file JPG, PNG, WebP, HEIC/HEIF, atau PDF.`,
       })
       return
     }
