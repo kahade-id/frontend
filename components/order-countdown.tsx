@@ -10,8 +10,8 @@
  * Layar hanya meneruskan data STABIL (`at` / input mentah); detik hitung
  * mundur dihitung di dalam komponen ini per tick.
  */
-import { memo } from "react"
-import { View } from "react-native"
+import { memo, useEffect, useRef } from "react"
+import { AccessibilityInfo, View } from "react-native"
 import { ShieldWarning } from "phosphor-react-native"
 
 import { Button } from "@/components/ui/button"
@@ -50,6 +50,24 @@ const COUNTDOWN_TITLE_TONE: Record<CountdownTone, "danger" | "primary"> = {
 }
 
 /**
+ * UX-A11Y-004: umumkan SATU KALI saat status tenggat berubah ke kondisi
+ * kritis-terkait-uang (melewati tenggat / dana cair otomatis). Detak
+ * 1-Hz di dalam kotak countdown TIDAK boleh jadi live region — itu
+ * menenggelamkan screen reader. Hook ini hanya bereaksi pada transisi
+ * `false -> true`, bukan pada tiap tick.
+ */
+function useAnnounceOnTransition(active: boolean, message: string): void {
+  const announced = useRef(false)
+  useEffect(() => {
+    if (active && !announced.current) {
+      announced.current = true
+      AccessibilityInfo.announceForAccessibility(message)
+    }
+    if (!active) announced.current = false
+  }, [active, message])
+}
+
+/**
  * Countdown auto-release dana (IN_DELIVERY + `autoCompleteAt` dari backend).
  *
  * FE-003: copy dipadatkan jadi maks 2 baris —
@@ -66,6 +84,9 @@ export const AutoReleaseCountdownBox = memo(function AutoReleaseCountdownBox({
   const secondsLeft = Math.max(0, Math.floor((target - nowMs) / 1000))
   const expired = secondsLeft <= 0
   const tone = countdownTone(secondsLeft, expired)
+  // UX-A11Y-004: momen dana diteruskan otomatis (uang!) harus diumumkan
+  // ke screen reader — sekali saat transisi, bukan tiap tick.
+  useAnnounceOnTransition(expired, translate("Dana akan segera diteruskan ke penjual."))
   return (
     <View className={`gap-1 rounded-lg p-3 ${COUNTDOWN_BOX_BG[tone]}`}>
       {/* Item 35: label kontekstual "Batas konfirmasi". */}
@@ -109,6 +130,14 @@ export const ShippingCountdownBox = memo(function ShippingCountdownBox({
   const tone = countdownTone(
     countdown.kind === "countdown" ? countdown.secondsLeft : null,
     countdown.kind === "overdue",
+  )
+  // UX-A11Y-004: penjual melewati batas kirim = dana TIDAK cair otomatis
+  // (uang!) — umumkan sekali saat transisi, bukan tiap tick.
+  useAnnounceOnTransition(
+    countdown.kind === "overdue",
+    translate(
+      "Penjual melewati batas kirim — dana TIDAK akan cair otomatis sampai masalah ini selesai.",
+    ),
   )
   return (
     <View className={`gap-1 rounded-lg p-3 ${COUNTDOWN_BOX_BG[tone]}`}>
@@ -174,11 +203,14 @@ export const ShippingOverdueBanner = memo(function ShippingOverdueBanner({
 }) {
   const nowMs = useFocusedClockTick(visible && !!input)
   const overdue = !!input && resolveShippingCountdown(input, nowMs)?.kind === "overdue"
+  // UX-A11Y-004: banner ini hanya di-mount saat transisi ke overdue —
+  // umumkan sekali saat muncul (uang: dana tidak cair otomatis).
+  useAnnounceOnTransition(overdue, translate("Penjual melewati batas kirim"))
   if (!visible || !overdue) return null
   return (
     <View className="mb-2 gap-2 rounded-lg bg-warning-soft p-3">
       <Text variant="body" weight={600} tone="primary">
-        Penjual melewati batas kirim
+        {translate("Penjual melewati batas kirim")}
       </Text>
       <Button
         variant="secondary"
@@ -213,6 +245,12 @@ export const ConfirmCountdownBox = memo(function ConfirmCountdownBox({
   const tone = countdownTone(
     countdown.kind === "countdown" ? countdown.secondsLeft : null,
     countdown.kind === "overdue",
+  )
+  // UX-A11Y-004: pesanan dibatalkan otomatis saat lewat batas (uang!) —
+  // umumkan sekali saat transisi, bukan tiap tick.
+  useAnnounceOnTransition(
+    countdown.kind === "overdue",
+    translate("Penjual melewati batas konfirmasi — pesanan akan dibatalkan otomatis."),
   )
   return (
     <View className={`gap-1 rounded-lg p-3 ${COUNTDOWN_BOX_BG[tone]}`}>
