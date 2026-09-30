@@ -82,7 +82,8 @@ import { CAPTCHA_MESSAGES } from "@/lib/captcha-messages"
 import { PASSWORD_MAX } from "@/lib/auth-constants"
 import { getAuthLocation } from "@/lib/location"
 import { clearLoginIdentifier, getLoginIdentifier, setLoginIdentifier } from "@/lib/login-identifier"
-import { setPendingNext, takePendingNext } from "@/lib/login-redirect"
+import { setPendingNext, resolvePostLoginTarget } from "@/lib/login-redirect"
+import { useAuthSession } from "@/lib/use-auth-session"
 import { setOtpFlow } from "@/lib/otp-flow"
 import { ROUTES } from "@/lib/routes"
 import { setPendingSocialSignup } from "@/lib/social-signup"
@@ -104,6 +105,15 @@ export default function LoginScreen() {
   // tujuan setelah login berhasil.
   const { next } = useLocalSearchParams<{ next?: string }>()
   const nextPath = typeof next === "string" && next.startsWith("/") ? next : undefined
+
+  // UX-NAV-010: user yang sudah login (mis. deep link usang / riwayat browser
+  // ke /login) langsung dialihkan ke Beranda — form login tidak ditampilkan
+  // kepada user terautentikasi. Menunggu fase restore lokal selesai agar
+  // tidak redirect prematur saat token masih dimuat.
+  const session = useAuthSession()
+  useEffect(() => {
+    if (!session.restoring && session.token) router.replace(ROUTES.home)
+  }, [session.restoring, session.token, router])
 
   // A01 (batch 139): identifier non-rahasia dipertahankan selama sesi
   // formulir — pulihkan dari penyimpanan sesi bila layar me-remount
@@ -160,19 +170,16 @@ export default function LoginScreen() {
     }
   }, [])
 
-  const goAfterLogin = useCallback(() => {
+  const goAfterLogin = useCallback(async () => {
     // A01: sesi formulir selesai → identifier tidak perlu dipertahankan.
     clearLoginIdentifier()
-    // Web guest mode tidak memakai layar Welcome/splash: langsung kembali
-    // ke tujuan (atau Beranda).
-    if (Platform.OS === "web") {
-      router.replace((nextPath as never) ?? ROUTES.home)
-      return
-    }
-    // U5-003 (journey): layar welcome dihapus — native langsung ke tujuan
-    // tertunda (atau Beranda). Rationale izin notifikasi kini bottom sheet
-    // di feed pada login pertama.
-    router.replace((takePendingNext() as never) ?? ROUTES.home)
+    // UX-NAV-011/014 (tujuan pasca-login TERPUSAT — murni navigasi, tanpa
+    // menyentuh logika auth): flag "buka profil sendiri" (tamu mengetuk
+    // "Lihat Profil" di drawer) → tujuan tertunda (sesi kedaluwarsa di tengah
+    // tugas — UX-NAV-001) → ?next= (deep link native yang dulu diabaikan)
+    // → Beranda.
+    const target = await resolvePostLoginTarget(nextPath)
+    router.replace(target as never)
   }, [router, nextPath])
 
   const handleLogin = useCallback(async () => {

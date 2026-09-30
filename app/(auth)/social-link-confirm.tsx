@@ -16,7 +16,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { api, isApiError, userMessage } from "@/lib/api"
 import { MFA_CODE_MAX_LENGTH, normalizeMfaCode } from "@/lib/auth-ui"
-import { setPendingNext, takePendingNext } from "@/lib/login-redirect"
+import { setPendingNext, resolvePostLoginTarget } from "@/lib/login-redirect"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 import { Alert } from "@/components/ui/alert"
@@ -81,7 +81,7 @@ export default function SocialLinkConfirmScreen() {
       if (result.linked) {
         setPendingNext(undefined)
         // U5-003 (journey): layar welcome dihapus — langsung ke Beranda.
-        router.replace((takePendingNext() as never) ?? ROUTES.home)
+        router.replace((await resolvePostLoginTarget()) as never)
       } else {
         setErrorText("Penautan belum berhasil. Coba lagi.")
       }

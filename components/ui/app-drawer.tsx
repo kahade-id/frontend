@@ -87,6 +87,7 @@ import { hasOpenSupportTicket } from "@/lib/api/support"
 import { refreshChatUnreadCount, useChatUnreadCountState } from "@/lib/chat-unread-count"
 import { closeDrawer, drawerProgress, useDrawerOpen } from "@/lib/drawer"
 import { isShellTabPath } from "@/lib/shell-tabs"
+import { setOpenOwnProfileAfterLogin } from "@/lib/login-redirect"
 import { openCreateSheet } from "@/lib/create-sheet"
 import { elevationStyle } from "@/lib/elevation"
 import { haptic } from "@/lib/haptics"
@@ -482,6 +483,10 @@ export function AppDrawer() {
     haptic("select")
     closeDrawer()
     if (!token || !profile?.username) {
+      // UX-NAV-014: tamu "Lihat Profil" → pasang flag "buka profil sendiri
+      // setelah login"; resolvePostLoginTarget() membacanya di akhir alur
+      // login dan mendarat di /user/<username>, bukan /showcase.
+      setOpenOwnProfileAfterLogin(true)
       router.push(ROUTES.loginRequired("/showcase"))
       return
     }

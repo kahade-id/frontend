@@ -54,7 +54,7 @@ import { Text } from "@/components/ui/text"
 import { TextLink } from "@/components/ui/text-link"
 import { api, isApiError, userMessage } from "@/lib/api"
 import { haptic } from "@/lib/haptics"
-import { takePendingNext } from "@/lib/login-redirect"
+import { resolvePostLoginTarget } from "@/lib/login-redirect"
 import { ROUTES } from "@/lib/routes"
 import { clearPendingTwoFactorLogin, getPendingTwoFactorLogin } from "@/lib/two-factor-login"
 import { translate } from "@/lib/i18n/translate"
@@ -116,7 +116,7 @@ export default function VerifyTwoFactorScreen() {
       haptic("success")
       // U5-003 (journey): layar welcome dihapus — semua platform langsung ke
       // tujuan tertunda/Beranda.
-      router.replace((takePendingNext() as never) ?? ROUTES.home)
+      router.replace((await resolvePostLoginTarget()) as never)
     } catch (err) {
       haptic("error")
       if (isApiError(err)) {

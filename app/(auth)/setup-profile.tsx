@@ -86,7 +86,7 @@ import { useLeaveConfirm } from "@/lib/use-leave-confirm"
 import { Dialog } from "@/components/ui/modal"
 import { pickImage, pickedImageToFormData, resizePickedImage, type PickedImage, type PickImageOptions } from "@/lib/image-picker"
 import { ROUTES } from "@/lib/routes"
-import { takePendingNext } from "@/lib/login-redirect"
+import { resolvePostLoginTarget } from "@/lib/login-redirect"
 import { translate } from "@/lib/i18n/translate"
 
 /** Crop persegi + kompresi avatar sebelum upload (§9.19: klien mengirim JPG/PNG). */
@@ -130,10 +130,10 @@ export default function SetupProfileScreen() {
 
   // A06 (batch 139): "Lewati" membuang bio/foto yang belum disimpan —
   // konfirmasi hanya bila ada perubahan.
-  const doSkip = useCallback(() => {
+  const doSkip = useCallback(async () => {
     clearRegistrationState()
     // U5-003 (journey): layar welcome dihapus — langsung ke tujuan/Beranda.
-    router.replace((takePendingNext() as never) ?? ROUTES.home)
+    router.replace((await resolvePostLoginTarget()) as never)
   }, [router])
   const leaveConfirm = useLeaveConfirm(hasChanges && !submitting, {
     title: "Lewati setup profil?",
@@ -163,7 +163,7 @@ export default function SetupProfileScreen() {
       // A06: simpan sukses = keluar yang disengaja.
       leaveConfirm.markLeaving()
       clearRegistrationState()
-      router.replace((takePendingNext() as never) ?? ROUTES.home)
+      router.replace((await resolvePostLoginTarget()) as never)
     } catch (err) {
       if (isApiError(err)) {
         // Error validasi bio → tampilkan di form.
