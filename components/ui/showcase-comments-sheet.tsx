@@ -570,7 +570,7 @@ export function ShowcaseCommentsSheet({
           Hanya tampil bila ada ≥2 komentar yang bisa diurutkan. */}
       {comments.length >= 2 ? (
         <View className="flex-row items-center justify-end gap-2 px-5 pb-2">
-          <Text variant="caption" tone="secondary">
+          <Text variant="bodySmall" tone="secondary">
             {translate("Urutkan:")}
           </Text>
           <Chip

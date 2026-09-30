@@ -451,6 +451,20 @@ export const typography = {
     fontWeight: 400,
     fontVariantNumeric: "tabular-nums",
   },
+  /**
+   * bodySmall (13px) — teks kecil FUNGSIONAL yang harus tetap nyaman dibaca:
+   * subtitel drawer, baris meta komentar, microcopy aksi. Di antara caption
+   * (12px, khusus microcopy/dekoratif) dan body (15px). Ditambahkan
+   * 2026-09-30 (audit konsistensi tipografi): beberapa teks 12px ternyata
+   * konten fungsional yang dibaca user, bukan microcopy.
+   */
+  bodySmall: {
+    fontFamily: fontFamily.sans,
+    fontSize: 13,
+    lineHeight: 20,
+    fontWeight: 400,
+    fontVariantNumeric: "tabular-nums",
+  },
   caption: {
     fontFamily: fontFamily.sans,
     fontSize: 12,

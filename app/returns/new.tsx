@@ -149,7 +149,7 @@ export default function NewReturnScreen() {
                   padding: tokens.space[3], color: c.textPrimary, textAlignVertical: "top",
                 }}
               />
-              <Text variant="caption" tone="secondary" style={{ marginTop: tokens.space[1] }}>
+              <Text variant="bodySmall" tone="secondary" style={{ marginTop: tokens.space[1] }}>
                 Foto kondisi barang dapat ditambahkan setelah pengajuan dibuat, di halaman detail retur.
               </Text>
             </View>

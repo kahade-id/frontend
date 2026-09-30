@@ -102,7 +102,7 @@ export default function TrackingScreen() {
                     {trackedOrder.title}
                   </Text>
                   <Text variant="body" tone="secondary" style={{ marginTop: tokens.space[1] }}>
-                    Order #{shortId(trackedOrder.id)}
+                    Order #<Text variant="monoBody" tone="secondary">{shortId(trackedOrder.id)}</Text>
                   </Text>
                 </View>
                 <OrderStatusBadge status={trackedOrder.status} size="sm" />

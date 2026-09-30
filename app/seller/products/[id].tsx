@@ -33,10 +33,10 @@ function Field({ label, errorText, children }: { label: string; errorText?: stri
   const errorColor = mode === "dark" ? "#F87171" : "#B42318"
   return (
     <View style={{ gap: tokens.space[1] }}>
-      <Text variant="body" weight={600}>{label}</Text>
+      <Text variant="label">{label}</Text>
       {children}
       {errorText ? (
-        <Text variant="caption" tone="inherit" style={{ color: errorColor }}>{errorText}</Text>
+        <Text variant="body" tone="inherit" style={{ color: errorColor }}>{errorText}</Text>
       ) : null}
     </View>
   )
@@ -227,7 +227,7 @@ export default function SellerProductFormScreen() {
       <Field label="Deskripsi">
         <TextInput value={description} onChangeText={setDescription} multiline accessibilityLabel="Deskripsi produk" numberOfLines={4} textAlignVertical="top" placeholderTextColor={c.textTertiary} style={inputStyle()} />
       </Field>
-      <Text variant="caption" tone="secondary">
+      <Text variant="bodySmall" tone="secondary">
         Harga dikirim ke server dalam rupiah; penyimpanan presisi (sen) ditangani server.
       </Text>
       <Button disabled={saving} onPress={save}>

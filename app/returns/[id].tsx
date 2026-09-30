@@ -132,7 +132,9 @@ export default function ReturnDetailScreen() {
             {detail.resolutionType ? (
               <Text variant="body" style={{ marginTop: tokens.space[1] }}>
                 Penyelesaian: {detail.resolutionType ? (RETURN_RESOLUTION_LABEL[detail.resolutionType] ?? detail.resolutionType) : "—"}
-                {detail.refundAmount != null ? ` · ${formatIdrSen(detail.refundAmount)}` : ""}
+                {detail.refundAmount != null ? (
+                  <Text variant="monoBody"> · {formatIdrSen(detail.refundAmount)}</Text>
+                ) : null}
               </Text>
             ) : null}
             {detail.resolutionType === "REFUND" && detail.refundAmount != null ? (
@@ -160,7 +162,7 @@ export default function ReturnDetailScreen() {
               ) : null}
               {detail.returnTrackingNumber ? (
                 <Text variant="body" style={{ marginTop: tokens.space[1] }}>
-                  Resi retur: {detail.returnTrackingNumber}
+                  Resi retur: <Text variant="monoBody">{detail.returnTrackingNumber}</Text>
                   {detail.returnCourier ? ` (${detail.returnCourier})` : ""}
                 </Text>
               ) : null}
