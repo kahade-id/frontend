@@ -22,6 +22,7 @@ import {
   QUERY_CACHE_TTL_MS,
   queryCacheSize,
   readQueryCacheEntry,
+  readQueryCacheStale,
   releaseQueryRevalidation,
   writeQueryCache,
 } from "@/lib/query-cache"
@@ -172,5 +173,32 @@ describe("C-02: jalur imperatif ikut memakai cache bersama", () => {
 
     await expect(fetchViaQueryCache("me", fetcher)).rejects.toThrow("jaringan mati")
     expect(queryCacheSize()).toBe(0)
+  })
+})
+
+describe("NC-001: stale-while-offline — baca entri basi", () => {
+  it("readQueryCacheStale mengembalikan entri kedaluwarsa TANPA menghapusnya", () => {
+    writeQueryCache("wallet", { availableBalance: 1 })
+    vi.setSystemTime(T0 + QUERY_CACHE_TTL_MS + 1)
+    // Jalur normal: miss + dibuang.
+    expect(readQueryCacheEntry("wallet")).toBeNull()
+
+    // Tulis ulang lalu baca via stale: tetap terbaca meski kedaluwarsa.
+    vi.setSystemTime(T0)
+    writeQueryCache("wallet", { availableBalance: 2 })
+    vi.setSystemTime(T0 + QUERY_CACHE_TTL_MS + 1)
+    const stale = readQueryCacheStale<{ availableBalance: number }>("wallet")
+    expect(stale?.data).toEqual({ availableBalance: 2 })
+    // Entri TIDAK dihapus — jalur online berikutnya bisa me-refresh-nya.
+    expect(queryCacheSize()).toBe(1)
+  })
+
+  it("readQueryCacheStale tidak membocorkan cache sesi lain", async () => {
+    await startSession({ accessToken: "token-akun-a" })
+    writeQueryCache("wallet", { availableBalance: 1 })
+    vi.setSystemTime(T0 + QUERY_CACHE_TTL_MS + 1)
+    await clearSession()
+    await startSession({ accessToken: "token-akun-b" })
+    expect(readQueryCacheStale("wallet")).toBeNull()
   })
 })

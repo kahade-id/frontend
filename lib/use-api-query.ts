@@ -3,11 +3,13 @@ import { useIsFocused } from "@react-navigation/native"
 import { ApiError, userMessage } from "@/lib/api/errors"
 import { getSessionSnapshot } from "@/lib/api/session"
 import { useGuestPathBlocked } from "@/lib/guest-gate"
+import { isOfflineKnown } from "@/lib/connectivity"
 import {
   CACHE_REVALIDATE_AFTER_MS,
   markQueryRevalidating,
   onQueryCacheInvalidation,
   readQueryCacheEntry,
+  readQueryCacheStale,
   releaseQueryRevalidation,
   writeQueryCache,
 } from "@/lib/query-cache"
@@ -155,6 +157,39 @@ export function useApiQuery<TRaw, T = TRaw>(
         setRefreshError(null)
         setRaw(null)
         releaseMarker()
+        return
+      }
+      /**
+       * NC-001 (P0, audit performa ronde 3) — stale-while-offline.
+       *
+       * Bila NetInfo PASTI melaporkan offline, menembak jaringan adalah
+       * kesia-siaan yang pasti gagal (diperparah retry 4x ~1,6 dtk sebelum
+       * error muncul). Sebagai gantinya:
+       *   1. cache segar → sajikan (tanpa revalidasi latar — pasti gagal);
+       *   2. cache basi → sajikan data terakhir + banner offline global;
+       *   3. tanpa cache → gagal CEPAT dengan pesan offline (tanpa retry).
+       * Banner offline global (<OfflineBanner/>) sudah menjelaskan situasi
+       * ke user; layar tidak perlu hancur menjadi full-page error.
+       */
+      if (isOfflineKnown()) {
+        releaseMarker()
+        const fresh = readQueryCacheEntry<TRaw>(key)
+        const hit = fresh ?? readQueryCacheStale<TRaw>(key)
+        if (hit !== null) {
+          setRaw(hit.data)
+          setLoading(false)
+          setRefreshing(false)
+          setError(null)
+          setRefreshError(null)
+          return
+        }
+        // Tidak ada cache sama sekali — pesan offline langsung, tanpa
+        // menunggu 4x retry yang pasti gagal.
+        const msg = "Tidak ada koneksi internet. Periksa jaringan lalu coba lagi."
+        if (hasData.current) setRefreshError(msg)
+        else setError(msg)
+        setLoading(false)
+        setRefreshing(false)
         return
       }
       // F-03: cache per key — dua layar yang memakai data yang sama (mis.

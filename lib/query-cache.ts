@@ -124,6 +124,22 @@ export function readQueryCacheEntry<T>(key: string): QueryCacheHit<T> | null {
   return { data: entry.data as T, at: entry.at, revalidating: entry.revalidating }
 }
 
+/**
+ * NC-001 (P0, audit performa ronde 3) — baca entri WALAU kedaluwarsa.
+ *
+ * Dipakai jalur stale-while-offline: saat jelas offline, menyajikan data
+ * basi JAUH lebih baik daripada full-page error. Berbeda dengan
+ * `readQueryCacheEntry`, entri kedaluwarsa TIDAK dihapus di sini — saat
+ * online kembali, jalur normal akan me-refresh-nya (atau menghapus bila
+ * memang basi). Revisi sesi tetap dijaga: cache akun lain tidak bocor.
+ */
+export function readQueryCacheStale<T>(key: string): { data: T; at: number } | null {
+  const entry = queryCache.get(key)
+  if (!entry) return null
+  if (entry.revision !== getSessionRevision()) return null
+  return { data: entry.data as T, at: entry.at }
+}
+
 export function writeQueryCache(key: string, data: unknown, now = Date.now()): void {
   const bytes = estimateBytes(data)
   const prev = queryCache.get(key)
