@@ -289,8 +289,17 @@ export function OrderActionSheets({
   // FE-112: state dialog konfirmasi resi dihapus — tidak ada dialog kedua.
   // FRM-008: rantai fokus Next Kurir -> Nomor resi.
   const trackingRef = useRef<TextInput>(null)
+  // FRM-009: error format resi memerah sejak keystroke pertama — jangan
+  // tampilkan error format saat resi belum selesai diketik; tampilkan
+  // hanya setelah blur. Logika validasi (trackingValid) tidak berubah.
+  const [trackingTouched, setTrackingTouched] = useState(false)
   const trackingValidation = validateTrackingInput(courier, tracking, shippingRequired)
   const trackingValid = !trackingValidation.courierError && !trackingValidation.trackingError
+  const trimmedTracking = tracking.trim()
+  const trackingError =
+    !trackingTouched && trimmedTracking.length > 0 && trimmedTracking.length < 6
+      ? undefined
+      : trackingValidation.trackingError
   return (
     <>
       {/* ── Batalkan ──────────────────────────────────────────── */}
@@ -519,12 +528,14 @@ export function OrderActionSheets({
           <Field
             label="Nomor resi"
             required={shippingRequired}
-            errorText={trackingValidation.trackingError}
+            errorText={trackingError}
           >
             <Input
               ref={trackingRef}
               value={tracking}
               onChangeText={onChangeTracking}
+              // FRM-009: tandai sudah disentuh agar error format boleh tampil.
+              onBlur={() => setTrackingTouched(true)}
               placeholder="Nomor resi"
               autoCapitalize="characters"
               autoCorrect={false}
