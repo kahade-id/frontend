@@ -211,3 +211,105 @@ describe("isWalletCheckoutMethod", () => {
     expect(isWalletCheckoutMethod("DANA")).toBe(false)
   })
 })
+
+describe("kontrak kanonis backend DANA (2026-09-30)", () => {
+  it("normalizeOrderPaymentMethods: membaca {kind,label,requiresBankCode,banks}", () => {
+    const raw = {
+      walletEnabled: false,
+      methods: [
+        { kind: "QRIS", label: "QRIS", requiresBankCode: false },
+        {
+          kind: "VA",
+          label: "Virtual Account",
+          requiresBankCode: true,
+          banks: ["BCA", "BNI", "BRI", "MANDIRI", "CIMB", "PERMATA"],
+        },
+        { kind: "BALANCE", label: "Saldo DANA", requiresBankCode: false },
+      ],
+    }
+    const out = normalizeOrderPaymentMethods(raw)
+    expect(out).toHaveLength(3)
+    expect(out?.[0]).toMatchObject({ code: "QRIS", name: "QRIS", category: "qris" })
+    expect(out?.[1]).toMatchObject({
+      code: "VA",
+      name: "Virtual Account",
+      category: "va",
+      requiresBankCode: true,
+      banks: ["BCA", "BNI", "BRI", "MANDIRI", "CIMB", "PERMATA"],
+    })
+    expect(out?.[2]).toMatchObject({ code: "BALANCE", name: "Saldo DANA", category: "ewallet" })
+  })
+
+  it("toDanaPayKind: QRIS / VA_BCA / DANA → {payKind,bankCode}", async () => {
+    const { toDanaPayKind } = await import("@/lib/api/orders-endpoints")
+    expect(toDanaPayKind("QRIS")).toEqual({ payKind: "QRIS" })
+    expect(toDanaPayKind("VA_BCA")).toEqual({ payKind: "VA", bankCode: "BCA" })
+    expect(toDanaPayKind("VA_MANDIRI")).toEqual({ payKind: "VA", bankCode: "MANDIRI" })
+    expect(toDanaPayKind("DANA")).toEqual({ payKind: "BALANCE" })
+    expect(toDanaPayKind("VA")).toEqual({ payKind: "VA" })
+    expect(() => toDanaPayKind("GOPAY")).toThrow()
+  })
+
+  it("normalizePaymentStatus: SUCCESS backend → PAID (memicu onPaid)", async () => {
+    const { normalizePaymentStatus } = await import("@/lib/api/orders-endpoints")
+    const out = normalizePaymentStatus({ payment: { status: "SUCCESS" } })
+    expect(out.status).toBe("PAID")
+    expect(out.isPaid).toBe(true)
+  })
+
+  it("normalizeOrderPaymentIntent: membaca expiryTime + grossAmount/escrowAmount", () => {
+    const out = normalizeOrderPaymentIntent({
+      paymentTxId: "tx1",
+      status: "PENDING",
+      payKind: "QRIS",
+      escrowAmount: 100000,
+      providerFee: 2500,
+      grossAmount: 102500,
+      qrString: "QR123",
+      expiryTime: "2026-10-01T00:00:00Z",
+    })
+    expect(out).toMatchObject({
+      qrString: "QR123",
+      amount: 102500,
+      expiresAt: "2026-10-01T00:00:00Z",
+      paymentTxId: "tx1",
+    })
+  })
+
+  it("checkoutMethodKind: BALANCE → ewallet (panel redirect DANA)", () => {
+    expect(checkoutMethodKind(method({ code: "BALANCE", category: "ewallet" }))).toBe("ewallet")
+  })
+})
+
+describe("resolveCheckoutPaymentMethods — ekspansi VA ber-bank", () => {
+  beforeEach(() => {
+    mockGetMethods.mockReset()
+  })
+
+  it("satu metode VA + banks → satu entri per bank", async () => {
+    mockGetMethods.mockResolvedValue([
+      { id: "QRIS", code: "QRIS", name: "QRIS", category: "qris", enabled: true },
+      {
+        id: "VA",
+        code: "VA",
+        name: "Virtual Account",
+        category: "va",
+        enabled: true,
+        requiresBankCode: true,
+        banks: ["BCA", "BNI"],
+      },
+    ])
+    const { methods } = await resolveCheckoutPaymentMethods("o1", { walletEnabled: false })
+    const codes = methods.map((m) => m.code)
+    expect(codes).toEqual(["QRIS", "VA_BCA", "VA_BNI"])
+    expect(methods[1]).toMatchObject({ name: "Virtual Account BCA", category: "va" })
+  })
+
+  it("entri VA yang sudah per-bank tidak di-expand ganda", async () => {
+    mockGetMethods.mockResolvedValue([
+      { id: "VA_BCA", code: "VA_BCA", name: "Virtual Account BCA", category: "va", enabled: true },
+    ])
+    const { methods } = await resolveCheckoutPaymentMethods("o1", { walletEnabled: false })
+    expect(methods.map((m) => m.code)).toEqual(["VA_BCA"])
+  })
+})
