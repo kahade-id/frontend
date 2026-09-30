@@ -1001,8 +1001,10 @@ function ShowcaseDetailContent({
       ))}
 
       {/* ── Harga · kategori ── */}
+      {/* TYP-A (2026-09-30): hierarki judul ≥ harga — harga bodyLarge/700 (16px
+          bold) tetap menonjol tapi tidak lagi mendominasi judul h3/700. */}
       <View className="flex-row flex-wrap items-center gap-2 px-5 pt-3">
-        <Text variant="h2" className="tabular-nums">
+        <Text variant="bodyLarge" weight={700} className="tabular-nums">
           {priceLabel}
         </Text>
         {/* Batch 43: harga coret + badge Terlaris/Diskon */}
@@ -1023,7 +1025,8 @@ function ShowcaseDetailContent({
       </View>
 
       <View className="px-5 pt-1">
-        <Text variant="h3">
+        {/* TYP-A (2026-09-30): judul memimpin hierarki — h3/700 ≥ harga bodyLarge/700. */}
+        <Text variant="h3" weight={700}>
           {item.title}
         </Text>
       </View>
