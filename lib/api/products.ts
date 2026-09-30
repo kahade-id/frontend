@@ -145,23 +145,58 @@ export type UpsertProductBody = {
   category: string
   /** Rupiah (number, bulat) — server mengonversi ke sen. */
   priceRupiah: number
+  /**
+   * BFI-002: kontrak backend `CreateProductDto.initialStock` (opsional).
+   * Field lama `quantityAvailable` tetap diterima & dipetakan ke
+   * `initialStock` saat dikirim (layar seller belum bermigrasi).
+   */
+  initialStock?: number
+  /** @deprecated — pakai `initialStock`. Dipetakan otomatis oleh createProduct. */
   quantityAvailable?: number
   lowStockThreshold?: number
   weightGrams?: number
-  lengthCm?: number
-  widthCm?: number
-  heightCm?: number
+  /**
+   * BFI-002: dimensi flat (`lengthCm`/`widthCm`/`heightCm`) tidak di-whitelist
+   * BE → 422. `dimensions` nested BE memakai dekorator `@IsArray` yang
+   * kontradiktif (objek ditolak, array tak dibaca service) — JANGAN kirim
+   * dimensi sampai DTO backend diperbaiki.
+   */
   requiresBusinessVerification?: boolean
   attributesSchema?: Record<string, string[]>
   imageFileKeys?: string[]
 }
 
+/**
+ * BFI-002: petakan body tulis ke kontrak `CreateProductDto` —
+ * `quantityAvailable` (legacy) → `initialStock`; buang field yang tidak
+ * di-whitelist BE (`lengthCm`/`widthCm`/`heightCm` flat, `dimensions`).
+ */
+function toCreateProductWire(body: UpsertProductBody): Record<string, unknown> {
+  const { quantityAvailable, initialStock, ...rest } = body
+  const stock = initialStock ?? quantityAvailable
+  return { ...rest, ...(stock !== undefined ? { initialStock: stock } : {}) }
+}
+
+/**
+ * BFI-002: `UpdateProductDto` BE TIDAK me-whitelist field stok apa pun
+ * (stok diubah via `POST /v1/inventory/adjust`) — buang `initialStock` /
+ * `quantityAvailable` dari PATCH agar update tidak 422.
+ */
+function toUpdateProductWire(body: Partial<UpsertProductBody>): Record<string, unknown> {
+  const { quantityAvailable: _qa, initialStock: _is, ...rest } = body
+  return rest
+}
+
 export function createProduct(body: UpsertProductBody) {
-  return http.post<Product, UpsertProductBody>("/v1/products", body, { auth: "required" })
+  return http.post<Product, Record<string, unknown>>("/v1/products", toCreateProductWire(body), {
+    auth: "required",
+  })
 }
 
 export function updateProduct(id: string, body: Partial<UpsertProductBody>) {
-  return http.patch<Product, Partial<UpsertProductBody>>(`/v1/products/${id}`, body, { auth: "required" })
+  return http.patch<Product, Record<string, unknown>>(`/v1/products/${id}`, toUpdateProductWire(body), {
+    auth: "required",
+  })
 }
 
 export function setProductStatus(id: string, status: ProductStatus) {
@@ -173,17 +208,42 @@ export type UpsertVariantBody = {
   attributes: Record<string, string>
   /** Rupiah (number, bulat) — server mengonversi ke sen. */
   priceRupiah?: number
+  /**
+   * BFI-003/BFI-018: kontrak backend `CreateVariantDto.initialStock`
+   * (opsional). Field lama `quantityAvailable` tetap diterima & dipetakan
+   * saat create; dibuang saat update (`UpdateVariantDto` BE tidak
+   * me-whitelist stok).
+   */
+  initialStock?: number
+  /** @deprecated — pakai `initialStock`. */
   quantityAvailable?: number
   lowStockThreshold?: number
   weightGrams?: number
 }
 
+/** BFI-003: petakan `quantityAvailable` (legacy) → `initialStock` untuk create. */
+function toCreateVariantWire(body: UpsertVariantBody): Record<string, unknown> {
+  const { quantityAvailable, initialStock, ...rest } = body
+  const stock = initialStock ?? quantityAvailable
+  return { ...rest, ...(stock !== undefined ? { initialStock: stock } : {}) }
+}
+
+/** BFI-018: buang field stok dari PATCH (BE `UpdateVariantDto` tak whitelist). */
+function toUpdateVariantWire(body: Partial<UpsertVariantBody>): Record<string, unknown> {
+  const { quantityAvailable: _qa, initialStock: _is, ...rest } = body
+  return rest
+}
+
 export function createVariant(productId: string, body: UpsertVariantBody) {
-  return http.post<ProductVariant, UpsertVariantBody>(`/v1/products/${productId}/variants`, body, { auth: "required" })
+  return http.post<ProductVariant, Record<string, unknown>>(`/v1/products/${productId}/variants`, toCreateVariantWire(body), {
+    auth: "required",
+  })
 }
 
 export function updateVariant(variantId: string, body: Partial<UpsertVariantBody>) {
-  return http.patch<ProductVariant, Partial<UpsertVariantBody>>(`/v1/products/variants/${variantId}`, body, { auth: "required" })
+  return http.patch<ProductVariant, Record<string, unknown>>(`/v1/products/variants/${variantId}`, toUpdateVariantWire(body), {
+    auth: "required",
+  })
 }
 
 /** G274 — validasi server harga & stok terkini sebelum checkout. */
