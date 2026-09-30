@@ -207,7 +207,7 @@ function InlineText({ segments }: { segments: InlineSegment[] }) {
             )
           case "italic":
             return (
-              <Text key={i} variant="inherit" className="italic">
+              <Text key={i} variant="inherit" italic>
                 {seg.value}
               </Text>
             )

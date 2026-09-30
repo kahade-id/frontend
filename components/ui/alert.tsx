@@ -122,7 +122,7 @@ export function Alert({
           </Text>
         ) : null}
         {typeof children === "string" ? (
-          <Text variant="caption" tone="secondary">
+          <Text variant="body" tone="secondary">
             {children}
           </Text>
         ) : (

@@ -10,7 +10,7 @@
  *   system (sm/lg/xl breakpoint, rounded-lg/xl/2xl, shadow-*) tidak pernah
  *   tersedia. Sisanya masuk `theme.extend` via toTailwindTheme().
  */
-const { toTailwindTheme, fontFamilyByWeight } = require("./lib/tokens")
+const { toTailwindTheme, fontFamilyByWeight, fontFamilyItalicByWeight } = require("./lib/tokens")
 
 const kahade = toTailwindTheme()
 
@@ -19,11 +19,12 @@ const { screens, borderRadius, boxShadow, ...extend } = kahade
 
 /**
  * Class font per-weight: font-sans-400 … font-sans-700, font-serif-500,
- * font-mono-500, font-mono-600.
+ * font-mono-500, font-mono-600 — plus varian italic asli
+ * font-sans-italic-400, font-sans-italic-700.
  *
  * Alasan (non-obvious): di RN native, `font-sans font-bold` menghasilkan
- * fontFamily "Chivo" + fontWeight 700 — RN TIDAK memetakannya ke file
- * Chivo-Bold yang di-load expo-font, jadi jatuh ke system font. Class
+ * fontFamily "Plus Jakarta Sans" + fontWeight 700 — RN TIDAK memetakannya ke file
+ * PlusJakartaSans-Bold yang di-load expo-font, jadi jatuh ke system font. Class
  * per-weight langsung menunjuk nama asset yang terdaftar. Nama diambil dari
  * tokens.ts agar tetap satu sumber kebenaran.
  */
@@ -32,7 +33,15 @@ const fontFamilyPerWeight = Object.fromEntries(
     Object.entries(weights).map(([w, asset]) => [`${role}-${w}`, [asset]]),
   ),
 )
-extend.fontFamily = { ...extend.fontFamily, ...fontFamilyPerWeight }
+/**
+ * Class italic: font-sans-italic-400, font-sans-italic-700.
+ * File miring ASLI (keputusan user 30 Sep 2026) — JANGAN kombinasikan dengan
+ * class `italic` (fontStyle) karena file-nya sudah miring.
+ */
+const fontFamilyItalic = Object.fromEntries(
+  Object.entries(fontFamilyItalicByWeight).map(([w, asset]) => [`sans-italic-${w}`, [asset]]),
+)
+extend.fontFamily = { ...extend.fontFamily, ...fontFamilyPerWeight, ...fontFamilyItalic }
 
 /** @type {import('tailwindcss').Config} */
 module.exports = {

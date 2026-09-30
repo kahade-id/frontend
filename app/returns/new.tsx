@@ -4,7 +4,7 @@
  * Dipanggil dengan query ?orderId=...
  */
 import { useState } from "react"
-import { Text, TextInput, View, Pressable } from "react-native"
+import { TextInput, View, Pressable } from "react-native"
 import { Package } from "phosphor-react-native"
 import { useLocalSearchParams, useRouter } from "expo-router"
 
@@ -25,6 +25,7 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { Header } from "@/components/ui/header"
 import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
+import { Text } from "@/components/ui/text"
 
 const REASONS: ReturnReasonCode[] = [
   "BARANG_RUSAK",
@@ -101,12 +102,12 @@ export default function NewReturnScreen() {
         !elig.eligible ? (
           <View style={{ paddingVertical: tokens.space[4] }}>
             <SectionHeader title="Tidak dapat mengajukan retur" />
-            <Text style={{ color: c.textTertiary }}>{elig.reason ?? "Pesanan ini tidak memenuhi syarat retur."}</Text>
+            <Text variant="body" tone="secondary">{elig.reason ?? "Pesanan ini tidak memenuhi syarat retur."}</Text>
           </View>
         ) : (
           <View style={{ paddingVertical: tokens.space[4], gap: tokens.space[4] }}>
             {elig.deadlineAt ? (
-              <Text style={{ color: c.textTertiary }}>
+              <Text variant="body" tone="secondary">
                 Batas pengajuan: {formatDateTimeWIB(elig.deadlineAt)} (dihitung server)
               </Text>
             ) : null}
@@ -129,7 +130,7 @@ export default function NewReturnScreen() {
                       backgroundColor: reasonCode === r ? `${c.primary}14` : c.surface,
                     }}
                   >
-                    <Text style={{ fontWeight: reasonCode === r ? "700" : "400" }}>{RETURN_REASON_LABEL[r]}</Text>
+                    <Text variant="body" weight={reasonCode === r ? 700 : 400}>{RETURN_REASON_LABEL[r]}</Text>
                   </Pressable>
                 ))}
               </View>
@@ -148,7 +149,7 @@ export default function NewReturnScreen() {
                   padding: tokens.space[3], color: c.textPrimary, textAlignVertical: "top",
                 }}
               />
-              <Text style={{ color: c.textTertiary, fontSize: 12, marginTop: tokens.space[1] }}>
+              <Text variant="bodySmall" tone="secondary" style={{ marginTop: tokens.space[1] }}>
                 Foto kondisi barang dapat ditambahkan setelah pengajuan dibuat, di halaman detail retur.
               </Text>
             </View>

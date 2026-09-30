@@ -2,9 +2,9 @@
  * Kahade — <Amount> / <MonoText> (§3.1 "Presisi di detail numerik", §13).
  *
  * Nominal uang yang BERDIRI SENDIRI (nominal utama transaksi, saldo, total)
- * selalu JetBrains Mono (+0.5px letter-spacing) dan format `Rp1.000.000`
+ * selalu Azeret Mono (+0.5px letter-spacing) dan format `Rp1.000.000`
  * tanpa desimal. Angka yang menyatu di kalimat BUKAN pakai ini — tetap
- * Sofia Sans weight 600/700 (§3.1).
+ * Plus Jakarta Sans weight 600/700 (§3.1).
  *
  * Size: "large" = Mono Large 24/32 (nominal utama), "body" = Mono Body 14/20
  * (list, ringkasan). Tone semantic (success untuk dana masuk, danger untuk
@@ -75,7 +75,7 @@ export function Amount({
       tone={tone}
       numberOfLines={1}
       adjustsFontSizeToFit
-      minimumFontScale={0.7}
+      minimumFontScale={0.85}
       accessibilityLabel={hidden ? HIDDEN_ACCESSIBILITY : text}
       accessibilityHint={hidden ? "Nominal disembunyikan untuk privasi" : undefined}
       // tabular-nums: digit mono tidak "bergoyang" saat nominal berubah

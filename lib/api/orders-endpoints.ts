@@ -389,14 +389,56 @@ export function getPaymentStatus(orderId: string) {
     .then(normalizePaymentStatus)
 }
 
+/**
+ * payKind backend untuk checkout DANA-direct (kontrak kanonis
+ * `DanaDirectPayDto`: QRIS | VA | BALANCE). Dipindahkan ke sini dari
+ * `lib/api/subscription-payments.ts` agar alur order memakai pemetaan yang
+ * sama — satu sumber kebenaran, bukan dua salinan yang bisa drift.
+ */
+export type DanaDirectPayKind = "QRIS" | "VA" | "BALANCE"
+
+/**
+ * Petakan kode metode UI → { payKind, bankCode } untuk `DanaDirectPayDto`.
+ * Kode tak dikenal → lempar (fail-closed): jangan menebak metode bayar.
+ *
+ * Bentuk kode yang diterima:
+ * - "QRIS" → { payKind: "QRIS" }
+ * - "VA_BCA" / "VA-BCA" / "VA BCA" → { payKind: "VA", bankCode: "BCA" }
+ *   (bank sesuai daftar `DANA_DIRECT_VA_BANKS` backend)
+ * - "VA" polos → { payKind: "VA" } (tanpa bankCode; backend memvalidasi
+ *   bila bank wajib untuk metode ini)
+ * - "DANA" / "BALANCE" / "SALDO_DANA" → { payKind: "BALANCE" }
+ */
+export function toDanaPayKind(methodCode: string): {
+  payKind: DanaDirectPayKind
+  bankCode?: string
+} {
+  const code = methodCode.trim().toUpperCase()
+  if (code === "QRIS") return { payKind: "QRIS" }
+  if (code === "DANA" || code === "BALANCE" || code === "SALDO_DANA")
+    return { payKind: "BALANCE" }
+  if (code === "VA") return { payKind: "VA" }
+  const va = code.match(/^VA[_ -]?(BCA|BNI|BRI|MANDIRI|CIMB|PERMATA)$/)
+  if (va) return { payKind: "VA", bankCode: va[1] }
+  throw invalidResponse(`dana-pay-kind:${methodCode}`)
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Mode Tanpa Wallet Internal (BI-safe) — checkout via DANA (provider utama).
 //
-// KONTRAK BELUM TERVERIFIKASI (tim backend DANA paralel, 2026-09-29):
-//   GET  /v1/orders/{id}/payment-methods → daftar metode yang boleh dipakai
-//        untuk order ini (QRIS, VA bank, DANA, dst. — TIDAK di-hardcode).
-//   POST /v1/orders/{id}/payments { paymentMethod: "<code>" } → intent
-//        pembayaran (QR string / nomor VA / URL redirect) per metode.
+// KONTRAK KANONIS (2026-09-30, terverifikasi terhadap backend
+// `src/modules/no-wallet/dana-direct-payment.service.ts`):
+//   GET  /v1/orders/{id}/payment-methods
+//     → { walletEnabled: false, methods: DanaPaymentMethodInfo[] }
+//       DanaPaymentMethodInfo = { kind: "QRIS"|"VA"|"BALANCE", label,
+//         requiresBankCode, banks? }
+//   POST /v1/orders/{id}/payments { payKind, bankCode? } (`DanaDirectPayDto`)
+//     → DanaDirectPayResult { paymentTxId, status: PaymentStatus, payKind,
+//       escrowAmount, providerFee, grossAmount, paymentCode, qrString,
+//       webRedirectUrl, expiryTime }
+//   GET  /v1/orders/{id}/payment-status → { payment: OrderQrisPaymentResult | null }
+//        (status = PaymentStatus: PENDING|SUCCESS|FAILED|… — "SUCCESS" dibaca
+//        sebagai PAID di `normalizePaymentStatus`)
 // Buyer membayar langsung per transaksi; tidak ada top-up.
 // Fail-closed: daftar/list tidak bisa diparse → gagal total (bukan diam);
 // fallback DANA statis dipakai hanya bila endpoint belum tersedia (404).
@@ -418,6 +460,14 @@ export type OrderPaymentMethod = {
   maxAmount?: number
   enabled: boolean
   recommended?: boolean
+  /**
+   * Kontrak kanonis backend (`DanaPaymentMethodInfo`): daftar bank untuk
+   * metode VA (`banks`) + flag `requiresBankCode`. UI meng-expand metode VA
+   * ber-bank menjadi entri per-bank (`VA_BCA`, …) di
+   * `resolveCheckoutPaymentMethods` — lapisan API menyimpan apa adanya.
+   */
+  banks?: string[]
+  requiresBankCode?: boolean
 }
 
 export async function getOrderPaymentMethods(
@@ -441,6 +491,15 @@ export async function getOrderPaymentMethods(
  * {data:{methods}}, {items}. Entri TANPA code/name/enabled eksplisit dibuang
  * (fail-closed); `enabled` default true bila absen agar provider yang tidak
  * mengirim flag tidak mengosongkan checkout.
+ *
+ * KONTRAK KANONIS (2026-09-30, terverifikasi terhadap backend):
+ * `GET /v1/orders/{id}/payment-methods` → `{ walletEnabled: false, methods:
+ * DanaPaymentMethodInfo[] }` dengan `DanaPaymentMethodInfo = { kind:
+ * "QRIS"|"VA"|"BALANCE", label, requiresBankCode, banks? }`. Maka:
+ * - `code` dibaca dari `kind` (alias baru) — dulu hanya "code"/"method"/"id"
+ *   sehingga SELURUH daftar backend dibuang dan checkout kosong.
+ * - `category` diturunkan dari `kind` bila backend tidak mengirimnya:
+ *   QRIS→"qris", VA→"va", BALANCE→"ewallet" (render panel yang benar).
  */
 export function normalizeOrderPaymentMethods(raw: unknown): OrderPaymentMethod[] | undefined {
   const list = extractMethodList(raw)
@@ -449,20 +508,30 @@ export function normalizeOrderPaymentMethods(raw: unknown): OrderPaymentMethod[]
   for (const entry of list) {
     const rec = asRecord(entry)
     if (!rec) continue
-    const code = pickString(rec, ["code", "methodCode", "method", "id"])
+    const code = pickString(rec, ["code", "methodCode", "method", "kind", "id"])
     const name = pickString(rec, ["name", "label", "title"])
     if (!code || !name) continue
+    const kind = pickString(rec, ["kind"])?.trim().toUpperCase()
+    const categoryFromKind =
+      kind === "QRIS" ? "qris" : kind === "VA" ? "va" : kind === "BALANCE" ? "ewallet" : undefined
+    const banksRaw = rec.banks ?? rec.bankList
+    const banks = Array.isArray(banksRaw)
+      ? banksRaw.filter((b): b is string => typeof b === "string" && b.trim().length > 0)
+      : undefined
     methods.push({
       id: pickString(rec, ["id"]) ?? code,
       code,
       name,
-      category: pickString(rec, ["category", "type", "kind"]) ?? undefined,
+      category: pickString(rec, ["category", "type"]) ?? categoryFromKind,
       logoUrl: pickString(rec, ["logoUrl", "logo_url", "iconUrl", "icon"]) ?? undefined,
       fee: toAmount(rec.fee) ?? undefined,
       minAmount: toAmount(rec.minAmount ?? rec.min_amount) ?? undefined,
       maxAmount: toAmount(rec.maxAmount ?? rec.max_amount) ?? undefined,
       enabled: pickBoolean(rec, ["enabled", "isEnabled", "is_enabled", "active"]) ?? true,
       recommended: pickBoolean(rec, ["recommended", "isRecommended", "is_recommended"]) ?? false,
+      banks,
+      requiresBankCode:
+        pickBoolean(rec, ["requiresBankCode", "requires_bank_code"]) ?? undefined,
     })
   }
   return methods
@@ -508,11 +577,21 @@ export async function createOrderPayment(
   idempotencyKey?: string,
 ): Promise<OrderPaymentIntent> {
   // Kontrak lintas tim 2026-09-27: body membawa deviceLocation opsional.
+  // KONTRAK KANONIS (2026-09-30, terverifikasi terhadap backend):
+  // `POST /v1/orders/{id}/payments` memakai `DanaDirectPayDto` =
+  // `{ payKind: "QRIS"|"VA"|"BALANCE", bankCode? }` — BUKAN
+  // `{ paymentMethod: "<code>" }` seperti dugaan lama (backend mewajibkan
+  // `payKind` → request lama selalu 400). Kode UI ("QRIS", "VA_BCA",
+  // "DANA") dipetakan via `toDanaPayKind` (fail-closed).
   const body = await deviceLocationOnlyBody()
+  const { payKind, bankCode } = toDanaPayKind(methodCode)
   try {
-    const raw = await http.post<unknown, { deviceLocation: LocationDto | null; paymentMethod: string }>(
+    const raw = await http.post<
+      unknown,
+      { deviceLocation: LocationDto | null; payKind: DanaDirectPayKind; bankCode?: string }
+    >(
       `/v1/orders/${seg(orderId)}/payments`,
-      { ...body, paymentMethod: methodCode },
+      { ...body, payKind, ...(bankCode ? { bankCode } : {}) },
       {
         auth: "required",
         // I-07 (audit end-to-end): intent ganda = dua tagihan untuk satu
@@ -583,7 +662,18 @@ export function normalizeOrderPaymentIntent(raw: unknown): Omit<OrderPaymentInte
   const instructions = Array.isArray(instructionsRaw)
     ? instructionsRaw.filter((s): s is string => typeof s === "string")
     : undefined
-  const amount = toAmount(nested.amount ?? nested.total ?? nested.amountDue)
+  const amount = toAmount(
+    nested.amount ??
+      nested.total ??
+      nested.amountDue ??
+      // Kontrak kanonis `DanaDirectPayResult` (2026-09-30): buyer membayar
+      // `grossAmount` (escrow + fee provider); `escrowAmount` hanya porsi
+      // yang masuk escrow. grossAmount diutamakan untuk tampilan tagihan.
+      nested.grossAmount ??
+      nested.gross_amount ??
+      nested.escrowAmount ??
+      nested.escrow_amount,
+  )
   return {
     qrString: qrString ?? undefined,
     qrUrl: pickString(nested, ["qrUrl", "qr_url", "url"]) ?? undefined,
@@ -591,7 +681,17 @@ export function normalizeOrderPaymentIntent(raw: unknown): Omit<OrderPaymentInte
     vaBankName: pickString(nested, ["vaBankName", "bankName", "bank_name", "bank"]) ?? undefined,
     accountName: pickString(nested, ["accountName", "account_name", "holderName"]) ?? undefined,
     redirectUrl: redirectUrl ?? undefined,
-    expiresAt: pickString(nested, ["expiresAt", "expires_at", "expiredAt", "expiry"]) ?? null,
+    // Kontrak kanonis (2026-09-30): backend mengirim `expiryTime`.
+    expiresAt:
+      pickString(nested, [
+        "expiresAt",
+        "expires_at",
+        "expiredAt",
+        "expired_at",
+        "expiryTime",
+        "expiry_time",
+        "expiry",
+      ]) ?? null,
     amount: amount ?? 0,
     paymentTxId: pickString(nested, ["paymentTxId", "payment_tx_id", "txId", "transactionId"]) ?? undefined,
     instructions,
@@ -636,6 +736,11 @@ export function normalizePaymentStatus(raw: unknown): PaymentStatus {
     null
 
   let status = rawStatus?.toUpperCase()
+  // KONTRAK KANONIS (2026-09-30): backend memakai enum Prisma `PaymentStatus`
+  // (PENDING|SUCCESS|FAILED|EXPIRED|CANCELLED|REFUNDED), bukan "PAID".
+  // Tanpa pemetaan ini, pembayaran DANA yang sukses TIDAK PERNAH memicu
+  // `onPaid` — polling berhenti di "SUCCESS" yang tidak dikenal.
+  if (status === "SUCCESS") status = "PAID"
   if (!status || status === "PENDING") {
     // Flag boolean / paidAt mengalahkan "PENDING" dan default kosong.
     if (paidFlag === true || paidAt) status = "PAID"

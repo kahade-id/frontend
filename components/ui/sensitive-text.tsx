@@ -84,7 +84,7 @@ export function maskSensitive(value: string, mask: SensitiveMask): string {
 export type SensitiveTextProps = Omit<ViewProps, "children"> & {
   value: string
   mask?: SensitiveMask
-  /** JetBrains Mono (default true — data presisi) */
+  /** Azeret Mono (default true — data presisi) */
   mono?: boolean
   variant?: Extract<TextProps["variant"], "bodyLarge" | "body" | "caption" | "monoBody" | "monoLarge">
   tone?: Extract<TextProps["tone"], "primary" | "secondary" | "inverse">

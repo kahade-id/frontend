@@ -10,7 +10,7 @@
  *
  * Anatomi:
  *   header  : Avatar xs + "Permintaan perpanjangan dari Anda/{nama}" + Badge
- *   tenggat : "+3 hari" (Sofia Sans H3 tabular) di kiri, lalu "Tenggat saat
+ *   tenggat : "+3 hari" (Plus Jakarta Sans H3 tabular) di kiri, lalu "Tenggat saat
  *             ini -> Tenggat baru" berdampingan dengan ArrowRight
  *   alasan  : teks pemohon
  *   catatan : balasan penanggap (kutipan, hanya setelah direspons)

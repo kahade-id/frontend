@@ -579,6 +579,7 @@ export function OrderSecondaryActions({
           membuka layar struk kosong. */}
       {order.status !== "WAITING_CONFIRMATION" && order.status !== "CANCELLED" ? (
         <Button
+          fullWidth={false}
           variant="secondary"
           size="sm"
           leftIcon={Receipt}
@@ -588,6 +589,7 @@ export function OrderSecondaryActions({
         </Button>
       ) : null}
       <Button
+        fullWidth={false}
         variant="secondary"
         size="sm"
         leftIcon={ChatCircleDots}
@@ -604,11 +606,11 @@ export function OrderSecondaryActions({
         // Mode Tanpa Wallet Internal (BI-safe): tombol "Lihat mutasi dana"
         // disembunyikan saat kill-switch dompet mati.
         <>
-          <Button variant="secondary" size="sm" onPress={() => router.push(ROUTES.createTransaction)}>
+          <Button fullWidth={false} variant="secondary" size="sm" onPress={() => router.push(ROUTES.createTransaction)}>
             Buat transaksi baru
           </Button>
           {walletEnabled ? (
-            <Button variant="secondary" size="sm" onPress={() => router.push(ROUTES.walletHistory)}>
+            <Button fullWidth={false} variant="secondary" size="sm" onPress={() => router.push(ROUTES.walletHistory)}>
               Lihat mutasi dana
             </Button>
           ) : null}
@@ -616,6 +618,7 @@ export function OrderSecondaryActions({
       ) : null}
       {canExtend ? (
         <Button
+          fullWidth={false}
           variant="secondary"
           size="sm"
           leftIcon={Timer}
@@ -626,6 +629,7 @@ export function OrderSecondaryActions({
       ) : null}
       {isDisputed ? (
         <Button
+          fullWidth={false}
           variant="secondary"
           size="sm"
           leftIcon={ShieldWarning}
@@ -635,6 +639,7 @@ export function OrderSecondaryActions({
         </Button>
       ) : canDispute ? (
         <Button
+          fullWidth={false}
           variant="secondary"
           size="sm"
           leftIcon={ShieldWarning}
@@ -647,6 +652,7 @@ export function OrderSecondaryActions({
       ) : null}
       {canReturn && !returnIsPrimary ? (
         <Button
+          fullWidth={false}
           variant="secondary"
           size="sm"
           leftIcon={ArrowUDownLeft}
@@ -656,7 +662,7 @@ export function OrderSecondaryActions({
         </Button>
       ) : null}
       {canCancel ? (
-        <Button variant="ghost" size="sm" onPress={() => onOpenSheet("cancel")} disabled={submitting}>
+        <Button fullWidth={false} variant="ghost" size="sm" onPress={() => onOpenSheet("cancel")} disabled={submitting}>
           Batalkan pesanan
         </Button>
       ) : null}
@@ -735,7 +741,7 @@ export function OrderConfirmDialogs({
             <Text variant="caption" tone="secondary">
               Anda akan menerima
             </Text>
-            <Text variant="h2" weight={700} tone="primary" className="tabular-nums">
+            <Text variant="h2" tone="primary" className="tabular-nums">
               {formatRupiah(acceptSellerAmount)}
             </Text>
             {acceptFeeNote ? (
@@ -782,7 +788,7 @@ export function OrderConfirmDialogs({
             <Text variant="caption" tone="secondary">
               Dana escrow yang dilepas ke penjual
             </Text>
-            <Text variant="h2" weight={700} tone="primary" className="tabular-nums">
+            <Text variant="h2" tone="primary" className="tabular-nums">
               {formatRupiah(escrowAmount)}
             </Text>
           </View>

@@ -41,7 +41,7 @@ export type KeyValueProps = Omit<ViewProps, "children"> & {
   align?: KeyValueAlign
   /** Baris total — nilai lebih besar, label medium */
   emphasis?: boolean
-  /** Nilai ditampilkan JetBrains Mono (nomor referensi, rekening, kode) */
+  /** Nilai ditampilkan Azeret Mono (nomor referensi, rekening, kode) */
   mono?: boolean
   className?: string
 }

@@ -26,7 +26,7 @@
  *     Kolom avatar pesan masuk (32px) hidup DI DALAM batas 76% itu, bukan di
  *     luarnya: inset kiri bubble masuk == inset kanan bubble keluar, dan tepi
  *     kanan bubble masuk == tepi kiri bubble keluar (mirror).
- *   - Waktu pakai `caption` Sofia Sans (tabular figures), BUKAN Mono. §3.1
+ *   - Waktu pakai `caption` Plus Jakarta Sans (tabular figures), BUKAN Mono. §3.1
  *     Mono untuk "timestamp teknis" (log, invoice); jam kirim pesan adalah
  *     meta percakapan yang harus lebur, bukan data presisi yang dibaca
  *     berdiri sendiri. (Bandingkan SecurityLogItem yang memang teknis.)
@@ -443,7 +443,7 @@ function ChatMessageBubbleBase({
             outgoing={outgoing}
             deleted={isDeleted}
             selectable={!isDeleted}
-            className={isDeleted ? "italic" : undefined}
+            italic={isDeleted || undefined}
           />
         )
       ) : null}

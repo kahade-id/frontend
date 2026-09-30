@@ -4,7 +4,7 @@
  * aksi buyer/seller sesuai status.
  */
 import { useState } from "react"
-import { Text, TextInput, View } from "react-native"
+import { TextInput, View } from "react-native"
 import { useLocalSearchParams } from "expo-router"
 
 import { api } from "@/lib/api"
@@ -31,25 +31,26 @@ import { Card } from "@/components/ui/card"
 import { DataScreen } from "@/components/ui/data-screen"
 import { Dialog } from "@/components/ui/modal"
 import { SectionHeader } from "@/components/ui/section"
+import { Text } from "@/components/ui/text"
 
-function Timeline({ detail, dot, muted }: { detail: ReturnDetail; dot: string; muted: string }) {
+function Timeline({ detail, dot }: { detail: ReturnDetail; dot: string }) {
   return (
     <View style={{ gap: tokens.space[2] }}>
       {(detail.timeline ?? []).map((t) => (
         <View key={t.id} style={{ flexDirection: "row", gap: tokens.space[2] }}>
           <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: dot, marginTop: 6 }} />
           <View style={{ flex: 1 }}>
-            <Text style={{ fontWeight: "600" }}>
+            <Text variant="body" weight={600}>
               {t.toStatus ? (RETURN_STATUS_LABEL[t.toStatus as keyof typeof RETURN_STATUS_LABEL] ?? t.toStatus) : t.event}
             </Text>
-            <Text style={{ color: muted, fontSize: 12 }}>
+            <Text variant="caption" tone="secondary">
               {formatDateTime(t.createdAt)} · {RETURN_ACTOR_ROLE_LABEL[t.actorRole] ?? t.actorRole}
             </Text>
           </View>
         </View>
       ))}
       {(detail.timeline ?? []).length === 0 ? (
-        <Text style={{ color: muted }}>Belum ada riwayat.</Text>
+        <Text tone="secondary">Belum ada riwayat.</Text>
       ) : null}
     </View>
   )
@@ -63,7 +64,6 @@ export default function ReturnDetailScreen() {
   // asal (bukan ke dompet) — copy disesuaikan.
   const walletEnabled = useWalletEnabled()
   const c = tokens.colors[mode]
-  const warningText = tokens.colors.semantic.warning[mode].text
   const [note, setNote] = useState("")
   const [tracking, setTracking] = useState("")
   const [mutating, setMutating] = useState(false)
@@ -124,26 +124,28 @@ export default function ReturnDetailScreen() {
         <View style={{ paddingVertical: tokens.space[4], gap: tokens.space[4] }}>
           <Card>
             <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-              <Text style={{ fontWeight: "800", fontSize: 16 }}>{returnIdShort(detail)}</Text>
+              <Text variant="monoBody">{returnIdShort(detail)}</Text>
               <Badge>{RETURN_STATUS_LABEL[detail.status] ?? detail.status}</Badge>
             </View>
-            <Text style={{ marginTop: tokens.space[2] }}>{RETURN_REASON_LABEL[detail.reasonCode] ?? detail.reasonCode}</Text>
-            {detail.reasonDetail ? <Text style={{ color: c.textTertiary }}>{detail.reasonDetail}</Text> : null}
+            <Text variant="body" style={{ marginTop: tokens.space[2] }}>{RETURN_REASON_LABEL[detail.reasonCode] ?? detail.reasonCode}</Text>
+            {detail.reasonDetail ? <Text variant="body" tone="secondary">{detail.reasonDetail}</Text> : null}
             {detail.resolutionType ? (
-              <Text style={{ marginTop: tokens.space[1] }}>
+              <Text variant="body" style={{ marginTop: tokens.space[1] }}>
                 Penyelesaian: {detail.resolutionType ? (RETURN_RESOLUTION_LABEL[detail.resolutionType] ?? detail.resolutionType) : "—"}
-                {detail.refundAmount != null ? ` · ${formatIdrSen(detail.refundAmount)}` : ""}
+                {detail.refundAmount != null ? (
+                  <Text variant="monoBody"> · {formatIdrSen(detail.refundAmount)}</Text>
+                ) : null}
               </Text>
             ) : null}
             {detail.resolutionType === "REFUND" && detail.refundAmount != null ? (
-              <Text style={{ color: c.textTertiary, marginTop: tokens.space[1] }}>
+              <Text variant="body" tone="secondary" style={{ marginTop: tokens.space[1] }}>
                 {walletEnabled
                   ? "Dana dikembalikan ke dompet Anda."
                   : "Dana dikembalikan ke metode pembayaran Anda."}
               </Text>
             ) : null}
             {detail.sellerRespondBy && (detail.status === "REQUESTED" || detail.status === "SELLER_REVIEW") ? (
-              <Text style={{ color: warningText, marginTop: tokens.space[1] }}>
+              <Text tone="warning" style={{ marginTop: tokens.space[1] }}>
                 Penjual harus merespons sebelum {formatDateTimeWIB(detail.sellerRespondBy)}
               </Text>
             ) : null}
@@ -152,15 +154,15 @@ export default function ReturnDetailScreen() {
           {detail.returnInstructions ? (
             <Card>
               <SectionHeader title="Instruksi pengiriman balik" />
-              <Text>{detail.returnInstructions}</Text>
+              <Text variant="body">{detail.returnInstructions}</Text>
               {detail.shipBy ? (
-                <Text style={{ color: c.textTertiary, marginTop: tokens.space[1] }}>
+                <Text variant="body" tone="secondary" style={{ marginTop: tokens.space[1] }}>
                   Kirim sebelum {formatDateTimeWIB(detail.shipBy)}
                 </Text>
               ) : null}
               {detail.returnTrackingNumber ? (
-                <Text style={{ marginTop: tokens.space[1] }}>
-                  Resi retur: {detail.returnTrackingNumber}
+                <Text variant="body" style={{ marginTop: tokens.space[1] }}>
+                  Resi retur: <Text variant="monoBody">{detail.returnTrackingNumber}</Text>
                   {detail.returnCourier ? ` (${detail.returnCourier})` : ""}
                 </Text>
               ) : null}
@@ -201,14 +203,14 @@ export default function ReturnDetailScreen() {
             <View style={{ gap: tokens.space[2] }}>
               {(detail.notes ?? []).map((n) => (
                 <View key={n.id} style={{ backgroundColor: c.surface, borderRadius: tokens.radius.md, padding: tokens.space[2] }}>
-                  <Text style={{ fontSize: 12, color: c.textTertiary }}>{RETURN_ACTOR_ROLE_LABEL[n.authorRole] ?? n.authorRole} · {formatDateTime(n.createdAt)}</Text>
-                  <Text>{n.message}</Text>
+                  <Text variant="caption" tone="secondary">{RETURN_ACTOR_ROLE_LABEL[n.authorRole] ?? n.authorRole} · {formatDateTime(n.createdAt)}</Text>
+                  <Text variant="body">{n.message}</Text>
                 </View>
               ))}
               {/* UI-T006 (audit UI/UX 2026-09-27): empty state eksplisit saat
                   belum ada pesan — sebelumnya kartu Negosiasi tampil kosong. */}
               {(detail.notes ?? []).length === 0 ? (
-                <Text style={{ color: c.textTertiary }}>Belum ada pesan.</Text>
+                <Text tone="secondary">Belum ada pesan.</Text>
               ) : null}
             </View>
             <TextInput
@@ -241,7 +243,7 @@ export default function ReturnDetailScreen() {
 
           <Card>
             <SectionHeader title="Riwayat" />
-            <Timeline detail={detail} dot={c.primary} muted={c.textTertiary} />
+            <Timeline detail={detail} dot={c.primary} />
           </Card>
 
           <View style={{ gap: tokens.space[2] }}>

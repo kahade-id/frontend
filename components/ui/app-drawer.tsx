@@ -641,11 +641,11 @@ export function AppDrawer() {
                   <Text variant="bodyLarge" weight={700}>
                     {translate("Selamat datang")}
                   </Text>
-                  <Text variant="caption" tone="secondary">
+                  <Text variant="bodySmall" tone="secondary">
                     {translate("Masuk untuk akses penuh")}
                   </Text>
                 </View>
-                <Button size="sm" onPress={goLogin} accessibilityLabel={translate("Masuk")}>
+                <Button size="sm" fullWidth={false} onPress={goLogin} accessibilityLabel={translate("Masuk")}>
                   {translate("Masuk")}
                 </Button>
               </View>
@@ -693,7 +693,7 @@ export function AppDrawer() {
                     <Text variant="body" weight={700}>
                       {translate("Kahade Plus")}
                     </Text>
-                    <Text variant="caption" tone="secondary" numberOfLines={1}>
+                    <Text variant="bodySmall" tone="secondary" numberOfLines={1}>
                       {isPlusActive
                         ? translate("Langganan aktif")
                         : translate("Buka semua fitur premium")}

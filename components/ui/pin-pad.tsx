@@ -8,7 +8,7 @@
  * menjaga layout stabil dan sepenuhnya monokrom.
  *
  * Visual: tiap tombol lingkaran 64px `rounded-full`, transparan, teks H2
- * Sofia Sans (bukan Mono — ini tombol, bukan data). Pressed = scale 0.97
+ * Plus Jakarta Sans (bukan Mono — ini tombol, bukan data). Pressed = scale 0.97
  * (PressableScale). Tidak ada border pada tombol angka agar grid terasa
  * lega; hanya tombol yang di-tap memberi feedback lewat scale.
  *

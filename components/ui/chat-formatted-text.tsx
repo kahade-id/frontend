@@ -33,6 +33,8 @@ export type ChatFormattedTextProps = {
   /** Pesan terhapus — tone secondary (placeholder, bukan konten). */
   deleted?: boolean
   selectable?: boolean
+  /** Miring ASLI (file italic) untuk seluruh teks — mis. placeholder terhapus. */
+  italic?: boolean
   className?: string
 }
 
@@ -126,7 +128,8 @@ function ChatSegmentView({
   return (
     <Text
       variant="inherit"
-      className={cn(segment.italic && "italic", segment.underline && "underline")}
+      italic={segment.italic}
+      className={cn(segment.underline && "underline", segment.mono && "font-mono-500")}
       weight={segment.bold ? 700 : undefined}
       // CHT-003: segmen mono panjang tanpa spasi memakai proteksi yang sama
       // dengan tautan — teks penuh tetap di accessibilityLabel.
@@ -134,7 +137,6 @@ function ChatSegmentView({
       style={
         segment.mono
           ? {
-              fontFamily: "monospace",
               backgroundColor: outgoing ? "rgba(0,0,0,0.18)" : "rgba(127,127,127,0.18)",
               borderRadius: tokens.radius.sm,
             }
@@ -153,6 +155,7 @@ export const ChatFormattedText = memo(function ChatFormattedText({
   outgoing = false,
   deleted = false,
   selectable = true,
+  italic,
   className,
 }: ChatFormattedTextProps) {
   const segments = useMemo(
@@ -168,6 +171,7 @@ export const ChatFormattedText = memo(function ChatFormattedText({
         variant="body"
         tone={tone}
         selectable={selectable && !deleted}
+        italic={italic}
         className={className}
       >
         {text}
@@ -181,6 +185,7 @@ export const ChatFormattedText = memo(function ChatFormattedText({
       tone={tone}
       // Android: selectable menelan onPress segmen anak.
       selectable={selectable && !deleted && !interactive}
+      italic={italic}
       className={className}
     >
       {segments.map((s, i) => (

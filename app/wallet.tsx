@@ -393,7 +393,7 @@ export default function WalletScreen() {
                 </Text>
                 <Amount value={wallet.availableBalance} tone="primary" hidden={balanceHidden} />
               </View>
-              <Text variant="caption" tone="secondary">
+              <Text variant="body" tone="secondary">
                 Dana yang bisa dipakai untuk transfer, tarik dana, dan pembayaran.
               </Text>
             </View>
@@ -406,7 +406,7 @@ export default function WalletScreen() {
                 </Text>
                 <Amount value={heldValue} tone="primary" hidden={balanceHidden} />
               </View>
-              <Text variant="caption" tone="secondary">
+              <Text variant="body" tone="secondary">
                 {ESCROW_HELD_EXPLANATION}
               </Text>
             </View>
@@ -419,7 +419,7 @@ export default function WalletScreen() {
                 </Text>
                 <Amount value={wallet.balance} tone="primary" hidden={balanceHidden} />
               </View>
-              <Text variant="caption" tone="secondary">
+              <Text variant="body" tone="secondary">
                 {breakdownAddsUp(wallet?.availableBalance, heldValue, wallet?.balance)
                   ? "Total saldo = saldo tersedia + dana ditahan di escrow."
                   : "Jumlah seluruh dana di dompet Anda."}
@@ -493,7 +493,7 @@ export default function WalletScreen() {
                 />
               </View>
             ))}
-            <Text variant="caption" tone="tertiary" className="px-1 pt-1">
+            <Text variant="body" tone="secondary" className="px-1 pt-1">
               Dihitung dari 100 mutasi terakhir. Daftar ini hanya untuk
               informasi — bukan untuk mengubah status order.
             </Text>

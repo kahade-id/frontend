@@ -91,10 +91,10 @@ export function OrderRatingReminder({
           </Text>
         </View>
         <View className="flex-row flex-wrap gap-2">
-          <Button size="sm" onPress={onRate}>
+          <Button fullWidth={false} size="sm" onPress={onRate}>
             {translate("Beri ulasan")}
           </Button>
-          <Button size="sm" variant="ghost" onPress={onSnooze}>
+          <Button fullWidth={false} size="sm" variant="ghost" onPress={onSnooze}>
             Ingatkan nanti
           </Button>
         </View>

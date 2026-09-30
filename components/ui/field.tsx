@@ -143,7 +143,7 @@ export function FieldHelper({
   if (!message && !reserveSpace) return null
   return (
     <Text
-      variant="caption"
+      variant={errorText ? "body" : "caption"}
       tone={errorText ? "danger" : "secondary"}
       // Error text harus diumumkan screen reader saat muncul
       accessibilityLiveRegion={errorText ? "polite" : "none"}

@@ -9,9 +9,9 @@
  *     fallback diam-diam ke system font saat runtime.
  *
  * Kenapa helper ini perlu (non-obvious):
- *   RN TIDAK mem-resolve `fontFamily: "Chivo"` + `fontWeight: "700"`
- *   ke file Chivo-Bold. Font yang di-load expo-font hanya bisa dipakai
- *   lewat nama registrasinya (mis. "Chivo-Bold") — ini berlaku di native
+ *   RN TIDAK mem-resolve `fontFamily: "Plus Jakarta Sans"` + `fontWeight: "700"`
+ *   ke file PlusJakartaSans-Bold. Font yang di-load expo-font hanya bisa dipakai
+ *   lewat nama registrasinya (mis. "PlusJakartaSans-Bold") — ini berlaku di native
  *   MAUPUN web (expo-font web mendaftarkan @font-face dengan nama key).
  *   `resolveFontFamily()` memetakan (family, weight) -> nama asset.
  *
@@ -20,6 +20,7 @@
 import {
   fontFamily,
   fontFamilyByWeight,
+  fontFamilyItalicByWeight,
   typography,
   type ColorMode,
   type TypographyKey,
@@ -34,24 +35,32 @@ export type FontRole = keyof typeof fontFamilyByWeight // "sans" | "serif" | "mo
 /** Weight yang valid untuk suatu role (mis. serif hanya 500) */
 export type FontWeightFor<R extends FontRole> = keyof (typeof fontFamilyByWeight)[R]
 
-/** Union semua nama asset: "Chivo-Regular" | ... | "AzeretMono-SemiBold" */
-export type FontAssetName = {
-  [R in FontRole]: (typeof fontFamilyByWeight)[R][keyof (typeof fontFamilyByWeight)[R]]
-}[FontRole]
+/** Union semua nama asset: "PlusJakartaSans-Regular" | ... | "AzeretMono-SemiBold" (+ varian italic) */
+export type FontAssetName =
+  | {
+      [R in FontRole]: (typeof fontFamilyByWeight)[R][keyof (typeof fontFamilyByWeight)[R]]
+    }[FontRole]
+  | (typeof fontFamilyItalicByWeight)[keyof typeof fontFamilyItalicByWeight]
 
 /* -------------------------------------------------------------------------- */
 /* Asset map — dikonsumsi useFonts()                                           */
 /* -------------------------------------------------------------------------- */
 
 /**
- * `satisfies Record<FontAssetName, number>` memaksa 7 key ini PERSIS sama
+ * `satisfies Record<FontAssetName, number>` memaksa key ini PERSIS sama
  * dengan tokens: kurang satu, atau salah ketik satu huruf, langsung gagal
  * type-check. `require()` harus literal statis agar Metro bisa bundle.
  *
- * ST-003 (PERF-FIX 2026-09-29) + FE-073: peta dipecah dua — KRITIS
- * (PlusJakartaSans Regular/Medium, dipakai layar pertama → blocking di
- * splash) dan TANGGUH (PlusJakartaSans SemiBold/Bold + EBGaramond 392KB +
- * AzeretMono → dimuat lazy setelah first paint via `Font.loadAsync`).
+ * ST-003 (PERF-FIX 2026-09-29) + FE-073: peta awalnya dipecah dua — KRITIS
+ * (Regular/Medium → blocking di splash) dan TANGGUH (SemiBold/Bold +
+ * EBGaramond 392KB + AzeretMono → lazy setelah first paint).
+ *
+ * REVISI 2026-09-30 (keputusan kualitas user): SEMUA font kembali blocking.
+ * Alasan: user mengeluh teks "ga enak dilihat" — heading yang "melompat"
+ * (FOUT) saat SemiBold/Bold lazy-load memperparah persepsi itu. Semua file
+ * di-bundle lokal (±51–95KB per file, total <1MB); tambahan waktu splash
+ * minimal dan sepadan dengan kualitas. Lazy split DIHAPUS — sejarahnya
+ * dicatat di sini agar tidak diulang tanpa alasan.
  * Pengecekan exhaustiveness tetap di `allFontAssets`; dua peta turunan
  * dijamin mencakup semua key lewat `satisfies`.
  */
@@ -60,36 +69,37 @@ const allFontAssets = {
   "PlusJakartaSans-Medium": require("../assets/fonts/PlusJakartaSans-Medium.ttf"),
   "PlusJakartaSans-SemiBold": require("../assets/fonts/PlusJakartaSans-SemiBold.ttf"),
   "PlusJakartaSans-Bold": require("../assets/fonts/PlusJakartaSans-Bold.ttf"),
+  "PlusJakartaSans-Italic": require("../assets/fonts/PlusJakartaSans-Italic.ttf"),
+  "PlusJakartaSans-BoldItalic": require("../assets/fonts/PlusJakartaSans-BoldItalic.ttf"),
   "EBGaramond-Medium": require("../assets/fonts/EBGaramond-Medium.ttf"),
   "AzeretMono-Medium": require("../assets/fonts/AzeretMono-Medium.ttf"),
   "AzeretMono-SemiBold": require("../assets/fonts/AzeretMono-SemiBold.ttf"),
 } satisfies Record<FontAssetName, number>
 
 /**
- * ST-003: subset KRITIS untuk `useFonts()` blocking.
- *
- * FE-073: hanya Regular + Medium yang blocking — SemiBold/Bold pindah ke
- * `fontAssetsDeferred` (dimuat lazy tepat setelah first paint). Keempatnya
- * satu keluarga font yang sama sehingga swap weight tidak merusak layout
- * berarti; splash/cold start tidak lagi menunggu 4 file.
+ * REVISI 2026-09-30 — SEMUA font blocking (keputusan kualitas user, lihat
+ * komentar di `allFontAssets`). `fontAssetsDeferred` dipertahankan sebagai
+ * peta KOSONG agar call-site `Font.loadAsync(fontAssetsDeferred)` tidak
+ * perlu diubah — tapi tidak ada lagi font yang lazy.
  */
 export const fontAssetsBlocking = {
   "PlusJakartaSans-Regular": allFontAssets["PlusJakartaSans-Regular"],
   "PlusJakartaSans-Medium": allFontAssets["PlusJakartaSans-Medium"],
-} as const
-
-/**
- * ST-003 + FE-073: font lazy — dimuat setelah first paint, tidak menahan
- * splash. PlusJakartaSans SemiBold/Bold (dipakai heading/button — di luar
- * paint pertama) + EBGaramond/AzeretMono.
- */
-export const fontAssetsDeferred = {
   "PlusJakartaSans-SemiBold": allFontAssets["PlusJakartaSans-SemiBold"],
   "PlusJakartaSans-Bold": allFontAssets["PlusJakartaSans-Bold"],
+  "PlusJakartaSans-Italic": allFontAssets["PlusJakartaSans-Italic"],
+  "PlusJakartaSans-BoldItalic": allFontAssets["PlusJakartaSans-BoldItalic"],
   "EBGaramond-Medium": allFontAssets["EBGaramond-Medium"],
   "AzeretMono-Medium": allFontAssets["AzeretMono-Medium"],
   "AzeretMono-SemiBold": allFontAssets["AzeretMono-SemiBold"],
 } as const
+
+/**
+ * ST-003 + FE-073 (2026-09-29): font lazy — dimuat setelah first paint.
+ * REVISI 2026-09-30: dikosongkan (semua blocking, keputusan kualitas user).
+ * Peta dipertahankan agar kode pemuat deferred tidak perlu diubah.
+ */
+export const fontAssetsDeferred = {} as const
 
 // Verifikasi compile-time: gabungan kedua subset == semua key tokens.
 const _exhaustive: Record<FontAssetName, number> = {
@@ -123,12 +133,34 @@ const roleByCssFamily = Object.fromEntries(
 ) as Record<CssFamily, FontRole>
 
 /**
+ * Nama asset italic untuk weight yang diminta. Hanya 400 & 700 yang punya
+ * file fisik — weight lain fallback ke yang terdekat (500/600 → 400),
+ * dengan warning di dev seperti `resolveFontFamily`.
+ *
+ * Dipakai via prop `italic` di <Text> — JANGAN set `fontStyle: "italic"`
+ * manual (faux italic sintetis OS) bila file italic tersedia.
+ */
+export function italicFont(weight: NumericWeight): string {
+  const table = fontFamilyItalicByWeight as Partial<Record<NumericWeight, string>>
+  const exact = table[weight]
+  if (exact) return exact
+  const available = (Object.keys(table).map(Number) as NumericWeight[]).sort(
+    (a, b) => Math.abs(a - weight) - Math.abs(b - weight),
+  )
+  const nearest = available[0]
+  if (__DEV__) {
+    console.warn(`[kahade/fonts] italic tidak punya weight ${weight}; fallback ke ${nearest}.`)
+  }
+  return table[nearest] as string
+}
+
+/**
  * Terjemahkan (CSS family, weight) -> { fontFamily: "<nama asset>" }.
  *
- * SEMUA platform memakai nama asset (mis. "SofiaSans-Bold"), termasuk web.
+ * SEMUA platform memakai nama asset (mis. "PlusJakartaSans-Bold"), termasuk web.
  * Alasan (non-obvious): expo-font di web mendaftarkan `@font-face` dengan
  * `font-family` = KEY yang diberikan ke `useFonts()` (= nama asset), bukan
- * "Sofia Sans". Jadi `{ fontFamily: "Sofia Sans", fontWeight: "700" }` tidak
+ * "Plus Jakarta Sans". Jadi `{ fontFamily: "Plus Jakarta Sans", fontWeight: "700" }` tidak
  * akan match face mana pun di web dan jatuh ke system font. Karena weight
  * sudah implisit di file, kita sengaja TIDAK mengembalikan `fontWeight` —
  * di Android, fontWeight "700" di atas file yang sudah Bold memicu faux-bold.
@@ -163,10 +195,11 @@ export function resolveFontFamily(
  * StyleSheet di komponen <Text>. Weight dark-mode (H1/H2 -> 600) ikut
  * ter-resolve ke file font yang benar.
  *
- * REMINDER untuk komponen Text nanti (§3 — type scale FIXED):
- *   set `allowFontScaling={false}` di komponen Text wrapper, karena default RN
- *   adalah `true` dan akan mengikuti Dynamic Type OS. Cukup di satu wrapper,
- *   jangan disebar ke tiap pemakaian.
+ * Keputusan aksesibilitas (§3, sinkron dengan components/ui/text.tsx): <Text>
+ * wrapper SENGAJA mengikuti Dynamic Type OS (`allowFontScaling`), tetapi
+ * dibatasi `maxFontSizeMultiplier={2}` agar layout tidak pecah saat pengguna
+ * memakai ukuran teks sistem yang sangat besar. Keduanya di-set sekali di
+ * wrapper — cukup di satu tempat, jangan disebar ke tiap pemakaian.
  */
 export function getNativeTypeStyle(key: TypographyKey, mode: ColorMode = "light") {
   const t = typography[key]

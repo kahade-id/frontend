@@ -10,7 +10,7 @@
  * Navigasi). Nama `NumberStepper` dipilih supaya tidak tertukar.
  *
  * Keputusan non-obvious:
- *   - Nilai dirender dalam JetBrains Mono (`monoBody`) karena berdiri sendiri
+ *   - Nilai dirender dalam Azeret Mono (`monoBody`) karena berdiri sendiri
  *     sebagai angka, bukan bagian kalimat (§3.1). Lebar minimum kolom nilai
  *     dikunci (`min-w-12`) agar kotak tidak melebar/menyempit saat digit
  *     bertambah — konsisten dengan "presisi" §1.
@@ -52,7 +52,7 @@ export type NumberStepperProps = Omit<ViewProps, "children"> &
     /** Kolom tengah bisa diketik langsung */
     editable?: boolean
     disabled?: boolean
-    /** Sufiks pendek setelah angka, mis. "pcs" — dirender Sofia Sans, bukan Mono */
+    /** Sufiks pendek setelah angka, mis. "pcs" — dirender Plus Jakarta Sans, bukan Mono */
     suffix?: string
     /** Lebar penuh (default) atau mengikuti konten */
     fullWidth?: boolean

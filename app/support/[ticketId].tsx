@@ -458,7 +458,7 @@ export default function SupportTicketDetailScreen() {
                     loading={sending}
                     disabled={!reply.trim() || uploadingReply}
                     onPress={() => void handleSend()}
-                    className="flex-1"
+                    containerClassName="flex-1"
                   >
                     Kirim balasan
                   </Button>

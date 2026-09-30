@@ -77,7 +77,7 @@ export function OrderFooterActions({
           loading={chatBusy}
         />
         {canPay ? (
-          <Button className="flex-1" disabled={buyerPays == null} onPress={onPay}>
+          <Button containerClassName="flex-1" disabled={buyerPays == null} onPress={onPay}>
             {/* B-05: label tidak pernah mencetak `orderValue` sebagai total
                 bayar (tanpa fee/diskon) — saat fee belum terhitung tampil
                 "—", bukan angka yang lebih kecil. Label ringkas untuk
@@ -90,33 +90,33 @@ export function OrderFooterActions({
         ) : null}
         {canConfirm ? (
           <>
-            <Button variant="secondary" className="flex-1" onPress={onReject}>
+            <Button variant="secondary" containerClassName="flex-1" onPress={onReject}>
               {translate("Tolak pesanan")}
             </Button>
-            <Button className="flex-1" onPress={onAccept}>
+            <Button containerClassName="flex-1" onPress={onAccept}>
               {translate("Terima pesanan")}
             </Button>
           </>
         ) : null}
         {canShip ? (
-          <Button className="flex-1" leftIcon={Truck} onPress={onShipping}>
+          <Button containerClassName="flex-1" leftIcon={Truck} onPress={onShipping}>
             {shippingRequired ? translate("Isi resi pengiriman") : translate("Tandai dikirim")}
           </Button>
         ) : null}
         {canReviewDelivery ? (
           // T2-003: "Konfirmasi terima" MELEPAS dana escrow ke penjual —
           // aksi penggerak uang harus jadi tombol PRIMER.
-          <Button className="flex-1" loading={submitting} onPress={onComplete}>
+          <Button containerClassName="flex-1" loading={submitting} onPress={onComplete}>
             {translate("Konfirmasi terima")}
           </Button>
         ) : null}
         {canReturnPrimary ? (
-          <Button className="flex-1" leftIcon={ArrowUDownLeft} onPress={onReturn}>
+          <Button containerClassName="flex-1" leftIcon={ArrowUDownLeft} onPress={onReturn}>
             {translate("Ajukan retur")}
           </Button>
         ) : null}
         {canRate ? (
-          <Button variant="secondary" className="flex-1" onPress={onRate}>
+          <Button variant="secondary" containerClassName="flex-1" onPress={onRate}>
             {translate("Beri ulasan")}
           </Button>
         ) : null}

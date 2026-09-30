@@ -82,7 +82,7 @@ export function RatingDistributionBars({ username, selectedStars = null, onSelec
       })}
     >
       <View className="items-center gap-1">
-        <Text variant="h2" weight={700} tone="primary" className="tabular-nums">
+        <Text variant="h2" tone="primary" className="tabular-nums">
           {formatDecimal(average, 1)}
         </Text>
         <View className="flex-row items-center gap-0.5">

@@ -8,7 +8,7 @@
  * seperti nominal uang: jelas, tidak ambigu, mudah disalin.
  *
  * Keputusan non-obvious:
- *   - Kode dirender `monoBody` (JetBrains Mono) — bukan body tabular — karena
+ *   - Kode dirender `monoBody` (Azeret Mono) — bukan body tabular — karena
  *     kode mencampur huruf & angka; 0/O dan 1/l/I harus bisa dibedakan saat
  *     pengguna mengetik ulang dari kertas. Ini alasan yang sama Mono dipakai
  *     untuk nomor rekening & ID transaksi (§3.1).

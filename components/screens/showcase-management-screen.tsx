@@ -970,6 +970,7 @@ function ShowcaseManagement() {
                       <Button
                         variant="secondary"
                         size="sm"
+                        fullWidth={false}
                         loading={restoringId === item.id}
                         disabled={restoringId !== null}
                         onPress={() => void handleRestore(item)}

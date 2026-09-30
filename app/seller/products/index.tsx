@@ -3,7 +3,7 @@
  * GET /v1/products/seller/mine · /v1/inventory/low-stock.
  */
 import { memo, useCallback } from "react"
-import { Pressable, Text, View } from "react-native"
+import { Pressable, View } from "react-native"
 import { useRouter } from "expo-router"
 
 import { ROUTES } from "@/lib/routes"
@@ -14,9 +14,9 @@ import { formatRupiah } from "@/lib/format"
 import { tokens } from "@/lib/tokens"
 import { useApiQuery } from "@/lib/use-api-query"
 import { usePaginatedQuery } from "@/lib/use-paginated-query"
-import { useTheme } from "@/components/theme-provider"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
+import { Amount } from "@/components/ui/amount"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -25,6 +25,7 @@ import { Header } from "@/components/ui/header"
 import { PaginatedList } from "@/components/ui/paginated-list"
 import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
+import { Text } from "@/components/ui/text"
 import { Package, Plus } from "phosphor-react-native"
 
 /** PERF-FIX (TIM1-P1): baris di-memo — onPress stabil per id, tidak ada
@@ -32,15 +33,9 @@ import { Package, Plus } from "phosphor-react-native"
 const SellerProductRow = memo(function SellerProductRow({
   item,
   onSelect,
-  textTertiary,
-  textPrimary,
-  dangerText,
 }: {
   item: Product
   onSelect: (id: string) => void
-  textTertiary: string
-  textPrimary: string
-  dangerText: string
 }) {
   const handlePress = useCallback(() => onSelect(item.id), [onSelect, item.id])
   const qty = sellableQty(item)
@@ -54,16 +49,16 @@ const SellerProductRow = memo(function SellerProductRow({
     >
       <Card>
         <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-          <Text style={{ fontWeight: "700", flex: 1 }} numberOfLines={1}>{item.name}</Text>
+          <Text variant="body" weight={700} style={{ flex: 1 }} numberOfLines={1}>{item.name}</Text>
           {/* UI-F006: tone semantik per status. */}
           <Badge tone={productStatusBadgeTone(item.status)}>{PRODUCT_STATUS_LABEL[item.status]}</Badge>
         </View>
-        <Text style={{ color: textTertiary, fontSize: 12 }}>
+        <Text variant="caption" tone="secondary">
           SKU {item.sku} · {PRODUCT_MODERATION_LABEL[item.moderationStatus]}
         </Text>
         <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: tokens.space[1] }}>
-          <Text style={{ fontWeight: "700" }}>{formatRupiah(item.priceRupiah)}</Text>
-          <Text style={{ color: qty > 0 ? textPrimary : dangerText }}>
+          <Amount value={item.priceRupiah} size="body" />
+          <Text tone={qty > 0 ? "primary" : "danger"}>
             {/* UI-F015: guard null dari API — jangan tampilkan "dicadangkan ". */}
             Stok {qty} (dicadangkan {item.quantityReserved ?? 0})
           </Text>
@@ -76,10 +71,6 @@ const SellerProductRow = memo(function SellerProductRow({
 export default function SellerProductsScreen() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
-  const { mode } = useTheme()
-  const c = tokens.colors[mode]
-  const warningText = tokens.colors.semantic.warning[mode].text
-  const dangerText = tokens.colors.semantic.danger[mode].text
   const query = usePaginatedQuery<Product>(
     "my-products",
     (page, signal) => api.products.listMyProducts({ page, limit: 20 }, signal),
@@ -99,12 +90,9 @@ export default function SellerProductsScreen() {
       <SellerProductRow
         item={item}
         onSelect={handleSelectSellerProduct}
-        textTertiary={c.textTertiary}
-        textPrimary={c.textPrimary}
-        dangerText={dangerText}
       />
     ),
-    [handleSelectSellerProduct, c.textTertiary, c.textPrimary, dangerText],
+    [handleSelectSellerProduct],
   )
 
   return (
@@ -124,7 +112,7 @@ export default function SellerProductsScreen() {
                 accessibilityLabel={`${p.name}, tersisa ${sellableQty(p)}`}
                 style={{ minHeight: 44, justifyContent: "center" }}
               >
-                <Text style={{ color: warningText }}>
+                <Text tone="warning">
                   {p.name} — tersisa {sellableQty(p)}
                 </Text>
               </Pressable>

@@ -9,7 +9,7 @@
  *
  * Marker:
  *   - "bullet" (default): titik 6px `bg-text-tertiary` (warna ikon default §7)
- *   - "number"          : angka Sofia Sans caption 600 tabular — bukan Mono,
+ *   - "number"          : angka Plus Jakarta Sans caption 600 tabular — bukan Mono,
  *                         karena angka menyatu dengan kalimat (§3.1)
  *   - "check"           : Phosphor Check weight bold tone active — untuk
  *                         daftar manfaat/yang sudah terpenuhi

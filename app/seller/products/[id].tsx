@@ -4,7 +4,7 @@
  * Dipanggil sebagai /seller/products/new atau /seller/products/[id].
  */
 import { useEffect, useState } from "react"
-import { ScrollView, Text, TextInput, View } from "react-native"
+import { ScrollView, TextInput, View } from "react-native"
 import { useLocalSearchParams, useRouter } from "expo-router"
 
 import { api } from "@/lib/api"
@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button"
 import { Header } from "@/components/ui/header"
 import { Screen } from "@/components/ui/screen"
 import { DataScreen } from "@/components/ui/data-screen"
+import { Text } from "@/components/ui/text"
 
 const STATUSES: ProductStatus[] = ["DRAFT", "ACTIVE", "OUT_OF_STOCK", "ARCHIVED"]
 
@@ -32,10 +33,10 @@ function Field({ label, errorText, children }: { label: string; errorText?: stri
   const errorColor = mode === "dark" ? "#F87171" : "#B42318"
   return (
     <View style={{ gap: tokens.space[1] }}>
-      <Text style={{ fontWeight: "600" }}>{label}</Text>
+      <Text variant="label">{label}</Text>
       {children}
       {errorText ? (
-        <Text style={{ color: errorColor, fontSize: 12 }}>{errorText}</Text>
+        <Text variant="body" tone="inherit" style={{ color: errorColor }}>{errorText}</Text>
       ) : null}
     </View>
   )
@@ -205,7 +206,7 @@ export default function SellerProductFormScreen() {
         />
       </Field>
       {priceIdr != null && priceIdr > 0 ? (
-        <Text style={{ color: c.textTertiary, fontSize: 12 }}>
+        <Text variant="caption" tone="secondary">
           Pratinjau: {formatRupiah(priceIdr)}
         </Text>
       ) : null}
@@ -226,7 +227,7 @@ export default function SellerProductFormScreen() {
       <Field label="Deskripsi">
         <TextInput value={description} onChangeText={setDescription} multiline accessibilityLabel="Deskripsi produk" numberOfLines={4} textAlignVertical="top" placeholderTextColor={c.textTertiary} style={inputStyle()} />
       </Field>
-      <Text style={{ color: c.textTertiary, fontSize: 12 }}>
+      <Text variant="bodySmall" tone="secondary">
         Harga dikirim ke server dalam rupiah; penyimpanan presisi (sen) ditangani server.
       </Text>
       <Button disabled={saving} onPress={save}>

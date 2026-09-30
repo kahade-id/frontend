@@ -27,7 +27,7 @@
  *   - Nominal di-clamp ke [0, total] dan porsi penjual dihitung dari sisa
  *     bila `sellerAmount` tidak dikirim, sehingga invarian X + Y = total
  *     selalu terjaga meski payload server aneh.
- *   - Persentase Sofia Sans tabular (bukan Mono) karena menyatu dengan
+ *   - Persentase Plus Jakarta Sans tabular (bukan Mono) karena menyatu dengan
  *     label; nominal Rupiah tetap <Amount> Mono (§3.1).
  *   - Tombol setuju berlabel "Setuju", BUKAN "Terima", agar tidak rancu
  *     dengan "penjual menerima dana". Aksi ini memindahkan dana escrow

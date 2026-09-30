@@ -1,9 +1,9 @@
 # Kahade — Font assets (offline bundle)
 
-Taruh 7 file berikut di folder ini. Nama file HARUS sama persis dengan
-value di `fontFamilyByWeight` (`lib/tokens.ts`) + ekstensi `.ttf`, karena
-`lib/fonts.ts` me-`require()` path ini secara statis dan key registrasinya
-menjadi `fontFamily` yang dipakai di seluruh app.
+Taruh 9 file berikut di folder ini. Nama file HARUS sama persis dengan
+value di `fontFamilyByWeight` / `fontFamilyItalicByWeight` (`lib/tokens.ts`)
++ ekstensi `.ttf`, karena `lib/fonts.ts` me-`require()` path ini secara
+statis dan key registrasinya menjadi `fontFamily` yang dipakai di seluruh app.
 
 | File                          | Role  | Weight | Sumber (unduh manual, static TTF)   |
 |-------------------------------|-------|--------|-------------------------------------|
@@ -11,6 +11,8 @@ menjadi `fontFamily` yang dipakai di seluruh app.
 | PlusJakartaSans-Medium.ttf    | sans  | 500    | Google Fonts → Plus Jakarta Sans    |
 | PlusJakartaSans-SemiBold.ttf  | sans  | 600    | Google Fonts → Plus Jakarta Sans    |
 | PlusJakartaSans-Bold.ttf      | sans  | 700    | Google Fonts → Plus Jakarta Sans    |
+| PlusJakartaSans-Italic.ttf    | sans  | 400 italic | Google Fonts → Plus Jakarta Sans |
+| PlusJakartaSans-BoldItalic.ttf| sans  | 700 italic | Google Fonts → Plus Jakarta Sans |
 | EBGaramond-Medium.ttf         | serif | 500    | Google Fonts → EB Garamond          |
 | AzeretMono-Medium.ttf         | mono  | 500    | Google Fonts → Azeret Mono (static) |
 | AzeretMono-SemiBold.ttf       | mono  | 600    | Google Fonts → Azeret Mono (static) |

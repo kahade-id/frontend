@@ -32,9 +32,9 @@ function SegmentText({ segment }: { segment: ShowcaseHtmlSegment }) {
   const inner = (
     <Text
       variant="inherit"
+      weight={segment.bold ? 700 : undefined}
+      italic={segment.italic}
       style={{
-        fontWeight: segment.bold ? "700" : undefined,
-        fontStyle: segment.italic ? "italic" : undefined,
         textDecorationLine: [
           segment.underline ? "underline" : "",
           segment.strike ? "line-through" : "",

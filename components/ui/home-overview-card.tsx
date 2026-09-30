@@ -28,7 +28,7 @@
  *     (satu elemen: "Saldo tersedia, Rp1.250.000, Rp350.000 ditahan di
  *     escrow"), sementara toggle mata, tombol aksi, kolom statistik, dan
  *     notice tetap kontrol fokusable terpisah. Root kartu TIDAK berlabel.
- *   - Angka statistik memakai Sofia Sans tabular (`h2`), bukan Mono: ini
+ *   - Angka statistik memakai Plus Jakarta Sans tabular (`h2`), bukan Mono: ini
  *     HITUNGAN, bukan nominal/ID (§3.1). Sengketa > 0 satu-satunya yang
  *     memakai tone danger — warna semantik eksklusif untuk status kritikal.
  *   - Notice tone "danger" memakai bg-danger-soft + teks danger (AA 5.83:1),

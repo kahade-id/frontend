@@ -618,6 +618,7 @@ export default function PrivacySettingsScreen() {
                   </View>
                   {ready ? (
                     <Button
+                      fullWidth={false}
                       variant="secondary"
                       size="sm"
                       loading={downloadingId === item.id}

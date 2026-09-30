@@ -68,10 +68,10 @@ export function ShowcaseRelatedCard({ rel }: { rel: ShowcaseSocialItem }) {
           )}
         </View>
         <View className="p-2">
-          <Text variant="caption" weight={600} numberOfLines={2}>
+          <Text variant="label" numberOfLines={2}>
             {rel.title}
           </Text>
-          <Text variant="caption" tone="secondary" numberOfLines={1} className="tabular-nums">
+          <Text variant="label" tone="secondary" numberOfLines={1} className="tabular-nums">
             {showcasePriceLabelOrFallback(rel)}
           </Text>
         </View>

@@ -40,7 +40,7 @@ function DmEscrowWarningBase({ onCreateOrder }: DmEscrowWarningProps) {
         </Button>
       }
     >
-      <Text variant="caption" tone="secondary">
+      <Text variant="body" tone="secondary">
         {translate(
           "Jangan kirim uang langsung ke siapa pun. Buat transaksi agar dana Anda dilindungi escrow Kahade.",
         )}

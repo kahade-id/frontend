@@ -63,13 +63,13 @@ function InlineText({ nodes }: { nodes: InlineNode[] }) {
             )
           case "italic":
             return (
-              <Text key={i} variant="body" style={{ fontStyle: "italic" }} tone="secondary">
+              <Text key={i} variant="body" italic tone="secondary">
                 {n.value}
               </Text>
             )
           case "code":
             return (
-              <Text key={i} variant="body" tone="primary" style={{ fontFamily: "monospace" }}>
+              <Text key={i} variant="body" tone="primary" className="font-mono-500">
                 {n.value}
               </Text>
             )
