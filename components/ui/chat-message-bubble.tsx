@@ -56,7 +56,7 @@
  *     "goyang" saat scroll cepat.
  */
 import { memo, useEffect, useMemo, useRef, type ReactNode } from "react"
-import { Pressable, View, type GestureResponderEvent, type ViewProps } from "react-native"
+import { View, type GestureResponderEvent, type ViewProps } from "react-native"
 import { Gesture, GestureDetector } from "react-native-gesture-handler"
 import Animated, {
   runOnJS,
@@ -816,13 +816,15 @@ function QuoteBlock({
     return <View className={className}>{children}</View>
   }
   return (
-    <Pressable
+    // UX-TCH-012: PressableScale — pratinjau balasan memberi feedback
+    // saat ditekan (sebelumnya Pressable polos).
+    <PressableScale
       onPress={onPress}
       accessibilityRole="button"
       accessibilityHint="Lihat pesan yang dibalas"
       className={className}
     >
       {children}
-    </Pressable>
+    </PressableScale>
   )
 }

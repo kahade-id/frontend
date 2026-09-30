@@ -7,13 +7,14 @@
  * tampilan + seleksi lokal.
  */
 import { memo, useMemo, useState } from "react"
-import { Pressable, View } from "react-native"
+import { View } from "react-native"
 
 import type { ChatPoll } from "@/lib/api/chat"
 import { formatDateTimeWIB } from "@/lib/format"
 
 import { Text } from "@/components/ui/text"
 import { Icon } from "@/components/ui/icon"
+import { PressableScale } from "@/components/ui/pressable-scale"
 import { Button } from "@/components/ui/button"
 import { ChartBar, CheckCircle, Clock, Lock } from "phosphor-react-native"
 
@@ -84,7 +85,9 @@ export const ChatPollCard = memo(function ChatPollCard({
           const selected = picked.includes(opt.index)
           const pct = poll.totalVotes > 0 ? Math.round((opt.votes / poll.totalVotes) * 100) : 0
           return (
-            <Pressable
+            // UX-TCH-011: PressableScale (feedback scale saat ditekan);
+            // sebelumnya Pressable polos tanpa feedback.
+            <PressableScale
               key={opt.index}
               onPress={() => toggle(opt.index)}
               disabled={locked || voting}
@@ -116,7 +119,7 @@ export const ChatPollCard = memo(function ChatPollCard({
                   {opt.votes} ({pct}%)
                 </Text>
               </View>
-            </Pressable>
+            </PressableScale>
           )
         })}
       </View>

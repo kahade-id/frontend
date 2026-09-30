@@ -15,13 +15,14 @@
  *   - Keluar: status "Terkirim" / "Sudah dibuka" dari `viewOnceViewedAt`.
  */
 import { memo, useState } from "react"
-import { Pressable, View } from "react-native"
+import { View } from "react-native"
 
 import type { ChatMessage } from "@/lib/api/chat"
 import { isViewOnceConsumed } from "@/lib/chat-ephemeral"
 
 import { Text } from "@/components/ui/text"
 import { Icon } from "@/components/ui/icon"
+import { PressableScale } from "@/components/ui/pressable-scale"
 import { Eye, EyeSlash } from "phosphor-react-native"
 
 export type ChatViewOnceProps = {
@@ -64,7 +65,9 @@ export const ChatViewOnce = memo(function ChatViewOnce({
 
   if (!revealed) {
     return (
-      <Pressable
+      // UX-TCH-013: PressableScale — aksi satu arah (pesan hilang setelah
+      // dibuka) kini memberi feedback tekan yang jelas.
+      <PressableScale
         onPress={() => setRevealed(true)}
         accessibilityRole="button"
         accessibilityLabel="Buka pesan sekali lihat"
@@ -79,7 +82,7 @@ export const ChatViewOnce = memo(function ChatViewOnce({
         <Text variant="caption" weight={600} tone={outgoing ? "inverse" : "primary"}>
           Pesan sekali lihat — ketuk untuk membuka
         </Text>
-      </Pressable>
+      </PressableScale>
     )
   }
 
