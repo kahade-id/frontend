@@ -54,8 +54,9 @@ export function TransactionSummary({
     <Card variant="elevated" className={cn("gap-4", className)} {...rest}>
       {/* ----- Hero nominal di tengah ----- */}
       <View className="items-center gap-1 py-2">
+        {/* TYP-010: label hero tanpa ALL CAPS (§3.2) — hierarki cukup dari weight/size. */}
         {label ? (
-          <Text variant="caption" tone="secondary" className="text-center uppercase tracking-wider">
+          <Text variant="caption" tone="secondary" className="text-center tracking-wider">
             {label}
           </Text>
         ) : null}

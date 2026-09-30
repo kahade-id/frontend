@@ -1167,7 +1167,6 @@ export default function ChatScreen() {
           separator={false}
           elevated={elevated}
           titleAlign="left"
-          titleVariant="h2"
           title={archiveOpen ? "Diarsipkan" : "Pesan"}
           // T5-002 (audit UI/UX intuitif 2026-09-29): drawer bisa dibuka dari
           // semua tab, bukan cuma Etalase.

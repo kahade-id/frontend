@@ -459,7 +459,7 @@ export default function TransactionsScreen() {
   if (!hasSession) {
     return (
       <Screen edges={["top"]} padded={false}>
-        <Header title="Transaksi" showBack={false} separator={false} titleAlign="left" titleVariant="h2" />
+        <Header title="Transaksi" showBack={false} separator={false} titleAlign="left" />
         <GuestLoginPrompt bare next="/transactions" />
       </Screen>
     )
@@ -479,7 +479,6 @@ export default function TransactionsScreen() {
       <Header
         title="Transaksi"
         titleAlign="left"
-        titleVariant="h2"
         showBack={false}
         separator={false}
         elevated={elevated}

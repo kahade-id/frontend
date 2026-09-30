@@ -231,7 +231,8 @@ export default function MilestoneDetailScreen() {
           <View className="gap-5">
             <View className="flex-row items-start justify-between gap-3">
               <View className="flex-1">
-                <Text variant="h2" numberOfLines={3}>
+                {/* TYP-009: disamakan dengan jastip/patungan — h3, bukan h2. */}
+                <Text variant="h3" numberOfLines={3}>
                   {milestone.title}
                 </Text>
                 {milestone.description ? (

@@ -68,7 +68,8 @@ export function ShowcaseRelatedCard({ rel }: { rel: ShowcaseSocialItem }) {
           )}
         </View>
         <View className="p-2">
-          <Text variant="label" numberOfLines={2}>
+          {/* TYP-008: judul kartu disamakan dengan kartu feed — body 14px/600. */}
+          <Text variant="body" weight={600} numberOfLines={2}>
             {rel.title}
           </Text>
           <Text variant="label" tone="secondary" numberOfLines={1} className="tabular-nums">

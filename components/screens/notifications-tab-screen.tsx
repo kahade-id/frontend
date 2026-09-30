@@ -853,7 +853,6 @@ function NotificationsScreen() {
         <Header
           title="Notifikasi"
           titleAlign="left"
-          titleVariant="h2"
           // Tab top-level (bottom navbar) — tidak ada layar "sebelumnya"
           // untuk kembali (seperti <Header title="Transaksi" showBack={false}/>).
           showBack={false}

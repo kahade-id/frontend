@@ -200,7 +200,8 @@ function LegalDocumentContent({ kind, doc }: { kind: "terms" | "privacy"; doc: L
                 {doc.parts.map((part) => (
                   <View key={part.id}>
                     <View className="px-5 pb-1 pt-4">
-                      <Text variant="caption" weight={700} tone="secondary" className="uppercase">
+                      {/* TYP-010: tanpa ALL CAPS (§3.2) — hierarki cukup dari weight/size. */}
+                      <Text variant="caption" weight={700} tone="secondary">
                         {part.title}
                       </Text>
                     </View>
@@ -235,7 +236,8 @@ function LegalDocumentContent({ kind, doc }: { kind: "terms" | "privacy"; doc: L
               <View key={part.id} className="gap-6">
                 <View className="flex-row items-center gap-3 pt-2">
                   <View className="h-6 w-1 rounded-full bg-accent" />
-                  <Text variant="bodyLarge" weight={700} className="flex-1 uppercase">
+                  {/* TYP-010: tanpa ALL CAPS (§3.2). */}
+                  <Text variant="bodyLarge" weight={700} className="flex-1">
                     {part.title}
                   </Text>
                 </View>
@@ -303,7 +305,8 @@ function LegalDocumentContent({ kind, doc }: { kind: "terms" | "privacy"; doc: L
           {doc.parts.map((part) => (
             <View key={part.id}>
               <View className="pb-1 pt-4">
-                <Text variant="caption" weight={700} tone="secondary" className="uppercase">
+                {/* TYP-010: tanpa ALL CAPS (§3.2) — hierarki cukup dari weight/size. */}
+                <Text variant="caption" weight={700} tone="secondary">
                   {part.title}
                 </Text>
               </View>

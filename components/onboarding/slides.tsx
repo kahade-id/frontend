@@ -208,7 +208,9 @@ export const OnboardingSlideView = memo(function OnboardingSlideView({ slide, wi
 
       <VStack gap={3} className="pb-8">
         {/* Eyebrow: penanda konteks sebelum judul (revisi 2026-09-26). */}
-        <Text variant="caption" tone="tertiary" weight={600} className="uppercase">
+        {/* TYP-012: tone eksplisit secondary (tertiary di-resolve diam-diam
+            ke secondary untuk caption) · TYP-010: tanpa ALL CAPS (§3.2). */}
+        <Text variant="caption" tone="secondary" weight={600}>
           {slide.eyebrow}
         </Text>
         <DisplayHeading>{slide.title}</DisplayHeading>

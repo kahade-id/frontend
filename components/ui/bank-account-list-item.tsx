@@ -129,9 +129,11 @@ export function BankAccountListItem({
   )
 
   // Subtitle node: nomor Mono (§3.1) + nama pemilik + status verifikasi
+  // TYP-014: nomor rekening lengkap di-truncate di TENGAH, bukan ekor —
+  // digit AKHIR (paling membedakan antar rekening) selalu terlihat.
   const subtitle = (
     <View className="gap-0.5">
-      <Text ellipsizeMode="tail" variant="monoBody" tone="secondary" numberOfLines={1}>
+      <Text ellipsizeMode="middle" variant="monoBody" tone="secondary" numberOfLines={1}>
         {number}
       </Text>
       <Text variant="caption" tone="secondary" numberOfLines={1}>
