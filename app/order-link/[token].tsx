@@ -14,6 +14,7 @@ import { api, isApiError, type FeeBreakdown, type OrderLink } from "@/lib/api"
 import { showMutationError } from "@/lib/mutation-toast"
 import { formatDateTimeWIB } from "@/lib/format"
 import { useHasSession } from "@/lib/guest-gate"
+import { translate } from "@/lib/i18n/translate"
 import { orderLinkStatus } from "@/lib/order-link-labels"
 import { goBackOrNavigate } from "@/lib/navigation"
 import { toEpochMs } from "@/lib/pending-actions"
@@ -271,6 +272,28 @@ export default function OrderLinkScreen() {
   // aksi — cegah flicker "Terima" pada tautan milik sendiri.
   const identityLoading = hasSession && meQuery.loading
   const canAct = active && !isOwnLink && !isExpiredLocally && !identityLoading
+
+  // UX-NAV-015: token kosong/blank (deep link cacat, mis. `/order-link/`) —
+  // query di atas nonaktif (`enabled: Boolean(token)`) sehingga layar
+  // menggantung tanpa pesan. Tampilkan error eksplisit + tombol kembali.
+  if (!token?.trim()) {
+    return (
+      <Screen edges={["top"]} padded={false}>
+        <Header title="Tautan Pesanan" />
+        <View className="gap-4 px-5 pt-6">
+          <ErrorState
+            title={translate("Tautan tidak valid")}
+            description={translate(
+              "Tautan pesanan ini tidak lengkap. Minta tautan baru kepada pengirim.",
+            )}
+          />
+          <Button variant="secondary" onPress={() => goBackOrNavigate(ROUTES.home)}>
+            {translate("Kembali")}
+          </Button>
+        </View>
+      </Screen>
+    )
+  }
 
   return (
     <Screen edges={["top"]} padded={false}>
