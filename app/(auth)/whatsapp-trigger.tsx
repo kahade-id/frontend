@@ -40,6 +40,7 @@ import { ArrowsClockwise, WarningCircle, WhatsappLogo, WifiSlash } from "phospho
 
 import { Alert } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
+import { Card } from "@/components/ui/card"
 import { Countdown } from "@/components/ui/countdown"
 import { FooterBar } from "@/components/ui/footer-bar"
 import { Header } from "@/components/ui/header"
@@ -432,7 +433,7 @@ export default function WhatsappTriggerScreen() {
           </View>
 
           {/* Kode referensi — selalu terlihat untuk pengiriman manual */}
-          <View className="gap-2 rounded-md border border-border bg-surface-elevated px-4 py-3">
+          <Card variant="elevated" padded={false} className="gap-2 px-4 py-3">
             <View className="flex-row items-center justify-between">
               <Text variant="caption" tone="secondary">
                 Kode referensi Anda
@@ -470,10 +471,10 @@ export default function WhatsappTriggerScreen() {
               Tidak bisa membuka WhatsApp otomatis? Kirim pesan berisi kode di
               atas secara manual ke {KAHADE_WHATSAPP_NUMBER}.
             </Text>
-          </View>
+          </Card>
 
           {/* Langkah 2 — status menunggu balasan (A07: dibedakan per koneksi) */}
-          <View className="gap-2 rounded-md border border-border bg-surface-elevated px-4 py-3">
+          <Card variant="elevated" padded={false} className="gap-2 px-4 py-3">
             {connStatus === "offline" ? (
               <View className="flex-row items-start gap-2">
                 <Icon icon={WifiSlash} size="sm" tone="warning" />
@@ -541,7 +542,7 @@ export default function WhatsappTriggerScreen() {
                 Saya sudah kirim pesan
               </Button>
             </View>
-          </View>
+          </Card>
 
           {formError ? (
             <Alert

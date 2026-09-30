@@ -23,6 +23,7 @@ import { logWarn } from "@/lib/telemetry"
 
 import { Screen } from "@/components/ui/screen"
 import { Button } from "@/components/ui/button"
+import { Card } from "@/components/ui/card"
 import { GuestLoginPrompt } from "@/components/web-guest-gate"
 import { Header } from "@/components/ui/header"
 import { SectionHeader } from "@/components/ui/section"
@@ -271,9 +272,10 @@ function ReplyTemplateManager() {
       ) : (
         <View className="gap-2">
           {templates.map((t) => (
-            <View
+            <Card
               key={t.id}
-              className="flex-row items-center gap-2 rounded-md border border-border bg-surface p-3"
+              padded={false}
+              className="flex-row items-center gap-2 p-3"
             >
               <View className="flex-1">
                 <Text variant="caption" weight={700} tone="info">
@@ -301,12 +303,12 @@ function ReplyTemplateManager() {
                 accessibilityLabel={`Hapus template /${t.shortcut}`}
                 onPress={() => void remove(t)}
               />
-            </View>
+            </Card>
           ))}
         </View>
       )}
 
-      <View className="gap-2 rounded-md border border-border p-3">
+      <Card padded={false} className="gap-2 p-3">
         <View className="flex-row items-center justify-between">
           <Text variant="body" weight={700} tone="primary">
             {editing ? `Ubah /${editing.shortcut}` : "Template baru"}
@@ -359,7 +361,7 @@ function ReplyTemplateManager() {
         >
           {editing ? "Simpan perubahan" : "Tambah template"}
         </Button>
-      </View>
+      </Card>
       <Text variant="caption" tone="secondary">
         Maksimum 50 template per akun.
       </Text>
