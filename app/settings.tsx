@@ -24,7 +24,7 @@
  *  - Akun: Profil Tersimpan, Edit Profil, Laporan & Analitik, Keamanan,
  *    Tipe Akun, Verifikasi Bisnis.
  *  - Preferensi: Tampilan, Notifikasi, Bahasa, Versi Aplikasi.
- *  - Bantuan: Tentang Kami, Umpan Balik, Asisten Bantuan, Tiket Bantuan.
+ *  - Bantuan: Tentang Kami, Umpan Balik, Bantuan Langsung, Tiket Bantuan.
  *  - Legal: Syarat & ketentuan, Kebijakan privasi.
  *  - Keluar: Dialog konfirmasi destruktif + unregister push device + clear session.
  *  - FE-098: grup "Toko & Pesanan" dipindah ke drawer sebagai sheet "Toko Saya".
@@ -245,7 +245,9 @@ export default function SettingsScreen() {
   const supportItems: MenuItemData[] = [
     { id: "about-us", label: "Tentang Kami", icon: Buildings, route: ROUTES.about },
     { id: "feedback", label: "Umpan Balik", icon: ChatTeardropDots, route: ROUTES.feedback },
-    { id: "live-support", label: "Asisten Bantuan", icon: Headset, route: ROUTES.liveSupport },
+    // UX-NAV-006: label disamakan dengan drawer ("Bantuan Langsung") — satu
+    // rute ROUTES.liveSupport, satu label, di semua titik masuk.
+    { id: "live-support", label: "Bantuan Langsung", icon: Headset, route: ROUTES.liveSupport },
     { id: "support-tickets", label: "Tiket Bantuan", icon: Lifebuoy, route: ROUTES.support },
   ]
 
