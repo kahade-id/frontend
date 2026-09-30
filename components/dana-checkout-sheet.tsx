@@ -164,6 +164,19 @@ export function DanaCheckoutSheet({
   const intent = payment.intent
   const toast = useToast()
 
+  /**
+   * BFI-074: kontrak BE `DanaDirectPayResult` — untuk QRIS, `paymentCode`
+   * ADALAH string QR (bukan nomor VA); `qrString` boleh null. Normalizer
+   * memetakan `paymentCode` → `intent.vaNumber`, sehingga tanpa pemetaan
+   * ini string QR jatuh ke panel Virtual Account (tidak bisa dipindai).
+   * Untuk intent QRIS, paymentCode BE ditampilkan sebagai QR.
+   */
+  const methodCode = intent?.method ?? selectedMethod?.code ?? ""
+  const isQrisIntent = methodCode.trim().toUpperCase() === "QRIS"
+  const qrString = intent?.qrString ?? (isQrisIntent ? intent?.vaNumber : undefined)
+  // QRIS yang dirender dari paymentCode tidak ikut tampil sebagai VA.
+  const vaNumber = isQrisIntent && intent?.qrString == null ? undefined : intent?.vaNumber
+
   const handleCheckStatus = () => {
     // N-07 (audit escrow 2026-09-24): "Cek status sekarang" memberi umpan
     // balik hasil — dulu hanya diam (atau `pollError` bila gagal), pengguna
@@ -253,12 +266,12 @@ export function DanaCheckoutSheet({
               Pembayaran diproses aman oleh DANA
             </Text>
           </>
-        ) : selectedMethod && intent.qrString ? (
-          /* QRIS (DANA) */
+        ) : selectedMethod && qrString ? (
+          /* QRIS (DANA) — qrString BE, atau paymentCode BE untuk intent QRIS (BFI-074) */
           <>
             {intentTopExtra}
             <QrisPaymentPanel
-              qrString={intent.qrString}
+              qrString={qrString}
               amount={intent.amount}
               expiresAt={intent.expiresAt}
               status={payment.status}
@@ -274,11 +287,11 @@ export function DanaCheckoutSheet({
               checking={payment.syncing}
             />
           </>
-        ) : selectedMethod && intent.vaNumber ? (
+        ) : selectedMethod && vaNumber ? (
           <>
             {intentTopExtra}
             <VaPaymentPanel
-              vaNumber={intent.vaNumber}
+              vaNumber={vaNumber}
               vaBankName={intent.vaBankName}
               accountName={intent.accountName}
               amount={intent.amount}

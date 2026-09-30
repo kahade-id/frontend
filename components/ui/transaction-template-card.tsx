@@ -55,7 +55,7 @@ import { mapValue } from "@/lib/has-own"
 export type TransactionTemplate = {
   id: string
   name: string
-  role: OrderRoleValue
+  role?: OrderRoleValue
   title: string
   description?: string
   orderType: OrderType

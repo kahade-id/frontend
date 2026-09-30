@@ -13,7 +13,11 @@ import type { CreateTemplateDto, UpdateTemplateDto } from "@/lib/api/types"
 export type TransactionTemplate = {
   id: string
   name: string
-  role: "BUYER" | "SELLER"
+  /**
+   * BFI-139 (audit integrasi 2026-09-30): backend TIDAK PERNAH mengirim
+   * `role` — OPSIONAL sebagai preferensi lokal form (lihat komentar modul).
+   */
+  role?: "BUYER" | "SELLER"
   title: string
   description?: string
   orderType: "PHYSICAL_GOODS" | "DIGITAL_GOODS" | "SERVICE" | "OTHER"
@@ -23,6 +27,10 @@ export type TransactionTemplate = {
   counterpartUsername?: string | null
   usageCount?: number
   lastUsedAt?: string | null
+  /** BFI-139: template default backend (aditif BE). */
+  isDefault?: boolean
+  /** BFI-139: waktu dibuat (aditif BE, ISO). */
+  createdAt?: string
 }
 
 export function listTransactionTemplates(signal?: AbortSignal) {

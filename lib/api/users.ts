@@ -66,6 +66,34 @@ export type UserProfile = {
   contactPhone?: string | null
   showContactEmail?: boolean
   showContactPhone?: boolean
+  /**
+   * BFI-144 (audit integrasi 2026-09-30): backend (`getMyProfile`) TIDAK
+   * mengirim `balance` datar — yang dikirim adalah objek `wallet` bersarang.
+   * `balance` tetap opsional (legacy/cache) dan `normalizeUserProfile`
+   * mengangkat `wallet.totalBalance` ke sini sebagai fallback.
+   */
+  balance?: number | null
+  /** BFI-144: backend tidak mengirimnya — tetap opsional, jangan diandalkan. */
+  usernameChangeCount?: number | null
+  /**
+   * BFI-144: saldo wallet dari `getMyProfile` (bersarang, integer rupiah).
+   * null = user belum punya wallet / tidak dikirim.
+   */
+  wallet?: {
+    availableBalance: number
+    escrowBalance: number
+    totalBalance: number
+  } | null
+  /** BFI-144: statistik profil dari `getMyProfile`. */
+  stats?: {
+    totalOrdersCompleted?: number
+    totalTransactionValue?: number
+    averageRating?: number
+    totalRatingCount?: number
+    memberSince?: string | null
+  }
+  /** BFI-144: status KYC profil (`getMyProfile`). */
+  kycStatus?: string | null
 }
 
 export type AvatarResult = {
@@ -106,8 +134,17 @@ function firstBoolean(
 
 export function normalizeUserProfile(raw: UserProfile): UserProfile {
   const record = raw as unknown as Record<string, unknown>
+  // BFI-144: backend mengirim `wallet` BERSARANG (bukan `balance` datar) —
+  // angkat `wallet.totalBalance` sebagai fallback `balance` (konsumen lama
+  // membaca `profile.balance`). `balance` datar eksplisit tetap menang bila
+  // ada; bukan angka = abaikan (jangan menimpa dengan undefined).
+  const walletRecord = asRecord(record.wallet)
+  const walletTotal =
+    walletRecord != null ? pickNumber(walletRecord, ["totalBalance", "total_balance"]) : undefined
+  const flatBalance = pickNumber(record, ["balance"])
   return {
     ...raw,
+    balance: flatBalance ?? walletTotal ?? raw.balance,
     avatarUrl: firstString(record, ["avatarUrl", "avatar_url", "avatar"]),
     headerUrl: firstString(record, ["headerUrl", "header_url", "headerImage", "coverUrl"]),
   }

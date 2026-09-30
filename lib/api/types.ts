@@ -518,6 +518,10 @@ export type ShowcaseMediaInput = {
   thumbnailFileKey?: string
   /** video: durasi detik. */
   durationSec?: number
+  /** BFI-101: lebar piksel (video/gambar) — untuk rasio feed. */
+  width?: number
+  /** BFI-101: tinggi piksel (video/gambar) — untuk rasio feed. */
+  height?: number
   /** spin360: kunci grup frame. */
   groupKey?: string
   /** spin360: urutan frame dalam grup. */

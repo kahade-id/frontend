@@ -75,6 +75,7 @@ import { clearPasswordResetState, setPasswordResetState } from "@/lib/password-r
 import { clearRegistrationState, setRegistrationState } from "@/lib/registration"
 import { isOfflineKnown, useIsOnline } from "@/lib/connectivity"
 import { ROUTES } from "@/lib/routes"
+import { setPendingTwoFactorLogin } from "@/lib/two-factor-login"
 import { useLeaveConfirm } from "@/lib/use-leave-confirm"
 import { Dialog } from "@/components/ui/modal"
 
@@ -194,13 +195,32 @@ export default function VerifyOtpScreen() {
             // Migrasi nomor HP → tukar tempToken jadi sesi penuh.
             clearRegistrationState()
             clearPasswordResetState()
-            await api.auth.confirmPhoneMigration({
+            const migrationResult = await api.auth.confirmPhoneMigration({
               tempToken: result.tempToken,
               location,
             })
+            // BFI-033: akun ber-2FA → tidak ada token sesi; lanjut ke /verify-2fa.
+            if ("requires2FA" in migrationResult && migrationResult.requires2FA) {
+              setPendingTwoFactorLogin({
+                tempToken: migrationResult.tempToken,
+                identifier: phoneNumber,
+              })
+              router.push(ROUTES.verify2fa)
+              break
+            }
             goWelcome()
             break
           case "existing_user":
+            // BFI-032: akun ber-2FA → tempToken saja, tanpa token sesi.
+            if ("requires2FA" in result && result.requires2FA) {
+              setPendingTwoFactorLogin({
+                tempToken: result.tempToken,
+                identifier: phoneNumber,
+              })
+              router.push(ROUTES.verify2fa)
+              break
+            }
+          // falls through
           default:
             // Token sudah disimpan otomatis oleh auth.ts → masuk app.
             clearRegistrationState()

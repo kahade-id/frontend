@@ -51,21 +51,29 @@ export type Shipment = {
   orderId: string
   providerCode: string
   serviceCode?: string | null
+  /** BFI-143: nama layanan dari katalog kurir (BE MaskedShipment.serviceName). */
+  serviceName?: string | null
   mode: ShipmentMode
   bookingState: ShipmentBookingState
   status: ShipmentStatus
-  providerBookingId?: string | null
   trackingNumber?: string | null
   costBearer: ShippingCostBearer
   estimatedCost?: string | number | null
   actualCost?: string | number | null
+  /** BFI-143: kode mata uang biaya (BE selalu mengirim, mis. "IDR"). */
+  currency?: string | null
   etaMinDays?: number | null
   etaMaxDays?: number | null
   slaDueAt?: string | null
+  /** BFI-143: flag keterlambatan hitungan server (BE MaskedShipment.slaBreached). */
+  slaBreached?: boolean | null
   lastEventAt?: string | null
   isManual: boolean
   manualTrackingNumber?: string | null
   manualCourierName?: string | null
+  /** BFI-143: alamat termasking (kota + kode pos) — BE origin/destination. */
+  origin?: { city?: string | null; postalCode?: string | null } | null
+  destination?: { city?: string | null; postalCode?: string | null } | null
   createdAt: string
 }
 
@@ -79,13 +87,20 @@ export type TrackingEvent = {
   createdAt: string
 }
 
+/**
+ * BFI-001: selaras `QuoteRequestDto` backend —
+ * `destinationPostalCode` (bukan `destPostalCode`); dimensi flat tidak
+ * di-whitelist BE (422) sehingga dihapus; filter provider opsional =
+ * `providers?: string[]` (BE), bukan field `provider` tunggal.
+ */
 export type QuoteBody = {
   originPostalCode: string
-  destPostalCode: string
+  destinationPostalCode: string
   weightGrams: number
-  lengthCm?: number
-  widthCm?: number
-  heightCm?: number
+  originCity?: string
+  destinationCity?: string
+  sort?: "price" | "eta"
+  providers?: string[]
 }
 
 export function getQuotes(body: QuoteBody, signal?: AbortSignal) {

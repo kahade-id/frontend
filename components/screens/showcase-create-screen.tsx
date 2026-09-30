@@ -158,12 +158,18 @@ function previewServerKeys(preview: Preview): string[] {
 function previewsToMediaInput(previews: Preview[]): ShowcaseMediaInput[] {
   return previews.map((preview): ShowcaseMediaInput => {
     if (preview.video) {
-      const input: ShowcaseMediaInput = {
+      // BFI-101: BE menerima width/height opsional (showcase-media.dto.ts);
+      // tipe ShowcaseMediaInput (lib/api/types.ts — bukan file domain ini)
+      // belum mendeklarasikannya, jadi pakai irisan lokal. Runtime JSON
+      // tetap membawa field-nya apa pun tipe statisnya.
+      const input: ShowcaseMediaInput & { width?: number; height?: number } = {
         fileKey: preview.video.fileKey,
         kind: "video",
         thumbnailFileKey: preview.video.thumbnailFileKey,
       }
       if (preview.video.durationSec != null) input.durationSec = preview.video.durationSec
+      if (preview.video.width != null) input.width = preview.video.width
+      if (preview.video.height != null) input.height = preview.video.height
       return input
     }
     const input: ShowcaseMediaInput = { fileKey: preview.fileKey, kind: "image" }

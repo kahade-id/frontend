@@ -224,7 +224,7 @@ export const ROUTES = {
    * Parameter dibaca sekali saat layar mount; validasi & langkah tetap seperti biasa.
    */
   createTransactionFromTemplate: (t: {
-    role: string
+    role?: string
     title: string
     orderType: string
     orderValue: number
@@ -236,7 +236,7 @@ export const ROUTES = {
     ({
       pathname: "/create-transaction",
       params: {
-        role: t.role,
+        ...(t.role ? { role: t.role } : {}),
         title: t.title,
         orderType: t.orderType,
         amount: String(t.orderValue),

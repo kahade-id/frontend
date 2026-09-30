@@ -34,6 +34,11 @@ import {
   type Order,
   type OrderMilestone,
 } from "@/lib/api"
+import {
+  disbursementStatusCopy,
+  getDisbursements,
+  type Disbursement,
+} from "@/lib/api/disbursements"
 import { logWarn } from "@/lib/telemetry"
 import { formatDateTime, formatDateTimeWIB, formatRupiah, parseRupiah } from "@/lib/format"
 import { pickImage } from "@/lib/image-picker"
@@ -86,6 +91,7 @@ export default function MilestoneDetailScreen() {
   const query = useApiQuery<{
     milestone: OrderMilestone
     order: Order | null
+    disbursement: Disbursement | null
   }>(
     `milestone-detail:${id}`,
     async (signal) => {
@@ -98,13 +104,25 @@ export default function MilestoneDetailScreen() {
             return null
           })
         : null
-      return { milestone, order }
+      // BFI-082: status transfer DANA aktual (scope MILESTONE) — defensif:
+      // gagal/tidak ada → null, UI tetap tampil seperti sebelumnya.
+      const disbursement = await getDisbursements({ scope: "MILESTONE", limit: 100, signal })
+        .then(
+          (items) =>
+            items.find((d) => d.scopeRefId === mid || d.orderId === milestone.orderId) ?? null,
+        )
+        .catch((err) => {
+          logWarn("milestone:disbursement", err)
+          return null
+        })
+      return { milestone, order, disbursement }
     },
     Boolean(id),
   )
 
   const milestone = query.data?.milestone ?? null
   const order = query.data?.order ?? null
+  const disbursement = query.data?.disbursement ?? null
   const myRole = order?.myRole === "BUYER" || order?.myRole === "SELLER" ? order.myRole : undefined
   const isBuyer = myRole === "BUYER"
   const isSeller = myRole === "SELLER"
@@ -237,6 +255,14 @@ export default function MilestoneDetailScreen() {
                 label={walletEnabled ? "Dicairkan ke penjual" : "Cair ke rekening penjual"}
                 value={<Text variant="monoBody">{formatRupiah(milestone.sellerAmount)}</Text>}
               />
+              {/* BFI-082: status RELEASED = milestone disetujui, BUKAN bukti dana
+                  sampai — tampilkan status transfer DANA aktual bila ada. */}
+              {disbursement ? (
+                <KeyValue
+                  label="Status transfer bank"
+                  value={<Text>{disbursementStatusCopy(disbursement).title}</Text>}
+                />
+              ) : null}
               {milestone.escrowHeld > 0 ? (
                 <KeyValue
                   label="Escrow ditahan"

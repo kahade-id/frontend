@@ -196,7 +196,7 @@ export async function unregisterWebPushDevice(api: RegisterDeviceApi): Promise<v
     /* lanjut ke pelepasan backend */
   }
   try {
-    await api.unregisterDevice()
+    await api.unregisterDevice(await getOrCreateDeviceId())
   } catch (err) {
     if (__DEV__) console.warn("[kahade/web-push] unregister gagal (diabaikan):", err)
   } finally {

@@ -32,6 +32,7 @@
  */
 import { http } from "@/lib/api/client"
 import { API_TIMEOUT_INTERACTIVE_MS } from "@/lib/api/config"
+import { isApiError, isOfflineError } from "@/lib/api/errors"
 import {
   asRecord as responseRecord,
   invalidResponse,
@@ -42,8 +43,9 @@ import {
   readVerdict,
   stringList,
 } from "@/lib/api/response"
-import { clearSession, getDeviceId, getDeviceInfo, startSession } from "@/lib/api/session"
+import { clearSession, getAccessToken, getDeviceId, getDeviceInfo, startSession } from "@/lib/api/session"
 import { withDeviceLocation, type WithDeviceLocation } from "@/lib/api/device-location"
+import { AppState } from "react-native"
 import type {
   ChangePasswordDto,
   ConfirmPhoneChangeDto,
@@ -102,10 +104,15 @@ export type AuthUser = {
  *
  * PENTING: cabang migrasi TIDAK menyimpan token — `persistTokens` tidak boleh
  * dipanggil sebelum cabang ini diperiksa (tidak ada accessToken di response).
+ *
+ * BFI-031: backend mengirim kunci `requires2FA` (bukan `requiresTwoFactor`).
+ * Kedua varian didukung di tipe agar screen bisa menangani cabang persis
+ * seperti yang dikirim server.
  */
 export type LoginResult =
-  | ({ requiresTwoFactor?: false; requiresPhoneMigration?: false; user?: AuthUser } & AuthTokens)
+  | ({ requiresTwoFactor?: false; requires2FA?: false; requiresPhoneMigration?: false; user?: AuthUser } & AuthTokens)
   | { requiresTwoFactor: true; tempToken: string; user?: AuthUser }
+  | { requires2FA: true; tempToken: string; user?: AuthUser }
   | { requiresPhoneMigration: true; migrationToken: string }
 
 /**
@@ -114,13 +121,20 @@ export type LoginResult =
  *   - new_user → phone-register
  *   - password_reset → reset-password
  *   - migration_verified → migrate-phone/confirm
- *   - existing_user → token (disimpan otomatis)
+ *   - existing_user → token (disimpan otomatis), KECUALI requires2FA:
+ *     tempToken scope 2fa_verify → /verify-2fa (BFI-032)
  */
 export type VerifyOtpStatus = "new_user" | "existing_user" | "password_reset" | "migration_verified"
 
 export type VerifyOtpResult =
   | { status: "new_user"; tempToken: string }
   | ({ status: "existing_user"; user?: AuthUser } & AuthTokens)
+  /**
+   * BFI-032: akun ber-2FA — backend mengembalikan `{ status: 'existing_user',
+   * requires2FA: true, tempToken }` TANPA token sesi. Layar wajib mengarahkan
+   * ke /verify-2fa (jangan persistTokens — pasti throw invalidResponse).
+   */
+  | { status: "existing_user"; requires2FA: true; tempToken: string }
   | { status: "password_reset"; tempToken: string }
   | { status: "migration_verified"; tempToken: string }
 
@@ -155,6 +169,13 @@ export type TwoFactorSetup = {
   /** otpauth:// URI untuk QR authenticator */
   otpauthUrl: string
   qrCode?: string
+  /**
+   * BFI-036: kode cadangan PLAINTEXT — hanya dikembalikan di respons SETUP,
+   * tidak pernah di respons enable. Layar wajib menampilkannya setelah
+   * enable2fa sukses (server mencabut SEMUA sesi saat itu, jadi tidak ada
+   * kesempatan kedua untuk melihatnya).
+   */
+  backupCodes: string[]
 }
 
 export type BackupCodes = { backupCodes: string[] }
@@ -262,10 +283,12 @@ export function resendVerification(dto: ResendVerificationDto) {
 }
 
 export async function correctEmail(dto: CorrectEmailDto) {
-  // Lokasi presisi aksi sensitif (kontrak lintas tim 2026-09-27).
-  return http.post<MessageResult, WithDeviceLocation<CorrectEmailDto>>(
+  // BFI-009: CorrectEmailDto TIDAK me-whitelist `deviceLocation`
+  // (forbidNonWhitelisted aktif global → field ekstra = 422). JANGAN
+  // withDeviceLocation di sini — kirim dto apa adanya.
+  return http.post<MessageResult, CorrectEmailDto>(
     "/v1/auth/correct-email",
-    await withDeviceLocation(dto),
+    dto,
     { auth: "none" },
   )
 }
@@ -427,6 +450,15 @@ export async function verifyOtp(dto: {
       throw invalidResponse("verify-otp/tempToken")
     return { status: resolved, tempToken }
   }
+  // BFI-032: existing_user + 2FA aktif → backend mengirim tempToken scope
+  // 2fa_verify TANPA accessToken/refreshToken. Kembalikan cabang 2FA agar
+  // layar mengarah ke /verify-2fa; tempToken yang valid tidak boleh dibuang.
+  const requires2fa = pickBoolean(record, ["requires2FA", "requires_2fa"]) ?? false
+  if (requires2fa) {
+    if (typeof tempToken !== "string" || !tempToken)
+      throw invalidResponse("verify-otp/tempToken")
+    return { status: "existing_user", requires2FA: true as const, tempToken }
+  }
   await persistTokens(record)
   // record sudah ternormalisasi sebagai Record; status eksplisit adalah
   // satu-satunya bentuk yang dipakai pemanggil.
@@ -477,12 +509,18 @@ export async function phoneRegister(dto: {
 /**
  * Konfirmasi migrasi nomor HP (kontrak auth-rework — endpoint baru).
  * Dipanggil setelah verify-otp status `migration_verified`: menukar tempToken
- * menjadi sesi penuh (token disimpan otomatis).
+ * menjadi sesi penuh (token disimpan otomatis) — KECUALI akun ber-2FA:
+ * backend mengembalikan `{ requires2FA: true, tempToken }` (BFI-033),
+ * dan pemanggil wajib mengarah ke /verify-2fa.
  */
+export type ConfirmPhoneMigrationResult =
+  | (AuthTokens & { user?: AuthUser; message?: string })
+  | { requires2FA: true; tempToken: string }
+
 export async function confirmPhoneMigration(dto: {
   tempToken: string
   location?: LocationDto
-}) {
+}): Promise<ConfirmPhoneMigrationResult> {
   const body = await withDeviceId<MigratePhoneConfirmDto>({
     tempToken: dto.tempToken,
     location: dto.location,
@@ -491,7 +529,17 @@ export async function confirmPhoneMigration(dto: {
     AuthTokens & { user?: AuthUser; message?: string },
     MigratePhoneConfirmDto
   >("/v1/auth/migrate-phone/confirm", body, { auth: "none" })
-  await persistTokens(result)
+  // BFI-033: akun ber-2FA → tidak ada token sesi di respons. Samakan pola
+  // login(): kembalikan cabang 2FA, jangan persistTokens (pasti throw).
+  const record = asRecord(result) ?? {}
+  const requires2fa = pickBoolean(record, ["requires2FA", "requires_2fa"]) ?? false
+  if (requires2fa) {
+    const tempToken = pickString(record, ["tempToken", "temp_token"])
+    if (typeof tempToken !== "string" || !tempToken)
+      throw invalidResponse("migrate-phone/tempToken")
+    return { requires2FA: true as const, tempToken }
+  }
+  await persistTokens(record)
   return result
 }
 
@@ -528,15 +576,21 @@ export async function login(dto: WithoutDevice<LoginDto> & { location?: Location
     return { ...result, requiresPhoneMigration: true, migrationToken }
   }
 
+  // BFI-031: backend mengirim `requires2FA` (auth.service.ts:1110 — tidak
+  // pernah `requiresTwoFactor`). Deteksi kunci server DULU, lalu alias lama
+  // sebagai fallback defensif.
   const requires2fa =
-    pickBoolean(record, ["requiresTwoFactor", "requires_two_factor"]) ??
+    pickBoolean(record, ["requires2FA", "requires_2fa", "requiresTwoFactor", "requires_two_factor"]) ??
+    (result as { requires2FA?: boolean }).requires2FA ??
     (result as { requiresTwoFactor?: boolean }).requiresTwoFactor
   const tempToken = pickString(record, ["tempToken", "temp_token"])
 
   if (requires2fa) {
     if (typeof tempToken !== "string" || !tempToken)
       throw invalidResponse("login/tempToken")
-    return { ...result, requiresTwoFactor: true, tempToken }
+    // Normalisasi: kedua kunci di-set agar pemanggil lama (requiresTwoFactor)
+    // maupun baru (requires2FA) mengenali cabang ini tanpa menebak.
+    return { ...result, requires2FA: true, requiresTwoFactor: true, tempToken }
   } else {
     await persistTokens(result)
   }
@@ -558,8 +612,16 @@ export async function verify2faLogin(dto: WithoutDevice<Verify2faLoginDto>) {
  * Keluar. Request ke server best-effort; sesi lokal SELALU dibersihkan.
  * Pemanggil bertanggung jawab memanggil `unregisterPushDevice()` SEBELUM ini
  * (endpoint itu butuh access token yang akan dihapus di sini).
+ *
+ * BFI-039: bila request server gagal karena jaringan (offline), token akses
+ * disalin ke `pendingLogoutToken` dan SATU percobaan ulang best-effort
+ * dijadwalkan pada foreground berikutnya (retryPendingLogoutOnce). Sesi lokal
+ * tetap dibersihkan segera — pengguna yang menekan "Keluar" harus
+ * benar-benar keluar dari perangkat ini.
  */
 export async function logout(dto: LogoutDto = {}): Promise<void> {
+  // Ambil SEBELUM request: token dibutuhkan untuk retry bila request gagal.
+  const preToken = await getAccessToken().catch(() => null)
   try {
     await http.post<MessageResult | undefined, LogoutDto>("/v1/auth/logout", dto, {
       auth: "optional",
@@ -567,8 +629,59 @@ export async function logout(dto: LogoutDto = {}): Promise<void> {
     })
   } catch (err) {
     if (__DEV__) console.warn("[kahade/api] logout server gagal (sesi lokal tetap dihapus):", err)
+    // Hanya untuk kegagalan jaringan — 401/4xx dari server berarti sesi
+    // sudah (dianggap) berakhir di sana; retry tidak ada gunanya.
+    if (preToken && isNetworkFailure(err)) armPendingLogoutRetry(preToken)
   } finally {
     await clearSession()
+  }
+}
+
+/** True bila request tidak pernah sampai ke server (offline/DNS/TLS/timeout). */
+function isNetworkFailure(err: unknown): boolean {
+  if (isOfflineError(err)) return true
+  return isApiError(err) && (err.code === "NETWORK" || err.code === "TIMEOUT")
+}
+
+let pendingLogoutToken: string | null = null
+let pendingLogoutRetryArmed = false
+
+/**
+ * Tandai logout server yang tertunda + pasang pendengar foreground satu-kali.
+ * Retry dilakukan MAKSIMAL sekali (flag dibersihkan sebelum percobaan).
+ */
+function armPendingLogoutRetry(token: string): void {
+  pendingLogoutToken = token
+  if (pendingLogoutRetryArmed) return
+  pendingLogoutRetryArmed = true
+  const sub = AppState.addEventListener("change", (state) => {
+    if (state !== "active") return
+    sub.remove()
+    pendingLogoutRetryArmed = false
+    void retryPendingLogoutOnce()
+  })
+}
+
+/**
+ * BFI-039: coba cabut sesi server yang gagal di-logout saat offline.
+ * Best-effort dan SEKALI saja — flag dibersihkan DULU sehingga kegagalan
+ * (401/token kedaluwarsa/jaringan) tidak memicu percobaan ulang tanpa akhir.
+ * Sesi server yang tidak tercabut kedaluwarsa sendiri (refresh token 7 hari).
+ */
+export async function retryPendingLogoutOnce(): Promise<void> {
+  const token = pendingLogoutToken
+  pendingLogoutToken = null
+  if (!token) return
+  try {
+    // Sesi lokal sudah kosong → auth:"none" + Bearer eksplisit dari token
+    // yang disalin sebelum logout.
+    await http.post("/v1/auth/logout", {}, {
+      auth: "none",
+      headers: { Authorization: `Bearer ${token}` },
+      timeoutMs: API_TIMEOUT_INTERACTIVE_MS,
+    })
+  } catch (err) {
+    if (__DEV__) console.warn("[kahade/api] retry pending logout gagal (best-effort):", err)
   }
 }
 
@@ -651,10 +764,14 @@ export function normalizePhoneChangeResult(raw: unknown): MessageResult {
 
 /** Request a sensitive-action OTP. Device identity is already sent by the HTTP boundary header. */
 export async function requestPhoneChange(dto: RequestPhoneChangeDto): Promise<MessageResult> {
-  // Lokasi presisi aksi sensitif (kontrak lintas tim 2026-09-27).
-  const result = await http.post<unknown, WithDeviceLocation<RequestPhoneChangeDto>>(
+  // BFI-008: RequestPhoneChangeDto TIDAK me-whitelist `deviceLocation`
+  // (forbidNonWhitelisted aktif global → field ekstra = 422). JANGAN
+  // withDeviceLocation di sini — kirim dto apa adanya.
+  // (Langkah confirm justru me-whitelist deviceLocation opsional, jadi
+  // withDeviceLocation di confirmPhoneChange tetap dipertahankan.)
+  const result = await http.post<unknown, RequestPhoneChangeDto>(
     "/v1/auth/phone-change/request",
-    await withDeviceLocation(dto),
+    dto,
     { auth: "required" },
   )
   return normalizePhoneChangeResult(result)
@@ -687,10 +804,15 @@ export async function get2faStatus(signal?: AbortSignal) {
 
 export async function setup2fa(dto: Setup2faDto) {
   const result = await http.post<TwoFactorSetup, Setup2faDto>("/v1/auth/2fa/setup", dto, { auth: "required" })
+  const rec = asRecord(result)
   return {
     ...result,
-    otpauthUrl: pickString(asRecord(result), ["otpauthUrl", "otpauth_url"]) ?? result.otpauthUrl,
-    qrCode: pickString(asRecord(result), ["qrCode", "qr_code"]) ?? result.qrCode,
+    otpauthUrl: pickString(rec, ["otpauthUrl", "otpauth_url"]) ?? result.otpauthUrl,
+    qrCode: pickString(rec, ["qrCode", "qr_code"]) ?? result.qrCode,
+    // BFI-036: backupCodes plaintext HANYA ada di respons setup (enable
+    // mengembalikan { message } saja). Tangkap di sini — satu-satunya
+    // kesempatan pengguna melihat/menyimpan kode cadangan.
+    backupCodes: stringList(result.backupCodes ?? pickUnknown(rec, ["backup_codes"])),
   }
 }
 

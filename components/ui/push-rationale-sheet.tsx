@@ -42,7 +42,8 @@ export function PushRationaleSheet({
     const deviceApi = {
       registerDevice: (body: Parameters<typeof api.notifications.registerDevice>[0]) =>
         api.notifications.registerDevice(body),
-      unregisterDevice: () => api.notifications.unregisterDevice(),
+      unregisterDevice: (deviceId: string) =>
+        api.notifications.unregisterDevice(deviceId),
     }
     try {
       if (Platform.OS === "web") await registerWebPushDevice(deviceApi)

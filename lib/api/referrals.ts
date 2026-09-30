@@ -6,6 +6,7 @@ import { pickNumber as pickStrictNumber, pickString, readList } from "@/lib/api/
 
 import { http } from "@/lib/api/client"
 import type { ApplyReferralDto } from "@/lib/api/types"
+import type { Disbursement } from "./disbursements"
 
 export type ReferralCode = {
   code: string
@@ -155,6 +156,47 @@ export function normalizeReferralHistoryEntry(raw: unknown): ReferralHistoryEntr
       : null,
     createdAt: pickString(record, ["appliedAt", "applied_at", "createdAt", "created_at"]) ?? "",
   }
+}
+
+/**
+ * BFI-083: padankan satu reward referral dengan baris disbursement DANA
+ * kanonis (GET /v1/legacy-payout/disbursements?scope=REFERRAL).
+ *
+ * Backend TIDAK mengisi `scopeRefId` untuk payout referral (releaseFunds
+ * dipanggil tanpa scopeRefId; idempotency key `REFERRAL:<rewardId>` tidak
+ * diekspos endpoint) — jadi join eksak reward.id ↔ disbursement tidak
+ * mungkin dari FE. Pemadanan memakai nominal (IDR) + urutan waktu
+ * (disbursement dibuat ≥ reward, diambil yang paling dekat waktunya).
+ *
+ * Heuristik, BUKAN join eksak: bila tidak ada kandidat yang masuk akal,
+ * kembalikan null agar UI memakai status reward apa adanya (label netral).
+ * Logika bisnis reward TIDAK diubah — hasil matcher hanya menambah caption
+ * informatif, bukan mengganti status reward.
+ */
+export function findRewardDisbursement(
+  reward: ReferralReward,
+  payouts: readonly Disbursement[],
+): Disbursement | null {
+  const rewardAt = Date.parse(reward.createdAt ?? "")
+  const candidates = payouts.filter((p) => {
+    if (p.scope !== "REFERRAL") return false
+    if (p.amount !== reward.amount) return false
+    if (Number.isFinite(rewardAt)) {
+      const payoutAt = Date.parse(p.createdAt ?? "")
+      if (Number.isFinite(payoutAt) && payoutAt < rewardAt) return false
+    }
+    return true
+  })
+  if (candidates.length === 0) return null
+  candidates.sort((a, b) => {
+    const at = Date.parse(a.createdAt ?? "") || 0
+    const bt = Date.parse(b.createdAt ?? "") || 0
+    if (Number.isFinite(rewardAt)) {
+      return Math.abs(at - rewardAt) - Math.abs(bt - rewardAt)
+    }
+    return bt - at
+  })
+  return candidates[0] ?? null
 }
 
 export function getMyReferralCode(signal?: AbortSignal) {

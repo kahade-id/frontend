@@ -32,7 +32,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { PencilSimple, Star, ThumbsUp, Trash } from "phosphor-react-native"
 
 import { api, userMessage } from "@/lib/api"
-import { readMyRatings, type Rating } from "@/lib/api/ratings"
+import { firstRatingReply, readMyRatings, type Rating } from "@/lib/api/ratings"
 import { queryKeys } from "@/lib/query-keys"
 import { tokens } from "@/lib/tokens"
 import { useApiQuery } from "@/lib/use-api-query"
@@ -232,8 +232,9 @@ export default function RatingsScreen() {
   }, [])
 
   const openEditReply = useCallback((rating: Rating, reply: RatingReply) => {
-    if (!rating.replyId) return
-    setReplyEditor({ rating, mode: "edit", replyId: rating.replyId })
+    const replyId = replyIdOf(rating)
+    if (!replyId) return
+    setReplyEditor({ rating, mode: "edit", replyId })
     setReplyText(reply.content)
   }, [])
 
@@ -313,17 +314,30 @@ export default function RatingsScreen() {
     [editRating, savingEdit, toast, query],
   )
 
-  const replyOf = (r: Rating): RatingReply | undefined =>
-    r.reply
+  const replyOf = (r: Rating): RatingReply | undefined => {
+    // BFI-128: baca replies[0] (bentuk backend), bukan `r.reply` datar.
+    const item = firstRatingReply(r)
+    return item
       ? {
-          id: r.replyId ?? `reply-${r.id}`,
-          content: r.reply,
+          id: item.id || r.replyId || `reply-${r.id}`,
+          content: item.content,
           by: { name: segment === "RECEIVED" ? translate("Anda") : (r.targetUsername ?? translate("Penjual")) },
           role: "seller",
-          date: r.replyCreatedAt ?? r.createdAt,
+          date: item.createdAt ?? r.createdAt,
           mine: segment === "RECEIVED",
         }
       : undefined
+  }
+
+  /**
+   * BFI-128: id balasan untuk PUT/DELETE — dari replies[0].id (backend),
+   * fallback `replyId` lama. Id kosong = tidak bisa edit/hapus (fail closed).
+   */
+  const replyIdOf = (r: Rating): string | undefined => {
+    const fromArray = firstRatingReply(r)?.id
+    if (fromArray) return fromArray
+    return typeof r.replyId === "string" && r.replyId ? r.replyId : undefined
+  }
 
   return (
     <Screen edges={["top"]} padded={false}>
@@ -397,6 +411,7 @@ export default function RatingsScreen() {
             />
             {filtered.map((r) => {
               const reply = replyOf(r)
+              const replyId = replyIdOf(r)
               const received = segment === "RECEIVED"
               const helpful = helpfulState[r.id]
               const helpfulCount = helpful?.count ?? (typeof r.helpfulCount === "number" ? r.helpfulCount : 0)
@@ -416,11 +431,11 @@ export default function RatingsScreen() {
                   date={r.createdAt}
                   orderId={r.orderId}
                   reply={reply}
-                  onReply={received && !r.reply ? () => openReply(r) : undefined}
-                  onEditReply={received && r.replyId ? (rep) => openEditReply(r, rep) : undefined}
+                  onReply={received && !reply ? () => openReply(r) : undefined}
+                  onEditReply={received && replyId ? (rep) => openEditReply(r, rep) : undefined}
                   onDeleteReply={
-                    received && r.replyId
-                      ? () => setDeleteReply({ rating: r, replyId: r.replyId as string })
+                    received && replyId
+                      ? () => setDeleteReply({ rating: r, replyId })
                       : undefined
                   }
                   footer={

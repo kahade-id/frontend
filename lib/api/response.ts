@@ -37,7 +37,14 @@ export function invalidResponse(context: string): ApiError {
  * berujung), `readList` melempar PARSE yang membingungkan. Kini `success:false`
  * DIPUTUSKAN DULU, apa pun kunci lain yang ikut.
  */
-export function unwrapResponse(value: unknown): unknown {
+/**
+ * BFI-067: `status` HTTP ikut dibawa — sebelumnya cabang `!body.success`
+ * membangun ApiError TANPA field status, sehingga layar pemeriksa `err.status`
+ * buta di jalur ini. Opsional agar pemanggil lama (adapter yang hanya punya
+ * body) tetap kompilasi; pemanggil yang punya Response WAJIB meneruskannya
+ * (lihat `exchange` di client.ts).
+ */
+export function unwrapResponse(value: unknown, status?: number): unknown {
   const body = asRecord(value)
   if (!body || typeof body.success !== "boolean") {
     // M-34 (audit end-to-end, issue #80): envelope MURNI `{data, message?}`
@@ -58,11 +65,14 @@ export function unwrapResponse(value: unknown): unknown {
       // `BAD_REQUEST` generik sehingga `isTransient`/retry tidak melihat
       // sinyal server (timeout, token kedaluwarsa, dsb.).
       code: codeFromBackend(parsed.backendCode) ?? (parsed.validationMessages?.length ? "VALIDATION" : "BAD_REQUEST"),
+      status,
       message: parsed.message ?? DEFAULT_ERROR_MESSAGES.BAD_REQUEST,
       // CPY-012: message bisa berasal dari body backend (bahasa tak terjamin).
       clientMessage: false,
       backendCode: parsed.backendCode,
       validationMessages: parsed.validationMessages,
+      // BFI-059: atribusi per field dari errors.fields backend.
+      fieldErrors: parsed.fieldErrors,
       raw: value,
     })
   }

@@ -71,7 +71,7 @@ import { api, isApiError, userMessage } from "@/lib/api"
 import { validateChatAttachment } from "@/lib/chat-attachment-limits"
 import { getOrder, type Order } from "@/lib/api/orders"
 import { consumePrefetchedChatRoom } from "@/lib/chat-room-prefetch"
-import { fetchViaQueryCache } from "@/lib/query-cache"
+import { fetchViaQueryCache, invalidateQueryPrefix } from "@/lib/query-cache"
 import { queryKeys } from "@/lib/query-keys"
 import { refreshUnreadCount } from "@/lib/unread-count"
 import { refreshChatUnreadCount } from "@/lib/chat-unread-count"
@@ -505,6 +505,11 @@ export default function ChatRoomScreen() {
   const [starredOpen, setStarredOpen] = useState(false)
   /** Sheet polling. */
   const [pollsOpen, setPollsOpen] = useState(false)
+  /**
+   * BFI-119: naik setiap event WS chat.poll_created/updated/closed tiba —
+   * diteruskan ke ChatPollsSheet agar daftar polling me-reload saat terbuka.
+   */
+  const [pollsRefreshSignal, setPollsRefreshSignal] = useState(0)
   /** Sheet kirim lokasi. */
   const [locationSheetOpen, setLocationSheetOpen] = useState(false)
   /** Sheet pesan sementara + sekali-lihat. */
@@ -1099,6 +1104,23 @@ export default function ChatRoomScreen() {
     onTyping: (isTyping) => setCounterpartTyping(isTyping),
     onPresence: (isOnline) =>
       setPresence((prev) => (prev ? { ...prev, isOnline } : prev)),
+    // BFI-118: status order berubah di server (dibayar, dikirim, selesai,
+    // dibatalkan) — refresh kartu status order room ini tanpa remount.
+    onOrderStatusChanged: (changedOrderId) => {
+      const currentOrderId = room?.orderId
+      if (!currentOrderId || changedOrderId !== currentOrderId) return
+      invalidateQueryPrefix(queryKeys.order(currentOrderId))
+      void fetchViaQueryCache(queryKeys.order(currentOrderId), (signal) =>
+        getOrder(currentOrderId, signal),
+      )
+        .then((ord) => setOrder(ord))
+        .catch(() => undefined)
+    },
+    // BFI-119: polling dibuat/disuara/ditutup — sheet polling yang sedang
+    // terbuka me-reload daftarnya (tanpa mereset form yang sedang diisi).
+    onPollCreated: () => setPollsRefreshSignal((n) => n + 1),
+    onPollUpdated: () => setPollsRefreshSignal((n) => n + 1),
+    onPollClosed: () => setPollsRefreshSignal((n) => n + 1),
     // G109: setelah reconnect + join ulang, pesan yang terlewat diambil
     // via REST (kursor = halaman terbaru; mergeIncoming mendup).
     onReconnect: () => {
@@ -3179,6 +3201,7 @@ export default function ChatRoomScreen() {
         roomId={roomId}
         visible={pollsOpen}
         onRequestClose={() => setPollsOpen(false)}
+        refreshSignal={pollsRefreshSignal}
       />
 
       {/* Kirim lokasi GPS. */}

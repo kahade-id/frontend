@@ -19,9 +19,21 @@
  * | chat.reaction_updated | server → klien  | { roomId, messageId, reactions[] }      |
  * | chat.message_pinned / | server → klien  | { roomId, messageId, isPinned, pinnedBy }|
  * | chat.message_unpinned |                 |                                          |
- * | chat.typing           | dua arah        | { roomId, userId, fullName, isTyping,    |
- * |                       |                 |   expiresAt } (unified; gantikan         |
- * |                       |                 |   typing.start/stop legacy)              |
+ * | chat.message_view_once| server → klien  | { roomId, messageId, viewerId }          |
+ * | _consumed             |                 |                                          |
+ * | chat.room_pinned /    | server → klien  | pin: { roomId, position } /            |
+ * | chat.room_unpinned    | (ke user:<id>)   | { roomId }                               |
+ * | chat.poll_created /   | server → klien  | { roomId, pollId, question?/voterId? }  |
+ * | chat.poll_updated /   |                 |                                          |
+ * | chat.poll_closed      |                 |                                          |
+ * | notification.new      | server → klien  | { notifId, type?, title, body, ...data }|
+ * | notification.         | server → klien  | { unreadCount }                          |
+ * | unread_count          | (ke user:<id>)   |                                          |
+ * | order.status_changed /| server → klien  | { orderId, status } (ke order:<id>;     |
+ * | order.status (legacy) |                 | `order.status` varian lama)              |
+ * | chat.typing           | dua arah        | { roomId, userId, username, isTyping,    |
+ * |                       |                 |   expiresAt } top-level — SAMA di jalur  |
+ * |                       |                 |   WS (gateway) & REST (BFI-115)          |
  * | user.online /         | server → klien  | { userId } (broadcast ke room, kecuali   |
  * | user.offline          |                 | socket pengirim)                         |
  * | join-room / leave-room| klien → server  | { roomId } → ack { success, message? }   |
@@ -50,9 +62,38 @@ export const CHAT_SOCKET_EVENTS = {
   REACTION_UPDATED: "chat.reaction_updated",
   MESSAGE_PINNED: "chat.message_pinned",
   MESSAGE_UNPINNED: "chat.message_unpinned",
+  /** BFI-117: pesan sekali-lihat dikonsumsi penerima (BE: getMessages). */
+  VIEW_ONCE_CONSUMED: "chat.message_view_once_consumed",
+  /** BFI-113: pin/unpin ROOM (bukan pesan) — di-emit ke `user:<id>`. */
+  ROOM_PINNED: "chat.room_pinned",
+  ROOM_UNPINNED: "chat.room_unpinned",
+  /** BFI-119: polling di dalam room chat. */
+  POLL_CREATED: "chat.poll_created",
+  POLL_UPDATED: "chat.poll_updated",
+  POLL_CLOSED: "chat.poll_closed",
   TYPING: "chat.typing",
   USER_ONLINE: "user.online",
   USER_OFFLINE: "user.offline",
+} as const
+
+/**
+ * BFI-113: event notifikasi — nama persis seperti yang di-emit
+ * `RealtimeGateway` ke room `user:<id>` (`backend/src/modules/realtime/
+ * realtime.gateway.ts`).
+ */
+export const NOTIFICATION_SOCKET_EVENTS = {
+  NEW: "notification.new",
+  UNREAD_COUNT: "notification.unread_count",
+} as const
+
+/**
+ * BFI-113/BFI-118: event status order — di-emit ke room `order:<orderId>`
+ * (`order-state.service.ts`, `orders.service.ts`). `STATUS` adalah varian
+ * legacy yang masih di-emit berdampingan di beberapa titik.
+ */
+export const ORDER_SOCKET_EVENTS = {
+  STATUS_CHANGED: "order.status_changed",
+  STATUS: "order.status",
 } as const
 
 /** Event `error` bawaan socket.io untuk pesan error dari server. */
@@ -71,6 +112,13 @@ export type ChatReadPayload = {
   messageId?: string | null
   readAt: string
   markedCount?: number
+  /**
+   * BFI-114: true bila event ini adalah sinkronisasi multi-device untuk
+   * perangkat milik pembaca sendiri (dikirim BE saat `hideReadReceipts`
+   * aktif, dan pada broadcast room). Klien WAJIB memprosesnya walau
+   * `userId` == viewerId — filter gema biasa hanya berlaku tanpa flag ini.
+   */
+  isOwnDeviceSync?: boolean
 }
 
 /** Update reaksi: reactions sudah di-summarize server (per-viewer bila lewat `user:<id>`). */
@@ -88,11 +136,89 @@ export type ChatPinPayload = {
   pinnedBy?: string | null
 }
 
+/**
+ * BFI-117: pesan sekali-lihat dikonsumsi — payload aktual BE
+ * (`chat.service.ts` getMessages): `{ roomId, messageId, viewerId }`
+ * (viewerId = id internal penerima yang mengonsumsi).
+ */
+export type ChatViewOnceConsumedPayload = {
+  roomId: string
+  messageId: string
+  viewerId: string
+}
+
+/**
+ * BFI-117: pin/unpin ROOM — payload aktual BE (`pinChatRoom` me-emit hasil
+ * upsert `{ roomId, position }`; `unpinChatRoom` me-emit `{ roomId }`).
+ */
+export type ChatRoomPinnedPayload = {
+  roomId: string
+  position: number
+}
+
+export type ChatRoomUnpinnedPayload = {
+  roomId: string
+}
+
+/**
+ * BFI-117: polling — payload aktual BE:
+ * - created: `{ roomId, pollId, question }`
+ * - updated: `{ roomId, pollId, voterId }` (voterId = id internal pemilih)
+ * - closed:  `{ roomId, pollId }`
+ */
+export type ChatPollCreatedPayload = {
+  roomId: string
+  pollId: string
+  question: string
+}
+
+export type ChatPollUpdatedPayload = {
+  roomId: string
+  pollId: string
+  voterId: string
+}
+
+export type ChatPollClosedPayload = {
+  roomId: string
+  pollId: string
+}
+
+/**
+ * BFI-117/BFI-120: `notification.new` — payload aktual gateway SETELAH fix
+ * BFI-120: `{ notifId, type, title, body, ...data }` (`data` = kolom JSON
+ * bisnis: orderId/roomId/actionUrl/…). `notifId` null bila lookup
+ * best-effort gagal.
+ */
+export type NotificationNewPayload = {
+  notifId: string | null
+  type?: string | null
+  title: string
+  body: string
+}
+
+/** `notification.unread_count` — `{ unreadCount }`. */
+export type NotificationUnreadCountPayload = {
+  unreadCount: number
+}
+
+/**
+ * BFI-117/BFI-118: `order.status_changed` (+ legacy `order.status`) —
+ * `{ orderId, status }` (status = enum status order, mis. "COMPLETED").
+ */
+export type OrderStatusChangedPayload = {
+  orderId: string
+  status: string
+}
+
 /** Indikator mengetik: userId = pengetik (id internal). */
 export type ChatTypingPayload = {
   roomId: string
   userId: string
-  fullName?: string | null
+  /**
+   * BFI-115: nama tampilan pengetik (fullName || username dari server),
+   * top-level — SAMA di jalur WS (gateway) maupun REST (sendTypingIndicator).
+   */
+  username?: string | null
   isTyping: boolean
   expiresAt?: string | null
 }

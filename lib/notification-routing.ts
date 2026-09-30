@@ -4,10 +4,12 @@
  * Spec `GET /v1/notifications` dan payload push TIDAK mendokumentasikan
  * bentuk referensi (UNVERIFIED). Kami menerima dua sumber yang lazim:
  *   1. `referenceType` + `referenceId` pada item notifikasi
- *      (mis. ORDER/abc, DISPUTE/xyz, WALLET_TRANSACTION/123, CHAT_ROOM/…,
+ *      (dinormalisasi dari `refType`/`refId` aktual backend — BFI-116;
+ *      mis. ORDER/abc, DISPUTE/xyz, WALLET_TRANSACTION/123, CHAT_ROOM/…,
  *      SUPPORT_TICKET/…, USER/<username>, KYC/*, ORDER_LINK/<token>)
  *   2. `data` payload push (expo-notifications) dengan kunci yang sama
- *      (`referenceType`/`referenceId`) atau `type`/`id`/`orderId`/…
+ *      (`refType`/`refId`, `referenceType`/`referenceId`) atau
+ *      `type`/`id`/`orderId`/…
  *
  * Pencocokan tipe TIDAK case-sensitive dan menoleransi variasi
  * (`order`, `ORDER`, `Order`, `order_link`, `orderLink`). Bila tidak
@@ -310,8 +312,12 @@ function routeForPushDataRaw(data: unknown): Href | null {
   // `notificationType` ikut dibaca: payload push backend selalu menyertakan
   // enum kanonisnya (mis. CHAT_NEW_MESSAGE) walau `type`-nya alias
   // (CHAT_NEW) — keduanya dinormalisasi ke alias tabel di atas.
-  const referenceType = str("referenceType") ?? str("type") ?? str("notificationType") ?? str("kind")
+  // BFI-116: backend memakai `refType`/`refId` (kolom notifikasi) — baca
+  // varian itu juga sebelum jatuh ke kunci turunan.
+  const referenceType =
+    str("refType") ?? str("referenceType") ?? str("type") ?? str("notificationType") ?? str("kind")
   const referenceId =
+    str("refId") ??
     str("referenceId") ??
     str("id") ??
     str("orderId") ??
@@ -406,8 +412,14 @@ function routeForActionUrlRaw(actionUrl: string | null | undefined): Href | null
 
   if (segments.length === 1) {
     switch (segments[0]) {
-      case "notifications":
-        return ROUTES.notifications
+      case "notifications": {
+        // BFI-121: actionUrl push `/notifications?notificationId=<notifId>`
+        // (push.service `deriveActionUrl`) — buka & tandai notifikasi
+        // SPESIFIK lewat layar detail (dibuka = dibaca, idempoten), bukan
+        // sekadar tab inbox. Tanpa query → tab inbox seperti sebelumnya.
+        const notificationId = new URLSearchParams(query ?? "").get("notificationId")
+        return notificationId ? ROUTES.notificationDetail(notificationId) : ROUTES.notifications
+      }
       case "wallet": {
         // Bentuk satu-segmen ber-query (`/wallet?id=<txId>`) — robustness.
         const txId = new URLSearchParams(query ?? "").get("id")

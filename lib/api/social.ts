@@ -39,6 +39,18 @@ async function persistSocialTokens(record: Record<string, unknown>): Promise<voi
 export type SocialProvider = "GOOGLE" | "APPLE"
 
 /**
+ * BFI-035: backend HANYA menerima lowercase di body/URL
+ * (`@IsEnum(['google','apple'])`, `DELETE /v1/auth/social/:provider` menolak
+ * selain itu dengan 400/410). GET /v1/auth/social/providers justru
+ * mengembalikan UPPERCASE — jadi konversi hanya di batas wire, tipe UI tetap
+ * uppercase.
+ */
+type SocialWireProvider = "google" | "apple"
+function toWireProvider(p: SocialProvider): SocialWireProvider {
+  return p === "APPLE" ? "apple" : "google"
+}
+
+/**
  * POST /v1/auth/apple/nonce — minta nonce terbitan server untuk Apple Sign-in.
  *
  * KONTRAK Wave 1 backend (BREAKING, 2026-09-28): backend HANYA menerima nonce
@@ -126,7 +138,10 @@ export interface SocialLoginDto {
 }
 
 export async function socialLogin(dto: SocialLoginDto): Promise<SocialLoginResult> {
-  const raw = await http.post<unknown, SocialLoginDto>("/v1/auth/social/login", dto, { auth: "none" })
+  // BFI-035: provider dikirim lowercase (verifikasi server BE menolak
+  // UPPERCASE dengan 400). idToken tetap diverifikasi server-side oleh BE.
+  const wireBody = { ...dto, provider: toWireProvider(dto.provider) }
+  const raw = await http.post<unknown, typeof wireBody>("/v1/auth/social/login", wireBody, { auth: "none" })
   const record = asRecord(raw)
   if (!record) throw invalidResponse("social-login")
 
@@ -187,7 +202,9 @@ export interface SocialLinkDto {
 }
 
 export async function linkSocial(dto: SocialLinkDto): Promise<SocialLinkResult> {
-  const raw = await http.post<unknown, SocialLinkDto>("/v1/auth/social/link", dto, { auth: "required" })
+  // BFI-035: provider dikirim lowercase (BE @IsEnum(['google','apple'])).
+  const wireBody = { ...dto, provider: toWireProvider(dto.provider) }
+  const raw = await http.post<unknown, typeof wireBody>("/v1/auth/social/link", wireBody, { auth: "required" })
   const record = asRecord(raw)
   if (!record) throw invalidResponse("social-link")
   const requiresConfirmation = pickBoolean(record, ["requiresConfirmation"]) ?? false
@@ -231,7 +248,9 @@ export function unlinkSocial(
   provider: SocialProvider,
   dto: { password?: string; mfaCode?: string; reauthToken?: string },
 ): Promise<void> {
-  return http.delete<void, typeof dto>(`/v1/auth/social/${provider}`, {
+  // BFI-035: path param wajib lowercase — `/v1/auth/social/GOOGLE` dijawab
+  // 410 SOCIAL_PROVIDER_NOT_SUPPORTED oleh BE.
+  return http.delete<void, typeof dto>(`/v1/auth/social/${toWireProvider(provider)}`, {
     auth: "required",
     body: dto,
     responseType: "void",

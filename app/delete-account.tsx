@@ -23,7 +23,7 @@ import { Platform, ScrollView, View } from "react-native"
 import { router } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
-import { api, isApiError } from "@/lib/api"
+import { api, deletionBlockerMessage } from "@/lib/api"
 import type { DeletionRequestResult } from "@/lib/api/account-deletion"
 import { clearSession } from "@/lib/api/session"
 import { copyToClipboard } from "@/lib/clipboard"
@@ -99,15 +99,25 @@ export default function DeleteAccountScreen() {
         const deviceApi = {
           registerDevice: (dto: Parameters<typeof api.notifications.registerDevice>[0]) =>
             api.notifications.registerDevice(dto),
-          unregisterDevice: () => api.notifications.unregisterDevice(),
+          // BFI-111 (worker push): unregisterDevice kini wajib membawa deviceId;
+          // diisi pemanggil (unregisterPushDevice) dari getOrCreateDeviceId().
+          unregisterDevice: (deviceId: string) => api.notifications.unregisterDevice(deviceId),
         }
         if (Platform.OS === "web")
           await unregisterWebPushDevice(deviceApi).catch((err) => logWarn("account-delete:unregister-push", err))
         else await unregisterPushDevice(deviceApi).catch((err) => logWarn("account-delete:unregister-push", err))
         await clearSession()
       } catch (err) {
-        if (isApiError(err) && err.backendCode === "DELETION_BLOCKED") {
-          setErrorText("Penghapusan belum bisa diproses: masih ada saldo, pesanan aktif, atau sengketa terbuka. Selesaikan dulu, lalu coba lagi.")
+        // BFI-057: backend menolak dengan kode blocker SPESIFIK
+        // (ACTIVE_ORDERS_PRESENT / ESCROW_BALANCE_PRESENT / WALLET_BALANCE_PRESENT
+        // — diverifikasi di users.service.ts; string DELETION_BLOCKED tidak
+        // pernah dikirim backend sehingga cabang lama mati total).
+        // Tampilkan alasan spesifik + muat ulang eligibility agar daftar
+        // blocker di form ikut segar. Fail-closed: penolakan tak dikenal
+        // jatuh ke pesan generik — TIDAK pernah diartikan "boleh hapus".
+        const blockerMessage = deletionBlockerMessage(err)
+        if (blockerMessage) {
+          setErrorText(blockerMessage)
           void prerequisites.reload()
           return
         }

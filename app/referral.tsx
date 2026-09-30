@@ -20,6 +20,11 @@ import { translate } from "@/lib/i18n/translate"
 
 import { api, isApiError, userMessage } from "@/lib/api"
 import { referralUrl } from "@/lib/deeplinks"
+import {
+  disbursementStatusCopy,
+  getDisbursements,
+  type Disbursement,
+} from "@/lib/api/disbursements"
 import { formatDateTimeWIB, formatRupiah } from "@/lib/format"
 import { haptic } from "@/lib/haptics"
 import { shareContent } from "@/lib/share"
@@ -71,8 +76,9 @@ export default function ReferralScreen() {
     stats: { totalReferred: number; qualified: number; totalReward: number } | null
     history: import("@/lib/api/referrals").ReferralHistoryEntry[]
     rewards: import("@/lib/api/referrals").ReferralReward[]
+    payouts: Disbursement[]
   }>("referral", async (signal) => {
-    const [c, s, h, r] = await Promise.all([
+    const [c, s, h, r, p] = await Promise.all([
       api.referrals.getMyReferralCode(signal),
       api.referrals.getReferralStats(signal).catch((err) => {
         logWarn("referral:stats", err)
@@ -80,6 +86,13 @@ export default function ReferralScreen() {
       }),
       api.referrals.getReferralHistory(signal).catch(() => []),
       api.referrals.getReferralRewards(signal).catch(() => []),
+      // BFI-083: status pencairan DANA kanonis (scope REFERRAL) — gagal
+      // dimuat TIDAK boleh mematikan layar; reward memakai status apa
+      // adanya (label netral).
+      getDisbursements({ scope: "REFERRAL", limit: 100, signal }).catch((err) => {
+        logWarn("referral:disbursements", err)
+        return null
+      }),
     ])
     return {
       code: c?.code ?? "",
@@ -92,12 +105,14 @@ export default function ReferralScreen() {
         : null,
       history: h ?? [],
       rewards: r ?? [],
+      payouts: p ?? [],
     }
   })
   const code = query.data?.code ?? ""
   const stats = query.data?.stats ?? null
   const history = query.data?.history ?? []
   const rewards = query.data?.rewards ?? []
+  const payouts = query.data?.payouts ?? []
   const { loading, error, refreshing } = query
 
   // Papan peringkat (GET /v1/referral/leaderboard) — query terpisah dengan
@@ -310,18 +325,41 @@ export default function ReferralScreen() {
                       : "Reward dicairkan ke rekening bank terdaftar Anda."
                   }
                 />
-                {rewards.map((r) => (
-                  <ReferralRewardListItem
-                    key={r.id}
-                    amount={r.amount}
-                    status={r.status}
-                    date={formatDateTimeWIB(r.createdAt)}
-                    // Tanpa wallet: "Masuk saldo" -> "Dicairkan" (disbursement
-                    // DANA ke rekening; PENDING tetap "Menunggu" — dana belum
-                    // ada tidak boleh terlihat sudah ada).
-                    labels={walletEnabled ? undefined : { CREDITED: "Dicairkan" }}
-                  />
-                ))}
+                {rewards.map((r) => {
+                  // BFI-083: hubungkan ke status disbursement DANA yang
+                  // sebenarnya. Pemadanan heuristik (nominal + waktu, lihat
+                  // findRewardDisbursement) — bila tidak ada yang cocok atau
+                  // endpoint gagal, null dan tampilan reward tidak berubah.
+                  // Status reward sendiri (PENDING/CREDITED) TIDAK diubah.
+                  const payout = api.referrals.findRewardDisbursement(r, payouts)
+                  const payoutCopy = payout ? disbursementStatusCopy(payout) : null
+                  return (
+                    <View key={r.id} className="gap-1">
+                      <ReferralRewardListItem
+                        amount={r.amount}
+                        status={r.status}
+                        date={formatDateTimeWIB(r.createdAt)}
+                        // Tanpa wallet: "Masuk saldo" -> "Dicairkan" (disbursement
+                        // DANA ke rekening; PENDING tetap "Menunggu" — dana belum
+                        // ada tidak boleh terlihat sudah ada).
+                        labels={walletEnabled ? undefined : { CREDITED: "Dicairkan" }}
+                      />
+                      {payoutCopy ? (
+                        <Text
+                          variant="caption"
+                          tone="secondary"
+                          className="px-1"
+                          accessibilityLabel={translate("Status pencairan DANA: {x}", {
+                            x: payoutCopy.title,
+                          })}
+                        >
+                          {translate("Status DANA: {x}", { x: payoutCopy.title })}
+                          {payoutCopy.description ? ` — ${payoutCopy.description}` : ""}
+                        </Text>
+                      ) : null}
+                    </View>
+                  )
+                })}
               </>
             ) : null}
             </View>

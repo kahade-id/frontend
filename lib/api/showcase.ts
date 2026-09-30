@@ -53,6 +53,11 @@ export type ShowcaseAuthor = {
   /** R1 (audit 2026-09-26): tier seal dari payload backend (`sealTier`) —
    * diutamakan <VerifiedSeal> di atas komputasi dari `badges`. */
   sealTier?: SealTier | null
+  /**
+   * BFI-131 (audit integrasi 2026-09-30): apakah viewer mem-follow author
+   * ini — DIKIRIM backend (`showcase.service.ts`), sebelumnya tak bertipe.
+   */
+  isFollowing?: boolean
 }
 
 /**
@@ -96,7 +101,12 @@ export type ShowcaseSocialItem = {
   condition?: "BARU" | "BEKAS" | null
   likeCount: number
   commentCount: number
-  viewCount: number
+  /**
+   * BFI-131: OPSIONAL — feed excerpt backend (`serializeShowcase(excerpt:true)`)
+   * SENGAJA tidak mengirim `viewCount`/`updatedAt` (NP-007); parser fallback
+   * ke 0/"" untuk kartu feed. Nilai nyata hanya ada di respons detail.
+   */
+  viewCount?: number
   /** DC-008: berapa kali deep link share item ini dibuka (backend S-4). */
   shareCount?: number
   /** Berapa kali item ini disimpan (kontrak final Tim A, 2026-09-28). */
@@ -108,7 +118,11 @@ export type ShowcaseSocialItem = {
   /** viewer adalah pemilik item (moderasi komentar terbuka). */
   isOwner?: boolean
   createdAt: string
-  updatedAt: string
+  /**
+   * BFI-131: OPSIONAL — tidak dikirim feed excerpt (lihat `viewCount`).
+   * Parser fallback ke "" untuk kartu feed.
+   */
+  updatedAt?: string
   author: ShowcaseAuthor
   orderLink?: {
     title: string
@@ -969,6 +983,8 @@ export function parseShowcaseItem(raw: unknown): ShowcaseSocialItem {
         : [],
       // R1: tier seal dari payload backend — diutamakan <VerifiedSeal>.
       sealTier: asSealTier(author.sealTier),
+      // BFI-131: isFollowing dikirim backend — teruskan (boolean strict).
+      isFollowing: author.isFollowing === true,
     },
     likeCount: count(value.likeCount), commentCount: count(value.commentCount), viewCount: count(value.viewCount),
     // DC-008: shareCount dikirim backend, sebelumnya dibuang parser.

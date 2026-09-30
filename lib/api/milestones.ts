@@ -6,7 +6,9 @@
  * - POST /v1/orders/:orderId/milestones            { milestones: [{ title, amountIdr, description?, deadline? }] }
  * - POST /v1/orders/:orderId/milestones/cancel-remaining
  * - GET  /v1/milestones/:id                       → detail tahap + evidence + events
- * - POST /v1/milestones/:id/submit                { evidenceKeys?, note? }
+ * - POST /v1/milestones/:id/submit                { note? } — tanpa body bila tanpa catatan
+ *                                            (BFI-006: evidence DILAMPIRKAN DULU via
+ *                                            POST /evidence { fileKey } per fileKey)
  * - POST /v1/milestones/:id/accept
  * - POST /v1/milestones/:id/release               (retry idempoten)
  * - POST /v1/milestones/:id/request-revision      { note }
@@ -71,6 +73,9 @@ export type OrderMilestone = {
   amount: number
   /** Bagian net penjual untuk tahap ini (fee proporsional). */
   sellerAmount: number
+  /** BFI-141: porsi pembeli & fee per tahap (rupiah) — dikirim BE detail/list. */
+  buyerAmount?: number | null
+  feeAmount?: number | null
   escrowHeld: number
   status: MilestoneStatus
   deadline?: string | null
@@ -83,6 +88,8 @@ export type OrderMilestone = {
   maxRevisionRounds: number
   /** Usulan perubahan yang menunggu persetujuan dua pihak. */
   changeRequest?: MilestoneChangeRequest
+  /** BFI-141: true bila ada usulan perubahan menunggu (turunan BE `changeRequest != null`). */
+  hasPendingChange?: boolean
   buyerApprovedChange: boolean
   sellerApprovedChange: boolean
   evidence?: MilestoneEvidence[]
@@ -112,6 +119,8 @@ export function normalizeMilestone(raw: unknown): OrderMilestone | null {
     description: typeof r.description === "string" ? r.description : null,
     amount: moneyOf(r.amount),
     sellerAmount: moneyOf(r.sellerAmount),
+    buyerAmount: r.buyerAmount == null ? null : moneyOf(r.buyerAmount),
+    feeAmount: r.feeAmount == null ? null : moneyOf(r.feeAmount),
     escrowHeld: moneyOf(r.escrowHeld),
     status: typeof r.status === "string" ? (r.status as MilestoneStatus) : "DRAFT",
     deadline: typeof r.deadline === "string" ? r.deadline : null,
@@ -122,6 +131,7 @@ export function normalizeMilestone(raw: unknown): OrderMilestone | null {
     revisionRounds: typeof r.revisionRounds === "number" ? r.revisionRounds : 0,
     maxRevisionRounds: typeof r.maxRevisionRounds === "number" ? r.maxRevisionRounds : 2,
     changeRequest: (r.changeRequest as MilestoneChangeRequest) ?? null,
+    hasPendingChange: r.hasPendingChange === true,
     buyerApprovedChange: r.buyerApprovedChange === true,
     sellerApprovedChange: r.sellerApprovedChange === true,
     evidence: Array.isArray(r.evidence)
@@ -197,14 +207,24 @@ export function getMilestone(milestoneId: string, signal?: AbortSignal) {
     .then(normalizeMilestone)
 }
 
-export function submitMilestone(
+/**
+ * BFI-006: submit TANPA body evidence. Tiap `evidenceKeys` dilampirkan dulu
+ * via POST `/v1/milestones/:id/evidence` `{ fileKey }` (endpoint yang benar
+ * menurut kontrak BE), baru submit dipanggil — dengan `{ note }` bila ada
+ * catatan, TANPA body bila tidak (BE: `SubmitMilestoneDto.note?` opsional).
+ */
+export async function submitMilestone(
   milestoneId: string,
   input: { evidenceKeys?: string[]; note?: string },
   signal?: AbortSignal,
 ) {
-  return http.post<unknown, { evidenceKeys?: string[]; note?: string }>(
+  for (const fileKey of input.evidenceKeys ?? []) {
+    await attachMilestoneEvidence(milestoneId, { fileKey }, signal)
+  }
+  const note = input.note?.trim() || undefined
+  return http.post<unknown, { note?: string } | undefined>(
     `/v1/milestones/${seg(milestoneId)}/submit`,
-    input,
+    note !== undefined ? { note } : undefined,
     { auth: "required", signal },
   )
 }

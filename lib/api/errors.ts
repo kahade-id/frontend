@@ -16,6 +16,24 @@
  * `parseErrorBody` sudah membacanya ke `backendCode` tanpa perubahan lain.
  */
 
+import {
+  ACTIVE_ORDERS_PRESENT,
+  DISPLAYABLE_BACKEND_MESSAGES,
+  ESCROW_BALANCE_PRESENT,
+  NOT_ORDER_PARTICIPANT,
+  ORDER_NOT_FOUND,
+  WALLET_BALANCE_PRESENT,
+  WALLET_PIN_NOT_SET,
+} from "@/lib/api/error-codes"
+
+/** BFI-059: satu field error validasi dari backend (`errors.fields`). */
+export type FieldError = {
+  /** Nama field dari backend (mis. `phoneNumber`) — tanpa target/value (PII). */
+  field: string
+  /** Pesan validasi untuk field ini (sudah dipotong agar aman tampil). */
+  messages: string[]
+}
+
 /** Kode stabil untuk dipetakan ke UI — TIDAK bergantung pada wording backend. */
 export type ApiErrorCode =
   | "NETWORK" // offline / DNS / TLS — request tidak pernah sampai
@@ -66,6 +84,13 @@ export type ApiErrorInit = {
   backendCode?: string
   /** Pesan-pesan validasi per field dari class-validator, apa adanya */
   validationMessages?: string[]
+  /**
+   * BFI-059: atribusi field error validasi dari backend
+   * (`errors.fields: [{ field, messages }]` — validation-exception.factory.ts).
+   * Screen/form memakai ini untuk menampilkan pesan tepat di field yang
+   * salah, bukan menebak dari `validationMessages` yang diratakan.
+   */
+  fieldErrors?: FieldError[]
   /** Body respons mentah (untuk log/debug — JANGAN tampilkan ke user) */
   raw?: unknown
   /**
@@ -100,6 +125,8 @@ export class ApiError extends Error {
   readonly status: number | undefined
   readonly backendCode: string | undefined
   readonly validationMessages: string[] | undefined
+  /** BFI-059: atribusi per field — lihat `ApiErrorInit.fieldErrors`. */
+  readonly fieldErrors: FieldError[] | undefined
   readonly method: string | undefined
   readonly path: string | undefined
   readonly retryAfterMs: number | undefined
@@ -124,6 +151,7 @@ export class ApiError extends Error {
     this.status = init.status
     this.backendCode = init.backendCode
     this.validationMessages = init.validationMessages
+    this.fieldErrors = init.fieldErrors
     this.#raw = init.raw
     // L-03: selalu disamarkan di titik ini — jaring pengaman terakhir sebelum
     // body request (bisa berisi PIN) masuk ke jalur log/debug.
@@ -257,6 +285,12 @@ export function parseErrorBody(body: unknown): {
   message: string | undefined
   backendCode: string | undefined
   validationMessages: string[] | undefined
+  /**
+   * BFI-059: atribusi per field dari envelope backend
+   * (`errors.fields: [{ field, messages }]` — validation-exception.factory.ts
+   * → http-exception.filter.ts). `undefined` bila backend tidak mengirimnya.
+   */
+  fieldErrors: FieldError[] | undefined
 } {
   const rec = asRecord(body) as NestErrorBody | null
   if (!rec) {
@@ -267,6 +301,7 @@ export function parseErrorBody(body: unknown): {
           : undefined,
       backendCode: undefined,
       validationMessages: undefined,
+      fieldErrors: undefined,
     }
   }
 
@@ -298,7 +333,35 @@ export function parseErrorBody(body: unknown): {
     rec.error_code,
   ].find((c): c is string => typeof c === "string" && c.length > 0)
 
-  return { message, backendCode, validationMessages }
+  return { message, backendCode, validationMessages, fieldErrors: parseFieldErrors(src) }
+}
+
+/**
+ * BFI-059: baca `errors.fields` dari envelope kanonis backend
+ * (`{ success:false, message, data:null, errors:{ code, message, fields } }` —
+ * http-exception.filter.ts:94-97; fields dibangun validation-exception.factory.ts).
+ *
+ * Sanitasi cermin backend: maksimal 50 field, hanya entri dengan `field`
+ * string non-kosong dan minimal satu `messages` string yang dilewatkan;
+ * tiap pesan dipotong dengan aturan UI yang sama (toUserMessage).
+ */
+function parseFieldErrors(source: NestErrorBody): FieldError[] | undefined {
+  const rawFields = (source as { fields?: unknown }).fields
+  if (!Array.isArray(rawFields)) return undefined
+  const out: FieldError[] = []
+  for (const item of rawFields.slice(0, 50)) {
+    const entry = asRecord(item)
+    if (!entry) continue
+    const field = entry.field
+    const messages = Array.isArray(entry.messages)
+      ? entry.messages
+          .filter((m): m is string => typeof m === "string")
+          .map(toUserMessage)
+      : []
+    if (typeof field !== "string" || !field || messages.length === 0) continue
+    out.push({ field, messages })
+  }
+  return out.length > 0 ? out : undefined
 }
 
 /**
@@ -310,6 +373,10 @@ export function parseErrorBody(body: unknown): {
 export function codeFromBackend(backendCode: string | undefined): ApiErrorCode | undefined {
   if (!backendCode) return undefined
   const k = backendCode.toUpperCase().replace(/[^A-Z0-9]+/g, "_")
+  // BFI-058: kode eksak yang tidak tertangkap heuristik `includes` di bawah
+  // (atau harus menang atasnya). Dicek dulu sebelum pola longgar.
+  if (k === ORDER_NOT_FOUND) return "NOT_FOUND"
+  if (k === NOT_ORDER_PARTICIPANT) return "FORBIDDEN"
   // Urutan penting: "INVALID_TOKEN" mengandung "VALID" — cek sesi dulu.
   // PIN_RATE_LIMITED dicek sebelum FORBIDDEN agar pesan klien yang jelas
   // (tunggu 15 menit) dipakai, bukan "tidak memiliki akses".
@@ -377,6 +444,28 @@ export function userMessage(err: unknown): string {
     // maupun backendCode karena error HTTP dinormalisasi via codeFromStatus
     // (403 → FORBIDDEN) sementara kode backend mentah tersimpan terpisah.
     if (isPinRateLimited(err)) return DEFAULT_ERROR_MESSAGES.PIN_RATE_LIMITED
+    // BFI-063: PENGECUALIAN eksplisit dari fail-closed. Backend mendokumentasikan
+    // `message` untuk kode-kode di DISPLAYABLE_BACKEND_MESSAGES sebagai copy
+    // Bahasa Indonesia yang aman ditampilkan langsung (bukan "pesannya terlihat
+    // Indonesia"). Cabang ini hanya untuk pesan yang PASTI dari backend
+    // (clientMessage: false); pesan karangan klien sudah ditangani di bawah.
+    if (
+      !err.clientMessage &&
+      err.backendCode &&
+      DISPLAYABLE_BACKEND_MESSAGES.has(err.backendCode) &&
+      err.message
+    ) {
+      return err.message
+    }
+    // BFI-058: getStatus pembayaran — bedakan "order tidak ada" / "bukan
+    // partisipan" dari "input salah". Copy Indonesia karangan klien (fail-closed):
+    // jangan teruskan wording backend mentah.
+    if (err.backendCode === ORDER_NOT_FOUND) {
+      return "Pesanan tidak ditemukan. Mungkin sudah dihapus atau tautannya tidak valid."
+    }
+    if (err.backendCode === NOT_ORDER_PARTICIPANT) {
+      return "Anda tidak memiliki akses ke pesanan ini."
+    }
     // Untuk error jaringan/server, wording backend (bila ada) biasanya teknis — pakai default.
     if (
       err.code === "NETWORK" ||
@@ -411,15 +500,18 @@ export function isPinRateLimited(err: unknown): boolean {
 
 /**
  * T3-004 (audit UI/UX): true bila server menolak karena PIN dompet BELUM
- * PERNAH diatur — bukan PIN yang salah. Backend (verifyWalletPin) memakai
- * HTTP 400 dengan body `code: "NOT_FOUND"` + pesan "Wallet PIN has not been
- * set" (kode khusus tidak ada). Dicek lewat backendCode + pesan mentah agar
- * tidak tertukar dengan 400 lain. Pakai ini untuk menampilkan jalan
+ * PERNAH diatur — bukan PIN yang salah. Pakai ini untuk menampilkan jalan
  * "Buat PIN" di dalam alur, bukan error "PIN salah".
+ *
+ * BFI-065: backend kini mengirim kode khusus `WALLET_PIN_NOT_SET` (bukan lagi
+ * `NOT_FOUND` generik + pesan Inggris). Fallback legacy dipertahankan karena
+ * backend dan APK di-deploy terpisah — backend lama masih mengirim bentuk lama.
  */
 export function isPinNotSetError(err: unknown): boolean {
   if (!isApiError(err)) return false
-  if ((err.backendCode ?? "").toUpperCase() !== "NOT_FOUND") return false
+  const code = (err.backendCode ?? "").toUpperCase()
+  if (code === WALLET_PIN_NOT_SET) return true
+  if (code !== "NOT_FOUND") return false
   const raw = err.raw
   const rawMessage =
     typeof raw === "object" && raw !== null
@@ -427,6 +519,31 @@ export function isPinNotSetError(err: unknown): boolean {
       : undefined
   const text = typeof rawMessage === "string" ? rawMessage : err.message
   return /pin has not been set/i.test(text)
+}
+
+/**
+ * BFI-057: POST /v1/users/me/delete-request yang ditolak backend membawa
+ * `errors.code` salah satu dari tiga kode blocker ini (HTTP 400). String
+ * `DELETION_BLOCKED` TIDAK PERNAH dikirim backend — cabang lama yang
+ * memeriksanya mati total.
+ *
+ * Kembalikan copy Indonesia SPESIFIK per kode, atau `undefined` bila ini bukan
+ * error blocker penghapusan (pemanggil memakai fallback fail-closed generik).
+ * Backend tetap penjaga terakhir: penolakan tak dikenal tidak boleh
+ * diartikan sebagai "boleh hapus".
+ */
+const DELETION_BLOCKER_COPY: Record<string, string> = {
+  [ACTIVE_ORDERS_PRESENT]:
+    "Penghapusan belum bisa diproses: masih ada pesanan aktif, penarikan yang sedang diproses, atau sengketa terbuka. Selesaikan semuanya dulu, lalu coba lagi.",
+  [ESCROW_BALANCE_PRESENT]:
+    "Penghapusan belum bisa diproses: masih ada dana yang tertahan di escrow. Selesaikan pesanan yang tertunda dulu, lalu coba lagi.",
+  [WALLET_BALANCE_PRESENT]:
+    "Penghapusan belum bisa diproses: saldo dompet Anda belum nol. Tarik dana Anda terlebih dahulu, lalu coba lagi.",
+}
+
+export function deletionBlockerMessage(err: unknown): string | undefined {
+  if (!isApiError(err) || !err.backendCode) return undefined
+  return DELETION_BLOCKER_COPY[err.backendCode]
 }
 
 /**

@@ -342,12 +342,13 @@ export async function payOrder(orderId: string, dto: PayOrderDto, idempotencyKey
 }
 
 export async function payOrderQris(orderId: string, idempotencyKey?: string) {
-  // Kontrak lintas tim 2026-09-27: body membawa deviceLocation opsional.
-  const body = await deviceLocationOnlyBody()
+  // BFI-016: endpoint tidak membaca body sama sekali (tidak ada @Body() di
+  // controller) — kirim TANPA body. Mengirim { deviceLocation } hanya
+  // menambah byte & risiko salah kira kontrak.
   return http
-    .post<unknown, { deviceLocation: LocationDto | null }>(
+    .post<unknown, undefined>(
       `/v1/orders/${seg(orderId)}/pay-qris`,
-      body, {
+      undefined, {
       auth: "required",
       // I-07 (audit end-to-end): intent QRIS ganda = dua tagihan untuk satu
     // order saat retry manual — kunci pemanggil (satu per sesi intent).
@@ -377,7 +378,9 @@ export function normalizeQrisPayment(raw: unknown): QrisPayment | undefined {
   return {
     qrString,
     qrUrl: pickString(nested, ["qrUrl", "qr_url", "url"]) ?? undefined,
-    expiresAt: pickString(nested, ["expiresAt", "expires_at", "expiredAt", "expiry"]) ?? null,
+    // BFI-135: backend mengirim `expiryTime` (OrderQrisPaymentResult) —
+    // tanpa alias ini countdown panel tidak pernah dapat tenggat server.
+    expiresAt: pickString(nested, ["expiresAt", "expires_at", "expiredAt", "expired_at", "expiryTime", "expiry_time", "expiry"]) ?? null,
     amount: amount ?? 0,
     paymentTxId: pickString(nested, ["paymentTxId", "payment_tx_id", "txId", "transactionId"]) ?? undefined,
   }
@@ -576,22 +579,22 @@ export async function createOrderPayment(
   methodCode: string,
   idempotencyKey?: string,
 ): Promise<OrderPaymentIntent> {
-  // Kontrak lintas tim 2026-09-27: body membawa deviceLocation opsional.
   // KONTRAK KANONIS (2026-09-30, terverifikasi terhadap backend):
   // `POST /v1/orders/{id}/payments` memakai `DanaDirectPayDto` =
   // `{ payKind: "QRIS"|"VA"|"BALANCE", bankCode? }` — BUKAN
   // `{ paymentMethod: "<code>" }` seperti dugaan lama (backend mewajibkan
   // `payKind` → request lama selalu 400). Kode UI ("QRIS", "VA_BCA",
   // "DANA") dipetakan via `toDanaPayKind` (fail-closed).
-  const body = await deviceLocationOnlyBody()
+  // BFI-071: body HANYA { payKind, bankCode? } — `deviceLocation` adalah key
+  // non-whitelisted untuk DTO ini dan ValidationPipe global
+  // (forbidNonWhitelisted, 422) menolak SELURUH request karenanya. Jangan
+  // selipkan deviceLocation di sini (kontrak lintas tim 2026-09-27 tidak
+  // berlaku untuk endpoint ini).
   const { payKind, bankCode } = toDanaPayKind(methodCode)
   try {
-    const raw = await http.post<
-      unknown,
-      { deviceLocation: LocationDto | null; payKind: DanaDirectPayKind; bankCode?: string }
-    >(
+    const raw = await http.post<unknown, { payKind: DanaDirectPayKind; bankCode?: string }>(
       `/v1/orders/${seg(orderId)}/payments`,
-      { ...body, payKind, ...(bankCode ? { bankCode } : {}) },
+      { payKind, ...(bankCode ? { bankCode } : {}) },
       {
         auth: "required",
         // I-07 (audit end-to-end): intent ganda = dua tagihan untuk satu
@@ -759,6 +762,23 @@ export function normalizePaymentStatus(raw: unknown): PaymentStatus {
     isExpired: expiredFlag === true || status === "EXPIRED",
     paidAt,
     method: pickString(record, ["method", "paymentMethod"]) ?? pickString(nested, ["method"]) ?? null,
+    // BFI-084: baca info refund aditif secara defensif — semua akses
+    // optional. Backend belum mengirim `refund` → null, layar tidak
+    // menampilkan apa-apa dan polling tetap jalan normal.
+    refund: (() => {
+      const refundRec = asRecord(nested.refund) ?? asRecord(record.refund)
+      if (!refundRec) return null
+      return {
+        status: pickString(refundRec, ["refundStatus", "refund_status", "status"]) ?? null,
+        amount: toAmount(
+          refundRec.refundAmount ?? refundRec.refund_amount ?? refundRec.amount ?? refundRec.amountSen,
+        ) ?? null,
+        refundedAt: pickString(refundRec, ["refundedAt", "refunded_at", "refundedAtIso"]) ?? null,
+        refundReference:
+          pickString(refundRec, ["refundReference", "refund_reference", "refundNo", "referenceNo"]) ??
+          null,
+      }
+    })(),
   }
 }
 
@@ -856,8 +876,11 @@ export function getOrderHistory(orderId: string, query: PageQuery, signal?: Abor
             id: pickString(item, ["id", "historyId"]) ?? `h-${query.page}-${index}-${toStatus}`,
             fromStatus: (pickString(item, ["fromStatus", "from_status"]) ?? null) as OrderStatus | null,
             toStatus: toStatus as OrderStatus,
-            actor: pickString(item, ["actor", "actorRole", "actor_role"]) ?? null,
-            actorId: pickString(item, ["actorId", "actor_id", "userId"]) ?? null,
+            // BFI-138: BE mengirim baris mentah OrderStatusHistory —
+            // `changedBy` (id user pengubah) & `changedByType` (peran:
+            // BUYER/SELLER/ADMIN/SYSTEM). Tanpa alias ini actor selalu null.
+            actor: pickString(item, ["actor", "actorRole", "actor_role", "changedByType", "changed_by_type"]) ?? null,
+            actorId: pickString(item, ["actorId", "actor_id", "userId", "changedBy", "changed_by"]) ?? null,
             note: pickString(item, ["note", "reason"]) ?? null,
             createdAt: pickString(item, ["createdAt", "created_at"]) ?? "",
           }

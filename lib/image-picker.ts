@@ -130,14 +130,40 @@ export async function resizePickedImage(
   }
 }
 
+/**
+ * BFI-102 (audit integrasi 2026-09-30): turunan MIME video dari ekstensi nama
+ * file bila picker tidak melaporkan `mimeType` (Android lama). Sebelumnya
+ * selalu dilabeli "video/mp4" + nama `video-<ts>.mp4` apa pun isinya —
+ * file .mov/.webm VALID ditolak BE (`MIME_TYPE_MISMATCH`: magic-byte
+ * terdeteksi video/quicktime|webm ≠ deklarasi video/mp4) walau formatnya ada
+ * di allowlist. Bila picker melaporkan mimeType, nilai picker tetap dipakai.
+ */
+function videoMimeFromFileName(fileName: string | null | undefined): { mimeType: string; extension: string } {
+  const ext = (fileName?.split(".").pop() ?? "").toLowerCase()
+  switch (ext) {
+    case "mov":
+      return { mimeType: "video/quicktime", extension: "mov" }
+    case "webm":
+      return { mimeType: "video/webm", extension: "webm" }
+    case "m4v":
+    case "mp4":
+    default:
+      return { mimeType: "video/mp4", extension: "mp4" }
+  }
+}
+
 function toPicked(asset: ImagePicker.ImagePickerAsset, fallbackName: string): PickedImage {
   // R2 (butir #34): MIME fallback mengikuti JENIS aset — video yang tidak
   // melaporkan mimeType (Android lama) tidak boleh dilabeli image/jpeg.
   const isVideo = asset.type === "video"
+  // BFI-102: video tanpa mimeType → turunkan dari ekstensi (bukan video/mp4 buta).
+  const videoFallback = isVideo && !asset.mimeType ? videoMimeFromFileName(asset.fileName) : null
   return {
     uri: asset.uri,
-    name: asset.fileName ?? fallbackName,
-    mimeType: asset.mimeType ?? (isVideo ? "video/mp4" : DEFAULT_MIME),
+    // Nama fallback mengikuti ekstensi turunan agar deklarasi MIME ↔ nama
+    // file konsisten (BE menurunkan ekstensi simpan dari magic-byte anyway).
+    name: asset.fileName ?? (videoFallback ? `video-${Date.now()}.${videoFallback.extension}` : fallbackName),
+    mimeType: asset.mimeType ?? videoFallback?.mimeType ?? (isVideo ? "video/mp4" : DEFAULT_MIME),
     size: asset.fileSize ?? 0,
     width: asset.width,
     height: asset.height,

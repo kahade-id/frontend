@@ -8,6 +8,21 @@ import { http, seg } from "@/lib/api/client"
 import type { CreateRatingDto, RatingReplyDto, UpdateRatingDto } from "@/lib/api/types"
 
 /**
+ * Satu item array `replies` — SELARAS dengan `normalizeRating` backend
+ * (`ratings.service.ts`): `reply ? [{ ...reply, userId: reply.replierId }] : []`
+ * dengan select `{ id, content, createdAt, replierId }`. Satu ulasan hanya bisa
+ * punya SATU balasan (relasi 1:1 di DB) — array selalu 0/1 item.
+ */
+export type RatingReplyItem = {
+  id: string
+  content?: string | null
+  createdAt?: string | null
+  replierId?: string | null
+  /** = replierId (dihydrated backend untuk kompatibilitas klien). */
+  userId?: string | null
+}
+
+/**
  * Satu ulasan / balasannya — UNVERIFIED (spec `GET /v1/ratings/my` tanpa
  * schema). Field arah & id balasan opsional:
  *   - `isMine`/`direction`: apakah ulasan ini SAYA yang menulis (bisa
@@ -32,11 +47,49 @@ export type Rating = {
   /** Jumlah penanda "berguna" (kolom model Rating). */
   helpfulCount?: number | null
   replied?: boolean
+  /**
+   * BFI-128 (audit integrasi 2026-09-30): balasan penjual — backend mengirim
+   * ARRAY `replies` (bukan field `reply` datar; field datar lama selalu
+   * `undefined` sehingga balasan tak pernah tampil). Layar membaca item
+   * pertama via `firstRatingReply()`.
+   */
+  replies?: RatingReplyItem[] | null
+  /**
+   * Fallback runtime untuk data cache lama yang masih membawa bentuk datar
+   * pre-BFI-128 — dibaca `firstRatingReply()` sebagai cadangan, JANGAN
+   * dipakai untuk logika baru. Field ini TIDAK pernah dikirim backend.
+   * @deprecated gunakan `replies`
+   */
   reply?: string | null
   replyId?: string | null
   replyCreatedAt?: string | null
   createdAt: string
   updatedAt?: string | null
+}
+
+/**
+ * BFI-128: baca balasan pertama ulasan — `replies[0]` (bentuk backend),
+ * dengan fallback ke bentuk datar lama (`reply`) untuk cache pra-fix.
+ */
+export function firstRatingReply(
+  r: Pick<Rating, "replies" | "reply" | "replyId" | "replyCreatedAt">,
+): { id: string; content: string; createdAt?: string | null } | undefined {
+  const item = Array.isArray(r.replies) ? r.replies[0] : undefined
+  if (item) {
+    return {
+      id: item.id,
+      content: typeof item.content === "string" ? item.content : "",
+      createdAt: item.createdAt ?? null,
+    }
+  }
+  if (r.reply) {
+    return {
+      id: typeof r.replyId === "string" && r.replyId ? r.replyId : "",
+      content: r.reply,
+      createdAt: r.replyCreatedAt ?? null,
+    }
+  }
+  return undefined
 }
 
 /** Bentuk respons `GET /v1/ratings/my` — array polos ATAU {data, meta} (UNVERIFIED). */

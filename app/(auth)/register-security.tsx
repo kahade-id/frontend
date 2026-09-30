@@ -52,7 +52,8 @@ import { Text } from "@/components/ui/text"
 import { ValidationSummary, type ValidationIssue } from "@/components/ui/validation-summary"
 import { VStack } from "@/components/ui/stack"
 import { api, isApiError, userMessage } from "@/lib/api"
-import { PASSWORD_MAX, isPasswordValid } from "@/lib/auth-constants"
+import { PASSWORD_MAX, isCommonPassword, isPasswordValid } from "@/lib/auth-constants"
+import { isValidRegisterUsername } from "@/lib/username"
 import { focusFirstInvalid } from "@/lib/form-validation"
 import { getAuthLocation } from "@/lib/location"
 import {
@@ -160,13 +161,34 @@ export default function RegisterSecurityScreen() {
     // A04: kumpulkan SEMUA error sekaligus (bukan berhenti di yang pertama),
     // tampilkan ringkasan di atas tombol, fokuskan field pertama yang salah.
     const found: ValidationIssue[] = []
-    if (fullName.trim().length === 0) {
+    const trimmedName = fullName.trim()
+    if (trimmedName.length === 0) {
       setFullNameError("Nama lengkap wajib diisi.")
       found.push({ field: "Nama lengkap", message: "Wajib diisi." })
+    } else if (trimmedName.length < 2) {
+      // BFI-042: mirror phone-register.dto — @MinLength(2).
+      setFullNameError("Nama lengkap minimal 2 karakter.")
+      found.push({ field: "Nama lengkap", message: "Minimal 2 karakter." })
+    } else if (/[<>]/.test(trimmedName)) {
+      // BFI-042: mirror phone-register.dto — @Matches(/^[^<>]*$/) (anti XSS).
+      setFullNameError("Nama lengkap tidak boleh mengandung karakter < atau >.")
+      found.push({ field: "Nama lengkap", message: "Tidak boleh mengandung < atau >." })
+    }
+    // BFI-041: aturan USERNAME KHUSUS phone-register (3–30, huruf besar &
+    // titik diizinkan — beda dari set-username). UsernameField menormalisasi
+    // saat mengetik (lowercase, maks 20) sehingga charset & panjang atas
+    // sudah aman; yang dicek di submit: minimal 3 bila diisi.
+    if (username.trim().length > 0 && !isValidRegisterUsername(username.trim())) {
+      setFormError("Username minimal 3 karakter.")
+      found.push({ field: "Username", message: "Minimal 3 karakter." })
     }
     if (!isPasswordValid(password)) {
       setPasswordError("Kata sandi minimal 8 karakter.")
       found.push({ field: "Kata sandi", message: "Minimal 8 karakter." })
+    } else if (isCommonPassword(password)) {
+      // BFI-043: blocklist password umum (mirror BE, UX saja).
+      setPasswordError("Kata sandi terlalu umum. Gunakan kombinasi yang lebih unik.")
+      found.push({ field: "Kata sandi", message: "Terlalu umum — gunakan kombinasi yang lebih unik." })
     }
     if (confirmPassword !== password) {
       setConfirmError("Konfirmasi kata sandi tidak sama.")
@@ -276,9 +298,10 @@ export default function RegisterSecurityScreen() {
                 />
 
                 {/* Batch 139 E01: UsernameField menormalisasi saat mengetik
-                    (lowercase, tanpa spasi/karakter asing, maks 20) +
-                    pratinjau bentuk final yang dikirim ke server — sama
-                    seperti di edit profil. */}
+                    (lowercase, tanpa spasi/karakter asing, maks 20) — subset
+                    aman dari aturan phone-register (3–30, huruf besar & titik
+                    diizinkan). Aturan MINIMAL (3) divalidasi saat submit
+                    (BFI-041); backend sumber kebenaran. */}
                 <UsernameField
                   label="Username"
                   ref={usernameRef}
@@ -287,10 +310,9 @@ export default function RegisterSecurityScreen() {
                     setUsername(t)
                     setFormError(null)
                   }}
-                  // FE-IMP-3 #109 — aturan username tampil di bawah field
-                  // SEBELUM submit (bukan hanya setelah error): 3–20 karakter,
-                  // huruf kecil/angka/._ (sumber: UsernameField).
-                  helperText="Opsional — 3–20 karakter, huruf kecil/angka/._"
+                  // BFI-041 — batas MINIMAL sesuai endpoint phone-register
+                  // (3–30); field membatasi input maks 20 saat mengetik.
+                  helperText="Opsional — minimal 3 karakter"
                   autoComplete="username"
                   textContentType="username"
                   returnKeyType="next"

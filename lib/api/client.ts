@@ -10,6 +10,7 @@ import {
 } from "@/lib/api/config"
 import {
   ApiError,
+  codeFromBackend,
   codeFromStatus,
   DEFAULT_ERROR_MESSAGES,
   parseErrorBody,
@@ -273,7 +274,15 @@ async function toApiError(res: Response, method: HttpMethod, path: string): Prom
     raw = error instanceof ApiError ? error.raw : undefined
   }
   const parsed = parseErrorBody(raw)
-  const code = codeFromStatus(res.status, Boolean(parsed.validationMessages?.length))
+  // BFI-064: klasifikasi MEMAKAI kode backend bila dikenal — sebelumnya murni
+  // dari status HTTP, sehingga 422 yang sama menjadi UNPROCESSABLE di jalur
+  // ini tetapi VALIDATION di jalur success:false (unwrapResponse). Kode tak
+  // dikenal tetap jatuh ke klasifikasi status seperti sebelumnya.
+  // BFI-058: ORDER_NOT_FOUND / NOT_ORDER_PARTICIPANT yang dikirim sebagai
+  // HTTP 400 kini terpetakan ke NOT_FOUND / FORBIDDEN sesuai semantiknya.
+  const code =
+    codeFromBackend(parsed.backendCode) ??
+    codeFromStatus(res.status, Boolean(parsed.validationMessages?.length))
   return new ApiError({
     code,
     status: res.status,
@@ -282,6 +291,8 @@ async function toApiError(res: Response, method: HttpMethod, path: string): Prom
     clientMessage: false,
     backendCode: parsed.backendCode,
     validationMessages: parsed.validationMessages,
+    // BFI-059: atribusi per field dari errors.fields backend.
+    fieldErrors: parsed.fieldErrors,
     raw,
     method,
     path,
@@ -324,7 +335,9 @@ async function exchange(
       if (!response.ok)
         return { status: response.status, error: await toApiError(response, method, path) }
       const body = await parseBody(response, type)
-      const value = type === "json" ? unwrapResponse(body) : body
+      // BFI-067: status HTTP diteruskan agar error jalur success:false tetap
+      // membawa err.status untuk layar pemeriksa status.
+      const value = type === "json" ? unwrapResponse(body, response.status) : body
       // PERF-FIX (network P1): simpan ETag untuk revalidasi berikutnya.
       // Fail-open: backend yang tidak mengirim ETag tidak mengubah apa pun.
       if (method === "GET" && type === "json") {

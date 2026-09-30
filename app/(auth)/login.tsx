@@ -201,9 +201,14 @@ export default function LoginScreen() {
         return
       }
 
-      if ("requiresTwoFactor" in result && result.requiresTwoFactor) {
-        // Akun memakai TOTP → simpan tempToken di memori, lanjut ke layar kode.
-        // `push` (bukan replace) supaya tombol kembali membawa ke form login.
+      // BFI-031: backend mengirim `requires2FA` (login.ts menormalisasi kedua
+      // kunci). Akun memakai TOTP → simpan tempToken di memori, lanjut ke
+      // layar kode. `push` (bukan replace) supaya tombol kembali membawa ke
+      // form login.
+      if (
+        ("requires2FA" in result && result.requires2FA) ||
+        ("requiresTwoFactor" in result && result.requiresTwoFactor)
+      ) {
         setFailCount(0)
         setPendingTwoFactorLogin({ tempToken: result.tempToken, identifier: identifier.trim() })
         router.push(ROUTES.verify2fa)

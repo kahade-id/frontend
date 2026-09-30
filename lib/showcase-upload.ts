@@ -10,6 +10,11 @@ import {
 } from "@/lib/showcase-limits"
 import { logWarn } from "@/lib/telemetry"
 
+// BFI-107: selaras BE `SHOWCASE_VIDEO_MIN_DURATION_SEC = 1`
+// (app.constants.ts) — video < 1 detik pasti ditolak server
+// (VIDEO_UNPROCESSABLE). Konstanta lokal karena lib/showcase-limits.ts
+// bukan file domain ini; nilai kanonis tetap di BE.
+
 export type ShowcaseUploadOutcome = {
   kind: "fileKey"
   fileKey: string
@@ -33,6 +38,10 @@ export type ShowcaseVideoUploadOutcome = {
   thumbnailFileKey: string
   durationSec?: number
   thumbnailUrl?: string
+  // BFI-101: dimensi dari ffprobe BE (DirectVideoUpload.width/height) —
+  // diteruskan ke media[] agar feed memakai rasio asli, bukan fallback 1.
+  width?: number
+  height?: number
 }
 
 export async function uploadShowcasePhoto(asset: PickedImage, signal?: AbortSignal): Promise<ShowcaseUploadOutcome> {
@@ -116,6 +125,8 @@ export async function cleanupPendingShowcaseKeys(fileKeys: string[]): Promise<vo
  * VIDEO_UNPROCESSABLE, UPLOAD_FAILED) sudah dipetakan ke pesan Indonesia
  * di `api.upload.uploadDirectVideo`.
  */
+const SHOWCASE_VIDEO_MIN_SEC = 1
+
 export async function uploadShowcaseVideo(
   asset: PickedImage,
   opts: {
@@ -143,6 +154,16 @@ export async function uploadShowcaseVideo(
         message: `Durasi video melebihi 3 menit (${Math.round(asset.durationMs / 1000)} dtk). Potong dulu sebelum mengunggah.`,
       })
     }
+    // BFI-107: guard durasi MINIMUM — video < 1 detik pasti ditolak BE
+    // (VIDEO_UNPROCESSABLE + file dihapus server-side). Tolak dini sebelum
+    // upload penuh (termasuk chunked) agar user tak menunggu sia-sia.
+    // `durationMs` undefined = platform tak melaporkan → fail-open ke server.
+    if (asset.durationMs != null && asset.durationMs < SHOWCASE_VIDEO_MIN_SEC * 1000) {
+      throw new ApiError({
+        code: "VALIDATION",
+        message: "Durasi video terlalu pendek (kurang dari 1 detik). Pilih video lain.",
+      })
+    }
     // NP-006: video > 8MB memakai jalur chunked/resumable (putus di tengah
     // = lanjut dari chunk terakhir); ≤ 8MB tetap single-shot.
     const result = await api.upload.uploadChunkedVideo(asset, {
@@ -168,6 +189,9 @@ export async function uploadShowcaseVideo(
     }
     if (result.durationSec != null) outcome.durationSec = result.durationSec
     if (result.thumbnailUrl) outcome.thumbnailUrl = result.thumbnailUrl
+    // BFI-101: teruskan dimensi video dari respons upload BE.
+    if (result.width != null) outcome.width = result.width
+    if (result.height != null) outcome.height = result.height
     return outcome
   } catch (error) {
     // Best-effort: bersihkan fileKey yang sudah terlanjur terunggah.
