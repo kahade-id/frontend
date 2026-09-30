@@ -645,7 +645,7 @@ export function AppDrawer() {
                     {translate("Masuk untuk akses penuh")}
                   </Text>
                 </View>
-                <Button size="sm" onPress={goLogin} accessibilityLabel={translate("Masuk")}>
+                <Button size="sm" fullWidth={false} onPress={goLogin} accessibilityLabel={translate("Masuk")}>
                   {translate("Masuk")}
                 </Button>
               </View>
