@@ -620,7 +620,17 @@ export function DisputeProposeSheet({
         <TextArea
           value={proposeNote}
           onChangeText={onChangeNote}
-          placeholder="Jelaskan alasan usulan ini (wajib, min. 10 karakter)"
+          // FRM-002: syarat "wajib, min. 10 karakter" tidak boleh hanya hidup
+          // di placeholder — label + helperText + errorText yang menetap.
+          label="Alasan usulan"
+          required
+          helperText="Minimal 10 karakter"
+          errorText={
+            proposeNote.length > 0 && proposeNote.trim().length < 10
+              ? "Minimal 10 karakter — lengkapi alasan usulan Anda."
+              : undefined
+          }
+          placeholder="Jelaskan alasan usulan ini"
           maxLength={noteMax}
           multiline
           numberOfLines={3}
