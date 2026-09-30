@@ -484,8 +484,8 @@ export default function SupportTicketDetailScreen() {
         // F13: jelaskan konsekuensi — termasuk nasib draf balasan & opsi batal.
         description={
           reply.trim()
-            ? "Menutup tiket menghentikan dukungan. Teks balasan yang sedang Anda tulis tetap tersimpan di layar ini, tetapi balasan baru dinonaktifkan — Anda perlu membuka kembali tiket untuk mengirimnya. Tiket tetap bisa dibuka kembali kapan saja bila masalahnya belum selesai."
-            : "Menutup tiket menghentikan dukungan. Tiket tetap bisa dibuka kembali kapan saja bila masalahnya belum selesai."
+            ? "Tiket bisa dibuka kembali kapan saja. Draf balasan Anda tetap tersimpan."
+            : "Tiket bisa dibuka kembali kapan saja bila masalah belum selesai."
         }
         visible={closeOpen}
         destructive

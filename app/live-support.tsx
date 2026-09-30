@@ -833,7 +833,7 @@ export default function LiveSupportScreen() {
       <Dialog
         title={translate("Tutup percakapan?")}
         description={translate(
-          "Percakapan ditutup dan tidak bisa dilanjutkan. Anda tetap bisa membukanya kembali kapan saja bila masalahnya belum selesai.",
+          "Percakapan bisa dibuka kembali kapan saja bila masalah belum selesai.",
         )}
         visible={closeOpen}
         destructive

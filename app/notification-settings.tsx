@@ -21,7 +21,6 @@ import { Header } from "@/components/ui/header"
 import { PrivacyToggleList } from "@/components/ui/privacy-toggle-list"
 import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
-import { Text } from "@/components/ui/text"
 import { translate, useLanguage } from "@/lib/i18n"
 import {
   LOCAL_NOTIFICATION_KINDS,
@@ -89,13 +88,7 @@ export default function NotificationSettingsScreen() {
               {translate("Kelola preferensi server")}
             </Button>
           }
-        >
-          <Text variant="body" tone="secondary">
-            {translate(
-              "Toggle di atas tidak menghentikan push dari server. Untuk mengatur notifikasi yang dikirim ke semua perangkat Anda, gunakan preferensi server.",
-            )}
-          </Text>
-        </Alert>
+        />
       </View>
     </Screen>
   )

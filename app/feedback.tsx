@@ -169,7 +169,7 @@ export default function FeedbackScreen() {
               <Alert tone="info">
                 {FEEDBACK_QUEUE_PERSISTS
                   ? `${queuedCount} masukan tersimpan di perangkat dan akan dikirim otomatis saat terhubung.`
-                  : `${queuedCount} masukan masih menunggu terkirim dan hanya bertahan selama halaman ini terbuka (versi web tidak menyimpan masukan pribadi di browser). Biarkan halaman ini terbuka sampai koneksi kembali, atau salin isi masukan Anda.`}
+                  : `${queuedCount} masukan menunggu terkirim. Tetap di halaman ini sampai koneksi kembali.`}
               </Alert>
             ) : null}
 

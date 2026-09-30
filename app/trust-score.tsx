@@ -31,7 +31,7 @@ export default function TrustScoreScreen() {
             updatedAt={data.updatedAt ? formatDateTime(data.updatedAt) : undefined}
           />
           <Text variant="body" tone="secondary">
-            {translate("Skor kepercayaan dihitung dari verifikasi identitas, riwayat transaksi, dan ulasan Anda. Semakin tinggi skor, semakin dipercaya lawan transaksi.")}
+            {translate("Skor dihitung dari verifikasi identitas, riwayat transaksi, dan ulasan.")}
           </Text>
         </>
       ) : null}

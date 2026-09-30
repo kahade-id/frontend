@@ -368,7 +368,7 @@ export default function TransactionTemplatesScreen() {
                     awal saat memakai template, tidak membatasi siapa pun. */}
                 <Field
                   label="Username lawan (isian awal)"
-                  helperText="Hanya mengisi otomatis kolom lawan saat memakai template — tidak disimpan dan tidak membatasi pemakaian template."
+                  helperText="Hanya isian awal — tidak disimpan."
                 >
                   <Input
                     value={form.counterpartUsername ?? ""}

@@ -315,8 +315,8 @@ export default function ReturnDetailScreen() {
             visible={cancelOpen}
             onRequestClose={() => setCancelOpen(false)}
             title="Batalkan pengajuan retur?"
-            description="Pengajuan retur akan ditutup dan penjual diberi tahu. Dana tidak bergerak — pembatalan ini hanya menutup pengajuan. Anda bisa mengajukan retur ulang selama masih dalam masa retur."
-            cancelLabel="Batal"
+            description="Pengajuan retur ditutup. Anda bisa mengajukan ulang selama masa retur."
+            cancelLabel="Kembali"
             confirmLabel="Ya, batalkan retur"
             loading={mutating}
             onConfirm={() => {

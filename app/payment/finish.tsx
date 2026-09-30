@@ -88,13 +88,13 @@ const POLL_BASE_MS = 10_000
 const MAX_POLLS = 10
 
 /**
- * Copy per status — klaim definitif "Dana sudah masuk escrow" HANYA untuk
+ * Copy per status — klaim definitif "Dana sudah diterima Kahade" HANYA untuk
  * status `success` yang SUDAH diverifikasi backend (lihat verify()).
  */
 const COPY: Record<PageStatus, { title: string; subtitle: string }> = {
   success: {
     title: "Pembayaran berhasil",
-    subtitle: "Dana sudah masuk escrow Kahade.",
+    subtitle: "Dana sudah diterima Kahade.",
   },
   pending: {
     title: "Menunggu konfirmasi",

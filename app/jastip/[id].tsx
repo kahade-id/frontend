@@ -525,7 +525,7 @@ export default function JastipDetailScreen() {
             maxLength={300}
           />
           <Text variant="caption" tone="secondary">
-            {translate("Request bebas — host akan mengunci harga (barang + fee + ongkir) sebelum Anda membayar via escrow.")}
+            {translate("Harga dikunci host sebelum Anda membayar.")}
           </Text>
           {joinError ? (
             <Text variant="caption" tone="danger">
@@ -667,9 +667,6 @@ export default function JastipDetailScreen() {
             autoCapitalize="none"
             maxLength={40}
           />
-          <Text variant="caption" tone="secondary">
-            {translate("Buat pesanan via tombol “Bayar via escrow” lalu masukkan ID-nya di sini.")}
-          </Text>
           {linkError ? (
             <Text variant="caption" tone="danger">
               {linkError}
