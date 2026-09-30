@@ -8,7 +8,7 @@
  *   - Template balasan "/": kelola penuh (tersinkron backend).
  */
 import { useEffect, useState } from "react"
-import { Pressable, View } from "react-native"
+import { View } from "react-native"
 
 import {
   DM_POLICY_OPTIONS,

@@ -801,7 +801,7 @@ export function formatDurationWords(totalSeconds: number, placeholder = "—"): 
  * Versi lama memakai bullet proporsional panjang + grup berspasi per 4,
  * sehingga jumlah bullet membocorkan panjang nomor asli.
  */
-export function maskAccountNumber(account: string): string {
+export function maskAccountNumber(account: string | undefined): string {
   const digits = asText(account).replace(/\D/g, "")
   if (digits.length < 4) return "\u2022\u2022\u2022\u2022"
   return `\u2022\u2022\u2022\u2022\u2022\u2022${digits.slice(-4)}`

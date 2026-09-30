@@ -52,7 +52,6 @@ import {
   ArrowUDownLeft,
   Bank,
   CalendarCheck,
-  CaretDown,
   ChartBar,
   ChatCircle,
   CrownSimple,
