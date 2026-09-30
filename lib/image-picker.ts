@@ -71,6 +71,30 @@ export type PickImageOptions = {
 }
 
 const DEFAULT_MIME = "image/jpeg"
+
+/**
+ * UMD-005: jangan menebak `video/mp4` buta bila OS tak melaporkan mimeType
+ * (Android lama). Backend mewajibkan declared === detected via magic byte —
+ * `.mov` yang ditebak `video/mp4` terdeteksi `video/quicktime` → ditolak
+ * MIME_TYPE_MISMATCH (di jalur chunked, baru di `complete`, setelah seluruh
+ * byte terunggah). Turunkan MIME dari ekstensi nama berkas bila platform
+ * tidak mengisinya.
+ */
+const EXTENSION_MIME: Record<string, string> = {
+  mov: "video/quicktime",
+  mp4: "video/mp4",
+  webm: "video/webm",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  heic: "image/heic",
+  heif: "image/heif",
+}
+
+export function mimeTypeFromExtension(fileName: string | null | undefined): string | undefined {
+  const ext = fileName?.split(".").pop()?.toLowerCase()
+  return ext ? EXTENSION_MIME[ext] : undefined
+}
 /**
  * PERF-FIX (NP-003): kualitas kompresi picker — 0.8 (audit menyarankan ~0.8;
  * sebelumnya 0.7). Foto >1920px tetap dikecilkan di `resizePickedImage`.
@@ -133,11 +157,14 @@ export async function resizePickedImage(
 function toPicked(asset: ImagePicker.ImagePickerAsset, fallbackName: string): PickedImage {
   // R2 (butir #34): MIME fallback mengikuti JENIS aset — video yang tidak
   // melaporkan mimeType (Android lama) tidak boleh dilabeli image/jpeg.
+  // UMD-005: turunkan MIME dari ekstensi nama berkas sebelum menebak buta —
+  // declared yang salah ditolak backend (magic byte) sebagai MIME_TYPE_MISMATCH.
   const isVideo = asset.type === "video"
+  const name = asset.fileName ?? fallbackName
   return {
     uri: asset.uri,
-    name: asset.fileName ?? fallbackName,
-    mimeType: asset.mimeType ?? (isVideo ? "video/mp4" : DEFAULT_MIME),
+    name,
+    mimeType: asset.mimeType ?? mimeTypeFromExtension(name) ?? (isVideo ? "video/mp4" : DEFAULT_MIME),
     size: asset.fileSize ?? 0,
     width: asset.width,
     height: asset.height,

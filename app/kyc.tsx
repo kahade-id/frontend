@@ -64,7 +64,7 @@ import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
 import { Text } from "@/components/ui/text"
 import { useToast } from "@/components/ui/toast"
-import { UploadField, type UploadStatus } from "@/components/ui/upload-field"
+import { UploadField, validateUploadFile, type UploadStatus } from "@/components/ui/upload-field"
 import { translate } from "@/lib/i18n/translate"
 
 
@@ -73,6 +73,15 @@ const KTP_PICKER: PickImageOptions = { allowsEditing: true }
 const SELFIE_PICKER: PickImageOptions = { source: "camera" }
 /** Batas riwayat yang ditampilkan (limit maks spec 100). */
 const HISTORY_LIMIT = 20
+/**
+ * UMD-003: batas ukuran dokumen KYC = 5 MB, samakan dengan backend
+ * (`MAX_FILE_SIZE[KYC_KTP/KYC_SELFIE] = 5 MiB`). UploadField menampilkan
+ * "maks 5 MB" via prop maxSizeMB; validasi dini di pickDoc menolak berkas
+ * kebesaran SEBELUM upload (sebelumnya 6–10 MB terunggah penuh baru gagal
+ * di server dengan pesan Inggris generik).
+ */
+const KYC_DOC_MAX_MB = 5
+const KYC_DOC_ACCEPT = ["jpg", "png"] as const
 
 type DocKey = "ktp" | "selfie"
 
@@ -153,6 +162,14 @@ export default function KycScreen() {
         if (opts.source === "camera") {
           const fallback = await pickImage({ ...opts, source: "library" })
           if (fallback.status === "picked") {
+            const fallbackError = validateUploadFile(fallback.asset, {
+              accept: KYC_DOC_ACCEPT,
+              maxSizeMB: KYC_DOC_MAX_MB,
+            })
+            if (fallbackError) {
+              toast.show({ title: "Berkas tidak valid", description: fallbackError, tone: "danger" })
+              return
+            }
             setSelfie(fallback.asset)
             setUploadStatus((u) => ({ ...u, selfie: "done" }))
             return
@@ -167,6 +184,16 @@ export default function KycScreen() {
         return
       }
       if (res.status !== "picked") return
+      // UMD-003: guard klien sebelum upload — tolak format/ukuran salah dengan
+      // pesan Indonesia, jangan biarkan terunggah penuh baru gagal di server.
+      const validationError = validateUploadFile(res.asset, {
+        accept: KYC_DOC_ACCEPT,
+        maxSizeMB: KYC_DOC_MAX_MB,
+      })
+      if (validationError) {
+        toast.show({ title: "Berkas tidak valid", description: validationError, tone: "danger" })
+        return
+      }
       if (key === "ktp") setKtp(res.asset)
       else setSelfie(res.asset)
       setUploadStatus((u) => ({ ...u, [key]: "done" }))
@@ -334,6 +361,7 @@ export default function KycScreen() {
                       }}
                       onRetry={() => void pickDoc("ktp", KTP_PICKER)}
                       accept={["jpg", "png"]}
+                      maxSizeMB={KYC_DOC_MAX_MB}
                       disabled={submitting}
                     />
                     <UploadField
@@ -349,6 +377,7 @@ export default function KycScreen() {
                       }}
                       onRetry={() => void pickDoc("selfie", SELFIE_PICKER)}
                       accept={["jpg", "png"]}
+                      maxSizeMB={KYC_DOC_MAX_MB}
                       disabled={submitting}
                     />
                   </View>
