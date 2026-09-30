@@ -28,6 +28,7 @@ import { Button } from "@/components/ui/button"
 import { ChatPollCard } from "@/components/ui/chat-poll-card"
 import { Icon } from "@/components/ui/icon"
 import { Input } from "@/components/ui/input"
+import { PressableScale } from "@/components/ui/pressable-scale"
 import { Spinner } from "@/components/ui/spinner"
 import { Switch } from "@/components/ui/switch"
 import { Text } from "@/components/ui/text"
@@ -246,29 +247,33 @@ export function ChatPollsSheet({ visible, roomId, myUserId, onRequestClose, refr
                   />
                 </View>
                 {options.length > CHAT_POLL_MIN_OPTIONS ? (
-                  <Pressable
+                  // UX-TCH-006: target 44pt (min-h-11/min-w-11) + feedback
+                  // scale; sebelumnya Pressable polos 32px tanpa feedback.
+                  <PressableScale
                     onPress={() => setOptions((prev) => prev.filter((_, j) => j !== i))}
                     accessibilityRole="button"
                     accessibilityLabel={`Hapus opsi ${i + 1}`}
-                    className="p-2"
+                    containerClassName="min-h-11 min-w-11 items-center justify-center rounded-full"
                   >
                     <Icon icon={Trash} size={16} tone="danger" />
-                  </Pressable>
+                  </PressableScale>
                 ) : null}
               </View>
             ))}
             {options.length < CHAT_POLL_MAX_OPTIONS ? (
-              <Pressable
+              // UX-TCH-016: target 44pt (min-h-11) + feedback scale;
+              // sebelumnya Pressable polos ~30px tanpa feedback.
+              <PressableScale
                 onPress={() => setOptions((prev) => [...prev, ""])}
                 accessibilityRole="button"
                 accessibilityLabel="Tambah opsi"
-                className="flex-row items-center gap-1.5 py-1"
+                className="flex-row items-center gap-1.5 py-2.5 min-h-11 rounded-sm"
               >
                 <Icon icon={Plus} size={14} tone="active" />
                 <Text variant="caption" weight={600} tone="primary">
                   Tambah opsi
                 </Text>
-              </Pressable>
+              </PressableScale>
             ) : null}
           </View>
           <View className="flex-row items-center justify-between">

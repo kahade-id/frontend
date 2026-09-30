@@ -589,6 +589,9 @@ export default function ContactScreen() {
                         disabled={index === 0}
                         accessibilityRole="button"
                         accessibilityLabel={`Pindahkan lampiran ${index + 1} ke atas`}
+                        // UX-TCH-007: tombol visual ~36px — hitSlop 4px →
+                        // 44px efektif tanpa mengubah kerapatan baris.
+                        hitSlop={4}
                         className="p-2"
                       >
                         <Icon icon={ArrowUp} size="sm" tone={index === 0 ? "disabled" : "default"} />
@@ -598,6 +601,8 @@ export default function ContactScreen() {
                         disabled={index === attachments.length - 1}
                         accessibilityRole="button"
                         accessibilityLabel={`Pindahkan lampiran ${index + 1} ke bawah`}
+                        // UX-TCH-007: hitSlop 4px → 44px efektif.
+                        hitSlop={4}
                         className="p-2"
                       >
                         <Icon
@@ -610,6 +615,8 @@ export default function ContactScreen() {
                         onPress={() => handleRemoveAttachment(item.fileKey)}
                         accessibilityRole="button"
                         accessibilityLabel={`Hapus lampiran ${index + 1}`}
+                        // UX-TCH-007: hitSlop 4px → 44px efektif.
+                        hitSlop={4}
                         className="p-2"
                       >
                         <Icon icon={X} size="sm" tone="default" />
