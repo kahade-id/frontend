@@ -31,7 +31,7 @@
  *     waktu yang sama melindungi keduanya.
  */
 import { useCallback, useEffect, useRef, useState } from "react"
-import { AppState, Platform, View } from "react-native"
+import { AccessibilityInfo, AppState, Platform, View } from "react-native"
 import { LockKey } from "phosphor-react-native"
 
 import { api, clearSession } from "@/lib/api"
@@ -175,12 +175,25 @@ export function AppLockGate({ sessionActive }: { sessionActive: boolean }) {
     void clearSession().catch((err) => logWarn("app-lock:sign-out", err))
   }, [])
 
+  // UX-A11Y-002: saat overlay kunci muncul, umumkan ke screen reader.
+  // Overlay penuh menutupi seluruh app tanpa ini tidak terdeteksi SR.
+  useEffect(() => {
+    if (locked) {
+      AccessibilityInfo.announceForAccessibility("Kahade terkunci. Masukkan PIN dompet untuk melanjutkan.")
+    }
+  }, [locked])
+
   if (!locked || Platform.OS === "web") return null
 
   return (
     <View
       className="absolute inset-0 bg-background"
       style={{ zIndex: 10, elevation: 10, padding: tokens.space[5] }}
+      // UX-A11Y-002: modal aksesibilitas — SR tidak boleh menjelajahi
+      // tree di belakang overlay kunci.
+      accessible
+      accessibilityViewIsModal
+      accessibilityLabel="Kunci aplikasi"
     >
       <View className="flex-1 items-center justify-center gap-8">
         <View className="items-center gap-3">
