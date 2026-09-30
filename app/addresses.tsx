@@ -349,6 +349,9 @@ export default function AddressesScreen() {
         visible={sheetOpen}
         onRequestClose={() => setSheetOpen(false)}
         title={editing ? translate("Ubah alamat") : translate("Tambah alamat")}
+        // UX-SPA-006: sheet berisi 7 input + CTA — keyboard menutupi field
+        // bawah & CTA di iOS tanpa ini (pola FRM-017).
+        avoidKeyboard
         footer={
           <Button
             fullWidth

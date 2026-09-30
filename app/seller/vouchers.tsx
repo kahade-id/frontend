@@ -310,6 +310,9 @@ export default function SellerVouchersScreen() {
         visible={sheetOpen}
         onRequestClose={() => setSheetOpen(false)}
         title={translate("Buat voucher toko")}
+        // UX-SPA-005: sheet berisi ~10 input + CTA — keyboard menutupi field
+        // bawah & CTA di iOS tanpa ini (pola FRM-017).
+        avoidKeyboard
         footer={
           <Button fullWidth loading={saving} onPress={() => void handleSave()}>
             {translate("Buat voucher")}

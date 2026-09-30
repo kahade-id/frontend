@@ -322,6 +322,9 @@ export function DigitalAssetsSellerManager({ showcaseId }: { showcaseId: string 
         visible={sheetOpen}
         onRequestClose={() => setSheetOpen(false)}
         title={translate("Tambah aset digital")}
+        // UX-SPA-011: sheet berisi input + CTA — pola FRM-017 mewajibkan
+        // avoidKeyboard agar CTA tidak tertutup keyboard di iOS.
+        avoidKeyboard
         footer={
           <Button fullWidth loading={saving} onPress={() => void handleSave()}>
             {translate("Tambah aset")}

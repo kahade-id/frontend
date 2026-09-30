@@ -108,6 +108,9 @@ export function InstallmentOfferSection({
         visible={sheetOpen}
         onRequestClose={() => setSheetOpen(false)}
         title={translate("Skema cicilan / DP")}
+        // UX-SPA-012: sheet berisi 2 input numerik + CTA — pola FRM-017
+        // mewajibkan avoidKeyboard agar CTA tidak tertutup keyboard di iOS.
+        avoidKeyboard
         description={translate("Nilai transaksi {x}. Estimasi di bawah hanya ilustrasi — angka resmi dihitung server.", {
           x: formatRupiah(orderValueIdr),
         })}
