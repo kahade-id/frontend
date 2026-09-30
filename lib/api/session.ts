@@ -170,7 +170,7 @@ export async function getRefreshToken(): Promise<string | null> {
   return getSecureItem(SecureKeys.refreshToken)
 }
 
-export async function clearSession(): Promise<void> {
+export async function clearSession(options?: { strictSignedOutFlag?: boolean }): Promise<void> {
   revision += 1
   tokenRead = undefined
   accessTokenCache = null
@@ -221,6 +221,14 @@ export async function clearSession(): Promise<void> {
     // membersihkan sisa token. Dengan urutan ini, kegagalan hapus membatalkan
     // seluruh blok → boot berikutnya mencoba lagi dari keadaan bersih.
     await clearSecureSession()
+    // AUT-004: mode strict (dipakai logout()) — kegagalan tulis flag DILEMPAR,
+    // bukan dicatat diam-diam. Di web, flag ini yang mencegah auto-login
+    // berbasis cookie menghidupkan kembali sesi yang baru saja diakhiri;
+    // kegagalan diam = logout terlihat sukses padahal sesi bisa bangkit lagi.
+    if (options?.strictSignedOutFlag) {
+      await setSecureItem(SecureKeys.sessionSignedOut, "1")
+      return
+    }
     try {
       // Prevent cookie-based auto-login after an explicit/offline logout on the web.
       await setSecureItem(SecureKeys.sessionSignedOut, "1")
