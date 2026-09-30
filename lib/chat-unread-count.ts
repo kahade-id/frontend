@@ -10,7 +10,8 @@
 import { useEffect, useSyncExternalStore } from "react"
 import { usePolling } from "@/lib/use-polling"
 import { getSessionRevision, subscribeSession } from "@/lib/api/session"
-import { api, isApiError } from "@/lib/api"
+import * as chatApi from "@/lib/api/chat"
+import { isApiError } from "@/lib/api/errors"
 
 export type ChatUnreadState = {
   status: "idle" | "loading" | "success" | "error"
@@ -69,7 +70,8 @@ export function refreshChatUnreadCount(): Promise<void> {
   inFlight = (async () => {
     if (state.status === "idle") emit({ status: "loading", count: null })
     try {
-      const body = await api.chat.getChatUnreadCount()
+      // ST-001 (audit performa): import domain langsung, bukan barrel @/lib/api.
+      const body = await chatApi.getChatUnreadCount()
       const count =
         body && typeof body.unreadCount === "number" && Number.isFinite(body.unreadCount)
           ? Math.max(0, Math.trunc(body.unreadCount))

@@ -34,7 +34,8 @@ import { useEffect, useSyncExternalStore } from "react"
 import { usePolling } from "@/lib/use-polling"
 import { getSessionRevision, subscribeSession } from "@/lib/api/session"
 
-import { api, isApiError, readUnreadCount } from "@/lib/api"
+import * as notificationsApi from "@/lib/api/notifications"
+import { isApiError } from "@/lib/api/errors"
 
 export type UnreadStatus = "idle" | "loading" | "success" | "error"
 
@@ -97,8 +98,9 @@ export function refreshUnreadCount(): Promise<void> {
   inFlight = (async () => {
     if (state.status === "idle") emit({ status: "loading", count: null })
     try {
-      const body = await api.notifications.getUnreadCount()
-      if (started === generation) emit({ status: "success", count: readUnreadCount(body) })
+      // ST-001 (audit performa): import domain langsung, bukan barrel @/lib/api.
+      const body = await notificationsApi.getUnreadCount()
+      if (started === generation) emit({ status: "success", count: notificationsApi.readUnreadCount(body) })
     } catch (err) {
       if (started !== generation) return
       // Sesi habis sudah ditangani client.ts (redirect). Sisanya: pertahankan angka terakhir.
