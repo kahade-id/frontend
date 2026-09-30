@@ -151,11 +151,19 @@ export default function TrackingScreen() {
             <View style={{ flexDirection: "row", gap: tokens.space[4], marginTop: tokens.space[2] }}>
               <View>
                 <Text variant="caption" tone="secondary">Estimasi ongkir</Text>
-                <Amount value={shipment.estimatedCost / 100} size="body" />
+                {shipment.estimatedCost == null ? (
+                  <Text variant="monoBody">—</Text>
+                ) : (
+                  <Amount value={Number(shipment.estimatedCost) / 100} size="body" />
+                )}
               </View>
               <View>
                 <Text variant="caption" tone="secondary">Ongkir aktual</Text>
-                <Amount value={shipment.actualCost / 100} size="body" />
+                {shipment.actualCost == null ? (
+                  <Text variant="monoBody">—</Text>
+                ) : (
+                  <Amount value={Number(shipment.actualCost) / 100} size="body" />
+                )}
               </View>
             </View>
             <View style={{ marginTop: tokens.space[3] }}>
