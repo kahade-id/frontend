@@ -23,6 +23,26 @@ import { useToast } from "@/components/ui/toast"
 
 const AVATAR_PICKER: PickImageOptions = { square: true }
 
+/**
+ * UMD-004: batas avatar backend (`users.service.ts`): maks 2 MB, MIME hanya
+ * jpeg/png/webp. Backend menolak dengan VALIDATION_ERROR generik (Inggris),
+ * jadi tolak DINI dengan pesan Indonesia yang actionable. HEIC/HEIF (format
+ * default kamera iPhone bila tak terkonversi) termasuk ditolak — pengguna
+ * diminta memilih ulang dalam format yang didukung. Ukuran tak dilaporkan
+ * platform → fail-open ke validasi server (jangan tolak buta).
+ */
+const AVATAR_MAX_MB = 2
+const AVATAR_ALLOWED_MIME = ["image/jpeg", "image/png", "image/webp"]
+const AVATAR_COPY = "Foto maksimal 2 MB dengan format JPG/PNG/WebP."
+
+function validateAvatarAsset(asset: PickedImage): string | null {
+  const mime = (asset.mimeType ?? "").toLowerCase()
+  const extOk = /\.(jpe?g|png|webp)$/i.test(asset.name ?? "")
+  if (!AVATAR_ALLOWED_MIME.includes(mime) && !extOk) return AVATAR_COPY
+  if (typeof asset.size === "number" && asset.size > AVATAR_MAX_MB * 1024 * 1024) return AVATAR_COPY
+  return null
+}
+
 export type UseAvatarUploadOptions = {
   /** Dipanggil dengan URL avatar baru (atau null bila avatar dihapus). */
   onAvatarUrl: (url: string | null) => void
@@ -108,6 +128,17 @@ export function useAvatarUpload({ onAvatarUrl, onChanged }: UseAvatarUploadOptio
         return
       }
       if (picked.status !== "picked") return
+      // UMD-004: guard klien — tolak >2 MB / MIME tak didukung sebelum
+      // pratinjau & upload, jangan biarkan gagal misterius di server.
+      const guardError = validateAvatarAsset(picked.asset)
+      if (guardError) {
+        toast.show({
+          title: translate("Foto tidak valid"),
+          description: guardError,
+          tone: "danger",
+        })
+        return
+      }
       // Batch 139 E02: TAHAN untuk pratinjau — jangan langsung unggah.
       // Konsumen menampilkan dialog lingkaran + batas aman.
       pendingRef.current = picked.asset

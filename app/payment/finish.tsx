@@ -5,11 +5,13 @@
  * Production Endpoint Setup DANA). Setelah user menyelesaikan pembayaran
  * di halaman kasir DANA (IPG Cashier Pay), browser diarahkan ke sini.
  *
- * BFI-062 (fail-closed): status dari query param DANA TIDAK dipercaya
- * untuk klaim sukses. Saat mount, halaman memverifikasi status ke backend
- * lebih dulu ("Memverifikasi pembayaran…"); layar SUKSES hanya tampil bila
- * backend mengonfirmasi pembayaran sudah masuk. Tanpa identifier yang bisa
- * diverifikasi / backend tak terjangkau → layar "belum terkonfirmasi"
+ * BFI-062/MFE-010 (fail-closed): status dari query param DANA TIDAK
+ * dipercaya untuk klaim sukses (siapa pun bisa membuka URL ini dengan
+ * status=success). Saat mount, halaman memverifikasi status ke backend
+ * lebih dulu ("Memverifikasi pembayaran…"); layar SUKSES ("Dana sudah masuk
+ * escrow") hanya tampil bila backend mengonfirmasi pembayaran sudah masuk
+ * (GET /v1/orders/:orderId/dana-payment-status → PAID). Tanpa identifier yang
+ * bisa diverifikasi / backend tak terjangkau → layar "belum terkonfirmasi"
  * (bukan sukses palsu). Status final sumber kebenaran tetap webhook
  * finish-notify di server.
  */
@@ -75,6 +77,10 @@ function resolveVerifyTarget(params: Record<string, string | string[]>): {
 
 const FAILED_STATUSES = ["FAILED", "EXPIRED", "CANCELLED", "REFUNDED"]
 
+/**
+ * Copy per status — klaim definitif "Dana sudah masuk escrow" HANYA untuk
+ * status `success` yang SUDAH diverifikasi backend (lihat verify()).
+ */
 const COPY: Record<PageStatus, { title: string; subtitle: string }> = {
   success: {
     title: "Pembayaran berhasil",

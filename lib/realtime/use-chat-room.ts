@@ -29,13 +29,16 @@ import {
   ORDER_SOCKET_EVENTS,
   createTypingTracker,
   type ChatMessageDeletedPayload,
+  type ChatMessagesExpiredPayload,
   type ChatPinPayload,
   type ChatPollClosedPayload,
   type ChatPollCreatedPayload,
   type ChatPollUpdatedPayload,
   type ChatReactionPayload,
   type ChatReadPayload,
+  type ChatRoomPinPayload,
   type ChatTypingPayload,
+  type ChatViewOnceConsumedPayload,
   type OrderStatusChangedPayload,
 } from "./chat-events"
 import { useRealtime, useRealtimeActions } from "./realtime-context"
@@ -57,10 +60,16 @@ export type ChatRoomRealtimeCallbacks = {
   /** BFI-113: room di-pin/unpin (event ke `user:<id>`). */
   onRoomPinned?: (roomId: string, position: number) => void
   onRoomUnpinned?: (roomId: string) => void
-  /** BFI-119: polling di room. */
+  /** BFI-119: polling di room — granular (question/voterId tersedia). */
   onPollCreated?: (pollId: string, question: string) => void
   onPollUpdated?: (pollId: string, voterId: string) => void
   onPollClosed?: (pollId: string) => void
+  /** NCC-006: polling dibuat/diubah/ditutup — pollId null bila tak terbaca. */
+  onPollChanged?: (pollId: string | null) => void
+  /** NCC-006: pesan ephemeral kedaluwarsa — hapus dari thread. */
+  onMessagesExpired?: (messageIds: string[]) => void
+  /** NCC-006: room di-pin/unpin (antar perangkat) — sinkron daftar room. */
+  onRoomPinChanged?: (isPinned: boolean) => void
   /**
    * BFI-118: status order berubah (`order.status_changed` + legacy
    * `order.status`, room `order:<orderId>` yang ikut di-join saat
@@ -171,24 +180,31 @@ export function createChatRoomHandlers(
       callbacks().onPresence?.(false)
     },
     /**
-     * BFI-119: polling di room — payload aktual BE (chat.service.ts):
+     * BFI-119/NCC-006: polling di room — payload aktual BE (chat.service.ts):
      * created `{ roomId, pollId, question }`, updated
      * `{ roomId, pollId, voterId }`, closed `{ roomId, pollId }`.
      * Pemanggil memakai ini untuk me-refetch daftar poll (listPolls)
-     * alih-alih menunggu poll REST berikutnya.
+     * alih-alih menunggu poll REST berikutnya (BFI-119) atau memakai
+     * `onPollChanged` longgar (NCC-006) — keduanya dipanggil.
      */
     [CHAT_SOCKET_EVENTS.POLL_CREATED]: (payload) => {
       if (!sameRoom(payload) || !isRecord(payload)) return
       const { pollId, question } = payload as Partial<ChatPollCreatedPayload>
-      if (typeof pollId === "string" && pollId && typeof question === "string") {
-        callbacks().onPollCreated?.(pollId, question)
+      if (typeof pollId === "string" && pollId) {
+        if (typeof question === "string") callbacks().onPollCreated?.(pollId, question)
+        callbacks().onPollChanged?.(pollId)
+      } else {
+        callbacks().onPollChanged?.(null)
       }
     },
     [CHAT_SOCKET_EVENTS.POLL_UPDATED]: (payload) => {
       if (!sameRoom(payload) || !isRecord(payload)) return
       const { pollId, voterId } = payload as Partial<ChatPollUpdatedPayload>
-      if (typeof pollId === "string" && pollId && typeof voterId === "string") {
-        callbacks().onPollUpdated?.(pollId, voterId)
+      if (typeof pollId === "string" && pollId) {
+        if (typeof voterId === "string") callbacks().onPollUpdated?.(pollId, voterId)
+        callbacks().onPollChanged?.(pollId)
+      } else {
+        callbacks().onPollChanged?.(null)
       }
     },
     [CHAT_SOCKET_EVENTS.POLL_CLOSED]: (payload) => {
@@ -196,7 +212,50 @@ export function createChatRoomHandlers(
       const { pollId } = payload as Partial<ChatPollClosedPayload>
       if (typeof pollId === "string" && pollId) {
         callbacks().onPollClosed?.(pollId)
+        callbacks().onPollChanged?.(pollId)
+      } else {
+        callbacks().onPollChanged?.(null)
       }
+    },
+    /**
+     * BFI-117/NCC-006: pesan sekali-lihat dikonsumsi penerima
+     * (`{ roomId, messageId, viewerId? }`) — tandai sebagai sudah dibuka.
+     */
+    [CHAT_SOCKET_EVENTS.MESSAGE_VIEW_ONCE_CONSUMED]: (payload) => {
+      if (!sameRoom(payload) || !isRecord(payload)) return
+      const { messageId } = payload as Partial<ChatViewOnceConsumedPayload>
+      if (typeof messageId === "string" && messageId) {
+        callbacks().onViewOnceConsumed?.(messageId)
+      }
+    },
+    /** NCC-006: pesan ephemeral kedaluwarsa — hapus dari thread. */
+    [CHAT_SOCKET_EVENTS.MESSAGES_EXPIRED]: (payload) => {
+      if (!sameRoom(payload) || !isRecord(payload)) return
+      const { messageIds } = payload as Partial<ChatMessagesExpiredPayload>
+      if (Array.isArray(messageIds)) {
+        callbacks().onMessagesExpired?.(
+          messageIds.filter((id): id is string => typeof id === "string" && id.length > 0),
+        )
+      }
+    },
+    // BFI-113/NCC-006: pin/unpin ROOM dikirim ke room `user:<id>` (bukan
+    // `chat:<id>`), tetapi socket yang sama menerimanya; payload selalu
+    // membawa roomId sehingga filter sameRoom tetap berlaku saat layar room
+    // terkait sedang terbuka. Kedua bentuk callback dipanggil: granular
+    // (BFI-113: roomId + position) dan longgar (NCC-006: boolean).
+    [CHAT_SOCKET_EVENTS.ROOM_PINNED]: (payload) => {
+      if (!sameRoom(payload) || !isRecord(payload)) return
+      const { roomId, position } = payload as Partial<ChatRoomPinPayload>
+      if (typeof roomId !== "string" || !roomId) return
+      if (typeof position === "number") callbacks().onRoomPinned?.(roomId, position)
+      callbacks().onRoomPinChanged?.(true)
+    },
+    [CHAT_SOCKET_EVENTS.ROOM_UNPINNED]: (payload) => {
+      if (!sameRoom(payload) || !isRecord(payload)) return
+      const { roomId } = payload as Partial<ChatRoomPinPayload>
+      if (typeof roomId !== "string" || !roomId) return
+      callbacks().onRoomUnpinned?.(roomId)
+      callbacks().onRoomPinChanged?.(false)
     },
     /** BFI-118: status order berubah (room `order:<orderId>`). */
     [ORDER_SOCKET_EVENTS.STATUS_CHANGED]: onOrderStatus,
@@ -272,6 +331,18 @@ export function useChatRoomRealtime(
       onPollUpdated: (pollId, voterId) =>
         callbacksRef.current.onPollUpdated?.(pollId, voterId),
       onPollClosed: (pollId) => callbacksRef.current.onPollClosed?.(pollId),
+      // NCC-006: teruskan callback longgar polling / view-once /
+      // ephemeral / pin room — tanpanya handler tabel di atas diam.
+      onPollChanged: (pollId) => callbacksRef.current.onPollChanged?.(pollId),
+      onViewOnceConsumed: (messageId) =>
+        callbacksRef.current.onViewOnceConsumed?.(messageId),
+      onMessagesExpired: (messageIds) =>
+        callbacksRef.current.onMessagesExpired?.(messageIds),
+      onRoomPinned: (roomId, position) =>
+        callbacksRef.current.onRoomPinned?.(roomId, position),
+      onRoomUnpinned: (roomId) => callbacksRef.current.onRoomUnpinned?.(roomId),
+      onRoomPinChanged: (isPinned) =>
+        callbacksRef.current.onRoomPinChanged?.(isPinned),
       onOrderStatusChanged: (orderId, status) =>
         callbacksRef.current.onOrderStatusChanged?.(orderId, status),
     })

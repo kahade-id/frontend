@@ -52,7 +52,7 @@ import { Text } from "@/components/ui/text"
 import { ValidationSummary, type ValidationIssue } from "@/components/ui/validation-summary"
 import { VStack } from "@/components/ui/stack"
 import { api, isApiError, userMessage } from "@/lib/api"
-import { PASSWORD_MAX, isCommonPassword, isPasswordValid } from "@/lib/auth-constants"
+import { PASSWORD_MAX, passwordValidationMessage } from "@/lib/auth-constants"
 import { isValidRegisterUsername } from "@/lib/username"
 import { focusFirstInvalid } from "@/lib/form-validation"
 import { getAuthLocation } from "@/lib/location"
@@ -182,13 +182,14 @@ export default function RegisterSecurityScreen() {
       setFormError("Username minimal 3 karakter.")
       found.push({ field: "Username", message: "Minimal 3 karakter." })
     }
-    if (!isPasswordValid(password)) {
-      setPasswordError("Kata sandi minimal 8 karakter.")
-      found.push({ field: "Kata sandi", message: "Minimal 8 karakter." })
-    } else if (isCommonPassword(password)) {
-      // BFI-043: blocklist password umum (mirror BE, UX saja).
-      setPasswordError("Kata sandi terlalu umum. Gunakan kombinasi yang lebih unik.")
-      found.push({ field: "Kata sandi", message: "Terlalu umum — gunakan kombinasi yang lebih unik." })
+    // BFI-043/DBL-015: pesan beda untuk password umum — SAMA PERSIS dengan
+    // backend ("Password terlalu umum..."), supaya user tahu alasan penolakan
+    // sebelum submit. passwordValidationMessage mencakup panjang minimum +
+    // blocklist umum (mirror BE).
+    const pwMsg = passwordValidationMessage(password)
+    if (pwMsg) {
+      setPasswordError(pwMsg)
+      found.push({ field: "Kata sandi", message: pwMsg })
     }
     if (confirmPassword !== password) {
       setConfirmError("Konfirmasi kata sandi tidak sama.")

@@ -49,7 +49,25 @@ const MAX_POLLS = 15
  * BFI-077/BFI-085: REFUNDED ikut terminal — order yang ter-refund tidak
  * lagi membuat polling jalan sampai timeout; aksi menggantung diselesaikan.
  */
-const TERMINAL: readonly string[] = ["PAID", "EXPIRED", "FAILED", "CANCELLED", "REFUNDED", "UNKNOWN"]
+/**
+ * Status yang menghentikan polling — PAID ikut (sheet ditutup via onPaid).
+ * BFI-077/BFI-085: REFUNDED ikut terminal — order yang ter-refund tidak
+ * lagi membuat polling jalan sampai timeout; aksi menggantung diselesaikan.
+ * ESI-001/MFE-005: "SUCCESS" juga terminal (enum Prisma PaymentStatus) —
+ * normalizer memetakan SUCCESS→PAID (lib/api/orders-endpoints.ts), tapi
+ * bila status mentah lolos (mis. respons non-ternormalisasi), polling
+ * harus tetap berhenti. REFUNDED = dana dikembalikan; bukan "masih
+ * menunggu".
+ */
+const TERMINAL: readonly string[] = [
+  "PAID",
+  "EXPIRED",
+  "FAILED",
+  "CANCELLED",
+  "UNKNOWN",
+  "SUCCESS",
+  "REFUNDED",
+]
 
 /**
  * M-04 (audit escrow 2026-09-24): cast `(TERMINAL as readonly string[])`
@@ -89,7 +107,13 @@ export type DanaIntentAdapter = {
    */
   createIntent: (methodCode: string, idempotencyKey: string) => Promise<OrderPaymentIntent>
   /** Satu kali baca status intent berjalan. */
-  getStatus: () => Promise<{ status: string; isPaid: boolean }>
+  getStatus: () => Promise<{
+    status: string
+    isPaid: boolean
+    /** MFE-006: progres refund DANA-direct (IDR); undefined bila tak ada. */
+    refundedAmount?: number
+    refundReference?: string | null
+  }>
 }
 
 export type UseDanaIntentOptions = {
@@ -124,6 +148,9 @@ export function useDanaIntent({
   const label = methodLabel ?? methodCode
   const [intent, setIntent] = useState<OrderPaymentIntent | null>(null)
   const [status, setStatus] = useState<string | null>(null)
+  /** MFE-006: info refund DANA-direct (async) — dibaca tiap syncStatus. */
+  const [refundedAmount, setRefundedAmount] = useState<number>(0)
+  const [refundReference, setRefundReference] = useState<string | null>(null)
   const [pollError, setPollError] = useState<string | null>(null)
   const [stopped, setStopped] = useState(false)
   const [creating, setCreating] = useState(false)
@@ -188,6 +215,10 @@ export function useDanaIntent({
         const res = await current.getStatus()
         setPollError(null)
         setStatus(res.status)
+        // MFE-006: progres refund async — info ini yang dirender panel
+        // sebagai "Dana dikembalikan RpX" bila status REFUNDED.
+        setRefundedAmount(res.refundedAmount ?? 0)
+        setRefundReference(res.refundReference ?? null)
         // M-06 (audit end-to-end, issue #8): `isPaid` boolean server ikut
         // dipercaya (alias `is_paid|paid|number 1/0` dinormalisasi strict) —
         // dulu hanya `status === "PAID"`; status tak dikenali + `isPaid:true`
@@ -259,6 +290,9 @@ export function useDanaIntent({
       intentKeyRef.current = null
       setIntent(res)
       setStatus("PENDING")
+      // MFE-006: intent baru = siklus refund baru (info lama dibuang).
+      setRefundedAmount(0)
+      setRefundReference(null)
       setStopped(false)
       setPollIntervalMs(POLL_BASE_MS)
       pollCount.current = 0
@@ -319,6 +353,9 @@ export function useDanaIntent({
   const reset = useCallback(() => {
     setIntent(null)
     setStatus(null)
+    // MFE-006: info refund ikut di-reset (bukan carry-over antar intent).
+    setRefundedAmount(0)
+    setRefundReference(null)
     setPollError(null)
     setStopped(false)
     setPollIntervalMs(POLL_BASE_MS)
@@ -360,6 +397,9 @@ export function useDanaIntent({
   return {
     intent,
     status,
+    /** MFE-006: info refund async untuk dirender panel (DanaIntentBundle). */
+    refundedAmount,
+    refundReference,
     pollError,
     stopped,
     creating,

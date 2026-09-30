@@ -18,6 +18,12 @@
  *     (belum berlangganan). EXPIRING dihitung komponen dari `daysLeft` bila
  *     pemanggil mengirim status ACTIVE — supaya backend tidak perlu status
  *     turunan. Tidak ada merah: langganan habis bukan error.
+ *   - PENDING (menunggu pembayaran), SUSPENDED (ditangguhkan), PAUSED
+ *     (dijeda sementara, auto-resume via scheduler) adalah nilai resmi enum
+ *     backend — ESI-006: sebelumnya jatuh ke NONE ("Belum berlangganan").
+ *     PAUSED tidak sama dengan "belum berlangganan": paket lama bisa
+ *     auto-resume, jadi jangan tawarkan pembelian baru seolah tidak ada
+ *     langganan.
  *   - NONE dirender sebagai kartu ajakan minimal (judul + deskripsi + CTA
  *     "Lihat paket"), bukan EmptyState besar — kartu ini biasanya duduk di
  *     halaman Profil di antara kartu lain.
@@ -56,6 +62,11 @@ const STATUS_TONE: Record<SubscriptionStatus, BadgeTone> = {
   EXPIRING: "warning",
   EXPIRED: "neutral",
   CANCELLED: "neutral",
+  // ESI-006 (audit integrasi 2026-09-30): nilai resmi backend — jangan
+  // biarkan jatuh ke NONE ("Belum berlangganan").
+  PENDING: "warning",
+  SUSPENDED: "danger",
+  PAUSED: "warning",
 }
 
 export type SubscriptionStatusCardLabels = Record<SubscriptionStatus, string> & {

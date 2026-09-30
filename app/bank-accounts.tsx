@@ -19,7 +19,12 @@ import { Bank, Plus } from "phosphor-react-native"
 
 import { api, type AddBankAccountDto, userMessage } from "@/lib/api"
 import type { BankAccount } from "@/lib/api/bank-accounts"
-import { maskAccountNumber } from "@/lib/format"
+import {
+  disbursementStatusCopy,
+  getDisbursements,
+  type Disbursement,
+} from "@/lib/api/disbursements"
+import { formatRupiah, maskAccountNumber } from "@/lib/format"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 import { useApiQuery } from "@/lib/use-api-query"
@@ -46,6 +51,24 @@ import { Text } from "@/components/ui/text"
 import { ScreenCaptureGuard } from "@/components/security/screen-capture-guard"
 import { useToast } from "@/components/ui/toast"
 import { translate } from "@/lib/i18n/translate"
+
+/** Label ringkas scope pencairan (tanpa jargon enum backend). */
+function disbursementScopeLabel(scope: string): string {
+  switch (scope) {
+    case "ORDER_ESCROW":
+      return "Pencairan transaksi"
+    case "MILESTONE":
+      return "Pencairan milestone"
+    case "DISPUTE_RELEASE":
+      return "Pencairan sengketa"
+    case "CASHBACK":
+      return "Cashback"
+    case "REFERRAL":
+      return "Bonus referral"
+    default:
+      return "Pencairan"
+  }
+}
 
 export default function BankAccountsScreen() {
   const insets = useSafeAreaInsets()
@@ -99,6 +122,18 @@ export default function BankAccountsScreen() {
   const accounts = useMemo(() => query.data?.accounts ?? [], [query.data])
   const banks = useMemo(() => query.data?.banks ?? [], [query.data])
   const { loading, error, refreshing } = query
+
+  // MFE-014: `getDisbursements` selama ini tidak dipakai di layar mana pun
+  // (mati suri). Dipasang di seksi "Pencairan" di bawah — status +
+  // heldReason/lastError via `disbursementStatusCopy`.
+  const disbursementsQuery = useApiQuery<Disbursement[]>(
+    "bank-disbursements",
+    (signal) => getDisbursements({ limit: 10, signal }),
+  )
+  const disbursements = useMemo(
+    () => disbursementsQuery.data ?? [],
+    [disbursementsQuery.data],
+  )
 
   // FRM-011: rantai fokus Next Nomor rekening -> Nama pemilik rekening.
   const accountNameRef = useRef<TextInput>(null)
@@ -256,8 +291,11 @@ export default function BankAccountsScreen() {
       <Screen keyboardAvoiding edges={["top"]} padded={false}>
       <Header title="Rekening Bank" />
       <PullToRefresh
-        onRefresh={() => void query.refresh()}
-        refreshing={refreshing}
+        onRefresh={() => {
+          void query.refresh()
+          void disbursementsQuery.refresh()
+        }}
+        refreshing={refreshing || disbursementsQuery.refreshing}
         contentContainerClassName="px-5"
         scrollViewProps={{
           contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
@@ -325,6 +363,54 @@ export default function BankAccountsScreen() {
             Tarik sisa saldo lama
           </Button>
         ) : null}
+
+        {/* MFE-014: seksi "Pencairan" — status pencairan dana transaksi ke
+            rekening bank seller (escrow order, milestone, cashback, referral)
+            yang selama ini tidak terlihat di mana pun. */}
+        <SectionHeader title="Pencairan" />
+        <Crossfade loading={disbursementsQuery.loading} skeleton={<ListLoading />}>
+          {disbursementsQuery.error ? (
+            <ErrorState
+              title="Gagal memuat pencairan"
+              description={disbursementsQuery.error}
+              onRetry={() => void disbursementsQuery.reload()}
+            />
+          ) : disbursements.length === 0 ? (
+            <Card>
+              <EmptyState
+                icon={Bank}
+                title="Belum ada pencairan"
+                description="Pencairan dana transaksi ke rekening bank akan tampil di sini."
+              />
+            </Card>
+          ) : (
+            <View className="gap-3">
+              {disbursements.map((d) => {
+                const copy = disbursementStatusCopy(d)
+                return (
+                  <Card key={d.id}>
+                    <View className="flex-row items-center justify-between">
+                      <Text variant="body" weight={600}>
+                        {disbursementScopeLabel(d.scope)}
+                      </Text>
+                      <Text variant="body" weight={600}>
+                        {formatRupiah(d.amount)}
+                      </Text>
+                    </View>
+                    <Text variant="caption" tone="primary" className="mt-1">
+                      {copy.title}
+                    </Text>
+                    {copy.description ? (
+                      <Text variant="caption" tone="secondary" className="mt-1">
+                        {copy.description}
+                      </Text>
+                    ) : null}
+                  </Card>
+                )
+              })}
+            </View>
+          )}
+        </Crossfade>
 
         <SectionHeader title="Tambah rekening" />
         {!adding ? (

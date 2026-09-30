@@ -22,11 +22,22 @@ describe("validateTicketAttachments", () => {
     expect(validateTicketAttachments([img(), img({ name: "b.png", mimeType: "image/png" })])).toEqual([])
   })
 
-  it("menolak tipe non-gambar dengan pesan yang jelas", () => {
-    const issues = validateTicketAttachments([img({ name: "dok.pdf", mimeType: "application/pdf" })])
+  it("menerima PDF — selaras allowlist REPORT_EVIDENCE backend (DBL-011)", () => {
+    expect(validateTicketAttachments([img({ name: "dok.pdf", mimeType: "application/pdf" })])).toEqual([])
+  })
+
+  it("menolak image/gif — lolos prefix image/* lama, ditolak backend (DBL-011)", () => {
+    const issues = validateTicketAttachments([img({ name: "anim.gif", mimeType: "image/gif" })])
     expect(issues).toHaveLength(1)
     expect(issues[0].reason).toBe("type")
-    expect(issues[0].message).toContain("dok.pdf")
+    expect(issues[0].message).toContain("anim.gif")
+  })
+
+  it("menolak tipe non-allowlist dengan pesan yang menyebut format didukung", () => {
+    const issues = validateTicketAttachments([img({ name: "data.zip", mimeType: "application/zip" })])
+    expect(issues).toHaveLength(1)
+    expect(issues[0].reason).toBe("type")
+    expect(issues[0].message).toContain("PDF")
   })
 
   it("menolak file melebihi batas ukuran", () => {

@@ -81,6 +81,7 @@ import { DetailLoading } from "@/components/ui/paginated-list"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
 import { DisputeMessagesSection } from "@/components/dispute-messages-section"
+import { useRealtime } from "@/lib/realtime/realtime-context"
 import {
   DisputeActionDialogs,
   DisputeCallsSection,
@@ -213,6 +214,30 @@ export default function DisputeDetailScreen() {
   const messages = bundle?.messages ?? []
   const proposals = bundle?.proposals ?? []
   const calls = bundle?.calls ?? []
+
+  // NCC-007: pesan mediator tiba realtime via `dispute.new_message`
+  // (backend `admin-disputes.service` → emitToUser → room `user:<id>`;
+  // payload { disputeId, message } dengan disputeId = id PUBLIK). Layar yang
+  // sedang terbuka me-refresh bundel (termasuk daftar pesan) tanpa menunggu
+  // poll/REST manual. Filter mencocokkan id publik maupun id internal karena
+  // param rute bisa berupa keduanya.
+  const refreshDisputeBundle = query.refresh
+  const resolvedPublicDisputeId = bundle?.dispute?.disputePublicId ?? null
+  const { socket: realtimeSocket, status: realtimeStatus, unwrapEvent } = useRealtime()
+  useEffect(() => {
+    if (!id || !realtimeSocket || realtimeStatus !== "connected") return
+    const listener = (raw: unknown) => {
+      const payload = unwrapEvent(raw)
+      if (!payload || typeof payload !== "object") return
+      const { disputeId } = payload as { disputeId?: unknown }
+      if (disputeId !== id && disputeId !== resolvedPublicDisputeId) return
+      void refreshDisputeBundle()
+    }
+    realtimeSocket.on("dispute.new_message", listener)
+    return () => {
+      realtimeSocket.off("dispute.new_message", listener)
+    }
+  }, [id, resolvedPublicDisputeId, realtimeSocket, realtimeStatus, unwrapEvent, refreshDisputeBundle])
   const { loading, error, refreshing } = query
 
   // R2 (audit ronde-2, butir #22): mediasi adalah PERCAKAPAN — pesan/proposal/

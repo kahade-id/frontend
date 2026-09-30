@@ -191,13 +191,20 @@ export function formatRupiah(
 ): string {
   if (!Number.isFinite(amount)) return "—"
   /**
-   * I-04 (audit escrow 2026-09-24): pembulatan `Math.round` lama menyembunyikan
-   * pecahan uang ("Rp1.001" untuk 1000,5) di nominal yang mengikat. Rupiah
-   * hanya integer di app ini; pecahan nyata (toleransi artefak float 1e-6)
-   * adalah data rusak — TAMPILKAN "—", jangan bulatkan diam-diam.
+   * DBL-003/004 (audit integrasi 2026-10-01): KEBIJAKAN PECAHAN KANONIS
+   * LINTAS REPO — pecahan Rupiah finite DIBULATKAN ke rupiah terdekat
+   * (Math.round), selaras backend `formatIdr` dan admin `formatIDR`.
+   *
+   * Menggantikan kebijakan I-04 (audit escrow 2026-09-24) yang menampilkan
+   * "—" untuk pecahan nyata sebagai "data rusak". Kebijakan itu terbukti
+   * tidak konsisten: data pecahan yang sama tampil "—" di aplikasi tapi
+   * "Rp11" di panel admin (DBL-004), membingungkan operator vs user.
+   *
+   * "—" kini HANYA untuk nilai yang tidak bisa ditampilkan sama sekali:
+   * non-finite (NaN/±Infinity) atau hasil pembulatan di luar safe integer.
    */
   const rounded = Math.round(amount)
-  if (!Number.isSafeInteger(rounded) || Math.abs(amount - rounded) > 1e-6) return "—"
+  if (!Number.isSafeInteger(rounded)) return "—"
   const { sign = "auto", compact = false } = opts
   const negative = rounded < 0
   const abs = Math.abs(rounded)
@@ -213,9 +220,9 @@ export function formatRupiah(
  * lokal di `app/products/[id].tsx`.
  *
  * Mendelegasikan ke `formatRupiah` (kontrak §13): pemisah ribuan titik,
- * "Rp" tanpa spasi, dan "—" untuk data rusak (sen bukan kelipatan 100
- * adalah pecahan Rupiah yang tidak valid — ditampilkan "—", BUKAN
- * dibulatkan diam-diam seperti implementasi lama).
+ * "Rp" tanpa spasi, dan "—" hanya untuk input null/NaN. Sen bukan kelipatan
+ * 100 (mis. 1050 sen = Rp10,5) dibulatkan ke rupiah terdekat (DBL-004,
+ * selaras admin `formatIdrSen` + `formatIDR(Math.round(...))`).
  */
 export function formatRupiahFromSen(sen: string | number | null | undefined): string {
   if (sen === null || sen === undefined) return "—"
@@ -552,11 +559,19 @@ export function formatRelativeTime(d: Date | number | string, now: Date | number
  * transaksi): "Baru saja" → "5 menit lalu" → "2 jam lalu" → "Kemarin" →
  * tanggal eksplisit ("3 Sep 2026").
  *
+ * DBL-009 (audit integrasi 2026-10-01): BUCKET WAKTU KANONIS LINTAS REPO —
+ * <24 jam → "X jam lalu", 24–48 jam → "Kemarin", selebihnya tanggal eksplisit
+ * (selaras admin `formatAge`). "Kemarin" di sini berbasis DELTA JAM, bukan
+ * hari kalender zona perangkat seperti dulu (26 jam lalu bisa "Kemarin" tapi
+ * 35 jam lalu yang masih hari-kalender-kemarin justru tanggal — inkonsisten
+ * dengan panel admin yang memakai jam sampai 48).
+ *
  * Beda dengan `formatRelativeTime` (cap waktu feed sosial gaya "2 jam" tanpa
  * "lalu", lalu "{x} hari" sampai 7 hari): fungsi ini memakai sufiks "lalu"
- * dan "Kemarin" berbasis hari kalender zona perangkat — pola yang sama
- * dengan `formatChatListTime` untuk batas "Kemarin" supaya tidak bergeser
- * karena UTC. Setelah kemarin langsung jatuh ke `formatDate` eksplisit.
+ * dan "Kemarin" untuk rentang 24–48 jam (DBL-009: delta jam, selaras admin
+ * `formatAge`; `formatChatListTime` tetap memakai "Kemarin" hari kalender
+ * karena mengikuti pemisah hari thread chat). Setelah 48 jam langsung jatuh
+ * ke `formatDate` eksplisit.
  *
  * `now` bisa disuntik untuk test. Masa depan (delta negatif) dijepit ke 0
  * → "Baru saja" (jam perangkat/server bisa selisih sedikit).
@@ -571,13 +586,9 @@ export function formatTimeAgo(d: Date | number | string, now: Date | number = Da
   if (minutes < 60) return translate("{x} menit lalu", { x: minutes })
   const hours = Math.floor(minutes / 60)
   if (hours < 24) return translate("{x} jam lalu", { x: hours })
-  // "Kemarin" = hari kalender kemarin di zona perangkat (bukan sekadar
-  // delta 24 jam — 26 jam lalu bisa masih "kemarin" atau sudah lusa).
-  const date = new Date(then)
-  const baseDate = new Date(base)
-  const startOf = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime()
-  if (Math.round((startOf(baseDate) - startOf(date)) / 86_400_000) === 1)
-    return translate("Kemarin")
+  // DBL-009: "Kemarin" = 24–48 jam lalu (delta jam, BUKAN hari kalender) —
+  // selaras admin `formatAge`. Selebihnya tanggal eksplisit.
+  if (hours < 48) return translate("Kemarin")
   return formatDate(d)
 }
 
@@ -779,25 +790,21 @@ export function formatDurationWords(totalSeconds: number, placeholder = "—"): 
 }
 
 /**
- * Nomor rekening: tampilkan 4 digit terakhir, sisanya bullet, dikelompokkan
- * per 4 agar terbaca dalam Mono: "•••• •••• 1234".
+ * Nomor rekening: tampilkan 4 digit terakhir, sisanya 6 bullet (tanpa spasi):
+ * "123456789012" → "••••••9012".
  *
- * A-01 (audit 2026-09-22): versi sebelumnya menggabungkan bullet + digit lalu
- * mengelompokkan ULANG seluruh string dari depan. Karena jumlah bullet bukan
- * kelipatan 4 pada rekening 10/11/13/14/15 digit (BCA/BNI 10, CIMB/Mandiri 13,
- * BRI 15), kelompok terakhir TERBELAH: "•••• ••78 90" sehingga 4 digit
- * verifikasi terakhir tidak lagi utuh di layar konfirmasi penarikan.
- * Sekarang grup dibentuk dari bagian tersembunyi, dan ekor yang terlihat
- * selalu menjadi satu grup utuh.
+ * A-01 (audit 2026-09-22): regresi lama memecah 4 digit terakhir pada panjang
+ * bukan kelipatan 4 — 4 digit terakhir WAJIB utuh (verifikasi visual di layar
+ * penarikan).
+ *
+ * DBL-014 (audit integrasi 2026-10-01): gaya KANONIS = admin `src/lib/pii.ts`.
+ * Versi lama memakai bullet proporsional panjang + grup berspasi per 4,
+ * sehingga jumlah bullet membocorkan panjang nomor asli.
  */
-export function maskAccountNumber(account: string | undefined, visible = 4): string {
-  const digits = asText(account).replace(/\s/g, "")
-  const shown = Math.max(0, Math.min(visible, digits.length))
-  const hidden = digits.length - shown
-  const groups: string[] = []
-  for (let i = 0; i < hidden; i += 4) groups.push("\u2022".repeat(Math.min(4, hidden - i)))
-  if (shown > 0) groups.push(digits.slice(-shown))
-  return groups.join(" ")
+export function maskAccountNumber(account: string): string {
+  const digits = asText(account).replace(/\D/g, "")
+  if (digits.length < 4) return "\u2022\u2022\u2022\u2022"
+  return `\u2022\u2022\u2022\u2022\u2022\u2022${digits.slice(-4)}`
 }
 
 /** Kelompokkan nomor per 4 tanpa mask: "1234 5678 9012" */
@@ -809,24 +816,36 @@ export function groupAccountNumber(account: string): string {
 }
 
 /**
- * FE-IMP-3 #103 — samarkan email untuk baris menu Keamanan: "b••••@gmail.com".
- * Hanya karakter pertama bagian lokal yang terlihat, domain utuh (supaya
- * pengguna tetap mengenali provider-nya).
+ * DBL-012 (audit integrasi 2026-10-01): gaya mask KANONIS = admin
+ * `src/lib/pii.ts` `maskEmail` — 2 huruf depan bagian lokal terlihat:
+ * "budi@gmail.com" → "bu•••@gmail.com". Versi lama hanya 1 huruf.
+ * Kosong → "—" (placeholder §13), tanpa @ / tanpa domain → "•••".
  */
 export function maskEmail(email: string): string {
   const clean = asText(email).trim()
+  if (!clean) return "—"
   const at = clean.indexOf("@")
   if (at < 1 || at === clean.length - 1) return "\u2022\u2022\u2022"
-  return `${clean[0]}\u2022\u2022\u2022${clean.slice(at)}`
+  const head = clean.slice(0, at).slice(0, 2)
+  return `${head}\u2022\u2022\u2022${clean.slice(at)}`
 }
 
 /**
- * FE-IMP-3 #103 — samarkan nomor HP untuk baris menu Keamanan:
- * "•••• •••• 7890" (4 digit terakhir terlihat). Mendelegasikan ke
- * maskAccountNumber (format mask PII yang sudah baku).
+ * DBL-013 (audit integrasi 2026-10-01): gaya mask KANONIS = admin
+ * `src/lib/pii.ts` `maskPhone` — kode negara TERLIHAT + 4 digit terakhir:
+ * "+6281234567890" → "+62••• ••• 7890". Versi lama menyamarkan kode negara
+ * dan mengelompokkan bullet per 4 ("•••• •••• 7890").
  */
 export function maskPhone(phone: string): string {
-  return maskAccountNumber(asText(phone).replace(/\D/g, ""))
+  const trimmed = asText(phone).trim()
+  if (!trimmed) return "—"
+  const digits = trimmed.replace(/\D/g, "")
+  if (digits.length < 4) return "\u2022\u2022\u2022"
+  const last4 = digits.slice(-4)
+  const plus = trimmed.startsWith("+") ? "+" : ""
+  // Pertahankan kode negara kasar (2 digit pertama) bila cukup panjang.
+  const cc = digits.length > 6 ? digits.slice(0, 2) : ""
+  return `${plus}${cc}\u2022\u2022\u2022 \u2022\u2022\u2022 ${last4}`
 }
 
 /**

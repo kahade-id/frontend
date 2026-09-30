@@ -1,10 +1,10 @@
 /**
- * Kahade — Verify OTP (screen #3 alur auth): masukkan kode 6 digit.
+ * Kahade — Verify OTP (screen #3 alur auth): masukkan kode 6–10 digit.
  *
  * Struktur:
  *   <Header title="Verifikasi OTP" progress=2/4>
  *   H1 "Masukkan kode verifikasi" + body (penjelasan + nomor HP Mono)
- *   <OtpInput> 6 digit
+ *   <OtpInput> dinamis 6–10 digit (DBL-007, mirror BE @Length(6,10))
  *   [Button Verifikasi] — manual submit, disabled saat < 6 digit
  *   [Alert error, bila ada]
  *   ── footer: countdown / kirim ulang  •  ubah nomor HP
@@ -31,9 +31,10 @@
  * (lib/otp-flow) — BUKAN route params (B-07/B-14).
  *
  * Keputusan non-obvious:
- *   - Submit MANUAL via tombol, BUKAN auto-submit saat 6 digit terisi — user
- *     punya kontrol penuh kapan kode dikirim, dan tombol memberi target sentuh
- *     yang jelas (44px+).
+ *   - Submit MANUAL via tombol, BUKAN auto-submit saat digit terisi — user
+ *     punya kontrol penuh kapan kode dikirim (DBL-007: panjang dinamis
+ *     6–10, auto-submit tidak tahu kapan kode selesai), dan tombol memberi
+ *     target sentuh yang jelas (44px+).
  *   - Haptic feedback di momen kritikal (§8): "success" saat verifikasi
  *     berhasil, "error" saat OTP ditolak. Tidak dipakai untuk interaksi ringan.
  *   - Error dari backend dibedakan: pesan yang mengandung "code"/"otp"/"kode"
@@ -52,7 +53,7 @@ import { ScrollView, View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useRouter } from "expo-router"
 
-import { OtpInput, type OtpInputHandle } from "@/components/ui/otp-input"
+import { OtpInput, OTP_MIN_LENGTH, OTP_MAX_LENGTH, type OtpInputHandle } from "@/components/ui/otp-input"
 import { ScreenCaptureGuard } from "@/components/security/screen-capture-guard"
 import { FadeIn } from "@/components/ui/fade-in"
 import { FooterBar } from "@/components/ui/footer-bar"
@@ -146,7 +147,7 @@ export default function VerifyOtpScreen() {
   const doVerify = useCallback(
     async (otpCode: string) => {
       if (verifying || !phoneNumber || !purpose) return
-      if (otpCode.length < 6) return
+      if (otpCode.length < OTP_MIN_LENGTH) return
 
       setVerifying(true)
       setFormError(null)
@@ -381,7 +382,7 @@ export default function VerifyOtpScreen() {
                 Masukkan kode verifikasi
               </Heading>
               <Text variant="body" tone="secondary" className="text-pretty">
-                Kode 6 digit telah dibalas via WhatsApp. Pastikan Anda
+                Kode {OTP_MIN_LENGTH}–{OTP_MAX_LENGTH} digit telah dibalas via WhatsApp. Pastikan Anda
                 memiliki akses ke nomor:
               </Text>
               {/* Nomor HP berdiri sendiri — data presisi (§3.1 → Mono) */}
@@ -390,17 +391,18 @@ export default function VerifyOtpScreen() {
               </Text>
             </View>
 
-            {/* OTP Input */}
+            {/* OTP Input — DBL-007: panjang dinamis 6–10 digit (mirror BE
+                @Length(6,10)); helper text dinamis mengikuti rentang. */}
             <OtpInput
               ref={otpRef}
-              length={6}
+              dynamicLength
               value={code}
               onChange={handleCodeChange}
               errorText={otpError}
-              helperText={otpError ? undefined : "Masukkan 6 digit kode yang diterima"}
+              helperText={otpError ? undefined : `Masukkan ${OTP_MIN_LENGTH}–${OTP_MAX_LENGTH} digit kode yang diterima`}
               disabled={verifying}
               autoFocus
-              accessibilityLabel="Kode verifikasi 6 digit"
+              accessibilityLabel={`Kode verifikasi ${OTP_MIN_LENGTH}–${OTP_MAX_LENGTH} digit`}
             />
 
             {/* A07: status koneksi — bedakan offline dari menunggu */}
@@ -415,7 +417,7 @@ export default function VerifyOtpScreen() {
             <Button
               onPress={handleVerify}
               loading={verifying}
-              disabled={code.length < 6}
+              disabled={code.length < OTP_MIN_LENGTH}
             >
               Verifikasi
             </Button>

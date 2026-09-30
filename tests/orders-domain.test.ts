@@ -134,8 +134,8 @@ describe("state machine: status × peran", () => {
 })
 
 describe("uang (B-03/B-06/B-07/B-11/I-04)", () => {
-  it("splitFee integer; sisa pembulatan ke pembeli", () => {
-    expect(splitFee(10_001, "SPLIT")).toEqual({ buyer: 5_001, seller: 5_000 })
+  it("splitFee integer; sisa pembulatan ke penjual (DBL-001, mirror backend)", () => {
+    expect(splitFee(10_001, "SPLIT")).toEqual({ buyer: 5_000, seller: 5_001 })
     expect(splitFee(10_000, "BUYER")).toEqual({ buyer: 10_000, seller: 0 })
   })
 
@@ -160,8 +160,8 @@ describe("uang (B-03/B-06/B-07/B-11/I-04)", () => {
     expect(feeShare("SPLIT")).toEqual({ buyer: 0.5, seller: 0.5 })
   })
 
-  it("formatRupiah menolak pecahan nyata (I-04)", () => {
-    expect(formatRupiah(1000.5)).toBe("—")
+  it("formatRupiah membulatkan pecahan ke rupiah terdekat (DBL-003)", () => {
+    expect(formatRupiah(1000.5)).toBe("Rp1.001")
     expect(formatRupiah(1500)).toBe("Rp1.500")
   })
 })

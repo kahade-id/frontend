@@ -121,7 +121,7 @@ export async function cleanupPendingShowcaseKeys(fileKeys: string[]): Promise<vo
  * single-shot (lebih hemat round-trip). Progress 0–1 via `onProgress`
  * dihitung dari total file (tidak reset per attempt).
  *
- * Error backend (FILE_TOO_LARGE, MIME_TYPE_MISMATCH, VIDEO_TOO_LONG,
+ * Error backend (FILE_TOO_LARGE, VIDEO_TOO_LARGE, MIME_TYPE_MISMATCH, VIDEO_TOO_LONG,
  * VIDEO_UNPROCESSABLE, UPLOAD_FAILED) sudah dipetakan ke pesan Indonesia
  * di `api.upload.uploadDirectVideo`.
  */

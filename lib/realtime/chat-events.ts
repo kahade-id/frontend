@@ -19,21 +19,29 @@
  * | chat.reaction_updated | server → klien  | { roomId, messageId, reactions[] }      |
  * | chat.message_pinned / | server → klien  | { roomId, messageId, isPinned, pinnedBy }|
  * | chat.message_unpinned |                 |                                          |
- * | chat.message_view_once| server → klien  | { roomId, messageId, viewerId }          |
- * | _consumed             |                 |                                          |
- * | chat.room_pinned /    | server → klien  | pin: { roomId, position } /            |
- * | chat.room_unpinned    | (ke user:<id>)   | { roomId }                               |
- * | chat.poll_created /   | server → klien  | { roomId, pollId, question?/voterId? }  |
- * | chat.poll_updated /   |                 |                                          |
- * | chat.poll_closed      |                 |                                          |
+ * | chat.poll_created /   | server → klien  | { roomId, pollId, question? /            |
+ * | chat.poll_updated /   |                 |   voterId? } (BFI-119/NCC-006: refetch   |
+ * | chat.poll_closed      |                 |   daftar polling, bukan tunggu poll     |
+ * |                       |                 |   REST)                                  |
+ * | chat.message_view_-   | server → klien  | { roomId, messageId, viewerId }          |
+ * | once_consumed         |                 | (BFI-117/NCC-006: tandai pesan          |
+ * |                       |                 |   sekali-lihat sebagai terkonsumsi)      |
+ * | chat.messages_expired | server → klien  | { roomId, messageIds[] } (NCC-006:       |
+ * |                       |                 |   hapus pesan ephemeral yang kedaluwarsa)|
+ * | chat.room_pinned /    | server → klien  | pin: { roomId, position? } / { roomId } |
+ * | chat.room_unpinned    | (ke user:<id>)   | (BFI-113/NCC-006: sinkron pin room      |
+ * |                       |                 |   antar perangkat → invalidasi daftar   |
+ * |                       |                 |   room)                                  |
  * | notification.new      | server → klien  | { notifId, type?, title, body, ...data }|
  * | notification.         | server → klien  | { unreadCount }                          |
  * | unread_count          | (ke user:<id>)   |                                          |
  * | order.status_changed /| server → klien  | { orderId, status } (ke order:<id>;     |
  * | order.status (legacy) |                 | `order.status` varian lama)              |
- * | chat.typing           | dua arah        | { roomId, userId, username, isTyping,    |
- * |                       |                 |   expiresAt } top-level — SAMA di jalur  |
- * |                       |                 |   WS (gateway) & REST (BFI-115)          |
+ * | chat.typing           | dua arah        | { roomId, userId, fullName/username,     |
+ * |                       |                 |   isTyping, expiresAt } top-level —     |
+ * |                       |                 |   SAMA di jalur WS (gateway) & REST     |
+ * |                       |                 |   (BFI-115); unified, gantikan          |
+ * |                       |                 |   typing.start/stop legacy               |
  * | user.online /         | server → klien  | { userId } (broadcast ke room, kecuali   |
  * | user.offline          |                 | socket pengirim)                         |
  * | join-room / leave-room| klien → server  | { roomId } → ack { success, message? }   |
@@ -62,15 +70,27 @@ export const CHAT_SOCKET_EVENTS = {
   REACTION_UPDATED: "chat.reaction_updated",
   MESSAGE_PINNED: "chat.message_pinned",
   MESSAGE_UNPINNED: "chat.message_unpinned",
-  /** BFI-117: pesan sekali-lihat dikonsumsi penerima (BE: getMessages). */
+  /**
+   * BFI-117: pesan sekali-lihat dikonsumsi penerima — payload aktual BE
+   * (`chat.service.ts` getMessages): `{ roomId, messageId, viewerId }`
+   * (viewerId = id internal penerima yang mengonsumsi). NCC-006: viewerId
+   * opsional (defensif bila payload tak lengkap).
+   */
   VIEW_ONCE_CONSUMED: "chat.message_view_once_consumed",
-  /** BFI-113: pin/unpin ROOM (bukan pesan) — di-emit ke `user:<id>`. */
+  /**
+   * Alias nama yang sama (NCC-006, dipakai `chat-room-handlers.ts`) —
+   * event string identik dengan `VIEW_ONCE_CONSUMED`.
+   */
+  MESSAGE_VIEW_ONCE_CONSUMED: "chat.message_view_once_consumed",
+  /** BFI-113/NCC-006: pin/unpin ROOM (bukan pesan) — di-emit ke `user:<id>`. */
   ROOM_PINNED: "chat.room_pinned",
   ROOM_UNPINNED: "chat.room_unpinned",
-  /** BFI-119: polling di dalam room chat. */
+  /** BFI-119/NCC-006: polling di dalam room chat. */
   POLL_CREATED: "chat.poll_created",
   POLL_UPDATED: "chat.poll_updated",
   POLL_CLOSED: "chat.poll_closed",
+  /** NCC-006: pesan ephemeral kedaluwarsa (purge scheduler). */
+  MESSAGES_EXPIRED: "chat.messages_expired",
   TYPING: "chat.typing",
   USER_ONLINE: "user.online",
   USER_OFFLINE: "user.offline",
@@ -139,12 +159,13 @@ export type ChatPinPayload = {
 /**
  * BFI-117: pesan sekali-lihat dikonsumsi — payload aktual BE
  * (`chat.service.ts` getMessages): `{ roomId, messageId, viewerId }`
- * (viewerId = id internal penerima yang mengonsumsi).
+ * (viewerId = id internal penerima yang mengonsumsi). NCC-006: viewerId
+ * opsional (defensif bila payload tak lengkap).
  */
 export type ChatViewOnceConsumedPayload = {
   roomId: string
   messageId: string
-  viewerId: string
+  viewerId?: string | null
 }
 
 /**
@@ -158,6 +179,12 @@ export type ChatRoomPinnedPayload = {
 
 export type ChatRoomUnpinnedPayload = {
   roomId: string
+}
+
+/** Pin/unpin ROOM — bentuk longgar NCC-006 (position opsional). */
+export type ChatRoomPinPayload = {
+  roomId: string
+  position?: number | null
 }
 
 /**
@@ -181,6 +208,20 @@ export type ChatPollUpdatedPayload = {
 export type ChatPollClosedPayload = {
   roomId: string
   pollId: string
+}
+
+/** Polling: bentuk longgar NCC-006 (dibuat/diubah/ditutup). */
+export type ChatPollPayload = {
+  roomId: string
+  pollId: string
+  question?: string | null
+  voterId?: string | null
+}
+
+/** Pesan ephemeral kedaluwarsa (purge scheduler). NCC-006. */
+export type ChatMessagesExpiredPayload = {
+  roomId: string
+  messageIds: string[]
 }
 
 /**

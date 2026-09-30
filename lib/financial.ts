@@ -67,15 +67,21 @@ export function feeShare(responsibility: string): { buyer: number; seller: numbe
  * (5000,5) yang beredar di kartu biaya. Sumber kini integer (`toAmount`),
  * dan defensif terakhir: nilai non-integer di-truncate ke bawah — lebih baik
  * sisa 1 rupiah tampil eksplisit di baris SPLIT (B-11) daripada pecahan.
- * SPLIT: sisa pembulatan DIBEBANKAN KE PEMBELI (`buyer = fee - half`) —
- * dipertahankan karena sudah dikomunikasikan di UI (B-11).
+ *
+ * DBL-001 (audit integrasi 2026-10-01): konvensi SPLIT DISAMAKAN DENGAN
+ * BACKEND (`fee-calculator.service.ts` case 'SPLIT', BigInt division truncates)
+ * — sisa pembulatan fee ganjil ditanggung PENJUAL: `buyer = floor(fee/2)`,
+ * `seller = fee - buyer`. Konvensi lama (`buyer = fee - half`, sisa ke
+ * pembeli) sudah dihapus karena membuat tampilan Rp1 lebih besar dari yang
+ * benar-benar dikenakan backend.
  */
 export function splitFee(feeAmount: number, responsibility: string): { buyer: number; seller: number } {
   const fee = Math.max(Math.trunc(feeAmount) || 0, 0)
   if (responsibility === "BUYER") return { buyer: fee, seller: 0 }
   if (responsibility === "SELLER") return { buyer: 0, seller: fee }
-  const half = Math.floor(fee / 2)
-  return { buyer: fee - half, seller: half }
+  // SPLIT: sisa pembulatan ke PENJUAL (mirror backend — BigInt truncates).
+  const buyer = Math.floor(fee / 2)
+  return { buyer, seller: fee - buyer }
 }
 
 export function assertDtoConstraints(dto: object, rules: Rules): void {

@@ -42,11 +42,15 @@ export type ChatPollsSheetProps = {
   myUserId?: string
   onRequestClose: () => void
   /**
-   * BFI-119: naik setiap event WS chat.poll_created/updated/closed tiba.
-   * Sheet yang sedang terbuka me-reload daftar polling TANPA mereset form
-   * buat-poll yang sedang diisi.
+  /**
+   * BFI-119/NCC-006: pemicu refresh eksternal (event realtime
+   * `chat.poll_created` / `chat.poll_updated` / `chat.poll_closed`). Sheet
+   * me-reload daftar bila salah satunya berubah saat sheet terbuka.
+   * Kedua nama didukung (gabungan dua sisi audit); layar room mengirim
+   * keduanya, cukup salah satu berubah untuk memicu reload.
    */
   refreshSignal?: number
+  refreshKey?: number
 }
 
 const DEADLINE_PRESETS = [
@@ -56,7 +60,7 @@ const DEADLINE_PRESETS = [
   { key: "7d", label: "7 hari", hours: 168 },
 ] as const
 
-export function ChatPollsSheet({ visible, roomId, myUserId, onRequestClose, refreshSignal = 0 }: ChatPollsSheetProps) {
+export function ChatPollsSheet({ visible, roomId, myUserId, onRequestClose, refreshSignal = 0, refreshKey }: ChatPollsSheetProps) {
   const toast = useToast()
   const [polls, setPolls] = useState<ChatPoll[] | null>(null)
   const [loading, setLoading] = useState(false)
@@ -93,15 +97,17 @@ export function ChatPollsSheet({ visible, roomId, myUserId, onRequestClose, refr
     }
   }, [roomId, toast])
 
-  // BFI-119: penanda sinyal refresh terakhir yang sudah diproses (lihat dua
-  // effect di bawah).
+  // BFI-119/NCC-006: penanda sinyal refresh terakhir yang sudah diproses
+  // (lihat dua effect di bawah).
   const lastPollSignalRef = useRef(refreshSignal)
+  const lastPollKeyRef = useRef(refreshKey)
 
   useEffect(() => {
     if (visible) {
       // BFI-119: sinkronkan penanda sinyal — event yang tiba saat sheet
       // tertutup sudah tercakup load() di bawah, jangan reload ganda.
       lastPollSignalRef.current = refreshSignal
+      lastPollKeyRef.current = refreshKey
       setPolls(null)
       setCreating(false)
       setQuestion("")
@@ -113,14 +119,21 @@ export function ChatPollsSheet({ visible, roomId, myUserId, onRequestClose, refr
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, load])
 
-  // BFI-119: event WS chat.poll_created/updated/closed — muat ulang daftar
-  // saat sheet terbuka, TANPA mereset form buat-poll yang sedang diisi.
+  // BFI-119/NCC-006: event WS chat.poll_created/updated/closed — muat ulang
+  // daftar saat sheet terbuka, TANPA mereset form buat-poll yang sedang diisi.
   useEffect(() => {
-    if (visible && refreshSignal !== lastPollSignalRef.current) {
+    if (!visible) return
+    let changed = false
+    if (refreshSignal !== lastPollSignalRef.current) {
       lastPollSignalRef.current = refreshSignal
-      void load()
+      changed = true
     }
-  }, [visible, refreshSignal, load])
+    if (refreshKey !== lastPollKeyRef.current) {
+      lastPollKeyRef.current = refreshKey
+      changed = true
+    }
+    if (changed) void load()
+  }, [visible, refreshSignal, refreshKey, load])
 
   const patchPoll = (updated: ChatPoll) =>
     setPolls((prev) => (prev ? prev.map((p) => (p.id === updated.id ? updated : p)) : prev))

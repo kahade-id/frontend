@@ -8,35 +8,52 @@ import { http } from "@/lib/api/client"
 import type { SubmitKycDto } from "@/lib/api/types"
 import { mapValue } from "@/lib/has-own"
 
+/**
+ * Status KYC mentah dari backend — selaras enum Prisma `KycStatus`
+ * (UNVERIFIED|PENDING|APPROVED|REJECTED|REVOKED, kyc.service#getStatus:
+ * `UNVERIFIED` bila belum pernah mengajukan).
+ *
+ * ESI-005 (audit integrasi 2026-09-30): kosakata lama
+ * (UNSUBMITTED/VERIFIED/EXPIRED) TIDAK PERNAH dikirim backend — tiga dari
+ * lima nilai lama tidak ada di enum backend. Jangan dipakai lagi untuk
+ * logika; hanya dipertahankan di `KYC_STATUS_ALIASES` sebagai toleransi.
+ */
 export type KycStatus =
-  | "UNSUBMITTED"
+  | "UNVERIFIED"
   | "PENDING"
-  | "VERIFIED"
+  | "APPROVED"
   | "REJECTED"
-  | "EXPIRED"
+  | "REVOKED"
   | (string & {})
 
 /**
  * Status yang dipahami komponen UI (<KycStatusCard>, <KycHistoryListItem>).
- * Spec tidak mendokumentasikan enum status KYC, jadi backend bisa memakai
- * salah satu dari dua kosakata; normalisasi di SATU tempat ini supaya layar
- * tidak salah menampilkan "Belum diverifikasi" untuk akun yang VERIFIED.
+ * Backend mengirim kosakata `KycStatus` (UNVERIFIED|PENDING|APPROVED|REJECTED|
+ * REVOKED); normalisasi di SATU tempat ini supaya layar tidak salah
+ * menampilkan "Belum diverifikasi" untuk akun yang APPROVED.
+ *
+ * ESI-005 (audit integrasi 2026-09-30): nilai lama (UNSUBMITTED/VERIFIED/
+ * EXPIRED) dipertahankan HANYA sebagai alias toleransi data cache lama —
+ * backend tidak pernah mengirimnya.
  */
 export type KycUiStatus = "NOT_SUBMITTED" | "PENDING" | "APPROVED" | "REJECTED" | "REVOKED"
 
 const KYC_STATUS_ALIASES: Record<string, KycUiStatus> = {
+  // Nilai resmi backend:
+  UNVERIFIED: "NOT_SUBMITTED",
+  PENDING: "PENDING",
+  APPROVED: "APPROVED",
+  REJECTED: "REJECTED",
+  REVOKED: "REVOKED",
+  // Alias toleransi (tak pernah dikirim backend; ESI-005):
   UNSUBMITTED: "NOT_SUBMITTED",
   NOT_SUBMITTED: "NOT_SUBMITTED",
   NONE: "NOT_SUBMITTED",
-  PENDING: "PENDING",
   SUBMITTED: "PENDING",
   IN_REVIEW: "PENDING",
   UNDER_REVIEW: "PENDING",
   VERIFIED: "APPROVED",
-  APPROVED: "APPROVED",
-  REJECTED: "REJECTED",
   EXPIRED: "REVOKED",
-  REVOKED: "REVOKED",
 }
 
 export function toKycUiStatus(status: KycStatus | null | undefined): KycUiStatus {

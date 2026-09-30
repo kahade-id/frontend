@@ -28,15 +28,23 @@ import { toEpochMs } from "@/lib/pending-actions"
  * adalah keberhasilan, bukan hitung mundur. "UNKNOWN" juga (M-17, issue #12):
  * status tak dikenal bukan "masih menunggu" — hitung mundur tidak menyelesaikan
  * apa pun dan polling C-01 memang berhenti di status ini.
+ * "SUCCESS"/"REFUNDED" (ESI-001/MFE-005): status terminal backend — polling
+ * tidak boleh jalan untuk keduanya.
  */
-const TERMINAL_STATUS = new Set(["PAID", "EXPIRED", "FAILED", "CANCELLED", "UNKNOWN"])
+const TERMINAL_STATUS = new Set(["PAID", "EXPIRED", "FAILED", "CANCELLED", "UNKNOWN", "SUCCESS", "REFUNDED"])
 
 export type QrisPaymentPanelProps = {
   qrString: string
   amount: number
   expiresAt?: string | null
-  /** Status intent dari `GET /v1/orders/:orderId/payment-status` */
+  /** Status intent dari `GET /v1/orders/:orderId/dana-payment-status` */
   status?: string | null
+  /**
+   * MFE-006: info refund async — bila status REFUNDED, footer menampilkan
+   * "Dana dikembalikan {formatRupiah}" + referensi.
+   */
+  refundedAmount?: number
+  refundReference?: string | null
   /**
    * Error pemantauan terakhir. Sengaja ditampilkan, bukan ditelan: status yang
    * terlihat di panel bisa BASI, dan untuk pembayaran diam-diam salah lebih
@@ -71,6 +79,8 @@ export function QrisPaymentPanel({
   amount,
   expiresAt,
   status,
+  refundedAmount = 0,
+  refundReference,
   pollError,
   pollStopped = false,
   submitting = false,
@@ -137,21 +147,30 @@ export function QrisPaymentPanel({
           onComplete={onExpire}
         />
       ) : null}
-      <Text variant="caption" tone={failed ? "danger" : "secondary"}>
-        {status === "EXPIRED"
-          ? "QRIS kedaluwarsa — buat ulang untuk mencoba lagi."
-          : status === "FAILED"
-            ? "Pembayaran gagal — buat ulang untuk mencoba lagi."
-            : status === "UNKNOWN"
-              ? // M-17 (audit end-to-end, issue #13): dulu jatuh ke "Menunggu
-                // pembayaran…" untuk status yang TIDAK diketahui — klaim palsu
-                // selagi uang bisa sudah berpindah. Arahkan ke jalur nyata.
-                "Status pembayaran belum pasti — cek status sekarang, atau bayar dengan metode lain."
-              : pollStopped
-                ? "Pemantauan otomatis dihentikan setelah 15 menit — gunakan Cek status sekarang."
-                : // FE-109: copy pending tepat satu baris, tanpa duplikat.
-                  "Setelah membayar di aplikasi bank, kembali ke sini — status diperbarui otomatis."}
-      </Text>
+      {/* MFE-006: REFUNDED = terminal pengembalian — tampilkan nominal yang
+          dikembalikan, bukan klaim "menunggu pembayaran". */}
+      {status === "REFUNDED" ? (
+        <Text variant="caption" tone="success">
+          Dana dikembalikan {formatRupiah(refundedAmount)}
+          {refundReference ? ` · Ref ${refundReference}` : ""}
+        </Text>
+      ) : (
+        <Text variant="caption" tone={failed ? "danger" : "secondary"}>
+          {status === "EXPIRED"
+            ? "QRIS kedaluwarsa — buat ulang untuk mencoba lagi."
+            : status === "FAILED"
+              ? "Pembayaran gagal — buat ulang untuk mencoba lagi."
+              : status === "UNKNOWN"
+                ? // M-17 (audit end-to-end, issue #13): dulu jatuh ke "Menunggu
+                  // pembayaran…" untuk status yang TIDAK diketahui — klaim palsu
+                  // selagi uang bisa sudah berpindah. Arahkan ke jalur nyata.
+                  "Status pembayaran belum pasti — cek status sekarang, atau bayar dengan metode lain."
+                : pollStopped
+                  ? "Pemantauan otomatis dihentikan setelah 15 menit — gunakan Cek status sekarang."
+                  : // FE-109: copy pending tepat satu baris, tanpa duplikat.
+                    "Setelah membayar di aplikasi bank, kembali ke sini — status diperbarui otomatis."}
+        </Text>
+      )}
       {failed ? (
         <Button variant="secondary" loading={submitting} onPress={onRecreate}>
           Buat ulang QRIS

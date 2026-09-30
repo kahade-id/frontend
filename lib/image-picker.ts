@@ -71,6 +71,30 @@ export type PickImageOptions = {
 }
 
 const DEFAULT_MIME = "image/jpeg"
+
+/**
+ * UMD-005: jangan menebak `video/mp4` buta bila OS tak melaporkan mimeType
+ * (Android lama). Backend mewajibkan declared === detected via magic byte —
+ * `.mov` yang ditebak `video/mp4` terdeteksi `video/quicktime` → ditolak
+ * MIME_TYPE_MISMATCH (di jalur chunked, baru di `complete`, setelah seluruh
+ * byte terunggah). Turunkan MIME dari ekstensi nama berkas bila platform
+ * tidak mengisinya.
+ */
+const EXTENSION_MIME: Record<string, string> = {
+  mov: "video/quicktime",
+  mp4: "video/mp4",
+  webm: "video/webm",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  heic: "image/heic",
+  heif: "image/heif",
+}
+
+export function mimeTypeFromExtension(fileName: string | null | undefined): string | undefined {
+  const ext = fileName?.split(".").pop()?.toLowerCase()
+  return ext ? EXTENSION_MIME[ext] : undefined
+}
 /**
  * PERF-FIX (NP-003): kualitas kompresi picker — 0.8 (audit menyarankan ~0.8;
  * sebelumnya 0.7). Foto >1920px tetap dikecilkan di `resizePickedImage`.
@@ -155,15 +179,22 @@ function videoMimeFromFileName(fileName: string | null | undefined): { mimeType:
 function toPicked(asset: ImagePicker.ImagePickerAsset, fallbackName: string): PickedImage {
   // R2 (butir #34): MIME fallback mengikuti JENIS aset — video yang tidak
   // melaporkan mimeType (Android lama) tidak boleh dilabeli image/jpeg.
+  // UMD-005: turunkan MIME dari ekstensi nama berkas sebelum menebak buta —
+  // declared yang salah ditolak backend (magic byte) sebagai MIME_TYPE_MISMATCH.
   const isVideo = asset.type === "video"
   // BFI-102: video tanpa mimeType → turunkan dari ekstensi (bukan video/mp4 buta).
   const videoFallback = isVideo && !asset.mimeType ? videoMimeFromFileName(asset.fileName) : null
+  // Nama fallback mengikuti ekstensi turunan agar deklarasi MIME ↔ nama
+  // file konsisten (BE menurunkan ekstensi simpan dari magic-byte anyway).
+  const name = asset.fileName ?? (videoFallback ? `video-${Date.now()}.${videoFallback.extension}` : fallbackName)
   return {
     uri: asset.uri,
-    // Nama fallback mengikuti ekstensi turunan agar deklarasi MIME ↔ nama
-    // file konsisten (BE menurunkan ekstensi simpan dari magic-byte anyway).
-    name: asset.fileName ?? (videoFallback ? `video-${Date.now()}.${videoFallback.extension}` : fallbackName),
-    mimeType: asset.mimeType ?? videoFallback?.mimeType ?? (isVideo ? "video/mp4" : DEFAULT_MIME),
+    name,
+    mimeType:
+      asset.mimeType ??
+      videoFallback?.mimeType ??
+      mimeTypeFromExtension(name) ??
+      (isVideo ? "video/mp4" : DEFAULT_MIME),
     size: asset.fileSize ?? 0,
     width: asset.width,
     height: asset.height,

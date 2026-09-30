@@ -613,28 +613,44 @@ export async function verify2faLogin(dto: WithoutDevice<Verify2faLoginDto>) {
  * Pemanggil bertanggung jawab memanggil `unregisterPushDevice()` SEBELUM ini
  * (endpoint itu butuh access token yang akan dihapus di sini).
  *
- * BFI-039: bila request server gagal karena jaringan (offline), token akses
- * disalin ke `pendingLogoutToken` dan SATU percobaan ulang best-effort
- * dijadwalkan pada foreground berikutnya (retryPendingLogoutOnce). Sesi lokal
- * tetap dibersihkan segera — pengguna yang menekan "Keluar" harus
- * benar-benar keluar dari perangkat ini.
+ * AUT-004: server logout di-retry 3x dengan backoff (500ms, 1s) — refresh
+ * token server-side sebaiknya ikut dicabut. Bila ketiganya gagal, logout
+ * lokal tetap jalan (fail-closed ke arah membersihkan perangkat, bukan
+ * mengunci user di dalam sesi). BFI-039: bila kegagalan itu karena jaringan
+ * (offline), token akses disalin ke `pendingLogoutToken` dan SATU percobaan
+ * ulang best-effort dijadwalkan pada foreground berikutnya
+ * (retryPendingLogoutOnce); 401/4xx dari server berarti sesi sudah
+ * (dianggap) berakhir di sana sehingga retry tidak ada gunanya.
+ * clearSession() dipakai dalam mode strict: kegagalan tulis flag
+ * sessionSignedOut DILEMPAR agar pemanggil bisa menampilkannya ke user (di
+ * web, flag inilah yang mencegah auto-login cookie menghidupkan lagi sesi
+ * yang baru diakhiri).
  */
 export async function logout(dto: LogoutDto = {}): Promise<void> {
   // Ambil SEBELUM request: token dibutuhkan untuk retry bila request gagal.
   const preToken = await getAccessToken().catch(() => null)
-  try {
-    await http.post<MessageResult | undefined, LogoutDto>("/v1/auth/logout", dto, {
-      auth: "optional",
-      responseType: "void",
-    })
-  } catch (err) {
-    if (__DEV__) console.warn("[kahade/api] logout server gagal (sesi lokal tetap dihapus):", err)
+  let lastError: unknown
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      await http.post<MessageResult | undefined, LogoutDto>("/v1/auth/logout", dto, {
+        auth: "optional",
+        responseType: "void",
+      })
+      lastError = undefined
+      break
+    } catch (err) {
+      lastError = err
+      if (attempt < 2) await new Promise((resolve) => setTimeout(resolve, 500 * 2 ** attempt))
+    }
+  }
+  if (lastError) {
+    if (__DEV__)
+      console.warn("[kahade/api] logout server gagal 3x (sesi lokal tetap dihapus):", lastError)
     // Hanya untuk kegagalan jaringan — 401/4xx dari server berarti sesi
     // sudah (dianggap) berakhir di sana; retry tidak ada gunanya.
-    if (preToken && isNetworkFailure(err)) armPendingLogoutRetry(preToken)
-  } finally {
-    await clearSession()
+    if (preToken && isNetworkFailure(lastError)) armPendingLogoutRetry(preToken)
   }
+  await clearSession({ strictSignedOutFlag: true })
 }
 
 /** True bila request tidak pernah sampai ke server (offline/DNS/TLS/timeout). */

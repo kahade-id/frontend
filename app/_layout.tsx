@@ -474,9 +474,23 @@ function AppShellInner() {
   // tidak di-redirect: token yang hilang sudah memicu guest gate
   // (GuestLoginPrompt) untuk rute terproteksi, dan tamu web memang tidak
   // punya sesi sejak awal (redirect akan menendang mereka dari halaman publik).
+  //
+  // AUT-007: tetapi "tidak di-redirect" JANGAN berarti "diam total" — bila
+  // pengguna web MEMANG punya sesi yang baru kedaluwarsa, tampilkan modal
+  // "Sesi berakhir, silakan masuk kembali" + tombol Masuk. Tamu tanpa sesi
+  // (hadSessionRef false) tidak diganggu: GuestLoginPrompt tetap yang
+  // menangani mereka per B-03.
+  const hadSessionRef = useRef(false)
+  const [webSessionExpired, setWebSessionExpired] = useState(false)
+  useEffect(() => {
+    if (session.token) hadSessionRef.current = true
+  }, [session.token])
   useEffect(() => {
     return onSessionExpired(() => {
-      if (Platform.OS === "web") return
+      if (Platform.OS === "web") {
+        if (hadSessionRef.current) setWebSessionExpired(true)
+        return
+      }
       router.replace(ROUTES.login)
     })
   }, [router])
@@ -977,6 +991,25 @@ function AppShellInner() {
                 : null,
             )
           }
+        }}
+        onRequestClose={() => undefined}
+        destructive={false}
+      />
+      {/*
+        AUT-007 (audit): sesi web kedaluwarsa — JANGAN diam. Modal ini hanya
+        muncul bila pengguna memang punya sesi sebelumnya (tamu tanpa sesi
+        tidak diganggu; lihat efek onSessionExpired di atas + B-03).
+      */}
+      <Dialog
+        title="Sesi berakhir"
+        description="Sesi Anda telah berakhir. Silakan masuk kembali untuk melanjutkan."
+        visible={webSessionExpired}
+        hideCancel
+        confirmLabel="Masuk"
+        onConfirm={() => {
+          setWebSessionExpired(false)
+          hadSessionRef.current = false
+          router.replace(ROUTES.login)
         }}
         onRequestClose={() => undefined}
         destructive={false}

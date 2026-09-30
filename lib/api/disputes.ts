@@ -179,6 +179,9 @@ export type DisputeDecision = {
 /** Sengketa penuh (GET /v1/disputes/{disputeId}). */
 export type DisputeDetail = {
   id: string
+  /** NCC-007: id publik (kolom `disputeId` backend) — dipakai mencocokkan
+   *  event realtime `dispute.new_message` yang membawa id publik. */
+  disputePublicId?: string
   orderId: string
   status: string
   claim: string
@@ -240,6 +243,9 @@ function normalizeDisputeDetail(raw: DisputeDetail): DisputeDetail {
   const nestedOrder = d.order as Record<string, unknown> | undefined
   return {
     id: pickString(d, ["id", "disputeId", "dispute_id"]) ?? "",
+    // NCC-007: pertahankan id publik backend (bila berbeda dari `id`)
+    // untuk filter event realtime `dispute.new_message`.
+    disputePublicId: pickString(d, ["disputeId", "dispute_id"]) ?? undefined,
     orderId:
       pickString(d, ["orderId", "order_id", "transactionId", "transaction_id"]) ??
       pickString(nestedOrder ?? {}, ["orderId", "order_id"]) ??

@@ -374,6 +374,20 @@ export function refreshAccessToken(): Promise<string | null> {
     // Header X-Refresh-Token DIHAPUS: tidak pernah dibaca backend dan tidak ada
     // di CORS allowlist — hanya membuang byte.
     const stored = await getRefreshToken()
+    // AUT-006: sertakan deviceId di body refresh agar backend bisa
+    // memvalidasi binding perangkat (klaim JWT vs baris sesi DB, plus
+    // request vs sesi bila klien menyatakan deviceId). Berlaku mobile
+    // maupun web; backend tetap menerima body kosong (alur web-cookie)
+    // via klaim JWT + baris sesi.
+    let deviceId: string | undefined
+    try {
+      deviceId = await getDeviceId()
+    } catch {
+      deviceId = undefined // refresh tetap jalan tanpa deviceId (jalur transisi)
+    }
+    const refreshBody: Record<string, string> = {}
+    if (stored) refreshBody.refreshToken = stored
+    if (deviceId) refreshBody.deviceId = deviceId
     const reply = await exchange(
       REFRESH_PATH,
       buildUrl(REFRESH_PATH),
@@ -381,7 +395,7 @@ export function refreshAccessToken(): Promise<string | null> {
         method: "POST",
         headers,
         credentials: "include",
-        body: JSON.stringify(stored ? { refreshToken: stored } : {}),
+        body: JSON.stringify(refreshBody),
       },
       "json",
       API_TIMEOUT_MS,

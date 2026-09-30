@@ -14,7 +14,7 @@
  */
 import { describe, expect, it } from "vitest"
 
-import { PASSWORD_MAX, PASSWORD_MIN, isPasswordValid } from "../lib/auth-constants"
+import { PASSWORD_MAX, PASSWORD_MIN, PASSWORD_TOO_COMMON_MESSAGE, isCommonPassword, isPasswordValid, passwordValidationMessage } from "../lib/auth-constants"
 import { buildResultMessage } from "../lib/search-ui"
 
 describe("kontrak password (UI-M002)", () => {
@@ -36,6 +36,24 @@ describe("kontrak password (UI-M002)", () => {
   it("menerima tepat batas atas dan menolak di atasnya", () => {
     expect(isPasswordValid("a".repeat(PASSWORD_MAX))).toBe(true)
     expect(isPasswordValid("a".repeat(PASSWORD_MAX + 1))).toBe(false)
+  })
+
+  // DBL-015 (audit integrasi 2026-10-01): blocklist password umum — mirror
+  // backend `password-policy.ts`. Klien menolak apa yang pasti ditolak server.
+  it("menolak password umum walau panjangnya cukup (mirror backend)", () => {
+    expect(isPasswordValid("kahade123")).toBe(false)
+    expect(isPasswordValid("password123")).toBe(false)
+    expect(isPasswordValid("bismillah")).toBe(false)
+    expect(isPasswordValid("12345678")).toBe(false)
+    expect(isCommonPassword("Kahade123")).toBe(true) // case-insensitive
+    expect(isCommonPassword("katasandi unik 42!")).toBe(false)
+  })
+
+  it("pesan untuk password umum SAMA PERSIS dengan backend", () => {
+    expect(passwordValidationMessage("kahade123")).toBe(PASSWORD_TOO_COMMON_MESSAGE)
+    expect(PASSWORD_TOO_COMMON_MESSAGE).toBe("Password terlalu umum. Gunakan kombinasi yang lebih unik.")
+    expect(passwordValidationMessage("katasandi unik 42!")).toBe(null)
+    expect(passwordValidationMessage("pendek")).toBe("Kata sandi minimal 8 karakter.")
   })
 })
 

@@ -313,6 +313,33 @@ function videoUploadError(status: number, bodyText: string): ApiError {
   })
 }
 
+/**
+ * RV-001 (re-verifikasi upload/media, 2026-10-01): pemetaan ulang kode error
+ * backend → copy Indonesia untuk jalur CHUNKED. `init`/`complete` lewat
+ * `http.post` — error-nya dinormalisasi `toApiError` (400 → BAD_REQUEST,
+ * backendCode tersimpan terpisah), sehingga `userMessage()` fail-closed ke
+ * copy generik "Permintaan tidak valid." Padahal backend mengirim kode yang
+ * sama persis dengan jalur direct (VIDEO_TOO_LARGE dst., UMD-002) — tanamkan
+ * kembali copy actionable-nya agar UX konsisten antar jalur.
+ */
+function remapChunkedUploadError(err: unknown, path: string): never {
+  if (err instanceof ApiError) {
+    const copy = err.backendCode ? VIDEO_UPLOAD_ERROR_COPY[err.backendCode] : undefined
+    if (copy) {
+      throw new ApiError({
+        code: err.code,
+        status: err.status,
+        backendCode: err.backendCode,
+        // Copy dikarang klien (Indonesia) → userMessage() tampil apa adanya.
+        message: copy,
+        method: err.method,
+        path,
+      })
+    }
+  }
+  throw err
+}
+
 function parseVideoUploadObject(body: Record<string, unknown>): DirectVideoUpload {
   const str = (v: unknown): string | undefined =>
     typeof v === "string" && v ? v : undefined
@@ -356,9 +383,11 @@ function parseVideoUploadResponse(bodyText: string): DirectVideoUpload {
  * Auth: Bearer token dari sesi (satu kali refresh-and-retry bila 401,
  * selaras perilaku client.ts).
  *
- * Error backend (FILE_TOO_LARGE, MIME_TYPE_MISMATCH, VIDEO_TOO_LONG,
- * VIDEO_UNPROCESSABLE, UPLOAD_FAILED) dipetakan ke pesan Indonesia yang
- * bisa ditindaklanjuti (lihat VIDEO_UPLOAD_ERROR_COPY).
+ * Error backend (FILE_TOO_LARGE, VIDEO_TOO_LARGE, MIME_TYPE_MISMATCH,
+ * VIDEO_TOO_LONG, VIDEO_UNPROCESSABLE, UPLOAD_FAILED) dipetakan ke pesan
+ * Indonesia yang bisa ditindaklanjuti (lihat VIDEO_UPLOAD_ERROR_COPY);
+ * untuk jalur chunked, `remapChunkedUploadError` menerapkan pemetaan yang
+ * sama pada error init/complete (RV-001).
  */
 /**
  * NP-006 (audit performa): upload besar single-attempt — putus di tengah =
@@ -835,12 +864,18 @@ export async function uploadChunkedVideo(
     chunkSize,
   }
   const doInit = async (what: string): Promise<ParsedChunkSession> => {
-    const initRaw = await http.post<ChunkedInitResponse, Record<string, unknown>>(
-      "/v1/upload/chunked/init",
-      initDto,
-      { auth: "required", retry: 1, signal },
-    )
-    return parseChunkSession(initRaw, what)
+    try {
+      const initRaw = await http.post<ChunkedInitResponse, Record<string, unknown>>(
+        "/v1/upload/chunked/init",
+        initDto,
+        { auth: "required", retry: 1, signal },
+      )
+      return parseChunkSession(initRaw, what)
+    } catch (err) {
+      // RV-001: petakan VIDEO_TOO_LARGE/FILE_TOO_LARGE/MIME_TYPE_MISMATCH dari
+      // init ke copy Indonesia (jangan "Permintaan tidak valid.").
+      remapChunkedUploadError(err, "/v1/upload/chunked/init")
+    }
   }
   let session = await doInit("init upload")
   let basePath = `/v1/upload/chunked/${seg(session.sessionId)}`
@@ -962,12 +997,19 @@ export async function uploadChunkedVideo(
     // SAMA (validasi magic-byte, thumbnail ffmpeg). Timeout adaptif mengikuti
     // pola uploadDirectVideo (pemrosesan video butuh waktu).
     const completeTimeoutMs = Math.min(1_800_000, Math.max(600_000, 120_000 + totalSize / 100))
-    const completeRaw = await http.post<unknown, undefined>(`${basePath}/complete`, undefined, {
-      auth: "required",
-      retry: 0,
-      signal,
-      timeoutMs: completeTimeoutMs,
-    })
+    let completeRaw: unknown
+    try {
+      completeRaw = await http.post<unknown, undefined>(`${basePath}/complete`, undefined, {
+        auth: "required",
+        retry: 0,
+        signal,
+        timeoutMs: completeTimeoutMs,
+      })
+    } catch (err) {
+      // RV-001: complete menjalankan pipeline validasi yang sama dengan direct
+      // (magic-byte, durasi, thumbnail) — petakan ulang kode backendnya juga.
+      remapChunkedUploadError(err, `${basePath}/complete`)
+    }
     const result = parseVideoUploadObject(
       (completeRaw ?? {}) as Record<string, unknown>,
     )

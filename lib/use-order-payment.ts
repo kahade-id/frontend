@@ -57,7 +57,15 @@ export function useOrderPayment({
             getStatus: () =>
               api.orders
                 .getPaymentStatus(orderId)
-                .then((s) => ({ status: s.status, isPaid: s.isPaid === true })),
+                // MFE-006: teruskan info refund async (refundedAmount /
+                // refundReference) dari `normalizePaymentStatus` ke hook —
+                // panel merender "Dana dikembalikan RpX" dari sini.
+                .then((s) => ({
+                  status: s.status,
+                  isPaid: s.isPaid === true,
+                  refundedAmount: s.refundedAmount ?? 0,
+                  refundReference: s.refundReference ?? null,
+                })),
           }
         : null,
     [orderId],

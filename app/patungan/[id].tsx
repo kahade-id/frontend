@@ -56,12 +56,11 @@ import { Text } from "@/components/ui/text"
 
 const STATUS_TONE: Record<string, "success" | "info" | "danger" | "warning" | "neutral"> = {
   OPEN: "success",
-  FUNDED: "info",
-  RELEASE_INITIATED: "warning",
+  TARGET_REACHED: "info", // ESI-010: selaras enum backend (dulu "FUNDED" inventaris FE)
+  CONTEST: "warning", // ESI-010: selaras enum backend (dulu "RELEASE_INITIATED" inventaris FE)
   RELEASED: "neutral",
   REFUNDED: "neutral",
   FAILED: "danger",
-  CANCELLED: "neutral",
 }
 
 function ParticipantRow({ p, perPerson }: { p: PatunganParticipant; perPerson: number | null }) {
@@ -343,7 +342,7 @@ export default function PatunganDetailScreen() {
           </Text>
         ) : null}
 
-        {group.status === "RELEASE_INITIATED" ? (
+        {group.status === "CONTEST" ? (
           <Card variant="outline" className="gap-1 p-4">
             <Text variant="body" weight={600}>
               {translate("Masa sanggah 24 jam")}
@@ -367,7 +366,7 @@ export default function PatunganDetailScreen() {
             <Text variant="caption" tone="secondary">
               {translate("Iuran")}: {myParticipation.amountIdr != null ? <Amount value={myParticipation.amountIdr} size="body" tone="inherit" animated={false} /> : "—"}
             </Text>
-            {(myParticipation.status === "JOINED" || myParticipation.status === "PAID") &&
+            {(myParticipation.status === "PENDING" || myParticipation.status === "PAID") &&
             !myParticipation.orderId &&
             myParticipation.amountIdr != null ? (
               <View className="gap-2">
@@ -415,7 +414,7 @@ export default function PatunganDetailScreen() {
           <GuestLoginPrompt next={id ? `/patungan/${id}` : "/patungan"} bare />
         ) : null}
 
-        {isHost && group.status === "FUNDED" ? (
+        {isHost && group.status === "TARGET_REACHED" ? (
           <Button variant="destructive" fullWidth onPress={() => setReleaseOpen(true)}>
             {translate("Inisiasi pencairan")}
           </Button>

@@ -506,10 +506,14 @@ export default function ChatRoomScreen() {
   /** Sheet polling. */
   const [pollsOpen, setPollsOpen] = useState(false)
   /**
-   * BFI-119: naik setiap event WS chat.poll_created/updated/closed tiba —
+  /**
+   * BFI-119/NCC-006: pemicu reload sheet polling — dinaikkan setiap event
+   * `chat.poll_created` / `chat.poll_updated` / `chat.poll_closed` tiba,
    * diteruskan ke ChatPollsSheet agar daftar polling me-reload saat terbuka.
+   * Kedua nama dipertahankan (gabungan dua sisi audit).
    */
   const [pollsRefreshSignal, setPollsRefreshSignal] = useState(0)
+  const [pollsVersion, setPollsVersion] = useState(0)
   /** Sheet kirim lokasi. */
   const [locationSheetOpen, setLocationSheetOpen] = useState(false)
   /** Sheet pesan sementara + sekali-lihat. */
@@ -1121,6 +1125,35 @@ export default function ChatRoomScreen() {
     onPollCreated: () => setPollsRefreshSignal((n) => n + 1),
     onPollUpdated: () => setPollsRefreshSignal((n) => n + 1),
     onPollClosed: () => setPollsRefreshSignal((n) => n + 1),
+    // NCC-006: 7 event yang sebelumnya tanpa handler di FE.
+    onPollChanged: () => {
+      // Daftar polling di-refetch (sheet me-reload bila terbuka) + cache
+      // query terkait chat diinvalidasi agar data lain ikut segar.
+      invalidateQueryPrefix("chat")
+      setPollsVersion((v) => v + 1)
+    },
+    onViewOnceConsumed: (messageId) => {
+      // Pesan sekali-lihat yang dibuka penerima lain (atau perangkat lain)
+      // langsung jadi placeholder "sudah dibuka" tanpa menunggu poll.
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === messageId && !m.viewOnceViewedAt
+            ? { ...m, viewOnceViewedAt: new Date().toISOString() }
+            : m,
+        ),
+      )
+    },
+    onMessagesExpired: (messageIds) => {
+      if (messageIds.length === 0) return
+      const gone = new Set(messageIds)
+      setMessages((prev) => prev.filter((m) => !gone.has(m.id)))
+      invalidateQueryPrefix("chat")
+    },
+    onRoomPinChanged: () => {
+      // Pin room disinkron antar perangkat — daftar room (layar list) ikut
+      // segar lewat invalidasi prefix.
+      invalidateQueryPrefix("chat")
+    },
     // G109: setelah reconnect + join ulang, pesan yang terlewat diambil
     // via REST (kursor = halaman terbaru; mergeIncoming mendup).
     onReconnect: () => {
@@ -3202,6 +3235,7 @@ export default function ChatRoomScreen() {
         visible={pollsOpen}
         onRequestClose={() => setPollsOpen(false)}
         refreshSignal={pollsRefreshSignal}
+        refreshKey={pollsVersion}
       />
 
       {/* Kirim lokasi GPS. */}

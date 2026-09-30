@@ -212,10 +212,12 @@ export function disbursementStatusCopy(d: Disbursement): { title: string; descri
     case "NEEDS_REVIEW":
       // BFI-081: status DANA di luar 00–07 — butuh peninjauan manual,
       // jangan ditampilkan sebagai gagal/sukses (keputusan BE 2026-09-30).
+      // Tampilkan sebagai "perlu pengecekan" agar user tidak panik dan tahu
+      // ada yang ditangani tim, bukan diam.
       return {
         title: "Pencairan perlu diperiksa",
         description:
-          d.lastError ?? "Status dari bank belum jelas — tim kami akan memeriksanya.",
+          d.lastError ?? "Status dari bank belum jelas — tim kami sedang memeriksanya.",
       }
     default:
       return { title: "Status pencairan tidak diketahui" }
