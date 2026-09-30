@@ -744,7 +744,7 @@ export default function LoginScreen() {
           tautan dibawa ke alur registrasi nomor HP. */}
       <Dialog
         title="Akun belum terdaftar"
-        description="Identitas Google/Apple ini belum terdaftar. Daftar dulu dengan nomor HP — akun akan ditautkan otomatis setelah nomor terverifikasi."
+        description="Daftar dulu dengan nomor HP — akun ditautkan otomatis setelah terverifikasi."
         visible={linkConfirmOpen}
         confirmLabel="Lanjutkan daftar"
         cancelLabel="Batal"

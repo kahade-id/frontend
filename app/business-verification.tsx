@@ -296,7 +296,7 @@ export default function BusinessVerificationScreen() {
                   placeholder="Opsional bila sudah isi SIUP"
                 />
               </Field>
-              <Field label="No. SIUP / NIB" helperText="Isi akta atau SIUP — minimal satu.">
+              <Field label="No. SIUP / NIB">
                 <Input
                   ref={siupRef}
                   value={siupNumber}

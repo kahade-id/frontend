@@ -208,9 +208,8 @@ export default function DeleteAccountScreen() {
           ) : (
             <View className="gap-4">
               <Alert tone="info">
-                Penghapusan bersifat dua tahap: akun dinonaktifkan dulu, lalu dihapus
-                permanen 30 hari kemudian. Selama masa tenggang Anda bisa membatalkannya
-                dari layar Masuk tanpa perlu login.
+                Akun dinonaktifkan dulu, dihapus permanen 30 hari kemudian. Masih bisa dibatalkan
+                dari layar Masuk.
               </Alert>
               <DeleteAccountForm
                 gracePeriodDays={30}

@@ -521,10 +521,8 @@ export default function TwoFactorScreen() {
             <>
               <SectionHeader title="Matikan verifikasi dua langkah" />
               <Alert tone="warning" title="Akun Anda akan kurang aman">
-                Setelah dimatikan, masuk hanya butuh kata sandi. Bila kata sandi
-                bocor atau ditebak orang lain, tidak ada lapisan kedua yang
-                melindungi akun. Untuk keamanan, konfirmasi dengan password,
-                kode autentikator, dan OTP yang dikirim ke email Anda.
+                Masuk hanya butuh kata sandi. Konfirmasi dengan kata sandi, kode autentikator, dan
+                OTP email.
               </Alert>
               <PasswordField
                 label="Kata sandi akun"
@@ -602,9 +600,7 @@ export default function TwoFactorScreen() {
             <>
               <SectionHeader title="Kode cadangan" />
               <Text variant="body" tone="secondary">
-                Kode cadangan hanya ditampilkan sekali saat dibuat. Jika hilang, buat set baru —
-                kode lama otomatis tidak berlaku. Gunakan aksi pada kartu di atas untuk membuat kode
-                baru atau mematikan verifikasi dua langkah.
+                Kode cadangan hanya tampil sekali. Simpan di tempat aman.
               </Text>
             </>
           ) : null}

@@ -181,8 +181,7 @@ export default function BiometricSettingsScreen() {
            * fitur yang tidak akan pernah aktif di platform itu.
            */
           <Alert tone="info" title="Kunci aplikasi hanya di aplikasi mobile">
-            Kahade versi web berjalan di browser tanpa akses ke biometrik perangkat. Pasang aplikasi
-            mobile untuk memakai {label} atau PIN dompet saat membuka aplikasi.
+            Pasang aplikasi mobile untuk memakai {label} atau PIN dompet.
           </Alert>
         ) : (
           <>

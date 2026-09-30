@@ -194,10 +194,6 @@ export default function SocialProvidersScreen() {
         </View>
       ) : null}
 
-      <Alert tone="info">
-        Login sosial adalah metode masuk tambahan. Pendaftaran akun baru tetap memakai nomor HP
-        yang terverifikasi via WhatsApp.
-      </Alert>
 
       <Dialog
         visible={reauthFor !== null}

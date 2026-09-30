@@ -133,8 +133,8 @@ export default function PhoneMigrationScreen() {
                  * FE-IMP-3 #113 — tegaskan: akun belum bisa dipakai sampai
                  * nomor ditambahkan (migrasi wajib, bukan opsional).
                  */}
-                <Alert tone="warning" title="Akun belum bisa dipakai">
-                  Selesaikan penambahan nomor HP untuk mulai memakai akun Anda.
+                <Alert tone="warning">
+                  Tambahkan nomor HP untuk mulai memakai akun Anda.
                 </Alert>
               </VStack>
 
