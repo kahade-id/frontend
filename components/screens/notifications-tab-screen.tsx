@@ -42,6 +42,7 @@
 
 import { byTimestampDesc, usePaginatedQuery } from "@/lib/use-paginated-query"
 import { useScrollElevation } from "@/lib/use-scroll-elevation"
+import { useNotificationsRealtime } from "@/lib/realtime/use-notifications-realtime"
 import { PaginatedList } from "@/components/ui/paginated-list"
 import { useToast } from "@/components/ui/toast"
 import { memo, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react"
@@ -355,6 +356,8 @@ function NotificationsScreen() {
   // Langganan bahasa: a11y label/hint tombol header (prop string) harus
   // langsung ikut berganti saat pengguna mengubah bahasa (UI-M019).
   useLanguage()
+  // BFI-112: segarkan inbox saat event WS notification.new/unread_count tiba.
+  useNotificationsRealtime()
   const toast = useToast()
   // Efek scroll: header terangkat (bayangan) saat daftar digulir.
   const { elevated, onScrollWorklet } = useScrollElevation()
