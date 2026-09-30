@@ -36,7 +36,7 @@ import { View } from "react-native"
 import { useLocalSearchParams, router, type Href } from "expo-router"
 import { ArrowUDownLeft, ClockCounterClockwise, DotsThreeVertical, Package, Plus, Question, Receipt, ShieldCheck, ShieldWarning, Timer, Truck, X, XCircle } from "phosphor-react-native"
 
-import { api, isApiError, userMessage, type Order, type Wallet } from "@/lib/api"
+import { api, isApiError, userMessage, type Order, type OrderMilestone, type Wallet } from "@/lib/api"
 import { createIdempotencyKey } from "@/lib/api/client"
 import { normalizeOrder } from "@/lib/api/orders"
 import {
@@ -229,6 +229,11 @@ export default function OrderDetailScreen() {
     durations: AverageDurations | null
     fee: Awaited<ReturnType<typeof api.orders.calculateFee>> | null
     /**
+     * TR-001 (audit performa): daftar tahap — diambil PARALEL di bundle ini,
+     * bukan serial oleh <MilestoneSection> setelah bundle selesai.
+     */
+    milestones: OrderMilestone[]
+    /**
      * Item 46: kelayakan retur dari server (GET /v1/returns/eligibility) —
      * hanya dicek untuk pembeli + order COMPLETED; `null` = tidak dicek /
      * gagal (fallback ke tombol sekunder lama, fail-closed).
@@ -246,7 +251,7 @@ export default function OrderDetailScreen() {
       // `queryKeys.order(oid)` (doktrin C-02) — daftar transaksi menitipkan
       // hasil prefetch press-in ke kunci yang sama, jadi request ini sering
       // tidak menembak jaringan sama sekali.
-      const [o, h, d] = await Promise.all([
+      const [o, h, d, ms] = await Promise.all([
         fetchViaQueryCache(queryKeys.order(oid), (s) => api.orders.getOrder(oid, s), signal),
         api.orders
           .getOrderHistory(oid, { page: 1, limit: HISTORY_LIMIT }, signal)
@@ -257,6 +262,14 @@ export default function OrderDetailScreen() {
         getAverageDurationsCached(signal).catch((err) => {
           logWarn("order:durations", err)
           return null
+        }),
+        // TR-001 (audit performa): tahap diambil di sini (paralel), bukan
+        // serial oleh <MilestoneSection> setelah bundle selesai. Mayoritas
+        // order = escrow satu tahap → hasil kosong. Gagal = [] (pelengkap,
+        // tidak mematikan detail order — pola sama seperti riwayat/durasi).
+        api.milestones.listOrderMilestones(oid, signal).catch((err) => {
+          logWarn("order:milestones", err)
+          return [] as OrderMilestone[]
         }),
       ])
       const me = o.myRole
@@ -333,6 +346,7 @@ export default function OrderDetailScreen() {
         historyPage: 1,
         durations: d,
         fee,
+        milestones: ms,
         returnEligible: returnElig,
       }
     },
@@ -434,7 +448,10 @@ export default function OrderDetailScreen() {
   const [historyLoadingMore, setHistoryLoadingMore] = useState(false)
   // R2 (butir #54): affordance loading tombol Chat.
   const [chatBusy, setChatBusy] = useState(false)
-  // Batch 43 (item 3): remount MilestoneSection setelah skema cicilan dibuat.
+  // Batch 43 (item 3): segarkan MilestoneSection setelah skema cicilan dibuat.
+  // TR-001 (audit performa): via prop refreshKey (fetch ulang di section),
+  // bukan remount-buta via `key` — state baris (dialog konfirmasi dsb.)
+  // tidak ikut ter-reset.
   const [milestoneNonce, setMilestoneNonce] = useState(0)
   const historyPage = query.data?.historyPage ?? 1
   const loadMoreHistory = useCallback(async () => {
@@ -1461,11 +1478,16 @@ export default function OrderDetailScreen() {
           ) : null}
 
           {/* 12 — Escrow bertahap (GAP-C): hanya tampil bila order punya
-              milestone. Order satu tahap tidak berubah perilakunya. */}
+              milestone. Order satu tahap tidak berubah perilakunya.
+              TR-001 (audit performa): daftar tahap sudah diambil paralel di
+              bundle utama → section tidak menembak request serial saat mount.
+              refreshKey menggantikan remount-buta via `key` setelah skema
+              cicilan dibuat (Batch 43 item 3). */}
           <MilestoneSection
-            key={`milestones-${milestoneNonce}`}
             orderId={order.id}
             role={isBuyer ? "BUYER" : isSeller ? "SELLER" : undefined}
+            initialMilestones={query.data?.milestones}
+            refreshKey={milestoneNonce}
           />
 
           {/* 12b — Batch 43 (item 3): tawaran cicilan/DP oleh penjual,

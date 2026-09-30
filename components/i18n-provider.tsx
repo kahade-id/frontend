@@ -24,7 +24,7 @@
 import { useEffect, useRef, type ReactNode } from "react"
 import { Platform } from "react-native"
 
-import { api } from "@/lib/api"
+import * as settingsApi from "@/lib/api/settings"
 import { getSessionRevision } from "@/lib/api/session"
 import { adoptAccountLanguage, initLanguage, systemLanguage, useLanguage } from "@/lib/i18n"
 import { useAuthSession } from "@/lib/use-auth-session"
@@ -63,7 +63,9 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     if (synced.current === revision) return
     synced.current = revision
     let alive = true
-    void api.settings
+    // ST-001 (audit performa): import domain langsung, bukan barrel @/lib/api
+    // (±35 domain) — file ini di-mount paling luar di RootLayout.
+    void settingsApi
       .getLanguage()
       .then((res) => {
         if (!alive || getSessionRevision() !== revision) return

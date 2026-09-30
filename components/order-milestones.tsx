@@ -11,7 +11,7 @@
  *            "Minta revisi" (buka detail tahap, sisa putaran ditampilkan)
  * - keduanya: "Usulkan perubahan" / "Setujui perubahan" (buka detail tahap)
  */
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { View } from "react-native"
 import { router } from "expo-router"
 
@@ -190,11 +190,26 @@ function MilestoneRow({
 export function MilestoneSection({
   orderId,
   role,
+  initialMilestones,
+  refreshKey,
 }: {
   orderId: string
   role?: OrderMilestoneRole
+  /**
+   * TR-001 (audit performa): hasil GET /v1/orders/:orderId/milestones yang
+   * sudah diambil PARALEL di bundle utama order-detail. Bila disediakan,
+   * section TIDAK menembak request serial sendiri saat mount — mayoritas
+   * order = escrow satu tahap (hasil kosong), jadi request itu murni
+   * terbuang bila serial.
+   */
+  initialMilestones?: OrderMilestone[]
+  /**
+   * TR-001: naikkan untuk memaksa fetch ulang (pengganti remount-buta via
+   * prop `key` — mis. setelah skema cicilan dibuat).
+   */
+  refreshKey?: number
 }) {
-  const [milestones, setMilestones] = useState<OrderMilestone[] | null>(null)
+  const [milestones, setMilestones] = useState<OrderMilestone[] | null>(initialMilestones ?? null)
   // Mode Tanpa Wallet Internal: copy pencairan ke rekening bank penjual.
   const walletEnabled = useWalletEnabled()
 
@@ -209,9 +224,20 @@ export function MilestoneSection({
     }
   }, [orderId])
 
+  const hasInitial = initialMilestones !== undefined
+  // TR-001: bundle utama sudah membawa data → lewati request serial saat mount.
   useEffect(() => {
+    if (hasInitial) return
     void load()
-  }, [load])
+  }, [load, hasInitial])
+
+  // TR-001: fetch ulang saat refreshKey berubah (dulu via remount `key`).
+  const refreshKeyRef = useRef(refreshKey)
+  useEffect(() => {
+    if (refreshKeyRef.current === refreshKey) return
+    refreshKeyRef.current = refreshKey
+    void load()
+  }, [refreshKey, load])
 
   if (!milestones || milestones.length === 0) return null
 
