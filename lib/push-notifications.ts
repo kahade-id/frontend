@@ -74,7 +74,14 @@ export type RegisterDeviceDto = {
 /** Klien HTTP minimal yang sudah membawa header Authorization */
 export type RegisterDeviceApi = {
   registerDevice: (body: RegisterDeviceDto) => Promise<void>
-  unregisterDevice: () => Promise<void>
+  /**
+   * BFI-111: `deviceId` WAJIB diteruskan ke backend
+   * (`POST /v1/notifications/unregister-device` menolak body kosong dengan
+   * 400 INVALID_DEVICE_ID). `unregisterPushDevice` di bawah mengisi argumen
+   * ini dari `getOrCreateDeviceId()` — sumber yang SAMA dengan
+   * `registerPushDevice` — sehingga implementasi cukup meneruskannya.
+   */
+  unregisterDevice: (deviceId: string) => Promise<void>
 }
 
 /**
@@ -455,10 +462,17 @@ export async function registerPushDevice(api: RegisterDeviceApi, opts?: { force?
 /**
  * Lepas pendaftaran — panggil saat logout SEBELUM `clearSession()`.
  * Kegagalan jaringan tidak melempar: logout harus tetap selesai.
+ *
+ * BFI-111: `deviceId` diambil dari `getOrCreateDeviceId()` — SUMBER YANG
+ * SAMA dengan `registerPushDevice` — supaya backend bisa mencocokkan baris
+ * `userDevice` yang didaftarkan dan meng-null-kan `pushToken`-nya. Tanpa
+ * ini backend menjawab 400 INVALID_DEVICE_ID dan perangkat tetap menerima
+ * push transaksi/chat setelah logout.
  */
 export async function unregisterPushDevice(api: RegisterDeviceApi): Promise<void> {
   try {
-    await api.unregisterDevice()
+    const deviceId = await getOrCreateDeviceId()
+    await api.unregisterDevice(deviceId)
   } catch (err) {
     if (__DEV__) console.warn("[kahade/push] unregister gagal (diabaikan):", err)
   } finally {

@@ -124,6 +124,19 @@ describe("routeForActionUrl — non-regresi tipe lain", () => {
     expect(routeForActionUrl("/nope/xyz")).toBeNull()
     expect(routeForActionUrl("https://evil.example/x")).toBeNull()
   })
+
+  it("BFI-121: /notifications?notificationId=<id> → detail notifikasi spesifik", () => {
+    // actionUrl push backend (push.service deriveActionUrl) — ID notifikasi
+    // tidak boleh hilang di lapisan routing; layar detail menandai dibaca
+    // saat dibuka (idempoten).
+    expect(hrefPath(routeForActionUrl("/notifications?notificationId=n1"))).toBe(
+      "/notification/n1",
+    )
+  })
+
+  it("BFI-121: /notifications tanpa query tetap ke tab inbox", () => {
+    expect(routeForActionUrl("/notifications")).toBe(ROUTES.notifications)
+  })
 })
 
 /**

@@ -66,24 +66,29 @@ export type AppNotification = {
 type NotificationPayload = Omit<AppNotification, "id"> & {
   id?: string
   notifId?: string
+  /** BFI-116: nama kolom aktual backend (PublicNotification: refType/refId). */
+  refType?: string | null
+  refId?: string | null
 }
 
 /**
  * Production API calls this field `notifId`; list keys and actions use `id`.
- * `actionUrl` dipertahankan agar layar detail bisa menaut ke entitas terkait
- * (backend tidak mengirim `referenceType`/`referenceId`).
+ * `actionUrl` dipertahankan agar layar detail bisa menaut ke entitas terkait.
  * CN-010: `type` dipertahankan eksplisit (bukan via ...raw) agar mapping ikon
  * tidak diam-diam kehilangan data bila backend mengubah bentuk payload.
  * CN-019: `referenceType`/`referenceId` juga dipertahankan eksplisit.
+ * BFI-116: backend mengirim `refType`/`refId` (BUKAN `referenceType`/
+ * `referenceId`) — baca yang kanonis dulu, varian lama hanya fallback.
  */
 export function normalizeNotification(raw: NotificationPayload): AppNotification {
+  const refTypeRaw = raw.refType ?? raw.referenceType
+  const refIdRaw = raw.refId ?? raw.referenceId
   return {
     ...raw,
     id: raw.id ?? raw.notifId ?? "",
     type: typeof raw.type === "string" ? raw.type : null,
-    referenceType:
-      typeof raw.referenceType === "string" ? raw.referenceType : null,
-    referenceId: typeof raw.referenceId === "string" ? raw.referenceId : null,
+    referenceType: typeof refTypeRaw === "string" ? refTypeRaw : null,
+    referenceId: typeof refIdRaw === "string" ? refIdRaw : null,
     actionUrl: raw.actionUrl ?? null,
   }
 }
@@ -176,11 +181,22 @@ export function registerDevice(dto: RegisterDeviceDto) {
   })
 }
 
-/** POST /v1/notifications/unregister-device — cabut pendaftaran perangkat push. */
-export function unregisterDevice() {
-  return http.post<void>("/v1/notifications/unregister-device", undefined, {
-    auth: "required",
-  })
+/**
+ * POST /v1/notifications/unregister-device — cabut pendaftaran perangkat push.
+ *
+ * BFI-111: backend WAJIB menerima `deviceId` di body
+ * (`@Body('deviceId')`, validasi INVALID_DEVICE_ID bila kosong) — tanpa ini
+ * setiap unregister dijawab 400 dan pushToken tidak pernah di-null-kan,
+ * sehingga perangkat tetap menerima push setelah logout.
+ */
+export function unregisterDevice(deviceId: string) {
+  return http.post<void, { deviceId: string }>(
+    "/v1/notifications/unregister-device",
+    { deviceId },
+    {
+      auth: "required",
+    },
+  )
 }
 
 // ------------------------------------------------------------------

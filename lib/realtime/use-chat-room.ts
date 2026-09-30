@@ -26,12 +26,17 @@ import { useCallback, useEffect, useRef } from "react"
 import type { ChatReaction } from "@/lib/api/chat"
 import {
   CHAT_SOCKET_EVENTS,
+  ORDER_SOCKET_EVENTS,
   createTypingTracker,
   type ChatMessageDeletedPayload,
   type ChatPinPayload,
+  type ChatPollClosedPayload,
+  type ChatPollCreatedPayload,
+  type ChatPollUpdatedPayload,
   type ChatReactionPayload,
   type ChatReadPayload,
   type ChatTypingPayload,
+  type OrderStatusChangedPayload,
 } from "./chat-events"
 import { useRealtime, useRealtimeActions } from "./realtime-context"
 
@@ -47,6 +52,22 @@ export type ChatRoomRealtimeCallbacks = {
   onRead?: (messageId: string | null) => void
   onTyping?: (isTyping: boolean) => void
   onPresence?: (isOnline: boolean) => void
+  /** BFI-117: pesan sekali-lihat dikonsumsi penerima. */
+  onViewOnceConsumed?: (messageId: string) => void
+  /** BFI-113: room di-pin/unpin (event ke `user:<id>`). */
+  onRoomPinned?: (roomId: string, position: number) => void
+  onRoomUnpinned?: (roomId: string) => void
+  /** BFI-119: polling di room. */
+  onPollCreated?: (pollId: string, question: string) => void
+  onPollUpdated?: (pollId: string, voterId: string) => void
+  onPollClosed?: (pollId: string) => void
+  /**
+   * BFI-118: status order berubah (`order.status_changed` + legacy
+   * `order.status`, room `order:<orderId>` yang ikut di-join saat
+   * `join-room`). Layar chat memakai ini untuk me-refetch data order
+   * (kartu status, countdown, tombol aksi) tanpa remount.
+   */
+  onOrderStatusChanged?: (orderId: string, status: string) => void
   /** Dipanggil setelah reconnect + join ulang: sinkronisasi cursor via REST. */
   onReconnect?: () => void
 }
@@ -75,6 +96,26 @@ export function createChatRoomHandlers(
   /** Gema milik sendiri (server broadcast termasuk ke socket pengirim). */
   const isSelf = (payload: unknown): boolean =>
     viewerId != null && isRecord(payload) && payload.userId === viewerId
+  /**
+   * BFI-118: `order.status_changed` + legacy `order.status` — di-emit ke
+   * room `order:<orderId>` yang otomatis di-join server saat `join-room`
+   * (gateway `handleJoinRoom`). Payload TIDAK membawa roomId, jadi tanpa
+   * filter sameRoom; pemanggil membandingkan `orderId` dengan order yang
+   * sedang dibuka lalu me-refetch data order (kartu status, countdown,
+   * tombol aksi) tanpa remount.
+   */
+  const onOrderStatus = (payload: unknown) => {
+    if (!isRecord(payload)) return
+    const { orderId, status } = payload as Partial<OrderStatusChangedPayload>
+    if (
+      typeof orderId === "string" &&
+      orderId &&
+      typeof status === "string" &&
+      status
+    ) {
+      callbacks().onOrderStatusChanged?.(orderId, status)
+    }
+  }
 
   return {
     [CHAT_SOCKET_EVENTS.NEW_MESSAGE]: (payload) => {
@@ -108,10 +149,14 @@ export function createChatRoomHandlers(
       if (typeof messageId === "string" && messageId) callbacks().onPin?.(messageId, false)
     },
     [CHAT_SOCKET_EVENTS.READ]: (payload) => {
-      // Gema mark-as-read milik sendiri diabaikan — hanya bacaan lawan
-      // bicara yang menarik (payload.userId = id internal pembaca).
-      if (!sameRoom(payload) || !isRecord(payload) || isSelf(payload)) return
-      const { messageId } = payload as Partial<ChatReadPayload>
+      // BFI-114: gema mark-as-read milik sendiri diabaikan — KECUALI event
+      // sinkronisasi multi-device (`isOwnDeviceSync`, dikirim BE ke
+      // perangkat milik pembaca sendiri). Tanpa pengecualian ini, status
+      // baca antar-perangkat tidak pernah sinkron saat `hideReadReceipts`
+      // aktif karena userId selalu == viewerId di semua perangkat sendiri.
+      if (!sameRoom(payload) || !isRecord(payload)) return
+      const { messageId, isOwnDeviceSync } = payload as Partial<ChatReadPayload>
+      if (isSelf(payload) && isOwnDeviceSync !== true) return
       callbacks().onRead?.(typeof messageId === "string" && messageId ? messageId : null)
     },
     [CHAT_SOCKET_EVENTS.TYPING]: (payload) => {
@@ -125,6 +170,38 @@ export function createChatRoomHandlers(
     [CHAT_SOCKET_EVENTS.USER_OFFLINE]: () => {
       callbacks().onPresence?.(false)
     },
+    /**
+     * BFI-119: polling di room — payload aktual BE (chat.service.ts):
+     * created `{ roomId, pollId, question }`, updated
+     * `{ roomId, pollId, voterId }`, closed `{ roomId, pollId }`.
+     * Pemanggil memakai ini untuk me-refetch daftar poll (listPolls)
+     * alih-alih menunggu poll REST berikutnya.
+     */
+    [CHAT_SOCKET_EVENTS.POLL_CREATED]: (payload) => {
+      if (!sameRoom(payload) || !isRecord(payload)) return
+      const { pollId, question } = payload as Partial<ChatPollCreatedPayload>
+      if (typeof pollId === "string" && pollId && typeof question === "string") {
+        callbacks().onPollCreated?.(pollId, question)
+      }
+    },
+    [CHAT_SOCKET_EVENTS.POLL_UPDATED]: (payload) => {
+      if (!sameRoom(payload) || !isRecord(payload)) return
+      const { pollId, voterId } = payload as Partial<ChatPollUpdatedPayload>
+      if (typeof pollId === "string" && pollId && typeof voterId === "string") {
+        callbacks().onPollUpdated?.(pollId, voterId)
+      }
+    },
+    [CHAT_SOCKET_EVENTS.POLL_CLOSED]: (payload) => {
+      if (!sameRoom(payload) || !isRecord(payload)) return
+      const { pollId } = payload as Partial<ChatPollClosedPayload>
+      if (typeof pollId === "string" && pollId) {
+        callbacks().onPollClosed?.(pollId)
+      }
+    },
+    /** BFI-118: status order berubah (room `order:<orderId>`). */
+    [ORDER_SOCKET_EVENTS.STATUS_CHANGED]: onOrderStatus,
+    /** BFI-118: varian legacy `order.status` (masih di-emit berdampingan). */
+    [ORDER_SOCKET_EVENTS.STATUS]: onOrderStatus,
   }
 }
 
@@ -188,6 +265,15 @@ export function useChatRoomRealtime(
       onRead: (id) => callbacksRef.current.onRead?.(id),
       onTyping: (isTyping) => tracker.signal(isTyping),
       onPresence: (isOnline) => callbacksRef.current.onPresence?.(isOnline),
+      // BFI-118/BFI-119: teruskan callback poll & status order ke tabel
+      // routing — tanpanya listener di atas tidak pernah memanggil balik.
+      onPollCreated: (pollId, question) =>
+        callbacksRef.current.onPollCreated?.(pollId, question),
+      onPollUpdated: (pollId, voterId) =>
+        callbacksRef.current.onPollUpdated?.(pollId, voterId),
+      onPollClosed: (pollId) => callbacksRef.current.onPollClosed?.(pollId),
+      onOrderStatusChanged: (orderId, status) =>
+        callbacksRef.current.onOrderStatusChanged?.(orderId, status),
     })
     // G110: simpan wrapper listener per event agar cleanup hanya melepas
     // listener MILIK hook ini — `socket.off(event)` tanpa argumen akan
