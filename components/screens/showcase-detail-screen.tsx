@@ -1085,11 +1085,11 @@ function ShowcaseDetailContent({
           onPress={() => setLikersSheetTab("likers")}
           className="py-1 pr-1"
         >
-          <Text variant="caption" tone="secondary" className="tabular-nums">
+          <Text variant="bodySmall" tone="secondary" className="tabular-nums">
             {translate("{x} suka", { x: formatNumber(likeCount) })}
           </Text>
         </PressableScale>
-        <Text variant="caption" tone="tertiary" className="px-1">
+        <Text variant="bodySmall" tone="tertiary" className="px-1">
           {"·"}
         </Text>
         {/* Kontrak final Tim A #4/#5 (2026-09-28): hitungan suka & simpan dari
@@ -1103,12 +1103,12 @@ function ShowcaseDetailContent({
             onPress={() => setLikersSheetTab("savers")}
             className="py-1 pl-1"
           >
-            <Text variant="caption" tone="secondary" className="tabular-nums">
+            <Text variant="bodySmall" tone="secondary" className="tabular-nums">
               {translate("{x} menyimpan", { x: formatNumber(saveCount) })}
             </Text>
           </PressableScale>
         ) : (
-          <Text variant="caption" tone="secondary" className="py-1 pl-1 tabular-nums">
+          <Text variant="bodySmall" tone="secondary" className="py-1 pl-1 tabular-nums">
             {translate("{x} menyimpan", { x: formatNumber(saveCount) })}
           </Text>
         )}
