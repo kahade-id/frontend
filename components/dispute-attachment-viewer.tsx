@@ -15,6 +15,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react"
 import { Linking, Modal, View, useWindowDimensions } from "react-native"
+import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { CaretLeft, CaretRight, FilePdf, Warning, X } from "phosphor-react-native"
 
 import { getDisputeMessageAttachmentUrl, type DisputeMessageAttachment } from "@/lib/api/disputes"
@@ -73,6 +74,7 @@ export function DisputeAttachmentViewer({
   onOpenError?: (message: string) => void
 }) {
   const { width: windowWidth, height: windowHeight } = useWindowDimensions()
+  const insets = useSafeAreaInsets()
   const item = items[index]
   // Cache URL per fileKey selama viewer terbuka — lampiran yang sudah
   // dimuat tidak diminta ulang saat navigasi bolak-balik.
@@ -165,7 +167,15 @@ export function DisputeAttachmentViewer({
       onRequestClose={onClose}
       accessibilityLabel={`Pratinjau lampiran: ${item.fileName}`}
     >
-      <View className="flex-1 bg-black/90 px-4 pb-8 pt-12">
+      {/* UX-SPA-019: safe-area aware (dulu pt-12/pb-8 hardcoded — berisiko
+          tertutup notch/home indicator di device yang berbeda). */}
+      <View
+        className="flex-1 bg-black/90 px-4"
+        style={{
+          paddingTop: insets.top + tokens.space[3],
+          paddingBottom: insets.bottom + tokens.space[4],
+        }}
+      >
         {/* Kepala: judul + tutup */}
         <View className="flex-row items-center gap-3">
           <View

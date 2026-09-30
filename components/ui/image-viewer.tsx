@@ -30,6 +30,7 @@ import {
   type NativeSyntheticEvent,
 } from "react-native"
 import { CaretLeft, CaretRight, X } from "phosphor-react-native"
+import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { FeedVideo } from "@/components/ui/feed-video"
 import { IconButton } from "@/components/ui/icon-button"
@@ -39,6 +40,7 @@ import { useReducedMotion } from "@/lib/use-reduced-motion"
 import { useDataSaver } from "@/lib/ui-prefs"
 import { prefetchNeighborImages } from "@/lib/prefetch-neighbors"
 import { translate } from "@/lib/i18n/translate"
+import { tokens } from "@/lib/tokens"
 
 export type ImageViewerItem = {
   url: string
@@ -78,6 +80,7 @@ export function ImageViewer({
   actions,
 }: ImageViewerProps) {
   const { width, height } = useWindowDimensions()
+  const insets = useSafeAreaInsets()
   const reducedMotion = useReducedMotion()
   const dataSaver = useDataSaver()
   const listRef = useRef<FlatList<ImageViewerItem>>(null)
@@ -232,8 +235,13 @@ export function ImageViewer({
           maxToRenderPerBatch={2}
         />
 
-        {/* Chrome atas: judul + penghitung + tutup (pill agar kontras di dua mode). */}
-        <View className="absolute inset-x-0 top-0 flex-row items-center justify-between gap-3 px-4 pt-12">
+        {/* Chrome atas: judul + penghitung + tutup (pill agar kontras di dua mode).
+            UX-SPA-018: paddingTop = safe-area + token (dulu pt-12 hardcoded —
+            berisiko tertutup Dynamic Island di device yang berbeda). */}
+        <View
+          className="absolute inset-x-0 top-0 flex-row items-center justify-between gap-3 px-4"
+          style={{ paddingTop: insets.top + tokens.space[3] }}
+        >
           <View
             className="min-w-0 flex-1 flex-row items-center gap-2"
             accessible
@@ -264,9 +272,14 @@ export function ImageViewer({
         </View>
 
         {/* Chrome bawah: aksi pemanggil (item 159) + sebelum/berikutnya
-            (keyboard/SR; swipe tetap utama). */}
+            (keyboard/SR; swipe tetap utama).
+            UX-SPA-018: paddingBottom = safe-area + token (dulu pb-10
+            hardcoded — berisiko tertutup home indicator). */}
         {images.length > 1 || actions ? (
-          <View className="absolute inset-x-0 bottom-0 items-center gap-2 pb-10">
+          <View
+            className="absolute inset-x-0 bottom-0 items-center gap-2"
+            style={{ paddingBottom: insets.bottom + tokens.space[4] }}
+          >
             {actions ? (
               <View className="flex-row items-center gap-1 rounded-full bg-surface-elevated p-1.5">
                 {actions}

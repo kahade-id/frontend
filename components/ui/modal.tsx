@@ -39,7 +39,13 @@
  *     seluruh isi jadi satu elemen dan tombol Dialog tak bisa dijangkau.
  */
 import { useRef, type ReactNode } from "react"
-import { Animated, View, type Text as RNText } from "react-native"
+import {
+  Animated,
+  ScrollView,
+  View,
+  useWindowDimensions,
+  type Text as RNText,
+} from "react-native"
 
 import { Button, type ButtonProps } from "@/components/ui/button"
 import { Backdrop, useOverlayDismissKeys, useOverlayPresence } from "@/components/ui/backdrop"
@@ -94,6 +100,7 @@ export function Modal({
   const dismiss = dismissOnBackdrop ? onRequestClose : undefined
   const contentRef = useRef<View>(null)
   const { mode } = useTheme()
+  const { height: windowHeight } = useWindowDimensions()
 
   useOverlayDismissKeys(visible, dismiss)
   useBlockingOverlay(visible)
@@ -133,9 +140,18 @@ export function Modal({
                   "w-full rounded-md border border-border bg-surface-elevated p-5",
                   className,
                 )}
-                style={elevationStyle("high", mode)}
+                // UX-SPA-020: batasi tinggi kartu 80% viewport + ScrollView —
+                // konten tinggi (teks panjang, banyak tombol) tidak meluap
+                // tanpa bisa digulir di layar kecil.
+                style={[elevationStyle("high", mode), { maxHeight: windowHeight * 0.8 }]}
               >
-                {children}
+                <ScrollView
+                  showsVerticalScrollIndicator={false}
+                  contentContainerClassName="grow"
+                  keyboardShouldPersistTaps="handled"
+                >
+                  {children}
+                </ScrollView>
               </View>
             </Animated.View>
           </View>
