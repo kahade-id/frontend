@@ -372,7 +372,7 @@ export type TypeStyle = {
   /** Weight override di dark mode (H1/H2 turun satu tingkat, 700 -> 600) */
   fontWeightDark?: (typeof fontWeight)[keyof typeof fontWeight]
   letterSpacing?: number
-  /** Angka dalam Chivo pakai tabular figures agar rapi di list/tabel */
+  /** Angka dalam Plus Jakarta Sans pakai tabular figures agar rapi di list/tabel */
   fontVariantNumeric?: "tabular-nums"
 }
 

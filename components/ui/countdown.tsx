@@ -6,7 +6,7 @@
  *   - Lockout: countdown progresif di dalam PIN Sheet (§9.21)
  *   - Deadline: batas konfirmasi penerimaan barang
  *
- * Angka SELALU JetBrains Mono (§3.1 "timestamp teknis") lewat `formatCountdown`
+ * Angka SELALU Azeret Mono (§3.1 "timestamp teknis") lewat `formatCountdown`
  * di lib/format — bukan format sendiri. Tidak ada relative time (§13).
  *
  * Keputusan non-obvious:
@@ -19,7 +19,7 @@
  *     detik saat JS thread sibuk.
  *   - `onComplete` dipanggil sekali lewat ref guard; parent yang memutuskan
  *     apa yang terjadi (enable tombol kirim ulang, buka kunci PIN).
- *   - `prefix`/`suffix` dirender Sofia Sans di sekitar angka mono, agar
+ *   - `prefix`/`suffix` dirender Plus Jakarta Sans di sekitar angka mono, agar
  *     kalimat tetap terbaca sebagai teks UI dan hanya digit yang presisi.
  */
 import { useCallback, useEffect, useRef, useState } from "react"
@@ -143,7 +143,7 @@ export function useCountdown({ seconds = 0, until, onComplete, autoStart = true 
 
 export type CountdownProps = Omit<ViewProps, "children"> &
   UseCountdownOptions & {
-    /** Teks Sofia Sans sebelum angka, mis. "Kirim ulang dalam" */
+    /** Teks Plus Jakarta Sans sebelum angka, mis. "Kirim ulang dalam" */
     prefix?: string
     suffix?: string
     tone?: Extract<TextTone, "primary" | "secondary" | "danger" | "inverse">

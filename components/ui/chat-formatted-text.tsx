@@ -126,7 +126,7 @@ function ChatSegmentView({
   return (
     <Text
       variant="inherit"
-      className={cn(segment.italic && "italic", segment.underline && "underline")}
+      className={cn(segment.italic && "italic", segment.underline && "underline", segment.mono && "font-mono-500")}
       weight={segment.bold ? 700 : undefined}
       // CHT-003: segmen mono panjang tanpa spasi memakai proteksi yang sama
       // dengan tautan — teks penuh tetap di accessibilityLabel.
@@ -134,7 +134,6 @@ function ChatSegmentView({
       style={
         segment.mono
           ? {
-              fontFamily: "monospace",
               backgroundColor: outgoing ? "rgba(0,0,0,0.18)" : "rgba(127,127,127,0.18)",
               borderRadius: tokens.radius.sm,
             }

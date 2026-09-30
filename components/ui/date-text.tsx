@@ -17,9 +17,9 @@
  *   - Default variant `caption` tone `secondary`: di §3.2 Caption disebut
  *     eksplisit untuk "timestamp label". Timestamp hampir selalu metadata
  *     pendamping (di bawah judul list item), bukan konten utama.
- *   - `mono` mengalihkan ke JetBrains Mono (monoBody) untuk "timestamp
+ *   - `mono` mengalihkan ke Azeret Mono (monoBody) untuk "timestamp
  *     teknis" (§3.1) — mis. di detail transaksi/security log berdampingan
- *     dengan ID. Timestamp di kalimat/list biasa TETAP Sofia Sans dengan
+ *     dengan ID. Timestamp di kalimat/list biasa TETAP Plus Jakarta Sans dengan
  *     tabular figures (sudah di-handle <Text>).
  *   - `accessibilityLabel` = format "long" + jam, agar screen reader membaca
  *     "Rabu, 3 September 2026, 14:30" walau tampilannya singkat.
@@ -33,9 +33,9 @@ export type DateTextFormat = "datetime" | "date" | "time" | "long"
 export type DateTextProps = Omit<TextProps, "children" | "variant"> & {
   value: Date | number | string
   format?: DateTextFormat
-  /** JetBrains Mono untuk timestamp teknis (detail transaksi, log) */
+  /** Azeret Mono untuk timestamp teknis (detail transaksi, log) */
   mono?: boolean
-  /** Variant Sofia Sans saat `mono=false`. Default caption. */
+  /** Variant Plus Jakarta Sans saat `mono=false`. Default caption. */
   variant?: Extract<TextProps["variant"], "bodyLarge" | "body" | "caption" | "label">
 }
 

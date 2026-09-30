@@ -3,7 +3,7 @@
  *
  * Shortcut semantik di atas <Text> agar pemanggil memilih PERAN, bukan
  * variant:
- *   - <Heading level={1|2|3}>  -> h1/h2/h3 Sofia Sans (H1/H2 turun ke 600 di
+ *   - <Heading level={1|2|3}>  -> h1/h2/h3 Plus Jakarta Sans (H1/H2 turun ke 600 di
  *                                dark mode otomatis lewat Text).
  *   - <DisplayHeading>         -> EB Garamond 34/42 — TERBATAS untuk hero
  *                                onboarding, konfirmasi besar, welcome (§1.4).

@@ -13,7 +13,7 @@
  *   - Header: `bg-surface` + variant `label` (13/600) tone secondary. TIDAK
  *     uppercase — §3.2 melarang ALL CAPS untuk label; hierarki cukup dari
  *     weight 600 + ukuran kecil.
- *   - Kolom `mono` merender variant `monoBody` (JetBrains Mono 14/500 +0.5px)
+ *   - Kolom `mono` merender variant `monoBody` (Azeret Mono 14/500 +0.5px)
  *     — bukan class `font-mono` polos, karena di RN family tanpa weight
  *     terdaftar jatuh ke system font (lihat lib/fonts.ts).
  *   - Baris dipisah `border-b` 1px. Tidak ada zebra striping: itu menambah
@@ -44,7 +44,7 @@ export type DataTableColumn<Row> = {
   title: string
   flex?: number
   align?: DataTableAlign
-  /** Kolom angka/kode — JetBrains Mono (variant monoBody) */
+  /** Kolom angka/kode — Azeret Mono (variant monoBody) */
   mono?: boolean
   /** Render kustom sel; default String(row[key]) */
   render?: (row: Row) => ReactNode

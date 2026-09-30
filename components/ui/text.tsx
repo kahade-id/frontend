@@ -3,9 +3,10 @@
  *
  * SATU-SATUNYA jalan untuk merender teks di app. Jangan pakai <Text> RN
  * langsung. Alasan:
- *   1. `allowFontScaling
-      maxFontSizeMultiplier={2}` — type scale FIXED (§3.2), tidak mengikuti
- *      Dynamic Type OS. Di-set sekali di sini, bukan disebar ke tiap pemakaian.
+ *   1. `allowFontScaling` + `maxFontSizeMultiplier={2}` — teks MENGIKUTI
+ *      Dynamic Type OS, tetapi dibatasi maksimal 2x agar layout tidak pecah.
+ *      Di-set sekali di sini, bukan disebar ke tiap pemakaian. Skala font
+ *      A-/A+ dalam aplikasi (item #28, 0.85–1.3) diterapkan terpisah di atasnya.
  *   2. Pemetaan variant -> class harus LITERAL (bukan template string) supaya
  *      Tailwind content scanner menemukannya. Karena itu ada tabel statis di
  *      bawah, bukan generate dari `typography` tokens saat runtime.
@@ -13,7 +14,7 @@
  *      toTailwindTheme di tokens.ts), weight lewat `font-sans-700` yang
  *      menunjuk file font terdaftar. H1/H2 turun ke 600 di dark mode lewat
  *      `dark:font-sans-600` — sesuai §3.2, tanpa branch manual.
- *   4. `tabular-nums` di semua varian Sofia Sans (§3.1) agar angka rapi di
+ *   4. `tabular-nums` di semua varian Plus Jakarta Sans (§3.1) agar angka rapi di
  *      list/tabel. Mono sudah monospaced, tidak perlu.
  *
  * Tone `inherit` dipakai saat warna diatur parent (mis. label di dalam

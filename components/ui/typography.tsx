@@ -14,7 +14,7 @@
  *                   sama sekali supaya aturan itu tidak bisa dilanggar.
  *   - <Emphasis>  : Text INLINE untuk penekanan di tengah kalimat, mis.
  *                   "Anda akan transfer <Emphasis>Rp5.000.000</Emphasis>".
- *                   §3.1: tetap Sofia Sans weight 600/700 — JANGAN Mono
+ *                   §3.1: tetap Plus Jakarta Sans weight 600/700 — JANGAN Mono
  *                   inline. tone "inherit" agar mengikuti warna paragraf.
  *
  * Kenapa <Emphasis> hanya menerima weight 600|700 (non-obvious): itulah dua

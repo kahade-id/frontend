@@ -17,7 +17,7 @@
  *     berwarna primary agar progres terbaca tanpa membaca label.
  *   - Kolom kiri lebar tetap w-6 (24px = ikon md) sehingga node & garis
  *     sejajar dengan ikon di komponen lain.
- *   - Timestamp = variant `monoBody` (JetBrains Mono, §3.1 "timestamp
+ *   - Timestamp = variant `monoBody` (Azeret Mono, §3.1 "timestamp
  *     teknis"), sudah diformat pemanggil dengan lib/format (§13 — bukan
  *     relative time).
  *   - Tidak ada accessibilityRole "listitem" (bukan role RN yang valid);

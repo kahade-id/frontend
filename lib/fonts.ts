@@ -9,9 +9,9 @@
  *     fallback diam-diam ke system font saat runtime.
  *
  * Kenapa helper ini perlu (non-obvious):
- *   RN TIDAK mem-resolve `fontFamily: "Chivo"` + `fontWeight: "700"`
- *   ke file Chivo-Bold. Font yang di-load expo-font hanya bisa dipakai
- *   lewat nama registrasinya (mis. "Chivo-Bold") — ini berlaku di native
+ *   RN TIDAK mem-resolve `fontFamily: "Plus Jakarta Sans"` + `fontWeight: "700"`
+ *   ke file PlusJakartaSans-Bold. Font yang di-load expo-font hanya bisa dipakai
+ *   lewat nama registrasinya (mis. "PlusJakartaSans-Bold") — ini berlaku di native
  *   MAUPUN web (expo-font web mendaftarkan @font-face dengan nama key).
  *   `resolveFontFamily()` memetakan (family, weight) -> nama asset.
  *
@@ -34,7 +34,7 @@ export type FontRole = keyof typeof fontFamilyByWeight // "sans" | "serif" | "mo
 /** Weight yang valid untuk suatu role (mis. serif hanya 500) */
 export type FontWeightFor<R extends FontRole> = keyof (typeof fontFamilyByWeight)[R]
 
-/** Union semua nama asset: "Chivo-Regular" | ... | "AzeretMono-SemiBold" */
+/** Union semua nama asset: "PlusJakartaSans-Regular" | ... | "AzeretMono-SemiBold" */
 export type FontAssetName = {
   [R in FontRole]: (typeof fontFamilyByWeight)[R][keyof (typeof fontFamilyByWeight)[R]]
 }[FontRole]
@@ -125,10 +125,10 @@ const roleByCssFamily = Object.fromEntries(
 /**
  * Terjemahkan (CSS family, weight) -> { fontFamily: "<nama asset>" }.
  *
- * SEMUA platform memakai nama asset (mis. "SofiaSans-Bold"), termasuk web.
+ * SEMUA platform memakai nama asset (mis. "PlusJakartaSans-Bold"), termasuk web.
  * Alasan (non-obvious): expo-font di web mendaftarkan `@font-face` dengan
  * `font-family` = KEY yang diberikan ke `useFonts()` (= nama asset), bukan
- * "Sofia Sans". Jadi `{ fontFamily: "Sofia Sans", fontWeight: "700" }` tidak
+ * "Plus Jakarta Sans". Jadi `{ fontFamily: "Plus Jakarta Sans", fontWeight: "700" }` tidak
  * akan match face mana pun di web dan jatuh ke system font. Karena weight
  * sudah implisit di file, kita sengaja TIDAK mengembalikan `fontWeight` —
  * di Android, fontWeight "700" di atas file yang sudah Bold memicu faux-bold.
@@ -163,10 +163,11 @@ export function resolveFontFamily(
  * StyleSheet di komponen <Text>. Weight dark-mode (H1/H2 -> 600) ikut
  * ter-resolve ke file font yang benar.
  *
- * REMINDER untuk komponen Text nanti (§3 — type scale FIXED):
- *   set `allowFontScaling={false}` di komponen Text wrapper, karena default RN
- *   adalah `true` dan akan mengikuti Dynamic Type OS. Cukup di satu wrapper,
- *   jangan disebar ke tiap pemakaian.
+ * Keputusan aksesibilitas (§3, sinkron dengan components/ui/text.tsx): <Text>
+ * wrapper SENGAJA mengikuti Dynamic Type OS (`allowFontScaling`), tetapi
+ * dibatasi `maxFontSizeMultiplier={2}` agar layout tidak pecah saat pengguna
+ * memakai ukuran teks sistem yang sangat besar. Keduanya di-set sekali di
+ * wrapper — cukup di satu tempat, jangan disebar ke tiap pemakaian.
  */
 export function getNativeTypeStyle(key: TypographyKey, mode: ColorMode = "light") {
   const t = typography[key]

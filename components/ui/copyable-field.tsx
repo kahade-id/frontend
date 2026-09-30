@@ -8,7 +8,7 @@
  * — satu tempat untuk aturan tampilan nilai yang "harus disalin persis".
  *
  * Keputusan non-obvious:
- *   - Nilai default `monoBody` (JetBrains Mono): 0/O, 1/l/I harus bisa
+ *   - Nilai default `monoBody` (Azeret Mono): 0/O, 1/l/I harus bisa
  *     dibedakan saat pengguna mencocokkan dengan aplikasi bank lain (§3.1).
  *     `mono={false}` untuk teks biasa (mis. alamat, link panjang) yang
  *     memakai body tabular.
@@ -47,7 +47,7 @@ export type CopyableFieldProps = Omit<ViewProps, "children"> & {
   label?: string
   /** Teks bantu di bawah kotak */
   hint?: string
-  /** Tampil JetBrains Mono (default true) */
+  /** Tampil Azeret Mono (default true) */
   mono?: boolean
   /** Menerima nilai siap salin; clipboard urusan pemanggil */
   onCopy?: (value: string) => void

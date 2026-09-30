@@ -17,7 +17,7 @@
  *     (`isValidPhoneId`) diekspor, dipanggil pemanggil untuk `errorText`
  *     agar aturan validasi form tetap di satu tempat (form), bukan komponen.
  *
- * Nomor dirender JetBrains Mono (§3.1: "nomor rekening" — nomor HP adalah
+ * Nomor dirender Azeret Mono (§3.1: "nomor rekening" — nomor HP adalah
  * data presisi sejenis). Prefix +62 juga Mono agar satu baseline/spasi.
  * `outlineStyle: none` di web mengikuti Input (§11).
  */

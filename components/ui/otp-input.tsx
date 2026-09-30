@@ -2,7 +2,7 @@
  * Kahade — <OtpInput> (§9.3).
  *
  * Deretan kotak digit (default 6) untuk OTP / PIN. Digit tampil dalam
- * JetBrains Mono (Mono Large, letter-spacing +0.5px §3.2). Kotak aktif =
+ * Azeret Mono (Mono Large, letter-spacing +0.5px §3.2). Kotak aktif =
  * `border-focus`; error = semua kotak `border-error` + helper text, TANPA
  * shake (§8).
  *

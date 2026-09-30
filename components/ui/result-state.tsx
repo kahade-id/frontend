@@ -5,7 +5,7 @@
  * pembayaran gagal, KYC terkirim. Ini SALAH SATU dari sedikit tempat EB
  * Garamond (Display) diizinkan — "layar konfirmasi besar" §3.1 — maka judul
  * default memakai variant `display`. Set `editorial={false}` untuk hasil
- * minor (mis. "Rekening tersimpan") agar kembali ke H1 Sofia Sans.
+ * minor (mis. "Rekening tersimpan") agar kembali ke H1 Plus Jakarta Sans.
  *
  * Struktur: IconBox status → judul → deskripsi → slot `children` (biasanya
  * <Amount size="large"> + <KeyValueList> ringkasan) → aksi. Warna semantik
@@ -36,7 +36,7 @@ export type ResultStateProps = Omit<ViewProps, "children"> & {
   description?: string
   /** Override ikon default per status */
   icon?: IconComponent
-  /** Judul EB Garamond Display (default) — false = H1 Sofia Sans */
+  /** Judul EB Garamond Display (default) — false = H1 Plus Jakarta Sans */
   editorial?: boolean
   /** Ringkasan di bawah deskripsi: Amount besar, KeyValueList, dll. */
   children?: ReactNode

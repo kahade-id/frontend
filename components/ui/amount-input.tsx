@@ -1,7 +1,7 @@
 /**
  * Kahade — <AmountInput> (§9.2 varian nominal, §13 format Rupiah).
  *
- * Field khusus nominal uang: prefix "Rp" tetap, digit JetBrains Mono Large
+ * Field khusus nominal uang: prefix "Rp" tetap, digit Azeret Mono Large
  * (24/32, letter-spacing +0.5) — sesuai §3.1 "nominal utama = Mono". Nilai
  * yang dikirim ke pemanggil adalah NUMBER bulat, tampilan diformat otomatis
  * `1.000.000` saat mengetik (§13: titik ribuan, tanpa desimal).
