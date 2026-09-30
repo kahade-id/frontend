@@ -33,6 +33,8 @@ export default function ChangePhoneScreen() {
 
   const [step, setStep] = useState<Step>("request")
   const [phone, setPhone] = useState("")
+  // FRM-007: error format hanya tampil setelah blur — jangan memerah sejak digit pertama.
+  const [phoneTouched, setPhoneTouched] = useState(false)
   const [password, setPassword] = useState("")
   const [mfaCode, setMfaCode] = useState("")
   const [mfaRequired, setMfaRequired] = useState(false)
@@ -115,9 +117,12 @@ export default function ChangePhoneScreen() {
         {step === "request" ? <>
           <SectionHeader title="Nomor baru" />
           <PhoneInput label="Nomor HP baru" value={phone}
-            onChangeText={(value) => { setPhone(normalizePhoneId(value)); setError(undefined) }} required
+            onChangeText={(value) => { setPhone(normalizePhoneId(value)); setError(undefined) }}
+            onBlur={() => setPhoneTouched(true)} required
             helperText={unchanged ? "Nomor ini sama dengan nomor terdaftar." : "Format Indonesia, mis. 812-3456-7890."}
-            errorText={phone.length > 0 && !isValidPhoneId(phone) ? "Nomor tidak valid" : undefined} />
+            errorText={phoneTouched && phone.length > 0 && !isValidPhoneId(phone)
+              ? "Nomor HP tidak valid. Gunakan nomor Indonesia yang diawali 8, 9–12 digit."
+              : undefined} />
           <PasswordField label="Kata sandi akun" value={password} onChangeText={setPassword} required
             helperText="Dibutuhkan untuk mengotorisasi perubahan nomor." />
           {mfaRequired ? <Input label="Kode autentikator atau backup" value={mfaCode}
