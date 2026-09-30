@@ -112,7 +112,7 @@ export const SearchTrigger = forwardRef<View, SearchTriggerProps>(function Searc
         "min-h-12 w-full flex-row items-center gap-2 px-4 py-3",
         isElevated
           ? "rounded-md bg-surface-elevated"
-          : "rounded-sm border border-border-control bg-background",
+          : "rounded-md bg-surface",
         className,
       )}
       {...rest}

@@ -72,19 +72,20 @@ export default function ChangePasswordScreen() {
     >
       <Header title="Ubah Kata Sandi" />
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerClassName="gap-4 px-5 py-4">
-        <SectionHeader title="Kata sandi baru" />
         <PasswordField
           label="Kata sandi saat ini"
           value={current}
           onChangeText={setCurrent}
           required
         />
+        <SectionHeader title="Kata sandi baru" />
         <PasswordField
           label="Kata sandi baru"
           value={next}
           onChangeText={setNext}
           required
           showStrength
+          helperText="Minimal 8 karakter."
         />
         <PasswordField
           label="Ulangi kata sandi baru"

@@ -4,7 +4,7 @@
  * Dipanggil dengan query ?orderId=...
  */
 import { useState } from "react"
-import { TextInput, View, Pressable } from "react-native"
+import { View, Pressable } from "react-native"
 import { Package } from "phosphor-react-native"
 import { useLocalSearchParams, useRouter } from "expo-router"
 
@@ -26,6 +26,7 @@ import { Header } from "@/components/ui/header"
 import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
 import { Text } from "@/components/ui/text"
+import { TextArea } from "@/components/ui/text-area"
 
 const REASONS: ReturnReasonCode[] = [
   "BARANG_RUSAK",
@@ -135,24 +136,15 @@ export default function NewReturnScreen() {
                 ))}
               </View>
             </View>
-            <View>
-              <SectionHeader title="Deskripsi (opsional)" />
-              <TextInput
-                value={reasonDetail}
-                onChangeText={setReasonDetail}
-                multiline
-                numberOfLines={4}
-                placeholder="Jelaskan kondisi barang…"
-                placeholderTextColor={c.textTertiary}
-                style={{
-                  borderWidth: 1, borderColor: c.borderDefault, borderRadius: tokens.radius.md,
-                  padding: tokens.space[3], color: c.textPrimary, textAlignVertical: "top",
-                }}
-              />
-              <Text variant="bodySmall" tone="secondary" style={{ marginTop: tokens.space[1] }}>
-                Foto kondisi barang dapat ditambahkan setelah pengajuan dibuat, di halaman detail retur.
-              </Text>
-            </View>
+            <TextArea
+              label="Deskripsi (opsional)"
+              value={reasonDetail}
+              onChangeText={setReasonDetail}
+              placeholder="Jelaskan kondisi barang…"
+              rows={4}
+              helperText="Foto kondisi barang dapat ditambahkan setelah pengajuan dibuat, di halaman detail retur."
+              accessibilityLabel="Deskripsi alasan retur"
+            />
             {/* UI-T017 (audit UI/UX 2026-09-27): prop loading — spinner +
                 anti double-submit; label tidak berganti-ganti. */}
             <Button onPress={submit} loading={submitting}>

@@ -4,7 +4,7 @@
  * aksi buyer/seller sesuai status.
  */
 import { useState } from "react"
-import { TextInput, View } from "react-native"
+import { View } from "react-native"
 import { useLocalSearchParams } from "expo-router"
 
 import { api } from "@/lib/api"
@@ -30,6 +30,7 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { DataScreen } from "@/components/ui/data-screen"
 import { Dialog } from "@/components/ui/modal"
+import { Input } from "@/components/ui/input"
 import { SectionHeader } from "@/components/ui/section"
 import { Text } from "@/components/ui/text"
 
@@ -172,13 +173,11 @@ export default function ReturnDetailScreen() {
           {detail.status === "APPROVED" ? (
             <Card>
               <SectionHeader title="Kirim barang retur" />
-              <TextInput
+              <Input
+                label="Nomor resi pengiriman balik"
                 value={tracking}
                 onChangeText={setTracking}
-                placeholder="Nomor resi pengiriman balik"
                 accessibilityLabel="Nomor resi pengiriman balik"
-                placeholderTextColor={c.textTertiary}
-                style={{ borderWidth: 1, borderColor: c.borderDefault, borderRadius: tokens.radius.md, padding: tokens.space[3], color: c.textPrimary }}
               />
               <View style={{ marginTop: tokens.space[2] }}>
                 <Button
@@ -213,13 +212,13 @@ export default function ReturnDetailScreen() {
                 <Text tone="secondary">Belum ada pesan.</Text>
               ) : null}
             </View>
-            <TextInput
+            <Input
+              label="Pesan negosiasi"
               value={note}
               onChangeText={setNote}
               placeholder="Tulis pesan untuk pihak lain…"
               accessibilityLabel="Pesan negosiasi"
-              placeholderTextColor={c.textTertiary}
-              style={{ borderWidth: 1, borderColor: c.borderDefault, borderRadius: tokens.radius.md, padding: tokens.space[3], color: c.textPrimary, marginTop: tokens.space[2] }}
+              containerClassName="mt-2"
             />
             <View style={{ marginTop: tokens.space[2] }}>
               <Button

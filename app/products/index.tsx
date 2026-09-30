@@ -4,7 +4,7 @@
  * Terpisah dari konten showcase sosial (G251).
  */
 import { memo, useCallback, useState } from "react"
-import { Pressable, TextInput, View } from "react-native"
+import { Pressable, View } from "react-native"
 import { useRouter } from "expo-router"
 
 import { ROUTES } from "@/lib/routes"
@@ -25,6 +25,7 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { Header } from "@/components/ui/header"
 import { PaginatedList } from "@/components/ui/paginated-list"
 import { Screen } from "@/components/ui/screen"
+import { SearchField } from "@/components/ui/search-field"
 import { Text } from "@/components/ui/text"
 import { Package } from "phosphor-react-native"
 
@@ -98,12 +99,13 @@ export default function CatalogScreen() {
     <Screen edges={["top"]} padded={false}>
       <Header title="Katalog Produk" />
       <View style={{ padding: tokens.space[4], gap: tokens.space[2] }}>
-        <TextInput
+        {/* Inline search (bukan overlay): tanpa autoFocus agar keyboard
+            tidak muncul saat layar dibuka. */}
+        <SearchField
           value={q}
           onChangeText={setQ}
           placeholder="Cari produk…"
-          placeholderTextColor={c.textTertiary}
-          style={{ borderWidth: 1, borderColor: c.borderDefault, borderRadius: tokens.radius.md, padding: tokens.space[3], color: c.textPrimary }}
+          autoFocus={false}
         />
         <Pressable
           onPress={() => setInStockOnly((v) => !v)}

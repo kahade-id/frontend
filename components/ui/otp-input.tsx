@@ -98,14 +98,14 @@ function DigitBox({
     <Animated.View style={{ transform: [{ scale }] }}>
       <View
         className={cn(
-          "h-14 w-12 items-center justify-center rounded-sm bg-background",
+          "h-14 w-12 items-center justify-center rounded-md bg-surface",
           hasError
-            ? "border-error border-border-error"
+            ? "border-[1.5px] border-border-error"
             : success
-              ? "border border-accent"
+              ? "border-[1.5px] border-accent"
               : isActive
-                ? "border-focus border-border-focus"
-                : "border border-border-control",
+                ? "border-[1.5px] border-border-focus"
+                : "border-[1.5px] border-transparent",
         )}
       >
         {char ? (

@@ -86,12 +86,12 @@ export function PinDots({ length, filled, error = false, success = false, classN
                 className={cn(
                   "h-3 w-3 rounded-full",
                   error
-                    ? (on ? "bg-danger" : "border border-border-error")
+                    ? (on ? "bg-danger" : "bg-surface")
                     : showSuccess && on
                       ? "bg-accent"
                       : on
                         ? "bg-primary"
-                        : "border border-border-control",
+                        : "bg-surface",
                 )}
               />
             )
