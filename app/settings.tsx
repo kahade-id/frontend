@@ -80,6 +80,7 @@ import { logWarn } from "@/lib/telemetry"
 
 import { useTheme } from "@/components/theme-provider"
 import { Button } from "@/components/ui/button"
+import { Alert } from "@/components/ui/alert"
 import { Stagger } from "@/components/ui/fade-in"
 import { Header } from "@/components/ui/header"
 import { type IconComponent } from "@/components/ui/icon"
@@ -114,6 +115,10 @@ export default function SettingsScreen() {
 
   const [logoutOpen, setLogoutOpen] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
+  // AUT-004: kegagalan tulis flag sessionSignedOut saat logout ditampilkan
+  // ke user (bukan dicatat diam-diam) — di web, tanpanya cookie bisa
+  // menghidupkan lagi sesi yang baru diakhiri.
+  const [logoutError, setLogoutError] = useState<string | null>(null)
 
   // FE-IMP-3 #93 — nama/@username untuk dialog konfirmasi keluar. Query ringan
   // (cache bersama queryKeys.me()); gagal muat → dialog tetap jalan tanpa nama.
@@ -143,6 +148,7 @@ export default function SettingsScreen() {
 
   const performLogout = useCallback(async () => {
     setLoggingOut(true)
+    setLogoutError(null)
     try {
       // Web: lepas token FCM Web + hapus token-nya; native: lepas Expo token.
       // Keduanya no-op yang aman bila push tidak aktif — logout tetap jalan.
@@ -155,7 +161,16 @@ export default function SettingsScreen() {
         await unregisterWebPushDevice(deviceApi).catch((err) => logWarn("settings:unregister-push", err))
       else await unregisterPushDevice(deviceApi).catch((err) => logWarn("settings:unregister-push", err))
       try {
-        await api.auth.logout().catch((err) => logWarn("settings:logout", err))
+        // AUT-004: logout() melempar bila flag sessionSignedOut gagal
+        // ditulis — tampilkan ke user, JANGAN diam-diam menganggap sukses.
+        await api.auth.logout()
+      } catch (err) {
+        logWarn("settings:logout", err)
+        setLogoutOpen(false)
+        setLogoutError(
+          "Keluar tidak tuntas: penanda sesi perangkat gagal disimpan. Token sudah dihapus, tetapi sesi bisa aktif lagi otomatis — coba keluar sekali lagi.",
+        )
+        return
       } finally {
         await clearSession()
       }
@@ -328,6 +343,14 @@ export default function SettingsScreen() {
 
           {/* ── Keluar ───────────────────────────────────────── */}
           <View className="pt-2">
+            {/* AUT-004: kegagalan logout (flag sesi) ditampilkan di sini. */}
+            {logoutError ? (
+              <View className="pb-2">
+                <Alert tone="danger" title="Keluar tidak tuntas" onDismiss={() => setLogoutError(null)}>
+                  {logoutError}
+                </Alert>
+              </View>
+            ) : null}
             <Button
               variant="destructive"
               size="md"

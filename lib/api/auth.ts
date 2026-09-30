@@ -558,18 +558,33 @@ export async function verify2faLogin(dto: WithoutDevice<Verify2faLoginDto>) {
  * Keluar. Request ke server best-effort; sesi lokal SELALU dibersihkan.
  * Pemanggil bertanggung jawab memanggil `unregisterPushDevice()` SEBELUM ini
  * (endpoint itu butuh access token yang akan dihapus di sini).
+ *
+ * AUT-004: server logout di-retry 3x dengan backoff (500ms, 1s) — refresh
+ * token server-side sebaiknya ikut dicabut. Bila ketiganya gagal, logout
+ * lokal tetap jalan (fail-closed ke arah membersihkan perangkat, bukan
+ * mengunci user di dalam sesi). clearSession() dipakai dalam mode strict:
+ * kegagalan tulis flag sessionSignedOut DILEMPAR agar pemanggil bisa
+ * menampilkannya ke user (di web, flag inilah yang mencegah auto-login
+ * cookie menghidupkan lagi sesi yang baru diakhiri).
  */
 export async function logout(dto: LogoutDto = {}): Promise<void> {
-  try {
-    await http.post<MessageResult | undefined, LogoutDto>("/v1/auth/logout", dto, {
-      auth: "optional",
-      responseType: "void",
-    })
-  } catch (err) {
-    if (__DEV__) console.warn("[kahade/api] logout server gagal (sesi lokal tetap dihapus):", err)
-  } finally {
-    await clearSession()
+  let lastError: unknown
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      await http.post<MessageResult | undefined, LogoutDto>("/v1/auth/logout", dto, {
+        auth: "optional",
+        responseType: "void",
+      })
+      lastError = undefined
+      break
+    } catch (err) {
+      lastError = err
+      if (attempt < 2) await new Promise((resolve) => setTimeout(resolve, 500 * 2 ** attempt))
+    }
   }
+  if (lastError && __DEV__)
+    console.warn("[kahade/api] logout server gagal 3x (sesi lokal tetap dihapus):", lastError)
+  await clearSession({ strictSignedOutFlag: true })
 }
 
 // ------------------------------------------------------------------
