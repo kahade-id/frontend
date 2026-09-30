@@ -208,3 +208,25 @@ describe("resolveSubscriptionPaymentMethods", () => {
     expect(selectDefaultCheckoutMethod([])).toBeNull()
   })
 })
+
+describe("createSubscriptionPayment — subscriptionId nested (kontrak kanonis 2026-09-30)", () => {
+  it("membaca ID dari subscription.id bila root subscriptionId absen", async () => {
+    mockHttpPost.mockResolvedValue({
+      subscription: { id: "sub-nested-1", status: "PENDING" },
+      qrString: "QR-999",
+    })
+    const intent = await createSubscriptionPayment("MONTHLY", "QRIS")
+    expect(intent.subscriptionId).toBe("sub-nested-1")
+    expect(intent.qrString).toBe("QR-999")
+  })
+
+  it("root subscriptionId tetap menang bila keduanya ada", async () => {
+    mockHttpPost.mockResolvedValue({
+      subscriptionId: "sub-root",
+      subscription: { id: "sub-nested" },
+      qrString: "QR-1",
+    })
+    const intent = await createSubscriptionPayment("MONTHLY", "QRIS")
+    expect(intent.subscriptionId).toBe("sub-root")
+  })
+})

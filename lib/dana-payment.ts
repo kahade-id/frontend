@@ -89,6 +89,9 @@ const LEGACY_METHOD_KIND: Record<string, DanaMethodKind> = {
   SHOPEEPAY: "ewallet",
   OVO: "ewallet",
   DANA: "ewallet",
+  // Kontrak kanonis backend (2026-09-30): `kind: "BALANCE"` = otorisasi
+  // aplikasi DANA (bukan saldo Kahade) — render panel redirect DANA.
+  BALANCE: "ewallet",
   LINKAJA: "ewallet",
   CREDIT_CARD: "bank",
   ALFAMART: "bank",
@@ -131,6 +134,46 @@ export function toCheckoutMethodItems(
 }
 
 /**
+ * Pecah metode VA generik ber-bank (`kind: "VA"` + `banks: ["BCA", …]` dari
+ * backend) menjadi entri per-bank ("VA_BCA", …).
+ *
+ * Alasan: UI checkout tidak punya pemilih bank terpisah — pola yang sudah
+ * berjalan di alur langganan adalah satu entri per bank, dan
+ * `toDanaPayKind("VA_BCA")` memetakan `bankCode` dengan benar untuk
+ * `DanaDirectPayDto`. Entri yang sudah per-bank (mis. daftar fallback)
+ * tidak disentuh; VA tanpa daftar bank dipertahankan apa adanya (backend
+ * yang memvalidasi `bankCode` bila wajib).
+ */
+function expandVaBankMethods(methods: OrderPaymentMethod[]): OrderPaymentMethod[] {
+  const out: OrderPaymentMethod[] = []
+  for (const m of methods) {
+    const codeUpper = m.code.trim().toUpperCase()
+    const isVaMethod = codeUpper === "VA" || (m.category ?? "").trim().toLowerCase() === "va"
+    const banks = (m.banks ?? [])
+      .map((b) => b.trim().toUpperCase())
+      .filter((b) => b.length > 0)
+    const alreadyPerBank = /^VA[_ -]?[A-Z]+$/.test(codeUpper) && codeUpper !== "VA"
+    if (isVaMethod && !alreadyPerBank && banks.length > 0) {
+      for (const bank of banks) {
+        const code = `VA_${bank}`
+        out.push({
+          ...m,
+          id: code,
+          code,
+          name: `${m.name} ${bank}`.trim(),
+          category: "va",
+          banks: undefined,
+          requiresBankCode: undefined,
+        })
+      }
+    } else {
+      out.push(m)
+    }
+  }
+  return out
+}
+
+/**
  * Ambil daftar metode untuk order: backend dulu; bila endpoint belum tersedia
  * (404) atau jaringan gagal → fallback DANA statis. Metode dompet internal
  * hanya disisipkan bila kill-switch NYALA — dalam mode BI-safe buyer tidak
@@ -152,12 +195,15 @@ export async function resolveCheckoutPaymentMethods(
     fromFallback = true
   }
   const enabledOnly = raw.filter((m) => m.enabled)
+  // Kontrak kanonis (2026-09-30): backend mengirim SATU metode VA + `banks`;
+  // UI butuh satu entri per bank (tanpa pemilih bank terpisah).
+  const expanded = expandVaBankMethods(enabledOnly)
   // BI-safe: bila kill-switch mati, metode dompet internal TIDAK boleh muncul
   // meski backend (lama) masih mengembalikannya — buyer tidak pernah
   // melihat "Saldo Kahade".
   const noWallet = opts.walletEnabled
-    ? enabledOnly
-    : enabledOnly.filter((m) => !isWalletCheckoutMethod(m.code))
+    ? expanded
+    : expanded.filter((m) => !isWalletCheckoutMethod(m.code))
   const list =
     noWallet.length > 0 ? noWallet : fromFallback ? [...DANA_PAYMENT_METHODS_FALLBACK] : []
   const methods = opts.walletEnabled ? [KAHADE_WALLET_METHOD, ...list] : list

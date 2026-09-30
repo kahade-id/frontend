@@ -20,6 +20,8 @@ import { http, seg } from "@/lib/api/client"
 import { asRecord, invalidResponse, pickString } from "@/lib/api/response"
 import {
   normalizeOrderPaymentIntent,
+  toDanaPayKind,
+  type DanaDirectPayKind,
   type OrderPaymentIntent,
 } from "@/lib/api/orders-endpoints"
 import { deviceLocationOnlyBody } from "@/lib/api/device-location"
@@ -32,25 +34,10 @@ export const RENEW_DANA_PATH = "/v1/subscriptions/renew-dana"
 export const danaStatusPath = (subscriptionId: string) =>
   `/v1/subscriptions/dana-status/${seg(subscriptionId)}`
 
-/** payKind backend: QRIS | VA | BALANCE. */
-export type DanaDirectPayKind = "QRIS" | "VA" | "BALANCE"
-
-/**
- * Petakan kode metode UI → { payKind, bankCode }.
- * Kode tak dikenal → lempar (fail-closed): jangan menebak metode bayar.
- */
-export function toDanaPayKind(methodCode: string): {
-  payKind: DanaDirectPayKind
-  bankCode?: string
-} {
-  const code = methodCode.trim().toUpperCase()
-  if (code === "QRIS") return { payKind: "QRIS" }
-  if (code === "DANA" || code === "BALANCE" || code === "SALDO_DANA")
-    return { payKind: "BALANCE" }
-  const va = code.match(/^VA[_-]?(BCA|BNI|BRI|MANDIRI|CIMB|PERMATA)$/)
-  if (va) return { payKind: "VA", bankCode: va[1] }
-  throw invalidResponse(`subscription-pay-kind:${methodCode}`)
-}
+// `toDanaPayKind` + `DanaDirectPayKind` dipindahkan ke
+// `lib/api/orders-endpoints.ts` (2026-09-30) agar alur order memakai pemetaan
+// yang sama — diekspor ulang di sini untuk kompatibilitas pemanggil lama.
+export { toDanaPayKind, type DanaDirectPayKind }
 
 export type SubscriptionPaymentIntent = OrderPaymentIntent & {
   /** ID subscription PENDING — dipakai polling `dana-status/:id`. */
@@ -94,7 +81,16 @@ export async function createSubscriptionPayment(
   )
   const intent = normalizeOrderPaymentIntent(raw)
   if (!intent) throw invalidResponse("subscription-payment")
-  const subscriptionId = pickString(asRecord(raw) ?? {}, ["subscriptionId", "subscription_id"])
+  // Kontrak kanonis (2026-09-30): `subscribeDana` mengembalikan
+  // `{ subscription: { id, … }, qrString, … }` — ID ada di NESTED
+  // `subscription.id`, bukan root `subscriptionId`. Keduanya dibaca agar
+  // polling `dana-status/:id` bisa jalan; tanpa ini UI melempar
+  // "ID langganan belum tersedia."
+  const root = asRecord(raw) ?? {}
+  const nestedSub = asRecord(root.subscription)
+  const subscriptionId =
+    pickString(root, ["subscriptionId", "subscription_id"]) ??
+    (nestedSub ? pickString(nestedSub, ["id", "subscriptionId", "subscription_id"]) : null)
   return { ...intent, method: methodCode, subscriptionId: subscriptionId ?? undefined }
 }
 
