@@ -12,7 +12,7 @@
 import { Suspense, lazy } from "react"
 import { View } from "react-native"
 
-import { ListLoading } from "@/components/ui/paginated-list"
+import { DetailLoading } from "@/components/ui/paginated-list"
 
 const DisputeDetailScreen = lazy(
   () => import("@/components/screens/dispute-detail-screen"),
@@ -23,7 +23,7 @@ export default function DisputeDetailRoute() {
     <Suspense
       fallback={
         <View className="flex-1 px-5 pt-6">
-          <ListLoading />
+          <DetailLoading />
         </View>
       }
     >

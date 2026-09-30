@@ -16,6 +16,7 @@ import { ROUTES } from "@/lib/routes"
 import { Button } from "@/components/ui/button"
 import { Chip } from "@/components/ui/chip"
 import { EmptyState } from "@/components/ui/empty-state"
+import { ErrorState } from "@/components/ui/error-state"
 import { ListLoading } from "@/components/ui/paginated-list"
 import { RatingDistributionBars } from "@/components/ui/rating-distribution"
 import { RatingReviewCard, type RatingPerson } from "@/components/ui/rating-review-card"
@@ -62,6 +63,10 @@ function useRatingSorts(): { value: ProfileRatingSort; label: string }[] {
 export type ProfileRatingsTabProps = {
   ratings: Rating[]
   loading: boolean
+  /** UX-FDB-008: failure ≠ empty — pesan error kegagalan muat (bukan empty). */
+  error?: string | null
+  /** Retry saat `error` terisi. */
+  onRetry?: () => void
   filter: PublicRatingFilter
   onFilterChange: (filter: PublicRatingFilter) => void
   /** Item 70: urutan tampilan ulasan (dikendalikan pemanggil). */
@@ -76,6 +81,8 @@ export type ProfileRatingsTabProps = {
 export function ProfileRatingsTab({
   ratings,
   loading,
+  error,
+  onRetry,
   filter,
   onFilterChange,
   sort,
@@ -121,6 +128,14 @@ export function ProfileRatingsTab({
 
       {loading ? (
         <ListLoading />
+      ) : error ? (
+        /* UX-FDB-008: kegagalan muat ≠ "belum ada ulasan". */
+        <ErrorState
+          compact
+          title={translate("Gagal memuat ulasan")}
+          description={error}
+          onRetry={onRetry}
+        />
       ) : ratings.length === 0 ? (
         isSelf ? (
           <EmptyState

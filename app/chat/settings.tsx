@@ -30,6 +30,7 @@ import { Text } from "@/components/ui/text"
 import { Icon } from "@/components/ui/icon"
 import { Spinner } from "@/components/ui/spinner"
 import { EmptyState } from "@/components/ui/empty-state"
+import { ErrorState } from "@/components/ui/error-state"
 import { IconButton } from "@/components/ui/icon-button"
 import { Input } from "@/components/ui/input"
 import { PressableScale } from "@/components/ui/pressable-scale"
@@ -175,7 +176,7 @@ export default function ChatSettingsScreen() {
 
 function ReplyTemplateManager() {
   const toast = useToast()
-  const { templates, loading, refresh } = useReplyTemplates()
+  const { templates, loading, error, refresh } = useReplyTemplates()
   const [shortcut, setShortcut] = useState("")
   const [draft, setDraft] = useState("")
   const [editing, setEditing] = useState<ChatReplyTemplate | null>(null)
@@ -251,6 +252,14 @@ function ReplyTemplateManager() {
         <View className="items-center py-4">
           <Spinner />
         </View>
+      ) : error ? (
+        /* UX-FDB-003: kegagalan muat DIBEDAKAN dari "belum ada template". */
+        <ErrorState
+          compact
+          title="Gagal memuat template"
+          description={error}
+          onRetry={() => void refresh()}
+        />
       ) : templates.length === 0 && !editing ? (
         <EmptyState
           icon={Plus}

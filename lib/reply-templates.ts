@@ -18,12 +18,25 @@ import {
   type ChatReplyTemplate,
 } from "@/lib/api/chat"
 import { logWarn } from "@/lib/telemetry"
+import { userMessage } from "@/lib/api/errors"
 
 export type { ChatReplyTemplate }
 export { REPLY_TEMPLATE_SHORTCUT_RE, REPLY_TEMPLATE_TEXT_MAX }
 
 let cache: ChatReplyTemplate[] | null = null
 let inflight: Promise<ChatReplyTemplate[]> | null = null
+/**
+ * UX-FDB-003 (audit UI/UX 2026-10-01): failure ≠ empty. `loadReplyTemplates`
+ * tetap menelan error demi kompatibilitas (kontrak lama: gagal → []), tetapi
+ * kegagalan terakhir dicatat di sini agar UI bisa membedakannya dari daftar
+ * yang memang kosong. null = muat terakhir sukses / belum pernah gagal.
+ */
+let lastLoadError: unknown = null
+
+/** Error kegagalan muat template terakhir (lihat komentar di atas). */
+export function getReplyTemplatesLoadError(): unknown {
+  return lastLoadError
+}
 
 function sortTemplates(list: ChatReplyTemplate[]): ChatReplyTemplate[] {
   return [...list].sort((a, b) => a.shortcut.localeCompare(b.shortcut))
@@ -35,11 +48,13 @@ export function loadReplyTemplates(force = false): Promise<ChatReplyTemplate[]> 
   if (!inflight) {
     inflight = listReplyTemplates()
       .then((list) => {
+        lastLoadError = null
         cache = sortTemplates(list)
         return cache
       })
       .catch((err: unknown) => {
         logWarn("chat:reply-templates-load", err)
+        lastLoadError = err
         return cache ?? []
       })
       .finally(() => {
@@ -129,11 +144,19 @@ export async function removeReplyTemplate(id: string): Promise<void> {
 export function useReplyTemplates() {
   const [templates, setTemplates] = useState<ChatReplyTemplate[] | null>(null)
   const [loading, setLoading] = useState(true)
+  /**
+   * UX-FDB-003: pesan error siap tampil bila muat GAGAL (dibedakan dari
+   * daftar kosong). null = sukses / belum dimuat.
+   */
+  const [error, setError] = useState<string | null>(null)
 
   const refresh = useCallback(async () => {
     setLoading(true)
+    setError(null)
     try {
       setTemplates(await refreshReplyTemplates())
+    } catch (err) {
+      setError(userMessage(err))
     } finally {
       setLoading(false)
     }
@@ -143,7 +166,13 @@ export function useReplyTemplates() {
     let alive = true
     loadReplyTemplates()
       .then((list) => {
-        if (alive) setTemplates(list)
+        if (!alive) return
+        setTemplates(list)
+        // `loadReplyTemplates` menelan error (kontrak lama) — baca penanda
+        // kegagalan modul agar UI tidak menyamarkan "gagal muat" sebagai
+        // "belum ada template".
+        const loadErr = getReplyTemplatesLoadError()
+        setError(list.length === 0 && loadErr ? userMessage(loadErr) : null)
       })
       .finally(() => {
         if (alive) setLoading(false)
@@ -153,11 +182,12 @@ export function useReplyTemplates() {
     }
   }, [])
 
-  return { templates, loading, refresh }
+  return { templates, loading, error, refresh }
 }
 
 /** Reset untuk test. */
 export function __resetReplyTemplatesForTest(): void {
   cache = null
   inflight = null
+  lastLoadError = null
 }

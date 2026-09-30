@@ -11,7 +11,7 @@
 import { Suspense, lazy } from "react"
 import { View } from "react-native"
 
-import { ListLoading } from "@/components/ui/paginated-list"
+import { DetailLoading } from "@/components/ui/paginated-list"
 
 const ShowcaseDetailScreen = lazy(() => import("@/components/screens/showcase-detail-screen"))
 
@@ -20,7 +20,7 @@ export default function ShowcaseDetailRoute() {
     <Suspense
       fallback={
         <View className="flex-1 px-5 pt-6">
-          <ListLoading />
+          <DetailLoading />
         </View>
       }
     >

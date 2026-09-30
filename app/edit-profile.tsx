@@ -34,7 +34,7 @@ import { router } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Camera as CameraIcon, Image as ImageIcon, Images, Trash } from "phosphor-react-native"
 
-import { api, type UpdateProfileDto, userMessage } from "@/lib/api"
+import { api, isApiError, type UpdateProfileDto, userMessage } from "@/lib/api"
 import { pickImage, pickedImageToFormData, type PickedImage, type PickImageOptions } from "@/lib/image-picker"
 import { goBackOrNavigate } from "@/lib/navigation"
 import { useAvatarUpload } from "@/lib/use-avatar-upload"
@@ -360,13 +360,30 @@ export default function EditProfileScreen() {
         setCurrentPassword("")
         toast.show({ title: translate("Profil diperbarui"), tone: "success" })
         goBackOrNavigate(ROUTES.settings)
-      } catch {
-        if (password) {
+      } catch (err) {
+        // UX-FDB-006 (audit UI/UX 2026-10-01): jangan menebak. Pesan asli
+        // (userMessage) ditampilkan; copy "username mungkin sudah dipakai"
+        // HANYA untuk konflik yang dikonfirmasi backend (409/CONFLICT) —
+        // lagipula ketersediaan username sudah dicek sebelum save. Prinsip
+        // yang sama untuk password: "kata sandi salah" hanya untuk respons
+        // server (bukan NETWORK/TIMEOUT/SERVER).
+        const passwordMismatch =
+          password &&
+          !(isApiError(err) && (err.code === "NETWORK" || err.code === "TIMEOUT" || err.code === "SERVER"))
+        if (passwordMismatch) {
           setPasswordError(translate("Kata sandi salah atau perubahan ditolak."))
-        } else {
+        } else if (isApiError(err) && err.code === "CONFLICT") {
           toast.show({
             title: translate("Gagal menyimpan profil"),
             description: translate("Username mungkin sudah dipakai atau baru saja diganti."),
+            tone: "danger",
+          })
+        } else {
+          toast.show({
+            title: translate("Gagal menyimpan profil"),
+            description: isApiError(err)
+              ? userMessage(err)
+              : translate("Periksa koneksi lalu coba lagi."),
             tone: "danger",
           })
         }

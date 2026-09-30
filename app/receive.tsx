@@ -35,6 +35,7 @@ import { Icon } from "@/components/ui/icon"
 import { Input } from "@/components/ui/input"
 import { QRCodeDisplay } from "@/components/ui/qr-code-display"
 import { Screen } from "@/components/ui/screen"
+import { Spinner } from "@/components/ui/spinner"
 import { Text } from "@/components/ui/text"
 import { useToast } from "@/components/ui/toast"
 import { WalletDisabledScreen } from "@/components/ui/wallet-disabled"
@@ -137,9 +138,27 @@ export default function ReceiveScreen() {
 
         <FadeIn duration="fast" className="mt-2">
           <Card variant="elevated" className="items-center gap-5 p-6" onLayout={handleQrLayout}>
-            {profile.loading || !username ? (
+            {/* UX-FDB-001 (audit UI/UX 2026-10-01): failure ≠ "loading selamanya".
+                `profile.loading` → Spinner (bukan ikon statis); `profile.error`
+                → pesan + tombol retry, bukan QR yang tak pernah tampil. */}
+            {profile.loading ? (
               <View className="h-[200px] w-[200px] items-center justify-center">
+                <Spinner />
+              </View>
+            ) : profile.error || !username ? (
+              <View className="h-[200px] w-[200px] items-center justify-center gap-2 px-6">
                 <Icon icon={QrCodeIcon} size="xl" tone="disabled" />
+                <Text variant="caption" tone="secondary" className="text-center">
+                  {translate("Gagal memuat profil")}
+                </Text>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  fullWidth={false}
+                  onPress={() => profile.reload()}
+                >
+                  {translate("Coba lagi")}
+                </Button>
               </View>
             ) : (
               <QRCodeDisplay

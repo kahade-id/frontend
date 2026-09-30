@@ -119,6 +119,8 @@ export default function ContactScreen() {
   const [orderSheetOpen, setOrderSheetOpen] = useState(false)
   const [orders, setOrders] = useState<Order[] | null>(null)
   const [ordersLoading, setOrdersLoading] = useState(false)
+  /** UX-FDB-005: failure ≠ empty — kegagalan muat dibedakan dari daftar kosong. */
+  const [ordersError, setOrdersError] = useState<string | null>(null)
   const restoredRef = useRef(false)
   // FRM-009: rantai fokus Next Subjek -> Pesan.
   const messageRef = useRef<TextInput>(null)
@@ -418,19 +420,26 @@ export default function ContactScreen() {
     !dismissDupWarning && duplicateTickets.length > 0 && (Boolean(subject.trim()) || Boolean(orderId))
 
   // Item 132: pemilih pesanan — muat lazy saat sheet dibuka (20 terbaru).
-  const openOrderSheet = useCallback(async () => {
-    setOrderSheetOpen(true)
-    if (orders !== null) return
+  // UX-FDB-005: saat gagal, orders tetap null (bukan []) agar (a) UI bisa
+  // menampilkan error + retry, dan (b) buka-tutup sheet memuat ulang.
+  const loadOrders = useCallback(async () => {
     setOrdersLoading(true)
+    setOrdersError(null)
     try {
       const res = await api.orders.listOrders({ limit: 20 })
       setOrders(res.data)
-    } catch {
-      setOrders([])
+    } catch (err) {
+      setOrdersError(userMessage(err))
     } finally {
       setOrdersLoading(false)
     }
-  }, [orders])
+  }, [])
+
+  const openOrderSheet = useCallback(() => {
+    setOrderSheetOpen(true)
+    if (orders !== null) return
+    void loadOrders()
+  }, [orders, loadOrders])
 
   const selectedOrder = orderId ? orders?.find((o) => o.id === orderId) : undefined
   const selectedOrderLabel = selectedOrder
@@ -716,6 +725,21 @@ export default function ContactScreen() {
         {ordersLoading ? (
           <View className="items-center py-6">
             <Spinner />
+          </View>
+        ) : ordersError ? (
+          /* UX-FDB-005: kegagalan muat ≠ "tidak ada pesanan" — tampilkan
+              error + retry. */
+          <View className="items-center gap-3 py-6">
+            <Text variant="body" tone="secondary" className="text-center">
+              Gagal memuat pesanan. {ordersError}
+            </Text>
+            <Button
+              variant="secondary"
+              fullWidth={false}
+              onPress={() => void loadOrders()}
+            >
+              Coba lagi
+            </Button>
           </View>
         ) : orders && orders.length > 0 ? (
           <View className="gap-2">

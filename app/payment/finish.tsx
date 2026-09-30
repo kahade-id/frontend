@@ -15,10 +15,10 @@
  * (bukan sukses palsu). Status final sumber kebenaran tetap webhook
  * finish-notify di server.
  */
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { ActivityIndicator, View } from "react-native"
 import { router, useLocalSearchParams } from "expo-router"
-import { CheckCircle, Clock, XCircle } from "phosphor-react-native"
+import { ArrowClockwise, CheckCircle, Clock, XCircle } from "phosphor-react-native"
 
 import { Button } from "@/components/ui/button"
 import { Icon } from "@/components/ui/icon"
@@ -27,6 +27,7 @@ import { Text } from "@/components/ui/text"
 import { api } from "@/lib/api"
 import { getSubscriptionPaymentStatus } from "@/lib/api/subscription-payments"
 import { ROUTES } from "@/lib/routes"
+import { usePolling } from "@/lib/use-polling"
 
 type Status = "success" | "pending" | "failed"
 
@@ -78,6 +79,15 @@ function resolveVerifyTarget(params: Record<string, string | string[]>): {
 const FAILED_STATUSES = ["FAILED", "EXPIRED", "CANCELLED", "REFUNDED"]
 
 /**
+ * UX-FDB-002 (audit UI/UX 2026-10-01): layar pending mem-poll status ke
+ * backend — pola yang sama dengan use-dana-intent (BFI-085): backoff linear
+ * + cap jumlah poll. Berhenti otomatis saat status final (success/failed/
+ * unverified) atau cap tercapai; pengguna tetap bisa cek manual.
+ */
+const POLL_BASE_MS = 10_000
+const MAX_POLLS = 10
+
+/**
  * Copy per status — klaim definitif "Dana sudah masuk escrow" HANYA untuk
  * status `success` yang SUDAH diverifikasi backend (lihat verify()).
  */
@@ -88,7 +98,8 @@ const COPY: Record<PageStatus, { title: string; subtitle: string }> = {
   },
   pending: {
     title: "Menunggu konfirmasi",
-    subtitle: "Pembayaran sedang diproses.",
+    subtitle:
+      "Pembayaran sedang diproses — umumnya terkonfirmasi dalam beberapa menit. Dana Anda aman, status di layar ini diperbarui otomatis.",
   },
   failed: {
     title: "Pembayaran gagal",
@@ -104,13 +115,25 @@ const COPY: Record<PageStatus, { title: string; subtitle: string }> = {
 export default function PaymentFinishScreen() {
   const params = useLocalSearchParams<Record<string, string | string[]>>()
   const provisional = useMemo(() => resolveStatus(params), [params])
+  const verifyTarget = useMemo(() => resolveVerifyTarget(params), [params])
   const [verifying, setVerifying] = useState(true)
   const [finalStatus, setFinalStatus] = useState<PageStatus | null>(null)
+  /** Cek status manual sedang berjalan (spinner di tombol, bukan full-screen). */
+  const [checking, setChecking] = useState(false)
+  /** Polling otomatis berhenti (status final / cap tercapai). */
+  const [pollStopped, setPollStopped] = useState(false)
+  const [lastCheckedAt, setLastCheckedAt] = useState<Date | null>(null)
+  const pollCount = useRef(0)
+  const [pollIntervalMs, setPollIntervalMs] = useState(POLL_BASE_MS)
 
+  /**
+   * Satu kali baca status terverifikasi dari backend — HANYA baca, tidak
+   * mengubah alur pembayaran. Dipakai verifikasi awal, polling, dan cek
+   * manual. Fail-closed: tanpa konfirmasi backend → "unverified".
+   */
   const verify = useCallback(async () => {
-    setVerifying(true)
     try {
-      const target = resolveVerifyTarget(params)
+      const target = verifyTarget
       if (!target) {
         // Fail-closed: tanpa identifier, klaim "sukses" dari query param
         // DANA tidak boleh ditampilkan. "failed" dari DANA sendiri boleh
@@ -135,13 +158,60 @@ export default function PaymentFinishScreen() {
       // fail-closed: jangan tampilkan sukses.
       setFinalStatus("unverified")
     } finally {
-      setVerifying(false)
+      setLastCheckedAt(new Date())
     }
-  }, [params, provisional])
+  }, [verifyTarget, provisional])
 
   useEffect(() => {
-    void verify()
+    let alive = true
+    setVerifying(true)
+    void verify().finally(() => {
+      if (alive) setVerifying(false)
+    })
+    return () => {
+      alive = false
+    }
   }, [verify])
+
+  // UX-FDB-002(a): polling hanya saat status pending; berhenti otomatis saat
+  // status final (success/failed/unverified — enabled=false) atau cap
+  // tercapai. usePolling menangani jitter, backpressure 429, dan
+  // pause saat app background/offline.
+  usePolling(
+    async () => {
+      if (pollCount.current >= MAX_POLLS) {
+        setPollStopped(true)
+        return
+      }
+      pollCount.current += 1
+      // Backoff linear ala use-dana-intent (BFI-085).
+      setPollIntervalMs(POLL_BASE_MS * (pollCount.current + 1))
+      await verify()
+    },
+    pollIntervalMs,
+    finalStatus === "pending" && !pollStopped,
+  )
+
+  /** UX-FDB-002(b): cek status manual — me-reset siklus polling otomatis. */
+  const handleManualCheck = useCallback(() => {
+    if (checking) return
+    setChecking(true)
+    pollCount.current = 0
+    setPollIntervalMs(POLL_BASE_MS)
+    setPollStopped(false)
+    void verify().finally(() => setChecking(false))
+  }, [checking, verify])
+
+  /** UX-FDB-002(c): retry yang jelas saat failed — kembali ke detail order
+   *  (di sana pengguna bisa memulai pembayaran ulang); tanpa orderId yang
+   *  bisa diverifikasi → daftar transaksi. */
+  const handleRetryPay = useCallback(() => {
+    if (verifyTarget?.kind === "order") {
+      router.replace(ROUTES.orderDetail(verifyTarget.id))
+    } else {
+      router.replace(ROUTES.transactions)
+    }
+  }, [verifyTarget])
 
   const status = finalStatus ?? provisional
   const copy = COPY[status]
@@ -150,6 +220,10 @@ export default function PaymentFinishScreen() {
     status === "success" ? CheckCircle : status === "failed" ? XCircle : Clock
   const tone =
     status === "success" ? "success" : status === "failed" ? "danger" : "warning"
+
+  const lastCheckedLabel = lastCheckedAt
+    ? lastCheckedAt.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })
+    : null
 
   return (
     <Screen>
@@ -181,9 +255,56 @@ export default function PaymentFinishScreen() {
             <Text variant="body" tone="secondary" style={{ textAlign: "center" }}>
               {copy.subtitle}
             </Text>
-            <View style={{ marginTop: 16, width: "100%", maxWidth: 320, gap: 12 }}>
+            {/* UX-FDB-002(a): status pending tidak lagi statis — indikator
+                pengecekan otomatis + waktu cek terakhir. */}
+            {status === "pending" ? (
+              <View style={{ alignItems: "center", gap: 6 }}>
+                {!pollStopped ? (
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                    <ActivityIndicator size="small" />
+                    <Text variant="caption" tone="secondary">
+                      Memeriksa status otomatis…
+                    </Text>
+                  </View>
+                ) : (
+                  <Text variant="caption" tone="secondary" style={{ textAlign: "center" }}>
+                    Pengecekan otomatis berhenti — tekan tombol di bawah untuk
+                    memeriksa lagi.
+                  </Text>
+                )}
+                {lastCheckedLabel ? (
+                  <Text variant="caption" tone="secondary">
+                    Terakhir dicek pukul {lastCheckedLabel}
+                  </Text>
+                ) : null}
+              </View>
+            ) : null}
+            <View style={{ marginTop: 8, width: "100%", maxWidth: 320, gap: 12 }}>
+              {/* UX-FDB-002(b): cek status manual saat pending. */}
+              {status === "pending" ? (
+                <Button
+                  variant="secondary"
+                  leftIcon={ArrowClockwise}
+                  loading={checking}
+                  disabled={checking}
+                  onPress={handleManualCheck}
+                >
+                  Cek status sekarang
+                </Button>
+              ) : null}
+              {/* UX-FDB-002(c): aksi retry yang jelas saat failed. */}
+              {status === "failed" ? (
+                <Button variant="secondary" onPress={handleRetryPay}>
+                  Coba bayar lagi
+                </Button>
+              ) : null}
               {status === "unverified" ? (
-                <Button variant="secondary" onPress={() => void verify()}>
+                <Button
+                  variant="secondary"
+                  loading={checking}
+                  disabled={checking}
+                  onPress={handleManualCheck}
+                >
                   Coba verifikasi lagi
                 </Button>
               ) : null}

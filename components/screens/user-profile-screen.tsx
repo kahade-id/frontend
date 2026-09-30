@@ -279,6 +279,8 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
   const [questions, setQuestions] = useState<QuestionItem[]>([])
   const [upvotingId, setUpvotingId] = useState<string | null>(null)
   const [questionsLoading, setQuestionsLoading] = useState(false)
+  /** UX-FDB-008: failure ≠ empty — kegagalan muat dibedakan dari daftar kosong. */
+  const [questionsError, setQuestionsError] = useState<string | null>(null)
   const [askOpen, setAskOpen] = useState(false)
   const [askText, setAskText] = useState("")
   const [asking, setAsking] = useState(false)
@@ -327,6 +329,8 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
   // Ratings / Ulasan state
   const [ratings, setRatings] = useState<Rating[]>([])
   const [ratingsLoading, setRatingsLoading] = useState(false)
+  /** UX-FDB-008: failure ≠ empty — kegagalan muat dibedakan dari daftar kosong. */
+  const [ratingsError, setRatingsError] = useState<string | null>(null)
   const [ratingFilter, setRatingFilter] = useState<PublicRatingFilter>("all")
   /** Item 70 (2026-09-28): urutan ulasan — Terbaru (createdAt desc) / Rating tertinggi. */
   const [ratingSort, setRatingSort] = useState<"newest" | "top">("newest")
@@ -361,6 +365,8 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
     selectTab(sessionProfileTab ?? "content")
     setQuestions([])
     setRatings([])
+    setQuestionsError(null)
+    setRatingsError(null)
     setRatingFilter("all")
     setRatingSort("newest")
     setBioExpanded(false)
@@ -384,6 +390,8 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
     async (targetName: string) => {
       setQuestionsLoading(true)
       setRatingsLoading(true)
+      setQuestionsError(null)
+      setRatingsError(null)
 
       fetchShowcaseTab(targetName)
 
@@ -393,7 +401,11 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
           const { items } = readQuestionList(res)
           setQuestions(items)
         })
-        .catch(() => setQuestions([]))
+        .catch((err: unknown) => {
+          // UX-FDB-008: jangan samarkan kegagalan sebagai empty state.
+          setQuestions([])
+          setQuestionsError(userMessage(err))
+        })
         .finally(() => setQuestionsLoading(false))
 
       void api.ratings
@@ -406,11 +418,20 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
           const { items } = readMyRatings(res)
           setRatings(items)
         })
-        .catch(() => setRatings([]))
+        .catch((err: unknown) => {
+          // UX-FDB-008: jangan samarkan kegagalan sebagai empty state.
+          setRatings([])
+          setRatingsError(userMessage(err))
+        })
         .finally(() => setRatingsLoading(false))
     },
     [ratingFilter, fetchShowcaseTab],
   )
+
+  /** UX-FDB-008: muat ulang tab pertanyaan/ulasan setelah kegagalan. */
+  const retryTabContents = useCallback(() => {
+    if (handle) void fetchTabContents(handle)
+  }, [handle, fetchTabContents])
 
   /**
    * `opts.silent` — perbaikan cacat yang terbukti: tarik-untuk-menyegarkan
@@ -1397,6 +1418,14 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
 
                 {questionsLoading ? (
                   <ListLoading />
+                ) : questionsError ? (
+                  /* UX-FDB-008: kegagalan muat ≠ "belum ada pertanyaan". */
+                  <ErrorState
+                    compact
+                    title={translate("Gagal memuat pertanyaan")}
+                    description={questionsError}
+                    onRetry={retryTabContents}
+                  />
                 ) : questions.length === 0 ? (
                   <EmptyState
                     icon={ChatCircleDots}
@@ -1547,6 +1576,8 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
               <ProfileRatingsTab
                 ratings={ratings}
                 loading={ratingsLoading}
+                error={ratingsError}
+                onRetry={retryTabContents}
                 filter={ratingFilter}
                 onFilterChange={setRatingFilter}
                 sort={ratingSort}
