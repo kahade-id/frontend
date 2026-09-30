@@ -557,7 +557,25 @@ export default function LoginScreen() {
               ) : null}
             </VStack>
 
+            {/* FRM-006: error diletakkan di atas tombol (di bawah field), bukan di
+                bawahnya — konsisten dengan layar auth lain. */}
+            {formError ? (
+              <Alert
+                tone="danger"
+                title="Gagal masuk"
+                onDismiss={() => setFormError(null)}
+              >
+                {formError}
+              </Alert>
+            ) : null}
+
             {/* Submit button */}
+            {/* FRM-005: jelaskan kenapa tombol mati saat captcha belum selesai. */}
+            {challenge !== null && captchaAnswer === null ? (
+              <Text variant="caption" tone="secondary" className="text-center">
+                Selesaikan verifikasi di atas untuk melanjutkan.
+              </Text>
+            ) : null}
             <Button
               onPress={() => void handleLogin()}
               loading={submitting}
@@ -573,17 +591,6 @@ export default function LoginScreen() {
             <Text variant="caption" tone="secondary" className="text-center text-pretty">
               Demi keamanan, kami mencatat lokasi saat Anda masuk.
             </Text>
-
-            {/* Error alert */}
-            {formError ? (
-              <Alert
-                tone="danger"
-                title="Gagal masuk"
-                onDismiss={() => setFormError(null)}
-              >
-                {formError}
-              </Alert>
-            ) : null}
 
             {/*
              * FE-IMP-3 #114 — setelah 2 kegagalan, tampilkan "Lupa kata
