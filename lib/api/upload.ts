@@ -270,6 +270,7 @@ export type DirectVideoUpload = {
 /** Copy Indonesia per kode error upload video backend (kontrak #1). */
 const VIDEO_UPLOAD_ERROR_COPY: Record<string, string> = {
   FILE_TOO_LARGE: "Video terlalu besar. Pilih video yang lebih kecil lalu coba lagi.",
+  VIDEO_TOO_LARGE: "Video terlalu besar (maksimal 100 MB). Pilih video yang lebih kecil lalu coba lagi.",
   MIME_TYPE_MISMATCH: "Format video tidak didukung. Gunakan MP4, MOV, atau WebM.",
   VIDEO_TOO_LONG: "Durasi video melebihi batas yang diizinkan. Pilih video yang lebih pendek.",
   VIDEO_UNPROCESSABLE: "Video tidak dapat diproses. Coba dengan video lain.",
@@ -301,6 +302,33 @@ function videoUploadError(status: number, bodyText: string): ApiError {
     message: copy ?? `Unggah video gagal (HTTP ${status}). Coba lagi.`,
     path: "/v1/upload/direct",
   })
+}
+
+/**
+ * RV-001 (re-verifikasi upload/media, 2026-10-01): pemetaan ulang kode error
+ * backend → copy Indonesia untuk jalur CHUNKED. `init`/`complete` lewat
+ * `http.post` — error-nya dinormalisasi `toApiError` (400 → BAD_REQUEST,
+ * backendCode tersimpan terpisah), sehingga `userMessage()` fail-closed ke
+ * copy generik "Permintaan tidak valid." Padahal backend mengirim kode yang
+ * sama persis dengan jalur direct (VIDEO_TOO_LARGE dst., UMD-002) — tanamkan
+ * kembali copy actionable-nya agar UX konsisten antar jalur.
+ */
+function remapChunkedUploadError(err: unknown, path: string): never {
+  if (err instanceof ApiError) {
+    const copy = err.backendCode ? VIDEO_UPLOAD_ERROR_COPY[err.backendCode] : undefined
+    if (copy) {
+      throw new ApiError({
+        code: err.code,
+        status: err.status,
+        backendCode: err.backendCode,
+        // Copy dikarang klien (Indonesia) → userMessage() tampil apa adanya.
+        message: copy,
+        method: err.method,
+        path,
+      })
+    }
+  }
+  throw err
 }
 
 function parseVideoUploadObject(body: Record<string, unknown>): DirectVideoUpload {
@@ -346,9 +374,11 @@ function parseVideoUploadResponse(bodyText: string): DirectVideoUpload {
  * Auth: Bearer token dari sesi (satu kali refresh-and-retry bila 401,
  * selaras perilaku client.ts).
  *
- * Error backend (FILE_TOO_LARGE, MIME_TYPE_MISMATCH, VIDEO_TOO_LONG,
- * VIDEO_UNPROCESSABLE, UPLOAD_FAILED) dipetakan ke pesan Indonesia yang
- * bisa ditindaklanjuti (lihat VIDEO_UPLOAD_ERROR_COPY).
+ * Error backend (FILE_TOO_LARGE, VIDEO_TOO_LARGE, MIME_TYPE_MISMATCH,
+ * VIDEO_TOO_LONG, VIDEO_UNPROCESSABLE, UPLOAD_FAILED) dipetakan ke pesan
+ * Indonesia yang bisa ditindaklanjuti (lihat VIDEO_UPLOAD_ERROR_COPY);
+ * untuk jalur chunked, `remapChunkedUploadError` menerapkan pemetaan yang
+ * sama pada error init/complete (RV-001).
  */
 /**
  * NP-006 (audit performa): upload besar single-attempt — putus di tengah =
@@ -812,17 +842,24 @@ export async function uploadChunkedVideo(
   const isWeb = Platform.OS === "web"
 
   // 1. init sesi (validasi purpose/batas/MIME gagal-cepat di server)
-  const initRaw = await http.post<ChunkedInitResponse, Record<string, unknown>>(
-    "/v1/upload/chunked/init",
-    {
-      purpose: directOpts.purpose ?? "SHOWCASE_VIDEO",
-      fileName: asset.name,
-      mimeType: asset.mimeType,
-      totalSize: totalBytes,
-      chunkSize,
-    },
-    { auth: "required", retry: 1, signal },
-  )
+  let initRaw: ChunkedInitResponse
+  try {
+    initRaw = await http.post<ChunkedInitResponse, Record<string, unknown>>(
+      "/v1/upload/chunked/init",
+      {
+        purpose: directOpts.purpose ?? "SHOWCASE_VIDEO",
+        fileName: asset.name,
+        mimeType: asset.mimeType,
+        totalSize: totalBytes,
+        chunkSize,
+      },
+      { auth: "required", retry: 1, signal },
+    )
+  } catch (err) {
+    // RV-001: petakan VIDEO_TOO_LARGE/FILE_TOO_LARGE/MIME_TYPE_MISMATCH dari
+    // init ke copy Indonesia (jangan "Permintaan tidak valid.").
+    remapChunkedUploadError(err, "/v1/upload/chunked/init")
+  }
   const session = parseChunkSession(initRaw, "init upload")
   const { sessionId, chunkSize: serverChunkSize, totalChunks, totalSize } = session
   const basePath = `/v1/upload/chunked/${seg(sessionId)}`
@@ -935,12 +972,19 @@ export async function uploadChunkedVideo(
     // SAMA (validasi magic-byte, thumbnail ffmpeg). Timeout adaptif mengikuti
     // pola uploadDirectVideo (pemrosesan video butuh waktu).
     const completeTimeoutMs = Math.min(1_800_000, Math.max(600_000, 120_000 + totalSize / 100))
-    const completeRaw = await http.post<unknown, undefined>(`${basePath}/complete`, undefined, {
-      auth: "required",
-      retry: 0,
-      signal,
-      timeoutMs: completeTimeoutMs,
-    })
+    let completeRaw: unknown
+    try {
+      completeRaw = await http.post<unknown, undefined>(`${basePath}/complete`, undefined, {
+        auth: "required",
+        retry: 0,
+        signal,
+        timeoutMs: completeTimeoutMs,
+      })
+    } catch (err) {
+      // RV-001: complete menjalankan pipeline validasi yang sama dengan direct
+      // (magic-byte, durasi, thumbnail) — petakan ulang kode backendnya juga.
+      remapChunkedUploadError(err, `${basePath}/complete`)
+    }
     const result = parseVideoUploadObject(
       (completeRaw ?? {}) as Record<string, unknown>,
     )
