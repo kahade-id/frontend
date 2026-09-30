@@ -35,16 +35,52 @@ export type MutualResolutionProposeBody = MutualResolutionProposeDto
 
 export type MutualResolutionRespondBody = MutualResolutionRespondDto
 
-/** Bukti sengketa — UNVERIFIED. */
+/**
+ * Bukti sengketa — SELARAS dengan `listEvidence` backend (BFI-129):
+ * backend memetakan `evidence.fileUrls` (String[], Prisma) menjadi signed URL
+ * via `dropFailedUrls`, plus `fileTypes` (label "image"|"document"|
+ * "screenshot") — TIDAK ADA kunci `url`/`fileKey`/`fileType` tunggal.
+ * Field lama dipertahankan sebagai fallback runtime untuk cache pra-fix.
+ */
 export type DisputeEvidence = {
   id: string
+  /** Signed URL per file (sudah difilter dari yang gagal generate). */
+  fileUrls?: string[]
+  /** Label tipe per file, sejajar index `fileUrls`. */
+  fileTypes?: string[]
+  /** @deprecated bentuk lama — backend tidak pernah mengirimnya */
   url?: string
+  /** @deprecated bentuk lama — backend tidak pernah mengirimnya */
   fileKey?: string
+  /** @deprecated bentuk lama — backend tidak pernah mengirimnya */
   fileType?: string
   description?: string
   uploadedByMe?: boolean
   mine?: boolean
   createdAt: string
+}
+
+/**
+ * BFI-129: kembangkan satu entri bukti menjadi daftar file ter-render
+ * (url + label tipe per index). Fallback ke bentuk datar lama bila
+ * `fileUrls` tidak ada (cache pra-fix).
+ */
+export function expandEvidenceFiles(
+  e: DisputeEvidence,
+): Array<{ url: string; fileType: string }> {
+  const urls = Array.isArray(e.fileUrls) && e.fileUrls.length > 0
+    ? e.fileUrls
+    : (() => {
+        const legacy = e.url ?? e.fileKey
+        return typeof legacy === "string" && legacy ? [legacy] : []
+      })()
+  const types = Array.isArray(e.fileTypes) ? e.fileTypes : []
+  return urls
+    .filter((u): u is string => typeof u === "string" && u.length > 0)
+    .map((url, i) => ({
+      url,
+      fileType: typeof types[i] === "string" && types[i] ? types[i] : (e.fileType ?? ""),
+    }))
 }
 
 /** Lampiran pesan mediasi — bentuk Json backend {fileKey,fileName,fileType,fileSize}
@@ -74,7 +110,7 @@ export type DisputeMessage = {
   attachments?: DisputeMessageAttachment[]
 }
 
-/** Panggilan (record) — enum backend DisputeCallStatus. */
+/** Panggilan (record) — SELARAS enum backend DisputeCallStatus (6 nilai). */
 export type DisputeCall = {
   id: string
   status:
@@ -84,8 +120,6 @@ export type DisputeCall = {
     | "ENDED"
     | "REJECTED"
     | "EXPIRED"
-    | "MISSED"
-    | "CANCELLED"
     | string
   requesterId?: string
   requestedAt?: string
@@ -130,8 +164,14 @@ export type DisputeDecision = {
   decisionType: "FULL_BUYER" | "FULL_SELLER" | "SPLIT" | string
   buyerAmount?: number
   sellerAmount?: number
-  buyerPercent?: number
-  sellerPercent?: number
+  /**
+   * BFI-133: backend mengirim Decimal sebagai STRING ("50.00") — bukan
+   * `number`. `normalizeDisputeDecision` mengonversi via `toPercent`
+   * (0–100); konsumen yang membaca mentahan tanpa normalizer wajib memakai
+   * `toPercent`-like coercion, bukan aritmetika langsung.
+   */
+  buyerPercent?: number | string
+  sellerPercent?: number | string
   decisionNotes?: string
   decidedAt?: string
 }

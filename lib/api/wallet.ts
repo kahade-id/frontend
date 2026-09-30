@@ -59,10 +59,21 @@ export type MessageResult = { message: string }
 // Tipe response — UNVERIFIED
 // ------------------------------------------------------------------
 
-/** Wallet user — subset yang dipakai UI saldo + status. */
+/**
+ * Wallet user — subset yang dipakai UI saldo + status.
+ *
+ * BFI-130 (audit integrasi 2026-09-30): tipe ini JUJUR terhadap wire backend
+ * (`WalletSummary` di wallet.service.ts):
+ *   - `id` OPSIONAL — backend tidak mengirimnya; normalizer default `""`.
+ *   - `balance` DITURUNKAN normalizer dari `totalBalance` backend (bukan
+ *     field wire); normalizer melempar PARSE bila tak bisa diturunkan —
+ *     jadi field ini tetap wajib di output ternormalisasi.
+ */
 export type Wallet = {
-  id: string
+  id?: string
   balance: number
+  /** Saldo total dari backend — sumber `balance` (integer rupiah). */
+  totalBalance?: number
   currency?: string
   status?: "ACTIVE" | "SUSPENDED" | "FROZEN" | (string & {})
   /** Saldo tertahan (escrow order aktif) */
@@ -73,6 +84,14 @@ export type Wallet = {
   availableBalance?: number
   /** Apakah user sudah punya PIN wallet (dari backend GET /v1/wallet) */
   hasPin?: boolean
+  /** BFI-130: wallet terkunci (field aditif backend). */
+  isLocked?: boolean
+  /** BFI-130: kode i18n alasan penguncian (aditif backend). */
+  lockReasonCode?: string | null
+  /** BFI-130: limit bebas-KYC (aditif backend, rupiah). */
+  kycFreeLimit?: number
+  /** BFI-130: rincian escrow per order (aditif backend, read-only). */
+  escrowBreakdown?: Array<{ orderId: string; amount: number }>
   /**
    * FE-IMP-4 item 13: pemakaian limit harian dari server — dipakai untuk
    * menampilkan "sisa limit tarik hari ini". Display-only: klien TIDAK

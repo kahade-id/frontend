@@ -10,7 +10,7 @@ import { router } from "expo-router"
 import { View } from "react-native"
 import { Star } from "phosphor-react-native"
 
-import type { PublicRatingFilter, Rating } from "@/lib/api/ratings"
+import { firstRatingReply, type PublicRatingFilter, type Rating } from "@/lib/api/ratings"
 import { ROUTES } from "@/lib/routes"
 
 import { Button } from "@/components/ui/button"
@@ -150,17 +150,19 @@ export function ProfileRatingsTab({
               reviewer={reviewer}
               date={r.createdAt}
               orderId={r.orderId}
-              reply={
-                r.reply
+              reply={(() => {
+                // BFI-128: baca replies[0] (bentuk backend), bukan `r.reply` datar.
+                const item = firstRatingReply(r)
+                return item
                   ? {
-                      id: `reply-${r.id}`,
-                      content: r.reply,
+                      id: item.id || `reply-${r.id}`,
+                      content: item.content,
                       by: { name: `@${handle}` },
                       role: "seller",
-                      date: r.createdAt,
+                      date: item.createdAt ?? r.createdAt,
                     }
                   : undefined
-              }
+              })()}
             />
             )
           })}

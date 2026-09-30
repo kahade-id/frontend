@@ -30,15 +30,35 @@ export function normalizeWallet(raw: unknown): Wallet {
   // `normalizeOrder`) — dulu `...wallet` menyebarkan field asing/salah tipe ke
   // state uang, inkonsisten dengan orders yang membuangnya.
   const idRaw = wallet.id ?? wallet.walletId
+  // BFI-130: teruskan field aditif backend (whitelist — bukan spread liar).
+  const escrowBreakdownRaw = wallet.escrowBreakdown
+  const escrowBreakdown = Array.isArray(escrowBreakdownRaw)
+    ? escrowBreakdownRaw
+        .map((entry) => {
+          const rec = (entry ?? {}) as Record<string, unknown>
+          const amount = moneyNumber(rec.amount)
+          const orderId = typeof rec.orderId === "string" ? rec.orderId : undefined
+          return orderId && amount !== undefined ? { orderId, amount } : undefined
+        })
+        .filter((e): e is { orderId: string; amount: number } => e !== undefined)
+    : undefined
+  const lockReasonCode = wallet.lockReasonCode
   return {
     id: typeof idRaw === "string" ? idRaw : typeof idRaw === "number" ? String(idRaw) : "",
     balance: derivedBalance,
+    // BFI-130: `totalBalance` = sumber `balance` — diekspos agar konsumen
+    // bisa membaca nilai wire asli tanpa menebak derivasi.
+    totalBalance: moneyNumber(wallet.totalBalance ?? wallet.total_balance),
     currency: typeof wallet.currency === "string" ? wallet.currency : undefined,
     status: (wallet.status ?? undefined) as Wallet["status"],
     availableBalance: available ?? (held === undefined ? undefined : derivedBalance - held),
     holdBalance: held,
     escrowBalance: escrow,
     hasPin: typeof wallet.hasPin === "boolean" ? wallet.hasPin : undefined,
+    isLocked: typeof wallet.isLocked === "boolean" ? wallet.isLocked : undefined,
+    lockReasonCode: typeof lockReasonCode === "string" ? lockReasonCode : undefined,
+    kycFreeLimit: moneyNumber(wallet.kycFreeLimit ?? wallet.kyc_free_limit),
+    escrowBreakdown,
     updatedAt: typeof wallet.updatedAt === "string" ? wallet.updatedAt : undefined,
     // FE-IMP-4 item 13: limit harian dari server (display-only "sisa limit").
     todayTopupAmount: moneyNumber(wallet.todayTopupAmount ?? wallet.today_topup_amount),

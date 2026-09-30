@@ -221,11 +221,13 @@ export const ORDER_STATUS_FILTERS = [
   "COMPLETED",
   "DISPUTED",
   "CANCELLED",
-  // M-53 (audit end-to-end 2026-09-24, issue #77): `REFUNDED`/`EXPIRED` ADA di
-  // `OrderStatusFilter` dan enum backend — dulu tidak punya chip, transaksi
-  // yang direfund/kedaluwarsa tidak bisa difilter.
-  "REFUNDED",
-  "EXPIRED",
+  // BFI-126 (audit integrasi 2026-09-30): `REFUNDED`/`EXPIRED` DIHAPUS dari
+  // filter. Komentar lama M-53 SALAH mengklaim keduanya "ADA di
+  // OrderStatusFilter dan enum backend" — enum backend `OrderStatus`
+  // (schema.prisma) TIDAK mengenal keduanya, sehingga chip "Refund"/
+  // "Kedaluwarsa" mengirim `GET /v1/orders?status=REFUNDED` → 400
+  // `Invalid order status filter`. REFUNDED/EXPIRED tetap ada di
+  // LEGACY_ORDER_STATUSES (toleransi TAMPILAN data cache lama), bukan filter.
 ] as const satisfies readonly OrderStatus[]
 
 /**
@@ -256,6 +258,11 @@ export const LEGACY_ORDER_STATUSES = [
   "EXPIRED",
 ] as const satisfies readonly OrderStatus[]
 
+/**
+ * Status yang BOLEH dipakai sebagai filter `GET /v1/orders?status=` — hanya
+ * enum backend (7 nilai) + kunci magis `ACTIVE`; TANPA alias lama dan tanpa
+ * `REFUNDED`/`EXPIRED` (BFI-126: backend melempar 400 untuk keduanya).
+ */
 export type OrderStatusFilter =
   | "ACTIVE"
   | "WAITING_CONFIRMATION"
@@ -265,8 +272,6 @@ export type OrderStatusFilter =
   | "COMPLETED"
   | "CANCELLED"
   | "DISPUTED"
-  | "REFUNDED"
-  | "EXPIRED"
   | (string & {})
 
 export type OrderParty = {
@@ -371,6 +376,14 @@ export type Order = {
    */
   rated?: boolean
   isRated?: boolean
+  /**
+   * BFI-140 (audit integrasi 2026-09-30): alasan & catatan pembatalan —
+   * DIKIRIM backend hanya saat `status === CANCELLED` (list: `cancelReason`;
+   * detail: `cancelReason` + `cancelNote`); null/undefined = tidak dibatalkan
+   * atau alasan tidak dicatat. `normalizeOrder` mengangkat keduanya.
+   */
+  cancelReason?: string | null
+  cancelNote?: string | null
   createdAt: string
   updatedAt?: string
 }
@@ -514,6 +527,11 @@ export function normalizeOrder(raw: Order & Record<string, unknown>): Order {
     // (boolean strict) — guard rating ganda di layar bergantung padanya.
     rated: pickBoolean(record, ["rated", "is_rated", "alreadyRated", "already_rated"]) ?? undefined,
     isRated: pickBoolean(record, ["isRated", "is_rated"]) ?? undefined,
+    // BFI-140: alasan & catatan pembatalan — hanya dikirim backend saat
+    // CANCELLED; `null` = dibatalkan tanpa alasan tercatat, `undefined` =
+    // field tidak ada (bukan order yang dibatalkan / data lama).
+    cancelReason: optionalText(record.cancelReason ?? record.cancel_reason),
+    cancelNote: optionalText(record.cancelNote ?? record.cancel_note),
     createdAt: typeof record.createdAt === "string" ? record.createdAt : "",
     updatedAt: typeof record.updatedAt === "string" ? record.updatedAt : undefined,
   }

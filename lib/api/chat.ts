@@ -22,6 +22,20 @@ import type { SealTier } from "@/components/ui/verified-seal"
 
 export const CHAT_PAGE_SIZE = 30
 
+/** Bentuk `otherUser` backend — SELARAS dengan `chat.service.ts` (list + getRoom). */
+export type ChatRoomOtherUser = {
+  userId: string
+  fullName?: string | null
+  username?: string | null
+  avatarUrl?: string | null
+  /** R1 (audit 2026-09-26): tier seal lawan bicara. */
+  sealTier?: SealTier | null
+  /** Status online lawan bicara (dihormati pengaturan privasinya di server). */
+  isOnline?: boolean
+  /** Kapan terakhir terlihat (ISO); null bila tidak diketahui/disembunyikan. */
+  lastSeenAt?: string | null
+}
+
 export type ChatRoom = {
   id: string
   counterpart?: {
@@ -33,6 +47,14 @@ export type ChatRoom = {
     /** R1 (audit 2026-09-26): tier seal lawan bicara dari GET /v1/chat/rooms (otherUser.sealTier). */
     sealTier?: SealTier | null
   }
+  /**
+   * BFI-127/BFI-137 (audit integrasi 2026-09-30): backend mengirim lawan
+   * bicara 1:1 sebagai `otherUser` (BERSARANG, bukan top-level) di list maupun
+   * getRoom — `normalizeChatRoom` mengangkat `isOnline`/`lastSeenAt` dari sini
+   * ke top-level `ChatRoom` (lihat field di bawah). `counterpart` tetap dipakai
+   * kompatibilitas bentuk lama.
+   */
+  otherUser?: ChatRoomOtherUser | null
   orderId?: string | null
   lastMessage?: ChatMessage | null
   unreadCount: number
@@ -49,8 +71,14 @@ export type ChatRoom = {
   isMuted?: boolean
   /** Mute sementara (jam) — undefined = mute permanen. */
   mutedUntil?: string | null
-  /** Status online lawan bicara (GET /rooms sudah menyertakan). */
+  /**
+   * Status online lawan bicara — DIANGKAT `normalizeChatRoom` dari
+   * `otherUser.isOnline` (BFI-127). Backend TIDAK PERNAH mengirimnya
+   * top-level (komentar lama yang mengklaim "GET /rooms sudah menyertakan"
+   * salah); layar daftar chat membaca field ini.
+   */
   isOnline?: boolean
+  /** Kapan lawan bicara terakhir terlihat — diangkat dari `otherUser` (BFI-127). */
   lastSeenAt?: string | null
 }
 
@@ -73,8 +101,47 @@ export type ChatMessage = {
     messageType?: string
     isDeleted?: boolean
     senderName?: string | null
+    /** BFI-136: userId pengirim pesan yang dikutip (`replyTo.sender.userId`). */
+    senderId?: string | null
+    /** BFI-136: nama file lampiran pertama pesan yang dikutip. */
+    fileName?: string | null
   } | null
   createdAt: string
+  /** BFI-136: kapan pesan dibuat/diubah menurut server (`serializeMessage`). */
+  updatedAt?: string
+  /** BFI-136: id room pemilik pesan (dari `serializeMessage.roomId`). */
+  roomId?: string
+  /**
+   * BFI-136: objek pengirim dari backend
+   * (`{ id, userId, fullName, avatarUrl }`) — sebelumnya hanya `senderId`
+   * yang diketik; info lain terbuang dari tipe walau ada di runtime.
+   */
+  sender?: {
+    id?: string | null
+    userId?: string | null
+    fullName?: string | null
+    avatarUrl?: string | null
+  } | null
+  /** BFI-136: kapan pesan dihapus (ISO); null/undefined = tidak dihapus. */
+  deletedAt?: string | null
+  /** BFI-136: kapan pesan dipin (ISO); terisi berarti sedang terpin. */
+  pinnedAt?: string | null
+  /** BFI-136: durasi pesan suara/video (detik). */
+  durationSeconds?: number | null
+  /** BFI-136: id pesan sumber bila pesan ini hasil forward. */
+  forwardedFromId?: string | null
+  /**
+   * BFI-136: info pesan sumber forward
+   * (`{ id, roomId, content, messageType, senderName, senderId }`).
+   */
+  forwardedFrom?: {
+    id: string
+    roomId?: string | null
+    content?: string | null
+    messageType?: string
+    senderName?: string | null
+    senderId?: string | null
+  } | null
   /** Terpin di room (backend membatasi jumlah per room). */
   isPinned?: boolean
   /** Pesan teks sudah diedit pengirimnya. */
@@ -247,18 +314,54 @@ function normalizeCounterpart(
 }
 
 function normalizeChatRoom(raw: ChatRoom & Record<string, unknown>): ChatRoom {
-  const other = raw.otherUser as (ChatRoom["counterpart"] & Record<string, unknown>) | undefined
+  // BFI-137: `otherUser` kini bertipe eksplisit (ChatRoomOtherUser) — tanpa
+  // `as`-cast yang menyembunyikan drift dari compiler. Bentuk lama
+  // (`counterpart` datar) tetap dibaca sebagai fallback.
+  const otherRaw = raw.otherUser as ChatRoomOtherUser | Record<string, unknown> | null | undefined
+  const other: ChatRoomOtherUser | undefined =
+    otherRaw && typeof otherRaw === "object"
+      ? {
+          userId:
+            typeof (otherRaw as Record<string, unknown>).userId === "string"
+              ? (otherRaw as { userId: string }).userId
+              : "",
+          fullName: typeof (otherRaw as Record<string, unknown>).fullName === "string"
+            ? (otherRaw as { fullName?: string }).fullName ?? null
+            : null,
+          username: typeof (otherRaw as Record<string, unknown>).username === "string"
+            ? (otherRaw as { username?: string }).username ?? null
+            : null,
+          avatarUrl: typeof (otherRaw as Record<string, unknown>).avatarUrl === "string"
+            ? (otherRaw as { avatarUrl?: string }).avatarUrl ?? null
+            : null,
+          sealTier: (otherRaw as ChatRoomOtherUser).sealTier ?? null,
+          isOnline: (otherRaw as ChatRoomOtherUser).isOnline,
+          lastSeenAt: (otherRaw as ChatRoomOtherUser).lastSeenAt ?? null,
+        }
+      : undefined
   const last = raw.lastMessage as (ChatMessage & Record<string, unknown>) | null | undefined
   // R1 (audit 2026-09-26): `otherUser` membawa sealTier lawan bicara, tapi
   // `counterpart` backend tidak — gabungkan agar header chat bisa render
   // <VerifiedSeal> tanpa N+1.
-  const sealTier = (other?.sealTier as SealTier | null | undefined)
+  const sealTier = other?.sealTier
     ?? (raw.counterpart as ChatRoom["counterpart"] | undefined)?.sealTier
     ?? null
+  // BFI-127: angkat isOnline/lastSeenAt dari otherUser — sebelumnya dibuang
+  // sehingga indikator online daftar chat tidak pernah menyala.
+  const isOnline = other?.isOnline ?? (typeof raw.isOnline === "boolean" ? raw.isOnline : undefined)
+  const lastSeenAt =
+    typeof other?.lastSeenAt === "string"
+      ? other.lastSeenAt
+      : typeof raw.lastSeenAt === "string"
+        ? raw.lastSeenAt
+        : undefined
   return {
     ...raw,
+    otherUser: other ?? raw.otherUser ?? null,
+    isOnline,
+    lastSeenAt,
     counterpart: normalizeCounterpart(
-      other as Record<string, unknown> | undefined,
+      other as unknown as Record<string, unknown> | undefined,
       raw.counterpart as Record<string, unknown> | undefined,
       sealTier,
     ),

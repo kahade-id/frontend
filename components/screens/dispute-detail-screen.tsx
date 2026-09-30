@@ -37,7 +37,7 @@ import { useLocalSearchParams } from "expo-router"
 import { api, createIdempotencyKey } from "@/lib/api"
 import { showMutationError } from "@/lib/mutation-toast"
 import type { Order } from "@/lib/api/orders"
-import { EVIDENCE_FILE_TYPES, type EvidenceFileType } from "@/lib/api/disputes"
+import { EVIDENCE_FILE_TYPES, expandEvidenceFiles, type EvidenceFileType } from "@/lib/api/disputes"
 import type {
   DisputeCall,
   DisputeDetail,
@@ -1042,22 +1042,35 @@ export default function DisputeDetailScreen() {
             : undefined
       const mine =
         e.mine ?? e.uploadedByMe ?? (uploadedBy != null && meId != null ? uploadedBy === meId : false)
+      // BFI-129: backend mengirim `fileUrls[]` (array signed URL) + label
+      // `fileTypes[]` — kembangkan SEMUA file (satu entri bisa multi-file).
       // R2 (audit ronde-2, butir #37): `fileKey` bisa berupa kunci objek S3
       // mentah yang tidak bisa dirender/diunduh langsung — jalur delivery-
       // proof sudah menyaringnya (isRenderableUrl), sengketa menyusul. URL
       // tidak renderable DIBUANG dari ubin, bukan tampil sebagai tautan rusak.
-      const url = e.url ?? e.fileKey ?? ""
-      if (url && !/^https?:\/\//i.test(url)) return []
-      return [
-        {
-          id: e.id,
-          url,
-          mimeType: e.fileType ?? "image/jpeg",
-          mine,
-          description: e.description,
-          uploadedAt: formatDateTime(e.createdAt),
-        },
-      ]
+      return expandEvidenceFiles(e).flatMap((file, idx) => {
+        const url = file.url
+        if (url && !/^https?:\/\//i.test(url)) return []
+        const type = file.fileType.toLowerCase()
+        const mimeType =
+          type === "image"
+            ? "image/jpeg"
+            : type === "document"
+              ? "application/pdf"
+              : type === "screenshot"
+                ? "image/png"
+                : (e.fileType ?? "image/jpeg")
+        return [
+          {
+            id: idx === 0 ? e.id : `${e.id}#${idx}`,
+            url,
+            mimeType,
+            mine,
+            description: idx === 0 ? e.description : undefined,
+            uploadedAt: formatDateTime(e.createdAt),
+          },
+        ]
+      })
     })
   }, [evidence, me?.id])
 
