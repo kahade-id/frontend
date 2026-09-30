@@ -291,6 +291,9 @@ export default function TransactionsScreen() {
     // mengurutkan ulang.
     {
       refreshOnFocus: true,
+      // NC-003 (audit performa ronde-3): status transaksi → jendela lebih
+      // pendek (10 dtk); mutasi order membatalkan prefix "order" di transport.
+      refreshOnFocusStaleMs: 10_000,
       enabled: hasSession,
       compare: byTimestampDesc<Order>((order) => order.createdAt),
       keepPreviousOnKeyChange: true,

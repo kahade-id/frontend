@@ -46,7 +46,8 @@ export default function DisputesScreen() {
     (page, signal) => api.disputes.listMyDisputes({ page, limit: PAGE_LIMIT }, signal),
     // R2 (audit ronde-2, butir #26): kembali dari detail sengketa (yang status
     // nya bisa berubah, mis. penyelesaian bersama diterima) menyegarkan daftar.
-    { refreshOnFocus: true },
+    // NC-003 (audit performa ronde-3): skip refetch fokus bila data <30 dtk.
+    { refreshOnFocus: true, refreshOnFocusStaleMs: 30_000 },
   )
 
   // PERF-FIX (TIM1-P1): renderItem stabil via useCallback — identitas tidak

@@ -89,6 +89,8 @@ export default function ReturnsScreen() {
       compare: byTimestampDesc<ReturnListItem>((r) => r.createdAt),
       keepPreviousOnKeyChange: true,
       refreshOnFocus: true,
+      // NC-003 (audit performa ronde-3): skip refetch fokus bila data <30 dtk.
+      refreshOnFocusStaleMs: 30_000,
     },
   )
 

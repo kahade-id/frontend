@@ -531,7 +531,9 @@ export default function OrderDetailScreen() {
     // U5-010: kembali dari layar topup (push di atas layar ini; sheet tetap
     // terbuka di belakang) → saldo disegarkan supaya banner "kurang RpY"
     // langsung mencerminkan topup yang baru selesai.
-    { refreshOnFocus: true },
+    // NC-003 (audit performa ronde-3): angka uang → jendela lebih pendek
+    // (10 dtk); topup membatalkan prefix "wallet" di transport.
+    { refreshOnFocus: true, refreshOnFocusStaleMs: 10_000 },
   )
   const walletBalance = walletQuery.data?.balance ?? null
   /**

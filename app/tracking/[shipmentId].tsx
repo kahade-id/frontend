@@ -37,13 +37,15 @@ export default function TrackingScreen() {
     `shipment:${String(shipmentId)}`,
     (signal) => api.courier.getShipment(String(shipmentId), signal),
     !!shipmentId,
-    { refreshOnFocus: true },
+    // NC-003 (audit performa ronde-3): skip refetch fokus bila data <30 dtk.
+    { refreshOnFocus: true, refreshOnFocusStaleMs: 30_000 },
   )
   const timelineQuery = useApiQuery<TrackingEvent[]>(
     `shipment-timeline:${String(shipmentId)}`,
     (signal) => api.courier.getTrackingTimeline(String(shipmentId), signal),
     !!shipmentId,
-    { refreshOnFocus: true },
+    // NC-003 (audit performa ronde-3): skip refetch fokus bila data <30 dtk.
+    { refreshOnFocus: true, refreshOnFocusStaleMs: 30_000 },
   )
   const shipment = shipmentQuery.data
   const events = timelineQuery.data ?? []
@@ -57,7 +59,8 @@ export default function TrackingScreen() {
     `tracking-order:${shipment?.orderId ?? "none"}`,
     (signal) => api.orders.getOrder(String(shipment?.orderId), signal),
     !!shipment?.orderId,
-    { refreshOnFocus: true },
+    // NC-003 (audit performa ronde-3): skip refetch fokus bila data <30 dtk.
+    { refreshOnFocus: true, refreshOnFocusStaleMs: 30_000 },
   )
   const trackedOrder = orderQuery.data
 

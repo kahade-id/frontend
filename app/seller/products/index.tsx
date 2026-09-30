@@ -83,7 +83,8 @@ export default function SellerProductsScreen() {
   const query = usePaginatedQuery<Product>(
     "my-products",
     (page, signal) => api.products.listMyProducts({ page, limit: 20 }, signal),
-    { refreshOnFocus: true },
+    // NC-003 (audit performa ronde-3): skip refetch fokus bila data <30 dtk.
+    { refreshOnFocus: true, refreshOnFocusStaleMs: 30_000 },
   )
   const lowStockQuery = useApiQuery<Product[]>("low-stock", (signal) => api.products.listLowStock(signal))
   const lowStock = lowStockQuery.data ?? []

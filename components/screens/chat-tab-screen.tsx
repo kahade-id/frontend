@@ -577,7 +577,12 @@ export default function ChatScreen() {
     // F-01 (audit): kembali dari ruang chat — unread/lastMessage di daftar
     // disegarkan diam-diam tanpa menunggu poll atau pull-to-refresh.
     // C-08 (audit): percakapan yang baru dibalas harus naik ke atas.
-    { refreshOnFocus: true, compare: byTimestampDesc<ChatRoom>((room) => room.updatedAt) },
+    // NC-003 (audit performa ronde-3): skip refetch fokus bila data <30 dtk.
+    {
+      refreshOnFocus: true,
+      refreshOnFocusStaleMs: 30_000,
+      compare: byTimestampDesc<ChatRoom>((room) => room.updatedAt),
+    },
   )
   // B4 (fix 2026-09-26): daftar terarsip = QUERY TERPISAH ke ?archived=true.
   // Backend menyembunyikan room arsip di query utama secara server-side,
@@ -590,6 +595,8 @@ export default function ChatScreen() {
       api.chat.listChatRooms({ page, limit: CHAT_PAGE_SIZE, archived: true }, signal),
     {
       refreshOnFocus: true,
+      // NC-003 (audit performa ronde-3): skip refetch fokus bila data <30 dtk.
+      refreshOnFocusStaleMs: 30_000,
       compare: byTimestampDesc<ChatRoom>((room) => room.updatedAt),
       // Jangan tembak API sebelum tab arsip dibuka — saat `enabled` flip,
       // identitas `load` berubah sehingga effect hook memuat halaman pertama.

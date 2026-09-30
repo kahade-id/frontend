@@ -219,8 +219,11 @@ export default function WalletHistoryScreen() {
     // harus terlihat saat kembali ke riwayat tanpa pull-to-refresh.
     // C-08 (audit): urutan kronologis harus mengikuti server setelah data
     // berubah, bukan posisi baris saat pertama dimuat.
+    // NC-003 (audit performa ronde-3): angka uang → jendela lebih pendek
+    // (10 dtk); mutasi uang membatalkan prefix "wallet" di transport.
     {
       refreshOnFocus: true,
+      refreshOnFocusStaleMs: 10_000,
       compare: byTimestampDesc<WalletTransaction>((tx) => tx.createdAt),
     },
   )

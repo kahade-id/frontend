@@ -84,6 +84,9 @@ export default function OrderLinksScreen() {
       // R2 (audit ronde-2, butir #27): status tautan (DITERIMA/KEDALUWARSA)
       // yang berubah saat pengguna berpindah layar terpantul saat kembali.
       refreshOnFocus: true,
+      // NC-003 (audit performa ronde-3): jangan tembak jaringan tiap
+      // bolak-balik layar bila data masih segar (<30 dtk).
+      refreshOnFocusStaleMs: 30_000,
     },
   )
   const items = query.data

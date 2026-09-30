@@ -78,7 +78,8 @@ export default function ReturnDetailScreen() {
     `return:${String(id)}`,
     (signal) => api.returns.getReturn(String(id), signal),
     !!id,
-    { refreshOnFocus: true },
+    // NC-003 (audit performa ronde-3): skip refetch fokus bila data <30 dtk.
+    { refreshOnFocus: true, refreshOnFocusStaleMs: 30_000 },
   )
   const detail = query.data
 

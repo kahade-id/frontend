@@ -169,6 +169,9 @@ export default function WalletScreen() {
   const hasSession = useHasSession()
   const balance = useApiQuery(queryKeys.wallet(), (signal) => api.wallet.getWallet(signal), hasSession, {
     refreshOnFocus: true,
+    // NC-003 (audit performa ronde-3): angka uang → jendela lebih pendek
+    // (10 dtk). Mutasi uang tetap membatalkan prefix "wallet" di transport.
+    refreshOnFocusStaleMs: 10_000,
   })
   const history = usePaginatedQuery<WalletTransaction>(
     "wallet-recent",
