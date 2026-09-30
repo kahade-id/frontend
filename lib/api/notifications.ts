@@ -66,12 +66,16 @@ export type AppNotification = {
 type NotificationPayload = Omit<AppNotification, "id"> & {
   id?: string
   notifId?: string
+  /** NCC-001: backend mengirim `refType`/`refId` (PublicNotification), bukan `referenceType`/`referenceId`. */
+  refType?: string | null
+  refId?: string | null
 }
 
 /**
  * Production API calls this field `notifId`; list keys and actions use `id`.
- * `actionUrl` dipertahankan agar layar detail bisa menaut ke entitas terkait
- * (backend tidak mengirim `referenceType`/`referenceId`).
+ * `actionUrl` dipertahankan agar layar detail bisa menaut ke entitas terkait.
+ * NCC-001: backend mengirim `refType`/`refId` (lihat PublicNotification backend);
+ * dibaca di sini agar `routeForNotificationReference` hidup kembali untuk item inbox.
  * CN-010: `type` dipertahankan eksplisit (bukan via ...raw) agar mapping ikon
  * tidak diam-diam kehilangan data bila backend mengubah bentuk payload.
  * CN-019: `referenceType`/`referenceId` juga dipertahankan eksplisit.
@@ -82,8 +86,17 @@ export function normalizeNotification(raw: NotificationPayload): AppNotification
     id: raw.id ?? raw.notifId ?? "",
     type: typeof raw.type === "string" ? raw.type : null,
     referenceType:
-      typeof raw.referenceType === "string" ? raw.referenceType : null,
-    referenceId: typeof raw.referenceId === "string" ? raw.referenceId : null,
+      typeof raw.referenceType === "string"
+        ? raw.referenceType
+        : typeof raw.refType === "string"
+          ? raw.refType
+          : null,
+    referenceId:
+      typeof raw.referenceId === "string"
+        ? raw.referenceId
+        : typeof raw.refId === "string"
+          ? raw.refId
+          : null,
     actionUrl: raw.actionUrl ?? null,
   }
 }

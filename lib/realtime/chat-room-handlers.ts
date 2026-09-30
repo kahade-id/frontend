@@ -15,10 +15,13 @@ import {
   CHAT_SOCKET_EVENTS,
   reconcileReactionViewer,
   type ChatMessageDeletedPayload,
+  type ChatMessagesExpiredPayload,
   type ChatPinPayload,
+  type ChatPollPayload,
   type ChatReactionPayload,
   type ChatReadPayload,
   type ChatTypingPayload,
+  type ChatViewOnceConsumedPayload,
 } from "./chat-events"
 
 export type ChatRoomRealtimeCallbacks = {
@@ -33,6 +36,14 @@ export type ChatRoomRealtimeCallbacks = {
   onRead?: (messageId: string | null) => void
   onTyping?: (isTyping: boolean) => void
   onPresence?: (isOnline: boolean) => void
+  /** NCC-006: polling dibuat/diubah/ditutup — pollId null bila tak terbaca. */
+  onPollChanged?: (pollId: string | null) => void
+  /** NCC-006: pesan sekali-lihat dikonsumsi — tandai sebagai sudah dibuka. */
+  onViewOnceConsumed?: (messageId: string) => void
+  /** NCC-006: pesan ephemeral kedaluwarsa — hapus dari thread. */
+  onMessagesExpired?: (messageIds: string[]) => void
+  /** NCC-006: room di-pin/unpin (antar perangkat) — sinkron daftar room. */
+  onRoomPinChanged?: (isPinned: boolean) => void
   /** Dipanggil setelah reconnect + join ulang: sinkronisasi cursor via REST. */
   onReconnect?: () => void
 }
@@ -122,6 +133,47 @@ export function createChatRoomHandlers(
     },
     [CHAT_SOCKET_EVENTS.USER_OFFLINE]: () => {
       callbacks().onPresence?.(false)
+    },
+    // NCC-006: 7 event backend yang sebelumnya tanpa handler di FE
+    // (cermin tabel di use-chat-room.ts — keduanya harus selaras).
+    [CHAT_SOCKET_EVENTS.POLL_CREATED]: (payload) => {
+      if (!sameRoom(payload) || !isRecord(payload)) return
+      const { pollId } = payload as Partial<ChatPollPayload>
+      callbacks().onPollChanged?.(typeof pollId === "string" && pollId ? pollId : null)
+    },
+    [CHAT_SOCKET_EVENTS.POLL_UPDATED]: (payload) => {
+      if (!sameRoom(payload) || !isRecord(payload)) return
+      const { pollId } = payload as Partial<ChatPollPayload>
+      callbacks().onPollChanged?.(typeof pollId === "string" && pollId ? pollId : null)
+    },
+    [CHAT_SOCKET_EVENTS.POLL_CLOSED]: (payload) => {
+      if (!sameRoom(payload) || !isRecord(payload)) return
+      const { pollId } = payload as Partial<ChatPollPayload>
+      callbacks().onPollChanged?.(typeof pollId === "string" && pollId ? pollId : null)
+    },
+    [CHAT_SOCKET_EVENTS.MESSAGE_VIEW_ONCE_CONSUMED]: (payload) => {
+      if (!sameRoom(payload) || !isRecord(payload)) return
+      const { messageId } = payload as Partial<ChatViewOnceConsumedPayload>
+      if (typeof messageId === "string" && messageId) {
+        callbacks().onViewOnceConsumed?.(messageId)
+      }
+    },
+    [CHAT_SOCKET_EVENTS.MESSAGES_EXPIRED]: (payload) => {
+      if (!sameRoom(payload) || !isRecord(payload)) return
+      const { messageIds } = payload as Partial<ChatMessagesExpiredPayload>
+      if (Array.isArray(messageIds)) {
+        callbacks().onMessagesExpired?.(
+          messageIds.filter((id): id is string => typeof id === "string" && id.length > 0),
+        )
+      }
+    },
+    [CHAT_SOCKET_EVENTS.ROOM_PINNED]: (payload) => {
+      if (!sameRoom(payload) || !isRecord(payload)) return
+      callbacks().onRoomPinChanged?.(true)
+    },
+    [CHAT_SOCKET_EVENTS.ROOM_UNPINNED]: (payload) => {
+      if (!sameRoom(payload) || !isRecord(payload)) return
+      callbacks().onRoomPinChanged?.(false)
     },
   }
 }
