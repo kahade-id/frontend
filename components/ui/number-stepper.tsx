@@ -162,6 +162,9 @@ export function NumberStepper({
       <PressableScale
         accessibilityRole="button"
         accessibilityLabel={dir === 1 ? "Tambah" : "Kurangi"}
+        // UX-TCH-014: kemampuan tahan-untuk-mengulang diumumkan ke
+        // screen reader (sebelumnya tanpa indikasi sama sekali).
+        accessibilityHint={dir === 1 ? "Tahan untuk menambah terus" : "Tahan untuk mengurangi terus"}
         disabled={!enabled}
         onPress={() => commit(value + dir * step)}
         onLongPress={() => startRepeat(dir)}

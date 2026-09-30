@@ -270,7 +270,8 @@ export const ShowcaseCommentRow = memo(function ShowcaseCommentRow({
             <PressableScale
               accessibilityRole="button"
               accessibilityLabel={translate("Balas komentar")}
-              containerClassName={cn("justify-center rounded-sm px-0 py-1", focusRing)}
+              // UX-TCH-017: target 44pt (min-h-11); sebelumnya ~30px.
+              containerClassName={cn("min-h-11 justify-center rounded-sm px-0 py-1", focusRing)}
               onPress={() => onReply(comment)}
             >
               <Text variant="caption" tone="secondary" weight={500}>
@@ -291,7 +292,8 @@ export const ShowcaseCommentRow = memo(function ShowcaseCommentRow({
                 : undefined
             }
             onPress={handleCommentLike}
-            containerClassName={cn("rounded-sm", focusRing)}
+            // UX-TCH-018: target 44pt (min-h-11); sebelumnya ~30px.
+            containerClassName={cn("min-h-11 justify-center rounded-sm", focusRing)}
             className="flex-row items-center gap-1 py-1"
           >
             <Icon

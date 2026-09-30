@@ -400,7 +400,8 @@ function ExpoVideoInner({
             setRetryKey((n) => n + 1)
             setFailed(false)
           }}
-          containerClassName="rounded-full bg-background px-4 py-2"
+          // UX-TCH-015: tinggi tombol ~38px → py-3 ≈ 46px (≥44pt).
+          containerClassName="rounded-full bg-background px-4 py-3"
         >
           <View className="flex-row items-center gap-1.5">
             <Icon icon={ArrowClockwise} size="sm" />
