@@ -79,6 +79,18 @@ export function Spin360Viewer({ frames, alt, className }: Spin360ViewerProps) {
       accessibilityRole="adjustable"
       accessibilityLabel={translate("Tampilan 360 derajat. Seret untuk memutar.")}
       accessibilityValue={{ text: translate("Frame {x} dari {y}", { x: safeIndex + 1, y: count }) }}
+      // UX-A11Y-008: role "adjustable" kini punya aksi nyata — sebelumnya
+      // hantu tanpa accessibilityActions (SR melihat kontrol yang tak bisa
+      // dioperasikan). increment/decrement = frame berikutnya/sebelumnya,
+      // paralel dengan tombol panah di bar kontrol.
+      accessibilityActions={[
+        { name: "increment", label: translate("Frame berikutnya") },
+        { name: "decrement", label: translate("Frame sebelumnya") },
+      ]}
+      onAccessibilityAction={(event) => {
+        if (event.nativeEvent.actionName === "increment") go(1)
+        else if (event.nativeEvent.actionName === "decrement") go(-1)
+      }}
     >
       <View {...pan.panHandlers}>
         {/*
