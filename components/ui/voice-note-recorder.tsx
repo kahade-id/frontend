@@ -33,6 +33,7 @@ import { Text } from "@/components/ui/text"
 import { useTheme } from "@/components/theme-provider"
 import { useReducedMotion } from "@/lib/use-reduced-motion"
 import { tokens } from "@/lib/tokens"
+import { translate, useLanguage } from "@/lib/i18n"
 import {
   formatVoiceNoteDuration,
   validateVoiceNoteFile,
@@ -72,6 +73,13 @@ export function VoiceNoteRecorder({
   const [playing, setPlaying] = useState(false)
   const [recordedUri, setRecordedUri] = useState<string | null>(null)
   const [sending, setSending] = useState(false)
+
+  // UX-A11Y-007: label aksesibilitas harus ikut ganti bahasa.
+  useLanguage()
+
+  // UX-A11Y-007: quantize pengumuman durasi ke 5 detik (pola UX-A11Y-001).
+  const SPOKEN_QUANTUM_MS = 5_000
+  const spokenDurationMs = Math.floor(durationMs / SPOKEN_QUANTUM_MS) * SPOKEN_QUANTUM_MS
 
   const recordingRef = useRef<Audio.Recording | null>(null)
   const soundRef = useRef<Audio.Sound | null>(null)
@@ -382,10 +390,20 @@ export function VoiceNoteRecorder({
         ) : null}
 
         {state === "recording" ? (
-          <View className="flex-row items-center gap-3">
+          // UX-A11Y-007: indikator + timer sebagai SATU elemen timer —
+          // label di-quantize 5 detik (pola UX-A11Y-001) agar live region
+          // "polite" mengumumkan progres tanpa spam tiap 250ms. Label di
+          // Animated.View DIHAPUS (tanpa `accessible` = kode mati).
+          <View
+            className="flex-row items-center gap-3"
+            accessible
+            accessibilityRole="timer"
+            accessibilityLiveRegion="polite"
+            accessibilityLabel={translate("Merekam {x}", {
+              x: formatVoiceNoteDuration(spokenDurationMs),
+            })}
+          >
             <Animated.View
-              // h-3.5/w-3.5/rounded-full inline: className di Animated.View
-              // diabaikan total di web (audit web WEB-010).
               style={{
                 width: 14,
                 height: 14,
@@ -394,7 +412,6 @@ export function VoiceNoteRecorder({
                 opacity: pulse,
                 transform: [{ scale: pulse }],
               }}
-              accessibilityLabel="Merekam"
             />
             <Text variant="h2" weight={600} tone="primary" className="tabular-nums">
               {formatVoiceNoteDuration(durationMs)}
