@@ -57,6 +57,10 @@ export function AvatarPreviewDialog({
               style={{ width: 160, height: 160 }}
               contentFit="cover"
               cachePolicy="memory-disk"
+              // UX-A11Y-014: tanpa `accessible` + role, expo-image
+              // mengabaikan label — SR melewati pratinjau tanpa menyebutnya.
+              accessible
+              accessibilityRole="image"
               accessibilityLabel={translate("Pratinjau foto profil baru")}
             />
           </View>
