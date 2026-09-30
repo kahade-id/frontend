@@ -13,7 +13,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { ApiError } from "@/lib/api/errors"
 import { http } from "@/lib/api/client"
 import { backpressureRemainingMs, clearBackpressure } from "@/lib/api/backpressure"
-import { invalidateQueryCache, queryCacheSize, writeQueryCache } from "@/lib/query-cache"
+import { invalidateQueryCache, queryCacheSize, readQueryCacheEntry, writeQueryCache } from "@/lib/query-cache"
 import {
   clearSession,
   getAccessToken,
@@ -285,17 +285,49 @@ describe("retry & timeout", () => {
 // ------------------------------------------------------------------
 
 describe("C-01: invalidasi cache setelah mutasi", () => {
-  it("mutasi dompet/order membatalkan SELURUH cache GET, apa pun kunci layarnya", async () => {
-    for (const path of ["/v1/wallet/topup", "/v1/wallet/withdraw", "/v1/wallet/transfer", "/v1/orders"]) {
-      installFetch({ refresh: ok({}), others: [ok({ id: "x" })] })
+  it("TR-002: mutasi uang membatalkan cache TERARAH per prefix, bukan seluruh cache", async () => {
+    const seed = () => {
+      invalidateQueryCache()
       writeQueryCache("wallet", { availableBalance: 1 })
       writeQueryCache("me", { username: "kahade" })
-      expect(queryCacheSize()).toBe(2)
-
-      await http.post(path, {}, { auth: "required" })
-
-      expect(queryCacheSize()).toBe(0)
+      writeQueryCache("order:abc", { id: "abc" })
+      writeQueryCache("orders:buyer:all", [])
+      writeQueryCache("transaction-templates", [])
+      writeQueryCache("chat-rooms", [])
+      expect(queryCacheSize()).toBe(6)
     }
+    const alive = (key: string) => readQueryCacheEntry(key) !== null
+
+    // Mutasi dompet → hanya prefix "wallet" yang dibatalkan.
+    seed()
+    installFetch({ refresh: ok({}), others: [ok({ id: "x" })] })
+    await http.post("/v1/wallet/topup", {}, { auth: "required" })
+    expect(alive("wallet")).toBe(false)
+    for (const key of ["me", "order:abc", "orders:buyer:all", "transaction-templates", "chat-rooms"])
+      expect(alive(key)).toBe(true)
+
+    // Mutasi order → prefix "order" + "transaction" (dompet/profil/chat tidak tersentuh).
+    seed()
+    installFetch({ refresh: ok({}), others: [ok({ id: "x" })] })
+    await http.post("/v1/orders/abc/payments", {}, { auth: "required" })
+    expect(alive("order:abc")).toBe(false)
+    expect(alive("orders:buyer:all")).toBe(false)
+    expect(alive("transaction-templates")).toBe(false)
+    for (const key of ["wallet", "me", "chat-rooms"]) expect(alive(key)).toBe(true)
+
+    // Resolusi bersama sengketa → prefix "dispute" + "wallet".
+    seed()
+    installFetch({ refresh: ok({}), others: [ok({ id: "x" })] })
+    await http.post("/v1/disputes/abc/mutual-resolution/respond", {}, { auth: "required" })
+    expect(alive("wallet")).toBe(false)
+    for (const key of ["me", "order:abc", "transaction-templates", "chat-rooms"])
+      expect(alive(key)).toBe(true)
+
+    // Pengecualian kalkulasi murni: calculate-fee tidak menyentuh cache sama sekali.
+    seed()
+    installFetch({ refresh: ok({}), others: [ok({ fee: 1 })] })
+    await http.post("/v1/orders/calculate-fee", {}, { auth: "required" })
+    expect(queryCacheSize()).toBe(6)
   })
 
   it("mutasi BUKAN uang tidak mengosongkan cache (biaya request tidak naik tanpa sebab)", async () => {

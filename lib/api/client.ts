@@ -20,7 +20,7 @@ import { recordServerDate } from "@/lib/server-time"
 import { recordBackpressure, clearBackpressure } from "@/lib/api/backpressure"
 import { getStoredEtag, getStoredEtagBody, storeEtagEntry } from "@/lib/api/etag-cache"
 import { verifyMaintenanceFrom503 } from "@/lib/api/maintenance"
-import { invalidateQueryCache } from "@/lib/query-cache"
+import { invalidateQueryPrefix } from "@/lib/query-cache"
 import { logWarn } from "@/lib/telemetry"
 import { isOfflineKnown } from "@/lib/connectivity"
 import { OfflineError } from "@/lib/api/errors"
@@ -513,23 +513,48 @@ export function request<TResponse = unknown, TBody = undefined>(
  * `/v1/orders*` sehingga setiap ketik nominal (debounce 400ms) menyapu SELURUH
  * cache GET aplikasi dan memicu request beruntun di tab lain. Keduanya kini
  * diecualikan secara eksplisit; mutasi state order (pay, process, cancel, …)
- * tetap menyapu cache.
+ * tetap membatalkan cache (kini terarah per prefix, bukan sapuan penuh —
+ * TR-002 audit performa ronde-3).
  *
  * I-01 (audit escrow end-to-end 2026-09-24): resolusi bersama sengketa
  * (`/v1/disputes/{id}/mutual-resolution[/…]`) MEMBELAH dana escrow saat
  * diterima (respond ACCEPT) — mutasi uang sejati yang dulu tidak tercakup
  * pola mana pun sehingga saldo/holdBalance tetap basi setelah pembagian dana.
  */
-const MONEY_MUTATION_PATTERNS = [
-  /^\/v1\/wallet\/(?:topup|withdraw|transfer)(?:\/|$)/,
-  /^\/v1\/orders(?:\/|$)/,
-  /^\/v1\/disputes\/.+\/mutual-resolution(?:\/|$)/,
+/**
+ * TR-002 (audit performa ronde-3): tiap pola mutasi memetakan ke PREFIX cache
+ * yang terarah — bukan sapuan seluruh cache seperti sebelumnya.
+ *
+ * Dulu `invalidateQueryCache()` tanpa argumen mengosongkan SEMUA entri cache
+ * + menyiarkan invalidasi penuh, sehingga ~10 request latar beruntun setiap
+ * aksi transaksi (mis. POST /v1/orders/{id}/payments — intent DANA yang status
+ * order-nya BELUM berubah — tetap membangunkan saldo dompet, daftar sengketa,
+ * dsb.). Sekarang hanya keluarga query yang kuncinya diawali prefix
+ * terdaftar yang dibersihkan + direvalidasi (`invalidateQueryPrefix`,
+ * infrastruktur yang sama dipakai fix push-notification).
+ */
+const MONEY_MUTATION_PREFIXES: ReadonlyArray<{
+  pattern: RegExp
+  prefixes: ReadonlyArray<string>
+}> = [
+  { pattern: /^\/v1\/wallet\/(?:topup|withdraw|transfer)(?:\/|$)/, prefixes: ["wallet"] },
+  { pattern: /^\/v1\/orders(?:\/|$)/, prefixes: ["order", "transaction"] },
+  { pattern: /^\/v1\/disputes\/.+\/mutual-resolution(?:\/|$)/, prefixes: ["dispute", "wallet"] },
 ]
 const PURE_CALCULATION_PATHS = [/^\/v1\/orders\/calculate-fee$/, /^\/v1\/orders\/validate-counterpart$/]
 
-function invalidatesMoneyCache(path: string): boolean {
-  if (PURE_CALCULATION_PATHS.some((pattern) => pattern.test(path))) return false
-  return MONEY_MUTATION_PATTERNS.some((pattern) => pattern.test(path))
+/**
+ * Prefix cache yang harus dibatalkan untuk mutasi non-GET ini, atau `null`
+ * bila path bukan mutasi uang (termasuk pengecualian kalkulasi murni
+ * `calculate-fee`/`validate-counterpart` — POST tanpa efek samping).
+ */
+function moneyCachePrefixes(path: string): string[] | null {
+  if (PURE_CALCULATION_PATHS.some((pattern) => pattern.test(path))) return null
+  const prefixes = new Set<string>()
+  for (const { pattern, prefixes: matched } of MONEY_MUTATION_PREFIXES) {
+    if (pattern.test(path)) for (const prefix of matched) prefixes.add(prefix)
+  }
+  return prefixes.size > 0 ? [...prefixes] : null
 }
 
 async function performRequest<TResponse, TBody>(
@@ -704,9 +729,14 @@ async function performRequest<TResponse, TBody>(
     }
     if (reply.error) throw reply.error
     // C-01 (audit): mutasi uang/status membatalkan cache GET DI SINI — aturan
-    // ini tidak boleh bergantung pada ingatan penulis layar. `invalidateQueryCache`
-    // idempoten, jadi layar yang memanggilnya lagi tidak masalah.
-    if (method !== "GET" && invalidatesMoneyCache(path)) invalidateQueryCache()
+    // ini tidak boleh bergantung pada ingatan penulis layar.
+    // TR-002 (audit performa ronde-3): invalidasi PREFIX terarah, bukan sapu
+    // seluruh cache. `invalidateQueryPrefix` idempoten, jadi layar yang
+    // memanggilnya lagi tidak masalah.
+    if (method !== "GET") {
+      const prefixes = moneyCachePrefixes(path)
+      if (prefixes !== null) for (const prefix of prefixes) invalidateQueryPrefix(prefix)
+    }
     return reply.value as TResponse
   }
   const retry = method === "GET" ? Math.min(2, Math.max(0, options.retry ?? 0)) : 0

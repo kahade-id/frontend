@@ -40,7 +40,7 @@ export default function ProductDetailScreen() {
     `product:${String(id)}`,
     (signal) => api.products.getProduct(String(id), signal),
     !!id,
-    { refreshOnFocus: true },
+    { refreshOnFocus: true, refreshOnFocusStaleMs: 30_000 }, // NC-003 (audit performa ronde-3): skip refetch fokus bila data <30 dtk.
   )
   const p = query.data
 

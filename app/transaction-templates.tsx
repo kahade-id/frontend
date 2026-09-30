@@ -78,7 +78,10 @@ export default function TransactionTemplatesScreen() {
     undefined,
     // R2 (audit ronde-2, butir #28): perubahan dari sesi lain/web terlihat
     // saat layar dikunjungi ulang — tanpa ini, TTL cache menahan lama.
-    { refreshOnFocus: true },
+    // NC-004 (audit performa ronde-3): TTL cache 60 dtk — refresh fokus
+    // dilewati bila entri masih segar, agar navigasi bolak-balik ≤1 menit
+    // tidak memicu kilatan skeleton.
+    { refreshOnFocus: true, refreshOnFocusStaleMs: 60_000 },
   )
   const items = query.data ?? []
   const { loading, error, refreshing } = query

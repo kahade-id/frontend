@@ -99,7 +99,8 @@ export default function CatalogScreen() {
   const query = usePaginatedQuery<Product>(
     `catalog:${debouncedQ}:${inStockOnly ? 1 : 0}`,
     (page, signal) => api.products.listCatalog({ page, limit: 20, q: debouncedQ.trim() || undefined, inStockOnly }, signal),
-    { refreshOnFocus: true },
+    // NC-003 (audit performa ronde-3): skip refetch fokus bila data <30 dtk.
+    { refreshOnFocus: true, refreshOnFocusStaleMs: 30_000 },
   )
 
   return (

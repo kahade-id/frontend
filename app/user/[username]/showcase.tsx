@@ -71,7 +71,8 @@ export default function PublicShowcaseScreen() {
     queryKeys.publicShowcase(username ?? ""),
     (signal) => api.users.getPublicShowcase(username, signal),
     Boolean(username),
-    { refreshOnFocus: true },
+    // NC-003 (audit performa ronde-3): skip refetch fokus bila data <30 dtk.
+    { refreshOnFocus: true, refreshOnFocusStaleMs: 30_000 },
   )
   const items = showcase.data ?? []
 

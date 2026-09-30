@@ -117,6 +117,17 @@ export type UsePaginatedQueryOptions<T> = {
    */
   refreshOnFocus?: boolean
   /**
+   * NC-003 (audit performa ronde-3): penjaga kesegaran untuk `refreshOnFocus` —
+   * paritas dengan `useApiQuery.refreshOnFocusStaleMs`. Bila di-set (ms),
+   * refresh diam saat layar kembali fokus DILEWATI bila pemuatan halaman-1
+   * terakhir masih lebih muda dari ambang. Tanpa ini, tab yang tetap
+   * ter-mount (Pesan/Notifikasi/Transaksi/Dompet) menembak jaringan setiap
+   * bolak-balik tab walau data berumur <1 detik. Mutasi yang mengubah data
+   * WAJIB menginvalidasi key/prefix-nya (lihat `invalidateQueryPrefix`)
+   * supaya perubahan tetap terlihat saat kembali.
+   */
+  refreshOnFocusStaleMs?: number
+  /**
    * Komparator opsional untuk mengurutkan ulang hasil merge (F-10).
    * `mergeById` mempertahankan urutan UNDUHAN (posisi item lama tidak
    * berubah saat diperbarui) — benar untuk daftar stabil, salah untuk feed
@@ -177,6 +188,13 @@ export function usePaginatedQuery<T extends { id?: string }>(
    * pembatalan saat tidak fokus HANYA berlaku untuk "more".
    */
   const inFlight = useRef<"initial" | "more" | null>(null)
+  /**
+   * NC-003 (audit performa ronde-3): kapan halaman-1 terakhir berhasil dimuat.
+   * Dipakai `refreshOnFocusStaleMs` untuk melewati refresh fokus bila data
+   * masih segar. Hanya pemuatan reset (halaman 1) yang menggesernya — muat
+   * halaman berikutnya tidak menyegarkan halaman 1.
+   */
+  const lastLoadedAt = useRef(0)
   const ids = useRef(new Set<string>())
   const nextPage = useRef(1)
   const hasNext = useRef(true)
@@ -282,6 +300,8 @@ export function usePaginatedQuery<T extends { id?: string }>(
         // `totalPages` mengatakan masih ada halaman. Duplikat sudah diurus
         // mergeById; sumber kebenaran "masih ada halaman" adalah meta server.
         hasNext.current = result.data.length > 0 && page < result.meta.totalPages
+        // NC-003 (audit performa ronde-3): catat kesegaran halaman-1.
+        if (reset) lastLoadedAt.current = Date.now()
         // PERF (tim8-komputasi P1): cap tercapai → hentikan paginasi agar
         // tidak fetch halaman sia-sia. `rowCount` = panjang data render
         // terakhir; reset memulai ulang dari halaman 1.
@@ -364,9 +384,17 @@ export function usePaginatedQuery<T extends { id?: string }>(
       return
     }
     if (!focused || busy.current) return
+    // NC-003 (audit performa ronde-3): lewati refresh bila halaman-1 masih
+    // segar — bolak-balik tab dalam hitungan detik tidak mengunduh ulang.
+    // lastLoadedAt = 0 (belum pernah sukses) → selisih raksasa → tetap refresh.
+    if (
+      opts.refreshOnFocusStaleMs != null &&
+      Date.now() - lastLoadedAt.current < opts.refreshOnFocusStaleMs
+    )
+      return
     if (latest.current.hasRows) void latest.current.load(true, true)
     else if (latest.current.error) void latest.current.load(true)
-  }, [focused, opts.refreshOnFocus])
+  }, [focused, opts.refreshOnFocus, opts.refreshOnFocusStaleMs])
 
   const refresh = useCallback(() => load(true, true), [load])
   const reload = useCallback(() => load(true), [load])

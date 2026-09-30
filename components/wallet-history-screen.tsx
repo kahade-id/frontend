@@ -79,8 +79,11 @@ export function WalletHistoryScreen({ kind }: { kind: "topup" | "withdraw" }) {
     // F-01 (audit): paritas dengan wallet-history.tsx — riwayat uang basi
     // adalah bug kebenaran; refresh diam saat layar kembali fokus.
     // C-08 (audit): urutan kronologis mengikuti server.
+    // NC-003 (audit performa ronde-3): angka uang → jendela lebih pendek
+    // (10 dtk); mutasi uang membatalkan prefix "wallet" di transport.
     {
       refreshOnFocus: true,
+      refreshOnFocusStaleMs: 10_000,
       compare: byTimestampDesc<WalletTransaction>((tx) => tx.createdAt),
     },
   )

@@ -393,8 +393,10 @@ function NotificationsScreen() {
     // muncul saat tab kembali fokus tanpa pull-to-refresh.
     // C-08 (audit): notifikasi terbaru wajib di atas — daftar ini kronologis
     // dan server mengurutkannya begitu.
+    // NC-003 (audit performa ronde-3): skip refetch fokus bila data <30 dtk.
     {
       refreshOnFocus: true,
+      refreshOnFocusStaleMs: 30_000,
       compare: byTimestampDesc<AppNotification>((item) => item.createdAt),
     },
   )
