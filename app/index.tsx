@@ -1,13 +1,12 @@
 /**
  * Kahade — gate rute awal (`/`).
  *
- * Memutuskan ke mana user diarahkan saat app dibuka:
- *   - WEB, BELUM login → /landing (landing page). Pengunjung boleh
- *     menelusuri aplikasi tanpa login (guest mode) lewat tombol
- *     "Buka Web App" di landing; layar yang butuh akun menampilkan ajakan
- *     login (<LoginRequiredScreen>, digerakkan dari root layout).
- *     Splash/onboarding seperti aplikasi native juga tidak dipakai di web.
- *   - WEB, SUDAH login (ada access token) → tab pertama (Etalase).
+ * Aplikasi user hanya diakses via mobile (iOS + Android). Web app Expo
+ * (guest mode browsing) DIHAPUS 2026-10-01 — landing page pindah ke repo
+ * terpisah (kahade-id/landing, deploy Vercel).
+ *
+ *   - WEB → redirect penuh ke https://kahade.id (landing). Tidak ada lagi
+ *     sesi/login/guest-mode di web build Expo ini.
  *   - NATIVE, masih punya access token → ROUTES.home (= /showcase, sesi
  *     lanjut; bila token kedaluwarsa, client akan refresh atau memancarkan
  *     `sessionExpired` yang di root layout mengarahkan ke /login)
@@ -23,10 +22,12 @@
  *     race dengan mount navigator (rekomendasi Expo Router).
  *   - Cek sesi dan flag onboarding dibaca PARALEL (keduanya SecureStore)
  *     supaya boot tidak menunggu dua round-trip Keychain berurutan.
+ *   - Web pakai window.location (bukan router): keluar total dari web build
+ *     Expo menuju landing Vercel.
  */
 import { useCallback, useEffect, useState } from "react"
 import { Platform } from "react-native"
-import { Redirect, type Href } from "expo-router"
+import { Redirect } from "expo-router"
 
 // PERF-FIX (bundle): import langsung dari domain, bukan barrel `@/lib/api`
 // (±35 domain, ~700KB) — rute root dievaluasi paling awal saat boot.
@@ -38,7 +39,9 @@ import { ROUTES } from "@/lib/routes"
 import { ErrorState } from "@/components/ui/error-state"
 import { Screen } from "@/components/ui/screen"
 
-type Gate = "home" | "login" | "onboarding" | "landing"
+type Gate = "home" | "login" | "onboarding"
+
+const LANDING_URL = "https://kahade.id"
 
 export default function Index() {
   const [gate, setGate] = useState<Gate | null>(null)
@@ -54,19 +57,9 @@ export default function Index() {
 
   useEffect(() => {
     let alive = true
-    // WEB: pengunjung BELUM login → /landing (landing page); yang SUDAH
-    // login → beranda seperti sebelumnya. Mode tamu tetap bisa dijelajahi
-    // lewat tombol "Buka Web App" di landing. Gagal baca sesi di web
-    // diperlakukan sebagai tamu (bukan layar error) — tidak ada sesi login
-    // yang dipertaruhkan di sini.
+    // WEB: web app Expo sudah dihapus — lempar ke landing (repo terpisah).
     if (Platform.OS === "web") {
-      getAccessToken()
-        .then((token) => {
-          if (alive) setGate(token ? "home" : "landing")
-        })
-        .catch(() => {
-          if (alive) setGate("landing")
-        })
+      window.location.replace(LANDING_URL)
       return () => {
         alive = false
       }
@@ -91,6 +84,7 @@ export default function Index() {
     }
   }, [attempt])
 
+  if (Platform.OS === "web") return null
   if (storageError) {
     return (
       <Screen edges={["top"]}>
@@ -103,9 +97,6 @@ export default function Index() {
     )
   }
   if (gate === null) return null
-  // Cast Href agar tidak bergantung pada typegen expo-router (route /landing
-  // baru ditambahkan batch ini); pola yang sama dipakai ROUTES.* di bawah.
-  if (gate === "landing") return <Redirect href={"/landing" as Href} />
   return (
     <Redirect
       href={gate === "home" ? ROUTES.home : gate === "login" ? ROUTES.login : ROUTES.onboarding}
