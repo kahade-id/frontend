@@ -33,6 +33,7 @@ import { tokens } from "@/lib/tokens"
 import { Avatar } from "@/components/ui/avatar"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Button } from "@/components/ui/button"
+import { Card } from "@/components/ui/card"
 import { ErrorState } from "@/components/ui/error-state"
 import { FormSection } from "@/components/ui/form-section"
 import { Header } from "@/components/ui/header"
@@ -228,7 +229,7 @@ export default function ReferralScreen() {
                   title="Papan peringkat"
                   subtitle="10 undangan terbanyak (selalu 10 teratas)"
                 />
-                <View className="overflow-hidden rounded-md border border-border bg-surface">
+                <Card padded={false}>
                   {leaderboard.map((e, i) => (
                     <View
                       key={`${e.rank}-${e.username}`}
@@ -271,7 +272,7 @@ export default function ReferralScreen() {
                       ) : null}
                     </View>
                   ))}
-                </View>
+                </Card>
               </>
             ) : null}
 

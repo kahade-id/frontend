@@ -29,6 +29,7 @@ import { translate, useLanguage } from "@/lib/i18n"
 import { Star, Paperclip, X } from "phosphor-react-native"
 
 import { Button } from "@/components/ui/button"
+import { Card } from "@/components/ui/card"
 import { ChatMessageBubble } from "@/components/ui/chat-message-bubble"
 import { SupportMessageMeta } from "@/components/ui/support-message-meta"
 import { describeTicketSla } from "@/lib/ticket-sla"
@@ -270,7 +271,7 @@ export default function SupportTicketDetailScreen() {
                     ? "Anda"
                     : "—"
               return (
-                <View className="gap-1 rounded-md border border-border bg-surface p-3">
+                <Card padded={false} className="gap-1 p-3">
                   <Text variant="label" tone="secondary">
                     Status penanganan
                   </Text>
@@ -283,7 +284,7 @@ export default function SupportTicketDetailScreen() {
                       ? `Batas respons: ${sla.responseDueLabel}`
                       : "Batas respons belum tersedia dari server."}
                   </Text>
-                </View>
+                </Card>
               )
             })()}
 
@@ -429,9 +430,10 @@ export default function SupportTicketDetailScreen() {
                 {replyAttachmentKeys.length > 0 ? (
                   <View className="flex-row flex-wrap gap-2">
                     {replyAttachmentKeys.map((key, i) => (
-                      <View
+                      <Card
                         key={key}
-                        className="flex-row items-center gap-1 rounded-md border border-border bg-surface px-2 py-1"
+                        padded={false}
+                        className="w-auto flex-row items-center gap-1 px-2 py-1"
                       >
                         <Icon icon={Paperclip} size="sm" tone="default" />
                         <Text variant="caption" tone="secondary">
@@ -445,7 +447,7 @@ export default function SupportTicketDetailScreen() {
                         >
                           <Icon icon={X} size="sm" tone="default" />
                         </PressableScale>
-                      </View>
+                      </Card>
                     ))}
                   </View>
                 ) : null}

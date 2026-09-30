@@ -217,7 +217,7 @@ async function fetchBadgeSummary(signal?: AbortSignal): Promise<BadgeSummary | n
 function LeaderboardPreview({ entries }: { entries: readonly ReferralLeaderboardEntry[] }) {
   const top = entries.slice(0, LEADERBOARD_PREVIEW)
   return (
-    <View className="overflow-hidden rounded-md border border-border bg-surface">
+    <Card padded={false}>
       {top.map((e, i) => (
         <View
           key={`${e.rank}-${e.username}`}
@@ -260,7 +260,7 @@ function LeaderboardPreview({ entries }: { entries: readonly ReferralLeaderboard
           ) : null}
         </View>
       ))}
-    </View>
+    </Card>
   )
 }
 
