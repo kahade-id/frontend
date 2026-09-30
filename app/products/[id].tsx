@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { DataScreen } from "@/components/ui/data-screen"
 import { Dialog } from "@/components/ui/modal"
+import { PressableScale } from "@/components/ui/pressable-scale"
 import { SectionHeader } from "@/components/ui/section"
 import { Text } from "@/components/ui/text"
 
@@ -105,7 +106,10 @@ export default function ProductDetailScreen() {
               <SectionHeader title="Pilih varian" />
               <View style={{ gap: tokens.space[2] }}>
                 {(p.variants ?? []).map((v) => (
-                  <Pressable
+                  // UX-TCH-008: PressableScale (feedback scale saat ditekan);
+                  // gaya visual dinamis tetap di View dalam karena primitif
+                  // tidak menerima prop `style`.
+                  <PressableScale
                     key={v.id}
                     onPress={() => setSelectedVariant(v.id)}
                     // UI-F002 (lanjutan): opsi varian ikut diberi role + state
@@ -113,16 +117,19 @@ export default function ProductDetailScreen() {
                     accessibilityRole="radio"
                     accessibilityState={{ selected: selectedVariant === v.id }}
                     accessibilityLabel={variantLabel(v)}
-                    style={{
-                      padding: tokens.space[3], borderRadius: tokens.radius.md, borderWidth: 1,
-                      borderColor: selectedVariant === v.id ? c.primary : c.borderDefault,
-                    }}
                   >
-                    <Text variant="body" weight={600}>{variantLabel(v)}</Text>
-                    <Text variant="caption" tone="secondary">
-                      {v.sku} · {formatRupiah(v.priceRupiah ?? p.priceRupiah)} · Stok {Math.max(0, v.quantityAvailable - v.quantityReserved)}
-                    </Text>
-                  </Pressable>
+                    <View
+                      style={{
+                        padding: tokens.space[3], borderRadius: tokens.radius.md, borderWidth: 1,
+                        borderColor: selectedVariant === v.id ? c.primary : c.borderDefault,
+                      }}
+                    >
+                      <Text variant="body" weight={600}>{variantLabel(v)}</Text>
+                      <Text variant="caption" tone="secondary">
+                        {v.sku} · {formatRupiah(v.priceRupiah ?? p.priceRupiah)} · Stok {Math.max(0, v.quantityAvailable - v.quantityReserved)}
+                      </Text>
+                    </View>
+                  </PressableScale>
                 ))}
               </View>
             </Card>

@@ -17,14 +17,15 @@
  *   - Shadow tetap elevationStyle("low") (bukan class shadow-*), radius
  *     rounded-lg, font weight lewat kelas font-sans/font-mono — aturan
  *     design system yang sama dengan struk.
- *   - `onPress` (kompatibilitas API Card lama) dibungkus Pressable polos
- *     tanpa animasi scale: tidak ada pemanggil yang memakainya hari ini.
+ *   - `onPress` (kompatibilitas API Card lama) dibungkus PressableScale
+ *     (feedback scale, UX-TCH-010).
  */
 import type { ReactNode } from "react"
-import { Pressable, View, type ViewProps } from "react-native"
+import { View, type ViewProps } from "react-native"
 
 import { useTheme } from "@/components/theme-provider"
 import { DashedLine, Notch, Watermark } from "@/components/receipt/ReceiptTicket"
+import { PressableScale } from "@/components/ui/pressable-scale"
 import { elevationStyle } from "@/lib/elevation"
 import { tokens } from "@/lib/tokens"
 import { cn } from "@/lib/cn"
@@ -60,14 +61,16 @@ export function TicketShell({
   )
   if (!onPress) return card
   return (
-    <Pressable
+    // UX-TCH-010: PressableScale — kartu yang bisa diketuk memberi feedback
+    // scale saat ditekan (sebelumnya Pressable polos, terasa "mati").
+    <PressableScale
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       accessibilityHint={accessibilityHint}
     >
       {card}
-    </Pressable>
+    </PressableScale>
   )
 }
 

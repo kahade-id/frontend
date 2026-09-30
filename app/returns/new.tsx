@@ -4,7 +4,7 @@
  * Dipanggil dengan query ?orderId=...
  */
 import { useState } from "react"
-import { View, Pressable } from "react-native"
+import { View } from "react-native"
 import { Package } from "phosphor-react-native"
 import { useLocalSearchParams, useRouter } from "expo-router"
 
@@ -20,6 +20,7 @@ import { useTheme } from "@/components/theme-provider"
 import { useToast } from "@/components/ui/toast"
 
 import { Button } from "@/components/ui/button"
+import { PressableScale } from "@/components/ui/pressable-scale"
 import { DataScreen } from "@/components/ui/data-screen"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Header } from "@/components/ui/header"
@@ -123,23 +124,29 @@ export default function NewReturnScreen() {
               <SectionHeader title="Alasan retur" />
               <View style={{ gap: tokens.space[2] }}>
                 {REASONS.map((r) => (
-                  <Pressable
+                  // UX-TCH-009: PressableScale (feedback scale saat ditekan);
+                  // gaya visual dinamis tetap di View dalam karena primitif
+                  // tidak menerima prop `style`.
+                  <PressableScale
                     key={r}
                     onPress={() => setReasonCode(r)}
                     accessibilityRole="radio"
                     accessibilityLabel={`Alasan: ${RETURN_REASON_LABEL[r]}`}
                     accessibilityState={{ checked: reasonCode === r }}
-                    style={{
-                      padding: tokens.space[3],
-                      borderRadius: tokens.radius.md,
-                      borderWidth: 1,
-                      borderColor: reasonCode === r ? c.primary : c.borderDefault,
-                      // Tidak ada token "primarySoft": tint 8% dari primary.
-                      backgroundColor: reasonCode === r ? `${c.primary}14` : c.surface,
-                    }}
                   >
-                    <Text variant="body" weight={reasonCode === r ? 700 : 400}>{RETURN_REASON_LABEL[r]}</Text>
-                  </Pressable>
+                    <View
+                      style={{
+                        padding: tokens.space[3],
+                        borderRadius: tokens.radius.md,
+                        borderWidth: 1,
+                        borderColor: reasonCode === r ? c.primary : c.borderDefault,
+                        // Tidak ada token "primarySoft": tint 8% dari primary.
+                        backgroundColor: reasonCode === r ? `${c.primary}14` : c.surface,
+                      }}
+                    >
+                      <Text variant="body" weight={reasonCode === r ? 700 : 400}>{RETURN_REASON_LABEL[r]}</Text>
+                    </View>
+                  </PressableScale>
                 ))}
               </View>
             </View>
