@@ -22,8 +22,14 @@ export type BankAccount = {
   id: string
   bankCode: string
   bankName: string
-  /** Bisa termask ("****1234") — lihat DRIFT-BA-01 di atas. */
-  accountNumber: string
+  /**
+   * BFI-132: OPSIONAL — backend SENGAJA tidak pernah mengirim nomor rekening
+   * mentah (kolom terenkripsi AES-GCM; list hanya membawa `maskedAccountNumber`
+   * "****1234", respons POST/PATCH tidak membawa nomor sama sekali).
+   * Jangan mengasumsikan nomor penuh tersedia — untuk tampilan selalu
+   * perlakukan sebagai termask/tidak ada (maskAccountNumber aman untuk "").
+   */
+  accountNumber?: string
   accountName: string
   isPrimary: boolean
   isVerified?: boolean

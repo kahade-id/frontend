@@ -714,6 +714,23 @@ export type PaymentStatus = {
   isExpired?: boolean
   paidAt?: string | null
   method?: string | null
+  /**
+   * BFI-084: info refund aditif pada GET payment-status.
+   * Usulan backend (lihat checkpoint money-rest.md): sertakan `refund`
+   * (refundStatus/refundedAt/refundAmount/refundReference) bila ada refund
+   * untuk payment ini — data sudah tersedia di baris PaymentTransaction yang
+   * sama (tanpa query tambahan).
+   * Defensif: bila backend belum mengirim, `null` — semua pembaca WAJIB
+   * optional chaining, UI tidak menampilkan apa-apa.
+   */
+  refund?: {
+    /** "REFUNDED" (penuh) | "PARTIAL" (parsial) — string lain diteruskan apa adanya. */
+    status: string | null
+    /** Rupiah (dikonversi dari sen bila backend mengirim sen). */
+    amount: number | null
+    refundedAt: string | null
+    refundReference: string | null
+  } | null
 }
 
 export type QrisPayment = {

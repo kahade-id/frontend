@@ -762,6 +762,23 @@ export function normalizePaymentStatus(raw: unknown): PaymentStatus {
     isExpired: expiredFlag === true || status === "EXPIRED",
     paidAt,
     method: pickString(record, ["method", "paymentMethod"]) ?? pickString(nested, ["method"]) ?? null,
+    // BFI-084: baca info refund aditif secara defensif — semua akses
+    // optional. Backend belum mengirim `refund` → null, layar tidak
+    // menampilkan apa-apa dan polling tetap jalan normal.
+    refund: (() => {
+      const refundRec = asRecord(nested.refund) ?? asRecord(record.refund)
+      if (!refundRec) return null
+      return {
+        status: pickString(refundRec, ["refundStatus", "refund_status", "status"]) ?? null,
+        amount: toAmount(
+          refundRec.refundAmount ?? refundRec.refund_amount ?? refundRec.amount ?? refundRec.amountSen,
+        ) ?? null,
+        refundedAt: pickString(refundRec, ["refundedAt", "refunded_at", "refundedAtIso"]) ?? null,
+        refundReference:
+          pickString(refundRec, ["refundReference", "refund_reference", "refundNo", "referenceNo"]) ??
+          null,
+      }
+    })(),
   }
 }
 

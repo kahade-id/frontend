@@ -297,7 +297,7 @@ export default function BankAccountsScreen() {
                   key={acc.id}
                   bankName={acc.bankName ?? acc.bankCode}
                   bankCode={acc.bankCode}
-                  accountNumber={acc.accountNumber}
+                  accountNumber={acc.accountNumber ?? ""}
                   accountHolder={acc.accountName}
                   // UI-W003: logo harus dari bank milik baris ini — dulu memakai
                   // bank yang sedang dipilih di form tambah (salah untuk semua baris).
@@ -416,7 +416,7 @@ export default function BankAccountsScreen() {
            tetap cukup untuk memastikan rekening mana yang dihapus. */
         description={translate("{x} {y} akan dihapus dari daftar.", {
           x: deleteTarget?.bankName ?? "",
-          y: deleteTarget ? maskAccountNumber(deleteTarget.accountNumber) : "",
+          y: deleteTarget ? maskAccountNumber(deleteTarget.accountNumber ?? "") : "",
         })}
         visible={!!deleteTarget}
         destructive
@@ -434,7 +434,7 @@ export default function BankAccountsScreen() {
            penuh (docblock <BankAccountListItem>: daftar rekening sering
            terlihat orang lain; dialog ikut dibacakan screen reader). */
         description={translate("Hanya nama pemilik yang bisa diubah — nomor {x} tetap sama.", {
-          x: editTarget ? maskAccountNumber(editTarget.accountNumber) : "",
+          x: editTarget ? maskAccountNumber(editTarget.accountNumber ?? "") : "",
         })}
         visible={!!editTarget}
         loading={editing}
