@@ -41,8 +41,31 @@ const SUCCESS_POP_FROM = 0.92
 
 export type OtpInputHandle = { focus: () => void; blur: () => void; clear: () => void }
 
+/**
+ * DBL-007 (audit integrasi 2026-10-01): panjang OTP DINAMIS — mirror backend
+ * `ConfirmWithdrawOtpDto @Length(6, 10)`
+ * (`src/modules/wallet/dto/confirm-withdraw-otp.dto.ts`). Backend dirancang
+ * agar `OTP_LENGTH` bisa dinaikkan ke 8 dan `WITHDRAW_OTP_DIGITS` sampai 10;
+ * form mobile WAJIB bisa mengetik kode sampai 10 digit, kalau tidak seluruh
+ * user terkunci saat ops menaikkan panjang OTP (komentar
+ * `wallet.service.ts`: "deployment can raise it after the mobile form accepts
+ * more digits" — syarat yang kini dipenuhi).
+ *
+ * Mode `dynamicLength`: kotak dirender sesuai digit yang diketik (min 6,
+ * maks 10) alih-alih memotong di 6. `onComplete` otomatis hanya saat 10
+ * digit tercapai — untuk kode lebih pendek pemanggil memakai submit manual
+ * (lihat `app/(auth)/verify-otp.tsx` & `app/withdraw.tsx`).
+ */
+export const OTP_MIN_LENGTH = 6
+export const OTP_MAX_LENGTH = 10
+
 export type OtpInputProps = Omit<ViewProps, "children"> & {
   length?: number
+  /**
+   * Panjang dinamis 6–10 digit (DBL-007). Bila true, `length` diabaikan:
+   * kotak tumbuh mengikuti ketikan sampai OTP_MAX_LENGTH.
+   */
+  dynamicLength?: boolean
   value?: string
   defaultValue?: string
   onChange?: (code: string) => void
@@ -123,7 +146,8 @@ function DigitBox({
 
 export const OtpInput = forwardRef<OtpInputHandle, OtpInputProps>(function OtpInput(
   {
-    length = 6,
+    length = OTP_MIN_LENGTH,
+    dynamicLength = false,
     value,
     defaultValue = "",
     onChange,
@@ -145,20 +169,26 @@ export const OtpInput = forwardRef<OtpInputHandle, OtpInputProps>(function OtpIn
   const completionRef = useRef("")
   const [internal, setInternal] = useState(defaultValue)
   const [focused, setFocused] = useState(false)
-  const code = (value ?? internal).slice(0, length)
+  /** Digit maksimum yang diterima input (DBL-007: 10 dalam mode dinamis). */
+  const maxDigits = dynamicLength ? OTP_MAX_LENGTH : length
+  const code = (value ?? internal).slice(0, maxDigits)
+  /** Jumlah kotak: tetap = `length`, dinamis = tumbuh mengikuti ketikan (6–10). */
+  const boxCount = dynamicLength
+    ? Math.min(OTP_MAX_LENGTH, Math.max(OTP_MIN_LENGTH, code.length))
+    : length
   const hasError = !!errorText
 
   const handleChange = useCallback(
     (raw: string) => {
-      const next = raw.replace(/\D/g, "").slice(0, length)
+      const next = raw.replace(/\D/g, "").slice(0, maxDigits)
       if (value === undefined) setInternal(next)
       onChange?.(next)
-      if (next.length === length) {
+      if (next.length === maxDigits) {
         completionRef.current = next
         onComplete?.(next)
       }
     },
-    [length, onChange, onComplete, value],
+    [maxDigits, onChange, onComplete, value],
   )
 
   /**
@@ -182,11 +212,11 @@ export const OtpInput = forwardRef<OtpInputHandle, OtpInputProps>(function OtpIn
     lastErrorRef.current = errorText
     if (!errorText || code.length === 0) return
     const freshError = previousError !== errorText
-    const rejectedCode = code.length === length && code === completionRef.current
+    const rejectedCode = code.length === maxDigits && code === completionRef.current
     if (!freshError && !rejectedCode) return
     if (value === undefined) setInternal("")
     onChange?.("")
-  }, [code, errorText, length, onChange, value])
+  }, [code, errorText, maxDigits, onChange, value])
 
   useImperativeHandle(
     ref,
@@ -199,10 +229,14 @@ export const OtpInput = forwardRef<OtpInputHandle, OtpInputProps>(function OtpIn
   )
 
   // Kotak aktif = posisi karakter berikutnya (atau kotak terakhir saat penuh)
-  const activeIndex = Math.min(code.length, length - 1)
+  const activeIndex = Math.min(code.length, boxCount - 1)
   // Dipakai di BottomSheet verifikasi email: proxy fokus wajib ikut aturan
   // hit-test Fabric (lihat reanimated-pressable-context.ts).
   const Pressable = useTransformAwarePressable()
+  // Label aksesibilitas dinamis (DBL-007): rentang 6–10, bukan "6 digit" hardcoded.
+  const lengthLabel = dynamicLength
+    ? `${OTP_MIN_LENGTH}–${OTP_MAX_LENGTH}`
+    : `${length}`
 
   return (
     <View className={cn("w-full gap-2", className)} {...rest}>
@@ -216,12 +250,12 @@ export const OtpInput = forwardRef<OtpInputHandle, OtpInputProps>(function OtpIn
          * pada TextInput tersembunyi; sekarang hanya di sini.
          */
         accessibilityRole="button"
-        accessibilityLabel={translate("Kode {x} digit, {y} dari {z} terisi", { x: length, y: code.length, z: length })}
-        accessibilityValue={{ text: `${code.length} dari ${length}` }}
+        accessibilityLabel={translate("Kode {x} digit, {y} dari {z} terisi", { x: lengthLabel, y: code.length, z: boxCount })}
+        accessibilityValue={{ text: `${code.length} dari ${boxCount}` }}
         className={cn("flex-row justify-between gap-2 rounded-sm", disabled && "opacity-disabled", focusRing)}
 
       >
-        {Array.from({ length }, (_, i) => (
+        {Array.from({ length: boxCount }, (_, i) => (
           <DigitBox
             key={i}
             index={i}
@@ -243,7 +277,7 @@ export const OtpInput = forwardRef<OtpInputHandle, OtpInputProps>(function OtpIn
         onBlur={() => setFocused(false)}
         editable={!disabled}
         autoFocus={autoFocus}
-        maxLength={length}
+        maxLength={maxDigits}
         keyboardType="number-pad"
         inputMode="numeric"
         /*
@@ -270,7 +304,7 @@ export const OtpInput = forwardRef<OtpInputHandle, OtpInputProps>(function OtpIn
          */
         accessible={false}
         importantForAccessibility="no"
-        aria-label={`Kode ${length} digit`}
+        aria-label={`Kode ${lengthLabel} digit`}
         className="absolute h-1 w-1 opacity-0"
       />
 

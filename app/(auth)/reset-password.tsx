@@ -46,7 +46,7 @@ import { Screen } from "@/components/ui/screen"
 import { Text } from "@/components/ui/text"
 import { VStack } from "@/components/ui/stack"
 import { api, userMessage } from "@/lib/api"
-import { isPasswordValid } from "@/lib/auth-constants"
+import { passwordValidationMessage } from "@/lib/auth-constants"
 import { getAuthLocation } from "@/lib/location"
 import { clearPasswordResetState, getPasswordResetState } from "@/lib/password-reset"
 import { ROUTES } from "@/lib/routes"
@@ -84,8 +84,10 @@ export default function ResetPasswordScreen() {
     if (submitting || !tempToken) return
     setFormError(null)
 
-    if (!isPasswordValid(newPassword)) {
-      setPasswordError("Kata sandi minimal 8 karakter.")
+    // DBL-015: pesan beda untuk password umum (sama dengan backend).
+    const pwMsg = passwordValidationMessage(newPassword)
+    if (pwMsg) {
+      setPasswordError(pwMsg)
       return
     }
     if (confirmPassword !== newPassword) {

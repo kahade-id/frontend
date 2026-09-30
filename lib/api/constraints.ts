@@ -701,7 +701,7 @@ export const API_CONSTRAINTS = {
   "SetUsernameDto": {
     "username": {
       "minLength": 3,
-      "maxLength": 20
+      "maxLength": 30
     }
   },
   "Setup2faDto": {

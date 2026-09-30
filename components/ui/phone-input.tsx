@@ -57,8 +57,14 @@ export function toE164Id(digits: string): string {
   return digits ? `${PHONE_ID_PREFIX}${digits}` : ""
 }
 
+/**
+ * DBL-008 (audit integrasi 2026-10-01): disamakan dengan backend
+ * `STRICT_INDONESIAN_PHONE` (`src/common/utils/phone.util.ts`) — digit kedua
+ * WAJIB 1–9 (`8[1-9]…`), bukan digit bebas. Dulu `80…` lolos validasi klien
+ * lalu ditolak `normalizeIndonesianPhone` BE (BadRequest).
+ */
 export function isValidPhoneId(digits: string): boolean {
-  return /^8\d{8,11}$/.test(digits) && digits.length >= MIN_NATIONAL_DIGITS
+  return /^8[1-9]\d{7,10}$/.test(digits) && digits.length >= MIN_NATIONAL_DIGITS
 }
 
 export type PhoneInputProps = Omit<

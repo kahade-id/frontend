@@ -52,7 +52,7 @@ import { HEADER_BAR_HEIGHT, Header } from "@/components/ui/header"
 import { Heading } from "@/components/ui/heading"
 import { KeyboardAvoiding } from "@/components/ui/keyboard-avoiding"
 import { ListLoading } from "@/components/ui/paginated-list"
-import { OtpInput } from "@/components/ui/otp-input"
+import { OtpInput, OTP_MIN_LENGTH, OTP_MAX_LENGTH } from "@/components/ui/otp-input"
 import { PinInput } from "@/components/ui/pin-input"
 import { ScreenCaptureGuard } from "@/components/security/screen-capture-guard"
 import { Screen } from "@/components/ui/screen"
@@ -180,6 +180,13 @@ export default function WithdrawScreen() {
   // melengkapi sinyal `hasPin === false` dari GET /v1/wallet.
   const [pinNotSet, setPinNotSet] = useState(false)
   const [otpError, setOtpError] = useState<string | undefined>()
+  /**
+   * DBL-007 (audit integrasi 2026-10-01): kode OTP yang sedang diketik
+   * (6–10 digit, dinamis). Dipakai tombol "Konfirmasi" manual — auto-submit
+   * via onComplete hanya terjadi di 10 digit, jadi kode lebih pendek butuh
+   * submit eksplisit.
+   */
+  const [otpCode, setOtpCode] = useState("")
   const [txId, setTxId] = useState<string | null>(null)
   const submitLock = useRef(false)
   /** M-08 (issue #5): satu `Idempotency-Key` per siklus penarikan (lihat order/[id]). */
@@ -796,12 +803,24 @@ export default function WithdrawScreen() {
       >
         {verifyMode === "otp" ? (
           <View className="gap-4">
+            {/* DBL-007: panjang OTP dinamis 6–10 digit (mirror BE
+                @Length(6,10)). Auto-submit hanya di 10 digit — kode lebih
+                pendek dikonfirmasi via tombol manual di bawah. */}
             <OtpInput
-              length={6}
+              dynamicLength
+              onChange={setOtpCode}
               onComplete={(code) => void handleConfirmOtp(code)}
               errorText={otpError}
+              helperText={otpError ? undefined : `Masukkan ${OTP_MIN_LENGTH}–${OTP_MAX_LENGTH} digit kode OTP yang dikirim via SMS`}
               disabled={submitting || cancelling}
             />
+            <Button
+              onPress={() => void handleConfirmOtp(otpCode)}
+              loading={submitting}
+              disabled={submitting || cancelling || otpCode.length < OTP_MIN_LENGTH}
+            >
+              Konfirmasi
+            </Button>
             <View className="flex-row flex-wrap items-center gap-2">
               {cooldownActive ? (
                 <Countdown until={otpCooldownUntil ?? undefined} prefix="Kirim ulang dalam" />

@@ -219,6 +219,56 @@ describe("<OtpInput> menolak kode → bisa langsung diketik ulang (A-03)", () =>
 })
 
 /**
+ * DBL-007 (audit integrasi 2026-10-01): mode `dynamicLength` — kotak tumbuh
+ * mengikuti ketikan (6–10 digit, mirror BE @Length(6,10)); digit ke-7..10
+ * TIDAK lagi dipotong di 6.
+ */
+describe("<OtpInput dynamicLength> menerima kode sampai 10 digit (DBL-007)", () => {
+  const typeCode = (code: string) => {
+    const input = document.querySelector("input") as HTMLInputElement
+    const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value")?.set
+    setter?.call(input, code)
+    fireEvent.input(input)
+    return input
+  }
+
+  it("kotak bertambah sampai 10 digit; auto onComplete hanya di 10", async () => {
+    const { OtpInput, OTP_MIN_LENGTH, OTP_MAX_LENGTH } = await import("@/components/ui/otp-input")
+    expect(OTP_MIN_LENGTH).toBe(6)
+    expect(OTP_MAX_LENGTH).toBe(10)
+    const onComplete = vi.fn()
+    const onChange = vi.fn()
+    renderInTheme(<OtpInput dynamicLength onComplete={onComplete} onChange={onChange} />)
+    // 6 digit: kotak 6, belum auto-submit (panjang kode belum pasti).
+    typeCode("123456")
+    await waitFor(() => expect(onChange).toHaveBeenLastCalledWith("123456"))
+    expect(onComplete).not.toHaveBeenCalled()
+    expect(document.querySelectorAll("input").length).toBe(1)
+    // 8 digit: diterima penuh, tidak dipotong.
+    typeCode("12345678")
+    await waitFor(() => expect(onChange).toHaveBeenLastCalledWith("12345678"))
+    expect(onComplete).not.toHaveBeenCalled()
+    // 10 digit: auto-submit.
+    typeCode("1234567890")
+    await waitFor(() => expect(onComplete).toHaveBeenCalledWith("1234567890"))
+    // 11 digit: dipotong di 10.
+    typeCode("12345678901")
+    await waitFor(() => expect(onChange).toHaveBeenLastCalledWith("1234567890"))
+  })
+
+  it("mode fixed lama (length={6}) tetap memotong di 6", async () => {
+    const { OtpInput } = await import("@/components/ui/otp-input")
+    const onChange = vi.fn()
+    renderInTheme(<OtpInput length={6} onChange={onChange} />)
+    const input = document.querySelector("input") as HTMLInputElement
+    const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value")?.set
+    setter?.call(input, "12345678")
+    fireEvent.input(input)
+    await waitFor(() => expect(onChange).toHaveBeenLastCalledWith("123456"))
+  })
+})
+
+/**
  * A-06/H-02 (audit 2026-09-22): batas 12 digit dulu hanya ditegakkan tombol
  * digit tunggal — tombol "00" hanya memeriksa `max`, sehingga pada layar tanpa
  * `max` (top-up) satu tekanan bisa melewati batas keras dan mengirim angka di

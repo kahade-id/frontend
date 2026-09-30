@@ -68,10 +68,12 @@ describe("formatRupiah", () => {
     expect(formatRupiah(1_500_000)).toBe("Rp1.500.000")
     expect(formatRupiah(0)).toBe("Rp0")
     expect(formatRupiah(-50_000)).toBe("-Rp50.000")
-    // I-04 (audit escrow 2026-09-24): pecahan nyata TIDAK dibulatkan
-    // diam-diam — ditandai "—" (data rusak), bukan "Rp1.500".
-    expect(formatRupiah(1500.4)).toBe("—")
+    // DBL-003 (audit integrasi 2026-10-01): pecahan finite DIBULATKAN ke
+    // rupiah terdekat, selaras backend & admin. "—" hanya untuk non-finite.
+    expect(formatRupiah(1500.4)).toBe("Rp1.500")
+    expect(formatRupiah(1000.5)).toBe("Rp1.001")
     expect(formatRupiah(Number.NaN)).toBe("—")
+    expect(formatRupiah(Number.POSITIVE_INFINITY)).toBe("—")
   })
 
   it("sign 'always' hanya untuk positif; 0 tanpa tanda", () => {
@@ -258,11 +260,12 @@ describe("formatCountdown", () => {
 })
 
 describe("maskAccountNumber / groupAccountNumber (PII)", () => {
-  it("menyembunyikan semua kecuali 4 digit terakhir, dikelompokkan per 4", () => {
-    expect(maskAccountNumber("123456789012")).toBe("•••• •••• 9012")
-    expect(maskAccountNumber("1234 5678 9012")).toBe("•••• •••• 9012") // spasi input diabaikan
-    expect(maskAccountNumber("12")).toBe("12") // lebih pendek dari visible
-    expect(maskAccountNumber("123456", 2)).toBe("•••• 56")
+  it("gaya kanonis DBL-014: selalu 6 bullet + 4 digit terakhir (tanpa spasi)", () => {
+    expect(maskAccountNumber("123456789012")).toBe("••••••9012")
+    expect(maskAccountNumber("1234 5678 9012")).toBe("••••••9012") // spasi input diabaikan
+    expect(maskAccountNumber("1234567890")).toBe("••••••7890")
+    expect(maskAccountNumber("12")).toBe("••••") // < 4 digit → placeholder
+    expect(maskAccountNumber("")).toBe("••••")
   })
 
   /**
@@ -282,11 +285,11 @@ describe("maskAccountNumber / groupAccountNumber (PII)", () => {
     }
   })
 
-  it("contoh per bank (10/11/13/15 digit) tidak lagi memecah digit terakhir", () => {
-    expect(maskAccountNumber("1234567890")).toBe("•••• •• 7890")
-    expect(maskAccountNumber("12345678901")).toBe("•••• ••• 8901")
-    expect(maskAccountNumber("1234567890123")).toBe("•••• •••• • 0123")
-    expect(maskAccountNumber("123456789012345")).toBe("•••• •••• ••• 2345")
+  it("contoh per bank (10/11/13/15 digit): selalu 6 bullet + 4 digit utuh", () => {
+    expect(maskAccountNumber("1234567890")).toBe("••••••7890")
+    expect(maskAccountNumber("12345678901")).toBe("••••••8901")
+    expect(maskAccountNumber("1234567890123")).toBe("••••••0123")
+    expect(maskAccountNumber("123456789012345")).toBe("••••••2345")
   })
 
   it("groupAccountNumber tanpa mask", () => {
@@ -401,18 +404,21 @@ describe("formatTimeAgo (2026-09-28)", () => {
     expect(formatTimeAgo(ago(23 * 3600_000), now)).toBe("23 jam lalu")
   })
 
-  it("\"Kemarin\" untuk hari kalender kemarin di luar 24 jam", () => {
-    // 27 Sep 01:00 → delta 35 jam, tapi hari kalender kemarin.
+  it("\"Kemarin\" untuk 24–48 jam (DBL-009: delta jam, bukan hari kalender)", () => {
+    // 27 Sep 01:00 → delta 35 jam → "Kemarin".
     const yesterdayEarly = new Date(2026, 8, 27, 1, 0, 0)
     expect(formatTimeAgo(yesterdayEarly, now)).toBe("Kemarin")
+    // Tepat di bawah 48 jam masih "Kemarin".
+    expect(formatTimeAgo(ago(47 * 3600_000), now)).toBe("Kemarin")
     // Di dalam 24 jam tetap bucket jam, walau sudah ganti hari kalender.
     const yesterdayEvening = new Date(2026, 8, 27, 23, 0, 0)
     expect(formatTimeAgo(yesterdayEvening, now)).toBe("13 jam lalu")
   })
 
-  it("lewat kemarin langsung tanggal eksplisit (tanpa \"N hari lalu\")", () => {
+  it("lewat 48 jam langsung tanggal eksplisit (tanpa \"N hari lalu\")", () => {
     const twoDaysAgo = new Date(2026, 8, 26, 12, 0, 0)
     expect(formatTimeAgo(twoDaysAgo, now)).toBe("26 Sep 2026")
+    expect(formatTimeAgo(ago(49 * 3600_000), now)).toBe("26 Sep 2026")
   })
 
   it("masa depan dijepit ke \"Baru saja\" (selisih jam server/perangkat)", () => {
@@ -425,23 +431,23 @@ describe("formatTimeAgo (2026-09-28)", () => {
   })
 })
 
-describe("maskEmail / maskPhone (FE-IMP-3 #103 — baris menu Keamanan)", () => {
-  it("maskEmail menyisakan huruf pertama + domain", () => {
-    expect(maskEmail("budi@gmail.com")).toBe("b\u2022\u2022\u2022@gmail.com")
+describe("maskEmail / maskPhone (DBL-012/013 — gaya kanonis admin pii.ts)", () => {
+  it("maskEmail menyisakan DUA huruf pertama + domain", () => {
+    expect(maskEmail("budi@gmail.com")).toBe("bu\u2022\u2022\u2022@gmail.com")
     expect(maskEmail("x@yahoo.co.id")).toBe("x\u2022\u2022\u2022@yahoo.co.id")
   })
-  it("maskEmail input aneh → placeholder §13", () => {
-    expect(maskEmail("")).toBe("\u2022\u2022\u2022")
+  it("maskEmail input aneh → placeholder", () => {
+    expect(maskEmail("")).toBe("—")
     expect(maskEmail("tanpa-at")).toBe("\u2022\u2022\u2022")
     expect(maskEmail("a@")).toBe("\u2022\u2022\u2022")
   })
-  it("maskPhone: 4 digit terakhir terlihat, sisanya mask per 4", () => {
-    expect(maskPhone("081234567890")).toBe("•••• •••• 7890")
-    expect(maskPhone("+6281234567890")).toBe("•••• •••• • 7890") // 13 digit: sisa 1 ikut grup mask
+  it("maskPhone: kode negara terlihat + 4 digit terakhir", () => {
+    expect(maskPhone("081234567890")).toBe("08\u2022\u2022\u2022 \u2022\u2022\u2022 7890")
+    expect(maskPhone("+6281234567890")).toBe("+62\u2022\u2022\u2022 \u2022\u2022\u2022 7890")
   })
   it("maskPhone nomor pendek → placeholder", () => {
-    expect(maskPhone("")).toBe("")
-    expect(maskPhone("12")).toBe("12")
+    expect(maskPhone("")).toBe("—")
+    expect(maskPhone("12")).toBe("\u2022\u2022\u2022")
   })
 })
 
@@ -481,13 +487,13 @@ describe("formatRupiahFromSen (FE-055: helper kanonis sen→Rupiah)", () => {
     expect(formatRupiahFromSen(0)).toBe("Rp0")
   })
 
-  it("nilai rusak → '—' (bukan pembulatan diam-diam)", () => {
+  it("sen pecahan dibulatkan ke rupiah terdekat (DBL-004)", () => {
     expect(formatRupiahFromSen(null)).toBe("—")
     expect(formatRupiahFromSen(undefined)).toBe("—")
     expect(formatRupiahFromSen("bukan-angka")).toBe("—")
     expect(formatRupiahFromSen(Number.NaN)).toBe("—")
-    // 1050 sen = Rp10,5 — pecahan Rupiah tidak valid → "—"
-    expect(formatRupiahFromSen(1050)).toBe("—")
+    // 1050 sen = Rp10,5 → dibulatkan ke Rp11 (selaras admin & backend)
+    expect(formatRupiahFromSen(1050)).toBe("Rp11")
   })
 
   it("negatif memakai aturan tanda formatRupiah", () => {

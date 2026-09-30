@@ -111,8 +111,8 @@ export type ConfirmPhoneChangeDto = {
 
 export type SetUsernameDto = {
   /**
-   * Unique username (3-20 characters)
-   * minLength 3 · maxLength 20
+   * Unique username (3-30 characters)
+   * minLength 3 · maxLength 30
    */
   username: string
 }
