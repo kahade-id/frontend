@@ -7,7 +7,7 @@
  * Batas backend (divalidasi juga di sini agar gagal cepat):
  * pertanyaan ≤300 char, opsi 2–10 @ ≤120 char, tenggat = preset opsional.
  */
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { Pressable, View } from "react-native"
 
 import {
@@ -41,6 +41,12 @@ export type ChatPollsSheetProps = {
   /** userId saya — untuk tombol "Tutup polling" (hanya pembuat). */
   myUserId?: string
   onRequestClose: () => void
+  /**
+   * BFI-119: naik setiap event WS chat.poll_created/updated/closed tiba.
+   * Sheet yang sedang terbuka me-reload daftar polling TANPA mereset form
+   * buat-poll yang sedang diisi.
+   */
+  refreshSignal?: number
 }
 
 const DEADLINE_PRESETS = [
@@ -50,7 +56,7 @@ const DEADLINE_PRESETS = [
   { key: "7d", label: "7 hari", hours: 168 },
 ] as const
 
-export function ChatPollsSheet({ visible, roomId, myUserId, onRequestClose }: ChatPollsSheetProps) {
+export function ChatPollsSheet({ visible, roomId, myUserId, onRequestClose, refreshSignal = 0 }: ChatPollsSheetProps) {
   const toast = useToast()
   const [polls, setPolls] = useState<ChatPoll[] | null>(null)
   const [loading, setLoading] = useState(false)
@@ -87,8 +93,15 @@ export function ChatPollsSheet({ visible, roomId, myUserId, onRequestClose }: Ch
     }
   }, [roomId, toast])
 
+  // BFI-119: penanda sinyal refresh terakhir yang sudah diproses (lihat dua
+  // effect di bawah).
+  const lastPollSignalRef = useRef(refreshSignal)
+
   useEffect(() => {
     if (visible) {
+      // BFI-119: sinkronkan penanda sinyal — event yang tiba saat sheet
+      // tertutup sudah tercakup load() di bawah, jangan reload ganda.
+      lastPollSignalRef.current = refreshSignal
       setPolls(null)
       setCreating(false)
       setQuestion("")
@@ -97,7 +110,17 @@ export function ChatPollsSheet({ visible, roomId, myUserId, onRequestClose }: Ch
       setDeadlineKey("none")
       void load()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, load])
+
+  // BFI-119: event WS chat.poll_created/updated/closed — muat ulang daftar
+  // saat sheet terbuka, TANPA mereset form buat-poll yang sedang diisi.
+  useEffect(() => {
+    if (visible && refreshSignal !== lastPollSignalRef.current) {
+      lastPollSignalRef.current = refreshSignal
+      void load()
+    }
+  }, [visible, refreshSignal, load])
 
   const patchPoll = (updated: ChatPoll) =>
     setPolls((prev) => (prev ? prev.map((p) => (p.id === updated.id ? updated : p)) : prev))
