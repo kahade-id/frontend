@@ -22,6 +22,7 @@ import { Header } from "@/components/ui/header"
 import { HelpArticleListItem } from "@/components/ui/help-article-list-item"
 import { HelpCategoryCard } from "@/components/ui/help-category-card"
 import { Button } from "@/components/ui/button"
+import { Card } from "@/components/ui/card"
 import { Dialog } from "@/components/ui/modal"
 import { FadeIn } from "@/components/ui/fade-in"
 import { Icon } from "@/components/ui/icon"
@@ -51,7 +52,7 @@ type FaqRow = { id: string } & ({ article: HelpArticle } | { category: HelpCateg
 function LiveSupportStatusCard() {
   const availability = getLiveSupportAvailability()
   return (
-    <View className="gap-2 rounded-md border border-border bg-surface p-4">
+    <Card padded={false} className="gap-2 p-4">
       <View className="flex-row items-center gap-3">
         <View className="h-10 w-10 items-center justify-center rounded-full bg-background">
           <Icon icon={Lifebuoy} size="md" tone="active" />
@@ -107,7 +108,7 @@ function LiveSupportStatusCard() {
           Tiket saya
         </Button>
       </View>
-    </View>
+    </Card>
   )
 }
 

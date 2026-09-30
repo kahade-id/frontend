@@ -49,6 +49,7 @@ import { ActionSheet, type ActionSheetItem } from "@/components/ui/action-sheet"
 import { Alert } from "@/components/ui/alert"
 import { Avatar } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
+import { Card } from "@/components/ui/card"
 import { Dialog } from "@/components/ui/modal"
 import { AvatarPreviewDialog } from "@/components/ui/avatar-preview-dialog"
 import { EmailField } from "@/components/ui/email-field"
@@ -603,7 +604,7 @@ export default function EditProfileScreen() {
           <>
             {/* Foto sampul (header image) */}
             <View className="pt-4">
-              <View className="relative w-full overflow-hidden rounded-md border border-border bg-surface">
+              <Card padded={false} className="relative w-full overflow-hidden">
                 {coverUri ? (
                   <Picture
                     source={{ uri: coverUri }}
@@ -636,7 +637,7 @@ export default function EditProfileScreen() {
                     onPress={() => setHeaderSheetOpen(true)}
                   />
                 </View>
-              </View>
+              </Card>
             </View>
 
             <View className="items-center gap-3 py-4">
@@ -849,7 +850,7 @@ export default function EditProfileScreen() {
       >
         {pendingHeader ? (
           <View className="gap-3">
-            <View className="w-full overflow-hidden rounded-md border border-border bg-surface">
+            <Card padded={false} className="w-full overflow-hidden">
               <Picture
                 source={{ uri: pendingHeader.uri }}
                 alt={translate("Pratinjau foto sampul")}
@@ -859,7 +860,7 @@ export default function EditProfileScreen() {
                 className="w-full"
                 style={{ width: "100%", aspectRatio: undefined }}
               />
-            </View>
+            </Card>
             <Button
               variant="ghost"
               size="sm"

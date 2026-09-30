@@ -45,6 +45,7 @@ import {
 } from "@/lib/support-message-meta"
 
 import { Button } from "@/components/ui/button"
+import { Card } from "@/components/ui/card"
 import { ChatComposer, type ChatComposerPayload } from "@/components/ui/chat-composer"
 import { ChatMessageBubble } from "@/components/ui/chat-message-bubble"
 import { Chip } from "@/components/ui/chip"
@@ -759,17 +760,18 @@ export default function LiveSupportScreen() {
                     {translate("Mungkin membantu")}
                   </Text>
                   {suggestions.map((a) => (
-                    <PressableScale
+                    <Card
                       key={a.id}
+                      padded={false}
                       onPress={() => router.push(ROUTES.helpArticle(a.slug, a.category))}
                       accessibilityRole="link"
                       accessibilityLabel={a.title}
-                      className="rounded-md border border-border bg-surface px-3 py-2"
+                      className="px-3 py-2"
                     >
                       <Text variant="body" numberOfLines={2}>
                         {a.title}
                       </Text>
-                    </PressableScale>
+                    </Card>
                   ))}
                 </View>
               ) : null}
