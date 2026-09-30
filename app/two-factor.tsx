@@ -3,18 +3,23 @@
  *
  * Endpoint (lib/api/auth.ts):
  *   GET  /v1/auth/2fa/status                    → { enabled, backupCodesRemaining }
- *   POST /v1/auth/2fa/setup        { password } → { secret, otpauthUrl }
- *   POST /v1/auth/2fa/enable       { code }     → { backupCodes }
+ *   POST /v1/auth/2fa/setup        { password } → { secret, otpauthUrl, backupCodes }
+ *   POST /v1/auth/2fa/enable       { code }     → { message } (BFI-036: TANPA
+ *                                                backupCodes; semua sesi
+ *                                                dicabut termasuk sesi ini)
  *   POST /v1/auth/2fa/request-disable-otp       → kirim OTP email
  *   POST /v1/auth/2fa/disable      { password, code, emailOtpCode }
- *   POST /v1/auth/2fa/backup-codes/regenerate { password } → { backupCodes }
+ *   POST /v1/auth/2fa/backup-codes/regenerate { password, code } → { backupCodes }
  *
  * Alur aktivasi (3 langkah, satu layar):
- *   1. "password" — verifikasi password → setup2fa
+ *   1. "password" — verifikasi password → setup2fa (backupCodes plaintext
+ *                   DITANGKAP di sini — satu-satunya kesempatan)
  *   2. "scan"     — tampilkan QR otpauth:// + secret (CopyableField) → masukkan
  *                   kode 6 digit dari authenticator → enable2fa
- *   3. "codes"    — tampilkan backupCodes SEKALI (server tidak mengembalikan
- *                   lagi); pengguna wajib menyalin/mengunduh.
+ *   3. "codes"    — tampilkan backupCodes dari respons SETUP (sekali);
+ *                   pengguna wajib menyalin/mengunduh. Setelah selesai,
+ *                   dialog "silakan masuk kembali" — server MENCABUT semua sesi
+ *                   saat enable, jadi sesi ini sudah mati.
  *
  * Keputusan non-obvious:
  *   - Kode cadangan TIDAK pernah diminta saat memuat status: endpoint
@@ -33,6 +38,7 @@ import { View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { api, isApiError, userMessage } from "@/lib/api"
+import { clearSession, emitSessionExpired } from "@/lib/api/session"
 import type { TwoFactorSetup } from "@/lib/api/auth"
 import { useCopy } from "@/lib/clipboard"
 import { saveBlobFile } from "@/lib/export-file"
@@ -117,6 +123,13 @@ export default function TwoFactorScreen() {
    */
   const [codesSaved, setCodesSaved] = useState(false)
   const [ackOpen, setAckOpen] = useState(false)
+  /**
+   * BFI-036: server mencabut SEMUA sesi saat enable2fa (termasuk sesi ini).
+   * Setelah pengguna selesai menyimpan kode cadangan, tampilkan dialog
+   * login-ulang yang jelas (bukan logout paksa misterius via 401).
+   */
+  const [reloginRequired, setReloginRequired] = useState(false)
+  const [reloginDialog, setReloginDialog] = useState(false)
 
   // ── Nonaktifkan ────────────────────────────────────────────────────────
   const [disablePassword, setDisablePassword] = useState("")
@@ -147,7 +160,32 @@ export default function TwoFactorScreen() {
     setEnableError(undefined)
     setCodesSaved(false)
     setAckOpen(false)
+    setReloginRequired(false)
+    setReloginDialog(false)
   }, [])
+
+  /**
+   * BFI-036: keluar bersih pasca-enable dengan pesan login-ulang yang jelas.
+   * Sesi server SUDAH dicabut saat enable2fa — clearSession + emitSessionExpired
+   * mengarahkan ke /login (native) tanpa 401 misterius di tengah jalan.
+   */
+  const handleRelogin = useCallback(async () => {
+    setReloginDialog(false)
+    resetEnableFlow()
+    setCodes([])
+    await clearSession()
+    emitSessionExpired()
+  }, [resetEnableFlow])
+
+  /** Selesai menyimpan kode: alur enable → dialog login-ulang; regenerasi → tutup biasa. */
+  const finishCodesStep = useCallback(() => {
+    if (reloginRequired) {
+      setAckOpen(false)
+      setReloginDialog(true)
+    } else {
+      resetEnableFlow()
+    }
+  }, [reloginRequired, resetEnableFlow])
 
   const handleDownloadCodes = useCallback(
     async (text: string) => {
@@ -207,11 +245,16 @@ export default function TwoFactorScreen() {
       setEnabling(true)
       setEnableError(undefined)
       try {
-        const res = await api.auth.enable2fa({ code })
-        setCodes(res?.backupCodes ?? [])
+        await api.auth.enable2fa({ code })
+        // BFI-036: (a) backupCodes TIDAK ada di respons enable — pakai yang
+        // ditangkap dari respons setup2fa (`setup.backupCodes`); (b) server
+        // MENCABUT semua sesi saat enable (termasuk sesi ini) — JANGAN
+        // query.refresh() (401 → logout paksa tanpa penjelasan). Pengguna
+        // melihat kode dulu, lalu dialog "silakan masuk kembali".
+        setCodes(setup?.backupCodes ?? [])
+        setReloginRequired(true)
         setStep("codes")
         toast.show({ title: "Verifikasi dua langkah aktif", tone: "success" })
-        await query.refresh()
       } catch (err: unknown) {
         // UI-A002: alasan dari server (mis. kode kedaluwarsa vs salah) lebih
         // berguna daripada kalimat generik.
@@ -220,7 +263,7 @@ export default function TwoFactorScreen() {
         setEnabling(false)
       }
     },
-    [enabling, query, toast.show],
+    [enabling, setup, toast.show],
   )
 
   const openDisable = useCallback(() => {
@@ -462,8 +505,10 @@ export default function TwoFactorScreen() {
                 regenerating={regenerating}
               />
               {step === "codes" ? (
+                // BFI-036: alur enable → selesai = dialog login-ulang (sesi
+                // sudah dicabut server). Alur regenerasi → tutup biasa.
                 <Button
-                  onPress={() => (codesSaved ? resetEnableFlow() : setAckOpen(true))}
+                  onPress={() => (codesSaved ? finishCodesStep() : setAckOpen(true))}
                 >
                   Sudah saya simpan
                 </Button>
@@ -576,10 +621,23 @@ export default function TwoFactorScreen() {
         cancelLabel="Kembali"
         onConfirm={() => {
           setAckOpen(false)
-          resetEnableFlow()
+          finishCodesStep()
         }}
         onCancel={() => setAckOpen(false)}
         onRequestClose={() => setAckOpen(false)}
+      />
+
+      {/* BFI-036: sesi dicabut server saat enable — dialog satu aksi,
+          tidak bisa di-dismiss (sesi ini memang sudah mati). */}
+      <Dialog
+        title="Silakan masuk kembali"
+        description="Verifikasi dua langkah sudah aktif. Demi keamanan, semua sesi Anda telah dicabut — masuk kembali untuk melanjutkan."
+        visible={reloginDialog}
+        confirmLabel="Masuk kembali"
+        hideCancel
+        dismissOnBackdrop={false}
+        onConfirm={() => void handleRelogin()}
+        onRequestClose={() => {}}
       />
 
       {/* ── Dialog: regenerasi kode cadangan (A11: pola konfirmasi seragam) ── */}

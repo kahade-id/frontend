@@ -69,11 +69,13 @@ export {
 export {
   ApiError,
   DEFAULT_ERROR_MESSAGES,
+  deletionBlockerMessage,
   isApiError,
   isPinNotSetError,
   isUncertainMutationError,
   userMessage,
   type ApiErrorCode,
+  type FieldError,
 } from "@/lib/api/errors"
 export {
   clearSession,
