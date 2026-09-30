@@ -310,7 +310,9 @@ export function ShowcaseMediaGallery({ media, title, onOpen, onDoubleTap, autopl
             accessibilityLabel={translate("Media sebelumnya")}
             disabled={page === 0}
             onPress={() => move(page - 1)}
-            containerClassName="min-h-8 min-w-8 items-center justify-center rounded-full"
+            // UX-TCH-001: target sentuh 44pt (min-h-11/min-w-11), konsisten
+            // dengan titik indikator di sebelahnya.
+            containerClassName="min-h-11 min-w-11 items-center justify-center rounded-full"
           >
             <CaretLeft size={18} color={brand.white} weight="bold" />
           </PressableScale>
@@ -343,7 +345,9 @@ export function ShowcaseMediaGallery({ media, title, onOpen, onDoubleTap, autopl
             accessibilityLabel={translate("Media berikutnya")}
             disabled={page >= media.length - 1}
             onPress={() => move(page + 1)}
-            containerClassName="min-h-8 min-w-8 items-center justify-center rounded-full"
+            // UX-TCH-002: target sentuh 44pt (min-h-11/min-w-11), konsisten
+            // dengan titik indikator di sebelahnya.
+            containerClassName="min-h-11 min-w-11 items-center justify-center rounded-full"
           >
             <CaretRight size={18} color={brand.white} weight="bold" />
           </PressableScale>
@@ -408,6 +412,9 @@ function VideoSlide({
         accessibilityRole="button"
         accessibilityLabel={muted ? translate("Nyalakan suara video") : translate("Bisukan video")}
         onPress={toggleMute}
+        // UX-TCH-003: tombol visual ~36px (p-2 + ikon 20px) — hitSlop 4px
+        // → 44px efektif tanpa mengubah tampilan mengambang di sudut video.
+        hitSlop={4}
         containerClassName="rounded-full"
       >
         <View className="items-center justify-center rounded-full bg-overlay-media p-2">
