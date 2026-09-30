@@ -105,7 +105,9 @@ export function useOnboardingChecklist(): OnboardingChecklistState {
   const progress = useMemo(
     () =>
       computeChecklistProgress({
-        kycDone: kycQuery.data?.status === "VERIFIED",
+        // ESI-005 (audit integrasi 2026-09-30): backend mengirim "APPROVED",
+        // bukan "VERIFIED" (VERIFIED tidak ada di enum backend `KycStatus`).
+        kycDone: kycQuery.data?.status === "APPROVED",
         bankAccountDone: (bankQuery.data?.length ?? 0) > 0,
         firstShowcaseDone: (showcaseQuery.data?.length ?? 0) > 0,
       }),

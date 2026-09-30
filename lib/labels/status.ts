@@ -31,8 +31,28 @@ export type DisputeStatus =
   | "WAITING_RESPONSE"
   | "RESOLVED"
   | "ESCALATED"
+/**
+ * ESI-017 (audit integrasi 2026-09-30): `WAITING_USER` SENGAJA dipertahankan —
+ * ini state UI sisi klien (tiket menunggu balasan pengguna, dihitung dari
+ * pesan terakhir), BUKAN nilai dari backend. Enum backend
+ * `SupportTicketStatus` hanya OPEN|IN_PROGRESS|RESOLVED|CLOSED.
+ */
 export type TicketStatus = "OPEN" | "IN_PROGRESS" | "WAITING_USER" | "RESOLVED" | "CLOSED"
-export type SubscriptionStatus = "NONE" | "ACTIVE" | "EXPIRING" | "EXPIRED" | "CANCELLED"
+/**
+ * ESI-006 (audit integrasi 2026-09-30): selaras enum backend
+ * `SubscriptionStatus` (ACTIVE|CANCELLED|EXPIRED|PENDING|SUSPENDED|PAUSED).
+ * `NONE`/`EXPIRING` adalah state UI klien (bukan dari backend): NONE = belum
+ * punya langganan, EXPIRING = ACTIVE yang dihitung komponen dari `daysLeft`.
+ */
+export type SubscriptionStatus =
+  | "NONE"
+  | "ACTIVE"
+  | "EXPIRING"
+  | "EXPIRED"
+  | "CANCELLED"
+  | "PENDING"
+  | "SUSPENDED"
+  | "PAUSED"
 
 export type StatusKind = "order" | "dispute" | "kyc" | "ticket" | "subscription" | "report"
 
@@ -49,8 +69,8 @@ export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   PAID: "Dana di escrow",
   SHIPPED: "Paket dikirim",
   DELIVERED: "Konfirmasi penerimaan",
-  REFUNDED: "Dana dikembalikan",
-  EXPIRED: "Kedaluwarsa",
+  // ESI-021 (audit integrasi 2026-09-30): entri REFUNDED/EXPIRED dihapus —
+  // tak pernah dikirim backend (bukan anggota enum `OrderStatus`).
 }
 
 /**
@@ -89,24 +109,43 @@ export const SUBSCRIPTION_STATUS_LABELS: Record<SubscriptionStatus, string> = {
   EXPIRING: "Segera berakhir",
   EXPIRED: "Berakhir",
   CANCELLED: "Dihentikan",
+  // ESI-006 (audit integrasi 2026-09-30): nilai resmi backend — sebelumnya
+  // jatuh ke "NONE" ("Belum berlangganan") yang menyesatkan. PAUSED = jeda
+  // sementara dengan auto-resume via scheduler backend.
+  PENDING: "Menunggu pembayaran",
+  SUSPENDED: "Ditangguhkan",
+  PAUSED: "Dijeda sementara",
 }
 
-export type ReportStatus = "PENDING" | "REVIEWING" | "RESOLVED" | "REJECTED" | (string & {})
+/**
+ * ESI-008 (audit integrasi 2026-09-30): selaras enum backend `ReportStatus`
+ * (PENDING|UNDER_REVIEW|RESOLVED_ACTION_TAKEN|RESOLVED_NO_ACTION|DISMISSED).
+ * Nilai lama FE (REVIEWING/RESOLVED/REJECTED) tidak pernah dikirim backend.
+ */
+export type ReportStatus =
+  | "PENDING"
+  | "UNDER_REVIEW"
+  | "RESOLVED_ACTION_TAKEN"
+  | "RESOLVED_NO_ACTION"
+  | "DISMISSED"
+  | (string & {})
 
 /** Label status laporan (dipakai `app/reports.tsx` — dulu peta lokal di layar, I-08). */
 export const REPORT_STATUS_LABELS: Record<string, string> = {
   PENDING: "Menunggu tinjauan",
-  REVIEWING: "Ditinjau",
-  RESOLVED: "Selesai",
-  REJECTED: "Ditolak",
+  UNDER_REVIEW: "Ditinjau moderator",
+  RESOLVED_ACTION_TAKEN: "Selesai — ditindaklanjuti",
+  RESOLVED_NO_ACTION: "Selesai — tidak ada pelanggaran",
+  DISMISSED: "Ditolak",
 }
 
 /** Tone ikon/badge untuk status laporan (dipakai layar yang sama). */
 export const REPORT_STATUS_TONE: Record<string, "warning" | "success" | "neutral"> = {
   PENDING: "warning",
-  REVIEWING: "warning",
-  RESOLVED: "success",
-  REJECTED: "neutral",
+  UNDER_REVIEW: "warning",
+  RESOLVED_ACTION_TAKEN: "success",
+  RESOLVED_NO_ACTION: "success",
+  DISMISSED: "neutral",
 }
 
 /**

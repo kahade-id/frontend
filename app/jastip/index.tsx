@@ -40,7 +40,7 @@ const STATUS_TONE: Record<string, "success" | "warning" | "danger" | "neutral"> 
   DRAFT: "neutral",
   OPEN: "success",
   CLOSED: "warning",
-  FAILED: "danger",
+  CANCELLED: "danger", // ESI-009: selaras enum backend (dulu "FAILED" inventaris FE)
   COMPLETED: "neutral",
 }
 

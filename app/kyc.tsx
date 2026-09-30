@@ -9,9 +9,11 @@
  *
  * Keputusan non-obvious:
  *   - Status dari server dinormalkan `toKycUiStatus()` (lib/api/kyc.ts):
- *     spec tidak mendefinisikan enum, komponen memakai kosakata
- *     NOT_SUBMITTED/APPROVED/REVOKED sementara tipe API memakai
- *     UNSUBMITTED/VERIFIED/EXPIRED.
+ *     tipe API memakai kosakata resmi backend
+ *     (UNVERIFIED/PENDING/APPROVED/REJECTED/REVOKED) dan dipetakan ke
+ *     kosakata UI (NOT_SUBMITTED/PENDING/APPROVED/REJECTED/REVOKED).
+ *     Nilai lama (UNSUBMITTED/VERIFIED/EXPIRED) tak pernah dikirim backend —
+ *     ESI-005 audit integrasi 2026-09-30.
  *   - Endpoint dipilih dari status: `resubmit` HANYA untuk REJECTED,
  *     `submit` untuk NOT_SUBMITTED. REVOKED tidak bisa submit/resubmit
  *     (backend 403 KYC_REVOKED) — user diarahkan hubungi dukungan, bukan

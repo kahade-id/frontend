@@ -48,7 +48,7 @@ import { Text } from "@/components/ui/text"
 const FILTERS: { value: PatunganStatus | "ALL"; label: string }[] = [
   { value: "ALL", label: "Semua" },
   { value: "OPEN", label: "Dibuka" },
-  { value: "FUNDED", label: "Tercapai" },
+  { value: "TARGET_REACHED", label: "Tercapai" },
   { value: "RELEASED", label: "Cair" },
 ]
 
@@ -72,7 +72,7 @@ function GroupCard({ group }: { group: PatunganGroup }) {
         <Text variant="body" weight={600} className="flex-1" numberOfLines={1}>
           {group.title}
         </Text>
-        <Badge tone={group.status === "OPEN" ? "success" : group.status === "FUNDED" ? "info" : "neutral"}>
+        <Badge tone={group.status === "OPEN" ? "success" : group.status === "TARGET_REACHED" ? "info" : "neutral"}>
           {PATUNGAN_STATUS_LABELS[group.status] ?? group.status}
         </Badge>
       </View>
