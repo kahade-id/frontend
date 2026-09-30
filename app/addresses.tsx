@@ -250,6 +250,13 @@ export default function AddressesScreen() {
     )
   }
 
+  // FRM-003: pesan validasi pertama ditampilkan sebagai hint di atas tombol
+  // supaya jelas field mana yang masih kurang (tombol nonaktif tak lagi bisu).
+  const saveError = validate(formToDto(form))
+  const hasTypedAny = [form.recipientName, form.phone, form.addressLine, form.city, form.postalCode].some(
+    (v) => v.trim().length > 0,
+  )
+
   return (
     <DataScreen
       title={translate("Buku alamat")}
@@ -353,15 +360,23 @@ export default function AddressesScreen() {
         // bawah & CTA di iOS tanpa ini (pola FRM-017).
         avoidKeyboard
         footer={
-          <Button
-            fullWidth
-            loading={saving}
-            // FRM-003: nonaktif sampai semua field wajib terisi (validasi tetap jalan saat submit).
-            disabled={validate(formToDto(form)) !== null}
-            onPress={() => void handleSave()}
-          >
-            {editing ? translate("Simpan") : translate("Tambah alamat")}
-          </Button>
+          <View className="gap-2">
+            {/* FRM-003: beri tahu field wajib mana yang masih kurang. */}
+            {saveError && hasTypedAny ? (
+              <Text variant="caption" tone="secondary" className="text-center">
+                {saveError}
+              </Text>
+            ) : null}
+            <Button
+              fullWidth
+              loading={saving}
+              // FRM-003: nonaktif sampai semua field wajib terisi (validasi tetap jalan saat submit).
+              disabled={saveError !== null}
+              onPress={() => void handleSave()}
+            >
+              {editing ? translate("Simpan") : translate("Tambah alamat")}
+            </Button>
+          </View>
         }
       >
         <View className="gap-4">
