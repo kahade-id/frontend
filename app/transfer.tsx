@@ -604,7 +604,7 @@ export default function TransferScreen() {
               {balanceError ? (
                 <View>
                   <Alert tone="warning" title="Saldo tidak dapat dimuat">
-                    Batas maksimal kembali ke limit transfer.
+                    Coba muat ulang.
                   </Alert>
                   <Button
                     variant="ghost"
@@ -620,8 +620,8 @@ export default function TransferScreen() {
                   tahu pembayar, jangan diam-diam. */}
               {presetClamped ? (
                 <Alert tone="warning" title="Nominal dari QR disesuaikan">
-                  QR meminta {formatRupiah(presetAmountRaw ?? 0)} — melebihi batas transfer, jadi
-                  kolom diisi {formatRupiah(presetAmount ?? 0)} (maksimum). Sesuaikan manual bila perlu.
+                  QR meminta {formatRupiah(presetAmountRaw ?? 0)} — melebihi batas. Kolom diisi{" "}
+                  {formatRupiah(presetAmount ?? 0)} (maksimum).
                 </Alert>
               ) : null}
             </ScrollView>

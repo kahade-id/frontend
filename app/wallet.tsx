@@ -427,9 +427,6 @@ export default function WalletScreen() {
               </Text>
             </Card>
           ) : null}
-          <Text variant="caption" tone="tertiary" className="px-1 pt-1">
-            Mutasi yang masih diproses tampil di riwayat dengan status "Pending".
-          </Text>
         </View>
       </BottomSheet>
 
@@ -458,8 +455,8 @@ export default function WalletScreen() {
           <View className="px-5 py-6">
             <EmptyState
               icon={WalletIcon}
-              title="Belum ada pesanan penahan"
-              description="Tidak ditemukan dana yang ditahan di escrow pada 100 mutasi terakhir."
+              title="Tidak ada pesanan penahan"
+              description="Belum ada dana yang ditahan."
             />
           </View>
         ) : (

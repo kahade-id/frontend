@@ -178,7 +178,7 @@ export default function TopupScreen() {
   const [pollSlow, setPollSlow] = useState(false)
   /**
    * A-12 (audit): true setelah cap polling tercapai — UI memberi tahu bahwa
-   * pemantauan otomatis berhenti dan "Periksa status" adalah jalur manualnya.
+   * pemantauan otomatis berhenti dan "Cek status" adalah jalur manualnya.
    * Sebelumnya polling mati diam-diam dan kartu terus terlihat "hidup".
    */
   const [pollStopped, setPollStopped] = useState(false)
@@ -814,9 +814,9 @@ export default function TopupScreen() {
                   )
                 })()}
                 {pollStopped && !mapValue(STATUS, result?.status, undefined) ? (
-                  <Alert tone="info" title="Pemantauan otomatis dihentikan">
-                    Status tidak lagi diperbarui otomatis setelah 15 menit. Pembayaran yang masuk
-                    tetap diproses channel — ketuk Periksa status untuk pembaruan manual.
+                  <Alert tone="info" title="Pembaruan otomatis berhenti">
+                    Pembayaran yang masuk tetap diproses — ketuk Cek status untuk pembaruan
+                    manual.
                   </Alert>
                 ) : null}
                 {statusError ? (
