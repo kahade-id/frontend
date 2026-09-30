@@ -22,6 +22,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
+import { PressableScale } from "@/components/ui/pressable-scale"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Header } from "@/components/ui/header"
 import { PaginatedList } from "@/components/ui/paginated-list"
@@ -45,7 +46,9 @@ const ReturnRow = memo(function ReturnRow({
   const handlePress = useCallback(() => onSelect(item.id), [onSelect, item.id])
 
   return (
-    <Pressable
+    // UX-TCH-024: PressableScale (feedback scale saat ditekan); sebelumnya
+    // Pressable polos tanpa feedback.
+    <PressableScale
       onPress={handlePress}
       accessibilityRole="button"
       accessibilityLabel={`Retur ${returnIdShort(item)}, ${RETURN_STATUS_LABEL[item.status] ?? item.status}`}
@@ -62,7 +65,7 @@ const ReturnRow = memo(function ReturnRow({
           Diajukan {formatDateTime(item.createdAt)}
         </Text>
       </Card>
-    </Pressable>
+    </PressableScale>
   )
 })
 

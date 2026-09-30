@@ -23,6 +23,7 @@ import { Text } from "@/components/ui/text"
 import { Icon } from "@/components/ui/icon"
 import { Picture } from "@/components/ui/picture"
 import { Badge } from "@/components/ui/badge"
+import { PressableScale } from "@/components/ui/pressable-scale"
 import { Storefront, Receipt, ArrowSquareOut } from "phosphor-react-native"
 
 function priceLabel(card: ChatProductCardPayload): string {
@@ -106,11 +107,16 @@ export const ChatProductCard = memo(function ChatProductCard({
           {priceLabel(card)}
         </Text>
         <View className="mt-1 flex-row gap-2">
-          <Pressable
+          {/* UX-TCH-025: PressableScale (feedback scale) + py-3 → ≥44pt;
+              sebelumnya Pressable polos ~38px tanpa feedback. */}
+          <PressableScale
             onPress={openShowcase}
             accessibilityRole="button"
             accessibilityLabel="Lihat etalase"
-            className={`flex-1 flex-row items-center justify-center gap-1 rounded-sm py-2 ${
+            // flex-1 di containerClassName: primitif meneruskannya sebagai
+            // style flex ke Animated.View supaya dua tombol tetap 50/50.
+            containerClassName="flex-1"
+            className={`flex-row items-center justify-center gap-1 rounded-sm py-3 ${
               // CHT-013: overlay harus terlihat di KEDUA mode — bubble keluar
               // hitam (light) / putih (dark), jadi bg-black/15 saja hanya
               // terlihat di dark. Putih-translusen di light, hitam di dark.
@@ -121,9 +127,11 @@ export const ChatProductCard = memo(function ChatProductCard({
             <Text variant="caption" weight={700} tone={outgoing ? "inverse" : "primary"}>
               Lihat
             </Text>
-          </Pressable>
+          </PressableScale>
           {onBuy ? (
-            <Pressable
+            // UX-TCH-026: PressableScale (feedback scale) + py-3 → ≥44pt;
+            // sebelumnya Pressable polos ~38px tanpa feedback.
+            <PressableScale
               onPress={() => onBuy(card)}
               accessibilityRole="button"
               accessibilityLabel={`Beli ${card.title} via escrow`}
@@ -131,14 +139,16 @@ export const ChatProductCard = memo(function ChatProductCard({
               // bentuk tombol tak terlihat. Overlay translusen mode-aware
               // (pola sama dengan tombol "Lihat"): putih/15 di light (bubble
               // hitam), hitam/15 di dark (bubble putih).
-              className={`flex-1 items-center justify-center rounded-sm py-2 ${
+              // flex-1 di containerClassName (lihat komentar di atas).
+              containerClassName="flex-1"
+              className={`items-center justify-center rounded-sm py-3 ${
                 outgoing ? "bg-white/15 dark:bg-black/15" : "bg-primary"
               }`}
             >
               <Text variant="caption" weight={700} tone="inverse">
                 Beli via Escrow
               </Text>
-            </Pressable>
+            </PressableScale>
           ) : null}
         </View>
       </View>

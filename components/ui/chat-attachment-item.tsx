@@ -35,7 +35,7 @@
  */
 import { File, FileArchive, FilePdf, FileText, Image as ImageIcon, Warning, X } from "phosphor-react-native"
 import { memo } from "react"
-import { Pressable, View, type ViewProps } from "react-native"
+import { View, type ViewProps } from "react-native"
 
 import { Icon, type IconComponent } from "@/components/ui/icon"
 import { IconBox } from "@/components/ui/icon-box"
@@ -257,7 +257,9 @@ export const ChatAttachmentItem = memo(function ChatAttachmentItem({
       {/* B04: saat mengunggah, X diganti tombol "Batal" yang membatalkan
           request (AbortController), bukan sekadar menghapus chip. */}
       {uploading && onCancel ? (
-        <Pressable
+        // UX-TCH-027: PressableScale (feedback scale saat ditekan);
+        // sebelumnya Pressable polos tanpa feedback.
+        <PressableScale
           onPress={onCancel}
           accessibilityRole="button"
           accessibilityLabel={t.cancel}
@@ -266,9 +268,10 @@ export const ChatAttachmentItem = memo(function ChatAttachmentItem({
           <Text variant="caption" weight={600} tone="primary" className="px-1 underline">
             {t.cancel}
           </Text>
-        </Pressable>
+        </PressableScale>
       ) : (errored || cancelled) && onRetry ? (
-        <Pressable
+        // UX-TCH-027: PressableScale (feedback scale saat ditekan).
+        <PressableScale
           onPress={onRetry}
           accessibilityRole="button"
           accessibilityLabel={t.retry}
@@ -277,17 +280,18 @@ export const ChatAttachmentItem = memo(function ChatAttachmentItem({
           <Text variant="caption" weight={600} tone="primary" className="px-1 underline">
             {t.retry}
           </Text>
-        </Pressable>
+        </PressableScale>
       ) : null}
       {onRemove ? (
-        <Pressable
+        // UX-TCH-027: PressableScale (feedback scale saat ditekan).
+        <PressableScale
           onPress={onRemove}
           accessibilityRole="button"
           accessibilityLabel={t.remove}
           className="min-h-11 min-w-11 items-center justify-center"
         >
           <Icon icon={X} size="xs" />
-        </Pressable>
+        </PressableScale>
       ) : null}
       {uploading ? <ProgressBar value={progress == null ? undefined : Math.round(progress * 100)} size="sm" className="absolute bottom-0 left-0 right-0" /> : null}
     </View>

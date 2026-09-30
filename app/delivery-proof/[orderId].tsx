@@ -31,7 +31,7 @@ import { useApiQuery } from "@/lib/use-api-query"
 import { useFingerprintPoll } from "@/lib/use-fingerprint-poll"
 import { Text } from "@/components/ui/text"
 import { Icon } from "@/components/ui/icon"
-import { Pressable, View } from "react-native"
+import { View } from "react-native"
 import { useLocalSearchParams } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Package, CaretRight } from "phosphor-react-native"
@@ -50,6 +50,7 @@ import {
   type DeliveryProofStatus,
 } from "@/components/ui/delivery-proof-viewer"
 import { Dialog } from "@/components/ui/modal"
+import { PressableScale } from "@/components/ui/pressable-scale"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import type { EvidenceItem } from "@/components/ui/evidence-grid"
@@ -620,7 +621,9 @@ export default function DeliveryProofScreen() {
                   const atts = toAttachments(p)
                   const openable = atts.items.length > 0
                   return (
-                    <Pressable
+                    // UX-TCH-023: PressableScale (feedback scale saat ditekan);
+                    // sebelumnya Pressable polos tanpa feedback.
+                    <PressableScale
                       key={p.id || p.createdAt}
                       onPress={openable ? () => openProofAttachment(p) : undefined}
                       disabled={!openable}
@@ -661,7 +664,7 @@ export default function DeliveryProofScreen() {
                           ? translate(" · {x} tak dapat ditampilkan", { x: atts.dropped })
                           : ""}
                       </Text>
-                    </Pressable>
+                    </PressableScale>
                   )
                 })}
               </>
