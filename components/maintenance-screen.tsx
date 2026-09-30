@@ -7,8 +7,8 @@
  *
  * Dibangun di atas <EmptyState> agar konsisten dengan layar informatif lain.
  */
-import { useEffect, type ReactNode } from "react"
-import { View } from "react-native"
+import { useEffect, useRef, type ReactNode } from "react"
+import { AccessibilityInfo, View } from "react-native"
 import { Wrench } from "phosphor-react-native"
 
 import { Button } from "@/components/ui/button"
@@ -28,10 +28,27 @@ import { translate } from "@/lib/i18n/translate"
  */
 export function MaintenanceGate({ children }: { children: ReactNode }) {
   const { phase, message, checking, retry } = useMaintenance()
+  const prevPhaseRef = useRef(phase)
 
   useEffect(() => {
     void checkMaintenance()
   }, [])
+
+  // UX-A11Y-012: umumkan transisi ke mode maintenance secara assertive.
+  // Seluruh konten app diganti <MaintenanceScreen>; tanpa ini pengguna SR
+  // yang sedang di tengah alur tiba-tiba menemukan layar berbeda tanpa
+  // penjelasan transisinya. Sekali per transisi (bukan per render).
+  useEffect(() => {
+    if (phase === "maintenance" && prevPhaseRef.current !== "maintenance") {
+      AccessibilityInfo.announceForAccessibility(
+        `${translate("Kahade sedang dalam pemeliharaan.")} ${
+          message ??
+          translate("Server sedang menjalani pemeliharaan terjadwal. Coba lagi dalam beberapa menit.")
+        }`,
+      )
+    }
+    prevPhaseRef.current = phase
+  }, [phase, message])
 
   if (phase === "maintenance") {
     return <MaintenanceScreen message={message} checking={checking} onRetry={retry} />
