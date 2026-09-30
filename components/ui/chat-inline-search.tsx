@@ -76,9 +76,21 @@ export function ChatInlineSearchBar({
         cursorColor={palette.primary}
         maxFontSizeMultiplier={2}
         returnKeyType="search"
+        // FRM-016: batasi tempelan raksasa (filter berjalan per keystroke).
+        maxLength={100}
         accessibilityLabel={translate("Kata kunci pencarian")}
         className="min-h-10 flex-1 font-sans-400 text-bodyLarge text-text-primary"
       />
+      {/* FRM-016: tombol clear — sebelumnya user harus menghapus manual. */}
+      {query.length > 0 ? (
+        <IconButton
+          icon={X}
+          variant="ghost"
+          size="sm"
+          accessibilityLabel={translate("Hapus kata kunci")}
+          onPress={() => onQueryChange("")}
+        />
+      ) : null}
       {hasQuery ? (
         <Text
           variant="caption"

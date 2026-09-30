@@ -182,6 +182,17 @@ function ReplyTemplateManager() {
   const [busy, setBusy] = useState(false)
 
   const validation = validateTemplateInput(shortcut, draft)
+  // FRM-013: tempel pesan validasi ke field penyebabnya — pesan lib selalu
+  // diawali nama field ("Shortcut …" / "Isi template …"), tanpa ubah logikanya.
+  const anyTouched = shortcut.length > 0 || draft.length > 0
+  const shortcutError =
+    !validation.ok && anyTouched && validation.message.startsWith("Shortcut")
+      ? validation.message
+      : undefined
+  const draftError =
+    !validation.ok && anyTouched && validation.message.startsWith("Isi template")
+      ? validation.message
+      : undefined
 
   const save = async () => {
     if (busy) return
@@ -307,6 +318,9 @@ function ReplyTemplateManager() {
         <Input
           value={shortcut}
           onChangeText={(v) => setShortcut(v.slice(0, 32))}
+          // FRM-013: label visual (bukan hanya placeholder/a11y).
+          label="Shortcut"
+          errorText={shortcutError}
           placeholder="/shortcut (huruf kecil, angka, _)"
           autoCapitalize="none"
           autoCorrect={false}
@@ -315,15 +329,12 @@ function ReplyTemplateManager() {
         <Input
           value={draft}
           onChangeText={(v) => setDraft(v.slice(0, REPLY_TEMPLATE_TEXT_MAX))}
+          label="Isi template"
+          errorText={draftError}
           placeholder="Isi template…"
           multiline
           accessibilityLabel="Isi template"
         />
-        {!validation.ok && (shortcut || draft) ? (
-          <Text variant="caption" tone="danger">
-            {validation.message}
-          </Text>
-        ) : null}
         <Pressable
           onPress={() => void save()}
           disabled={busy || !validation.ok}

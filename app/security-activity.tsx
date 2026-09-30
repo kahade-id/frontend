@@ -599,6 +599,8 @@ export default function SecurityActivityScreen() {
         <Input
           value={trustPassword}
           onChangeText={setTrustPassword}
+          // FRM-014: field sensitif butuh label terasosiasi, bukan hanya placeholder.
+          label="Kata sandi akun"
           placeholder="Kata sandi akun"
           secureTextEntry
           autoComplete="password"
