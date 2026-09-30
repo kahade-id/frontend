@@ -9,7 +9,7 @@ import { router, useLocalSearchParams } from "expo-router"
 
 import { api } from "@/lib/api"
 import type { Shipment, TrackingEvent } from "@/lib/api/courier"
-import { SHIPMENT_STATUS_LABEL, formatIdrSen } from "@/lib/api/courier"
+import { SHIPMENT_STATUS_LABEL } from "@/lib/api/courier"
 import { formatDateTime } from "@/lib/format"
 import { shortId } from "@/lib/short-id"
 import { ROUTES } from "@/lib/routes"
@@ -19,6 +19,7 @@ import { showMutationError } from "@/lib/mutation-toast"
 import { useTheme } from "@/components/theme-provider"
 import { useToast } from "@/components/ui/toast"
 
+import { Amount } from "@/components/ui/amount"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -150,11 +151,11 @@ export default function TrackingScreen() {
             <View style={{ flexDirection: "row", gap: tokens.space[4], marginTop: tokens.space[2] }}>
               <View>
                 <Text variant="caption" tone="secondary">Estimasi ongkir</Text>
-                <Text variant="monoBody">{formatIdrSen(shipment.estimatedCost)}</Text>
+                <Amount value={shipment.estimatedCost / 100} size="body" />
               </View>
               <View>
                 <Text variant="caption" tone="secondary">Ongkir aktual</Text>
-                <Text variant="monoBody">{formatIdrSen(shipment.actualCost)}</Text>
+                <Amount value={shipment.actualCost / 100} size="body" />
               </View>
             </View>
             <View style={{ marginTop: tokens.space[3] }}>
