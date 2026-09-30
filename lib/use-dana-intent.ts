@@ -31,28 +31,25 @@ import { serverNow } from "@/lib/server-time"
 import { usePolling } from "@/lib/use-polling"
 
 /**
- * PERF-FIX (network P0): polling adaptif dua fase.
+ * BFI-085: polling backoff linear 8 dtk × 15.
  *
- * Fase cepat: 3 detik selama ~60 detik pertama — responsif saat pengguna baru
- * membayar (mayoritas pembayaran DANA selesai < 60 dtk).
- * Fase lambat: 12 detik setelahnya — 4× lebih hemat saat menunggu lama.
- * Dulu flat 3 dtk hingga 300×/sheet; saat insiden DANA tiap sheet checkout
- * yang terbuka ikut memperkuat badai 429 (lihat C-09 di lib/use-polling.ts).
+ * Interval antar tick tumbuh: 8s, 16s, 24s, … (8s × nomor poll), total
+ * ≈ 16 menit wall-clock untuk 15 request — anggaran tunggu SAMA seperti
+ * skema lama (±15 menit) tapi 6× lebih sedikit request ke backend. Relevan
+ * saat insiden DANA: tiap sheet checkout yang terbuka tidak lagi ikut
+ * memperkuat badai 429 (lihat C-09 di lib/use-polling.ts).
+ * Setelah cap, UI berhenti polling TETAPI tetap menyediakan "Cek status
+ * sekarang" + "Bayar metode lain" (C-10, bukan berhenti tanpa jalan keluar).
  */
-const POLL_MS_FAST = 3_000
-const POLL_MS_SLOW = 12_000
-/** Jumlah poll fase cepat sebelum melambat (20 × 3 dtk = 60 dtk). */
-const FAST_POLLS = 20
+const POLL_BASE_MS = 8_000
+/** Jumlah poll: 15 × interval tumbuh (8s×n) ≈ 16 menit total. */
+const MAX_POLLS = 15
 /**
- * Cap jumlah poll: 20 cepat + 70 lambat ≈ 15 menit (60 + 840 dtk) — anggaran
- * wall-clock SAMA seperti sebelumnya (300 × 3 dtk), tapi 3,3× lebih sedikit
- * request. C-10 (audit escrow 2026-09-24): setelah cap, UI berhenti polling
- * TETAPI tetap menyediakan "Cek status sekarang" + "Bayar metode lain"
- * (bukan berhenti tanpa jalan keluar).
+ * Status yang menghentikan polling — PAID ikut (sheet ditutup via onPaid).
+ * BFI-077/BFI-085: REFUNDED ikut terminal — order yang ter-refund tidak
+ * lagi membuat polling jalan sampai timeout; aksi menggantung diselesaikan.
  */
-const MAX_POLLS = 90
-/** Status yang menghentikan polling — PAID ikut (sheet ditutup via onPaid). */
-const TERMINAL: readonly string[] = ["PAID", "EXPIRED", "FAILED", "CANCELLED", "UNKNOWN"]
+const TERMINAL: readonly string[] = ["PAID", "EXPIRED", "FAILED", "CANCELLED", "REFUNDED", "UNKNOWN"]
 
 /**
  * M-04 (audit escrow 2026-09-24): cast `(TERMINAL as readonly string[])`
@@ -135,12 +132,12 @@ export function useDanaIntent({
   const [syncing, setSyncing] = useState(false)
   const pollCount = useRef(0)
   /**
-   * PERF-FIX (network P0): fase polling. `false` = 3 dtk (60 dtk pertama),
-   * `true` = 12 dtk. Berpindah sekali saat poll ke-20; memicu re-render satu
-   * kali dan `usePolling` menjadwal ulang dengan interval baru (aman: callback
-   * tidak memakai AbortSignal poller, jadi re-arm tidak membatalkan apa pun).
+   * BFI-085: interval tick BERJALAN (backoff linear). Berubah tiap poll —
+   * memicu re-render satu kali dan `usePolling` menjadwal ulang dengan
+   * interval baru (aman: callback tidak memakai AbortSignal poller, jadi
+   * re-arm tidak membatalkan apa pun — pola yang sama seperti sebelumnya).
    */
-  const [pollSlow, setPollSlow] = useState(false)
+  const [pollIntervalMs, setPollIntervalMs] = useState(POLL_BASE_MS)
   const creatingRef = useRef(false)
   /** G-04: satu request status dalam satu waktu (poll + manual berbagi). */
   const syncInFlight = useRef<Promise<string | null> | null>(null)
@@ -223,12 +220,11 @@ export function useDanaIntent({
         return
       }
       pollCount.current += 1
-      // PERF-FIX (network P0): tepat sekali, setelah 60 dtk pertama —
-      // turunkan laju 3 dtk → 12 dtk untuk sisa masa tunggu.
-      if (pollCount.current === FAST_POLLS) setPollSlow(true)
+      // BFI-085: backoff linear — tick ke-n menunggu 8s × (n+1) berikutnya.
+      setPollIntervalMs(POLL_BASE_MS * (pollCount.current + 1))
       await syncStatus()
     },
-    pollSlow ? POLL_MS_SLOW : POLL_MS_FAST,
+    pollIntervalMs,
     Boolean(adapter && active && intent && !isPollStopStatus(status) && pollCount.current < MAX_POLLS),
   )
 
@@ -264,7 +260,7 @@ export function useDanaIntent({
       setIntent(res)
       setStatus("PENDING")
       setStopped(false)
-      setPollSlow(false)
+      setPollIntervalMs(POLL_BASE_MS)
       pollCount.current = 0
       // J-04: pembayaran yang ditinggalkan bisa dipulihkan dari Beranda.
       const recordBase = {
@@ -325,7 +321,7 @@ export function useDanaIntent({
     setStatus(null)
     setPollError(null)
     setStopped(false)
-    setPollSlow(false)
+    setPollIntervalMs(POLL_BASE_MS)
     pollCount.current = 0
     intentKeyRef.current = null
   }, [])

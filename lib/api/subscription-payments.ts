@@ -24,8 +24,6 @@ import {
   type DanaDirectPayKind,
   type OrderPaymentIntent,
 } from "@/lib/api/orders-endpoints"
-import { deviceLocationOnlyBody } from "@/lib/api/device-location"
-import type { LocationDto } from "@/lib/api/types"
 import type { KahadePlusPlanKey } from "@/lib/api/subscriptions"
 
 /** Path kanonis kontrak no-wallet (bukan analogi). */
@@ -55,11 +53,12 @@ export async function createSubscriptionPayment(
   promoCode?: string,
 ): Promise<SubscriptionPaymentIntent> {
   const { payKind, bankCode } = toDanaPayKind(methodCode)
-  const body = await deviceLocationOnlyBody()
+  // BFI-079: body HANYA { plan, payKind, bankCode?, promoCode? } —
+  // `SubscribeDanaDto` tidak mengenal `deviceLocation`; ValidationPipe global
+  // (forbidNonWhitelisted, 422) menolak seluruh request karenanya.
   const raw = await http.post<
     unknown,
     {
-      deviceLocation: LocationDto | null
       plan: KahadePlusPlanKey
       payKind: DanaDirectPayKind
       bankCode?: string
@@ -68,7 +67,6 @@ export async function createSubscriptionPayment(
   >(
     SUBSCRIBE_DANA_PATH,
     {
-      ...body,
       plan,
       payKind,
       ...(bankCode ? { bankCode } : {}),
@@ -136,13 +134,11 @@ export async function renewSubscriptionDana(
   idempotencyKey?: string,
 ): Promise<SubscriptionPaymentIntent> {
   const { payKind, bankCode } = toDanaPayKind(methodCode)
-  const body = await deviceLocationOnlyBody()
-  const raw = await http.post<
-    unknown,
-    { deviceLocation: LocationDto | null; payKind: DanaDirectPayKind; bankCode?: string }
-  >(
+  // BFI-079: body HANYA { payKind, bankCode? } — `RenewDanaDto` tidak mengenal
+  // `deviceLocation` (422 bila diselipkan).
+  const raw = await http.post<unknown, { payKind: DanaDirectPayKind; bankCode?: string }>(
     RENEW_DANA_PATH,
-    { ...body, payKind, ...(bankCode ? { bankCode } : {}) },
+    { payKind, ...(bankCode ? { bankCode } : {}) },
     {
       auth: "required",
       ...(idempotencyKey ? { headers: { "Idempotency-Key": idempotencyKey } } : {}),
