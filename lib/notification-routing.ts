@@ -78,6 +78,15 @@ function routeForNotificationReferenceRaw(ref: NotificationReference): Href | nu
   const id = ref.referenceId?.trim() ?? ""
   if (!type) return routeForActionUrl(ref.actionUrl)
 
+  // NCC-003: tipe push turunan (DISPUTE_SUBMITTED, DISPUTE_DECISION,
+  // DISPUTE_EVIDENCE_SUBMITTED, DISPUTE_CLAIM_SUBMITTED, DISPUTE_ESCALATED,
+  // DISPUTE_MESSAGE_RECEIVED, DISPUTE_RESOLVED) dinormalisasi menjadi
+  // `disputesubmitted` dst. — tangani seluruh keluarga via prefix agar tap
+  // notifikasi sengketa (push maupun inbox) membuka detail sengketa.
+  if (type.startsWith("dispute")) return id ? ROUTES.disputeDetail(id) : ROUTES.disputes
+  // NCC-004: keluarga MILESTONE_* (MILESTONE_RELEASED dsb.) → detail milestone.
+  if (type.startsWith("milestone")) return id ? ROUTES.milestoneDetail(id) : null
+
   switch (type) {
     case "order":
     case "transaction":
@@ -87,6 +96,12 @@ function routeForNotificationReferenceRaw(ref: NotificationReference): Href | nu
       return id ? ROUTES.orderLink(id) : ROUTES.orderLinks
     case "dispute":
       return id ? ROUTES.disputeDetail(id) : ROUTES.disputes
+    case "milestone":
+      // NCC-004: `refType: 'MILESTONE'` dari notifyMilestone → detail milestone.
+      return id ? ROUTES.milestoneDetail(id) : null
+    case "feedback":
+      // NCC-005: `refType: 'FEEDBACK'` dari admin-feedback → layar feedback.
+      return ROUTES.feedback
     case "wallettransaction":
     case "wallettx":
     case "topup":
@@ -196,6 +211,11 @@ export function labelForNotificationReference(ref: NotificationReference): strin
   const type = ref.referenceType ? normalizeType(ref.referenceType) : ""
   if (!type) return labelForActionUrl(ref.actionUrl)
 
+  // NCC-003/NCC-004: keluarga DISPUTE_* / MILESTONE_* (push maupun inbox).
+  if (type.startsWith("dispute")) return "Lihat sengketa"
+  if (type.startsWith("milestone")) return "Lihat tahap"
+  if (type === "feedback") return "Lihat masukan"
+
   switch (type) {
     case "order":
     case "transaction":
@@ -277,6 +297,15 @@ export function labelForActionUrl(actionUrl: string | null | undefined): string 
       return "Lihat mutasi"
     case "questions":
       return "Lihat pertanyaan"
+    case "milestones":
+      // NCC-004: `/milestones/<id>` → detail tahap.
+      return "Lihat tahap"
+    case "feedback":
+      // NCC-005: `/feedback/<id>` → layar masukan.
+      return "Lihat masukan"
+    case "bank-accounts":
+      // NCC-008: `/bank-accounts` (ESCROW_HELD_NO_BANK) → daftar rekening.
+      return "Daftarkan rekening"
     case "notifications":
     case "badges":
       return "Lihat notifikasi"
@@ -316,6 +345,8 @@ function routeForPushDataRaw(data: unknown): Href | null {
     str("id") ??
     str("orderId") ??
     str("disputeId") ??
+    str("milestoneId") ?? // NCC-004: data push milestone membawa milestoneId
+    str("questionId") ?? // NCC-014: data push pertanyaan membawa questionId
     str("roomId") ??
     str("chatRoomId") ??
     str("ticketId") ??
@@ -397,8 +428,14 @@ function routeForActionUrlRaw(actionUrl: string | null | undefined): Href | null
         return txId ? ROUTES.walletTransaction(txId) : ROUTES.wallet
       }
       case "questions":
-        // Discovery Q&A — belum ada route khusus, arahkan ke daftar.
-        return ROUTES.notifications
+        // NCC-014: Discovery Q&A — layar daftar pertanyaan.
+        return ROUTES.questions
+      case "milestones":
+        // NCC-004: `/milestones/<id>` (actionUrl notifikasi milestone) → detail milestone.
+        return ROUTES.milestoneDetail(id)
+      case "feedback":
+        // NCC-005: `/feedback/<id>` (actionUrl balasan feedback) → layar feedback.
+        return ROUTES.feedback
       default:
         break
     }
@@ -408,6 +445,15 @@ function routeForActionUrlRaw(actionUrl: string | null | undefined): Href | null
     switch (segments[0]) {
       case "notifications":
         return ROUTES.notifications
+      case "bank-accounts":
+        // NCC-008: `/bank-accounts` (actionUrl ESCROW_HELD_NO_BANK) → daftar rekening.
+        return ROUTES.bankAccounts
+      case "feedback":
+        // NCC-005: `/feedback` → layar feedback.
+        return ROUTES.feedback
+      case "questions":
+        // NCC-014: `/questions` → daftar pertanyaan.
+        return ROUTES.questions
       case "wallet": {
         // Bentuk satu-segmen ber-query (`/wallet?id=<txId>`) — robustness.
         const txId = new URLSearchParams(query ?? "").get("id")

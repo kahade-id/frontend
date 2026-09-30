@@ -71,7 +71,7 @@ import { api, isApiError, userMessage } from "@/lib/api"
 import { validateChatAttachment } from "@/lib/chat-attachment-limits"
 import { getOrder, type Order } from "@/lib/api/orders"
 import { consumePrefetchedChatRoom } from "@/lib/chat-room-prefetch"
-import { fetchViaQueryCache } from "@/lib/query-cache"
+import { fetchViaQueryCache, invalidateQueryPrefix } from "@/lib/query-cache"
 import { queryKeys } from "@/lib/query-keys"
 import { refreshUnreadCount } from "@/lib/unread-count"
 import { refreshChatUnreadCount } from "@/lib/chat-unread-count"
@@ -505,6 +505,12 @@ export default function ChatRoomScreen() {
   const [starredOpen, setStarredOpen] = useState(false)
   /** Sheet polling. */
   const [pollsOpen, setPollsOpen] = useState(false)
+  /**
+   * NCC-006: pemicu reload sheet polling — dinaikkan setiap event
+   * `chat.poll_created` / `chat.poll_updated` / `chat.poll_closed` tiba,
+   * sehingga daftar polling ter-update realtime bila sheet sedang terbuka.
+   */
+  const [pollsVersion, setPollsVersion] = useState(0)
   /** Sheet kirim lokasi. */
   const [locationSheetOpen, setLocationSheetOpen] = useState(false)
   /** Sheet pesan sementara + sekali-lihat. */
@@ -1099,6 +1105,35 @@ export default function ChatRoomScreen() {
     onTyping: (isTyping) => setCounterpartTyping(isTyping),
     onPresence: (isOnline) =>
       setPresence((prev) => (prev ? { ...prev, isOnline } : prev)),
+    // NCC-006: 7 event yang sebelumnya tanpa handler di FE.
+    onPollChanged: () => {
+      // Daftar polling di-refetch (sheet me-reload bila terbuka) + cache
+      // query terkait chat diinvalidasi agar data lain ikut segar.
+      invalidateQueryPrefix("chat")
+      setPollsVersion((v) => v + 1)
+    },
+    onViewOnceConsumed: (messageId) => {
+      // Pesan sekali-lihat yang dibuka penerima lain (atau perangkat lain)
+      // langsung jadi placeholder "sudah dibuka" tanpa menunggu poll.
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === messageId && !m.viewOnceViewedAt
+            ? { ...m, viewOnceViewedAt: new Date().toISOString() }
+            : m,
+        ),
+      )
+    },
+    onMessagesExpired: (messageIds) => {
+      if (messageIds.length === 0) return
+      const gone = new Set(messageIds)
+      setMessages((prev) => prev.filter((m) => !gone.has(m.id)))
+      invalidateQueryPrefix("chat")
+    },
+    onRoomPinChanged: () => {
+      // Pin room disinkron antar perangkat — daftar room (layar list) ikut
+      // segar lewat invalidasi prefix.
+      invalidateQueryPrefix("chat")
+    },
     // G109: setelah reconnect + join ulang, pesan yang terlewat diambil
     // via REST (kursor = halaman terbaru; mergeIncoming mendup).
     onReconnect: () => {
@@ -3179,6 +3214,7 @@ export default function ChatRoomScreen() {
         roomId={roomId}
         visible={pollsOpen}
         onRequestClose={() => setPollsOpen(false)}
+        refreshKey={pollsVersion}
       />
 
       {/* Kirim lokasi GPS. */}

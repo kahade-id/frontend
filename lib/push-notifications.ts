@@ -51,6 +51,8 @@ function loadNotifications(): Promise<ExpoNotificationsModule> {
 }
 
 import { invalidateQueryCache, invalidateQueryPrefix } from "@/lib/query-cache"
+import { refreshUnreadCount } from "@/lib/unread-count"
+import { refreshChatUnreadCount } from "@/lib/chat-unread-count"
 import {
   ensureLocalNotificationPrefs,
   localKindForPushData,
@@ -263,12 +265,18 @@ export async function setupNotifications(): Promise<void> {
       if (kind === "chat") {
         invalidateQueryPrefix("chat")
         invalidateQueryPrefix("conversations")
+        // NCC-011: badge tab chat naik segera saat push tiba di foreground —
+        // jangan tunggu poll 60 detik / buka drawer.
+        void refreshChatUnreadCount()
       } else if (kind === "transaction") {
         invalidateQueryPrefix("order")
         invalidateQueryPrefix("wallet")
         invalidateQueryPrefix("transaction")
         invalidateQueryPrefix("dispute")
         invalidateQueryPrefix("milestone")
+        // NCC-011: badge tab notifikasi naik segera saat push tiba di
+        // foreground (sebelumnya hanya via tap / AppState / poll 60 detik).
+        void refreshUnreadCount()
       } else if (kind === "showcase") {
         invalidateQueryPrefix("showcase")
         invalidateQueryPrefix("feed")
@@ -278,8 +286,10 @@ export async function setupNotifications(): Promise<void> {
         invalidateQueryPrefix("campaign")
         invalidateQueryPrefix("subscription")
         invalidateQueryPrefix("referral")
+        void refreshUnreadCount()
       } else {
         invalidateQueryCache()
+        void refreshUnreadCount()
       }
     })
     handlerInstalled = true

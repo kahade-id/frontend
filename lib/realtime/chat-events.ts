@@ -19,6 +19,17 @@
  * | chat.reaction_updated | server → klien  | { roomId, messageId, reactions[] }      |
  * | chat.message_pinned / | server → klien  | { roomId, messageId, isPinned, pinnedBy }|
  * | chat.message_unpinned |                 |                                          |
+ * | chat.poll_created /   | server → klien  | { roomId, pollId, question? /            |
+ * | chat.poll_updated /   |                 |   voterId? } (NCC-006: refresh daftar    |
+ * | chat.poll_closed      |                 |   polling)                               |
+ * | chat.message_view_-   | server → klien  | { roomId, messageId, viewerId }          |
+ * | once_consumed         |                 | (NCC-006: tandai pesan sekali-lihat     |
+ * |                       |                 |   sebagai terkonsumsi)                   |
+ * | chat.messages_expired | server → klien  | { roomId, messageIds[] } (NCC-006:       |
+ * |                       |                 |   hapus pesan ephemeral yang kedaluwarsa)|
+ * | chat.room_pinned /    | server → klien  | { roomId, position? } / { roomId }       |
+ * | chat.room_unpinned    | (room `user:<id>`) | (NCC-006: sinkron pin room antar        |
+ * |                       |                 |   perangkat → invalidasi daftar room)    |
  * | chat.typing           | dua arah        | { roomId, userId, fullName, isTyping,    |
  * |                       |                 |   expiresAt } (unified; gantikan         |
  * |                       |                 |   typing.start/stop legacy)              |
@@ -50,6 +61,14 @@ export const CHAT_SOCKET_EVENTS = {
   REACTION_UPDATED: "chat.reaction_updated",
   MESSAGE_PINNED: "chat.message_pinned",
   MESSAGE_UNPINNED: "chat.message_unpinned",
+  // NCC-006: 7 event backend yang sebelumnya tanpa handler di FE.
+  POLL_CREATED: "chat.poll_created",
+  POLL_UPDATED: "chat.poll_updated",
+  POLL_CLOSED: "chat.poll_closed",
+  MESSAGE_VIEW_ONCE_CONSUMED: "chat.message_view_once_consumed",
+  MESSAGES_EXPIRED: "chat.messages_expired",
+  ROOM_PINNED: "chat.room_pinned",
+  ROOM_UNPINNED: "chat.room_unpinned",
   TYPING: "chat.typing",
   USER_ONLINE: "user.online",
   USER_OFFLINE: "user.offline",
@@ -86,6 +105,33 @@ export type ChatPinPayload = {
   messageId: string
   isPinned: boolean
   pinnedBy?: string | null
+}
+
+/** Polling: dibuat/diubah (vote)/ditutup. NCC-006. */
+export type ChatPollPayload = {
+  roomId: string
+  pollId: string
+  question?: string | null
+  voterId?: string | null
+}
+
+/** Pesan sekali-lihat dikonsumsi penerima. NCC-006. */
+export type ChatViewOnceConsumedPayload = {
+  roomId: string
+  messageId: string
+  viewerId?: string | null
+}
+
+/** Pesan ephemeral kedaluwarsa (purge scheduler). NCC-006. */
+export type ChatMessagesExpiredPayload = {
+  roomId: string
+  messageIds: string[]
+}
+
+/** Pin/unpin ROOM (bukan pesan) — dikirim ke room `user:<id>`. NCC-006. */
+export type ChatRoomPinPayload = {
+  roomId: string
+  position?: number | null
 }
 
 /** Indikator mengetik: userId = pengetik (id internal). */

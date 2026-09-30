@@ -41,6 +41,12 @@ export type ChatPollsSheetProps = {
   /** userId saya — untuk tombol "Tutup polling" (hanya pembuat). */
   myUserId?: string
   onRequestClose: () => void
+  /**
+   * NCC-006: pemicu refresh eksternal (event realtime `chat.poll_created` /
+   * `chat.poll_updated` / `chat.poll_closed`). Sheet me-reload daftar bila
+   * nilai ini berubah saat sheet terbuka.
+   */
+  refreshKey?: number
 }
 
 const DEADLINE_PRESETS = [
@@ -50,7 +56,7 @@ const DEADLINE_PRESETS = [
   { key: "7d", label: "7 hari", hours: 168 },
 ] as const
 
-export function ChatPollsSheet({ visible, roomId, myUserId, onRequestClose }: ChatPollsSheetProps) {
+export function ChatPollsSheet({ visible, roomId, myUserId, onRequestClose, refreshKey }: ChatPollsSheetProps) {
   const toast = useToast()
   const [polls, setPolls] = useState<ChatPoll[] | null>(null)
   const [loading, setLoading] = useState(false)
@@ -98,6 +104,15 @@ export function ChatPollsSheet({ visible, roomId, myUserId, onRequestClose }: Ch
       void load()
     }
   }, [visible, load])
+
+  // NCC-006: event realtime polling (dibuat/diubah/ditutup) dari layar room
+  // tiba sebagai perubahan refreshKey — reload daftar bila sheet terbuka.
+  useEffect(() => {
+    if (visible && refreshKey !== undefined && polls !== null) {
+      void load()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshKey])
 
   const patchPoll = (updated: ChatPoll) =>
     setPolls((prev) => (prev ? prev.map((p) => (p.id === updated.id ? updated : p)) : prev))
