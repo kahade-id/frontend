@@ -103,7 +103,9 @@ export function QrisPaymentPanel({
   return (
     <ScreenCaptureGuard>
       {pollError ? (
-        <Text variant="caption" tone="danger">
+        // UX-A11Y-011: error polling diumumkan sebagai alert — tanpa ini
+        // pengguna SR tidak tahu status berhenti diperbarui.
+        <Text variant="caption" tone="danger" accessibilityRole="alert">
           Status belum diperbarui: {pollError}
         </Text>
       ) : null}
@@ -150,12 +152,20 @@ export function QrisPaymentPanel({
       {/* MFE-006: REFUNDED = terminal pengembalian — tampilkan nominal yang
           dikembalikan, bukan klaim "menunggu pembayaran". */}
       {status === "REFUNDED" ? (
-        <Text variant="caption" tone="success">
+        <Text variant="caption" tone="success" accessibilityLiveRegion="polite">
           Dana dikembalikan {formatRupiah(refundedAmount)}
           {refundReference ? ` · Ref ${refundReference}` : ""}
         </Text>
       ) : (
-        <Text variant="caption" tone={failed ? "danger" : "secondary"}>
+        // UX-A11Y-011: perubahan status dinamis (EXPIRED/FAILED/UNKNOWN/
+        // pollStopped) diumumkan via live region polite — transisi uang
+        // yang berubah diam-diam membuat pengguna SR mengira pembayaran
+        // masih menunggu.
+        <Text
+          variant="caption"
+          tone={failed ? "danger" : "secondary"}
+          accessibilityLiveRegion="polite"
+        >
           {status === "EXPIRED"
             ? "QRIS kedaluwarsa — buat ulang untuk mencoba lagi."
             : status === "FAILED"
