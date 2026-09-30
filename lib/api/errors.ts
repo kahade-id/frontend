@@ -16,6 +16,14 @@
  * `parseErrorBody` sudah membacanya ke `backendCode` tanpa perubahan lain.
  */
 
+import {
+  DISPLAYABLE_BACKEND_MESSAGES,
+  NOT_ORDER_PARTICIPANT,
+  ORDER_NOT_FOUND,
+  VALIDATION_ERROR,
+  WALLET_PIN_NOT_SET,
+} from "@/lib/api/error-codes"
+
 /** Kode stabil untuk dipetakan ke UI — TIDAK bergantung pada wording backend. */
 export type ApiErrorCode =
   | "NETWORK" // offline / DNS / TLS — request tidak pernah sampai
@@ -66,6 +74,13 @@ export type ApiErrorInit = {
   backendCode?: string
   /** Pesan-pesan validasi per field dari class-validator, apa adanya */
   validationMessages?: string[]
+  /**
+   * BFI-059: atribusi field error validasi dari backend
+   * (`errors.fields: [{ field, messages }]` — validation-exception.factory.ts).
+   * Screen/form memakai ini untuk menampilkan pesan tepat di field yang
+   * salah, bukan menebak dari `validationMessages` yang diratakan.
+   */
+  fieldErrors?: FieldError[]
   /** Body respons mentah (untuk log/debug — JANGAN tampilkan ke user) */
   raw?: unknown
   /**
@@ -100,6 +115,8 @@ export class ApiError extends Error {
   readonly status: number | undefined
   readonly backendCode: string | undefined
   readonly validationMessages: string[] | undefined
+  /** BFI-059: atribusi per field — lihat `ApiErrorInit.fieldErrors`. */
+  readonly fieldErrors: FieldError[] | undefined
   readonly method: string | undefined
   readonly path: string | undefined
   readonly retryAfterMs: number | undefined
@@ -124,6 +141,7 @@ export class ApiError extends Error {
     this.status = init.status
     this.backendCode = init.backendCode
     this.validationMessages = init.validationMessages
+    this.fieldErrors = init.fieldErrors
     this.#raw = init.raw
     // L-03: selalu disamarkan di titik ini — jaring pengaman terakhir sebelum
     // body request (bisa berisi PIN) masuk ke jalur log/debug.
