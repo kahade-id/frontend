@@ -101,6 +101,29 @@ function MilestoneRow({
 
   return (
     <View className="gap-2 rounded-lg border border-border bg-surface p-4">
+      {/* UX-A11Y-015: blok info tahap sebagai SATU elemen aksesibilitas
+          dengan label ringkas (pola timeline.tsx: tiap item `accessible`
+          + label gabungan). Tanpa ini SR membaca judul, nominal, badge
+          status, dan tenggat sebagai fragmen terpisah yang sulit
+          diasosiasikan dengan tahap yang benar. Baris tombol aksi
+          DIBIARKAN di luar grup agar tetap bisa dioperasikan. */}
+      <View
+        accessible
+        accessibilityLabel={[
+          translate("Tahap {seq}: {title}, {amount}, {status}", {
+            seq: milestone.seq,
+            title: milestone.title,
+            amount: formatRupiah(milestone.amount),
+            status: MILESTONE_STATUS_LABEL[milestone.status] ?? milestone.status,
+          }),
+          milestone.deadline
+            ? translate("tenggat {x}", { x: formatDateTimeWIB(milestone.deadline) })
+            : null,
+          changePending ? translate("ada usulan perubahan menunggu persetujuan") : null,
+        ]
+          .filter(Boolean)
+          .join(", ")}
+      >
       <View className="flex-row items-start justify-between gap-2">
         <View className="flex-1 gap-1">
           <Text variant="body" weight={600} numberOfLines={2}>
@@ -127,6 +150,7 @@ function MilestoneRow({
           Ada usulan perubahan menunggu persetujuan Anda.
         </Text>
       ) : null}
+      </View>
 
       <View className="flex-row flex-wrap gap-2">
         <Button
@@ -254,9 +278,13 @@ export function MilestoneSection({
             : "Dana escrow dicairkan ke rekening bank penjual per tahap setelah hasil diterima."
         }
       />
-      {milestones.map((m) => (
-        <MilestoneRow key={m.id} milestone={m} role={role} onChanged={() => void load()} />
-      ))}
+      {/* UX-A11Y-015: daftar tahap sebagai list (pola timeline.tsx);
+          tiap kartu info-nya sudah satu elemen berlabel ringkas. */}
+      <View className="gap-3" accessibilityRole="list">
+        {milestones.map((m) => (
+          <MilestoneRow key={m.id} milestone={m} role={role} onChanged={() => void load()} />
+        ))}
+      </View>
     </View>
   )
 }
