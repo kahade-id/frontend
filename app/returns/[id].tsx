@@ -291,7 +291,7 @@ export default function ReturnDetailScreen() {
             onRequestClose={() => setConfirmReceiveOpen(false)}
             title="Barang retur sudah diterima?"
             description="Pastikan barang retur sudah benar-benar Anda terima dan periksa kondisinya. Setelah dikonfirmasi, retur lanjut ke tahap penyelesaian."
-            cancelLabel="Kembali"
+            cancelLabel="Batal"
             confirmLabel="Ya, barang retur sudah diterima"
             loading={mutating}
             onConfirm={() => {
@@ -316,7 +316,7 @@ export default function ReturnDetailScreen() {
             onRequestClose={() => setCancelOpen(false)}
             title="Batalkan pengajuan retur?"
             description="Pengajuan retur akan ditutup dan penjual diberi tahu. Dana tidak bergerak — pembatalan ini hanya menutup pengajuan. Anda bisa mengajukan retur ulang selama masih dalam masa retur."
-            cancelLabel="Kembali"
+            cancelLabel="Batal"
             confirmLabel="Ya, batalkan retur"
             loading={mutating}
             onConfirm={() => {

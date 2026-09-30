@@ -9,7 +9,7 @@
  * Langkah (seperti Register — H1 + progres di header, satu fokus per layar):
  *   1. Cara & peran   : SegmentedControl mode + OrderRoleSelector
  *   2. Lawan transaksi: username + CounterpartValidationCard
- *   3. Detail pesanan : judul, deskripsi, jenis, nilai, tenggat
+ *   3. Rincian pesanan : judul, deskripsi, jenis, nilai, tenggat
  *   4. Biaya & kirim  : pembayar biaya, skema, rincian, voucher, ringkasan
  *
  * Keputusan non-obvious:
@@ -923,7 +923,7 @@ export default function CreateTransactionScreen() {
         ) : null}
 
         {step === 2 ? (
-          <FormSection title="Detail pesanan">
+          <FormSection title="Rincian pesanan">
             {/* Batch 43 (item 10): slot jasa dari detail etalase — di-booking
                 saat transaksi dikonfirmasi (lihat handleSubmit). */}
             {slotPrefill ? (

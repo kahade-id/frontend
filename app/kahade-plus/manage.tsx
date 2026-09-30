@@ -221,7 +221,7 @@ export default function KahadePlusManageScreen() {
         destructive
         loading={cancelling}
         confirmLabel="Batalkan"
-        cancelLabel="Tutup"
+        cancelLabel="Batal"
         onConfirm={() => void handleCancel()}
         onCancel={() => setCancelOpen(false)}
         onRequestClose={() => setCancelOpen(false)}
