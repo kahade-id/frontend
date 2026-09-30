@@ -9,6 +9,7 @@ import { useEffect, useRef } from "react"
 import { AppState, Platform } from "react-native"
 import { useIsFocused } from "@react-navigation/native"
 import { backpressureRemainingMs } from "@/lib/api/backpressure"
+import { isOfflineKnown, onReconnect } from "@/lib/connectivity"
 
 export function usePolling(
   callback: (signal: AbortSignal) => Promise<unknown>,
@@ -58,6 +59,19 @@ export function usePolling(
     }
     const tick = async () => {
       if (cancelled || !visible()) return
+      /**
+       * NC-005 (audit performa): gerbang konektivitas. Saat NetInfo PASTI
+       * melaporkan offline, tick DILEWATI — jangan tembak jaringan. Callback
+       * pemanggil menerjemahkan tiap kegagalan menjadi error terlihat (mis.
+       * Alert "Tidak ada koneksi" di app/topup.tsx yang berkedip tiap tick)
+       * padahal banner offline global sudah menjelaskan situasinya. Lewati +
+       * jadwalkan ulang; saat reconnect, listener `onReconnect` di bawah
+       * menembak segera.
+       */
+      if (isOfflineKnown()) {
+        schedule()
+        return
+      }
       if (running.current) {
         schedule()
         return
@@ -81,6 +95,17 @@ export function usePolling(
     }
     schedule()
     const subscription = AppState.addEventListener("change", onVisibility)
+    /**
+     * NC-005 (audit performa): kembali online → tembak SEGERA, jangan tunggu
+     * sisa interval (layar pembayaran langsung memverifikasi status).
+     * `schedule()` juga terus berjalan saat offline, jadi polling pulih
+     * otomatis walau event ini terlewat.
+     */
+    const stopReconnect = onReconnect(() => {
+      if (cancelled) return
+      clearTimeout(timer)
+      if (visible()) void tick()
+    })
     if (Platform.OS === "web" && typeof document !== "undefined")
       document.addEventListener("visibilitychange", onVisibility)
     return () => {
@@ -88,6 +113,7 @@ export function usePolling(
       clearTimeout(timer)
       inflight?.abort()
       subscription.remove()
+      stopReconnect()
       if (Platform.OS === "web" && typeof document !== "undefined")
         document.removeEventListener("visibilitychange", onVisibility)
     }
