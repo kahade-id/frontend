@@ -16,6 +16,8 @@ import { formatTime } from "@/lib/format"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Icon } from "@/components/ui/icon"
+import { PressableScale } from "@/components/ui/pressable-scale"
+import { SensitiveConfirmDialog } from "@/components/ui/sensitive-confirm"
 import { Spinner } from "@/components/ui/spinner"
 import { Text } from "@/components/ui/text"
 import { useToast } from "@/components/ui/toast"
@@ -46,6 +48,8 @@ export function ChatStarredSheet({
   const toast = useToast()
   const [messages, setMessages] = useState<ChatMessage[] | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
+  // UX-TCH-005: hapus bintang = aksi destruktif → minta konfirmasi dulu.
+  const [confirmUnstar, setConfirmUnstar] = useState<ChatMessage | null>(null)
 
   const load = useCallback(async () => {
     if (!roomId) return
@@ -89,12 +93,13 @@ export function ChatStarredSheet({
   }
 
   return (
-    <BottomSheet
-      visible={visible}
-      onRequestClose={onRequestClose}
-      title="Pesan berbintang"
-      description="Pesan penting yang Anda tandai di ruang ini."
-    >
+    <>
+      <BottomSheet
+        visible={visible}
+        onRequestClose={onRequestClose}
+        title="Pesan berbintang"
+        description="Pesan penting yang Anda tandai di ruang ini."
+      >
       {messages === null ? (
         <View className="items-center py-8">
           <Spinner />
@@ -125,15 +130,19 @@ export function ChatStarredSheet({
                 >
                   {starredPreview(m)}
                 </Text>
-                <Pressable
-                  onPress={() => void handleUnstar(m)}
+                // UX-TCH-005: target 44pt (min-h-11/min-w-11) + feedback scale;
+                // sebelumnya Pressable polos 26px. Ketuk → dialog konfirmasi
+                // (aksi destruktif), bukan hapus langsung.
+                <PressableScale
+                  onPress={() => setConfirmUnstar(m)}
                   disabled={busyId === m.id}
                   accessibilityRole="button"
                   accessibilityLabel="Hapus bintang"
-                  className="p-1"
+                  accessibilityHint="Minta konfirmasi sebelum menghapus"
+                  containerClassName="min-h-11 min-w-11 items-center justify-center rounded-full"
                 >
                   <Icon icon={Star} size={18} tone="warning" weight="fill" />
-                </Pressable>
+                </PressableScale>
               </View>
               <Text variant="caption" tone="secondary" className="tabular-nums">
                 {m.fromUser ? "Anda" : "Lawan bicara"} • {formatTime(m.createdAt)}
@@ -142,6 +151,26 @@ export function ChatStarredSheet({
           ))}
         </View>
       )}
-    </BottomSheet>
+      </BottomSheet>
+      {/* UX-TCH-005: konfirmasi sebelum hapus bintang (aksi destruktif).
+          Dirender sebagai sibling BottomSheet, bukan anak — Dialog adalah
+          RN Modal yang harus berada di atas overlay sheet. */}
+      <SensitiveConfirmDialog
+        visible={confirmUnstar !== null}
+        title="Hapus bintang?"
+        description="Pesan ini tidak lagi ditandai sebagai pesan berbintang di ruang ini."
+        consequences={[
+          "Anda bisa menandai ulang pesan ini kapan saja dari thread chat.",
+        ]}
+        confirmLabel="Ya, hapus"
+        onConfirm={() => {
+          const target = confirmUnstar
+          setConfirmUnstar(null)
+          if (target) void handleUnstar(target)
+        }}
+        onCancel={() => setConfirmUnstar(null)}
+        loading={busyId !== null && busyId === confirmUnstar?.id}
+      />
+    </>
   )
 }
