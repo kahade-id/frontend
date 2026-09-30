@@ -159,7 +159,7 @@ export function QaCommentItem({
             accessibilityLabel={summarize([authorName, isOwner ? t.owner : undefined, time, t.deleted])}
             variant="body"
             tone="secondary"
-            className="italic"
+            italic
           >
             {t.deleted}
           </Text>

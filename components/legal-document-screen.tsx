@@ -118,11 +118,11 @@ function LegalDocumentContent({ kind, doc }: { kind: "terms" | "privacy"; doc: L
     <Text key={key} variant="body" className="leading-7">
       {p.segments.map((seg, i) =>
         seg.bold ? (
-          <Emphasis key={i} weight={700} className={seg.italic ? "italic" : undefined}>
+          <Emphasis key={i} weight={700} italic={seg.italic || undefined}>
             {seg.text}
           </Emphasis>
         ) : seg.italic ? (
-          <Text key={i} variant="inherit" className="italic">
+          <Text key={i} variant="inherit" italic>
             {seg.text}
           </Text>
         ) : (

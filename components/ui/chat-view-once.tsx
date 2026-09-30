@@ -55,7 +55,7 @@ export const ChatViewOnce = memo(function ChatViewOnce({
     return (
       <View className="flex-row items-center gap-1.5 opacity-70">
         <Icon icon={EyeSlash} size={14} tone={outgoing ? "inverse" : "default"} />
-        <Text variant="caption" tone={outgoing ? "inverse" : "secondary"} className="italic">
+        <Text variant="caption" tone={outgoing ? "inverse" : "secondary"} italic>
           Pesan sekali lihat ini sudah dibuka dan dihapus.
         </Text>
       </View>

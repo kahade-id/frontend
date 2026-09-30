@@ -4,11 +4,14 @@
  * Tanggung jawab file ini (urutan boot):
  *   1. Tahan native splash (preventAutoHideAsync) — dipanggil di module scope,
  *      SEBELUM komponen mount / font mulai load, sesuai docs expo-splash-screen.
- *   2. Load font KRITIS (PlusJakartaSans Regular/Medium) offline via expo-font
- *      `useFonts(fontAssetsBlocking)` — ST-003 + FE-073: SemiBold/Bold,
- *      EBGaramond (392KB, teks legal) + AzeretMono dimuat LAZY setelah first
- *      paint, tidak menahan splash.
- *      Key = nama di `fontFamilyByWeight` (dijamin oleh `satisfies` di fonts.ts).
+ *   2. Load SEMUA font offline via expo-font `useFonts(fontAssetsBlocking)`.
+ *      REVISI 2026-09-30 (keputusan kualitas user): split lazy ST-003 + FE-073
+ *      (SemiBold/Bold/AzeretMono/EBGaramond lazy setelah first paint)
+ *      DIHAPUS — heading yang "melompat" (FOUT) saat font lazy-load
+ *      memperparah keluhan "teks ga enak dilihat". Semua file di-bundle
+ *      lokal (<1MB total); splash menunggu semua, tanpa FOUT.
+ *      Key = nama di `fontFamilyByWeight`/`fontFamilyItalicByWeight`
+ *      (dijamin oleh `satisfies` di fonts.ts).
  *   3. Saat font siap ATAU gagal: sembunyikan native splash dan serahkan ke
  *      <AnimatedSplash> (JS overlay) yang fade-out → app terlihat.
  *   4. Selama belum siap: render HANYA overlay splash, bukan tree app,
@@ -227,9 +230,8 @@ function hrefToConcretePath(href: Href): string | null {
 }
 
 export default function RootLayout() {
-  // ST-003 + FE-073: hanya font kritis (PlusJakartaSans Regular/Medium) yang
-  // blocking — splash tidak menunggu SemiBold/Bold, EBGaramond (392KB),
-  // maupun AzeretMono.
+  // REVISI 2026-09-30: SEMUA font blocking (keputusan kualitas user — lihat
+  // komentar di lib/fonts.ts). Splash menunggu sampai semua siap: tanpa FOUT.
   const [fontsLoaded, fontError] = useFonts(fontAssetsBlocking)
 
   // Handler global telemetri (unhandled rejection + JS exception) dipasang
@@ -246,10 +248,10 @@ export default function RootLayout() {
   const ready = Platform.OS === "web" || fontsLoaded || fontError != null
   const [splashDone, setSplashDone] = useState(Platform.OS === "web")
 
-  // ST-003 + FE-073: font non-kritis (PlusJakartaSans SemiBold/Bold,
-  // EBGaramond, AzeretMono) dimuat LAZY setelah first paint — fire-and-forget,
-  // tidak menahan render/splash. Gagal load tidak fatal: komponen yang
-  // memakainya fallback ke system font sampai font tersedia.
+  // REVISI 2026-09-30: tidak ada lagi font lazy — `fontAssetsDeferred`
+  // kini peta kosong (dipertahankan agar call-site tidak berubah).
+  // loadAsync({}) resolve seketika; blok dipertahankan sebagai no-op yang
+  // aman bila di masa depan ada lagi font non-kritis.
   useEffect(() => {
     if (!ready) return
     let alive = true

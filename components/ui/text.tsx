@@ -65,6 +65,13 @@ export type TextProps = RNTextProps & {
   tone?: TextTone
   /** Paksa weight (mis. Caption 500 untuk penekanan ringan §3.2; emphasis inline §3.1) */
   weight?: 400 | 500 | 600 | 700
+  /**
+   * Miring ASLI — pakai file PlusJakartaSans-Italic/BoldItalic, bukan faux
+   * italic sintetis OS. Weight mengikuti prop `weight` (default 400).
+   * JANGAN kombinasikan dengan className="italic" / style fontStyle —
+   * file-nya sudah miring. Hanya untuk sans (serif/mono tak punya italic).
+   */
+  italic?: boolean
   className?: string
 }
 
@@ -102,6 +109,15 @@ const weightClass = {
   serif: { 500: "font-serif-500" },
   mono: { 500: "font-mono-500", 600: "font-mono-600" },
 } as const
+
+/**
+ * Face italic ASLI per weight (file fisik, bukan fontStyle sintetis).
+ * tabular-nums ikut dipasang agar angka tidak "bergoyang" seperti face biasa.
+ */
+const italicFaceClass: Record<400 | 700, string> = {
+  400: "font-sans-italic-400 tabular-nums",
+  700: "font-sans-italic-700 tabular-nums",
+}
 
 const toneClass: Record<TextTone, string> = {
   primary: "text-text-primary",
@@ -147,6 +163,7 @@ export const Text = forwardRef<RNText, TextProps>(function Text(
     variant = "body",
     tone = "primary",
     weight,
+    italic,
     className,
     children,
     accessibilityLabel,
@@ -190,6 +207,12 @@ export const Text = forwardRef<RNText, TextProps>(function Text(
         }
       : undefined
 
+  // Italic asli: ganti face dengan file italic fisik. Weight efektif =
+  // prop weight (default 400); 500/600 dibulatkan ke 400 (file tak ada).
+  // Face italic dipasang bahkan untuk variant="inherit" — parent tidak tahu
+  // anaknya miring, jadi family harus eksplisit di sini.
+  const italicFace = italic ? italicFaceClass[weight === 700 ? 700 : 400] : undefined
+
   return (
     <RNText
       ref={ref}
@@ -200,7 +223,8 @@ export const Text = forwardRef<RNText, TextProps>(function Text(
       style={scaledStyle ? [style, scaledStyle] : style}
       className={cn(
         !inherit && sizeClass[variant],
-        forced ? cn(forced, role === "sans" && "tabular-nums") : !inherit && faceClass[variant],
+        italicFace ??
+          (forced ? cn(forced, role === "sans" && "tabular-nums") : !inherit && faceClass[variant]),
         toneClass[resolveTone(tone, variant)],
         className,
       )}

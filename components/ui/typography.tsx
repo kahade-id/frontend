@@ -51,7 +51,7 @@ export function Caption({ strong = false, tone = "secondary", ...rest }: Caption
 
 export type LabelProps = Omit<TextProps, "variant" | "weight">
 
-/** 13/600 — label form, tab, kolom tabel. Tidak ada opsi uppercase (§3.2). */
+/** 14/600 — label form, tab, kolom tabel. Tidak ada opsi uppercase (§3.2). */
 export function Label({ tone = "secondary", ...rest }: LabelProps) {
   return <Text variant="label" tone={tone} {...rest} />
 }

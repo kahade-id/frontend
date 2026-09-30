@@ -344,6 +344,26 @@ export const fontFamilyByWeight = {
   },
 } as const
 
+/**
+ * Varian italic Plus Jakarta Sans — file miring ASLI, bukan faux italic
+ * sintetis OS. Keputusan user 30 Sep 2026 ("tambah italic asli"): tombol
+ * "Miring" di chat composer + 9 lokasi italic kini merender file fisik.
+ *
+ * Hanya 400 & 700: itu satu-satunya weight yang dipakai dengan italic di
+ * app (body/caption 400, emphasis 700). Weight lain yang meminta italic
+ * fallback ke yang terdekat via `italicFont()` di lib/fonts.ts.
+ *
+ * CARA PAKAI: prop `italic` di <Text> (`components/ui/text.tsx`), atau
+ * class `font-sans-italic-400` / `font-sans-italic-700` (tailwind.config.js).
+ * JANGAN kombinasikan dengan `fontStyle: "italic"` / class `italic` —
+ * file-nya sudah miring; skew ganda terlihat berlebihan di Android.
+ * Nama key = nama file di assets/fonts tanpa ekstensi (kontrak lib/fonts.ts).
+ */
+export const fontFamilyItalicByWeight = {
+  400: "PlusJakartaSans-Italic",
+  700: "PlusJakartaSans-BoldItalic",
+} as const
+
 export const fontWeight = {
   regular: 400,
   medium: 500,
@@ -403,17 +423,17 @@ export const typography = {
   },
   h2: {
     fontFamily: fontFamily.sans,
-    fontSize: 22,
-    lineHeight: 30,
+    fontSize: 24,
+    lineHeight: 33,
     fontWeight: 700,
     fontWeightDark: 600,
     fontVariantNumeric: "tabular-nums",
-    letterSpacing: -0.3, // -1,4% di 22px — di bawah ini tidak lagi terukur
+    letterSpacing: -0.3, // -1,25% di 24px — di bawah ini tidak lagi terukur
   },
   h3: {
     fontFamily: fontFamily.sans,
-    fontSize: 18,
-    lineHeight: 26,
+    fontSize: 20,
+    lineHeight: 29,
     fontWeight: 600,
     fontVariantNumeric: "tabular-nums",
   },
@@ -426,8 +446,8 @@ export const typography = {
   },
   body: {
     fontFamily: fontFamily.sans,
-    fontSize: 14,
-    lineHeight: 22,
+    fontSize: 15,
+    lineHeight: 24,
     fontWeight: 400,
     fontVariantNumeric: "tabular-nums",
   },
@@ -440,8 +460,8 @@ export const typography = {
   },
   label: {
     fontFamily: fontFamily.sans,
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: 14,
+    lineHeight: 19,
     fontWeight: 600, // jangan ALL CAPS — cukup weight 600 + ukuran kecil
     fontVariantNumeric: "tabular-nums",
   },
@@ -454,8 +474,8 @@ export const typography = {
   },
   monoBody: {
     fontFamily: fontFamily.mono,
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 15,
+    lineHeight: 21,
     fontWeight: 500,
     letterSpacing: letterSpacing.mono,
   },
@@ -801,6 +821,7 @@ export const tokens = {
   colors,
   fontFamily,
   fontFamilyByWeight,
+  fontFamilyItalicByWeight,
   fontWeight,
   letterSpacing,
   typography,

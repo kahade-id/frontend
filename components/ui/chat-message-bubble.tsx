@@ -443,7 +443,7 @@ function ChatMessageBubbleBase({
             outgoing={outgoing}
             deleted={isDeleted}
             selectable={!isDeleted}
-            className={isDeleted ? "italic" : undefined}
+            italic={isDeleted || undefined}
           />
         )
       ) : null}

@@ -121,10 +121,9 @@ export type HeaderProps = Omit<ViewProps, "children"> & {
    */
   titleAlign?: "left" | "center"
   /**
-   * Ukuran judul teks: "h3" (default, 18px) atau "h2" (22px, lebih besar).
-   * Header tab utama (Transaksi, Pesan, Notifikasi) memakai "h2" —
-   * permintaan produk 2026-09-28: judul tab lebih besar, tetap rapi di
-   * kedua mode.
+   * Ukuran judul teks: "h2" (default, 24px) atau "h3" (20px, lebih kecil).
+   * REVISI 2026-09-30 (keputusan user: skala global naik sekaligus) —
+   * default diubah h3 → h2 agar judul layar mengikuti skala baru.
    */
   titleVariant?: "h2" | "h3"
   /** Safe area top ikut dipadding (default true; false bila SafeAreaView di luar) */
@@ -150,7 +149,7 @@ export const Header = memo(function Header({
   separator = true,
   elevated = false,
   titleAlign = "center",
-  titleVariant = "h3",
+  titleVariant = "h2",
   safeArea,
   className,
   ...rest
