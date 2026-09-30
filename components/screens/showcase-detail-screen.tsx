@@ -871,7 +871,8 @@ function ShowcaseDetailContent({
       onScroll={handleDetailScroll}
       onScrollWorklet={handleDetailScrollWorklet}
       footer={
-        <View className="border-t border-border bg-background py-3">
+        // UX-SPA-004: tanpa border-t sendiri — <FooterBar> sudah memberi divider.
+        <View className="bg-background py-3">
           {/* Item 163/164 (FE-IMP-1): bar sticky harga + CTA "Buat Transaksi"
               di atas komposer — selalu terlihat tanpa scroll. Disembunyikan
               untuk pemilik (T5: pemilik tidak mentransaksikan karyanya
