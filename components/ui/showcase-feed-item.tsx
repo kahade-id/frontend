@@ -442,7 +442,7 @@ function ShowcaseFeedItemBase({
           {/* C06: badge stok habis — menimpa media, info kartu tetap tampil. */}
           {soldOut ? (
             <View className="absolute left-2 top-2 rounded-full bg-overlay-media px-2.5 py-1">
-              <Text variant="caption" weight={700} className="text-white">
+              <Text variant="caption" weight={700} tone="inverse">
                 {translate("Stok habis")}
               </Text>
             </View>

@@ -1016,7 +1016,7 @@ export default function ShowcaseCreateScreen() {
                         posisi sampul. */}
                     {index === 0 ? (
                       <View className="absolute left-1 top-1 rounded-full bg-overlay-media px-1.5 py-0.5">
-                        <Text variant="caption" weight={700} className="text-white">
+                        <Text variant="caption" weight={700} tone="inverse">
                           {translate("Sampul")}
                         </Text>
                       </View>
