@@ -6,11 +6,12 @@
  * menerapkan `applyChatFormat` ke draft + seleksi via TextInput ref.
  */
 import { memo } from "react"
-import { Pressable, View } from "react-native"
+import { View } from "react-native"
 
 import type { ChatTextFormat } from "@/lib/chat-format"
 
 import { Icon } from "@/components/ui/icon"
+import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import {
   TextB,
@@ -42,16 +43,19 @@ export const ChatFormatBar = memo(function ChatFormatBar({ onFormat }: ChatForma
       className="flex-row items-center border-t border-border bg-surface px-2 py-1"
     >
       {ITEMS.map((item) => (
-        <Pressable
+        // UX-TCH-004: PressableScale (feedback scale) + target 44pt
+        // (min-h-11/min-w-11); sebelumnya Pressable polos 34px tanpa feedback.
+        <PressableScale
           key={item.format}
           onPress={() => onFormat(item.format)}
           accessibilityRole="button"
           accessibilityLabel={item.label}
           accessibilityHint={`Terapkan format ${item.label} pada teks yang dipilih`}
-          className="rounded-sm p-2"
+          containerClassName="min-h-11 min-w-11 items-center justify-center"
+          className="rounded-sm"
         >
           <Icon icon={item.icon} size={18} tone="default" />
-        </Pressable>
+        </PressableScale>
       ))}
       <Text variant="caption" tone="tertiary" className="ml-auto px-2">
         Pilih teks dulu
