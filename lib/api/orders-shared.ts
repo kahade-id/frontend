@@ -696,6 +696,13 @@ export type PaymentStatus = {
   isExpired?: boolean
   paidAt?: string | null
   method?: string | null
+  /**
+   * MFE-006: progres refund DANA-direct (IDR). `refundedAmount` > 0 berarti
+   * dana sudah dikembalikan (penuh/parsial) — panel menampilkan
+   * "Dana dikembalikan RpX" + `refundReference`. Null/0 = belum ada refund.
+   */
+  refundedAmount?: number
+  refundReference?: string | null
 }
 
 export type QrisPayment = {

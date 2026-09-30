@@ -34,7 +34,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { View } from "react-native"
 import { useLocalSearchParams, router, type Href } from "expo-router"
-import { ArrowUDownLeft, ClockCounterClockwise, DotsThreeVertical, Package, Plus, Question, Receipt, ShieldCheck, ShieldWarning, Timer, Truck, X, XCircle } from "phosphor-react-native"
+import { ArrowUDownLeft, ClockCounterClockwise, DotsThreeVertical, Package, Question, Receipt, ShieldCheck, ShieldWarning, Timer, Truck, X, XCircle } from "phosphor-react-native"
 
 import { api, isApiError, userMessage, type Order, type OrderMilestone, type Wallet } from "@/lib/api"
 import { createIdempotencyKey } from "@/lib/api/client"
@@ -1224,16 +1224,11 @@ export default function OrderDetailScreen() {
       onPress: () => router.push(ROUTES.newReturn(order.id)),
     })
   }
-  if (order.status === "REFUNDED" || order.status === "EXPIRED") {
-    // A-11: jalan keluar eksplisit setelah dana kembali — tanpa menyebut
-    // dompet (mode tanpa wallet): "Lihat mutasi dana" tidak ditampilkan.
-    moreActions.push({
-      key: "new",
-      label: translate("Buat transaksi baru"),
-      icon: Plus,
-      onPress: () => router.push(ROUTES.createTransaction),
-    })
-  }
+  // MFE-017: dead branch DIHAPUS — status order tidak pernah "REFUNDED"
+  // atau "EXPIRED" (enum OrderStatus backend: PENDING…CANCELLED; pengembalian
+  // dana adalah status PAYMENT, bukan status order), sehingga kondisi ini
+  // tidak pernah true. Jalan keluar "Buat transaksi baru" tetap tersedia
+  // lewat aksi standar layar.
   if (canCancel) {
     moreActions.push({
       key: "cancel",

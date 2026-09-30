@@ -36,6 +36,7 @@ export type DisbursementStatus =
   | "SUCCESS"
   | "FAILED"
   | "CANCELLED"
+  | "NEEDS_REVIEW"
 
 export type Disbursement = {
   id: string
@@ -133,6 +134,15 @@ export function disbursementStatusCopy(d: Disbursement): { title: string; descri
       }
     case "CANCELLED":
       return { title: "Pencairan dibatalkan" }
+    case "NEEDS_REVIEW":
+      // Status DANA tak dikenal — backend sengaja tidak auto-FAILED;
+      // tampilkan sebagai "perlu pengecekan" agar user tidak panik dan tahu
+      // ada yang ditangani tim, bukan diam.
+      return {
+        title: "Pencairan perlu pengecekan",
+        description:
+          d.lastError ?? "Tim kami sedang memeriksa status pencairan ini.",
+      }
     default:
       return { title: "Status pencairan tidak diketahui" }
   }

@@ -262,6 +262,8 @@ export function DanaCheckoutSheet({
               amount={intent.amount}
               expiresAt={intent.expiresAt}
               status={payment.status}
+              refundedAmount={payment.refundedAmount}
+              refundReference={payment.refundReference}
               pollError={payment.pollError}
               pollStopped={payment.stopped}
               submitting={payment.creating}
@@ -287,6 +289,8 @@ export function DanaCheckoutSheet({
               onCopy={onCopy ?? noopCopy}
               instructions={intent.instructions}
               status={payment.status}
+              refundedAmount={payment.refundedAmount}
+              refundReference={payment.refundReference}
               pollError={payment.pollError}
               pollStopped={payment.stopped}
               submitting={payment.creating}
@@ -306,6 +310,8 @@ export function DanaCheckoutSheet({
               redirectUrl={intent.redirectUrl}
               expiresAt={intent.expiresAt}
               status={payment.status}
+              refundedAmount={payment.refundedAmount}
+              refundReference={payment.refundReference}
               pollError={payment.pollError}
               pollStopped={payment.stopped}
               submitting={payment.creating}

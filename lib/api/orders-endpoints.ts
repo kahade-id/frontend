@@ -377,15 +377,20 @@ export function normalizeQrisPayment(raw: unknown): QrisPayment | undefined {
   return {
     qrString,
     qrUrl: pickString(nested, ["qrUrl", "qr_url", "url"]) ?? undefined,
-    expiresAt: pickString(nested, ["expiresAt", "expires_at", "expiredAt", "expiry"]) ?? null,
+    expiresAt: pickString(nested, ["expiresAt", "expires_at", "expiredAt", "expiryTime", "expiry"]) ?? null,
     amount: amount ?? 0,
     paymentTxId: pickString(nested, ["paymentTxId", "payment_tx_id", "txId", "transactionId"]) ?? undefined,
   }
 }
 
 export function getPaymentStatus(orderId: string) {
+  // ESI-016: endpoint KANONIS status DANA-direct = `GET
+  // /v1/orders/:orderId/dana-payment-status` (didelegasikan ke
+  // `DanaDirectPaymentService.getStatus`; kontrak `DanaDirectPayResult`).
+  // Jangan pakai `/payment-status` (jalur QRIS lama; kini hanya fallback di
+  // backend) — status DANA-direct tidak boleh dibaca dari kontrak lama.
   return http
-    .get<unknown>(`/v1/orders/${seg(orderId)}/payment-status`, { auth: "required" })
+    .get<unknown>(`/v1/orders/${seg(orderId)}/dana-payment-status`, { auth: "required" })
     .then(normalizePaymentStatus)
 }
 
@@ -436,7 +441,7 @@ export function toDanaPayKind(methodCode: string): {
 //     → DanaDirectPayResult { paymentTxId, status: PaymentStatus, payKind,
 //       escrowAmount, providerFee, grossAmount, paymentCode, qrString,
 //       webRedirectUrl, expiryTime }
-//   GET  /v1/orders/{id}/payment-status → { payment: OrderQrisPaymentResult | null }
+//   GET  /v1/orders/{id}/dana-payment-status → { payment: DanaDirectPayResult | null }
 //        (status = PaymentStatus: PENDING|SUCCESS|FAILED|… — "SUCCESS" dibaca
 //        sebagai PAID di `normalizePaymentStatus`)
 // Buyer membayar langsung per transaksi; tidak ada top-up.
@@ -576,22 +581,23 @@ export async function createOrderPayment(
   methodCode: string,
   idempotencyKey?: string,
 ): Promise<OrderPaymentIntent> {
-  // Kontrak lintas tim 2026-09-27: body membawa deviceLocation opsional.
   // KONTRAK KANONIS (2026-09-30, terverifikasi terhadap backend):
   // `POST /v1/orders/{id}/payments` memakai `DanaDirectPayDto` =
   // `{ payKind: "QRIS"|"VA"|"BALANCE", bankCode? }` — BUKAN
   // `{ paymentMethod: "<code>" }` seperti dugaan lama (backend mewajibkan
   // `payKind` → request lama selalu 400). Kode UI ("QRIS", "VA_BCA",
   // "DANA") dipetakan via `toDanaPayKind` (fail-closed).
-  const body = await deviceLocationOnlyBody()
+  //
+  // MFE-001: `deviceLocation` TIDAK boleh ikut di body — `DanaDirectPayDto`
+  // hanya punya payKind/bankCode dan global ValidationPipe memakai
+  // `forbidNonWhitelisted: true`, sehingga key ekstra = 422. Lokasi perangkat
+  // dicatat lewat jalur checkout lain (lihat `deviceLocationOnlyBody` untuk
+  // endpoint yang kontraknya memang memuatnya), bukan di sini.
   const { payKind, bankCode } = toDanaPayKind(methodCode)
   try {
-    const raw = await http.post<
-      unknown,
-      { deviceLocation: LocationDto | null; payKind: DanaDirectPayKind; bankCode?: string }
-    >(
+    const raw = await http.post<unknown, { payKind: DanaDirectPayKind; bankCode?: string }>(
       `/v1/orders/${seg(orderId)}/payments`,
-      { ...body, payKind, ...(bankCode ? { bankCode } : {}) },
+      { payKind, ...(bankCode ? { bankCode } : {}) },
       {
         auth: "required",
         // I-07 (audit end-to-end): intent ganda = dua tagihan untuk satu
@@ -734,6 +740,20 @@ export function normalizePaymentStatus(raw: unknown): PaymentStatus {
     pickString(nested, ["paidAt", "paid_at"]) ??
     pickString(deeper, ["paidAt", "paid_at"]) ??
     null
+  // MFE-006: progres refund DANA-direct (async) — backend expose
+  // `refundedAmount`/`refundReference` di `DanaDirectPayResult`. Dibaca dari
+  // SEMUA level yang mungkin (record/nested/payment), konsisten dengan pola
+  // pembacaan field lain di fungsi ini.
+  const refundedAmount =
+    numberField(nested, ["refundedAmount", "refunded_amount"]) ??
+    numberField(record, ["refundedAmount", "refunded_amount"]) ??
+    (deeper ? numberField(deeper, ["refundedAmount", "refunded_amount"]) : undefined) ??
+    0
+  const refundReference =
+    pickString(nested, ["refundReference", "refund_reference"]) ??
+    pickString(record, ["refundReference", "refund_reference"]) ??
+    (deeper ? pickString(deeper, ["refundReference", "refund_reference"]) : undefined) ??
+    null
 
   let status = rawStatus?.toUpperCase()
   // KONTRAK KANONIS (2026-09-30): backend memakai enum Prisma `PaymentStatus`
@@ -741,6 +761,9 @@ export function normalizePaymentStatus(raw: unknown): PaymentStatus {
   // Tanpa pemetaan ini, pembayaran DANA yang sukses TIDAK PERNAH memicu
   // `onPaid` — polling berhenti di "SUCCESS" yang tidak dikenal.
   if (status === "SUCCESS") status = "PAID"
+  // MFE-006: "REFUNDED" dipertahankan sebagai status terminal sendiri (BUKAN
+  // dipetakan ke PAID/FAILED) — buyer harus melihat "dana dikembalikan RpX"
+  // + referensi refund, bukan status sukses yang menyesatkan.
   if (!status || status === "PENDING") {
     // Flag boolean / paidAt mengalahkan "PENDING" dan default kosong.
     if (paidFlag === true || paidAt) status = "PAID"
@@ -759,6 +782,8 @@ export function normalizePaymentStatus(raw: unknown): PaymentStatus {
     isExpired: expiredFlag === true || status === "EXPIRED",
     paidAt,
     method: pickString(record, ["method", "paymentMethod"]) ?? pickString(nested, ["method"]) ?? null,
+    refundedAmount,
+    refundReference,
   }
 }
 
