@@ -392,7 +392,7 @@ export function OrderActionSheets({
         visible={sheet === "dispute"}
         onRequestClose={onClose}
         title="Ajukan sengketa"
-        description="Dana escrow dibekukan sampai mediator Kahade memutuskan. Bukti foto bisa ditambahkan setelah sengketa dibuat — siapkan foto unboxing/kerusakan, resi, atau screenshot chat yang relevan."
+        description="Dana ditahan sampai mediator memutuskan. Bukti foto bisa ditambahkan setelah sengketa dibuat."
         footer={
           <Button
             variant="destructive"
@@ -435,13 +435,13 @@ export function OrderActionSheets({
         </Field>
       </BottomSheet>
 
-      {/* SEC-DSP-FE-02: dialog konfirmasi akhir — dana dibekukan, tak bisa batal sepihak.
-          FE-113: deskripsi dialog FOKUS konsekuensi; penjelasan bukti sudah
-          ada di sheet ("Bukti foto bisa ditambahkan setelah sengketa
-          dibuat") — tidak diulang di sini. */}
+      {/* SEC-DSP-FE-02: dialog konfirmasi akhir — sengketa tak bisa batal
+          sepihak. FE-113: deskripsi dialog FOKUS konsekuensi; penjelasan
+          bukti sudah ada di sheet ("Bukti foto bisa ditambahkan setelah
+          sengketa dibuat") — tidak diulang di sini. */}
       <Dialog
         title="Buka sengketa?"
-        description="Dana escrow akan dibekukan sampai mediator Kahade memutuskan. Sengketa yang sudah dibuka tidak bisa dibatalkan sepihak."
+        description="Sengketa yang dibuka tidak bisa dibatalkan sepihak."
         visible={disputeConfirmOpen}
         destructive
         loading={submitting}
@@ -774,7 +774,7 @@ export function OrderConfirmDialogs({
 
       <Dialog
         title="Buat ulang pembayaran?"
-        description="Kode bayar aktif akan dibuang dan diganti kode baru. Jika Anda sudah membayar kode lama, cek status dulu — pembayaran yang sudah masuk tetap tercatat."
+        description="Kode bayar lama diganti yang baru. Pembayaran yang sudah masuk tetap tercatat."
         visible={recreateOpen}
         loading={recreateLoading}
         confirmLabel="Ya, buat ulang"

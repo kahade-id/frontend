@@ -157,7 +157,7 @@ function ProtectionCard() {
 export const ONBOARDING_SLIDES: readonly OnboardingSlide[] = [
   {
     key: "guarantee",
-    eyebrow: "Dana ditahan, bukan ditransfer",
+    eyebrow: "Jaminan dana",
     title: "Bukan sekadar transfer — ini jaminan.",
     body: "Dana pembeli ditahan Kahade, bukan langsung ke penjual. Kedua pihak terlindungi sejak rupiah pertama.",
     artifact: <EscrowCard />,

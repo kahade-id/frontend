@@ -14,7 +14,7 @@ export function AppErrorBoundary({ retry }: ErrorBoundaryProps) {
           <Screen>
             <ErrorState
               title="Halaman tidak dapat ditampilkan"
-              description="Coba muat ulang halaman. Periksa riwayat transaksi sebelum mengirim ulang tindakan yang belum terkonfirmasi."
+              description="Coba muat ulang halaman."
               onRetry={() => void retry()}
             />
           </Screen>

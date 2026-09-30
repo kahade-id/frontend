@@ -389,7 +389,7 @@ export function FeeScheduleSheet({
       visible={visible}
       onRequestClose={onRequestClose}
       title="Skema biaya platform"
-      description="Biaya dihitung dari nilai transaksi menurut tingkatan berikut. Angka pasti untuk pesanan ini tampil di rincian biaya."
+      description="Biaya dihitung dari nilai transaksi menurut tingkatan berikut."
     >
       {scheduleLoading ? (
         <Text variant="body" tone="secondary">

@@ -80,7 +80,7 @@ export function ChatEphemeralSheet({
             value={viewOnce}
             onChange={onViewOnceChange}
             label="Sekali-lihat"
-            description="Pesan berikutnya diburamkan sampai diketuk, lalu hilang setelah dibaca. Hanya untuk satu pesan."
+            description="Pesan berikutnya diburamkan sampai diketuk, lalu hilang setelah dibaca."
           />
           <View className="mt-2 flex-row items-center gap-2">
             <Icon icon={EyeSlash} size={16} tone="default" />
