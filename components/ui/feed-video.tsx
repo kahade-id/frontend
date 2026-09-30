@@ -585,7 +585,9 @@ const ExpoVideoPlayerInner = memo(function ExpoVideoPlayerInner({
               size="lg"
               weight="fill"
               tone="inverse"
-              accessibilityLabel={translate("Putar video")}
+              // UX-A11Y-013: TANPA accessibilityLabel — <PressableScale>
+              // pembungkus sudah ber-label "Putar/jeda video"; label di
+              // ikon hanya menambah elemen "image" ganda yang menyesatkan.
             />
           </View>
         </View>
