@@ -181,8 +181,28 @@ export function VoiceNotePlayer({ uri, messageId, direction }: VoiceNotePlayerPr
   const loading = phase === "loading"
   const failed = phase === "error"
 
+  /**
+   * UX-A11Y-001: pengumuman durasi di-quantize ke 5 detik (pola <Countdown>
+   * `announceEverySeconds`). Teks visual tetap tick tiap 250ms, tapi
+   * `accessibilityLabel` kontainer hanya berubah tiap 5 detik — live region
+   * "polite" tidak lagi menenggelamkan interaksi lain saat audio diputar.
+   */
+  const SPOKEN_QUANTUM_MS = 5_000
+  const spokenPositionMs = Math.floor(positionMs / SPOKEN_QUANTUM_MS) * SPOKEN_QUANTUM_MS
+  const timerLabel = loading
+    ? translate("Memuat voice note…")
+    : failed
+      ? translate("Voice note tidak bisa diputar")
+      : translate("Voice note {x} dari {y}", {
+          x: formatVoiceNoteDuration(spokenPositionMs),
+          y: formatVoiceNoteDuration(durationMs),
+        })
+
   return (
-    <View className="w-56 gap-1.5 py-1" accessibilityRole="adjustable">
+    // UX-A11Y-005: role "adjustable" hantu DIHAPUS — tidak ada
+    // accessibilityActions/onAccessibilityAction (seek tak tersedia),
+    // kontrol palsu membingungkan screen reader.
+    <View className="w-56 gap-1.5 py-1">
       <View className="flex-row items-center gap-3">
         {/* Lingkaran tombol: warna dari tokens via style (bukan className bg-*
             — nilai dinamis tergantung direction). */}
@@ -209,11 +229,11 @@ export function VoiceNotePlayer({ uri, messageId, direction }: VoiceNotePlayerPr
         </View>
 
         {/* Waveform dekoratif (lihat docblock): bar statis, warna mengikuti
-            progres. Tanpa Animated — patuh reduced motion. */}
-        <View
-          className="h-8 flex-1 flex-row items-center gap-[2px]"
-          accessibilityLabel={translate("Visual voice note")}
-        >
+            progres. Tanpa Animated — patuh reduced motion.
+            UX-A11Y-006: label DIHAPUS — View tanpa `accessible` mengabaikan
+            accessibilityLabel di native (kode mati yang menyesatkan), dan
+            waveform memang dekoratif (pola PRNG, bukan amplitudo asli). */}
+        <View className="h-8 flex-1 flex-row items-center gap-[2px]">
           {bars.map((level, i) => (
             <View
               key={i}
@@ -246,12 +266,20 @@ export function VoiceNotePlayer({ uri, messageId, direction }: VoiceNotePlayerPr
         </PressableScale>
       </View>
 
-      <View className="flex-row items-center justify-between pl-14 pr-1">
+      {/* UX-A11Y-001: baris durasi sebagai SATU elemen timer — label
+          aksesibilitas di-quantize 5 detik (lihat timerLabel), bukan live
+          region pada teks yang me-render ulang tiap 250ms. */}
+      <View
+        className="flex-row items-center justify-between pl-14 pr-1"
+        accessible
+        accessibilityRole="timer"
+        accessibilityLiveRegion="polite"
+        accessibilityLabel={timerLabel}
+      >
         <Text
           variant="caption"
           tone={outgoing ? "inverse" : "secondary"}
           className="tabular-nums"
-          accessibilityLiveRegion="polite"
         >
           {loading
             ? translate("Memuat…")
