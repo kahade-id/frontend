@@ -287,6 +287,10 @@ export default function BusinessVerificationScreen() {
                   value={deedNumber}
                   onChangeText={setDeedNumber}
                   returnKeyType="next"
+                  // FRM-015: nomor dokumen jangan kena autocapitalize/autocorrect.
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  spellCheck={false}
                   onSubmitEditing={() => siupRef.current?.focus()}
                   maxLength={100}
                   placeholder="Opsional bila sudah isi SIUP"
@@ -298,6 +302,10 @@ export default function BusinessVerificationScreen() {
                   value={siupNumber}
                   onChangeText={setSiupNumber}
                   returnKeyType="done"
+                  // FRM-015: nomor dokumen jangan kena autocapitalize/autocorrect.
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  spellCheck={false}
                   maxLength={100}
                   placeholder="Opsional bila sudah isi akta"
                 />
