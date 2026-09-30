@@ -14,12 +14,22 @@
  * Unread tetap dipoll SEKALI di layout ini (beberapa pemasangan = beberapa
  * timer). Badge Pesan membaca store yang sama.
  */
-import { Tabs } from "expo-router"
+import { Tabs, type ErrorBoundaryProps } from "expo-router"
 
 import { TAB_ROUTE_NAMES } from "@/lib/routes"
 import { useAuthSession } from "@/lib/use-auth-session"
 import { useUnreadCount } from "@/lib/unread-count"
 import { useChatUnreadCount } from "@/lib/chat-unread-count"
+import { SectionErrorBoundary } from "@/components/section-error-boundary"
+
+/**
+ * Error boundary grup tab: error render di dalam tab (termasuk chunk rute
+ * yang gagal dimuat saat offline di web) hanya menutupi area tab dengan UI
+ * sadar-offline — tidak meruntuhkan seluruh aplikasi ke boundary root.
+ */
+export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
+  return <SectionErrorBoundary error={error} retry={retry} />
+}
 
 export default function TabsLayout() {
   // B-05: poll DIGATE sesi — tamu web tidak menembak endpoint auth tiap 60 dtk.
