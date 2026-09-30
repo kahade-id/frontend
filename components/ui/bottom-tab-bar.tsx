@@ -25,14 +25,17 @@
  * Keputusan non-obvious:
  *   - Tinggi bar 56px (h-14) + paddingBottom safe-area (home indicator) via
  *     style runtime. `border-t border-border` sebagai pemisah (§6).
- *   - Tombol (+) di TENGAH (permintaan produk 2026-09-21): aksi membuat
- *     sesuatu — isi saldo, buat transaksi, tambah etalase — dikumpulkan di
- *     satu tombol, bukan disebar sebagai tab. Revisi 2026-09-23: tombol ini
- *     HIDUP DI DALAM tinggi bar (lingkaran 44px terpusat vertikal), bukan
- *     lagi lingkaran 48px yang mengambang melewati tepi atas bar. Tab yang
- *     tersisa (4) berbagi lebar yang dilepas slot tengah, jadi label tetap
- *     muat di 360dp; tab "showcase" dikeluarkan dari bar (lihat
- *     HIDDEN_TAB_ROUTES).
+ *   - Tombol di TENGAH: dulu (+) "buat baru" (permintaan produk 2026-09-21)
+ *     — aksi membuat sesuatu dikumpulkan di satu tombol, bukan disebar
+ *     sebagai tab. Sejak revisi 2026-09-28, slot tengah di SHELL diisi ikon
+ *     QR yang langsung membuka pemindai /scan (keputusan produk
+ *     2026-09-27); sheet "Buat baru" pindah ke <CreateSheet>. Pola (+)
+ *     action sheet tetap didukung komponen generik ini lewat prop
+ *     `centerAction`. Revisi 2026-09-23: tombol ini HIDUP DI DALAM tinggi
+ *     bar (lingkaran 44px terpusat vertikal), bukan lagi lingkaran 48px
+ *     yang mengambang melewati tepi atas bar. Tab yang tersisa (4) berbagi
+ *     lebar yang dilepas slot tengah, jadi label tetap muat di 360dp; tab
+ *     "showcase" dikeluarkan dari bar (lihat HIDDEN_TAB_ROUTES).
  *   - Ripple di tiap tab: bar ini permukaan sapuan jari (lihat PressableScale).
  *     Scale press tetap mati — item menempel satu sama lain, jadi animasi
  *     skala membuat tepi bar tampak "bernapas".
@@ -244,9 +247,10 @@ export type BottomTabBarProps<K extends string = string> = Omit<ViewProps, "chil
   /** Long-press (mis. buka menu cepat) */
   onLongPress?: (key: K) => void
   /**
-   * Tombol (+) di tengah bar. `true` = pakai CENTER_ACTION_ITEMS bawaan;
-   * atau kirim daftar aksi sendiri. Diabaikan bila `center` diisi —
-   * shell mode memakai `center` supaya ikon dan aksi ikut mode.
+   * Tombol aksi di tengah bar (pola lama: (+) membuka action sheet).
+   * `true` = pakai CENTER_ACTION_ITEMS bawaan; atau kirim daftar aksi
+   * sendiri. Diabaikan bila `center` diisi — shell memakai `center`
+   * berisi ikon QR (ketuk langsung membuka pemindai /scan).
    */
   centerAction?: boolean | readonly ActionSheetItem[]
   /** Tombol tengah kustom (posisi & bentuk tetap; ikon/aksi dari pemanggil). */
@@ -683,7 +687,7 @@ export type RouterBottomTabBarProps = {
    * HIDDEN_TAB_ROUTES) supaya tab yang tampil sama di setiap pemakai.
    */
   items: Readonly<Record<string, Omit<BottomTabItem, "key">>>
-  /** Tombol (+) di tengah bar — lihat BottomTabBarProps.centerAction. */
+  /** Tombol aksi di tengah bar — lihat BottomTabBarProps.centerAction. */
   centerAction?: boolean | readonly ActionSheetItem[]
   className?: string
 }

@@ -3,13 +3,15 @@
  *
  * Bottom navbar kini TETAP dan tidak lagi mengikuti mode aplikasi:
  *
- *   Etalase | Transaksi | (+) | Pesan | Notifikasi
+ *   Etalase | Transaksi | (QR) | Pesan | Notifikasi
  *
  * - Tab lama Wallet / Promo / History / Lainnya dihapus dari bar; layar-layar
  *   itu tetap ada sebagai rute stack dan dijangkau lewat drawer/sidebar.
  * - Notifikasi naik menjadi tab sejati dengan badge unread.
- * - Tombol tengah (+) membuka action sheet "buat baru" (mengambil alih fungsi
- *   pensil lama di header Etalase → /showcase/create).
+ * - Tombol tengah kini ikon QR — ketuk langsung membuka pemindai /scan
+ *   (keputusan produk 2026-09-27, revisi 2026-09-28). Sheet "Buat baru"
+ *   pindah ke tombol (+) di header Etalase dan pensil di drawer
+ *   (reusable <CreateSheet>).
  *
  * File ini satu-satunya sumber struktur tab; `shell-tab-bar.tsx` merendernya,
  * root layout memakai `isShellTabPath` untuk visibilitas bar.
@@ -29,7 +31,7 @@ export type ShellTabDef = {
   icon: IconComponent
 }
 
-/** Urutan tab di bottom navbar: kiri → kanan (slot tengah diisi tombol +). */
+/** Urutan tab di bottom navbar: kiri → kanan (slot tengah diisi tombol pindai QR). */
 export const SHELL_TABS: readonly ShellTabDef[] = [
   {
     key: "showcase",
