@@ -82,7 +82,7 @@ export default function ProductDetailScreen() {
               <Badge tone={productStatusBadgeTone(p.status)}>{PRODUCT_STATUS_LABEL[p.status]}</Badge>
             </View>
             <Text variant="body" tone="secondary" style={{ marginTop: tokens.space[1] }}>
-              {p.category} · SKU {p.sku}
+              {p.category} · SKU <Text variant="monoBody" tone="secondary">{p.sku}</Text>
             </Text>
             {p.description ? <Text variant="body" style={{ marginTop: tokens.space[2] }}>{p.description}</Text> : null}
             <Amount value={priceOf(p, selectedVariant)} size="body" style={{ marginTop: tokens.space[2] }} />
@@ -94,7 +94,7 @@ export default function ProductDetailScreen() {
               {stockOf(p, selectedVariant) > 0 ? `Stok tersedia: ${stockOf(p, selectedVariant)}` : "Stok habis"}
             </Text>
             {p.requiresBusinessVerification ? (
-              <Text variant="caption" tone="warning" style={{ marginTop: tokens.space[1] }}>
+              <Text variant="bodySmall" tone="warning" style={{ marginTop: tokens.space[1] }}>
                 Hanya dapat dibeli dari penjual terverifikasi bisnis.
               </Text>
             ) : null}
@@ -156,7 +156,7 @@ export default function ProductDetailScreen() {
                 {checking ? "Memvalidasi…" : "Cek Ketersediaan & Harga"}
               </Button>
             </View>
-            <Text variant="caption" tone="secondary" style={{ marginTop: tokens.space[2] }}>
+            <Text variant="bodySmall" tone="secondary" style={{ marginTop: tokens.space[2] }}>
               Harga dan stok dikunci saat checkout berdasarkan data server terkini, bukan tampilan ini.
             </Text>
           </Card>
