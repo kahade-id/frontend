@@ -337,6 +337,11 @@ export default function SupportTicketDetailScreen() {
                   <TextArea
                     value={ratingComment}
                     onChangeText={setRatingComment}
+                    // FRM-012: label + status wajib eksplisit — placeholder
+                    // hilang saat mengetik dan berubah arti mengikuti bintang.
+                    label={translate("Komentar")}
+                    required={starRating >= 1 && starRating <= 2}
+                    helperText={translate("Wajib untuk rating 1–2 bintang")}
                     placeholder={translate(
                       starRating >= 1 && starRating <= 2
                         ? "Ceritakan kendalanya (wajib)"
@@ -415,6 +420,8 @@ export default function SupportTicketDetailScreen() {
                 <TextArea
                   value={reply}
                   onChangeText={setReply}
+                  // FRM-011: label terasosiasi — placeholder hilang saat mengetik.
+                  label={translate("Balasan")}
                   placeholder="Tulis balasan Anda"
                   maxLength={2000}
                   numberOfLines={4}
