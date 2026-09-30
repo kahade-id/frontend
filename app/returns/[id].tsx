@@ -120,7 +120,14 @@ export default function ReturnDetailScreen() {
   }
 
   return (
-    <DataScreen title="Detail Retur" state={query} loadingMessage="Memuat detail retur…">
+    <DataScreen
+      title="Detail Retur"
+      state={query}
+      loadingMessage="Memuat detail retur…"
+      // UX-SPA-007: ada input inline (nomor resi + pesan negosiasi) — tanpa
+      // ini keyboard menutupi input & tombol kirim di iOS.
+      keyboardAvoiding
+    >
       {detail ? (
         <View style={{ paddingVertical: tokens.space[4], gap: tokens.space[4] }}>
           <Card>

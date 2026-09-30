@@ -150,7 +150,9 @@ export default function SellerProductFormScreen() {
   }
 
   const formFields = (
-    <View style={{ padding: tokens.space[4], gap: tokens.space[3] }}>
+    // UX-SPA-021: padding px-5 (20px) + gap-4 (16px) = standar FormSection —
+    // dulu 16px/12px membuat form menjorok vs header di atasnya.
+    <View style={{ padding: tokens.space[5], gap: tokens.space[4] }}>
       <Input
         label="SKU"
         required
@@ -259,7 +261,9 @@ export default function SellerProductFormScreen() {
 
   if (isNew) {
     return (
-      <Screen edges={["top"]} padded={false}>
+      // UX-SPA-009: form 8 input + TextArea + Simpan — keyboard avoidance
+      // agar field bawah & tombol Simpan tidak tertutup keyboard di iOS.
+      <Screen edges={["top"]} padded={false} keyboardAvoiding>
         <Header title="Tambah Produk" />
         {/* FE-115: ketukan tombol tidak tertelan saat keyboard terbuka */}
         <ScrollView keyboardShouldPersistTaps="handled">{formFields}</ScrollView>
@@ -267,7 +271,13 @@ export default function SellerProductFormScreen() {
     )
   }
   return (
-    <DataScreen title="Ubah Produk" state={existingQuery} loadingMessage="Memuat produk…">
+    <DataScreen
+      title="Ubah Produk"
+      state={existingQuery}
+      loadingMessage="Memuat produk…"
+      // UX-SPA-009: cabang ubah — sama seperti cabang tambah di atas.
+      keyboardAvoiding
+    >
       {existing ? formFields : null}
     </DataScreen>
   )

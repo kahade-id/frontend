@@ -98,7 +98,14 @@ export default function NewReturnScreen() {
   }
 
   return (
-    <DataScreen title="Ajukan Retur" state={eligQuery} loadingMessage="Memeriksa syarat retur…">
+    <DataScreen
+      title="Ajukan Retur"
+      state={eligQuery}
+      loadingMessage="Memeriksa syarat retur…"
+      // UX-SPA-008: form berisi TextArea + tombol submit — tanpa ini tombol
+      // tertutup keyboard saat mengetik alasan retur di layar kecil.
+      keyboardAvoiding
+    >
       {elig ? (
         !elig.eligible ? (
           <View style={{ paddingVertical: tokens.space[4] }}>
