@@ -103,7 +103,7 @@ export default function DisputesScreen() {
         empty={
           <EmptyState
             icon={ShieldWarning}
-            title="Tidak ada sengketa"
+            title="Belum ada sengketa"
             description="Sengketa pesanan akan muncul di sini."
           />
         }

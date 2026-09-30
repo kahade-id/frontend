@@ -35,6 +35,7 @@ import { getHelpFeedback, saveHelpFeedback, type HelpFeedbackChoice } from "@/li
 import { recordHelpArticleView } from "@/lib/help-history"
 import { parseArticleHeadings } from "@/lib/help-toc"
 import { Button } from "@/components/ui/button"
+import { Card } from "@/components/ui/card"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { Header } from "@/components/ui/header"
@@ -90,7 +91,7 @@ function FeedbackBlock({ articleId, content }: { articleId: string; content: str
   if (!loaded) return null
   const voted = choice !== null
   return (
-    <View className="items-center gap-3 rounded-md border border-border bg-surface p-4">
+    <Card padded={false} className="items-center gap-3 p-4">
       <Text variant="body" tone="secondary" className="text-center">
         Apakah artikel ini membantu?
       </Text>
@@ -140,7 +141,7 @@ function FeedbackBlock({ articleId, content }: { articleId: string; content: str
           </Button>
         </View>
       )}
-    </View>
+    </Card>
   )
 }
 
@@ -362,7 +363,7 @@ export default function HelpScreen() {
                 />
                 {/* F03: daftar isi dari heading yang sudah ada. */}
                 {toc.length >= 2 ? (
-                  <View className="gap-1 rounded-md border border-border bg-surface p-3">
+                  <Card padded={false} className="gap-1 p-3">
                     <PressableScale
                       onPress={() => setTocOpen((v) => !v)}
                       accessibilityRole="button"
@@ -397,7 +398,7 @@ export default function HelpScreen() {
                         ))}
                       </View>
                     ) : null}
-                  </View>
+                  </Card>
                 ) : null}
                 {/* Item 121: render markdown aman (tanpa WebView/HTML). */}
                 <View

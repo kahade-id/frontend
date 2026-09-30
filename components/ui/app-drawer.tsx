@@ -61,7 +61,7 @@ import {
   Headset,
   LinkSimple,
   MagnifyingGlass,
-  Pencil,
+  PencilSimple,
   ShieldWarning,
   ShoppingBag,
   SignIn,
@@ -371,12 +371,12 @@ function DrawerUtilityBar() {
       <PressableScale
         accessibilityRole="button"
         accessibilityLabel={translate("Buat baru")}
-        accessibilityHint={translate("Membuka pilihan: buat karya, buat transaksi, atau isi saldo")}
+        accessibilityHint={translate("Membuka pilihan: buat etalase, buat transaksi, atau isi saldo")}
         haptic
         onPress={openCompose}
         className="h-12 w-12 items-center justify-center rounded-full bg-primary"
       >
-        <Icon icon={Pencil} size="md" tone="inverse" weight="bold" />
+        <Icon icon={PencilSimple} size="md" tone="inverse" weight="bold" />
       </PressableScale>
     </View>
   )

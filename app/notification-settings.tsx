@@ -42,7 +42,7 @@ const KIND_COPY: Record<LocalNotificationKind, { title: string; description: str
   },
   showcase: {
     title: "Etalase",
-    description: "Suka dan komentar pada karya etalase.",
+    description: "Suka dan komentar pada etalase Anda.",
   },
   promo: {
     title: "Promo",

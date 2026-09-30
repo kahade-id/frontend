@@ -1,5 +1,5 @@
 /**
- * Screen — Kelola Produk Saya (GAP-D G262, G264, G273).
+ * Screen — Kelola Etalase Saya (GAP-D G262, G264, G273).
  * GET /v1/products/seller/mine · /v1/inventory/low-stock.
  */
 import { memo, useCallback } from "react"
@@ -101,7 +101,7 @@ export default function SellerProductsScreen() {
 
   return (
     <Screen edges={["top"]} padded={false}>
-      <Header title="Produk Saya" />
+      <Header title="Etalase Saya" />
       {lowStock.length > 0 ? (
         <View style={{ padding: tokens.space[4], paddingBottom: 0 }}>
           <Card>
@@ -126,7 +126,7 @@ export default function SellerProductsScreen() {
       ) : null}
       <View style={{ padding: tokens.space[4] }}>
         {/* UI-F017: pola leftIcon, bukan karakter "+" mentah. */}
-        <Button leftIcon={Plus} onPress={() => router.push(ROUTES.newSellerProduct)}>Tambah Produk</Button>
+        <Button leftIcon={Plus} onPress={() => router.push(ROUTES.newSellerProduct)}>Tambah Etalase</Button>
       </View>
       <PaginatedList
         {...query}
@@ -134,7 +134,7 @@ export default function SellerProductsScreen() {
         onRetry={query.reload}
         onLoadMore={query.loadMore}
         bottomPadding={insets.bottom + tokens.space[8]}
-        empty={<EmptyState icon={Package} title="Belum ada produk" description="Tambahkan produk pertama Anda." />}
+        empty={<EmptyState icon={Package} title="Belum ada etalase" description="Tambahkan etalase pertama Anda." />}
         renderItem={renderSellerProductItem}
       />
     </Screen>

@@ -129,7 +129,7 @@ export default function CatalogScreen() {
         onRetry={query.reload}
         onLoadMore={query.loadMore}
         bottomPadding={insets.bottom + tokens.space[8]}
-        empty={<EmptyState icon={Package} title="Tidak ada produk" description="Coba kata kunci lain." />}
+        empty={<EmptyState icon={Package} title="Belum ada produk" description="Coba kata kunci lain." />}
         renderItem={renderProductItem}
       />
     </Screen>

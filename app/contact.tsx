@@ -58,6 +58,8 @@ import { logWarn } from "@/lib/telemetry"
 import { Alert } from "@/components/ui/alert"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Button } from "@/components/ui/button"
+import { IconButton } from "@/components/ui/icon-button"
+import { Card } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Chip } from "@/components/ui/chip"
 import { Field } from "@/components/ui/field"
@@ -580,9 +582,10 @@ export default function ContactScreen() {
           >
             <View className="gap-2">
               {attachments.map((item, index) => (
-                <View
+                <Card
                   key={item.fileKey}
-                  className="gap-2 rounded-md border border-border bg-surface p-3"
+                  padded={false}
+                  className="gap-2 p-3"
                 >
                   <View className="flex-row items-center justify-between">
                     <View className="flex-row items-center gap-2">
@@ -593,43 +596,29 @@ export default function ContactScreen() {
                     </View>
                     <View className="flex-row items-center gap-1">
                       {/* F09: ubah urutan. */}
-                      <PressableScale
+                      <IconButton
+                        variant="ghost"
+                        size="sm"
+                        icon={ArrowUp}
                         onPress={() => moveAttachment(item.fileKey, -1)}
                         disabled={index === 0}
-                        accessibilityRole="button"
                         accessibilityLabel={`Pindahkan lampiran ${index + 1} ke atas`}
-                        // UX-TCH-007: tombol visual ~36px — hitSlop 4px →
-                        // 44px efektif tanpa mengubah kerapatan baris.
-                        hitSlop={4}
-                        className="p-2"
-                      >
-                        <Icon icon={ArrowUp} size="sm" tone={index === 0 ? "disabled" : "default"} />
-                      </PressableScale>
-                      <PressableScale
+                      />
+                      <IconButton
+                        variant="ghost"
+                        size="sm"
+                        icon={ArrowDown}
                         onPress={() => moveAttachment(item.fileKey, 1)}
                         disabled={index === attachments.length - 1}
-                        accessibilityRole="button"
                         accessibilityLabel={`Pindahkan lampiran ${index + 1} ke bawah`}
-                        // UX-TCH-007: hitSlop 4px → 44px efektif.
-                        hitSlop={4}
-                        className="p-2"
-                      >
-                        <Icon
-                          icon={ArrowDown}
-                          size="sm"
-                          tone={index === attachments.length - 1 ? "disabled" : "default"}
-                        />
-                      </PressableScale>
-                      <PressableScale
+                      />
+                      <IconButton
+                        variant="ghost"
+                        size="sm"
+                        icon={X}
                         onPress={() => handleRemoveAttachment(item.fileKey)}
-                        accessibilityRole="button"
                         accessibilityLabel={`Hapus lampiran ${index + 1}`}
-                        // UX-TCH-007: hitSlop 4px → 44px efektif.
-                        hitSlop={4}
-                        className="p-2"
-                      >
-                        <Icon icon={X} size="sm" tone="default" />
-                      </PressableScale>
+                      />
                     </View>
                   </View>
                   {/* F09: keterangan singkat per lampiran. */}
@@ -639,7 +628,7 @@ export default function ContactScreen() {
                     placeholder="Keterangan singkat (opsional)"
                     maxLength={140}
                   />
-                </View>
+                </Card>
               ))}
               {attachments.length < MAX_ATTACHMENTS ? (
                 <Button
@@ -668,7 +657,7 @@ export default function ContactScreen() {
                   description="Membantu tim teknis menelusuri bug lebih cepat. Anda bisa melihat dan menghapus item sebelum dikirim."
                 />
                 {diagEnabled ? (
-                  <View className="gap-2 rounded-md border border-border bg-surface p-3">
+                  <Card padded={false} className="gap-2 p-3">
                     {/* FE-101: satu label saja — "Terkirim bersama tiket ini:". */}
                     <Text variant="label" tone="secondary">
                       {translate("Terkirim bersama tiket ini:")}
@@ -703,7 +692,7 @@ export default function ContactScreen() {
                         </Text>
                       </View>
                     ) : null}
-                  </View>
+                  </Card>
                 ) : null}
               </View>
             </Field>
@@ -744,15 +733,15 @@ export default function ContactScreen() {
         ) : orders && orders.length > 0 ? (
           <View className="gap-2">
             {orders.map((o) => (
-              <PressableScale
+              <Card
                 key={o.id}
                 onPress={() => {
                   setOrderId(o.id)
                   setOrderSheetOpen(false)
                 }}
-                accessibilityRole="button"
+                padded={false}
                 accessibilityLabel={`Pilih pesanan ${o.title}`}
-                className="gap-1 rounded-md border border-border bg-surface p-3"
+                className="gap-1 p-3"
               >
                 <Text variant="body" numberOfLines={1}>
                   {o.title}
@@ -760,7 +749,7 @@ export default function ContactScreen() {
                 <Text variant="caption" tone="secondary">
                   {ORDER_STATUS_LABELS[o.status]} · {formatRupiah(o.orderValue)}
                 </Text>
-              </PressableScale>
+              </Card>
             ))}
           </View>
         ) : (

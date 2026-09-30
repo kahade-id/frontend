@@ -82,7 +82,7 @@ export function ShowcaseDetailActions({
       <PressableScale
         accessibilityRole="button"
         accessibilityLabel={translate("Bagikan")}
-        accessibilityHint={translate("Bagikan karya ini")}
+        accessibilityHint={translate("Bagikan etalase ini")}
         onPress={onShare}
         containerClassName={cn(
           "min-h-11 min-w-11 items-center justify-center rounded-md",
@@ -94,7 +94,7 @@ export function ShowcaseDetailActions({
       <PressableScale
         accessibilityRole="button"
         accessibilityLabel={saved ? translate("Hapus dari tersimpan") : translate("Simpan")}
-        accessibilityHint={translate("Simpan karya ini")}
+        accessibilityHint={translate("Simpan etalase ini")}
         accessibilityState={{ selected: saved, busy: savedPending }}
         onPress={onToggleSave}
         containerClassName={cn(

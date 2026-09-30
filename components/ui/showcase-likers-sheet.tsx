@@ -224,8 +224,8 @@ export function ShowcaseLikersSheet({
             title={tab === "likers" ? translate("Belum ada yang menyukai") : translate("Belum ada yang menyimpan")}
             description={
               tab === "likers"
-                ? translate("Jadilah yang pertama menyukai karya ini.")
-                : translate("Karya ini belum disimpan siapa pun.")
+                ? translate("Jadilah yang pertama menyukai etalase ini.")
+                : translate("Etalase ini belum disimpan siapa pun.")
             }
           />
         ) : (

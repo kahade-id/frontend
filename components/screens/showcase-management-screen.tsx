@@ -492,7 +492,7 @@ function ShowcaseManagement() {
         await api.users.updateShowcase(item.id, { isActive: next })
         if (!task.valid()) return
         toast.show({
-          title: next ? translate("Karya diaktifkan; pengaturan publik atau privat tetap berlaku") : translate("Karya dinonaktifkan"),
+          title: next ? translate("Etalase diaktifkan; pengaturan publik atau privat tetap berlaku") : translate("Etalase dinonaktifkan"),
           tone: "success",
           duration: 2500,
         })
@@ -530,7 +530,7 @@ function ShowcaseManagement() {
         deletedAt: new Date().toISOString(),
         coverUrl: showcaseCoverOf(target) ?? undefined,
       })
-      toast.show({ title: translate("Karya dihapus. Dapat dipulihkan dalam 30 hari."), tone: "success", duration: 3000 })
+      toast.show({ title: translate("Etalase dihapus. Dapat dipulihkan dalam 30 hari."), tone: "success", duration: 3000 })
       setDeleteTarget(null)
       touchFeed()
       await query.refresh()
@@ -552,7 +552,7 @@ function ShowcaseManagement() {
       try {
         await api.users.restoreShowcaseItem(item.id)
         await unmarkShowcaseDeleted(item.id)
-        toast.show({ title: translate("Karya dipulihkan"), tone: "success", duration: 2500 })
+        toast.show({ title: translate("Etalase dipulihkan"), tone: "success", duration: 2500 })
         touchFeed()
         await query.refresh()
         await refreshDeleted()
@@ -590,7 +590,7 @@ function ShowcaseManagement() {
       if (picked.status === "denied") {
         toast.show({
           title: translate("Akses galeri ditolak"),
-          description: translate("Izinkan akses foto di pengaturan perangkat untuk memilih karya."),
+          description: translate("Izinkan akses foto di pengaturan perangkat untuk memilih etalase."),
           tone: "danger",
           // G-22 (audit 2026-09-23): tanpa jalan pintas, pengguna harus
           // mencari sendiri halaman izin di OS.
@@ -768,7 +768,7 @@ function ShowcaseManagement() {
             ]),
         {
           key: "toggle",
-          label: (menuItem.isActive ?? true) ? translate("Nonaktifkan karya") : translate("Aktifkan karya"),
+          label: (menuItem.isActive ?? true) ? translate("Nonaktifkan etalase") : translate("Aktifkan etalase"),
           icon: (menuItem.isActive ?? true) ? EyeSlash : Eye,
           disabled: toggling,
           onPress: () => void handleToggleActive(menuItem),
@@ -902,7 +902,7 @@ function ShowcaseManagement() {
               subtitle={
                 items.length
                   ? [
-                      translate("{x} karya", { x: items.length }),
+                      translate("{x} etalase", { x: items.length }),
                       hiddenCount ? translate("{x} disembunyikan", { x: hiddenCount }) : null,
                     ]
                       .filter(Boolean)
@@ -921,15 +921,15 @@ function ShowcaseManagement() {
                     icon={Images}
                     // T2-F09 (audit UI/UX 2026-09-28): ini daftar KARYA,
                     // bukan daftar foto — copy salah konteks diperbaiki.
-                    title={translate("Belum ada karya")}
-                    description={translate("Buat karya pertama Anda — produk, jasa, atau hasil kerja.")}
+                    title={translate("Belum ada etalase")}
+                    description={translate("Buat etalase pertama Anda — produk, jasa, atau hasil kerja.")}
                   />
                 }
               />
             </Crossfade>
-            {items.length > renderLimit ? <Button variant="ghost" onPress={() => setRenderLimit((limit) => limit + 60)}>{translate("Tampilkan karya lainnya")}</Button> : null}
+            {items.length > renderLimit ? <Button variant="ghost" onPress={() => setRenderLimit((limit) => limit + 60)}>{translate("Tampilkan etalase lainnya")}</Button> : null}
             <Text variant="caption" tone="secondary">
-              {translate("Ketuk karya untuk mengubah detail, menyembunyikan, atau menghapus.")}
+              {translate("Ketuk etalase untuk mengubah detail, menyembunyikan, atau menghapus.")}
             </Text>
 
             {/* Soft-delete: karya yang dihapus bisa dipulihkan dalam 30 hari. */}
@@ -991,7 +991,7 @@ function ShowcaseManagement() {
               variant="secondary"
               onPress={() => router.push(ROUTES.showcaseCreate)}
             >
-              {translate("Buat karya baru")}
+              {translate("Buat etalase baru")}
             </Button>
           </View>
         )}
@@ -1021,8 +1021,8 @@ function ShowcaseManagement() {
         avoidKeyboard
         visible={imagesItem != null}
         onRequestClose={() => void closeImagesSheet()}
-        title={imagesItem ? translate("Media: {x}", { x: labelOf(imagesItem) }) : translate("Media karya")}
-        description={translate("{x} dari {y} media. Item pertama menjadi cover karya.", {
+        title={imagesItem ? translate("Media: {x}", { x: labelOf(imagesItem) }) : translate("Media etalase")}
+        description={translate("{x} dari {y} media. Item pertama menjadi cover etalase.", {
           x: imagesItem?.images?.length ?? 0,
           y: photoLimit,
         })}
@@ -1084,7 +1084,7 @@ function ShowcaseManagement() {
                       ? translate("Video {x}", { x: i + 1 })
                       : translate("Foto {x}", { x: i + 1 })}
                   </Text>
-                  {i === 0 ? <Text variant="caption" tone="secondary">{translate("Cover karya")}</Text> : null}
+                  {i === 0 ? <Text variant="caption" tone="secondary">{translate("Cover etalase")}</Text> : null}
                 </View>
                 {/* C09: pilih sampul eksplisit — foto pindah ke posisi pertama
                     (cover karya). Commit saat sheet ditutup. */}
@@ -1098,7 +1098,7 @@ function ShowcaseManagement() {
                         ? translate("Jadikan sampul: video {x}", { x: i + 1 })
                         : translate("Jadikan sampul: foto {x}", { x: i + 1 })
                     }
-                    accessibilityHint={translate("Pindahkan media ini ke posisi pertama sebagai cover karya")}
+                    accessibilityHint={translate("Pindahkan media ini ke posisi pertama sebagai cover etalase")}
                     disabled={committingOrder || attaching || deletingImage}
                     onPress={() => {
                       if (committingOrder || attaching || deletingImage) return
@@ -1141,8 +1141,8 @@ function ShowcaseManagement() {
         }
         description={
           deleteImage && imagesItem?.images?.[0]?.id === deleteImage.id
-            ? translate("Cover karya akan digantikan media berikutnya.")
-            : translate("Media akan dihapus permanen dari karya ini.")
+            ? translate("Cover etalase akan digantikan media berikutnya.")
+            : translate("Media akan dihapus permanen dari etalase ini.")
         }
         visible={!!deleteImage}
         destructive
@@ -1155,8 +1155,8 @@ function ShowcaseManagement() {
       />
 
       <Dialog
-        title={translate("Hapus karya ini?")}
-        description={translate("Karya akan dihapus dan dapat dipulihkan dalam 30 hari.")}
+        title={translate("Hapus etalase ini?")}
+        description={translate("Etalase akan dihapus dan dapat dipulihkan dalam 30 hari.")}
         visible={!!deleteTarget}
         destructive
         loading={deleting}
@@ -1317,8 +1317,8 @@ function ShowcaseManagement() {
               </Text>
               <Text variant="caption" tone="secondary">
                 {form.isPublic
-                  ? translate("Karya terlihat di feed & profil publik Anda.")
-                  : translate("Karya disimpan sebagai draf privat (tidak terlihat pengunjung).")}
+                  ? translate("Etalase terlihat di feed & profil publik Anda.")
+                  : translate("Etalase disimpan sebagai draf privat (tidak terlihat pengunjung).")}
               </Text>
             </View>
             <Switch
@@ -1337,8 +1337,8 @@ function ShowcaseManagement() {
       <BottomSheet
         visible={editorPreviewVisible}
         onRequestClose={() => setEditorPreviewVisible(false)}
-        title={translate("Pratinjau karya")}
-        description={translate("Tampilan kartu karya Anda di feed dengan perubahan saat ini.")}
+        title={translate("Pratinjau etalase")}
+        description={translate("Tampilan kartu etalase Anda di feed dengan perubahan saat ini.")}
         footer={
           <View className="gap-2">
             <Button

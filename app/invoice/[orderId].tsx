@@ -309,7 +309,7 @@ export default function InvoiceScreen() {
                 // diam-diam — `normalizeFeeBreakdown` bisa `undefined` dan dulu
                 // tidak ada jejak di struk. Tidak terbaca = "—" (B-14).
                 {
-                  label: "Biaya platform",
+                  label: "Biaya layanan",
                   value: invoice.fee ? formatRupiah(invoice.fee.platformFee) : "—",
                 },
                 // R2 (audit ronde-2, butir #82): tanpa konteks tanggung-jawab

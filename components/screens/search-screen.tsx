@@ -1045,7 +1045,7 @@ export default function SearchScreen() {
             key={seedNonce}
             initialQuery={seed}
             onQueryChange={setKeyword}
-            placeholder={translate("Cari karya, pengguna, pesanan…")}
+            placeholder={translate("Cari etalase, pengguna, pesanan…")}
             containerClassName="flex-1"
           />
         }

@@ -121,7 +121,7 @@ export function ShowcaseReportSheet({ item, onRequestClose }: ShowcaseReportShee
     <BottomSheet
       visible={!!item}
       onRequestClose={onRequestClose}
-      title={translate("Laporkan Karya")}
+      title={translate("Laporkan Etalase")}
       description={
         item
           ? translate('Laporkan postingan "{x}" jika melanggar panduan komunitas.', {
@@ -147,9 +147,9 @@ export function ShowcaseReportSheet({ item, onRequestClose }: ShowcaseReportShee
         // F-04 (audit 2026-09-23): state "sudah dilaporkan" — laporan ganda
         // tidak perlu; item ini juga sudah disembunyikan dari feed pelapor.
         <View className="gap-2">
-          <Text variant="body" weight={600}>{translate("Karya sudah dilaporkan")}</Text>
+          <Text variant="body" weight={600}>{translate("Etalase sudah dilaporkan")}</Text>
           <Text variant="body" tone="secondary">
-            {translate("Laporan Anda sedang ditinjau moderasi. Karya ini disembunyikan dari feed Anda.")}
+            {translate("Laporan Anda sedang ditinjau moderasi. Etalase ini disembunyikan dari feed Anda.")}
           </Text>
           {/* U-05 (audit 2026-09-24): setelah lapor, pengguna dulu buntu —
               tidak ada jalan melihat status/riwayat. Sekarang ada tautan ke

@@ -172,7 +172,7 @@ export function ShowcaseHeader({ kind, onKindChange, tabs, onFilterPress, filter
             <PressableScale
               accessibilityRole="button"
               accessibilityLabel={translate("Buat baru")}
-              accessibilityHint={translate("Membuka pilihan: buat karya, buat transaksi, atau isi saldo")}
+              accessibilityHint={translate("Membuka pilihan: buat etalase, buat transaksi, atau isi saldo")}
               haptic
               hitSlop={ACTION_HIT_SLOP}
               onPress={openCreateSheet}

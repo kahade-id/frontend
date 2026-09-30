@@ -475,10 +475,10 @@ export default function TopupScreen() {
                     description={
                       selectedMethod
                         ? selectedFee > 0
-                          ? translate("Biaya admin {x}", {
+                          ? translate("Biaya layanan {x}", {
                               x: formatRupiah(selectedFee),
                             })
-                          : "Tanpa biaya admin"
+                          : "Tanpa biaya layanan"
                         : undefined
                     }
                     onPress={() => setMethodSheetOpen(true)}
@@ -533,7 +533,7 @@ export default function TopupScreen() {
                     subtitle={selectedMethod ? selectedMethod.name : "Pilih metode di bawah"}
                   >
                     <KeyValue
-                      label="Biaya admin"
+                      label="Biaya layanan"
                       value={feeLoading ? "Menghitung…" : displayFee > 0 ? formatRupiah(displayFee) : "Gratis"}
                       hint={
                         // FE-IMP-4 item 5: angka server = angka yang ditagih
@@ -838,7 +838,7 @@ export default function TopupScreen() {
         visible={methodSheetOpen}
         onRequestClose={() => setMethodSheetOpen(false)}
         title="Pilih metode pembayaran"
-        description="Biaya admin (jika ada) ditampilkan di samping setiap metode."
+        description="Biaya layanan (jika ada) ditampilkan di samping setiap metode."
         footer={
           // Wrapper footer BottomSheet sudah memberi px-5 pt-4; px-5 di sini
           // membuat tombol menjorok 40px, tidak sejajar judul sheet.

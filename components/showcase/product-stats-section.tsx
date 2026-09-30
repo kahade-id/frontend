@@ -180,7 +180,7 @@ export function ProductStatsSection({ showcaseId }: { showcaseId: string }) {
       </View>
       {isEmpty ? (
         <Text variant="caption" tone="secondary">
-          {translate("Belum ada statistik — bagikan karya agar mulai terlihat.")}
+          {translate("Belum ada statistik — bagikan etalase agar mulai terlihat.")}
         </Text>
       ) : (
         <StatsGrid stats={stats} />

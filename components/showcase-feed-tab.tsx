@@ -1076,8 +1076,8 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
       return (
         <EmptyState
           icon={Images}
-          title={hasMore ? translate("Masih mencari karya dari akun yang diikuti") : translate("Belum ada karya dari akun yang diikuti")}
-          description={hasMore ? translate("Lanjutkan pencarian pada halaman berikutnya.") : translate("Saat akun yang Anda ikuti membagikan karya, karyanya muncul di sini.")}
+          title={hasMore ? translate("Masih mencari etalase dari akun yang diikuti") : translate("Belum ada etalase dari akun yang diikuti")}
+          description={hasMore ? translate("Lanjutkan pencarian pada halaman berikutnya.") : translate("Saat akun yang Anda ikuti membagikan etalase, etalasenya muncul di sini.")}
         />
       )
     }
@@ -1086,11 +1086,11 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
         icon={Images}
         // F-06 (audit 2026-09-24): copy menyebut konteks FEED, bukan halaman
         // etalase satu penjual — "penjual Kahade" membingungkan di sini.
-        title={translate("Belum ada karya untuk ditampilkan")}
+        title={translate("Belum ada etalase untuk ditampilkan")}
         description={
           activeSearch
             ? translate('Tidak ada hasil untuk "{x}".', { x: activeSearch })
-            : translate("Karya publik dari pengguna Kahade akan muncul di sini.")
+            : translate("Etalase publik dari pengguna Kahade akan muncul di sini.")
         }
         // Item 55 (FE-IMP-1): bila hasil KOSONG karena filter aktif, SATU
         // tombol "Atur ulang filter" menghapus search + kategori + lokasi +
@@ -1104,7 +1104,7 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
           ) : // A-20 (audit 2026-09-23): CTA isi etalase untuk pemilik akun.
           hasSession ? (
             <Button variant="secondary" fullWidth={false} onPress={handleAddWorkPress}>
-              {translate("Tambah karya")}
+              {translate("Tambah etalase")}
             </Button>
           ) : undefined
         }
@@ -1147,7 +1147,7 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
       // S-04 (audit 2026-09-24): tindakan yang menghilangkan kartu
       // tanpa jejak harus bisa dibatalkan.
       toast.show({
-        title: translate("Karya disembunyikan dari feed"),
+        title: translate("Etalase disembunyikan dari feed"),
         action: { label: translate("Urungkan"), onPress: () => undismissShowcase(dismissed) },
       })
     }
@@ -1179,7 +1179,7 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
   const followingPartialNotice = kind === "following" && followingPartial ? (
     <View className="mx-5 mt-3 rounded-md border border-border bg-surface px-3 py-2">
       <Text variant="caption" tone="secondary">
-        {translate("Sebagian karya belum dapat dimuat. Tarik untuk menyegarkan.")}
+        {translate("Sebagian etalase belum dapat dimuat. Tarik untuk menyegarkan.")}
       </Text>
     </View>
   ) : null
@@ -1370,10 +1370,10 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
       {/* Komentar dibaca & ditulis di sheet — pengguna tidak kehilangan posisi feed. */}
       <ShowcaseCommentsSheet item={commentItem} onRequestClose={handleCloseCommentsSheet} />
 
-      <BottomSheet visible={!!actionItem} onRequestClose={handleCloseActionSheet} title={translate("Pilihan karya")}>
+      <BottomSheet visible={!!actionItem} onRequestClose={handleCloseActionSheet} title={translate("Pilihan etalase")}>
         <View className="gap-3">
           <Button variant="ghost" onPress={handleDismissAction}>{translate("Tidak tertarik")}</Button>
-          <Button variant="ghost" onPress={handleReportAction}>{translate("Laporkan karya")}</Button>
+          <Button variant="ghost" onPress={handleReportAction}>{translate("Laporkan etalase")}</Button>
         </View>
       </BottomSheet>
 

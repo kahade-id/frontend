@@ -415,7 +415,7 @@ export default function PatunganDetailScreen() {
         ) : null}
 
         {isHost && group.status === "TARGET_REACHED" ? (
-          <Button variant="destructive" fullWidth onPress={() => setReleaseOpen(true)}>
+          <Button variant="accent" fullWidth onPress={() => setReleaseOpen(true)}>
             {translate("Inisiasi pencairan")}
           </Button>
         ) : null}

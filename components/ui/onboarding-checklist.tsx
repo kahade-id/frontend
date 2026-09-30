@@ -51,7 +51,7 @@ const ITEM_META: Record<
   firstShowcase: {
     icon: Storefront,
     title: "Buat etalase pertama",
-    description: "Pasang karya pertama Anda untuk mulai berjualan",
+    description: "Pasang etalase pertama Anda untuk mulai berjualan",
     href: ROUTES.showcaseCreate,
   },
 }

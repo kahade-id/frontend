@@ -145,8 +145,8 @@ export function ShowcaseAuthorRow({ item, isOwner, hasSession, onReport }: Showc
           icon={PencilSimple}
           variant="ghost"
           size="sm"
-          accessibilityLabel={translate("Ubah karya")}
-          accessibilityHint={translate("Ubah karya ini")}
+          accessibilityLabel={translate("Ubah etalase")}
+          accessibilityHint={translate("Ubah etalase ini")}
           onPress={() =>
             router.push({
               pathname: ROUTES.showcaseManagement,

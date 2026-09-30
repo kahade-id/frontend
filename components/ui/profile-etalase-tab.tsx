@@ -277,7 +277,7 @@ export function ProfileEtalaseTab({
               <EmptyState
                 icon={Images}
                 title={translate("Belum ada etalase")}
-                description={translate("Anda belum menambahkan karya ke etalase.")}
+                description={translate("Anda belum menambahkan etalase ke etalase.")}
                 action={
                   <Button
                     variant="secondary"
@@ -285,7 +285,7 @@ export function ProfileEtalaseTab({
                     leftIcon={Plus}
                     onPress={() => router.push(ROUTES.showcaseManagement)}
                   >
-                    {translate("Tambah karya")}
+                    {translate("Tambah etalase")}
                   </Button>
                 }
               />
@@ -293,7 +293,7 @@ export function ProfileEtalaseTab({
               <EmptyState
                 icon={Images}
                 title={translate("Belum ada konten")}
-                description={translate("@{x} belum membagikan foto atau karya produk.", {
+                description={translate("@{x} belum membagikan foto atau etalase produk.", {
                   x: handle,
                 })}
               />
@@ -314,7 +314,7 @@ export function ProfileEtalaseTab({
                 onManage={handleManage}
               />
             ))}
-            {patchedItems.length > renderLimit ? <Button variant="ghost" onPress={() => setRenderLimit((limit) => limit + RENDER_LIMIT_STEP)}>{translate("Tampilkan karya lainnya")}</Button> : null}
+            {patchedItems.length > renderLimit ? <Button variant="ghost" onPress={() => setRenderLimit((limit) => limit + RENDER_LIMIT_STEP)}>{translate("Tampilkan etalase lainnya")}</Button> : null}
             {/* E-03: taut ke layar galeri grid publik (jangan biarkan kode mati). */}
             <View className="px-5">
               <Button

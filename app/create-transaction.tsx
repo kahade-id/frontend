@@ -146,7 +146,7 @@ function kycReasonMessage(backendMessage: string): string {
   if (/cumulative/i.test(backendMessage)) {
     return (
       "Total nilai transaksi aktif Anda (ditambah transaksi ini) mencapai batas " +
-      "Rp 2.000.000. Selesaikan verifikasi identitas (KYC) untuk melanjutkan " +
+      "Rp2.000.000. Selesaikan verifikasi identitas (KYC) untuk melanjutkan " +
       "membuat transaksi."
     )
   }
@@ -156,7 +156,7 @@ function kycReasonMessage(backendMessage: string): string {
       "verifikasi identitas (KYC) untuk melanjutkan membuat transaksi."
     )
   }
-  return "Transaksi dengan nilai Rp 2.000.000 ke atas membutuhkan verifikasi identitas (KYC)."
+  return "Transaksi dengan nilai Rp2.000.000 ke atas membutuhkan verifikasi identitas (KYC)."
 }
 
 /** Bentuk prefill dari query params (ROUTES.createTransactionFromTemplate). */

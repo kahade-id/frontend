@@ -406,10 +406,10 @@ function ShowcaseFeedItemBase({
             icon={onOptions ? DotsThreeCircle : Flag}
             variant="ghost"
             size="md"
-            accessibilityLabel={onOptions ? translate("Pilihan karya") : translate("Laporkan karya")}
+            accessibilityLabel={onOptions ? translate("Pilihan etalase") : translate("Laporkan etalase")}
             // A-03 (audit 2026-09-24): hint tidak lagi menyebut dua aksi yang
             // bisa berubah — isi sheet tidak dijanjikan di muka.
-            accessibilityHint={onOptions ? translate("Buka opsi karya") : translate("Laporkan karya ini")}
+            accessibilityHint={onOptions ? translate("Buka opsi etalase") : translate("Laporkan etalase ini")}
             onPress={onOptions ?? handleReport}
           />
         ) : !nonInteractive && onManage ? (
@@ -417,8 +417,8 @@ function ShowcaseFeedItemBase({
             icon={DotsThreeCircle}
             variant="ghost"
             size="md"
-            accessibilityLabel={translate("Kelola karya")}
-            accessibilityHint={translate("Buka opsi kelola karya")}
+            accessibilityLabel={translate("Kelola etalase")}
+            accessibilityHint={translate("Buka opsi kelola etalase")}
             onPress={onManage}
           />
         ) : null}
@@ -520,7 +520,7 @@ function ShowcaseFeedItemBase({
         <PressableScale
           accessibilityRole={onPress ? "button" : undefined}
           accessibilityLabel={onPress ? item.title : undefined}
-          accessibilityHint={onPress ? translate("Buka detail karya") : undefined}
+          accessibilityHint={onPress ? translate("Buka detail etalase") : undefined}
           onPress={onPress}
           // C05: press-in = niat buka detail → prefetch metadata ringan.
           onPressIn={nonInteractive ? undefined : onPressIn}
@@ -552,7 +552,7 @@ function ShowcaseFeedItemBase({
           <PressableScale
             accessibilityRole="button"
             accessibilityLabel={translate("Bagikan")}
-            accessibilityHint={translate("Bagikan karya ini")}
+            accessibilityHint={translate("Bagikan etalase ini")}
             onPress={onShare}
             containerClassName={cn("min-h-11 min-w-11 items-center justify-center rounded-md", focusRing)}
           >

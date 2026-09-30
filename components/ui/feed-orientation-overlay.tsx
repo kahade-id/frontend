@@ -28,7 +28,7 @@ import { elevationStyle } from "@/lib/elevation"
 
 /** 1 baris penjelasan per tab — kunci = ShellTabKey (sinkron dengan label). */
 const TAB_BLURBS: Record<ShellTabKey, string> = {
-  showcase: "Feed barang & karya — lihat, suka, beli",
+  showcase: "Feed barang & etalase — lihat, suka, beli",
   transactions: "Pesanan Anda & status escrow-nya",
   chat: "Chat dengan penjual & pembeli",
   notifications: "Kabar transaksi & pesan penting",
@@ -151,7 +151,7 @@ export function FeedOrientationOverlay({
                   <Text variant="caption" weight={600}>
                     Tombol +
                   </Text>
-                  {" — buat karya, buat transaksi, isi saldo"}
+                  {" — buat etalase, buat transaksi, isi saldo"}
                 </Text>
               </View>
             </View>

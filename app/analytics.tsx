@@ -71,7 +71,7 @@ const ORDER_CSV_HEADERS = [
   "Jenis",
   "Status",
   "Nilai pesanan",
-  "Biaya platform",
+  "Biaya layanan",
   "Peran saya",
   "Pembeli",
   "Penjual",

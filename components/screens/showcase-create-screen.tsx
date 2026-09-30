@@ -440,7 +440,7 @@ export default function ShowcaseCreateScreen() {
     if (slots <= 0) {
       toast.show({
         title: translate("Foto sudah penuh"),
-        description: translate("Satu karya dapat memuat paling banyak {x} foto.", {
+        description: translate("Satu etalase dapat memuat paling banyak {x} foto.", {
           x: photoLimit,
         }),
         tone: "info",
@@ -457,7 +457,7 @@ export default function ShowcaseCreateScreen() {
       if (picked.status === "denied") {
         toast.show({
           title: translate("Akses galeri ditolak"),
-          description: translate("Izinkan akses foto di pengaturan perangkat untuk memilih karya."),
+          description: translate("Izinkan akses foto di pengaturan perangkat untuk memilih etalase."),
           tone: "danger",
           action: { label: translate("Buka pengaturan"), onPress: () => void Linking.openSettings() },
         })
@@ -602,7 +602,7 @@ export default function ShowcaseCreateScreen() {
     if (slots <= 0) {
       toast.show({
         title: translate("Media sudah penuh"),
-        description: translate("Satu karya dapat memuat paling banyak {x} media.", {
+        description: translate("Satu etalase dapat memuat paling banyak {x} media.", {
           x: photoLimit,
         }),
         tone: "info",
@@ -795,7 +795,7 @@ export default function ShowcaseCreateScreen() {
       return
     }
     if (previews.length === 0) {
-      setPhotoError(translate("Pilih minimal satu foto karya."))
+      setPhotoError(translate("Pilih minimal satu foto etalase."))
       return
     }
     if (failedAssets.length > 0) {
@@ -866,7 +866,7 @@ export default function ShowcaseCreateScreen() {
         if (mounted.current && revision === getSessionRevision()) {
           toast.show({
             title: translate("Field commerce gagal disimpan"),
-            description: translate("Karya sudah tersimpan — lengkapi tipe produk & harga coret di Kelola Etalase."),
+            description: translate("Etalase sudah tersimpan — lengkapi tipe produk & harga coret di Kelola Etalase."),
             tone: "warning",
             duration: 5000,
           })
@@ -881,7 +881,7 @@ export default function ShowcaseCreateScreen() {
       // mengunduh daftar terbaru (lihat refreshOnFocusStaleMs di
       // app/showcase-management.tsx).
       invalidateQueryPrefix("my-showcase")
-      toast.show({ title: translate("Karya ditambahkan"), tone: "success", duration: 3000 })
+      toast.show({ title: translate("Etalase ditambahkan"), tone: "success", duration: 3000 })
       // Jangan `router.back()` langsung di sini: dispatch expo-router
       // tertunda ke effect berikutnya, saat itu `saveBusy` sudah false dan
       // dialog "Buang karya ini?" akan terbuka. Tandai keluar disengaja;
@@ -933,7 +933,7 @@ export default function ShowcaseCreateScreen() {
             disabled={uploading || previews.length === 0}
             onPress={() => void handleSave()}
           >
-            {translate("Terbitkan karya")}
+            {translate("Terbitkan etalase")}
           </Button>
           <Button variant="ghost" fullWidth disabled={busy} onPress={requestClose}>
             {translate("Batal")}
@@ -941,13 +941,13 @@ export default function ShowcaseCreateScreen() {
         </View>
       }
     >
-      <Header title={translate("Karya baru")} backKind="close" onBack={requestClose} />
+      <Header title={translate("Etalase baru")} backKind="close" onBack={requestClose} />
 
       <View className="gap-6 px-5 pb-6 pt-4">
         {/* ── FOTO ── */}
         <View className="gap-3">
           <SectionHeader
-            title={translate("Foto karya")}
+            title={translate("Foto etalase")}
             action={
               <Badge>
                 {translate("{x}/{y}", { x: previews.length, y: photoLimit })}
@@ -1025,7 +1025,7 @@ export default function ShowcaseCreateScreen() {
                         <PressableScale
                           accessibilityRole="button"
                           accessibilityLabel={translate("Jadikan sampul: {x}", { x: label })}
-                          accessibilityHint={translate("Pindahkan media ini ke posisi pertama sebagai sampul karya")}
+                          accessibilityHint={translate("Pindahkan media ini ke posisi pertama sebagai sampul etalase")}
                           disabled={busy || uncertainCreate}
                           onPress={() => setAsCover(index)}
                           containerClassName="items-center justify-center rounded-full bg-overlay-media p-1.5"
@@ -1136,12 +1136,12 @@ export default function ShowcaseCreateScreen() {
 
         {/* ── DETAIL ── */}
         <View className="gap-4">
-          <SectionHeader title={translate("Detail karya")} />
+          <SectionHeader title={translate("Detail etalase")} />
 
           {uncertainCreate ? (
             <View className="gap-2 rounded-md border border-border p-3">
               <Text tone="danger">
-                {translate("Status simpan belum pasti. Coba Terbitkan lagi untuk melanjutkan permintaan yang sama, atau periksa daftar etalase Anda sebelum membuat karya baru.")}
+                {translate("Status simpan belum pasti. Coba Terbitkan lagi untuk melanjutkan permintaan yang sama, atau periksa daftar etalase Anda sebelum membuat etalase baru.")}
               </Text>
               <Button variant="secondary" onPress={() => setIntentionalLeave(true)}>
                 {translate("Periksa daftar etalase")}
@@ -1274,8 +1274,8 @@ export default function ShowcaseCreateScreen() {
               </Text>
               <Text variant="caption" tone="secondary">
                 {form.isPublic
-                  ? translate("Karya terlihat di feed & profil publik Anda.")
-                  : translate("Karya disimpan sebagai draf privat (tidak terlihat pengunjung).")}
+                  ? translate("Etalase terlihat di feed & profil publik Anda.")
+                  : translate("Etalase disimpan sebagai draf privat (tidak terlihat pengunjung).")}
               </Text>
             </View>
             <Switch
@@ -1321,7 +1321,7 @@ export default function ShowcaseCreateScreen() {
       </View>
 
       <Dialog
-        title={translate("Buang karya ini?")}
+        title={translate("Buang etalase ini?")}
         description={translate("Foto yang sudah diunggah dan ketikan Anda akan dibuang.")}
         visible={discardOpen}
         destructive
@@ -1341,7 +1341,7 @@ export default function ShowcaseCreateScreen() {
       {/* S7: tawarkan lanjutkan draft teks yang tersimpan. */}
       <Dialog
         title={translate("Lanjutkan draft?")}
-        description={translate("Ada ketikan karya yang belum diterbitkan. Lanjutkan dari draft tersebut?")}
+        description={translate("Ada ketikan etalase yang belum diterbitkan. Lanjutkan dari draft tersebut?")}
         visible={resumeDraft != null}
         confirmLabel={translate("Lanjutkan")}
         cancelLabel={translate("Buang draft")}
@@ -1374,8 +1374,8 @@ export default function ShowcaseCreateScreen() {
       <BottomSheet
         visible={previewVisible}
         onRequestClose={() => setPreviewVisible(false)}
-        title={translate("Pratinjau karya")}
-        description={translate("Tampilan kartu karya Anda di feed sebelum diterbitkan.")}
+        title={translate("Pratinjau etalase")}
+        description={translate("Tampilan kartu etalase Anda di feed sebelum diterbitkan.")}
         footer={
           <View className="gap-2">
             <Button
@@ -1388,7 +1388,7 @@ export default function ShowcaseCreateScreen() {
                 void handleSave()
               }}
             >
-              {translate("Terbitkan karya")}
+              {translate("Terbitkan etalase")}
             </Button>
             <Button variant="ghost" fullWidth onPress={() => setPreviewVisible(false)}>
               {translate("Kembali edit")}

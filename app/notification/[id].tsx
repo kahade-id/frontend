@@ -304,7 +304,7 @@ export default function NotificationDetailScreen() {
               <Text variant="caption" tone="secondary">
                 Konfirmasi penerimaan untuk meneruskan dana escrow ke penjual.
               </Text>
-              <Button onPress={() => setConfirmReleaseOpen(true)}>
+              <Button variant="accent" onPress={() => setConfirmReleaseOpen(true)}>
                 Konfirmasi terima
               </Button>
             </View>

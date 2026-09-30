@@ -1,17 +1,17 @@
 import { ShowcaseSavedCollection } from "@/components/ui/showcase-saved-collection"
 /**
- * Screen — Profil Tersimpan (GET /v1/users/saved).
+ * Screen — Profil Disimpan (GET /v1/users/saved).
  *
  * "Saved" = daftar pribadi pengguna untuk dilihat lagi — berbeda dari
  * "Favorit" (dukung publik dengan counter). Toggle-nya ada di profil
- * pengguna (ikon Bookmark); dari sini bisa hapus simpanan (DELETE
+ * pengguna (ikon BookmarkSimple); dari sini bisa hapus simpanan (DELETE
  * /v1/users/{username}/saved) dan kembali ke profil.
  *
  * Meta respons (total/page/limit) di top-level — adapter sudah menormalkan,
  * jadi layar cukup useApiQuery satu halaman pertama (daftar pribadi, kecil).
  */
 import { memo, useCallback, useState } from "react"
-import { Bookmark } from "phosphor-react-native"
+import { BookmarkSimple } from "phosphor-react-native"
 import { router } from "expo-router"
 import { translate } from "@/lib/i18n/translate"
 import { useLanguage } from "@/lib/i18n"
@@ -63,7 +63,7 @@ const SavedProfileRow = memo(function SavedProfileRow({
       onPress={() => onOpenProfile(user.username)}
       action={
         <IconButton
-          icon={Bookmark}
+          icon={BookmarkSimple}
           variant="ghost"
           size="sm"
           accessibilityLabel={translate("Hapus {x} dari tersimpan", { x: user.fullName ?? user.username })}
@@ -116,7 +116,7 @@ export default function SavedProfilesScreen() {
 
   return (
     <DataScreen
-      title="Tersimpan"
+      title="Disimpan"
       state={query}
       loadingMessage="Memuat profil tersimpan…"
       contentClassName="gap-1"
@@ -124,7 +124,7 @@ export default function SavedProfilesScreen() {
       // kosong hanya menampilkan header "Profil tersimpan" (Favorit punya).
       empty={
         items.length === 0 && {
-          icon: Bookmark,
+          icon: BookmarkSimple,
           title: "Belum ada profil tersimpan",
           description: "Simpan profil penjual dari halaman profil mereka untuk dilihat lagi nanti.",
           action: (

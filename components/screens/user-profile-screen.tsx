@@ -17,7 +17,7 @@ import { router, useLocalSearchParams } from "expo-router"
 import { translate } from "@/lib/i18n/translate"
 import { useLanguage } from "@/lib/i18n"
 import {
-  Bookmark,
+  BookmarkSimple,
   Briefcase,
   ChatCircleDots,
   DotsThreeVertical,
@@ -1107,7 +1107,7 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
                       className="border border-border"
                     />
                     <IconButton
-                      icon={Bookmark}
+                      icon={BookmarkSimple}
                       variant="secondary"
                       size="sm"
                       active={saved}

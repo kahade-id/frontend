@@ -435,7 +435,7 @@ export default function SecurityActivityScreen() {
                 dua langkah Anda.
               </Text>
               {sessions.length === 0 ? (
-                <EmptyState icon={DeviceMobile} title="Tidak ada sesi aktif" />
+                <EmptyState icon={DeviceMobile} title="Belum ada sesi aktif" />
               ) : (
                 sessions.map((s, i) => (
                   <DeviceSessionRow

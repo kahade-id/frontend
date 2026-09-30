@@ -232,7 +232,7 @@ export function CommerceProductFields({ value, onChange, salePriceIdr, disabled 
             <Text variant="caption" tone="secondary" className="flex-1">
               {value.scheduledAt
                 ? translate("Terjadwal: {x}", { x: formatDateTimeWIB(value.scheduledAt) })
-                : translate("Pilih jam lalu simpan — karya terbit otomatis.")}
+                : translate("Pilih jam lalu simpan — etalase terbit otomatis.")}
             </Text>
           </View>
         ) : null}

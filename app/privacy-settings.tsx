@@ -466,7 +466,7 @@ export default function PrivacySettingsScreen() {
         />
         <EnumRow<string>
           title="Visibilitas default etalase"
-          description="Visibilitas karya etalase baru yang Anda buat."
+          description="Visibilitas etalase baru yang Anda buat."
           value={value.showcaseDefaultVisibility}
           options={["PUBLIC", "FOLLOWERS", "PRIVATE"]}
           labels={SHOWCASE_VISIBILITY_LABELS}

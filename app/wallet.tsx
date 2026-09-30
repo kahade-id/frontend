@@ -126,6 +126,7 @@ import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Button } from "@/components/ui/button"
 import { Amount } from "@/components/ui/amount"
 import { Alert } from "@/components/ui/alert"
+import { Card } from "@/components/ui/card"
 import { ListLoading } from "@/components/ui/paginated-list"
 import { ErrorState } from "@/components/ui/error-state"
 import { GuestLoginPrompt } from "@/components/web-guest-gate"
@@ -386,7 +387,7 @@ export default function WalletScreen() {
       >
         <View className="gap-2 px-5 py-2">
           {wallet?.availableBalance != null ? (
-            <View className="gap-1 rounded-md border border-border bg-surface px-4 py-3">
+            <Card padded={false} className="gap-1 px-4 py-3">
               <View className="flex-row items-baseline justify-between gap-3">
                 <Text variant="body" weight={600}>
                   Saldo tersedia
@@ -396,10 +397,10 @@ export default function WalletScreen() {
               <Text variant="body" tone="secondary">
                 Dana yang bisa dipakai untuk transfer, tarik dana, dan pembayaran.
               </Text>
-            </View>
+            </Card>
           ) : null}
           {heldValue > 0 ? (
-            <View className="gap-1 rounded-md border border-border bg-surface px-4 py-3">
+            <Card padded={false} className="gap-1 px-4 py-3">
               <View className="flex-row items-baseline justify-between gap-3">
                 <Text variant="body" weight={600}>
                   Ditahan di escrow
@@ -409,10 +410,10 @@ export default function WalletScreen() {
               <Text variant="body" tone="secondary">
                 {ESCROW_HELD_EXPLANATION}
               </Text>
-            </View>
+            </Card>
           ) : null}
           {wallet?.balance != null ? (
-            <View className="gap-1 rounded-md border border-border bg-surface px-4 py-3">
+            <Card padded={false} className="gap-1 px-4 py-3">
               <View className="flex-row items-baseline justify-between gap-3">
                 <Text variant="body" weight={600}>
                   Total saldo
@@ -424,7 +425,7 @@ export default function WalletScreen() {
                   ? "Total saldo = saldo tersedia + dana ditahan di escrow."
                   : "Jumlah seluruh dana di dompet Anda."}
               </Text>
-            </View>
+            </Card>
           ) : null}
           <Text variant="caption" tone="tertiary" className="px-1 pt-1">
             Mutasi yang masih diproses tampil di riwayat dengan status "Pending".
@@ -457,7 +458,7 @@ export default function WalletScreen() {
           <View className="px-5 py-6">
             <EmptyState
               icon={WalletIcon}
-              title="Tidak ada pesanan penahan"
+              title="Belum ada pesanan penahan"
               description="Tidak ditemukan dana yang ditahan di escrow pada 100 mutasi terakhir."
             />
           </View>
@@ -474,9 +475,10 @@ export default function WalletScreen() {
               />
             </View>
             {holds.map((hold) => (
-              <View
+              <Card
                 key={hold.orderId}
-                className="flex-row items-center justify-between gap-3 rounded-md border border-border bg-surface px-4 py-3"
+                padded={false}
+                className="flex-row items-center justify-between gap-3 px-4 py-3"
               >
                 <View className="flex-1 gap-0.5">
                   <Text variant="body" weight={600} numberOfLines={1}>
@@ -491,7 +493,7 @@ export default function WalletScreen() {
                   tone="primary"
                   hidden={balanceHidden}
                 />
-              </View>
+              </Card>
             ))}
             <Text variant="body" tone="secondary" className="px-1 pt-1">
               Dihitung dari 100 mutasi terakhir. Daftar ini hanya untuk

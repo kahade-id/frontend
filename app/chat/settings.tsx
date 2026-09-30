@@ -22,6 +22,7 @@ import { useHasSession } from "@/lib/guest-gate"
 import { logWarn } from "@/lib/telemetry"
 
 import { Screen } from "@/components/ui/screen"
+import { Button } from "@/components/ui/button"
 import { GuestLoginPrompt } from "@/components/web-guest-gate"
 import { Header } from "@/components/ui/header"
 import { SectionHeader } from "@/components/ui/section"
@@ -344,17 +345,20 @@ function ReplyTemplateManager() {
           multiline
           accessibilityLabel="Isi template"
         />
-        <Pressable
-          onPress={() => void save()}
-          disabled={busy || !validation.ok}
-          accessibilityRole="button"
-          accessibilityLabel={editing ? "Simpan perubahan" : "Tambah template"}
-          className={`items-center rounded-sm py-2.5 ${busy || !validation.ok ? "bg-surface" : "bg-primary"}`}
-        >
-          <Text variant="body" weight={700} tone={busy || !validation.ok ? "secondary" : "inverse"}>
-            {busy ? "Menyimpan…" : editing ? "Simpan perubahan" : "Tambah template"}
+        {!validation.ok && (shortcut || draft) ? (
+          <Text variant="caption" tone="danger">
+            {validation.message}
           </Text>
-        </Pressable>
+        ) : null}
+        <Button
+          fullWidth
+          loading={busy}
+          disabled={!validation.ok}
+          onPress={() => void save()}
+          accessibilityLabel={editing ? "Simpan perubahan" : "Tambah template"}
+        >
+          {editing ? "Simpan perubahan" : "Tambah template"}
+        </Button>
       </View>
       <Text variant="caption" tone="secondary">
         Maksimum 50 template per akun.

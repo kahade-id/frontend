@@ -105,8 +105,8 @@ export function OrderFooterActions({
         ) : null}
         {canReviewDelivery ? (
           // T2-003: "Konfirmasi terima" MELEPAS dana escrow ke penjual —
-          // aksi penggerak uang harus jadi tombol PRIMER.
-          <Button containerClassName="flex-1" loading={submitting} onPress={onComplete}>
+          // aksi penggerak uang memakai varian accent (trust & escrow, §2.3b).
+          <Button variant="accent" containerClassName="flex-1" loading={submitting} onPress={onComplete}>
             {translate("Konfirmasi terima")}
           </Button>
         ) : null}

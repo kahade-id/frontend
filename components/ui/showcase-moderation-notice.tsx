@@ -63,7 +63,7 @@ export function ShowcaseModerationNotice({
         <View className="flex-row gap-2 pt-1">
           {onEdit ? (
             <Button variant="secondary" size="sm" onPress={onEdit} leftIcon={PencilSimple} containerClassName="flex-1">
-              {translate("Ubah karya")}
+              {translate("Ubah etalase")}
             </Button>
           ) : null}
           {onResubmit ? (

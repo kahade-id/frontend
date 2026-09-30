@@ -40,7 +40,6 @@ import { GuestLoginPrompt } from "@/components/web-guest-gate"
 import { Icon } from "@/components/ui/icon"
 import { Input } from "@/components/ui/input"
 import { IconButton } from "@/components/ui/icon-button"
-import { PressableScale } from "@/components/ui/pressable-scale"
 import { Screen } from "@/components/ui/screen"
 import { SegmentedControl } from "@/components/ui/segmented-control"
 import { Text } from "@/components/ui/text"
@@ -316,16 +315,14 @@ export default function AddressesScreen() {
               </Text>
             </View>
             {!address.isDefault ? (
-              <PressableScale
-                accessibilityRole="button"
+              <Button
+                variant="ghost"
+                size="sm"
                 onPress={() => void handleSetDefault(address)}
                 disabled={defaultBusy}
-                className="self-start"
               >
-                <Text variant="caption" tone="primary" weight={600}>
-                  {translate("Jadikan utama")}
-                </Text>
-              </PressableScale>
+                {translate("Jadikan utama")}
+              </Button>
             ) : null}
           </Card>
         ))}

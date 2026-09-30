@@ -641,7 +641,7 @@ export default function WithdrawScreen() {
                           if (typeof fee !== "number" || !Number.isFinite(fee) || fee < 0) {
                             return []
                           }
-                          const rows = [{ label: "Biaya admin", value: formatRupiah(fee), mono: true }]
+                          const rows = [{ label: "Biaya layanan", value: formatRupiah(fee), mono: true }]
                           // Net hanya bila server mengirim netAmount — jangan
                           // hitung amount - fee sendiri (aturan FE-IMP-4).
                           const net = res?.netAmount
@@ -871,7 +871,7 @@ export default function WithdrawScreen() {
               </View>
               <View className="flex-row items-center justify-between">
                 <Text variant="caption" tone="secondary">
-                  Biaya admin
+                  Biaya layanan
                 </Text>
                 <Text variant="body" weight={600}>
                   {formatRupiah(0)}

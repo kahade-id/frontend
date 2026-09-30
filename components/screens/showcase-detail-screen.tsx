@@ -173,8 +173,8 @@ export default function ShowcaseDetailScreen() {
         }}
         empty={{
           icon: ChatCircle,
-          title: translate("Karya tidak ditemukan"),
-          description: translate("Karya ini mungkin sudah dihapus atau tidak lagi tersedia."),
+          title: translate("Etalase tidak ditemukan"),
+          description: translate("Etalase ini mungkin sudah dihapus atau tidak lagi tersedia."),
           // Item 167 (FE-IMP-1): CTA eksplisit — user punya jalan keluar
           // yang jelas, bukan layar buntu.
           action: (
@@ -201,7 +201,7 @@ export default function ShowcaseDetailScreen() {
           refresh: query.refresh,
           reload: query.reload,
         }}
-        loadingMessage={translate("Memuat karya")}
+        loadingMessage={translate("Memuat etalase")}
         errorTitle={translate("Gagal memuat")}
       />
     )
@@ -820,14 +820,14 @@ function ShowcaseDetailContent({
       // Soft-delete: catat lokal agar bisa dipulihkan dari Kelola Etalase.
       await markShowcaseDeleted({
         id,
-        title: item?.title?.trim() || translate("Karya tanpa judul"),
+        title: item?.title?.trim() || translate("Etalase tanpa judul"),
         deletedAt: new Date().toISOString(),
         coverUrl: item ? (showcaseImages(item)?.[0]?.url ?? undefined) : undefined,
       })
       markShowcaseFeedDirty()
       // PERF-FIX (network P0): item dihapus — cache "Etalase Saya" basi.
       invalidateQueryPrefix("my-showcase")
-      toast.show({ title: translate("Karya dihapus. Dapat dipulihkan dalam 30 hari."), tone: "success", duration: 2500 })
+      toast.show({ title: translate("Etalase dihapus. Dapat dipulihkan dalam 30 hari."), tone: "success", duration: 2500 })
       setDeleteOpen(false)
       router.back()
     } catch (err) {
@@ -898,9 +898,9 @@ function ShowcaseDetailContent({
                 onPress={handleCreateTransaction}
                 accessibilityHint={
                   soldOut
-                    ? translate("Stok karya ini habis, jadi belum bisa ditransaksikan.")
+                    ? translate("Stok etalase ini habis, jadi belum bisa ditransaksikan.")
                     : item.isActive === false
-                      ? translate("Karya ini sedang tidak aktif, jadi belum bisa ditransaksikan.")
+                      ? translate("Etalase ini sedang tidak aktif, jadi belum bisa ditransaksikan.")
                       : undefined
                 }
               >
@@ -1147,7 +1147,7 @@ function ShowcaseDetailContent({
           // T5 (audit 2026-09-26): pemilik bisa menghapus karyanya dari sini.
           <View className="gap-2">
             <Button variant="ghost" fullWidth onPress={() => setDeleteOpen(true)}>
-              {translate("Hapus karya")}
+              {translate("Hapus etalase")}
             </Button>
           </View>
         ) : null}
@@ -1199,7 +1199,7 @@ function ShowcaseDetailContent({
             <IconButton
               icon={ShareNetwork}
               variant="ghost"
-              accessibilityLabel={translate("Bagikan karya ini")}
+              accessibilityLabel={translate("Bagikan etalase ini")}
               // Item 159: tutup viewer dulu sebelum membuka sheet berbagi —
               // dua Modal bertumpuk rawan sheet tertutup viewer.
               onPress={() => {
@@ -1212,7 +1212,7 @@ function ShowcaseDetailContent({
               variant="ghost"
               active={saved}
               accessibilityLabel={
-                saved ? translate("Hapus dari simpanan") : translate("Simpan karya ini")
+                saved ? translate("Hapus dari simpanan") : translate("Simpan etalase ini")
               }
               accessibilityState={{ selected: saved }}
               loading={savedPending}
@@ -1227,7 +1227,7 @@ function ShowcaseDetailContent({
         <View className="pt-4">
           <Divider inset className="mb-3" />
           <Text variant="h3" className="px-5 pb-3">
-            {translate("Karya terkait")}
+            {translate("Etalase terkait")}
           </Text>
           <ScrollView
             horizontal
@@ -1385,8 +1385,8 @@ function ShowcaseDetailContent({
 
       {/* T5 (audit 2026-09-26): konfirmasi hapus karya (pemilik). */}
       <Dialog
-        title={translate("Hapus karya ini?")}
-        description={translate("Karya dihapus dan dapat dipulihkan dalam 30 hari.")}
+        title={translate("Hapus etalase ini?")}
+        description={translate("Etalase dihapus dan dapat dipulihkan dalam 30 hari.")}
         visible={deleteOpen}
         destructive
         loading={deleting}

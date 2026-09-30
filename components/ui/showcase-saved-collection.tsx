@@ -161,7 +161,7 @@ export function ShowcaseSavedCollection() {
     return (
       <View className="gap-3 pb-5">
         <Text variant="h3">Karya tersimpan</Text>
-        <Text tone="secondary">{translate("Masuk untuk melihat karya yang Anda simpan.")}</Text>
+        <Text tone="secondary">{translate("Masuk untuk melihat etalase yang Anda simpan.")}</Text>
       </View>
     )
   }
@@ -171,7 +171,7 @@ export function ShowcaseSavedCollection() {
       <Text variant="h3">Karya tersimpan</Text>
       {listState.status === "ready" ? (
         <Text variant="caption" tone="secondary">
-          {translate("{x} karya tersimpan di akun Anda.", { x: total })}
+          {translate("{x} etalase tersimpan di akun Anda.", { x: total })}
         </Text>
       ) : null}
 
@@ -214,7 +214,7 @@ export function ShowcaseSavedCollection() {
                   fullWidth={false}
                   containerClassName="min-w-0 flex-1"
                   onPress={() => router.push(ROUTES.showcaseDetail(id))}
-                  accessibilityLabel={translate("Buka karya {x}", { x: item.title || translate("Tanpa judul") })}
+                  accessibilityLabel={translate("Buka etalase {x}", { x: item.title || translate("Tanpa judul") })}
                 >
                   <View className="flex-row items-center gap-3 pr-2">
                     {/* P-01 (audit 2026-09-24): <Picture> kanonik — paritas
@@ -223,7 +223,7 @@ export function ShowcaseSavedCollection() {
                     {cover ? (
                       <Picture
                         source={cover}
-                        alt={item.title || translate("Foto karya")}
+                        alt={item.title || translate("Foto etalase")}
                         width={56}
                         height={56}
                         radius="sm"
@@ -253,7 +253,7 @@ export function ShowcaseSavedCollection() {
                   icon={Trash}
                   variant="ghost"
                   size="sm"
-                  accessibilityLabel={translate("Hapus karya tersimpan")}
+                  accessibilityLabel={translate("Hapus etalase tersimpan")}
                   onPress={() => removeOne(id)}
                   disabled={removingIds.has(id)}
                 />
@@ -281,7 +281,7 @@ export function ShowcaseSavedCollection() {
       ) : null}
 
       {listState.status === "ready" && entries.length === 0 ? (
-        <Text tone="secondary">{translate("Belum ada karya tersimpan")}</Text>
+        <Text tone="secondary">{translate("Belum ada etalase tersimpan")}</Text>
       ) : null}
     </View>
   )
