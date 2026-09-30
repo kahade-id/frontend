@@ -272,7 +272,9 @@ export default function BusinessVerificationScreen() {
                   ref={npwpRef}
                   value={npwpNumber}
                   onChangeText={(t) => setNpwpNumber(t.replace(/[^0-9.\-]/g, "").slice(0, 25))}
-                  keyboardType="number-pad"
+                  // FRM-001: helper memperbolehkan titik & strip — number-pad iOS
+                  // tidak punya tombol . dan -, jadi pakai numbers-and-punctuation.
+                  keyboardType="numbers-and-punctuation"
                   returnKeyType="next"
                   onSubmitEditing={() => deedRef.current?.focus()}
                   maxLength={25}
