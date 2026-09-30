@@ -307,7 +307,7 @@ export default function JastipDetailScreen() {
               <Text variant="h3" className="flex-1">
                 {trip.title}
               </Text>
-              <Badge tone={trip.status === "OPEN" ? "success" : trip.status === "FAILED" ? "danger" : "neutral"}>
+              <Badge tone={trip.status === "OPEN" ? "success" : trip.status === "CANCELLED" ? "danger" : "neutral"}>
                 {JASTIP_TRIP_STATUS_LABELS[trip.status] ?? trip.status}
               </Badge>
             </View>

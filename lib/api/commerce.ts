@@ -723,15 +723,38 @@ export function listBuyerDigitalAssets(showcaseId: string, signal?: AbortSignal)
 // Item 13: jastip — /v1/jastip
 // ------------------------------------------------------------------
 
-export type JastipTripStatus = "DRAFT" | "OPEN" | "CLOSED" | "FAILED" | "COMPLETED"
-export type JastipParticipantStatus = "JOINED" | "PRICE_LOCKED" | "PAID" | "REFUNDED" | "CANCELLED"
+/**
+ * Selaras enum backend `JastipTripStatus` (DRAFT|OPEN|CLOSED|COMPLETED|CANCELLED).
+ *
+ * ESI-009 (audit integrasi 2026-09-30): `FAILED` adalah inventaris FE yang
+ * tak pernah dikirim backend — dihapus; `CANCELLED` resmi backend
+ * ditambahkan. Sebelumnya trip CANCELLED dinormalisasi paksa ke "DRAFT"
+ * (tampil sebagai "Draf", menyesatkan).
+ */
+export type JastipTripStatus = "DRAFT" | "OPEN" | "CLOSED" | "COMPLETED" | "CANCELLED"
+/**
+ * Selaras enum backend `JastipParticipantStatus`
+ * (JOINED|PRICE_LOCKED|PAID|REFUNDED|REFUND_REQUIRED|COMPLETED|CANCELLED).
+ *
+ * ESI-011 (audit integrasi 2026-09-30): `REFUND_REQUIRED` (fail-closed —
+ * peserta berhak atas refund) & `COMPLETED` ditambahkan; sebelumnya tampil
+ * sebagai enum mentah.
+ */
+export type JastipParticipantStatus =
+  | "JOINED"
+  | "PRICE_LOCKED"
+  | "PAID"
+  | "REFUNDED"
+  | "REFUND_REQUIRED"
+  | "COMPLETED"
+  | "CANCELLED"
 
 export const JASTIP_TRIP_STATUS_LABELS: Record<string, string> = {
   DRAFT: "Draf",
   OPEN: "Dibuka",
   CLOSED: "Ditutup",
-  FAILED: "Gagal",
   COMPLETED: "Selesai",
+  CANCELLED: "Dibatalkan",
 }
 
 export const JASTIP_PARTICIPANT_STATUS_LABELS: Record<string, string> = {
@@ -739,6 +762,8 @@ export const JASTIP_PARTICIPANT_STATUS_LABELS: Record<string, string> = {
   PRICE_LOCKED: "Harga dikunci",
   PAID: "Sudah bayar",
   REFUNDED: "Dana kembali",
+  REFUND_REQUIRED: "Perlu refund",
+  COMPLETED: "Selesai",
   CANCELLED: "Dibatalkan",
 }
 
@@ -780,8 +805,14 @@ export function normalizeJastipParticipant(raw: unknown): JastipParticipant | nu
     priceLockedAt: pickString(record, ["priceLockedAt"]) ?? null,
     orderId: pickString(record, ["orderId"]) ?? null,
     status:
-      status === "PRICE_LOCKED" || status === "PAID" || status === "REFUNDED" || status === "CANCELLED"
-        ? status
+      status === "JOINED" ||
+      status === "PRICE_LOCKED" ||
+      status === "PAID" ||
+      status === "REFUNDED" ||
+      status === "REFUND_REQUIRED" ||
+      status === "COMPLETED" ||
+      status === "CANCELLED"
+        ? (status as JastipParticipantStatus)
         : "JOINED",
     createdAt: pickString(record, ["createdAt"]) ?? null,
   }
@@ -825,7 +856,7 @@ export function normalizeJastipTrip(raw: unknown): JastipTrip | null {
     description: pickString(record, ["description"]) ?? null,
     orderDeadline: pickString(record, ["orderDeadline"]) ?? null,
     slotTotal: pickNumber(record, ["slotTotal"]) ?? null,
-    status: ["DRAFT", "OPEN", "CLOSED", "FAILED", "COMPLETED"].includes(status) ? (status as JastipTripStatus) : "DRAFT",
+    status: ["DRAFT", "OPEN", "CLOSED", "COMPLETED", "CANCELLED"].includes(status) ? (status as JastipTripStatus) : "DRAFT",
     items,
     participants: (Array.isArray(record.participants) ? record.participants : [])
       .map(normalizeJastipParticipant)
@@ -909,27 +940,42 @@ export function failJastipTrip(id: string, reason?: string) {
 // Item 14: patungan grup — /v1/patungan
 // ------------------------------------------------------------------
 
-export type PatunganStatus = "OPEN" | "FUNDED" | "RELEASE_INITIATED" | "RELEASED" | "REFUNDED" | "FAILED" | "CANCELLED"
-export type PatunganParticipantStatus = "JOINED" | "PAID" | "RELEASED" | "REFUNDED" | "REFUND_REQUIRED" | "CANCELLED"
+/**
+ * Selaras enum backend `PatunganStatus`
+ * (OPEN|TARGET_REACHED|CONTEST|RELEASED|FAILED|REFUNDED).
+ *
+ * ESI-010 (audit integrasi 2026-09-30): `FUNDED`/`RELEASE_INITIATED`/
+ * `CANCELLED` adalah inventaris FE yang tak pernah dikirim backend —
+ * dihapus. `TARGET_REACHED` & `CONTEST` (masa sanggah resmi sebelum
+ * pencairan) ditambahkan — sebelumnya fase kritis ini salah tampil.
+ */
+export type PatunganStatus = "OPEN" | "TARGET_REACHED" | "CONTEST" | "RELEASED" | "FAILED" | "REFUNDED"
+/**
+ * Selaras enum backend `PatunganParticipantStatus`
+ * (PENDING|PAID|REFUNDED|REFUND_REQUIRED|RELEASED).
+ *
+ * ESI-012 (audit integrasi 2026-09-30): `JOINED`/`CANCELLED` adalah
+ * inventaris FE — dihapus; `PENDING` (peserta baru, belum bayar) resmi
+ * backend ditambahkan.
+ */
+export type PatunganParticipantStatus = "PENDING" | "PAID" | "REFUNDED" | "REFUND_REQUIRED" | "RELEASED"
 export type PatunganMode = "BAGI_RATA" | "CUSTOM"
 
 export const PATUNGAN_STATUS_LABELS: Record<string, string> = {
   OPEN: "Dibuka",
-  FUNDED: "Target tercapai",
-  RELEASE_INITIATED: "Masa sanggah",
+  TARGET_REACHED: "Target tercapai",
+  CONTEST: "Masa sanggah",
   RELEASED: "Dicairkan",
-  REFUNDED: "Dana kembali",
   FAILED: "Gagal",
-  CANCELLED: "Dibatalkan",
+  REFUNDED: "Dana kembali",
 }
 
 export const PATUNGAN_PARTICIPANT_STATUS_LABELS: Record<string, string> = {
-  JOINED: "Bergabung",
+  PENDING: "Menunggu pembayaran",
   PAID: "Sudah bayar",
-  RELEASED: "Dicairkan",
   REFUNDED: "Dana kembali",
   REFUND_REQUIRED: "Perlu refund",
-  CANCELLED: "Dibatalkan",
+  RELEASED: "Dicairkan",
 }
 
 export type PatunganParticipant = {
@@ -947,7 +993,8 @@ export function normalizePatunganParticipant(raw: unknown): PatunganParticipant 
   if (!record) return null
   const id = pickString(record, ["id"])
   if (!id) return null
-  const status = pickString(record, ["status"]) ?? "JOINED"
+  // ESI-012: selaras enum backend; fallback "PENDING" (bukan "JOINED" lama).
+  const status = pickString(record, ["status"]) ?? "PENDING"
   const amount = record.amount
   return {
     id,
@@ -955,9 +1002,9 @@ export function normalizePatunganParticipant(raw: unknown): PatunganParticipant 
     amountIdr: typeof amount === "number" ? amount / 100 : pickNumber(record, ["amountIdr"]) ?? null,
     orderId: pickString(record, ["orderId"]) ?? null,
     paidAt: pickString(record, ["paidAt"]) ?? null,
-    status: ["JOINED", "PAID", "RELEASED", "REFUNDED", "REFUND_REQUIRED", "CANCELLED"].includes(status)
+    status: ["PENDING", "PAID", "REFUNDED", "REFUND_REQUIRED", "RELEASED"].includes(status)
       ? (status as PatunganParticipantStatus)
-      : "JOINED",
+      : "PENDING",
     createdAt: pickString(record, ["createdAt"]) ?? null,
   }
 }
@@ -998,7 +1045,7 @@ export function normalizePatunganGroup(raw: unknown): PatunganGroup | null {
     hostId: pickString(record, ["hostId"]) ?? "",
     title: pickString(record, ["title"]) ?? "",
     description: pickString(record, ["description"]) ?? null,
-    status: ["OPEN", "FUNDED", "RELEASE_INITIATED", "RELEASED", "REFUNDED", "FAILED", "CANCELLED"].includes(status)
+    status: ["OPEN", "TARGET_REACHED", "CONTEST", "RELEASED", "FAILED", "REFUNDED"].includes(status)
       ? (status as PatunganStatus)
       : "OPEN",
     mode: pickString(record, ["mode"]) === "CUSTOM" ? "CUSTOM" : "BAGI_RATA",
