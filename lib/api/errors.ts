@@ -42,6 +42,7 @@ export type ApiErrorCode =
   | "BAD_REQUEST" // 400 non-validasi
   | "VALIDATION" // 400 dengan message[] dari class-validator
   | "UNAUTHORIZED" // 401 — sesi habis dan refresh gagal
+  | "ACCOUNT_LOCKED" // 401 + code ACCOUNT_LOCKED — akun terkunci sementara (terlalu banyak gagal login)
   | "FORBIDDEN" // 403 — login OK tapi tidak berhak (KYC belum, bukan pemilik)
   | "NOT_FOUND" // 404
   | "CONFLICT" // 409 — username/email sudah dipakai, state order tidak valid
@@ -385,6 +386,9 @@ export function codeFromBackend(backendCode: string | undefined): ApiErrorCode |
   // terpetakan ke VALIDATION ("data belum benar") bukan UNAUTHORIZED
   // ("username/kata sandi salah").
   if (k.includes("PIN") && k.includes("RATE_LIMIT")) return "PIN_RATE_LIMITED"
+  // ACCOUNT_LOCKED dicek sebelum UNAUTHORIZED — backend mengirim 401 dengan
+  // code ACCOUNT_LOCKED saat akun terkunci sementara.
+  if (k.includes("ACCOUNT_LOCKED") || k.includes("ACCOUNT_LOCK")) return "ACCOUNT_LOCKED"
   if (
     k.includes("UNAUTHORIZED") ||
     k.includes("INVALID_TOKEN") ||
@@ -427,6 +431,7 @@ export const DEFAULT_ERROR_MESSAGES: Record<ApiErrorCode, string> = {
   BAD_REQUEST: "Permintaan tidak valid.",
   VALIDATION: "Ada data yang belum benar. Periksa kembali isian Anda.",
   UNAUTHORIZED: "Sesi Anda telah berakhir. Silakan masuk kembali.",
+  ACCOUNT_LOCKED: "Akun terkunci sementara karena terlalu banyak percobaan gagal.",
   FORBIDDEN: "Anda tidak memiliki akses untuk tindakan ini.",
   NOT_FOUND: "Data tidak ditemukan.",
   CONFLICT: "Data bentrok dengan yang sudah ada.",

@@ -356,6 +356,12 @@ async function exchange(
 const REFRESH_PATH = "/v1/auth/refresh"
 let refreshInFlight: { revision: number; promise: Promise<string | null> } | null = null
 
+// Audit 2026-10-01: hitung kegagalan refresh beruntun (401/403). Setelah 3×
+// gagal beruntun, refresh token di penyimpanan DIHAPUS — mencegah retry tanpa
+// akhir dengan token mati (kasus IP 158.140.171.67: 9×401 tanpa cleanup).
+let consecutiveRefreshFailures = 0
+const MAX_CONSECUTIVE_REFRESH_FAILURES = 3
+
 /** Cookie refresh remains single-flight; 429/offline/5xx MUST NOT log the user out. */
 export function refreshAccessToken(): Promise<string | null> {
   const revision = getSessionRevision()
@@ -402,13 +408,23 @@ export function refreshAccessToken(): Promise<string | null> {
     )
     if (revision !== getSessionRevision()) throw aborted(REFRESH_PATH)
     if (reply.error) {
-      if (reply.status === 401 || reply.status === 403) return null
+      if (reply.status === 401 || reply.status === 403) {
+        consecutiveRefreshFailures++
+        // Token mati beruntun → hapus dari penyimpanan agar tidak di-retry lagi.
+        if (consecutiveRefreshFailures >= MAX_CONSECUTIVE_REFRESH_FAILURES) {
+          await setRefreshToken("")
+          consecutiveRefreshFailures = 0
+        }
+        return null
+      }
       throw reply.error
     }
     const body = asRecord(reply.value)
     const token = body?.accessToken ?? body?.access_token
     const refresh = body?.refreshToken ?? body?.refresh_token
     if (typeof token !== "string" || !token.trim()) throw invalidResponse(REFRESH_PATH)
+    // Sukses → reset hitungan kegagalan beruntun.
+    consecutiveRefreshFailures = 0
     if (typeof refresh === "string") await setRefreshToken(refresh)
     if (revision !== getSessionRevision()) throw aborted(REFRESH_PATH)
     await setAccessToken(token)

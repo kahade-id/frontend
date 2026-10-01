@@ -103,8 +103,13 @@ export default function LoginScreen() {
   const insets = useSafeAreaInsets()
   // `next` dipasang oleh layar ajakan login (guest mode web): kembali ke
   // tujuan setelah login berhasil.
-  const { next } = useLocalSearchParams<{ next?: string }>()
+  // `method` dipasang oleh bottomsheet pilihan metode (onboarding):
+  // phone | email | username | google | apple — mengonfigurasi UI awal.
+  const { next, method } = useLocalSearchParams<{ next?: string; method?: string }>()
   const nextPath = typeof next === "string" && next.startsWith("/") ? next : undefined
+  const loginMethod = ["phone", "email", "username", "google", "apple"].includes(method ?? "")
+    ? (method as "phone" | "email" | "username" | "google" | "apple")
+    : undefined
 
   // UX-NAV-010: user yang sudah login (mis. deep link usang / riwayat browser
   // ke /login) langsung dialihkan ke Beranda — form login tidak ditampilkan
@@ -128,7 +133,8 @@ export default function LoginScreen() {
   const [failCount, setFailCount] = useState(0)
 
   // Opsi WhatsApp: expand inline di bawah form password.
-  const [waExpanded, setWaExpanded] = useState(false)
+  // Jika method=phone dari bottomsheet, langsung expand.
+  const [waExpanded, setWaExpanded] = useState(loginMethod === "phone")
   const [waDigits, setWaDigits] = useState("")
   const [waPhoneError, setWaPhoneError] = useState<string | undefined>()
   const [waSubmitting, setWaSubmitting] = useState(false)
@@ -248,6 +254,18 @@ export default function LoginScreen() {
         // Invalid credentials
         if (err.code === "UNAUTHORIZED") {
           setFormError("Username, email, atau kata sandi salah. Periksa kembali dan coba lagi.")
+          return
+        }
+        // Account locked — tampilkan pesan spesifik + estimasi waktu tunggu.
+        // Backend mengirim lockoutRemainingSeconds (detik).
+        if (err.code === "ACCOUNT_LOCKED") {
+          const remaining = (err as { lockoutRemainingSeconds?: number }).lockoutRemainingSeconds
+          const minutes = remaining ? Math.ceil(remaining / 60) : null
+          setFormError(
+            minutes
+              ? `Akun terkunci sementara karena terlalu banyak percobaan gagal. Coba lagi dalam ${minutes} menit.`
+              : "Akun terkunci sementara karena terlalu banyak percobaan gagal. Tunggu beberapa saat sebelum mencoba lagi.",
+          )
           return
         }
         // Rate limited
@@ -501,7 +519,15 @@ export default function LoginScreen() {
             {/* Form fields */}
             <VStack gap={4}>
               <Input
-                label="Username / Email / Nomor HP"
+                label={
+                  loginMethod === "email"
+                    ? "Email"
+                    : loginMethod === "username"
+                      ? "Username"
+                      : loginMethod === "phone"
+                        ? "Nomor HP"
+                        : "Username / Email / Nomor HP"
+                }
                 value={identifier}
                 onChangeText={(t) => {
                   // A01: simpan identifier non-rahasia selama sesi formulir.
@@ -509,7 +535,15 @@ export default function LoginScreen() {
                   setLoginIdentifier(t)
                   setFormError(null)
                 }}
-                helperText="Contoh: johndoe, nama@email.com, atau 0812xxxxxxx"
+                helperText={
+                  loginMethod === "email"
+                    ? "Contoh: nama@email.com"
+                    : loginMethod === "username"
+                      ? "Contoh: johndoe"
+                      : loginMethod === "phone"
+                        ? "Contoh: 0812xxxxxxx"
+                        : "Contoh: johndoe, nama@email.com, atau 0812xxxxxxx"
+                }
                 autoCapitalize="none"
                 autoCorrect={false}
                 autoComplete="username"
@@ -659,7 +693,8 @@ export default function LoginScreen() {
              * dialog info).
              */}
             <Divider label="atau" />
-            <Accordion>
+            {/* Jika method=google/apple dari bottomsheet, langsung expand opsi sosial. */}
+            <Accordion defaultValue={loginMethod === "google" || loginMethod === "apple" ? ["other"] : []}>
               <AccordionItem
                 value="other"
                 title="Cara masuk lainnya"
