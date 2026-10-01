@@ -71,7 +71,12 @@ import { useAuthSession } from "@/lib/use-auth-session"
 import { RealtimeProvider } from "@/lib/realtime/socket-provider"
 import { PendingActionsBanner } from "@/components/pending-actions-banner"
 import { MaintenanceGate } from "@/components/maintenance-screen"
-import { AUTHENTICATED_SCREENS, isNativeGuardedPath, isProtectedPath } from "@/lib/protected-routes"
+import {
+  AUTHENTICATED_SCREENS,
+  isNativeGuardedPath,
+  isPreSessionAuthPath,
+  isProtectedPath,
+} from "@/lib/protected-routes"
 // ST-009 (PERF-FIX 2026-09-29): <GuestLoginPrompt> hanya dirender untuk
 // tamu WEB di rute terproteksi (bukan first paint) — dimuat lazy agar
 // modulnya (+ empty-state, screen) tidak dievaluasi saat boot dan tidak
@@ -568,7 +573,22 @@ function AppShellInner() {
       // UX-NAV-001: sesi kedaluwarsa di tengah tugas (mis. mengisi form
       // sengketa) — SIMPAN tujuan dulu, konsisten dengan guard NAV-007 di
       // bawah, supaya login ulang kembali ke konteks semula, bukan Beranda.
-      const next = buildNext()
+      const rawNext = buildNext()
+      /**
+       * AUDIT 2026-10-01 (layar blank setelah trigger WhatsApp) — dua pagar:
+       *
+       * 1. `next` TIDAK PERNAH boleh menunjuk halaman pra-sesi
+       *    (/verify-otp, /whatsapp-trigger, /register, …). Setelah login,
+       *    `next` itu mendarat kembali di layar OTP tanpa state alur (state
+       *    alur ada di memori/SecureStore, bukan query param) → layar kosong.
+       * 2. `emitSessionExpired()` menyala juga untuk pengguna yang memang
+       *    BELUM punya sesi (refresh token tidak ada → 401 dari endpoint
+       *    refresh). Itu bukan "sesi berakhir" — jangan tendang pengguna dari
+       *    alur pra-sesi yang sedang ia kerjakan. Redirect hanya bila di
+       *    proses ini memang pernah ada sesi, ATAU pengguna berada di rute
+       *    yang di-guard sesi (NAV-007 menangani deep link dari logout).
+       */
+      const next = rawNext && isPreSessionAuthPath(rawNext) ? null : rawNext
       if (Platform.OS === "web") {
         if (hadSessionRef.current) {
           webExpiredNextRef.current = next
@@ -576,9 +596,10 @@ function AppShellInner() {
         }
         return
       }
+      if (!hadSessionRef.current && !isNativeGuardedPath(pathname)) return
       redirectToLoginWithNext(next)
     })
-  }, [router, buildNext, redirectToLoginWithNext])
+  }, [router, buildNext, redirectToLoginWithNext, pathname])
 
   // NAV-007 (2026-09-28): deep link native ke rute proteksi saat logout
   // (mis. kahade.id/order/xxx dari share WA → dibuka aplikasi via universal

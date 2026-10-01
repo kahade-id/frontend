@@ -85,6 +85,7 @@ import { hasProfileChanges } from "@/lib/auth-ui"
 import { useLeaveConfirm } from "@/lib/use-leave-confirm"
 import { Dialog } from "@/components/ui/modal"
 import { pickImage, pickedImageToFormData, resizePickedImage, type PickedImage, type PickImageOptions } from "@/lib/image-picker"
+import { AuthFlowLoading } from "@/lib/auth-flow-gate"
 import { ROUTES } from "@/lib/routes"
 import { resolvePostLoginTarget } from "@/lib/login-redirect"
 import { translate } from "@/lib/i18n/translate"
@@ -249,7 +250,9 @@ export default function SetupProfileScreen() {
   // ── Guard dijalankan SETELAH semua hook (Rules of Hooks) ───────────
   // Versi sebelumnya `return null` di antara useState dan useCallback →
   // "Rendered more hooks than during the previous render" saat token terbaca.
-  if (hasToken === null) return null
+  // JANGAN blank selagi token sesi dibaca (audit layar blank 2026-10-01):
+  // keadaan "belum tahu" butuh UI loading, bukan layar kosong.
+  if (hasToken === null) return <AuthFlowLoading label="Menyiapkan profil…" />
   if (!hasToken) return <Redirect href={ROUTES.login} />
 
   // ActionSheet items untuk avatar

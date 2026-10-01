@@ -181,6 +181,40 @@ export const WEB_GUEST_ALLOWED_PATHS: readonly string[] = [
   ...WEB_GUEST_TAB_SCREENS.map((name) => `/${name}`),
 ]
 
+/**
+ * Path alur auth PRA-SESI (dipakai SEBELUM ada `session.token`).
+ *
+ * AUDIT 2026-10-01 (layar blank setelah trigger WhatsApp): `emitSessionExpired`
+ * menyala juga untuk pengguna yang memang belum login (refresh token tidak ada
+ * → 401). Root layout lalu mengarahkan ke `/login?next=<halaman saat itu>`;
+ * bila halaman itu `/verify-otp` atau `/whatsapp-trigger`, `next` tersebut
+ * mengantar pengguna kembali ke layar OTP TANPA state alur setelah login —
+ * layar kosong (state alur hidup di memori, tidak ikut query param).
+ *
+ * Karena itu path pra-sesi tidak pernah boleh menjadi tujuan `next` login.
+ */
+export const PRE_SESSION_AUTH_PATHS: readonly string[] = [
+  "/onboarding",
+  "/login",
+  "/register",
+  "/verify-otp",
+  "/whatsapp-trigger",
+  "/register-security",
+  "/forgot-password",
+  "/reset-password",
+  "/phone-migration",
+  "/verify-2fa",
+  "/social-link-confirm",
+]
+
+/** True bila `pathname` adalah halaman alur auth pra-sesi (tanpa sesi). */
+export function isPreSessionAuthPath(pathname: string): boolean {
+  const path = pathname.split("?")[0]
+  return PRE_SESSION_AUTH_PATHS.some(
+    (authPath) => path === authPath || path.startsWith(`${authPath}/`),
+  )
+}
+
 function routeToRegExp(name: string): RegExp {
   const pattern = name
     .replace(/^\([^)]*\)\//, "") // buang segmen grup, mis. "(auth)/"

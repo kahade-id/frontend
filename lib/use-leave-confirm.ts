@@ -52,7 +52,25 @@ export function useLeaveConfirm(dirty: boolean, options: LeaveConfirmOptions = {
     setDiscardOpen(true)
   })
 
-  // Navigasi keluar yang disengaja — dieksekusi setelah penjaga mati.
+  /**
+   * Navigasi keluar yang disengaja — dieksekusi setelah penjaga mati:
+   * aksi yang TERTAHAN (dialog dikonfirmasi) dijalankan ulang, atau aksi
+   * kustom pemanggil (`onConfirmDiscard`).
+   *
+   * JANGAN menebak navigasi di sini (audit layar blank 2026-10-01).
+   * Sebelumnya ada cabang terakhir `else if (router.canGoBack()) router.back()`:
+   * itu menembak SETIAP kali `markLeaving()` dipanggil tanpa aksi tertahan —
+   * padahal SEMUA pemanggil memanggilnya tepat sebelum navigasi eksplisit
+   * (`router.replace`/`push`), dan navigasi itu sering TIDAK tertahan
+   * (mis. formulir sudah tidak "dirty" karena `submitting` masih true).
+   * Hasilnya: `router.back()` liar sesudah navigasi sukses — pengguna
+   * terlempar kembali ke layar sebelumnya tepat saat berpindah layar
+   * (termasuk alur OTP: verify-otp → register-security/setup-profile), dan
+   * tumpukan navigasi bisa berakhir tidak sinkron (layar kosong).
+   *
+   * Tanpa aksi tertahan & tanpa aksi kustom, tidak ada yang perlu dilakukan:
+   * navigasi sudah dijalankan pemanggil.
+   */
   useEffect(() => {
     if (!intentionalLeave) return
     const custom = onConfirmDiscardRef.current
@@ -62,10 +80,8 @@ export function useLeaveConfirm(dirty: boolean, options: LeaveConfirmOptions = {
       custom()
     } else if (action) {
       navigation.dispatch(action)
-    } else if (router.canGoBack()) {
-      router.back()
     }
-  }, [intentionalLeave, navigation, router])
+  }, [intentionalLeave, navigation])
 
   // Web: peringatan bawaan browser sebelum tab ditutup dengan form kotor.
   useEffect(() => {

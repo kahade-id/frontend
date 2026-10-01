@@ -55,6 +55,7 @@ import { TextLink } from "@/components/ui/text-link"
 import { api, isApiError, userMessage } from "@/lib/api"
 import { haptic } from "@/lib/haptics"
 import { resolvePostLoginTarget } from "@/lib/login-redirect"
+import { AuthFlowMissing } from "@/lib/auth-flow-gate"
 import { ROUTES } from "@/lib/routes"
 import { clearPendingTwoFactorLogin, getPendingTwoFactorLogin } from "@/lib/two-factor-login"
 import { useAuthSession } from "@/lib/use-auth-session"
@@ -76,12 +77,6 @@ export default function VerifyTwoFactorScreen() {
   // Dibaca sekali saat mount; state modul bisa berubah kalau user kembali ke login.
   const [pending] = useState(() => getPendingTwoFactorLogin())
 
-  useEffect(() => {
-    if (!pending) {
-      if (router.canGoBack()) router.back()
-      else router.replace(ROUTES.login)
-    }
-  }, [pending, router])
 
   const [mode, setMode] = useState<Mode>("totp")
   const [totp, setTotp] = useState("")
@@ -172,7 +167,21 @@ export default function VerifyTwoFactorScreen() {
     else router.replace(ROUTES.login)
   }, [router])
 
-  if (!pending) return null
+  /**
+   * Audit 2026-10-01: state sesi 2FA hidup di memori modul; tanpa itu layar
+   * dulu `return null` (blank permanen) sementara effect redirect bisa no-op.
+   * Kini pesan + tombol kembali yang selalu bekerja (handleBackToLogin).
+   */
+  if (!pending) {
+    return (
+      <AuthFlowMissing
+        title="Sesi verifikasi dua langkah tidak ditemukan"
+        description="Data verifikasi 2FA tidak tersedia — kemungkinan aplikasi ditutup di tengah alur atau halaman ini dibuka langsung. Masuk kembali untuk memulai verifikasi."
+        backLabel="Kembali ke halaman masuk"
+        onBack={handleBackToLogin}
+      />
+    )
+  }
 
   return (
     <Screen padded={false} edges={["top"]}>

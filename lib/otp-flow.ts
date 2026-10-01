@@ -16,7 +16,6 @@
  * Android saat user pindah ke WhatsApp untuk mengirim pesan pemicu lalu OS
  * mematikan aplikasi di background. Tanpa persist, layar whatsapp-trigger /
  * verify-otp kembali dengan state kosong dan menampilkan layar putih.
- * Di web tetap memory-only (konsisten dengan registration state).
  *
  * Auth-rework: OTP HANYA via WhatsApp customer-initiated — tidak ada lagi
  * pilihan metode SMS/WhatsApp. `purpose` membedakan 4 alur yang memakai
@@ -24,6 +23,22 @@
  * migrate_phone.
  *
  * Hanya SATU alur OTP aktif pada satu waktu; `setOtpFlow` menimpa sebelumnya.
+ *
+ * ── REVISI 2026-10-01 (audit layar blank setelah trigger WhatsApp) ──────
+ * Bug "layar blank" berulang karena konsumen membaca state SEKALI saat mount
+ * (`useRef(getOtpFlow())`) lalu `return null` bila kosong. State bisa kosong
+ * saat mount pada beberapa jalur nyata (JS context baru setelah proses
+ * dimatikan OS di WhatsApp, pemulihan SecureStore yang belum selesai, atau
+ * alur yang baru diset SETELAH layar tujuan ter-mount) dan layar tidak pernah
+ * membacanya lagi → blank permanen tanpa jalan keluar.
+ *
+ * Karena itu modul ini kini:
+ *   1. OBSERVABLE — `subscribeOtpFlow` + snapshot agar layar ikut berubah
+ *      begitu alur datang (bukan sekali baca).
+ *   2. PUNYA status hidrasi eksplisit (`isOtpFlowHydrated`) sehingga layar
+ *      bisa membedakan "masih memulihkan" dari "benar-benar tidak ada alur".
+ *   3. TIDAK menimpa alur yang lebih baru saat hidrasi selesai belakangan —
+ *      kejadian balapan lama yang bisa mengembalikan data basi.
  */
 import type { OtpTriggerPurpose } from "@/lib/api/auth"
 import { SecureKeys, deleteSecureItem, getSecureItem, setSecureItem } from "@/lib/secure-storage"
@@ -48,28 +63,76 @@ export type OtpFlowState = {
 }
 
 let state: OtpFlowState | null = null
+/**
+ * Selama `initOtpFlow()` belum selesai, `null` + "belum terhidrasi" berarti
+ * "belum tahu", BUKAN "tidak ada alur". Layar wajib membedakan keduanya —
+ * inilah akar layar blank: menyamakan "belum tahu" dengan "tidak ada".
+ */
 let hydrated = false
+let hydration: Promise<void> | null = null
+
+const listeners = new Set<() => void>()
+
+/**
+ * Langganan perubahan alur (dipakai `useOtpFlow`). Mengembalikan unsubscribe.
+ * Snapshot yang dibaca adalah objek state itu sendiri — identitasnya berubah
+ * hanya saat benar-benar ada perubahan, jadi aman untuk `useSyncExternalStore`.
+ */
+export function subscribeOtpFlow(listener: () => void): () => void {
+  listeners.add(listener)
+  return () => {
+    listeners.delete(listener)
+  }
+}
+
+function emit(): void {
+  for (const listener of listeners) listener()
+}
+
+function persist(): void {
+  // Fire-and-forget: layar membaca dari memori yang sudah sinkron. Kegagalan
+  // tulis tidak boleh menjatuhkan alur (paling buruk: tidak tahan restart).
+  if (!state) return
+  void setSecureItem(SecureKeys.otpFlow, JSON.stringify(state)).catch(() => {})
+}
 
 /** Mulai/timpa alur OTP (dipanggil sebelum navigasi ke whatsapp-trigger). */
 export function setOtpFlow(next: OtpFlowState): void {
   state = { ...next }
-  // Persist agar tahan restart aplikasi di tengah alur (mis. user pindah ke
-  // WhatsApp lalu OS mematikan aplikasi di background). Fire-and-forget:
-  // layar membaca dari memori yang sudah sinkron.
-  void setSecureItem(SecureKeys.otpFlow, JSON.stringify(state)).catch(() => {})
+  emit()
+  persist()
 }
 
-/** Perbarui sebagian alur (mis. hasil requestOtpTrigger saat kirim ulang). */
+/**
+ * Perbarui sebagian alur (mis. hasil requestOtpTrigger saat kirim ulang).
+ * `null`-safe: bila tidak ada alur aktif, tidak ada yang bisa ditambal —
+ * pemanggil (layar) yang memutuskan apa yang harus dilakukan.
+ */
 export function patchOtpFlow(patch: Partial<OtpFlowState>): void {
-  if (state) {
-    state = { ...state, ...patch }
-    void setSecureItem(SecureKeys.otpFlow, JSON.stringify(state)).catch(() => {})
-  }
+  if (!state) return
+  state = { ...state, ...patch }
+  emit()
+  persist()
 }
 
-/** Baca alur aktif — `null` bila tidak ada (deep-link/reload tanpa alur). */
+/**
+ * Baca alur aktif — `null` bila tidak ada (deep-link/reload tanpa alur).
+ * Panggilan ini TIDAK memicu hidrasi; layar yang butuh menunggu pemulihan
+ * wajib memakai `useOtpFlow()` (lib/use-otp-flow.ts) atau `initOtpFlow()`.
+ */
 export function getOtpFlow(): OtpFlowState | null {
   return state
+}
+
+/** Apakah pembacaan SecureStore awal sudah selesai (sukses maupun gagal)? */
+export function isOtpFlowHydrated(): boolean {
+  return hydrated
+}
+
+function isValidFlow(value: unknown): value is OtpFlowState {
+  if (!value || typeof value !== "object") return false
+  const candidate = value as Partial<OtpFlowState>
+  return typeof candidate.phoneNumber === "string" && typeof candidate.purpose === "string"
 }
 
 /**
@@ -77,29 +140,45 @@ export function getOtpFlow(): OtpFlowState | null {
  * startup aplikasi, sebelum layar auth dirender). Tanpa ini, restart di
  * tengah alur (umum di Android saat user pindah ke WhatsApp) membuat layar
  * whatsapp-trigger/verify-otp kehilangan state dan menampilkan layar putih.
+ *
+ * Idempoten & aman dipanggil berkali-kali (promise yang sama dibagikan) —
+ * layar boleh memanggilnya sendiri sebagai jaring pemulihan tambahan.
  */
-export async function initOtpFlow(): Promise<void> {
-  if (hydrated) return
-  hydrated = true
-  try {
-    const raw = await getSecureItem(SecureKeys.otpFlow)
-    if (raw) {
-      const parsed = JSON.parse(raw) as OtpFlowState
-      // Validasi minimal: tanpa phoneNumber + purpose, state tidak berguna.
-      if (parsed && typeof parsed.phoneNumber === "string" && typeof parsed.purpose === "string") {
-        state = parsed
-      } else {
-        void deleteSecureItem(SecureKeys.otpFlow).catch(() => {})
+export function initOtpFlow(): Promise<void> {
+  if (hydration) return hydration
+  hydration = (async () => {
+    try {
+      const raw = await getSecureItem(SecureKeys.otpFlow)
+      if (raw) {
+        const parsed: unknown = JSON.parse(raw)
+        if (isValidFlow(parsed)) {
+          // JANGAN menimpa alur yang sudah ada di memori: pembacaan SecureStore
+          // bisa selesai SETELAH pengguna memulai alur baru (mis. request trigger
+          // kedua). State di memori selalu lebih baru daripada salinan disk.
+          if (!state) {
+            state = parsed
+            emit()
+          }
+        } else {
+          // Salinan rusak/usang → buang agar tidak dicoba lagi tiap boot.
+          void deleteSecureItem(SecureKeys.otpFlow).catch(() => {})
+        }
       }
+    } catch {
+      // Gagal baca = anggap tidak ada alur; layar flow-gate akan menampilkan
+      // pesan + tombol kembali (bukan blank).
+    } finally {
+      hydrated = true
+      emit()
     }
-  } catch {
-    // Gagal baca = anggap tidak ada alur; layar akan mengarahkan ke awal.
-  }
+  })()
+  return hydration
 }
 
 /** Hapus alur — setelah verifikasi sukses atau pengguna membatalkan. */
 export function clearOtpFlow(): void {
   state = null
+  emit()
   void deleteSecureItem(SecureKeys.otpFlow).catch(() => {})
 }
 
@@ -107,4 +186,6 @@ export function clearOtpFlow(): void {
 export function resetOtpFlowForTest(): void {
   state = null
   hydrated = false
+  hydration = null
+  listeners.clear()
 }

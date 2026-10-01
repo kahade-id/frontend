@@ -58,7 +58,9 @@ import { isOfflineKnown, useIsOnline } from "@/lib/connectivity"
 import { safeWhatsAppLink } from "@/lib/external-url"
 import { formatPhoneId } from "@/lib/format"
 import { getAuthLocation } from "@/lib/location"
-import { getOtpFlow, patchOtpFlow } from "@/lib/otp-flow"
+import { getOtpFlow, patchOtpFlow, setOtpFlow } from "@/lib/otp-flow"
+import { AuthFlowLoading, AuthFlowMissing } from "@/lib/auth-flow-gate"
+import { useOtpFlow } from "@/lib/use-otp-flow"
 import { ROUTES } from "@/lib/routes"
 
 // D-01 (audit): whitelist deeplink WhatsApp pindah ke validator bersama
@@ -83,31 +85,49 @@ function nextPollDelayMs(attempt: number): number {
   return Math.min(POLL_MAX_DELAY_MS, POLL_BASE_DELAY_MS * 2 ** attempt)
 }
 
+/**
+ * Apakah app sedang terlihat pengguna?
+ *
+ * Audit 2026-10-01 (blank + back mati): SELURUH keputusan yang menyentuh
+ * navigasi (polling, navigasi ke /verify-otp) dijeda saat app tidak terlihat.
+ * Dipakai predikat "kecuali background/inactive" — bukan `=== "active"` —
+ * supaya status `unknown` (Android saat transisi/startup) tidak membuat
+ * polling atau navigasi menggantung tanpa jalan keluar.
+ */
+function isAppVisible(): boolean {
+  const state = AppState.currentState
+  return state !== "background" && state !== "inactive"
+}
+
 export default function WhatsappTriggerScreen() {
   const router = useRouter()
   const toast = useToast()
-  /** State alur dari layar asal (memori modul — lihat lib/otp-flow). */
-  const flowRef = useRef(getOtpFlow())
-  const flow = flowRef.current
+  /**
+   * State alur dari layar asal — DIBACA REAKTIF (lib/use-otp-flow), bukan
+   * sekali saat mount. Audit 2026-10-01: `useRef(getOtpFlow())` + `return
+   * null` membuat layar mengunci dirinya kosong bila alur belum tersedia
+   * saat mount (hidrasi SecureStore yang belum selesai / JS context baru
+   * setelah proses dimatikan OS di WhatsApp) — termasuk saat alur baru
+   * datang SESUDAH mount, yang tidak pernah lagi terbaca.
+   */
+  const { flow, status: flowStatus } = useOtpFlow()
   const phoneNumber = flow?.phoneNumber
   const purpose = flow?.purpose
   // Kode referensi AKTIF — berubah setiap kali trigger baru diminta; polling
   // mengikuti state ini, bukan refCode awal.
   const [refCode, setRefCode] = useState(flow?.refCode)
 
-  // Tanpa data trigger di memori (deep-link/reload langsung ke rute ini),
-  // kembali ke awal alur — layar tidak bisa dipakai standalone.
+  // Alur yang baru terpulihkan SETELAH layar mount (race hidrasi) membawa
+  // refCode-nya sendiri — selaraskan selama pengguna belum memilih kode lain.
   useEffect(() => {
-    if (!phoneNumber || !purpose || !refCode) {
-      if (router.canGoBack()) router.back()
-      else router.replace(ROUTES.register)
-    }
-  }, [phoneNumber, purpose, refCode, router])
+    if (refCode) return
+    if (flow?.refCode) setRefCode(flow.refCode)
+  }, [flow?.refCode, refCode])
 
   const displayPhone = phoneNumber ? formatPhoneId(phoneNumber) : ""
-  // Dibaca dari flowRef.current (bukan `flow` awal) supaya deeplink ikut
-  // berganti setiap kali trigger baru diminta.
-  const waUrl = safeWhatsAppLink(flowRef.current?.whatsappUrl)
+  // Dibaca dari `flow` (reaktif) supaya deeplink & kedaluwarsa ikut berganti
+  // setiap kali trigger baru diminta atau alur baru terpulihkan.
+  const waUrl = safeWhatsAppLink(flow?.whatsappUrl)
 
   const [formError, setFormError] = useState<string | null>(null)
   /**
@@ -130,6 +150,14 @@ export default function WhatsappTriggerScreen() {
    */
   const [returnedEmpty, setReturnedEmpty] = useState(false)
   const settledRef = useRef(false)
+  /**
+   * Alur selesai (COMPLETED) → minta navigasi ke /verify-otp lewat state.
+   * `navTick` dipakai untuk mencoba ulang navigasi setiap app kembali aktif;
+   * `navDispatchedRef` menjamin `router.replace` hanya sekali (idempoten).
+   */
+  const [verifyReady, setVerifyReady] = useState(false)
+  const [navTick, setNavTick] = useState(0)
+  const navDispatchedRef = useRef(false)
 
   // A07 (batch 139): bedakan status koneksi polling — offline (jeda),
   // menunggu balasan (normal), mencoba ulang (gagal jaringan beruntun).
@@ -151,11 +179,61 @@ export default function WhatsappTriggerScreen() {
   }, [])
 
   const goVerifyOtp = useCallback(() => {
-    setDone(true)
+    if (settledRef.current) return
     settledRef.current = true
     stopPolling()
-    router.replace(ROUTES.verifyOtp)
-  }, [router, stopPolling])
+    setDone(true)
+    // JANGAN navigasi di sini. Terdeteksi COMPLETED bisa terjadi di dalam
+    // callback AppState (user baru kembali dari WhatsApp) — `router.replace`
+    // pada jendela resume itu berisiko membuat layar tujuan tidak pernah
+    // ter-render (blank + tombol back perangkat mati). Effect di bawah yang
+    // menjalankan navigasi, setelah commit render DAN app benar-benar active.
+    setVerifyReady(true)
+  }, [stopPolling])
+
+  /**
+   * Jaring pengaman terakhir sebelum pindah layar: pastikan alur ada di
+   * memori. Bila state modul entah bagaimana kosong padahal layar ini masih
+   * memegang phoneNumber/purpose/refCode (mis. alur dibersihkan layar lain),
+   * susun ulang dari nilai yang SUDAH ada di memori layar — bukan query
+   * parameter URL, jadi nomor HP tetap tidak pernah masuk URL/history.
+   */
+  const ensureOtpFlowForVerify = useCallback(() => {
+    if (getOtpFlow()) return
+    if (!phoneNumber || !purpose || !refCode) return
+    setOtpFlow({
+      phoneNumber,
+      purpose,
+      refCode,
+      migrationToken: flow?.migrationToken,
+      whatsappUrl: flow?.whatsappUrl,
+      triggerText: flow?.triggerText,
+      expiresAt: flow?.expiresAt,
+    })
+  }, [phoneNumber, purpose, refCode, flow?.migrationToken, flow?.whatsappUrl, flow?.triggerText, flow?.expiresAt])
+
+  /**
+   * Navigasi ke /verify-otp — satu-satunya tempat `router.replace` dipanggil
+   * untuk keberangkatan ini, dan hanya dari effect React (bukan callback
+   * AppState/timer jaringan). `requestAnimationFrame` + gate `active`
+   * memastikan app sudah selesai resume; rAF tidak berjalan saat app di
+   * background, jadi navigasi otomatis menunggu sampai terlihat lagi.
+   */
+  useEffect(() => {
+    if (!verifyReady || navDispatchedRef.current) return
+    if (!isAppVisible()) return
+    let cancelled = false
+    const frame = requestAnimationFrame(() => {
+      if (cancelled || navDispatchedRef.current) return
+      navDispatchedRef.current = true
+      ensureOtpFlowForVerify()
+      router.replace(ROUTES.verifyOtp)
+    })
+    return () => {
+      cancelled = true
+      cancelAnimationFrame(frame)
+    }
+  }, [verifyReady, navTick, ensureOtpFlowForVerify, router])
 
   /**
    * Penanganan status terminal (dipakai polling otomatis DAN poll manual
@@ -199,12 +277,14 @@ export default function WhatsappTriggerScreen() {
         }
         return
       }
-      // PERF-FIX (network P1): jeda saat app di background — hasil poll tak
-      // bisa ditindaklanjuti sampai user kembali (goVerifyOtp hanya relevan
-      // di foreground). Listener AppState di bawah sudah memicu SATU poll
-      // segera saat kembali foreground, jadi tick di sini cukup dijadwalkan
-      // ulang tanpa menembak jaringan.
-      if (AppState.currentState === "background") {
+      // PERF-FIX (network P1): jeda saat app TIDAK aktif (background ATAU
+      // inactive) — hasil poll tak bisa ditindaklanjuti sampai user kembali,
+      // dan `router.replace` di jendela resume bermasalah (lihat goVerifyOtp).
+      // Listener AppState di bawah sudah memicu SATU poll segera saat kembali
+      // foreground, jadi tick di sini cukup dijadwalkan ulang tanpa menembak
+      // jaringan. `inactive` ikut dijeda: di Android transisi background sering
+      // melewati status ini sebelum app benar-benar tidak terlihat.
+      if (!isAppVisible()) {
         if (!cancelled) {
           attempt += 1
           scheduleNext()
@@ -306,7 +386,14 @@ export default function WhatsappTriggerScreen() {
       const wasBackground = appPrevRef.current === "background" || appPrevRef.current === "inactive"
       appPrevRef.current = state
       if (state !== "active" || !wasBackground) return
-      if (settledRef.current) return
+      if (settledRef.current) {
+        // Balasan sudah terdeteksi (COMPLETED) — mungkin tepat saat app di
+        // background. JANGAN navigasi dari callback ini: naikkan tick supaya
+        // effect navigasi yang berjalan setelah commit render + app benar
+        // benar aktif yang mengeksekusi `router.replace`.
+        setNavTick((tick) => tick + 1)
+        return
+      }
       setReturnedEmpty(true)
       void handleSentMessage()
     })
@@ -365,11 +452,14 @@ export default function WhatsappTriggerScreen() {
         triggerText: trigger.triggerText,
         expiresAt: trigger.expiresAt,
       })
-      flowRef.current = getOtpFlow()
       // Ganti refCode aktif → effect polling restart dengan kode baru.
       setRefCode(trigger.refCode)
       setDone(false)
       settledRef.current = false
+      // Trigger baru membatalkan keberangkatan yang mungkin masih tertunda
+      // (mis. COMPLETED gagal dinavigasikan saat app tidak aktif).
+      navDispatchedRef.current = false
+      setVerifyReady(false)
       setReturnedEmpty(false)
       startedAt.current = Date.now()
     } catch (err) {
@@ -381,8 +471,35 @@ export default function WhatsappTriggerScreen() {
     }
   }, [requesting, phoneNumber, purpose, flow])
 
-  // Jangan render tanpa alur aktif (effect akan redirect).
-  if (!phoneNumber || !purpose || !refCode) return null
+  /**
+   * Jalan keluar saat alur tidak ditemukan (deep-link/reload langsung ke
+   * rute ini). Audit 2026-10-01: sebelumnya `return null` — layar kosong
+   * tanpa penjelasan, dan `router.back()` di effect bisa no-op sehingga
+   * tombol back perangkat terasa mati. Kini selalu ada UI + tombol.
+   */
+  const leaveMissingFlow = () => {
+    if (router.canGoBack()) {
+      router.back()
+      return
+    }
+    router.replace(ROUTES.login)
+  }
+
+  // Jangan render tanpa alur aktif — tetapi JANGAN blank: pemulihan sedang
+  // berjalan → loading; benar-benar tidak ada → pesan + tombol kembali.
+  if (flowStatus === "loading") {
+    return <AuthFlowLoading label="Memulihkan data kode referensi…" />
+  }
+  if (!phoneNumber || !purpose || !refCode) {
+    return (
+      <AuthFlowMissing
+        title="Data kode referensi tidak ditemukan"
+        description="Sesi pengiriman pesan WhatsApp tidak tersedia — kemungkinan aplikasi ditutup di tengah alur atau halaman ini dibuka langsung. Kembali dan mulai dari layar masuk/daftar untuk meminta kode baru."
+        backLabel="Kembali"
+        onBack={leaveMissingFlow}
+      />
+    )
+  }
 
   return (
     <Screen padded={false} edges={["top"]}>
@@ -459,10 +576,10 @@ export default function WhatsappTriggerScreen() {
              * FE-IMP-3 #106 — countdown kedaluwarsa kode referensi (timestamp
              * absolut dari server; tetap benar walau app ke background).
              */}
-            {flowRef.current?.expiresAt ? (
+            {flow?.expiresAt ? (
               <Countdown
                 key={refCode}
-                until={new Date(flowRef.current.expiresAt).getTime()}
+                until={new Date(flow.expiresAt).getTime()}
                 prefix="Kode kedaluwarsa dalam"
                 tone="secondary"
               />

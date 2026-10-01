@@ -65,6 +65,7 @@ import {
   getRegistrationState,
   setRegistrationState,
 } from "@/lib/registration"
+import { AuthFlowMissing } from "@/lib/auth-flow-gate"
 import { ROUTES } from "@/lib/routes"
 import {
   clearPendingSocialSignup,
@@ -87,14 +88,20 @@ export default function RegisterSecurityScreen() {
   const tempToken = regRef?.tempToken
   const phoneNumber = regRef?.phoneNumber
 
-  // Tanpa tempToken (deep-link/reload langsung ke rute ini) → tidak bisa
-  // dipakai; kembali ke awal registrasi.
-  useEffect(() => {
-    if (!tempToken) {
-      if (router.canGoBack()) router.back()
-      else router.replace(ROUTES.register)
+  /**
+   * Jalan keluar saat state registrasi (tempToken) tidak ada — SELALU
+   * navigasi nyata. Audit 2026-10-01: effect "tanpa tempToken" sebelumnya
+   * bisa no-op (mis. tumpukan navigasi belum sinkron setelah app kembali dari
+   * background) sementara layar `return null` — layar blank permanen tanpa
+   * tombol apa pun. Kini tombol eksplisit.
+   */
+  const leaveMissingFlow = useCallback(() => {
+    if (router.canGoBack()) {
+      router.back()
+      return
     }
-  }, [tempToken, router])
+    router.replace(ROUTES.register)
+  }, [router])
 
   const [fullName, setFullName] = useState("")
   const [username, setUsername] = useState("")
@@ -249,7 +256,18 @@ export default function RegisterSecurityScreen() {
     }
   }, [submitting, tempToken, phoneNumber, fullName, username, password, confirmPassword, router, markLeaving])
 
-  if (!tempToken) return null
+  // Tanpa tempToken (deep-link/reload langsung ke rute ini) → layar tidak
+  // bisa dipakai. JANGAN blank: pesan + tombol kembali yang berfungsi.
+  if (!tempToken) {
+    return (
+      <AuthFlowMissing
+        title="Data pendaftaran tidak ditemukan"
+        description="Sesi pendaftaran tidak tersedia — kemungkinan aplikasi ditutup di tengah alur atau halaman ini dibuka langsung. Kembali dan masukkan nomor HP Anda lagi."
+        backLabel="Kembali"
+        onBack={leaveMissingFlow}
+      />
+    )
+  }
 
   return (
     <Screen padded={false} edges={["top"]}>

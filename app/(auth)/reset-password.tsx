@@ -29,7 +29,7 @@
  *     agar error tidak berkedip saat mengetik.
  *   - Lokasi opsional dicatat; null = lanjut tanpa lokasi.
  */
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useRef, useState } from "react"
 import { ScrollView, TextInput } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useRouter } from "expo-router"
@@ -49,6 +49,7 @@ import { api, userMessage } from "@/lib/api"
 import { passwordValidationMessage } from "@/lib/auth-constants"
 import { getAuthLocation } from "@/lib/location"
 import { clearPasswordResetState, getPasswordResetState } from "@/lib/password-reset"
+import { AuthFlowMissing } from "@/lib/auth-flow-gate"
 import { ROUTES } from "@/lib/routes"
 
 /** FE-040: nomor → trigger WA (2/4) → OTP (3/4) → kata sandi baru (4/4). */
@@ -62,14 +63,18 @@ export default function ResetPasswordScreen() {
   const resetRef = useState(getPasswordResetState)[0]
   const tempToken = resetRef?.tempToken
 
-  // Tanpa tempToken (deep-link/reload langsung ke rute ini) → tidak bisa
-  // dipakai; kembali ke awal alur.
-  useEffect(() => {
-    if (!tempToken) {
-      if (router.canGoBack()) router.back()
-      else router.replace(ROUTES.forgotPassword())
+  /**
+   * Jalan keluar saat tempToken tidak ada — SELALU navigasi nyata.
+   * Audit 2026-10-01: effect "tanpa tempToken" sebelumnya bisa no-op
+   * sementara layar `return null` — blank permanen tanpa jalan keluar.
+   */
+  const leaveMissingFlow = useCallback(() => {
+    if (router.canGoBack()) {
+      router.back()
+      return
     }
-  }, [tempToken, router])
+    router.replace(ROUTES.forgotPassword())
+  }, [router])
 
   const [newPassword, setNewPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
@@ -112,7 +117,18 @@ export default function ResetPasswordScreen() {
     }
   }, [submitting, tempToken, newPassword, confirmPassword, router])
 
-  if (!tempToken) return null
+  // Tanpa tempToken (deep-link/reload langsung ke rute ini) → layar tidak
+  // bisa dipakai. JANGAN blank: pesan + tombol kembali yang berfungsi.
+  if (!tempToken) {
+    return (
+      <AuthFlowMissing
+        title="Sesi atur ulang kata sandi tidak ditemukan"
+        description="Data verifikasi tidak tersedia — kemungkinan aplikasi ditutup di tengah alur atau halaman ini dibuka langsung. Kembali dan minta kode baru."
+        backLabel="Kembali"
+        onBack={leaveMissingFlow}
+      />
+    )
+  }
 
   return (
     <Screen padded={false} edges={["top"]}>

@@ -55,10 +55,6 @@
    "n": 17
   },
   {
-   "s": "Masuk",
-   "n": 16
-  },
-  {
    "s": "Deskripsi",
    "n": 15
   },
@@ -68,6 +64,10 @@
   },
   {
    "s": "Lainnya",
+   "n": 15
+  },
+  {
+   "s": "Masuk",
    "n": 15
   },
   {
@@ -355,6 +355,10 @@
    "n": 8
   },
   {
+   "s": "Nomor HP",
+   "n": 8
+  },
+  {
    "s": "Nonaktifkan",
    "n": 8
   },
@@ -551,6 +555,10 @@
    "n": 6
   },
   {
+   "s": "Email",
+   "n": 6
+  },
+  {
    "s": "Filter etalase",
    "n": 6
   },
@@ -679,6 +687,10 @@
    "n": 6
   },
   {
+   "s": "Masuk ke Kahade",
+   "n": 6
+  },
+  {
    "s": "Media berikutnya",
    "n": 6
   },
@@ -720,10 +732,6 @@
   },
   {
    "s": "Nama penerima",
-   "n": 6
-  },
-  {
-   "s": "Nomor HP",
    "n": 6
   },
   {
@@ -1031,10 +1039,6 @@
    "n": 5
   },
   {
-   "s": "Masuk ke Kahade",
-   "n": 5
-  },
-  {
    "s": "Mengerti",
    "n": 5
   },
@@ -1108,6 +1112,10 @@
   },
   {
    "s": "Ubah ulasan",
+   "n": 5
+  },
+  {
+   "s": "Username",
    "n": 5
   },
   {
@@ -1416,10 +1424,6 @@
   },
   {
    "s": "Lampiran #{x}",
-   "n": 4
-  },
-  {
-   "s": "Lanjut",
    "n": 4
   },
   {
@@ -2419,10 +2423,6 @@
    "n": 3
   },
   {
-   "s": "Email",
-   "n": 3
-  },
-  {
    "s": "Email akun",
    "n": 3
   },
@@ -3156,6 +3156,10 @@
   },
   {
    "s": "Label alamat",
+   "n": 3
+  },
+  {
+   "s": "Lanjut",
    "n": 3
   },
   {
@@ -5111,10 +5115,6 @@
    "n": 2
   },
   {
-   "s": "Buat akun",
-   "n": 2
-  },
-  {
    "s": "Buat etalase baru",
    "n": 2
   },
@@ -5339,11 +5339,31 @@
    "n": 2
   },
   {
+   "s": "Contoh: {x}xxxxxxx",
+   "n": 2
+  },
+  {
    "s": "Contoh: @johndoe — tanpa @",
    "n": 2
   },
   {
+   "s": "Contoh: johndoe",
+   "n": 2
+  },
+  {
+   "s": "Contoh: johndoe, nama@email.com, atau {x}xxxxxxx",
+   "n": 2
+  },
+  {
+   "s": "Contoh: nama@email.com",
+   "n": 2
+  },
+  {
    "s": "Cover etalase",
+   "n": 2
+  },
+  {
+   "s": "Daftar",
    "n": 2
   },
   {
@@ -7891,10 +7911,6 @@
    "n": 2
   },
   {
-   "s": "Sudah punya akun?",
-   "n": 2
-  },
-  {
    "s": "Sudut foto di luar lingkaran akan terpotong.",
    "n": 2
   },
@@ -8451,7 +8467,7 @@
    "n": 2
   },
   {
-   "s": "Username",
+   "s": "Username / Email / Nomor HP",
    "n": 2
   },
   {
@@ -10495,10 +10511,6 @@
    "n": 1
   },
   {
-   "s": "© {x} PT Kawal Hak Dengan Aman",
-   "n": 1
-  },
-  {
    "s": "+{x} hari",
    "n": 1
   },
@@ -10839,6 +10851,10 @@
    "n": 1
   },
   {
+   "s": "Akun terkunci sementara karena terlalu banyak percobaan gagal.",
+   "n": 1
+  },
+  {
    "s": "Akun:",
    "n": 1
   },
@@ -11060,6 +11076,10 @@
   },
   {
    "s": "Aplikasi baru saja diperbarui",
+   "n": 1
+  },
+  {
+   "s": "Apple",
    "n": 1
   },
   {
@@ -11947,6 +11967,10 @@
    "n": 1
   },
   {
+   "s": "Buat akun",
+   "n": 1
+  },
+  {
    "s": "Buat Akun",
    "n": 1
   },
@@ -12068,10 +12092,6 @@
   },
   {
    "s": "Buka {x} ukuran penuh",
-   "n": 1
-  },
-  {
-   "s": "Buka Aplikasi",
    "n": 1
   },
   {
@@ -12631,10 +12651,6 @@
    "n": 1
   },
   {
-   "s": "Contoh: johndoe, nama@email.com, atau {x}xxxxxxx",
-   "n": 1
-  },
-  {
    "s": "CSV (ZIP)",
    "n": 1
   },
@@ -12664,10 +12680,6 @@
   },
   {
    "s": "D.{x} Verifikasi",
-   "n": 1
-  },
-  {
-   "s": "Daftar",
    "n": 1
   },
   {
@@ -12987,6 +12999,14 @@
    "n": 1
   },
   {
+   "s": "Data kode referensi tidak ditemukan",
+   "n": 1
+  },
+  {
+   "s": "Data pendaftaran tidak ditemukan",
+   "n": 1
+  },
+  {
    "s": "Data pesanan tidak valid.",
    "n": 1
   },
@@ -13032,6 +13052,18 @@
   },
   {
    "s": "Data turunan.",
+   "n": 1
+  },
+  {
+   "s": "Data verifikasi {x}FA tidak tersedia — kemungkinan aplikasi ditutup di tengah alur atau halaman ini dibuka langsung. Masuk kembali untuk memulai verifikasi.",
+   "n": 1
+  },
+  {
+   "s": "Data verifikasi tidak ditemukan",
+   "n": 1
+  },
+  {
+   "s": "Data verifikasi tidak tersedia — kemungkinan aplikasi ditutup di tengah alur atau halaman ini dibuka langsung. Kembali dan minta kode baru.",
    "n": 1
   },
   {
@@ -14279,6 +14311,10 @@
    "n": 1
   },
   {
+   "s": "Google",
+   "n": 1
+  },
+  {
    "s": "Google / Apple",
    "n": 1
   },
@@ -14987,7 +15023,7 @@
    "n": 1
   },
   {
-   "s": "Jual beli online dengan escrow yang aman.",
+   "s": "Jual beli aman dengan escrow.",
    "n": 1
   },
   {
@@ -16307,14 +16343,6 @@
    "n": 1
   },
   {
-   "s": "Lewati",
-   "n": 1
-  },
-  {
-   "s": "Lewati pengenalan",
-   "n": 1
-  },
-  {
    "s": "Lewati setup profil?",
    "n": 1
   },
@@ -16527,6 +16555,10 @@
    "n": 1
   },
   {
+   "s": "Masuk dengan akun Google",
+   "n": 1
+  },
+  {
    "s": "Masuk dengan akun lain",
    "n": 1
   },
@@ -16535,7 +16567,19 @@
    "n": 1
   },
   {
+   "s": "Masuk dengan Apple ID",
+   "n": 1
+  },
+  {
+   "s": "Masuk dengan email dan kata sandi",
+   "n": 1
+  },
+  {
    "s": "Masuk dengan Google",
+   "n": 1
+  },
+  {
+   "s": "Masuk dengan kode OTP via WhatsApp",
    "n": 1
   },
   {
@@ -16548,6 +16592,10 @@
   },
   {
    "s": "Masuk dengan passkey saat ini didukung di aplikasi web Kahade. Di aplikasi ini, silakan masuk dengan kata sandi atau OTP WhatsApp. Passkey yang Anda daftarkan di web tetap tercatat di akun Anda.",
+   "n": 1
+  },
+  {
+   "s": "Masuk dengan username dan kata sandi",
    "n": 1
   },
   {
@@ -16991,6 +17039,14 @@
    "n": 1
   },
   {
+   "s": "Memulihkan data kode referensi…",
+   "n": 1
+  },
+  {
+   "s": "Memulihkan data verifikasi…",
+   "n": 1
+  },
+  {
    "s": "Memvalidasi ulang penerima…",
    "n": 1
   },
@@ -17240,6 +17296,10 @@
   },
   {
    "s": "Menyiapkan mikrofon…",
+   "n": 1
+  },
+  {
+   "s": "Menyiapkan profil…",
    "n": 1
   },
   {
@@ -17700,6 +17760,10 @@
   },
   {
    "s": "Nomor telepon, alamat email, token perangkat, isi template, dan status pengiriman yang diperlukan untuk OTP, notifikasi, serta komunikasi layanan.",
+   "n": 1
+  },
+  {
+   "s": "Nomor WhatsApp",
    "n": 1
   },
   {
@@ -20135,6 +20199,10 @@
    "n": 1
   },
   {
+   "s": "Sesi atur ulang kata sandi tidak ditemukan",
+   "n": 1
+  },
+  {
    "s": "Sesi belum dapat diperiksa",
    "n": 1
   },
@@ -20151,11 +20219,27 @@
    "n": 1
   },
   {
+   "s": "Sesi pendaftaran tidak tersedia — kemungkinan aplikasi ditutup di tengah alur atau halaman ini dibuka langsung. Kembali dan masukkan nomor HP Anda lagi.",
+   "n": 1
+  },
+  {
+   "s": "Sesi pengiriman pesan WhatsApp tidak tersedia — kemungkinan aplikasi ditutup di tengah alur atau halaman ini dibuka langsung. Kembali dan mulai dari layar masuk/daftar untuk meminta kode baru.",
+   "n": 1
+  },
+  {
    "s": "Sesi unggah kedaluwarsa. Coba unggah ulang.",
    "n": 1
   },
   {
    "s": "Sesi upload tidak konsisten.",
+   "n": 1
+  },
+  {
+   "s": "Sesi verifikasi dua langkah tidak ditemukan",
+   "n": 1
+  },
+  {
+   "s": "Sesi verifikasi OTP tidak tersedia — kemungkinan halaman ini dibuka ulang atau aplikasi ditutup di tengah alur. Kembali dan kirim ulang pesan pemicu ke WhatsApp resmi Kahade.",
    "n": 1
   },
   {
@@ -20540,6 +20624,10 @@
   },
   {
    "s": "Sudah pernah daftar tapi tidak ada balasan? Coba",
+   "n": 1
+  },
+  {
+   "s": "Sudah punya akun?",
    "n": 1
   },
   {
@@ -21768,10 +21856,6 @@
   },
   {
    "s": "User",
-   "n": 1
-  },
-  {
-   "s": "Username / Email / Nomor HP",
    "n": 1
   },
   {

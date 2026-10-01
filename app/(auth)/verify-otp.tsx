@@ -71,7 +71,9 @@ import { otpStepProgress } from "@/lib/auth-progress"
 import { formatPhoneId } from "@/lib/format"
 import { haptic } from "@/lib/haptics"
 import { getAuthLocation } from "@/lib/location"
-import { clearOtpFlow, getOtpFlow, patchOtpFlow } from "@/lib/otp-flow"
+import { clearOtpFlow, patchOtpFlow, type OtpFlowState } from "@/lib/otp-flow"
+import { AuthFlowLoading, AuthFlowMissing } from "@/lib/auth-flow-gate"
+import { useOtpFlow } from "@/lib/use-otp-flow"
 import { clearPasswordResetState, setPasswordResetState } from "@/lib/password-reset"
 import { clearRegistrationState, setRegistrationState } from "@/lib/registration"
 import { isOfflineKnown, useIsOnline } from "@/lib/connectivity"
@@ -92,22 +94,35 @@ export default function VerifyOtpScreen() {
   const otpRef = useRef<OtpInputHandle>(null)
 
   /**
-   * State alur dari layar asal (lib/otp-flow, memori modul).
-   * Dibaca SEKALI saat mount: tanpa alur (deep-link/reload web langsung ke
-   * /verify-otp) layar ini tidak bisa dipakai standalone — B-14.
+   * State alur dari layar asal (lib/otp-flow) — DIBACA REAKTIF lewat
+   * `useOtpFlow`, bukan sekali saat mount.
+   *
+   * Audit 2026-10-01 (layar blank): versi lama memakai
+   * `useRef(getOtpFlow())` + `return null` saat kosong. Bila state belum
+   * tersedia saat layar mount — JS context baru setelah proses aplikasi
+   * dimatikan OS saat user di WhatsApp, hidrasi SecureStore yang belum
+   * selesai, atau alur yang baru diset setelah navigasi — layar mengunci
+   * dirinya kosong SELAMANYA: `useRef` tidak pernah memperbarui, dan tidak
+   * ada UI apa pun yang bisa ditekan (tombol back perangkat terasa mati).
+   *
+   * Sekarang tiga keadaan dibedakan eksplisit: `loading` (tunggu pemulihan),
+   * `ready` (render penuh), `missing` (pesan + tombol kembali).
    */
-  const flowRef = useRef(getOtpFlow())
-  const flow = flowRef.current
-  const phoneNumber = flow?.phoneNumber
-  const purpose = flow?.purpose
-
-  // Tanpa alur aktif → kembali ke awal (OTP baru).
+  const { flow, status: flowStatus } = useOtpFlow()
+  /**
+   * Snapshot alur terakhir yang pernah terlihat. `clearOtpFlow()` sengaja
+   * dipanggil tepat SEBELUM navigasi keluar (verifikasi sukses / "ubah
+   * nomor"); menyimpan snapshot membuat layar tidak pernah berubah menjadi
+   * pesan "tidak ditemukan" di sela navigasi. Bila navigasi gagal, pengguna
+   * tetap memegang layar yang bisa ditinggalkan — bukan spinner buntu.
+   */
+  const [lastFlow, setLastFlow] = useState<OtpFlowState | null>(null)
   useEffect(() => {
-    if (!flow) {
-      if (router.canGoBack()) router.back()
-      else router.replace(ROUTES.register)
-    }
-  }, [flow, router])
+    if (flow) setLastFlow(flow)
+  }, [flow])
+  const activeFlow = flow ?? lastFlow
+  const phoneNumber = activeFlow?.phoneNumber
+  const purpose = activeFlow?.purpose
 
   const displayPhone = phoneNumber ? formatPhoneId(phoneNumber) : ""
 
@@ -376,8 +391,37 @@ export default function VerifyOtpScreen() {
     }
   }, [router, purpose, flow, markLeaving])
 
-  // Jangan render tanpa alur aktif (effect akan redirect)
-  if (!flow || !phoneNumber || !purpose) return null
+  /**
+   * Jalan keluar saat alur tidak ditemukan — SELALU navigasi nyata.
+   * `router.back()` dulu dipakai di effect "tanpa alur"; itu bisa menjadi
+   * no-op (layar tetap blank) ketika tumpukan navigasi sedang tidak sinkron
+   * setelah app kembali dari background. Kini tombol eksplisit: kembali ke
+   * layar sebelumnya bila ada, selain itu ke pintu masuk alur auth.
+   */
+  const leaveMissingFlow = useCallback(() => {
+    if (router.canGoBack()) {
+      router.back()
+      return
+    }
+    router.replace(ROUTES.login)
+  }, [router])
+
+  // Jangan render tanpa alur aktif: pemulihan sedang berjalan → loading;
+  // benar-benar tidak ada (belum pernah terlihat di layar ini) → pesan +
+  // tombol kembali, bukan blank.
+  if (flowStatus === "loading") {
+    return <AuthFlowLoading label="Memulihkan data verifikasi…" />
+  }
+  if (!phoneNumber || !purpose) {
+    return (
+      <AuthFlowMissing
+        title="Data verifikasi tidak ditemukan"
+        description="Sesi verifikasi OTP tidak tersedia — kemungkinan halaman ini dibuka ulang atau aplikasi ditutup di tengah alur. Kembali dan kirim ulang pesan pemicu ke WhatsApp resmi Kahade."
+        backLabel="Kembali"
+        onBack={leaveMissingFlow}
+      />
+    )
+  }
 
   return (
     // SEC-404: proteksi screen-capture iOS di layar OTP.
