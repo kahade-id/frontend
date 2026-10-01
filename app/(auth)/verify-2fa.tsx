@@ -38,7 +38,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { ScrollView, View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { useRouter } from "expo-router"
+import { useRouter, type Href } from "expo-router"
 
 import { Alert } from "@/components/ui/alert"
 import { FadeIn } from "@/components/ui/fade-in"
@@ -57,6 +57,7 @@ import { haptic } from "@/lib/haptics"
 import { resolvePostLoginTarget } from "@/lib/login-redirect"
 import { ROUTES } from "@/lib/routes"
 import { clearPendingTwoFactorLogin, getPendingTwoFactorLogin } from "@/lib/two-factor-login"
+import { useAuthSession } from "@/lib/use-auth-session"
 import { translate } from "@/lib/i18n/translate"
 
 /** Panjang TOTP (RFC 6238) — sama dengan `minLength` Verify2faLoginDto.code */
@@ -89,6 +90,19 @@ export default function VerifyTwoFactorScreen() {
   const [formError, setFormError] = useState<string | null>(null)
   const [tokenExpired, setTokenExpired] = useState(false)
   const [verifying, setVerifying] = useState(false)
+  /**
+   * Verifikasi 2FA sukses — navigasi ditunda hingga session.token terpropagasi
+   * ke Stack.Protected guard (race notifySession vs router.replace → blank).
+   * Pola sama seperti login.tsx & verify-otp.tsx.
+   */
+  const [loginDone, setLoginDone] = useState(false)
+  const [postLoginTarget, setPostLoginTarget] = useState<Href | null>(null)
+  const session = useAuthSession()
+  useEffect(() => {
+    if (loginDone && postLoginTarget && !session.restoring && session.token) {
+      router.replace(postLoginTarget)
+    }
+  }, [loginDone, postLoginTarget, session.restoring, session.token, router])
 
   const backupTrimmed = backup.replace(/\s+/g, "")
   const canSubmit =
@@ -115,8 +129,10 @@ export default function VerifyTwoFactorScreen() {
       clearPendingTwoFactorLogin()
       haptic("success")
       // U5-003 (journey): layar welcome dihapus — semua platform langsung ke
-      // tujuan tertunda/Beranda.
-      router.replace((await resolvePostLoginTarget()) as never)
+      // tujuan tertunda/Beranda. Navigasi DITUNDA hingga session.token
+      // terpropagasi (effect di atas) — tanpa ini layar blank.
+      setPostLoginTarget(await resolvePostLoginTarget())
+      setLoginDone(true)
     } catch (err) {
       haptic("error")
       if (isApiError(err)) {

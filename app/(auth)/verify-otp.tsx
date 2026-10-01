@@ -77,6 +77,7 @@ import { clearRegistrationState, setRegistrationState } from "@/lib/registration
 import { isOfflineKnown, useIsOnline } from "@/lib/connectivity"
 import { ROUTES } from "@/lib/routes"
 import { setPendingTwoFactorLogin } from "@/lib/two-factor-login"
+import { useAuthSession } from "@/lib/use-auth-session"
 import { useLeaveConfirm } from "@/lib/use-leave-confirm"
 import { Dialog } from "@/components/ui/modal"
 
@@ -114,6 +115,12 @@ export default function VerifyOtpScreen() {
   const [otpError, setOtpError] = useState<string | undefined>()
   const [formError, setFormError] = useState<FormError>(null)
   const [verifying, setVerifying] = useState(false)
+  /**
+   * Verifikasi sukses & token tersimpan — navigasi ke Beranda ditunda hingga
+   * session.token terpropagasi (lihat goWelcome). Mencegah layar blank akibat
+   * race antara notifySession() dan router.replace().
+   */
+  const [loginDone, setLoginDone] = useState(false)
 
   // A07 (batch 139): status koneksi — verifikasi OTP butuh jaringan.
   const isOnline = useIsOnline()
@@ -140,9 +147,23 @@ export default function VerifyOtpScreen() {
   }, [])
 
   const goWelcome = useCallback(() => {
-    // U5-003 (journey): layar welcome dihapus — langsung ke Beranda.
-    router.replace(ROUTES.home)
-  }, [router])
+    // Jangan navigasi langsung — tandai selesai; effect di bawah menunggu
+    // session.token terpropagasi ke Stack.Protected guard sebelum replace.
+    // Tanpa ini, router.replace("/showcase") dapat dieksekusi saat guard
+    // masih null (race notifySession vs navigasi) → layar blank.
+    setLoginDone(true)
+  }, [])
+
+  // Navigasi ke Beranda HANYA setelah token sesi terlihat oleh guard
+  // Stack.Protected — pola sama seperti login.tsx (UX-NAV-010). Menunggu
+  // fase restore lokal selesai agar tidak redirect prematur.
+  const session = useAuthSession()
+  useEffect(() => {
+    if (loginDone && !session.restoring && session.token) {
+      // U5-003 (journey): layar welcome dihapus — langsung ke Beranda.
+      router.replace(ROUTES.home)
+    }
+  }, [loginDone, session.restoring, session.token, router])
 
   const doVerify = useCallback(
     async (otpCode: string) => {
