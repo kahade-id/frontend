@@ -60,7 +60,7 @@
       ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#000000"
+        "backgroundColor": "#FFD200"
       },
       "permissions": [
         "android.permission.INTERNET",
@@ -74,7 +74,8 @@
     },
     "web": {
       "bundler": "metro",
-      "output": "static"
+      "output": "static",
+      "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
       [
@@ -91,9 +92,9 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 288,
           "resizeMode": "contain",
-          "backgroundColor": "#000000",
+          "backgroundColor": "#FFD200",
           "dark": {
-            "backgroundColor": "#000000"
+            "backgroundColor": "#FFD200"
           }
         }
       ],
