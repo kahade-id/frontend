@@ -9,9 +9,9 @@
  * Jangan menambahkan import berat di file ini.
  */
 import { Suspense, lazy } from "react"
-import { View } from "react-native"
 
-import { ListLoading } from "@/components/ui/paginated-list"
+import { Screen } from "@/components/ui/screen"
+import { ChatTabListSkeleton } from "@/components/ui/tab-loading-skeletons"
 
 const ChatTabScreen = lazy(() => import("@/components/screens/chat-tab-screen"))
 
@@ -19,9 +19,9 @@ export default function ChatTabRoute() {
   return (
     <Suspense
       fallback={
-        <View className="flex-1 px-5 pt-6">
-          <ListLoading />
-        </View>
+        <Screen edges={["top"]} padded={false}>
+          <ChatTabListSkeleton />
+        </Screen>
       }
     >
       <ChatTabScreen />

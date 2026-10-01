@@ -56,7 +56,7 @@ export const ChatProductCard = memo(function ChatProductCard({
       className={`overflow-hidden rounded-sm border ${
         // UX-COL-013: pola CHT-013 — border putih tak terlihat di dark
         // (bubble putih), bg hitam tak terlihat di light (bubble hitam).
-        outgoing ? "border-white/20 dark:border-black/20 bg-white/10 dark:bg-black/10" : "border-border bg-background"
+        outgoing ? "border-white/70 dark:border-black/30 bg-white/10 dark:bg-black/10" : "border-border bg-background"
       }`}
     >
       {card.imageUrl ? (
@@ -175,7 +175,7 @@ export const ChatOrderCard = memo(function ChatOrderCard({
       className={`gap-1.5 rounded-sm border p-2.5 ${
         // UX-COL-013: pola CHT-013 — border putih tak terlihat di dark
         // (bubble putih), bg hitam tak terlihat di light (bubble hitam).
-        outgoing ? "border-white/20 dark:border-black/20 bg-white/10 dark:bg-black/10" : "border-border bg-background"
+        outgoing ? "border-white/70 dark:border-black/30 bg-white/10 dark:bg-black/10" : "border-border bg-background"
       }`}
     >
       <View className="flex-row items-center justify-between gap-2">

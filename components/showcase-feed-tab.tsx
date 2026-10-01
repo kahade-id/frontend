@@ -73,6 +73,7 @@ import { useShowcaseSocialActions } from "@/lib/use-showcase-social-actions"
 import { useToast } from "@/components/ui/toast"
 import { useTheme } from "@/components/theme-provider"
 import { elevationStyle } from "@/lib/elevation"
+import { useShellTabReselect } from "@/lib/shell-tab-reselect"
 
 import { translate } from "@/lib/i18n/translate"
 import { useLanguage } from "@/lib/i18n"
@@ -435,6 +436,7 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
   const scrollToTop = useCallback(() => {
     listRef.current?.scrollToOffset({ offset: 0, animated: true })
   }, [])
+  useShellTabReselect("showcase", scrollToTop)
 
   const [items, setItems] = useState<ShowcaseSocialItem[]>([])
   const [hasMore, setHasMore] = useState(false)
@@ -1261,7 +1263,7 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
    * sudah memberi tahu jumlahnya; baris ini tinggal tombol reset.
    */
   const resetAllChip = filtersActive ? (
-    <View className="mt-3 flex-row items-center justify-end gap-2 rounded-full border border-border bg-surface py-1.5 pl-4 pr-1.5 mx-5">
+    <View className="mx-5 mt-3 flex-row items-center justify-end">
       <Button
         fullWidth={false}
         variant="ghost"

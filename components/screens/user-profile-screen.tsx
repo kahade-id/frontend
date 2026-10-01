@@ -211,6 +211,7 @@ function SocialStat({
       accessibilityLabel={translate("{x} {y}", { x: formatNumber(count), y: label })}
       accessibilityHint={openListLabel}
       accessibilityRole="button"
+      hitSlop={TEXT_ROW_HIT_SLOP}
       onPress={onPress}
     >
       <Text variant="body" tone="secondary">

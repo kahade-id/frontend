@@ -523,7 +523,9 @@ export default function ContactScreen() {
                   accessibilityRole="radio"
                 >
                   <View className="flex-row items-center gap-1.5">
-                    {item.label}
+                    <Text variant="label" tone={category === item.value ? "inverse" : "primary"} numberOfLines={1}>
+                      {item.label}
+                    </Text>
                     {/* F11: titik penanda kategori yang punya draft tersimpan. */}
                     {draftCategories.includes(item.value) && item.value !== category ? (
                       <View className="h-1.5 w-1.5 rounded-full bg-info" />

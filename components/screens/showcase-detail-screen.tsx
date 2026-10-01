@@ -873,26 +873,14 @@ function ShowcaseDetailContent({
       footer={
         // UX-SPA-004: tanpa border-t sendiri — <FooterBar> sudah memberi divider.
         <View className="bg-background py-3">
-          {/* Item 163/164 (FE-IMP-1): bar sticky harga + CTA "Buat Transaksi"
-              di atas komposer — selalu terlihat tanpa scroll. Disembunyikan
-              untuk pemilik (T5: pemilik tidak mentransaksikan karyanya
-              sendiri). Catatan escrow memakai kalimat persis sesuai brief. */}
+          {/* Aksi escrow sticky tetap terlihat di atas komposer; harga utama
+              hanya ditampilkan di isi detail agar tidak diduplikasi. Area ini
+              hanya berisi catatan escrow dan CTA, dan disembunyikan untuk pemilik. */}
           {!isOwner ? (
             <View className="mb-3 flex-row items-center gap-3 border-b border-border pb-3">
-              <View className="min-w-0 flex-1">
-                <Text variant="h3" weight={700} numberOfLines={1} className="tabular-nums">
-                  {priceLabel}
-                </Text>
-                {/* C06: status stok konsisten dengan badge di kartu feed. */}
-                {soldOut ? (
-                  <Text variant="caption" weight={700} tone="danger">
-                    {translate("Stok habis")}
-                  </Text>
-                ) : null}
-                <Text variant="caption" tone="secondary" numberOfLines={2}>
-                  {translate("Dana ditahan escrow sampai barang Anda terima")}
-                </Text>
-              </View>
+              <Text variant="caption" tone="secondary" numberOfLines={2} className="min-w-0 flex-1">
+                {translate("Dana ditahan escrow sampai barang Anda terima")}
+              </Text>
               <Button
                 disabled={item.isActive === false || soldOut}
                 onPress={handleCreateTransaction}

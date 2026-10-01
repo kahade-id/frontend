@@ -65,6 +65,7 @@ export function Chip({
   // Fabric Android Pressable mentah akan basi region-nya (lihat
   // reanimated-pressable-context.ts), jadi ikut hook ini.
   const Pressable = useTransformAwarePressable()
+  const textOnlyChildren = typeof children === "string" || typeof children === "number"
   return (
     <PressableScale
       accessibilityRole="button"
@@ -80,14 +81,17 @@ export function Chip({
       {...rest}
     >
       {icon ? <Icon icon={icon} size="xs" tone={selected ? "inverse" : "default"} /> : null}
-      <Text ellipsizeMode="tail"
-        variant="label"
-        tone={selected ? "inverse" : "primary"}
-        numberOfLines={1}
-        className={cn(icon && "ml-1")}
-      >
-        {children}
-      </Text>
+      {textOnlyChildren ? (
+        <Text
+          ellipsizeMode="tail"
+          variant="label"
+          tone={selected ? "inverse" : "primary"}
+          numberOfLines={1}
+          className={cn(icon && "ml-1")}
+        >
+          {children}
+        </Text>
+      ) : children}
       {onRemove ? (
         <Pressable
           onPress={onRemove}

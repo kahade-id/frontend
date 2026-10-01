@@ -103,14 +103,14 @@ export function SegmentedControl<V extends string = string>({
             // F-10: lihat catatan di components/ui/radio.tsx — rn-web tidak
             // mengubah accessibilityState.checked menjadi aria-checked.
             aria-checked={active}
-            accessibilityLabel={item.label}
+            accessibilityLabel={translateProp(item.label)}
             scaleOnPress={false}
             disabled={isDisabled}
             onPress={() => onChange(item.value)}
             hitSlop={{ top: SEGMENT_HIT_SLOP.top, bottom: SEGMENT_HIT_SLOP.bottom }}
-            containerClassName={cn("flex-1 overflow-hidden rounded-sm", focusRingInset)}
+            containerClassName={cn("min-w-0 flex-1 overflow-hidden rounded-sm", focusRingInset)}
             className={cn(
-              "min-h-10 flex-1 flex-row items-center justify-center gap-1 rounded-sm px-2 py-2",
+              "min-h-10 min-w-0 flex-1 flex-row items-center justify-center gap-1 rounded-sm px-2 py-2",
               active ? "bg-primary" : "bg-transparent",
             )}
           >
@@ -125,7 +125,9 @@ export function SegmentedControl<V extends string = string>({
             <Text
               variant="label"
               tone={active ? "inverse" : "secondary"}
-              className="flex-shrink text-center"
+              numberOfLines={1}
+              ellipsizeMode="tail"
+              className="min-w-0 flex-shrink text-center"
             >
               {item.label}
             </Text>

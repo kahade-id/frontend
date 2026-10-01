@@ -27,6 +27,7 @@ import { useLanguage } from "@/lib/i18n"
 import { useDataSaver } from "@/lib/ui-prefs"
 import { prefetchNeighborImages } from "@/lib/prefetch-neighbors"
 import { resolveVideoShouldPlay, toggleDataSaverPlayIntent } from "@/lib/showcase-video-play"
+import { hitSlopToReach } from "@/lib/hit-slop"
 import type { GalleryMedia } from "@/lib/showcase-social"
 
 /**
@@ -348,9 +349,8 @@ function VideoSlide({
         accessibilityRole="button"
         accessibilityLabel={muted ? translate("Nyalakan suara video") : translate("Bisukan video")}
         onPress={toggleMute}
-        // UX-TCH-003: tombol visual ~36px (p-2 + ikon 20px) — hitSlop 4px
-        // → 44px efektif tanpa mengubah tampilan mengambang di sudut video.
-        hitSlop={4}
+        // Tombol visual sekitar 32px; tambah slop untuk target sentuh 44px.
+        hitSlop={hitSlopToReach(32)}
         containerClassName="rounded-full"
       >
         <View className="items-center justify-center rounded-full bg-overlay-media p-2">

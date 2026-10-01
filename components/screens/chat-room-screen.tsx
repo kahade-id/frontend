@@ -118,7 +118,7 @@ import * as DocumentPicker from "expo-document-picker"
 import { ChatAttachmentSheet } from "@/components/ui/chat-attachment-sheet"
 import { VoiceNoteRecorder, type VoiceNoteFile } from "@/components/ui/voice-note-recorder"
 import { isAudioMime, validateVoiceNoteFile, voiceNoteValidationMessage } from "@/lib/voice-note"
-import { translate } from "@/lib/i18n"
+import { translate, useLanguage } from "@/lib/i18n"
 import { ROUTES } from "@/lib/routes"
 import { logicalParentForPath } from "@/lib/notification-routing"
 import { tokens } from "@/lib/tokens"
@@ -401,6 +401,7 @@ const UnreadSeparatorRow = memo(function UnreadSeparatorRow({
 
 export default function ChatRoomScreen() {
   const insets = useSafeAreaInsets()
+  const language = useLanguage()
   // C-06 (audit): `title` opsional dikirim saat navigasi dari daftar chat —
   // GET /rooms tidak punya endpoint detail dan pencarian ruang hanya memuat
   // 30 pertama, sehingga ruang ke-31+ kehilangan nama lawan bicara di header.
@@ -2782,28 +2783,28 @@ export default function ChatRoomScreen() {
       ) : roomGone ? (
         <EmptyState
           icon={Chats}
-          title="Percakapan tidak tersedia"
-          description="Ruang chat ini telah dihapus atau dinonaktifkan."
+          title={translate("Percakapan tidak tersedia")}
+          description={translate("Ruang chat ini telah dihapus atau dinonaktifkan.")}
           action={
             <Button onPress={() => router.replace(ROUTES.chat)}>
-              Kembali ke daftar chat
+              {translate("Kembali ke daftar chat")}
             </Button>
           }
         />
       ) : error ? (
         <ErrorState
-          title="Gagal memuat"
+          title={translate("Gagal memuat")}
           description={error}
           onRetry={() => void fetchMessages()}
         />
       ) : (
         <EmptyState
           icon={Chats}
-          title="Belum ada pesan"
-          description="Mulai percakapan Anda."
+          title={translate("Belum ada pesan")}
+          description={translate("Mulai percakapan Anda.")}
         />
       ),
-    [loading, roomGone, error, fetchMessages],
+    [loading, roomGone, error, fetchMessages, language],
   )
   /**
    * FE-059/FE-060 (audit 2026-09-29): handler stabil untuk ChatPinnedBar
@@ -2902,7 +2903,7 @@ export default function ChatRoomScreen() {
         <SelectionBar
           // translate(): template literal di atribut JSX tidak terbaca
           // generator katalog i18n — copy dinamis wajib dibungkus.
-          title={translate(`${selectedIds.size} pesan dipilih`)}
+          title={translate("{x} pesan dipilih", { x: selectedIds.size })}
           actions={selectionActions}
           onClose={exitSelect}
           closeLabel="Keluar dari mode pilih pesan"

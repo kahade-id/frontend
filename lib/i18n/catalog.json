@@ -16,7 +16,7 @@
   },
   {
    "s": "Gagal memuat",
-   "n": 35
+   "n": 37
   },
   {
    "s": "Etalase",
@@ -67,10 +67,6 @@
    "n": 15
   },
   {
-   "s": "Masuk",
-   "n": 15
-  },
-  {
    "s": "Pembeli",
    "n": 15
   },
@@ -115,10 +111,6 @@
    "n": 13
   },
   {
-   "s": "Pesan",
-   "n": 13
-  },
-  {
    "s": "Sembunyikan",
    "n": 13
   },
@@ -148,6 +140,10 @@
   },
   {
    "s": "Memuat…",
+   "n": 12
+  },
+  {
+   "s": "Pesan",
    "n": 12
   },
   {
@@ -204,6 +200,10 @@
   },
   {
    "s": "Lanjutkan",
+   "n": 10
+  },
+  {
+   "s": "Masuk",
    "n": 10
   },
   {
@@ -787,10 +787,6 @@
    "n": 6
   },
   {
-   "s": "Stok habis",
-   "n": 6
-  },
-  {
    "s": "Tanggal tidak tersedia",
    "n": 6
   },
@@ -1067,10 +1063,6 @@
    "n": 5
   },
   {
-   "s": "Tandai semua dibaca",
-   "n": 5
-  },
-  {
    "s": "Tanggal",
    "n": 5
   },
@@ -1240,10 +1232,6 @@
   },
   {
    "s": "Dana akan ditahan di escrow",
-   "n": 4
-  },
-  {
-   "s": "Diarsipkan",
    "n": 4
   },
   {
@@ -1596,6 +1584,10 @@
   },
   {
    "s": "Skor",
+   "n": 4
+  },
+  {
+   "s": "Stok habis",
    "n": 4
   },
   {
@@ -2012,6 +2004,10 @@
   },
   {
    "s": "Belum ada pertanyaan yang Anda ajukan",
+   "n": 3
+  },
+  {
+   "s": "Belum ada pesan",
    "n": 3
   },
   {
@@ -3455,6 +3451,10 @@
    "n": 3
   },
   {
+   "s": "Mulai percakapan Anda.",
+   "n": 3
+  },
+  {
    "s": "Mutasi",
    "n": 3
   },
@@ -3648,6 +3648,10 @@
   },
   {
    "s": "Percakapan ini akan dihapus dari daftar Anda. Tindakan ini tidak dapat dibatalkan.",
+   "n": 3
+  },
+  {
+   "s": "Percakapan tidak tersedia",
    "n": 3
   },
   {
@@ -3899,6 +3903,10 @@
    "n": 3
   },
   {
+   "s": "Ruang chat ini telah dihapus atau dinonaktifkan.",
+   "n": 3
+  },
+  {
    "s": "Saat akun yang Anda ikuti membagikan etalase, etalasenya muncul di sini.",
    "n": 3
   },
@@ -4128,6 +4136,10 @@
   },
   {
    "s": "Tampilkan waktu pasti",
+   "n": 3
+  },
+  {
+   "s": "Tandai semua dibaca",
    "n": 3
   },
   {
@@ -5427,6 +5439,10 @@
    "n": 2
   },
   {
+   "s": "Diarsipkan",
+   "n": 2
+  },
+  {
    "s": "Diblokir {x}",
    "n": 2
   },
@@ -6264,6 +6280,10 @@
   },
   {
    "s": "Kembali ke {x}",
+   "n": 2
+  },
+  {
+   "s": "Kembali ke daftar chat",
    "n": 2
   },
   {
@@ -11615,10 +11635,6 @@
    "n": 1
   },
   {
-   "s": "Belum ada pesan",
-   "n": 1
-  },
-  {
    "s": "Belum ada pesan berbintang",
    "n": 1
   },
@@ -15355,10 +15371,6 @@
    "n": 1
   },
   {
-   "s": "Kembali ke daftar chat",
-   "n": 1
-  },
-  {
    "s": "Kembali ke OTP",
    "n": 1
   },
@@ -17423,10 +17435,6 @@
    "n": 1
   },
   {
-   "s": "Mulai percakapan Anda.",
-   "n": 1
-  },
-  {
    "s": "Nama",
    "n": 1
   },
@@ -18639,10 +18647,6 @@
    "n": 1
   },
   {
-   "s": "Percakapan tidak tersedia",
-   "n": 1
-  },
-  {
    "s": "Percobaan ulang ke-",
    "n": 1
   },
@@ -19724,10 +19728,6 @@
   },
   {
    "s": "Riwayat undangan",
-   "n": 1
-  },
-  {
-   "s": "Ruang chat ini telah dihapus atau dinonaktifkan.",
    "n": 1
   },
   {

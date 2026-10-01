@@ -34,7 +34,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { Pressable, ScrollView, View, useWindowDimensions } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { useRouter, type Href } from "expo-router"
+import { usePathname, useRouter, type Href } from "expo-router"
 import { Gesture, GestureDetector } from "react-native-gesture-handler"
 import Reanimated, {
   runOnJS,
@@ -179,6 +179,21 @@ export const BOTTOM_MENU: readonly DrawerMenuItem[] = withIcons(BOTTOM_MENU_META
 /** FE-098: isi sheet "Toko Saya". */
 const SHOP_MENU: readonly DrawerMenuItem[] = withIcons(SHOP_MENU_META)
 
+function hrefMatchesPath(href: Href | undefined, pathname: string): boolean {
+  if (!href) return false
+  const rawPath = typeof href === "string" ? href : href.pathname
+  if (typeof rawPath !== "string") return false
+  const target = rawPath.split(/[?#]/, 1)[0]?.replace(/\/$/, "") || "/"
+  const current = pathname.replace(/\/$/, "") || "/"
+  return current === target || (target !== "/" && current.startsWith(`${target}/`))
+}
+
+function isDrawerItemSelected(item: DrawerMenuItem, pathname: string): boolean {
+  if (item.id === "profile") return pathname.startsWith("/user/")
+  if (item.id === "shop") return SHOP_MENU.some((entry) => hrefMatchesPath(entry.href, pathname))
+  return hrefMatchesPath(item.href, pathname)
+}
+
 const SPRING = tokens.motion.spring
 
 /** Baris menu: ikon bold tanpa background + judul bold, tanpa chevron. */
@@ -186,16 +201,19 @@ export function DrawerMenuRow({
   item,
   onNavigate,
   badge = false,
+  selected = false,
 }: {
   item: DrawerMenuItem
   onNavigate: (item: DrawerMenuItem) => void
   /** Dot unread di kanan judul (Pesan, Tiket Bantuan). */
   badge?: boolean
+  selected?: boolean
 }) {
   return (
     <PressableScale
       onPress={() => onNavigate(item)}
       accessibilityRole="menuitem"
+      accessibilityState={{ selected }}
       accessibilityLabel={
         badge
           ? translate("{x} — ada yang belum dibaca", {
@@ -203,10 +221,10 @@ export function DrawerMenuRow({
             })
           : translate(item.accessibilityLabel)
       }
-      className="flex-row items-center gap-4 px-5 py-3"
+      className={`flex-row items-center gap-4 px-5 py-3 ${selected ? "bg-primary/10" : ""}`}
     >
-      <Icon icon={item.icon} size="md" tone="active" weight="bold" />
-      <Text variant="bodyLarge" weight={600} className="flex-1">
+      <Icon icon={item.icon} size="md" tone={selected ? "active" : "default"} weight="bold" />
+      <Text variant="bodyLarge" weight={selected ? 700 : 600} className="flex-1">
         {translate(item.label)}
       </Text>
       {badge ? <View className="h-2 w-2 rounded-full bg-danger" /> : null}
@@ -293,6 +311,7 @@ export function AppDrawer() {
   useLanguage()
   const insets = useSafeAreaInsets()
   const router = useRouter()
+  const pathname = usePathname()
   const open = useDrawerOpen()
   const { token, restoring, error: sessionError } = useAuthSession()
   const reducedMotion = useReducedMotion()
@@ -476,7 +495,12 @@ export function AppDrawer() {
     >
       <View className="pb-2">
         {SHOP_MENU.map((item) => (
-          <DrawerMenuRow key={item.id} item={item} onNavigate={onShopNavigate} />
+          <DrawerMenuRow
+            key={item.id}
+            item={item}
+            onNavigate={onShopNavigate}
+            selected={isDrawerItemSelected(item, pathname)}
+          />
         ))}
       </View>
     </BottomSheet>
@@ -582,9 +606,6 @@ export function AppDrawer() {
                     {translate("Masuk untuk akses penuh")}
                   </Text>
                 </View>
-                <Button size="sm" fullWidth={false} onPress={goLogin} accessibilityLabel={translate("Masuk")}>
-                  {translate("Masuk")}
-                </Button>
               </View>
             )}
             {/* Tombol X: dibungkus View ber-style inline absolute agar tepat di
@@ -653,6 +674,7 @@ export function AppDrawer() {
                   item={item}
                   onNavigate={onNavigate}
                   badge={badgeFor(item.id)}
+                  selected={isDrawerItemSelected(item, pathname)}
                 />
               ))}
             </View>
@@ -669,6 +691,7 @@ export function AppDrawer() {
                   item={item}
                   onNavigate={onNavigate}
                   badge={badgeFor(item.id)}
+                  selected={isDrawerItemSelected(item, pathname)}
                 />
               ))}
             </View>

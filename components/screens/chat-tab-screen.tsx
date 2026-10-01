@@ -31,7 +31,7 @@
  *     swipe dimatikan selama mode pilih supaya gesture tidak bentrok.
  */
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react"
-import { ScrollView, View, type View as RNView } from "react-native"
+import { ScrollView, View, type FlatList, type View as RNView } from "react-native"
 import { Archive, BellSlash, BellZ, Chats, GearSix, NotePencil, PushPin, Trash, X } from "phosphor-react-native"
 import { router, useFocusEffect } from "expo-router"
 
@@ -84,7 +84,6 @@ import { ModeShiftFade } from "@/components/ui/mode-switcher"
 import { PaginatedList } from "@/components/ui/paginated-list"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Screen } from "@/components/ui/screen"
-import { Skeleton, SkeletonGroup } from "@/components/ui/skeleton"
 import { Text } from "@/components/ui/text"
 import {
   SwipeableListItem,
@@ -94,7 +93,9 @@ import {
   type SwipeSide,
 } from "@/components/ui/swipeable-list-item"
 import { useToast } from "@/components/ui/toast"
+import { ChatTabListSkeleton } from "@/components/ui/tab-loading-skeletons"
 import { useScrollElevation } from "@/lib/use-scroll-elevation"
+import { useShellTabReselect } from "@/lib/shell-tab-reselect"
 
 /**
  * Batas jumlah ruang yang bisa dipilih sekaligus. Backend tidak punya
@@ -103,8 +104,6 @@ import { useScrollElevation } from "@/lib/use-scroll-elevation"
  * BatchNotificationIdsDto di layar Notifikasi.
  */
 const SELECTION_MAX = 50
-/** Baris skeleton saat muat pertama — sebentuk <ChatRoomListItem>. */
-const SKELETON_COUNT = 7
 
 /** Item 17 — filter daftar chat. "archived" = query server terpisah (B4). */
 type ChatFilter = "all" | "unread" | "transaction" | "archived"
@@ -114,18 +113,6 @@ const FILTER_OPTIONS: readonly ChipOption<ChatFilter>[] = [
   { value: "transaction", label: "Transaksi" },
   { value: "archived", label: "Diarsipkan" },
 ]
-
-function ChatSkeletonRow() {
-  return (
-    <View className="flex-row items-center gap-3 px-4 py-2.5">
-      <Skeleton shape="circle" width={48} height={48} />
-      <View className="min-w-0 flex-1 gap-1.5">
-        <Skeleton height={14} style={{ width: "45%" }} />
-        <Skeleton height={12} style={{ width: "80%" }} />
-      </View>
-    </View>
-  )
-}
 
 /** "Transaksi" = punya orderId atau type ORDER (DRIFT-06: backend mengirim `type`). */
 function isTransactionRoom(room: ChatRoom): boolean {
@@ -619,6 +606,11 @@ export default function ChatScreen() {
   const [batchBusy, setBatchBusy] = useState(false)
   // Efek scroll: header terangkat (bayangan) saat daftar digulir.
   const { elevated, onScrollWorklet } = useScrollElevation()
+  const listRef = useRef<FlatList<ChatRoom>>(null)
+  const scrollToTop = useCallback(() => {
+    listRef.current?.scrollToOffset({ offset: 0, animated: true })
+  }, [])
+  useShellTabReselect("chat", scrollToTop)
 
   // FE-064: prop `right` header di-memo agar memo <Header> bisa bail-out.
   // Handler stabil — tidak ada state yang berubah per render.
@@ -1060,18 +1052,7 @@ export default function ChatScreen() {
     () => (filter === "all" ? <SelfChatEntry onOpen={() => void openSelfChat()} /> : undefined),
     [filter, openSelfChat],
   )
-  const chatListLoading = useMemo(
-    () => (
-      <SkeletonGroup>
-        {Array.from({ length: SKELETON_COUNT }, (_, index) => (
-          // PERF-FIX (state audit): key stabil ber-prefix agar tidak tertukar
-          // dengan baris data nyata saat skeleton diganti daftar asli.
-          <ChatSkeletonRow key={`chat-skeleton-${index}`} />
-        ))}
-      </SkeletonGroup>
-    ),
-    [],
-  )
+  const chatListLoading = useMemo(() => <ChatTabListSkeleton />, [])
   const chatListEmpty = useMemo(
     // FE-088: description yang mengulang judul dihapus — empty state =
     // judul + CTA (§9 aturan 7).
@@ -1167,7 +1148,7 @@ export default function ChatScreen() {
           separator={false}
           elevated={elevated}
           titleAlign="left"
-          title={archiveOpen ? "Diarsipkan" : "Pesan"}
+          title="Pesan"
           // T5-002 (audit UI/UX intuitif 2026-09-29): drawer bisa dibuka dari
           // semua tab, bukan cuma Etalase.
           left={CHAT_HEADER_LEFT}
@@ -1202,6 +1183,7 @@ export default function ChatScreen() {
         // dan tidak sejajar Header di atasnya. Sama seperti app/notifications.tsx.
         padded={false}
         data={shownRooms}
+        listRef={listRef}
         onRefresh={activeQuery.refresh}
         onRetry={activeQuery.reload}
         onLoadMore={activeQuery.loadMore}
