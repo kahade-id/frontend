@@ -32,9 +32,18 @@ const notes = []
 const fail = (m) => problems.push(m)
 const note = (m) => notes.push(m)
 
+// EAS Build menyetel EAS_BUILD_PLATFORM = "android" | "ios" di worker.
+// Guard platform-spesifik hanya relevan untuk platform yang sedang di-build:
+// build Android tidak boleh gagal karena masalah submit iOS (dan sebaliknya).
+// Saat dijalankan lokal (env tidak ada), semua cek tetap berjalan seperti dulu.
+const buildPlatform = process.env.EAS_BUILD_PLATFORM
+const skipIos = buildPlatform === "android"
+const skipAndroid = buildPlatform === "ios"
+
 const app = JSON.parse(readFileSync(join(root, "app.json"), "utf8")).expo
 
 /* ── 1. Android: berkas FCM ─────────────────────────────────────────────── */
+if (!skipAndroid) {
 const gsPath = app.android?.googleServicesFile
 if (!gsPath) {
   fail("app.json: android.googleServicesFile belum diisi — push Android tidak akan bekerja")
@@ -75,8 +84,10 @@ if (!gsPath) {
     }
   }
 }
+}
 
 /* ── 2. iOS: GoogleService-Info.plist ───────────────────────────────────── */
+if (!skipIos) {
 const iosPlistPath = app.ios?.googleServicesFile
 if (!iosPlistPath) {
   fail(
@@ -122,6 +133,7 @@ if (!aps) {
       "(token sandbox vs endpoint produksi). Xcode sudah mempromosikannya sendiri saat archive.",
   )
 }
+} // ── akhir cek khusus iOS ──
 
 /* ── 4. Plugin & izin ───────────────────────────────────────────────────── */
 const plugins = app.plugins ?? []
@@ -137,7 +149,7 @@ if (!notif) {
 }
 
 const perms = app.android?.permissions ?? []
-if (!perms.includes("android.permission.POST_NOTIFICATIONS")) {
+if (!skipAndroid && !perms.includes("android.permission.POST_NOTIFICATIONS")) {
   fail("app.json: POST_NOTIFICATIONS tidak ada — Android 13+ tidak akan menampilkan notifikasi apa pun")
 }
 

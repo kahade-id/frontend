@@ -16,10 +16,15 @@ const problems = []
 // pencatatan lokasi presisi saat login/registrasi/reset-password adalah entry
 // point aktif (lib/location.ts → getAuthLocation, dipanggil semua endpoint
 // auth). Izin lokasi = bagian dari kontrak keamanan akun, bukan dead config.
+// expo-camera DICABUT dari daftar larangan (fix build production 2026-10-01):
+// pemindai QR adalah entry point aktif (components/scan-screen.tsx →
+// CameraView/useCameraPermissions/scanFromURLAsync, dirute dari
+// app/scan.tsx; tombol QR di bottom navbar). Guard ini sempat menggagalkan
+// build production karena hanya mencocokkan nama plugin tanpa memverifikasi
+// pemakaian aktual.
 const forbiddenPlugins = [
   "expo-audio",
   "expo-background-task",
-  "expo-camera",
   "expo-contacts",
   "expo-media-library",
   "@config-plugins/react-native-webrtc",
