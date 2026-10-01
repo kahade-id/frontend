@@ -487,27 +487,6 @@ function AppShellInner() {
   const isWebGuest = Platform.OS === "web" && !session.token
   const guestBlocked = isWebGuest && isProtectedPath(pathname)
 
-  // PERF-FIX (P2 nav): memoize daftar layar ber-auth — 40+ <Stack.Screen>
-  // dibuat sekali per sesi login/logout, bukan tiap render AppShellInner
-  // (re-render dari unread count, deep link, dsb). `getId` menjaga identity
-  // rute dinamis (chat/[roomId] dkk) tetap stabil walau remount.
-  const authenticatedScreens = useMemo(
-    () =>
-      AUTHENTICATED_SCREENS.map((name) => (
-        <Stack.Screen
-          key={name}
-          name={name}
-          options={{
-            headerShown: false,
-            animation: animationForScreen(name, reducedMotion),
-            animationDuration: animationDurationForScreen(name),
-          }}
-          getId={getScreenId(name)}
-        />
-      )),
-    [reducedMotion],
-  )
-
   // FE-074: koneksi socket realtime DITUNDA sampai kebutuhan chat pertama.
   // Provider TETAP mount (layar chat mengandalkan context), tapi token hanya
   // diteruskan setelah pengguna masuk tab/room chat (`/chat*`). Latch tetap
