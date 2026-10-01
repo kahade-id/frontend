@@ -380,10 +380,17 @@ export function codeFromBackend(backendCode: string | undefined): ApiErrorCode |
   // Urutan penting: "INVALID_TOKEN" mengandung "VALID" — cek sesi dulu.
   // PIN_RATE_LIMITED dicek sebelum FORBIDDEN agar pesan klien yang jelas
   // (tunggu 15 menit) dipakai, bukan "tidak memiliki akses".
+  // BFI-XXX (2026-10-01): INVALID_CREDENTIALS / TOKEN_INVALID_OR_EXPIRED /
+  // INVALID_2FA_CODE juga mengandung "VALID" — tanpa ini login yang gagal
+  // terpetakan ke VALIDATION ("data belum benar") bukan UNAUTHORIZED
+  // ("username/kata sandi salah").
   if (k.includes("PIN") && k.includes("RATE_LIMIT")) return "PIN_RATE_LIMITED"
   if (
     k.includes("UNAUTHORIZED") ||
     k.includes("INVALID_TOKEN") ||
+    k.includes("TOKEN_INVALID") ||
+    k.includes("INVALID_CREDENTIALS") ||
+    k.includes("INVALID_2FA") ||
     k.includes("TOKEN_EXPIRED") ||
     k.includes("SESSION_EXPIRED")
   )
