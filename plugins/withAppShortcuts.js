@@ -22,13 +22,15 @@
  *     butuh drawable untuk tiap shortcut; menggambar glyph QR/chat/dompet
  *     sebagai vector manual rawan salah render di semua density. Ikon
  *     berbeda per shortcut = follow-up desain, bukan blokir rilis.
- *   - Label statis Bahasa Indonesia (bukan @string): shortcut launcher
- *     mengikuti locale sistem via resource — di luar cakupan item ini.
+ *   - Label Bahasa Indonesia statis sebagai string resource (@string) —
+ *     WAJIB @string karena AAPT menolak literal di shortcutShortLabel /
+ *     shortcutLongLabel; sekaligus membuka jalan lokalisasi nanti.
  */
 const {
   withAndroidManifest,
   withDangerousMod,
   withInfoPlist,
+  withStringsXml,
   AndroidConfig,
 } = require("@expo/config-plugins")
 const fs = require("fs")
@@ -60,14 +62,22 @@ const SHORTCUTS = [
   },
 ]
 
+// Nama string resource untuk label shortcut, mis. "kahade-scan" →
+// "app_shortcut_kahade_scan_short". Android MEWAJIBKAN
+// android:shortcutShortLabel / shortcutLongLabel berupa referensi
+// @string — literal langsung ditolak AAPT saat resource linking
+// (insiden 2026-10-01: build EAS gagal di :app:processReleaseResources).
+const resName = (id, kind) =>
+  `app_shortcut_${id.replace(/-/g, "_")}_${kind}`
+
 function shortcutsXml(packageName) {
   const items = SHORTCUTS.map(
     (s) => `  <shortcut
       android:shortcutId="${s.id}"
       android:enabled="true"
       android:icon="@mipmap/ic_launcher"
-      android:shortcutShortLabel="${s.shortLabel}"
-      android:shortcutLongLabel="${s.longLabel}">
+      android:shortcutShortLabel="@string/${resName(s.id, "short")}"
+      android:shortcutLongLabel="@string/${resName(s.id, "long")}">
     <intent
         android:action="android.intent.action.VIEW"
         android:targetPackage="${packageName}"
@@ -77,6 +87,26 @@ function shortcutsXml(packageName) {
   ).join("\n")
   return `<?xml version="1.0" encoding="utf-8"?>\n<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">\n${items}\n</shortcuts>\n`
 }
+
+/** Android: daftarkan label shortcut sebagai string resource di strings.xml. */
+const withShortcutStrings = (config) =>
+  withStringsXml(config, (config) => {
+    const strings = config.modResults.resources.string || []
+    const upsert = (name, value) => {
+      const existing = strings.find((s) => s.$ && s.$.name === name)
+      if (existing) {
+        existing._ = value
+      } else {
+        strings.push({ $: { name }, _: value })
+      }
+    }
+    for (const s of SHORTCUTS) {
+      upsert(resName(s.id, "short"), s.shortLabel)
+      upsert(resName(s.id, "long"), s.longLabel)
+    }
+    config.modResults.resources.string = strings
+    return config
+  })
 
 /** Android: tulis res/xml/shortcuts.xml ke proyek native. */
 const withShortcutsXml = (config) =>
@@ -141,6 +171,7 @@ const withIosQuickActions = (config) =>
 
 module.exports = function withAppShortcuts(config) {
   config = withShortcutsXml(config)
+  config = withShortcutStrings(config)
   config = withShortcutsManifest(config)
   config = withIosQuickActions(config)
   return config
