@@ -11,10 +11,12 @@
  *
  * Solusinya mengikuti preseden yang sudah ada di repo (`lib/registration.ts`,
  * tempToken 2FA di login): state alur disimpan di MEMORI modul, URL hanya
- * nama rute tanpa data. Konsekuensi yang diterima (sama seperti
- * registration state): reload web / restart app di tengah alur → state hilang
- * → layar OTP mengembalikan pengguna ke awal alur. Itu aman: OTP yang belum
- * diverifikasi memang tidak boleh bertahan dari sesi browser yang baru.
+ * nama rute tanpa data. Sejak 2026-10-01 state JUGA dipersist ke SecureStore
+ * (native) agar tahan restart aplikasi di tengah alur — skenario umum di
+ * Android saat user pindah ke WhatsApp untuk mengirim pesan pemicu lalu OS
+ * mematikan aplikasi di background. Tanpa persist, layar whatsapp-trigger /
+ * verify-otp kembali dengan state kosong dan menampilkan layar putih.
+ * Di web tetap memory-only (konsisten dengan registration state).
  *
  * Auth-rework: OTP HANYA via WhatsApp customer-initiated — tidak ada lagi
  * pilihan metode SMS/WhatsApp. `purpose` membedakan 4 alur yang memakai
@@ -24,6 +26,7 @@
  * Hanya SATU alur OTP aktif pada satu waktu; `setOtpFlow` menimpa sebelumnya.
  */
 import type { OtpTriggerPurpose } from "@/lib/api/auth"
+import { SecureKeys, deleteSecureItem, getSecureItem, setSecureItem } from "@/lib/secure-storage"
 
 export type OtpFlowPurpose = OtpTriggerPurpose
 
@@ -45,15 +48,23 @@ export type OtpFlowState = {
 }
 
 let state: OtpFlowState | null = null
+let hydrated = false
 
 /** Mulai/timpa alur OTP (dipanggil sebelum navigasi ke whatsapp-trigger). */
 export function setOtpFlow(next: OtpFlowState): void {
   state = { ...next }
+  // Persist agar tahan restart aplikasi di tengah alur (mis. user pindah ke
+  // WhatsApp lalu OS mematikan aplikasi di background). Fire-and-forget:
+  // layar membaca dari memori yang sudah sinkron.
+  void setSecureItem(SecureKeys.otpFlow, JSON.stringify(state)).catch(() => {})
 }
 
 /** Perbarui sebagian alur (mis. hasil requestOtpTrigger saat kirim ulang). */
 export function patchOtpFlow(patch: Partial<OtpFlowState>): void {
-  if (state) state = { ...state, ...patch }
+  if (state) {
+    state = { ...state, ...patch }
+    void setSecureItem(SecureKeys.otpFlow, JSON.stringify(state)).catch(() => {})
+  }
 }
 
 /** Baca alur aktif — `null` bila tidak ada (deep-link/reload tanpa alur). */
@@ -61,12 +72,39 @@ export function getOtpFlow(): OtpFlowState | null {
   return state
 }
 
+/**
+ * Pulihkan alur OTP dari penyimpanan persisten (dipanggil sekali saat
+ * startup aplikasi, sebelum layar auth dirender). Tanpa ini, restart di
+ * tengah alur (umum di Android saat user pindah ke WhatsApp) membuat layar
+ * whatsapp-trigger/verify-otp kehilangan state dan menampilkan layar putih.
+ */
+export async function initOtpFlow(): Promise<void> {
+  if (hydrated) return
+  hydrated = true
+  try {
+    const raw = await getSecureItem(SecureKeys.otpFlow)
+    if (raw) {
+      const parsed = JSON.parse(raw) as OtpFlowState
+      // Validasi minimal: tanpa phoneNumber + purpose, state tidak berguna.
+      if (parsed && typeof parsed.phoneNumber === "string" && typeof parsed.purpose === "string") {
+        state = parsed
+      } else {
+        void deleteSecureItem(SecureKeys.otpFlow).catch(() => {})
+      }
+    }
+  } catch {
+    // Gagal baca = anggap tidak ada alur; layar akan mengarahkan ke awal.
+  }
+}
+
 /** Hapus alur — setelah verifikasi sukses atau pengguna membatalkan. */
 export function clearOtpFlow(): void {
   state = null
+  void deleteSecureItem(SecureKeys.otpFlow).catch(() => {})
 }
 
 /** Reset memori (dipakai test). */
 export function resetOtpFlowForTest(): void {
   state = null
+  hydrated = false
 }

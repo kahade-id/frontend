@@ -118,6 +118,7 @@ import {
 import { userMessage } from "@/lib/api/errors"
 import { setPendingNext } from "@/lib/login-redirect"
 import { initConnectivity } from "@/lib/connectivity"
+import { initOtpFlow } from "@/lib/otp-flow"
 import {
   initOfflineQueue,
   onSocialActionQueued,
@@ -198,6 +199,10 @@ function afterFirstPaint(cb: () => void): () => void {
  * untuk `pendingNext`. Template segmen dinamis ("/order/[id]") disubstitusi
  * dari `params`; bila ada segmen yang tak terisi → null (login redirect
  * tidak boleh mendarat di 404).
+ *
+ * PERF-FIX (P2 nav): hasil di-cache per href+params — fungsi ini dipanggil di
+ * jalur panas tap notifikasi; regex substitusi tidak perlu diulang untuk
+ * input yang sama.
  */
 // PERF-FIX (P2 nav): cache konkretisasi href — regex + encodeURIComponent
 // tidak diulang untuk href objek identik yang muncul di tiap render (deep
@@ -205,6 +210,20 @@ function afterFirstPaint(cb: () => void): () => void {
 // yang valid ikut ter-cache.
 const concretePathCache = new Map<string, string | null>()
 function hrefToConcretePath(href: Href): string | null {
+  const cacheKey =
+    typeof href === "string"
+      ? `s:${href}`
+      : `o:${(href as { pathname?: unknown }).pathname ?? ""}:${JSON.stringify((href as { params?: unknown }).params ?? {})}`
+  const cached = concretePathCache.get(cacheKey)
+  if (cached !== undefined) return cached
+  const result = hrefToConcretePathUncached(href)
+  // Batas kecil: jumlah href unik di jalur notifikasi terbatas.
+  if (concretePathCache.size > 100) concretePathCache.clear()
+  concretePathCache.set(cacheKey, result)
+  return result
+}
+
+function hrefToConcretePathUncached(href: Href): string | null {
   if (typeof href === "string") return href || null
   const obj = href as { pathname?: unknown; params?: unknown }
   if (typeof obj.pathname !== "string" || !obj.pathname) return null
@@ -242,10 +261,31 @@ export default function RootLayout() {
     installSentrySink()
   }, [])
 
+  // Pulihkan state alur OTP dari SecureStore (tahan restart di tengah alur —
+  // mis. user pindah ke WhatsApp lalu OS mematikan aplikasi di background).
+  // Dijalankan paralel dengan font loading; `ready` menunggu keduanya agar
+  // layar whatsapp-trigger/verify-otp tidak mount dengan state kosong.
+  const [otpFlowReady, setOtpFlowReady] = useState(false)
+  useEffect(() => {
+    let alive = true
+    void initOtpFlow()
+      .catch(() => {})
+      .finally(() => {
+        if (alive) setOtpFlowReady(true)
+      })
+    return () => {
+      alive = false
+    }
+  }, [])
+
   // Web tidak memakai splash/onboarding ala aplikasi: tree langsung
   // dirender (font web ber-FOUT singkat; overlay JS justru terasa situs
   // loading). Native tetap menunggu font siap di balik AnimatedSplash.
-  const ready = Platform.OS === "web" || fontsLoaded || fontError != null
+  // otpFlowReady: jangan render rute sampai state alur OTP dipulihkan —
+  // mencegah layar whatsapp-trigger/verify-otp mount dengan state kosong
+  // (layar putih) setelah restart di tengah alur.
+  const ready =
+    (Platform.OS === "web" || fontsLoaded || fontError != null) && otpFlowReady
   const [splashDone, setSplashDone] = useState(Platform.OS === "web")
 
   // REVISI 2026-09-30: tidak ada lagi font lazy — `fontAssetsDeferred`
@@ -404,6 +444,26 @@ function AppShellInner() {
     if (session.token) setLockGateNeeded(true)
   }, [session.token])
 
+  // PERF-FIX (P2 nav): memoize daftar Stack.Screen (~100 entri) agar tidak
+  // dihitung ulang tiap render AppShellInner. getId untuk rute dinamis
+  // mencegah penumpukan instance (A→B→A); durasi animasi adaptif untuk
+  // layar berat (thin shell + lazy).
+  const authenticatedScreens = useMemo(
+    () =>
+      AUTHENTICATED_SCREENS.map((name) => (
+        <Stack.Screen
+          key={name}
+          name={name}
+          getId={getScreenId(name)}
+          options={{
+            // v2: push vs modal-like vs list→detail (lib/screen-transitions).
+            animation: animationForScreen(name, reducedMotion),
+            animationDuration: animationDurationForScreen(name),
+          }}
+        />
+      )),
+    [reducedMotion],
+  )
 
   // Efek dorong konten ala X saat drawer dibuka (2026-09-27): konten sedikit
   // bergeser kanan + mengecil dengan sudut membulat, mengikuti progress

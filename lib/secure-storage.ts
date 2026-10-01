@@ -254,6 +254,16 @@ export const SecureKeys = {
    * Preferensi perangkat non-sensitif: persist di web, TIDAK ikut clearSession.
    */
   fontScale: "kahade.ui.fontScale",
+  /**
+   * State alur OTP (JSON — lib/otp-flow.ts). Disimpan agar tahan restart
+   * aplikasi di tengah alur (mis. user pindah ke WhatsApp lalu Android
+   * mematikan aplikasi di background): tanpa ini layar whatsapp-trigger /
+   * verify-otp kembali dengan state kosong dan menampilkan layar putih.
+   * Berisi nomor HP + refCode + whatsappUrl — bukan rahasia (setara data yang
+   * dulu dilewatkan via URL); memory-only di web (konsisten dengan
+   * registration/password-reset state). Dihapus saat alur selesai/dibatalkan.
+   */
+  otpFlow: "kahade.auth.otpFlow",
 } as const
 
 export type SecureKey = (typeof SecureKeys)[keyof typeof SecureKeys]
