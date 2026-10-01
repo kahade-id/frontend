@@ -104,23 +104,58 @@ bytecode AAR 57.0.2. Perbandingan dengan 57.0.3 vs core 57.0.20 dipakai sebagai
 **kontrol**: bila metode analisis salah, kontrol ini juga akan melaporkan
 banyak kelas hilang — ternyata bersih.
 
-### 2.4 Modul diinisialisasi saat startup (bukan saat dipakai)
+### 2.4 Modul diinisialisasi di native, saat startup, sebelum JS (rantai lengkap)
 
 ```kotlin
-// ModuleRegistry.kt
+// ModuleRegistry.kt:44-48
 fun register(provider: ModulesProvider) = apply {
   provider.getModulesList().forEach { type ->
-    val module = type.getDeclaredConstructor().newInstance()
+    val module = type.getDeclaredConstructor().newInstance()   // instansiasi SEMUA modul
     register(module)
   }
 }
-// ModuleHolder.kt:22
-val definition = module.definition()
+// ModuleHolder.kt:22  (properti → jalan dari konstruktor ModuleHolder)
+val definition = module.definition()                            // jalankan definition() modul
 ```
 
-`ModuleHolder` membuat `definition` sebagai properti — dipanggil dari
-konstruktornya, yaitu pada saat registrasi modul di awal hidup aplikasi. Jadi
-crash tidak menunggu layar yang memakai document-picker.
+```kotlin
+// AppContext.kt:120  (dipanggil dari blok init AppContext)
+registry.register(modulesProvider)
+```
+
+Rantai lengkapnya (semuanya native, main thread):
+
+```
+RN membuat React instance
+  └─ ModuleRegistryAdapter.createNativeModules()          // ReactPackage, dipanggil RN di init instance
+       └─ new NativeModulesProxy(...)
+            └─ new KotlinInteropModuleRegistry(...)
+                 └─ AppContext(...)                        // blok init
+                      └─ registry.register(modulesProvider) // AppContext.kt:120
+                           └─ type.newInstance() + ModuleHolder(module)
+                                └─ module.definition()      // ModuleHolder.kt:22
+                                     └─ (AAR SDK 57) memanggil
+                                        expo.modules.kotlin.types.descriptors.TypeDescriptor / AnyTypeCache
+                                          => NoClassDefFoundError / NoSuchMethodError
+```
+
+Poin penting: **tidak ada JS yang berjalan** di rantai ini. JS bundle baru dieksekusi
+setelah registry selesai dibangun (`loadReactNative` → bundle dievaluasi → baru
+`app/_layout.tsx`). Karena itu crash terjadi saat splash masih tampil dan tidak
+mungkin ditangkap `ErrorBoundary` JS.
+
+### 2.5 Penyapuan seluruh modul terpasang
+
+Metode §2.3 dijalankan atas **27 AAR** modul Expo yang terpasang:
+
+- sebelum perbaikan: hanya `expo-document-picker@57.0.2` yang merujuk kelas core
+  yang benar-benar tidak ada (`AnyTypeCache`, `types.descriptors.TypeDescriptor`,
+  `TypeDescriptorKt`, `TypeDescriptorOfKt`);
+- sesudah perbaikan (§4): **0 modul** (sisa temuan hanyalah nested class /
+  `$DefaultImpls` / `Companion` yang tidak bisa direpresentasikan alat ukur).
+
+Artinya modul ini satu-satunya sumber mismatch, konsisten dengan crash yang
+muncul tepat setelah paket jalur SDK 57 masuk ke dependency.
 
 ### 2.5 Yang sudah dikecualikan (jangan diulang)
 
@@ -201,4 +236,34 @@ hanya benar di SDK 54. Inilah satu-satunya akar masalah crash ini.
 4. Pencegahan agar tidak terulang: `npm run check` **tidak** menyentuh native.
    Tambahkan gate murah yang membandingkan `package.json` dengan
    `bundledNativeModules.json` (bisa dijalankan offline, tanpa ekspo.dev) ke
-   `scripts/` dan ke `npm run check`.
+   `scripts/` dan ke `npm run check` — sudah dikerjakan:
+   `scripts/check-sdk-contract.mjs` + `npm run check:sdk`.
+
+## 7. Prediksi log (falsifiable)
+
+Diagnosis §1 bisa diuji. Crash ini termasuk kelas **native Java/Kotlin**, bukan
+JS, jadi di logcat bentuknya:
+
+```
+FATAL EXCEPTION: main
+java.lang.NoClassDefFoundError: expo.modules.kotlin.types.descriptors.TypeDescriptor
+   (atau NoSuchMethodError / NoClassDefFoundError: expo.modules.kotlin.types.AnyTypeCache)
+  at expo.modules.documentpicker.DocumentPickerModule.definition(...)
+  at expo.modules.kotlin.ModuleHolder.<init>(ModuleHolder.kt:22)
+  at expo.modules.kotlin.ModuleRegistry.register(ModuleRegistry.kt:...)
+  at expo.modules.kotlin.AppContext.<init>(AppContext.kt:120)
+  at expo.modules.kotlin.KotlinInteropModuleRegistry.<init>(...)
+  at expo.modules.adapters.react.NativeModulesProxy.<init>(...)
+  at expo.modules.adapters.react.ModuleRegistryAdapter.createNativeModules(...)
+```
+
+Catatan pembeda: kalau yang muncul justru tombstone (`SIGSEGV`/`SIGABRT`,
+`libhermes`/`libjsi`/`libreanimated`/`libworklets`), berarti kelas crash-nya
+berbeda (native C++/JSI, bukan ART). Pada kasus itu langkah selanjutnya adalah
+log tombstone dari bug report — tetapi mismatch dependensi di §2.3 tetap harus
+diperbaiki lebih dulu, karena ia pasti mematikan aplikasi apa pun yang dibangun
+dari manifest tersebut.
+
+Jika setelah build ulang (SDK 54 yang sudah diselaraskan, atau SDK 57) aplikasi
+**tidak** force close lagi, hipotesis §1 terkonfirmasi; bila masih force close,
+prediksi di atas terbantah dan log tombstone-lah yang menentukan arah berikutnya.
