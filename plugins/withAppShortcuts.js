@@ -106,8 +106,13 @@ const withShortcutsXml = (config) =>
 /** Android: daftarkan shortcuts.xml di MainActivity via meta-data. */
 const withShortcutsManifest = (config) =>
   withAndroidManifest(config, (config) => {
-    const manifest = config.modResults.manifest
-    const mainActivity = AndroidConfig.Manifest.getMainActivityOrThrow(manifest)
+    // CATATAN: getMainActivityOrThrow menerima SELURUH modResults
+    // ({ manifest: {...} }), BUKAN config.modResults.manifest yang sudah
+    // di-unwrap satu level (itu membuat lookup `manifest.application`
+    // gagal → prebuild EAS selalu error "missing MainActivity").
+    const mainActivity = AndroidConfig.Manifest.getMainActivityOrThrow(
+      config.modResults,
+    )
     const META_NAME = "android.app.shortcuts"
     mainActivity["meta-data"] = mainActivity["meta-data"] || []
     const exists = mainActivity["meta-data"].some(
