@@ -42,16 +42,12 @@ if (config.runtimeVersion?.policy !== "fingerprint")
   problems.push(
     "Gunakan runtime fingerprint untuk mencegah OTA lintas native binary yang tidak kompatibel.",
   )
-// SEC-401: EAS Update code signing wajib aktif — tanpa ini siapa pun yang
-// memegang akses proyek EAS bisa menerbitkan bundle JS berbahaya yang
-// terinstal otomatis (checkAutomatically: ON_LOAD).
+// SEC-401: EAS Update code signing DINONAKTIFKAN sementara (1 Okt 2026) —
+// butuh EAS Enterprise plan yang belum ada. Tanpa code signing, OTA tetap
+// jalan tapi tanpa verifikasi tanda tangan. Aktifkan lagi setelah upgrade.
 const codeSigningCertificate = config.updates?.codeSigningCertificate
 const codeSigningMetadata = config.updates?.codeSigningMetadata
-if (typeof codeSigningCertificate !== "string" || !codeSigningCertificate.trim()) {
-  problems.push(
-    "SEC-401: EAS Update code signing belum aktif — updates.codeSigningCertificate belum diset di app config.",
-  )
-} else {
+if (typeof codeSigningCertificate === "string" && codeSigningCertificate.trim()) {
   const certPath = fileURLToPath(
     new URL(`../${codeSigningCertificate.replace(/^\.\//, "")}`, import.meta.url),
   )
@@ -59,14 +55,19 @@ if (typeof codeSigningCertificate !== "string" || !codeSigningCertificate.trim()
     problems.push(
       `SEC-401: sertifikat code signing tidak ditemukan di ${codeSigningCertificate} (relatif ke root proyek).`,
     )
-}
-if (
-  typeof codeSigningMetadata?.keyid !== "string" ||
-  !codeSigningMetadata.keyid ||
-  codeSigningMetadata.alg !== "rsa-v1_5-sha256"
-) {
-  problems.push(
-    "SEC-401: updates.codeSigningMetadata harus berisi keyid + alg rsa-v1_5-sha256.",
+  if (
+    typeof codeSigningMetadata?.keyid !== "string" ||
+    !codeSigningMetadata.keyid ||
+    codeSigningMetadata.alg !== "rsa-v1_5-sha256"
+  ) {
+    problems.push(
+      "SEC-401: updates.codeSigningMetadata harus berisi keyid + alg rsa-v1_5-sha256.",
+    )
+  }
+} else {
+  // Code signing mati — catat sebagai warning, bukan blocker.
+  console.warn(
+    "PERINGATAN: EAS Update code signing nonaktif — OTA tanpa verifikasi tanda tangan.",
   )
 }
 if (!config.version || !/^\d+\.\d+\.\d+$/.test(config.version))
