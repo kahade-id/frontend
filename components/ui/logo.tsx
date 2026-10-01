@@ -20,7 +20,8 @@
  *     SVG `fill` bukan style yang bisa di-className. Tone default = `primary`
  *     (hitam di light, putih di dark — logo sebagai "otoritas" §1.1); tone
  *     "inverse" = `primaryForeground` untuk logo di atas bg-primary (hero
- *     saldo, card inverted §9.6).
+ *     saldo, card inverted §9.6); "brand" menampilkan path pertama kuning
+ *     dan path kedua mengikuti foreground mode-aware pada zigzag resmi.
  *   - `assets/brand/logo-paths.ts` sengaja tidak menyimpan warna; JANGAN
  *     menambahkan fill di sana.
  *   - Tidak pakai <Text> RN langsung — tetap lewat wrapper (§3 fixed scale).
@@ -33,11 +34,11 @@ import { LOGO_PATHS, LOGO_VIEWBOX } from "@/assets/brand/logo-paths"
 import { useTheme } from "@/components/theme-provider"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
-import { tokens } from "@/lib/tokens"
+import { brand as brandTokens, tokens } from "@/lib/tokens"
 
 export type LogoSize = "sm" | "md" | "lg"
 export type LogoVariant = "mark" | "wordmark" | "lockup"
-export type LogoTone = "default" | "inverse"
+export type LogoTone = "default" | "inverse" | "brand"
 
 export type LogoProps = Omit<ViewProps, "children"> & {
   variant?: LogoVariant
@@ -78,6 +79,21 @@ export function LogoMark({ size, fill }: { size: number; fill: string }) {
   )
 }
 
+function BrandLogoMark({ size, foreground }: { size: number; foreground: string }) {
+  return (
+    <Svg width={size} height={size} viewBox={LOGO_VIEWBOX}>
+      {LOGO_PATHS.map((path, index) => (
+        <Path
+          key={index}
+          d={path.d}
+          transform={path.transform}
+          fill={index === 0 ? brandTokens.yellow : foreground}
+        />
+      ))}
+    </Svg>
+  )
+}
+
 export function Logo({
   variant = "mark",
   size = "md",
@@ -100,6 +116,8 @@ export function Logo({
       contentFit="contain"
       style={{ width: px, height: px }}
     />
+  ) : tone === "brand" ? (
+    <BrandLogoMark size={px} foreground={fill} />
   ) : (
     <LogoMark size={px} fill={fill} />
   )

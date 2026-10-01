@@ -33,10 +33,8 @@ export type DrawerMenuMeta = {
  * hanya bisa dibuka dari CTA di detail order; kini ada pintu masuk tetap
  * di navigasi utama.
  *
- * UX-NAV-003: "Laporan Saya" (bukan "Laporan & Analitik") — menuju /reports
- * (daftar laporan konten milik saya). Dasbor angka tetap "Laporan &
- * Analitik" di Pengaturan (→ /analytics). Dua label berbeda untuk dua
- * layar berbeda.
+ * Menu "Laporan & analitik" menuju dashboard analytics (/analytics), bukan
+ * daftar laporan konten (/reports).
  */
 export const MAIN_MENU_META: readonly DrawerMenuMeta[] = [
   { id: "profile", label: "Lihat Profil", accessibilityLabel: "Lihat profil saya" },
@@ -50,8 +48,9 @@ export const MAIN_MENU_META: readonly DrawerMenuMeta[] = [
   { id: "order-links", label: "Tautan Pesanan", href: ROUTES.orderLinks, accessibilityLabel: "Buka tautan pesanan" },
   // UX-NAV-002: pintu masuk tetap ke daftar sengketa.
   { id: "disputes", label: "Sengketa Saya", href: ROUTES.disputes, accessibilityLabel: "Buka sengketa saya" },
-  // UX-NAV-003: "Laporan Saya" (→ /reports), bukan "Laporan & Analitik".
-  { id: "reports", label: "Laporan Saya", href: ROUTES.reports(), accessibilityLabel: "Buka laporan saya" },
+  // Menu laporan utama membuka dashboard analitik; daftar laporan konten
+  // tetap tersedia melalui rute /reports yang memang khusus untuk laporan.
+  { id: "reports", label: "Laporan & Analitik", href: ROUTES.analytics, accessibilityLabel: "Laporan & Analitik" },
 ]
 
 /**

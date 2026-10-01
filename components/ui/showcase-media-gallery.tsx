@@ -1,4 +1,4 @@
-/** Shared, keyboard-operable media pager. At most eight images per item.
+/** Shared, swipeable media pager. At most eight images per item.
  *
  * B-01 (audit 2026-09-23): hanya slide aktif ±1 yang me-render konten —
  * slide lain jadi placeholder seukuran. Dulu SEMUA foto ter-mount per kartu
@@ -15,9 +15,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { ScrollView, View, type LayoutChangeEvent, type NativeScrollEvent, type NativeSyntheticEvent } from "react-native"
-import { CaretLeft, CaretRight, Play, SpeakerHigh, SpeakerSimpleX } from "phosphor-react-native"
-import { cn } from "@/lib/cn"
-import { brand } from "@/lib/tokens"
+import { Play, SpeakerHigh, SpeakerSimpleX } from "phosphor-react-native"
 import { Picture } from "@/components/ui/picture"
 import { FeedVideo } from "@/components/ui/feed-video"
 import { Icon } from "@/components/ui/icon"
@@ -117,11 +115,6 @@ export function ShowcaseMediaGallery({ media, title, onOpen, onDoubleTap, autopl
       dataSaver,
     )
   }, [page, media, dataSaver])
-  const move = (index: number) => {
-    const next = Math.max(0, Math.min(media.length - 1, index))
-    setPage(next)
-    scroll.current?.scrollTo({ x: next * width, animated: false })
-  }
   /**
    * Ketuk pada slide: deteksi ketuk-ganda manual (bukan RNGH) supaya tidak
    * berebut gesture dengan ScrollView paging horizontal di bawahnya — pola
@@ -295,64 +288,7 @@ export function ShowcaseMediaGallery({ media, title, onOpen, onDoubleTap, autopl
           </Text>
         </View>
       ) : null}
-      {media.length > 1 ? (
-        // B-11 (audit 2026-09-23): kontrol + indikator TITIK di-overlay di
-        // kaki gambar (scrim hitam kedua mode, sama dengan "+N" pada
-        // <ShowcaseGalleryGrid>) — dulu baris terpisah di bawah gambar membuat
-        // tiap kartu multi-foto ±44px lebih tinggi dan tanpa indikator titik.
-        // Panah tetap ada → keyboard/screen-reader tetap bisa berpindah slide.
-        // Putih eksplisit di atas scrim hitam (pengecualian terdokumentasi,
-        // lihat DARK_ALLOWLIST check-tokens) — `tone="inverse"` bukan putih di
-        // dark mode.
-        <View className="absolute inset-x-0 bottom-0 flex-row items-center justify-between bg-overlay-media px-1.5 py-1">
-          <PressableScale
-            accessibilityRole="button"
-            accessibilityLabel={translate("Media sebelumnya")}
-            disabled={page === 0}
-            onPress={() => move(page - 1)}
-            // UX-TCH-001: target sentuh 44pt (min-h-11/min-w-11), konsisten
-            // dengan titik indikator di sebelahnya.
-            containerClassName="min-h-11 min-w-11 items-center justify-center rounded-full"
-          >
-            <CaretLeft size={18} color={brand.white} weight="bold" />
-          </PressableScale>
-          <View className="flex-row items-center gap-3">
-            {/* Item 155 (FE-IMP-1): titik indikator BISA diketuk → lompat ke
-                slide. Dulu <View> mati (hanya panah yang bisa dipakai).
-                Parent SENGAJA tidak `accessible`: di iOS itu mengelompokkan
-                anak dan menyembunyikan tiap tombol dari VoiceOver — posisi
-                dibaca lewat label tiap titik. */}
-            <View className="flex-row items-center gap-1.5">
-              {media.map((m, index) => (
-                <PressableScale
-                  key={`dot-${m.id}`}
-                  accessibilityRole="button"
-                  accessibilityLabel={translate("Ke media {x}", { x: index + 1 })}
-                  accessibilityState={{ selected: index === page }}
-                  onPress={() => move(index)}
-                  containerClassName="min-h-11 min-w-11 items-center justify-center rounded-full"
-                  className={cn(
-                    "h-1.5 rounded-full",
-                    index === page ? "w-4 bg-white" : "w-1.5 bg-white opacity-40",
-                  )}
-                />
-              ))}
-            </View>
 
-          </View>
-          <PressableScale
-            accessibilityRole="button"
-            accessibilityLabel={translate("Media berikutnya")}
-            disabled={page >= media.length - 1}
-            onPress={() => move(page + 1)}
-            // UX-TCH-002: target sentuh 44pt (min-h-11/min-w-11), konsisten
-            // dengan titik indikator di sebelahnya.
-            containerClassName="min-h-11 min-w-11 items-center justify-center rounded-full"
-          >
-            <CaretRight size={18} color={brand.white} weight="bold" />
-          </PressableScale>
-        </View>
-      ) : null}
     </View>
   )
 }

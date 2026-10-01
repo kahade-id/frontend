@@ -2756,9 +2756,9 @@ export default function ChatRoomScreen() {
   const threadListHeader = useMemo(
     () =>
       messages.length > 0 ? (
-        // px-5: kompensasi gutter list yang dihapus (lihat atas) —
-        // tombol "Muat pesan sebelumnya" tetap sejajar dengan bubble.
-        <View style={{ paddingTop: tokens.space[3] }} className="px-5">
+        // Gutter horizontal sejajar dengan bubble; tanpa padding atas agar
+        // baris pertama percakapan tidak menyisakan gap putih di bawah header.
+        <View className="px-5">
           <LoadMore
             status={olderStatus}
             onLoadMore={() => void loadOlder()}

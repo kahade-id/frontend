@@ -1073,51 +1073,17 @@ function ShowcaseDetailContent({
         likeCount={likeCount}
         likePending={likePending}
         onToggleLike={toggleLike}
+        onShowLikers={() => setLikersSheetTab("likers")}
         commentTotal={commentTotal}
         onCommentPress={focusComposer}
         saved={saved}
         savedPending={savedPending}
         onToggleSave={toggleSave}
+        onShowSavers={isOwner ? () => setLikersSheetTab("savers") : undefined}
         onShare={() => void share()}
       />
-      {/* Kontrak final Tim A #4/#5 (2026-09-28): hitungan suka & simpan dari
-          server — ketuk untuk membuka daftar penyuka/penyimpan. */}
-      <View className="flex-row items-center px-5 pt-1">
-        <PressableScale
-          accessibilityRole="button"
-          accessibilityLabel={translate("Lihat penyuka")}
-          onPress={() => setLikersSheetTab("likers")}
-          className="py-1 pr-1"
-        >
-          <Text variant="bodySmall" tone="secondary" className="tabular-nums">
-            {translate("{x} suka", { x: formatNumber(likeCount) })}
-          </Text>
-        </PressableScale>
-        <Text variant="bodySmall" tone="tertiary" className="px-1">
-          {"·"}
-        </Text>
-        {/* Kontrak final Tim A #4/#5 (2026-09-28): hitungan suka & simpan dari
-            server — ketuk untuk membuka daftar penyuka/penyimpan.
-            Tab Disimpan hanya untuk pemilik (fail closed: savers 403) —
-            non-pemilik hanya melihat angka sebagai teks statis. */}
-        {isOwner ? (
-          <PressableScale
-            accessibilityRole="button"
-            accessibilityLabel={translate("Lihat penyimpan")}
-            onPress={() => setLikersSheetTab("savers")}
-            className="py-1 pl-1"
-          >
-            <Text variant="bodySmall" tone="secondary" className="tabular-nums">
-              {translate("{x} menyimpan", { x: formatNumber(saveCount) })}
-            </Text>
-          </PressableScale>
-        ) : (
-          <Text variant="bodySmall" tone="secondary" className="py-1 pl-1 tabular-nums">
-            {translate("{x} menyimpan", { x: formatNumber(saveCount) })}
-          </Text>
-        )}
-      </View>
-      {/* DC-008: metrik share dari backend — tampil ringan bila ada. */}
+      {/* Daftar penyuka/penyimpan dibuka dengan long-press pada aksi suka/simpan.
+          DC-008: metrik share dari backend — tampil ringan bila ada. */}
       {(item.shareCount ?? 0) > 0 ? (
         <Text variant="caption" tone="tertiary" className="px-5">
           {translate("{x} kali dibagikan", { x: formatNumber(item.shareCount ?? 0) })}

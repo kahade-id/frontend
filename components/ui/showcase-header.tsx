@@ -3,17 +3,14 @@
  *
  * Layout (revisi 2026-09-28, permintaan produk):
  *
- *      [ = menu ]  [ (logo) ]  [ 🔍 cari ] [ + buat ]
- *      [ tab feed: Untuk Anda · Mengikuti · Terbaru · Populer ]
+ *      [ = menu ]  [ zigzag Kahade ]  [ + buat ]
+ *      [ tab feed: Untuk Anda · Mengikuti · Terbaru · Populer · filter ]
  *
  *   1. Baris atas: equal (BUKA DRAWER) di kiri, logo Kahade tepat di tengah,
- *      kanan = pencarian global + (+) "Buat baru". T5-004 (audit UI/UX
- *      intuitif 2026-09-29): ikon kaca pembesar KEMBALI ke header — langsung
- *      membuka /search (drawer tetap jadi pintu kedua, bukan satu-satunya).
- *      (+) membuka sheet global "Buat baru" (Buat Karya → /showcase/create,
- *      Buat transaksi, Isi saldo dompet). Ikon memakai weight "regular"
- *      (BUKAN bold/fill) dan TANPA background.
- *      Glif: Equals, MagnifyingGlass, dan Plus.
+ *      dan (+) "Buat baru" di kanan. (+) membuka sheet global "Buat baru"
+ *      (Buat Karya → /showcase/create, Buat transaksi, Isi saldo dompet).
+ *      Ikon memakai weight "regular" (BUKAN bold/fill) dan TANPA background.
+ *      Filter Etalase berada di samping tab "Populer".
  *   2. Sheet "Buat baru" adalah komponen global reusable (<CreateSheet>,
  *      dibuka via `openCreateSheet()` dari `lib/create-sheet`) — satu pintu
  *      pembuatan untuk seluruh app, diakses dari (+) header Etalase dan
@@ -33,7 +30,6 @@ import {
   ClockCounterClockwise,
   Equals,
   Funnel,
-  MagnifyingGlass,
   Plus,
   Sparkle,
   TrendUp,
@@ -41,7 +37,6 @@ import {
 } from "phosphor-react-native"
 import { useRef } from "react"
 import type { View as RNView } from "react-native"
-import { useRouter } from "expo-router"
 
 import { openCreateSheet } from "@/lib/create-sheet"
 import { openDrawer } from "@/lib/drawer"
@@ -49,13 +44,11 @@ import { cn } from "@/lib/cn"
 import { hitSlopToReach } from "@/lib/hit-slop"
 import { focusRing } from "@/lib/focus-ring"
 import { translate } from "@/lib/i18n"
-import { ROUTES } from "@/lib/routes"
 
 import { Logo } from "@/components/ui/logo"
 import { Icon } from "@/components/ui/icon"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Tabs } from "@/components/ui/tabs"
-import { Text } from "@/components/ui/text"
 import type { IconComponent } from "@/components/ui/icon"
 
 export type ShowcaseFeedKind = "forYou" | "following" | "latest" | "popular"
@@ -65,9 +58,8 @@ export type ShowcaseHeaderProps = {
   onKindChange: (k: ShowcaseFeedKind) => void
   tabs: readonly { value: ShowcaseFeedKind; label: string }[]
   /**
-   * Kontrak final Tim A #D (2026-09-28): bila diisi, tombol funnel filter
-   * tampil di kanan header (sebelum tombol +). Opsional — pemakai lama
-   * tidak terpengaruh.
+   * Bila diisi, tombol funnel tampil sebagai aksi terpisah di tab Populer.
+   * Opsional — pemakai lama tanpa filter tidak terpengaruh.
    */
   onFilterPress?: () => void
   /** Jumlah filter aktif — badge di tombol funnel (0/sembunyi = tidak ada). */
@@ -89,10 +81,9 @@ export function ShowcaseHeader({ kind, onKindChange, tabs, onFilterPress, filter
   // Ref tombol (+) buat karya — View pembungkus (bukan PressableScale)
   // supaya ref selalu ke host View yang terukur.
   const createRef = useRef<RNView>(null)
-  const router = useRouter()
   return (
     <View className="bg-background">
-      {/* ── Baris atas: menu (hamburger) · logo · cari ── */}
+      {/* ── Baris atas: menu (hamburger) · logo · buat baru ── */}
       <View className="w-full flex-row items-center justify-between px-5 pb-2.5 pt-3">
         {/*
           Tombol menu = BUKA DRAWER/SIDEBAR (revisi 2026-09-27): ikon Equal
@@ -120,54 +111,11 @@ export function ShowcaseHeader({ kind, onKindChange, tabs, onFilterPress, filter
           accessibilityLabel="Kahade"
           className="flex-1 items-center"
         >
-          <Logo variant="mark" size="md" />
+          <Logo variant="mark" size="md" tone="brand" />
         </View>
 
-        {/* Kanan: cari + filter (opsional) + buat baru.
-            T5-004 (audit UI/UX intuitif 2026-09-29): ikon kaca pembesar
-            kembali ke header — ketuk langsung membuka pencarian global
-            (/search). Drawer tetap jadi pintu kedua. */}
-        <View className="flex-row items-center justify-end gap-1 min-w-[84px]">
-          <PressableScale
-            accessibilityRole="button"
-            accessibilityLabel={translate("Cari")}
-            accessibilityHint={translate("Buka pencarian barang dan pengguna")}
-            haptic
-            hitSlop={ACTION_HIT_SLOP}
-            onPress={() => router.push(ROUTES.search)}
-            containerClassName={cn("rounded-md", focusRing)}
-            className="h-10 w-10 items-center justify-center"
-          >
-            <Icon icon={MagnifyingGlass} size="md" weight="regular" tone="active" />
-          </PressableScale>
-          {onFilterPress ? (
-            <PressableScale
-              accessibilityRole="button"
-              accessibilityLabel={translate("Filter etalase")}
-              accessibilityHint={translate("Buka filter kondisi, rating, dan harga")}
-              haptic
-              hitSlop={ACTION_HIT_SLOP}
-              onPress={onFilterPress}
-              containerClassName={cn("rounded-md", focusRing)}
-              className="h-10 w-10 items-center justify-center"
-            >
-              <View>
-                <Icon
-                  icon={Funnel}
-                  size="md"
-                  weight={filterBadgeCount > 0 ? "fill" : "regular"}
-                  tone="active"
-                />
-                {filterBadgeCount > 0 ? (
-                  <View className="absolute -right-1 -top-1 h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1">
-                    <Text variant="caption" tone="inverse" className="tabular-nums">
-                      {filterBadgeCount}
-                    </Text>
-                  </View>
-                ) : null}
-              </View>
-            </PressableScale>
-          ) : null}
+        {/* Kanan: tombol buat baru; bidang search tersedia di sidebar. */}
+        <View className="flex-row items-center justify-end min-w-[84px]">
           <View ref={createRef} collapsable={false}>
             <PressableScale
               accessibilityRole="button"
@@ -187,7 +135,22 @@ export function ShowcaseHeader({ kind, onKindChange, tabs, onFilterPress, filter
 
       {/* ── Strip tab feed ── */}
       <Tabs
-        items={tabs.map((tab) => ({ ...tab, icon: TAB_ICONS[tab.value], label: translate(tab.label) }))}
+        items={tabs.map((tab) => ({
+          ...tab,
+          icon: TAB_ICONS[tab.value],
+          label: translate(tab.label),
+          ...(tab.value === "popular" && onFilterPress
+            ? {
+                trailingAction: {
+                  icon: Funnel,
+                  accessibilityLabel: translate("Filter etalase"),
+                  accessibilityHint: translate("Buka filter kondisi, rating, dan harga"),
+                  onPress: onFilterPress,
+                  badgeCount: filterBadgeCount,
+                },
+              }
+            : {}),
+        }))}
         value={kind}
         onChange={onKindChange}
         scrollable

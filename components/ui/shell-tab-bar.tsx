@@ -121,8 +121,6 @@ export function ShellTabBar() {
         icon: QrCode,
         accessibilityLabel: translate("Pindai QR"),
         accessibilityHint: translate("Membuka pemindai kode QR"),
-        // T5-006: label mikro di bawah ikon QR tengah.
-        label: translate("Pindai"),
         onPress: onScan,
       }}
       // Coach mark sekali saja (2026-09-28): pengenal ikon QR yang baru.

@@ -9,9 +9,9 @@
  *   - Indikator aktif = `border-b-[2px]` `bg-primary` yang MELUNCUR dengan
  *     spring utilitarian (v2 2026-09). Sebelumnya indikator adalah border
  *     per-item yang muncul instan — user tidak bisa melacak "dari tab mana ke
- *     tab mana". Slide memberi affordance arah & posisi; ukuran & offset
- *     diukur via `onLayout` tiap item (label dapat berbeda panjang, ikon,
- *     count), BUKAN lebar rata yang salah untuk label pendek/panjang.
+ *     tab mana". Slide memberi affordance arah & posisi; offset dihitung dari
+ *     posisi tombol, sedangkan garis hanya mencakup teks + ikon (bila ada).
+ *     Chip count dan aksi sibling seperti filter tidak ikut digarisbawahi.
  *   - Indikator duduk di atas garis dasar `border-b border-border`
  *     container (bukan mengganti border item): satu View absolute yang
  *     posisinya dianimasikan, jadi tidak ada dua border yang saling menimpa.
@@ -46,7 +46,7 @@
  *     bersentuhan dan duduk di atas garis dasar, ring luar akan menabrak
  *     tetangga/garis; inset menjaga ring di dalam kotak tab.
  */
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react"
 import {
   ScrollView,
   View,
@@ -77,6 +77,14 @@ export type TabItem<V extends string = string> = {
   icon?: IconComponent
   count?: number
   disabled?: boolean
+  /** A separate action (not part of the tab target), aligned beside this tab. */
+  trailingAction?: {
+    icon: IconComponent
+    accessibilityLabel: string
+    accessibilityHint?: string
+    onPress: () => void
+    badgeCount?: number
+  }
 }
 
 export type TabsProps<V extends string = string> = Omit<ViewProps, "children"> & {
@@ -90,6 +98,8 @@ export type TabsProps<V extends string = string> = Omit<ViewProps, "children"> &
   activeIconOnly?: boolean
   largeLabels?: boolean
 }
+
+type LayoutFrame = { x: number; width: number }
 
 /** Ketebalan indikator (px). Nilai runtime → literal lokal. */
 const INDICATOR_H = 2
@@ -138,23 +148,43 @@ export function Tabs<V extends string = string>({
   ...rest
 }: TabsProps<V>) {
   const reducedMotion = useReducedMotion()
-  // Geometri tiap tab (x + lebar) relatif terhadap strip — diukur via onLayout.
-  const [frames, setFrames] = useState<number[]>(() => items.map(() => 0))
-  const [offsets, setOffsets] = useState<number[]>(() => items.map(() => 0))
+  // Ukur grup item dan tombol tab (termasuk tab dengan aksi sibling), lalu
+  // sejajarkan indikator dengan isi aktual — bukan seluruh area sentuh.
+  const [groupFrames, setGroupFrames] = useState<(LayoutFrame | undefined)[]>(() =>
+    items.map(() => undefined),
+  )
+  const [buttonFrames, setButtonFrames] = useState<(LayoutFrame | undefined)[]>(() =>
+    items.map(() => undefined),
+  )
+  const [contentFrames, setContentFrames] = useState<(LayoutFrame | undefined)[]>(() =>
+    items.map(() => undefined),
+  )
+  const [countWidths, setCountWidths] = useState<number[]>(() => items.map(() => 0))
 
-  const measure = (i: number) => (e: LayoutChangeEvent) => {
-    const { x, width } = e.nativeEvent.layout
-    setFrames((prev) => {
-      const next = [...prev]
-      next[i] = width
-      return next
-    })
-    setOffsets((prev) => {
-      const next = [...prev]
-      next[i] = x
+  const measureFrame = (
+    setter: Dispatch<SetStateAction<(LayoutFrame | undefined)[]>>,
+    index: number,
+  ) => (event: LayoutChangeEvent) => {
+    const { x, width } = event.nativeEvent.layout
+    setter((previous) => {
+      const current = previous[index]
+      if (current?.x === x && current.width === width) return previous
+      const next = [...previous]
+      next[index] = { x, width }
       return next
     })
   }
+
+  const measureWidth = (setter: Dispatch<SetStateAction<number[]>>, index: number) =>
+    (event: LayoutChangeEvent) => {
+      const width = event.nativeEvent.layout.width
+      setter((previous) => {
+        if (previous[index] === width) return previous
+        const next = [...previous]
+        next[index] = width
+        return next
+      })
+    }
 
   const activeIndex = items.findIndex((item) => item.value === value)
   const dotX = useSharedValue(0)
@@ -166,11 +196,23 @@ export function Tabs<V extends string = string>({
   const settledRef = useRef(false)
 
   useEffect(() => {
-    const targetX = activeIndex >= 0 ? (offsets[activeIndex] ?? 0) : 0
-    const targetW = activeIndex >= 0 ? (frames[activeIndex] ?? 0) : 0
-    if (!settledRef.current) {
-      settledRef.current = items.every((_, i) => (frames[i] ?? 0) > 0)
-    }
+    const group = activeIndex >= 0 ? groupFrames[activeIndex] : undefined
+    const button = activeIndex >= 0 ? buttonFrames[activeIndex] : undefined
+    const content = activeIndex >= 0 ? contentFrames[activeIndex] : undefined
+    // Ukur langsung wrapper label + ikon di dalam target tab. Karena itu
+    // offset otomatis mencerminkan padding/penjajaran tombol dan tidak
+    // memasukkan chip count atau aksi trailing seperti filter.
+    const targetX = group && button && content ? group.x + button.x + content.x : 0
+    const targetW = content?.width ?? 0
+    const geometryReady = items.every(
+      (tab, index) =>
+        (groupFrames[index]?.width ?? 0) > 0 &&
+        (buttonFrames[index]?.width ?? 0) > 0 &&
+        (contentFrames[index]?.width ?? 0) > 0 &&
+        (tab.count == null || (countWidths[index] ?? 0) > 0),
+    )
+    if (!settledRef.current) settledRef.current = geometryReady
+
     const spring = {
       ...tokens.motion.spring,
       velocity: 6,
@@ -182,7 +224,17 @@ export function Tabs<V extends string = string>({
     }
     dotX.value = withSpring(targetX, spring)
     dotW.value = withSpring(targetW, spring)
-  }, [activeIndex, frames, offsets, reducedMotion, dotX, dotW, items])
+  }, [
+    activeIndex,
+    buttonFrames,
+    contentFrames,
+    countWidths,
+    dotW,
+    dotX,
+    groupFrames,
+    items,
+    reducedMotion,
+  ])
 
   const dotStyle = useAnimatedStyle(
     // PERF-FIX (P1): animasikan scaleX, bukan width — perubahan width memicu
@@ -222,44 +274,90 @@ export function Tabs<V extends string = string>({
 
       {items.map((item, index) => {
         const active = item.value === value
+        const trailingAction = item.trailingAction
         return (
-          <PressableScale
+          <View
             key={item.value}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: active, disabled: !!item.disabled }}
-            accessibilityLabel={item.count != null ? `${item.label}, ${item.count}` : item.label}
-            scaleOnPress={false}
-            disabled={item.disabled}
-            onPress={() => onChange(item.value)}
-            containerClassName={cn(scrollable ? "rounded-xs" : "flex-1 rounded-xs", focusRingInset)}
-            className={cn(
-              "h-12 flex-row items-center justify-center px-4",
-              !activeIconOnly && "gap-2",
-            )}
-            onLayout={measure(index)}
+            className={cn("flex-row items-center", !scrollable && "flex-1")}
+            onLayout={measureFrame(setGroupFrames, index)}
           >
-            {item.icon ? (activeIconOnly ? <ActiveTabIcon icon={item.icon} active={active} /> : <Icon icon={item.icon} size="sm" active={active} />) : null}
-            <Text ellipsizeMode="tail"
-              variant={largeLabels ? "bodyLarge" : "body"}
-              weight={active ? 600 : 400}
-              tone={active ? "primary" : "secondary"}
-              numberOfLines={1}
+            <PressableScale
+              accessibilityRole="tab"
+              accessibilityState={{ selected: active, disabled: !!item.disabled }}
+              accessibilityLabel={item.count != null ? `${item.label}, ${item.count}` : item.label}
+              scaleOnPress={false}
+              disabled={item.disabled}
+              onPress={() => onChange(item.value)}
+              containerClassName={cn(scrollable ? "rounded-xs" : "flex-1 rounded-xs", focusRingInset)}
+              className={cn(
+                "h-12 flex-row items-center justify-center pl-4",
+                trailingAction ? "pr-1" : "pr-4",
+                !activeIconOnly && "gap-2",
+              )}
+              onLayout={measureFrame(setButtonFrames, index)}
             >
-              {item.label}
-            </Text>
-            {item.count != null ? (
               <View
-                className={cn(
-                  "min-w-5 items-center justify-center rounded-full border px-[6px] py-[1px]",
-                  active ? "border-primary bg-primary" : "border-border bg-transparent",
-                )}
+                className={cn("flex-row items-center", !activeIconOnly && "gap-2")}
+                onLayout={measureFrame(setContentFrames, index)}
               >
-                <Text variant="caption" weight={500} tone={active ? "inverse" : "secondary"}>
-                  {formatNumber(item.count)}
+                {item.icon ? (
+                  activeIconOnly ? (
+                    <ActiveTabIcon icon={item.icon} active={active} />
+                  ) : (
+                    <Icon icon={item.icon} size="sm" active={active} />
+                  )
+                ) : null}
+                <Text
+                  ellipsizeMode="tail"
+                  variant={largeLabels ? "bodyLarge" : "body"}
+                  weight={active ? 600 : 400}
+                  tone={active ? "primary" : "secondary"}
+                  numberOfLines={1}
+                >
+                  {item.label}
                 </Text>
               </View>
+              {item.count != null ? (
+                <View
+                  onLayout={measureWidth(setCountWidths, index)}
+                  className={cn(
+                    "min-w-5 items-center justify-center rounded-full border px-[6px] py-[1px]",
+                    active ? "border-primary bg-primary" : "border-border bg-transparent",
+                  )}
+                >
+                  <Text variant="caption" weight={500} tone={active ? "inverse" : "secondary"}>
+                    {formatNumber(item.count)}
+                  </Text>
+                </View>
+              ) : null}
+            </PressableScale>
+
+            {trailingAction ? (
+              <PressableScale
+                accessibilityRole="button"
+                accessibilityLabel={trailingAction.accessibilityLabel}
+                accessibilityHint={trailingAction.accessibilityHint}
+                haptic
+                onPress={trailingAction.onPress}
+                containerClassName="shrink-0 rounded-full"
+                className="relative h-11 w-11 items-center justify-center rounded-full"
+              >
+                <Icon
+                  icon={trailingAction.icon}
+                  size="md"
+                  active={(trailingAction.badgeCount ?? 0) > 0}
+                  weight={(trailingAction.badgeCount ?? 0) > 0 ? "fill" : "regular"}
+                />
+                {(trailingAction.badgeCount ?? 0) > 0 ? (
+                  <View className="absolute -right-1 -top-1 h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1">
+                    <Text variant="caption" tone="inverse" className="tabular-nums">
+                      {trailingAction.badgeCount}
+                    </Text>
+                  </View>
+                ) : null}
+              </PressableScale>
             ) : null}
-          </PressableScale>
+          </View>
         )
       })}
     </View>

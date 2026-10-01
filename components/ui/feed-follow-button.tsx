@@ -1,6 +1,7 @@
 /**
- * Kahade — <FeedFollowButton>: tombol Ikuti self-contained untuk baris penulis
- * feed/detail (mega-batch FE-IMP-1, item 56 — "Tombol Ikuti langsung dari feed").
+ * Kahade — hook & tombol Ikuti self-contained untuk aksi penulis Etalase.
+ * Detail memakainya dari menu titik tiga; kartu feed tidak lagi menampilkan
+ * tombol follow langsung.
  *
  * Dibangun di atas <FollowButton> yang sudah ada (components/ui/follow-button.tsx,
  * §9.1) — modul ini hanya memasok `following` + `onToggle`:
@@ -29,18 +30,7 @@ import { ROUTES } from "@/lib/routes"
 import { acquireShowcaseMutation } from "@/lib/showcase-state"
 import { useHasSession } from "@/lib/guest-gate"
 
-export function FeedFollowButton({
-  username,
-  isOwner = false,
-  onChanged,
-}: {
-  /** Username target (tanpa "@"). */
-  username: string
-  /** Karya milik sendiri → tombol disembunyikan. */
-  isOwner?: boolean
-  /** Dipanggil setelah status final diketahui. */
-  onChanged?: (following: boolean) => void
-}) {
+export function useFeedFollow(username: string, onChanged?: (following: boolean) => void) {
   const toast = useToast()
   const hasSession = useHasSession()
   const { following, loading: statusLoading } = useFollowStatus(username)
@@ -59,11 +49,11 @@ export function FeedFollowButton({
       const release = acquireShowcaseMutation(`followbtn:${username}`)
       if (!release) return
       // Status final mungkin belum selesai dimuat → muat dulu (cached),
-      // bukan menebak dari label tombol.
+      // bukan menebak dari label tombol. Pakai niat pemanggil hanya bila
+      // backend belum pernah memberi status.
       const current = await fetchFollowStatus(username)
-      const target = current === true ? false : true
+      const target = current == null ? next : !current
       const prev = current
-      void next
       setFollowStatus(username, target)
       setBusy(true)
       try {
@@ -85,17 +75,37 @@ export function FeedFollowButton({
     [username, busy, hasSession, onChanged, toast],
   )
 
+  return {
+    following: following === true,
+    loading: busy || statusLoading,
+    onToggle: (next: boolean) => void handleToggle(next),
+  }
+}
+
+export function FeedFollowButton({
+  username,
+  isOwner = false,
+  onChanged,
+}: {
+  /** Username target (tanpa "@"). */
+  username: string
+  /** Karya milik sendiri → tombol disembunyikan. */
+  isOwner?: boolean
+  /** Dipanggil setelah status final diketahui. */
+  onChanged?: (following: boolean) => void
+}) {
+  const { following, loading, onToggle } = useFeedFollow(username, onChanged)
   if (!username || isOwner) return null
 
   return (
     <FollowButton
-      following={following === true}
-      onToggle={(next) => void handleToggle(next)}
-      loading={busy || statusLoading}
+      following={following}
+      onToggle={onToggle}
+      loading={loading}
       size="sm"
       showIcon={false}
       accessibilityLabel={
-        following === true
+        following
           ? translate("Berhenti mengikuti {x}", { x: `@${username}` })
           : translate("Ikuti {x}", { x: `@${username}` })
       }
