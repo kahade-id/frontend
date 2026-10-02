@@ -11,7 +11,7 @@ import { useProfileShowcase } from "@/lib/use-profile-showcase"
  *  - Tab navigasi in-page: Etalase, Utas (QEtalase, Tanya Jawab, Ulasan, TentangA), Ulasan, Tentang via <Tabs>.
  *  - Bottom Nav Bar hanya dirender untuk PROFIL SENDIRI.
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Pressable, View } from "react-native"
 import { router, useLocalSearchParams } from "expo-router"
 import { translate } from "@/lib/i18n/translate"
@@ -40,7 +40,6 @@ import {
 import { api, isApiError, userMessage } from "@/lib/api"
 import type { HiddenReason, PublicUserProfile, QuestionComment, QuestionItem, VerificationBadge } from "@/lib/api/users"
 import { readMyRatings, type PublicRatingFilter, type Rating } from "@/lib/api/ratings"
-import { getOrCreateDm, isDmNotAllowedError } from "@/lib/api/chat"
 import { isOwnQuestion, isOwnQuestionComment, resolveFollowStatus } from "@/lib/api/users"
 import {
   readQuestionComments,
@@ -269,7 +268,7 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
   const [activeTab, setActiveTab] = useState<ProfileTab>(sessionProfileTab ?? "content")
   const selectTab = useCallback((tab: ProfileTab) => {
     sessionProfileTab = tab
-    setActiveTab(tab)
+    startTransition(() => setActiveTab(tab))
   }, [])
 
   // Etalase / Showcase state — item MENTAH dari API; normalisasi ke bentuk
@@ -586,7 +585,6 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
     router.push(ROUTES.loginRequired(`/user/${encodeURIComponent(handle)}`))
     return false
   }, [hasSession, handle])
-  const [dmLoading, setDmLoading] = useState(false)
   /**
    * PRF-002: "Kirim Pesan" langsung ke halaman chat seperti WhatsApp —
    * get-or-create room DM tanpa wajib mengisi pesan pertama (backend
@@ -594,35 +592,12 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
    * transaksi (room ORDER — admin bisa masuk saat dispute); room DM tidak
    * bisa dimasuki admin.
    */
-  const handleSendMessage = useCallback(async () => {
-    // P3 (audit 2026-09-26): tamu di-gate login sebelum mulai percakapan.
-    if (!requireSession() || !handle || dmLoading) return
-    setDmLoading(true)
-    try {
-      const room = await getOrCreateDm(handle)
-      router.push(ROUTES.chatRoom(room.id, profile?.fullName ?? `@${handle}`))
-    } catch (err) {
-      // Batch 43: CHAT_DM_NOT_ALLOWED (403) → penolakan sopan, bukan error
-      // generik — penerima membatasi siapa yang bisa mengirimi DM baru.
-      if (isDmNotAllowedError(err)) {
-        toast.show({
-          title: translate("Tidak bisa mengirim pesan"),
-          description: translate(
-            "Pengguna ini membatasi pesan langsung baru. Anda hanya bisa chat dengannya lewat transaksi.",
-          ),
-          tone: "info",
-        })
-      } else {
-        toast.show({
-          title: translate("Gagal membuka chat"),
-          description: userMessage(err),
-          tone: "danger",
-        })
-      }
-    } finally {
-      setDmLoading(false)
-    }
-  }, [requireSession, handle, dmLoading, profile?.fullName, toast])
+  const handleSendMessage = useCallback(() => {
+    if (!requireSession() || !handle) return
+    router.navigate({ pathname: "/prepare-navigation", params: {
+      kind: "dm", id: handle, title: profile?.fullName ?? `@${handle}`,
+    } } as never)
+  }, [requireSession, handle, profile?.fullName])
 
   // Follow / Favorite actions
   const handleFollow = useCallback(
@@ -1027,6 +1002,11 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
               <Skeleton height={14} className="w-2/5" />
               <Skeleton height={16} className="w-4/5" />
               <Skeleton height={16} className="w-2/5" />
+              <Tabs<ProfileTab>
+                items={profileTabs}
+                value={activeTab}
+                onChange={selectTab}
+              />
             </View>
           }
         >
@@ -1304,7 +1284,6 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
                         size="sm"
                         fullWidth
                         leftIcon={ChatCircleDots}
-                        loading={dmLoading}
                         onPress={() => void handleSendMessage()}
                       >
                         {translate("Kirim Pesan")}

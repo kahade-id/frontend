@@ -287,7 +287,18 @@ export function Tabs<V extends string = string>({
               accessibilityLabel={item.count != null ? `${item.label}, ${item.count}` : item.label}
               scaleOnPress={false}
               disabled={item.disabled}
-              onPress={() => onChange(item.value)}
+              onPress={() => {
+                // Schedule UI-thread feedback before the parent mounts heavy content.
+                const group = groupFrames[index]
+                const button = buttonFrames[index]
+                const content = contentFrames[index]
+                if (group && button && content) {
+                  const x = group.x + button.x + content.x
+                  dotX.value = reducedMotion ? x : withSpring(x, tokens.motion.spring)
+                  dotW.value = reducedMotion ? content.width : withSpring(content.width, tokens.motion.spring)
+                }
+                onChange(item.value)
+              }}
               containerClassName={cn(scrollable ? "rounded-xs" : "flex-1 rounded-xs", focusRingInset)}
               className={cn(
                 "h-12 flex-row items-center justify-center pl-4",

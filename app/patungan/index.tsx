@@ -188,7 +188,7 @@ export default function PatunganScreen() {
       if (!group) throw new Error("empty")
       toast.show({ title: translate("Grup patungan dibuat"), tone: "success" })
       setSheetOpen(false)
-      await query.refresh()
+      void query.refresh()
       router.push(ROUTES.patunganDetail(group.id))
     } catch (err) {
       setFormError(userMessage(err))

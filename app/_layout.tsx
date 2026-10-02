@@ -415,82 +415,27 @@ function forceUpdateDescription(
   return detail?.message ? `${base}\n\n${detail.message}` : base
 }
 
-function AppShellInner() {
-  const { mode } = useTheme()
-  const palette = tokens.colors[mode]
-  const router = useRouter()
-  const session = useAuthSession()
-  const reducedMotion = useReducedMotion()
-  const [skipRestoreError, setSkipRestoreError] = useState(false)
-  // Dipakai oleh efek item #24/#27 di bawah (push action + antrean offline).
-  const toast = useToast()
-
-  // FE-075: latch "pernah dibutuhkan" untuk drawer & sheet. Store
-  // (useDrawerOpen/useCreateSheetOpen) ringan — langganan ini tidak memicu
-  // import modul berat. Saat store pertama dibuka, latch memasang komponen
-  // lazy (import dimulai); setelah itu komponen tetap mount agar animasi
-  // penutupan tidak terpotong dan buka-berikutnya instan.
-  const drawerOpen = useDrawerOpen()
-  const createSheetOpen = useCreateSheetOpen()
-  const [drawerNeeded, setDrawerNeeded] = useState(false)
-  const [createSheetNeeded, setCreateSheetNeeded] = useState(false)
-  // PERF-FIX (bundle): latch yang sama untuk AppLockGate — gate no-op tanpa
-  // sesi, jadi import modulnya (expo-local-authentication dkk) ditunda
-  // sampai sesi pertama ada. Setelah latch, tetap mount agar kunci setelah
-  // background >1 menit tetap menutupi seluruh tree.
-  const [lockGateNeeded, setLockGateNeeded] = useState(false)
-  useEffect(() => {
-    if (drawerOpen) setDrawerNeeded(true)
-  }, [drawerOpen])
-  useEffect(() => {
-    if (createSheetOpen) setCreateSheetNeeded(true)
-  }, [createSheetOpen])
-  useEffect(() => {
-    if (session.token) setLockGateNeeded(true)
-  }, [session.token])
-
-  // PERF-FIX (P2 nav): memoize daftar Stack.Screen (~100 entri) agar tidak
-  // dihitung ulang tiap render AppShellInner. getId untuk rute dinamis
-  // mencegah penumpukan instance (A→B→A); durasi animasi adaptif untuk
-  // layar berat (thin shell + lazy).
-  const authenticatedScreens = useMemo(
-    () =>
-      AUTHENTICATED_SCREENS.map((name) => (
-        <Stack.Screen
-          key={name}
-          name={name}
-          getId={getScreenId(name)}
-          options={{
-            // v2: push vs modal-like vs list→detail (lib/screen-transitions).
-            animation: animationForScreen(name, reducedMotion),
-            animationDuration: animationDurationForScreen(name),
-          }}
-        />
-      )),
-    [reducedMotion],
+/** Route subscriptions are isolated from the providers and native Stack. */
+function GuestRouteOverlay({ token }: { token: string | null }) {
+  const pathname = usePathname()
+  if (Platform.OS !== "web" || token || !isProtectedPath(pathname)) return null
+  return (
+    <View className="absolute inset-0 bg-background">
+      <Suspense fallback={null}><GuestLoginPrompt next={pathname} /></Suspense>
+    </View>
   )
+}
 
-  // Efek dorong konten ala X saat drawer dibuka (2026-09-27): konten sedikit
-  // bergeser kanan + mengecil dengan sudut membulat, mengikuti progress
-  // animasi drawer (`drawerProgress`). Reduced motion: tanpa transform.
-  const drawerContentStyle = useAnimatedStyle(() => {
-    "worklet"
-    if (reducedMotion) return {}
-    const p = drawerProgress.value
-    return {
-      transform: [{ translateX: p * 48 }, { scale: 1 - p * 0.05 }],
-      borderRadius: p * 24,
-      overflow: "hidden" as const,
-    }
-  }, [reducedMotion])
-
+function ShellRouteEffects({ session, setRealtimeNeeded }: {
+  session: ReturnType<typeof useAuthSession>
+  setRealtimeNeeded: (needed: boolean) => void
+}) {
+  const router = useRouter()
   // Web guest mode: seluruh Stack terdaftar (guard tak pernah mencabut
   // layar), lalu tamu tanpa akun yang membuka layar ber-auth melihat
   // ajakan login sebagai lapisan penuh, bukan redirect paksa. Native
   // tetap memakai guard sesi seperti semula.
   const pathname = usePathname()
-  const isWebGuest = Platform.OS === "web" && !session.token
-  const guestBlocked = isWebGuest && isProtectedPath(pathname)
 
   // FE-074: koneksi socket realtime DITUNDA sampai kebutuhan chat pertama.
   // Provider TETAP mount (layar chat mengandalkan context), tapi token hanya
@@ -498,7 +443,6 @@ function AppShellInner() {
   // aktif untuk sisa sesi; reset saat logout. Cold start pengguna login tidak
   // lagi membuka socket — push foreground sudah menginvalidasi cache query,
   // jadi data tetap segar tanpa socket di boot.
-  const [realtimeNeeded, setRealtimeNeeded] = useState(false)
   useEffect(() => {
     if (!session.token) {
       setRealtimeNeeded(false)
@@ -625,6 +569,106 @@ function AppShellInner() {
     // yang dibagikan setelah login.
     redirectToLoginWithNext(buildNext())
   }, [router, session.restoring, session.error, session.token, pathname, buildNext, redirectToLoginWithNext])
+
+  return (
+      <Dialog
+        title="Sesi berakhir"
+        description="Sesi Anda telah berakhir. Silakan masuk kembali untuk melanjutkan."
+        visible={webSessionExpired}
+        hideCancel
+        confirmLabel="Masuk"
+        onConfirm={() => {
+          setWebSessionExpired(false)
+          hadSessionRef.current = false
+          // UX-NAV-001 (web): bawa tujuan yang tersimpan saat sesi berakhir
+          // supaya login ulang kembali ke tugas semula, bukan Beranda.
+          const next = webExpiredNextRef.current
+          webExpiredNextRef.current = null
+          redirectToLoginWithNext(next)
+        }}
+        onRequestClose={() => undefined}
+        destructive={false}
+      />
+  )
+}
+
+function AppShellInner() {
+  const { mode } = useTheme()
+  const palette = tokens.colors[mode]
+  const router = useRouter()
+  const session = useAuthSession()
+  const reducedMotion = useReducedMotion()
+  const stackScreenOptions = useMemo(() => ({
+    headerShown: false,
+    contentStyle: { backgroundColor: palette.background },
+    animation: reducedMotion ? "none" as const : "slide_from_right" as const,
+    animationDuration: tokens.motion.duration.base,
+  }), [palette.background, reducedMotion])
+
+  const [skipRestoreError, setSkipRestoreError] = useState(false)
+  // Dipakai oleh efek item #24/#27 di bawah (push action + antrean offline).
+  const toast = useToast()
+
+  // FE-075: latch "pernah dibutuhkan" untuk drawer & sheet. Store
+  // (useDrawerOpen/useCreateSheetOpen) ringan — langganan ini tidak memicu
+  // import modul berat. Saat store pertama dibuka, latch memasang komponen
+  // lazy (import dimulai); setelah itu komponen tetap mount agar animasi
+  // penutupan tidak terpotong dan buka-berikutnya instan.
+  const drawerOpen = useDrawerOpen()
+  const createSheetOpen = useCreateSheetOpen()
+  const [drawerNeeded, setDrawerNeeded] = useState(false)
+  const [createSheetNeeded, setCreateSheetNeeded] = useState(false)
+  // PERF-FIX (bundle): latch yang sama untuk AppLockGate — gate no-op tanpa
+  // sesi, jadi import modulnya (expo-local-authentication dkk) ditunda
+  // sampai sesi pertama ada. Setelah latch, tetap mount agar kunci setelah
+  // background >1 menit tetap menutupi seluruh tree.
+  const [lockGateNeeded, setLockGateNeeded] = useState(false)
+  useEffect(() => {
+    if (drawerOpen) setDrawerNeeded(true)
+  }, [drawerOpen])
+  useEffect(() => {
+    if (createSheetOpen) setCreateSheetNeeded(true)
+  }, [createSheetOpen])
+  useEffect(() => {
+    if (session.token) setLockGateNeeded(true)
+  }, [session.token])
+
+  // PERF-FIX (P2 nav): memoize daftar Stack.Screen (~100 entri) agar tidak
+  // dihitung ulang tiap render AppShellInner. getId untuk rute dinamis
+  // mencegah penumpukan instance (A→B→A); durasi animasi adaptif untuk
+  // layar berat (thin shell + lazy).
+  const authenticatedScreens = useMemo(
+    () =>
+      AUTHENTICATED_SCREENS.map((name) => (
+        <Stack.Screen
+          key={name}
+          name={name}
+          getId={getScreenId(name)}
+          options={{
+            // v2: push vs modal-like vs list→detail (lib/screen-transitions).
+            animation: animationForScreen(name, reducedMotion),
+            animationDuration: animationDurationForScreen(name),
+          }}
+        />
+      )),
+    [reducedMotion],
+  )
+
+  // Efek dorong konten ala X saat drawer dibuka (2026-09-27): konten sedikit
+  // bergeser kanan + mengecil dengan sudut membulat, mengikuti progress
+  // animasi drawer (`drawerProgress`). Reduced motion: tanpa transform.
+  const drawerContentStyle = useAnimatedStyle(() => {
+    "worklet"
+    if (reducedMotion) return {}
+    const p = drawerProgress.value
+    return {
+      transform: [{ translateX: p * 48 }, { scale: 1 - p * 0.05 }],
+      borderRadius: p * 24,
+      overflow: "hidden" as const,
+    }
+  }, [reducedMotion])
+
+  const [realtimeNeeded, setRealtimeNeeded] = useState(false)
 
   // ST-009: handler foreground + Android channel dipasang setelah first
   // paint (idempoten) — channel wajib ada sebelum notifikasi tampil di
@@ -985,14 +1029,7 @@ function AppShellInner() {
               </View>
             ) : (
               <Stack
-                screenOptions={{
-                  headerShown: false,
-                  // Stack native tidak bisa di-style via className; ambil dari tokens
-                  // agar transisi header/scene tetap flat & konsisten.
-                  contentStyle: { backgroundColor: palette.background },
-                  animation: reducedMotion ? "none" : "slide_from_right",
-                  animationDuration: tokens.motion.duration.base,
-                }}
+                screenOptions={stackScreenOptions}
               >
                 {/* Web: guard selalu true (semua layar terdaftar);
                     pemblokiran tamu ditangani GuestLoginPrompt di bawah. */}
@@ -1005,16 +1042,7 @@ function AppShellInner() {
             )}
             {/* Tamu web membuka layar ber-auth → ajakan login penuh di
                 atas layar (Stack tetap terpasang di baliknya). */}
-            {guestBlocked ? (
-              <View className="absolute inset-0 bg-background">
-                {/* ST-009: GuestLoginPrompt lazy — fallback null karena modul
-                    kecil dan tamu web jarang; overlay bg-background sudah
-                    menutupi layar di baliknya selama modul dimuat. */}
-                <Suspense fallback={null}>
-                  <GuestLoginPrompt next={pathname} />
-                </Suspense>
-              </View>
-            ) : null}
+            <GuestRouteOverlay token={session.token} />
           </PortalScene>
           <PersistentShellBar />
           <PortalHost />
@@ -1106,24 +1134,7 @@ function AppShellInner() {
         muncul bila pengguna memang punya sesi sebelumnya (tamu tanpa sesi
         tidak diganggu; lihat efek onSessionExpired di atas + B-03).
       */}
-      <Dialog
-        title="Sesi berakhir"
-        description="Sesi Anda telah berakhir. Silakan masuk kembali untuk melanjutkan."
-        visible={webSessionExpired}
-        hideCancel
-        confirmLabel="Masuk"
-        onConfirm={() => {
-          setWebSessionExpired(false)
-          hadSessionRef.current = false
-          // UX-NAV-001 (web): bawa tujuan yang tersimpan saat sesi berakhir
-          // supaya login ulang kembali ke tugas semula, bukan Beranda.
-          const next = webExpiredNextRef.current
-          webExpiredNextRef.current = null
-          redirectToLoginWithNext(next)
-        }}
-        onRequestClose={() => undefined}
-        destructive={false}
-      />
+      <ShellRouteEffects session={session} setRealtimeNeeded={setRealtimeNeeded} />
     </>
   )
 }

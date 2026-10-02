@@ -79,7 +79,7 @@ import {
   notificationRowId,
   type NotificationRow,
 } from "@/lib/notification-social-grouping"
-import { checkNotificationTarget } from "@/lib/notification-target"
+import { routeForNotificationReference } from "@/lib/notification-routing"
 import { refreshUnreadCount } from "@/lib/unread-count"
 import { logWarn } from "@/lib/telemetry"
 
@@ -486,13 +486,7 @@ function NotificationsScreen() {
     })
   }, [])
 
-  /**
-   * B15: buka target notifikasi setelah VALIDASI — target deep-link
-   * (order/dispute/etalase) yang sudah dihapus mengembalikan 404 dari probe
-   * dan TIDAK dibuka; pengguna tetap di daftar dengan penjelasan, bukan
-   * mendarat di layar detail yang mati. Jenis lain fail-open (probe tidak
-   * memblokir) dan chat mengandalkan empty state ruang.
-   */
+  // Navigate immediately; destination queries own loading/not-found/error states.
   const handleOpenNotification = useCallback(
     async (head: AppNotification, isGroup: boolean, items: AppNotification[]) => {
       if (selecting) {
@@ -510,21 +504,9 @@ function NotificationsScreen() {
       // (referenceType/referenceId atau actionUrl), langsung ke sana
       // seperti tap push; bila tidak, baru ke layar detail.
       // Grup: reference sama untuk semua anggota → pakai head.
-      // B15: checkNotificationTarget me-resolve route + mem-probe
-      // keberadaan entitas (order/dispute/etalase); 404 → "unavailable"
-      // dan TIDAK dibuka — pengguna tetap di daftar dengan penjelasan.
-      const check = await checkNotificationTarget(head)
-      if (check.status === "unavailable") {
-        toast.show({
-          title: "Konten tidak tersedia",
-          description: `${check.entityLabel} sudah tidak tersedia — kemungkinan sudah dihapus.`,
-          tone: "warning",
-        })
-        return
-      }
-      router.push(check.status === "ok" ? check.route : ROUTES.notificationDetail(head.id))
+      router.push(routeForNotificationReference(head) ?? ROUTES.notificationDetail(head.id))
     },
-    [selecting, toggleSelectGroup, toggleSelect, handleReadGroup, handleRead, toast.show],
+    [selecting, toggleSelectGroup, toggleSelect, handleReadGroup, handleRead],
   )
 
   /** Tekan lama satu baris → mode pilih dengan baris itu sudah terpilih. */

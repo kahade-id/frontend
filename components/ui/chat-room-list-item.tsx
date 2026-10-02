@@ -100,6 +100,7 @@ export type ChatRoomListItemProps = Omit<ViewProps, "children"> & {
    * didukung untuk pemanggil lain (tidak ada lagi saat ini).
    */
   orderBadge?: boolean
+  onPressIn?: () => void
   onPress?: () => void
   onLongPress?: () => void
   /** Mode pilih-banyak aktif: baris menjadi toggle, lencana Check tampil. */
@@ -152,6 +153,7 @@ export function ChatRoomListItemBase({
   pinned = false,
   context,
   orderBadge = false,
+  onPressIn,
   onPress,
   onLongPress,
   selecting = false,
@@ -315,6 +317,7 @@ export function ChatRoomListItemBase({
           }
           scaleOnPress={false}
           ripple={ripple}
+          onPressIn={onPressIn}
           onPress={onPress}
           onLongPress={onLongPress}
           containerClassName={cn("w-full", focusRingInset)}
@@ -396,6 +399,7 @@ function areRoomItemPropsEqual(
     prev.pinned === next.pinned &&
     (prev.context ?? null) === (next.context ?? null) &&
     (prev.orderBadge ?? false) === (next.orderBadge ?? false) &&
+    prev.onPressIn === next.onPressIn &&
     prev.onPress === next.onPress &&
     prev.onLongPress === next.onLongPress &&
     prev.selecting === next.selecting &&

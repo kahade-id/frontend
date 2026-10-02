@@ -375,7 +375,9 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
   const setUiPrefs = useSetUiPrefs()
   const kindParam: ShowcaseFeedKind | undefined =
     typeof params.kind === "string" ? parseShowcaseFeedTab(params.kind) : undefined
-  const kind: ShowcaseFeedKind = kindParam ?? parseShowcaseFeedTab(showcaseFeedTab)
+  const routeSelectedKind = kindParam ?? parseShowcaseFeedTab(showcaseFeedTab)
+  const [kind, setLocalKind] = useState<ShowcaseFeedKind>(routeSelectedKind)
+  useEffect(() => { setLocalKind(routeSelectedKind) }, [routeSelectedKind])
   /**
    * R1-003: nilai mentah param `kind` untuk diteruskan ke kartu —
    * `useLocalSearchParams` hanya dipanggil sekali di sini, bukan per kartu.
@@ -387,6 +389,7 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
   // dan chip-nya kini bisa DIHAPUS (A-06).
   const search = typeof params.search === "string" ? params.search.slice(0, 100) : ""
   const setKind = (next: ShowcaseFeedKind) => {
+    setLocalKind(next)
     // Item 47: simpan tab terakhir supaya kembali ke sini saat feed dibuka lagi.
     setUiPrefs({ showcaseFeedTab: next as SavedFeedTab })
     router.setParams({ kind: next })

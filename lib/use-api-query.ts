@@ -138,6 +138,7 @@ export function useApiQuery<TRaw, T = TRaw>(
   const [loading, setLoading] = useState(active)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [errorStatus, setErrorStatus] = useState<number | null>(null)
   /**
    * T4-008 (audit UI/UX intuitif 2026-09-29): error NON-FATAL dari refresh
    * (pull-to-refresh / refresh-on-focus / revalidasi) yang gagal padahal
@@ -157,6 +158,7 @@ export function useApiQuery<TRaw, T = TRaw>(
 
   const load = useCallback(
     async (refresh = false, background = false) => {
+      setErrorStatus(null)
       current.current?.abort()
       const controller = new AbortController()
       current.current = controller
@@ -314,7 +316,10 @@ export function useApiQuery<TRaw, T = TRaw>(
           // error fatal seperti sebelumnya.
           const msg = userMessage(error)
           if (hasData.current) setRefreshError(msg)
-          else setError(msg)
+          else {
+            setError(msg)
+            setErrorStatus(error instanceof ApiError ? error.status ?? null : null)
+          }
           settle()
           return
         }
@@ -443,7 +448,7 @@ export function useApiQuery<TRaw, T = TRaw>(
   }, [])
 
   return useMemo(
-    () => ({ data, setData, loading, refreshing, error, refreshError, refresh, reload }),
-    [data, setData, loading, refreshing, error, refreshError, refresh, reload],
+    () => ({ data, setData, loading, refreshing, error, errorStatus, refreshError, refresh, reload }),
+    [data, setData, loading, refreshing, error, errorStatus, refreshError, refresh, reload],
   )
 }

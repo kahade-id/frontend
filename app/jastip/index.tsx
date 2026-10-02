@@ -97,7 +97,7 @@ export default function JastipScreen() {
       if (!trip) throw new Error("empty")
       toast.show({ title: translate("Trip dibuat"), tone: "success" })
       setSheetOpen(false)
-      await query.refresh()
+      void query.refresh()
       router.push(ROUTES.jastipDetail(trip.id))
     } catch (err) {
       setFormError(userMessage(err))

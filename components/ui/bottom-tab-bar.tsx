@@ -52,7 +52,7 @@
  *     tetapi ikon tetap diberi `hitSlop` agar label/ikon kecil tetap nyaman
  *     disentuh di web/mobile pada area tengah tab.
  */
-import { Suspense, lazy, useEffect, useRef, useState, type ReactNode } from "react"
+import { Suspense, lazy, memo, useEffect, useRef, useState, type ReactNode } from "react"
 import { Animated, Easing, View, type ViewProps, type View as RNView } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { type Href } from "expo-router"
@@ -486,7 +486,7 @@ function ChromeFade({
   )
 }
 
-export function BottomTabBar<K extends string = string>({
+function BottomTabBarBase<K extends string = string>({
   items,
   value,
   onChange,
@@ -673,3 +673,5 @@ export function RouterBottomTabBar({ state, navigation, items, centerAction, cla
     />
   )
 }
+
+export const BottomTabBar = memo(BottomTabBarBase) as typeof BottomTabBarBase

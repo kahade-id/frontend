@@ -227,7 +227,8 @@ export const PressableScale = forwardRef<RNView, PressableScaleProps>(function P
     <PressableComponent
       ref={setHostRef}
       disabled={disabled}
-      unstable_pressDelay={Platform.OS === "android" ? 50 : undefined}
+      // Scroll rows may opt in via unstable_pressDelay; ordinary taps are immediate.
+      unstable_pressDelay={0}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
       accessibilityState={{ disabled: !!disabled, ...accessibilityState }}

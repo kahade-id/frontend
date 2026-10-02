@@ -68,6 +68,7 @@ import {
   subscribePinnedRooms,
   toggleRoomPinned,
 } from "@/lib/chat-pinned-rooms"
+import { prefetchChatRoom } from "@/lib/entity-detail-prefetch"
 import { seedChatRoomPrefetch } from "@/lib/chat-room-prefetch"
 
 import { ChatRoomListItem, type ChatRoomLastMessage } from "@/components/ui/chat-room-list-item"
@@ -354,6 +355,9 @@ function ChatRoomRowBase({
   onFullSwipe,
   rowAnchor,
 }: ChatRoomRowProps) {
+  const handlePressIn = useCallback(() => {
+    if (!selecting) prefetchChatRoom(item.id)
+  }, [selecting, item.id])
   const archived = item.isArchived === true
 
   const handlePress = useCallback(() => onOpenRoom(item), [item, onOpenRoom])
@@ -446,6 +450,7 @@ function ChatRoomRowBase({
         orderBadge={item.orderId != null}
         selecting={selecting}
         selected={selected}
+        onPressIn={handlePressIn}
         onPress={handlePress}
         onLongPress={handleLongPress}
       />

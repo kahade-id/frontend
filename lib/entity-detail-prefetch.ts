@@ -46,7 +46,8 @@ function createPrefetch<T>(fetcher: (id: string) => Promise<T>) {
   function prefetch(id: string, now: number = Date.now()): void {
     if (!id) return
     sweep(now)
-    if (fresh(cache.get(id), now)) return
+    const existing = cache.get(id)
+    if (existing && (existing.item == null || fresh(existing, now))) return
     cache.set(id, { at: now, item: undefined })
     evictOverflow()
     void fetcher(id)

@@ -148,7 +148,7 @@ export default function ShowcaseDetailScreen() {
     // MENAIKKAN viewCount, jadi refetch tiap kembali fokus (dari komentar,
     // ganti tab, dsb.) menggelembungkan view. Penyegaran manual tetap ada
     // lewat tarik-untuk-menyegarkan (query.refresh di DataScreen).
-    { useCache: false },
+    { useCache: true },
   )
   const item = query.data
 
@@ -160,7 +160,7 @@ export default function ShowcaseDetailScreen() {
   // TANPA tombol retry — "Coba lagi" untuk 404 tidak akan pernah berhasil.
   // Error lain tetap lewat DataScreen (ErrorState + retry).
   const isNotFound =
-    !item && !!query.error && isApiError(query.error) && query.error.status === 404
+    !item && query.errorStatus === 404
   if (isNotFound) {
     return (
       <DataScreen

@@ -1170,7 +1170,7 @@ export default function DisputeDetailScreen() {
         {/* v2: skeleton → sengketa crossfade (signature moment). */}
         <Crossfade loading={loading && !dispute} skeleton={<DetailLoading />}>
           {error ? (
-          <ErrorState title="Gagal memuat" description={error} onRetry={() => void query.reload()} />
+          <ErrorState title={query.errorStatus === 404 ? "Konten tidak tersedia" : "Gagal memuat"} description={error} onRetry={() => void query.reload()} />
         ) : dispute ? (
           <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
             <DisputeDetailHeader

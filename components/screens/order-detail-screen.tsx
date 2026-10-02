@@ -1073,7 +1073,7 @@ export default function OrderDetailScreen() {
     return (
       <Screen edges={["top"]}>
         <Header title="Detail Pesanan" />
-        <ErrorState title="Gagal memuat" description={error} onRetry={() => void query.reload()} />
+        <ErrorState title={query.errorStatus === 404 ? "Konten tidak tersedia" : "Gagal memuat"} description={error} onRetry={() => void query.reload()} />
       </Screen>
     )
   }

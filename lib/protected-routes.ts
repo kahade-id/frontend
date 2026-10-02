@@ -18,6 +18,7 @@ import { TAB_ROUTE_NAMES } from "@/lib/routes"
 export const AUTHENTICATED_SCREENS = [
   "(tabs)",
   "(auth)/setup-profile",
+  "prepare-navigation",
   "account-type",
   "addresses",
   "analytics",

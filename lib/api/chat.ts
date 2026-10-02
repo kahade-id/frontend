@@ -482,7 +482,7 @@ export async function findChatRoomByOrder(
   const hit = findRoomCache.get(orderId)
   if (hit) {
     const ttl = hit.room ? FIND_ROOM_CACHE_TTL_MS : FIND_ROOM_MISS_TTL_MS
-    if (!hit.room || Date.now() - hit.at < ttl) return hit.room
+    if (Date.now() - hit.at < ttl) return hit.room
     // Positif kedaluwarsa: verifikasi ulang ringan — room bisa jadi dipindah.
   }
   for (let page = 1; page <= FIND_ROOM_MAX_PAGES; page += 1) {

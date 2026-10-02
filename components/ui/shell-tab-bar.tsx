@@ -17,7 +17,7 @@
  * `isShellTabPath`), jadi setiap penekanan adalah perpindahan antar-tab:
  * `router.navigate` cukup — tidak ada logika park/leave-to-tab.
  */
-import { useCallback, useEffect, useMemo } from "react"
+import { memo, startTransition, useCallback, useEffect, useMemo, useState } from "react"
 import { InteractionManager, Platform } from "react-native"
 import { usePathname, useRouter } from "expo-router"
 import { QrCode } from "phosphor-react-native"
@@ -41,7 +41,7 @@ import { emitShellTabReselect } from "@/lib/shell-tab-reselect"
 
 export { isShellTabPath }
 
-export function ShellTabBar() {
+function ShellTabBarInner() {
   // Daftarkan bahasa aktif supaya label ikut re-render saat bahasa berganti.
   const language = useLanguage()
   const pathname = usePathname()
@@ -53,6 +53,15 @@ export function ShellTabBar() {
     const tab = shellTabForPath(pathname)
     return tab ? tab.key : null
   }, [pathname])
+
+  const [pendingKey, setPendingKey] = useState<ShellTabKey | null>(null)
+  useEffect(() => { setPendingKey(null) }, [pathname])
+  useEffect(() => {
+    if (!pendingKey) return
+    // Reconcile if a guard/no-op prevents navigation (navigate returns no promise).
+    const timer = setTimeout(() => setPendingKey(null), 1500)
+    return () => clearTimeout(timer)
+  }, [pendingKey])
 
   const items = useMemo<BottomTabItem<string>[]>(() => {
     return SHELL_TABS.map((tab) => {
@@ -79,13 +88,19 @@ export function ShellTabBar() {
     (key: string) => {
       const tab = SHELL_TABS.find((t) => t.key === key)
       if (!tab) return
-      if (tab.key === activeKey) {
+      if (tab.key === activeKey && pendingKey === null) {
         emitShellTabReselect(tab.key)
         return
       }
-      router.navigate(tab.href as never)
+      setPendingKey(tab.key)
+      try {
+        startTransition(() => router.navigate(tab.href as never))
+      } catch (error) {
+        setPendingKey(null)
+        throw error
+      }
     },
-    [router, activeKey],
+    [router, activeKey, pendingKey],
   )
 
   const onScan = useCallback(() => {
@@ -117,23 +132,27 @@ export function ShellTabBar() {
     }
   }, [])
 
+  const center = useMemo(() => ({
+    icon: QrCode,
+    accessibilityLabel: translate("Pindai QR"),
+    accessibilityHint: translate("Membuka pemindai kode QR"),
+    onPress: onScan,
+  }), [onScan, language])
+  const centerCoachMark = useMemo(() => ({
+    id: "qr" as const,
+    message: translate("Ketuk untuk pindai QR"),
+  }), [language])
+
   return (
     <BottomTabBar
       items={items}
-      value={activeKey ?? ""}
+      value={pendingKey ?? activeKey ?? ""}
       onChange={onChange}
-      center={{
-        icon: QrCode,
-        accessibilityLabel: translate("Pindai QR"),
-        accessibilityHint: translate("Membuka pemindai kode QR"),
-        onPress: onScan,
-      }}
-      // Coach mark sekali saja (2026-09-28): pengenal ikon QR yang baru.
-      centerCoachMark={{
-        id: "qr",
-        message: translate("Ketuk untuk pindai QR"),
-      }}
+      center={center}
+      centerCoachMark={centerCoachMark}
       accessibilityLabel={translate("Navigasi utama")}
     />
   )
 }
+
+export const ShellTabBar = memo(ShellTabBarInner)
