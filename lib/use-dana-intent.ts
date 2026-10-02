@@ -123,8 +123,13 @@ export type UseDanaIntentOptions = {
   methodCode: string
   /** Label metode untuk copy error/banner (mis. "QRIS"). Default = methodCode. */
   methodLabel?: string
-  /** Nominal — fallback bila respons server tidak memuat `amount`. */
-  fallbackAmount: number
+  /**
+   * @deprecated SEC-405: TIDAK dipakai lagi. Banner pemulihan tidak boleh
+   * memakai nominal lokal (orderValue tanpa fee) — satu-satunya sumber angka
+   * adalah respons server (`res.amount`). Dipertahankan opsional agar
+   * pemanggil lama tetap kompilasi.
+   */
+  fallbackAmount?: number
   /** Sheet pembayaran sedang terbuka; polling hanya hidup saat true. */
   active: boolean
   /** Apakah pemanggil boleh membuat intent (mis. hanya pembeli). */
@@ -139,7 +144,6 @@ export function useDanaIntent({
   adapter,
   methodCode,
   methodLabel,
-  fallbackAmount,
   active,
   canCreate,
   onPaid,
@@ -165,6 +169,11 @@ export function useDanaIntent({
    * re-arm tidak membatalkan apa pun — pola yang sama seperti sebelumnya).
    */
   const [pollIntervalMs, setPollIntervalMs] = useState(POLL_BASE_MS)
+  /**
+   * Re-entrancy guard: satu pembuatan intent dalam satu waktu — tekan ganda
+   * tombol Bayar tidak memicu dua POST (idem dengan `creating` state, tapi
+   * sinkron sehingga tahan terhadap double-tap dalam satu frame).
+   */
   const creatingRef = useRef(false)
   /** G-04: satu request status dalam satu waktu (poll + manual berbagi). */
   const syncInFlight = useRef<Promise<string | null> | null>(null)
@@ -283,6 +292,14 @@ export function useDanaIntent({
     creatingRef.current = true
     setCreating(true)
     try {
+      // BFE-074 (terverifikasi di backend worktree
+      // `src/modules/no-wallet/dana-direct-payment.service.ts`): ganti
+      // payKind → charge PENDING lama DIBATALKAN backend dalam tx yang sama
+      // dengan pembuatan charge baru (guard status PENDING). Jadi re-POST
+      // dengan metode berbeda aman — intent yang dikembalikan selalu milik
+      // metode yang diminta, tidak ada label-baru/instruksi-lama. FE tidak
+      // perlu menolak ganti metode (tidak ada jalur batalkan di sheet ini —
+      // penolakan hanya jadi jalan buntu).
       const res = await current.createIntent(
         methodCode,
         intentKeyRef.current ?? (intentKeyRef.current = createIdempotencyKey()),
@@ -297,8 +314,10 @@ export function useDanaIntent({
       setPollIntervalMs(POLL_BASE_MS)
       pollCount.current = 0
       // J-04: pembayaran yang ditinggalkan bisa dipulihkan dari Beranda.
+      // SEC-405: HANYA angka server — jangan pakai fallbackAmount
+      // (orderValue tanpa fee) yang menyesatkan di banner pemulihan.
       const recordBase = {
-        amount: res.amount ?? fallbackAmount,
+        amount: res.amount,
         createdAt: serverNow(),
         expiresAt: toEpochMs(res.expiresAt),
       }
@@ -347,7 +366,7 @@ export function useDanaIntent({
       creatingRef.current = false
       setCreating(false)
     }
-  }, [canCreate, fallbackAmount, label, methodCode, intent, paymentKind, status, syncStatus])
+  }, [canCreate, label, methodCode, intent, paymentKind, status, syncStatus])
 
   /** Kembalikan ke keadaan awal (dulu tiga setState + reset hitungan di layar). */
   const reset = useCallback(() => {

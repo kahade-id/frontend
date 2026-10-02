@@ -35,7 +35,9 @@ const TERMINAL_STATUS = new Set(["PAID", "EXPIRED", "FAILED", "CANCELLED", "UNKN
 
 export type QrisPaymentPanelProps = {
   qrString: string
-  amount: number
+  // SEC-404 (M-33): nominal tak dikenal JANGAN dicetak "Rp0" — undefined
+  // merender "nominal belum diketahui".
+  amount?: number
   expiresAt?: string | null
   /** Status intent dari `GET /v1/orders/:orderId/dana-payment-status` */
   status?: string | null
@@ -94,6 +96,8 @@ export function QrisPaymentPanel({
 }: QrisPaymentPanelProps) {
   const failed = status === "EXPIRED" || status === "FAILED"
   const stuckWithoutQr = status === "UNKNOWN" || pollStopped
+  // SEC-404 (M-33): "Rp0" tidak pernah dicetak untuk nominal tak dikenal.
+  const amountLabel = amount != null && amount > 0 ? formatRupiah(amount) : "nominal belum diketahui"
   // FE-111 PARKIR (2026-09-29): "Ganti ke saldo" saat QR AKTIF DIHAPUS —
   // backend tidak punya endpoint cancel QR intent; reset lokal membuat QR
   // lama tetap bisa dibayar (risiko bayar ganda). Jalur UNKNOWN/pollStopped
@@ -119,9 +123,9 @@ export function QrisPaymentPanel({
           expiresAt
             ? translate("Berlaku sampai {x} · {y}", {
                 x: formatDateTimeWIB(expiresAt),
-                y: formatRupiah(amount),
+                y: amountLabel,
               })
-            : formatRupiah(amount)
+            : amountLabel
         }
         onCopy={onCopy}
         copied={copied}

@@ -102,8 +102,11 @@ function routeForNotificationReferenceRaw(ref: NotificationReference): Href | nu
       // NCC-004: `refType: 'MILESTONE'` dari notifyMilestone → detail milestone.
       return id ? ROUTES.milestoneDetail(id) : null
     case "feedback":
-      // NCC-005: `refType: 'FEEDBACK'` dari admin-feedback → layar feedback.
-      return ROUTES.feedback
+      // FAL-018: `refType: 'FEEDBACK'` dari admin-feedback = balasan admin
+      // atas masukan user. Tidak ada endpoint/layar detail feedback di sisi
+      // user → arahkan ke tiket bantuan (lihat komentar FAL-018 di
+      // routeForActionUrlRaw).
+      return ROUTES.support
     case "wallettransaction":
     case "wallettx":
     case "topup":
@@ -161,6 +164,26 @@ function routeForNotificationReferenceRaw(ref: NotificationReference): Href | nu
     case "session":
     case "login":
       return ROUTES.security
+    case "questions":
+    case "question":
+      // FAL-020: `refType: 'QUESTION'` (push tanpa actionUrl) → daftar
+      // pertanyaan, BUKAN tab notifikasi. Tidak ada rute detail per
+      // pertanyaan di ROUTES — id diabaikan.
+      return ROUTES.questions
+    case "returns":
+    case "return":
+      // FAL-016: keluarga notifikasi retur → detail retur (daftar bila tanpa id).
+      return id ? ROUTES.returnDetail(id) : ROUTES.returns
+    case "products":
+    case "product":
+      // FAL-017: notifikasi stok/produk → detail produk (katalog bila tanpa id).
+      return id ? ROUTES.productDetail(id) : ROUTES.products
+    case "ordershipped":
+    case "ordership":
+    case "shipment":
+      // FAL-019: ORDER_SHIPPED (dinormalisasi) → detail pelacakan. Id diambil
+      // dari kandidat referenceId (shipmentId) di routeForPushDataRaw.
+      return id ? ROUTES.trackingDetail(id) : null
     default:
       return null
   }
@@ -216,7 +239,10 @@ export function labelForNotificationReference(ref: NotificationReference): strin
   // NCC-003/NCC-004: keluarga DISPUTE_* / MILESTONE_* (push maupun inbox).
   if (type.startsWith("dispute")) return "Lihat sengketa"
   if (type.startsWith("milestone")) return "Lihat tahap"
-  if (type === "feedback") return "Lihat masukan"
+  // FAL-018: balasan feedback kini membuka tiket bantuan (bukan formulir).
+  if (type === "feedback") return "Lihat bantuan"
+  // FAL-019: ORDER_SHIPPED → detail pelacakan.
+  if (type === "ordershipped" || type === "ordership" || type === "shipment") return "Lihat pelacakan"
 
   switch (type) {
     case "order":
@@ -271,6 +297,16 @@ export function labelForNotificationReference(ref: NotificationReference): strin
     case "session":
     case "login":
       return "Buka keamanan"
+    case "questions":
+    case "question":
+      // FAL-020: sejajar dengan routeForNotificationReference.
+      return "Lihat pertanyaan"
+    case "returns":
+    case "return":
+      return "Lihat retur"
+    case "products":
+    case "product":
+      return "Lihat produk"
     default:
       return null
   }
@@ -299,12 +335,21 @@ export function labelForActionUrl(actionUrl: string | null | undefined): string 
       return "Lihat mutasi"
     case "questions":
       return "Lihat pertanyaan"
+    case "returns":
+      // FAL-016: `/returns/<id>` → detail retur.
+      return "Lihat retur"
+    case "products":
+      // FAL-017: `/products/<id>` → detail produk.
+      return "Lihat produk"
+    case "tracking":
+      // FAL-019: `kahade://tracking/<id>` → detail pelacakan.
+      return "Lihat pelacakan"
     case "milestones":
       // NCC-004: `/milestones/<id>` → detail tahap.
       return "Lihat tahap"
     case "feedback":
-      // NCC-005: `/feedback/<id>` → layar masukan.
-      return "Lihat masukan"
+      // FAL-018: balasan feedback → tiket bantuan (lihat routeForActionUrlRaw).
+      return "Lihat bantuan"
     case "bank-accounts":
       // NCC-008: `/bank-accounts` (ESCROW_HELD_NO_BANK) → daftar rekening.
       return "Daftarkan rekening"
@@ -321,7 +366,7 @@ export function labelForActionUrl(actionUrl: string | null | undefined): string 
  *   1. `actionUrl` backend (mis. `/chat/<id>`, `/order/<id>`, `/o/<id>`,
  *      `/wallet/transaction?id=<txId>`) — sumber paling akurat.
  *   2. `referenceType`/`referenceId`, atau pasangan `type` + salah satu
- *      `id | orderId | disputeId | roomId | ticketId | txId | username | token`.
+ *      `id | shipmentId | returnId | orderId | disputeId | roomId | ticketId | txId | username | token`.
  */
 export function routeForPushData(data: unknown): Href | null {
   return applyWalletFallback(routeForPushDataRaw(data))
@@ -349,6 +394,14 @@ function routeForPushDataRaw(data: unknown): Href | null {
     str("refId") ??
     str("referenceId") ??
     str("id") ??
+    // FAL-019: push kurir membawa { orderId, shipmentId } — untuk
+    // ORDER_SHIPPED yang dipakai adalah shipmentId (detail pelacakan),
+    // jadi ia harus menang atas orderId bila keduanya ada.
+    str("shipmentId") ??
+    // FAL-016: push retur memakai id internal DB (`returnDbId`; terima juga
+    // varian `returnId`).
+    str("returnId") ??
+    str("returnDbId") ??
     str("orderId") ??
     str("disputeId") ??
     str("milestoneId") ?? // NCC-004: data push milestone membawa milestoneId
@@ -386,7 +439,11 @@ function safeDecodeSegment(value: string): string {
  * Parse `actionUrl` backend menjadi route internal.
  * Format yang dikenal: `/chat/<id>`, `/order/<id>`, `/o/<id>`,
  * `/dispute/<id>`, `/showcase/<id>`, `/support/tickets/<id>` (F15),
- * `/wallet/transaction?id=<txId>`, `/notifications`, `/badges`. Return `null` bila tidak dikenali.
+ * `/wallet/transaction?id=<txId>`, `/notifications`, `/badges`,
+ * `/returns/<id>` (FAL-016), `/products/<id>` (FAL-017),
+ * `kahade://tracking/<id>` (FAL-019, dinormalisasi ke `/tracking/<id>`),
+ * `/feedback/<id>` → tiket bantuan (FAL-018, tanpa layar detail feedback).
+ * Return `null` bila tidak dikenali.
  */
 export function routeForActionUrl(actionUrl: string | null | undefined): Href | null {
   return applyWalletFallback(routeForActionUrlRaw(actionUrl))
@@ -395,12 +452,17 @@ export function routeForActionUrl(actionUrl: string | null | undefined): Href | 
 /** Parse mentah `actionUrl` backend → route internal, tanpa fallback dompet. */
 function routeForActionUrlRaw(actionUrl: string | null | undefined): Href | null {
   if (!actionUrl) return null
+  // FAL-019: deep link skema aplikasi (`kahade://tracking/<id>?status=...`)
+  // dinormalisasi ke path internal (`/tracking/<id>`). Tanpa ini, prefix "/"
+  // menghasilkan segmen ["kahade:", "tracking", "<id>"] → head "kahade:" →
+  // null dan tap notifikasi pengiriman mati.
+  const withoutScheme = actionUrl.replace(/^kahade:\/*/i, "/")
   // Hanya path internal; abaikan URL absolut eksternal.
-  const path = actionUrl.startsWith("http")
+  const path = withoutScheme.startsWith("http")
     ? null
-    : actionUrl.startsWith("/")
-      ? actionUrl
-      : `/${actionUrl}`
+    : withoutScheme.startsWith("/")
+      ? withoutScheme
+      : `/${withoutScheme}`
   if (!path) return null
 
   const [pathname, query] = path.split("?", 2)
@@ -439,9 +501,27 @@ function routeForActionUrlRaw(actionUrl: string | null | undefined): Href | null
       case "milestones":
         // NCC-004: `/milestones/<id>` (actionUrl notifikasi milestone) → detail milestone.
         return ROUTES.milestoneDetail(id)
+      case "returns":
+        // FAL-016: `/returns/<id>` (actionUrl notifikasi retur — uang!) →
+        // detail retur. Tanpa ini tap notifikasi retur mati (jatuh ke tab).
+        return ROUTES.returnDetail(id)
+      case "products":
+        // FAL-017: `/products/<id>` (actionUrl notifikasi stok/produk) →
+        // detail produk.
+        return ROUTES.productDetail(id)
+      case "tracking":
+        // FAL-019: `/tracking/<id>` (dari `kahade://tracking/<id>`) →
+        // detail pelacakan kiriman.
+        return ROUTES.trackingDetail(id)
       case "feedback":
-        // NCC-005: `/feedback/<id>` (actionUrl balasan feedback) → layar feedback.
-        return ROUTES.feedback
+        // FAL-018: `/feedback/<id>` = balasan admin atas masukan user, tapi
+        // backend TIDAK punya endpoint user-facing GET /v1/feedback/:id dan
+        // app/feedback.tsx hanya formulir kirim (bukan layar detail) — tidak
+        // ada file layar detail yang bisa dituju. Sementara itu, arahkan ke
+        // tiket bantuan (jalur dukungan terdekat); jangan kirim actionUrl
+        // tanpa tujuan. Keputusan ideal: backend sediakan GET
+        // /v1/feedback/:id + layar detail balasan.
+        return ROUTES.support
       default:
         break
     }
@@ -461,8 +541,9 @@ function routeForActionUrlRaw(actionUrl: string | null | undefined): Href | null
         // NCC-008: `/bank-accounts` (actionUrl ESCROW_HELD_NO_BANK) → daftar rekening.
         return ROUTES.bankAccounts
       case "feedback":
-        // NCC-005: `/feedback` → layar feedback.
-        return ROUTES.feedback
+        // FAL-018: lihat komentar di cabang dua-segmen — balasan feedback
+        // tanpa layar detail → tiket bantuan.
+        return ROUTES.support
       case "questions":
         // NCC-014: `/questions` → daftar pertanyaan.
         return ROUTES.questions
