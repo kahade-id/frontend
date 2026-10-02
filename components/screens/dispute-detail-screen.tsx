@@ -1119,8 +1119,9 @@ export default function DisputeDetailScreen() {
   )
 
   return (
-    // CHT-001: composer chat sengketa di slot footer — tanpa keyboardAvoiding,
-    // keyboard native menutupi kolom tulis (pola sama dengan app/chat/[roomId]).
+    // CHT-001: composer sengketa berada di slot footer. Screen-level
+    // KeyboardAvoiding menjaga composer ikut naik di iOS; Android memakai
+    // resize native tanpa menumpuk behavior height kedua.
     <Screen
       keyboardAvoiding
       edges={["top"]}

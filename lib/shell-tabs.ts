@@ -9,9 +9,9 @@
  *   itu tetap ada sebagai rute stack dan dijangkau lewat drawer/sidebar.
  * - Notifikasi naik menjadi tab sejati dengan badge unread.
  * - Tombol tengah kini ikon QR — ketuk langsung membuka pemindai /scan
- *   (keputusan produk 2026-09-27, revisi 2026-09-28). Sheet "Buat baru"
- *   pindah ke tombol (+) di header Etalase dan pensil di drawer
- *   (reusable <CreateSheet>).
+ *   (keputusan produk 2026-09-27, revisi 2026-09-28). Tombol (+) bersifat
+ *   kontekstual: Etalase membuka form karya, Transaksi membuka form transaksi;
+ *   sheet global "Buat baru" tetap tersedia dari utility bar drawer.
  *
  * File ini satu-satunya sumber struktur tab; `shell-tab-bar.tsx` merendernya,
  * root layout memakai `isShellTabPath` untuk visibilitas bar.
@@ -68,8 +68,11 @@ export const SHELL_TAB_PATHS: readonly string[] = SHELL_TABS.map((t) => t.href)
 
 function normalizePath(path: string): string {
   const base = path.split("?")[0]?.split("#")[0] ?? "/"
-  const trimmed = base.length > 1 && base.endsWith("/") ? base.slice(0, -1) : base
-  return trimmed.toLowerCase()
+  const segments = base
+    .split("/")
+    .filter(Boolean)
+    .filter((segment) => !(/^\([^/]+\)$/).test(segment))
+  return `/${segments.join("/")}`.toLowerCase()
 }
 
 /**
@@ -86,4 +89,39 @@ export function isShellTabPath(pathname: string): boolean {
 export function shellTabForPath(pathname: string): ShellTabDef | undefined {
   const path = normalizePath(pathname)
   return SHELL_TABS.find((t) => t.href === path)
+}
+
+// The tab bar uses navigate() instead of building a browser-like stack. Keep a
+// small in-memory visit history so native Back returns to the previous tab,
+// then lets the OS exit normally when the history is exhausted.
+let activeShellTab: ShellTabKey | null = null
+let shellTabHistory: ShellTabKey[] = []
+
+export function rememberShellTabVisit(pathname: string): void {
+  const next = shellTabForPath(pathname)?.key
+  if (!next || next === activeShellTab) return
+  if (activeShellTab) {
+    shellTabHistory.push(activeShellTab)
+    if (shellTabHistory.length > 32) shellTabHistory = shellTabHistory.slice(-32)
+  }
+  activeShellTab = next
+}
+
+/** Pop one prior tab; returns undefined so the platform can handle/exit. */
+export function popPreviousShellTab(pathname: string): ShellTabDef | undefined {
+  const current = shellTabForPath(pathname)?.key
+  if (!current) return undefined
+  while (shellTabHistory.length > 0) {
+    const previous = shellTabHistory.pop()
+    if (!previous || previous === current) continue
+    activeShellTab = previous
+    return SHELL_TABS.find((tab) => tab.key === previous)
+  }
+  return undefined
+}
+
+/** Clear history when an account signs out (and between isolated tests). */
+export function resetShellTabHistory(): void {
+  activeShellTab = null
+  shellTabHistory = []
 }

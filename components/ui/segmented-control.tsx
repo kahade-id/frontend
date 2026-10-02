@@ -8,35 +8,24 @@
  *
  * Keputusan non-obvious:
  *   - Container `rounded-md border border-border-control bg-surface p-[2px]`
- *     (outline kontrol, >= 3:1 — WCAG 1.4.11, audit #6); segmen
- *     aktif `bg-primary` + teks `primary-foreground` mengikuti bahasa Chip
- *     selected (§9.25) — di dark mode otomatis invert. Segmen inaktif
- *     transparan dengan text-secondary.
+ *     (outline kontrol, >= 3:1 — WCAG 1.4.11); satu indikator aktif bergerak
+ *     dengan shared value Reanimated di UI thread, bukan berpindah background
+ *     antar-segmen lewat render React.
  *   - Radius segmen `rounded-sm` (6px) di dalam container 8px: selisih 2px =
- *     padding, sehingga sudut dalam tampak konsentris (bukan konstanta baru,
- *     turunan radius.md - p). Segmen 4px di bilah 36px terbaca sebagai kotak
- *     (laporan QA) — 6px adalah radius terbesar yang tetap konsentris dalam
- *     batas maksimum non-pill §5 (8px).
- *   - Container segmen `overflow-hidden`: fill aktif TIDAK PERNAH boleh
- *     mengecat di luar batas rounded-nya, apa pun yang terjadi di dalam
- *     (anak meluap, quirk radius platform). Tanpa ini, background aktif bisa
- *     tampak menyiku walau kelas radius-nya benar.
- *   - Tinggi total 40px (h-10) = Button sm; segmen 36px.
- *   - Tanpa animasi geser (§1 tenang) dan tanpa scale press — PressableScale
- *     dipakai hanya untuk disabled-opacity & a11y yang seragam.
- *   - Role a11y "radiogroup"/"radio": semantik "satu dari N" lebih tepat
- *     untuk screen reader daripada "tab" (tidak mengganti panel konten).
- *   - Focus ring keyboard (web saja) `focusRingInset` + `rounded-xs` di
- *     container segmen: segmen berhimpitan di dalam border container 2px,
- *     ring luar akan menutupi border itu — inset tetap di dalam segmen.
- *   - Target sentuh 44 (audit #1) tanpa mengubah visual 40px: RN memotong
- *     area sentuh anak di batas frame induk, TETAPI frame induk itu sendiri
- *     boleh diperluas dengan `hitSlop` (RCTView `pointInside` / Android
- *     TouchTargetHelper menghitung slop tiap view saat traversal). Jadi slop
- *     dipasang berlapis: container 40 -> 44 (2px), segmen 36 -> 44 (4px).
- *     Sentuhan 2px di luar border masuk ke container, lalu ke segmen.
+ *     padding, sehingga sudut dalam tampak konsentris.
+ *   - Tinggi container 44px (parent `min-h-11`); isi segmen 38px setelah
+ *     border 1px + padding 2px di tiap sisi. Angka layout dan kelas sekarang
+ *     cocok di Yoga Android/iOS, tanpa parent yang tumbuh diam-diam.
+ *   - Semantik a11y `radiogroup`/`radio` tetap dipertahankan; target sentuh
+ *     vertikal minimal 44px memakai hitSlop tanpa mengubah geometri visual.
  */
-import { View, type ViewProps } from "react-native"
+import { useCallback, useEffect, useRef, useState } from "react"
+import { I18nManager, View, type LayoutChangeEvent, type ViewProps } from "react-native"
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated"
 
 import { Icon, type IconComponent } from "@/components/ui/icon"
 import { PressableScale } from "@/components/ui/pressable-scale"
@@ -46,13 +35,16 @@ import { focusRingInset } from "@/lib/focus-ring"
 import { translateProp } from "@/lib/i18n"
 import { hitSlopToReach } from "@/lib/hit-slop"
 import { tokens } from "@/lib/tokens"
+import { useReducedMotion } from "@/lib/use-reduced-motion"
 
-/** Tinggi container = Button sm (h-10). Segmen = container - 2×p-[2px]. */
-const CONTAINER_H = tokens.space[10]
+const CONTAINER_H = tokens.space[10] + tokens.space["0.5"] * 2
+const CONTAINER_BORDER = tokens.borderWidth.control
 const SEGMENT_PAD = tokens.radius.md - tokens.radius.sm
-const SEGMENT_H = CONTAINER_H - SEGMENT_PAD * 2
+const SEGMENT_INSET = CONTAINER_BORDER + SEGMENT_PAD
+const SEGMENT_H = CONTAINER_H - SEGMENT_INSET * 2
 const CONTAINER_HIT_SLOP = hitSlopToReach(0, CONTAINER_H)
 const SEGMENT_HIT_SLOP = hitSlopToReach(0, SEGMENT_H)
+const INDICATOR_DURATION = tokens.motion.duration.fast
 
 export type SegmentItem<V extends string = string> = {
   value: V
@@ -78,20 +70,78 @@ export function SegmentedControl<V extends string = string>({
   disabled = false,
   accessibilityLabel,
   className,
+  onLayout,
   ...rest
 }: SegmentedControlProps<V>) {
+  const reducedMotion = useReducedMotion()
+  const [containerWidth, setContainerWidth] = useState(0)
+  const activeIndex = items.findIndex((item) => item.value === value)
+  const visualIndex =
+    activeIndex < 0 ? 0 : I18nManager.isRTL ? items.length - activeIndex - 1 : activeIndex
+  const segmentWidth =
+    items.length > 0
+      ? Math.max(0, (containerWidth - SEGMENT_INSET * 2) / items.length)
+      : 0
+  const indicatorX = useSharedValue(0)
+  const indicatorInitialized = useRef(false)
+
+  const handleLayout = useCallback(
+    (event: LayoutChangeEvent) => {
+      const width = event.nativeEvent.layout.width
+      setContainerWidth((previous) => (previous === width ? previous : width))
+      onLayout?.(event)
+    },
+    [onLayout],
+  )
+
+  useEffect(() => {
+    const nextX = visualIndex * segmentWidth
+    if (reducedMotion || containerWidth === 0 || !indicatorInitialized.current) {
+      indicatorX.value = nextX
+      if (containerWidth > 0) indicatorInitialized.current = true
+      return
+    }
+    indicatorX.value = withTiming(nextX, { duration: INDICATOR_DURATION })
+  }, [indicatorX, visualIndex, segmentWidth, containerWidth, reducedMotion])
+
+  const indicatorStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: indicatorX.value }],
+  }))
+
   return (
     <View
       accessibilityRole="radiogroup"
       accessibilityLabel={translateProp(accessibilityLabel)}
       hitSlop={{ top: CONTAINER_HIT_SLOP.top, bottom: CONTAINER_HIT_SLOP.bottom }}
       className={cn(
-        "min-h-11 w-full flex-row rounded-md border border-border-control bg-surface p-[2px]",
+        "relative min-h-11 w-full flex-row rounded-md border border-border-control bg-surface p-[2px]",
         disabled && "opacity-disabled",
         className,
       )}
+      onLayout={handleLayout}
       {...rest}
     >
+      {items.length > 0 ? (
+        <Animated.View
+          accessible={false}
+          importantForAccessibility="no"
+          testID="segmented-control-indicator"
+          style={[
+            indicatorStyle,
+            {
+              position: "absolute",
+              pointerEvents: "none",
+              left: SEGMENT_INSET,
+              top: SEGMENT_INSET,
+              bottom: SEGMENT_INSET,
+              width: segmentWidth,
+              opacity: containerWidth > 0 && activeIndex >= 0 ? 1 : 0,
+            },
+          ]}
+        >
+          <View className="h-full w-full rounded-sm bg-primary" />
+        </Animated.View>
+      ) : null}
       {items.map((item) => {
         const active = item.value === value
         const isDisabled = disabled || item.disabled
@@ -109,10 +159,7 @@ export function SegmentedControl<V extends string = string>({
             onPress={() => onChange(item.value)}
             hitSlop={{ top: SEGMENT_HIT_SLOP.top, bottom: SEGMENT_HIT_SLOP.bottom }}
             containerClassName={cn("min-w-0 flex-1 overflow-hidden rounded-sm", focusRingInset)}
-            className={cn(
-              "min-h-10 min-w-0 flex-1 flex-row items-center justify-center gap-1 rounded-sm px-2 py-2",
-              active ? "bg-primary" : "bg-transparent",
-            )}
+            className="min-h-[38px] min-w-0 flex-1 flex-row items-center justify-center gap-1 rounded-sm px-2 py-2"
           >
             {item.icon ? (
               <Icon

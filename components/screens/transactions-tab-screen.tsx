@@ -50,7 +50,7 @@
  */
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { View, type FlatList } from "react-native"
-import { Funnel, Receipt, ShoppingBag, Storefront, Wallet } from "phosphor-react-native"
+import { Funnel, Plus, Receipt, ShoppingBag, Storefront, Wallet } from "phosphor-react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useRouter } from "expo-router"
 import { api } from "@/lib/api"
@@ -338,9 +338,15 @@ export default function TransactionsScreen() {
           }
           onPress={handleFilterSheetOpen}
         />
+        <IconButton
+          icon={Plus}
+          variant="ghost"
+          accessibilityLabel={translate("Buat transaksi baru")}
+          onPress={handleCreateTransactionPress}
+        />
       </View>
     ),
-    [walletBalance, filtered, walletEnabled, handleWalletPress, handleFilterSheetOpen],
+    [walletBalance, filtered, walletEnabled, handleWalletPress, handleFilterSheetOpen, handleCreateTransactionPress],
   )
 
   /**
@@ -458,16 +464,9 @@ export default function TransactionsScreen() {
   }
   return (
     <Screen edges={["top"]} padded={false}>
-      {/*
-       * Header TANPA ikon aksi (permintaan produk 2026-09-26): empat ikon
-       * lama (order link, sengketa, template, pencarian) semuanya sudah ada
-       * di halaman Lainnya sebagai lingkaran akses cepat, dan pencarian
-       * global bisa dibuka dari mana saja lewat ikon kaca pembesar di header
-       * Etalase. Empat ikon itu membuat judul "Transaksi" tergeser dan
-       * menghabiskan sisi kanan header untuk pintu yang duplikat.
-       */}
-      {/* v2: header tanpa separator (permintaan produk 2026-09-27); filter
-          cukup ikon funnel di kanan — sheet pilihan status, tanpa blok chip. */}
+      {/* Aksi header tetap kontekstual: buat transaksi, filter status, dan
+          pintasan dompet opsional. Utility lain tetap berada di drawer. */}
+      {/* Header tanpa separator; status dipilih melalui sheet funnel. */}
       <Header
         title="Transaksi"
         titleAlign="left"

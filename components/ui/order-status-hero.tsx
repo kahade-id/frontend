@@ -17,6 +17,7 @@
 import { View, type ViewProps } from "react-native"
 import { Check, Copy } from "phosphor-react-native"
 
+import { Amount } from "@/components/ui/amount"
 import { Divider } from "@/components/ui/divider"
 import { IconButton } from "@/components/ui/icon-button"
 import { Text } from "@/components/ui/text"
@@ -50,6 +51,8 @@ const STATUS_HERO_BG: Record<string, string> = {
 export type OrderStatusHeroProps = Omit<ViewProps, "children" | "role"> & {
   status: OrderStatus | string
   title: string
+  /** Nilai order dari backend — ditempatkan di hero untuk prioritas scan. */
+  amount?: number
   /** ID transaksi — backend mengirim format ORD-YYYYMMDD-SERIAL. */
   transactionId: string
   createdAt: string
@@ -62,6 +65,7 @@ export type OrderStatusHeroProps = Omit<ViewProps, "children" | "role"> & {
 export function OrderStatusHero({
   status,
   title,
+  amount,
   transactionId,
   createdAt,
   role,
@@ -97,13 +101,23 @@ export function OrderStatusHero({
         </View>
       </View>
 
-      <View className="mt-4 gap-1">
-        <Text variant="caption" tone="secondary">
-          {translate("Pesanan")}
-        </Text>
-        <Text variant="h3" numberOfLines={3}>
-          {title}
-        </Text>
+      <View className="mt-4 gap-3">
+        <View className="min-w-0 gap-1">
+          <Text variant="caption" tone="secondary">
+            {translate("Pesanan")}
+          </Text>
+          <Text variant="h3" numberOfLines={3}>
+            {title}
+          </Text>
+        </View>
+        {amount != null ? (
+          <View className="items-start gap-1">
+            <Text variant="caption" tone="secondary">
+              {translate("Nilai transaksi")}
+            </Text>
+            <Amount value={amount} size="large" animated={false} className="w-full" />
+          </View>
+        ) : null}
       </View>
 
       <View className="my-5">

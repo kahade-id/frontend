@@ -16,7 +16,7 @@
   },
   {
    "s": "Gagal memuat",
-   "n": 37
+   "n": 39
   },
   {
    "s": "Simpan",
@@ -27,11 +27,11 @@
    "n": 26
   },
   {
-   "s": "{x}: {y}",
-   "n": 24
+   "s": "Kembali",
+   "n": 25
   },
   {
-   "s": "Kembali",
+   "s": "{x}: {y}",
    "n": 24
   },
   {
@@ -123,10 +123,6 @@
    "n": 12
   },
   {
-   "s": "Buat baru",
-   "n": 12
-  },
-  {
    "s": "Foto profil",
    "n": 12
   },
@@ -183,6 +179,10 @@
    "n": 10
   },
   {
+   "s": "Buat baru",
+   "n": 10
+  },
+  {
    "s": "Dasar:",
    "n": 10
   },
@@ -232,6 +232,10 @@
   },
   {
    "s": "Bagikan etalase ini",
+   "n": 9
+  },
+  {
+   "s": "Bantuan Langsung",
    "n": 9
   },
   {
@@ -371,6 +375,10 @@
    "n": 8
   },
   {
+   "s": "Bantuan",
+   "n": 7
+  },
+  {
    "s": "Biaya layanan",
    "n": 7
   },
@@ -423,6 +431,10 @@
    "n": 7
   },
   {
+   "s": "Nilai transaksi",
+   "n": 7
+  },
+  {
    "s": "Pengaturan",
    "n": 7
   },
@@ -440,6 +452,10 @@
   },
   {
    "s": "Ubah",
+   "n": 7
+  },
+  {
+   "s": "Umpan Balik",
    "n": 7
   },
   {
@@ -464,14 +480,6 @@
   },
   {
    "s": "Aset digital",
-   "n": 6
-  },
-  {
-   "s": "Bantuan",
-   "n": 6
-  },
-  {
-   "s": "Bantuan Langsung",
    "n": 6
   },
   {
@@ -688,10 +696,6 @@
   },
   {
    "s": "Masuk ke Kahade",
-   "n": 6
-  },
-  {
-   "s": "Membuka pilihan: buat etalase, buat transaksi, atau isi saldo",
    "n": 6
   },
   {
@@ -1007,6 +1011,10 @@
    "n": 5
   },
   {
+   "s": "Kirim Pesan",
+   "n": 5
+  },
+  {
    "s": "Kode lisensi",
    "n": 5
   },
@@ -1016,6 +1024,10 @@
   },
   {
    "s": "Kontak publik",
+   "n": 5
+  },
+  {
+   "s": "Konten tidak tersedia",
    "n": 5
   },
   {
@@ -1032,10 +1044,6 @@
   },
   {
    "s": "Mengunggah foto…",
-   "n": 5
-  },
-  {
-   "s": "Nilai transaksi",
    "n": 5
   },
   {
@@ -1072,6 +1080,10 @@
   },
   {
    "s": "Tautan",
+   "n": 5
+  },
+  {
+   "s": "Tiket Bantuan",
    "n": 5
   },
   {
@@ -1207,6 +1219,10 @@
    "n": 4
   },
   {
+   "s": "Buat transaksi baru",
+   "n": 4
+  },
+  {
    "s": "Buat trip",
    "n": 4
   },
@@ -1320,6 +1336,10 @@
   },
   {
    "s": "Harga minimum (opsional)",
+   "n": 4
+  },
+  {
+   "s": "Hubungi Kami",
    "n": 4
   },
   {
@@ -1668,10 +1688,6 @@
   },
   {
    "s": "Ukuran berkas melebihi {x} MB.",
-   "n": 4
-  },
-  {
-   "s": "Umpan Balik",
    "n": 4
   },
   {
@@ -2100,6 +2116,10 @@
   },
   {
    "s": "Buat PIN sekarang",
+   "n": 3
+  },
+  {
+   "s": "Buat tiket baru untuk pertanyaan lain",
    "n": 3
   },
   {
@@ -2775,6 +2795,10 @@
    "n": 3
   },
   {
+   "s": "Hubungi tim Kahade saat layanan tersedia",
+   "n": 3
+  },
+  {
    "s": "ID transaksi disalin",
    "n": 3
   },
@@ -2792,6 +2816,10 @@
   },
   {
    "s": "Info pengiriman digital (opsional)",
+   "n": 3
+  },
+  {
+   "s": "Informasi aplikasi dan kebijakan",
    "n": 3
   },
   {
@@ -2884,6 +2912,10 @@
   },
   {
    "s": "Jeda voice note",
+   "n": 3
+  },
+  {
+   "s": "Jelajahi bantuan",
    "n": 3
   },
   {
@@ -3007,11 +3039,11 @@
    "n": 3
   },
   {
-   "s": "Kirim Pesan",
+   "s": "Kirim rating",
    "n": 3
   },
   {
-   "s": "Kirim rating",
+   "s": "Kirim saran untuk membantu kami berkembang",
    "n": 3
   },
   {
@@ -3119,6 +3151,10 @@
    "n": 3
   },
   {
+   "s": "Lacak Pengiriman",
+   "n": 3
+  },
+  {
    "s": "Lanjut",
    "n": 3
   },
@@ -3128,6 +3164,10 @@
   },
   {
    "s": "Lanjutkan pencarian pada halaman berikutnya.",
+   "n": 3
+  },
+  {
+   "s": "Laporan Saya",
    "n": 3
   },
   {
@@ -3192,6 +3232,10 @@
   },
   {
    "s": "Lihat lampiran bukti {x}",
+   "n": 3
+  },
+  {
+   "s": "Lihat percakapan dan status tiket",
    "n": 3
   },
   {
@@ -3303,6 +3347,14 @@
    "n": 3
   },
   {
+   "s": "Membuka pilihan: buat etalase, buat transaksi, atau isi saldo",
+   "n": 3
+  },
+  {
+   "s": "Membuka pilihan: buat karya, buat transaksi, atau isi saldo",
+   "n": 3
+  },
+  {
    "s": "Memeriksa status pesanan…",
    "n": 3
   },
@@ -3340,6 +3392,10 @@
   },
   {
    "s": "Memuat lencana…",
+   "n": 3
+  },
+  {
+   "s": "Memuat pengiriman…",
    "n": 3
   },
   {
@@ -3592,6 +3648,10 @@
   },
   {
    "s": "Panggilan {x} dari {y}",
+   "n": 3
+  },
+  {
+   "s": "Pantau laporan yang pernah Anda kirim",
    "n": 3
   },
   {
@@ -4267,6 +4327,10 @@
    "n": 3
   },
   {
+   "s": "Tentang Kahade",
+   "n": 3
+  },
+  {
    "s": "Tentukan berapa dari {x} yang dikembalikan ke pembeli; sisanya ke penjual.",
    "n": 3
   },
@@ -4640,10 +4704,6 @@
   },
   {
    "s": "{x} lampiran tidak dapat ditampilkan (bukan tautan unduhan langsung).",
-   "n": 2
-  },
-  {
-   "s": "{x} sudah tidak tersedia — kemungkinan sudah dihapus.",
    "n": 2
   },
   {
@@ -5719,10 +5779,6 @@
    "n": 2
   },
   {
-   "s": "Gagal membuka chat",
-   "n": 2
-  },
-  {
    "s": "Gagal membuka percakapan",
    "n": 2
   },
@@ -6503,10 +6559,6 @@
    "n": 2
   },
   {
-   "s": "Konten tidak tersedia",
-   "n": 2
-  },
-  {
    "s": "Kosongkan pilihan",
    "n": 2
   },
@@ -6939,6 +6991,10 @@
    "n": 2
   },
   {
+   "s": "Menyiapkan percakapan…",
+   "n": 2
+  },
+  {
    "s": "Menyimpan…",
    "n": 2
   },
@@ -7224,10 +7280,6 @@
   },
   {
    "s": "Pengendali Data Pribadi:",
-   "n": 2
-  },
-  {
-   "s": "Pengguna ini membatasi pesan langsung baru. Anda hanya bisa chat dengannya lewat transaksi.",
    "n": 2
   },
   {
@@ -8255,10 +8307,6 @@
    "n": 2
   },
   {
-   "s": "Tidak bisa mengirim pesan",
-   "n": 2
-  },
-  {
    "s": "Tidak dibagikan",
    "n": 2
   },
@@ -8280,10 +8328,6 @@
   },
   {
    "s": "Tiket {x}",
-   "n": 2
-  },
-  {
-   "s": "Tiket Bantuan",
    "n": 2
   },
   {
@@ -8844,6 +8888,10 @@
   },
   {
    "s": "{x} pesan diteruskan",
+   "n": 1
+  },
+  {
+   "s": "{x} sudah tidak tersedia — kemungkinan sudah dihapus.",
    "n": 1
   },
   {
@@ -11967,6 +12015,10 @@
    "n": 1
   },
   {
+   "s": "Buat karya baru",
+   "n": 1
+  },
+  {
    "s": "Buat Kata Sandi",
    "n": 1
   },
@@ -12040,10 +12092,6 @@
   },
   {
    "s": "Buat tiket melalui menu Hubungi Kami.",
-   "n": 1
-  },
-  {
-   "s": "Buat transaksi baru",
    "n": 1
   },
   {
@@ -12148,6 +12196,10 @@
   },
   {
    "s": "Buka profil lawan bicara",
+   "n": 1
+  },
+  {
+   "s": "Buka pusat bantuan",
    "n": 1
   },
   {
@@ -13847,10 +13899,6 @@
    "n": 1
   },
   {
-   "s": "Gagal membuka pelacakan",
-   "n": 1
-  },
-  {
    "s": "Gagal membuka pesan untuk diri sendiri",
    "n": 1
   },
@@ -14640,10 +14688,6 @@
   },
   {
    "s": "Hubungi kami",
-   "n": 1
-  },
-  {
-   "s": "Hubungi Kami",
    "n": 1
   },
   {
@@ -16075,10 +16119,6 @@
    "n": 1
   },
   {
-   "s": "Lacak Pengiriman",
-   "n": 1
-  },
-  {
    "s": "Lampiran (opsional)",
    "n": 1
   },
@@ -16912,10 +16952,6 @@
   },
   {
    "s": "Memuat pengaturan privasi…",
-   "n": 1
-  },
-  {
-   "s": "Memuat pengiriman…",
    "n": 1
   },
   {
@@ -18400,10 +18436,6 @@
   },
   {
    "s": "Pengiriman gagal dan versi web tidak menyimpan masukan pribadi di browser — jangan tutup halaman ini, kirim ulang setelah koneksi kembali. Untuk kendala yang butuh tindakan, buat tiket bantuan resmi.",
-   "n": 1
-  },
-  {
-   "s": "Pengiriman ini memakai resi manual — belum ada timeline kurir terintegrasi.",
    "n": 1
   },
   {
@@ -21236,6 +21268,10 @@
   },
   {
    "s": "Tidak bisa mengambil lokasi",
+   "n": 1
+  },
+  {
+   "s": "Tidak bisa mengirim pesan",
    "n": 1
   },
   {

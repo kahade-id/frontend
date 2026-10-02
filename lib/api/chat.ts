@@ -298,13 +298,29 @@ function normalizeCounterpart(
   sealTier: SealTier | null,
 ): ChatRoom["counterpart"] | undefined {
   if (!other && !counterpart) return undefined
-  const merged = { ...other, ...counterpart }
-  const id =
-    typeof merged.id === "string" && merged.id
-      ? merged.id
-      : typeof merged.userId === "string"
-        ? merged.userId
+
+  // `otherUser` is the canonical viewer-relative identity returned by the
+  // current API. `counterpart` is only a legacy alias and may be stale (some
+  // payloads contain the viewer there); it must never overwrite the peer.
+  const merged = { ...counterpart, ...other }
+  const otherHasIdentity = Boolean(
+    other &&
+      ((typeof other.userId === "string" && other.userId.trim()) ||
+        (typeof other.username === "string" && other.username.trim())),
+  )
+  const canonicalId =
+    typeof other?.userId === "string" && other.userId.trim()
+      ? other.userId
+      : typeof other?.id === "string" && other.id.trim()
+        ? other.id
+        : null
+  const legacyId =
+    typeof counterpart?.id === "string" && counterpart.id.trim()
+      ? counterpart.id
+      : typeof counterpart?.userId === "string" && counterpart.userId.trim()
+        ? counterpart.userId
         : ""
+  const id = canonicalId ?? (otherHasIdentity ? "" : legacyId)
   return {
     ...merged,
     id,
@@ -313,7 +329,56 @@ function normalizeCounterpart(
   } as ChatRoom["counterpart"]
 }
 
-function normalizeChatRoom(raw: ChatRoom & Record<string, unknown>): ChatRoom {
+function normalizeUsername(value: string | null | undefined): string {
+  return (value ?? "").trim().replace(/^@/, "").toLocaleLowerCase("en-US")
+}
+
+/** Compare the resolved public profile with the authenticated viewer. */
+export function isSameDmAccount(
+  target: { id?: string | null; username?: string | null },
+  viewer: { id?: string | null; username?: string | null },
+): boolean {
+  const targetId = target.id?.trim() ?? ""
+  const viewerId = viewer.id?.trim() ?? ""
+  return Boolean(
+    (targetId && viewerId && targetId === viewerId) ||
+      (target.username && viewer.username &&
+        normalizeUsername(target.username) === normalizeUsername(viewer.username)),
+  )
+}
+
+/**
+ * Fail-closed identity check before a profile-originated DM is opened.
+ * A room may be minimal on POST /chat/dm, in which case callers must fetch
+ * GET /chat/rooms/:id first. Contradictory IDs/usernames always reject.
+ */
+export function isChatRoomForDmTarget(
+  room: ChatRoom | null | undefined,
+  target: { id?: string | null; username: string },
+): boolean {
+  if (!room || !room.id || room.orderId) return false
+  const roomType = (room.type ?? room.roomType)?.toUpperCase()
+  if (roomType && roomType !== "INQUIRY") return false
+
+  const expectedUsername = normalizeUsername(target.username)
+  if (!expectedUsername) return false
+  const counterpartUsername =
+    room.otherUser?.username ?? room.counterpart?.username ?? null
+  const counterpartId =
+    room.otherUser?.userId?.trim() || room.counterpart?.id?.trim() || ""
+  const expectedId = target.id?.trim() ?? ""
+  const usernameMatches =
+    Boolean(counterpartUsername) && normalizeUsername(counterpartUsername) === expectedUsername
+
+  if (counterpartUsername && !usernameMatches) return false
+  if (counterpartId && expectedId && counterpartId !== expectedId) return false
+
+  // At least one server-reported identity must match. An unverified room ID
+  // alone is not enough to expose its messages.
+  return usernameMatches || Boolean(counterpartId && expectedId && counterpartId === expectedId)
+}
+
+export function normalizeChatRoom(raw: ChatRoom & Record<string, unknown>): ChatRoom {
   // BFI-137: `otherUser` kini bertipe eksplisit (ChatRoomOtherUser) — tanpa
   // `as`-cast yang menyembunyikan drift dari compiler. Bentuk lama
   // (`counterpart` datar) tetap dibaca sebagai fallback.
@@ -796,9 +861,9 @@ export function createInquiry(dto: {
  * tanpa pesan pertama. Dipakai tombol "Kirim Pesan" di profil (WhatsApp-like).
  * Backend memakai ulang room INQUIRY yang sudah ada bila tersedia.
  */
-export function getOrCreateDm(username: string) {
+export function getOrCreateDm(username: string, signal?: AbortSignal) {
   return http
-    .post<unknown, { username: string }>("/v1/chat/dm", { username }, { auth: "required" })
+    .post<unknown, { username: string }>("/v1/chat/dm", { username }, { auth: "required", signal })
     .then((raw) => {
       const record = (raw ?? {}) as Record<string, unknown>
       const roomRaw = (record.room ?? record) as ChatRoom & Record<string, unknown>

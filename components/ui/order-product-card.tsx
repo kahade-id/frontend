@@ -24,6 +24,8 @@ export type OrderProductCardProps = Omit<ViewProps, "children"> & {
   description?: string
   orderType: OrderType | string
   orderValue: number
+  /** Hide when the order value is already promoted into the status hero. */
+  showAmount?: boolean
   className?: string
 }
 
@@ -32,6 +34,7 @@ export function OrderProductCard({
   description,
   orderType,
   orderValue,
+  showAmount = true,
   className,
   ...rest
 }: OrderProductCardProps) {
@@ -64,13 +67,17 @@ export function OrderProductCard({
           </Badge>
         </View>
       </View>
-      <Divider />
-      <View className="flex-row items-center justify-between gap-3">
-        <Text variant="body" tone="secondary">
-          {translate("Nilai transaksi")}
-        </Text>
-        <Amount value={orderValue} size="body" />
-      </View>
+      {showAmount ? (
+        <>
+          <Divider />
+          <View className="flex-row items-center justify-between gap-3">
+            <Text variant="body" tone="secondary">
+              {translate("Nilai transaksi")}
+            </Text>
+            <Amount value={orderValue} size="body" />
+          </View>
+        </>
+      ) : null}
     </View>
   )
 }

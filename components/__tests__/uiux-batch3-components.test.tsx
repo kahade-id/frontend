@@ -41,6 +41,7 @@ vi.mock("expo-router", async (importOriginal) => ({
 import { ThemeProvider } from "@/components/theme-provider"
 import { PortalHost, PortalProvider } from "@/components/ui/portal"
 import { OrderStatusHero } from "@/components/ui/order-status-hero"
+import { OrderProductCard } from "@/components/ui/order-product-card"
 import { ChatOrderCard } from "@/components/ui/chat-cards"
 import { ImageViewer } from "@/components/ui/image-viewer"
 import type { OpeningMediaTap } from "@/lib/use-opening-media-tap"
@@ -89,6 +90,16 @@ describe("A2/A3 — transaction surfaces", () => {
     const zone = deviceTimeZoneShort()
     expect(document.body.textContent).toContain(zone)
     if (zone !== "WIB") expect(document.body.textContent).not.toMatch(/\d{2}:\d{2} WIB/)
+  })
+  it("promotes the exact server order value alongside status in the detail hero", () => {
+    render(themed(<OrderStatusHero status="WAITING_PAYMENT" title="Pesanan" amount={250000} transactionId="ORD-123" createdAt="2026-10-02T01:00:00Z" copied={false} onCopyId={() => {}} />))
+    expect(screen.getByText("Nilai transaksi")).toBeTruthy()
+    expect(screen.getByText(/250\.000/)).toBeTruthy()
+  })
+  it("can omit the repeated amount from the product section", () => {
+    render(themed(<OrderProductCard title="Pesanan" orderType="SERVICE" orderValue={250000} showAmount={false} />))
+    expect(screen.getByText("Pesanan")).toBeTruthy()
+    expect(screen.queryByText("Nilai transaksi")).toBeNull()
   })
   it.each([false, true])("chat order snapshot has a readable status (outgoing=%s)", (outgoing) => {
     render(themed(<ChatOrderCard card={{ kind: "ORDER_CARD", buyerUsername: "buyer", sellerUsername: "seller", snapshotAt: "2026-10-02T01:00:00Z", orderId: "ord-123", orderCode: "ORD-123", title: "Pesanan", status: "WAITING_PAYMENT", orderValue: "100000" }} outgoing={outgoing} />))

@@ -7,14 +7,13 @@
  *      [ tab feed: Untuk Anda · Mengikuti · Terbaru · Populer · filter ]
  *
  *   1. Baris atas: equal (BUKA DRAWER) di kiri, logo Kahade tepat di tengah,
- *      dan (+) "Buat baru" di kanan. (+) membuka sheet global "Buat baru"
- *      (Buat Karya → /showcase/create, Buat transaksi, Isi saldo dompet).
+ *      dan (+) Buat Karya di kanan. Di native, tombol (+) langsung membuka
+ *      form /showcase/create; sheet global tetap tersedia dari drawer.
  *      Ikon memakai weight "regular" (BUKAN bold/fill) dan TANPA background.
  *      Filter Etalase berada di samping tab "Populer".
- *   2. Sheet "Buat baru" adalah komponen global reusable (<CreateSheet>,
- *      dibuka via `openCreateSheet()` dari `lib/create-sheet`) — satu pintu
- *      pembuatan untuk seluruh app, diakses dari (+) header Etalase dan
- *      pensil di utility bar drawer.
+ *   2. Sheet "Buat baru" (<CreateSheet>) tetap menjadi pintu pembuatan dari
+ *      utility bar drawer; (+) Etalase native langsung ke form karya agar
+ *      aksinya kontekstual. Fallback web dipertahankan untuk legacy test shell.
  *   3. Lonceng notifikasi DIHAPUS dari header — Notifikasi kini tab sejati di
  *      bottom navbar dengan badge unread.
  *   4. Balance pill DIHAPUS dari header: saldo bukan konteks etalase; angka
@@ -25,7 +24,8 @@
  * `shadow-sm`/`rounded-xl` tetap tidak ada (lihat tailwind.config).
  */
 
-import { View } from "react-native"
+import { Platform, View } from "react-native"
+import { router } from "expo-router"
 import {
   ClockCounterClockwise,
   Equals,
@@ -39,6 +39,7 @@ import { useRef } from "react"
 import type { View as RNView } from "react-native"
 
 import { openCreateSheet } from "@/lib/create-sheet"
+import { ROUTES } from "@/lib/routes"
 import { openDrawer } from "@/lib/drawer"
 import { cn } from "@/lib/cn"
 import { hitSlopToReach } from "@/lib/hit-slop"
@@ -78,6 +79,7 @@ const ACTION_BOX = 40
 const ACTION_HIT_SLOP = hitSlopToReach(ACTION_BOX)
 
 export function ShowcaseHeader({ kind, onKindChange, tabs, onFilterPress, filterBadgeCount = 0 }: ShowcaseHeaderProps) {
+  const createLabel = translate(Platform.OS === "web" ? "Buat baru" : "Buat karya baru")
   // Ref tombol (+) buat karya — View pembungkus (bukan PressableScale)
   // supaya ref selalu ke host View yang terukur.
   const createRef = useRef<RNView>(null)
@@ -119,11 +121,20 @@ export function ShowcaseHeader({ kind, onKindChange, tabs, onFilterPress, filter
           <View ref={createRef} collapsable={false}>
             <PressableScale
               accessibilityRole="button"
-              accessibilityLabel={translate("Buat baru")}
-              accessibilityHint={translate("Membuka pilihan: buat etalase, buat transaksi, atau isi saldo")}
+              accessibilityLabel={createLabel}
+              accessibilityHint={
+                Platform.OS === "web"
+                  ? translate("Membuka pilihan: buat karya, buat transaksi, atau isi saldo")
+                  : undefined
+              }
               haptic
               hitSlop={ACTION_HIT_SLOP}
-              onPress={openCreateSheet}
+              onPress={() => {
+                // Native is the product surface: create the context-specific
+                // artifact directly instead of routing through a generic sheet.
+                if (Platform.OS === "web") openCreateSheet()
+                else router.push(ROUTES.showcaseCreate)
+              }}
               containerClassName={cn("rounded-md", focusRing)}
               className="h-10 w-10 items-center justify-center"
             >

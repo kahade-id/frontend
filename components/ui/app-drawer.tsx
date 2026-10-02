@@ -9,9 +9,10 @@
  *      (sheet submenu — FE-098, satu-satunya item ber-chevron bawah),
  *      Template Transaksi, Tautan Pesanan, Sengketa Saya, dan Laporan &
  *      analitik (→ /analytics). Item "Pesan" dihapus dari drawer — tab
- *      bawah sudah mencakupnya. Dot di "Tiket Bantuan" menandai tiket terbuka.
- *   4. Menu bawah: Umpan Balik, Bantuan Langsung, Tiket Bantuan
- *      (revisi 2026-09-28, permintaan produk).
+ *      bawah sudah mencakupnya.
+ *   4. Native: satu menu Bantuan menuju hub FAQ, Tentang, Laporan Saya,
+ *      tiket, Bantuan Langsung, dan Umpan Balik. Web fallback lama dipertahankan
+ *      hanya untuk kompatibilitas shell yang sudah tidak menjadi produk.
  *   5. Utility bar di kaki drawer: gear (Pengaturan), bidang pencarian yang
  *      selalu expanded dan langsung membuka /search saat ditekan, serta
  *      pensil (sheet global "Buat baru"). Search dan pensil memakai surface
@@ -32,7 +33,7 @@
  * Reduced motion: buka/tutup instan tanpa spring maupun efek dorong.
  */
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { Pressable, ScrollView, View, useWindowDimensions } from "react-native"
+import { Platform, Pressable, ScrollView, View, useWindowDimensions } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { usePathname, useRouter, type Href } from "expo-router"
 import { Gesture, GestureDetector } from "react-native-gesture-handler"
@@ -52,6 +53,7 @@ import {
   FileText,
   Gear,
   Headset,
+  Lifebuoy,
   LinkSimple,
   MagnifyingGlass,
   PencilSimple,
@@ -77,7 +79,6 @@ import { PressableScale } from "@/components/ui/pressable-scale"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Text } from "@/components/ui/text"
 import { api, type UserProfile } from "@/lib/api"
-import { hasOpenSupportTicket } from "@/lib/api/support"
 import { refreshChatUnreadCount, useChatUnreadCountState } from "@/lib/chat-unread-count"
 import { closeDrawer, drawerProgress, useDrawerOpen } from "@/lib/drawer"
 import { isShellTabPath } from "@/lib/shell-tabs"
@@ -98,6 +99,7 @@ import {
   BOTTOM_MENU_META,
   MAIN_MENU_META,
   SHOP_MENU_META,
+  getDrawerFooterMenuMeta,
   getMainMenuMeta,
   type DrawerMenuMeta,
 } from "@/lib/drawer-menu"
@@ -141,6 +143,7 @@ const MENU_ICONS: Record<string, IconComponent> = {
   feedback: ChatCircle,
   "live-support": Headset,
   "support-tickets": Ticket,
+  "help-center": Lifebuoy,
   // FE-098: ikon sheet "Toko Saya" — sama seperti di Pengaturan sebelumnya.
   "shop-products": ShoppingBag,
   "shop-returns": ArrowUDownLeft,
@@ -173,7 +176,7 @@ export function useMainMenu(): readonly DrawerMenuItem[] {
   return useMemo(() => withIcons(getMainMenuMeta(walletEnabled)), [walletEnabled])
 }
 
-/** Menu bawah — revisi 2026-09-28 (permintaan produk). */
+/** Deprecated web-shell compatibility; native uses the single Help Center entry. */
 export const BOTTOM_MENU: readonly DrawerMenuItem[] = withIcons(BOTTOM_MENU_META)
 
 /** FE-098: isi sheet "Toko Saya". */
@@ -265,15 +268,16 @@ function DrawerUtilityBar() {
       accessibilityRole="toolbar"
       accessibilityLabel={translate("Aksi cepat")}
     >
-      {/* Pengaturan tetap menjadi aksi utama ber-background primer. */}
+      {/* Neutral surface prevents the settings control from rendering as a
+          black/dark blob in dark mode; all utility icons share one treatment. */}
       <PressableScale
         accessibilityRole="button"
         accessibilityLabel={translate("Pengaturan")}
         haptic
         onPress={goSettings}
-        className="h-12 w-12 items-center justify-center rounded-full bg-primary"
+        className="h-12 w-12 items-center justify-center rounded-full bg-surface"
       >
-        <Icon icon={Gear} size="md" tone="inverse" weight="bold" />
+        <Icon icon={Gear} size="md" tone="default" weight="bold" />
       </PressableScale>
 
       {/* Bidang search selalu expanded dan langsung membuka layar pencarian. */}
@@ -355,22 +359,12 @@ export function AppDrawer() {
     }
   }, [open, token, chatUnread.status])
 
-  // Badge "Tiket Bantuan": daftar tiket hanya diambil saat drawer dibuka —
-  // endpoint yang sama dengan layar daftar tiket, hasilnya di-cache
-  // useApiQuery per key. Backend tidak punya penanda unread per tiket
-  // (tanpa API baru), jadi dot = ada tiket berstatus terbuka.
-  const ticketsQuery = useApiQuery(
-    "drawer:support-tickets",
-    (signal) => api.support.listSupportTickets(signal),
-    open && Boolean(token),
-  )
-  const hasOpenTicket = hasOpenSupportTicket(ticketsQuery.data ?? [])
+  // Support tickets are now reached through the Help Center, so opening the
+  // drawer no longer fetches the ticket list just to decorate a removed row.
+  const badgeFor = (id: string): boolean =>
+    id === "messages" && (chatUnread.count ?? 0) > 0
 
-  const badgeFor = (id: string): boolean => {
-    if (id === "messages") return (chatUnread.count ?? 0) > 0
-    if (id === "support-tickets") return hasOpenTicket
-    return false
-  }
+  const bottomMenu = useMemo(() => withIcons(getDrawerFooterMenuMeta(Platform.OS)), [])
   const isKycVerified = Boolean(
     (profile as unknown as { isKycVerified?: boolean } | null)?.isKycVerified,
   )
@@ -685,7 +679,7 @@ export function AppDrawer() {
 
             {/* Menu bawah. */}
             <View className="pb-2">
-              {BOTTOM_MENU.map((item) => (
+              {bottomMenu.map((item) => (
                 <DrawerMenuRow
                   key={item.id}
                   item={item}

@@ -1297,12 +1297,12 @@ export default function OrderDetailScreen() {
         {/* Iterasi de-card 2026-09-27: ritme antar-section space.8 (32px)
             sesuai §4 — section polos butuh ruang napas lebih lega
             dibanding tumpukan kartu. */}
-        <View className="gap-7" style={SECTION_PADDING_TOP}>
-          {/* 1 — Hero: status menonjol + judul + ID transaksi + tanggal/waktu.
-              Hierarki baca: STATUS → JUDUL → ID TRANSAKSI → TANGGAL/WAKTU. */}
+        <View className="gap-8" style={SECTION_PADDING_TOP}>
+          {/* 1 — Hero: status + nilai order, lalu judul, ID, dan waktu untuk scan cepat. */}
           <OrderStatusHero
             status={order.status}
             title={order.title}
+            amount={order.orderValue}
             transactionId={order.id}
             createdAt={order.createdAt}
             role={isBuyer ? ("buyer" as const) : isSeller ? ("seller" as const) : undefined}
@@ -1364,6 +1364,7 @@ export default function OrderDetailScreen() {
             description={order.description}
             orderType={order.orderType}
             orderValue={order.orderValue}
+            showAmount={false}
           />
 
           {/* 6 — Lawan transaksi: SATU pihak saja — pembeli melihat

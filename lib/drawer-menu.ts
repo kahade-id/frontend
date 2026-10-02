@@ -72,12 +72,27 @@ export const SHOP_MENU_META: readonly DrawerMenuMeta[] = [
   { id: "shop-service-bookings", label: "Booking Jasa", href: ROUTES.serviceBookings, accessibilityLabel: "Buka booking jasa" },
 ]
 
-/** Menu bawah — revisi 2026-09-28 (permintaan produk). */
+/** Native drawer has one consolidated path to FAQ + support resources. */
+export const HELP_MENU_META: readonly DrawerMenuMeta[] = [
+  { id: "help-center", label: "Bantuan", href: ROUTES.faq, accessibilityLabel: "Buka pusat bantuan" },
+]
+
+/**
+ * Legacy web-only drawer rows. The shipped web route redirects to the landing
+ * site; keep this metadata solely for old web-shell compatibility/tests.
+ * Native Android/iOS render HELP_MENU_META instead.
+ * @deprecated
+ */
 export const BOTTOM_MENU_META: readonly DrawerMenuMeta[] = [
   { id: "feedback", label: "Umpan Balik", href: ROUTES.feedback, accessibilityLabel: "Buka umpan balik" },
   { id: "live-support", label: "Bantuan Langsung", href: ROUTES.liveSupport, accessibilityLabel: "Buka bantuan langsung" },
   { id: "support-tickets", label: "Tiket Bantuan", href: ROUTES.support, accessibilityLabel: "Buka tiket bantuan" },
 ]
+
+/** Product menu by platform; native consolidates support links under FAQ. */
+export function getDrawerFooterMenuMeta(platform: string): readonly DrawerMenuMeta[] {
+  return platform === "web" ? BOTTOM_MENU_META : HELP_MENU_META
+}
 
 /**
  * Mode Tanpa Wallet Internal (BI-safe): menu utama yang sadar kill-switch.

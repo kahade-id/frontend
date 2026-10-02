@@ -594,10 +594,10 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
    */
   const handleSendMessage = useCallback(() => {
     if (!requireSession() || !handle) return
-    router.navigate({ pathname: "/prepare-navigation", params: {
-      kind: "dm", id: handle, title: profile?.fullName ?? `@${handle}`,
-    } } as never)
-  }, [requireSession, handle, profile?.fullName])
+    // Only the public handle is needed to resolve the recipient. Keep display
+    // names and other personal data out of route/query parameters.
+    router.navigate({ pathname: "/prepare-navigation", params: { kind: "dm", id: handle } } as never)
+  }, [requireSession, handle])
 
   // Follow / Favorite actions
   const handleFollow = useCallback(

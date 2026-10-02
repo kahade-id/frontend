@@ -7,9 +7,9 @@
  *
  *   - WEB → redirect penuh ke https://kahade.id (landing). Tidak ada lagi
  *     sesi/login/guest-mode di web build Expo ini.
- *   - NATIVE, masih punya access token → ROUTES.home (= /showcase, sesi
- *     lanjut; bila token kedaluwarsa, client akan refresh atau memancarkan
- *     `sessionExpired` yang di root layout mengarahkan ke /login)
+ *   - NATIVE, masih punya access token → layar native terakhir yang aman
+ *     (path saja, tanpa query); fallback ROUTES.home. Cold-start push/deep link
+ *     tetap menang atas pemulihan ini.
  *   - NATIVE, belum pernah melihat intro → /onboarding
  *   - NATIVE, sudah → /login
  *
@@ -25,13 +25,14 @@
  *   - Web pakai window.location (bukan router): keluar total dari web build
  *     Expo menuju landing Vercel.
  */
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react"
 import { Platform } from "react-native"
-import { Redirect } from "expo-router"
+import { Redirect, type Href } from "expo-router"
 
 // PERF-FIX (bundle): import langsung dari domain, bukan barrel `@/lib/api`
 // (±35 domain, ~700KB) — rute root dievaluasi paling awal saat boot.
 import { getAccessToken } from "@/lib/api/session"
+import { getLastNativeRoute, isLastRouteRestoreSuppressed, subscribeLastRouteRestore } from "@/lib/last-route"
 import { hasSeenOnboarding } from "@/lib/onboarding"
 import { logWarn } from "@/lib/telemetry"
 import { ROUTES } from "@/lib/routes"
@@ -45,6 +46,12 @@ const LANDING_URL = "https://kahade.id"
 
 export default function Index() {
   const [gate, setGate] = useState<Gate | null>(null)
+  const [lastNativeRoute, setLastNativeRoute] = useState<string | null>(null)
+  const restoreSuppressed = useSyncExternalStore(
+    subscribeLastRouteRestore,
+    isLastRouteRestoreSuppressed,
+    () => false,
+  )
   /**
    * B-09 (audit): kegagalan BACA Keychain/Keystore (reject) sebelumnya
    * disamakan dengan "tidak ada token" (null) — error transien OS melempar
@@ -72,8 +79,15 @@ export default function Index() {
       }),
       hasSeenOnboarding().catch(() => false),
     ])
-      .then(([token, seen]) => {
+      .then(async ([token, seen]) => {
+        const savedRoute = token
+          ? await getLastNativeRoute().catch((err) => {
+              logWarn("boot-gate:read-last-route", err)
+              return null
+            })
+          : null
         if (!alive) return
+        setLastNativeRoute(savedRoute)
         setGate(token ? "home" : seen ? "login" : "onboarding")
       })
       .catch(() => {
@@ -97,9 +111,13 @@ export default function Index() {
     )
   }
   if (gate === null) return null
-  return (
-    <Redirect
-      href={gate === "home" ? ROUTES.home : gate === "login" ? ROUTES.login : ROUTES.onboarding}
-    />
-  )
+  const destination =
+    gate === "home"
+      ? !restoreSuppressed && lastNativeRoute
+        ? (lastNativeRoute as Href)
+        : ROUTES.home
+      : gate === "login"
+        ? ROUTES.login
+        : ROUTES.onboarding
+  return <Redirect href={destination} />
 }

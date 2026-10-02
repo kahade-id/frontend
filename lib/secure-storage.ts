@@ -61,6 +61,8 @@ export const SecureKeys = {
    * (cold-start dedupe). BUKAN rahasia — pengecualian seperti `deviceId`.
    */
   lastNotificationResponse: "kahade.push.lastResponse",
+  /** Last safe native route, stored without query params and cleared on logout. */
+  lastNativeRoute: "kahade.navigation.lastNativeRoute",
   /**
    * Pilihan tema eksklusif Kahade+ (id tema — lib/kahade-plus-theme.ts).
    * Preferensi UI level perangkat seperti `themePreference`: boleh persist di
@@ -382,6 +384,7 @@ export async function clearSession(): Promise<void> {
   await Promise.all([
     deleteSecureItem(SecureKeys.accessToken),
     deleteSecureItem(SecureKeys.refreshToken),
+    deleteSecureItem(SecureKeys.lastNativeRoute),
     deleteSecureItem(SecureKeys.biometricEnabled),
     deleteSecureItem(SecureKeys.pushToken),
     deleteSecureItem(SecureKeys.feedbackQueue),

@@ -4,7 +4,16 @@ import { View, type ListRenderItem } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useIsFocused } from "@react-navigation/native"
 import { router, useLocalSearchParams } from "expo-router"
-import { Lifebuoy, Question, MagnifyingGlass } from "phosphor-react-native"
+import {
+  ChatCircleText,
+  EnvelopeSimple,
+  Flag,
+  Info,
+  Lifebuoy,
+  MagnifyingGlass,
+  Question,
+  Ticket,
+} from "phosphor-react-native"
 import { api } from "@/lib/api"
 import { translate, useLanguage } from "@/lib/i18n"
 import { ROUTES } from "@/lib/routes"
@@ -27,6 +36,7 @@ import { Dialog } from "@/components/ui/modal"
 import { FadeIn } from "@/components/ui/fade-in"
 import { Icon } from "@/components/ui/icon"
 import { ListLoading } from "@/components/ui/paginated-list"
+import { ListGroup, ListItem } from "@/components/ui/list-item"
 import { PullToRefreshFlatList } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
@@ -40,6 +50,64 @@ import { TextLink } from "@/components/ui/text-link"
  */
 function FaqItemSeparator() {
   return <View className="h-3" />
+}
+
+/** Existing FAQ route doubles as the native Help Center hub, avoiding a new route. */
+function HelpCenterLinks() {
+  return (
+    <View className="gap-3">
+      <SectionHeader title={translate("Jelajahi bantuan")} level="h3" />
+      <ListGroup>
+        <ListItem
+          title={translate("Tentang Kahade")}
+          subtitle={translate("Informasi aplikasi dan kebijakan")}
+          leading={Info}
+          href={ROUTES.about}
+          chevron
+          divider
+        />
+        <ListItem
+          title={translate("Laporan Saya")}
+          subtitle={translate("Pantau laporan yang pernah Anda kirim")}
+          leading={Flag}
+          href={ROUTES.reports()}
+          chevron
+          divider
+        />
+        <ListItem
+          title={translate("Tiket Bantuan")}
+          subtitle={translate("Lihat percakapan dan status tiket")}
+          leading={Ticket}
+          href={ROUTES.support}
+          chevron
+          divider
+        />
+        <ListItem
+          title={translate("Bantuan Langsung")}
+          subtitle={translate("Hubungi tim Kahade saat layanan tersedia")}
+          leading={Lifebuoy}
+          href={ROUTES.liveSupport}
+          chevron
+          divider
+        />
+        <ListItem
+          title={translate("Umpan Balik")}
+          subtitle={translate("Kirim saran untuk membantu kami berkembang")}
+          leading={ChatCircleText}
+          href={ROUTES.feedback}
+          chevron
+          divider
+        />
+        <ListItem
+          title={translate("Hubungi Kami")}
+          subtitle={translate("Buat tiket baru untuk pertanyaan lain")}
+          leading={EnvelopeSimple}
+          href={ROUTES.contact}
+          chevron
+        />
+      </ListGroup>
+    </View>
+  )
 }
 
 type FaqRow = { id: string } & ({ article: HelpArticle } | { category: HelpCategory })
@@ -172,6 +240,7 @@ export default function FaqScreen() {
     () =>
       searching ? null : (
         <View className="gap-4 pb-3">
+          <HelpCenterLinks />
           {/* F05: status ketersediaan Bantuan Langsung. */}
           <LiveSupportStatusCard />
           {/* F04: artikel terakhir dilihat. */}

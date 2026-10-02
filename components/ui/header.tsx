@@ -19,9 +19,9 @@
  *     pemanggil tidak perlu wiring setiap layar.
  *   - `progress` (0–1) merender <StepProgress> tepat di bawah bar — §9.22:
  *     bar tipis di header untuk alur multi-step, tanpa teks "Langkah X/Y".
- *   - Judul H3 (18/600) bukan H1: H1 disediakan untuk judul konten di body;
- *     header adalah kerangka, bukan konten. `largeTitle` opsional merender
- *     H1 di baris kedua untuk layar utama tab (Beranda, Riwayat).
+ *   - Judul utama memakai H2; rute detail memakai H3 secara konsisten melalui
+ *     `defaultHeaderTitleVariant`. H1 tetap milik konten body. `largeTitle`
+ *     opsional merender H1 di baris kedua untuk layar utama tab.
  *   - Di web dibatasi `md:max-w-content` (§11), sejajar kolom konten.
  */
 import { memo, useCallback, useContext, useEffect, useState, type ReactNode } from "react"
@@ -41,6 +41,7 @@ import { logicalParentForPath } from "@/lib/notification-routing"
 import { cn } from "@/lib/cn"
 import { translateProp, useLanguage } from "@/lib/i18n"
 import { translate } from "@/lib/i18n/translate"
+import { defaultHeaderTitleVariant } from "@/lib/header-title"
 
 /**
  * Tinggi bar Header (px) — harus sama dengan class `h-14` di bawah (skala
@@ -121,9 +122,8 @@ export type HeaderProps = Omit<ViewProps, "children"> & {
    */
   titleAlign?: "left" | "center"
   /**
-   * Ukuran judul teks: "h2" (default, 24px) atau "h3" (20px, lebih kecil).
-   * REVISI 2026-09-30 (keputusan user: skala global naik sekaligus) —
-   * default diubah h3 → h2 agar judul layar mengikuti skala baru.
+   * Override ukuran judul: main/list/form default H2, layar detail otomatis H3.
+   * Gunakan hanya bila konteks visual rute tidak mengikuti klasifikasi standar.
    */
   titleVariant?: "h2" | "h3"
   /** Safe area top ikut dipadding (default true; false bila SafeAreaView di luar) */
@@ -149,7 +149,7 @@ export const Header = memo(function Header({
   separator = true,
   elevated = false,
   titleAlign = "center",
-  titleVariant = "h2",
+  titleVariant: titleVariantOverride,
   safeArea,
   className,
   ...rest
@@ -158,6 +158,7 @@ export const Header = memo(function Header({
   const insets = useSafeAreaInsets()
   const router = useRouter()
   const pathname = usePathname()
+  const titleVariant = titleVariantOverride ?? defaultHeaderTitleVariant(pathname)
   const providedInsets = useContext(ScreenInsetsContext)
   // largeTitle (H1 konten) lebih mewakili layar daripada title bar bila ada.
   // Judul TAB web adalah satu-satunya teks yang tidak lewat <Text> di sini,

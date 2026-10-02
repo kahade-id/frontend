@@ -48,7 +48,7 @@
 import "../global.css"
 
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { AppState, Linking, Platform, View } from "react-native"
+import { AppState, BackHandler, Linking, Platform, View } from "react-native"
 import { GestureHandlerRootView } from "react-native-gesture-handler"
 import Reanimated, { useAnimatedStyle } from "react-native-reanimated"
 import { Stack, useGlobalSearchParams, usePathname, useRouter, type Href } from "expo-router"
@@ -101,6 +101,7 @@ import * as publicApi from "@/lib/api/public"
 import { onSessionExpired } from "@/lib/api/session"
 import { fontAssetsBlocking, fontAssetsDeferred } from "@/lib/fonts"
 import { routeForPushData } from "@/lib/notification-routing"
+import { saveLastNativeRoute, suppressLastRouteRestore } from "@/lib/last-route"
 import { animationDurationForScreen, animationForScreen, getScreenId } from "@/lib/screen-transitions"
 import { setupNotifications, subscribeNotificationOpened } from "@/lib/push-notifications"
 // PERF-FIX (bundle, 2026-09-30): `expo-notifications` (±1.6MB) kini dimuat
@@ -146,6 +147,7 @@ const AppLockGate = lazy(() =>
   import("@/components/app-lock-gate").then((m) => ({ default: m.AppLockGate })),
 )
 import { ShellTabBar, isShellTabPath } from "@/components/ui/shell-tab-bar"
+import { popPreviousShellTab, rememberShellTabVisit, resetShellTabHistory } from "@/lib/shell-tabs"
 // FE-075: drawer & sheet dimuat LAZY — modul beratnya (beserta seluruh
 // subtree importnya) baru diunduh/dieksekusi saat pertama dibutuhkan, bukan
 // saat boot. `lazy` SAJA tidak cukup bila komponen tetap dirender langsung
@@ -436,6 +438,34 @@ function ShellRouteEffects({ session, setRealtimeNeeded }: {
   // ajakan login sebagai lapisan penuh, bukan redirect paksa. Native
   // tetap memakai guard sesi seperti semula.
   const pathname = usePathname()
+  const previousSessionToken = useRef(session.token)
+
+  useEffect(() => {
+    rememberShellTabVisit(pathname)
+  }, [pathname])
+
+  useEffect(() => {
+    if (previousSessionToken.current && !session.token) resetShellTabHistory()
+    previousSessionToken.current = session.token
+  }, [session.token])
+
+  // Android Back on a tab follows visit order, not the navigator's tab stack.
+  // With no previous tab, explicitly use the normal OS exit affordance so the
+  // handler can never trap the user on the first tab.
+  useEffect(() => {
+    if (Platform.OS !== "android") return
+    const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+      if (!isShellTabPath(pathname)) return false
+      const previousTab = popPreviousShellTab(pathname)
+      if (previousTab) {
+        router.navigate(previousTab.href as never)
+        return true
+      }
+      BackHandler.exitApp()
+      return true
+    })
+    return () => subscription.remove()
+  }, [pathname, router])
 
   // FE-074: koneksi socket realtime DITUNDA sampai kebutuhan chat pertama.
   // Provider TETAP mount (layar chat mengandalkan context), tapi token hanya
@@ -450,6 +480,13 @@ function ShellRouteEffects({ session, setRealtimeNeeded }: {
     }
     if (pathname === "/chat" || pathname.startsWith("/chat/")) setRealtimeNeeded(true)
   }, [pathname, session.token])
+
+  // Resume the last safe screen after the OS kills the process. The route
+  // store contains pathname only (no query data) and is cleared on logout.
+  useEffect(() => {
+    if (Platform.OS === "web" || !session.token || session.restoring) return
+    void saveLastNativeRoute(pathname).catch((error) => logWarn("navigation:last-route", error))
+  }, [pathname, session.token, session.restoring])
 
   // Satu-satunya tempat yang mendengarkan "sesi habis" dari API client
   // (client.ts memanggil emitSessionExpired saat 401 tak bisa di-refresh).
@@ -776,6 +813,7 @@ function AppShellInner() {
         // ulang kelayakan via API (fail-closed) lalu eksekusi; setelah aksi,
         // buka detail order agar pengguna melihat status terbaru.
         if (actionIdentifier === CONFIRM_RECEIPT_ACTION) {
+          if (source === "cold-start") suppressLastRouteRestore()
           void (async () => {
             if (!session.token) {
               router.push(ROUTES.login)
@@ -822,6 +860,7 @@ function AppShellInner() {
         // di tab yang salah. Tap saat app hidup tetap jatuh ke Notifikasi
         // karena niat penggunanya jelas (mereka mengetuk notifikasinya).
         if (source === "cold-start" && !resolved) return
+        if (source === "cold-start") suppressLastRouteRestore()
         const target = resolved ?? ROUTES.notifications
         // NAV-007: tap notifikasi saat logout — simpan tujuan supaya alur
         // login melanjutkannya (takePendingNext; U5-003: tanpa layar welcome), bukan hilang.
@@ -852,6 +891,7 @@ function AppShellInner() {
         }
       } catch (err) {
         logWarn("notif:opened", err)
+        if (source === "cold-start") suppressLastRouteRestore()
         router.push(ROUTES.notifications)
       }
     })
