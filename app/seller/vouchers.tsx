@@ -85,7 +85,10 @@ function discountText(v: SellerVoucher): string {
       v.maxDiscountAmountIdr != null ? ` (maks ${formatRupiah(v.maxDiscountAmountIdr)})` : ""
     return `${v.discountPercent}%${cap}`
   }
-  return formatRupiah(v.discountAmountIdr ?? 0)
+  // R4/P2-08 (audit non-escrow 2026-10-03): nominal null ≠ Rp0 — jangan
+  // tampilkan "Diskon Rp0" yang menyesatkan.
+  if (v.discountAmountIdr == null) return translate("Belum tersedia")
+  return formatRupiah(v.discountAmountIdr)
 }
 
 export default function SellerVouchersScreen() {
