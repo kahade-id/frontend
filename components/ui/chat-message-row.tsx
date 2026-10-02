@@ -56,6 +56,7 @@ import { ChatMessageBubble } from "@/components/ui/chat-message-bubble"
 import { ChatPollCard } from "@/components/ui/chat-poll-card"
 import { ChatViewOnce } from "@/components/ui/chat-view-once"
 import { isImageMedia } from "@/components/ui/media-viewer"
+import { isVideoMime } from "@/lib/mime"
 import { VoiceNotePlayer } from "@/components/ui/voice-note-player"
 import { isAudioMime } from "@/lib/voice-note"
 import { type SealTier } from "@/components/ui/verified-seal"
@@ -181,8 +182,13 @@ const RowAttachmentItem = memo(function RowAttachmentItem({
   onAttachmentPress: (attachment: ChatAttachmentDto) => void
 }) {
   const handlePress = useCallback(() => onAttachmentPress(attachment), [onAttachmentPress, attachment])
+  // FIX 2026-10-03: video juga tampil sebagai tile (bukan row) — konsisten
+  // dengan gambar; ikon play di-overlay oleh ChatAttachmentItem.
   const layout = useMemo(
-    () => (isImageMedia({ url: attachment.fileUrl, mimeType: attachment.mimeType }) ? ("tile" as const) : ("row" as const)),
+    () =>
+      isImageMedia({ url: attachment.fileUrl, mimeType: attachment.mimeType }) || isVideoMime(attachment.mimeType)
+        ? ("tile" as const)
+        : ("row" as const),
     [attachment.fileUrl, attachment.mimeType],
   )
   return (

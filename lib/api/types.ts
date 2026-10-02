@@ -1279,6 +1279,13 @@ export type ChatAttachmentDto = {
    * min 1 · max 10485760
    */
   fileSize: number
+  /**
+   * ISO timestamp kapan signed URL kedaluwarsa (backend: 5 menit TTL).
+   * Klien WAJIB refresh URL bila sudah lewat sebelum dibuka — lihat
+   * `openAttachment` di chat-room-screen.tsx (fix 2026-10-03: foto/video
+   * tidak bisa dibuka karena URL kedaluwarsa).
+   */
+  urlExpiresAt?: string | null
 }
 
 export type SendMessageDto = {

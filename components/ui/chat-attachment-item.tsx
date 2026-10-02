@@ -33,7 +33,7 @@
  *   - Ukuran file ditulis `formatFileSize` (§13) di baris meta; untuk chip
  *     disembunyikan (ruang sempit) kecuali status error.
  */
-import { File, FileArchive, FilePdf, FileText, Image as ImageIcon, Warning, X } from "phosphor-react-native"
+import { File, FileArchive, FilePdf, FileText, Image as ImageIcon, Play, Warning, X } from "phosphor-react-native"
 import { memo } from "react"
 import { View, type ViewProps } from "react-native"
 
@@ -47,7 +47,7 @@ import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { focusRing } from "@/lib/focus-ring"
 import { formatFileSize } from "@/lib/format"
-import { fileExtension, isImageMime } from "@/lib/mime"
+import { fileExtension, isImageMime, isVideoMime } from "@/lib/mime"
 import { attachmentTypeLabel } from "@/lib/dispute-attachments"
 
 export type ChatAttachment = {
@@ -183,6 +183,8 @@ export const ChatAttachmentItem = memo(function ChatAttachmentItem({
   }
 
   if (layout === "tile") {
+    // FIX 2026-10-03: overlay ikon play untuk video — user tahu ini bisa diputar.
+    const isVideo = isVideoMime(attachment.mimeType)
     return (
       <PressableScale
         scaleOnPress={false}
@@ -204,6 +206,11 @@ export const ChatAttachmentItem = memo(function ChatAttachmentItem({
           ) : (
             <Icon icon={errored ? Warning : icon} size="lg" tone={errored ? "danger" : "default"} />
           )}
+          {isVideo && !errored ? (
+            <View className="absolute items-center justify-center rounded-full bg-overlay p-2">
+              <Icon icon={Play} size="sm" tone="inverse" />
+            </View>
+          ) : null}
           {!thumb ? (
             <Text ellipsizeMode="tail" variant="caption" tone="secondary" numberOfLines={1} className="absolute bottom-1 left-1 right-1 text-center">
               {attachmentExtension(attachment.fileName)}
