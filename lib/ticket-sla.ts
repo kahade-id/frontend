@@ -80,13 +80,11 @@ export function describeTicketSla(ticket: SupportTicket & Record<string, unknown
         nextStep: "Agen sedang menindaklanjuti. Pantau tiket ini untuk balasan terbaru.",
         responseDueLabel,
       }
-    case "WAITING_USER":
-      return {
-        stage: "Menunggu balasan Anda",
-        nextOwner: "user",
-        nextStep: "Tim Kahade butuh informasi tambahan dari Anda — balas tiket ini agar penanganan berlanjut.",
-        responseDueLabel,
-      }
+    // SYS-A-002: case "WAITING_USER" dihapus — bukan nilai backend
+    // (SupportTicketStatus: OPEN|IN_PROGRESS|RESOLVED|CLOSED) sehingga
+    // unreachable di sini. Bila derivasi klien ESI-017 ("dihitung dari pesan
+    // terakhir") diimplementasikan, teruskan status UI-nya sebagai argumen
+    // terpisah, bukan via ticket.status.
     case "RESOLVED":
       return {
         stage: "Diselesaikan",

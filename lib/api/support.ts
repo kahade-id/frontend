@@ -23,12 +23,41 @@ export type SupportMessage = {
   senderRole?: "agent" | "bot"
 }
 
+/** Status tiket dukungan — SATU sumber kebenaran, selaras enum backend `SupportTicketStatus`. */
+export type SupportTicketStatus = "OPEN" | "IN_PROGRESS" | "RESOLVED" | "CLOSED"
+
+const SUPPORT_TICKET_STATUS_SET: ReadonlySet<string> = new Set([
+  "OPEN",
+  "IN_PROGRESS",
+  "RESOLVED",
+  "CLOSED",
+])
+
+/**
+ * Boundary parsing: persempit string mentah backend ke `SupportTicketStatus`.
+ * Nilai tak dikenal → "OPEN" (konsisten dengan default lama), bukan menembus
+ * tipe — backend hanya mengirim 4 nilai di atas.
+ */
+function asSupportTicketStatus(value: unknown): SupportTicketStatus {
+  return typeof value === "string" && SUPPORT_TICKET_STATUS_SET.has(value)
+    ? (value as SupportTicketStatus)
+    : "OPEN"
+}
+
 /** Tiket dukungan. */
 export type SupportTicket = {
   id: string
   ticketNumber: string
   subject: string
-  status: "OPEN" | "IN_PROGRESS" | "WAITING_USER" | "RESOLVED" | "CLOSED" | string
+  /**
+   * SYS-A-002 (audit sistemik ronde 3, 2026-10-03): selaras enum backend
+   * `SupportTicketStatus` (backend/prisma/schema.prisma): OPEN | IN_PROGRESS
+   * | RESOLVED | CLOSED. `WAITING_USER` adalah nilai hantu — backend tidak
+   * pernah mengirimnya dan tidak ada kode klien yang mengisinya — dan
+   * `| string` dihapus agar typo tertangkap compiler. Nilai mentah dari
+   * backend dipersempit di `normalizeSupportTicket` (boundary parsing).
+   */
+  status: SupportTicketStatus
   category?: string
   updatedAt: string
   lastMessage?: SupportMessage | null
@@ -121,7 +150,7 @@ function normalizeSupportTicket(raw: unknown): SupportTicket {
         ? record.ticketNumber
         : `TK-${(id.slice(-6) || "------").toUpperCase()}`,
     subject: typeof record.subject === "string" ? record.subject : "",
-    status: typeof record.status === "string" ? record.status : "OPEN",
+    status: asSupportTicketStatus(record.status),
     category: typeof record.category === "string" ? record.category : undefined,
     updatedAt:
       typeof record.updatedAt === "string"
@@ -264,7 +293,6 @@ export function rateSupportTicket(ticketId: string, rating: number, comment?: st
 const OPEN_TICKET_STATUSES: ReadonlySet<string> = new Set([
   "OPEN",
   "IN_PROGRESS",
-  "WAITING_USER",
 ])
 
 export function hasOpenSupportTicket(tickets: readonly SupportTicket[]): boolean {

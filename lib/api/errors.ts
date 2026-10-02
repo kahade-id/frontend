@@ -372,6 +372,64 @@ function parseFieldErrors(source: NestErrorBody): FieldError[] | undefined {
 }
 
 /**
+ * SYS-A-001 (audit sistemik ronde 3, 2026-10-03): tabel lookup EKSPLISIT
+ * untuk kode error kritis jalur uang — KANONIS dan dicek SEBELUM heuristik
+ * `includes()` di `codeFromBackend`.
+ *
+ * Kenapa: heuristik substring MENEBak. Untuk uang, tebakan salah = copy UI
+ * yang menyesatkan di momen dana (mis. refund DANA yang gagal di provider
+ * terpetakan ke VALIDATION "data belum benar"). Setiap entri di sini
+ * terverifikasi ke exception class backend (kolom kanan) — bukan tebakan:
+ * nilai = ApiErrorCode yang sepadan dengan status HTTP yang dilempar backend.
+ *
+ * Aturan keras: JANGAN tambah pola `includes()` baru untuk kode uang —
+ * tambah entri eksplisit di tabel ini. Kode tak dikenal → `undefined`
+ * (jujur: pemanggil memakai generik), jangan tebak.
+ */
+const MONEY_ERROR_CODES: Record<string, ApiErrorCode> = {
+  // --- Escrow / invariant dana (409 → CONFLICT) ---
+  ESCROW_LOCK_MISSING: "CONFLICT", // order-state.service.ts:713 ConflictException
+  MILESTONE_INVARIANT_VIOLATION: "CONFLICT", // milestone-activation.ts:30 ConflictException
+  MILESTONE_ALREADY_RELEASED: "CONFLICT", // milestones.service.ts ConflictException
+  // --- Disbursement tak tersedia / diblokir (400 → BAD_REQUEST) ---
+  DISBURSEMENT_UNAVAILABLE: "BAD_REQUEST", // order-state.service.ts:856 BadRequestException
+  // --- Validasi jumlah / batas uang (400 → BAD_REQUEST) ---
+  MILESTONE_AMOUNT_MISMATCH: "BAD_REQUEST", // milestones.service.ts BadRequestException
+  MILESTONE_REVISION_LIMIT: "BAD_REQUEST", // milestones.service.ts BadRequestException
+  MILESTONE_ORDER_LEGACY_FLOW_FORBIDDEN: "BAD_REQUEST", // milestones.service.ts BadRequestException
+  INVALID_REFUND_AMOUNT: "BAD_REQUEST", // dana/disbursement BadRequestException
+  REFUND_AMOUNT_REQUIRED: "BAD_REQUEST", // refunds BadRequestException
+  WALLET_LOCKED: "BAD_REQUEST", // wallet.service.ts BadRequestException
+  WALLET_DISABLED_USE_DANA: "BAD_REQUEST", // wallet.service.ts BadRequestException
+  // --- Saldo tak cukup (422 primer → UNPROCESSABLE; satu titik 409, tapi
+  //     kode lebih spesifik dari status sehingga UNPROCESSABLE menang) ---
+  INSUFFICIENT_BALANCE: "UNPROCESSABLE", // wallet.service.ts UnprocessableEntityException
+  // --- Kegagalan provider / layanan hilir (503 → SERVER) ---
+  DANA_REFUND_FAILED: "SERVER", // dana-payment.service.ts:311 ServiceUnavailableException
+  DANA_TOPUP_BALANCE_FAILED: "SERVER", // dana-payment.service.ts ServiceUnavailableException
+  DANA_TOPUP_REFUND_NO_REFERENCE: "SERVER", // dana-payment.service.ts ServiceUnavailableException
+  MILESTONE_CANCEL_REFUND_FAILED: "SERVER", // milestones.service.ts ServiceUnavailableException
+  MILESTONE_CANCEL_NO_DANA_PAYMENT: "SERVER", // milestones.service.ts ServiceUnavailableException
+  NO_WALLET_PROVIDER_UNAVAILABLE: "SERVER", // wallet.service.ts ServiceUnavailableException
+  LEGACY_PAYOUT_NO_BANK: "SERVER", // legacy-payout.service.ts ServiceUnavailableException
+  ORDER_QRIS_REFUND_LEDGER_MISSING: "SERVER", // refunds ServiceUnavailableException
+  ORDER_QRIS_REFUND_LEDGER_INVALID: "SERVER", // refunds ServiceUnavailableException
+  IRIS_PAYOUT_FAILED: "SERVER", // iris-payout ServiceUnavailableException
+  IRIS_PAYOUT_TIMEOUT: "SERVER", // iris-payout ServiceUnavailableException
+  IRIS_PAYOUT_NETWORK_ERROR: "SERVER", // iris-payout ServiceUnavailableException
+  IRIS_PAYOUT_STATUS_UNAVAILABLE: "SERVER", // iris-payout ServiceUnavailableException
+  IRIS_PAYOUT_INVALID_RESPONSE: "SERVER", // iris-payout ServiceUnavailableException
+  IRIS_PAYOUT_REFERENCE_MISMATCH: "SERVER", // iris-payout ServiceUnavailableException
+  IRIS_PAYOUT_EMPTY_RESPONSE: "SERVER", // iris-payout ServiceUnavailableException
+  IRIS_PAYOUT_STATUS_INVALID: "SERVER", // iris-payout ServiceUnavailableException
+  IRIS_PAYOUT_UNEXPECTED_STATUS: "SERVER", // iris-payout ServiceUnavailableException
+  // --- Akses / eksistensi (403 → FORBIDDEN, 404 → NOT_FOUND) ---
+  WALLET_DISABLED: "FORBIDDEN", // wallet.service.ts ForbiddenException
+  MILESTONE_NOT_FOUND: "NOT_FOUND", // milestones.service.ts NotFoundException
+  WALLET_NOT_FOUND: "NOT_FOUND", // wallet.service.ts NotFoundException
+}
+
+/**
  * M-35 (audit end-to-end 2026-09-24, issue #81): petakan kode mentah backend
  * (`code`/`errorCode`/`error_code`) ke `ApiErrorCode` yang dikenal sistem —
  * dipakai `unwrapResponse` untuk klasifikasi `success:false` tanpa kunci error.
@@ -380,6 +438,9 @@ function parseFieldErrors(source: NestErrorBody): FieldError[] | undefined {
 export function codeFromBackend(backendCode: string | undefined): ApiErrorCode | undefined {
   if (!backendCode) return undefined
   const k = backendCode.toUpperCase().replace(/[^A-Z0-9]+/g, "_")
+  // SYS-A-001: tabel eksplisit kode uang dicek DULU — menang atas heuristik.
+  const moneyCode = MONEY_ERROR_CODES[k]
+  if (moneyCode) return moneyCode
   // BFI-058: kode eksak yang tidak tertangkap heuristik `includes` di bawah
   // (atau harus menang atasnya). Dicek dulu sebelum pola longgar.
   if (k === ORDER_NOT_FOUND) return "NOT_FOUND"
@@ -467,6 +528,43 @@ const REAUTH_COPY: Record<string, string> = {
     "Layanan verifikasi keamanan sedang tidak tersedia. Coba lagi nanti.",
 }
 
+/**
+ * SYS-C-202 (audit konsistensi 2026-10-03): blocklist password umum TIDAK
+ * punya endpoint cek/daftar di backend (terverifikasi read-only —
+ * `src/modules/auth/password-policy.ts` `validatePasswordPolicy` melempar
+ * VALIDATION_ERROR dengan pesan 'Password terlalu umum. Gunakan kombinasi
+ * yang lebih unik.' — TANPA kode khusus). Pre-submit sudah ditangani mirror
+ * DBL-015 (`lib/auth-constants.ts` `isCommonPassword`); pemetaan berbasis
+ * pesan di sini menutup jalur submit langsung (bypass klien / daftar server
+ * diperbarui). TIDAK ada hardcode ulang 60 entri di FE.
+ */
+export function passwordTooCommonMessage(err: unknown): string | undefined {
+  if (!isApiError(err)) return undefined
+  const texts = [err.message, ...(err.validationMessages ?? [])]
+  if (texts.some((t) => typeof t === "string" && /terlalu umum|too common/i.test(t)))
+    return "Kata sandi terlalu umum. Pilih kata sandi yang lain."
+  return undefined
+}
+
+/**
+ * SYS-C-204: regex email FE sengaja longgar (UX) — `@IsEmail()` backend
+ * adalah penegak final. Bila penolakan BE sampai ke sini, fail-closed TIDAK
+ * boleh membocorkan pesan Inggris mentah class-validator
+ * ("email must be an email" / "Invalid contact email format") — tampilkan
+ * copy Indonesia spesifik.
+ */
+export function emailFormatMessage(err: unknown): string | undefined {
+  if (!isApiError(err)) return undefined
+  const texts = [err.message, ...(err.validationMessages ?? [])]
+  if (
+    texts.some(
+      (t) => typeof t === "string" && /must be an email|invalid .*email.*format/i.test(t),
+    )
+  )
+    return "Format email tidak valid. Periksa kembali alamat email Anda."
+  return undefined
+}
+
 /** Pesan siap tampil: pakai message backend bila ada, selain itu default per kode. */
 export function userMessage(err: unknown): string {
   // Item #27: offline yang diketahui selalu memakai copy klien yang jelas —
@@ -514,6 +612,14 @@ export function userMessage(err: unknown): string {
     // pesan generik ("sesi berakhir"/"data belum benar") menyesatkan di sini.
     const reauthCopy = REAUTH_COPY[err.backendCode ?? ""]
     if (reauthCopy) return reauthCopy
+    // SYS-C-202: password ditolak blocklist server (tanpa kode khusus —
+    // dideteksi dari pesan) → copy jelas, bukan VALIDATION generik.
+    const tooCommon = passwordTooCommonMessage(err)
+    if (tooCommon) return tooCommon
+    // SYS-C-204: regex FE longgar sebagai UX, BE penegak final — penolakan
+    // format email dari BE jangan tampil mentah/Inggris.
+    const emailFormat = emailFormatMessage(err)
+    if (emailFormat) return emailFormat
     // Untuk error jaringan/server, wording backend (bila ada) biasanya teknis — pakai default.
     if (
       err.code === "NETWORK" ||

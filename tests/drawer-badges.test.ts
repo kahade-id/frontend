@@ -18,13 +18,13 @@ import { dirname, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import { describe, expect, it } from "vitest"
 
-import { hasOpenSupportTicket, type SupportTicket } from "@/lib/api/support"
+import { hasOpenSupportTicket, type SupportTicket, type SupportTicketStatus } from "@/lib/api/support"
 import { BOTTOM_MENU_META, MAIN_MENU_META } from "@/lib/drawer-menu"
 
 const testsDir = dirname(fileURLToPath(import.meta.url))
 const src = (p: string) => readFileSync(resolve(testsDir, "..", p), "utf8")
 
-function ticket(status: string): SupportTicket {
+function ticket(status: SupportTicketStatus): SupportTicket {
   return {
     id: "tick_123",
     ticketNumber: "TK-ABC123",
@@ -88,7 +88,8 @@ describe("hasOpenSupportTicket — dot tiket bantuan", () => {
   it("true bila ada tiket berstatus terbuka", () => {
     expect(hasOpenSupportTicket([ticket("OPEN")])).toBe(true)
     expect(hasOpenSupportTicket([ticket("IN_PROGRESS")])).toBe(true)
-    expect(hasOpenSupportTicket([ticket("WAITING_USER")])).toBe(true)
+    // SYS-A-002: WAITING_USER bukan nilai backend — dihapus dari
+    // OPEN_TICKET_STATUSES; bukan status "terbuka" yang valid.
     expect(
       hasOpenSupportTicket([
         ticket("CLOSED"),
@@ -107,7 +108,8 @@ describe("hasOpenSupportTicket — dot tiket bantuan", () => {
   })
 
   it("status tak dikenal tidak menyalakan dot", () => {
-    expect(hasOpenSupportTicket([ticket("ARCHIVED")])).toBe(false)
+    // Robustness: nilai tak dikenal dari server tidak boleh menyalakan dot.
+    expect(hasOpenSupportTicket([ticket("ARCHIVED" as SupportTicketStatus)])).toBe(false)
   })
 })
 

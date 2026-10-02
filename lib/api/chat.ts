@@ -83,9 +83,13 @@ export type ChatRoom = {
 }
 
 /**
- * FAL-013: 10 tipe pesan yang dikenal backend — dicerminkan dari enum
- * messageType backend (production). Literal PENUH tanpa `| string` supaya
- * exhaustive-switch diingatkan compiler saat backend menambah tipe baru.
+ * FAL-013: tipe pesan — dicerminkan dari enum `ChatMessageType` backend
+ * (production, backend/prisma/schema.prisma): 9 nilai
+ * (TEXT|IMAGE|FILE|SYSTEM|VOICE|VIDEO|LOCATION|PRODUCT_CARD|ORDER_CARD).
+ * `POLL` adalah nilai SINTETIS SISI KLIEN (bukan dari backend) untuk me-render
+ * polling sebagai pesan di thread (commit d81c97c) — sengaja dipertahankan di
+ * union agar switch render tetap exhaustive. Literal PENUH tanpa `| string`
+ * supaya exhaustive-switch diingatkan compiler saat backend menambah tipe baru.
  * SUMBER KEBENARAN: backend; tipe baru di backend WAJIB ditambahkan di sini.
  */
 export type ChatMessageType =
@@ -116,7 +120,8 @@ const CHAT_MESSAGE_TYPE_SET: ReadonlySet<string> = new Set([
 /**
  * FAL-013: persempit string mentah (mis. dari antrean persisten chat) ke
  * ChatMessageType. Nilai tak dikenal jatuh ke "TEXT" daripada menembus
- * tipe — runtime backend selalu mengirim salah satu dari 10 nilai di atas.
+ * tipe — runtime backend selalu mengirim salah satu dari 9 nilai backend
+ * di atas (`POLL` hanya dibuat sisi klien, tidak pernah datang dari server).
  */
 export function asChatMessageType(value: unknown): ChatMessageType {
   return typeof value === "string" && CHAT_MESSAGE_TYPE_SET.has(value)

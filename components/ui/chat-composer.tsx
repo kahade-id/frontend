@@ -128,7 +128,7 @@ export type ChatComposerProps = Omit<ViewProps, "children"> & {
   labels?: Partial<ChatComposerLabels>
   /**
    * Item 23 (2026-09-28): balasan cepat — ketik "/" di awal teks memunculkan
-   * picker template (disimpan per perangkat, lib/quick-replies.ts).
+   * picker template (tersinkron backend per akun, lib/reply-templates.ts).
    * Default true; matikan bila konteks tidak cocok.
    */
   quickReplies?: boolean

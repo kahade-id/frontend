@@ -108,19 +108,26 @@ export type CatalogQuery = {
   page?: number
   limit?: number
   category?: string
-  q?: string
+  /**
+   * SYS-A-022 (audit sistemik ronde 3, 2026-10-03): nama param diselaraskan
+   * ke whitelist `CatalogQueryDto` backend
+   * (backend/src/modules/inventory/dto/inventory.dto.ts:331-377): `search`
+   * (bukan `q`), `inStock` (bukan `inStockOnly`). Nama lama TIDAK di-whitelist
+   * → request 422 (forbidNonWhitelisted).
+   */
+  search?: string
   /** Rupiah (number) — kontrak backend, BUKAN sen. */
   minPriceRupiah?: number
   maxPriceRupiah?: number
-  inStockOnly?: boolean
+  inStock?: boolean
   verifiedBusinessOnly?: boolean
 }
 
 export function listCatalog(query?: CatalogQuery, signal?: AbortSignal) {
   const q = {
-    page: query?.page ?? 1, limit: query?.limit ?? 20, category: query?.category, q: query?.q,
+    page: query?.page ?? 1, limit: query?.limit ?? 20, category: query?.category, search: query?.search,
     minPriceRupiah: query?.minPriceRupiah, maxPriceRupiah: query?.maxPriceRupiah,
-    inStockOnly: query?.inStockOnly, verifiedBusinessOnly: query?.verifiedBusinessOnly,
+    inStock: query?.inStock, verifiedBusinessOnly: query?.verifiedBusinessOnly,
   }
   return http
     .get<unknown>("/v1/products", { query: q, auth: "optional", signal })
@@ -131,8 +138,8 @@ export function getProduct(id: string, signal?: AbortSignal) {
   return http.get<Product>(`/v1/products/${id}`, { auth: "optional", signal })
 }
 
-export function listMyProducts(query?: { page?: number; limit?: number; q?: string; status?: ProductStatus }, signal?: AbortSignal) {
-  const q = { page: query?.page ?? 1, limit: query?.limit ?? 20, q: query?.q, status: query?.status }
+export function listMyProducts(query?: { page?: number; limit?: number; search?: string; status?: ProductStatus }, signal?: AbortSignal) {
+  const q = { page: query?.page ?? 1, limit: query?.limit ?? 20, search: query?.search, status: query?.status }
   return http
     .get<unknown>("/v1/products/seller/mine", { query: q, auth: "required", signal })
     .then((raw) => readPage<Product>(raw, q, ["products", "items"]))

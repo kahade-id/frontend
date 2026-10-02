@@ -36,7 +36,12 @@ export type ListOrdersQuery = {
   from?: string
   to?: string
   sortBy?: string
-  sortOrder?: "ASC" | "DESC"
+  /**
+   * SYS-A-022 (audit sistemik ronde 3, 2026-10-03): backend `GetOrdersQueryDto`
+   * (get-orders-query.dto.ts:60) memakai huruf kecil — `"asc" | "desc"`.
+   * `"ASC"`/`"DESC"` lama tidak cocok whitelist → 422.
+   */
+  sortOrder?: "asc" | "desc"
 }
 
 /** Query paginasi wajib (`page!`, `limit!`). */

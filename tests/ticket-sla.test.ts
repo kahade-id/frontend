@@ -23,12 +23,9 @@ describe("describeTicketSla", () => {
     expect(s.nextStep.length).toBeGreaterThan(0)
   })
 
-  it("WAITING_USER → pemilik pengguna dengan instruksi balas", () => {
-    const s = describeTicketSla(ticket({ status: "WAITING_USER" }))
-    expect(s.nextOwner).toBe("user")
-    expect(nextOwnerLabel(s.nextOwner)).toBe("Anda")
-    expect(s.nextStep).toContain("balas")
-  })
+  // SYS-A-002: WAITING_USER bukan nilai backend — case-nya dihapus dari
+  // describeTicketSla. Status "menunggu balasan user" adalah state UI klien
+  // (ESI-017), bukan dari API.
 
   it("IN_PROGRESS → pemilik agen", () => {
     expect(describeTicketSla(ticket({ status: "IN_PROGRESS" })).nextOwner).toBe("agent")

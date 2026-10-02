@@ -97,7 +97,12 @@ export function normalizeNotification(raw: NotificationPayload): AppNotification
 
 export type NotificationListResponse = {
   data: AppNotification[]
-  meta: { page: number; limit: number; total: number; totalPages: number }
+  /**
+   * SYS-A-010 (audit sistemik ronde 3): `total` OPSIONAL — selaras `Page<T>`
+   * (lib/api/response.ts); backend tidak selalu mengirim metadata paginasi.
+   * Pemakai memakai `?? data.length` sebagai fallback.
+   */
+  meta: { page: number; limit: number; total?: number; totalPages: number }
 }
 
 // ------------------------------------------------------------------

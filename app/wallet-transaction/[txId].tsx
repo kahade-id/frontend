@@ -178,7 +178,10 @@ export default function WalletTransactionScreen() {
                 )
               })()}
               {/* FE-IMP-4 item 8: timeline status khusus penarikan. */}
-              {txn.status === "PENDING_SETTLEMENT" ? (
+              {/* SYS-A-002: "PENDING_SETTLEMENT" tidak ada di backend mana pun
+                  (verifikasi grep) — kondisi lama dead code. Hint ekspektasi
+                  durasi kini untuk penarikan yang masih PENDING (nyata). */}
+              {(txn.type === "WITHDRAW" || txn.type === "WITHDRAWAL") && txn.status === "PENDING" ? (
                 // T3-011 (audit UI/UX): status tidak menjelaskan apa yang
                 // ditunggu user — beri ekspektasi durasi + penegasan user
                 // tidak perlu berbuat apa-apa.

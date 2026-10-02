@@ -60,7 +60,7 @@ function tx(overrides: Partial<WalletTransaction> & Pick<WalletTransaction, "id"
   return {
     type: "TOP_UP",
     amount: 100000,
-    status: "COMPLETED",
+    status: "SUCCESS",
     createdAt: "2026-09-27T05:00:00Z",
     ...overrides,
   }
@@ -176,7 +176,7 @@ describe("filterWalletTransactions (client-side)", () => {
       type: "TOP_UP",
       amount: 50000,
       direction: "CREDIT",
-      status: "COMPLETED",
+      status: "SUCCESS",
       referenceId: "TOP-12345",
     }),
     tx({

@@ -153,13 +153,20 @@ export type WalletTransaction = {
   direction?: "CREDIT" | "DEBIT"
   description?: string | null
   referenceId?: string | null
-  status?: "COMPLETED" | "PENDING" | "FAILED" | (string & {})
+  // SYS-A-002 (audit sistemik 2026-10-03): selaras backend `WalletTransactionStatus`
+  // (PENDING | SUCCESS | FAILED | CANCELLED | REVERSED) — "COMPLETED" hantu dihapus.
+  status?: "PENDING" | "SUCCESS" | "FAILED" | "CANCELLED" | "REVERSED"
   createdAt: string
 }
 
 export type WalletPaginated = {
   data: WalletTransaction[]
-  meta: { page: number; limit: number; total: number; totalPages: number }
+  /**
+   * SYS-A-010 (audit sistemik ronde 3): `total` OPSIONAL — selaras `Page<T>`
+   * (lib/api/response.ts) dan perilaku backend yang tidak selalu mengirim
+   * metadata paginasi. Pemakai memakai `?? data.length` sebagai fallback.
+   */
+  meta: { page: number; limit: number; total?: number; totalPages: number }
 }
 
 // ------------------------------------------------------------------
@@ -284,7 +291,14 @@ export type TopupResult = {
 export type WithdrawResult = {
   txId: string
   amount: number
-  status: "PENDING_OTP" | "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED" | string
+  /**
+   * SYS-A-002 (audit sistemik ronde 3, 2026-10-03): selaras enum backend
+   * `WithdrawStatus` (backend/prisma/schema.prisma): PENDING_OTP |
+   * PENDING_PROCESS | PROCESSING | SUCCESS | FAILED. `PENDING`/`COMPLETED`
+   * adalah nilai hantu — backend TIDAK PERNAH mengirimnya — dan `| string`
+   * dihapus agar typo tertangkap compiler, bukan lolos diam-diam.
+   */
+  status: "PENDING_OTP" | "PENDING_PROCESS" | "PROCESSING" | "SUCCESS" | "FAILED"
   bankAccountId?: string
   requiresOtp?: boolean
   expiresAt?: string | null

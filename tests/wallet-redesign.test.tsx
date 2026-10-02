@@ -301,7 +301,7 @@ const TX_TOPUP: WalletTransaction = {
   type: "TOP_UP",
   amount: 500_000,
   direction: "CREDIT",
-  status: "COMPLETED",
+  status: "SUCCESS",
   createdAt: "2026-09-27T10:00:00+07:00",
 }
 const TX_WITHDRAW: WalletTransaction = {
@@ -309,7 +309,7 @@ const TX_WITHDRAW: WalletTransaction = {
   type: "WITHDRAW",
   amount: 200_000,
   direction: "DEBIT",
-  status: "COMPLETED",
+  status: "SUCCESS",
   createdAt: "2026-09-26T10:00:00+07:00",
 }
 

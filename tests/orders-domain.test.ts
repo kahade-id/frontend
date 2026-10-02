@@ -160,8 +160,8 @@ describe("uang (B-03/B-06/B-07/B-11/I-04)", () => {
     expect(feeShare("SPLIT")).toEqual({ buyer: 0.5, seller: 0.5 })
   })
 
-  it("formatRupiah membulatkan pecahan ke rupiah terdekat (DBL-003)", () => {
-    expect(formatRupiah(1000.5)).toBe("Rp1.001")
+  it("formatRupiah menampilkan pecahan 2 desimal (SYS-C-101 / BAI-052)", () => {
+    expect(formatRupiah(1000.5)).toBe("Rp1.000,50")
     expect(formatRupiah(1500)).toBe("Rp1.500")
   })
 })

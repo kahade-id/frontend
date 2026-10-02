@@ -27,21 +27,26 @@ import { DebouncedSearchField } from "@/components/ui/debounced-search-field"
 import { SectionHeader } from "@/components/ui/section"
 import { SupportTicketCard } from "@/components/ui/support-ticket-card"
 
-type StatusFilter = "all" | "active" | "waiting" | "done"
+type StatusFilter = "all" | "active" | "done"
 
 const STATUS_FILTERS: Array<{ value: StatusFilter; label: string }> = [
   { value: "all", label: "Semua" },
   { value: "active", label: "Aktif" },
-  { value: "waiting", label: "Menunggu saya" },
   { value: "done", label: "Selesai" },
 ]
 
+/**
+ * SYS-A-002 (audit sistemik ronde 3, 2026-10-03): filter "Menunggu saya"
+ * DIHAPUS — membandingkan `t.status === "WAITING_USER"`, state yang tidak
+ * pernah ada (backend `SupportTicketStatus` hanya OPEN|IN_PROGRESS|
+ * RESOLVED|CLOSED, tidak ada kode klien yang mengisinya), sehingga filter
+ * itu selalu menampilkan daftar kosong. Menghapusnya lebih jujur daripada
+ * membiarkan tab mati.
+ */
 function matchesFilter(t: SupportTicket, filter: StatusFilter): boolean {
   switch (filter) {
     case "active":
       return t.status === "OPEN" || t.status === "IN_PROGRESS"
-    case "waiting":
-      return t.status === "WAITING_USER"
     case "done":
       return t.status === "RESOLVED" || t.status === "CLOSED"
     default:
