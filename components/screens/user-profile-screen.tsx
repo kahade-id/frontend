@@ -239,8 +239,8 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
   // Profile data state
   const [profile, setProfile] = useState<PublicUserProfile | null>(null)
   const [meId, setMeId] = useState<string | null>(null)
-  // BUG#1 (2026-09-26): public USR-XXX untuk perbandingan dengan profile.id
-  // (public namespace). meId tetap cuid internal (dipakai untuk authorId).
+  // Public USR-XXX untuk perbandingan dengan profile.id (public
+  // namespace). meId tetap cuid internal (dipakai untuk authorId).
   const [meUserId, setMeUserId] = useState<string | null>(null)
   const [meUsername, setMeUsername] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)

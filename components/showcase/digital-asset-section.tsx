@@ -354,7 +354,7 @@ export function DigitalAssetsSellerManager({ showcaseId }: { showcaseId: string 
               assetType === "LINK"
                 ? "https://…"
                 : assetType === "LICENSE"
-                  ? "XXXX-XXXX-XXXX"
+                  ? translate("Contoh: AB12-CD34-EF56")
                   : translate("Hasil upload file")
             }
             maxLength={500}
