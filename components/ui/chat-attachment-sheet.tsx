@@ -11,7 +11,7 @@
  * ke alur unggah yang sudah ada. Alasan: aturan validasi berbeda per layar
  * (ruang chat vs sengketa), dan picker butuh toast/konteks layar.
  */
-import { File, Image, Microphone, VideoCamera } from "phosphor-react-native"
+import { File, Image, VideoCamera } from "phosphor-react-native"
 
 import { ActionSheet } from "@/components/ui/action-sheet"
 import type { IconComponent } from "@/components/ui/icon"

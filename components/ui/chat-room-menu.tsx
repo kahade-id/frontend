@@ -26,7 +26,6 @@ import {
   Archive,
   BellSlash,
   BellZ,
-  ChartBar,
   FileArrowDown,
   Flag,
   MagnifyingGlass,

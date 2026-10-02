@@ -372,6 +372,53 @@ function ChatMessageBubbleBase({
   /** Avatar hanya di pesan PERTAMA kelompok; sisanya dapat spacer selebar itu. */
   const showAvatar = hasAvatarColumn && !grouped
 
+  // 2026-10-03: meta (jam + centang) DI DALAM bubble, rata kanan ala WhatsApp.
+  // Didefinisikan SEBELUM `bubble` karena dipakai di dalamnya.
+  const metaBlock =
+    time || failed || isPinned || isEdited || ephemeralChip || starred ? (
+      <View className="flex-row items-center justify-end gap-1 pt-1">
+        {failed ? (
+          <>
+            <Icon icon={WarningCircle} size="xs" tone="danger" />
+            <Text variant="caption" tone="danger">
+              {t.failed}
+            </Text>
+            {onRetry ? (
+              <TextLink variant="caption" onPress={onRetry} className="ml-1">
+                {t.retry}
+              </TextLink>
+            ) : null}
+          </>
+        ) : (
+          <>
+            {time ? (
+              <Text variant="caption" tone="secondary" className="tabular-nums">
+                {time}
+              </Text>
+            ) : null}
+            {isEdited ? (
+              <Text variant="caption" tone="secondary">
+                ({t.edited})
+              </Text>
+            ) : null}
+            {isPinned ? <Icon icon={PushPin} size="xs" tone="default" /> : null}
+            {starred ? <Icon icon={Star} size="xs" tone="warning" weight="fill" /> : null}
+            {ephemeralChip ? (
+              <View className="flex-row items-center gap-0.5">
+                <Icon icon={Timer} size="xs" tone="default" />
+                <Text variant="caption" tone="secondary" className="tabular-nums">
+                  {ephemeralChip}
+                </Text>
+              </View>
+            ) : null}
+            {outgoing && status && status !== "failed" ? (
+              <StatusGlyph status={status} />
+            ) : null}
+          </>
+        )}
+      </View>
+    ) : null
+
   const bubble = (
     <View
       className={cn(
@@ -652,55 +699,6 @@ function ChatMessageBubbleBase({
       {bubbleCore}
     </View>
   )
-
-  // 2026-10-03: meta (jam + centang) DI DALAM bubble, rata kanan ala WhatsApp.
-  // Bukan lagi baris terpisah di bawah bubble.
-  const metaBlock =
-    time || failed || isPinned || isEdited || ephemeralChip || starred ? (
-      <View className="flex-row items-center justify-end gap-1 pt-1">
-        {failed ? (
-          <>
-            <Icon icon={WarningCircle} size="xs" tone="danger" />
-            <Text variant="caption" tone="danger">
-              {t.failed}
-            </Text>
-            {onRetry ? (
-              <TextLink variant="caption" onPress={onRetry} className="ml-1">
-                {t.retry}
-              </TextLink>
-            ) : null}
-          </>
-        ) : (
-          <>
-            {time ? (
-              <Text variant="caption" tone="secondary" className="tabular-nums">
-                {time}
-              </Text>
-            ) : null}
-            {isEdited ? (
-              <Text variant="caption" tone="secondary">
-                ({t.edited})
-              </Text>
-            ) : null}
-            {isPinned ? <Icon icon={PushPin} size="xs" tone="default" /> : null}
-            {/* Batch 43: penanda pesan berbintang. */}
-            {starred ? <Icon icon={Star} size="xs" tone="warning" weight="fill" /> : null}
-            {/* Batch 43: hitung mundur pesan sementara. */}
-            {ephemeralChip ? (
-              <View className="flex-row items-center gap-0.5">
-                <Icon icon={Timer} size="xs" tone="default" />
-                <Text variant="caption" tone="secondary" className="tabular-nums">
-                  {ephemeralChip}
-                </Text>
-              </View>
-            ) : null}
-            {outgoing && status && status !== "failed" ? (
-              <StatusGlyph status={status} />
-            ) : null}
-          </>
-        )}
-      </View>
-    ) : null
 
   return (
     <View
