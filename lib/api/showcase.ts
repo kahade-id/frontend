@@ -241,13 +241,29 @@ export type ShowcaseComment = {
   isHidden?: boolean
   hiddenReason?: "SPAM" | "INAPPROPRIATE" | "HARASSMENT" | "OTHER" | null
   /**
-   * Like komentar (mega-batch item 48). DIBACA defensif bila backend
-   * mengirimkan field ini; backend saat ini BELUM punya endpoint like
-   * komentar, jadi nilai ini umumnya undefined dan like ditangani
-   * lokal per perangkat (lib/showcase-comment-likes.ts).
+   * Like komentar (mega-batch item 48; BFE-117/FAL-009 fix 2026-10-03).
+   * Backend mengirim `likes`/`dislikes`/`userVote` (lihat
+   * POST /v1/showcase/comments/:commentId/like di bawah) — dibaca defensif.
+   * Field lawas `likeCount`/`isLiked` dipertahankan sebagai fallback bila
+   * backend lama belum mengirim field baru.
    */
   likeCount?: number
   isLiked?: boolean
+  /** Total "suka" dari server. */
+  likes?: number
+  /** Total "tidak suka" dari server. */
+  dislikes?: number
+  /**
+   * Vote viewer saat ini: 1 = suka, -1 = tidak suka, 0/absen = belum vote.
+   * Nilai di luar {1,-1,0} dinormalkan ke 0 saat parse.
+   */
+  userVote?: 1 | -1 | 0
+  /**
+   * BFE-118: total SEMUA balasan dari server (replies[] inline dibatasi
+   * backend, mis. 20). Dipakai untuk label toggle "N balasan" agar tidak
+   * undercount pada utas panjang.
+   */
+  replyCount?: number
   createdAt: string
   updatedAt?: string
   author: ShowcaseAuthor
@@ -410,7 +426,7 @@ export function getShowcaseDetail(showcaseId: string, signal?: AbortSignal) {
  */
 export function listShowcaseComments(
   showcaseId: string,
-  params: { page?: number; limit?: number; cursor?: string | null } = {},
+  params: { page?: number; limit?: number; cursor?: string | null; sort?: "newest" | "oldest" } = {},
   signal?: AbortSignal,
 ) {
   const query: Record<string, number | string> = {
@@ -418,6 +434,9 @@ export function listShowcaseComments(
     limit: params.limit ?? 20,
   }
   if (params.cursor) query.cursor = params.cursor
+  // BFE-114: backend mendukung ?sort=newest|oldest (default newest) —
+  // kirim pilihan user ke server, jangan sort ulang sisi klien.
+  if (params.sort === "oldest" || params.sort === "newest") query.sort = params.sort
   return http
     .get<unknown>(`/v1/showcase/${seg(showcaseId)}/comments`, {
       auth: "optional",
@@ -501,6 +520,48 @@ export function unhideShowcaseComment(commentId: string) {
   return http.post<ShowcaseComment>(`/v1/showcase/comments/${seg(commentId)}/unhide`, undefined, {
     auth: "required",
   })
+}
+
+/**
+ * BFE-117 / FAL-009 (fix 2026-10-03): vote komentar — PERSISTEN di server.
+ *
+ * KONTRAK (TERVERIFIKASI 2026-10-03 di backend-wt-auditfix:
+ * showcase.controller.ts:194 + showcase.service.ts toggleCommentLike +
+ * dto/showcase-comment.dto.ts ToggleCommentLikeDto):
+ *   POST /v1/showcase/comments/:commentId/like   (auth wajib, throttle 30/mnt)
+ *   body: { value: 1 | -1 | 0 }   (1 = suka, -1 = tidak suka, 0 = batalkan vote)
+ *   → { likes: number, dislikes: number, userVote: 1 | -1 | 0 }
+ *   404 = komentar tidak ada/dihapus · 403 = komentar disembunyikan.
+ *
+ * Respons di-parse defensif (audit H-01): field hilang → fallback aman,
+ * bukan throw. Pemanggil (lib/showcase-comment-likes.ts) memakai ini dengan
+ * optimistic UI + rollback bila request gagal.
+ */
+export type ShowcaseCommentVoteValue = 1 | -1 | 0
+export type ShowcaseCommentVoteResult = {
+  likes: number
+  dislikes: number
+  userVote: ShowcaseCommentVoteValue
+}
+
+export function voteShowcaseComment(
+  commentId: string,
+  value: ShowcaseCommentVoteValue,
+): Promise<ShowcaseCommentVoteResult> {
+  return http
+    .post<unknown, { value: ShowcaseCommentVoteValue }>(
+      `/v1/showcase/comments/${seg(commentId)}/like`,
+      { value },
+      { auth: "required" },
+    )
+    .then((raw) => {
+      const r = asRecord(raw) ?? {}
+      const likes = toNonNegativeInt(r.likes) ?? 0
+      const dislikes = toNonNegativeInt(r.dislikes) ?? 0
+      const userVote: ShowcaseCommentVoteValue =
+        r.userVote === 1 ? 1 : r.userVote === -1 ? -1 : 0
+      return { likes, dislikes, userVote }
+    })
 }
 
 /** State suka final server (audit H-01: baca defensif, jangan cast mentah).
@@ -1027,6 +1088,12 @@ export function parseShowcaseItem(raw: unknown): ShowcaseSocialItem {
 }
 
 /** K-05 (audit 2026-09-23): createdAt/showcaseId/isHidden kini tervalidasi. */
+/** BFE-117/BFE-118: int non-negatif defensif — absen/invalid → undefined. */
+function toNonNegativeInt(raw: unknown): number | undefined {
+  return typeof raw === "number" && Number.isFinite(raw) && raw >= 0
+    ? Math.floor(raw)
+    : undefined
+}
 export function parseShowcaseComment(raw: unknown): ShowcaseComment {
   const value = asRecord(raw)
   const author = asRecord(value?.author)
@@ -1054,13 +1121,20 @@ export function parseShowcaseComment(raw: unknown): ShowcaseComment {
         ? reason
         : null,
     createdAt: typeof value.createdAt === "string" ? value.createdAt : "",
-    // Item 48: baca likeCount/isLiked defensif — backend saat ini tidak
-    // mengirimkannya, jangan throw bila tak ada.
+    // BFE-117: baca likes/dislikes/userVote defensif dari serializeComment —
+    // backend mengirimkannya sejak kontrak POST .../comments/:id/like ada.
+    // Field lawas likeCount/isLiked tetap dibaca sebagai fallback.
     likeCount:
       typeof value.likeCount === "number" && Number.isFinite(value.likeCount) && value.likeCount >= 0
         ? Math.floor(value.likeCount)
         : undefined,
     isLiked: value.isLiked === true ? true : undefined,
+    likes: toNonNegativeInt(value.likes),
+    dislikes: toNonNegativeInt(value.dislikes),
+    userVote: value.userVote === 1 ? 1 : value.userVote === -1 ? -1 : 0,
+    // BFE-118: total balasan (root-level, dihitung listComments dari
+    // replyCountByParent) — untuk label toggle "N balasan".
+    replyCount: toNonNegativeInt(value.replyCount),
     // K-04 (audit 2026-09-24): `updatedAt` dipakai UI untuk penanda "(diedit)"
     // — bentuknya dinormalkan di sini supaya nilai tak terurai tidak pernah
     // sampai ke perbandingan waktu (lihat isEditedComment).

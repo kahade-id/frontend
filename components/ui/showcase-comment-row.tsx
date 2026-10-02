@@ -29,7 +29,7 @@ import { CONTENT_REPORT_REASONS } from "@/lib/labels/report"
  *     cukup tampil statis tanpa affordance yang tidak berfungsi.
  */
 import { CaretRight, ChatCircle, DotsThree, ThumbsDown, ThumbsUp } from "phosphor-react-native"
-import { memo, useState, type ReactNode } from "react"
+import { memo, useCallback, useMemo, useState, type ReactNode } from "react"
 import { View } from "react-native"
 import { router, usePathname } from "expo-router"
 import { translate } from "@/lib/i18n/translate"
@@ -41,8 +41,8 @@ import { cn } from "@/lib/cn"
 import { focusRing } from "@/lib/focus-ring"
 import { ROUTES } from "@/lib/routes"
 import {
-  toggleShowcaseCommentLike,
-  useShowcaseCommentLike,
+  useShowcaseCommentVote,
+  voteShowcaseComment,
 } from "@/lib/showcase-comment-likes"
 
 import { Avatar } from "@/components/ui/avatar"
@@ -50,6 +50,7 @@ import { Icon } from "@/components/ui/icon"
 import { IconButton } from "@/components/ui/icon-button"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
+import { useToast } from "@/components/ui/toast"
 import { VerifiedSeal } from "@/components/ui/verified-seal"
 import type { VerificationBadge } from "@/lib/api/users"
 
@@ -146,6 +147,7 @@ export const ShowcaseCommentRow = memo(function ShowcaseCommentRow({
   avatarSize = "sm",
 }: ShowcaseCommentRowProps) {
   const hasSession = useHasSession()
+  const toast = useToast()
   const pathname = usePathname()
   const hidden = comment.isHidden === true
   const authorName = comment.author.fullName ?? comment.author.username
@@ -158,36 +160,47 @@ export const ShowcaseCommentRow = memo(function ShowcaseCommentRow({
     ? formatDateTime(comment.createdAt)
     : formatRelativeTime(comment.createdAt)
   /**
-   * Polish 2026-10-02 (ala YouTube): tombol "tidak suka" — backend BELUM
-   * punya endpoint (sama seperti like, lib/showcase-comment-likes.ts),
-   * jadi toggle lokal sesi ini saja via useState.
+   * BFE-117 / FAL-009 (fix 2026-10-03): vote komentar PERSISTEN via
+   * POST /v1/showcase/comments/:commentId/like (lib/showcase-comment-likes.ts
+   * — optimistic UI + rollback bila gagal). Base dari server:
+   * `userVote`/`likes`/`dislikes` (parseShowcaseComment), fallback ke field
+   * lawas `isLiked`/`likeCount`.
    */
-  const [disliked, setDisliked] = useState(false)
+  const commentVoteBase = useMemo(
+    () => ({
+      userVote: comment.userVote ?? null,
+      likes: comment.likes ?? null,
+      dislikes: comment.dislikes ?? null,
+      isLiked: comment.isLiked ?? null,
+      likeCount: comment.likeCount ?? null,
+    }),
+    [comment.userVote, comment.likes, comment.dislikes, comment.isLiked, comment.likeCount],
+  )
+  const commentVote = useShowcaseCommentVote(comment.id, commentVoteBase)
+  const disliked = commentVote.userVote === -1
+  const handleVoteError = useCallback(() => {
+    toast.show({
+      title: translate("Gagal menyimpan penilaian"),
+      description: translate("Periksa koneksi lalu coba lagi."),
+      tone: "danger",
+    })
+  }, [toast])
+  const handleCommentLike = () => {
+    // P3: tamu diarahkan login dulu — jangan "like" yang tak tersimpan.
+    if (!hasSession) {
+      router.push(ROUTES.loginRequired(pathname))
+      return
+    }
+    if (hidden) return
+    voteShowcaseComment(comment.id, 1, commentVoteBase, handleVoteError)
+  }
   const handleDislike = () => {
     if (!hasSession) {
       router.push(ROUTES.loginRequired(pathname))
       return
     }
     if (hidden) return
-    setDisliked((prev) => !prev)
-  }
-  /**
-   * Item 48 (FE-IMP-1): like komentar. Backend BELUM punya endpoint like
-   * komentar → state lokal sesi ini (lib/showcase-comment-likes.ts);
-   * `likeCount`/`isLiked` dari server dipakai bila suatu hari dikirim.
-   */
-  const commentLike = useShowcaseCommentLike(comment.id, {
-    isLiked: comment.isLiked,
-    likeCount: comment.likeCount,
-  })
-  const handleCommentLike = () => {
-    // P3: tamu diarahkan login dulu — jangan "like" lokal yang tak tersimpan.
-    if (!hasSession) {
-      router.push(ROUTES.loginRequired(pathname))
-      return
-    }
-    if (hidden) return
-    toggleShowcaseCommentLike(comment.id, { isLiked: comment.isLiked, likeCount: comment.likeCount })
+    voteShowcaseComment(comment.id, -1, commentVoteBase, handleVoteError)
   }
 
   return (
@@ -322,13 +335,13 @@ export const ShowcaseCommentRow = memo(function ShowcaseCommentRow({
           <PressableScale
             accessibilityRole="button"
             accessibilityLabel={
-              commentLike.isLiked
+              commentVote.userVote === 1
                 ? translate("Batal sukai komentar")
                 : translate("Sukai komentar")
             }
             accessibilityHint={
-              commentLike.likeCount > 0
-                ? translate("{x} suka", { x: formatCountCompact(commentLike.likeCount) })
+              commentVote.likes > 0
+                ? translate("{x} suka", { x: formatCountCompact(commentVote.likes) })
                 : undefined
             }
             onPress={handleCommentLike}
@@ -338,17 +351,17 @@ export const ShowcaseCommentRow = memo(function ShowcaseCommentRow({
             <Icon
               icon={ThumbsUp}
               size="sm"
-              weight={commentLike.isLiked ? "fill" : "regular"}
-              tone={commentLike.isLiked ? "active" : "default"}
+              weight={commentVote.userVote === 1 ? "fill" : "regular"}
+              tone={commentVote.userVote === 1 ? "active" : "default"}
             />
-            {commentLike.likeCount > 0 ? (
+            {commentVote.likes > 0 ? (
               <Text
                 variant="caption"
-                tone={commentLike.isLiked ? "primary" : "secondary"}
+                tone={commentVote.userVote === 1 ? "primary" : "secondary"}
                 weight={500}
                 className="tabular-nums"
               >
-                {formatCountCompact(commentLike.likeCount)}
+                {formatCountCompact(commentVote.likes)}
               </Text>
             ) : null}
           </PressableScale>
