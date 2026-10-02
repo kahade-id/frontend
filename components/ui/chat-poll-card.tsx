@@ -6,7 +6,7 @@
  * Voting didelegasikan ke parent/sheet lewat `onVote` — kartu ini murni
  * tampilan + seleksi lokal.
  */
-import { memo, useMemo, useState } from "react"
+import { memo, useEffect, useMemo, useState } from "react"
 import { View } from "react-native"
 
 import type { ChatPoll } from "@/lib/api/chat"
@@ -48,6 +48,12 @@ export const ChatPollCard = memo(function ChatPollCard({
     return null
   }
   const [picked, setPicked] = useState<number[]>(Array.isArray(poll.myVotes) ? poll.myVotes : [])
+  // P2 (2026-10-03): sinkronkan saat prop berubah — useState initializer hanya
+  // jalan sekali (mount). Tanpa ini, myVotes dari server (vote perangkat lain /
+  // refresh) tidak tercermin di UI.
+  useEffect(() => {
+    setPicked(Array.isArray(poll.myVotes) ? poll.myVotes : [])
+  }, [poll.myVotes])
   const closed = poll.isClosed
   const expired = !closed && !!poll.deadline && Date.parse(poll.deadline) <= serverNow()
   const locked = closed || expired

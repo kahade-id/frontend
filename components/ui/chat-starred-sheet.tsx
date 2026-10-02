@@ -133,13 +133,20 @@ export function ChatStarredSheet({
                 // UX-TCH-005: target 44pt (min-h-11/min-w-11) + feedback scale;
                 // sebelumnya Pressable polos 26px. Ketuk → dialog konfirmasi
                 // (aksi destruktif), bukan hapus langsung.
+                // P1d (2026-10-03): stopPropagation — tanpa ini, tap "Hapus
+                // bintang" juga memicu onPress "lompat ke pesan" di Pressable
+                // induk (keduanya fire).
                 <PressableScale
-                  onPress={() => setConfirmUnstar(m)}
+                  onPress={(e) => {
+                    e.stopPropagation()
+                    setConfirmUnstar(m)
+                  }}
                   disabled={busyId === m.id}
                   accessibilityRole="button"
                   accessibilityLabel="Hapus bintang"
                   accessibilityHint="Minta konfirmasi sebelum menghapus"
                   containerClassName="min-h-11 min-w-11 items-center justify-center rounded-full"
+                  hitSlop={8}
                 >
                   <Icon icon={Star} size={18} tone="warning" weight="fill" />
                 </PressableScale>

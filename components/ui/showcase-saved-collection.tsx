@@ -15,9 +15,10 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react"
 import { View } from "react-native"
+import { useFocusEffect } from "expo-router"
 
 import { Picture } from "@/components/ui/picture"
-import { Trash } from "phosphor-react-native"
+import { BookmarkSimple, Trash } from "phosphor-react-native"
 import { router } from "expo-router"
 import { isApiError, userMessage } from "@/lib/api"
 import {
@@ -33,6 +34,7 @@ import { formatRelativeTime } from "@/lib/format"
 import { ROUTES } from "@/lib/routes"
 import { Button } from "@/components/ui/button"
 import { Text } from "@/components/ui/text"
+import { EmptyState } from "@/components/ui/empty-state"
 import { IconButton } from "@/components/ui/icon-button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useToast } from "@/components/ui/toast"
@@ -114,6 +116,21 @@ export function ShowcaseSavedCollection() {
     // Muat ulang saat sesi berubah (login/logout/ganti akun).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session, revision])
+
+  // P1a (2026-10-03): revalidasi saat kembali ke layar — daftar bisa berubah
+  // dari layar lain (unsave dari feed/detail etalase). Fokus pertama
+  // dilewati karena useEffect di atas sudah memuat (hindari request ganda).
+  const firstFocusRef = useRef(true)
+  useFocusEffect(
+    useCallback(() => {
+      if (firstFocusRef.current) {
+        firstFocusRef.current = false
+        return
+      }
+      if (session) void load(null, false)
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [session]),
+  )
 
   const loadMore = useCallback(() => {
     if (loadingMore || !hasNext) return
@@ -280,8 +297,20 @@ export function ShowcaseSavedCollection() {
         )
       ) : null}
 
+      {/* P1a (2026-10-03): empty state ikon + CTA — konsisten dengan
+          "Profil tersimpan" di app/saved.tsx (sebelumnya hanya teks polos). */}
       {listState.status === "ready" && entries.length === 0 ? (
-        <Text tone="secondary">{translate("Belum ada etalase tersimpan")}</Text>
+        <EmptyState
+          compact
+          icon={BookmarkSimple}
+          title={translate("Belum ada etalase tersimpan")}
+          description={translate("Simpan etalase yang kamu suka untuk dilihat lagi nanti.")}
+          action={
+            <Button variant="secondary" fullWidth={false} onPress={() => router.push(ROUTES.showcase)}>
+              {translate("Jelajahi etalase")}
+            </Button>
+          }
+        />
       ) : null}
     </View>
   )
