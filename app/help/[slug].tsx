@@ -25,6 +25,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useLocalSearchParams, router, type Href } from "expo-router"
 import { Article, ArrowUp, CaretDown, Check, ListBullets, ShareNetwork, X } from "phosphor-react-native"
 import { api } from "@/lib/api"
+import { translate } from "@/lib/i18n/translate"
 import { ROUTES } from "@/lib/routes"
 import { helpArticleUrl } from "@/lib/deeplinks"
 import { shareContent } from "@/lib/share"
@@ -433,14 +434,14 @@ export default function HelpScreen() {
             ) : (
               <EmptyState
                 icon={Article}
-                title="Artikel tidak ditemukan"
-                description="Artikel mungkin belum dipublikasikan atau telah dipindahkan."
+                title={translate("Artikel tidak ditemukan")}
+                description={translate("Artikel mungkin belum dipublikasikan atau telah dipindahkan.")}
               />
             )
           ) : (
             <>
               {!query.data?.articles?.length ? (
-                <EmptyState icon={Article} title="Belum ada artikel" />
+                <EmptyState icon={Article} title={translate("Belum ada artikel")} />
               ) : (
                 query.data.articles.map((item) => (
                   <HelpArticleListItem

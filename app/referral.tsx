@@ -145,10 +145,10 @@ export default function ReferralScreen() {
       const res = await api.referrals.regenerateReferralCode()
       // Perbarui kode di dalam bundle milik useApiQuery (pengganti setCode).
       query.setData((prev) => (prev ? { ...prev, code: res?.code ?? prev.code } : prev))
-      toast.show({ title: "Kode referral baru dibuat", tone: "success", duration: 3000 })
+      toast.show({ title: translate("Kode referral baru dibuat"), tone: "success", duration: 3000 })
     } catch (err: unknown) {
       toast.show({
-        title: "Gagal membuat kode baru",
+        title: translate("Gagal membuat kode baru"),
         description: userMessage(err),
         tone: "danger",
       })
@@ -161,7 +161,7 @@ export default function ReferralScreen() {
     if (!code) return
     const url = referralUrl(code)
     const outcome = await shareContent({
-      title: "Ajak teman ke Kahade",
+      title: translate("Ajak teman ke Kahade"),
       message: translate("Pakai kode referral saya {x} saat daftar di Kahade — transaksi aman dengan escrow.", {
         x: code,
       }),
@@ -185,7 +185,7 @@ export default function ReferralScreen() {
     try {
       await api.referrals.applyReferralCode({ code: value })
       setApplyCode("")
-      toast.show({ title: "Kode referral diterapkan", tone: "success" })
+      toast.show({ title: translate("Kode referral diterapkan"), tone: "success" })
       await query.refresh()
     } catch (err) {
       setApplyError(
@@ -209,7 +209,7 @@ export default function ReferralScreen() {
       >
         <Crossfade loading={loading} skeleton={<ListLoading />}>
           {error ? (
-          <ErrorState title="Gagal memuat" description={error} onRetry={() => void query.reload()} />
+          <ErrorState title={translate("Gagal memuat")} description={error} onRetry={() => void query.reload()} />
         ) : (
           <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
             <ReferralCodeCard
@@ -226,7 +226,7 @@ export default function ReferralScreen() {
             {leaderboard.length > 0 ? (
               <>
                 <SectionHeader
-                  title="Papan peringkat"
+                  title={translate("Papan peringkat")}
                   subtitle="10 undangan terbanyak (selalu 10 teratas)"
                 />
                 <Card padded={false}>
@@ -277,7 +277,7 @@ export default function ReferralScreen() {
             ) : null}
 
             <FormSection
-              title="Punya kode dari teman?"
+              title={translate("Punya kode dari teman?")}
               description="Masukkan kode referral yang Anda terima."
             >
               <Input
@@ -302,7 +302,7 @@ export default function ReferralScreen() {
 
             {history.length > 0 ? (
               <>
-                <SectionHeader title="Riwayat undangan" />
+                <SectionHeader title={translate("Riwayat undangan")} />
                 {history.map((h, i) => (
                   <ReferralHistoryListItem
                     key={h.id}
@@ -319,7 +319,7 @@ export default function ReferralScreen() {
             {rewards.length > 0 ? (
               <>
                 <SectionHeader
-                  title="Reward"
+                  title={translate("Reward")}
                   subtitle={
                     walletEnabled
                       ? undefined
