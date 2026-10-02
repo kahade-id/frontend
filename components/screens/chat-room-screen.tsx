@@ -68,6 +68,7 @@ import {
 } from "phosphor-react-native"
 
 import { api, isApiError, userMessage } from "@/lib/api"
+import { createIdempotencyKey } from "@/lib/api/client"
 import { validateChatAttachment } from "@/lib/chat-attachment-limits"
 import { getOrder, type Order } from "@/lib/api/orders"
 import { consumePrefetchedChatRoom } from "@/lib/chat-room-prefetch"
@@ -80,6 +81,7 @@ import {
   CHAT_PAGE_SIZE,
   QUICK_REACTIONS,
   addReaction,
+  asChatMessageType,
   getPinnedMessages,
   getReadReceipts,
   getRoomPresence,
@@ -180,7 +182,7 @@ import {
   type ChatTranslation,
 } from "@/lib/api/chat"
 import type { ShowcaseItem } from "@/lib/api/users"
-import { getMeCached } from "@/lib/api/users"
+import { getMeCached, pickPublicUserId } from "@/lib/api/users"
 import { useToast } from "@/components/ui/toast"
 import { ephemeralDurationLabel } from "@/lib/chat-ephemeral"
 import { isImageMime } from "@/lib/mime"
@@ -188,7 +190,16 @@ import type { ChatBubbleAnchor } from "@/lib/chat-bubble"
 
 
 /** Lampiran composer + berkas lokal untuk unggah ulang bila gagal. */
-type LocalAttachment = ComposerAttachment & { picked?: PickedImage }
+type LocalAttachment = ComposerAttachment & {
+  picked?: PickedImage
+  /**
+   * BFE-001: key idempotensi UUID v4 untuk berkas ini — dibangkitkan SEKALI
+   * saat antre (`enqueueAndUpload`) dan dipakai ulang untuk SEMUA attempt
+   * upload berkas ini (termasuk retry manual "Coba lagi"), supaya backend
+   * @Idempotency() mengenali retry sebagai request yang sama.
+   */
+  idempotencyKey?: string
+}
 
 /**
  * Baris thread untuk FlatList (B02/B10):
@@ -235,7 +246,9 @@ function failedToChatMessage(f: FailedChatMessage): ChatMessage {
   return {
     id: f.id,
     text: f.text,
-    messageType: f.messageType,
+    // FAL-013: FailedChatMessage.messageType bertipe string longgar —
+    // persempit ke literal union ChatMessageType (nilai tak dikenal → TEXT).
+    messageType: asChatMessageType(f.messageType),
     fromUser: f.fromUser,
     attachments: f.attachments?.map((a) => ({ ...a })),
     // CHT-004/CHT-012: payload lokasi & kartu ikut direstore agar bubble
@@ -514,6 +527,26 @@ export default function ChatRoomScreen() {
   const [votingPollId, setVotingPollId] = useState<string | null>(null)
   const [closingPollId, setClosingPollId] = useState<string | null>(null)
   /**
+   * BFE-005: userId publik saya (format USR-XXXXXXXX) — diteruskan sebagai
+   * prop `myUserId` ke <ChatPollsSheet> agar tombol "Tutup polling" muncul
+   * untuk polling yang saya buat. `pickPublicUserId` memilih `userId`
+   * (bukan cuid internal `id`) sesuai BUG#1 2026-09-26.
+   */
+  const [myUserId, setMyUserId] = useState<string | null>(null)
+  useEffect(() => {
+    let alive = true
+    void getMeCached()
+      .then((me) => {
+        if (alive) setMyUserId(pickPublicUserId(me))
+      })
+      .catch(() => {
+        if (alive) setMyUserId(null)
+      })
+    return () => {
+      alive = false
+    }
+  }, [])
+  /**
    * Voting dari kartu polling di thread chat. Update pesan POLL di thread
    * setelah vote berhasil.
    */
@@ -565,6 +598,26 @@ export default function ChatRoomScreen() {
       setClosingPollId(null)
     }
   }, [roomId, closingPollId, toast.show])
+  /**
+   * BFE-006: refetch satu polling lalu patch `m.poll` pada pesan POLL di
+   * state thread — kartu inline tidak basi saat LAWAN BICARA vote/menutup
+   * polling (sebelumnya hanya sheet yang di-refresh). Gagal jaringan =
+   * diam (poll fallback + event berikutnya akan mencoba lagi).
+   */
+  const refreshThreadPoll = useCallback(
+    async (pollId: string) => {
+      if (!roomId || !pollId) return
+      try {
+        const poll = await api.chat.getPoll(roomId, pollId)
+        setMessages((prev) =>
+          prev.map((m) => (m.poll?.id === pollId ? { ...m, poll } : m)),
+        )
+      } catch (err) {
+        logWarn("chat:poll-refresh", err)
+      }
+    },
+    [roomId],
+  )
   /**
    * BFI-119/NCC-006: pemicu reload sheet polling — dinaikkan setiap event
    * `chat.poll_created` / `chat.poll_updated` / `chat.poll_closed` tiba,
@@ -1185,8 +1238,17 @@ export default function ChatRoomScreen() {
     // BFI-119: polling dibuat/disuara/ditutup — sheet polling yang sedang
     // terbuka me-reload daftarnya (tanpa mereset form yang sedang diisi).
     onPollCreated: () => setPollsRefreshSignal((n) => n + 1),
-    onPollUpdated: () => setPollsRefreshSignal((n) => n + 1),
-    onPollClosed: () => setPollsRefreshSignal((n) => n + 1),
+    // BFE-006: SELAIN me-reload sheet, refetch polling lalu patch `m.poll`
+    // pada pesan POLL di state thread — kartu inline ikut segar saat lawan
+    // bicara vote/menutup (sebelumnya basi sampai keluar-masuk room).
+    onPollUpdated: (pollId) => {
+      setPollsRefreshSignal((n) => n + 1)
+      void refreshThreadPoll(pollId)
+    },
+    onPollClosed: (pollId) => {
+      setPollsRefreshSignal((n) => n + 1)
+      void refreshThreadPoll(pollId)
+    },
     // NCC-006: 7 event yang sebelumnya tanpa handler di FE.
     onPollChanged: () => {
       // Daftar polling di-refetch (sheet me-reload bila terbuka) + cache
@@ -1587,9 +1649,12 @@ export default function ChatRoomScreen() {
    * `uploadChatAttachmentProgress` memakai XHR (fetch tidak bisa melaporkan
    * progress upload). `signal` dibatalkan lewat chip "Batal"/X di composer —
    * dibatalkan user → status "cancelled", gagal → status "error".
+   *
+   * BFE-001: `idempotencyKey` WAJIB diteruskan dari item antrean (sama untuk
+   * semua attempt berkas ini) — jangan bangkitkan key baru di sini.
    */
   const uploadAttachment = useCallback(
-    async (localId: string, picked: PickedImage) => {
+    async (localId: string, picked: PickedImage, idempotencyKey: string) => {
       if (!roomId) return
       const controller = new AbortController()
       uploadControllersRef.current.set(localId, controller)
@@ -1607,6 +1672,8 @@ export default function ChatRoomScreen() {
         const form = await pickedImageToFormData(resized)
         const dto = await api.chat.uploadChatAttachmentProgress(roomId, form, {
           signal: controller.signal,
+          // BFE-001: key yang sama untuk semua attempt berkas ini.
+          idempotencyKey,
           onProgress: (fraction) =>
             setAttachments((prev) =>
               prev.map((a) => (a.localId === localId ? { ...a, progress: fraction } : a)),
@@ -1645,6 +1712,10 @@ export default function ChatRoomScreen() {
    * Bentuk `PickedImage` dipakai ulang untuk semua jenis berkas (gambar,
    * video, dokumen, voice note) — `pickedImageToFormData` hanya butuh
    * { uri, name, mimeType }.
+   *
+   * BFE-001: key idempotensi dibangkitkan SEKALI di sini dan disimpan di
+   * item antrean — retry (otomatis maupun manual "Coba lagi") memakai key
+   * yang sama.
    */
   const enqueueAndUpload = useCallback(
     async (picked: PickedImage) => {
@@ -1661,6 +1732,7 @@ export default function ChatRoomScreen() {
         return
       }
       const localId = `${Date.now()}-${picked.name}`
+      const idempotencyKey = createIdempotencyKey()
       setAttachments((prev) => [
         ...prev,
         {
@@ -1671,9 +1743,10 @@ export default function ChatRoomScreen() {
           fileSize: picked.size,
           status: "uploading",
           picked,
+          idempotencyKey,
         },
       ])
-      await uploadAttachment(localId, picked)
+      await uploadAttachment(localId, picked, idempotencyKey)
     },
     [toast.show, uploadAttachment],
   )
@@ -1737,6 +1810,9 @@ export default function ChatRoomScreen() {
         name: file.name,
         mimeType: file.mimeType,
         size: file.size,
+        // BFE-003: durasi rekam diteruskan ke antrean — dipakai sebagai
+        // `durationSeconds` saat messageType === "VOICE" di handleSend.
+        durationMs: file.durationMs,
       })
     },
     [toast.show, enqueueAndUpload],
@@ -1755,18 +1831,32 @@ export default function ChatRoomScreen() {
       // Optimistic message: tampilkan langsung agar tidak ada jeda kosong.
       // CN-015: sendStatus "sending" — bila gagal jadi "failed" + bisa retry.
       const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2)}`
+      const sendMessageType = messageTypeFor(
+        ready.map(({ fileName, fileUrl, mimeType, fileSize, thumbnailUrl }) => ({
+          fileName,
+          fileUrl,
+          mimeType,
+          fileSize,
+          thumbnailUrl,
+        })),
+      )
+      // BFE-003: `durationSeconds` WAJIB untuk VOICE — backend
+      // `validateVoiceNote` menolak pesan suara tanpanya (400). Diambil dari
+      // durationMs hasil rekam yang disimpan di item antrean upload.
+      const voiceDurationSeconds =
+        sendMessageType === "VOICE"
+          ? (() => {
+              const maxMs = ready.reduce(
+                (acc, a) => Math.max(acc, a.picked?.durationMs ?? 0),
+                0,
+              )
+              return maxMs > 0 ? Math.round(maxMs / 1000) : undefined
+            })()
+          : undefined
       const optimisticMsg: ChatMessage = {
         id: tempId,
         text: content || undefined,
-        messageType: messageTypeFor(
-          ready.map(({ fileName, fileUrl, mimeType, fileSize, thumbnailUrl }) => ({
-            fileName,
-            fileUrl,
-            mimeType,
-            fileSize,
-            thumbnailUrl,
-          })),
-        ),
+        messageType: sendMessageType,
         fromUser: true,
         attachments: ready.map(({ fileName, fileUrl, mimeType, fileSize, thumbnailUrl }) => ({
           fileName,
@@ -1793,6 +1883,8 @@ export default function ChatRoomScreen() {
         // Batch 43: chip ephemeral/view-once tampil di pesan optimistis.
         ephemeralTtlSeconds: ttlSeconds ?? undefined,
         viewOnce: viewOnceOn || undefined,
+        // BFE-003: durasi tampil di bubble optimistis (diganti data server).
+        durationSeconds: voiceDurationSeconds ?? undefined,
       }
       setMessages((prev) => [...prev, optimisticMsg])
       setSending(true)
@@ -1807,10 +1899,12 @@ export default function ChatRoomScreen() {
           }),
         )
         const msg = await api.chat.sendChatMessage(roomId, {
-          messageType: messageTypeFor(dtoAttachments),
+          messageType: sendMessageType,
           content: content || undefined,
           attachments: dtoAttachments.length ? dtoAttachments : undefined,
           replyToId: payload.replyToId,
+          // BFE-003: wajib untuk VOICE — voice note selalu 400 tanpa ini.
+          durationSeconds: voiceDurationSeconds ?? undefined,
           // Batch 43: mode pesan sementara + sekali-lihat untuk pesan
           // berikutnya. viewOnce one-shot — direset setelah kirim.
           ephemeralTtlSeconds: ttlSeconds ?? undefined,
@@ -2960,7 +3054,9 @@ export default function ChatRoomScreen() {
           onCancelAttachment={handleCancelAttachment}
           onRetryAttachment={(localId) => {
             const a = attachments.find((x) => x.localId === localId)
-            if (a?.picked) void uploadAttachment(localId, a.picked)
+            // BFE-001: retry pakai key yang SAMA dengan attempt pertama
+            // (tersimpan di item antrean) — bukan key baru.
+            if (a?.picked) void uploadAttachment(localId, a.picked, a.idempotencyKey ?? createIdempotencyKey())
           }}
           sending={sending}
           disabled={loading}
@@ -3313,6 +3409,8 @@ export default function ChatRoomScreen() {
         onRequestClose={() => setPollsOpen(false)}
         refreshSignal={pollsRefreshSignal}
         refreshKey={pollsVersion}
+        // BFE-005: userId login — tombol "Tutup polling" hanya untuk pembuat.
+        myUserId={myUserId ?? undefined}
       />
 
       {/* Kirim lokasi GPS. */}

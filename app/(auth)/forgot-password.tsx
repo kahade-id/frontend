@@ -24,7 +24,7 @@
  *     sama agar tidak membocorkan akun mana yang ada (anti-enumerasi).
  *   - Lokasi opsional dicatat; null = lanjut tanpa lokasi.
  */
-import { useCallback, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { ScrollView, TextInput } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useRouter } from "expo-router"
@@ -41,7 +41,8 @@ import { Screen } from "@/components/ui/screen"
 import { Text } from "@/components/ui/text"
 import { TextLink } from "@/components/ui/text-link"
 import { VStack } from "@/components/ui/stack"
-import { api, userMessage } from "@/lib/api"
+import { api, isApiError, userMessage } from "@/lib/api"
+import { formatCountdown } from "@/lib/format"
 import { getAuthLocation } from "@/lib/location"
 import { setOtpFlow } from "@/lib/otp-flow"
 import { ROUTES } from "@/lib/routes"
@@ -58,9 +59,34 @@ export default function ForgotPasswordScreen() {
   const [phoneError, setPhoneError] = useState<string | undefined>()
   const [formError, setFormError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  /**
+   * BFE-048: epoch-ms kapan throttle berakhir. Backend me-throttle
+   * POST /v1/auth/forgot-password (5/jam) dan mengirim `Retry-After`;
+   * `ApiError.retryAfterMs` sudah diparse client. Selama cooldown, tombol
+   * dikunci dan menampilkan hitung mundur — bukan spinner tanpa akhir.
+   */
+  const [cooldownUntil, setCooldownUntil] = useState<number | null>(null)
+  const [now, setNow] = useState(() => Date.now())
+
+  useEffect(() => {
+    if (cooldownUntil === null) return
+    const id = setInterval(() => {
+      const t = Date.now()
+      setNow(t)
+      if (t >= cooldownUntil) {
+        setCooldownUntil(null)
+        clearInterval(id)
+      }
+    }, 1000)
+    return () => clearInterval(id)
+  }, [cooldownUntil])
+
+  const cooldownSeconds =
+    cooldownUntil === null ? 0 : Math.max(0, Math.ceil((cooldownUntil - now) / 1000))
+  const isCoolingDown = cooldownSeconds > 0
 
   const handleSubmit = useCallback(async () => {
-    if (submitting) return
+    if (submitting || isCoolingDown) return
     setFormError(null)
 
     if (!isValidPhoneId(digits)) {
@@ -94,11 +120,28 @@ export default function ForgotPasswordScreen() {
       })
       router.push(ROUTES.whatsappTrigger)
     } catch (err) {
-      setFormError(userMessage(err))
+      // BFE-048: 429 throttled → kunci tombol + countdown. Bila backend
+      // mengirim Retry-After, pakai nilainya; bila tidak, fallback 60 detik
+      // dengan pesan yang jelas (jangan spinner/diam tanpa info).
+      if (isApiError(err) && err.status === 429) {
+        const waitMs =
+          typeof err.retryAfterMs === "number" && err.retryAfterMs > 0
+            ? err.retryAfterMs
+            : 60_000
+        setCooldownUntil(Date.now() + waitMs)
+        setNow(Date.now())
+        setFormError(
+          typeof err.retryAfterMs === "number" && err.retryAfterMs > 0
+            ? `Terlalu banyak percobaan. Coba lagi dalam ${formatCountdown(Math.ceil(waitMs / 1000))}.`
+            : "Terlalu banyak percobaan. Tunggu sekitar 1 menit lalu coba lagi.",
+        )
+      } else {
+        setFormError(userMessage(err))
+      }
     } finally {
       setSubmitting(false)
     }
-  }, [digits, router, submitting])
+  }, [digits, isCoolingDown, router, submitting])
 
   return (
     <Screen padded={false} edges={["top"]}>
@@ -154,8 +197,15 @@ export default function ForgotPasswordScreen() {
         </ScrollView>
 
         <FooterBar>
-          <Button onPress={() => void handleSubmit()} loading={submitting}>
-            Lanjutkan
+          {/* BFE-048: saat throttle, tombol terkunci + tampilkan countdown. */}
+          <Button
+            onPress={() => void handleSubmit()}
+            loading={submitting}
+            disabled={isCoolingDown}
+          >
+            {isCoolingDown
+              ? `Coba lagi dalam ${formatCountdown(cooldownSeconds)}`
+              : "Lanjutkan"}
           </Button>
           {/*
            * FE-039: alur OTP bersifat customer-initiated — tegaskan bahwa

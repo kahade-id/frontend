@@ -251,10 +251,6 @@ export function preCheckoutValidate(lines: PreCheckoutLine[], signal?: AbortSign
   return http.post<PreCheckoutResult, { lines: PreCheckoutLine[] }>("/v1/inventory/pre-checkout", { lines }, { auth: "required", signal })
 }
 
-export function adjustStock(body: { productId?: string; variantId?: string; deltaAvailable?: number; deltaReserved?: number; reason: string }) {
-  return http.post("/v1/inventory/adjust", body, { auth: "required" })
-}
-
 export function listStockMovements(query?: { productId?: string; page?: number; limit?: number }, signal?: AbortSignal) {
   const q = { page: query?.page ?? 1, limit: query?.limit ?? 20, productId: query?.productId }
   return http

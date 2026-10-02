@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { api, isApiError, userMessage } from "@/lib/api"
 import { MFA_CODE_MAX_LENGTH, normalizeMfaCode } from "@/lib/auth-ui"
 import { setPendingNext, resolvePostLoginTarget } from "@/lib/login-redirect"
+import { setPendingTwoFactorLogin } from "@/lib/two-factor-login"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 import { Alert } from "@/components/ui/alert"
@@ -78,6 +79,24 @@ export default function SocialLinkConfirmScreen() {
         password,
         mfaCode: showMfa && mfaCode.trim() ? mfaCode.trim() : undefined,
       })
+      // BFE-044: backend menjawab HTTP 200 `{ requires2FA: true, tempToken }`
+      // (bukan error) bila akun lama ber-2FA. Dua kasus:
+      //  1. tempToken ADA → penautan SELESAI di server; tinggal verifikasi
+      //     faktor kedua di /verify-2fa (pola sama seperti login sosial).
+      //  2. tempToken TIDAK ADA → linkToken belum dibakar; tampilkan kolom
+      //     kode dan kirim ulang confirm dengan `mfaCode` (di-whitelist DTO).
+      if (result.requiresTwoFactor) {
+        if (result.tempToken) {
+          setPendingTwoFactorLogin({ tempToken: result.tempToken, identifier: maskedEmail ?? "" })
+          router.replace(ROUTES.verify2fa)
+          return
+        }
+        setShowMfa(true)
+        setErrorText(
+          "Akun ini memakai autentikasi 2 langkah. Masukkan kode authenticator Anda, lalu tekan Tautkan & Masuk lagi.",
+        )
+        return
+      }
       if (result.linked) {
         setPendingNext(undefined)
         // U5-003 (journey): layar welcome dihapus — langsung ke Beranda.

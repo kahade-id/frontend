@@ -70,6 +70,42 @@ function sameReactions(
   return true
 }
 
+/**
+ * BFE-007: perbandingan data polling dangkal (id + angka vote + status
+ * tutup + vote saya) — pengganti `JSON.stringify` per pesan per merge.
+ * Dipakai untuk mendeteksi view polling yang lebih baru pada pesan yang
+ * sudah dikenal (race view netral vs sender-view pada `chat.new_message`
+ * POLL: broadcast netral tiba duluan dengan `fromUser=false`).
+ */
+function samePoll(
+  a: ChatMessage["poll"],
+  b: ChatMessage["poll"],
+): boolean {
+  if (a === b) return true
+  if (!a || !b) return false
+  if (
+    a.id !== b.id ||
+    a.totalVotes !== b.totalVotes ||
+    a.isClosed !== b.isClosed ||
+    a.allowMultiple !== b.allowMultiple ||
+    a.deadline !== b.deadline ||
+    a.createdBy.userId !== b.createdBy.userId
+  )
+    return false
+  const av = a.myVotes ?? []
+  const bv = b.myVotes ?? []
+  if (av.length !== bv.length || av.some((v, i) => v !== bv[i])) return false
+  const ao = a.options ?? []
+  const bo = b.options ?? []
+  if (ao.length !== bo.length) return false
+  for (let i = 0; i < ao.length; i++) {
+    const x = ao[i]
+    const y = bo[i]
+    if (x.index !== y.index || x.text !== y.text || x.votes !== y.votes) return false
+  }
+  return true
+}
+
 export function mergeChatMessages(
   prev: ChatMessage[],
   incoming: ChatMessage[],
@@ -111,6 +147,11 @@ export function mergeChatMessages(
       next.isEdited === m.isEdited &&
       next.isDeleted === m.isDeleted &&
       next.text === m.text &&
+      // BFE-007: race view netral vs sender-view — view yang tiba belakangan
+      // (biasanya sender-view milik sendiri) WAJIB me-refresh `fromUser`
+      // dan `poll` pada pesan yang sudah dikenal.
+      next.fromUser === m.fromUser &&
+      samePoll(next.poll, m.poll) &&
       sameReactions(next.reactions, m.reactions)
     if (same) return m
     changed = true
@@ -124,6 +165,9 @@ export function mergeChatMessages(
       isDeleted: next.isDeleted,
       editedAt: next.editedAt ?? m.editedAt,
       reactions: next.reactions,
+      // BFE-007: refresh field view-relatif.
+      fromUser: next.fromUser,
+      poll: next.poll,
     }
   })
   if (!changed) return { next: prev, added: 0, hasFreshFromOther: false, changed: false }

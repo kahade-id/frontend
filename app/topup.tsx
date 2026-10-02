@@ -69,7 +69,6 @@ import { makeReceiptId, type ReceiptStatus } from "@/lib/receipt"
 import { useToast } from "@/components/ui/toast"
 import { WalletDisabledScreen } from "@/components/ui/wallet-disabled"
 import { mapValue } from "@/lib/has-own"
-import { translate } from "@/lib/i18n/translate"
 
 const POLL_MS_FAST = 5000
 const POLL_MS_SLOW = 15000
@@ -276,39 +275,15 @@ export default function TopupScreen() {
   )
 
   const selectedMethod = methods.find((m) => m.id === methodId)
-  const selectedFee = useMemo(() => {
-    // Hitung biaya dari metode untuk pratinjau total (sumber kebenaran: server)
-    if (!selectedMethod?.fee) return 0
-    const f = selectedMethod.fee
-    if (f.type === "free") return 0
-    if (f.type === "flat") return f.amount
-    if (f.type === "percent") return Math.round((amount * f.value) / 100)
-    if (f.type === "combined") {
-      const pct = f.percent ? Math.round((amount * f.percent) / 100) : 0
-      const fixed = f.fixed ?? 0
-      let total = pct + fixed
-      if (f.freeLimit && amount >= f.freeLimit) total = 0
-      if (f.minFee != null) total = Math.max(total, f.minFee)
-      if (f.maxFee != null) total = Math.min(total, f.maxFee)
-      return total
-    }
-    return 0
-  }, [selectedMethod, amount])
-
-  const canContinueAmount = isValidAmount(amount, AMOUNT_LIMITS.topup)
-  const canPay =
-    !loading &&
-    !error &&
-    canContinueAmount &&
-    isTopupMethod(methodId) &&
-    canUsePaymentMethod(selectedMethod, amount)
 
   /**
-   * FE-IMP-4 item 5: estimasi biaya kanonis dari server (GET
+   * FE-IMP-4 item 5 + SEC-403: estimasi biaya SATU-SATUNYA dari server (GET
    * /v1/wallet/topup/fee-estimate) — memakai logika fee yang SAMA dengan
    * jalur charge, jadi angka di konfirmasi = angka yang ditagih gateway.
-   * Kalkulasi lokal `selectedFee` hanya fallback bila server tidak menjawab
-   * (dilabeli "estimasi").
+   * Hitungan lokal DIHAPUS: duplikat logika backend yang bisa menyimpang
+   * saat skema fee berubah, dan user akan menyetujui "Total RpX" lalu
+   * didebit RpY. Bila estimasi server gagal → tombol Bayar DIBLOKIR sampai
+   * estimasi berhasil (bukan hanya saat loading).
    */
   const debouncedAmount = useDebouncedValue(amount, 400)
   const feeEstimateQuery = useApiQuery<TopupFeeEstimate>(
@@ -320,10 +295,21 @@ export default function TopupScreen() {
       isValidAmount(debouncedAmount, AMOUNT_LIMITS.topup),
   )
   const serverFeeEstimate = feeEstimateQuery.data
-  const displayFee = serverFeeEstimate != null ? serverFeeEstimate.fee : selectedFee
-  const displayTotal = serverFeeEstimate != null ? serverFeeEstimate.total : amount + selectedFee
-  const feeFromServer = serverFeeEstimate != null
   const feeLoading = feeEstimateQuery.loading && serverFeeEstimate == null
+  // SEC-403: siap = estimasi server ADA. Gagal (error, bukan loading) juga
+  // false — tombol Bayar mati sampai retry berhasil.
+  const feeReady = serverFeeEstimate != null
+  const displayFee = serverFeeEstimate?.fee
+  const displayTotal = serverFeeEstimate?.total
+
+  const canContinueAmount = isValidAmount(amount, AMOUNT_LIMITS.topup)
+  const canPay =
+    !loading &&
+    !error &&
+    canContinueAmount &&
+    isTopupMethod(methodId) &&
+    canUsePaymentMethod(selectedMethod, amount) &&
+    feeReady
 
   const goNext = useCallback(() => {
     if (step === "amount" && canContinueAmount) {
@@ -346,10 +332,11 @@ export default function TopupScreen() {
   }, [step])
 
   const handlePay = useCallback(async () => {
-    // TRX-001 (audit UI/UX 2026-09-28): jangan buat intent selagi estimasi
-    // biaya server belum selesai ("Menghitung total…") — angka yang
-    // disetujui user harus angka kanonis server, bukan fallback lokal.
-    if (!canPay || feeLoading || !isTopupMethod(methodId) || submitLock.current) return
+    // SEC-403 (penguat TRX-001): jangan buat intent selagi estimasi biaya
+    // server belum BERHASIL — `canPay` sudah mencakup `feeReady`, jadi
+    // estimasi yang gagal (bukan hanya loading) ikut memblokir. Angka yang
+    // disetujui user harus angka kanonis server, bukan tebakan lokal.
+    if (!canPay || !isTopupMethod(methodId) || submitLock.current) return
     // M-1 (audit ronde-2): blokir pembuatan intent top-up di perangkat
     // rooted/jailbroken — sebelum intent dibuat & dana bergerak.
     if (!(await assertDeviceNotCompromised())) return
@@ -394,7 +381,7 @@ export default function TopupScreen() {
       submitLock.current = false
       setSubmitting(false)
     }
-  }, [canPay, feeLoading, amount, methodId, toast.show])
+  }, [canPay, amount, methodId, toast.show])
 
   // Intersep tombol back agar kembali ke langkah sebelumnya, bukan langsung
   // keluar layar, selama bukan di langkah hasil.
@@ -472,15 +459,9 @@ export default function TopupScreen() {
                     value={selectedMethod?.name}
                     placeholder={loading ? "Memuat metode…" : "Pilih metode pembayaran"}
                     icon={selectedMethod ? paymentMethodKindIcon[selectedMethod.kind] : WalletIcon}
-                    description={
-                      selectedMethod
-                        ? selectedFee > 0
-                          ? translate("Biaya layanan {x}", {
-                              x: formatRupiah(selectedFee),
-                            })
-                          : "Tanpa biaya layanan"
-                        : undefined
-                    }
+                    // SEC-403: pratinjau biaya lokal DIHAPUS — biaya hanya
+                    // dihitung server di langkah konfirmasi. Jangan tampilkan
+                    // angka tebakan di sini.
                     onPress={() => setMethodSheetOpen(true)}
                   />
                 </View>
@@ -534,20 +515,41 @@ export default function TopupScreen() {
                   >
                     <KeyValue
                       label="Biaya layanan"
-                      value={feeLoading ? "Menghitung…" : displayFee > 0 ? formatRupiah(displayFee) : "Gratis"}
-                      hint={
-                        // FE-IMP-4 item 5: angka server = angka yang ditagih
-                        // gateway; label "estimasi" hanya untuk fallback lokal.
-                        feeFromServer
-                          ? "Dihitung server"
-                          : feeLoading
-                            ? undefined
-                            : selectedFee > 0
-                              ? "Estimasi — total final mengikuti tagihan channel"
-                              : undefined
+                      // SEC-403: satu-satunya sumber angka = server. Gagal
+                      // (bukan loading) → pesan jelas, bukan angka tebakan.
+                      value={
+                        feeLoading
+                          ? "Menghitung…"
+                          : feeReady
+                            ? displayFee != null && displayFee > 0
+                              ? formatRupiah(displayFee)
+                              : "Gratis"
+                            : "Biaya belum bisa dihitung — coba lagi"
                       }
+                      hint={feeReady ? "Dihitung server" : undefined}
                     />
                   </TransactionSummary>
+
+                  {/*
+                   * SEC-403: estimasi server gagal → jelaskan + tawarkan
+                   * percobaan ulang. Tombol Bayar di bawah tetap mati sampai
+                   * estimasi server berhasil (lihat `canPay`/`feeReady`).
+                   */}
+                  {!feeLoading && !feeReady ? (
+                    <View className="gap-2">
+                      <Alert tone="danger" title="Biaya belum bisa dihitung">
+                        Total yang dibayar tidak dapat dipastikan sekarang. Coba lagi —
+                        tombol pembayaran aktif setelah biaya dari server berhasil dimuat.
+                      </Alert>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onPress={() => void feeEstimateQuery.reload()}
+                      >
+                        Coba lagi
+                      </Button>
+                    </View>
+                  ) : null}
 
                   {/* Pemilihan metode ada di halaman nominal lewat BottomSheet
                       (ketuk kartu metode di atas keypad). Halaman ini hanya
@@ -625,17 +627,25 @@ export default function TopupScreen() {
                 <Text variant="body" weight={600} tone="secondary">
                   Total yang dibayar
                 </Text>
+                {/* SEC-403: total hanya dari server. Tanpa estimasi server →
+                    strip "—", bukan tebakan lokal. */}
                 {feeLoading ? (
                   <Text variant="body" tone="secondary">
                     Menghitung…
                   </Text>
-                ) : (
+                ) : feeReady && displayTotal != null ? (
                   <Amount value={displayTotal} size="large" tone="primary" animated={false} />
+                ) : (
+                  <Text variant="body" tone="secondary">
+                    —
+                  </Text>
                 )}
               </View>
               {/*
-               * TRX-001: tombol mati selama feeLoading — sinkron dengan teks
-               * "Menghitung…" di atasnya. Lihat handlePay (guard ganda).
+               * SEC-403 (penguat TRX-001): tombol mati selama estimasi server
+               * belum BERHASIL — `canPay` mencakup `feeReady`, jadi kegagalan
+               * estimasi (bukan hanya loading) ikut memblokir. Lihat handlePay
+               * (guard ganda).
                */}
               {/*
                * T3-009 (audit UI/UX): tombol ini TIDAK membayar — ia membuat
@@ -646,7 +656,7 @@ export default function TopupScreen() {
               <Button
                 onPress={() => void handlePay()}
                 loading={submitting}
-                disabled={!canPay || feeLoading}
+                disabled={!canPay}
                 haptic
               >
                 Buat kode pembayaran

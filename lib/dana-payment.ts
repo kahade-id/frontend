@@ -141,8 +141,12 @@ export function toCheckoutMethodItems(
  * berjalan di alur langganan adalah satu entri per bank, dan
  * `toDanaPayKind("VA_BCA")` memetakan `bankCode` dengan benar untuk
  * `DanaDirectPayDto`. Entri yang sudah per-bank (mis. daftar fallback)
- * tidak disentuh; VA tanpa daftar bank dipertahankan apa adanya (backend
- * yang memvalidasi `bankCode` bila wajib).
+ * tidak disentuh.
+ *
+ * BFE-078: VA telanjang (`requiresBankCode: true` tapi `banks` kosong) TIDAK
+ * bisa dibayar — tidak ada bank untuk dipilih, POST /payments pasti gagal
+ * validasi. Entri seperti itu disembunyikan (fail-closed), bukan ditampilkan
+ * sebagai opsi mati.
  */
 function expandVaBankMethods(methods: OrderPaymentMethod[]): OrderPaymentMethod[] {
   const out: OrderPaymentMethod[] = []
@@ -166,6 +170,14 @@ function expandVaBankMethods(methods: OrderPaymentMethod[]): OrderPaymentMethod[
           requiresBankCode: undefined,
         })
       }
+    } else if (
+      isVaMethod &&
+      !alreadyPerBank &&
+      m.requiresBankCode === true &&
+      banks.length === 0
+    ) {
+      // BFE-078: sembunyikan VA telanjang yang wajib bankCode — entri mati.
+      continue
     } else {
       out.push(m)
     }

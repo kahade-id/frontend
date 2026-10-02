@@ -65,6 +65,7 @@ describe("validateTicketAttachments", () => {
   it("ringkasan batas menyebut angka yang sama dengan konstanta", () => {
     const s = attachmentLimitSummary()
     expect(s).toContain(String(TICKET_ATTACHMENT_MAX_COUNT))
-    expect(s).toContain("10")
+    // FAL-025: batas diselaraskan ke kontrak backend (50 MB per file).
+    expect(s).toContain("50")
   })
 })

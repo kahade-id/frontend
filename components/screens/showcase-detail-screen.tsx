@@ -51,7 +51,7 @@ import { isShowcaseSoldOut } from "@/lib/showcase-stock"
 import { useSessionRevision } from "@/lib/guest-gate"
 import { useShowcaseOperation } from "@/lib/use-showcase-operation"
 import { mergeComments, patchComments } from "@/lib/showcase-state"
-import { showcaseImages, showcaseMedia, showcaseSpin360Groups, findShowcaseComment, shouldFetchNextCommentPage, sortShowcaseComments } from "@/lib/showcase-social"
+import { showcaseImages, showcaseMedia, showcaseSpin360Groups, findShowcaseComment, shouldFetchNextCommentPage, sortShowcaseComments, type ShowcaseCommentOrder } from "@/lib/showcase-social"
 import { markShowcaseDeleted } from "@/lib/showcase-deleted"
 import { markShowcaseFeedDirty, queueShowcaseCommentCount } from "@/lib/showcase-social-prefs"
 import { invalidateQueryPrefix } from "@/lib/query-cache"
@@ -258,6 +258,9 @@ function ShowcaseDetailContent({
   const [commentsStatus, setCommentsStatus] = useState<LoadMoreStatus>("loading")
   const [commentRenderLimit, setCommentRenderLimit] = useState(COMMENT_RENDER_STEP)
   const [commentsRefreshing, setCommentsRefreshing] = useState(false)
+  // BFE-114/FAL-014: urutan komentar dikirim ke server (`?sort=`), bukan
+  // di-sort client-side. Default "newest" = perilaku lama.
+  const [commentOrder, setCommentOrder] = useState<ShowcaseCommentOrder>("newest")
   /**
    * C14 (batch 139): fokus komentar dari deep link `?comment=`.
    * - `detailScrollRef`/`detailScrollOffsetRef`: scroll terprogram + offset
@@ -398,7 +401,7 @@ function ShowcaseDetailContent({
         const targetLoads = append ? 1 : Math.max(1, commentsLoadCount.current)
         let loads = 0
         do {
-          const res = await listShowcaseComments(id, { limit: 20, cursor: next }, controller.signal)
+          const res = await listShowcaseComments(id, { limit: 20, cursor: next, sort: commentOrder }, controller.signal)
           if (controller.signal.aborted) return
           collected = mergeComments(collected, res.data)
           total = res.total
@@ -420,7 +423,7 @@ function ShowcaseDetailContent({
         setCommentsStatus("error")
       }
     },
-    [id],
+    [id, commentOrder],
   )
   useEffect(() => {
     void fetchComments(false)
@@ -456,7 +459,7 @@ function ShowcaseDetailContent({
    */
   useEffect(() => {
     if (!highlightComment || commentFocusDoneRef.current) return
-    const ordered = sortShowcaseComments(comments, "newest")
+    const ordered = sortShowcaseComments(comments, commentOrder)
     const targetIndex = ordered.findIndex((root) => root.id === highlightComment)
     if (targetIndex >= 0 && targetIndex >= commentRenderLimit) {
       setCommentRenderLimit(targetIndex + 1)
@@ -472,7 +475,7 @@ function ShowcaseDetailContent({
     if (!highlightComment || commentFocusDoneRef.current) return
     const found = findShowcaseComment(comments, highlightComment)
     if (!found) return
-    const ordered = sortShowcaseComments(comments, "newest")
+    const ordered = sortShowcaseComments(comments, commentOrder)
     const targetIndex = ordered.findIndex((root) => root.id === highlightComment)
     if (targetIndex < 0 || targetIndex >= commentRenderLimit) return
     let cancelled = false
@@ -1117,6 +1120,15 @@ function ShowcaseDetailContent({
         commentsStatus={commentsStatus}
         commentRenderLimit={commentRenderLimit}
         highlightComment={highlightComment}
+        // BFE-114/FAL-014: urutan dikirim ke server via `sort`; ganti urutan
+        // = reset paginasi + refetch dari awal.
+        commentOrder={commentOrder}
+        onCommentOrderChange={(order) => {
+          if (order === commentOrder) return
+          commentsNextCursor.current = null
+          commentsLoadCount.current = 0
+          setCommentOrder(order)
+        }}
         // C14: fokus + scroll otomatis ke komentar deep link.
         focusCommentId={highlightComment}
         focusRowRef={commentTargetRowRef}

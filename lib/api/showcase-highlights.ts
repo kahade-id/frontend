@@ -1,18 +1,27 @@
 /**
  * Kahade — highlight etalase profil (item 20).
  *
- * KONTRAK FINAL TIM A (2026-09-28):
- *   - POST   /v1/highlights            {title, coverFileKey?, productIds[]} → highlight
- *   - GET    /v1/highlights            → { data: Highlight[] } (milik sendiri)
+ * KONTRAK AKTUAL BACKEND (terverifikasi 2026-10-03 di
+ * src/modules/showcase/highlights/ — menggantikan klaim "KONTRAK FINAL TIM A"
+ * lama yang sudah drift):
+ *   - POST   /v1/highlights            {title, coverMediaId?, productIds[]} → highlight
+ *   - GET    /v1/highlights            → { highlights: Highlight[] } (milik sendiri)
  *   - GET    /v1/highlights/:id        → highlight
- *   - PATCH  /v1/highlights/:id        {title?, coverFileKey?, productIds?} → highlight
+ *   - PATCH  /v1/highlights/:id        {title?, coverMediaId?, productIds?} → highlight
  *   - DELETE /v1/highlights/:id        → 204
- *   - GET    /v1/users/:username/highlights → { data: HighlightPreview[] } (publik)
+ *   - GET    /v1/users/:username/highlights → { highlights: HighlightPreview[] } (publik)
  *
- * Highlight = { id, title, coverUrl, productIds, productCount, createdAt, updatedAt }
- * Preview publik = { id, title, coverUrl, productCount, previewImageUrls[] }
+ * Highlight (serializeHighlight) = { id, title, coverMediaId, coverMediaUrl,
+ * sortOrder, products: [{ id, title, coverImageUrl }], productCount,
+ * createdAt, updatedAt } — TIDAK ada field `productIds` maupun `coverUrl`;
+ * keduanya diturunkan di parseHighlight di bawah (BFE-111).
+ * DTO create/update memakai `coverMediaId` (ShowcaseImage.id), BUKAN
+ * `coverFileKey` (BFE-112).
+ * Preview publik = Highlight yang sama (coverMediaUrl + products), di-parse
+ * defensif oleh parseHighlightPreview.
  *
- * Validasi server: title maks 30 karakter; productIds 1..50 unik & milik
+ * Validasi server (terverifikasi 2026-10-03): title maks 80 karakter
+ * (SHOWCASE_HIGHLIGHT_TITLE_MAX_LENGTH); productIds 1..50 unik & milik
  * sendiri; maks 20 highlight per pengguna.
  * Error: 404 HIGHLIGHT_NOT_FOUND · 409 HIGHLIGHT_LIMIT_REACHED.
  */
@@ -20,8 +29,8 @@ import { http, seg } from "./client"
 import { asRecord, invalidResponse, readList } from "./response"
 import type { ShowcaseItem } from "@/lib/api/users"
 
-/** Batas judul highlight (kontrak server). */
-export const HIGHLIGHT_TITLE_MAX = 30
+/** Batas judul highlight — SHOWCASE_HIGHLIGHT_TITLE_MAX_LENGTH backend. */
+export const HIGHLIGHT_TITLE_MAX = 80
 /** Batas produk per highlight (kontrak server). */
 export const HIGHLIGHT_PRODUCT_IDS_MAX = 50
 /** Batas highlight per pengguna (kontrak server). */
@@ -49,13 +58,15 @@ export type ProfileHighlightPreview = {
 
 export type CreateHighlightInput = {
   title: string
-  coverFileKey?: string
+  /** BFE-112: ShowcaseImage.id milik salah satu etalase sendiri (bukan file key). */
+  coverMediaId?: string
   productIds: string[]
 }
 
 export type UpdateHighlightInput = {
   title?: string
-  coverFileKey?: string | null
+  /** BFE-112: null = hapus cover (kembali ke fallback otomatis). */
+  coverMediaId?: string | null
   productIds?: string[]
 }
 
@@ -64,14 +75,29 @@ function parseHighlight(raw: unknown): ProfileHighlight {
   if (!r) throw invalidResponse("highlight")
   const id = typeof r.id === "string" ? r.id : ""
   const title = typeof r.title === "string" ? r.title : ""
-  const productIds = Array.isArray(r.productIds)
+  // BFE-111: backend mengirim `products: [{ id, title, coverImageUrl }]`,
+  // TIDAK PERNAH `productIds`. Turunkan daftar id dari products; tetap
+  // dukung `productIds` mentah bila suatu hari backend mengirimkannya.
+  const rawProducts = Array.isArray(r.products) ? r.products : []
+  const fromProducts = rawProducts
+    .map((p) => asRecord(p)?.id)
+    .filter((v): v is string => typeof v === "string" && v.length > 0)
+  const fromIds = Array.isArray(r.productIds)
     ? r.productIds.filter((v): v is string => typeof v === "string")
     : []
+  const productIds = fromProducts.length > 0 ? fromProducts : fromIds
   if (!id || !title) throw invalidResponse("highlight")
+  // BFE-111: backend mengirim `coverMediaUrl`, bukan `coverUrl`.
+  const coverUrl =
+    typeof r.coverMediaUrl === "string"
+      ? r.coverMediaUrl
+      : typeof r.coverUrl === "string"
+        ? r.coverUrl
+        : null
   return {
     id,
     title,
-    coverUrl: typeof r.coverUrl === "string" ? r.coverUrl : null,
+    coverUrl,
     productIds,
     productCount:
       typeof r.productCount === "number" && Number.isFinite(r.productCount)
@@ -88,17 +114,31 @@ function parseHighlightPreview(raw: unknown): ProfileHighlightPreview {
   const id = typeof r.id === "string" ? r.id : ""
   const title = typeof r.title === "string" ? r.title : ""
   if (!id || !title) throw invalidResponse("highlight")
+  // BFE-111 (perluasan ke preview publik): endpoint publik memakai
+  // serializeHighlight yang SAMA — `coverMediaUrl` (bukan `coverUrl`) dan
+  // `products: [{ coverImageUrl }]` (bukan `previewImageUrls[]`).
+  const coverUrl =
+    typeof r.coverMediaUrl === "string"
+      ? r.coverMediaUrl
+      : typeof r.coverUrl === "string"
+        ? r.coverUrl
+        : null
+  const rawProducts = Array.isArray(r.products) ? r.products : []
+  const fromProducts = rawProducts
+    .map((p) => asRecord(p)?.coverImageUrl)
+    .filter((v): v is string => typeof v === "string" && v.length > 0)
+  const explicit = Array.isArray(r.previewImageUrls)
+    ? r.previewImageUrls.filter((v): v is string => typeof v === "string")
+    : []
   return {
     id,
     title,
-    coverUrl: typeof r.coverUrl === "string" ? r.coverUrl : null,
+    coverUrl,
     productCount:
       typeof r.productCount === "number" && Number.isFinite(r.productCount)
         ? r.productCount
         : 0,
-    previewImageUrls: Array.isArray(r.previewImageUrls)
-      ? r.previewImageUrls.filter((v): v is string => typeof v === "string")
-      : [],
+    previewImageUrls: explicit.length > 0 ? explicit : fromProducts,
   }
 }
 
@@ -129,14 +169,14 @@ function validateHighlightInput(title: string | undefined, productIds: string[] 
 export function readProfileHighlights(username: string): Promise<ProfileHighlightPreview[]> {
   return http
     .get<unknown>(`/v1/users/${seg(username)}/highlights`, { auth: "optional" })
-    .then((raw) => readList(raw).map(parseHighlightPreview))
+    .then((raw) => readList(raw, ["highlights"]).map(parseHighlightPreview))
 }
 
 /** GET /v1/highlights — highlight milik sendiri (untuk editor). */
 export function listMyHighlights(): Promise<ProfileHighlight[]> {
   return http
     .get<unknown>("/v1/highlights", { auth: "required" })
-    .then((raw) => readList(raw).map(parseHighlight))
+    .then((raw) => readList(raw, ["highlights"]).map(parseHighlight))
 }
 
 /** GET /v1/highlights/:id — satu highlight milik sendiri. */
@@ -162,7 +202,8 @@ export function createHighlight(input: CreateHighlightInput): Promise<ProfileHig
       "/v1/highlights",
       {
         title: input.title.trim(),
-        ...(input.coverFileKey ? { coverFileKey: input.coverFileKey } : {}),
+        // BFE-112: kontrak DTO backend = `coverMediaId` (bukan `coverFileKey`).
+        ...(input.coverMediaId ? { coverMediaId: input.coverMediaId } : {}),
         productIds: input.productIds,
       },
       { auth: "required" },
@@ -182,7 +223,8 @@ export function updateHighlight(id: string, patch: UpdateHighlightInput): Promis
       `/v1/highlights/${seg(id)}`,
       {
         ...(patch.title !== undefined ? { title: patch.title.trim() } : {}),
-        ...(patch.coverFileKey !== undefined ? { coverFileKey: patch.coverFileKey } : {}),
+        // BFE-112: kontrak DTO backend = `coverMediaId` (bukan `coverFileKey`).
+        ...(patch.coverMediaId !== undefined ? { coverMediaId: patch.coverMediaId } : {}),
         ...(patch.productIds !== undefined ? { productIds: patch.productIds } : {}),
       },
       { auth: "required" },

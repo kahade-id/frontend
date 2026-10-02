@@ -14,7 +14,7 @@
 
 import { readList, readPage, unwrapResponse } from "@/lib/api/response"
 
-import { buildUrl, http, refreshAccessToken, seg } from "@/lib/api/client"
+import { buildUrl, createIdempotencyKey, http, refreshAccessToken, seg } from "@/lib/api/client"
 import { ApiError, DEFAULT_ERROR_MESSAGES } from "@/lib/api/errors"
 import { getAccessToken } from "@/lib/api/session"
 import type { ChatAttachmentDto, SendMessageDto } from "@/lib/api/types"
@@ -82,11 +82,53 @@ export type ChatRoom = {
   lastSeenAt?: string | null
 }
 
+/**
+ * FAL-013: 10 tipe pesan yang dikenal backend — dicerminkan dari enum
+ * messageType backend (production). Literal PENUH tanpa `| string` supaya
+ * exhaustive-switch diingatkan compiler saat backend menambah tipe baru.
+ * SUMBER KEBENARAN: backend; tipe baru di backend WAJIB ditambahkan di sini.
+ */
+export type ChatMessageType =
+  | "TEXT"
+  | "IMAGE"
+  | "FILE"
+  | "SYSTEM"
+  | "VOICE"
+  | "VIDEO"
+  | "LOCATION"
+  | "PRODUCT_CARD"
+  | "ORDER_CARD"
+  | "POLL"
+
+const CHAT_MESSAGE_TYPE_SET: ReadonlySet<string> = new Set([
+  "TEXT",
+  "IMAGE",
+  "FILE",
+  "SYSTEM",
+  "VOICE",
+  "VIDEO",
+  "LOCATION",
+  "PRODUCT_CARD",
+  "ORDER_CARD",
+  "POLL",
+])
+
+/**
+ * FAL-013: persempit string mentah (mis. dari antrean persisten chat) ke
+ * ChatMessageType. Nilai tak dikenal jatuh ke "TEXT" daripada menembus
+ * tipe — runtime backend selalu mengirim salah satu dari 10 nilai di atas.
+ */
+export function asChatMessageType(value: unknown): ChatMessageType {
+  return typeof value === "string" && CHAT_MESSAGE_TYPE_SET.has(value)
+    ? (value as ChatMessageType)
+    : "TEXT"
+}
+
 export type ChatMessage = {
   id: string
   text?: string
   senderId?: string | null
-  messageType: "TEXT" | "IMAGE" | "FILE" | "SYSTEM" | string
+  messageType: ChatMessageType
   fromUser: boolean
   attachments?: ChatAttachmentDto[]
   replyToId?: string | null
@@ -687,6 +729,14 @@ export function parseChatUploadResponse(bodyText: string): ChatAttachmentDto {
  * `uploadDirectVideo` di lib/api/upload.ts. Auth: Bearer <redacted> sesi
  * (satu kali refresh-and-retry bila 401, selaras client.ts). `signal`
  * membatalkan unggahan (tombol "batal" per file di composer).
+ *
+ * BFE-001: endpoint upload bertanda `@Idempotency()` — interceptor global
+ * backend melempar 400 `IDEMPOTENCY_KEY_REQUIRED` bila header absen.
+ * Setiap pemanggilan WAJIB mengirim `Idempotency-Key: <uuid v4>`.
+ * `opts.idempotencyKey` dipakai bila diberikan (retry WAJIB memakai key
+ * yang SAMA dengan attempt pertama — key disimpan di item antrean upload
+ * di chat-room-screen); bila tidak diberikan, satu key baru dibangkitkan
+ * per panggilan dan dipakai ulang untuk retry refresh-token 401 internal.
  */
 export function uploadChatAttachmentProgress(
   roomId: string,
@@ -696,9 +746,18 @@ export function uploadChatAttachmentProgress(
     onProgress?: (fraction: number) => void
     signal?: AbortSignal
     timeoutMs?: number
+    /**
+     * BFE-001: key idempotensi UUID v4 untuk request ini. Retry attempt
+     * yang sama WAJIB memakai key yang sama — pemanggil (antrean upload)
+     * membangkitkan sekali per berkas via `createIdempotencyKey()`.
+     */
+    idempotencyKey?: string
   } = {},
 ): Promise<ChatAttachmentDto> {
   const { onProgress, signal, timeoutMs = 300_000 } = opts
+  // BFE-001: satu key untuk SELURUH panggilan ini — termasuk retry
+  // refresh-token 401 di `run()` di bawah (closure yang sama).
+  const idempotencyKey = opts.idempotencyKey ?? createIdempotencyKey()
   return new Promise<ChatAttachmentDto>((resolvePromise, rejectPromise) => {
     let settled = false
     const resolve = (v: ChatAttachmentDto) => {
@@ -797,6 +856,9 @@ export function uploadChatAttachmentProgress(
         xhr.open("POST", buildUrl(`/v1/chat/rooms/${seg(roomId)}/upload`))
         xhr.setRequestHeader("Accept", "application/json")
         xhr.setRequestHeader("Authorization", `Bearer ${token}`)
+        // BFE-001: header WAJIB — backend @Idempotency() menolak 400
+        // IDEMPOTENCY_KEY_REQUIRED bila absen (akar "upload selalu gagal").
+        xhr.setRequestHeader("Idempotency-Key", idempotencyKey)
         // JANGAN set Content-Type — XHR mengisi multipart boundary sendiri.
         xhr.send(formData as unknown as Parameters<XMLHttpRequest["send"]>[0])
       })

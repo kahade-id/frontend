@@ -204,7 +204,7 @@ describe("mergeChatMessages", () => {
 
   it("urutan waktu tetap menaik setelah replace", () => {
     const prev = [
-      { id: "srv-0", text: "pagi", messageType: "TEXT", fromUser: false, createdAt: iso(-120_000) },
+      { id: "srv-0", text: "pagi", messageType: "TEXT" as const, fromUser: false, createdAt: iso(-120_000) },
       optimistic(),
     ]
     const result = mergeChatMessages(prev, [serverEcho()])

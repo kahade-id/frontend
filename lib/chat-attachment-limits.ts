@@ -1,10 +1,10 @@
 /**
- * Kahade — batas lampiran chat yang BERASAL DARI SERVER (B06).
+ * Kahade — batas lampiran chat yang BERASAL DARI SERVER.
  *
- * Sumber kebenaran: backend `src/modules/upload/upload.service.ts`
- *   - `MAX_FILE_SIZE[UploadPurpose.CHAT_ATTACHMENT]` = 50 * 1024 * 1024
- *   - `ALLOWED_MIME_TYPES[UploadPurpose.CHAT_ATTACHMENT]`
- *   - `chat.controller.ts` → `FileInterceptor('file', { limits: { fileSize: 50 * 1024 * 1024 } })`
+ * Sumber kebenaran: backend `src/modules/chat/dto/send-message.dto.ts`
+ *   - `ChatAttachmentDto.fileSize` `@Max(50 * 1024 * 1024)` (50 MiB)
+ *   - sinkron dengan `FileInterceptor('file', { limits: { fileSize: 50 * 1024 * 1024 } })`
+ *     di `chat.controller.ts` (endpoint upload) — satu angka di kedua sisi.
  *
  * Kenapa modul ini ada: klien sebelumnya mem-hardcode 10 MB — LEBIH KETAT
  * dari server (50 MB), sehingga file 10–50 MB yang sah ditolak sebelum

@@ -5,10 +5,17 @@
  * (cover + judul). Pemilik profil (isSelf) mendapat lingkaran "+" untuk
  * membuka editor — membuat, mengubah, atau menghapus highlight.
  *
- * KONTRAK FINAL TIM A (2026-09-28) — lib/api/showcase-highlights.ts:
- * strip membaca GET /v1/users/:username/highlights (publik); editor memakai
- * CRUD /v1/highlights (milik sendiri). Gagal muat = strip disembunyikan
- * (fail closed, bukan placeholder palsu).
+ * KONTRAK AKTUAL BACKEND (terverifikasi 2026-10-03 di
+ * backend-wt-auditfix/src/modules/showcase/highlights/ — lihat
+ * lib/api/showcase-highlights.ts):
+ * strip membaca GET /v1/users/:username/highlights (publik);
+ * editor memakai CRUD /v1/highlights (milik sendiri).
+ * - serializeHighlight: { id, title, coverMediaId, coverMediaUrl, products:
+ *   [{ id, title, coverImageUrl }], productCount, ... } — BUKAN `productIds`
+ *   maupun `coverUrl` (BFE-111: parse di lib menurunkannya).
+ * - create/update opsional kirim `coverMediaId` (ShowcaseImage.id milik
+ *   sendiri); dikosongkan = fallback otomatis ke media pertama (BFE-112).
+ * Gagal muat = strip disembunyikan (fail closed, bukan placeholder palsu).
  */
 import { Check, Plus, Sparkle, Warning, X } from "phosphor-react-native"
 import { useCallback, useEffect, useMemo, useState } from "react"

@@ -375,26 +375,55 @@ export function normalizeQrisPayment(raw: unknown): QrisPayment | undefined {
   const qrString = pickString(nested, ["qrString", "qr_string", "qr", "qrCode", "qr_code"])
   if (!qrString) return undefined
   const amount = toAmount(nested.amount ?? nested.total ?? nested.amountDue)
+  // SEC-404: nominal hilang/tidak-valid (<= 0) = respons malformed → tolak
+  // seluruh intent (invalidResponse di pemanggil). JANGAN default ke 0:
+  // panel akan mencetak "Rp0" di samping QR yang menagih nominal sebenarnya.
+  if (amount == null || amount <= 0) return undefined
   return {
     qrString,
     qrUrl: pickString(nested, ["qrUrl", "qr_url", "url"]) ?? undefined,
     // BFI-135: backend mengirim `expiryTime` (OrderQrisPaymentResult) —
     // tanpa alias ini countdown panel tidak pernah dapat tenggat server.
     expiresAt: pickString(nested, ["expiresAt", "expires_at", "expiredAt", "expired_at", "expiryTime", "expiry_time", "expiry"]) ?? null,
-    amount: amount ?? 0,
+    amount,
     paymentTxId: pickString(nested, ["paymentTxId", "payment_tx_id", "txId", "transactionId"]) ?? undefined,
   }
 }
 
 export function getPaymentStatus(orderId: string) {
-  // ESI-016: endpoint KANONIS status DANA-direct = `GET
-  // /v1/orders/:orderId/dana-payment-status` (didelegasikan ke
-  // `DanaDirectPaymentService.getStatus`; kontrak `DanaDirectPayResult`).
-  // Jangan pakai `/payment-status` (jalur QRIS lama; kini hanya fallback di
-  // backend) — status DANA-direct tidak boleh dibaca dari kontrak lama.
+  // ESI-016: status DANA-direct = `GET /v1/orders/:orderId/dana-payment-status`
+  // (didelegasikan ke `DanaDirectPaymentService.getStatus`; kontrak
+  // `DanaDirectPayResult`). Endpoint ini KHUSUS DANA-direct (tanpa fallback
+  // QRIS lawas) — dipakai polling sheet pembayaran. Untuk verifikasi
+  // lintas-kontrak (mis. layar payment/finish) pakai
+  // `getCanonicalPaymentStatus` (`/payment-status`: DANA-direct dulu, lalu
+  // fallback QRIS lawas).
   return http
     .get<unknown>(`/v1/orders/${seg(orderId)}/dana-payment-status`, { auth: "required" })
     .then(normalizePaymentStatus)
+}
+
+/**
+ * SEC-401: `GET /v1/orders/:orderId/payment-status` — endpoint status
+ * KANONIS (MFE-004): DANA-direct dulu (`DanaDirectPaymentService.getStatus`,
+ * kontrak `DanaDirectPayResult`), fallback ke QRIS lawas bila tidak ada baris
+ * DANA-direct. Dipakai layar `payment/finish` untuk verifikasi server-side
+ * hasil redirect DANA — status sukses TIDAK PERNAH diturunkan dari query
+ * params. Mengembalikan juga `paymentTxId` server agar pemanggil bisa
+ * cross-check param URL (bila ada) sebelum mengklaim sukses.
+ */
+export function getCanonicalPaymentStatus(orderId: string) {
+  return http
+    .get<unknown>(`/v1/orders/${seg(orderId)}/payment-status`, { auth: "required" })
+    .then((raw) => {
+      const record = asRecord(raw) ?? {}
+      const payment =
+        asRecord(record.payment) ?? asRecord(record.data) ?? asRecord(record.result) ?? null
+      const paymentTxId =
+        pickString(payment ?? {}, ["paymentTxId", "payment_tx_id", "txId", "transactionId"]) ??
+        undefined
+      return { payment: normalizePaymentStatus(raw), paymentTxId }
+    })
 }
 
 /**
@@ -684,6 +713,10 @@ export function normalizeOrderPaymentIntent(raw: unknown): Omit<OrderPaymentInte
       nested.escrowAmount ??
       nested.escrow_amount,
   )
+  // SEC-404: nominal hilang/tidak-valid (<= 0) = respons malformed → tolak
+  // seluruh intent (invalidResponse di pemanggil). JANGAN default ke 0:
+  // panel VA/redirect akan mencetak "Rp0" padahal tagihan nyata bisa berbeda.
+  if (amount == null || amount <= 0) return undefined
   return {
     qrString: qrString ?? undefined,
     qrUrl: pickString(nested, ["qrUrl", "qr_url", "url"]) ?? undefined,
@@ -702,7 +735,7 @@ export function normalizeOrderPaymentIntent(raw: unknown): Omit<OrderPaymentInte
         "expiry_time",
         "expiry",
       ]) ?? null,
-    amount: amount ?? 0,
+    amount,
     paymentTxId: pickString(nested, ["paymentTxId", "payment_tx_id", "txId", "transactionId"]) ?? undefined,
     instructions,
   }

@@ -5,12 +5,12 @@
  * Production Endpoint Setup DANA). Setelah user menyelesaikan pembayaran
  * di halaman kasir DANA (IPG Cashier Pay), browser diarahkan ke sini.
  *
- * BFI-062/MFE-010 (fail-closed): status dari query param DANA TIDAK
+ * BFI-062/MFE-010 + SEC-401 (fail-closed): status dari query param DANA TIDAK
  * dipercaya untuk klaim sukses (siapa pun bisa membuka URL ini dengan
  * status=success). Saat mount, halaman memverifikasi status ke backend
  * lebih dulu ("Memverifikasi pembayaran…"); layar SUKSES ("Dana sudah masuk
  * escrow") hanya tampil bila backend mengonfirmasi pembayaran sudah masuk
- * (GET /v1/orders/:orderId/dana-payment-status → PAID). Tanpa identifier yang
+ * (GET /v1/orders/:orderId/payment-status → PAID). Tanpa identifier yang
  * bisa diverifikasi / backend tak terjangkau → layar "belum terkonfirmasi"
  * (bukan sukses palsu). Status final sumber kebenaran tetap webhook
  * finish-notify di server.
@@ -72,6 +72,19 @@ export default function PaymentFinishScreen() {
   const verifyKind = target?.kind
   const verifyId = target?.id
   const targetKey = target ? `${target.kind}:${target.id}` : null
+  /**
+   * SEC-401: param paymentTxId di URL (bila dibawa) harus cocok dengan
+   * paymentTxId server sebelum klaim sukses — mencegah klaim untuk
+   * pembayaran yang salah. Param ini TIDAK diwajibkan: redirect resmi DANA
+   * tidak membawa paymentTxId internal kami (hanya data merchant order);
+   * yang diwajibkan adalah verifikasi server per orderId. Absennya param
+   * bukan alasan menolak verifikasi — otoritasnya tetap respons server.
+   */
+  const rawTxIdParam = params.paymentTxId ?? params.payment_tx_id ?? params.txId
+  const expectedPaymentTxId =
+    typeof rawTxIdParam === "string" && /^[a-zA-Z0-9_-]+$/.test(rawTxIdParam.trim())
+      ? rawTxIdParam.trim()
+      : null
   const [verifying, setVerifying] = useState(true)
   const [verification, setVerification] = useState<{
     targetKey: string | null
@@ -98,10 +111,19 @@ export default function PaymentFinishScreen() {
     let checkedAt: Date | null = null
     if (verifyKind && verifyId) {
       try {
-        const response = verifyKind === "order"
-          ? await api.orders.getPaymentStatus(verifyId)
-          : await getSubscriptionPaymentStatus(verifyId)
-        status = resolveStatus(verifyKind, response)
+        if (verifyKind === "order") {
+          // SEC-401: endpoint kanonis GET /v1/orders/:orderId/payment-status
+          // (DANA-direct dulu, fallback QRIS lawas). 404/unreachable → catch
+          // → "unknown" (netral, bukan sukses).
+          const { payment, paymentTxId } = await api.orders.getCanonicalPaymentStatus(verifyId)
+          status =
+            expectedPaymentTxId != null && paymentTxId != null && expectedPaymentTxId !== paymentTxId
+              ? "unknown"
+              : resolveStatus(verifyKind, payment)
+        } else {
+          const response = await getSubscriptionPaymentStatus(verifyId)
+          status = resolveStatus(verifyKind, response)
+        }
       } catch {
         // Redirect, error jaringan, dan respons asing bukan bukti status apa pun.
       }
@@ -110,7 +132,7 @@ export default function PaymentFinishScreen() {
     if (request === verificationRequest.current) {
       setVerification({ targetKey, status, checkedAt })
     }
-  }, [verifyKind, verifyId, targetKey])
+  }, [verifyKind, verifyId, targetKey, expectedPaymentTxId])
 
   useEffect(() => {
     let alive = true

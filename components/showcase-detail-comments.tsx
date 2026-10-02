@@ -9,14 +9,14 @@
  * dituju lewat `className` (prop yang sudah terdokumentasi di
  * <ShowcaseCommentRow>).
  */
-import { useMemo, useState } from "react"
+import { useState } from "react"
 import { View } from "react-native"
 import type { Ref } from "react"
 
 import type { ShowcaseComment, ShowcaseCommentWithReplies } from "@/lib/api/showcase"
 import { formatNumber } from "@/lib/format"
 import { translate } from "@/lib/i18n/translate"
-import { sortShowcaseComments, type ShowcaseCommentOrder } from "@/lib/showcase-social"
+import { type ShowcaseCommentOrder } from "@/lib/showcase-social"
 import { Divider } from "@/components/ui/divider"
 import { LoadMore, type LoadMoreStatus } from "@/components/ui/load-more"
 import { Button } from "@/components/ui/button"
@@ -49,6 +49,15 @@ export type ShowcaseDetailCommentsProps = {
   onOpenMenu: (comment: ShowcaseComment) => void
   onShowMore: () => void
   onLoadMore: () => void
+  /**
+   * BFE-114 (fix 2026-10-03): urutan komentar diurutkan SERVER via
+   * ?sort=newest|oldest (lihat listShowcaseComments). Komponen ini murni
+   * presentasi — TIDAK me-sort sisi klien. Induk WAJIB me-refetch dengan
+   * `sort` yang sesuai saat `onCommentOrderChange` dipanggil, lalu
+   * meneruskan `commentOrder` yang sama ke sini.
+   */
+  commentOrder?: ShowcaseCommentOrder
+  onCommentOrderChange?: (order: ShowcaseCommentOrder) => void
 }
 
 /**
@@ -79,20 +88,24 @@ export function ShowcaseDetailComments({
   onOpenMenu,
   onShowMore,
   onLoadMore,
+  commentOrder: commentOrderProp,
+  onCommentOrderChange,
 }: ShowcaseDetailCommentsProps) {
   /** Root yang balasannya dibuka penuh (default: ringkas 3 baris). */
   const [expandedReplies, setExpandedReplies] = useState<ReadonlySet<string>>(new Set())
   /**
-   * Item 160 (FE-IMP-1): urutan komentar di layar detail — sama seperti sheet
-   * (item 49). Backend tidak punya param sort → urutkan sisi klien.
+   * Item 160 (FE-IMP-1): urutan komentar — Terbaru / Terlama.
+   * BFE-114: pilihan user dikirim ke SERVER (?sort=) oleh induk; komponen
+   * ini hanya menampilkan `comments` sesuai urutan datangnya (tanpa sort
+   * klien). Fallback internal agar chip tetap berfungsi bila induk belum
+   * memasang onCommentOrderChange — induk yang benar WAJIB me-refetch.
    */
-  const [commentOrder, setCommentOrder] = useState<ShowcaseCommentOrder>("newest")
-  // TIM-8 (audit performa 2026-09-30): sort di-memo — sebelumnya re-sort
-  // seluruh komentar tiap render (tiap keystroke draft komentar di parent).
-  const orderedComments = useMemo(
-    () => sortShowcaseComments(comments, commentOrder),
-    [comments, commentOrder],
-  )
+  const [internalOrder, setInternalOrder] = useState<ShowcaseCommentOrder>("newest")
+  const commentOrder = commentOrderProp ?? internalOrder
+  const handleOrderChange = (order: ShowcaseCommentOrder) => {
+    if (onCommentOrderChange) onCommentOrderChange(order)
+    else setInternalOrder(order)
+  }
   const toggleReplies = (rootId: string) =>
     setExpandedReplies((current) => {
       const next = new Set(current)
@@ -122,7 +135,7 @@ export function ShowcaseDetailComments({
                 selected={commentOrder === "newest"}
                 accessibilityState={{ selected: commentOrder === "newest" }}
                 accessibilityLabel={translate("Urutkan komentar terbaru dulu")}
-                onPress={() => setCommentOrder("newest")}
+                onPress={() => handleOrderChange("newest")}
               >
                 {translate("Terbaru")}
               </Chip>
@@ -130,7 +143,7 @@ export function ShowcaseDetailComments({
                 selected={commentOrder === "oldest"}
                 accessibilityState={{ selected: commentOrder === "oldest" }}
                 accessibilityLabel={translate("Urutkan komentar terlama dulu")}
-                onPress={() => setCommentOrder("oldest")}
+                onPress={() => handleOrderChange("oldest")}
               >
                 {translate("Terlama")}
               </Chip>
@@ -143,18 +156,22 @@ export function ShowcaseDetailComments({
       {/* Polish 2026-10-02: gap antar komentar 20px (ala YouTube). */}
       <View className="gap-5 px-5 pb-6 pt-4">
         {/* F-06: status "loading" di awal — tanpa kilatan kosong/tombol. */}
-        {orderedComments.length === 0 && commentsStatus !== "loading" && commentsStatus !== "error" ? (
+        {comments.length === 0 && commentsStatus !== "loading" && commentsStatus !== "error" ? (
           <Text variant="body" tone="secondary">
             {translate("Belum ada komentar. Jadilah yang pertama!")}
           </Text>
         ) : null}
-        {orderedComments.slice(0, commentRenderLimit).map((root) => {
+        {comments.slice(0, commentRenderLimit).map((root) => {
           const replies = root.replies ?? []
           // Deep link ke balasan yang terlipat harus tetap terlihat.
           const deepLinkInside = replies.some((reply) => reply.id === highlightComment)
           const expanded = expandedReplies.has(root.id) || deepLinkInside
           const visibleReplies = expanded ? replies : replies.slice(0, REPLY_PREVIEW)
-          const hiddenCount = replies.length - visibleReplies.length
+          // BFE-118: total balasan dari server (replyCount) — replies[]
+          // inline dibatasi backend, jadi label toggle memakai total agar
+          // tidak undercount pada utas panjang.
+          const totalReplies = Math.max(root.replyCount ?? 0, replies.length)
+          const hiddenCount = Math.max(0, totalReplies - visibleReplies.length)
           return (
             // C14: baris target deep link dibungkus untuk pengukuran posisi
             // scroll (collapsable=false agar terukur di Android).

@@ -8,13 +8,17 @@
  * terverifikasi tidak punya cara mengganti alamatnya.
  *
  * Kontrak (docs/api/kahade-api-mobile.json):
- *   POST /v1/auth/correct-email   CorrectEmailDto { newEmail ≤254, password ≤72 }
+ *   POST /v1/auth/correct-email   CorrectEmailDto { newEmail ≤254, password ≤72,
+ *     mfaCode? ≤16 }
  *   → backend mengganti alamat DAN mengirim ulang OTP verifikasi ke alamat baru.
  *
  * Keputusan non-obvious:
- *   - Endpoint ini `security` kosong di spec → dipanggil tanpa Bearer
- *     (lihat lib/api/auth.ts `auth: "none"`). Password akun adalah
- *     pembuktiannya, jadi field password WAJIB dan tidak pernah disimpan.
+ *   - Endpoint ini WAJIB Bearer (BFE-041): backend mewajibkan JWT (JwtAuthGuard
+ *     global, tanpa @Public()) — versi lama memanggilnya tanpa Bearer <redacted>
+ *     selalu 401. Password akun tetap WAJIB sebagai bukti kepemilikan
+ *     (tidak pernah disimpan), dan akun ber-2FA WAJIB menyertakan `mfaCode`
+ *     — backend menjawab 403 TWO_FA_REQUIRED bila tidak ada (BFE-042, pola
+ *     yang sama dengan change-password).
  *   - Setelah sukses, layar ini `router.replace(ROUTES.verifyEmail(newEmail))`
  *     — BUKAN `back()`: alamat baru belum terverifikasi, dan membiarkan
  *     pengguna kembali ke Keamanan dengan status "belum diverifikasi" tanpa
@@ -29,7 +33,7 @@ import { useCallback, useState } from "react"
 import { ScrollView, View } from "react-native"
 import { router } from "expo-router"
 
-import { api, type UserProfile, userMessage } from "@/lib/api"
+import { api, isApiError, type UserProfile, userMessage } from "@/lib/api"
 import { PASSWORD_MAX } from "@/lib/auth-constants"
 import { queryKeys } from "@/lib/query-keys"
 import { ROUTES } from "@/lib/routes"
@@ -39,6 +43,7 @@ import { Alert } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { EmailField, isValidEmail } from "@/components/ui/email-field"
 import { Header } from "@/components/ui/header"
+import { Input } from "@/components/ui/input"
 import { PasswordField } from "@/components/ui/password-field"
 import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
@@ -55,6 +60,9 @@ export default function ChangeEmailScreen() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [submitting, setSubmitting] = useState(false)
+  /** BFE-042: kode MFA — dimunculkan bila backend menjawab TWO_FA_REQUIRED. */
+  const [mfa, setMfa] = useState("")
+  const [mfaRequired, setMfaRequired] = useState(false)
 
   const trimmed = email.trim()
   const emailValid = isValidEmail(trimmed)
@@ -67,7 +75,12 @@ export default function ChangeEmailScreen() {
     if (!canSubmit) return
     setSubmitting(true)
     try {
-      await api.auth.correctEmail({ newEmail: trimmed, password })
+      await api.auth.correctEmail({
+        newEmail: trimmed,
+        password,
+        // BFE-042: kirim bila diisi; wajib bila 2FA aktif (backend yang menilai).
+        mfaCode: mfa.trim() ? mfa.trim() : undefined,
+      })
       toast.show({
         title: "Email diperbarui",
         description: "Masukkan kode yang dikirim ke alamat baru untuk mengaktifkannya.",
@@ -76,6 +89,19 @@ export default function ChangeEmailScreen() {
       })
       router.replace(ROUTES.verifyEmail(trimmed))
     } catch (err: unknown) {
+      // BFE-042: akun ber-2FA tanpa mfaCode → 403 TWO_FA_REQUIRED.
+      // Munculkan field MFA dengan penjelasan, jangan toast generik.
+      if (isApiError(err) && err.backendCode === "TWO_FA_REQUIRED") {
+        setMfaRequired(true)
+        toast.show({
+          title: "Kode verifikasi dua langkah dibutuhkan",
+          description:
+            "Akun Anda memakai verifikasi dua langkah. Masukkan kode dari aplikasi autentikator (atau kode cadangan), lalu coba lagi.",
+          tone: "warning",
+        })
+        setSubmitting(false)
+        return
+      }
       toast.show({
         title: "Email belum dapat diubah",
         description: userMessage(err),
@@ -84,7 +110,7 @@ export default function ChangeEmailScreen() {
     } finally {
       setSubmitting(false)
     }
-  }, [canSubmit, password, toast.show, trimmed])
+  }, [canSubmit, password, mfa, toast.show, trimmed])
 
   return (
     <Screen
@@ -142,6 +168,19 @@ export default function ChangeEmailScreen() {
           required
           helperText="Dibutuhkan untuk membuktikan kepemilikan akun."
         />
+        {/* BFE-042: hanya tampil bila 2FA aktif (backend menjawab
+            TWO_FA_REQUIRED) — akun tanpa 2FA tidak diganggu field ekstra. */}
+        {mfaRequired ? (
+          <Input
+            label="Kode autentikator / kode cadangan"
+            value={mfa}
+            onChangeText={setMfa}
+            required
+            autoCapitalize="none"
+            autoCorrect={false}
+            helperText="6 digit dari aplikasi autentikator, atau kode cadangan 10–16 karakter."
+          />
+        ) : null}
       </ScrollView>
 
       {/* A11: konfirmasi sensitif seragam sebelum email benar-benar diganti. */}

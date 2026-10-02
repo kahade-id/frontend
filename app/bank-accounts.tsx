@@ -17,8 +17,8 @@ import { router } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Bank, Plus } from "phosphor-react-native"
 
-import { api, type AddBankAccountDto, userMessage } from "@/lib/api"
-import type { BankAccount } from "@/lib/api/bank-accounts"
+import { api, isApiError, type AddBankAccountDto, userMessage } from "@/lib/api"
+import type { BankAccount, BankAccountReauth } from "@/lib/api/bank-accounts"
 import {
   disbursementStatusCopy,
   getDisbursements,
@@ -42,6 +42,7 @@ import { Field } from "@/components/ui/field"
 import { FormSection } from "@/components/ui/form-section"
 import { Header } from "@/components/ui/header"
 import { Input } from "@/components/ui/input"
+import { PasswordField } from "@/components/ui/password-field"
 import { Crossfade } from "@/components/ui/fade-in"
 import { ListLoading } from "@/components/ui/paginated-list"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
@@ -68,6 +69,60 @@ function disbursementScopeLabel(scope: string): string {
     default:
       return "Pencairan"
   }
+}
+
+/**
+ * BFE-072: field bukti re-auth yang dipakai semua dialog mutasi rekening
+ * (tambah, jadikan utama, hapus, ubah nama). Kolom kode MFA hanya muncul
+ * setelah backend menjawab TWO_FA_REQUIRED — akun tanpa 2FA tidak diganggu.
+ */
+function ReauthFields({
+  password,
+  onPasswordChange,
+  mfaRequired,
+  mfa,
+  onMfaChange,
+  errorText,
+  busy,
+  autoFocusPassword = true,
+}: {
+  password: string
+  onPasswordChange: (t: string) => void
+  mfaRequired: boolean
+  mfa: string
+  onMfaChange: (t: string) => void
+  errorText: string | null
+  busy: boolean
+  /** FRM-020: dialog ubah-nama fokus ke field nama dulu, bukan kata sandi. */
+  autoFocusPassword?: boolean
+}) {
+  return (
+    <View className="gap-2 pt-2">
+      {errorText ? <Alert tone="danger">{errorText}</Alert> : null}
+      <PasswordField
+        label="Kata sandi"
+        value={password}
+        onChangeText={onPasswordChange}
+        required
+        autoFocus={autoFocusPassword}
+        disabled={busy}
+        returnKeyType={mfaRequired ? "next" : "done"}
+        helperText="Dibutuhkan untuk memverifikasi perubahan rekening."
+      />
+      {mfaRequired ? (
+        <Input
+          label="Kode autentikator / kode cadangan"
+          value={mfa}
+          onChangeText={onMfaChange}
+          required
+          autoCapitalize="none"
+          autoCorrect={false}
+          disabled={busy}
+          helperText="6 digit dari aplikasi autentikator, atau kode cadangan."
+        />
+      ) : null}
+    </View>
+  )
 }
 
 export default function BankAccountsScreen() {
@@ -142,10 +197,47 @@ export default function BankAccountsScreen() {
   const [bankName, setBankName] = useState("")
   const [accountNumber, setAccountNumber] = useState("")
   const [accountName, setAccountName] = useState("")
-  const [submitting, setSubmitting] = useState(false)
 
   const [deleteTarget, setDeleteTarget] = useState<BankAccount | null>(null)
   const [deleting, setDeleting] = useState(false)
+
+  /*
+   * BFE-072: SEMUA mutasi rekening (tambah, set utama, hapus, ubah nama)
+   * menuntut bukti re-auth — backend `assertBankChangeReauth` fail-closed
+   * untuk user ber-passkey (tanpa bukti → 401 "Kata sandi salah" yang
+   * menyesatkan). Satu dialog aman dipakai keempatnya: kata sandi (+ kode
+   * MFA bila backend menjawab TWO_FA_REQUIRED).
+   *
+   * Keputusan kontrak (BFE-072): `PasskeyReauthDto` backend =
+   * { password?, mfaCode?, otpCode?, reauthToken? } — TIDAK ada field
+   * assertion passkey/WebAuthn. User ber-passkey cukup mengirim password
+   * (+mfaCode bila 2FA aktif); tidak perlu alur WebAuthn di sini.
+   */
+  type SecureAction =
+    | { kind: "add" }
+    | { kind: "setPrimary"; account: BankAccount }
+  const [secureAction, setSecureAction] = useState<SecureAction | null>(null)
+  const [reauthPassword, setReauthPassword] = useState("")
+  const [reauthMfa, setReauthMfa] = useState("")
+  const [reauthMfaRequired, setReauthMfaRequired] = useState(false)
+  const [reauthError, setReauthError] = useState<string | null>(null)
+  const [reauthBusy, setReauthBusy] = useState(false)
+
+  const resetReauth = useCallback(() => {
+    setReauthPassword("")
+    setReauthMfa("")
+    setReauthMfaRequired(false)
+    setReauthError(null)
+    setReauthBusy(false)
+  }, [])
+
+  const openSecureAction = useCallback(
+    (action: SecureAction) => {
+      resetReauth()
+      setSecureAction(action)
+    },
+    [resetReauth],
+  )
 
   /*
    * F-06 (audit 2026-09-22): validasi form diangkat ke SATU tempat. Sebelumnya
@@ -184,16 +276,43 @@ export default function BankAccountsScreen() {
   const [editName, setEditName] = useState("")
   const [editing, setEditing] = useState(false)
 
-  const handleAdd = useCallback(async () => {
-    const cleanAccountNumber = accountNumber.replace(/\D/g, "").trim()
-    if (!bankCode || !bankName.trim() || !accountName.trim() || !cleanAccountNumber) return
-    setSubmitting(true)
-    try {
+  const buildReauth = useCallback((): BankAccountReauth => {
+    const reauth: BankAccountReauth = { password: reauthPassword }
+    if (reauthMfa.trim()) reauth.mfaCode = reauthMfa.trim()
+    return reauth
+  }, [reauthPassword, reauthMfa])
+
+  /** BFE-072: TWO_FA_REQUIRED → tampilkan kolom kode, JANGAN tutup dialog. */
+  const handleReauthFailure = useCallback(
+    (err: unknown): boolean => {
+      if (isApiError(err) && err.backendCode === "TWO_FA_REQUIRED") {
+        setReauthMfaRequired(true)
+        setReauthError(
+          "Akun Anda memakai verifikasi dua langkah. Masukkan kode dari aplikasi autentikator (atau kode cadangan), lalu coba lagi.",
+        )
+        return true
+      }
+      // REAUTH_* & BANK_ACCOUNT_VERIFICATION_FAILED dipetakan ke copy jelas
+      // di userMessage (BFE-075/076).
+      setReauthError(userMessage(err))
+      return false
+    },
+    [],
+  )
+
+  /** Tambah rekening — dipanggil dari dialog aman setelah kata sandi diisi. */
+  const doAdd = useCallback(
+    async (reauth: BankAccountReauth) => {
+      const cleanAccountNumber = accountNumber.replace(/\D/g, "").trim()
+      if (!bankCode || !bankName.trim() || !accountName.trim() || !cleanAccountNumber) return
       const dto: AddBankAccountDto = {
         bankCode: bankCode as AddBankAccountDto["bankCode"],
         bankName: bankName.trim() || (banks.find((b) => b.code === bankCode)?.name ?? bankCode),
         accountNumber: cleanAccountNumber,
         accountName: accountName.trim(),
+        // BFE-071/072: bukti re-auth di body (PasskeyReauthDto backend).
+        password: reauth.password,
+        ...(reauth.mfaCode ? { mfaCode: reauth.mfaCode } : {}),
       }
       await api.bankAccounts.addBankAccount(dto).then((added) => {
         // Verifikasi nama ke bank berjalan otomatis di backend. Bila gagal
@@ -217,72 +336,93 @@ export default function BankAccountsScreen() {
       setAccountName("")
       setBankCode(undefined)
       await query.refresh()
+    },
+    [bankCode, bankName, accountNumber, accountName, banks, toast.show, query],
+  )
+
+  /** Tombol "Simpan rekening" → buka dialog aman (BFE-072), bukan langsung kirim. */
+  const requestAdd = useCallback(() => {
+    if (!canSaveAccount) return
+    openSecureAction({ kind: "add" })
+  }, [canSaveAccount, openSecureAction])
+
+  const confirmSecureAction = useCallback(async () => {
+    if (!secureAction || reauthBusy || !reauthPassword.trim()) return
+    setReauthBusy(true)
+    setReauthError(null)
+    try {
+      const reauth = buildReauth()
+      if (secureAction.kind === "add") {
+        await doAdd(reauth)
+      } else {
+        await api.bankAccounts.setPrimaryBankAccount(secureAction.account.id, reauth)
+        toast.show({ title: "Rekening utama diperbarui", tone: "success", duration: 3000 })
+        await query.refresh()
+      }
+      setSecureAction(null)
+      resetReauth()
     } catch (err: unknown) {
-      toast.show({
-        title: "Gagal menambahkan rekening",
-        description: userMessage(err),
-        tone: "danger",
-      })
+      handleReauthFailure(err)
     } finally {
-      setSubmitting(false)
+      setReauthBusy(false)
     }
-  }, [bankCode, bankName, accountNumber, accountName, banks, toast.show, query])
+  }, [
+    secureAction,
+    reauthBusy,
+    reauthPassword,
+    buildReauth,
+    doAdd,
+    toast.show,
+    query,
+    handleReauthFailure,
+    resetReauth,
+  ])
 
   const handleDelete = useCallback(async () => {
-    if (!deleteTarget) return
+    if (!deleteTarget || deleting || !reauthPassword.trim()) return
     setDeleting(true)
+    setReauthError(null)
     try {
-      await api.bankAccounts.deleteBankAccount(deleteTarget.id)
+      // BFE-071: body { password } — backend dereferensiasi dto.password.
+      await api.bankAccounts.deleteBankAccount(deleteTarget.id, buildReauth())
       toast.show({ title: "Rekening dihapus", tone: "success", duration: 3000 })
       setDeleteTarget(null)
+      resetReauth()
       await query.refresh()
     } catch (err: unknown) {
-      toast.show({
-        title: "Gagal menghapus rekening",
-        description: userMessage(err),
-        tone: "danger",
-      })
+      handleReauthFailure(err)
     } finally {
       setDeleting(false)
     }
-  }, [deleteTarget, toast.show, query])
+  }, [deleteTarget, deleting, reauthPassword, buildReauth, toast.show, query, handleReauthFailure, resetReauth])
 
   const handleSetPrimary = useCallback(
-    async (acc: BankAccount) => {
-      try {
-        await api.bankAccounts.setPrimaryBankAccount(acc.id)
-        toast.show({ title: "Rekening utama diperbarui", tone: "success", duration: 3000 })
-        await query.refresh()
-      } catch (err: unknown) {
-        toast.show({
-          title: "Gagal memperbarui rekening utama",
-          description: userMessage(err),
-          tone: "danger",
-        })
-      }
+    (acc: BankAccount) => {
+      if (acc.isPrimary) return
+      openSecureAction({ kind: "setPrimary", account: acc })
     },
-    [toast.show, query],
+    [openSecureAction],
   )
 
   /** Edit = ganti nama pemilik saja — backend hanya menerima `{accountName}`. */
   const handleEdit = useCallback(async () => {
-    if (!editTarget || !editName.trim()) return
+    if (!editTarget || !editName.trim() || editing || !reauthPassword.trim()) return
     setEditing(true)
+    setReauthError(null)
     try {
-      await api.bankAccounts.updateBankAccountName(editTarget.id, editName)
+      // BFE-071: UpdateBankAccountDto juga extends PasskeyReauthDto — re-auth
+      // ikut di body yang sama.
+      await api.bankAccounts.updateBankAccountName(editTarget.id, editName, buildReauth())
       toast.show({ title: "Rekening diperbarui", tone: "success", duration: 3000 })
       setEditTarget(null)
+      resetReauth()
       await query.refresh()
     } catch (err: unknown) {
-      toast.show({
-        title: "Gagal memperbarui rekening",
-        description: userMessage(err),
-        tone: "danger",
-      })
+      handleReauthFailure(err)
     } finally {
       setEditing(false)
     }
-  }, [editTarget, editName, toast.show, query])
+  }, [editTarget, editName, editing, reauthPassword, buildReauth, toast.show, query, handleReauthFailure, resetReauth])
 
   return (
     // SEC-404 (selective): layar rekening bank menampilkan data sensitif
@@ -344,10 +484,14 @@ export default function BankAccountsScreen() {
                   verified={acc.isVerified}
                   onSetPrimary={() => void handleSetPrimary(acc)}
                   onEdit={() => {
+                    resetReauth()
                     setEditTarget(acc)
                     setEditName(acc.accountName ?? "")
                   }}
-                  onDelete={() => setDeleteTarget(acc)}
+                  onDelete={() => {
+                    resetReauth()
+                    setDeleteTarget(acc)
+                  }}
                 />
               ))}
             </View>
@@ -471,8 +615,7 @@ export default function BankAccountsScreen() {
                 Nama pemilik diverifikasi otomatis ke data bank.
               </Text>
               <Button
-                loading={submitting}
-                onPress={() => void handleAdd()}
+                onPress={() => requestAdd()}
                 disabled={!canSaveAccount}
               >
                 Simpan rekening
@@ -481,7 +624,6 @@ export default function BankAccountsScreen() {
                 variant="ghost"
                 fullWidth={false}
                 onPress={() => setAdding(false)}
-                disabled={submitting}
               >
                 Batal
               </Button>
@@ -510,9 +652,26 @@ export default function BankAccountsScreen() {
         confirmLabel="Hapus"
         cancelLabel="Batal"
         onConfirm={() => void handleDelete()}
-        onCancel={() => setDeleteTarget(null)}
-        onRequestClose={() => setDeleteTarget(null)}
-      />
+        onCancel={() => {
+          setDeleteTarget(null)
+          resetReauth()
+        }}
+        onRequestClose={() => {
+          setDeleteTarget(null)
+          resetReauth()
+        }}
+      >
+        {/* BFE-072: bukti re-auth wajib sebelum hapus. */}
+        <ReauthFields
+          password={reauthPassword}
+          onPasswordChange={setReauthPassword}
+          mfaRequired={reauthMfaRequired}
+          mfa={reauthMfa}
+          onMfaChange={setReauthMfa}
+          errorText={reauthError}
+          busy={deleting}
+        />
+      </Dialog>
 
       <Dialog
         title="Ubah nama pemilik"
@@ -527,8 +686,14 @@ export default function BankAccountsScreen() {
         confirmLabel="Simpan"
         cancelLabel="Batal"
         onConfirm={() => void handleEdit()}
-        onCancel={() => setEditTarget(null)}
-        onRequestClose={() => setEditTarget(null)}
+        onCancel={() => {
+          setEditTarget(null)
+          resetReauth()
+        }}
+        onRequestClose={() => {
+          setEditTarget(null)
+          resetReauth()
+        }}
       >
         <Input
           value={editName}
@@ -542,6 +707,61 @@ export default function BankAccountsScreen() {
           autoFocus
           returnKeyType="done"
           onSubmitEditing={() => void handleEdit()}
+        />
+        {/* BFE-072: bukti re-auth wajib sebelum ubah nama. Fokus ke field
+            nama dulu (autoFocusPassword=false) — kata sandi di bawahnya. */}
+        <ReauthFields
+          password={reauthPassword}
+          onPasswordChange={setReauthPassword}
+          mfaRequired={reauthMfaRequired}
+          mfa={reauthMfa}
+          onMfaChange={setReauthMfa}
+          errorText={reauthError}
+          busy={editing}
+          autoFocusPassword={false}
+        />
+      </Dialog>
+
+      {/*
+       * BFE-072: dialog verifikasi keamanan untuk mutasi tambah & jadikan
+       * utama — backend fail-closed tanpa bukti re-auth (PasskeyReauthDto).
+       */}
+      <Dialog
+        title={secureAction?.kind === "add" ? "Verifikasi keamanan" : "Jadikan rekening utama?"}
+        description={
+          secureAction?.kind === "add"
+            ? translate("Masukkan kata sandi untuk menambahkan rekening {x}.", {
+                x: bankName.trim() || bankCode || "",
+              })
+            : translate("{x} {y} akan dijadikan rekening utama untuk pencairan dana.", {
+                x: secureAction?.account.bankName ?? "",
+                y: secureAction?.account
+                  ? maskAccountNumber(secureAction.account.accountNumber ?? "")
+                  : "",
+              })
+        }
+        visible={secureAction !== null}
+        loading={reauthBusy}
+        confirmLabel={secureAction?.kind === "add" ? "Simpan rekening" : "Jadikan utama"}
+        cancelLabel="Batal"
+        onConfirm={() => void confirmSecureAction()}
+        onCancel={() => {
+          setSecureAction(null)
+          resetReauth()
+        }}
+        onRequestClose={() => {
+          setSecureAction(null)
+          resetReauth()
+        }}
+      >
+        <ReauthFields
+          password={reauthPassword}
+          onPasswordChange={setReauthPassword}
+          mfaRequired={reauthMfaRequired}
+          mfa={reauthMfa}
+          onMfaChange={setReauthMfa}
+          errorText={reauthError}
+          busy={reauthBusy}
         />
       </Dialog>
       </Screen>

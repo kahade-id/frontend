@@ -51,7 +51,6 @@ import { getMeCached, pickPublicUserId } from "@/lib/api/users"
 import { useCopy } from "@/lib/clipboard"
 import { queueShowcaseCommentCount } from "@/lib/showcase-social-prefs"
 import {
-  sortShowcaseComments,
   type ShowcaseCommentOrder,
 } from "@/lib/showcase-social"
 import { SHOWCASE_COMMENT_MESSAGES } from "@/lib/showcase-comment-messages"
@@ -209,10 +208,20 @@ export function ShowcaseCommentsSheet({
   const showcaseId = item?.id
   const revision = useSessionRevision()
   const operation = useShowcaseOperation(showcaseId)
+  /**
+   * Item 49 (FE-IMP-1): urutan komentar — Terbaru / Terlama.
+   * BFE-114 (fix 2026-10-03): diurutkan SERVER via ?sort= (bukan sisi klien —
+   * sort klien atas halaman fetch terpisah salah urut lintas halaman).
+   */
+  const [commentOrder, setCommentOrder] = useState<ShowcaseCommentOrder>("newest")
   const query = useApiQuery(
-    `showcase-comments:${revision}:${showcaseId ?? "none"}`,
+    `showcase-comments:${revision}:${showcaseId ?? "none"}:${commentOrder}`,
     (signal) =>
-      listShowcaseComments(showcaseId as string, { page: 1, limit: SHEET_COMMENT_LIMIT }, signal),
+      listShowcaseComments(
+        showcaseId as string,
+        { page: 1, limit: SHEET_COMMENT_LIMIT, sort: commentOrder },
+        signal,
+      ),
     Boolean(showcaseId),
     // PERF-FIX (network P2): cache standar 5 dtk (hapus `useCache: false`) —
     // buka-tutup sheet dalam 5 dtk tidak mengunduh ulang komentar yang baru
@@ -220,8 +229,6 @@ export function ShowcaseCommentsSheet({
     // (`localComments`), jadi cache 5 dtk tidak menyembunyikan kiriman.
   )
 
-  /** Item 49 (FE-IMP-1): urutan komentar — Terbaru / Terlama. */
-  const [commentOrder, setCommentOrder] = useState<ShowcaseCommentOrder>("newest")
   /** Komentar yang ditulis dari komposer sheet (belum tentu ada di query). */
   const [localComments, setLocalComments] = useState<ShowcaseCommentWithReplies[]>([])
   /**
@@ -411,15 +418,23 @@ export function ShowcaseCommentsSheet({
 
   const localIds = new Set(localComments.map((c) => c.id))
   const serverComments = query.data?.data.filter((c) => !localIds.has(c.id)) ?? []
-  // Item 49: urutkan sisi klien (backend tidak punya param sort untuk
-  // komentar) — deterministik, seri dipecah id.
+  // BFE-114: server sudah mengurutkan (?sort=) — klien TIDAK me-sort ulang.
   // T2-F02: tempel balasan sesi ini ke induknya (lokal maupun server).
+  // Komentar lokal (baru dikirim, belum tentu ada di respons server)
+  // diletakkan sesuai urutan: paling atas untuk "Terbaru", paling bawah
+  // untuk "Terlama".
   const comments = useMemo(() => {
+    const localIdSet = new Set(localComments.map((c) => c.id))
     const patched = [...localComments, ...serverComments].map((c) => {
       const extra = replyPatches.filter((p) => p.parentId === c.id).map((p) => p.reply)
       return extra.length > 0 ? { ...c, replies: [...(c.replies ?? []), ...extra] } : c
     })
-    return sortShowcaseComments(patched, commentOrder)
+    if (commentOrder === "oldest") {
+      const locals = patched.filter((c) => localIdSet.has(c.id)).reverse()
+      const rest = patched.filter((c) => !localIdSet.has(c.id))
+      return [...rest, ...locals]
+    }
+    return patched
   }, [localComments, serverComments, commentOrder, replyPatches])
 
   /**
@@ -464,7 +479,12 @@ export function ShowcaseCommentsSheet({
       // T2-F03: ringkas balasan (3 pertama), tombol buka/tutup lipatan.
       const expanded = expandedReplies.has(root.id)
       const visibleReplies = expanded ? replies : replies.slice(0, REPLY_PREVIEW)
-      const hiddenCount = replies.length - visibleReplies.length
+      // BFE-118: total balasan dari server (replyCount) — replies[] inline
+      // dibatasi backend, jadi label toggle memakai total agar tidak
+      // undercount pada utas panjang. Balasan lokal sesi ini ikut dihitung
+      // via Math.max.
+      const totalReplies = Math.max(root.replyCount ?? 0, replies.length)
+      const hiddenCount = Math.max(0, totalReplies - visibleReplies.length)
       return (
         // Balasan dikirim sebagai ANAK komentar induk (revisi 2026-09-26):
         // garis utas di kolom avatar induk turun menyambung balasan, dan

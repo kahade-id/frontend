@@ -73,17 +73,43 @@ export async function addBankAccount(dto: AddBankAccountDto) {
   return normalizeBankAccount(account)
 }
 
-export function deleteBankAccount(id: string) {
-  return http.delete<void>(`/v1/bank-accounts/${seg(id)}`, {
+/**
+ * BFE-071/BFE-072: bukti re-auth untuk mutasi rekening (cermin
+ * `PasskeyReauthDto` backend). `password` untuk akun ber-password, `otpCode`
+ * untuk akun tanpa password (OTP WhatsApp), `mfaCode` bila 2FA aktif.
+ */
+export type BankAccountReauth = {
+  password?: string
+  mfaCode?: string
+  otpCode?: string
+}
+
+function reauthBody(reauth: BankAccountReauth): BankAccountReauth {
+  // BFE-071: body WAJIB objek — backend dereferensiasi `dto.password`
+  // langsung; body kosong/undefined = 500 untuk SEMUA user.
+  return {
+    ...(reauth.password ? { password: reauth.password } : {}),
+    ...(reauth.mfaCode ? { mfaCode: reauth.mfaCode } : {}),
+    ...(reauth.otpCode ? { otpCode: reauth.otpCode } : {}),
+  }
+}
+
+export function deleteBankAccount(id: string, reauth: BankAccountReauth) {
+  return http.delete<void, BankAccountReauth>(`/v1/bank-accounts/${seg(id)}`, {
     auth: "required",
+    body: reauthBody(reauth),
     responseType: "void",
   })
 }
 
-export async function setPrimaryBankAccount(id: string) {
-  const account = await http.post<BankAccount>(`/v1/bank-accounts/${seg(id)}/set-primary`, undefined, {
-    auth: "required",
-  })
+export async function setPrimaryBankAccount(id: string, reauth: BankAccountReauth) {
+  const account = await http.post<BankAccount, BankAccountReauth>(
+    `/v1/bank-accounts/${seg(id)}/set-primary`,
+    reauthBody(reauth),
+    {
+      auth: "required",
+    },
+  )
   return normalizeBankAccount(account)
 }
 
@@ -91,12 +117,15 @@ export async function setPrimaryBankAccount(id: string) {
  * PATCH /v1/bank-accounts/{id} — edit rekening.
  * Backend HANYA menerima `{ accountName }` (nama pemilik); nomor & bank tidak
  * bisa diubah (controller: `@Body() dto: { accountName: string }`).
+ * BFE-071: `UpdateBankAccountDto` juga extends `PasskeyReauthDto` dan
+ * `updateBankAccount` juga memanggil `assertBankChangeReauth` — bukti
+ * re-auth ikut dikirim di body yang sama.
  */
-export function updateBankAccountName(id: string, accountName: string) {
+export function updateBankAccountName(id: string, accountName: string, reauth?: BankAccountReauth) {
   return http
-    .patch<BankAccount, { accountName: string }>(
+    .patch<BankAccount, { accountName: string } & BankAccountReauth>(
       `/v1/bank-accounts/${seg(id)}`,
-      { accountName: accountName.trim() },
+      { accountName: accountName.trim(), ...reauthBody(reauth ?? {}) },
       { auth: "required" },
     )
     .then(normalizeBankAccount)

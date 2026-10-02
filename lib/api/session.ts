@@ -264,17 +264,21 @@ let cachedDeviceInfo: string | undefined
  * Deskripsi perangkat untuk `LoginDto.deviceInfo` (maxLength 512) & header
  * X-Device-Info. Contoh: "Kahade/0.1.0 (iOS 17.5; Apple iPhone 15)".
  * L-06: Dimemoize agar tidak dihitung ulang tiap HTTP request.
+ *
+ * BFE-045: batas diparameterkan — endpoint passkey (`/v1/auth/passkey/...`)
+ * memakai `@MaxLength(255)` (bukan 512 seperti login); pemanggil passkey
+ * memakai `getDeviceInfo(255)` supaya tidak 422 di edge case.
  */
-export function getDeviceInfo(): string {
+export function getDeviceInfo(maxLength = 512): string {
   if (!cachedDeviceInfo) {
     const appVersion = getAppVersion()
     const os = `${Device.osName ?? Platform.OS} ${Device.osVersion ?? ""}`.trim()
     const model =
       [Device.brand, Device.modelName].filter(Boolean).join(" ") ||
       (Platform.OS === "web" ? "Web" : "Unknown")
-    cachedDeviceInfo = `Kahade/${appVersion} (${os}; ${model})`.slice(0, 512)
+    cachedDeviceInfo = `Kahade/${appVersion} (${os}; ${model})`
   }
-  return cachedDeviceInfo
+  return cachedDeviceInfo.slice(0, maxLength)
 }
 
 export function getAppVersion(): string {

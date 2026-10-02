@@ -150,7 +150,10 @@ export default function SocialProvidersScreen() {
             linked.map((l: LinkedSocialProvider) => (
               <ListItem
                 key={l.provider}
-                title={PROVIDER_LABEL[l.provider]}
+                // BFE-043: provider sudah dinormalisasi UPPERCASE di
+                // `listLinked`; fallback menjaga judul tidak pernah blank
+                // bila wire mengirim nilai tak dikenal.
+                title={PROVIDER_LABEL[l.provider] ?? l.provider}
                 titleVariant="bodyLarge"
                 // UI-A011: tampilkan kapan ditautkan (§13 formatDate) supaya
                 // pengguna bisa membedakan bila beberapa akun provider dipakai.

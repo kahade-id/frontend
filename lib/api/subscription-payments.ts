@@ -8,8 +8,9 @@
  *     → { subscriptionId, subscription, qrString, paymentCode, webRedirectUrl, expiredAt }
  *   GET  /v1/subscriptions/dana-status/:id
  *     → { status: PENDING|ACTIVE, qrString, paymentCode, webRedirectUrl, expiredAt }
- *   POST /v1/subscriptions/renew-dana { payKind, bankCode? }
- *     → { paymentTxId, qrString, paymentCode, webRedirectUrl, expiredAt }
+ *   (BFE-073: POST /v1/subscriptions/renew-dana sengaja TIDAK di-wire FE —
+ *    perpanjangan = subscribe ulang; fungsi mati `renewSubscriptionDana`
+ *    dihapus 2026-10-03.)
  *
  * payKind ∈ { QRIS, VA, BALANCE } — TIDAK di-hardcode di layar; kode metode
  * UI ("QRIS", "VA_BCA", "DANA") dipetakan di `toDanaPayKind` (fail-closed).
@@ -28,7 +29,6 @@ import type { KahadePlusPlanKey } from "@/lib/api/subscriptions"
 
 /** Path kanonis kontrak no-wallet (bukan analogi). */
 export const SUBSCRIBE_DANA_PATH = "/v1/subscriptions/subscribe-dana"
-export const RENEW_DANA_PATH = "/v1/subscriptions/renew-dana"
 export const danaStatusPath = (subscriptionId: string) =>
   `/v1/subscriptions/dana-status/${seg(subscriptionId)}`
 
@@ -125,26 +125,12 @@ export async function getSubscriptionPaymentStatus(
   return { status, isPaid }
 }
 
-/**
- * POST /v1/subscriptions/renew-dana — perpanjangan via DANA langsung.
- * Periode diperpanjang webhook setelah bayar sukses.
+/*
+ * BFE-073 (2026-10-03): `renewSubscriptionDana` DIHAPUS — dead code (nol
+ * pemanggil di app/lib/components; tidak ada UI perpanjangan). Endpoint
+ * backend POST /v1/subscriptions/renew-dana tetap hidup, tapi FE sengaja
+ * tidak me-wire-nya: perpanjangan saat ini = subscribe ulang. Bila alur
+ * perpanjangan dibutuhkan lagi, tulis ulang mengikuti kontrak backend +
+ * polling status (backend tidak menyediakan endpoint status paymentTxId
+ * renewal). `RENEW_DANA_PATH` ikut dihapus.
  */
-export async function renewSubscriptionDana(
-  methodCode: string,
-  idempotencyKey?: string,
-): Promise<SubscriptionPaymentIntent> {
-  const { payKind, bankCode } = toDanaPayKind(methodCode)
-  // BFI-079: body HANYA { payKind, bankCode? } — `RenewDanaDto` tidak mengenal
-  // `deviceLocation` (422 bila diselipkan).
-  const raw = await http.post<unknown, { payKind: DanaDirectPayKind; bankCode?: string }>(
-    RENEW_DANA_PATH,
-    { payKind, ...(bankCode ? { bankCode } : {}) },
-    {
-      auth: "required",
-      ...(idempotencyKey ? { headers: { "Idempotency-Key": idempotencyKey } } : {}),
-    },
-  )
-  const intent = normalizeOrderPaymentIntent(raw)
-  if (!intent) throw invalidResponse("subscription-renew")
-  return { ...intent, method: methodCode }
-}

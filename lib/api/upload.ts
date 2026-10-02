@@ -3,16 +3,14 @@
  *
  * Self-hosted storage (2026-09-26): SEMUA upload lewat `POST /v1/upload/direct`
  * (multipart). Alur presigned URL sudah dimatikan backend (DEPRECATED 400) —
- * `uploadPresigned` di bawah hanya dipertahankan sebagai stub deprecated dan
- * tidak boleh dipakai kode baru.
+ * BFE-115 (2026-10-03): `requestPresignedUrl`/`confirmUpload`/`uploadPresigned`
+ * dihapus (dead code, nol pemanggil).
  */
-import { assertDtoConstraints } from "@/lib/financial"
-import { API_CONSTRAINTS } from "@/lib/api/constraints"
 import { ApiError, codeFromStatus, DEFAULT_ERROR_MESSAGES, type ApiErrorCode } from "@/lib/api/errors"
 import { safeHttpsUrl } from "@/lib/version"
 import { buildUrl, http, refreshAccessToken, seg } from "@/lib/api/client"
 import { getAccessToken } from "@/lib/api/session"
-import type { CleanupFilesDto, ConfirmUploadDto, PresignedUrlDto } from "@/lib/api/types"
+import type { CleanupFilesDto } from "@/lib/api/types"
 import type { PickedImage } from "@/lib/image-picker"
 
 // PERF-FIX (bundle): `@/lib/image-picker` menarik `expo-image-picker`
@@ -38,13 +36,6 @@ export type PresignedUpload = {
   expiresAt?: string
 }
 
-/** Hasil POST /v1/upload/confirm. */
-export type ConfirmedUpload = {
-  fileKey: string
-  url?: string
-  sha256?: string
-}
-
 /** Hasil POST /v1/upload/direct — menerima FormData multipart. */
 export type DirectUpload = {
   fileKey: string
@@ -60,30 +51,11 @@ export type DirectUpload = {
   thumbnailUrl?: string
 }
 
-export function requestPresignedUrl(dto: PresignedUrlDto, signal?: AbortSignal) {
-  assertDtoConstraints(dto, API_CONSTRAINTS.PresignedUrlDto)
-  return http
-    .post<unknown, PresignedUrlDto>("/v1/upload/presigned-url", dto, { auth: "required", signal })
-    .then((raw) => {
-      const value = raw as Record<string, unknown>
-      const upload: PresignedUpload = {
-        ...(value as Record<string, unknown>),
-        url: (value.url ?? value.uploadUrl) as string,
-        expiresAt: (value.expiresAt ?? value.expires_at) as string | undefined,
-      } as PresignedUpload
-      /**
-       * D-15 (audit escrow 2026-09-24): `fileKey` dulu lolos apa adanya —
-       * `undefined` berakhir di `fileUrls: [undefined]` → `"fileUrls":[null]`
-       * ditolak validator server SETELAH objek terunggah (objek yatim).
-       * `url` wajib string; `fileKey` wajib non-kosong sebelum dipakai DTO.
-       */
-      if (typeof upload.url !== "string" || !upload.url)
-        throw new ApiError({ code: "PARSE", message: "Respons unggah tidak memuat URL." })
-      if (typeof upload.fileKey !== "string" || !upload.fileKey)
-        throw new ApiError({ code: "PARSE", message: "Respons unggah tidak memuat kunci berkas." })
-      return upload
-    })
-}
+/**
+ * BFE-115 (2026-10-03): `requestPresignedUrl` DIHAPUS — dead code (nol
+ * pemanggil); backend mematikan `POST /v1/upload/presigned-url`
+ * (DEPRECATED 400). Upload kini via `uploadDirectImage`/`uploadDirect`.
+ */
 
 /** Object storage is a separate HTTPS transport: never send cookies or application headers. */
 export async function uploadToPresignedUrl(
@@ -203,12 +175,10 @@ export async function putToPresignedUrl(
   return uploadToPresignedUrl({ url, method: "PUT", headers }, blob, "upload", 60_000, signal)
 }
 
-export function confirmUpload(dto: ConfirmUploadDto, signal?: AbortSignal) {
-  return http.post<ConfirmedUpload, ConfirmUploadDto>("/v1/upload/confirm", dto, {
-    auth: "required",
-    signal,
-  })
-}
+/**
+ * BFE-115 (2026-10-03): `confirmUpload` DIHAPUS — dead code (nol pemanggil);
+ * alur presigned dimatikan backend; `uploadDirect` auto-confirm server-side.
+ */
 
 /**
  * Multipart langsung ke server dengan field `file`.
@@ -1058,45 +1028,10 @@ export async function uploadDirectImage(
 }
 
 /**
- * @deprecated Backend mematikan `POST /v1/upload/presigned-url` (DEPRECATED 400,
- * ST-014, 2026-09-26). JANGAN dipakai untuk kode baru — pakai `uploadDirectImage`
- * atau `uploadDirect`. Fungsi ini dipertahankan agar tidak merusak pemanggil
- * lama yang belum termigrasi; akan selalu gagal di server.
- *
- * Upload dari asset lokal (dipakai form bukti/KYC): ambil blob, minta
- * presigned URL, PUT, lalu confirm. Kembalikan fileKey siap kirim.
- *
- * O-01 (audit escrow 2026-09-24): `signal` membatalkan SELURUH rantai
- * (presigned → PUT → confirm) — bukan hanya langkah terakhir. Cleanup fileKey
- * yang sudah terlanjur terunggah TIDAK diikat signal (harus tetap jalan saat
- * pembatalan, supaya tidak menyisakan orphan di S3).
+ * BFE-115 (2026-10-03): `uploadPresigned` DIHAPUS — dead code (nol pemanggil);
+ * backend mematikan presigned URL (DEPRECATED 400). Pakai `uploadDirectImage`
+ * / `uploadDirect` untuk semua purpose.
  */
-export async function uploadPresigned(
-  purpose: PresignedUrlDto["purpose"],
-  fileName: string,
-  contentType: string,
-  blob: Blob,
-  signal?: AbortSignal,
-) {
-  const presigned = await requestPresignedUrl(
-    {
-      purpose,
-      fileName,
-      contentType,
-      fileSize: blob.size,
-    },
-    signal,
-  )
-  await uploadToPresignedUrl(
-    { ...presigned, headers: { "Content-Type": contentType, ...presigned.headers } },
-    blob,
-    fileName,
-    60_000,
-    signal,
-  )
-  const confirmed = await confirmUpload({ fileKey: presigned.fileKey }, signal)
-  return { fileKey: presigned.fileKey, url: confirmed.url }
-}
 
 /** URL aman untuk fileKey (mis. `${base}/files/...`) — dipakai fallback path. */
 export function fileKeyToUrl(fileKey: string) {

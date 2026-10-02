@@ -29,6 +29,18 @@ export const ORDER_NOT_FOUND = "ORDER_NOT_FOUND" as const
 export const NOT_ORDER_PARTICIPANT = "NOT_ORDER_PARTICIPANT" as const
 /** BFI-064: kode validasi kanonis backend (selalu HTTP 422). */
 export const VALIDATION_ERROR = "VALIDATION_ERROR" as const
+/** BFE-075: verifikasi nama pemilik rekening ke bank gagal (400). */
+export const BANK_ACCOUNT_VERIFICATION_FAILED = "BANK_ACCOUNT_VERIFICATION_FAILED" as const
+/**
+ * BFE-076: kegagalan re-auth keamanan (`src/common/constants/error-codes.ts`).
+ * Dipakai jalur passkey/bank-accounts & koreksi ledger admin.
+ */
+export const REAUTH_PASSWORD_REQUIRED = "REAUTH_PASSWORD_REQUIRED" as const
+export const REAUTH_INVALID_PASSWORD = "REAUTH_INVALID_PASSWORD" as const
+export const REAUTH_TOO_MANY_ATTEMPTS = "REAUTH_TOO_MANY_ATTEMPTS" as const
+export const REAUTH_UNAVAILABLE = "REAUTH_UNAVAILABLE" as const
+/** BFE-080: polling status langganan dengan id basi (404). */
+export const SUBSCRIPTION_NOT_FOUND = "SUBSCRIPTION_NOT_FOUND" as const
 
 /**
  * Kode yang pesannya DIRANCANG backend untuk ditampilkan langsung ke user

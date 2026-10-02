@@ -18,10 +18,16 @@
 
 import {
   ACTIVE_ORDERS_PRESENT,
+  BANK_ACCOUNT_VERIFICATION_FAILED,
   DISPLAYABLE_BACKEND_MESSAGES,
   ESCROW_BALANCE_PRESENT,
   NOT_ORDER_PARTICIPANT,
   ORDER_NOT_FOUND,
+  REAUTH_INVALID_PASSWORD,
+  REAUTH_PASSWORD_REQUIRED,
+  REAUTH_TOO_MANY_ATTEMPTS,
+  REAUTH_UNAVAILABLE,
+  SUBSCRIPTION_NOT_FOUND,
   WALLET_BALANCE_PRESENT,
   WALLET_PIN_NOT_SET,
 } from "@/lib/api/error-codes"
@@ -445,6 +451,22 @@ export const DEFAULT_ERROR_MESSAGES: Record<ApiErrorCode, string> = {
   UNKNOWN: "Terjadi kesalahan. Coba lagi.",
 }
 
+/**
+ * BFE-076: copy actionable per kode REAUTH_* (backend
+ * `src/common/constants/error-codes.ts`). Dipakai `userMessage()` — layar
+ * cukup memanggilnya tanpa switch sendiri.
+ */
+const REAUTH_COPY: Record<string, string> = {
+  [REAUTH_PASSWORD_REQUIRED]:
+    "Perubahan ini membutuhkan verifikasi kata sandi. Masukkan kata sandi Anda untuk melanjutkan.",
+  [REAUTH_INVALID_PASSWORD]:
+    "Kata sandi salah. Periksa kembali lalu coba lagi.",
+  [REAUTH_TOO_MANY_ATTEMPTS]:
+    "Terlalu banyak percobaan verifikasi. Tunggu beberapa saat sebelum mencoba lagi.",
+  [REAUTH_UNAVAILABLE]:
+    "Layanan verifikasi keamanan sedang tidak tersedia. Coba lagi nanti.",
+}
+
 /** Pesan siap tampil: pakai message backend bila ada, selain itu default per kode. */
 export function userMessage(err: unknown): string {
   // Item #27: offline yang diketahui selalu memakai copy klien yang jelas —
@@ -478,6 +500,20 @@ export function userMessage(err: unknown): string {
     if (err.backendCode === NOT_ORDER_PARTICIPANT) {
       return "Anda tidak memiliki akses ke pesanan ini."
     }
+    // BFE-075: verifikasi nama pemilik rekening ke data bank gagal — jangan
+    // biarkan jatuh ke VALIDATION generik ("data belum benar").
+    if (err.backendCode === BANK_ACCOUNT_VERIFICATION_FAILED) {
+      return "Nama pemilik tidak cocok dengan data bank. Periksa ejaan nama pemilik, lalu coba lagi."
+    }
+    // BFE-080: polling status langganan dengan id basi/kedaluwarsa (404) —
+    // jangan biarkan jatuh ke UNKNOWN generik.
+    if (err.backendCode === SUBSCRIPTION_NOT_FOUND) {
+      return "Data langganan tidak ditemukan. Mungkin sudah kedaluwarsa — silakan buat langganan baru."
+    }
+    // BFE-076: kegagalan re-auth keamanan — tiap kode punya arti sendiri;
+    // pesan generik ("sesi berakhir"/"data belum benar") menyesatkan di sini.
+    const reauthCopy = REAUTH_COPY[err.backendCode ?? ""]
+    if (reauthCopy) return reauthCopy
     // Untuk error jaringan/server, wording backend (bila ada) biasanya teknis — pakai default.
     if (
       err.code === "NETWORK" ||

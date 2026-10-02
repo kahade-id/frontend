@@ -10,18 +10,25 @@
  */
 
 export const TICKET_ATTACHMENT_MAX_COUNT = 5
-/** 10 MB per file — di atas ini upload rawan gagal di koneksi seluler. */
-export const TICKET_ATTACHMENT_MAX_SIZE_BYTES = 10 * 1024 * 1024
+/**
+ * FAL-025 (fix 2026-10-03): 50 MB per file — selaras kontrak backend
+ * `MAX_FILE_SIZE[UploadPurpose.CHAT_ATTACHMENT]`
+ * (`src/modules/upload/upload.service.ts:93`). Tiket memverifikasi file key
+ * dengan purpose CHAT_ATTACHMENT (`support.service.ts:24,140`), bukan
+ * REPORT_EVIDENCE seperti klaim lama di bawah (DBL-011).
+ */
+export const TICKET_ATTACHMENT_MAX_SIZE_BYTES = 50 * 1024 * 1024
 
 /**
- * DBL-011 (audit integrasi 2026-10-01): allowlist PERSIS backend
- * `ALLOWED_MIME_TYPES[REPORT_EVIDENCE]` (`src/modules/upload/upload.service.ts`):
- * image/jpeg, image/png, image/webp, image/heic, image/heif, application/pdf.
+ * FAL-025 (fix 2026-10-03): allowlist PERSIS backend
+ * `ALLOWED_MIME_TYPES[UploadPurpose.CHAT_ATTACHMENT]`
+ * (`src/modules/upload/upload.service.ts:48`): gambar (jpeg/png/webp/
+ * heic/heif), PDF, video (mp4/mov/webm), audio (mp3/wav/ogg/m4a).
  *
- * Dulu memakai prefix `image/*` — `image/gif`/`image/bmp`/`image/svg+xml`
- * lolos validasi klien lalu DITOLAK server (MIME_TYPE_MISMATCH); sebaliknya
- * `application/pdf` DITERIMA server untuk lampiran laporan tapi DIBLOKIR
- * klien. Tidak ada lagi prefix longgar: hanya 6 MIME ini yang lolos.
+ * Dulu memakai allowlist REPORT_EVIDENCE (6 MIME, 10 MB) — PDF/video/audio
+ * dan file 10–50 MB DITOLAK klien padahal DITERIMA server. Tidak ada lagi
+ * prefix longgar `image/*`: `image/gif`/`image/bmp`/`image/svg+xml` tetap
+ * ditolak (tidak ada di allowlist server → MIME_TYPE_MISMATCH).
  */
 const ALLOWED_MIME_TYPES = new Set([
   "image/jpeg",
@@ -30,6 +37,13 @@ const ALLOWED_MIME_TYPES = new Set([
   "image/heic",
   "image/heif",
   "application/pdf",
+  "video/mp4",
+  "video/quicktime",
+  "video/webm",
+  "audio/mpeg",
+  "audio/wav",
+  "audio/ogg",
+  "audio/mp4",
 ])
 
 export type AttachmentCandidate = {
@@ -52,7 +66,7 @@ function formatMB(bytes: number): string {
 }
 
 export function attachmentLimitSummary(): string {
-  return `Maksimal ${TICKET_ATTACHMENT_MAX_COUNT} lampiran (JPG/PNG/WebP/HEIC/HEIF/PDF), masing-masing maksimal ${formatMB(TICKET_ATTACHMENT_MAX_SIZE_BYTES)}.`
+  return `Maksimal ${TICKET_ATTACHMENT_MAX_COUNT} lampiran (gambar, PDF, video, atau audio), masing-masing maksimal ${formatMB(TICKET_ATTACHMENT_MAX_SIZE_BYTES)}.`
 }
 
 function isAllowedMime(mimeType: string): boolean {
@@ -76,7 +90,7 @@ export function validateTicketAttachments(
         index: i,
         name: c.name,
         reason: "type",
-        message: `"${c.name}" bukan lampiran yang didukung — pilih file JPG, PNG, WebP, HEIC/HEIF, atau PDF.`,
+        message: `"${c.name}" bukan lampiran yang didukung — pilih gambar (JPG/PNG/WebP/HEIC/HEIF), PDF, video (MP4/MOV/WebM), atau audio (MP3/WAV/OGG/M4A).`,
       })
       return
     }

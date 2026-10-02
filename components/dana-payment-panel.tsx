@@ -24,6 +24,7 @@ import { Countdown } from "@/components/ui/countdown"
 import { Icon } from "@/components/ui/icon"
 import { Text } from "@/components/ui/text"
 import { ScreenCaptureGuard } from "@/components/security/screen-capture-guard"
+import { safeHttpsLink } from "@/lib/external-url"
 import { formatDateTimeWIB, formatRupiah } from "@/lib/format"
 import { PAYMENT_COUNTDOWN_DANGER_SECONDS } from "@/lib/order-countdown"
 import { translate } from "@/lib/i18n/translate"
@@ -142,7 +143,9 @@ export type VaPaymentPanelProps = MonitorProps & {
   vaNumber: string
   vaBankName?: string
   accountName?: string
-  amount: number
+  // SEC-404 (M-33): nominal tak dikenal JANGAN dicetak "Rp0" — undefined
+  // merender "nominal belum diketahui".
+  amount?: number
   expiresAt?: string | null
   copied?: boolean
   onCopy: (value: string) => void
@@ -178,7 +181,8 @@ export function VaPaymentPanel({
             </Text>
           ) : null}
           <Text variant="body" tone="primary">
-            {formatRupiah(amount)}
+            {/* SEC-404 (M-33): "Rp0" tidak pernah dicetak untuk nominal tak dikenal. */}
+            {amount != null && amount > 0 ? formatRupiah(amount) : "nominal belum diketahui"}
           </Text>
           <Button
             variant="ghost"
@@ -229,7 +233,9 @@ export function VaPaymentPanel({
 
 export type DanaRedirectPanelProps = MonitorProps & {
   methodName: string
-  amount: number
+  // SEC-404 (M-33): nominal tak dikenal JANGAN dicetak "Rp0" — undefined
+  // merender "nominal belum diketahui".
+  amount?: number
   redirectUrl?: string
   expiresAt?: string | null
 }
@@ -241,21 +247,28 @@ export function DanaRedirectPanel({
   expiresAt,
   ...monitor
 }: DanaRedirectPanelProps) {
-  const canOpen = !!redirectUrl
+  // SEC-402: `redirectUrl` dari respons backend DITAFSIRKAN, bukan dipercaya
+  // — hanya HTTPS yang lolos (`safeHttpsLink`). Tautan tak valid (skema
+  // asing, host aneh, javascript:, intent:) → tombol mati + error jelas,
+  // bukan dibuka diam-diam di layar checkout.
+  const safeUrl = safeHttpsLink(redirectUrl)
+  const invalidUrl = redirectUrl != null && safeUrl == null
   // PERF-FIX (TIM1-P2): handler stabil — bukan closure inline.
   const handleOpen = useCallback(() => {
-    if (redirectUrl) void Linking.openURL(redirectUrl)
-  }, [redirectUrl])
+    if (safeUrl) void Linking.openURL(safeUrl)
+  }, [safeUrl])
+  // SEC-404 (M-33): "Rp0" tidak pernah dicetak untuk nominal tak dikenal.
+  const amountLabel = amount != null && amount > 0 ? formatRupiah(amount) : "nominal belum diketahui"
   return (
     <ScreenCaptureGuard>
       <View className="gap-3">
         <Text variant="body" tone="secondary">
           {translate("Bayar {x} lewat {m} — selesaikan pembayaran di aplikasi, lalu kembali ke sini.", {
-            x: formatRupiah(amount),
+            x: amountLabel,
             m: methodName,
           })}
         </Text>
-        {canOpen ? (
+        {safeUrl ? (
           <Button
             loading={monitor.submitting}
             onPress={handleOpen}
@@ -264,7 +277,9 @@ export function DanaRedirectPanel({
           </Button>
         ) : (
           <Text variant="caption" tone="danger">
-            Tautan pembayaran tidak tersedia — coba buat ulang atau pilih metode lain.
+            {invalidUrl
+              ? "Tautan pembayaran tidak valid — coba buat ulang atau pilih metode lain."
+              : "Tautan pembayaran tidak tersedia — coba buat ulang atau pilih metode lain."}
           </Text>
         )}
         {!TERMINAL_STATUS.has(monitor.status ?? "") ? (
