@@ -45,7 +45,8 @@ import { router, useLocalSearchParams } from "expo-router"
 import { api, type Order, type UserSearchResult, type WalletTransaction } from "@/lib/api"
 import { getShowcaseFeed, type ShowcaseSocialItem } from "@/lib/api/showcase"
 import { showcaseImages } from "@/lib/showcase-social"
-import { formatDateTime, formatNumber, formatRupiah } from "@/lib/format"
+import { showcasePriceLabel } from "@/lib/showcase-labels"
+import { formatDateTime, formatNumber } from "@/lib/format"
 import { resolveMediaUrl } from "@/lib/media"
 import { translate } from "@/lib/i18n/translate"
 import { buildResultMessage, getSearchEmptyStateCopy, pickDidYouMean } from "@/lib/search-ui"
@@ -1240,13 +1241,10 @@ function ShowcaseResultRow({ item, keyword }: { item: ShowcaseSocialItem; keywor
   // L-02 (audit 2026-09-23): SATU resolver gambar bersama (showcaseImages),
   // bukan rantai `images[0] ?? coverImageUrl ?? imageUrl` milik sendiri.
   const image = showcaseImages(item)[0]?.url ?? null
-  // Harga: rentang bila min≠max, tunggal bila sama, sembunyikan bila kosong.
-  const priceLabel =
-    item.priceMin != null && item.priceMax != null && item.priceMax > item.priceMin
-      ? `${formatRupiah(item.priceMin)} – ${formatRupiah(item.priceMax)}`
-      : item.priceMin != null
-        ? formatRupiah(item.priceMin)
-        : null
+  // P2-01 (audit non-escrow 2026-10-03): label harga lewat util kanonis
+  // showcasePriceLabel — sebelumnya logika sendiri yang drift (hanya-max
+  // disembunyikan, 0 tampil "Rp 0"). null = tidak ada harga → disembunyikan.
+  const priceLabel = showcasePriceLabel(item)
   return (
     <PressableScale
       accessibilityRole="button"
