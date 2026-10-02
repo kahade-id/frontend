@@ -530,7 +530,7 @@ export default function ChatRoomScreen() {
    * BFE-005: userId publik saya (format USR-XXXXXXXX) — diteruskan sebagai
    * prop `myUserId` ke <ChatPollsSheet> agar tombol "Tutup polling" muncul
    * untuk polling yang saya buat. `pickPublicUserId` memilih `userId`
-   * (bukan cuid internal `id`) sesuai BUG#1 2026-09-26.
+   * (bukan cuid internal `id`).
    */
   const [myUserId, setMyUserId] = useState<string | null>(null)
   useEffect(() => {

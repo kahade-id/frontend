@@ -354,9 +354,9 @@ function ShowcaseDetailContent({
     setMeUsername(null)
     if (hasSession) void api.users.getMeCached().then((me) => {
       if (alive) {
-        // BUG#1 (2026-09-26): meId dipakai untuk dibandingkan dengan
-        // author.userId (public USR-XXX dari backend) — pakai pickPublicUserId
-        // (userId publik), BUKAN me.id (cuid internal) yang tidak pernah cocok.
+        // meId dipakai untuk dibandingkan dengan author.userId (public
+        // USR-XXX dari backend) — pakai pickPublicUserId (userId publik),
+        // BUKAN me.id (cuid internal) yang tidak pernah cocok.
         setMeId(api.users.pickPublicUserId(me))
         setMeUsername(me.username ?? null)
       }

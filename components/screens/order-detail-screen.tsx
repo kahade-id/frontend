@@ -278,11 +278,11 @@ export default function OrderDetailScreen() {
             logWarn("order:me-fallback", err)
             return null
           })
-      // BUG#1 (2026-09-26): backend kini mengirim `myRole` eksplisit — pakai
-      // sebagai sumber utama. Fallback hanya untuk kompatibilitas: cocokkan
-      // `me.userId` (public USR-XXX) dengan buyer/seller.id yang dinormalisasi
-      // dari field `userId` backend. JANGAN pakai `me.id` (cuid internal) —
-      // dua namespace berbeda sehingga perbandingan tidak pernah cocok.
+      // Backend mengirim `myRole` eksplisit — pakai sebagai sumber utama.
+      // Fallback hanya untuk kompatibilitas: cocokkan `me.userId` (public
+      // USR-XXX) dengan buyer/seller.id yang dinormalisasi dari field
+      // `userId` backend. JANGAN pakai `me.id` (cuid internal) — dua
+      // namespace berbeda sehingga perbandingan tidak pernah cocok.
       // (A-12: inferensi dari username tetap dihapus — username bisa berubah.)
       const publicId = me?.userId
       const role =

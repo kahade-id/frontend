@@ -94,8 +94,8 @@ export default function OrderLinkScreen() {
   const isOwnLink =
     link != null &&
     meQuery.data != null &&
-    // BUG#1 (2026-09-26): creator.id dinormalisasi dari `userId` backend
-    // (public USR-XXX) — bandingkan dengan `me.userId`, BUKAN `me.id` (cuid).
+    // creator.id dinormalisasi dari `userId` backend (public USR-XXX) —
+    // bandingkan dengan `me.userId`, BUKAN `me.id` (cuid internal).
     ((link.creator?.id != null &&
       meQuery.data.userId != null &&
       link.creator.id === meQuery.data.userId) ||
