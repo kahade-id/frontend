@@ -5,9 +5,10 @@
  * supaya setiap layar form (login, buat transaksi, KYC) tidak menyalin
  * `Platform.select` yang sama berulang kali:
  *   - iOS     : behavior "padding" — satu-satunya yang mulus dengan ScrollView.
- *   - Android : behavior undefined; `windowSoftInputMode=adjustResize`
- *               (default Expo) sudah me-resize root, dan menambah "height"
- *               di atasnya justru membuat konten melompat dua kali.
+ *   - Android : behavior "padding" — tinggi keyboard diukur dari event dan
+ *               ditambahkan sebagai padding bawah. (2026-10-02: sebelumnya
+ *               undefined mengandalkan adjustResize, terbukti tidak mengangkat
+ *               footer di device user.)
  *   - Web     : tidak ada keyboard virtual yang menutupi viewport dengan cara
  *               yang sama; render <View> polos.
  *
@@ -47,14 +48,17 @@ export type KeyboardAvoidingProps = Omit<ViewProps, "children"> & {
   /** keyboardVerticalOffset — tinggi header/safe-area di atas area ini */
   offset?: number
   /**
-   * Paksa behavior (default: ios "padding", android undefined).
+   * Paksa behavior (default: ios "padding", android "padding").
    *
-   * CHT-005: Android SENGAJA undefined — `windowSoftInputMode=adjustResize`
-   * (default Expo, tidak dioverride di app.json) sudah me-resize root saat
-   * keyboard terbuka; menambah "height"/"padding" di atasnya membuat konten
-   * melompat dua kali (terverifikasi di implementasi KeyboardAvoidingView RN:
-   * behavior "height" menghitung offset relatif terhadap frame yang SUDAH
-   * di-resize). Jangan ubah ke "height" tanpa pengujian di device Android.
+   * 2026-10-02 (fix keyboard menutupi input): Android sebelumnya SENGAJA
+   * undefined dengan asumsi `windowSoftInputMode=adjustResize` (default Expo)
+   * me-resize root. Terbukti di device user: input bawah TETAP tertutup —
+   * adjustResize tidak mengangkat footer dengan benar (kemungkinan interaksi
+   * dengan safe-area/stack navigator di SDK 54). Sekarang pakai "padding":
+   * tinggi keyboard diukur dari event dan ditambahkan sebagai padding bawah
+   * secara manual — deterministik, tidak tergantung windowSoftInputMode.
+   * Kalau suatu layar mengalami double-jump (adjustResize + padding),
+   * teruskan behavior={undefined} eksplisit untuk layar itu saja.
    */
   behavior?: "padding" | "height" | "position"
   className?: string
@@ -106,9 +110,10 @@ export function KeyboardAvoiding({
 
   return (
     <KeyboardAvoidingView
-      // CHT-005: Android = undefined (docblock di atas) — adjustResize sudah
-      // me-resize root; "height" justru menggandakan pergeseran.
-      behavior={behavior ?? (Platform.OS === "ios" ? "padding" : undefined)}
+      // 2026-10-02: Android = "padding" (lihat docblock di atas) — behavior
+      // undefined mengandalkan adjustResize yang terbukti tidak mengangkat
+      // footer di device user.
+      behavior={behavior ?? "padding"}
       keyboardVerticalOffset={offset}
       className={cn("flex-1", className)}
       {...rest}
