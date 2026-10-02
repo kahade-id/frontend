@@ -72,6 +72,7 @@ import { formatPhoneId } from "@/lib/format"
 import { haptic } from "@/lib/haptics"
 import { getAuthLocation } from "@/lib/location"
 import { clearOtpFlow, patchOtpFlow, type OtpFlowState } from "@/lib/otp-flow"
+import { setPendingMigrationToken } from "@/lib/phone-migration-token"
 import { AuthFlowLoading, AuthFlowMissing } from "@/lib/auth-flow-gate"
 import { useOtpFlow } from "@/lib/use-otp-flow"
 import { clearPasswordResetState, setPasswordResetState } from "@/lib/password-reset"
@@ -381,7 +382,9 @@ export default function VerifyOtpScreen() {
         break
       case "migrate_phone":
         if (migrationToken) {
-          router.replace(ROUTES.phoneMigration(migrationToken))
+          // BATCH4-B4: kembalikan token ke holder modul sebelum navigasi.
+          setPendingMigrationToken(migrationToken)
+          router.replace(ROUTES.phoneMigration())
         } else if (router.canGoBack()) {
           router.back()
         }

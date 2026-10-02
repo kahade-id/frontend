@@ -87,6 +87,8 @@ import { useAuthSession } from "@/lib/use-auth-session"
 import { setOtpFlow } from "@/lib/otp-flow"
 import { ROUTES } from "@/lib/routes"
 import { setPendingSocialSignup } from "@/lib/social-signup"
+import { setPendingSocialLinkConfirm } from "@/lib/social-link-confirm"
+import { setPendingMigrationToken } from "@/lib/phone-migration-token"
 import { setPendingTwoFactorLogin } from "@/lib/two-factor-login"
 import { Dialog } from "@/components/ui/modal"
 import { SocialLoginButtons, type SocialOutcome, type SocialErrorInfo } from "@/components/auth/social-login-buttons"
@@ -208,9 +210,10 @@ export default function LoginScreen() {
 
       if ("requiresPhoneMigration" in result && result.requiresPhoneMigration) {
         // Akun lama belum punya nomor HP → wajib migrasi. migrationToken
-        // short-lived untuk satu alur ini.
+        // short-lived untuk satu alur ini. BATCH4-B4: via memori modul.
         setFailCount(0)
-        router.replace(ROUTES.phoneMigration(result.migrationToken))
+        setPendingMigrationToken(result.migrationToken)
+        router.replace(ROUTES.phoneMigration())
         return
       }
 
@@ -297,7 +300,9 @@ export default function LoginScreen() {
     async (challengeId: string, assertion: unknown) => {
       const result = await api.passkey.verifyAuthLogin({ challengeId, assertion })
       if ("requiresPhoneMigration" in result && result.requiresPhoneMigration) {
-        router.replace(ROUTES.phoneMigration(result.migrationToken))
+        // BATCH4-B4: migrationToken via memori modul, bukan route params.
+        setPendingMigrationToken(result.migrationToken)
+        router.replace(ROUTES.phoneMigration())
         return
       }
       if ("requiresTwoFactor" in result && result.requiresTwoFactor) {
@@ -365,7 +370,9 @@ export default function LoginScreen() {
         return
       }
       if (outcome.kind === "phoneMigration") {
-        router.replace(ROUTES.phoneMigration(outcome.migrationToken))
+        // BATCH4-B4: migrationToken di memori modul, bukan route params.
+        setPendingMigrationToken(outcome.migrationToken)
+        router.replace(ROUTES.phoneMigration())
         return
       }
       if (outcome.kind === "linkRequired") {
@@ -378,9 +385,14 @@ export default function LoginScreen() {
         return
       }
       // Konflik email: buktikan kepemilikan akun lama sebelum menautkan.
+      // BATCH4-B4: linkToken disimpan di memori modul (bukan route params).
+      setPendingSocialLinkConfirm({
+        linkToken: outcome.linkToken,
+        maskedEmail: outcome.maskedEmail,
+        provider: outcome.provider,
+      })
       router.push(
         ROUTES.socialLinkConfirm({
-          linkToken: outcome.linkToken,
           maskedEmail: outcome.maskedEmail,
           provider: outcome.provider,
         }),
