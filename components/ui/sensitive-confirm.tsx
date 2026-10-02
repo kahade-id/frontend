@@ -58,6 +58,7 @@ export function SensitiveConfirmDialog({
   return (
     <Dialog
       visible={visible}
+      avoidKeyboard={!!children}
       title={title}
       description={description}
       icon={Warning}

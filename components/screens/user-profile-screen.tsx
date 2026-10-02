@@ -1098,7 +1098,7 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
                   </>
                 )}
                 {/* Item 19 (2026-09-28): Kode QR profil — deep link
-                    https://kahade.id/user/<username>, dipindai kamera. */}
+                    https://kahade.id/<username>, dipindai kamera. */}
                 <IconButton
                   icon={QrCode}
                   variant="secondary"
@@ -1702,7 +1702,7 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
       ) : null}
 
       {/* ── Item 19 (2026-09-28): Kode QR profil ─────────────────
-          QR berisi deep link profil https://kahade.id/user/<username>
+          QR berisi deep link profil https://kahade.id/<username>
           (lib/deeplinks.ts `profileUrl`), dipindai kamera HP lain. */}
       <BottomSheet
         visible={qrOpen}
@@ -1713,7 +1713,7 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
         <View className="items-center px-5 pb-4">
           <QRCodeDisplay
             value={profileUrl(handle)}
-            caption={translate("kahade.id/user/{x}", { x: handle })}
+            caption={profileUrl(handle).replace("https://", "")}
             onCopy={(value) => void copy(value, "profile-qr")}
             copied={copiedKey === "profile-qr"}
             accessibilityLabel={translate("Kode QR profil @{x}", { x: handle })}

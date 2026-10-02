@@ -32,7 +32,7 @@
  *    seperti punya dua target sentuh padahal seluruh baris adalah tombol.
  *  - Mode pilih (maks 50 = BatchNotificationIdsDto): read-batch & delete-batch.
  *  - Menu ⋮ → "Pilih beberapa", "Hapus yang sudah dibaca"
- *    (`POST /v1/notifications/delete-read`), dan "Notifikasi perangkat ini".
+ *    (`POST /v1/notifications/delete-read`), dan "Pengaturan notifikasi".
  *  - Infinite scroll (page/limit, spec: max 100, default 20) + pull-to-refresh.
  *  - Skeleton loading pertama, EmptyState, ErrorState eksplisit.
  *
@@ -239,7 +239,7 @@ const NotificationRowView = memo(function NotificationRowView({
   const isGroup = row.kind === "group"
   const members = isGroup ? row.items : [head]
   // Id anggota stabil per baris — untuk snapshot seleksi per baris.
-  const memberIds = useMemo(() => members.map((m) => m.id), [row]) // eslint-disable-line react-hooks/exhaustive-deps
+  const memberIds = useMemo(() => members.map((m) => m.id), [row])
   // PERF-FIX (TIM1-P2): baca seleksi via store — bukan prop dari renderItem.
   const selecting = useSyncExternalStore(
     selectionStore.subscribe,
@@ -255,7 +255,6 @@ const NotificationRowView = memo(function NotificationRowView({
 
   const handlePress = useCallback(
     () => onOpen(head, isGroup, members),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [onOpen, isGroup, head.id],
   )
   const handleLongPress = useCallback(
@@ -267,7 +266,6 @@ const NotificationRowView = memo(function NotificationRowView({
         : selecting
           ? onToggleSelect(head.id)
           : onEnterSelect(head.id),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [selecting, isGroup, onToggleSelectGroup, onEnterSelectGroup, onToggleSelect, onEnterSelect, head.id],
   )
 
@@ -741,7 +739,7 @@ function NotificationsScreen() {
     // Item 41: jalan pintas ke pengaturan notifikasi dari menu.
     {
       key: "settings",
-      label: "Notifikasi perangkat ini",
+      label: "Pengaturan notifikasi",
       icon: GearSix,
       onPress: () => {
         setMenuOpen(false)

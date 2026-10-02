@@ -65,9 +65,9 @@ import Animated, {
 import { Icon, type IconComponent } from "@/components/ui/icon"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
+import { CountBadge } from "@/components/ui/count-badge"
 import { cn } from "@/lib/cn"
 import { focusRingInset } from "@/lib/focus-ring"
-import { formatNumber } from "@/lib/format"
 import { tokens } from "@/lib/tokens"
 import { useReducedMotion } from "@/lib/use-reduced-motion"
 
@@ -318,17 +318,14 @@ export function Tabs<V extends string = string>({
                 </Text>
               </View>
               {item.count != null ? (
-                <View
+                <CountBadge
+                  count={item.count}
+                  max={Number.MAX_SAFE_INTEGER}
+                  showZero
+                  tone={active ? "inverted" : "neutral"}
+                  accessible={false}
                   onLayout={measureWidth(setCountWidths, index)}
-                  className={cn(
-                    "min-w-5 items-center justify-center rounded-full border px-[6px] py-[1px]",
-                    active ? "border-primary bg-primary" : "border-border bg-transparent",
-                  )}
-                >
-                  <Text variant="caption" weight={500} tone={active ? "inverse" : "secondary"}>
-                    {formatNumber(item.count)}
-                  </Text>
-                </View>
+                />
               ) : null}
             </PressableScale>
 

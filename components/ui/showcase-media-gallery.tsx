@@ -1,3 +1,5 @@
+import type { GestureResponderEvent } from "react-native"
+import { mediaTapPoint, type OpeningMediaTap } from "@/lib/use-opening-media-tap"
 /** Shared, swipeable media pager. At most eight images per item.
  *
  * B-01 (audit 2026-09-23): hanya slide aktif ±1 yang me-render konten —
@@ -15,9 +17,9 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { ScrollView, View, type LayoutChangeEvent, type NativeScrollEvent, type NativeSyntheticEvent } from "react-native"
-import { Play, SpeakerHigh, SpeakerSimpleX } from "phosphor-react-native"
+import { Pause, Play, SpeakerHigh, SpeakerSimpleX } from "phosphor-react-native"
 import { Picture } from "@/components/ui/picture"
-import { FeedVideo } from "@/components/ui/feed-video"
+import { FeedVideo, useWifiAutoplayAllowed } from "@/components/ui/feed-video"
 import { Icon } from "@/components/ui/icon"
 import { Text } from "@/components/ui/text"
 import { PressableScale } from "@/components/ui/pressable-scale"
@@ -32,8 +34,8 @@ import type { GalleryMedia } from "@/lib/showcase-social"
 
 /**
  * Jeda maksimum antar dua ketukan agar dihitung ketuk-ganda (ala Instagram).
- * Ketuk tunggal DITUNDA selama jeda ini bila `onDoubleTap` disediakan —
- * supaya ketuk-ganda tidak ikut membuka aksi ketuk-tunggal.
+ * Ketuk pertama langsung membuka viewer/detail; ketuk kedua hanya suka.
+ * Tidak ada timer yang menunda navigasi pengguna.
  */
 const DOUBLE_TAP_MS = 300
 
@@ -41,7 +43,7 @@ export function ShowcaseMediaGallery({ media, title, onOpen, onDoubleTap, autopl
   /** Urutan media persis seperti yang dipakai `onOpen` (indeks = indeks media). */
   media: GalleryMedia[]
   title: string
-  onOpen: (index: number) => void
+  onOpen: (index: number, openingTap?: OpeningMediaTap) => void
   /** Ketuk-ganda pada slide → mis. suka (opsional; tanpa ini ketuk-tunggal langsung). */
   onDoubleTap?: (index: number) => void
   /**
@@ -76,14 +78,13 @@ export function ShowcaseMediaGallery({ media, title, onOpen, onDoubleTap, autopl
   widthRef.current = width
   const mediaRef = useRef(media)
   mediaRef.current = media
-  /** Ref untuk handler (dipakai di dalam timeout) agar identitas stabil. */
+  /** Ref untuk handler agar identitas stabil. */
   const onOpenRef = useRef(onOpen)
   onOpenRef.current = onOpen
   const onDoubleTapRef = useRef(onDoubleTap)
   onDoubleTapRef.current = onDoubleTap
   const lastTapRef = useRef<{ index: number; at: number } | null>(null)
-  const pendingSingleRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  /** Batch 19 (item 16): pause manual per video (ketuk video = toggle). */
+  /** Pause manual per video, hanya dari tombol overlay putar/jeda. */
   const [paused, setPaused] = useState<Record<string, boolean>>({})
   /** Batch 19 (item 15): video yang sudah diketuk di mode hemat data. */
   const [manualPlay, setManualPlay] = useState<Record<string, boolean>>({})
@@ -91,21 +92,18 @@ export function ShowcaseMediaGallery({ media, title, onOpen, onDoubleTap, autopl
    * Item 59 strict (FE-IMP-1): latch niat putar eksplisit per video untuk
    * mode hemat data. Autoplay scroll-driven TIDAK PERNAH berlaku saat
    * `dataSaver` aktif — bahkan setelah video dimuat manual. Latch dipasang
-   * oleh ketuk eksplisit (poster "Putar video" / ketuk video) dan dicabut
+   * oleh ketuk eksplisit (tombol overlay "Putar video") dan dicabut
    * saat pindah slide, supaya video tidak "autoplay" saat slide dikunjungi
    * ulang.
    */
   const [playLatch, setPlayLatch] = useState<Record<string, boolean>>({})
-  useEffect(() => () => {
-    if (pendingSingleRef.current) clearTimeout(pendingSingleRef.current)
-  }, [])
   // Item 59 strict: pindah slide dalam mode hemat data = cabut semua niat
   // putar — video yang dimuat manual tidak boleh mulai sendiri.
   useEffect(() => {
     if (dataSaver) setPlayLatch({})
   }, [page, dataSaver])
   const signature = media.map((m) => m.id).join("|")
-  useEffect(() => { setPage(0); scroll.current?.scrollTo({ x: 0, animated: false }) }, [signature])
+  useEffect(() => { lastTapRef.current = null; setPage(0); scroll.current?.scrollTo({ x: 0, animated: false }) }, [signature])
   useEffect(() => { scroll.current?.scrollTo({ x: pageRef.current * width, animated: false }) }, [width])
   // FE-068: halaman berubah → prefetch 1 slide tetangga (gambar saja;
   // video dilewati, mode hemat data dihormati — lihat lib/prefetch-neighbors).
@@ -116,54 +114,18 @@ export function ShowcaseMediaGallery({ media, title, onOpen, onDoubleTap, autopl
       dataSaver,
     )
   }, [page, media, dataSaver])
-  /**
-   * Ketuk pada slide: deteksi ketuk-ganda manual (bukan RNGH) supaya tidak
-   * berebut gesture dengan ScrollView paging horizontal di bawahnya — pola
-   * yang sama dipakai web (tidak ada gesture handler) & native.
-   *
-   * Batch 19: ketuk-tunggal pada slide VIDEO = toggle play/pause (bukan buka
-   * viewer gambar); ketuk-ganda tetap "suka".
-   */
-  const handleSlidePress = (index: number) => {
-    const slide = media[index]
-    const singleTap = () => {
-      if (slide?.kind === "video") {
-        if (dataSaver) {
-          // Item 59 strict: dalam mode hemat data, ketuk video = toggle niat
-          // putar EKSPLISIT (bukan autoplay). Tidak ada sinyal otomatis yang
-          // bisa memutar video — hanya latch ini.
-          const playing = manualPlay[slide.id] === true && playLatch[slide.id] === true && !paused[slide.id]
-          const next = toggleDataSaverPlayIntent(playing)
-          setPlayLatch((prev) => ({ ...prev, [slide.id]: next.latch }))
-          setPaused((prev) => ({ ...prev, [slide.id]: next.paused }))
-          return
-        }
-        setPaused((prev) => ({ ...prev, [slide.id]: !prev[slide.id] }))
-        return
-      }
-      onOpenRef.current(index)
-    }
-    if (!onDoubleTapRef.current) {
-      singleTap()
-      return
-    }
+  /** Ketuk gambar/video langsung membuka viewer; ketuk kedua hanya untuk suka. */
+  const handleSlidePress = (index: number, event?: GestureResponderEvent) => {
+    if (!media[index]) return
     const now = Date.now()
     const prev = lastTapRef.current
-    if (prev && prev.index === index && now - prev.at <= DOUBLE_TAP_MS) {
-      if (pendingSingleRef.current) {
-        clearTimeout(pendingSingleRef.current)
-        pendingSingleRef.current = null
-      }
+    if (onDoubleTapRef.current && prev && prev.index === index && now - prev.at <= DOUBLE_TAP_MS) {
       lastTapRef.current = null
       onDoubleTapRef.current(index)
       return
     }
     lastTapRef.current = { index, at: now }
-    if (pendingSingleRef.current) clearTimeout(pendingSingleRef.current)
-    pendingSingleRef.current = setTimeout(() => {
-      pendingSingleRef.current = null
-      singleTap()
-    }, DOUBLE_TAP_MS)
+    onOpenRef.current(index, onDoubleTapRef.current ? { at: now, point: mediaTapPoint(event), onDoubleTap: () => onDoubleTapRef.current?.(index) } : undefined)
   }
   /** B-01: jendela render ±1 slide — di luar itu placeholder seukuran. */
   const inWindow = (index: number) => Math.abs(index - page) <= 1
@@ -195,11 +157,11 @@ export function ShowcaseMediaGallery({ media, title, onOpen, onDoubleTap, autopl
   // memanggil handleSlidePress terbaru tanpa membuat closure baru.
   const handleSlidePressRef = useRef(handleSlidePress)
   handleSlidePressRef.current = handleSlidePress
-  const slideTapHandlersRef = useRef(new Map<number, () => void>())
+  const slideTapHandlersRef = useRef(new Map<number, (event: GestureResponderEvent) => void>())
   const getSlideTapHandler = useCallback((index: number) => {
     let h = slideTapHandlersRef.current.get(index)
     if (!h) {
-      h = () => handleSlidePressRef.current(index)
+      h = (event) => handleSlidePressRef.current(index, event)
       slideTapHandlersRef.current.set(index, h)
     }
     return h
@@ -225,6 +187,22 @@ export function ShowcaseMediaGallery({ media, title, onOpen, onDoubleTap, autopl
     slideTapHandlersRef.current.clear()
     requestPlayHandlersRef.current.clear()
   }, [mediaSignature])
+  // Tombol overlay adalah satu-satunya pemicu putar/jeda, bukan area media.
+  const togglePlayHandlersRef = useRef(new Map<string, (playing: boolean) => void>())
+  const getTogglePlayHandler = useCallback((id: string) => {
+    let handler = togglePlayHandlersRef.current.get(id)
+    if (!handler) {
+      handler = (playing) => {
+        const next = toggleDataSaverPlayIntent(playing)
+        setManualPlay((prev) => ({ ...prev, [id]: true }))
+        setPlayLatch((prev) => ({ ...prev, [id]: next.latch }))
+        setPaused((prev) => ({ ...prev, [id]: next.paused }))
+      }
+      togglePlayHandlersRef.current.set(id, handler)
+    }
+    return handler
+  }, [])
+
   return (
     <View className="overflow-hidden rounded-sm border border-border" onLayout={handleLayout}>
       {media.length === 0 ? (
@@ -249,11 +227,12 @@ export function ShowcaseMediaGallery({ media, title, onOpen, onDoubleTap, autopl
                     // PERNAH diizinkan — bahkan setelah video dimuat manual.
                     dataSaver={dataSaver}
                     // Niat putar eksplisit (ketuk poster / ketuk video).
-                    userPlay={playLatch[m.id] === true && !paused[m.id]}
+                    userPlay={autoplayActive && index === page && playLatch[m.id] === true && !paused[m.id]}
                     // Item 15: tunda unduhan video sampai diketuk.
                     gated={dataSaver && !manualPlay[m.id]}
                     onTap={getSlideTapHandler(index)}
                     onRequestPlay={getRequestPlayHandler(m.id)}
+                    onTogglePlay={getTogglePlayHandler(m.id)}
                   />
                 ) : (
                   <PressableScale accessibilityRole="button"
@@ -307,116 +286,90 @@ function VideoSlide({
   gated,
   onTap,
   onRequestPlay,
+  onTogglePlay,
   active,
 }: {
   media: GalleryMedia
   title: string
   shouldPlay: boolean
-  /** Item 59 strict: true = autoplay mati total, hanya niat eksplisit. */
   dataSaver: boolean
-  /** Niat putar eksplisit pengguna (latch), sudah dikurangi pause manual. */
   userPlay: boolean
   gated: boolean
-  onTap: () => void
+  onTap: (event: GestureResponderEvent) => void
   onRequestPlay: () => void
-  /** PERF-FIX (2026-09-30): slide aktif → poster prioritas "high". */
+  onTogglePlay: (playing: boolean) => void
   active: boolean
 }) {
-  /**
-   * Item 50 (FE-IMP-1): toggle speaker per video. State lokal per slide —
-   * default muted (perilaku feed sosial); ketuk ikon untuk dengar suara.
-   * Tombol di-render SEBAGAI SAUDARA (bukan anak) PressableScale luar supaya
-   * ketuk speaker tidak ikut memicu toggle play/pause ketuk-tunggal.
-   */
   const [muted, setMuted] = useState(true)
-  // Item 59 strict (FE-IMP-1): keputusan putar terpusat di
-  // `resolveVideoShouldPlay`. Saat gated (hemat data, belum diketuk) jangan
-  // pernah putar; dalam mode hemat data autoplay (`shouldPlay`) SELALU
-  // diabaikan — hanya niat eksplisit (`userPlay`) yang memutar video.
+  const wifiAllowed = useWifiAutoplayAllowed()
   const effectiveShouldPlay = resolveVideoShouldPlay({
     gated,
     dataSaver,
     autoplaySignal: shouldPlay,
     userPlay,
   })
-  const toggleMute = () => setMuted((m) => !m)
-  // C01: rasio slide — placeholder & poster ikut agar tak meloncat.
+  // Seluler tetap tidak autoplay. Ketuk overlay memasang niat putar eksplisit.
+  const playing = effectiveShouldPlay && (wifiAllowed || userPlay)
   const slideAspectRatio = media.aspectRatio ?? 1
 
-  const muteButton = (
-    <View className="absolute bottom-2 right-2">
-      <PressableScale
-        accessibilityRole="button"
-        accessibilityLabel={muted ? translate("Nyalakan suara video") : translate("Bisukan video")}
-        onPress={toggleMute}
-        // Tombol visual sekitar 32px; tambah slop untuk target sentuh 44px.
-        hitSlop={hitSlopToReach(32)}
-        containerClassName="rounded-full"
-      >
-        <View className="items-center justify-center rounded-full bg-overlay-media p-2">
-          <Icon icon={muted ? SpeakerSimpleX : SpeakerHigh} size="sm" tone="inverse" />
-        </View>
-      </PressableScale>
-    </View>
-  )
-
-  if (gated) {
-    return (
-      <View className="relative w-full">
-        <PressableScale
-          accessibilityRole="button"
-          accessibilityLabel={translate("Putar video: {x}", { x: title })}
-          accessibilityHint={translate("Mode hemat data aktif. Ketuk untuk memuat video.")}
-          onPress={onRequestPlay}
-          containerClassName="w-full"
-        >
-          <View className="relative w-full items-center justify-center gap-1.5 bg-surface px-8" style={{ aspectRatio: slideAspectRatio }}>
-            {media.posterUrl ? (
-              <Picture
-                source={media.posterUrl}
-                alt={title}
-                aspectRatio={slideAspectRatio}
-                radius="none"
-                bordered={false}
-                className="absolute inset-0"
-              />
-            ) : null}
-            <View className="items-center justify-center rounded-full bg-overlay-media p-4">
-              <Icon icon={Play} size="lg" weight="fill" tone="inverse" />
-            </View>
-            <Text variant="caption" tone="secondary" className="text-center">
-              {translate("Mode hemat data")}
-            </Text>
-            <Text variant="caption" tone="tertiary" className="text-center">
-              {translate("Ketuk untuk memuat video")}
-            </Text>
-          </View>
-        </PressableScale>
-        {/* Item 57: badge durasi juga tampil di poster gated. */}
-        {media.durationSec != null ? (
-          <View className="absolute bottom-2 left-2 rounded-full bg-overlay-media px-2 py-0.5">
-            <Text variant="caption" weight={600} className="text-white tabular-nums">
-              {formatCountdown(media.durationSec)}
-            </Text>
-          </View>
-        ) : null}
-      </View>
-    )
-  }
   return (
     <View className="relative w-full">
       <PressableScale
         accessibilityRole="button"
-        accessibilityLabel={translate("Video: {x}. Ketuk untuk putar atau jeda.", { x: title })}
+        accessibilityLabel={translate("Lihat video: {x}", { x: title })}
+        accessibilityHint={translate("Buka video layar penuh")}
         onPress={onTap}
         containerClassName="w-full"
       >
-        <FeedVideo source={media.url} poster={media.posterUrl} alt={title} shouldPlay={effectiveShouldPlay} muted={muted} aspectRatio={slideAspectRatio} userInitiatedPlay={userPlay} posterPriority={active ? "high" : "low"} />
+        {gated ? (
+          <View className="relative w-full bg-surface" style={{ aspectRatio: slideAspectRatio }}>
+            {media.posterUrl ? (
+              <Picture source={media.posterUrl} alt={title} aspectRatio={slideAspectRatio}
+                radius="none" bordered={false} priority={active ? "high" : "low"} />
+            ) : null}
+            <Text variant="caption" tone="secondary" className="absolute bottom-3 w-full text-center">
+              {translate("Mode hemat data")}
+            </Text>
+          </View>
+        ) : (
+          // Kontrol FeedVideo internal tidak boleh mengambil ketukan permukaan.
+          <View style={{ pointerEvents: "none" }}>
+            <FeedVideo source={media.url} poster={media.posterUrl} alt={title}
+              shouldPlay={effectiveShouldPlay} muted={muted} aspectRatio={slideAspectRatio}
+              userInitiatedPlay={userPlay} posterPriority={active ? "high" : "low"} />
+          </View>
+        )}
       </PressableScale>
-      {muteButton}
-      {/* Item 57: badge durasi ala TikTok/IG di thumbnail video. */}
+      {/* Kontrol adalah saudara permukaan: tidak memicu viewer atau suka. */}
+      <View style={{ pointerEvents: "box-none" }} className={gated ? "absolute inset-0 items-center justify-center" : "absolute bottom-2 left-2"}>
+        <PressableScale
+          accessibilityRole="button"
+          accessibilityLabel={playing ? translate("Jeda video: {x}", { x: title }) : translate("Putar video: {x}", { x: title })}
+          accessibilityHint={gated ? translate("Mode hemat data aktif. Ketuk untuk memuat video.") : undefined}
+          onPress={gated ? onRequestPlay : () => onTogglePlay(playing)}
+          containerClassName="rounded-full"
+          className="h-11 w-11 items-center justify-center rounded-full bg-overlay-media"
+        >
+          <Icon icon={playing ? Pause : Play} size="sm" weight="fill" tone="inverse" />
+        </PressableScale>
+      </View>
+      {!gated ? (
+        <View className="absolute bottom-2 right-2">
+          <PressableScale
+            accessibilityRole="button"
+            accessibilityLabel={muted ? translate("Nyalakan suara video") : translate("Bisukan video")}
+            onPress={() => setMuted((value) => !value)}
+            hitSlop={hitSlopToReach(32)}
+            containerClassName="rounded-full"
+          >
+            <View className="items-center justify-center rounded-full bg-overlay-media p-2">
+              <Icon icon={muted ? SpeakerSimpleX : SpeakerHigh} size="sm" tone="inverse" />
+            </View>
+          </PressableScale>
+        </View>
+      ) : null}
       {media.durationSec != null ? (
-        <View className="absolute bottom-2 left-2 rounded-full bg-overlay-media px-2 py-0.5">
+        <View style={{ pointerEvents: "none" }} className="absolute left-2 top-2 rounded-full bg-overlay-media px-2 py-0.5">
           <Text variant="caption" weight={600} className="text-white tabular-nums">
             {formatCountdown(media.durationSec)}
           </Text>

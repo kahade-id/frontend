@@ -1,3 +1,4 @@
+import type { OpeningMediaTap } from "@/lib/use-opening-media-tap"
 /**
  * Kahade — <ShowcaseFeedItem> (§9.17, §9.23; revisi 2026-09-17 #3).
  *
@@ -20,6 +21,7 @@
  *  - A-12: badge kategori bisa ditekan → feed terfilter kategori itu
  *    (param `category` pada rute tab /showcase).
  *  - H-04: tap penulis untuk tamu → loginRequired(next=profil).
+ *  - C1 (batch 3): follow tidak boleh dirender di feed/list; hanya menu detail.
  *  - M-03: istilah "showcase" untuk user diganti "karya".
  *
  * Memo: komponen ini `memo` — kartu di feed tab membaca state sosialnya
@@ -79,7 +81,7 @@ export type ShowcaseFeedItemProps = {
    * Ketuk media → buka pratinjau gambar (index slide). Bila tidak disediakan,
    * ketuk media jatuh ke `onPress` (perilaku lama: buka detail karya).
    */
-  onOpenMedia?: (index: number) => void
+  onOpenMedia?: (index: number, openingTap?: OpeningMediaTap) => void
   onToggleLike?: () => void
   onOpenComments?: () => void
   onToggleSave?: () => void
@@ -302,7 +304,7 @@ function ShowcaseFeedItemBase({
   const handleOpenMedia = useCallback(
     nonInteractive
       ? (_index: number) => {}
-      : (index: number) => (onOpenMedia ? onOpenMedia(index) : onPress?.()),
+      : (index: number, openingTap?: OpeningMediaTap) => (onOpenMedia ? onOpenMedia(index, openingTap) : onPress?.()),
     [nonInteractive, onOpenMedia, onPress],
   )
 

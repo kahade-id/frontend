@@ -19,8 +19,9 @@
 import { BellSimple, CardsThree, ChatCenteredText, ShoppingBag } from "phosphor-react-native"
 
 import type { IconComponent } from "@/components/ui/icon"
+import type { TabRouteName } from "@/lib/routes"
 
-export type ShellTabKey = "showcase" | "transactions" | "chat" | "notifications"
+export type ShellTabKey = TabRouteName
 
 export type ShellTabDef = {
   /** Kunci tab = nama rute di grup `(tabs)`. */

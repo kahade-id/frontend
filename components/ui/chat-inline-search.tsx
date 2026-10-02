@@ -63,14 +63,14 @@ export function ChatInlineSearchBar({
     <View
       className="flex-row items-center gap-1 border-b border-border bg-surface px-3 py-2"
       accessibilityRole="search"
-      accessibilityLabel={translate("Cari di percakapan")}
+      accessibilityLabel={translate("Cari pesan termuat")}
     >
       <Icon icon={MagnifyingGlass} tone="default" size="sm" />
       <TextInput
         ref={inputRef}
         value={query}
         onChangeText={onQueryChange}
-        placeholder={translate("Cari di percakapan")}
+        placeholder={translate("Cari pesan termuat")}
         placeholderTextColor={palette.textSecondary}
         selectionColor={palette.primary}
         cursorColor={palette.primary}

@@ -308,11 +308,8 @@ export const ROUTES = {
   /** Kelola passkey/WebAuthn (GAP-A): daftar, tambah, ganti nama, hapus, pulihkan. */
   passkeys: "/passkeys" as Href,
   notificationPreferences: "/notification-preferences" as Href,
-  /**
-   * Toggle notifikasi granular per jenis — PREFERENSI LOKAL perangkat
-   * (lib/notification-local-prefs.ts), bukan preferensi server.
-   */
-  notificationSettings: "/notification-settings" as Href,
+  /** Alias: pengaturan notifikasi perangkat + server berada di satu layar. */
+  notificationSettings: "/notification-preferences" as Href,
   /**
    * Tampilan: mode terang/gelap/sistem.
    *
@@ -620,7 +617,7 @@ export type TabRouteName = (typeof TAB_ROUTE_NAMES)[number]
 
 /**
  * Peta visual item tab bar (label/ikon/a11y/rute) TIDAK tinggal di sini —
- * sengaja di components/ui/bottom-tab-bar.tsx (TAB_BAR_ITEMS): modul ini
+ * sengaja di lib/shell-tabs.ts (SHELL_TABS): modul ini
  * lapisan murni yang juga diimpor test Node, sedangkan ikon Phosphor tidak
  * bisa di-parse di luar Metro/Babel.
  */

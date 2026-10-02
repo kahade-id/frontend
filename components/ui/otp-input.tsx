@@ -76,6 +76,8 @@ export type OtpInputProps = Omit<ViewProps, "children"> & {
   /** State berhasil: border+digit accent + pop stagger (v2) */
   success?: boolean
   errorText?: string
+  /** Default true; layar yang menjanjikan input tersimpan bisa menonaktifkannya. */
+  clearOnError?: boolean
   helperText?: string
   disabled?: boolean
   autoFocus?: boolean
@@ -155,6 +157,7 @@ export const OtpInput = forwardRef<OtpInputHandle, OtpInputProps>(function OtpIn
     secure = false,
     success = false,
     errorText,
+    clearOnError = true,
     helperText,
     disabled = false,
     autoFocus = false,
@@ -210,13 +213,13 @@ export const OtpInput = forwardRef<OtpInputHandle, OtpInputProps>(function OtpIn
   useEffect(() => {
     const previousError = lastErrorRef.current
     lastErrorRef.current = errorText
-    if (!errorText || code.length === 0) return
+    if (!clearOnError || !errorText || code.length === 0) return
     const freshError = previousError !== errorText
     const rejectedCode = code.length === maxDigits && code === completionRef.current
     if (!freshError && !rejectedCode) return
     if (value === undefined) setInternal("")
     onChange?.("")
-  }, [code, errorText, maxDigits, onChange, value])
+  }, [clearOnError, code, errorText, maxDigits, onChange, value])
 
   useImperativeHandle(
     ref,
@@ -276,6 +279,7 @@ export const OtpInput = forwardRef<OtpInputHandle, OtpInputProps>(function OtpIn
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
         editable={!disabled}
+        selectTextOnFocus={!clearOnError && hasError}
         autoFocus={autoFocus}
         maxLength={maxDigits}
         keyboardType="number-pad"

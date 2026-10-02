@@ -2049,8 +2049,6 @@ export default function ChatRoomScreen() {
   // PERF-FIX (TIM1-P2): ref ke popover agar onPick stabil.
   const reactionPopoverRef = useRef(reactionPopover)
   reactionPopoverRef.current = reactionPopover
-  // PERF-FIX (TIM1-P2): handler FlatList stabil.
-  const handleScrollBeginDrag = useCallback(() => Keyboard.dismiss(), [])
   const handleReactionDismiss = useCallback(() => setReactionPopover(null), [])
   const selectedMessages = useMemo(
     () => messages.filter((m) => selectedIds.has(m.id)),
@@ -2944,7 +2942,8 @@ export default function ChatRoomScreen() {
               icon={MagnifyingGlass}
               variant="ghost"
               size="sm"
-              accessibilityLabel={translate("Cari di percakapan")}
+              accessibilityLabel={translate("Cari pesan termuat")}
+              accessibilityHint={translate("Mencari hanya pesan yang sudah dimuat di perangkat ini")}
               onPress={() => setInlineSearchOpen(true)}
             />
           }
@@ -3018,8 +3017,7 @@ export default function ChatRoomScreen() {
         // dan membuat inset kiri/kanan tidak proporsional.
         contentContainerStyle={threadContentStyle}
         keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="on-drag"
-        onScrollBeginDrag={handleScrollBeginDrag}
+        keyboardDismissMode="none"
         onContentSizeChange={handleContentSizeChange}
         onScroll={handleScroll}
         scrollEventThrottle={SCROLL_EVENT_THROTTLE}

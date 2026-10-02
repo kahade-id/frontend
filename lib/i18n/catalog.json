@@ -19,12 +19,12 @@
    "n": 37
   },
   {
-   "s": "Etalase",
+   "s": "Simpan",
    "n": 27
   },
   {
-   "s": "Simpan",
-   "n": 27
+   "s": "Etalase",
+   "n": 26
   },
   {
    "s": "{x}: {y}",
@@ -64,10 +64,6 @@
   },
   {
    "s": "Lainnya",
-   "n": 15
-  },
-  {
-   "s": "Masuk",
    "n": 15
   },
   {
@@ -147,10 +143,6 @@
    "n": 12
   },
   {
-   "s": "Pesan",
-   "n": 12
-  },
-  {
    "s": "Pesanan",
    "n": 12
   },
@@ -163,10 +155,6 @@
    "n": 12
   },
   {
-   "s": "Transaksi",
-   "n": 12
-  },
-  {
    "s": "Alamat pengiriman",
    "n": 11
   },
@@ -176,6 +164,14 @@
   },
   {
    "s": "Mengikuti",
+   "n": 11
+  },
+  {
+   "s": "Pesan",
+   "n": 11
+  },
+  {
+   "s": "Transaksi",
    "n": 11
   },
   {
@@ -247,7 +243,7 @@
    "n": 9
   },
   {
-   "s": "Cari di percakapan",
+   "s": "Cari pesan termuat",
    "n": 9
   },
   {
@@ -1003,6 +999,10 @@
    "n": 5
   },
   {
+   "s": "Kembali ke Masuk",
+   "n": 5
+  },
+  {
    "s": "Kirim balasan",
    "n": 5
   },
@@ -1479,10 +1479,6 @@
    "n": 4
   },
   {
-   "s": "Notifikasi",
-   "n": 4
-  },
-  {
    "s": "Pakai kode referral saya {x} saat daftar di Kahade — transaksi aman dengan escrow.",
    "n": 4
   },
@@ -1935,6 +1931,10 @@
    "n": 3
   },
   {
+   "s": "Banner saat aplikasi terbuka. Tidak mengubah kiriman notifikasi dari server.",
+   "n": 3
+  },
+  {
    "s": "Barang baru, belum pernah dipakai",
    "n": 3
   },
@@ -2048,10 +2048,6 @@
   },
   {
    "s": "Berhenti mengikuti",
-   "n": 3
-  },
-  {
-   "s": "Berhenti mengikuti {x}",
    "n": 3
   },
   {
@@ -2187,6 +2183,10 @@
    "n": 3
   },
   {
+   "s": "Buka video layar penuh",
+   "n": 3
+  },
+  {
    "s": "Bukti",
    "n": 3
   },
@@ -2220,10 +2220,6 @@
   },
   {
    "s": "Cari nama atau username",
-   "n": 3
-  },
-  {
-   "s": "Cek status sekarang",
    "n": 3
   },
   {
@@ -2364,6 +2360,10 @@
   },
   {
    "s": "Distribusi bintang: rata-rata {x} dari {n} ulasan",
+   "n": 3
+  },
+  {
+   "s": "Distribusi ulasan belum tersedia",
    "n": 3
   },
   {
@@ -2603,10 +2603,6 @@
    "n": 3
   },
   {
-   "s": "Hanya berlaku di perangkat ini",
-   "n": 3
-  },
-  {
    "s": "Hanya nama pemilik yang bisa diubah — nomor {x} tetap sama.",
    "n": 3
   },
@@ -2795,10 +2791,6 @@
    "n": 3
   },
   {
-   "s": "Ikuti {x}",
-   "n": 3
-  },
-  {
    "s": "Info pengiriman digital (opsional)",
    "n": 3
   },
@@ -2887,6 +2879,10 @@
    "n": 3
   },
   {
+   "s": "Jeda video: {x}",
+   "n": 3
+  },
+  {
    "s": "Jeda voice note",
    "n": 3
   },
@@ -2900,10 +2896,6 @@
   },
   {
    "s": "Jenis dan rentang tanggal dimuat ulang dari server; arah, status, dan pencarian menyaring mutasi yang sudah dimuat.",
-   "n": 3
-  },
-  {
-   "s": "Jenis notifikasi",
    "n": 3
   },
   {
@@ -2923,7 +2915,7 @@
    "n": 3
   },
   {
-   "s": "kahade.id/user/{x}",
+   "s": "Kanal dan kiriman notifikasi di semua perangkat, termasuk saat aplikasi tertutup. Perubahan disimpan otomatis.",
    "n": 3
   },
   {
@@ -2980,10 +2972,6 @@
   },
   {
    "s": "Kembali ke layar sebelumnya",
-   "n": 3
-  },
-  {
-   "s": "Kembali ke Masuk",
    "n": 3
   },
   {
@@ -3235,6 +3223,10 @@
    "n": 3
   },
   {
+   "s": "Lihat video: {x}",
+   "n": 3
+  },
+  {
    "s": "Link/jualan tidak relevan",
    "n": 3
   },
@@ -3268,6 +3260,10 @@
   },
   {
    "s": "Masuk untuk berkomentar",
+   "n": 3
+  },
+  {
+   "s": "Masuk untuk melaporkan etalase ini.",
    "n": 3
   },
   {
@@ -3331,6 +3327,10 @@
    "n": 3
   },
   {
+   "s": "Memuat distribusi ulasan",
+   "n": 3
+  },
+  {
    "s": "Memuat grup",
    "n": 3
   },
@@ -3368,6 +3368,10 @@
   },
   {
    "s": "Menandai seluruh notifikasi sebagai sudah dibaca",
+   "n": 3
+  },
+  {
+   "s": "Mencari hanya pesan yang sudah dimuat di perangkat ini",
    "n": 3
   },
   {
@@ -3547,11 +3551,11 @@
    "n": 3
   },
   {
-   "s": "Notifikasi belum dapat dihapus",
+   "s": "Notifikasi",
    "n": 3
   },
   {
-   "s": "Notifikasi Perangkat Ini",
+   "s": "Notifikasi belum dapat dihapus",
    "n": 3
   },
   {
@@ -3611,6 +3615,10 @@
    "n": 3
   },
   {
+   "s": "Pengaturan Notifikasi",
+   "n": 3
+  },
+  {
    "s": "Pengguna diblokir",
    "n": 3
   },
@@ -3640,6 +3648,10 @@
   },
   {
    "s": "Penjual menerima",
+   "n": 3
+  },
+  {
+   "s": "Perangkat ini",
    "n": 3
   },
   {
@@ -3755,10 +3767,6 @@
    "n": 3
   },
   {
-   "s": "Pilih jenis notifikasi yang tampil sebagai banner di perangkat ini.",
-   "n": 3
-  },
-  {
    "s": "Pilih kategori {x}",
    "n": 3
   },
@@ -3836,10 +3844,6 @@
   },
   {
    "s": "Pratinjau sampul",
-   "n": 3
-  },
-  {
-   "s": "Preferensi Notifikasi Server",
    "n": 3
   },
   {
@@ -3992,6 +3996,10 @@
   },
   {
    "s": "Semua sesi termasuk PERANGKAT INI akan dicabut. Anda harus masuk kembali di semua perangkat.",
+   "n": 3
+  },
+  {
+   "s": "Server",
    "n": 3
   },
   {
@@ -4495,10 +4503,6 @@
    "n": 3
   },
   {
-   "s": "Video: {x}. Ketuk untuk putar atau jeda.",
-   "n": 3
-  },
-  {
    "s": "Voucher",
    "n": 3
   },
@@ -4911,6 +4915,10 @@
    "n": 2
   },
   {
+   "s": "Belum ada balasan? Pastikan pesan terkirim dari {x}.",
+   "n": 2
+  },
+  {
    "s": "Belum ada balasan. Jadilah yang pertama membalas.",
    "n": 2
   },
@@ -5295,10 +5303,6 @@
    "n": 2
   },
   {
-   "s": "Cari pesan",
-   "n": 2
-  },
-  {
    "s": "Cashback",
    "n": 2
   },
@@ -5308,6 +5312,10 @@
   },
   {
    "s": "Catatan untuk Anda",
+   "n": 2
+  },
+  {
+   "s": "Cek status sekarang",
    "n": 2
   },
   {
@@ -6255,10 +6263,6 @@
    "n": 2
   },
   {
-   "s": "Kelola preferensi server",
-   "n": 2
-  },
-  {
    "s": "Kelola slot jasa",
    "n": 2
   },
@@ -6340,10 +6344,6 @@
   },
   {
    "s": "Ketuk untuk memuat gambar",
-   "n": 2
-  },
-  {
-   "s": "Ketuk untuk memuat video",
    "n": 2
   },
   {
@@ -6440,6 +6440,10 @@
   },
   {
    "s": "Kode QR Profil",
+   "n": 2
+  },
+  {
+   "s": "Kode referensi",
    "n": 2
   },
   {
@@ -7459,6 +7463,10 @@
    "n": 2
   },
   {
+   "s": "PIN dompet",
+   "n": 2
+  },
+  {
    "s": "Pindahkan lampiran {x} ke atas",
    "n": 2
   },
@@ -7916,22 +7924,6 @@
   },
   {
    "s": "Suka & ikuti akan terkirim otomatis saat tersambung. Aksi lain (termasuk yang menyentuh uang) tidak bisa dilakukan saat offline.",
-   "n": 2
-  },
-  {
-   "s": "Tab Etalase",
-   "n": 2
-  },
-  {
-   "s": "Tab Notifikasi",
-   "n": 2
-  },
-  {
-   "s": "Tab Pesan",
-   "n": 2
-  },
-  {
-   "s": "Tab Transaksi",
    "n": 2
   },
   {
@@ -8591,10 +8583,6 @@
    "n": 1
   },
   {
-   "s": "— tinggal ketuk kirim.",
-   "n": 1
-  },
-  {
    "s": ", {x} peserta.",
    "n": 1
   },
@@ -8611,7 +8599,7 @@
    "n": 1
   },
   {
-   "s": ". Pastikan koneksi internet stabil.",
+   "s": ". Kode verifikasi dikirim sebagai balasan.",
    "n": 1
   },
   {
@@ -8732,10 +8720,6 @@
   },
   {
    "s": "{x} — segera hadir",
-   "n": 1
-  },
-  {
-   "s": "{x} · {x} WIB",
    "n": 1
   },
   {
@@ -12091,6 +12075,10 @@
    "n": 1
   },
   {
+   "s": "Buka aplikasi autentikator dan masukkan kode {x} digit.",
+   "n": 1
+  },
+  {
    "s": "Buka aplikasi Kahade untuk memindai dengan kamera, atau ketik kode secara manual.",
    "n": 1
   },
@@ -12463,7 +12451,15 @@
    "n": 1
   },
   {
+   "s": "Cari pesan",
+   "n": 1
+  },
+  {
    "s": "Cari produk…",
+   "n": 1
+  },
+  {
+   "s": "Cari semua pesan",
    "n": 1
   },
   {
@@ -12516,6 +12512,14 @@
   },
   {
    "s": "Cek Ketersediaan & Harga",
+   "n": 1
+  },
+  {
+   "s": "Cek status di Transaksi",
+   "n": 1
+  },
+  {
+   "s": "Cek status pembayaran",
    "n": 1
   },
   {
@@ -12612,10 +12616,6 @@
   },
   {
    "s": "Coba validasi lagi",
-   "n": 1
-  },
-  {
-   "s": "Coba verifikasi lagi",
    "n": 1
   },
   {
@@ -12891,10 +12891,6 @@
    "n": 1
   },
   {
-   "s": "dari nomor:",
-   "n": 1
-  },
-  {
    "s": "Dari pengguna lain.",
    "n": 1
   },
@@ -13163,7 +13159,7 @@
    "n": 1
   },
   {
-   "s": "di sini.",
+   "s": "Di WhatsApp, ketuk Kirim. Kode referensi ini bukan OTP {x} digit — OTP dikirim bot sebagai balasan.",
    "n": 1
   },
   {
@@ -14735,10 +14731,6 @@
    "n": 1
   },
   {
-   "s": "Ini kode pengiriman pesan — kode verifikasi {x} digit dikirim bot sebagai balasan.",
-   "n": 1
-  },
-  {
    "s": "Ini satu-satunya metode masuk Anda. Tambahkan kata sandi atau metode lain dulu sebelum menghapus passkey ini.",
    "n": 1
   },
@@ -15155,7 +15147,7 @@
    "n": 1
   },
   {
-   "s": "Kami belum bisa memastikan status pembayaran ke server. Jangan bayar ulang dulu — cek di menu Transaksi.",
+   "s": "Kami belum bisa memastikan status pembayaran. Jangan bayar ulang dulu — cek status atau buka Transaksi.",
    "n": 1
   },
   {
@@ -15280,6 +15272,10 @@
   },
   {
    "s": "Ke penjual:",
+   "n": 1
+  },
+  {
+   "s": "ke WhatsApp resmi Kahade",
    "n": 1
   },
   {
@@ -15412,10 +15408,6 @@
   },
   {
    "s": "kembali otomatis ke buyer. Buyer batal setelah host membeli (ada struk) → diselesaikan lewat sengketa.",
-   "n": 1
-  },
-  {
-   "s": "Kembali tanpa balasan? Pastikan pesan berisi kode terkirim dari nomor",
    "n": 1
   },
   {
@@ -15572,6 +15564,10 @@
   },
   {
    "s": "Kirim OTP",
+   "n": 1
+  },
+  {
+   "s": "Kirim pesan dari",
    "n": 1
   },
   {
@@ -15808,14 +15804,6 @@
   },
   {
    "s": "Kode QR verifikasi keaslian struk",
-   "n": 1
-  },
-  {
-   "s": "Kode referensi",
-   "n": 1
-  },
-  {
-   "s": "Kode referensi Anda",
    "n": 1
   },
   {
@@ -16283,7 +16271,7 @@
    "n": 1
   },
   {
-   "s": "Layar ini otomatis lanjut begitu bot membalas kode verifikasi.",
+   "s": "Layar ini otomatis lanjut saat kode verifikasi terkirim.",
    "n": 1
   },
   {
@@ -16939,7 +16927,7 @@
    "n": 1
   },
   {
-   "s": "Memuat preferensi…",
+   "s": "Memuat preferensi server…",
    "n": 1
   },
   {
@@ -17683,10 +17671,6 @@
    "n": 1
   },
   {
-   "s": "Nomor HP tidak aktif atau salah ketik?",
-   "n": 1
-  },
-  {
    "s": "Nomor HP tidak aktif atau sudah tidak dipakai?",
    "n": 1
   },
@@ -17772,10 +17756,6 @@
   },
   {
    "s": "Notifikasi ini tidak menaut ke pesanan yang valid.",
-   "n": 1
-  },
-  {
-   "s": "Notifikasi perangkat ini",
    "n": 1
   },
   {
@@ -18003,6 +17983,10 @@
    "n": 1
   },
   {
+   "s": "Pastikan koneksi internet stabil.",
+   "n": 1
+  },
+  {
    "s": "Pastikan nama penerima dan nominal benar. Dana baru berpindah setelah Anda menekan tombol kirim di layar berikutnya.",
    "n": 1
   },
@@ -18067,6 +18051,10 @@
    "n": 1
   },
   {
+   "s": "Pembayaran belum terkonfirmasi. Status diperbarui otomatis dari server.",
+   "n": 1
+  },
+  {
    "s": "Pembayaran berhasil",
    "n": 1
   },
@@ -18084,10 +18072,6 @@
   },
   {
    "s": "Pembayaran gagal. Coba lagi.",
-   "n": 1
-  },
-  {
-   "s": "Pembayaran sedang diproses — umumnya terkonfirmasi dalam beberapa menit. Dana Anda aman, status di layar ini diperbarui otomatis.",
    "n": 1
   },
   {
@@ -18311,7 +18295,15 @@
    "n": 1
   },
   {
+   "s": "Pengaturan notifikasi",
+   "n": 1
+  },
+  {
    "s": "Pengaturan Privasi",
+   "n": 1
+  },
+  {
+   "s": "Pengecekan dilanjutkan otomatis saat internet kembali.",
    "n": 1
   },
   {
@@ -18680,10 +18672,6 @@
   },
   {
    "s": "Percakapan ini telah ditutup karena transaksi telah selesai.",
-   "n": 1
-  },
-  {
-   "s": "Percobaan ulang ke-",
    "n": 1
   },
   {
@@ -19179,10 +19167,6 @@
    "n": 1
   },
   {
-   "s": "Pilih kanal notifikasi untuk setiap kategori. Perubahan disimpan otomatis.",
-   "n": 1
-  },
-  {
    "s": "Pilih kata sandi baru untuk akun Anda. Minimal {x} karakter.",
    "n": 1
   },
@@ -19304,10 +19288,6 @@
   },
   {
    "s": "Polling dibuat",
-   "n": 1
-  },
-  {
-   "s": "Polling dijeda dan lanjut otomatis saat koneksi kembali. Kode referensi di atas tetap berlaku.",
    "n": 1
   },
   {
@@ -20447,11 +20427,11 @@
    "n": 1
   },
   {
-   "s": "Status belum diketahui — provider tidak merespons atau timeout. Bukan berarti gagal.",
+   "s": "Status belum diketahui",
    "n": 1
   },
   {
-   "s": "Status belum terkonfirmasi",
+   "s": "Status belum diketahui — provider tidak merespons atau timeout. Bukan berarti gagal.",
    "n": 1
   },
   {
@@ -20472,6 +20452,10 @@
   },
   {
    "s": "Status order tidak dapat dimuat:",
+   "n": 1
+  },
+  {
+   "s": "Status pembayaran belum diketahui",
    "n": 1
   },
   {
@@ -20587,10 +20571,6 @@
    "n": 1
   },
   {
-   "s": "Sudah pernah daftar tapi tidak ada balasan? Coba",
-   "n": 1
-  },
-  {
    "s": "Sudah punya akun?",
    "n": 1
   },
@@ -20620,6 +20600,22 @@
   },
   {
    "s": "sumber/metode dana, reference, rekening, nominal, biaya, saldo, status, refund, penarikan, transfer, chargeback, dan rekonsiliasi.",
+   "n": 1
+  },
+  {
+   "s": "Tab Etalase",
+   "n": 1
+  },
+  {
+   "s": "Tab Notifikasi",
+   "n": 1
+  },
+  {
+   "s": "Tab Pesan",
+   "n": 1
+  },
+  {
+   "s": "Tab Transaksi",
    "n": 1
   },
   {
@@ -20939,6 +20935,10 @@
    "n": 1
   },
   {
+   "s": "Telusuri seluruh riwayat di server",
+   "n": 1
+  },
+  {
    "s": "Template cepat",
    "n": 1
   },
@@ -21235,10 +21235,6 @@
    "n": 1
   },
   {
-   "s": "Tidak bisa membuka WhatsApp otomatis? Kirim pesan berisi kode di atas secara manual ke",
-   "n": 1
-  },
-  {
    "s": "Tidak bisa mengambil lokasi",
    "n": 1
   },
@@ -21260,10 +21256,6 @@
   },
   {
    "s": "Tidak memenuhi syarat penghapusan.",
-   "n": 1
-  },
-  {
-   "s": "Tidak muncul balasan? Periksa apakah Anda mengirim dari nomor",
    "n": 1
   },
   {
@@ -21791,10 +21783,6 @@
    "n": 1
   },
   {
-   "s": "Untuk keamanan, kode dikirim sebagai balasan chat Anda sendiri — bukan pesan mendadak dari kami. Anda HARUS mengirim pesan dulu ke WhatsApp resmi Kahade",
-   "n": 1
-  },
-  {
    "s": "Untuk pencairan dana ke rekening Anda",
    "n": 1
   },
@@ -22132,10 +22120,6 @@
   },
   {
    "s": "WhatsApp",
-   "n": 1
-  },
-  {
-   "s": "WhatsApp akan terbuka dengan pesan berisi kode",
    "n": 1
   },
   {

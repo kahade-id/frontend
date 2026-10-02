@@ -267,8 +267,8 @@ export default function VerifyOtpScreen() {
         }
       } catch (err) {
         haptic("error")
-        // Clear code agar user bisa coba lagi tanpa perlu hapus manual
-        setCode("")
+        // Pertahankan input saat API/koneksi gagal; hanya kirim ulang yang
+        // sengaja mengganti challenge boleh mengosongkan kode.
         otpRef.current?.focus()
 
         if (isApiError(err)) {
@@ -461,6 +461,7 @@ export default function VerifyOtpScreen() {
             <OtpInput
               ref={otpRef}
               dynamicLength
+              clearOnError={false}
               value={code}
               onChange={handleCodeChange}
               errorText={otpError}

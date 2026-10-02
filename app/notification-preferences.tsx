@@ -1,5 +1,5 @@
 /**
- * Screen — Preferensi Notifikasi (GET/PUT /v1/notifications/preferences).
+ * Screen — Pengaturan Notifikasi: Perangkat ini + Server dalam satu layar.
  * Matriks kategori × kanal dari NotificationPreferencesMatrix.
  *
  * Audit:
@@ -28,6 +28,7 @@ import { Alert } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { DataScreen } from "@/components/ui/data-screen"
+import { DeviceNotificationSettings } from "@/components/ui/device-notification-settings"
 import { Icon } from "@/components/ui/icon"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import {
@@ -47,6 +48,7 @@ import { useLanguage } from "@/lib/i18n"
 import { translate } from "@/lib/i18n/translate"
 
 export default function NotificationPreferencesScreen() {
+  useLanguage()
   const toast = useToast()
   const query = useApiQuery<import("@/lib/api/notifications").NotificationPreferences>(
     "notification-preferences",
@@ -78,7 +80,6 @@ export default function NotificationPreferencesScreen() {
     if (query.data) {
       void api.notifications.syncQuietHoursTimezone(prefsTz ?? null)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query.data])
 
   const handleChange = useCallback(
@@ -158,14 +159,20 @@ export default function NotificationPreferencesScreen() {
 
   return (
     <DataScreen
-      title={translate("Preferensi Notifikasi Server")}
+      title={translate("Pengaturan Notifikasi")}
       state={query}
-      loadingMessage="Memuat preferensi…"
+      loadingMessage="Memuat preferensi server…"
+      persistent={
+        <View className="gap-4 pt-3">
+          <DeviceNotificationSettings />
+          <WebPushOptIn />
+          <SectionHeader
+            title={translate("Server")}
+            subtitle={translate("Kanal dan kiriman notifikasi di semua perangkat, termasuk saat aplikasi tertutup. Perubahan disimpan otomatis.")}
+          />
+        </View>
+      }
     >
-      <WebPushOptIn />
-      <Text variant="body" tone="secondary">
-        Pilih kanal notifikasi untuk setiap kategori. Perubahan disimpan otomatis.
-      </Text>
       <NotificationPreferencesMatrix
         value={value}
         onChange={(n, k) => void handleChange(n, k)}

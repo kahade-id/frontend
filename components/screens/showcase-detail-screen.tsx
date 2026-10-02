@@ -1,3 +1,4 @@
+import type { OpeningMediaTap } from "@/lib/use-opening-media-tap"
 /** Public Etalase detail with optional viewer authentication and fenced comment mutations.
  * Comment reads reconcile complete loaded pages after a mutation. Server authorization remains authoritative. */
 
@@ -244,6 +245,7 @@ function ShowcaseDetailContent({
   const [meUsername, setMeUsername] = useState<string | null>(null)
   /** Index foto yang dibuka di <ImageViewer>; null = viewer tertutup. */
   const [viewerIndex, setViewerIndex] = useState<number | null>(null)
+  const viewerOpeningTap = useRef<OpeningMediaTap | undefined>(undefined)
   const composerRef = useRef<TextInput>(null)
 
   const [comments, setComments] = useState<ShowcaseCommentWithReplies[]>([])
@@ -513,7 +515,8 @@ function ShowcaseDetailContent({
   const spin360Frames = useMemo(() => showcaseSpin360Groups(item), [item])
 
   /** Ketuk media → viewer layar penuh (pinch-zoom + swipe antar foto). */
-  const openViewer = (index: number) => {
+  const openViewer = (index: number, openingTap?: OpeningMediaTap) => {
+    viewerOpeningTap.current = openingTap
     // Item 158 (FE-IMP-1): viewer kini campuran gambar+video — indeks slide
     // media dipakai langsung (tidak lagi dipetakan ke indeks gambar).
     if (index >= 0 && index < resolvedMedia.length) setViewerIndex(index)
@@ -1146,6 +1149,7 @@ function ShowcaseDetailContent({
           kind: m.kind === "video" ? "video" : "image",
         }))}
         index={viewerIndex ?? 0}
+        openingTap={viewerOpeningTap.current}
         onClose={() => setViewerIndex(null)}
         title={item.title}
         actions={

@@ -188,7 +188,7 @@ export default function ChangePinScreen() {
         ) : undefined
       }
     >
-      <Header title={isSetupMode ? "Buat PIN" : "Ubah PIN"} />
+      <Header title={hasPin === null ? "PIN dompet" : isSetupMode ? "Buat PIN" : "Ubah PIN"} />
       <ScrollView
         keyboardShouldPersistTaps="handled"
         contentContainerClassName="gap-4 px-5"

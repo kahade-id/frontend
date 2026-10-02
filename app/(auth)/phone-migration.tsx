@@ -23,8 +23,8 @@
  * Keputusan non-obvious:
  *   - Tanpa migrationToken (deep-link langsung) layar tidak bisa dipakai —
  *     kembali ke /login. `migrationToken` dari useLocalSearchParams.
- *   - showBack={false}: user tidak boleh kembali ke layar login dan "lupa"
- *     migrasi — akunnya belum bisa dipakai sampai nomor ditambahkan.
+ *   - Migrasi tetap wajib untuk memakai akun, tetapi selalu tersedia jalan
+ *     kembali ke Masuk bila sesi migrasi hilang atau pengguna ingin keluar.
  *   - Nomor HP diverifikasi via WhatsApp customer-initiated, sama seperti
  *     registrasi; setelah verify-otp status migration_verified,
  *     confirmPhoneMigration menukar tempToken jadi sesi penuh.
@@ -44,6 +44,7 @@ import { KeyboardAvoiding } from "@/components/ui/keyboard-avoiding"
 import { isValidPhoneId, PhoneInput, toE164Id } from "@/components/ui/phone-input"
 import { Screen } from "@/components/ui/screen"
 import { Text } from "@/components/ui/text"
+import { TextLink } from "@/components/ui/text-link"
 import { VStack } from "@/components/ui/stack"
 import { api, userMessage } from "@/lib/api"
 import { getAuthLocation } from "@/lib/location"
@@ -60,6 +61,10 @@ export default function PhoneMigrationScreen() {
   const [phoneError, setPhoneError] = useState<string | undefined>()
   const [formError, setFormError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const errorMessage = !migrationToken
+    ? "Sesi migrasi tidak valid. Silakan masuk kembali."
+    : formError
+  const backToLogin = () => router.replace(ROUTES.login)
 
   const handleSubmit = useCallback(async () => {
     if (submitting) return
@@ -150,10 +155,10 @@ export default function PhoneMigrationScreen() {
                 errorText={phoneError}
                 reserveHelperSpace
                 required
-                autoFocus
+                autoFocus={!!migrationToken}
                 returnKeyType="done"
                 onSubmitEditing={() => void handleSubmit()}
-                disabled={submitting}
+                disabled={submitting || !migrationToken}
               />
 
               <Text variant="caption" tone="secondary" className="text-pretty">
@@ -161,20 +166,25 @@ export default function PhoneMigrationScreen() {
                 diminta mengirim pesan ke WhatsApp resmi Kahade.
               </Text>
 
-              {formError ? (
-                // UI-A006: judul konsisten dengan register.tsx ("Kode belum terkirim").
-                <Alert tone="danger" title="Kode belum terkirim" onDismiss={() => setFormError(null)}>
-                  {formError}
-                </Alert>
+              {errorMessage ? (
+                <VStack gap={3}>
+                  <Alert tone="danger" title="Kode belum terkirim" onDismiss={migrationToken ? () => setFormError(null) : undefined}>
+                    {errorMessage}
+                  </Alert>
+                  <TextLink onPress={backToLogin}>Kembali ke Masuk</TextLink>
+                </VStack>
               ) : null}
             </VStack>
           </FadeIn>
         </ScrollView>
 
         <FooterBar>
-          <Button onPress={() => void handleSubmit()} loading={submitting}>
-            Kirim kode
-          </Button>
+          <VStack gap={3}>
+            <Button onPress={() => void handleSubmit()} loading={submitting} disabled={!migrationToken}>
+              Kirim kode
+            </Button>
+            {!errorMessage ? <TextLink onPress={backToLogin}>Kembali ke Masuk</TextLink> : null}
+          </VStack>
         </FooterBar>
       </KeyboardAvoiding>
     </Screen>

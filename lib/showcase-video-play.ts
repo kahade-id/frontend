@@ -42,3 +42,13 @@ export function toggleDataSaverPlayIntent(currentlyPlaying: boolean): {
 } {
   return currentlyPlaying ? { latch: false, paused: true } : { latch: true, paused: false }
 }
+
+/** React forwardRef/memo (expo-video web) adalah object, bukan function. */
+export function supportsVideoModule(mod: { VideoView?: unknown; useVideoPlayer?: unknown } | null): boolean {
+  const view = mod?.VideoView
+  const component = typeof view === "function" || (
+    typeof view === "object" && view !== null && "$$typeof" in view &&
+    (view.$$typeof === Symbol.for("react.forward_ref") || view.$$typeof === Symbol.for("react.memo"))
+  )
+  return component && typeof mod?.useVideoPlayer === "function"
+}

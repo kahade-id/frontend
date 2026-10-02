@@ -300,10 +300,10 @@ export function ChatComposer({
 
         <View
           className={cn(
-            "min-h-12 flex-1 flex-row items-end rounded-full",
+            "min-h-12 flex-1 flex-row items-end rounded-full border-[1.5px] px-4",
             focused
-              ? "border-focus border-border-focus bg-background px-[15px]"
-              : "border border-border-control bg-surface px-4",
+              ? "border-border-focus bg-background"
+              : "border-border-control bg-surface",
             disabled && "opacity-disabled",
           )}
         >

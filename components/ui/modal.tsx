@@ -38,7 +38,7 @@
  *     tutup. Kontainer TIDAK diberi `accessible` — itu akan menggabungkan
  *     seluruh isi jadi satu elemen dan tombol Dialog tak bisa dijangkau.
  */
-import { useRef, type ReactNode } from "react"
+import { useRef, useState, type ReactNode } from "react"
 import {
   Animated,
   ScrollView,
@@ -50,6 +50,7 @@ import {
 import { Button, type ButtonProps } from "@/components/ui/button"
 import { Backdrop, useOverlayDismissKeys, useOverlayPresence } from "@/components/ui/backdrop"
 import { Icon, type IconComponent, type IconTone } from "@/components/ui/icon"
+import { KeyboardAvoiding } from "@/components/ui/keyboard-avoiding"
 import { Portal, useBlockingOverlay } from "@/components/ui/portal"
 import { Text } from "@/components/ui/text"
 import { translateProp } from "@/lib/i18n/translate"
@@ -81,6 +82,8 @@ export type ModalProps = {
   /** Pemicu yang menerima fokus kembali saat modal tutup (wajib untuk native). */
   returnFocusRef?: A11yNodeRef
   children: ReactNode
+  /** Dialog dengan field re-auth: jaga seluruh kartu/aksi di atas keyboard. */
+  avoidKeyboard?: boolean
   /** className kotak konten (border/bg/padding sudah ada default) */
   className?: string
 }
@@ -94,6 +97,7 @@ export function Modal({
   initialFocusRef,
   returnFocusRef,
   children,
+  avoidKeyboard = false,
   className,
 }: ModalProps) {
   const { mounted, progress } = useOverlayPresence(visible, { onHidden })
@@ -101,6 +105,9 @@ export function Modal({
   const contentRef = useRef<View>(null)
   const { mode } = useTheme()
   const { height: windowHeight } = useWindowDimensions()
+  const [stageHeight, setStageHeight] = useState(windowHeight)
+  const cardMaxHeight = Math.max(0, Math.min(windowHeight * 0.8, stageHeight - tokens.space[5] * 2))
+  const KeyboardStage = avoidKeyboard ? KeyboardAvoiding : View
 
   useOverlayDismissKeys(visible, dismiss)
   useBlockingOverlay(visible)
@@ -124,9 +131,11 @@ export function Modal({
 
         {/* Center stage — box-none agar tap di area kosong jatuh ke Backdrop;
             zIndex: 1 agar isi Dialog selalu di atas scrim (lihat backdrop.tsx). */}
+        <KeyboardStage style={{ pointerEvents: "box-none", zIndex: 1 }} className="flex-1">
         <View
-          style={{ pointerEvents: "box-none", zIndex: 1 }}
-          className="flex-1 items-center justify-center px-5"
+          style={{ pointerEvents: "box-none" }}
+          className="flex-1 items-center justify-center px-5 py-5"
+          onLayout={(event) => setStageHeight(event.nativeEvent.layout.height)}
         >
           {/* Animated.View tidak di-interop NativeWind -> className di View pembungkus */}
           <View style={{ pointerEvents: "box-none" }} className="w-full md:max-w-content">
@@ -143,7 +152,7 @@ export function Modal({
                 // UX-SPA-020: batasi tinggi kartu 80% viewport + ScrollView —
                 // konten tinggi (teks panjang, banyak tombol) tidak meluap
                 // tanpa bisa digulir di layar kecil.
-                style={[elevationStyle("high", mode), { maxHeight: windowHeight * 0.8 }]}
+                style={[elevationStyle("high", mode), { maxHeight: cardMaxHeight }]}
               >
                 <ScrollView
                   showsVerticalScrollIndicator={false}
@@ -156,6 +165,7 @@ export function Modal({
             </Animated.View>
           </View>
         </View>
+        </KeyboardStage>
       </View>
     </Portal>
   )

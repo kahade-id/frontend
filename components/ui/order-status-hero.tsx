@@ -23,7 +23,7 @@ import { Text } from "@/components/ui/text"
 import { ORDER_STATUS_LABELS } from "@/components/ui/order-status-badge"
 import { OrderRoleBadge } from "@/components/ui/order-role-badge"
 import { cn } from "@/lib/cn"
-import { formatDate, formatTime } from "@/lib/format"
+import { deviceTimeZoneShort, formatDate, formatTime } from "@/lib/format"
 import { translate } from "@/lib/i18n/translate"
 import type { OrderStatus } from "@/lib/api/orders"
 
@@ -73,6 +73,7 @@ export function OrderStatusHero({
   const statusLabel = ORDER_STATUS_LABELS[status as OrderStatus] ?? String(status)
   const date = formatDate(createdAt, { long: true })
   const time = formatTime(createdAt)
+  const zone = deviceTimeZoneShort()
   const heroBg = STATUS_HERO_BG[status] ?? "bg-info-soft"
   return (
     <View className={cn("-mx-5 -mt-3 px-5 pb-7 pt-6", heroBg, className)} {...rest}>
@@ -131,7 +132,7 @@ export function OrderStatusHero({
         </View>
         <View className="flex-row gap-3">
           <Text variant="body" weight={600}>
-            {time === "—" ? `${date} · —` : `${date} · ${time} WIB`}
+            {time === "—" ? `${date} · —` : `${date} · ${time}${zone ? ` ${zone}` : ""}`}
           </Text>
         </View>
       </View>

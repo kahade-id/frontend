@@ -1,3 +1,4 @@
+import { useOpeningMediaTap, type OpeningMediaTap } from "@/lib/use-opening-media-tap"
 /**
  * Kahade — <ImageViewer>: pratinjau gambar layar penuh (modal + pager).
  *
@@ -62,6 +63,7 @@ export type ImageViewerProps = {
   title?: string
   onClose: () => void
   onIndexChange?: (index: number) => void
+  openingTap?: OpeningMediaTap
   /**
    * Item 159 (FE-IMP-1): slot aksi di chrome bawah (mis. tombol Bagikan /
    * Simpan milik layar pemanggil). Tidak disediakan → chrome bawah seperti
@@ -77,12 +79,14 @@ export function ImageViewer({
   title,
   onClose,
   onIndexChange,
+  openingTap,
   actions,
 }: ImageViewerProps) {
   const { width, height } = useWindowDimensions()
   const insets = useSafeAreaInsets()
   const reducedMotion = useReducedMotion()
   const dataSaver = useDataSaver()
+  const opening = useOpeningMediaTap(visible, openingTap)
   const listRef = useRef<FlatList<ImageViewerItem>>(null)
   const [current, setCurrent] = useState(() => Math.min(Math.max(index, 0), Math.max(images.length - 1, 0)))
   const [zoomed, setZoomed] = useState(false)
@@ -145,14 +149,14 @@ export function ImageViewer({
       // berbunyi/berjalan. Zoom cubit tidak berlaku untuk video.
       if (item.kind === "video") {
         return (
-          <View style={{ width, height }} className="items-center justify-center">
+          <View {...(i === current ? opening.handlers : {})} style={{ width, height }} className="items-center justify-center">
             <FeedVideo
               source={item.url}
               alt={alt}
               shouldPlay={visible && i === current}
               muted={false}
-              allowTapToggle
-              userInitiatedPlay
+              allowTapToggle={i === current && !opening.pending}
+              userInitiatedPlay={visible && i === current}
               className="max-h-full"
               // PERF-FIX (2026-09-30): viewer fullscreen = konten utama.
               posterPriority="high"
@@ -161,6 +165,7 @@ export function ImageViewer({
         )
       }
       return (
+        <View {...(i === current ? opening.handlers : {})}>
         <ZoomableImage
           source={item.url}
           alt={alt}
@@ -172,9 +177,10 @@ export function ImageViewer({
           // didahulukan ke foto yang terlihat, bukan prefetch tetangga.
           priority={i === current ? "high" : "low"}
         />
+        </View>
       )
     },
-    [width, height, title, images.length, visible, current],
+    [width, height, title, images.length, visible, current, opening.handlers, opening.pending],
   )
 
   /**

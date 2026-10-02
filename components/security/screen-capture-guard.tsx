@@ -108,6 +108,9 @@ export function ScreenCaptureGuard({ children }: { children: ReactNode }) {
       enableAppSwitcherProtection(mod)
       // 3. Cadangan: bila screenshot tetap terjadi, tutupi konten.
       screenshotSub = mod.addScreenshotListener(() => setCaptured(true))
+    }).catch(() => {
+      // SDK web/binary lama dapat memuat JS tanpa listener screenshot OS.
+      // Pertahankan proteksi yang aktif tanpa unhandled rejection.
     })
 
     return () => {

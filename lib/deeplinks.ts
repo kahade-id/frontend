@@ -16,9 +16,9 @@
  *   - Backend biasanya sudah mengembalikan `url` publik (https) untuk Order
  *     Link; fungsi di sini hanya FALLBACK bila field itu kosong. Pemanggil
  *     selalu `link.url ?? orderLinkUrl(token)`.
- *   - Path di bawah cermin route Expo Router (`app/order-link/[token].tsx`,
- *     `app/user/[username].tsx`) sehingga web maupun aplikasi membuka layar
- *     yang tepat tanpa tabel pemetaan tambahan.
+ *   - Format publik profil/etalase mengikuti keputusan 1 Oktober 2026:
+ *     `/<username>` dan `/p/<id>`. Rute internal Expo Router tetap terpisah
+ *     (`/user/…`, `/showcase/…`); konfigurasi host/native tidak diubah.
  *   - Referral mengarah ke register dengan query `ref` yang dibaca form
  *     registrasi (bila didukung backend `ApplyReferralDto` setelah akun jadi).
  *   - Skema kustom `kahade://` tetap didukung OS-level (app.json `scheme` +
@@ -43,14 +43,14 @@ export function referralUrl(code: string): string {
   return https(`/register?ref=${encodeURIComponent(code)}`)
 }
 
-/** `https://kahade.id/user/<username>` — profil publik. */
+/** `https://kahade.id/<username>` — profil publik (1 Oktober 2026). */
 export function profileUrl(username: string): string {
-  return https(`/user/${encodeURIComponent(username)}`)
+  return https(`/${encodeURIComponent(username)}`)
 }
 
 /** Canonical public item URL, safe for native and web share gestures. */
 export function showcaseUrl(id: string): string {
-  return https(`/showcase/${encodeURIComponent(id)}`)
+  return https(`/p/${encodeURIComponent(id)}`)
 }
 
 /**

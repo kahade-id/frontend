@@ -46,6 +46,7 @@ import { translate } from "@/lib/i18n/translate"
 import { useLanguage } from "@/lib/i18n"
 import type { MediaSource } from "@/lib/media"
 import { useConnectionType } from "@/lib/connectivity"
+import { supportsVideoModule } from "@/lib/showcase-video-play"
 
 /**
  * LR-008 (perf-fix): batas player video konkuren. Setiap <FeedVideo> yang
@@ -102,8 +103,7 @@ export function getExpoVideoModule(): ExpoVideoModule {
  * <VideoErrorBoundary> di bawah yang menangkap throw requireNativeViewManager.
  */
 export function isExpoVideoAvailable(): boolean {
-  const mod = getExpoVideoModule()
-  return !!mod && typeof mod.VideoView === "function" && typeof mod.useVideoPlayer === "function"
+  return supportsVideoModule(getExpoVideoModule())
 }
 
 /**
@@ -577,29 +577,22 @@ const ExpoVideoPlayerInner = memo(function ExpoVideoPlayerInner({
         nativeControls={nativeControls}
         accessibilityLabel={translate("Video")}
       />
-      {allowTapToggle && tapPaused ? (
-        <View pointerEvents="none" className="absolute inset-0 items-center justify-center">
-          <View className="items-center justify-center rounded-full bg-overlay-media p-4">
-            <Icon
-              icon={Play}
-              size="lg"
-              weight="fill"
-              tone="inverse"
-              // UX-A11Y-013: TANPA accessibilityLabel — <PressableScale>
-              // pembungkus sudah ber-label "Putar/jeda video"; label di
-              // ikon hanya menambah elemen "image" ganda yang menyesatkan.
-            />
-          </View>
-        </View>
+      {/* Keep VideoView mounted when the opening gesture expires. */}
+      {allowTapToggle && !nativeControls ? (
+        <PressableScale containerClassName="absolute inset-0 flex-1" className="flex-1"
+          accessibilityRole="button" accessibilityLabel={translate("Putar/jeda video")} onPress={handleTap}>
+          {tapPaused ? (
+            <View style={{ pointerEvents: "none" }} className="flex-1 items-center justify-center">
+              <View className="items-center justify-center rounded-full bg-overlay-media p-4">
+                <Icon icon={Play} size="lg" weight="fill" tone="inverse" />
+              </View>
+            </View>
+          ) : null}
+        </PressableScale>
       ) : null}
     </View>
   )
-  if (!allowTapToggle) return frame
-  return (
-    <PressableScale accessibilityRole="button" accessibilityLabel={translate("Putar/jeda video")} onPress={handleTap}>
-      {frame}
-    </PressableScale>
-  )
+  return frame
 })
 
 export function FeedVideo({

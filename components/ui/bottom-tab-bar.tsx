@@ -34,8 +34,7 @@
  *     `centerAction`. Revisi 2026-09-23: tombol ini HIDUP DI DALAM tinggi
  *     bar (lingkaran 44px terpusat vertikal), bukan lagi lingkaran 48px
  *     yang mengambang melewati tepi atas bar. Tab yang tersisa (4) berbagi
- *     lebar yang dilepas slot tengah, jadi label tetap muat di 360dp; tab
- *     "showcase" dikeluarkan dari bar (lihat HIDDEN_TAB_ROUTES).
+ *     lebar yang dilepas slot tengah, jadi label tetap muat di 360dp.
  *   - Ripple di tiap tab: bar ini permukaan sapuan jari (lihat PressableScale).
  *     Scale press tetap mati — item menempel satu sama lain, jadi animasi
  *     skala membuat tepi bar tampak "bernapas".
@@ -57,13 +56,7 @@ import { Suspense, lazy, useEffect, useRef, useState, type ReactNode } from "rea
 import { Animated, Easing, View, type ViewProps, type View as RNView } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { type Href } from "expo-router"
-import {
-  BellSimple,
-  CardsThree,
-  ChatCenteredText,
-  Plus,
-  ShoppingBag,
-} from "phosphor-react-native"
+import { Plus } from "phosphor-react-native"
 
 // PERF-FIX (bundle): ActionSheet (sheet penuh) & CoachMark (overlay
 // onboarding) tidak pernah tampil di frame pertama — lazy agar subtree-nya
@@ -87,7 +80,8 @@ import { cn } from "@/lib/cn"
 import { focusRingInset } from "@/lib/focus-ring"
 import { haptic } from "@/lib/haptics"
 import { translate, useLanguage } from "@/lib/i18n"
-import { TAB_ROUTE_NAMES, type TabRouteName } from "@/lib/routes"
+import type { TabRouteName } from "@/lib/routes"
+import { SHELL_TABS, type ShellTabDef } from "@/lib/shell-tabs"
 import { tokens } from "@/lib/tokens"
 import { motionDuration, useReducedMotion } from "@/lib/use-reduced-motion"
 
@@ -116,52 +110,15 @@ export type AppTabBarItem = Omit<BottomTabItem<TabRouteName>, "key"> & {
   route: Href
 }
 
-/**
- * SATU sumber kebenaran visual bottom navigation (label + ikon + a11y +
- * rute). Dipakai shell bar utama (components/ui/shell-tab-bar.tsx).
- *
- * Struktur baru 2026-09-27 (redesign navigasi mobile): bar TETAP berisi
- * Etalase | Transaksi | Pesan | Notifikasi (+ tombol tengah). Slot lama
- * Wallet / Promo / History / Lainnya dihapus dari bar; layar-layar itu tetap
- * ada sebagai rute stack dan dijangkau lewat drawer/sidebar.
- *
- * Urutan mengikuti TAB_ROUTE_NAMES (guard di bawah mengunci kelengkapan
- * peta terhadap registri rute di compile-time).
- */
-export const TAB_BAR_ITEMS: Record<TabRouteName, AppTabBarItem> = {
-  // "home" DIHAPUS (2026-09-23): layar Beranda sudah tidak ada — tab pertama
-  // kini Etalase (entri `showcase` di bawah), dan URL /home di-redirect ke
-  // sana (app/home.tsx).
-  showcase: {
-    label: "Etalase",
-    icon: CardsThree,
-    accessibilityLabel: "Tab Etalase",
-    route: "/showcase" as Href,
-  },
-  transactions: {
-    label: "Transaksi",
-    icon: ShoppingBag,
-    accessibilityLabel: "Tab Transaksi",
-    route: "/transactions" as Href,
-  },
-  chat: {
-    label: "Pesan",
-    icon: ChatCenteredText,
-    accessibilityLabel: "Tab Pesan",
-    route: "/chat" as Href,
-  },
-  notifications: {
-    // Naik menjadi tab sejati 2026-09-27 (dulu ikon lonceng di header).
-    label: "Notifikasi",
-    icon: BellSimple,
-    accessibilityLabel: "Tab Notifikasi",
-    route: "/notifications" as Href,
-  },
+/** Metadata visual dan urutan hanya didefinisikan oleh SHELL_TABS. */
+function appTabBarItem(tab: ShellTabDef): AppTabBarItem {
+  return {
+    label: tab.label,
+    icon: tab.icon,
+    accessibilityLabel: tab.accessibilityLabel,
+    route: tab.href as Href,
+  }
 }
-
-// Referensi agar urutan TAB_ROUTE_NAMES menjadi satu-satunya defisiensi urutan;
-// bila suatu hari TAB_ROUTE_NAMES berubah, Record<> di atas ikut gagal kompilasi.
-void TAB_ROUTE_NAMES
 
 /**
  * Rute tab yang TIDAK ditampilkan di bottom bar. Sejak redesign navigasi
@@ -171,10 +128,10 @@ void TAB_ROUTE_NAMES
  */
 export const HIDDEN_TAB_ROUTES: readonly TabRouteName[] = []
 
-/** Rute tab yang dirender, urut TAB_ROUTE_NAMES (tanpa yang disembunyikan). */
-export const VISIBLE_TAB_ROUTES: readonly TabRouteName[] = TAB_ROUTE_NAMES.filter(
-  (name) => !HIDDEN_TAB_ROUTES.includes(name),
-)
+/** Rute tab yang dirender, urut SHELL_TABS (tanpa yang disembunyikan). */
+export const VISIBLE_TAB_ROUTES: readonly TabRouteName[] = SHELL_TABS
+  .filter((tab) => !HIDDEN_TAB_ROUTES.includes(tab.key))
+  .map((tab) => tab.key)
 
 export type TabBarItemOverrides = Partial<Record<TabRouteName, Partial<AppTabBarItem>>>
 
@@ -187,8 +144,9 @@ export function visibleTabBarItemMap(
   overrides: TabBarItemOverrides = {},
 ): Record<string, AppTabBarItem> {
   const map: Record<string, AppTabBarItem> = {}
-  for (const name of VISIBLE_TAB_ROUTES) {
-    map[name] = { ...TAB_BAR_ITEMS[name], ...overrides[name] }
+  for (const tab of SHELL_TABS) {
+    if (HIDDEN_TAB_ROUTES.includes(tab.key)) continue
+    map[tab.key] = { ...appTabBarItem(tab), ...overrides[tab.key] }
   }
   return map
 }
@@ -200,11 +158,13 @@ export function visibleTabBarItemMap(
 export function visibleTabBarItems(
   overrides: TabBarItemOverrides = {},
 ): BottomTabItem<TabRouteName>[] {
-  return VISIBLE_TAB_ROUTES.map((name) => ({
-    key: name,
-    ...TAB_BAR_ITEMS[name],
-    ...overrides[name],
-  }))
+  return SHELL_TABS
+    .filter((tab) => !HIDDEN_TAB_ROUTES.includes(tab.key))
+    .map((tab) => ({
+      key: tab.key,
+      ...appTabBarItem(tab),
+      ...overrides[tab.key],
+    }))
 }
 
 /**

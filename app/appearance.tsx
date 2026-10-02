@@ -63,7 +63,7 @@ export default function AppearanceScreen() {
   const atMax = fontScale >= FONT_SCALE_MAX
 
   return (
-    <Screen edges={["top"]} padded={false}>
+    <Screen scroll edges={["top"]} padded={false}>
       <Header title="Tampilan" />
       <View className="gap-4 px-5 pt-3">
         <SectionHeader title="Mode warna" subtitle="Berlaku untuk seluruh aplikasi." />

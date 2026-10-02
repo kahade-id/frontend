@@ -31,9 +31,9 @@
 import type { ReactNode } from "react"
 import { View, type ViewProps } from "react-native"
 
-import { NotificationDot } from "@/components/ui/badge"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { formatNumber } from "@/lib/format"
 
 export type CountBadgeTone = "danger" | "inverted" | "neutral"
 
@@ -69,8 +69,8 @@ export function CountBadge({
   className,
   ...rest
 }: CountBadgeProps) {
-  if (count <= 0 && !showZero) return null
-  const shown = count > max ? `${max}+` : String(Math.max(0, Math.trunc(count)))
+  if (!Number.isFinite(count) || (count <= 0 && !showZero)) return null
+  const shown = count > max ? `${max}+` : formatNumber(Math.max(0, Math.trunc(count)))
 
   return (
     <View
@@ -83,10 +83,29 @@ export function CountBadge({
       )}
       {...rest}
     >
-      <Text ellipsizeMode="tail" variant="caption" weight={600} tone="inherit" numberOfLines={1} className={toneText[tone]}>
+      <Text ellipsizeMode="tail" variant="caption" weight={600} tone="inherit" numberOfLines={1} className={cn("leading-[16px] tabular-nums", toneText[tone])}>
         {shown}
       </Text>
     </View>
+  )
+}
+
+/**
+ * <NotificationDot> — titik merah solid 8px tanpa angka (§9.14), untuk
+ * "ada yang baru" di ikon tab / avatar. Posisi absolute top-right; parent
+ * harus `relative`.
+ */
+export function NotificationDot({ visible = true, className }: { visible?: boolean; className?: string }) {
+  if (!visible) return null
+  return (
+    <View
+      accessible
+      accessibilityLabel="Ada pembaruan"
+      className={cn(
+        "absolute -right-[2px] -top-[2px] h-2 w-2 rounded-full border border-background bg-danger",
+        className,
+      )}
+    />
   )
 }
 

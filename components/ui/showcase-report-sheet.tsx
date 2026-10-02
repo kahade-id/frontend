@@ -43,8 +43,6 @@ export type ShowcaseReportSheetProps = {
 export function ShowcaseReportSheet({ item, onRequestClose }: ShowcaseReportSheetProps) {
   // i18n: label mengikuti bahasa aktif.
   useLanguage()
-  // i18n: label mengikuti bahasa aktif.
-  useLanguage()
   const toast = useToast()
   const hasSession = useHasSession()
   const revision = useSessionRevision()
@@ -73,14 +71,14 @@ export function ShowcaseReportSheet({ item, onRequestClose }: ShowcaseReportShee
   }, [item?.id, revision])
 
   const handleSubmit = useCallback(async () => {
-    if (!item || submitting || reported) return
+    if (!item || submitting) return
     if (!hasSession) {
       onRequestClose()
       // C-03 (audit 2026-09-23): tujuan kembali = halaman detail item ini.
       router.push(ROUTES.loginRequired(`/showcase/${encodeURIComponent(item.id)}`))
       return
     }
-    if (!reason) return
+    if (reported || !reason) return
     const task = operation.begin()
     if (!task) return
     setSubmitting(true)
@@ -123,7 +121,9 @@ export function ShowcaseReportSheet({ item, onRequestClose }: ShowcaseReportShee
       onRequestClose={onRequestClose}
       title={translate("Laporkan Etalase")}
       description={
-        item
+        !hasSession
+          ? translate("Masuk untuk melaporkan etalase ini.")
+          : item
           ? translate('Laporkan postingan "{x}" jika melanggar panduan komunitas.', {
               x: item.title,
             })
@@ -132,18 +132,18 @@ export function ShowcaseReportSheet({ item, onRequestClose }: ShowcaseReportShee
       avoidKeyboard
       footer={
         <Button
-          variant="destructive"
+          variant={hasSession ? "destructive" : "primary"}
           loading={submitting}
           // F-02: submit butuh alasan yang DIPILIH (kecuali jalur tamu = ajakan
           // login yang tidak mengirim apa pun).
-          disabled={reported || (hasSession && !reason)}
+          disabled={hasSession && (reported || !reason)}
           onPress={() => void handleSubmit()}
         >
           {hasSession ? translate("Kirim Laporan") : translate("Masuk untuk melaporkan")}
         </Button>
       }
     >
-      {reported ? (
+      {!hasSession ? null : reported ? (
         // F-04 (audit 2026-09-23): state "sudah dilaporkan" — laporan ganda
         // tidak perlu; item ini juga sudah disembunyikan dari feed pelapor.
         <View className="gap-2">
@@ -174,17 +174,15 @@ export function ShowcaseReportSheet({ item, onRequestClose }: ShowcaseReportShee
             onChange={setReason}
             variant="plain"
           >
-            {/* F-03 (audit 2026-09-23): tamu TIDAK boleh memilih alasan lalu
-                dilempar login dengan pilihan hilang — radio ikut digate,
-                selaras TextArea di bawah. */}
+            {/* Form hanya dirender untuk pengguna yang sudah masuk. */}
             {CONTENT_REPORT_REASONS.map((r) => (
-              <Radio key={r.value} value={r.value} label={r.label} description={r.description} disabled={!hasSession || submitting} />
+              <Radio key={r.value} value={r.value} label={r.label} description={r.description} disabled={submitting} />
             ))}
           </RadioGroup>
         </Field>
         <Field label="Keterangan tambahan (opsional)">
           <TextArea
-            disabled={submitting || !hasSession}
+            disabled={submitting}
             value={detail}
             onChangeText={setDetail}
             placeholder={translate("Jelaskan secara singkat detail pelanggaran...")}

@@ -26,7 +26,7 @@ import { Icon } from "@/components/ui/icon"
 import { IconButton } from "@/components/ui/icon-button"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { ActionSheet } from "@/components/ui/action-sheet"
-import { useFeedFollow } from "@/components/ui/feed-follow-button"
+import { useShowcaseAuthorFollow } from "@/lib/use-showcase-author-follow"
 import { Text } from "@/components/ui/text"
 import { VerifiedName } from "@/components/ui/verified-name"
 
@@ -82,7 +82,7 @@ function SellerRatingLine({ username, hasSession }: { username: string; hasSessi
 
 function AuthorFollowMenu({ username }: { username: string }) {
   const [open, setOpen] = useState(false)
-  const { following, loading, onToggle } = useFeedFollow(username)
+  const { following, loading, onToggle } = useShowcaseAuthorFollow(username)
 
   return (
     <>
@@ -164,7 +164,7 @@ export function ShowcaseAuthorRow({ item, isOwner, hasSession, onReport }: Showc
             diketuk menuju profil (affordance yang selama ini implisit). */}
         <Icon icon={CaretRight} size="sm" tone="default" />
       </PressableScale>
-      {/* Follow di detail tersedia dari menu titik tiga, bukan tombol langsung. */}
+      {/* C1: follow hanya di menu detail; jangan tambahkan tombol langsung di baris penulis. */}
       {!isOwner ? <AuthorFollowMenu username={item.author.username} /> : null}
       {/* B-05 selaras: bendera disembunyikan untuk item sendiri. */}
       {!isOwner ? (

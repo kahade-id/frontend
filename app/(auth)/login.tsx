@@ -133,8 +133,8 @@ export default function LoginScreen() {
   const [failCount, setFailCount] = useState(0)
 
   // Opsi WhatsApp: expand inline di bawah form password.
-  // Jika method=phone dari bottomsheet, langsung expand.
-  const [waExpanded, setWaExpanded] = useState(loginMethod === "phone")
+  // method=phone hanya mengatur identifier; OTP dibuka atas pilihan pengguna.
+  const [waExpanded, setWaExpanded] = useState(false)
   const [waDigits, setWaDigits] = useState("")
   const [waPhoneError, setWaPhoneError] = useState<string | undefined>()
   const [waSubmitting, setWaSubmitting] = useState(false)

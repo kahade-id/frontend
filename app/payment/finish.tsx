@@ -15,7 +15,7 @@
  * (bukan sukses palsu). Status final sumber kebenaran tetap webhook
  * finish-notify di server.
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { ActivityIndicator, View } from "react-native"
 import { router, useLocalSearchParams } from "expo-router"
 import { ArrowClockwise, CheckCircle, Clock, XCircle } from "phosphor-react-native"
@@ -27,62 +27,14 @@ import { Text } from "@/components/ui/text"
 import { api } from "@/lib/api"
 import { getSubscriptionPaymentStatus } from "@/lib/api/subscription-payments"
 import { ROUTES } from "@/lib/routes"
+import { resolveStatus, resolveVerifyTarget, type PaymentFinishStatus } from "@/lib/payment-finish"
 import { usePolling } from "@/lib/use-polling"
-
-type Status = "success" | "pending" | "failed"
-
-/** Status halaman — "unverified" = tak bisa dibuktikan ke backend (fail-closed). */
-type PageStatus = Status | "unverified"
-
-function pickParam(params: Record<string, string | string[]>, ...keys: string[]): string | null {
-  for (const k of keys) {
-    const v = params[k]
-    const s = (Array.isArray(v) ? v[0] : v)?.trim()
-    if (s) return s
-  }
-  return null
-}
-
-function resolveStatus(params: Record<string, string | string[]>): Status {
-  const raw = (
-    pickParam(params, "status", "latestTransactionStatus", "transactionStatus", "responseCode") ??
-    ""
-  ).toLowerCase()
-  if (raw === "00" || raw === "2005600" || raw === "success" || raw === "successful") {
-    return "success"
-  }
-  if (
-    raw === "01" ||
-    raw === "02" ||
-    raw === "03" ||
-    raw === "pending" ||
-    raw === "processing"
-  ) {
-    return "pending"
-  }
-  if (raw) return "failed"
-  return "pending"
-}
-
-/** Identifier pembayaran dari query param DANA (bila ada). */
-function resolveVerifyTarget(params: Record<string, string | string[]>): {
-  kind: "order" | "subscription"
-  id: string
-} | null {
-  const orderId = pickParam(params, "orderId", "order_id", "merchantOrderId", "merchantOrderNo")
-  if (orderId) return { kind: "order", id: orderId }
-  const subscriptionId = pickParam(params, "subscriptionId", "subscription_id")
-  if (subscriptionId) return { kind: "subscription", id: subscriptionId }
-  return null
-}
-
-const FAILED_STATUSES = ["FAILED", "EXPIRED", "CANCELLED", "REFUNDED"]
 
 /**
  * UX-FDB-002 (audit UI/UX 2026-10-01): layar pending mem-poll status ke
  * backend — pola yang sama dengan use-dana-intent (BFI-085): backoff linear
  * + cap jumlah poll. Berhenti otomatis saat status final (success/failed/
- * unverified) atau cap tercapai; pengguna tetap bisa cek manual.
+ * unknown) atau cap tercapai; pengguna tetap bisa cek manual.
  */
 const POLL_BASE_MS = 10_000
 const MAX_POLLS = 10
@@ -91,7 +43,7 @@ const MAX_POLLS = 10
  * Copy per status — klaim definitif "Dana sudah diterima Kahade" HANYA untuk
  * status `success` yang SUDAH diverifikasi backend (lihat verify()).
  */
-const COPY: Record<PageStatus, { title: string; subtitle: string }> = {
+const COPY: Record<PaymentFinishStatus, { title: string; subtitle: string }> = {
   success: {
     title: "Pembayaran berhasil",
     subtitle: "Dana sudah diterima Kahade.",
@@ -99,82 +51,84 @@ const COPY: Record<PageStatus, { title: string; subtitle: string }> = {
   pending: {
     title: "Menunggu konfirmasi",
     subtitle:
-      "Pembayaran sedang diproses — umumnya terkonfirmasi dalam beberapa menit. Dana Anda aman, status di layar ini diperbarui otomatis.",
+      "Pembayaran belum terkonfirmasi. Status diperbarui otomatis dari server.",
   },
   failed: {
     title: "Pembayaran gagal",
     subtitle: "Silakan coba lagi.",
   },
-  unverified: {
-    title: "Status belum terkonfirmasi",
+  unknown: {
+    title: "Status pembayaran belum diketahui",
     subtitle:
-      "Kami belum bisa memastikan status pembayaran ke server. Jangan bayar ulang dulu — cek di menu Transaksi.",
+      "Kami belum bisa memastikan status pembayaran. Jangan bayar ulang dulu — cek status atau buka Transaksi.",
   },
 }
 
 export default function PaymentFinishScreen() {
   const params = useLocalSearchParams<Record<string, string | string[]>>()
-  const provisional = useMemo(() => resolveStatus(params), [params])
-  const verifyTarget = useMemo(() => resolveVerifyTarget(params), [params])
+  const target = resolveVerifyTarget(params)
+  // useLocalSearchParams membuat objek baru tiap render. Dependensi verifikasi
+  // harus primitif, agar setState tidak memicu loop request tanpa henti.
+  const verifyKind = target?.kind
+  const verifyId = target?.id
+  const targetKey = target ? `${target.kind}:${target.id}` : null
   const [verifying, setVerifying] = useState(true)
-  const [finalStatus, setFinalStatus] = useState<PageStatus | null>(null)
+  const [verification, setVerification] = useState<{
+    targetKey: string | null
+    status: PaymentFinishStatus
+    checkedAt: Date | null
+  } | null>(null)
+  const verificationRequest = useRef(0)
+  const finalStatus = verification?.targetKey === targetKey ? verification.status : "unknown"
   /** Cek status manual sedang berjalan (spinner di tombol, bukan full-screen). */
   const [checking, setChecking] = useState(false)
   /** Polling otomatis berhenti (status final / cap tercapai). */
   const [pollStopped, setPollStopped] = useState(false)
-  const [lastCheckedAt, setLastCheckedAt] = useState<Date | null>(null)
   const pollCount = useRef(0)
   const [pollIntervalMs, setPollIntervalMs] = useState(POLL_BASE_MS)
 
   /**
    * Satu kali baca status terverifikasi dari backend — HANYA baca, tidak
    * mengubah alur pembayaran. Dipakai verifikasi awal, polling, dan cek
-   * manual. Fail-closed: tanpa konfirmasi backend → "unverified".
+   * manual. Fail-closed: tanpa konfirmasi backend → "unknown".
    */
   const verify = useCallback(async () => {
-    try {
-      const target = verifyTarget
-      if (!target) {
-        // Fail-closed: tanpa identifier, klaim "sukses" dari query param
-        // DANA tidak boleh ditampilkan. "failed" dari DANA sendiri boleh
-        // tampil (bukan klaim sukses).
-        setFinalStatus(provisional === "failed" ? "failed" : "unverified")
-        return
+    const request = ++verificationRequest.current
+    let status: PaymentFinishStatus = "unknown"
+    let checkedAt: Date | null = null
+    if (verifyKind && verifyId) {
+      try {
+        const response = verifyKind === "order"
+          ? await api.orders.getPaymentStatus(verifyId)
+          : await getSubscriptionPaymentStatus(verifyId)
+        status = resolveStatus(verifyKind, response)
+      } catch {
+        // Redirect, error jaringan, dan respons asing bukan bukti status apa pun.
       }
-      if (target.kind === "order") {
-        const s = await api.orders.getPaymentStatus(target.id)
-        if (s.isPaid || s.status === "PAID") setFinalStatus("success")
-        else if (s.status === "PENDING") setFinalStatus("pending")
-        else if (FAILED_STATUSES.includes(s.status)) setFinalStatus("failed")
-        else setFinalStatus("unverified")
-      } else {
-        const s = await getSubscriptionPaymentStatus(target.id)
-        if (s.isPaid || s.status === "ACTIVE") setFinalStatus("success")
-        else if (s.status === "PENDING") setFinalStatus("pending")
-        else setFinalStatus("failed")
-      }
-    } catch {
-      // Backend tak terjangkau / sesi habis / respons tak dikenal —
-      // fail-closed: jangan tampilkan sukses.
-      setFinalStatus("unverified")
-    } finally {
-      setLastCheckedAt(new Date())
+      checkedAt = new Date()
     }
-  }, [verifyTarget, provisional])
+    if (request === verificationRequest.current) {
+      setVerification({ targetKey, status, checkedAt })
+    }
+  }, [verifyKind, verifyId, targetKey])
 
   useEffect(() => {
     let alive = true
     setVerifying(true)
+    pollCount.current = 0
+    setPollIntervalMs(POLL_BASE_MS)
+    setPollStopped(false)
     void verify().finally(() => {
       if (alive) setVerifying(false)
     })
     return () => {
       alive = false
+      verificationRequest.current += 1
     }
   }, [verify])
 
   // UX-FDB-002(a): polling hanya saat status pending; berhenti otomatis saat
-  // status final (success/failed/unverified — enabled=false) atau cap
+  // status final (success/failed/unknown — enabled=false) atau cap
   // tercapai. usePolling menangani jitter, backpressure 429, dan
   // pause saat app background/offline.
   usePolling(
@@ -206,21 +160,22 @@ export default function PaymentFinishScreen() {
    *  (di sana pengguna bisa memulai pembayaran ulang); tanpa orderId yang
    *  bisa diverifikasi → daftar transaksi. */
   const handleRetryPay = useCallback(() => {
-    if (verifyTarget?.kind === "order") {
-      router.replace(ROUTES.orderDetail(verifyTarget.id))
+    if (verifyKind === "order" && verifyId) {
+      router.replace(ROUTES.orderDetail(verifyId))
     } else {
       router.replace(ROUTES.transactions)
     }
-  }, [verifyTarget])
+  }, [verifyKind, verifyId])
 
-  const status = finalStatus ?? provisional
+  const status = finalStatus
   const copy = COPY[status]
 
   const icon =
-    status === "success" ? CheckCircle : status === "failed" ? XCircle : Clock
+    status === "success" ? CheckCircle : status === "failed" ? XCircle : status === "unknown" ? ArrowClockwise : Clock
   const tone =
-    status === "success" ? "success" : status === "failed" ? "danger" : "warning"
+    status === "success" ? "success" : status === "failed" ? "danger" : status === "unknown" ? "default" : "warning"
 
+  const lastCheckedAt = verification?.targetKey === targetKey ? verification.checkedAt : null
   const lastCheckedLabel = lastCheckedAt
     ? lastCheckedAt.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })
     : null
@@ -236,7 +191,7 @@ export default function PaymentFinishScreen() {
           gap: 16,
         }}
       >
-        {verifying ? (
+        {verifying || verification?.targetKey !== targetKey ? (
           <>
             <ActivityIndicator size="large" />
             <Text variant="h2" accessibilityRole="header" style={{ textAlign: "center" }}>
@@ -280,8 +235,8 @@ export default function PaymentFinishScreen() {
               </View>
             ) : null}
             <View style={{ marginTop: 8, width: "100%", maxWidth: 320, gap: 12 }}>
-              {/* UX-FDB-002(b): cek status manual saat pending. */}
-              {status === "pending" ? (
+              {/* Status unknown juga bisa dicek via API jika identifier tersedia. */}
+              {(status === "pending" || status === "unknown") && target ? (
                 <Button
                   variant="secondary"
                   leftIcon={ArrowClockwise}
@@ -289,7 +244,7 @@ export default function PaymentFinishScreen() {
                   disabled={checking}
                   onPress={handleManualCheck}
                 >
-                  Cek status sekarang
+                  Cek status pembayaran
                 </Button>
               ) : null}
               {/* UX-FDB-002(c): aksi retry yang jelas saat failed. */}
@@ -298,18 +253,8 @@ export default function PaymentFinishScreen() {
                   Coba bayar lagi
                 </Button>
               ) : null}
-              {status === "unverified" ? (
-                <Button
-                  variant="secondary"
-                  loading={checking}
-                  disabled={checking}
-                  onPress={handleManualCheck}
-                >
-                  Coba verifikasi lagi
-                </Button>
-              ) : null}
               <Button onPress={() => router.replace(ROUTES.transactions)}>
-                Lihat Transaksi
+                {status === "unknown" && !target ? "Cek status di Transaksi" : "Lihat Transaksi"}
               </Button>
             </View>
           </>

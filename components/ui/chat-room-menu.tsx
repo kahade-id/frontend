@@ -115,7 +115,7 @@ export function ChatRoomMenu({
         onPress: () => router.push(ROUTES.orderDetail(orderId)),
       })
     }
-    items.push({ key: "search", label: "Cari pesan", icon: MagnifyingGlass, onPress: onSearch })
+    items.push({ key: "search", label: "Cari semua pesan", description: "Telusuri seluruh riwayat di server", icon: MagnifyingGlass, onPress: onSearch })
     // Batch 43: ekspor, bintang, polling — selalu tersedia di menu.
     if (onExport) {
       items.push({ key: "export", label: "Ekspor chat (TXT)", icon: FileArrowDown, onPress: onExport })

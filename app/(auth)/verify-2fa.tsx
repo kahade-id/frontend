@@ -204,12 +204,16 @@ export default function VerifyTwoFactorScreen() {
               </Heading>
               <Text variant="body" tone="secondary" className="text-pretty">
                 {mode === "totp"
-                  ? "Buka aplikasi autentikator (Google Authenticator, Authy, dsb.) dan masukkan kode 6 digit untuk akun:"
+                  ? pending.identifier.trim()
+                    ? "Buka aplikasi autentikator (Google Authenticator, Authy, dsb.) dan masukkan kode 6 digit untuk akun:"
+                    : "Buka aplikasi autentikator dan masukkan kode 6 digit."
                   : "Gunakan salah satu kode cadangan yang Anda simpan saat mengaktifkan verifikasi dua langkah. Setiap kode hanya berlaku sekali."}
               </Text>
-              <Text variant="monoBody" weight={600}>
-                {pending.identifier}
-              </Text>
+              {pending.identifier.trim() ? (
+                <Text variant="monoBody" weight={600}>
+                  {pending.identifier}
+                </Text>
+              ) : null}
             </View>
 
             {mode === "totp" ? (

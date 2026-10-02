@@ -28,6 +28,9 @@ import { View, type ViewProps } from "react-native"
 import { Icon, type IconComponent, type IconTone } from "@/components/ui/icon"
 import { Text, type TextTone } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { CountBadge } from "@/components/ui/count-badge"
+
+export { NotificationDot } from "@/components/ui/count-badge"
 
 export type BadgeTone = "neutral" | "success" | "danger" | "warning" | "info" | "accent"
 export type BadgeVariant = "soft" | "outline"
@@ -111,25 +114,6 @@ export function Badge({
 }
 
 /**
- * <NotificationDot> — titik merah solid 8px tanpa angka (§9.14), untuk
- * "ada yang baru" di ikon tab / avatar. Posisi absolute top-right; parent
- * harus `relative`.
- */
-export function NotificationDot({ visible = true, className }: { visible?: boolean; className?: string }) {
-  if (!visible) return null
-  return (
-    <View
-      accessible
-      accessibilityLabel="Ada pembaruan"
-      className={cn(
-        "absolute -right-[2px] -top-[2px] h-2 w-2 rounded-full border border-background bg-danger",
-        className,
-      )}
-    />
-  )
-}
-
-/**
  * <NotificationCount> — pil merah berisi angka unread (T5-005, audit UI/UX
  * intuitif 2026-09-29): tab Pesan & Notifikasi kini menampilkan angka
  * ("99+" bila > 99) seperti WhatsApp/Instagram, bukan cuma titik. Posisi
@@ -144,23 +128,13 @@ export function NotificationCount({
   accessibilityLabel?: string
   className?: string
 }) {
-  if (count <= 0) return null
   const label = count > 99 ? "99+" : String(count)
   return (
-    <View
-      accessible
+    <CountBadge
+      count={count}
       accessibilityRole="text"
       accessibilityLabel={accessibilityLabel ?? `${label} belum dibaca`}
-      className={cn(
-        "absolute -right-2.5 -top-1.5 h-4 min-w-4 items-center justify-center rounded-full border border-background bg-danger px-1",
-        className,
-      )}
-    >
-      {/* FE-056: teks badge minimal 12px (varian caption) — 10px di bawah
-          ambang baca. Pil h-4 tetap, jadi ukuran visual tidak berubah. */}
-      <Text variant="caption" weight={700} tone="inverse" className="leading-none tabular-nums">
-        {label}
-      </Text>
-    </View>
+      className={cn("absolute -right-2.5 -top-1.5 border border-background", className)}
+    />
   )
 }

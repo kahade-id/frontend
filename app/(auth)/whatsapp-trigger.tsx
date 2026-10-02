@@ -34,9 +34,9 @@
  * itu `/whatsapp-trigger?...` menjadi open-redirect / peluncur skema arbitrary.
  */
 import { useCallback, useEffect, useRef, useState } from "react"
-import { AppState, Linking, View } from "react-native"
+import { AppState, Linking, ScrollView, View } from "react-native"
 import { useRouter } from "expo-router"
-import { ArrowsClockwise, WarningCircle, WhatsappLogo, WifiSlash } from "phosphor-react-native"
+import { ArrowsClockwise, WhatsappLogo, WifiSlash } from "phosphor-react-native"
 
 import { Alert } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -62,6 +62,7 @@ import { getOtpFlow, patchOtpFlow, setOtpFlow } from "@/lib/otp-flow"
 import { AuthFlowLoading, AuthFlowMissing } from "@/lib/auth-flow-gate"
 import { useOtpFlow } from "@/lib/use-otp-flow"
 import { ROUTES } from "@/lib/routes"
+import { translate, useLanguage } from "@/lib/i18n"
 
 // D-01 (audit): whitelist deeplink WhatsApp pindah ke validator bersama
 // `lib/external-url.ts` (skema https + host resmi WhatsApp) — aturan yang sama
@@ -100,6 +101,7 @@ function isAppVisible(): boolean {
 }
 
 export default function WhatsappTriggerScreen() {
+  useLanguage()
   const router = useRouter()
   const toast = useToast()
   /**
@@ -515,150 +517,61 @@ export default function WhatsappTriggerScreen() {
       />
 
       <KeyboardAvoiding>
-        <View className="flex-1 gap-8 px-5 pb-8 pt-8">
-          <View className="gap-3">
+        <ScrollView
+          className="flex-1"
+          contentContainerClassName="gap-6 px-5 pb-6 pt-6"
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Tiga blok utama: tujuan, kirim pesan, lalu status. */}
+          <View className="gap-2">
             <Heading level={1} className="text-balance">
               Konfirmasi lewat WhatsApp
             </Heading>
             <Text variant="body" tone="secondary" className="text-pretty">
-              {/* UI-A005: copy formal "Anda" (§12) — konsisten dengan layar auth lain. */}
-              Untuk keamanan, kode dikirim sebagai balasan chat Anda sendiri —
-              bukan pesan mendadak dari kami. Anda HARUS mengirim pesan dulu ke
-              WhatsApp resmi Kahade{" "}
-              <Text variant="monoBody" weight={600}>
-                {KAHADE_WHATSAPP_NUMBER}
-              </Text>{" "}
-              dari nomor:{" "}
-              <Text variant="monoBody" weight={600}>
-                {displayPhone}
-              </Text>
+              Kirim pesan dari <Text variant="monoBody" weight={600}>{displayPhone}</Text>
+              {" "}ke WhatsApp resmi Kahade <Text variant="monoBody" weight={600}>{KAHADE_WHATSAPP_NUMBER}</Text>.
+              Kode verifikasi dikirim sebagai balasan.
             </Text>
           </View>
 
-          {/* Langkah 1 — kirim pesan pemicu (deeplink sudah berisi teks) */}
-          <View className="gap-3">
-            <Button onPress={openWhatsapp} leftIcon={WhatsappLogo}>
-              Kirim lewat WhatsApp
-            </Button>
-            <Text variant="caption" tone="secondary" className="text-center text-pretty">
-              WhatsApp akan terbuka dengan pesan berisi kode{" "}
-              <Text variant="monoBody" weight={600}>
-                {refCode}
-              </Text>{" "}
-              — tinggal ketuk kirim.
-            </Text>
-          </View>
-
-          {/* Kode referensi — selalu terlihat untuk pengiriman manual */}
-          <Card variant="elevated" padded={false} className="gap-2 px-4 py-3">
-            <View className="flex-row items-center justify-between">
-              <Text variant="caption" tone="secondary">
-                Kode referensi Anda
-              </Text>
-              {/* FE-IMP-3 #107 — salin kode untuk pengiriman manual. */}
-              <TextLink onPress={() => void handleCopyCode()}>
-                Salin kode
-              </TextLink>
+          <Card variant="elevated" padded={false} className="gap-3 px-4 py-3">
+            <View className="flex-row items-center justify-between gap-2">
+              <Text variant="caption" tone="secondary">Kode referensi</Text>
+              <TextLink onPress={() => void handleCopyCode()}>Salin kode</TextLink>
             </View>
-            <Text variant="monoBody" weight={600} className="tracking-widest">
-              {refCode}
-            </Text>
-            {/*
-             * U5-001 (journey): tegaskan DUA kode berbeda — kode referensi di
-             * layar ini (kode pengiriman pesan) BUKAN kode verifikasi 6 digit
-             * yang diminta layar berikutnya. Satu baris pencegah salah salin.
-             */}
-            <Text variant="caption" tone="secondary" className="text-pretty">
-              Ini kode pengiriman pesan — kode verifikasi 6 digit dikirim bot
-              sebagai balasan.
-            </Text>
-            {/*
-             * FE-IMP-3 #106 — countdown kedaluwarsa kode referensi (timestamp
-             * absolut dari server; tetap benar walau app ke background).
-             */}
+            <Text variant="monoBody" weight={600} className="tracking-widest">{refCode}</Text>
             {flow?.expiresAt ? (
-              <Countdown
-                key={refCode}
-                until={new Date(flow.expiresAt).getTime()}
-                prefix="Kode kedaluwarsa dalam"
-                tone="secondary"
-              />
+              <Countdown key={refCode} until={new Date(flow.expiresAt).getTime()}
+                prefix="Kode kedaluwarsa dalam" tone="secondary" />
             ) : null}
+            <Button onPress={openWhatsapp} leftIcon={WhatsappLogo}>Kirim lewat WhatsApp</Button>
             <Text variant="caption" tone="secondary" className="text-pretty">
-              Tidak bisa membuka WhatsApp otomatis? Kirim pesan berisi kode di
-              atas secara manual ke {KAHADE_WHATSAPP_NUMBER}.
+              Di WhatsApp, ketuk Kirim. Kode referensi ini bukan OTP 6 digit — OTP dikirim bot sebagai balasan.
             </Text>
           </Card>
 
-          {/* Langkah 2 — status menunggu balasan (A07: dibedakan per koneksi) */}
-          <Card variant="elevated" padded={false} className="gap-2 px-4 py-3">
-            {connStatus === "offline" ? (
-              <View className="flex-row items-start gap-2">
-                <Icon icon={WifiSlash} size="sm" tone="warning" />
-                <View className="flex-1 gap-1">
-                  <Text variant="body" weight={500}>
-                    Anda sedang offline
-                  </Text>
-                  <Text variant="caption" tone="secondary" className="text-pretty">
-                    Polling dijeda dan lanjut otomatis saat koneksi kembali.
-                    Kode referensi di atas tetap berlaku.
-                  </Text>
-                </View>
-              </View>
-            ) : connStatus === "retrying" ? (
-              <View className="flex-row items-start gap-2">
-                <Icon icon={ArrowsClockwise} size="sm" tone="warning" />
-                <View className="flex-1 gap-1">
-                  <Text variant="body" weight={500}>
-                    Koneksi bermasalah — mencoba lagi…
-                  </Text>
-                  <Text variant="caption" tone="secondary" className="text-pretty">
-                    Percobaan ulang ke-{netFailures + 1}. Pastikan koneksi
-                    internet stabil.
-                  </Text>
-                </View>
-              </View>
-            ) : (
-              <>
-                <Text variant="body" weight={500}>
-                  Menunggu balasan kode…
-                </Text>
-                <Text variant="caption" tone="secondary" className="text-pretty">
-                  Layar ini otomatis lanjut begitu bot membalas kode verifikasi.
-                </Text>
-                {/*
-                 * U5-002 (journey): hint "kembali dengan tangan kosong" —
-                 * muncul saat user kembali ke app ini tanpa balasan terdeteksi.
-                 */}
-                {returnedEmpty ? (
-                  <View className="flex-row items-start gap-2 rounded-md bg-warning-soft px-3 py-2">
-                    <Icon icon={WarningCircle} size="sm" tone="warning" />
-                    <Text variant="caption" tone="secondary" className="flex-1 text-pretty">
-                      Kembali tanpa balasan? Pastikan pesan berisi kode terkirim
-                      dari nomor{" "}
-                      <Text variant="monoBody" weight={600}>
-                        {displayPhone}
-                      </Text>
-                      .
-                    </Text>
-                  </View>
-                ) : null}
-              </>
-            )}
-            {/*
-             * FE-IMP-3 #107 — "Saya sudah kirim pesan": satu poll segera
-             * (tanpa menunggu giliran backoff). Polling otomatis tetap jalan.
-             */}
-            <View className="pt-1">
-              <Button
-                variant="secondary"
-                size="sm"
-                loading={checkingNow}
-                onPress={() => void handleSentMessage()}
-              >
-                Saya sudah kirim pesan
-              </Button>
+          <Card variant="elevated" padded={false} className="gap-3 px-4 py-3">
+            <View className="flex-row items-center gap-2">
+              {connStatus !== "waiting" ? (
+                <Icon icon={connStatus === "offline" ? WifiSlash : ArrowsClockwise} size="sm" tone="warning" />
+              ) : null}
+              <Text variant="body" weight={500} accessibilityLiveRegion="polite">
+                {connStatus === "offline" ? "Anda sedang offline"
+                  : connStatus === "retrying" ? "Koneksi bermasalah — mencoba lagi…"
+                    : "Menunggu balasan kode…"}
+              </Text>
             </View>
+            <Text variant="caption" tone="secondary" className="text-pretty">
+              {connStatus === "offline" ? "Pengecekan dilanjutkan otomatis saat internet kembali."
+                : connStatus === "retrying" ? "Pastikan koneksi internet stabil."
+                  : returnedEmpty ? translate("Belum ada balasan? Pastikan pesan terkirim dari {x}.", { x: displayPhone })
+                    : "Layar ini otomatis lanjut saat kode verifikasi terkirim."}
+            </Text>
+            <Button variant="secondary" size="sm" loading={checkingNow}
+              onPress={() => void handleSentMessage()}>
+              Saya sudah kirim pesan
+            </Button>
           </Card>
 
           {formError ? (
@@ -686,64 +599,24 @@ export default function WhatsappTriggerScreen() {
             </Alert>
           ) : null}
 
-          <View className="flex-1" />
-
-          <Text variant="caption" tone="secondary" className="text-center text-pretty">
-            Tidak muncul balasan? Periksa apakah Anda mengirim dari nomor{" "}
-            <Text variant="monoBody" weight={600}>
-              {displayPhone}
-            </Text>
-            .
-          </Text>
-        </View>
+        </ScrollView>
 
         <FooterBar>
           <View className="gap-3">
             <Button variant="secondary" onPress={() => void handleRequestNew()} loading={requesting}>
               Minta kode baru
             </Button>
-            {/*
-             * T1-001: petunjuk lintas-alur GENERIK sejak awal (tampil untuk
-             * semua purpose — bukan sinyal pembeda nomor terdaftar vs tidak,
-             * jadi aman terhadap enumerasi). Menyelamatkan user yang salah
-             * alur (mis. nomor terdaftar masuk alur Daftar) sebelum menunggu
-             * decoy kedaluwarsa.
-             */}
-            <Text variant="caption" tone="secondary" className="text-center text-pretty">
-              Sudah pernah daftar tapi tidak ada balasan? Coba{" "}
-              <TextLink
-                inline
-                onPress={() => {
-                  stopPolling()
-                  router.replace(ROUTES.login)
-                }}
-              >
-                Masuk
-              </TextLink>{" "}
-              di sini.
-            </Text>
-            {/*
-             * T1-010: alur lupa kata sandi + nomor salah ketik/tidak aktif =
-             * decoy yang tidak pernah selesai. Saat gagal, tawarkan jalan ke
-             * live support (pola yang sama dengan layar forgot-password).
-             * Generik untuk semua kegagalan purpose ini — tidak enumerating.
-             */}
-            {purpose === "forgot_password" && formError ? (
-              <Text variant="caption" tone="secondary" className="text-center text-pretty">
-                Nomor HP tidak aktif atau salah ketik?{" "}
-                <TextLink inline onPress={() => router.push(ROUTES.liveSupport)}>
-                  Minta bantuan
-                </TextLink>
-              </Text>
-            ) : null}
-            <TextLink
-              onPress={() => {
+            <View className="flex-row items-center justify-center gap-6">
+              {/* Jalan lintas-alur tetap generik untuk semua purpose (anti-enumerasi). */}
+              <TextLink onPress={() => { stopPolling(); router.replace(ROUTES.login) }}>Masuk</TextLink>
+              <TextLink onPress={() => {
                 if (router.canGoBack()) router.back()
-                else router.replace(ROUTES.register)
-              }}
-            >
-              Kembali
-            </TextLink>
+                else router.replace(purpose === "register" ? ROUTES.register : ROUTES.login)
+              }}>Kembali</TextLink>
+              {purpose === "forgot_password" && formError ? (
+                <TextLink onPress={() => router.push(ROUTES.liveSupport)}>Minta bantuan</TextLink>
+              ) : null}
+            </View>
           </View>
         </FooterBar>
       </KeyboardAvoiding>

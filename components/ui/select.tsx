@@ -108,12 +108,12 @@ export function Select<V extends string = string>({
         scaleOnPress={false}
         containerClassName={cn("w-full rounded-sm", focusRing)}
         className={cn(
-          "h-14 w-full flex-row items-center rounded-sm bg-background",
+          "h-14 w-full flex-row items-center rounded-sm border-[1.5px] bg-background px-4",
           hasError
-            ? "border-error border-border-error px-[15px]"
+            ? "border-border-error"
             : open
-              ? "border-focus border-border-focus px-[15px]"
-              : "border border-border-control px-4",
+              ? "border-border-focus"
+              : "border-border-control",
           className,
         )}
         {...rest}

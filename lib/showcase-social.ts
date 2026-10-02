@@ -267,9 +267,9 @@ export type ShowcaseShareResult = {
  * dilaporkan sebagai "copied" supaya pemanggil menampilkan toast yang benar
  * ("Tautan disalin", bukan "Share tidak tersedia").
  *
- * C-08 (audit 2026-09-23): item yang sudah dikenal memakai `item.shareUrl`
- * dari backend bila ada (fallback ke URL rakitan lokal), dan pesan share kini
- * menyertakan label harga — dulu payload backend diabaikan total.
+ * Metadata (judul/harga/penulis) tetap berasal dari item/backend; URL yang
+ * dibagikan aplikasi selalu mengikuti format publik final /p/<id> (1 Okt
+ * 2026), bukan shareUrl lama dari metadata yang mungkin masih ter-cache.
  */
 export async function shareShowcaseById(id: string, item?: ShowcaseSocialItem): Promise<ShowcaseShareResult> {
   // Known item: invoke OS/browser share within the original user gesture, no network await.
@@ -277,10 +277,12 @@ export async function shareShowcaseById(id: string, item?: ShowcaseSocialItem): 
     showcaseId: id, title: item.title, description: item.description ?? "",
     priceLabel: showcasePriceLabel(item) ?? undefined,
     authorUsername: item.author.username, authorFullName: item.author.fullName,
-    shareUrl: item.shareUrl || showcaseUrl(id),
-  } : await getShowcaseSharePayload(id).catch(() => ({
-    showcaseId: id, title: translate("Etalase"), description: "", authorUsername: "", shareUrl: showcaseUrl(id),
-  }))
+    shareUrl: showcaseUrl(id),
+  } : await getShowcaseSharePayload(id)
+    .then((metadata) => ({ ...metadata, shareUrl: showcaseUrl(id) }))
+    .catch(() => ({
+      showcaseId: id, title: translate("Etalase"), description: "", authorUsername: "", shareUrl: showcaseUrl(id),
+    }))
   const price = payload.priceLabel ? ` — ${payload.priceLabel}` : ""
   const outcome = await shareContent({
     message: `${payload.title}${price} — ${payload.authorFullName ?? "@" + payload.authorUsername}`,

@@ -22,7 +22,7 @@ import { ROUTES } from "@/lib/routes"
 import { Text } from "@/components/ui/text"
 import { Icon } from "@/components/ui/icon"
 import { Picture } from "@/components/ui/picture"
-import { Badge } from "@/components/ui/badge"
+import { isOrderStatus, OrderStatusBadge } from "@/components/ui/order-status-badge"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Storefront, Receipt, ArrowSquareOut } from "phosphor-react-native"
 
@@ -187,7 +187,7 @@ export const ChatOrderCard = memo(function ChatOrderCard({
             {card.orderCode}
           </Text>
         </View>
-        <Badge tone="info">{card.status}</Badge>
+        <OrderStatusBadge status={isOrderStatus(card.status) ? card.status : "Status belum diketahui"} />
       </View>
       <Text
         variant="body"

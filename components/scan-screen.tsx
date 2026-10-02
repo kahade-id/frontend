@@ -242,7 +242,7 @@ export default function ScanScreen() {
   )
   const me = meQuery.data
   const myUsername = me?.username ?? ""
-  // FX-002: URL profil kanonis `https://kahade.id/user/<username>`.
+  // FX-002: URL profil kanonis `https://kahade.id/<username>`.
   // FX-014: username kosong → jangan render QR menyesatkan.
   const myProfileUrl = myUsername ? profileUrl(myUsername) : null
 

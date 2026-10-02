@@ -1,3 +1,4 @@
+import type { OpeningMediaTap } from "@/lib/use-opening-media-tap"
 /** Public cursor feed. Page data and cursors commit atomically; account/filter changes fence old responses.
  * Following remains a client-side filter until a server-side following-feed contract exists (audit A-17).
  *
@@ -299,22 +300,19 @@ const FeedCard = memo(function FeedCard({
   const handleReport = useCallback(() => onReport(item), [onReport, item])
   /** Viewer gambar layar penuh: ketuk media (bukan judul) membuka ini. */
   const [viewerIndex, setViewerIndex] = useState<number | null>(null)
-  // Batch 19: slide galeri (gambar/video). Viewer hanya menampilkan gambar —
-  // indeks media dipetakan ke indeks gambar (video tidak masuk viewer).
+  const viewerOpeningTap = useRef<OpeningMediaTap | undefined>(undefined)
+  // Viewer memakai urutan media yang sama; gambar dan video sama-sama fullscreen.
   const media = useMemo(() => showcaseMedia(display), [display])
   const viewerImages = useMemo(
     // PERF-FIX (NP-001/LR-002): viewer layar penuh memakai full-res
     // (`fullUrl`), bukan varian thumbnail yang dipakai slide feed.
-    () => media.filter((m) => m.kind === "image").map((m) => ({ url: m.fullUrl ?? m.url, alt: item.title })),
+    () => media.map((m) => ({ url: m.kind === "image" ? m.fullUrl ?? m.url : m.url, kind: m.kind, alt: item.title })),
     [media, item.title],
   )
   const handleOpenMedia = useCallback(
-    (mediaIndex: number) => {
-      const slide = media[mediaIndex]
-      const imageIndex = media
-        .filter((m) => m.kind === "image")
-        .findIndex((m) => m.id === slide?.id)
-      if (imageIndex >= 0) setViewerIndex(imageIndex)
+    (mediaIndex: number, openingTap?: OpeningMediaTap) => {
+      viewerOpeningTap.current = openingTap
+      if (media[mediaIndex]) setViewerIndex(mediaIndex)
     },
     [media],
   )
@@ -329,7 +327,7 @@ const FeedCard = memo(function FeedCard({
         onPress={handlePress}
         onPressIn={handlePressIn}
         onOpenMedia={handleOpenMedia}
-        autoplayActive={visible}
+        autoplayActive={visible && viewerIndex == null}
         onToggleLike={toggleLike}
         onOpenComments={handleComments}
         onToggleSave={toggleSave}
@@ -346,6 +344,7 @@ const FeedCard = memo(function FeedCard({
           visible
           images={viewerImages}
           index={viewerIndex}
+          openingTap={viewerOpeningTap.current}
           onClose={handleCloseViewer}
           title={item.title}
         />
