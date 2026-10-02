@@ -74,7 +74,7 @@ import { Icon } from "@/components/ui/icon"
 import { IconButton } from "@/components/ui/icon-button"
 import { Input } from "@/components/ui/input"
 import { Skeleton, SkeletonGroup } from "@/components/ui/skeleton"
-import { ShowcaseCommentRow } from "@/components/ui/showcase-comment-row"
+import { CommentRepliesToggle, ShowcaseCommentRow } from "@/components/ui/showcase-comment-row"
 import { Text } from "@/components/ui/text"
 import { useToast } from "@/components/ui/toast"
 
@@ -490,11 +490,11 @@ export function ShowcaseCommentsSheet({
             />
           ))}
           {replies.length > REPLY_PREVIEW ? (
-            <Button variant="ghost" onPress={() => handleToggleReplies(root.id)}>
-              {expanded
-                ? translate("Tutup balasan")
-                : translate("Lihat {x} balasan", { x: hiddenCount })}
-            </Button>
+            <CommentRepliesToggle
+              expanded={expanded}
+              hiddenCount={hiddenCount}
+              onPress={() => handleToggleReplies(root.id)}
+            />
           ) : null}
         </ShowcaseCommentRow>
       )
@@ -504,10 +504,10 @@ export function ShowcaseCommentsSheet({
   // Tinggi maks 55% window: nilai runtime -> style, bukan className.
   const commentListStyle = useMemo(() => ({ maxHeight: windowHeight * 0.55 }), [windowHeight])
   // List selaras title: px-5 sama dengan header sheet (gap & indent konsisten).
-  // Nilai = className lama "gap-4 px-5 pb-6 pt-1" pada View pembungkus.
+  // Polish 2026-10-02: gap antar komentar 20px (ala YouTube), bukan 16px.
   const commentListContentStyle = useMemo(
     () => ({
-      gap: tokens.space[4],
+      gap: tokens.space[5],
       paddingHorizontal: tokens.space[5],
       paddingBottom: tokens.space[6],
       paddingTop: tokens.space[1],

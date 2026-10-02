@@ -22,7 +22,7 @@ import { LoadMore, type LoadMoreStatus } from "@/components/ui/load-more"
 import { Button } from "@/components/ui/button"
 import { Chip } from "@/components/ui/chip"
 import { Text } from "@/components/ui/text"
-import { ShowcaseCommentRow } from "@/components/ui/showcase-comment-row"
+import { CommentRepliesToggle, ShowcaseCommentRow } from "@/components/ui/showcase-comment-row"
 
 export type ShowcaseDetailCommentsProps = {
   comments: ShowcaseCommentWithReplies[]
@@ -140,7 +140,8 @@ export function ShowcaseDetailComments({
         <Divider className="mt-3" />
       </View>
 
-      <View className="gap-4 px-5 pb-6 pt-4">
+      {/* Polish 2026-10-02: gap antar komentar 20px (ala YouTube). */}
+      <View className="gap-5 px-5 pb-6 pt-4">
         {/* F-06: status "loading" di awal — tanpa kilatan kosong/tombol. */}
         {orderedComments.length === 0 && commentsStatus !== "loading" && commentsStatus !== "error" ? (
           <Text variant="body" tone="secondary">
@@ -205,11 +206,11 @@ export function ShowcaseDetailComments({
                 })}
                 {/* U-02: lipatan utas — jangan tumpahkan semua balasan. */}
                 {replies.length > REPLY_PREVIEW && !deepLinkInside ? (
-                  <Button variant="ghost" onPress={() => toggleReplies(root.id)}>
-                    {expanded
-                      ? translate("Tutup balasan")
-                      : translate("Lihat {x} balasan", { x: hiddenCount })}
-                  </Button>
+                  <CommentRepliesToggle
+                    expanded={expanded}
+                    hiddenCount={hiddenCount}
+                    onPress={() => toggleReplies(root.id)}
+                  />
                 ) : null}
               </ShowcaseCommentRow>
             </View>

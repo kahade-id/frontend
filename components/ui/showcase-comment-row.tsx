@@ -28,7 +28,7 @@ import { CONTENT_REPORT_REASONS } from "@/lib/labels/report"
  *   - Semua aksi (menu, balas) OPSIONAL: sheet hanya membaca, jadi barisnya
  *     cukup tampil statis tanpa affordance yang tidak berfungsi.
  */
-import { DotsThree, Heart } from "phosphor-react-native"
+import { CaretRight, ChatCircle, DotsThree, ThumbsDown, ThumbsUp } from "phosphor-react-native"
 import { memo, useState, type ReactNode } from "react"
 import { View } from "react-native"
 import { router, usePathname } from "expo-router"
@@ -94,6 +94,41 @@ export type ShowcaseCommentRowProps = {
 }
 
 /**
+ * Polish 2026-10-02 (ala YouTube): tombol lipat/buka balasan — "13 balasan >".
+ * Dipakai di layar detail dan bottom sheet agar bentuknya selalu sama.
+ */
+export function CommentRepliesToggle({
+  expanded,
+  hiddenCount,
+  onPress,
+}: {
+  expanded: boolean
+  hiddenCount: number
+  onPress: () => void
+}) {
+  return (
+    <PressableScale
+      accessibilityRole="button"
+      accessibilityLabel={
+        expanded ? translate("Tutup balasan") : translate("Lihat {x} balasan", { x: hiddenCount })
+      }
+      onPress={onPress}
+      containerClassName={cn("min-h-11 justify-center self-start rounded-full", focusRing)}
+      className="flex-row items-center gap-1 py-1 pr-2"
+    >
+      <Text variant="bodySmall" tone="primary" weight={600}>
+        {expanded
+          ? translate("Tutup balasan")
+          : translate("{x} balasan", { x: hiddenCount })}
+      </Text>
+      <View className={expanded ? "rotate-90" : undefined}>
+        <Icon icon={CaretRight} size="xs" tone="default" />
+      </View>
+    </PressableScale>
+  )
+}
+
+/**
  * R1-004 (2026-09-29, audit render-perf): di-memo agar FlatList
  * tervirtualisasi tidak me-render ulang baris yang datanya sama (sheet
  * komentar bisa memuat ~120 baris sekaligus).
@@ -123,6 +158,20 @@ export const ShowcaseCommentRow = memo(function ShowcaseCommentRow({
     ? formatDateTime(comment.createdAt)
     : formatRelativeTime(comment.createdAt)
   /**
+   * Polish 2026-10-02 (ala YouTube): tombol "tidak suka" — backend BELUM
+   * punya endpoint (sama seperti like, lib/showcase-comment-likes.ts),
+   * jadi toggle lokal sesi ini saja via useState.
+   */
+  const [disliked, setDisliked] = useState(false)
+  const handleDislike = () => {
+    if (!hasSession) {
+      router.push(ROUTES.loginRequired(pathname))
+      return
+    }
+    if (hidden) return
+    setDisliked((prev) => !prev)
+  }
+  /**
    * Item 48 (FE-IMP-1): like komentar. Backend BELUM punya endpoint like
    * komentar → state lokal sesi ini (lib/showcase-comment-likes.ts);
    * `likeCount`/`isLiked` dari server dipakai bila suatu hari dikirim.
@@ -142,7 +191,8 @@ export const ShowcaseCommentRow = memo(function ShowcaseCommentRow({
   }
 
   return (
-    <View className={cn("flex-row gap-2", className)}>
+    // Polish 2026-10-02: gap avatar→konten 12px (ala YouTube), bukan 8px.
+    <View className={cn("flex-row gap-3", className)}>
       {/*
         KOLOM KIRI: foto profil + (opsional) garis utas.
         Kolom ini diregangkan mengikuti tinggi baris (align stretch), sehingga
@@ -263,22 +313,12 @@ export const ShowcaseCommentRow = memo(function ShowcaseCommentRow({
           </Text>
         ) : null}
 
-        {/* Item 48: baris aksi komentar — Balas + Suka (hati kecil + hitungan).
-            Selalu tampil supaya like bisa dipakai di sheet maupun detail. */}
-        <View className="flex-row items-center gap-4 pt-0.5">
-          {canReply && onReply ? (
-            <PressableScale
-              accessibilityRole="button"
-              accessibilityLabel={translate("Balas komentar")}
-              // UX-TCH-017: target 44pt (min-h-11); sebelumnya ~30px.
-              containerClassName={cn("min-h-11 justify-center rounded-sm px-0 py-1", focusRing)}
-              onPress={() => onReply(comment)}
-            >
-              <Text variant="caption" tone="secondary" weight={500}>
-                {translate("Balas")}
-              </Text>
-            </PressableScale>
-          ) : null}
+        {/*
+          Polish 2026-10-02 (ala YouTube): baris aksi = 👍 hitungan 👎 💬.
+          Ikon outline 20px; target sentuh tetap 44pt (UX-TCH-017/018).
+          "Balas" teks diganti ikon bubble agar sejajar bahasa visual YouTube.
+        */}
+        <View className="flex-row items-center gap-1 pt-2">
           <PressableScale
             accessibilityRole="button"
             accessibilityLabel={
@@ -292,20 +332,19 @@ export const ShowcaseCommentRow = memo(function ShowcaseCommentRow({
                 : undefined
             }
             onPress={handleCommentLike}
-            // UX-TCH-018: target 44pt (min-h-11); sebelumnya ~30px.
-            containerClassName={cn("min-h-11 justify-center rounded-sm", focusRing)}
-            className="flex-row items-center gap-1 py-1"
+            containerClassName={cn("min-h-11 min-w-11 items-center justify-center rounded-full", focusRing)}
+            className="flex-row items-center gap-1.5 px-2 py-1"
           >
             <Icon
-              icon={Heart}
-              size="xs"
+              icon={ThumbsUp}
+              size="sm"
               weight={commentLike.isLiked ? "fill" : "regular"}
-              tone={commentLike.isLiked ? "danger" : "default"}
+              tone={commentLike.isLiked ? "active" : "default"}
             />
             {commentLike.likeCount > 0 ? (
               <Text
                 variant="caption"
-                tone={commentLike.isLiked ? "danger" : "secondary"}
+                tone={commentLike.isLiked ? "primary" : "secondary"}
                 weight={500}
                 className="tabular-nums"
               >
@@ -313,11 +352,38 @@ export const ShowcaseCommentRow = memo(function ShowcaseCommentRow({
               </Text>
             ) : null}
           </PressableScale>
+          <PressableScale
+            accessibilityRole="button"
+            accessibilityLabel={
+              disliked ? translate("Batal tidak sukai komentar") : translate("Tidak sukai komentar")
+            }
+            onPress={handleDislike}
+            containerClassName={cn("min-h-11 min-w-11 items-center justify-center rounded-full", focusRing)}
+            className="px-2 py-1"
+          >
+            <Icon
+              icon={ThumbsDown}
+              size="sm"
+              weight={disliked ? "fill" : "regular"}
+              tone={disliked ? "active" : "default"}
+            />
+          </PressableScale>
+          {canReply && onReply ? (
+            <PressableScale
+              accessibilityRole="button"
+              accessibilityLabel={translate("Balas komentar")}
+              onPress={() => onReply(comment)}
+              containerClassName={cn("min-h-11 min-w-11 items-center justify-center rounded-full", focusRing)}
+              className="px-2 py-1"
+            >
+              <Icon icon={ChatCircle} size="sm" tone="default" />
+            </PressableScale>
+          ) : null}
         </View>
 
         {/* Balasan hidup di kolom yang SAMA dengan komentar induk, sehingga
             garis utas di kiri benar-benar menyambung keduanya. */}
-        {children ? <View className="mt-1 gap-3">{children}</View> : null}
+        {children ? <View className="mt-2 gap-4">{children}</View> : null}
       </View>
     </View>
   )
