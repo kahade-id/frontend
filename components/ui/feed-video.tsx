@@ -31,7 +31,7 @@
  *   - Player dibuat via `useVideoPlayer` (auto-release saat unmount) —
  *     jangan `createVideoPlayer` manual kecuali di luar React tree.
  */
-import { Component, memo, useCallback, useEffect, useMemo, useState, type ReactNode } from "react"
+import { Component, memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { View, type ViewProps } from "react-native"
 import { ArrowClockwise, Play } from "phosphor-react-native"
 import type { ImageSource } from "expo-image"
@@ -543,9 +543,41 @@ const ExpoVideoPlayerInner = memo(function ExpoVideoPlayerInner({
   const player = useVideoPlayer(videoSource, setupPlayer)
   useSyncPlayer(player, shouldPlay, muted, loop)
 
+  /**
+   * Force-close saat reply (2026-10-03, defensif): `useVideoPlayer` me-release
+   * player native otomatis saat unmount (`useReleasingSharedObject`), tapi
+   * pause eksplisit DULU menghindari decoder native di-teardown saat masih
+   * memutar. Cleanup ini didaftarkan SETELAH `useVideoPlayer` → berjalan
+   * SEBELUM release otomatis (cleanup effect urutan terbalik). Jangan panggil
+   * `player.release()` manual — double-release justru berbahaya.
+   */
+  useEffect(() => {
+    return () => {
+      try {
+        player.pause()
+      } catch {
+        // Player mungkin sudah tidak valid — abaikan, release otomatis
+        // dari useVideoPlayer tetap berjalan.
+      }
+    }
+  }, [player])
+
+  /**
+   * Guard state-update pasca-unmount: listener native bisa mengirim event
+   * yang sudah antre tepat saat unmount; setState setelah itu adalah
+   * no-op berbahaya di teardown native.
+   */
+  const mountedRef = useRef(true)
+  useEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+    }
+  }, [])
+
   useEffect(() => {
     const sub = player.addListener("statusChange", (event: { status?: string }) => {
-      if (event?.status === "error") onError()
+      if (event?.status === "error" && mountedRef.current) onError()
     })
     return () => sub.remove()
   }, [player, onError])
@@ -554,7 +586,7 @@ const ExpoVideoPlayerInner = memo(function ExpoVideoPlayerInner({
   useEffect(() => {
     if (!allowTapToggle) return
     const sub = player.addListener("playingChange", (event) => {
-      setTapPaused(!event.isPlaying)
+      if (mountedRef.current) setTapPaused(!event.isPlaying)
     })
     return () => sub.remove()
   }, [player, allowTapToggle])
