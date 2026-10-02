@@ -1162,9 +1162,18 @@ export default function ChatScreen() {
         />
       )}
       {!selecting ? (
+        /* AKAR BUG "gap putih raksasa" (2026-10-02): ScrollView RN/default
+         * memakai `flexGrow: 1, flexShrink: 1` (ScrollView.js baseHorizontal)
+         * — di kolum Screen yang juga punya saudara `flex-1` (ModeShiftFade),
+         * baris chip ikut membesar ±setengah layar dan menyisakan kosong
+         * raksasa sebelum daftar (repro web: 286px). `grow-0` mengembalikan
+         * tinggi alami baris chip — pola sama dengan <ScrollRow> (grow-0) dan
+         * selection-bar. Tanpa ini jarak chip → "Pesan untuk diri sendiri"
+         * tidak akan pernah rapat. */
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
+          className="grow-0"
           contentContainerClassName="gap-2 px-4 pb-2"
           accessibilityRole="tablist"
         >

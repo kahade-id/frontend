@@ -482,8 +482,11 @@ export default function TransactionsScreen() {
       <ModeShiftFade>
       {/* v2: kontrol filter fade-in cepat TANPA geser — kontrol fungsional
           harus terasa stabil, tidak "naik". Item list sendiri mendapat Layout
-          animation dari dalam <PaginatedList> (hanya saat tambah/hapus). */}
-      <FadeIn duration="fast" translate={false} className="bg-background px-5 pb-3 pt-3">
+          animation dari dalam <PaginatedList> (hanya saat tambah/hapus).
+          z-sticky (defense-in-depth, akar bug fade-in collapse sudah diperbaiki
+          di fade-in.tsx): pagar stacking — apa pun yang terjadi pada geometri
+          daftar, teks list TIDAK PERNAH bisa ter-cat di atas pill kontrol. */}
+      <FadeIn duration="fast" translate={false} className="z-sticky bg-background px-5 pb-3 pt-3">
         <SegmentedControl
           accessibilityLabel="Peran transaksi"
           items={ROLE_TABS}

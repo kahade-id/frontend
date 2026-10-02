@@ -28,11 +28,25 @@
  * Struktur dua lapis (non-obvious): `Animated.View` TIDAK di-interop
  * NativeWind (konvensi repo — lihat backdrop, modal, stepper, bottom-sheet),
  * jadi `className`/props View diletakkan di <View> pembungkus dan
- * Animated.View di dalamnya hanya memegang opacity/transform. Animated.View
- * diberi `flex: 1` agar ikut mengisi pembungkus bila pemanggil memberi
- * `flex-1` (mis. carousel onboarding); saat pembungkus auto-height, flex 1
- * dengan basis 0 di parent tak-terdefinisi jatuh ke ukuran konten (Yoga &
- * CSS sama), sehingga pemakaian lama tidak berubah.
+ * Animated.View di dalamnya hanya memegang opacity/transform.
+ *
+ * AKAR BUG (2026-10-02, "segmented control Transaksi tertimpa teks hari"):
+ * Animated.View DULU memakai `flex: 1`. Di CSS (web) flex-basis 0% pada
+ * parent auto-height jatuh ke max-content — pembungkus = tinggi konten.
+ * DI YOGA (native Android/iOS, RN 0.81) `flex: 1` = basis 0 POIN absolut
+ * (lihat ReactCommon/yoga Node::processFlexBasis — `points(0)` saat
+ * `useWebDefaults()` false): kontribusi anak = 0, pembungkus auto-height
+ * COLLAPSE jadi tinggi padding saja (pt-3+pb-3 = 24px), dan isi (mis.
+ * SegmentedControl 46px) meluber ke sibling berikutnya — daftar tepat di
+ * bawahnya, dan karena list dirender SETELAH blok ini, teks baris hari
+ * ("Sabtu, 26 September 2026", "N transaksi") menimpa pill. Karena web
+ * tidak mereproduksi, fix berbasis pengujian web tidak pernah kena akar ini.
+ *
+ * Perbaikan: `flexGrow: 1, flexShrink: 1` TANPA flex-basis 0 — basis "auto"
+ * (ukuran konten) sehingga pembungkus selalu setinggi isi (Yoga & CSS kini
+ * sejalan), sementara grow tetap mengisi pembungkus yang memang definite
+ * (pemanggil memberi `flex-1`). Verifikasi: model Yoga yang sama (test
+ * repro) mengukur pembungkus 70px (12+46+12) vs 24px sebelumnya.
  */
 import { Children, useEffect, useRef, type ReactNode } from "react"
 import { Animated, Easing, View, type ViewProps } from "react-native"
@@ -110,7 +124,13 @@ export function FadeIn({
 
   return (
     <View style={{ pointerEvents: visible ? "auto" : "none" }} {...rest}>
-      <Animated.View style={{ flex: 1, opacity: progress, transform: [{ translateY }] }}>{children}</Animated.View>
+      {/* JANGAN kembalikan `flex: 1` (basis 0): di Yoga pembungkus auto-height
+          collapse dan isi menimpa sibling — lihat catatan akar bug di header file. */}
+      <Animated.View
+        style={{ flexGrow: 1, flexShrink: 1, opacity: progress, transform: [{ translateY }] }}
+      >
+        {children}
+      </Animated.View>
     </View>
   )
 }

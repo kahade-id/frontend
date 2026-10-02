@@ -796,8 +796,10 @@ function NotificationsScreen() {
       {/* Segmen kategori — gaya pill <SegmentedControl> seperti tab peran di
           halaman Transaksi (konsisten antar tab top-level).
           Kalau sedang memilih (mode batch) segmen tetap tampil agar konteks
-          kategori yang sedang dipilih tidak hilang. */}
-      <FadeIn duration="fast" translate={false} className="bg-background px-5 pb-3 pt-3">
+          kategori yang sedang dipilih tidak hilang.
+          z-sticky: pagar stacking yang sama dengan tab Transaksi — blok kontrol
+          tidak boleh tertimpa teks daftar apa pun kondisi geometrinya. */}
+      <FadeIn duration="fast" translate={false} className="z-sticky bg-background px-5 pb-3 pt-3">
         <SegmentedControl<NotificationCategory>
           accessibilityLabel={translate("Kategori notifikasi")}
           items={CATEGORY_TABS}
