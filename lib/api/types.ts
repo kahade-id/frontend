@@ -708,6 +708,18 @@ export type AddBankAccountDto = {
    * minLength 2 · maxLength 100
    */
   accountName: string
+  /**
+   * BFE-072: field re-auth dari `PasskeyReauthDto` backend
+   * (`AddBankAccountDto extends PasskeyReauthDto`). Backend fail-closed bila
+   * user ber-passkey tanpa bukti re-auth → kirim password / mfaCode /
+   * otpCode sesuai kondisi akun (lihat `buildReauth` di app/bank-accounts).
+   */
+  /** Kata sandi akun (wajib bila akun punya password). */
+  password?: string
+  /** Kode TOTP/backup bila 2FA aktif. */
+  mfaCode?: string
+  /** Kode OTP WhatsApp (untuk akun tanpa password). */
+  otpCode?: string
 }
 
 export type MidtransNotificationDto = {

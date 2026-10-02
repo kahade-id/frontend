@@ -175,14 +175,13 @@ export async function getDisbursements(opts?: {
     .filter((d): d is Disbursement => d !== undefined)
 }
 
-/** Cari pencairan untuk satu order (dipakai layar detail order seller). */
-export async function getOrderDisbursement(
-  orderId: string,
-  opts?: { signal?: AbortSignal },
-): Promise<Disbursement | null> {
-  const items = await getDisbursements({ scope: "ORDER_ESCROW", limit: 100, signal: opts?.signal })
-  return items.find((d) => d.orderId === orderId) ?? null
-}
+/*
+ * BFE-077 (2026-10-03): `getOrderDisbursement` + `getDisbursementStatus`
+ * DIHAPUS — dead code (nol pemanggil). Selain mati, `getOrderDisbursement`
+ * mencocokkan `d.orderId` dengan id publik padahal backend mengirim id
+ * internal (cuid) → tidak akan pernah cocok bila dipakai. Bila dibutuhkan
+ * lagi, cocokkan via id publik yang benar.
+ */
 
 /**
  * Label ringkas status pencairan untuk UI (minimal, tanpa jargon teknis).
@@ -222,23 +221,4 @@ export function disbursementStatusCopy(d: Disbursement): { title: string; descri
     default:
       return { title: "Status pencairan tidak diketahui" }
   }
-}
-
-/**
- * BFI-082: status pencairan untuk satu order (atau pencairan terbaru bila
- * `orderId` tidak diisi). Tanpa mengubah screen — dipakai pemanggil yang
- * membutuhkan (mis. layar detail order seller).
- *
- * Mengembalikan item disbursement yang sudah dinormalisasi (termasuk
- * `disbursementStatusCopy` untuk label Indonesia), atau null bila tidak ada.
- */
-export async function getDisbursementStatus(
-  orderId?: string,
-  opts?: { signal?: AbortSignal },
-): Promise<Disbursement | null> {
-  if (orderId) {
-    return getOrderDisbursement(orderId, opts)
-  }
-  const items = await getDisbursements({ limit: 1, signal: opts?.signal })
-  return items[0] ?? null
 }

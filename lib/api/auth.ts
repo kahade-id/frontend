@@ -286,10 +286,14 @@ export async function correctEmail(dto: CorrectEmailDto) {
   // BFI-009: CorrectEmailDto TIDAK me-whitelist `deviceLocation`
   // (forbidNonWhitelisted aktif global → field ekstra = 422). JANGAN
   // withDeviceLocation di sini — kirim dto apa adanya.
+  // BFE-041 (2026-10-03): endpoint ini WAJIB Bearer — backend mewajibkan JWT
+  // (JwtAuthGuard global, tanpa @Public()); `auth: "none"` membuat fitur
+  // ubah email 100% 401. Password di body adalah bukti kepemilikan, bukan
+  // pengganti sesi.
   return http.post<MessageResult, CorrectEmailDto>(
     "/v1/auth/correct-email",
     dto,
-    { auth: "none" },
+    { auth: "required" },
   )
 }
 

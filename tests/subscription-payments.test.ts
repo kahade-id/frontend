@@ -11,7 +11,8 @@
  *   ditindaklanjuti → lempar (fail-closed).
  * - `getSubscriptionPaymentStatus`: GET /v1/subscriptions/dana-status/:id;
  *   ACTIVE → isPaid true; tanpa status → lempar (fail-closed).
- * - `renewSubscriptionDana`: POST /v1/subscriptions/renew-dana.
+ * BFE-073: `renewSubscriptionDana` (dead code) dihapus dari lib — blok test terkait
+ * ikut dihapus.
  * - `resolveSubscriptionPaymentMethods`: daftar = cerminan kontrak backend
  *   (QRIS/VA/BALANCE); metode dompet internal SELALU disaring; tidak ada
  *   endpoint payment-methods yang dikejar.
@@ -36,10 +37,8 @@ vi.mock("@/lib/api/device-location", () => ({
 import {
   createSubscriptionPayment,
   getSubscriptionPaymentStatus,
-  renewSubscriptionDana,
   toDanaPayKind,
   SUBSCRIBE_DANA_PATH,
-  RENEW_DANA_PATH,
   danaStatusPath,
 } from "@/lib/api/subscription-payments"
 import {
@@ -161,24 +160,6 @@ describe("getSubscriptionPaymentStatus", () => {
     await expect(getSubscriptionPaymentStatus("")).rejects.toThrow()
     mockHttpGet.mockResolvedValue({})
     await expect(getSubscriptionPaymentStatus("sub-1")).rejects.toThrow()
-  })
-})
-
-describe("renewSubscriptionDana", () => {
-  it("POST renew-dana { payKind, bankCode? }", async () => {
-    mockHttpPost.mockResolvedValue({
-      paymentTxId: "pay-1",
-      paymentCode: "887778888888",
-      amount: 50000,
-    })
-    const intent = await renewSubscriptionDana("VA_BRI", "key-9")
-    const [path, body, options] = mockHttpPost.mock.calls[0]!
-    expect(path).toBe(RENEW_DANA_PATH)
-    expect(body).toMatchObject({ payKind: "VA", bankCode: "BRI" })
-    expect((options as { headers: Record<string, string> }).headers).toMatchObject({
-      "Idempotency-Key": "key-9",
-    })
-    expect(intent.vaNumber).toBe("887778888888")
   })
 })
 

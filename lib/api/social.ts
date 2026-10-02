@@ -24,7 +24,7 @@ import {
   pickString,
   readList,
 } from "@/lib/api/response"
-import { startSession } from "@/lib/api/session"
+import { getDeviceId, getDeviceInfo, startSession } from "@/lib/api/session"
 
 /**
  * Simpan token sesi dari hasil social login (sama pola dengan auth.ts).
@@ -106,6 +106,14 @@ export interface SocialLinkResult {
   requiresConfirmation: boolean
   linkToken?: string
   maskedEmail?: string
+  /**
+   * BFE-044: `POST /v1/auth/social/link/confirm` menjawab HTTP 200
+   * `{ requires2FA: true, tempToken }` (bukan error) bila akun lama ber-2FA.
+   * - `tempToken` ADA → penautan selesai; tempToken dibawa ke `/verify-2fa`.
+   * - `tempToken` TIDAK ADA → kirim ulang confirm dengan `mfaCode`.
+   */
+  requiresTwoFactor?: boolean
+  tempToken?: string
 }
 
 /** GET /v1/auth/social/providers — provider mana yang bisa dipakai (G002). */
@@ -113,6 +121,18 @@ export async function getProviders(signal?: AbortSignal): Promise<SocialProvider
   const raw = await http.get<unknown>("/v1/auth/social/providers", { auth: "none", signal })
   const list = readList<SocialProviderCapability>(raw, ["providers"])
   return list
+    // BFE-043: normalisasi case di batas wire (pelajaran audit #5:
+    // "normalisasi di boundary, satu arah"). Backend endpoint ini
+    // didokumentasikan UPPERCASE, tapi filter strict di bawah membuat
+    // SELURUH seksi "Tautkan baru" lenyap diam-diam bila BE suatu saat
+    // mengirim lowercase — kelas bug yang sama dengan `listLinked`.
+    .map((p) => ({
+      ...p,
+      provider:
+        typeof p.provider === "string" && p.provider.toUpperCase() === "APPLE"
+          ? ("APPLE" as const)
+          : ("GOOGLE" as const),
+    }))
     .filter((p) => p.provider === "GOOGLE" || p.provider === "APPLE")
     .map((p) => ({
       provider: p.provider,
@@ -185,12 +205,26 @@ export async function socialLogin(dto: SocialLoginDto): Promise<SocialLoginResul
 export function listLinked(signal?: AbortSignal): Promise<LinkedSocialProvider[]> {
   return http
     .get<unknown>("/v1/auth/social", { auth: "required", signal })
-    .then((raw) => readList<LinkedSocialProvider>(raw, ["providers"]))
+    .then((raw) =>
+      // BFE-043: backend mengembalikan provider LOWERCASE ("google"/"apple");
+      // UI memakai UPPERCASE ("GOOGLE"/"APPLE") — normalisasi di batas wire
+      // (konsisten dengan socialLogin) supaya Set tertaut & label tidak miss.
+      readList<LinkedSocialProvider>(raw, ["providers"]).map((p) => ({
+        ...p,
+        provider:
+          typeof p.provider === "string" && p.provider.toUpperCase() === "APPLE"
+            ? ("APPLE" as const)
+            : ("GOOGLE" as const),
+      })),
+    )
 }
 
 /**
  * POST /v1/auth/social/link — tautkan provider ke akun login (G014).
- * `reauth` = password / kode 2FA / token re-auth sesuai DTO backend.
+ * `password` / `mfaCode` = bukti re-auth akun ini.
+ *
+ * BFE-047: `reauthToken` DIHAPUS dari tipe — `LinkSocialProviderDto` backend
+ * tidak me-whitelist-nya (forbidNonWhitelisted → 422 bila dikirim).
  */
 export interface SocialLinkDto {
   provider: SocialProvider
@@ -198,7 +232,6 @@ export interface SocialLinkDto {
   nonce?: string
   password?: string
   mfaCode?: string
-  reauthToken?: string
 }
 
 export async function linkSocial(dto: SocialLinkDto): Promise<SocialLinkResult> {
@@ -221,32 +254,55 @@ export async function linkSocial(dto: SocialLinkDto): Promise<SocialLinkResult> 
  * bentrok (G014). Membutuhkan re-auth akun lama: `password` / `otpCode` /
  * `reauthToken` (salah satu) + `mfaCode` bila 2FA aktif.
  * Token sesi hasil penautan langsung disimpan (seperti login).
+ *
+ * BFE-044: respons 200 `{ requires2FA: true, tempToken }` DITERUSKAN ke
+ * pemanggil (bukan dihitung "gagal") — layar memutus dua kasus:
+ * tempToken ada → `/verify-2fa`; tidak ada → kirim ulang dengan `mfaCode`.
  */
 export interface SocialConfirmLinkDto {
   linkToken: string
   password?: string
   mfaCode?: string
   otpCode?: string
+  /** Di-whitelist backend di DTO ini (G014) — JANGAN hapus (beda dengan BFE-047). */
   reauthToken?: string
 }
 
 export async function confirmSocialLink(dto: SocialConfirmLinkDto): Promise<SocialLinkResult> {
-  const raw = await http.post<unknown, SocialConfirmLinkDto>("/v1/auth/social/link/confirm", dto, { auth: "none" })
+  // deviceId/deviceInfo di-whitelist ConfirmSocialLinkDto — dikirim supaya
+  // tempToken 2FA terikat ke perangkat ini (verify2faLogin menolak
+  // deviceId yang beda).
+  const wireBody = {
+    ...dto,
+    deviceId: await getDeviceId(),
+    deviceInfo: getDeviceInfo(),
+  }
+  const raw = await http.post<unknown, typeof wireBody>("/v1/auth/social/link/confirm", wireBody, { auth: "none" })
   const record = asRecord(raw)
   if (!record) throw invalidResponse("social-link-confirm")
   const accessToken = pickString(record, ["accessToken"])
   if (accessToken) await persistSocialTokens(record)
+  // BFE-044: cabang 2FA adalah HTTP 200, bukan ApiError.
+  const requiresTwoFactor = pickBoolean(record, ["requires2FA", "requiresTwoFactor"]) ?? false
+  const tempToken = requiresTwoFactor ? pickString(record, ["tempToken"]) : undefined
   return {
     linked: pickBoolean(record, ["linked"]) ?? !!accessToken,
     requiresConfirmation: false,
     maskedEmail: pickString(record, ["maskedEmail"]),
+    requiresTwoFactor: requiresTwoFactor || undefined,
+    tempToken: tempToken ?? undefined,
   }
 }
 
-/** DELETE /v1/auth/social/:provider — lepas tautan (G018/G019). */
+/**
+ * DELETE /v1/auth/social/:provider — lepas tautan (G018/G019).
+ *
+ * BFE-047: `reauthToken` DIHAPUS dari tipe — `UnlinkSocialProviderDto`
+ * backend tidak me-whitelist-nya (forbidNonWhitelisted → 422 bila dikirim).
+ */
 export function unlinkSocial(
   provider: SocialProvider,
-  dto: { password?: string; mfaCode?: string; reauthToken?: string },
+  dto: { password?: string; mfaCode?: string },
 ): Promise<void> {
   // BFI-035: path param wajib lowercase — `/v1/auth/social/GOOGLE` dijawab
   // 410 SOCIAL_PROVIDER_NOT_SUPPORTED oleh BE.

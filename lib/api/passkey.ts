@@ -108,7 +108,9 @@ export async function verifyAuthLogin(dto: {
   challengeId: string
   assertion: unknown
 }): Promise<PasskeyLoginResult> {
-  const body = { ...dto, deviceId: await getDeviceId(), deviceInfo: getDeviceInfo() }
+  // BFE-045: PasskeyAuthVerifyDto.deviceInfo @MaxLength(255) (bukan 512
+  // seperti login) — potong khusus jalur passkey supaya tidak 422.
+  const body = { ...dto, deviceId: await getDeviceId(), deviceInfo: getDeviceInfo(255) }
   const result = await http.post<LoginResult, { deviceId: string; deviceInfo: string; challengeId: string; assertion: unknown }>("/v1/auth/passkey/auth/verify", body, { auth: "none" })
   if (!asRecord(result)) throw invalidResponse("passkey/auth/verify")
   const record = asRecord(result) ?? {}

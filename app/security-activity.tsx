@@ -43,7 +43,7 @@ import { byTimestampDesc, usePaginatedQuery } from "@/lib/use-paginated-query"
 
 import { ActivityLogItem } from "@/components/ui/activity-log-item"
 import { Button } from "@/components/ui/button"
-import { DeviceSessionListItem } from "@/components/ui/device-session-list-item"
+import { DeviceSessionListItem, type DevicePlatform } from "@/components/ui/device-session-list-item"
 import { Dialog } from "@/components/ui/modal"
 import { Input } from "@/components/ui/input"
 import { EmptyState } from "@/components/ui/empty-state"
@@ -96,6 +96,24 @@ function listPage<T extends { id: string }>(rows: T[], page: number): Page<T> {
  * dari handler stabil level layar, sehingga satu aksi hanya me-render ulang
  * baris yang berubah (identitas objek item dipertahankan `usePaginatedQuery`).
  */
+
+/**
+ * BFE-046: tampilkan info perangkat bila ada — string wire `platform`
+ * (bebas, dari backend) dipetakan ke union `DevicePlatform` komponen agar
+ * ikon perangkat benar; nilai tak dikenal → undefined (komponen memakai
+ * default "mobile").
+ */
+function toDevicePlatform(raw?: string): DevicePlatform | undefined {
+  const key = raw?.trim().toLowerCase()
+  return key === "mobile" ||
+    key === "tablet" ||
+    key === "laptop" ||
+    key === "desktop" ||
+    key === "web"
+    ? key
+    : undefined
+}
+
 const DeviceSessionRow = memo(function DeviceSessionRow({
   session,
   divider,
@@ -120,6 +138,7 @@ const DeviceSessionRow = memo(function DeviceSessionRow({
   return (
     <DeviceSessionListItem
       deviceName={s.deviceName}
+      platform={toDevicePlatform(s.platform)}
       client={s.platform ? `${s.platform}${s.browser ? ` · ${s.browser}` : ""}` : undefined}
       location={s.location}
       ip={s.ip}
