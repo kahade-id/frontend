@@ -221,7 +221,9 @@ export function ChatRoomHeader({
       {...rest}
     >
       <View className="w-full md:max-w-content">
-        <View className="min-h-14 w-full flex-row items-center gap-1 px-2 py-1">
+        {/* 2026-10-02: tinggi header 64px + padding vertikal 8px agar avatar
+            44px tidak menempel separator bawah. */}
+        <View className="min-h-16 w-full flex-row items-center gap-1 px-2 py-2">
           <IconButton
             icon={ArrowLeft}
             size="sm"

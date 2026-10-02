@@ -1762,7 +1762,8 @@ export default function ChatRoomScreen() {
         setMessages((prev) =>
           prev.map((m) => (m.id === tempId || m.id === msg.id ? msg : m)),
         )
-        mergeIncoming([msg], roomId)
+        // 2026-10-02: mergeIncoming DIHAPUS — setMessages di atas sudah
+        // mengganti pesan optimistis; panggilan redundan menyebabkan double bubble.
         // Pengguna aktif → poll kembali cepat bila sedang idle.
         emptyPolls.current = 0
         setPollInterval(CHAT_POLL_MS)
@@ -1826,7 +1827,7 @@ export default function ChatRoomScreen() {
           viewOnce: viewOnceOn || undefined,
         })
         setMessages((prev) => prev.map((m) => (m.id === tempId || m.id === msg.id ? msg : m)))
-        mergeIncoming([msg], roomId)
+        // 2026-10-02: DIHAPUS — penyebab double bubble (redundan dengan setMessages di atas).
         if (viewOnceOn) setViewOnceOn(false)
       } catch (err) {
         setMessages((prev) =>
@@ -1891,7 +1892,7 @@ export default function ChatRoomScreen() {
           viewOnce: viewOnceOn || undefined,
         })
         setMessages((prev) => prev.map((m) => (m.id === tempId || m.id === msg.id ? msg : m)))
-        mergeIncoming([msg], roomId)
+        // 2026-10-02: DIHAPUS — penyebab double bubble (redundan dengan setMessages di atas).
         if (viewOnceOn) setViewOnceOn(false)
       } catch (err) {
         // CN-015: jangan hapus diam-diam — tandai gagal agar bisa retry.
@@ -2017,7 +2018,7 @@ export default function ChatRoomScreen() {
         setMessages((prev) => prev.map((m) => (m.id === tempId || m.id === msg.id ? msg : m)))
         // B07: retry sukses → keluar dari antrean persisten.
         removeChatFailedMessage(roomId, tempId)
-        mergeIncoming([msg], roomId)
+        // 2026-10-02: DIHAPUS — penyebab double bubble (redundan dengan setMessages di atas).
         emptyPolls.current = 0
         setPollInterval(CHAT_POLL_MS)
         void refreshReadReceipts()
@@ -2952,20 +2953,8 @@ export default function ChatRoomScreen() {
         />
       )}
 
-      {/* U5-008 (UX-deep 2026-09-29): banner anti-tipu PERSISTEN di DM
-          tanpa orderId — DM tampil identik chat transaksi dan tidak boleh
-          mengundang transfer langsung. Dilewati untuk: ruang ber-order,
-          self-chat, ruang ORDER/grup, dan lawan bicara ber-badge verifikasi
-          (sealTier abu-abu/biru/emas). CTA = sheet "Buat transaksi" yang sama
-          dengan menu ⋮ (jalur escrow, bukan jalur baru). Hook-in minimal:
-          satu blok kondisional di bawah header. */}
-      {!selecting &&
-      room != null &&
-      isOneToOneChatRoom(room) &&
-      !isSelfChat &&
-      room.counterpart?.sealTier == null ? (
-        <DmEscrowWarning onCreateOrder={() => setCreateOrderSheetOpen(true)} />
-      ) : null}
+      {/* 2026-10-02: banner anti-tipu DIHAPUS dari atas (permintaan user) —
+          dipindah ke bottom sheet menu ⋮. Lihat RoomMenuSheet. */}
       {/* Bar pencarian inline: di bawah header, di atas thread. */}
       {!selecting && inlineSearchOpen ? (
         <ChatInlineSearchBar
@@ -3086,6 +3075,15 @@ export default function ChatRoomScreen() {
           setCreateOrderSheetOpen(true)
         }}
         onOpenReport={() => setReportSheetOpen(true)}
+        // 2026-10-02: peringatan escrow pindah ke sini (dari banner atas).
+        escrowWarning={
+          room != null &&
+          isOneToOneChatRoom(room) &&
+          !isSelfChat &&
+          room.counterpart?.sealTier == null ? (
+            <DmEscrowWarning onCreateOrder={() => setCreateOrderSheetOpen(true)} />
+          ) : undefined
+        }
       />
 
       {/* Edit pesan teks sendiri — draft + simpan di dalam komponen. */}

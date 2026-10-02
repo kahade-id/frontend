@@ -19,7 +19,8 @@
  *   - Aksi massal dibungkus `runBusy` tunggal supaya tombol tidak bisa
  *     ditekan dua kali saat request masih berjalan.
  */
-import { useCallback, useMemo, useState } from "react"
+import { useCallback, useMemo, useState, type ReactNode } from "react"
+import { View } from "react-native"
 
 import {
   Archive,
@@ -67,6 +68,8 @@ export type ChatRoomMenuProps = {
   onOpenReport?: () => void
   /** Self-chat — sembunyikan blokir/lapor & buat transaksi. */
   isSelfChat?: boolean
+  /** Tampilkan peringatan escrow di atas menu (2026-10-02: pindahan dari banner atas). */
+  escrowWarning?: ReactNode
 }
 
 export function ChatRoomMenu({
@@ -82,6 +85,7 @@ export function ChatRoomMenu({
   onOpenCreateOrder,
   onOpenReport,
   isSelfChat = false,
+  escrowWarning,
 }: ChatRoomMenuProps) {
   const toast = useToast()
   const [busy, setBusy] = useState(false)
@@ -212,11 +216,14 @@ export function ChatRoomMenu({
   ])
 
   return (
-    <ActionSheet
-      visible={open}
-      onRequestClose={onClose}
-      title="Opsi percakapan"
-      actions={actions}
-    />
+    <>
+      {escrowWarning ? <View className="px-5 pb-2">{escrowWarning}</View> : null}
+      <ActionSheet
+        visible={open}
+        onRequestClose={onClose}
+        title="Opsi percakapan"
+        actions={actions}
+      />
+    </>
   )
 }

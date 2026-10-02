@@ -134,14 +134,19 @@ export const ChatRoomFooter = memo(function ChatRoomFooter({
   return (
     <View>
       {/* Kembali ke dasar thread — muncul hanya saat pembaca
-          meninggalkan bawah (deteksi di onScroll). */}
-      <ScrollToEndButton
-        visible={showJumpToLatest}
-        onPress={onJumpToLatest}
-        label="Gulir ke pesan terbaru"
-        count={newMessageCount}
-        className="px-5 pb-2"
-      />
+          meninggalkan bawah (deteksi di onScroll).
+          2026-10-02: posisi absolute floating di atas input (bukan di dalam
+          flow) — sebelumnya di dalam View footer sehingga terasa "di dalam input". */}
+      {showJumpToLatest ? (
+        <View className="absolute -top-14 right-5 z-10" pointerEvents="box-none">
+          <ScrollToEndButton
+            visible={showJumpToLatest}
+            onPress={onJumpToLatest}
+            label="Gulir ke pesan terbaru"
+            count={newMessageCount}
+          />
+        </View>
+      ) : null}
 
       {completed ? (
         // UX-SPA-001: dipakai di slot footer <Screen> — divider border-t,

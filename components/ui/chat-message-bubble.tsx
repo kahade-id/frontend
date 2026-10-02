@@ -375,10 +375,10 @@ function ChatMessageBubbleBase({
   const bubble = (
     <View
       className={cn(
-        "gap-2 rounded-md border px-3 py-2",
-        outgoing
-          ? "border-white/70 dark:border-black/30 bg-primary"
-          : "border-border bg-surface",
+        // 2026-10-02: incoming tanpa border tebal — cukup background + rounded
+        // (permintaan user). Outgoing tetap tanpa border (bg-primary solid).
+        "gap-2 rounded-md px-3 py-2",
+        outgoing ? "bg-primary" : "bg-surface",
       )}
     >
       {quote ? (
