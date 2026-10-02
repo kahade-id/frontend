@@ -226,9 +226,10 @@ export function ChatRoomHeader({
         <View className="min-h-16 w-full flex-row items-center gap-1 px-2 py-2">
           <IconButton
             icon={ArrowLeft}
-            size="sm"
+            size="md"
             variant="ghost"
             ripple
+            // 2026-10-02: ikon lebih besar (permintaan user).
             accessibilityLabel="Kembali"
             accessibilityHint="Kembali ke layar sebelumnya"
             containerClassName="self-center"
@@ -257,13 +258,14 @@ export function ChatRoomHeader({
             </View>
           )}
 
-          {extra}
+          {/* 2026-10-02: search icon DIHAPUS dari header (sudah ada di menu ⋮). */}
           <IconButton
             icon={DotsThreeVertical}
-            size="sm"
+            size="md"
             variant="ghost"
             ripple
             weight="bold"
+            // 2026-10-02: ikon lebih besar (permintaan user).
             accessibilityLabel="Opsi percakapan"
             accessibilityHint="Lihat pesanan, cari pesan, dan pengaturan ruang"
             containerClassName="self-center"

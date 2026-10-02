@@ -15,7 +15,6 @@ import { File, Image, Microphone, VideoCamera } from "phosphor-react-native"
 
 import { ActionSheet } from "@/components/ui/action-sheet"
 import type { IconComponent } from "@/components/ui/icon"
-import { CHAT_ATTACHMENT_MAX_BYTES, chatAttachmentFormatsLabel, formatBytesId } from "@/lib/chat-attachment-limits"
 
 /**
  * Kualitas foto yang dipilih user (B05): "standard" = terkompresi,
@@ -28,7 +27,6 @@ export type ChatAttachmentSheetProps = {
   /** Diminta menutup (backdrop / drag / X). Parent yang set visible=false. */
   onRequestClose: () => void
   title?: string
-  description?: string
   onPickImage: (quality: ChatImageQuality) => void
   onPickVideo: () => void
   onPickFile: () => void
@@ -40,7 +38,6 @@ export type ChatAttachmentSheetProps = {
   extraActions?: {
     key: string
     label: string
-    description?: string
     icon: IconComponent
     onPress: () => void
   }[]
@@ -50,56 +47,47 @@ export function ChatAttachmentSheet({
   visible,
   onRequestClose,
   title = "Lampirkan berkas",
-  description,
   onPickImage,
   onPickVideo,
   onPickFile,
   onRecordVoice,
   extraActions = [],
 }: ChatAttachmentSheetProps) {
-  // B06: batas server ditampilkan di sheet supaya user tahu SEBELUM memilih.
-  const limitsText = `Maks ${formatBytesId(CHAT_ATTACHMENT_MAX_BYTES)} · Format: ${chatAttachmentFormatsLabel()}`
   return (
     <ActionSheet
       visible={visible}
       onRequestClose={onRequestClose}
       title={title}
-      description={description ?? `Pilih jenis lampiran untuk pesan ini. ${limitsText}.`}
-      showCancel
-      cancelLabel="Batal"
+      // 2026-10-02: deskripsi DIHAPUS (permintaan user) — cukup judul saja.
+      // Tombol batal & separator bawah juga dihapus (sudah ada ikon X).
       actions={[
         {
           key: "image-standard",
           label: "Foto (standar)",
-          description: "Kualitas standar, ukuran lebih kecil",
           icon: Image,
           onPress: () => onPickImage("standard"),
         },
         {
           key: "image-file",
           label: "Foto (asli)",
-          description: "Kualitas asli tanpa kompresi",
           icon: Image,
           onPress: () => onPickImage("file"),
         },
         {
           key: "video",
           label: "Video",
-          description: "Video dari galeri perangkat",
           icon: VideoCamera,
           onPress: onPickVideo,
         },
         {
           key: "file",
           label: "File",
-          description: "Dokumen dari penyimpanan perangkat",
           icon: File,
           onPress: onPickFile,
         },
         {
           key: "voice",
           label: "Voice Note",
-          description: "Rekam pesan suara langsung",
           icon: Microphone,
           onPress: onRecordVoice,
         },

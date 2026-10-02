@@ -89,6 +89,7 @@ import {
   removeReaction,
   sendChatTyping,
   unpinChatMessage,
+  nonTextMessageLabel,
   type ChatMessage,
   type ChatMessagesPage,
   type ChatPresence,
@@ -630,6 +631,9 @@ export default function ChatRoomScreen() {
           replyTarget.isDeleted
             ? "Pesan ini telah dihapus"
             : replyTarget.text?.trim() ||
+              // 2026-10-02: kartu produk/order/lokasi tidak punya text —
+              // pakai label yang jelas, bukan "Pesan" generik.
+              nonTextMessageLabel(replyTarget.messageType) ||
               (replyTarget.attachments?.length ? "Lampiran" : "Pesan")
         ).slice(0, 80),
       }
@@ -2123,20 +2127,37 @@ export default function ChatRoomScreen() {
    */
   const handleDeleteSelected = useCallback(async () => {
     if (!roomId) return
+    // 2026-10-02: filter pesan optimistis (temp-*) — belum ada di server,
+    // delete ke backend pasti "permintaan tidak valid". Hapus lokal saja.
     const targets = selectedMessages.filter((m) => m.fromUser)
+    const tempTargets = targets.filter((m) => m.id.startsWith("temp-"))
+    const serverTargets = targets.filter((m) => !m.id.startsWith("temp-"))
     if (targets.length === 0) {
       setDeleteOpen(false)
       exitSelect()
       return
     }
+    // Hapus pesan optimistis langsung dari state lokal.
+    if (tempTargets.length > 0) {
+      const tempIds = new Set(tempTargets.map((m) => m.id))
+      setMessages((prev) => prev.filter((m) => !tempIds.has(m.id)))
+    }
+    if (serverTargets.length === 0) {
+      setDeleteOpen(false)
+      exitSelect()
+      if (tempTargets.length > 0) {
+        toast.show({ title: "Pesan dihapus", tone: "success", duration: 2500 })
+      }
+      return
+    }
     setDeleting(true)
     const results = await Promise.allSettled(
-      targets.map((m) => api.chat.deleteChatMessage(roomId, m.id)),
+      serverTargets.map((m) => api.chat.deleteChatMessage(roomId, m.id)),
     )
     const removed = new Set<string>()
     let firstError: unknown
     results.forEach((res, i) => {
-      const target = targets[i]
+      const target = serverTargets[i]
       if (!target) return
       if (res.status === "fulfilled") removed.add(target.id)
       else firstError ??= res.reason
@@ -3185,21 +3206,18 @@ export default function ChatRoomScreen() {
           {
             key: "location",
             label: "Lokasi",
-            description: "Bagikan lokasi GPS saat ini",
             icon: MapPin,
             onPress: () => setLocationSheetOpen(true),
           },
           {
             key: "poll",
             label: "Polling",
-            description: "Buat voting di percakapan ini",
             icon: ChartBar,
             onPress: () => setPollsOpen(true),
           },
           {
             key: "product",
             label: "Kartu produk",
-            description: "Bagikan salah satu etalase Anda",
             icon: Storefront,
             onPress: () => setShowcasePickerOpen(true),
           },
