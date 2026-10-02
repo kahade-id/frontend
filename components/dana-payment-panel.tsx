@@ -96,26 +96,30 @@ function MonitorFooter({
     <>
       {pollError ? (
         <Text variant="caption" tone="danger">
-          Status belum diperbarui: {pollError}
+          {translate("Status belum diperbarui: {x}", { x: pollError })}
         </Text>
       ) : null}
       {refunded ? (
         <Text variant="caption" tone="success">
-          Dana dikembalikan {formatRupiah(refundedAmount)}
-          {refundReference ? ` · Ref ${refundReference}` : ""}
+          {refundReference
+            ? translate("Dana dikembalikan {x} · Ref {y}", {
+                x: formatRupiah(refundedAmount),
+                y: refundReference,
+              })
+            : translate("Dana dikembalikan {x}", { x: formatRupiah(refundedAmount) })}
         </Text>
       ) : (
         <Text variant="caption" tone={failed ? "danger" : "secondary"}>
           {status === "EXPIRED"
-            ? "Kode bayar kedaluwarsa — buat ulang untuk mencoba lagi."
+            ? translate("Kode bayar kedaluwarsa — buat ulang untuk mencoba lagi.")
             : status === "FAILED"
-              ? "Pembayaran gagal — buat ulang untuk mencoba lagi."
+              ? translate("Pembayaran gagal — buat ulang untuk mencoba lagi.")
               : status === "UNKNOWN"
                 ? // M-17: status tak dikenal bukan "masih menunggu" — klaim palsu
                   // selagi uang bisa sudah berpindah. Arahkan ke jalur nyata.
-                  "Status pembayaran belum pasti — cek status sekarang, atau bayar dengan metode lain."
+                  translate("Status pembayaran belum pasti — cek status sekarang, atau bayar dengan metode lain.")
                 : pollStopped
-                  ? "Pemantauan otomatis dihentikan setelah 15 menit — gunakan Cek status sekarang."
+                  ? translate("Pemantauan otomatis dihentikan setelah 15 menit — gunakan Cek status sekarang.")
                   : pendingHint}
         </Text>
       )}
@@ -126,11 +130,11 @@ function MonitorFooter({
       ) : (
         <>
           <Button variant="ghost" loading={checking} onPress={onCheckStatus}>
-            Cek status sekarang
+            {translate("Cek status sekarang")}
           </Button>
           {onUseOtherMethod && stuckWithoutCode ? (
             <Button variant="secondary" disabled={submitting} onPress={onUseOtherMethod}>
-              Bayar dengan metode lain
+              {translate("Bayar dengan metode lain")}
             </Button>
           ) : null}
         </>
@@ -172,26 +176,26 @@ export function VaPaymentPanel({
         <View className="items-center gap-1 rounded-2xl border border-border bg-surface px-4 py-5">
           <Icon icon={Bank} size="lg" tone="default" />
           <Text variant="caption" tone="secondary">
-            {vaBankName ?? "Virtual Account"}
+            {vaBankName ?? translate("Virtual Account")}
           </Text>
           <Text variant="monoLarge">{vaNumber}</Text>
           {accountName ? (
             <Text variant="caption" tone="secondary">
-              a.n. {accountName}
+              {translate("a.n. {x}", { x: accountName })}
             </Text>
           ) : null}
           <Text variant="body" tone="primary">
             {/* SEC-404 (M-33): "Rp0" tidak pernah dicetak untuk nominal tak dikenal. */}
-            {amount != null && amount > 0 ? formatRupiah(amount) : "nominal belum diketahui"}
+            {amount != null && amount > 0 ? formatRupiah(amount) : translate("nominal belum diketahui")}
           </Text>
           <Button
             variant="ghost"
             size="sm"
             leftIcon={copied ? Check : Copy}
             onPress={handleCopy}
-            accessibilityLabel="Salin nomor Virtual Account"
+            accessibilityLabel={translate("Salin nomor Virtual Account")}
           >
-            {copied ? "Tersalin" : "Salin nomor"}
+            {copied ? translate("Tersalin") : translate("Salin nomor")}
           </Button>
         </View>
         {instructions && instructions.length > 0 ? (
@@ -209,7 +213,7 @@ export function VaPaymentPanel({
               const ms = toEpochMs(expiresAt)
               return ms != null ? new Date(ms) : undefined
             })()}
-            prefix="Kedaluwarsa dalam"
+            prefix={translate("Kedaluwarsa dalam")}
             tone="primary"
             dangerUnderSeconds={PAYMENT_COUNTDOWN_DANGER_SECONDS}
             onComplete={monitor.onExpire}
@@ -217,13 +221,13 @@ export function VaPaymentPanel({
         ) : null}
         <MonitorFooter
           {...monitor}
-          recreateLabel="Buat ulang kode VA"
+          recreateLabel={translate("Buat ulang kode VA")}
           pendingHint={
             expiresAt
               ? translate("Berlaku sampai {x} — bayar sesuai nominal.", {
                   x: formatDateTimeWIB(expiresAt),
                 })
-              : "Bayar sesuai nominal — status diperbarui otomatis."
+              : translate("Bayar sesuai nominal — status diperbarui otomatis.")
           }
         />
       </View>
@@ -258,7 +262,7 @@ export function DanaRedirectPanel({
     if (safeUrl) void Linking.openURL(safeUrl)
   }, [safeUrl])
   // SEC-404 (M-33): "Rp0" tidak pernah dicetak untuk nominal tak dikenal.
-  const amountLabel = amount != null && amount > 0 ? formatRupiah(amount) : "nominal belum diketahui"
+  const amountLabel = amount != null && amount > 0 ? formatRupiah(amount) : translate("nominal belum diketahui")
   return (
     <ScreenCaptureGuard>
       <View className="gap-3">
@@ -278,8 +282,8 @@ export function DanaRedirectPanel({
         ) : (
           <Text variant="caption" tone="danger">
             {invalidUrl
-              ? "Tautan pembayaran tidak valid — coba buat ulang atau pilih metode lain."
-              : "Tautan pembayaran tidak tersedia — coba buat ulang atau pilih metode lain."}
+              ? translate("Tautan pembayaran tidak valid — coba buat ulang atau pilih metode lain.")
+              : translate("Tautan pembayaran tidak tersedia — coba buat ulang atau pilih metode lain.")}
           </Text>
         )}
         {!TERMINAL_STATUS.has(monitor.status ?? "") ? (
@@ -288,7 +292,7 @@ export function DanaRedirectPanel({
               const ms = toEpochMs(expiresAt)
               return ms != null ? new Date(ms) : undefined
             })()}
-            prefix="Kedaluwarsa dalam"
+            prefix={translate("Kedaluwarsa dalam")}
             tone="primary"
             dangerUnderSeconds={PAYMENT_COUNTDOWN_DANGER_SECONDS}
             onComplete={monitor.onExpire}
@@ -296,8 +300,8 @@ export function DanaRedirectPanel({
         ) : null}
         <MonitorFooter
           {...monitor}
-          recreateLabel="Buat ulang pembayaran"
-          pendingHint="Setelah membayar di aplikasi, kembali ke sini — status diperbarui otomatis."
+          recreateLabel={translate("Buat ulang pembayaran")}
+          pendingHint={translate("Setelah membayar di aplikasi, kembali ke sini — status diperbarui otomatis.")}
         />
       </View>
     </ScreenCaptureGuard>

@@ -97,7 +97,7 @@ export function QrisPaymentPanel({
   const failed = status === "EXPIRED" || status === "FAILED"
   const stuckWithoutQr = status === "UNKNOWN" || pollStopped
   // SEC-404 (M-33): "Rp0" tidak pernah dicetak untuk nominal tak dikenal.
-  const amountLabel = amount != null && amount > 0 ? formatRupiah(amount) : "nominal belum diketahui"
+  const amountLabel = amount != null && amount > 0 ? formatRupiah(amount) : translate("nominal belum diketahui")
   // FE-111 PARKIR (2026-09-29): "Ganti ke saldo" saat QR AKTIF DIHAPUS —
   // backend tidak punya endpoint cancel QR intent; reset lokal membuat QR
   // lama tetap bisa dibayar (risiko bayar ganda). Jalur UNKNOWN/pollStopped
@@ -110,12 +110,12 @@ export function QrisPaymentPanel({
         // UX-A11Y-011: error polling diumumkan sebagai alert — tanpa ini
         // pengguna SR tidak tahu status berhenti diperbarui.
         <Text variant="caption" tone="danger" accessibilityRole="alert">
-          Status belum diperbarui: {pollError}
+          {translate("Status belum diperbarui: {x}", { x: pollError })}
         </Text>
       ) : null}
       <QRCodeDisplay
         value={qrString}
-        title="Pindai dengan aplikasi pembayaran"
+        title={translate("Pindai dengan aplikasi pembayaran")}
         // R2 (audit ronde-2, butir #31): `expiresAt` hilang pernah membuat
         // caption "Berlaku sampai — · Rp…" (formatDateTimeWIB("") = "—").
         // Tanpa tenggat, jatuh ke nominal saja — tidak ada strip warping "—".
@@ -144,7 +144,7 @@ export function QrisPaymentPanel({
             const ms = toEpochMs(expiresAt)
             return ms != null ? new Date(ms) : undefined
           })()}
-          prefix="Kedaluwarsa dalam"
+          prefix={translate("Kedaluwarsa dalam")}
           tone="primary"
           // FE-134 (audit frontend 2026-09-29): tenggat pembayaran hitungan
           // menit — eskalasi ke danger di bawah 5 menit, selaras dengan
@@ -157,8 +157,12 @@ export function QrisPaymentPanel({
           dikembalikan, bukan klaim "menunggu pembayaran". */}
       {status === "REFUNDED" ? (
         <Text variant="caption" tone="success" accessibilityLiveRegion="polite">
-          Dana dikembalikan {formatRupiah(refundedAmount)}
-          {refundReference ? ` · Ref ${refundReference}` : ""}
+          {refundReference
+            ? translate("Dana dikembalikan {x} · Ref {y}", {
+                x: formatRupiah(refundedAmount),
+                y: refundReference,
+              })
+            : translate("Dana dikembalikan {x}", { x: formatRupiah(refundedAmount) })}
         </Text>
       ) : (
         // UX-A11Y-011: perubahan status dinamis (EXPIRED/FAILED/UNKNOWN/
@@ -171,34 +175,34 @@ export function QrisPaymentPanel({
           accessibilityLiveRegion="polite"
         >
           {status === "EXPIRED"
-            ? "QRIS kedaluwarsa — buat ulang untuk mencoba lagi."
+            ? translate("QRIS kedaluwarsa — buat ulang untuk mencoba lagi.")
             : status === "FAILED"
-              ? "Pembayaran gagal — buat ulang untuk mencoba lagi."
+              ? translate("Pembayaran gagal — buat ulang untuk mencoba lagi.")
               : status === "UNKNOWN"
                 ? // M-17 (audit end-to-end, issue #13): dulu jatuh ke "Menunggu
                   // pembayaran…" untuk status yang TIDAK diketahui — klaim palsu
                   // selagi uang bisa sudah berpindah. Arahkan ke jalur nyata.
-                  "Status pembayaran belum pasti — cek status sekarang, atau bayar dengan metode lain."
+                  translate("Status pembayaran belum pasti — cek status sekarang, atau bayar dengan metode lain.")
                 : pollStopped
-                  ? "Pemantauan otomatis dihentikan setelah 15 menit — gunakan Cek status sekarang."
+                  ? translate("Pemantauan otomatis dihentikan setelah 15 menit — gunakan Cek status sekarang.")
                   : // FE-109: copy pending tepat satu baris, tanpa duplikat.
-                    "Setelah membayar di aplikasi bank, kembali ke sini — status diperbarui otomatis."}
+                    translate("Setelah membayar di aplikasi bank, kembali ke sini — status diperbarui otomatis.")}
         </Text>
       )}
       {failed ? (
         <Button variant="secondary" loading={submitting} onPress={onRecreate}>
-          Buat ulang QRIS
+          {translate("Buat ulang QRIS")}
         </Button>
       ) : (
         <>
           <Button variant="ghost" loading={checking} onPress={onCheckStatus}>
-            Cek status sekarang
+            {translate("Cek status sekarang")}
           </Button>
           {onUseOtherMethod && stuckWithoutQr ? (
             // R2 (butir #29/#30): copy UNKNOWN menjanjikan "bayar dengan
             // metode lain" — tombolnya kini benar-benar ada.
             <Button variant="secondary" disabled={submitting} onPress={onUseOtherMethod}>
-              Bayar dengan metode lain
+              {translate("Bayar dengan metode lain")}
             </Button>
           ) : null}
         </>
