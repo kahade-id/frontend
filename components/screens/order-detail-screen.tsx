@@ -495,7 +495,7 @@ export default function OrderDetailScreen() {
       })
     } catch {
       toast.show({
-        title: translate("Gagal memuat riwayat berikutnya. Coba lagi."),
+        title: "Gagal memuat riwayat berikutnya. Coba lagi.",
         tone: "danger",
       })
     } finally {
@@ -649,12 +649,12 @@ export default function OrderDetailScreen() {
     active: sheet === "pay",
     canCreate: order?.myRole === "BUYER" && selectedMethod != null,
     onPaid: () => {
-      toast.show({ title: translate("Pembayaran diterima"), tone: "success", duration: 3000 })
+      toast.show({ title: "Pembayaran diterima", tone: "success", duration: 3000 })
       closeSheet()
       void query.refresh()
     },
     onError: (message) =>
-      toast.show({ title: translate("Gagal membuat pembayaran"), description: message, tone: "danger" }),
+      toast.show({ title: "Gagal membuat pembayaran", description: message, tone: "danger" }),
   })
   const { creating: payCreating } = payment
 
@@ -880,8 +880,8 @@ export default function OrderDetailScreen() {
   const handleCreateIntent = useCallback(() => {
     if (fee?.buyerPays == null) {
       toast.show({
-        title: translate("Biaya belum tersedia"),
-        description: translate("Rincian biaya belum dimuat. Tutup lalu buka kembali halaman pembayaran."),
+        title: "Biaya belum tersedia",
+        description: "Rincian biaya belum dimuat. Tutup lalu buka kembali halaman pembayaran.",
         tone: "danger",
       })
       return
@@ -1075,8 +1075,8 @@ export default function OrderDetailScreen() {
     // jadi penulisannya harus di domain yang sama.
     snoozeRatingReminder(order.id, serverNow() + RATING_SNOOZE_MS)
     toast.show({
-      title: translate("Pengingat ulasan ditunda"),
-      description: translate("Pengingat muncul lagi di order ini dalam 3 hari."),
+      title: "Pengingat ulasan ditunda",
+      description: "Pengingat muncul lagi di order ini dalam 3 hari.",
       tone: "info",
     })
   }, [order, toast.show])
@@ -1610,7 +1610,7 @@ export default function OrderDetailScreen() {
           // bila kedaluwarsa (reset hanya urusan klien).
           payment.reset()
           toast.show({
-            title: translate("Silakan pilih metode pembayaran lain."),
+            title: "Silakan pilih metode pembayaran lain.",
             tone: "info",
             duration: 2500,
           })
