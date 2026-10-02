@@ -49,7 +49,7 @@
  *     (bukan kartu generik) supaya layout tidak melompat saat data masuk.
  */
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { View } from "react-native"
+import { View, type FlatList } from "react-native"
 import { Funnel, Receipt, ShoppingBag, Storefront, Wallet } from "phosphor-react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useRouter } from "expo-router"
@@ -71,6 +71,7 @@ import { useApiQuery } from "@/lib/use-api-query"
 import { byTimestampDesc, usePaginatedQuery } from "@/lib/use-paginated-query"
 import { useSetUiPrefs, useUiPref } from "@/lib/ui-prefs"
 import { useScrollElevation } from "@/lib/use-scroll-elevation"
+import { useShellTabReselect } from "@/lib/shell-tab-reselect"
 import { ORDER_STATUS_LABELS } from "@/components/ui/order-status-badge"
 import { Button } from "@/components/ui/button"
 import { GuestLoginPrompt } from "@/components/web-guest-gate"
@@ -81,13 +82,14 @@ import { Icon } from "@/components/ui/icon"
 import { IconButton } from "@/components/ui/icon-button"
 import { DrawerMenuButton } from "@/components/ui/drawer-menu-button"
 import { ModeShiftFade } from "@/components/ui/mode-switcher"
-import { OrderCard, OrderCardSkeleton } from "@/components/ui/order-card"
+import { OrderCard } from "@/components/ui/order-card"
 import { PaginatedList } from "@/components/ui/paginated-list"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Screen } from "@/components/ui/screen"
 import { Text } from "@/components/ui/text"
 import { SegmentedControl, type SegmentItem } from "@/components/ui/segmented-control"
 import { TransactionStatusSheet } from "@/components/ui/transaction-status-sheet"
+import { TransactionsTabListSkeleton } from "@/components/ui/tab-loading-skeletons"
 
 /** Peran pengguna pada order — nilai yang dikirim ke `GET /v1/orders?role=`. */
 type RoleTab = "seller" | "buyer"
@@ -208,22 +210,6 @@ const TransactionOrderCard = memo(function TransactionOrderCard({
   )
 })
 
-/** Skeleton sebentuk kartu transaksi (3 kartu) — layout tidak melompat. */
-function TransactionListSkeleton() {
-  return (
-    <View
-      accessible
-      accessibilityRole="progressbar"
-      accessibilityLabel="Memuat transaksi"
-      className="gap-3 pt-1"
-    >
-      <OrderCardSkeleton />
-      <OrderCardSkeleton />
-      <OrderCardSkeleton />
-    </View>
-  )
-}
-
 export default function TransactionsScreen() {
   // FE-064: elemen header kiri yang stabil — <DrawerMenuButton> tanpa prop,
   // aman dipakai ulang antar render agar memo <Header> bisa bail-out.
@@ -247,6 +233,11 @@ export default function TransactionsScreen() {
   const [sheetOpen, setSheetOpen] = useState(false)
   // Efek scroll: header terangkat (bayangan) saat daftar digulir.
   const { elevated, onScrollWorklet } = useScrollElevation()
+  const listRef = useRef<FlatList<OrderDayGroup<Order>>>(null)
+  const scrollToTop = useCallback(() => {
+    listRef.current?.scrollToOffset({ offset: 0, animated: true })
+  }, [])
+  useShellTabReselect("transactions", scrollToTop)
   /**
    * B-02 (audit): tab Transaksi terbuka bagi tamu web
    * (WEB_GUEST_TAB_SCREENS), sedangkan `GET /v1/orders` `auth:"required"` —
@@ -321,6 +312,7 @@ export default function TransactionsScreen() {
           <PressableScale
             onPress={handleWalletPress}
             accessibilityRole="button"
+            hitSlop={{ top: 8, bottom: 8, left: 0, right: 0 }}
             accessibilityLabel={
               typeof walletBalance === "number"
                 ? `Buka Dompet, saldo ${formatRupiah(walletBalance)}`
@@ -356,7 +348,7 @@ export default function TransactionsScreen() {
    * identitas baru tiap render membatalkan `useMemo` di dalam <PaginatedList>
    * dan memaksa VirtualizedList render ulang kontainer.
    */
-  const trxListLoading = useMemo(() => <TransactionListSkeleton />, [])
+  const trxListLoading = useMemo(() => <TransactionsTabListSkeleton />, [])
   const trxListEmpty = useMemo(
     () => (
       <EmptyState
@@ -512,6 +504,7 @@ export default function TransactionsScreen() {
       <PaginatedList
         {...query}
         data={groups}
+        listRef={listRef}
         onScrollWorklet={onScrollWorklet}
         onRefresh={query.refresh}
         onRetry={query.reload}

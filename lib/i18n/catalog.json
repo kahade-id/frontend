@@ -16,7 +16,7 @@
   },
   {
    "s": "Gagal memuat",
-   "n": 35
+   "n": 37
   },
   {
    "s": "Etalase",
@@ -115,10 +115,6 @@
    "n": 13
   },
   {
-   "s": "Pesan",
-   "n": 13
-  },
-  {
    "s": "Sembunyikan",
    "n": 13
   },
@@ -147,7 +143,19 @@
    "n": 12
   },
   {
+   "s": "Memuat…",
+   "n": 12
+  },
+  {
+   "s": "Pesan",
+   "n": 12
+  },
+  {
    "s": "Pesanan",
+   "n": 12
+  },
+  {
+   "s": "Pilihan etalase",
    "n": 12
   },
   {
@@ -196,6 +204,10 @@
   },
   {
    "s": "Lanjutkan",
+   "n": 10
+  },
+  {
+   "s": "Masuk",
    "n": 10
   },
   {
@@ -263,10 +275,6 @@
    "n": 9
   },
   {
-   "s": "Memuat…",
-   "n": 9
-  },
-  {
    "s": "Pengikut",
    "n": 9
   },
@@ -297,10 +305,6 @@
   {
    "s": "Video",
    "n": 9
-  },
-  {
-   "s": "{x} suka",
-   "n": 8
   },
   {
    "s": "Akun",
@@ -369,10 +373,6 @@
   {
    "s": "Ya, batalkan",
    "n": 8
-  },
-  {
-   "s": "Bagikan profil",
-   "n": 7
   },
   {
    "s": "Biaya layanan",
@@ -455,6 +455,10 @@
    "n": 6
   },
   {
+   "s": "{x} suka",
+   "n": 6
+  },
+  {
    "s": "Ajukan sengketa",
    "n": 6
   },
@@ -507,6 +511,10 @@
    "n": 6
   },
   {
+   "s": "Buka opsi etalase",
+   "n": 6
+  },
+  {
    "s": "Buka pengaturan",
    "n": 6
   },
@@ -556,10 +564,6 @@
   },
   {
    "s": "Email",
-   "n": 6
-  },
-  {
-   "s": "Filter etalase",
    "n": 6
   },
   {
@@ -691,14 +695,6 @@
    "n": 6
   },
   {
-   "s": "Media berikutnya",
-   "n": 6
-  },
-  {
-   "s": "Media sebelumnya",
-   "n": 6
-  },
-  {
    "s": "Membuka pilihan: buat etalase, buat transaksi, atau isi saldo",
    "n": 6
   },
@@ -755,10 +751,6 @@
    "n": 6
   },
   {
-   "s": "Pilihan etalase",
-   "n": 6
-  },
-  {
    "s": "Pratinjau",
    "n": 6
   },
@@ -799,10 +791,6 @@
    "n": 6
   },
   {
-   "s": "Stok habis",
-   "n": 6
-  },
-  {
    "s": "Tanggal tidak tersedia",
    "n": 6
   },
@@ -840,10 +828,6 @@
   },
   {
    "s": "Tutup menu",
-   "n": 6
-  },
-  {
-   "s": "Tutup pencarian",
    "n": 6
   },
   {
@@ -952,6 +936,10 @@
   },
   {
    "s": "Disukai",
+   "n": 5
+  },
+  {
+   "s": "Filter etalase",
    "n": 5
   },
   {
@@ -1079,10 +1067,6 @@
    "n": 5
   },
   {
-   "s": "Tandai semua dibaca",
-   "n": 5
-  },
-  {
    "s": "Tanggal",
    "n": 5
   },
@@ -1135,10 +1119,6 @@
    "n": 4
   },
   {
-   "s": "{x} menyimpan",
-   "n": 4
-  },
-  {
    "s": "{x}/{y}",
    "n": 4
   },
@@ -1164,6 +1144,10 @@
   },
   {
    "s": "Atur ulang filter",
+   "n": 4
+  },
+  {
+   "s": "Bagikan profil",
    "n": 4
   },
   {
@@ -1252,10 +1236,6 @@
   },
   {
    "s": "Dana akan ditahan di escrow",
-   "n": 4
-  },
-  {
-   "s": "Diarsipkan",
    "n": 4
   },
   {
@@ -1424,6 +1404,10 @@
   },
   {
    "s": "Lampiran #{x}",
+   "n": 4
+  },
+  {
+   "s": "Laporan & Analitik",
    "n": 4
   },
   {
@@ -1604,6 +1588,10 @@
   },
   {
    "s": "Skor",
+   "n": 4
+  },
+  {
+   "s": "Stok habis",
    "n": 4
   },
   {
@@ -2023,6 +2011,10 @@
    "n": 3
   },
   {
+   "s": "Belum ada pesan",
+   "n": 3
+  },
+  {
    "s": "Belum ada produk di etalase",
    "n": 3
   },
@@ -2052,6 +2044,10 @@
   },
   {
    "s": "Bergabung Sejak",
+   "n": 3
+  },
+  {
+   "s": "Berhenti mengikuti",
    "n": 3
   },
   {
@@ -2147,10 +2143,6 @@
    "n": 3
   },
   {
-   "s": "Buka filter kondisi, rating, dan harga",
-   "n": 3
-  },
-  {
    "s": "Buka filter riwayat",
    "n": 3
   },
@@ -2167,15 +2159,7 @@
    "n": 3
   },
   {
-   "s": "Buka opsi etalase",
-   "n": 3
-  },
-  {
    "s": "Buka opsi kelola etalase",
-   "n": 3
-  },
-  {
-   "s": "Buka pencarian barang dan pengguna",
    "n": 3
   },
   {
@@ -2211,10 +2195,6 @@
    "n": 3
   },
   {
-   "s": "Cari",
-   "n": 3
-  },
-  {
    "s": "Cari {x}",
    "n": 3
   },
@@ -2224,10 +2204,6 @@
   },
   {
    "s": "Cari di daftar {x}",
-   "n": 3
-  },
-  {
-   "s": "Cari di Kahade…",
    "n": 3
   },
   {
@@ -2815,6 +2791,10 @@
    "n": 3
   },
   {
+   "s": "Ikuti",
+   "n": 3
+  },
+  {
    "s": "Ikuti {x}",
    "n": 3
   },
@@ -2971,10 +2951,6 @@
    "n": 3
   },
   {
-   "s": "Ke media {x}",
-   "n": 3
-  },
-  {
    "s": "Kecepatan putar {x} kali",
    "n": 3
   },
@@ -3088,10 +3064,6 @@
   },
   {
    "s": "Kode voucher",
-   "n": 3
-  },
-  {
-   "s": "Kolom pencarian",
    "n": 3
   },
   {
@@ -3235,14 +3207,6 @@
    "n": 3
   },
   {
-   "s": "Lihat penyimpan",
-   "n": 3
-  },
-  {
-   "s": "Lihat penyuka",
-   "n": 3
-  },
-  {
    "s": "Lihat pesan hasil pencarian",
    "n": 3
   },
@@ -3319,7 +3283,15 @@
    "n": 3
   },
   {
+   "s": "Media berikutnya",
+   "n": 3
+  },
+  {
    "s": "Media etalase",
+   "n": 3
+  },
+  {
+   "s": "Media sebelumnya",
    "n": 3
   },
   {
@@ -3480,6 +3452,10 @@
   },
   {
    "s": "Mulai percakapan",
+   "n": 3
+  },
+  {
+   "s": "Mulai percakapan Anda.",
    "n": 3
   },
   {
@@ -3676,6 +3652,10 @@
   },
   {
    "s": "Percakapan ini akan dihapus dari daftar Anda. Tindakan ini tidak dapat dibatalkan.",
+   "n": 3
+  },
+  {
+   "s": "Percakapan tidak tersedia",
    "n": 3
   },
   {
@@ -3927,6 +3907,10 @@
    "n": 3
   },
   {
+   "s": "Ruang chat ini telah dihapus atau dinonaktifkan.",
+   "n": 3
+  },
+  {
    "s": "Saat akun yang Anda ikuti membagikan etalase, etalasenya muncul di sini.",
    "n": 3
   },
@@ -4156,6 +4140,10 @@
   },
   {
    "s": "Tampilkan waktu pasti",
+   "n": 3
+  },
+  {
+   "s": "Tandai semua dibaca",
    "n": 3
   },
   {
@@ -4396,6 +4384,10 @@
   },
   {
    "s": "Tutup kelola",
+   "n": 3
+  },
+  {
+   "s": "Tutup pencarian",
    "n": 3
   },
   {
@@ -5211,6 +5203,10 @@
    "n": 2
   },
   {
+   "s": "Buka filter kondisi, rating, dan harga",
+   "n": 2
+  },
+  {
    "s": "Buka kembali",
    "n": 2
   },
@@ -5288,6 +5284,10 @@
   },
   {
    "s": "Cara membuat",
+   "n": 2
+  },
+  {
+   "s": "Cari di Kahade…",
    "n": 2
   },
   {
@@ -5440,6 +5440,10 @@
   },
   {
    "s": "Detail Tahap",
+   "n": 2
+  },
+  {
+   "s": "Diarsipkan",
    "n": 2
   },
   {
@@ -6283,6 +6287,10 @@
    "n": 2
   },
   {
+   "s": "Kembali ke daftar chat",
+   "n": 2
+  },
+  {
    "s": "Kembali ke dompet",
    "n": 2
   },
@@ -6564,10 +6572,6 @@
   },
   {
    "s": "Langkah {x} dari {x} — Simpan kode cadangan",
-   "n": 2
-  },
-  {
-   "s": "Laporan & Analitik",
    "n": 2
   },
   {
@@ -7460,10 +7464,6 @@
   },
   {
    "s": "Pindahkan lampiran {x} ke bawah",
-   "n": 2
-  },
-  {
-   "s": "Pindai",
    "n": 2
   },
   {
@@ -11639,10 +11639,6 @@
    "n": 1
   },
   {
-   "s": "Belum ada pesan",
-   "n": 1
-  },
-  {
    "s": "Belum ada pesan berbintang",
    "n": 1
   },
@@ -11780,10 +11776,6 @@
   },
   {
    "s": "Berhasil diunggah",
-   "n": 1
-  },
-  {
-   "s": "Berhenti mengikuti",
    "n": 1
   },
   {
@@ -12148,10 +12140,6 @@
   },
   {
    "s": "Buka lampiran {x} dari {y}",
-   "n": 1
-  },
-  {
-   "s": "Buka laporan saya",
    "n": 1
   },
   {
@@ -14715,10 +14703,6 @@
    "n": 1
   },
   {
-   "s": "Ikuti",
-   "n": 1
-  },
-  {
    "s": "Ikuti pengguna",
    "n": 1
   },
@@ -15408,10 +15392,6 @@
   },
   {
    "s": "Kembali ke beranda",
-   "n": 1
-  },
-  {
-   "s": "Kembali ke daftar chat",
    "n": 1
   },
   {
@@ -16272,10 +16252,6 @@
   },
   {
    "s": "Laporan harus memilih kategori, lokasi konten, uraian, dan bukti. Pelapor tidak otomatis mengetahui hasil terperinci karena privasi pihak lain. Pihak yang ditindak dapat mengajukan banding dengan alasan dan bukti baru. Pelaporan massal palsu merupakan pelanggaran.",
-   "n": 1
-  },
-  {
-   "s": "Laporan Saya",
    "n": 1
   },
   {
@@ -17495,10 +17471,6 @@
    "n": 1
   },
   {
-   "s": "Mulai percakapan Anda.",
-   "n": 1
-  },
-  {
    "s": "Nama",
    "n": 1
   },
@@ -18711,10 +18683,6 @@
    "n": 1
   },
   {
-   "s": "Percakapan tidak tersedia",
-   "n": 1
-  },
-  {
    "s": "Percobaan ulang ke-",
    "n": 1
   },
@@ -19796,10 +19764,6 @@
   },
   {
    "s": "Riwayat undangan",
-   "n": 1
-  },
-  {
-   "s": "Ruang chat ini telah dihapus atau dinonaktifkan.",
    "n": 1
   },
   {

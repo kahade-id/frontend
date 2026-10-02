@@ -37,12 +37,13 @@ import {
   type ShellTabKey,
 } from "@/lib/shell-tabs"
 import { useUnreadCountNumber } from "@/lib/unread-count"
+import { emitShellTabReselect } from "@/lib/shell-tab-reselect"
 
 export { isShellTabPath }
 
 export function ShellTabBar() {
   // Daftarkan bahasa aktif supaya label ikut re-render saat bahasa berganti.
-  useLanguage()
+  const language = useLanguage()
   const pathname = usePathname()
   const router = useRouter()
   const unreadCount = useUnreadCountNumber()
@@ -72,12 +73,16 @@ export function ShellTabBar() {
         badgeCount,
       }
     })
-  }, [unreadCount, chatUnreadCount])
+  }, [unreadCount, chatUnreadCount, language])
 
   const onChange = useCallback(
     (key: string) => {
       const tab = SHELL_TABS.find((t) => t.key === key)
-      if (!tab || tab.key === activeKey) return
+      if (!tab) return
+      if (tab.key === activeKey) {
+        emitShellTabReselect(tab.key)
+        return
+      }
       router.navigate(tab.href as never)
     },
     [router, activeKey],
@@ -121,8 +126,6 @@ export function ShellTabBar() {
         icon: QrCode,
         accessibilityLabel: translate("Pindai QR"),
         accessibilityHint: translate("Membuka pemindai kode QR"),
-        // T5-006: label mikro di bawah ikon QR tengah.
-        label: translate("Pindai"),
         onPress: onScan,
       }}
       // Coach mark sekali saja (2026-09-28): pengenal ikon QR yang baru.

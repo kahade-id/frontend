@@ -375,8 +375,10 @@ function ChatMessageBubbleBase({
   const bubble = (
     <View
       className={cn(
-        "gap-2 rounded-md px-3 py-2",
-        outgoing ? "bg-primary" : "border border-border bg-surface",
+        "gap-2 rounded-md border px-3 py-2",
+        outgoing
+          ? "border-white/70 dark:border-black/30 bg-primary"
+          : "border-border bg-surface",
       )}
     >
       {quote ? (
@@ -385,7 +387,7 @@ function ChatMessageBubbleBase({
             "rounded-sm border-l-2 px-2 py-1",
             // UX-COL-007: pola CHT-013 — border putih tak terlihat di dark
             // (bubble putih), bg hitam tak terlihat di light (bubble hitam).
-            outgoing ? "border-white/70 dark:border-black/40 bg-white/15 dark:bg-black/15" : "border-border-focus bg-background",
+            outgoing ? "border-white/70 dark:border-black/30 bg-white/15 dark:bg-black/15" : "border-border-focus bg-background",
           )}
           onPress={onQuotePress}
         >
@@ -456,7 +458,7 @@ function ChatMessageBubbleBase({
             "gap-0.5 rounded-sm border-l-2 px-2 py-1",
             // UX-COL-007: pola CHT-013 — border putih tak terlihat di dark
             // (bubble putih), bg hitam tak terlihat di light (bubble hitam).
-            outgoing ? "border-white/70 dark:border-black/40 bg-white/15 dark:bg-black/15" : "border-info bg-info-soft",
+            outgoing ? "border-white/70 dark:border-black/30 bg-white/15 dark:bg-black/15" : "border-info bg-info-soft",
           )}
         >
           <Text

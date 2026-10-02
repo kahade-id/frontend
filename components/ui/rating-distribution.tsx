@@ -24,6 +24,8 @@ import { formatDecimal } from "@/lib/format"
 import { translate, useLanguage } from "@/lib/i18n"
 import { getPublicRatingSummary, type PublicRatingSummary } from "@/lib/api/ratings"
 
+const EMPTY_RATING_COUNTS = [0, 0, 0, 0, 0]
+
 export type RatingDistributionProps = {
   /**
    * Username pemilik ulasan — distribusi diambil dari ringkasan publik
@@ -63,13 +65,16 @@ export function RatingDistributionBars({ username, selectedStars = null, onSelec
     }
   }, [username])
 
+  // Hook harus dipanggil pada setiap render; summary baru tersedia setelah
+  // request selesai. Memanggil useMemo setelah guard `if (!summary)` membuat
+  // React melihat jumlah hook berubah dan merusak tab Ulasan saat data tiba.
+  const counts = summary?.distribution.counts ?? EMPTY_RATING_COUNTS
+  const fallbackSum = useMemo(() => counts.reduce((acc, c, i) => acc + c * (i + 1), 0), [counts])
   if (!summary) return null
 
-  const { counts, total } = summary.distribution
+  const { total } = summary.distribution
   // Rata-rata dari server; fallback = hitung dari distribusi server (bukan
   // dari halaman daftar yang dimuat — itu menyesatkan).
-  // TIM 8 (perf): di-memo — sebelumnya reduce tiap render walau jarang berubah.
-  const fallbackSum = useMemo(() => counts.reduce((acc, c, i) => acc + c * (i + 1), 0), [counts])
   const average = summary.averageRating ?? (total > 0 ? fallbackSum / total : 0)
 
   return (

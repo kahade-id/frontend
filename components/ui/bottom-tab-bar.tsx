@@ -86,7 +86,6 @@ import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { focusRingInset } from "@/lib/focus-ring"
 import { haptic } from "@/lib/haptics"
-import { hitSlopToReach } from "@/lib/hit-slop"
 import { translate, useLanguage } from "@/lib/i18n"
 import { TAB_ROUTE_NAMES, type TabRouteName } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
@@ -278,11 +277,10 @@ export type BottomTabBarProps<K extends string = string> = Omit<ViewProps, "chil
 export const TAB_BAR_HEIGHT = 60
 
 /**
- * Hit target: lebar tab ~72px di 360px/5 = 72 >44, tinggi 60 >44, tapi ikon 24 di tengah
- * tetap butuh slop 10 horizontal agar tap di antara ikon-label tidak miss.
- * Hitung eksplisit per sumbu, bukan asumsi tinggi saja.
+ * Area tambahan hanya mendatar. Slop vertikal akan menjorok ke konten
+ * tepat di atas bar dan berisiko menelan tap pada baris daftar terbawah.
  */
-const TAB_ITEM_HIT_SLOP = hitSlopToReach(72, TAB_BAR_HEIGHT, 80)
+const TAB_ITEM_HIT_SLOP = { top: 0, bottom: 0, left: 10, right: 10 } as const
 
 /**
  * Scale ikon tab aktif (v2): 24px → 27.6px — cukup terlihat sebagai penanda,

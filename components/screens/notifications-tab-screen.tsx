@@ -46,7 +46,7 @@ import { useNotificationsRealtime } from "@/lib/realtime/use-notifications-realt
 import { PaginatedList } from "@/components/ui/paginated-list"
 import { useToast } from "@/components/ui/toast"
 import { memo, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react"
-import { StyleSheet, View } from "react-native"
+import { View, type FlatList } from "react-native"
 import { router } from "expo-router"
 import {
   Bell,
@@ -54,7 +54,7 @@ import {
   CheckSquare,
   Checks,
   DotsThreeVertical,
-  FunnelSimple,
+  Funnel,
   GearSix,
   Megaphone,
   Receipt,
@@ -82,24 +82,22 @@ import {
 import { checkNotificationTarget } from "@/lib/notification-target"
 import { refreshUnreadCount } from "@/lib/unread-count"
 import { logWarn } from "@/lib/telemetry"
-import { hitSlopToReach } from "@/lib/hit-slop"
 
 import { ActionSheet, type ActionSheetItem } from "@/components/ui/action-sheet"
 import { Dialog } from "@/components/ui/modal"
-import { Icon } from "@/components/ui/icon"
 import { IconButton } from "@/components/ui/icon-button"
 import { DrawerMenuButton } from "@/components/ui/drawer-menu-button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { FadeIn } from "@/components/ui/fade-in"
 import { Header } from "@/components/ui/header"
 import { NotificationListItem } from "@/components/ui/notification-list-item"
-import { PressableScale } from "@/components/ui/pressable-scale"
 import { Screen } from "@/components/ui/screen"
 import { SegmentedControl, type SegmentItem } from "@/components/ui/segmented-control"
-import { Skeleton, SkeletonGroup } from "@/components/ui/skeleton"
 import { Text } from "@/components/ui/text"
 import { GuestLoginPrompt } from "@/components/web-guest-gate"
 import { useAuthSession } from "@/lib/use-auth-session"
+import { NotificationsTabListSkeleton } from "@/components/ui/tab-loading-skeletons"
+import { useShellTabReselect } from "@/lib/shell-tab-reselect"
 
 // ------------------------------------------------------------------
 // Konstanta layar
@@ -123,42 +121,6 @@ const EMPTY_ICON: Record<NotificationCategory, typeof Bell> = {
 const PAGE_SIZE = 20
 /** BatchNotificationIdsDto: "max 50 per request" */
 const BATCH_MAX = 50
-/** Baris skeleton saat muat pertama — sebentuk <NotificationListItem>. */
-const SKELETON_COUNT = 5
-
-// ------------------------------------------------------------------
-// Skeleton placeholder: satu baris notifikasi
-// ------------------------------------------------------------------
-
-function NotifSkeletonRow() {
-  return (
-    <View style={skeletonStyles.row}>
-      <Skeleton shape="circle" width={40} height={40} />
-      <View style={skeletonStyles.textCol}>
-        <Skeleton height={14} style={skeletonStyles.w70} />
-        <Skeleton height={12} style={skeletonStyles.w88} />
-        <Skeleton height={12} style={skeletonStyles.w45} />
-      </View>
-    </View>
-  )
-}
-
-// PERF-FIX (TIM1-P2): style skeleton statis — bukan objek inline per render.
-const skeletonStyles = StyleSheet.create({
-  row: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    // Sebentuk baris aslinya: chip ikon 40 + gap 12 + padding layar 20.
-    gap: tokens.space[3],
-    paddingHorizontal: tokens.layout.screenPaddingX,
-    paddingVertical: tokens.space[3],
-  },
-  textCol: { flex: 1, gap: tokens.space[2] },
-  w70: { width: "70%" },
-  w88: { width: "88%" },
-  w45: { width: "45%" },
-})
-
 // ------------------------------------------------------------------
 // Header grup hari ("Hari ini" / "Kemarin" / tanggal)
 // ------------------------------------------------------------------
@@ -181,7 +143,7 @@ function NotificationDayHeader({ label, sub }: { label: string; sub: string | nu
 }
 
 // ------------------------------------------------------------------
-// Tombol "Tandai semua dibaca" — pil berlabel, bukan ikon kriptik.
+// Tombol "Tandai semua dibaca" — ikon Checks dengan label aksesibilitas lengkap.
 // Hanya dirender bila ada unread (lihat pemanggil).
 // ------------------------------------------------------------------
 
@@ -192,26 +154,16 @@ function MarkAllReadButton({
   busy: boolean
   onPress: () => void
 }) {
-  // Item 42: label visual disamakan dengan accessibilityLabel — "Tandai semua
-  // dibaca" (sebelumnya visual "Tandai dibaca" vs a11y "Tandai semua dibaca").
   return (
-    <PressableScale
-      accessibilityRole="button"
+    <IconButton
+      icon={Checks}
+      size="sm"
+      variant="ghost"
+      loading={busy}
       accessibilityLabel={translate("Tandai semua dibaca")}
       accessibilityHint={translate("Menandai seluruh notifikasi sebagai sudah dibaca")}
-      scaleOnPress={false}
-      ripple
-      disabled={busy}
       onPress={onPress}
-      hitSlop={hitSlopToReach(40)}
-      className="h-10 flex-row items-center gap-1.5 rounded-full bg-surface px-4"
-    >
-      <Icon icon={Checks} size="sm" tone="active" />
-      {/* Item 42: teks terlihat selaras dengan label aksesibilitas. */}
-      <Text variant="body" weight={600} tone="primary">
-        {translate("Tandai semua dibaca")}
-      </Text>
-    </PressableScale>
+    />
   )
 }
 
@@ -361,6 +313,11 @@ function NotificationsScreen() {
   const toast = useToast()
   // Efek scroll: header terangkat (bayangan) saat daftar digulir.
   const { elevated, onScrollWorklet } = useScrollElevation()
+  const listRef = useRef<FlatList<NotificationRow>>(null)
+  const scrollToTop = useCallback(() => {
+    listRef.current?.scrollToOffset({ offset: 0, animated: true })
+  }, [])
+  useShellTabReselect("notifications", scrollToTop)
   const insets = useSafeAreaInsets()
 
   const [categoryState, setCategoryState] = useState<NotificationCategory | null>(null)
@@ -748,7 +705,7 @@ function NotificationsScreen() {
           <MarkAllReadButton busy={batchBusy} onPress={() => void handleReadAll()} />
         ) : null}
         <IconButton
-          icon={FunnelSimple}
+          icon={Funnel}
           variant="ghost"
           active={unreadOnly}
           accessibilityLabel={
@@ -808,16 +765,7 @@ function NotificationsScreen() {
    * identitas baru tiap render membatalkan `useMemo` di dalam <PaginatedList>
    * dan memaksa VirtualizedList render ulang kontainer.
    */
-  const notifListLoading = useMemo(
-    () => (
-      <SkeletonGroup>
-        {Array.from({ length: SKELETON_COUNT }, (_, index) => (
-          <NotifSkeletonRow key={index} />
-        ))}
-      </SkeletonGroup>
-    ),
-    [],
-  )
+  const notifListLoading = useMemo(() => <NotificationsTabListSkeleton />, [])
   const notifListEmpty = useMemo(
     () => (
       <EmptyState
@@ -884,6 +832,7 @@ function NotificationsScreen() {
         // tetap membawa loading/error/pagination.
         data={rows}
         keyExtractor={notificationRowId}
+        listRef={listRef}
         onScrollWorklet={onScrollWorklet}
         padded={false}
         // Audit: default <ListLoading/> merender 4 kartu h-24; baris

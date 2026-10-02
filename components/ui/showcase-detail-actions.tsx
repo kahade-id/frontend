@@ -9,6 +9,7 @@
  * 2026-09-23).
  */
 import { BookmarkSimple, ChatCircle, Export } from "phosphor-react-native"
+import { useRef } from "react"
 import { View } from "react-native"
 
 import { Icon } from "@/components/ui/icon"
@@ -27,12 +28,14 @@ type Props = {
   /** S-01: tap kedua saat request berjalan mengantre, tombol tampil sibuk. */
   likePending: boolean
   onToggleLike: () => void
+  onShowLikers?: () => void
   commentTotal: number
   onCommentPress: () => void
   saved: boolean
   /** S-02: simpan optimistis — state sibuk eksplisit untuk a11y. */
   savedPending: boolean
   onToggleSave: () => void
+  onShowSavers?: () => void
   onShare: () => void
 }
 
@@ -41,15 +44,18 @@ export function ShowcaseDetailActions({
   likeCount,
   likePending,
   onToggleLike,
+  onShowLikers,
   commentTotal,
   onCommentPress,
   saved,
   savedPending,
   onToggleSave,
+  onShowSavers,
   onShare,
 }: Props) {
   // i18n: label aksesibilitas mengikuti bahasa aktif.
   useLanguage()
+  const saveLongPressTriggered = useRef(false)
   return (
     <View className="flex-row items-center px-2 pt-1">
       <LikeAction
@@ -58,6 +64,7 @@ export function ShowcaseDetailActions({
         label="Suka"
         busy={likePending}
         onPress={onToggleLike}
+        onLongPress={onShowLikers}
       />
       <PressableScale
         accessibilityRole="button"
@@ -96,7 +103,22 @@ export function ShowcaseDetailActions({
         accessibilityLabel={saved ? translate("Hapus dari tersimpan") : translate("Simpan")}
         accessibilityHint={translate("Simpan etalase ini")}
         accessibilityState={{ selected: saved, busy: savedPending }}
-        onPress={onToggleSave}
+        onPressIn={() => {
+          saveLongPressTriggered.current = false
+        }}
+        onPress={() => {
+          if (saveLongPressTriggered.current) {
+            saveLongPressTriggered.current = false
+            return
+          }
+          onToggleSave()
+        }}
+        onLongPress={() => {
+          // A long press must never fall through to toggle-save, even when
+          // this caller cannot expose the private savers list.
+          saveLongPressTriggered.current = true
+          onShowSavers?.()
+        }}
         containerClassName={cn(
           "min-h-11 min-w-11 items-center justify-center rounded-md",
           focusRing,

@@ -48,10 +48,14 @@
 // 2. COLOR SYSTEM
 // ==================================================================
 
-/** 2.1 Brand — #000000 dipakai sengaja terbatas (primary action, border-focus, ikon aktif) */
+/**
+ * 2.1 Brand — hitam/putih untuk UI monokrom; kuning hanya untuk mark logo
+ * zigzag resmi (bukan aksen status atau warna interaksi).
+ */
 export const brand = {
   black: "#000000",
   white: "#FFFFFF",
+  yellow: "#FFD200",
 } as const
 
 /**

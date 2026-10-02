@@ -28,7 +28,7 @@
  */
 
 import { memo, useCallback, useMemo, useState } from "react"
-import { BookmarkSimple, ChatCircle, DotsThreeCircle, Flag, Heart, ShareNetwork } from "phosphor-react-native"
+import { BookmarkSimple, ChatCircle, DotsThreeCircle, Export, Flag, Heart } from "phosphor-react-native"
 import { router } from "expo-router"
 import { View } from "react-native"
 import Animated, {
@@ -64,7 +64,6 @@ import { cn } from "@/lib/cn"
 import { focusRing } from "@/lib/focus-ring"
 import { shouldFireDoubleTapLike } from "@/lib/showcase-like-guard"
 import { isShowcaseSoldOut } from "@/lib/showcase-stock"
-import { FeedFollowButton } from "@/components/ui/feed-follow-button"
 import { prefetchUserProfile } from "@/lib/entity-detail-prefetch"
 
 export type ShowcaseFeedItemProps = {
@@ -109,7 +108,7 @@ export type ShowcaseFeedItemProps = {
   /**
    * C11 (batch 139): mode pratinjau — kartu memakai komponen yang sama dengan
    * feed, tetapi semua tombol tidak navigasi/tidak memicu aksi (author,
-   * kategori, media, follow, lapor, dan bar aksi dirender non-interaktif).
+   * kategori, media, lapor, dan bar aksi dirender non-interaktif).
    * Dipakai sheet pratinjau sebelum terbitkan etalase.
    */
   nonInteractive?: boolean
@@ -394,10 +393,6 @@ function ShowcaseFeedItemBase({
           </View>
         </PressableScale>
         )}
-        {/* C11: pratinjau menyembunyikan tombol aksi (ikuti/lapor/kelola). */}
-        {!nonInteractive && !item.isOwner ? (
-          <FeedFollowButton username={item.author.username} isOwner={item.isOwner} />
-        ) : null}
         {/* B-05: lapor tidak masuk akal untuk karya sendiri (selaras detail).
             Untuk karya sendiri tampilkan DotsThreeCircle (kelola: edit/hapus)
             bila onManage disediakan. C11: pratinjau menyembunyikan semuanya. */}
@@ -556,7 +551,7 @@ function ShowcaseFeedItemBase({
             onPress={onShare}
             containerClassName={cn("min-h-11 min-w-11 items-center justify-center rounded-md", focusRing)}
           >
-            <Icon icon={ShareNetwork} size="md" tone="active" />
+            <Icon icon={Export} size="md" tone="active" />
           </PressableScale>
         ) : null}
         {onToggleSave ? (

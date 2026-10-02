@@ -55,7 +55,7 @@
  *     supaya list tidak melompat saat data masuk.
  */
 import { memo, useEffect, useRef, useState } from "react"
-import { View, type ViewProps } from "react-native"
+import { View } from "react-native"
 import { ArrowDownLeft, ArrowUpRight, Clock } from "phosphor-react-native"
 import { translate } from "@/lib/i18n/translate"
 import { translateProp } from "@/lib/i18n"
@@ -77,7 +77,6 @@ import {
   type OrderRole,
   type OrderStatus,
 } from "@/components/ui/order-status-badge"
-import { Skeleton } from "@/components/ui/skeleton"
 import { Highlight } from "@/components/ui/highlight"
 import { Text } from "@/components/ui/text"
 import { summarize } from "@/lib/a11y"
@@ -85,6 +84,8 @@ import { cn } from "@/lib/cn"
 import { hasOwn } from "@/lib/has-own"
 import { formatRupiah } from "@/lib/format"
 import { ORDER_STATUS_LABELS } from "@/lib/labels/status"
+
+export { OrderCardSkeleton } from "@/components/ui/order-card-skeleton"
 
 export type OrderCounterpart = {
   name: string
@@ -490,39 +491,3 @@ const OrderCardDeadline = memo(function OrderCardDeadline({
     </Text>
   )
 })
-
-/** Placeholder dengan tinggi menyamai OrderCard tanpa tenggat */
-export function OrderCardSkeleton({
-  className,
-  ...rest
-}: Omit<ViewProps, "children"> & { className?: string }) {
-  return (
-    <View
-      accessible
-      accessibilityRole="progressbar"
-      className={cn(
-        "w-full gap-3 rounded-md border border-border bg-surface p-5",
-        className,
-      )}
-      accessibilityLabel="Memuat transaksi"
-      {...rest}
-    >
-      <View className="flex-row items-center justify-between gap-2">
-        <Skeleton height={12} className="w-32" />
-        <Skeleton height={22} className="w-24" />
-      </View>
-      <Skeleton height={18} className="w-full" />
-      <View className="flex-row items-center gap-2">
-        <Skeleton shape="circle" width={24} height={24} />
-        <Skeleton height={12} className="w-40" />
-      </View>
-      <View className="flex-row items-center justify-between">
-        <View className="flex-row items-center gap-2">
-          <Skeleton shape="circle" width={24} height={24} />
-          <Skeleton height={16} className="w-28" />
-        </View>
-        <Skeleton height={12} className="w-24" />
-      </View>
-    </View>
-  )
-}

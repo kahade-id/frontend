@@ -16,6 +16,7 @@ import { logWarn } from "@/lib/telemetry"
 
 import { Text } from "@/components/ui/text"
 import { Icon } from "@/components/ui/icon"
+import { cn } from "@/lib/cn"
 import { MapPin, NavigationArrow } from "phosphor-react-native"
 
 export type ChatLocationCardProps = {
@@ -63,7 +64,14 @@ export const ChatLocationCard = memo(function ChatLocationCard({
   }
 
   return (
-    <View className="gap-1.5">
+    <View
+      className={cn(
+        "gap-1.5 rounded-sm border p-2",
+        outgoing
+          ? "border-white/70 dark:border-black/30 bg-white/10 dark:bg-black/10"
+          : "border-border bg-background",
+      )}
+    >
       <View className="flex-row items-center gap-2">
         <View
           className={`h-9 w-9 items-center justify-center rounded-full ${

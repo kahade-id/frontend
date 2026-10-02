@@ -8,7 +8,7 @@
 import { useEffect, useState } from "react"
 import { View } from "react-native"
 import { router } from "expo-router"
-import { CaretRight, Flag, PencilSimple, Star } from "phosphor-react-native"
+import { CaretRight, DotsThreeVertical, Flag, PencilSimple, Star, UserMinus, UserPlus } from "phosphor-react-native"
 
 import { translate } from "@/lib/i18n/translate"
 import { useLanguage } from "@/lib/i18n"
@@ -25,7 +25,8 @@ import { Badge } from "@/components/ui/badge"
 import { Icon } from "@/components/ui/icon"
 import { IconButton } from "@/components/ui/icon-button"
 import { PressableScale } from "@/components/ui/pressable-scale"
-import { FeedFollowButton } from "@/components/ui/feed-follow-button"
+import { ActionSheet } from "@/components/ui/action-sheet"
+import { useFeedFollow } from "@/components/ui/feed-follow-button"
 import { Text } from "@/components/ui/text"
 import { VerifiedName } from "@/components/ui/verified-name"
 
@@ -76,6 +77,38 @@ function SellerRatingLine({ username, hasSession }: { username: string; hasSessi
         {`${formatDecimal(summary.averageRating, 1)} · ${summary.distribution.total} ${translate("ulasan")}`}
       </Text>
     </PressableScale>
+  )
+}
+
+function AuthorFollowMenu({ username }: { username: string }) {
+  const [open, setOpen] = useState(false)
+  const { following, loading, onToggle } = useFeedFollow(username)
+
+  return (
+    <>
+      <IconButton
+        icon={DotsThreeVertical}
+        variant="ghost"
+        size="sm"
+        accessibilityLabel={translate("Pilihan etalase")}
+        accessibilityHint={translate("Buka opsi etalase")}
+        onPress={() => setOpen(true)}
+      />
+      <ActionSheet
+        visible={open}
+        onRequestClose={() => setOpen(false)}
+        title={translate("Pilihan etalase")}
+        actions={[
+          {
+            key: "follow",
+            label: following ? translate("Berhenti mengikuti") : translate("Ikuti"),
+            icon: following ? UserMinus : UserPlus,
+            disabled: loading,
+            onPress: () => onToggle(!following),
+          },
+        ]}
+      />
+    </>
   )
 }
 
@@ -131,12 +164,17 @@ export function ShowcaseAuthorRow({ item, isOwner, hasSession, onReport }: Showc
             diketuk menuju profil (affordance yang selama ini implisit). */}
         <Icon icon={CaretRight} size="sm" tone="default" />
       </PressableScale>
-      {/* Item 154 (FE-IMP-1): follow langsung dari detail (optimistis,
-          rollback, gate tamu) — sama seperti di kartu feed. */}
-      {!isOwner ? <FeedFollowButton username={item.author.username} isOwner={false} /> : null}
+      {/* Follow di detail tersedia dari menu titik tiga, bukan tombol langsung. */}
+      {!isOwner ? <AuthorFollowMenu username={item.author.username} /> : null}
       {/* B-05 selaras: bendera disembunyikan untuk item sendiri. */}
       {!isOwner ? (
-        <IconButton icon={Flag} variant="ghost" size="sm" accessibilityLabel={translate("Laporkan")} onPress={onReport} />
+        <IconButton
+          icon={Flag}
+          variant="ghost"
+          size="sm"
+          accessibilityLabel={translate("Laporkan")}
+          onPress={onReport}
+        />
       ) : null}
       {/* S8 (audit 2026-09-26): "Ubah karya" langsung membuka editor ITEM INI
           via `?edit=<id>` — bukan sekadar daftar kelola. */}

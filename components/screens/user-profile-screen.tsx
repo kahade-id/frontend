@@ -54,7 +54,7 @@ import { useHasSession } from "@/lib/guest-gate"
 import { goBackOrNavigate } from "@/lib/navigation"
 import { resolveMediaUrl } from "@/lib/media"
 import { ROUTES } from "@/lib/routes"
-import { isFilePayload, shareContent, type SharePayload } from "@/lib/share"
+import { isFilePayload, type SharePayload } from "@/lib/share"
 import { TEXT_ROW_HIT_SLOP } from "@/lib/hit-slop"
 import { logWarn } from "@/lib/telemetry"
 
@@ -211,6 +211,7 @@ function SocialStat({
       accessibilityLabel={translate("{x} {y}", { x: formatNumber(count), y: label })}
       accessibilityHint={openListLabel}
       accessibilityRole="button"
+      hitSlop={TEXT_ROW_HIT_SLOP}
       onPress={onPress}
     >
       <Text variant="body" tone="secondary">
@@ -797,21 +798,6 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
     [copy, toast],
   )
 
-  // UI-P005: kunci in-flight sinkron — double-tap cepat tidak boleh membuka
-  // dua sheet berbagi bertumpuk (menu kebab memakai ShareSheetTrigger ber-guard).
-  const sharingRef = useRef(false)
-  const handleShare = useCallback(async () => {
-    if (!handle || sharingRef.current) return
-    sharingRef.current = true
-    try {
-      const payload = profileSharePayload()
-      const outcome = await shareContent(payload)
-      if (outcome === "unavailable") await shareUnavailable(payload)
-    } finally {
-      sharingRef.current = false
-    }
-  }, [handle, profileSharePayload, shareUnavailable])
-
   const handleBlock = useCallback(async () => {
     // P3 (audit 2026-09-26): tamu di-gate login sebelum aksi blokir.
     if (!requireSession()) return
@@ -949,7 +935,7 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
   const isMyComment = (c: QuestionComment) => isOwnQuestionComment(c, meId)
 
   return (
-    <Screen edges={["top"]} padded={false}>
+    <Screen keyboardAvoiding edges={["top"]} padded={false}>
       <DataScroll onRefresh={handleRefresh} refreshing={refreshing} padded={false}>
         {/* ── Top Bar (di atas cover) ──────────────────────────
             <Header transparent>: @username PUSAT di bar — satu-satunya
@@ -1072,16 +1058,10 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
                 )}
               </View>
 
-              {/* A.4 — hierarki: aksi tersier (♡ Favorit, 🔖 Tersimpan, dan
-                  kini ⤴ Bagikan) duduk SATU baris di samping avatar; aksi
-                  primer/sekunder ([Ikuti] / [Kirim Pesan]) tetap mendapat
-                  baris berlabel sendiri di bawah bio. Bagikan dipindah dari
-                  top bar ke sini (permintaan produk 2026-09-21) karena ia
-                  aksi terhadap profil ini, bukan navigasi — dan di top bar ia
-                  bersaing dengan ⋮.
-                  Profil sendiri: [Edit profil] di posisi KIRI baris ini, lalu
-                  Bagikan di kanan, sehingga urutan aksinya sama dengan profil
-                  orang lain (aksi utama paling kiri). */}
+              {/* A.4 — aksi ringkas yang relevan duduk di samping avatar;
+                  aksi utama [Ikuti]/[Kirim Pesan] tetap berada di bawah bio.
+                  Bagikan tersedia dari bottom sheet titik tiga. Profil sendiri
+                  menampilkan [Ubah profil] di posisi kiri baris ini. */}
               <View className="flex-row items-center gap-2 pb-1">
                 {isSelf ? (
                   <Button
@@ -1125,13 +1105,6 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
                   size="sm"
                   accessibilityLabel={translate("Kode QR profil")}
                   onPress={() => setQrOpen(true)}
-                />
-                <IconButton
-                  icon={ShareNetwork}
-                  variant="secondary"
-                  size="sm"
-                  accessibilityLabel={translate("Bagikan profil")}
-                  onPress={() => void handleShare()}
                 />
               </View>
             </View>

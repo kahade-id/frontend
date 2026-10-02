@@ -24,7 +24,7 @@
  * Gerakan like tidak pernah menjadi satu-satunya umpan balik (angka + warna
  * + label a11y tetap berubah).
  */
-import { useEffect } from "react"
+import { useEffect, useRef } from "react"
 import { View } from "react-native"
 import Animated, {
   Easing,
@@ -53,6 +53,8 @@ export type LikeActionProps = {
   liked: boolean
   count: number
   onPress?: () => void
+  /** Long press opens the list of users who liked the item. */
+  onLongPress?: () => void
   /** Label setelah angka (default "Suka"). */
   label?: string
   /**
@@ -69,7 +71,15 @@ const RING_BOX = 40
 /** Ukuran ikon — sama dengan CountAction (Icon size="md"). */
 const HEART_SIZE = tokens.icon.size.md
 
-export function LikeAction({ liked, count, onPress, label = "Suka", busy = false, className }: LikeActionProps) {
+export function LikeAction({
+  liked,
+  count,
+  onPress,
+  onLongPress,
+  label = "Suka",
+  busy = false,
+  className,
+}: LikeActionProps) {
   const { mode } = useTheme()
   const reducedMotion = useReducedMotion()
   const dangerFill = tokens.colors.semantic.danger[mode].fill
@@ -82,6 +92,7 @@ export function LikeAction({ liked, count, onPress, label = "Suka", busy = false
   const rotate = useSharedValue(0)
   /** 0→1 = ring mekar sampai habis. */
   const ring = useSharedValue(0)
+  const longPressTriggered = useRef(false)
 
   useEffect(() => {
     if (liked === (progress.value === 1)) return
@@ -199,7 +210,22 @@ export function LikeAction({ liked, count, onPress, label = "Suka", busy = false
       accessibilityHint={translate("{x} suka", { x: formatCountCompact(count) })}
       accessibilityState={{ selected: liked, busy }}
       haptic
-      onPress={onPress}
+      onPressIn={() => {
+        longPressTriggered.current = false
+      }}
+      onPress={() => {
+        if (longPressTriggered.current) {
+          longPressTriggered.current = false
+          return
+        }
+        onPress?.()
+      }}
+      onLongPress={() => {
+        // Long press is its own gesture: do not fall through to toggle-like
+        // when a caller has no list action available.
+        longPressTriggered.current = true
+        onLongPress?.()
+      }}
       containerClassName={cn("min-h-11 flex-row items-center rounded-md px-3", focusRing)}
       className={cn("flex-row items-center gap-1.5", busy && "opacity-60", className)}
     >
