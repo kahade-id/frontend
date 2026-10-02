@@ -3082,6 +3082,9 @@ export default function ChatRoomScreen() {
         ref={scrollRef}
         className="flex-1"
         removeClippedSubviews={false}
+        // 2026-10-03: sembunyikan scrollbar (permintaan user — efek abu-abu
+        // di kanan mengganggu).
+        showsVerticalScrollIndicator={false}
         // B10: baris campuran (hari/pemisah/pesan); baris "day" sticky.
         data={threadRows}
         keyExtractor={threadKeyExtractor}
@@ -3152,7 +3155,6 @@ export default function ChatRoomScreen() {
         isSelfChat={isSelfChat}
         onExport={() => void handleExport()}
         onOpenStarred={() => setStarredOpen(true)}
-        onOpenPolls={() => setPollsOpen(true)}
         onOpenCreateOrder={() => {
           setCreateOrderProduct(null)
           setCreateOrderSheetOpen(true)
@@ -3260,10 +3262,6 @@ export default function ChatRoomScreen() {
         onPickImage={(quality) => void handlePickImage(quality)}
         onPickVideo={() => void handlePickVideo()}
         onPickFile={() => void handlePickFile()}
-        onRecordVoice={() => {
-          setAttachSheetOpen(false)
-          setVoiceSheetOpen(true)
-        }}
         extraActions={[
           {
             key: "location",

@@ -60,8 +60,6 @@ export type ChatRoomMenuProps = {
   onExport?: () => void
   /** Buka sheet pesan berbintang. */
   onOpenStarred?: () => void
-  /** Buka sheet polling. */
-  onOpenPolls?: () => void
   /** Buka sheet buat transaksi (disembunyikan untuk self-chat). */
   onOpenCreateOrder?: () => void
   /** Buka sheet laporkan + blokir (disembunyikan untuk self-chat). */
@@ -81,7 +79,6 @@ export function ChatRoomMenu({
   onRoomChange,
   onExport,
   onOpenStarred,
-  onOpenPolls,
   onOpenCreateOrder,
   onOpenReport,
   isSelfChat = false,
@@ -120,15 +117,13 @@ export function ChatRoomMenu({
       })
     }
     items.push({ key: "search", label: "Cari semua pesan", description: "Telusuri seluruh riwayat di server", icon: MagnifyingGlass, onPress: onSearch })
-    // Batch 43: ekspor, bintang, polling — selalu tersedia di menu.
+    // Batch 43: ekspor, bintang — selalu tersedia di menu.
+    // 2026-10-03: Polling DIHAPUS dari menu (sudah ada di sheet lampiran).
     if (onExport) {
       items.push({ key: "export", label: "Ekspor chat (TXT)", icon: FileArrowDown, onPress: onExport })
     }
     if (onOpenStarred) {
       items.push({ key: "starred", label: "Pesan berbintang", icon: Star, onPress: onOpenStarred })
-    }
-    if (onOpenPolls) {
-      items.push({ key: "polls", label: "Polling", icon: ChartBar, onPress: onOpenPolls })
     }
     // Batch 43: buat transaksi dari chat — uang tetap via escrow, bukan
     // transfer langsung (keputusan produk batch 43).
@@ -205,7 +200,6 @@ export function ChatRoomMenu({
     isSelfChat,
     onExport,
     onOpenCreateOrder,
-    onOpenPolls,
     onOpenReport,
     onOpenStarred,
     onRoomChange,

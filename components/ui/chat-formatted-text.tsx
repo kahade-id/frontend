@@ -26,11 +26,24 @@ import { truncateMiddle } from "@/lib/format"
  * Pesan yang mengandung HTML (mis. dari copy-paste web) sebelumnya tidak
  * tampil dengan benar — tag mentah terlihat atau teks hilang. Kita strip
  * tag-nya dan decode entity umum, lalu render sebagai teks biasa.
+ *
+ * 2026-10-03: PERTAHANKAN formatting — <b>/<strong> → **, <i>/<em> → _,
+ * <u> → __, <code> → `. User yang copy-paste teks berformat dari aplikasi
+ * lain tetap melihat bold/italic/underline di bubble chat.
  */
 function stripHtmlTags(input: string): string {
   return input
     .replace(/<br\s*\/?>/gi, "\n")
     .replace(/<\/p>\s*<p[^>]*>/gi, "\n\n")
+    // Pertahankan formatting: konversi ke markdown SEBELUM strip.
+    .replace(/<(b|strong)[^>]*>/gi, "**")
+    .replace(/<\/(b|strong)>/gi, "**")
+    .replace(/<(i|em)[^>]*>/gi, "_")
+    .replace(/<\/(i|em)>/gi, "_")
+    .replace(/<u[^>]*>/gi, "__")
+    .replace(/<\/u>/gi, "__")
+    .replace(/<code[^>]*>/gi, "`")
+    .replace(/<\/code>/gi, "`")
     .replace(/<[^>]*>/g, "")
     .replace(/&nbsp;/gi, " ")
     .replace(/&amp;/gi, "&")

@@ -30,10 +30,9 @@ export type ChatAttachmentSheetProps = {
   onPickImage: (quality: ChatImageQuality) => void
   onPickVideo: () => void
   onPickFile: () => void
-  onRecordVoice: () => void
   /**
    * Aksi tambahan (batch 43 FE-CHAT): lokasi / polling / kartu produk.
-   * Rendered setelah Voice Note; diabaikan bila tidak diisi.
+   * Rendered setelah File; diabaikan bila tidak diisi.
    */
   extraActions?: {
     key: string
@@ -50,7 +49,6 @@ export function ChatAttachmentSheet({
   onPickImage,
   onPickVideo,
   onPickFile,
-  onRecordVoice,
   extraActions = [],
 }: ChatAttachmentSheetProps) {
   return (
@@ -85,12 +83,8 @@ export function ChatAttachmentSheet({
           icon: File,
           onPress: onPickFile,
         },
-        {
-          key: "voice",
-          label: "Voice Note",
-          icon: Microphone,
-          onPress: onRecordVoice,
-        },
+        // 2026-10-03: Voice Note DIHAPUS dari sheet (sudah ada tombol mic
+        // di samping input teks).
         ...extraActions,
       ]}
     />

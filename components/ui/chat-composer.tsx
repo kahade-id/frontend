@@ -285,11 +285,21 @@ export function ChatComposer({
       {/* Batch 43: toolbar format teks (B/I/mono/underline/spoiler/tautan). */}
       {formatBar && !disabled ? <ChatFormatBar onFormat={handleFormat} /> : null}
 
-      <View className="flex-row items-end gap-2">
+      {/* 2026-10-03: SATU CARD — [+][input][mic/kirim] dalam satu pill,
+          ala WhatsApp. Tidak ada separator di atas (FooterBar sudah bersih). */}
+      <View
+        className={cn(
+          "min-h-12 w-full flex-row items-end rounded-full border-[1.5px] pl-1 pr-1 py-1",
+          focused
+            ? "border-border-focus bg-background"
+            : "border-border-control bg-surface",
+          disabled && "opacity-disabled",
+        )}
+      >
         {onAttach ? (
           <IconButton
             icon={Plus}
-            variant="secondary"
+            variant="ghost"
             size="md"
             shape="pill"
             accessibilityLabel={t.attach}
@@ -298,52 +308,42 @@ export function ChatComposer({
           />
         ) : null}
 
-        <View
+        <TextInput
+          value={value}
+          onChangeText={(next) => onChangeText(next.slice(0, maxLength))}
+          multiline
+          editable={!disabled && !sending}
+          placeholder={translateProp(t.placeholder)}
+          placeholderTextColor={palette.textSecondary}
+          selectionColor={palette.primary}
+          cursorColor={palette.primary}
+          maxFontSizeMultiplier={2}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          onSelectionChange={(e) => setSelection(e.nativeEvent.selection)}
+          selection={selection}
+          onKeyPress={onKeyPress}
+          blurOnSubmit={false}
+          accessibilityLabel={translateProp(t.placeholder)}
           className={cn(
-            "min-h-12 flex-1 flex-row items-end rounded-full border-[1.5px] px-4",
-            focused
-              ? "border-border-focus bg-background"
-              : "border-border-control bg-surface",
-            disabled && "opacity-disabled",
+            "flex-1 py-[11px] pl-2 font-sans-400 text-bodyLarge text-text-primary",
+            Platform.OS === "web" && "outline-none",
           )}
-        >
-          <TextInput
-            value={value}
-            onChangeText={(next) => onChangeText(next.slice(0, maxLength))}
-            multiline
-            editable={!disabled && !sending}
-            placeholder={translateProp(t.placeholder)}
-            placeholderTextColor={palette.textSecondary}
-            selectionColor={palette.primary}
-            cursorColor={palette.primary}
-            maxFontSizeMultiplier={2}
-            onFocus={() => setFocused(true)}
-            onBlur={() => setFocused(false)}
-            onSelectionChange={(e) => setSelection(e.nativeEvent.selection)}
-            selection={selection}
-            onKeyPress={onKeyPress}
-            blurOnSubmit={false}
-            accessibilityLabel={translateProp(t.placeholder)}
-            className={cn(
-              "flex-1 py-[11px] font-sans-400 text-bodyLarge text-text-primary",
-              Platform.OS === "web" && "outline-none",
-            )}
-            style={[{ maxHeight: maxInputHeight + tokens.space[3] * 2 }, Platform.OS === "web" ? ({ outlineStyle: "none" } as object) : null]}
-            {...inputProps}
-          />
-          {showCount ? (
-            <View className="pb-3 pl-2">
-              <Text variant="caption" tone={value.length >= maxLength ? "danger" : "secondary"} className="tabular-nums">
-                {value.length}/{maxLength}
-              </Text>
-            </View>
-          ) : null}
-        </View>
+          style={[{ maxHeight: maxInputHeight + tokens.space[3] * 2 }, Platform.OS === "web" ? ({ outlineStyle: "none" } as object) : null]}
+          {...inputProps}
+        />
+        {showCount ? (
+          <View className="pb-3 pl-1">
+            <Text variant="caption" tone={value.length >= maxLength ? "danger" : "secondary"} className="tabular-nums">
+              {value.length}/{maxLength}
+            </Text>
+          </View>
+        ) : null}
 
         {showMic ? (
           <IconButton
             icon={Microphone}
-            variant="secondary"
+            variant="ghost"
             size="md"
             shape="pill"
             accessibilityLabel={translateProp(t.mic) ?? t.mic}

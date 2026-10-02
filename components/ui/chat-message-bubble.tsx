@@ -474,6 +474,8 @@ function ChatMessageBubbleBase({
           </Text>
         </View>
       ) : null}
+      {/* 2026-10-03: jam + centang di dalam bubble, rata kanan bawah. */}
+      {metaBlock}
     </View>
   )
 
@@ -651,9 +653,11 @@ function ChatMessageBubbleBase({
     </View>
   )
 
+  // 2026-10-03: meta (jam + centang) DI DALAM bubble, rata kanan ala WhatsApp.
+  // Bukan lagi baris terpisah di bawah bubble.
   const metaBlock =
     time || failed || isPinned || isEdited || ephemeralChip || starred ? (
-      <View className="flex-row items-center gap-1 px-1">
+      <View className="flex-row items-center justify-end gap-1 pt-1">
         {failed ? (
           <>
             <Icon icon={WarningCircle} size="xs" tone="danger" />
@@ -757,13 +761,11 @@ function ChatMessageBubbleBase({
                 />
               ) : null}
               {bubbleBlock}
-              {metaBlock}
             </View>
           </View>
         ) : (
           <>
             {bubbleBlock}
-            {metaBlock}
           </>
         )}
       </View>
