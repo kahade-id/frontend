@@ -50,6 +50,7 @@ import { Input } from "@/components/ui/input"
 import { KeyboardAvoiding } from "@/components/ui/keyboard-avoiding"
 import { OtpInput, type OtpInputHandle } from "@/components/ui/otp-input"
 import { Screen } from "@/components/ui/screen"
+import { ScreenCaptureGuard } from "@/components/security/screen-capture-guard"
 import { Text } from "@/components/ui/text"
 import { TextLink } from "@/components/ui/text-link"
 import { api, isApiError, userMessage } from "@/lib/api"
@@ -184,6 +185,9 @@ export default function VerifyTwoFactorScreen() {
   }
 
   return (
+    // BATCH4-B2: layar verifikasi 2FA = sensitif (kode TOTP/backup diketik di
+    // sini) — proteksi screenshot selektif, pola sama seperti layar PIN/OTP.
+    <ScreenCaptureGuard>
     <Screen padded={false} edges={["top"]}>
       <Header title="Verifikasi dua langkah" safeArea={false} />
 
@@ -294,5 +298,6 @@ export default function VerifyTwoFactorScreen() {
         </FooterBar>
       </KeyboardAvoiding>
     </Screen>
+    </ScreenCaptureGuard>
   )
 }
