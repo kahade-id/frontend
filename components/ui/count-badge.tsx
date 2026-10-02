@@ -33,7 +33,7 @@ import { View, type ViewProps } from "react-native"
 
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
-import { formatNumber } from "@/lib/format"
+import { formatCountCompact } from "@/lib/format"
 
 export type CountBadgeTone = "danger" | "inverted" | "neutral"
 
@@ -70,7 +70,9 @@ export function CountBadge({
   ...rest
 }: CountBadgeProps) {
   if (!Number.isFinite(count) || (count <= 0 && !showZero)) return null
-  const shown = count > max ? `${max}+` : formatNumber(Math.max(0, Math.trunc(count)))
+  // P2-02 (audit non-escrow 2026-10-03): format compact ("1,2 rb") agar
+  // konsisten dengan action row feed etalase (formatCountCompact).
+  const shown = count > max ? `${max}+` : formatCountCompact(Math.max(0, Math.trunc(count)))
 
   return (
     <View

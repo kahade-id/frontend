@@ -185,7 +185,7 @@ import type { ShowcaseItem } from "@/lib/api/users"
 import { getMeCached, pickPublicUserId } from "@/lib/api/users"
 import { useToast } from "@/components/ui/toast"
 import { ephemeralDurationLabel } from "@/lib/chat-ephemeral"
-import { isImageMime } from "@/lib/mime"
+import { isImageMime, isVideoMime } from "@/lib/mime"
 import type { ChatBubbleAnchor } from "@/lib/chat-bubble"
 
 
@@ -2502,26 +2502,65 @@ export default function ChatRoomScreen() {
     }
   }, [])
 
-  const openAttachment = useCallback((a: ChatAttachmentDto) => {
-    if (isImageMedia({ url: a.fileUrl, mimeType: a.mimeType })) {
-      // Kumpulkan SEMUA gambar di pesan yang sama supaya bisa swipe antar
-      // foto di viewer (bukan satu gambar saja).
+  /**
+   * FIX 2026-10-03 (bug media chat): dua akar masalah diperbaiki di sini.
+   *
+   * 1. URL kedaluwarsa: backend men-sign URL lampiran dengan TTL 5 menit
+   *    (`ATTACHMENT_URL_TTL_SECONDS=300`, di-sign ulang saat read). Klien
+   *    menyimpan pesan lebih lama dari itu — ketuk foto/video setelah 5
+   *    menit = URL mati. Kini: cek `urlExpiresAt`; bila kedaluwarsa (atau
+   *    <60 dtk lagi), refresh via `getChatAttachments` dulu sebelum buka.
+   *
+   * 2. Video tidak bisa di-play: sebelumnya video difilter keluar dari
+   *    ImageViewer (hanya gambar) lalu jatuh ke MediaViewer (kartu berkas +
+   *    "Buka eksternal"). Kini video ikut ke ImageViewer dengan
+   *    `kind: "video"` → diputar in-app via FeedVideo.
+   */
+  const openAttachment = useCallback(async (a: ChatAttachmentDto) => {
+    // — Refresh URL bila kedaluwarsa —
+    let attachment = a
+    const expiresAt = a.urlExpiresAt ? new Date(a.urlExpiresAt).getTime() : NaN
+    const expired = Number.isNaN(expiresAt) || expiresAt < Date.now() + 60_000
+    if (expired && roomId) {
+      try {
+        const fresh = await api.chat.getChatAttachments(roomId, { limit: 100 })
+        // Cocokkan via fileName (stabil); fileUrl berubah tiap signing.
+        const match = fresh.find((f) => f.fileName === a.fileName)
+        if (match?.fileUrl) attachment = match
+      } catch (err) {
+        logWarn("chat:attachment-refresh", err)
+        // Fall through: coba buka dengan URL lama; viewer akan
+        // menampilkan error bila memang mati.
+      }
+    }
+
+    const isVideo = isVideoMime(attachment.mimeType)
+    if (isImageMedia({ url: attachment.fileUrl, mimeType: attachment.mimeType }) || isVideo) {
+      // Kumpulkan SEMUA media (gambar + video) di pesan yang sama supaya
+      // bisa swipe antar media di viewer.
       const owner = messages.find((m) =>
         m.attachments?.some((att) => att === a || att.fileUrl === a.fileUrl),
       )
-      const candidates = owner?.attachments?.length ? owner.attachments : [a]
-      const imgs = candidates.filter((att) =>
-        isImageMedia({ url: att.fileUrl, mimeType: att.mimeType }),
+      const candidates = owner?.attachments?.length ? owner.attachments : [attachment]
+      const media = candidates.filter(
+        (att) => isImageMedia({ url: att.fileUrl, mimeType: att.mimeType }) || isVideoMime(att.mimeType),
       )
-      const at = Math.max(0, imgs.findIndex((att) => att === a || att.fileUrl === a.fileUrl))
+      const at = Math.max(
+        0,
+        media.findIndex((att) => att === attachment || att.fileUrl === attachment.fileUrl),
+      )
       setImageViewer({
-        images: imgs.map((att) => ({ url: att.fileUrl, alt: att.fileName ?? undefined })),
+        images: media.map((att) => ({
+          url: att === attachment ? attachment.fileUrl : att.fileUrl,
+          alt: att.fileName ?? undefined,
+          kind: isVideoMime(att.mimeType) ? ("video" as const) : ("image" as const),
+        })),
         index: at,
       })
       return
     }
-    setViewerItem({ url: a.fileUrl, mimeType: a.mimeType, title: a.fileName, fileName: a.fileName })
-  }, [messages])
+    setViewerItem({ url: attachment.fileUrl, mimeType: attachment.mimeType, title: attachment.fileName, fileName: attachment.fileName })
+  }, [messages, roomId])
 
   const counterpartUsername = room?.counterpart?.username
   const composerAttachments = attachments

@@ -710,6 +710,9 @@ export default function LiveSupportScreen() {
                           accessibilityState={{ selected: ratingStars === n }}
                           accessibilityLabel={translate("{x} bintang", { x: n })}
                           className="p-1"
+                          /* P2-15 (audit non-escrow 2026-10-03): hitSlop agar
+                             target sentuh ≥44px (ikon 24px + p-1 = ±32px). */
+                          hitSlop={6}
                         >
                           <Icon
                             icon={Star}

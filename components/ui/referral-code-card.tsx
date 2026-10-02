@@ -69,7 +69,7 @@ const DEFAULT_LABELS: ReferralCodeCardLabels = {
 
 export type ReferralCodeCardProps = Omit<CardProps, "children" | "onPress"> & {
   code: string
-  /** Tautan undangan lengkap; bila ada, ini yang disalin/dibagikan */
+  /** Tautan undangan lengkap; dipakai handler onShare milik parent (tidak lagi disalin). */
   shareUrl?: string
   stats?: ReferralStats
   /** Teks hadiah kustom bila bukan Rupiah (menimpa stats.totalReward) */
@@ -84,7 +84,6 @@ export type ReferralCodeCardProps = Omit<CardProps, "children" | "onPress"> & {
 
 export function ReferralCodeCard({
   code,
-  shareUrl,
   stats,
   rewardLabel,
   copied = false,
@@ -109,10 +108,14 @@ export function ReferralCodeCard({
         </Text>
       </View>
 
+      {/* R3/P2-07 (audit non-escrow 2026-10-03): salin = yang ditampilkan.
+          Sebelumnya copyValue={shareUrl ?? code} — label "Kode referral"
+          menampilkan KHXXXXXX tapi yang tersalin URL undangan. Berbagi URL
+          tetap lewat tombol Bagikan (onShare). */}
       <CopyableField
         label={t.codeLabel}
         value={code.toUpperCase()}
-        copyValue={shareUrl ?? code}
+        copyValue={code.toUpperCase()}
         onCopy={onCopy}
         copied={copied}
       />

@@ -211,6 +211,9 @@ export default function SupportTicketDetailScreen() {
             accessibilityState={{ selected: value === n }}
             accessibilityLabel={translate("{x} bintang", { x: n })}
             containerClassName={focusRingInset}
+            /* P2-14 (audit non-escrow 2026-10-03): hitSlop agar target sentuh
+               ≥44px (ikon ±24px). */
+            hitSlop={10}
           >
             <Icon
               icon={Star}

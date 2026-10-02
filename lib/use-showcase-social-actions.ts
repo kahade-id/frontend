@@ -122,6 +122,10 @@ export function useShowcaseSocialActions(item: ShowcaseSocialItem): ShowcaseSoci
   /** S-01: satu toggle ditahan saat request suka sebelumnya masih berjalan. */
   const queuedLike = useRef(false)
   const runLikeRef = useRef<() => void>(() => {})
+  /** P2-04 (audit non-escrow 2026-10-03): sama untuk simpan — tap kedua
+   *  diantre, bukan dibuang diam-diam (sebelumnya `if (savedPending) return`). */
+  const queuedSave = useRef(false)
+  const runSaveRef = useRef<() => void>(() => {})
   useEffect(() => {
     const revision = getSessionRevision()
     if (hasSession) void api.users.getMeCached().then((me) => {
@@ -299,14 +303,7 @@ export function useShowcaseSocialActions(item: ShowcaseSocialItem): ShowcaseSoci
    * 409 `SHOWCASE_ALREADY_SAVED` / 404 `SHOWCASE_NOT_SAVED` = idempoten,
    * diperlakukan sebagai sukses (keadaan akhir sudah sesuai keinginan).
    */
-  const toggleSave = useCallback(() => {
-    if (!hasSession) {
-      requireLogin()
-      return
-    }
-    // Rapid-toggle guard: abaikan ketukan kedua selama request masih jalan,
-    // agar POST/DELETE save tidak balapan dan count tidak salah.
-    if (savedPending) return
+  const runSave = useCallback(() => {
     const revision = getSessionRevision()
     // C13: transisi optimistis murni — rollback = override dibersihkan.
     const optimistic = optimisticToggleState({ active: saved, count: saveCount })
@@ -332,6 +329,10 @@ export function useShowcaseSocialActions(item: ShowcaseSocialItem): ShowcaseSoci
           // Keadaan akhir sudah sesuai — commit tanpa toast error.
           setShowcaseSavedState(item.id, wanted)
         } else {
+          // P2-04: request GAGAL → batalkan toggle yang tertahan (dibuat
+          // relatif terhadap state optimistis yang kini di-rollback;
+          // mengeksekusinya akan membalik ke arah yang salah).
+          queuedSave.current = false
           setSaveCountOverride(null)
           toast.show({
             title: translate("Gagal menyimpan karya"),
@@ -341,9 +342,32 @@ export function useShowcaseSocialActions(item: ShowcaseSocialItem): ShowcaseSoci
         }
       } finally {
         setShowcaseSavedPending(item.id, null)
+        if (queuedSave.current) {
+          // P2-04: eksekusi toggle yang ditahan — state dibaca ulang di runSave.
+          queuedSave.current = false
+          runSaveRef.current()
+        }
       }
     })()
-  }, [hasSession, requireLogin, item.id, saved, saveCount, savedPending, toast])
+  }, [item.id, saved, saveCount, toast])
+
+  /** Versi terbaru `runSave` untuk eksekusi tertunda di dalam finally. */
+  useEffect(() => {
+    runSaveRef.current = runSave
+  }, [runSave])
+
+  const toggleSave = useCallback(() => {
+    if (!hasSession) {
+      requireLogin()
+      return
+    }
+    // P2-04: sudah ada request berjalan → antre satu toggle (bukan drop senyap).
+    if (savedPending) {
+      queuedSave.current = true
+      return
+    }
+    runSave()
+  }, [hasSession, requireLogin, savedPending, runSave])
 
   const [shareSheetVisible, setShareSheetVisible] = useState(false)
   const share = useCallback(() => setShareSheetVisible(true), [])

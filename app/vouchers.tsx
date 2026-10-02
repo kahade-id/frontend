@@ -78,6 +78,7 @@ import { ReferralCodeCard } from "@/components/ui/referral-code-card"
 import { RouteLink } from "@/components/ui/route-link"
 import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
+import { Skeleton } from "@/components/ui/skeleton"
 import { Text } from "@/components/ui/text"
 import { useToast } from "@/components/ui/toast"
 import { VoucherCard, type VoucherStatus } from "@/components/ui/voucher-card"
@@ -124,7 +125,10 @@ function discountTypeOf(v: Voucher): "FIXED" | "PERCENTAGE" | "UNKNOWN" {
 function expiresSoon(v: Voucher): boolean {
   if (!v.expiresAt) return false
   const time = new Date(v.expiresAt).getTime()
-  return Number.isFinite(time) && time - serverNow() < EXPIRES_SOON_MS
+  // V3/P2-11 (audit non-escrow 2026-10-03): hanya true bila BELUM kedaluwarsa
+  // DAN < 3 hari — sebelumnya nilai negatif (sudah lewat) lolos `< 3 hari`.
+  const remaining = time - serverNow()
+  return Number.isFinite(time) && remaining > 0 && remaining < EXPIRES_SOON_MS
 }
 
 /**
@@ -525,27 +529,47 @@ export default function VouchersScreen() {
             description="Voucher promo akan muncul di sini."
           />
         ) : (
-          sorted.map((v) => (
-            <VoucherCard
-              key={v.code}
-              code={v.code}
-              title={v.title ?? v.code}
-              description={v.description}
-              discountType={discountTypeOf(v)}
-              discountValue={v.discountValue ?? Number.NaN}
-              maxDiscount={v.maxDiscount}
-              minOrderValue={v.minOrderValue}
-              expiresAt={v.expiresAt ? formatDateTimeWIB(v.expiresAt) : undefined}
-              expiresSoon={expiresSoon(v)}
-              status={voucherStatusOf(v)}
-              onCopyCode={() => void handleCopyVoucherCode(v.code)}
-              onUse={() => router.push(ROUTES.createTransactionWithVoucher(v.code))}
-            />
-          ))
+          sorted.map((v) => {
+            // V2/P2-10 (audit non-escrow 2026-10-03): tombol "Pakai" disabled
+            // untuk voucher kedaluwarsa/terpakai/nonaktif — sebelumnya aktif
+            // dan user dibawa ke alur transaksi yang ditolak server.
+            const status = voucherStatusOf(v)
+            return (
+              <VoucherCard
+                key={v.code}
+                code={v.code}
+                title={v.title ?? v.code}
+                description={v.description}
+                discountType={discountTypeOf(v)}
+                discountValue={v.discountValue ?? Number.NaN}
+                maxDiscount={v.maxDiscount}
+                minOrderValue={v.minOrderValue}
+                expiresAt={v.expiresAt ? formatDateTimeWIB(v.expiresAt) : undefined}
+                expiresSoon={expiresSoon(v)}
+                status={status}
+                disabled={status !== "active"}
+                disabledReason={
+                  status !== "active"
+                    ? translate("Voucher tidak dapat dipakai")
+                    : undefined
+                }
+                onCopyCode={() => void handleCopyVoucherCode(v.code)}
+                onUse={() => router.push(ROUTES.createTransactionWithVoucher(v.code))}
+              />
+            )
+          })
         )}
       </View>
 
       {/* ── 3. Undang teman ──────────────────────────────────── */}
+      {/* V5/P2-13 (audit non-escrow 2026-10-03): skeleton saat loading agar
+          tidak layout shift ketika seksi muncul. */}
+      {referralQuery.loading && !referralReady ? (
+        <View className="gap-3" accessibilityLabel={translate("Memuat undangan")}>
+          <Skeleton className="h-6 w-2/5 rounded" />
+          <Skeleton className="h-24 w-full rounded-md" />
+        </View>
+      ) : null}
       {referralReady ? (
         <View className="gap-3">
           <SectionHeader
@@ -587,6 +611,13 @@ export default function VouchersScreen() {
       ) : null}
 
       {/* ── 4. Lencana ───────────────────────────────────────── */}
+      {/* V5/P2-13: skeleton saat loading agar tidak layout shift. */}
+      {badgesQuery.loading && !badgeSummary ? (
+        <View className="gap-3" accessibilityLabel={translate("Memuat lencana")}>
+          <Skeleton className="h-6 w-1/3 rounded" />
+          <Skeleton className="h-20 w-full rounded-md" />
+        </View>
+      ) : null}
       {badgeSummary && badgeSummary.total > 0 ? (
         <View className="gap-3">
           <SectionHeader

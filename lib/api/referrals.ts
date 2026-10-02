@@ -5,6 +5,7 @@
 import { pickNumber as pickStrictNumber, pickString, readList } from "@/lib/api/response"
 
 import { http } from "@/lib/api/client"
+import { translate } from "@/lib/i18n/translate"
 import type { ApplyReferralDto } from "@/lib/api/types"
 import type { Disbursement } from "./disbursements"
 
@@ -109,9 +110,14 @@ type RawReferralHistoryReward = {
 }
 
 /** username nullable di DB (registrasi via HP) — rantai fallback wajib. */
+/* R2/P2-06 (audit non-escrow 2026-10-03): jangan kembalikan string kosong —
+   riwayat undangan bertitel kosong bila username null. */
 function referralDisplayName(user: RawReferralUser | null | undefined): string {
   const record = (user ?? {}) as Record<string, unknown>
-  return pickString(record, ["username", "fullName", "full_name", "userId", "user_id"]) ?? ""
+  return (
+    pickString(record, ["username", "fullName", "full_name", "userId", "user_id"]) ??
+    translate("Pengguna")
+  )
 }
 
 /**

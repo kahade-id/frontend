@@ -89,7 +89,13 @@ export function ShowcaseFilterSheet({
   const setPrice = (price: PriceRange) => setDraft((d) => ({ ...d, price }))
 
   const resetDraft = () => setDraft(DEFAULT_SHOWCASE_FILTERS)
+  // P2-03 (audit non-escrow 2026-10-03): cegah terapkan rentang invalid
+  // (min > max) — CurrencyRangeField sudah menampilkan peringatan, tapi
+  // tombol Terapkan tetap jalan dan menghasilkan feed kosong tanpa penjelasan.
+  const priceInvalid =
+    draft.price.min != null && draft.price.max != null && draft.price.min > draft.price.max
   const apply = () => {
+    if (priceInvalid) return
     onApply(draft)
     onRequestClose()
   }
@@ -104,7 +110,16 @@ export function ShowcaseFilterSheet({
           <Button variant="secondary" onPress={resetDraft} className="flex-1">
             {translate("Atur ulang")}
           </Button>
-          <Button onPress={apply} className="flex-1">
+          <Button
+            onPress={apply}
+            className="flex-1"
+            disabled={priceInvalid}
+            accessibilityHint={
+              priceInvalid
+                ? translate("Perbaiki rentang harga dulu")
+                : translate("Terapkan filter")
+            }
+          >
             {translate("Terapkan")}
           </Button>
         </View>

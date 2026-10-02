@@ -108,6 +108,9 @@ export const ChatPollCard = memo(function ChatPollCard({
               accessibilityRole={poll.allowMultiple ? "checkbox" : "radio"}
               accessibilityState={{ checked: selected, disabled: locked || voting }}
               accessibilityLabel={`${opt.text}, ${opt.votes} suara`}
+              /* P2-16 (audit non-escrow 2026-10-03): hitSlop agar target
+                 sentuh ≥44px (baris ±36px). */
+              hitSlop={{ top: 4, bottom: 4 }}
               className={`overflow-hidden rounded-sm border ${
                 selected ? "border-primary bg-primary/10" : "border-border bg-background"
               }`}
