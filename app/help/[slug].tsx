@@ -166,9 +166,12 @@ function Breadcrumb({
     { label: "Pusat Bantuan", href: ROUTES.faq },
   ]
   if (searchQuery) {
+    // P1b (2026-10-03): kembali ke /faq dengan param q (kolom cari terisi
+    // otomatis, lihat app/faq.tsx). Sebelumnya menaut ke /help/[slug] tanpa
+    // param article — halaman tujuan rusak.
     crumbs.push({
       label: `Hasil pencarian "${searchQuery}"`,
-      href: { pathname: "/help/[slug]", params: { slug, q: searchQuery } } as Href,
+      href: { pathname: "/faq", params: { q: searchQuery } } as Href,
     })
   } else {
     crumbs.push({ label: categoryName, href: ROUTES.helpCategory(slug) })

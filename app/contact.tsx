@@ -351,6 +351,10 @@ export default function ContactScreen() {
 
   const handleSubmit = useCallback(async () => {
     if (!subject.trim() || !message.trim()) return
+    // P1c (2026-10-03): jangan kirim saat lampiran masih diunggah — fileKey
+    // belum ada sehingga lampiran hilang diam-diam. Tombol juga di-disabled
+    // (lihat footer), ini pertahanan berlapis.
+    if (uploading) return
     // F10: diagnostik hanya ikut bila disetujui eksplisit.
     if (category === "TECHNICAL" && diagEnabled && !diagConsent) {
       toast.show({
@@ -396,7 +400,7 @@ export default function ContactScreen() {
     } finally {
       setSubmitting(false)
     }
-  }, [category, subject, message, finalMessage, attachments, orderId, relatedArticleId, diagEnabled, diagConsent, toast.show, clearForm])
+  }, [category, subject, message, finalMessage, attachments, orderId, relatedArticleId, diagEnabled, diagConsent, uploading, toast.show, clearForm])
 
   // ---- F14: peringatan tiket duplikat ----
   const ticketsQuery = useApiQuery<SupportTicket[]>(
@@ -459,10 +463,10 @@ export default function ContactScreen() {
           <Button
             fullWidth
             loading={submitting}
-            disabled={!subject.trim() || !message.trim()}
+            disabled={!subject.trim() || !message.trim() || uploading}
             onPress={() => void handleSubmit()}
           >
-            Kirim tiket
+            {uploading ? "Mengunggah lampiran…" : "Kirim tiket"}
           </Button>
         </View>
       }
