@@ -101,7 +101,7 @@ export function ChatForwardSheet({
         // Hanya halaman pertama yang menjadi error layar-penuh; halaman
         // lanjutan cukup toast agar daftar yang sudah ada tidak hilang.
         if (next === 1) setLoadError(userMessage(err))
-        else toast.show({ title: "Gagal memuat percakapan lain", tone: "danger" })
+        else toast.show({ title: translate("Gagal memuat percakapan lain"), tone: "danger" })
       } finally {
         if (request === requestId.current) setLoading(false)
       }
@@ -150,10 +150,10 @@ export function ChatForwardSheet({
         return
       }
       if (skipReason) {
-        toast.show({ title: "Pesan tidak diteruskan", description: skipReason, tone: "danger" })
+        toast.show({ title: translate("Pesan tidak diteruskan"), description: skipReason, tone: "danger" })
       } else if (firstError) {
         toast.show({
-          title: "Gagal meneruskan pesan",
+          title: translate("Gagal meneruskan pesan"),
           description: isApiError(firstError) ? userMessage(firstError) : undefined,
           tone: "danger",
         })

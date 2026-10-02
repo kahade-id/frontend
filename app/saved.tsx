@@ -95,10 +95,10 @@ export default function SavedProfilesScreen() {
         setSavedData((prev) =>
           prev ? { ...prev, data: prev.data.filter((e) => e.user.userId !== entry.user.userId) } : prev,
         )
-        toast.show({ title: "Profil dihapus dari tersimpan", tone: "success", duration: 2500 })
+        toast.show({ title: translate("Profil dihapus dari tersimpan"), tone: "success", duration: 2500 })
       } catch (err) {
         toast.show({
-          title: "Gagal menghapus simpanan",
+          title: translate("Gagal menghapus simpanan"),
           description: userMessage(err),
           tone: "danger",
         })
@@ -116,7 +116,7 @@ export default function SavedProfilesScreen() {
 
   return (
     <DataScreen
-      title="Disimpan"
+      title={translate("Disimpan")}
       state={query}
       loadingMessage="Memuat profil tersimpan…"
       contentClassName="gap-1"
@@ -125,7 +125,7 @@ export default function SavedProfilesScreen() {
       empty={
         items.length === 0 && {
           icon: BookmarkSimple,
-          title: "Belum ada profil tersimpan",
+          title: translate("Belum ada profil tersimpan"),
           description: "Simpan profil penjual dari halaman profil mereka untuk dilihat lagi nanti.",
           action: (
             <Button variant="secondary" fullWidth={false} onPress={() => router.push(ROUTES.showcase)}>
@@ -138,7 +138,7 @@ export default function SavedProfilesScreen() {
       // tidak boleh ikut hilang saat query PROFIL tersimpan loading/error.
       persistent={<ShowcaseSavedCollection />}
     >
-      <SectionHeader title="Profil tersimpan" />
+      <SectionHeader title={translate("Profil tersimpan")} />
       {items.map((entry, i) => (
         <SavedProfileRow
           key={entry.user.userId}

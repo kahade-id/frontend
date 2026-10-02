@@ -565,7 +565,7 @@ export default function ChatRoomScreen() {
       )
     } catch (e) {
       toast.show({
-        title: "Gagal voting",
+        title: translate("Gagal voting"),
         description: isApiError(e) ? userMessage(e) : undefined,
         tone: "danger",
       })
@@ -590,7 +590,7 @@ export default function ChatRoomScreen() {
       )
     } catch (e) {
       toast.show({
-        title: "Gagal menutup polling",
+        title: translate("Gagal menutup polling"),
         description: isApiError(e) ? userMessage(e) : undefined,
         tone: "danger",
       })
@@ -1573,7 +1573,7 @@ export default function ChatRoomScreen() {
         scrollRef.current?.scrollToIndex({ index, animated: true, viewPosition: 0.5 })
       } else {
         toast.show({
-          title: "Pesan belum termuat di thread",
+          title: translate("Pesan belum termuat di thread"),
           description: "Muat pesan sebelumnya untuk menjangkau riwayat yang lebih lama.",
           tone: "info",
         })
@@ -1730,7 +1730,7 @@ export default function ChatRoomScreen() {
       })
       if (full) {
         toast.show({
-          title: "Maksimal 10 lampiran per pesan",
+          title: translate("Maksimal 10 lampiran per pesan"),
           description: `Pesan ini sudah berisi ${CHAT_ATTACHMENT_MAX_COUNT} lampiran. Kirim dulu pesan ini, lalu tambahkan sisanya di pesan berikutnya.`,
           tone: "danger",
         })
@@ -1742,7 +1742,7 @@ export default function ChatRoomScreen() {
       const validation = validateChatAttachment({ size: picked.size, mimeType: picked.mimeType })
       if (!validation.ok) {
         toast.show({
-          title: "File tidak dapat dilampirkan",
+          title: translate("File tidak dapat dilampirkan"),
           description: validation.message,
           tone: "danger",
         })
@@ -1777,7 +1777,7 @@ export default function ChatRoomScreen() {
       setAttachSheetOpen(false)
       const picked = await pickImage({ quality: quality === "file" ? 1 : 0.7 })
       if (picked.status === "denied") {
-        toast.show({ title: "Akses galeri ditolak", tone: "danger" })
+        toast.show({ title: translate("Akses galeri ditolak"), tone: "danger" })
         return
       }
       if (picked.status !== "picked") return
@@ -1790,7 +1790,7 @@ export default function ChatRoomScreen() {
     setAttachSheetOpen(false)
     const picked = await pickImage({ videoOnly: true })
     if (picked.status === "denied") {
-      toast.show({ title: "Akses galeri ditolak", tone: "danger" })
+      toast.show({ title: translate("Akses galeri ditolak"), tone: "danger" })
       return
     }
     if (picked.status !== "picked") return
@@ -1819,7 +1819,7 @@ export default function ChatRoomScreen() {
       setVoiceSheetOpen(false)
       const validation = validateVoiceNoteFile({ size: file.size, durationMs: file.durationMs })
       if (!validation.ok) {
-        toast.show({ title: "Voice note tidak valid", description: voiceNoteValidationMessage(validation.reason), tone: "danger" })
+        toast.show({ title: translate("Voice note tidak valid"), description: voiceNoteValidationMessage(validation.reason), tone: "danger" })
         return
       }
       await enqueueAndUpload({
@@ -1842,7 +1842,7 @@ export default function ChatRoomScreen() {
       const ready = attachments.filter((a) => a.status !== "uploading" && a.status !== "error")
       if (!content && ready.length === 0) return
       if (attachments.some((a) => a.status === "uploading")) {
-        toast.show({ title: "Lampiran masih diunggah", tone: "info" })
+        toast.show({ title: translate("Lampiran masih diunggah"), tone: "info" })
         return
       }
       // Optimistic message: tampilkan langsung agar tidak ada jeda kosong.
@@ -1960,7 +1960,7 @@ export default function ChatRoomScreen() {
         // refresh/restart, bisa kirim ulang atau hapus lokal.
         if (roomId) saveChatFailedMessage(roomId, toFailedChatMessage(optimisticMsg))
         toast.show({
-          title: "Gagal mengirim pesan",
+          title: translate("Gagal mengirim pesan"),
           description: isApiError(err) ? userMessage(err) : undefined,
           tone: "danger",
         })
@@ -2008,7 +2008,7 @@ export default function ChatRoomScreen() {
         // B07: antrean persisten — selamat dari refresh/restart.
         if (roomId) saveChatFailedMessage(roomId, toFailedChatMessage(optimisticMsg))
         toast.show({
-          title: "Gagal mengirim lokasi",
+          title: translate("Gagal mengirim lokasi"),
           description: isApiError(err) ? userMessage(err) : undefined,
           tone: "danger",
         })
@@ -2074,7 +2074,7 @@ export default function ChatRoomScreen() {
         // B07: antrean persisten — selamat dari refresh/restart.
         if (roomId) saveChatFailedMessage(roomId, toFailedChatMessage(optimisticMsg))
         toast.show({
-          title: "Gagal mengirim kartu produk",
+          title: translate("Gagal mengirim kartu produk"),
           description: isApiError(err) ? userMessage(err) : undefined,
           tone: "danger",
         })
@@ -2106,14 +2106,14 @@ export default function ChatRoomScreen() {
     try {
       const { filename } = await exportAndSaveChatRoom(roomId)
       toast.show({
-        title: "Riwayat chat diekspor",
+        title: translate("Riwayat chat diekspor"),
         description: filename,
         tone: "success",
         duration: 3000,
       })
     } catch (err) {
       toast.show({
-        title: "Gagal mengekspor chat",
+        title: translate("Gagal mengekspor chat"),
         description: isApiError(err) ? userMessage(err) : undefined,
         tone: "danger",
       })
@@ -2199,7 +2199,7 @@ export default function ChatRoomScreen() {
           prev.map((m) => (m.id === tempId ? { ...m, sendStatus: "failed" as const } : m)),
         )
         toast.show({
-          title: "Gagal mengirim pesan",
+          title: translate("Gagal mengirim pesan"),
           description: isApiError(err) ? userMessage(err) : undefined,
           tone: "danger",
         })
@@ -2314,7 +2314,7 @@ export default function ChatRoomScreen() {
       setDeleteOpen(false)
       exitSelect()
       if (tempTargets.length > 0) {
-        toast.show({ title: "Pesan dihapus", tone: "success", duration: 2500 })
+        toast.show({ title: translate("Pesan dihapus"), tone: "success", duration: 2500 })
       }
       return
     }
@@ -2341,7 +2341,7 @@ export default function ChatRoomScreen() {
     }
     if (firstError) {
       toast.show({
-        title: "Gagal menghapus pesan",
+        title: translate("Gagal menghapus pesan"),
         description: isApiError(firstError) ? userMessage(firstError) : undefined,
         tone: "danger",
       })
@@ -2397,7 +2397,7 @@ export default function ChatRoomScreen() {
         // memperbarui reaksi pesan yang sudah ada di thread).
         patchMessage(message.id, (m) => ({ ...m, reactions: before }))
         toast.show({
-          title: "Gagal memperbarui reaksi",
+          title: translate("Gagal memperbarui reaksi"),
           description: isApiError(err) ? userMessage(err) : undefined,
           tone: "danger",
         })
@@ -2426,11 +2426,11 @@ export default function ChatRoomScreen() {
         if (message.isPinned) {
           await unpinChatMessage(roomId, message.id)
           patchMessage(message.id, (m) => ({ ...m, isPinned: false }))
-          toast.show({ title: "Pesan dilepas dari pin", tone: "success", duration: 2500 })
+          toast.show({ title: translate("Pesan dilepas dari pin"), tone: "success", duration: 2500 })
         } else {
           await pinChatMessage(roomId, message.id)
           patchMessage(message.id, (m) => ({ ...m, isPinned: true }))
-          toast.show({ title: "Pesan dipin", tone: "success", duration: 2500 })
+          toast.show({ title: translate("Pesan dipin"), tone: "success", duration: 2500 })
         }
         void refreshPinned()
       } catch (err) {

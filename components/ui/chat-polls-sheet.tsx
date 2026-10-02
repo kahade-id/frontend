@@ -21,6 +21,7 @@ import {
   type ChatPoll,
 } from "@/lib/api/chat"
 import { isApiError, userMessage } from "@/lib/api"
+import { translate } from "@/lib/i18n/translate"
 import { logWarn } from "@/lib/telemetry"
 
 import { BottomSheet } from "@/components/ui/bottom-sheet"
@@ -161,11 +162,11 @@ export function ChatPollsSheet({ visible, roomId, myUserId, onRequestClose, refr
     setClosingId(pollId)
     try {
       patchPoll(await closePoll(roomId, pollId))
-      toast.show({ title: "Polling ditutup", tone: "success", duration: 2500 })
+      toast.show({ title: translate("Polling ditutup"), tone: "success", duration: 2500 })
     } catch (err) {
       logWarn("chat:poll-close", err)
       toast.show({
-        title: "Gagal menutup polling",
+        title: translate("Gagal menutup polling"),
         description: isApiError(err) ? userMessage(err) : undefined,
         tone: "danger",
       })
@@ -200,11 +201,11 @@ export function ChatPollsSheet({ visible, roomId, myUserId, onRequestClose, refr
       setOptions(["", ""])
       setAllowMultiple(false)
       setDeadlineKey("none")
-      toast.show({ title: "Polling dibuat", tone: "success", duration: 2500 })
+      toast.show({ title: translate("Polling dibuat"), tone: "success", duration: 2500 })
     } catch (err) {
       logWarn("chat:poll-create", err)
       toast.show({
-        title: "Gagal membuat polling",
+        title: translate("Gagal membuat polling"),
         description: isApiError(err) ? userMessage(err) : undefined,
         tone: "danger",
       })
