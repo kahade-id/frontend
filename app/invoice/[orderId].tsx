@@ -24,6 +24,7 @@ import { shareContent } from "@/lib/share"
 import { shortId } from "@/lib/short-id"
 import { useApiQuery } from "@/lib/use-api-query"
 import { useFingerprintPoll } from "@/lib/use-fingerprint-poll"
+import { translate } from "@/lib/i18n/translate"
 import { FEE_RESPONSIBILITY_LABELS } from "@/components/ui/fee-breakdown"
 
 /** R2 (#25): status invoice yang final — polling berhenti di sini. */
@@ -86,7 +87,9 @@ export default function InvoiceScreen() {
         // dibayar) — jelaskan, jangan "Gagal memuat" generik.
         if (isApiError(err) && err.code === "NOT_FOUND")
           throw new Error(
-            "Invoice belum tersedia untuk order ini. Invoice diterbitkan setelah pembayaran dikonfirmasi.",
+            translate(
+              "Invoice belum tersedia untuk order ini. Invoice diterbitkan setelah pembayaran dikonfirmasi.",
+            ),
           )
         throw err
       }),

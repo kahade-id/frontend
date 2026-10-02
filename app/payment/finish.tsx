@@ -27,6 +27,7 @@ import { Text } from "@/components/ui/text"
 import { api } from "@/lib/api"
 import { getSubscriptionPaymentStatus } from "@/lib/api/subscription-payments"
 import { ROUTES } from "@/lib/routes"
+import { translate } from "@/lib/i18n/translate"
 import { resolveStatus, resolveVerifyTarget, type PaymentFinishStatus } from "@/lib/payment-finish"
 import { usePolling } from "@/lib/use-polling"
 
@@ -45,22 +46,24 @@ const MAX_POLLS = 10
  */
 const COPY: Record<PaymentFinishStatus, { title: string; subtitle: string }> = {
   success: {
-    title: "Pembayaran berhasil",
-    subtitle: "Dana sudah diterima Kahade.",
+    title: translate("Pembayaran berhasil"),
+    subtitle: translate("Dana sudah diterima Kahade."),
   },
   pending: {
-    title: "Menunggu konfirmasi",
-    subtitle:
+    title: translate("Menunggu konfirmasi"),
+    subtitle: translate(
       "Pembayaran belum terkonfirmasi. Status diperbarui otomatis dari server.",
+    ),
   },
   failed: {
-    title: "Pembayaran gagal",
-    subtitle: "Silakan coba lagi.",
+    title: translate("Pembayaran gagal"),
+    subtitle: translate("Silakan coba lagi."),
   },
   unknown: {
-    title: "Status pembayaran belum diketahui",
-    subtitle:
+    title: translate("Status pembayaran belum diketahui"),
+    subtitle: translate(
       "Kami belum bisa memastikan status pembayaran. Jangan bayar ulang dulu — cek status atau buka Transaksi.",
+    ),
   },
 }
 
