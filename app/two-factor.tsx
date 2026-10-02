@@ -53,6 +53,7 @@ import { ButtonGroup } from "@/components/ui/button-group"
 import { CopyableField } from "@/components/ui/copyable-field"
 import { Dialog } from "@/components/ui/modal"
 import { SensitiveConfirmDialog } from "@/components/ui/sensitive-confirm"
+import { ScreenCaptureGuard } from "@/components/security/screen-capture-guard"
 import { Header } from "@/components/ui/header"
 import { OtpInput, type OtpInputHandle } from "@/components/ui/otp-input"
 import { PasswordField } from "@/components/ui/password-field"
@@ -485,8 +486,11 @@ export default function TwoFactorScreen() {
           ) : null}
 
           {/* ── Langkah 3 / hasil regenerasi: kode cadangan ─────────────── */}
+          {/* BATCH4-B1: kode cadangan = rahasia sekali pakai — proteksi
+              screenshot selektif hanya pada blok ini (bukan seluruh layar
+              pengaturan), pola sama seperti layar sensitif lain. */}
           {codes.length > 0 ? (
-            <>
+            <ScreenCaptureGuard>
               <SectionHeader
                 title={
                   step === "codes"
@@ -513,7 +517,7 @@ export default function TwoFactorScreen() {
                   Sudah saya simpan
                 </Button>
               ) : null}
-            </>
+            </ScreenCaptureGuard>
           ) : null}
 
           {/* ── Panel: matikan 2FA ──────────────────────────────────────── */}

@@ -177,7 +177,13 @@ export function OrderPaymentSheet({
           })}
         </Text>
       ) : null}
-      <Button loading={payment.creating} onPress={onCreateIntent}>
+      <Button
+        loading={payment.creating}
+        onPress={onCreateIntent}
+        // BATCH4-A1: tombol mati bila rincian biaya belum terverifikasi —
+        // konsisten dengan PinInput di cabang dompet (R2 butir #32).
+        disabled={payment.creating || feeBuyerPays == null}
+      >
         {translate("Bayar dengan {m}", { m: selectedMethod.name })}
       </Button>
     </>

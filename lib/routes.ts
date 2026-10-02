@@ -47,8 +47,12 @@ export const ROUTES = {
    * HP baru → OTP WhatsApp (purpose=migrate_phone) → migrate-phone/confirm.
    * migrationToken dibawa lewat param (short-lived, satu alur).
    */
-  phoneMigration: (migrationToken: string) =>
-    ({ pathname: "/phone-migration", params: { migrationToken } }) as unknown as Href,
+  /**
+   * Migrasi nomor HP pasca-login sosial.
+   * BATCH4-B4: migrationToken TIDAK lewat route params — disimpan di memori
+   * modul (lib/phone-migration-token.ts).
+   */
+  phoneMigration: () => ({ pathname: "/phone-migration" }) as unknown as Href,
   /** Screen #6 — Setup Profil: foto + bio (opsional, setelah akun jadi) */
   setupProfile: "/setup-profile" as Href,
   // U5-003 (journey 2026-09-29): layar welcome DIHAPUS — dulu landing page
@@ -77,13 +81,14 @@ export const ROUTES = {
   socialProviders: "/social-providers" as Href,
   /**
    * Konfirmasi tautan sosial setelah konflik email (GAP-A G014).
-   * linkToken sekali-pakai (bukan sesi) — user membuktikan kepemilikan akun
-   * lama via kata sandi (+2FA) sebelum penautan.
+   * BATCH4-B4: linkToken sekali-pakai TIDAK lewat route params — disimpan di
+   * memori modul (lib/social-link-confirm.ts). Route hanya membawa data
+   * tampilan (bukan kredensial).
    */
-  socialLinkConfirm: (opts: { linkToken: string; maskedEmail?: string; provider: string }) =>
+  socialLinkConfirm: (opts: { maskedEmail?: string; provider: string }) =>
     ({
       pathname: "/social-link-confirm",
-      params: { linkToken: opts.linkToken, maskedEmail: opts.maskedEmail ?? "", provider: opts.provider },
+      params: { maskedEmail: opts.maskedEmail ?? "", provider: opts.provider },
     }) as unknown as Href,
   /**
    * Verifikasi email akun (POST /v1/auth/verify-email OTP, resend, correct-email).

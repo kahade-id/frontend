@@ -32,7 +32,7 @@
 import { useCallback, useRef, useState } from "react"
 import { ScrollView, TextInput } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { useLocalSearchParams, useRouter } from "expo-router"
+import { useRouter } from "expo-router"
 
 import { Alert } from "@/components/ui/alert"
 import { FadeIn } from "@/components/ui/fade-in"
@@ -49,13 +49,19 @@ import { VStack } from "@/components/ui/stack"
 import { api, userMessage } from "@/lib/api"
 import { getAuthLocation } from "@/lib/location"
 import { setOtpFlow } from "@/lib/otp-flow"
+import {
+  clearPendingMigrationToken,
+  getPendingMigrationToken,
+} from "@/lib/phone-migration-token"
 import { ROUTES } from "@/lib/routes"
 
 export default function PhoneMigrationScreen() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
   const phoneRef = useRef<TextInput>(null)
-  const { migrationToken } = useLocalSearchParams<{ migrationToken?: string }>()
+  // BATCH4-B4: migrationToken dari memori modul, bukan route params.
+  // Tanpa token (app restart / deep-link langsung) → fail-closed ke /login.
+  const migrationToken = getPendingMigrationToken()
 
   const [digits, setDigits] = useState("")
   const [phoneError, setPhoneError] = useState<string | undefined>()
@@ -105,6 +111,8 @@ export default function PhoneMigrationScreen() {
         triggerText: trigger.triggerText,
         expiresAt: trigger.expiresAt,
       })
+      // BATCH4-B3: token di holder modul dibakar — kini hidup di otp-flow.
+      clearPendingMigrationToken()
       router.push(ROUTES.whatsappTrigger)
     } catch (err) {
       setFormError(userMessage(err))
