@@ -43,8 +43,13 @@ export const VOICE_WAVEFORM_BARS = 32
 /** Tinggi bar maksimum (px). */
 const BAR_MAX_HEIGHT = 26
 
-/** Hentikan pemutar lain yang sedang berbunyi (registry level modul). */
-let stopActivePlayer: (() => void) | null = null
+/**
+ * Registry pemutar aktif: satu suara dalam satu waktu.
+ * Menyimpan `owner` (identitas instance) agar `toggle()` hanya menghentikan
+ * pemutar LAIN — bukan diri sendiri (P0 2026-10-03: stop tanpa syarat membuat
+ * pause tak pernah berhasil karena status dibaca setelah diri di-pause).
+ */
+let activePlayer: { owner: object; stop: () => void } | null = null
 
 export type VoiceNotePlayerProps = {
   /** URL berkas audio (fileUrl lampiran). */
@@ -73,6 +78,12 @@ export function VoiceNotePlayer({ uri, messageId, direction }: VoiceNotePlayerPr
   const aliveRef = useRef(true)
   const phaseRef = useRef(phase)
   phaseRef.current = phase
+  /**
+   * Identitas unik instance ini untuk registry `activePlayer`.
+   * Dipakai untuk membedakan "pemutar lain" dari diri sendiri —
+   * toggle tidak boleh menghentikan diri sendiri (P0 2026-10-03).
+   */
+  const playerIdRef = useRef<object>({})
 
   const bars = useMemo(() => decorativeWaveform(messageId, VOICE_WAVEFORM_BARS), [messageId])
   const playedBars = durationMs > 0 ? Math.floor((positionMs / durationMs) * bars.length) : 0
@@ -89,14 +100,14 @@ export function VoiceNotePlayer({ uri, messageId, direction }: VoiceNotePlayerPr
     }
   }, [])
 
-  // Unmount → buang sound; bila ini pemutar aktif, kosongkan registry.
+  // Unmount → buang sound; hanya kosongkan registry bila milik kita
+  // (jangan mencuri stop milik pemutar lain yang masih aktif).
   useEffect(() => {
     aliveRef.current = true
     return () => {
       aliveRef.current = false
-      if (stopActivePlayer) {
-        // Hanya kosongkan bila milik kita (hindari mencuri stop milik lain).
-        stopActivePlayer = null
+      if (activePlayer?.owner === playerIdRef.current) {
+        activePlayer = null
       }
       void unload()
     }
@@ -143,12 +154,20 @@ export function VoiceNotePlayer({ uri, messageId, direction }: VoiceNotePlayerPr
   }, [uri, handleStatus])
 
   const toggle = useCallback(async () => {
-    // Hentikan pemutar lain dulu (satu suara dalam satu waktu).
-    stopActivePlayer?.()
+    // Hentikan pemutar LAIN dulu (satu suara dalam satu waktu) —
+    // JANGAN stop diri sendiri: stopper di registry milik instance ini
+    // bila ia pemutar aktif, dan pause-diri membuat getStatusAsync()
+    // membaca isPlaying=false lalu langsung playAsync() lagi (P0).
+    if (activePlayer && activePlayer.owner !== playerIdRef.current) {
+      activePlayer.stop()
+    }
     const sound = await ensureSound()
     if (!sound || !aliveRef.current) return
-    stopActivePlayer = () => {
-      void sound.pauseAsync().catch(() => {})
+    activePlayer = {
+      owner: playerIdRef.current,
+      stop: () => {
+        void sound.pauseAsync().catch(() => {})
+      },
     }
     try {
       const status = await sound.getStatusAsync()
