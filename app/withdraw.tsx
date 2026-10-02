@@ -874,7 +874,15 @@ export default function WithdrawScreen() {
                   Biaya layanan
                 </Text>
                 <Text variant="body" weight={600}>
-                  {formatRupiah(0)}
+                  {/*
+                   * BATCH4-A3: JANGAN hardcode Rp0 — "Rp0" terlihat seperti
+                   * hasil hitungan. Backend saat ini tidak memungut biaya
+                   * (terverifikasi wallet.service.ts), jadi tampilkan "Gratis"
+                   * sebagai kebijakan, bukan angka. Bila backend kelak menambah
+                   * fee, blok ini HARUS diganti membaca endpoint estimasi
+                   * server (follow-up backend).
+                   */}
+                  Gratis
                 </Text>
               </View>
               <View className="flex-row items-center justify-between">

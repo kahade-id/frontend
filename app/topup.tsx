@@ -517,6 +517,8 @@ export default function TopupScreen() {
                       label="Biaya layanan"
                       // SEC-403: satu-satunya sumber angka = server. Gagal
                       // (bukan loading) → pesan jelas, bukan angka tebakan.
+                      // BATCH4-A4: angka ini ESTIMASI server (bukan tagihan
+                      // final) — label eksplisit agar tidak dibaca sebagai fakta.
                       value={
                         feeLoading
                           ? "Menghitung…"
@@ -526,7 +528,7 @@ export default function TopupScreen() {
                               : "Gratis"
                             : "Biaya belum bisa dihitung — coba lagi"
                       }
-                      hint={feeReady ? "Dihitung server" : undefined}
+                      hint={feeReady ? "Estimasi dari server" : undefined}
                     />
                   </TransactionSummary>
 
