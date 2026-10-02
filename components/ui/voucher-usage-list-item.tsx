@@ -66,13 +66,19 @@ export function VoucherUsageListItem({
   void inset
   const orderMeta = orderId ? truncateMiddle(orderId, 6, 4) : undefined
 
+  // V4/P2-12 (audit non-escrow 2026-10-03): jangan umumkan "hemat NaN rupiah"
+  // bila nominal null — visual <Amount> menampilkan "—" untuk NaN.
+  const savedLabel = Number.isFinite(savedAmount)
+    ? translate("hemat {x} rupiah", { x: Math.abs(savedAmount) })
+    : undefined
+
   const a11y =
     accessibilityLabel ??
     summarize([
       title,
       translate("kode {x}", { x: code }),
       translate("Terpakai"),
-      translate("hemat {x} rupiah", { x: Math.abs(savedAmount) }),
+      savedLabel,
       usedAt,
     ])
 

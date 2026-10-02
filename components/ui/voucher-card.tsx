@@ -205,7 +205,14 @@ export function VoucherCard({
           )}
         </View>
 
-        {isPercent ? (
+        {/* V1/P2-09 (audit non-escrow 2026-10-03): tipe UNKNOWN / nilai tak
+            valid tampilkan "Belum tersedia" secara visual juga — sebelumnya
+            <Amount> me-render "Rp—" sementara a11y bilang "Belum tersedia". */}
+        {discountType === "UNKNOWN" || !Number.isFinite(discountValue) ? (
+          <Text variant="monoLarge" tone="secondary">
+            {discountText}
+          </Text>
+        ) : isPercent ? (
           <Text variant="monoLarge" tone="primary" className="tabular-nums">
             {discountText}
           </Text>
