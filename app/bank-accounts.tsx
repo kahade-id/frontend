@@ -248,10 +248,25 @@ export default function BankAccountsScreen() {
    * membuat tombol tampak bisa ditekan padahal isinya kosong.
    */
   const cleanAccountNumberForValidation = accountNumber.replace(/\D/g, "").trim()
+  const accountNameTrimmed = accountName.trim()
   const missingBank = !bankCode
   const missingAccountNumber = !cleanAccountNumberForValidation
-  const missingAccountName = !accountName.trim()
-  const canSaveAccount = !missingBank && !missingAccountNumber && !missingAccountName
+  const missingAccountName = !accountNameTrimmed
+  // SYS-C-203 (audit konsistensi 2026-10-03): validasi FE mirror backend
+  // `AddBankAccountDto` — nomor rekening ^\d{6,20}$, nama pemilik 2–100
+  // karakter (pola sudah ada di kontrak generated `lib/api/constraints.ts`).
+  // Dulu form hanya presence-check: nomor 3 digit lolos FE lalu 400 di BE.
+  const invalidAccountNumber =
+    !missingAccountNumber && !/^\d{6,20}$/.test(cleanAccountNumberForValidation)
+  const invalidAccountName =
+    !missingAccountName &&
+    (accountNameTrimmed.length < 2 || accountNameTrimmed.length > 100)
+  const canSaveAccount =
+    !missingBank &&
+    !missingAccountNumber &&
+    !missingAccountName &&
+    !invalidAccountNumber &&
+    !invalidAccountName
   const missingFieldsMessage =
     missingBank && missingAccountNumber && missingAccountName
       ? "Pilih bank, lalu isi nomor rekening dan nama pemiliknya."
@@ -263,7 +278,11 @@ export default function BankAccountsScreen() {
             ? "Isi nomor rekening."
             : missingAccountName
               ? "Isi nama pemilik rekening."
-              : undefined
+              : invalidAccountNumber
+                ? "Nomor rekening harus 6–20 digit angka."
+                : invalidAccountName
+                  ? "Nama pemilik rekening minimal 2 karakter (maksimal 100)."
+                  : undefined
   /*
    * Pesan hanya muncul setelah pengguna MULAI mengisi (pola FieldHelper:
    * form yang baru dibuka tidak langsung "berteriak"), lalu menyebutkan apa
@@ -304,7 +323,18 @@ export default function BankAccountsScreen() {
   const doAdd = useCallback(
     async (reauth: BankAccountReauth) => {
       const cleanAccountNumber = accountNumber.replace(/\D/g, "").trim()
-      if (!bankCode || !bankName.trim() || !accountName.trim() || !cleanAccountNumber) return
+      // SYS-C-203: guard ulang pola kontrak sebelum submit (backend menolak
+      // 400 bila lolos — dialog aman hanya terbuka saat canSaveAccount).
+      if (
+        !bankCode ||
+        !bankName.trim() ||
+        !accountName.trim() ||
+        !cleanAccountNumber ||
+        !/^\d{6,20}$/.test(cleanAccountNumber) ||
+        accountName.trim().length < 2 ||
+        accountName.trim().length > 100
+      )
+        return
       const dto: AddBankAccountDto = {
         bankCode: bankCode as AddBankAccountDto["bankCode"],
         bankName: bankName.trim() || (banks.find((b) => b.code === bankCode)?.name ?? bankCode),

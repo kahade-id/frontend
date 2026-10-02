@@ -16356,9 +16356,9 @@
         "properties": {
           "username": {
             "type": "string",
-            "description": "Unique username (3-20 characters)",
+            "description": "Unique username (3-30 characters)",
             "minLength": 3,
-            "maxLength": 20
+            "maxLength": 30
           }
         },
         "required": [

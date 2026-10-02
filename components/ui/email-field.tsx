@@ -10,6 +10,16 @@
  *     tetap di server; tujuan di sini hanya menangkap typo jelas.
  *   - Whitespace di ujung dipangkas otomatis — sumber gagal login paling
  *     umum dari autocomplete keyboard mobile.
+ *
+ * SYS-C-204 (audit konsistensi 2026-10-03): KEBIJAKAN KANONIS — pola FE yang
+ * longgar ini adalah UX yang disengaja, backend `@IsEmail()` (validator.js)
+ * adalah penegak final. Tiga pola yang diketahui berbeda sengaja tidak
+ * diseragamkan: FE mobile longgar (menangkap typo), admin `/^\S+@\S+\.\S+$/`,
+ * BE `@IsEmail()` paling ketat. Karena pola ini longgar, alamat yang lolos
+ * FE bisa ditolak BE (mis. `user@my_domain.com`) — penolakan itu TIDAK
+ * boleh tampil mentah: `userMessage()` memetakannya ke copy Indonesia
+ * spesifik via `emailFormatMessage` (`lib/api/errors.ts`), jadi fail-safe
+ * tanpa mengorbankan UX.
  */
 import { Envelope } from "phosphor-react-native"
 import { forwardRef, useCallback, useState } from "react"

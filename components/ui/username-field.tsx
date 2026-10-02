@@ -30,7 +30,11 @@ export type UsernameAvailability = "idle" | "checking" | "available" | "taken"
 import { normalizeUsername, USERNAME_MIN, USERNAME_MAX } from "@/lib/username"
 export { normalizeUsername, USERNAME_MIN, USERNAME_MAX }
 
-const USERNAME_RE = /^[a-z0-9](?:[a-z0-9._]{1,18}[a-z0-9])?$/
+// SYS-C-201 (audit konsistensi 2026-10-03): batas username disatukan 3–30
+// (DBL-006 backend; dulu 3–20). Nilai yang divalidasi di sini SUDAH
+// dinormalisasi (lowercase) oleh onChangeText di bawah, jadi charset kecil
+// tetap benar untuk nilai tampilan ini.
+const USERNAME_RE = /^[a-z0-9](?:[a-z0-9._]{1,28}[a-z0-9])?$/
 
 export function validateUsername(value: string, labels: UsernameFieldLabels): string | undefined {
   if (!value) return undefined

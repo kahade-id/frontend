@@ -68,10 +68,13 @@ describe("formatRupiah", () => {
     expect(formatRupiah(1_500_000)).toBe("Rp1.500.000")
     expect(formatRupiah(0)).toBe("Rp0")
     expect(formatRupiah(-50_000)).toBe("-Rp50.000")
-    // DBL-003 (audit integrasi 2026-10-01): pecahan finite DIBULATKAN ke
-    // rupiah terdekat, selaras backend & admin. "—" hanya untuk non-finite.
-    expect(formatRupiah(1500.4)).toBe("Rp1.500")
-    expect(formatRupiah(1000.5)).toBe("Rp1.001")
+    // SYS-C-101 (audit konsistensi 2026-10-03): kebijakan pecahan kanonis
+    // BAI-052 — pecahan finite DITAMPILKAN 2 desimal, BUKAN dibulatkan
+    // (menggantikan DBL-003/004). "—" hanya untuk non-finite.
+    expect(formatRupiah(1500.4)).toBe("Rp1.500,40")
+    expect(formatRupiah(1000.5)).toBe("Rp1.000,50")
+    expect(formatRupiah(100000.5)).toBe("Rp100.000,50")
+    expect(formatRupiah(-50.25)).toBe("-Rp50,25")
     expect(formatRupiah(Number.NaN)).toBe("—")
     expect(formatRupiah(Number.POSITIVE_INFINITY)).toBe("—")
   })
@@ -487,13 +490,13 @@ describe("formatRupiahFromSen (FE-055: helper kanonis sen→Rupiah)", () => {
     expect(formatRupiahFromSen(0)).toBe("Rp0")
   })
 
-  it("sen pecahan dibulatkan ke rupiah terdekat (DBL-004)", () => {
+  it("sen pecahan ditampilkan 2 desimal (SYS-C-101 / BAI-052)", () => {
     expect(formatRupiahFromSen(null)).toBe("—")
     expect(formatRupiahFromSen(undefined)).toBe("—")
     expect(formatRupiahFromSen("bukan-angka")).toBe("—")
     expect(formatRupiahFromSen(Number.NaN)).toBe("—")
-    // 1050 sen = Rp10,5 → dibulatkan ke Rp11 (selaras admin & backend)
-    expect(formatRupiahFromSen(1050)).toBe("Rp11")
+    // 1050 sen = Rp10,5 → "Rp10,50" (bukan dibulatkan ke Rp11)
+    expect(formatRupiahFromSen(1050)).toBe("Rp10,50")
   })
 
   it("negatif memakai aturan tanda formatRupiah", () => {

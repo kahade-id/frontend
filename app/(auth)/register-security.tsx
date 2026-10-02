@@ -182,9 +182,10 @@ export default function RegisterSecurityScreen() {
       found.push({ field: "Nama lengkap", message: "Tidak boleh mengandung < atau >." })
     }
     // BFI-041: aturan USERNAME KHUSUS phone-register (3–30, huruf besar &
-    // titik diizinkan — beda dari set-username). UsernameField menormalisasi
-    // saat mengetik (lowercase, maks 20) sehingga charset & panjang atas
-    // sudah aman; yang dicek di submit: minimal 3 bila diisi.
+    // titik diizinkan — disatukan dengan set-username oleh DBL-006).
+    // UsernameField menormalisasi saat mengetik (lowercase, maks 30)
+    // sehingga charset & panjang atas sudah aman; yang dicek di submit:
+    // minimal 3 bila diisi.
     if (username.trim().length > 0 && !isValidRegisterUsername(username.trim())) {
       setFormError("Username minimal 3 karakter.")
       found.push({ field: "Username", message: "Minimal 3 karakter." })
@@ -242,12 +243,21 @@ export default function RegisterSecurityScreen() {
       router.replace(ROUTES.setupProfile)
     } catch (err) {
       if (isApiError(err)) {
-        const mentionsUsername = (err.validationMessages ?? [err.message]).find((m) =>
-          /username|nama pengguna/i.test(m),
-        )
-        if ((err.code === "VALIDATION" || err.code === "BAD_REQUEST" || err.code === "CONFLICT") && mentionsUsername) {
-          setFormError(mentionsUsername)
-          return
+        // SYS-C-106: pola T4-004 — klasifikasi untuk ROUTING field, tapi
+        // JANGAN tempel pesan mentah backend (bisa Inggris, mis. "Username is
+        // already taken" / USERNAME_MSG class-validator). Selalu copy
+        // Indonesia tetap: bedakan "sudah dipakai" vs "format salah" dari
+        // pola kata kunci, tanpa merender satu kata pun dari server.
+        if (err.code === "VALIDATION" || err.code === "BAD_REQUEST" || err.code === "CONFLICT") {
+          const raw = (err.validationMessages ?? [err.message ?? ""]).join(" ")
+          if (/username|nama pengguna/i.test(raw)) {
+            setFormError(
+              /taken|already|dipakai|sudah (di)?pakai/i.test(raw)
+                ? "Username ini sudah dipakai. Pilih username lain."
+                : "Username harus 3–30 karakter dan hanya berisi huruf, angka, titik, dan garis bawah.",
+            )
+            return
+          }
         }
       }
       setFormError(userMessage(err))

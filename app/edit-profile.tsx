@@ -204,7 +204,10 @@ export default function EditProfileScreen() {
       setUsernameAvailability("idle")
       return
     }
-    if (username.length < 3 || username.length > 20 || !/^[a-z0-9](?:[a-z0-9._]{1,18}[a-z0-9])?$/.test(username)) {
+    // SYS-C-201: guard ketersediaan selaras update-profile.dto (3–30,
+    // /[a-zA-Z0-9._]+/). Nilai di sini sudah lowercase dari UsernameField —
+    // charset kecil + batas 30 membuat cek konsisten tanpa menebak.
+    if (username.length < 3 || username.length > 30 || !/^[a-z0-9](?:[a-z0-9._]{1,28}[a-z0-9])?$/.test(username)) {
       setUsernameAvailability("idle")
       return
     }

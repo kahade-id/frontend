@@ -184,31 +184,35 @@ function compactBody(abs: number): string {
  *                -Rp50.000 tampil identik dengan +Rp50.000 — di tooltip
  *                bar-chart (satu-satunya pemakai `never`) debet terbaca sebagai
  *                kredit. Tanda negatif adalah informasi, bukan hiasan.
+ *
+ * Kebijakan pecahan (SYS-C-101, audit konsistensi 2026-10-03): kanonis
+ * BAI-052 — pecahan sen DITAMPILKAN 2 desimal, bukan dibulatkan diam-diam:
+ * 100000.5 -> "Rp100.000,50"; integer tetap tanpa desimal ("Rp100.000").
+ * Selaras admin `formatIDR`. Menggantikan DBL-003/004 (Math.round) yang
+ * menghilangkan fraksi sen — "Rp100.000,99" ≠ "Rp100.001" untuk uang.
+ *
+ * "—" HANYA untuk nilai yang tidak bisa ditampilkan sama sekali:
+ * non-finite (NaN/±Infinity) atau di luar safe integer.
  */
 export function formatRupiah(
   amount: number,
   opts: { sign?: "auto" | "always" | "never"; compact?: boolean } = {},
 ): string {
   if (!Number.isFinite(amount)) return "—"
-  /**
-   * DBL-003/004 (audit integrasi 2026-10-01): KEBIJAKAN PECAHAN KANONIS
-   * LINTAS REPO — pecahan Rupiah finite DIBULATKAN ke rupiah terdekat
-   * (Math.round), selaras backend `formatIdr` dan admin `formatIDR`.
-   *
-   * Menggantikan kebijakan I-04 (audit escrow 2026-09-24) yang menampilkan
-   * "—" untuk pecahan nyata sebagai "data rusak". Kebijakan itu terbukti
-   * tidak konsisten: data pecahan yang sama tampil "—" di aplikasi tapi
-   * "Rp11" di panel admin (DBL-004), membingungkan operator vs user.
-   *
-   * "—" kini HANYA untuk nilai yang tidak bisa ditampilkan sama sekali:
-   * non-finite (NaN/±Infinity) atau hasil pembulatan di luar safe integer.
-   */
-  const rounded = Math.round(amount)
-  if (!Number.isSafeInteger(rounded)) return "—"
+  // Pecahan dibulatkan ke 2 desimal dulu (perangkap float: 0.29*100 =
+  // 28.9999…); nilai ≤2 desimal ini yang ditampilkan.
+  const rounded2 = Math.round(amount * 100) / 100
+  if (!Number.isSafeInteger(Math.round(rounded2))) return "—"
   const { sign = "auto", compact = false } = opts
-  const negative = rounded < 0
-  const abs = Math.abs(rounded)
-  const body = compact ? compactBody(abs) : groupThousands(abs)
+  const negative = rounded2 < 0
+  const abs = Math.abs(rounded2)
+  // Mirror persis admin `formatIDR` (BAI-052): integer dicek pada nilai
+  // ASLI (bukan hasil pembulatan) — -0.004 → "Rp0,00", bukan "Rp0".
+  const body = compact
+    ? compactBody(abs)
+    : Number.isInteger(amount)
+      ? groupThousands(abs)
+      : abs.toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
   const prefix = negative ? "-" : sign === "always" && amount > 0 ? "+" : ""
   return `${prefix}Rp${body}`
 }
@@ -221,8 +225,9 @@ export function formatRupiah(
  *
  * Mendelegasikan ke `formatRupiah` (kontrak §13): pemisah ribuan titik,
  * "Rp" tanpa spasi, dan "—" hanya untuk input null/NaN. Sen bukan kelipatan
- * 100 (mis. 1050 sen = Rp10,5) dibulatkan ke rupiah terdekat (DBL-004,
- * selaras admin `formatIdrSen` + `formatIDR(Math.round(...))`).
+ * 100 (mis. 1050 sen = Rp10,5) ditampilkan 2 desimal ("Rp10,50") sesuai
+ * kebijakan pecahan kanonis BAI-052 (SYS-C-101) — selaras admin
+ * `formatIdrSen`.
  */
 export function formatRupiahFromSen(sen: string | number | null | undefined): string {
   if (sen === null || sen === undefined) return "—"

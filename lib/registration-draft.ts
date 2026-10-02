@@ -34,7 +34,8 @@ function sanitize(draft: RegistrationDraft): RegistrationDraft {
     clean.fullName = draft.fullName.slice(0, 100)
   }
   if (typeof draft.username === "string" && draft.username.length > 0) {
-    clean.username = draft.username.slice(0, 20)
+    // SYS-C-201: batas username 3–30 (DBL-006 backend) — dulu slice 20.
+    clean.username = draft.username.slice(0, 30)
   }
   if (typeof draft.accountType === "string" && draft.accountType.length > 0) {
     clean.accountType = draft.accountType.slice(0, 32)
