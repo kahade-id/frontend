@@ -302,6 +302,20 @@ function ChatMessageBubbleBase({
   useEffect(() => {
     swipeReplyRef.current = onSwipeReply
   }, [onSwipeReply])
+  /**
+   * Force-close saat reply (2026-10-03, defensif): `onEnd` gesture adalah
+   * worklet UI-thread yang memanggil `runOnJS(cb)()` — bila bubble ter-unmount
+   * tepat sebelum gesture berakhir (list di-re-render / pesan dihapus saat
+   * jari terangkat), callback JS dieksekusi terhadap komponen yang sudah
+   * mati. Flag ini dibaca di worklet sebelum `runOnJS` sebagai guard.
+   */
+  const mountedRef = useRef(true)
+  useEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+    }
+  }, [])
   const canSwipeReply = !!onSwipeReply && direction !== "system" && !isDeleted
   /**
    * Pan horizontal ala <SwipeableListItem>: `activeOffsetX(12)` +
@@ -325,8 +339,12 @@ function ChatMessageBubbleBase({
       .onEnd((e) => {
         "worklet"
         if (shouldTriggerSwipeReply(swipeX.value, e.velocityX)) {
-          const cb = swipeReplyRef.current
-          if (cb) runOnJS(cb)()
+          // Guard mounted: jangan panggil JS bila bubble sudah unmount —
+          // runOnJS terhadap komponen mati adalah kandidat native crash.
+          if (mountedRef.current) {
+            const cb = swipeReplyRef.current
+            if (cb) runOnJS(cb)()
+          }
         }
         // Reduce Motion: snap-back INSTAN tanpa spring — yang
         // dipertahankan hanya translasi mengikuti jari (esensial untuk
