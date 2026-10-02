@@ -21,6 +21,25 @@ import { safeHttpsLink } from "@/lib/external-url"
 import { logWarn } from "@/lib/telemetry"
 import { truncateMiddle } from "@/lib/format"
 
+/**
+ * 2026-10-02: Strip tag HTML dari teks pesan agar tampil sebagai teks polos.
+ * Pesan yang mengandung HTML (mis. dari copy-paste web) sebelumnya tidak
+ * tampil dengan benar — tag mentah terlihat atau teks hilang. Kita strip
+ * tag-nya dan decode entity umum, lalu render sebagai teks biasa.
+ */
+function stripHtmlTags(input: string): string {
+  return input
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>\s*<p[^>]*>/gi, "\n\n")
+    .replace(/<[^>]*>/g, "")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+}
+
 import { useTheme } from "@/components/theme-provider"
 import { Text } from "@/components/ui/text"
 import { tokens, modes } from "@/lib/tokens"
@@ -158,9 +177,11 @@ export const ChatFormattedText = memo(function ChatFormattedText({
   italic,
   className,
 }: ChatFormattedTextProps) {
+  // 2026-10-02: strip HTML dulu agar pesan ber-HTML tampil sebagai teks.
+  const cleanText = useMemo(() => stripHtmlTags(text), [text])
   const segments = useMemo(
-    () => (hasChatMarkup(text) ? parseChatMarkup(text) : null),
-    [text],
+    () => (hasChatMarkup(cleanText) ? parseChatMarkup(cleanText) : null),
+    [cleanText],
   )
   const interactive = segments?.some((s) => s.linkUrl || s.spoiler) ?? false
   const tone = deleted ? "secondary" : outgoing ? "inverse" : "primary"
@@ -174,7 +195,7 @@ export const ChatFormattedText = memo(function ChatFormattedText({
         italic={italic}
         className={className}
       >
-        {text}
+        {cleanText}
       </Text>
     )
   }

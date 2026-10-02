@@ -87,8 +87,8 @@ export type ChatRoomHeaderProps = Omit<ViewProps, "children"> & {
   className?: string
 }
 
-/** Diameter avatar header: 36px — cukup dikenali, tidak mendominasi bar 56px. */
-const AVATAR_CLASS = "h-9 w-9"
+/** Diameter avatar header: 44px (2026-10-02: diperbesar dari 36px atas permintaan user) */
+const AVATAR_CLASS = "h-11 w-11"
 
 export function ChatRoomHeader({
   name,

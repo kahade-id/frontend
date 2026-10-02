@@ -2347,17 +2347,17 @@ export default function ChatRoomScreen() {
    * lib/chat-presence-label: online basi > 60 dtk, last-seen basi > 5 mnt.
    */
   const presenceStatus = presenceLabel(presence, presenceFetchedAt)
+  // 2026-10-02: status SELALU tampil (permintaan user) — fallback "Tidak aktif"
+  // bila presence tidak diketahui, jangan biarkan undefined/kosong.
   const statusText = counterpartTyping
-    ? "mengetik…"
+    ? "Sedang mengetik…"
     : presenceStatus.kind === "online"
-      ? "Online"
+      ? "Sedang aktif"
       : presenceStatus.kind === "last-seen"
         ? // UI-C003: cap waktu ringkas ("Kemarin"), bukan datetime penuh yang
           // memadati baris status 2-baris di bawah nama.
           `Terakhir dilihat ${formatChatListTime(presenceStatus.at)}`
-        : presenceStatus.kind === "offline"
-          ? "Offline"
-          : undefined
+        : "Tidak aktif"
 
   // ── Aksi mode pilih pesan (ubin ikon+label di <SelectionBar>) ──────────
   const selectionActions: SelectionAction[] = useMemo(() => {
@@ -2890,7 +2890,9 @@ export default function ChatRoomScreen() {
             setTtlSeconds(null)
             setViewOnceOn(false)
           }}
-          formatBar
+          // 2026-10-02: formatBar DIHAPUS atas permintaan user — toolbar
+          // format (B/I/mono/dll) di atas input dihapus; pemformatan cukup
+          // otomatis terdeteksi saat render (ChatFormattedText).
         />
         )
       }

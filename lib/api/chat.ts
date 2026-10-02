@@ -618,9 +618,14 @@ export async function getChatMessages(
 }
 
 export function sendChatMessage(roomId: string, dto: SendMessageDto) {
-  return http.post<ChatMessage, SendMessageDto>(`/v1/chat/rooms/${seg(roomId)}/messages`, dto, {
-    auth: "required",
-  })
+  return http
+    .post<unknown, SendMessageDto>(`/v1/chat/rooms/${seg(roomId)}/messages`, dto, {
+      auth: "required",
+    })
+    // 2026-10-02 (Bug 5): WAJIB normalize — backend mengirim `content`,
+    // bukan `text`. Tanpa ini bubble optimistis kosong sampai refresh
+    // (GET memakai normalizeChatMessage, POST tidak).
+    .then((raw) => normalizeChatMessage((raw ?? {}) as Record<string, unknown>))
 }
 
 export function markChatRoomRead(roomId: string) {

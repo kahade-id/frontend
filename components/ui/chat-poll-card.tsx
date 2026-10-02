@@ -39,7 +39,13 @@ export const ChatPollCard = memo(function ChatPollCard({
   isCreator = false,
   closing = false,
 }: ChatPollCardProps) {
-  const [picked, setPicked] = useState<number[]>(poll.myVotes)
+  // 2026-10-02 (Bug 1): guard defensif — poll malformed (mis. dari response
+  // API yang tidak terduga) tidak boleh crash seluruh aplikasi. Render null
+  // daripada force close.
+  if (!poll || typeof poll !== "object" || !Array.isArray(poll.options)) {
+    return null
+  }
+  const [picked, setPicked] = useState<number[]>(Array.isArray(poll.myVotes) ? poll.myVotes : [])
   const closed = poll.isClosed
   const expired = !closed && !!poll.deadline && Date.parse(poll.deadline) <= Date.now()
   const locked = closed || expired
