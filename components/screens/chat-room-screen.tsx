@@ -508,6 +508,63 @@ export default function ChatRoomScreen() {
   /** Sheet polling. */
   const [pollsOpen, setPollsOpen] = useState(false)
   /**
+   * 2026-10-02: voting polling inline di thread (pesan POLL).
+   * ID polling yang sedang voting/closing (untuk spinner di kartu).
+   */
+  const [votingPollId, setVotingPollId] = useState<string | null>(null)
+  const [closingPollId, setClosingPollId] = useState<string | null>(null)
+  /**
+   * Voting dari kartu polling di thread chat. Update pesan POLL di thread
+   * setelah vote berhasil.
+   */
+  const handleInlinePollVote = useCallback(async (pollId: string, optionIndexes: number[]) => {
+    if (!roomId || votingPollId) return
+    setVotingPollId(pollId)
+    try {
+      const updated = await api.chat.votePoll(roomId, pollId, optionIndexes)
+      // Patch pesan POLL di thread dengan data terbaru.
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.messageType === "POLL" && m.poll?.id === pollId
+            ? { ...m, poll: updated }
+            : m,
+        ),
+      )
+    } catch (e) {
+      toast.show({
+        title: "Gagal voting",
+        description: isApiError(e) ? userMessage(e) : undefined,
+        tone: "danger",
+      })
+    } finally {
+      setVotingPollId(null)
+    }
+  }, [roomId, votingPollId, toast.show])
+  /**
+   * Tutup polling dari kartu di thread chat.
+   */
+  const handleInlinePollClose = useCallback(async (pollId: string) => {
+    if (!roomId || closingPollId) return
+    setClosingPollId(pollId)
+    try {
+      const updated = await api.chat.closePoll(roomId, pollId)
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.messageType === "POLL" && m.poll?.id === pollId
+            ? { ...m, poll: updated }
+            : m,
+        ),
+      )
+    } catch (e) {
+      toast.show({
+        title: "Gagal menutup polling",
+        description: isApiError(e) ? userMessage(e) : undefined,
+        tone: "danger",
+      })
+    } finally {
+      setClosingPollId(null)
+    }
+  }, [roomId, closingPollId, toast.show])
   /**
    * BFI-119/NCC-006: pemicu reload sheet polling — dinaikkan setiap event
    * `chat.poll_created` / `chat.poll_updated` / `chat.poll_closed` tiba,
@@ -2732,6 +2789,11 @@ export default function ChatRoomScreen() {
             // ChatTranslation (translatedText) → prop row ({ text, … }).
             translation={getTranslationView(m.id)}
             onBuyProductCard={isSelfChat ? undefined : handleRowBuyProductCard}
+            // 2026-10-02: voting polling inline di thread (pesan POLL).
+            onVotePoll={handleInlinePollVote}
+            onClosePoll={handleInlinePollClose}
+            votingPollId={votingPollId}
+            closingPollId={closingPollId}
             // CN-015: kirim ulang pesan yang gagal.
             onRetry={handleRowRetry}
             // Pencarian inline: sorot kata kunci; hasil aktif lebih tegas.

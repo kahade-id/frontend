@@ -177,6 +177,11 @@ export type ChatMessage = {
   isStarred?: boolean
   /** Kapan dibintangi (ISO) — dari GET /starred. */
   starredAt?: string
+  // ── 2026-10-02: pesan POLL — backend buat otomatis saat createPoll ──
+  /** ID polling (messageType POLL). */
+  pollId?: string | null
+  /** Data polling ter-embed (messageType POLL) — di-render via ChatPollCard. */
+  poll?: ChatPoll | null
 }
 
 /** Reaksi emoji pada pesan (summarizeReactions backend). */
@@ -258,6 +263,8 @@ export function nonTextMessageLabel(messageType?: string | null): string {
       return "Kartu produk"
     case "ORDER_CARD":
       return "Kartu order"
+    case "POLL":
+      return "Polling"
     default:
       return "(lampiran)"
   }

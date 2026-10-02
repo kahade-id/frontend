@@ -53,6 +53,7 @@ import { ChatDaySeparator, dayKey, dayLabel } from "@/components/ui/chat-day-sep
 import { ChatFormattedText } from "@/components/ui/chat-formatted-text"
 import { ChatLocationCard } from "@/components/ui/chat-location-card"
 import { ChatMessageBubble } from "@/components/ui/chat-message-bubble"
+import { ChatPollCard } from "@/components/ui/chat-poll-card"
 import { ChatViewOnce } from "@/components/ui/chat-view-once"
 import { isImageMedia } from "@/components/ui/media-viewer"
 import { VoiceNotePlayer } from "@/components/ui/voice-note-player"
@@ -146,6 +147,13 @@ export type ChatMessageRowProps = {
    */
   onBuyProductCard?: (card: ChatProductCardPayload) => void
   /**
+   * 2026-10-02: voting polling inline di thread (pesan POLL).
+   */
+  onVotePoll?: (pollId: string, optionIndexes: number[]) => void
+  onClosePoll?: (pollId: string) => void
+  votingPollId?: string | null
+  closingPollId?: string | null
+  /**
    * B10: pemisah hari dirender sebagai baris sticky FlatList (bukan di dalam
    * row) — `true` menonaktifkan pemisah internal row ini.
    */
@@ -204,6 +212,10 @@ export function ChatMessageRowBase({
   searchHighlight,
   translation,
   onBuyProductCard,
+  onVotePoll,
+  onClosePoll,
+  votingPollId,
+  closingPollId,
   hideDaySeparator = false,
   highlighted = false,
   onQuotePress,
@@ -289,6 +301,11 @@ export function ChatMessageRowBase({
       : null
   const productCard = !message.isDeleted ? asProductCard(message.card) : null
   const orderCard = !message.isDeleted ? asOrderCard(message.card) : null
+  // 2026-10-02: pesan POLL — render kartu polling inline di thread.
+  const pollData =
+    !message.isDeleted && message.messageType === "POLL" && message.poll
+      ? message.poll
+      : null
   const isViewOnceMessage = !message.isDeleted && message.viewOnce === true
   /** Chip hitung mundur pesan sementara — null bila bukan ephemeral/kedaluwarsa. */
   const ephemeralChip =
@@ -315,7 +332,7 @@ export function ChatMessageRowBase({
   ) : undefined
 
   const hasSpecialContent =
-    !!locationPayload || !!productCard || !!orderCard || !!mediaBlock
+    !!locationPayload || !!productCard || !!orderCard || !!mediaBlock || !!pollData
 
   const specialBlock = (
     <>
@@ -326,6 +343,17 @@ export function ChatMessageRowBase({
         <ChatProductCard card={productCard} outgoing={outgoing} onBuy={onBuyProductCard} />
       ) : null}
       {orderCard ? <ChatOrderCard card={orderCard} outgoing={outgoing} /> : null}
+      {pollData ? (
+        <ChatPollCard
+          poll={pollData}
+          voting={votingPollId === pollData.id}
+          onVote={(id, idx) => onVotePoll?.(id, idx)}
+          onClose={onClosePoll ? (id) => onClosePoll(id) : undefined}
+          // 2026-10-02: pembuat = pengirim pesan (fromUser).
+          isCreator={message.fromUser}
+          closing={closingPollId === pollData.id}
+        />
+      ) : null}
       {mediaBlock}
     </>
   )
@@ -347,7 +375,7 @@ export function ChatMessageRowBase({
   // agar tidak duplikat.
   const bubbleText = message.isDeleted
     ? "Pesan ini telah dihapus"
-    : isViewOnceMessage || locationPayload || productCard || orderCard
+    : isViewOnceMessage || locationPayload || productCard || orderCard || pollData
       ? undefined
       : message.text
 
