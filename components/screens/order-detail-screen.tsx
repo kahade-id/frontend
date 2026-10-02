@@ -870,8 +870,24 @@ export default function OrderDetailScreen() {
    * Pembeli memilih "Bayar dengan {metode}". Seluruh logika (guard intent
    * ganda, cap polling, rekonsiliasi kegagalan tak pasti) ada di
    * lib/use-order-payment.ts.
+   *
+   * BATCH4-A1: fail-closed — JANGAN buat intent bila rincian biaya belum
+   * terverifikasi (`fee.buyerPays == null`). Tombol di sheet memang disabled,
+   * tapi jalur ini juga dipanggil dari dialog "buat ulang" — guard di sini
+   * menutup semua jalan. Tanpa angka pasti dari server, pembayaran buta
+   * (otorisasi nominal yang tak pernah dilihat) dilarang.
    */
-  const handleCreateIntent = useCallback(() => payment.createIntent(), [payment])
+  const handleCreateIntent = useCallback(() => {
+    if (fee?.buyerPays == null) {
+      toast.show({
+        title: "Biaya belum tersedia",
+        description: "Rincian biaya belum dimuat. Tutup lalu buka kembali halaman pembayaran.",
+        tone: "danger",
+      })
+      return
+    }
+    payment.createIntent()
+  }, [payment, fee?.buyerPays, toast.show])
 
   // R2 (audit ronde-2, butir #18): "Buat ulang" = ganti intent aktif
   // server-side — destruktif bila pengguna baru saja membayar kode lama.
@@ -1656,9 +1672,17 @@ export default function OrderDetailScreen() {
         completeLoading={submitting}
         onCompleteConfirm={handleCompleteOrder}
         onCompleteClose={() => setConfirmComplete(false)}
-        // TRX-020: nominal dana escrow yang dilepas ke penjual saat konfirmasi.
-        // Pakai hitungan server (sellerReceives) bila ada, fallback ke nilai order.
-        escrowAmount={fee?.sellerReceives ?? order.orderValue}
+        // BATCH4-A2: nominal dana escrow yang dilepas ke penjual saat
+        // konfirmasi — HANYA dari hitungan server (`fee.sellerReceives`).
+        // Fallback ke `order.orderValue` DIHAPUS: orderValue tidak memuat
+        // biaya/voucher sehingga angkanya salah; menampilkan tebakan sebagai
+        // nominal lepas = keputusan finansial atas angka palsu. Bila server
+        // tidak mengirim, dialog tidak menampilkan blok nominal (fail-closed:
+        // tanpa angka pasti, jangan tampilkan angka).
+        // KEPUTUSAN USER (bila ingin mengubah): apakah tombol "Ya, konfirmasi
+        // terima" juga harus diblokir saat nominal tak diketahui, atau cukup
+        // blok nominal disembunyikan seperti sekarang.
+        escrowAmount={fee?.sellerReceives}
         // T2-008: blok nominal di dialog terima pesanan (penjual) — pakai
         // angka server; catatan beban biaya mengikuti feeResponsibility.
         acceptSellerAmount={fee?.sellerReceives}
