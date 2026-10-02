@@ -267,3 +267,62 @@ describe("logicalParentForPath — fallback back sadar konteks (T5-009)", () => 
     expect(logicalParentForPath("")).toBe(ROUTES.home)
   })
 })
+
+/**
+ * SYS-C-402 — tipe notifikasi backend yang sebelumnya tanpa pemetaan tujuan
+ * (moderasi, rating, KYC, penghapusan akun). Tap tidak boleh lagi jatuh ke
+ * detail notifikasi generik.
+ */
+describe("SYS-C-402 — pemetaan tipe moderasi/rating/KYC/penghapusan akun", () => {
+  it("showcasereport → daftar Laporan saya (/reports)", () => {
+    const href = routeForNotificationReference({ referenceType: "ShowcaseReport", referenceId: "u1" })
+    expect(hrefPath(href)).toBe("/reports")
+    expect(labelForNotificationReference({ referenceType: "showcasereport" })).toBe("Lihat laporan saya")
+  })
+
+  it("usershowcase → feed etalase (SENGAJA bukan detail: refId = ownerId, bukan item id)", () => {
+    const href = routeForNotificationReference({ referenceType: "UserShowcase", referenceId: "u1" })
+    expect(href).toBe(ROUTES.showcase)
+  })
+
+  it("reportappeal → feed etalase (FE tidak punya layar detail banding)", () => {
+    const href = routeForNotificationReference({ referenceType: "ReportAppeal", referenceId: "a1" })
+    expect(href).toBe(ROUTES.showcase)
+  })
+
+  it("accountdeletion → status penghapusan akun", () => {
+    const href = routeForNotificationReference({ referenceType: "ACCOUNT_DELETION" })
+    expect(href).toBe(ROUTES.deletionStatus)
+  })
+
+  it("RATING_NEW (push, tanpa refType/refId) → /ratings", () => {
+    const href = routeForPushData({ type: "RATING_NEW" })
+    expect(href).toBe(ROUTES.ratings)
+    expect(labelForNotificationReference({ referenceType: "ratingnew" })).toBe("Lihat ulasan")
+  })
+
+  it("KYC_APPROVED (push, tanpa refType) → /kyc", () => {
+    const href = routeForPushData({ type: "KYC_APPROVED" })
+    expect(href).toBe(ROUTES.kyc)
+    expect(labelForNotificationReference({ referenceType: "kycapproved" })).toBe("Buka verifikasi")
+  })
+})
+
+/**
+ * SYS-C-404 — head baru di logicalParentForPath: tap push cold-start ke
+ * tracking/returns/products/milestones lalu tekan kembali → tab Transaksi
+ * (bukan tab Etalase); support/questions → konteksnya masing-masing.
+ */
+describe("SYS-C-404 — logicalParentForPath head baru", () => {
+  it("tracking/returns/products/milestones → /transactions", () => {
+    expect(logicalParentForPath("/tracking/s1")).toBe(ROUTES.transactions)
+    expect(logicalParentForPath("/returns/r1")).toBe(ROUTES.transactions)
+    expect(logicalParentForPath("/products/p1")).toBe(ROUTES.transactions)
+    expect(logicalParentForPath("/milestones/m1")).toBe(ROUTES.transactions)
+  })
+
+  it("support/questions → konteks masing-masing", () => {
+    expect(logicalParentForPath("/support/t1")).toBe(ROUTES.support)
+    expect(logicalParentForPath("/questions")).toBe(ROUTES.questions)
+  })
+})

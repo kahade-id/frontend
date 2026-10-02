@@ -12,6 +12,8 @@ import { View } from "react-native"
 import type { ChatPoll } from "@/lib/api/chat"
 import { formatDateTimeWIB } from "@/lib/format"
 
+import { serverNow } from "@/lib/server-time"
+
 import { Text } from "@/components/ui/text"
 import { Icon } from "@/components/ui/icon"
 import { PressableScale } from "@/components/ui/pressable-scale"
@@ -47,7 +49,7 @@ export const ChatPollCard = memo(function ChatPollCard({
   }
   const [picked, setPicked] = useState<number[]>(Array.isArray(poll.myVotes) ? poll.myVotes : [])
   const closed = poll.isClosed
-  const expired = !closed && !!poll.deadline && Date.parse(poll.deadline) <= Date.now()
+  const expired = !closed && !!poll.deadline && Date.parse(poll.deadline) <= serverNow()
   const locked = closed || expired
 
   const toggle = (index: number) => {

@@ -59,6 +59,7 @@ import { useHasSession } from "@/lib/guest-gate"
 import { haptic } from "@/lib/haptics"
 import { translate } from "@/lib/i18n/translate"
 import { ROUTES } from "@/lib/routes"
+import { serverNow } from "@/lib/server-time"
 import { logWarn } from "@/lib/telemetry"
 import { useApiQuery } from "@/lib/use-api-query"
 import { shareContent } from "@/lib/share"
@@ -123,7 +124,7 @@ function discountTypeOf(v: Voucher): "FIXED" | "PERCENTAGE" | "UNKNOWN" {
 function expiresSoon(v: Voucher): boolean {
   if (!v.expiresAt) return false
   const time = new Date(v.expiresAt).getTime()
-  return Number.isFinite(time) && time - Date.now() < EXPIRES_SOON_MS
+  return Number.isFinite(time) && time - serverNow() < EXPIRES_SOON_MS
 }
 
 /**
@@ -137,7 +138,7 @@ function voucherStatusOf(v: Voucher): VoucherStatus {
   if (!v.active) return "inactive"
   if (v.expiresAt) {
     const time = new Date(v.expiresAt).getTime()
-    if (Number.isFinite(time) && time < Date.now()) return "expired"
+    if (Number.isFinite(time) && time < serverNow()) return "expired"
   }
   return "active"
 }
@@ -438,7 +439,7 @@ export default function VouchersScreen() {
   // kunci numerik — sebelumnya `new Date()` + `Date.now()` per perbandingan
   // (O(n log n) konstruksi Date tiap render layar Promo).
   const sorted = useMemo(() => {
-    const now = Date.now()
+    const now = serverNow()
     return available
       .map((v) => ({ v, key: urgencyKeyOf(v, now) }))
       .sort((a, b) => byUrgencyKeys(a.key, b.key))

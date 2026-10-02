@@ -69,6 +69,7 @@ import { Button } from "@/components/ui/button"
 import { ErrorState } from "@/components/ui/error-state"
 import { useAuthSession } from "@/lib/use-auth-session"
 import { RealtimeProvider } from "@/lib/realtime/socket-provider"
+import { RealtimeGlobalListeners } from "@/components/realtime-global-listeners"
 import { PendingActionsBanner } from "@/components/pending-actions-banner"
 import { MaintenanceGate } from "@/components/maintenance-screen"
 import {
@@ -1037,6 +1038,10 @@ function AppShellInner() {
           (pesan server + tombol coba lagi), bukan crash. */}
       <MaintenanceGate>
       <RealtimeProvider token={realtimeNeeded ? session.token : null}>
+      {/* SYS-C-403: listener realtime global per-user (dialog login perangkat
+          baru + invalidasi saldo dompet) — di atas seluruh tree agar sampai
+          kapan pun layar sedang terbuka. */}
+      <RealtimeGlobalListeners />
       <View className="flex-1 items-center">
         {/*
           Efek dorong konten ala X saat drawer dibuka (2026-09-27):

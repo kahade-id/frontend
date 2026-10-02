@@ -160,6 +160,34 @@ function routeForNotificationReferenceRaw(ref: NotificationReference): Href | nu
       const comment = ref.commentId?.trim()
       return id ? ROUTES.showcaseDetail(id, { comment: comment || undefined }) : ROUTES.showcase
     }
+    case "showcasereport":
+      // SYS-C-402: update status laporan moderasi → daftar "Laporan saya".
+      // FE tidak punya layar detail moderasi (moderasi di panel admin);
+      // refId backend = reporterId (BUKAN reportId — gap backend SYS-C-402),
+      // jadi id tidak dipakai untuk navigasi.
+      return ROUTES.reports()
+    case "usershowcase":
+      // SYS-C-402: takedown/pembatasan item milik user → feed etalase.
+      // SENGAJA bukan showcaseDetail(id): refId backend = ownerId (BUKAN
+      // item.id) — detail akan membuka item yang salah/tidak ada. Backend
+      // perlu mengirim item.id (pola :2250-2251) sebelum ini bisa deep.
+      return ROUTES.showcase
+    case "reportappeal":
+      // SYS-C-402: hasil banding → feed etalase. FE tidak punya layar
+      // detail banding; item yang dipulihkan muncul lagi di etalase.
+      return ROUTES.showcase
+    case "accountdeletion":
+      // SYS-C-402: notifikasi penghapusan akun → layar status khusus.
+      return ROUTES.deletionStatus
+    case "ratingnew":
+      // SYS-C-402: push `data: { type: 'RATING_NEW' }` (ratings.service,
+      // tanpa refType/refId) dinormalisasi menjadi `ratingnew` — bukan
+      // `rating` yang sudah ada. Arahkan ke daftar ulasan.
+      return ROUTES.ratings
+    case "kycapproved":
+      // SYS-C-402: push `data: { type: 'KYC_APPROVED' }` (tanpa refType)
+      // dinormalisasi menjadi `kycapproved` — bukan `kyc` yang sudah ada.
+      return ROUTES.kyc
     case "security":
     case "session":
     case "login":
@@ -216,6 +244,19 @@ export function logicalParentForPath(pathname: string): Href {
       return ROUTES.disputes
     case "showcase":
       return ROUTES.showcase
+    case "tracking":
+    case "returns":
+    case "products":
+    case "milestones":
+      // SYS-C-404: pelacakan/retur/produk/tahap adalah konteks transaksi —
+      // kembali ke tab Transaksi, bukan tab Etalase.
+      return ROUTES.transactions
+    case "support":
+      // SYS-C-404: tiket bantuan → daftar tiket bantuan.
+      return ROUTES.support
+    case "questions":
+      // SYS-C-404: daftar pertanyaan (Discovery Q&A).
+      return ROUTES.questions
     case "notifications":
     case "badges":
       return ROUTES.notifications
@@ -293,6 +334,18 @@ export function labelForNotificationReference(ref: NotificationReference): strin
     case "showcaselike":
     case "showcasecomment":
       return "Lihat karya"
+    case "showcasereport":
+      return "Lihat laporan saya"
+    case "usershowcase":
+      return "Lihat karya"
+    case "reportappeal":
+      return "Lihat hasil banding"
+    case "accountdeletion":
+      return "Lihat status penghapusan"
+    case "ratingnew":
+      return "Lihat ulasan"
+    case "kycapproved":
+      return "Buka verifikasi"
     case "security":
     case "session":
     case "login":

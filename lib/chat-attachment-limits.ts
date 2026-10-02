@@ -21,6 +21,14 @@
 export const CHAT_ATTACHMENT_MAX_BYTES = 50 * 1024 * 1024
 
 /**
+ * SYS-C-303: batas jumlah lampiran per pesan chat: 10
+ * (backend `src/modules/chat/dto/send-message.dto.ts:144`). Klien menolak
+ * SEBELUM upload — user yang menambah file ke-11 akan membuang kuota karena
+ * kirim pasti ditolak server (400).
+ */
+export const CHAT_ATTACHMENT_MAX_COUNT = 10
+
+/**
  * Daftar MIME yang diterima server untuk CHAT_ATTACHMENT — salinan dari
  * `ALLOWED_MIME_TYPES[UploadPurpose.CHAT_ATTACHMENT]` backend.
  */

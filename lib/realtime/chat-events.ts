@@ -107,6 +107,23 @@ export const NOTIFICATION_SOCKET_EVENTS = {
 } as const
 
 /**
+ * SYS-C-403: event keamanan & dompet — nama persis seperti yang di-emit
+ * `RealtimeGateway.emitToUser` ke room `user:<id>` (backend), tanpa listener
+ * di FE sebelum fix ini:
+ *   - `new.device.login` ← `auth.service.ts:4235` (peringatan login
+ *     perangkat baru — payload: { deviceInfo, ipAddress, timestamp })
+ *   - `wallet.balance_updated` ← `wallet.service.ts` (8 situs emit)
+ * Nama event mengandung titik — socket.io menerimanya apa adanya.
+ */
+export const SECURITY_SOCKET_EVENTS = {
+  NEW_DEVICE_LOGIN: "new.device.login",
+} as const
+
+export const WALLET_SOCKET_EVENTS = {
+  BALANCE_UPDATED: "wallet.balance_updated",
+} as const
+
+/**
  * BFI-113/BFI-118: event status order — di-emit ke room `order:<orderId>`
  * (`order-state.service.ts`, `orders.service.ts`). `STATUS` adalah varian
  * legacy yang masih di-emit berdampingan di beberapa titik.

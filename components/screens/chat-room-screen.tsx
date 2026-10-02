@@ -69,7 +69,7 @@ import {
 
 import { api, isApiError, userMessage } from "@/lib/api"
 import { createIdempotencyKey } from "@/lib/api/client"
-import { validateChatAttachment } from "@/lib/chat-attachment-limits"
+import { CHAT_ATTACHMENT_MAX_COUNT, validateChatAttachment } from "@/lib/chat-attachment-limits"
 import { getOrder, type Order } from "@/lib/api/orders"
 import { consumePrefetchedChatRoom } from "@/lib/chat-room-prefetch"
 import { fetchViaQueryCache, invalidateQueryPrefix } from "@/lib/query-cache"
@@ -1719,6 +1719,23 @@ export default function ChatRoomScreen() {
    */
   const enqueueAndUpload = useCallback(
     async (picked: PickedImage) => {
+      // SYS-C-303: tolak file ke-11+ SEBELUM upload dimulai — server hanya
+      // menerima maks 10 lampiran per pesan (send-message.dto.ts:144), jadi
+      // upload-nya pasti terbuang. Baca dari updater fungsional agar akurat
+      // di tengah pemanggilan bersamaan; return prev = no-op (tanpa render).
+      let full = false
+      setAttachments((prev) => {
+        if (prev.length >= CHAT_ATTACHMENT_MAX_COUNT) full = true
+        return prev
+      })
+      if (full) {
+        toast.show({
+          title: "Maksimal 10 lampiran per pesan",
+          description: `Pesan ini sudah berisi ${CHAT_ATTACHMENT_MAX_COUNT} lampiran. Kirim dulu pesan ini, lalu tambahkan sisanya di pesan berikutnya.`,
+          tone: "danger",
+        })
+        return
+      }
       // B06: validasi ukuran + tipe memakai batas SERVER (50 MB) — bukan
       // hardcode 10 MB lama. `size` 0 = platform tidak melaporkan; lewatkan
       // (server tetap gate).
