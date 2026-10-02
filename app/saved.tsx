@@ -77,8 +77,13 @@ const SavedProfileRow = memo(function SavedProfileRow({
 
 export default function SavedProfilesScreen() {
   const toast = useToast()
-  const query = useApiQuery("saved-profiles", (signal) =>
-    api.users.getSavedProfiles({ limit: 50 }, signal),
+  const query = useApiQuery(
+    "saved-profiles",
+    (signal) => api.users.getSavedProfiles({ limit: 50 }, signal),
+    true,
+    // P1a (2026-10-03): revalidasi saat kembali ke layar — daftar bisa berubah
+    // dari layar lain (unsave dari profil/detail).
+    { refreshOnFocus: true },
   )
   const items = query.data?.data ?? []
   const [unsavingId, setUnsavingId] = useState<string | null>(null)
