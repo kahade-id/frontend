@@ -13,8 +13,9 @@
 
 import { Crossfade } from "@/components/ui/fade-in"
 import { ListLoading } from "@/components/ui/paginated-list"
-import { useCallback, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { View } from "react-native"
+import { useLocalSearchParams } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { translate } from "@/lib/i18n/translate"
 
@@ -138,6 +139,17 @@ export default function ReferralScreen() {
   const [applyCode, setApplyCode] = useState("")
   const [applying, setApplying] = useState(false)
   const [applyError, setApplyError] = useState<string | undefined>()
+
+  // Deeplink kahade.id/r/<code>: isi otomatis kolom "pakai kode" saat
+  // layar dibuka lewat tautan undangan (hanya sekali, jangan timpa ketikan).
+  const { code: deeplinkCode } = useLocalSearchParams<{ code?: string }>()
+  useEffect(() => {
+    const incoming = Array.isArray(deeplinkCode) ? deeplinkCode[0] : deeplinkCode
+    if (incoming && !applyCode) {
+      setApplyCode(incoming.trim().toUpperCase())
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deeplinkCode])
 
   const handleRegenerate = useCallback(async () => {
     setRegenerating(true)
