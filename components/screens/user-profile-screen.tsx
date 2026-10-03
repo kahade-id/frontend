@@ -794,7 +794,7 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
       await api.settings.blockUser(profile?.id ?? "", handle)
       toast.show({ title: translate("Pengguna diblokir"), tone: "success", duration: 3000 })
       setBlockOpen(false)
-      goBackOrNavigate(ROUTES.home)
+      goBackOrNavigate(ROUTES.showcase)
     } catch (err: unknown) {
       toast.show({
         title: translate("Gagal memblokir pengguna"),
@@ -920,7 +920,7 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
           transparent
           title={handle ? `@${handle}` : undefined}
           showBack={true}
-          onBack={() => goBackOrNavigate(ROUTES.home)}
+          onBack={() => goBackOrNavigate(ROUTES.showcase)}
           right={
             profile ? (
               isSelf ? (

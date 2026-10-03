@@ -18,6 +18,7 @@ import { View } from "react-native"
 import { useLocalSearchParams } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { translate } from "@/lib/i18n/translate"
+import { goBackOrNavigate } from "@/lib/navigation"
 
 import { api, isApiError, userMessage } from "@/lib/api"
 import { referralUrl } from "@/lib/deeplinks"
@@ -28,6 +29,7 @@ import {
 } from "@/lib/api/disbursements"
 import { formatDateTimeWIB, formatRupiah } from "@/lib/format"
 import { haptic } from "@/lib/haptics"
+import { ROUTES } from "@/lib/routes"
 import { shareContent } from "@/lib/share"
 import { tokens } from "@/lib/tokens"
 
@@ -210,7 +212,9 @@ export default function ReferralScreen() {
 
   return (
     <Screen edges={["top"]} padded={false} keyboardAvoiding>
-      <Header title="Referral" />
+      {/* P1-1 (audit perf/UX 2026-10-03): tujuan deeplink `/r/<code>` —
+          back eksplisit dengan fallback Etalase, bukan layar buntu. */}
+      <Header title="Referral" onBack={() => goBackOrNavigate(ROUTES.showcase)} />
       <PullToRefresh
         onRefresh={() => void query.refresh()}
         refreshing={refreshing}
