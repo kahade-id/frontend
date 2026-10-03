@@ -2597,8 +2597,17 @@ export default function ChatRoomScreen() {
    * lib/chat-presence-label: online basi > 60 dtk, last-seen basi > 5 mnt.
    */
   const presenceStatus = presenceLabel(presence, presenceFetchedAt)
+  // 2026-10-03 (keputusan produk): presence yang basi disembunyikan HANYA bila
+  // user tidak aktif > 7 hari. Selama masih dalam 7 hari, tetap tampilkan
+  // "Terakhir dilihat ..." (mis. "Rabu, 12 Agustus 2026").
+  const PRESENCE_HIDE_AFTER_MS = 7 * 24 * 60 * 60 * 1000
+  const staleLastSeenAt = presence?.lastSeenAt ?? null
+  const staleLastSeenMs = staleLastSeenAt ? new Date(staleLastSeenAt).getTime() : NaN
+  const staleWithinWeek =
+    Number.isFinite(staleLastSeenMs) && Date.now() - staleLastSeenMs <= PRESENCE_HIDE_AFTER_MS
   // UIUX-121: presence yang basi/tidak diketahui tidak boleh disamakan dengan
-  // offline; baris status dikosongkan kecuali server memberi keadaan yang jelas.
+  // offline; baris status dikosongkan kecuali server memberi keadaan yang jelas
+  // atau last-seen masih dalam seminggu (keputusan produk 2026-10-03).
   const statusText = counterpartTyping
     ? "Sedang mengetik…"
     : presenceStatus.kind === "online"
@@ -2609,7 +2618,9 @@ export default function ChatRoomScreen() {
           `Terakhir dilihat ${formatChatListTime(presenceStatus.at)}`
         : presenceStatus.kind === "offline"
           ? "Tidak aktif"
-          : undefined
+          : staleWithinWeek
+            ? `Terakhir dilihat ${formatChatListTime(staleLastSeenAt as string)}`
+            : undefined
 
   // ── Aksi mode pilih pesan (ubin ikon+label di <SelectionBar>) ──────────
   const selectionActions: SelectionAction[] = useMemo(() => {
