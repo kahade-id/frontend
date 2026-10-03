@@ -197,9 +197,11 @@ export function uploadDirect(formData: FormData, signal?: AbortSignal) {
 
 /**
  * Produksi menuntut `fileKeys` (1–20 item) — bukan `{}` seperti spec lama.
- * Dipasang (G-04) di jalur gagal upload avatar (`app/edit-profile.tsx`) dan
- * submit KYC (`app/kyc.tsx`): fileKey yang sudah terupload tapi tidak jadi
- * dipakai dibersihkan best-effort agar tidak menjadi orphan di S3.
+ * Dipasang (G-04) di jalur gagal upload yang file-nya BELUM live — mis.
+ * submit KYC (`app/kyc.tsx`) dan lampiran sengketa: fileKey yang sudah
+ * terupload tapi tidak jadi dipakai dibersihkan best-effort agar tidak
+ * menjadi orphan di storage. JANGAN dipakai untuk avatar/header direct:
+ * key itu sudah live sejak upload (UPI-08).
  */
 export function cleanupUploads(fileKeys: string[]) {
   const dto: CleanupFilesDto = { fileKeys }
