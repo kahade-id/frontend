@@ -132,6 +132,7 @@ import {
   onSocialQueueDrained,
 } from "@/lib/offline-queue"
 import { OfflineBanner } from "@/components/offline-banner"
+import { LruCache } from "@/lib/lru-cache"
 import { ROUTES } from "@/lib/routes"
 import { refreshUnreadCount } from "@/lib/unread-count"
 import { tokens } from "@/lib/tokens"
@@ -214,9 +215,12 @@ function afterFirstPaint(cb: () => void): () => void {
  */
 // PERF-FIX (P2 nav): cache konkretisasi href — regex + encodeURIComponent
 // tidak diulang untuk href objek identik yang muncul di tiap render (deep
-// link guard, pending-next login, dsb). Map.has dipakai agar hasil `null`
-// yang valid ikut ter-cache.
-const concretePathCache = new Map<string, string | null>()
+// link guard, pending-next login, dsb). `null` yang valid ikut ter-cache.
+// P2 (audit perf/UX 2026-10-03): batasnya kini LRU — entri paling lama
+// dibuang satu per satu, bukan `clear()` total yang mengosongkan cache
+// hangat setiap kali ada href ke-101.
+const CONCRETE_PATH_CACHE_MAX = 100
+const concretePathCache = new LruCache<string | null>(CONCRETE_PATH_CACHE_MAX)
 function hrefToConcretePath(href: Href): string | null {
   const cacheKey =
     typeof href === "string"
@@ -225,8 +229,6 @@ function hrefToConcretePath(href: Href): string | null {
   const cached = concretePathCache.get(cacheKey)
   if (cached !== undefined) return cached
   const result = hrefToConcretePathUncached(href)
-  // Batas kecil: jumlah href unik di jalur notifikasi terbatas.
-  if (concretePathCache.size > 100) concretePathCache.clear()
   concretePathCache.set(cacheKey, result)
   return result
 }
@@ -239,8 +241,6 @@ function hrefToConcretePathUncached(href: Href): string | null {
     obj.params != null && typeof obj.params === "object"
       ? (obj.params as Record<string, unknown>)
       : {}
-  const cacheKey = `${obj.pathname}|${JSON.stringify(params)}`
-  if (concretePathCache.has(cacheKey)) return concretePathCache.get(cacheKey) ?? null
   const path = obj.pathname.replace(/\[([^\]/]+)\]/g, (_m, key: string) => {
     const value = params[key]
     return typeof value === "string" || typeof value === "number"
@@ -248,11 +248,7 @@ function hrefToConcretePathUncached(href: Href): string | null {
       : ""
   })
   // Segmen dinamis tersisa (mis. catch-all) = tidak bisa dikonkretkan.
-  if (path.includes("[") || path.includes("]")) {
-    concretePathCache.set(cacheKey, null)
-    return null
-  }
-  concretePathCache.set(cacheKey, path)
+  if (path.includes("[") || path.includes("]")) return null
   return path
 }
 
