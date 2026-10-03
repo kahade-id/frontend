@@ -35,7 +35,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Camera as CameraIcon, Image as ImageIcon, Images, Trash } from "phosphor-react-native"
 
 import { api, isApiError, type UpdateProfileDto, userMessage } from "@/lib/api"
-import { pickImage, pickedImageToFormData, type PickedImage, type PickImageOptions } from "@/lib/image-picker"
+import { pickImage, pickedImageToFormData, resizePickedImage, type PickedImage, type PickImageOptions } from "@/lib/image-picker"
+import { photoUploadTimeoutMs, validateHeaderAsset } from "@/lib/photo-upload-guards"
 import { goBackOrNavigate } from "@/lib/navigation"
 import { useLeaveConfirm } from "@/lib/use-leave-confirm"
 import { useAvatarUpload } from "@/lib/use-avatar-upload"
@@ -472,6 +473,17 @@ export default function EditProfileScreen() {
         return
       }
       if (picked.status !== "picked") return
+      // UPF-03: guard klien sampul — tolak >5 MB / MIME tak didukung sebelum
+      // pratinjau, dengan pesan Indonesia (pola sama dengan avatar).
+      const guardError = validateHeaderAsset(picked.asset)
+      if (guardError) {
+        toast.show({
+          title: translate("Foto tidak valid"),
+          description: guardError,
+          tone: "danger",
+        })
+        return
+      }
       // Tahan dulu — unggah hanya setelah pengguna menekan "Simpan sampul".
       setPendingHeader(picked.asset)
       setPendingHeaderSource(source)
@@ -483,8 +495,13 @@ export default function EditProfileScreen() {
     if (!pendingHeader || headerBusy) return
     setHeaderBusy(true)
     try {
+      // UPF-03: resize sampul sebelum upload (fail-open) — pola sama dengan
+      // avatar, agar foto kamera penuh tidak diunggah mentah lalu ditolak.
+      // UPF-04: timeout adaptif dari ukuran file (pasca-resize).
+      const resized = await resizePickedImage(pendingHeader)
       const uploaded = await api.users.uploadHeaderDirect(
-        await pickedImageToFormData(pendingHeader),
+        await pickedImageToFormData(resized),
+        { timeoutMs: photoUploadTimeoutMs(resized.size) },
       )
       if (uploaded.headerKey) await api.users.confirmHeader({ headerKey: uploaded.headerKey })
       if (uploaded.headerUrl) setHeaderUrl(uploaded.headerUrl)
