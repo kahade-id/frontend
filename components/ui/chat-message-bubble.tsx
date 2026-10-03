@@ -376,9 +376,16 @@ function ChatMessageBubbleBase({
 
   // 2026-10-03: meta (jam + centang) DI DALAM bubble, rata kanan ala WhatsApp.
   // Didefinisikan SEBELUM `bubble` karena dipakai di dalamnya.
+  // 2026-10-03 (update): meta diposisikan absolute di pojok kanan bawah,
+  // menempel presisi di samping konten (teks/gambar/video/file/lokasi)
+  // ala WhatsApp — tidak makan space vertikal tambahan.
+  // 2026-10-03 (update 2): tone inverse untuk bubble hitam (outgoing)
+  // agar jam + centang terlihat jelas.
+  const metaTone = outgoing ? "inverse" : "secondary"
+  const metaIconTone = outgoing ? "inverse" : "default"
   const metaBlock =
     time || failed || isPinned || isEdited || ephemeralChip || starred ? (
-      <View className="flex-row items-center justify-end gap-1 pt-1">
+      <View className="absolute bottom-1.5 right-2 flex-row items-center gap-1">
         {failed ? (
           <>
             <Icon icon={WarningCircle} size="xs" tone="danger" />
@@ -394,27 +401,27 @@ function ChatMessageBubbleBase({
         ) : (
           <>
             {time ? (
-              <Text variant="caption" tone="secondary" className="tabular-nums">
+              <Text variant="caption" tone={metaTone} className="tabular-nums">
                 {time}
               </Text>
             ) : null}
             {isEdited ? (
-              <Text variant="caption" tone="secondary">
+              <Text variant="caption" tone={metaTone}>
                 ({t.edited})
               </Text>
             ) : null}
-            {isPinned ? <Icon icon={PushPin} size="xs" tone="default" /> : null}
+            {isPinned ? <Icon icon={PushPin} size="xs" tone={metaIconTone} /> : null}
             {starred ? <Icon icon={Star} size="xs" tone="warning" weight="fill" /> : null}
             {ephemeralChip ? (
               <View className="flex-row items-center gap-0.5">
-                <Icon icon={Timer} size="xs" tone="default" />
-                <Text variant="caption" tone="secondary" className="tabular-nums">
+                <Icon icon={Timer} size="xs" tone={metaIconTone} />
+                <Text variant="caption" tone={metaTone} className="tabular-nums">
                   {ephemeralChip}
                 </Text>
               </View>
             ) : null}
             {outgoing && status && status !== "failed" ? (
-              <StatusGlyph status={status} />
+              <StatusGlyph status={status} outgoing={outgoing} />
             ) : null}
           </>
         )}
@@ -426,7 +433,9 @@ function ChatMessageBubbleBase({
       className={cn(
         // 2026-10-02: incoming tanpa border tebal — cukup background + rounded
         // (permintaan user). Outgoing tetap tanpa border (bg-primary solid).
-        "gap-2 rounded-md px-3 py-2",
+        // 2026-10-03: relative untuk meta absolute di pojok kanan bawah;
+        // pb ditambah agar konten tidak tertutup meta.
+        "relative gap-2 rounded-md px-3 pb-5 pt-2",
         outgoing ? "bg-primary" : "bg-surface",
       )}
     >
@@ -787,17 +796,24 @@ export const ChatMessageBubble = memo(ChatMessageBubbleBase)
  * kecuali `read` yang naik ke "active" + weight bold — hierarki lewat
  * weight & kontras, bukan warna baru.
  */
-function StatusGlyph({ status }: { status: Exclude<ChatMessageStatus, "failed"> }) {
+function StatusGlyph({
+  status,
+  outgoing,
+}: {
+  status: Exclude<ChatMessageStatus, "failed">
+  outgoing?: boolean
+}) {
+  const tone = outgoing ? "inverse" : "default"
   switch (status) {
     case "sending":
-      return <Icon icon={Clock} size="xs" tone="default" />
+      return <Icon icon={Clock} size="xs" tone={tone} />
     case "sent":
-      return <Icon icon={Check} size="xs" tone="default" />
+      return <Icon icon={Check} size="xs" tone={tone} />
     // CHT-007: case "delivered" dihapus — tidak pernah bisa tercapai
     // (backend tidak menyediakan delivered receipt).
     case "read":
       return (
-        <Icon icon={Checks} size="xs" tone="active" weight="bold" />
+        <Icon icon={Checks} size="xs" tone={outgoing ? "inverse" : "active"} weight="bold" />
       )
   }
 }
