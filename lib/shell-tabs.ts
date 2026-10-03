@@ -97,12 +97,30 @@ export function shellTabForPath(pathname: string): ShellTabDef | undefined {
 let activeShellTab: ShellTabKey | null = null
 let shellTabHistory: ShellTabKey[] = []
 
+/**
+ * P1-4 (audit perf/UX 2026-10-03): batas riwayat tab.
+ *
+ * Riwayat lama tumbuh sampai 32 entri dan hanya boleh diisi 4 tab — karena
+ * `rememberShellTabVisit` menyimpan tab yang SEDANG ditinggalkan, berpindah
+ * bolak-balik (Etalase ⇄ Transaksi ⇄ Pesan) mengisi riwayat dengan POLA
+ * berulang, bukan tab baru. Akibatnya tombol Back fisik harus ditekan
+ * puluhan kali sebelum akhirnya keluar dari app, dan "kembali ke tab
+ * sebelumnya" justru memutar pengguna di dua tab yang sama.
+ *
+ * 20 entri cukup untuk menutup pemakaian nyata (4 tab, bolak-balik beberapa
+ * kali) tanpa bisa menahan pengguna di dalam app. Dipotong dari DEPAN
+ * (`slice(-LIMIT)`) supaya yang dibuang adalah kunjungan paling lama.
+ */
+export const SHELL_TAB_HISTORY_LIMIT = 20
+
 export function rememberShellTabVisit(pathname: string): void {
   const next = shellTabForPath(pathname)?.key
   if (!next || next === activeShellTab) return
   if (activeShellTab) {
     shellTabHistory.push(activeShellTab)
-    if (shellTabHistory.length > 32) shellTabHistory = shellTabHistory.slice(-32)
+    if (shellTabHistory.length > SHELL_TAB_HISTORY_LIMIT) {
+      shellTabHistory = shellTabHistory.slice(-SHELL_TAB_HISTORY_LIMIT)
+    }
   }
   activeShellTab = next
 }
