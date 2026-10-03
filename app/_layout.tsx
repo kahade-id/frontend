@@ -88,6 +88,12 @@ const GuestLoginPrompt = lazy(() =>
     default: m.GuestLoginPrompt,
   })),
 )
+// P0-1 (audit perf/UX 2026-10-03): modal login di ATAS stack saat sesi
+// kedaluwarsa (native). Lazy + latch: modulnya (form, PasswordField, BottomSheet)
+// hanya dievaluasi saat pertama kali sesi kedaluwarsa — bukan saat boot.
+const SoftReauthGate = lazy(() =>
+  import("@/components/soft-reauth-gate").then((m) => ({ default: m.SoftReauthGate })),
+)
 import { compareVersions, safeHttpsUrl } from "@/lib/version"
 import { useReducedMotion } from "@/lib/use-reduced-motion"
 import { Dialog } from "@/components/ui/modal"
@@ -99,10 +105,14 @@ import { DeviceIntegrityProvider } from "@/components/security/device-integrity-
 // paling awal saat boot. Preseden: components/maintenance-screen.tsx:18.
 import * as notificationsApi from "@/lib/api/notifications"
 import * as publicApi from "@/lib/api/public"
-import { onSessionExpired } from "@/lib/api/session"
+import { emitSessionExpired, onSessionExpired } from "@/lib/api/session"
 import { fontAssetsBlocking, fontAssetsDeferred } from "@/lib/fonts"
 import { routeForPushData } from "@/lib/notification-routing"
-import { saveLastNativeRoute, suppressLastRouteRestore } from "@/lib/last-route"
+import {
+  flushLastNativeRouteSave,
+  saveLastNativeRouteDebounced,
+  suppressLastRouteRestore,
+} from "@/lib/last-route"
 import { animationDurationForScreen, animationForScreen, getScreenId } from "@/lib/screen-transitions"
 import { setupNotifications, subscribeNotificationOpened, subscribePushTokenRefresh, registerPushDevice } from "@/lib/push-notifications"
 // PERF-FIX (bundle, 2026-09-30): `expo-notifications` (±1.6MB) kini dimuat
@@ -132,7 +142,17 @@ import {
   onSocialQueueDrained,
 } from "@/lib/offline-queue"
 import { OfflineBanner } from "@/components/offline-banner"
+import { LruCache } from "@/lib/lru-cache"
 import { ROUTES } from "@/lib/routes"
+import { shouldMountAuthStack } from "@/lib/session-guard"
+import { useSessionVerifyGrace } from "@/lib/session-verify-grace"
+import {
+  decideNativeSessionExpiredAction,
+  isSoftReauthActive,
+  setSoftReauthTarget,
+  subscribeSoftReauthFallback,
+  useSoftReauthActive,
+} from "@/lib/soft-reauth"
 import { refreshUnreadCount } from "@/lib/unread-count"
 import { tokens } from "@/lib/tokens"
 import { captureError, installTelemetry, logWarn } from "@/lib/telemetry"
@@ -214,9 +234,12 @@ function afterFirstPaint(cb: () => void): () => void {
  */
 // PERF-FIX (P2 nav): cache konkretisasi href — regex + encodeURIComponent
 // tidak diulang untuk href objek identik yang muncul di tiap render (deep
-// link guard, pending-next login, dsb). Map.has dipakai agar hasil `null`
-// yang valid ikut ter-cache.
-const concretePathCache = new Map<string, string | null>()
+// link guard, pending-next login, dsb). `null` yang valid ikut ter-cache.
+// P2 (audit perf/UX 2026-10-03): batasnya kini LRU — entri paling lama
+// dibuang satu per satu, bukan `clear()` total yang mengosongkan cache
+// hangat setiap kali ada href ke-101.
+const CONCRETE_PATH_CACHE_MAX = 100
+const concretePathCache = new LruCache<string | null>(CONCRETE_PATH_CACHE_MAX)
 function hrefToConcretePath(href: Href): string | null {
   const cacheKey =
     typeof href === "string"
@@ -225,8 +248,6 @@ function hrefToConcretePath(href: Href): string | null {
   const cached = concretePathCache.get(cacheKey)
   if (cached !== undefined) return cached
   const result = hrefToConcretePathUncached(href)
-  // Batas kecil: jumlah href unik di jalur notifikasi terbatas.
-  if (concretePathCache.size > 100) concretePathCache.clear()
   concretePathCache.set(cacheKey, result)
   return result
 }
@@ -239,8 +260,6 @@ function hrefToConcretePathUncached(href: Href): string | null {
     obj.params != null && typeof obj.params === "object"
       ? (obj.params as Record<string, unknown>)
       : {}
-  const cacheKey = `${obj.pathname}|${JSON.stringify(params)}`
-  if (concretePathCache.has(cacheKey)) return concretePathCache.get(cacheKey) ?? null
   const path = obj.pathname.replace(/\[([^\]/]+)\]/g, (_m, key: string) => {
     const value = params[key]
     return typeof value === "string" || typeof value === "number"
@@ -248,11 +267,7 @@ function hrefToConcretePathUncached(href: Href): string | null {
       : ""
   })
   // Segmen dinamis tersisa (mis. catch-all) = tidak bisa dikonkretkan.
-  if (path.includes("[") || path.includes("]")) {
-    concretePathCache.set(cacheKey, null)
-    return null
-  }
-  concretePathCache.set(cacheKey, path)
+  if (path.includes("[") || path.includes("]")) return null
   return path
 }
 
@@ -484,10 +499,24 @@ function ShellRouteEffects({ session, setRealtimeNeeded }: {
 
   // Resume the last safe screen after the OS kills the process. The route
   // store contains pathname only (no query data) and is cleared on logout.
+  // P2 (audit perf/UX 2026-10-03): penulisan SecureStore di-debounce 500ms —
+  // berpindah tab beruntun tidak lagi menulis sekali per perpindahan.
   useEffect(() => {
     if (Platform.OS === "web" || !session.token || session.restoring) return
-    void saveLastNativeRoute(pathname).catch((error) => logWarn("navigation:last-route", error))
+    saveLastNativeRouteDebounced(pathname)
   }, [pathname, session.token, session.restoring])
+
+  // Pasangan debounce di atas: app yang ditinggalkan (background/inactive)
+  // bisa dimatikan OS sebelum timer 500ms menyala — siram yang tertunda agar
+  // tidak ada rute terakhir yang hilang.
+  useEffect(() => {
+    if (Platform.OS === "web") return
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state === "active") return
+      flushLastNativeRouteSave()
+    })
+    return () => subscription.remove()
+  }, [])
 
   // Satu-satunya tempat yang mendengarkan "sesi habis" dari API client
   // (client.ts memanggil emitSessionExpired saat 401 tak bisa di-refresh).
@@ -578,10 +607,42 @@ function ShellRouteEffects({ session, setRealtimeNeeded }: {
         }
         return
       }
-      if (!hadSessionRef.current && !isNativeGuardedPath(pathname)) return
+      /*
+       * P0-1 (audit perf/UX 2026-10-03): di native, sesi kedaluwarsa TIDAK
+       * lagi langsung `replace("/login")` — itu menghancurkan navigation
+       * stack (Stack.Protected mencabut semua layar), sehingga setelah login
+       * ulang pengguna tidak bisa kembali ke alur semula (mis.
+       * /dispute/123).
+       *
+       * Bila latch pemulihan lembut aktif (`lib/soft-reauth.ts`, dipasang
+       * SINKRON oleh clearSession dengan alasan "expired"), cukup simpan
+       * tujuan untuk fallback; modal login muncul di atas stack dan stack
+       * tetap hidup. Logout eksplisit / ganti sandi / 2FA tidak pernah
+       * memakai latch ini sehingga tetap lewat alur lama.
+       */
+      const action = decideNativeSessionExpiredAction({
+        hadSession: hadSessionRef.current,
+        guardedPath: isNativeGuardedPath(pathname),
+        softActive: isSoftReauthActive(),
+      })
+      if (action === "ignore") return
+      if (action === "soft") {
+        setSoftReauthTarget(next)
+        return
+      }
       redirectToLoginWithNext(next)
     })
   }, [router, buildNext, redirectToLoginWithNext, pathname])
+
+  /**
+   * P0-1: pengguna menutup modal atau gagal 3x → jalankan ALUR LAMA dengan
+   * tujuan yang tersimpan (sama seperti perilaku sebelum temuan ini).
+   */
+  useEffect(() => {
+    return subscribeSoftReauthFallback((next) => {
+      redirectToLoginWithNext(next)
+    })
+  }, [redirectToLoginWithNext])
 
   // NAV-007 (2026-09-28): deep link native ke rute proteksi saat logout
   // (mis. kahade.id/order/xxx dari share WA → dibuka aplikasi via universal
@@ -592,6 +653,9 @@ function ShellRouteEffects({ session, setRealtimeNeeded }: {
   const redirectedDeepLink = useRef(false)
   useEffect(() => {
     if (Platform.OS === "web") return
+    // P0-1: saat modal pemulihan lembut tampil, TIDAK ada redirect — modalnya
+    // yang menyelesaikan sesi (atau fallback yang mengalihkan).
+    if (isSoftReauthActive()) return
     // Reset: sesi pulih ATAU sudah di rute publik → logout berikutnya dalam
     // proses yang sama boleh mengalihkan lagi (tanpa ini, deep link kedua
     // setelah login–logout mendarat di layar kosong lagi).
@@ -707,6 +771,36 @@ function AppShellInner() {
   }, [reducedMotion])
 
   const [realtimeNeeded, setRealtimeNeeded] = useState(false)
+
+  /*
+   * P0-1 (audit perf/UX 2026-10-03): guard stack tidak lagi murni
+   * `Boolean(token)`. Saat sesi kedaluwarsa, latch pemulihan lembut menahan
+   * layar tetap ter-mount selama modal login tampil — navigation stack utuh,
+   * dan setelah masuk berhasil pengguna kembali ke layar semula.
+   */
+  const softReauthActive = useSoftReauthActive()
+
+  /**
+   * P0-2 (audit perf/UX 2026-10-03): verifikasi sesi background boleh menahan
+   * stack ber-auth maksimal 10 detik. Lewat itu, verifikasi dianggap gagal →
+   * alur sesi-kedaluwarsa yang sama dengan P0-1 (handler `onSessionExpired`
+   * memutuskan pemulihan lembut vs alur lama berdasarkan konteks).
+   */
+  const handleVerifyGraceExpired = useCallback(() => {
+    emitSessionExpired()
+  }, [])
+  const verifyingWithinGrace = useSessionVerifyGrace({
+    verifying: session.verifying,
+    token: session.token,
+    onExpired: handleVerifyGraceExpired,
+  })
+
+  const mountAuthStack = shouldMountAuthStack({
+    isWeb: Platform.OS === "web",
+    token: session.token,
+    verifying: verifyingWithinGrace,
+    softReauth: softReauthActive,
+  })
 
   // ST-009: handler foreground + Android channel dipasang setelah first
   // paint (idempoten) — channel wajib ada sebelum notifikasi tampil di
@@ -893,7 +987,14 @@ function AppShellInner() {
       } catch (err) {
         logWarn("notif:opened", err)
         if (source === "cold-start") suppressLastRouteRestore()
-        router.push(ROUTES.notifications)
+        /*
+         * P1-2 (audit perf/UX 2026-10-03): `push` di fallback menyimpang dari
+         * jalur sukses di atas (`navigate`) — payload rusak/exception saat
+         * handler berjalan meninggalkan DUPLIKAT tab Notifikasi di stack tiap
+         * kali pengguna mengetuk notifikasi yang sama. `navigate` =
+         * dedup rute aktif, sama seperti jalur sukses.
+         */
+        router.navigate(ROUTES.notifications)
       }
     })
   }, [router, session.restoring, session.error, session.token])
@@ -1109,7 +1210,7 @@ function AppShellInner() {
                 {/* Web: guard selalu true (semua layar terdaftar);
                     pemblokiran tamu ditangani GuestLoginPrompt di bawah. */}
                 <Stack.Protected
-                  guard={Platform.OS === "web" ? true : Boolean(session.token)}
+                  guard={Platform.OS === "web" ? true : mountAuthStack}
                 >
                   {authenticatedScreens}
                 </Stack.Protected>
@@ -1118,6 +1219,15 @@ function AppShellInner() {
             {/* Tamu web membuka layar ber-auth → ajakan login penuh di
                 atas layar (Stack tetap terpasang di baliknya). */}
             <GuestRouteOverlay token={session.token} />
+            {/*
+              P0-1: modal login di atas stack (native, hanya saat sesi
+              kedaluwarsa). Lazy — modul form baru dievaluasi saat dibutuhkan.
+            */}
+            {Platform.OS !== "web" && softReauthActive ? (
+              <Suspense fallback={null}>
+                <SoftReauthGate />
+              </Suspense>
+            ) : null}
           </PortalScene>
           <PersistentShellBar />
           <PortalHost />

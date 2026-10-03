@@ -54,6 +54,7 @@ import type { Voucher } from "@/lib/api/vouchers"
 import { mergeBadges } from "@/lib/badges"
 import { useCopy } from "@/lib/clipboard"
 import { referralUrl } from "@/lib/deeplinks"
+import { goBackOrNavigate } from "@/lib/navigation"
 import { formatDateTimeWIB, formatNumber, formatRupiah } from "@/lib/format"
 import { useHasSession } from "@/lib/guest-gate"
 import { haptic } from "@/lib/haptics"
@@ -456,7 +457,18 @@ export default function VouchersScreen() {
   if (!hasSession) {
     return (
       <Screen edges={["top"]} padded={false}>
-        <Header showBack={false} title="Voucher & Promo" />
+        {/*
+          P1-1 (audit perf/UX 2026-10-03): layar ini tujuan deeplink
+          `/v/<code>`. Dulu tanpa tombol back sama sekali — pengguna yang
+          datang dari tautan voucher hanya bisa keluar app (native) atau
+          menekan back browser (web). Fallback Etalase, warm-start tetap
+          `back()`.
+        */}
+        <Header
+          showBack
+          onBack={() => goBackOrNavigate(ROUTES.showcase)}
+          title="Voucher & Promo"
+        />
         <GuestLoginPrompt bare next="/vouchers" />
       </Screen>
     )
@@ -465,6 +477,8 @@ export default function VouchersScreen() {
   return (
     <DataScreen
       title="Voucher & Promo"
+      // P1-1: back eksplisit dengan fallback Etalase (deeplink /v/<code>).
+      header={{ onBack: () => goBackOrNavigate(ROUTES.showcase) }}
       shiftFade
       state={query}
       loadingMessage="Memuat promo…"

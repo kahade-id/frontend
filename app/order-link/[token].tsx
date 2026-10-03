@@ -279,7 +279,11 @@ export default function OrderLinkScreen() {
   if (!token?.trim()) {
     return (
       <Screen edges={["top"]} padded={false}>
-        <Header title="Tautan Pesanan" />
+        {/* P1-1: deeplink `/o/<token>` — back punya fallback Etalase. */}
+        <Header
+          title="Tautan Pesanan"
+          onBack={() => goBackOrNavigate(ROUTES.showcase)}
+        />
         <View className="gap-4 px-5 pt-6">
           <ErrorState
             title={translate("Tautan tidak valid")}
@@ -287,7 +291,7 @@ export default function OrderLinkScreen() {
               "Tautan pesanan ini tidak lengkap. Minta tautan baru kepada pengirim.",
             )}
           />
-          <Button variant="secondary" onPress={() => goBackOrNavigate(ROUTES.home)}>
+          <Button variant="secondary" onPress={() => goBackOrNavigate(ROUTES.showcase)}>
             {translate("Kembali")}
           </Button>
         </View>
@@ -297,7 +301,11 @@ export default function OrderLinkScreen() {
 
   return (
     <Screen edges={["top"]} padded={false}>
-      <Header title="Tautan Pesanan" />
+      {/* P1-1: deeplink `/o/<token>` — back punya fallback Etalase. */}
+      <Header
+        title="Tautan Pesanan"
+        onBack={() => goBackOrNavigate(ROUTES.showcase)}
+      />
       <PullToRefresh
         onRefresh={query.refresh}
         refreshing={query.refreshing}
@@ -396,7 +404,7 @@ export default function OrderLinkScreen() {
               </Alert>
             ) : null}
             {!active ? (
-              <Button variant="secondary" onPress={() => goBackOrNavigate(ROUTES.home)}>
+              <Button variant="secondary" onPress={() => goBackOrNavigate(ROUTES.showcase)}>
                 Kembali
               </Button>
             ) : null}

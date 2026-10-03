@@ -6,6 +6,7 @@
  * In-process navigation and push/deep-link destinations remain authoritative.
  */
 import { Platform } from "react-native"
+import { createTrailingDebounce } from "@/lib/debounce"
 import { deleteSecureItem, getSecureItem, SecureKeys, setSecureItem } from "@/lib/secure-storage"
 import { getSessionRevision } from "@/lib/api/session"
 import { PRE_SESSION_AUTH_PATHS } from "@/lib/protected-routes"
@@ -60,6 +61,38 @@ export function saveLastNativeRoute(pathname: string): Promise<void> {
   const next = saveQueue.then(write, write)
   saveQueue = next.catch(() => undefined)
   return next.then(() => undefined)
+}
+
+/**
+ * P2 (audit perf/UX 2026-10-03): tulis rute terakhir DI-DEBOUNCE 500ms.
+ *
+ * `saveLastNativeRoute` dipanggil dari efek pathname — berpindah tab
+ * beruntun (Etalase → Transaksi → Pesan) berarti satu penulisan SecureStore
+ * per perpindahan, padahal hanya rute TERAKHIR yang berguna saat boot.
+ * Debounce memangkasnya jadi satu penulisan per jendela 500ms.
+ *
+ * Risiko yang harus ditutup: OS bisa mematikan proses yang di-background
+ * sebelum timer menyala. Karena itu tersedia `flushLastNativeRouteSave()`
+ * yang dipanggil root layout saat app meninggalkan foreground — tidak ada
+ * rute yang hilang.
+ */
+export const LAST_ROUTE_SAVE_DEBOUNCE_MS = 500
+
+const debouncedSave = createTrailingDebounce<string>((path) => {
+  // Kegagalan tulis sudah ditelan di dalam (best-effort) — jangan sampai
+  // rejection tanpa handler dari timer.
+  void saveLastNativeRoute(path).catch(() => undefined)
+}, LAST_ROUTE_SAVE_DEBOUNCE_MS)
+
+/** Versi debounce dari `saveLastNativeRoute` (dipakai root layout). */
+export function saveLastNativeRouteDebounced(pathname: string): void {
+  if (Platform.OS === "web") return
+  debouncedSave.call(pathname)
+}
+
+/** Kirim penulisan yang tertunda sekarang (mis. app masuk background). */
+export function flushLastNativeRouteSave(): void {
+  debouncedSave.flush()
 }
 
 /** Return a validated path only on native; invalid/old entries fail closed. */

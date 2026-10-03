@@ -453,7 +453,10 @@ function expireSession(revision: number): Promise<void> {
    * redirect ke login. Kegagalannya kini dicatat dan ditelan: penyimpanan
    * akan dicoba dibersihkan lagi pada logout/boot berikutnya.
    */
-  const clearing = clearSession().catch((error: unknown) => {
+  // P0-1: tandai sebagai KEDALUWARSA (bukan signout) — jalur ini hanya
+  // berjalan saat refresh sesi gagal, sehingga root layout boleh menawarkan
+  // pemulihan lembut alih-alih mengganti stack dengan /login.
+  const clearing = clearSession({ reason: "expired" }).catch((error: unknown) => {
     logWarn("client:expire-cleanup", error)
   })
   const clearedRevision = getSessionRevision()

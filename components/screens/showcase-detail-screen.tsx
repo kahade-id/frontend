@@ -48,6 +48,7 @@ import { useApiQuery } from "@/lib/use-api-query"
 import { consumePrefetchedShowcaseDetail } from "@/lib/showcase-detail-prefetch"
 import { isShowcaseSoldOut } from "@/lib/showcase-stock"
 
+import { goBackOrNavigate } from "@/lib/navigation"
 import { useSessionRevision } from "@/lib/guest-gate"
 import { useShowcaseOperation } from "@/lib/use-showcase-operation"
 import { mergeComments, patchComments } from "@/lib/showcase-state"
@@ -161,10 +162,22 @@ export default function ShowcaseDetailScreen() {
   // Error lain tetap lewat DataScreen (ErrorState + retry).
   const isNotFound =
     !item && query.errorStatus === 404
+
+  /**
+   * P1-1 (audit perf/UX 2026-10-03): layar ini adalah tujuan deeplink
+   * `/p/<id>` (dan deep link lama /showcase/[id]). Pada cold start stack
+   * hanya berisi layar ini, jadi tombol back WAJIB punya fallback — tanpa
+   * itu back mengeluarkan pengguna dari app (native) atau meninggalkan situs
+   * (web). `goBackOrNavigate` tetap memakai `back()` bila riwayat ada
+   * (warm-start tidak berubah), dan hanya jatuh ke Etalase saat tidak ada.
+   */
+  const handleBack = useCallback(() => goBackOrNavigate(ROUTES.showcase, router), [])
+
   if (isNotFound) {
     return (
       <DataScreen
         title={translate("Etalase")}
+        header={{ onBack: handleBack }}
         state={{
           loading: false,
           refreshing: false,
@@ -195,6 +208,7 @@ export default function ShowcaseDetailScreen() {
     return (
       <DataScreen
         title={translate("Etalase")}
+        header={{ onBack: handleBack }}
         state={{
           loading: query.loading,
           refreshing: query.refreshing,
@@ -208,7 +222,16 @@ export default function ShowcaseDetailScreen() {
     )
   }
 
-  return <ShowcaseDetailContent key={`${revision}:${item.id}`} item={item} query={query} />
+  return (
+    <ShowcaseDetailContent
+      key={`${revision}:${item.id}`}
+      item={item}
+      query={query}
+      // P1-1: back dengan fallback Etalase diteruskan ke konten (Header
+      // konten ini yang menampilkan tombolnya).
+      onBack={handleBack}
+    />
+  )
 }
 
 /**
@@ -219,9 +242,12 @@ export default function ShowcaseDetailScreen() {
 function ShowcaseDetailContent({
   item,
   query,
+  onBack,
 }: {
   item: ShowcaseSocialItem
   query: ReturnType<typeof useApiQuery<ShowcaseSocialItem>>
+  /** P1-1: handler back dari pembungkus (fallback Etalase saat cold start). */
+  onBack: () => void
 }) {
   const id = item.id
   const revision = useSessionRevision()
@@ -861,6 +887,7 @@ function ShowcaseDetailContent({
     <DataScreen
       title={translate("Etalase")}
       padded={false}
+      header={{ onBack }}
       state={{
         loading: false,
         refreshing: query.refreshing || commentsRefreshing,

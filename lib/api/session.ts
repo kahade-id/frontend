@@ -170,11 +170,49 @@ export async function getRefreshToken(): Promise<string | null> {
   return getSecureItem(SecureKeys.refreshToken)
 }
 
-export async function clearSession(options?: { strictSignedOutFlag?: boolean }): Promise<void> {
+/**
+ * Alasan sesi diakhiri (P0-1, audit perf/UX 2026-10-03).
+ *
+ * Pemisahan ini menentukan apakah pemulihan lembut (modal login di atas stack)
+ * boleh ditawarkan:
+ *   - "expired" — sesi dibatalkan server/kedaluwarsa (refresh gagal, 401).
+ *     Pemulihan lembut membiarkan navigation stack utuh.
+ *   - "signout" — pengguna/keamanan mengakhiri sesi (logout, ganti sandi/HP,
+ *     2FA, kunci aplikasi). Perilaku lama (redirect penuh ke /login).
+ *
+ * DEFAULT "signout" = fail-closed: pemanggil yang tidak menyatakan diri sebagai
+ * kedaluwarsa tidak pernah mendapat perlakuan khusus. Kesalahan ke arah itu
+ * hanya berarti UX lama (redirect), bukan sesi yang dipertahankan diam-diam.
+ */
+export type SessionEndReason = "expired" | "signout"
+
+type SessionClearedListener = (reason: SessionEndReason) => void
+const sessionClearedListeners = new Set<SessionClearedListener>()
+
+/**
+ * Dipanggil SINKRON saat sesi dibersihkan (sebelum render React apa pun).
+ *
+ * Sinkronitasnya penting: pemulihan lembut harus sudah menandai dirinya aktif
+ * pada render berikutnya, sehingga `Stack.Protected` tidak sempat mencabut
+ * seluruh layar (navigation stack musnah) di frame pertama tanpa token.
+ */
+export function onSessionCleared(listener: SessionClearedListener): () => void {
+  sessionClearedListeners.add(listener)
+  return () => {
+    sessionClearedListeners.delete(listener)
+  }
+}
+
+export async function clearSession(options?: {
+  strictSignedOutFlag?: boolean
+  reason?: SessionEndReason
+}): Promise<void> {
+  const reason: SessionEndReason = options?.reason ?? "signout"
   revision += 1
   tokenRead = undefined
   accessTokenCache = null
   notifySession()
+  for (const listener of sessionClearedListeners) listener(reason)
   clearRegistrationState()
   clearPendingTwoFactorLogin()
   /*
