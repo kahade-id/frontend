@@ -30,6 +30,7 @@
  */
 import { useEffect, useRef, useState } from "react"
 import { Animated, BackHandler, Easing, Platform, Pressable, StyleSheet } from "react-native"
+import { useNavigation } from "@react-navigation/native"
 
 import { cn } from "@/lib/cn"
 import { tokens } from "@/lib/tokens"
@@ -127,6 +128,15 @@ export function useOverlayPresence(
 const backDismissStack: Array<() => void> = []
 let backPressSub: { remove(): void } | null = null
 
+/**
+ * B3W-02: true bila ada overlay yang sedang aktif. Dipakai guard layar agar
+ * browser back / iOS swipe diserahkan ke overlay terdalam (tumpukan LIFO di
+ * atas) alih-alih menjalankan logika back layar (step-back/dialog).
+ */
+export function hasOpenOverlay(): boolean {
+  return backDismissStack.length > 0
+}
+
 function ensureBackPressListener(): void {
   if (backPressSub) return
   backPressSub = BackHandler.addEventListener("hardwareBackPress", () => {
@@ -149,6 +159,7 @@ function releaseBackPressListener(): void {
 export function useOverlayDismissKeys(active: boolean, onDismiss?: () => void) {
   const onDismissRef = useRef(onDismiss)
   onDismissRef.current = onDismiss
+  const navigation = useNavigation()
 
   useEffect(() => {
     if (!active) return
@@ -158,7 +169,27 @@ export function useOverlayDismissKeys(active: boolean, onDismiss?: () => void) {
         if (e.key === "Escape") onDismissRef.current?.()
       }
       window.addEventListener("keydown", handler)
-      return () => window.removeEventListener("keydown", handler)
+      // B3W-02: browser back di web menutup overlay TERDALAM dulu (LIFO),
+      // konsisten dengan hardware back Android. `beforeRemove` dicegat lalu
+      // React Navigation me-rollback entri history browser — mekanisme yang
+      // sama dengan `usePreventRemove` (terverifikasi di audit) — sehingga
+      // rute TIDAK ikut ter-pop. Keputusan produk: perilaku mobile-first ini
+      // disengaja di web; ekspektasi "back menutup sheet" dipertahankan
+      // lintas platform. Hanya pendaftar teratas yang bereaksi; sisanya
+      // diam agar satu tekanan back = satu overlay tertutup.
+      const dismiss = () => onDismissRef.current?.()
+      backDismissStack.push(dismiss)
+      const unsubscribe = navigation.addListener("beforeRemove", (e) => {
+        if (backDismissStack[backDismissStack.length - 1] !== dismiss) return
+        e.preventDefault()
+        dismiss()
+      })
+      return () => {
+        window.removeEventListener("keydown", handler)
+        unsubscribe()
+        const i = backDismissStack.lastIndexOf(dismiss)
+        if (i >= 0) backDismissStack.splice(i, 1)
+      }
     }
 
     const dismiss = () => onDismissRef.current?.()
@@ -169,7 +200,7 @@ export function useOverlayDismissKeys(active: boolean, onDismiss?: () => void) {
       if (i >= 0) backDismissStack.splice(i, 1)
       releaseBackPressListener()
     }
-  }, [active])
+  }, [active, navigation])
 }
 
 export type BackdropProps = {

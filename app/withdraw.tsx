@@ -18,7 +18,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { BackHandler, ScrollView, View } from "react-native"
 import { router, useLocalSearchParams } from "expo-router"
-import { useFocusEffect } from "@react-navigation/native"
+import { useFocusEffect, useNavigation, usePreventRemove } from "@react-navigation/native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Bank as BankIcon } from "phosphor-react-native"
 
@@ -40,6 +40,7 @@ import { useWalletGate } from "@/lib/use-wallet-enabled"
 
 import { Alert } from "@/components/ui/alert"
 import { AmountKeypad } from "@/components/ui/amount-keypad"
+import { hasOpenOverlay } from "@/components/ui/backdrop"
 import { BankAccountListItem } from "@/components/ui/bank-account-list-item"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { KeypadOptionCard } from "@/components/ui/keypad-option-card"
@@ -459,6 +460,46 @@ export default function WithdrawScreen() {
       return () => sub.remove()
     }, [handleHeaderBack]),
   )
+
+  // B3W-01: pasangan web untuk guard TX2-P1 di atas. `BackHandler` tidak
+  // pernah fire di web (no-op react-native-web), jadi browser back butuh
+  // `usePreventRemove` — replika persis handleHeaderBack agar perilaku
+  // lintas platform identik (terutama dialog "penarikan masih menunggu OTP").
+  // Aksi non-back (replace internal: batal OTP → riwayat, ganti PIN, dsb.)
+  // diteruskan apa adanya via objek aksi yang sama. Keluar layar ditunda ke
+  // efek (pola create-transaction): dispatch aksi BARU sinkron di callback =
+  // loop beforeRemove. Murni guard navigasi; logika uang tidak disentuh.
+  const navigation = useNavigation()
+  const [intentionalLeave, setIntentionalLeave] = useState(false)
+  const withdrawDirty = result == null && (amount > 0 || accountId != null)
+  usePreventRemove(withdrawDirty && !intentionalLeave, ({ data }) => {
+    // Overlay/dialog terbuka → serahkan ke overlay terdalam (B3W-02).
+    if (hasOpenOverlay()) return
+    const action = data.action
+    const isBack =
+      action?.type === "POP" || action?.type === "GO_BACK" || action?.type === "POP_TO_TOP"
+    if (!isBack) {
+      navigation.dispatch(action)
+      return
+    }
+    if (step === "verify") {
+      // Seperti Android: telan back selama submit/batal berjalan.
+      if (submitting || cancelling) return
+      if (verifyMode === "otp" && txId) {
+        setCloseConfirmOpen(true)
+        return
+      }
+      setStep("amount")
+      setVerifyMode("pin")
+      return
+    }
+    setIntentionalLeave(true)
+  })
+  useEffect(() => {
+    if (!intentionalLeave) return
+    if (router.canGoBack()) router.back()
+    else router.replace(isLegacy ? ROUTES.bankAccounts : ROUTES.wallet)
+  }, [intentionalLeave, isLegacy])
 
   return (
     // SEC-404: proteksi screen-capture iOS di layar tarik dana (PIN + nominal).

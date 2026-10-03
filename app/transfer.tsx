@@ -14,7 +14,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { BackHandler, ScrollView, View } from "react-native"
-import { useFocusEffect } from "@react-navigation/native"
+import { useFocusEffect, useNavigation, usePreventRemove } from "@react-navigation/native"
 import { router, useLocalSearchParams } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { api, userMessage, type TransferDto } from "@/lib/api"
@@ -39,6 +39,7 @@ import { walletTransactionStatus } from "@/lib/wallet-labels"
 import { PencilSimpleLine } from "phosphor-react-native"
 import { Alert } from "@/components/ui/alert"
 import { AmountKeypad } from "@/components/ui/amount-keypad"
+import { hasOpenOverlay } from "@/components/ui/backdrop"
 import { Avatar } from "@/components/ui/avatar"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Button } from "@/components/ui/button"
@@ -390,6 +391,58 @@ export default function TransferScreen() {
       return () => sub.remove()
     }, [step, formSubStep, handleBack]),
   )
+
+  // B3W-01: pasangan web untuk guard P1-T4 di atas. `BackHandler` tidak
+  // pernah fire di web (no-op react-native-web), jadi browser back butuh
+  // `usePreventRemove` — replika persis logika hardware back agar perilaku
+  // lintas platform identik. Aksi non-back (replace/push internal: struk,
+  // ganti PIN, dsb.) diteruskan apa adanya via objek aksi yang sama.
+  // Keluar layar ditunda ke efek (pola create-transaction): dispatch aksi
+  // BARU secara sinkron di dalam callback = loop beforeRemove. Murni guard
+  // navigasi; logika uang tidak disentuh.
+  const navigation = useNavigation()
+  const [intentionalLeave, setIntentionalLeave] = useState(false)
+  const transferDirty =
+    step !== "done" &&
+    (selected != null || amount > 0 || note.trim() !== "" || noteDraft.trim() !== "")
+  usePreventRemove(transferDirty && !intentionalLeave, ({ data }) => {
+    // Overlay terbuka (mis. sheet catatan) → serahkan ke overlay
+    // terdalam (B3W-02); jangan jalankan logika back wizard.
+    if (hasOpenOverlay()) return
+    const action = data.action
+    const isBack =
+      action?.type === "POP" || action?.type === "GO_BACK" || action?.type === "POP_TO_TOP"
+    if (!isBack) {
+      navigation.dispatch(action)
+      return
+    }
+    if (step === "form" && formSubStep === "amount") {
+      setFormSubStep("recipient")
+      setAmount(0)
+      return
+    }
+    if (step === "confirm" || step === "pin") {
+      handleBack()
+      return
+    }
+    // form/recipient: keluar layar seperti hardware back.
+    setIntentionalLeave(true)
+  })
+  useEffect(() => {
+    if (!intentionalLeave) return
+    goBackOrNavigate(ROUTES.wallet)
+  }, [intentionalLeave])
+
+  // Web: peringatan bawaan browser sebelum tab ditutup/refresh dengan isian hidup.
+  useEffect(() => {
+    if (typeof window === "undefined" || !transferDirty) return
+    const warn = (event: BeforeUnloadEvent) => {
+      event.preventDefault()
+      event.returnValue = ""
+    }
+    window.addEventListener("beforeunload", warn)
+    return () => window.removeEventListener("beforeunload", warn)
+  }, [transferDirty])
   const handlePin = useCallback(
     async (pinValue: string) => {
       if (submitLock.current || !selected || !isValidAmount(amount, AMOUNT_LIMITS.transfer)) return

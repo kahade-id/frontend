@@ -39,7 +39,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { BackHandler, ScrollView, View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useRouter, type Href } from "expo-router"
-import { useFocusEffect } from "@react-navigation/native"
+import { useFocusEffect, useNavigation, usePreventRemove } from "@react-navigation/native"
 
 import { Alert } from "@/components/ui/alert"
 import { FadeIn } from "@/components/ui/fade-in"
@@ -179,6 +179,32 @@ export default function VerifyTwoFactorScreen() {
       return () => sub.remove()
     }, [handleBackToLogin]),
   )
+
+  // B3W-03: pasangan web untuk guard A2F-02 di atas. `BackHandler` tidak
+  // pernah fire di web, dan alur memakai `router.push` (disengaja — lihat
+  // komentar di login.tsx: tombol kembali harus membawa ke form login).
+  // Tanpa ini, browser back dari /verify-2fa pop mentah ke /verify-otp yang
+  // sudah mati (clearOtpFlow) → AuthFlowMissing. Disamakan dengan tombol
+  // visual: bersihkan state 2FA dulu. Keluar ditunda ke efek (pola
+  // create-transaction): dispatch aksi BARU sinkron di callback = loop
+  // beforeRemove. Aksi sukses (replace ke target pasca-login) bukan back →
+  // diteruskan apa adanya.
+  const navigation = useNavigation()
+  const [intentionalLeave, setIntentionalLeave] = useState(false)
+  usePreventRemove(!intentionalLeave, ({ data }) => {
+    const action = data.action
+    const isBack =
+      action?.type === "POP" || action?.type === "GO_BACK" || action?.type === "POP_TO_TOP"
+    if (!isBack) {
+      navigation.dispatch(action)
+      return
+    }
+    setIntentionalLeave(true)
+  })
+  useEffect(() => {
+    if (!intentionalLeave) return
+    handleBackToLogin()
+  }, [intentionalLeave, handleBackToLogin])
 
   /**
    * Audit 2026-10-01: state sesi 2FA hidup di memori modul; tanpa itu layar
