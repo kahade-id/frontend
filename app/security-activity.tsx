@@ -35,6 +35,7 @@ import { router } from "expo-router"
 import { ChartLine, DeviceMobile, ShieldWarning } from "phosphor-react-native"
 
 import { api, userMessage } from "@/lib/api"
+import { unregisterPushDevice } from "@/lib/push-notifications"
 import type { ActivityLogEntry, DeviceSession, SecurityLogEntry } from "@/lib/api/sessions"
 import { formatDateTime } from "@/lib/format"
 import { tokens } from "@/lib/tokens"
@@ -350,6 +351,18 @@ export default function SecurityActivityScreen() {
     }
     setConfirmAll(false)
     setConfirmAllArmed(false)
+    // P1-1 (audit FCM 2026-10-03): cabut token push SEBELUM sesi lokal
+    // dibersihkan — kalau tidak, perangkat tetap menerima push akun ini
+    // setelah "cabut semua sesi". Kegagalan unregister tidak boleh
+    // menggagalkan logout.
+    try {
+      await unregisterPushDevice({
+        registerDevice: (body) => api.notifications.registerDevice(body),
+        unregisterDevice: (deviceId: string) => api.notifications.unregisterDevice(deviceId),
+      })
+    } catch {
+      // diabaikan — logout tetap jalan
+    }
     // Sesi server sudah mati semua — bersihkan sesi lokal lalu ke login.
     await api.auth.logout().catch(() => undefined)
     router.replace("/(auth)/login")
