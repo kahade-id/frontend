@@ -102,7 +102,11 @@ import * as publicApi from "@/lib/api/public"
 import { onSessionExpired } from "@/lib/api/session"
 import { fontAssetsBlocking, fontAssetsDeferred } from "@/lib/fonts"
 import { routeForPushData } from "@/lib/notification-routing"
-import { saveLastNativeRoute, suppressLastRouteRestore } from "@/lib/last-route"
+import {
+  flushLastNativeRouteSave,
+  saveLastNativeRouteDebounced,
+  suppressLastRouteRestore,
+} from "@/lib/last-route"
 import { animationDurationForScreen, animationForScreen, getScreenId } from "@/lib/screen-transitions"
 import { setupNotifications, subscribeNotificationOpened, subscribePushTokenRefresh, registerPushDevice } from "@/lib/push-notifications"
 // PERF-FIX (bundle, 2026-09-30): `expo-notifications` (±1.6MB) kini dimuat
@@ -480,10 +484,24 @@ function ShellRouteEffects({ session, setRealtimeNeeded }: {
 
   // Resume the last safe screen after the OS kills the process. The route
   // store contains pathname only (no query data) and is cleared on logout.
+  // P2 (audit perf/UX 2026-10-03): penulisan SecureStore di-debounce 500ms —
+  // berpindah tab beruntun tidak lagi menulis sekali per perpindahan.
   useEffect(() => {
     if (Platform.OS === "web" || !session.token || session.restoring) return
-    void saveLastNativeRoute(pathname).catch((error) => logWarn("navigation:last-route", error))
+    saveLastNativeRouteDebounced(pathname)
   }, [pathname, session.token, session.restoring])
+
+  // Pasangan debounce di atas: app yang ditinggalkan (background/inactive)
+  // bisa dimatikan OS sebelum timer 500ms menyala — siram yang tertunda agar
+  // tidak ada rute terakhir yang hilang.
+  useEffect(() => {
+    if (Platform.OS === "web") return
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state === "active") return
+      flushLastNativeRouteSave()
+    })
+    return () => subscription.remove()
+  }, [])
 
   // Satu-satunya tempat yang mendengarkan "sesi habis" dari API client
   // (client.ts memanggil emitSessionExpired saat 401 tak bisa di-refresh).
