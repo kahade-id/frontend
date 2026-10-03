@@ -2,12 +2,11 @@
  * Kahade — logika presentasi murni gelembung chat (tanpa React Native).
  *
  * Modul ini adalah SATU sumber kebenaran untuk kontrak visual yang dikeluhkan
- * pemakai nyata (revisi 2026-09-27, TIM CHAT):
+ * pemakai nyata (TIM CHAT):
  *   a. simetri kiri/kanan bubble masuk vs keluar,
- *   b. jam hanya tampil di bubble TERAKHIR tiap grup menit,
- *   c. ketukan bubble teks = no-op; aksi hanya via tekan lama,
- *   d. posisi popover reaksi mengambang,
- *   e. badge reaksi overlap di sudut bubble (bukan di bawahnya).
+ *   b. ketukan bubble teks = no-op; aksi hanya via tekan lama,
+ *   c. posisi popover reaksi mengambang,
+ *   d. badge reaksi overlap di sudut bubble (bukan di bawahnya).
  *
  * Sengaja tanpa import `react-native` supaya bisa diuji di vitest (node).
  * Komponen (`chat-message-bubble`, `chat-message-row`,
@@ -54,35 +53,6 @@ export function chatBubbleGeometry(side: ChatBubbleSide): ChatBubbleGeometry {
     maxWidthPct: CHAT_BUBBLE_MAX_WIDTH_PCT,
     align: side === "outgoing" ? "end" : "start",
   }
-}
-
-/**
- * Kunci grup menit (zona perangkat — sama dengan `formatTime` tanpa opsi
- * timeZone): "YYYY-MM-DDTHH:MM". Dua pesan segrup menit bila pengirimnya sama
- * DAN kunci ini sama.
- */
-export function chatMinuteKey(iso: string): string {
-  const d = new Date(iso)
-  const p = (n: number) => String(n).padStart(2, "0")
-  return (
-    `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}` +
-    `T${p(d.getHours())}:${p(d.getMinutes())}`
-  )
-}
-
-/**
- * Apakah pesan ini bubble TERAKHIR dalam grup menitnya — satu-satunya yang
- * menampilkan jam (ala WhatsApp). `next` = pesan tepat DI BAWAHNYA di thread
- * (daftar diurut menaik). Beda pengirim atau beda menit → grup berakhir di
- * pesan ini → jam tampil.
- */
-export function isLastInMinuteGroup(
-  message: { fromUser: boolean; createdAt: string },
-  next?: { fromUser: boolean; createdAt: string },
-): boolean {
-  if (!next) return true
-  if (next.fromUser !== message.fromUser) return true
-  return chatMinuteKey(next.createdAt) !== chatMinuteKey(message.createdAt)
 }
 
 /**

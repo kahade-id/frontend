@@ -230,7 +230,7 @@ export function ChatCreateOrderSheet({
       description={
         withShowcase
           ? `Dari etalase "${productCard?.title}" — dana dikunci di escrow.`
-          : "Buat order escrow 1-by-1 dari percakapan ini."
+          : "Buat transaksi aman dari percakapan ini — uang Anda dilindungi Kahade."
       }
       avoidKeyboard
     >

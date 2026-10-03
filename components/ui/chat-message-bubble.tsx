@@ -30,13 +30,12 @@
  *     Mono untuk "timestamp teknis" (log, invoice); jam kirim pesan adalah
  *     meta percakapan yang harus lebur, bukan data presisi yang dibaca
  *     berdiri sendiri. (Bandingkan SecurityLogItem yang memang teknis.)
- *   - Jam hanya tampil di bubble TERAKHIR tiap grup menit (aturan dihitung di
- *     <ChatMessageRow> via `isLastInMinuteGroup`, ala WhatsApp) — prop `time`
- *     yang diterima sudah memperhitungkannya; komponen ini hanya merender.
+ *   - Setiap bubble menerima dan menampilkan jam pesannya sendiri; <ChatMessageRow>
+ *     memformat nilainya, sedangkan komponen ini hanya merender.
  *   - Status kirim hanya di outgoing (incoming tidak punya status). Ikon
  *     16px tone inverse dengan opacity lebih rendah untuk sending/sent;
- *     `read` = Checks weight bold + opacity penuh. Tidak ada warna biru
- *     "sudah dibaca" — sistem monokrom (§2.3). CHT-007: tidak ada status
+ *     `read` = Checks weight bold + label mikro "Dibaca" agar mudah dikenali.
+ *     Tidak ada warna biru — sistem monokrom (§2.3). CHT-007: tidak ada status
  *     "delivered" (centang ganda abu) — backend tidak menyediakan delivered
  *     receipt, jadi "sent" (centang satu) langsung naik ke "read".
  *   - `failed`: gelembung tetap bg-primary (isi pesan tetap terbaca), tetapi
@@ -384,7 +383,7 @@ function ChatMessageBubbleBase({
   const metaTone = outgoing ? "inverse" : "secondary"
   const metaIconTone = outgoing ? "inverse" : "default"
   const metaBlock =
-    time || failed || isPinned || isEdited || ephemeralChip || starred ? (
+    time || failed || (outgoing && status) || isPinned || isEdited || ephemeralChip || starred ? (
       <View className="absolute bottom-1.5 right-2 flex-row items-center gap-1">
         {failed ? (
           <>
@@ -428,7 +427,7 @@ function ChatMessageBubbleBase({
       </View>
     ) : null
 
-  const hasMeta = !!(time || failed || isPinned || isEdited || ephemeralChip || starred)
+  const hasMeta = !!(time || failed || (outgoing && status) || isPinned || isEdited || ephemeralChip || starred)
 
   const bubble = (
     <View
@@ -797,8 +796,8 @@ export const ChatMessageBubble = memo(ChatMessageBubbleBase)
 
 /**
  * Ikon status kirim, 16px (§7 size xs). Semua tone "default" (text-tertiary)
- * kecuali `read` yang naik ke "active" + weight bold — hierarki lewat
- * weight & kontras, bukan warna baru.
+ * kecuali `read` yang naik ke "active" + weight bold dan mendapat label
+ * mikro "Dibaca" — tetap tanpa warna baru.
  */
 function StatusGlyph({
   status,
@@ -817,7 +816,12 @@ function StatusGlyph({
     // (backend tidak menyediakan delivered receipt).
     case "read":
       return (
-        <Icon icon={Checks} size="xs" tone={outgoing ? "inverse" : "active"} weight="bold" />
+        <View className="flex-row items-center gap-1">
+          <Icon icon={Checks} size="xs" tone={outgoing ? "inverse" : "active"} weight="bold" />
+          <Text variant="caption" tone={outgoing ? "inverse" : "secondary"}>
+            {translate("Dibaca")}
+          </Text>
+        </View>
       )
   }
 }

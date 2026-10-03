@@ -165,7 +165,7 @@ describe("nonTextMessageLabel (CHT-011)", () => {
   it("tipe khusus batch 43 → label spesifik (bukan '(lampiran)')", () => {
     expect(nonTextMessageLabel("LOCATION")).toBe("Lokasi")
     expect(nonTextMessageLabel("PRODUCT_CARD")).toBe("Kartu produk")
-    expect(nonTextMessageLabel("ORDER_CARD")).toBe("Kartu order")
+    expect(nonTextMessageLabel("ORDER_CARD")).toBe("Kartu pesanan")
   })
 
   it("tipe tak dikenal/kosong → '(lampiran)'", () => {

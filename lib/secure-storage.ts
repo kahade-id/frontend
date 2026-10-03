@@ -191,6 +191,8 @@ export const SecureKeys = {
    * adalah satu-satunya petunjuk keberadaan.
    */
   coachMarkChatSwipeSeen: "kahade.coachMark.chatSwipeSeen",
+  /** UIUX-122: pengenal sekali-tampil untuk membalas pesan di ruang chat. */
+  coachMarkChatReplySeen: "kahade.coachMark.chatReplySeen",
   /**
    * U5-005 (journey): overlay orientasi first-run di feed (3 kartu + 1 baris
    * per tab). "1" bila sudah pernah tampil/ditutup — tampil sekali saja.
@@ -302,6 +304,7 @@ const WEB_PERSISTENT_KEYS = new Set<SecureKey>([
   SecureKeys.coachMarkFeedBuySeen,
   SecureKeys.escrowDefinitionSeen,
   SecureKeys.coachMarkChatSwipeSeen,
+  SecureKeys.coachMarkChatReplySeen,
   SecureKeys.feedOrientationSeen,
   SecureKeys.pushRationaleSeen,
   SecureKeys.sellerEscrowBannerSeen,

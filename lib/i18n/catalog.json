@@ -2315,6 +2315,10 @@
    "n": 3
   },
   {
+   "s": "Buka percakapan langsung dengan penjual",
+   "n": 3
+  },
+  {
    "s": "Buka profil saya",
    "n": 3
   },
@@ -2407,7 +2411,7 @@
    "n": 3
   },
   {
-   "s": "Coba putar ulang voice note",
+   "s": "Coba putar ulang pesan suara",
    "n": 3
   },
   {
@@ -2735,6 +2739,10 @@
    "n": 3
   },
   {
+   "s": "Geser pesan ke kanan untuk membalas, atau tekan lama untuk melihat opsi pesan",
+   "n": 3
+  },
+  {
    "s": "Gulir feed ke posisi paling atas",
    "n": 3
   },
@@ -3035,11 +3043,11 @@
    "n": 3
   },
   {
-   "s": "Jeda video: {x}",
+   "s": "Jeda pesan suara",
    "n": 3
   },
   {
-   "s": "Jeda voice note",
+   "s": "Jeda video: {x}",
    "n": 3
   },
   {
@@ -3623,6 +3631,10 @@
    "n": 3
   },
   {
+   "s": "Merekam… ketuk Berhenti bila selesai.",
+   "n": 3
+  },
+  {
    "s": "Min. belanja (Rp)",
    "n": 3
   },
@@ -3971,6 +3983,10 @@
    "n": 3
   },
   {
+   "s": "Pesan suara",
+   "n": 3
+  },
+  {
    "s": "Pesan terpin: {x}",
    "n": 3
   },
@@ -4095,11 +4111,11 @@
    "n": 3
   },
   {
-   "s": "Putar video: {x}",
+   "s": "Putar pesan suara",
    "n": 3
   },
   {
-   "s": "Putar voice note",
+   "s": "Putar video: {x}",
    "n": 3
   },
   {
@@ -4112,6 +4128,10 @@
   },
   {
    "s": "Rating {x} dari {y}",
+   "n": 3
+  },
+  {
+   "s": "Rekam pesan suara, maksimal {x} menit.",
    "n": 3
   },
   {
@@ -4787,6 +4807,10 @@
    "n": 3
   },
   {
+   "s": "Voucher platform",
+   "n": 3
+  },
+  {
    "s": "Voucher toko",
    "n": 3
   },
@@ -4988,6 +5012,10 @@
   },
   {
    "s": "Akses kamera ditolak",
+   "n": 2
+  },
+  {
+   "s": "Akses mikrofon ditolak. Buka Pengaturan perangkat → Kahade → Mikrofon untuk mengaktifkan pesan suara.",
    "n": 2
   },
   {
@@ -5423,10 +5451,6 @@
    "n": 2
   },
   {
-   "s": "Buat order escrow {x}-by-{x} dari percakapan ini.",
-   "n": 2
-  },
-  {
    "s": "Buat PIN dompet?",
    "n": 2
   },
@@ -5444,6 +5468,10 @@
   },
   {
    "s": "Buat tiket",
+   "n": 2
+  },
+  {
+   "s": "Buat transaksi aman dari percakapan ini — uang Anda dilindungi Kahade.",
    "n": 2
   },
   {
@@ -5635,6 +5663,10 @@
    "n": 2
   },
   {
+   "s": "Chat penjual",
+   "n": 2
+  },
+  {
    "s": "Cicilan / DP",
    "n": 2
   },
@@ -5764,6 +5796,10 @@
   },
   {
    "s": "Diarsipkan",
+   "n": 2
+  },
+  {
+   "s": "Dibaca",
    "n": 2
   },
   {
@@ -6304,6 +6340,10 @@
   },
   {
    "s": "Halo, saya Asisten Otomatis Kahade. Tulis pesan Anda dan Tim Kahade akan menindaklanjuti lewat percakapan ini.",
+   "n": 2
+  },
+  {
+   "s": "Hanya satu voucher yang bisa dipakai per transaksi: pilih voucher platform atau voucher toko penjual.",
    "n": 2
   },
   {
@@ -6955,6 +6995,10 @@
    "n": 2
   },
   {
+   "s": "Langkah {x} dari {y}",
+   "n": 2
+  },
+  {
    "s": "Laporan Anda sedang ditinjau moderasi. Etalase ini disembunyikan dari feed Anda.",
    "n": 2
   },
@@ -7311,10 +7355,6 @@
    "n": 2
   },
   {
-   "s": "Merekam… ketuk Berhenti bila selesai.",
-   "n": 2
-  },
-  {
    "s": "Metode pembayaran belum tersedia",
    "n": 2
   },
@@ -7603,6 +7643,10 @@
    "n": 2
   },
   {
+   "s": "Penjual baru — belum ada ulasan",
+   "n": 2
+  },
+  {
    "s": "Penjual belum mengunggah bukti. Anda akan diberi tahu saat tersedia.",
    "n": 2
   },
@@ -7768,6 +7812,10 @@
   },
   {
    "s": "Pesan sementara: {x}",
+   "n": 2
+  },
+  {
+   "s": "Pesan suara tidak valid",
    "n": 2
   },
   {
@@ -7964,10 +8012,6 @@
   },
   {
    "s": "Refund Order",
-   "n": 2
-  },
-  {
-   "s": "Rekam pesan suara, maksimal {x} menit.",
    "n": 2
   },
   {
@@ -8479,6 +8523,10 @@
    "n": 2
   },
   {
+   "s": "Tautan pesanan",
+   "n": 2
+  },
+  {
    "s": "Tautan tidak aman — tidak dibuka",
    "n": 2
   },
@@ -8528,10 +8576,6 @@
   },
   {
    "s": "Template Transaksi",
-   "n": 2
-  },
-  {
-   "s": "Tenggat",
    "n": 2
   },
   {
@@ -8924,10 +8968,6 @@
   },
   {
    "s": "Virtual Account",
-   "n": 2
-  },
-  {
-   "s": "Voice note tidak valid",
    "n": 2
   },
   {
@@ -11135,10 +11175,6 @@
    "n": 1
   },
   {
-   "s": "Akses mikrofon ditolak. Buka Pengaturan perangkat → Kahade → Mikrofon untuk mengaktifkan voice note.",
-   "n": 1
-  },
-  {
    "s": "Akses premium tetap berlaku sampai akhir periode.",
    "n": 1
   },
@@ -11904,6 +11940,10 @@
   },
   {
    "s": "Batas respons: {x}",
+   "n": 1
+  },
+  {
+   "s": "Batas waktu pengiriman",
    "n": 1
   },
   {
@@ -14851,7 +14891,7 @@
    "n": 1
   },
   {
-   "s": "Hapus untuk semua pihak",
+   "s": "Hapus untuk semua orang",
    "n": 1
   },
   {
@@ -14891,10 +14931,6 @@
    "n": 1
   },
   {
-   "s": "Harga lewat diskusi",
-   "n": 1
-  },
-  {
    "s": "Harga maksimum",
    "n": 1
   },
@@ -14916,6 +14952,10 @@
   },
   {
    "s": "Harga yang sudah terisi belum dapat dikosongkan. Masukkan nominal baru, termasuk {x} untuk gratis.",
+   "n": 1
+  },
+  {
+   "s": "Harga: chat penjual",
    "n": 1
   },
   {
@@ -17239,6 +17279,10 @@
    "n": 1
   },
   {
+   "s": "Memuat pesan suara…",
+   "n": 1
+  },
+  {
    "s": "Memuat preferensi bahasa…",
    "n": 1
   },
@@ -17312,10 +17356,6 @@
   },
   {
    "s": "Memuat tipe akun…",
-   "n": 1
-  },
-  {
-   "s": "Memuat voice note…",
    "n": 1
   },
   {
@@ -18172,10 +18212,6 @@
   },
   {
    "s": "Order kedaluwarsa",
-   "n": 1
-  },
-  {
-   "s": "Order Link",
    "n": 1
   },
   {
@@ -19339,6 +19375,14 @@
    "n": 1
   },
   {
+   "s": "Pesan suara {x} dari {y}",
+   "n": 1
+  },
+  {
+   "s": "Pesan suara tidak bisa diputar",
+   "n": 1
+  },
+  {
    "s": "Pesan terpin",
    "n": 1
   },
@@ -19776,6 +19820,10 @@
   },
   {
    "s": "registrasi, autentikasi, profil, komunikasi, pemulihan, personalisasi, dan keamanan.",
+   "n": 1
+  },
+  {
+   "s": "Rekam pesan suara",
    "n": 1
   },
   {
@@ -21107,10 +21155,6 @@
    "n": 1
   },
   {
-   "s": "Tautan pesanan",
-   "n": 1
-  },
-  {
    "s": "Tautan pesanan dibuat",
    "n": 1
   },
@@ -21196,6 +21240,10 @@
   },
   {
    "s": "Temukan pengguna",
+   "n": 1
+  },
+  {
+   "s": "Tenggat",
    "n": 1
   },
   {
@@ -22273,18 +22321,6 @@
   },
   {
    "s": "Visibilitas profil",
-   "n": 1
-  },
-  {
-   "s": "Voice note",
-   "n": 1
-  },
-  {
-   "s": "Voice note {x} dari {y}",
-   "n": 1
-  },
-  {
-   "s": "Voice note tidak bisa diputar",
    "n": 1
   },
   {

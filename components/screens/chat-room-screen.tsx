@@ -45,6 +45,7 @@ import {
   type LayoutChangeEvent,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
+  type View as RNView,
 } from "react-native"
 import { useLocalSearchParams, router } from "expo-router"
 
@@ -164,6 +165,7 @@ import { ListLoading } from "@/components/ui/paginated-list"
 import { Screen } from "@/components/ui/screen"
 import { ChatRoomFooter } from "@/components/ui/chat-room-footer"
 import { SelectionBar, type SelectionAction } from "@/components/ui/selection-bar"
+import { CoachMark } from "@/components/ui/coach-mark"
 import { ChatTranslateSheet } from "@/components/ui/chat-translate-sheet"
 import { ChatStarredSheet } from "@/components/ui/chat-starred-sheet"
 import { ChatPollsSheet } from "@/components/ui/chat-polls-sheet"
@@ -1361,6 +1363,7 @@ export default function ChatRoomScreen() {
   // ScrollView + messages.map menahan 200+ bubble ter-mount penuh dengan
   // gambar; memori & FPS jatuh di Android low-end.
   const scrollRef = useRef<FlatList<ThreadRow>>(null)
+  const replyCoachMarkRef = useRef<RNView | null>(null)
   const lastSeenEndId = useRef<string | undefined>(undefined)
   const lastMessageId = messages[messages.length - 1]?.id
   const handleContentSizeChange = useCallback(() => {
@@ -1432,6 +1435,10 @@ export default function ChatRoomScreen() {
   const visibleMessages = useMemo(
     () => messages.filter((m) => !hiddenIds.has(m.id)),
     [messages, hiddenIds],
+  )
+  const replyCoachTargetId = useMemo(
+    () => [...visibleMessages].reverse().find((message) => !message.isDeleted && message.messageType !== "SYSTEM")?.id,
+    [visibleMessages],
   )
 
   /**
@@ -1819,7 +1826,7 @@ export default function ChatRoomScreen() {
       setVoiceSheetOpen(false)
       const validation = validateVoiceNoteFile({ size: file.size, durationMs: file.durationMs })
       if (!validation.ok) {
-        toast.show({ title: translate("Voice note tidak valid"), description: voiceNoteValidationMessage(validation.reason), tone: "danger" })
+        toast.show({ title: translate("Pesan suara tidak valid"), description: voiceNoteValidationMessage(validation.reason), tone: "danger" })
         return
       }
       await enqueueAndUpload({
@@ -2590,8 +2597,8 @@ export default function ChatRoomScreen() {
    * lib/chat-presence-label: online basi > 60 dtk, last-seen basi > 5 mnt.
    */
   const presenceStatus = presenceLabel(presence, presenceFetchedAt)
-  // 2026-10-02: status SELALU tampil (permintaan user) — fallback "Tidak aktif"
-  // bila presence tidak diketahui, jangan biarkan undefined/kosong.
+  // UIUX-121: presence yang basi/tidak diketahui tidak boleh disamakan dengan
+  // offline; baris status dikosongkan kecuali server memberi keadaan yang jelas.
   const statusText = counterpartTyping
     ? "Sedang mengetik…"
     : presenceStatus.kind === "online"
@@ -2600,7 +2607,9 @@ export default function ChatRoomScreen() {
         ? // UI-C003: cap waktu ringkas ("Kemarin"), bukan datetime penuh yang
           // memadati baris status 2-baris di bawah nama.
           `Terakhir dilihat ${formatChatListTime(presenceStatus.at)}`
-        : "Tidak aktif"
+        : presenceStatus.kind === "offline"
+          ? "Tidak aktif"
+          : undefined
 
   // ── Aksi mode pilih pesan (ubin ikon+label di <SelectionBar>) ──────────
   const selectionActions: SelectionAction[] = useMemo(() => {
@@ -2913,14 +2922,16 @@ export default function ChatRoomScreen() {
       }
       const m = row.message
       const index = row.index
+      const isReplyCoachTarget = m.id === replyCoachTargetId
       return (
-        <View onLayout={handleRowLayout(row.key)}>
+        <View
+          ref={isReplyCoachTarget ? replyCoachMarkRef : undefined}
+          collapsable={isReplyCoachTarget ? false : undefined}
+          onLayout={handleRowLayout(row.key)}
+        >
           <ChatMessageRow
             message={m}
             previous={index > 0 ? visibleMessages[index - 1] : undefined}
-            // Pesan tepat di bawahnya — penentu "bubble terakhir grup menit"
-            // (jam hanya tampil di situ, ala WhatsApp).
-            next={index < visibleMessages.length - 1 ? visibleMessages[index + 1] : undefined}
             // B10: pemisah hari sudah jadi baris sticky tersendiri.
             hideDaySeparator
             // B09: sorot pesan asal balasan + navigasi konteks kutipan.
@@ -2991,6 +3002,7 @@ export default function ChatRoomScreen() {
       getSearchHighlightView,
       jumpToMessage,
       handleRowLayout,
+      replyCoachTargetId,
     ],
   )
 
@@ -3311,6 +3323,14 @@ export default function ChatRoomScreen() {
         onPick={handleReactionPick}
         onDismiss={handleReactionDismiss}
       />
+      {!selecting && replyCoachTargetId ? (
+        <CoachMark
+          id="chat-reply"
+          targetRef={replyCoachMarkRef}
+          message={translate("Geser pesan ke kanan untuk membalas, atau tekan lama untuk melihat opsi pesan")}
+          delayMs={900}
+        />
+      ) : null}
 
       {/* Menu ⋮ RUANG (bukan per pesan): lihat pesanan, cari pesan, profil
           lawan bicara, bisukan, arsipkan — mutasi ruangnya di dalam komponen. */}
@@ -3393,7 +3413,7 @@ export default function ChatRoomScreen() {
             ? [
                 {
                   key: "delete-everyone",
-                  label: "Hapus untuk semua pihak",
+                  label: "Hapus untuk semua orang",
                   description: "Hilang untuk semua peserta ruang.",
                   icon: Trash,
                   destructive: true,
