@@ -371,20 +371,31 @@ const NEAR_BOTTOM_PX = 48
 /** Interval event scroll (ms) — cukup untuk tombol "ke pesan terbaru". */
 const SCROLL_EVENT_THROTTLE = 64
 
-function messageTypeFor(
-  attachments: ChatAttachmentDto[],
-): NonNullable<SendMessageDto["messageType"]> {
+/** Input klasifikasi messageType: MIME lampiran + konteks antrean lokal. */
+type MessageTypeInput = Pick<ChatAttachmentDto, "mimeType"> & {
+  picked?: PickedImage | null
+}
+
+function messageTypeFor(attachments: MessageTypeInput[]): NonNullable<SendMessageDto["messageType"]> {
   if (attachments.length === 0) return "TEXT"
   // `mimeType` datang dari respons unggah dan TIDAK divalidasi: bila backend
   // tidak mengembalikannya, `undefined.startsWith("image/")` melempar
   // TypeError tepat saat tombol kirim ditekan — pesan tak pernah terkirim dan
   // layar jatuh ke error boundary. Lampiran tanpa MIME dianggap bukan gambar.
-  const isImage = (a: ChatAttachmentDto) => isImageMime(a.mimeType)
+  const isImage = (a: MessageTypeInput) => isImageMime(a.mimeType)
   if (attachments.every(isImage)) return "IMAGE"
   // Voice note: semua lampiran audio → VOICE (sudah ada di kontrak
   // SendMessageDto; bubble menampilkan label "Pesan suara").
-  const isAudio = (a: ChatAttachmentDto) => isAudioMime(a.mimeType)
-  if (attachments.every(isAudio)) return "VOICE"
+  // UPFV-02: VOICE HANYA untuk rekaman (punya `picked.durationMs` dari
+  // perekam). Audio dari document picker (tanpa durasi) dikirim sebagai
+  // FILE — backend menolak VOICE tanpa `durationSeconds` dengan 400
+  // permanen (`validateVoiceNote`), dan retry tidak akan pernah berhasil.
+  const isAudio = (a: MessageTypeInput) => isAudioMime(a.mimeType)
+  if (attachments.every(isAudio)) {
+    const hasVoiceDuration = (a: MessageTypeInput) =>
+      typeof a.picked?.durationMs === "number" && a.picked.durationMs > 0
+    return attachments.every(hasVoiceDuration) ? "VOICE" : "FILE"
+  }
   return "FILE"
 }
 
@@ -1860,7 +1871,13 @@ export default function ChatRoomScreen() {
     await enqueueAndUpload({
       uri: asset.uri,
       name: asset.name,
-      mimeType: asset.mimeType ?? "application/octet-stream",
+      // UPFV-05: `mimeType` kosong (bukan "application/octet-stream") bila
+      // platform tidak melaporkan — sesuai kontrak `validateChatAttachment`
+      // ("mimeType kosong → lewatkan cek tipe, server validasi magic bytes").
+      // "application/octet-stream" tidak ada di whitelist sehingga PDF dari
+      // file manager tertentu selalu ditolak klien sebelum sempat divalidasi
+      // server.
+      mimeType: asset.mimeType ?? "",
       size: asset.size ?? 0,
     })
   }, [enqueueAndUpload])
@@ -1899,15 +1916,11 @@ export default function ChatRoomScreen() {
       // Optimistic message: tampilkan langsung agar tidak ada jeda kosong.
       // CN-015: sendStatus "sending" — bila gagal jadi "failed" + bisa retry.
       const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2)}`
-      const sendMessageType = messageTypeFor(
-        ready.map(({ fileName, fileUrl, mimeType, fileSize, thumbnailUrl }) => ({
-          fileName,
-          fileUrl,
-          mimeType,
-          fileSize,
-          thumbnailUrl,
-        })),
-      )
+      // UPFV-02: `ready` (bukan DTO yang di-strip) diteruskan agar
+      // `messageTypeFor` bisa membedakan rekaman voice note (punya
+      // `picked.durationMs`) dari audio document picker (tanpa durasi →
+      // dikirim sebagai FILE, bukan VOICE yang pasti 400).
+      const sendMessageType = messageTypeFor(ready)
       // BFE-003: `durationSeconds` WAJIB untuk VOICE — backend
       // `validateVoiceNote` menolak pesan suara tanpanya (400). Diambil dari
       // durationMs hasil rekam yang disimpan di item antrean upload.

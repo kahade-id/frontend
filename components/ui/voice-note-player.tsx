@@ -58,11 +58,18 @@ export type VoiceNotePlayerProps = {
   messageId: string
   /** Warna mengikuti bubble: outgoing = bg-primary, incoming = bg-surface. */
   direction: "incoming" | "outgoing"
+  /**
+   * UPFV-03: refresh signed URL yang kedaluwarsa (TTL 5 menit). Dipanggil
+   * SEKALI saat pemuatan audio gagal — pola sama seperti `Picture` onError
+   * pada thumbnail lampiran (`onRefreshAttachmentUrl`). Mengembalikan URL
+   * segar, atau null bila tidak tersedia / refresh gagal.
+   */
+  onRefreshUrl?: () => Promise<string | null>
 }
 
 type PlayerPhase = "idle" | "loading" | "ready" | "error"
 
-export function VoiceNotePlayer({ uri, messageId, direction }: VoiceNotePlayerProps) {
+export function VoiceNotePlayer({ uri: initialUri, messageId, direction, onRefreshUrl }: VoiceNotePlayerProps) {
   useLanguage()
   const { mode } = useTheme()
   const palette = tokens.colors[mode]
@@ -73,6 +80,15 @@ export function VoiceNotePlayer({ uri, messageId, direction }: VoiceNotePlayerPr
   const [positionMs, setPositionMs] = useState(0)
   const [durationMs, setDurationMs] = useState(0)
   const [rate, setRate] = useState<1 | 2>(1)
+
+  /**
+   * UPFV-03: URI di-state (bukan prop langsung) agar bisa di-retry dengan
+   * URL segar saat signed URL kedaluwarsa — pola `Picture` onError pada
+   * thumbnail (`chat-attachment-item.tsx`).
+   */
+  const [uri, setUri] = useState(initialUri)
+  /** Refresh URL hanya dicoba SEKALI per URI (anti-loop). */
+  const urlRefreshTried = useRef(false)
 
   const soundRef = useRef<Audio.Sound | null>(null)
   const aliveRef = useRef(true)
@@ -113,6 +129,14 @@ export function VoiceNotePlayer({ uri, messageId, direction }: VoiceNotePlayerPr
     }
   }, [unload])
 
+  // UPFV-03: URI prop berganti (reuse baris FlatList / pesan di-sign ulang)
+  // → buang sound lama, reset state refresh.
+  useEffect(() => {
+    setUri(initialUri)
+    urlRefreshTried.current = false
+    void unload()
+  }, [initialUri, unload])
+
   const handleStatus = useCallback((status: AVPlaybackStatus) => {
     if (!aliveRef.current || !status.isLoaded) {
       if (aliveRef.current && !status.isLoaded && "error" in status) {
@@ -131,27 +155,51 @@ export function VoiceNotePlayer({ uri, messageId, direction }: VoiceNotePlayerPr
     }
   }, [])
 
+  const loadSound = useCallback(
+    async (targetUri: string): Promise<Audio.Sound | null> => {
+      try {
+        const { sound } = await Audio.Sound.createAsync(
+          { uri: targetUri },
+          { progressUpdateIntervalMillis: 250 },
+          handleStatus,
+        )
+        if (!aliveRef.current) {
+          await sound.unloadAsync().catch(() => {})
+          return null
+        }
+        soundRef.current = sound
+        setPhase("ready")
+        return sound
+      } catch {
+        return null
+      }
+    },
+    [handleStatus],
+  )
+
   const ensureSound = useCallback(async (): Promise<Audio.Sound | null> => {
     if (soundRef.current) return soundRef.current
     setPhase("loading")
-    try {
-      const { sound } = await Audio.Sound.createAsync(
-        { uri },
-        { progressUpdateIntervalMillis: 250 },
-        handleStatus,
-      )
-      if (!aliveRef.current) {
-        await sound.unloadAsync().catch(() => {})
-        return null
+    const sound = await loadSound(uri)
+    if (sound) return sound
+    // UPFV-03: pemuatan gagal (mis. signed URL kedaluwarsa → 403) — coba
+    // SEKALI dengan URL segar sebelum menyerah ke state error.
+    if (aliveRef.current && !urlRefreshTried.current && onRefreshUrl) {
+      urlRefreshTried.current = true
+      try {
+        const fresh = await onRefreshUrl()
+        if (fresh && fresh !== uri && aliveRef.current) {
+          setUri(fresh)
+          const retried = await loadSound(fresh)
+          if (retried) return retried
+        }
+      } catch {
+        // Fall through ke state error di bawah.
       }
-      soundRef.current = sound
-      setPhase("ready")
-      return sound
-    } catch {
-      if (aliveRef.current) setPhase("error")
-      return null
     }
-  }, [uri, handleStatus])
+    if (aliveRef.current) setPhase("error")
+    return null
+  }, [uri, onRefreshUrl, loadSound])
 
   const toggle = useCallback(async () => {
     // Hentikan pemutar LAIN dulu (satu suara dalam satu waktu) —

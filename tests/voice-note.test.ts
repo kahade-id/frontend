@@ -42,8 +42,8 @@ describe("voiceNoteFileName", () => {
     const at = new Date(2026, 8, 28, 0, 55, 12)
     expect(voiceNoteFileName(at)).toBe("vn-20260928-005512.m4a")
   })
-  it("MIME konsisten audio/m4a", () => {
-    expect(VOICE_NOTE_MIME).toBe("audio/m4a")
+  it("MIME konsisten audio/mp4 (UPFV-01: konvensi server .m4a ↔ audio/mp4)", () => {
+    expect(VOICE_NOTE_MIME).toBe("audio/mp4")
     expect(isAudioMime(VOICE_NOTE_MIME)).toBe(true)
   })
 })
