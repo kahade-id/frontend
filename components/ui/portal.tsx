@@ -53,6 +53,7 @@ import {
 import { View, type ViewProps } from "react-native"
 
 import { cn } from "@/lib/cn"
+import { setBlockingOverlayCount } from "@/lib/overlay-visibility"
 
 type PortalNodes = Record<string, ReactNode>
 
@@ -117,6 +118,13 @@ export function PortalProvider({ children }: { children: ReactNode }) {
     setBlockingCount((n) => n + 1)
     return () => setBlockingCount((n) => Math.max(0, n - 1))
   }, [])
+
+  // P1-5: sinkronkan ke sinyal global (lib/overlay-visibility.ts) agar
+  // usePolling bisa menjeda polling saat overlay pemblokir menutupi layar.
+  // Via effect (bukan di dalam updater) agar aman dari double-invoke.
+  useEffect(() => {
+    setBlockingOverlayCount(blockingCount)
+  }, [blockingCount])
 
   // Identitas stabil seumur provider: mount/unmount/registerBlocking semuanya
   // useCallback([]) sehingga konsumen API tidak pernah render ulang.

@@ -124,6 +124,9 @@ export function useChatUnreadCount(opts: { enabled?: boolean } = {}): ChatUnread
     void refreshChatUnreadCount()
   }, [enabled])
 
-  usePolling(refreshChatUnreadCount, CHAT_UNREAD_POLL_INTERVAL_MS, enabled)
+  usePolling(refreshChatUnreadCount, CHAT_UNREAD_POLL_INTERVAL_MS, enabled, {
+    // P1-5: badge non-kritis — jeda saat modal menutupi layar.
+    pauseWhenCovered: true,
+  })
   return snapshot
 }

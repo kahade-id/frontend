@@ -5,21 +5,44 @@
  * background, sehingga respons basi tidak pernah menyentuh state.
  */
 
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useSyncExternalStore } from "react"
 import { AppState, Platform } from "react-native"
 import { useIsFocused } from "@react-navigation/native"
 import { backpressureRemainingMs } from "@/lib/api/backpressure"
 import { isOfflineKnown, onReconnect } from "@/lib/connectivity"
+import {
+  hasBlockingOverlay,
+  subscribeBlockingOverlay,
+} from "@/lib/overlay-visibility"
+
+export type UsePollingOptions = {
+  /**
+   * P1-5 (audit perf-UX 2026-10-03): true = jeda polling saat overlay
+   * pemblokir (Modal/BottomSheet) menutupi layar. Default false karena
+   * layar pembayaran BUTUH polling tetap jalan di balik modal (by design).
+   * Aktifkan untuk layar non-kritis (daftar notifikasi, dsb).
+   */
+  pauseWhenCovered?: boolean
+}
 
 export function usePolling(
   callback: (signal: AbortSignal) => Promise<unknown>,
   intervalMs: number,
   enabled = true,
+  options?: UsePollingOptions,
 ) {
   const latest = useRef(callback)
   latest.current = callback
   const running = useRef(false)
   const focused = useIsFocused()
+  // Hanya berlangganan bila opt-in — hindari render ulang yang tidak perlu
+  // untuk layar pembayaran yang memang butuh polling di balik modal.
+  const covered = useSyncExternalStore(
+    subscribeBlockingOverlay,
+    hasBlockingOverlay,
+    () => false,
+  )
+  const pauseWhenCovered = options?.pauseWhenCovered ?? false
   useEffect(() => {
     if (!enabled || !focused) return
     let cancelled = false
@@ -37,7 +60,9 @@ export function usePolling(
       (AppState.currentState == null || AppState.currentState === "active") &&
       (Platform.OS !== "web" ||
         typeof document === "undefined" ||
-        document.visibilityState === "visible")
+        document.visibilityState === "visible") &&
+      // P1-5: jeda saat overlay pemblokir menutupi layar (hanya bila opt-in).
+      !(pauseWhenCovered && covered)
     /**
      * C-09 (audit): interval EFEKTIF = max(interval permintaan, cooldown server).
      *
@@ -117,5 +142,5 @@ export function usePolling(
       if (Platform.OS === "web" && typeof document !== "undefined")
         document.removeEventListener("visibilitychange", onVisibility)
     }
-  }, [enabled, focused, intervalMs])
+  }, [enabled, focused, intervalMs, pauseWhenCovered, covered])
 }
