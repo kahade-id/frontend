@@ -20,7 +20,7 @@
  * Dijalankan dengan config komponen (repo convention):
  *   npx vitest run --config vitest.components.config.ts tests/notifications-redesign.test.tsx
  */
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react"
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { useState, type ReactElement } from "react"
 import { router } from "expo-router"
@@ -43,9 +43,9 @@ import NotificationsTab from "@/app/(tabs)/notifications"
 // ------------------------------------------------------------------
 
 const mocks = vi.hoisted(() => {
-  const holder: { query: () => Record<string, unknown> } = {
-    query: () => {
-      throw new Error("mocks.holder.query belum dipasang test")
+  const holder: { useQuery: () => Record<string, unknown> } = {
+    useQuery: () => {
+      throw new Error("mocks.holder.useQuery belum dipasang test")
     },
   }
   return {
@@ -57,6 +57,7 @@ const mocks = vi.hoisted(() => {
     toastShow: vi.fn(),
     markRead: vi.fn(),
     markAllRead: vi.fn(),
+    markAllReadGate: null as (() => Promise<void>) | null,
     logWarn: vi.fn(),
     haptic: vi.fn(),
   }
@@ -64,11 +65,17 @@ const mocks = vi.hoisted(() => {
 
 vi.mock("@/lib/use-paginated-query", () => ({
   byTimestampDesc: () => () => 0,
-  usePaginatedQuery: (..._args: unknown[]) => mocks.holder.query(),
+  usePaginatedQuery: (..._args: unknown[]) => mocks.holder.useQuery(),
 }))
 
 vi.mock("@/lib/use-auth-session", () => ({
   useAuthSession: () => ({ token: "test-token", restoring: false }),
+}))
+
+// The screen only needs the realtime subscription side effect; a provider is
+// intentionally absent in these UI tests, so keep the hook at its inert path.
+vi.mock("@/lib/realtime/use-notifications-realtime", () => ({
+  useNotificationsRealtime: () => undefined,
 }))
 
 vi.mock("@/lib/api", () => ({
@@ -88,16 +95,25 @@ vi.mock("@/lib/api", () => ({
         if (found) found.isRead = true
         return Promise.resolve({})
       },
-      markAllNotificationsRead: () => {
+      markAllNotificationsRead: async () => {
         mocks.markAllRead()
+        await mocks.markAllReadGate?.()
         for (const n of mocks.items) n.isRead = true
-        return Promise.resolve({})
+        return {}
       },
       markNotificationsReadBatch: () => Promise.resolve({}),
       deleteNotificationsBatch: () => Promise.resolve({}),
       deleteReadNotifications: () => Promise.resolve({}),
     },
   },
+}))
+
+// unread-count imports this domain module directly instead of the API barrel.
+// Keep its badge source aligned with the same fixture used by the list.
+vi.mock("@/lib/api/notifications", () => ({
+  getUnreadCount: () => Promise.resolve({ count: mocks.items.filter((n) => !n.isRead).length }),
+  readUnreadCount: (body: { count?: unknown }) =>
+    typeof body?.count === "number" ? body.count : null,
 }))
 
 vi.mock("@/components/ui/toast", () => ({
@@ -135,29 +151,31 @@ function makeNotif(partial: Partial<AppNotification> & { id: string }): AppNotif
   }
 }
 
-/** Pasang mock usePaginatedQuery dengan state React sungguhan (mendukung setData updater). */
-function installQuery() {
-  mocks.holder.query = () => {
-    const [data, setDataState] = useState<AppNotification[]>(mocks.items)
-    const setData = (updater: unknown) =>
-      setDataState((prev) =>
-        typeof updater === "function"
-          ? (updater as (p: AppNotification[]) => AppNotification[])(prev)
-          : (updater as AppNotification[]),
-      )
-    return {
-      data,
-      setData,
-      loading: false,
-      error: null,
-      refreshing: false,
-      loadingMore: false,
-      hasMore: false,
-      refresh: mocks.refresh,
-      reload: mocks.reload,
-      loadMore: mocks.loadMore,
-    }
+/** Hook mock usePaginatedQuery dengan state React sungguhan (mendukung setData updater). */
+function useMockNotificationsQuery() {
+  const [data, setDataState] = useState<AppNotification[]>(mocks.items)
+  const setData = (updater: unknown) =>
+    setDataState((prev) =>
+      typeof updater === "function"
+        ? (updater as (p: AppNotification[]) => AppNotification[])(prev)
+        : (updater as AppNotification[]),
+    )
+  return {
+    data,
+    setData,
+    loading: false,
+    error: null,
+    refreshing: false,
+    loadingMore: false,
+    hasMore: false,
+    refresh: mocks.refresh,
+    reload: mocks.reload,
+    loadMore: mocks.loadMore,
   }
+}
+
+function installQuery() {
+  mocks.holder.useQuery = useMockNotificationsQuery
 }
 
 function renderThemed(ui: ReactElement) {
@@ -173,8 +191,11 @@ function renderThemed(ui: ReactElement) {
   )
 }
 
-function renderTab() {
-  return renderThemed(<NotificationsTab />)
+async function renderTab() {
+  const view = renderThemed(<NotificationsTab />)
+  // The route intentionally lazy-loads its screen; wait past Suspense fallback.
+  await screen.findByRole("heading", { name: "Notifikasi" })
+  return view
 }
 
 /** Probe kecil untuk membaca store badge tanpa me-mock angkanya. */
@@ -185,6 +206,7 @@ function BadgeProbe() {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  mocks.markAllReadGate = null
   resetUnreadCount()
   installQuery()
 })
@@ -244,7 +266,7 @@ describe("tap item menandai dibaca", () => {
       makeNotif({ id: "n1", title: "Pesanan baru", isRead: false }),
       makeNotif({ id: "n2", title: "Sudah dibaca", isRead: true }),
     ]
-    renderTab()
+    await renderTab()
 
     // Satu dot unread sebelum tap.
     expect(screen.getAllByTestId("notification-unread-dot")).toHaveLength(1)
@@ -304,7 +326,7 @@ describe("notificationDayGroup (WIB)", () => {
     expect(group.label).toBe("Tanggal tidak tersedia")
   })
 
-  it("layar menampilkan header Hari ini / Kemarin / tanggal", () => {
+  it("layar menampilkan header Hari ini / Kemarin / tanggal", async () => {
     const now = new Date()
     const wibParts = new Intl.DateTimeFormat("en-US", {
       timeZone: "Asia/Jakarta",
@@ -323,7 +345,7 @@ describe("notificationDayGroup (WIB)", () => {
       makeNotif({ id: "g2", title: "Notif grup kedua", createdAt: yesterdayNoonWib }),
       makeNotif({ id: "g3", title: "Notif grup ketiga", createdAt: tenDaysAgo }),
     ]
-    renderTab()
+    await renderTab()
     expect(screen.getByText("Hari ini")).toBeTruthy()
     expect(screen.getByText("Kemarin")).toBeTruthy()
     expect(screen.getByText(notificationDayGroup(tenDaysAgo).label)).toBeTruthy()
@@ -335,9 +357,9 @@ describe("notificationDayGroup (WIB)", () => {
 // ------------------------------------------------------------------
 
 describe("empty & error state", () => {
-  it("daftar kosong → 'Belum ada notifikasi'", () => {
+  it("daftar kosong → 'Belum ada notifikasi'", async () => {
     mocks.items = []
-    renderTab()
+    await renderTab()
     expect(screen.getByText("Belum ada notifikasi")).toBeTruthy()
   })
 })
@@ -347,31 +369,44 @@ describe("empty & error state", () => {
 // ------------------------------------------------------------------
 
 describe("badge unread sinkron dengan data daftar", () => {
-  it("badge = jumlah unread dataset; 'Tandai dibaca' menurunkannya ke 0", async () => {
+  it("menunggu konfirmasi server sebelum mengosongkan badge dan menampilkan sukses", async () => {
     mocks.items = [
       makeNotif({ id: "b1", isRead: false }),
       makeNotif({ id: "b2", isRead: false }),
       makeNotif({ id: "b3", isRead: false }),
       makeNotif({ id: "b4", isRead: true }),
     ]
+    let resolveMarkAll!: () => void
+    mocks.markAllReadGate = () => new Promise<void>((resolve) => { resolveMarkAll = resolve })
     renderThemed(
       <>
         <BadgeProbe />
         <NotificationsTab />
       </>,
     )
+    await screen.findByRole("heading", { name: "Notifikasi" })
 
     // Badge dihitung dari dataset yang sama — bukan angka mock.
     await refreshUnreadCount()
     await waitFor(() => expect(screen.getByTestId("badge-count").textContent).toBe("3"))
     expect(screen.getAllByTestId("notification-unread-dot")).toHaveLength(3)
 
-    fireEvent.click(screen.getByText("Tandai dibaca"))
-    await waitFor(() => expect(mocks.markAllRead).toHaveBeenCalled())
-    await waitFor(() => expect(screen.getByTestId("badge-count").textContent).toBe("0"))
+    fireEvent.click(screen.getByRole("button", { name: "Tandai semua dibaca" }))
+    await waitFor(() => expect(mocks.markAllRead).toHaveBeenCalledTimes(1))
+    // Rows update optimistically, but a pending POST cannot falsely clear the
+    // global badge or claim success yet.
+    expect(screen.getByTestId("badge-count").textContent).toBe("3")
     expect(screen.queryByTestId("notification-unread-dot")).toBeNull()
-    // Tombol hanya tampil bila ada unread.
-    expect(screen.queryByText("Tandai dibaca")).toBeNull()
+    expect(mocks.toastShow).not.toHaveBeenCalledWith(
+      expect.objectContaining({ title: "Semua notifikasi ditandai dibaca" }),
+    )
+
+    await act(async () => resolveMarkAll())
+    await waitFor(() => expect(screen.getByTestId("badge-count").textContent).toBe("0"))
+    expect(mocks.toastShow).toHaveBeenCalledWith(
+      expect.objectContaining({ title: "Semua notifikasi ditandai dibaca", tone: "success" }),
+    )
+    expect(screen.queryByRole("button", { name: "Tandai semua dibaca" })).toBeNull()
   })
 })
 
@@ -381,9 +416,9 @@ describe("badge unread sinkron dengan data daftar", () => {
 // ------------------------------------------------------------------
 
 describe("polish header & segmen kategori", () => {
-  it("tidak merender tombol back (tab top-level bottom navbar)", () => {
+  it("tidak merender tombol back (tab top-level bottom navbar)", async () => {
     mocks.items = []
-    renderTab()
+    await renderTab()
     expect(screen.queryByRole("button", { name: "Kembali" })).toBeNull()
     // Aksi fungsional header tetap ada: funnel filter + menu ⋮.
     expect(
@@ -391,9 +426,9 @@ describe("polish header & segmen kategori", () => {
     ).toBeTruthy()
   })
 
-  it("kategori memakai SegmentedControl pill (radiogroup), bukan underline Tabs", () => {
+  it("kategori memakai SegmentedControl pill (radiogroup), bukan underline Tabs", async () => {
     mocks.items = []
-    renderTab()
+    await renderTab()
 
     // <SegmentedControl> = radiogroup + opsi radio (bukan tablist).
     const group = screen.getByRole("radiogroup", { name: "Kategori notifikasi" })
@@ -409,9 +444,9 @@ describe("polish header & segmen kategori", () => {
     expect(screen.queryByRole("tablist")).toBeNull()
   })
 
-  it("memilih segmen Promosi mengaktifkan segmen itu", () => {
+  it("memilih segmen Promosi mengaktifkan segmen itu", async () => {
     mocks.items = []
-    renderTab()
+    await renderTab()
 
     const group = screen.getByRole("radiogroup", { name: "Kategori notifikasi" })
     fireEvent.click(within(group).getByRole("radio", { name: "Promosi" }))

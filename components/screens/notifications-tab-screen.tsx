@@ -80,7 +80,7 @@ import {
   type NotificationRow,
 } from "@/lib/notification-social-grouping"
 import { routeForNotificationReference } from "@/lib/notification-routing"
-import { refreshUnreadCount } from "@/lib/unread-count"
+import { refreshUnreadCount, setUnreadCount } from "@/lib/unread-count"
 import { logWarn } from "@/lib/telemetry"
 
 import { ActionSheet, type ActionSheetItem } from "@/components/ui/action-sheet"
@@ -385,6 +385,8 @@ function NotificationsScreen() {
   const [selecting, setSelecting] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(() => new Set())
   const [batchBusy, setBatchBusy] = useState(false)
+  const [readAllBusy, setReadAllBusy] = useState(false)
+  const readAllInFlight = useRef(false)
   const [confirm, setConfirm] = useState<"delete-selected" | "delete-read" | null>(null)
   // PERF-FIX (TIM1-P2): store seleksi untuk dibaca per-baris via
   // useSyncExternalStore (lihat NotificationRowView) — renderItem stabil.
@@ -619,28 +621,37 @@ function NotificationsScreen() {
   }, [batchBusy])
 
   /** Tandai semua dibaca — tombol Checks di header mode normal. */
-  const handleReadAll = useCallback(() => {
-    if (batchBusy || !hasUnread) return
-    // PERF-FIX (network P2): optimistis (pola handleReadGroup) — UI + badge
-    // langsung hilang; rollback ke snapshot bila request gagal.
+  const handleReadAll = useCallback(async () => {
+    // Ref closes the same-frame gap before React commits the busy state, so a
+    // double tap cannot send the bulk mutation twice.
+    if (batchBusy || readAllInFlight.current || !hasUnread) return
+    readAllInFlight.current = true
+    setReadAllBusy(true)
+    // Optimistic rows; the global badge is updated only after the server
+    // confirms the mutation. Refreshing before the POST resolves can race and
+    // restore the old unread count for the full polling interval.
     const previous = notifs
     setNotifs((prev) => prev.map((n) => ({ ...n, isRead: true })))
-    void refreshUnreadCount()
-    toast.show({ title: "Semua notifikasi ditandai dibaca", tone: "success", duration: 2000 })
-    void (async () => {
-      try {
-        await api.notifications.markAllNotificationsRead()
-      } catch (err: unknown) {
-        setNotifs(previous)
-        void refreshUnreadCount()
-        logWarn("notifications:mark-all-read", err)
-        toast.show({
-          title: "Notifikasi belum dapat ditandai",
-          description: userMessage(err),
-          tone: "danger",
-        })
-      }
-    })()
+    try {
+      await api.notifications.markAllNotificationsRead()
+      // A successful read-all is authoritative for the unread badge. This
+      // invalidates any poll started before the mutation (so its stale count
+      // cannot race back in); later push/poll updates cover new arrivals.
+      setUnreadCount(0)
+      toast.show({ title: "Semua notifikasi ditandai dibaca", tone: "success", duration: 2000 })
+    } catch (err: unknown) {
+      setNotifs(previous)
+      void refreshUnreadCount()
+      logWarn("notifications:mark-all-read", err)
+      toast.show({
+        title: "Notifikasi belum dapat ditandai",
+        description: userMessage(err),
+        tone: "danger",
+      })
+    } finally {
+      readAllInFlight.current = false
+      setReadAllBusy(false)
+    }
   }, [batchBusy, hasUnread, notifs, toast.show])
 
   // FE-064: prop header di-memo agar memo <Header> bisa bail-out.
@@ -681,8 +692,8 @@ function NotificationsScreen() {
   const headerRight = useMemo(
     () => (
       <>
-        {hasUnread ? (
-          <MarkAllReadButton busy={batchBusy} onPress={() => void handleReadAll()} />
+        {hasUnread || readAllBusy ? (
+          <MarkAllReadButton busy={batchBusy || readAllBusy} onPress={() => void handleReadAll()} />
         ) : null}
         <IconButton
           icon={Funnel}
@@ -705,7 +716,7 @@ function NotificationsScreen() {
         ) : null}
       </>
     ),
-    [hasUnread, batchBusy, handleReadAll, unreadOnly, notifs.length],
+    [hasUnread, readAllBusy, batchBusy, handleReadAll, unreadOnly, notifs.length],
   )
 
   const menuActions: ActionSheetItem[] = [

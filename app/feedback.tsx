@@ -14,6 +14,7 @@ import { router } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { userMessage } from "@/lib/api"
+import { onReconnect } from "@/lib/connectivity"
 import {
   FEEDBACK_CATEGORIES,
   FEEDBACK_QUEUE_PERSISTS,
@@ -60,26 +61,25 @@ export default function FeedbackScreen() {
   const [submitting, setSubmitting] = useState(false)
   const [queuedCount, setQueuedCount] = useState(0)
 
-  // Native queue tersimpan sementara di SecureStore. Retry saat layar dibuka
-  // agar antrean tidak hanya bergerak ketika pengguna kebetulan mengirim
-  // masukan baru; kegagalan tetap silent karena feedback bukan transaksi.
+  // Coba antrean saat layar dibuka dan pada transisi offline → online di
+  // semua platform. Web juga perlu event `online` browser karena NetInfo tidak
+  // selalu memberi transisi yang sama. flushQueuedFeedback menyatukan pemanggilan
+  // berbarengan agar event ganda tidak membuat POST duplikat.
   useEffect(() => {
     const sync = () =>
       flushQueuedFeedback()
         .then(() => queuedFeedbackCount())
         .then(setQueuedCount)
         .catch((err) => logWarn("feedback:flush", err))
+
+    const unsubscribeReconnect = onReconnect(sync)
     void sync()
-    /**
-     * D-07 (audit): di web antrean hanya hidup di memori, jadi "kirim saat
-     * terhubung" harus benar-benar dicoba selama halaman masih terbuka —
-     * sebelumnya pengiriman ulang hanya terjadi saat layar dibuka lagi atau
-     * saat pengguna mengirim masukan berikutnya, dan reload menghapus
-     * antreannya. Listener `online` di sini menutup celah itu.
-     */
-    if (Platform.OS !== "web" || typeof window === "undefined") return
+    if (Platform.OS !== "web" || typeof window === "undefined") return unsubscribeReconnect
     window.addEventListener("online", sync)
-    return () => window.removeEventListener("online", sync)
+    return () => {
+      window.removeEventListener("online", sync)
+      unsubscribeReconnect()
+    }
   }, [])
 
   const trimmed = message.trim()
@@ -111,7 +111,7 @@ export default function FeedbackScreen() {
         toast.show({
           title: "Masukan tersimpan",
           description: FEEDBACK_QUEUE_PERSISTS
-            ? "Masukan disimpan sementara di perangkat. Pengiriman ulang dicoba saat Anda membuka halaman ini lagi atau mengirim masukan berikutnya; ini bukan tiket bantuan."
+            ? "Masukan disimpan sementara di perangkat. Pengiriman ulang dicoba saat koneksi pulih selama layar ini terbuka, saat Anda membuka halaman ini lagi, atau saat mengirim masukan berikutnya; ini bukan tiket bantuan."
             : "Pengiriman gagal dan versi web tidak menyimpan masukan pribadi di browser — jangan tutup halaman ini, kirim ulang setelah koneksi kembali. Untuk kendala yang butuh tindakan, buat tiket bantuan resmi.",
           tone: FEEDBACK_QUEUE_PERSISTS ? "info" : "warning",
           duration: 6000,
@@ -168,7 +168,7 @@ export default function FeedbackScreen() {
             {queuedCount > 0 ? (
               <Alert tone="info">
                 {FEEDBACK_QUEUE_PERSISTS
-                  ? `${queuedCount} masukan tersimpan di perangkat dan akan dikirim otomatis saat terhubung.`
+                  ? `${queuedCount} masukan tersimpan di perangkat. Pengiriman ulang dicoba saat koneksi pulih selama layar ini terbuka.`
                   : `${queuedCount} masukan menunggu terkirim. Tetap di halaman ini sampai koneksi kembali.`}
               </Alert>
             ) : null}

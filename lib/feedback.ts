@@ -7,7 +7,8 @@
  * Nilai yang menunggu kirim bukan rahasia, tetapi tetap berpotensi memuat data
  * pribadi sehingga lifecycle-nya sengaja pendek. Tidak ada worker background
  * yang menjamin pengiriman otomatis; retry dilakukan saat halaman feedback
- * dibuka atau saat pengguna mengirim masukan berikutnya.
+ * dibuka, koneksi pulih ketika layar masih terbuka, atau pengguna mengirim
+ * masukan berikutnya.
  */
 import { http } from "@/lib/api/client"
 import {
@@ -159,8 +160,17 @@ async function flushQueue(): Promise<void> {
 }
 
 /** Coba kirim antrean feedback secara best-effort dari lifecycle UI. */
-export async function flushQueuedFeedback(): Promise<void> {
-  await flushQueue()
+let flushInFlight: Promise<void> | null = null
+
+export function flushQueuedFeedback(): Promise<void> {
+  // Reconnect (NetInfo + browser `online`) and an in-flight submit can arrive
+  // together. Share the same drain so a queued feedback item is POSTed once.
+  if (flushInFlight) return flushInFlight
+  const attempt = flushQueue().finally(() => {
+    flushInFlight = null
+  })
+  flushInFlight = attempt
+  return attempt
 }
 
 /**
