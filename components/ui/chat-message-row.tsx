@@ -117,6 +117,12 @@ export type ChatMessageRowProps = {
   onReact?: (message: ChatMessage, emoji: string) => void
   /** Lampiran dibuka (gambar → MediaViewer, berkas → eksternal). */
   onAttachmentPress: (attachment: ChatAttachmentDto) => void
+  /**
+   * FIX 2026-10-03: refresh signed URL lampiran yang kedaluwarsa.
+   * Dipakai thumbnail di bubble saat `Picture` onError — thumbnail memakai
+   * signed URL yang sama (TTL 5 mnt) dan ikut mati.
+   */
+  onRefreshAttachmentUrl?: (attachment: ChatAttachmentDto) => Promise<ChatAttachmentDto>
   /** CN-015: kirim ulang pesan yang gagal. */
   onRetry?: (message: ChatMessage) => void
   /**
@@ -177,9 +183,11 @@ export type ChatMessageRowProps = {
 const RowAttachmentItem = memo(function RowAttachmentItem({
   attachment,
   onAttachmentPress,
+  onRefreshAttachmentUrl,
 }: {
   attachment: ChatAttachmentDto
   onAttachmentPress: (attachment: ChatAttachmentDto) => void
+  onRefreshAttachmentUrl?: (attachment: ChatAttachmentDto) => Promise<ChatAttachmentDto>
 }) {
   const handlePress = useCallback(() => onAttachmentPress(attachment), [onAttachmentPress, attachment])
   // FIX 2026-10-03: video juga tampil sebagai tile (bukan row) — konsisten
@@ -196,6 +204,7 @@ const RowAttachmentItem = memo(function RowAttachmentItem({
       attachment={attachment}
       layout={layout}
       onPress={handlePress}
+      onRefreshUrl={onRefreshAttachmentUrl}
     />
   )
 })
@@ -212,6 +221,7 @@ export function ChatMessageRowBase({
   onLongPress,
   onReact,
   onAttachmentPress,
+  onRefreshAttachmentUrl,
   onRetry,
   showSenderIdentity = true,
   onSwipeReply,
@@ -332,6 +342,7 @@ export function ChatMessageRowBase({
           key={`${message.id}-${j}`}
           attachment={a}
           onAttachmentPress={onAttachmentPress}
+          onRefreshAttachmentUrl={onRefreshAttachmentUrl}
         />
       ))}
     </View>

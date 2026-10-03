@@ -2503,6 +2503,33 @@ export default function ChatRoomScreen() {
   }, [])
 
   /**
+   * FIX 2026-10-03 (bug media chat): refresh signed URL lampiran yang
+   * kedaluwarsa. Backend men-sign URL (fileUrl + thumbnailUrl) dengan TTL
+   * 5 menit (`ATTACHMENT_URL_TTL_SECONDS=300`, di-sign ulang saat read).
+   * Dipakai oleh `openAttachment` (sebelum buka viewer) dan oleh thumbnail
+   * di bubble via prop `onRefreshAttachmentUrl` (saat `Picture` onError).
+   * Mengembalikan attachment segar, atau attachment asal bila refresh
+   * gagal / tidak diperlukan.
+   */
+  const refreshAttachmentIfExpired = useCallback(
+    async (a: ChatAttachmentDto): Promise<ChatAttachmentDto> => {
+      const expiresAt = a.urlExpiresAt ? new Date(a.urlExpiresAt).getTime() : NaN
+      const expired = Number.isNaN(expiresAt) || expiresAt < Date.now() + 60_000
+      if (!expired || !roomId) return a
+      try {
+        const fresh = await api.chat.getChatAttachments(roomId, { limit: 100 })
+        // Cocokkan via fileName (stabil); fileUrl berubah tiap signing.
+        const match = fresh.find((f) => f.fileName === a.fileName)
+        if (match?.fileUrl) return match
+      } catch (err) {
+        logWarn("chat:attachment-refresh", err)
+      }
+      return a
+    },
+    [roomId],
+  )
+
+  /**
    * FIX 2026-10-03 (bug media chat): dua akar masalah diperbaiki di sini.
    *
    * 1. URL kedaluwarsa: backend men-sign URL lampiran dengan TTL 5 menit
@@ -2516,23 +2543,10 @@ export default function ChatRoomScreen() {
    *    "Buka eksternal"). Kini video ikut ke ImageViewer dengan
    *    `kind: "video"` → diputar in-app via FeedVideo.
    */
-  const openAttachment = useCallback(async (a: ChatAttachmentDto) => {
-    // — Refresh URL bila kedaluwarsa —
-    let attachment = a
-    const expiresAt = a.urlExpiresAt ? new Date(a.urlExpiresAt).getTime() : NaN
-    const expired = Number.isNaN(expiresAt) || expiresAt < Date.now() + 60_000
-    if (expired && roomId) {
-      try {
-        const fresh = await api.chat.getChatAttachments(roomId, { limit: 100 })
-        // Cocokkan via fileName (stabil); fileUrl berubah tiap signing.
-        const match = fresh.find((f) => f.fileName === a.fileName)
-        if (match?.fileUrl) attachment = match
-      } catch (err) {
-        logWarn("chat:attachment-refresh", err)
-        // Fall through: coba buka dengan URL lama; viewer akan
-        // menampilkan error bila memang mati.
-      }
-    }
+  const openAttachment = useCallback(
+    async (a: ChatAttachmentDto) => {
+      // — Refresh URL bila kedaluwarsa —
+      const attachment = await refreshAttachmentIfExpired(a)
 
     const isVideo = isVideoMime(attachment.mimeType)
     if (isImageMedia({ url: attachment.fileUrl, mimeType: attachment.mimeType }) || isVideo) {
@@ -2560,7 +2574,7 @@ export default function ChatRoomScreen() {
       return
     }
     setViewerItem({ url: attachment.fileUrl, mimeType: attachment.mimeType, title: attachment.fileName, fileName: attachment.fileName })
-  }, [messages, roomId])
+  }, [messages, refreshAttachmentIfExpired])
 
   const counterpartUsername = room?.counterpart?.username
   const composerAttachments = attachments
@@ -2935,6 +2949,10 @@ export default function ChatRoomScreen() {
             onLongPress={handleRowLongPress}
             onReact={handleRowReact}
             onAttachmentPress={openAttachment}
+            // FIX 2026-10-03: thumbnail di bubble memakai signed URL yang
+            // juga kedaluwarsa (5 mnt). Diteruskan agar ChatAttachmentItem
+            // bisa refresh saat Picture onError.
+            onRefreshAttachmentUrl={refreshAttachmentIfExpired}
             // Batch 43: hasil terjemahan per pesan + tombol Beli kartu produk.
             // ChatTranslation (translatedText) → prop row ({ text, … }).
             translation={getTranslationView(m.id)}

@@ -71,6 +71,10 @@ export const ChatLocationCard = memo(function ChatLocationCard({
           ? "border-white/70 dark:border-black/30 bg-white/10 dark:bg-black/10"
           : "border-border bg-background",
       )}
+      // FIX 2026-10-03: kartu lokasi terpotong di bubble sempit (video user).
+      // Beri lebar minimum agar label + koordinat tidak terpotong ellipsis
+      // pada bubble chat yang sempit.
+      style={{ minWidth: 200 }}
     >
       <View className="flex-row items-center gap-2">
         <View

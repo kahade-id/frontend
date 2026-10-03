@@ -34,7 +34,7 @@
  *     disembunyikan (ruang sempit) kecuali status error.
  */
 import { File, FileArchive, FilePdf, FileText, Image as ImageIcon, Play, Warning, X } from "phosphor-react-native"
-import { memo } from "react"
+import { memo, useCallback, useRef, useState } from "react"
 import { View, type ViewProps } from "react-native"
 
 import { Icon, type IconComponent } from "@/components/ui/icon"
@@ -119,6 +119,13 @@ export type ChatAttachmentItemProps = Omit<ViewProps, "children"> & {
   divider?: ListItemProps["divider"]
   labels?: Partial<ChatAttachmentItemLabels>
   className?: string
+  /**
+   * FIX 2026-10-03: refresh signed URL lampiran yang kedaluwarsa.
+   * Thumbnail memakai signed URL (TTL 5 mnt) yang ikut mati — saat
+   * `Picture` onError dan URL kedaluwarsa, panggil ini untuk dapat URL
+   * segar lalu retry sekali.
+   */
+  onRefreshUrl?: (attachment: ChatAttachment) => Promise<ChatAttachment>
 }
 
 const TILE = 72
@@ -138,6 +145,7 @@ export const ChatAttachmentItem = memo(function ChatAttachmentItem({
   divider,
   labels,
   className,
+  onRefreshUrl,
   ...rest
 }: ChatAttachmentItemProps) {
   const t = { ...DEFAULT_LABELS, ...labels }
@@ -149,7 +157,34 @@ export const ChatAttachmentItem = memo(function ChatAttachmentItem({
   // thumbnailUrl — tile 24–72px tidak boleh memicu unduhan file asli penuh
   // (2–5 MB) hanya untuk pratinjau. Ikon fallback di bawah sudah menangani
   // kasus thumb undefined; ketuk tetap membuka file penuh via onPress.
-  const thumb = attachment.thumbnailUrl
+  //
+  // FIX 2026-10-03: thumbnail memakai signed URL (TTL 5 mnt) yang ikut
+  // kedaluwarsa. `thumbSrc` di-state agar bisa di-retry dengan URL segar
+  // saat `Picture` onError (via `onRefreshUrl`).
+  const [thumbSrc, setThumbSrc] = useState<string | undefined>(attachment.thumbnailUrl)
+  const thumbRefreshTried = useRef(false)
+  // Reset state bila attachment berganti (memo + FlatList reuse).
+  const thumbKey = attachment.thumbnailUrl
+  const [lastThumbKey, setLastThumbKey] = useState(thumbKey)
+  if (thumbKey !== lastThumbKey) {
+    setLastThumbKey(thumbKey)
+    setThumbSrc(thumbKey)
+    thumbRefreshTried.current = false
+  }
+  const handleThumbError = useCallback(() => {
+    if (thumbRefreshTried.current || !onRefreshUrl) return
+    thumbRefreshTried.current = true
+    onRefreshUrl(attachment)
+      .then((fresh) => {
+        if (fresh.thumbnailUrl && fresh.thumbnailUrl !== thumbSrc) {
+          setThumbSrc(fresh.thumbnailUrl)
+        }
+      })
+      .catch(() => {
+        // Fall through: ikon placeholder tetap tampil.
+      })
+  }, [attachment, onRefreshUrl, thumbSrc])
+  const thumb = thumbSrc
 
   const a11y = [
     attachment.fileName,
@@ -167,7 +202,7 @@ export const ChatAttachmentItem = memo(function ChatAttachmentItem({
         subtitle={[formatFileSize(attachment.fileSize), meta].filter(Boolean).join(" · ")}
         leading={
           thumb ? (
-            <Picture source={thumb} alt="" width={40} height={40} radius="xs" bordered />
+            <Picture source={thumb} alt="" width={40} height={40} radius="xs" bordered onError={handleThumbError} />
           ) : (
             <IconBox icon={icon} size="md" variant={errored ? "danger" : "surface"} />
           )
@@ -202,7 +237,7 @@ export const ChatAttachmentItem = memo(function ChatAttachmentItem({
       >
         <View style={{ width: TILE, height: TILE }} className="items-center justify-center">
           {thumb && !errored ? (
-            <Picture source={thumb} alt="" width={TILE} height={TILE} radius="none" />
+            <Picture source={thumb} alt="" width={TILE} height={TILE} radius="none" onError={handleThumbError} />
           ) : (
             <Icon icon={errored ? Warning : icon} size="lg" tone={errored ? "danger" : "default"} />
           )}
@@ -235,7 +270,7 @@ export const ChatAttachmentItem = memo(function ChatAttachmentItem({
       {...rest}
     >
       {thumb && !errored && !cancelled ? (
-        <Picture source={thumb} alt="" width={24} height={24} radius="xs" />
+        <Picture source={thumb} alt="" width={24} height={24} radius="xs" onError={handleThumbError} />
       ) : (
         <Icon icon={errored || cancelled ? Warning : icon} size="sm" tone={errored || cancelled ? "danger" : "default"} />
       )}
