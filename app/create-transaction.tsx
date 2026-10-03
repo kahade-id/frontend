@@ -51,6 +51,19 @@ import {
   type CreateOrderLinkDto,
 } from "@/lib/api"
 import type { FeeSchedule } from "@/lib/api/public"
+import { createTrailingDebounce } from "@/lib/debounce"
+import { formatDateTimeWIB } from "@/lib/format"
+import {
+  clearTransactionDraft,
+  isMeaningfulTransactionDraft,
+  loadTransactionDraft,
+  saveTransactionDraft,
+  shouldOfferTransactionDraftRestore,
+  transactionDraftDeadline,
+  transactionDraftFingerprint,
+  transactionDraftStep,
+  type TransactionDraft,
+} from "@/lib/transaction-draft"
 import { fetchViaQueryCache } from "@/lib/query-cache"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
@@ -99,6 +112,8 @@ import { addressMissingFields } from "@/lib/wallet-batch139"
 import { translate } from "@/lib/i18n/translate"
 
 const DEBOUNCE_MS = 400
+/** P1-3 (audit perf/UX 2026-10-03): autosave draft form — satu penulisan per detik. */
+const DRAFT_SAVE_DEBOUNCE_MS = 1000
 const MIN_ORDER_VALUE = AMOUNT_LIMITS.order.minimum
 const MAX_ORDER_VALUE = AMOUNT_LIMITS.order.maximum
 const MIN_TITLE = API_CONSTRAINTS.CreateOrderDto.title.minLength
@@ -395,6 +410,125 @@ export default function CreateTransactionScreen() {
    */
   const [intentionalLeave, setIntentionalLeave] = useState(false)
   const [discardOpen, setDiscardOpen] = useState(false)
+
+  /**
+   * P1-3 (audit perf/UX 2026-10-03): draft lokal form "Buat Transaksi".
+   *
+   * Isian wizard ini mahal — lawan tervalidasi, rincian pesanan, nominal,
+   * tenggat — dan dulu hilang TOTAL begitu layar ter-unmount: app dibunuh OS
+   * saat di background, tap notifikasi, atau pindah layar sejenak untuk
+   * menyalin kode voucher. Sekarang isian ditulis ke SecureStore dengan
+   * debounce 1 detik, dan pemulihannya SELALU ditanyakan ke pengguna.
+   *
+   * Keputusan non-obvious:
+   *   - Debounce memakai `createTrailingDebounce` (bukan setTimeout di effect)
+   *     supaya penulisan yang tertunda bisa DISIRAM saat layar unmount —
+   *     justru skenario yang diperbaiki temuan ini (ketik lalu langsung
+   *     keluar < 1 detik).
+   *   - Prefill template/etalase yang belum disentuh pengguna BUKAN draft:
+   *     sidik jari keadaan awal dibandingkan dulu, jika tidak setiap kali
+   *     membuka form dari template akan lahir draft yang mengganggu.
+   *   - Draft TIDAK dipulihkan otomatis: nominal & lawan transaksi bisa basi,
+   *     jadi keputusan ada di pengguna (Dialog di bawah).
+   */
+  const [draftOffer, setDraftOffer] = useState<TransactionDraft | null>(null)
+  const draftRestoreChecked = useRef(false)
+  const draftPayload = useMemo(
+    () => ({
+      mode,
+      role,
+      counterpart,
+      title,
+      description,
+      orderType,
+      orderValue,
+      deadlineIso: deadlineDate ? deadlineDate.toISOString() : null,
+      feeResponsibility,
+    }),
+    [
+      mode,
+      role,
+      counterpart,
+      title,
+      description,
+      orderType,
+      orderValue,
+      deadlineDate,
+      feeResponsibility,
+    ],
+  )
+  const initialDraftFingerprint = useRef<string | null>(null)
+  if (initialDraftFingerprint.current === null) {
+    initialDraftFingerprint.current = transactionDraftFingerprint(draftPayload)
+  }
+  const draftSaver = useRef<ReturnType<
+    typeof createTrailingDebounce<Omit<TransactionDraft, "savedAt">>
+  > | null>(null)
+  if (draftSaver.current === null) {
+    draftSaver.current = createTrailingDebounce<Omit<TransactionDraft, "savedAt">>(
+      (payload) => {
+        void saveTransactionDraft(payload)
+      },
+      DRAFT_SAVE_DEBOUNCE_MS,
+    )
+  }
+  /** Flag: draft sudah dibuang/di-commit — jangan disiram saat unmount. */
+  const draftAbandoned = useRef(false)
+
+  // Pulihkan: baca draft SEKALI saat mount, lalu tawarkan bila masih layak.
+  useEffect(() => {
+    if (draftRestoreChecked.current) return
+    draftRestoreChecked.current = true
+    let alive = true
+    void loadTransactionDraft().then((saved) => {
+      if (!alive) return
+      if (shouldOfferTransactionDraftRestore(saved)) setDraftOffer(saved)
+    })
+    return () => {
+      alive = false
+    }
+  }, [])
+
+  // Autosave: satu penulisan per detik, hanya untuk isian pengguna.
+  useEffect(() => {
+    if (draftAbandoned.current || submitting || intentionalLeave) return
+    if (!isMeaningfulTransactionDraft({ ...draftPayload, savedAt: "" })) return
+    if (transactionDraftFingerprint(draftPayload) === initialDraftFingerprint.current) return
+    draftSaver.current?.call(draftPayload)
+  }, [draftPayload, submitting, intentionalLeave])
+
+  // Siram penulisan yang tertunda saat layar unmount — inilah kasus yang
+  // ditemukan audit (ketik 3 field lalu langsung keluar).
+  useEffect(() => {
+    const saver = draftSaver.current
+    return () => {
+      if (!draftAbandoned.current) saver?.flush()
+    }
+  }, [])
+
+  /** Buang draft: subtitel "Mulai baru", konfirmasi "Buang", dan submit sukses. */
+  const discardTransactionDraft = useCallback(() => {
+    draftAbandoned.current = true
+    draftSaver.current?.cancel()
+    void clearTransactionDraft()
+  }, [])
+
+  const restoreDraft = useCallback((saved: TransactionDraft) => {
+    setMode(saved.mode)
+    setRole(saved.role)
+    setCounterpart(saved.counterpart)
+    setTitle(saved.title)
+    setDescription(saved.description)
+    setOrderType(saved.orderType)
+    setOrderValue(saved.orderValue)
+    setDeadlineDate(transactionDraftDeadline(saved))
+    setFeeResponsibility(saved.feeResponsibility)
+    setStep(transactionDraftStep(saved))
+    // Draft yang dipulihkan ≠ prefill: tandai longgar agar autosave berikutnya
+    // (mis. pengguna hanya menekan Lanjut) tidak dianggap "belum disentuh".
+    initialDraftFingerprint.current = null
+    setDraftOffer(null)
+  }, [])
   const pendingNavigation = useRef<NavigationAction | null>(null)
   const pendingReplace = useRef<Parameters<typeof router.replace>[0] | null>(null)
 
@@ -734,6 +868,8 @@ export default function CreateTransactionScreen() {
           submitKeyRef.current ?? (submitKeyRef.current = createIdempotencyKey()),
         )
         submitKeyRef.current = null
+        // P1-3: transaksi berhasil → draft tidak boleh ditawarkan lagi.
+        discardTransactionDraft()
         toast.show({
           title: "Tautan pesanan dibuat",
           description: "Bagikan tautan ke lawan transaksi.",
@@ -760,6 +896,8 @@ export default function CreateTransactionScreen() {
         submitKeyRef.current ?? (submitKeyRef.current = createIdempotencyKey()),
       )
       submitKeyRef.current = null
+      // P1-3: transaksi berhasil → draft tidak boleh ditawarkan lagi.
+      discardTransactionDraft()
       toast.show({
         title: "Transaksi dibuat",
         description: "Menunggu konfirmasi lawan transaksi.",
@@ -814,6 +952,7 @@ export default function CreateTransactionScreen() {
     feeResponsibility,
     voucher?.code,
     toast.show,
+    discardTransactionDraft,
   ])
 
   const counterpartRequired = mode === "direct"
@@ -1117,6 +1256,8 @@ export default function CreateTransactionScreen() {
         destructive
         onConfirm={() => {
           setDiscardOpen(false)
+          // P1-3: isian dibuang atas permintaan pengguna → draft lokal juga.
+          discardTransactionDraft()
           // Jangan dispatch di sini: guard masih aktif sampai commit
           // berikutnya dan `beforeRemove` akan membuka dialog lagi.
           // Effect `intentionalLeave` mengeksekusi aksi yang tertunda.
@@ -1129,6 +1270,34 @@ export default function CreateTransactionScreen() {
         onRequestClose={() => {
           pendingNavigation.current = null
           setDiscardOpen(false)
+        }}
+      />
+
+      {/* P1-3: tawarkan draft yang tersimpan (<= 24 jam) — pemulihan tidak
+          pernah diam-diam; nominal & lawan transaksi bisa sudah basi. */}
+      <Dialog
+        title="Lanjutkan draft transaksi?"
+        description={
+          draftOffer
+            ? translate(
+                "Draft dari {x} ditemukan di perangkat ini. Pulihkan isian itu, atau mulai dari form kosong?",
+                { x: formatDateTimeWIB(draftOffer.savedAt) },
+              )
+            : undefined
+        }
+        visible={draftOffer != null}
+        confirmLabel="Pulihkan"
+        cancelLabel="Mulai baru"
+        onConfirm={() => {
+          if (draftOffer) restoreDraft(draftOffer)
+        }}
+        onCancel={() => {
+          setDraftOffer(null)
+          discardTransactionDraft()
+        }}
+        onRequestClose={() => {
+          setDraftOffer(null)
+          discardTransactionDraft()
         }}
       />
 

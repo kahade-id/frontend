@@ -110,6 +110,17 @@ export const SecureKeys = {
   /** S7: draft teks form "Buat karya" (autosave lokal). */
   showcaseDraft: "kahade.showcase.draft",
   /**
+   * P1-3 (audit perf/UX 2026-10-03): draft form "Buat Transaksi" (JSON —
+   * lib/transaction-draft.ts). Berisi lawan transaksi, judul, deskripsi,
+   * nominal, tenggat, dan pembagi biaya — data milik AKUN, jadi:
+   *   - DIHAPUS `clearSession()` saat logout (akun berikutnya di perangkat
+   *     yang sama tidak boleh mewarisi draft transaksi akun sebelumnya),
+   *   - SENGAJA TIDAK masuk `WEB_PERSISTENT_KEYS` (web = memory-only), seperti
+   *     draft tiket dukungan.
+   * Tidak pernah berisi kredensial/token.
+   */
+  transactionDraft: "kahade.transaction.draft",
+  /**
    * Batch 139 A05: draft NON-RAHASIA registrasi (nama lengkap, username, tipe
    * akun) — dipulihkan bila app tertutup di tengah registrasi multi-langkah.
    * BUKAN rahasia: TIDAK PERNAH berisi kata sandi atau OTP (dijaga di level
@@ -400,6 +411,8 @@ export async function clearSession(): Promise<void> {
     deleteSecureItem(SecureKeys.supportOpenedAt),
     // Item mega-batch 131: draft tiket milik akun.
     deleteSecureItem(SecureKeys.supportDraft),
+    // P1-3 (audit perf/UX 2026-10-03): draft transaksi milik akun.
+    deleteSecureItem(SecureKeys.transactionDraft),
     // Batch 139 (F11): draft tiket per kategori milik akun.
     deleteSecureItem(SecureKeys.supportDrafts),
     // Batch 139 (F04): riwayat artikel bantuan milik akun.
