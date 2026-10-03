@@ -15,7 +15,7 @@
  *     aplikasi — jadi satu bentuk URL melayani kedua kasus.
  *   - Backend biasanya sudah mengembalikan `url` publik (https) untuk Order
  *     Link; fungsi di sini hanya FALLBACK bila field itu kosong. Pemanggil
- *     selalu `link.url ?? orderLinkUrl(token)`.
+ *     selalu `link.url ?? orderShortUrl(token)`.
  *   - Format publik mengikuti keputusan 1 Oktober 2026 (gaya Instagram):
  *     `/<username>` → profil, `/p/<id>` → etalase/post, `/v/<code>` →
  *     voucher/promo, `/r/<code>` → undangan referral. Rute internal Expo
@@ -33,9 +33,18 @@ function https(path: string): string {
   return `https://${PUBLIC_WEB_HOST}${path}`
 }
 
-/** `https://kahade.id/order-link/<token>` — fallback bila API tidak memberi `url`. */
+/** `https://kahade.id/order-link/<token>` — format lama, dipertahankan untuk
+ * kompatibilitas tautan yang sudah beredar. Untuk tautan BARU pakai
+ * `orderShortUrl()` (`https://kahade.id/o/<token>`). */
 export function orderLinkUrl(token: string): string {
   return https(`/order-link/${encodeURIComponent(token)}`)
+}
+
+/** `https://kahade.id/o/<token>` — tautan order pendek untuk dibagikan
+ * (3 Okt 2026). Backend tetap menerima `/order-link/<token>`; rute `/o`
+ * di aplikasi mengarah ke sana. */
+export function orderShortUrl(token: string): string {
+  return https(`/o/${encodeURIComponent(token)}`)
 }
 
 /** `https://kahade.id/r/<code>` — undangan referral pendek (1 Oktober 2026).

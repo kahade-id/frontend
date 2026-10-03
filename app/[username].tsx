@@ -28,6 +28,7 @@ const RESERVED = new Set([
   "p",
   "v",
   "r",
+  "o",
   "payment",
   "transfer",
   "register",
