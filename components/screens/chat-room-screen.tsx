@@ -1010,7 +1010,20 @@ export default function ChatRoomScreen() {
 
   useEffect(() => {
     void fetchMessages()
-    return () => initialRequest.current?.abort()
+    return () => {
+      initialRequest.current?.abort()
+      // CHAT-B2-01: batalkan upload lampiran yang masih jalan saat keluar
+      // room — sebelumnya XHR tetap jalan di background (buang kuota) lalu
+      // hasilnya hilang diam-diam karena komponen sudah unmount.
+      for (const controller of uploadControllersRef.current.values()) {
+        try {
+          controller.abort()
+        } catch {
+          // Best-effort.
+        }
+      }
+      uploadControllersRef.current.clear()
+    }
   }, [fetchMessages])
 
   // ── Read receipt: pesan saya yang sudah dibaca lawan bicara ──

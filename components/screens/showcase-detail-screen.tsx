@@ -61,6 +61,7 @@ import {
   clearShowcaseCommentDraft,
   loadShowcaseCommentDraft,
   saveShowcaseCommentDraft,
+  setShowcaseCommentDraftReply,
 } from "@/lib/showcase-comment-drafts"
 
 import { ActionSheet } from "@/components/ui/action-sheet"
@@ -318,6 +319,9 @@ function ShowcaseDetailContent({
   )
   const [replyTo, setReplyTo] = useState<ShowcaseComment | null>(null)
   const [draft, setDraft] = useState("")
+  // B2-SC-06: replyToId draft menunggu komentar dimuat untuk di-resolve.
+  const [pendingReplyId, setPendingReplyId] = useState<string | null>(null)
+  const draftLoadedRef = useRef(false)
   /**
    * Item 161 (FE-IMP-1): draft komentar persisten — dimuat sekali per item
    * dari SecureStore (pola sama seperti draft chat). Tidak memblokir render
@@ -325,8 +329,13 @@ function ShowcaseDetailContent({
    */
   useEffect(() => {
     let alive = true
-    void loadShowcaseCommentDraft(id).then((text) => {
-      if (alive && text) setDraft(text)
+    void loadShowcaseCommentDraft(id).then((stored) => {
+      if (!alive) return
+      draftLoadedRef.current = true
+      if (!stored) return
+      if (stored.text) setDraft(stored.text)
+      // B2-SC-06: reply target di-resolve setelah komentar dimuat.
+      if (stored.replyToId) setPendingReplyId(stored.replyToId)
     })
     return () => {
       alive = false
@@ -340,6 +349,19 @@ function ShowcaseDetailContent({
     },
     [id],
   )
+  // B2-SC-06: simpan replyToId ke draft setiap target balasan berubah.
+  useEffect(() => {
+    if (!draftLoadedRef.current) return
+    setShowcaseCommentDraftReply(id, replyTo?.id ?? null)
+  }, [id, replyTo?.id])
+  // B2-SC-06: pulihkan target balasan draft setelah komentar dimuat.
+  // Bila tak ditemukan (dihapus) → chip tidak tampil, user sadar sebelum kirim.
+  useEffect(() => {
+    if (commentsStatus === "loading" || !pendingReplyId) return
+    setPendingReplyId(null)
+    const found = findShowcaseComment(comments, pendingReplyId)
+    if (found) setReplyTo(found.reply ?? found.root)
+  }, [commentsStatus, comments, pendingReplyId])
   const [sendingComment, setSendingComment] = useState(false)
   /**
    * T4 (audit 2026-09-26): satu kunci idempotency per (item × isi komentar),

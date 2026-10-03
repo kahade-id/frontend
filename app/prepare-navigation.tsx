@@ -12,6 +12,7 @@ import {
 import { userMessage } from "@/lib/api/errors"
 import { useGuestPathBlocked } from "@/lib/guest-gate"
 import { ROUTES } from "@/lib/routes"
+import { goBackOrNavigate } from "@/lib/navigation"
 import { DataScreen } from "@/components/ui/data-screen"
 import { Button } from "@/components/ui/button"
 
@@ -112,7 +113,7 @@ export default function PrepareNavigationScreen() {
         icon: kind === "dm" ? ChatCircle : Package,
         title: kind === "dm" ? "Tidak bisa mengirim pesan" : "Belum ada data pelacakan",
         description: state.empty,
-        action: <Button onPress={() => router.back()}>Kembali</Button>,
+        action: <Button onPress={() => goBackOrNavigate(kind === "dm" ? ROUTES.chat : ROUTES.transactions)}>Kembali</Button>,
       } : null}
     >{null}</DataScreen>
   )

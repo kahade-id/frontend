@@ -347,13 +347,21 @@ function ShowcaseManagement() {
     [editor, form, commerce],
   )
   const requestCloseEditor = useCallback(() => {
-    if (saveBusy.current || uploadBusy.current) return
+    // B2-SC-03: beri feedback saat X ditekan ketika upload/save busy.
+    if (saveBusy.current || uploadBusy.current) {
+      toast.show({ title: "Tunggu unggahan selesai…", tone: "info" })
+      return
+    }
     if (dirtyEditor) setDiscardOpen(true)
     else closeEditor()
-  }, [dirtyEditor, closeEditor])
+  }, [dirtyEditor, closeEditor, toast.show])
 
   usePreventRemove(dirtyEditor, ({ data }) => {
-    if (saveBusy.current || uploadBusy.current) return
+    // B2-SC-03: hardware back juga diberi feedback saat busy.
+    if (saveBusy.current || uploadBusy.current) {
+      toast.show({ title: "Tunggu unggahan selesai…", tone: "info" })
+      return
+    }
     pendingNavigation.current = data.action
     setDiscardOpen(true)
   })

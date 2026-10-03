@@ -36,9 +36,10 @@
  *     "token"), user diarahkan login ulang lewat Alert + tautan.
  */
 import { useCallback, useEffect, useRef, useState } from "react"
-import { ScrollView, View } from "react-native"
+import { BackHandler, ScrollView, View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useRouter, type Href } from "expo-router"
+import { useFocusEffect } from "@react-navigation/native"
 
 import { Alert } from "@/components/ui/alert"
 import { FadeIn } from "@/components/ui/fade-in"
@@ -167,6 +168,17 @@ export default function VerifyTwoFactorScreen() {
     if (router.canGoBack()) router.back()
     else router.replace(ROUTES.login)
   }, [router])
+
+  // A2F-02: hardware back = seperti tombol visual (bersihkan state 2FA dulu).
+  useFocusEffect(
+    useCallback(() => {
+      const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+        handleBackToLogin()
+        return true
+      })
+      return () => sub.remove()
+    }, [handleBackToLogin]),
+  )
 
   /**
    * Audit 2026-10-01: state sesi 2FA hidup di memori modul; tanpa itu layar

@@ -273,6 +273,71 @@ export function logicalParentForPath(pathname: string): Href {
       return ROUTES.transactions
     case "wallet":
       return ROUTES.wallet
+    case "wallet-transaction":
+    case "transfer":
+    case "topup":
+    case "receive":
+    case "withdraw":
+    case "topup-history":
+    case "withdraw-history":
+    case "withdrawal-schedules":
+    case "wallet-history":
+      // B2-01 + TX2-P2a: keluarga dompet → Dompet (bukan Etalase).
+      return ROUTES.wallet
+    case "payment":
+      // B2-03 + TX2-P2a: target deeplink DANA finish yang CTA-nya ke Transaksi.
+      return ROUTES.transactions
+    case "order-link":
+      // B2-03: samakan dengan "o" → transaksi.
+      return ROUTES.transactions
+    case "disputes":
+      // B2-03: daftar sengketa (sejajar dengan detail "dispute").
+      return ROUTES.disputes
+    case "transaction-templates":
+    case "service-bookings":
+    case "order-links":
+      // B2-06: konteks transaksi.
+      return ROUTES.transactions
+    case "seller":
+      // B2-SC-04: konteks seller → daftar produk seller.
+      return ROUTES.sellerProducts
+    case "verify-email":
+    case "login-required":
+      // B2-02: head auth yang terlewat batch-1 → login.
+      return ROUTES.login
+    case "live-support":
+    case "contact":
+    case "feedback":
+      // B2-05: konteks bantuan → Pusat Bantuan.
+      return ROUTES.faq
+    case "notification-settings":
+    case "notification-preferences":
+    case "privacy-settings":
+    case "language":
+    case "appearance":
+    case "blocked-users":
+    case "addresses":
+    case "bank-accounts":
+    case "delete-account":
+    case "app-version":
+    case "about":
+    case "terms":
+    case "privacy-policy":
+    case "social-providers":
+    case "account-type":
+    case "business-verification":
+      // B2-04: keluarga pengaturan → Pengaturan.
+      return ROUTES.settings
+    case "two-factor":
+    case "passkeys":
+    case "biometric-settings":
+    case "security-activity":
+    case "change-email":
+    case "change-phone":
+    case "change-password":
+    case "change-pin":
+      // B2-04: keluarga keamanan → Keamanan.
+      return ROUTES.security
     case "forgot-password":
     case "login":
     case "register":

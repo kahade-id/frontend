@@ -16,8 +16,9 @@
  *   POST /v1/wallet/withdraw/cancel
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { ScrollView, View } from "react-native"
+import { BackHandler, ScrollView, View } from "react-native"
 import { router, useLocalSearchParams } from "expo-router"
+import { useFocusEffect } from "@react-navigation/native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Bank as BankIcon } from "phosphor-react-native"
 
@@ -446,6 +447,18 @@ export default function WithdrawScreen() {
     if (router.canGoBack()) router.back()
     else router.replace(isLegacy ? ROUTES.bankAccounts : ROUTES.wallet)
   }, [step, verifyMode, txId, submitting, cancelling, isLegacy])
+
+  // TX2-P1: hardware back = seperti tombol back header (jaga OTP pending).
+  // Tanpa ini hardware back pop mentah melewati guard dialog pembatalan.
+  useFocusEffect(
+    useCallback(() => {
+      const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+        handleHeaderBack()
+        return true
+      })
+      return () => sub.remove()
+    }, [handleHeaderBack]),
+  )
 
   return (
     // SEC-404: proteksi screen-capture iOS di layar tarik dana (PIN + nominal).

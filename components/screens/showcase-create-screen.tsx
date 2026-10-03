@@ -28,7 +28,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Linking, Platform, View } from "react-native"
 import { useNavigation, usePreventRemove, type NavigationAction } from "@react-navigation/native"
-import { useRouter } from "expo-router"
 import {
   Eye,
   EyeSlash,
@@ -215,7 +214,6 @@ function formToPayload(form: FormState) {
 export default function ShowcaseCreateScreen() {
   // i18n: label mengikuti bahasa aktif.
   useLanguage()
-  const router = useRouter()
   const navigation = useNavigation()
 
   // S7: cek draft tersimpan saat layar dibuka — tawarkan lanjutkan.
@@ -391,11 +389,16 @@ export default function ShowcaseCreateScreen() {
 
   /** Foto + ketikan belum tersimpan — minta konfirmasi sebelum keluar. */
   const requestClose = useCallback(() => {
-    if (saveBusy.current || uploadBusy.current) return
+    // B2-SC-02: toast yang sama seperti jalur hardware back — X diam total
+    // saat upload busy terasa seperti aplikasi macet.
+    if (saveBusy.current || uploadBusy.current) {
+      toast.show({ title: "Tunggu unggahan selesai…", tone: "info" })
+      return
+    }
     if (dirty) setDiscardOpen(true)
     // P2-S4: fallback ke daftar etalase bila tanpa riwayat (clean state X).
     else goBackOrNavigate(ROUTES.showcase)
-  }, [dirty])
+  }, [dirty, toast.show])
 
   const confirmDiscard = useCallback(() => {
     void cleanupPendingShowcaseKeys(pendingKeys.current)
@@ -427,8 +430,10 @@ export default function ShowcaseCreateScreen() {
     const action = pendingNavigation.current
     pendingNavigation.current = null
     if (action) navigation.dispatch(action)
-    else router.back()
-  }, [intentionalLeave, navigation, router])
+    // B2-SC-01: fallback ke daftar etalase — router.back() no-op saat
+    // cold-start (mis. setelah sukses simpan tanpa riwayat).
+    else goBackOrNavigate(ROUTES.showcaseManagement)
+  }, [intentionalLeave, navigation])
 
   // Web: peringatan bawaan browser sebelum menutup tab dengan draf hidup.
   useEffect(() => {
