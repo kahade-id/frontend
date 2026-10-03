@@ -16,6 +16,7 @@ import { beforeEach, describe, expect, it } from "vitest"
 
 import { clearSession, getSessionSnapshot, startSession } from "@/lib/api/session"
 import { shouldMountAuthStack } from "@/lib/session-guard"
+import { SESSION_VERIFY_GRACE_MS, isVerificationWithinGrace } from "@/lib/session-verify-grace"
 import {
   SOFT_REAUTH_MAX_ATTEMPTS,
   closeSoftReauth,
@@ -50,7 +51,12 @@ describe("P0-1: latch pemulihan lembut", () => {
     // Guard stack harus tetap true supaya layar di belakang modal tidak
     // dicabut — inilah inti perbaikan stack [A → B → C].
     expect(
-      shouldMountAuthStack({ isWeb: false, token: getSessionSnapshot(), softReauth: true }),
+      shouldMountAuthStack({
+        isWeb: false,
+        token: getSessionSnapshot(),
+        verifying: false,
+        softReauth: true,
+      }),
     ).toBe(true)
   })
 
@@ -162,25 +168,46 @@ describe("P0-1: keputusan alur sesi-kedaluwarsa di native", () => {
 describe("P0-1: guard Stack.Protected", () => {
   it("true selama modal pemulihan tampil meski token sudah kosong", () => {
     expect(
-      shouldMountAuthStack({ isWeb: false, token: null, softReauth: true }),
+      shouldMountAuthStack({ isWeb: false, token: null, verifying: false, softReauth: true }),
     ).toBe(true)
   })
 
   it("false tanpa token, tanpa modal, tanpa verifikasi (tamu di layar ber-auth)", () => {
     expect(
-      shouldMountAuthStack({ isWeb: false, token: null, softReauth: false }),
+      shouldMountAuthStack({ isWeb: false, token: null, verifying: false, softReauth: false }),
     ).toBe(false)
   })
 
   it("web selalu true (pemblokiran tamu lewat GuestLoginPrompt)", () => {
     expect(
-      shouldMountAuthStack({ isWeb: true, token: null, softReauth: false }),
+      shouldMountAuthStack({ isWeb: true, token: null, verifying: false, softReauth: false }),
     ).toBe(true)
   })
 
   it("token ada → true", () => {
     expect(
-      shouldMountAuthStack({ isWeb: false, token: "access-1", softReauth: false }),
+      shouldMountAuthStack({ isWeb: false, token: "access-1", verifying: false, softReauth: false }),
     ).toBe(true)
+  })
+})
+
+describe("P0-2: jendela toleransi verifikasi", () => {
+  it("token null + verifying true → guard tetap true (layar tidak dicabut)", () => {
+    expect(
+      shouldMountAuthStack({ isWeb: false, token: null, verifying: true, softReauth: false }),
+    ).toBe(true)
+  })
+
+  it("verifikasi yang lewat jendela tidak lagi menahan stack", () => {
+    expect(
+      shouldMountAuthStack({ isWeb: false, token: null, verifying: false, softReauth: false }),
+    ).toBe(false)
+  })
+
+  it("jendela tutup tepat pada 10.000 ms", () => {
+    expect(isVerificationWithinGrace({ verifying: true, elapsedMs: 0 })).toBe(true)
+    expect(isVerificationWithinGrace({ verifying: true, elapsedMs: SESSION_VERIFY_GRACE_MS - 1 })).toBe(true)
+    expect(isVerificationWithinGrace({ verifying: true, elapsedMs: SESSION_VERIFY_GRACE_MS })).toBe(false)
+    expect(isVerificationWithinGrace({ verifying: false, elapsedMs: 0 })).toBe(false)
   })
 })

@@ -105,7 +105,7 @@ import { DeviceIntegrityProvider } from "@/components/security/device-integrity-
 // paling awal saat boot. Preseden: components/maintenance-screen.tsx:18.
 import * as notificationsApi from "@/lib/api/notifications"
 import * as publicApi from "@/lib/api/public"
-import { onSessionExpired } from "@/lib/api/session"
+import { emitSessionExpired, onSessionExpired } from "@/lib/api/session"
 import { fontAssetsBlocking, fontAssetsDeferred } from "@/lib/fonts"
 import { routeForPushData } from "@/lib/notification-routing"
 import {
@@ -145,6 +145,7 @@ import { OfflineBanner } from "@/components/offline-banner"
 import { LruCache } from "@/lib/lru-cache"
 import { ROUTES } from "@/lib/routes"
 import { shouldMountAuthStack } from "@/lib/session-guard"
+import { useSessionVerifyGrace } from "@/lib/session-verify-grace"
 import {
   decideNativeSessionExpiredAction,
   isSoftReauthActive,
@@ -778,9 +779,26 @@ function AppShellInner() {
    * dan setelah masuk berhasil pengguna kembali ke layar semula.
    */
   const softReauthActive = useSoftReauthActive()
+
+  /**
+   * P0-2 (audit perf/UX 2026-10-03): verifikasi sesi background boleh menahan
+   * stack ber-auth maksimal 10 detik. Lewat itu, verifikasi dianggap gagal →
+   * alur sesi-kedaluwarsa yang sama dengan P0-1 (handler `onSessionExpired`
+   * memutuskan pemulihan lembut vs alur lama berdasarkan konteks).
+   */
+  const handleVerifyGraceExpired = useCallback(() => {
+    emitSessionExpired()
+  }, [])
+  const verifyingWithinGrace = useSessionVerifyGrace({
+    verifying: session.verifying,
+    token: session.token,
+    onExpired: handleVerifyGraceExpired,
+  })
+
   const mountAuthStack = shouldMountAuthStack({
     isWeb: Platform.OS === "web",
     token: session.token,
+    verifying: verifyingWithinGrace,
     softReauth: softReauthActive,
   })
 
