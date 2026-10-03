@@ -379,6 +379,10 @@
    "n": 7
   },
   {
+   "s": "Beli Sekarang",
+   "n": 7
+  },
+  {
    "s": "Biaya layanan",
    "n": 7
   },
@@ -576,6 +580,10 @@
   },
   {
    "s": "Email",
+   "n": 6
+  },
+  {
+   "s": "Etalase ini sedang tidak aktif, jadi belum bisa ditransaksikan.",
    "n": 6
   },
   {
@@ -807,6 +815,10 @@
    "n": 6
   },
   {
+   "s": "Stok etalase ini habis, jadi belum bisa ditransaksikan.",
+   "n": 6
+  },
+  {
    "s": "Tanggal tidak tersedia",
    "n": 6
   },
@@ -892,10 +904,6 @@
   },
   {
    "s": "Batas konfirmasi",
-   "n": 5
-  },
-  {
-   "s": "Beli via Escrow",
    "n": 5
   },
   {
@@ -1228,6 +1236,10 @@
   },
   {
    "s": "Bekas",
+   "n": 4
+  },
+  {
+   "s": "Beli",
    "n": 4
   },
   {
@@ -1771,6 +1783,10 @@
    "n": 4
   },
   {
+   "s": "Uang Anda disimpan Kahade dulu, diteruskan ke penjual setelah barang Anda terima.",
+   "n": 4
+  },
+  {
    "s": "Ubah Profil",
    "n": 4
   },
@@ -1852,6 +1868,10 @@
   },
   {
    "s": "{x} dari {y} media. Item pertama menjadi cover etalase.",
+   "n": 3
+  },
+  {
+   "s": "{x} dari {y}, {z} ulasan",
    "n": 3
   },
   {
@@ -2100,6 +2120,10 @@
   },
   {
    "s": "Bayar",
+   "n": 3
+  },
+  {
+   "s": "Beli {x}",
    "n": 3
   },
   {
@@ -2576,10 +2600,6 @@
   },
   {
    "s": "Etalase ini belum disimpan siapa pun.",
-   "n": 3
-  },
-  {
-   "s": "Etalase ini sedang tidak aktif, jadi belum bisa ditransaksikan.",
    "n": 3
   },
   {
@@ -4267,7 +4287,7 @@
    "n": 3
   },
   {
-   "s": "Skor kepercayaan {x}, buka rincian",
+   "s": "Skor kepercayaan {x} dari {y}, buka rincian",
    "n": 3
   },
   {
@@ -4300,10 +4320,6 @@
   },
   {
    "s": "Status Verifikasi (KYC)",
-   "n": 3
-  },
-  {
-   "s": "Stok etalase ini habis, jadi belum bisa ditransaksikan.",
    "n": 3
   },
   {
@@ -4815,6 +4831,10 @@
    "n": 2
   },
   {
+   "s": "({x} ulasan)",
+   "n": 2
+  },
+  {
    "s": "(diedit)",
    "n": 2
   },
@@ -5176,10 +5196,6 @@
   },
   {
    "s": "Bayar sesuai nominal — status diperbarui otomatis.",
-   "n": 2
-  },
-  {
-   "s": "Beli {x} via escrow",
    "n": 2
   },
   {
@@ -5692,10 +5708,6 @@
   },
   {
    "s": "Dana dibekukan sementara",
-   "n": 2
-  },
-  {
-   "s": "Dana ditahan escrow sampai barang Anda terima",
    "n": 2
   },
   {
@@ -6951,10 +6963,6 @@
    "n": 2
   },
   {
-   "s": "Lawan",
-   "n": 2
-  },
-  {
    "s": "Lawan tertentu",
    "n": 2
   },
@@ -8176,6 +8184,10 @@
   },
   {
    "s": "Shortcut: huruf kecil/angka/underscore. Tersinkron ke akun Anda.",
+   "n": 2
+  },
+  {
+   "s": "Siapa mitra transaksi Anda?",
    "n": 2
   },
   {
@@ -11416,6 +11428,10 @@
   },
   {
    "s": "Anda kini bisa masuk tanpa mengetik kata sandi di perangkat ini.",
+   "n": 1
+  },
+  {
+   "s": "Anda membayar ke Kahade dulu, bukan langsung ke penjual",
    "n": 1
   },
   {
@@ -15491,7 +15507,7 @@
    "n": 1
   },
   {
-   "s": "Kami memvalidasi username lawan sebelum Anda lanjut.",
+   "s": "Kami memvalidasi username mitra sebelum Anda lanjut.",
    "n": 1
   },
   {
@@ -16556,6 +16572,10 @@
   },
   {
    "s": "Laporkan pesan atau blokir pengguna",
+   "n": 1
+  },
+  {
+   "s": "Lawan",
    "n": 1
   },
   {
@@ -17684,6 +17704,10 @@
   },
   {
    "s": "Mis. Titik kumpul lobi mall",
+   "n": 1
+  },
+  {
+   "s": "Mitra transaksi",
    "n": 1
   },
   {
@@ -21340,6 +21364,7 @@
   },
   {
    "s": "Terlalu banyak percobaan. Tunggu sebentar sebelum mencoba lagi.",
+   "s": "Terlindungi",
    "n": 1
   },
   {

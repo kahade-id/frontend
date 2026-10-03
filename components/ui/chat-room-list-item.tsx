@@ -47,7 +47,7 @@
  *   - `ripple` default ON di sini: baris list adalah permukaan yang disapu
  *     jari (lihat PressableScale — keputusan produk 2026-09-21).
  */
-import { Check, BellSlash, PushPin } from "phosphor-react-native"
+import { BellSlash, Check, LockKey, PushPin } from "phosphor-react-native"
 import { memo } from "react"
 import { useWindowDimensions, View, type ViewProps } from "react-native"
 
@@ -60,6 +60,8 @@ import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { tokens } from "@/lib/tokens"
+import { useLanguage } from "@/lib/i18n"
+import { translate } from "@/lib/i18n/translate"
 import { focusRingInset } from "@/lib/focus-ring"
 
 export type ChatRoomLastMessage = {
@@ -94,10 +96,9 @@ export type ChatRoomListItemProps = Omit<ViewProps, "children"> & {
    */
   context?: string
   /**
-   * U5-009 (UX-deep 2026-09-29): badge kecil "Escrow" di kanan baris
-   * pertama MENGGANTIKAN kode order mentah (`context`) — user baru tidak
-   * tahu "KHD-…" artinya chat terikat transaksi escrow. `context` tetap
-   * didukung untuk pemanggil lain (tidak ada lagi saat ini).
+   * U5-009 (UX-deep 2026-09-29): badge "Terlindungi" dengan ikon gembok di
+   * kanan baris pertama menggantikan kode order mentah (`context`). `context`
+   * tetap didukung untuk pemanggil lain (tidak ada lagi saat ini).
    */
   orderBadge?: boolean
   onPressIn?: () => void
@@ -112,7 +113,7 @@ export type ChatRoomListItemProps = Omit<ViewProps, "children"> & {
   divider?: boolean
   /** Garis batas ATAS — untuk baris pertama yang butuh bingkai (kartu dst). */
   dividerTop?: boolean
-  labels?: { you?: string; typing?: string; unread?: string; selected?: string; escrow?: string }
+  labels?: { you?: string; typing?: string; unread?: string; selected?: string }
   className?: string
 }
 
@@ -121,7 +122,6 @@ const DEFAULT_LABELS = {
   typing: "mengetik…",
   unread: "belum dibaca",
   selected: "dipilih",
-  escrow: "Escrow",
 }
 
 /**
@@ -165,7 +165,9 @@ export function ChatRoomListItemBase({
   className,
   ...rest
 }: ChatRoomListItemProps) {
+  useLanguage()
   const t = { ...DEFAULT_LABELS, ...labels }
+  const protectedLabel = translate("Terlindungi")
   const { width } = useWindowDimensions()
   const compact = width < NARROW_WIDTH
   const hasUnread = unreadCount > 0
@@ -181,7 +183,7 @@ export function ChatRoomListItemBase({
     selecting && selected ? t.selected : undefined,
     name,
     preview,
-    orderBadge ? t.escrow : context,
+    orderBadge ? protectedLabel : context,
     time,
     hasUnread ? `${unreadCount} ${t.unread}` : undefined,
     muted ? "dibisukan" : undefined,
@@ -240,11 +242,12 @@ export function ChatRoomListItemBase({
           </Text>
           {pinned ? <Icon icon={PushPin} size="xs" tone="default" /> : null}
           {orderBadge ? (
-            // U5-009: room ber-orderId ditandai badge "Escrow" (tone accent =
-            // momen trust & escrow, §9.7) — bukan kode mentah.
-            <Badge tone="accent" variant="outline" className="shrink-0">
-              {t.escrow}
-            </Badge>
+            <View className="shrink-0 flex-row items-center gap-1">
+              <Icon icon={LockKey} size="xs" tone="accent" />
+              <Badge tone="accent" variant="outline" className="shrink-0">
+                {protectedLabel}
+              </Badge>
+            </View>
           ) : context ? (
             <Text
               variant="caption"

@@ -445,8 +445,7 @@ function ChatRoomRowBase({
         time={item.lastMessage ? formatTimeAgo(item.lastMessage.createdAt) : undefined}
         unreadCount={item.unreadCount}
         // U5-009 (UX-deep 2026-09-29): room ber-orderId ditandai badge
-        // kecil "Escrow", bukan kode order mentah (user baru tidak tahu
-        // "KHD-…" artinya chat terikat transaksi).
+        // "Terlindungi" dengan ikon gembok, bukan kode order mentah.
         orderBadge={item.orderId != null}
         selecting={selecting}
         selected={selected}

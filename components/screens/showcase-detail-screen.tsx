@@ -833,7 +833,7 @@ function ShowcaseDetailContent({
   const handleCreateTransaction = useCallback(() => {
     const target = item.orderLink
       ? ROUTES.createTransactionFromShowcase(item.orderLink, item.author.username)
-      : // FE-044: tanpa orderLink, tombol "Beli via Escrow" dari etalase tetap
+      : // FE-044: tanpa orderLink, tombol "Beli Sekarang" dari etalase tetap
         // membawa flag fromShowcase — wizard mulai dari langkah 1 (mode &
         // peran sudah pasti), bukan langkah 0.
         ROUTES.createTransactionWith(item.author.username, { fromShowcase: true })
@@ -912,7 +912,7 @@ function ShowcaseDetailContent({
           {!isOwner ? (
             <View className="mb-3 flex-row items-center gap-3 border-b border-border pb-3">
               <Text variant="caption" tone="secondary" numberOfLines={2} className="min-w-0 flex-1">
-                {translate("Dana ditahan escrow sampai barang Anda terima")}
+                {translate("Uang Anda disimpan Kahade dulu, diteruskan ke penjual setelah barang Anda terima.")}
               </Text>
               <Button
                 disabled={item.isActive === false || soldOut}
@@ -925,7 +925,7 @@ function ShowcaseDetailContent({
                       : undefined
                 }
               >
-                {translate("Beli via Escrow")}
+                {translate("Beli Sekarang")}
               </Button>
             </View>
           ) : null}
