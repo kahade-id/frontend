@@ -17,7 +17,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { BackHandler, ScrollView, View } from "react-native"
 import { useLocalSearchParams, useRouter } from "expo-router"
-import { useFocusEffect } from "@react-navigation/native"
+import { useFocusEffect, useNavigation, usePreventRemove } from "@react-navigation/native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Wallet as WalletIcon } from "phosphor-react-native"
 
@@ -41,6 +41,7 @@ import { recordPendingAction, resolvePendingAction, toEpochMs } from "@/lib/pend
 import { Alert } from "@/components/ui/alert"
 import { Amount } from "@/components/ui/amount"
 import { AmountKeypad } from "@/components/ui/amount-keypad"
+import { hasOpenOverlay } from "@/components/ui/backdrop"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
@@ -340,6 +341,37 @@ export default function TopupScreen() {
       return () => sub.remove()
     }, [goBack]),
   )
+
+  // B3W-01: pasangan web untuk guard P1-T4 di atas. `BackHandler` tidak
+  // pernah fire di web (no-op react-native-web), jadi browser back butuh
+  // `usePreventRemove`: POP dicegat lalu entri history browser di-rollback
+  // oleh expo-router. Perilaku disamakan dengan hardware back — mundur satu
+  // langkah bila ada; di langkah hasil pop dibiarkan (intent top-up sudah
+  // dibuat di server + bisa dilanjutkan via PendingActionsBanner). Murni
+  // guard navigasi; logika uang tidak disentuh.
+  const navigation = useNavigation()
+  const wizardDirty = result == null && (amount > 0 || methodId != null)
+  usePreventRemove(wizardDirty, ({ data }) => {
+    // Overlay terbuka (mis. sheet pilih metode) → serahkan ke overlay
+    // terdalam (B3W-02); jangan step-back wizard.
+    if (hasOpenOverlay()) return
+    const action = data.action
+    const isBack =
+      action?.type === "POP" || action?.type === "GO_BACK" || action?.type === "POP_TO_TOP"
+    if (isBack && goBack()) return
+    navigation.dispatch(action)
+  })
+
+  // Web: peringatan bawaan browser sebelum tab ditutup/refresh dengan isian hidup.
+  useEffect(() => {
+    if (typeof window === "undefined" || !wizardDirty) return
+    const warn = (event: BeforeUnloadEvent) => {
+      event.preventDefault()
+      event.returnValue = ""
+    }
+    window.addEventListener("beforeunload", warn)
+    return () => window.removeEventListener("beforeunload", warn)
+  }, [wizardDirty])
 
   const handlePay = useCallback(async () => {
     // SEC-403 (penguat TRX-001): jangan buat intent selagi estimasi biaya
