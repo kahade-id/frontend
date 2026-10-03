@@ -225,10 +225,12 @@ export function checkUsernameAvailability(username: string, signal?: AbortSignal
  * File harus sudah divalidasi klien (JPG/PNG, maks 10MB, idealnya < 2MB
  * setelah kompresi — §9.19). Server yang menangani kompresi jika perlu.
  */
-export async function uploadAvatarDirect(formData: FormData) {
+export async function uploadAvatarDirect(formData: FormData, opts?: { timeoutMs?: number }) {
   const result = await http.post<AvatarResult>("/v1/users/me/avatar/direct", undefined, {
     auth: "required",
     formData,
+    // UPF-04: timeout adaptif dari pemanggil; undefined → default API_TIMEOUT_MS.
+    timeoutMs: opts?.timeoutMs,
   })
   return {
     ...result,
@@ -281,10 +283,12 @@ function normalizeHeaderResult(result: HeaderImageResult): HeaderImageResult {
  * `file`). Pola sama dengan avatar: direct upload memangkas round-trip
  * presigned URL (PUT /v1/users/me/header) yang tidak dibutuhkan mobile.
  */
-export async function uploadHeaderDirect(formData: FormData) {
+export async function uploadHeaderDirect(formData: FormData, opts?: { timeoutMs?: number }) {
   const result = await http.post<HeaderImageResult>("/v1/users/me/header/direct", undefined, {
     auth: "required",
     formData,
+    // UPF-04: timeout adaptif dari pemanggil; undefined → default API_TIMEOUT_MS.
+    timeoutMs: opts?.timeoutMs,
   })
   return normalizeHeaderResult(result)
 }
