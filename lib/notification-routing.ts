@@ -255,8 +255,10 @@ export function logicalParentForPath(pathname: string): Href {
       // SYS-C-404: tiket bantuan → daftar tiket bantuan.
       return ROUTES.support
     case "questions":
-      // SYS-C-404: daftar pertanyaan (Discovery Q&A).
-      return ROUTES.questions
+      // B3P-01: daftar pertanyaan milik sendiri; target push QUESTION.
+      // Induk = tab Notifikasi (konteks asal push), BUKAN dirinya sendiri —
+      // self-loop membuat tombol back header no-op saat cold-start.
+      return ROUTES.notifications
     case "notifications":
     case "notification":
     case "badges":
@@ -310,6 +312,32 @@ export function logicalParentForPath(pathname: string): Href {
     case "feedback":
       // B2-05: konteks bantuan → Pusat Bantuan.
       return ROUTES.faq
+    case "security":
+      // B3P-02: hub Keamanan — dibuka dari baris "Keamanan" di Pengaturan
+      // (app/settings.tsx:195) & push login-perangkat-baru; induk =
+      // Pengaturan, bukan dirinya sendiri.
+      return ROUTES.settings
+    case "kyc":
+      // B3P-02: verifikasi identitas — konteks akun; sejajar "Tipe Akun" /
+      // "Verifikasi Bisnis" yang tinggal di Pengaturan → induk = Pengaturan.
+      return ROUTES.settings
+    case "ratings":
+      // B3P-02: "Ulasan saya" — target push RATING_NEW tanpa entri di
+      // Pengaturan; induk = tab Notifikasi (konteks asal push).
+      return ROUTES.notifications
+    case "reports":
+      // B3P-02: "Laporan saya" — entrinya ada di hub Bantuan
+      // (app/faq.tsx:73); induk = Pusat Bantuan.
+      return ROUTES.faq
+    case "user":
+      // B3P-02: profil publik — target push follow; diakses dari mana-mana
+      // (feed, chat, pencarian) tanpa satu induk fungsional; cold-start dari
+      // push → induk = tab Notifikasi (konteks asal).
+      return ROUTES.notifications
+    case "deletion-status":
+      // B3P-02: layar pra-login (tanpa sesi), dibuka dari layar Login
+      // (app/(auth)/login.tsx:783) & push accountdeletion; induk = Login.
+      return ROUTES.login
     case "notification-settings":
     case "notification-preferences":
     case "privacy-settings":
