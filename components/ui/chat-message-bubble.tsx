@@ -428,14 +428,18 @@ function ChatMessageBubbleBase({
       </View>
     ) : null
 
+  const hasMeta = !!(time || failed || isPinned || isEdited || ephemeralChip || starred)
+
   const bubble = (
     <View
       className={cn(
         // 2026-10-02: incoming tanpa border tebal — cukup background + rounded
         // (permintaan user). Outgoing tetap tanpa border (bg-primary solid).
-        // 2026-10-03: relative untuk meta absolute di pojok kanan bawah;
-        // pb ditambah agar konten tidak tertutup meta.
-        "relative gap-2 rounded-md px-3 pb-5 pt-2",
+        // 2026-10-03: relative untuk meta absolute di pojok kanan bawah.
+        // pr-16 + pb-5 hanya saat ada meta, agar teks pendek tidak tertutup
+        // jam + centang (ala WhatsApp) tanpa makan space berlebih.
+        "relative gap-2 rounded-md pl-3 pt-2",
+        hasMeta ? "pr-16 pb-5" : "pr-3 pb-2",
         outgoing ? "bg-primary" : "bg-surface",
       )}
     >
