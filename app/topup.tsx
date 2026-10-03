@@ -17,7 +17,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { BackHandler, ScrollView, View } from "react-native"
 import { useLocalSearchParams, useRouter } from "expo-router"
-import { useFocusEffect } from "@react-navigation/native"
+import { useFocusEffect, useNavigation, usePreventRemove } from "@react-navigation/native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Wallet as WalletIcon } from "phosphor-react-native"
 
@@ -101,6 +101,7 @@ function isTopupMethod(value: string | null): value is TopupDto["method"] {
 type Step = "amount" | "method" | "result"
 
 export default function TopupScreen() {
+  const navigation = useNavigation()
   // Mode Tanpa Wallet Internal (BI-safe): flag false = layar diganti
   // <WalletDisabledScreen/> (deep link ikut tertutup).
   const walletGate = useWalletGate()
@@ -340,6 +341,19 @@ export default function TopupScreen() {
       return () => sub.remove()
     }, [goBack]),
   )
+  // B3O-21: iOS swipe-back tidak memicu BackHandler — daftarkan juga
+  // beforeRemove (via usePreventRemove) dengan logika step-back yang sama.
+  // Hanya di step "method" ada langkah internal untuk dimunduri; di step
+  // lain pop alami (= keluar, seperti Android).
+  usePreventRemove(step === "method", ({ data }) => {
+    const action = data.action
+    const isBack = action?.type === "POP" || action?.type === "GO_BACK"
+    if (!isBack) {
+      navigation.dispatch(action)
+      return
+    }
+    setStep("amount")
+  })
 
   const handlePay = useCallback(async () => {
     // SEC-403 (penguat TRX-001): jangan buat intent selagi estimasi biaya

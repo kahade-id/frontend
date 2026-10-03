@@ -38,6 +38,7 @@ import { Button } from "@/components/ui/button"
 import { Field } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { Dialog } from "@/components/ui/modal"
+import { useGuardedRequestClose } from "@/lib/use-guarded-request-close"
 import { PinInput } from "@/components/ui/pin-input"
 import { DanaCheckoutSheet } from "@/components/dana-checkout-sheet"
 import { Radio, RadioGroup } from "@/components/ui/radio"
@@ -295,6 +296,9 @@ export function OrderActionSheets({
   // FE-112: state dialog konfirmasi resi dihapus — tidak ada dialog kedua.
   // FRM-008: rantai fokus Next Kurir -> Nomor resi.
   const trackingRef = useRef<TextInput>(null)
+  // B3O-42: kunci dismiss saat submitting (guard + toast "Tunggu…") —
+  // samakan dengan konvensi PIN sheet transfer/withdraw.
+  const guardedClose = useGuardedRequestClose(submitting, onClose)
   // FRM-009: error format resi memerah sejak keystroke pertama — jangan
   // tampilkan error format saat resi belum selesai diketik; tampilkan
   // hanya setelah blur. Logika validasi (trackingValid) tidak berubah.
@@ -312,7 +316,7 @@ export function OrderActionSheets({
       <BottomSheet
         avoidKeyboard
         visible={sheet === "cancel"}
-        onRequestClose={onClose}
+        onRequestClose={guardedClose}
         title="Batalkan pesanan?"
         // EO-001 (audit 2026-09-26): janji refund dihapus. Gate `isCancellable`
         // kini hanya membuka WAITING_CONFIRMATION/WAITING_PAYMENT (selaras
@@ -358,7 +362,7 @@ export function OrderActionSheets({
       <BottomSheet
         avoidKeyboard
         visible={sheet === "reject"}
-        onRequestClose={onClose}
+        onRequestClose={guardedClose}
         title="Tolak pesanan?"
         description="Pembeli akan diberi tahu beserta alasan Anda."
         footer={
@@ -396,7 +400,7 @@ export function OrderActionSheets({
       <BottomSheet
         avoidKeyboard
         visible={sheet === "dispute"}
-        onRequestClose={onClose}
+        onRequestClose={guardedClose}
         title="Ajukan sengketa"
         description="Dana ditahan sampai mediator memutuskan. Bukti foto bisa ditambahkan setelah sengketa dibuat."
         footer={
@@ -482,7 +486,7 @@ export function OrderActionSheets({
       <BottomSheet
         avoidKeyboard
         visible={sheet === "shipping"}
-        onRequestClose={onClose}
+        onRequestClose={guardedClose}
         title={shippingRequired ? "Info pengiriman" : "Tandai dikirim"}
         description={
           shippingRequired

@@ -180,6 +180,10 @@ export function ProfileEditSheet({ visible, onRequestClose, profile, onSaved }: 
         } else {
           setFormError(translate("Gagal menyimpan: {x}", { x: message }))
         }
+        // B3O-23: error juga lewat toast global — tetap terlihat walau
+        // pengguna menutup sheet tepat setelah simpan gagal (formError
+        // hanya tampil di dalam sheet).
+        toast.show({ title: translate("Gagal menyimpan profil"), description: message, tone: "danger" })
       } finally {
         setSubmitting(false)
       }
@@ -232,8 +236,18 @@ export function ProfileEditSheet({ visible, onRequestClose, profile, onSaved }: 
   return (
     <>
       <BottomSheet
-        visible={visible}
-        onRequestClose={onRequestClose}
+        // B3O-01 (§9.9): sheet edit disembunyikan selama ActionSheet
+        // "Foto profil" terbuka — tidak ada dua sheet co-visible.
+        visible={visible && !avatarSheetOpen}
+        // B3O-23: telan tutup saat menyimpan (guard ala PIN sheet
+        // transfer/withdraw) — error simpan hanya tampil di dalam sheet.
+        onRequestClose={() => {
+          if (submitting) {
+            toast.show({ title: translate("Tunggu sebentar, masih memproses…"), tone: "info" })
+            return
+          }
+          onRequestClose()
+        }}
         title={translate("Ubah profil")}
         avoidKeyboard
         footer={

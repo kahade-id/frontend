@@ -161,7 +161,8 @@ export function ChatStarredSheet({
       </BottomSheet>
       {/* UX-TCH-005: konfirmasi sebelum hapus bintang (aksi destruktif).
           Dirender sebagai sibling BottomSheet, bukan anak — Dialog adalah
-          RN Modal yang harus berada di atas overlay sheet. */}
+          Modal kustom via Portal (z-modal 60), di atas BottomSheet (z 50);
+          urutan tutup LIFO via useOverlayDismissKeys. BUKAN RN Modal native. */}
       <SensitiveConfirmDialog
         visible={confirmUnstar !== null}
         title="Hapus bintang?"

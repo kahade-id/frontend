@@ -23,6 +23,7 @@ import { useWalletEnabled } from "@/lib/use-wallet-enabled"
 import { AmountInput } from "@/components/ui/amount-input"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Button } from "@/components/ui/button"
+import { useGuardedRequestClose } from "@/lib/use-guarded-request-close"
 import { Dialog } from "@/components/ui/modal"
 import { DisputeCallLogItem, type DisputeCallOutcome } from "@/components/ui/dispute-call-log-item"
 import { DisputeStatusBadge, isDisputeActive } from "@/components/ui/dispute-status-badge"
@@ -557,11 +558,14 @@ export function DisputeProposeSheet({
   proposing: boolean
   onSubmit: () => void
 }) {
+  // B3O-43: kunci dismiss saat proposing (guard + toast "Tunggu…") —
+  // samakan dengan konvensi PIN sheet transfer/withdraw.
+  const guardedClose = useGuardedRequestClose(proposing, onClose)
   return (
     <BottomSheet
       avoidKeyboard
       visible={open}
-      onRequestClose={onClose}
+      onRequestClose={guardedClose}
       title="Usulkan penyelesaian"
       description={translate(
         "Tentukan berapa dari {x} yang dikembalikan ke pembeli; sisanya ke penjual.",

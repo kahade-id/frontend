@@ -38,7 +38,7 @@
  *     tutup. Kontainer TIDAK diberi `accessible` — itu akan menggabungkan
  *     seluruh isi jadi satu elemen dan tombol Dialog tak bisa dijangkau.
  */
-import { useRef, useState, type ReactNode } from "react"
+import { useCallback, useRef, useState, type ReactNode } from "react"
 import {
   Animated,
   ScrollView,
@@ -53,7 +53,8 @@ import { Icon, type IconComponent, type IconTone } from "@/components/ui/icon"
 import { KeyboardAvoiding } from "@/components/ui/keyboard-avoiding"
 import { Portal, useBlockingOverlay } from "@/components/ui/portal"
 import { Text } from "@/components/ui/text"
-import { translateProp } from "@/lib/i18n/translate"
+import { translateProp, translate } from "@/lib/i18n/translate"
+import { useToast } from "@/components/ui/toast"
 import { useTheme } from "@/components/theme-provider"
 import { cn } from "@/lib/cn"
 import { elevationStyle } from "@/lib/elevation"
@@ -86,6 +87,12 @@ export type ModalProps = {
   avoidKeyboard?: boolean
   /** className kotak konten (border/bg/padding sudah ada default) */
   className?: string
+  /**
+   * B3O-20: pesan umpan balik saat back/Escape ditekan tetapi dismiss
+   * sedang ditelan (dismissOnBackdrop=false) — mis. dialog loading.
+   * Tanpa ini back ditelan diam-diam dan terasa seperti aplikasi macet.
+   */
+  swallowFeedback?: string
 }
 
 export function Modal({
@@ -99,9 +106,24 @@ export function Modal({
   children,
   avoidKeyboard = false,
   className,
+  swallowFeedback,
 }: ModalProps) {
   const { mounted, progress } = useOverlayPresence(visible, { onHidden })
   const dismiss = dismissOnBackdrop ? onRequestClose : undefined
+  const toast = useToast()
+  // B3O-20: back/Escape yang ditelan tetap memberi sinyal (throttle 2,5 dtk
+  // agar spam back tidak menumpuk toast).
+  const lastFeedbackAt = useRef(0)
+  const feedbackRef = useRef(swallowFeedback)
+  feedbackRef.current = swallowFeedback
+  const swallowWithFeedback = useCallback(() => {
+    const msg = feedbackRef.current
+    if (!msg) return
+    const now = Date.now()
+    if (now - lastFeedbackAt.current < 2500) return
+    lastFeedbackAt.current = now
+    toast.show({ title: msg, tone: "info" })
+  }, [toast])
   const contentRef = useRef<View>(null)
   const { mode } = useTheme()
   const { height: windowHeight } = useWindowDimensions()
@@ -109,7 +131,7 @@ export function Modal({
   const cardMaxHeight = Math.max(0, Math.min(windowHeight * 0.8, stageHeight - tokens.space[5] * 2))
   const KeyboardStage = avoidKeyboard ? KeyboardAvoiding : View
 
-  useOverlayDismissKeys(visible, dismiss)
+  useOverlayDismissKeys(visible, dismiss ?? (swallowFeedback ? swallowWithFeedback : undefined))
   useBlockingOverlay(visible)
   useOverlayFocus(visible, initialFocusRef ?? contentRef, { returnFocusRef })
 
@@ -272,6 +294,8 @@ export function Dialog({
       accessibilityLabel={translateProp(title)}
       onRequestClose={onRequestClose}
       dismissOnBackdrop={dismissable}
+      // B3O-20: loading menelan back/Escape — beri umpan balik, jangan diam.
+      swallowFeedback={!dismissable && loading ? translate("Tunggu sebentar, masih memproses…") : undefined}
       initialFocusRef={titleRef}
       {...modalProps}
     >

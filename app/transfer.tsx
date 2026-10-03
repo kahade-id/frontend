@@ -14,7 +14,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { BackHandler, ScrollView, View } from "react-native"
-import { useFocusEffect } from "@react-navigation/native"
+import { useFocusEffect, useNavigation, usePreventRemove } from "@react-navigation/native"
 import { router, useLocalSearchParams } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { api, userMessage, type TransferDto } from "@/lib/api"
@@ -84,6 +84,7 @@ type Step = "form" | "confirm" | "pin" | "done"
 /** State overlay progres setelah PIN disubmit (processing → sukses/gagal). */
 type ProgressState = "PROCESSING" | "SUCCESS" | "FAILURE"
 export default function TransferScreen() {
+  const navigation = useNavigation()
   // Mode Tanpa Wallet Internal (BI-safe): flag false = layar diganti
   // <WalletDisabledScreen/> (deep link ikut tertutup).
   const walletGate = useWalletGate()
@@ -390,6 +391,27 @@ export default function TransferScreen() {
       return () => sub.remove()
     }, [step, formSubStep, handleBack]),
   )
+  // B3O-21: iOS swipe-back tidak memicu BackHandler — daftarkan juga
+  // beforeRemove (via usePreventRemove) dengan logika step-back yang sama.
+  // Hanya aksi back (POP/GO_BACK) yang dicegat; navigasi lain (tab,
+  // deeplink, programmatic) diteruskan. Kondisi true hanya saat ada langkah
+  // internal untuk dimunduri — di langkah awal/done, pop alami (= keluar).
+  const canStepBack = (step === "form" && formSubStep === "amount") || step === "confirm" || step === "pin"
+  usePreventRemove(canStepBack, ({ data }) => {
+    const action = data.action
+    const isBack = action?.type === "POP" || action?.type === "GO_BACK"
+    if (!isBack) {
+      navigation.dispatch(action)
+      return
+    }
+    // Cerminan onHardwareBack di atas — murni setState, tanpa navigasi.
+    if (step === "form" && formSubStep === "amount") {
+      setFormSubStep("recipient")
+      setAmount(0)
+      return
+    }
+    handleBack()
+  })
   const handlePin = useCallback(
     async (pinValue: string) => {
       if (submitLock.current || !selected || !isValidAmount(amount, AMOUNT_LIMITS.transfer)) return
