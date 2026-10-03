@@ -11,6 +11,16 @@
  *      selamat dari restart app. Debounce 800 ms supaya tiap ketikan tidak
  *      menulis Keychain/Keystore.
  *
+ * P2-C2 (audit back-flow 2026-10-03): selain teks, draft menyimpan
+ * `replyToId` — id pesan yang sedang dibalas. Sebelumnya teks pulih tetapi
+ * konteks reply hilang, sehingga pesan bisa terkirim TANPA balasan tanpa
+ * disadari user. Kini reply target ikut dipulihkan (di-resolve ke objek
+ * pesan setelah pesan dimuat); bila pesannya sudah tidak ada, konteks reply
+ * dibuang dan composer tidak menampilkan chip — user sadar sebelum kirim.
+ *
+ * Format persist: JSON `{"t": teks, "r": replyToId|null}`. Nilai lama
+ * (string mentah, sebelum P2-C2) tetap dibaca sebagai teks tanpa reply.
+ *
  * Batasan yang disengaja:
  *   - SecureStore membatasi ±2048 byte per nilai. Draft > 1900 byte HANYA
  *     hidup di memory (tidak dipersist) — memotong diam-diam lebih buruk
@@ -20,7 +30,7 @@
  *     tidak boleh mendarat di localStorage.
  *   - PERF-FIX (state audit): draft di-memory DIHAPUS saat sesi berganti
  *     (logout/login) — mencegah kebocoran ketikan antar-akun di perangkat
- *     yang sama. Persist SecureStore per-room tetap ada (bukan per-akun).  
+ *     yang sama. Persist SecureStore per-room tetap ada (bukan per-akun).
  *   - Draft dihapus saat pesan TERKIRIM (`clearChatDraft`), bukan saat layar
  *     ditutup — menutup room di tengah mengetik lalu kembali = draft kembali.
  */
@@ -37,7 +47,16 @@ export const CHAT_DRAFT_PERSIST_DEBOUNCE_MS = 800
 /** Batas aman byte per nilai SecureStore (2048), sisakan ruang. */
 export const CHAT_DRAFT_MAX_PERSIST_BYTES = 1900
 
-const memory = new Map<string, string>()
+/** Nilai draft per room: teks + konteks balasan. */
+export type ChatDraft = {
+  text: string
+  /** id pesan yang dibalas — null bila bukan reply. */
+  replyToId: string | null
+}
+
+const EMPTY_DRAFT: ChatDraft = { text: "", replyToId: null }
+
+const memory = new Map<string, ChatDraft>()
 const pendingTimers = new Map<string, ReturnType<typeof setTimeout>>()
 /** roomId yang sudah dimuat dari storage ke memory sesi ini. */
 const hydrated = new Set<string>()
@@ -73,21 +92,58 @@ function byteLength(text: string): number {
   return bytes
 }
 
-function persist(roomId: string, text: string): void {
+function serialize(draft: ChatDraft): string {
+  return JSON.stringify({ t: draft.text, r: draft.replyToId })
+}
+
+/**
+ * Parse nilai persist. Menerima format JSON baru; nilai lama berupa string
+ * mentah (pra-P2-C2) diperlakukan sebagai teks tanpa reply — bukan error.
+ */
+function parseStored(stored: string): ChatDraft {
+  if (stored.charCodeAt(0) === 0x7b /* "{" */) {
+    try {
+      const parsed = JSON.parse(stored) as { t?: unknown; r?: unknown }
+      if (parsed && typeof parsed.t === "string") {
+        return {
+          text: parsed.t,
+          replyToId: typeof parsed.r === "string" && parsed.r ? parsed.r : null,
+        }
+      }
+    } catch {
+      // Jatuh ke fallback legacy di bawah.
+    }
+  }
+  return { text: stored, replyToId: null }
+}
+
+function persist(roomId: string, draft: ChatDraft): void {
   const key = chatDraftKey(roomId)
-  if (text.length === 0) {
+  if (draft.text.length === 0 && !draft.replyToId) {
     void deleteRawItem(key).catch(() => {
       // Gagal hapus bukan fatal — memory tetap sumber kebenaran.
     })
     return
   }
-  if (byteLength(text) > CHAT_DRAFT_MAX_PERSIST_BYTES) {
+  if (byteLength(draft.text) > CHAT_DRAFT_MAX_PERSIST_BYTES) {
     // Terlalu besar untuk satu nilai SecureStore: biarkan di memory saja.
     return
   }
-  void setRawItem(key, text).catch(() => {
+  void setRawItem(key, serialize(draft)).catch(() => {
     // Gagal persist bukan fatal — memory tetap sumber kebenaran.
   })
+}
+
+function schedulePersist(roomId: string, draft: ChatDraft): void {
+  const prev = pendingTimers.get(roomId)
+  if (prev) clearTimeout(prev)
+  pendingTimers.set(
+    roomId,
+    setTimeout(() => {
+      pendingTimers.delete(roomId)
+      persist(roomId, draft)
+    }, CHAT_DRAFT_PERSIST_DEBOUNCE_MS),
+  )
 }
 
 /**
@@ -95,45 +151,62 @@ function persist(roomId: string, text: string): void {
  * Mengembalikan `undefined` bila belum pernah disimpan sesi ini — pemanggil
  * yang butuh nilai dari storage memakai `loadChatDraft`.
  */
-export function peekChatDraft(roomId: string): string | undefined {
+export function peekChatDraft(roomId: string): ChatDraft | undefined {
   return memory.get(roomId)
 }
 
 /**
  * Simpan draft: memory ditulis SINKRON (sumber kebenaran), persist ke
  * SecureStore di-debounce. Aman dipanggil tiap `onChangeText`.
+ *
+ * `replyToId` yang `undefined` = pertahankan nilai yang sudah ada (mengetik
+ * tidak boleh menghapus konteks reply); `null`/string = set eksplisit.
  */
-export function saveChatDraft(roomId: string, text: string): void {
+export function saveChatDraft(roomId: string, text: string, replyToId?: string | null): void {
   if (!roomId) return
-  memory.set(roomId, text)
+  const prev = memory.get(roomId)
+  const draft: ChatDraft = {
+    text,
+    replyToId: replyToId === undefined ? (prev?.replyToId ?? null) : replyToId,
+  }
+  memory.set(roomId, draft)
   hydrated.add(roomId)
-  const prev = pendingTimers.get(roomId)
-  if (prev) clearTimeout(prev)
-  pendingTimers.set(
-    roomId,
-    setTimeout(() => {
-      pendingTimers.delete(roomId)
-      persist(roomId, text)
-    }, CHAT_DRAFT_PERSIST_DEBOUNCE_MS),
-  )
+  schedulePersist(roomId, draft)
+}
+
+/**
+ * P2-C2: perbarui HANYA konteks reply draft (dipanggil saat target balasan
+ * berubah/dibatalkan), tanpa menyentuh teks.
+ */
+export function setChatDraftReply(roomId: string, replyToId: string | null): void {
+  if (!roomId) return
+  const prev = memory.get(roomId) ?? EMPTY_DRAFT
+  if (prev.replyToId === replyToId) return
+  const draft: ChatDraft = { text: prev.text, replyToId }
+  memory.set(roomId, draft)
+  hydrated.add(roomId)
+  schedulePersist(roomId, draft)
 }
 
 /**
  * Muat draft room: memory dulu, lalu SecureStore bila belum di-hydrate sesi
- * ini. Dipakai sekali saat room dibuka.
+ * ini. Dipakai sekali saat room dibuka. Mengembalikan `null` bila tidak ada
+ * draft tersimpan.
  */
-export async function loadChatDraft(roomId: string): Promise<string> {
-  if (!roomId) return ""
+export async function loadChatDraft(roomId: string): Promise<ChatDraft | null> {
+  if (!roomId) return null
   const cached = memory.get(roomId)
   if (cached !== undefined) return cached
-  if (hydrated.has(roomId)) return ""
+  if (hydrated.has(roomId)) return null
   hydrated.add(roomId)
   try {
     const stored = await getRawItem(chatDraftKey(roomId))
-    if (stored) memory.set(roomId, stored)
-    return stored ?? ""
+    if (!stored) return null
+    const draft = parseStored(stored)
+    memory.set(roomId, draft)
+    return draft
   } catch {
-    return ""
+    return null
   }
 }
 
