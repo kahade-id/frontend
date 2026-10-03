@@ -292,7 +292,7 @@ export function OrderSummarySection({
   return (
     <FormSection title="Ringkasan" divider>
       <KeyValueList>
-        <KeyValue label="Cara membuat" value={mode === "link" ? "Order Link" : "Lawan tertentu"} />
+        <KeyValue label="Cara membuat" value={mode === "link" ? "Tautan pesanan" : "Lawan tertentu"} />
         <KeyValue label="Peran Anda" value={ORDER_ROLE_LABELS[role]} />
         {counterpart.trim() ? (
           <KeyValue label="Lawan" value={counterpartName ?? counterpart.trim()} />
@@ -306,7 +306,7 @@ export function OrderSummarySection({
           label="Nilai transaksi"
           value={formatRupiah(orderValue)}
         />
-        <KeyValue label="Tenggat" value={deadlineDate ? formatDateLong(deadlineDate) : "—"} />
+        <KeyValue label="Batas waktu pengiriman" value={deadlineDate ? formatDateLong(deadlineDate) : "—"} />
         <KeyValue
           label="Pembayar biaya"
           value={FEE_RESPONSIBILITY_LABELS[feeResponsibility]}

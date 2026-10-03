@@ -1067,5 +1067,13 @@
   "Status belum diketahui": "Status unknown",
   "Status pembayaran belum diketahui": "Payment status unknown",
   "Telusuri seluruh riwayat di server": "Search the entire history on the server",
-  "ke WhatsApp resmi Kahade": "to Kahade’s official WhatsApp"
+  "ke WhatsApp resmi Kahade": "to Kahade’s official WhatsApp",
+  "Buka percakapan langsung dengan penjual": "Open a direct chat with the seller",
+  "Voucher platform": "Platform voucher",
+  "Chat penjual": "Chat with seller",
+  "Dibaca": "Read",
+  "Hanya satu voucher yang bisa dipakai per transaksi: pilih voucher platform atau voucher toko penjual.": "Only one voucher can be used per transaction: choose either a platform voucher or a seller-shop voucher.",
+  "Langkah {x} dari {y}": "Step {x} of {y}",
+  "Tautan pesanan": "Order link",
+  "Batas waktu pengiriman": "Shipping deadline"
 }

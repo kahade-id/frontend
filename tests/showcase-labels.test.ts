@@ -35,8 +35,8 @@ describe("showcasePriceLabel — satu implementasi untuk semua layar", () => {
     })
   }
 
-  it("fallback non-null untuk kartu yang butuh label", () => {
-    expect(showcasePriceLabelOrFallback({})).toBeTruthy()
+  it("fallback mengarahkan pembeli untuk menghubungi penjual", () => {
+    expect(showcasePriceLabelOrFallback({})).toBe("Harga: chat penjual")
     expect(showcasePriceLabelOrFallback({ priceMin: 50_000 })).toBe("Rp50.000")
   })
 })

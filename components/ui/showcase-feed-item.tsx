@@ -30,7 +30,7 @@ import type { OpeningMediaTap } from "@/lib/use-opening-media-tap"
  */
 
 import { memo, useCallback, useMemo, useState } from "react"
-import { BookmarkSimple, ChatCircle, DotsThreeCircle, Export, Flag, Heart } from "phosphor-react-native"
+import { BookmarkSimple, ChatCircle, DotsThreeCircle, Export, Flag, Funnel, Heart } from "phosphor-react-native"
 import { router } from "expo-router"
 import { View } from "react-native"
 import Animated, {
@@ -497,9 +497,12 @@ function ShowcaseFeedItemBase({
                 onPress={handleCategoryPress}
                 containerClassName={cn("rounded-sm", focusRing)}
               >
-                <Text variant="caption" tone="secondary" numberOfLines={1}>
-                  {item.category}
-                </Text>
+                <View className="flex-row items-center gap-1">
+                  <Icon icon={Funnel} size="xs" tone="default" />
+                  <Text variant="caption" tone="secondary" numberOfLines={1}>
+                    {item.category}
+                  </Text>
+                </View>
               </PressableScale>
               )
             ) : null}

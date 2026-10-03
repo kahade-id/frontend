@@ -18,7 +18,7 @@
  *   min == max        → "Rp100.000" (harga pasti, bukan rentang)
  *   hanya min         → "Rp100.000" (HARGA PASTI — lihat catatan 2026-09-26)
  *   hanya max         → "Hingga Rp250.000" (penjual menutup di harga tsb.)
- *   keduanya kosong   → "Harga lewat diskusi"
+ *   keduanya kosong   → "Harga: chat penjual"
  *
  * Revisi 2026-09-26 (permintaan produk): "hanya min" tidak lagi ditulis
  * "Mulai Rp {min}". Form penjual punya dua kolom (minimum & maksimum), dan
@@ -41,7 +41,7 @@ export type ShowcasePriceLike = {
 
 /**
  * Label harga siap tampil, atau `null` bila tidak ada harga sama sekali
- * (pemanggil yang ingin menampilkan fallback "Harga lewat diskusi" memakai
+ * (pemanggil yang ingin menampilkan fallback "Harga: chat penjual" memakai
  * `showcasePriceLabelOrFallback`).
  */
 export function showcasePriceLabel(item: ShowcasePriceLike): string | null {
@@ -75,5 +75,5 @@ export function showcasePriceLabel(item: ShowcasePriceLike): string | null {
 
 /** Label harga dengan fallback netral bila item tidak mencantumkan harga. */
 export function showcasePriceLabelOrFallback(item: ShowcasePriceLike): string {
-  return showcasePriceLabel(item) ?? translate("Harga lewat diskusi")
+  return showcasePriceLabel(item) ?? translate("Harga: chat penjual")
 }

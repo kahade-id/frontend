@@ -2918,9 +2918,6 @@ export default function ChatRoomScreen() {
           <ChatMessageRow
             message={m}
             previous={index > 0 ? visibleMessages[index - 1] : undefined}
-            // Pesan tepat di bawahnya — penentu "bubble terakhir grup menit"
-            // (jam hanya tampil di situ, ala WhatsApp).
-            next={index < visibleMessages.length - 1 ? visibleMessages[index + 1] : undefined}
             // B10: pemisah hari sudah jadi baris sticky tersendiri.
             hideDaySeparator
             // B09: sorot pesan asal balasan + navigasi konteks kutipan.

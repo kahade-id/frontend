@@ -10,13 +10,9 @@
  *   - Grup = pengirim sama DAN jarak < 5 menit DAN tidak menyeberang hari.
  *     Sebelumnya hanya "pengirim sama", jadi dua pesan berjarak enam jam
  *     menempel tanpa nama pengirim dan pemisah harinya hilang.
- *   - Jam tampil HANYA di bubble TERAKHIR tiap grup menit (revisi 2026-09-27,
- *     ala WhatsApp): pesan berurutan dari pengirim yang sama dalam MENIT yang
- *     sama (tanggal + jam + menit identik) menampilkan jam sekali — di bubble
- *     terakhir. Beda menit atau beda pengirim → jam tampil lagi. Dihitung di
- *     sini via `isLastInMinuteGroup(message, next)` — `next` adalah pesan
- *     tepat DI BAWAHNYA (daftar diurut menaik). Format/zona jam TIDAK berubah
- *     (`formatTime` seperti sebelumnya), hanya frekuensi tampilnya.
+ *   - Jam tampil di setiap bubble agar pengguna bisa mengetahui waktu tiap
+ *     pesan tanpa menebak dari bubble lain dalam grup. Format dan zona waktu
+ *     tetap mengikuti `formatTime`.
  *   - Ketukan bubble teks = NO-OP di luar mode pilih (revisi 2026-09-27);
  *     saat mode pilih aktif ketukan men-toggle pilihan. Aksi (menu/reaksi)
  *     HANYA lewat tekan lama — lihat `resolveBubblePressHandlers`.
@@ -41,11 +37,7 @@ import {
 } from "@/lib/api/chat"
 import { formatTime } from "@/lib/format"
 import { ephemeralCountdownLabel, isMessageExpired } from "@/lib/chat-ephemeral"
-import {
-  isLastInMinuteGroup,
-  resolveBubblePressHandlers,
-  type ChatBubbleAnchor,
-} from "@/lib/chat-bubble"
+import { resolveBubblePressHandlers, type ChatBubbleAnchor } from "@/lib/chat-bubble"
 
 import { ChatAttachmentItem } from "@/components/ui/chat-attachment-item"
 import { ChatOrderCard, ChatProductCard } from "@/components/ui/chat-cards"
@@ -80,12 +72,6 @@ export type ChatMessageRowProps = {
   message: ChatMessage
   /** Pesan tepat di atasnya — penentu pemisah hari + grouping. */
   previous?: ChatMessage
-  /**
-   * Pesan tepat di bawahnya — penentu "bubble terakhir grup menit"
-   * (`isLastInMinuteGroup`): hanya bubble terakhir tiap grup menit yang
-   * menampilkan jam.
-   */
-  next?: ChatMessage
   /** Mode pilih sedang aktif (mematikan chip reaksi). */
   selecting: boolean
   /** Pesan ini termasuk yang dipilih (diberi sorotan). */
@@ -212,7 +198,6 @@ const RowAttachmentItem = memo(function RowAttachmentItem({
 export function ChatMessageRowBase({
   message,
   previous,
-  next,
   selecting,
   selected,
   readByCounterpart,
@@ -246,11 +231,6 @@ export function ChatMessageRowBase({
     !showDay &&
     new Date(message.createdAt).getTime() - new Date(previous.createdAt).getTime() <
       GROUP_WINDOW_MS
-  /**
-   * Jam hanya di bubble TERAKHIR tiap grup menit (pengirim sama + menit
-   * sama). Bukan jam yang disamakan — melainkan menit (tanggal+jam+menit).
-   */
-  const showTime = isLastInMinuteGroup(message, next)
   /**
    * LR-001: aturan interaksi bubble distabilkan — objek `pressHandlers` baru
    * tiap render sebelumnya membuat `memo` di <ChatMessageBubble> tidak
@@ -419,7 +399,7 @@ export function ChatMessageRowBase({
         // Kutipan balasan: backend mengirim `replyTo` (id, content,
         // messageType, isDeleted, senderName) bila pesan ini membalas pesan lain.
         quote={bubbleQuote}
-        time={showTime ? formatTime(message.createdAt) : undefined}
+        time={formatTime(message.createdAt)}
         grouped={grouped}
         /*
          * Penanda arah (2026-09-26): gelembung MASUK membawa foto & nama
@@ -489,7 +469,7 @@ export function ChatMessageRowBase({
 /**
  * LR-001 (2026-09-29): pembanding kustom untuk `memo` baris chat.
  *
- * `message`/`previous`/`next` dibandingkan by REFERENSI — merge thread
+ * `message`/`previous` dibandingkan by REFERENSI — merge thread
  * (`mergeMessageLists`) mempertahankan identitas objek pesan yang tidak
  * berubah, jadi pesan lama tidak ikut re-render saat pesan baru masuk atau
  * saat layar me-render ulang (ketikan composer, dsb).
@@ -540,7 +520,6 @@ function areRowPropsEqual(
   return (
     prev.message === next.message &&
     prev.previous === next.previous &&
-    prev.next === next.next &&
     prev.selecting === next.selecting &&
     prev.selected === next.selected &&
     prev.readByCounterpart === next.readByCounterpart &&
