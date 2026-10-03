@@ -21,6 +21,7 @@ import { router, useLocalSearchParams } from "expo-router"
 import { ArrowClockwise, CheckCircle, Clock, XCircle } from "phosphor-react-native"
 
 import { Button } from "@/components/ui/button"
+import { Header } from "@/components/ui/header"
 import { Icon } from "@/components/ui/icon"
 import { Screen } from "@/components/ui/screen"
 import { Text } from "@/components/ui/text"
@@ -207,6 +208,8 @@ export default function PaymentFinishScreen() {
 
   return (
     <Screen>
+      {/* P1-T1: Header dengan fallback aman untuk cold start via deeplink. */}
+      <Header title="Status Pembayaran" />
       <View
         style={{
           flex: 1,
@@ -278,9 +281,21 @@ export default function PaymentFinishScreen() {
                   Coba bayar lagi
                 </Button>
               ) : null}
-              <Button onPress={() => router.replace(ROUTES.transactions)}>
-                {status === "unknown" && !target ? "Cek status di Transaksi" : "Lihat Transaksi"}
-              </Button>
+              {/* P1-T1: sukses → detail order yang baru dibayar (bukan daftar). */}
+              {status === "success" && verifyKind === "order" && verifyId ? (
+                <>
+                  <Button onPress={() => router.replace(ROUTES.orderDetail(verifyId))}>
+                    Lihat Pesanan
+                  </Button>
+                  <Button variant="secondary" onPress={() => router.replace(ROUTES.transactions)}>
+                    Lihat Transaksi
+                  </Button>
+                </>
+              ) : (
+                <Button onPress={() => router.replace(ROUTES.transactions)}>
+                  {status === "unknown" && !target ? "Cek status di Transaksi" : "Lihat Transaksi"}
+                </Button>
+              )}
             </View>
           </>
         )}

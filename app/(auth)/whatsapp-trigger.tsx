@@ -611,7 +611,13 @@ export default function WhatsappTriggerScreen() {
               <TextLink onPress={() => { stopPolling(); router.replace(ROUTES.login) }}>Masuk</TextLink>
               <TextLink onPress={() => {
                 if (router.canGoBack()) router.back()
-                else router.replace(purpose === "register" ? ROUTES.register : ROUTES.login)
+                else {
+                  // P2-D1: fallback spesifik per purpose — jangan selalu login.
+                  if (purpose === "migrate_phone") router.replace(ROUTES.phoneMigration())
+                  else if (purpose === "forgot_password") router.replace(ROUTES.forgotPassword())
+                  else if (purpose === "register") router.replace(ROUTES.register)
+                  else router.replace(ROUTES.login)
+                }
               }}>Kembali</TextLink>
               {purpose === "forgot_password" && formError ? (
                 <TextLink onPress={() => router.push(ROUTES.liveSupport)}>Minta bantuan</TextLink>

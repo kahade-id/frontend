@@ -877,7 +877,8 @@ function ShowcaseDetailContent({
       invalidateQueryPrefix("my-showcase")
       toast.show({ title: translate("Etalase dihapus. Dapat dipulihkan dalam 30 hari."), tone: "success", duration: 2500 })
       setDeleteOpen(false)
-      router.back()
+      // P2-S3: setelah hapus, item tidak ada — fallback ke daftar etalase.
+      goBackOrNavigate(ROUTES.showcase)
     } catch (err) {
       if (!task.valid()) return
       toast.show({

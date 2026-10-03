@@ -100,6 +100,8 @@ import { ValidationSummary } from "@/components/ui/validation-summary"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { ShowcaseFeedItem } from "@/components/ui/showcase-feed-item"
 import type { ShowcaseMedia, ShowcaseSocialItem } from "@/lib/api/showcase"
+import { goBackOrNavigate } from "@/lib/navigation"
+import { ROUTES } from "@/lib/routes"
 
 /** Batas field — turunan dari kontrak backend, bukan angka lokal (D-08). */
 const TITLE_MAX = API_CONSTRAINTS.CreateShowcaseItemDto.title.maxLength
@@ -391,8 +393,9 @@ export default function ShowcaseCreateScreen() {
   const requestClose = useCallback(() => {
     if (saveBusy.current || uploadBusy.current) return
     if (dirty) setDiscardOpen(true)
-    else router.back()
-  }, [dirty, router])
+    // P2-S4: fallback ke daftar etalase bila tanpa riwayat (clean state X).
+    else goBackOrNavigate(ROUTES.showcase)
+  }, [dirty])
 
   const confirmDiscard = useCallback(() => {
     void cleanupPendingShowcaseKeys(pendingKeys.current)
@@ -407,7 +410,12 @@ export default function ShowcaseCreateScreen() {
   }, [])
 
   usePreventRemove(dirty && !intentionalLeave, ({ data }) => {
-    if (saveBusy.current || uploadBusy.current) return
+    // P1-S2: beri umpan balik saat back ditekan selama upload — sebelumnya
+    // diam total dan terasa seperti aplikasi macet.
+    if (saveBusy.current || uploadBusy.current) {
+      toast.show({ title: "Tunggu unggahan selesai…", tone: "info" })
+      return
+    }
     pendingNavigation.current = data.action
     setDiscardOpen(true)
   })

@@ -531,10 +531,21 @@ export default function CreateTransactionScreen() {
   }, [])
   const pendingNavigation = useRef<NavigationAction | null>(null)
   const pendingReplace = useRef<Parameters<typeof router.replace>[0] | null>(null)
+  // P2-T5: didefinisikan sebelum usePreventRemove agar hardware back bisa
+  // memanggilnya (mundur satu langkah, bukan dialog buang form).
+  const goPrevEarly = useCallback(() => setStep((s) => Math.max(0, s - 1)), [])
 
   usePreventRemove(dirty && !intentionalLeave, ({ data }) => {
     if (submitting) return
-    pendingNavigation.current = data.action
+    // P2-T5: hardware back di step > 0 = mundur satu langkah (seperti tombol
+    // back header), bukan dialog buang seluruh form.
+    const action = data.action
+    const isBack = action?.type === "POP" || action?.type === "GO_BACK"
+    if (isBack && step > 0) {
+      goPrevEarly()
+      return
+    }
+    pendingNavigation.current = action
     setDiscardOpen(true)
   })
 
@@ -964,7 +975,8 @@ export default function CreateTransactionScreen() {
   }, [refreshFee, validateCounterpart])
 
   const goNext = useCallback(() => setStep((s) => Math.min(LAST_STEP, s + 1)), [])
-  const goPrev = useCallback(() => setStep((s) => Math.max(0, s - 1)), [])
+  // goPrev didefinisikan lebih awal sebagai goPrevEarly (untuk usePreventRemove).
+  const goPrev = goPrevEarly
   const meta = STEPS[step]
   const feeConfirmed = fee != null && confirmedFeeKey === feeKey
 

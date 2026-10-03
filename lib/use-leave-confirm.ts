@@ -36,6 +36,12 @@ export type LeaveConfirmOptions = {
    * navigasi yang tertunda dijalankan (atau router.back()).
    */
   onConfirmDiscard?: () => void
+  /**
+   * P1-A3: handler khusus untuk hardware back / gesture back. Bila diisi,
+   * aksi back tidak memicu dialog "Lewati" melainkan memanggil handler ini.
+   * Berguna ketika back dan "Lewati"/"Buang" adalah intent berbeda.
+   */
+  onBackDiscard?: () => void
 }
 
 export function useLeaveConfirm(dirty: boolean, options: LeaveConfirmOptions = {}) {
@@ -46,9 +52,19 @@ export function useLeaveConfirm(dirty: boolean, options: LeaveConfirmOptions = {
   const pendingNavigation = useRef<NavigationAction | null>(null)
   const onConfirmDiscardRef = useRef(options.onConfirmDiscard)
   onConfirmDiscardRef.current = options.onConfirmDiscard
+  const onBackDiscardRef = useRef(options.onBackDiscard)
+  onBackDiscardRef.current = options.onBackDiscard
 
   usePreventRemove(dirty && !intentionalLeave, ({ data }) => {
-    pendingNavigation.current = data.action
+    // P1-A3: bila aksi adalah back (POP) dan onBackDiscard diisi, langsung
+    // jalankan handler back kustom tanpa dialog "Lewati".
+    const action = data.action
+    const isBack = action?.type === "POP" || action?.type === "GO_BACK"
+    if (isBack && onBackDiscardRef.current) {
+      onBackDiscardRef.current()
+      return
+    }
+    pendingNavigation.current = action
     setDiscardOpen(true)
   })
 

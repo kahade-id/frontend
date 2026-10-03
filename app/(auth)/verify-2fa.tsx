@@ -189,7 +189,7 @@ export default function VerifyTwoFactorScreen() {
     // sini) — proteksi screenshot selektif, pola sama seperti layar PIN/OTP.
     <ScreenCaptureGuard>
     <Screen padded={false} edges={["top"]}>
-      <Header title="Verifikasi dua langkah" safeArea={false} />
+      <Header title="Verifikasi dua langkah" safeArea={false} onBack={handleBackToLogin} />
 
       <KeyboardAvoiding offset={insets.top + HEADER_BAR_HEIGHT}>
         <ScrollView

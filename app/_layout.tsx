@@ -107,7 +107,7 @@ import * as notificationsApi from "@/lib/api/notifications"
 import * as publicApi from "@/lib/api/public"
 import { emitSessionExpired, onSessionExpired } from "@/lib/api/session"
 import { fontAssetsBlocking, fontAssetsDeferred } from "@/lib/fonts"
-import { routeForPushData } from "@/lib/notification-routing"
+import { logicalParentForPath, routeForPushData } from "@/lib/notification-routing"
 import {
   flushLastNativeRouteSave,
   saveLastNativeRouteDebounced,
@@ -471,7 +471,18 @@ function ShellRouteEffects({ session, setRealtimeNeeded }: {
   useEffect(() => {
     if (Platform.OS !== "android") return
     const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
-      if (!isShellTabPath(pathname)) return false
+      if (!isShellTabPath(pathname)) {
+        // P1-B3: non-shell path tanpa riwayat — fallback ke induk logis
+        // (mis. deeplink cold-start) alih-alih keluar aplikasi.
+        if (!router.canGoBack()) {
+          const parent = logicalParentForPath(pathname)
+          if (parent && parent !== pathname) {
+            router.replace(parent as never)
+            return true
+          }
+        }
+        return false
+      }
       const previousTab = popPreviousShellTab(pathname)
       if (previousTab) {
         router.navigate(previousTab.href as never)

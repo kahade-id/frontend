@@ -5,9 +5,10 @@
  */
 import { useState } from "react"
 import { View } from "react-native"
-import { router, useLocalSearchParams } from "expo-router"
+import { useLocalSearchParams } from "expo-router"
 
 import { api } from "@/lib/api"
+import { goBackOrNavigate } from "@/lib/navigation"
 import type { Shipment, TrackingEvent } from "@/lib/api/courier"
 import { SHIPMENT_STATUS_LABEL } from "@/lib/api/courier"
 import { formatDateTime } from "@/lib/format"
@@ -111,7 +112,9 @@ export default function TrackingScreen() {
               <View style={{ marginTop: tokens.space[3] }}>
                 <Button
                   variant="secondary"
-                  onPress={() => router.push(ROUTES.orderDetail(trackedOrder.id))}
+                  // P2-T7: pakai back (bukan push) agar tidak menumpuk
+                  // order → tracking → order.
+                  onPress={() => goBackOrNavigate(ROUTES.orderDetail(trackedOrder.id))}
                 >
                   Lihat detail order
                 </Button>
