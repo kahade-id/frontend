@@ -153,7 +153,7 @@ import {
 } from "@/lib/chat-failed-queue"
 import { hideMessageLocally, loadHiddenMessageIds } from "@/lib/chat-hidden-messages"
 import { type ChatComposerPayload, type ComposerAttachment, type ComposerReplyTarget } from "@/components/ui/chat-composer"
-import { clearChatDraft, loadChatDraft, saveChatDraft } from "@/lib/chat-drafts"
+import { clearChatDraft, loadChatDraft, saveChatDraft, setChatDraftReply } from "@/lib/chat-drafts"
 import { Dialog } from "@/components/ui/modal"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Button } from "@/components/ui/button"
@@ -474,6 +474,13 @@ export default function ChatRoomScreen() {
   const [restoredDraft, setRestoredDraft] = useState("")
   /** Dinaikkan tiap pesan terkirim → footer mengosongkan draft-nya. */
   const [draftResetKey, setDraftResetKey] = useState(0)
+  // P2-C2: replyToId draft menunggu pesan awal dimuat untuk di-resolve ke
+  // objek pesan (state agar effect resolve ikut terpacu saat draft tiba
+  // belakangan dari storage).
+  const [pendingReplyId, setPendingReplyId] = useState<string | null>(null)
+  // Penanda draft selesai dimuat — effect simpan-reply tidak boleh jalan
+  // sebelumnya (akan menimpa memory dengan draft kosong).
+  const draftLoadedRef = useRef(false)
   /**
    * Penghubung ke notifyTyping (didefinisikan lebih bawah, setelah hook
    * realtime): dipanggil per ketikan TANPA setState sehingga layar tidak
@@ -490,11 +497,15 @@ export default function ChatRoomScreen() {
   useEffect(() => {
     if (!roomId) return
     let cancelled = false
-    void loadChatDraft(roomId).then((stored) => {
-      if (cancelled || !stored) return
+    void loadChatDraft(roomId).then((draft) => {
+      if (cancelled) return
+      draftLoadedRef.current = true
+      if (!draft) return
       // Diteruskan sebagai initialDraft ke footer — footer yang menjaga
       // agar tidak menimpa ketikan yang sudah ada.
-      setRestoredDraft(stored)
+      setRestoredDraft(draft.text)
+      // P2-C2: reply target di-resolve setelah pesan dimuat (effect di bawah).
+      if (draft.replyToId) setPendingReplyId(draft.replyToId)
     })
     return () => {
       cancelled = true
@@ -751,6 +762,22 @@ export default function ChatRoomScreen() {
         ).slice(0, 80),
       }
     : undefined
+  // P2-C2: simpan replyToId ke draft setiap target balasan berubah
+  // (termasuk saat dibatalkan → null). Dijaga draftLoadedRef agar tidak
+  // menimpa draft yang belum selesai dimuat dari storage.
+  useEffect(() => {
+    if (!roomId || !draftLoadedRef.current) return
+    setChatDraftReply(roomId, replyTarget?.id ?? null)
+  }, [roomId, replyTarget?.id])
+  // P2-C2: pulihkan target balasan draft setelah pesan awal dimuat.
+  // Bila pesan tidak ditemukan (dihapus/kedaluwarsa) → konteks reply dibuang;
+  // composer tidak menampilkan chip sehingga user sadar sebelum mengirim.
+  useEffect(() => {
+    if (loading || !pendingReplyId) return
+    setPendingReplyId(null)
+    const target = messages.find((m) => m.id === pendingReplyId)
+    if (target) setReplyTarget(target)
+  }, [loading, messages, pendingReplyId])
   const [pinned, setPinned] = useState<ChatMessage[]>([])
   const [presence, setPresence] = useState<ChatPresence | null>(null)
   /**
