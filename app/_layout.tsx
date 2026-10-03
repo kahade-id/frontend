@@ -88,6 +88,12 @@ const GuestLoginPrompt = lazy(() =>
     default: m.GuestLoginPrompt,
   })),
 )
+// P0-1 (audit perf/UX 2026-10-03): modal login di ATAS stack saat sesi
+// kedaluwarsa (native). Lazy + latch: modulnya (form, PasswordField, BottomSheet)
+// hanya dievaluasi saat pertama kali sesi kedaluwarsa — bukan saat boot.
+const SoftReauthGate = lazy(() =>
+  import("@/components/soft-reauth-gate").then((m) => ({ default: m.SoftReauthGate })),
+)
 import { compareVersions, safeHttpsUrl } from "@/lib/version"
 import { useReducedMotion } from "@/lib/use-reduced-motion"
 import { Dialog } from "@/components/ui/modal"
@@ -138,6 +144,14 @@ import {
 import { OfflineBanner } from "@/components/offline-banner"
 import { LruCache } from "@/lib/lru-cache"
 import { ROUTES } from "@/lib/routes"
+import { shouldMountAuthStack } from "@/lib/session-guard"
+import {
+  decideNativeSessionExpiredAction,
+  isSoftReauthActive,
+  setSoftReauthTarget,
+  subscribeSoftReauthFallback,
+  useSoftReauthActive,
+} from "@/lib/soft-reauth"
 import { refreshUnreadCount } from "@/lib/unread-count"
 import { tokens } from "@/lib/tokens"
 import { captureError, installTelemetry, logWarn } from "@/lib/telemetry"
@@ -592,10 +606,42 @@ function ShellRouteEffects({ session, setRealtimeNeeded }: {
         }
         return
       }
-      if (!hadSessionRef.current && !isNativeGuardedPath(pathname)) return
+      /*
+       * P0-1 (audit perf/UX 2026-10-03): di native, sesi kedaluwarsa TIDAK
+       * lagi langsung `replace("/login")` — itu menghancurkan navigation
+       * stack (Stack.Protected mencabut semua layar), sehingga setelah login
+       * ulang pengguna tidak bisa kembali ke alur semula (mis.
+       * /dispute/123).
+       *
+       * Bila latch pemulihan lembut aktif (`lib/soft-reauth.ts`, dipasang
+       * SINKRON oleh clearSession dengan alasan "expired"), cukup simpan
+       * tujuan untuk fallback; modal login muncul di atas stack dan stack
+       * tetap hidup. Logout eksplisit / ganti sandi / 2FA tidak pernah
+       * memakai latch ini sehingga tetap lewat alur lama.
+       */
+      const action = decideNativeSessionExpiredAction({
+        hadSession: hadSessionRef.current,
+        guardedPath: isNativeGuardedPath(pathname),
+        softActive: isSoftReauthActive(),
+      })
+      if (action === "ignore") return
+      if (action === "soft") {
+        setSoftReauthTarget(next)
+        return
+      }
       redirectToLoginWithNext(next)
     })
   }, [router, buildNext, redirectToLoginWithNext, pathname])
+
+  /**
+   * P0-1: pengguna menutup modal atau gagal 3x → jalankan ALUR LAMA dengan
+   * tujuan yang tersimpan (sama seperti perilaku sebelum temuan ini).
+   */
+  useEffect(() => {
+    return subscribeSoftReauthFallback((next) => {
+      redirectToLoginWithNext(next)
+    })
+  }, [redirectToLoginWithNext])
 
   // NAV-007 (2026-09-28): deep link native ke rute proteksi saat logout
   // (mis. kahade.id/order/xxx dari share WA → dibuka aplikasi via universal
@@ -606,6 +652,9 @@ function ShellRouteEffects({ session, setRealtimeNeeded }: {
   const redirectedDeepLink = useRef(false)
   useEffect(() => {
     if (Platform.OS === "web") return
+    // P0-1: saat modal pemulihan lembut tampil, TIDAK ada redirect — modalnya
+    // yang menyelesaikan sesi (atau fallback yang mengalihkan).
+    if (isSoftReauthActive()) return
     // Reset: sesi pulih ATAU sudah di rute publik → logout berikutnya dalam
     // proses yang sama boleh mengalihkan lagi (tanpa ini, deep link kedua
     // setelah login–logout mendarat di layar kosong lagi).
@@ -721,6 +770,19 @@ function AppShellInner() {
   }, [reducedMotion])
 
   const [realtimeNeeded, setRealtimeNeeded] = useState(false)
+
+  /*
+   * P0-1 (audit perf/UX 2026-10-03): guard stack tidak lagi murni
+   * `Boolean(token)`. Saat sesi kedaluwarsa, latch pemulihan lembut menahan
+   * layar tetap ter-mount selama modal login tampil — navigation stack utuh,
+   * dan setelah masuk berhasil pengguna kembali ke layar semula.
+   */
+  const softReauthActive = useSoftReauthActive()
+  const mountAuthStack = shouldMountAuthStack({
+    isWeb: Platform.OS === "web",
+    token: session.token,
+    softReauth: softReauthActive,
+  })
 
   // ST-009: handler foreground + Android channel dipasang setelah first
   // paint (idempoten) — channel wajib ada sebelum notifikasi tampil di
@@ -1130,7 +1192,7 @@ function AppShellInner() {
                 {/* Web: guard selalu true (semua layar terdaftar);
                     pemblokiran tamu ditangani GuestLoginPrompt di bawah. */}
                 <Stack.Protected
-                  guard={Platform.OS === "web" ? true : Boolean(session.token)}
+                  guard={Platform.OS === "web" ? true : mountAuthStack}
                 >
                   {authenticatedScreens}
                 </Stack.Protected>
@@ -1139,6 +1201,15 @@ function AppShellInner() {
             {/* Tamu web membuka layar ber-auth → ajakan login penuh di
                 atas layar (Stack tetap terpasang di baliknya). */}
             <GuestRouteOverlay token={session.token} />
+            {/*
+              P0-1: modal login di atas stack (native, hanya saat sesi
+              kedaluwarsa). Lazy — modul form baru dievaluasi saat dibutuhkan.
+            */}
+            {Platform.OS !== "web" && softReauthActive ? (
+              <Suspense fallback={null}>
+                <SoftReauthGate />
+              </Suspense>
+            ) : null}
           </PortalScene>
           <PersistentShellBar />
           <PortalHost />

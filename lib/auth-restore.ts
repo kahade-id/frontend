@@ -96,7 +96,9 @@ export async function verifySessionInBackground(): Promise<SessionVerifyOutcome>
       // 401/403: bukti server bahwa sesi ini tidak valid → bersihkan total
       // dan paksa alur login. Guard revisi di atas menjamin kita tidak
       // menghapus sesi BARU yang dibuat saat refresh terbang.
-      await clearSession()
+      // P0-1: refresh 401/403 = bukti sesi kedaluwarsa → pemulihan lembut
+      // boleh ditawarkan (stack tidak dibuang).
+      await clearSession({ reason: "expired" })
       if (getSessionRevision() === revision + 1) emitSessionExpired()
       return { ok: false, reason: "invalid" }
     }
