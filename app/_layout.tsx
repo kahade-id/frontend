@@ -893,7 +893,14 @@ function AppShellInner() {
       } catch (err) {
         logWarn("notif:opened", err)
         if (source === "cold-start") suppressLastRouteRestore()
-        router.push(ROUTES.notifications)
+        /*
+         * P1-2 (audit perf/UX 2026-10-03): `push` di fallback menyimpang dari
+         * jalur sukses di atas (`navigate`) — payload rusak/exception saat
+         * handler berjalan meninggalkan DUPLIKAT tab Notifikasi di stack tiap
+         * kali pengguna mengetuk notifikasi yang sama. `navigate` =
+         * dedup rute aktif, sama seperti jalur sukses.
+         */
+        router.navigate(ROUTES.notifications)
       }
     })
   }, [router, session.restoring, session.error, session.token])
