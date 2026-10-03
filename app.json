@@ -16,7 +16,11 @@
       "url": "https://u.expo.dev/c3931e6f-c945-44d3-8ae8-1665c54fdf94",
       "checkAutomatically": "ON_LOAD",
       "fallbackToCacheTimeout": 0,
-      "assetPatternsToBeBundled": ["assets/fonts/*", "assets/images/splash-icon.png", "assets/images/icon.png"]
+      "assetPatternsToBeBundled": [
+        "assets/fonts/*",
+        "assets/images/splash-icon.png",
+        "assets/images/icon.png"
+      ]
     },
     "extra": {
       "eas": {
@@ -69,7 +73,8 @@
         "android.permission.USE_BIOMETRIC",
         "android.permission.VIBRATE",
         "android.permission.ACCESS_FINE_LOCATION",
-        "android.permission.ACCESS_COARSE_LOCATION"
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "web": {
@@ -81,7 +86,10 @@
       [
         "expo-router",
         {
-          "asyncRoutes": { "web": "production", "default": false }
+          "asyncRoutes": {
+            "web": "production",
+            "default": false
+          }
         }
       ],
       "expo-font",
