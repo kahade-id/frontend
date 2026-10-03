@@ -186,6 +186,7 @@ import {
 import type { ShowcaseItem } from "@/lib/api/users"
 import { getMeCached, pickPublicUserId } from "@/lib/api/users"
 import { useToast } from "@/components/ui/toast"
+import { useOverlayDismissKeys } from "@/components/ui/backdrop"
 import { ephemeralDurationLabel } from "@/lib/chat-ephemeral"
 import { isImageMime, isVideoMime } from "@/lib/mime"
 import type { ChatBubbleAnchor } from "@/lib/chat-bubble"
@@ -2242,6 +2243,14 @@ export default function ChatRoomScreen() {
     // Popover reaksi selalu ikut tertutup saat mode pilih berakhir.
     setReactionPopover(null)
   }, [])
+
+  // P1-C1: sub-state chat room didaftarkan ke tumpukan back-dismiss LIFO —
+  // hardware back menutup dari yang terdalam (reply/search/select), bukan
+  // langsung menutup room. Urutan: reply & inline-search lebih dalam dari
+  // mode pilih. Sheet tetap paling atas karena di-mount belakangan.
+  useOverlayDismissKeys(!!replyTarget, () => setReplyTarget(null))
+  useOverlayDismissKeys(inlineSearchOpen, closeInlineSearch)
+  useOverlayDismissKeys(selecting, exitSelect)
 
   /**
    * Batch 43: toggle star pesan-pesan yang dipilih (mode pilih).

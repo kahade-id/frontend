@@ -258,10 +258,34 @@ export function logicalParentForPath(pathname: string): Href {
       // SYS-C-404: daftar pertanyaan (Discovery Q&A).
       return ROUTES.questions
     case "notifications":
+    case "notification":
     case "badges":
       return ROUTES.notifications
+    case "help":
+    case "faq":
+      // P1-B2: artikel/kategori bantuan → hub Pusat Bantuan.
+      return ROUTES.faq
+    case "invoice":
+    case "delivery-proof":
+    case "extension":
+    case "rate":
+      // P2-T6: konteks transaksi → tab Transaksi.
+      return ROUTES.transactions
     case "wallet":
       return ROUTES.wallet
+    case "forgot-password":
+    case "login":
+    case "register":
+    case "verify-otp":
+    case "verify-2fa":
+    case "whatsapp-trigger":
+    case "reset-password":
+    case "register-security":
+    case "phone-migration":
+    case "social-link-confirm":
+    case "onboarding":
+      // P1-A1: head auth → login (bukan /showcase yang protected).
+      return ROUTES.login
     default:
       return ROUTES.home
   }

@@ -13,7 +13,8 @@
  *   POST /v1/wallet/transfer               → { txId, status }
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { ScrollView, View } from "react-native"
+import { BackHandler, ScrollView, View } from "react-native"
+import { useFocusEffect } from "@react-navigation/native"
 import { router, useLocalSearchParams } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { api, userMessage, type TransferDto } from "@/lib/api"
@@ -23,6 +24,7 @@ import { formatRupiah } from "@/lib/format"
 import { dismissKeyboardOnDragProps } from "@/lib/keyboard"
 import { queryKeys } from "@/lib/query-keys"
 import { ROUTES } from "@/lib/routes"
+import { goBackOrNavigate } from "@/lib/navigation"
 import { tokens } from "@/lib/tokens"
 import { AMOUNT_LIMITS, AMOUNT_PRESETS, isValidAmount } from "@/lib/financial"
 import { invalidateQueryCache, useApiQuery } from "@/lib/use-api-query"
@@ -359,6 +361,35 @@ export default function TransferScreen() {
     if (router.canGoBack()) router.back()
     else router.replace(ROUTES.wallet)
   }, [step])
+
+  // P1-T4: hardware back = mundur satu langkah seperti tombol back header.
+  // Untuk sub-step form (amount→recipient) dan step awal (done), cegah pop
+  // mentah agar input tidak hilang diam-diam.
+  useFocusEffect(
+    useCallback(() => {
+      const onHardwareBack = () => {
+        if (step === "form" && formSubStep === "amount") {
+          setFormSubStep("recipient")
+          setAmount(0)
+          return true
+        }
+        if (step === "form" && formSubStep === "recipient") {
+          goBackOrNavigate(ROUTES.wallet)
+          return true
+        }
+        if (step === "done") {
+          goBackOrNavigate(ROUTES.wallet)
+          return true
+        }
+        // confirm/pin: biarkan handleBack via Header; hardware back pop
+        // default akan ditangani di sini agar konsisten.
+        handleBack()
+        return true
+      }
+      const sub = BackHandler.addEventListener("hardwareBackPress", onHardwareBack)
+      return () => sub.remove()
+    }, [step, formSubStep, handleBack]),
+  )
   const handlePin = useCallback(
     async (pinValue: string) => {
       if (submitLock.current || !selected || !isValidAmount(amount, AMOUNT_LIMITS.transfer)) return
@@ -504,13 +535,12 @@ export default function TransferScreen() {
                     setFormSubStep("recipient")
                     setAmount(0)
                   }
-                : undefined
+                : // P1-T3: sub-step pertama ("Pilih penerima") — keluar layar
+                  // dengan fallback ke wallet, bukan jebakan.
+                  () => goBackOrNavigate(ROUTES.wallet)
         }
-        showBack={
-          step === "confirm" ||
-          step === "pin" ||
-          (step === "form" && formSubStep === "amount")
-        }
+        // P1-T3 & P2-T8: showBack selalu true (termasuk step pertama dan done).
+        showBack
         safeArea={false}
       />
       <KeyboardAvoiding offset={insets.top + HEADER_BAR_HEIGHT}>

@@ -5,9 +5,11 @@
  */
 import { useEffect, useState } from "react"
 import { ScrollView, View } from "react-native"
-import { useLocalSearchParams, useRouter } from "expo-router"
+import { useLocalSearchParams } from "expo-router"
 
 import { api } from "@/lib/api"
+import { goBackOrNavigate } from "@/lib/navigation"
+import { ROUTES } from "@/lib/routes"
 import type { Product, ProductStatus } from "@/lib/api/products"
 import { PRODUCT_STATUS_LABEL } from "@/lib/api/products"
 import { formatRupiah } from "@/lib/format"
@@ -48,7 +50,6 @@ function validateProductField(field: ProductField, value: string | number | null
 export default function SellerProductFormScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
   const isNew = id === "new"
-  const router = useRouter()
   const toast = useToast()
   const [saving, setSaving] = useState(false)
   const [sku, setSku] = useState("")
@@ -137,7 +138,8 @@ export default function SellerProductFormScreen() {
       }
       // UI-F018: konfirmasi sukses — sebelumnya langsung back tanpa umpan balik.
       toast.show({ title: "Produk disimpan", tone: "success", duration: 2500 })
-      router.back()
+      // P2-S5: fallback ke daftar produk bila tanpa riwayat.
+      goBackOrNavigate(ROUTES.sellerProducts)
     } catch (e) {
       showMutationError(toast.show, {
         failTitle: "Gagal menyimpan produk",

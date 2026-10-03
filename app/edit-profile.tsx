@@ -37,6 +37,7 @@ import { Camera as CameraIcon, Image as ImageIcon, Images, Trash } from "phospho
 import { api, isApiError, type UpdateProfileDto, userMessage } from "@/lib/api"
 import { pickImage, pickedImageToFormData, type PickedImage, type PickImageOptions } from "@/lib/image-picker"
 import { goBackOrNavigate } from "@/lib/navigation"
+import { useLeaveConfirm } from "@/lib/use-leave-confirm"
 import { useAvatarUpload } from "@/lib/use-avatar-upload"
 import { resolveMediaUrl } from "@/lib/media"
 import { ROUTES } from "@/lib/routes"
@@ -252,6 +253,12 @@ export default function EditProfileScreen() {
   )
   const profileChanged = Object.keys(dto).length > 0
   const dirty = profileChanged || linksChanged
+  // P1-S1: guard perubahan belum disimpan — konsisten dengan form showcase.
+  const leaveConfirm = useLeaveConfirm(dirty, {
+    title: "Buang perubahan?",
+    description: "Perubahan profil yang belum disimpan akan hilang.",
+    confirmLabel: "Ya, buang",
+  })
   /** Field sensitif yang menurut kontrak butuh `currentPassword`. */
   const needsPassword =
     dto.username !== undefined ||
@@ -936,6 +943,7 @@ export default function EditProfileScreen() {
           {translate("Muat ulang dari server")}
         </Button>
       </Dialog>
+      <Dialog {...leaveConfirm.dialogProps} />
     </Screen>
   )
 }

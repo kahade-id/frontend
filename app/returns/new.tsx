@@ -9,6 +9,7 @@ import { Package } from "phosphor-react-native"
 import { useLocalSearchParams, useRouter } from "expo-router"
 
 import { ROUTES } from "@/lib/routes"
+import { goBackOrNavigate } from "@/lib/navigation"
 import { api } from "@/lib/api"
 import type { ReturnEligibility, ReturnReasonCode } from "@/lib/api/returns"
 import { RETURN_REASON_LABEL } from "@/lib/api/returns"
@@ -89,7 +90,7 @@ export default function NewReturnScreen() {
           title="Pesanan tidak ditemukan"
           description="Tautan retur tidak valid. Buka kembali dari detail pesanan Anda."
           action={
-            <Button variant="secondary" onPress={() => router.back()}>
+            <Button variant="secondary" onPress={() => goBackOrNavigate(ROUTES.transactions)}>
               Kembali
             </Button>
           }

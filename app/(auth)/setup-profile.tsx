@@ -136,12 +136,25 @@ export default function SetupProfileScreen() {
     // U5-003 (journey): layar welcome dihapus — langsung ke tujuan/Beranda.
     router.replace((await resolvePostLoginTarget()) as never)
   }, [router])
+  // FE-106: tombol back memakai guard yang SAMA dengan "Lewati" — konfirmasi
+  // bila bio/foto berubah, tapi tujuannya ROUTES.editProfile (perbaiki data),
+  // bukan mundur ke wizard registrasi. Registration state TIDAK dibersihkan
+  // (akun sudah tercipta; user hanya pindah ke layar Ubah Profil normal).
+  // Didefinisikan SEBELUM useLeaveConfirm karena dipakai di onBackDiscard.
+  const [backConfirmOpen, setBackConfirmOpen] = useState(false)
+  const handleBack = useCallback(() => {
+    if (hasChanges) setBackConfirmOpen(true)
+    else router.push(ROUTES.editProfile)
+  }, [hasChanges, router])
   const leaveConfirm = useLeaveConfirm(hasChanges && !submitting, {
     title: "Lewati setup profil?",
     description:
       "Foto dan bio yang belum disimpan akan hilang. Anda bisa melengkapinya nanti dari Ubah Profil.",
     confirmLabel: "Ya, lewati",
     onConfirmDiscard: doSkip,
+    // P1-A3: hardware back = seperti tombol back header (ke Ubah Profil),
+    // bukan "Lewati" (ke Beranda).
+    onBackDiscard: handleBack,
   })
 
   const handleBioChange = useCallback((text: string) => {
@@ -194,15 +207,6 @@ export default function SetupProfileScreen() {
     else doSkip()
   }, [hasChanges, leaveConfirm, doSkip])
 
-  // FE-106: tombol back memakai guard yang SAMA dengan "Lewati" — konfirmasi
-  // bila bio/foto berubah, tapi tujuannya ROUTES.editProfile (perbaiki data),
-  // bukan mundur ke wizard registrasi. Registration state TIDAK dibersihkan
-  // (akun sudah tercipta; user hanya pindah ke layar Ubah Profil normal).
-  const [backConfirmOpen, setBackConfirmOpen] = useState(false)
-  const handleBack = useCallback(() => {
-    if (hasChanges) setBackConfirmOpen(true)
-    else router.push(ROUTES.editProfile)
-  }, [hasChanges, router])
   const confirmBack = useCallback(() => {
     setBackConfirmOpen(false)
     router.push(ROUTES.editProfile)

@@ -15,8 +15,9 @@
  *   GET  /v1/wallet/topup/:id/status → polling status pembayaran
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { ScrollView, View } from "react-native"
+import { BackHandler, ScrollView, View } from "react-native"
 import { useLocalSearchParams, useRouter } from "expo-router"
+import { useFocusEffect } from "@react-navigation/native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Wallet as WalletIcon } from "phosphor-react-native"
 
@@ -331,6 +332,15 @@ export default function TopupScreen() {
     return false
   }, [step])
 
+  // P1-T4: hardware back Android = mundur satu langkah (seperti tombol back
+  // header), bukan pop layar yang menghapus input diam-diam.
+  useFocusEffect(
+    useCallback(() => {
+      const sub = BackHandler.addEventListener("hardwareBackPress", () => goBack())
+      return () => sub.remove()
+    }, [goBack]),
+  )
+
   const handlePay = useCallback(async () => {
     // SEC-403 (penguat TRX-001): jangan buat intent selagi estimasi biaya
     // server belum BERHASIL — `canPay` sudah mencakup `feeReady`, jadi
@@ -404,12 +414,10 @@ export default function TopupScreen() {
       <Header
         title="Isi Saldo"
         progress={progress}
-        // UI-W009: langkah nominal dulu tanpa tombol back sama sekali
-        // (showBack hanya true di "method") — inkonsisten dengan
-        // tarik/transfer. FE-043: hasil SELALU punya back (struk sukses
-        // butuh jalan keluar eksplisit — CTA di bawah + back header).
+        // P1-T2: showBack selalu true — langkah pertama tanpa back = jebakan
+        // cold start. handleBack sudah punya fallback ke wallet.
         onBack={handleBack}
-        showBack={step !== "amount"}
+        showBack
         safeArea={false}
       />
 
