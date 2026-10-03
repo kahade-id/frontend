@@ -10,15 +10,18 @@
  * - Pesan error inline + tombol "Coba lagi" saat gagal: aset yang sudah
  *   dipilih disimpan (pendingRef) agar retry tidak memaksa pilih ulang.
  *
- * G-04 (dipertahankan dari implementasi lama): avatarKey yang sudah terupload
- * tetapi confirm-nya gagal adalah orphan — dibersihkan best-effort.
+ * UPI-08: G-04 lama ("avatarKey yang terupload tapi confirm-nya gagal adalah
+ * orphan → hapus best-effort") SUDAH TIDAK BERLAKU. Di alur direct saat ini,
+ * `uploadAvatarDirect` LANGSUNG mem-publish avatar ke DB — jadi key yang
+ * "gagal di-confirm" sebenarnya adalah avatar LIVE user. Menghapusnya justru
+ * merusak avatar (404). Karena itu TIDAK ADA cleanup orphan di sini; bila
+ * confirm gagal transien, avatar tetap live dan aman.
  */
 import { useCallback, useRef, useState } from "react"
 
 import { api, userMessage } from "@/lib/api"
 import { translate } from "@/lib/i18n/translate"
 import { pickImage, pickedImageToFormData, resizePickedImage, type PickedImage, type PickImageOptions } from "@/lib/image-picker"
-import { logWarn } from "@/lib/telemetry"
 import { useToast } from "@/components/ui/toast"
 
 const AVATAR_PICKER: PickImageOptions = { square: true }
@@ -88,25 +91,20 @@ export function useAvatarUpload({ onAvatarUrl, onChanged }: UseAvatarUploadOptio
     if (!asset) return
     setBusy(true)
     setError(null)
-    let orphanKey: string | undefined
     try {
       // PERF-FIX (2026-09-30): resize avatar sebelum upload (fail-open).
       const uploaded = await api.users.uploadAvatarDirect(await pickedImageToFormData(await resizePickedImage(asset)))
-      orphanKey = uploaded.avatarKey ?? undefined
+      // UPI-08: JANGAN anggap avatarKey sebagai orphan bila confirm gagal —
+      // uploadAvatarDirect sudah mem-publish-nya sebagai avatar live.
+      // confirmAvatar sendiri idempoten (no-op bila sudah live).
       if (uploaded.avatarKey) {
         await api.users.confirmAvatar({ avatarKey: uploaded.avatarKey })
-        orphanKey = undefined
       }
       pendingRef.current = null
       if (uploaded.avatarUrl) onAvatarUrl(uploaded.avatarUrl)
       onChanged?.()
       toast.show({ title: translate("Foto profil diperbarui"), tone: "success" })
     } catch (err: unknown) {
-      if (orphanKey) {
-        api.upload
-          .cleanupUploads([orphanKey])
-          .catch((cleanupErr: unknown) => logWarn("avatar-upload:cleanup", cleanupErr))
-      }
       const message = userMessage(err)
       setError(message)
       toast.show({ title: translate("Gagal mengunggah foto"), description: message, tone: "danger" })
