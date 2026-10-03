@@ -314,6 +314,13 @@ export function ChatMessageRowBase({
       uri={voiceAttachment!.fileUrl}
       messageId={message.id}
       direction={message.fromUser ? "outgoing" : "incoming"}
+      // UPFV-03: refresh signed URL (TTL 5 mnt) bila pemutaran gagal —
+      // pola sama seperti `Picture` onError pada thumbnail lampiran.
+      onRefreshUrl={
+        onRefreshAttachmentUrl
+          ? () => onRefreshAttachmentUrl(voiceAttachment!).then((a) => a.fileUrl || null)
+          : undefined
+      }
     />
   ) : message.attachments?.length ? (
     <View className="gap-2">

@@ -12,8 +12,19 @@
 
 import { CHAT_ATTACHMENT_MAX_BYTES, formatBytesId } from "@/lib/chat-attachment-limits"
 
-/** MIME rekaman expo-av preset HIGH_QUALITY (m4a/AAC di iOS & Android). */
-export const VOICE_NOTE_MIME = "audio/m4a"
+/**
+ * MIME yang DIDEKLARASIKAN untuk rekaman expo-av preset HIGH_QUALITY
+ * (kontainer m4a/AAC di iOS & Android).
+ *
+ * UPFV-01: `"audio/mp4"` — BUKAN `"audio/m4a"`. Konvensi server
+ * (DETECTED_MIME_TO_EXTENSION): `.m4a ↔ audio/mp4`; `audio/m4a` tidak ada di
+ * whitelist klien (`chat-attachment-limits.ts`), whitelist backend
+ * (`upload.service.ts:48`), dan magic-byte backend — voice note 100% gagal
+ * terkirim sebelum fix ini. Berkas fisik tetap berekstensi `.m4a`
+ * (`voiceNoteFileName`) dan terdeteksi server sebagai `audio/mp4`
+ * (signature ftypM4A).
+ */
+export const VOICE_NOTE_MIME = "audio/mp4"
 /** Batas durasi rekam — perekam auto-stop saat tercapai. */
 export const VOICE_NOTE_MAX_DURATION_MS = 5 * 60 * 1000
 /** Durasi minimum agar tidak terkirim rekaman tak sengaja (< 1 detik). */
