@@ -8,7 +8,7 @@
  *   - Bagikan memakai `shareContent()` (lib/share) → share sheet OS; bila
  *     "unavailable" (web desktop) jatuh ke salin tautan + toast. Sebelumnya
  *     tombol Bagikan hanya menampilkan toast berisi URL.
- *   - URL fallback dibentuk `orderLinkUrl(token)` (lib/deeplinks) — tidak ada
+ *   - URL fallback dibentuk `orderShortUrl(token)` (lib/deeplinks) — tidak ada
  *     literal skema `kahade://` di layar.
  *   - Tone badge status: ACTIVE=success, ACCEPTED=info, EXPIRED=warning,
  *     CANCELLED=neutral — mengikuti §2.3 (semantic hanya untuk status).
@@ -21,7 +21,7 @@ import { router } from "expo-router"
 import { api, type OrderLink } from "@/lib/api"
 import { showMutationError } from "@/lib/mutation-toast"
 import { useCopy } from "@/lib/clipboard"
-import { orderLinkUrl } from "@/lib/deeplinks"
+import { orderShortUrl } from "@/lib/deeplinks"
 import { formatDateTimeWIB } from "@/lib/format"
 import { ROUTES } from "@/lib/routes"
 import { shareContent } from "@/lib/share"
@@ -194,7 +194,7 @@ export default function OrderLinksScreen() {
   // share (QR + handler per baris) setelah beberapa halaman dimuat.
   const renderLinkItem = useCallback(
     ({ item: link }: { item: OrderLink & { id: string } }) => {
-              const url = link.url ?? orderLinkUrl(link.token)
+              const url = link.url ?? orderShortUrl(link.token)
               const status = orderLinkStatusMeta(link.status)
               return (
                 <OrderLinkShareCard
