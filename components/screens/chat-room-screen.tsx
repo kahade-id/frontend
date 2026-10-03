@@ -1722,6 +1722,9 @@ export default function ChatRoomScreen() {
           signal: controller.signal,
           // BFE-001: key yang sama untuk semua attempt berkas ini.
           idempotencyKey,
+          // UPV-05: ukuran untuk timeout adaptif (video 50 MiB di koneksi
+          // lambat butuh > 300 dtk).
+          fileBytes: resized.size ?? picked.size ?? 0,
           onProgress: (fraction) =>
             setAttachments((prev) =>
               prev.map((a) => (a.localId === localId ? { ...a, progress: fraction } : a)),

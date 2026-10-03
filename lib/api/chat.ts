@@ -752,6 +752,14 @@ export function uploadChatAttachmentProgress(
     signal?: AbortSignal
     timeoutMs?: number
     /**
+     * UPV-05: ukuran file (byte) untuk timeout ADAPTIF. Bila diisi, default
+     * `timeoutMs` mengikuti rumus `uploadDirectVideo` (120 dtk basis +
+     * byte/100 — 100 KB/s konservatif; min 10 mnt, maks 30 mnt) sehingga
+     * video 50 MiB di koneksi lambat tidak TIMEOUT padahal server menerima.
+     * Bila tidak diisi → 300 dtk seperti sebelumnya.
+     */
+    fileBytes?: number
+    /**
      * BFE-001: key idempotensi UUID v4 untuk request ini. Retry attempt
      * yang sama WAJIB memakai key yang sama — pemanggil (antrean upload)
      * membangkitkan sekali per berkas via `createIdempotencyKey()`.
@@ -759,7 +767,13 @@ export function uploadChatAttachmentProgress(
     idempotencyKey?: string
   } = {},
 ): Promise<ChatAttachmentDto> {
-  const { onProgress, signal, timeoutMs = 300_000 } = opts
+  // UPV-05: timeout adaptif mengikuti pola uploadDirectVideo
+  // (lib/api/upload.ts) — 50 MiB @ 100 KB/s ≈ 524 dtk > 300 dtk fixed lama.
+  const fileBytes = typeof opts.fileBytes === "number" && opts.fileBytes > 0 ? opts.fileBytes : 0
+  const adaptiveTimeout = fileBytes > 0
+    ? Math.min(1_800_000, Math.max(600_000, 120_000 + fileBytes / 100))
+    : 300_000
+  const { onProgress, signal, timeoutMs = adaptiveTimeout } = opts
   // BFE-001: satu key untuk SELURUH panggilan ini — termasuk retry
   // refresh-token 401 di `run()` di bawah (closure yang sama).
   const idempotencyKey = opts.idempotencyKey ?? createIdempotencyKey()

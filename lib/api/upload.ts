@@ -247,6 +247,8 @@ const VIDEO_UPLOAD_ERROR_COPY: Record<string, string> = {
   VIDEO_TOO_LARGE: "Ukuran video melebihi batas maksimal 100 MB. Maksimal 100 MB / 180 detik.",
   MIME_TYPE_MISMATCH: "Format video tidak didukung. Gunakan MP4, MOV, atau WebM.",
   VIDEO_TOO_LONG: "Durasi video melebihi batas yang diizinkan. Pilih video yang lebih pendek.",
+  // UPV-04: resolusi video melebihi 3840p.
+  VIDEO_RESOLUTION_TOO_HIGH: "Resolusi video terlalu tinggi. Pilih video dengan resolusi lebih rendah.",
   VIDEO_UNPROCESSABLE: "Video tidak dapat diproses. Coba dengan video lain.",
   UPLOAD_FAILED: "Unggah video gagal. Periksa koneksi lalu coba lagi.",
 }
@@ -608,6 +610,93 @@ function parseChunkSession(raw: unknown, what: string): ParsedChunkSession {
   return { sessionId, chunkSize, totalChunks, totalSize }
 }
 
+/**
+ * UPV-06 (audit upload video 2026-10-03): persistensi sesi chunked lintas
+ * restart app. Server menyimpan sesi 24 jam dan `GET .../status` mendukung
+ * resume — tapi `sessionId` sebelumnya hanya di variabel lokal, sehingga
+ * app di-kill = upload ulang dari byte 0.
+ *
+ * Identitas file = hash(purpose|fileName|mimeType|totalSize). Bila file
+ * berubah (nama/ukuran beda), kunci beda → sesi lama tidak dipakai. Lapisan
+ * kedua: `status` memvalidasi totalChunks/totalSize konsisten (sudah ada).
+ * Sesi tersimpan > 23 jam dianggap basi (server kedaluwarsa 24 jam).
+ * Bukan data sensitif → `getRawItem/setRawItem` (pola chat-failed-queue).
+ */
+type StoredChunkedSession = ParsedChunkSession & {
+  purpose: string
+  fileName: string
+  mimeType: string
+  savedAt: number
+}
+
+const CHUNKED_SESSION_TTL_MS = 23 * 60 * 60 * 1000
+
+function chunkedSessionStoreKey(purpose: string, fileName: string, mimeType: string, totalSize: number): string {
+  const raw = `${purpose}|${fileName}|${mimeType}|${totalSize}`
+  let h = 0
+  for (let i = 0; i < raw.length; i++) h = (Math.imul(31, h) + raw.charCodeAt(i)) | 0
+  return `kahade:chunked-upload-session:${(h >>> 0).toString(16)}`
+}
+
+async function loadStoredChunkedSession(
+  key: string,
+  purpose: string,
+  fileName: string,
+  mimeType: string,
+  totalSize: number,
+): Promise<ParsedChunkSession | null> {
+  try {
+    const { getRawItem } = await import("@/lib/secure-storage")
+    const raw = await getRawItem(key)
+    if (!raw) return null
+    const s = JSON.parse(raw) as Partial<StoredChunkedSession>
+    if (
+      typeof s.sessionId !== "string" ||
+      !/^[0-9a-f]{64}$/.test(s.sessionId) ||
+      typeof s.chunkSize !== "number" || s.chunkSize <= 0 ||
+      typeof s.totalChunks !== "number" || s.totalChunks <= 0 ||
+      typeof s.totalSize !== "number" || s.totalSize <= 0 ||
+      s.purpose !== purpose ||
+      s.fileName !== fileName ||
+      s.mimeType !== mimeType ||
+      s.totalSize !== totalSize ||
+      typeof s.savedAt !== "number" ||
+      Date.now() - s.savedAt > CHUNKED_SESSION_TTL_MS
+    ) {
+      return null
+    }
+    return { sessionId: s.sessionId, chunkSize: s.chunkSize, totalChunks: s.totalChunks, totalSize: s.totalSize }
+  } catch {
+    return null
+  }
+}
+
+async function saveStoredChunkedSession(
+  key: string,
+  session: ParsedChunkSession,
+  purpose: string,
+  fileName: string,
+  mimeType: string,
+): Promise<void> {
+  try {
+    const { setRawItem } = await import("@/lib/secure-storage")
+    const stored: StoredChunkedSession = { ...session, purpose, fileName, mimeType, savedAt: Date.now() }
+    await setRawItem(key, JSON.stringify(stored))
+  } catch {
+    // best-effort: gagal persist → resume lintas restart tak tersedia,
+    // upload dalam sesi ini tetap jalan normal.
+  }
+}
+
+async function clearStoredChunkedSession(key: string): Promise<void> {
+  try {
+    const { deleteRawItem } = await import("@/lib/secure-storage")
+    await deleteRawItem(key)
+  } catch {
+    // best-effort
+  }
+}
+
 function parseReceivedChunks(raw: unknown): Set<number> {
   const o = (raw ?? {}) as Record<string, unknown>
   const list = Array.isArray(o.received) ? o.received : []
@@ -826,8 +915,9 @@ export async function uploadChunkedVideo(
   const isWeb = Platform.OS === "web"
 
   // 1. init sesi (validasi purpose/batas/MIME gagal-cepat di server)
+  const purpose = directOpts.purpose ?? "SHOWCASE_VIDEO"
   const initDto = {
-    purpose: directOpts.purpose ?? "SHOWCASE_VIDEO",
+    purpose,
     fileName: asset.name,
     mimeType: asset.mimeType,
     totalSize: totalBytes,
@@ -847,8 +937,18 @@ export async function uploadChunkedVideo(
       remapChunkedUploadError(err, "/v1/upload/chunked/init")
     }
   }
-  let session = await doInit("init upload")
-  let basePath = `/v1/upload/chunked/${seg(session.sessionId)}`
+  // UPV-06: coba pulihkan sesi tersimpan — resume lintas restart app.
+  // Server menyimpan sesi 24 jam; `status` di bawah memvalidasi konsistensi.
+  const storeKey = chunkedSessionStoreKey(purpose, asset.name, asset.mimeType, totalBytes)
+  let session = await loadStoredChunkedSession(storeKey, purpose, asset.name, asset.mimeType, totalBytes)
+  let basePath: string
+  if (session) {
+    basePath = `/v1/upload/chunked/${seg(session.sessionId)}`
+  } else {
+    session = await doInit("init upload")
+    basePath = `/v1/upload/chunked/${seg(session.sessionId)}`
+    await saveStoredChunkedSession(storeKey, session, purpose, asset.name, asset.mimeType)
+  }
 
   // 2. status → chunk mana yang sudah diterima (resume)
   const received = new Set<number>()
@@ -873,6 +973,8 @@ export async function uploadChunkedVideo(
       // request 404. Init ulang SEKALI lalu anggap sesi baru/kosong.
       session = await doInit("init ulang upload")
       basePath = `/v1/upload/chunked/${seg(session.sessionId)}`
+      // UPV-06: simpan sesi pengganti agar resume lintas restart tetap jalan.
+      await saveStoredChunkedSession(storeKey, session, purpose, asset.name, asset.mimeType)
       received.clear()
     }
     // 5xx / lainnya pada status → anggap sesi baru/kosong (idempoten: chunk
@@ -986,6 +1088,8 @@ export async function uploadChunkedVideo(
     if (!result.fileKey) {
       throw new ApiError({ code: "PARSE", message: "Respons server tidak lengkap." })
     }
+    // UPV-06: upload selesai — sesi tersimpan tidak lagi dibutuhkan.
+    await clearStoredChunkedSession(storeKey)
     report(1)
     return result
   } catch (err) {
