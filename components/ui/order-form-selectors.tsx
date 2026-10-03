@@ -31,6 +31,8 @@ import { FEE_RESPONSIBILITY_LABELS, splitFee, type FeeResponsibility } from "@/c
 import type { IconComponent } from "@/components/ui/icon"
 import { ToggleGroup, type ToggleGroupProps, type ToggleOption } from "@/components/ui/toggle-group"
 import { formatRupiah } from "@/lib/format"
+import { useLanguage } from "@/lib/i18n"
+import { translate } from "@/lib/i18n/translate"
 
 // ------------------------------------------------------------------
 // Order type
@@ -90,8 +92,7 @@ export const ORDER_ROLE_LABELS: Record<OrderRoleValue, string> = {
   SELLER: "Saya penjual",
 }
 
-const ORDER_ROLE_HINTS: Record<OrderRoleValue, string> = {
-  BUYER: "Anda membayar ke escrow",
+const ORDER_ROLE_HINTS: Partial<Record<OrderRoleValue, string>> = {
   SELLER: "Anda menerima dana",
 }
 
@@ -101,10 +102,17 @@ export type OrderRoleSelectorProps = SingleGroupBase<OrderRoleValue> & {
 }
 
 export function OrderRoleSelector({ labels, hints, ...rest }: OrderRoleSelectorProps) {
+  useLanguage()
   const options: ToggleOption<OrderRoleValue>[] = (["BUYER", "SELLER"] as const).map((v) => ({
     value: v,
     label: labels?.[v] ?? ORDER_ROLE_LABELS[v],
-    hint: hints === false ? undefined : hints?.[v] ?? ORDER_ROLE_HINTS[v],
+    hint:
+      hints === false
+        ? undefined
+        : hints?.[v] ??
+          (v === "BUYER"
+            ? translate("Anda membayar ke Kahade dulu, bukan langsung ke penjual")
+            : ORDER_ROLE_HINTS[v]),
   }))
   return <ToggleGroup<OrderRoleValue> options={options} columns={2} {...rest} />
 }

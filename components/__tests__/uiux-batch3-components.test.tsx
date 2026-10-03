@@ -263,6 +263,25 @@ describe("C1 — permanent follow placement", () => {
   })
 })
 
+describe("UIUX-129 — empty seller rating", () => {
+  it("distinguishes a successful zero-review summary from a missing rating", async () => {
+    state.ratings.mockResolvedValueOnce({
+      distribution: { counts: [0, 0, 0, 0, 0], total: 0 },
+      averageRating: null,
+    })
+    render(themed(<ShowcaseAuthorRow item={item} isOwner={false} hasSession onReport={() => {}} />))
+    expect(await screen.findByText("Penjual baru — belum ada ulasan")).toBeTruthy()
+  })
+
+  it("does not label the seller as new when the rating request fails", async () => {
+    state.ratings.mockRejectedValueOnce(new Error("offline"))
+    render(themed(<ShowcaseAuthorRow item={item} isOwner={false} hasSession onReport={() => {}} />))
+    await act(async () => {})
+    expect(state.ratings).toHaveBeenCalledOnce()
+    expect(screen.queryByText("Penjual baru — belum ada ulasan")).toBeNull()
+  })
+})
+
 function MediaBridge({ kind, like }: { kind: "image" | "video"; like: () => void }) {
   const [opening, setOpening] = useState<OpeningMediaTap>()
   const media = kind === "video" ? video : image

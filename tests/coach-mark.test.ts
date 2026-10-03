@@ -20,6 +20,7 @@ vi.mock("@/lib/secure-storage", () => {
   const SecureKeys = {
     coachMarkCreateSeen: "kahade.coachMark.createSeen",
     coachMarkQrSeen: "kahade.coachMark.qrSeen",
+    coachMarkChatReplySeen: "kahade.coachMark.chatReplySeen",
     accessToken: "kahade.auth.accessToken",
     refreshToken: "kahade.auth.refreshToken",
     biometricEnabled: "kahade.security.biometricEnabled",
@@ -70,6 +71,7 @@ describe("hasSeenCoachMark", () => {
   it("false bila flag belum pernah ditulis", async () => {
     expect(await hasSeenCoachMark("create")).toBe(false)
     expect(await hasSeenCoachMark("qr")).toBe(false)
+    expect(await hasSeenCoachMark("chat-reply")).toBe(false)
   })
 
   it("true setelah markCoachMarkSeen", async () => {
@@ -82,8 +84,10 @@ describe("hasSeenCoachMark", () => {
   it("menulis ke key yang benar per id", async () => {
     await markCoachMarkSeen("create")
     await markCoachMarkSeen("qr")
+    await markCoachMarkSeen("chat-reply")
     expect(h.store.get(SecureKeys.coachMarkCreateSeen)).toBe("1")
     expect(h.store.get(SecureKeys.coachMarkQrSeen)).toBe("1")
+    expect(h.store.get(SecureKeys.coachMarkChatReplySeen)).toBe("1")
   })
 })
 

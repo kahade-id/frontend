@@ -336,6 +336,7 @@ export function getUserByUsername(username: string, signal?: AbortSignal) {
     .then((raw) => {
       const profile = readEntity<Record<string, unknown>>(raw, "user")
       const stats = asRecord(profile.stats)
+      const ratingSummary = asRecord(profile.ratings)
       // BUG#5: backend (sejak redesign commit 8224427) mengirim profil publik
       // sebagai section NESTED (identity/about/contact) — baca dari sana,
       // bukan dari key flat kontrak lama yang sudah tidak dikirim.
@@ -347,6 +348,11 @@ export function getUserByUsername(username: string, signal?: AbortSignal) {
       const contactPhone =
         firstString(profile, ["contactPhone", "contact_phone"]) ??
         firstString(contact, ["phone"])
+      const rawRatingCount =
+        pickNumber(ratingSummary, ["totalRatingCount", "ratingCount"]) ??
+        pickNumber(profile, ["totalRatingCount", "ratingCount"]) ??
+        pickNumber(stats, ["totalRatingCount", "ratingCount", "reviews"])
+      const ratingCount = rawRatingCount != null && rawRatingCount >= 0 ? Math.floor(rawRatingCount) : undefined
       return {
         ...profile,
         // `pickUserId` memindai `id`/`userId`/`_id` dan satu tingkat sarang
@@ -358,7 +364,13 @@ export function getUserByUsername(username: string, signal?: AbortSignal) {
         id: pickUserId(profile) || pickUserId(raw),
         verified: profile.verified ?? profile.isKycVerified,
         trustScore: profile.trustScore ?? stats?.trustScore,
-        rating: profile.rating ?? stats?.rating,
+        // GET /users/:username exposes these aggregates under `ratings`; retain
+        // legacy flat/stat fields as fallbacks for older payloads.
+        rating:
+          pickNumber(ratingSummary, ["averageRating"]) ??
+          pickNumber(profile, ["rating"]) ??
+          pickNumber(stats, ["averageRating", "avgRating", "rating"]),
+        ratingCount,
         createdAt:
           profile.createdAt ??
           profile.created_at ??
@@ -393,6 +405,7 @@ export type PublicUserProfile = {
   verified?: boolean
   trustScore?: number
   rating?: number
+  ratingCount?: number
   createdAt?: string
   /** Kontak publik (email) — hanya dikirim backend bila pemilihannya publik. */
   contactEmail?: string | null

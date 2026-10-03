@@ -32,6 +32,17 @@ vi.mock("@/components/ui/showcase-comment-row", () => ({
       {children}
     </div>
   ),
+  CommentRepliesToggle: ({
+    expanded,
+    hiddenCount,
+    onPress,
+  }: {
+    expanded: boolean
+    hiddenCount: number
+    onPress: () => void
+  }) => (
+    <button onClick={onPress}>{expanded ? "Tutup balasan" : `Lihat ${hiddenCount} balasan`}</button>
+  ),
 }))
 vi.mock("@/components/ui/divider", () => ({ Divider: () => null }))
 vi.mock("@/components/ui/load-more", () => ({

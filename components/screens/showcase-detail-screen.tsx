@@ -41,7 +41,7 @@ import {
 import { cn } from "@/lib/cn"
 import { focusRing } from "@/lib/focus-ring"
 import { ROUTES } from "@/lib/routes"
-import { showcasePriceLabelOrFallback } from "@/lib/showcase-labels"
+import { showcasePriceLabel, showcasePriceLabelOrFallback } from "@/lib/showcase-labels"
 import { showcaseHtmlHasFormatting } from "@/lib/showcase-html"
 import { useShowcaseSocialActions } from "@/lib/use-showcase-social-actions"
 import { useApiQuery } from "@/lib/use-api-query"
@@ -774,6 +774,7 @@ function ShowcaseDetailContent({
   }, [commentsRefreshing, query, fetchComments])
 
   const priceLabel = showcasePriceLabelOrFallback(item)
+  const priceRequiresChat = showcasePriceLabel(item) === null
   // C06 (batch 139): status stok konsisten dengan kartu feed — CTA
   // "Buat Transaksi" nonaktif saat stok habis. Graceful: tanpa field stok
   // dari backend, perilaku sama seperti sebelumnya.
@@ -781,6 +782,10 @@ function ShowcaseDetailContent({
 
   const canReply = (c: ShowcaseComment) => hasSession && !c.isHidden && c.parentId == null
   const isMine = (c: ShowcaseComment) => meId != null && c.author.userId === meId
+  const handleReplyToComment = useCallback((comment: ShowcaseComment) => {
+    setReplyTo(comment)
+    requestAnimationFrame(() => composerRef.current?.focus())
+  }, [])
 
   /**
    * D-03 (audit 2026-09-23): lapor komentar = kirim BUKTI komentarnya —
@@ -807,12 +812,23 @@ function ShowcaseDetailContent({
   const handleCreateTransaction = useCallback(() => {
     const target = item.orderLink
       ? ROUTES.createTransactionFromShowcase(item.orderLink, item.author.username)
-      : // FE-044: tanpa orderLink, tombol "Beli via Escrow" dari etalase tetap
+      : // FE-044: tanpa orderLink, tombol "Beli Sekarang" dari etalase tetap
         // membawa flag fromShowcase — wizard mulai dari langkah 1 (mode &
         // peran sudah pasti), bukan langkah 0.
         ROUTES.createTransactionWith(item.author.username, { fromShowcase: true })
     router.push(hasSession ? target : ROUTES.loginRequired(`/showcase/${encodeURIComponent(item.id)}`))
   }, [item, hasSession])
+
+  const sellerUsername = item.author.username.trim()
+  const handleChatSeller = useCallback(() => {
+    if (!sellerUsername) return
+    if (!hasSession) {
+      const next = `/prepare-navigation?kind=dm&id=${encodeURIComponent(sellerUsername)}`
+      router.push(ROUTES.loginRequired(next))
+      return
+    }
+    router.navigate({ pathname: "/prepare-navigation", params: { kind: "dm", id: sellerUsername } } as never)
+  }, [hasSession, sellerUsername])
 
   /** T5 (audit 2026-09-26): hapus karya milik sendiri dari layar detail. */
   const handleDeleteItem = useCallback(async () => {
@@ -857,6 +873,65 @@ function ShowcaseDetailContent({
     [item?.description],
   )
 
+  const commentComposer = (
+    <View className="gap-2">
+      {replyTo ? (
+        <View className="flex-row items-center gap-2 rounded-md bg-surface-elevated px-3 py-1.5">
+          <Text variant="caption" tone="secondary" className="flex-1" numberOfLines={1}>
+            {translate("Membalas {x}", { x: replyTo.author.fullName ?? `@${replyTo.author.username}` })}
+          </Text>
+          <PressableScale
+            accessibilityRole="button"
+            accessibilityLabel={translate("Batalkan balasan")}
+            // UI-F014: teks kecil butuh hitSlop agar mudah disentuh.
+            hitSlop={12}
+            onPress={() => setReplyTo(null)}
+          >
+            <Text variant="caption" tone="primary">
+              {translate("Batal")}
+            </Text>
+          </PressableScale>
+        </View>
+      ) : null}
+      {hasSession ? (
+        <View className="flex-row items-end gap-2">
+          <View className="flex-1">
+            <Input
+              ref={composerRef}
+              disabled={sendingComment}
+              value={draft}
+              onChangeText={handleDraftChange}
+              placeholder={translate("Tulis komentar…")}
+              accessibilityLabel={translate("Komentar baru")}
+              containerClassName="flex-1"
+              maxLength={COMMENT_MAX}
+              onSubmitEditing={() => void handleSendComment()}
+              returnKeyType="send"
+            />
+            {/* Item 162 (FE-IMP-1): konter SELALU "X karakter tersisa". */}
+            <Text variant="caption" tone="secondary" className="pt-1 text-right tabular-nums">
+              {translate("{x} karakter tersisa", { x: COMMENT_MAX - draft.length })}
+            </Text>
+          </View>
+          <IconButton
+            icon={PaperPlaneRight}
+            variant="primary"
+            size="sm"
+            accessibilityLabel={translate("Kirim komentar")}
+            loading={sendingComment}
+            disabled={!draft.trim()}
+            onPress={() => void handleSendComment()}
+          />
+        </View>
+      ) : (
+        // A-05: tamu diarahkan login, bukan komposer yang berujung 401.
+        <Button onPress={() => router.push(ROUTES.loginRequired(`/showcase/${encodeURIComponent(id)}`))}>
+          {translate("Masuk untuk berkomentar")}
+        </Button>
+      )}
+    </View>
+  )
+
   return (
     <DataScreen
       title={translate("Etalase")}
@@ -870,22 +945,19 @@ function ShowcaseDetailContent({
       }}
       refreshable
       contentClassName="gap-0"
-      // Item 163: footer memuat komposer komentar — naik di atas keyboard.
+      // Komposer mengikuti area komentar; footer hanya memuat CTA beli.
       keyboardAvoiding
       // C14 (batch 139): scroll terprogram + pantau offset untuk fokus komentar.
       scrollRef={detailScrollRef}
       onScroll={handleDetailScroll}
       onScrollWorklet={handleDetailScrollWorklet}
       footer={
-        // UX-SPA-004: tanpa border-t sendiri — <FooterBar> sudah memberi divider.
-        <View className="bg-background py-3">
-          {/* Aksi escrow sticky tetap terlihat di atas komposer; harga utama
-              hanya ditampilkan di isi detail agar tidak diduplikasi. Area ini
-              hanya berisi catatan escrow dan CTA, dan disembunyikan untuk pemilik. */}
-          {!isOwner ? (
-            <View className="mb-3 flex-row items-center gap-3 border-b border-border pb-3">
+        !isOwner ? (
+          <View className="bg-background py-3">
+            {/* Harga utama hanya ditampilkan di isi detail agar tidak diduplikasi. */}
+            <View className="flex-row items-center gap-3">
               <Text variant="caption" tone="secondary" numberOfLines={2} className="min-w-0 flex-1">
-                {translate("Dana ditahan escrow sampai barang Anda terima")}
+                {translate("Uang Anda disimpan Kahade dulu, diteruskan ke penjual setelah barang Anda terima.")}
               </Text>
               <Button
                 disabled={item.isActive === false || soldOut}
@@ -898,66 +970,11 @@ function ShowcaseDetailContent({
                       : undefined
                 }
               >
-                {translate("Beli via Escrow")}
+                {translate("Beli Sekarang")}
               </Button>
             </View>
-          ) : null}
-          {replyTo ? (
-            <View className="mb-2 flex-row items-center gap-2 rounded-md bg-surface-elevated px-3 py-1.5">
-              <Text variant="caption" tone="secondary" className="flex-1" numberOfLines={1}>
-                {translate("Membalas {x}", { x: replyTo.author.fullName ?? `@${replyTo.author.username}` })}
-              </Text>
-              <PressableScale
-                accessibilityRole="button"
-                accessibilityLabel={translate("Batalkan balasan")}
-                // UI-F014: teks kecil butuh hitSlop agar mudah disentuh.
-                hitSlop={12}
-                onPress={() => setReplyTo(null)}
-              >
-                <Text variant="caption" tone="primary">
-                  {translate("Batal")}
-                </Text>
-              </PressableScale>
-            </View>
-          ) : null}
-          {hasSession ? (
-            <View className="flex-row items-end gap-2">
-              <View className="flex-1">
-                <Input
-                  ref={composerRef}
-                  disabled={sendingComment}
-                  value={draft}
-                  onChangeText={handleDraftChange}
-                  placeholder={translate("Tulis komentar…")}
-                  accessibilityLabel={translate("Komentar baru")}
-                  containerClassName="flex-1"
-                  maxLength={COMMENT_MAX}
-                  onSubmitEditing={() => void handleSendComment()}
-                  returnKeyType="send"
-                />
-                {/* Item 162 (FE-IMP-1): konter SELALU "X karakter tersisa"
-                    (bukan format ganda seperti "200/2000"). */}
-                <Text variant="caption" tone="secondary" className="pt-1 text-right tabular-nums">
-                  {translate("{x} karakter tersisa", { x: COMMENT_MAX - draft.length })}
-                </Text>
-              </View>
-              <IconButton
-                icon={PaperPlaneRight}
-                variant="primary"
-                size="sm"
-                accessibilityLabel={translate("Kirim komentar")}
-                loading={sendingComment}
-                disabled={!draft.trim()}
-                onPress={() => void handleSendComment()}
-              />
-            </View>
-          ) : (
-            // A-05: tamu diarahkan login, bukan komposer yang berujung 401.
-            <Button onPress={() => router.push(ROUTES.loginRequired(`/showcase/${encodeURIComponent(id)}`))}>
-              {translate("Masuk untuk berkomentar")}
-            </Button>
-          )}
-        </View>
+          </View>
+        ) : undefined
       }
     >
       {/* ── Penulis DI ATAS media (selaras kartu feed) + laporkan ──
@@ -1002,6 +1019,17 @@ function ShowcaseDetailContent({
         <Text variant="bodyLarge" weight={700} className="tabular-nums">
           {priceLabel}
         </Text>
+        {priceRequiresChat && !isOwner && sellerUsername ? (
+          <Button
+            variant="secondary"
+            size="sm"
+            leftIcon={ChatCircle}
+            onPress={handleChatSeller}
+            accessibilityHint={translate("Buka percakapan langsung dengan penjual")}
+          >
+            {translate("Chat penjual")}
+          </Button>
+        ) : null}
         {/* Batch 43: harga coret + badge Terlaris/Diskon */}
         <DiscountPrice showcaseId={id} salePriceIdr={item.priceMin ?? item.priceMax} />
         <ProductBadges showcaseId={id} />
@@ -1115,6 +1143,7 @@ function ShowcaseDetailContent({
 
       {/* G-11/S9: utas komentar diekstrak ke komponen sendiri. */}
       <ShowcaseDetailComments
+        composer={commentComposer}
         comments={comments}
         commentTotal={commentTotal}
         commentsStatus={commentsStatus}
@@ -1136,7 +1165,7 @@ function ShowcaseDetailContent({
         hasSession={hasSession}
         isMine={isMine}
         canReply={canReply}
-        onReply={setReplyTo}
+        onReply={handleReplyToComment}
         onOpenMenu={setCommentMenu}
         onShowMore={() => setCommentRenderLimit((n) => n + COMMENT_RENDER_STEP)}
         onLoadMore={() => {
@@ -1224,7 +1253,7 @@ function ShowcaseDetailContent({
                   key: "reply",
                   label: translate("Balas"),
                   icon: ChatCircle,
-                  onPress: () => setReplyTo(commentMenu),
+                  onPress: () => handleReplyToComment(commentMenu),
                 },
               ]
             : []),

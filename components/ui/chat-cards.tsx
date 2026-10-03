@@ -18,6 +18,7 @@ import { useRouter } from "expo-router"
 import type { ChatOrderCardPayload, ChatProductCardPayload } from "@/lib/api/chat"
 import { formatRupiah } from "@/lib/format"
 import { ROUTES } from "@/lib/routes"
+import { translate } from "@/lib/i18n/translate"
 
 import { Text } from "@/components/ui/text"
 import { Icon } from "@/components/ui/icon"
@@ -135,7 +136,7 @@ export const ChatProductCard = memo(function ChatProductCard({
             <PressableScale
               onPress={() => onBuy(card)}
               accessibilityRole="button"
-              accessibilityLabel={`Beli ${card.title} via escrow`}
+              accessibilityLabel={translate("Beli {x}", { x: card.title })}
               // CHT-013: bg-primary di atas bubble keluar (bg-primary) membuat
               // bentuk tombol tak terlihat. Overlay translusen mode-aware
               // (pola sama dengan tombol "Lihat"): putih/15 di light (bubble
@@ -147,7 +148,7 @@ export const ChatProductCard = memo(function ChatProductCard({
               }`}
             >
               <Text variant="caption" weight={700} tone="inverse">
-                Beli via Escrow
+                {translate("Beli")}
               </Text>
             </PressableScale>
           ) : null}

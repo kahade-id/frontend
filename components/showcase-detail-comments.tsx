@@ -11,7 +11,7 @@
  */
 import { useState } from "react"
 import { View } from "react-native"
-import type { Ref } from "react"
+import type { ReactNode, Ref } from "react"
 
 import type { ShowcaseComment, ShowcaseCommentWithReplies } from "@/lib/api/showcase"
 import { formatNumber } from "@/lib/format"
@@ -25,6 +25,8 @@ import { Text } from "@/components/ui/text"
 import { CommentRepliesToggle, ShowcaseCommentRow } from "@/components/ui/showcase-comment-row"
 
 export type ShowcaseDetailCommentsProps = {
+  /** Komposer komentar berada di utas, bukan di footer CTA pembelian. */
+  composer?: ReactNode
   comments: ShowcaseCommentWithReplies[]
   commentTotal: number
   commentsStatus: LoadMoreStatus
@@ -73,6 +75,7 @@ const REPLY_PREVIEW = 3
 const HIGHLIGHT_ROW = "rounded-md bg-surface-elevated px-2 py-2"
 
 export function ShowcaseDetailComments({
+  composer,
   comments,
   commentTotal,
   commentsStatus,
@@ -152,6 +155,8 @@ export function ShowcaseDetailComments({
         </View>
         <Divider className="mt-3" />
       </View>
+
+      {composer ? <View className="px-5 pt-3">{composer}</View> : null}
 
       {/* Polish 2026-10-02: gap antar komentar 20px (ala YouTube). */}
       <View className="gap-5 px-5 pb-6 pt-4">

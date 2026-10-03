@@ -26,6 +26,7 @@ import {
   Handshake,
   IdentificationBadge,
   Image as ImageIcon,
+  Info,
   Lock,
   PencilSimple,
   Prohibit,
@@ -1141,6 +1142,7 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
                           {b.shortLabel}
                         </Badge>
                       ))}
+                      <Icon icon={Info} size="xs" tone="default" />
                     </View>
                   </Pressable>
                   <VerificationSheet
@@ -1213,7 +1215,15 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
                 {profile.rating != null ? (
                   <Pressable
                     accessibilityRole="button"
-                    accessibilityLabel={translate("{x} dari {y}, buka ulasan", { x: formatDecimal(profile.rating), y: 5 })}
+                    accessibilityLabel={
+                      profile.ratingCount != null
+                        ? translate("{x} dari {y}, {z} ulasan", {
+                            x: formatDecimal(profile.rating),
+                            y: 5,
+                            z: formatNumber(profile.ratingCount),
+                          })
+                        : translate("{x} dari {y}, buka ulasan", { x: formatDecimal(profile.rating), y: 5 })
+                    }
                     hitSlop={TEXT_ROW_HIT_SLOP}
                     onPress={() => selectTab("ratings")}
                   >
@@ -1221,7 +1231,9 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
                       <Text variant="body" weight={700} tone="primary">
                         {formatDecimal(profile.rating)} ★{" "}
                       </Text>
-                      {translate("Ulasan")}
+                      {profile.ratingCount != null
+                        ? translate("({x} ulasan)", { x: formatNumber(profile.ratingCount) })
+                        : translate("Ulasan")}
                     </Text>
                   </Pressable>
                 ) : null}
@@ -1234,14 +1246,14 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
                     <Pressable
                       className="flex-row items-center gap-1"
                       accessibilityRole="button"
-                      accessibilityLabel={translate("Skor kepercayaan {x}, buka rincian", { x: profile.trustScore })}
+                      accessibilityLabel={translate("Skor kepercayaan {x} dari {y}, buka rincian", { x: profile.trustScore, y: 100 })}
                       hitSlop={TEXT_ROW_HIT_SLOP}
                       onPress={() => router.push(ROUTES.trustScore)}
                     >
                       {/* v2: skor = accent di semua permukaan (ikut TrustScoreCard). */}
                       <Icon icon={ShieldCheck} size="xs" tone="accent" weight="fill" />
                       <Text variant="body" weight={700} tone="accent">
-                        {profile.trustScore}
+                        {profile.trustScore}/100
                       </Text>
                       <Text variant="caption" tone="secondary">
                         {translate("Skor")}
@@ -1252,7 +1264,7 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
                       {/* v2: skor = accent di semua permukaan (ikut TrustScoreCard). */}
                       <Icon icon={ShieldCheck} size="xs" tone="accent" weight="fill" />
                       <Text variant="body" weight={700} tone="accent">
-                        {profile.trustScore}
+                        {profile.trustScore}/100
                       </Text>
                       <Text variant="caption" tone="secondary">
                         {translate("Skor")}
@@ -1291,15 +1303,18 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
                     </View>
                   </View>
 
-                  <View className="pt-1">
+                  <View className="gap-1 pt-1">
                     <Button
                       variant="secondary"
                       size="sm"
                       leftIcon={Handshake}
                       onPress={() => router.push(ROUTES.createTransactionWith(handle))}
                     >
-                      {translate("Beli via Escrow")}
+                      {translate("Beli Sekarang")}
                     </Button>
+                    <Text variant="caption" tone="secondary">
+                      {translate("Uang Anda disimpan Kahade dulu, diteruskan ke penjual setelah barang Anda terima.")}
+                    </Text>
                   </View>
                 </>
               ) : null}

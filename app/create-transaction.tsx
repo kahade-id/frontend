@@ -115,9 +115,9 @@ const STEPS = [
     description: "Pilih cara membuat pesanan dan peran Anda dalam transaksi ini.",
   },
   {
-    title: "Lawan",
-    heading: "Siapa lawan transaksi?",
-    description: "Kami memvalidasi username lawan sebelum Anda lanjut.",
+    title: "Mitra transaksi",
+    heading: "Siapa mitra transaksi Anda?",
+    description: "Kami memvalidasi username mitra sebelum Anda lanjut.",
   },
   {
     title: "Detail",
@@ -265,9 +265,9 @@ export default function CreateTransactionScreen() {
     (templatePrefill.amount ?? 0) > 0
   /**
    * FE-044: etalase TANPA orderLink (hanya counterpart + role=BUYER dari
-   * tombol "Beli via Escrow") — prefill tidak lengkap, tapi "Cara & peran"
+   * tombol "Beli Sekarang") — prefill tidak lengkap, tapi "Cara & peran"
    * sudah terjawab konteks karya (direct + BUYER). Mulai dari langkah
-   * "Lawan" (1), bukan "Cara & peran" (0). Tipe order/deadline/fee TIDAK
+   * "Mitra transaksi" (1), bukan "Cara & peran" (0). Tipe order/deadline/fee TIDAK
    * dikarang — tetap diisi manual di langkah Detail.
    */
   const showcasePrefillPartial =
@@ -890,12 +890,14 @@ export default function CreateTransactionScreen() {
             saat langkah pindah, jadi FadeIn ikut remount dan reveal terulang
             otomatis — tanpa key tambahan. */}
         <FadeIn duration="fast">
-        {/* Kepala langkah ala Register: H1 + penjelasan, progres di header.
-            Teks "Langkah X dari Y — judul" DIHAPUS (2026-09-23): progres
-            langkah sudah terwakili <StepProgress> di header — dua penanda
-            untuk satu fakta adalah kebisingan. */}
+        {/* Kepala langkah ala Register: judul + penjelasan dengan nomor langkah. */}
         <View className="gap-2 pb-2 pt-6">
-          <Heading level={1}>{meta.heading}</Heading>
+          <Text variant="caption" tone="secondary">
+            {translate("Langkah {x} dari {y}", { x: step + 1, y: STEPS.length })}
+          </Text>
+          <Heading level={1}>
+            {step === 1 ? translate("Siapa mitra transaksi Anda?") : meta.heading}
+          </Heading>
           <Text variant="body" tone="secondary">
             {meta.description}
           </Text>
@@ -1036,8 +1038,15 @@ export default function CreateTransactionScreen() {
               showShippingNote={orderType === "PHYSICAL_GOODS"}
             />
 
+            {mode === "direct" && sellerIdForVoucher ? (
+              <Text variant="caption" tone="secondary">
+                {translate("Hanya satu voucher yang bisa dipakai per transaksi: pilih voucher platform atau voucher toko penjual.")}
+              </Text>
+            ) : null}
+
             {mode === "direct" ? (
               <VoucherSection
+                title={translate("Voucher platform")}
                 initialCode={params.voucherCode}
                 applied={voucher ?? undefined}
                 onApply={(code) => void handleApplyVoucher(code)}

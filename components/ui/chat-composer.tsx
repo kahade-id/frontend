@@ -100,7 +100,7 @@ const DEFAULT_LABELS: ChatComposerLabels = {
   placeholder: "Tulis pesan",
   attach: "Tambah lampiran",
   send: "Kirim pesan",
-  mic: "Rekam voice note",
+  mic: "Rekam pesan suara",
   replyingTo: "Membalas",
   cancelReply: "Batalkan balasan",
 }
@@ -165,6 +165,10 @@ export function ChatComposer({
   ...rest
 }: ChatComposerProps) {
   const t = { ...DEFAULT_LABELS, ...labels }
+  const micLabel =
+    labels?.mic === undefined
+      ? translateProp("Rekam pesan suara") ?? t.mic
+      : translateProp(labels.mic) ?? labels.mic
   // Placeholder dibaca langsung oleh TextInput native → kamus + langganan bahasa.
   useLanguage()
   const { mode } = useTheme()
@@ -346,7 +350,7 @@ export function ChatComposer({
             variant="ghost"
             size="md"
             shape="pill"
-            accessibilityLabel={translateProp(t.mic) ?? t.mic}
+            accessibilityLabel={micLabel}
             onPress={onMicPress}
             disabled={disabled}
           />

@@ -73,11 +73,11 @@ export function validateVoiceNoteFile(input: { size: number; durationMs: number 
 export function voiceNoteValidationMessage(reason: Exclude<VoiceNoteValidation, { ok: true }>["reason"]): string {
   switch (reason) {
     case "too-big":
-      return `Ukuran voice note maksimal ${formatBytesId(CHAT_ATTACHMENT_MAX_BYTES)}.`
+      return `Ukuran pesan suara maksimal ${formatBytesId(CHAT_ATTACHMENT_MAX_BYTES)}.`
     case "too-short":
       return "Rekaman terlalu pendek — tahan dan rekam minimal 1 detik."
     case "too-long":
-      return "Durasi voice note maksimal 5 menit."
+      return "Durasi pesan suara maksimal 5 menit."
   }
 }
 

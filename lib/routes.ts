@@ -150,7 +150,7 @@ export const ROUTES = {
   createTransactionWith: (username: string, opts?: { fromShowcase?: boolean }) =>
     // L-04 (audit 2026-09-23): penonton karya orang lain pasti PEMBELI —
     // peran BUYER di-prefill, bukan disuruh memilih manual.
-    // FE-044: `fromShowcase` — tombol "Beli via Escrow" dari etalase membawa
+    // FE-044: `fromShowcase` — tombol "Beli Sekarang" dari etalase membawa
     // flag ini agar wizard mulai dari langkah 1 (bukan 0): mode & peran sudah
     // pasti (direct + BUYER), hanya detail order yang perlu diisi.
     ({
