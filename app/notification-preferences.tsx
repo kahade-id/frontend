@@ -22,7 +22,8 @@ import { useApiQuery } from "@/lib/use-api-query"
 import { isTimeInRange } from "@/lib/time-input"
 import { isWebPushConfigured } from "@/lib/web-push-config"
 import { registerWebPushDevice } from "@/lib/web-push"
-import { getDevicePushPermissionGranted } from "@/lib/push-notifications"
+import { getDevicePushPermissionGranted, registerPushDevice } from "@/lib/push-notifications"
+import { SecureKeys, getSecureItem } from "@/lib/secure-storage"
 
 import { Alert } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -72,6 +73,50 @@ export default function NotificationPreferencesScreen() {
       alive = false
     }
   }, [])
+
+  // P1-2 (audit FCM 2026-10-03): token terdaftar lokal?
+  // Izin OS granted tapi tidak ada token tersimpan = registrasi tidak pernah
+  // terjadi (mis. user menolak di rationale sheet awal) → tampilkan CTA
+  // "Aktifkan notifikasi" di bawah.
+  const [hasLocalPushToken, setHasLocalPushToken] = useState<boolean | null>(null)
+  const [activatingPush, setActivatingPush] = useState(false)
+  const refreshLocalPushToken = useCallback(() => {
+    let alive = true
+    void getSecureItem(SecureKeys.pushToken)
+      .then((t) => {
+        if (alive) setHasLocalPushToken(!!t)
+      })
+      .catch(() => {
+        if (alive) setHasLocalPushToken(false)
+      })
+    return () => {
+      alive = false
+    }
+  }, [])
+  useEffect(() => refreshLocalPushToken(), [refreshLocalPushToken])
+
+  const handleActivatePush = useCallback(async () => {
+    if (activatingPush) return
+    setActivatingPush(true)
+    try {
+      const deviceApi = {
+        registerDevice: (body: Parameters<typeof api.notifications.registerDevice>[0]) =>
+          api.notifications.registerDevice(body),
+        unregisterDevice: (deviceId: string) => api.notifications.unregisterDevice(deviceId),
+      }
+      await registerPushDevice(deviceApi, { force: true })
+      setHasLocalPushToken(true)
+      toast.show({ title: translate("Notifikasi diaktifkan"), tone: "success", duration: 2500 })
+    } catch {
+      toast.show({
+        title: translate("Gagal mengaktifkan notifikasi"),
+        description: translate("Coba lagi nanti."),
+        tone: "danger",
+      })
+    } finally {
+      setActivatingPush(false)
+    }
+  }, [activatingPush, toast])
 
   // CN-008: kirim timezone perangkat sekali saat preferensi dimuat,
   // agar quiet hours dievaluasi di zona waktu pengguna, bukan selalu WIB.
@@ -165,6 +210,27 @@ export default function NotificationPreferencesScreen() {
       persistent={
         <View className="gap-4 pt-3">
           <DeviceNotificationSettings />
+          {devicePushGranted === true && hasLocalPushToken === false ? (
+            <Alert
+              tone="warning"
+              title={translate("Notifikasi belum aktif di perangkat ini")}
+              action={
+                <Button
+                  variant="primary"
+                  size="sm"
+                  loading={activatingPush}
+                  disabled={activatingPush}
+                  onPress={() => void handleActivatePush()}
+                >
+                  {translate("Aktifkan notifikasi")}
+                </Button>
+              }
+            >
+              {translate(
+                "Izin sudah diberikan, tetapi perangkat belum terdaftar untuk menerima push. Ketuk tombol di bawah untuk mengaktifkan.",
+              )}
+            </Alert>
+          ) : null}
           <WebPushOptIn />
           <SectionHeader
             title={translate("Server")}

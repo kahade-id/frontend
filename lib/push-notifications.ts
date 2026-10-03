@@ -220,6 +220,40 @@ export function subscribeNotificationOpened(
 }
 
 /**
+ * P0-3 (audit FCM 2026-10-03): dengarkan rotasi token push.
+ *
+ * Expo push token bisa berubah di level OS (reinstall, rotasi, restore
+ * backup). Tanpa listener ini backend tetap memegang token lama yang sudah
+ * mati → push terkirim ke token mati → notifikasi hilang diam-diam.
+ *
+ * Callback menerima token baru dan mendaftarkan ulang dengan `force: true`
+ * (lewati perbandingan idempoten karena token SUDAH berubah).
+ * Kembalikan fungsi cleanup untuk dipanggil saat unmount.
+ */
+export function subscribePushTokenRefresh(api: RegisterDeviceApi): () => void {
+  let alive = true
+  let sub: { remove(): void } | undefined
+  void loadNotifications()
+    .then((Notifications) => {
+      if (!alive) return
+      sub = Notifications.addPushTokenListener(async (event) => {
+        const next = event?.data
+        if (typeof next !== "string" || !next) return
+        try {
+          await registerPushDevice(api, { force: true })
+        } catch (err) {
+          logWarn("push:token-refresh", err)
+        }
+      })
+    })
+    .catch((err) => logWarn("push:token-refresh-subscribe", err))
+  return () => {
+    alive = false
+    sub?.remove()
+  }
+}
+
+/**
  * Pasang handler foreground + channel Android. Idempoten; panggil sekali di
  * root layout setelah app siap.
  */

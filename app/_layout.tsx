@@ -104,7 +104,7 @@ import { fontAssetsBlocking, fontAssetsDeferred } from "@/lib/fonts"
 import { routeForPushData } from "@/lib/notification-routing"
 import { saveLastNativeRoute, suppressLastRouteRestore } from "@/lib/last-route"
 import { animationDurationForScreen, animationForScreen, getScreenId } from "@/lib/screen-transitions"
-import { setupNotifications, subscribeNotificationOpened } from "@/lib/push-notifications"
+import { setupNotifications, subscribeNotificationOpened, subscribePushTokenRefresh, registerPushDevice } from "@/lib/push-notifications"
 // PERF-FIX (bundle, 2026-09-30): `expo-notifications` (±1.6MB) kini dimuat
 // LAZY di dalam `lib/push-notifications.ts` (loadNotifications) — import
 // statis modul ini sudah murah dan tidak lagi menarik modul native saat
@@ -897,6 +897,36 @@ function AppShellInner() {
       }
     })
   }, [router, session.restoring, session.error, session.token])
+
+  // P0-2/P0-3 (audit FCM 2026-10-03): registrasi token push tiap app start.
+  //
+  // Dulu `registerPushDevice` hanya dipanggil sekali dari rationale sheet
+  // first-run — setelah logout→login token lokal dihapus tapi tidak pernah
+  // didaftarkan ulang (notifikasi hilang), dan rotasi token OS tidak
+  // terdeteksi (notifikasi ke token mati). Kini:
+  //  - tiap sesi valid: register idempoten (`force: false` — hanya kirim
+  //    bila token berubah dari yang tersimpan lokal),
+  //  - listener `addPushTokenListener`: bila OS merotasi token, daftar
+  //    ulang segera (`force: true`).
+  // Hanya native (web memakai FCM web via lib/web-push terpisah).
+  useEffect(() => {
+    if (Platform.OS === "web" || session.restoring || session.error || !session.token) return
+    const deviceApi = {
+      registerDevice: (body: Parameters<typeof notificationsApi.registerDevice>[0]) =>
+        notificationsApi.registerDevice(body),
+      unregisterDevice: (deviceId: string) => notificationsApi.unregisterDevice(deviceId),
+    }
+    let cancelled = false
+    // Daftarkan (idempoten) — jangan blokir boot bila gagal.
+    void registerPushDevice(deviceApi, { force: false }).catch((err) => {
+      if (!cancelled) logWarn("push:register-on-start", err)
+    })
+    const unsubscribeTokenRefresh = subscribePushTokenRefresh(deviceApi)
+    return () => {
+      cancelled = true
+      unsubscribeTokenRefresh()
+    }
+  }, [session.restoring, session.error, session.token])
 
   // OTA gate: cek versi minimum dari GET /v1/public/app-version (hanya
   // force-update bila versi lokal < minVersion). Tidak boleh melempar error:
