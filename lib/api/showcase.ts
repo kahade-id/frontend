@@ -237,6 +237,8 @@ export type ShowcaseComment = {
   showcaseId: string
   parentId?: string | null
   content: string
+  /** true = komentar di-soft-delete (tampil sebagai placeholder). */
+  isDeleted?: boolean
   /** true = disembunyikan pemilik item (hanya pemilik yang melihat). */
   isHidden?: boolean
   hiddenReason?: "SPAM" | "INAPPROPRIATE" | "HARASSMENT" | "OTHER" | null
@@ -1097,7 +1099,11 @@ function toNonNegativeInt(raw: unknown): number | undefined {
 export function parseShowcaseComment(raw: unknown): ShowcaseComment {
   const value = asRecord(raw)
   const author = asRecord(value?.author)
-  if (!value || typeof value.id !== "string" || typeof value.content !== "string" ||
+  // 2026-10-03: komentar yang di-soft-delete dikirim backend dengan content=null
+  // (placeholder agar thread balasan tidak yatim). Terima null bila isDeleted.
+  const isDeleted = value?.isDeleted === true
+  const contentOk = typeof value?.content === "string" || (isDeleted && value?.content == null)
+  if (!value || typeof value.id !== "string" || !contentOk ||
       !author || typeof author.userId !== "string") {
     throw invalidResponse("showcase:comment")
   }
@@ -1114,7 +1120,8 @@ export function parseShowcaseComment(raw: unknown): ShowcaseComment {
     id: value.id,
     showcaseId: typeof value.showcaseId === "string" ? value.showcaseId : "",
     parentId: typeof value.parentId === "string" ? value.parentId : null,
-    content: value.content,
+    content: typeof value.content === "string" ? value.content : "",
+    isDeleted,
     isHidden: value.isHidden === true,
     hiddenReason:
       reason === "SPAM" || reason === "INAPPROPRIATE" || reason === "HARASSMENT" || reason === "OTHER"

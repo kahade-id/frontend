@@ -524,7 +524,7 @@ export default function WalletHistoryScreen() {
               icon={WalletIcon}
               title={translate("Belum ada riwayat")}
               description={translate(
-                "Semua pergerakan dana Anda (top-up, penarikan, transfer, escrow) akan muncul di sini.",
+                "Semua pergerakan dana Anda (top-up, penarikan, transfer) akan muncul di sini.",
               )}
               action={
                 <Button fullWidth={false} onPress={() => router.push(ROUTES.topup)}>

@@ -482,7 +482,7 @@ export default function ExtensionScreen() {
         title={action?.kind === "APPROVE" ? "Setujui perpanjangan?" : "Tolak perpanjangan?"}
         description={
           action?.kind === "APPROVE"
-            ? translate("Tenggat pengiriman menjadi {x}. Dana tetap di escrow.", {
+            ? translate("Tenggat pengiriman menjadi {x}. Dana tetap aman di Kahade.", {
                 x: formatDateTimeWIB(addDays(deadline, action.extension.extensionDays)),
               })
             : "Tenggat pengiriman tidak berubah. Beri tahu penjual alasannya."

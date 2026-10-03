@@ -118,7 +118,7 @@ export default function AboutScreen() {
         <Card elevation="flat" className="items-center gap-3 p-6">
           <Logo variant="lockup" size="lg" />
           <Text variant="body" tone="secondary" className="text-center text-pretty">
-            Kahade adalah platform transaksi escrow (rekening bersama) yang
+            Kahade adalah platform jual-beli yang
             menahan dana pembayaran sampai barang atau jasa benar-benar diterima,
             sehingga jual-beli antar pengguna menjadi aman, terlacak, dan
             dipercaya.

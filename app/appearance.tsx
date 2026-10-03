@@ -152,7 +152,7 @@ export default function AppearanceScreen() {
          */}
         <View className="rounded-lg border border-border bg-surface p-4">
           <Text variant="body" tone="primary" className="text-pretty">
-            Contoh paragraf: dana escrow Rp2.500.000 untuk pesanan #KD-88213
+            Contoh paragraf: dana Rp2.500.000 untuk pesanan #KD-88213
             telah masuk dan menunggu konfirmasi penjual. Begini tampilan teks
             sepanjang ini pada skala {Math.round(fontScale * 100)}% yang Anda
             pilih — ubah dengan tombol A− / A+ di atas untuk melihat

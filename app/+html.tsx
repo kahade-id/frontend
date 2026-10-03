@@ -18,7 +18,7 @@ export default function Html({ children }: PropsWithChildren) {
         */}
         <meta
           name="description"
-          content="Kahade — jual beli online tanpa takut ditipu. Dana pembeli ditahan escrow sampai barang diterima, plus etalase sosial: like, komen, dan share produk favoritmu."
+          content="Kahade — jual beli online tanpa takut ditipu. Dana pembeli aman di Kahade sampai barang diterima, plus etalase sosial: like, komen, dan share produk favoritmu."
         />
         <meta property="og:type" content="website" />
         <meta property="og:site_name" content="Kahade" />
@@ -29,7 +29,7 @@ export default function Html({ children }: PropsWithChildren) {
         />
         <meta
           property="og:description"
-          content="Bayar aman lewat escrow — dana cair ke penjual setelah barang diterima. Jualan dan belanja semudah main media sosial."
+          content="Bayar aman via Kahade — dana diteruskan ke penjual setelah barang diterima. Jualan dan belanja semudah main media sosial."
         />
         <meta property="og:image" content="https://kahade.id/icon-512.png" />
         <meta name="twitter:card" content="summary" />

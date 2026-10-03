@@ -173,7 +173,7 @@ export default function NotificationDetailScreen() {
       setConfirmEligible(false)
       toast.show({
         title: "Pesanan dikonfirmasi diterima",
-        description: "Dana escrow diteruskan ke penjual.",
+        description: "Dana diteruskan ke penjual.",
         tone: "success",
         duration: 4000,
       })
@@ -302,7 +302,7 @@ export default function NotificationDetailScreen() {
                 Pesanan sudah sampai?
               </Text>
               <Text variant="caption" tone="secondary">
-                Konfirmasi penerimaan untuk meneruskan dana escrow ke penjual.
+                Konfirmasi penerimaan untuk meneruskan dana ke penjual.
               </Text>
               <Button variant="accent" onPress={() => setConfirmReleaseOpen(true)}>
                 Konfirmasi terima

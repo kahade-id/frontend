@@ -287,7 +287,7 @@ export default function DeliveryProofScreen() {
         showMutationError(toast.show, {
           failTitle: "Gagal mengonfirmasi penerimaan",
           uncertainHint: "Konfirmasi mungkin sudah diproses — memuat ulang status…",
-          uncertainDetail: "Dana escrow bisa sudah dirilis — jangan konfirmasi ulang.",
+          uncertainDetail: "Dana bisa sudah diteruskan ke penjual — jangan konfirmasi ulang.",
           err,
         })
       ) {
@@ -690,7 +690,7 @@ export default function DeliveryProofScreen() {
 
       <Dialog
         title="Konfirmasi penerimaan"
-        description="Dana di escrow akan dilepas ke penjual. Pastikan barang sudah sesuai sebelum melanjutkan."
+        description="Dana akan diteruskan ke penjual. Pastikan barang sudah sesuai sebelum melanjutkan."
         visible={confirmOpen}
         loading={confirming}
         confirmLabel="Ya, sudah diterima"

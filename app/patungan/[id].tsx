@@ -169,7 +169,7 @@ export default function PatunganDetailScreen() {
   const handleLink = useCallback(async () => {
     if (!myParticipation || linking) return
     if (orderId.trim().length < 4) {
-      setLinkError(translate("Masukkan ID pesanan escrow yang sudah dibayar."))
+      setLinkError(translate("Masukkan ID pesanan yang sudah dibayar."))
       return
     }
     setLinking(true)
@@ -381,7 +381,7 @@ export default function PatunganDetailScreen() {
                     )
                   }
                 >
-                  {translate("Bayar via escrow")}
+                  {translate("Bayar via Kahade")}
                 </Button>
                 <Button
                   variant="secondary"
@@ -465,7 +465,7 @@ export default function PatunganDetailScreen() {
           <Text variant="caption" tone="secondary">
             {translate(
               walletEnabled
-                ? "Setelah ikut, bayar via escrow lalu tautkan pesanan Anda. Target tercapai → cair ke host; gagal → pengembalian dana otomatis."
+                ? "Setelah ikut, bayar via Kahade lalu tautkan pesanan Anda. Target tercapai → cair ke host; gagal → pengembalian dana otomatis."
                 : "Setelah ikut, bayar lalu tautkan pesanan Anda. Target tercapai → cair ke rekening host; gagal → pengembalian dana otomatis.",
             )}
           </Text>
@@ -482,7 +482,7 @@ export default function PatunganDetailScreen() {
         onRequestClose={() => setLinkOpen(false)}
         // FRM-017: field bawah tidak tertutup keyboard di layar kecil.
         avoidKeyboard
-        title={translate("Tautkan pesanan escrow")}
+        title={translate("Tautkan pesanan")}
         footer={
           <Button fullWidth loading={linking} onPress={() => void handleLink()}>
             {translate("Tautkan")}

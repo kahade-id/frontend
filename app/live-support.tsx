@@ -74,7 +74,7 @@ const QUICK_TOPICS: { label: string; text: string }[] = [
   { label: "Isi saldo", text: "Saya butuh bantuan isi saldo/top-up" },
   { label: "Transfer", text: "Saya butuh bantuan transfer saldo" },
   { label: "Tarik dana", text: "Saya butuh bantuan tarik dana" },
-  { label: "Transaksi", text: "Transaksi escrow saya bermasalah" },
+  { label: "Transaksi", text: "Transaksi saya bermasalah" },
   { label: "Sengketa", text: "Saya ingin menanyakan sengketa" },
   { label: "Akun", text: "Saya tidak bisa masuk ke akun" },
 ]

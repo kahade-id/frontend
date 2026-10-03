@@ -55,7 +55,7 @@ export default function OnboardingScreen() {
         <VStack gap={3} className="items-center">
           <Logo variant="lockup" size="lg" />
           <Text variant="body" tone="secondary" className="text-center">
-            Jual beli aman dengan escrow.
+            Jual beli aman via Kahade.
           </Text>
         </VStack>
 

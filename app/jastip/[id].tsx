@@ -242,7 +242,7 @@ export default function JastipDetailScreen() {
   const handleLink = useCallback(async () => {
     if (!linkTarget || linking) return
     if (orderId.trim().length < 4) {
-      setLinkError(translate("Masukkan ID pesanan escrow yang sudah dibayar."))
+      setLinkError(translate("Masukkan ID pesanan yang sudah dibayar."))
       return
     }
     setLinking(true)
@@ -422,7 +422,7 @@ export default function JastipDetailScreen() {
                       )
                     }
                   >
-                    {translate("Bayar via escrow")}
+                    {translate("Bayar via Kahade")}
                   </Button>
                   <Button
                     variant="secondary"
@@ -595,7 +595,7 @@ export default function JastipDetailScreen() {
       >
         <View className="gap-4">
           <Text variant="caption" tone="secondary">
-            {translate("Harga dikunci transparan — peserta baru membayar escrow setelah ini.")}
+            {translate("Harga dikunci transparan — peserta baru membayar via Kahade setelah ini.")}
           </Text>
           <Input
             label={translate("Harga barang (Rp)")}
@@ -651,7 +651,7 @@ export default function JastipDetailScreen() {
         onRequestClose={() => setLinkTarget(null)}
         // FRM-017: field bawah tidak tertutup keyboard di layar kecil.
         avoidKeyboard
-        title={translate("Tautkan pesanan escrow")}
+        title={translate("Tautkan pesanan")}
         footer={
           <Button fullWidth loading={linking} onPress={() => void handleLink()}>
             {translate("Tautkan")}

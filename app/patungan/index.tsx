@@ -5,7 +5,7 @@
  * buat grup (POST /v1/patungan/groups): judul, target, deadline, slot,
  * mode BAGI_RATA (nominal per orang wajib) / CUSTOM.
  *
- * Desain yang disetujui user: semua peserta bayar ke escrow dulu sebelum
+ * Desain yang disetujui user: semua peserta bayar via Kahade dulu sebelum
  * deadline; target tercapai → cair ke host; gagal → auto-refund; mulai dari
  * patungan tertutup via link undangan (inviteCode). Overfunding → pengurang
  * merata per orang. Fee mengikuti escrow normal per order (tanpa logika
@@ -233,7 +233,7 @@ export default function PatunganScreen() {
           ? {
               icon: UsersThree,
               title: translate("Belum ada grup"),
-              description: translate("Buat grup patungan — semua peserta bayar ke escrow dulu; target tercapai baru cair ke host, gagal → pengembalian dana otomatis."),
+              description: translate("Buat grup patungan — semua peserta bayar via Kahade dulu; target tercapai baru cair ke host, gagal → pengembalian dana otomatis."),
               action: hasSession ? (
                 <Button fullWidth={false} onPress={openCreate}>
                   {translate("Buat grup")}
@@ -331,7 +331,7 @@ export default function PatunganScreen() {
             maxLength={4}
           />
           <Text variant="caption" tone="secondary">
-            {translate("Kelebihan dana (overfunding) dibagi rata sebagai pengurang per orang. Fee mengikuti aturan escrow normal per pesanan peserta.")}
+            {translate("Kelebihan dana (overfunding) dibagi rata sebagai pengurang per orang. Fee mengikuti aturan normal per pesanan peserta.")}
           </Text>
           {formError ? (
             <Text variant="caption" tone="danger">
