@@ -1070,7 +1070,7 @@
   "Hanya satu voucher yang bisa dipakai per transaksi: pilih voucher platform atau voucher toko penjual.": "Only one voucher can be used per transaction: choose either a platform voucher or a seller-shop voucher.",
   "Langkah {x} dari {y}": "Step {x} of {y}",
   "Tautan pesanan": "Order link",
-  "Batas waktu pengiriman": "Shipping deadline",
+"Batas waktu pengiriman": "Shipping deadline",
   "Akses mikrofon ditolak. Buka Pengaturan perangkat → Kahade → Mikrofon untuk mengaktifkan pesan suara.": "Microphone access denied. Open Device Settings → Kahade → Microphone to enable voice messages.",
   "Buat transaksi aman dari percakapan ini — uang Anda dilindungi Kahade.": "Create a secure transaction from this conversation — Kahade protects your money.",
   "Coba putar ulang pesan suara": "Try playing the voice message again",
@@ -1084,5 +1084,6 @@
   "Pesan suara tidak valid": "Invalid voice message",
   "Penjual baru — belum ada ulasan": "New seller — no reviews yet",
   "Putar pesan suara": "Play voice message",
-  "Rekam pesan suara": "Record a voice message"
+  "Rekam pesan suara": "Record a voice message",
+  "Batas waktu pengiriman": "Shipping deadline"
 }
