@@ -1,6 +1,6 @@
 /**
  * Kahade — pembentuk URL yang DIBAGIKAN keluar aplikasi (Order Link, kode
- * referral, profil publik).
+ * referral, profil publik, voucher).
  *
  * Satu tempat untuk host & path, supaya URL share tidak tersebar sebagai
  * literal di layar.
@@ -16,11 +16,11 @@
  *   - Backend biasanya sudah mengembalikan `url` publik (https) untuk Order
  *     Link; fungsi di sini hanya FALLBACK bila field itu kosong. Pemanggil
  *     selalu `link.url ?? orderLinkUrl(token)`.
- *   - Format publik profil/etalase mengikuti keputusan 1 Oktober 2026:
- *     `/<username>` dan `/p/<id>`. Rute internal Expo Router tetap terpisah
- *     (`/user/…`, `/showcase/…`); konfigurasi host/native tidak diubah.
- *   - Referral mengarah ke register dengan query `ref` yang dibaca form
- *     registrasi (bila didukung backend `ApplyReferralDto` setelah akun jadi).
+ *   - Format publik mengikuti keputusan 1 Oktober 2026 (gaya Instagram):
+ *     `/<username>` → profil, `/p/<id>` → etalase/post, `/v/<code>` →
+ *     voucher/promo, `/r/<code>` → undangan referral. Rute internal Expo
+ *     Router tetap terpisah (`/user/…`, `/showcase/…`, …); konfigurasi
+ *     host/native tidak diubah (app.json associatedDomains tetap kahade.id).
  *   - Skema kustom `kahade://` tetap didukung OS-level (app.json `scheme` +
  *     intent filter) untuk tautan lama yang sudah beredar — hanya tidak lagi
  *     dipakai untuk tautan BARU.
@@ -38,9 +38,15 @@ export function orderLinkUrl(token: string): string {
   return https(`/order-link/${encodeURIComponent(token)}`)
 }
 
-/** `https://kahade.id/register?ref=<code>` — ajakan referral. */
+/** `https://kahade.id/r/<code>` — undangan referral pendek (1 Oktober 2026).
+ * Dibuka aplikasi → layar referral dengan kode terisi; tanpa aplikasi → web. */
 export function referralUrl(code: string): string {
-  return https(`/register?ref=${encodeURIComponent(code)}`)
+  return https(`/r/${encodeURIComponent(code)}`)
+}
+
+/** `https://kahade.id/v/<code>` — tautan voucher/promo untuk dibagikan. */
+export function voucherUrl(code: string): string {
+  return https(`/v/${encodeURIComponent(code)}`)
 }
 
 /** `https://kahade.id/<username>` — profil publik (1 Oktober 2026). */
