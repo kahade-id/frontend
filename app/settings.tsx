@@ -43,12 +43,8 @@ import {
   Bank,
   Bell,
   Briefcase,
-  Buildings,
-  ChatTeardropDots,
   FileText,
-  Headset,
   Info,
-  Lifebuoy,
   MapPin,
   Moon,
   Scales,
@@ -241,15 +237,9 @@ export default function SettingsScreen() {
     },
   ]
 
-  // ── Bantuan ─────────────────────────────────────────────────────
-  const supportItems: MenuItemData[] = [
-    { id: "about-us", label: "Tentang Kami", icon: Buildings, route: ROUTES.about },
-    { id: "feedback", label: "Umpan Balik", icon: ChatTeardropDots, route: ROUTES.feedback },
-    // UX-NAV-006: label disamakan dengan drawer ("Bantuan Langsung") — satu
-    // rute ROUTES.liveSupport, satu label, di semua titik masuk.
-    { id: "live-support", label: "Bantuan Langsung", icon: Headset, route: ROUTES.liveSupport },
-    { id: "support-tickets", label: "Tiket Bantuan", icon: Lifebuoy, route: ROUTES.support },
-  ]
+  // 2026-10-03 (keputusan produk): menu Bantuan dihapus dari Pengaturan —
+  // sudah ada hub bantuan terpusat di drawer. Tentang Kami, Umpan Balik,
+  // Bantuan Langsung, dan Tiket Bantuan hanya diakses dari sana.
 
   // ── Legal ───────────────────────────────────────────────────────
   const legalItems: MenuItemData[] = [
@@ -264,10 +254,9 @@ export default function SettingsScreen() {
     () => [
       { title: "Akun", items: accountItems },
       { title: "Preferensi", items: preferenceItems },
-      { title: "Bantuan", items: supportItems },
       { title: "Legal", items: legalItems },
     ],
-    [accountItems, preferenceItems, supportItems, legalItems],
+    [accountItems, preferenceItems, legalItems],
   )
   const q = query.trim().toLowerCase()
   const filteredGroups = useMemo(
