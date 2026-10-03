@@ -29,6 +29,7 @@ import { Animated, Easing, View } from "react-native"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Button } from "@/components/ui/button"
 import { Icon } from "@/components/ui/icon"
+import { Dialog } from "@/components/ui/modal"
 import { Text } from "@/components/ui/text"
 import { useTheme } from "@/components/theme-provider"
 import { useReducedMotion } from "@/lib/use-reduced-motion"
@@ -73,6 +74,8 @@ export function VoiceNoteRecorder({
   const [playing, setPlaying] = useState(false)
   const [recordedUri, setRecordedUri] = useState<string | null>(null)
   const [sending, setSending] = useState(false)
+  // B3O-22: konfirmasi sebelum membuang rekaman yang berarti.
+  const [confirmDiscardOpen, setConfirmDiscardOpen] = useState(false)
 
   // UX-A11Y-007: label aksesibilitas harus ikut ganti bahasa.
   useLanguage()
@@ -132,6 +135,21 @@ export function VoiceNoteRecorder({
     setSending(false)
     setState("idle")
   }, [discardRecording, unloadSound])
+
+  /**
+   * B3O-22: back/backdrop/X saat ada rekaman yang berarti (>3 dtk sedang
+   * direkam, atau hasil rekaman di pratinjau) meminta konfirmasi dulu —
+   * sebelumnya rekaman hilang diam-diam.
+   */
+  const hasMeaningfulRecording =
+    (state === "recording" && durationMs > 3000) || (state === "review" && recordedUri != null)
+  const handleRequestClose = useCallback(() => {
+    if (hasMeaningfulRecording) {
+      setConfirmDiscardOpen(true)
+      return
+    }
+    onRequestClose()
+  }, [hasMeaningfulRecording, onRequestClose])
 
   // Minta izin saat sheet dibuka.
   useEffect(() => {
@@ -350,9 +368,10 @@ export function VoiceNoteRecorder({
   })()
 
   return (
+    <>
     <BottomSheet
       visible={visible}
-      onRequestClose={onRequestClose}
+      onRequestClose={handleRequestClose}
       title={title}
       description={
         state === "recording"
@@ -442,5 +461,20 @@ export function VoiceNoteRecorder({
         ) : null}
       </View>
     </BottomSheet>
+    {/* B3O-22: konfirmasi buang rekaman — sibling sheet, bukan anak. */}
+    <Dialog
+      visible={confirmDiscardOpen}
+      title={translate("Buang rekaman?")}
+      description={translate("Rekaman pesan suara ini akan dihapus dan tidak bisa dikembalikan.")}
+      confirmLabel={translate("Buang")}
+      cancelLabel={translate("Lanjutkan")}
+      destructive
+      onConfirm={() => {
+        setConfirmDiscardOpen(false)
+        onRequestClose()
+      }}
+      onRequestClose={() => setConfirmDiscardOpen(false)}
+    />
+    </>
   )
 }

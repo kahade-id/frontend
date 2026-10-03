@@ -704,6 +704,9 @@ function ShellRouteEffects({ session, setRealtimeNeeded }: {
           webExpiredNextRef.current = null
           redirectToLoginWithNext(next)
         }}
+        // B3O-41: back/Escape yang ditolak tetap memberi sinyal (jangan diam).
+        dismissOnBackdrop={false}
+        swallowFeedback="Sesi telah berakhir — masuk kembali untuk melanjutkan."
         onRequestClose={() => undefined}
         destructive={false}
       />
@@ -1328,6 +1331,9 @@ function AppShellInner() {
           }
         }}
         onRequestClose={() => undefined}
+        // B3O-41: back/Escape yang ditolak tetap memberi sinyal (jangan diam).
+        dismissOnBackdrop={false}
+        swallowFeedback="Perbarui aplikasi untuk melanjutkan."
         destructive={false}
       />
       {/*

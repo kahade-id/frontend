@@ -65,10 +65,10 @@ export function AddressPicker({
   }, [load])
 
   /**
-   * FE-123: form tambah alamat inline (sheet bertumpuk) — pengguna yang
-   * bukunya kosong bisa menambah alamat tanpa keluar dari alur checkout.
-   * Sheet bawah TIDAK ditutup (nested Portal), daftar di-refresh otomatis
-   * dan alamat baru langsung terpilih.
+   * FE-123: form tambah alamat inline — pengguna yang bukunya kosong bisa
+   * menambah alamat tanpa keluar dari alur checkout. B3O-01 (§9.9): sheet
+   * bawah disembunyikan selama sheet ini terbuka (visible di-gate);
+   * daftar di-refresh otomatis dan alamat baru langsung terpilih.
    */
   const [addOpen, setAddOpen] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -162,7 +162,9 @@ export function AddressPicker({
       </PressableScale>
 
       <BottomSheet
-        visible={sheetOpen}
+        // B3O-01 (§9.9): sheet bawah disembunyikan selama sheet "Tambah
+        // alamat" terbuka — tidak ada dua BottomSheet co-visible.
+        visible={sheetOpen && !addOpen}
         onRequestClose={() => setSheetOpen(false)}
         title={translate("Alamat pengiriman")}
         footer={
@@ -230,7 +232,8 @@ export function AddressPicker({
         </View>
       </BottomSheet>
 
-      {/* FE-123: sheet bertumpuk — form tambah alamat di dalam alur picker. */}
+      {/* FE-123: form tambah alamat di dalam alur picker — sheet bawah
+          disembunyikan selama sheet ini terbuka (§9.9, B3O-01). */}
       <BottomSheet
         visible={addOpen}
         onRequestClose={() => setAddOpen(false)}

@@ -102,6 +102,7 @@ function isTopupMethod(value: string | null): value is TopupDto["method"] {
 type Step = "amount" | "method" | "result"
 
 export default function TopupScreen() {
+  const navigation = useNavigation()
   // Mode Tanpa Wallet Internal (BI-safe): flag false = layar diganti
   // <WalletDisabledScreen/> (deep link ikut tertutup).
   const walletGate = useWalletGate()
@@ -341,17 +342,14 @@ export default function TopupScreen() {
       return () => sub.remove()
     }, [goBack]),
   )
-
-  // B3W-01: pasangan web untuk guard P1-T4 di atas. `BackHandler` tidak
-  // pernah fire di web (no-op react-native-web), jadi browser back butuh
-  // `usePreventRemove`: POP dicegat lalu entri history browser di-rollback
-  // oleh expo-router. Perilaku disamakan dengan hardware back — mundur satu
-  // langkah bila ada; di langkah hasil pop dibiarkan (intent top-up sudah
-  // dibuat di server + bisa dilanjutkan via PendingActionsBanner). Murni
-  // guard navigasi; logika uang tidak disentuh.
-  const navigation = useNavigation()
+  // B3W-01 + B3O-21: pasangan web & iOS untuk guard P1-T4 di atas.
+  // `BackHandler` tidak pernah fire di web (no-op react-native-web) maupun
+  // iOS swipe-back, jadi browser back & swipe butuh `usePreventRemove` —
+  // replika persis `goBack()` agar perilaku lintas platform identik.
+  // Overlay terbuka → serahkan ke overlay terdalam (B3W-02).
+  // Murni guard navigasi; logika uang tidak disentuh.
   const wizardDirty = result == null && (amount > 0 || methodId != null)
-  usePreventRemove(wizardDirty, ({ data }) => {
+  usePreventRemove(step === "method" || wizardDirty, ({ data }) => {
     // Overlay terbuka (mis. sheet pilih metode) → serahkan ke overlay
     // terdalam (B3W-02); jangan step-back wizard.
     if (hasOpenOverlay()) return

@@ -551,7 +551,9 @@ export function ShowcaseCommentsSheet({
   return (
     <BottomSheet
       avoidKeyboard
-      visible={item != null}
+      // B3O-01 (§9.9): sheet komentar disembunyikan selama ActionSheet
+      // "Opsi Komentar" terbuka — tidak ada dua sheet co-visible.
+      visible={item != null && commentMenu == null}
       onRequestClose={onRequestClose}
       title={headerTitle}
       padding="none"

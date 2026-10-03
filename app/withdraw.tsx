@@ -84,6 +84,7 @@ type ProgressState = "PROCESSING" | "SUCCESS" | "FAILURE"
 const DEFAULT_OTP_COOLDOWN_S = 60
 
 export default function WithdrawScreen() {
+  const navigation = useNavigation()
   const insets = useSafeAreaInsets()
   const toast = useToast()
   /**
@@ -434,8 +435,11 @@ export default function WithdrawScreen() {
   // UI-W010: tombol back header saat sheet verifikasi terbuka harus melewati
   // penjagaan yang sama dengan menutup sheet (A-06) — jangan langsung
   // router.back() saat OTP penarikan masih pending.
+  // B3O-40: saat overlay hasil (progressState != null) tampil, hasil sudah
+  // final — telan back, jangan tawarkan dialog "Batalkan penawaran".
   const handleHeaderBack = useCallback(() => {
     if (step === "verify") {
+      if (progressState != null) return
       if (submitting || cancelling) return
       if (verifyMode === "otp" && txId) {
         setCloseConfirmOpen(true)
@@ -447,7 +451,7 @@ export default function WithdrawScreen() {
     }
     if (router.canGoBack()) router.back()
     else router.replace(isLegacy ? ROUTES.bankAccounts : ROUTES.wallet)
-  }, [step, verifyMode, txId, submitting, cancelling, isLegacy])
+  }, [step, verifyMode, txId, submitting, cancelling, isLegacy, progressState])
 
   // TX2-P1: hardware back = seperti tombol back header (jaga OTP pending).
   // Tanpa ini hardware back pop mentah melewati guard dialog pembatalan.
@@ -460,19 +464,18 @@ export default function WithdrawScreen() {
       return () => sub.remove()
     }, [handleHeaderBack]),
   )
-
-  // B3W-01: pasangan web untuk guard TX2-P1 di atas. `BackHandler` tidak
-  // pernah fire di web (no-op react-native-web), jadi browser back butuh
-  // `usePreventRemove` — replika persis handleHeaderBack agar perilaku
-  // lintas platform identik (terutama dialog "penarikan masih menunggu OTP").
-  // Aksi non-back (replace internal: batal OTP → riwayat, ganti PIN, dsb.)
-  // diteruskan apa adanya via objek aksi yang sama. Keluar layar ditunda ke
-  // efek (pola create-transaction): dispatch aksi BARU sinkron di callback =
-  // loop beforeRemove. Murni guard navigasi; logika uang tidak disentuh.
-  const navigation = useNavigation()
+  // B3W-01 + B3O-21: pasangan web & iOS untuk guard TX2-P1 di atas.
+  // `BackHandler` tidak pernah fire di web (no-op react-native-web) maupun
+  // iOS swipe-back, jadi browser back & swipe butuh `usePreventRemove` —
+  // replika persis handleHeaderBack agar perilaku lintas platform identik
+  // (terutama dialog "penarikan masih menunggu OTP"). Aksi non-back
+  // (replace internal: batal OTP → riwayat, ganti PIN, dsb.) diteruskan apa
+  // adanya. Keluar layar ditunda ke efek (pola create-transaction).
+  // B3O-40: back ditelan selama overlay hasil (~1,4 dtk) & submit/batal
+  // berjalan. Murni guard navigasi; logika uang tidak disentuh.
   const [intentionalLeave, setIntentionalLeave] = useState(false)
   const withdrawDirty = result == null && (amount > 0 || accountId != null)
-  usePreventRemove(withdrawDirty && !intentionalLeave, ({ data }) => {
+  usePreventRemove((step === "verify" || withdrawDirty) && !intentionalLeave, ({ data }) => {
     // Overlay/dialog terbuka → serahkan ke overlay terdalam (B3W-02).
     if (hasOpenOverlay()) return
     const action = data.action
@@ -483,7 +486,8 @@ export default function WithdrawScreen() {
       return
     }
     if (step === "verify") {
-      // Seperti Android: telan back selama submit/batal berjalan.
+      // B3O-40: seperti Android — telan back selama overlay hasil & submit/batal berjalan.
+      if (progressState != null) return
       if (submitting || cancelling) return
       if (verifyMode === "otp" && txId) {
         setCloseConfirmOpen(true)
@@ -829,6 +833,10 @@ export default function WithdrawScreen() {
       <BottomSheet
         visible={step === "verify"}
         onRequestClose={() => {
+          // B3O-40: overlay hasil sedang tampil (progressState != null) =
+          // penarikan sudah final — telan tutup, jangan tawarkan dialog
+          // "Batalkan penawaran" yang salah sasaran.
+          if (progressState != null) return
           if (submitting || cancelling) return
           // A-06 (audit): saat OTP pending, `txId` sudah dibuat di server —
           // menutup sheet begitu saja meninggalkan penarikan PENDING_OTP yang

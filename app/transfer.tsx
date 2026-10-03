@@ -85,6 +85,7 @@ type Step = "form" | "confirm" | "pin" | "done"
 /** State overlay progres setelah PIN disubmit (processing → sukses/gagal). */
 type ProgressState = "PROCESSING" | "SUCCESS" | "FAILURE"
 export default function TransferScreen() {
+  const navigation = useNavigation()
   // Mode Tanpa Wallet Internal (BI-safe): flag false = layar diganti
   // <WalletDisabledScreen/> (deep link ikut tertutup).
   const walletGate = useWalletGate()
@@ -391,15 +392,15 @@ export default function TransferScreen() {
       return () => sub.remove()
     }, [step, formSubStep, handleBack]),
   )
-
-  // B3W-01: pasangan web untuk guard P1-T4 di atas. `BackHandler` tidak
-  // pernah fire di web (no-op react-native-web), jadi browser back butuh
-  // `usePreventRemove` — replika persis logika hardware back agar perilaku
-  // lintas platform identik. Aksi non-back (replace/push internal: struk,
-  // ganti PIN, dsb.) diteruskan apa adanya via objek aksi yang sama.
-  // Keluar layar ditunda ke efek (pola create-transaction): dispatch aksi
-  // BARU secara sinkron di dalam callback = loop beforeRemove. Murni guard
-  // navigasi; logika uang tidak disentuh.
+  // B3W-01 + B3O-21: pasangan web & iOS untuk guard P1-T4 di atas.
+  // `BackHandler` tidak pernah fire di web (no-op react-native-web) maupun
+  // iOS swipe-back, jadi browser back & swipe butuh `usePreventRemove` —
+  // replika persis logika hardware back agar perilaku lintas platform
+  // identik. Aksi non-back (replace/push internal: struk, ganti PIN, dsb.)
+  // diteruskan apa adanya via objek aksi yang sama. Keluar layar ditunda ke
+  // efek (pola create-transaction): dispatch aksi BARU secara sinkron di
+  // dalam callback = loop beforeRemove. Murni guard navigasi; logika uang
+  // tidak disentuh.
   const navigation = useNavigation()
   const [intentionalLeave, setIntentionalLeave] = useState(false)
   const transferDirty =
@@ -416,6 +417,7 @@ export default function TransferScreen() {
       navigation.dispatch(action)
       return
     }
+    // Cerminan onHardwareBack di atas — murni setState, tanpa navigasi.
     if (step === "form" && formSubStep === "amount") {
       setFormSubStep("recipient")
       setAmount(0)
