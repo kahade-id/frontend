@@ -23,8 +23,9 @@
  *   - Upload dilakukan saat submit (bukan saat pilih), persis pola KYC:
  *     tombol submit `loading` selama semua berkas diupload.
  */
-import { useCallback, useRef, useState } from "react"
-import { TextInput, View } from "react-native"
+import { useCallback, useEffect, useRef, useState } from "react"
+import { Platform, TextInput, View } from "react-native"
+import { useNavigation, usePreventRemove, type NavigationAction } from "@react-navigation/native"
 import { Plus } from "phosphor-react-native"
 import { translate } from "@/lib/i18n/translate"
 
@@ -46,6 +47,7 @@ import { useApiQuery } from "@/lib/use-api-query"
 
 import { Button } from "@/components/ui/button"
 import { DataScreen } from "@/components/ui/data-screen"
+import { Dialog } from "@/components/ui/modal"
 import { Field } from "@/components/ui/field"
 import { FormSection } from "@/components/ui/form-section"
 import { Input } from "@/components/ui/input"
@@ -75,6 +77,7 @@ function npwpDigits(value: string): number {
 
 export default function BusinessVerificationScreen() {
   const toast = useToast()
+  const navigation = useNavigation()
 
   /**
    * Status, tipe akun, dan riwayat dimuat bersama (satu query): riwayat yang
@@ -110,6 +113,10 @@ export default function BusinessVerificationScreen() {
   const canSubmit = isBusiness && (uiStatus === "NOT_SUBMITTED" || isResubmit)
 
   const [formOpen, setFormOpen] = useState(false)
+  const [discardOpen, setDiscardOpen] = useState(false)
+  const [intentionalLeave, setIntentionalLeave] = useState(false)
+  const pendingNavigation = useRef<NavigationAction | null>(null)
+  const cancelFormOnDiscard = useRef(false)
   const [businessName, setBusinessName] = useState("")
   const [npwpNumber, setNpwpNumber] = useState("")
   const [deedNumber, setDeedNumber] = useState("")
@@ -161,6 +168,77 @@ export default function BusinessVerificationScreen() {
     docs.length >= 1 &&
     docs.length <= MAX_DOCUMENTS
 
+  const hasUnsavedChanges =
+    formOpen &&
+    Boolean(
+      businessName.trim() ||
+        npwpNumber.trim() ||
+        deedNumber.trim() ||
+        siupNumber.trim() ||
+        docs.length > 0,
+    )
+
+  usePreventRemove((hasUnsavedChanges || (formOpen && submitting)) && !intentionalLeave, ({ data }) => {
+    if (formOpen && submitting) {
+      toast.show({
+        title: "Verifikasi sedang dikirim",
+        description: "Tunggu sampai pengiriman selesai sebelum meninggalkan layar.",
+        tone: "info",
+      })
+      return
+    }
+    pendingNavigation.current = data.action
+    cancelFormOnDiscard.current = false
+    setDiscardOpen(true)
+  })
+
+  useEffect(() => {
+    if (!intentionalLeave) return
+    const action = pendingNavigation.current
+    pendingNavigation.current = null
+    if (action) navigation.dispatch(action)
+  }, [intentionalLeave, navigation])
+
+  // The navigation guard does not cover a browser refresh/tab close.
+  useEffect(() => {
+    if (Platform.OS !== "web" || !hasUnsavedChanges) return
+    const warn = (event: BeforeUnloadEvent) => {
+      event.preventDefault()
+      event.returnValue = ""
+    }
+    globalThis.addEventListener?.("beforeunload", warn)
+    return () => globalThis.removeEventListener?.("beforeunload", warn)
+  }, [hasUnsavedChanges])
+
+  const requestCloseForm = useCallback(() => {
+    if (submitting) return
+    if (hasUnsavedChanges) {
+      pendingNavigation.current = null
+      cancelFormOnDiscard.current = true
+      setDiscardOpen(true)
+      return
+    }
+    resetForm()
+    setFormOpen(false)
+  }, [hasUnsavedChanges, resetForm, submitting])
+
+  const cancelDiscard = useCallback(() => {
+    pendingNavigation.current = null
+    cancelFormOnDiscard.current = false
+    setDiscardOpen(false)
+  }, [])
+
+  const confirmDiscard = useCallback(() => {
+    setDiscardOpen(false)
+    if (cancelFormOnDiscard.current) {
+      cancelFormOnDiscard.current = false
+      resetForm()
+      setFormOpen(false)
+      return
+    }
+    setIntentionalLeave(true)
+  }, [resetForm])
+
   const handleSubmit = useCallback(async () => {
     if (!formValid) return
     setSubmitting(true)
@@ -206,6 +284,7 @@ export default function BusinessVerificationScreen() {
   return (
     <DataScreen
       title="Verifikasi Bisnis"
+      keyboardAvoiding
       state={query}
       loadingMessage="Memuat status verifikasi bisnis…"
     >
@@ -368,7 +447,7 @@ export default function BusinessVerificationScreen() {
                 variant="ghost"
                 fullWidth={false}
                 disabled={submitting}
-                onPress={() => setFormOpen(false)}
+                onPress={requestCloseForm}
               >
                 Batal
               </Button>
@@ -401,6 +480,17 @@ export default function BusinessVerificationScreen() {
           ) : null}
         </>
       )}
+      <Dialog
+        title="Buang isian verifikasi?"
+        description="Data dan dokumen yang sudah dipilih akan dihapus jika Anda keluar sekarang."
+        visible={discardOpen}
+        destructive
+        confirmLabel="Buang isian"
+        cancelLabel="Lanjutkan mengisi"
+        onConfirm={confirmDiscard}
+        onCancel={cancelDiscard}
+        onRequestClose={cancelDiscard}
+      />
     </DataScreen>
   )
 }
