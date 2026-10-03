@@ -180,7 +180,7 @@ const AppDrawer = lazy(() =>
 const CreateSheet = lazy(() =>
   import("@/components/ui/create-sheet").then((m) => ({ default: m.CreateSheet })),
 )
-import { drawerProgress, useDrawerOpen } from "@/lib/drawer"
+import { closeDrawer, drawerProgress, isDrawerOpen, useDrawerOpen } from "@/lib/drawer"
 import { useCreateSheetOpen } from "@/lib/create-sheet"
 import { useToast } from "@/components/ui/toast"
 
@@ -471,6 +471,11 @@ function ShellRouteEffects({ session, setRealtimeNeeded }: {
   useEffect(() => {
     if (Platform.OS !== "android") return
     const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+      // B2-07: drawer terbuka → tutup dulu, jangan navigasi/exit di belakangnya.
+      if (isDrawerOpen()) {
+        closeDrawer()
+        return true
+      }
       if (!isShellTabPath(pathname)) {
         // P1-B3: non-shell path tanpa riwayat — fallback ke induk logis
         // (mis. deeplink cold-start) alih-alih keluar aplikasi.

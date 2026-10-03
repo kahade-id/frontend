@@ -106,14 +106,9 @@ export default function RegisterScreen() {
     // tetap kembali ke tujuan setelah masuk.
     const hasNext = typeof next === "string" && next.startsWith("/")
     const loginHref = hasNext ? ({ pathname: "/login", params: { next } } as const) : ROUTES.login
-    // Bila `next` ada, SELALU replace: GuestLoginPrompt membuka register via
-    // replace, jadi Back bisa mendarat di halaman sebelum target (bukan login)
-    // dan `next` hilang.
-    if (!hasNext && router.canGoBack()) {
-      router.back()
-    } else {
-      router.replace(loginHref)
-    }
+    // A2F-03: SELALU replace eksplisit ke login — router.back() dari
+    // web-guest-banner (push) mendarat kembali di banner, bukan di Masuk.
+    router.replace(loginHref)
   }, [router, next])
 
   const handleSubmit = useCallback(async () => {

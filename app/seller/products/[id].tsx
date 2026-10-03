@@ -3,13 +3,14 @@
  * POST/PUT /v1/products · tambah/edit katalog dengan validasi SKU.
  * Dipanggil sebagai /seller/products/new atau /seller/products/[id].
  */
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { ScrollView, View } from "react-native"
 import { useLocalSearchParams } from "expo-router"
 
 import { api } from "@/lib/api"
 import { goBackOrNavigate } from "@/lib/navigation"
 import { ROUTES } from "@/lib/routes"
+import { useLeaveConfirm } from "@/lib/use-leave-confirm"
 import type { Product, ProductStatus } from "@/lib/api/products"
 import { PRODUCT_STATUS_LABEL } from "@/lib/api/products"
 import { formatRupiah } from "@/lib/format"
@@ -20,6 +21,7 @@ import { showMutationError } from "@/lib/mutation-toast"
 import { useToast } from "@/components/ui/toast"
 
 import { Button } from "@/components/ui/button"
+import { Dialog } from "@/components/ui/modal"
 import { Header } from "@/components/ui/header"
 import { Input } from "@/components/ui/input"
 import { Screen } from "@/components/ui/screen"
@@ -86,6 +88,12 @@ export default function SellerProductFormScreen() {
   )
 
   const existing = existingQuery.data
+  // B2-SC-05: snapshot nilai awal untuk guard "buang perubahan".
+  const initialRef = useRef({
+    sku: "", name: "", description: "", category: "",
+    priceIdr: null as number | null, stock: "0", weight: "",
+    lowStock: "5", status: "DRAFT" as ProductStatus,
+  })
   useEffect(() => {
     if (existing && !hydrated) {
       setHydrated(true)
@@ -98,8 +106,28 @@ export default function SellerProductFormScreen() {
       setWeight(existing.weightGrams ? String(existing.weightGrams) : "")
       setLowStock(String(existing.lowStockThreshold))
       setStatus(existing.status)
+      initialRef.current = {
+        sku: existing.sku, name: existing.name,
+        description: existing.description ?? "", category: existing.category,
+        priceIdr: existing.priceRupiah, stock: String(existing.quantityAvailable),
+        weight: existing.weightGrams ? String(existing.weightGrams) : "",
+        lowStock: String(existing.lowStockThreshold), status: existing.status,
+      }
     }
   }, [existing, hydrated])
+  const i = initialRef.current
+  // B2-SC-05: produk baru (belum hydrate) → dirty bila ada isian non-default.
+  const dirty = !saving && (
+    sku !== i.sku || name !== i.name || description !== i.description ||
+    category !== i.category || priceIdr !== i.priceIdr || stock !== i.stock ||
+    weight !== i.weight || lowStock !== i.lowStock || status !== i.status
+  )
+  // B2-SC-05: guard perubahan belum disimpan — pola yang sama dengan edit-profile.
+  const leaveConfirm = useLeaveConfirm(dirty, {
+    title: "Buang perubahan?",
+    description: "Perubahan produk yang belum disimpan akan hilang.",
+    confirmLabel: "Ya, buang",
+  })
 
   async function save() {
     // Kontrak backend: priceRupiah dalam RUPIAH bulat (server konversi ke sen).
@@ -269,6 +297,7 @@ export default function SellerProductFormScreen() {
         <Header title="Tambah Produk" />
         {/* FE-115: ketukan tombol tidak tertelan saat keyboard terbuka */}
         <ScrollView keyboardShouldPersistTaps="handled">{formFields}</ScrollView>
+        <Dialog {...leaveConfirm.dialogProps} />
       </Screen>
     )
   }
@@ -281,6 +310,7 @@ export default function SellerProductFormScreen() {
       keyboardAvoiding
     >
       {existing ? formFields : null}
+      <Dialog {...leaveConfirm.dialogProps} />
     </DataScreen>
   )
 }

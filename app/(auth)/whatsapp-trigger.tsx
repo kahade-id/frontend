@@ -34,8 +34,9 @@
  * itu `/whatsapp-trigger?...` menjadi open-redirect / peluncur skema arbitrary.
  */
 import { useCallback, useEffect, useRef, useState } from "react"
-import { AppState, Linking, ScrollView, View } from "react-native"
+import { AppState, BackHandler, Linking, ScrollView, View } from "react-native"
 import { useRouter } from "expo-router"
+import { useFocusEffect } from "@react-navigation/native"
 import { ArrowsClockwise, WhatsappLogo, WifiSlash } from "phosphor-react-native"
 
 import { Alert } from "@/components/ui/alert"
@@ -59,6 +60,7 @@ import { safeWhatsAppLink } from "@/lib/external-url"
 import { formatPhoneId } from "@/lib/format"
 import { getAuthLocation } from "@/lib/location"
 import { getOtpFlow, patchOtpFlow, setOtpFlow } from "@/lib/otp-flow"
+import { setPendingMigrationToken } from "@/lib/phone-migration-token"
 import { AuthFlowLoading, AuthFlowMissing } from "@/lib/auth-flow-gate"
 import { useOtpFlow } from "@/lib/use-otp-flow"
 import { ROUTES } from "@/lib/routes"
@@ -487,6 +489,37 @@ export default function WhatsappTriggerScreen() {
     router.replace(ROUTES.login)
   }
 
+  // A2F-01: tombol "Kembali" — untuk migrate_phone, kembalikan migration
+  // token ke holder SEBELUM back, mengikuti pola verify-otp (BATCH4-B4).
+  // Tanpa ini back mendarat di phone-migration dengan token yang sudah
+  // dibakar → layar "Sesi migrasi tidak valid".
+  const handleBack = useCallback(() => {
+    stopPolling()
+    if (purpose === "migrate_phone" && flow?.migrationToken) {
+      setPendingMigrationToken(flow.migrationToken)
+    }
+    if (router.canGoBack()) {
+      router.back()
+      return
+    }
+    // P2-D1: fallback spesifik per purpose — jangan selalu login.
+    if (purpose === "migrate_phone") router.replace(ROUTES.phoneMigration())
+    else if (purpose === "forgot_password") router.replace(ROUTES.forgotPassword())
+    else if (purpose === "register") router.replace(ROUTES.register)
+    else router.replace(ROUTES.login)
+  }, [router, purpose, flow?.migrationToken])
+
+  // A2F-01: hardware back memakai jalur yang sama (pulihkan token dulu).
+  useFocusEffect(
+    useCallback(() => {
+      const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+        handleBack()
+        return true
+      })
+      return () => sub.remove()
+    }, [handleBack]),
+  )
+
   // Jangan render tanpa alur aktif — tetapi JANGAN blank: pemulihan sedang
   // berjalan → loading; benar-benar tidak ada → pesan + tombol kembali.
   if (flowStatus === "loading") {
@@ -609,16 +642,7 @@ export default function WhatsappTriggerScreen() {
             <View className="flex-row items-center justify-center gap-6">
               {/* Jalan lintas-alur tetap generik untuk semua purpose (anti-enumerasi). */}
               <TextLink onPress={() => { stopPolling(); router.replace(ROUTES.login) }}>Masuk</TextLink>
-              <TextLink onPress={() => {
-                if (router.canGoBack()) router.back()
-                else {
-                  // P2-D1: fallback spesifik per purpose — jangan selalu login.
-                  if (purpose === "migrate_phone") router.replace(ROUTES.phoneMigration())
-                  else if (purpose === "forgot_password") router.replace(ROUTES.forgotPassword())
-                  else if (purpose === "register") router.replace(ROUTES.register)
-                  else router.replace(ROUTES.login)
-                }
-              }}>Kembali</TextLink>
+              <TextLink onPress={handleBack}>Kembali</TextLink>
               {purpose === "forgot_password" && formError ? (
                 <TextLink onPress={() => router.push(ROUTES.liveSupport)}>Minta bantuan</TextLink>
               ) : null}
