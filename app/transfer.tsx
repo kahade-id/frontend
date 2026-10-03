@@ -401,7 +401,6 @@ export default function TransferScreen() {
   // efek (pola create-transaction): dispatch aksi BARU secara sinkron di
   // dalam callback = loop beforeRemove. Murni guard navigasi; logika uang
   // tidak disentuh.
-  const navigation = useNavigation()
   const [intentionalLeave, setIntentionalLeave] = useState(false)
   const transferDirty =
     step !== "done" &&
