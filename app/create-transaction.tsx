@@ -115,9 +115,9 @@ const STEPS = [
     description: "Pilih cara membuat pesanan dan peran Anda dalam transaksi ini.",
   },
   {
-    title: "Lawan",
-    heading: "Siapa lawan transaksi?",
-    description: "Kami memvalidasi username lawan sebelum Anda lanjut.",
+    title: "Mitra transaksi",
+    heading: "Siapa mitra transaksi Anda?",
+    description: "Kami memvalidasi username mitra sebelum Anda lanjut.",
   },
   {
     title: "Detail",
@@ -265,9 +265,9 @@ export default function CreateTransactionScreen() {
     (templatePrefill.amount ?? 0) > 0
   /**
    * FE-044: etalase TANPA orderLink (hanya counterpart + role=BUYER dari
-   * tombol "Beli via Escrow") — prefill tidak lengkap, tapi "Cara & peran"
+   * tombol "Beli Sekarang") — prefill tidak lengkap, tapi "Cara & peran"
    * sudah terjawab konteks karya (direct + BUYER). Mulai dari langkah
-   * "Lawan" (1), bukan "Cara & peran" (0). Tipe order/deadline/fee TIDAK
+   * "Mitra transaksi" (1), bukan "Cara & peran" (0). Tipe order/deadline/fee TIDAK
    * dikarang — tetap diisi manual di langkah Detail.
    */
   const showcasePrefillPartial =
@@ -895,7 +895,9 @@ export default function CreateTransactionScreen() {
             langkah sudah terwakili <StepProgress> di header — dua penanda
             untuk satu fakta adalah kebisingan. */}
         <View className="gap-2 pb-2 pt-6">
-          <Heading level={1}>{meta.heading}</Heading>
+          <Heading level={1}>
+            {step === 1 ? translate("Siapa mitra transaksi Anda?") : meta.heading}
+          </Heading>
           <Text variant="body" tone="secondary">
             {meta.description}
           </Text>

@@ -11,12 +11,12 @@
    "n": 72
   },
   {
-   "s": "Coba lagi",
-   "n": 40
+   "s": "Gagal memuat",
+   "n": 41
   },
   {
-   "s": "Gagal memuat",
-   "n": 39
+   "s": "Coba lagi",
+   "n": 40
   },
   {
    "s": "Simpan",
@@ -31,11 +31,11 @@
    "n": 25
   },
   {
-   "s": "{x}: {y}",
-   "n": 24
+   "s": "Tutup",
+   "n": 25
   },
   {
-   "s": "Tutup",
+   "s": "{x}: {y}",
    "n": 24
   },
   {
@@ -53,6 +53,10 @@
   {
    "s": "Tambah alamat",
    "n": 17
+  },
+  {
+   "s": "Akses galeri ditolak",
+   "n": 15
   },
   {
    "s": "Deskripsi",
@@ -79,16 +83,16 @@
    "n": 14
   },
   {
+   "s": "Pengguna",
+   "n": 14
+  },
+  {
    "s": "Selesai",
    "n": 14
   },
   {
    "s": "Unggahan dibatalkan.",
    "n": 14
-  },
-  {
-   "s": "Akses galeri ditolak",
-   "n": 13
   },
   {
    "s": "Buka {x}",
@@ -104,10 +108,6 @@
   },
   {
    "s": "Minimal {x} karakter.",
-   "n": 13
-  },
-  {
-   "s": "Pengguna",
    "n": 13
   },
   {
@@ -375,6 +375,10 @@
    "n": 7
   },
   {
+   "s": "Beli Sekarang",
+   "n": 7
+  },
+  {
    "s": "Biaya layanan",
    "n": 7
   },
@@ -555,6 +559,10 @@
    "n": 6
   },
   {
+   "s": "Disimpan",
+   "n": 6
+  },
+  {
    "s": "Ditolak",
    "n": 6
   },
@@ -568,6 +576,10 @@
   },
   {
    "s": "Email",
+   "n": 6
+  },
+  {
+   "s": "Etalase ini sedang tidak aktif, jadi belum bisa ditransaksikan.",
    "n": 6
   },
   {
@@ -799,6 +811,10 @@
    "n": 6
   },
   {
+   "s": "Stok etalase ini habis, jadi belum bisa ditransaksikan.",
+   "n": 6
+  },
+  {
    "s": "Tanggal tidak tersedia",
    "n": 6
   },
@@ -884,10 +900,6 @@
   },
   {
    "s": "Batas konfirmasi",
-   "n": 5
-  },
-  {
-   "s": "Beli via Escrow",
    "n": 5
   },
   {
@@ -983,6 +995,10 @@
    "n": 5
   },
   {
+   "s": "Gagal mengirim pesan",
+   "n": 5
+  },
+  {
    "s": "Gagal mengunduh",
    "n": 5
   },
@@ -1064,6 +1080,10 @@
   },
   {
    "s": "Ongkir",
+   "n": 5
+  },
+  {
+   "s": "Pesan dihapus",
    "n": 5
   },
   {
@@ -1215,11 +1235,19 @@
    "n": 4
   },
   {
+   "s": "Beli",
+   "n": 4
+  },
+  {
    "s": "Belum ada peserta.",
    "n": 4
   },
   {
    "s": "Belum ada riwayat",
+   "n": 4
+  },
+  {
+   "s": "Belum tersedia",
    "n": 4
   },
   {
@@ -1295,10 +1323,6 @@
    "n": 4
   },
   {
-   "s": "Disimpan",
-   "n": 4
-  },
-  {
    "s": "Diskon",
    "n": 4
   },
@@ -1327,7 +1351,15 @@
    "n": 4
   },
   {
+   "s": "Gagal mengaktifkan notifikasi",
+   "n": 4
+  },
+  {
    "s": "Gagal menghapus foto",
+   "n": 4
+  },
+  {
+   "s": "Gagal menghapus simpanan",
    "n": 4
   },
   {
@@ -1347,6 +1379,10 @@
    "n": 4
   },
   {
+   "s": "Gagal menutup polling",
+   "n": 4
+  },
+  {
    "s": "Gagal menyimpan profil",
    "n": 4
   },
@@ -1356,6 +1392,10 @@
   },
   {
    "s": "Gambar artikel",
+   "n": 4
+  },
+  {
+   "s": "Gratis",
    "n": 4
   },
   {
@@ -1499,6 +1539,10 @@
    "n": 4
   },
   {
+   "s": "Memuat lencana",
+   "n": 4
+  },
+  {
    "s": "Memuat ulang",
    "n": 4
   },
@@ -1532,6 +1576,10 @@
   },
   {
    "s": "Pakai kode referral saya {x} saat daftar di Kahade — transaksi aman dengan escrow.",
+   "n": 4
+  },
+  {
+   "s": "Papan peringkat",
    "n": 4
   },
   {
@@ -1579,10 +1627,6 @@
    "n": 4
   },
   {
-   "s": "Pesan dihapus",
-   "n": 4
-  },
-  {
    "s": "Pesanan ditautkan",
    "n": 4
   },
@@ -1608,6 +1652,10 @@
   },
   {
    "s": "Produk jasa wajib memiliki tenggat pengerjaan.",
+   "n": 4
+  },
+  {
+   "s": "Profil dihapus dari tersimpan",
    "n": 4
   },
   {
@@ -1727,6 +1775,10 @@
    "n": 4
   },
   {
+   "s": "Uang Anda disimpan Kahade dulu, diteruskan ke penjual setelah barang Anda terima.",
+   "n": 4
+  },
+  {
    "s": "Ubah Profil",
    "n": 4
   },
@@ -1811,6 +1863,10 @@
    "n": 3
   },
   {
+   "s": "{x} dari {y}, {z} ulasan",
+   "n": 3
+  },
+  {
    "s": "{x} dari {y}, buka ulasan",
    "n": 3
   },
@@ -1887,6 +1943,10 @@
    "n": 3
   },
   {
+   "s": "Ajak teman ke Kahade",
+   "n": 3
+  },
+  {
    "s": "Ajukan pertanyaan dari halaman profil pengguna lain.",
    "n": 3
   },
@@ -1908,6 +1968,10 @@
   },
   {
    "s": "Aktifkan jadwal jangan-ganggu",
+   "n": 3
+  },
+  {
+   "s": "Aktifkan notifikasi",
    "n": 3
   },
   {
@@ -1948,6 +2012,14 @@
   },
   {
    "s": "Arah dana",
+   "n": 3
+  },
+  {
+   "s": "Artikel mungkin belum dipublikasikan atau telah dipindahkan.",
+   "n": 3
+  },
+  {
+   "s": "Artikel tidak ditemukan",
    "n": 3
   },
   {
@@ -2043,7 +2115,19 @@
    "n": 3
   },
   {
+   "s": "Beli {x}",
+   "n": 3
+  },
+  {
+   "s": "Belum ada artikel",
+   "n": 3
+  },
+  {
    "s": "Belum ada etalase dari akun yang diikuti",
+   "n": 3
+  },
+  {
+   "s": "Belum ada etalase tersimpan",
    "n": 3
   },
   {
@@ -2100,10 +2184,6 @@
   },
   {
    "s": "Belum mengikuti siapa pun",
-   "n": 3
-  },
-  {
-   "s": "Belum tersedia",
    "n": 3
   },
   {
@@ -2327,6 +2407,10 @@
    "n": 3
   },
   {
+   "s": "Contoh: AB{x}-CD{x}-EF{x}",
+   "n": 3
+  },
+  {
    "s": "Cover etalase akan digantikan media berikutnya.",
    "n": 3
   },
@@ -2507,10 +2591,6 @@
    "n": 3
   },
   {
-   "s": "Etalase ini sedang tidak aktif, jadi belum bisa ditransaksikan.",
-   "n": 3
-  },
-  {
    "s": "Etalase publik dari pengguna Kahade akan muncul di sini.",
    "n": 3
   },
@@ -2615,14 +2695,6 @@
    "n": 3
   },
   {
-   "s": "Gagal menghapus simpanan",
-   "n": 3
-  },
-  {
-   "s": "Gagal mengirim pesan",
-   "n": 3
-  },
-  {
    "s": "Gagal mengirim rating",
    "n": 3
   },
@@ -2651,10 +2723,6 @@
    "n": 3
   },
   {
-   "s": "Gratis",
-   "n": 3
-  },
-  {
    "s": "Gulir feed ke posisi paling atas",
    "n": 3
   },
@@ -2664,6 +2732,10 @@
   },
   {
    "s": "Halaman {x} dari {y}",
+   "n": 3
+  },
+  {
+   "s": "Halaman tidak ditemukan",
    "n": 3
   },
   {
@@ -2960,6 +3032,10 @@
   },
   {
    "s": "Jelajahi bantuan",
+   "n": 3
+  },
+  {
+   "s": "Jelajahi etalase",
    "n": 3
   },
   {
@@ -3475,6 +3551,10 @@
    "n": 3
   },
   {
+   "s": "Memuat undangan",
+   "n": 3
+  },
+  {
    "s": "Memulai ulang unggah {x}",
    "n": 3
   },
@@ -3512,6 +3592,10 @@
   },
   {
    "s": "Menu navigasi",
+   "n": 3
+  },
+  {
+   "s": "Menunggu konfirmasi",
    "n": 3
   },
   {
@@ -3667,6 +3751,10 @@
    "n": 3
   },
   {
+   "s": "Notifikasi belum aktif di perangkat ini",
+   "n": 3
+  },
+  {
    "s": "Notifikasi belum dapat dihapus",
    "n": 3
   },
@@ -3719,6 +3807,10 @@
    "n": 3
   },
   {
+   "s": "Pembayaran gagal",
+   "n": 3
+  },
+  {
    "s": "Pembeli membayar",
    "n": 3
   },
@@ -3768,6 +3860,10 @@
   },
   {
    "s": "Perangkat ini",
+   "n": 3
+  },
+  {
+   "s": "Perbaiki rentang harga dulu",
    "n": 3
   },
   {
@@ -3967,11 +4063,15 @@
    "n": 3
   },
   {
-   "s": "Profil dihapus dari tersimpan",
+   "s": "Profil Kahade",
    "n": 3
   },
   {
-   "s": "Profil Kahade",
+   "s": "Profil tersimpan",
+   "n": 3
+  },
+  {
+   "s": "Punya kode dari teman?",
    "n": 3
   },
   {
@@ -4007,6 +4107,10 @@
    "n": 3
   },
   {
+   "s": "Reward",
+   "n": 3
+  },
+  {
    "s": "Rincian pembayaran",
    "n": 3
   },
@@ -4020,6 +4124,10 @@
   },
   {
    "s": "Ringkasan notifikasi",
+   "n": 3
+  },
+  {
+   "s": "Riwayat undangan",
    "n": 3
   },
   {
@@ -4131,6 +4239,10 @@
    "n": 3
   },
   {
+   "s": "Simpan etalase yang kamu suka untuk dilihat lagi nanti.",
+   "n": 3
+  },
+  {
    "s": "Simpan favorit",
    "n": 3
   },
@@ -4155,7 +4267,7 @@
    "n": 3
   },
   {
-   "s": "Skor kepercayaan {x}, buka rincian",
+   "s": "Skor kepercayaan {x} dari {y}, buka rincian",
    "n": 3
   },
   {
@@ -4188,10 +4300,6 @@
   },
   {
    "s": "Status Verifikasi (KYC)",
-   "n": 3
-  },
-  {
-   "s": "Stok etalase ini habis, jadi belum bisa ditransaksikan.",
    "n": 3
   },
   {
@@ -4319,6 +4427,10 @@
    "n": 3
   },
   {
+   "s": "Tautan mungkin sudah berubah. Kembali ke beranda untuk melanjutkan.",
+   "n": 3
+  },
+  {
    "s": "Tautan pesanan ini tidak lengkap. Minta tautan baru kepada pengirim.",
    "n": 3
   },
@@ -4328,6 +4440,10 @@
   },
   {
    "s": "Tautan sudah kedaluwarsa",
+   "n": 3
+  },
+  {
+   "s": "Tautan tidak tersedia",
    "n": 3
   },
   {
@@ -4392,6 +4508,10 @@
   },
   {
    "s": "Tentukan berapa dari {x} yang dikembalikan ke pembeli; sisanya ke penjual.",
+   "n": 3
+  },
+  {
+   "s": "Terapkan filter",
    "n": 3
   },
   {
@@ -4687,6 +4807,10 @@
    "n": 2
   },
   {
+   "s": "({x} ulasan)",
+   "n": 2
+  },
+  {
    "s": "(diedit)",
    "n": 2
   },
@@ -4827,10 +4951,6 @@
    "n": 2
   },
   {
-   "s": "Ajak teman ke Kahade",
-   "n": 2
-  },
-  {
    "s": "Ajukan perpanjangan",
    "n": 2
   },
@@ -4856,6 +4976,14 @@
   },
   {
    "s": "Aktifkan jadwal",
+   "n": 2
+  },
+  {
+   "s": "Akun Anda baru saja diakses dari perangkat baru ({x}). Jika ini bukan Anda, segera periksa sesi keamanan Anda.",
+   "n": 2
+  },
+  {
+   "s": "Akun Anda baru saja diakses dari perangkat baru. Jika ini bukan Anda, segera periksa sesi keamanan Anda.",
    "n": 2
   },
   {
@@ -5043,10 +5171,6 @@
    "n": 2
   },
   {
-   "s": "Beli {x} via escrow",
-   "n": 2
-  },
-  {
    "s": "Belum ada alamat",
    "n": 2
   },
@@ -5060,10 +5184,6 @@
   },
   {
    "s": "Belum ada balasan. Jadilah yang pertama membalas.",
-   "n": 2
-  },
-  {
-   "s": "Belum ada etalase tersimpan",
    "n": 2
   },
   {
@@ -5100,6 +5220,10 @@
   },
   {
    "s": "Belum ada pesanan jasa",
+   "n": 2
+  },
+  {
+   "s": "Belum ada profil tersimpan",
    "n": 2
   },
   {
@@ -5491,6 +5615,10 @@
    "n": 2
   },
   {
+   "s": "Coba lagi nanti.",
+   "n": 2
+  },
+  {
    "s": "Coba nominal, keterangan, atau ID transaksi yang berbeda.",
    "n": 2
   },
@@ -5547,10 +5675,6 @@
    "n": 2
   },
   {
-   "s": "Dana ditahan escrow sampai barang Anda terima",
-   "n": 2
-  },
-  {
    "s": "Dana escrow dicairkan ke rekening bank penjual per tahap setelah hasil diterima.",
    "n": 2
   },
@@ -5564,6 +5688,10 @@
   },
   {
    "s": "Dana escrow yang akan dilepas: {x}",
+   "n": 2
+  },
+  {
+   "s": "Dana sudah diterima Kahade.",
    "n": 2
   },
   {
@@ -5620,10 +5748,6 @@
   },
   {
    "s": "Dieskalasi",
-   "n": 2
-  },
-  {
-   "s": "Dihitung server",
    "n": 2
   },
   {
@@ -5707,6 +5831,10 @@
    "n": 2
   },
   {
+   "s": "Estimasi dari server",
+   "n": 2
+  },
+  {
    "s": "Estimasi sampai: maks. {x} hari kerja.",
    "n": 2
   },
@@ -5764,6 +5892,10 @@
   },
   {
    "s": "Field commerce gagal disimpan — coba lagi nanti.",
+   "n": 2
+  },
+  {
+   "s": "File tidak dapat dilampirkan",
    "n": 2
   },
   {
@@ -5851,7 +5983,15 @@
    "n": 2
   },
   {
+   "s": "Gagal membuat kode baru",
+   "n": 2
+  },
+  {
    "s": "Gagal membuat pembayaran",
+   "n": 2
+  },
+  {
+   "s": "Gagal membuat polling",
    "n": 2
   },
   {
@@ -5876,6 +6016,10 @@
   },
   {
    "s": "Gagal memperbarui favorit",
+   "n": 2
+  },
+  {
+   "s": "Gagal memperbarui reaksi",
    "n": 2
   },
   {
@@ -5911,6 +6055,10 @@
    "n": 2
   },
   {
+   "s": "Gagal memuat percakapan lain",
+   "n": 2
+  },
+  {
    "s": "Gagal memuat saran.",
    "n": 2
   },
@@ -5939,7 +6087,11 @@
    "n": 2
   },
   {
-   "s": "Gagal mengaktifkan notifikasi",
+   "s": "Gagal meneruskan pesan",
+   "n": 2
+  },
+  {
+   "s": "Gagal mengekspor chat",
    "n": 2
   },
   {
@@ -5975,11 +6127,23 @@
    "n": 2
   },
   {
+   "s": "Gagal menghapus pesan",
+   "n": 2
+  },
+  {
    "s": "Gagal menghapus ulasan",
    "n": 2
   },
   {
    "s": "Gagal mengirim jawaban",
+   "n": 2
+  },
+  {
+   "s": "Gagal mengirim kartu produk",
+   "n": 2
+  },
+  {
+   "s": "Gagal mengirim lokasi",
    "n": 2
   },
   {
@@ -6031,10 +6195,6 @@
    "n": 2
   },
   {
-   "s": "Gagal menutup polling",
-   "n": 2
-  },
-  {
    "s": "Gagal menyalin",
    "n": 2
   },
@@ -6064,6 +6224,10 @@
   },
   {
    "s": "Gagal menyimpan penilaian",
+   "n": 2
+  },
+  {
+   "s": "Gagal voting",
    "n": 2
   },
   {
@@ -6267,6 +6431,10 @@
    "n": 2
   },
   {
+   "s": "Izin sudah diberikan, tetapi perangkat belum terdaftar untuk menerima push. Ketuk tombol di bawah untuk mengaktifkan.",
+   "n": 2
+  },
+  {
    "s": "Izinkan akses media di pengaturan perangkat untuk memilih video.",
    "n": 2
   },
@@ -6339,6 +6507,10 @@
    "n": 2
   },
   {
+   "s": "Kami belum bisa memastikan status pembayaran. Jangan bayar ulang dulu — cek status atau buka Transaksi.",
+   "n": 2
+  },
+  {
    "s": "Kami masih memeriksa nama pengguna tersebut.",
    "n": 2
   },
@@ -6388,6 +6560,10 @@
   },
   {
    "s": "Kategori:",
+   "n": 2
+  },
+  {
+   "s": "Ke beranda",
    "n": 2
   },
   {
@@ -6607,6 +6783,14 @@
    "n": 2
   },
   {
+   "s": "Kode referral baru dibuat",
+   "n": 2
+  },
+  {
+   "s": "Kode referral diterapkan",
+   "n": 2
+  },
+  {
    "s": "Kode Terdeteksi",
    "n": 2
   },
@@ -6715,6 +6899,10 @@
    "n": 2
   },
   {
+   "s": "Lampiran masih diunggah",
+   "n": 2
+  },
+  {
    "s": "Lampiran tidak dapat dibuka",
    "n": 2
   },
@@ -6736,10 +6924,6 @@
   },
   {
    "s": "Laporan saya",
-   "n": 2
-  },
-  {
-   "s": "Lawan",
    "n": 2
   },
   {
@@ -6860,6 +7044,10 @@
   },
   {
    "s": "Maksimal {x} karakter",
+   "n": 2
+  },
+  {
+   "s": "Maksimal {x} lampiran per pesan",
    "n": 2
   },
   {
@@ -7063,15 +7251,7 @@
    "n": 2
   },
   {
-   "s": "Menunggu balasan Anda",
-   "n": 2
-  },
-  {
    "s": "Menunggu host mengunci harga (barang + fee + ongkir terpisah).",
-   "n": 2
-  },
-  {
-   "s": "Menunggu konfirmasi",
    "n": 2
   },
   {
@@ -7243,6 +7423,10 @@
    "n": 2
   },
   {
+   "s": "Notifikasi diaktifkan",
+   "n": 2
+  },
+  {
    "s": "Notifikasi transaksi Anda akan muncul di sini.",
    "n": 2
   },
@@ -7295,10 +7479,6 @@
    "n": 2
   },
   {
-   "s": "Papan peringkat",
-   "n": 2
-  },
-  {
    "s": "Passkey",
    "n": 2
   },
@@ -7311,6 +7491,14 @@
    "n": 2
   },
   {
+   "s": "Pembayaran belum terkonfirmasi. Status diperbarui otomatis dari server.",
+   "n": 2
+  },
+  {
+   "s": "Pembayaran berhasil",
+   "n": 2
+  },
+  {
    "s": "Pembayaran ditahan dengan aman oleh {x} dan akan dicairkan ke rekening bank Anda setelah pembeli mengonfirmasi penerimaan — atau otomatis setelah tenggat tanpa sengketa.",
    "n": 2
   },
@@ -7320,10 +7508,6 @@
   },
   {
    "s": "Pembayaran diterima",
-   "n": 2
-  },
-  {
-   "s": "Pembayaran gagal",
    "n": 2
   },
   {
@@ -7523,11 +7707,23 @@
    "n": 2
   },
   {
+   "s": "Pesan belum termuat di thread",
+   "n": 2
+  },
+  {
    "s": "Pesan berbintang",
    "n": 2
   },
   {
    "s": "Pesan berbintang: {x}",
+   "n": 2
+  },
+  {
+   "s": "Pesan dilepas dari pin",
+   "n": 2
+  },
+  {
+   "s": "Pesan dipin",
    "n": 2
   },
   {
@@ -7540,6 +7736,10 @@
   },
   {
    "s": "Pesan terkirim",
+   "n": 2
+  },
+  {
+   "s": "Pesan tidak diteruskan",
    "n": 2
   },
   {
@@ -7620,6 +7820,14 @@
   },
   {
    "s": "Polling",
+   "n": 2
+  },
+  {
+   "s": "Polling dibuat",
+   "n": 2
+  },
+  {
+   "s": "Polling ditutup",
    "n": 2
   },
   {
@@ -7744,6 +7952,10 @@
   },
   {
    "s": "Ringkasan terakhir dikirim {x}",
+   "n": 2
+  },
+  {
+   "s": "Riwayat chat diekspor",
    "n": 2
   },
   {
@@ -7931,6 +8143,14 @@
    "n": 2
   },
   {
+   "s": "Siapa mitra transaksi Anda?",
+   "n": 2
+  },
+  {
+   "s": "Silakan coba lagi.",
+   "n": 2
+  },
+  {
    "s": "Silakan pilih metode pembayaran lain.",
    "n": 2
   },
@@ -8036,6 +8256,10 @@
   },
   {
    "s": "Status lampiran belum dapat dipastikan. Segarkan sebelum mencoba lagi.",
+   "n": 2
+  },
+  {
+   "s": "Status pembayaran belum diketahui",
    "n": 2
   },
   {
@@ -8659,6 +8883,10 @@
    "n": 2
   },
   {
+   "s": "Voice note tidak valid",
+   "n": 2
+  },
+  {
    "s": "Voucher & Promo",
    "n": 2
   },
@@ -8671,15 +8899,15 @@
    "n": 2
   },
   {
+   "s": "Voucher tidak dapat dipakai",
+   "n": 2
+  },
+  {
    "s": "Waktu",
    "n": 2
   },
   {
    "s": "Waktu absolut: {x}",
-   "n": 2
-  },
-  {
-   "s": "XXXX-XXXX-XXXX",
    "n": 2
   },
   {
@@ -10919,10 +11147,6 @@
    "n": 1
   },
   {
-   "s": "Aktifkan notifikasi",
-   "n": 1
-  },
-  {
    "s": "Aktifkan notifikasi?",
    "n": 1
   },
@@ -11147,6 +11371,10 @@
    "n": 1
   },
   {
+   "s": "Anda membayar ke Kahade dulu, bukan langsung ke penjual",
+   "n": 1
+  },
+  {
    "s": "Anda mengunggah dokumen dan selfie atau liveness. Sistem dan petugas menilai kelengkapan, keaslian, kecocokan, duplikasi, dan risiko. Hasil dapat berupa disetujui, ditolak, atau diminta perbaikan. Data tidak digunakan untuk meniru identitas atau tujuan yang tidak diberitahukan.",
    "n": 1
   },
@@ -11255,15 +11483,7 @@
    "n": 1
   },
   {
-   "s": "Artikel mungkin belum dipublikasikan atau telah dipindahkan.",
-   "n": 1
-  },
-  {
    "s": "Artikel terkait",
-   "n": 1
-  },
-  {
-   "s": "Artikel tidak ditemukan",
    "n": 1
   },
   {
@@ -11655,10 +11875,6 @@
    "n": 1
   },
   {
-   "s": "Belum ada artikel",
-   "n": 1
-  },
-  {
    "s": "Belum ada balasan terdeteksi",
    "n": 1
   },
@@ -11776,10 +11992,6 @@
   },
   {
    "s": "Belum ada produk",
-   "n": 1
-  },
-  {
-   "s": "Belum ada profil tersimpan",
    "n": 1
   },
   {
@@ -11984,6 +12196,10 @@
   },
   {
    "s": "Biaya belum terkonfirmasi:",
+   "n": 1
+  },
+  {
+   "s": "Biaya belum tersedia",
    "n": 1
   },
   {
@@ -13007,10 +13223,6 @@
    "n": 1
   },
   {
-   "s": "Dana sudah diterima Kahade.",
-   "n": 1
-  },
-  {
    "s": "Dana sudah sampai di rekening",
    "n": 1
   },
@@ -13827,10 +14039,6 @@
    "n": 1
   },
   {
-   "s": "File tidak dapat dilampirkan",
-   "n": 1
-  },
-  {
    "s": "Filter cepat status mutasi",
    "n": 1
   },
@@ -13971,15 +14179,7 @@
    "n": 1
   },
   {
-   "s": "Gagal membuat kode baru",
-   "n": 1
-  },
-  {
    "s": "Gagal membuat PIN",
-   "n": 1
-  },
-  {
-   "s": "Gagal membuat polling",
    "n": 1
   },
   {
@@ -14027,10 +14227,6 @@
    "n": 1
   },
   {
-   "s": "Gagal memperbarui reaksi",
-   "n": 1
-  },
-  {
    "s": "Gagal memperbarui status ikuti",
    "n": 1
   },
@@ -14068,10 +14264,6 @@
   },
   {
    "s": "Gagal memuat pengaturan privasi",
-   "n": 1
-  },
-  {
-   "s": "Gagal memuat percakapan lain",
    "n": 1
   },
   {
@@ -14163,19 +14355,11 @@
    "n": 1
   },
   {
-   "s": "Gagal meneruskan pesan",
-   "n": 1
-  },
-  {
    "s": "Gagal mengajukan perpanjangan",
    "n": 1
   },
   {
    "s": "Gagal mengajukan retur",
-   "n": 1
-  },
-  {
-   "s": "Gagal mengekspor chat",
    "n": 1
   },
   {
@@ -14215,10 +14399,6 @@
    "n": 1
   },
   {
-   "s": "Gagal menghapus pesan",
-   "n": 1
-  },
-  {
    "s": "Gagal menghapus riwayat. Coba lagi.",
    "n": 1
   },
@@ -14228,14 +14408,6 @@
   },
   {
    "s": "Gagal mengirim bukti",
-   "n": 1
-  },
-  {
-   "s": "Gagal mengirim kartu produk",
-   "n": 1
-  },
-  {
-   "s": "Gagal mengirim lokasi",
    "n": 1
   },
   {
@@ -14360,10 +14532,6 @@
   },
   {
    "s": "Gagal validasi ketersediaan",
-   "n": 1
-  },
-  {
-   "s": "Gagal voting",
    "n": 1
   },
   {
@@ -14508,10 +14676,6 @@
   },
   {
    "s": "Hak portabilitas.",
-   "n": 1
-  },
-  {
-   "s": "Halaman tidak ditemukan",
    "n": 1
   },
   {
@@ -14879,6 +15043,10 @@
    "n": 1
   },
   {
+   "s": "Invoice belum tersedia untuk order ini. Invoice diterbitkan setelah pembayaran dikonfirmasi.",
+   "n": 1
+  },
+  {
    "s": "Invoice Kahade",
    "n": 1
   },
@@ -15008,10 +15176,6 @@
   },
   {
    "s": "Jeda",
-   "n": 1
-  },
-  {
-   "s": "Jelajahi etalase",
    "n": 1
   },
   {
@@ -15267,10 +15431,6 @@
    "n": 1
   },
   {
-   "s": "Kami belum bisa memastikan status pembayaran. Jangan bayar ulang dulu — cek status atau buka Transaksi.",
-   "n": 1
-  },
-  {
    "s": "Kami dapat memproses nomor telepon, status verifikasi, lokasi, perangkat, riwayat akun, dan langkah pemulihan. Perubahan kata sandi dapat mencabut sesi lama. Catatan pemulihan dipertahankan untuk audit keamanan.",
    "n": 1
   },
@@ -15283,7 +15443,7 @@
    "n": 1
   },
   {
-   "s": "Kami memvalidasi username lawan sebelum Anda lanjut.",
+   "s": "Kami memvalidasi username mitra sebelum Anda lanjut.",
    "n": 1
   },
   {
@@ -15384,10 +15544,6 @@
   },
   {
    "s": "Kategori, wajib diisi",
-   "n": 1
-  },
-  {
-   "s": "Ke beranda",
    "n": 1
   },
   {
@@ -15931,14 +16087,6 @@
    "n": 1
   },
   {
-   "s": "Kode referral baru dibuat",
-   "n": 1
-  },
-  {
-   "s": "Kode referral diterapkan",
-   "n": 1
-  },
-  {
    "s": "Kode referral sudah dipakai",
    "n": 1
   },
@@ -16215,10 +16363,6 @@
    "n": 1
   },
   {
-   "s": "Lampiran masih diunggah",
-   "n": 1
-  },
-  {
    "s": "Lampiran sebelumnya",
    "n": 1
   },
@@ -16360,6 +16504,10 @@
   },
   {
    "s": "Laporkan pesan atau blokir pengguna",
+   "n": 1
+  },
+  {
+   "s": "Lawan",
    "n": 1
   },
   {
@@ -16547,6 +16695,10 @@
    "n": 1
   },
   {
+   "s": "Login perangkat baru terdeteksi",
+   "n": 1
+  },
+  {
    "s": "Lokasi",
    "n": 1
   },
@@ -16576,10 +16728,6 @@
   },
   {
    "s": "Maksimal {x} lampiran per balasan",
-   "n": 1
-  },
-  {
-   "s": "Maksimal {x} lampiran per pesan",
    "n": 1
   },
   {
@@ -16995,10 +17143,6 @@
    "n": 1
   },
   {
-   "s": "Memuat lencana",
-   "n": 1
-  },
-  {
    "s": "Memuat metode pembayaran…",
    "n": 1
   },
@@ -17255,6 +17399,10 @@
    "n": 1
   },
   {
+   "s": "Mengunggah lampiran…",
+   "n": 1
+  },
+  {
    "s": "Mengunggah video…",
    "n": 1
   },
@@ -17280,6 +17428,10 @@
   },
   {
    "s": "Menunggu agen Kahade mengambil tiket ini. Anda tidak perlu melakukan apa pun.",
+   "n": 1
+  },
+  {
+   "s": "Menunggu balasan Anda",
    "n": 1
   },
   {
@@ -17320,10 +17472,6 @@
   },
   {
    "s": "Menunggu pihak lain",
-   "n": 1
-  },
-  {
-   "s": "Menunggu saya",
    "n": 1
   },
   {
@@ -17488,6 +17636,10 @@
   },
   {
    "s": "Mis. Titik kumpul lobi mall",
+   "n": 1
+  },
+  {
+   "s": "Mitra transaksi",
    "n": 1
   },
   {
@@ -18155,14 +18307,6 @@
    "n": 1
   },
   {
-   "s": "Pembayaran belum terkonfirmasi. Status diperbarui otomatis dari server.",
-   "n": 1
-  },
-  {
-   "s": "Pembayaran berhasil",
-   "n": 1
-  },
-  {
    "s": "Pembayaran diproses",
    "n": 1
   },
@@ -18803,6 +18947,10 @@
    "n": 1
   },
   {
+   "s": "Periksa keamanan",
+   "n": 1
+  },
+  {
    "s": "Periksa kembali detail di bawah sebelum melanjutkan.",
    "n": 1
   },
@@ -19039,10 +19187,6 @@
    "n": 1
   },
   {
-   "s": "Pesan belum termuat di thread",
-   "n": 1
-  },
-  {
    "s": "Pesan berikutnya diburamkan sampai diketuk, lalu hilang setelah dibaca.",
    "n": 1
   },
@@ -19072,14 +19216,6 @@
   },
   {
    "s": "Pesan dikeluarkan dari arsip",
-   "n": 1
-  },
-  {
-   "s": "Pesan dilepas dari pin",
-   "n": 1
-  },
-  {
-   "s": "Pesan dipin",
    "n": 1
   },
   {
@@ -19132,10 +19268,6 @@
   },
   {
    "s": "Pesan terpin",
-   "n": 1
-  },
-  {
-   "s": "Pesan tidak diteruskan",
    "n": 1
   },
   {
@@ -19391,14 +19523,6 @@
    "n": 1
   },
   {
-   "s": "Polling dibuat",
-   "n": 1
-  },
-  {
-   "s": "Polling ditutup",
-   "n": 1
-  },
-  {
    "s": "Polling ditutup.",
    "n": 1
   },
@@ -19452,10 +19576,6 @@
   },
   {
    "s": "Profil terlihat publik",
-   "n": 1
-  },
-  {
-   "s": "Profil tersimpan",
    "n": 1
   },
   {
@@ -19520,10 +19640,6 @@
   },
   {
    "s": "Punya kode dari promo atau kampanye? Periksa di sini.",
-   "n": 1
-  },
-  {
-   "s": "Punya kode dari teman?",
    "n": 1
   },
   {
@@ -19703,15 +19819,15 @@
    "n": 1
   },
   {
-   "s": "Reward",
-   "n": 1
-  },
-  {
    "s": "Reward Referral",
    "n": 1
   },
   {
    "s": "Rincian biaya (dihitung server)",
+   "n": 1
+  },
+  {
+   "s": "Rincian biaya belum dimuat. Tutup lalu buka kembali halaman pembayaran.",
    "n": 1
   },
   {
@@ -19752,10 +19868,6 @@
   },
   {
    "s": "Riwayat bukti sebelumnya",
-   "n": 1
-  },
-  {
-   "s": "Riwayat chat diekspor",
    "n": 1
   },
   {
@@ -19828,10 +19940,6 @@
   },
   {
    "s": "Riwayat transaksi siap dibagikan",
-   "n": 1
-  },
-  {
-   "s": "Riwayat undangan",
    "n": 1
   },
   {
@@ -20363,10 +20471,6 @@
    "n": 1
   },
   {
-   "s": "Silakan coba lagi.",
-   "n": 1
-  },
-  {
    "s": "Silakan masuk kembali",
    "n": 1
   },
@@ -20528,10 +20632,6 @@
   },
   {
    "s": "Status order tidak dapat dimuat:",
-   "n": 1
-  },
-  {
-   "s": "Status pembayaran belum diketahui",
    "n": 1
   },
   {
@@ -20935,10 +21035,6 @@
    "n": 1
   },
   {
-   "s": "Tautan mungkin sudah berubah. Kembali ke beranda untuk melanjutkan.",
-   "n": 1
-  },
-  {
    "s": "Tautan mungkin sudah diterima — memuat ulang…",
    "n": 1
   },
@@ -20964,10 +21060,6 @@
   },
   {
    "s": "Tautan tidak bisa lagi diterima oleh siapa pun. Tindakan ini tidak dapat dibatalkan.",
-   "n": 1
-  },
-  {
-   "s": "Tautan tidak tersedia",
    "n": 1
   },
   {
@@ -21203,6 +21295,10 @@
    "n": 1
   },
   {
+   "s": "Terlindungi",
+   "n": 1
+  },
+  {
    "s": "Terpilih",
    "n": 1
   },
@@ -21416,10 +21512,6 @@
   },
   {
    "s": "Tim Kahade boleh menghubungi Anda untuk menindaklanjuti masukan ini. Kontak tamu dihapus otomatis setelah {x} hari.",
-   "n": 1
-  },
-  {
-   "s": "Tim Kahade butuh informasi tambahan dari Anda — balas tiket ini agar penanganan berlanjut.",
    "n": 1
   },
   {
@@ -22120,10 +22212,6 @@
   },
   {
    "s": "Voice note tidak bisa diputar",
-   "n": 1
-  },
-  {
-   "s": "Voice note tidak valid",
    "n": 1
   },
   {
