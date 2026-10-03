@@ -238,9 +238,9 @@ describe("createHighlight — validasi sisi klien (E)", () => {
     )
     expect(mocks.post).not.toHaveBeenCalled()
   })
-  it("judul > 30 karakter → tolak", async () => {
-    await expect(createHighlight({ title: "x".repeat(31), productIds: ["p1"] })).rejects.toThrow(
-      "maksimal 30 karakter",
+  it("judul > 80 karakter → tolak", async () => {
+    await expect(createHighlight({ title: "x".repeat(81), productIds: ["p1"] })).rejects.toThrow(
+      "maksimal 80 karakter",
     )
     expect(mocks.post).not.toHaveBeenCalled()
   })

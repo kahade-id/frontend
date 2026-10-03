@@ -196,7 +196,7 @@ describe("createSubscriptionPayment — subscriptionId nested (kontrak kanonis 2
       subscription: { id: "sub-nested-1", status: "PENDING" },
       qrString: "QR-999",
     })
-    const intent = await createSubscriptionPayment("MONTHLY", "QRIS")
+    const intent = await createSubscriptionPayment("MONTHLY", "QRIS", undefined, undefined, 99000)
     expect(intent.subscriptionId).toBe("sub-nested-1")
     expect(intent.qrString).toBe("QR-999")
   })
@@ -207,7 +207,7 @@ describe("createSubscriptionPayment — subscriptionId nested (kontrak kanonis 2
       subscription: { id: "sub-nested" },
       qrString: "QR-1",
     })
-    const intent = await createSubscriptionPayment("MONTHLY", "QRIS")
+    const intent = await createSubscriptionPayment("MONTHLY", "QRIS", undefined, undefined, 99000)
     expect(intent.subscriptionId).toBe("sub-root")
   })
 })

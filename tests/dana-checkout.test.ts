@@ -88,13 +88,13 @@ describe("normalizeOrderPaymentIntent", () => {
 
   it("membaca VA dari alias + nama bank", () => {
     const out = normalizeOrderPaymentIntent({
-      payment: { virtual_account: "988123", bank_name: "BCA" },
+      payment: { virtual_account: "988123", bank_name: "BCA", amount: 50000 },
     })
     expect(out).toMatchObject({ vaNumber: "988123", vaBankName: "BCA" })
   })
 
   it("membaca redirect URL dari alias", () => {
-    const out = normalizeOrderPaymentIntent({ result: { payment_url: "https://pay/x" } })
+    const out = normalizeOrderPaymentIntent({ result: { payment_url: "https://pay/x", amount: 50000 } })
     expect(out).toMatchObject({ redirectUrl: "https://pay/x" })
   })
 
@@ -107,6 +107,7 @@ describe("normalizeOrderPaymentIntent", () => {
   it("instructions non-string dibuang", () => {
     const out = normalizeOrderPaymentIntent({
       qrString: "QR",
+      amount: 50000,
       instructions: ["Buka m-banking", 42, null],
     })
     expect(out?.instructions).toEqual(["Buka m-banking"])

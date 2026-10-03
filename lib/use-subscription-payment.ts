@@ -67,6 +67,7 @@ export function useSubscriptionPayment({
                 code,
                 idempotencyKey,
                 promoCode,
+                fallbackAmount,
               )
               subscriptionIdRef.current = intent.subscriptionId ?? null
               return intent
@@ -80,7 +81,7 @@ export function useSubscriptionPayment({
             },
           }
         : null,
-    [plan, promoCode],
+    [plan, promoCode, fallbackAmount],
   )
 
   return useDanaIntent({

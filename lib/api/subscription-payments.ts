@@ -51,6 +51,7 @@ export async function createSubscriptionPayment(
   methodCode: string,
   idempotencyKey?: string,
   promoCode?: string,
+  fallbackAmount?: number,
 ): Promise<SubscriptionPaymentIntent> {
   const { payKind, bankCode } = toDanaPayKind(methodCode)
   // BFI-079: body HANYA { plan, payKind, bankCode?, promoCode? } —
@@ -77,7 +78,7 @@ export async function createSubscriptionPayment(
       ...(idempotencyKey ? { headers: { "Idempotency-Key": idempotencyKey } } : {}),
     },
   )
-  const intent = normalizeOrderPaymentIntent(raw)
+  const intent = normalizeOrderPaymentIntent(raw, { allowMissingAmount: true })
   if (!intent) throw invalidResponse("subscription-payment")
   // Kontrak kanonis (2026-09-30): `subscribeDana` mengembalikan
   // `{ subscription: { id, … }, qrString, … }` — ID ada di NESTED
@@ -89,7 +90,11 @@ export async function createSubscriptionPayment(
   const subscriptionId =
     pickString(root, ["subscriptionId", "subscription_id"]) ??
     (nestedSub ? pickString(nestedSub, ["id", "subscriptionId", "subscription_id"]) : null)
-  return { ...intent, method: methodCode, subscriptionId: subscriptionId ?? undefined }
+  // SEC-404: nominal dari fallbackAmount (data plan) bila server tidak mengembalikan amount.
+  // Ini nominal paket yang valid, bukan tebakan — berbeda dengan fallbackAmount menyesatkan (SEC-405).
+  const amount = intent.amount ?? fallbackAmount
+  if (amount == null) throw invalidResponse("subscription-payment")
+  return { ...intent, amount, method: methodCode, subscriptionId: subscriptionId ?? undefined }
 }
 
 export type SubscriptionPaymentStatus = {

@@ -667,7 +667,19 @@ export async function createOrderPayment(
  * ditindaklanjuti (qrString/vaNumber/redirectUrl) → undefined (fail-closed,
  * bukan panel kosong).
  */
-export function normalizeOrderPaymentIntent(raw: unknown): Omit<OrderPaymentIntent, "method"> | undefined {
+export function normalizeOrderPaymentIntent(
+  raw: unknown,
+  opts: { allowMissingAmount: true },
+): Omit<OrderPaymentIntent, "method" | "amount"> & { amount?: number } | undefined
+export function normalizeOrderPaymentIntent(
+  raw: unknown,
+  opts?: { allowMissingAmount?: false },
+): Omit<OrderPaymentIntent, "method"> | undefined
+export function normalizeOrderPaymentIntent(
+  raw: unknown,
+  opts?: { allowMissingAmount?: boolean },
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+): any {
   const record = asRecord(raw)
   if (!record) return undefined
   const nested =
@@ -716,7 +728,9 @@ export function normalizeOrderPaymentIntent(raw: unknown): Omit<OrderPaymentInte
   // SEC-404: nominal hilang/tidak-valid (<= 0) = respons malformed → tolak
   // seluruh intent (invalidResponse di pemanggil). JANGAN default ke 0:
   // panel VA/redirect akan mencetak "Rp0" padahal tagihan nyata bisa berbeda.
-  if (amount == null || amount <= 0) return undefined
+  // Pengecualian: langganan — backend tidak selalu mengembalikan amount di
+  // respons subscribe; nominal ditampilkan dari data plan, bukan intent.
+  if (!opts?.allowMissingAmount && (amount == null || amount <= 0)) return undefined
   return {
     qrString: qrString ?? undefined,
     qrUrl: pickString(nested, ["qrUrl", "qr_url", "url"]) ?? undefined,
@@ -735,7 +749,7 @@ export function normalizeOrderPaymentIntent(raw: unknown): Omit<OrderPaymentInte
         "expiry_time",
         "expiry",
       ]) ?? null,
-    amount,
+    amount: amount ?? undefined,
     paymentTxId: pickString(nested, ["paymentTxId", "payment_tx_id", "txId", "transactionId"]) ?? undefined,
     instructions,
   }
