@@ -26,6 +26,7 @@ import {
   Handshake,
   IdentificationBadge,
   Image as ImageIcon,
+  Info,
   Lock,
   PencilSimple,
   Prohibit,
@@ -1141,6 +1142,7 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
                           {b.shortLabel}
                         </Badge>
                       ))}
+                      <Icon icon={Info} size="xs" tone="default" />
                     </View>
                   </Pressable>
                   <VerificationSheet

@@ -62,7 +62,7 @@ export function VoiceNoteRecorder({
   visible,
   onRequestClose,
   onRecorded,
-  title = "Voice Note",
+  title = translate("Pesan suara"),
 }: VoiceNoteRecorderProps) {
   const { mode } = useTheme()
   const dangerFill = tokens.colors.semantic.danger[mode].fill
@@ -356,8 +356,8 @@ export function VoiceNoteRecorder({
       title={title}
       description={
         state === "recording"
-          ? "Merekam… ketuk Berhenti bila selesai."
-          : "Rekam pesan suara, maksimal 5 menit."
+          ? translate("Merekam… ketuk Berhenti bila selesai.")
+          : translate("Rekam pesan suara, maksimal {x} menit.", { x: 5 })
       }
       footer={footer}
     >
@@ -370,7 +370,7 @@ export function VoiceNoteRecorder({
 
         {state === "denied" ? (
           <Text variant="body" tone="secondary" className="text-center">
-            Akses mikrofon ditolak. Buka Pengaturan perangkat → Kahade → Mikrofon untuk mengaktifkan voice note.
+            {translate("Akses mikrofon ditolak. Buka Pengaturan perangkat → Kahade → Mikrofon untuk mengaktifkan pesan suara.")}
           </Text>
         ) : null}
 
@@ -432,7 +432,7 @@ export function VoiceNoteRecorder({
             </Button>
             <View className="flex-1">
               <Text variant="body" weight={600} tone="primary">
-                Voice note
+                {translate("Pesan suara")}
               </Text>
               <Text variant="caption" tone="secondary" className="tabular-nums">
                 {formatVoiceNoteDuration(durationMs)}

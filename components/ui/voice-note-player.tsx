@@ -209,10 +209,10 @@ export function VoiceNotePlayer({ uri, messageId, direction }: VoiceNotePlayerPr
   const SPOKEN_QUANTUM_MS = 5_000
   const spokenPositionMs = Math.floor(positionMs / SPOKEN_QUANTUM_MS) * SPOKEN_QUANTUM_MS
   const timerLabel = loading
-    ? translate("Memuat voice note…")
+    ? translate("Memuat pesan suara…")
     : failed
-      ? translate("Voice note tidak bisa diputar")
-      : translate("Voice note {x} dari {y}", {
+      ? translate("Pesan suara tidak bisa diputar")
+      : translate("Pesan suara {x} dari {y}", {
           x: formatVoiceNoteDuration(spokenPositionMs),
           y: formatVoiceNoteDuration(durationMs),
         })
@@ -230,10 +230,10 @@ export function VoiceNotePlayer({ uri, messageId, direction }: VoiceNotePlayerPr
             onPress={() => void toggle()}
             accessibilityLabel={
               failed
-                ? translate("Coba putar ulang voice note")
+                ? translate("Coba putar ulang pesan suara")
                 : playing
-                  ? translate("Jeda voice note")
-                  : translate("Putar voice note")
+                  ? translate("Jeda pesan suara")
+                  : translate("Putar pesan suara")
             }
             accessibilityRole="button"
             className="p-2.5"

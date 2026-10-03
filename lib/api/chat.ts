@@ -309,7 +309,7 @@ export function nonTextMessageLabel(messageType?: string | null): string {
     case "PRODUCT_CARD":
       return "Kartu produk"
     case "ORDER_CARD":
-      return "Kartu order"
+      return "Kartu pesanan"
     case "POLL":
       return "Polling"
     default:

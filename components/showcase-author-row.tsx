@@ -56,9 +56,15 @@ function SellerRatingLine({ username, hasSession }: { username: string; hasSessi
       })
     return () => ctrl.abort()
   }, [username])
-  if (summary == null || summary.averageRating == null || summary.distribution.total <= 0) {
-    return null
+  if (summary == null) return null
+  if (summary.distribution.total === 0) {
+    return (
+      <Text variant="caption" tone="secondary">
+        {translate("Penjual baru — belum ada ulasan")}
+      </Text>
+    )
   }
+  if (summary.averageRating == null) return null
   const goProfile = () =>
     router.push(
       hasSession

@@ -69,6 +69,7 @@ describe("validateVoiceNoteFile", () => {
     const r = validateVoiceNoteFile({ size: VOICE_NOTE_MAX_BYTES + 1, durationMs: 60_000 })
     expect(r).toEqual({ ok: false, reason: "too-big" })
     expect(voiceNoteValidationMessage("too-big")).toContain("50 MB")
+    expect(voiceNoteValidationMessage("too-big")).toContain("pesan suara")
   })
   it("< 1 detik → too-short", () => {
     const r = validateVoiceNoteFile({ size: 10_000, durationMs: 500 })
@@ -77,6 +78,7 @@ describe("validateVoiceNoteFile", () => {
   it("> 5 menit → too-long", () => {
     const r = validateVoiceNoteFile({ size: 10_000, durationMs: VOICE_NOTE_MAX_DURATION_MS + 1 })
     expect(r).toEqual({ ok: false, reason: "too-long" })
+    expect(voiceNoteValidationMessage("too-long")).toContain("pesan suara")
   })
   it("size 0 (platform tak melaporkan) diloloskan — server tetap gate", () => {
     expect(validateVoiceNoteFile({ size: 0, durationMs: 5_000 })).toEqual({ ok: true })

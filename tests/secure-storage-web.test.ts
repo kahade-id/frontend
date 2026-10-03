@@ -79,6 +79,7 @@ describe("kunci preferensi: persist di localStorage", () => {
     SecureKeys.themePreference,
     SecureKeys.languagePreference,
     SecureKeys.uiPrefs,
+    SecureKeys.coachMarkChatReplySeen,
   ] as const
 
   it.each(PERSISTENT_KEYS)("%s ditulis ke localStorage dan terbaca kembali", async (key) => {

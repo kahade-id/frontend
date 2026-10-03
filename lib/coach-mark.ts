@@ -1,10 +1,9 @@
 /**
  * Kahade — flag coach mark "sekali saja" untuk elemen UI baru.
  *
- * Dua elemen yang diperkenalkan 2026-09-27/28 — tombol (+) di header Etalase
- * dan ikon QR di tengah bottom navbar — mendapat tooltip pengenal kecil yang
- * tampil SEKALI saat user pertama kali melihatnya setelah update, lalu tidak
- * pernah lagi setelah dilihat/ditutup.
+ * Elemen UI baru (tombol +, QR, feed, pembayaran, dan gesture chat) mendapat
+ * tooltip pengenal kecil yang tampil SEKALI saat user pertama kali
+ * melihatnya setelah update, lalu tidak pernah lagi setelah dilihat/ditutup.
  *
  * U5-004 (journey, 2026-09-29): ditambah "feed-buy" — coach mark orientasi
  * BELI ("Ini feed produk — ketuk barang untuk lihat detail & beli via
@@ -17,12 +16,12 @@
  * — logout bukan alasan menampilkan ulang pengenal elemen.
  *
  * Di web SecureStore jatuh ke memori proses (kecuali key di
- * WEB_PERSISTENT_KEYS — kedua key ini SUDAH didaftarkan di sana), jadi di web
- * flag bertahan antar reload seperti di native.
+ * WEB_PERSISTENT_KEYS — semua key coach mark didaftarkan di sana), jadi flag
+ * bertahan antar reload seperti di native.
  */
 import { getSecureItem, SecureKeys, setSecureItem } from "@/lib/secure-storage"
 
-export type CoachMarkId = "create" | "qr" | "feed-buy" | "escrow-definition" | "chat-swipe"
+export type CoachMarkId = "create" | "qr" | "feed-buy" | "escrow-definition" | "chat-swipe" | "chat-reply"
 
 const KEY_BY_ID: Record<CoachMarkId, (typeof SecureKeys)[keyof typeof SecureKeys]> = {
   create: SecureKeys.coachMarkCreateSeen,
@@ -32,6 +31,8 @@ const KEY_BY_ID: Record<CoachMarkId, (typeof SecureKeys)[keyof typeof SecureKeys
   "escrow-definition": SecureKeys.escrowDefinitionSeen,
   // FE-129: coach mark sekali-tampil untuk gesture swipe di daftar chat.
   "chat-swipe": SecureKeys.coachMarkChatSwipeSeen,
+  // UIUX-122: coach mark sekali-tampil untuk membalas/opsi pesan di ruang chat.
+  "chat-reply": SecureKeys.coachMarkChatReplySeen,
 }
 
 /** true bila coach mark untuk elemen ini sudah pernah tampil/ditutup. */
