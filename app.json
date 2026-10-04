@@ -35,6 +35,9 @@
       ],
       "supportsTablet": false,
       "googleServicesFile": "./GoogleService-Info.plist",
+      "entitlements": {
+        "aps-environment": "development"
+      },
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Kahade membutuhkan lokasi Anda untuk keamanan akun: lokasi dicatat saat masuk, mendaftar, dan reset kata sandi untuk mendeteksi aktivitas mencurigakan."
       }
@@ -73,8 +76,7 @@
         "android.permission.USE_BIOMETRIC",
         "android.permission.VIBRATE",
         "android.permission.ACCESS_FINE_LOCATION",
-        "android.permission.ACCESS_COARSE_LOCATION",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.ACCESS_COARSE_LOCATION"
       ]
     },
     "web": {
@@ -123,14 +125,14 @@
         "expo-image-picker",
         {
           "photosPermission": "Kahade butuh akses galeri untuk memilih foto KTP, selfie, atau bukti transfer.",
-          "cameraPermission": "Kahade butuh akses kamera untuk verifikasi identitas dan upload bukti transaksi.",
-          "microphonePermission": false
+          "cameraPermission": "Kahade butuh akses kamera untuk verifikasi identitas dan upload bukti transaksi."
         }
       ],
       [
         "expo-audio",
         {
-          "microphonePermission": "Kahade butuh akses mikrofon untuk merekam voice note di chat."
+          "microphonePermission": "Kahade butuh akses mikrofon untuk merekam voice note di chat.",
+          "recordAudioAndroid": true
         }
       ],
       "expo-file-system",
