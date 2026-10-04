@@ -7,7 +7,7 @@
 import { Crossfade } from "@/components/ui/fade-in"
 import { DetailLoading } from "@/components/ui/paginated-list"
 import { useRef } from "react"
-import { View } from "react-native"
+import { View, type ViewInstance } from "react-native"
 import { router, useLocalSearchParams, type Href } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
@@ -97,7 +97,7 @@ export default function WalletTransactionScreen() {
   // QR verifikasi struk — FE-IMP-4 item 29: state gagal dibedakan dari
   // loading agar bisa tampil tombol "Coba lagi".
   const receiptQr = useReceiptQrState("WALLET_TX", txn?.id)
-  const ticketRef = useRef<View | null>(null)
+  const ticketRef = useRef<ViewInstance | null>(null)
 
   const status = walletTransactionStatus(txn?.status)
   const direction = txn ? walletTransactionType(txn) : "UNKNOWN"

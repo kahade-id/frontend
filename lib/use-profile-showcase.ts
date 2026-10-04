@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react"
-import { useIsFocused } from "@react-navigation/native"
+import { useIsFocused } from "expo-router"
 import { api, userMessage } from "@/lib/api"
 import type { ShowcaseItem } from "@/lib/api/users"
 import { fetchViaQueryCache } from "@/lib/query-cache"

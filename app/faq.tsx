@@ -2,7 +2,7 @@ import type { HelpArticle, HelpCategory } from "@/lib/api/help-center"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { View, type ListRenderItem } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { useIsFocused } from "@react-navigation/native"
+import { useIsFocused } from "expo-router"
 import { router, useLocalSearchParams } from "expo-router"
 import {
   ChatCircleText,
@@ -331,7 +331,7 @@ export default function FaqScreen() {
         keyExtractor={faqKeyExtractor}
         contentContainerStyle={faqContentStyle}
         ItemSeparatorComponent={FaqItemSeparator}
-        ListHeaderComponent={faqListHeader}
+        ListHeaderComponent={faqListHeader ?? undefined}
         renderItem={faqRenderItem}
         ListEmptyComponent={faqListEmpty}
         refreshing={state.refreshing}

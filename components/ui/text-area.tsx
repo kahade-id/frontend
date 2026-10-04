@@ -23,8 +23,7 @@
  *     ke 6 untuk alasan sengketa.
  */
 import { forwardRef, useState } from "react"
-import { View, type TextInput } from "react-native"
-
+import { View, type TextInputInstance } from "react-native"
 import { Input, type InputProps } from "@/components/ui/input"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
@@ -35,7 +34,7 @@ export type TextAreaProps = Omit<InputProps, "variant" | "secureTextEntry" | "cl
   showCount?: boolean
 }
 
-export const TextArea = forwardRef<TextInput, TextAreaProps>(function TextArea(
+export const TextArea = forwardRef<TextInputInstance, TextAreaProps>(function TextArea(
   {
     maxLength,
     showCount,

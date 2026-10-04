@@ -12,7 +12,7 @@
  */
 import { useEffect, useState } from "react"
 import { AppState } from "react-native"
-import { useIsFocused } from "@react-navigation/native"
+import { useIsFocused } from "expo-router"
 
 import { serverNow } from "@/lib/server-time"
 

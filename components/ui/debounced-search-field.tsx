@@ -36,8 +36,7 @@
  * fokus dan keyboard tidak hilang.
  */
 import { forwardRef, useCallback, useEffect, useRef, useState } from "react"
-import type { TextInput } from "react-native"
-
+import type { TextInputInstance } from "react-native"
 import { SearchField, type SearchFieldProps } from "@/components/ui/search-field"
 
 export type DebouncedSearchFieldProps = Omit<
@@ -50,7 +49,7 @@ export type DebouncedSearchFieldProps = Omit<
   onQueryChange: (query: string) => void
 }
 
-export const DebouncedSearchField = forwardRef<TextInput, DebouncedSearchFieldProps>(
+export const DebouncedSearchField = forwardRef<TextInputInstance, DebouncedSearchFieldProps>(
   function DebouncedSearchField({ initialQuery = "", onQueryChange, ...rest }, ref) {
     const [text, setText] = useState(initialQuery)
 

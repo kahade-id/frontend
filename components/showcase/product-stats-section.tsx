@@ -119,6 +119,16 @@ export function ProductStatsSection({ showcaseId }: { showcaseId: string }) {
     void load()
   }, [load])
 
+  // TIM 8 (perf, P2): `toLocaleTimeString()` membangun formatter Intl di
+  // balik layar — memo per `lastUpdatedAt`, bukan per render.
+  // Hook DIPANGGIL SEBELUM early return (rules-of-hooks): dibaca dari state
+  // hanya saat state sudah "ready", selain itu null supaya memo stabil.
+  const readyUpdatedAt = state.kind === "ready" ? state.lastUpdatedAt : null
+  const updatedTime = useMemo(
+    () => (readyUpdatedAt ? new Date(readyUpdatedAt).toLocaleTimeString() : ""),
+    [readyUpdatedAt],
+  )
+
   if (state.kind === "loading") {
     return (
       <View className="px-5 pt-4" accessibilityLabel={translate("Memuat statistik produk")}>
@@ -164,11 +174,8 @@ export function ProductStatsSection({ showcaseId }: { showcaseId: string }) {
     )
   }
 
-  const { stats, lastUpdatedAt } = state
+  const { stats } = state
   const isEmpty = STATS.every((s) => Number(stats[s.key] ?? 0) === 0)
-  // TIM 8 (perf, P2): `toLocaleTimeString()` membangun formatter Intl di
-  // balik layar — memo per `lastUpdatedAt`, bukan per render.
-  const updatedTime = useMemo(() => new Date(lastUpdatedAt).toLocaleTimeString(), [lastUpdatedAt])
 
   return (
     <View className="gap-2 px-5 pt-4">

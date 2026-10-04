@@ -27,7 +27,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Linking, Platform, View } from "react-native"
-import { useNavigation, usePreventRemove, type NavigationAction } from "@react-navigation/native"
+import { useNavigation, usePreventRemove, type NavigationAction } from "expo-router"
 import {
   Eye,
   EyeSlash,
@@ -875,7 +875,7 @@ export default function ShowcaseCreateScreen() {
           scheduledAt: commerce.scheduledAt,
         })
         if (updated) setCommerceFieldsCache(created.id, updated)
-      } catch (commerceError) {
+      } catch {
         if (mounted.current && revision === getSessionRevision()) {
           toast.show({
             title: translate("Field commerce gagal disimpan"),

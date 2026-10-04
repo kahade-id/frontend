@@ -30,7 +30,6 @@
  */
 import { useEffect, useRef, useState } from "react"
 import { Animated, BackHandler, Easing, Platform, Pressable, StyleSheet } from "react-native"
-import { useNavigation } from "@react-navigation/native"
 
 import { cn } from "@/lib/cn"
 import { tokens } from "@/lib/tokens"
@@ -129,6 +128,21 @@ const backDismissStack: Array<() => void> = []
 let backPressSub: { remove(): void } | null = null
 
 /**
+ * B3W-02 di SDK 58: event `beforeRemove` DIHAPUS dari core navigasi
+ * expo-router 58 (peta event kini hanya focus/blur/state/removePrevented/
+ * removed) dan satu-satunya pencegah resmi, `usePreventRemove`, melempar
+ * bila dipakai di luar <Screen> — padahal AppDrawer/CreateSheet di
+ * `app/_layout.tsx` memang di-render di luar navigator.
+ *
+ * Penggantinya: satu entri history "sentinel" per overlay aktif. Tekanan
+ * back mengonsumsi sentinel (popstate) sehingga rute TIDAK ikut ter-pop
+ * (entri rute masih di bawahnya), lalu overlay terdalam ditutup — LIFO,
+ * konsisten dengan hardware back Android. URL sentinel identik dengan URL
+ * aktif supaya expo-router tidak melihat perpindahan lokasi.
+ */
+let sentinelBacksPending = 0
+
+/**
  * B3W-02: true bila ada overlay yang sedang aktif. Dipakai guard layar agar
  * browser back / iOS swipe diserahkan ke overlay terdalam (tumpukan LIFO di
  * atas) alih-alih menjalankan logika back layar (step-back/dialog).
@@ -159,7 +173,6 @@ function releaseBackPressListener(): void {
 export function useOverlayDismissKeys(active: boolean, onDismiss?: () => void) {
   const onDismissRef = useRef(onDismiss)
   onDismissRef.current = onDismiss
-  const navigation = useNavigation()
 
   useEffect(() => {
     if (!active) return
@@ -170,25 +183,38 @@ export function useOverlayDismissKeys(active: boolean, onDismiss?: () => void) {
       }
       window.addEventListener("keydown", handler)
       // B3W-02: browser back di web menutup overlay TERDALAM dulu (LIFO),
-      // konsisten dengan hardware back Android. `beforeRemove` dicegat lalu
-      // React Navigation me-rollback entri history browser — mekanisme yang
-      // sama dengan `usePreventRemove` (terverifikasi di audit) — sehingga
-      // rute TIDAK ikut ter-pop. Keputusan produk: perilaku mobile-first ini
-      // disengaja di web; ekspektasi "back menutup sheet" dipertahankan
-      // lintas platform. Hanya pendaftar teratas yang bereaksi; sisanya
-      // diam agar satu tekanan back = satu overlay tertutup.
+      // konsisten dengan hardware back Android — lihat `sentinelBacksPending`
+      // di atas untuk mekanismenya di SDK 58.
       const dismiss = () => onDismissRef.current?.()
       backDismissStack.push(dismiss)
-      const unsubscribe = navigation.addListener("beforeRemove", (e) => {
-        if (backDismissStack[backDismissStack.length - 1] !== dismiss) return
-        e.preventDefault()
-        dismiss()
-      })
+      // Sentinel history: URL sengaja dibiarkan sama ("") agar lokasi tidak
+      // berubah — yang dibutuhkan hanya satu entri untuk dikonsumsi tombol back.
+      window.history.pushState(null, "")
+      let sentinelActive = true
+      const onPopState = () => {
+        // `history.back()` dari cleanup overlay lain: telan, jangan tutup apa pun.
+        if (sentinelBacksPending > 0) {
+          sentinelBacksPending -= 1
+          return
+        }
+        sentinelActive = false
+        // Hanya pendaftar teratas yang bereaksi; sisanya diam agar satu
+        // tekanan back = satu overlay tertutup.
+        if (backDismissStack[backDismissStack.length - 1] === dismiss) dismiss()
+      }
+      window.addEventListener("popstate", onPopState)
       return () => {
         window.removeEventListener("keydown", handler)
-        unsubscribe()
+        window.removeEventListener("popstate", onPopState)
         const i = backDismissStack.lastIndexOf(dismiss)
         if (i >= 0) backDismissStack.splice(i, 1)
+        if (sentinelActive) {
+          // Overlay ditutup lewat jalur lain (tombol X / scrim / Escape) —
+          // buang sentinel supaya back berikutnya kembali milik router.
+          sentinelActive = false
+          sentinelBacksPending += 1
+          window.history.back()
+        }
       }
     }
 
@@ -200,7 +226,7 @@ export function useOverlayDismissKeys(active: boolean, onDismiss?: () => void) {
       if (i >= 0) backDismissStack.splice(i, 1)
       releaseBackPressListener()
     }
-  }, [active, navigation])
+  }, [active])
 }
 
 export type BackdropProps = {

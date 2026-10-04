@@ -32,12 +32,11 @@ import { useCallback, useRef, useState, type ReactNode } from "react"
 import {
   Animated,
   Pressable,
-  View,
   useWindowDimensions,
+  View,
   type LayoutChangeEvent,
-  type View as RNView,
+  type ViewInstance,
 } from "react-native"
-
 import { useTheme } from "@/components/theme-provider"
 import { Backdrop, useOverlayDismissKeys, useOverlayPresence } from "@/components/ui/backdrop"
 import { IconButton } from "@/components/ui/icon-button"
@@ -91,7 +90,7 @@ export function Tooltip({
   )
 
   const { mode } = useTheme()
-  const triggerRef = useRef<RNView>(null)
+  const triggerRef = useRef<ViewInstance>(null)
   const [anchor, setAnchor] = useState<Rect | null>(null)
   const [size, setSize] = useState<Size | null>(null)
   const { width: winW, height: winH } = useWindowDimensions()

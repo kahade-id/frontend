@@ -18,7 +18,7 @@
  * `router.navigate` cukup — tidak ada logika park/leave-to-tab.
  */
 import { memo, startTransition, useCallback, useEffect, useMemo, useState } from "react"
-import { InteractionManager, Platform } from "react-native"
+import { Platform } from "react-native"
 import { usePathname, useRouter } from "expo-router"
 import { QrCode } from "phosphor-react-native"
 
@@ -27,6 +27,7 @@ import {
   type BottomTabItem,
 } from "@/components/ui/bottom-tab-bar"
 import { haptic } from "@/lib/haptics"
+import { runWhenIdle } from "@/lib/idle"
 import { ROUTES } from "@/lib/routes"
 import { useLanguage, translate } from "@/lib/i18n"
 import { useChatUnreadCountNumber } from "@/lib/chat-unread-count"
@@ -119,7 +120,9 @@ function ShellTabBarInner() {
     if (Platform.OS === "web") return
     let cancelled = false
     const timer = setTimeout(() => {
-      InteractionManager.runAfterInteractions(() => {
+      // RN 0.88 menghapus `InteractionManager`. runWhenIdle (lib/idle.ts)
+      // memeriksa ketersediaan global-nya — aman di native maupun jsdom.
+      runWhenIdle(() => {
         if (cancelled) return
         void import("@/components/screens/chat-tab-screen")
         void import("@/components/screens/notifications-tab-screen")

@@ -1,5 +1,11 @@
 {
-  "extends": "expo/tsconfig.base",
+  // Ekstensi .json wajib sejak SDK 58: peta `exports` expo 58 memetakan
+  // "./*" → "./*.d.ts"/"./*.js" (bukan berkas apa adanya), jadi bentuk tanpa
+  // ekstensi "expo/tsconfig.base" hanya bisa di-resolve tsc, sedangkan
+  // transform oxc milik Vite 8 (dipakai vitest) menolak dengan
+  // TSCONFIG_ERROR "Tsconfig not found". "./*.json" ada di exports, jadi
+  // "expo/tsconfig.base.json" ter-resolve di keduanya.
+  "extends": "expo/tsconfig.base.json",
   "compilerOptions": {
     "strict": true,
     // Audit: 62 simbol mati (impor komponen yang tidak pernah dirender,
@@ -12,7 +18,16 @@
     "jsx": "react-jsx",
     "jsxImportSource": "nativewind",
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./*"],
+      /*
+       * `customConditions: ["react-native"]` (dari expo/tsconfig.base) membuat
+       * TS membuka `react-native-view-shot/src/index.tsx` — sumber mentah yang
+       * masih mengimpor `react-native/Libraries/Types/CodegenTypes`, path yang
+       * sudah tidak lagi diberi tipe oleh RN 0.88. `skipLibCheck` tidak menolong
+       * karena itu berkas .tsx, bukan .d.ts. Diarahkan ke typings terbitan
+       * paket (dibangun dari sumber yang sama) supaya kontrak tetap diperiksa.
+       */
+      "react-native-view-shot": ["./node_modules/react-native-view-shot/lib/index.d.ts"]
     }
   },
   "include": [

@@ -16,9 +16,9 @@
  *   POST /v1/wallet/withdraw/cancel
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { BackHandler, ScrollView, View } from "react-native"
+import { BackHandler, ScrollView, View, type ViewInstance } from "react-native"
 import { router, useLocalSearchParams } from "expo-router"
-import { useFocusEffect, useNavigation, usePreventRemove } from "@react-navigation/native"
+import { useFocusEffect, useNavigation, usePreventRemove } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Bank as BankIcon } from "phosphor-react-native"
 
@@ -244,7 +244,7 @@ export default function WithdrawScreen() {
   // QR verifikasi struk penarikan — defensif: null = tiket tanpa QR (lib/receipt).
   // D1-007: hanya fetch bila tiket benar-benar dirender (step "done") —
   // resume PENDING_OTP menyetel txId saat masih di step "verify".
-  const withdrawTicketRef = useRef<View | null>(null)
+  const withdrawTicketRef = useRef<ViewInstance | null>(null)
   const withdrawQr = useReceiptQr("WITHDRAWAL", result?.txId ?? txId, {
     enabled: step === "done",
   })

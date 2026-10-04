@@ -46,7 +46,7 @@
  * kerangka sendiri), dan layar tanpa fetch.
  */
 import type { ReactNode, Ref } from "react"
-import { ScrollView, View, type ScrollViewProps } from "react-native"
+import { View, type ScrollViewInstance, type ScrollViewProps } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { Alert } from "@/components/ui/alert"
@@ -139,7 +139,7 @@ export type DataScreenProps = {
    * (mis. fokus komentar dari deep link). Opsional; tidak mengubah perilaku
    * konsumen existing.
    */
-  scrollRef?: Ref<ScrollView>
+  scrollRef?: Ref<ScrollViewInstance>
   /** C14: pantau offset scroll (bahan hitung posisi fokus). */
   onScroll?: ScrollViewProps["onScroll"]
   /**
@@ -162,7 +162,7 @@ export function DataScroll({ children, onRefresh, refreshing, enabled = true, pa
    * C14 (batch 139): ref ke ScrollView dalam — untuk scroll terprogram
    * (mis. fokus komentar dari deep link). Opsional.
    */
-  scrollRef?: Ref<ScrollView>
+  scrollRef?: Ref<ScrollViewInstance>
   /** C14: pantau offset scroll (bahan hitung posisi fokus). */
   onScroll?: ScrollViewProps["onScroll"]
   /**

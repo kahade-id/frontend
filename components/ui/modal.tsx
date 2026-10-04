@@ -42,11 +42,11 @@ import { useCallback, useRef, useState, type ReactNode } from "react"
 import {
   Animated,
   ScrollView,
-  View,
   useWindowDimensions,
-  type Text as RNText,
+  View,
+  type TextInstance,
+  type ViewInstance,
 } from "react-native"
-
 import { Button, type ButtonProps } from "@/components/ui/button"
 import { Backdrop, useOverlayDismissKeys, useOverlayPresence } from "@/components/ui/backdrop"
 import { Icon, type IconComponent, type IconTone } from "@/components/ui/icon"
@@ -124,7 +124,7 @@ export function Modal({
     lastFeedbackAt.current = now
     toast.show({ title: msg, tone: "info" })
   }, [toast])
-  const contentRef = useRef<View>(null)
+  const contentRef = useRef<ViewInstance>(null)
   const { mode } = useTheme()
   const { height: windowHeight } = useWindowDimensions()
   const [stageHeight, setStageHeight] = useState(windowHeight)
@@ -265,7 +265,7 @@ export function Dialog({
   // Fokus SR mendarat di judul (audit #3): RN Text selalu accessible sehingga
   // TalkBack menerimanya; header role membuat VoiceOver membacakannya sebagai
   // judul, bukan teks biasa.
-  const titleRef = useRef<RNText>(null)
+  const titleRef = useRef<TextInstance>(null)
 
   const confirmButton = (
     <Button

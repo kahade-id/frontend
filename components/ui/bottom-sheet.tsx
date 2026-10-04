@@ -73,10 +73,11 @@ import { X } from "phosphor-react-native"
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import {
   ScrollView,
-  View,
   useWindowDimensions,
+  View,
   type LayoutChangeEvent,
-  type Text as RNText,
+  type TextInstance,
+  type ViewInstance,
 } from "react-native"
 import { Gesture, GestureDetector } from "react-native-gesture-handler"
 import Animated, {
@@ -191,8 +192,8 @@ export function BottomSheet({
   const { mode } = useTheme()
   const { mounted, progress } = useOverlayPresence(visible, { onHidden })
   const dismiss = dismissOnBackdrop ? onRequestClose : undefined
-  const sheetRef = useRef<View>(null)
-  const titleRef = useRef<RNText>(null)
+  const sheetRef = useRef<ViewInstance>(null)
+  const titleRef = useRef<TextInstance>(null)
 
   useStackingGuard(visible)
   useOverlayDismissKeys(visible, dismiss)

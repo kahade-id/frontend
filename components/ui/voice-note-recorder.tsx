@@ -10,18 +10,30 @@
  *   - Izin diminta saat sheet DIBUKA, bukan saat komponen mount — sheet ini
  *     di-mount permanen oleh layar (visible=false) dan izin prematur memicu
  *     dialog sistem di momen yang salah.
- *   - expo-av `Recording` di web melempar (tidak didukung): ditangkap jadi
- *     state "unsupported" dengan pesan ramah, bukan crash. Sama untuk izin
- *     yang ditolak → state "denied" + arahan buka pengaturan.
- *   - Ukuran berkas diambil via expo-file-system (File API SDK 54), bukan
- *     dari expo-av — `RecordingStatus` tidak melaporkan byte.
+ *   - Perekaman memakai `expo-audio` (SDK 58): `expo-av` sudah TIDAK dikirim
+ *     lagi di kontrak SDK 58 (tidak ada di `expo/bundledNativeModules.json`),
+ *     jadi `Audio.Recording`/`Audio.Sound` digantikan `useAudioRecorder` dan
+ *     `useAudioPlayer`. Di web perekaman bisa melempar (tidak didukung):
+ *     ditangkap jadi state "unsupported" dengan pesan ramah, bukan crash.
+ *     Sama untuk izin yang ditolak → state "denied" + arahan buka pengaturan.
+ *   - Ukuran berkas diambil via expo-file-system (File API), bukan dari
+ *     status rekaman — ukuran dilaporkan `RecorderState.fileSize` tapi baru
+ *     final setelah `stop()`, jadi tetap dibaca dari berkasnya.
  *   - Indikator rekam (titik merah) berdenyut dengan Animated loop; bila
  *     `useReducedMotion` aktif, titik tampil statis. backgroundColor diambil
  *     dari tokens (larangan bg-* di Animated.View).
  *   - Rekaman yang masih berjalan DIBATALKAN saat sheet ditutup/unmount —
  *     tidak ada rekaman hantu yang terus merekam di latar.
  */
-import { Audio } from "expo-av"
+import {
+  RecordingPresets,
+  requestRecordingPermissionsAsync,
+  setAudioModeAsync,
+  useAudioPlayer,
+  useAudioPlayerStatus,
+  useAudioRecorder,
+  useAudioRecorderState,
+} from "expo-audio"
 import { Microphone, Pause, Play, Stop, Trash } from "phosphor-react-native"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { Animated, Easing, View } from "react-native"
@@ -71,7 +83,6 @@ export function VoiceNoteRecorder({
 
   const [state, setState] = useState<RecorderState>("idle")
   const [durationMs, setDurationMs] = useState(0)
-  const [playing, setPlaying] = useState(false)
   const [recordedUri, setRecordedUri] = useState<string | null>(null)
   const [sending, setSending] = useState(false)
   // B3O-22: konfirmasi sebelum membuang rekaman yang berarti.
@@ -84,57 +95,57 @@ export function VoiceNoteRecorder({
   const SPOKEN_QUANTUM_MS = 5_000
   const spokenDurationMs = Math.floor(durationMs / SPOKEN_QUANTUM_MS) * SPOKEN_QUANTUM_MS
 
-  const recordingRef = useRef<Audio.Recording | null>(null)
-  const soundRef = useRef<Audio.Sound | null>(null)
-  const tickRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  // SDK 58: SATU recorder untuk seumur komponen (bukan instance per sesi
+  // rekam seperti `new Audio.Recording()` di expo-av). Sesi baru cukup
+  // `record()` lagi setelah `stop()`.
+  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY)
+  const recState = useAudioRecorderState(recorder, TICK_MS)
+  // Pemutar pratinjau; sumbernya baru ada setelah rekaman dihentikan.
+  const previewPlayer = useAudioPlayer(recordedUri ? { uri: recordedUri } : null)
+  const previewStatus = useAudioPlayerStatus(previewPlayer)
+  /** Status putar dibaca dari player, bukan state lokal (SDK 58). */
+  const playing = previewStatus.playing
+
   const aliveRef = useRef(true)
   const pulse = useRef(new Animated.Value(1)).current
 
-  const clearTick = useCallback(() => {
-    if (tickRef.current) {
-      clearInterval(tickRef.current)
-      tickRef.current = null
-    }
-  }, [])
+  /**
+   * Durasi saat merekam dibaca dari recorder (polling `useAudioRecorderState`),
+   * bukan dari `setInterval` + `getStatusAsync` seperti di expo-av.
+   */
+  useEffect(() => {
+    if (state !== "recording") return
+    setDurationMs(recState.durationMillis ?? 0)
+  }, [state, recState.durationMillis])
 
-  const unloadSound = useCallback(async () => {
-    const sound = soundRef.current
-    soundRef.current = null
-    setPlaying(false)
-    if (sound) {
-      try {
-        await sound.unloadAsync()
-      } catch {
-        // Sudah di-unload / tidak valid — abaikan.
-      }
+  /** Hentikan pratinjau dan kembalikan posisi ke awal. */
+  const stopPreview = useCallback(() => {
+    try {
+      previewPlayer.pause()
+      void previewPlayer.seekTo(0).catch(() => {})
+    } catch {
+      // Player tanpa sumber (belum ada rekaman) — abaikan.
     }
-  }, [])
+  }, [previewPlayer])
 
   /** Batalkan & buang rekaman yang sedang berjalan (tutup sheet/unmount). */
   const discardRecording = useCallback(async () => {
-    clearTick()
-    const recording = recordingRef.current
-    recordingRef.current = null
-    if (recording) {
-      try {
-        const status = await recording.getStatusAsync()
-        if (status.canRecord || status.isRecording) {
-          await recording.stopAndUnloadAsync()
-        }
-      } catch {
-        // Rekaman sudah berhenti / tidak valid — abaikan.
-      }
+    if (!recorder.isRecording) return
+    try {
+      await recorder.stop()
+    } catch {
+      // Rekaman sudah berhenti / tidak valid — abaikan.
     }
-  }, [clearTick])
+  }, [recorder])
 
   const reset = useCallback(() => {
     void discardRecording()
-    void unloadSound()
+    stopPreview()
     setDurationMs(0)
     setRecordedUri(null)
     setSending(false)
     setState("idle")
-  }, [discardRecording, unloadSound])
+  }, [discardRecording, stopPreview])
 
   /**
    * B3O-22: back/backdrop/X saat ada rekaman yang berarti (>3 dtk sedang
@@ -162,8 +173,10 @@ export function VoiceNoteRecorder({
     let cancelled = false
     ;(async () => {
       try {
-        await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true })
-        const perm = await Audio.requestPermissionsAsync()
+        // SDK 58 (expo-audio): nama mode audio berbeda dari expo-av —
+        // `allowsRecording`/`playsInSilentMode` (tanpa akhiran `IOS`).
+        await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true })
+        const perm = await requestRecordingPermissionsAsync()
         if (cancelled || !aliveRef.current) return
         setState(perm.granted ? "ready" : "denied")
       } catch {
@@ -180,9 +193,9 @@ export function VoiceNoteRecorder({
     return () => {
       aliveRef.current = false
       void discardRecording()
-      void unloadSound()
+      stopPreview()
     }
-  }, [discardRecording, unloadSound])
+  }, [discardRecording, stopPreview])
 
   // Denyut titik rekam — statis bila reduced motion.
   useEffect(() => {
@@ -204,45 +217,26 @@ export function VoiceNoteRecorder({
     if (state !== "ready") return
     setState("requesting")
     try {
-      const recording = new Audio.Recording()
-      await recording.prepareToRecordAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY)
-      await recording.startAsync()
-      recordingRef.current = recording
+      await recorder.prepareToRecordAsync(RecordingPresets.HIGH_QUALITY)
+      // `forDuration` = rem native: rekaman berhenti sendiri di batas 5 menit
+      // walau JS sedang sibuk. Transisi UI ke "review" tetap dipicu effect di
+      // bawah (durasi dari `useAudioRecorderState`).
+      recorder.record({ forDuration: Math.ceil(VOICE_NOTE_MAX_DURATION_MS / 1000) })
       setDurationMs(0)
       setState("recording")
-      tickRef.current = setInterval(() => {
-        void (async () => {
-          const rec = recordingRef.current
-          if (!rec) return
-          try {
-            const status = await rec.getStatusAsync()
-            const elapsed = status.durationMillis ?? 0
-            setDurationMs(elapsed)
-            if (elapsed >= VOICE_NOTE_MAX_DURATION_MS) {
-              await stopRecording()
-            }
-          } catch {
-            // Status sesaat tak terbaca — tick berikutnya mencoba lagi.
-          }
-        })()
-      }, TICK_MS)
     } catch {
-      recordingRef.current = null
       setState("unsupported")
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state])
+  }, [state, recorder])
 
   const stopRecording = useCallback(async () => {
-    const recording = recordingRef.current
-    if (!recording) return
-    clearTick()
+    if (!recorder.isRecording) return
+    // Durasi terakhir dibaca SEBELUM `stop()` — setelah berhenti, recorder
+    // di-reset untuk sesi berikutnya.
+    const elapsed = recState.durationMillis ?? 0
     try {
-      await recording.stopAndUnloadAsync()
-      const status = await recording.getStatusAsync()
-      const uri = recording.getURI()
-      const elapsed = status.durationMillis ?? 0
-      recordingRef.current = null
+      await recorder.stop()
+      const uri = recorder.uri
       if (!uri) {
         setState("unsupported")
         return
@@ -251,38 +245,37 @@ export function VoiceNoteRecorder({
       setDurationMs(elapsed)
       setState("review")
     } catch {
-      recordingRef.current = null
       setState("ready")
     }
-  }, [clearTick])
+  }, [recorder, recState.durationMillis])
+
+  /**
+   * Auto-stop di batas maksimum. Sumber kebenarannya `durationMillis` dari
+   * recorder (menggantikan `setInterval` + `getStatusAsync` expo-av).
+   */
+  useEffect(() => {
+    if (state !== "recording") return
+    if (durationMs < VOICE_NOTE_MAX_DURATION_MS) return
+    void stopRecording()
+  }, [state, durationMs, stopRecording])
 
   const togglePreview = useCallback(async () => {
     if (!recordedUri) return
     if (playing) {
-      const sound = soundRef.current
-      if (sound) await sound.pauseAsync()
-      setPlaying(false)
+      previewPlayer.pause()
       return
     }
     try {
-      let sound = soundRef.current
-      if (!sound) {
-        const created = await Audio.Sound.createAsync({ uri: recordedUri }, { shouldPlay: false })
-        sound = created.sound
-        soundRef.current = sound
-        sound.setOnPlaybackStatusUpdate((status) => {
-          if (status.isLoaded && status.didJustFinish) {
-            setPlaying(false)
-          }
-        })
+      // Putar dari awal bila pemutaran sebelumnya sudah selesai — expo-audio
+      // tidak mengulang otomatis (tidak ada `shouldPlay`/loop di sini).
+      if (previewStatus.didJustFinish || previewStatus.currentTime >= previewStatus.duration) {
+        await previewPlayer.seekTo(0)
       }
-      await sound.playAsync()
-      setPlaying(true)
+      previewPlayer.play()
     } catch {
       // Gagal memutar pratinjau — rekaman tetap bisa dikirim.
-      setPlaying(false)
     }
-  }, [recordedUri, playing])
+  }, [recordedUri, playing, previewPlayer, previewStatus.didJustFinish, previewStatus.currentTime, previewStatus.duration])
 
   const sendRecording = useCallback(async () => {
     if (!recordedUri || sending) return
@@ -306,7 +299,7 @@ export function VoiceNoteRecorder({
         setDurationMs(0)
         return
       }
-      await unloadSound()
+      stopPreview()
       onRecorded({
         uri: recordedUri,
         name: voiceNoteFileName(),
@@ -317,14 +310,14 @@ export function VoiceNoteRecorder({
     } finally {
       setSending(false)
     }
-  }, [recordedUri, sending, durationMs, unloadSound, onRecorded])
+  }, [recordedUri, sending, durationMs, stopPreview, onRecorded])
 
   const retryRecording = useCallback(() => {
-    void unloadSound()
+    stopPreview()
     setRecordedUri(null)
     setDurationMs(0)
     setState("ready")
-  }, [unloadSound])
+  }, [stopPreview])
 
   const footer = (() => {
     switch (state) {

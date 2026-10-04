@@ -13,7 +13,7 @@
 import { Crossfade } from "@/components/ui/fade-in"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Linking, Platform, View } from "react-native"
-import { useNavigation, usePreventRemove, type NavigationAction } from "@react-navigation/native"
+import { useNavigation, usePreventRemove, type NavigationAction } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { CalendarBlank, DotsSixVertical, Eye, EyeSlash, Images, PencilSimple, Plus, Star, Trash } from "phosphor-react-native"
 import { router, useLocalSearchParams } from "expo-router"
@@ -440,7 +440,7 @@ function ShowcaseManagement() {
           scheduledAt: commerce.scheduledAt,
         })
         if (updated) setCommerceFieldsCache(editor.item.id, updated)
-      } catch (commerceErr) {
+      } catch {
         commerceWarned = true
         if (mounted.current && revision === getSessionRevision()) {
           toast.show({

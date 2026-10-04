@@ -36,7 +36,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { AppState, BackHandler, Linking, ScrollView, View } from "react-native"
 import { useRouter } from "expo-router"
-import { useFocusEffect } from "@react-navigation/native"
+import { useFocusEffect } from "expo-router"
 import { ArrowsClockwise, WhatsappLogo, WifiSlash } from "phosphor-react-native"
 
 import { Alert } from "@/components/ui/alert"

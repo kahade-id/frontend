@@ -61,17 +61,21 @@ export function Spin360Viewer({ frames, alt, className }: Spin360ViewerProps) {
     [count],
   )
 
-  if (count === 0) return null
-  const safeIndex = Math.min(index, count - 1)
-
-  const go = (delta: number) => setIndex((i) => (i + delta + count) % count)
+  // `count` bisa 0 → `count - 1` negatif, jadi dibatasi dulu di sini.
+  const safeIndex = Math.max(0, Math.min(index, count - 1))
 
   // PERF-FIX (2026-09-30): prefetch frame ±1 saat indeks berubah — drag cepat
   // tidak lagi memicu unduhan fresh per frame (spinner beruntun). Pola sama
   // seperti FE-068 di galeri; mode hemat data dihormati di dalam helper.
+  // Hook DIPANGGIL SEBELUM early return `count === 0` (rules-of-hooks).
   useEffect(() => {
+    if (count === 0) return
     prefetchNeighborImages(frames, safeIndex, dataSaver)
-  }, [frames, safeIndex, dataSaver])
+  }, [count, frames, safeIndex, dataSaver])
+
+  if (count === 0) return null
+
+  const go = (delta: number) => setIndex((i) => (i + delta + count) % count)
 
   return (
     <View

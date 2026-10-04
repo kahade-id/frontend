@@ -17,8 +17,7 @@
  */
 import { ArrowsClockwise } from "phosphor-react-native"
 import { forwardRef } from "react"
-import { View, type TextInput } from "react-native"
-
+import { View, type TextInputInstance } from "react-native"
 import { IconButton } from "@/components/ui/icon-button"
 import { Input, type InputProps } from "@/components/ui/input"
 import { Picture } from "@/components/ui/picture"
@@ -44,7 +43,7 @@ export type CaptchaFieldProps = Omit<InputProps, "variant" | "secureTextEntry" |
   containerClassName?: string
 }
 
-export const CaptchaField = forwardRef<TextInput, CaptchaFieldProps>(function CaptchaField(
+export const CaptchaField = forwardRef<TextInputInstance, CaptchaFieldProps>(function CaptchaField(
   { value, onChangeText, imageUri, onRefresh, loading = false, length = 6, labels, label, containerClassName, className, ...rest },
   ref,
 ) {

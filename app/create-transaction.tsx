@@ -39,7 +39,7 @@ import { AMOUNT_LIMITS, isValidAmount } from "@/lib/financial"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { View } from "react-native"
 import { router, useLocalSearchParams } from "expo-router"
-import { useNavigation, usePreventRemove, type NavigationAction } from "@react-navigation/native"
+import { useNavigation, usePreventRemove, type NavigationAction } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import {

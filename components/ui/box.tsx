@@ -22,8 +22,7 @@
  * `docs/ui-primitives.md` lebih dulu.
  */
 import { forwardRef, type ReactNode } from "react"
-import { View, type View as RNView, type ViewProps } from "react-native"
-
+import { View, type ViewInstance, type ViewProps } from "react-native"
 import type { SpaceKey } from "@/components/ui/stack"
 import { cn } from "@/lib/cn"
 import type { radius } from "@/lib/tokens"
@@ -129,7 +128,7 @@ function borderClass(border: BoxBorder | undefined) {
   return "border border-border"
 }
 
-export const Box = forwardRef<RNView, BoxProps>(function Box(
+export const Box = forwardRef<ViewInstance, BoxProps>(function Box(
   { children, p, px, py, pt, pb, pl, pr, bg, rounded, border, row, flex, clip, className, ...rest },
   ref,
 ) {

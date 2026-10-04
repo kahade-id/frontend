@@ -7,7 +7,7 @@
 
 import { useEffect, useRef, useSyncExternalStore } from "react"
 import { AppState, Platform } from "react-native"
-import { useIsFocused } from "@react-navigation/native"
+import { useIsFocused } from "expo-router"
 import { backpressureRemainingMs } from "@/lib/api/backpressure"
 import { isOfflineKnown, onReconnect } from "@/lib/connectivity"
 import {

@@ -32,8 +32,7 @@
  *     `color`, sama seperti pola IncomingCallPrompt/Icon.
  */
 import { useEffect, useRef } from "react"
-import { Animated, Easing, View } from "react-native"
-
+import { Animated, Easing, View, type ViewInstance } from "react-native"
 import { Backdrop, useOverlayPresence } from "@/components/ui/backdrop"
 import { Portal, useBlockingOverlay } from "@/components/ui/portal"
 import { Text } from "@/components/ui/text"
@@ -128,7 +127,7 @@ export function TransactionProgressOverlay({
   const { mounted, progress } = useOverlayPresence(visible, { onHidden })
   const { mode } = useTheme()
   const reducedMotion = useReducedMotion()
-  const boxRef = useRef<View>(null)
+  const boxRef = useRef<ViewInstance>(null)
   useBlockingOverlay(visible)
   useOverlayFocus(visible, boxRef)
 

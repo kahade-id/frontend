@@ -44,18 +44,23 @@ export const ChatPollCard = memo(function ChatPollCard({
   // 2026-10-02 (Bug 1): guard defensif — poll malformed (mis. dari response
   // API yang tidak terduga) tidak boleh crash seluruh aplikasi. Render null
   // daripada force close.
-  if (!poll || typeof poll !== "object" || !Array.isArray(poll.options)) {
-    return null
-  }
-  const [picked, setPicked] = useState<number[]>(Array.isArray(poll.myVotes) ? poll.myVotes : [])
+  //
+  // Guard DIPINDAH ke bawah semua hook: `rules-of-hooks` melarang hook setelah
+  // early return (urutan hook harus identik di setiap render). Keputusan render
+  // tetap sama; semua pembacaan `poll` di atas guard memakai optional chaining
+  // supaya data malformed tidak melempar sebelum guard tercapai.
+  const malformed = !poll || typeof poll !== "object" || !Array.isArray(poll.options)
+  const [picked, setPicked] = useState<number[]>(
+    poll && Array.isArray(poll.myVotes) ? poll.myVotes : [],
+  )
   // P2 (2026-10-03): sinkronkan saat prop berubah — useState initializer hanya
   // jalan sekali (mount). Tanpa ini, myVotes dari server (vote perangkat lain /
   // refresh) tidak tercermin di UI.
   useEffect(() => {
-    setPicked(Array.isArray(poll.myVotes) ? poll.myVotes : [])
-  }, [poll.myVotes])
-  const closed = poll.isClosed
-  const expired = !closed && !!poll.deadline && Date.parse(poll.deadline) <= serverNow()
+    setPicked(poll && Array.isArray(poll.myVotes) ? poll.myVotes : [])
+  }, [poll?.myVotes])
+  const closed = poll?.isClosed
+  const expired = !closed && !!poll?.deadline && Date.parse(poll.deadline) <= serverNow()
   const locked = closed || expired
 
   const toggle = (index: number) => {
@@ -70,9 +75,12 @@ export const ChatPollCard = memo(function ChatPollCard({
   }
 
   const maxVotes = useMemo(
-    () => Math.max(1, ...poll.options.map((o) => o.votes)),
-    [poll.options],
+    () => Math.max(1, ...(poll && Array.isArray(poll.options) ? poll.options.map((o) => o.votes) : [])),
+    [poll?.options],
   )
+
+  // Guard defensif (Bug 1) — ditempatkan setelah semua hook, lihat catatan di atas.
+  if (malformed) return null
 
   return (
     <View

@@ -25,7 +25,7 @@
  *   - Lokasi opsional dicatat; null = lanjut tanpa lokasi.
  */
 import { useCallback, useEffect, useRef, useState } from "react"
-import { ScrollView, TextInput } from "react-native"
+import { ScrollView, type TextInputInstance } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useRouter } from "expo-router"
 
@@ -53,7 +53,7 @@ const STEP_PROGRESS = 1 / 4
 export default function ForgotPasswordScreen() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
-  const phoneRef = useRef<TextInput>(null)
+  const phoneRef = useRef<TextInputInstance>(null)
 
   const [digits, setDigits] = useState("")
   const [phoneError, setPhoneError] = useState<string | undefined>()

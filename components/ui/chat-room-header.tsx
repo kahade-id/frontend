@@ -104,7 +104,8 @@ export function ChatRoomHeader({
   onProfilePress,
   onBack,
   onMenuPress,
-  extra,
+  // Sengaja di-destructure agar tidak bocor ke `...rest`; tidak dipakai di sini.
+  extra: _extra,
   safeArea,
   className,
   ...rest

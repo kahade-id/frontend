@@ -33,7 +33,7 @@
  *     dihapus setelah setup-profile selesai / user keluar dari alur).
  */
 import { useCallback, useEffect, useRef, useState } from "react"
-import { ScrollView, type TextInput } from "react-native"
+import { ScrollView, type TextInputInstance } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useRouter } from "expo-router"
 
@@ -138,11 +138,11 @@ export default function RegisterSecurityScreen() {
   const [formError, setFormError] = useState<string | null>(null)
   // A04 (batch 139): ringkasan semua error validasi di atas tombol.
   const [issues, setIssues] = useState<ValidationIssue[]>([])
-  const fullNameRef = useRef<TextInput>(null)
-  const passwordRef = useRef<TextInput>(null)
-  const confirmRef = useRef<TextInput>(null)
+  const fullNameRef = useRef<TextInputInstance>(null)
+  const passwordRef = useRef<TextInputInstance>(null)
+  const confirmRef = useRef<TextInputInstance>(null)
   // FRM-005: ref untuk rantai fokus Next antar field.
-  const usernameRef = useRef<TextInput>(null)
+  const usernameRef = useRef<TextInputInstance>(null)
   const [submitting, setSubmitting] = useState(false)
 
   // A06 (batch 139): konfirmasi bila keluar dengan data yang belum disimpan.

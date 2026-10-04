@@ -40,7 +40,7 @@
  *     (lib/otp-flow), BUKAN query param URL — B-07/B-14.
  */
 import { useCallback, useEffect, useRef, useState } from "react"
-import { ScrollView, TextInput, View } from "react-native"
+import { ScrollView, View, type TextInputInstance } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useLocalSearchParams, useRouter } from "expo-router"
 
@@ -71,7 +71,7 @@ type FormError = { kind: "generic"; message: string } | { kind: "conflict"; mess
 export default function RegisterScreen() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
-  const phoneRef = useRef<TextInput>(null)
+  const phoneRef = useRef<TextInputInstance>(null)
 
   // NAV-013: tujuan `next` dari GuestLoginPrompt — disimpan ke memori alur
   // supaya alur pasca-registrasi (takePendingNext, U5-003: langsung ke

@@ -13,7 +13,7 @@
 import { View, type ViewProps } from "react-native"
 import {
   CheckCircle,
-  Circle,
+  CircleIcon as Circle,
   Coins,
   Handshake,
   Package,

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { useIsFocused } from "@react-navigation/native"
+import { useIsFocused } from "expo-router"
 import { ApiError, userMessage } from "@/lib/api/errors"
 import { getSessionSnapshot } from "@/lib/api/session"
 import { useGuestPathBlocked } from "@/lib/guest-gate"

@@ -1,4 +1,4 @@
-import type { GestureResponderEvent } from "react-native"
+import type { GestureResponderEvent, ScrollViewInstance } from "react-native"
 import { mediaTapPoint, type OpeningMediaTap } from "@/lib/use-opening-media-tap"
 /** Shared, swipeable media pager. At most eight images per item.
  *
@@ -68,7 +68,7 @@ export function ShowcaseMediaGallery({ media, title, onOpen, onDoubleTap, autopl
   // i18n: label mengikuti bahasa aktif.
   useLanguage()
   const dataSaver = useDataSaver()
-  const scroll = useRef<ScrollView>(null)
+  const scroll = useRef<ScrollViewInstance>(null)
   const [width, setWidth] = useState(0)
   const [page, setPage] = useState(0)
   const pageRef = useRef(page)

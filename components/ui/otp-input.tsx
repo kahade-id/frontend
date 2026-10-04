@@ -22,7 +22,7 @@
  *     Reduced motion → hanya warna, tanpa pop. Error tetap prioritas.
  */
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react"
-import { Animated, TextInput, View, type ViewProps } from "react-native"
+import { Animated, TextInput, View, type TextInputInstance, type ViewProps } from "react-native"
 import { translate } from "@/lib/i18n/translate"
 
 import { useTheme } from "@/components/theme-provider"
@@ -167,7 +167,7 @@ export const OtpInput = forwardRef<OtpInputHandle, OtpInputProps>(function OtpIn
   ref,
 ) {
   const { mode } = useTheme()
-  const inputRef = useRef<TextInput>(null)
+  const inputRef = useRef<TextInputInstance>(null)
   /** Kode terakhir yang sudah dilaporkan ke `onComplete` (dipakai deteksi A-03). */
   const completionRef = useRef("")
   const [internal, setInternal] = useState(defaultValue)

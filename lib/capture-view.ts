@@ -10,8 +10,7 @@
  */
 
 import type { RefObject } from "react"
-import type { View } from "react-native"
-
+import type { ViewInstance } from "react-native"
 export interface CaptureViewOptions {
   format?: "png" | "jpg"
   quality?: number
@@ -25,7 +24,7 @@ export interface CaptureViewOptions {
  * capture gagal — pemanggil yang menampilkan feedback ke pengguna.
  */
 export async function captureView(
-  ref: RefObject<View | null> | View | null | undefined,
+  ref: RefObject<ViewInstance | null> | ViewInstance | null | undefined,
   options: CaptureViewOptions = {},
 ): Promise<string> {
   const target = ref && typeof ref === "object" && "current" in ref ? ref.current : ref

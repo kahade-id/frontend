@@ -22,8 +22,15 @@ const problems = []
 // app/scan.tsx; tombol QR di bottom navbar). Guard ini sempat menggagalkan
 // build production karena hanya mencocokkan nama plugin tanpa memverifikasi
 // pemakaian aktual.
+// expo-audio DICABUT dari daftar larangan (upgrade SDK 58, 2026-10-03):
+// voice note chat adalah entry point aktif — perekam dirender di
+// components/screens/chat-room-screen.tsx (<VoiceNoteRecorder>) dan pemutarnya
+// di components/ui/chat-message-row.tsx (<VoiceNotePlayer>), keduanya memakai
+// useAudioRecorder/useAudioPlayer dari expo-audio. Sebelumnya guard ini lolos
+// hanya karena audio berjalan lewat expo-av (kini dihapus di SDK 58); kasus ini
+// persis seperti expo-camera — nama plugin dicocokkan tanpa memverifikasi
+// pemakaian aktual.
 const forbiddenPlugins = [
-  "expo-audio",
   "expo-background-task",
   "expo-contacts",
   "expo-media-library",

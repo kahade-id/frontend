@@ -44,8 +44,7 @@ import {
   ScrollView,
   TextInput,
   View,
-  type NativeSyntheticEvent,
-  type TextInputKeyPressEventData,
+  type TextInputKeyPressEvent,
   type TextInputProps,
   type ViewProps,
 } from "react-native"
@@ -219,9 +218,9 @@ export function ChatComposer({
 
   // Web: Enter kirim, Shift+Enter baris baru; hormati komposisi IME CJK.
   const onKeyPress = useCallback(
-    (e: NativeSyntheticEvent<TextInputKeyPressEventData>) => {
+    (e: TextInputKeyPressEvent) => {
       if (Platform.OS !== "web") return
-      const native = e.nativeEvent as TextInputKeyPressEventData & {
+      const native = e.nativeEvent as TextInputKeyPressEvent["nativeEvent"] & {
         shiftKey?: boolean
         isComposing?: boolean
         keyCode?: number

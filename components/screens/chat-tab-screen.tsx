@@ -31,7 +31,7 @@
  *     swipe dimatikan selama mode pilih supaya gesture tidak bentrok.
  */
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react"
-import { ScrollView, View, type FlatList, type View as RNView } from "react-native"
+import { ScrollView, View, type FlatList, type ViewInstance } from "react-native"
 import { Archive, BellSlash, BellZ, Chats, GearSix, NotePencil, PushPin, Trash, X } from "phosphor-react-native"
 import { router, useFocusEffect } from "expo-router"
 
@@ -330,7 +330,7 @@ type ChatRoomRowProps = {
    * FE-129: diisi hanya untuk baris pertama — View penjangkar coach mark
    * sekali-tampil gesture swipe. Stabil per mount, jadi tidak menjebol memo.
    */
-  rowAnchor?: RefObject<RNView | null>
+  rowAnchor?: RefObject<ViewInstance | null>
 }
 
 /**
@@ -542,7 +542,7 @@ export default function ChatScreen() {
   const toast = useToast()
   const insets = useSafeAreaInsets()
   // FE-129: jangkar coach mark sekali-tampil gesture swipe di baris pertama.
-  const firstRowRef = useRef<RNView | null>(null)
+  const firstRowRef = useRef<ViewInstance | null>(null)
   const [filter, setFilter] = useState<ChatFilter>("all")
   // PERF-FIX (TIM1-P1): onChange chip stabil — sebelumnya closure inline
   // dibuat ulang di setiap render tab.

@@ -4,8 +4,9 @@
  * Pola seragam untuk layar registrasi: dialog konfirmasi HANYA bila ada
  * perubahan yang belum tersimpan (`dirty`). Menangani:
  * - Tombol kembali header / gesture / hardware back → dicegat
- *   `usePreventRemove` (@react-navigation/native; bekerja dengan expo-router,
- *   pola yang sama dipakai app/showcase/create.tsx).
+ *   `usePreventRemove` (SDK 58: hook ini diekspor `expo-router` langsung,
+ *   bukan lagi dari @react-navigation/native; pola yang sama dipakai
+ *   app/showcase/create.tsx).
  * - Web: `beforeunload` bila tab ditutup dengan form kotor.
  * - Navigasi yang disengaja (submit sukses, "Lewati") → panggil
  *   `markLeaving()` DULU supaya penjaga tidak ikut campur.
@@ -22,7 +23,7 @@ import {
   useNavigation,
   usePreventRemove,
   type NavigationAction,
-} from "@react-navigation/native"
+} from "expo-router"
 import { useRouter } from "expo-router"
 
 export type LeaveConfirmOptions = {

@@ -14,7 +14,7 @@
  */
 
 import { View } from "react-native"
-import { CheckCircle, Circle, XCircle } from "phosphor-react-native"
+import { CheckCircle, CircleIcon as Circle, XCircle } from "phosphor-react-native"
 
 import { tokens } from "@/lib/tokens"
 import { cn } from "@/lib/cn"

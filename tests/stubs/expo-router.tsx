@@ -1,12 +1,25 @@
 /**
  * Stub `expo-router` untuk Vitest (config komponen).
  *
- * Router asli menarik seluruh runtime navigasi (react-navigation + expo
- * linking) yang butuh native globals. Test komponen hanya butuh <Link> yang
- * merender anak-anaknya dan hook params yang mengembalikan nilai kosong.
+ * Router asli menarik seluruh runtime navigasi (expo-router 58 memakai
+ * `standard-navigation`, bukan lagi fork @react-navigation) yang butuh native
+ * globals. Test komponen hanya butuh <Link> yang merender anak-anaknya dan
+ * hook params yang mengembalikan nilai kosong.
+ *
+ * SDK 58: hook navigasi (useIsFocused/useNavigation/useFocusEffect/
+ * usePreventRemove) sekarang diimpor dari `expo-router`, bukan dari
+ * `@react-navigation/native`. Implementasinya tetap dibagikan dengan
+ * `stubs/react-navigation.ts` supaya `__setFocused()` tetap mengendalikan
+ * `useIsFocused()` dari satu sumber (F-01/F-02).
  */
 import React from "react"
 import type { ReactNode } from "react"
+
+import {
+  useFocusEffect as sharedUseFocusEffect,
+  useIsFocused as sharedUseIsFocused,
+  useNavigation as sharedUseNavigation,
+} from "./react-navigation"
 
 export type Href = string | { pathname: string; params?: Record<string, string> }
 
@@ -66,8 +79,28 @@ export function useSegments(): string[] {
 export function useRouter() {
   return router
 }
-export function useFocusEffect(effect: () => void): void {
-  React.useEffect(effect, [])
+export const useIsFocused = sharedUseIsFocused
+export const useNavigation = sharedUseNavigation
+export const useFocusEffect = sharedUseFocusEffect
+
+/**
+ * SDK 58: pencegah resmi perpindahan rute. Di test tidak ada navigator, jadi
+ * stub ini hanya menyimpan callback terakhir agar test bisa memicu
+ * "percobaan keluar" secara eksplisit lewat `__triggerPreventedRemove()`.
+ */
+type PreventRemoveCallback = (options: {
+  data: { action: { type: string } }
+  repeat: () => void
+}) => void
+let preventRemoveCallback: PreventRemoveCallback | null = null
+
+export function usePreventRemove(preventRemove: boolean, callback?: PreventRemoveCallback): void {
+  preventRemoveCallback = preventRemove ? (callback ?? null) : null
+}
+
+/** Test helper: simulasi aksi back/leave yang ditahan `usePreventRemove`. */
+export function __triggerPreventedRemove(actionType = "GO_BACK"): void {
+  preventRemoveCallback?.({ data: { action: { type: actionType } }, repeat: () => undefined })
 }
 export const router = {
   push: (_href: Href) => undefined,
@@ -77,3 +110,4 @@ export const router = {
   canGoBack: () => false,
 }
 export default { Link, router, useRouter, useLocalSearchParams, usePathname }
+

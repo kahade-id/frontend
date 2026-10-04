@@ -26,7 +26,7 @@
  *   - Saat `password` kosong, komponen merender bar kosong TANPA label supaya
  *     tinggi tidak melompat ketika user mulai mengetik (`reserveSpace`).
  */
-import { Check, Circle } from "phosphor-react-native"
+import { Check, CircleIcon as Circle } from "phosphor-react-native"
 import { View, type ViewProps } from "react-native"
 
 import { Icon } from "@/components/ui/icon"

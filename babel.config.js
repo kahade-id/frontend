@@ -17,7 +17,14 @@ module.exports = function (api) {
   // tersebut (fs.existsSync per ikon), sehingga `api.cache(true)` murni
   // berisiko memakai transform basi setelah upgrade/downgrade paket atau
   // ganti env (dev vs production).
-  const phosphorVersion = require("phosphor-react-native/package.json").version
+  //
+  // Versi dibaca lewat scripts/phosphor-root.cjs: phosphor v3 tidak
+  // mengekspos subpath "./package.json" di peta `exports`-nya, jadi
+  // require("phosphor-react-native/package.json") melempar
+  // ERR_PACKAGE_PATH_NOT_EXPORTED dan menggagalkan pembangunan transformer
+  // Metro — build web maupun native mati sebelum satu berkas pun dibundel.
+  const { resolvePhosphorVersion } = require("./scripts/phosphor-root.cjs")
+  const phosphorVersion = resolvePhosphorVersion()
   api.cache.using(() => `${phosphorVersion}:${process.env.NODE_ENV ?? "development"}`)
   return {
     plugins: [require.resolve("./scripts/babel-phosphor-imports.cjs")],

@@ -42,9 +42,9 @@ import {
   Platform,
   TextInput,
   View,
+  type TextInputInstance,
   type TextInputProps,
 } from "react-native"
-
 import { useTheme } from "@/components/theme-provider"
 import { Field, useFieldContext, type FieldProps } from "@/components/ui/field"
 import { useTransformAwarePressable } from "@/components/ui/gesture-pressable"
@@ -100,7 +100,7 @@ export type InputProps = Omit<TextInputProps, "style" | "editable"> &
 const LABEL_FLOAT_Y = -(tokens.space[3] + tokens.space[2]) // -20px: dari tengah ke garis border
 const LABEL_FLOAT_SCALE = tokens.typography.caption.fontSize / tokens.typography.bodyLarge.fontSize
 
-export const Input = forwardRef<TextInput, InputProps>(function Input(
+export const Input = forwardRef<TextInputInstance, InputProps>(function Input(
   {
     label,
     variant = "text",

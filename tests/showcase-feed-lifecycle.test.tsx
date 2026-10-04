@@ -17,7 +17,10 @@ vi.mock("phosphor-react-native", () => ({ Images: () => null, X: () => null }))
 // provider asli hanya ada di app/_layout.tsx, jadi di test di-mock.
 vi.mock("@/components/ui/toast", () => ({ useToast: () => ({ show: vi.fn() }) }))
 vi.mock("react-native-reanimated", () => ({ default: { View: ({ children }: { children: ReactNode }) => <>{children}</> } }))
-vi.mock("@react-navigation/native", () => ({ useIsFocused: () => mocks.focused }))
+vi.mock("expo-router", async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  useIsFocused: () => mocks.focused,
+}))
 vi.mock("@/lib/api", () => ({ api: { users: { getMe: mocks.me, getFollowing: mocks.following } }, isApiError: () => false, userMessage: () => "failed" }))
 vi.mock("@/lib/api/showcase", () => ({ getShowcaseFeed: mocks.feed }))
 vi.mock("@/lib/guest-gate", () => ({ useHasSession: () => mocks.session, useSessionRevision: () => 0 }))
