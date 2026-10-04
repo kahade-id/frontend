@@ -174,7 +174,7 @@ describe("peta route aksi dompet", () => {
       ["Riwayat", ROUTES.walletHistory],
       ["Voucher", ROUTES.vouchers],
       ["Bank", ROUTES.bankAccounts],
-      ["Bantuan", ROUTES.liveSupport],
+      ["Bantuan", ROUTES.faq],
     ])
   })
 
@@ -210,7 +210,7 @@ describe("<WalletPrimaryActions> / <WalletQuickMenu>", () => {
       ["Riwayat", ROUTES.walletHistory],
       ["Voucher", ROUTES.vouchers],
       ["Bank", ROUTES.bankAccounts],
-      ["Bantuan", ROUTES.liveSupport],
+      ["Bantuan", ROUTES.faq],
     ] as const
     for (const [label, route] of cases) {
       fireEvent.click(screen.getByRole("button", { name: label }))

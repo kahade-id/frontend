@@ -67,11 +67,15 @@ export const HELP_MENU_META: readonly DrawerMenuMeta[] = [
  * Legacy web-only drawer rows. The shipped web route redirects to the landing
  * site; keep this metadata solely for old web-shell compatibility/tests.
  * Native Android/iOS render HELP_MENU_META instead.
+ *
+ * Poin 5 (2026-10-04): "Bantuan Langsung" (chat palsu polling-tiket) dihapus —
+ * entri web-legacy ini kini menunjuk shell jujur /support-chat ("Chat dengan
+ * tim Kahade"; gelombang 2 = client websocket penuh).
  * @deprecated
  */
 export const BOTTOM_MENU_META: readonly DrawerMenuMeta[] = [
   { id: "feedback", label: "Umpan Balik", href: ROUTES.feedback, accessibilityLabel: "Buka umpan balik" },
-  { id: "live-support", label: "Bantuan Langsung", href: ROUTES.liveSupport, accessibilityLabel: "Buka bantuan langsung" },
+  { id: "live-support", label: "Chat dengan tim Kahade", href: ROUTES.supportChat, accessibilityLabel: "Buka chat dengan tim Kahade" },
   { id: "support-tickets", label: "Tiket Bantuan", href: ROUTES.support, accessibilityLabel: "Buka tiket bantuan" },
 ]
 

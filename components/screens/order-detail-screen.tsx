@@ -1162,11 +1162,9 @@ export default function OrderDetailScreen() {
       key: "help",
       label: translate("Bantuan"),
       icon: Question,
-      onPress: () =>
-        router.push({
-          pathname: "/contact",
-          params: { category: "ORDER", orderId: order.id },
-        } as Href),
+      // Poin 5 (2026-10-04): "Hubungi Kami"/buat tiket dihapus — satu alur
+      // chat jujur (shell gelombang 1 → client websocket gelombang 2).
+      onPress: () => router.push(ROUTES.supportChat),
     },
   ]
   // H-08: invoice "belum diterbitkan" untuk WAITING_CONFIRMATION/CANCELLED.

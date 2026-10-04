@@ -228,7 +228,7 @@ export default function ForgotPasswordScreen() {
            */}
           <Text variant="caption" tone="secondary" className="text-center text-pretty">
             Nomor HP tidak aktif atau sudah tidak dipakai?{" "}
-            <TextLink inline onPress={() => router.push(ROUTES.liveSupport)}>
+            <TextLink inline onPress={() => router.push(ROUTES.faq)}>
               Minta bantuan
             </TextLink>
           </Text>

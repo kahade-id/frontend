@@ -259,12 +259,6 @@ export const SecureKeys = {
    */
   helpFeedback: "kahade.help.feedback",
   /**
-   * Batch 139 (F07) — antrean pesan live support yang gagal terkirim
-   * (JSON — lib/live-support-outbox.ts). Data milik AKUN: dihapus
-   * `clearSession()`; memory-only di web.
-   */
-  liveSupportOutbox: "kahade.livesupport.outbox",
-  /**
    * Item #28 — skala ukuran font A-/A+ (0.85–1.3). String desimal, mis. "1.1".
    * Preferensi perangkat non-sensitif: persist di web, TIDAK ikut clearSession.
    */
@@ -422,8 +416,6 @@ export async function clearSession(): Promise<void> {
     deleteSecureItem(SecureKeys.helpHistory),
     // Batch 139 (F17): umpan balik artikel per versi milik akun.
     deleteSecureItem(SecureKeys.helpFeedback),
-    // Batch 139 (F07): antrean pesan live support yang belum terkirim.
-    deleteSecureItem(SecureKeys.liveSupportOutbox),
   ])
 }
 

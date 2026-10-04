@@ -33,7 +33,6 @@ export const AUTHENTICATED_SCREENS = [
   "chat/[roomId]",
   "chat",
   "chat/settings", // NAV-004 (2026-09-28): GET /v1/chat/privacy auth-required — deep link native tanpa sesi = 401
-  "contact",
   "create-transaction",
   "delete-account",
   "delivery-proof/[orderId]",
@@ -47,7 +46,6 @@ export const AUTHENTICATED_SCREENS = [
   "invoice/[orderId]",
   "kyc",
   "language",
-  "live-support", // NAV-005 (2026-09-28): listSupportTickets auth-required — tamu web/native tidak boleh menembak endpoint
   "milestones/[id]", // detail milestone escrow — GET ber-auth (Tim C, integrasi 2026-09-27)
   "notification/[id]",
   "notification-preferences",

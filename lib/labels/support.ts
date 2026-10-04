@@ -2,8 +2,9 @@
  * Kahade — label kategori tiket bantuan (item mega-batch 125).
  *
  * Enum backend mentah ("PAYMENT", "KYC", …) tidak boleh tampil apa adanya di
- * kartu tiket — satu peta Indonesia di sini, dipakai <SupportTicketCard>,
- * detail tiket, dan form "Hubungi Kami" (dulu peta lokal di app/contact.tsx).
+ * kartu tiket — satu peta Indonesia di sini, dipakai <SupportTicketCard> dan
+ * detail tiket. (Poin 5, 2026-10-04: form "Hubungi Kami" app/contact.tsx
+ * dihapus — tiket kini hanya dibuat admin dari eskalasi chat.)
  */
 import { hasOwn } from "@/lib/has-own"
 

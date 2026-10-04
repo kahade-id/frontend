@@ -88,10 +88,11 @@ describe("menu drawer — label Bahasa Indonesia", () => {
     expect(byId).not.toHaveProperty("shop")
   })
 
-  it("menu bawah: Umpan Balik, Bantuan Langsung, Tiket Bantuan", () => {
+  it("menu bawah: Umpan Balik, Chat dengan tim Kahade, Tiket Bantuan", () => {
     expect(BOTTOM_MENU_META.map((m) => m.label)).toEqual([
       "Umpan Balik",
-      "Bantuan Langsung",
+      // Poin 5 (2026-10-04): "Bantuan Langsung" (chat palsu) → label jujur.
+      "Chat dengan tim Kahade",
       "Tiket Bantuan",
     ])
   })

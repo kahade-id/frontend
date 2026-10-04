@@ -47,7 +47,7 @@ const metadata = [
   { match: /^\/register\/?$/, title: "Daftar — Kahade", description: "Buat akun Kahade dan mulai bertransaksi dengan escrow." },
   { match: /^\/forgot-password\/?$/, title: "Pulihkan kata sandi — Kahade", description: "Langkah pemulihan kata sandi akun Kahade." },
 ]
-const canonicalRoutes = new Set(["/", "/about", "/contact", "/faq", "/privacy-policy", "/terms"])
+const canonicalRoutes = new Set(["/", "/about", "/faq", "/privacy-policy", "/terms"])
 
 function walk(dir) {
   const files = []

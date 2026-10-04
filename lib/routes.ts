@@ -344,13 +344,10 @@ export const ROUTES = {
    */
   appearance: "/appearance" as Href,
   faq: "/faq" as Href,
-  contact: "/contact" as Href,
   /** Tentang Kahade (profil aplikasi, versi, tautan legal) */
   about: "/about" as Href,
   /** Form umpan balik pengguna (saran/masukan) */
   feedback: "/feedback" as Href,
-  /** Live chat langsung dengan admin Kahade */
-  liveSupport: "/live-support" as Href,
   /**
    * Ajakan login untuk pengunjung web (guest mode). `next` diisi path yang
    * dituju agar setelah login bisa kembali ke sana.
@@ -445,6 +442,14 @@ export const ROUTES = {
   /** Detail tiket dukungan */
   supportTicket: (ticketId: string) =>
     ({ pathname: "/support/[ticketId]", params: { ticketId } }) as unknown as Href,
+  /**
+   * Chat dengan tim Kahade — GELOMBANG 2 (client websocket).
+   * Shell gelombang 1: menampilkan pesan jujur bahwa chat sedang disiapkan
+   * (bukan chat palsu). Seluruh alur "cari FAQ dulu → tidak ketemu → chat"
+   * menunjuk ke sini; gelombang 2 mengisi layar ini dengan client websocket
+   * penuh.
+   */
+  supportChat: "/support-chat" as Href,
   /** Artikel bantuan per slug */
   helpCategory: (slug: string) =>
     ({ pathname: "/help/[slug]", params: { slug } }) as unknown as Href,

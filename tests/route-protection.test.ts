@@ -48,11 +48,15 @@ const PUBLIC_SCREENS = new Set<string>([
   "about",
   "app-version", // info versi (GET /v1/public/app-version, auth none)
   "appearance", // preferensi tema lokal, tanpa API ber-auth
-  "contact",
   "deletion-status", // status hapus akun via deletionToken — tanpa sesi (Tim A, integrasi 2026-09-27)
   "faq",
   "feedback",
   "help/[slug]",
+  // Poin 5 gelombang 1 (2026-10-04): shell "Chat dengan tim Kahade" — pesan
+  // jujur "chat sedang disiapkan", tanpa panggilan API ber-auth. Publik agar
+  // tamu web/native ikut melihat pesan jujurnya. Gelombang 2 (client
+  // websocket penuh) = pindahkan ke AUTHENTICATED_SCREENS.
+  "support-chat",
   "landing", // NAV-010: landing page web publik (gate tamu di app/index.tsx); native redirect ke "/"
   "login-required",
   "more", // NAV-010: redirect /more → /showcase (redesign 2026-09-27); publik seperti tujuannya

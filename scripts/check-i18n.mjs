@@ -106,6 +106,8 @@ const COGNATE_ALLOWLIST = new Map([
   ['("GET", path, opts), post:', "fragmen kode, bukan teks UI"],
   // Nama merek/produk — tidak pernah diterjemahkan.
   ["Kahade", "nama produk"],
+  // URL pusat bantuan — identik di semua bahasa, bukan teks terjemahan.
+  ["bantuan.kahade.id", "URL pusat bantuan, tidak diterjemahkan"],
   ["WhatsApp", "nama layanan"],
   ["Telegram", "nama layanan"],
   ["X (Twitter)", "nama layanan (X sudah jadi merek; koma Twitter demi kejelasan)"],
