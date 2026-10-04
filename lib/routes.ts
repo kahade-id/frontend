@@ -302,7 +302,6 @@ export const ROUTES = {
   // ── Pengaturan — semua sub-screen menu ──────────────────────────────────
   editProfile: "/edit-profile" as Href,
   bankAccounts: "/bank-accounts" as Href,
-  accountType: "/account-type" as Href,
   changePassword: "/change-password" as Href,
   changePin: "/change-pin" as Href,
   /** Ganti nomor HP akun (PUT /v1/users/me { phoneNumber, currentPassword }) */

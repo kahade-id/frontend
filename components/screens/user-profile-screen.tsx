@@ -60,7 +60,7 @@ import { logWarn } from "@/lib/telemetry"
 
 import { Avatar } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
-import { VerificationSheet, getSealTier } from "@/components/ui/verified-seal"
+import { VerifiedSeal, VerificationSheet, getSealTier } from "@/components/ui/verified-seal"
 import { VerifiedName } from "@/components/ui/verified-name"
 import { GreyCheckBadge } from "@/components/ui/grey-check-badge"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
@@ -1152,6 +1152,30 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
                     tier={getSealTier(badges) ?? "gray"}
                   />
                 </>
+              ) : null}
+
+              {/*
+               * POIN 3 (2026-10-04) — seksi usaha: mewujudkan janji "profil
+               * usaha" untuk akun bisnis yang dulu hanya klaim di layar
+               * Tipe Akun (kini dihapus bersama self-claim). Tampil bila
+               * accountType === "BUSINESS" (alias flat GET /v1/users/:username;
+               * BAI-064 menaikkan ke BUSINESS saat verifikasi disetujui).
+               * Nama usaha TIDAK ada di payload profil publik (hanya di
+               * endpoint verifikasi milik sendiri) — jadi tampilkan seal
+               * biru + label "Bisnis Terverifikasi" saja. Minimal, tanpa
+               * layar baru.
+               */}
+              {profile.accountType === "BUSINESS" ? (
+                <View
+                  className="flex-row items-center gap-1.5 pt-0.5"
+                  accessible
+                  accessibilityLabel={translate("Bisnis Terverifikasi")}
+                >
+                  <VerifiedSeal badges={badges} tier="blue" size={16} />
+                  <Text variant="body" weight={600} tone="primary">
+                    {translate("Bisnis Terverifikasi")}
+                  </Text>
+                </View>
               ) : null}
 
               {/*

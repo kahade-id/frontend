@@ -402,6 +402,15 @@ export type PublicUserProfile = {
   avatarUrl?: string | null
   /** Foto sampul profil publik — alias dibaca di getUserByUsername. */
   headerUrl?: string | null
+  /**
+   * POIN 3 (2026-10-04): tipe akun — backend mengirim alias flat top-level
+   * (lihat `deprecated flat aliases` di getPublicProfile). Sejak BAI-064,
+   * APPROVED verifikasi bisnis otomatis menaikkan ini ke "BUSINESS".
+   * Catatan: nama usaha TIDAK ada di payload profil publik (hanya di
+   * endpoint verifikasi milik sendiri) — seksi usaha memakai label
+   * "Bisnis Terverifikasi" sebagai gantinya.
+   */
+  accountType?: "PERSONAL" | "BUSINESS"
   verified?: boolean
   trustScore?: number
   rating?: number

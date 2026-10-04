@@ -7,8 +7,10 @@
  * (self-hosted, 2026-09-26) lalu `fileKey`-nya dikirim lewat submit.
  *
  * Keputusan non-obvious:
- *   - Hanya akun `accountType === "BUSINESS"` yang boleh submit (backend
- *     menolak 403 selain itu). Gerbang UI ada di layar, adapter tetap
+ *   - Akun PERSONAL maupun BUSINESS boleh submit (POIN 3, 2026-10-04 —
+ *     self-claim tipe akun dihapus; backend BAI-064: APPROVED otomatis
+ *     menaikkan accountType ke BUSINESS, akun yang sudah BUSINESS ditolak
+ *     karena tak perlu mengajukan). Gerbang UI ada di layar, adapter tetap
  *     netral — backend adalah sumber kebenaran.
  *   - `resubmit` hanya boleh saat pengajuan terakhir REJECTED + cooldown
  *     24 jam lewat; `submit` untuk pengajuan pertama. Sama seperti KYC,

@@ -19,7 +19,6 @@ export const AUTHENTICATED_SCREENS = [
   "(tabs)",
   "(auth)/setup-profile",
   "prepare-navigation",
-  "account-type",
   "addresses",
   "analytics",
   "badges",
@@ -178,7 +177,6 @@ export const WEB_GUEST_ALLOWED_PATHS: readonly string[] = [
   "/register-security",
   "/phone-migration",
   "/setup-profile",
-  "/account-type",
   ...WEB_GUEST_TAB_SCREENS.map((name) => `/${name}`),
 ]
 

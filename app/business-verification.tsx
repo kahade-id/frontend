@@ -11,9 +11,11 @@
  * Keputusan non-obvious:
  *   - Kerangka layar via <DataScreen> (aturan S3 check:screens): urutan
  *     loading → error → konten, inset bawah, dan padding ditangani kerangka.
- *   - Gerbang UI: hanya akun `accountType === "BUSINESS"` yang boleh submit
- *     (backend juga menolak 403 selain itu). Akun PERSONAL melihat kartu
- *     penunjuk ke layar Tipe Akun, bukan form — submit pasti gagal.
+ *   - Gerbang UI DIBUKA untuk semua tipe akun (POIN 3, 2026-10-04):
+ *     self-claim tipe akun dihapus, jadi semua user PERSONAL — verifikasi
+ *     bisnis tetap bisa diajukan siapa pun; APPROVED otomatis menaikkan
+ *     accountType ke BUSINESS di backend (BAI-064). Akun yang sudah
+ *     BUSINESS ditolak backend (sudah terverifikasi, tak perlu mengajukan).
  *   - Dokumen diambil lewat kamera/galeri (foto NPWP / akta / SIUP), sama
  *     seperti alur KYC & bukti sengketa: expo-image-picker belum mendukung
  *     file PDF (repo tidak memasang expo-document-picker). Backend menerima
@@ -42,7 +44,6 @@ import {
   type PickedImage,
   type PickImageOptions,
 } from "@/lib/image-picker"
-import { ROUTES } from "@/lib/routes"
 import { useApiQuery } from "@/lib/use-api-query"
 
 import { Button } from "@/components/ui/button"
@@ -54,7 +55,6 @@ import { Input } from "@/components/ui/input"
 import { KeyValue, KeyValueList } from "@/components/ui/key-value"
 import { KycHistoryListItem } from "@/components/ui/kyc-history-list-item"
 import { KycStatusCard } from "@/components/ui/kyc-status-card"
-import { RouteLink } from "@/components/ui/route-link"
 import { SectionHeader } from "@/components/ui/section"
 import { Text } from "@/components/ui/text"
 import { useToast } from "@/components/ui/toast"
@@ -85,32 +85,31 @@ export default function BusinessVerificationScreen() {
    */
   const query = useApiQuery<{
     state: BusinessVerificationState
-    accountType: string | null
     history: BusinessVerificationHistoryEntry[]
   }>(
     "business-verification",
     async (signal) => {
-      const [me, s, h] = await Promise.all([
-        api.users.getMe(signal),
+      const [s, h] = await Promise.all([
         api.businessVerification.getBusinessVerificationStatus(signal),
         api.businessVerification
           .getBusinessVerificationHistory({ page: 1, limit: HISTORY_LIMIT }, signal)
           .then((p) => p.data)
           .catch(() => []),
       ])
-      return { state: s, accountType: me.accountType ?? null, history: h ?? [] }
+      return { state: s, history: h ?? [] }
     },
   )
   const state = query.data?.state ?? null
-  const accountType = query.data?.accountType ?? null
   const history = query.data?.history ?? []
 
-  const isBusiness = accountType === "BUSINESS"
   const uiStatus = toBusinessVerificationUiStatus(state?.status)
   // resubmit hanya untuk REJECTED (backend menolak selain itu); REVOKED dan
   // pengajuan pertama memakai submit.
   const isResubmit = uiStatus === "REJECTED"
-  const canSubmit = isBusiness && (uiStatus === "NOT_SUBMITTED" || isResubmit)
+  // POIN 3 (2026-10-04): gerbang tipe akun dibuka — siapa pun (semua user
+  // kini PERSONAL karena self-claim dihapus) boleh mengajukan; backend
+  // menaikkan ke BUSINESS saat APPROVED (BAI-064).
+  const canSubmit = uiStatus === "NOT_SUBMITTED" || isResubmit
 
   const [formOpen, setFormOpen] = useState(false)
   const [discardOpen, setDiscardOpen] = useState(false)
@@ -288,32 +287,14 @@ export default function BusinessVerificationScreen() {
       state={query}
       loadingMessage="Memuat status verifikasi bisnis…"
     >
-      {!isBusiness ? (
-        <>
-          <KycStatusCard status="NOT_SUBMITTED" />
-          <View className="gap-2 rounded-md bg-surface p-4">
-            <Text variant="body">
-              Verifikasi bisnis hanya tersedia untuk akun dengan tipe{" "}
-              <Text variant="body" tone="primary">
-                Bisnis
-              </Text>
-              . Ganti tipe akun terlebih dahulu, lalu ajukan kembali.
-            </Text>
-            <RouteLink href={ROUTES.accountType}>
-              <Button variant="secondary">Ganti ke akun Bisnis</Button>
-            </RouteLink>
-          </View>
-        </>
-      ) : (
-        <>
-          <KycStatusCard
-            status={uiStatus}
-            rejectionReason={latest?.rejectionReason ?? undefined}
-            submittedAt={latest?.createdAt ? formatDateTime(latest.createdAt) : undefined}
-            approvedAt={uiStatus === "APPROVED" && decidedAt ? formatDateTime(decidedAt) : undefined}
-            onSubmit={canSubmit && !formOpen ? openForm : undefined}
-            onResubmit={canSubmit && !formOpen ? openForm : undefined}
-          />
+      <KycStatusCard
+        status={uiStatus}
+        rejectionReason={latest?.rejectionReason ?? undefined}
+        submittedAt={latest?.createdAt ? formatDateTime(latest.createdAt) : undefined}
+        approvedAt={uiStatus === "APPROVED" && decidedAt ? formatDateTime(decidedAt) : undefined}
+        onSubmit={canSubmit && !formOpen ? openForm : undefined}
+        onResubmit={canSubmit && !formOpen ? openForm : undefined}
+      />
 
           {uiStatus === "APPROVED" && latest?.businessName ? (
             <KeyValueList>
@@ -478,8 +459,6 @@ export default function BusinessVerificationScreen() {
               Bisnis Anda sudah terverifikasi. Badge "Business Verified" tampil di profil Anda.
             </Text>
           ) : null}
-        </>
-      )}
       <Dialog
         title="Buang isian verifikasi?"
         description="Data dan dokumen yang sudah dipilih akan dihapus jika Anda keluar sekarang."

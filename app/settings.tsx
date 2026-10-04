@@ -22,7 +22,7 @@
  *
  * Struktur:
  *  - Akun: Profil Tersimpan, Edit Profil, Laporan & Analitik, Keamanan,
- *    Tipe Akun, Verifikasi Bisnis.
+ *    Verifikasi Bisnis.
  *  - Preferensi: Tampilan, Notifikasi, Bahasa, Versi Aplikasi.
  *  - Bantuan: Tentang Kami, Umpan Balik, Bantuan Langsung, Tiket Bantuan.
  *  - Legal: Syarat & ketentuan, Kebijakan privasi.
@@ -42,7 +42,6 @@ import Constants from "expo-constants"
 import {
   Bank,
   Bell,
-  Briefcase,
   FileText,
   Info,
   MapPin,
@@ -193,7 +192,6 @@ export default function SettingsScreen() {
     { id: "bank-accounts", label: "Rekening Bank", icon: Bank, route: ROUTES.bankAccounts },
     { id: "reports", label: "Laporan & Analitik", icon: FileText, route: ROUTES.analytics },
     { id: "security", label: "Keamanan", icon: ShieldCheck, route: ROUTES.security, trailing: securityTrailing },
-    { id: "account-type", label: "Tipe Akun", icon: Briefcase, route: ROUTES.accountType },
     {
       id: "business-verification",
       label: "Verifikasi Bisnis",

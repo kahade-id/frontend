@@ -35,7 +35,6 @@ vi.mock("@/lib/use-api-query", () => ({
   useApiQuery: () => ({
     data: {
       state: { status: "NOT_SUBMITTED", latestRequest: null },
-      accountType: "BUSINESS",
       history: [],
     },
     loading: false,

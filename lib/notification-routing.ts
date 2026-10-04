@@ -324,7 +324,6 @@ export function logicalParentForPath(pathname: string): Href {
     case "terms":
     case "privacy-policy":
     case "social-providers":
-    case "account-type":
     case "business-verification":
       // B2-04: keluarga pengaturan → Pengaturan.
       return ROUTES.settings
