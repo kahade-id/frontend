@@ -31,11 +31,11 @@
    "n": 25
   },
   {
-   "s": "Tutup",
-   "n": 25
+   "s": "{x}: {y}",
+   "n": 24
   },
   {
-   "s": "{x}: {y}",
+   "s": "Tutup",
    "n": 24
   },
   {
@@ -59,10 +59,6 @@
    "n": 15
   },
   {
-   "s": "Deskripsi",
-   "n": 15
-  },
-  {
    "s": "Kata sandi akun",
    "n": 15
   },
@@ -80,6 +76,10 @@
   },
   {
    "s": "{x} hari",
+   "n": 14
+  },
+  {
+   "s": "Deskripsi",
    "n": 14
   },
   {
@@ -119,10 +119,6 @@
    "n": 13
   },
   {
-   "s": "Aktif",
-   "n": 12
-  },
-  {
    "s": "Foto profil",
    "n": 12
   },
@@ -159,6 +155,10 @@
    "n": 12
   },
   {
+   "s": "Aktif",
+   "n": 11
+  },
+  {
    "s": "Alamat pengiriman",
    "n": 11
   },
@@ -176,10 +176,6 @@
   },
   {
    "s": "Atur ulang",
-   "n": 10
-  },
-  {
-   "s": "Belum ada etalase",
    "n": 10
   },
   {
@@ -232,6 +228,10 @@
   },
   {
    "s": "Bagikan etalase ini",
+   "n": 9
+  },
+  {
+   "s": "Belum ada etalase",
    "n": 9
   },
   {
@@ -439,10 +439,6 @@
    "n": 7
   },
   {
-   "s": "Status",
-   "n": 7
-  },
-  {
    "s": "Tautkan",
    "n": 7
   },
@@ -568,10 +564,6 @@
   },
   {
    "s": "Disimpan",
-   "n": 6
-  },
-  {
-   "s": "Ditolak",
    "n": 6
   },
   {
@@ -819,6 +811,10 @@
    "n": 6
   },
   {
+   "s": "Status",
+   "n": 6
+  },
+  {
    "s": "Stok etalase ini habis, jadi belum bisa ditransaksikan.",
    "n": 6
   },
@@ -927,10 +923,6 @@
    "n": 5
   },
   {
-   "s": "Buang perubahan?",
-   "n": 5
-  },
-  {
    "s": "Buat SPK",
    "n": 5
   },
@@ -972,6 +964,10 @@
   },
   {
    "s": "Disukai",
+   "n": 5
+  },
+  {
+   "s": "Ditolak",
    "n": 5
   },
   {
@@ -1100,10 +1096,6 @@
   },
   {
    "s": "Pesan dihapus",
-   "n": 5
-  },
-  {
-   "s": "Produk & Stok Saya",
    "n": 5
   },
   {
@@ -1283,6 +1275,10 @@
    "n": 4
   },
   {
+   "s": "Buang perubahan?",
+   "n": 4
+  },
+  {
    "s": "Buat grup",
    "n": 4
   },
@@ -1336,10 +1332,6 @@
   },
   {
    "s": "Dibuka",
-   "n": 4
-  },
-  {
-   "s": "Disetujui",
    "n": 4
   },
   {
@@ -1456,10 +1448,6 @@
   },
   {
    "s": "Jawab",
-   "n": 4
-  },
-  {
-   "s": "Jumlah",
    "n": 4
   },
   {
@@ -1719,10 +1707,6 @@
    "n": 4
   },
   {
-   "s": "Stok habis",
-   "n": 4
-  },
-  {
    "s": "Tambah",
    "n": 4
   },
@@ -1772,10 +1756,6 @@
   },
   {
    "s": "Terlaris",
-   "n": 4
-  },
-  {
-   "s": "Tersedia",
    "n": 4
   },
   {
@@ -2335,10 +2315,6 @@
    "n": 3
   },
   {
-   "s": "Buka produk dan stok saya",
-   "n": 3
-  },
-  {
    "s": "Buka profil saya",
    "n": 3
   },
@@ -2420,10 +2396,6 @@
   },
   {
    "s": "Checklist akun",
-   "n": 3
-  },
-  {
-   "s": "Coba kata kunci lain.",
    "n": 3
   },
   {
@@ -2539,6 +2511,10 @@
    "n": 3
   },
   {
+   "s": "Disetujui",
+   "n": 3
+  },
+  {
    "s": "Diskon pembukaan toko",
    "n": 3
   },
@@ -2572,10 +2548,6 @@
   },
   {
    "s": "DP ({x}–{x})",
-   "n": 3
-  },
-  {
-   "s": "Draf",
    "n": 3
   },
   {
@@ -3107,6 +3079,10 @@
    "n": 3
   },
   {
+   "s": "Jumlah",
+   "n": 3
+  },
+  {
    "s": "Jumlah cicilan setelah DP ({x}–{x})",
    "n": 3
   },
@@ -3124,10 +3100,6 @@
   },
   {
    "s": "Kata sandi baru",
-   "n": 3
-  },
-  {
-   "s": "Kategori",
    "n": 3
   },
   {
@@ -3160,10 +3132,6 @@
   },
   {
    "s": "Kelola highlight",
-   "n": 3
-  },
-  {
-   "s": "Kelola produk katalog dan stok Anda.",
    "n": 3
   },
   {
@@ -3308,10 +3276,6 @@
   },
   {
    "s": "Kuota total",
-   "n": 3
-  },
-  {
-   "s": "Kurangi jumlah",
    "n": 3
   },
   {
@@ -4399,10 +4363,6 @@
    "n": 3
   },
   {
-   "s": "Tambah jumlah",
-   "n": 3
-  },
-  {
    "s": "Tambah rekening",
    "n": 3
   },
@@ -4632,10 +4592,6 @@
   },
   {
    "s": "Tidak sukai komentar",
-   "n": 3
-  },
-  {
-   "s": "Tidak tersedia",
    "n": 3
   },
   {
@@ -4879,10 +4835,6 @@
    "n": 2
   },
   {
-   "s": "· SKU",
-   "n": 2
-  },
-  {
    "s": "\"{x}\" terlihat seperti dokumen identitas. Bukti sengketa dilihat mediator dan lawan transaksi. Tetap lampirkan?",
    "n": 2
   },
@@ -5007,10 +4959,6 @@
    "n": 2
   },
   {
-   "s": "{x}, tersisa {x}",
-   "n": 2
-  },
-  {
    "s": "{x}% kembali ke pembeli",
    "n": 2
   },
@@ -5112,10 +5060,6 @@
   },
   {
    "s": "Alasan Laporan",
-   "n": 2
-  },
-  {
-   "s": "Ambang stok menipis",
    "n": 2
   },
   {
@@ -5703,6 +5647,10 @@
    "n": 2
   },
   {
+   "s": "Coba kata kunci lain.",
+   "n": 2
+  },
+  {
    "s": "Coba kata kunci yang lebih spesifik, atau persempit ke satu cakupan.",
    "n": 2
   },
@@ -5823,10 +5771,6 @@
    "n": 2
   },
   {
-   "s": "Diarsipkan",
-   "n": 2
-  },
-  {
    "s": "Dibaca",
    "n": 2
   },
@@ -5908,6 +5852,10 @@
   },
   {
    "s": "DP {dp} + {n}× cicilan {x} tiap {d} hari",
+   "n": 2
+  },
+  {
+   "s": "Draf",
    "n": 2
   },
   {
@@ -6375,10 +6323,6 @@
    "n": 2
   },
   {
-   "s": "Hanya yang tersedia",
-   "n": 2
-  },
-  {
    "s": "Hapus {x} pesan",
    "n": 2
   },
@@ -6603,10 +6547,6 @@
    "n": 2
   },
   {
-   "s": "Jumlah {x}",
-   "n": 2
-  },
-  {
    "s": "Kahade Plus",
    "n": 2
   },
@@ -6652,6 +6592,10 @@
   },
   {
    "s": "Katalog",
+   "n": 2
+  },
+  {
+   "s": "Kategori",
    "n": 2
   },
   {
@@ -6971,6 +6915,10 @@
    "n": 2
   },
   {
+   "s": "Kurangi jumlah",
+   "n": 2
+  },
+  {
    "s": "KYC:",
    "n": 2
   },
@@ -7287,10 +7235,6 @@
    "n": 2
   },
   {
-   "s": "Memuat produk…",
-   "n": 2
-  },
-  {
    "s": "Memuat profil",
    "n": 2
   },
@@ -7388,10 +7332,6 @@
   },
   {
    "s": "Menyiapkan percakapan…",
-   "n": 2
-  },
-  {
-   "s": "Menyimpan…",
    "n": 2
   },
   {
@@ -8399,11 +8339,7 @@
    "n": 2
   },
   {
-   "s": "Stok awal",
-   "n": 2
-  },
-  {
-   "s": "Stok menipis ({x})",
+   "s": "Stok habis",
    "n": 2
   },
   {
@@ -8456,6 +8392,10 @@
   },
   {
    "s": "Tambah foto",
+   "n": 2
+  },
+  {
+   "s": "Tambah jumlah",
    "n": 2
   },
   {
@@ -8696,6 +8636,10 @@
   },
   {
    "s": "Terpesan",
+   "n": 2
+  },
+  {
+   "s": "Tersedia",
    "n": 2
   },
   {
@@ -9019,10 +8963,6 @@
    "n": 2
   },
   {
-   "s": "Ya, buang",
-   "n": 2
-  },
-  {
    "s": "Ya, buat PIN",
    "n": 2
   },
@@ -9064,10 +9004,6 @@
   },
   {
    "s": "— melebihi batas. Kolom diisi",
-   "n": 1
-  },
-  {
-   "s": "— tersisa",
    "n": 1
   },
   {
@@ -9128,10 +9064,6 @@
   },
   {
    "s": "· sekali-lihat",
-   "n": 1
-  },
-  {
-   "s": "· Stok",
    "n": 1
   },
   {
@@ -9220,10 +9152,6 @@
   },
   {
    "s": "{x} (mengikuti sistem)",
-   "n": 1
-  },
-  {
-   "s": "{x} × {x} — {x}. Harga & stok terkonfirmasi server.",
    "n": 1
   },
   {
@@ -12111,10 +12039,6 @@
    "n": 1
   },
   {
-   "s": "Belum ada produk",
-   "n": 1
-  },
-  {
    "s": "Belum ada rekening bank terdaftar.",
    "n": 1
   },
@@ -12196,14 +12120,6 @@
   },
   {
    "s": "Berakhir",
-   "n": 1
-  },
-  {
-   "s": "Berat (gram)",
-   "n": 1
-  },
-  {
-   "s": "Berat dalam gram",
    "n": 1
   },
   {
@@ -12923,10 +12839,6 @@
    "n": 1
   },
   {
-   "s": "Cari produk…",
-   "n": 1
-  },
-  {
    "s": "Cari semua pesan",
    "n": 1
   },
@@ -12976,10 +12888,6 @@
   },
   {
    "s": "Catatan: aplikasi hanya menyembunyikan isi secara visual — pesan tetap tersimpan di server sesuai kebijakan backend.",
-   "n": 1
-  },
-  {
-   "s": "Cek Ketersediaan & Harga",
    "n": 1
   },
   {
@@ -13595,10 +13503,6 @@
    "n": 1
   },
   {
-   "s": "Deskripsi produk",
-   "n": 1
-  },
-  {
    "s": "Detail Mutasi",
    "n": 1
   },
@@ -13612,10 +13516,6 @@
   },
   {
    "s": "Detail pesanan salah",
-   "n": 1
-  },
-  {
-   "s": "Detail Produk",
    "n": 1
   },
   {
@@ -13656,6 +13556,10 @@
   },
   {
    "s": "Diantar kurir",
+   "n": 1
+  },
+  {
+   "s": "Diarsipkan",
    "n": 1
   },
   {
@@ -13868,10 +13772,6 @@
   },
   {
    "s": "Ditahan sejak",
-   "n": 1
-  },
-  {
-   "s": "Ditandai",
    "n": 1
   },
   {
@@ -14148,10 +14048,6 @@
   },
   {
    "s": "Etalase kustom",
-   "n": 1
-  },
-  {
-   "s": "Etalase Saya",
    "n": 1
   },
   {
@@ -14643,15 +14539,7 @@
    "n": 1
   },
   {
-   "s": "Gagal menyimpan produk",
-   "n": 1
-  },
-  {
    "s": "Gagal menyimpan: {x}",
-   "n": 1
-  },
-  {
-   "s": "Gagal validasi ketersediaan",
    "n": 1
   },
   {
@@ -14743,10 +14631,6 @@
    "n": 1
   },
   {
-   "s": "Habis",
-   "n": 1
-  },
-  {
    "s": "hadiah {x} rupiah",
    "n": 1
   },
@@ -14792,10 +14676,6 @@
   },
   {
    "s": "Hak portabilitas.",
-   "n": 1
-  },
-  {
-   "s": "Hanya dapat dibeli dari penjual terverifikasi bisnis.",
    "n": 1
   },
   {
@@ -14919,10 +14799,6 @@
    "n": 1
   },
   {
-   "s": "Harga (Rp)",
-   "n": 1
-  },
-  {
    "s": "Harga × jumlah",
    "n": 1
   },
@@ -14932,18 +14808,6 @@
   },
   {
    "s": "Harga coret harus lebih besar dari harga jual ({x}).",
-   "n": 1
-  },
-  {
-   "s": "Harga dalam rupiah, wajib diisi",
-   "n": 1
-  },
-  {
-   "s": "Harga dan stok dikunci saat checkout berdasarkan data server terkini, bukan tampilan ini.",
-   "n": 1
-  },
-  {
-   "s": "Harga dikirim ke server dalam rupiah; penyimpanan presisi (sen) ditangani server.",
    "n": 1
   },
   {
@@ -15012,10 +14876,6 @@
   },
   {
    "s": "Hasil sebelumnya",
-   "n": 1
-  },
-  {
-   "s": "Hasil validasi tidak pasti — memuat ulang data produk…",
    "n": 1
   },
   {
@@ -15635,10 +15495,6 @@
    "n": 1
   },
   {
-   "s": "Katalog Produk",
-   "n": 1
-  },
-  {
    "s": "Kategori berikut dilarang, termasuk upaya menyamarkan namanya:",
    "n": 1
   },
@@ -15652,10 +15508,6 @@
   },
   {
    "s": "Kategori sengketa",
-   "n": 1
-  },
-  {
-   "s": "Kategori, wajib diisi",
    "n": 1
   },
   {
@@ -17371,10 +17223,6 @@
    "n": 1
   },
   {
-   "s": "Memvalidasi…",
-   "n": 1
-  },
-  {
    "s": "Memverifikasi identitas:",
    "n": 1
   },
@@ -17567,10 +17415,6 @@
    "n": 1
   },
   {
-   "s": "Menunggu moderasi",
-   "n": 1
-  },
-  {
    "s": "Menunggu penjual mengirim pesanan",
    "n": 1
   },
@@ -17624,6 +17468,10 @@
   },
   {
    "s": "Menyiapkan profil…",
+   "n": 1
+  },
+  {
+   "s": "Menyimpan…",
    "n": 1
   },
   {
@@ -17864,14 +17712,6 @@
   },
   {
    "s": "Nama pengguna tidak tersedia. Pilih yang lain.",
-   "n": 1
-  },
-  {
-   "s": "Nama produk",
-   "n": 1
-  },
-  {
-   "s": "Nama produk, wajib diisi",
    "n": 1
   },
   {
@@ -18879,10 +18719,6 @@
    "n": 1
   },
   {
-   "s": "Penyimpanan mungkin sudah diproses — periksa daftar produk sebelum mencoba lagi.",
-   "n": 1
-  },
-  {
    "s": "Penyimpanan sedang gangguan. Coba lagi nanti.",
    "n": 1
   },
@@ -19259,10 +19095,6 @@
    "n": 1
   },
   {
-   "s": "Perubahan produk yang belum disimpan akan hilang.",
-   "n": 1
-  },
-  {
    "s": "Perubahan profil yang belum disimpan akan hilang.",
    "n": 1
   },
@@ -19579,10 +19411,6 @@
    "n": 1
   },
   {
-   "s": "Pilih varian",
-   "n": 1
-  },
-  {
    "s": "Pilih warna aksen dan ikon aplikasi khusus anggota Kahade+.",
    "n": 1
   },
@@ -19643,10 +19471,6 @@
    "n": 1
   },
   {
-   "s": "Pratinjau:",
-   "n": 1
-  },
-  {
    "s": "Preferensi",
    "n": 1
   },
@@ -19668,10 +19492,6 @@
   },
   {
    "s": "Produk digital",
-   "n": 1
-  },
-  {
-   "s": "Produk disimpan",
    "n": 1
   },
   {
@@ -20615,10 +20435,6 @@
    "n": 1
   },
   {
-   "s": "Simpan Produk",
-   "n": 1
-  },
-  {
    "s": "Simpan profil penjual dari halaman profil mereka untuk dilihat lagi nanti.",
    "n": 1
   },
@@ -20668,10 +20484,6 @@
   },
   {
    "s": "Skor kepercayaan",
-   "n": 1
-  },
-  {
-   "s": "SKU, wajib diisi",
    "n": 1
   },
   {
@@ -20792,22 +20604,6 @@
   },
   {
    "s": "Status transfer bank",
-   "n": 1
-  },
-  {
-   "s": "Stok",
-   "n": 1
-  },
-  {
-   "s": "Stok {x}",
-   "n": 1
-  },
-  {
-   "s": "Stok atau harga berubah. Silakan muat ulang.",
-   "n": 1
-  },
-  {
-   "s": "Stok tersedia: {x}",
    "n": 1
   },
   {
@@ -20943,10 +20739,6 @@
    "n": 1
   },
   {
-   "s": "Tambah Etalase",
-   "n": 1
-  },
-  {
    "s": "Tambah jadwal",
    "n": 1
   },
@@ -20971,19 +20763,11 @@
    "n": 1
   },
   {
-   "s": "Tambah Produk",
-   "n": 1
-  },
-  {
    "s": "Tambahan waktu",
    "n": 1
   },
   {
    "s": "Tambahkan atau pilih rekening bank untuk penarikan.",
-   "n": 1
-  },
-  {
-   "s": "Tambahkan etalase pertama Anda.",
    "n": 1
   },
   {
@@ -21559,6 +21343,10 @@
    "n": 1
   },
   {
+   "s": "Tidak tersedia",
+   "n": 1
+  },
+  {
    "s": "Tidak tersedia pada lingkungan ini",
    "n": 1
   },
@@ -21936,10 +21724,6 @@
   },
   {
    "s": "Ubah pilihan ({x}x)",
-   "n": 1
-  },
-  {
-   "s": "Ubah Produk",
    "n": 1
   },
   {
@@ -22392,6 +22176,10 @@
   },
   {
    "s": "Ya, batalkan retur",
+   "n": 1
+  },
+  {
+   "s": "Ya, buang",
    "n": 1
   },
   {

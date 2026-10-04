@@ -15,7 +15,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Linking, Platform, View } from "react-native"
 import { useNavigation, usePreventRemove, type NavigationAction } from "@react-navigation/native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { CalendarBlank, CaretRight, DotsSixVertical, Eye, EyeSlash, Images, PencilSimple, Plus, Star, Storefront, Ticket, Trash } from "phosphor-react-native"
+import { CalendarBlank, CaretRight, DotsSixVertical, Eye, EyeSlash, Images, PencilSimple, Plus, Star, Ticket, Trash } from "phosphor-react-native"
 import { router, useLocalSearchParams } from "expo-router"
 import { translate } from "@/lib/i18n/translate"
 import { useLanguage } from "@/lib/i18n"
@@ -125,9 +125,10 @@ const EMPTY_FORM: FormState = {
 type Editor = { mode: "edit"; item: ShowcaseItem } | null
 
 /**
- * Poin 1 (2026-10-04): baris tautan seksi — entry point ke layar yang
- * dipindah dari sheet "Toko Saya" yang dihapus ("Produk & Stok Saya",
- * "Promo saya"). Layar tujuannya TIDAK diubah; hanya titik masuknya.
+ * Poin 1 (2026-10-04): baris tautan seksi — entry point "Promo saya"
+ * dipindah dari sheet "Toko Saya" yang dihapus. Poin 4 (2026-10-04):
+ * seksi "Produk & Stok Saya" dihapus (katalog dihapus total).
+ * Layar tujuannya TIDAK diubah; hanya titik masuknya.
  */
 function CommerceLinkRow({
   icon,
@@ -1043,19 +1044,12 @@ function ShowcaseManagement() {
             </Button>
             {/*
               Poin 1 (2026-10-04): redistribusi sheet "Toko Saya" yang
-              dihapus — "Produk & Stok Saya" dan "Voucher Toko" pindah ke
-              sini sebagai seksi. Entry point saja: layar tujuannya
-              (/seller/products, /seller/vouchers) TIDAK diubah.
+              dihapus — "Voucher Toko" pindah ke sini sebagai seksi
+              "Promo saya". Poin 4 (2026-10-04): "Produk & Stok Saya"
+              DIHAPUS — katalog dihapus total, entry point tidak lagi ada.
+              Layar tujuan (/seller/vouchers) TIDAK diubah.
             */}
             <View className="gap-2">
-              <MenuGroupLabel>{translate("Produk & Stok Saya")}</MenuGroupLabel>
-              <CommerceLinkRow
-                icon={Storefront}
-                title={translate("Produk & Stok Saya")}
-                description={translate("Kelola produk katalog dan stok Anda.")}
-                accessibilityLabel={translate("Buka produk dan stok saya")}
-                onPress={() => router.push(ROUTES.sellerProducts)}
-              />
               <MenuGroupLabel>{translate("Promo saya")}</MenuGroupLabel>
               <CommerceLinkRow
                 icon={Ticket}

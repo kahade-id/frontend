@@ -544,14 +544,11 @@ export const ROUTES = {
       ? ({ pathname: "/milestones/[id]", params: { id: milestoneId } } as unknown as Href)
       : ("/transactions" as Href),
 
-  // ── Katalog, retur, pelacakan, produk seller (Gap-D) ──────────────────────
-  /** Katalog produk (Gap-D: GET /v1/products) */
-  products: "/products" as Href,
-  /** Detail satu produk (Gap-D: GET /v1/products/{id}) */
-  productDetail: (productId: string) =>
-    productId
-      ? ({ pathname: "/products/[id]", params: { id: productId } } as unknown as Href)
-      : ("/products" as Href),
+  // ── Retur, pelacakan (Gap-D) ───────────────────────────────────────────────
+  // Poin 4 (2026-10-04): katalog dihapus total — ROUTES.products,
+  // ROUTES.productDetail, ROUTES.sellerProducts, ROUTES.newSellerProduct,
+  // dan ROUTES.sellerProductDetail dihapus; backend /v1/products dihapus
+  // paralel oleh worker lain.
   /** Daftar pengajuan retur (Gap-D: GET /v1/returns) */
   returns: "/returns" as Href,
   /** Form pengajuan retur baru (Gap-D: POST /v1/returns) */
@@ -570,18 +567,6 @@ export const ROUTES = {
     shipmentId
       ? ({ pathname: "/tracking/[shipmentId]", params: { shipmentId } } as unknown as Href)
       : ("/returns" as Href),
-  /** Daftar produk seller (Gap-D: GET /v1/seller/products) */
-  sellerProducts: "/seller/products" as Href,
-  /**
-   * Form tambah produk seller (Gap-D) — TIDAK ada file new.tsx; dirender
-   * app/seller/products/[id].tsx dengan id="new" (segmen dinamis menangkapnya).
-   */
-  newSellerProduct: "/seller/products/new" as Href,
-  /** Detail/edit produk seller (Gap-D) */
-  sellerProductDetail: (productId: string) =>
-    productId
-      ? ({ pathname: "/seller/products/[id]", params: { id: productId } } as unknown as Href)
-      : ("/seller/products" as Href),
   /** Voucher toko penjual (batch 43, item 9 — /v1/seller-vouchers) */
   sellerVouchers: "/seller/vouchers" as Href,
   /** Jastip — daftar trip host (batch 43, item 15 — /v1/jastip) */

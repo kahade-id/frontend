@@ -72,8 +72,6 @@ export const AUTHENTICATED_SCREENS = [
   "search",
   "security",
   "security-activity",
-  "seller/products/index", // katalog seller — endpoint auth required (GAP-D, integrasi 2026-09-27)
-  "seller/products/[id]",
   "seller/vouchers", // batch 43, item 9: voucher toko penjual
   "jastip/index", // batch 43, item 15: trip jastip host
   "jastip/[id]", // batch 43, item 15: detail trip jastip

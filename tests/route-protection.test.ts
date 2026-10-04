@@ -65,8 +65,7 @@ const PUBLIC_SCREENS = new Set<string>([
   // corong share wajib bisa dibuka tamu; aksi Terima/Tolak digerbang sesi di
   // dalam layar (dialihkan ke login membawa next-path).
   "order-link/[token]",
-  "products/index", // katalog publik — GET /v1/products @Public() (GAP-D, integrasi 2026-09-27)
-  "products/[id]", // detail produk publik — GET /v1/products/:id @Public() (GAP-D, integrasi 2026-09-27)
+  // Poin 4 (2026-10-04): katalog dihapus total — entri products/* dihapus.
   "patungan/index", // daftar grup patungan publik — GET /v1/patungan/groups auth:"optional" (batch 43, item 16)
   "patungan/[id]", // detail grup patungan publik — GET /v1/patungan/groups/:id auth:"optional" (batch 43, item 16)
   "patungan/how-it-works", // U5-014 (journey): edukasi publik, konsisten dengan seksi patungan
