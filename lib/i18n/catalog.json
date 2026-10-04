@@ -155,6 +155,10 @@
    "n": 12
   },
   {
+   "s": "Transaksi",
+   "n": 12
+  },
+  {
    "s": "Alamat pengiriman",
    "n": 11
   },
@@ -168,10 +172,6 @@
   },
   {
    "s": "Pesan",
-   "n": 11
-  },
-  {
-   "s": "Transaksi",
    "n": 11
   },
   {
@@ -528,6 +528,14 @@
   },
   {
    "s": "Buka profil pengguna",
+   "n": 6
+  },
+  {
+   "s": "Cara kerja Jastip",
+   "n": 6
+  },
+  {
+   "s": "Cara kerja Patungan",
    "n": 6
   },
   {
@@ -935,14 +943,6 @@
    "n": 5
   },
   {
-   "s": "Cara kerja Jastip",
-   "n": 5
-  },
-  {
-   "s": "Cara kerja Patungan",
-   "n": 5
-  },
-  {
    "s": "Catatan",
    "n": 5
   },
@@ -1095,7 +1095,19 @@
    "n": 5
   },
   {
+   "s": "Patungan",
+   "n": 5
+  },
+  {
    "s": "Pesan dihapus",
+   "n": 5
+  },
+  {
+   "s": "Produk & Stok Saya",
+   "n": 5
+  },
+  {
+   "s": "Promo saya",
    "n": 5
   },
   {
@@ -1599,10 +1611,6 @@
    "n": 4
   },
   {
-   "s": "Patungan",
-   "n": 4
-  },
-  {
    "s": "Pembayaran gagal — buat ulang untuk mencoba lagi.",
    "n": 4
   },
@@ -1772,10 +1780,6 @@
   },
   {
    "s": "Tiket Bantuan",
-   "n": 4
-  },
-  {
-   "s": "Toko Saya",
    "n": 4
   },
   {
@@ -2059,6 +2063,10 @@
    "n": 3
   },
   {
+   "s": "Bagian transaksi",
+   "n": 3
+  },
+  {
    "s": "Bagikan etalase",
    "n": 3
   },
@@ -2327,7 +2335,15 @@
    "n": 3
   },
   {
+   "s": "Buka produk dan stok saya",
+   "n": 3
+  },
+  {
    "s": "Buka profil saya",
+   "n": 3
+  },
+  {
+   "s": "Buka promo saya",
    "n": 3
   },
   {
@@ -3144,6 +3160,10 @@
   },
   {
    "s": "Kelola highlight",
+   "n": 3
+  },
+  {
+   "s": "Kelola produk katalog dan stok Anda.",
    "n": 3
   },
   {
@@ -4815,6 +4835,10 @@
    "n": 3
   },
   {
+   "s": "Voucher diskon untuk pembeli Anda.",
+   "n": 3
+  },
+  {
    "s": "Voucher platform",
    "n": 3
   },
@@ -5436,6 +5460,10 @@
   },
   {
    "s": "Blokir pengguna ini",
+   "n": 2
+  },
+  {
+   "s": "Booking",
    "n": 2
   },
   {
@@ -6544,6 +6572,10 @@
   },
   {
    "s": "Jasa desain logo",
+   "n": 2
+  },
+  {
+   "s": "Jastip",
    "n": 2
   },
   {
@@ -12383,10 +12415,6 @@
    "n": 1
   },
   {
-   "s": "Booking Jasa",
-   "n": 1
-  },
-  {
    "s": "Buang isian",
    "n": 1
   },
@@ -12531,7 +12559,7 @@
    "n": 1
   },
   {
-   "s": "Buka booking jasa",
+   "s": "Buka Booking saya",
    "n": 1
   },
   {
@@ -12567,7 +12595,7 @@
    "n": 1
   },
   {
-   "s": "Buka jastip saya",
+   "s": "Buka Jastip saya",
    "n": 1
   },
   {
@@ -12579,11 +12607,7 @@
    "n": 1
   },
   {
-   "s": "Buka menu toko saya",
-   "n": 1
-  },
-  {
-   "s": "Buka patungan",
+   "s": "Buka Patungan",
    "n": 1
   },
   {
@@ -12600,10 +12624,6 @@
   },
   {
    "s": "Buka pusat bantuan",
-   "n": 1
-  },
-  {
-   "s": "Buka retur saya",
    "n": 1
   },
   {
@@ -12636,10 +12656,6 @@
   },
   {
    "s": "Buka umpan balik",
-   "n": 1
-  },
-  {
-   "s": "Buka voucher toko",
    "n": 1
   },
   {
@@ -15235,6 +15251,10 @@
    "n": 1
   },
   {
+   "s": "Jadwal booking jasa Anda — lihat detail dan batalkan bila berubah rencana.",
+   "n": 1
+  },
+  {
    "s": "Jadwal dihapus",
    "n": 1
   },
@@ -15271,19 +15291,11 @@
    "n": 1
   },
   {
-   "s": "Jastip Saya",
-   "n": 1
-  },
-  {
    "s": "Jawaban Q&A baru tidak publik sampai Anda terbitkan.",
    "n": 1
   },
   {
    "s": "Jeda",
-   "n": 1
-  },
-  {
-   "s": "Jelajahi katalog produk publik",
    "n": 1
   },
   {
@@ -15627,10 +15639,6 @@
    "n": 1
   },
   {
-   "s": "Katalog Publik",
-   "n": 1
-  },
-  {
    "s": "Kategori berikut dilarang, termasuk upaya menyamarkan namanya:",
    "n": 1
   },
@@ -15700,10 +15708,6 @@
   },
   {
    "s": "Kelola persetujuan komunikasi. Persetujuan pemasaran dapat ditarik kapan saja; notifikasi transaksi wajib demi keamanan akun.",
-   "n": 1
-  },
-  {
-   "s": "Kelola produk dan stok saya",
    "n": 1
   },
   {
@@ -16384,6 +16388,10 @@
   },
   {
    "s": "KTP + selfie — buka batas transaksi penuh",
+   "n": 1
+  },
+  {
+   "s": "Kumpulkan iuran bersama — buat grup baru atau kelola yang sudah berjalan.",
    "n": 1
   },
   {
@@ -19655,10 +19663,6 @@
    "n": 1
   },
   {
-   "s": "Produk & Stok Saya",
-   "n": 1
-  },
-  {
    "s": "Produk berizin atau berisiko hanya boleh ditawarkan setelah verifikasi yang diperlukan. Ini dapat mencakup obat dan alat kesehatan; pangan, kosmetik, alkohol dan tembakau; bahan kimia; produk dewasa; hewan atau tumbuhan; tiket; jasa keuangan; aset digital; jasa profesional; barang antik; serta produk impor. Kahade dapat meminta nomor izin, label, sertifikat, verifikasi usia, atau bukti asal.",
    "n": 1
   },
@@ -19912,10 +19916,6 @@
   },
   {
    "s": "Retur Barang",
-   "n": 1
-  },
-  {
-   "s": "Retur Saya",
    "n": 1
   },
   {
@@ -21795,6 +21795,10 @@
    "n": 1
   },
   {
+   "s": "Trip jastip yang Anda selenggarakan — atur katalog, pantau peserta, dan kunci harga.",
+   "n": 1
+  },
+  {
    "s": "Tujuan penyimpanan tidak tersedia. Coba lagi nanti.",
    "n": 1
   },
@@ -22324,10 +22328,6 @@
   },
   {
    "s": "Voucher terpakai",
-   "n": 1
-  },
-  {
-   "s": "Voucher Toko",
    "n": 1
   },
   {

@@ -200,12 +200,23 @@ function routeForNotificationReferenceRaw(ref: NotificationReference): Href | nu
       return ROUTES.questions
     case "returns":
     case "return":
-      // FAL-016: keluarga notifikasi retur → detail retur (daftar bila tanpa id).
-      return id ? ROUTES.returnDetail(id) : ROUTES.returns
+      // FAL-016: keluarga notifikasi retur → detail retur (spesifik — soal
+      // uang, jangan sampai nyasar). Tanpa id → tab Transaksi: entri daftar
+      // "Retur Saya" dihapus dari drawer (Poin 1) — retur kini diakses
+      // per-order dari detail transaksi.
+      return id ? ROUTES.returnDetail(id) : ROUTES.transactions
     case "products":
     case "product":
-      // FAL-017: notifikasi stok/produk → detail produk (katalog bila tanpa id).
-      return id ? ROUTES.productDetail(id) : ROUTES.products
+      // FAL-017: "Katalog Publik" dihapus dari navigasi (Poin 1; model
+      // katalog dihapus total di Poin 4) — notifikasi stok/produk kini
+      // mendarat di Kelola Etalase, rumah baru "Produk & Stok Saya".
+      return ROUTES.showcaseManagement
+    case "servicebookings":
+    case "servicebooking":
+      // Poin 1: booking jasa pindah ke tab Transaksi sebagai segmen —
+      // buka tab langsung di segmen booking (jangan layar /service-bookings
+      // yang tak lagi punya pintu navigasi).
+      return ROUTES.transactionsSection("bookings")
     case "ordershipped":
     case "ordership":
     case "shipment":
@@ -299,8 +310,9 @@ export function logicalParentForPath(pathname: string): Href {
       // B2-06: konteks transaksi.
       return ROUTES.transactions
     case "seller":
-      // B2-SC-04: konteks seller → daftar produk seller.
-      return ROUTES.sellerProducts
+      // B2-SC-04 → Poin 1: konteks seller kini di Kelola Etalase
+      // ("Produk & Stok Saya" + "Promo saya" pindah ke sana sebagai seksi).
+      return ROUTES.showcaseManagement
     case "verify-email":
     case "login-required":
       // B2-02: head auth yang terlewat batch-1 → login.
@@ -447,7 +459,12 @@ export function labelForNotificationReference(ref: NotificationReference): strin
       return "Lihat retur"
     case "products":
     case "product":
-      return "Lihat produk"
+      // Poin 1: tujuan baru = Kelola Etalase (bukan detail produk).
+      return "Kelola Etalase"
+    case "servicebookings":
+    case "servicebooking":
+      // Poin 1: tujuan baru = segmen booking di tab Transaksi.
+      return "Lihat booking"
     default:
       return null
   }
@@ -480,8 +497,11 @@ export function labelForActionUrl(actionUrl: string | null | undefined): string 
       // FAL-016: `/returns/<id>` → detail retur.
       return "Lihat retur"
     case "products":
-      // FAL-017: `/products/<id>` → detail produk.
-      return "Lihat produk"
+      // Poin 1: `/products/<id>` → Kelola Etalase (bukan detail produk).
+      return "Kelola Etalase"
+    case "service-bookings":
+      // Poin 1: `/service-bookings` → segmen booking di tab Transaksi.
+      return "Lihat booking"
     case "tracking":
       // FAL-019: `kahade://tracking/<id>` → detail pelacakan.
       return "Lihat pelacakan"
@@ -581,7 +601,8 @@ function safeDecodeSegment(value: string): string {
  * Format yang dikenal: `/chat/<id>`, `/order/<id>`, `/o/<id>`,
  * `/dispute/<id>`, `/showcase/<id>`, `/support/tickets/<id>` (F15),
  * `/wallet/transaction?id=<txId>`, `/notifications`, `/badges`,
- * `/returns/<id>` (FAL-016), `/products/<id>` (FAL-017),
+ * `/returns/<id>` (FAL-016), `/products/<id>` → Kelola Etalase (Poin 1),
+ * `/service-bookings` → segmen booking tab Transaksi (Poin 1),
  * `kahade://tracking/<id>` (FAL-019, dinormalisasi ke `/tracking/<id>`),
  * `/feedback/<id>` → tiket bantuan (FAL-018, tanpa layar detail feedback).
  * Return `null` bila tidak dikenali.
@@ -647,9 +668,12 @@ function routeForActionUrlRaw(actionUrl: string | null | undefined): Href | null
         // detail retur. Tanpa ini tap notifikasi retur mati (jatuh ke tab).
         return ROUTES.returnDetail(id)
       case "products":
-        // FAL-017: `/products/<id>` (actionUrl notifikasi stok/produk) →
-        // detail produk.
-        return ROUTES.productDetail(id)
+        // FAL-017 → Poin 1: katalog dihapus dari navigasi; `/products/<id>`
+        // kini mendarat di Kelola Etalase (rumah baru "Produk & Stok Saya").
+        return ROUTES.showcaseManagement
+      case "service-bookings":
+        // Poin 1: booking jasa pindah ke tab Transaksi sebagai segmen.
+        return ROUTES.transactionsSection("bookings")
       case "tracking":
         // FAL-019: `/tracking/<id>` (dari `kahade://tracking/<id>`) →
         // detail pelacakan kiriman.
@@ -697,6 +721,17 @@ function routeForActionUrlRaw(actionUrl: string | null | undefined): Href | null
         return ROUTES.notifications
       case "support":
         return ROUTES.support
+      case "returns":
+        // Poin 1: entri daftar "Retur Saya" dihapus dari drawer — `/returns`
+        // polos kini ke tab Transaksi (retur diakses per-order).
+        return ROUTES.transactions
+      case "products":
+        // Poin 1: katalog dihapus dari navigasi — `/products` polos ke
+        // Kelola Etalase (rumah baru "Produk & Stok Saya").
+        return ROUTES.showcaseManagement
+      case "service-bookings":
+        // Poin 1: booking jasa pindah ke tab Transaksi sebagai segmen.
+        return ROUTES.transactionsSection("bookings")
       default:
         break
     }

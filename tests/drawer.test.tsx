@@ -6,10 +6,11 @@
  *  2. <AppDrawer> tidak merender apa pun saat tertutup; saat dibuka
  *     menampilkan struktur tetap (tanpa mode aplikasi):
  *     header profil → kartu Kahade Plus → menu utama
- *     (Lihat Profil, Dompet Saya, Kelola Etalase, Toko Saya [FE-098],
- *     Template Transaksi, Order Link, Laporan & Analitik, Pesan —
- *     revisi label 2026-09-28) →
- *     menu bawah (Umpan Balik, Bantuan Langsung, Tiket Bantuan).
+ *     (Lihat Profil, Dompet Saya, Kelola Etalase,
+ *     Template Transaksi, Tautan Pesanan, Sengketa Saya, Laporan & Analitik —
+ *     revisi label 2026-09-28; Poin 1 2026-10-04: "Toko Saya" DIHAPUS
+ *     sebagai konsep, isinya didistribusikan ulang) →
+ *     menu bawah (Pusat Bantuan).
  *  3. TIDAK ada ModeSwitcher ("Mode aplikasi") dan TIDAK ada menu lama
  *     berbasis mode (tersimpan, sengketa, isi saldo, dsb.).
  *  4. Setiap baris menu memuat tepat 1 ikon (tanpa chevron, tanpa
@@ -69,7 +70,7 @@ const EXPECTED_MENUITEM_ORDER = [
   "Lihat profil saya",
   "Buka dompet saya",
   "Kelola etalase saya",
-  "Buka menu toko saya",
+  // Poin 1 (2026-10-04): "Toko Saya" dihapus — tidak ada "Buka menu toko saya".
   "Buka template transaksi",
   "Buka order link",
   "Buka laporan dan analitik",
@@ -138,6 +139,8 @@ describe("<AppDrawer> — struktur baru", () => {
       "Isi saldo",
       "Tarik dana",
       "Buat karya baru",
+      // Poin 1 (2026-10-04): "Toko Saya" dihapus sebagai konsep.
+      "Buka menu toko saya",
     ]) {
       expect(screen.queryByRole("menuitem", { name: gone })).toBeNull()
     }

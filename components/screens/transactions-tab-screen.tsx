@@ -49,10 +49,10 @@
  *     (bukan kartu generik) supaya layout tidak melompat saat data masuk.
  */
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { View, type FlatList } from "react-native"
-import { Funnel, Plus, Receipt, ShoppingBag, Storefront, Wallet } from "phosphor-react-native"
+import { ScrollView, View, type FlatList } from "react-native"
+import { AirplaneTilt, CalendarCheck, Funnel, Plus, Receipt, ShoppingBag, Storefront, UsersThree, Wallet } from "phosphor-react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { useRouter } from "expo-router"
+import { useLocalSearchParams, useRouter, type Href } from "expo-router"
 import { api } from "@/lib/api"
 import { ORDER_STATUS_FILTERS } from "@/lib/api/orders"
 import { formatDateTimeWIB, formatNumber, formatRupiah } from "@/lib/format"
@@ -78,7 +78,7 @@ import { GuestLoginPrompt } from "@/components/web-guest-gate"
 import { EmptyState } from "@/components/ui/empty-state"
 import { FadeIn } from "@/components/ui/fade-in"
 import { Header } from "@/components/ui/header"
-import { Icon } from "@/components/ui/icon"
+import { Icon, type IconComponent } from "@/components/ui/icon"
 import { IconButton } from "@/components/ui/icon-button"
 import { DrawerMenuButton } from "@/components/ui/drawer-menu-button"
 import { ModeShiftFade } from "@/components/ui/mode-switcher"
@@ -106,6 +106,93 @@ const ROLE_TABS: readonly SegmentItem<RoleTab>[] = [
 const ROLE_PARAM: Record<RoleTab, "SELLER" | "BUYER"> = {
   seller: "SELLER",
   buyer: "BUYER",
+}
+
+/**
+ * Poin 1 (2026-10-04, keputusan produk): semua urusan transaksi satu tempat.
+ * Tiga entri sheet "Toko Saya" yang dihapus — Jastip, Patungan, Booking Jasa —
+ * pindah ke tab ini sebagai segmen. Segmen "Saya selenggarakan" vs
+ * "Saya ikuti" TIDAK didukung struktur backend (jastip = host-only via
+ * /v1/jastip/trips/mine, patungan = discovery publik, booking = buyer-only
+ * via /v1/commerce/service-slots/bookings/mine), jadi tiap layanan mendapat
+ * hub ringkas yang menaut ke layarnya masing-masing — flow
+ * jastip/patungan/booking TIDAK di-refactor (itu Poin 2).
+ */
+type TrxSection = "orders" | "jastip" | "patungan" | "bookings"
+
+const TRX_SECTIONS: readonly SegmentItem<TrxSection>[] = [
+  { value: "orders", label: "Transaksi", icon: Receipt },
+  { value: "jastip", label: "Jastip", icon: AirplaneTilt },
+  { value: "patungan", label: "Patungan", icon: UsersThree },
+  { value: "bookings", label: "Booking", icon: CalendarCheck },
+]
+
+function parseTrxSection(raw: unknown): TrxSection {
+  return raw === "jastip" || raw === "patungan" || raw === "bookings" ? raw : "orders"
+}
+
+const TRX_SERVICE_HUBS: Record<
+  Exclude<TrxSection, "orders">,
+  {
+    icon: IconComponent
+    title: string
+    description: string
+    actionLabel: string
+    route: Href
+    secondaryLabel?: string
+    secondaryRoute?: Href
+  }
+> = {
+  jastip: {
+    icon: AirplaneTilt,
+    title: "Jastip",
+    description: "Trip jastip yang Anda selenggarakan — atur katalog, pantau peserta, dan kunci harga.",
+    actionLabel: "Buka Jastip saya",
+    route: ROUTES.jastip,
+    secondaryLabel: "Cara kerja Jastip",
+    secondaryRoute: ROUTES.jastipHowItWorks,
+  },
+  patungan: {
+    icon: UsersThree,
+    title: "Patungan",
+    description: "Kumpulkan iuran bersama — buat grup baru atau kelola yang sudah berjalan.",
+    actionLabel: "Buka Patungan",
+    route: ROUTES.patungan,
+    secondaryLabel: "Cara kerja Patungan",
+    secondaryRoute: ROUTES.patunganHowItWorks,
+  },
+  bookings: {
+    icon: CalendarCheck,
+    title: "Booking",
+    description: "Jadwal booking jasa Anda — lihat detail dan batalkan bila berubah rencana.",
+    actionLabel: "Buka Booking saya",
+    route: ROUTES.serviceBookings,
+  },
+}
+
+/** Hub ringkas satu layanan: penjelasan + tombol ke layar penuhnya. */
+function TrxServiceHub({ section }: { section: Exclude<TrxSection, "orders"> }) {
+  const router = useRouter()
+  const hub = TRX_SERVICE_HUBS[section]
+  return (
+    <View className="gap-4">
+      <View className="gap-3 rounded-2xl border border-border bg-surface p-5">
+        <Icon icon={hub.icon} size="lg" tone="active" weight="bold" />
+        <Text variant="h3" weight={700}>
+          {translate(hub.title)}
+        </Text>
+        <Text variant="body" tone="secondary">
+          {translate(hub.description)}
+        </Text>
+      </View>
+      <Button onPress={() => router.push(hub.route)}>{translate(hub.actionLabel)}</Button>
+      {hub.secondaryLabel && hub.secondaryRoute ? (
+        <Button variant="ghost" onPress={() => router.push(hub.secondaryRoute!)}>
+          {translate(hub.secondaryLabel)}
+        </Button>
+      ) : null}
+    </View>
+  )
 }
 
 /** `null` = jangan kirim parameter `status` sama sekali. */
@@ -231,6 +318,14 @@ export default function TransactionsScreen() {
   const role: RoleTab = transactionsTab
   const [status, setStatus] = useState(ALL_STATUS)
   const [sheetOpen, setSheetOpen] = useState(false)
+  // Poin 1: segmen bagian tab — `?section=jastip|patungan|bookings` dari
+  // deep-link (mis. tap notifikasi) membuka segmen layanan langsung;
+  // bukaan biasa default ke daftar order.
+  const { section: sectionParam } = useLocalSearchParams<{ section?: string }>()
+  const [section, setSection] = useState<TrxSection>(() => parseTrxSection(sectionParam))
+  useEffect(() => {
+    setSection(parseTrxSection(sectionParam))
+  }, [sectionParam])
   // Efek scroll: header terangkat (bayangan) saat daftar digulir.
   const { elevated, onScrollWorklet } = useScrollElevation()
   const listRef = useRef<FlatList<OrderDayGroup<Order>>>(null)
@@ -294,7 +389,9 @@ export default function TransactionsScreen() {
 
   // FE-064: prop `right` header di-memo agar memo <Header> bisa bail-out.
   // Deps: walletBalance (label chip) + filtered (state tombol funnel) +
-  // walletEnabled (chip disembunyikan saat kill-switch dompet mati).
+  // walletEnabled (chip disembunyikan saat kill-switch dompet mati) +
+  // section (aksi khusus-order — filter status & buat transaksi — hanya
+  // tampil di segmen Transaksi; segmen layanan punya CTA-nya sendiri).
   // PERF-FIX (TIM1-P2): handler tombol stabil via useCallback.
   const handleWalletPress = useCallback(() => router.push(ROUTES.wallet), [router])
   const handleFilterSheetOpen = useCallback(() => setSheetOpen(true), [])
@@ -328,25 +425,29 @@ export default function TransactionsScreen() {
             </Text>
           </PressableScale>
         ) : null}
-        <IconButton
-          icon={Funnel}
-          variant="ghost"
-          active={filtered}
-          accessibilityLabel={translate("Filter status transaksi")}
-          accessibilityHint={
-            filtered ? translate("Filter aktif, ketuk untuk mengubah") : translate("Ketuk untuk memfilter")
-          }
-          onPress={handleFilterSheetOpen}
-        />
-        <IconButton
-          icon={Plus}
-          variant="ghost"
-          accessibilityLabel={translate("Buat transaksi baru")}
-          onPress={handleCreateTransactionPress}
-        />
+        {section === "orders" ? (
+          <>
+            <IconButton
+              icon={Funnel}
+              variant="ghost"
+              active={filtered}
+              accessibilityLabel={translate("Filter status transaksi")}
+              accessibilityHint={
+                filtered ? translate("Filter aktif, ketuk untuk mengubah") : translate("Ketuk untuk memfilter")
+              }
+              onPress={handleFilterSheetOpen}
+            />
+            <IconButton
+              icon={Plus}
+              variant="ghost"
+              accessibilityLabel={translate("Buat transaksi baru")}
+              onPress={handleCreateTransactionPress}
+            />
+          </>
+        ) : null}
       </View>
     ),
-    [walletBalance, filtered, walletEnabled, handleWalletPress, handleFilterSheetOpen, handleCreateTransactionPress],
+    [walletBalance, filtered, walletEnabled, section, handleWalletPress, handleFilterSheetOpen, handleCreateTransactionPress],
   )
 
   /**
@@ -479,6 +580,19 @@ export default function TransactionsScreen() {
         right={headerRight}
       />
       <ModeShiftFade>
+      {/* Poin 1: segmen bagian — Transaksi | Jastip | Patungan | Booking.
+          Tiga layanan pindahan sheet "Toko Saya"; semua urusan transaksi
+          satu tempat (keputusan produk). */}
+      <FadeIn duration="fast" translate={false} className="z-sticky bg-background px-5 pt-3">
+        <SegmentedControl
+          accessibilityLabel={translate("Bagian transaksi")}
+          items={TRX_SECTIONS}
+          value={section}
+          onChange={setSection}
+        />
+      </FadeIn>
+      {section === "orders" ? (
+        <>
       {/* v2: kontrol filter fade-in cepat TANPA geser — kontrol fungsional
           harus terasa stabil, tidak "naik". Item list sendiri mendapat Layout
           animation dari dalam <PaginatedList> (hanya saat tambah/hapus).
@@ -516,6 +630,16 @@ export default function TransactionsScreen() {
         empty={trxListEmpty}
         renderItem={renderGroup}
       />
+        </>
+      ) : (
+        <ScrollView
+          className="flex-1"
+          contentContainerClassName="px-5 pt-4"
+          contentContainerStyle={{ paddingBottom: insets.bottom + TAB_BAR_HEIGHT + tokens.space[4] }}
+        >
+          <TrxServiceHub section={section} />
+        </ScrollView>
+      )}
       </ModeShiftFade>
     </Screen>
   )

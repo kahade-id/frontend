@@ -120,6 +120,13 @@ export const ROUTES = {
   home: "/showcase" as Href,
   /** Tab Transaksi (list order + filter status) */
   transactions: "/transactions" as Href,
+  /**
+   * Poin 1 (2026-10-04): tab Transaksi dibuka pada segmen layanan
+   * (jastip/patungan/bookings) — dipakai deep-link notifikasi agar tap
+   * mendarat di segmen yang benar, bukan daftar order.
+   */
+  transactionsSection: (section: "jastip" | "patungan" | "bookings") =>
+    ({ pathname: "/transactions", params: { section } }) as unknown as Href,
   /** Tab #3 — Dompet (saldo, Topup/Withdraw/Transfer, riwayat ringkas) */
   wallet: "/wallet" as Href,
   /** Tab #4 — Notifikasi (list read/unread) */

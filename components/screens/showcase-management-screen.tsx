@@ -15,7 +15,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Linking, Platform, View } from "react-native"
 import { useNavigation, usePreventRemove, type NavigationAction } from "@react-navigation/native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { CalendarBlank, DotsSixVertical, Eye, EyeSlash, Images, PencilSimple, Plus, Star, Trash } from "phosphor-react-native"
+import { CalendarBlank, CaretRight, DotsSixVertical, Eye, EyeSlash, Images, PencilSimple, Plus, Star, Storefront, Ticket, Trash } from "phosphor-react-native"
 import { router, useLocalSearchParams } from "expo-router"
 import { translate } from "@/lib/i18n/translate"
 import { useLanguage } from "@/lib/i18n"
@@ -60,7 +60,8 @@ import { tokens } from "@/lib/tokens"
 import { ActionSheet, type ActionSheetItem } from "@/components/ui/action-sheet"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { DragSortList } from "@/components/showcase-media-drag-sort"
-import { Icon } from "@/components/ui/icon"
+import { Icon, type IconComponent } from "@/components/ui/icon"
+import { PressableScale } from "@/components/ui/pressable-scale"
 import { ShowcaseFeedItem } from "@/components/ui/showcase-feed-item"
 import type { ShowcaseMedia, ShowcaseSocialItem } from "@/lib/api/showcase"
 import { Button } from "@/components/ui/button"
@@ -73,7 +74,7 @@ import { Input } from "@/components/ui/input"
 import { Picture } from "@/components/ui/picture"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
-import { SectionHeader } from "@/components/ui/section"
+import { SectionHeader, MenuGroupLabel } from "@/components/ui/section"
 import { ShowcaseCategoryInput } from "@/components/ui/showcase-category-input"
 import { ShowcaseConditionInput } from "@/components/ui/showcase-condition-input"
 import { ShowcaseGalleryGrid } from "@/components/ui/showcase-gallery-grid"
@@ -122,6 +123,45 @@ const EMPTY_FORM: FormState = {
 }
 
 type Editor = { mode: "edit"; item: ShowcaseItem } | null
+
+/**
+ * Poin 1 (2026-10-04): baris tautan seksi — entry point ke layar yang
+ * dipindah dari sheet "Toko Saya" yang dihapus ("Produk & Stok Saya",
+ * "Promo saya"). Layar tujuannya TIDAK diubah; hanya titik masuknya.
+ */
+function CommerceLinkRow({
+  icon,
+  title,
+  description,
+  accessibilityLabel,
+  onPress,
+}: {
+  icon: IconComponent
+  title: string
+  description: string
+  accessibilityLabel: string
+  onPress: () => void
+}) {
+  return (
+    <PressableScale
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      className="flex-row items-center gap-3 rounded-xl border border-border bg-surface px-4 py-3"
+    >
+      <Icon icon={icon} size="md" tone="default" weight="bold" />
+      <View className="flex-1 gap-0.5">
+        <Text variant="body" weight={600}>
+          {title}
+        </Text>
+        <Text variant="caption" tone="secondary" numberOfLines={2}>
+          {description}
+        </Text>
+      </View>
+      <Icon icon={CaretRight} size="md" tone="default" weight="bold" />
+    </PressableScale>
+  )
+}
 
 
 /** Judul tampil item mentah — fallback netral bersama (J-04). */
@@ -1001,6 +1041,30 @@ function ShowcaseManagement() {
             >
               {translate("Buat etalase baru")}
             </Button>
+            {/*
+              Poin 1 (2026-10-04): redistribusi sheet "Toko Saya" yang
+              dihapus — "Produk & Stok Saya" dan "Voucher Toko" pindah ke
+              sini sebagai seksi. Entry point saja: layar tujuannya
+              (/seller/products, /seller/vouchers) TIDAK diubah.
+            */}
+            <View className="gap-2">
+              <MenuGroupLabel>{translate("Produk & Stok Saya")}</MenuGroupLabel>
+              <CommerceLinkRow
+                icon={Storefront}
+                title={translate("Produk & Stok Saya")}
+                description={translate("Kelola produk katalog dan stok Anda.")}
+                accessibilityLabel={translate("Buka produk dan stok saya")}
+                onPress={() => router.push(ROUTES.sellerProducts)}
+              />
+              <MenuGroupLabel>{translate("Promo saya")}</MenuGroupLabel>
+              <CommerceLinkRow
+                icon={Ticket}
+                title={translate("Promo saya")}
+                description={translate("Voucher diskon untuk pembeli Anda.")}
+                accessibilityLabel={translate("Buka promo saya")}
+                onPress={() => router.push(ROUTES.sellerVouchers)}
+              />
+            </View>
           </View>
         )}
       </PullToRefresh>

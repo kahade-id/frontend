@@ -3,8 +3,10 @@
  *
  * Mengunci logika baru yang murni (bisa jalan di vitest node env):
  *  1. Label menu drawer Bahasa Indonesia (`lib/drawer-menu.ts`): "Lihat Profil",
- *     "Dompet Saya", "Kelola Etalase", "Template Transaksi", "Order Link",
- *     "Laporan & Analitik" + item "Pesan" (/chat) untuk badge unread.
+ *     "Dompet Saya", "Kelola Etalase", "Template Transaksi", "Tautan Pesanan",
+ *     "Sengketa Saya", "Laporan & Analitik".
+ *     Poin 1 (2026-10-04): "Toko Saya" DIHAPUS sebagai konsep (tanpa seller
+ *     flag) — tidak ada lagi item "shop" / SHOP_MENU_META.
  *  2. `hasOpenSupportTicket` (`lib/api/support.ts`): dot tiket menyala bila
  *     ada tiket OPEN/IN_PROGRESS/WAITING_USER; padam bila kosong atau semua
  *     CLOSED/RESOLVED.
@@ -36,30 +38,33 @@ function ticket(status: SupportTicketStatus): SupportTicket {
 
 describe("menu drawer — label Bahasa Indonesia", () => {
   it("menu utama memakai label baru sesuai urutan", () => {
+    // Poin 1 (2026-10-04): "Toko Saya" dihapus — urutan tanpa item shop.
     expect(MAIN_MENU_META.map((m) => m.label)).toEqual([
       "Lihat Profil",
       "Dompet Saya",
       "Kelola Etalase",
-      "Toko Saya",
       "Template Transaksi",
       "Tautan Pesanan",
+      "Sengketa Saya",
       "Laporan & Analitik",
-      "Pesan",
     ])
   })
 
   it("tidak ada label lama yang tersisa", () => {
     const labels = MAIN_MENU_META.map((m) => m.label)
-    for (const lama of ["Profile", "Dompet", "Etalase", "Template", "Laporan"]) {
+    for (const lama of ["Profile", "Dompet", "Etalase", "Template", "Laporan", "Toko Saya"]) {
       expect(labels).not.toContain(lama)
     }
   })
 
-  it("item Pesan menaut ke /chat (untuk badge unread)", () => {
+  it("tidak ada item Toko Saya (Poin 1 — konsep toko dihapus)", () => {
+    const ids = MAIN_MENU_META.map((m) => m.id)
+    expect(ids).not.toContain("shop")
+  })
+
+  it("item Pesan tidak ada di drawer (UX-NAV-007 — badge unread di tab)", () => {
     const pesan = MAIN_MENU_META.find((m) => m.id === "messages")
-    expect(pesan?.label).toBe("Pesan")
-    expect(String(pesan?.href)).toBe("/chat")
-    expect(pesan?.accessibilityLabel).toBe("Buka pesan")
+    expect(pesan).toBeUndefined()
   })
 
   it("accessibilityLabel ikut diperbarui", () => {
@@ -70,9 +75,9 @@ describe("menu drawer — label Bahasa Indonesia", () => {
       profile: "Lihat profil saya",
       wallet: "Buka dompet saya",
       etalase: "Kelola etalase saya",
-      shop: "Buka menu toko saya",
-      reports: "Buka laporan dan analitik",
+      reports: "Laporan & Analitik",
     })
+    expect(byId).not.toHaveProperty("shop")
   })
 
   it("menu bawah: Umpan Balik, Bantuan Langsung, Tiket Bantuan", () => {

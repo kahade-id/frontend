@@ -5,11 +5,12 @@
  *   1. Header profil: foto di atas, nama + username di bawahnya (vertikal,
  *      rata kiri). TANPA chevron. Tombol X tepat di pojok kanan atas header.
  *   2. Kahade Plus — kartu section tersendiri yang menonjol.
- *   3. Menu utama: Lihat Profil, Dompet Saya, Kelola Etalase, Toko Saya
- *      (sheet submenu — FE-098, satu-satunya item ber-chevron bawah),
+ *   3. Menu utama: Lihat Profil, Dompet Saya, Kelola Etalase,
  *      Template Transaksi, Tautan Pesanan, Sengketa Saya, dan Laporan &
  *      analitik (→ /analytics). Item "Pesan" dihapus dari drawer — tab
- *      bawah sudah mencakupnya.
+ *      bawah sudah mencakupnya. Poin 1 (2026-10-04): "Toko Saya" dihapus
+ *      sebagai konsep (tanpa seller flag) — isinya didistribusikan ulang
+ *      (Kelola Etalase, tab Transaksi, detail order).
  *   4. Native: satu menu Bantuan menuju hub FAQ, Tentang, Laporan Saya,
  *      tiket, Bantuan Langsung, dan Umpan Balik. Web fallback lama dipertahankan
  *      hanya untuk kompatibilitas shell yang sudah tidak menjadi produk.
@@ -19,9 +20,7 @@
  *      abu-abu; gear tetap aksi primer.
  *
  * Desain list: ikon TANPA background, varian Phosphor bold, judul BOLD,
- * TANPA chevron di semua item — KECUALI "Toko Saya" yang membuka sheet
- * submenu (UX-NAV-013: chevron bawah sebagai affordance). Light/dark via
- * token.
+ * TANPA chevron di semua item. Light/dark via token.
  *
  * Motion premium ala X (tidak diubah):
  * - panel meluncur dari kiri dengan spring `tokens.motion.spring`,
@@ -43,10 +42,7 @@ import Reanimated, {
   withSpring,
 } from "react-native-reanimated"
 import {
-  AirplaneTilt,
-  ArrowUDownLeft,
   Bank,
-  CalendarCheck,
   ChartBar,
   ChatCircle,
   CrownSimple,
@@ -58,12 +54,10 @@ import {
   MagnifyingGlass,
   PencilSimple,
   ShieldWarning,
-  ShoppingBag,
   SignIn,
   Storefront,
   Ticket,
   User,
-  UsersThree,
   Wallet,
   X,
 } from "phosphor-react-native"
@@ -71,7 +65,6 @@ import {
 import { Avatar } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { useOverlayDismissKeys } from "@/components/ui/backdrop"
-import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Button } from "@/components/ui/button"
 import { Divider } from "@/components/ui/divider"
 import { Icon, type IconComponent } from "@/components/ui/icon"
@@ -98,7 +91,6 @@ import { hitSlopToReach } from "@/lib/hit-slop"
 import {
   BOTTOM_MENU_META,
   MAIN_MENU_META,
-  SHOP_MENU_META,
   getDrawerFooterMenuMeta,
   getMainMenuMeta,
   type DrawerMenuMeta,
@@ -134,7 +126,6 @@ const MENU_ICONS: Record<string, IconComponent> = {
   wallet: Wallet,
   "bank-accounts": Bank,
   etalase: Storefront,
-  shop: ShoppingBag,
   templates: FileText,
   "order-links": LinkSimple,
   reports: ChartBar,
@@ -144,14 +135,6 @@ const MENU_ICONS: Record<string, IconComponent> = {
   "live-support": Headset,
   "support-tickets": Ticket,
   "help-center": Lifebuoy,
-  // FE-098: ikon sheet "Toko Saya" — sama seperti di Pengaturan sebelumnya.
-  "shop-products": ShoppingBag,
-  "shop-returns": ArrowUDownLeft,
-  "shop-seller-products": Storefront,
-  "shop-seller-vouchers": Ticket,
-  "shop-jastip": AirplaneTilt,
-  "shop-patungan": UsersThree,
-  "shop-service-bookings": CalendarCheck,
 }
 
 function withIcons(
@@ -179,9 +162,6 @@ export function useMainMenu(): readonly DrawerMenuItem[] {
 /** Deprecated web-shell compatibility; native uses the single Help Center entry. */
 export const BOTTOM_MENU: readonly DrawerMenuItem[] = withIcons(BOTTOM_MENU_META)
 
-/** FE-098: isi sheet "Toko Saya". */
-const SHOP_MENU: readonly DrawerMenuItem[] = withIcons(SHOP_MENU_META)
-
 function hrefMatchesPath(href: Href | undefined, pathname: string): boolean {
   if (!href) return false
   const rawPath = typeof href === "string" ? href : href.pathname
@@ -193,7 +173,6 @@ function hrefMatchesPath(href: Href | undefined, pathname: string): boolean {
 
 function isDrawerItemSelected(item: DrawerMenuItem, pathname: string): boolean {
   if (item.id === "profile") return pathname.startsWith("/user/")
-  if (item.id === "shop") return SHOP_MENU.some((entry) => hrefMatchesPath(entry.href, pathname))
   return hrefMatchesPath(item.href, pathname)
 }
 
@@ -333,10 +312,6 @@ export function AppDrawer() {
   const mainMenu = useMainMenu()
   const { mode: themeMode } = useTheme()
   const [mounted, setMounted] = useState(open)
-  // FE-098: sheet "Toko Saya" — dibuka dari item drawer "Toko Saya".
-  // State hidup di sini (bukan di dalam guard `mounted`) supaya sheet
-  // bertahan setelah drawer ditutup.
-  const [shopOpen, setShopOpen] = useState(false)
 
   // Profil hanya diambil saat drawer dibuka (hemat query).
   const profileQuery = useApiQuery(
@@ -427,27 +402,9 @@ export function AppDrawer() {
         goProfile()
         return
       }
-      // FE-098: "Toko Saya" membuka sheet submenu, bukan navigasi langsung.
-      if (item.id === "shop") {
-        haptic("select")
-        closeDrawer()
-        setShopOpen(true)
-        return
-      }
       if (item.href) go(item.href)
     },
     [go, goProfile],
-  )
-
-  // FE-098: baris di dalam sheet "Toko Saya" — tutup sheet lalu navigasi
-  // seperti biasa (semua href = rute app/* yang sudah ada).
-  const onShopNavigate = useCallback(
-    (item: DrawerMenuItem) => {
-      if (!item.href) return
-      setShopOpen(false)
-      go(item.href)
-    },
-    [go],
   )
 
   const panelStyle = useAnimatedStyle(() => ({
@@ -478,32 +435,9 @@ export function AppDrawer() {
       }
     })
 
-  // FE-098: sheet "Toko Saya" dirender di luar guard `mounted` — dibuka
-  // dari item drawer lalu drawer ditutup; BottomSheet me-unmount sendiri
-  // saat tidak visible.
-  const shopSheet = (
-    <BottomSheet
-      visible={shopOpen}
-      onRequestClose={() => setShopOpen(false)}
-      title={translate("Toko Saya")}
-    >
-      <View className="pb-2">
-        {SHOP_MENU.map((item) => (
-          <DrawerMenuRow
-            key={item.id}
-            item={item}
-            onNavigate={onShopNavigate}
-            selected={isDrawerItemSelected(item, pathname)}
-          />
-        ))}
-      </View>
-    </BottomSheet>
-  )
-
-  if (!mounted) return shopSheet
+  if (!mounted) return null
 
   return (
-    <>
     <View
       className="absolute inset-0"
       style={{ zIndex: tokens.zIndex.modal }}
@@ -710,7 +644,5 @@ export function AppDrawer() {
         </Reanimated.View>
       </GestureDetector>
     </View>
-    {shopSheet}
-    </>
   )
 }
