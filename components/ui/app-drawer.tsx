@@ -6,11 +6,12 @@
  *      rata kiri). TANPA chevron. Tombol X tepat di pojok kanan atas header.
  *   2. Kahade Plus — kartu section tersendiri yang menonjol.
  *   3. Menu utama: Lihat Profil, Dompet Saya, Kelola Etalase,
- *      Template Transaksi, Tautan Pesanan, Sengketa Saya, dan Laporan &
- *      analitik (→ /analytics). Item "Pesan" dihapus dari drawer — tab
+ *      dan Laporan & analitik (→ /analytics). Item "Pesan" dihapus dari drawer — tab
  *      bawah sudah mencakupnya. Poin 1 (2026-10-04): "Toko Saya" dihapus
  *      sebagai konsep (tanpa seller flag) — isinya didistribusikan ulang
- *      (Kelola Etalase, tab Transaksi, detail order).
+ *      (Kelola Etalase, tab Transaksi, detail order). Poin 2 (2026-10-04):
+ *      "Template Transaksi", "Tautan Pesanan", "Sengketa Saya" pindah ke
+ *      tab Transaksi (baris "Kelola") — tidak lagi di drawer.
  *   4. Native: satu menu Bantuan menuju hub FAQ, Tentang, Laporan Saya,
  *      tiket, Bantuan Langsung, dan Umpan Balik. Web fallback lama dipertahankan
  *      hanya untuk kompatibilitas shell yang sudah tidak menjadi produk.
@@ -46,14 +47,11 @@ import {
   ChartBar,
   ChatCircle,
   CrownSimple,
-  FileText,
   Gear,
   Headset,
   Lifebuoy,
-  LinkSimple,
   MagnifyingGlass,
   PencilSimple,
-  ShieldWarning,
   SignIn,
   Storefront,
   Ticket,
@@ -126,11 +124,7 @@ const MENU_ICONS: Record<string, IconComponent> = {
   wallet: Wallet,
   "bank-accounts": Bank,
   etalase: Storefront,
-  templates: FileText,
-  "order-links": LinkSimple,
   reports: ChartBar,
-  // UX-NAV-002: ikon item "Sengketa Saya".
-  disputes: ShieldWarning,
   feedback: ChatCircle,
   "live-support": Headset,
   "support-tickets": Ticket,

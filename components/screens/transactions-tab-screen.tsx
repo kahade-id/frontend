@@ -50,7 +50,7 @@
  */
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { ScrollView, View, type FlatList } from "react-native"
-import { AirplaneTilt, CalendarCheck, Funnel, Plus, Receipt, ShoppingBag, Storefront, UsersThree, Wallet } from "phosphor-react-native"
+import { AirplaneTilt, CalendarCheck, FileText, Funnel, LinkSimple, Plus, Receipt, ShieldWarning, ShoppingBag, Storefront, UsersThree, Wallet } from "phosphor-react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useLocalSearchParams, useRouter, type Href } from "expo-router"
 import { api } from "@/lib/api"
@@ -117,6 +117,12 @@ const ROLE_PARAM: Record<RoleTab, "SELLER" | "BUYER"> = {
  * via /v1/commerce/service-slots/bookings/mine), jadi tiap layanan mendapat
  * hub ringkas yang menaut ke layarnya masing-masing — flow
  * jastip/patungan/booking TIDAK di-refactor (itu Poin 2).
+ *
+ * Poin 2 (2026-10-04): baris "Kelola" (header daftar segmen orders) —
+ * "Template Transaksi", "Tautan Pesanan", "Sengketa Saya" pindah dari drawer
+ * ke sini. Dipilih BARIS (bukan segmen ke-5/6/7): segmented control sudah
+ * penuh 4 segmen; baris ikut scroll bersama daftar sehingga chrome tetap
+ * ramping.
  */
 type TrxSection = "orders" | "jastip" | "patungan" | "bookings"
 
@@ -191,6 +197,57 @@ function TrxServiceHub({ section }: { section: Exclude<TrxSection, "orders"> }) 
           {translate(hub.secondaryLabel)}
         </Button>
       ) : null}
+    </View>
+  )
+}
+
+/**
+ * Poin 2 (2026-10-04, keputusan produk): baris "Kelola" — "Template
+ * Transaksi", "Tautan Pesanan", "Sengketa Saya" PINDAH ke tab ini dari
+ * drawer (dihapus dari MAIN_MENU_META) agar semua urusan transaksi satu
+ * tempat, bukan tercecer sebagai dunia tersendiri.
+ *
+ * Desain yang dipilih: BARIS horizontal ringkas, BUKAN segmen tambahan —
+ * <SegmentedControl> sudah berisi 4 segmen (Transaksi|Jastip|Patungan|
+ * Booking dari Poin 1); menambah 3 segmen lagi membuatnya sesak dan
+ * mengaburkan makna "bagian". Baris ini dipasang sebagai `header`
+ * <PaginatedList> segmen orders — ikut scroll bersama daftar, sehingga
+ * chrome tetap hanya berisi dua segmented control.
+ */
+const TRX_MANAGE_ITEMS: ReadonlyArray<{
+  id: string
+  icon: IconComponent
+  label: string
+  route: Href
+}> = [
+  { id: "templates", icon: FileText, label: "Template Transaksi", route: ROUTES.transactionTemplates },
+  { id: "order-links", icon: LinkSimple, label: "Tautan Pesanan", route: ROUTES.orderLinks },
+  { id: "disputes", icon: ShieldWarning, label: "Sengketa Saya", route: ROUTES.disputes },
+]
+
+function TrxManageRow() {
+  const router = useRouter()
+  return (
+    <View className="gap-2 pb-1">
+      <Text variant="caption" weight={600} tone="tertiary">
+        {translate("Kelola")}
+      </Text>
+      <View className="flex-row gap-2">
+        {TRX_MANAGE_ITEMS.map((item) => (
+          <PressableScale
+            key={item.id}
+            onPress={() => router.push(item.route)}
+            accessibilityRole="button"
+            accessibilityLabel={translate(item.label)}
+            className="flex-1 flex-row items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2.5"
+          >
+            <Icon icon={item.icon} size="sm" tone="default" weight="bold" />
+            <Text variant="caption" weight={600} className="flex-1" numberOfLines={2}>
+              {translate(item.label)}
+            </Text>
+          </PressableScale>
+        ))}
+      </View>
     </View>
   )
 }
@@ -512,6 +569,12 @@ export default function TransactionsScreen() {
     [filtered, role, handleClearStatusFilter, handleCreateTransactionPress, handleShowcasePress],
   )
   /**
+   * Poin 2 (2026-10-04): baris "Kelola" (Template Transaksi, Tautan Pesanan,
+   * Sengketa Saya — pindahan drawer) sebagai header daftar segmen orders.
+   * Distabilkan seperti placeholder/empty di atas (R1-005).
+   */
+  const trxManageRow = useMemo(() => <TrxManageRow />, [])
+  /**
    * G-03 (audit escrow 2026-09-24): N kartu yang countdown tenggatnya habis
    * bersamaan (batch order) dulu memicu N `query.refresh()` beruntun yang
    * saling membatalkan (tiap load meng-abort load sebelumnya) — daftar bisa
@@ -628,6 +691,7 @@ export default function TransactionsScreen() {
         bottomPadding={insets.bottom + TAB_BAR_HEIGHT + tokens.space[4]}
         loadingPlaceholder={trxListLoading}
         empty={trxListEmpty}
+        header={trxManageRow}
         renderItem={renderGroup}
       />
         </>

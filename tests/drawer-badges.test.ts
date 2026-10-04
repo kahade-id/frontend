@@ -3,10 +3,12 @@
  *
  * Mengunci logika baru yang murni (bisa jalan di vitest node env):
  *  1. Label menu drawer Bahasa Indonesia (`lib/drawer-menu.ts`): "Lihat Profil",
- *     "Dompet Saya", "Kelola Etalase", "Template Transaksi", "Tautan Pesanan",
- *     "Sengketa Saya", "Laporan & Analitik".
+ *     "Dompet Saya", "Kelola Etalase", "Laporan & Analitik".
  *     Poin 1 (2026-10-04): "Toko Saya" DIHAPUS sebagai konsep (tanpa seller
  *     flag) — tidak ada lagi item "shop" / SHOP_MENU_META.
+ *     Poin 2 (2026-10-04): "Template Transaksi", "Tautan Pesanan",
+ *     "Sengketa Saya" PINDAH ke tab Transaksi (baris "Kelola") — tidak lagi
+ *     di drawer.
  *  2. `hasOpenSupportTicket` (`lib/api/support.ts`): dot tiket menyala bila
  *     ada tiket OPEN/IN_PROGRESS/WAITING_USER; padam bila kosong atau semua
  *     CLOSED/RESOLVED.
@@ -39,13 +41,12 @@ function ticket(status: SupportTicketStatus): SupportTicket {
 describe("menu drawer — label Bahasa Indonesia", () => {
   it("menu utama memakai label baru sesuai urutan", () => {
     // Poin 1 (2026-10-04): "Toko Saya" dihapus — urutan tanpa item shop.
+    // Poin 2 (2026-10-04): Template Transaksi, Tautan Pesanan, Sengketa Saya
+    // pindah ke tab Transaksi (baris "Kelola") — tidak lagi di drawer.
     expect(MAIN_MENU_META.map((m) => m.label)).toEqual([
       "Lihat Profil",
       "Dompet Saya",
       "Kelola Etalase",
-      "Template Transaksi",
-      "Tautan Pesanan",
-      "Sengketa Saya",
       "Laporan & Analitik",
     ])
   })
@@ -60,6 +61,13 @@ describe("menu drawer — label Bahasa Indonesia", () => {
   it("tidak ada item Toko Saya (Poin 1 — konsep toko dihapus)", () => {
     const ids = MAIN_MENU_META.map((m) => m.id)
     expect(ids).not.toContain("shop")
+  })
+
+  it("item pindahan Poin 2 tidak lagi di drawer (ada di baris Kelola tab Transaksi)", () => {
+    const ids = MAIN_MENU_META.map((m) => m.id)
+    for (const pindahan of ["templates", "order-links", "disputes"]) {
+      expect(ids).not.toContain(pindahan)
+    }
   })
 
   it("item Pesan tidak ada di drawer (UX-NAV-007 — badge unread di tab)", () => {

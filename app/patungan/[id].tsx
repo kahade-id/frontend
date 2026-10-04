@@ -5,8 +5,9 @@
  * terkumpul, sisa, slot, overfunding + pengurang per orang, feeNote.
  *
  * Peserta: join (BAGI_RATA: nominal dari server; CUSTOM: input nominal),
- * bayar via escrow (create-transaction prefill), tautkan order
- * (POST /v1/patungan/participants/:id/link-order).
+ * bayar via escrow (create-transaction prefill + patunganParticipantId —
+ * order otomatis didaftarkan ke partisipasi via
+ * POST /v1/patungan/participants/:id/create-order, Poin 2 2026-10-04).
  *
  * Host: inisiasi pencairan (POST /groups/:id/initiate-release) → masa
  * sanggah 24 jam peserta; bagikan inviteCode.
@@ -50,6 +51,7 @@ import { Icon } from "@/components/ui/icon"
 import { IconButton } from "@/components/ui/icon-button"
 import { Input } from "@/components/ui/input"
 import { LoadingScreen } from "@/components/ui/loading-screen"
+import { OrderHelpActions } from "@/components/order-help-actions"
 import { ProgressBar } from "@/components/ui/progress-bar"
 import { Screen } from "@/components/ui/screen"
 import { Text } from "@/components/ui/text"
@@ -96,11 +98,6 @@ export default function PatunganDetailScreen() {
   const [customAmount, setCustomAmount] = useState("")
   const [joinError, setJoinError] = useState<string | undefined>()
   const [joining, setJoining] = useState(false)
-
-  const [linkOpen, setLinkOpen] = useState(false)
-  const [orderId, setOrderId] = useState("")
-  const [linkError, setLinkError] = useState<string | undefined>()
-  const [linking, setLinking] = useState(false)
 
   const [releaseOpen, setReleaseOpen] = useState(false)
   const [releasing, setReleasing] = useState(false)
@@ -165,26 +162,6 @@ export default function PatunganDetailScreen() {
       setJoining(false)
     }
   }, [id, group, joining, customAmount, toast, load])
-
-  const handleLink = useCallback(async () => {
-    if (!myParticipation || linking) return
-    if (orderId.trim().length < 4) {
-      setLinkError(translate("Masukkan ID pesanan yang sudah dibayar."))
-      return
-    }
-    setLinking(true)
-    try {
-      await api.commerce.linkPatunganOrder(myParticipation.id, orderId.trim())
-      toast.show({ title: translate("Pesanan ditautkan"), tone: "success" })
-      setLinkOpen(false)
-      setOrderId("")
-      await load()
-    } catch (err) {
-      setLinkError(userMessage(err))
-    } finally {
-      setLinking(false)
-    }
-  }, [myParticipation, linking, orderId, toast, load])
 
   const handleRelease = useCallback(async () => {
     if (!id || releasing) return
@@ -370,6 +347,9 @@ export default function PatunganDetailScreen() {
             !myParticipation.orderId &&
             myParticipation.amountIdr != null ? (
               <View className="gap-2">
+                {/* Poin 2 (2026-10-04): id partisipasi diteruskan — order
+                    otomatis terdaftar ke partisipasi ini setelah terbentuk;
+                    tidak ada lagi tempel ID manual. */}
                 <Button
                   fullWidth
                   onPress={() =>
@@ -377,24 +357,17 @@ export default function PatunganDetailScreen() {
                       ROUTES.createTransactionPatungan(
                         `Patungan: ${group.title}`,
                         myParticipation.amountIdr ?? 0,
+                        myParticipation.id,
                       ),
                     )
                   }
                 >
                   {translate("Bayar via Kahade")}
                 </Button>
-                <Button
-                  variant="secondary"
-                  fullWidth
-                  onPress={() => {
-                    setLinkError(undefined)
-                    setLinkOpen(true)
-                  }}
-                >
-                  {translate("Tautkan pesanan yang sudah dibayar")}
-                </Button>
               </View>
             ) : null}
+            {/* Poin 2: pintu masuk sengketa/retur — hanya bila order terkait ada. */}
+            {myParticipation.orderId ? <OrderHelpActions orderId={myParticipation.orderId} /> : null}
           </Card>
         ) : null}
 
@@ -465,45 +438,13 @@ export default function PatunganDetailScreen() {
           <Text variant="caption" tone="secondary">
             {translate(
               walletEnabled
-                ? "Setelah ikut, bayar via Kahade lalu tautkan pesanan Anda. Target tercapai → cair ke host; gagal → pengembalian dana otomatis."
-                : "Setelah ikut, bayar lalu tautkan pesanan Anda. Target tercapai → cair ke rekening host; gagal → pengembalian dana otomatis.",
+                ? "Setelah ikut, bayar via Kahade — pesanan otomatis tercatat ke partisipasimu. Target tercapai → cair ke host; gagal → pengembalian dana otomatis."
+                : "Setelah ikut, bayar via Kahade — pesanan otomatis tercatat ke partisipasimu. Target tercapai → cair ke rekening host; gagal → pengembalian dana otomatis.",
             )}
           </Text>
           {joinError ? (
             <Text variant="caption" tone="danger">
               {joinError}
-            </Text>
-          ) : null}
-        </View>
-      </BottomSheet>
-
-      <BottomSheet
-        visible={linkOpen}
-        onRequestClose={() => setLinkOpen(false)}
-        // FRM-017: field bawah tidak tertutup keyboard di layar kecil.
-        avoidKeyboard
-        title={translate("Tautkan pesanan")}
-        footer={
-          <Button fullWidth loading={linking} onPress={() => void handleLink()}>
-            {translate("Tautkan")}
-          </Button>
-        }
-      >
-        <View className="gap-4">
-          <Input
-            label={translate("ID pesanan")}
-            value={orderId}
-            onChangeText={(t) => { setOrderId(t); setLinkError(undefined) }}
-            placeholder={translate("ID pesanan yang sudah dibayar")}
-            autoCapitalize="none"
-            // FRM-024: autocorrect/spellcheck mati — jangan sampai ID order diubah jadi kata kamus.
-            autoCorrect={false}
-            spellCheck={false}
-            maxLength={40}
-          />
-          {linkError ? (
-            <Text variant="caption" tone="danger">
-              {linkError}
             </Text>
           ) : null}
         </View>

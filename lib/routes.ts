@@ -213,23 +213,36 @@ export const ROUTES = {
     ({ pathname: "/create-transaction", params: { voucherCode } }) as unknown as Href,
   /**
    * Buat transaksi escrow untuk jastip: nominal = total yang dikunci host
-   * (barang + fee + ongkir). Buyer menautkan order yang terbentuk via
-   * POST /v1/jastip/participants/:id/link-order (batch 43, item 15).
+   * (barang + fee + ongkir). Poin 2 (2026-10-04): `jastipParticipantId`
+   * diteruskan ke create-transaction — setelah order terbentuk, order
+   * otomatis didaftarkan via POST
+   * /v1/jastip/participants/:id/create-order (tanpa tempel ID manual).
    */
-  createTransactionJastip: (title: string, totalLockedIdr: number) =>
+  createTransactionJastip: (title: string, totalLockedIdr: number, jastipParticipantId?: string) =>
     ({
       pathname: "/create-transaction",
-      params: { title, amount: String(totalLockedIdr), orderType: "PHYSICAL_GOODS" },
+      params: {
+        title,
+        amount: String(totalLockedIdr),
+        orderType: "PHYSICAL_GOODS",
+        ...(jastipParticipantId ? { jastipParticipantId } : {}),
+      },
     }) as unknown as Href,
   /**
    * Buat transaksi escrow untuk iuran patungan: nominal = amountIdr
-   * partisipasi. Peserta menautkan order via
-   * POST /v1/patungan/participants/:id/link-order (batch 43, item 16).
+   * partisipasi. Poin 2 (2026-10-04): `patunganParticipantId` diteruskan ke
+   * create-transaction — setelah order terbentuk, order otomatis didaftarkan
+   * via POST /v1/patungan/participants/:id/create-order (tanpa tempel ID manual).
    */
-  createTransactionPatungan: (title: string, amountIdr: number) =>
+  createTransactionPatungan: (title: string, amountIdr: number, patunganParticipantId?: string) =>
     ({
       pathname: "/create-transaction",
-      params: { title, amount: String(amountIdr), orderType: "OTHER" },
+      params: {
+        title,
+        amount: String(amountIdr),
+        orderType: "OTHER",
+        ...(patunganParticipantId ? { patunganParticipantId } : {}),
+      },
     }) as unknown as Href,
   /**
    * Buat transaksi ter-prefill dari template (layar Template Transaksi → "Pakai").

@@ -8,8 +8,9 @@
  * (refund otomatis via POST /trips/:id/fail).
  *
  * Peserta: ikut trip (ringkasan item bebas), lihat rincian harga yang
- * dikunci host, bayar via escrow (create-transaction prefill nominal total),
- * lalu tautkan order (POST /participants/:id/link-order).
+ * dikunci host, bayar via escrow (create-transaction prefill nominal total +
+ * jastipParticipantId — order otomatis didaftarkan ke partisipasi via
+ * POST /participants/:id/create-order, Poin 2 2026-10-04).
  *
  * Keputusan non-obvious: tidak ada discovery publik (kontrak backend hanya
  * menyediakan /trips/mine + /trips/:id) — trip bersifat tertutup, dibuka via
@@ -48,6 +49,7 @@ import { Icon } from "@/components/ui/icon"
 import { LoadingScreen } from "@/components/ui/loading-screen"
 import { IconButton } from "@/components/ui/icon-button"
 import { Input } from "@/components/ui/input"
+import { OrderHelpActions } from "@/components/order-help-actions"
 import { Screen } from "@/components/ui/screen"
 import { Text } from "@/components/ui/text"
 
@@ -111,11 +113,6 @@ export default function JastipDetailScreen() {
   const [shipping, setShipping] = useState("")
   const [lockError, setLockError] = useState<string | undefined>()
   const [locking, setLocking] = useState(false)
-
-  const [linkTarget, setLinkTarget] = useState<JastipParticipant | null>(null)
-  const [orderId, setOrderId] = useState("")
-  const [linkError, setLinkError] = useState<string | undefined>()
-  const [linking, setLinking] = useState(false)
 
   const [failOpen, setFailOpen] = useState(false)
   const [failReason, setFailReason] = useState("")
@@ -238,26 +235,6 @@ export default function JastipDetailScreen() {
       setLocking(false)
     }
   }, [lockTarget, locking, goods, fee, shipping, toast, load])
-
-  const handleLink = useCallback(async () => {
-    if (!linkTarget || linking) return
-    if (orderId.trim().length < 4) {
-      setLinkError(translate("Masukkan ID pesanan yang sudah dibayar."))
-      return
-    }
-    setLinking(true)
-    try {
-      await api.commerce.linkJastipOrder(linkTarget.id, orderId.trim())
-      toast.show({ title: translate("Pesanan ditautkan"), tone: "success" })
-      setLinkTarget(null)
-      setOrderId("")
-      await load()
-    } catch (err) {
-      setLinkError(userMessage(err))
-    } finally {
-      setLinking(false)
-    }
-  }, [linkTarget, linking, orderId, toast, load])
 
   const handleFail = useCallback(async () => {
     if (!id || failing) return
@@ -411,6 +388,9 @@ export default function JastipDetailScreen() {
               )}
               {myParticipation.status === "PRICE_LOCKED" && myParticipation.totalLockedIdr != null ? (
                 <View className="gap-2">
+                  {/* Poin 2 (2026-10-04): id partisipasi diteruskan — order
+                      otomatis terdaftar ke partisipasi ini setelah terbentuk;
+                      tidak ada lagi tempel ID manual. */}
                   <Button
                     fullWidth
                     onPress={() =>
@@ -418,24 +398,17 @@ export default function JastipDetailScreen() {
                         ROUTES.createTransactionJastip(
                           `Jastip: ${trip.title}`,
                           myParticipation.totalLockedIdr ?? 0,
+                          myParticipation.id,
                         ),
                       )
                     }
                   >
                     {translate("Bayar via Kahade")}
                   </Button>
-                  <Button
-                    variant="secondary"
-                    fullWidth
-                    onPress={() => {
-                      setLinkError(undefined)
-                      setLinkTarget(myParticipation)
-                    }}
-                  >
-                    {translate("Tautkan pesanan yang sudah dibayar")}
-                  </Button>
                 </View>
               ) : null}
+              {/* Poin 2: pintu masuk sengketa/retur — hanya bila order terkait ada. */}
+              {myParticipation.orderId ? <OrderHelpActions orderId={myParticipation.orderId} /> : null}
             </Card>
           ) : null}
 
@@ -641,35 +614,6 @@ export default function JastipDetailScreen() {
           {lockError ? (
             <Text variant="caption" tone="danger">
               {lockError}
-            </Text>
-          ) : null}
-        </View>
-      </BottomSheet>
-
-      <BottomSheet
-        visible={linkTarget != null}
-        onRequestClose={() => setLinkTarget(null)}
-        // FRM-017: field bawah tidak tertutup keyboard di layar kecil.
-        avoidKeyboard
-        title={translate("Tautkan pesanan")}
-        footer={
-          <Button fullWidth loading={linking} onPress={() => void handleLink()}>
-            {translate("Tautkan")}
-          </Button>
-        }
-      >
-        <View className="gap-4">
-          <Input
-            label={translate("ID pesanan")}
-            value={orderId}
-            onChangeText={(t) => { setOrderId(t); setLinkError(undefined) }}
-            placeholder={translate("ID pesanan yang sudah dibayar")}
-            autoCapitalize="none"
-            maxLength={40}
-          />
-          {linkError ? (
-            <Text variant="caption" tone="danger">
-              {linkError}
             </Text>
           ) : null}
         </View>

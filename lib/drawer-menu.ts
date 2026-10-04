@@ -40,6 +40,12 @@ export type DrawerMenuMeta = {
  * tab Transaksi; Retur → per-order dari detail transaksi; Katalog Publik
  * dihapus (penghapusan total model katalog = Poin 4, terpisah).
  *
+ * Poin 2 (2026-10-04, keputusan produk): "Template Transaksi",
+ * "Tautan Pesanan", "Sengketa Saya" PINDAH ke tab Transaksi (baris "Kelola"
+ * di segmen Transaksi) — DIHAPUS dari drawer agar tidak tercecer sebagai
+ * dunia tersendiri; semua urusan transaksi satu tempat. UX-NAV-002 (pintu
+ * masuk tetap sengketa) dipertahankan lewat baris Kelola tersebut.
+ *
  * Menu "Laporan & analitik" menuju dashboard analytics (/analytics), bukan
  * daftar laporan konten (/reports).
  */
@@ -47,10 +53,6 @@ export const MAIN_MENU_META: readonly DrawerMenuMeta[] = [
   { id: "profile", label: "Lihat Profil", accessibilityLabel: "Lihat profil saya" },
   { id: "wallet", label: "Dompet Saya", href: ROUTES.wallet, accessibilityLabel: "Buka dompet saya" },
   { id: "etalase", label: "Kelola Etalase", href: ROUTES.showcaseManagement, accessibilityLabel: "Kelola etalase saya" },
-  { id: "templates", label: "Template Transaksi", href: ROUTES.transactionTemplates, accessibilityLabel: "Buka template transaksi" },
-  { id: "order-links", label: "Tautan Pesanan", href: ROUTES.orderLinks, accessibilityLabel: "Buka tautan pesanan" },
-  // UX-NAV-002: pintu masuk tetap ke daftar sengketa.
-  { id: "disputes", label: "Sengketa Saya", href: ROUTES.disputes, accessibilityLabel: "Buka sengketa saya" },
   // Menu laporan utama membuka dashboard analitik; daftar laporan konten
   // tetap tersedia melalui rute /reports yang memang khusus untuk laporan.
   { id: "reports", label: "Laporan & Analitik", href: ROUTES.analytics, accessibilityLabel: "Laporan & Analitik" },
