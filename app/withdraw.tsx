@@ -505,6 +505,18 @@ export default function WithdrawScreen() {
     else router.replace(isLegacy ? ROUTES.bankAccounts : ROUTES.wallet)
   }, [intentionalLeave, isLegacy])
 
+  // TX2-P1: hardware back = seperti tombol back header (jaga OTP pending).
+  // Tanpa ini hardware back pop mentah melewati guard dialog pembatalan.
+  useFocusEffect(
+    useCallback(() => {
+      const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+        handleHeaderBack()
+        return true
+      })
+      return () => sub.remove()
+    }, [handleHeaderBack]),
+  )
+
   return (
     // SEC-404: proteksi screen-capture iOS di layar tarik dana (PIN + nominal).
     <ScreenCaptureGuard>

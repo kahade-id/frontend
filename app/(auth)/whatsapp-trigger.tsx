@@ -644,7 +644,7 @@ export default function WhatsappTriggerScreen() {
               <TextLink onPress={() => { stopPolling(); router.replace(ROUTES.login) }}>Masuk</TextLink>
               <TextLink onPress={handleBack}>Kembali</TextLink>
               {purpose === "forgot_password" && formError ? (
-                <TextLink onPress={() => router.push(ROUTES.liveSupport)}>Minta bantuan</TextLink>
+                <TextLink onPress={() => router.push(ROUTES.faq)}>Minta bantuan</TextLink>
               ) : null}
             </View>
           </View>

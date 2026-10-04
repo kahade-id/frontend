@@ -22,12 +22,13 @@
  *
  * Struktur:
  *  - Akun: Profil Tersimpan, Edit Profil, Laporan & Analitik, Keamanan,
- *    Tipe Akun, Verifikasi Bisnis.
+ *    Verifikasi Bisnis.
  *  - Preferensi: Tampilan, Notifikasi, Bahasa, Versi Aplikasi.
  *  - Bantuan: Tentang Kami, Umpan Balik, Bantuan Langsung, Tiket Bantuan.
  *  - Legal: Syarat & ketentuan, Kebijakan privasi.
  *  - Keluar: Dialog konfirmasi destruktif + unregister push device + clear session.
- *  - FE-098: grup "Toko & Pesanan" dipindah ke drawer sebagai sheet "Toko Saya".
+ *  - Poin 1 (2026-10-04): konsep "Toko Saya" DIHAPUS — isinya
+ *    didistribusikan ulang (Kelola Etalase, tab Transaksi, detail order).
  *
  * Navigasi:
  *  - "Keamanan" → /security = PUSAT pengaturan keamanan (ganti nomor HP,
@@ -42,7 +43,6 @@ import Constants from "expo-constants"
 import {
   Bank,
   Bell,
-  Briefcase,
   FileText,
   Info,
   MapPin,
@@ -193,7 +193,6 @@ export default function SettingsScreen() {
     { id: "bank-accounts", label: "Rekening Bank", icon: Bank, route: ROUTES.bankAccounts },
     { id: "reports", label: "Laporan & Analitik", icon: FileText, route: ROUTES.analytics },
     { id: "security", label: "Keamanan", icon: ShieldCheck, route: ROUTES.security, trailing: securityTrailing },
-    { id: "account-type", label: "Tipe Akun", icon: Briefcase, route: ROUTES.accountType },
     {
       id: "business-verification",
       label: "Verifikasi Bisnis",
@@ -202,11 +201,12 @@ export default function SettingsScreen() {
     },
   ]
 
-  // ── FE-098 (§9 minimalisme): grup "Toko & Pesanan" (Katalog Produk,
-  // Retur Saya, Produk Saya, Voucher Toko, Jastip Saya, Patungan,
-  // Booking Jasa) DIPINDAH keluar dari Pengaturan — dibuka sebagai sheet
-  // "Toko Saya" dari drawer (lib/drawer-menu.ts SHOP_MENU_META).
-  // Pengaturan kembali menjadi pengaturan, bukan direktori.
+  // ── Poin 1 (2026-10-04, keputusan produk): konsep "Toko Saya" DIHAPUS
+  // (tanpa seller flag — semua user inheren buyer+seller). Isi sheet lama
+  // didistribusikan ulang: Produk & Stok + Voucher → Kelola Etalase;
+  // Jastip/Patungan/Booking Jasa → tab Transaksi; Retur → per-order dari
+  // detail transaksi; Katalog Publik dihapus (Poin 4). Pengaturan tetap
+  // menjadi pengaturan, bukan direktori.
 
   // ── Preferensi ──────────────────────────────────────────────────
   const preferenceItems: MenuItemData[] = [

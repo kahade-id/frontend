@@ -1,29 +1,17 @@
 import type { HelpArticle, HelpCategory } from "@/lib/api/help-center"
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { View, type ListRenderItem } from "react-native"
+import { Linking, View, type ListRenderItem } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useIsFocused } from "expo-router"
 import { router, useLocalSearchParams } from "expo-router"
-import {
-  ChatCircleText,
-  EnvelopeSimple,
-  Flag,
-  Info,
-  Lifebuoy,
-  MagnifyingGlass,
-  Question,
-  Ticket,
-} from "phosphor-react-native"
+import { MagnifyingGlass, Question } from "phosphor-react-native"
 import { api } from "@/lib/api"
+import { safeExternalUrl } from "@/lib/external-url"
 import { translate, useLanguage } from "@/lib/i18n"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 import { useApiQuery } from "@/lib/use-api-query"
 import { clearHelpHistory, getHelpHistory, type HelpHistoryEntry } from "@/lib/help-history"
-import {
-  getLiveSupportAvailability,
-  liveSupportScheduleSummary,
-} from "@/lib/live-support-availability"
 import { DebouncedSearchField } from "@/components/ui/debounced-search-field"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
@@ -31,16 +19,12 @@ import { Header } from "@/components/ui/header"
 import { HelpArticleListItem } from "@/components/ui/help-article-list-item"
 import { HelpCategoryCard } from "@/components/ui/help-category-card"
 import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
 import { Dialog } from "@/components/ui/modal"
 import { FadeIn } from "@/components/ui/fade-in"
-import { Icon } from "@/components/ui/icon"
 import { ListLoading } from "@/components/ui/paginated-list"
-import { ListGroup, ListItem } from "@/components/ui/list-item"
 import { PullToRefreshFlatList } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
-import { Text } from "@/components/ui/text"
 import { TextLink } from "@/components/ui/text-link"
 
 /**
@@ -52,133 +36,51 @@ function FaqItemSeparator() {
   return <View className="h-3" />
 }
 
-/** Existing FAQ route doubles as the native Help Center hub, avoiding a new route. */
-function HelpCenterLinks() {
+/**
+ * Poin 5 (2026-10-04): pusat bantuan web sebagai sumber konten terpusat.
+ * Dibuka lewat validator allowlist (gate check:external-urls).
+ */
+const HELP_SITE_URL = "https://bantuan.kahade.id"
+
+function openHelpSite() {
+  const url = safeExternalUrl(HELP_SITE_URL, {
+    allow: ["https:"],
+    hosts: ["bantuan.kahade.id"],
+  })
+  if (url) void Linking.openURL(url).catch(() => undefined)
+}
+
+/**
+ * Poin 5 (2026-10-04): SATU alur bantuan — cari/baca FAQ dulu; bila tidak
+ * ketemu, SATU tombol "Chat dengan tim Kahade" (→ /support-chat, shell jujur
+ * gelombang 1). Pintu lama (Bantuan Langsung palsu, Hubungi Kami/tiket manual)
+ * dihapus. Tiket yang masih ada (kini hanya dibuat admin dari eskalasi chat)
+ * tetap terjangkau sebagai tautan sekunder, begitu juga pusat bantuan web.
+ */
+function HelpEscalationFooter() {
   return (
-    <View className="gap-3">
-      <SectionHeader title={translate("Jelajahi bantuan")} level="h3" />
-      <ListGroup>
-        <ListItem
-          title={translate("Tentang Kahade")}
-          subtitle={translate("Informasi aplikasi dan kebijakan")}
-          leading={Info}
-          href={ROUTES.about}
-          chevron
-          divider
-        />
-        <ListItem
-          title={translate("Laporan Saya")}
-          subtitle={translate("Pantau laporan yang pernah Anda kirim")}
-          leading={Flag}
-          href={ROUTES.reports()}
-          chevron
-          divider
-        />
-        <ListItem
-          title={translate("Tiket Bantuan")}
-          subtitle={translate("Lihat percakapan dan status tiket")}
-          leading={Ticket}
-          href={ROUTES.support}
-          chevron
-          divider
-        />
-        <ListItem
-          title={translate("Bantuan Langsung")}
-          subtitle={translate("Hubungi tim Kahade saat layanan tersedia")}
-          leading={Lifebuoy}
-          href={ROUTES.liveSupport}
-          chevron
-          divider
-        />
-        <ListItem
-          title={translate("Umpan Balik")}
-          subtitle={translate("Kirim saran untuk membantu kami berkembang")}
-          leading={ChatCircleText}
-          href={ROUTES.feedback}
-          chevron
-          divider
-        />
-        <ListItem
-          title={translate("Hubungi Kami")}
-          subtitle={translate("Buat tiket baru untuk pertanyaan lain")}
-          leading={EnvelopeSimple}
-          href={ROUTES.contact}
-          chevron
-        />
-      </ListGroup>
+    <View className="gap-3 pt-2">
+      <SectionHeader title={translate("Masih butuh bantuan?")} level="h3" />
+      <Button fullWidth onPress={() => router.push(ROUTES.supportChat)}>
+        {translate("Chat dengan tim Kahade")}
+      </Button>
+      <View className="flex-row items-center justify-center gap-5">
+        <TextLink inline onPress={() => router.push(ROUTES.support)}>
+          {translate("Tiket bantuan saya")}
+        </TextLink>
+        <TextLink
+          inline
+          onPress={openHelpSite}
+          accessibilityLabel={translate("Buka bantuan.kahade.id di peramban")}
+        >
+          bantuan.kahade.id
+        </TextLink>
+      </View>
     </View>
   )
 }
 
 type FaqRow = { id: string } & ({ article: HelpArticle } | { category: HelpCategory })
-
-/**
- * F05: kartu status Bantuan Langsung — jam layanan, status buka/tutup
- * (dari jadwal, BUKAN klaim "agen online"), petunjuk antrean, dan alternatif
- * buat tiket saat tutup. CTA tidak lagi tampak selalu siap.
- */
-function LiveSupportStatusCard() {
-  const availability = getLiveSupportAvailability()
-  return (
-    <Card padded={false} className="gap-2 p-4">
-      <View className="flex-row items-center gap-3">
-        <View className="h-10 w-10 items-center justify-center rounded-full bg-background">
-          <Icon icon={Lifebuoy} size="md" tone="active" />
-        </View>
-        <View className="flex-1 gap-0.5">
-          <Text variant="body" weight={600}>
-            Bantuan Langsung
-          </Text>
-          <View className="flex-row items-center gap-1.5">
-            <View
-              className={`h-2 w-2 rounded-full ${availability.open ? "bg-success" : "bg-border"}`}
-            />
-            <Text variant="caption" tone="secondary">
-              {availability.open
-                ? `Online (jadwal) · sampai ${availability.closesAt}`
-                : `Sedang offline · buka ${availability.opensAt}`}
-            </Text>
-          </View>
-        </View>
-      </View>
-      <Text variant="caption" tone="secondary">
-        Jam layanan: {liveSupportScheduleSummary()}.
-      </Text>
-      <Text variant="caption" tone="secondary">
-        {availability.queueHint}
-      </Text>
-      <View className="flex-row gap-2 pt-1">
-        {availability.open ? (
-          <Button
-            variant="secondary"
-            size="sm"
-            fullWidth={false}
-            onPress={() => router.push(ROUTES.liveSupport)}
-          >
-            Mulai percakapan
-          </Button>
-        ) : (
-          <Button
-            variant="secondary"
-            size="sm"
-            fullWidth={false}
-            onPress={() => router.push(ROUTES.contact)}
-          >
-            Buat tiket
-          </Button>
-        )}
-        <Button
-          variant="ghost"
-          size="sm"
-          fullWidth={false}
-          onPress={() => router.push(ROUTES.support)}
-        >
-          Tiket saya
-        </Button>
-      </View>
-    </Card>
-  )
-}
 
 export default function FaqScreen() {
   // Langganan bahasa: placeholder kolom cari (prop string) harus langsung
@@ -240,9 +142,6 @@ export default function FaqScreen() {
     () =>
       searching ? null : (
         <View className="gap-4 pb-3">
-          <HelpCenterLinks />
-          {/* F05: status ketersediaan Bantuan Langsung. */}
-          <LiveSupportStatusCard />
           {/* F04: artikel terakhir dilihat. */}
           {history.length > 0 ? (
             <View className="gap-2">
@@ -268,6 +167,10 @@ export default function FaqScreen() {
         </View>
       ),
     [searching, history],
+  )
+  const faqListFooter = useMemo(
+    () => (searching ? null : <HelpEscalationFooter />),
+    [searching],
   )
   const faqRenderItem: ListRenderItem<FaqRow> = useCallback(
     ({ item }) =>
@@ -298,15 +201,27 @@ export default function FaqScreen() {
         <ListLoading />
       ) : state.error ? (
         <ErrorState description={state.error} onRetry={() => void state.reload()} />
+      ) : searching ? (
+        // Poin 5: tidak ketemu di FAQ → SATU tombol chat (shell jujur).
+        <EmptyState
+          icon={MagnifyingGlass}
+          title="Tidak ada hasil"
+          description="Coba kata kunci lain, atau chat dengan tim Kahade untuk bantuan lebih lanjut."
+          action={
+            <Button
+              variant="secondary"
+              fullWidth={false}
+              onPress={() => router.push(ROUTES.supportChat)}
+            >
+              Chat dengan tim Kahade
+            </Button>
+          }
+        />
       ) : (
         <EmptyState
-          icon={searching ? MagnifyingGlass : Question}
-          title={searching ? "Tidak ada hasil" : "Kategori bantuan belum tersedia"}
-          description={
-            searching
-              ? "Coba kata kunci lain."
-              : "Artikel akan ditampilkan setelah dipublikasikan oleh Kahade."
-          }
+          icon={Question}
+          title="Kategori bantuan belum tersedia"
+          description="Artikel akan ditampilkan setelah dipublikasikan oleh Kahade."
         />
       ),
     [state, searching],
@@ -332,6 +247,7 @@ export default function FaqScreen() {
         contentContainerStyle={faqContentStyle}
         ItemSeparatorComponent={FaqItemSeparator}
         ListHeaderComponent={faqListHeader ?? undefined}
+        ListFooterComponent={faqListFooter}
         renderItem={faqRenderItem}
         ListEmptyComponent={faqListEmpty}
         refreshing={state.refreshing}

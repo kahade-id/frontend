@@ -537,6 +537,11 @@ export type SlotBooking = {
   userId: string
   status: string | null
   createdAt: string | null
+  /**
+   * Poin 2 (2026-10-04): order escrow yang dibayar untuk booking ini —
+   * pintu masuk sengketa/retur hanya tampil bila terisi.
+   */
+  orderId: string | null
   slot?: ServiceSlot | null
 }
 
@@ -551,6 +556,7 @@ export function normalizeSlotBooking(raw: unknown): SlotBooking | null {
     userId: pickString(record, ["userId"]) ?? "",
     status: pickString(record, ["status"]) ?? null,
     createdAt: pickString(record, ["createdAt"]) ?? null,
+    orderId: pickString(record, ["orderId"]) ?? null,
     slot: asRecord(record.slot) ? normalizeServiceSlot(record.slot) : null,
   }
 }
@@ -930,6 +936,19 @@ export function linkJastipOrder(participantId: string, orderId: string) {
     .then(normalizeJastipParticipant)
 }
 
+/**
+ * Poin 2 (2026-10-04, unifikasi transaksi escrow): order escrow untuk
+ * partisipasi jastip DIBUAT LALU DIDAFTARKAN otomatis — create-transaction
+ * memanggil endpoint ini dengan `order.id` segera setelah order terbentuk,
+ * TANPA user menempel ID manual (pola lama link-order + BottomSheet dihapus).
+ * Kontrak selaras `linkJastipOrder`: body `{ orderId }`, respons = participant.
+ */
+export function createOrderFromJastipParticipant(participantId: string, orderId: string) {
+  return http
+    .post<unknown, { orderId: string }>(`/v1/jastip/participants/${seg(participantId)}/create-order`, { orderId }, { auth: "required" })
+    .then(normalizeJastipParticipant)
+}
+
 export function failJastipTrip(id: string, reason?: string) {
   return http
     .post<unknown, { reason?: string }>(`/v1/jastip/trips/${seg(id)}/fail`, { reason }, { auth: "required" })
@@ -1113,6 +1132,19 @@ export function joinPatunganGroup(id: string, dto: { amountIdr?: number; orderId
 export function linkPatunganOrder(participantId: string, orderId: string) {
   return http
     .post<unknown, { orderId: string }>(`/v1/patungan/participants/${seg(participantId)}/link-order`, { orderId }, { auth: "required" })
+    .then(normalizePatunganParticipant)
+}
+
+/**
+ * Poin 2 (2026-10-04, unifikasi transaksi escrow): order escrow untuk
+ * iuran patungan DIBUAT LALU DIDAFTARKAN otomatis — create-transaction
+ * memanggil endpoint ini dengan `order.id` segera setelah order terbentuk,
+ * TANPA user menempel ID manual (pola lama link-order + BottomSheet dihapus).
+ * Kontrak selaras `linkPatunganOrder`: body `{ orderId }`, respons = participant.
+ */
+export function createOrderFromPatunganParticipant(participantId: string, orderId: string) {
+  return http
+    .post<unknown, { orderId: string }>(`/v1/patungan/participants/${seg(participantId)}/create-order`, { orderId }, { auth: "required" })
     .then(normalizePatunganParticipant)
 }
 

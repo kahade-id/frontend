@@ -115,20 +115,16 @@ function FeedbackBlock({ articleId, content }: { articleId: string; content: str
           >
             Ubah pilihan (1x)
           </Button>
-          {/* Item 123: "Tidak membantu" → tawarkan buat tiket, artikel
-              terkait terisi otomatis (relatedArticleId). */}
+          {/* Item 123 (revisi Poin 5, 2026-10-04): "Tidak membantu" → tawarkan
+              SATU alur chat (bukan lagi buat tiket — tiket kini hanya dibuat
+              admin dari eskalasi). */}
           {choice === "not_helpful" ? (
             <Button
               variant="secondary"
               size="sm"
-              onPress={() =>
-                router.push({
-                  pathname: ROUTES.contact,
-                  params: { relatedArticleId: articleId },
-                } as Href)
-              }
+              onPress={() => router.push(ROUTES.supportChat)}
             >
-              Buat tiket
+              Chat dengan tim Kahade
             </Button>
           ) : null}
         </View>

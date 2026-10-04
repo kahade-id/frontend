@@ -120,6 +120,13 @@ export const ROUTES = {
   home: "/showcase" as Href,
   /** Tab Transaksi (list order + filter status) */
   transactions: "/transactions" as Href,
+  /**
+   * Poin 1 (2026-10-04): tab Transaksi dibuka pada segmen layanan
+   * (jastip/patungan/bookings) — dipakai deep-link notifikasi agar tap
+   * mendarat di segmen yang benar, bukan daftar order.
+   */
+  transactionsSection: (section: "jastip" | "patungan" | "bookings") =>
+    ({ pathname: "/transactions", params: { section } }) as unknown as Href,
   /** Tab #3 — Dompet (saldo, Topup/Withdraw/Transfer, riwayat ringkas) */
   wallet: "/wallet" as Href,
   /** Tab #4 — Notifikasi (list read/unread) */
@@ -206,23 +213,36 @@ export const ROUTES = {
     ({ pathname: "/create-transaction", params: { voucherCode } }) as unknown as Href,
   /**
    * Buat transaksi escrow untuk jastip: nominal = total yang dikunci host
-   * (barang + fee + ongkir). Buyer menautkan order yang terbentuk via
-   * POST /v1/jastip/participants/:id/link-order (batch 43, item 15).
+   * (barang + fee + ongkir). Poin 2 (2026-10-04): `jastipParticipantId`
+   * diteruskan ke create-transaction — setelah order terbentuk, order
+   * otomatis didaftarkan via POST
+   * /v1/jastip/participants/:id/create-order (tanpa tempel ID manual).
    */
-  createTransactionJastip: (title: string, totalLockedIdr: number) =>
+  createTransactionJastip: (title: string, totalLockedIdr: number, jastipParticipantId?: string) =>
     ({
       pathname: "/create-transaction",
-      params: { title, amount: String(totalLockedIdr), orderType: "PHYSICAL_GOODS" },
+      params: {
+        title,
+        amount: String(totalLockedIdr),
+        orderType: "PHYSICAL_GOODS",
+        ...(jastipParticipantId ? { jastipParticipantId } : {}),
+      },
     }) as unknown as Href,
   /**
    * Buat transaksi escrow untuk iuran patungan: nominal = amountIdr
-   * partisipasi. Peserta menautkan order via
-   * POST /v1/patungan/participants/:id/link-order (batch 43, item 16).
+   * partisipasi. Poin 2 (2026-10-04): `patunganParticipantId` diteruskan ke
+   * create-transaction — setelah order terbentuk, order otomatis didaftarkan
+   * via POST /v1/patungan/participants/:id/create-order (tanpa tempel ID manual).
    */
-  createTransactionPatungan: (title: string, amountIdr: number) =>
+  createTransactionPatungan: (title: string, amountIdr: number, patunganParticipantId?: string) =>
     ({
       pathname: "/create-transaction",
-      params: { title, amount: String(amountIdr), orderType: "OTHER" },
+      params: {
+        title,
+        amount: String(amountIdr),
+        orderType: "OTHER",
+        ...(patunganParticipantId ? { patunganParticipantId } : {}),
+      },
     }) as unknown as Href,
   /**
    * Buat transaksi ter-prefill dari template (layar Template Transaksi → "Pakai").
@@ -302,7 +322,6 @@ export const ROUTES = {
   // ── Pengaturan — semua sub-screen menu ──────────────────────────────────
   editProfile: "/edit-profile" as Href,
   bankAccounts: "/bank-accounts" as Href,
-  accountType: "/account-type" as Href,
   changePassword: "/change-password" as Href,
   changePin: "/change-pin" as Href,
   /** Ganti nomor HP akun (PUT /v1/users/me { phoneNumber, currentPassword }) */
@@ -325,13 +344,10 @@ export const ROUTES = {
    */
   appearance: "/appearance" as Href,
   faq: "/faq" as Href,
-  contact: "/contact" as Href,
   /** Tentang Kahade (profil aplikasi, versi, tautan legal) */
   about: "/about" as Href,
   /** Form umpan balik pengguna (saran/masukan) */
   feedback: "/feedback" as Href,
-  /** Live chat langsung dengan admin Kahade */
-  liveSupport: "/live-support" as Href,
   /**
    * Ajakan login untuk pengunjung web (guest mode). `next` diisi path yang
    * dituju agar setelah login bisa kembali ke sana.
@@ -426,6 +442,14 @@ export const ROUTES = {
   /** Detail tiket dukungan */
   supportTicket: (ticketId: string) =>
     ({ pathname: "/support/[ticketId]", params: { ticketId } }) as unknown as Href,
+  /**
+   * Chat dengan tim Kahade — GELOMBANG 2 (client websocket).
+   * Shell gelombang 1: menampilkan pesan jujur bahwa chat sedang disiapkan
+   * (bukan chat palsu). Seluruh alur "cari FAQ dulu → tidak ketemu → chat"
+   * menunjuk ke sini; gelombang 2 mengisi layar ini dengan client websocket
+   * penuh.
+   */
+  supportChat: "/support-chat" as Href,
   /** Artikel bantuan per slug */
   helpCategory: (slug: string) =>
     ({ pathname: "/help/[slug]", params: { slug } }) as unknown as Href,
@@ -538,14 +562,11 @@ export const ROUTES = {
       ? ({ pathname: "/milestones/[id]", params: { id: milestoneId } } as unknown as Href)
       : ("/transactions" as Href),
 
-  // ── Katalog, retur, pelacakan, produk seller (Gap-D) ──────────────────────
-  /** Katalog produk (Gap-D: GET /v1/products) */
-  products: "/products" as Href,
-  /** Detail satu produk (Gap-D: GET /v1/products/{id}) */
-  productDetail: (productId: string) =>
-    productId
-      ? ({ pathname: "/products/[id]", params: { id: productId } } as unknown as Href)
-      : ("/products" as Href),
+  // ── Retur, pelacakan (Gap-D) ───────────────────────────────────────────────
+  // Poin 4 (2026-10-04): katalog dihapus total — ROUTES.products,
+  // ROUTES.productDetail, ROUTES.sellerProducts, ROUTES.newSellerProduct,
+  // dan ROUTES.sellerProductDetail dihapus; backend /v1/products dihapus
+  // paralel oleh worker lain.
   /** Daftar pengajuan retur (Gap-D: GET /v1/returns) */
   returns: "/returns" as Href,
   /** Form pengajuan retur baru (Gap-D: POST /v1/returns) */
@@ -564,18 +585,6 @@ export const ROUTES = {
     shipmentId
       ? ({ pathname: "/tracking/[shipmentId]", params: { shipmentId } } as unknown as Href)
       : ("/returns" as Href),
-  /** Daftar produk seller (Gap-D: GET /v1/seller/products) */
-  sellerProducts: "/seller/products" as Href,
-  /**
-   * Form tambah produk seller (Gap-D) — TIDAK ada file new.tsx; dirender
-   * app/seller/products/[id].tsx dengan id="new" (segmen dinamis menangkapnya).
-   */
-  newSellerProduct: "/seller/products/new" as Href,
-  /** Detail/edit produk seller (Gap-D) */
-  sellerProductDetail: (productId: string) =>
-    productId
-      ? ({ pathname: "/seller/products/[id]", params: { id: productId } } as unknown as Href)
-      : ("/seller/products" as Href),
   /** Voucher toko penjual (batch 43, item 9 — /v1/seller-vouchers) */
   sellerVouchers: "/seller/vouchers" as Href,
   /** Jastip — daftar trip host (batch 43, item 15 — /v1/jastip) */

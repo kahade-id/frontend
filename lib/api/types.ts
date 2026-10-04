@@ -907,6 +907,12 @@ export type CreateOrderDto = {
    * accuracy?, capturedAt? } (BuyerLocationDto).
    */
   buyerLocation?: BuyerLocation | null
+  /**
+   * Poin 2 (2026-10-04, unifikasi transaksi escrow): slot jasa yang dibayar
+   * order ini — selaras `bookAndCreateOrder` backend. Dikirim bila order
+   * dibuat dari booking jasa (prefill `slotId` di create-transaction).
+   */
+  slotId?: string
 }
 
 /**

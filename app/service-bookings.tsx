@@ -24,6 +24,7 @@ import { Card } from "@/components/ui/card"
 import { DataScreen } from "@/components/ui/data-screen"
 import { GuestLoginPrompt } from "@/components/web-guest-gate"
 import { Icon } from "@/components/ui/icon"
+import { OrderHelpActions } from "@/components/order-help-actions"
 import { Text } from "@/components/ui/text"
 
 function BookingCard({ booking, onCancelled }: { booking: SlotBooking; onCancelled: () => void }) {
@@ -68,6 +69,8 @@ function BookingCard({ booking, onCancelled }: { booking: SlotBooking; onCancell
           {translate("Batalkan booking")}
         </Button>
       ) : null}
+      {/* Poin 2: pintu masuk sengketa/retur — hanya bila order terkait ada. */}
+      {booking.orderId ? <OrderHelpActions orderId={booking.orderId} /> : null}
     </Card>
   )
 }

@@ -48,11 +48,13 @@ const PUBLIC_SCREENS = new Set<string>([
   "about",
   "app-version", // info versi (GET /v1/public/app-version, auth none)
   "appearance", // preferensi tema lokal, tanpa API ber-auth
-  "contact",
   "deletion-status", // status hapus akun via deletionToken — tanpa sesi (Tim A, integrasi 2026-09-27)
   "faq",
   "feedback",
   "help/[slug]",
+  // Poin 5 gelombang 2 (2026-10-04): "support-chat" kini client websocket
+  // penuh (butuh sesi) — dipindah ke AUTHENTICATED_SCREENS. Shell "segera
+  // hadir" gelombang 1 sudah diganti client betulan.
   "landing", // NAV-010: landing page web publik (gate tamu di app/index.tsx); native redirect ke "/"
   "login-required",
   "more", // NAV-010: redirect /more → /showcase (redesign 2026-09-27); publik seperti tujuannya
@@ -65,11 +67,19 @@ const PUBLIC_SCREENS = new Set<string>([
   // corong share wajib bisa dibuka tamu; aksi Terima/Tolak digerbang sesi di
   // dalam layar (dialihkan ke login membawa next-path).
   "order-link/[token]",
-  "products/index", // katalog publik — GET /v1/products @Public() (GAP-D, integrasi 2026-09-27)
-  "products/[id]", // detail produk publik — GET /v1/products/:id @Public() (GAP-D, integrasi 2026-09-27)
+  // Poin 4 (2026-10-04): katalog dihapus total — entri products/* dihapus.
   "patungan/index", // daftar grup patungan publik — GET /v1/patungan/groups auth:"optional" (batch 43, item 16)
   "patungan/[id]", // detail grup patungan publik — GET /v1/patungan/groups/:id auth:"optional" (batch 43, item 16)
   "patungan/how-it-works", // U5-014 (journey): edukasi publik, konsisten dengan seksi patungan
+  // Deeplink ala Instagram (2026-10-03, commit ea8ee94): tautan share publik
+  // browser-first — buka halaman web landing + tombol "Buka di Aplikasi".
+  // Semuanya konten publik (privasi order-link via token, bukan sesi).
+  "[username]", // profil publik
+  "o/[token]", // order link (alias /order-link/[token])
+  "p/[id]", // produk/etalase (alias /showcase/[id])
+  "r/[code]", // referral
+  "v/[code]", // voucher
+  "payment/finish", // target redirect finish DANA — halaman hasil publik
   "scan",
 ])
 

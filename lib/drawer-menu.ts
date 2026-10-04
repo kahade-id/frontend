@@ -33,6 +33,19 @@ export type DrawerMenuMeta = {
  * hanya bisa dibuka dari CTA di detail order; kini ada pintu masuk tetap
  * di navigasi utama.
  *
+ * Poin 1 (2026-10-04, keputusan produk): TIDAK ada seller flag / gate
+ * "Buka Toko" — semua user inheren buyer+seller. Item "Toko Saya" DIHAPUS
+ * sebagai konsep (bersama sheet submenu-nya); isinya didistribusikan ulang:
+ * Produk & Stok + Voucher Toko → Kelola Etalase; Jastip/Patungan/Booking →
+ * tab Transaksi; Retur → per-order dari detail transaksi; Katalog Publik
+ * dihapus (penghapusan total model katalog = Poin 4, terpisah).
+ *
+ * Poin 2 (2026-10-04, keputusan produk): "Template Transaksi",
+ * "Tautan Pesanan", "Sengketa Saya" PINDAH ke tab Transaksi (baris "Kelola"
+ * di segmen Transaksi) — DIHAPUS dari drawer agar tidak tercecer sebagai
+ * dunia tersendiri; semua urusan transaksi satu tempat. UX-NAV-002 (pintu
+ * masuk tetap sengketa) dipertahankan lewat baris Kelola tersebut.
+ *
  * Menu "Laporan & analitik" menuju dashboard analytics (/analytics), bukan
  * daftar laporan konten (/reports).
  */
@@ -40,36 +53,9 @@ export const MAIN_MENU_META: readonly DrawerMenuMeta[] = [
   { id: "profile", label: "Lihat Profil", accessibilityLabel: "Lihat profil saya" },
   { id: "wallet", label: "Dompet Saya", href: ROUTES.wallet, accessibilityLabel: "Buka dompet saya" },
   { id: "etalase", label: "Kelola Etalase", href: ROUTES.showcaseManagement, accessibilityLabel: "Kelola etalase saya" },
-  // FE-098 (§9 minimalisme): grup "Toko & Pesanan" dipindah keluar dari
-  // Pengaturan — dibuka sebagai sheet "Toko Saya" dari drawer (tanpa href =
-  // aksi khusus, pola sama seperti "profile").
-  { id: "shop", label: "Toko Saya", accessibilityLabel: "Buka menu toko saya" },
-  { id: "templates", label: "Template Transaksi", href: ROUTES.transactionTemplates, accessibilityLabel: "Buka template transaksi" },
-  { id: "order-links", label: "Tautan Pesanan", href: ROUTES.orderLinks, accessibilityLabel: "Buka tautan pesanan" },
-  // UX-NAV-002: pintu masuk tetap ke daftar sengketa.
-  { id: "disputes", label: "Sengketa Saya", href: ROUTES.disputes, accessibilityLabel: "Buka sengketa saya" },
   // Menu laporan utama membuka dashboard analitik; daftar laporan konten
   // tetap tersedia melalui rute /reports yang memang khusus untuk laporan.
   { id: "reports", label: "Laporan & Analitik", href: ROUTES.analytics, accessibilityLabel: "Laporan & Analitik" },
-]
-
-/**
- * FE-098: isi sheet "Toko Saya" — 7 item yang sebelumnya menjadi grup
- * "Toko & Pesanan" di Pengaturan. Rute TIDAK berubah (semua layar
- * app/* tetap ada); hanya titik masuknya yang pindah.
- */
-export const SHOP_MENU_META: readonly DrawerMenuMeta[] = [
-  // UX-NAV-005: "Katalog Publik" (jelajah katalog, GET /v1/products) dibedakan
-  // tegas dari "Produk & Stok Saya" (produk milik sendiri + stok,
-  // GET /v1/products/seller/mine). Keduanya bukan "Kelola Etalase" (menu utama
-  // → etalase sosial).
-  { id: "shop-products", label: "Katalog Publik", href: ROUTES.products, accessibilityLabel: "Jelajahi katalog produk publik" },
-  { id: "shop-returns", label: "Retur Saya", href: ROUTES.returns, accessibilityLabel: "Buka retur saya" },
-  { id: "shop-seller-products", label: "Produk & Stok Saya", href: ROUTES.sellerProducts, accessibilityLabel: "Kelola produk dan stok saya" },
-  { id: "shop-seller-vouchers", label: "Voucher Toko", href: ROUTES.sellerVouchers, accessibilityLabel: "Buka voucher toko" },
-  { id: "shop-jastip", label: "Jastip Saya", href: ROUTES.jastip, accessibilityLabel: "Buka jastip saya" },
-  { id: "shop-patungan", label: "Patungan", href: ROUTES.patungan, accessibilityLabel: "Buka patungan" },
-  { id: "shop-service-bookings", label: "Booking Jasa", href: ROUTES.serviceBookings, accessibilityLabel: "Buka booking jasa" },
 ]
 
 /** Native drawer has one consolidated path to FAQ + support resources. */
@@ -81,11 +67,15 @@ export const HELP_MENU_META: readonly DrawerMenuMeta[] = [
  * Legacy web-only drawer rows. The shipped web route redirects to the landing
  * site; keep this metadata solely for old web-shell compatibility/tests.
  * Native Android/iOS render HELP_MENU_META instead.
+ *
+ * Poin 5 (2026-10-04): "Bantuan Langsung" (chat palsu polling-tiket) dihapus —
+ * entri web-legacy ini kini menunjuk shell jujur /support-chat ("Chat dengan
+ * tim Kahade"; gelombang 2 = client websocket penuh).
  * @deprecated
  */
 export const BOTTOM_MENU_META: readonly DrawerMenuMeta[] = [
   { id: "feedback", label: "Umpan Balik", href: ROUTES.feedback, accessibilityLabel: "Buka umpan balik" },
-  { id: "live-support", label: "Bantuan Langsung", href: ROUTES.liveSupport, accessibilityLabel: "Buka bantuan langsung" },
+  { id: "live-support", label: "Chat dengan tim Kahade", href: ROUTES.supportChat, accessibilityLabel: "Buka chat dengan tim Kahade" },
   { id: "support-tickets", label: "Tiket Bantuan", href: ROUTES.support, accessibilityLabel: "Buka tiket bantuan" },
 ]
 

@@ -19,7 +19,6 @@ export const AUTHENTICATED_SCREENS = [
   "(tabs)",
   "(auth)/setup-profile",
   "prepare-navigation",
-  "account-type",
   "addresses",
   "analytics",
   "badges",
@@ -34,7 +33,6 @@ export const AUTHENTICATED_SCREENS = [
   "chat/[roomId]",
   "chat",
   "chat/settings", // NAV-004 (2026-09-28): GET /v1/chat/privacy auth-required — deep link native tanpa sesi = 401
-  "contact",
   "create-transaction",
   "delete-account",
   "delivery-proof/[orderId]",
@@ -48,7 +46,6 @@ export const AUTHENTICATED_SCREENS = [
   "invoice/[orderId]",
   "kyc",
   "language",
-  "live-support", // NAV-005 (2026-09-28): listSupportTickets auth-required — tamu web/native tidak boleh menembak endpoint
   "milestones/[id]", // detail milestone escrow — GET ber-auth (Tim C, integrasi 2026-09-27)
   "notification/[id]",
   "notification-preferences",
@@ -73,8 +70,6 @@ export const AUTHENTICATED_SCREENS = [
   "search",
   "security",
   "security-activity",
-  "seller/products/index", // katalog seller — endpoint auth required (GAP-D, integrasi 2026-09-27)
-  "seller/products/[id]",
   "seller/vouchers", // batch 43, item 9: voucher toko penjual
   "jastip/index", // batch 43, item 15: trip jastip host
   "jastip/[id]", // batch 43, item 15: detail trip jastip
@@ -91,6 +86,7 @@ export const AUTHENTICATED_SCREENS = [
   "subscriptions",
   "support/[ticketId]",
   "support",
+  "support-chat", // Poin 5 gelombang 2 (2026-10-04): livechat websocket — butuh sesi
   "topup-history",
   "topup",
   "tracking/[shipmentId]", // timeline kurir — endpoint auth required (GAP-D, integrasi 2026-09-27)
@@ -178,7 +174,6 @@ export const WEB_GUEST_ALLOWED_PATHS: readonly string[] = [
   "/register-security",
   "/phone-migration",
   "/setup-profile",
-  "/account-type",
   ...WEB_GUEST_TAB_SCREENS.map((name) => `/${name}`),
 ]
 

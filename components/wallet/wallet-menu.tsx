@@ -55,7 +55,7 @@ export const WALLET_QUICK_MENU: readonly WalletMenuItem[] = [
   { key: "history", label: "Riwayat", icon: ClockCounterClockwise, route: ROUTES.walletHistory },
   { key: "vouchers", label: "Voucher", icon: Ticket, route: ROUTES.vouchers },
   { key: "banks", label: "Bank", icon: Bank, route: ROUTES.bankAccounts },
-  { key: "support", label: "Bantuan", icon: Headset, route: ROUTES.liveSupport },
+  { key: "support", label: "Bantuan", icon: Headset, route: ROUTES.faq },
 ]
 
 /**

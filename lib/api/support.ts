@@ -7,7 +7,6 @@ import { readList } from "@/lib/api/response"
 
 import { http, seg } from "@/lib/api/client"
 import { pickUserId } from "@/lib/api/response"
-import type { CreateTicketDto } from "@/lib/api/types"
 
 export type SupportMessage = {
   id: string
@@ -225,14 +224,12 @@ export function getSupportTicketFingerprint(ticketId: string, signal?: AbortSign
   })
 }
 
-/** POST /v1/support/tickets — DTO spec hanya attachments; subject dikirim di body juga (toleran). */
-export function createSupportTicket(dto: CreateTicketDto & { subject?: string; message?: string }) {
-  return http.post<SupportTicket, CreateTicketDto & { subject?: string; message?: string }>(
-    "/v1/support/tickets",
-    dto,
-    { auth: "required" },
-  )
-}
+/**
+ * Poin 5 gelombang 1 (2026-10-04): pembuatan tiket oleh pengguna DICABUT —
+ * endpoint backend `POST /v1/support/tickets` dihapus (404); tiket kini hanya
+ * dibuat admin dari eskalasi livechat. Fungsi ini sengaja dihapus dari klien
+ * agar tidak ada lagi kode yang memanggil endpoint mati.
+ */
 
 /**
  * POST /v1/support/tickets/{id}/reply.
@@ -294,6 +291,80 @@ const OPEN_TICKET_STATUSES: ReadonlySet<string> = new Set([
   "OPEN",
   "IN_PROGRESS",
 ])
+
+/**
+ * Poin 5 gelombang 2 (2026-10-04): livechat websocket. Percakapan dibuat
+ * REST dulu (idempoten — server mengembalikan percakapan terbuka yang sama),
+ * lalu layar bergabung via socket event `support.join`.
+ */
+
+/** Percakapan livechat (bentuk dinormalisasi, toleran terhadap respons backend). */
+export type SupportChatConversation = {
+  id: string
+  status?: string | null
+  assignedAgentName?: string | null
+}
+
+function normalizeSupportConversation(raw: unknown): SupportChatConversation {
+  const record = (raw ?? {}) as Record<string, unknown>
+  // Backend bisa membungkus di `conversation` / `data` — baca toleran.
+  const inner =
+    record.conversation && typeof record.conversation === "object"
+      ? (record.conversation as Record<string, unknown>)
+      : record.data && typeof record.data === "object"
+        ? (record.data as Record<string, unknown>)
+        : record
+  const id = pickUserId(inner)
+  const assignedRaw = inner.assignedAgentName ?? inner.agentName
+  return {
+    id,
+    status:
+      typeof inner.status === "string" ? (inner.status as string) : null,
+    assignedAgentName:
+      typeof assignedRaw === "string" && assignedRaw ? assignedRaw : null,
+  }
+}
+
+/**
+ * POST /v1/support/chat/conversations — idempoten: tanpa percakapan terbuka,
+ * server membuat baru; bila sudah ada, yang terbuka dikembalikan.
+ */
+export function createSupportConversation(signal?: AbortSignal) {
+  return http
+    .post<unknown, { source: "APP" }>("/v1/support/chat/conversations", { source: "APP" }, {
+      auth: "required",
+      retry: 1,
+      signal,
+    })
+    .then(normalizeSupportConversation)
+}
+
+/** POST /v1/support/chat/conversations/:id/close — tutup percakapan. */
+export function closeSupportConversation(conversationId: string, signal?: AbortSignal) {
+  return http.post<Record<string, unknown>>(
+    `/v1/support/chat/conversations/${seg(conversationId)}/close`,
+    undefined,
+    { auth: "required", retry: 1, signal },
+  )
+}
+
+/**
+ * POST /v1/support/chat/conversations/:id/rate — rating 1–5 + komentar
+ * opsional; hanya setelah percakapan ditutup.
+ */
+export function rateSupportConversation(
+  conversationId: string,
+  rating: number,
+  comment?: string,
+  signal?: AbortSignal,
+) {
+  return http.post<Record<string, unknown>, { rating: number; comment?: string }>(
+    `/v1/support/chat/conversations/${seg(conversationId)}/rate`,
+    { rating, ...(comment && comment.trim() ? { comment: comment.trim() } : {}) },
+    { auth: "required", retry: 1, signal },
+  )
+}
+
 
 export function hasOpenSupportTicket(tickets: readonly SupportTicket[]): boolean {
   return tickets.some((t) => OPEN_TICKET_STATUSES.has(t.status))

@@ -16,9 +16,9 @@ const spec = JSON.parse(readFileSync(source, "utf8"))
  *
  * Versi sebelumnya memuat 11 nama tetap. Akibatnya 47 DTO lain yang direferensikan
  * path mobile dan punya constraint (min/max/enum/length) tidak pernah masuk
- * `API_CONSTRAINTS` — jadi tidak bisa divalidasi di klien, dan komentar seperti
- * di `app/account-type.tsx` yang merujuk `API_CONSTRAINTS.UpdateProfileDto`
- * menunjuk sesuatu yang tidak ada.
+ * `API_CONSTRAINTS` — jadi tidak bisa divalidasi di klien, dan komentar di
+ * layar-layar yang merujuk `API_CONSTRAINTS.UpdateProfileDto` menunjuk
+ * sesuatu yang tidak ada.
  *
  * Kriteria: schema yang (a) direferensikan oleh operasi pada `paths` spec mobile
  * — bukan sekadar menganggur di `components` (spec ini sengaja tidak memangkas

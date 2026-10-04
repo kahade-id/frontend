@@ -30,7 +30,6 @@ import { ThemeProvider } from "@/components/theme-provider"
 import { OrderDetailInfo, OrderRatingReminder } from "@/components/order-detail-actions"
 import { OrderFooterActions } from "@/components/order-footer-actions"
 import { OrderEscrowCard } from "@/components/ui/order-escrow-card"
-import { OrderHelpCard } from "@/components/ui/order-help-card"
 import {
   mapOrderHistoryToTimeline,
   type OrderHistoryEntry,
@@ -454,13 +453,7 @@ describe("mapOrderHistoryToTimeline (item 44)", () => {
   })
 })
 
-describe("<OrderHelpCard> & <OrderRatingReminder>", () => {  it("tombol Hubungi CS memanggil onContactSupport", () => {
-    const onContactSupport = vi.fn()
-    renderWithTheme(<OrderHelpCard onContactSupport={onContactSupport} />)
-    fireEvent.click(screen.getByRole("button", { name: /hubungi bantuan langsung/i }))
-    expect(onContactSupport).toHaveBeenCalledTimes(1)
-  })
-
+describe("<OrderRatingReminder>", () => {
   it("rating reminder tidak me-render apa pun bila visible=false", () => {
     const { container } = renderWithTheme(
       <OrderRatingReminder visible={false} onRate={noop} onSnooze={noop} />,

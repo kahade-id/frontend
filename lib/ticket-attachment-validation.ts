@@ -5,8 +5,9 @@
  * menolak). Sekarang tipe, ukuran, dan jumlah diperiksa sejak pemilihan di
  * klien dan batasnya dijelaskan eksplisit di UI.
  *
- * Fungsi murni agar bisa di-unit-test; layar contact.tsx memakai hasilnya
- * untuk memblokir pilihan & menampilkan pesan yang bisa dimengerti pengguna.
+ * Fungsi murni agar bisa di-unit-test; dipakai alur pembuatan tiket
+ * (dulu layar app/contact.tsx — dihapus Poin 5 2026-10-04; tiket kini hanya
+ * dibuat admin dari eskalasi chat).
  */
 
 export const TICKET_ATTACHMENT_MAX_COUNT = 5

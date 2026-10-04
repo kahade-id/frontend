@@ -33,7 +33,6 @@ import * as milestones from "@/lib/api/milestones"
 import * as notifications from "@/lib/api/notifications"
 import * as orders from "@/lib/api/orders"
 import * as passkey from "@/lib/api/passkey"
-import * as products from "@/lib/api/products"
 import * as publicApi from "@/lib/api/public"
 import * as ratings from "@/lib/api/ratings"
 import * as referrals from "@/lib/api/referrals"
@@ -136,7 +135,6 @@ export const api = {
   notifications,
   orders,
   passkey,
-  products,
   public: publicApi,
   ratings,
   referrals,

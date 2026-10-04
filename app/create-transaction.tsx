@@ -23,6 +23,11 @@
  *     terkirim dan bisa langsung membayar/membagikan.
  *   - Query `counterpart` (ROUTES.createTransactionWith) mengisi lawan lebih
  *     dulu dari profil publik; validasi tetap berjalan seperti input manual.
+ *   - Poin 2 (2026-10-04): query `jastipParticipantId` /
+ *     `patunganParticipantId` menandai order ini membayar partisipasi
+ *     jastip/patungan — setelah order terbentuk, order OTOMATIS didaftarkan
+ *     ke participant (POST .../create-order); user tidak menempel ID apa
+ *     pun. Gagal pendaftaran = order tetap sah + toast peringatan eksplisit.
  *   - Tombol "Lanjut" dijaga validitas langkah AKTIF saja (bukan `canSubmit`
  *     global): pengguna tidak boleh dipaksa melengkapi langkah 4 untuk
  *     sekadar pindah dari langkah 1. Submit akhir tetap memakai `canSubmit`
@@ -212,6 +217,14 @@ export default function CreateTransactionScreen() {
     slotTime?: string
     /** "1" = slot sudah di-booking di halaman detail — jangan booking ulang. */
     slotBooked?: string
+    /**
+     * Poin 2 (2026-10-04): partisipasi jastip/patungan yang dibayar order
+     * ini — setelah order terbentuk, otomatis didaftarkan via
+     * POST /v1/jastip|patungan/participants/:id/create-order (tanpa tempel
+     * ID manual). Diteruskan ROUTES.createTransactionJastip/Patungan.
+     */
+    jastipParticipantId?: string
+    patunganParticipantId?: string
   }>()
   // Batch 43 (item 10): prefill slot jasa — sekali saat mount.
   const slotPrefill = useMemo(() => {
@@ -224,6 +237,19 @@ export default function CreateTransactionScreen() {
       alreadyBooked: params.slotBooked === "1",
     }
   }, [params.slotId, params.slotDate, params.slotTime, params.slotBooked])
+  /**
+   * Poin 2 (2026-10-04): partisipasi jastip/patungan yang dibayar order ini
+   * (dari ROUTES.createTransactionJastip/Patungan) — sekali saat mount.
+   * Satu order hanya membayar satu partisipasi; bila (mustahil) keduanya
+   * terisi, jastip diprioritaskan.
+   */
+  const participantPrefill = useMemo(() => {
+    const jastipParticipantId = params.jastipParticipantId?.trim() || undefined
+    const patunganParticipantId = params.patunganParticipantId?.trim() || undefined
+    if (jastipParticipantId) return { kind: "jastip" as const, id: jastipParticipantId }
+    if (patunganParticipantId) return { kind: "patungan" as const, id: patunganParticipantId }
+    return null
+  }, [params.jastipParticipantId, params.patunganParticipantId])
   const [mode, setMode] = useState<Mode>("direct")
   // Nilai prefill template dibersihkan SATU KALI di sini (bukan di initializer
   // state): parameter query tidak berubah saat layar hidup, jadi hasilnya
@@ -901,12 +927,40 @@ export default function CreateTransactionScreen() {
         ...(orderType === "PHYSICAL_GOODS" && shippingAddress
           ? { shippingAddressId: shippingAddress.id }
           : {}),
+        // Poin 2 (2026-10-04): slot jasa yang dibayar order ini — selaras
+        // `bookAndCreateOrder` backend (slot sudah di-booking di atas bila
+        // belum; yang sudah di-booking di halaman detail tetap diidentifikasi
+        // agar order terikat ke booking yang benar).
+        ...(slotPrefill ? { slotId: slotPrefill.slotId } : {}),
       }
       const order = await api.orders.createOrder(
         dto,
         submitKeyRef.current ?? (submitKeyRef.current = createIdempotencyKey()),
       )
       submitKeyRef.current = null
+      // Poin 2 (2026-10-04): order untuk partisipasi jastip/patungan —
+      // daftarkan otomatis via endpoint create-order yang baru, TANPA user
+      // menempel ID manual (pola lama link-order + BottomSheet dihapus).
+      // Hanya untuk mode "direct": order link (mode "link") tidak terikat
+      // partisipasi. Gagal di sini TIDAK membatalkan order yang sudah
+      // terbentuk — tampilkan peringatan eksplisit agar user tahu status
+      // partisipasinya belum tercatat dan bisa menghubungi bantuan.
+      if (mode === "direct" && participantPrefill && order.id) {
+        try {
+          const registerOrderForParticipant =
+            participantPrefill.kind === "jastip"
+              ? api.commerce.createOrderFromJastipParticipant
+              : api.commerce.createOrderFromPatunganParticipant
+          await registerOrderForParticipant(participantPrefill.id, order.id)
+        } catch (registerErr) {
+          toast.show({
+            title: "Transaksi dibuat, tapi gagal mencatat ke partisipasi",
+            description: userMessage(registerErr),
+            tone: "warning",
+            duration: 6000,
+          })
+        }
+      }
       // P1-3: transaksi berhasil → draft tidak boleh ditawarkan lagi.
       discardTransactionDraft()
       toast.show({
@@ -964,6 +1018,8 @@ export default function CreateTransactionScreen() {
     voucher?.code,
     toast.show,
     discardTransactionDraft,
+    slotPrefill,
+    participantPrefill,
   ])
 
   const counterpartRequired = mode === "direct"

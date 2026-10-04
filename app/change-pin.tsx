@@ -220,10 +220,10 @@ export default function ChangePinScreen() {
               <TextLink
                 variant="caption"
                 inline
-                onPress={() => router.push(ROUTES.liveSupport)}
-                accessibilityLabel="Buka bantuan langsung"
+                onPress={() => router.push(ROUTES.faq)}
+                accessibilityLabel="Buka pusat bantuan"
               >
-                bantuan langsung
+                pusat bantuan
               </TextLink>{" "}
               untuk verifikasi identitas dan bantuan reset.
             </Text>

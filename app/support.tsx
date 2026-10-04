@@ -88,10 +88,12 @@ export default function SupportScreen() {
         tickets.length === 0 && {
           icon: ChatCircleText,
           title: "Belum ada tiket",
-          description: "Buat tiket melalui menu Hubungi Kami.",
+          // Poin 5 (2026-10-04): tiket kini hanya dibuat admin dari eskalasi
+          // chat — user tidak lagi membuat tiket sendiri via "Hubungi Kami".
+          description: "Tiket dibuat oleh tim Kahade dari percakapan chat Anda.",
           action: (
-            <Button variant="ghost" fullWidth={false} onPress={() => router.push(ROUTES.contact)}>
-              Hubungi kami
+            <Button variant="ghost" fullWidth={false} onPress={() => router.push(ROUTES.supportChat)}>
+              Chat dengan tim Kahade
             </Button>
           ),
         }

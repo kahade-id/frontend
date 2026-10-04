@@ -11,7 +11,7 @@ describe("native header title hierarchy", () => {
     expect(defaultHeaderTitleVariant("/order/ord-123")).toBe("h3")
     expect(defaultHeaderTitleVariant("/showcase/item-123")).toBe("h3")
     expect(defaultHeaderTitleVariant("/support/ticket-123")).toBe("h3")
-    expect(defaultHeaderTitleVariant("/products/product-123")).toBe("h3")
+    expect(defaultHeaderTitleVariant("/returns/ret-123")).toBe("h3")
     expect(defaultHeaderTitleVariant("/jastip/jastip-123")).toBe("h3")
   })
 })

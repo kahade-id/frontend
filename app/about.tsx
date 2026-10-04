@@ -12,7 +12,6 @@ import Constants from "expo-constants"
 
 import {
   FileText,
-  Headset,
   Lifebuoy,
   ShieldCheck,
   ChatTeardropDots,
@@ -50,14 +49,6 @@ const LINKS: AboutLink[] = [
     subtitle: "Artikel dan panduan penggunaan Kahade",
     icon: Lifebuoy,
     href: ROUTES.faq,
-    divider: true,
-  },
-  {
-    id: "live-support",
-    title: "Asisten Bantuan",
-    subtitle: "Panduan otomatis; buat tiket untuk bantuan resmi",
-    icon: Headset,
-    href: ROUTES.liveSupport,
     divider: true,
   },
   {

@@ -326,3 +326,51 @@ describe("SYS-C-404 — logicalParentForPath head baru", () => {
     expect(logicalParentForPath("/questions")).toBe(ROUTES.questions)
   })
 })
+
+/**
+ * Poin 1 (2026-10-04): redistribusi "Toko Saya" — rute usang dipetakan ulang
+ * ke tujuan baru yang benar. Tidak boleh ada tap notifikasi yang mati atau
+ * mendarat di layar yang tak lagi punya pintu navigasi.
+ */
+describe("Poin 1 — remap rute usang (products/returns/service-bookings/seller)", () => {
+  it("PRODUCT → Kelola Etalase (rumah baru Produk & Stok Saya)", () => {
+    expect(
+      routeForNotificationReference({ referenceType: "PRODUCT", referenceId: "p1" }),
+    ).toEqual(ROUTES.showcaseManagement)
+    expect(routeForNotificationReference({ referenceType: "PRODUCTS" })).toEqual(
+      ROUTES.showcaseManagement,
+    )
+    expect(routeForActionUrl("/products/p1")).toEqual(ROUTES.showcaseManagement)
+    expect(routeForActionUrl("/products")).toEqual(ROUTES.showcaseManagement)
+    expect(
+      labelForNotificationReference({ referenceType: "PRODUCT", referenceId: "p1" }),
+    ).toBe("Kelola Etalase")
+  })
+
+  it("RETURN ber-id → detail retur; tanpa id → tab Transaksi", () => {
+    expect(
+      hrefPath(routeForNotificationReference({ referenceType: "RETURN", referenceId: "r1" })),
+    ).toBe("/returns/r1")
+    expect(routeForNotificationReference({ referenceType: "RETURNS" })).toBe(
+      ROUTES.transactions,
+    )
+    expect(hrefPath(routeForActionUrl("/returns/r1"))).toBe("/returns/r1")
+    expect(routeForActionUrl("/returns")).toBe(ROUTES.transactions)
+  })
+
+  it("SERVICE_BOOKING → segmen booking di tab Transaksi", () => {
+    const expected = ROUTES.transactionsSection("bookings")
+    expect(
+      routeForNotificationReference({ referenceType: "SERVICE_BOOKING", referenceId: "b1" }),
+    ).toEqual(expected)
+    expect(routeForActionUrl("/service-bookings")).toEqual(expected)
+    expect(labelForNotificationReference({ referenceType: "SERVICE_BOOKING" })).toBe(
+      "Lihat booking",
+    )
+  })
+
+  it("head /seller → Kelola Etalase (B2-SC-04 diperbarui)", () => {
+    expect(logicalParentForPath("/seller/products")).toBe(ROUTES.showcaseManagement)
+    expect(logicalParentForPath("/seller/vouchers")).toBe(ROUTES.showcaseManagement)
+  })
+})

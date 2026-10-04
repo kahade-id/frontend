@@ -101,7 +101,7 @@ export type ReceiptTicketProps = Omit<ViewProps, "children"> & {
    * "Bagikan struk" yang tampil.
    */
   onDownload?: () => void
-  /** Override tombol "Chat dengan CS" — default membuka /live-support */
+  /** Override tombol "Chat dengan CS" — default membuka /support-chat (shell jujur gelombang 1) */
   onChatSupport?: () => void
   onCopyReceiptId?: (id: string) => void
   className?: string
@@ -368,7 +368,7 @@ export function ReceiptTicket({
             <Button
               variant="secondary"
               leftIcon={Headset}
-              onPress={onChatSupport ?? (() => router.push(ROUTES.liveSupport))}
+              onPress={onChatSupport ?? (() => router.push(ROUTES.supportChat))}
               accessibilityLabel="Chat dengan CS"
             >
               Chat dengan CS

@@ -1,8 +1,7 @@
 /** Consistent native header hierarchy: screen headings H2, item details H3. */
 const COMPACT_DETAIL_PATHS = [
-  /^\/(?:order|notification|chat|dispute|support|invoice|delivery-proof|extension|tracking|milestones|wallet-transaction|order-link|jastip|patungan|products)\/[^/]+$/,
+  /^\/(?:order|notification|chat|dispute|support|invoice|delivery-proof|extension|tracking|milestones|wallet-transaction|order-link|jastip|patungan)\/[^/]+$/,
   /^\/(?:showcase|user|profile)\/[^/]+(?:\/(?:questions|ratings|showcase))?$/,
-  /^\/seller\/products\/[^/]+$/,
   /^\/returns\/[^/]+$/,
   /^\/help\/[^/]+$/,
   /^\/help\/category\/[^/]+$/,
