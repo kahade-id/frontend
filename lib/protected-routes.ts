@@ -86,6 +86,7 @@ export const AUTHENTICATED_SCREENS = [
   "subscriptions",
   "support/[ticketId]",
   "support",
+  "support-chat", // Poin 5 gelombang 2 (2026-10-04): livechat websocket — butuh sesi
   "topup-history",
   "topup",
   "tracking/[shipmentId]", // timeline kurir — endpoint auth required (GAP-D, integrasi 2026-09-27)

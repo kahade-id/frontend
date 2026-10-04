@@ -55,6 +55,10 @@
    "n": 17
   },
   {
+   "s": "Komentar",
+   "n": 16
+  },
+  {
    "s": "Kata sandi akun",
    "n": 15
   },
@@ -96,10 +100,6 @@
   },
   {
    "s": "Buka {x}",
-   "n": 13
-  },
-  {
-   "s": "Komentar",
    "n": 13
   },
   {
@@ -447,6 +447,10 @@
    "n": 7
   },
   {
+   "s": "{x} bintang",
+   "n": 6
+  },
+  {
    "s": "{x} dipilih",
    "n": 6
   },
@@ -504,10 +508,6 @@
   },
   {
    "s": "Buat trip jastip",
-   "n": 6
-  },
-  {
-   "s": "Buka bantuan.kahade.id di peramban",
    "n": 6
   },
   {
@@ -679,6 +679,10 @@
    "n": 6
   },
   {
+   "s": "Komentar (opsional)",
+   "n": 6
+  },
+  {
    "s": "Komentar Anda akan dihapus dari utas ini.",
    "n": 6
   },
@@ -828,6 +832,10 @@
   },
   {
    "s": "Tulis balasan untuk @{x}…",
+   "n": 6
+  },
+  {
+   "s": "Tutup chat",
    "n": 6
   },
   {
@@ -1799,10 +1807,6 @@
    "n": 3
   },
   {
-   "s": "{x} bintang",
-   "n": 3
-  },
-  {
    "s": "{x} dari {x}",
    "n": 3
   },
@@ -2207,6 +2211,10 @@
    "n": 3
   },
   {
+   "s": "Buka bantuan.kahade.id di peramban",
+   "n": 3
+  },
+  {
    "s": "Buka blokir @{x}?",
    "n": 3
   },
@@ -2336,6 +2344,10 @@
   },
   {
    "s": "Chat ini belum dilindungi escrow",
+   "n": 3
+  },
+  {
+   "s": "Chat tidak dapat dimulai",
    "n": 3
   },
   {
@@ -2623,6 +2635,10 @@
    "n": 3
   },
   {
+   "s": "Gagal bergabung ke chat",
+   "n": 3
+  },
+  {
    "s": "Gagal memperbarui",
    "n": 3
   },
@@ -2648,6 +2664,10 @@
   },
   {
    "s": "Gagal mencari",
+   "n": 3
+  },
+  {
+   "s": "Gagal mengirim rating",
    "n": 3
   },
   {
@@ -3015,6 +3035,10 @@
    "n": 3
   },
   {
+   "s": "Kami tidak dapat menyiapkan percakapan saat ini. Silakan coba lagi.",
+   "n": 3
+  },
+  {
    "s": "Kanal dan kiriman notifikasi di semua perangkat, termasuk saat aplikasi tertutup. Perubahan disimpan otomatis.",
    "n": 3
   },
@@ -3103,6 +3127,10 @@
    "n": 3
   },
   {
+   "s": "Kirim rating",
+   "n": 3
+  },
+  {
    "s": "Kode \"{x}\" tidak bisa dipakai lagi oleh pembeli.",
    "n": 3
   },
@@ -3140,10 +3168,6 @@
   },
   {
    "s": "Kode voucher",
-   "n": 3
-  },
-  {
-   "s": "Komentar (opsional)",
    "n": 3
   },
   {
@@ -3784,6 +3808,10 @@
   },
   {
    "s": "Perbesar ukuran teks",
+   "n": 3
+  },
+  {
+   "s": "Percakapan akan ditutup. Anda bisa memberi rating setelahnya.",
    "n": 3
   },
   {
@@ -4527,6 +4555,10 @@
    "n": 3
   },
   {
+   "s": "Tulis pesan",
+   "n": 3
+  },
+  {
    "s": "Tulis ulang komentar",
    "n": 3
   },
@@ -4536,6 +4568,10 @@
   },
   {
    "s": "Tutup bio",
+   "n": 3
+  },
+  {
+   "s": "Tutup chat?",
    "n": 3
   },
   {
@@ -4743,7 +4779,19 @@
    "n": 2
   },
   {
+   "s": "{name} — menunggu respons",
+   "n": 2
+  },
+  {
    "s": "{name} dan {count} lainnya{suffix}",
+   "n": 2
+  },
+  {
+   "s": "{name} online",
+   "n": 2
+  },
+  {
+   "s": "{name} sedang mengetik…",
    "n": 2
   },
   {
@@ -4859,6 +4907,10 @@
    "n": 2
   },
   {
+   "s": "Agen online",
+   "n": 2
+  },
+  {
    "s": "Ajukan perpanjangan",
    "n": 2
   },
@@ -4963,6 +5015,10 @@
    "n": 2
   },
   {
+   "s": "Anda nomor {n} dalam antrean.",
+   "n": 2
+  },
+  {
    "s": "Anda tidak perlu melakukan apa pun — cukup coba lagi nanti.",
    "n": 2
   },
@@ -4992,6 +5048,10 @@
   },
   {
    "s": "Aset ditambahkan",
+   "n": 2
+  },
+  {
+   "s": "Bagaimana pengalaman Anda dengan tim kami?",
    "n": 2
   },
   {
@@ -5124,6 +5184,10 @@
   },
   {
    "s": "Belum ada pesan.",
+   "n": 2
+  },
+  {
+   "s": "Belum ada pesan. Tulis pertanyaan Anda di bawah — tim kami akan membantu.",
    "n": 2
   },
   {
@@ -5467,10 +5531,6 @@
    "n": 2
   },
   {
-   "s": "Cari di FAQ",
-   "n": 2
-  },
-  {
    "s": "Cari di Kahade…",
    "n": 2
   },
@@ -5499,11 +5559,11 @@
    "n": 2
   },
   {
-   "s": "Chat penjual",
+   "s": "Chat ditutup",
    "n": 2
   },
   {
-   "s": "Chat segera hadir",
+   "s": "Chat penjual",
    "n": 2
   },
   {
@@ -5660,6 +5720,14 @@
   },
   {
    "s": "Dikirim penjual",
+   "n": 2
+  },
+  {
+   "s": "Dilanjutkan sebagai tiket {ticket}.",
+   "n": 2
+  },
+  {
+   "s": "Dilanjutkan sebagai tiket.",
    "n": 2
   },
   {
@@ -6087,6 +6155,10 @@
    "n": 2
   },
   {
+   "s": "Gagal menutup chat",
+   "n": 2
+  },
+  {
    "s": "Gagal menyalin",
    "n": 2
   },
@@ -6392,10 +6464,6 @@
   },
   {
    "s": "Kami masih memeriksa nama pengguna tersebut.",
-   "n": 2
-  },
-  {
-   "s": "Kami sedang menyiapkan chat dengan tim Kahade. Untuk saat ini, cari jawaban di FAQ atau kunjungi pusat bantuan web kami.",
    "n": 2
   },
   {
@@ -6831,6 +6899,10 @@
    "n": 2
   },
   {
+   "s": "Lewati",
+   "n": 2
+  },
+  {
    "s": "Lihat balasan",
    "n": 2
   },
@@ -6956,6 +7028,10 @@
   },
   {
    "s": "Masuk untuk melihat etalase yang Anda simpan.",
+   "n": 2
+  },
+  {
+   "s": "Masukan Anda membantu kami melayani lebih baik. Butuh bantuan lagi? Chat ini siap dibuka kembali.",
    "n": 2
   },
   {
@@ -7107,6 +7183,10 @@
    "n": 2
   },
   {
+   "s": "Menghubungkan ulang…",
+   "n": 2
+  },
+  {
    "s": "Mengikuti Anda",
    "n": 2
   },
@@ -7116,6 +7196,10 @@
   },
   {
    "s": "Mengunggah foto {x} dari {y}",
+   "n": 2
+  },
+  {
+   "s": "Menunggu agen…",
    "n": 2
   },
   {
@@ -7132,6 +7216,10 @@
   },
   {
    "s": "Menyembunyikan {x}",
+   "n": 2
+  },
+  {
+   "s": "Menyiapkan chat…",
    "n": 2
   },
   {
@@ -7200,6 +7288,10 @@
   },
   {
    "s": "Muat ulasan di halaman berikutnya",
+   "n": 2
+  },
+  {
+   "s": "Mulai chat baru",
    "n": 2
   },
   {
@@ -8328,6 +8420,10 @@
   },
   {
    "s": "Terima &amp; cairkan",
+   "n": 2
+  },
+  {
+   "s": "Terima kasih",
    "n": 2
   },
   {
@@ -10807,6 +10903,14 @@
    "n": 1
   },
   {
+   "s": "Agen bergabung ke percakapan.",
+   "n": 1
+  },
+  {
+   "s": "Agen keluar dari percakapan.",
+   "n": 1
+  },
+  {
    "s": "Agen sedang menindaklanjuti. Pantau tiket ini untuk balasan terbaru.",
    "n": 1
   },
@@ -11164,6 +11268,10 @@
   },
   {
    "s": "Anda sudah menyetujui — menunggu pihak lain.",
+   "n": 1
+  },
+  {
+   "s": "Anda terhubung dengan {name}.",
    "n": 1
   },
   {
@@ -13855,6 +13963,10 @@
    "n": 1
   },
   {
+   "s": "Gagal bergabung ke chat. Coba lagi.",
+   "n": 1
+  },
+  {
    "s": "gagal dikenali atau saat perangkat baru dipakai masuk. Transaksi uang (transfer, tarik dana, bayar pesanan) selalu memakai PIN dompet.",
    "n": 1
   },
@@ -14128,10 +14240,6 @@
   },
   {
    "s": "Gagal mengirim OTP email",
-   "n": 1
-  },
-  {
-   "s": "Gagal mengirim rating",
    "n": 1
   },
   {
@@ -15496,10 +15604,6 @@
   },
   {
    "s": "Kirim pesan dari",
-   "n": 1
-  },
-  {
-   "s": "Kirim rating",
    "n": 1
   },
   {
@@ -18503,6 +18607,14 @@
    "n": 1
   },
   {
+   "s": "Percakapan ini dilanjutkan sebagai tiket {ticket}. Tim kami akan menindaklanjuti.",
+   "n": 1
+  },
+  {
+   "s": "Percakapan ini dilanjutkan sebagai tiket. Tim kami akan menindaklanjuti.",
+   "n": 1
+  },
+  {
    "s": "Percakapan ini telah ditutup karena dana transaksi telah dikembalikan.",
    "n": 1
   },
@@ -21180,10 +21292,6 @@
   },
   {
    "s": "Tulis kronologi secara runtut…",
-   "n": 1
-  },
-  {
-   "s": "Tulis pesan",
    "n": 1
   },
   {

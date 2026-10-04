@@ -501,7 +501,8 @@ function ShellRouteEffects({ session, setRealtimeNeeded }: {
 
   // FE-074: koneksi socket realtime DITUNDA sampai kebutuhan chat pertama.
   // Provider TETAP mount (layar chat mengandalkan context), tapi token hanya
-  // diteruskan setelah pengguna masuk tab/room chat (`/chat*`). Latch tetap
+  // diteruskan setelah pengguna masuk tab/room chat (`/chat*`) atau livechat
+  // dukungan (`/support-chat`, Poin 5 gelombang 2). Latch tetap
   // aktif untuk sisa sesi; reset saat logout. Cold start pengguna login tidak
   // lagi membuka socket — push foreground sudah menginvalidasi cache query,
   // jadi data tetap segar tanpa socket di boot.
@@ -511,6 +512,8 @@ function ShellRouteEffects({ session, setRealtimeNeeded }: {
       return
     }
     if (pathname === "/chat" || pathname.startsWith("/chat/")) setRealtimeNeeded(true)
+    // Poin 5 gelombang 2 (2026-10-04): livechat dukungan juga butuh socket.
+    if (pathname === "/support-chat") setRealtimeNeeded(true)
   }, [pathname, session.token])
 
   // Resume the last safe screen after the OS kills the process. The route

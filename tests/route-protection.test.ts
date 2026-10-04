@@ -52,11 +52,9 @@ const PUBLIC_SCREENS = new Set<string>([
   "faq",
   "feedback",
   "help/[slug]",
-  // Poin 5 gelombang 1 (2026-10-04): shell "Chat dengan tim Kahade" — pesan
-  // jujur "chat sedang disiapkan", tanpa panggilan API ber-auth. Publik agar
-  // tamu web/native ikut melihat pesan jujurnya. Gelombang 2 (client
-  // websocket penuh) = pindahkan ke AUTHENTICATED_SCREENS.
-  "support-chat",
+  // Poin 5 gelombang 2 (2026-10-04): "support-chat" kini client websocket
+  // penuh (butuh sesi) — dipindah ke AUTHENTICATED_SCREENS. Shell "segera
+  // hadir" gelombang 1 sudah diganti client betulan.
   "landing", // NAV-010: landing page web publik (gate tamu di app/index.tsx); native redirect ke "/"
   "login-required",
   "more", // NAV-010: redirect /more → /showcase (redesign 2026-09-27); publik seperti tujuannya
@@ -73,6 +71,15 @@ const PUBLIC_SCREENS = new Set<string>([
   "patungan/index", // daftar grup patungan publik — GET /v1/patungan/groups auth:"optional" (batch 43, item 16)
   "patungan/[id]", // detail grup patungan publik — GET /v1/patungan/groups/:id auth:"optional" (batch 43, item 16)
   "patungan/how-it-works", // U5-014 (journey): edukasi publik, konsisten dengan seksi patungan
+  // Deeplink ala Instagram (2026-10-03, commit ea8ee94): tautan share publik
+  // browser-first — buka halaman web landing + tombol "Buka di Aplikasi".
+  // Semuanya konten publik (privasi order-link via token, bukan sesi).
+  "[username]", // profil publik
+  "o/[token]", // order link (alias /order-link/[token])
+  "p/[id]", // produk/etalase (alias /showcase/[id])
+  "r/[code]", // referral
+  "v/[code]", // voucher
+  "payment/finish", // target redirect finish DANA — halaman hasil publik
   "scan",
 ])
 
