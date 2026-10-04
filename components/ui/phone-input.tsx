@@ -23,8 +23,7 @@
  */
 import { Phone } from "phosphor-react-native"
 import { forwardRef, useCallback, useState } from "react"
-import { Platform, TextInput, View, type TextInputProps } from "react-native"
-
+import { Platform, TextInput, View, type TextInputInstance, type TextInputProps } from "react-native"
 import { useTheme } from "@/components/theme-provider"
 import { Divider } from "@/components/ui/divider"
 import { Field, type FieldProps } from "@/components/ui/field"
@@ -82,7 +81,7 @@ export type PhoneInputProps = Omit<
     containerClassName?: string
   }
 
-export const PhoneInput = forwardRef<TextInput, PhoneInputProps>(function PhoneInput(
+export const PhoneInput = forwardRef<TextInputInstance, PhoneInputProps>(function PhoneInput(
   {
     value,
     onChangeText,

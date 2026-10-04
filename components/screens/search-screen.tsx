@@ -1056,7 +1056,7 @@ export default function SearchScreen() {
         data={rows}
         keyExtractor={searchKeyExtractor}
         contentContainerStyle={searchContentStyle}
-        ListHeaderComponent={searchListHeader}
+        ListHeaderComponent={searchListHeader ?? undefined}
         ItemSeparatorComponent={SearchItemSeparator}
         renderItem={searchRenderItem}
         ListEmptyComponent={searchListEmpty}
@@ -1064,7 +1064,7 @@ export default function SearchScreen() {
         // lanjutan ke feed Etalase (search=) saat hasil masih terpotong.
         // Item 82 (mega-batch 2026-09-28): CTA "Lihat semua" juga untuk
         // pesanan & mutasi — hasil pencarian dibatasi 20 per jenis.
-        ListFooterComponent={searchListFooter}
+        ListFooterComponent={searchListFooter ?? undefined}
         refreshing={result.refreshing || usersResult.refreshing || postsResult.refreshing || chatsResult.refreshing}
         onRefresh={searchRefresh}
         refreshEnabled={!loading}

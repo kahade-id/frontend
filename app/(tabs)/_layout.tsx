@@ -27,6 +27,15 @@ import { SectionErrorBoundary } from "@/components/section-error-boundary"
  * yang gagal dimuat saat offline di web) hanya menutupi area tab dengan UI
  * sadar-offline — tidak meruntuhkan seluruh aplikasi ke boundary root.
  */
+/**
+ * SDK 58: prop `initialRouteName` dihapus dari `<Tabs>`; rute awal layout
+ * kini dinyatakan lewat `unstable_settings.anchor` (bentuk
+ * `unstable_settings.initialRouteName` masih dibaca tapi mencetak deprecation
+ * warning di dev). Tanpa ini, tab awal jatuh ke rute terpendek hasil sortir
+ * expo-router ("chat"), bukan "showcase".
+ */
+export const unstable_settings = { anchor: "showcase" }
+
 export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
   return <SectionErrorBoundary error={error} retry={retry} />
 }
@@ -40,7 +49,6 @@ export default function TabsLayout() {
 
   return (
     <Tabs
-      initialRouteName="showcase"
       screenOptions={{
         headerShown: false,
         // PERF-FIX (P2 nav): kontrak eksplisit — tab di-mount malas saat

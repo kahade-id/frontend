@@ -23,9 +23,9 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import { Linking, Platform, Share, View } from "react-native"
+import { Linking, Platform, Share, View, type ViewInstance } from "react-native"
 import { useRouter } from "expo-router"
-import { useIsFocused } from "@react-navigation/native"
+import { useIsFocused } from "expo-router"
 import * as Haptics from "expo-haptics"
 import { CameraView, scanFromURLAsync, useCameraPermissions } from "expo-camera"
 import * as Brightness from "expo-brightness"
@@ -425,7 +425,7 @@ export default function ScanScreen() {
   }, [])
 
   // ── QR Saya: simpan sebagai gambar (FE-IMP-4 item 29) ──
-  const qrCardRef = useRef<View | null>(null)
+  const qrCardRef = useRef<ViewInstance | null>(null)
   const handleSaveQr = useCallback(async () => {
     try {
       const uri = await captureView(qrCardRef, {

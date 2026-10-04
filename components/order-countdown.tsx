@@ -126,18 +126,21 @@ export const ShippingCountdownBox = memo(function ShippingCountdownBox({
 }) {
   const nowMs = useFocusedClockTick(true)
   const countdown = resolveShippingCountdown(input, nowMs)
+  // UX-A11Y-004: penjual melewati batas kirim = dana TIDAK cair otomatis
+  // (uang!) — umumkan sekali saat transisi, bukan tiap tick.
+  // Hook DIPANGGIL SEBELUM early return: `rules-of-hooks` melarang hook setelah
+  // return bersyarat (urutan hook harus stabil antar render). `countdown?.kind`
+  // aman untuk null dan menghasilkan `false`.
+  useAnnounceOnTransition(
+    countdown?.kind === "overdue",
+    translate(
+      "Penjual melewati batas kirim — dana TIDAK akan cair otomatis sampai masalah ini selesai.",
+    ),
+  )
   if (!countdown) return null
   const tone = countdownTone(
     countdown.kind === "countdown" ? countdown.secondsLeft : null,
     countdown.kind === "overdue",
-  )
-  // UX-A11Y-004: penjual melewati batas kirim = dana TIDAK cair otomatis
-  // (uang!) — umumkan sekali saat transisi, bukan tiap tick.
-  useAnnounceOnTransition(
-    countdown.kind === "overdue",
-    translate(
-      "Penjual melewati batas kirim — dana TIDAK akan cair otomatis sampai masalah ini selesai.",
-    ),
   )
   return (
     <View className={`gap-1 rounded-lg p-3 ${COUNTDOWN_BOX_BG[tone]}`}>
@@ -241,16 +244,17 @@ export const ConfirmCountdownBox = memo(function ConfirmCountdownBox({
 }) {
   const nowMs = useFocusedClockTick(true)
   const countdown = resolveConfirmCountdown(input, nowMs)
+  // UX-A11Y-004: pesanan dibatalkan otomatis saat lewat batas (uang!) —
+  // umumkan sekali saat transisi, bukan tiap tick. Hook sebelum early return
+  // (lihat catatan di blok "Batas kirim" di atas).
+  useAnnounceOnTransition(
+    countdown?.kind === "overdue",
+    translate("Penjual melewati batas konfirmasi — pesanan akan dibatalkan otomatis."),
+  )
   if (!countdown) return null
   const tone = countdownTone(
     countdown.kind === "countdown" ? countdown.secondsLeft : null,
     countdown.kind === "overdue",
-  )
-  // UX-A11Y-004: pesanan dibatalkan otomatis saat lewat batas (uang!) —
-  // umumkan sekali saat transisi, bukan tiap tick.
-  useAnnounceOnTransition(
-    countdown.kind === "overdue",
-    translate("Penjual melewati batas konfirmasi — pesanan akan dibatalkan otomatis."),
   )
   return (
     <View className={`gap-1 rounded-lg p-3 ${COUNTDOWN_BOX_BG[tone]}`}>

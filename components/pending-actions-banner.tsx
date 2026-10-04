@@ -134,7 +134,7 @@ function targetOf(action: PendingAction) {
       // buka ulang sheet bayar (?sheet=pay) — quote/status selalu dibaca
       // ulang dari server saat layar dibuka, bukan state lokal basi.
       return {
-        pathname: "/order/[id]" as "/order/[id]",
+        pathname: "/order/[id]" as const,
         params: { id: action.orderId, sheet: "pay" },
       }
     case "topup-unpaid":
@@ -142,7 +142,7 @@ function targetOf(action: PendingAction) {
       // ?resumePayment=<paymentTxId> lalu GET status dari server (bukan state
       // lokal yang sudah hilang saat app mati).
       return {
-        pathname: "/topup" as "/topup",
+        pathname: "/topup" as const,
         params: { resumePayment: action.paymentTxId },
       }
     case "subscription-payment":

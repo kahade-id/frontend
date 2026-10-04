@@ -16,7 +16,7 @@
  * dibuat, seluruh pesan diteruskan ke Tim Kahade dan tersimpan di akun.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { Platform, ScrollView, View, type ViewStyle } from "react-native"
+import { Platform, ScrollView, View, type ScrollViewInstance, type ViewStyle } from "react-native"
 import { router } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Lifebuoy, Star } from "phosphor-react-native"
@@ -150,7 +150,7 @@ export default function LiveSupportScreen() {
   const [ratingComment, setRatingComment] = useState("")
   const [ratingBusy, setRatingBusy] = useState(false)
 
-  const listRef = useRef<ScrollView | null>(null)
+  const listRef = useRef<ScrollViewInstance | null>(null)
   const timers = useRef<ReturnType<typeof setTimeout>[]>([])
 
   // ---- Tahap 1: cari tiket Live Chat yang masih terbuka -------------------

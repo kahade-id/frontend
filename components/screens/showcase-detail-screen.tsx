@@ -4,11 +4,13 @@ import type { OpeningMediaTap } from "@/lib/use-opening-media-tap"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
+  findNodeHandle,
   ScrollView,
   UIManager,
   View,
-  findNodeHandle,
-  type TextInput,
+  type ScrollViewInstance,
+  type TextInputInstance,
+  type ViewInstance,
 } from "react-native"
 import { runOnJS } from "react-native-reanimated"
 import { useLocalSearchParams, router } from "expo-router"
@@ -273,7 +275,7 @@ function ShowcaseDetailContent({
   /** Index foto yang dibuka di <ImageViewer>; null = viewer tertutup. */
   const [viewerIndex, setViewerIndex] = useState<number | null>(null)
   const viewerOpeningTap = useRef<OpeningMediaTap | undefined>(undefined)
-  const composerRef = useRef<TextInput>(null)
+  const composerRef = useRef<TextInputInstance>(null)
 
   const [comments, setComments] = useState<ShowcaseCommentWithReplies[]>([])
   // D-07 (audit 2026-09-23): mulai dari `item.commentCount` — tidak ada
@@ -296,9 +298,9 @@ function ShowcaseDetailContent({
    *   <ShowcaseDetailComments>) untuk pengukuran posisi.
    * - `commentFocusDoneRef`: fokus hanya sekali per deep link.
    */
-  const detailScrollRef = useRef<ScrollView>(null)
+  const detailScrollRef = useRef<ScrollViewInstance>(null)
   const detailScrollOffsetRef = useRef(0)
-  const commentTargetRowRef = useRef<View>(null)
+  const commentTargetRowRef = useRef<ViewInstance>(null)
   const commentFocusDoneRef = useRef(false)
   const trackDetailScrollOffset = useCallback((offsetY: number) => {
     detailScrollOffsetRef.current = offsetY

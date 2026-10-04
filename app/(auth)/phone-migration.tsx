@@ -30,7 +30,7 @@
  *     confirmPhoneMigration menukar tempToken jadi sesi penuh.
  */
 import { useCallback, useRef, useState } from "react"
-import { ScrollView, TextInput } from "react-native"
+import { ScrollView, type TextInputInstance } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useRouter } from "expo-router"
 
@@ -58,7 +58,7 @@ import { ROUTES } from "@/lib/routes"
 export default function PhoneMigrationScreen() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
-  const phoneRef = useRef<TextInput>(null)
+  const phoneRef = useRef<TextInputInstance>(null)
   // BATCH4-B4: migrationToken dari memori modul, bukan route params.
   // Tanpa token (app restart / deep-link langsung) → fail-closed ke /login.
   const migrationToken = getPendingMigrationToken()

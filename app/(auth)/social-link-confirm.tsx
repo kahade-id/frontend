@@ -12,7 +12,7 @@
  */
 
 import { useEffect, useRef, useState } from "react"
-import { ScrollView, TextInput } from "react-native"
+import { ScrollView, type TextInputInstance } from "react-native"
 import { useLocalSearchParams, useRouter } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
@@ -58,7 +58,7 @@ export default function SocialLinkConfirmScreen() {
   const [showMfa, setShowMfa] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [errorText, setErrorText] = useState<string | null>(null)
-  const mfaRef = useRef<TextInput>(null)
+  const mfaRef = useRef<TextInputInstance>(null)
 
   // Kolom MFA muncul kondisional (setelah backend meminta 2FA) — fokuskan
   // agar pengguna tidak perlu mengetuk manual.

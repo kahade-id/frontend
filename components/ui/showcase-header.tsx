@@ -24,7 +24,7 @@
  * `shadow-sm`/`rounded-xl` tetap tidak ada (lihat tailwind.config).
  */
 
-import { Platform, View } from "react-native"
+import { Platform, View, type ViewInstance } from "react-native"
 import { router } from "expo-router"
 import {
   ClockCounterClockwise,
@@ -36,7 +36,6 @@ import {
   Users,
 } from "phosphor-react-native"
 import { useRef } from "react"
-import type { View as RNView } from "react-native"
 
 import { openCreateSheet } from "@/lib/create-sheet"
 import { ROUTES } from "@/lib/routes"
@@ -82,7 +81,7 @@ export function ShowcaseHeader({ kind, onKindChange, tabs, onFilterPress, filter
   const createLabel = translate(Platform.OS === "web" ? "Buat baru" : "Buat karya baru")
   // Ref tombol (+) buat karya — View pembungkus (bukan PressableScale)
   // supaya ref selalu ke host View yang terukur.
-  const createRef = useRef<RNView>(null)
+  const createRef = useRef<ViewInstance>(null)
   return (
     <View className="bg-background">
       {/* ── Baris atas: menu (hamburger) · logo · buat baru ── */}

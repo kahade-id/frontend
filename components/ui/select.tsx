@@ -30,8 +30,7 @@
  */
 import { CaretDown, Check } from "phosphor-react-native"
 import type { ReactNode, Ref } from "react"
-import { View, type ViewProps } from "react-native"
-
+import { View, type ViewInstance, type ViewProps } from "react-native"
 import { Divider } from "@/components/ui/divider"
 import { Field, type FieldProps } from "@/components/ui/field"
 import { Icon, type IconComponent } from "@/components/ui/icon"
@@ -65,7 +64,7 @@ export type SelectProps<V extends string = string> = Omit<
     className?: string
     containerClassName?: string
     /** Ref ke trigger — berikan ke `BottomSheet.returnFocusRef` (audit #3) */
-    ref?: Ref<View>
+    ref?: Ref<ViewInstance>
   }
 
 export function Select<V extends string = string>({

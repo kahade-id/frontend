@@ -113,6 +113,9 @@ export default tseslint.config(
       "*.config.js",
       "scripts/*.cjs",
       "lib/fonts.ts",
+      // Config plugin Expo (plugins/*.js) dimuat Expo CLI sebagai CJS murni,
+      // di luar graph Metro — `import` tidak tersedia di sana.
+      "plugins/*.js",
     ],
     rules: {
       "@typescript-eslint/no-require-imports": "off",

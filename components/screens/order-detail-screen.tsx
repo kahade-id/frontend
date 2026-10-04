@@ -32,7 +32,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { View } from "react-native"
+import { View, type ViewInstance } from "react-native"
 import { useLocalSearchParams, router, type Href } from "expo-router"
 import { ArrowUDownLeft, ClockCounterClockwise, DotsThreeVertical, Package, Question, Receipt, ShieldCheck, ShieldWarning, Timer, Truck, X, XCircle } from "phosphor-react-native"
 
@@ -371,7 +371,7 @@ export default function OrderDetailScreen() {
   }, [])
   // QR verifikasi struk bukti pembayaran — defensif: null = tiket tanpa QR
   // (lib/receipt). Hook selalu dipanggil; referenceId null = tidak fetch.
-  const orderTicketRef = useRef<View | null>(null)
+  const orderTicketRef = useRef<ViewInstance | null>(null)
   // D1-007: QR struk hanya di-fetch bila tiket benar-benar dirender
   // (order.paidAt) — bukan untuk semua order yang dibuka.
   const orderPaymentQr = useReceiptQr("ORDER_PAYMENT", order?.id ?? null, {

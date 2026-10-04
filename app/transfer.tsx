@@ -13,8 +13,8 @@
  *   POST /v1/wallet/transfer               → { txId, status }
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { BackHandler, ScrollView, View } from "react-native"
-import { useFocusEffect, useNavigation, usePreventRemove } from "@react-navigation/native"
+import { BackHandler, ScrollView, View, type ViewInstance } from "react-native"
+import { useFocusEffect, useNavigation, usePreventRemove } from "expo-router"
 import { router, useLocalSearchParams } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { api, userMessage, type TransferDto } from "@/lib/api"
@@ -304,7 +304,7 @@ export default function TransferScreen() {
     [togglingFavoriteId, favoritesQuery.data, favoritesQuery.refresh, toast],
   )
   // QR verifikasi struk transfer — defensif: null = tiket tanpa QR (lib/receipt).
-  const ticketRef = useRef<View | null>(null)
+  const ticketRef = useRef<ViewInstance | null>(null)
   const transferQr = useReceiptQr("TRANSFER", txId, {
     // D1-007: tiket struk hanya dirender pada step "done" (txId sudah diset
     // ~1,4 d sebelum overlay sukses selesai — jangan fetch lebih awal).

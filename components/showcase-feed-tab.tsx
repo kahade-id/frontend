@@ -31,11 +31,11 @@ import type { OpeningMediaTap } from "@/lib/use-opening-media-tap"
  *  - F-04: item yang sudah dilaporkan sesi ini disembunyikan dari feed.
  */
 import { useCallback, useEffect, useMemo, useRef, useState, memo, useSyncExternalStore } from "react"
-import { View, type FlatList, type View as RNView } from "react-native"
+import { View, type FlatList, type ViewInstance } from "react-native"
 import Animated, { runOnJS } from "react-native-reanimated"
 import { Images, X, ArrowUp } from "phosphor-react-native"
 import { router, useLocalSearchParams } from "expo-router"
-import { useIsFocused } from "@react-navigation/native"
+import { useIsFocused } from "expo-router"
 
 import { api, isApiError, userMessage } from "@/lib/api"
 import { getShowcaseFeed, type ShowcaseFeedSort, type ShowcaseSocialItem } from "@/lib/api/showcase"
@@ -1005,7 +1005,7 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
    * coach mark orientasi beli ("feed-buy"). Wrapper polos tanpa style —
    * tidak mengubah layout (kolom flex default).
    */
-  const firstCardRef = useRef<RNView | null>(null)
+  const firstCardRef = useRef<ViewInstance | null>(null)
   const renderItem = useCallback(
     ({ item, index }: { item: ShowcaseSocialItem; index: number }) => {
       const card = (

@@ -7,7 +7,7 @@
  *                            preview/storybook atau navigasi kustom.
  *   - <RouterBottomTabBar> : adapter untuk prop `tabBar` di <Tabs> expo-
  *                            router; membaca state/descriptors navigasi
- *                            tanpa mengimpor tipe @react-navigation (struktur
+ *                            tanpa menulis ulang tipe navigator (struktur
  *                            minimal yang dibutuhkan saja) agar file ini
  *                            tetap kompilasi meski paket itu hanya transitif.
  *
@@ -53,7 +53,7 @@
  *     disentuh di web/mobile pada area tengah tab.
  */
 import { Suspense, lazy, memo, useEffect, useRef, useState, type ReactNode } from "react"
-import { Animated, Easing, View, type ViewProps, type View as RNView } from "react-native"
+import { Animated, Easing, View, type ViewInstance, type ViewProps } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { type Href } from "expo-router"
 import { Plus } from "phosphor-react-native"
@@ -72,7 +72,7 @@ const CoachMark = lazy(() =>
 import { Avatar } from "@/components/ui/avatar"
 import { NotificationCount, NotificationDot } from "@/components/ui/badge"
 import { Icon, type IconComponent } from "@/components/ui/icon"
-import type { BottomTabBarProps as RNNBottomTabBarProps } from "@react-navigation/bottom-tabs"
+import type { BottomTabBarProps as RNNBottomTabBarProps } from "expo-router/tabs"
 
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
@@ -380,7 +380,7 @@ function CenterActionButton({
   useLanguage()
   // Ref ukur untuk coach mark — di wrapper View (bukan PressableScale) agar
   // selalu menunjuk host View yang bisa di-measureInWindow.
-  const targetRef = useRef<RNView>(null)
+  const targetRef = useRef<ViewInstance>(null)
   return (
     <View className="w-16 flex-col items-center justify-center">
       <View ref={targetRef} collapsable={false}>
@@ -628,17 +628,22 @@ function BottomTabBarBase<K extends string = string>({
 // ------------------------------------------------------------------
 
 /**
- * Subset tipe BottomTabBarProps @react-navigation — diambil dari tipe asli
- * (bukan ditulis ulang) supaya `navigation.emit` yang generik per event tetap
- * struktural-kompatibel saat diteruskan oleh expo-router <Tabs tabBar>.
- * (@react-navigation/bottom-tabs adalah dependency expo-router.)
+ * Subset tipe `BottomTabBarProps` expo-router — diambil dari tipe asli (bukan
+ * ditulis ulang) supaya tetap struktural-kompatibel saat diteruskan oleh
+ * expo-router <Tabs tabBar>.
+ *
+ * SDK 58: expo-router tidak lagi mem-fork @react-navigation. `tabBar` kini
+ * menerima `emitter` (fire-and-forget, tanpa nilai balik `defaultPrevented`)
+ * dan `navigateToTab(routeKey)`; properti `navigation` DIHAPUS.
  */
 export type RouterTabBarState = Pick<RNNBottomTabBarProps["state"], "index" | "routes">
-export type RouterTabBarNavigation = Pick<RNNBottomTabBarProps["navigation"], "emit" | "navigate">
+export type RouterTabBarEmitter = RNNBottomTabBarProps["emitter"]
+export type RouterTabBarNavigate = RNNBottomTabBarProps["navigateToTab"]
 
 export type RouterBottomTabBarProps = {
   state: RouterTabBarState
-  navigation: RouterTabBarNavigation
+  emitter: RouterTabBarEmitter
+  navigateToTab: RouterTabBarNavigate
   /**
    * Konfigurasi per route.name — route tanpa entri di sini disembunyikan.
    * Pakai `visibleTabBarItems()` untuk daftar bawaan (sudah membuang
@@ -650,7 +655,7 @@ export type RouterBottomTabBarProps = {
   className?: string
 }
 
-export function RouterBottomTabBar({ state, navigation, items, centerAction, className }: RouterBottomTabBarProps): ReactNode {
+export function RouterBottomTabBar({ state, emitter, navigateToTab, items, centerAction, className }: RouterBottomTabBarProps): ReactNode {
   const visible = state.routes.filter((r) => items[r.name])
   const current = state.routes[state.index]?.name ?? ""
 
@@ -663,12 +668,14 @@ export function RouterBottomTabBar({ state, navigation, items, centerAction, cla
       onChange={(name) => {
         const route = state.routes.find((r) => r.name === name)
         if (!route) return
-        const ev = navigation.emit({ type: "tabPress", target: route.key, canPreventDefault: true })
-        if (name !== current && !ev.defaultPrevented) navigation.navigate(name)
+        // `emitter.emit` tetap mengembalikan event arg dengan `defaultPrevented`
+        // (standard-navigation), jadi pencegatan tabPress masih dihormati.
+        const ev = emitter.emit({ type: "tabPress", target: route.key, canPreventDefault: true })
+        if (name !== current && !ev.defaultPrevented) navigateToTab(route.key)
       }}
       onLongPress={(name) => {
         const route = state.routes.find((r) => r.name === name)
-        if (route) navigation.emit({ type: "tabLongPress", target: route.key })
+        if (route) emitter.emit({ type: "tabLongPress", target: route.key })
       }}
     />
   )

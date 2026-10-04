@@ -21,7 +21,7 @@
  */
 import { useEffect, useRef } from "react"
 import { Animated, Easing, View, type ViewProps } from "react-native"
-import { useIsFocused } from "@react-navigation/native"
+import { useIsFocused } from "expo-router"
 import { translate } from "@/lib/i18n/translate"
 
 import { Dot, type DotTone } from "@/components/ui/dot"

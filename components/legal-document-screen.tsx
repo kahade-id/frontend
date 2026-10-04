@@ -19,7 +19,7 @@
  * pembaca; pencatatan consent tetap di alur registrasi/transaksi.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { ScrollView, View } from "react-native"
+import { ScrollView, View, type ScrollViewInstance } from "react-native"
 import Animated, {
   useAnimatedScrollHandler,
   useAnimatedStyle,
@@ -75,7 +75,7 @@ function LegalDocumentContent({ kind, doc }: { kind: "terms" | "privacy"; doc: L
   const { mode } = useTheme()
   const HeroIcon = kind === "terms" ? FileText : ShieldCheck
 
-  const scrollRef = useRef<React.ComponentRef<typeof Animated.ScrollView>>(null)
+  const scrollRef = useRef<ScrollViewInstance>(null)
   const sectionY = useRef<Record<string, number>>({})
   const [tocOpen, setTocOpen] = useState(false)
 

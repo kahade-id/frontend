@@ -655,7 +655,7 @@ export function ShowcaseCommentsSheet({
           contentContainerStyle={commentListContentStyle}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
-          ListFooterComponent={commentListFooter}
+          ListFooterComponent={commentListFooter ?? undefined}
           initialNumToRender={10}
           maxToRenderPerBatch={10}
           windowSize={7}

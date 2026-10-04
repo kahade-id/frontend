@@ -52,6 +52,7 @@ import {
   type FlatListProps,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
+  type ScrollViewInstance,
   type ScrollViewProps,
   type ViewProps,
 } from "react-native"
@@ -760,7 +761,7 @@ export type PullToRefreshProps = Omit<ViewProps, "children"> & {
    * (mis. fokus komentar dari deep link). Opsional; tidak mengubah perilaku
    * konsumen existing.
    */
-  scrollRef?: Ref<ScrollView>
+  scrollRef?: Ref<ScrollViewInstance>
   /**
    * C14: worklet scroll per-frame (jalur Android — dipanggil dari JS thread;
    * web/iOS memakai `scrollViewProps.onScroll`). Untuk pantau offset scroll.

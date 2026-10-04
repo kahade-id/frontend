@@ -32,8 +32,7 @@
  * perubahan visual di sana.
  */
 import { forwardRef } from "react"
-import { Text as RNText, type TextProps as RNTextProps } from "react-native"
-
+import { Text as RNText, type TextInstance, type TextProps as RNTextProps } from "react-native"
 import { cn } from "@/lib/cn"
 import { useFontScale } from "@/lib/font-scale"
 import { localizeChildren, translateProp, useLanguage } from "@/lib/i18n"
@@ -160,7 +159,7 @@ function roleOf(variant: TextVariantProp): keyof typeof weightClass {
   return "sans"
 }
 
-export const Text = forwardRef<RNText, TextProps>(function Text(
+export const Text = forwardRef<TextInstance, TextProps>(function Text(
   {
     variant = "body",
     tone = "primary",

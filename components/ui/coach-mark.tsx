@@ -34,12 +34,11 @@ import { useCallback, useEffect, useRef, useState, type RefObject } from "react"
 import {
   Animated,
   Pressable,
-  View,
   useWindowDimensions,
+  View,
   type LayoutChangeEvent,
-  type View as RNView,
+  type ViewInstance,
 } from "react-native"
-
 import { useTheme } from "@/components/theme-provider"
 import { Backdrop, useOverlayDismissKeys, useOverlayPresence } from "@/components/ui/backdrop"
 import { Portal } from "@/components/ui/portal"
@@ -65,7 +64,7 @@ export type CoachMarkProps = {
    */
   id: CoachMarkId
   /** Ref ke view target — diukur via measureInWindow untuk posisi bubble. */
-  targetRef: RefObject<RNView | null>
+  targetRef: RefObject<ViewInstance | null>
   /** Isi bubble. */
   message: string
   /** Default "auto": di bawah bila muat, di atas bila tidak. */

@@ -28,8 +28,7 @@
  * berganti layar; parent yang tahu tujuan fokus berikutnya.
  */
 import { useEffect, useRef, type ReactNode } from "react"
-import { Animated, Easing, View, type ViewProps } from "react-native"
-
+import { Animated, Easing, View, type ViewInstance, type ViewProps } from "react-native"
 import { Backdrop, useOverlayPresence } from "@/components/ui/backdrop"
 import { Logo, type LogoSize } from "@/components/ui/logo"
 import { Portal, useBlockingOverlay } from "@/components/ui/portal"
@@ -128,7 +127,7 @@ export type LoadingOverlayProps = {
 
 export function LoadingOverlay({ visible, message, children, onHidden }: LoadingOverlayProps) {
   const { mounted, progress } = useOverlayPresence(visible, { onHidden })
-  const boxRef = useRef<View>(null)
+  const boxRef = useRef<ViewInstance>(null)
   useBlockingOverlay(visible)
   useOverlayFocus(visible, boxRef)
   if (!mounted) return null

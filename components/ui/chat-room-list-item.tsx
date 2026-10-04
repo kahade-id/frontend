@@ -357,7 +357,11 @@ function isSameAvatarSource(
   if (a === b) return true
   if (a == null || b == null) return false
   if (typeof a !== "object" || typeof b !== "object") return a === b
-  if (Array.isArray(a) || Array.isArray(b)) return false
+  // RN 0.88: `ImageSource` memakai `ReadonlyArray<ImageURISource>`, dan
+  // `Array.isArray` TIDAK mempersempit tipe readonly — guard eksplisit ini
+  // yang membuat cabang array terbuang sebelum `.uri` dibaca.
+  const isReadonlyArray = (v: unknown): v is readonly unknown[] => Array.isArray(v)
+  if (isReadonlyArray(a) || isReadonlyArray(b)) return false
   return (a.uri ?? null) === (b.uri ?? null)
 }
 

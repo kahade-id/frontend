@@ -518,7 +518,7 @@ export function uploadDirectVideo(
         let attempt = 0
         for (;;) {
           try {
-            let token = await getAccessToken()
+            const token = await getAccessToken()
             if (!token)
               throw new ApiError({
                 code: "UNAUTHORIZED",

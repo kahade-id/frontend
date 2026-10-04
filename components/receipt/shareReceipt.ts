@@ -13,14 +13,13 @@
  * perangkat produksi bisa hitam di sana. Itu keputusan keamanan yang
  * disengaja; share tetap dicoba dan kegagalan dilaporkan lewat Alert.
  */
-import { Alert, Platform, type View } from "react-native"
-
+import { Alert, Platform, type ViewInstance } from "react-native"
 import { captureView } from "@/lib/capture-view"
 import { shareContent } from "@/lib/share"
 import { translate } from "@/lib/i18n/translate"
 
 async function captureReceiptUri(
-  ticket: View | null | undefined,
+  ticket: ViewInstance | null | undefined,
 ): Promise<string> {
   if (!ticket) throw new Error("ticket-ref-missing")
   // Web: `data-uri` agar bisa diunduh via anchor; native: `tmpfile` PNG di
@@ -34,7 +33,7 @@ async function captureReceiptUri(
 }
 
 export async function shareReceipt(
-  ticket: View | null | undefined,
+  ticket: ViewInstance | null | undefined,
   filename = "struk-kahade.png",
 ): Promise<boolean> {
   try {
@@ -63,7 +62,7 @@ export async function shareReceipt(
  *   komentar & tidak berpura-pura "unduh" padahal share.
  */
 export async function downloadReceipt(
-  ticket: View | null | undefined,
+  ticket: ViewInstance | null | undefined,
   filename = "struk-kahade.png",
 ): Promise<boolean> {
   try {

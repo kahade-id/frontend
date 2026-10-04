@@ -2,7 +2,7 @@
  * Kahade — <VoiceNotePlayer> pemutar voice note di dalam bubble chat.
  *
  * Pesan `messageType: "VOICE"` tiba sebagai lampiran audio (direkam via
- * <VoiceNoteRecorder> → expo-av). Sebelum batch ini, lampiran audio hanya
+ * <VoiceNoteRecorder> → expo-audio). Sebelum batch ini, lampiran audio hanya
  * tampil sebagai baris ikon generik (tidak bisa diputar) — komponen ini
  * memberikan kontrol putar/jeda, kecepatan 1x/2x, dan waveform.
  *
@@ -11,9 +11,12 @@
  *     data amplitudo; pola bar dibangkitkan deterministik (PRNG xorshift32
  *     dari hash FNV-1a `messageId`) supaya stabil antar render. Jangan
  *     pernah mengklaim ini visualisasi audio yang sebenarnya.
- *   - expo-av `Audio.Sound` (bukan `expo-audio`): repo sudah memakai
- *     expo-av untuk merekam — tidak ada dependency/plugin native baru
- *     (batas keras batch ini).
+ *   - Pemutar memakai `expo-audio` (SDK 58): `expo-av` tidak lagi dikirim di
+ *     kontrak SDK 58. Player dibuat tanpa sumber (`useAudioPlayer(null)`) dan
+ *     sumber baru dipasang saat tombol putar pertama ditekan (`player.replace`)
+ *     — pemuatan tetap MALAS, sama seperti `Audio.Sound.createAsync` sebelumnya.
+ *   - Status (posisi/durasi/playing/error) dibaca dari `useAudioPlayerStatus`,
+ *     bukan dari callback `setOnPlaybackStatusUpdate`.
  *   - SATU pemutar aktif dalam satu waktu: memulai yang baru menghentikan
  *     yang lama (registry level modul) — dua voice note tidak bertumpuk.
  *   - Progres di-update via `onPlaybackStatusUpdate` (state biasa, tanpa
@@ -25,7 +28,7 @@
  *   - Gagal muat (jaringan/URL basi) → state error yang jujur + bisa coba
  *     lagi lewat tombol putar, bukan spinner abadi.
  */
-import { Audio, type AVPlaybackStatus } from "expo-av"
+import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio"
 import { Pause, Play } from "phosphor-react-native"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { View } from "react-native"
@@ -90,7 +93,6 @@ export function VoiceNotePlayer({ uri: initialUri, messageId, direction, onRefre
   /** Refresh URL hanya dicoba SEKALI per URI (anti-loop). */
   const urlRefreshTried = useRef(false)
 
-  const soundRef = useRef<Audio.Sound | null>(null)
   const aliveRef = useRef(true)
   const phaseRef = useRef(phase)
   phaseRef.current = phase
@@ -101,22 +103,31 @@ export function VoiceNotePlayer({ uri: initialUri, messageId, direction, onRefre
    */
   const playerIdRef = useRef<object>({})
 
+  /**
+   * SDK 58 (expo-audio): player dibuat TANPA sumber. Sumber dipasang saat
+   * tombol putar pertama ditekan (`player.replace`) supaya voice note di
+   * daftar chat tidak memuat audio sebelum diminta — perilaku malas yang
+   * sama dengan `Audio.Sound.createAsync` di expo-av.
+   */
+  const player = useAudioPlayer(null, { updateInterval: 250 })
+  const status = useAudioPlayerStatus(player)
+  const loadedRef = useRef(false)
+
   const bars = useMemo(() => decorativeWaveform(messageId, VOICE_WAVEFORM_BARS), [messageId])
   const playedBars = durationMs > 0 ? Math.floor((positionMs / durationMs) * bars.length) : 0
 
-  const unload = useCallback(async () => {
-    const sound = soundRef.current
-    soundRef.current = null
-    if (sound) {
-      try {
-        await sound.unloadAsync()
-      } catch {
-        // Sudah di-unload — abaikan.
-      }
+  /** Buang sumber & kembalikan ke keadaan awal (unmount / URI berganti). */
+  const unload = useCallback(() => {
+    loadedRef.current = false
+    try {
+      player.pause()
+      player.replace(null)
+    } catch {
+      // Player sudah dilepas — abaikan.
     }
-  }, [])
+  }, [player])
 
-  // Unmount → buang sound; hanya kosongkan registry bila milik kita
+  // Unmount → buang sumber; hanya kosongkan registry bila milik kita
   // (jangan mencuri stop milik pemutar lain yang masih aktif).
   useEffect(() => {
     aliveRef.current = true
@@ -125,122 +136,115 @@ export function VoiceNotePlayer({ uri: initialUri, messageId, direction, onRefre
       if (activePlayer?.owner === playerIdRef.current) {
         activePlayer = null
       }
-      void unload()
+      unload()
     }
   }, [unload])
 
   // UPFV-03: URI prop berganti (reuse baris FlatList / pesan di-sign ulang)
-  // → buang sound lama, reset state refresh.
+  // → buang sumber lama, reset state refresh.
   useEffect(() => {
     setUri(initialUri)
     urlRefreshTried.current = false
-    void unload()
+    unload()
+    setPhase("idle")
+    setPositionMs(0)
+    setDurationMs(0)
   }, [initialUri, unload])
 
-  const handleStatus = useCallback((status: AVPlaybackStatus) => {
-    if (!aliveRef.current || !status.isLoaded) {
-      if (aliveRef.current && !status.isLoaded && "error" in status) {
-        setPhase("error")
-        setPlaying(false)
-      }
+  /**
+   * Status player → state UI. `useAudioPlayerStatus` memberi snapshot tiap
+   * `updateInterval`, jadi tidak perlu callback seperti `setOnPlaybackStatusUpdate`.
+   */
+  useEffect(() => {
+    if (!aliveRef.current) return
+    if (status.isLoaded && !loadedRef.current) {
+      loadedRef.current = true
+      setPhase("ready")
+    }
+    if (status.isLoaded) {
+      setDurationMs(Math.round((status.duration ?? 0) * 1000))
+    }
+    setPositionMs(Math.round((status.currentTime ?? 0) * 1000))
+    setPlaying(status.playing)
+    if (status.didJustFinish) {
+      // Kembali ke awal ala WhatsApp — siap diputar ulang.
+      void player.seekTo(0).catch(() => {})
+    }
+  }, [status, player])
+
+  /**
+   * UPFV-03: pemuatan gagal (mis. signed URL kedaluwarsa → 403) — coba
+   * SEKALI dengan URL segar sebelum menyerah ke state error.
+   */
+  useEffect(() => {
+    if (!aliveRef.current || !status.error) return
+    if (urlRefreshTried.current || !onRefreshUrl) {
+      setPhase("error")
       return
     }
-    setDurationMs(status.durationMillis ?? 0)
-    setPositionMs(status.positionMillis ?? 0)
-    setPlaying(status.isPlaying)
-    if (status.didJustFinish) {
-      setPlaying(false)
-      // Kembali ke awal ala WhatsApp — siap diputar ulang.
-      void soundRef.current?.setPositionAsync(0).catch(() => {})
-    }
-  }, [])
-
-  const loadSound = useCallback(
-    async (targetUri: string): Promise<Audio.Sound | null> => {
-      try {
-        const { sound } = await Audio.Sound.createAsync(
-          { uri: targetUri },
-          { progressUpdateIntervalMillis: 250 },
-          handleStatus,
-        )
-        if (!aliveRef.current) {
-          await sound.unloadAsync().catch(() => {})
-          return null
-        }
-        soundRef.current = sound
-        setPhase("ready")
-        return sound
-      } catch {
-        return null
-      }
-    },
-    [handleStatus],
-  )
-
-  const ensureSound = useCallback(async (): Promise<Audio.Sound | null> => {
-    if (soundRef.current) return soundRef.current
-    setPhase("loading")
-    const sound = await loadSound(uri)
-    if (sound) return sound
-    // UPFV-03: pemuatan gagal (mis. signed URL kedaluwarsa → 403) — coba
-    // SEKALI dengan URL segar sebelum menyerah ke state error.
-    if (aliveRef.current && !urlRefreshTried.current && onRefreshUrl) {
-      urlRefreshTried.current = true
+    urlRefreshTried.current = true
+    void (async () => {
       try {
         const fresh = await onRefreshUrl()
         if (fresh && fresh !== uri && aliveRef.current) {
           setUri(fresh)
-          const retried = await loadSound(fresh)
-          if (retried) return retried
+          player.replace({ uri: fresh })
+          player.play()
+          return
         }
       } catch {
         // Fall through ke state error di bawah.
       }
-    }
-    if (aliveRef.current) setPhase("error")
-    return null
-  }, [uri, onRefreshUrl, loadSound])
+      if (aliveRef.current) setPhase("error")
+    })()
+  }, [status.error, onRefreshUrl, uri, player])
 
   const toggle = useCallback(async () => {
     // Hentikan pemutar LAIN dulu (satu suara dalam satu waktu) —
     // JANGAN stop diri sendiri: stopper di registry milik instance ini
-    // bila ia pemutar aktif, dan pause-diri membuat getStatusAsync()
-    // membaca isPlaying=false lalu langsung playAsync() lagi (P0).
+    // bila ia pemutar aktif, dan pause-diri membuat status berikutnya
+    // membaca playing=false lalu langsung memutar lagi (P0).
     if (activePlayer && activePlayer.owner !== playerIdRef.current) {
       activePlayer.stop()
     }
-    const sound = await ensureSound()
-    if (!sound || !aliveRef.current) return
     activePlayer = {
       owner: playerIdRef.current,
       stop: () => {
-        void sound.pauseAsync().catch(() => {})
+        try {
+          player.pause()
+        } catch {
+          // Player sudah dilepas — abaikan.
+        }
       },
     }
     try {
-      const status = await sound.getStatusAsync()
-      if (status.isLoaded && status.isPlaying) {
-        await sound.pauseAsync()
-      } else {
-        await sound.playAsync()
+      if (status.playing) {
+        player.pause()
+        return
       }
+      // Pemuatan malas: sumber baru dipasang saat pertama kali diputar.
+      if (!loadedRef.current) {
+        setPhase("loading")
+        player.replace({ uri })
+      }
+      player.play()
     } catch {
       if (aliveRef.current) setPhase("error")
     }
-  }, [ensureSound])
+  }, [player, status.playing, uri])
 
-  const toggleRate = useCallback(async () => {
+  const toggleRate = useCallback(() => {
     const next: 1 | 2 = rate === 1 ? 2 : 1
     setRate(next)
-    const sound = soundRef.current
-    if (!sound) return
     try {
-      await sound.setRateAsync(next, true)
+      // `shouldCorrectPitch` mempertahankan nada (perilaku `setRateAsync(r, true)`).
+      player.shouldCorrectPitch = true
+      player.playbackRate = next
     } catch {
       // Platform tidak mendukung perubahan rate — kembali ke 1x.
       setRate(1)
     }
-  }, [rate])
+  }, [rate, player])
 
   const barColor = outgoing ? palette.primaryForeground : palette.primary
   const circleBg = outgoing ? palette.primaryForeground : palette.primary

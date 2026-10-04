@@ -9,8 +9,7 @@
  * `quietHoursStart`/`quietHoursEnd` sebagai string "HH:mm".
  */
 import { useEffect, useRef, useState } from "react"
-import { ScrollView, View } from "react-native"
-
+import { ScrollView, View, type ScrollViewInstance } from "react-native"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Button } from "@/components/ui/button"
 import { PressableScale } from "@/components/ui/pressable-scale"
@@ -46,7 +45,7 @@ function Column({
   selected: number
   onPick: (n: number) => void
 }) {
-  const ref = useRef<ScrollView>(null)
+  const ref = useRef<ScrollViewInstance>(null)
   useEffect(() => {
     // Scroll ke nilai terpilih setelah sheet ter-layout.
     const t = setTimeout(() => {

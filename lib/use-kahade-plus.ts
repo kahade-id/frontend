@@ -20,7 +20,7 @@
  *     supaya snapshot global ikut baru tanpa menunggu revalidasi fokus.
  */
 import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react"
-import { useIsFocused } from "@react-navigation/native"
+import { useIsFocused } from "expo-router"
 
 import { ApiError, userMessage } from "@/lib/api/errors"
 import { getAccessToken, getSessionSnapshot, subscribeSession } from "@/lib/api/session"

@@ -24,8 +24,8 @@
  *     tombol submit `loading` selama semua berkas diupload.
  */
 import { useCallback, useEffect, useRef, useState } from "react"
-import { Platform, TextInput, View } from "react-native"
-import { useNavigation, usePreventRemove, type NavigationAction } from "@react-navigation/native"
+import { Platform, View, type TextInputInstance } from "react-native"
+import { useNavigation, usePreventRemove, type NavigationAction } from "expo-router"
 import { Plus } from "phosphor-react-native"
 import { translate } from "@/lib/i18n/translate"
 
@@ -122,9 +122,9 @@ export default function BusinessVerificationScreen() {
   const [deedNumber, setDeedNumber] = useState("")
   const [siupNumber, setSiupNumber] = useState("")
   // FRM-010: rantai fokus Next antar field form verifikasi bisnis.
-  const npwpRef = useRef<TextInput>(null)
-  const deedRef = useRef<TextInput>(null)
-  const siupRef = useRef<TextInput>(null)
+  const npwpRef = useRef<TextInputInstance>(null)
+  const deedRef = useRef<TextInputInstance>(null)
+  const siupRef = useRef<TextInputInstance>(null)
   const [docs, setDocs] = useState<PickedImage[]>([])
   const [submitting, setSubmitting] = useState(false)
 

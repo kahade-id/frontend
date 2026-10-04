@@ -30,7 +30,7 @@
  *   - Lokasi opsional dicatat; null = lanjut tanpa lokasi.
  */
 import { useCallback, useRef, useState } from "react"
-import { ScrollView, TextInput } from "react-native"
+import { ScrollView, type TextInputInstance } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useRouter } from "expo-router"
 
@@ -79,7 +79,7 @@ export default function ResetPasswordScreen() {
   const [newPassword, setNewPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   // FRM-006: rantai fokus Next antar field.
-  const confirmRef = useRef<TextInput>(null)
+  const confirmRef = useRef<TextInputInstance>(null)
   const [passwordError, setPasswordError] = useState<string | undefined>()
   const [confirmError, setConfirmError] = useState<string | undefined>()
   const [formError, setFormError] = useState<string | null>(null)

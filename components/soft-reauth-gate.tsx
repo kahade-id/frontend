@@ -24,8 +24,7 @@
  *     captcha diminta, kegagalan jaringan berulang) berakhir di alur lama.
  */
 import { useCallback, useEffect, useRef, useState } from "react"
-import { View } from "react-native"
-import type { TextInput } from "react-native"
+import { View, type TextInputInstance } from "react-native"
 
 import { api, isApiError, userMessage } from "@/lib/api"
 import { API_CONSTRAINTS } from "@/lib/api/constraints"
@@ -65,7 +64,7 @@ export function SoftReauthGate() {
   const [submitting, setSubmitting] = useState(false)
   /** Sukses di modal ini → toast setelah sheet tertutup. */
   const succeeded = useRef(false)
-  const passwordRef = useRef<TextInput>(null)
+  const passwordRef = useRef<TextInputInstance>(null)
 
   // Sesi kembali terbit (login dari modal ini, atau refresh di tempat lain):
   // tutup sheet, jangan sentuh stack.

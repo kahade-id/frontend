@@ -12,8 +12,7 @@
  */
 import { CaretDown, CaretUp, MagnifyingGlass, X } from "phosphor-react-native"
 import { useEffect, useRef } from "react"
-import { TextInput, View } from "react-native"
-
+import { TextInput, View, type TextInputInstance } from "react-native"
 import { Icon } from "@/components/ui/icon"
 import { IconButton } from "@/components/ui/icon-button"
 import { Text } from "@/components/ui/text"
@@ -47,7 +46,7 @@ export function ChatInlineSearchBar({
   useLanguage()
   const { mode } = useTheme()
   const palette = tokens.colors[mode]
-  const inputRef = useRef<TextInput>(null)
+  const inputRef = useRef<TextInputInstance>(null)
   useEffect(() => {
     inputRef.current?.focus()
   }, [])

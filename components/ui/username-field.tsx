@@ -15,8 +15,7 @@
  */
 import { At, Check, X } from "phosphor-react-native"
 import { forwardRef, useMemo, useState } from "react"
-import { TextInput, View } from "react-native"
-
+import { View, type TextInputInstance } from "react-native"
 import { Icon } from "@/components/ui/icon"
 import { Input, type InputProps } from "@/components/ui/input"
 import { Spinner } from "@/components/ui/spinner"
@@ -92,7 +91,7 @@ export type UsernameFieldProps = Omit<
   showFinalFormPreview?: boolean
 }
 
-export const UsernameField = forwardRef<TextInput, UsernameFieldProps>(function UsernameField(
+export const UsernameField = forwardRef<TextInputInstance, UsernameFieldProps>(function UsernameField(
   { value, onChangeText, availability = "idle", labels, label, helperText, errorText, showFinalFormPreview = true, onBlur, ...rest },
   ref,
 ) {

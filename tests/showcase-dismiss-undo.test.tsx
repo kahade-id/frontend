@@ -34,7 +34,10 @@ vi.mock("phosphor-react-native", () => ({
   X: () => null,
 }))
 vi.mock("react-native-reanimated", () => ({ default: { View: ({ children }: { children: ReactNode }) => <>{children}</> } }))
-vi.mock("@react-navigation/native", () => ({ useIsFocused: () => true }))
+vi.mock("expo-router", async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  useIsFocused: () => true,
+}))
 vi.mock("@/lib/api", () => ({
   api: { users: { getMe: vi.fn(), getFollowing: vi.fn() } },
   isApiError: () => false,

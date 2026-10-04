@@ -25,7 +25,7 @@
  */
 import { useEffect, useRef, type ReactNode } from "react"
 import { Animated, Easing, View, type ViewProps } from "react-native"
-import { useIsFocused } from "@react-navigation/native"
+import { useIsFocused } from "expo-router"
 
 import { cn } from "@/lib/cn"
 import { tokens } from "@/lib/tokens"

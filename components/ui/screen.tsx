@@ -40,12 +40,13 @@
  * di-render di dalam overlay yang sudah mengelola fokus sendiri.
  */
 import { createContext, useEffect, useRef, type ReactNode, type Ref } from "react"
-import { InteractionManager, ScrollView, View, type ScrollViewProps, type ViewProps } from "react-native"
+import { ScrollView, View, type ScrollViewInstance, type ScrollViewProps, type ViewInstance, type ViewProps } from "react-native"
 import { useSafeAreaInsets, type Edge } from "react-native-safe-area-context"
 
 import { FooterBar } from "@/components/ui/footer-bar"
 import { KeyboardAvoiding } from "@/components/ui/keyboard-avoiding"
 import { focusAccessibility } from "@/lib/use-overlay-focus"
+import { runWhenIdle } from "@/lib/idle"
 import { cn } from "@/lib/cn"
 
 export const ScreenInsetsContext = createContext({ top: false })
@@ -124,13 +125,15 @@ export function Screen({
   // UX-A11Y-003: navigasi antar-layar memindahkan fokus screen reader ke
   // konten layar yang baru di-mount. Ref ke ScrollView/View konten
   // (host component), bukan ke Body — KeyboardAvoiding tidak meneruskan ref.
-  const contentRef = useRef<ScrollView | View | null>(null)
+  const contentRef = useRef<ScrollViewInstance | ViewInstance | null>(null)
   useEffect(() => {
     if (!focusOnMount) return
-    const task = InteractionManager.runAfterInteractions(() => {
+    // RN 0.88 menghapus `InteractionManager`. `requestIdleCallback` mentah
+    // tidak boleh dipanggil langsung — tidak ada di Safari maupun jsdom
+    // (lihat lib/idle.ts). runWhenIdle mengembalikan pembatalannya sendiri.
+    return runWhenIdle(() => {
       focusAccessibility(contentRef.current)
     })
-    return () => task.cancel()
   }, [focusOnMount])
 
   return (
@@ -149,7 +152,7 @@ export function Screen({
       >
         {scroll ? (
           <ScrollView
-            ref={contentRef as Ref<ScrollView>}
+            ref={contentRef as Ref<ScrollViewInstance>}
             collapsable={false}
             className="flex-1"
             contentContainerClassName={cn("grow", bodyPad, contentContainerClassName)}
@@ -161,7 +164,7 @@ export function Screen({
             {children}
           </ScrollView>
         ) : (
-          <View ref={contentRef as Ref<View>} collapsable={false} className={cn("flex-1", bodyPad)}>{children}</View>
+          <View ref={contentRef as Ref<ViewInstance>} collapsable={false} className={cn("flex-1", bodyPad)}>{children}</View>
         )}
 
         {footer ? <FooterBar>{footer}</FooterBar> : null}

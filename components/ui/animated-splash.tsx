@@ -151,7 +151,13 @@ export function AnimatedSplash({ ready, onFinish }: AnimatedSplashProps) {
 
 const styles = StyleSheet.create({
   overlay: {
-    ...StyleSheet.absoluteFillObject,
+    // RN 0.88 menghapus `StyleSheet.absoluteFillObject` dari ekspor bertipe;
+    // ekuivalennya ditulis eksplisit (position absolute + inset 0).
+    position: "absolute",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
     // backgroundColor di-set inline dari `tokens.colors.brand.black`.
     alignItems: "center",
     justifyContent: "center",

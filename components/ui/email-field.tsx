@@ -23,8 +23,7 @@
  */
 import { Envelope } from "phosphor-react-native"
 import { forwardRef, useCallback, useState } from "react"
-import type { TextInput, TextInputProps } from "react-native"
-
+import type { TextInputInstance, TextInputProps } from "react-native"
 import { Input, type InputProps } from "@/components/ui/input"
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
@@ -47,7 +46,7 @@ export type EmailFieldProps = Omit<
   labels?: Partial<EmailFieldLabels>
 }
 
-export const EmailField = forwardRef<TextInput, EmailFieldProps>(function EmailField(
+export const EmailField = forwardRef<TextInputInstance, EmailFieldProps>(function EmailField(
   { value, onChangeText, validate = true, labels, label, errorText, onBlur, ...rest },
   ref,
 ) {

@@ -7,7 +7,8 @@ const mocks = vi.hoisted(() => ({
   dispatch: vi.fn(),
 }))
 
-vi.mock("@react-navigation/native", () => ({
+vi.mock("expo-router", async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
   useNavigation: () => ({ dispatch: mocks.dispatch }),
   usePreventRemove: (
     prevent: boolean,

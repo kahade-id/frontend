@@ -20,11 +20,10 @@ import {
   Platform,
   TextInput,
   View,
-  type NativeSyntheticEvent,
-  type TextInputKeyPressEventData,
+  type TextInputInstance,
+  type TextInputKeyPressEvent,
   type ViewProps,
 } from "react-native"
-
 import { useTheme } from "@/components/theme-provider"
 import { Chip } from "@/components/ui/chip"
 import { Field, type FieldProps } from "@/components/ui/field"
@@ -66,7 +65,7 @@ export function TagInput({
 }: TagInputProps) {
   const { mode } = useTheme()
   const palette = tokens.colors[mode]
-  const inputRef = useRef<TextInput>(null)
+  const inputRef = useRef<TextInputInstance>(null)
   const [draft, setDraft] = useState("")
   const [focused, setFocused] = useState(false)
   // FRM-010: tag yang melebihi maxTagLength dulu dipotong diam-diam.
@@ -113,7 +112,7 @@ export function TagInput({
     else setDraft(text)
   }
 
-  const handleKey = (e: NativeSyntheticEvent<TextInputKeyPressEventData>) => {
+  const handleKey = (e: TextInputKeyPressEvent) => {
     if (e.nativeEvent.key === "Backspace" && draft.length === 0 && value.length > 0) {
       onChange(value.slice(0, -1))
     }

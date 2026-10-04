@@ -8,7 +8,7 @@
  * meneruskan callback. `OrderPaymentSheet` juga dipakai tes komponen.
  */
 import { useEffect, useRef, useState } from "react"
-import { TextInput, View } from "react-native"
+import { View, type TextInputInstance } from "react-native"
 import { router } from "expo-router"
 import { ArrowUDownLeft, ChatCircleDots, Receipt, ShieldWarning, Timer } from "phosphor-react-native"
 
@@ -295,7 +295,7 @@ export function OrderActionSheets({
    */
   // FE-112: state dialog konfirmasi resi dihapus — tidak ada dialog kedua.
   // FRM-008: rantai fokus Next Kurir -> Nomor resi.
-  const trackingRef = useRef<TextInput>(null)
+  const trackingRef = useRef<TextInputInstance>(null)
   // B3O-42: kunci dismiss saat submitting (guard + toast "Tunggu…") —
   // samakan dengan konvensi PIN sheet transfer/withdraw.
   const guardedClose = useGuardedRequestClose(submitting, onClose)

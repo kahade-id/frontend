@@ -10,7 +10,7 @@
  * <ShowcaseCommentRow>).
  */
 import { useState } from "react"
-import { View } from "react-native"
+import { View, type ViewInstance } from "react-native"
 import type { ReactNode, Ref } from "react"
 
 import type { ShowcaseComment, ShowcaseCommentWithReplies } from "@/lib/api/showcase"
@@ -42,7 +42,7 @@ export type ShowcaseDetailCommentsProps = {
    * C14: ref dipasang pada pembungkus baris target — induk mengukur
    * posisinya untuk scroll. `collapsable={false}` supaya terukur di Android.
    */
-  focusRowRef?: Ref<View>
+  focusRowRef?: Ref<ViewInstance>
   isOwner: boolean
   hasSession: boolean
   isMine: (comment: ShowcaseComment) => boolean

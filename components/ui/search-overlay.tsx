@@ -29,7 +29,7 @@
  */
 import { Clock, MagnifyingGlass, X } from "phosphor-react-native"
 import { useRef, type ReactNode } from "react"
-import { Animated, ScrollView, StyleSheet, View, type TextInput } from "react-native"
+import { Animated, ScrollView, StyleSheet, View, type TextInputInstance } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { translate } from "@/lib/i18n/translate"
 
@@ -89,7 +89,7 @@ export function SearchOverlay({
 }: SearchOverlayProps) {
   const insets = useSafeAreaInsets()
   const { mounted, progress } = useOverlayPresence(visible)
-  const fieldRef = useRef<TextInput>(null)
+  const fieldRef = useRef<TextInputInstance>(null)
   useOverlayDismissKeys(visible, onRequestClose)
   useBlockingOverlay(visible)
   useOverlayFocus(visible, fieldRef, { returnFocusRef })

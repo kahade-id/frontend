@@ -23,7 +23,7 @@
  * Label i18n-ready lewat `labels` (§12), default Bahasa Indonesia.
  */
 import { useCallback, useState } from "react"
-import { View, type NativeSyntheticEvent, type TextLayoutEventData, type ViewProps } from "react-native"
+import { View, type TextLayoutEvent, type ViewProps } from "react-native"
 
 import { Text, type TextProps } from "@/components/ui/text"
 import { TextLink } from "@/components/ui/text-link"
@@ -72,7 +72,7 @@ export function ReadMore({
   // null = belum terukur (web tidak pernah mengukur -> tetap null -> heuristik)
   const [measuredLines, setMeasuredLines] = useState<number | null>(null)
 
-  const onLayout = useCallback((e: NativeSyntheticEvent<TextLayoutEventData>) => {
+  const onLayout = useCallback((e: TextLayoutEvent) => {
     setMeasuredLines(e.nativeEvent.lines.length)
   }, [])
 

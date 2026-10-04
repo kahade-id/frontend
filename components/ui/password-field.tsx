@@ -15,8 +15,7 @@
  */
 import { LockKey, Warning } from "phosphor-react-native"
 import { forwardRef, useCallback, useState } from "react"
-import { View, type TextInput, type TextInputProps } from "react-native"
-
+import { View, type TextInputInstance, type TextInputProps } from "react-native"
 import { Input, type InputProps } from "@/components/ui/input"
 import { Icon } from "@/components/ui/icon"
 import { PasswordStrength, type PasswordStrengthProps } from "@/components/ui/password-strength"
@@ -45,7 +44,7 @@ export type PasswordFieldProps = Omit<
   containerClassName?: string
 }
 
-export const PasswordField = forwardRef<TextInput, PasswordFieldProps>(function PasswordField(
+export const PasswordField = forwardRef<TextInputInstance, PasswordFieldProps>(function PasswordField(
   {
     value,
     onChangeText,

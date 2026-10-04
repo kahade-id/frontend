@@ -18,8 +18,7 @@
  *   - Tinggi 64 (h-16) supaya glyph mono 24px punya ruang bernapas (§1.5).
  */
 import { forwardRef, useCallback, useState } from "react"
-import { Platform, TextInput, View, type TextInputProps } from "react-native"
-
+import { Platform, TextInput, View, type TextInputInstance, type TextInputProps } from "react-native"
 import { useTheme } from "@/components/theme-provider"
 import { Chip } from "@/components/ui/chip"
 import { Field, type FieldProps } from "@/components/ui/field"
@@ -47,7 +46,7 @@ export type AmountInputProps = Omit<
     containerClassName?: string
   }
 
-export const AmountInput = forwardRef<TextInput, AmountInputProps>(function AmountInput(
+export const AmountInput = forwardRef<TextInputInstance, AmountInputProps>(function AmountInput(
   {
     value,
     onChange,

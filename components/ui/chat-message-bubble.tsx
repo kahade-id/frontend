@@ -55,7 +55,7 @@
  *     "goyang" saat scroll cepat.
  */
 import { memo, useEffect, useMemo, useRef, type ReactNode } from "react"
-import { View, type GestureResponderEvent, type ViewProps } from "react-native"
+import { View, type GestureResponderEvent, type ViewInstance, type ViewProps } from "react-native"
 import { Gesture, GestureDetector } from "react-native-gesture-handler"
 import Animated, {
   runOnJS,
@@ -288,7 +288,7 @@ function ChatMessageBubbleBase({
    * mengambang. `collapsable={false}` supaya node native-nya tidak
    * dioptimasi hilang di Android.
    */
-  const bubbleRef = useRef<View | null>(null)
+  const bubbleRef = useRef<ViewInstance | null>(null)
 
   /**
    * Swipe-to-reply (2026-09-28) — jalan pintas; tekan lama "Balas" TETAP ADA.

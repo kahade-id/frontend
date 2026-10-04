@@ -55,7 +55,7 @@ import {
   View,
   type GestureResponderEvent,
   type PressableProps,
-  type View as RNView,
+  type ViewInstance,
 } from "react-native"
 import { useColorScheme } from "nativewind"
 
@@ -85,7 +85,7 @@ export type PressableScaleProps = Omit<PressableProps, "style" | "children"> & {
   children?: React.ReactNode
 }
 
-export const PressableScale = forwardRef<RNView, PressableScaleProps>(function PressableScale(
+export const PressableScale = forwardRef<ViewInstance, PressableScaleProps>(function PressableScale(
   {
     className,
     containerClassName,
@@ -127,12 +127,12 @@ export const PressableScale = forwardRef<RNView, PressableScaleProps>(function P
    * (BottomSheet/Modal/Dialog/SearchOverlay) tutup — tanpa mengharuskan
    * tiap call site meneruskan `returnFocusRef` (grep: 0 call site).
    */
-  const hostRef = useRef<RNView | null>(null)
+  const hostRef = useRef<ViewInstance | null>(null)
   const setHostRef = useCallback(
-    (node: RNView | null) => {
+    (node: ViewInstance | null) => {
       hostRef.current = node
       if (typeof ref === "function") ref(node)
-      else if (ref) (ref as { current: RNView | null }).current = node
+      else if (ref) (ref as { current: ViewInstance | null }).current = node
     },
     [ref],
   )

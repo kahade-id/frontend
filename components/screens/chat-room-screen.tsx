@@ -45,7 +45,7 @@ import {
   type LayoutChangeEvent,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
-  type View as RNView,
+  type ViewInstance,
 } from "react-native"
 import { useLocalSearchParams, router } from "expo-router"
 
@@ -1415,7 +1415,7 @@ export default function ChatRoomScreen() {
   // ScrollView + messages.map menahan 200+ bubble ter-mount penuh dengan
   // gambar; memori & FPS jatuh di Android low-end.
   const scrollRef = useRef<FlatList<ThreadRow>>(null)
-  const replyCoachMarkRef = useRef<RNView | null>(null)
+  const replyCoachMarkRef = useRef<ViewInstance | null>(null)
   const lastSeenEndId = useRef<string | undefined>(undefined)
   const lastMessageId = messages[messages.length - 1]?.id
   const handleContentSizeChange = useCallback(() => {
@@ -3356,7 +3356,7 @@ export default function ChatRoomScreen() {
         onContentSizeChange={handleContentSizeChange}
         onScroll={handleScroll}
         scrollEventThrottle={SCROLL_EVENT_THROTTLE}
-        ListHeaderComponent={threadListHeader}
+        ListHeaderComponent={threadListHeader ?? undefined}
         ListEmptyComponent={threadListEmpty}
         renderItem={renderThreadRow}
         // Scroll ke puncak = muat riwayat lebih lama (tombol eksplisit tetap

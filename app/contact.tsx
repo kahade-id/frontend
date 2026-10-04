@@ -18,7 +18,7 @@
  *   melanjutkan thread tersebut.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { ScrollView, TextInput, View } from "react-native"
+import { ScrollView, View, type TextInputInstance } from "react-native"
 import { router, useLocalSearchParams } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { ArrowDown, ArrowUp, Paperclip, X } from "phosphor-react-native"
@@ -124,7 +124,7 @@ export default function ContactScreen() {
   const [ordersError, setOrdersError] = useState<string | null>(null)
   const restoredRef = useRef(false)
   // FRM-009: rantai fokus Next Subjek -> Pesan.
-  const messageRef = useRef<TextInput>(null)
+  const messageRef = useRef<TextInputInstance>(null)
   // F09: lampiran = urutan + keterangan per item.
   const [attachments, setAttachments] = useState<AttachmentItem[]>([])
   const [uploading, setUploading] = useState(false)

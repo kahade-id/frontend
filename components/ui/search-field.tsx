@@ -19,8 +19,7 @@
  */
 import { MagnifyingGlass } from "phosphor-react-native"
 import { forwardRef, useEffect, useRef } from "react"
-import { TextInput, type View } from "react-native"
-
+import { type TextInputInstance, type ViewInstance } from "react-native"
 import { Icon } from "@/components/ui/icon"
 import { Input, type InputProps } from "@/components/ui/input"
 import { PressableScale, type PressableScaleProps } from "@/components/ui/pressable-scale"
@@ -35,7 +34,7 @@ export type SearchFieldProps = Omit<InputProps, "variant" | "label"> & {
   debounceMs?: number
 }
 
-export const SearchField = forwardRef<TextInput, SearchFieldProps>(function SearchField(
+export const SearchField = forwardRef<TextInputInstance, SearchFieldProps>(function SearchField(
   {
     onSearch,
     debounceMs = tokens.motion.duration.base,
@@ -95,7 +94,7 @@ export type SearchTriggerProps = Omit<PressableScaleProps, "children" | "classNa
  * Field palsu di halaman — tap untuk membuka overlay Search.
  * Ref diteruskan agar bisa jadi `SearchOverlay.returnFocusRef` (audit #3).
  */
-export const SearchTrigger = forwardRef<View, SearchTriggerProps>(function SearchTrigger(
+export const SearchTrigger = forwardRef<ViewInstance, SearchTriggerProps>(function SearchTrigger(
   { placeholder = "Cari transaksi, pihak, atau ID", variant = "default", className, containerClassName, ...rest },
   ref,
 ) {

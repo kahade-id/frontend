@@ -40,11 +40,17 @@
  *     di bawah scrim yang memudar, dan menunggu `onHidden` membuat jeda
  *     terasa "mati" bagi pengguna keyboard.
  */
-import { useEffect, useRef, type Component, type RefObject } from "react"
-import { AccessibilityInfo, InteractionManager, Platform, findNodeHandle } from "react-native"
+import { useEffect, useRef, type RefObject } from "react"
+import { AccessibilityInfo, Platform, findNodeHandle, type ViewInstance } from "react-native"
+import { runWhenIdle } from "./idle"
 
-/** Ref ke host component RN apa pun (View, Text, TextInput, Pressable). */
-export type A11yNodeRef = RefObject<Component | null>
+/**
+ * Ref ke host component RN apa pun (View, Text, TextInput, Pressable).
+ *
+ * RN 0.88 (Strict TypeScript API): ref host component bukan lagi instance
+ * kelas React (`Component`), melainkan `ViewInstance` (= `HostInstance`).
+ */
+export type A11yNodeRef = RefObject<ViewInstance | null>
 
 export type OverlayFocusOptions = {
   /**
@@ -57,7 +63,7 @@ export type OverlayFocusOptions = {
 
 /** Pindahkan fokus screen reader / keyboard ke `node`. Aman dipanggil dengan null. */
 
-export function focusAccessibility(node: Component | null | undefined): void {  if (!node) return
+export function focusAccessibility(node: ViewInstance | null | undefined): void {  if (!node) return
 
   if (Platform.OS === "web") {
     // RN-Web: ref host component adalah HTMLElement.
@@ -86,13 +92,13 @@ export function focusAccessibility(node: Component | null | undefined): void {  
  * kebocoran antar-overlay); bila pemicu sudah unmount,
  * `focusAccessibility` no-op via `findNodeHandle` → null.
  */
-let lastPressedTrigger: Component | null = null
+let lastPressedTrigger: ViewInstance | null = null
 
-export function recordPressedTrigger(node: Component | null | undefined): void {
+export function recordPressedTrigger(node: ViewInstance | null | undefined): void {
   if (node) lastPressedTrigger = node
 }
 
-function takeLastPressedTrigger(): Component | null {
+function takeLastPressedTrigger(): ViewInstance | null {
   const node = lastPressedTrigger
   lastPressedTrigger = null
   return node
@@ -112,7 +118,7 @@ export function useOverlayFocus(
    * (bukan saat tutup) karena `onPressIn` pemicu terjadi tepat sebelum
    * `active` menjadi true.
    */
-  const returnTargetRef = useRef<Component | null>(null)
+  const returnTargetRef = useRef<ViewInstance | null>(null)
 
   useEffect(() => {
     if (active) {
@@ -122,10 +128,11 @@ export function useOverlayFocus(
       }
       returnTargetRef.current =
         returnFocusRef?.current ?? (Platform.OS === "web" ? null : takeLastPressedTrigger())
-      const task = InteractionManager.runAfterInteractions(() => {
+      // RN 0.88 menghapus `InteractionManager`. `requestIdleCallback` mentah
+      // tidak ada di Safari maupun jsdom — pakai runWhenIdle (lib/idle.ts).
+      return runWhenIdle(() => {
         focusAccessibility(contentRef.current)
       })
-      return () => task.cancel()
     }
 
     // Transisi buka -> tutup saja; mount awal dengan active=false tidak

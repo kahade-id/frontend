@@ -12,7 +12,7 @@
  * aksi), CTA primer tegas, empty state dengan aksi, dialog konfirmasi hapus.
  */
 import { useCallback, useMemo, useState, useRef } from "react"
-import { TextInput, View } from "react-native"
+import { View, type TextInputInstance } from "react-native"
 import { router } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Bank, Plus } from "phosphor-react-native"
@@ -191,7 +191,7 @@ export default function BankAccountsScreen() {
   )
 
   // FRM-011: rantai fokus Next Nomor rekening -> Nama pemilik rekening.
-  const accountNameRef = useRef<TextInput>(null)
+  const accountNameRef = useRef<TextInputInstance>(null)
   const [adding, setAdding] = useState(false)
   const [bankCode, setBankCode] = useState<string | undefined>(undefined)
   const [bankName, setBankName] = useState("")

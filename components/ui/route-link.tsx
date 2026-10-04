@@ -22,7 +22,7 @@
  * Pressable yang disabled -> tidak navigasi) dan tetap memberi opacity.
  */
 import { forwardRef } from "react"
-import type { View as RNView } from "react-native"
+import type { ViewInstance } from "react-native"
 import { Link, type Href } from "expo-router"
 
 import { PressableScale, type PressableScaleProps } from "@/components/ui/pressable-scale"
@@ -37,7 +37,7 @@ export type RouteLinkProps = Omit<PressableScaleProps, "onPress"> & {
   onPress?: PressableScaleProps["onPress"]
 }
 
-export const RouteLink = forwardRef<RNView, RouteLinkProps>(function RouteLink(
+export const RouteLink = forwardRef<ViewInstance, RouteLinkProps>(function RouteLink(
   { href, replace = false, disabled, containerClassName, className, children, ...rest },
   ref,
 ) {

@@ -24,7 +24,7 @@
  *   - Font weight lewat class `font-sans-700` (bukan `font-bold`) — RN tidak
  *     me-resolve fontWeight ke file font yang di-load expo-font.
  */
-import { Image, View, type ViewProps } from "react-native"
+import { Image, View, type ViewInstance, type ViewProps } from "react-native"
 import type { RefObject } from "react"
 import { router } from "expo-router"
 import {
@@ -94,7 +94,7 @@ export type ReceiptTicketProps = Omit<ViewProps, "children"> & {
   /** Coba muat ulang QR verifikasi. */
   onRetryQr?: () => void
   /** Ref untuk capture (shareReceipt) — ditempel ke kartu tiket */
-  ticketRef?: RefObject<View | null>
+  ticketRef?: RefObject<ViewInstance | null>
   onShare?: () => void
   /**
    * FE-IMP-4 item 16: unduh struk sebagai PNG. Bila tidak diisi, hanya tombol

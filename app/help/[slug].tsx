@@ -14,7 +14,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { View } from "react-native"
+import { View, type ScrollViewInstance } from "react-native"
 import Animated, {
   runOnJS,
   useAnimatedScrollHandler,
@@ -252,7 +252,7 @@ export default function HelpScreen() {
   // F03: daftar isi dari heading yang ada.
   const toc = useMemo(() => parseArticleHeadings(content), [content])
   const [tocOpen, setTocOpen] = useState(true)
-  const scrollRef = useRef<React.ComponentRef<typeof Animated.ScrollView> | null>(null)
+  const scrollRef = useRef<ScrollViewInstance | null>(null)
   /** F03: posisi Y tiap heading (relatif ke konten scroll). */
   const headingY = useRef(new Map<number, number>())
   /** F03: offset Y HelpArticleContent di dalam konten scroll. */

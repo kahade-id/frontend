@@ -53,8 +53,7 @@
  *   - Setelah login berhasil → /welcome (cek permissions; bukan user baru).
  */
 import { useCallback, useEffect, useRef, useState } from "react"
-import { Platform, ScrollView, TextInput, View } from "react-native"
-
+import { Platform, ScrollView, View, type TextInputInstance } from "react-native"
 import { CaptchaSlider } from "@/components/ui/captcha-slider"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useLocalSearchParams, useRouter } from "expo-router"
@@ -140,9 +139,9 @@ export default function LoginScreen() {
   const [waDigits, setWaDigits] = useState("")
   const [waPhoneError, setWaPhoneError] = useState<string | undefined>()
   const [waSubmitting, setWaSubmitting] = useState(false)
-  const waPhoneRef = useRef<TextInput>(null)
+  const waPhoneRef = useRef<TextInputInstance>(null)
   // FRM-004: rantai fokus identifier -> password.
-  const passwordRef = useRef<TextInput>(null)
+  const passwordRef = useRef<TextInputInstance>(null)
 
   // Captcha hanya muncul bila backend memintanya (3+ login gagal per IP).
   const [challenge, setChallenge] = useState<CaptchaChallenge | null>(null)

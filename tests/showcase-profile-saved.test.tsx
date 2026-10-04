@@ -42,7 +42,10 @@ vi.mock("phosphor-react-native", () => ({
   ShareNetwork: () => null,
   Trash: () => null,
 }))
-vi.mock("@react-navigation/native", () => ({ useIsFocused: () => mocks.focused }))
+vi.mock("expo-router", async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  useIsFocused: () => mocks.focused,
+}))
 vi.mock("@/lib/api", () => ({
   api: { users: { getPublicShowcase: mocks.getPublicShowcase, getMeCached: mocks.getMeCached } },
   isApiError: (err: unknown) => Boolean((err as { status?: number })?.status),

@@ -39,7 +39,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { BackHandler, ScrollView, View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useRouter, type Href } from "expo-router"
-import { useFocusEffect, useNavigation, usePreventRemove } from "@react-navigation/native"
+import { useFocusEffect, useNavigation, usePreventRemove } from "expo-router"
 
 import { Alert } from "@/components/ui/alert"
 import { FadeIn } from "@/components/ui/fade-in"
