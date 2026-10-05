@@ -115,6 +115,7 @@ import type { Address } from "@/lib/api/commerce"
 import { addressLabelText } from "@/lib/api/commerce"
 import { addressMissingFields } from "@/lib/wallet-batch139"
 import { translate } from "@/lib/i18n/translate"
+import { showMutationError } from "@/lib/mutation-toast"
 
 const DEBOUNCE_MS = 400
 /** P1-3 (audit perf/UX 2026-10-03): autosave draft form — satu penulisan per detik. */
@@ -859,10 +860,12 @@ export default function CreateTransactionScreen() {
         } catch (slotErr) {
           submitLock.current = false
           setSubmitting(false)
-          toast.show({
-            title: translate("Slot jasa gagal dipesan"),
-            description: userMessage(slotErr),
-            tone: "danger",
+          // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+          showMutationError(toast.show, {
+            failTitle: translate("Slot jasa gagal dipesan"),
+            uncertainHint: translate("Aksi mungkin sudah diproses — periksa kembali sebelum mencoba lagi."),
+            err: slotErr,
+            scope: "create-transaction:slot-jasa-dipesan",
           })
           return
         }

@@ -8,7 +8,7 @@ export default function Html({ children }: PropsWithChildren) {
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-        <title>Kahade — Jual Beli Aman dengan Escrow &amp; Sosial Commerce</title>
+        <title>Kahade — Jual Beli Aman &amp; Sosial Commerce</title>
         {/*
           Audit web statis: sebelumnya <head> hanya berisi title + viewport.
           Akibatnya tab browser memakai ikon default, bookmark tanpa ikon,
@@ -25,7 +25,7 @@ export default function Html({ children }: PropsWithChildren) {
         <meta property="og:url" content="https://kahade.id/" />
         <meta
           property="og:title"
-          content="Kahade — Jual Beli Aman dengan Escrow & Sosial Commerce"
+          content="Kahade — Jual Beli Aman & Sosial Commerce"
         />
         <meta
           property="og:description"
@@ -33,10 +33,10 @@ export default function Html({ children }: PropsWithChildren) {
         />
         <meta property="og:image" content="https://kahade.id/icon-512.png" />
         <meta name="twitter:card" content="summary" />
-        <meta name="twitter:title" content="Kahade — Jual Beli Aman dengan Escrow & Sosial Commerce" />
+        <meta name="twitter:title" content="Kahade — Jual Beli Aman & Sosial Commerce" />
         <meta
           name="twitter:description"
-          content="Escrow aman untuk setiap transaksi, etalase sosial untuk jualan dan belanja. Jual beli online tanpa takut ditipu."
+          content="Transaksi aman untuk setiap pesanan, etalase sosial untuk jualan dan belanja. Jual beli online tanpa takut ditipu."
         />
         <meta name="twitter:image" content="https://kahade.id/icon-512.png" />
         <link rel="icon" href="/icon.svg" type="image/svg+xml" />

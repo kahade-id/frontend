@@ -66,6 +66,7 @@ import { useReceiptQr } from "@/components/receipt/use-receipt-qr"
 import { makeReceiptId, type ReceiptStatus } from "@/lib/receipt"
 import { useToast } from "@/components/ui/toast"
 import { translate } from "@/lib/i18n/translate"
+import { showMutationError } from "@/lib/mutation-toast"
 
 const PRESETS = AMOUNT_PRESETS.withdraw
 // Alur: nominal + rekening (satu layar, rekening dipilih lewat BottomSheet)
@@ -396,7 +397,13 @@ export default function WithdrawScreen() {
         })
       }
     } catch (err) {
-      toast.show({ title: "Gagal mengirim OTP", description: userMessage(err), tone: "danger" })
+      // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+      showMutationError(toast.show, {
+        failTitle: "Gagal mengirim OTP",
+        uncertainHint: "Aksi mungkin sudah diproses — periksa kembali sebelum mencoba lagi.",
+        err: err,
+        scope: "withdraw:mengirim-otp",
+      })
     } finally {
       setResending(false)
     }

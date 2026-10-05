@@ -18,6 +18,7 @@ import { formatDate } from "@/lib/format"
 import { SocialCancelledError, getSocialIdToken, isAppleButtonSupported } from "@/lib/social-oauth"
 import { useApiQuery } from "@/lib/use-api-query"
 import { logWarn } from "@/lib/telemetry"
+import { showMutationError } from "@/lib/mutation-toast"
 
 import { Alert } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -65,7 +66,13 @@ export default function SocialProvidersScreen() {
         setReauthFor({ mode: "link", provider, idToken, nonce })
       } catch (err) {
         if (!(err instanceof SocialCancelledError)) {
-          toast.show({ title: `Gagal memulai tautan ${PROVIDER_LABEL[provider]}`, description: userMessage(err), tone: "danger" })
+          // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+          showMutationError(toast.show, {
+            failTitle: `Gagal memulai tautan ${PROVIDER_LABEL[provider]}`,
+            uncertainHint: "Aksi mungkin sudah diproses — periksa kembali sebelum mencoba lagi.",
+            err: err,
+            scope: "social-providers:link",
+          })
           logWarn("social:link-oauth", err)
         }
       } finally {

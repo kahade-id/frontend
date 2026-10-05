@@ -31,7 +31,7 @@ import { View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { PencilSimple, Star, ThumbsUp, Trash } from "phosphor-react-native"
 
-import { api, userMessage } from "@/lib/api"
+import { api } from "@/lib/api"
 import { firstRatingReply, readMyRatings, type Rating } from "@/lib/api/ratings"
 import { queryKeys } from "@/lib/query-keys"
 import { tokens } from "@/lib/tokens"
@@ -55,6 +55,7 @@ import { SegmentedControl, type SegmentItem } from "@/components/ui/segmented-co
 import { TextArea } from "@/components/ui/text-area"
 import { useToast } from "@/components/ui/toast"
 import { translate, useLanguage } from "@/lib/i18n"
+import { showMutationError } from "@/lib/mutation-toast"
 
 const PAGE_SIZE = 20
 /** RatingReplyDto.content — batas lokal sama dengan komentar ulasan (spec tanpa maxLength) */
@@ -165,11 +166,17 @@ export default function RatingsScreen() {
       setDeleteRatingTarget(null)
       await query.refresh()
     } catch (err) {
-      toast.show({
-        title: translate("Gagal menghapus ulasan"),
-        description: userMessage(err),
-        tone: "danger",
-      })
+      // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+      if (
+        showMutationError(toast.show, {
+          failTitle: translate("Gagal menghapus ulasan"),
+          uncertainHint: translate("Aksi mungkin sudah diproses — memuat ulang…"),
+          err: err,
+          scope: "ratings:menghapus-ulasan",
+        })
+      ) {
+        void query.refresh()
+      }
     } finally {
       setDeletingRating(false)
     }
@@ -186,10 +193,12 @@ export default function RatingsScreen() {
           [rating.id]: { on: result.helpful, count: result.helpfulCount },
         }))
       } catch (err) {
-        toast.show({
-          title: translate("Gagal memperbarui tanda berguna"),
-          description: userMessage(err),
-          tone: "danger",
+        // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+        showMutationError(toast.show, {
+          failTitle: translate("Gagal memperbarui tanda berguna"),
+          uncertainHint: translate("Aksi mungkin sudah diproses — periksa kembali sebelum mencoba lagi."),
+          err: err,
+          scope: "ratings:memperbarui-tanda-berguna",
         })
       } finally {
         setHelpfulBusyId(null)
@@ -254,11 +263,17 @@ export default function RatingsScreen() {
       setReplyText("")
       await query.refresh()
     } catch (err) {
-      toast.show({
-        title: translate("Gagal menyimpan balasan"),
-        description: userMessage(err),
-        tone: "danger",
-      })
+      // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+      if (
+        showMutationError(toast.show, {
+          failTitle: translate("Gagal menyimpan balasan"),
+          uncertainHint: translate("Aksi mungkin sudah diproses — memuat ulang…"),
+          err: err,
+          scope: "ratings:menyimpan-balasan",
+        })
+      ) {
+        void query.refresh()
+      }
     } finally {
       setSending(false)
     }
@@ -273,11 +288,17 @@ export default function RatingsScreen() {
       setDeleteReply(null)
       await query.refresh()
     } catch (err) {
-      toast.show({
-        title: translate("Gagal menghapus balasan"),
-        description: userMessage(err),
-        tone: "danger",
-      })
+      // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+      if (
+        showMutationError(toast.show, {
+          failTitle: translate("Gagal menghapus balasan"),
+          uncertainHint: translate("Aksi mungkin sudah diproses — memuat ulang…"),
+          err: err,
+          scope: "ratings:menghapus-balasan",
+        })
+      ) {
+        void query.refresh()
+      }
     } finally {
       setDeleting(false)
     }
@@ -302,11 +323,17 @@ export default function RatingsScreen() {
         setEditRating(null)
         await query.refresh()
       } catch (err) {
-        toast.show({
-          title: translate("Gagal memperbarui ulasan"),
-          description: userMessage(err),
-          tone: "danger",
-        })
+        // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+        if (
+          showMutationError(toast.show, {
+            failTitle: translate("Gagal memperbarui ulasan"),
+            uncertainHint: translate("Aksi mungkin sudah diproses — memuat ulang…"),
+            err: err,
+            scope: "ratings:memperbarui-ulasan",
+          })
+        ) {
+          void query.refresh()
+        }
       } finally {
         setSavingEdit(false)
       }

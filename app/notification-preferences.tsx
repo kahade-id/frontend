@@ -17,7 +17,6 @@ import { Platform, View } from "react-native"
 import { CaretRight } from "phosphor-react-native"
 
 import { api } from "@/lib/api"
-import { userMessage } from "@/lib/api/errors"
 import { useApiQuery } from "@/lib/use-api-query"
 import { isTimeInRange } from "@/lib/time-input"
 import { isWebPushConfigured } from "@/lib/web-push-config"
@@ -47,6 +46,7 @@ import type { DigestFrequency } from "@/lib/api/notifications"
 import { formatDateTime } from "@/lib/format"
 import { useLanguage } from "@/lib/i18n"
 import { translate } from "@/lib/i18n/translate"
+import { showMutationError } from "@/lib/mutation-toast"
 
 export default function NotificationPreferencesScreen() {
   useLanguage()
@@ -108,6 +108,8 @@ export default function NotificationPreferencesScreen() {
       setHasLocalPushToken(true)
       toast.show({ title: translate("Notifikasi diaktifkan"), tone: "success", duration: 2500 })
     } catch {
+      // Klasifikasi toast: KEEP manual — registrasi push sisi-perangkat
+      // tanpa err (bukan mutasi server; retry manual oleh pengguna).
       toast.show({
         title: translate("Gagal mengaktifkan notifikasi"),
         description: translate("Coba lagi nanti."),
@@ -135,15 +137,22 @@ export default function NotificationPreferencesScreen() {
         await api.notifications.updateNotificationPreferences({ [key]: next[key] })
         toast.show({ title: "Preferensi tersimpan", tone: "success", duration: 2500 })
       } catch (err) {
-        setData((prev) => ({ ...(prev ?? {}), [key]: previous }))
-        toast.show({
-          title: "Gagal menyimpan preferensi",
-          description: userMessage(err),
-          tone: "danger",
-        })
+        // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+        if (
+          showMutationError(toast.show, {
+            failTitle: "Gagal menyimpan preferensi",
+            uncertainHint: "Aksi mungkin sudah diproses — memuat ulang…",
+            err: err,
+            scope: "notification-preferences:menyimpan-preferensi",
+          })
+        ) {
+          void query.reload()
+        } else {
+          setData((prev) => ({ ...(prev ?? {}), [key]: previous }))
+        }
       }
     },
-    [value, setData, toast.show],
+    [value, setData, toast.show, query],
   )
 
   /**
@@ -160,15 +169,22 @@ export default function NotificationPreferencesScreen() {
         await api.notifications.updateNotificationPreferences({ digestFrequency: next })
         toast.show({ title: "Preferensi tersimpan", tone: "success", duration: 2500 })
       } catch (err) {
-        setData((prev) => ({ ...(prev ?? {}), digestFrequency: previous }))
-        toast.show({
-          title: "Gagal menyimpan preferensi",
-          description: userMessage(err),
-          tone: "danger",
-        })
+        // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+        if (
+          showMutationError(toast.show, {
+            failTitle: "Gagal menyimpan preferensi",
+            uncertainHint: "Aksi mungkin sudah diproses — memuat ulang…",
+            err: err,
+            scope: "notification-preferences:menyimpan-preferensi",
+          })
+        ) {
+          void query.reload()
+        } else {
+          setData((prev) => ({ ...(prev ?? {}), digestFrequency: previous }))
+        }
       }
     },
-    [query.data, value, setData, toast.show],
+    [query.data, value, setData, toast.show, query],
   )
 
   /**
@@ -191,15 +207,22 @@ export default function NotificationPreferencesScreen() {
         await api.notifications.updateNotificationPreferences(patch)
         toast.show({ title: "Preferensi tersimpan", tone: "success", duration: 2500 })
       } catch (err) {
-        setData((prev) => ({ ...(prev ?? {}), ...previous }))
-        toast.show({
-          title: "Gagal menyimpan preferensi",
-          description: userMessage(err),
-          tone: "danger",
-        })
+        // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+        if (
+          showMutationError(toast.show, {
+            failTitle: "Gagal menyimpan preferensi",
+            uncertainHint: "Aksi mungkin sudah diproses — memuat ulang…",
+            err: err,
+            scope: "notification-preferences:menyimpan-preferensi",
+          })
+        ) {
+          void query.reload()
+        } else {
+          setData((prev) => ({ ...(prev ?? {}), ...previous }))
+        }
       }
     },
-    [query.data, value, setData, toast.show],
+    [query.data, value, setData, toast.show, query],
   )
 
   return (
@@ -515,10 +538,12 @@ function WebPushOptIn() {
         })
       }
     } catch (err) {
-      toast.show({
-        title: "Gagal mengaktifkan notifikasi",
-        description: userMessage(err),
-        tone: "danger",
+      // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+      showMutationError(toast.show, {
+        failTitle: "Gagal mengaktifkan notifikasi",
+        uncertainHint: "Aksi mungkin sudah diproses — periksa kembali sebelum mencoba lagi.",
+        err: err,
+        scope: "notification-preferences:mengaktifkan-notifikasi",
       })
     } finally {
       setEnabling(false)

@@ -73,6 +73,8 @@ export default function AppVersionScreen() {
         })
       }
     } catch {
+      // Klasifikasi toast: KEEP manual — cek-pembaruan read-only (bukan
+      // mutasi, tanpa err tak-pasti yang perlu direkonsiliasi).
       toast.show({
         title: "Pembaruan belum dapat diproses",
         description: "Periksa koneksi, lalu coba lagi.",

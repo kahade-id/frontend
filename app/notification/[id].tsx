@@ -24,7 +24,7 @@ import { View } from "react-native"
 import { router, useLocalSearchParams } from "expo-router"
 import { Bell, Trash } from "phosphor-react-native"
 
-import { api, userMessage, type AppNotification } from "@/lib/api"
+import { api, type AppNotification } from "@/lib/api"
 import { formatDateTime } from "@/lib/format"
 import { ROUTES } from "@/lib/routes"
 import {
@@ -45,6 +45,7 @@ import {
 import { refreshUnreadCount } from "@/lib/unread-count"
 import { useApiQuery } from "@/lib/use-api-query"
 import { translate, useLanguage } from "@/lib/i18n"
+import { showMutationError } from "@/lib/mutation-toast"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -180,11 +181,18 @@ export default function NotificationDetailScreen() {
       // Refresh status: data layar ini + seluruh cache query.
       await query.reload()
     } catch (err: unknown) {
-      toast.show({
-        title: "Konfirmasi gagal",
-        description: userMessage(err),
-        tone: "danger",
-      })
+      // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+      if (
+        showMutationError(toast.show, {
+          failTitle: "Konfirmasi gagal",
+          uncertainHint: "Konfirmasi mungkin sudah diproses — memuat ulang…",
+          uncertainDetail: "Dana bisa sudah diteruskan ke penjual — jangan konfirmasi ulang.",
+          err: err,
+          scope: "notification:id:konfirmasi",
+        })
+      ) {
+        void query.reload()
+      }
     } finally {
       setConfirming(false)
     }
@@ -200,10 +208,12 @@ export default function NotificationDetailScreen() {
       if (router.canGoBack()) router.back()
       else router.replace(ROUTES.notifications)
     } catch (err: unknown) {
-      toast.show({
-        title: "Notifikasi belum dapat dihapus",
-        description: userMessage(err),
-        tone: "danger",
+      // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+      showMutationError(toast.show, {
+        failTitle: "Notifikasi belum dapat dihapus",
+        uncertainHint: "Aksi mungkin sudah diproses — periksa kembali sebelum mencoba lagi.",
+        err: err,
+        scope: "notification:id:notifikasi-belum-dapat",
       })
     } finally {
       setDeleting(false)

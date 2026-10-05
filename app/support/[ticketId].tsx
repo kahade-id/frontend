@@ -14,7 +14,7 @@ import { View } from "react-native"
 import { useLocalSearchParams } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
-import { api, userMessage } from "@/lib/api"
+import { api } from "@/lib/api"
 import type { SupportMessage, SupportTicket } from "@/lib/api/support"
 import { formatDateTime } from "@/lib/format"
 import { focusRingInset } from "@/lib/focus-ring"
@@ -33,6 +33,7 @@ import { Card } from "@/components/ui/card"
 import { ChatMessageBubble } from "@/components/ui/chat-message-bubble"
 import { SupportMessageMeta } from "@/components/ui/support-message-meta"
 import { describeTicketSla } from "@/lib/ticket-sla"
+import { showMutationError } from "@/lib/mutation-toast"
 import { Dialog } from "@/components/ui/modal"
 import { ErrorState } from "@/components/ui/error-state"
 import { Header } from "@/components/ui/header"
@@ -86,7 +87,17 @@ export default function SupportTicketDetailScreen() {
       await query.reload()
       toast.show({ title: "Balasan terkirim", tone: "success", duration: 2500 })
     } catch (err: unknown) {
-      toast.show({ title: "Gagal mengirim balasan", description: userMessage(err), tone: "danger" })
+      // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+      if (
+        showMutationError(toast.show, {
+          failTitle: "Gagal mengirim balasan",
+          uncertainHint: "Aksi mungkin sudah diproses — memuat ulang…",
+          err: err,
+          scope: "support:ticketId:mengirim-balasan",
+        })
+      ) {
+        void query.reload()
+      }
     } finally {
       setSending(false)
     }
@@ -111,7 +122,13 @@ export default function SupportTicketDetailScreen() {
       setReplyAttachmentKeys((prev) => [...prev, ...keys].slice(0, 5))
     } catch (err: unknown) {
       logWarn("support:reply-attachment", err)
-      toast.show({ title: "Gagal mengunggah lampiran", description: userMessage(err), tone: "danger" })
+      // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+      showMutationError(toast.show, {
+        failTitle: "Gagal mengunggah lampiran",
+        uncertainHint: "Aksi mungkin sudah diproses — periksa kembali sebelum mencoba lagi.",
+        err: err,
+        scope: "support:ticketId:mengunggah-lampiran",
+      })
     } finally {
       setUploadingReply(false)
     }
@@ -162,7 +179,17 @@ export default function SupportTicketDetailScreen() {
       setCloseOpen(false)
       await query.reload()
     } catch (err: unknown) {
-      toast.show({ title: "Gagal menutup tiket", description: userMessage(err), tone: "danger" })
+      // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+      if (
+        showMutationError(toast.show, {
+          failTitle: "Gagal menutup tiket",
+          uncertainHint: "Aksi mungkin sudah diproses — memuat ulang…",
+          err: err,
+          scope: "support:ticketId:menutup-tiket",
+        })
+      ) {
+        void query.reload()
+      }
     } finally {
       setClosing(false)
     }
@@ -176,7 +203,17 @@ export default function SupportTicketDetailScreen() {
       toast.show({ title: "Tiket dibuka kembali", tone: "success", duration: 2500 })
       await query.reload()
     } catch (err: unknown) {
-      toast.show({ title: "Gagal membuka tiket", description: userMessage(err), tone: "danger" })
+      // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+      if (
+        showMutationError(toast.show, {
+          failTitle: "Gagal membuka tiket",
+          uncertainHint: "Aksi mungkin sudah diproses — memuat ulang…",
+          err: err,
+          scope: "support:ticketId:membuka-tiket",
+        })
+      ) {
+        void query.reload()
+      }
     } finally {
       setReopening(false)
     }
@@ -192,7 +229,17 @@ export default function SupportTicketDetailScreen() {
       setRatingComment("")
       await query.reload()
     } catch (err: unknown) {
-      toast.show({ title: "Gagal mengirim rating", description: userMessage(err), tone: "danger" })
+      // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+      if (
+        showMutationError(toast.show, {
+          failTitle: "Gagal mengirim rating",
+          uncertainHint: "Aksi mungkin sudah diproses — memuat ulang…",
+          err: err,
+          scope: "support:ticketId:mengirim-rating",
+        })
+      ) {
+        void query.reload()
+      }
     } finally {
       setRatingSubmitting(false)
     }

@@ -26,6 +26,7 @@ import { useHasSession } from "@/lib/guest-gate"
 import { translate } from "@/lib/i18n/translate"
 import { formatRupiah, formatDateLong } from "@/lib/format"
 import { useApiQuery } from "@/lib/use-api-query"
+import { showMutationError } from "@/lib/mutation-toast"
 import { useToast } from "@/components/ui/toast"
 
 import { ActionSheet, type ActionSheetItem } from "@/components/ui/action-sheet"
@@ -182,7 +183,17 @@ export default function SellerVouchersScreen() {
       setDeactivateTarget(null)
       await query.refresh()
     } catch (err) {
-      toast.show({ title: translate("Gagal menonaktifkan"), description: userMessage(err), tone: "danger" })
+      // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+      if (
+        showMutationError(toast.show, {
+          failTitle: translate("Gagal menonaktifkan"),
+          uncertainHint: translate("Aksi mungkin sudah diproses — memuat ulang…"),
+          err: err,
+          scope: "seller:vouchers:menonaktifkan",
+        })
+      ) {
+        void query.refresh()
+      }
     } finally {
       setDeactivating(false)
     }

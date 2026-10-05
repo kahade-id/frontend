@@ -10,12 +10,13 @@ import { useCallback, useState } from "react"
 import { View } from "react-native"
 import { CalendarBlank, CalendarX } from "phosphor-react-native"
 
-import { api, userMessage } from "@/lib/api"
+import { api } from "@/lib/api"
 import type { SlotBooking } from "@/lib/api/commerce"
 import { useHasSession } from "@/lib/guest-gate"
 import { translate } from "@/lib/i18n/translate"
 import { formatDateLong } from "@/lib/format"
 import { useApiQuery } from "@/lib/use-api-query"
+import { showMutationError } from "@/lib/mutation-toast"
 import { useToast } from "@/components/ui/toast"
 
 import { Badge } from "@/components/ui/badge"
@@ -42,7 +43,13 @@ function BookingCard({ booking, onCancelled }: { booking: SlotBooking; onCancell
       toast.show({ title: translate("Booking dibatalkan"), tone: "success" })
       onCancelled()
     } catch (err) {
-      toast.show({ title: translate("Gagal membatalkan"), description: userMessage(err), tone: "danger" })
+      // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+      showMutationError(toast.show, {
+        failTitle: translate("Gagal membatalkan"),
+        uncertainHint: translate("Pembatalan mungkin sudah diproses — periksa daftar booking."),
+        err: err,
+        scope: "service-bookings:membatalkan",
+      })
     } finally {
       setCancelling(false)
     }

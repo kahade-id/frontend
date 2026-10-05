@@ -31,7 +31,7 @@ import { useNavigation, usePreventRemove, type NavigationAction } from "expo-rou
 import { Plus } from "phosphor-react-native"
 import { translate } from "@/lib/i18n/translate"
 
-import { api, userMessage } from "@/lib/api"
+import { api } from "@/lib/api"
 import {
   toBusinessVerificationUiStatus,
   type BusinessVerificationHistoryEntry,
@@ -45,6 +45,7 @@ import {
   type PickImageOptions,
 } from "@/lib/image-picker"
 import { useApiQuery } from "@/lib/use-api-query"
+import { showMutationError } from "@/lib/mutation-toast"
 
 import { Button } from "@/components/ui/button"
 import { DataScreen } from "@/components/ui/data-screen"
@@ -267,11 +268,17 @@ export default function BusinessVerificationScreen() {
       resetForm()
       await query.refresh()
     } catch (err) {
-      toast.show({
-        title: "Gagal mengirim verifikasi bisnis",
-        description: userMessage(err),
-        tone: "danger",
-      })
+      // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+      if (
+        showMutationError(toast.show, {
+          failTitle: "Gagal mengirim verifikasi bisnis",
+          uncertainHint: "Aksi mungkin sudah diproses — memuat ulang…",
+          err: err,
+          scope: "business-verification:mengirim-verifikasi-bisnis",
+        })
+      ) {
+        void query.refresh()
+      }
     } finally {
       setSubmitting(false)
     }

@@ -22,7 +22,7 @@ import { useCallback, useState } from "react"
 import { Linking, Pressable, View } from "react-native"
 import { CaretRight, DownloadSimple } from "phosphor-react-native"
 
-import { api, userMessage } from "@/lib/api"
+import { api } from "@/lib/api"
 import { formatDate } from "@/lib/format"
 import { translate, useLanguage } from "@/lib/i18n"
 import { safeHttpsUrl } from "@/lib/version"
@@ -37,6 +37,7 @@ import type {
 } from "@/lib/api/settings"
 import type { UpdatePrivacyDto } from "@/lib/api/types"
 import { useApiQuery } from "@/lib/use-api-query"
+import { showMutationError } from "@/lib/mutation-toast"
 
 import { ActionSheet } from "@/components/ui/action-sheet"
 import { Button } from "@/components/ui/button"
@@ -223,14 +224,25 @@ export default function PrivacySettingsScreen() {
         await api.settings.updatePrivacySettings({ [key]: next } as unknown as UpdatePrivacyDto)
         toast.show({ title: "Pengaturan tersimpan", tone: "success", duration: 2500 })
       } catch (err) {
-        // Rollback ke nilai server terakhir yang diketahui.
-        setData((prev) => ({ ...(prev ?? {}), [key]: previous }))
-        toast.show({ title: "Gagal menyimpan", description: userMessage(err), tone: "danger" })
+        // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+        if (
+          showMutationError(toast.show, {
+            failTitle: "Gagal menyimpan",
+            uncertainHint: "Aksi mungkin sudah diproses — memuat ulang…",
+            err: err,
+            scope: "privacy-settings:menyimpan",
+          })
+        ) {
+          void query.reload()
+        } else {
+          // Rollback ke nilai server terakhir yang diketahui.
+          setData((prev) => ({ ...(prev ?? {}), [key]: previous }))
+        }
       } finally {
         setPending((p) => p.filter((k) => k !== key))
       }
     },
-    [value, setData, toast.show],
+    [value, setData, toast.show, query],
   )
 
   const handleChange = useCallback(
@@ -247,13 +259,24 @@ export default function PrivacySettingsScreen() {
         await api.settings.updatePrivacySettings(payload)
         toast.show({ title: "Pengaturan tersimpan", tone: "success", duration: 2500 })
       } catch (err) {
-        setData((prev) => ({ ...(prev ?? {}), ...previous }))
-        toast.show({ title: "Gagal menyimpan", description: userMessage(err), tone: "danger" })
+        // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+        if (
+          showMutationError(toast.show, {
+            failTitle: "Gagal menyimpan",
+            uncertainHint: "Aksi mungkin sudah diproses — memuat ulang…",
+            err: err,
+            scope: "privacy-settings:menyimpan",
+          })
+        ) {
+          void query.reload()
+        } else {
+          setData((prev) => ({ ...(prev ?? {}), ...previous }))
+        }
       } finally {
         setPending((p) => p.filter((k) => k !== key && !keys.includes(k)))
       }
     },
-    [value, setData, toast.show],
+    [value, setData, toast.show, query],
   )
 
   /** G082: toggle satu kunci statistik di dalam array hiddenStats. */
@@ -332,10 +355,21 @@ export default function PrivacySettingsScreen() {
         void consentHistory.reload()
         toast.show({ title: granted ? "Persetujuan diberikan" : "Persetujuan ditarik", tone: "success", duration: 2500 })
       } catch (err) {
-        consents.setData((rows) =>
+        // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+        if (
+          showMutationError(toast.show, {
+            failTitle: "Gagal menyimpan persetujuan",
+            uncertainHint: "Aksi mungkin sudah diproses — memuat ulang…",
+            err: err,
+            scope: "privacy-settings:menyimpan-persetujuan",
+          })
+        ) {
+          void consents.reload()
+        } else {
+          consents.setData((rows) =>
           (rows ?? []).map((c) => (c.type === type ? { ...c, granted: prev ?? c.granted } : c)),
-        )
-        toast.show({ title: "Gagal menyimpan persetujuan", description: userMessage(err), tone: "danger" })
+          )
+        }
       } finally {
         setConsentPending((p) => p.filter((t) => t !== type))
       }
@@ -375,7 +409,17 @@ export default function PrivacySettingsScreen() {
       })
       await openExportUrl(res.downloadUrl)
     } catch (err) {
-      toast.show({ title: "Gagal meminta ekspor", description: userMessage(err), tone: "danger" })
+      // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+      if (
+        showMutationError(toast.show, {
+          failTitle: "Gagal meminta ekspor",
+          uncertainHint: "Aksi mungkin sudah diproses — memuat ulang…",
+          err: err,
+          scope: "privacy-settings:meminta-ekspor",
+        })
+      ) {
+        void exportHistory.reload()
+      }
     } finally {
       setExporting(false)
     }
@@ -393,7 +437,17 @@ export default function PrivacySettingsScreen() {
         void exportHistory.reload()
         await openExportUrl(res.downloadUrl)
       } catch (err) {
-        toast.show({ title: "Gagal mengunduh", description: userMessage(err), tone: "danger" })
+        // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+        if (
+          showMutationError(toast.show, {
+            failTitle: "Gagal mengunduh",
+            uncertainHint: "Aksi mungkin sudah diproses — memuat ulang…",
+            err: err,
+            scope: "privacy-settings:mengunduh",
+          })
+        ) {
+          void exportHistory.reload()
+        }
       } finally {
         setDownloadingId(null)
       }

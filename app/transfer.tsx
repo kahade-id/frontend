@@ -70,6 +70,7 @@ import { useToast } from "@/components/ui/toast"
 import { WalletDisabledScreen } from "@/components/ui/wallet-disabled"
 import { isApiError, isPinNotSetError } from "@/lib/api"
 import { translate } from "@/lib/i18n/translate"
+import { showMutationError } from "@/lib/mutation-toast"
 const MIN_AMOUNT = AMOUNT_LIMITS.transfer.minimum
 const MAX_AMOUNT = AMOUNT_LIMITS.transfer.maximum
 const PRESETS = AMOUNT_PRESETS.transfer
@@ -296,7 +297,17 @@ export default function TransferScreen() {
         }
         void favoritesQuery.refresh()
       } catch (err) {
-        toast.show({ title: userMessage(err), tone: "danger" })
+        // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+        if (
+          showMutationError(toast.show, {
+            failTitle: translate("Gagal memperbarui favorit"),
+            uncertainHint: translate("Aksi mungkin sudah diproses — memuat ulang…"),
+            err: err,
+            scope: "transfer:favorite",
+          })
+        ) {
+          void favoritesQuery.refresh()
+        }
       } finally {
         setTogglingFavoriteId(null)
       }

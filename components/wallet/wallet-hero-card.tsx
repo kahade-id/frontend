@@ -111,7 +111,7 @@ export function WalletHeroCard({
       : summarize([
           "Saldo tersedia",
           formatRupiah(available ?? Number.NaN),
-          showHeld ? `Ditahan di escrow: ${formatRupiah(heldValue)}` : undefined,
+          showHeld ? `Dalam transaksi: ${formatRupiah(heldValue)}` : undefined,
         ])
 
   return (
@@ -191,10 +191,10 @@ export function WalletHeroCard({
                   accessibilityRole={onPressHeld ? "button" : undefined}
                   accessibilityLabel={
                     onPressHeld
-                      ? `Ditahan di escrow: ${formatRupiah(heldValue)}. Ketuk untuk melihat rincian.`
+                      ? `Dalam transaksi: ${formatRupiah(heldValue)}. Ketuk untuk melihat rincian.`
                       : undefined
                   }
-                  accessibilityHint={onPressHeld ? "Menampilkan rincian dana yang ditahan di escrow" : undefined}
+                  accessibilityHint={onPressHeld ? "Menampilkan rincian dana dalam transaksi" : undefined}
                   className={cn(
                     "flex-row items-center gap-1.5",
                     onPressHeld && "-m-1 rounded-xs p-1",
@@ -206,7 +206,7 @@ export function WalletHeroCard({
                       <Icon icon={LockSimple} size="xs" tone="inverse" />
                       <Amount value={heldValue} size="body" tone="inverse" hidden={hidden} />
                       <Text variant="caption" tone="inverse">
-                        Ditahan di escrow
+                        Dalam transaksi
                       </Text>
                       {onPressHeld ? (
                         <Icon icon={CaretRight} size="xs" tone="inverse" />

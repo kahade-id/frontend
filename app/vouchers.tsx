@@ -425,7 +425,7 @@ export default function VouchersScreen() {
     const url = referralUrl(referralCode)
     const outcome = await shareContent({
       title: "Ajak teman ke Kahade",
-      message: translate("Pakai kode referral saya {x} saat daftar di Kahade — transaksi aman dengan escrow.", {
+      message: translate("Pakai kode referral saya {x} saat daftar di Kahade — jual beli aman.", {
         x: referralCode,
       }),
       url,

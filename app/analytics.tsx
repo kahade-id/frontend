@@ -43,7 +43,7 @@ import {
   Wallet as WalletIcon,
 } from "phosphor-react-native"
 
-import { api, type Order, userMessage } from "@/lib/api"
+import { api, type Order } from "@/lib/api"
 import { ANALYTICS_PERIODS, type AnalyticsPeriod } from "@/lib/api/users"
 import { csvBlob, saveBlobFile, toCsv } from "@/lib/export-file"
 import { formatDecimal, formatRupiah } from "@/lib/format"
@@ -58,6 +58,7 @@ import { SectionHeader } from "@/components/ui/section"
 import { SegmentedControl } from "@/components/ui/segmented-control"
 import { useToast } from "@/components/ui/toast"
 import { useWalletEnabled } from "@/lib/use-wallet-enabled"
+import { showMutationError } from "@/lib/mutation-toast"
 
 const DEFAULT_PERIOD: AnalyticsPeriod = "30d"
 
@@ -161,10 +162,12 @@ export default function AnalyticsScreen() {
         duration: 4000,
       })
     } catch (err: unknown) {
-      toast.show({
-        title: "Gagal mengunduh riwayat transaksi",
-        description: userMessage(err),
-        tone: "danger",
+      // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+      showMutationError(toast.show, {
+        failTitle: "Gagal mengunduh riwayat transaksi",
+        uncertainHint: "Aksi mungkin sudah diproses — periksa kembali sebelum mencoba lagi.",
+        err: err,
+        scope: "analytics:mengunduh-riwayat-transaksi",
       })
     } finally {
       setExportingOrders(false)
@@ -184,10 +187,12 @@ export default function AnalyticsScreen() {
         duration: 5000,
       })
     } catch (err: unknown) {
-      toast.show({
-        title: "Gagal meminta ekspor data",
-        description: userMessage(err),
-        tone: "danger",
+      // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+      showMutationError(toast.show, {
+        failTitle: "Gagal meminta ekspor data",
+        uncertainHint: "Aksi mungkin sudah diproses — periksa kembali sebelum mencoba lagi.",
+        err: err,
+        scope: "analytics:meminta-ekspor-data",
       })
     } finally {
       setExportingPrivacy(false)

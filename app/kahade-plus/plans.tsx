@@ -116,6 +116,8 @@ export default function KahadePlusPlansScreen() {
         router.replace(ROUTES.kahadePlusManage)
       })()
     },
+    // Klasifikasi toast: KEEP manual — onError hook pembayaran sudah
+    // terklasifikasi (message final, bukan err mentah untuk showMutationError).
     onError: (message) =>
       toast.show({ title: "Gagal membuat pembayaran", description: message, tone: "danger" }),
   })

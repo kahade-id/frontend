@@ -4,7 +4,7 @@ import { useLocalSearchParams, router } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { ShareNetwork, Users } from "phosphor-react-native"
 import type { UserConnection } from "@/lib/api/users"
-import { api, userMessage } from "@/lib/api"
+import { api } from "@/lib/api"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 import { translate, useLanguage } from "@/lib/i18n"
@@ -13,6 +13,7 @@ import { useCopy } from "@/lib/clipboard"
 import { profileUrl } from "@/lib/deeplinks"
 import { shareContent } from "@/lib/share"
 import { useHasSession } from "@/lib/guest-gate"
+import { showMutationError } from "@/lib/mutation-toast"
 import { useToast } from "@/components/ui/toast"
 import { Button } from "@/components/ui/button"
 import { DebouncedSearchField } from "@/components/ui/debounced-search-field"
@@ -186,12 +187,19 @@ export default function FollowersScreen() {
           duration: 2500,
         })
       } catch (err) {
-        setQueryData(prev)
-        toast.show({
-          title: translate("Gagal berhenti mengikuti"),
-          description: userMessage(err),
-          tone: "danger",
-        })
+        // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+        if (
+          showMutationError(toast.show, {
+            failTitle: translate("Gagal berhenti mengikuti"),
+            uncertainHint: translate("Aksi mungkin sudah diproses — memuat ulang…"),
+            err: err,
+            scope: "followers:username:berhenti-mengikuti",
+          })
+        ) {
+          void query.reload()
+        } else {
+          setQueryData(prev)
+        }
       } finally {
         setUnfollowBusy(null)
       }
@@ -202,7 +210,7 @@ export default function FollowersScreen() {
   // FE-010: handler navigasi stabil per-id (bukan closure per baris).
   const openProfile = useCallback((targetUsername: string) => {
     router.push(ROUTES.userProfile(targetUsername))
-  }, [])
+  }, [, query])
 
   // Item 74 (mega-batch 2026-09-29): empty state pengikut di profil sendiri →
   // tombol "Bagikan profil" (pola share dari app/user/[username].tsx).
