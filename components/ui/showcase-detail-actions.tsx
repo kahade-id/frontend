@@ -93,6 +93,9 @@ export function ShowcaseDetailActions({
         accessibilityLabel={translate("Bagikan")}
         accessibilityHint={translate("Bagikan etalase ini")}
         onPress={onShare}
+        // S-03: long-press = detail ringan jumlah dibagikan (pemanggil
+        // mengirim handler; opsional — tanpa handler perilaku tidak berubah).
+        onLongPress={onShareLongPress}
         containerClassName={cn(
           "min-h-11 min-w-11 items-center justify-center rounded-md",
           focusRing,
