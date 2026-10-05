@@ -24,7 +24,7 @@
  * `shadow-sm`/`rounded-xl` tetap tidak ada (lihat tailwind.config).
  */
 
-import { Platform, View, type ViewInstance } from "react-native"
+import { Platform, View } from "react-native"
 import { router } from "expo-router"
 import {
   ClockCounterClockwise,
@@ -36,6 +36,7 @@ import {
   Users,
 } from "phosphor-react-native"
 import { useRef } from "react"
+import type { ViewInstance } from "react-native"
 
 import { openCreateSheet } from "@/lib/create-sheet"
 import { ROUTES } from "@/lib/routes"
@@ -70,7 +71,6 @@ const TAB_ICONS: Record<ShowcaseFeedKind, IconComponent> = {
 }
 
 /** Kotak aksi kiri/kanan 40px — pasangan simetris agar logo benar-benar tengah. */
-
 export function ShowcaseHeader({ kind, onKindChange, tabs, onFilterPress, filterBadgeCount = 0 }: ShowcaseHeaderProps) {
   const createLabel = translate(Platform.OS === "web" ? "Buat baru" : "Buat karya baru")
   // Ref tombol (+) buat karya — View pembungkus (bukan PressableScale)
@@ -85,6 +85,7 @@ export function ShowcaseHeader({ kind, onKindChange, tabs, onFilterPress, filter
           menggantikan hamburger List atas permintaan produk.
         */}
         <View className="flex-row items-center justify-start min-w-[84px]">
+          {/* (2026-10-05, revisi produk: background lingkaran kaca seperti header lain.) */}
           <HeaderCircleButton
             icon={Equals}
             onPress={openDrawer}
@@ -100,15 +101,19 @@ export function ShowcaseHeader({ kind, onKindChange, tabs, onFilterPress, filter
           accessibilityLabel="Kahade"
           className="flex-1 items-center"
         >
-          <Logo variant="mark" size="md" tone="brand" />
+          {/* (2026-10-05, revisi produk: logo hitam saja, bukan brand kuning.) */}
+          <Logo variant="mark" size="md" tone="default" />
         </View>
 
         {/* Kanan: tombol buat baru; bidang search tersedia di sidebar. */}
         <View className="flex-row items-center justify-end min-w-[84px]">
           <View ref={createRef} collapsable={false}>
+            {/* (2026-10-05, revisi produk: background lingkaran kaca seperti header lain.) */}
             <HeaderCircleButton
               icon={Plus}
               onPress={() => {
+                // Native is the product surface: create the context-specific
+                // artifact directly instead of routing through a generic sheet.
                 if (Platform.OS === "web") openCreateSheet()
                 else router.push(ROUTES.showcaseCreate)
               }}

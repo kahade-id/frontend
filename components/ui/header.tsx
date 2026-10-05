@@ -433,7 +433,7 @@ export const Header = memo(function Header({
       {...rest}
     >
       <View className="w-full md:max-w-content">
-        <View className="min-h-14 w-full flex-row items-center px-3 py-1">
+        <View className="min-h-14 w-full flex-row items-center px-5 py-2">
           {/* Kolom kiri: lebar tetap 1 slot. Di-skip saat judul rata kiri —
               judul menempel ke tepi kiri, node kiri tampil inline. */}
           {titleAlign === "left" ? null : (

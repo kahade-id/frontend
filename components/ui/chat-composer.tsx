@@ -44,7 +44,7 @@ import {
   ScrollView,
   TextInput,
   View,
-  type TextInputKeyPressEvent,
+  type NativeSyntheticEvent,
   type TextInputProps,
   type ViewProps,
 } from "react-native"
@@ -53,6 +53,8 @@ import { ChatAttachmentItem, type ChatAttachment, type ChatAttachmentStatus } fr
 import { canSendMessage } from "@/lib/chat-send-ready"
 export { canSendMessage }
 import { IconButton } from "@/components/ui/icon-button"
+import { PressableScale } from "@/components/ui/pressable-scale"
+import { Icon } from "@/components/ui/icon"
 import { QuickReplyPicker } from "@/components/ui/quick-reply-picker"
 import { ChatFormatBar } from "@/components/ui/chat-format-bar"
 import { applyChatFormat, type ChatTextFormat } from "@/lib/chat-format"
@@ -172,7 +174,6 @@ export function ChatComposer({
   useLanguage()
   const { mode } = useTheme()
   const palette = tokens.colors[mode]
-  const [focused, setFocused] = useState(false)
   // Batch 43: seleksi teks untuk toolbar format (onSelectionChange).
   const [selection, setSelection] = useState<{ start: number; end: number } | undefined>(undefined)
 
@@ -218,9 +219,9 @@ export function ChatComposer({
 
   // Web: Enter kirim, Shift+Enter baris baru; hormati komposisi IME CJK.
   const onKeyPress = useCallback(
-    (e: TextInputKeyPressEvent) => {
+    (e: NativeSyntheticEvent<{ key: string }>) => {
       if (Platform.OS !== "web") return
-      const native = e.nativeEvent as TextInputKeyPressEvent["nativeEvent"] & {
+      const native = e.nativeEvent as { key: string } & {
         shiftKey?: boolean
         isComposing?: boolean
         keyCode?: number
@@ -288,16 +289,21 @@ export function ChatComposer({
       {/* Batch 43: toolbar format teks (B/I/mono/underline/spoiler/tautan). */}
       {formatBar && !disabled ? <ChatFormatBar onFormat={handleFormat} /> : null}
 
-      {/* 2026-10-03: SATU CARD — [+][input][mic/kirim] dalam satu pill,
-          ala WhatsApp. Tidak ada separator di atas (FooterBar sudah bersih). */}
+      {/* (2026-10-05, revisi produk: input card kaca seperti header —
+          background #F3F4F6/64, tanpa border/separator.) */}
       <View
         className={cn(
-          "min-h-12 w-full flex-row items-end rounded-full border-[1.5px] pl-1 pr-1 py-1",
-          focused
-            ? "border-border-focus bg-background"
-            : "border-border-control bg-surface",
+          "min-h-12 w-full flex-row items-end rounded-full pl-1 pr-1 py-1",
           disabled && "opacity-disabled",
         )}
+        style={[
+          {
+            backgroundColor: mode === "light" ? "rgba(243,244,246,0.64)" : "rgba(26,26,26,0.64)",
+          },
+          Platform.OS === "web"
+            ? ({ backdropFilter: "blur(48px)", WebkitBackdropFilter: "blur(48px)" } as object)
+            : null,
+        ]}
       >
         {onAttach ? (
           <IconButton
@@ -321,8 +327,6 @@ export function ChatComposer({
           selectionColor={palette.primary}
           cursorColor={palette.primary}
           maxFontSizeMultiplier={2}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
           onSelectionChange={(e) => setSelection(e.nativeEvent.selection)}
           selection={selection}
           onKeyPress={onKeyPress}
@@ -354,17 +358,39 @@ export function ChatComposer({
             disabled={disabled}
           />
         ) : (
-          <IconButton
-            icon={PaperPlaneRight}
-            variant="primary"
-            size="md"
-            shape="pill"
-            weight="fill"
+          /* (2026-10-05, revisi produk: tombol kirim lingkaran kaca seperti header.) */
+          <PressableScale
+            accessibilityRole="button"
             accessibilityLabel={translateProp(t.send) ?? t.send}
+            haptic="light"
             onPress={submit}
             disabled={!ready}
-            loading={sending}
-          />
+            className="h-12 w-12 items-center justify-center"
+          >
+            <View
+              style={[
+                {
+                  borderRadius: 999,
+                  backgroundColor: mode === "light" ? "rgba(243,244,246,0.64)" : "rgba(26,26,26,0.64)",
+                  height: 48,
+                  width: 48,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  opacity: !ready ? 0.5 : 1,
+                },
+                Platform.OS === "web"
+                  ? ({ backdropFilter: "blur(48px)", WebkitBackdropFilter: "blur(48px)" } as object)
+                  : null,
+              ]}
+            >
+              <Icon
+                icon={PaperPlaneRight}
+                size="md"
+                weight="fill"
+                color={mode === "light" ? "#000000" : "#FFFFFF"}
+              />
+            </View>
+          </PressableScale>
         )}
       </View>
     </View>

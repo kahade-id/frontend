@@ -12,13 +12,12 @@ import { Equals } from "phosphor-react-native"
 import { openDrawer } from "@/lib/drawer"
 import { translate } from "@/lib/i18n/translate"
 
-import { IconButton } from "@/components/ui/icon-button"
+import { HeaderCircleButton } from "@/components/ui/header"
 
 export function DrawerMenuButton() {
   return (
-    <IconButton
+    <HeaderCircleButton
       icon={Equals}
-      variant="ghost"
       accessibilityLabel={translate("Menu")}
       accessibilityHint={translate("Buka menu navigasi")}
       onPress={openDrawer}
