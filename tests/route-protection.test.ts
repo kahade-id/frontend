@@ -128,8 +128,10 @@ describe("AUTHENTICATED_SCREENS vs inventaris app/", () => {
   })
 
   it("semua rute sensitif yang dulu bolong kini terdaftar (regresi B-01)", () => {
+    // Sidebar 2026-10-05: "settings" DIHAPUS sebagai rute (isinya pindah ke
+    // /security + sidebar) — diganti "security" sebagai sampel hub akun.
     for (const name of [
-      "settings",
+      "security",
       "receive",
       "saved",
       "showcase-management",
@@ -144,7 +146,8 @@ describe("AUTHENTICATED_SCREENS vs inventaris app/", () => {
 describe("isProtectedPath (guest web)", () => {
   it("memblokir layar akun", () => {
     for (const path of [
-      "/settings",
+      // Sidebar 2026-10-05: /settings dihapus — sampel diganti /security.
+      "/security",
       "/receive",
       "/saved",
       "/showcase-management",
@@ -159,7 +162,7 @@ describe("isProtectedPath (guest web)", () => {
       "/chat",
       "/chat/room-1",
       "/order/abc",
-      "/settings?tab=security",
+      "/security-activity",
     ]) {
       expect(isProtectedPath(path), `${path} harus terproteksi`).toBe(true)
     }

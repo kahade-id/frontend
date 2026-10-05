@@ -130,7 +130,8 @@ export default function VerifyEmailScreen() {
       await api.auth.verifyEmail({ email, otp })
       haptic("success")
       toast.show({ title: "Email terverifikasi", tone: "success" })
-      goBackOrNavigate(ROUTES.settings, router)
+      // Sidebar 2026-10-05: /settings dihapus — email adalah bagian hub Keamanan.
+      goBackOrNavigate(ROUTES.security, router)
     } catch (err) {
       haptic("error")
       if (isApiError(err) && (err.code === "BAD_REQUEST" || err.code === "UNAUTHORIZED" || err.code === "VALIDATION")) {

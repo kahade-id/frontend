@@ -57,6 +57,7 @@ import {
   Funnel,
   GearSix,
   Megaphone,
+  Plus,
   Receipt,
   Trash,
   X,
@@ -66,6 +67,7 @@ import { api, type AppNotification, type NotificationCategory, userMessage } fro
 import { formatTimeAgo } from "@/lib/format"
 import { haptic } from "@/lib/haptics"
 import { translate, useLanguage } from "@/lib/i18n"
+import { openCreateSheet } from "@/lib/create-sheet"
 import { tokens } from "@/lib/tokens"
 import { ROUTES } from "@/lib/routes"
 import { useSetUiPrefs, useUiPref } from "@/lib/ui-prefs"
@@ -692,6 +694,14 @@ function NotificationsScreen() {
   const headerRight = useMemo(
     () => (
       <>
+        {/* Sidebar 2026-10-05: tombol Buat di header (syarat hapus pensil
+            drawer) — sheet global "Buat baru". */}
+        <IconButton
+          icon={Plus}
+          variant="ghost"
+          accessibilityLabel={translate("Buat baru")}
+          onPress={openCreateSheet}
+        />
         {hasUnread || readAllBusy ? (
           <MarkAllReadButton busy={batchBusy || readAllBusy} onPress={() => void handleReadAll()} />
         ) : null}

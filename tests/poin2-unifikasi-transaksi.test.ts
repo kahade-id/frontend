@@ -125,15 +125,21 @@ describe("POIN 2 — guard teks sumber (pola manual dihapus, alur otomatis)", ()
     expect(s).toMatch(/booking\.orderId \? <OrderHelpActions/)
   })
 
-  it("tab Transaksi: baris Kelola menggantikan 3 item drawer", () => {
+  it("tab Transaksi: hub Kelola menggantikan 3 item drawer", () => {
+    // Sidebar 2026-10-05: baris ringkas Poin 2 di-improve menjadi hub
+    // <TrxManageHub> (section "manage", deep-link sidebar) + kartu
+    // <TrxManageLink> di segmen Transaksi — satu sumber kebenaran
+    // TRX_MANAGE_ITEMS (tautan, template, sengketa, retur).
     const s = src("components/screens/transactions-tab-screen.tsx")
-    expect(s).toContain("TrxManageRow")
+    expect(s).toContain("TrxManageHub")
+    expect(s).toContain("TrxManageLink")
+    expect(s).toContain("TRX_MANAGE_ITEMS")
     expect(s).toContain("Template Transaksi")
     expect(s).toContain("Tautan Pesanan")
-    expect(s).toContain("Sengketa Saya")
     expect(s).toContain("ROUTES.transactionTemplates")
     expect(s).toContain("ROUTES.orderLinks")
     expect(s).toContain("ROUTES.disputes")
+    expect(s).toContain("ROUTES.returns")
   })
 
   it("order-help-actions: memakai ROUTES.disputeDetail & ROUTES.newReturn", () => {

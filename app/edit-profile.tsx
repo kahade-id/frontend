@@ -371,7 +371,8 @@ export default function EditProfileScreen() {
         setPasswordOpen(false)
         setCurrentPassword("")
         toast.show({ title: translate("Profil diperbarui"), tone: "success" })
-        goBackOrNavigate(ROUTES.settings)
+        // Sidebar 2026-10-05: /settings dihapus — fallback = Etalase (tab utama).
+        goBackOrNavigate(ROUTES.home)
       } catch (err) {
         // UX-FDB-006 (audit UI/UX 2026-10-01): jangan menebak. Pesan asli
         // (userMessage) ditampilkan; copy "username mungkin sudah dipakai"

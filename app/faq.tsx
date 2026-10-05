@@ -4,7 +4,7 @@ import { Linking, View, type ListRenderItem } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useIsFocused } from "expo-router"
 import { router, useLocalSearchParams } from "expo-router"
-import { MagnifyingGlass, Question } from "phosphor-react-native"
+import { MagnifyingGlass, Question, Scales, Shield } from "phosphor-react-native"
 import { api } from "@/lib/api"
 import { safeExternalUrl } from "@/lib/external-url"
 import { translate, useLanguage } from "@/lib/i18n"
@@ -20,7 +20,9 @@ import { HelpArticleListItem } from "@/components/ui/help-article-list-item"
 import { HelpCategoryCard } from "@/components/ui/help-category-card"
 import { Button } from "@/components/ui/button"
 import { Dialog } from "@/components/ui/modal"
+import { Divider } from "@/components/ui/divider"
 import { FadeIn } from "@/components/ui/fade-in"
+import { ListItem } from "@/components/ui/list-item"
 import { ListLoading } from "@/components/ui/paginated-list"
 import { PullToRefreshFlatList } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
@@ -75,6 +77,29 @@ function HelpEscalationFooter() {
         >
           bantuan.kahade.id
         </TextLink>
+      </View>
+      {/* Sidebar 2026-10-05: legal pindahan /settings yang dihapus —
+          Syarat & Ketentuan + Kebijakan Privasi di bagian bawah. */}
+      <View className="pt-2">
+        <Divider />
+      </View>
+      <View className="w-full overflow-hidden rounded-md bg-surface">
+        <ListItem
+          title={translate("Syarat & Ketentuan")}
+          titleVariant="bodyLarge"
+          leading={Scales}
+          chevron
+          divider={false}
+          href={ROUTES.terms}
+        />
+        <ListItem
+          title={translate("Kebijakan Privasi")}
+          titleVariant="bodyLarge"
+          leading={Shield}
+          chevron
+          divider={false}
+          href={ROUTES.privacyPolicy}
+        />
       </View>
     </View>
   )
@@ -247,7 +272,7 @@ export default function FaqScreen() {
         contentContainerStyle={faqContentStyle}
         ItemSeparatorComponent={FaqItemSeparator}
         ListHeaderComponent={faqListHeader ?? undefined}
-        ListFooterComponent={faqListFooter}
+        ListFooterComponent={faqListFooter ?? undefined}
         renderItem={faqRenderItem}
         ListEmptyComponent={faqListEmpty}
         refreshing={state.refreshing}

@@ -53,7 +53,7 @@ describe("isWalletOnlyPath", () => {
   })
 
   it("route non-dompet → false", () => {
-    for (const p of ["/", "/transactions", "/bank-accounts", "/order/123", "/settings", "/withdraw-historyX"]) {
+    for (const p of ["/", "/transactions", "/bank-accounts", "/order/123", "/security", "/withdraw-historyX"]) {
       expect(isWalletOnlyPath(p), p).toBe(false)
     }
   })

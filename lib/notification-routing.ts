@@ -325,14 +325,14 @@ export function logicalParentForPath(pathname: string): Href {
       // B2-05: konteks bantuan → Pusat Bantuan.
       return ROUTES.faq
     case "security":
-      // B3P-02: hub Keamanan — dibuka dari baris "Keamanan" di Pengaturan
-      // (app/settings.tsx:195) & push login-perangkat-baru; induk =
-      // Pengaturan, bukan dirinya sendiri.
-      return ROUTES.settings
+      // Sidebar 2026-10-05: /settings DIHAPUS — Keamanan kini item sidebar
+      // tingkat atas; induk cold-start = Etalase (bukan dirinya sendiri —
+      // self-loop membuat tombol back header no-op).
+      return ROUTES.home
     case "kyc":
-      // B3P-02: verifikasi identitas — konteks akun; sejajar "Tipe Akun" /
-      // "Verifikasi Bisnis" yang tinggal di Pengaturan → induk = Pengaturan.
-      return ROUTES.settings
+      // Sidebar 2026-10-05: /settings DIHAPUS — verifikasi identitas
+      // (konteks akun) induknya = hub Keamanan.
+      return ROUTES.security
     case "ratings":
       // B3P-02: "Ulasan saya" — target push RATING_NEW tanpa entri di
       // Pengaturan; induk = tab Notifikasi (konteks asal push).
@@ -353,20 +353,28 @@ export function logicalParentForPath(pathname: string): Href {
     case "notification-settings":
     case "notification-preferences":
     case "privacy-settings":
-    case "language":
-    case "appearance":
     case "blocked-users":
+    case "delete-account":
+    case "social-providers":
+      // Sidebar 2026-10-05: /settings DIHAPUS — keluarga akun → Keamanan
+      // (section Notifikasi + baris Privasi/Blokir/Hapus/Sosial di sana).
+      return ROUTES.security
     case "addresses":
     case "bank-accounts":
-    case "delete-account":
-    case "app-version":
-    case "about":
+    case "business-verification":
+      // Sidebar 2026-10-05: kini item sidebar tingkat atas — induk = Etalase.
+      return ROUTES.home
     case "terms":
     case "privacy-policy":
-    case "social-providers":
-    case "business-verification":
-      // B2-04: keluarga pengaturan → Pengaturan.
-      return ROUTES.settings
+    case "about":
+      // Sidebar 2026-10-05: legal pindah ke bawah Pusat Bantuan.
+      return ROUTES.faq
+    case "language":
+    case "appearance":
+    case "app-version":
+      // Sidebar 2026-10-05: /language DIHAPUS (segmen kaki sidebar);
+      // Tampilan & Versi tanpa hub — induk = Etalase.
+      return ROUTES.home
     case "two-factor":
     case "passkeys":
     case "biometric-settings":

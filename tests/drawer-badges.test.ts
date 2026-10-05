@@ -23,7 +23,7 @@ import { fileURLToPath } from "node:url"
 import { describe, expect, it } from "vitest"
 
 import { hasOpenSupportTicket, type SupportTicket, type SupportTicketStatus } from "@/lib/api/support"
-import { BOTTOM_MENU_META, MAIN_MENU_META } from "@/lib/drawer-menu"
+import { MAIN_MENU_META, SECONDARY_MENU_META } from "@/lib/drawer-menu"
 
 const testsDir = dirname(fileURLToPath(import.meta.url))
 const src = (p: string) => readFileSync(resolve(testsDir, "..", p), "utf8")
@@ -40,13 +40,13 @@ function ticket(status: SupportTicketStatus): SupportTicket {
 
 describe("menu drawer — label Bahasa Indonesia", () => {
   it("menu utama memakai label baru sesuai urutan", () => {
-    // Poin 1 (2026-10-04): "Toko Saya" dihapus — urutan tanpa item shop.
-    // Poin 2 (2026-10-04): Template Transaksi, Tautan Pesanan, Sengketa Saya
-    // pindah ke tab Transaksi (baris "Kelola") — tidak lagi di drawer.
+    // Sidebar 2026-10-05: susunan & urutan PERSIS spesifikasi produk.
     expect(MAIN_MENU_META.map((m) => m.label)).toEqual([
       "Lihat Profil",
-      "Dompet Saya",
       "Kelola Etalase",
+      "Kelola Transaksi",
+      "Dompet Saya",
+      "Buku Alamat",
       "Laporan & Analitik",
     ])
   })
@@ -81,19 +81,20 @@ describe("menu drawer — label Bahasa Indonesia", () => {
     )
     expect(byId).toMatchObject({
       profile: "Lihat profil saya",
-      wallet: "Buka dompet saya",
       etalase: "Kelola etalase saya",
+      "trx-manage": "Kelola transaksi saya",
+      wallet: "Buka dompet saya",
+      addresses: "Buka buku alamat",
       reports: "Laporan & Analitik",
     })
     expect(byId).not.toHaveProperty("shop")
   })
 
-  it("menu bawah: Umpan Balik, Chat dengan tim Kahade, Tiket Bantuan", () => {
-    expect(BOTTOM_MENU_META.map((m) => m.label)).toEqual([
-      "Umpan Balik",
-      // Poin 5 (2026-10-04): "Bantuan Langsung" (chat palsu) → label jujur.
-      "Chat dengan tim Kahade",
-      "Tiket Bantuan",
+  it("menu sekunder: Keamanan, Pusat Bantuan, Bisnis", () => {
+    expect(SECONDARY_MENU_META.map((m) => m.label)).toEqual([
+      "Keamanan",
+      "Pusat Bantuan",
+      "Bisnis",
     ])
   })
 })

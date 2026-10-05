@@ -1,24 +1,23 @@
 /**
- * Kahade — <AppDrawer>: sidebar navigasi kiri (redesign drawer 2026-09-27).
+ * Kahade — <AppDrawer>: sidebar navigasi kiri (spesifikasi produk 2026-10-05).
  *
- * Struktur (sesuai spesifikasi user, dari atas):
+ * Struktur (dari atas):
  *   1. Header profil: foto di atas, nama + username di bawahnya (vertikal,
  *      rata kiri). TANPA chevron. Tombol X tepat di pojok kanan atas header.
  *   2. Kahade Plus — kartu section tersendiri yang menonjol.
- *   3. Menu utama: Lihat Profil, Dompet Saya, Kelola Etalase,
- *      dan Laporan & analitik (→ /analytics). Item "Pesan" dihapus dari drawer — tab
- *      bawah sudah mencakupnya. Poin 1 (2026-10-04): "Toko Saya" dihapus
- *      sebagai konsep (tanpa seller flag) — isinya didistribusikan ulang
- *      (Kelola Etalase, tab Transaksi, detail order). Poin 2 (2026-10-04):
- *      "Template Transaksi", "Tautan Pesanan", "Sengketa Saya" pindah ke
- *      tab Transaksi (baris "Kelola") — tidak lagi di drawer.
- *   4. Native: satu menu Bantuan menuju hub FAQ, Tentang, Laporan Saya,
- *      tiket, Bantuan Langsung, dan Umpan Balik. Web fallback lama dipertahankan
- *      hanya untuk kompatibilitas shell yang sudah tidak menjadi produk.
- *   5. Utility bar di kaki drawer: gear (Pengaturan), bidang pencarian yang
- *      selalu expanded dan langsung membuka /search saat ditekan, serta
- *      pensil (sheet global "Buat baru"). Search dan pensil memakai surface
- *      abu-abu; gear tetap aksi primer.
+ *   3. Menu utama: Lihat Profil, Kelola Etalase (tab "Tersimpan" di
+ *      dalamnya), Kelola Transaksi (deep-link section Kelola di tab
+ *      Transaksi), Dompet Saya / Rekening Bank (kill-switch dompet),
+ *      Buku Alamat, Laporan & Analitik (→ /analytics).
+ *   4. Garis pemisah, lalu menu sekunder: Keamanan (hub akun + row Keluar),
+ *      Pusat Bantuan (→ /faq), Bisnis (→ /business-verification).
+ *      /settings DIHAPUS TOTAL — tidak ada lagi gear/Pengaturan di drawer.
+ *   5. Utility bar di kaki drawer: toggle gelap/terang (matahari↔bulan
+ *      Phosphor, animasi Reanimated), bidang pencarian yang selalu expanded
+ *      dan langsung membuka /search saat ditekan, serta segmen bahasa
+ *      inline ID|EN. /language DIHAPUS — tidak ada lagi pensil "Buat baru"
+ *      (tiap halaman utama kini punya tombol Buat di header-nya).
+ *   6. Teks versi mungil di bawah utility bar (→ /app-version).
  *
  * Desain list: ikon TANPA background, varian Phosphor bold, judul BOLD,
  * TANPA chevron di semua item. Light/dark via token.
@@ -30,31 +29,35 @@
  *   dari `drawerProgress`),
  * - tutup via swipe kiri atau ketuk backdrop.
  *
- * Reduced motion: buka/tutup instan tanpa spring maupun efek dorong.
+ * Reduced motion: buka/tutup instan tanpa spring maupun efek dorong;
+ * ikon tema berganti tanpa animasi putar.
  */
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { Platform, Pressable, ScrollView, View, useWindowDimensions } from "react-native"
+import { Pressable, ScrollView, View, useWindowDimensions } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { usePathname, useRouter, type Href } from "expo-router"
 import { Gesture, GestureDetector } from "react-native-gesture-handler"
 import Reanimated, {
   runOnJS,
   useAnimatedStyle,
+  useSharedValue,
   withSpring,
+  withTiming,
 } from "react-native-reanimated"
 import {
   Bank,
+  Briefcase,
   ChartBar,
-  ChatCircle,
   CrownSimple,
-  Gear,
-  Headset,
   Lifebuoy,
   MagnifyingGlass,
-  PencilSimple,
+  MapPin,
+  Moon,
+  Receipt,
+  ShieldCheck,
   SignIn,
   Storefront,
-  Ticket,
+  Sun,
   User,
   Wallet,
   X,
@@ -69,16 +72,17 @@ import { Icon, type IconComponent } from "@/components/ui/icon"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Text } from "@/components/ui/text"
+import { useToast } from "@/components/ui/toast"
 import { api, type UserProfile } from "@/lib/api"
-import { refreshChatUnreadCount, useChatUnreadCountState } from "@/lib/chat-unread-count"
 import { closeDrawer, drawerProgress, useDrawerOpen } from "@/lib/drawer"
 import { isShellTabPath } from "@/lib/shell-tabs"
 import { setOpenOwnProfileAfterLogin } from "@/lib/login-redirect"
-import { openCreateSheet } from "@/lib/create-sheet"
 import { elevationStyle } from "@/lib/elevation"
 import { haptic } from "@/lib/haptics"
-import { useLanguage, translate } from "@/lib/i18n"
+import { getLanguage, setLanguage, useLanguage, translate, type LanguageCode } from "@/lib/i18n"
+import { showMutationError } from "@/lib/mutation-toast"
 import { ROUTES } from "@/lib/routes"
+import { installedAppVersion } from "@/lib/runtime-info"
 import { modes, tokens } from "@/lib/tokens"
 import { useApiQuery } from "@/lib/use-api-query"
 import { useAuthSession } from "@/lib/use-auth-session"
@@ -87,9 +91,8 @@ import { useReducedMotion } from "@/lib/use-reduced-motion"
 import { useTheme } from "@/components/theme-provider"
 import { hitSlopToReach } from "@/lib/hit-slop"
 import {
-  BOTTOM_MENU_META,
   MAIN_MENU_META,
-  getDrawerFooterMenuMeta,
+  SECONDARY_MENU_META,
   getMainMenuMeta,
   type DrawerMenuMeta,
 } from "@/lib/drawer-menu"
@@ -124,11 +127,12 @@ const MENU_ICONS: Record<string, IconComponent> = {
   wallet: Wallet,
   "bank-accounts": Bank,
   etalase: Storefront,
+  "trx-manage": Receipt,
+  addresses: MapPin,
   reports: ChartBar,
-  feedback: ChatCircle,
-  "live-support": Headset,
-  "support-tickets": Ticket,
+  security: ShieldCheck,
   "help-center": Lifebuoy,
+  business: Briefcase,
 }
 
 function withIcons(
@@ -152,9 +156,6 @@ export function useMainMenu(): readonly DrawerMenuItem[] {
   const walletEnabled = useWalletEnabled()
   return useMemo(() => withIcons(getMainMenuMeta(walletEnabled)), [walletEnabled])
 }
-
-/** Deprecated web-shell compatibility; native uses the single Help Center entry. */
-export const BOTTOM_MENU: readonly DrawerMenuItem[] = withIcons(BOTTOM_MENU_META)
 
 function hrefMatchesPath(href: Href | undefined, pathname: string): boolean {
   if (!href) return false
@@ -209,19 +210,147 @@ export function DrawerMenuRow({
 }
 
 /**
- * Utility bar di kaki drawer: gear (Pengaturan), bidang search yang selalu
- * terbuka, dan pensil (sheet global "Buat baru"). Search membuka layar /search
- * saat ditekan; background search dan tombol pensil memakai surface abu-abu.
+ * Toggle gelap/terang: ikon matahari↔bulan (Phosphor) bertukar dengan
+ * animasi motion halus (putar + fade + scale) via Reanimated.
+ *
+ * LARANGAN KERAS yang dipatuhi: TIDAK ADA className="bg-..." (bahkan tidak
+ * ada className sama sekali) di Reanimated.View — tidak ter-compile di web.
+ * Latar tombol milik <PressableScale> (komponen dasar, className aman);
+ * Reanimated.View hanya menganimasikan ikon.
+ */
+function ThemeToggleButton() {
+  useLanguage()
+  const { mode, toggle } = useTheme()
+  const reducedMotion = useReducedMotion()
+  const isDark = mode === "dark"
+
+  const progress = useSharedValue(isDark ? 1 : 0)
+  useEffect(() => {
+    progress.value = reducedMotion
+      ? (isDark ? 1 : 0)
+      : withTiming(isDark ? 1 : 0, { duration: tokens.motion.duration.fast })
+  }, [isDark, reducedMotion, progress])
+
+  const sunStyle = useAnimatedStyle(() => ({
+    opacity: 1 - progress.value,
+    transform: [
+      { rotate: `${progress.value * 120}deg` },
+      { scale: 1 - progress.value * 0.5 },
+    ],
+  }))
+  const moonStyle = useAnimatedStyle(() => ({
+    opacity: progress.value,
+    transform: [
+      { rotate: `${(1 - progress.value) * -120}deg` },
+      { scale: 0.5 + progress.value * 0.5 },
+    ],
+  }))
+
+  return (
+    <PressableScale
+      accessibilityRole="button"
+      accessibilityLabel={
+        isDark ? translate("Aktifkan mode terang") : translate("Aktifkan mode gelap")
+      }
+      haptic
+      onPress={toggle}
+      className="h-12 w-12 items-center justify-center rounded-full bg-surface"
+    >
+      {/* Bingkai ikon polos — TANPA className (lihat LARANGAN di atas). */}
+      <Reanimated.View
+        style={{ width: 24, height: 24, alignItems: "center", justifyContent: "center" }}
+      >
+        <Reanimated.View style={[{ position: "absolute" }, sunStyle]}>
+          <Icon icon={Sun} size="md" tone="default" weight="bold" />
+        </Reanimated.View>
+        <Reanimated.View style={[{ position: "absolute" }, moonStyle]}>
+          <Icon icon={Moon} size="md" tone="default" weight="bold" />
+        </Reanimated.View>
+      </Reanimated.View>
+    </PressableScale>
+  )
+}
+
+/**
+ * Segmen bahasa inline ID|EN — pengganti layar /language yang DIHAPUS.
+ * Pola app/language.tsx yang dipertahankan: optimistis (langsung berlaku di
+ * seluruh aplikasi) + PUT backend; gagal → dikembalikan + pesan alasan.
+ * Error mutasi via showMutationError (klasifikasi toast: error non-blokir).
+ */
+function LanguageSegment() {
+  const language = useLanguage()
+  const toast = useToast()
+  const [busy, setBusy] = useState(false)
+
+  const change = useCallback(
+    async (next: LanguageCode) => {
+      if (next === getLanguage() || busy) return
+      const previous = getLanguage()
+      haptic("select")
+      setBusy(true)
+      setLanguage(next)
+      try {
+        await api.settings.updateLanguage({ language: next })
+      } catch (err) {
+        setLanguage(previous)
+        showMutationError(toast.show, {
+          failTitle: translate("Gagal menyimpan bahasa"),
+          uncertainHint: translate("Periksa kembali bahasa aktif"),
+          err,
+          scope: "drawer:language",
+        })
+      } finally {
+        setBusy(false)
+      }
+    },
+    [busy, toast.show],
+  )
+
+  return (
+    <View
+      className="h-12 flex-1 flex-row items-center rounded-full bg-surface p-1"
+      accessibilityRole="radiogroup"
+      accessibilityLabel={translate("Bahasa aplikasi")}
+    >
+      {(["id", "en"] as const).map((code) => {
+        const active = language === code
+        return (
+          <PressableScale
+            key={code}
+            accessibilityRole="radio"
+            accessibilityState={{ checked: active }}
+            // F-10 (pola components/ui/radio.tsx): aria-checked eksplisit —
+            // react-native-web tidak memetakan accessibilityState ke
+            // aria-checked (role="radio" tanpa atribut wajibnya = pelanggaran
+            // critical axe di web). Prop aria-* aman di native juga.
+            aria-checked={active}
+            accessibilityLabel={code === "id" ? "Bahasa Indonesia" : "English"}
+            disabled={busy}
+            onPress={() => void change(code)}
+            containerClassName="h-full flex-1"
+            className={`h-full flex-1 items-center justify-center rounded-full ${
+              active ? "bg-background" : ""
+            }`}
+          >
+            <Text variant="label" weight={active ? 700 : 500} tone={active ? "primary" : "secondary"}>
+              {code === "id" ? "ID" : "EN"}
+            </Text>
+          </PressableScale>
+        )
+      })}
+    </View>
+  )
+}
+
+/**
+ * Utility bar di kaki drawer (spesifikasi 2026-10-05): toggle gelap/terang,
+ * bidang search yang selalu expanded (→ /search), dan segmen bahasa ID|EN.
+ * Gear/Pengaturan dan pensil/Buat dihapus — /settings & /language ikut
+ * dihapus total; tiap halaman utama kini punya tombol Buat di header-nya.
  */
 function DrawerUtilityBar() {
   useLanguage()
   const router = useRouter()
-
-  const goSettings = useCallback(() => {
-    haptic("select")
-    closeDrawer()
-    router.push(ROUTES.settings)
-  }, [router])
 
   const openSearch = useCallback(() => {
     haptic("select")
@@ -229,29 +358,13 @@ function DrawerUtilityBar() {
     router.push(ROUTES.search)
   }, [router])
 
-  const openCompose = useCallback(() => {
-    haptic("select")
-    closeDrawer()
-    openCreateSheet()
-  }, [])
-
   return (
     <View
       className="flex-row items-center gap-3 px-5 pb-1 pt-2"
       accessibilityRole="toolbar"
       accessibilityLabel={translate("Aksi cepat")}
     >
-      {/* Neutral surface prevents the settings control from rendering as a
-          black/dark blob in dark mode; all utility icons share one treatment. */}
-      <PressableScale
-        accessibilityRole="button"
-        accessibilityLabel={translate("Pengaturan")}
-        haptic
-        onPress={goSettings}
-        className="h-12 w-12 items-center justify-center rounded-full bg-surface"
-      >
-        <Icon icon={Gear} size="md" tone="default" weight="bold" />
-      </PressableScale>
+      <ThemeToggleButton />
 
       {/* Bidang search selalu expanded dan langsung membuka layar pencarian. */}
       <PressableScale
@@ -260,25 +373,39 @@ function DrawerUtilityBar() {
         accessibilityHint={translate("Buka kolom pencarian")}
         haptic
         onPress={openSearch}
-        containerClassName="h-12 flex-1 rounded-full bg-surface"
-        className="h-12 w-full flex-row items-center gap-2 rounded-full px-4"
+        containerClassName="h-12 w-12 rounded-full bg-surface"
+        className="h-12 w-12 items-center justify-center rounded-full"
       >
         <Icon icon={MagnifyingGlass} size="md" tone="default" weight="bold" />
-        <Text variant="bodyLarge" tone="secondary" numberOfLines={1} className="flex-1">
-          {translate("Cari di Kahade…")}
-        </Text>
       </PressableScale>
 
-      {/* Tombol buat baru memakai permukaan abu-abu dan ikon sekunder. */}
+      <LanguageSegment />
+    </View>
+  )
+}
+
+/**
+ * Teks versi mungil di kaki sidebar (pindahan "Versi Aplikasi" dari
+ * /settings yang dihapus) — menaut ke /app-version (info rilis & pembaruan).
+ */
+function DrawerVersionFooter() {
+  const router = useRouter()
+  const version = installedAppVersion()
+  return (
+    <View className="items-center px-5 pb-1 pt-2">
       <PressableScale
         accessibilityRole="button"
-        accessibilityLabel={translate("Buat baru")}
-        accessibilityHint={translate("Membuka pilihan: buat etalase, buat transaksi, atau isi saldo")}
-        haptic
-        onPress={openCompose}
-        className="h-12 w-12 items-center justify-center rounded-full bg-surface"
+        accessibilityLabel={translate("Versi aplikasi {x}", { x: version ? `v${version}` : "—" })}
+        onPress={() => {
+          haptic("select")
+          closeDrawer()
+          router.push(ROUTES.appVersion)
+        }}
+        className="px-2 py-1"
       >
-        <Icon icon={PencilSimple} size="md" tone="default" weight="bold" />
+        <Text variant="caption" tone="tertiary">
+          {version ? `v${version}` : "—"}
+        </Text>
       </PressableScale>
     </View>
   )
@@ -317,23 +444,10 @@ export function AppDrawer() {
   // the session store has no token, even while the next restore is pending.
   const profile: UserProfile | null = token ? profileQuery.data ?? null : null
 
-  // Badge unread "Pesan": store yang SAMA dengan badge tab chat
-  // (lib/chat-unread-count) — drawer hanya membaca snapshot; bila store
-  // masih idle (mis. drawer dibuka dari layar non-tab), picu satu refresh
-  // ringan ke endpoint yang sama dengan polling tab.
-  const chatUnread = useChatUnreadCountState()
-  useEffect(() => {
-    if (open && token && chatUnread.status === "idle") {
-      void refreshChatUnreadCount()
-    }
-  }, [open, token, chatUnread.status])
-
-  // Support tickets are now reached through the Help Center, so opening the
-  // drawer no longer fetches the ticket list just to decorate a removed row.
-  const badgeFor = (id: string): boolean =>
-    id === "messages" && (chatUnread.count ?? 0) > 0
-
-  const bottomMenu = useMemo(() => withIcons(getDrawerFooterMenuMeta(Platform.OS)), [])
+  // Sidebar 2026-10-05: tidak ada lagi badge unread di drawer (item "Pesan"
+  // sudah lama dihapus per UX-NAV-007; badge unread tetap di tab bawah).
+  // Menu sekunder: Keamanan, Pusat Bantuan, Bisnis — di bawah garis pemisah.
+  const secondaryMenu = useMemo(() => withIcons(SECONDARY_MENU_META), [])
   const isKycVerified = Boolean(
     (profile as unknown as { isKycVerified?: boolean } | null)?.isKycVerified,
   )
@@ -595,7 +709,6 @@ export function AppDrawer() {
                   key={item.id}
                   item={item}
                   onNavigate={onNavigate}
-                  badge={badgeFor(item.id)}
                   selected={isDrawerItemSelected(item, pathname)}
                 />
               ))}
@@ -605,14 +718,13 @@ export function AppDrawer() {
               <Divider />
             </View>
 
-            {/* Menu bawah. */}
+            {/* Menu sekunder: Keamanan, Pusat Bantuan, Bisnis. */}
             <View className="pb-2">
-              {bottomMenu.map((item) => (
+              {secondaryMenu.map((item) => (
                 <DrawerMenuRow
                   key={item.id}
                   item={item}
                   onNavigate={onNavigate}
-                  badge={badgeFor(item.id)}
                   selected={isDrawerItemSelected(item, pathname)}
                 />
               ))}
@@ -621,6 +733,9 @@ export function AppDrawer() {
 
           {/* Utility bar tetap di kaki drawer dan tidak ikut scroll. */}
           <DrawerUtilityBar />
+
+          {/* Versi aplikasi — teks mungil (pindahan /settings) → /app-version. */}
+          <DrawerVersionFooter />
 
           {/* Kaki: ajakan masuk untuk tamu. */}
           {!token && !restoring && !sessionError ? (

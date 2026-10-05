@@ -135,7 +135,8 @@ export default function ChangePinScreen() {
           title: isSetupMode ? "PIN berhasil dibuat" : "PIN berhasil diubah",
           tone: "success",
         })
-        goBackOrNavigate(ROUTES.settings)
+        // Sidebar 2026-10-05: /settings dihapus — PIN adalah bagian hub Keamanan.
+        goBackOrNavigate(ROUTES.security)
       } catch (err: unknown) {
         // §14: percobaan PIN dibatasi. Bila backend mengunci akun, pesan itulah
         // yang harus dibaca pengguna — bukan saran "periksa password" yang

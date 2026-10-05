@@ -8,8 +8,8 @@
  *
  * - Notifikasi kini tab sejati dengan badge unread (dulu lonceng di header).
  * - Tombol tengah kini ikon QR — ketuk langsung membuka pemindai /scan
- *   (revisi 2026-09-28). Sheet "Buat baru" pindah ke tombol (+) di header
- *   Etalase dan pensil di drawer (reusable <CreateSheet>).
+ *   (revisi 2026-09-28; 2026-10-05: pensil drawer dihapus). Sheet "Buat baru"
+ *   dibuka dari tombol (+) di tiap header halaman utama (reusable <CreateSheet>).
  * - Switcher mode Wallet/Etalase pindah ke drawer/sidebar; `appMode` tidak
  *   lagi memengaruhi bar ini.
  *

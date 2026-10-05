@@ -32,7 +32,7 @@
  */
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react"
 import { ScrollView, View, type FlatList, type ViewInstance } from "react-native"
-import { Archive, BellSlash, BellZ, Chats, GearSix, NotePencil, PushPin, Trash, X } from "phosphor-react-native"
+import { Archive, BellSlash, BellZ, Chats, GearSix, NotePencil, Plus, PushPin, Trash, X } from "phosphor-react-native"
 import { router, useFocusEffect } from "expo-router"
 
 import { api, isApiError, userMessage } from "@/lib/api"
@@ -56,6 +56,7 @@ import { ORDER_STATUS_LABELS } from "@/lib/labels/status"
 import { formatTimeAgo } from "@/lib/format"
 import { haptic } from "@/lib/haptics"
 import { translate, useLanguage } from "@/lib/i18n"
+import { openCreateSheet } from "@/lib/create-sheet"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 import { byTimestampDesc, usePaginatedQuery } from "@/lib/use-paginated-query"
@@ -618,15 +619,26 @@ export default function ChatScreen() {
 
   // FE-064: prop `right` header di-memo agar memo <Header> bisa bail-out.
   // Handler stabil — tidak ada state yang berubah per render.
+  // Sidebar 2026-10-05: tombol Buat di header (syarat hapus pensil drawer)
+  // — sheet global "Buat baru" (karya/transaksi/isi saldo).
   const headerRight = useMemo(
     () => (
-      <IconButton
-        icon={GearSix}
-        variant="ghost"
-        size="md"
-        accessibilityLabel="Pengaturan chat"
-        onPress={() => router.push(ROUTES.chatSettings)}
-      />
+      <>
+        <IconButton
+          icon={Plus}
+          variant="ghost"
+          size="md"
+          accessibilityLabel={translate("Buat baru")}
+          onPress={openCreateSheet}
+        />
+        <IconButton
+          icon={GearSix}
+          variant="ghost"
+          size="md"
+          accessibilityLabel="Pengaturan chat"
+          onPress={() => router.push(ROUTES.chatSettings)}
+        />
+      </>
     ),
     [],
   )

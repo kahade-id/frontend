@@ -1,164 +1,19 @@
-import { ShowcaseSavedCollection } from "@/components/ui/showcase-saved-collection"
 /**
- * Screen — Profil Disimpan (GET /v1/users/saved).
+ * Rute `/saved` → Kelola Etalase (tab "Tersimpan").
  *
- * "Saved" = daftar pribadi pengguna untuk dilihat lagi — berbeda dari
- * "Favorit" (dukung publik dengan counter). Toggle-nya ada di profil
- * pengguna (ikon BookmarkSimple); dari sini bisa hapus simpanan (DELETE
- * /v1/users/{username}/saved) dan kembali ke profil.
+ * Sidebar 2026-10-05: isi layar ini PINDAH ke tab "Tersimpan" di dalam
+ * Kelola Etalase (components/ui/saved-collection.tsx). File ini hanya
+ * menjaga URL lama — tautan terbagi, riwayat browser, dan deep link native
+ * yang masih menunjuk `/saved` — supaya semuanya mendarat di tab yang
+ * benar, bukan 404.
  *
- * Meta respons (total/page/limit) di top-level — adapter sudah menormalkan,
- * jadi layar cukup useApiQuery satu halaman pertama (daftar pribadi, kecil).
+ * `<Redirect>` deklaratif (bukan `router.replace` di effect): rekomendasi
+ * Expo Router, aman dari race dengan mount navigator (pola app/more.tsx).
  */
-import { memo, useCallback, useState } from "react"
-import { BookmarkSimple } from "phosphor-react-native"
-import { router } from "expo-router"
-import { translate } from "@/lib/i18n/translate"
-import { useLanguage } from "@/lib/i18n"
+import { Redirect } from "expo-router"
 
-import { api, userMessage } from "@/lib/api"
-import type { SavedProfileEntry } from "@/lib/api/users"
-import { formatNumber } from "@/lib/format"
 import { ROUTES } from "@/lib/routes"
-import { useApiQuery } from "@/lib/use-api-query"
 
-import { DataScreen } from "@/components/ui/data-screen"
-import { Button } from "@/components/ui/button"
-import { IconButton } from "@/components/ui/icon-button"
-import { SectionHeader } from "@/components/ui/section"
-import { UserListItem } from "@/components/ui/user-list-item"
-import { useToast } from "@/components/ui/toast"
-
-type SavedProfileRowProps = {
-  entry: SavedProfileEntry
-  stat: string | undefined
-  busy: boolean
-  divider: boolean
-  onOpenProfile: (username: string) => void
-  onUnsave: (entry: SavedProfileEntry) => void
-}
-
-// FE-065 (audit 2026-09-29): baris di-memo — `action` (IconButton unsave)
-// dibuat di dalam render baris sendiri, bukan inline di `.map` induk.
-// `useLanguage()` agar label aksesibilitas ikut berganti bahasa
-// (pola ShowcaseFeedItem); UserListItem sendiri sudah di-memo (FE-014).
-const SavedProfileRow = memo(function SavedProfileRow({
-  entry,
-  stat,
-  busy,
-  divider,
-  onOpenProfile,
-  onUnsave,
-}: SavedProfileRowProps) {
-  useLanguage()
-  const { user } = entry
-  return (
-    <UserListItem
-      name={user.fullName ?? user.username}
-      username={user.username}
-      avatar={{ source: user.avatarUrl || undefined }}
-      verified={user.kycStatus === "APPROVED"}
-      stat={stat}
-      divider={divider}
-      onPress={() => onOpenProfile(user.username)}
-      action={
-        <IconButton
-          icon={BookmarkSimple}
-          variant="ghost"
-          size="sm"
-          accessibilityLabel={translate("Hapus {x} dari tersimpan", { x: user.fullName ?? user.username })}
-          loading={busy}
-          onPress={() => void onUnsave(entry)}
-        />
-      }
-    />
-  )
-})
-
-export default function SavedProfilesScreen() {
-  const toast = useToast()
-  const query = useApiQuery(
-    "saved-profiles",
-    (signal) => api.users.getSavedProfiles({ limit: 50 }, signal),
-    true,
-    // P1a (2026-10-03): revalidasi saat kembali ke layar — daftar bisa berubah
-    // dari layar lain (unsave dari profil/detail).
-    { refreshOnFocus: true },
-  )
-  const items = query.data?.data ?? []
-  const [unsavingId, setUnsavingId] = useState<string | null>(null)
-  // FE-065: destruktur setter stabil untuk useCallback di bawah.
-  const { setData: setSavedData } = query
-
-  // FE-065: useCallback — memakai setData fungsional sehingga tidak bergantung
-  // pada data (identitas stabil antar render).
-  const handleUnsave = useCallback(
-    async (entry: SavedProfileEntry) => {
-      setUnsavingId(entry.user.userId)
-      try {
-        await api.users.unsaveProfile(entry.user.username)
-        setSavedData((prev) =>
-          prev ? { ...prev, data: prev.data.filter((e) => e.user.userId !== entry.user.userId) } : prev,
-        )
-        toast.show({ title: translate("Profil dihapus dari tersimpan"), tone: "success", duration: 2500 })
-      } catch (err) {
-        toast.show({
-          title: translate("Gagal menghapus simpanan"),
-          description: userMessage(err),
-          tone: "danger",
-        })
-      } finally {
-        setUnsavingId(null)
-      }
-    },
-    [setSavedData, toast.show],
-  )
-
-  // FE-065: handler navigasi stabil per-id untuk baris yang di-memo.
-  const openProfile = useCallback((username: string) => {
-    router.push(ROUTES.userProfile(username))
-  }, [])
-
-  return (
-    <DataScreen
-      title={translate("Disimpan")}
-      state={query}
-      loadingMessage="Memuat profil tersimpan…"
-      contentClassName="gap-1"
-      // UI-F009 (audit UI/UX 2026-09-27): empty state + CTA — sebelumnya daftar
-      // kosong hanya menampilkan header "Profil tersimpan" (Favorit punya).
-      empty={
-        items.length === 0 && {
-          icon: BookmarkSimple,
-          title: translate("Belum ada profil tersimpan"),
-          description: "Simpan profil penjual dari halaman profil mereka untuk dilihat lagi nanti.",
-          action: (
-            <Button variant="secondary" fullWidth={false} onPress={() => router.push(ROUTES.showcase)}>
-              Jelajahi etalase
-            </Button>
-          ),
-        }
-      }
-      // J-01 (audit 2026-09-23): section karya tersimpan punya query sendiri —
-      // tidak boleh ikut hilang saat query PROFIL tersimpan loading/error.
-      persistent={<ShowcaseSavedCollection />}
-    >
-      <SectionHeader title={translate("Profil tersimpan")} />
-      {items.map((entry, i) => (
-        <SavedProfileRow
-          key={entry.user.userId}
-          entry={entry}
-          stat={
-            entry.user.stats
-              ? `${formatNumber(entry.user.stats.totalOrdersCompleted)} transaksi · ${entry.user.stats.averageRating}`
-              : undefined
-          }
-          busy={unsavingId === entry.user.userId}
-          divider={i < items.length - 1}
-          onOpenProfile={openProfile}
-          onUnsave={handleUnsave}
-        />
-      ))}
-    </DataScreen>
-  )
+export default function SavedRedirect() {
+  return <Redirect href={ROUTES.showcaseManagementSaved} />
 }

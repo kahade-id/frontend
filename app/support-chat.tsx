@@ -620,7 +620,7 @@ export default function SupportChatScreen() {
                     )}
                   </Text>
                 </View>
-              ) : null
+              ) : undefined
             }
           />
           {escalatedTicket ? (

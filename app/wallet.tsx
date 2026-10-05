@@ -100,7 +100,7 @@ function RecentEmptyState() {
 import { OnboardingChecklistCard } from "@/components/ui/onboarding-checklist"
 import { memo, useCallback, useEffect, useMemo, useState } from "react"
 import { View } from "react-native"
-import { Wallet as WalletIcon } from "phosphor-react-native"
+import { Plus, Wallet as WalletIcon } from "phosphor-react-native"
 
 import { api, type WalletTransaction } from "@/lib/api"
 import { ROUTES } from "@/lib/routes"
@@ -109,6 +109,7 @@ import { cn } from "@/lib/cn"
 import { computeEscrowHolds, totalEscrowHeld } from "@/lib/wallet-escrow-holds"
 import { ESCROW_HELD_EXPLANATION } from "@/lib/labels/escrow"
 import { breakdownAddsUp } from "@/lib/wallet-batch139"
+import { openCreateSheet } from "@/lib/create-sheet"
 import { formatDate, formatTime } from "@/lib/format"
 import { translate } from "@/lib/i18n"
 
@@ -116,6 +117,7 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { ScreenCaptureGuard } from "@/components/security/screen-capture-guard"
 import { FadeIn } from "@/components/ui/fade-in"
 import { Header } from "@/components/ui/header"
+import { IconButton } from "@/components/ui/icon-button"
 import { ModeShiftFade } from "@/components/ui/mode-switcher"
 import { useSetUiPrefs, useUiPref } from "@/lib/ui-prefs"
 import { RouteLink } from "@/components/ui/route-link"
@@ -267,8 +269,20 @@ export default function WalletScreen() {
     // SEC-404: proteksi screen-capture iOS di layar saldo.
     <ScreenCaptureGuard>
       <Screen edges={["top"]} padded={false}>
-      {/* T5-001: tombol kembali tampil; fallback Header → replace("/showcase"). */}
-      <Header title="Dompet" />
+      {/* T5-001: tombol kembali tampil; fallback Header → replace("/showcase").
+          Sidebar 2026-10-05: tombol Buat di header (syarat hapus pensil
+          drawer) — sheet global "Buat baru" (termasuk isi saldo). */}
+      <Header
+        title="Dompet"
+        right={
+          <IconButton
+            icon={Plus}
+            variant="ghost"
+            accessibilityLabel={translate("Buat baru")}
+            onPress={openCreateSheet}
+          />
+        }
+      />
 
       <ModeShiftFade>
       <PaginatedList
