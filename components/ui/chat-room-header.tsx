@@ -35,18 +35,18 @@
  */
 import { ArrowLeft, DotsThreeVertical } from "phosphor-react-native"
 import { useContext, type ReactNode } from "react"
-import { View, type ViewProps } from "react-native"
+import { Platform, View, type ViewProps } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { Avatar, type AvatarProps } from "@/components/ui/avatar"
 import { Dot } from "@/components/ui/dot"
-import { IconButton } from "@/components/ui/icon-button"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { ScreenInsetsContext } from "@/components/ui/screen"
 import { Text } from "@/components/ui/text"
 import { type SealTier } from "@/components/ui/verified-seal"
 import { VerifiedName } from "@/components/ui/verified-name"
-import { useDocumentTitle } from "@/components/ui/header"
+import { useDocumentTitle, HeaderCircleButton } from "@/components/ui/header"
+import { useTheme } from "@/components/theme-provider"
 import { cn } from "@/lib/cn"
 import { focusRing, focusRingInset } from "@/lib/focus-ring"
 import { TEXT_ROW_HIT_SLOP } from "@/lib/hit-slop"
@@ -87,8 +87,8 @@ export type ChatRoomHeaderProps = Omit<ViewProps, "children"> & {
   className?: string
 }
 
-/** Diameter avatar header: 44px (2026-10-02: diperbesar dari 36px atas permintaan user) */
-const AVATAR_CLASS = "h-11 w-11"
+/** Diameter avatar header: 40px — muat dalam pil 48px sejajar lingkaran back/menu. */
+const AVATAR_CLASS = "h-10 w-10"
 
 export function ChatRoomHeader({
   name,
@@ -104,8 +104,7 @@ export function ChatRoomHeader({
   onProfilePress,
   onBack,
   onMenuPress,
-  // Sengaja di-destructure agar tidak bocor ke `...rest`; tidak dipakai di sini.
-  extra: _extra,
+  extra,
   safeArea,
   className,
   ...rest
@@ -121,7 +120,7 @@ export function ChatRoomHeader({
   // foto profil — seal hanya tampil di samping nama (<VerifiedName> di bawah).
   // `sealTier` tetap dipakai untuk warna seal di samping nama.
   const identity = (
-    <View className="min-w-0 flex-row items-center gap-2.5 py-1">
+    <View className="min-w-0 flex-row items-center gap-2.5">
       <View className="relative shrink-0">
         <Avatar
           source={avatar}
@@ -212,29 +211,21 @@ export function ChatRoomHeader({
 
   return (
     <View
-      className={cn(
-        "z-sticky w-full items-center border-b border-border bg-background",
-        className,
-      )}
+      className={cn("z-sticky w-full items-center bg-transparent", className)}
       // <Screen edges={["top"]}> sudah mempadding inset atas; menambahnya lagi
       // di sini membuat header turun dua kali (pola yang sama dengan <Header>).
       style={(safeArea ?? !providedInsets.top) ? { paddingTop: insets.top } : undefined}
       {...rest}
     >
       <View className="w-full md:max-w-content">
-        {/* 2026-10-02: tinggi header 64px + padding vertikal 8px agar avatar
-            44px tidak menempel separator bawah. */}
-        <View className="min-h-16 w-full flex-row items-center gap-1 px-2 py-2">
-          <IconButton
+        {/* (2026-10-05, revisi produk: header floating tanpa separator —
+            3 lingkaran kaca: back, identitas, titik-tiga. Semua 48px sejajar.) */}
+        <View className="min-h-16 w-full flex-row items-center gap-2 px-5 py-2">
+          <HeaderCircleButton
             icon={ArrowLeft}
-            size="md"
-            variant="ghost"
-            ripple
-            // 2026-10-02: ikon lebih besar (permintaan user).
+            onPress={onBack ?? (() => {})}
             accessibilityLabel="Kembali"
             accessibilityHint="Kembali ke layar sebelumnya"
-            containerClassName="self-center"
-            onPress={onBack}
           />
 
           {onProfilePress ? (
@@ -243,11 +234,10 @@ export function ChatRoomHeader({
               accessibilityLabel={summarize([translate(title), status ? translate(status) : undefined])}
               accessibilityHint="Buka profil lawan bicara"
               scaleOnPress={false}
-              ripple
               onPress={onProfilePress}
-              containerClassName={cn("min-w-0 flex-1 self-center rounded-sm", focusRingInset)}
+              containerClassName={cn("min-w-0 flex-1 self-center", focusRingInset)}
             >
-              {identity}
+              <GlassIdentity>{identity}</GlassIdentity>
             </PressableScale>
           ) : (
             <View
@@ -255,25 +245,43 @@ export function ChatRoomHeader({
               accessibilityLabel={summarize([translate(title), status ? translate(status) : undefined])}
               className="min-w-0 flex-1 self-center"
             >
-              {identity}
+              <GlassIdentity>{identity}</GlassIdentity>
             </View>
           )}
 
-          {/* 2026-10-02: search icon DIHAPUS dari header (sudah ada di menu ⋮). */}
-          <IconButton
+          <HeaderCircleButton
             icon={DotsThreeVertical}
-            size="md"
-            variant="ghost"
-            ripple
-            weight="bold"
-            // 2026-10-02: ikon lebih besar (permintaan user).
+            onPress={onMenuPress ?? (() => {})}
             accessibilityLabel="Opsi percakapan"
             accessibilityHint="Lihat pesanan, cari pesan, dan pengaturan ruang"
-            containerClassName="self-center"
-            onPress={onMenuPress}
           />
         </View>
       </View>
+    </View>
+  )
+}
+
+/** Pil kaca untuk identitas (foto + nama + status) — gaya landing kahade.id.
+ * Tinggi TETAP 48px sejajar lingkaran back/menu (2026-10-05, revisi produk). */
+function GlassIdentity({ children }: { children: React.ReactNode }) {
+  const { mode } = useTheme()
+  const glassBg = mode === "light" ? "rgba(243,244,246,0.64)" : "rgba(26,26,26,0.64)"
+  return (
+    <View
+      style={[
+        {
+          borderRadius: 999,
+          backgroundColor: glassBg,
+          height: 48,
+          justifyContent: "center",
+          paddingHorizontal: 12,
+        },
+        Platform.OS === "web"
+          ? ({ backdropFilter: "blur(48px)", WebkitBackdropFilter: "blur(48px)" } as object)
+          : null,
+      ]}
+    >
+      {children}
     </View>
   )
 }

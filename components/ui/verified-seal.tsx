@@ -64,11 +64,12 @@ export const SEAL_TIER_COLOR: Record<SealTier, string> = {
  * - blue: light #0F7AB8 (4.67:1 vs putih) · dark #1D9BF0 (5.80:1 vs surface)
  */
 const SEAL_TIER_LIGHT: Record<Exclude<SealTier, "gray">, string> = {
-  gold: "#8C6D1F",
+  // (2026-10-05: emas diperbaiki — sebelumnya #8C6D1F terlihat coklat.)
+  gold: "#D4A017",
   blue: "#0F7AB8",
 }
 const SEAL_TIER_DARK: Record<Exclude<SealTier, "gray">, string> = {
-  gold: "#C9A227",
+  gold: "#FFD200",
   blue: "#1D9BF0",
 }
 

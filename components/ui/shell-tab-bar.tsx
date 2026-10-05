@@ -8,8 +8,8 @@
  *
  * - Notifikasi kini tab sejati dengan badge unread (dulu lonceng di header).
  * - Tombol tengah kini ikon QR — ketuk langsung membuka pemindai /scan
- *   (revisi 2026-09-28; 2026-10-05: pensil drawer dihapus). Sheet "Buat baru"
- *   dibuka dari tombol (+) di tiap header halaman utama (reusable <CreateSheet>).
+ *   (revisi 2026-09-28). Sheet "Buat baru" pindah ke tombol (+) di header
+ *   Etalase dan pensil di drawer (reusable <CreateSheet>).
  * - Switcher mode Wallet/Etalase pindah ke drawer/sidebar; `appMode` tidak
  *   lagi memengaruhi bar ini.
  *
@@ -19,16 +19,13 @@
  */
 import { memo, startTransition, useCallback, useEffect, useMemo, useState } from "react"
 import { Platform } from "react-native"
+import { runWhenIdle } from "@/lib/idle"
 import { usePathname, useRouter } from "expo-router"
-import { QrCode } from "phosphor-react-native"
 
 import {
-  BottomTabBar,
-  type BottomTabItem,
-} from "@/components/ui/bottom-tab-bar"
-import { haptic } from "@/lib/haptics"
-import { runWhenIdle } from "@/lib/idle"
-import { ROUTES } from "@/lib/routes"
+  PillTabBar,
+  type PillTabItem,
+} from "@/components/ui/pill-tab-bar"
 import { useLanguage, translate } from "@/lib/i18n"
 import { useChatUnreadCountNumber } from "@/lib/chat-unread-count"
 import {
@@ -64,7 +61,7 @@ function ShellTabBarInner() {
     return () => clearTimeout(timer)
   }, [pendingKey])
 
-  const items = useMemo<BottomTabItem<string>[]>(() => {
+  const items = useMemo<PillTabItem[]>(() => {
     return SHELL_TABS.map((tab) => {
       // T5-005: badge tab Pesan & Notifikasi menampilkan ANGKA ("99+"
       // bila > 99), bukan cuma titik.
@@ -104,14 +101,6 @@ function ShellTabBarInner() {
     [router, activeKey, pendingKey],
   )
 
-  const onScan = useCallback(() => {
-    haptic("light")
-    // PERF-FIX (P1 nav): dedup — jangan tumpuk /scan bila sudah di sana;
-    // router.navigate kembali ke instance yang ada bila sudah di stack.
-    if (pathname === ROUTES.scan) return
-    router.navigate(ROUTES.scan)
-  }, [router, pathname])
-
   // PERF-FIX (P2 nav): panaskan modul lazy tab tetangga saat idle — pindah
   // tab pertama kali tidak lagi cold-mount modul berat (chat 1237 baris,
   // notifikasi, transaksi). Dijalankan sekali, 2.5 dtk setelah bar tampil
@@ -120,8 +109,6 @@ function ShellTabBarInner() {
     if (Platform.OS === "web") return
     let cancelled = false
     const timer = setTimeout(() => {
-      // RN 0.88 menghapus `InteractionManager`. runWhenIdle (lib/idle.ts)
-      // memeriksa ketersediaan global-nya — aman di native maupun jsdom.
       runWhenIdle(() => {
         if (cancelled) return
         void import("@/components/screens/chat-tab-screen")
@@ -135,24 +122,11 @@ function ShellTabBarInner() {
     }
   }, [])
 
-  const center = useMemo(() => ({
-    icon: QrCode,
-    accessibilityLabel: translate("Pindai QR"),
-    accessibilityHint: translate("Membuka pemindai kode QR"),
-    onPress: onScan,
-  }), [onScan, language])
-  const centerCoachMark = useMemo(() => ({
-    id: "qr" as const,
-    message: translate("Ketuk untuk pindai QR"),
-  }), [language])
-
   return (
-    <BottomTabBar
+    <PillTabBar
       items={items}
       value={pendingKey ?? activeKey ?? ""}
       onChange={onChange}
-      center={center}
-      centerCoachMark={centerCoachMark}
       accessibilityLabel={translate("Navigasi utama")}
     />
   )

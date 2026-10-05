@@ -37,6 +37,7 @@ type Props = {
   onToggleSave: () => void
   onShowSavers?: () => void
   onShare: () => void
+  onShareLongPress?: () => void
 }
 
 export function ShowcaseDetailActions({
@@ -52,6 +53,7 @@ export function ShowcaseDetailActions({
   onToggleSave,
   onShowSavers,
   onShare,
+  onShareLongPress,
 }: Props) {
   // i18n: label aksesibilitas mengikuti bahasa aktif.
   useLanguage()

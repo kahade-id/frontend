@@ -40,14 +40,10 @@ import { useRef } from "react"
 import { openCreateSheet } from "@/lib/create-sheet"
 import { ROUTES } from "@/lib/routes"
 import { openDrawer } from "@/lib/drawer"
-import { cn } from "@/lib/cn"
-import { hitSlopToReach } from "@/lib/hit-slop"
-import { focusRing } from "@/lib/focus-ring"
+import { HeaderCircleButton } from "@/components/ui/header"
 import { translate } from "@/lib/i18n"
 
 import { Logo } from "@/components/ui/logo"
-import { Icon } from "@/components/ui/icon"
-import { PressableScale } from "@/components/ui/pressable-scale"
 import { Tabs } from "@/components/ui/tabs"
 import type { IconComponent } from "@/components/ui/icon"
 
@@ -74,8 +70,6 @@ const TAB_ICONS: Record<ShowcaseFeedKind, IconComponent> = {
 }
 
 /** Kotak aksi kiri/kanan 40px — pasangan simetris agar logo benar-benar tengah. */
-const ACTION_BOX = 40
-const ACTION_HIT_SLOP = hitSlopToReach(ACTION_BOX)
 
 export function ShowcaseHeader({ kind, onKindChange, tabs, onFilterPress, filterBadgeCount = 0 }: ShowcaseHeaderProps) {
   const createLabel = translate(Platform.OS === "web" ? "Buat baru" : "Buat karya baru")
@@ -91,18 +85,12 @@ export function ShowcaseHeader({ kind, onKindChange, tabs, onFilterPress, filter
           menggantikan hamburger List atas permintaan produk.
         */}
         <View className="flex-row items-center justify-start min-w-[84px]">
-          <PressableScale
-            accessibilityRole="button"
+          <HeaderCircleButton
+            icon={Equals}
+            onPress={openDrawer}
             accessibilityLabel={translate("Menu")}
             accessibilityHint={translate("Buka menu navigasi")}
-            haptic
-            hitSlop={ACTION_HIT_SLOP}
-            onPress={openDrawer}
-            containerClassName={cn("rounded-md", focusRing)}
-            className="h-10 w-10 items-center justify-center"
-          >
-            <Icon icon={Equals} size="md" weight="regular" tone="active" />
-          </PressableScale>
+          />
         </View>
 
         {/* Logo — pusat baris simetris. */}
@@ -118,27 +106,19 @@ export function ShowcaseHeader({ kind, onKindChange, tabs, onFilterPress, filter
         {/* Kanan: tombol buat baru; bidang search tersedia di sidebar. */}
         <View className="flex-row items-center justify-end min-w-[84px]">
           <View ref={createRef} collapsable={false}>
-            <PressableScale
-              accessibilityRole="button"
+            <HeaderCircleButton
+              icon={Plus}
+              onPress={() => {
+                if (Platform.OS === "web") openCreateSheet()
+                else router.push(ROUTES.showcaseCreate)
+              }}
               accessibilityLabel={createLabel}
               accessibilityHint={
                 Platform.OS === "web"
                   ? translate("Membuka pilihan: buat karya, buat transaksi, atau isi saldo")
                   : undefined
               }
-              haptic
-              hitSlop={ACTION_HIT_SLOP}
-              onPress={() => {
-                // Native is the product surface: create the context-specific
-                // artifact directly instead of routing through a generic sheet.
-                if (Platform.OS === "web") openCreateSheet()
-                else router.push(ROUTES.showcaseCreate)
-              }}
-              containerClassName={cn("rounded-md", focusRing)}
-              className="h-10 w-10 items-center justify-center"
-            >
-              <Icon icon={Plus} size="md" weight="regular" tone="active" />
-            </PressableScale>
+            />
           </View>
         </View>
       </View>

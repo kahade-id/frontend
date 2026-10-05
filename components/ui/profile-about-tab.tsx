@@ -12,7 +12,7 @@
 import type { ReactNode } from "react"
 import { View } from "react-native"
 
-import type { PublicUserProfile } from "@/lib/api/users"
+import type { PublicUserProfile, VerificationBadge } from "@/lib/api/users"
 import { formatDate } from "@/lib/format"
 import { useLanguage } from "@/lib/i18n"
 import { translate } from "@/lib/i18n/translate"
@@ -22,6 +22,8 @@ import { Text } from "@/components/ui/text"
 
 export type ProfileAboutTabProps = {
   profile: PublicUserProfile
+  /** (2026-10-05: badge verifikasi pindah ke tab Tentang.) */
+  badges?: VerificationBadge[]
 }
 
 /** Baris label–nilai di kartu tab Tentang (label kiri, nilai kanan). */
@@ -49,11 +51,31 @@ function ContactValue({ value }: { value?: string | null }) {
   )
 }
 
-export function ProfileAboutTab({ profile }: ProfileAboutTabProps) {
+export function ProfileAboutTab({ profile, badges = [] }: ProfileAboutTabProps) {
   // i18n: label mengikuti bahasa aktif.
   useLanguage()
   return (
     <View className="px-5 pt-4 gap-4">
+      {/* (2026-10-05: badge verifikasi pindah ke tab Tentang.) */}
+      {badges.length > 0 ? (
+        <View className="w-full gap-3 rounded-md border border-border bg-surface p-4">
+          <Text variant="body" weight={600} tone="primary">
+            {translate("Lencana Verifikasi")}
+          </Text>
+          <View className="flex-row flex-wrap items-center gap-1.5">
+            {badges.map((b) => (
+              <Badge
+                key={b.type}
+                tone="neutral"
+                variant="soft"
+                accessibilityLabel={`${b.label}: ${b.description}`}
+              >
+                {b.shortLabel}
+              </Badge>
+            ))}
+          </View>
+        </View>
+      ) : null}
       <View className="w-full gap-3 rounded-md border border-border bg-surface p-4">
         <Text variant="body" weight={600} tone="primary">
           {translate("Informasi Akun")}

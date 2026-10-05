@@ -448,9 +448,24 @@ export function listShowcaseComments(
     })
     .then((raw) => {
       const record = (raw ?? {}) as Record<string, unknown>
-      const data = readList<unknown>(record, ["data"]).map((rawComment) => {
-        const c = asRecord(rawComment)
-        return { ...parseShowcaseComment(c), replies: Array.isArray(c?.replies) ? c.replies.map(parseShowcaseComment) : [] }
+      // (2026-10-05: defensif — satu komentar rusak tidak boleh meruntuhkan
+      // seluruh list; lewati yang gagal parse.)
+      const data = readList<unknown>(record, ["data"]).flatMap((rawComment) => {
+        try {
+          const c = asRecord(rawComment)
+          const replies = Array.isArray(c?.replies)
+            ? c.replies.flatMap((r) => {
+                try {
+                  return [parseShowcaseComment(r)]
+                } catch {
+                  return []
+                }
+              })
+            : []
+          return [{ ...parseShowcaseComment(c), replies }]
+        } catch {
+          return []
+        }
       })
       return {
         data,

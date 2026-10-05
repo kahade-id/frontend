@@ -14,7 +14,6 @@ import { View, type ViewInstance } from "react-native"
 import type { ReactNode, Ref } from "react"
 
 import type { ShowcaseComment, ShowcaseCommentWithReplies } from "@/lib/api/showcase"
-import { formatNumber } from "@/lib/format"
 import { translate } from "@/lib/i18n/translate"
 import { type ShowcaseCommentOrder } from "@/lib/showcase-social"
 import { Divider } from "@/components/ui/divider"
@@ -77,7 +76,8 @@ const HIGHLIGHT_ROW = "rounded-md bg-surface-elevated px-2 py-2"
 export function ShowcaseDetailComments({
   composer,
   comments,
-  commentTotal,
+  // commentTotal tetap di props (dipakai pemanggil) tapi tidak ditampilkan
+  // di judul lagi (2026-10-05: count sudah ada di samping ikon).
   commentsStatus,
   commentRenderLimit,
   highlightComment,
@@ -119,16 +119,11 @@ export function ShowcaseDetailComments({
 
   return (
     <>
-      {/* ── Komentar header: count di samping + separator ── */}
+      {/* ── Komentar header (2026-10-05: count dihapus dari judul — sudah ada di samping ikon) ── */}
       <View className="gap-0 px-5 pb-0 pt-8">
         <View className="flex-row items-center gap-2">
           {/* UI-F011: header ikut kamus (sebelumnya hardcoded). */}
           <Text variant="h3" accessibilityRole="header">{translate("Komentar")}</Text>
-          {commentTotal > 0 ? (
-            <Text variant="body" tone="secondary" className="tabular-nums">
-              {formatNumber(commentTotal)}
-            </Text>
-          ) : null}
           {/* Item 160: kontrol urutan — hanya bila ada ≥2 komentar.
               T2-F08: boleh wrap agar chip "Terbaru"/"Terlama" tidak terpotong
               di layar sempit (320pt). */}

@@ -33,6 +33,7 @@ import type { OpeningMediaTap } from "@/lib/use-opening-media-tap"
 import { useCallback, useEffect, useMemo, useRef, useState, memo, useSyncExternalStore } from "react"
 import { View, type FlatList, type ViewInstance } from "react-native"
 import Animated, { runOnJS } from "react-native-reanimated"
+import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Images, X, ArrowUp } from "phosphor-react-native"
 import { router, useLocalSearchParams } from "expo-router"
 import { useIsFocused } from "expo-router"
@@ -399,6 +400,7 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
   // di layar ini; debounce hanya menunda fetch saat param URL berubah.
   const activeSearch = search.trim()
   const collapsing = useCollapsingHeader()
+  const insets = useSafeAreaInsets()
 
   /**
    * Item 58 (FE-IMP-1): tombol "Kembali ke atas". Muncul setelah scroll
@@ -1348,16 +1350,15 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
       />
       </ModeShiftFade>
 
-      {/* Item 58: tombol melayang "Kembali ke atas" — muncul hanya setelah
-          scroll jauh; posisi di atas bottom padding tab. */}
-      {showScrollTop ? (
+      {showScrollTop && collapsing.collapsed ? (
         <View
-          className="absolute bottom-6 right-5"
-          style={{ marginBottom: bottomPadding }}
+          className="absolute left-0 right-0 items-center"
+          style={{ top: insets.top + 8 }}
+          pointerEvents="box-none"
         >
           <View
             className="rounded-full"
-            style={[{ backgroundColor: modes[themeMode].surface }, elevationStyle("medium", themeMode)]}
+            style={[{ backgroundColor: modes[themeMode].surfaceElevated }, elevationStyle("medium", themeMode)]}
           >
             <IconButton
               icon={ArrowUp}

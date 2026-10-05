@@ -610,7 +610,7 @@ export default function ChatScreen() {
   const [selected, setSelected] = useState<Set<string>>(() => new Set())
   const [batchBusy, setBatchBusy] = useState(false)
   // Efek scroll: header terangkat (bayangan) saat daftar digulir.
-  const { elevated, onScrollWorklet } = useScrollElevation()
+  const { onScrollWorklet } = useScrollElevation()
   const listRef = useRef<FlatList<ChatRoom>>(null)
   const scrollToTop = useCallback(() => {
     listRef.current?.scrollToOffset({ offset: 0, animated: true })
@@ -1115,7 +1115,7 @@ export default function ChatScreen() {
           titleAlign="left"
           showBack={false}
           separator={false}
-          elevated={elevated}
+          elevated={false}
           left={
             <IconButton
               icon={X}
@@ -1162,7 +1162,7 @@ export default function ChatScreen() {
           // dengan tab Transaksi/Dompet.
           showBack={false}
           separator={false}
-          elevated={elevated}
+          elevated={false}
           titleAlign="left"
           title="Pesan"
           // T5-002 (audit UI/UX intuitif 2026-09-29): drawer bisa dibuka dari
@@ -1185,7 +1185,7 @@ export default function ChatScreen() {
           horizontal
           showsHorizontalScrollIndicator={false}
           className="grow-0"
-          contentContainerClassName="gap-2 px-4 pb-2"
+          contentContainerClassName="gap-2 px-4 pb-2 pt-3"
           accessibilityRole="tablist"
         >
           <ChipGroup

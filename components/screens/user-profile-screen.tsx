@@ -18,24 +18,16 @@ import { translate } from "@/lib/i18n/translate"
 import { useLanguage } from "@/lib/i18n"
 import {
   BookmarkSimple,
-  Briefcase,
   ChatCircleDots,
   DotsThreeVertical,
-  Envelope,
   Flag,
   Handshake,
-  IdentificationBadge,
   Image as ImageIcon,
-  Info,
   Lock,
   PencilSimple,
   Prohibit,
   QrCode,
-  SealCheck,
   ShareNetwork,
-  ShieldCheck,
-  ShieldStar,
-  Sparkle,
   UserCircle,
 } from "phosphor-react-native"
 import { api, isApiError, userMessage } from "@/lib/api"
@@ -61,7 +53,7 @@ import { logWarn } from "@/lib/telemetry"
 
 import { Avatar } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
-import { VerifiedSeal, VerificationSheet, getSealTier } from "@/components/ui/verified-seal"
+import { VerifiedSeal } from "@/components/ui/verified-seal"
 import { VerifiedName } from "@/components/ui/verified-name"
 import { GreyCheckBadge } from "@/components/ui/grey-check-badge"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
@@ -75,7 +67,7 @@ import { ErrorState } from "@/components/ui/error-state"
 import { FavoriteIconButton } from "@/components/ui/favorite-icon-button"
 import { FollowButton } from "@/components/ui/follow-button"
 import { Header } from "@/components/ui/header"
-import { Icon, type IconComponent } from "@/components/ui/icon"
+import { Icon } from "@/components/ui/icon"
 import { ImageViewer } from "@/components/ui/image-viewer"
 import { Picture } from "@/components/ui/picture"
 import { IconButton } from "@/components/ui/icon-button"
@@ -160,15 +152,6 @@ const COVER_HEIGHT = 120
  * envelope-check → Envelope. Fallback SealCheck menjaga badge tak dikenal
  * tetap terrender.
  */
-const BADGE_ICON: Partial<Record<string, IconComponent>> = {
-  "seal-check": SealCheck,
-  "badge-check": IdentificationBadge,
-  "briefcase-check": Briefcase,
-  sparkles: Sparkle,
-  "shield-star": ShieldStar,
-  "envelope-check": Envelope,
-}
-
 /**
  * Batch 139 E05/E06 — satu statistik sosial (Mengikuti/Pengikut).
  *
@@ -257,7 +240,6 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
   const [saveLoading, setSaveLoading] = useState(false)
   /** Badge verifikasi aktif (GET /v1/users/{username}/badges). */
   const [badges, setBadges] = useState<VerificationBadge[]>([])
-  const [verifySheetOpen, setVerifySheetOpen] = useState(false)
   const [following, setFollowing] = useState<boolean | null>(null)
   const [followLoading, setFollowLoading] = useState(false)
   const [followerCount, setFollowerCount] = useState<number | null>(null)
@@ -268,6 +250,12 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
   // Active tab state — item 72: inisial dari memori sesi (bukan selalu
   // "content"); `selectTab` menulis balik agar sesi mengingatnya.
   const [activeTab, setActiveTab] = useState<ProfileTab>(sessionProfileTab ?? "content")
+  const [tabsStuck, setTabsStuck] = useState(false)
+  const handleProfileScroll = useCallback((y: number) => {
+    if (typeof y === "number" && Number.isFinite(y)) {
+      setTabsStuck(y > 280)
+    }
+  }, [])
   const selectTab = useCallback((tab: ProfileTab) => {
     sessionProfileTab = tab
     startTransition(() => setActiveTab(tab))
@@ -625,6 +613,9 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
       try {
         if (next) await api.users.followUser(handle)
         else await api.users.unfollowUser(handle)
+        toast.show({
+          title: next ? translate("Profil diikuti") : translate("Profil batal diikuti"),
+        })
       } catch (err) {
         setFollowing(prevFollowing)
         setFollowerCount(prevCount)
@@ -913,11 +904,6 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
 
   return (
     <Screen keyboardAvoiding edges={["top"]} padded={false}>
-      <DataScroll onRefresh={handleRefresh} refreshing={refreshing} padded={false}>
-        {/* ── Top Bar (di atas cover) ──────────────────────────
-            <Header transparent>: @username PUSAT di bar — satu-satunya
-            tempat username ditulis (baris identitas di bawah hanya nama).
-            Profil sekarang seragam memiliki tombol Back untuk semua pengguna. */}
         <Header
           transparent
           title={handle ? `@${handle}` : undefined}
@@ -945,6 +931,21 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
             ) : null
           }
         />
+      <View
+        className="bg-background px-5 pb-1 pt-2"
+        style={{ display: tabsStuck ? "flex" : "none" } as object}
+      >
+        <Tabs<ProfileTab>
+          items={profileTabs}
+          value={activeTab}
+          onChange={selectTab}
+        />
+      </View>
+      <DataScroll onRefresh={handleRefresh} refreshing={refreshing} padded={false} onScrollWorklet={handleProfileScroll}>
+        {/* ── Top Bar (di atas cover) ──────────────────────────
+            <Header transparent>: @username PUSAT di bar — satu-satunya
+            tempat username ditulis (baris identitas di bawah hanya nama).
+            Profil sekarang seragam memiliki tombol Back untuk semua pengguna. */}
 
         {/* ── Top Cover (KARTU) ────────────────────────────────
             Sampul kartu bersih tanpa tombol navigasi di dalamnya. */}
@@ -1125,37 +1126,6 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
                 ) : null}
               </View>
 
-              {/* Badge verifikasi aktif — ketuk untuk melihat keterangan tiap badge. */}
-              {badges.length > 0 ? (
-                <>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={translate("Lihat detail verifikasi akun")}
-                    onPress={() => setVerifySheetOpen(true)}
-                  >
-                    <View className="flex-row flex-wrap items-center gap-1.5 pt-0.5">
-                      {badges.map((b) => (
-                        <Badge
-                          key={b.type}
-                          tone="neutral"
-                          variant="soft"
-                          icon={BADGE_ICON[b.icon] ?? SealCheck}
-                          accessibilityLabel={`${b.label}: ${b.description}`}
-                        >
-                          {b.shortLabel}
-                        </Badge>
-                      ))}
-                      <Icon icon={Info} size="xs" tone="default" />
-                    </View>
-                  </Pressable>
-                  <VerificationSheet
-                    visible={verifySheetOpen}
-                    onRequestClose={() => setVerifySheetOpen(false)}
-                    badges={badges}
-                    tier={getSealTier(badges) ?? "gray"}
-                  />
-                </>
-              ) : null}
 
               {/*
                * POIN 3 (2026-10-04) — seksi usaha: mewujudkan janji "profil
@@ -1265,40 +1235,6 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
                   </Pressable>
                 ) : null}
 
-                {profile.trustScore != null ? (
-                  // UI-P007: skor milik sendiri dapat dibuka ke layar rincian
-                  // (/trust-score memakai getMyTrustScore — hanya untuk diri
-                  // sendiri; profil orang lain tetap tampilan statis).
-                  isSelf ? (
-                    <Pressable
-                      className="flex-row items-center gap-1"
-                      accessibilityRole="button"
-                      accessibilityLabel={translate("Skor kepercayaan {x} dari {y}, buka rincian", { x: profile.trustScore, y: 100 })}
-                      hitSlop={TEXT_ROW_HIT_SLOP}
-                      onPress={() => router.push(ROUTES.trustScore)}
-                    >
-                      {/* v2: skor = accent di semua permukaan (ikut TrustScoreCard). */}
-                      <Icon icon={ShieldCheck} size="xs" tone="accent" weight="fill" />
-                      <Text variant="body" weight={700} tone="accent">
-                        {profile.trustScore}/100
-                      </Text>
-                      <Text variant="caption" tone="secondary">
-                        {translate("Skor")}
-                      </Text>
-                    </Pressable>
-                  ) : (
-                    <View className="flex-row items-center gap-1">
-                      {/* v2: skor = accent di semua permukaan (ikut TrustScoreCard). */}
-                      <Icon icon={ShieldCheck} size="xs" tone="accent" weight="fill" />
-                      <Text variant="body" weight={700} tone="accent">
-                        {profile.trustScore}/100
-                      </Text>
-                      <Text variant="caption" tone="secondary">
-                        {translate("Skor")}
-                      </Text>
-                    </View>
-                  )
-                ) : null}
               </View>
 
               {/* ── A.4 Action Row (HANYA profil orang lain) ────────
@@ -1314,6 +1250,7 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
                         fullWidth
                         following={following === true}
                         loading={followLoading || following == null}
+                        showIcon={false}
                         onToggle={(next) => void handleFollow(next)}
                       />
                     </View>
@@ -1322,7 +1259,6 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
                         variant="secondary"
                         size="sm"
                         fullWidth
-                        leftIcon={ChatCircleDots}
                         onPress={() => void handleSendMessage()}
                       >
                         {translate("Kirim Pesan")}
@@ -1337,11 +1273,8 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
                       leftIcon={Handshake}
                       onPress={() => router.push(ROUTES.createTransactionWith(handle))}
                     >
-                      {translate("Beli Sekarang")}
+                      {translate("Buat Transaksi")}
                     </Button>
-                    <Text variant="caption" tone="secondary">
-                      {translate("Uang Anda disimpan Kahade dulu, diteruskan ke penjual setelah barang Anda terima.")}
-                    </Text>
                   </View>
                 </>
               ) : null}
@@ -1356,11 +1289,13 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
                 isSelf={isSelf}
                 showcaseItems={showcaseItems}
               />
-              <Tabs<ProfileTab>
-                items={profileTabs}
-                value={activeTab}
-                onChange={selectTab}
-              />
+              <View style={{ display: tabsStuck ? "none" : "flex" } as object}>
+                <Tabs<ProfileTab>
+                  items={profileTabs}
+                  value={activeTab}
+                  onChange={selectTab}
+                />
+              </View>
             </View>
 
             {/* ── Tab Content 1: Etalase (Showcase) ───────────────
@@ -1585,7 +1520,7 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
                 B.1: "Laporkan"/"Blokir" pindah ke header (menu kebab profil
                 orang lain). B.2: kontak publik + "Bergabung sejak" —
                 selengkapnya di <ProfileAboutTab> (ekstrak G-11). */}
-            {activeTab === "about" ? <ProfileAboutTab profile={profile} /> : null}
+            {activeTab === "about" ? <ProfileAboutTab profile={profile} badges={badges} /> : null}
           </View>
         ) : (
           <EmptyState icon={UserCircle} title={translate("Profil tidak ditemukan")} />

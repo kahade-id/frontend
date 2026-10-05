@@ -312,7 +312,7 @@ function NotificationsScreen() {
   useNotificationsRealtime()
   const toast = useToast()
   // Efek scroll: header terangkat (bayangan) saat daftar digulir.
-  const { elevated, onScrollWorklet } = useScrollElevation()
+  const { onScrollWorklet } = useScrollElevation()
   const listRef = useRef<FlatList<NotificationRow>>(null)
   const scrollToTop = useCallback(() => {
     listRef.current?.scrollToOffset({ offset: 0, animated: true })
@@ -794,7 +794,7 @@ function NotificationsScreen() {
           titleAlign="left"
           showBack={false}
           separator={false}
-          elevated={elevated}
+          elevated={false}
           left={selectHeaderLeft}
           right={selectHeaderRight}
         />
@@ -806,7 +806,7 @@ function NotificationsScreen() {
           // untuk kembali (seperti <Header title="Transaksi" showBack={false}/>).
           showBack={false}
           separator={false}
-          elevated={elevated}
+          elevated={false}
           // T5-002 (audit UI/UX intuitif 2026-09-29): drawer bisa dibuka dari
           // semua tab, bukan cuma Etalase.
           left={headerLeft}

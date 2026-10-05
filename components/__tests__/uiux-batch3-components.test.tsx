@@ -253,13 +253,11 @@ describe("C1 — permanent follow placement", () => {
     expect(screen.queryByRole("button", { name: /^(Ikuti|Berhenti mengikuti)$/ })).toBeNull()
     expect(state.follow).not.toHaveBeenCalled()
   })
-  it("author row has no direct follow button; it exists only after opening the detail menu", async () => {
-    render(themed(<ShowcaseAuthorRow item={item} isOwner={false} hasSession onReport={() => {}} />))
+  it("author row has no follow/menu buttons (moved to header ⋮ 2026-10-05)", async () => {
+    render(themed(<ShowcaseAuthorRow item={item} isOwner={false} hasSession />))
     await act(async () => {})
     expect(screen.queryByRole("button", { name: "Ikuti" })).toBeNull()
-    fireEvent.click(screen.getByRole("button", { name: "Pilihan etalase" }))
-    fireEvent.click(await screen.findByRole("menuitem", { name: "Ikuti" }))
-    expect(state.follow).toHaveBeenCalledWith(true)
+    expect(screen.queryByRole("button", { name: "Pilihan etalase" })).toBeNull()
   })
 })
 
@@ -269,13 +267,15 @@ describe("UIUX-129 — empty seller rating", () => {
       distribution: { counts: [0, 0, 0, 0, 0], total: 0 },
       averageRating: null,
     })
-    render(themed(<ShowcaseAuthorRow item={item} isOwner={false} hasSession onReport={() => {}} />))
-    expect(await screen.findByText("Penjual baru — belum ada ulasan")).toBeTruthy()
+    render(themed(<ShowcaseAuthorRow item={item} isOwner={false} hasSession />))
+    await act(async () => {})
+    // (2026-10-05: teks "Penjual baru" dihapus — tidak ada baris rating sama sekali.)
+    expect(screen.queryByText("Penjual baru — belum ada ulasan")).toBeNull()
   })
 
   it("does not label the seller as new when the rating request fails", async () => {
     state.ratings.mockRejectedValueOnce(new Error("offline"))
-    render(themed(<ShowcaseAuthorRow item={item} isOwner={false} hasSession onReport={() => {}} />))
+    render(themed(<ShowcaseAuthorRow item={item} isOwner={false} hasSession />))
     await act(async () => {})
     expect(state.ratings).toHaveBeenCalledOnce()
     expect(screen.queryByText("Penjual baru — belum ada ulasan")).toBeNull()

@@ -8,7 +8,7 @@
 import { useEffect, useState } from "react"
 import { View } from "react-native"
 import { router } from "expo-router"
-import { CaretRight, DotsThreeVertical, Flag, PencilSimple, Star, UserMinus, UserPlus } from "phosphor-react-native"
+import { Star } from "phosphor-react-native"
 
 import { translate } from "@/lib/i18n/translate"
 import { useLanguage } from "@/lib/i18n"
@@ -23,10 +23,7 @@ import { getPublicRatingSummary, type PublicRatingSummary } from "@/lib/api/rati
 import { Avatar } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Icon } from "@/components/ui/icon"
-import { IconButton } from "@/components/ui/icon-button"
 import { PressableScale } from "@/components/ui/pressable-scale"
-import { ActionSheet } from "@/components/ui/action-sheet"
-import { useShowcaseAuthorFollow } from "@/lib/use-showcase-author-follow"
 import { Text } from "@/components/ui/text"
 import { VerifiedName } from "@/components/ui/verified-name"
 
@@ -34,8 +31,6 @@ type ShowcaseAuthorRowProps = {
   item: Pick<ShowcaseSocialItem, "id" | "author" | "createdAt">
   isOwner: boolean
   hasSession: boolean
-  /** Buka sheet laporan untuk item ini. */
-  onReport: () => void
 }
 
 /**
@@ -57,13 +52,7 @@ function SellerRatingLine({ username, hasSession }: { username: string; hasSessi
     return () => ctrl.abort()
   }, [username])
   if (summary == null) return null
-  if (summary.distribution.total === 0) {
-    return (
-      <Text variant="caption" tone="secondary">
-        {translate("Penjual baru — belum ada ulasan")}
-      </Text>
-    )
-  }
+  if (summary.distribution.total === 0) return null
   if (summary.averageRating == null) return null
   const goProfile = () =>
     router.push(
@@ -86,39 +75,7 @@ function SellerRatingLine({ username, hasSession }: { username: string; hasSessi
   )
 }
 
-function AuthorFollowMenu({ username }: { username: string }) {
-  const [open, setOpen] = useState(false)
-  const { following, loading, onToggle } = useShowcaseAuthorFollow(username)
-
-  return (
-    <>
-      <IconButton
-        icon={DotsThreeVertical}
-        variant="ghost"
-        size="sm"
-        accessibilityLabel={translate("Pilihan etalase")}
-        accessibilityHint={translate("Buka opsi etalase")}
-        onPress={() => setOpen(true)}
-      />
-      <ActionSheet
-        visible={open}
-        onRequestClose={() => setOpen(false)}
-        title={translate("Pilihan etalase")}
-        actions={[
-          {
-            key: "follow",
-            label: following ? translate("Berhenti mengikuti") : translate("Ikuti"),
-            icon: following ? UserMinus : UserPlus,
-            disabled: loading,
-            onPress: () => onToggle(!following),
-          },
-        ]}
-      />
-    </>
-  )
-}
-
-export function ShowcaseAuthorRow({ item, isOwner, hasSession, onReport }: ShowcaseAuthorRowProps) {
+export function ShowcaseAuthorRow({ item, isOwner, hasSession }: ShowcaseAuthorRowProps) {
   // i18n: label aksesibilitas mengikuti bahasa aktif.
   useLanguage()
   // T2-F12 (audit UI/UX 2026-09-28): fullName kosong/spasi → pakai username
@@ -166,39 +123,7 @@ export function ShowcaseAuthorRow({ item, isOwner, hasSession, onReport }: Showc
           <SellerRatingLine username={item.author.username} hasSession={hasSession} />
         </View>
         {isOwner ? <Badge variant="outline">Anda</Badge> : null}
-        {/* Item 153 (FE-IMP-1): chevron — menandakan baris penulis bisa
-            diketuk menuju profil (affordance yang selama ini implisit). */}
-        <Icon icon={CaretRight} size="sm" tone="default" />
       </PressableScale>
-      {/* C1: follow hanya di menu detail; jangan tambahkan tombol langsung di baris penulis. */}
-      {!isOwner ? <AuthorFollowMenu username={item.author.username} /> : null}
-      {/* B-05 selaras: bendera disembunyikan untuk item sendiri. */}
-      {!isOwner ? (
-        <IconButton
-          icon={Flag}
-          variant="ghost"
-          size="sm"
-          accessibilityLabel={translate("Laporkan")}
-          onPress={onReport}
-        />
-      ) : null}
-      {/* S8 (audit 2026-09-26): "Ubah karya" langsung membuka editor ITEM INI
-          via `?edit=<id>` — bukan sekadar daftar kelola. */}
-      {isOwner ? (
-        <IconButton
-          icon={PencilSimple}
-          variant="ghost"
-          size="sm"
-          accessibilityLabel={translate("Ubah etalase")}
-          accessibilityHint={translate("Ubah etalase ini")}
-          onPress={() =>
-            router.push({
-              pathname: ROUTES.showcaseManagement,
-              params: { edit: item.id },
-            } as never)
-          }
-        />
-      ) : null}
     </View>
   )
 }

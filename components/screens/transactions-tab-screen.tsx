@@ -433,7 +433,7 @@ export default function TransactionsScreen() {
     setSection(parseTrxSection(sectionParam))
   }, [sectionParam])
   // Efek scroll: header terangkat (bayangan) saat daftar digulir.
-  const { elevated, onScrollWorklet } = useScrollElevation()
+  const { onScrollWorklet } = useScrollElevation()
   const listRef = useRef<FlatList<OrderDayGroup<Order>>>(null)
   const scrollToTop = useCallback(() => {
     listRef.current?.scrollToOffset({ offset: 0, animated: true })
@@ -687,7 +687,7 @@ export default function TransactionsScreen() {
         titleAlign="left"
         showBack={false}
         separator={false}
-        elevated={elevated}
+        elevated={false}
         // T5-002 (audit UI/UX intuitif 2026-09-29): drawer bisa dibuka dari
         // semua tab, bukan cuma Etalase.
         left={headerLeft}

@@ -22,6 +22,8 @@
   "Gagal menghapus rekening": "Couldn't delete the account",
   "Gagal menghapus template": "Couldn't delete the template",
   "Gagal mengikuti": "Couldn't follow",
+  "Profil diikuti": "Profile followed",
+  "Profil batal diikuti": "Profile unfollowed",
   "Gagal mengirim OTP": "Couldn't send the OTP",
   "Gagal mengirim OTP email": "Couldn't send the email OTP",
   "Gagal mengirim balasan": "Couldn't send the reply",

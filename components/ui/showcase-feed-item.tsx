@@ -57,7 +57,6 @@ import { ROUTES } from "@/lib/routes"
 import { Avatar } from "@/components/ui/avatar"
 import { VerifiedName } from "@/components/ui/verified-name"
 import { Divider } from "@/components/ui/divider"
-import { Button } from "@/components/ui/button"
 import { Icon, type IconComponent } from "@/components/ui/icon"
 import { IconButton } from "@/components/ui/icon-button"
 import { LikeAction } from "@/components/ui/like-button"
@@ -295,13 +294,6 @@ function ShowcaseFeedItemBase({
     // R1-003: dari prop `feedKind` (induk), bukan useLocalSearchParams.
     if (item.category) router.push(ROUTES.showcaseWithCategory(item.category, feedKind))
   }, [item.category, feedKind])
-
-  const handleBuy = useCallback(() => {
-    const target = item.orderLink
-      ? ROUTES.createTransactionFromShowcase(item.orderLink, item.author.username)
-      : ROUTES.createTransactionWith(item.author.username, { fromShowcase: true })
-    router.push(hasSession ? target : ROUTES.loginRequired(`/showcase/${encodeURIComponent(item.id)}`))
-  }, [hasSession, item.author.username, item.id, item.orderLink])
 
   // C06 (batch 139): badge "Stok habis" di kartu — graceful: status unknown
   // (field backend belum ada) = tidak ada badge.
@@ -551,30 +543,12 @@ function ShowcaseFeedItemBase({
       {/* ── Separator atas aksi (inset, bukan full) ── */}
       <Divider inset className="mt-3" />
 
-      {/* ── Aksi: suka · komentar · beli (commerce) · bagikan · simpan ── */}
+      {/* ── Aksi: suka · komentar · bagikan · simpan ── */}
+      {/* (2026-10-05, revisi produk: tombol "Beli" dihapus dari list —
+          beli hanya dari halaman detail etalase.) */}
       <View className="flex-row items-center px-2 pt-1">
         {likeRow}
         {commentRow}
-        {item.isCommerce && !item.isOwner && !nonInteractive ? (
-          <Button
-            size="sm"
-            variant="primary"
-            fullWidth={false}
-            disabled={item.isActive === false || soldOut}
-            accessibilityLabel={translate("Beli Sekarang")}
-            accessibilityHint={
-              soldOut
-                ? translate("Stok etalase ini habis, jadi belum bisa ditransaksikan.")
-                : item.isActive === false
-                  ? translate("Etalase ini sedang tidak aktif, jadi belum bisa ditransaksikan.")
-                  : undefined
-            }
-            onPress={handleBuy}
-            className="min-w-11 shrink-0 px-2"
-          >
-            {translate("Beli")}
-          </Button>
-        ) : null}
         <View className="flex-1" />
         {onShare ? (
           <PressableScale

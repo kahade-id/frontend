@@ -31,12 +31,14 @@ import { ArrowLeft, X } from "phosphor-react-native"
 import { usePathname, useRouter } from "expo-router"
 
 import { IconButton } from "@/components/ui/icon-button"
+import { Icon, type IconComponent } from "@/components/ui/icon"
+import { PressableScale } from "@/components/ui/pressable-scale"
 import { StepProgress } from "@/components/ui/stepper"
 import { Text } from "@/components/ui/text"
 import { ScreenInsetsContext } from "@/components/ui/screen"
 import { useTheme } from "@/components/theme-provider"
 import { elevationStyle } from "@/lib/elevation"
-import { tokens } from "@/lib/tokens"
+import { modes, tokens } from "@/lib/tokens"
 import { logicalParentForPath } from "@/lib/notification-routing"
 import { cn } from "@/lib/cn"
 import { translateProp, useLanguage } from "@/lib/i18n"
@@ -82,6 +84,201 @@ export function useDocumentTitle(title?: string) {
   }, [title])
 }
 
+/**
+ * Tombol ikon lingkaran untuk header (2026-10-05, revisi produk).
+ *
+ * Gaya kaca ala header landing kahade.id (pola Mobbin):
+ * - Background #F3F4F6/64 (light) — blur 48px di web.
+ * - Tanpa border, tanpa shadow — melayang bersih.
+ * - Dark: padanan #1A1A1A/64.
+ * Native tidak bisa blur tanpa expo-blur (ubah fingerprint) → di sana
+ * semi-transparan saja; web dapat blur asli via backdrop-filter.
+ */
+export function HeaderCircleButton({
+  icon,
+  onPress,
+  accessibilityLabel,
+  accessibilityHint,
+}: {
+  icon: IconComponent
+  onPress: () => void
+  accessibilityLabel: string
+  accessibilityHint?: string
+}) {
+  const { mode } = useTheme()
+  const palette = modes[mode]
+  const glassBg =
+    mode === "light" ? "rgba(243,244,246,0.64)" : "rgba(26,26,26,0.64)"
+  return (
+    <PressableScale
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      accessibilityHint={accessibilityHint}
+      haptic="light"
+      onPress={onPress}
+      className="h-12 w-12 items-center justify-center"
+    >
+      <View
+        style={[
+          {
+            borderRadius: 999,
+            backgroundColor: glassBg,
+            height: 48,
+            width: 48,
+            alignItems: "center",
+            justifyContent: "center",
+          },
+          Platform.OS === "web"
+            ? ({ backdropFilter: "blur(48px)", WebkitBackdropFilter: "blur(48px)" } as object)
+            : null,
+        ]}
+      >
+        <Icon icon={icon} size="md" color={palette.textPrimary} />
+      </View>
+    </PressableScale>
+  )
+}
+
+/**
+ * Grup aksi kanan header: 2+ ikon dalam satu kartu pil kaca (2026-10-05).
+ * Gaya sama dengan HeaderCircleButton: #F3F4F6/64 + blur 48px (web).
+ */
+export function HeaderActionGroup({ children }: { children: ReactNode }) {
+  const { mode } = useTheme()
+  const glassBg =
+    mode === "light" ? "rgba(243,244,246,0.64)" : "rgba(26,26,26,0.64)"
+  return (
+    <View
+      style={[
+        {
+          borderRadius: 999,
+          backgroundColor: glassBg,
+          flexDirection: "row",
+          alignItems: "center",
+          padding: 4,
+          gap: 4,
+        },
+        Platform.OS === "web"
+          ? ({ backdropFilter: "blur(48px)", WebkitBackdropFilter: "blur(48px)" } as object)
+          : null,
+      ]}
+    >
+      {children}
+    </View>
+  )
+}
+
+/**
+ * Tombol ikon polos untuk di dalam HeaderActionGroup (tanpa border sendiri —
+ * border sudah di kartu grup).
+ */
+function HeaderGroupIcon({
+  icon,
+  onPress,
+  accessibilityLabel,
+  accessibilityHint,
+}: {
+  icon: IconComponent
+  onPress: () => void
+  accessibilityLabel: string
+  accessibilityHint?: string
+}) {
+  const { mode } = useTheme()
+  return (
+    <PressableScale
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      accessibilityHint={accessibilityHint}
+      haptic="light"
+      onPress={onPress}
+      className="h-10 w-10 items-center justify-center"
+    >
+      <View style={{ borderRadius: 999, height: 40, width: 40, alignItems: "center", justifyContent: "center" }}>
+        <Icon icon={icon} size="md" color={modes[mode].textPrimary} />
+      </View>
+    </PressableScale>
+  )
+}
+
+/**
+ * Upgrade otomatis aksi kanan header (2026-10-05, revisi produk):
+ * - 1 IconButton → HeaderCircleButton (lingkaran solid).
+ * - 2+ IconButton → HeaderActionGroup (satu kartu pil).
+ * - Non-IconButton (Button teks, dsb.) → dibiarkan apa adanya.
+ */
+function upgradeRightActions(node: ReactNode): ReactNode {
+  const buttons: ReactNode[] = []
+  const others: ReactNode[] = []
+
+  const collect = (n: ReactNode): void => {
+    if (Array.isArray(n)) {
+      n.forEach(collect)
+      return
+    }
+    if (n && typeof n === "object" && "type" in n) {
+      const el = n as { type: unknown; props?: Record<string, unknown> }
+      // Fragment / View pembungkus → telusuri anaknya.
+      if (el.type === Symbol.for("react.fragment") || (typeof el.type === "string" && el.type === "View")) {
+        collect((el.props?.children ?? null) as ReactNode)
+        return
+      }
+      if (el.type === IconButton) {
+        buttons.push(el as ReactNode)
+        return
+      }
+    }
+    others.push(n)
+  }
+  collect(node)
+
+  if (buttons.length === 0) return node
+
+  const toCircle = (b: ReactNode, grouped: boolean) => {
+    const el = b as {
+      props: {
+        icon: IconComponent
+        onPress?: () => void
+        accessibilityLabel?: string
+        accessibilityHint?: string
+      }
+    }
+    const p = el.props
+    if (!p?.icon || typeof p.onPress !== "function") return b
+    return grouped ? (
+      <HeaderGroupIcon
+        icon={p.icon}
+        onPress={p.onPress}
+        accessibilityLabel={p.accessibilityLabel ?? "Aksi"}
+        accessibilityHint={p.accessibilityHint}
+      />
+    ) : (
+      <HeaderCircleButton
+        icon={p.icon}
+        onPress={p.onPress}
+        accessibilityLabel={p.accessibilityLabel ?? "Aksi"}
+        accessibilityHint={p.accessibilityHint}
+      />
+    )
+  }
+
+  if (buttons.length === 1 && others.length === 0) {
+    return toCircle(buttons[0], false)
+  }
+  // Campuran / banyak: grup ikon dalam satu kartu pil, sisanya tetap.
+  return (
+    <>
+      {buttons.length > 0 ? (
+        <HeaderActionGroup>
+          {buttons.map((b, i) => (
+            <View key={i}>{toCircle(b, true)}</View>
+          ))}
+        </HeaderActionGroup>
+      ) : null}
+      {others}
+    </>
+  )
+}
+
 export type HeaderProps = Omit<ViewProps, "children"> & {
   title?: string
   /** H1 di baris kedua (layar utama tab) */
@@ -108,8 +305,8 @@ export type HeaderProps = Omit<ViewProps, "children"> & {
   progress?: number
   /** Tanpa border & bg — untuk hero */
   transparent?: boolean
-  /** Tampilkan garis pemisah di bawah header (default true). Tab Transaksi,
-      Pesan, dan Notifikasi mematikannya atas permintaan produk (2026-09-27). */
+  /** Tampilkan garis pemisah di bawah header (default false 2026-10-05:
+      tombol kaca melayang tidak butuh separator; nyalakan manual bila perlu). */
   separator?: boolean
   /** Bayangan lembut di bawah header saat konten di-scroll — efek elevasi
       dinamis (permintaan produk 2026-09-27). Pasangan `useScrollElevation`. */
@@ -146,7 +343,7 @@ export const Header = memo(function Header({
   right,
   progress,
   transparent = false,
-  separator = true,
+  separator = false,
   elevated = false,
   titleAlign = "center",
   titleVariant: titleVariantOverride,
@@ -195,13 +392,11 @@ export const Header = memo(function Header({
   const leftNode =
     left ??
     (canBack ? (
-      <IconButton
+      <HeaderCircleButton
         icon={backKind === "close" ? X : ArrowLeft}
-        variant="ghost"
-        weight={backKind === "close" ? "bold" : undefined}
+        onPress={handleBack}
         accessibilityLabel={backKind === "close" ? "Tutup" : "Kembali"}
         accessibilityHint={backKind === "close" ? "Menutup layar ini" : "Kembali ke layar sebelumnya"}
-        onPress={handleBack}
       />
     ) : null)
 
@@ -291,7 +486,7 @@ export const Header = memo(function Header({
               onLayout={handleRightLayout}
               className="flex-row items-center gap-1"
             >
-              {right}
+              {upgradeRightActions(right)}
             </View>
           </View>
         </View>

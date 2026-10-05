@@ -5,7 +5,6 @@ import type { OpeningMediaTap } from "@/lib/use-opening-media-tap"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   findNodeHandle,
-  ScrollView,
   UIManager,
   View,
   type ScrollViewInstance,
@@ -21,10 +20,14 @@ import { formatNumber } from "@/lib/format"
 import {
   BookmarkSimple,
   ChatCircle,
+  DotsThreeVertical,
   Flag,
   PaperPlaneRight,
+  PencilSimple,
   ShareNetwork,
   Trash,
+  UserMinus,
+  UserPlus,
 } from "phosphor-react-native"
 import { api, createIdempotencyKey, isApiError, userMessage } from "@/lib/api"
 import { API_CONSTRAINTS } from "@/lib/api/constraints"
@@ -73,7 +76,8 @@ import { Button } from "@/components/ui/button"
 import { CollapsibleText } from "@/components/ui/collapsible-text"
 import { DataScreen } from "@/components/ui/data-screen"
 import { Divider } from "@/components/ui/divider"
-import { useDocumentTitle } from "@/components/ui/header"
+import { useShowcaseAuthorFollow } from "@/lib/use-showcase-author-follow"
+import { useDocumentTitle, HeaderCircleButton } from "@/components/ui/header"
 import { IconButton } from "@/components/ui/icon-button"
 import { ImageViewer } from "@/components/ui/image-viewer"
 import { Input } from "@/components/ui/input"
@@ -96,7 +100,7 @@ import { Spin360Viewer } from "@/components/ui/spin360-viewer"
 import { ShowcaseDetailActions } from "@/components/ui/showcase-detail-actions"
 import { ShowcaseHtmlView } from "@/components/ui/showcase-html-description-editor"
 import { ShowcaseDetailComments } from "@/components/showcase-detail-comments"
-import { ShowcaseRelatedCard } from "@/components/showcase-related-card"
+import { ShowcaseFeedItem } from "@/components/ui/showcase-feed-item"
 import { ShowcaseReportSheet } from "@/components/ui/showcase-report-sheet"
 import { ShowcaseShareSheet } from "@/components/ui/showcase-share-sheet"
 import { Text } from "@/components/ui/text"
@@ -257,6 +261,8 @@ function ShowcaseDetailContent({
   const operation = useShowcaseOperation(id)
   const mutationPending = useRef(false)
   const toast = useToast()
+  const { following: authorFollowing, loading: followLoading, onToggle: onToggleFollow } =
+    useShowcaseAuthorFollow(item.author.username)
   /**
    * A-05/A-06/A-07: suka & simpan lewat store bersama — sinkron dengan feed
    * & profil dalam satu sesi; tamu diarahkan ke layar login oleh hook.
@@ -304,6 +310,7 @@ function ShowcaseDetailContent({
   const commentFocusDoneRef = useRef(false)
   const trackDetailScrollOffset = useCallback((offsetY: number) => {
     detailScrollOffsetRef.current = offsetY
+    setHeaderCollapsed(offsetY > 120)
   }, [])
   const handleDetailScroll = useCallback(
     (event: { nativeEvent?: { contentOffset?: { y?: number } } }) => {
@@ -397,6 +404,8 @@ function ShowcaseDetailContent({
 
   /** A-11: sheet laporan bersama — null = tertutup. */
   const [reportItem, setReportItem] = useState<ShowcaseSocialItem | null>(null)
+  const [headerMenuOpen, setHeaderMenuOpen] = useState(false)
+  const [headerCollapsed, setHeaderCollapsed] = useState(false)
 
   useEffect(() => {
     let alive = true
@@ -985,9 +994,19 @@ function ShowcaseDetailContent({
 
   return (
     <DataScreen
-      title={translate("Etalase")}
+      title={headerCollapsed && item ? item.title : translate("Etalase")}
       padded={false}
-      header={{ onBack }}
+      header={{
+        onBack,
+        right: (
+          <HeaderCircleButton
+            icon={DotsThreeVertical}
+            onPress={() => setHeaderMenuOpen(true)}
+            accessibilityLabel={translate("Pilihan etalase")}
+            accessibilityHint={translate("Buka opsi etalase")}
+          />
+        ),
+      }}
       state={{
         loading: false,
         refreshing: query.refreshing || commentsRefreshing,
@@ -1005,15 +1024,11 @@ function ShowcaseDetailContent({
       onScrollWorklet={handleDetailScrollWorklet}
       footer={
         !isOwner ? (
-          <View className="bg-background py-3">
-            {/* Harga utama hanya ditampilkan di isi detail agar tidak diduplikasi. */}
-            <View className="flex-row items-center gap-3">
-              <Text variant="caption" tone="secondary" numberOfLines={2} className="min-w-0 flex-1">
-                {translate("Uang Anda disimpan Kahade dulu, diteruskan ke penjual setelah barang Anda terima.")}
-              </Text>
-              <Button
-                disabled={item.isActive === false || soldOut}
-                onPress={handleCreateTransaction}
+          <View className="bg-background px-5 py-3">
+            <Button
+              fullWidth
+              disabled={item.isActive === false || soldOut}
+              onPress={handleCreateTransaction}
                 accessibilityHint={
                   soldOut
                     ? translate("Stok etalase ini habis, jadi belum bisa ditransaksikan.")
@@ -1022,9 +1037,8 @@ function ShowcaseDetailContent({
                       : undefined
                 }
               >
-                {translate("Beli Sekarang")}
+                {translate("Buat Transaksi")}
               </Button>
-            </View>
           </View>
         ) : undefined
       }
@@ -1035,7 +1049,6 @@ function ShowcaseDetailContent({
         item={item}
         isOwner={isOwner}
         hasSession={hasSession}
-        onReport={() => setReportItem(item)}
       />
 
       {/* ── Media: CARD pager (mx-5, selaras avatar) — bukan full-bleed ── */}
@@ -1155,14 +1168,15 @@ function ShowcaseDetailContent({
         onToggleSave={toggleSave}
         onShowSavers={isOwner ? () => setLikersSheetTab("savers") : undefined}
         onShare={() => void share()}
+        onShareLongPress={() =>
+          toast.show({
+            title: translate("{x} dibagikan", { x: formatNumber(item.shareCount ?? 0) }),
+          })
+        }
       />
       {/* Daftar penyuka/penyimpan dibuka dengan long-press pada aksi suka/simpan.
           DC-008: metrik share dari backend — tampil ringan bila ada. */}
-      {(item.shareCount ?? 0) > 0 ? (
-        <Text variant="caption" tone="tertiary" className="px-5">
-          {translate("{x} kali dibagikan", { x: formatNumber(item.shareCount ?? 0) })}
-        </Text>
-      ) : null}
+      {/* (2026-10-05: teks dibagikan dihapus.) */}
 
       {/* Batch 43 (item 6): statistik produk — hanya pemilik. */}
       {isOwner ? <ProductStatsSection showcaseId={id} /> : null}
@@ -1280,17 +1294,11 @@ function ShowcaseDetailContent({
           <Text variant="h3" className="px-5 pb-3">
             {translate("Etalase terkait")}
           </Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerClassName="gap-3 px-5 pb-2"
-          >
-            {/* Item 166 (FE-IMP-1): kartu diekstrak ke <ShowcaseRelatedCard>
-                — quick-like per kartu butuh hook (tidak legal di dalam .map). */}
-            {item.related.map((rel) => (
-              <ShowcaseRelatedCard key={rel.id} rel={rel} />
+          <View className="gap-0">
+            {item.related.slice(0, 5).map((rel) => (
+              <ShowcaseFeedItem key={rel.id} item={rel} />
             ))}
-          </ScrollView>
+          </View>
         </View>
       ) : null}
 
@@ -1448,6 +1456,68 @@ function ShowcaseDetailContent({
         onRequestClose={() => setDeleteOpen(false)}
       />
 
+      <ActionSheet
+        visible={headerMenuOpen}
+        onRequestClose={() => setHeaderMenuOpen(false)}
+        title={translate("Pilihan etalase")}
+        actions={[
+          ...(!isOwner
+            ? [
+                {
+                  key: "follow",
+                  label: authorFollowing ? translate("Berhenti mengikuti") : translate("Ikuti"),
+                  icon: authorFollowing ? UserMinus : UserPlus,
+                  disabled: followLoading,
+                  onPress: () => {
+                    setHeaderMenuOpen(false)
+                    onToggleFollow(!authorFollowing)
+                  },
+                },
+                {
+                  key: "report",
+                  label: translate("Laporkan"),
+                  icon: Flag,
+                  onPress: () => {
+                    setHeaderMenuOpen(false)
+                    setReportItem(item)
+                  },
+                },
+              ]
+            : [
+                {
+                  key: "edit",
+                  label: translate("Ubah etalase"),
+                  icon: PencilSimple,
+                  onPress: () => {
+                    setHeaderMenuOpen(false)
+                    router.push({
+                      pathname: ROUTES.showcaseManagement,
+                      params: { edit: item.id },
+                    } as never)
+                  },
+                },
+                {
+                  key: "delete",
+                  label: translate("Hapus etalase"),
+                  icon: Trash,
+                  destructive: true,
+                  onPress: () => {
+                    setHeaderMenuOpen(false)
+                    setDeleteOpen(true)
+                  },
+                },
+              ]),
+          {
+            key: "share",
+            label: translate("Bagikan"),
+            icon: ShareNetwork,
+            onPress: () => {
+              setHeaderMenuOpen(false)
+              void share()
+            },
+          },
+        ]}
+      />
       {/* A-11: SATU sheet laporan (copy seragam "Laporkan Karya"). */}
       <ShowcaseReportSheet item={reportItem} onRequestClose={() => setReportItem(null)} />
       <ShowcaseShareSheet visible={shareSheetVisible} item={item} onClose={() => setShareSheetVisible(false)} />
