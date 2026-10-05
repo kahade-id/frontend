@@ -21,7 +21,7 @@ import { View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { router } from "expo-router"
 
-import { api, userMessage } from "@/lib/api"
+import { api } from "@/lib/api"
 import { readQuestionList, type MyQuestionsType, type QuestionItem, type UserProfile } from "@/lib/api/users"
 import { CONTENT_REPORT_REASONS, type ContentReportReason } from "@/lib/labels/report"
 import { ROUTES } from "@/lib/routes"
@@ -46,6 +46,7 @@ import { Radio, RadioGroup } from "@/components/ui/radio"
 import { SegmentedControl, type SegmentItem } from "@/components/ui/segmented-control"
 import { useToast } from "@/components/ui/toast"
 import { translate, useLanguage } from "@/lib/i18n"
+import { showMutationError } from "@/lib/mutation-toast"
 
 /** G-13: opsi hide satu sumber di lib/labels/report (= HiddenReason API). */
 const HIDE_REASONS = CONTENT_REPORT_REASONS
@@ -142,15 +143,18 @@ export default function QuestionsScreen() {
       setHideTarget(null)
       toast.show({ title: translate("Pertanyaan disembunyikan"), tone: "success", duration: 2500 })
     } catch (err: unknown) {
-      toast.show({
-        title: translate("Gagal menyembunyikan pertanyaan"),
-        description: userMessage(err),
-        tone: "danger",
+      // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+      showMutationError(toast.show, {
+        failTitle: translate("Gagal menyembunyikan pertanyaan"),
+        uncertainHint: translate("Aksi mungkin sudah diproses — memuat ulang…"),
+        err: err,
+        scope: "questions:menyembunyikan-pertanyaan",
       })
+      void query.reload()
     } finally {
       setHiding(false)
     }
-  }, [hideTarget, hideReason, hiding, query.setData, toast])
+  }, [hideTarget, hideReason, hiding, query.setData, toast, query])
 
   const patchQuestion = useCallback(
     (id: string, patch: Partial<QuestionItem>) => {
@@ -172,17 +176,24 @@ export default function QuestionsScreen() {
           : await api.users.removeQuestionUpvote(q.id)
         patchQuestion(q.id, { upvoteCount: res.upvoteCount, isUpvotedByViewer: res.upvoted })
       } catch (err: unknown) {
-        patchQuestion(q.id, { upvoteCount: prevCount, isUpvotedByViewer: prevActive })
-        toast.show({
-          title: translate("Gagal memperbarui dukungan"),
-          description: userMessage(err),
-          tone: "danger",
-        })
+        // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+        if (
+          showMutationError(toast.show, {
+            failTitle: translate("Gagal memperbarui dukungan"),
+            uncertainHint: translate("Aksi mungkin sudah diproses — memuat ulang…"),
+            err: err,
+            scope: "questions:memperbarui-dukungan",
+          })
+        ) {
+          void query.reload()
+        } else {
+          patchQuestion(q.id, { upvoteCount: prevCount, isUpvotedByViewer: prevActive })
+        }
       } finally {
         setUpvotingId(null)
       }
     },
-    [upvotingId, patchQuestion, toast],
+    [upvotingId, patchQuestion, toast, query],
   )
 
   const openAnswer = useCallback((q: QuestionItem) => {
@@ -207,7 +218,17 @@ export default function QuestionsScreen() {
       setAnswerTarget(null)
       await query.reload()
     } catch (err) {
-      toast.show({ title: translate("Gagal mengirim jawaban"), description: userMessage(err), tone: "danger" })
+      // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+      if (
+        showMutationError(toast.show, {
+          failTitle: translate("Gagal mengirim jawaban"),
+          uncertainHint: translate("Aksi mungkin sudah diproses — memuat ulang…"),
+          err: err,
+          scope: "questions:mengirim-jawaban",
+        })
+      ) {
+        void query.reload()
+      }
     } finally {
       setAnswering(false)
     }
@@ -222,11 +243,17 @@ export default function QuestionsScreen() {
       setDeleteTarget(null)
       await query.reload()
     } catch (err) {
-      toast.show({
-        title: translate("Gagal menghapus pertanyaan"),
-        description: userMessage(err),
-        tone: "danger",
-      })
+      // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+      if (
+        showMutationError(toast.show, {
+          failTitle: translate("Gagal menghapus pertanyaan"),
+          uncertainHint: translate("Aksi mungkin sudah diproses — memuat ulang…"),
+          err: err,
+          scope: "questions:menghapus-pertanyaan",
+        })
+      ) {
+        void query.reload()
+      }
     } finally {
       setDeleting(false)
     }

@@ -15,7 +15,6 @@ import { Fingerprint, Plus, Trash, PencilSimple, ShieldWarning } from "phosphor-
 
 import { api } from "@/lib/api"
 import type { PasskeySummary } from "@/lib/api/passkey"
-import { userMessage } from "@/lib/api/errors"
 import { formatDate } from "@/lib/format"
 import { useApiQuery } from "@/lib/use-api-query"
 import {
@@ -24,6 +23,7 @@ import {
   type RegistrationOptionsJSON,
 } from "@/lib/passkey"
 import { PASSKEY_COPY } from "@/lib/passkey-instructions"
+import { showMutationError } from "@/lib/mutation-toast"
 
 import { Button } from "@/components/ui/button"
 import { DataScreen } from "@/components/ui/data-screen"
@@ -155,7 +155,17 @@ export default function PasskeysScreen() {
           tone: "success",
         })
       } catch (err) {
-        toast.show({ title: "Gagal mendaftarkan passkey", description: userMessage(err), tone: "danger" })
+        // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+        if (
+          showMutationError(toast.show, {
+            failTitle: "Gagal mendaftarkan passkey",
+            uncertainHint: "Aksi mungkin sudah diproses — memuat ulang…",
+            err: err,
+            scope: "passkeys:mendaftarkan-passkey",
+          })
+        ) {
+          void refresh()
+        }
       } finally {
         setWorking(false)
       }
@@ -180,7 +190,17 @@ export default function PasskeysScreen() {
       await refresh()
       toast.show({ title: "Nama passkey diperbarui", tone: "success" })
     } catch (err) {
-      toast.show({ title: "Gagal mengganti nama", description: userMessage(err), tone: "danger" })
+      // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+      if (
+        showMutationError(toast.show, {
+          failTitle: "Gagal mengganti nama",
+          uncertainHint: "Aksi mungkin sudah diproses — memuat ulang…",
+          err: err,
+          scope: "passkeys:mengganti-nama",
+        })
+      ) {
+        void refresh()
+      }
     } finally {
       setWorking(false)
     }
@@ -207,7 +227,17 @@ export default function PasskeysScreen() {
       await refresh()
       toast.show({ title: "Passkey dihapus", tone: "success" })
     } catch (err) {
-      toast.show({ title: "Gagal menghapus passkey", description: userMessage(err), tone: "danger" })
+      // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+      if (
+        showMutationError(toast.show, {
+          failTitle: "Gagal menghapus passkey",
+          uncertainHint: "Aksi mungkin sudah diproses — memuat ulang…",
+          err: err,
+          scope: "passkeys:menghapus-passkey",
+        })
+      ) {
+        void refresh()
+      }
     } finally {
       setWorking(false)
     }
@@ -222,7 +252,13 @@ export default function PasskeysScreen() {
       setRecoverStep("verify")
       toast.show({ title: res.message, tone: "success" })
     } catch (err) {
-      toast.show({ title: "Gagal mengirim OTP", description: userMessage(err), tone: "danger" })
+      // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+      showMutationError(toast.show, {
+        failTitle: "Gagal mengirim OTP",
+        uncertainHint: "Aksi mungkin sudah diproses — periksa kembali sebelum mencoba lagi.",
+        err: err,
+        scope: "passkeys:mengirim-otp",
+      })
     } finally {
       setWorking(false)
     }
@@ -258,7 +294,17 @@ export default function PasskeysScreen() {
         })
       }
     } catch (err) {
-      toast.show({ title: "Verifikasi gagal", description: userMessage(err), tone: "danger" })
+      // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+      if (
+        showMutationError(toast.show, {
+          failTitle: "Verifikasi gagal",
+          uncertainHint: "Aksi mungkin sudah diproses — memuat ulang…",
+          err: err,
+          scope: "passkeys:verifikasi",
+        })
+      ) {
+        void refresh()
+      }
     } finally {
       setWorking(false)
     }

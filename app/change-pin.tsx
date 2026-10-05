@@ -32,6 +32,7 @@ import { PASSWORD_MIN } from "@/lib/auth-constants"
 import { goBackOrNavigate } from "@/lib/navigation"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
+import { showMutationError } from "@/lib/mutation-toast"
 
 import { Button } from "@/components/ui/button"
 import { ScreenCaptureGuard } from "@/components/security/screen-capture-guard"
@@ -135,16 +136,19 @@ export default function ChangePinScreen() {
           title: isSetupMode ? "PIN berhasil dibuat" : "PIN berhasil diubah",
           tone: "success",
         })
-        goBackOrNavigate(ROUTES.settings)
+        // Sidebar 2026-10-05: /settings dihapus — PIN adalah bagian hub Keamanan.
+        goBackOrNavigate(ROUTES.security)
       } catch (err: unknown) {
         // §14: percobaan PIN dibatasi. Bila backend mengunci akun, pesan itulah
         // yang harus dibaca pengguna — bukan saran "periksa password" yang
         // membuatnya mencoba lagi dan memperpanjang penguncian.
         const msg = userMessage(err)
-        toast.show({
-          title: isSetupMode ? "Gagal membuat PIN" : "Gagal mengubah PIN",
-          description: msg,
-          tone: "danger",
+        // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+        showMutationError(toast.show, {
+          failTitle: isSetupMode ? "Gagal membuat PIN" : "Gagal mengubah PIN",
+          uncertainHint: "Aksi mungkin sudah diproses — periksa kembali sebelum mencoba lagi.",
+          err: err,
+          scope: "change-pin:pin",
         })
         // A-18 (audit): error transient (jaringan/timeout/5xx) TIDAK lagi
         // melempar pengguna ke langkah password dan membuang PIN baru yang

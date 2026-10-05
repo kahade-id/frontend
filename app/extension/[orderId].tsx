@@ -248,6 +248,8 @@ export default function ExtensionScreen() {
     try {
       await fetchPage(page + 1)
     } catch (err: unknown) {
+      // Klasifikasi toast: KEEP toast — load-more non-blokir (daftar yang
+      // sudah tampil tetap utuh; pengguna tap lagi untuk retry).
       toast.show({
         title: "Gagal memuat halaman berikutnya",
         description: userMessage(err),

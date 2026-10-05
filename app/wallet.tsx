@@ -100,7 +100,7 @@ function RecentEmptyState() {
 import { OnboardingChecklistCard } from "@/components/ui/onboarding-checklist"
 import { memo, useCallback, useEffect, useMemo, useState } from "react"
 import { View } from "react-native"
-import { Wallet as WalletIcon } from "phosphor-react-native"
+import { Plus, Wallet as WalletIcon } from "phosphor-react-native"
 
 import { api, type WalletTransaction } from "@/lib/api"
 import { ROUTES } from "@/lib/routes"
@@ -109,6 +109,7 @@ import { cn } from "@/lib/cn"
 import { computeEscrowHolds, totalEscrowHeld } from "@/lib/wallet-escrow-holds"
 import { ESCROW_HELD_EXPLANATION } from "@/lib/labels/escrow"
 import { breakdownAddsUp } from "@/lib/wallet-batch139"
+import { openCreateSheet } from "@/lib/create-sheet"
 import { formatDate, formatTime } from "@/lib/format"
 import { translate } from "@/lib/i18n"
 
@@ -116,6 +117,7 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { ScreenCaptureGuard } from "@/components/security/screen-capture-guard"
 import { FadeIn } from "@/components/ui/fade-in"
 import { Header } from "@/components/ui/header"
+import { IconButton } from "@/components/ui/icon-button"
 import { ModeShiftFade } from "@/components/ui/mode-switcher"
 import { useSetUiPrefs, useUiPref } from "@/lib/ui-prefs"
 import { RouteLink } from "@/components/ui/route-link"
@@ -267,8 +269,20 @@ export default function WalletScreen() {
     // SEC-404: proteksi screen-capture iOS di layar saldo.
     <ScreenCaptureGuard>
       <Screen edges={["top"]} padded={false}>
-      {/* T5-001: tombol kembali tampil; fallback Header → replace("/showcase"). */}
-      <Header title="Dompet" />
+      {/* T5-001: tombol kembali tampil; fallback Header → replace("/showcase").
+          Sidebar 2026-10-05: tombol Buat di header (syarat hapus pensil
+          drawer) — sheet global "Buat baru" (termasuk isi saldo). */}
+      <Header
+        title="Dompet"
+        right={
+          <IconButton
+            icon={Plus}
+            variant="ghost"
+            accessibilityLabel={translate("Buat baru")}
+            onPress={openCreateSheet}
+          />
+        }
+      />
 
       <ModeShiftFade>
       <PaginatedList
@@ -403,7 +417,7 @@ export default function WalletScreen() {
             <Card padded={false} className="gap-1 px-4 py-3">
               <View className="flex-row items-baseline justify-between gap-3">
                 <Text variant="body" weight={600}>
-                  Ditahan di escrow
+                  Dalam transaksi
                 </Text>
                 <Amount value={heldValue} tone="primary" hidden={balanceHidden} />
               </View>
@@ -422,7 +436,7 @@ export default function WalletScreen() {
               </View>
               <Text variant="body" tone="secondary">
                 {breakdownAddsUp(wallet?.availableBalance, heldValue, wallet?.balance)
-                  ? "Total saldo = saldo tersedia + dana ditahan di escrow."
+                  ? "Total saldo = saldo tersedia + dana dalam transaksi."
                   : "Jumlah seluruh dana di dompet Anda."}
               </Text>
             </Card>
@@ -430,11 +444,11 @@ export default function WalletScreen() {
         </View>
       </BottomSheet>
 
-      {/* FE-IMP-4 item 1: rincian dana ditahan escrow — read-only. */}
+      {/* FE-IMP-4 item 1: rincian dana dalam transaksi — read-only. */}
       <BottomSheet
         visible={holdsOpen}
         onRequestClose={() => setHoldsOpen(false)}
-        title="Dana ditahan di escrow"
+        title="Dana dalam transaksi"
         description={ESCROW_HELD_EXPLANATION}
         footer={
           <Button onPress={() => setHoldsOpen(false)} containerClassName="flex-1">
@@ -455,15 +469,15 @@ export default function WalletScreen() {
           <View className="px-5 py-6">
             <EmptyState
               icon={WalletIcon}
-              title="Tidak ada pesanan penahan"
-              description="Belum ada dana yang ditahan."
+              title="Tidak ada dana dalam transaksi"
+              description="Dana order yang belum selesai akan tampil di sini."
             />
           </View>
         ) : (
           <View className="gap-2 px-5 py-2">
             <View className="flex-row items-baseline justify-between rounded-md bg-surface px-4 py-3">
               <Text variant="caption" tone="secondary">
-                Total ditahan
+                Total dalam transaksi
               </Text>
               <Amount
                 value={totalEscrowHeld(holds)}
@@ -482,7 +496,7 @@ export default function WalletScreen() {
                     {hold.orderId}
                   </Text>
                   <Text variant="caption" tone="secondary">
-                    Ditahan sejak {formatDate(hold.lockedAt)}
+                    Diamankan sejak {formatDate(hold.lockedAt)}
                   </Text>
                 </View>
                 <Amount

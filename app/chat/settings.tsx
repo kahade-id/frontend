@@ -17,9 +17,9 @@ import {
   type ChatPrivacySettings,
   type DmPolicy,
 } from "@/lib/api/chat"
-import { isApiError, userMessage } from "@/lib/api"
 import { useHasSession } from "@/lib/guest-gate"
 import { logWarn } from "@/lib/telemetry"
+import { showMutationError } from "@/lib/mutation-toast"
 
 import { Screen } from "@/components/ui/screen"
 import { Button } from "@/components/ui/button"
@@ -56,27 +56,27 @@ export default function ChatSettingsScreen() {
   const hasSession = useHasSession()
   const [privacy, setPrivacy] = useState<ChatPrivacySettings | null>(null)
   const [saving, setSaving] = useState(false)
+  // Klasifikasi toast: kegagalan MUAT section → INLINE ErrorState + retry
+  // (bukan toast — tanpa ini section hanya spinner selamanya).
+  const [privacyError, setPrivacyError] = useState(false)
+  const [privacyRetry, setPrivacyRetry] = useState(0)
 
   useEffect(() => {
     if (!hasSession) return
     let alive = true
+    setPrivacyError(false)
     getChatPrivacy()
       .then((p) => {
         if (alive) setPrivacy(p)
       })
       .catch((err: unknown) => {
         logWarn("chat:settings-privacy-load", err)
-        if (alive)
-          toast.show({
-            title: "Gagal memuat pengaturan privasi",
-            description: isApiError(err) ? userMessage(err) : undefined,
-            tone: "danger",
-          })
+        if (alive) setPrivacyError(true)
       })
     return () => {
       alive = false
     }
-  }, [toast, hasSession])
+  }, [hasSession, privacyRetry])
 
   const patchPrivacy = async (patch: Partial<ChatPrivacySettings>) => {
     if (!privacy || saving) return
@@ -88,10 +88,12 @@ export default function ChatSettingsScreen() {
     } catch (err) {
       logWarn("chat:settings-privacy-save", err)
       setPrivacy(prev)
-      toast.show({
-        title: "Gagal menyimpan",
-        description: isApiError(err) ? userMessage(err) : undefined,
-        tone: "danger",
+      // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+      showMutationError(toast.show, {
+        failTitle: "Gagal menyimpan",
+        uncertainHint: "Perubahan mungkin sudah tersimpan — buka ulang halaman untuk memastikan.",
+        err: err,
+        scope: "chat:settings:menyimpan",
       })
     } finally {
       setSaving(false)
@@ -120,9 +122,16 @@ export default function ChatSettingsScreen() {
             subtitle="Berlaku untuk akun Anda di semua perangkat."
           />
           {privacy === null ? (
-            <View className="items-center py-4">
-              <Spinner />
-            </View>
+            privacyError ? (
+              <ErrorState
+                title="Gagal memuat pengaturan privasi"
+                onRetry={() => setPrivacyRetry((n) => n + 1)}
+              />
+            ) : (
+              <View className="items-center py-4">
+                <Spinner />
+              </View>
+            )
           ) : (
             <>
               <Switch
@@ -220,11 +229,17 @@ function ReplyTemplateManager() {
       toast.show({ title: editing ? "Template diperbarui" : "Template ditambahkan", tone: "success", duration: 2500 })
     } catch (err) {
       logWarn("chat:settings-template-save", err)
-      toast.show({
-        title: "Gagal menyimpan template",
-        description: isApiError(err) ? userMessage(err) : undefined,
-        tone: "danger",
-      })
+      // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+      if (
+        showMutationError(toast.show, {
+          failTitle: "Gagal menyimpan template",
+          uncertainHint: "Aksi mungkin sudah diproses — memuat ulang…",
+          err: err,
+          scope: "chat:settings:menyimpan-template",
+        })
+      ) {
+        void refresh()
+      }
     } finally {
       setBusy(false)
     }
@@ -236,11 +251,17 @@ function ReplyTemplateManager() {
       await refresh()
     } catch (err) {
       logWarn("chat:settings-template-remove", err)
-      toast.show({
-        title: "Gagal menghapus template",
-        description: isApiError(err) ? userMessage(err) : undefined,
-        tone: "danger",
-      })
+      // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+      if (
+        showMutationError(toast.show, {
+          failTitle: "Gagal menghapus template",
+          uncertainHint: "Aksi mungkin sudah diproses — memuat ulang…",
+          err: err,
+          scope: "chat:settings:menghapus-template",
+        })
+      ) {
+        void refresh()
+      }
     }
   }
 

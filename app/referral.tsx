@@ -53,6 +53,7 @@ import { useCopy } from "@/lib/clipboard"
 import { logWarn } from "@/lib/telemetry"
 import { useToast } from "@/components/ui/toast"
 import { useWalletEnabled } from "@/lib/use-wallet-enabled"
+import { showMutationError } from "@/lib/mutation-toast"
 
 export default function ReferralScreen() {
   const insets = useSafeAreaInsets()
@@ -161,22 +162,28 @@ export default function ReferralScreen() {
       query.setData((prev) => (prev ? { ...prev, code: res?.code ?? prev.code } : prev))
       toast.show({ title: translate("Kode referral baru dibuat"), tone: "success", duration: 3000 })
     } catch (err: unknown) {
-      toast.show({
-        title: translate("Gagal membuat kode baru"),
-        description: userMessage(err),
-        tone: "danger",
-      })
+      // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+      if (
+        showMutationError(toast.show, {
+          failTitle: translate("Gagal membuat kode baru"),
+          uncertainHint: translate("Aksi mungkin sudah diproses — memuat ulang…"),
+          err: err,
+          scope: "referral:membuat-kode-baru",
+        })
+      ) {
+        void query.reload()
+      }
     } finally {
       setRegenerating(false)
     }
-  }, [code, toast.show])
+  }, [code, toast.show, query])
 
   const handleShare = useCallback(async () => {
     if (!code) return
     const url = referralUrl(code)
     const outcome = await shareContent({
       title: translate("Ajak teman ke Kahade"),
-      message: translate("Pakai kode referral saya {x} saat daftar di Kahade — transaksi aman dengan escrow.", {
+      message: translate("Pakai kode referral saya {x} saat daftar di Kahade — jual beli aman.", {
         x: code,
       }),
       url,

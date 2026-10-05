@@ -125,8 +125,15 @@ export const ROUTES = {
    * (jastip/patungan/bookings) — dipakai deep-link notifikasi agar tap
    * mendarat di segmen yang benar, bukan daftar order.
    */
-  transactionsSection: (section: "jastip" | "patungan" | "bookings") =>
+  transactionsSection: (section: "jastip" | "patungan" | "bookings" | "manage") =>
     ({ pathname: "/transactions", params: { section } }) as unknown as Href,
+  /**
+   * Sidebar 2026-10-05: "Kelola Transaksi" — deep-link ke section Kelola di
+   * tab Transaksi (hub: tautan pesanan, template, sengketa, retur). BUKAN
+   * layar duplikat: satu sumber kebenaran di
+   * components/screens/transactions-tab-screen.tsx (section "manage").
+   */
+  transactionsManage: "/transactions?section=manage" as Href,
   /** Tab #3 — Dompet (saldo, Topup/Withdraw/Transfer, riwayat ringkas) */
   wallet: "/wallet" as Href,
   /** Tab #4 — Notifikasi (list read/unread) */
@@ -134,8 +141,11 @@ export const ROUTES = {
   /** Detail satu notifikasi (GET /v1/notifications/:id) */
   notificationDetail: (id: string) =>
     ({ pathname: "/notification/[id]", params: { id } }) as unknown as Href,
-  /** Tab #5 — Pengaturan/Profil milik sendiri */
-  settings: "/settings" as Href,
+  // Sidebar 2026-10-05: /settings DIHAPUS TOTAL (file app/settings.tsx ikut
+  // dihapus). Isinya didistribusikan ulang: Ubah Profil → tombol edit di
+  // halaman profil; Notifikasi → section di /security; Versi Aplikasi → teks
+  // kaki sidebar (→ /app-version); Syarat & Privasi → /faq; Keamanan/Bisnis/
+  // Rekening/Buku Alamat/Laporan → item sidebar langsung.
   /** Tab #4 — Lainnya (menu & kategori) */
   more: "/more" as Href,
   /** Pindai QR / Scan code */
@@ -372,8 +382,9 @@ export const ROUTES = {
   blockedUsers: "/blocked-users" as Href,
   /** Privasi profil (profileVisible/showOnlineStatus) */
   privacySettings: "/privacy-settings" as Href,
-  /** Bahasa aplikasi (GET/PUT /v1/settings/language) */
-  language: "/language" as Href,
+  // Sidebar 2026-10-05: /language DIHAPUS TOTAL (file app/language.tsx ikut
+  // dihapus) — ganti bahasa kini segmen inline ID|EN di kaki sidebar (drawer
+  // memanggil PUT /v1/settings/language langsung, pola app/language.tsx).
   /** Hapus akun (POST /v1/users/me/delete-request) */
   deleteAccount: "/delete-account" as Href,
 
@@ -483,7 +494,11 @@ export const ROUTES = {
   discover: "/discover" as Href,
   /** Favorite user (GET /v1/users/favorites) */
   favorites: "/favorites" as Href,
-  /** Profil tersimpan (GET /v1/users/saved) */
+  /**
+   * Sidebar 2026-10-05: /saved hanya redirect → /showcase-management
+   * (tab "Tersimpan"). Isi app/saved.tsx pindah ke Kelola Etalase; rute ini
+   * dijaga untuk deep link lama.
+   */
   saved: "/saved" as Href,
   /** Followers/following user */
   followers: (username: string, tab: "followers" | "following" = "followers") =>
@@ -512,6 +527,11 @@ export const ROUTES = {
     ({ pathname: "/showcase", params: kind ? { category, kind } : { category } }) as unknown as Href,
   /** Showcase milik sendiri (CRUD), dibuka dari aksi tambah di feed. */
   showcaseManagement: "/showcase-management" as Href,
+  /**
+   * Sidebar 2026-10-05: tab "Tersimpan" di Kelola Etalase (rumah baru isi
+   * /saved). Dipakai redirect app/saved.tsx.
+   */
+  showcaseManagementSaved: "/showcase-management?tab=saved" as Href,
   /**
    * Halaman PENUH pembuatan karya (revisi 2026-09-26, permintaan produk):
    * ikon pensil di header Etalase dan tombol "Tambah foto" di Kelola Etalase

@@ -30,7 +30,6 @@ import { Image } from "phosphor-react-native"
 import {
   api,
   remainingRevisions,
-  userMessage,
   type Order,
   type OrderMilestone,
 } from "@/lib/api"
@@ -45,6 +44,7 @@ import { pickImage } from "@/lib/image-picker"
 import { translate } from "@/lib/i18n"
 import { useApiQuery } from "@/lib/use-api-query"
 import { useWalletEnabled } from "@/lib/use-wallet-enabled"
+import { showMutationError } from "@/lib/mutation-toast"
 
 import { Button } from "@/components/ui/button"
 import { AmountInput } from "@/components/ui/amount-input"
@@ -142,7 +142,13 @@ export default function MilestoneDetailScreen() {
   const [propNote, setPropNote] = useState("")
 
   const runAction = useCallback(
-    async (fn: () => Promise<unknown>, okTitle: string, failTitle: string) => {
+    async (
+      fn: () => Promise<unknown>,
+      okTitle: string,
+      failTitle: string,
+      uncertainHint: string,
+      uncertainDetail?: string,
+    ) => {
       if (busy) return
       setBusy(true)
       try {
@@ -150,7 +156,18 @@ export default function MilestoneDetailScreen() {
         await query.refresh()
         toast.show({ title: okTitle, tone: "success" })
       } catch (e) {
-        toast.show({ title: failTitle, description: userMessage(e), tone: "danger" })
+        // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+        if (
+          showMutationError(toast.show, {
+            failTitle,
+            uncertainHint,
+            uncertainDetail,
+            err: e,
+            scope: "milestone:action",
+          })
+        ) {
+          void query.refresh()
+        }
       } finally {
         setBusy(false)
       }
@@ -183,7 +200,17 @@ export default function MilestoneDetailScreen() {
       await query.refresh()
       toast.show({ title: "Bukti dilampirkan", tone: "success" })
     } catch (e) {
-      toast.show({ title: "Gagal mengunggah bukti", description: userMessage(e), tone: "danger" })
+      // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+      if (
+        showMutationError(toast.show, {
+          failTitle: "Gagal mengunggah bukti",
+          uncertainHint: "Aksi mungkin sudah diproses — memuat ulang…",
+          err: e,
+          scope: "milestones:id:mengunggah-bukti",
+        })
+      ) {
+        void query.refresh()
+      }
     } finally {
       setUploading(false)
     }
@@ -267,7 +294,7 @@ export default function MilestoneDetailScreen() {
               ) : null}
               {milestone.escrowHeld > 0 ? (
                 <KeyValue
-                  label="Escrow ditahan"
+                  label="Dana tahap ini"
                   value={<Text variant="monoBody">{formatRupiah(milestone.escrowHeld)}</Text>}
                 />
               ) : null}
@@ -311,6 +338,7 @@ export default function MilestoneDetailScreen() {
                         () => api.milestones.approveMilestoneChange(milestone.id),
                         "Perubahan disetujui",
                         "Gagal menyetujui perubahan",
+                        "Perubahan mungkin sudah disetujui — memuat ulang…",
                       )
                     }
                   >
@@ -360,6 +388,7 @@ export default function MilestoneDetailScreen() {
                         }),
                       "Hasil tahap terkirim — menunggu review pembeli",
                       "Gagal mengirim hasil",
+                      "Hasil mungkin sudah terkirim — memuat ulang…",
                     )
                   }
                 >
@@ -418,6 +447,7 @@ export default function MilestoneDetailScreen() {
                           () => api.milestones.requestMilestoneRevision(milestone.id, revisionNote.trim()),
                           "Revisi diminta",
                           "Gagal meminta revisi",
+                          "Revisi mungkin sudah diminta — memuat ulang…",
                         ).then(() => setRevisionOpen(false))
                       }
                     >
@@ -489,6 +519,7 @@ export default function MilestoneDetailScreen() {
                             }),
                           "Usulan perubahan dikirim",
                           "Gagal mengusulkan perubahan",
+                          "Usulan mungkin sudah terkirim — memuat ulang…",
                         ).then(() => {
                           setProposeOpen(false)
                           setPropTitle("")
@@ -587,6 +618,11 @@ export default function MilestoneDetailScreen() {
                   ? "Tahap diterima — dana dicairkan ke penjual"
                   : "Tahap diterima — dana dicairkan ke rekening bank penjual",
                 "Gagal menerima tahap",
+                // Klasifikasi toast: nominal+tujuan dana sudah dijelaskan di
+                // dialog konfirmasi pra-aksi; toast ini hanya konfirmasi
+                // status, state uang otoritatif tampil inline pasca-refresh.
+                "Tahap mungkin sudah diterima — memuat ulang…",
+                "Dana bisa sudah dicairkan — periksa status sebelum mencoba lagi.",
               ).then(() => setConfirmAccept(false))
             }
             onRequestClose={() => setConfirmAccept(false)}

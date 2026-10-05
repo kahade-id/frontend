@@ -47,6 +47,7 @@ import {
   readQuestionList,
 } from "@/lib/api/users"
 import { useCopy } from "@/lib/clipboard"
+import { openDrawer } from "@/lib/drawer"
 import { profileUrl } from "@/lib/deeplinks"
 import { formatDateTime, formatDecimal, formatNumber } from "@/lib/format"
 import { acquireShowcaseMutation } from "@/lib/showcase-state"
@@ -925,11 +926,13 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
           right={
             profile ? (
               isSelf ? (
+                // Sidebar 2026-10-05: /settings dihapus — titik tiga profil
+                // sendiri membuka sidebar (hub: Keamanan, Bisnis, dll).
                 <IconButton
                   icon={DotsThreeVertical}
                   variant="ghost"
-                  accessibilityLabel={translate("Pengaturan")}
-                  onPress={() => router.push(ROUTES.settings)}
+                  accessibilityLabel={translate("Menu")}
+                  onPress={() => openDrawer()}
                 />
               ) : (
                 <IconButton

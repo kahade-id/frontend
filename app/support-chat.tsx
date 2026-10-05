@@ -28,7 +28,6 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import { FlatList, View } from "react-native"
 import { Star, X } from "phosphor-react-native"
 
-import { userMessage } from "@/lib/api"
 import {
   closeSupportConversation,
   createSupportConversation,
@@ -60,6 +59,7 @@ import { Text } from "@/components/ui/text"
 import { TextArea } from "@/components/ui/text-area"
 import { useToast } from "@/components/ui/toast"
 import { focusRingInset } from "@/lib/focus-ring"
+import { showMutationError } from "@/lib/mutation-toast"
 
 /** Fase layar: membuat percakapan → chat → tutup → rating → selesai. */
 type SupportChatPhase = "creating" | "error" | "chat" | "rating" | "done"
@@ -374,10 +374,12 @@ export default function SupportChatScreen() {
         setPhase("rating")
       })
       .catch((err: unknown) => {
-        toast.show({
-          title: translate("Gagal menutup chat"),
-          description: userMessage(err),
-          tone: "danger",
+        // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+        showMutationError(toast.show, {
+          failTitle: translate("Gagal menutup chat"),
+          uncertainHint: translate("Aksi mungkin sudah diproses — periksa kembali sebelum mencoba lagi."),
+          err: err,
+          scope: "support-chat:menutup-chat",
         })
       })
       .finally(() => setClosing(false))
@@ -389,10 +391,12 @@ export default function SupportChatScreen() {
     void rateSupportConversation(conversationId, rating, ratingComment)
       .then(() => setPhase("done"))
       .catch((err: unknown) => {
-        toast.show({
-          title: translate("Gagal mengirim rating"),
-          description: userMessage(err),
-          tone: "danger",
+        // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+        showMutationError(toast.show, {
+          failTitle: translate("Gagal mengirim rating"),
+          uncertainHint: translate("Aksi mungkin sudah diproses — periksa kembali sebelum mencoba lagi."),
+          err: err,
+          scope: "support-chat:mengirim-rating",
         })
       })
       .finally(() => setRatingSubmitting(false))
@@ -620,7 +624,7 @@ export default function SupportChatScreen() {
                     )}
                   </Text>
                 </View>
-              ) : null
+              ) : undefined
             }
           />
           {escalatedTicket ? (

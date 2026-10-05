@@ -13,7 +13,6 @@ import { ScrollView, View } from "react-native"
 import { router } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
-import { userMessage } from "@/lib/api"
 import { onReconnect } from "@/lib/connectivity"
 import {
   FEEDBACK_CATEGORIES,
@@ -42,6 +41,7 @@ import { TextLink } from "@/components/ui/text-link"
 import { useToast } from "@/components/ui/toast"
 import { Platform } from "react-native"
 import { translate } from "@/lib/i18n/translate"
+import { showMutationError } from "@/lib/mutation-toast"
 
 const MESSAGE_MIN = 10
 const MESSAGE_MAX = 1000
@@ -128,11 +128,17 @@ export default function FeedbackScreen() {
       setContactConsent(false)
       void queuedFeedbackCount().then(setQueuedCount).catch((err) => logWarn("feedback:queue-count", err))
     } catch (err) {
-      toast.show({
-        title: "Masukan belum terkirim",
-        description: userMessage(err),
-        tone: "danger",
-      })
+      // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+      if (
+        showMutationError(toast.show, {
+          failTitle: "Masukan belum terkirim",
+          uncertainHint: "Aksi mungkin sudah diproses — memuat ulang…",
+          err: err,
+          scope: "feedback:masukan-belum-terkirim",
+        })
+      ) {
+        void queuedFeedbackCount().then(setQueuedCount).catch((countErr: unknown) => logWarn("feedback:queue-count", countErr))
+      }
     } finally {
       setSubmitting(false)
     }

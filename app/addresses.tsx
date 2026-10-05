@@ -26,6 +26,7 @@ import {
 import { useHasSession } from "@/lib/guest-gate"
 import { translate } from "@/lib/i18n/translate"
 import { useApiQuery } from "@/lib/use-api-query"
+import { showMutationError } from "@/lib/mutation-toast"
 import { useToast } from "@/components/ui/toast"
 
 import { ActionSheet, type ActionSheetItem } from "@/components/ui/action-sheet"
@@ -186,7 +187,17 @@ export default function AddressesScreen() {
       setDeleteTarget(null)
       await query.refresh()
     } catch (err) {
-      toast.show({ title: translate("Gagal menghapus alamat"), description: userMessage(err), tone: "danger" })
+      // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+      if (
+        showMutationError(toast.show, {
+          failTitle: translate("Gagal menghapus alamat"),
+          uncertainHint: translate("Aksi mungkin sudah diproses — memuat ulang…"),
+          err: err,
+          scope: "addresses:menghapus-alamat",
+        })
+      ) {
+        void query.refresh()
+      }
     } finally {
       setDeleting(false)
     }
@@ -202,7 +213,17 @@ export default function AddressesScreen() {
         setMenuAddress(null)
         await query.refresh()
       } catch (err) {
-        toast.show({ title: translate("Gagal mengubah alamat utama"), description: userMessage(err), tone: "danger" })
+        // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+        if (
+          showMutationError(toast.show, {
+            failTitle: translate("Gagal mengubah alamat utama"),
+            uncertainHint: translate("Aksi mungkin sudah diproses — memuat ulang…"),
+            err: err,
+            scope: "addresses:mengubah-alamat-utama",
+          })
+        ) {
+          void query.refresh()
+        }
       } finally {
         setDefaultBusy(false)
       }

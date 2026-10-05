@@ -45,7 +45,6 @@ export const AUTHENTICATED_SCREENS = [
   "followers/[username]",
   "invoice/[orderId]",
   "kyc",
-  "language",
   "milestones/[id]", // detail milestone escrow — GET ber-auth (Tim C, integrasi 2026-09-27)
   "notification/[id]",
   "notification-preferences",
@@ -75,7 +74,6 @@ export const AUTHENTICATED_SCREENS = [
   "jastip/[id]", // batch 43, item 15: detail trip jastip
   "jastip/how-it-works", // U5-014 (journey): konsisten dengan seksi jastip (butuh sesi)
   "service-bookings", // batch 43, item 12: booking jasa buyer
-  "settings",
   "showcase",
   "showcase-management",
   "showcase/create",

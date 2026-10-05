@@ -22,6 +22,13 @@
  *   Pengguna Diblokir    GET  /v1/settings/blocked-users  → app/blocked-users.tsx
  *   Hapus Akun           POST /v1/users/me/delete-request → app/delete-account.tsx
  *
+ * Sidebar 2026-10-05 (/settings DIHAPUS — layar ini hub akun penggantinya):
+ *   Notifikasi           section tersendiri → app/notification-preferences.tsx
+ *                        (satu sumber kebenaran layar penuhnya; di sini hanya
+ *                        pintu + ringkasan status)
+ *   Keluar               tombol destruktif sticky + Dialog konfirmasi
+ *                        (pindahan /settings: unregister push + clear session)
+ *
  * Keputusan non-obvious:
  *   - Nilai di kanan baris (trailing) adalah STATUS NYATA, bukan teks hiasan:
  *     email/nomor HP sekarang (dimasker <SensitiveText toggleable={false}>
@@ -46,8 +53,11 @@
  *     components/ui/section.tsx supaya Pengaturan dan Keamanan tidak bisa
  *     menyimpang lagi secara diam-diam.
  */
-import { View } from "react-native"
+import { useCallback, useState } from "react"
+import { Platform, View } from "react-native"
+import { router } from "expo-router"
 import {
+  Bell,
   DeviceMobile,
   Fingerprint,
   Key,
@@ -55,6 +65,7 @@ import {
   Mailbox,
   Phone,
   ShieldCheck,
+  SignOut,
   Trash,
   UserFocus,
   UserMinus,
@@ -62,13 +73,21 @@ import {
 
 import { api, type UserProfile } from "@/lib/api"
 import type { TwoFactorStatus } from "@/lib/api/auth"
+import type { NotificationPreferences } from "@/lib/api/notifications"
+import { clearSession } from "@/lib/api/session"
 import { getBiometricCapability, type BiometricCapability } from "@/lib/biometrics"
+import { summarizeNotificationPreferences } from "@/lib/notification-effective"
+import { unregisterPushDevice } from "@/lib/push-notifications"
+import { unregisterWebPushDevice } from "@/lib/web-push"
 import { ROUTES } from "@/lib/routes"
 import { useApiQuery } from "@/lib/use-api-query"
 import { logWarn } from "@/lib/telemetry"
 import { useWalletEnabled } from "@/lib/use-wallet-enabled"
 
+import { Alert } from "@/components/ui/alert"
+import { Button } from "@/components/ui/button"
 import { DataScreen } from "@/components/ui/data-screen"
+import { Dialog } from "@/components/ui/modal"
 import { ListItem } from "@/components/ui/list-item"
 import { SensitiveText } from "@/components/ui/sensitive-text"
 import { Text } from "@/components/ui/text"
@@ -118,12 +137,87 @@ export default function SecurityScreen() {
   const twoFactorLabel = twoFactor ? (twoFactor.enabled ? "Aktif" : "Nonaktif") : undefined
   const biometricLabel = biometric.available ? biometric.label : "Tidak tersedia"
 
+  // Sidebar 2026-10-05: section Notifikasi (pindahan /settings) — kunci query
+  // SAMA dengan layar preferensi ("notification-preferences") sehingga status
+  // dibaca dari cache bersama, bukan GET ganda. Belum dimuat/gagal → tanpa
+  // trailing (bukan angka yang menyesatkan).
+  const notifPrefsQuery = useApiQuery<NotificationPreferences>(
+    "notification-preferences",
+    (signal) => api.notifications.getNotificationPreferences(signal),
+  )
+  const notifTrailing =
+    summarizeNotificationPreferences(notifPrefsQuery.data ?? null) ?? undefined
+
+  // Sidebar 2026-10-05: Keluar (pindahan /settings — Dialog konfirmasi
+  // destruktif + unregister push device + clear session).
+  const [logoutOpen, setLogoutOpen] = useState(false)
+  const [loggingOut, setLoggingOut] = useState(false)
+  // AUT-004: kegagalan tulis flag sessionSignedOut saat logout ditampilkan
+  // ke user (bukan dicatat diam-diam) — di web, tanpanya cookie bisa
+  // menghidupkan lagi sesi yang baru diakhiri.
+  const [logoutError, setLogoutError] = useState<string | null>(null)
+
+  const performLogout = useCallback(async () => {
+    setLoggingOut(true)
+    setLogoutError(null)
+    try {
+      // Web: lepas token FCM Web + hapus token-nya; native: lepas Expo token.
+      // Keduanya no-op yang aman bila push tidak aktif — logout tetap jalan.
+      const deviceApi = {
+        registerDevice: (dto: Parameters<typeof api.notifications.registerDevice>[0]) =>
+          api.notifications.registerDevice(dto),
+        unregisterDevice: (deviceId: string) =>
+          api.notifications.unregisterDevice(deviceId),
+      }
+      if (Platform.OS === "web")
+        await unregisterWebPushDevice(deviceApi).catch((err) => logWarn("security:unregister-push", err))
+      else await unregisterPushDevice(deviceApi).catch((err) => logWarn("security:unregister-push", err))
+      try {
+        // AUT-004: logout() melempar bila flag sessionSignedOut gagal
+        // ditulis — tampilkan ke user, JANGAN diam-diam menganggap sukses.
+        await api.auth.logout()
+      } catch (err) {
+        logWarn("security:logout", err)
+        setLogoutOpen(false)
+        setLogoutError(
+          "Keluar tidak tuntas: penanda sesi perangkat gagal disimpan. Token sudah dihapus, tetapi sesi bisa aktif lagi otomatis — coba keluar sekali lagi.",
+        )
+        return
+      } finally {
+        await clearSession()
+      }
+      router.replace(ROUTES.login)
+    } finally {
+      setLoggingOut(false)
+    }
+  }, [])
+
   return (
+    <>
     <DataScreen
       title="Keamanan"
       state={query}
       loadingMessage="Memuat pengaturan keamanan"
       errorTitle="Gagal memuat pengaturan keamanan"
+      // Tombol Keluar sticky (pindahan /settings): selalu terjangkau walau
+      // query hub gagal — keluar tidak boleh bergantung pada muat status.
+      footer={
+        <View className="gap-2">
+          {logoutError ? (
+            <Alert tone="danger" title="Keluar tidak tuntas" onDismiss={() => setLogoutError(null)}>
+              {logoutError}
+            </Alert>
+          ) : null}
+          <Button
+            variant="destructive"
+            size="md"
+            leftIcon={SignOut}
+            onPress={() => setLogoutOpen(true)}
+          >
+            Keluar
+          </Button>
+        </View>
+      }
     >
       {/* ── Kredensial masuk ───────────────────────────────── */}
       <View className="gap-2">
@@ -248,6 +342,23 @@ export default function SecurityScreen() {
 
       </View>
 
+      {/* ── Notifikasi (pindahan /settings) ────────────────────────
+          Layar penuh preferensi (perangkat + server + digest + quiet hours)
+          tetap satu-satunya editor — di sini hanya pintu + ringkasannya. */}
+      <View className="gap-2">
+        <MenuGroupLabel>Notifikasi</MenuGroupLabel>
+        <View className="w-full overflow-hidden rounded-md bg-surface">
+          <ListItem
+            title="Preferensi Notifikasi"
+            titleVariant="bodyLarge"
+            leading={Bell}
+            chevron
+            href={ROUTES.notificationPreferences}
+            trailing={notifTrailing}
+          />
+        </View>
+      </View>
+
       {/* ── Perangkat & data ───────────────────────────────── */}
       <View className="gap-2">
         <MenuGroupLabel>Perangkat & Data</MenuGroupLabel>
@@ -292,5 +403,28 @@ export default function SecurityScreen() {
         </View>
       </View>
     </DataScreen>
+
+    {/* ── Dialog Konfirmasi Logout (pindahan /settings) ──────────
+        FE-IMP-3 #93: tampilkan akun yang akan keluar supaya tidak salah
+        akun (perangkat bersama / multi-akun). */}
+    <Dialog
+      visible={logoutOpen}
+      tone="danger"
+      destructive
+      icon={SignOut}
+      title="Keluar dari Kahade?"
+      description={
+        me?.username
+          ? `Keluar dari akun @${me.username} di perangkat ini?`
+          : "Keluar dari Kahade di perangkat ini?"
+      }
+      confirmLabel="Keluar"
+      cancelLabel="Batal"
+      loading={loggingOut}
+      onConfirm={() => void performLogout()}
+      onCancel={() => setLogoutOpen(false)}
+      onRequestClose={() => setLogoutOpen(false)}
+    />
+    </>
   )
 }

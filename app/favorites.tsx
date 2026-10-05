@@ -14,9 +14,10 @@ import { router } from "expo-router"
 import { translate } from "@/lib/i18n/translate"
 import { useLanguage } from "@/lib/i18n"
 
-import { api, userMessage } from "@/lib/api"
+import { api } from "@/lib/api"
 import { ROUTES } from "@/lib/routes"
 import { useApiQuery } from "@/lib/use-api-query"
+import { showMutationError } from "@/lib/mutation-toast"
 
 import { DataScreen } from "@/components/ui/data-screen"
 import { IconButton } from "@/components/ui/icon-button"
@@ -105,12 +106,19 @@ export default function FavoritesScreen() {
         await api.users.removeFavorite(username)
         toast.show({ title: "Dihapus dari favorit", tone: "neutral", duration: 2000 })
       } catch (err) {
-        setFavoritesData(prevItems)
-        toast.show({
-          title: "Gagal menghapus favorit",
-          description: userMessage(err),
-          tone: "danger",
-        })
+        // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+        if (
+          showMutationError(toast.show, {
+            failTitle: "Gagal menghapus favorit",
+            uncertainHint: "Aksi mungkin sudah diproses — memuat ulang…",
+            err: err,
+            scope: "favorites:menghapus-favorit",
+          })
+        ) {
+          void query.reload()
+        } else {
+          setFavoritesData(prevItems)
+        }
       } finally {
         setRemovingId(null)
       }
@@ -121,7 +129,7 @@ export default function FavoritesScreen() {
   // FE-065: handler navigasi stabil per-id untuk baris yang di-memo.
   const openProfile = useCallback((username: string) => {
     router.push(ROUTES.userProfile(username))
-  }, [])
+  }, [, query])
 
   return (
     <DataScreen

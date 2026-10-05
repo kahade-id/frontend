@@ -18,6 +18,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { ThemeProvider } from "@/components/theme-provider"
 import { AppDrawer } from "@/components/ui/app-drawer"
+import { PortalProvider } from "@/components/ui/portal"
+import { ToastProvider } from "@/components/ui/toast"
 import { openDrawer, resetDrawerForTest } from "@/lib/drawer"
 
 const profile = {
@@ -47,7 +49,11 @@ vi.mock("@/lib/api", () => ({
 function renderDrawer() {
   return render(
     <ThemeProvider>
-      <AppDrawer />
+      <PortalProvider>
+        <ToastProvider>
+          <AppDrawer />
+        </ToastProvider>
+      </PortalProvider>
     </ThemeProvider>,
   )
 }
@@ -121,11 +127,20 @@ describe("header profil drawer — tumpukan vertikal", () => {
     renderDrawer()
     act(() => openDrawer())
 
-    expect(screen.getByRole("menuitem", { name: "Menu langganan Kahade Plus" })).toBeTruthy()
-    expect(screen.getByRole("menuitem", { name: "Buka profil saya" })).toBeTruthy()
-    expect(screen.getByRole("menuitem", { name: "Buka dompet" })).toBeTruthy()
-    expect(screen.getByRole("menuitem", { name: "Buka etalase" })).toBeTruthy()
-    expect(screen.getByRole("menuitem", { name: "Buka pusat bantuan" })).toBeTruthy()
+    // Sidebar 2026-10-05: utama + sekunder (bukan lagi "menu bawah" warisan).
+    for (const name of [
+      "Menu langganan Kahade Plus",
+      "Lihat profil saya",
+      "Kelola etalase saya",
+      "Kelola transaksi saya",
+      "Buka buku alamat",
+      "Laporan & Analitik",
+      "Buka keamanan",
+      "Buka pusat bantuan",
+      "Buka verifikasi bisnis",
+    ]) {
+      expect(screen.getByRole("menuitem", { name })).toBeTruthy()
+    }
     // ModeSwitcher sudah dihapus.
     expect(screen.queryByRole("radiogroup", { name: "Mode aplikasi" })).toBeNull()
   })

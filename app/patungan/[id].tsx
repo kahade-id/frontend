@@ -37,6 +37,7 @@ import { ROUTES } from "@/lib/routes"
 import { shareContent } from "@/lib/share"
 import { useToast } from "@/components/ui/toast"
 import { useWalletEnabled } from "@/lib/use-wallet-enabled"
+import { showMutationError } from "@/lib/mutation-toast"
 
 import { Amount } from "@/components/ui/amount"
 import { Badge } from "@/components/ui/badge"
@@ -172,11 +173,22 @@ export default function PatunganDetailScreen() {
       toast.show({ title: translate("Pencairan diinisiasi — masa sanggah 24 jam"), tone: "warning" })
       setReleaseOpen(false)
     } catch (err) {
-      toast.show({ title: translate("Gagal inisiasi pencairan"), description: userMessage(err), tone: "danger" })
+      // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+      if (
+        showMutationError(toast.show, {
+          failTitle: translate("Gagal inisiasi pencairan"),
+          uncertainHint: translate("Pencairan mungkin sudah diinisiasi — memuat ulang…"),
+          uncertainDetail: translate("Periksa status grup sebelum mencoba lagi."),
+          err: err,
+          scope: "patungan:id:inisiasi-pencairan",
+        })
+      ) {
+        void load()
+      }
     } finally {
       setReleasing(false)
     }
-  }, [id, releasing, toast])
+  }, [id, releasing, toast, load])
 
   const shareInvite = useCallback(async () => {
     if (!group?.inviteCode) return

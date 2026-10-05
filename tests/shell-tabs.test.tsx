@@ -57,12 +57,12 @@ describe("isShellTabPath", () => {
 
   it("false untuk sub-path (bar tidak tampil di layar detail)", () => {
     expect(isShellTabPath("/chat/room-1")).toBe(false)
-    expect(isShellTabPath("/notifications/settings")).toBe(false)
+    expect(isShellTabPath("/notifications/security")).toBe(false)
     expect(isShellTabPath("/showcase/abc")).toBe(false)
   })
 
   it("false untuk rute stack lama & /more", () => {
-    for (const path of ["/wallet", "/vouchers", "/wallet-history", "/more", "/settings", "/"]) {
+    for (const path of ["/wallet", "/vouchers", "/wallet-history", "/more", "/security", "/"]) {
       expect(isShellTabPath(path)).toBe(false)
     }
   })

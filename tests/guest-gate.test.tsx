@@ -40,7 +40,7 @@ beforeEach(async () => {
 
 describe("B-03: gerbang tamu hanya menutup path ber-auth", () => {
   it("true di layar ber-auth, false di path publik/tab tamu", () => {
-    __setPathname("/settings")
+    __setPathname("/security")
     const { result, rerender } = renderHook(() => useGuestPathBlocked())
     expect(result.current).toBe(true)
 
@@ -71,7 +71,7 @@ describe("B-03: gerbang tamu hanya menutup path ber-auth", () => {
   })
 
   it("tamu tidak diblokir setelah punya sesi (token dari store sesi)", async () => {
-    __setPathname("/settings")
+    __setPathname("/security")
     await act(async () => {
       await setAccessToken("token-tamu")
     })

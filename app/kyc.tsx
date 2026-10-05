@@ -32,7 +32,7 @@ import { useCallback, useState } from "react"
 import { View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
-import { api, isApiError, userMessage } from "@/lib/api"
+import { api } from "@/lib/api"
 import { toKycUiStatus, type KycHistoryEntry, type KycState } from "@/lib/api/kyc"
 import { formatDateTime } from "@/lib/format"
 import { logWarn } from "@/lib/telemetry"
@@ -66,6 +66,7 @@ import { Text } from "@/components/ui/text"
 import { useToast } from "@/components/ui/toast"
 import { UploadField, validateUploadFile, type UploadStatus } from "@/components/ui/upload-field"
 import { translate } from "@/lib/i18n/translate"
+import { showMutationError } from "@/lib/mutation-toast"
 
 
 /** KTP: lanskap 3:2 seperti kartu fisik; selfie tanpa crop paksa. */
@@ -191,6 +192,8 @@ export default function KycScreen() {
         maxSizeMB: KYC_DOC_MAX_MB,
       })
       if (validationError) {
+        // Klasifikasi toast: KEEP manual — validasi klien pra-unggah (bukan
+        // error mutasi server).
         toast.show({ title: "Berkas tidak valid", description: validationError, tone: "danger" })
         return
       }
@@ -267,13 +270,17 @@ export default function KycScreen() {
           .cleanupUploads(uploadedKeys)
           .catch((cleanupErr: unknown) => logWarn("kyc:cleanup", cleanupErr))
       }
-      toast.show({
-        title: "Gagal mengirim verifikasi",
-        description: isApiError(err)
-          ? userMessage(err)
-          : "Periksa koneksi dan pastikan foto jelas, lalu coba lagi.",
-        tone: "danger",
-      })
+      // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+      if (
+        showMutationError(toast.show, {
+          failTitle: "Gagal mengirim verifikasi",
+          uncertainHint: "Aksi mungkin sudah diproses — memuat ulang…",
+          err: err,
+          scope: "kyc:mengirim-verifikasi",
+        })
+      ) {
+        void query.refresh()
+      }
     } finally {
       setSubmitting(false)
     }

@@ -9,7 +9,7 @@
  */
 
 /** Istilah baku untuk dana yang ditahan — satu-satunya yang dipakai di app. */
-export const ESCROW_HELD_LABEL = "Ditahan di escrow"
+export const ESCROW_HELD_LABEL = "Dalam transaksi"
 
 /**
  * Satu kalimat penjelasan yang dipakai ulang di semua tempat.
@@ -17,4 +17,4 @@ export const ESCROW_HELD_LABEL = "Ditahan di escrow"
  * (konsisten di seluruh app, bukan kata sehari-hari yang diganti).
  */
 export const ESCROW_HELD_EXPLANATION =
-  "Dana ditahan di escrow untuk pesanan yang belum selesai — cair otomatis saat pesanan selesai atau dibatalkan."
+  "Dana dalam transaksi untuk pesanan yang belum selesai — cair otomatis saat pesanan selesai atau dibatalkan."

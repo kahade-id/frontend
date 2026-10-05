@@ -46,6 +46,7 @@ import { tokens } from "@/lib/tokens"
 import { translate, useLanguage } from "@/lib/i18n"
 import type { UserLinkItemDto } from "@/lib/api/types"
 import { useApiQuery } from "@/lib/use-api-query"
+import { showMutationError } from "@/lib/mutation-toast"
 
 import { ActionSheet, type ActionSheetItem } from "@/components/ui/action-sheet"
 import { Alert } from "@/components/ui/alert"
@@ -358,11 +359,13 @@ export default function EditProfileScreen() {
                 displayOrder: i,
               })),
             })
-          } catch {
-            toast.show({
-              title: translate("Profil tersimpan, tautan sosial gagal disimpan"),
-              description: translate("Periksa format URL lalu coba simpan lagi."),
-              tone: "danger",
+          } catch (err: unknown) {
+            // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+            showMutationError(toast.show, {
+              failTitle: translate("Profil tersimpan, tautan sosial gagal disimpan"),
+              uncertainHint: translate("Aksi mungkin sudah diproses — periksa kembali sebelum mencoba lagi."),
+              err: err,
+              scope: "edit-profile:profil-tersimpan-tautan",
             })
             await query.refresh()
             return
@@ -371,7 +374,8 @@ export default function EditProfileScreen() {
         setPasswordOpen(false)
         setCurrentPassword("")
         toast.show({ title: translate("Profil diperbarui"), tone: "success" })
-        goBackOrNavigate(ROUTES.settings)
+        // Sidebar 2026-10-05: /settings dihapus — fallback = Etalase (tab utama).
+        goBackOrNavigate(ROUTES.home)
       } catch (err) {
         // UX-FDB-006 (audit UI/UX 2026-10-01): jangan menebak. Pesan asli
         // (userMessage) ditampilkan; copy "username mungkin sudah dipakai"
@@ -509,10 +513,12 @@ export default function EditProfileScreen() {
       setPendingHeaderSource(null)
       toast.show({ title: translate("Foto sampul diperbarui"), tone: "success" })
     } catch (err: unknown) {
-      toast.show({
-        title: translate("Gagal mengunggah foto sampul"),
-        description: userMessage(err),
-        tone: "danger",
+      // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+      showMutationError(toast.show, {
+        failTitle: translate("Gagal mengunggah foto sampul"),
+        uncertainHint: translate("Aksi mungkin sudah diproses — periksa kembali sebelum mencoba lagi."),
+        err: err,
+        scope: "edit-profile:mengunggah-foto-sampul",
       })
     } finally {
       setHeaderBusy(false)
@@ -539,10 +545,12 @@ export default function EditProfileScreen() {
       setHeaderUrl(null)
       toast.show({ title: translate("Foto sampul dihapus"), tone: "success" })
     } catch (err: unknown) {
-      toast.show({
-        title: translate("Gagal menghapus foto sampul"),
-        description: userMessage(err),
-        tone: "danger",
+      // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+      showMutationError(toast.show, {
+        failTitle: translate("Gagal menghapus foto sampul"),
+        uncertainHint: translate("Aksi mungkin sudah diproses — periksa kembali sebelum mencoba lagi."),
+        err: err,
+        scope: "edit-profile:menghapus-foto-sampul",
       })
     } finally {
       setHeaderBusy(false)

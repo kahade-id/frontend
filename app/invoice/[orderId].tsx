@@ -51,6 +51,7 @@ import { InvoiceReceiptView } from "@/components/ui/invoice-receipt-view"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
 import { useCopy } from "@/lib/clipboard"
+import { showMutationError } from "@/lib/mutation-toast"
 import { useToast } from "@/components/ui/toast"
 
 export default function InvoiceScreen() {
@@ -137,10 +138,12 @@ export default function InvoiceScreen() {
       } catch (err: unknown) {
         const message = userMessage(err)
         setExportState({ kind: "error", format: "html", message })
-        toast.show({
-          title: "Gagal mengunduh struk",
-          description: message,
-          tone: "danger",
+        // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+        showMutationError(toast.show, {
+          failTitle: "Gagal mengunduh struk",
+          uncertainHint: "Aksi mungkin sudah diproses — periksa kembali sebelum mencoba lagi.",
+          err: err,
+          scope: "invoice:orderId:mengunduh-struk",
         })
       }
     },
@@ -169,10 +172,12 @@ export default function InvoiceScreen() {
       } catch (err: unknown) {
         const message = userMessage(err)
         setExportState({ kind: "error", format: "pdf", message })
-        toast.show({
-          title: "Gagal mengunduh struk PDF",
-          description: message,
-          tone: "danger",
+        // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+        showMutationError(toast.show, {
+          failTitle: "Gagal mengunduh struk PDF",
+          uncertainHint: "Aksi mungkin sudah diproses — periksa kembali sebelum mencoba lagi.",
+          err: err,
+          scope: "invoice:orderId:mengunduh-struk-pdf",
         })
       }
     },

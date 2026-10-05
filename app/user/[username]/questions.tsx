@@ -28,7 +28,7 @@ import { View } from "react-native"
 import { useLocalSearchParams, router } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
-import { api, userMessage } from "@/lib/api"
+import { api } from "@/lib/api"
 import {
   isOwnQuestion,
   readQuestionComments,
@@ -60,6 +60,7 @@ import { SectionHeader } from "@/components/ui/section"
 import { Text } from "@/components/ui/text"
 import { useToast } from "@/components/ui/toast"
 import { translate, useLanguage } from "@/lib/i18n"
+import { showMutationError } from "@/lib/mutation-toast"
 
 const PAGE_SIZE = 20
 const COMMENT_PAGE = 20
@@ -74,6 +75,9 @@ type CommentsState = {
   page: number
   hasMore: boolean
   loading: boolean
+  // Klasifikasi toast: kegagalan MUAT section → INLINE + retry (bukan
+  // toast — tanpa ini gagal-muat tampil sebagai "Belum ada balasan").
+  loadFailed: boolean
 }
 
 export default function PublicQuestionsScreen() {
@@ -180,17 +184,24 @@ export default function PublicQuestionsScreen() {
           : await api.users.removeQuestionUpvote(q.id)
         patchQuestion(q.id, { upvoteCount: res.upvoteCount, isUpvotedByViewer: res.upvoted })
       } catch (err: unknown) {
-        patchQuestion(q.id, { upvoteCount: prevCount, isUpvotedByViewer: prevActive })
-        toast.show({
-          title: translate("Gagal memperbarui dukungan"),
-          description: userMessage(err),
-          tone: "danger",
-        })
+        // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+        if (
+          showMutationError(toast.show, {
+            failTitle: translate("Gagal memperbarui dukungan"),
+            uncertainHint: translate("Aksi mungkin sudah diproses — memuat ulang…"),
+            err: err,
+            scope: "user:username:questions:memperbarui-dukungan",
+          })
+        ) {
+          void query.reload()
+        } else {
+          patchQuestion(q.id, { upvoteCount: prevCount, isUpvotedByViewer: prevActive })
+        }
       } finally {
         setUpvotingId(null)
       }
     },
-    [upvotingId, patchQuestion, requireSession, toast],
+    [upvotingId, patchQuestion, requireSession, toast, query],
   )
 
   const [askOpen, setAskOpen] = useState(false)
@@ -203,6 +214,7 @@ export default function PublicQuestionsScreen() {
     page: 1,
     hasMore: false,
     loading: false,
+    loadFailed: false,
   })
   const [commentText, setCommentText] = useState("")
   const [commentSending, setCommentSending] = useState(false)
@@ -214,7 +226,7 @@ export default function PublicQuestionsScreen() {
   // ── Komentar ───────────────────────────────────────────────────────
   const loadComments = useCallback(
     async (questionId: string, p: number) => {
-      setComments((c) => ({ ...c, loading: true }))
+      setComments((c) => ({ ...c, loading: true, loadFailed: false }))
       try {
         const body = await api.users.getQuestionComments(questionId, {
           page: p,
@@ -226,13 +238,13 @@ export default function PublicQuestionsScreen() {
           page: p,
           hasMore: typeof totalPages === "number" ? p < totalPages : data.length >= COMMENT_PAGE,
           loading: false,
+          loadFailed: false,
         }))
       } catch {
-        setComments((c) => ({ ...c, loading: false }))
-        toast.show({ title: translate("Gagal memuat komentar"), tone: "danger" })
+        setComments((c) => ({ ...c, loading: false, loadFailed: c.items.length === 0 }))
       }
     },
-    [toast],
+    [],
   )
 
   const toggleComments = useCallback(
@@ -242,7 +254,7 @@ export default function PublicQuestionsScreen() {
         return
       }
       setOpenId(q.id)
-      setComments({ items: [], page: 1, hasMore: false, loading: true })
+      setComments({ items: [], page: 1, hasMore: false, loading: true, loadFailed: false })
       await loadComments(q.id, 1)
     },
     [openId, loadComments],
@@ -258,11 +270,17 @@ export default function PublicQuestionsScreen() {
       await loadComments(openId, 1)
       toast.show({ title: translate("Komentar terkirim"), tone: "success", duration: 3000 })
     } catch (err) {
-      toast.show({
-        title: translate("Gagal mengirim komentar"),
-        description: userMessage(err),
-        tone: "danger",
-      })
+      // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+      if (
+        showMutationError(toast.show, {
+          failTitle: translate("Gagal mengirim komentar"),
+          uncertainHint: translate("Aksi mungkin sudah diproses — memuat ulang…"),
+          err: err,
+          scope: "user:username:questions:mengirim-komentar",
+        })
+      ) {
+        void loadComments(openId, 1)
+      }
     } finally {
       setCommentSending(false)
     }
@@ -287,11 +305,17 @@ export default function PublicQuestionsScreen() {
       setAskText("")
       await query.refresh()
     } catch (err) {
-      toast.show({
-        title: translate("Gagal mengirim pertanyaan"),
-        description: userMessage(err),
-        tone: "danger",
-      })
+      // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+      if (
+        showMutationError(toast.show, {
+          failTitle: translate("Gagal mengirim pertanyaan"),
+          uncertainHint: translate("Aksi mungkin sudah diproses — memuat ulang…"),
+          err: err,
+          scope: "user:username:questions:mengirim-pertanyaan",
+        })
+      ) {
+        void query.refresh()
+      }
     } finally {
       setAsking(false)
     }
@@ -315,7 +339,18 @@ export default function PublicQuestionsScreen() {
         await loadComments(openId, 1)
       }
     } catch (err) {
-      toast.show({ title: translate("Gagal menghapus"), description: userMessage(err), tone: "danger" })
+      // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+      if (
+        showMutationError(toast.show, {
+          failTitle: translate("Gagal menghapus"),
+          uncertainHint: translate("Aksi mungkin sudah diproses — memuat ulang…"),
+          err: err,
+          scope: "user:username:questions:menghapus",
+        })
+      ) {
+        void query.refresh()
+        if (openId) void loadComments(openId, 1)
+      }
     } finally {
       setDeleting(false)
     }
@@ -393,6 +428,11 @@ export default function PublicQuestionsScreen() {
                   <View className="-mx-5 border-b border-border px-5 py-2">
                     {comments.loading && comments.items.length === 0 ? (
                       <ListLoading />
+                    ) : comments.loadFailed ? (
+                      <ErrorState
+                        title={translate("Gagal memuat balasan")}
+                        onRetry={() => void loadComments(q.id, 1)}
+                      />
                     ) : comments.items.length === 0 ? (
                       <Text variant="caption" tone="secondary" className="py-2">
                         {translate("Belum ada balasan. Jadilah yang pertama membalas.")}

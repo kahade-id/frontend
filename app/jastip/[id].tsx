@@ -34,6 +34,7 @@ import { translate } from "@/lib/i18n/translate"
 import { formatDateLong, formatRupiah } from "@/lib/format"
 import { formatRupiahTypingText, parseRupiahTypingText } from "@/lib/rupiah-input"
 import { ROUTES } from "@/lib/routes"
+import { showMutationError } from "@/lib/mutation-toast"
 import { useToast } from "@/components/ui/toast"
 
 import { Amount } from "@/components/ui/amount"
@@ -153,11 +154,21 @@ export default function JastipDetailScreen() {
       if (t) setTrip(t)
       toast.show({ title: translate("Trip dibuka"), tone: "success" })
     } catch (err) {
-      toast.show({ title: translate("Gagal membuka trip"), description: userMessage(err), tone: "danger" })
+      // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+      if (
+        showMutationError(toast.show, {
+          failTitle: translate("Gagal membuka trip"),
+          uncertainHint: translate("Aksi mungkin sudah diproses — memuat ulang…"),
+          err: err,
+          scope: "jastip:id:membuka-trip",
+        })
+      ) {
+        void load()
+      }
     } finally {
       setActing(false)
     }
-  }, [id, acting, toast])
+  }, [id, acting, toast, load])
 
   const handleJoin = useCallback(async () => {
     if (!id || joining) return
@@ -245,11 +256,22 @@ export default function JastipDetailScreen() {
       toast.show({ title: translate("Trip ditandai gagal — pengembalian dana otomatis diproses"), tone: "warning" })
       setFailOpen(false)
     } catch (err) {
-      toast.show({ title: translate("Gagal menandai trip"), description: userMessage(err), tone: "danger" })
+      // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+      if (
+        showMutationError(toast.show, {
+          failTitle: translate("Gagal menandai trip"),
+          uncertainHint: translate("Trip mungkin sudah ditandai gagal — memuat ulang…"),
+          uncertainDetail: translate("Pengembalian dana bisa sudah diproses otomatis — periksa status trip."),
+          err: err,
+          scope: "jastip:id:menandai-trip",
+        })
+      ) {
+        void load()
+      }
     } finally {
       setFailing(false)
     }
-  }, [id, failing, failReason, toast])
+  }, [id, failing, failReason, toast, load])
 
   if (!hasSession) {
     return <GuestLoginPrompt next={id ? `/jastip/${id}` : "/jastip"} />

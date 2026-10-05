@@ -379,10 +379,12 @@ export default function DeliveryProofScreen() {
         },
       ])
     } catch (err) {
-      toast.show({
-        title: "Gagal mengunggah foto",
-        description: isApiError(err) ? userMessage(err) : undefined,
-        tone: "danger",
+      // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+      showMutationError(toast.show, {
+        failTitle: "Gagal mengunggah foto",
+        uncertainHint: "Aksi mungkin sudah diproses — periksa kembali sebelum mencoba lagi.",
+        err: err,
+        scope: "delivery-proof:orderId:mengunggah-foto",
       })
     } finally {
       setUploading(false)

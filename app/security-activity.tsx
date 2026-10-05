@@ -34,7 +34,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { router } from "expo-router"
 import { ChartLine, DeviceMobile, ShieldWarning } from "phosphor-react-native"
 
-import { api, userMessage } from "@/lib/api"
+import { api } from "@/lib/api"
 import { unregisterPushDevice } from "@/lib/push-notifications"
 import type { ActivityLogEntry, DeviceSession, SecurityLogEntry } from "@/lib/api/sessions"
 import { formatDateTime } from "@/lib/format"
@@ -59,6 +59,7 @@ import { SegmentedControl } from "@/components/ui/segmented-control"
 import { useToast } from "@/components/ui/toast"
 import { Text } from "@/components/ui/text"
 import { translate } from "@/lib/i18n/translate"
+import { showMutationError } from "@/lib/mutation-toast"
 
 type TabKey = "devices" | "security" | "activity"
 
@@ -285,7 +286,14 @@ export default function SecurityActivityScreen() {
       toast.show({ title: "Sesi dicabut", tone: "success" })
       setConfirmRevoke(null)
     } catch (err: unknown) {
-      toast.show({ title: "Gagal mencabut sesi", description: userMessage(err), tone: "danger" })
+      // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+      showMutationError(toast.show, {
+        failTitle: "Gagal mencabut sesi",
+        uncertainHint: "Aksi mungkin sudah diproses — memuat ulang…",
+        err: err,
+        scope: "security-activity:mencabut-sesi",
+      })
+      void sessionsQuery.reload()
     } finally {
       setRevokingId(null)
     }
@@ -307,11 +315,14 @@ export default function SecurityActivityScreen() {
       toast.show({ title: "Perangkat dihapus", tone: "success" })
       setRemoveTarget(null)
     } catch (err: unknown) {
-      toast.show({
-        title: "Gagal menghapus perangkat",
-        description: userMessage(err),
-        tone: "danger",
+      // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+      showMutationError(toast.show, {
+        failTitle: "Gagal menghapus perangkat",
+        uncertainHint: "Aksi mungkin sudah diproses — memuat ulang…",
+        err: err,
+        scope: "security-activity:menghapus-perangkat",
       })
+      void sessionsQuery.reload()
     } finally {
       setRemovingId(null)
     }
@@ -325,11 +336,17 @@ export default function SecurityActivityScreen() {
       await sessionsQuery.refresh()
       toast.show({ title: "Semua perangkat lain dicabut", tone: "success" })
     } catch (err: unknown) {
-      toast.show({
-        title: "Gagal mencabut sesi lain",
-        description: userMessage(err),
-        tone: "danger",
-      })
+      // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+      if (
+        showMutationError(toast.show, {
+          failTitle: "Gagal mencabut sesi lain",
+          uncertainHint: "Aksi mungkin sudah diproses — memuat ulang…",
+          err: err,
+          scope: "security-activity:mencabut-sesi-lain",
+        })
+      ) {
+        void sessionsQuery.refresh()
+      }
     } finally {
       setRevokingOthers(false)
     }
@@ -341,11 +358,17 @@ export default function SecurityActivityScreen() {
     try {
       await api.sessions.deleteAllSessions()
     } catch (err: unknown) {
-      toast.show({
-        title: "Gagal mencabut semua sesi",
-        description: userMessage(err),
-        tone: "danger",
-      })
+      // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+      if (
+        showMutationError(toast.show, {
+          failTitle: "Gagal mencabut semua sesi",
+          uncertainHint: "Aksi mungkin sudah diproses — memuat ulang…",
+          err: err,
+          scope: "security-activity:mencabut-semua-sesi",
+        })
+      ) {
+        void sessionsQuery.reload()
+      }
       setRevokingAll(false)
       return
     }
@@ -366,7 +389,7 @@ export default function SecurityActivityScreen() {
     // Sesi server sudah mati semua — bersihkan sesi lokal lalu ke login.
     await api.auth.logout().catch(() => undefined)
     router.replace("/(auth)/login")
-  }, [toast.show])
+  }, [toast.show, sessionsQuery])
 
   /**
    * Trust/untrust menuntut re-auth password (TrustDeviceDto produksi: `password`
@@ -413,7 +436,14 @@ export default function SecurityActivityScreen() {
         tone: "success",
       })
     } catch (err: unknown) {
-      toast.show({ title: "Gagal mengubah perangkat tepercaya", description: userMessage(err), tone: "danger" })
+      // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+      showMutationError(toast.show, {
+        failTitle: "Gagal mengubah perangkat tepercaya",
+        uncertainHint: "Aksi mungkin sudah diproses — memuat ulang…",
+        err: err,
+        scope: "security-activity:mengubah-perangkat-tepercaya",
+      })
+      void sessionsQuery.reload()
     } finally {
       setTrustingId(null)
     }

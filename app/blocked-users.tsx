@@ -12,7 +12,6 @@ import { Prohibit } from "phosphor-react-native"
 
 import { api } from "@/lib/api"
 import type { BlockedUser } from "@/lib/api/settings"
-import { userMessage } from "@/lib/api/errors"
 import { useApiQuery } from "@/lib/use-api-query"
 import { formatDate } from "@/lib/format"
 
@@ -22,6 +21,7 @@ import { Dialog } from "@/components/ui/modal"
 import { UserListItem } from "@/components/ui/user-list-item"
 import { useToast } from "@/components/ui/toast"
 import { translate, useLanguage } from "@/lib/i18n"
+import { showMutationError } from "@/lib/mutation-toast"
 
 type BlockedUserRowProps = {
   user: BlockedUser
@@ -96,7 +96,14 @@ export default function BlockedUsersScreen() {
           duration: 3000,
         })
       } catch (err) {
-        toast.show({ title: translate("Gagal membuka blokir"), description: userMessage(err), tone: "danger" })
+        // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+        showMutationError(toast.show, {
+          failTitle: translate("Gagal membuka blokir"),
+          uncertainHint: translate("Aksi mungkin sudah diproses — memuat ulang…"),
+          err: err,
+          scope: "blocked-users:membuka-blokir",
+        })
+        void query.reload()
       } finally {
         unblockingRef.current = false
         setUnblockingId(null)
@@ -108,7 +115,7 @@ export default function BlockedUsersScreen() {
   // FE-065: handler stabil per-id untuk baris yang di-memo.
   const requestUnblock = useCallback((user: BlockedUser) => {
     setConfirmTarget(user)
-  }, [])
+  }, [, query])
 
   return (
     <>

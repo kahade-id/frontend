@@ -132,7 +132,6 @@ import {
   confirmReceipt,
   orderIdFromPushData,
 } from "@/lib/order-confirm"
-import { userMessage } from "@/lib/api/errors"
 import { setPendingNext } from "@/lib/login-redirect"
 import { initConnectivity } from "@/lib/connectivity"
 import { initOtpFlow } from "@/lib/otp-flow"
@@ -182,6 +181,7 @@ const CreateSheet = lazy(() =>
 )
 import { closeDrawer, drawerProgress, isDrawerOpen, useDrawerOpen } from "@/lib/drawer"
 import { useCreateSheetOpen } from "@/lib/create-sheet"
+import { showMutationError } from "@/lib/mutation-toast"
 import { useToast } from "@/components/ui/toast"
 
 export { AppErrorBoundary as ErrorBoundary } from "@/components/app-error-boundary"
@@ -949,7 +949,9 @@ function AppShellInner() {
               await confirmReceipt(orderId)
               toast.show({
                 title: "Pesanan dikonfirmasi diterima",
-                description: "Dana escrow diteruskan ke penjual.",
+                // Klasifikasi toast: sukses ringan + navigasi ke detail order
+                // (state uang otoritatif tampil inline di sana).
+                description: "Dana diteruskan ke penjual.",
                 tone: "success",
                 duration: 4000,
               })
@@ -961,10 +963,13 @@ function AppShellInner() {
               router.navigate(ROUTES.orderDetail(orderId))
               void refreshUnreadCount()
             } catch (err: unknown) {
-              toast.show({
-                title: "Konfirmasi gagal",
-                description: userMessage(err),
-                tone: "danger",
+              // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+              showMutationError(toast.show, {
+                failTitle: "Konfirmasi gagal",
+                uncertainHint: "Konfirmasi mungkin sudah diproses — jangan konfirmasi ulang.",
+                uncertainDetail: "Dana bisa sudah diteruskan ke penjual — buka detail pesanan untuk memastikan.",
+                err: err,
+                scope: "_layout:konfirmasi",
               })
             }
           })()
@@ -1267,7 +1272,7 @@ function AppShellInner() {
           </Suspense>
         ) : null}
         {/* FE-075: sheet global "Buat baru" (2026-09-28): dibuka dari (+)
-            header Etalase & pensil drawer via `openCreateSheet()` — lazy
+            tombol (+) tiap header halaman utama via `openCreateSheet()` — lazy
             seperti drawer. */}
         {createSheetNeeded ? (
           <Suspense fallback={null}>
@@ -1387,7 +1392,7 @@ function AppShell() {
  * Revisi 2026-09-27 (redesign navigasi mobile): bar TETAP berisi
  * Etalase | Transaksi | (+) | Pesan | Notifikasi — tidak lagi mengikuti mode
  * aplikasi. Ditampilkan hanya di empat halaman tab persis (`isShellTabPath`)
- * agar layar detail (order, chat room, settings) tidak tertutup.
+ * agar layar detail (order, chat room, dsb.) tidak tertutup.
  */
 function PersistentShellBar() {
   const pathname = usePathname()

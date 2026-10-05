@@ -13,11 +13,11 @@ import { router } from "expo-router"
 import { CrownSimple, Palette } from "phosphor-react-native"
 
 import { cancelKahadePlus, reactivateKahadePlus, type KahadePlusPlanKey } from "@/lib/api/subscriptions"
-import { userMessage } from "@/lib/api/errors"
 import { formatDateTimeWIB, formatRupiah } from "@/lib/format"
 import { invalidateKahadePlus, useKahadePlus } from "@/lib/use-kahade-plus"
 import { ROUTES } from "@/lib/routes"
 import { translate } from "@/lib/i18n/translate"
+import { showMutationError } from "@/lib/mutation-toast"
 
 import { Button } from "@/components/ui/button"
 import { DataScreen } from "@/components/ui/data-screen"
@@ -67,11 +67,18 @@ export default function KahadePlusManageScreen() {
       toast.show({ title: "Langganan dibatalkan", description: "Akses premium tetap berlaku sampai akhir periode.", tone: "success", duration: 3000 })
     } catch (err: unknown) {
       // S2: pesan backend tampil apa adanya.
-      toast.show({
-        title: "Gagal membatalkan langganan",
-        description: userMessage(err),
-        tone: "danger",
-      })
+      // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+      if (
+        showMutationError(toast.show, {
+          failTitle: "Gagal membatalkan langganan",
+          uncertainHint: "Pembatalan mungkin sudah diproses — memuat ulang…",
+          uncertainDetail: "Periksa status langganan sebelum mencoba lagi.",
+          err: err,
+          scope: "kahade-plus:manage:membatalkan-langganan",
+        })
+      ) {
+        void invalidateKahadePlus()
+      }
     } finally {
       setCancelling(false)
     }
@@ -84,11 +91,18 @@ export default function KahadePlusManageScreen() {
       await invalidateKahadePlus()
       toast.show({ title: "Langganan dilanjutkan", tone: "success", duration: 3000 })
     } catch (err: unknown) {
-      toast.show({
-        title: "Gagal melanjutkan langganan",
-        description: userMessage(err),
-        tone: "danger",
-      })
+      // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+      if (
+        showMutationError(toast.show, {
+          failTitle: "Gagal melanjutkan langganan",
+          uncertainHint: "Perpanjangan mungkin sudah diproses — memuat ulang…",
+          uncertainDetail: "Periksa status langganan sebelum mencoba lagi.",
+          err: err,
+          scope: "kahade-plus:manage:melanjutkan-langganan",
+        })
+      ) {
+        void invalidateKahadePlus()
+      }
     } finally {
       setReactivating(false)
     }

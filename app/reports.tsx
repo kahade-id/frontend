@@ -12,7 +12,7 @@ import { useLocalSearchParams } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Flag } from "phosphor-react-native"
 
-import { api, userMessage } from "@/lib/api"
+import { api } from "@/lib/api"
 import type { ReportsSettings } from "@/lib/api/settings"
 import { formatDateTime } from "@/lib/format"
 import {
@@ -36,6 +36,7 @@ import { SectionHeader } from "@/components/ui/section"
 import { useToast } from "@/components/ui/toast"
 import { hasOwn, mapValue } from "@/lib/has-own"
 import { translate } from "@/lib/i18n/translate"
+import { showMutationError } from "@/lib/mutation-toast"
 
 /**
  * Peta alasan UI → enum API POST /v1/settings/report.
@@ -120,11 +121,17 @@ export default function ReportsScreen() {
         setValue({ reason: "", detail: "" })
         await reports.reload()
       } catch (err: unknown) {
-        toast.show({
-          title: "Gagal mengirim laporan",
-          description: userMessage(err),
-          tone: "danger",
-        })
+        // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+        if (
+          showMutationError(toast.show, {
+            failTitle: "Gagal mengirim laporan",
+            uncertainHint: "Aksi mungkin sudah diproses — memuat ulang…",
+            err: err,
+            scope: "reports:mengirim-laporan",
+          })
+        ) {
+          void reports.reload()
+        }
       } finally {
         setSubmitting(false)
       }

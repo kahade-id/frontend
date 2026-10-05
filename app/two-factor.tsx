@@ -44,6 +44,7 @@ import { useCopy } from "@/lib/clipboard"
 import { saveBlobFile } from "@/lib/export-file"
 import { tokens } from "@/lib/tokens"
 import { useApiQuery } from "@/lib/use-api-query"
+import { showMutationError } from "@/lib/mutation-toast"
 
 import { Alert } from "@/components/ui/alert"
 import { ErrorState } from "@/components/ui/error-state"
@@ -207,10 +208,12 @@ export default function TwoFactorScreen() {
           duration: 3000,
         })
       } catch (err) {
-        toast.show({
-          title: "Gagal mengunduh kode cadangan",
-          description: userMessage(err),
-          tone: "danger",
+        // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+        showMutationError(toast.show, {
+          failTitle: "Gagal mengunduh kode cadangan",
+          uncertainHint: "Aksi mungkin sudah diproses — periksa kembali sebelum mencoba lagi.",
+          err: err,
+          scope: "two-factor:mengunduh-kode-cadangan",
         })
       }
     },
@@ -290,10 +293,12 @@ export default function TwoFactorScreen() {
       setEmailOtpSent(true)
       toast.show({ title: "Kode OTP dikirim ke email Anda", tone: "success" })
     } catch (err: unknown) {
-      toast.show({
-        title: "Gagal mengirim OTP email",
-        description: userMessage(err),
-        tone: "danger",
+      // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+      showMutationError(toast.show, {
+        failTitle: "Gagal mengirim OTP email",
+        uncertainHint: "Aksi mungkin sudah diproses — periksa kembali sebelum mencoba lagi.",
+        err: err,
+        scope: "two-factor:mengirim-otp-email",
       })
     } finally {
       setSendingEmailOtp(false)

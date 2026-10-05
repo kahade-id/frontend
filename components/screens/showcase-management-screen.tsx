@@ -15,7 +15,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Linking, Platform, View } from "react-native"
 import { useNavigation, usePreventRemove, type NavigationAction } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { CalendarBlank, CaretRight, DotsSixVertical, Eye, EyeSlash, Images, PencilSimple, Plus, Star, Ticket, Trash } from "phosphor-react-native"
+import { BookmarkSimple, CalendarBlank, CaretRight, DotsSixVertical, Eye, EyeSlash, Images, PencilSimple, Plus, Star, Ticket, Trash } from "phosphor-react-native"
 import { router, useLocalSearchParams } from "expo-router"
 import { translate } from "@/lib/i18n/translate"
 import { useLanguage } from "@/lib/i18n"
@@ -75,6 +75,8 @@ import { Picture } from "@/components/ui/picture"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
 import { SectionHeader, MenuGroupLabel } from "@/components/ui/section"
+import { SavedCollection } from "@/components/ui/saved-collection"
+import { SegmentedControl, type SegmentItem } from "@/components/ui/segmented-control"
 import { ShowcaseCategoryInput } from "@/components/ui/showcase-category-input"
 import { ShowcaseConditionInput } from "@/components/ui/showcase-condition-input"
 import { ShowcaseGalleryGrid } from "@/components/ui/showcase-gallery-grid"
@@ -222,6 +224,18 @@ export default function ShowcaseScreen() {
   return <ShowcaseManagement key={revision} />
 }
 
+/**
+ * Sidebar 2026-10-05: Kelola Etalase punya dua tab — "Kelola" (daftar karya
+ * sendiri) dan "Tersimpan" (pindahan /saved: profil + karya tersimpan).
+ * Deep-link: ?tab=saved (redirect app/saved.tsx).
+ */
+type MgmtTab = "manage" | "saved"
+
+const MGMT_TABS: readonly SegmentItem<MgmtTab>[] = [
+  { value: "manage", label: "Kelola", icon: Images },
+  { value: "saved", label: "Tersimpan", icon: BookmarkSimple },
+]
+
 function ShowcaseManagement() {
   // i18n: label mengikuti bahasa aktif.
   useLanguage()
@@ -233,7 +247,26 @@ function ShowcaseManagement() {
   const pendingNavigation = useRef<NavigationAction | null>(null)
   // S8 (audit 2026-09-26): deep link edit — `?edit=<id>` dari tombol "Ubah
   // karya" di detail langsung membuka editor item tersebut, bukan daftar.
-  const { edit: editParam } = useLocalSearchParams<{ edit?: string }>()
+  const { edit: editParam, tab: tabParam } = useLocalSearchParams<{ edit?: string; tab?: string }>()
+  // Sidebar 2026-10-05: tab Kelola | Tersimpan — `?tab=saved` dari redirect
+  // /saved mendarat di tab Tersimpan.
+  const [tab, setTab] = useState<MgmtTab>(() => (tabParam === "saved" ? "saved" : "manage"))
+  useEffect(() => {
+    setTab(tabParam === "saved" ? "saved" : "manage")
+  }, [tabParam])
+  // Tombol Buat di header (syarat hapus pensil drawer): ke halaman penuh
+  // /showcase/create — stabil untuk memo <Header> (pola FE-064).
+  const headerRight = useMemo(
+    () => (
+      <IconButton
+        icon={Plus}
+        variant="ghost"
+        accessibilityLabel={translate("Buat etalase baru")}
+        onPress={() => router.push(ROUTES.showcaseCreate)}
+      />
+    ),
+    [],
+  )
 
   /**
    * Audit: state async dirakit manual. Cacat terbukti dari kode lama:
@@ -930,7 +963,18 @@ function ShowcaseManagement() {
 
   return (
     <Screen edges={["top"]} padded={false}>
-      <Header title={translate("Kelola Etalase")} />
+      <Header title={translate("Kelola Etalase")} right={headerRight} />
+      <View className="px-5 pb-1 pt-3">
+        <SegmentedControl
+          accessibilityLabel={translate("Bagian kelola etalase")}
+          items={MGMT_TABS}
+          value={tab}
+          onChange={setTab}
+        />
+      </View>
+      {tab === "saved" ? (
+        <SavedCollection />
+      ) : (
       <PullToRefresh
         onRefresh={() => {
           void query.refresh()
@@ -1062,6 +1106,7 @@ function ShowcaseManagement() {
           </View>
         )}
       </PullToRefresh>
+      )}
 
       <Dialog visible={discardOpen} title={translate("Buang perubahan?")} description={translate("Perubahan dan foto yang belum disimpan akan dibuang.")} confirmLabel={translate("Buang")} cancelLabel={translate("Lanjut mengedit")} destructive onConfirm={closeEditor} onCancel={cancelDiscard} onRequestClose={cancelDiscard} />
       <ActionSheet

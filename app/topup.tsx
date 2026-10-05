@@ -201,6 +201,8 @@ export default function TopupScreen() {
       })
       .catch((err: unknown) => {
         if (cancelled) return
+        // Klasifikasi toast: KEEP toast — polling status non-blokir (layar
+        // utama tetap tampil; polling berikutnya retry otomatis).
         toast.show({
           title: "Gagal memuat status pembayaran",
           description: userMessage(err),

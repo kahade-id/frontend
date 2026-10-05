@@ -39,6 +39,7 @@ import { useToast } from "@/components/ui/toast"
 import { WithdrawalScheduleCard } from "@/components/ui/withdrawal-schedule-card"
 import { WalletDisabledScreen } from "@/components/ui/wallet-disabled"
 import { translate } from "@/lib/i18n/translate"
+import { showMutationError } from "@/lib/mutation-toast"
 
 export default function WithdrawalSchedulesScreen() {
   // Mode Tanpa Wallet Internal (BI-safe): flag false = layar blokir
@@ -231,7 +232,17 @@ export default function WithdrawalSchedulesScreen() {
       setDeleteTarget(null)
       await query.refresh()
     } catch (err: unknown) {
-      toast.show({ title: "Gagal menghapus jadwal", description: userMessage(err), tone: "danger" })
+      // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+      if (
+        showMutationError(toast.show, {
+          failTitle: "Gagal menghapus jadwal",
+          uncertainHint: "Aksi mungkin sudah diproses — memuat ulang…",
+          err: err,
+          scope: "withdrawal-schedules:menghapus-jadwal",
+        })
+      ) {
+        void query.refresh()
+      }
     } finally {
       setDeleting(false)
     }
