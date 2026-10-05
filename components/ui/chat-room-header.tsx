@@ -212,9 +212,11 @@ export function ChatRoomHeader({
   return (
     <View
       className={cn("z-sticky w-full items-center bg-transparent", className)}
-      // <Screen edges={["top"]}> sudah mempadding inset atas; menambahnya lagi
-      // di sini membuat header turun dua kali (pola yang sama dengan <Header>).
-      style={(safeArea ?? !providedInsets.top) ? { paddingTop: insets.top } : undefined}
+      // (2026-10-05: pastikan transparan tanpa separator/border/shadow)
+      style={[
+        (safeArea ?? !providedInsets.top) ? { paddingTop: insets.top } : undefined,
+        { backgroundColor: "transparent", borderBottomWidth: 0, elevation: 0 } as object,
+      ]}
       {...rest}
     >
       <View className="w-full md:max-w-content">
