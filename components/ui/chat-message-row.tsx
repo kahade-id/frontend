@@ -20,9 +20,20 @@
  *     ketukan di tengah pilihan massal tidak boleh membuka menu emoji.
  *   - Sorotan pilihan dipasang lewat `className` bubble (bukan pembungkus)
  *     supaya mengikuti lebar bubble dan padding horizontalnya.
+ *   - 2026-10-05 (permintaan produk, ala WhatsApp): SELURUH baris adalah area
+ *     sentuh. Pan swipe-reply + permukaan tekan-lama dipasang di baris ini
+ *     (bukan lagi hanya di dalam bubble), jadi area kosong di samping bubble
+ *     pun memicu balas/aksi. Umpan baliknya tetap milik bubble: translasi
+ *     swipe lewat `swipeOffsetX` (shared value baris) dan sorotan seleksi
+ *     lewat `selected` → className bubble. Gerbang kedua gesture ada di
+ *     `resolveChatRowGesturePlan` — pesan terhapus/sistem tidak punya gesture,
+ *     dan swipe mati selama mode pilih. Jangkar popover reaksi diukur dari
+ *     node BUBBLE (`bubbleAnchorRef`), bukan titik sentuh.
  */
-import { memo, useCallback, useMemo } from "react"
-import { View } from "react-native"
+import { memo, useCallback, useMemo, useRef } from "react"
+import { View, type GestureResponderEvent, type ViewInstance } from "react-native"
+import { GestureDetector } from "react-native-gesture-handler"
+import { useSharedValue } from "react-native-reanimated"
 
 import { useTheme } from "@/components/theme-provider"
 import { semantic } from "@/lib/tokens"
@@ -37,8 +48,15 @@ import {
 } from "@/lib/api/chat"
 import { formatTime } from "@/lib/format"
 import { ephemeralCountdownLabel, isMessageExpired } from "@/lib/chat-ephemeral"
-import { resolveBubblePressHandlers, type ChatBubbleAnchor } from "@/lib/chat-bubble"
+import {
+  measureBubbleAnchor,
+  resolveBubblePressHandlers,
+  resolveChatRowGesturePlan,
+  type ChatBubbleAnchor,
+} from "@/lib/chat-bubble"
+import { useSwipeReplyPan } from "@/lib/use-swipe-reply-pan"
 
+import { PressableScale } from "@/components/ui/pressable-scale"
 import { ChatAttachmentItem } from "@/components/ui/chat-attachment-item"
 import { ChatOrderCard, ChatProductCard } from "@/components/ui/chat-cards"
 import { ChatDaySeparator, dayKey, dayLabel } from "@/components/ui/chat-day-separator"
@@ -278,6 +296,61 @@ export function ChatMessageRowBase({
   const handleBubbleRetry = useCallback(() => {
     onRetry?.(message)
   }, [onRetry, message])
+
+  // ── 2026-10-05: area gesture = SELURUH BARIS (ala WhatsApp) ─────────
+  // Sebelumnya tekan lama & swipe hanya aktif saat jari pas mengenai bubble;
+  // area kosong di samping bubble tidak merespons. Sekarang baris memasang
+  // pan-nya sendiri (dari `useSwipeReplyPan` yang SAMA dengan milik bubble)
+  // dan permukaan tekan-lama selebar baris. UMPAN BALIK tetap di bubble:
+  // sorotan mode pilih lewat `selected` → className bubble, translasi swipe
+  // lewat `swipeOffsetX` yang dibaca bubble.
+  const isSystemMessage = message.messageType === "SYSTEM"
+  /** Gerbang tunggal gesture baris — lihat `resolveChatRowGesturePlan`. */
+  const gesturePlan = useMemo(
+    () =>
+      resolveChatRowGesturePlan({
+        selecting,
+        isDeleted: message.isDeleted,
+        isSystem: isSystemMessage,
+        hasSwipeReply: !!onSwipeReply,
+        hasLongPress: !!pressHandlers.onLongPressAt,
+      }),
+    [selecting, message.isDeleted, isSystemMessage, onSwipeReply, pressHandlers],
+  )
+  /** Translasi swipe DIMILIKI baris; bubble membacanya untuk animasi. */
+  const rowSwipeX = useSharedValue(0)
+  /**
+   * Pan di baris hanya dipasang bila pemanggil memang menyediakan
+   * swipe-reply — ruang tanpa fitur itu tetap memakai jalur lama di bubble
+   * (tanpa struktur animasi tambahan di DOM).
+   */
+  const rowOwnsSwipe = !!onSwipeReply
+  const rowSwipePan = useSwipeReplyPan({
+    enabled: gesturePlan.swipeReply,
+    swipeX: rowSwipeX,
+    onTrigger: handleBubbleSwipeReply,
+  })
+  /** Node bubble — jangkar popover untuk tekan lama di area kosong baris. */
+  const bubbleAnchorRef = useRef<ViewInstance | null>(null)
+  /**
+   * Tekan lama di mana pun dalam baris. Bila jari kebetulan mengenai bubble,
+   * pressable DI DALAM bubble yang menang (responder terdalam) dan memakai
+   * jalur lamanya; handler ini melayani area kosong di samping bubble.
+   * Jangkar diukur dari node BUBBLE (bukan titik sentuh) supaya popover
+   * reaksi tetap muncul menempel bubble — yang melebar hanya area pemicunya.
+   */
+  const handleRowLongPress = useCallback(
+    (event: GestureResponderEvent) => {
+      const handleAnchor = pressHandlers.onLongPressAt
+      if (!handleAnchor) return
+      measureBubbleAnchor(
+        bubbleAnchorRef.current,
+        { x: event.nativeEvent.pageX, y: event.nativeEvent.pageY },
+        handleAnchor,
+      )
+    },
+    [pressHandlers],
+  )
   /**
    * Voice note (2026-09-28): pesan VOICE dengan lampiran audio dirender
    * sebagai <VoiceNotePlayer> (putar/jeda, 1x/2x, waveform dekoratif) —
@@ -289,7 +362,6 @@ export function ChatMessageRowBase({
   const isVoiceMessage = message.messageType === "VOICE" && !!voiceAttachment?.fileUrl
 
   // ── Batch 43 (2026-09-28): konten khusus ──────────────────────────
-  const isSystemMessage = message.messageType === "SYSTEM"
   const outgoing = message.fromUser && !isSystemMessage
   const locationPayload =
     !message.isDeleted && message.messageType === "LOCATION" && message.location
@@ -383,93 +455,126 @@ export function ChatMessageRowBase({
       ? undefined
       : message.text
 
-  return (
-    <View
-      className="gap-1"
-      // B09: sorot pesan asal balasan — inline style mode-aware (aturan:
-      // jangan className bg-* untuk background yang digambar manual).
-      style={
-        highlighted
-          ? { backgroundColor: semantic.warning[mode].bgSoft, borderRadius: 12 }
+  const bubbleElement = (
+    <ChatMessageBubble
+      // 2026-10-05: pan milik BARIS menulis ke nilai ini; bubble hanya
+      // menggambar translasi + hint-nya (lihat `swipeOffsetX` di bubble).
+      swipeOffsetX={rowOwnsSwipe ? rowSwipeX : undefined}
+      // Jangkar popover tekan-lama di area kosong baris = node bubble ini.
+      anchorRef={bubbleAnchorRef}
+      direction={isSystemMessage ? "system" : message.fromUser ? "outgoing" : "incoming"}
+      // CN-003: pesan terhapus — placeholder, bukan gelembung kosong.
+      text={bubbleText}
+      // Batch 43: blok terjemahan + chip ephemeral + penanda bintang.
+      translation={translation}
+      ephemeralChip={ephemeralChip}
+      starred={message.isStarred === true}
+      // Kutipan balasan: backend mengirim `replyTo` (id, content,
+      // messageType, isDeleted, senderName) bila pesan ini membalas pesan lain.
+      quote={bubbleQuote}
+      time={formatTime(message.createdAt)}
+      grouped={grouped}
+      /*
+       * Penanda arah (2026-09-26): gelembung MASUK membawa foto & nama
+       * lawan bicara, pesan KELUAR tetap murni kanan + bg-primary. Nama
+       * hanya muncul di pesan pertama kelompok (aturan ada di dalam
+       * <ChatMessageBubble>), jadi percakapan panjang tidak berubah jadi
+       * daftar nama.
+       *
+       * Revisi 2026-09-28 (produk): di DM 1:1 (`showSenderIdentity=false`)
+       * foto + nama disembunyikan total — ala WhatsApp, hanya bubble.
+       */
+      senderName={!showSenderIdentity || message.fromUser ? undefined : (counterpart?.name ?? undefined)}
+      avatarName={!showSenderIdentity || message.fromUser ? undefined : (counterpart?.name ?? undefined)}
+      avatarUrl={!showSenderIdentity || message.fromUser ? undefined : counterpart?.avatarUrl}
+      // Revisi 2026-09-27 (UI polish): seal verifikasi di samping nama
+      // pengirim — avatar bubble TIDAK pernah menerima `verified`.
+      senderSealTier={!showSenderIdentity || message.fromUser ? undefined : (counterpart?.sealTier ?? null)}
+      // DM 1:1: nama pengirim di blok kutipan balasan juga disembunyikan
+      // (ala WhatsApp — kutipan hanya menampilkan cuplikan pesan).
+      hideQuoteSenderName={!showSenderIdentity}
+      // B09: ketuk kutipan → lompat ke pesan asal + sorot. Hanya bila
+      // replyToId ada (pesan asal bisa dicari di thread).
+      onQuotePress={
+        onQuotePress && message.replyToId ? handleBubbleQuotePress : undefined
+      }
+      // Swipe kanan = jalan pintas balas (2026-09-28), sejak 2026-10-05
+      // dipicu dari SELURUH baris (pan milik baris). `handleBubbleSwipeReply`
+      // tetap dipakai gate yang sama — lihat `resolveChatRowGesturePlan`.
+      onSwipeReply={gesturePlan.swipeReply ? handleBubbleSwipeReply : undefined}
+      // Pencarian inline: sorot kata kunci di teks pesan ini.
+      searchHighlight={searchHighlight}
+      // Status baca pesan saya: read-receipt dari lawan bicara
+      // (GET /read-receipts) naik ke ikon centang ganda "read".
+      // CN-015: pesan optimistis pakai sendStatus lokal (sending/failed).
+      // Batch 43: pesan sistem tidak punya status kirim.
+      status={
+        !isSystemMessage && message.fromUser
+          ? (message.sendStatus === "failed"
+              ? "failed"
+              : message.sendStatus === "sending"
+                ? "sending"
+                : readByCounterpart
+                  ? "read"
+                  : "sent")
           : undefined
       }
+      onRetry={message.sendStatus === "failed" && onRetry ? handleBubbleRetry : undefined}
+      reactions={message.reactions}
+      onReact={selecting || !onReact ? undefined : handleBubbleReact}
+      isPinned={message.isPinned}
+      isEdited={message.isEdited}
+      isDeleted={message.isDeleted}
+      onPress={pressHandlers.onPress}
+      onLongPressAt={pressHandlers.onLongPressAt}
+      className={selected ? "rounded-md bg-surface" : undefined}
     >
-      {showDay ? <ChatDaySeparator label={dayLabel(message.createdAt)} /> : null}
-      <ChatMessageBubble
-        direction={isSystemMessage ? "system" : message.fromUser ? "outgoing" : "incoming"}
-        // CN-003: pesan terhapus — placeholder, bukan gelembung kosong.
-        text={bubbleText}
-        // Batch 43: blok terjemahan + chip ephemeral + penanda bintang.
-        translation={translation}
-        ephemeralChip={ephemeralChip}
-        starred={message.isStarred === true}
-        // Kutipan balasan: backend mengirim `replyTo` (id, content,
-        // messageType, isDeleted, senderName) bila pesan ini membalas pesan lain.
-        quote={bubbleQuote}
-        time={formatTime(message.createdAt)}
-        grouped={grouped}
-        /*
-         * Penanda arah (2026-09-26): gelembung MASUK membawa foto & nama
-         * lawan bicara, pesan KELUAR tetap murni kanan + bg-primary. Nama
-         * hanya muncul di pesan pertama kelompok (aturan ada di dalam
-         * <ChatMessageBubble>), jadi percakapan panjang tidak berubah jadi
-         * daftar nama.
-         *
-         * Revisi 2026-09-28 (produk): di DM 1:1 (`showSenderIdentity=false`)
-         * foto + nama disembunyikan total — ala WhatsApp, hanya bubble.
-         */
-        senderName={!showSenderIdentity || message.fromUser ? undefined : (counterpart?.name ?? undefined)}
-        avatarName={!showSenderIdentity || message.fromUser ? undefined : (counterpart?.name ?? undefined)}
-        avatarUrl={!showSenderIdentity || message.fromUser ? undefined : counterpart?.avatarUrl}
-        // Revisi 2026-09-27 (UI polish): seal verifikasi di samping nama
-        // pengirim — avatar bubble TIDAK pernah menerima `verified`.
-        senderSealTier={!showSenderIdentity || message.fromUser ? undefined : (counterpart?.sealTier ?? null)}
-        // DM 1:1: nama pengirim di blok kutipan balasan juga disembunyikan
-        // (ala WhatsApp — kutipan hanya menampilkan cuplikan pesan).
-        hideQuoteSenderName={!showSenderIdentity}
-        // B09: ketuk kutipan → lompat ke pesan asal + sorot. Hanya bila
-        // replyToId ada (pesan asal bisa dicari di thread).
-        onQuotePress={
-          onQuotePress && message.replyToId ? handleBubbleQuotePress : undefined
-        }
-        // Swipe kanan = jalan pintas balas (2026-09-28). Tekan lama "Balas"
-        // tetap ada; gesture dimatikan saat mode pilih / pesan terhapus /
-        // pesan sistem (batch 43).
-        onSwipeReply={
-          !selecting && !message.isDeleted && !isSystemMessage && onSwipeReply
-            ? handleBubbleSwipeReply
+      {bubbleChildren}
+    </ChatMessageBubble>
+  )
+
+  return (
+    /**
+     * 2026-10-05: pan swipe-reply dipasang di BARIS (bukan lagi hanya di
+     * bubble) supaya geser horizontal di mana pun — termasuk area kosong di
+     * samping bubble — memicu balas. Translasi & hint reply tetap digambar di
+     * bubble lewat `swipeOffsetX`; barisnya sendiri tidak pernah bergerak.
+     */
+    <GestureDetector gesture={rowSwipePan}>
+      <View
+        className="gap-1"
+        // B09: sorot pesan asal balasan — inline style mode-aware (aturan:
+        // jangan className bg-* untuk background yang digambar manual).
+        style={
+          highlighted
+            ? { backgroundColor: semantic.warning[mode].bgSoft, borderRadius: 12 }
             : undefined
         }
-        // Pencarian inline: sorot kata kunci di teks pesan ini.
-        searchHighlight={searchHighlight}
-        // Status baca pesan saya: read-receipt dari lawan bicara
-        // (GET /read-receipts) naik ke ikon centang ganda "read".
-        // CN-015: pesan optimistis pakai sendStatus lokal (sending/failed).
-        // Batch 43: pesan sistem tidak punya status kirim.
-        status={
-          !isSystemMessage && message.fromUser
-            ? (message.sendStatus === "failed"
-                ? "failed"
-                : message.sendStatus === "sending"
-                  ? "sending"
-                  : readByCounterpart
-                    ? "read"
-                    : "sent")
-            : undefined
-        }
-        onRetry={message.sendStatus === "failed" && onRetry ? handleBubbleRetry : undefined}
-        reactions={message.reactions}
-        onReact={selecting || !onReact ? undefined : handleBubbleReact}
-        isPinned={message.isPinned}
-        isEdited={message.isEdited}
-        isDeleted={message.isDeleted}
-        onPress={pressHandlers.onPress}
-        onLongPressAt={pressHandlers.onLongPressAt}
-        className={selected ? "rounded-md bg-surface" : undefined}
       >
-        {bubbleChildren}
-      </ChatMessageBubble>
-    </View>
+        {showDay ? <ChatDaySeparator label={dayLabel(message.createdAt)} /> : null}
+        {/*
+          Permukaan tekan-lama SELUAS baris (termasuk area kosong samping
+          bubble + gutter px-5 milik bubble). Umpan balik visual sengaja TIDAK
+          di sini — `scaleOnPress={false}` (baris tidak "goyang" saat scroll
+          cepat) dan tanpa ripple/highlight; sorotan seleksi tetap di bubble
+          lewat `selected` → className bubble.
+          `accessible={false}` + `tabIndex={-1}`: permukaan ini murni area
+          sentuh — tidak boleh menelan label bubble dari screen reader
+          (`accessible` bawaan Pressable = true) dan tidak menambah tab-stop
+          di web. Tekan tepat di bubble tetap ditangani pressable DI DALAM
+          bubble (responder terdalam menang).
+        */}
+        <PressableScale
+          testID="chat-message-row-surface"
+          accessible={false}
+          tabIndex={-1}
+          scaleOnPress={false}
+          onLongPress={gesturePlan.longPress ? handleRowLongPress : undefined}
+        >
+          {bubbleElement}
+        </PressableScale>
+      </View>
+    </GestureDetector>
   )
 }
 

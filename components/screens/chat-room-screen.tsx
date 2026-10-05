@@ -3021,10 +3021,13 @@ export default function ChatRoomScreen() {
             // (showSenderIdentity=false); ruang transaksi/grup → tetap tampil.
             counterpart={counterpartInfo}
             showSenderIdentity={showPeerIdentity}
-            // Swipe kanan bubble = jalan pintas balas (2026-09-28).
-            // Tekan lama "Balas" di SelectionBar TETAP ADA — gesture ini
-            // hanya memanggil setReplyTarget yang sama. Nonaktif saat mode
-            // pilih agar tidak bentrok dengan toggle pilihan (gate di row).
+            // Swipe kanan = jalan pintas balas (2026-09-28). Sejak
+            // 2026-10-05 area gesture = SELURUH baris (ala WhatsApp) —
+            // swipe di area kosong samping bubble pun memicu, tapi animasi
+            // translasi tetap digambar di bubble (pan milik row). Tekan lama
+            // "Balas" di SelectionBar TETAP ADA — gesture ini hanya
+            // memanggil setReplyTarget yang sama. Nonaktif saat mode pilih
+            // agar tidak bentrok dengan toggle pilihan (gate di row).
             onSwipeReply={handleRowSwipeReply}
             // Revisi 2026-09-27: KETUKAN bubble teks = NO-OP di luar mode
             // pilih (tidak membuka apa pun); saat mode pilih aktif ketukan
