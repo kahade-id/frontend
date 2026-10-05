@@ -6,7 +6,9 @@
  *   a. simetri kiri/kanan bubble masuk vs keluar,
  *   b. ketukan bubble teks = no-op; aksi hanya via tekan lama,
  *   c. posisi popover reaksi mengambang,
- *   d. badge reaksi overlap di sudut bubble (bukan di bawahnya).
+ *   d. badge reaksi overlap di sudut bubble (bukan di bawahnya),
+ *   e. area gesture tekan-lama + swipe-reply = SELURUH baris pesan
+ *      (2026-10-05, ala WhatsApp) — umpan balik visual tetap DI BUBBLE.
  *
  * Sengaja tanpa import `react-native` supaya bisa diuji di vitest (node).
  * Komponen (`chat-message-bubble`, `chat-message-row`,
@@ -67,6 +69,44 @@ export type ChatBubbleAnchor = {
 }
 
 /**
+ * Node native minimal yang bisa diukur posisinya di window — sengaja
+ * struktural (bukan `ViewInstance`) supaya helper ini tetap murni & bisa
+ * diuji di node.
+ */
+export type MeasureInWindowNode = {
+  measureInWindow?: (
+    cb: (x: number, y: number, width: number, height: number) => void,
+  ) => void
+}
+
+/**
+ * Ukur JANGKAR BUBBLE (bukan baris) untuk popover reaksi, dengan fallback ke
+ * titik sentuh bila node belum terukur / pengukuran gagal.
+ *
+ * 2026-10-05: dipakai DUA pemanggil — bubble (tekan lama tepat di bubble) dan
+ * baris `chat-message-row` (tekan lama di area kosong samping bubble). Karena
+ * keduanya mengukur node pembungkus bubble YANG SAMA, popover selalu muncul
+ * menempel bubble walaupun jari menekan jauh di sampingnya — bukan di titik
+ * sentuh (itulah bedanya tekan lama "di baris" vs "di bubble" yang diminta
+ * produk: yang melebar hanya area pemicunya, bukan umpan baliknya).
+ */
+export function measureBubbleAnchor(
+  node: MeasureInWindowNode | null | undefined,
+  fallbackPoint: { x: number; y: number },
+  onAnchor: (anchor: ChatBubbleAnchor) => void,
+): void {
+  try {
+    if (node && typeof node.measureInWindow === "function") {
+      node.measureInWindow((x, y, width, height) => onAnchor({ x, y, width, height }))
+      return
+    }
+  } catch {
+    // Jatuh ke koordinat titik sentuh di bawah.
+  }
+  onAnchor({ x: fallbackPoint.x, y: fallbackPoint.y, width: 0, height: 0 })
+}
+
+/**
  * Badge reaksi: MENGAMBANG overlap di sudut kanan-bawah bubble
  * (ala WhatsApp/iMessage) — BUKAN baris chip di bawah bubble.
  * `bottom` negatif = sebagian badan badge menimpa bubble.
@@ -111,6 +151,53 @@ export function resolveBubblePressHandlers(opts: {
   return {
     onPress: opts.selecting ? opts.onTap : undefined,
     onLongPressAt: opts.onLongPress,
+  }
+}
+
+export type ChatRowGesturePlan = {
+  /**
+   * Pan swipe-reply dipasang di SELURUH baris (bukan hanya di bubble) —
+   * translasi/hint-nya tetap digambar di bubble.
+   */
+  swipeReply: boolean
+  /**
+   * Tekan lama di area kosong baris (samping bubble) memanggil aksi yang sama
+   * dengan tekan lama di bubble.
+   */
+  longPress: boolean
+}
+
+/**
+ * Rencana gesture tingkat BARIS (2026-10-05, permintaan produk ala WhatsApp:
+ * "di WhatsApp seluruh baris pesan adalah area sentuh").
+ *
+ * Sebelumnya tekan lama & swipe hanya aktif kalau sentuhan pas mengenai
+ * bubble; area kosong di samping bubble tidak merespons apa pun. Aturan di
+ * sini adalah gerbang TUNGGAL untuk kedua gesture baris, dan sengaja
+ * mengulang gerbang yang sudah dipakai bubble supaya tidak ada kombinasi
+ * keadaan yang "lolos" lewat baris saja:
+ *
+ * - `selecting`  → swipe MATI (menghindari bentrok dengan toggle pilihan);
+ *                  tekan lama TETAP hidup (aksi/reaksi masih boleh dibuka).
+ * - `isDeleted`  → keduanya MATI (pesan terhapus tidak punya handler — sama
+ *                  dengan `resolveBubblePressHandlers`).
+ * - `isSystem`   → keduanya MATI (kartu sistem bukan pesan yang bisa
+ *                  dibalas/dipilih; dulu pun tidak ada pressable di sana).
+ * - `hasSwipeReply`/`hasLongPress` → handler dari pemanggil (opsional).
+ */
+export function resolveChatRowGesturePlan(opts: {
+  selecting: boolean
+  isDeleted?: boolean
+  isSystem?: boolean
+  hasSwipeReply: boolean
+  hasLongPress: boolean
+}): ChatRowGesturePlan {
+  if (opts.isDeleted || opts.isSystem) {
+    return { swipeReply: false, longPress: false }
+  }
+  return {
+    swipeReply: !opts.selecting && opts.hasSwipeReply,
+    longPress: opts.hasLongPress,
   }
 }
 
@@ -166,6 +253,14 @@ export const SWIPE_REPLY_THRESHOLD_PX = 56
 export const SWIPE_REPLY_MAX_PX = 72
 /** px/detik — fling cepat ke kanan langsung memicu balas. */
 export const SWIPE_REPLY_FLING_VELOCITY_PX_S = 800
+/**
+ * Offset aktivasi pan (px): horizontal 12px baru mengklaim gesture, gerakan
+ * vertikal 8px langsung menyerahkannya ke scroll FlatList. Sama untuk pan di
+ * bubble (pemakaian langsung komponen) maupun pan di baris — lihat
+ * `useSwipeReplyPan`.
+ */
+export const SWIPE_REPLY_ACTIVE_OFFSET_X = 12
+export const SWIPE_REPLY_FAIL_OFFSET_Y = 8
 
 /**
  * Murni — bisa di-unit-test: apakah gesture pan berakhir sebagai "balas"?
