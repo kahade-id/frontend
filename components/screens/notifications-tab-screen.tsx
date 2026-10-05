@@ -2,9 +2,15 @@
  * Tab Notifikasi (redesign navigasi 2026-09-27; redesign tampilan 2026-09-27).
  *
  * List notifikasi dari `GET /v1/notifications` (read + unread) dengan:
- *  - Segmen kategori gaya pill (<SegmentedControl> — selaras dengan tab peran
- *    di halaman Transaksi): TRANSAKSI / PROMOSI / INFORMASI, nilai PERSIS
- *    enum API (query `category`).
+ *  - Tab kategori underline (<Tabs> TANPA icon — persis struktur tab profil
+ *    di user-profile-screen, permintaan produk 2026-10-05): TRANSAKSI /
+ *    PROMOSI / INFORMASI, nilai PERSIS enum API (query `category`).
+ *    Strip dirender langsung sebagai anak <Screen> dalam alur normal di
+ *    antara <Header> dan <PaginatedList> — TANPA wrapper animasi/z-index
+ *    (pola <SegmentedControl> lama dalam <FadeIn> dihapus: wrapper animasi
+ *    auto-height di atas list adalah pola yang pernah membuat baris daftar
+ *    bertumpuk dengan kontrol kategori — lihat catatan akar bug di
+ *    components/ui/fade-in.tsx).
  *  - Tidak ada lagi tab "Semua" / "Belum dibaca": filter baca dibalik satu
  *    tombol FUNNEL di kanan header (toggle Semua ↔ Belum dibaca, query
  *    `isRead=false`).
@@ -36,7 +42,7 @@
  *  - Infinite scroll (page/limit, spec: max 100, default 20) + pull-to-refresh.
  *  - Skeleton loading pertama, EmptyState, ErrorState eksplisit.
  *
- * Komponen sistem yang dipakai: <SegmentedControl> (§9.16),
+ * Komponen sistem yang dipakai: <Tabs> (§9.16),
  * NotificationListItem, LoadMore, ErrorState, EmptyState, Skeleton.
  */
 
@@ -90,11 +96,10 @@ import { Dialog } from "@/components/ui/modal"
 import { IconButton } from "@/components/ui/icon-button"
 import { DrawerMenuButton } from "@/components/ui/drawer-menu-button"
 import { EmptyState } from "@/components/ui/empty-state"
-import { FadeIn } from "@/components/ui/fade-in"
 import { Header } from "@/components/ui/header"
 import { NotificationListItem } from "@/components/ui/notification-list-item"
 import { Screen } from "@/components/ui/screen"
-import { SegmentedControl, type SegmentItem } from "@/components/ui/segmented-control"
+import { Tabs, type TabItem } from "@/components/ui/tabs"
 import { Text } from "@/components/ui/text"
 import { GuestLoginPrompt } from "@/components/web-guest-gate"
 import { useAuthSession } from "@/lib/use-auth-session"
@@ -105,13 +110,14 @@ import { useShellTabReselect } from "@/lib/shell-tab-reselect"
 // Konstanta layar
 // ------------------------------------------------------------------
 
-/** Segmen kategori — gaya pill <SegmentedControl>, selaras dengan tab
-    peran di halaman Transaksi (bukan underline <Tabs>). */
+/** Tab kategori — underline <Tabs> TANPA icon (permintaan produk 2026-10-05):
+    struktur PERSIS tab profil (label saja, indicator garis di bawah tab
+    aktif). Nilai = enum API `category` apa adanya. */
 const CATEGORY_TABS = [
   { value: "TRANSAKSI", label: "Transaksi" },
   { value: "PROMOSI", label: "Promosi" },
   { value: "INFORMASI", label: "Informasi" },
-] as const satisfies readonly SegmentItem<NotificationCategory>[]
+] as const satisfies readonly TabItem<NotificationCategory>[]
 
 /** Ikon EmptyState per kategori filter (nilai enum API, bukan label). */
 const EMPTY_ICON: Record<NotificationCategory, typeof Bell> = {
@@ -814,20 +820,20 @@ function NotificationsScreen() {
         />
       )}
 
-      {/* Segmen kategori — gaya pill <SegmentedControl> seperti tab peran di
-          halaman Transaksi (konsisten antar tab top-level).
-          Kalau sedang memilih (mode batch) segmen tetap tampil agar konteks
-          kategori yang sedang dipilih tidak hilang.
-          z-sticky: pagar stacking yang sama dengan tab Transaksi — blok kontrol
-          tidak boleh tertimpa teks daftar apa pun kondisi geometrinya. */}
-      <FadeIn duration="fast" translate={false} className="z-sticky bg-background px-5 pb-3 pt-3">
-        <SegmentedControl<NotificationCategory>
-          accessibilityLabel={translate("Kategori notifikasi")}
-          items={CATEGORY_TABS}
-          value={category}
-          onChange={setCategory}
-        />
-      </FadeIn>
+      {/* Tab kategori — PERSIS pola tab profil (user-profile-screen): strip
+          <Tabs> jadi anak LANGSUNG <Screen>, dalam alur normal di antara
+          <Header> dan <PaginatedList> — tanpa wrapper animasi, tanpa z-index,
+          tanpa padding ekstra. Strip memegang ruang layout-nya sendiri, jadi
+          daftar SELALU mulai setelah strip: baris grup hari ("Kemarin,
+          4 Okt 2026") tidak mungkin bertumpuk dengan tab.
+          Saat memilih (mode batch) tab tetap tampil agar konteks kategori
+          yang sedang dipilih tidak hilang. */}
+      <Tabs<NotificationCategory>
+        accessibilityLabel={translate("Kategori notifikasi")}
+        items={CATEGORY_TABS}
+        value={category}
+        onChange={setCategory}
+      />
 
       <PaginatedList
         {...query}

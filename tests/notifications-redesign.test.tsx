@@ -60,12 +60,17 @@ const mocks = vi.hoisted(() => {
     markAllReadGate: null as (() => Promise<void>) | null,
     logWarn: vi.fn(),
     haptic: vi.fn(),
+    /** Kunci query terakhir — saksi kategori aktif (kunci = "notifications:<kategori>:all|unread"). */
+    lastKey: null as string | null,
   }
 })
 
 vi.mock("@/lib/use-paginated-query", () => ({
   byTimestampDesc: () => () => 0,
-  usePaginatedQuery: (..._args: unknown[]) => mocks.holder.useQuery(),
+  usePaginatedQuery: (key: unknown, ..._args: unknown[]) => {
+    if (typeof key === "string") mocks.lastKey = key
+    return mocks.holder.useQuery()
+  },
 }))
 
 vi.mock("@/lib/use-auth-session", () => ({
@@ -207,6 +212,7 @@ function BadgeProbe() {
 beforeEach(() => {
   vi.clearAllMocks()
   mocks.markAllReadGate = null
+  mocks.lastKey = null
   resetUnreadCount()
   installQuery()
 })
@@ -411,11 +417,12 @@ describe("badge unread sinkron dengan data daftar", () => {
 })
 
 // ------------------------------------------------------------------
-// 6. Polish 2026-09-27: tanpa tombol back; segmen kategori gaya pill
-//    (<SegmentedControl> seperti tab peran di halaman Transaksi)
+// 6. Polish 2026-09-27: tanpa tombol back; kategori via tab underline
+//    (2026-10-05: <SegmentedControl> pill diganti <Tabs> TANPA icon —
+//    persis struktur tab profil, permintaan produk)
 // ------------------------------------------------------------------
 
-describe("polish header & segmen kategori", () => {
+describe("polish header & tab kategori", () => {
   it("tidak merender tombol back (tab top-level bottom navbar)", async () => {
     mocks.items = []
     await renderTab()
@@ -426,36 +433,35 @@ describe("polish header & segmen kategori", () => {
     ).toBeTruthy()
   })
 
-  it("kategori memakai SegmentedControl pill (radiogroup), bukan underline Tabs", async () => {
+  it("kategori memakai underline Tabs tanpa icon (tablist), bukan SegmentedControl", async () => {
     mocks.items = []
     await renderTab()
 
-    // <SegmentedControl> = radiogroup + opsi radio (bukan tablist).
-    const group = screen.getByRole("radiogroup", { name: "Kategori notifikasi" })
-    const options = within(group).getAllByRole("radio")
+    // <Tabs> = tablist + opsi tab (bukan radiogroup).
+    const group = screen.getByRole("tablist", { name: "Kategori notifikasi" })
+    const options = within(group).getAllByRole("tab")
     expect(options).toHaveLength(3)
-    // TRANSAKSI aktif secara default; pill aktif = radio ter-check.
-    expect(options.map((o) => o.getAttribute("aria-checked"))).toEqual([
-      "true",
-      "false",
-      "false",
+    expect(options.map((o) => o.getAttribute("aria-label"))).toEqual([
+      "Transaksi",
+      "Promosi",
+      "Informasi",
     ])
-    // Strip tab underline (<Tabs>) tidak dipakai lagi.
-    expect(screen.queryByRole("tablist")).toBeNull()
+    // TRANSAKSI aktif secara default — dibuktikan lewat kunci query kategori
+    // (state kategori → usePaginatedQuery, bukan lewat markup visual).
+    expect(mocks.lastKey).toBe("notifications:TRANSAKSI:all")
+    // SegmentedControl pill (radiogroup) tidak dipakai lagi.
+    expect(screen.queryByRole("radiogroup")).toBeNull()
   })
 
-  it("memilih segmen Promosi mengaktifkan segmen itu", async () => {
+  it("memilih tab Promosi mengaktifkan tab itu", async () => {
     mocks.items = []
     await renderTab()
+    expect(mocks.lastKey).toBe("notifications:TRANSAKSI:all")
 
-    const group = screen.getByRole("radiogroup", { name: "Kategori notifikasi" })
-    fireEvent.click(within(group).getByRole("radio", { name: "Promosi" }))
+    const group = screen.getByRole("tablist", { name: "Kategori notifikasi" })
+    fireEvent.click(within(group).getByRole("tab", { name: "Promosi" }))
 
-    const options = within(group).getAllByRole("radio")
-    expect(options.map((o) => o.getAttribute("aria-checked"))).toEqual([
-      "false",
-      "true",
-      "false",
-    ])
+    // Klik tab → kategori berganti → kunci query (dan daftar) ikut berganti.
+    await waitFor(() => expect(mocks.lastKey).toBe("notifications:PROMOSI:all"))
   })
 })

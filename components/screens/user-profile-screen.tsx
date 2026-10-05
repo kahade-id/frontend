@@ -12,7 +12,12 @@ import { useProfileShowcase } from "@/lib/use-profile-showcase"
  *  - Bottom Nav Bar hanya dirender untuk PROFIL SENDIRI.
  */
 import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { Pressable, View } from "react-native"
+import {
+  Pressable,
+  View,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+} from "react-native"
 import { router, useLocalSearchParams } from "expo-router"
 import { translate } from "@/lib/i18n/translate"
 import { useLanguage } from "@/lib/i18n"
@@ -71,6 +76,7 @@ import { Icon } from "@/components/ui/icon"
 import { ImageViewer } from "@/components/ui/image-viewer"
 import { Picture } from "@/components/ui/picture"
 import { IconButton } from "@/components/ui/icon-button"
+import { Collapse } from "@/components/ui/collapse"
 import { Crossfade } from "@/components/ui/fade-in"
 import { ListLoading } from "@/components/ui/paginated-list"
 import { DataScroll } from "@/components/ui/data-screen"
@@ -142,6 +148,15 @@ function useQaHideReasons(): readonly { value: string; label: string; descriptio
  * (Pengaturan) & Edit Profil (120px) supaya ketiga layar konsisten.
  */
 const COVER_HEIGHT = 120
+
+/**
+ * Ambang (px offset konten) saat strip tab "menempel" ke bawah <Header>
+ * (collapsing toolbar). Posisi ambang ≈ strip tab asli di dalam konten
+ * (sampul 120 + blok identitas) — saat ambang terlampaui, strip in-flow
+ * sudah berada tepat di bawah header sehingga pergantian ke strip sticky
+ * terasa tanpa lompatan.
+ */
+const TABS_STUCK_OFFSET = 280
 
 
 /**
@@ -250,12 +265,33 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
   // Active tab state — item 72: inisial dari memori sesi (bukan selalu
   // "content"); `selectTab` menulis balik agar sesi mengingatnya.
   const [activeTab, setActiveTab] = useState<ProfileTab>(sessionProfileTab ?? "content")
+  /**
+   * Collapsing toolbar (2026-10-05): strip tab sticky di bawah <Header>
+   * aktif saat konten lewat ambang scroll; strip in-flow disembunyikan.
+   *
+   * DUA PINTU scroll — kontrak <PullToRefresh>/<DataScroll>:
+   *   - Android: `onScrollWorklet` dipanggil per frame (jalur RNGH).
+   *   - web/iOS: hanya `onScroll` JS biasa yang berjalan; `onScrollWorklet`
+   *     DIABAIKAN di jalur ini.
+   * Kedua pintu wajib diisi — sebelumnya hanya worklet yang dikirim,
+   * sehingga di web/iOS `tabsStuck` tidak pernah aktif dan strip sticky
+   * tidak pernah muncul (bug collapsing toolbar "hilang" saat scroll).
+   */
   const [tabsStuck, setTabsStuck] = useState(false)
-  const handleProfileScroll = useCallback((y: number) => {
+  const applyTabsStuck = useCallback((y: number) => {
     if (typeof y === "number" && Number.isFinite(y)) {
-      setTabsStuck(y > 280)
+      setTabsStuck(y > TABS_STUCK_OFFSET)
     }
   }, [])
+  /** Pintu Android (dipanggil per frame dari surface pull-to-refresh). */
+  const handleProfileScroll = applyTabsStuck
+  /** Pintu web/iOS (event scroll ScrollView). */
+  const handleProfileScrollEvent = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      applyTabsStuck(event.nativeEvent.contentOffset.y)
+    },
+    [applyTabsStuck],
+  )
   const selectTab = useCallback((tab: ProfileTab) => {
     sessionProfileTab = tab
     startTransition(() => setActiveTab(tab))
@@ -931,17 +967,44 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
             ) : null
           }
         />
-      <View
+      {/* Collapsing toolbar: strip tab sticky di bawah <Header>.
+          Struktur 2026-10-05 (fix "sticky tabs rusak saat tabsStuck=true"):
+
+          - <Collapse>, BUKAN display:none. display:none tidak me-layout
+            anak, jadi pengukuran <Tabs> (onLayout per tombol) baru terjadi
+            saat strip tampil — indicator underline pun
+            "meluncur" dari tepi kiri ke tab aktif di depan mata. Dengan
+            <Collapse>, saat tertutup (height 0 + overflow hidden) isi
+            TETAP di-layout: pengukuran selesai sebelum strip pernah
+            terlihat, dan indicator langsung duduk di bawah tab aktif
+            saat strip muncul.
+          - height 0 + overflow hidden = tidak mengambil ruang alur, tidak
+            tergambar, pointerEvents none; Collapse juga menyembunyikan isi
+            dari screen reader (accessibilityElementsHidden + importantFor
+            Accessibility) — jadi selalu tepat SATU tablist hidup:
+            strip sticky XOR strip in-flow.
+          - Tingginya dianimasikan (0 <-> konten), bukan dipop — strip
+            muncul/menusut mulus, tidak menjengkruk daftar. */}
+      <Collapse
+        open={tabsStuck}
+        duration="fast"
         className="bg-background px-5 pb-1 pt-2"
-        style={{ display: tabsStuck ? "flex" : "none" } as object}
       >
         <Tabs<ProfileTab>
           items={profileTabs}
           value={activeTab}
           onChange={selectTab}
         />
-      </View>
-      <DataScroll onRefresh={handleRefresh} refreshing={refreshing} padded={false} onScrollWorklet={handleProfileScroll}>
+      </Collapse>
+      <DataScroll
+        onRefresh={handleRefresh}
+        refreshing={refreshing}
+        padded={false}
+        // DUA pintu scroll untuk collapsing toolbar — lihat catatan
+        // `tabsStuck`: Android = worklet, web/iOS = onScroll JS.
+        onScroll={handleProfileScrollEvent}
+        onScrollWorklet={handleProfileScroll}
+      >
         {/* ── Top Bar (di atas cover) ──────────────────────────
             <Header transparent>: @username PUSAT di bar — satu-satunya
             tempat username ditulis (baris identitas di bawah hanya nama).
@@ -1007,11 +1070,16 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
               <Skeleton height={14} className="w-2/5" />
               <Skeleton height={16} className="w-4/5" />
               <Skeleton height={16} className="w-2/5" />
-              <Tabs<ProfileTab>
-                items={profileTabs}
-                value={activeTab}
-                onChange={selectTab}
-              />
+              {/* Pakai display-toggle yang sama dengan strip in-flow: saat
+                  stuck (mis. muat ulang profil) strip skeleton ikut hilang
+                  — sticky di atas adalah satu-satunya tablist yang tampil. */}
+              <View style={{ display: tabsStuck ? "none" : "flex" } as object}>
+                <Tabs<ProfileTab>
+                  items={profileTabs}
+                  value={activeTab}
+                  onChange={selectTab}
+                />
+              </View>
             </View>
           }
         >
