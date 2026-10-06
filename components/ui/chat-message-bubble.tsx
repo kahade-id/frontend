@@ -53,17 +53,18 @@
  *   - `onLongPress` ada di gelembung, bukan seluruh baris;
  *     `scaleOnPress={false}` karena baris chat yang ikut mengecil terasa
  *     "goyang" saat scroll cepat.
+ *   - 2026-10-05 (permintaan produk, ala WhatsApp): AREA PEMICU gesture
+ *     (tekan lama + swipe-reply) milik BARIS (<ChatMessageRow>) — area kosong
+ *     di samping bubble pun merespons. Komponen ini tetap pemilik UMPAN
+ *     BALIK: sorotan mode pilih lewat `className` bubble, dan translasi swipe
+ *     lewat `swipeOffsetX` (shared value milik baris) + hint reply. Gesture
+ *     yang dipasang langsung di bubble (tanpa `swipeOffsetX`) tetap berlaku
+ *     untuk pemanggil lain (layar bantuan, sengketa).
  */
-import { memo, useEffect, useMemo, useRef, type ReactNode } from "react"
+import { memo, useMemo, useRef, type ReactNode, type RefObject } from "react"
 import { View, type GestureResponderEvent, type ViewInstance, type ViewProps } from "react-native"
-import { Gesture, GestureDetector } from "react-native-gesture-handler"
-import Animated, {
-  runOnJS,
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-  withTiming,
-} from "react-native-reanimated"
+import { GestureDetector } from "react-native-gesture-handler"
+import Animated, { useAnimatedStyle, useSharedValue, type SharedValue } from "react-native-reanimated"
 import { ArrowBendUpLeft, Check, Checks, Clock, PushPin, Star, Timer, WarningCircle } from "phosphor-react-native"
 
 import { Avatar } from "@/components/ui/avatar"
@@ -80,14 +81,15 @@ import { focusRing } from "@/lib/focus-ring"
 import { hitSlopToReach } from "@/lib/hit-slop"
 import { translate } from "@/lib/i18n/translate"
 import { summarize } from "@/lib/a11y"
-import { useReducedMotion } from "@/lib/use-reduced-motion"
-import { tokens } from "@/lib/tokens"
+import { useSwipeReplyPan } from "@/lib/use-swipe-reply-pan"
 import { splitHighlightSpans } from "@/lib/chat-search"
 import {
   REACTION_BADGE_ANCHOR,
   SWIPE_REPLY_MAX_PX,
   chatBubbleGeometry,
+  measureBubbleAnchor,
   type ChatBubbleAnchor,
+  type MeasureInWindowNode,
 } from "@/lib/chat-bubble"
 
 export type ChatMessageDirection = "incoming" | "outgoing" | "system"
@@ -221,6 +223,28 @@ export type ChatMessageBubbleProps = Omit<ViewProps, "children"> & {
    * bubble bisa digeser ke kanan; melewati ambang memicu callback ini.
    */
   onSwipeReply?: () => void
+  /**
+   * 2026-10-05: nilai translasi swipe MILIK PEMANGGIL (mis. <ChatMessageRow>
+   * yang memperluas area gesture ke seluruh baris). Bila diisi:
+   *
+   *   - bubble TIDAK membuat pan sendiri — pan tinggal di baris dan menulis
+   *     ke shared value ini, sehingga `activeOffsetX(12)`/`failOffsetY(8)`
+   *     dan ambang balasnya identik dengan yang dulu dipasang di bubble
+   *     (`useSwipeReplyPan`),
+   *   - animasi translasi + hint reply TETAP digambar di bubble (yang
+   *     melebar hanya area pemicunya),
+   *   - `onSwipeReply` boleh `undefined` (mis. mode pilih aktif): struktur
+   *     animasi tetap ter-mount dengan translasi 0 supaya masuk/keluar mode
+   *     pilih tidak me-remount isi bubble.
+   */
+  swipeOffsetX?: SharedValue<number>
+  /**
+   * 2026-10-05: ref node pembungkus bubble — pemanggil yang memasang gesture
+   * di LUAR bubble memakainya untuk mengukur jangkar popover reaksi
+   * (`measureBubbleAnchor`), supaya popover tetap menempel di bubble.
+   * Bubble tetap memakai node yang sama untuk tekan lamanya sendiri.
+   */
+  anchorRef?: RefObject<ViewInstance | null>
   labels?: { retry?: string; failed?: string; edited?: string }
   className?: string
 }
@@ -256,6 +280,8 @@ function ChatMessageBubbleBase({
   isDeleted = false,
   hideQuoteSenderName = false,
   onSwipeReply,
+  swipeOffsetX,
+  anchorRef,
   labels,
   avatarUrl,
   avatarName,
@@ -287,56 +313,37 @@ function ChatMessageBubbleBase({
    * Ref pembungkus bubble: jangkar `measureInWindow` untuk popover reaksi
    * mengambang. `collapsable={false}` supaya node native-nya tidak
    * dioptimasi hilang di Android.
+   *
+   * 2026-10-05: pemanggil boleh menyerahkan ref-nya (`anchorRef`) supaya
+   * gesture tekan-lama di LUAR bubble (seluruh baris) mengukur jangkar yang
+   * SAMA — popover tetap muncul menempel bubble.
    */
-  const bubbleRef = useRef<ViewInstance | null>(null)
+  const internalBubbleRef = useRef<ViewInstance | null>(null)
+  const bubbleRef = anchorRef ?? internalBubbleRef
 
   /**
    * Swipe-to-reply (2026-09-28) — jalan pintas; tekan lama "Balas" TETAP ADA.
    * Hooks ditaruh SEBELUM early-return `system` (aturan hooks).
+   *
+   * 2026-10-05: pan tidak lagi selalu milik bubble. Bila pemanggil menyerahkan
+   * `swipeOffsetX` (baris chat memperluas area gesture ke seluruh baris),
+   * pan-nya hidup di baris dan bubble hanya MENGGAMBAR translasi + hint —
+   * konfigurasi gesture tetap satu sumber (`useSwipeReplyPan`).
    */
-  const swipeX = useSharedValue(0)
-  const reduceMotion = useReducedMotion()
-  const swipeReplyRef = useRef(onSwipeReply)
-  useEffect(() => {
-    swipeReplyRef.current = onSwipeReply
-  }, [onSwipeReply])
+  const internalSwipeX = useSharedValue(0)
+  const rowOwnsSwipe = swipeOffsetX !== undefined
+  const swipeX = swipeOffsetX ?? internalSwipeX
   const canSwipeReply = !!onSwipeReply && direction !== "system" && !isDeleted
+  const swipePan = useSwipeReplyPan({
+    enabled: canSwipeReply && !rowOwnsSwipe,
+    swipeX,
+    onTrigger: onSwipeReply,
+  })
   /**
-   * Pan horizontal ala <SwipeableListItem>: `activeOffsetX(12)` +
-   * `failOffsetY(8)` — pan hanya diklaim setelah gerakan horizontal jelas,
-   * scroll vertikal FlatList tidak terganggu.
+   * Struktur animasi (hint + Animated.View) dipakai bila swipe mungkin
+   * terjadi — baik pan-nya milik bubble maupun milik baris.
    */
-  const swipePan = useMemo(() => {
-    // PERF-FIX (P1): jangan pasang worklet closures untuk bubble yang tidak
-    // bisa swipe-reply (system/deleted/tanpa handler) — GestureDetector hanya
-    // di-render bila canSwipeReply, tapi pembuatan Pan() + 2 closure worklet
-    // per bubble tetap membebani mount thread chat panjang (500 pesan =
-    // 500 gesture + 1000 closure sia-sia).
-    if (!canSwipeReply) return Gesture.Pan().enabled(false)
-    return Gesture.Pan()
-      .activeOffsetX(12)
-      .failOffsetY(8)
-      .onUpdate((e) => {
-        "worklet"
-        swipeX.value = Math.max(0, Math.min(e.translationX, SWIPE_REPLY_MAX_PX))
-      })
-      .onEnd((e) => {
-        "worklet"
-        // Threshold inline (jangan panggil fungsi JS eksternal dari worklet):
-        // 56px translasi atau 800px/detik velocity.
-        const triggered = swipeX.value >= 56 || e.velocityX >= 800
-        if (triggered) {
-          const cb = swipeReplyRef.current
-          if (cb) runOnJS(cb)()
-        }
-        // Reduce Motion: snap-back INSTAN tanpa spring — yang
-        // dipertahankan hanya translasi mengikuti jari (esensial untuk
-        // fungsi, pengecualian WCAG 2.3.3).
-        swipeX.value = reduceMotion
-          ? withTiming(0, { duration: 0 })
-          : withSpring(0, tokens.motion.spring)
-      })
-  }, [canSwipeReply, reduceMotion, swipeX])
+  const showSwipeChrome = canSwipeReply || rowOwnsSwipe
   const swipeBubbleStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: swipeX.value }],
   }))
@@ -547,23 +554,13 @@ function ChatMessageBubbleBase({
    */
   const handleLongPress = (e: GestureResponderEvent) => {
     if (onLongPressAt) {
-      const node = bubbleRef.current as unknown as {
-        measureInWindow?: (
-          cb: (x: number, y: number, width: number, height: number) => void,
-        ) => void
-      } | null
-      try {
-        if (node && typeof node.measureInWindow === "function") {
-          node.measureInWindow((x, y, width, height) =>
-            onLongPressAt({ x, y, width, height }),
-          )
-          return
-        }
-      } catch {
-        // Jatuh ke koordinat titik sentuh di bawah.
-      }
-      const { pageX, pageY } = e.nativeEvent
-      onLongPressAt({ x: pageX, y: pageY, width: 0, height: 0 })
+      // Logika ukur-atau-jatuh-ke-titik-sentuh dipakai bersama tekan lama
+      // tingkat baris (lihat `measureBubbleAnchor`).
+      measureBubbleAnchor(
+        bubbleRef.current as MeasureInWindowNode | null,
+        { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY },
+        onLongPressAt,
+      )
       return
     }
     onLongPress?.()
@@ -657,8 +654,36 @@ function ChatMessageBubbleBase({
    * di kiri) + GestureDetector > Animated.View (hanya `style` — className
    * tetap di <View> dalam, sesuai konvensi proyek) + className di View dalam.
    * Cabang biasa: struktur lama tanpa berubah.
+   *
+   * 2026-10-05: bila pan dimiliki BARIS (`rowOwnsSwipe`), GestureDetector
+   * tidak dirender di sini — Animated.View tetap ada supaya translasi + hint
+   * digambar di bubble, dan strukturnya tidak berubah saat gesture baris
+   * mati/hidup (mode pilih) sehingga isi bubble tidak ter-remount.
    */
-  const bubbleBlock = canSwipeReply ? (
+  const swipeAnimatedBubble = (
+    <Animated.View
+      ref={bubbleRef}
+      collapsable={false}
+      style={swipeBubbleStyle}
+    >
+      <View
+        className={cn(
+          // `relative` = jangkar badge reaksi; `overflow-visible` supaya
+          // badge yang menjulur keluar bubble tidak terpotong (khususnya
+          // Android).
+          "relative overflow-visible",
+          // REACTION_BADGE_CLEARANCE_PX: badge menjulur 12px di bawah
+          // bubble — beri napas 16px supaya tidak menabrak baris
+          // jam/bubble berikut.
+          hasReactions && "mb-4",
+        )}
+      >
+        {bubbleCore}
+      </View>
+    </Animated.View>
+  )
+
+  const bubbleBlock = showSwipeChrome ? (
     <View className="relative">
       {/* Hint visual saat swipe: lingkaran ikon reply yang fade+scale masuk
           di ruang yang terbuka di kiri bubble. */}
@@ -674,28 +699,11 @@ function ChatMessageBubbleBase({
           </View>
         </View>
       </Animated.View>
-      <GestureDetector gesture={swipePan}>
-        <Animated.View
-          ref={bubbleRef}
-          collapsable={false}
-          style={swipeBubbleStyle}
-        >
-          <View
-            className={cn(
-              // `relative` = jangkar badge reaksi; `overflow-visible` supaya
-              // badge yang menjulur keluar bubble tidak terpotong (khususnya
-              // Android).
-              "relative overflow-visible",
-              // REACTION_BADGE_CLEARANCE_PX: badge menjulur 12px di bawah
-              // bubble — beri napas 16px supaya tidak menabrak baris
-              // jam/bubble berikut.
-              hasReactions && "mb-4",
-            )}
-          >
-            {bubbleCore}
-          </View>
-        </Animated.View>
-      </GestureDetector>
+      {rowOwnsSwipe ? (
+        swipeAnimatedBubble
+      ) : (
+        <GestureDetector gesture={swipePan}>{swipeAnimatedBubble}</GestureDetector>
+      )}
     </View>
   ) : (
     <View

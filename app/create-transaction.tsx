@@ -84,6 +84,8 @@ import { addDays, normalizePickerDate } from "@/components/ui/date-picker-sheet"
 import { DateField } from "@/components/ui/date-field"
 import { FadeIn } from "@/components/ui/fade-in"
 import { Field } from "@/components/ui/field"
+import { PressableScale } from "@/components/ui/pressable-scale"
+import { cn } from "@/lib/cn"
 import { FormSection } from "@/components/ui/form-section"
 import { Header } from "@/components/ui/header"
 import { Heading } from "@/components/ui/heading"
@@ -97,7 +99,6 @@ import {
 } from "@/components/ui/order-form-selectors"
 import {
   CounterpartStep,
-  CreateIntroStep,
   FeeScheduleSheet,
   FeeServiceSection,
   OrderSummarySection,
@@ -115,6 +116,16 @@ import type { Address } from "@/lib/api/commerce"
 import { addressLabelText } from "@/lib/api/commerce"
 import { addressMissingFields } from "@/lib/wallet-batch139"
 import { translate } from "@/lib/i18n/translate"
+import {
+  ORDER_CATEGORY_LABELS,
+  ORDER_CATEGORY_DESCRIPTIONS,
+  FULFILLMENT_LABELS,
+  PARTICIPANT_MODE_LABELS,
+  calculatePatunganPerPerson,
+  type OrderCategory,
+  type FulfillmentType,
+  type ParticipantMode,
+} from "@/lib/transaction"
 import { showMutationError } from "@/lib/mutation-toast"
 
 const DEBOUNCE_MS = 400
@@ -129,26 +140,288 @@ const MAX_DEADLINE_DAYS = API_CONSTRAINTS.CreateOrderDto.deliveryDeadlineDays.ma
 
 type Mode = "direct" | "link"
 
+/**
+ * Unified v2 (2026-10-06): alur 5 langkah.
+ * 1. Kategori (Fisik/Digital/Jasa) — TANPA "Lainnya".
+ * 2. Sistem (Langsung/Preorder; Jasa pakai tanggal).
+ * 3. Peserta (Sendiri/Patungan).
+ * 4. Detail (mitra + rincian kategori).
+ * 5. Ringkasan (biaya eksplisit + konfirmasi).
+ */
+
+/**
+ * Unified v2: pemilih kategori (3 opsi, tanpa "Lainnya").
+ */
+function CategoryStep({
+  value,
+  onChange,
+}: {
+  value: OrderCategory | null
+  onChange: (v: OrderCategory) => void
+}) {
+  const options: Array<{ value: OrderCategory; label: string; description: string }> = (
+    ["FISIK", "DIGITAL", "JASA"] as const
+  ).map((c) => ({
+    value: c,
+    label: ORDER_CATEGORY_LABELS[c],
+    description: ORDER_CATEGORY_DESCRIPTIONS[c],
+  }))
+  return (
+    <View className="gap-3">
+      {options.map((opt) => (
+        <PressableScale
+          key={opt.value}
+          onPress={() => onChange(opt.value)}
+          accessibilityRole="radio"
+          accessibilityState={{ checked: value === opt.value }}
+          accessibilityLabel={opt.label}
+        >
+          <View
+            className={cn(
+              "rounded-2xl border p-4",
+              value === opt.value ? "border-primary bg-primary-soft" : "border-border bg-surface",
+            )}
+          >
+            <Text variant="body" weight={700}>
+              {opt.label}
+            </Text>
+            <Text variant="caption" tone="secondary">
+              {opt.description}
+            </Text>
+          </View>
+        </PressableScale>
+      ))}
+    </View>
+  )
+}
+
+/**
+ * Unified v2: pemilih sistem (Langsung/Preorder; Jasa pakai tanggal).
+ */
+function SystemStep({
+  category,
+  fulfillment,
+  onFulfillmentChange,
+  preorderDate,
+  onPreorderDateChange,
+  scheduledDate,
+  onScheduledDateChange,
+}: {
+  category: OrderCategory
+  fulfillment: FulfillmentType
+  onFulfillmentChange: (v: FulfillmentType) => void
+  preorderDate: string
+  onPreorderDateChange: (v: string) => void
+  scheduledDate: string
+  onScheduledDateChange: (v: string) => void
+}) {
+  if (category === "JASA") {
+    return (
+      <View className="gap-3">
+        <Text variant="body" tone="secondary">
+          Pilih tanggal pelaksanaan jasa.
+        </Text>
+        <Field label="Tanggal jasa" required>
+          <Input
+            value={scheduledDate}
+            onChangeText={onScheduledDateChange}
+            placeholder="2026-12-20"
+          />
+        </Field>
+      </View>
+    )
+  }
+  return (
+    <View className="gap-3">
+      {(["BIASA", "PREORDER"] as const).map((f) => (
+        <PressableScale
+          key={f}
+          onPress={() => onFulfillmentChange(f)}
+          accessibilityRole="radio"
+          accessibilityState={{ checked: fulfillment === f }}
+          accessibilityLabel={FULFILLMENT_LABELS[f]}
+        >
+          <View
+            className={cn(
+              "rounded-2xl border p-4",
+              fulfillment === f ? "border-primary bg-primary-soft" : "border-border bg-surface",
+            )}
+          >
+            <Text variant="body" weight={700}>
+              {FULFILLMENT_LABELS[f]}
+            </Text>
+            <Text variant="caption" tone="secondary">
+              {f === "BIASA" ? "Barang ready, langsung diproses" : "Barang belum ready, estimasi tanggal"}
+            </Text>
+          </View>
+        </PressableScale>
+      ))}
+      {fulfillment === "PREORDER" ? (
+        <Field label="Estimasi tanggal ready" required>
+          <Input
+            value={preorderDate}
+            onChangeText={onPreorderDateChange}
+            placeholder="2026-12-20"
+          />
+        </Field>
+      ) : null}
+    </View>
+  )
+}
+
+/**
+ * Unified v2: pemilih peserta (Sendiri/Patungan).
+ */
+function ParticipantStep({
+  mode,
+  onModeChange,
+  total,
+  onTotalChange,
+  target,
+  onTargetChange,
+  deadline,
+  onDeadlineChange,
+  inviteMethod,
+  onInviteMethodChange,
+  counterpartNode,
+}: {
+  mode: ParticipantMode
+  onModeChange: (v: ParticipantMode) => void
+  total: string
+  onTotalChange: (v: string) => void
+  target: string
+  onTargetChange: (v: string) => void
+  deadline: string
+  onDeadlineChange: (v: string) => void
+  inviteMethod: "link" | "username"
+  onInviteMethodChange: (v: "link" | "username") => void
+  /** Node pemilihan mitra (untuk mode SINGLE). */
+  counterpartNode?: React.ReactNode
+}) {
+  const totalNum = Number(total)
+  const targetNum = Number(target)
+  const perPerson =
+    Number.isFinite(totalNum) && Number.isFinite(targetNum) && targetNum >= 2
+      ? calculatePatunganPerPerson(totalNum, targetNum)
+      : 0
+  return (
+    <View className="gap-3">
+      {(["SINGLE", "GROUP"] as const).map((m) => (
+        <PressableScale
+          key={m}
+          onPress={() => onModeChange(m)}
+          accessibilityRole="radio"
+          accessibilityState={{ checked: mode === m }}
+          accessibilityLabel={PARTICIPANT_MODE_LABELS[m]}
+        >
+          <View
+            className={cn(
+              "rounded-2xl border p-4",
+              mode === m ? "border-primary bg-primary-soft" : "border-border bg-surface",
+            )}
+          >
+            <Text variant="body" weight={700}>
+              {PARTICIPANT_MODE_LABELS[m]}
+            </Text>
+            <Text variant="caption" tone="secondary">
+              {m === "SINGLE" ? "Transaksi 1 lawan 1" : "Urunan 2-100 orang (split bill)"}
+            </Text>
+          </View>
+        </PressableScale>
+      ))}
+      {mode === "SINGLE" && counterpartNode ? (
+        <View className="pt-2">{counterpartNode}</View>
+      ) : null}
+      {mode === "GROUP" ? (
+        <View className="gap-3 pt-2">
+          <Field label="Total biaya (Rp)" required>
+            <Input
+              value={total}
+              onChangeText={onTotalChange}
+              placeholder="15000000"
+              keyboardType="numeric"
+            />
+          </Field>
+          <Field label="Target peserta (2-100)" required>
+            <Input
+              value={target}
+              onChangeText={onTargetChange}
+              placeholder="10"
+              keyboardType="numeric"
+            />
+          </Field>
+          {perPerson > 0 ? (
+            <View className="rounded-xl bg-surface p-3">
+              <Text variant="body" weight={700}>
+                Rp{perPerson.toLocaleString("id-ID")}/orang
+              </Text>
+              <Text variant="caption" tone="secondary">
+                Dihitung otomatis dari total ÷ target
+              </Text>
+            </View>
+          ) : null}
+          <Field label="Deadline" required>
+            <Input
+              value={deadline}
+              onChangeText={onDeadlineChange}
+              placeholder="2026-11-01"
+            />
+          </Field>
+          <Field label="Cara undang">
+            <View className="flex-row gap-2">
+              {(["link", "username"] as const).map((m) => (
+                <PressableScale
+                  key={m}
+                  onPress={() => onInviteMethodChange(m)}
+                  accessibilityRole="radio"
+                  accessibilityState={{ checked: inviteMethod === m }}
+                  accessibilityLabel={m === "link" ? "Via link" : "Via username"}
+                >
+                  <View
+                    className={cn(
+                      "rounded-xl border px-4 py-3",
+                      inviteMethod === m ? "border-primary bg-primary-soft" : "border-border bg-surface",
+                    )}
+                  >
+                    <Text variant="body" weight={600}>
+                      {m === "link" ? "Via link" : "Via username"}
+                    </Text>
+                  </View>
+                </PressableScale>
+              ))}
+            </View>
+          </Field>
+        </View>
+      ) : null}
+    </View>
+  )
+}
+
 const STEPS = [
   {
-    title: "Cara & peran",
-    heading: "Bagaimana transaksinya?",
-    description: "Pilih cara membuat pesanan dan peran Anda dalam transaksi ini.",
+    title: "Kategori",
+    heading: "Apa yang ditransaksikan?",
+    description: "Pilih kategori — menentukan informasi yang perlu dilengkapi.",
   },
   {
-    title: "Mitra transaksi",
-    heading: "Siapa mitra transaksi Anda?",
-    description: "Kami memvalidasi username mitra sebelum Anda lanjut.",
+    title: "Sistem",
+    heading: "Bagaimana sistemnya?",
+    description: "Langsung atau preorder. Jasa memakai tanggal jadwal.",
+  },
+  {
+    title: "Peserta",
+    heading: "Siapa yang ikut?",
+    description: "Sendiri atau patungan bersama.",
   },
   {
     title: "Detail",
-    heading: "Rincian pesanan",
-    description: "Jelaskan apa yang ditransaksikan dan berapa nilainya.",
+    heading: "Rincian transaksi",
+    description: "Lengkapi detail dan mitra transaksi.",
   },
   {
-    title: "Biaya & kirim",
-    heading: "Periksa & kirim",
-    description: "Periksa biaya dan ringkasan sebelum pesanan dibuat.",
+    title: "Ringkasan",
+    heading: "Periksa & buat",
+    description: "Periksa ringkasan dan biaya sebelum transaksi dibuat.",
   },
 ] as const
 const LAST_STEP = STEPS.length - 1
@@ -252,6 +525,34 @@ export default function CreateTransactionScreen() {
     return null
   }, [params.jastipParticipantId, params.patunganParticipantId])
   const [mode, setMode] = useState<Mode>("direct")
+  /**
+   * Unified v2 (2026-10-06): state 3-dimensi.
+   */
+  const [category, setCategory] = useState<OrderCategory | null>(null)
+  // Sinkronkan orderType lama dengan kategori baru (untuk kompatibilitas).
+  useEffect(() => {
+    if (category === "FISIK") setOrderType("PHYSICAL_GOODS")
+    else if (category === "DIGITAL") setOrderType("DIGITAL_GOODS")
+    else if (category === "JASA") setOrderType("SERVICE")
+  }, [category])
+  const [fulfillment, setFulfillment] = useState<FulfillmentType>("BIASA")
+  const [preorderDate, setPreorderDate] = useState("")
+  const [scheduledDate, setScheduledDate] = useState("")
+  const [participantMode, setParticipantMode] = useState<ParticipantMode>("SINGLE")
+  // Detail patungan
+  const [patunganTotal, setPatunganTotal] = useState("")
+  const [patunganTarget, setPatunganTarget] = useState("")
+  const [patunganDeadline, setPatunganDeadline] = useState("")
+  const [patunganInviteMethod, setPatunganInviteMethod] = useState<"link" | "username">("link")
+  // Detail kategori (v1): kondisi barang fisik, metode digital, deliverable jasa.
+  // Alamat pengiriman pakai state existing (address book).
+  const [itemCondition, setItemCondition] = useState<"baru" | "bekas">("baru")
+  const [conditionDesc, setConditionDesc] = useState("")
+  const [deliveryMethod, setDeliveryMethod] = useState<"file" | "kode" | "akun" | "lainnya">("file")
+  const [warrantyDays, setWarrantyDays] = useState("7")
+  const [deliverables, setDeliverables] = useState("")
+  const [serviceLocation, setServiceLocation] = useState("")
+  const [cancellationPolicy, setCancellationPolicy] = useState("")
   // Nilai prefill template dibersihkan SATU KALI di sini (bukan di initializer
   // state): parameter query tidak berubah saat layar hidup, jadi hasilnya
   // stabil dan bisa dipakai beberapa state di bawah. Tipe dikembalikan
@@ -646,7 +947,33 @@ export default function CreateTransactionScreen() {
     // TRX-009: barang fisik tidak bisa lanjut/submit tanpa alamat lengkap.
     shippingAddressValid
   const feeValid = confirmedFeeKey === feeKey && !feeLoading && !!fee
-  const stepValid = [true, counterpartValid, detailValid, feeValid && counterpartValid && detailValid]
+  // Unified v2: validasi per langkah (5 langkah).
+  const categoryValid = category !== null
+  const systemValid =
+    category === "JASA"
+      ? scheduledDate.trim().length > 0
+      : fulfillment === "PREORDER"
+        ? preorderDate.trim().length > 0
+        : true
+  const participantValid =
+    participantMode === "GROUP"
+      ? (() => {
+          const total = Number(patunganTotal)
+          const target = Number(patunganTarget)
+          return (
+            Number.isFinite(total) && total >= 10000 &&
+            Number.isFinite(target) && target >= 2 && target <= 100 &&
+            patunganDeadline.trim().length > 0
+          )
+        })()
+      : counterpartValid
+  const stepValid = [
+    categoryValid,
+    systemValid,
+    participantValid,
+    counterpartValid && detailValid,
+    feeValid && counterpartValid && detailValid,
+  ]
   const canSubmit =
     detailValid && feeValid && (mode === "link" ? !counterpart.trim() || counterpartConfirmed : counterpartConfirmed)
 
@@ -922,10 +1249,48 @@ export default function CreateTransactionScreen() {
         setIntentionalLeave(true)
         return
       }
-      const dto: CreateOrderDto = {
+      // Unified v2: map kategori ke orderType lama + sertakan field 3-dimensi.
+      // Backend mendukung fulfillment/participantMode/category (fallback ke
+      // orderType bila field baru tidak ada).
+      const categoryToOrderType: Record<OrderCategory, CreateOrderDto["orderType"]> = {
+        FISIK: "PHYSICAL_GOODS",
+        DIGITAL: "DIGITAL_GOODS",
+        JASA: "SERVICE",
+      }
+      const dto = {
         ...base,
         counterpartUsername: counterpart.trim(),
         voucherCode: effectiveVoucherCode,
+        // Field 3-dimensi (unified v2)
+        ...(category ? { orderType: categoryToOrderType[category] } : {}),
+        fulfillment,
+        participantMode,
+        ...(category ? { category } : {}),
+        ...(fulfillment === "PREORDER" && preorderDate ? { preorderEstimatedDate: preorderDate } : {}),
+        ...(category === "JASA" && scheduledDate ? { scheduledDate } : {}),
+        // Detail patungan
+        ...(participantMode === "GROUP"
+          ? {
+              patunganTotal: Number(patunganTotal) || undefined,
+              patunganTarget: Number(patunganTarget) || undefined,
+              patunganDeadline: patunganDeadline || undefined,
+              patunganInviteMethod,
+            }
+          : {}),
+        // Detail kategori
+        ...(category === "FISIK"
+          ? { itemCondition, ...(itemCondition === "bekas" && conditionDesc ? { conditionDescription: conditionDesc } : {}) }
+          : {}),
+        ...(category === "DIGITAL"
+          ? { deliveryMethod, warrantyDays: Number(warrantyDays) || 7 }
+          : {}),
+        ...(category === "JASA"
+          ? {
+              ...(deliverables ? { deliverables } : {}),
+              ...(serviceLocation ? { serviceLocation } : {}),
+              ...(cancellationPolicy ? { cancellationPolicy } : {}),
+            }
+          : {}),
         // TRX-009: alamat pengiriman untuk barang fisik (backend fail-closed).
         ...(orderType === "PHYSICAL_GOODS" && shippingAddress
           ? { shippingAddressId: shippingAddress.id }
@@ -935,7 +1300,7 @@ export default function CreateTransactionScreen() {
         // belum; yang sudah di-booking di halaman detail tetap diidentifikasi
         // agar order terikat ke booking yang benar).
         ...(slotPrefill ? { slotId: slotPrefill.slotId } : {}),
-      }
+      } as CreateOrderDto
       const order = await api.orders.createOrder(
         dto,
         submitKeyRef.current ?? (submitKeyRef.current = createIdempotencyKey()),
@@ -1114,28 +1479,68 @@ export default function CreateTransactionScreen() {
         </View>
 
         {step === 0 ? (
-          <>
-            <CreateIntroStep mode={mode} onChangeMode={setMode} role={role} onChangeRole={setRole} />
-          </>
+          <CategoryStep value={category} onChange={setCategory} />
         ) : null}
 
         {step === 1 ? (
-          <CounterpartStep
-            value={counterpart}
-            onChange={setCounterpart}
-            required={counterpartRequired}
-            minUsername={MIN_USERNAME}
-            state={counterpartState}
-            name={counterpartName}
-            username={counterpartUsername}
-            verified={counterpartVerified}
-            warnings={counterpartWarnings}
-            reason={counterpartReason}
-          />
+          category ? (
+            <SystemStep
+              category={category}
+              fulfillment={fulfillment}
+              onFulfillmentChange={setFulfillment}
+              preorderDate={preorderDate}
+              onPreorderDateChange={setPreorderDate}
+              scheduledDate={scheduledDate}
+              onScheduledDateChange={setScheduledDate}
+            />
+          ) : null
         ) : null}
 
         {step === 2 ? (
+          <ParticipantStep
+            mode={participantMode}
+            onModeChange={setParticipantMode}
+            total={patunganTotal}
+            onTotalChange={setPatunganTotal}
+            target={patunganTarget}
+            onTargetChange={setPatunganTarget}
+            deadline={patunganDeadline}
+            onDeadlineChange={setPatunganDeadline}
+            inviteMethod={patunganInviteMethod}
+            onInviteMethodChange={setPatunganInviteMethod}
+            counterpartNode={
+              <CounterpartStep
+                value={counterpart}
+                onChange={setCounterpart}
+                required={counterpartRequired}
+                minUsername={MIN_USERNAME}
+                state={counterpartState}
+                name={counterpartName}
+                username={counterpartUsername}
+                verified={counterpartVerified}
+                warnings={counterpartWarnings}
+                reason={counterpartReason}
+              />
+            }
+          />
+        ) : null}
+
+        {step === 3 ? (
           <FormSection title="Rincian pesanan">
+            {/* Unified v2: info kategori yang dipilih */}
+            {category ? (
+              <View className="rounded-xl bg-surface p-3">
+                <Text variant="caption" tone="secondary">
+                  Kategori: <Text weight={700}>{ORDER_CATEGORY_LABELS[category]}</Text>
+                  {" · "}
+                  {category === "JASA"
+                    ? `Jadwal: ${scheduledDate || "-"}`
+                    : `${FULFILLMENT_LABELS[fulfillment]}${fulfillment === "PREORDER" && preorderDate ? ` (${preorderDate})` : ""}`}
+                  {" · "}
+                  {PARTICIPANT_MODE_LABELS[participantMode]}
+                </Text>
+              </View>
+            ) : null}
             {/* Batch 43 (item 10): slot jasa dari detail etalase — di-booking
                 saat transaksi dikonfirmasi (lihat handleSubmit). */}
             {slotPrefill ? (
@@ -1230,6 +1635,108 @@ export default function CreateTransactionScreen() {
                 setDeadlineTouched(true)
               }}
             />
+            {/* Unified v2: field wajib per kategori */}
+            {category === "FISIK" ? (
+              <>
+                <Field label="Kondisi barang" required>
+                  <View className="flex-row gap-2">
+                    {(["baru", "bekas"] as const).map((c) => (
+                      <PressableScale
+                        key={c}
+                        onPress={() => setItemCondition(c)}
+                        accessibilityRole="radio"
+                        accessibilityState={{ checked: itemCondition === c }}
+                        accessibilityLabel={c === "baru" ? "Baru" : "Bekas"}
+                      >
+                        <View
+                          className={cn(
+                            "rounded-xl border px-4 py-3",
+                            itemCondition === c ? "border-primary bg-primary-soft" : "border-border bg-surface",
+                          )}
+                        >
+                          <Text variant="body" weight={600}>
+                            {c === "baru" ? "Baru" : "Bekas"}
+                          </Text>
+                        </View>
+                      </PressableScale>
+                    ))}
+                  </View>
+                </Field>
+                {itemCondition === "bekas" ? (
+                  <Field label="Deskripsi kondisi" required>
+                    <Input
+                      value={conditionDesc}
+                      onChangeText={setConditionDesc}
+                      placeholder="Contoh: lecet kecil di sudut kiri"
+                      multiline
+                    />
+                  </Field>
+                ) : null}
+              </>
+            ) : null}
+            {category === "DIGITAL" ? (
+              <>
+                <Field label="Metode serah-terima" required>
+                  <View className="flex-row flex-wrap gap-2">
+                    {(["file", "kode", "akun", "lainnya"] as const).map((m) => (
+                      <PressableScale
+                        key={m}
+                        onPress={() => setDeliveryMethod(m)}
+                        accessibilityRole="radio"
+                        accessibilityState={{ checked: deliveryMethod === m }}
+                        accessibilityLabel={m}
+                      >
+                        <View
+                          className={cn(
+                            "rounded-xl border px-4 py-3",
+                            deliveryMethod === m ? "border-primary bg-primary-soft" : "border-border bg-surface",
+                          )}
+                        >
+                          <Text variant="body" weight={600} className="capitalize">
+                            {m}
+                          </Text>
+                        </View>
+                      </PressableScale>
+                    ))}
+                  </View>
+                </Field>
+                <Field label="Masa garansi (hari)" required>
+                  <Input
+                    value={warrantyDays}
+                    onChangeText={setWarrantyDays}
+                    placeholder="7"
+                    keyboardType="numeric"
+                  />
+                </Field>
+              </>
+            ) : null}
+            {category === "JASA" ? (
+              <>
+                <Field label="Deliverable (hasil yang diserahkan)" required>
+                  <Input
+                    value={deliverables}
+                    onChangeText={setDeliverables}
+                    placeholder="Contoh: 3 konsep logo, file AI + PNG"
+                    multiline
+                  />
+                </Field>
+                <Field label="Lokasi" required>
+                  <Input
+                    value={serviceLocation}
+                    onChangeText={setServiceLocation}
+                    placeholder="Jakarta Selatan / Online"
+                  />
+                </Field>
+                <Field label="Kebijakan pembatalan" required>
+                  <Input
+                    value={cancellationPolicy}
+                    onChangeText={setCancellationPolicy}
+                    placeholder="Contoh: Batal H-3 refund 50%, H-1 tidak refund"
+                    multiline
+                  />
+                </Field>
+              </>
+            ) : null}
           </FormSection>
         ) : null}
 

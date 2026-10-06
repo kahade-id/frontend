@@ -213,10 +213,9 @@ function routeForNotificationReferenceRaw(ref: NotificationReference): Href | nu
       return ROUTES.showcaseManagement
     case "servicebookings":
     case "servicebooking":
-      // Poin 1: booking jasa pindah ke tab Transaksi sebagai segmen —
-      // buka tab langsung di segmen booking (jangan layar /service-bookings
-      // yang tak lagi punya pintu navigasi).
-      return ROUTES.transactionsSection("bookings")
+      // Unified v2: booking jasa = kategori JASA di tab Transaksi —
+      // buka tab dengan filter kategori JASA.
+      return ROUTES.transactionsFiltered({ category: "JASA" })
     case "ordershipped":
     case "ordership":
     case "shipment":
@@ -708,8 +707,8 @@ function routeForActionUrlRaw(actionUrl: string | null | undefined): Href | null
         // kini mendarat di Kelola Etalase (rumah baru "Produk & Stok Saya").
         return ROUTES.showcaseManagement
       case "service-bookings":
-        // Poin 1: booking jasa pindah ke tab Transaksi sebagai segmen.
-        return ROUTES.transactionsSection("bookings")
+        // Unified v2: booking jasa = kategori JASA di tab Transaksi.
+        return ROUTES.transactionsFiltered({ category: "JASA" })
       case "tracking":
         // FAL-019: `/tracking/<id>` (dari `kahade://tracking/<id>`) →
         // detail pelacakan kiriman.
@@ -766,8 +765,8 @@ function routeForActionUrlRaw(actionUrl: string | null | undefined): Href | null
         // Kelola Etalase (rumah baru "Produk & Stok Saya").
         return ROUTES.showcaseManagement
       case "service-bookings":
-        // Poin 1: booking jasa pindah ke tab Transaksi sebagai segmen.
-        return ROUTES.transactionsSection("bookings")
+        // Unified v2: booking jasa = kategori JASA di tab Transaksi.
+        return ROUTES.transactionsFiltered({ category: "JASA" })
       default:
         break
     }

@@ -42,6 +42,16 @@ export type ListOrdersQuery = {
    * `"ASC"`/`"DESC"` lama tidak cocok whitelist → 422.
    */
   sortOrder?: "asc" | "desc"
+  /**
+   * Unified v2 (2026-10-06): filter model 3-dimensi.
+   * Backend: GET /v1/orders dukung ?fulfillment= ?participantMode= ?category=
+   * (+ ?kind= lama masih jalan).
+   */
+  fulfillment?: "BIASA" | "PREORDER"
+  participantMode?: "SINGLE" | "GROUP"
+  category?: "FISIK" | "DIGITAL" | "JASA"
+  /** Filter lama (masih didukung backend) — prefer filter 3-dimensi di atas. */
+  kind?: string
 }
 
 /** Query paginasi wajib (`page!`, `limit!`). */
