@@ -428,6 +428,9 @@ export default function RegisterSecurityScreen() {
 
         <FooterBar>
           <Text variant="caption" tone="secondary" className="text-center text-pretty">
+            Demi keamanan, lokasi perangkat dapat dicatat jika Anda mengizinkan akses.
+          </Text>
+          <Text variant="caption" tone="secondary" className="text-center text-pretty">
             Dengan membuat akun, Anda menyetujui Syarat & Ketentuan serta
             Kebijakan Privasi Kahade.
           </Text>

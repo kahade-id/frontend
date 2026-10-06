@@ -16,7 +16,7 @@
  *    terklasifikasi network/lainnya (T4-011), callback kedaluwarsa (G017).
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Platform, View } from "react-native"
 import * as AppleAuthentication from "expo-apple-authentication"
 
@@ -29,6 +29,7 @@ import {
 } from "@/lib/social-oauth"
 import { Button } from "@/components/ui/button"
 import { Alert } from "@/components/ui/alert"
+import { Divider } from "@/components/ui/divider"
 import { logWarn } from "@/lib/telemetry"
 
 export type SocialOutcome =
@@ -48,6 +49,10 @@ interface SocialLoginButtonsProps {
    * Pembatalan user ("cancelled") TIDAK memanggil callback ini (diam saja).
    */
   onError?: (info: SocialErrorInfo) => void
+  /** Optional separator rendered only when at least one provider is available. */
+  separatorLabel?: string
+  /** Starts a provider immediately for legacy method-specific deep links. */
+  autoStartProvider?: SocialProvider
 }
 
 /** Info error terklasifikasi untuk `onError` (T4-011). */
@@ -59,14 +64,21 @@ export type SocialErrorInfo = {
   kind: "network" | "other"
 }
 
-export function SocialLoginButtons({ onBeforeStart, onOutcome, onError }: SocialLoginButtonsProps) {
+export function SocialLoginButtons({
+  onBeforeStart,
+  onOutcome,
+  onError,
+  separatorLabel,
+  autoStartProvider,
+}: SocialLoginButtonsProps) {
   const [capabilities, setCapabilities] = useState<SocialProviderCapability[] | null>(null)
   const [activeProvider, setActiveProvider] = useState<SocialProvider | null>(null)
   const [failed, setFailed] = useState<string | null>(null)
+  const autoStarted = useRef(new Set<SocialProvider>())
 
   const byProvider = useMemo(() => {
     const map = new Map<SocialProvider, SocialProviderCapability>()
-    for (const c of capabilities ?? []) if (c.enabled) map.set(c.provider, c)
+    for (const c of capabilities ?? []) if (c.enabled && c.appId) map.set(c.provider, c)
     return map
   }, [capabilities])
 
@@ -137,13 +149,29 @@ export function SocialLoginButtons({ onBeforeStart, onOutcome, onError }: Social
     [byProvider, activeProvider, onBeforeStart, finish, onError],
   )
 
+  useEffect(() => {
+    if (!autoStartProvider || activeProvider) return
+    const capability = byProvider.get(autoStartProvider)
+    if (
+      !capability?.appId ||
+      (autoStartProvider === "APPLE" && !isAppleButtonSupported()) ||
+      autoStarted.current.has(autoStartProvider)
+    ) return
+    autoStarted.current.add(autoStartProvider)
+    void start(autoStartProvider)
+  }, [autoStartProvider, byProvider, activeProvider, start])
+
   const showGoogle = byProvider.has("GOOGLE")
   const showApple = byProvider.has("APPLE") && isAppleButtonSupported()
 
   if (capabilities !== null && !showGoogle && !showApple) return null
 
   return (
-    <View className="gap-2">
+    <View className="gap-4">
+      {separatorLabel && capabilities !== null && (showGoogle || showApple) ? (
+        <Divider label={separatorLabel} />
+      ) : null}
+      <View className="gap-2">
       {showGoogle ? (
         <Button
           variant="secondary"
@@ -176,6 +204,7 @@ export function SocialLoginButtons({ onBeforeStart, onOutcome, onError }: Social
       ) : null}
       {/* T4-011: pembatalan user = diam (tanpa Alert apa pun) */}
       {failed ? <Alert tone="danger">{failed}</Alert> : null}
+      </View>
     </View>
   )
 }

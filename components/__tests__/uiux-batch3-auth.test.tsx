@@ -7,6 +7,7 @@ const state = vi.hoisted(() => ({
   online: true,
   flow: { phoneNumber: "+6281234567890", purpose: "login", refCode: "abc123def456", whatsappUrl: "https://wa.me/6285786035715?text=abc123def456", triggerText: "abc123def456", expiresAt: "2099-01-01T00:00:00Z" },
   identifier: "",
+  migrationToken: null as string | null,
   requestOtp: vi.fn(),
   verifyOtp: vi.fn(),
   wallet: vi.fn(),
@@ -26,6 +27,7 @@ vi.mock("@/lib/api", async () => ({
   ...await vi.importActual<Record<string, unknown>>("@/lib/api/errors"),
   api: {
     auth: { requestOtpTrigger: state.requestOtp, verifyOtp: state.verifyOtp, getOtpTriggerStatus: state.triggerStatus },
+    social: { getProviders: vi.fn().mockResolvedValue([]) },
     wallet: { getWallet: state.wallet },
   },
 }))
@@ -36,12 +38,21 @@ vi.mock("@/lib/location", () => ({ getAuthLocation: async () => null }))
 vi.mock("@/lib/connectivity", () => ({ useIsOnline: () => state.online, isOfflineKnown: () => !state.online }))
 vi.mock("@/lib/use-leave-confirm", () => ({ useLeaveConfirm: () => ({ markLeaving: state.markLeaving, dialogProps: { visible: false, title: "Discard" } }) }))
 vi.mock("@/lib/two-factor-login", () => ({ getPendingTwoFactorLogin: () => ({ tempToken: "in-memory-only", identifier: state.identifier }), setPendingTwoFactorLogin: vi.fn(), clearPendingTwoFactorLogin: vi.fn() }))
-vi.mock("@/components/ui/toast", () => ({ useToast: () => state.toast }))
+vi.mock("@/lib/phone-migration-token", () => ({
+  getPendingMigrationToken: () => state.migrationToken,
+  setPendingMigrationToken: (token: string) => { state.migrationToken = token },
+  clearPendingMigrationToken: () => { state.migrationToken = null },
+}))
+vi.mock("@/components/ui/toast", async (importOriginal) => ({
+  ...await importOriginal<Record<string, unknown>>(),
+  useToast: () => state.toast,
+}))
 vi.mock("@/components/auth/social-login-buttons", () => ({ SocialLoginButtons: () => null }))
 vi.mock("@/lib/passkey", () => ({ getPasskeyCapabilitySync: () => ({ supported: false }), startPasskeyAuthentication: vi.fn(), PasskeyError: class extends Error {} }))
 
 import { ThemeProvider } from "@/components/theme-provider"
 import { PortalHost, PortalProvider } from "@/components/ui/portal"
+import { ToastProvider } from "@/components/ui/toast"
 import { ApiError } from "@/lib/api/errors"
 import LoginScreen from "@/app/(auth)/login"
 import PhoneMigrationScreen from "@/app/(auth)/phone-migration"
@@ -51,7 +62,7 @@ import WhatsappTriggerScreen from "@/app/(auth)/whatsapp-trigger"
 import ChangePinScreen from "@/app/change-pin"
 
 function themed(ui: ReactElement) {
-  return <ThemeProvider><PortalProvider>{ui}<PortalHost /></PortalProvider></ThemeProvider>
+  return <ThemeProvider><ToastProvider><PortalProvider>{ui}<PortalHost /></PortalProvider></ToastProvider></ThemeProvider>
 }
 
 beforeEach(() => {
@@ -59,6 +70,7 @@ beforeEach(() => {
   state.params = {}
   state.online = true
   state.identifier = ""
+  state.migrationToken = null
   state.wallet.mockResolvedValue({ hasPin: true })
   state.verifyOtp.mockRejectedValue(new ApiError({ code: "NETWORK", message: "offline" }))
   state.requestOtp.mockResolvedValue({ refCode: "new-code", whatsappUrl: "https://wa.me/6285786035715", expiresAt: "2099-01-01T00:00:00Z" })
@@ -75,7 +87,7 @@ describe("A5 — phone migration always has a way out", () => {
     expect(state.requestOtp).not.toHaveBeenCalled()
   })
   it("an active migration can also be exited explicitly", () => {
-    state.params = { migrationToken: "in-memory-existing-route" }
+    state.migrationToken = "in-memory-only-token"
     render(themed(<PhoneMigrationScreen />))
     expect(screen.queryByText("Sesi migrasi tidak valid. Silakan masuk kembali.")).toBeNull()
     fireEvent.click(screen.getByRole("link", { name: "Kembali ke Masuk" }))
@@ -84,15 +96,23 @@ describe("A5 — phone migration always has a way out", () => {
 })
 
 describe("A6 — login method=phone", () => {
-  it("has only identifier+password until WhatsApp is explicitly selected", () => {
+  it("opens the WhatsApp OTP form directly without any password field", async () => {
     state.params = { method: "phone" }
     const { container } = render(themed(<LoginScreen />))
-    expect(container.querySelectorAll("input")).toHaveLength(2)
-    expect(screen.getByRole("button", { name: "Masuk dengan WhatsApp" })).toBeTruthy()
-    expect(screen.queryByRole("button", { name: "Minta kode verifikasi" })).toBeNull()
-    fireEvent.click(screen.getByRole("button", { name: "Masuk dengan WhatsApp" }))
-    expect(container.querySelectorAll("input")).toHaveLength(3)
+    expect(container.querySelectorAll("input")).toHaveLength(1)
+    expect(container.querySelector('input[type="password"]')).toBeNull()
     expect(screen.getByRole("button", { name: "Minta kode verifikasi" })).toBeTruthy()
+    expect(screen.queryByRole("button", { name: "Masuk dengan WhatsApp" })).toBeNull()
+
+    fireEvent.change(screen.getByLabelText("Nomor HP Indonesia"), { target: { value: "81234567890" } })
+    fireEvent.click(screen.getByRole("button", { name: "Minta kode verifikasi" }))
+    await act(async () => {})
+
+    expect(state.requestOtp).toHaveBeenCalledWith(expect.objectContaining({
+      phoneNumber: "+6281234567890",
+      purpose: "login",
+    }))
+    expect(state.push).toHaveBeenCalled()
   })
 })
 

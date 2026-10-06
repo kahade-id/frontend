@@ -71,6 +71,7 @@ import { otpStepProgress } from "@/lib/auth-progress"
 import { formatPhoneId } from "@/lib/format"
 import { haptic } from "@/lib/haptics"
 import { getAuthLocation } from "@/lib/location"
+import { translate } from "@/lib/i18n"
 import { clearOtpFlow, patchOtpFlow, type OtpFlowState } from "@/lib/otp-flow"
 import { setPendingMigrationToken } from "@/lib/phone-migration-token"
 import { AuthFlowLoading, AuthFlowMissing } from "@/lib/auth-flow-gate"
@@ -450,8 +451,10 @@ export default function VerifyOtpScreen() {
                 Masukkan kode verifikasi
               </Heading>
               <Text variant="body" tone="secondary" className="text-pretty">
-                Kode {OTP_MIN_LENGTH}–{OTP_MAX_LENGTH} digit telah dibalas via WhatsApp. Pastikan Anda
-                memiliki akses ke nomor:
+                {translate(
+                  "Kode {x} digit telah dibalas via WhatsApp. Pastikan Anda memiliki akses ke nomor:",
+                  { x: `${OTP_MIN_LENGTH}–${OTP_MAX_LENGTH}` },
+                )}
               </Text>
               {/* Nomor HP berdiri sendiri — data presisi (§3.1 → Mono) */}
               <Text variant="monoBody" weight={600}>
@@ -468,10 +471,21 @@ export default function VerifyOtpScreen() {
               value={code}
               onChange={handleCodeChange}
               errorText={otpError}
-              helperText={otpError ? undefined : `Masukkan ${OTP_MIN_LENGTH}–${OTP_MAX_LENGTH} digit kode yang diterima`}
+              helperText={
+                otpError
+                  ? undefined
+                  : translate("Masukkan {x}–{y} digit kode yang diterima", {
+                      x: OTP_MIN_LENGTH,
+                      y: OTP_MAX_LENGTH,
+                    })
+              }
               disabled={verifying}
               autoFocus
-              accessibilityLabel={`Kode verifikasi ${OTP_MIN_LENGTH}–${OTP_MAX_LENGTH} digit`}
+              accessibilityLabel={
+                translate("Kode verifikasi {x} digit", {
+                  x: `${OTP_MIN_LENGTH}–${OTP_MAX_LENGTH}`,
+                })
+              }
             />
 
             {/* A07: status koneksi — bedakan offline dari menunggu */}
@@ -481,6 +495,10 @@ export default function VerifyOtpScreen() {
                 layar ini — kode yang sudah diketik tidak hilang.
               </Alert>
             ) : null}
+
+            <Text variant="caption" tone="secondary" className="text-pretty">
+              Demi keamanan, lokasi perangkat dapat dicatat jika Anda mengizinkan akses.
+            </Text>
 
             {/* Tombol Verifikasi — manual submit, bukan auto */}
             <Button

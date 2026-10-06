@@ -42,15 +42,9 @@ export const ROUTES = {
    */
   registerSecurity: "/register-security" as Href,
   /**
-   * Migrasi nomor HP akun lama: user login dengan kredensial lama, backend
-   * menjawab requiresPhoneMigration + migrationToken → layar ini meminta nomor
-   * HP baru → OTP WhatsApp (purpose=migrate_phone) → migrate-phone/confirm.
-   * migrationToken dibawa lewat param (short-lived, satu alur).
-   */
-  /**
-   * Migrasi nomor HP pasca-login sosial.
-   * BATCH4-B4: migrationToken TIDAK lewat route params — disimpan di memori
-   * modul (lib/phone-migration-token.ts).
+   * Migrasi nomor HP pasca-login password/sosial: akun lama wajib menambahkan
+   * nomor, meminta OTP WhatsApp, lalu mengonfirmasi migrasi. Token singkat
+   * disimpan di memori modul (lib/phone-migration-token.ts), bukan di URL.
    */
   phoneMigration: () => ({ pathname: "/phone-migration" }) as unknown as Href,
   /** Screen #6 — Setup Profil: foto + bio (opsional, setelah akun jadi) */
@@ -59,10 +53,14 @@ export const ROUTES = {
   // setelah auth (cek permissions); kini semua alur auth langsung ke tujuan/
   // Beranda, rationale izin notifikasi menjadi bottom sheet di feed.
   /**
-   * Screen #7 — Login: identifier (username / email / nomor HP) + password,
-   * plus opsi "Masuk dengan WhatsApp" (OTP, purpose=login).
+   * Screen #7 — Login: metode WhatsApp/Email/Username dipilih secara terpisah;
+   * WhatsApp memakai OTP, sementara Email/Username memakai kata sandi.
+   * Google dan Apple tetap tersedia sebagai opsi sosial di bagian bawah.
    */
   login: "/login" as Href,
+  /** Login dengan tujuan lanjutan yang aman (mis. tujuan semula setelah daftar). */
+  loginWithNext: (next: string) =>
+    ({ pathname: "/login", params: { next } }) as unknown as Href,
   /**
    * Screen #7b — Verifikasi 2FA saat login (POST /v1/auth/2fa/verify-login).
    * tempToken TIDAK dibawa lewat param (kredensial) — lihat lib/two-factor-login.ts.

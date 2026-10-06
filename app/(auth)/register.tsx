@@ -104,8 +104,10 @@ export default function RegisterScreen() {
   const goLogin = useCallback(() => {
     // NAV-013: bawa `next` bila ada — pengguna yang ternyata sudah punya akun
     // tetap kembali ke tujuan setelah masuk.
-    const hasNext = typeof next === "string" && next.startsWith("/")
-    const loginHref = hasNext ? ({ pathname: "/login", params: { next } } as const) : ROUTES.login
+    const loginHref =
+      typeof next === "string" && next.startsWith("/")
+        ? ROUTES.loginWithNext(next)
+        : ROUTES.login
     // A2F-03: SELALU replace eksplisit ke login — router.back() dari
     // web-guest-banner (push) mendarat kembali di banner, bukan di Masuk.
     router.replace(loginHref)
@@ -264,7 +266,7 @@ export default function RegisterScreen() {
            * — jelaskan dulu di UI supaya tidak mengejutkan.
            */}
           <Text variant="caption" tone="secondary" className="text-center text-pretty">
-            Demi keamanan, kami mencatat lokasi saat Anda masuk.
+            Demi keamanan, lokasi perangkat dapat dicatat jika Anda mengizinkan akses.
           </Text>
           <Text variant="body" tone="secondary" className="text-center">
             Sudah punya akun?{" "}

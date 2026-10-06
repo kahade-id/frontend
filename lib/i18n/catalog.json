@@ -20,7 +20,7 @@
   },
   {
    "s": "Coba lagi",
-   "n": 34
+   "n": 35
   },
   {
    "s": "Aksi mungkin sudah diproses — periksa kembali sebelum mencoba lagi.",
@@ -335,6 +335,10 @@
    "n": 8
   },
   {
+   "s": "Demi keamanan, lokasi perangkat dapat dicatat jika Anda mengizinkan akses.",
+   "n": 8
+  },
+  {
    "s": "Dibatalkan",
    "n": 8
   },
@@ -356,10 +360,6 @@
   },
   {
    "s": "Nama lengkap",
-   "n": 8
-  },
-  {
-   "s": "Nomor HP",
    "n": 8
   },
   {
@@ -675,10 +675,6 @@
    "n": 6
   },
   {
-   "s": "Masuk ke Kahade",
-   "n": 6
-  },
-  {
    "s": "Memuat etalase",
    "n": 6
   },
@@ -696,6 +692,10 @@
   },
   {
    "s": "Nama penerima",
+   "n": 6
+  },
+  {
+   "s": "Nomor HP",
    "n": 6
   },
   {
@@ -992,6 +992,10 @@
   },
   {
    "s": "Lihat sengketa",
+   "n": 5
+  },
+  {
+   "s": "Masuk ke Kahade",
    "n": 5
   },
   {
@@ -2339,10 +2343,6 @@
    "n": 3
   },
   {
-   "s": "Demi keamanan, kami mencatat lokasi saat Anda masuk.",
-   "n": 3
-  },
-  {
    "s": "Detail",
    "n": 3
   },
@@ -3071,6 +3071,10 @@
    "n": 3
   },
   {
+   "s": "Kode verifikasi {x} digit",
+   "n": 3
+  },
+  {
    "s": "Kode verifikasi email {x} digit",
    "n": 3
   },
@@ -3288,6 +3292,10 @@
   },
   {
    "s": "Masuk untuk melihat feed mengikuti",
+   "n": 3
+  },
+  {
+   "s": "Masukkan {x}–{y} digit kode yang diterima",
    "n": 3
   },
   {
@@ -4767,10 +4775,6 @@
    "n": 2
   },
   {
-   "s": "Akun Google / Apple",
-   "n": 2
-  },
-  {
    "s": "Akun ini berlangganan Kahade+ dan telah menyelesaikan verifikasi identitas. Lencana ini dihitung otomatis oleh sistem.",
    "n": 2
   },
@@ -5347,23 +5351,15 @@
    "n": 2
   },
   {
-   "s": "Contoh: {x}xxxxxxx",
-   "n": 2
-  },
-  {
    "s": "Contoh: @johndoe — tanpa @",
    "n": 2
   },
   {
-   "s": "Contoh: johndoe",
+   "s": "contoh: johndoe",
    "n": 2
   },
   {
-   "s": "Contoh: johndoe, nama@email.com, atau {x}xxxxxxx",
-   "n": 2
-  },
-  {
-   "s": "Contoh: nama@email.com",
+   "s": "contoh@email.com",
    "n": 2
   },
   {
@@ -5955,6 +5951,10 @@
    "n": 2
   },
   {
+   "s": "Gunakan email yang terdaftar.",
+   "n": 2
+  },
+  {
    "s": "Gunakan kamera untuk foto saat ini",
    "n": 2
   },
@@ -6335,11 +6335,11 @@
    "n": 2
   },
   {
-   "s": "Kode",
+   "s": "Kode {x} digit",
    "n": 2
   },
   {
-   "s": "Kode {x} digit",
+   "s": "Kode {x} digit telah dibalas via WhatsApp. Pastikan Anda memiliki akses ke nomor:",
    "n": 2
   },
   {
@@ -6400,10 +6400,6 @@
   },
   {
    "s": "Kode Terdeteksi",
-   "n": 2
-  },
-  {
-   "s": "Kode verifikasi {x}–{x} digit",
    "n": 2
   },
   {
@@ -6691,6 +6687,14 @@
    "n": 2
   },
   {
+   "s": "Masuk dengan Apple",
+   "n": 2
+  },
+  {
+   "s": "Masuk dengan Google",
+   "n": 2
+  },
+  {
    "s": "Masuk untuk akses penuh",
    "n": 2
   },
@@ -6708,10 +6712,6 @@
   },
   {
    "s": "Masukkan {x}–{x} digit kode OTP yang dikirim via SMS",
-   "n": 2
-  },
-  {
-   "s": "Masukkan {x}–{x} digit kode yang diterima",
    "n": 2
   },
   {
@@ -7087,10 +7087,6 @@
    "n": 2
   },
   {
-   "s": "Passkey atau akun Google / Apple",
-   "n": 2
-  },
-  {
    "s": "Patungan",
    "n": 2
   },
@@ -7380,6 +7376,10 @@
   },
   {
    "s": "Pilih metode di bawah",
+   "n": 2
+  },
+  {
+   "s": "Pilih metode lain",
    "n": 2
   },
   {
@@ -8379,15 +8379,15 @@
    "n": 2
   },
   {
-   "s": "Username / Email / Nomor HP",
-   "n": 2
-  },
-  {
    "s": "Username minimal {x} karakter.",
    "n": 2
   },
   {
    "s": "Username mungkin sudah dipakai atau baru saja diganti.",
+   "n": 2
+  },
+  {
+   "s": "Username tidak memakai spasi atau karakter @.",
    "n": 2
   },
   {
@@ -8448,6 +8448,10 @@
   },
   {
    "s": "Waktu absolut: {x}",
+   "n": 2
+  },
+  {
+   "s": "WhatsApp",
    "n": 2
   },
   {
@@ -10979,10 +10983,6 @@
    "n": 1
   },
   {
-   "s": "Apple",
-   "n": 1
-  },
-  {
    "s": "Arab",
    "n": 1
   },
@@ -12307,10 +12307,6 @@
    "n": 1
   },
   {
-   "s": "Cara masuk lainnya",
-   "n": 1
-  },
-  {
    "s": "Cara membatalkan",
    "n": 1
   },
@@ -13151,10 +13147,6 @@
    "n": 1
   },
   {
-   "s": "digit telah dibalas via WhatsApp. Pastikan Anda memiliki akses ke nomor:",
-   "n": 1
-  },
-  {
    "s": "digit yang ditampilkan aplikasi autentikator.",
    "n": 1
   },
@@ -13615,6 +13607,10 @@
    "n": 1
   },
   {
+   "s": "Format email tidak valid. Contoh: nama@email.com.",
+   "n": 1
+  },
+  {
    "s": "Format pesanan siap pakai ulang",
    "n": 1
   },
@@ -13760,6 +13756,10 @@
   },
   {
    "s": "Gagal meminta ekspor data",
+   "n": 1
+  },
+  {
+   "s": "Gagal meminta kode",
    "n": 1
   },
   {
@@ -14112,10 +14112,6 @@
   },
   {
    "s": "Getaran saat pindai berhasil",
-   "n": 1
-  },
-  {
-   "s": "Google",
    "n": 1
   },
   {
@@ -15387,6 +15383,10 @@
    "n": 1
   },
   {
+   "s": "Kode",
+   "n": 1
+  },
+  {
    "s": "kode {x}",
    "n": 1
   },
@@ -15959,6 +15959,10 @@
    "n": 1
   },
   {
+   "s": "Lanjutkan dengan akun yang terhubung ke Kahade.",
+   "n": 1
+  },
+  {
    "s": "Lanjutkan draft transaksi?",
    "n": 1
   },
@@ -16275,31 +16279,7 @@
    "n": 1
   },
   {
-   "s": "Masuk dengan akun Google",
-   "n": 1
-  },
-  {
    "s": "Masuk dengan akun lain",
-   "n": 1
-  },
-  {
-   "s": "Masuk dengan Apple",
-   "n": 1
-  },
-  {
-   "s": "Masuk dengan Apple ID",
-   "n": 1
-  },
-  {
-   "s": "Masuk dengan email dan kata sandi",
-   "n": 1
-  },
-  {
-   "s": "Masuk dengan Google",
-   "n": 1
-  },
-  {
-   "s": "Masuk dengan kode OTP via WhatsApp",
    "n": 1
   },
   {
@@ -16312,14 +16292,6 @@
   },
   {
    "s": "Masuk dengan passkey saat ini didukung di aplikasi web Kahade. Di aplikasi ini, silakan masuk dengan kata sandi atau OTP WhatsApp. Passkey yang Anda daftarkan di web tetap tercatat di akun Anda.",
-   "n": 1
-  },
-  {
-   "s": "Masuk dengan username dan kata sandi",
-   "n": 1
-  },
-  {
-   "s": "Masuk dengan WhatsApp",
    "n": 1
   },
   {
@@ -16384,6 +16356,10 @@
   },
   {
    "s": "Masukkan {x} digit autentikator atau kode backup Anda.",
+   "n": 1
+  },
+  {
+   "s": "Masukkan alamat email.",
    "n": 1
   },
   {
@@ -16464,6 +16440,10 @@
   },
   {
    "s": "Masukkan PIN Wallet",
+   "n": 1
+  },
+  {
+   "s": "Masukkan username.",
    "n": 1
   },
   {
@@ -16731,6 +16711,10 @@
    "n": 1
   },
   {
+   "s": "Memuat verifikasi keamanan…",
+   "n": 1
+  },
+  {
    "s": "Memulihkan data kode referensi…",
    "n": 1
   },
@@ -16852,6 +16836,10 @@
   },
   {
    "s": "Menghitung biaya…",
+   "n": 1
+  },
+  {
+   "s": "Menghubungkan passkey…",
    "n": 1
   },
   {
@@ -17012,6 +17000,10 @@
   },
   {
    "s": "Metode ini sedang gangguan atau maintenance. Pilih metode lain untuk melanjutkan.",
+   "n": 1
+  },
+  {
+   "s": "Metode masuk",
    "n": 1
   },
   {
@@ -17432,10 +17424,6 @@
   },
   {
    "s": "Nomor telepon, alamat email, token perangkat, isi template, dan status pengiriman yang diperlukan untuk OTP, notifikasi, serta komunikasi layanan.",
-   "n": 1
-  },
-  {
-   "s": "Nomor WhatsApp",
    "n": 1
   },
   {
@@ -18899,10 +18887,6 @@
    "n": 1
   },
   {
-   "s": "Pilih metode lain",
-   "n": 1
-  },
-  {
    "s": "Pilih minimal satu foto etalase.",
    "n": 1
   },
@@ -19468,6 +19452,10 @@
   },
   {
    "s": "Saring berdasarkan status",
+   "n": 1
+  },
+  {
+   "s": "Satu percobaan lagi sebelum verifikasi tambahan.",
    "n": 1
   },
   {
@@ -21339,6 +21327,10 @@
    "n": 1
   },
   {
+   "s": "Username tidak boleh mengandung spasi atau karakter @.",
+   "n": 1
+  },
+  {
    "s": "Username, email, atau kata sandi salah. Periksa kembali dan coba lagi.",
    "n": 1
   },
@@ -21600,10 +21592,6 @@
   },
   {
    "s": "Webhooks:",
-   "n": 1
-  },
-  {
-   "s": "WhatsApp",
    "n": 1
   },
   {
