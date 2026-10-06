@@ -358,8 +358,8 @@ describe("Poin 1 — remap rute usang (products/returns/service-bookings/seller)
     expect(routeForActionUrl("/returns")).toBe(ROUTES.transactions)
   })
 
-  it("SERVICE_BOOKING → segmen booking di tab Transaksi", () => {
-    const expected = ROUTES.transactionsSection("bookings")
+  it("SERVICE_BOOKING → filter kategori JASA di tab Transaksi (unified v2)", () => {
+    const expected = ROUTES.transactionsFiltered({ category: "JASA" })
     expect(
       routeForNotificationReference({ referenceType: "SERVICE_BOOKING", referenceId: "b1" }),
     ).toEqual(expected)

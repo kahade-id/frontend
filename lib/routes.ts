@@ -121,12 +121,20 @@ export const ROUTES = {
   /** Tab Transaksi (list order + filter status) */
   transactions: "/transactions" as Href,
   /**
-   * Poin 1 (2026-10-04): tab Transaksi dibuka pada segmen layanan
-   * (jastip/patungan/bookings) — dipakai deep-link notifikasi agar tap
-   * mendarat di segmen yang benar, bukan daftar order.
+   * Unified v2 (2026-10-06): tab Transaksi dibuka dengan filter — dipakai
+   * deep-link notifikasi agar tap mendarat di daftar order yang terfilter.
+   * Filter mengikuti model 3-dimensi backend: category, fulfillment,
+   * participantMode.
    */
-  transactionsSection: (section: "jastip" | "patungan" | "bookings" | "manage") =>
-    ({ pathname: "/transactions", params: { section } }) as unknown as Href,
+  transactionsFiltered: (filters?: {
+    category?: "FISIK" | "DIGITAL" | "JASA"
+    fulfillment?: "BIASA" | "PREORDER"
+    participantMode?: "SINGLE" | "GROUP"
+  }) =>
+    ({
+      pathname: "/transactions",
+      params: { ...(filters ?? {}) },
+    }) as unknown as Href,
   /**
    * Sidebar 2026-10-05: "Kelola Transaksi" — deep-link ke section Kelola di
    * tab Transaksi (hub: tautan pesanan, template, sengketa, retur). BUKAN
@@ -607,26 +615,6 @@ export const ROUTES = {
       : ("/returns" as Href),
   /** Voucher toko penjual (batch 43, item 9 — /v1/seller-vouchers) */
   sellerVouchers: "/seller/vouchers" as Href,
-  /** Jastip — daftar trip host (batch 43, item 15 — /v1/jastip) */
-  jastip: "/jastip" as Href,
-  /** Jastip — "Cara kerja" + simulasi nominal (U5-014, journey). */
-  jastipHowItWorks: "/jastip/how-it-works" as Href,
-  /** Jastip — detail trip (host & peserta) */
-  jastipDetail: (tripId: string) =>
-    tripId
-      ? ({ pathname: "/jastip/[id]", params: { id: tripId } } as unknown as Href)
-      : ("/jastip" as Href),
-  /** Patungan — daftar grup publik (batch 43, item 16 — /v1/patungan) */
-  patungan: "/patungan" as Href,
-  /** Patungan — "Cara kerja" + simulasi nominal (U5-014, journey). */
-  patunganHowItWorks: "/patungan/how-it-works" as Href,
-  /** Booking jasa saya (batch 43, item 12 — /v1/commerce/service-slots/bookings) */
-  serviceBookings: "/service-bookings" as Href,
-  /** Patungan — detail grup */
-  patunganDetail: (groupId: string) =>
-    groupId
-      ? ({ pathname: "/patungan/[id]", params: { id: groupId } } as unknown as Href)
-      : ("/patungan" as Href),
 } as const
 
 /**
