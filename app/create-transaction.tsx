@@ -224,6 +224,14 @@ function SystemStep({
   scheduledDate: Date | null
   onScheduledDateChange: (v: Date | null) => void
 }) {
+  // Hitung besok sekali per render (ganti addDays untuk hindari dependensi fungsi eksternal)
+  const tomorrow = (() => {
+    const d = new Date()
+    d.setDate(d.getDate() + 1)
+    d.setHours(0, 0, 0, 0)
+    return d
+  })()
+
   if (category === "JASA") {
     return (
       <View className="gap-3">
@@ -236,7 +244,7 @@ function SystemStep({
           value={scheduledDate}
           onChange={onScheduledDateChange}
           placeholder="Pilih tanggal"
-          minDate={addDays(new Date(), 1)}
+          minDate={tomorrow}
         />
       </View>
     )
@@ -273,7 +281,7 @@ function SystemStep({
           value={preorderDate}
           onChange={onPreorderDateChange}
           placeholder="Pilih tanggal"
-          minDate={addDays(new Date(), 1)}
+          minDate={tomorrow}
         />
       ) : null}
     </View>
@@ -1405,7 +1413,7 @@ export default function CreateTransactionScreen() {
             {translate("Langkah {x} dari {y}", { x: step + 1, y: STEPS.length })}
           </Text>
           <Heading level={1}>
-            {step === 1 ? translate("Siapa mitra transaksi Anda?") : meta.heading}
+            {meta.heading}
           </Heading>
           <Text variant="body" tone="secondary">
             {meta.description}
