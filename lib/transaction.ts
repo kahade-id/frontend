@@ -160,8 +160,14 @@ export function calculateTransactionFee(amountIdr: number): number {
 
 /**
  * Hitung biaya per orang untuk patungan.
+ *
+ * P2-7: TIDAK lagi pakai Math.ceil untuk semua orang (itu over-collect
+ * sistematis: 100000/3 → 33334×3=100002). Fungsi ini kini mengembalikan
+ * biaya dasar per orang (floor); sisa pembulatan harus dialokasikan
+ * eksplisit oleh pemanggil bila dibutuhkan. Saat ini mode GROUP diblokir
+ * di UI, jadi fungsi ini tidak dipakai — dipertahankan untuk kompatibilitas.
  */
 export function calculatePatunganPerPerson(totalIdr: number, target: number): number {
   if (target < 2) return totalIdr
-  return Math.ceil(totalIdr / target)
+  return Math.floor(totalIdr / target)
 }
