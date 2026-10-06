@@ -33,7 +33,10 @@ export { normalizeUsername, USERNAME_MIN, USERNAME_MAX }
 // (DBL-006 backend; dulu 3–20). Nilai yang divalidasi di sini SUDAH
 // dinormalisasi (lowercase) oleh onChangeText di bawah, jadi charset kecil
 // tetap benar untuk nilai tampilan ini.
-const USERNAME_RE = /^[a-z0-9](?:[a-z0-9._]{1,28}[a-z0-9])?$/
+// P1 (audit 2026-10-06): samakan dengan backend
+// update-profile.dto.ts `/^[a-zA-Z0-9._]+$/` — backend MENGIZINKAN awalan/
+// akhiran titik/garis bawah (mis. `budi_`, `.andi`); regex lama menolaknya.
+const USERNAME_RE = /^[a-z0-9._]+$/
 
 export function validateUsername(value: string, labels: UsernameFieldLabels): string | undefined {
   if (!value) return undefined

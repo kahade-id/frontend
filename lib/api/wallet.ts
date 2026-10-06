@@ -459,10 +459,11 @@ export async function getTopupStatus(paymentTxId: string) {
   })
   return {
     ...result,
-    paymentTxId: pickString(result, ["paymentTxId", "payment_tx_id"]) ?? result.paymentTxId,
+    // P1 (audit 2026-10-06): endpoint poll kirim `txId` (bukan `paymentTxId`).
+    paymentTxId: pickString(result, ["paymentTxId", "payment_tx_id", "txId", "tx_id"]) ?? result.paymentTxId,
     paymentCode: pickString(result, ["paymentCode", "payment_code"]) ?? result.paymentCode,
     qrString: pickString(result, ["qrString", "qr_string"]) ?? result.qrString,
-    expiresAt: pickString(result, ["expiresAt", "expires_at"]) ?? result.expiresAt,
+    expiresAt: pickString(result, ["expiresAt", "expires_at", "expiredAt", "expired_at"]) ?? result.expiresAt,
   }
 }
 

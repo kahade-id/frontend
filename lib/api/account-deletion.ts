@@ -66,12 +66,15 @@ type RequestDeletionDto = {
 
 export async function requestAccountDeletion(dto: RequestDeletionDto): Promise<DeletionRequestResult> {
   // Lokasi presisi aksi sensitif (kontrak lintas tim 2026-09-27).
-  const raw = await http.post<unknown, WithDeviceLocation<RequestDeletionDto>>(
+  // P1 (audit 2026-10-06): idempotencyKey HANYA di header `x-idempotency-key`.
+  // DTO backend (forbidNonWhitelisted) menolak field tak dikenal di body → 422.
+  const { idempotencyKey, ...bodyDto } = dto
+  const raw = await http.post<unknown, WithDeviceLocation<typeof bodyDto>>(
     "/v1/users/me/delete-request",
-    await withDeviceLocation(dto),
+    await withDeviceLocation(bodyDto),
     {
       auth: "required",
-      headers: dto.idempotencyKey ? { "x-idempotency-key": dto.idempotencyKey } : undefined,
+      headers: idempotencyKey ? { "x-idempotency-key": idempotencyKey } : undefined,
     },
   )
   const record = asRecord(raw)

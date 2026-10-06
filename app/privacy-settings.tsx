@@ -136,7 +136,6 @@ const QA_POLICY_LABELS: Record<QaCommentPolicy, string> = {
 
 const SHOWCASE_VISIBILITY_LABELS: Record<string, string> = {
   PUBLIC: "Publik",
-  FOLLOWERS: "Pengikut saja",
   PRIVATE: "Pribadi",
 }
 
@@ -521,8 +520,10 @@ export default function PrivacySettingsScreen() {
         <EnumRow<string>
           title="Visibilitas default etalase"
           description="Visibilitas etalase baru yang Anda buat."
-          value={value.showcaseDefaultVisibility}
-          options={["PUBLIC", "FOLLOWERS", "PRIVATE"]}
+          // P1 (audit 2026-10-06): backend enum ShowcaseVisibility hanya
+          // PUBLIC|PRIVATE — opsi FOLLOWERS dihapus agar tidak 422.
+          value={value.showcaseDefaultVisibility === "FOLLOWERS" ? "PUBLIC" : value.showcaseDefaultVisibility}
+          options={["PUBLIC", "PRIVATE"]}
           labels={SHOWCASE_VISIBILITY_LABELS}
           pending={pending.includes("showcaseDefaultVisibility")}
           onPick={(next) => void saveField("showcaseDefaultVisibility", next)}

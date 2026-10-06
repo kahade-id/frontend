@@ -470,9 +470,12 @@ export function OrderActionSheets({
             "Sengketa dibuka",
             "Gagal membuka sengketa",
           ).then((result) => {
+            // P1 (audit 2026-10-06): backend submitDispute kembalikan
+            // { disputeId, status } — bukan { id }.
             const disputeId =
               result && typeof result === "object"
-                ? (result as { id?: unknown }).id
+                ? ((result as { disputeId?: unknown }).disputeId ??
+                  (result as { id?: unknown }).id)
                 : undefined
             if (typeof disputeId === "string" && disputeId)
               router.push(ROUTES.disputeDetail(disputeId))

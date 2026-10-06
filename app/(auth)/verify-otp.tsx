@@ -53,7 +53,7 @@ import { ScrollView, View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useRouter } from "expo-router"
 
-import { OtpInput, OTP_MIN_LENGTH, OTP_MAX_LENGTH, type OtpInputHandle } from "@/components/ui/otp-input"
+import { OtpInput, OTP_MIN_LENGTH, type OtpInputHandle } from "@/components/ui/otp-input"
 import { ScreenCaptureGuard } from "@/components/security/screen-capture-guard"
 import { FadeIn } from "@/components/ui/fade-in"
 import { FooterBar } from "@/components/ui/footer-bar"
@@ -452,8 +452,7 @@ export default function VerifyOtpScreen() {
               </Heading>
               <Text variant="body" tone="secondary" className="text-pretty">
                 {translate(
-                  "Kode {x} digit telah dibalas via WhatsApp. Pastikan Anda memiliki akses ke nomor:",
-                  { x: `${OTP_MIN_LENGTH}–${OTP_MAX_LENGTH}` },
+                  "Kode 6 digit telah dibalas via WhatsApp. Pastikan Anda memiliki akses ke nomor:",
                 )}
               </Text>
               {/* Nomor HP berdiri sendiri — data presisi (§3.1 → Mono) */}
@@ -462,11 +461,12 @@ export default function VerifyOtpScreen() {
               </Text>
             </View>
 
-            {/* OTP Input — DBL-007: panjang dinamis 6–10 digit (mirror BE
-                @Length(6,10)); helper text dinamis mengikuti rentang. */}
+            {/* OTP Input — P1 (audit 2026-10-06): OTP registrasi/verifikasi HP
+                backend wajib TEPAT 6 digit (@Length(6,6)). dynamicLength
+                6–10 hanya untuk OTP penarikan (confirm-withdraw-otp.dto). */}
             <OtpInput
               ref={otpRef}
-              dynamicLength
+              length={6}
               clearOnError={false}
               value={code}
               onChange={handleCodeChange}
@@ -474,18 +474,11 @@ export default function VerifyOtpScreen() {
               helperText={
                 otpError
                   ? undefined
-                  : translate("Masukkan {x}–{y} digit kode yang diterima", {
-                      x: OTP_MIN_LENGTH,
-                      y: OTP_MAX_LENGTH,
-                    })
+                  : translate("Masukkan 6 digit kode yang diterima")
               }
               disabled={verifying}
               autoFocus
-              accessibilityLabel={
-                translate("Kode verifikasi {x} digit", {
-                  x: `${OTP_MIN_LENGTH}–${OTP_MAX_LENGTH}`,
-                })
-              }
+              accessibilityLabel={translate("Kode verifikasi 6 digit")}
             />
 
             {/* A07: status koneksi — bedakan offline dari menunggu */}

@@ -478,6 +478,9 @@ export default function SupportChatScreen() {
           onChangeText={setDraft}
           onSend={handleSend}
           quickReplies={false}
+          // P1 (audit 2026-10-06): backend support-chat.dto.ts @MaxLength(5000)
+          // — samakan agar pesan panjang tidak terpotong diam-diam.
+          maxLength={5000}
           labels={{ placeholder: translate("Tulis pesan") }}
         />
       </>

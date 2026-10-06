@@ -307,6 +307,9 @@ export default function RegisterSecurityScreen() {
                   label="Nama lengkap"
                   ref={fullNameRef}
                   value={fullName}
+                  // P1 (audit 2026-10-06): backend phone-register.dto.ts
+                  // @MaxLength(60) — batasi di klien agar tidak 400.
+                  maxLength={60}
                   onChangeText={(t) => {
                     setFullName(t)
                     setFullNameError(undefined)
