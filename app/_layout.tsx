@@ -140,6 +140,7 @@ import {
   onSocialActionQueued,
   onSocialQueueDrained,
 } from "@/lib/offline-queue"
+import { initChatSendQueue, onChatSendQueueDrained } from "@/lib/chat-send-queue"
 import { OfflineBanner } from "@/components/offline-banner"
 import { LruCache } from "@/lib/lru-cache"
 import { ROUTES } from "@/lib/routes"
@@ -838,11 +839,10 @@ function AppShellInner() {
     return cancel
   }, [])
 
-  // Item #27 — konektivitas & antrean offline, sekali per proses:
-  //   - `initConnectivity()`: satu langganan NetInfo; gerbang fail-closed di
-  //     transport menolak mutasi non-sosial saat jelas offline.
-  //   - `initOfflineQueue()`: pulihkan sisa antrean + eksekusi saat reconnect.
-  //   - Feedback toast untuk kedua arah antrean (masuk & terkirim).
+  // Item #27 / Fase 3 — konektivitas & antrean offline, sekali per proses:
+  //   - `initConnectivity()`: gerbang fail-closed menolak mutasi non-sosial.
+  //   - antrean sosial tetap like/follow; antrean chat memiliki jalur terpisah.
+  //   - keduanya pulih saat boot dan dieksekusi saat reconnect.
   useEffect(() => {
     // PERF-FIX (bundle, 2026-09-30): `initConnectivity()` ikut ditunda
     // setelah first paint seperti `initOfflineQueue()`. `NetInfo.fetch()`
@@ -853,6 +853,7 @@ function AppShellInner() {
     const cancelDeferred = afterFirstPaint(() => {
       initConnectivity()
       initOfflineQueue()
+      initChatSendQueue()
     })
     const show = toast.show
     const offQueued = onSocialActionQueued((label) => {
@@ -875,10 +876,24 @@ function AppShellInner() {
         duration: 4000,
       })
     })
+    const offChatDrained = onChatSendQueueDrained(({ sent, failed }) => {
+      if (sent === 0 && failed === 0) return
+      show({
+        title: translate("Pesan tertunda"),
+        description: translate(
+          failed > 0
+            ? "Sebagian pesan belum terkirim. Buka percakapan untuk mencoba lagi."
+            : "Pesan terkirim setelah koneksi pulih.",
+        ),
+        tone: failed > 0 ? "info" : "success",
+        duration: 4000,
+      })
+    })
     return () => {
       cancelDeferred()
       offQueued()
       offDrained()
+      offChatDrained()
     }
   }, [toast.show])
 

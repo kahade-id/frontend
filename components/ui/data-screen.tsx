@@ -53,6 +53,7 @@ import { Alert } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { EmptyState, type EmptyStateProps } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
+import { OfflineEmptyState } from "@/components/ui/offline-empty-state"
 import { Crossfade } from "@/components/ui/fade-in"
 import { Header, type HeaderProps } from "@/components/ui/header"
 import { LoadingScreen } from "@/components/ui/loading-screen"
@@ -70,6 +71,8 @@ import { tokens } from "@/lib/tokens"
 export type DataScreenState = {
   /** Muat pertama (atau ganti kunci): isi layar diganti <LoadingScreen>. */
   loading: boolean
+  /** Tidak ada salinan data lokal dan perangkat sedang offline. */
+  offlineMiss?: boolean
   /** Tarik-untuk-refresh: isi layar TETAP dirender. */
   refreshing?: boolean
   /** Pesan siap tampil dari `userMessage(err)` — bukan copy hardcode per layar. */
@@ -202,7 +205,15 @@ export function DataScreen({
   onScrollWorklet,
   children,
 }: DataScreenProps) {
-  const { loading, refreshing = false, error, refresh, reload, refreshError } = state
+  const {
+    loading,
+    refreshing = false,
+    error,
+    refresh,
+    reload,
+    refreshError,
+    offlineMiss = false,
+  } = state
 
   // v2: loading → isi crossfade (signature moment), bukan swap keras. Berlaku
   // untuk ketiga hasil (konten/error/kosong) — error yang muncul halus tetap
@@ -213,7 +224,9 @@ export function DataScreen({
   // sama sekali) → ErrorState penuh. `refreshError` = refresh gagal padahal
   // data lama ada → data lama tetap tampil + banner inline "Gagal
   // memperbarui — menampilkan data terakhir" dengan tombol "Coba lagi".
-  const content = error ? (
+  const content = offlineMiss ? (
+    <OfflineEmptyState />
+  ) : error ? (
     <ErrorState title={errorTitle} description={error} onRetry={() => void reload()} />
   ) : (
     <>

@@ -1,20 +1,21 @@
 import type { HelpArticle, HelpCategory } from "@/lib/api/help-center"
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { Linking, View, type ListRenderItem } from "react-native"
+import { FlatList, Linking, View, type ListRenderItem } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useIsFocused } from "expo-router"
 import { router, useLocalSearchParams } from "expo-router"
 import { MagnifyingGlass, Question, Scales, Shield } from "phosphor-react-native"
-import { api } from "@/lib/api"
 import { safeExternalUrl } from "@/lib/external-url"
 import { translate, useLanguage } from "@/lib/i18n"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
-import { useApiQuery } from "@/lib/use-api-query"
+import {
+  BUNDLED_HELP_CATEGORIES,
+  searchBundledHelpArticles,
+} from "@/lib/help-content"
 import { clearHelpHistory, getHelpHistory, type HelpHistoryEntry } from "@/lib/help-history"
 import { DebouncedSearchField } from "@/components/ui/debounced-search-field"
 import { EmptyState } from "@/components/ui/empty-state"
-import { ErrorState } from "@/components/ui/error-state"
 import { Header } from "@/components/ui/header"
 import { HelpArticleListItem } from "@/components/ui/help-article-list-item"
 import { HelpCategoryCard } from "@/components/ui/help-category-card"
@@ -23,8 +24,6 @@ import { Dialog } from "@/components/ui/modal"
 import { Divider } from "@/components/ui/divider"
 import { FadeIn } from "@/components/ui/fade-in"
 import { ListItem } from "@/components/ui/list-item"
-import { ListLoading } from "@/components/ui/paginated-list"
-import { PullToRefreshFlatList } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
 import { TextLink } from "@/components/ui/text-link"
@@ -120,23 +119,14 @@ export default function FaqScreen() {
   useEffect(() => {
     if (typeof params.q === "string" && params.q.trim()) setKeyword(params.q.trim())
   }, [params.q])
-  const categories = useApiQuery("help-categories", (signal) =>
-    api.helpCenter.listHelpCategories(signal),
-  )
-  const search = useApiQuery(
-    `help-search:${keyword}`,
-    (signal) => api.helpCenter.searchHelpArticles(keyword, signal),
-    Boolean(keyword),
-  )
-  const searching = Boolean(keyword)
-  const state = searching ? search : categories
-  // FE-013: `data` ikut di-memo — array baru tiap render menjebol bail-out FlatList.
+  const searching = Boolean(keyword.trim())
+  // Konten bantuan inti dibundel: buka dan cari tidak menunggu request jaringan.
   const rows = useMemo<FaqRow[]>(
     () =>
       searching
-        ? (search.data ?? []).map((article) => ({ id: article.id, article }))
-        : (categories.data ?? []).map((category) => ({ id: category.slug, category })),
-    [searching, search.data, categories.data],
+        ? searchBundledHelpArticles(keyword).map((article) => ({ id: article.id, article }))
+        : BUNDLED_HELP_CATEGORIES.map((category) => ({ id: category.slug, category })),
+    [searching, keyword],
   )
 
   // F04: riwayat artikel terakhir dilihat (lokal, per akun) + aksi bersihkan.
@@ -222,12 +212,7 @@ export default function FaqScreen() {
   )
   const faqListEmpty = useMemo(
     () =>
-      state.loading ? (
-        <ListLoading />
-      ) : state.error ? (
-        <ErrorState description={state.error} onRetry={() => void state.reload()} />
-      ) : searching ? (
-        // Poin 5: tidak ketemu di FAQ → SATU tombol chat (shell jujur).
+      searching ? (
         <EmptyState
           icon={MagnifyingGlass}
           title="Tidak ada hasil"
@@ -245,13 +230,12 @@ export default function FaqScreen() {
       ) : (
         <EmptyState
           icon={Question}
-          title="Kategori bantuan belum tersedia"
-          description="Artikel akan ditampilkan setelah dipublikasikan oleh Kahade."
+          title="Panduan belum tersedia"
+          description="Panduan utama tetap tersedia di perangkat ini. Hubungi tim Kahade untuk pertanyaan lain."
         />
       ),
-    [state, searching],
+    [searching],
   )
-  const faqRefresh = useCallback(() => void state.refresh(), [state])
 
   return (
     <Screen edges={["top"]} padded={false}>
@@ -266,7 +250,8 @@ export default function FaqScreen() {
           placeholder={translate("Cari bantuan")}
         />
       </FadeIn>
-      <PullToRefreshFlatList
+      <FlatList
+        className="flex-1"
         data={rows}
         keyExtractor={faqKeyExtractor}
         contentContainerStyle={faqContentStyle}
@@ -275,9 +260,6 @@ export default function FaqScreen() {
         ListFooterComponent={faqListFooter ?? undefined}
         renderItem={faqRenderItem}
         ListEmptyComponent={faqListEmpty}
-        refreshing={state.refreshing}
-        onRefresh={faqRefresh}
-        refreshEnabled={!state.loading}
         keyboardShouldPersistTaps="handled"
         initialNumToRender={8}
         maxToRenderPerBatch={8}

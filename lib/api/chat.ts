@@ -198,11 +198,14 @@ export type ChatMessage = {
   isDeleted?: boolean
   /**
    * CN-015: status kirim lokal (hanya untuk pesan optimistis).
+   * - "queued": menunggu koneksi; antrean chat terpisah akan mengirim otomatis
    * - "sending": sedang dikirim ke server
-   * - "failed": gagal — tampil tombol "Coba lagi", jangan hapus diam-diam
+   * - "failed": kiriman perlu dicoba lagi manual; jangan hapus diam-diam
    * - undefined: pesan dari server (status baca dihitung dari read receipt)
    */
-  sendStatus?: "sending" | "failed"
+  sendStatus?: "queued" | "sending" | "failed"
+  /** Kunci lokal untuk menghindari penggandaan pesan saat antrean/retry. */
+  sendIdempotencyKey?: string
   /** Kapan pesan terbaca per pembaca (userId → ISO), atau ISO tunggal. */
   readAt?: Record<string, string> | string | null
   /** Reaksi emoji tersummari (emoji, count, reactedByMe, users). */
@@ -671,10 +674,17 @@ export async function getChatMessages(
   return normalizeMessagesPage(raw)
 }
 
-export function sendChatMessage(roomId: string, dto: SendMessageDto) {
+export function sendChatMessage(
+  roomId: string,
+  dto: SendMessageDto,
+  opts: { idempotencyKey?: string } = {},
+) {
   return http
     .post<unknown, SendMessageDto>(`/v1/chat/rooms/${seg(roomId)}/messages`, dto, {
       auth: "required",
+      // The same key follows an offline queue through every later attempt.
+      // The transport creates one automatically for ordinary sends.
+      headers: opts.idempotencyKey ? { "Idempotency-Key": opts.idempotencyKey } : undefined,
     })
     // 2026-10-02 (Bug 5): WAJIB normalize — backend mengirim `content`,
     // bukan `text`. Tanpa ini bubble optimistis kosong sampai refresh

@@ -6,19 +6,16 @@
  * produk 2026-09-28. Konten berasal dari draf v1.0 (27 Sep 2026) yang
  * dibangkitkan ke `lib/legal/*-content.ts` via tools/gen-legal-content.py.
  *
- * ST-004 (PERF-FIX 2026-09-29): dua modul konten (±249KB string statis) TIDAK
- * lagi diimpor statis — dimuat via dynamic `import()` saat layar dibuka.
- * Di web, Metro memecahnya menjadi chunk terpisah (penghematan byte nyata);
- * di native, modul keluar dari graph evaluasi awal (evaluasi ditunda sampai
- * layar dibuka). Import tipe (`type LegalDocData`) dihapus saat kompilasi
- * sehingga tidak menarik modul konten ke graph awal.
+ * Konten S&K dan Privasi dibundel statis agar seluruh dokumen tersedia pada
+ * first-launch tanpa jaringan; render tidak melewati spinner atau fetch.
+ * Trade-off yang disengaja: kedua dokumen ikut masuk ke bundle aplikasi.
  *
  * UX: hero dokumen + ringkasan (bila ada) + Daftar Isi inline + isi pasal +
  * FAB "Daftar Isi" (bottom sheet, lompat ke pasal) + bar progres baca tipis
  * di bawah header. Tidak ada logika persetujuan di sini — layar ini murni
  * pembaca; pencatatan consent tetap di alur registrasi/transaksi.
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useMemo, useRef, useState } from "react"
 import { ScrollView, View, type ScrollViewInstance } from "react-native"
 import Animated, {
   useAnimatedScrollHandler,
@@ -35,39 +32,13 @@ import { PressableScale } from "@/components/ui/pressable-scale"
 import { Screen } from "@/components/ui/screen"
 import { Text } from "@/components/ui/text"
 import { Emphasis } from "@/components/ui/typography"
-import { ListLoading } from "@/components/ui/paginated-list"
 import { accent } from "@/lib/tokens"
-// ST-004: import TIPE saja (dihapus saat kompilasi) — modul konten (±249KB)
-// dimuat on-demand lewat dynamic import() di bawah.
-import type { LegalDocData } from "@/lib/legal/privacy-content"
+import { PRIVACY_CONTENT, type LegalDocData } from "@/lib/legal/privacy-content"
+import { TERMS_CONTENT } from "@/lib/legal/terms-content"
 
+/** Dokumen dibundel dan dipilih sinkron agar pembaca tidak menunggu jaringan atau chunk. */
 export function LegalDocumentScreen({ kind }: { kind: "terms" | "privacy" }) {
-  const [doc, setDoc] = useState<LegalDocData | null>(null)
-
-  // ST-004: konten legal dimuat hanya saat layar dibuka.
-  useEffect(() => {
-    let alive = true
-    void (kind === "terms"
-      ? import("@/lib/legal/terms-content").then((m) => m.TERMS_CONTENT)
-      : import("@/lib/legal/privacy-content").then((m) => m.PRIVACY_CONTENT)
-    ).then((content: LegalDocData) => {
-      if (alive) setDoc(content)
-    })
-    return () => {
-      alive = false
-    }
-  }, [kind])
-
-  if (!doc) {
-    return (
-      <Screen edges={["top"]}>
-        <Header title={kind === "terms" ? "Syarat & Ketentuan" : "Kebijakan Privasi"} />
-        <View className="px-5">
-          <ListLoading />
-        </View>
-      </Screen>
-    )
-  }
+  const doc: LegalDocData = kind === "terms" ? TERMS_CONTENT : PRIVACY_CONTENT
   return <LegalDocumentContent kind={kind} doc={doc} />
 }
 

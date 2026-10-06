@@ -107,6 +107,10 @@
    "n": 14
   },
   {
+   "s": "Anda sedang offline",
+   "n": 13
+  },
+  {
    "s": "Buka {x}",
    "n": 13
   },
@@ -307,7 +311,11 @@
    "n": 9
   },
   {
-   "s": "Anda sedang offline",
+   "s": "Akan dikirim otomatis saat tersambung.",
+   "n": 8
+  },
+  {
+   "s": "Antrean aktif selama aplikasi terbuka hingga koneksi pulih.",
    "n": 8
   },
   {
@@ -343,10 +351,6 @@
    "n": 8
   },
   {
-   "s": "Kebijakan Privasi",
-   "n": 8
-  },
-  {
    "s": "Kemarin",
    "n": 8
   },
@@ -360,6 +364,18 @@
   },
   {
    "s": "Nonaktifkan",
+   "n": 8
+  },
+  {
+   "s": "Pesan belum masuk antrean",
+   "n": 8
+  },
+  {
+   "s": "Pesan menunggu koneksi",
+   "n": 8
+  },
+  {
+   "s": "Sambungkan internet lalu kirim kembali.",
    "n": 8
   },
   {
@@ -431,10 +447,6 @@
    "n": 7
   },
   {
-   "s": "Syarat & Ketentuan",
-   "n": 7
-  },
-  {
    "s": "Tutup balasan",
    "n": 7
   },
@@ -484,10 +496,6 @@
   },
   {
    "s": "Bertanya kepada @{x}",
-   "n": 6
-  },
-  {
-   "s": "Buat PIN",
    "n": 6
   },
   {
@@ -612,6 +620,10 @@
   },
   {
    "s": "Kategori (opsional)",
+   "n": 6
+  },
+  {
+   "s": "Kebijakan Privasi",
    "n": 6
   },
   {
@@ -1003,6 +1015,10 @@
    "n": 5
   },
   {
+   "s": "Permintaan dibatalkan.",
+   "n": 5
+  },
+  {
    "s": "Pesan dihapus",
    "n": 5
   },
@@ -1012,6 +1028,10 @@
   },
   {
    "s": "Suka",
+   "n": 5
+  },
+  {
+   "s": "Syarat & Ketentuan",
    "n": 5
   },
   {
@@ -1147,10 +1167,6 @@
    "n": 4
   },
   {
-   "s": "Belum tersedia",
-   "n": 4
-  },
-  {
    "s": "Bertanya",
    "n": 4
   },
@@ -1160,6 +1176,10 @@
   },
   {
    "s": "Buang perubahan?",
+   "n": 4
+  },
+  {
+   "s": "Buat PIN",
    "n": 4
   },
   {
@@ -1963,10 +1983,6 @@
    "n": 3
   },
   {
-   "s": "Belum ada artikel",
-   "n": 3
-  },
-  {
    "s": "Belum ada etalase dari akun yang diikuti",
    "n": 3
   },
@@ -2320,6 +2336,10 @@
   },
   {
    "s": "Dari {x}",
+   "n": 3
+  },
+  {
+   "s": "Data ini belum tersimpan di perangkat. Sambungkan kembali untuk memuatnya.",
    "n": 3
   },
   {
@@ -5019,6 +5039,10 @@
    "n": 2
   },
   {
+   "s": "Belum tersedia",
+   "n": 2
+  },
+  {
    "s": "Belum Verifikasi",
    "n": 2
   },
@@ -5412,6 +5436,10 @@
   },
   {
    "s": "Data terakhir: {x}",
+   "n": 2
+  },
+  {
+   "s": "Data tersimpan tetap terlihat, tetapi mungkin belum terbaru. Suka & ikuti akan terkirim otomatis saat tersambung. Aksi lain (termasuk yang menyentuh uang) tidak bisa dilakukan saat offline.",
    "n": 2
   },
   {
@@ -5923,10 +5951,6 @@
    "n": 2
   },
   {
-   "s": "Ganti PIN",
-   "n": 2
-  },
-  {
    "s": "Gunakan email yang terdaftar.",
    "n": 2
   },
@@ -6188,14 +6212,6 @@
   },
   {
    "s": "Keluar",
-   "n": 2
-  },
-  {
-   "s": "Keluar dari akun @{x} di perangkat ini?",
-   "n": 2
-  },
-  {
-   "s": "Keluar dari Kahade di perangkat ini?",
    "n": 2
   },
   {
@@ -6855,6 +6871,10 @@
    "n": 2
   },
   {
+   "s": "Menunggu koneksi",
+   "n": 2
+  },
+  {
    "s": "Menunggu OTP",
    "n": 2
   },
@@ -7075,6 +7095,10 @@
    "n": 2
   },
   {
+   "s": "Pembaruan dapat diperiksa setelah perangkat tersambung ke internet.",
+   "n": 2
+  },
+  {
    "s": "Pembayaran",
    "n": 2
   },
@@ -7251,10 +7275,6 @@
    "n": 2
   },
   {
-   "s": "Permintaan dibatalkan.",
-   "n": 2
-  },
-  {
    "s": "Permintaan diterima",
    "n": 2
   },
@@ -7312,6 +7332,14 @@
   },
   {
    "s": "Pesan suara tidak valid",
+   "n": 2
+  },
+  {
+   "s": "Pesan terkirim setelah koneksi pulih.",
+   "n": 2
+  },
+  {
+   "s": "Pesan tertunda",
    "n": 2
   },
   {
@@ -7615,6 +7643,10 @@
    "n": 2
   },
   {
+   "s": "Sebagian pesan belum terkirim. Buka percakapan untuk mencoba lagi.",
+   "n": 2
+  },
+  {
    "s": "Sebutkan di keterangan",
    "n": 2
   },
@@ -7868,10 +7900,6 @@
   },
   {
    "s": "Sudut foto di luar lingkaran akan terpotong.",
-   "n": 2
-  },
-  {
-   "s": "Suka & ikuti akan terkirim otomatis saat tersambung. Aksi lain (termasuk yang menyentuh uang) tidak bisa dilakukan saat offline.",
    "n": 2
   },
   {
@@ -8524,10 +8552,6 @@
   },
   {
    "s": "· Terakhir dipakai {x}",
-   "n": 1
-  },
-  {
-   "s": "· terbaru:",
    "n": 1
   },
   {
@@ -10335,6 +10359,10 @@
    "n": 1
   },
   {
+   "s": "**Kunci biometrik** melindungi aplikasi di perangkat ini dan menggunakan kemampuan perangkat, seperti sidik jari atau pengenalan wajah. **Verifikasi dua langkah** menambah pemeriksaan saat masuk ke akun. Pengaturannya tersedia dari menu Keamanan dan memerlukan koneksi untuk perubahan yang disimpan ke akun.",
+   "n": 1
+  },
+  {
    "s": "/shortcut (huruf kecil, angka, _)",
    "n": 1
   },
@@ -10791,6 +10819,10 @@
    "n": 1
   },
   {
+   "s": "Alur pesanan, pembayaran, dan penyelesaian transaksi.",
+   "n": 1
+  },
+  {
    "s": "Analitik etalase",
    "n": 1
   },
@@ -10923,6 +10955,22 @@
    "n": 1
   },
   {
+   "s": "Apa bedanya kunci biometrik dan verifikasi dua langkah?",
+   "n": 1
+  },
+  {
+   "s": "Apa yang harus dilakukan jika perangkat hilang?",
+   "n": 1
+  },
+  {
+   "s": "Apa yang perlu dilakukan jika pesanan belum diterima?",
+   "n": 1
+  },
+  {
+   "s": "Apa yang terjadi saat saya menyukai atau mengikuti ketika offline?",
+   "n": 1
+  },
+  {
    "s": "Apakah artikel ini membantu?",
    "n": 1
   },
@@ -10968,10 +11016,6 @@
   },
   {
    "s": "Arsipkan percakapan",
-   "n": 1
-  },
-  {
-   "s": "Artikel akan ditampilkan setelah dipublikasikan oleh Kahade.",
    "n": 1
   },
   {
@@ -11124,6 +11168,22 @@
   },
   {
    "s": "B.{x}. Ulasan yang dapat dipercaya",
+   "n": 1
+  },
+  {
+   "s": "Bagaimana cara kerja transaksi aman di Kahade?",
+   "n": 1
+  },
+  {
+   "s": "Bagaimana cara menghubungi tim Kahade?",
+   "n": 1
+  },
+  {
+   "s": "Bagaimana mengelola barang atau jasa di etalase?",
+   "n": 1
+  },
+  {
+   "s": "Bagaimana menjaga PIN dan kode verifikasi tetap aman?",
    "n": 1
   },
   {
@@ -11535,10 +11595,6 @@
    "n": 1
   },
   {
-   "s": "Belum dibuat",
-   "n": 1
-  },
-  {
    "s": "Belum diisi: {x}.",
    "n": 1
   },
@@ -11568,6 +11624,10 @@
   },
   {
    "s": "Belum setuju",
+   "n": 1
+  },
+  {
+   "s": "Belum terkirim",
    "n": 1
   },
   {
@@ -11907,6 +11967,10 @@
    "n": 1
   },
   {
+   "s": "Buka **Kelola Etalase** untuk melihat dan mengatur konten etalase Anda. Periksa kembali informasi dan gambar sebelum menyimpan perubahan. Pembuatan, penyuntingan, dan penghapusan konten memerlukan koneksi internet. Saat offline, Anda tetap dapat membuka menu aplikasi; perubahan akan tersedia setelah tersambung dan dimuat kembali.",
+   "n": 1
+  },
+  {
    "s": "Buka aplikasi autentikator (Google Authenticator, Authy, dsb.) dan masukkan kode {x} digit untuk akun:",
    "n": 1
   },
@@ -11967,6 +12031,10 @@
    "n": 1
   },
   {
+   "s": "Buka menu **Keamanan** untuk menemukan pilihan ganti email, nomor HP, kata sandi, PIN, dan pengaturan verifikasi dua langkah. Sebagian perubahan memerlukan koneksi internet, verifikasi tambahan, atau konfirmasi di perangkat. Menu Keamanan tetap dapat dibuka tanpa koneksi; perubahan baru diproses setelah layar terkait tersambung ke layanan Kahade.",
+   "n": 1
+  },
+  {
    "s": "Buka Pengaturan",
    "n": 1
   },
@@ -11976,6 +12044,10 @@
   },
   {
    "s": "Buka profil lawan bicara",
+   "n": 1
+  },
+  {
+   "s": "Buka Pusat Bantuan untuk mencari panduan yang tersedia. Jika masih memerlukan bantuan, pilih **Chat dengan tim Kahade** atau buka daftar tiket bantuan dari aplikasi. Saat menghubungi tim, sertakan nomor atau tautan transaksi bila relevan. Jangan kirim PIN, kata sandi, kode OTP, atau kode cadangan.",
    "n": 1
   },
   {
@@ -12240,6 +12312,10 @@
   },
   {
    "s": "Cara membuat transaksi",
+   "n": 1
+  },
+  {
+   "s": "Cara mencari bantuan dan membaca dokumen Kahade.",
    "n": 1
   },
   {
@@ -12968,6 +13044,14 @@
   },
   {
    "s": "Di browser yang mendukung, passkey bisa muncul sebagai saran otomatis di kolom username.",
+   "n": 1
+  },
+  {
+   "s": "Di mana saya membaca Syarat & Ketentuan dan Kebijakan Privasi?",
+   "n": 1
+  },
+  {
+   "s": "Di mana saya mengubah email, nomor HP, atau kata sandi?",
    "n": 1
   },
   {
@@ -14055,6 +14139,10 @@
    "n": 1
   },
   {
+   "s": "Gunakan perangkat lain untuk masuk ke akun, lalu buka menu **Keamanan** dan periksa bagian **Perangkat & Log**. Cabut sesi yang tidak dikenali dan perbarui kata sandi bila diperlukan. Jangan membagikan kode verifikasi kepada orang lain. Jika tidak dapat masuk atau memerlukan bantuan, gunakan kanal bantuan resmi Kahade.",
+   "n": 1
+  },
+  {
    "s": "Gunakan PIN",
    "n": 1
   },
@@ -14411,6 +14499,10 @@
    "n": 1
   },
   {
+   "s": "Informasi dasar pembayaran dan keamanan saldo.",
+   "n": 1
+  },
+  {
    "s": "Informasi identitas",
    "n": 1
   },
@@ -14467,11 +14559,11 @@
    "n": 1
   },
   {
-   "s": "Isi artikel belum tersedia dari server.",
+   "s": "Isi menu bawah",
    "n": 1
   },
   {
-   "s": "Isi menu bawah",
+   "s": "Isi panduan belum tersedia di perangkat ini.",
    "n": 1
   },
   {
@@ -14859,6 +14951,10 @@
    "n": 1
   },
   {
+   "s": "Kapan saya sebaiknya mengonfirmasi penerimaan?",
+   "n": 1
+  },
+  {
    "s": "Kartu produk",
    "n": 1
   },
@@ -14975,6 +15071,10 @@
    "n": 1
   },
   {
+   "s": "Kedua dokumen tersedia langsung di aplikasi dan dapat dibaca tanpa koneksi internet. - [Syarat & Ketentuan](https://kahade.id/terms) - [Kebijakan Privasi](https://kahade.id/privacy-policy) Anda juga dapat membukanya dari menu Tentang Kami.",
+   "n": 1
+  },
+  {
    "s": "Kejadian terbaru",
    "n": 1
   },
@@ -15011,6 +15111,10 @@
    "n": 1
   },
   {
+   "s": "Keluar dari akun Kahade di perangkat ini?",
+   "n": 1
+  },
+  {
    "s": "Keluar dari Kahade?",
    "n": 1
   },
@@ -15032,10 +15136,6 @@
   },
   {
    "s": "Keluar dari semua perangkat?",
-   "n": 1
-  },
-  {
-   "s": "Keluar tidak tuntas",
    "n": 1
   },
   {
@@ -15612,6 +15712,10 @@
   },
   {
    "s": "Kontak.",
+   "n": 1
+  },
+  {
+   "s": "Konten etalase dan fitur sosial Kahade.",
    "n": 1
   },
   {
@@ -16471,10 +16575,6 @@
    "n": 1
   },
   {
-   "s": "Memeriksa versi server…",
-   "n": 1
-  },
-  {
    "s": "Meminta kode baru…",
    "n": 1
   },
@@ -16528,10 +16628,6 @@
   },
   {
    "s": "Memuat passkey…",
-   "n": 1
-  },
-  {
-   "s": "Memuat pengaturan keamanan",
    "n": 1
   },
   {
@@ -16936,10 +17032,6 @@
   },
   {
    "s": "Minimal {x} karakter, atau kosongkan bila tidak dikirim dari sini.",
-   "n": 1
-  },
-  {
-   "s": "Minimum:",
    "n": 1
   },
   {
@@ -17507,6 +17599,18 @@
    "n": 1
   },
   {
+   "s": "Panduan belum tersedia",
+   "n": 1
+  },
+  {
+   "s": "Panduan utama tetap tersedia di perangkat ini. Hubungi tim Kahade untuk pertanyaan lain.",
+   "n": 1
+  },
+  {
+   "s": "Panduan utama tetap tersedia di Pusat Bantuan pada perangkat ini.",
+   "n": 1
+  },
+  {
    "s": "Panggilan",
    "n": 1
   },
@@ -17660,6 +17764,10 @@
   },
   {
    "s": "pembatasan penghapusan karena Sengketa, investigasi, audit, tuntutan, atau kewajiban hukum.",
+   "n": 1
+  },
+  {
+   "s": "Pembayaran belum terlihat di transaksi",
    "n": 1
   },
   {
@@ -17896,6 +18004,10 @@
   },
   {
    "s": "Penganoniman:",
+   "n": 1
+  },
+  {
+   "s": "Pengaturan akun, akses, dan perlindungan perangkat.",
    "n": 1
   },
   {
@@ -18311,10 +18423,6 @@
    "n": 1
   },
   {
-   "s": "Periksa koneksi, lalu coba lagi.",
-   "n": 1
-  },
-  {
    "s": "Periksa lagi",
    "n": 1
   },
@@ -18368,6 +18476,10 @@
   },
   {
    "s": "Perjudian, taruhan, skema piramida, ponzi, atau investasi tanpa izin.",
+   "n": 1
+  },
+  {
+   "s": "Perlu konfirmasi keluar",
    "n": 1
   },
   {
@@ -18852,6 +18964,10 @@
   },
   {
    "s": "PIN dan biometrik di setiap transaksi",
+   "n": 1
+  },
+  {
+   "s": "PIN Dompet",
    "n": 1
   },
   {
@@ -19751,6 +19867,10 @@
    "n": 1
   },
   {
+   "s": "Silakan coba lagi nanti.",
+   "n": 1
+  },
+  {
    "s": "Silakan masuk kembali",
    "n": 1
   },
@@ -20012,6 +20132,10 @@
   },
   {
    "s": "Sudah saya simpan",
+   "n": 1
+  },
+  {
+   "s": "Suka dan ikuti dapat disimpan dalam antrean sosial pada perangkat. Aksi tersebut akan dikirim otomatis saat koneksi kembali tersedia. Aksi lain yang mengubah data akun atau transaksi tidak otomatis dimasukkan ke antrean. Untuk transaksi dan saldo, tunggu sampai aplikasi tersambung sebelum melanjutkan.",
    "n": 1
   },
   {
@@ -20467,11 +20591,7 @@
    "n": 1
   },
   {
-   "s": "Terima kasih atas umpan baliknya.",
-   "n": 1
-  },
-  {
-   "s": "Terima kasih, catatan Anda sudah dicatat.",
+   "s": "Terima kasih, pilihan Anda tersimpan di perangkat ini.",
    "n": 1
   },
   {
@@ -21388,14 +21508,6 @@
   },
   {
    "s": "Versi baru Kahade tersedia",
-   "n": 1
-  },
-  {
-   "s": "Versi di toko aplikasi",
-   "n": 1
-  },
-  {
-   "s": "Versi server belum dapat diperiksa",
    "n": 1
   },
   {

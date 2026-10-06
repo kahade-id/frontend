@@ -36,6 +36,8 @@ export const SecureKeys = {
   sessionSignedOut: "kahade.session.signedOut",
   accessToken: "kahade.auth.accessToken",
   refreshToken: "kahade.auth.refreshToken",
+  /** Random local namespace for persisted GET responses; never identifies the user. */
+  offlineQueryCacheScope: "kahade.cache.offlineScope",
   /**
    * Token akses admin panel (sesi TERPISAH dari sesi user — admin bisa login
    * sebagai admin tanpa mengganggu sesi user di perangkat yang sama).
@@ -228,6 +230,12 @@ export const SecureKeys = {
    */
   offlineSocialQueue: "kahade.offline.socialQueue",
   /**
+   * Indeks room yang memiliki pesan chat terpisah dan menunggu koneksi.
+   * Isi pesan tetap berada di kunci SecureStore per-room; key indeks ini
+   * memory-only di web dan dibersihkan saat sesi berakhir.
+   */
+  chatSendQueueRooms: "kahade.chat.sendQueueRooms",
+  /**
    * Item mega-batch 126 — timestamp terakhir tiket dukungan dibuka per
    * ticketId (JSON, lib/support-unread.ts). Data milik AKUN: dihapus
    * `clearSession()`; memory-only di web (bukan WEB_PERSISTENT_KEYS) supaya
@@ -392,6 +400,7 @@ export async function clearSession(): Promise<void> {
   await Promise.all([
     deleteSecureItem(SecureKeys.accessToken),
     deleteSecureItem(SecureKeys.refreshToken),
+    deleteSecureItem(SecureKeys.offlineQueryCacheScope),
     deleteSecureItem(SecureKeys.lastNativeRoute),
     deleteSecureItem(SecureKeys.biometricEnabled),
     deleteSecureItem(SecureKeys.pushToken),
@@ -404,6 +413,8 @@ export async function clearSession(): Promise<void> {
     // Antrean aksi sosial milik akun yang logout — akun berikutnya tidak
     // boleh mewarisi/mengirimnya (drain juga membuang revisi sesi asing).
     deleteSecureItem(SecureKeys.offlineSocialQueue),
+    // Indeks antrean chat milik sesi — jangan diwariskan setelah logout.
+    deleteSecureItem(SecureKeys.chatSendQueueRooms),
     // Item mega-batch 126: jejak "terakhir dibuka" tiket dukungan milik akun.
     deleteSecureItem(SecureKeys.supportOpenedAt),
     // Item mega-batch 131: draft tiket milik akun.

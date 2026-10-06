@@ -1,8 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useIsFocused } from "expo-router"
 import { userMessage } from "@/lib/api/errors"
+import { getSessionRevision } from "@/lib/api/session"
+import { isOfflineKnown, useIsOnline } from "@/lib/connectivity"
 import { useGuestPathBlocked } from "@/lib/guest-gate"
-import { fetchViaQueryCache } from "@/lib/query-cache"
+import {
+  CACHE_REVALIDATE_AFTER_MS,
+  fetchViaQueryCache,
+  markQueryRevalidating,
+  readPersistedQueryCacheEntry,
+  readQueryCacheStale,
+  restoreQueryCacheEntry,
+  writeQueryCache,
+} from "@/lib/query-cache"
 import type { Page } from "@/lib/api/response"
 
 export function mergeById<T extends { id?: string }>(
@@ -201,7 +211,8 @@ export function usePaginatedQuery<T extends { id?: string }>(
   const hasNext = useRef(true)
   const busy = useRef(false)
   const [data, setData] = useState<T[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(!isOfflineKnown())
+  const [offlineMiss, setOfflineMiss] = useState(isOfflineKnown())
   const [refreshing, setRefreshing] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -216,6 +227,7 @@ export function usePaginatedQuery<T extends { id?: string }>(
    */
   const guestBlocked = useGuestPathBlocked()
   const active = (opts.enabled ?? true) && !guestBlocked
+  const online = useIsOnline()
 
   const load = useCallback(
     async (reset: boolean, refresh = false, viaCache = false) => {
@@ -231,44 +243,90 @@ export function usePaginatedQuery<T extends { id?: string }>(
         setLoadingMore(false)
         setError(null)
         setLoadMoreError(null)
+        setOfflineMiss(false)
+        return
+      }
+      if (!reset && isOfflineKnown()) {
+        hasNext.current = false
+        setHasMore(false)
+        setLoadingMore(false)
+        setLoadMoreError(null)
         return
       }
       if (!reset && (busy.current || !hasNext.current)) return
       if (reset) activeRequest.current?.abort()
       const controller = new AbortController()
       activeRequest.current = controller
+      const requestSessionRevision = getSessionRevision()
       busy.current = true
       inFlight.current = reset ? "initial" : "more"
       const page = reset ? 1 : nextPage.current
       if (reset) {
-        setRefreshing(refresh)
-        setLoading(!refresh)
+        const offlineNow = isOfflineKnown()
+        setRefreshing(refresh && !offlineNow)
+        setLoading(!refresh && !offlineNow)
         setLoadingMore(false)
         setError(null)
+        if (!offlineNow) setOfflineMiss(false)
       } else setLoadingMore(true)
       setLoadMoreError(null)
+      let shouldRevalidateCache = false
       try {
         /**
-         * NC-006 (audit performa): cache halaman-1 per `key` dengan TTL pendek
-         * (`QUERY_CACHE_TTL_MS` via `fetchViaQueryCache`, sesi-aware).
-         * Navigasi stack bolak-balik ke layar ber-daftar (disputes,
-         * wallet-history, chat, …) tidak lagi mengunduh ulang halaman pertama
-         * bila baru dibuka beberapa detik lalu — kembali ke daftar instan
-         * (0-RTT) dalam jendela TTL.
-         *
-         * Yang MENEMBUS cache (perilaku tak berubah): halaman lanjut
-         * (load-more selalu data baru), pull-to-refresh, dan silent refresh
-         * (`refresh = true`) — kesegaran data uang/status tetap dijamin.
+         * Cache-first first page: check both memory and the persisted native
+         * snapshot before any GET. A disk hit is rendered immediately; when
+         * online and stale it is then refreshed without clearing these rows.
          */
-        const result =
-          reset && !refresh && viaCache
-            ? await fetchViaQueryCache<Page<T>>(
-                `paginated:page1:${key}`,
-                (s) => fetchRef.current(1, s),
-                controller.signal,
-              )
-            : await fetchRef.current(page, controller.signal)
-        if (controller.signal.aborted) return
+        const firstPageKey = `paginated:page1:${key}`
+        let result: Page<T>
+        let cacheHitAt: number | null = null
+        let cacheHitFromDisk = false
+        const shouldReadFirstPageCache = reset && (isOfflineKnown() || (!refresh && viaCache))
+        if (shouldReadFirstPageCache) {
+          let hit = readQueryCacheStale<Page<T>>(firstPageKey)
+          if (hit === null) {
+            hit = await readPersistedQueryCacheEntry<Page<T>>(firstPageKey)
+            cacheHitFromDisk = hit !== null
+          }
+          if (
+            controller.signal.aborted ||
+            requestSessionRevision !== getSessionRevision()
+          ) return
+          if (hit !== null) {
+            result = hit.data
+            cacheHitAt = hit.at
+            if (cacheHitFromDisk) restoreQueryCacheEntry(firstPageKey, hit.data, hit.at)
+          } else if (isOfflineKnown()) {
+            setOfflineMiss(true)
+            setError(null)
+            setLoadMoreError(null)
+            if (rowCount.current === 0) {
+              ids.current.clear()
+              setData([])
+            }
+            hasNext.current = false
+            setHasMore(false)
+            return
+          } else {
+            // NC-006: the legacy in-memory fast path also single-flights page 1.
+            result = !refresh && viaCache
+              ? await fetchViaQueryCache<Page<T>>(
+                  firstPageKey,
+                  (s) => fetchRef.current(1, s),
+                  controller.signal,
+                )
+              : await fetchRef.current(1, controller.signal)
+            if (!(viaCache && !refresh)) writeQueryCache(firstPageKey, result)
+          }
+        } else {
+          result = await fetchRef.current(page, controller.signal)
+          if (reset) writeQueryCache(firstPageKey, result)
+        }
+        if (
+          controller.signal.aborted ||
+          requestSessionRevision !== getSessionRevision()
+        ) return
+        setOfflineMiss(false)
         if (reset) ids.current.clear()
         const getKey = getKeyRef.current ?? ((item: T) => item.id ?? "")
         for (const item of result.data) ids.current.add(getKey(item))
@@ -319,9 +377,11 @@ export function usePaginatedQuery<T extends { id?: string }>(
         // baru masuk di atas) — item lama jadi tak terjangkau padahal
         // `totalPages` mengatakan masih ada halaman. Duplikat sudah diurus
         // mergeById; sumber kebenaran "masih ada halaman" adalah meta server.
-        hasNext.current = result.data.length > 0 && page < result.meta.totalPages
-        // NC-003 (audit performa ronde-3): catat kesegaran halaman-1.
-        if (reset) lastLoadedAt.current = Date.now()
+        hasNext.current =
+          !isOfflineKnown() && result.data.length > 0 && page < result.meta.totalPages
+        // NC-003 (audit performa ronde-3): cache hit mempertahankan timestamp
+        // aslinya agar fokus/reconnect tetap tahu kapan halaman terakhir diverifikasi.
+        if (reset) lastLoadedAt.current = cacheHitAt ?? Date.now()
         // PERF (tim8-komputasi P1): cap tercapai → hentikan paginasi agar
         // tidak fetch halaman sia-sia. `rowCount` = panjang data render
         // terakhir; reset memulai ulang dari halaman 1.
@@ -329,8 +389,32 @@ export function usePaginatedQuery<T extends { id?: string }>(
           hasNext.current = false
         }
         setHasMore(hasNext.current)
+        if (
+          reset &&
+          cacheHitAt !== null &&
+          !isOfflineKnown() &&
+          Date.now() - cacheHitAt >= CACHE_REVALIDATE_AFTER_MS
+        ) {
+          shouldRevalidateCache = markQueryRevalidating(firstPageKey)
+        }
       } catch (error) {
-        if (controller.signal.aborted) return
+        if (
+          controller.signal.aborted ||
+          requestSessionRevision !== getSessionRevision()
+        ) return
+        if (isOfflineKnown()) {
+          if (reset) {
+            // Re-enter the cache-first branch (which now knows the link is
+            // offline) instead of presenting the transport message as an error.
+            void load(true)
+          } else {
+            hasNext.current = false
+            setHasMore(false)
+            setLoadMoreError(null)
+          }
+          return
+        }
+        setOfflineMiss(false)
         if (reset) setError(userMessage(error))
         else setLoadMoreError(userMessage(error))
       } finally {
@@ -344,6 +428,7 @@ export function usePaginatedQuery<T extends { id?: string }>(
           }
         }
       }
+      if (shouldRevalidateCache) void load(true, true)
     },
     [key, active],
   )
@@ -358,6 +443,7 @@ export function usePaginatedQuery<T extends { id?: string }>(
     if (!(keepPrevious && hasRows)) {
       ids.current.clear()
       setData([])
+      setOfflineMiss(isOfflineKnown())
     }
     setHasMore(false)
     nextPage.current = 1
@@ -373,6 +459,20 @@ export function usePaginatedQuery<T extends { id?: string }>(
       busy.current = false
     }
   }, [load])
+
+  const previousOnline = useRef(online)
+  useEffect(() => {
+    const wasOnline = previousOnline.current
+    previousOnline.current = online
+    if (!active || wasOnline === online) return
+    if (!online) {
+      void load(true)
+    } else if (data.length > 0) {
+      void load(true, true)
+    } else {
+      void load(true)
+    }
+  }, [online, active, data.length, load])
 
   // F-01: refresh senyap saat kembali fokus (reset ke halaman 1, baris lama
   // tetap tampil — `refresh`, bukan `reload`). Error muat awal juga dipulihkan.
@@ -429,6 +529,8 @@ export function usePaginatedQuery<T extends { id?: string }>(
       data,
       setData,
       loading,
+      offline: !online,
+      offlineMiss,
       refreshing,
       loadingMore,
       error,
@@ -441,6 +543,8 @@ export function usePaginatedQuery<T extends { id?: string }>(
     [
       data,
       loading,
+      online,
+      offlineMiss,
       refreshing,
       loadingMore,
       error,

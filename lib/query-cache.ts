@@ -15,7 +15,15 @@
  *     mengubah saldo/status: jauh lebih murah membersihkan semua daripada
  *     memelihara daftar kunci yang harus ikut berubah tiap layar baru.
  */
+import { ApiError } from "@/lib/api/errors"
 import { getSessionRevision } from "@/lib/api/session"
+import { isOfflineKnown } from "@/lib/connectivity"
+import {
+  flushPersistedQueryCache,
+  invalidatePersistedQueryCache,
+  persistQueryCacheEntry,
+  readPersistedQueryCacheEntry,
+} from "@/lib/query-cache-persistence"
 
 /** Umur cache per key (ms) — pendek: dedupe navigasi bolak-balik, bukan offline store. */
 export const QUERY_CACHE_TTL_MS = 5_000
@@ -140,7 +148,7 @@ export function readQueryCacheStale<T>(key: string): { data: T; at: number } | n
   return { data: entry.data as T, at: entry.at }
 }
 
-export function writeQueryCache(key: string, data: unknown, now = Date.now()): void {
+function writeMemoryQueryCache(key: string, data: unknown, now: number): void {
   const bytes = estimateBytes(data)
   const prev = queryCache.get(key)
   if (prev) queryCacheBytes -= prev.bytes
@@ -158,6 +166,23 @@ export function writeQueryCache(key: string, data: unknown, now = Date.now()): v
   queryCache.set(key, { revision: getSessionRevision(), at: now, data, revalidating: false, bytes })
   queryCacheBytes += bytes
 }
+
+/** Write through to the bounded native snapshot as well as the fast memory cache. */
+export function writeQueryCache(key: string, data: unknown, now = Date.now()): void {
+  writeMemoryQueryCache(key, data, now)
+  void persistQueryCacheEntry(key, data, now)
+}
+
+/** Restore a disk hit into memory without changing its original freshness timestamp. */
+export function restoreQueryCacheEntry(key: string, data: unknown, at: number): void {
+  writeMemoryQueryCache(key, data, at)
+}
+
+/** Test/maintenance hook for awaiting the best-effort filesystem write queue. */
+export { flushPersistedQueryCache }
+
+/** Read a persisted cache entry for the active session without applying memory TTL. */
+export { readPersistedQueryCacheEntry }
 
 /**
  * Buang cache satu key / semua key.
@@ -203,10 +228,12 @@ export function invalidateQueryCache(key?: string): void {
   if (key === undefined) {
     queryCache.clear()
     queryCacheBytes = 0
+    void invalidatePersistedQueryCache().catch(() => undefined)
   } else {
     const entry = queryCache.get(key)
     if (entry) queryCacheBytes -= entry.bytes
     queryCache.delete(key)
+    void invalidatePersistedQueryCache((cachedKey) => cachedKey === key).catch(() => undefined)
   }
   // Invalidasi penuh = siaran ke semua pendengar (perilaku lama dipertahankan).
   notifyInvalidation(undefined)
@@ -256,10 +283,33 @@ export async function fetchViaQueryCache<T>(
   fetcher: (signal: AbortSignal) => Promise<T>,
   signal?: AbortSignal,
 ): Promise<T> {
+  const sessionRevision = getSessionRevision()
   const cached = readQueryCacheEntry<T>(key)
   if (cached !== null) return cached.data
+
+  const staleMemory = readQueryCacheStale<T>(key)
+  if (isOfflineKnown()) {
+    const persisted = staleMemory ?? (await readPersistedQueryCacheEntry<T>(key))
+    if (sessionRevision !== getSessionRevision()) {
+      throw new ApiError({ code: "ABORTED", message: "Permintaan dibatalkan." })
+    }
+    if (persisted !== null) {
+      restoreQueryCacheEntry(key, persisted.data, persisted.at)
+      return persisted.data
+    }
+  } else if (staleMemory === null) {
+    const persisted = await readPersistedQueryCacheEntry<T>(key)
+    if (sessionRevision !== getSessionRevision()) {
+      throw new ApiError({ code: "ABORTED", message: "Permintaan dibatalkan." })
+    }
+    if (persisted !== null && Date.now() - persisted.at < CACHE_REVALIDATE_AFTER_MS) {
+      restoreQueryCacheEntry(key, persisted.data, persisted.at)
+      return persisted.data
+    }
+  }
+  const inFlightKey = `${sessionRevision}:${key}`
   if (signal === undefined) {
-    const existing = inFlightFetches.get(key)
+    const existing = inFlightFetches.get(inFlightKey)
     if (existing) return existing as Promise<T>
   }
   // PERF-FIX (TIM1): `run` dipakai di `finally` sebelum assignment selesai —
@@ -269,16 +319,19 @@ export async function fetchViaQueryCache<T>(
   holder.run = (async () => {
     try {
       const data = await fetcher(signal ?? new AbortController().signal)
+      if (sessionRevision !== getSessionRevision()) {
+        throw new ApiError({ code: "ABORTED", message: "Permintaan dibatalkan." })
+      }
       writeQueryCache(key, data)
       return data
     } finally {
-      if (signal === undefined && inFlightFetches.get(key) === holder.run) {
-        inFlightFetches.delete(key)
+      if (signal === undefined && inFlightFetches.get(inFlightKey) === holder.run) {
+        inFlightFetches.delete(inFlightKey)
       }
     }
   })()
   const run = holder.run
-  if (signal === undefined) inFlightFetches.set(key, run)
+  if (signal === undefined) inFlightFetches.set(inFlightKey, run)
   return run
 }
 
@@ -296,6 +349,7 @@ export function invalidateQueryPrefix(prefix: string) {
       queryCache.delete(key)
     }
   }
+  void invalidatePersistedQueryCache((key) => key.startsWith(prefix)).catch(() => undefined)
   // PERF-FIX (network P1): beri tahu pendengar SECARA TERARAH — hook yang
   // kuncinya tidak cocok dengan prefix ini diam saja (tidak ada badai refetch
   // lintas layar; lihat filter cakupan di lib/use-api-query.ts).

@@ -512,9 +512,11 @@ export function ChatMessageRowBase({
         !isSystemMessage && message.fromUser
           ? (message.sendStatus === "failed"
               ? "failed"
-              : message.sendStatus === "sending"
-                ? "sending"
-                : readByCounterpart
+              : message.sendStatus === "queued"
+                ? "queued"
+                : message.sendStatus === "sending"
+                  ? "sending"
+                  : readByCounterpart
                   ? "read"
                   : "sent")
           : undefined

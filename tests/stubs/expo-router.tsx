@@ -37,8 +37,19 @@ export function Link({
   return React.createElement("a", { href: target, ...rest }, children)
 }
 
-export function useLocalSearchParams(): Record<string, string | undefined> {
-  return {}
+let localSearchParams: Record<string, string | undefined> = {}
+
+export function __setLocalSearchParams(next: Record<string, string | undefined>): void {
+  localSearchParams = { ...next }
+}
+
+export function useLocalSearchParams<T extends Record<string, string | undefined> = Record<string, string | undefined>>(): T {
+  return localSearchParams as T
+}
+
+export function Redirect({ href }: { href: Href }) {
+  const target = typeof href === "string" ? href : href.pathname
+  return React.createElement("span", { "data-testid": "router-redirect", "data-href": target })
 }
 export function useGlobalSearchParams(): Record<string, string | undefined> {
   return {}
