@@ -23,10 +23,12 @@ let currentState: NetInfoState = {
   isConnected: true,
   isInternetReachable: true,
 }
+const listeners = new Set<(state: NetInfoState) => void>()
 
-/** Test-only: ubah state yang dikembalikan `fetch()` berikutnya. */
+/** Test-only: ubah snapshot NetInfo dan beri tahu subscriber aktif. */
 export function __setNetInfoState(next: Partial<NetInfoState>): void {
   currentState = { ...currentState, ...next }
+  for (const listener of listeners) listener({ ...currentState })
 }
 
 export function fetch(): Promise<NetInfoState> {
@@ -34,9 +36,10 @@ export function fetch(): Promise<NetInfoState> {
 }
 
 export function addEventListener(
-  _listener: (state: NetInfoState) => void,
+  listener: (state: NetInfoState) => void,
 ): () => void {
-  return () => {}
+  listeners.add(listener)
+  return () => listeners.delete(listener)
 }
 
 export default { fetch, addEventListener }
