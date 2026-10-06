@@ -50,13 +50,18 @@
  */
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { ScrollView, View, type FlatList } from "react-native"
-import { AirplaneTilt, ArrowLeft, CalendarCheck, CaretRight, FileText, Funnel, LinkSimple, Package, Plus, Receipt, ShieldWarning, ShoppingBag, Storefront, UsersThree, Wallet } from "phosphor-react-native"
+import { ArrowLeft, CaretRight, FileText, Funnel, LinkSimple, Package, Plus, Receipt, ShieldWarning, ShoppingBag, Storefront, Wallet } from "phosphor-react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useLocalSearchParams, useRouter, type Href } from "expo-router"
 import { api } from "@/lib/api"
 import { ORDER_STATUS_FILTERS } from "@/lib/api/orders"
 import { formatDateTimeWIB, formatNumber, formatRupiah } from "@/lib/format"
 import { translate } from "@/lib/i18n/translate"
+import type {
+  OrderCategory,
+  FulfillmentType,
+  ParticipantMode,
+} from "@/lib/transaction"
 import { toEpochMs } from "@/lib/pending-actions"
 import { ROUTES } from "@/lib/routes"
 import { queryKeys } from "@/lib/query-keys"
@@ -76,6 +81,7 @@ import { ORDER_STATUS_LABELS } from "@/components/ui/order-status-badge"
 import { Button } from "@/components/ui/button"
 import { GuestLoginPrompt } from "@/components/web-guest-gate"
 import { EmptyState } from "@/components/ui/empty-state"
+import { ChipGroup } from "@/components/ui/chip"
 import { FadeIn } from "@/components/ui/fade-in"
 import { Header } from "@/components/ui/header"
 import { Icon, type IconComponent } from "@/components/ui/icon"
@@ -133,82 +139,17 @@ const ROLE_PARAM: Record<RoleTab, "SELLER" | "BUYER"> = {
  * "Kelola transaksi" di segmen Transaksi. Satu sumber kebenaran: komponen
  * <TrxManageHub> di file ini — TIDAK ada layar duplikat.
  */
-type TrxSection = "orders" | "jastip" | "patungan" | "bookings" | "manage"
-
-const TRX_SECTIONS: readonly SegmentItem<Exclude<TrxSection, "manage">>[] = [
-  { value: "orders", label: "Transaksi", icon: Receipt },
-  { value: "jastip", label: "Jastip", icon: AirplaneTilt },
-  { value: "patungan", label: "Patungan", icon: UsersThree },
-  { value: "bookings", label: "Booking", icon: CalendarCheck },
-]
+/**
+ * Unified v2 (2026-10-06): section hanya "orders" (daftar) dan "manage"
+ * (hub Kelola). Segmen jastip/patungan/bookings DIHAPUS — diganti filter
+ * 3-dimensi (kategori/sistem/peserta) pada daftar order.
+ */
+type TrxSection = "orders" | "manage"
 
 function parseTrxSection(raw: unknown): TrxSection {
-  return raw === "jastip" || raw === "patungan" || raw === "bookings" || raw === "manage" ? raw : "orders"
+  return raw === "manage" ? "manage" : "orders"
 }
 
-const TRX_SERVICE_HUBS: Record<
-  Exclude<TrxSection, "orders" | "manage">,
-  {
-    icon: IconComponent
-    title: string
-    description: string
-    actionLabel: string
-    route: Href
-    secondaryLabel?: string
-    secondaryRoute?: Href
-  }
-> = {
-  jastip: {
-    icon: AirplaneTilt,
-    title: "Jastip",
-    description: "Trip jastip yang Anda selenggarakan — atur katalog, pantau peserta, dan kunci harga.",
-    actionLabel: "Buka Jastip saya",
-    route: ROUTES.jastip,
-    secondaryLabel: "Cara kerja Jastip",
-    secondaryRoute: ROUTES.jastipHowItWorks,
-  },
-  patungan: {
-    icon: UsersThree,
-    title: "Patungan",
-    description: "Kumpulkan iuran bersama — buat grup baru atau kelola yang sudah berjalan.",
-    actionLabel: "Buka Patungan",
-    route: ROUTES.patungan,
-    secondaryLabel: "Cara kerja Patungan",
-    secondaryRoute: ROUTES.patunganHowItWorks,
-  },
-  bookings: {
-    icon: CalendarCheck,
-    title: "Booking",
-    description: "Jadwal booking jasa Anda — lihat detail dan batalkan bila berubah rencana.",
-    actionLabel: "Buka Booking saya",
-    route: ROUTES.serviceBookings,
-  },
-}
-
-/** Hub ringkas satu layanan: penjelasan + tombol ke layar penuhnya. */
-function TrxServiceHub({ section }: { section: Exclude<TrxSection, "orders" | "manage"> }) {
-  const router = useRouter()
-  const hub = TRX_SERVICE_HUBS[section]
-  return (
-    <View className="gap-4">
-      <View className="gap-3 rounded-2xl border border-border bg-surface p-5">
-        <Icon icon={hub.icon} size="lg" tone="active" weight="bold" />
-        <Text variant="h3" weight={700}>
-          {translate(hub.title)}
-        </Text>
-        <Text variant="body" tone="secondary">
-          {translate(hub.description)}
-        </Text>
-      </View>
-      <Button onPress={() => router.push(hub.route)}>{translate(hub.actionLabel)}</Button>
-      {hub.secondaryLabel && hub.secondaryRoute ? (
-        <Button variant="ghost" onPress={() => router.push(hub.secondaryRoute!)}>
-          {translate(hub.secondaryLabel)}
-        </Button>
-      ) : null}
-    </View>
-  )
-}
 
 /**
  * Sidebar 2026-10-05: hub "Kelola Transaksi" — SATU-SATUNYA rumah untuk
@@ -403,6 +344,75 @@ const TransactionOrderCard = memo(function TransactionOrderCard({
   )
 })
 
+/**
+ * Unified v2 (2026-10-06): opsi filter 3-dimensi untuk daftar order.
+ */
+const CATEGORY_FILTER_OPTIONS = [
+  { value: "FISIK", label: "Fisik" },
+  { value: "DIGITAL", label: "Digital" },
+  { value: "JASA", label: "Jasa" },
+] as const
+
+const FULFILLMENT_FILTER_OPTIONS = [
+  { value: "BIASA", label: "Langsung" },
+  { value: "PREORDER", label: "Preorder" },
+] as const
+
+const PARTICIPANT_FILTER_OPTIONS = [
+  { value: "SINGLE", label: "Sendiri" },
+  { value: "GROUP", label: "Patungan" },
+] as const
+
+/**
+ * Baris filter 3-dimensi: Kategori | Sistem | Peserta.
+ * Tiap dimensi single-select dengan deselect (tap ulang = "Semua").
+ */
+function TrxDimensionFilters({
+  category,
+  onCategoryChange,
+  fulfillment,
+  onFulfillmentChange,
+  participant,
+  onParticipantChange,
+}: {
+  category: OrderCategory | null
+  onCategoryChange: (v: OrderCategory | null) => void
+  fulfillment: FulfillmentType | null
+  onFulfillmentChange: (v: FulfillmentType | null) => void
+  participant: ParticipantMode | null
+  onParticipantChange: (v: ParticipantMode | null) => void
+}) {
+  return (
+    <View className="gap-2 px-5 pb-2">
+      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+        <View className="flex-row gap-2">
+          <ChipGroup
+            single
+            options={CATEGORY_FILTER_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+            value={category ? [category] : []}
+            onChange={(next) => onCategoryChange((next[0] as OrderCategory) ?? null)}
+            accessibilityLabel="Filter kategori"
+          />
+          <ChipGroup
+            single
+            options={FULFILLMENT_FILTER_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+            value={fulfillment ? [fulfillment] : []}
+            onChange={(next) => onFulfillmentChange((next[0] as FulfillmentType) ?? null)}
+            accessibilityLabel="Filter sistem"
+          />
+          <ChipGroup
+            single
+            options={PARTICIPANT_FILTER_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+            value={participant ? [participant] : []}
+            onChange={(next) => onParticipantChange((next[0] as ParticipantMode) ?? null)}
+            accessibilityLabel="Filter peserta"
+          />
+        </View>
+      </ScrollView>
+    </View>
+  )
+}
+
 export default function TransactionsScreen() {
   // FE-064: elemen header kiri yang stabil — <DrawerMenuButton> tanpa prop,
   // aman dipakai ulang antar render agar memo <Header> bisa bail-out.
@@ -424,10 +434,39 @@ export default function TransactionsScreen() {
   const role: RoleTab = transactionsTab
   const [status, setStatus] = useState(ALL_STATUS)
   const [sheetOpen, setSheetOpen] = useState(false)
-  // Poin 1: segmen bagian tab — `?section=jastip|patungan|bookings` dari
-  // deep-link (mis. tap notifikasi) membuka segmen layanan langsung;
-  // bukaan biasa default ke daftar order.
-  const { section: sectionParam } = useLocalSearchParams<{ section?: string }>()
+  /**
+   * Unified v2 (2026-10-06): filter 3-dimensi pada daftar order.
+   * null = "Semua" (tidak dikirim ke API).
+   */
+  const [filterCategory, setFilterCategory] = useState<OrderCategory | null>(null)
+  const [filterFulfillment, setFilterFulfillment] = useState<FulfillmentType | null>(null)
+  const [filterParticipant, setFilterParticipant] = useState<ParticipantMode | null>(null)
+  // Unified v2: deep-link memakai filter (?category=JASA dst, via
+  // ROUTES.transactionsFiltered); ?section=manage masih didukung untuk hub
+  // Kelola. Param filter lama (?section=jastip|patungan|bookings) diabaikan.
+  const {
+    section: sectionParam,
+    category: categoryParam,
+    fulfillment: fulfillmentParam,
+    participantMode: participantModeParam,
+  } = useLocalSearchParams<{
+    section?: string
+    category?: string
+    fulfillment?: string
+    participantMode?: string
+  }>()
+  // Terapkan filter dari deep-link sekali saat param berubah.
+  useEffect(() => {
+    if (categoryParam === "FISIK" || categoryParam === "DIGITAL" || categoryParam === "JASA") {
+      setFilterCategory(categoryParam)
+    }
+    if (fulfillmentParam === "BIASA" || fulfillmentParam === "PREORDER") {
+      setFilterFulfillment(fulfillmentParam)
+    }
+    if (participantModeParam === "SINGLE" || participantModeParam === "GROUP") {
+      setFilterParticipant(participantModeParam)
+    }
+  }, [categoryParam, fulfillmentParam, participantModeParam])
   const [section, setSection] = useState<TrxSection>(() => parseTrxSection(sectionParam))
   useEffect(() => {
     setSection(parseTrxSection(sectionParam))
@@ -465,7 +504,7 @@ export default function TransactionsScreen() {
   )
   const walletBalance = walletQuery.data?.balance
   const query = usePaginatedQuery(
-    `orders:${role}:${status}`,
+    `orders:${role}:${status}:${filterCategory ?? "-"}:${filterFulfillment ?? "-"}:${filterParticipant ?? "-"}`,
     (page, signal) =>
       api.orders.listOrders(
         {
@@ -473,6 +512,10 @@ export default function TransactionsScreen() {
           limit: 20,
           role: ROLE_PARAM[role],
           status: status === ALL_STATUS ? undefined : status,
+          // Unified v2: filter 3-dimensi (null = tidak dikirim).
+          category: filterCategory ?? undefined,
+          fulfillment: filterFulfillment ?? undefined,
+          participantMode: filterParticipant ?? undefined,
         },
         signal,
       ),
@@ -491,7 +534,11 @@ export default function TransactionsScreen() {
       keepPreviousOnKeyChange: true,
     },
   )
-  const filtered = status !== ALL_STATUS
+  const filtered =
+    status !== ALL_STATUS ||
+    filterCategory !== null ||
+    filterFulfillment !== null ||
+    filterParticipant !== null
 
   // FE-064: prop `right` header di-memo agar memo <Header> bisa bail-out.
   // Deps: walletBalance (label chip) + filtered (state tombol funnel) +
@@ -501,7 +548,12 @@ export default function TransactionsScreen() {
   // PERF-FIX (TIM1-P2): handler tombol stabil via useCallback.
   const handleWalletPress = useCallback(() => router.push(ROUTES.wallet), [router])
   const handleFilterSheetOpen = useCallback(() => setSheetOpen(true), [])
-  const handleClearStatusFilter = useCallback(() => setStatus(ALL_STATUS), [])
+  const handleClearStatusFilter = useCallback(() => {
+    setStatus(ALL_STATUS)
+    setFilterCategory(null)
+    setFilterFulfillment(null)
+    setFilterParticipant(null)
+  }, [])
   const handleCreateTransactionPress = useCallback(() => router.push(ROUTES.createTransaction), [router])
   const handleShowcasePress = useCallback(() => router.push(ROUTES.showcase), [router])
   const headerRight = useMemo(    () => (
@@ -694,21 +746,10 @@ export default function TransactionsScreen() {
         right={headerRight}
       />
       <ModeShiftFade>
-      {/* Poin 1: segmen bagian — Transaksi | Jastip | Patungan | Booking.
-          Tiga layanan pindahan sheet "Toko Saya"; semua urusan transaksi
-          satu tempat (keputusan produk). Sidebar 2026-10-05: section
-          "manage" menyembunyikan segmen (nilainya tak ada di daftar) dan
-          merender hub Kelola penuh dengan tombol kembali sendiri. */}
-      {section === "manage" ? null : (
-        <FadeIn duration="fast" translate={false} className="z-sticky bg-background px-5 pt-3">
-          <SegmentedControl
-            accessibilityLabel={translate("Bagian transaksi")}
-            items={TRX_SECTIONS}
-            value={section}
-            onChange={setSection}
-          />
-        </FadeIn>
-      )}
+      {/* Unified v2 (2026-10-06): segmen Jastip/Patungan/Booking DIHAPUS.
+          Semua transaksi dalam satu daftar dengan filter 3-dimensi
+          (kategori/sistem/peserta). Section "manage" merender hub Kelola
+          penuh dengan tombol kembali sendiri. */}
       {section === "orders" ? (
         <>
       {/* v2: kontrol filter fade-in cepat TANPA geser — kontrol fungsional
@@ -725,6 +766,15 @@ export default function TransactionsScreen() {
           onChange={(next) => setPrefs({ transactionsTab: next })}
         />
       </FadeIn>
+      {/* Unified v2: filter 3-dimensi (kategori/sistem/peserta). */}
+      <TrxDimensionFilters
+        category={filterCategory}
+        onCategoryChange={setFilterCategory}
+        fulfillment={filterFulfillment}
+        onFulfillmentChange={setFilterFulfillment}
+        participant={filterParticipant}
+        onParticipantChange={setFilterParticipant}
+      />
       {/* v2 (2026-09-27): blok saringan chip DIHAPUS atas permintaan produk —
           filter cukup ikon funnel di header yang membuka sheet pilihan status.
           Logika `status`/`filtered`/query tidak berubah. */}
@@ -750,21 +800,13 @@ export default function TransactionsScreen() {
         renderItem={renderGroup}
       />
         </>
-      ) : section === "manage" ? (
-        <ScrollView
-          className="flex-1"
-          contentContainerClassName="px-5 pt-4"
-          contentContainerStyle={{ paddingBottom: insets.bottom + TAB_BAR_HEIGHT + tokens.space[4] }}
-        >
-          <TrxManageHub onBack={handleBackToOrders} />
-        </ScrollView>
       ) : (
         <ScrollView
           className="flex-1"
           contentContainerClassName="px-5 pt-4"
           contentContainerStyle={{ paddingBottom: insets.bottom + TAB_BAR_HEIGHT + tokens.space[4] }}
         >
-          <TrxServiceHub section={section} />
+          <TrxManageHub onBack={handleBackToOrders} />
         </ScrollView>
       )}
       </ModeShiftFade>
