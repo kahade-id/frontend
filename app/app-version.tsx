@@ -3,29 +3,21 @@ import { Platform, ScrollView } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import Constants from "expo-constants"
 import * as Updates from "expo-updates"
-import { api } from "@/lib/api"
 import { installedAppVersion, installedBuildNumber } from "@/lib/runtime-info"
 import { formatDateTime } from "@/lib/format"
 import { getSecureItem, setSecureItem, SecureKeys } from "@/lib/secure-storage"
+import { isOfflineKnown } from "@/lib/connectivity"
 import { tokens } from "@/lib/tokens"
-import { useApiQuery } from "@/lib/use-api-query"
 import { AppVersionInfoRow } from "@/components/ui/app-version-info-row"
 import { Button } from "@/components/ui/button"
-import { ErrorState } from "@/components/ui/error-state"
 import { Header } from "@/components/ui/header"
 import { Screen } from "@/components/ui/screen"
-import { SectionHeader } from "@/components/ui/section"
 import { Text } from "@/components/ui/text"
 import { useToast } from "@/components/ui/toast"
 
 export default function AppVersionScreen() {
   const toast = useToast()
   const insets = useSafeAreaInsets()
-  const version = useApiQuery(
-    "server-app-version",
-    (signal) => api.public.getAppVersion(signal),
-    Platform.OS !== "web",
-  )
   const [checking, setChecking] = useState(false)
   const [available, setAvailable] = useState(false)
   const busy = useRef(false)
@@ -51,6 +43,14 @@ export default function AppVersionScreen() {
   }, [])
   const update = useCallback(async () => {
     if (!canUpdate || busy.current) return
+    if (isOfflineKnown()) {
+      toast.show({
+        title: "Anda sedang offline",
+        description: "Pembaruan dapat diperiksa setelah perangkat tersambung ke internet.",
+        tone: "info",
+      })
+      return
+    }
     busy.current = true
     setChecking(true)
     try {
@@ -73,12 +73,15 @@ export default function AppVersionScreen() {
         })
       }
     } catch {
-      // Klasifikasi toast: KEEP manual — cek-pembaruan read-only (bukan
-      // mutasi, tanpa err tak-pasti yang perlu direkonsiliasi).
+      // Cek OTA hanya aksi eksplisit. Putus koneksi ditampilkan sebagai
+      // keadaan offline, bukan error layar.
+      const offline = isOfflineKnown()
       toast.show({
-        title: "Pembaruan belum dapat diproses",
-        description: "Periksa koneksi, lalu coba lagi.",
-        tone: "danger",
+        title: offline ? "Anda sedang offline" : "Pembaruan belum dapat diproses",
+        description: offline
+          ? "Pembaruan dapat diperiksa setelah perangkat tersambung ke internet."
+          : "Silakan coba lagi nanti.",
+        tone: "info",
       })
     } finally {
       busy.current = false
@@ -106,24 +109,6 @@ export default function AppVersionScreen() {
         <Text variant="caption" tone="secondary">
           Runtime: {Updates.runtimeVersion?.trim() || "Tidak tersedia pada lingkungan ini"}
         </Text>
-        {version.error ? (
-          <ErrorState
-            compact
-            title="Versi server belum dapat diperiksa"
-            description={version.error}
-            onRetry={() => void version.reload()}
-          />
-        ) : version.loading ? (
-          <Text variant="caption" tone="secondary">Memeriksa versi server…</Text>
-        ) : version.data ? (
-          <>
-            <SectionHeader title="Versi di toko aplikasi" />
-            <Text variant="body">
-              Minimum: {version.data.minVersion ?? "Belum tersedia"} · terbaru:{" "}
-              {version.data.latestVersion ?? "Belum tersedia"}
-            </Text>
-          </>
-        ) : null}
         {canUpdate ? (
           <Button variant="secondary" loading={checking} onPress={() => void update()}>
             {available ? "Unduh & terapkan OTA" : "Periksa pembaruan OTA"}

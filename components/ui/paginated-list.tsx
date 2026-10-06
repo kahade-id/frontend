@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useRef, type ReactElement, type ReactNode, type Ref } from "react"
 import { View, type FlatList, type ListRenderItem, type StyleProp, type ViewStyle } from "react-native"
 import { ErrorState } from "@/components/ui/error-state"
+import { OfflineEmptyState } from "@/components/ui/offline-empty-state"
 import { LoadMore } from "@/components/ui/load-more"
 import {
   PullToRefreshFlatList,
@@ -13,6 +14,7 @@ export type PaginatedListProps<T extends { id?: string }> = {
   data: T[]
   renderItem: ListRenderItem<T>
   loading: boolean
+  offlineMiss?: boolean
   error?: string | null
   loadMoreError?: string | null
   refreshing: boolean
@@ -100,6 +102,7 @@ export function PaginatedList<T extends { id?: string }>({
   data,
   renderItem,
   loading,
+  offlineMiss = false,
   error,
   loadMoreError,
   refreshing,
@@ -215,10 +218,12 @@ export function PaginatedList<T extends { id?: string }>({
         (loadingPlaceholder ?? <ListLoading />)
       ) : error ? (
         <ErrorState description={error} onRetry={handleRetry} />
+      ) : offlineMiss ? (
+        <OfflineEmptyState />
       ) : (
         empty
       ),
-    [loading, loadingPlaceholder, error, empty, handleRetry],
+    [loading, loadingPlaceholder, error, offlineMiss, empty, handleRetry],
   )
 
   const footerElement = useMemo(

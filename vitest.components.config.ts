@@ -36,6 +36,7 @@ export default defineConfig({
       "expo-constants": stub("expo-constants"),
       "expo-device": stub("expo-device"),
       "expo-application": stub("expo-application"),
+      "expo-updates": stub("expo-updates"),
       "expo-secure-store": stub("expo-secure-store"),
       "expo-localization": stub("expo-localization"),
       "@react-navigation/native": stub("react-navigation"),

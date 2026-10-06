@@ -30,7 +30,12 @@ import { ROUTES } from "@/lib/routes"
 import { helpArticleUrl } from "@/lib/deeplinks"
 import { shareContent } from "@/lib/share"
 import { tokens, modes } from "@/lib/tokens"
-import { useApiQuery } from "@/lib/use-api-query"
+import { isOfflineKnown } from "@/lib/connectivity"
+import {
+  findBundledHelpArticle,
+  getBundledHelpCategory,
+  searchBundledHelpArticles,
+} from "@/lib/help-content"
 import { logWarn } from "@/lib/telemetry"
 import { getHelpFeedback, saveHelpFeedback, type HelpFeedbackChoice } from "@/lib/help-feedback"
 import { recordHelpArticleView } from "@/lib/help-history"
@@ -38,14 +43,11 @@ import { parseArticleHeadings } from "@/lib/help-toc"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { EmptyState } from "@/components/ui/empty-state"
-import { ErrorState } from "@/components/ui/error-state"
 import { Header } from "@/components/ui/header"
 import { HelpArticleContent } from "@/components/ui/help-article-content"
 import { HelpArticleListItem } from "@/components/ui/help-article-list-item"
 import { Icon } from "@/components/ui/icon"
 import { IconButton } from "@/components/ui/icon-button"
-import { Crossfade } from "@/components/ui/fade-in"
-import { DetailLoading } from "@/components/ui/paginated-list"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Screen } from "@/components/ui/screen"
 import { Text } from "@/components/ui/text"
@@ -82,8 +84,10 @@ function FeedbackBlock({ articleId, content }: { articleId: string; content: str
         if (res.status === "already_locked") return
         setChoice(next)
         setCorrected(res.status === "corrected")
-        // Kirim ke server best-effort (tidak mengganggu baca artikel).
-        api.helpCenter.submitHelpArticleFeedback(articleId, helpful).catch(() => {})
+        // Pilihan tersimpan lokal. Kirim ke server hanya saat online; feedback
+        // tidak pernah masuk antrean aksi offline.
+        if (!isOfflineKnown())
+          api.helpCenter.submitHelpArticleFeedback(articleId, helpful).catch(() => {})
       })()
     },
     [articleId, content],
@@ -99,9 +103,7 @@ function FeedbackBlock({ articleId, content }: { articleId: string; content: str
       {voted ? (
         <View className="items-center gap-2">
           <Text variant="body" tone="primary" weight={500} className="text-center">
-            {choice === "helpful"
-              ? "Terima kasih, catatan Anda sudah dicatat."
-              : "Terima kasih atas umpan baliknya."}
+            Terima kasih, pilihan Anda tersimpan di perangkat ini.
           </Text>
           {/* F17: koreksi tunggal bila belum dipakai.
               FE-102: pilihan final = tombol dinonaktifkan secara visual,
@@ -216,33 +218,36 @@ export default function HelpScreen() {
     /** F03: indeks heading untuk lompat otomatis (deep link anchor). */
     anchor?: string
   }>()
-  const query = useApiQuery(
-    `help:${slug}:${article ?? ""}:${q ?? ""}`,
-    async (signal) => {
-      if (article && q) {
-        const articles = await api.helpCenter.searchHelpArticles(q, signal)
-        return { name: "Artikel bantuan", articles }
-      }
-      return api.helpCenter.getHelpCategory(slug, signal)
-    },
-    Boolean(slug),
-  )
+  const category = getBundledHelpCategory(slug)
+  const searchResults = useMemo(() => searchBundledHelpArticles(q ?? ""), [q])
+  const articles = article && q ? searchResults : category?.articles ?? []
   const selected = article
-    ? query.data?.articles?.find((item) => item.id === article || item.slug === article)
+    ? findBundledHelpArticle(article, q ? undefined : slug) ??
+      articles.find((item) => item.id === article || item.slug === article) ??
+      undefined
     : undefined
-  useEffect(() => {
-    if (selected?.id) void api.helpCenter.trackHelpArticleView(selected.id).catch((err) => logWarn("help:track-view", err))
-  }, [selected?.id])
-  // F04: catat ke riwayat lokal per akun (aksi bersihkan ada di Pusat Bantuan).
+  const selectedCategory = selected?.category
+    ? getBundledHelpCategory(selected.category)
+    : category
+
+  // F04: catat artikel ke riwayat lokal per akun; konten tetap tersedia dari bundle.
   useEffect(() => {
     if (!selected) return
     void recordHelpArticleView({
       articleId: selected.id || selected.slug,
       slug,
       title: selected.title || "Artikel bantuan",
-      categoryName: query.data?.name,
+      categoryName: selectedCategory?.name,
     }).catch((err) => logWarn("help:record-history", err))
-  }, [selected, slug, query.data?.name])
+  }, [selected, slug, selectedCategory?.name])
+
+  // View-count hanya telemetri opsional; tidak pernah diminta ketika offline.
+  useEffect(() => {
+    if (!selected?.id || isOfflineKnown()) return
+    void api.helpCenter.trackHelpArticleView(selected.id).catch((err) =>
+      logWarn("help:track-view", err),
+    )
+  }, [selected?.id])
 
   const content = selected?.content || ""
   // F03: daftar isi dari heading yang ada.
@@ -302,7 +307,7 @@ export default function HelpScreen() {
 
   // Item 120: artikel terkait = artikel lain di kategori yang sama (maks 3).
   const related = selected
-    ? (query.data?.articles ?? []).filter((item) => item.id !== selected.id).slice(0, 3)
+    ? articles.filter((item) => item.id !== selected.id).slice(0, 3)
     : []
   // Item 122: bagikan via tautan kanonis web (membuka deep link / web app).
   const shareArticle = useCallback(() => {
@@ -318,9 +323,7 @@ export default function HelpScreen() {
       {/* Header di LUAR area scroll: artikel bantuan bisa sangat panjang —
           pengguna harus bisa kembali tanpa menggulir ke atas dulu. */}
       <Header
-        title={
-          article ? (selected?.title ?? "Artikel") : (query.data?.name ?? "Kategori Bantuan")
-        }
+        title={article ? (selected?.title ?? "Artikel") : (category?.name ?? "Kategori Bantuan")}
         right={
           selected ? (
             <IconButton
@@ -348,16 +351,13 @@ export default function HelpScreen() {
           contentContainerClassName="gap-4 px-5 py-4"
           contentContainerStyle={{ paddingBottom: insets.bottom + tokens.space[8] }}
         >
-          <Crossfade loading={query.loading} skeleton={<DetailLoading />}>
-            {query.error ? (
-            <ErrorState description={query.error} onRetry={() => void query.reload()} />
-          ) : article ? (
+          {article ? (
             selected ? (
               <View className="gap-4">
                 {/* F01: breadcrumb — kembali ke kategori/pencarian tanpa reset. */}
                 <Breadcrumb
                   slug={slug}
-                  categoryName={query.data?.name ?? "Kategori Bantuan"}
+                  categoryName={selectedCategory?.name ?? "Kategori Bantuan"}
                   articleTitle={selected.title}
                   searchQuery={q || undefined}
                 />
@@ -407,7 +407,7 @@ export default function HelpScreen() {
                   }}
                 >
                   <HelpArticleContent
-                    content={content || "Isi artikel belum tersedia dari server."}
+                    content={content || "Isi panduan belum tersedia di perangkat ini."}
                     onHeadingLayout={(index, y) => {
                       headingY.current.set(index, contentTopY.current + y)
                     }}
@@ -437,23 +437,22 @@ export default function HelpScreen() {
                 description={translate("Artikel mungkin belum dipublikasikan atau telah dipindahkan.")}
               />
             )
+          ) : articles.length === 0 ? (
+            <EmptyState
+              icon={Article}
+              title="Kategori bantuan belum tersedia"
+              description="Panduan utama tetap tersedia di Pusat Bantuan pada perangkat ini."
+            />
           ) : (
-            <>
-              {!query.data?.articles?.length ? (
-                <EmptyState icon={Article} title={translate("Belum ada artikel")} />
-              ) : (
-                query.data.articles.map((item) => (
-                  <HelpArticleListItem
-                    padded={false}
-                    key={item.id}
-                    title={item.title}
-                    href={ROUTES.helpArticle(item.slug ?? item.id, slug)}
-                  />
-                ))
-              )}
-              </>
-            )}
-          </Crossfade>
+            articles.map((item) => (
+              <HelpArticleListItem
+                padded={false}
+                key={item.id}
+                title={item.title}
+                href={ROUTES.helpArticle(item.slug || item.id, slug)}
+              />
+            ))
+          )}
         </Animated.ScrollView>
         {/* F02: kembali ke atas — hanya menggulir, tidak menutup isi. */}
         {article && showTop ? (

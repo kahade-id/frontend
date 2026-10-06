@@ -101,7 +101,7 @@ export type ChatMessageDirection = "incoming" | "outgoing" | "system"
  * yang menyesatkan. Selama backend belum menyediakan delivered receipt,
  * "sent" (centang satu) = diterima server, "read" (centang ganda) = dibaca.
  */
-export type ChatMessageStatus = "sending" | "sent" | "read" | "failed"
+export type ChatMessageStatus = "queued" | "sending" | "sent" | "read" | "failed"
 
 export type ChatMessageBubbleProps = Omit<ViewProps, "children"> & {
   direction: ChatMessageDirection
@@ -249,7 +249,7 @@ export type ChatMessageBubbleProps = Omit<ViewProps, "children"> & {
   className?: string
 }
 
-const DEFAULT_LABELS = { retry: "Coba lagi", failed: "Gagal terkirim", edited: "diedit" }
+const DEFAULT_LABELS = { retry: "Coba lagi", failed: "Belum terkirim", edited: "diedit" }
 
 /**
  * Pengganti foto pada pesan masuk yang tergabung (`grouped`) — lebarnya PERSIS
@@ -292,7 +292,11 @@ function ChatMessageBubbleBase({
   className,
   ...rest
 }: ChatMessageBubbleProps) {
-  const t = { ...DEFAULT_LABELS, ...labels }
+  const t = {
+    ...DEFAULT_LABELS,
+    ...labels,
+    failed: labels?.failed ?? translate("Belum terkirim"),
+  }
   /** Geometri simetri — `align` satu-satunya yang di-mirror per arah. */
   const geometry = chatBubbleGeometry(direction)
   const hasReactions = !!reactions && reactions.length > 0
@@ -445,7 +449,7 @@ function ChatMessageBubbleBase({
         // pr-16 + pb-5 hanya saat ada meta, agar teks pendek tidak tertutup
         // jam + centang (ala WhatsApp) tanpa makan space berlebih.
         "relative gap-2 rounded-md pl-3 pt-2",
-        hasMeta ? "pr-16 pb-5" : "pr-3 pb-2",
+        hasMeta ? (status === "queued" ? "pr-28 pb-5" : "pr-16 pb-5") : "pr-3 pb-2",
         outgoing ? "bg-primary" : "bg-surface",
       )}
     >
@@ -816,6 +820,15 @@ function StatusGlyph({
 }) {
   const tone = outgoing ? "inverse" : "default"
   switch (status) {
+    case "queued":
+      return (
+        <View className="flex-row items-center gap-1">
+          <Icon icon={Clock} size="xs" tone={tone} />
+          <Text variant="caption" tone={outgoing ? "inverse" : "secondary"}>
+            {translate("Menunggu koneksi")}
+          </Text>
+        </View>
+      )
     case "sending":
       return <Icon icon={Clock} size="xs" tone={tone} />
     case "sent":

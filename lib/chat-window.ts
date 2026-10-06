@@ -40,7 +40,7 @@ export type ChatWindowTrim = {
 
 /** Pesan lokal yang belum terkonfirmasi server — tidak boleh dibuang trim. */
 function isPending(m: ChatMessage): boolean {
-  return m.sendStatus === "sending" || m.sendStatus === "failed"
+  return m.sendStatus === "queued" || m.sendStatus === "sending" || m.sendStatus === "failed"
 }
 
 function dropFrom(

@@ -200,5 +200,15 @@
   "{x} nomor {y}": "{x} number {y}",
   "{x} {y} dari {z}": "{x} {y} of {z}",
   "{x} {y} rupiah": "{x} {y} rupiah",
-  "{x}: {y}": "{x}: {y}"
+  "{x}: {y}": "{x}: {y}",
+  "Akan dikirim otomatis saat tersambung.": "It will send automatically once you're reconnected.",
+  "Antrean aktif selama aplikasi terbuka hingga koneksi pulih.": "The queue will stay active while the app is open and send once the connection returns.",
+  "Menunggu koneksi": "Waiting for connection",
+  "Pesan belum masuk antrean": "Message was not queued",
+  "Pesan menunggu koneksi": "Message queued until connection returns",
+  "Pesan tertunda": "Pending messages",
+  "Pesan terkirim setelah koneksi pulih.": "Messages sent after the connection returned.",
+  "Sambungkan internet lalu kirim kembali.": "Connect to the internet, then send it again.",
+  "Sebagian pesan belum terkirim. Buka percakapan untuk mencoba lagi.": "Some messages still need attention. Open the chat to try again.",
+  "Belum terkirim": "Not sent yet"
 }

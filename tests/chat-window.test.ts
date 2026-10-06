@@ -87,6 +87,16 @@ describe("FE-019 trimOldestSide", () => {
     expect(out.next[out.next.length - 1].id).toBe(`m-${CHAT_WINDOW_MAX_MESSAGES + 24}`)
   })
 
+  it("melewati pesan queued di ujung terlama", () => {
+    const input = thread(CHAT_WINDOW_MAX_MESSAGES + 2, (i) =>
+      i < 2 ? { sendStatus: "queued" as const } : {},
+    )
+    const out = trimOldestSide(input)
+    expect(out.next).toHaveLength(CHAT_WINDOW_MAX_MESSAGES)
+    expect(out.next[0].sendStatus).toBe("queued")
+    expect(out.next[1].sendStatus).toBe("queued")
+  })
+
   it("melewati pesan pending di ujung terlama", () => {
     const input = thread(CHAT_WINDOW_MAX_MESSAGES + 2, (i) =>
       i < 2 ? { sendStatus: "failed" as const } : {},
