@@ -32,5 +32,14 @@ describe("ChatMessage CN-003/CN-015 contract", () => {
       sendStatus: "sending",
     }
     expect(sending.sendStatus).toBe("sending")
+
+    const queued: ChatMessage = {
+      id: "m4",
+      messageType: "TEXT",
+      fromUser: true,
+      createdAt: new Date().toISOString(),
+      sendStatus: "queued",
+    }
+    expect(queued.sendStatus).toBe("queued")
   })
 })

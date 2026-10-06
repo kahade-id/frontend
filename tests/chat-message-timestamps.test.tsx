@@ -59,6 +59,56 @@ describe("<ChatMessageRow>: timestamp setiap bubble", () => {
     expect(screen.getAllByText(formatTime(first.createdAt))).toHaveLength(2)
   })
 
+  it("menampilkan status antrean chat secara langsung pada bubble", () => {
+    const message: ChatMessage = {
+      id: "queued-message",
+      messageType: "TEXT",
+      fromUser: true,
+      text: "Saya menunggu koneksi.",
+      createdAt: new Date(2026, 9, 3, 14, 32, 5).toISOString(),
+      sendStatus: "queued",
+    }
+    renderInTheme(
+      <ChatMessageRow
+        message={message}
+        selecting={false}
+        selected={false}
+        readByCounterpart={false}
+        onPress={() => undefined}
+        onLongPress={() => undefined}
+        onAttachmentPress={() => undefined}
+      />,
+    )
+
+    expect(screen.getByText("Menunggu koneksi")).toBeTruthy()
+  })
+
+  it("menggunakan label netral pada pesan yang menunggu retry", () => {
+    const message: ChatMessage = {
+      id: "not-sent-message",
+      messageType: "TEXT",
+      fromUser: true,
+      text: "Pesan tetap tersimpan.",
+      createdAt: new Date(2026, 9, 3, 14, 32, 5).toISOString(),
+      sendStatus: "failed",
+    }
+    renderInTheme(
+      <ChatMessageRow
+        message={message}
+        selecting={false}
+        selected={false}
+        readByCounterpart={false}
+        onPress={() => undefined}
+        onLongPress={() => undefined}
+        onAttachmentPress={() => undefined}
+        onRetry={() => undefined}
+      />,
+    )
+
+    expect(screen.getByText("Belum terkirim")).toBeTruthy()
+    expect(screen.queryByText("Gagal terkirim")).toBeNull()
+  })
+
   it("menambahkan label mikro Dibaca pada pesan keluar yang sudah dibaca", () => {
     const message: ChatMessage = {
       id: "read-message",

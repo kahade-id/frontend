@@ -17,6 +17,7 @@ vi.mock("@react-native-community/netinfo", () => ({
 }))
 
 import { isQueueableSocialAction } from "@/lib/offline-queue"
+import { OfflineError } from "@/lib/api/errors"
 
 describe("lib/offline-queue allowlist", () => {
   beforeEach(() => {
@@ -49,6 +50,19 @@ describe("lib/offline-queue allowlist", () => {
     for (const path of moneyPaths) {
       expect(isQueueableSocialAction("POST", path), path).toBe(false)
     }
+  })
+
+  it("chat tetap ditolak dari antrean sosial — antrean chat memakai jalur terpisah", () => {
+    expect(isQueueableSocialAction("POST", "/v1/chat/rooms/room-1/messages")).toBe(false)
+    expect(isQueueableSocialAction("POST", "/v1/chat/rooms/room-1/read")).toBe(false)
+  })
+
+  it("copy aksi offline yang ditolak tenang dan menyatakan tidak diantrekan", () => {
+    const message = new OfflineError().message.toLowerCase()
+    expect(message).toContain("offline")
+    expect(message).toContain("tidak dapat diantrekan")
+    expect(message).toContain("coba lagi setelah tersambung")
+    expect(message).not.toMatch(/error|kesalahan|gagal/)
   })
 
   it("menolak path tak dikenal", () => {
