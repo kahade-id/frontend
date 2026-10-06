@@ -159,12 +159,13 @@ export function reviewReturn(id: string) {
 }
 
 export type RespondReturnBody = {
-  action: "APPROVE" | "REJECT" | "CLARIFY"
+  /** P2: backend SellerRespondDto memakai `decision`, bukan `action`. */
+  decision: "APPROVE" | "REJECT" | "CLARIFY"
   resolutionType?: ReturnResolutionType
   refundAmountSen?: number
   rejectReasonCode?: string
-  rejectNote?: string
-  clarificationQuestion?: string
+  /** P2: backend hanya kenal `note` (2000 char) — bukan `rejectNote`/`clarificationQuestion`. */
+  note?: string
   returnInstructions?: string
 }
 
@@ -180,12 +181,15 @@ export function confirmReturnReceived(id: string, body?: { note?: string }) {
   return http.post(`/v1/returns/${id}/receive`, body, { auth: "required" })
 }
 
-export function resolveReturn(id: string, body: { resolution: "REFUND" | "EXCHANGE" | "REPAIR"; refundAmountSen?: number; note?: string }) {
+export function resolveReturn(id: string, body: { outcome: "REFUND" | "EXCHANGE" | "REPAIR"; note?: string }) {
+  // P2: backend ResolveReturnDto memakai `outcome` (bukan `resolution`) dan
+  // tidak mengenal `refundAmountSen`.
   return http.post(`/v1/returns/${id}/resolve`, body, { auth: "required" })
 }
 
 /** Eskalasi ke sengketa — backend me-link dispute existing, tidak membuat ganda (G217). */
-export function escalateReturn(id: string, body?: { note?: string }) {
+export function escalateReturn(id: string, body?: { reason?: string }) {
+  // P2: backend EscalateReturnDto memakai `reason` (bukan `note`).
   return http.post(`/v1/returns/${id}/escalate`, body, { auth: "required" })
 }
 

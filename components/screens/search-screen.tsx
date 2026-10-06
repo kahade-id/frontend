@@ -58,7 +58,7 @@ import { useApiQuery } from "@/lib/use-api-query"
 import { isSearchScope, useSetUiPrefs, useUiPref, type SearchScope } from "@/lib/ui-prefs"
 import { useHasSession } from "@/lib/guest-gate"
 import { logWarn } from "@/lib/telemetry"
-import type { ChatSearchResult } from "@/lib/api/chat"
+import { chatRoomPreview, type ChatSearchResult } from "@/lib/api/chat"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -1320,7 +1320,7 @@ function ChatResultRow({ result, keyword }: { result: ChatSearchResult; keyword:
     (room.order?.title ? translate("Transaksi: {x}", { x: room.order.title }) : null) ||
     counterpartName ||
     translate("Percakapan")
-  const snippet = message.text?.trim() || translate("(lampiran)")
+  const snippet = chatRoomPreview(message, translate("(lampiran)")) || translate("(lampiran)")
   return (
     <PressableScale
       accessibilityRole="button"

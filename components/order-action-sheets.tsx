@@ -228,6 +228,13 @@ export function OrderPaymentSheet({
           <Text variant="caption" tone="secondary">
             {translate("Saldo belum cukup — QRIS bisa langsung dari m-banking.")}
           </Text>
+        ) : payment.intent?.providerFee != null && payment.intent.providerFee > 0 ? (
+          // P2: rincian jujur — escrow + fee provider = total yang dibayar.
+          <Text variant="caption" tone="secondary">
+            {translate("Termasuk biaya layanan {x}.", {
+              x: formatRupiah(payment.intent.providerFee),
+            })}
+          </Text>
         ) : undefined
       }
       copied={copied}

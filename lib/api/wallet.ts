@@ -632,11 +632,19 @@ export async function transferFunds(dto: TransferDto, idempotencyKey?: string) {
     // I-16: lihat createTopup — transfer ganda = dua kali kirim dana.
     ...(idempotencyKey ? { headers: { "Idempotency-Key": idempotencyKey } } : {}),
   })
+  // P2: backend mengembalikan {message, txId, amount, recipient:{userId,...}}
+  // tanpa `status` dan tanpa `recipientId` flat / `balanceAfter`.
+  // HTTP 200 dari endpoint ini = transfer selesai sinkron → status SUCCESS.
+  const recipientRec = (result as { recipient?: unknown }).recipient as
+    | Record<string, unknown>
+    | undefined
   return {
     ...result,
     txId: pickString(result, ["txId", "tx_id"]) ?? result.txId,
-    recipientId: pickString(result, ["recipientId", "recipient_id"]) ?? result.recipientId,
-    balanceAfter: pickNumber(result, ["balanceAfter", "balance_after"]) ?? result.balanceAfter,
+    recipientId:
+      pickString(result, ["recipientId", "recipient_id"]) ??
+      pickString(recipientRec ?? {}, ["userId", "user_id"]),
+    status: pickString(result, ["status"]) ?? "SUCCESS",
   }
 }
 
@@ -709,28 +717,32 @@ export function getWithdrawHistory(
     .then((raw) => normalizeWalletPage(raw, page))
 }
 
-/** GET /v1/wallet/export/csv — unduh mutasi CSV. */
+/** GET /v1/wallet/export/csv — unduh mutasi CSV (backend stream file text/csv). */
 export function exportWalletCsv() {
   return http
-    .get<{ csv: string; filename: string }>("/v1/wallet/export/csv", {
+    .get<Blob>("/v1/wallet/export/csv", {
       auth: "required",
       retry: 1,
       // L-07: endpoint ekspor data riwayat diberi batas waktu 60 detik (default 20s)
       timeoutMs: 60_000,
+      // P2: backend men-stream file CSV mentah (text/csv), bukan JSON {csv}.
+      responseType: "blob",
     })
-    .then(({ csv }) => new Blob([csv], { type: "text/csv;charset=utf-8" }))
+    .then((blob) => new Blob([blob], { type: "text/csv;charset=utf-8" }))
 }
 
-/** GET /v1/wallet/export/pdf — backend returns printable HTML, not a PDF binary. */
+/** GET /v1/wallet/export/pdf — backend mengirim file PDF biner (application/pdf). */
 export function exportWalletPdf() {
   return http
-    .get<{ html: string; filename: string }>("/v1/wallet/export/pdf", {
+    .get<Blob>("/v1/wallet/export/pdf", {
       auth: "required",
       retry: 1,
       // L-07: endpoint ekspor data riwayat diberi batas waktu 60 detik (default 20s)
       timeoutMs: 60_000,
+      // P2: backend mengirim PDF biner (application/pdf), bukan JSON {html}.
+      responseType: "blob",
     })
-    .then(({ html }) => new Blob([html], { type: "text/html;charset=utf-8" }))
+    .then((blob) => new Blob([blob], { type: "application/pdf" }))
 }
 
 // ------------------------------------------------------------------

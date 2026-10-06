@@ -2,8 +2,8 @@
  * Kahade — `useWalletExport()`: unduh riwayat dompet (CSV / cetak).
  *
  * Endpoint:
- *   GET /v1/wallet/export/csv  → { csv }   (lib/api/wallet.ts membungkus Blob)
- *   GET /v1/wallet/export/pdf  → { html }  (HTML siap cetak, BUKAN biner PDF)
+ *   GET /v1/wallet/export/csv  → file CSV (stream text/csv)
+ *   GET /v1/wallet/export/pdf  → file PDF biner (stream application/pdf)
  *
  * Satu hook dipakai tiga layar (Tab Dompet, Riwayat Dompet, Analitik/Laporan)
  * supaya perilaku unduh identik: state `exporting` (dua tombol mati bersamaan
@@ -22,14 +22,13 @@ export type WalletExportKind = "csv" | "pdf"
 
 const FILENAME: Record<WalletExportKind, string> = {
   csv: "kahade-riwayat-dompet.csv",
-  // Backend mengembalikan HTML siap cetak; ekstensi .html agar aplikasi
-  // pembuka benar (menamai berkas .pdf akan membuat viewer gagal membukanya).
-  pdf: "kahade-riwayat-dompet.html",
+  // P2: backend mengirim file PDF biner (application/pdf).
+  pdf: "kahade-riwayat-dompet.pdf",
 }
 
 const MIME: Record<WalletExportKind, string> = {
   csv: "text/csv",
-  pdf: "text/html",
+  pdf: "application/pdf",
 }
 
 export function useWalletExport() {

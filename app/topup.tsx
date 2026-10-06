@@ -491,7 +491,13 @@ export default function TopupScreen() {
               value={amount}
               onChange={setAmount}
               min={AMOUNT_LIMITS.topup.minimum}
-              max={AMOUNT_LIMITS.topup.maximum}
+              // P2: keypad di-cap ke maxAmount metode terpilih (QRIS: 10jt)
+              // agar tidak menyesatkan — user tidak bisa ketik nominal yang
+              // pasti ditolak semua metode.
+              max={Math.min(
+                AMOUNT_LIMITS.topup.maximum,
+                selectedMethod?.maxAmount ?? AMOUNT_LIMITS.topup.maximum,
+              )}
               presets={AMOUNT_PRESETS.topup}
               slot={
                 <View className="px-5">

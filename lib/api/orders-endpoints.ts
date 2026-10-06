@@ -606,6 +606,10 @@ export type OrderPaymentIntent = {
   amount: number
   paymentTxId?: string
   instructions?: string[]
+  /** P2: rincian biaya provider (mis. 0,7% QRIS) — dari `DanaDirectPayResult`. */
+  providerFee?: number
+  /** P2: porsi yang masuk escrow (tanpa fee provider). */
+  escrowAmount?: number
 }
 
 export async function createOrderPayment(
@@ -752,6 +756,10 @@ export function normalizeOrderPaymentIntent(
     amount: amount ?? undefined,
     paymentTxId: pickString(nested, ["paymentTxId", "payment_tx_id", "txId", "transactionId"]) ?? undefined,
     instructions,
+    // P2: rincian fee provider agar panel bisa menampilkan breakdown jujur
+    // (escrow + fee = gross).
+    providerFee: toAmount(nested.providerFee ?? nested.provider_fee) ?? undefined,
+    escrowAmount: toAmount(nested.escrowAmount ?? nested.escrow_amount) ?? undefined,
   }
 }
 

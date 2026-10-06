@@ -992,7 +992,15 @@ export function searchAllMessages(q: string, options: { limit?: number } = {}, s
           : []
       return {
         query: typeof record.query === "string" ? record.query : q,
-        results: list as ChatSearchResult[],
+        // P2: normalisasi tiap message seperti searchRoomMessages — tanpa ini
+        // `message.text` bisa undefined dan snippet selalu "(lampiran)".
+        results: (list as unknown[]).map((r) => {
+          const rec = (r ?? {}) as Record<string, unknown>
+          return {
+            ...rec,
+            message: normalizeChatMessage((rec.message ?? {}) as Record<string, unknown>),
+          }
+        }) as ChatSearchResult[],
       }
     })
 }

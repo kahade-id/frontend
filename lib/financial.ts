@@ -5,7 +5,16 @@ import { formatRupiah } from "@/lib/format"
 export type AmountLimits = { minimum: number; maximum: number }
 export const AMOUNT_LIMITS = {
   topup: API_CONSTRAINTS.TopupDto.amount,
-  withdraw: API_CONSTRAINTS.WithdrawDto.amount,
+  // P2 (audit 2026-10-06): backend menegakkan batas per-transaksi
+  // WALLET_MAX_WITHDRAW_PER_TX = 25jt di service (wallet.service.ts:1421),
+  // sementara DTO/OpenAPI masih menyebut 50jt (WALLET_DAILY_WITHDRAW_LIMIT).
+  // Selama spec belum diperbaiki, fallback statis di-cap ke 25jt agar
+  // validasi klien tidak lebih longgar dari server. Endpoint
+  // GET /v1/wallet/limits tetap menjadi sumber utama saat online.
+  withdraw: {
+    minimum: API_CONSTRAINTS.WithdrawDto.amount.minimum,
+    maximum: Math.min(API_CONSTRAINTS.WithdrawDto.amount.maximum, 25_000_000),
+  },
   transfer: API_CONSTRAINTS.TransferDto.amount,
   order: API_CONSTRAINTS.CreateOrderDto.orderValue,
 } as const

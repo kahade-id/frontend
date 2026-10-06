@@ -331,6 +331,16 @@ export default function EditProfileScreen() {
         })
         return
       }
+      // P2-F5: backend menolak `<>` di bio (update-profile.dto.ts) — cegah 400
+      // dengan validasi klien yang sama.
+      if (dto.bio !== undefined && /[<>]/.test(dto.bio)) {
+        toast.show({
+          title: translate("Bio tidak valid"),
+          description: translate("Bio tidak boleh mengandung karakter < atau >."),
+          tone: "danger",
+        })
+        return
+      }
       setSubmitting(true)
       setPasswordError(undefined)
       try {

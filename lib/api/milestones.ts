@@ -292,13 +292,14 @@ export function retryMilestoneRelease(milestoneId: string, signal?: AbortSignal)
   })
 }
 
-/** Perpanjang tenggat pengerjaan tahap (penjual). `deadline` ISO-8601. */
+/** Perpanjang tenggat pengerjaan tahap (penjual). `newDeadline` ISO-8601. */
 export function extendMilestoneDeadline(
   milestoneId: string,
-  input: { deadline: string },
+  // P2: backend ExtendDeadlineDto memakai `newDeadline`, bukan `deadline`.
+  input: { newDeadline: string; reason?: string },
   signal?: AbortSignal,
 ) {
-  return http.post<unknown, { deadline: string }>(
+  return http.post<unknown, { newDeadline: string; reason?: string }>(
     `/v1/milestones/${seg(milestoneId)}/extend-deadline`,
     input,
     { auth: "required", signal },
