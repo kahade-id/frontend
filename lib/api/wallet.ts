@@ -26,6 +26,7 @@ import { API_CONSTRAINTS } from "@/lib/api/constraints"
 import { assertDtoConstraints } from "@/lib/financial"
 
 import {
+  asRecord,
   pickBoolean,
   pickNumber,
   pickString,
@@ -287,7 +288,14 @@ export type TopupResult = {
   grossAmount?: number | null
 }
 
-/** Hasil POST /v1/wallet/withdraw — UNVERIFIED. */
+/** Hasil POST /v1/wallet/withdraw.
+ *
+ * KONTRAK TERVERIFIKASI (2026-10-06, lawan backend
+ * `src/modules/wallet/wallet.service.ts:1699-1708`):
+ * backend mengembalikan `{ withdrawTxId, amount, bankAccount: { masked },
+ * otpChannel, otpExpiredAt }` — SELALU dengan OTP (tidak ada jalur tanpa
+ * OTP). Mapping di `createWithdraw` menormalisasi ke bentuk ini.
+ */
 export type WithdrawResult = {
   txId: string
   amount: number
@@ -300,8 +308,12 @@ export type WithdrawResult = {
    */
   status: "PENDING_OTP" | "PENDING_PROCESS" | "PROCESSING" | "SUCCESS" | "FAILED"
   bankAccountId?: string
+  /** Nomor rekening tersamar dari backend (`bankAccount.masked`). */
+  bankAccountMasked?: string
   requiresOtp?: boolean
   expiresAt?: string | null
+  /** Kanal OTP yang dipakai backend (`otpChannel`: WHATSAPP/EMAIL). */
+  otpChannel?: string | null
 }
 
 /** Hasil POST /v1/wallet/transfer — UNVERIFIED. */
@@ -525,12 +537,25 @@ export async function createWithdraw(dto: WithdrawDto, idempotencyKey?: string) 
       ...(idempotencyKey ? { headers: { "Idempotency-Key": idempotencyKey } } : {}),
     },
   )
+  // P0-1 (audit integrasi 2026-10-06): backend (wallet.service.ts:1699-1708)
+  // mengembalikan `{ withdrawTxId, amount, bankAccount: { masked },
+  // otpChannel, otpExpiredAt }` — SELALU dengan OTP. Mapping lama membaca
+  // `{ txId, requiresOtp, expiresAt }` yang tidak pernah ada → semua
+  // undefined → sheet OTP tidak pernah terbuka.
+  const record = asRecord(result) ?? {}
+  const bankAccountRec = asRecord(record["bankAccount"])
+  const otpExpiredAt = pickString(record, ["otpExpiredAt", "otp_expired_at", "expiresAt", "expires_at"])
   return {
     ...result,
-    txId: pickString(result, ["txId", "tx_id"]) ?? result.txId,
-    bankAccountId: pickString(result, ["bankAccountId", "bank_account_id"]) ?? result.bankAccountId,
-    requiresOtp: pickBoolean(result, ["requiresOtp", "requires_otp"]) ?? result.requiresOtp,
-    expiresAt: pickString(result, ["expiresAt", "expires_at"]) ?? result.expiresAt,
+    txId: pickString(record, ["withdrawTxId", "withdraw_tx_id", "txId", "tx_id"]) ?? result.txId,
+    amount: pickNumber(record, ["amount"]) ?? result.amount,
+    // Backend selalu membuat PENDING_OTP + mengirim OTP untuk withdraw.
+    status: "PENDING_OTP" as const,
+    requiresOtp: true,
+    expiresAt: otpExpiredAt ?? result.expiresAt,
+    bankAccountMasked:
+      pickString(bankAccountRec ?? {}, ["masked"]) ?? result.bankAccountMasked,
+    otpChannel: pickString(record, ["otpChannel", "otp_channel"]) ?? result.otpChannel,
   }
 }
 

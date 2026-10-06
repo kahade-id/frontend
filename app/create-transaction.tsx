@@ -1125,13 +1125,22 @@ export default function CreateTransactionScreen() {
     submitLock.current = true
     setSubmitting(true)
     try {
-      // Batch 43 (item 10): booking slot jasa dilakukan SAAT transaksi
-      // dikonfirmasi — gagal booking = transaksi dibatalkan (jangan buat
-      // order untuk slot yang tidak terpesan). Slot yang sudah di-booking
-      // di halaman detail tidak di-booking ulang.
+      // P0-4 (audit integrasi 2026-10-06): `book-with-order` backend langsung
+      // membuat escrow order (endpoint `/book` lama 410 Gone). Bila slot
+      // belum di-booking, booking di sini SEKALIGUS membuat order — jangan
+      // lanjutkan ke `createOrder` di bawah (duplikat). Arahkan ke order
+      // yang baru dibuat. Slot yang sudah di-booking di halaman detail
+      // (`slotBooked: "1"`) tetap memakai jalur `createOrder` biasa di bawah.
       if (slotPrefill && !slotPrefill.alreadyBooked) {
         try {
-          await api.commerce.bookServiceSlot(slotPrefill.slotId)
+          const booked = await api.commerce.bookServiceSlot(slotPrefill.slotId)
+          if (!booked?.orderId) {
+            throw new Error("Respons booking tidak lengkap")
+          }
+          submitLock.current = false
+          setSubmitting(false)
+          router.push(ROUTES.orderDetail(booked.orderId))
+          return
         } catch (slotErr) {
           submitLock.current = false
           setSubmitting(false)

@@ -351,6 +351,36 @@ export function getSearchTrends(limit = 10, signal?: AbortSignal) {
 
 export type SellerVoucherType = "NOMINAL" | "PERSEN"
 
+/**
+ * Enum `VoucherType` backend (prisma/schema.prisma).
+ * Voucher seller hanya memakai dua varian diskon fee; WALLET_CASHBACK dan
+ * TOPUP_BONUS adalah tipe sistem yang tidak dibuat lewat UI seller.
+ */
+export type BackendVoucherType =
+  | "FEE_DISCOUNT_FLAT"
+  | "FEE_DISCOUNT_PERCENT"
+  | "WALLET_CASHBACK"
+  | "TOPUP_BONUS"
+
+/**
+ * P0-3 (audit integrasi 2026-10-06): FE mengirim "NOMINAL"|"PERSEN" tapi
+ * backend (commerce.dto.ts:95-97, `@IsEnum(VoucherType)`) hanya menerima
+ * enum Prisma → 422 selalu. Petakan ke enum backend saat kirim.
+ */
+export function sellerVoucherTypeToBackend(t: SellerVoucherType): BackendVoucherType {
+  return t === "PERSEN" ? "FEE_DISCOUNT_PERCENT" : "FEE_DISCOUNT_FLAT"
+}
+
+/**
+ * Petakan enum backend ke tipe FE untuk tampilan. WALLET_CASHBACK /
+ * TOPUP_BONUS tidak dibuat via UI seller — dipetakan ke "NOMINAL" agar
+ * tidak crash bila muncul di daftar (kasus tepi).
+ */
+export function sellerVoucherTypeFromBackend(t: string | null | undefined): SellerVoucherType {
+  if (t === "FEE_DISCOUNT_PERCENT" || t === "PERSEN") return "PERSEN"
+  return "NOMINAL"
+}
+
 export type SellerVoucher = {
   id: string
   code: string
@@ -381,7 +411,9 @@ export function normalizeSellerVoucher(raw: unknown): SellerVoucher | null {
     code,
     name: pickString(record, ["name", "title"]) ?? code,
     description: pickString(record, ["description"]) ?? null,
-    voucherType: voucherType === "PERSEN" ? "PERSEN" : "NOMINAL",
+    // P0-3: backend mengirim enum Prisma (FEE_DISCOUNT_FLAT/...), bukan
+    // "NOMINAL"/"PERSEN". Mapping lama membuat semua voucher tampil NOMINAL.
+    voucherType: sellerVoucherTypeFromBackend(voucherType),
     discountAmountIdr: pickNumber(record, ["discountAmountIdr", "discountAmount"]) ?? null,
     discountPercent: pickNumber(record, ["discountPercent"]) ?? null,
     maxDiscountAmountIdr: pickNumber(record, ["maxDiscountAmountIdr", "maxDiscountAmount"]) ?? null,
@@ -411,8 +443,13 @@ export type CreateSellerVoucherDto = {
 }
 
 export function createSellerVoucher(dto: CreateSellerVoucherDto) {
+  // P0-3: petakan tipe FE ke enum backend sebelum kirim.
+  const body = {
+    ...dto,
+    voucherType: sellerVoucherTypeToBackend(dto.voucherType),
+  }
   return http
-    .post<unknown, CreateSellerVoucherDto>("/v1/seller-vouchers", dto, { auth: "required" })
+    .post<unknown, typeof body>("/v1/seller-vouchers", body, { auth: "required" })
     .then(normalizeSellerVoucher)
 }
 
@@ -561,10 +598,44 @@ export function normalizeSlotBooking(raw: unknown): SlotBooking | null {
   }
 }
 
-export function bookServiceSlot(id: string) {
+/**
+ * Hasil POST /v1/commerce/service-slots/:id/book-with-order.
+ *
+ * P0-4 (audit integrasi 2026-10-06): endpoint lama `/book` DINONAKTIFKAN
+ * backend (410 Gone, service-booking.controller.ts:45-52). Penggantinya
+ * `book-with-order` langsung membuat escrow order (SERVICE_BOOKING, JASA,
+ * 1-by-1, BIASA) — tidak hanya mem-booking slot.
+ */
+export type SlotBookingWithOrder = {
+  bookingId: string
+  orderId: string
+  orderKind: string | null | undefined
+  status: string | null | undefined
+  buyerPayAmount: number | null | undefined
+  confirmationDeadlineAt: string | null | undefined
+}
+
+export function bookServiceSlot(id: string, priceIdr?: number): Promise<SlotBookingWithOrder | null> {
+  const body = priceIdr !== undefined ? { priceIdr } : {}
   return http
-    .post<unknown>(`/v1/commerce/service-slots/${seg(id)}/book`, undefined, { auth: "required" })
-    .then(normalizeSlotBooking)
+    .post<unknown, { priceIdr?: number }>(`/v1/commerce/service-slots/${seg(id)}/book-with-order`, body, {
+      auth: "required",
+    })
+    .then((raw) => {
+      const record = asRecord(raw)
+      if (!record) return null
+      const bookingId = pickString(record, ["bookingId", "booking_id"])
+      const orderId = pickString(record, ["orderId", "order_id"])
+      if (!bookingId || !orderId) return null
+      return {
+        bookingId,
+        orderId,
+        orderKind: pickString(record, ["orderKind", "order_kind"]),
+        status: pickString(record, ["status"]),
+        buyerPayAmount: pickNumber(record, ["buyerPayAmount", "buyer_pay_amount"]),
+        confirmationDeadlineAt: pickString(record, ["confirmationDeadlineAt", "confirmation_deadline_at"]),
+      }
+    })
 }
 
 export function listMySlotBookings(page = 1, limit = 20, signal?: AbortSignal) {

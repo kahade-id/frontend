@@ -130,6 +130,25 @@ export function getOrderLink(token: string, signal?: AbortSignal) {
  * Bentuk respons deeplink tidak terdokumentasi — pemetaan bersifat toleran dan
  * cukup untuk menampilkan tautan + menerima.
  */
+/**
+ * Pratinjau order link publik (untuk penerima tanpa akun).
+ *
+ * P0-5 (audit integrasi 2026-10-06): backend
+ * `GET /v1/deeplinks/order-link/:token`
+ * (deep-links.controller.ts:123-125) SELALU mengembalikan `text/html`
+ * (halaman share publik) — mengabaikan header `Accept: application/json`
+ * yang sudah dikirim klien. Akibatnya `parseBody` melempar `PARSE` dan
+ * pratinjau gagal untuk penerima tanpa sesi.
+ *
+ * PERLU PERBAIKAN BACKEND: tambahkan content negotiation di
+ * `deep-links.controller.ts` — bila request header `Accept` memuat
+ * `application/json`, kembalikan JSON `{ link: { token, title,
+ * description, orderValue, status, ... } }` alih-alih HTML. Halaman HTML
+ * tetap untuk browser/crawler (Accept: text/html).
+ *
+ * Sementara itu, error PARSE ditangkap di layar `order-link/[token].tsx`
+ * dan fallback ke `getOrderLink` (butuh sesi).
+ */
 export function previewOrderLink(token: string, signal?: AbortSignal): Promise<OrderLink> {
   return http
     .get<unknown>(`/v1/deeplinks/order-link/${seg(token)}`, {

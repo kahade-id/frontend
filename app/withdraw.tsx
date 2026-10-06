@@ -200,9 +200,11 @@ export default function WithdrawScreen() {
   // Overlay progres: muncul begitu PIN/OTP disubmit, hasil mengganti kontennya.
   const [progressState, setProgressState] = useState<ProgressState | null>(null)
   const [progressError, setProgressError] = useState<string | undefined>()
+  // P0-1: hasil bisa dari createWithdraw (PENDING_OTP) atau confirmWithdrawOtp
+  // (status final) — terima keduanya.
   const [result, setResult] = useState<Awaited<
     ReturnType<typeof api.wallet.createWithdraw>
-  > | null>(null)
+  > | Awaited<ReturnType<typeof api.wallet.confirmWithdrawOtp>> | null>(null)
   /** A-07: cooldown resend OTP (epoch ms) — dari `cooldownSeconds` backend. */
   const [otpCooldownUntil, setOtpCooldownUntil] = useState<number | null>(null)
   const [resending, setResending] = useState(false)

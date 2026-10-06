@@ -253,17 +253,24 @@ export function ServiceSlotSection({
     if (!requireSession()) return
     setBookingBusy(true)
     try {
-      const booking = await api.commerce.bookServiceSlot(confirmSlot.id)
-      setMyBooking(booking)
+      // P0-4 (audit integrasi 2026-10-06): `book-with-order` langsung membuat
+      // escrow order — arahkan ke detail order untuk pembayaran, bukan hanya
+      // toast "berhasil".
+      const result = await api.commerce.bookServiceSlot(confirmSlot.id)
       setConfirmSlot(null)
-      toast.show({ title: translate("Slot berhasil dipesan"), tone: "success", duration: 3000 })
+      if (result?.orderId) {
+        toast.show({ title: translate("Slot berhasil dipesan"), tone: "success", duration: 3000 })
+        router.push(ROUTES.orderDetail(result.orderId))
+      } else {
+        toast.show({ title: translate("Gagal memesan slot"), description: translate("Respons server tidak lengkap."), tone: "danger" })
+      }
       void load()
     } catch (err) {
       toast.show({ title: translate("Gagal memesan slot"), description: userMessage(err), tone: "danger" })
     } finally {
       setBookingBusy(false)
     }
-  }, [confirmSlot, bookingBusy, requireSession, toast, load])
+  }, [confirmSlot, bookingBusy, requireSession, toast, load, router])
 
   const handleCancelBooking = useCallback(async () => {
     if (!myBooking || cancelBusy) return

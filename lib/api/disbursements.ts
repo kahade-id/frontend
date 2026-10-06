@@ -118,6 +118,17 @@ function normalizeDisbursementStatus(rec: Record<string, unknown>): string {
   return raw
 }
 
+/**
+ * Konversi sen → rupiah. Backend mengirim `amountSen` sebagai string dalam
+ * satuan sen (1 IDR = 100 sen); UI memakai rupiah.
+ */
+function toRupiahFromSen(value: unknown): number | undefined {
+  const sen = toAmount(value)
+  if (sen === undefined) return undefined
+  // Pembulatan ke rupiah terdekat — sen pecahan tidak bermakna di IDR.
+  return Math.round(sen / 100)
+}
+
 function normalizeDisbursement(entry: unknown): Disbursement | undefined {
   const rec = asRecord(entry)
   if (!rec) return undefined
@@ -131,7 +142,10 @@ function normalizeDisbursement(entry: unknown): Disbursement | undefined {
     scope: pickString(rec, ["scope"]) ?? "UNKNOWN",
     scopeRefId: pickString(rec, ["scopeRefId", "scope_ref_id"]) ?? null,
     orderId: pickString(rec, ["orderId", "order_id"]) ?? null,
-    amount: toAmount(rec.amountSen ?? rec.amount) ?? 0,
+    // P0-2 (audit integrasi 2026-10-06): backend mengirim `amountSen` STRING
+    // dalam sen (escrow-disbursement.service.ts:478). `toAmount` lama tidak
+    // membagi 100 → tampil 100× (Rp10jt untuk Rp100rb).
+    amount: toRupiahFromSen(rec.amountSen) ?? toAmount(rec.amount) ?? 0,
     status: normalizeDisbursementStatus(rec),
     heldReason: pickString(rec, ["heldReason", "held_reason"]) ?? null,
     lastError: pickString(rec, ["lastError", "last_error"]) ?? null,
@@ -141,7 +155,7 @@ function normalizeDisbursement(entry: unknown): Disbursement | undefined {
     refund: refundRec
       ? {
           status: pickString(refundRec, ["status"]) ?? null,
-          amount: toAmount(refundAmountRaw) ?? null,
+          amount: toRupiahFromSen(refundRec["amountSen"]) ?? toAmount(refundAmountRaw) ?? null,
           refundedAt: pickString(refundRec, ["refundedAt", "refunded_at"]) ?? null,
         }
       : null,
