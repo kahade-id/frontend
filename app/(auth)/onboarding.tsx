@@ -1,16 +1,12 @@
 /**
- * Kahade — Onboarding: pilihan Daftar / Masuk.
- *
- * Desain Apple-clean: logo + tagline + dua tombol. Tanpa carousel.
- * - "Daftar" → halaman pendaftaran.
- * - "Masuk" → bottomsheet pilihan metode login (WhatsApp, Email,
- *   Username, Google, Apple).
+ * Kahade — onboarding sederhana: logo + tagline + dua tombol. Tanpa carousel.
+ * "Daftar" membuka wizard nomor HP; "Masuk" membuka layar dengan pemilih
+ * metode yang sudah terlihat (bukan bottom sheet).
  */
 
-import { useCallback, useState } from "react"
+import { useCallback } from "react"
 import { useRouter } from "expo-router"
 
-import { LoginMethodSheet, type LoginMethod } from "@/components/auth/login-method-sheet"
 import { Button } from "@/components/ui/button"
 import { Logo } from "@/components/ui/logo"
 import { Screen } from "@/components/ui/screen"
@@ -22,7 +18,6 @@ import { ROUTES } from "@/lib/routes"
 
 export default function OnboardingScreen() {
   const router = useRouter()
-  const [sheetVisible, setSheetVisible] = useState(false)
 
   const handleRegister = useCallback(async () => {
     haptic("select")
@@ -30,28 +25,15 @@ export default function OnboardingScreen() {
     router.replace(ROUTES.register)
   }, [router])
 
-  const handleLoginPress = useCallback(() => {
+  const handleLogin = useCallback(async () => {
     haptic("light")
-    setSheetVisible(true)
-  }, [])
-
-  const handleMethodSelect = useCallback(
-    async (method: LoginMethod) => {
-      await markOnboardingSeen()
-      // Google/Apple langsung ke login dengan method sosial;
-      // phone/email/username ke login dengan method yang dipilih.
-      router.replace({
-        pathname: "/login",
-        params: { method },
-      } as unknown as Parameters<typeof router.replace>[0])
-    },
-    [router],
-  )
+    await markOnboardingSeen()
+    router.replace(ROUTES.login)
+  }, [router])
 
   return (
     <Screen>
       <VStack gap={8} className="flex-1 items-center justify-center px-6">
-        {/* Brand */}
         <VStack gap={3} className="items-center">
           <Logo variant="lockup" size="lg" />
           <Text variant="body" tone="secondary" className="text-center">
@@ -59,21 +41,13 @@ export default function OnboardingScreen() {
           </Text>
         </VStack>
 
-        {/* Pilihan */}
         <VStack gap={3} className="w-full">
-          <Button onPress={handleRegister}>Daftar</Button>
-          <Button variant="secondary" onPress={handleLoginPress}>
+          <Button onPress={() => void handleRegister()}>Daftar</Button>
+          <Button variant="secondary" onPress={() => void handleLogin()}>
             Masuk
           </Button>
         </VStack>
       </VStack>
-
-      {/* Bottomsheet metode login */}
-      <LoginMethodSheet
-        visible={sheetVisible}
-        onRequestClose={() => setSheetVisible(false)}
-        onSelect={handleMethodSelect}
-      />
     </Screen>
   )
 }

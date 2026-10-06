@@ -147,7 +147,7 @@ describe("requestAppleNonce (kontrak Wave 1, 2026-09-28)", () => {
     const res = await socialLogin({ provider: "APPLE", idToken: "apple-id-token", nonce })
     expect(post).toHaveBeenLastCalledWith(
       "/v1/auth/social/login",
-      { provider: "APPLE", idToken: "apple-id-token", nonce: "srv-nonce-xyz" },
+      { provider: "apple", idToken: "apple-id-token", nonce: "srv-nonce-xyz" },
       { auth: "none" },
     )
     expect(res.kind).toBe("session")

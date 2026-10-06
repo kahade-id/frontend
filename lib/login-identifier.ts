@@ -14,19 +14,28 @@
  * "selama sesi formulir" sesuai spesifikasi item.
  */
 
-let pendingIdentifier = ""
+export type LoginIdentifierMethod = "email" | "username"
 
-/** Baca identifier yang tersimpan dari sesi formulir sebelumnya. */
-export function getLoginIdentifier(): string {
-  return pendingIdentifier
+let pendingIdentifier = ""
+const identifiersByMethod: Record<LoginIdentifierMethod, string> = {
+  email: "",
+  username: "",
+}
+
+/** Baca identifier tersimpan; bentuk tanpa argumen tetap dipakai oleh re-auth. */
+export function getLoginIdentifier(method?: LoginIdentifierMethod): string {
+  return method ? identifiersByMethod[method] : pendingIdentifier
 }
 
 /** Simpan identifier non-rahasia selama sesi formulir. */
-export function setLoginIdentifier(identifier: string): void {
+export function setLoginIdentifier(identifier: string, method?: LoginIdentifierMethod): void {
   pendingIdentifier = identifier
+  if (method) identifiersByMethod[method] = identifier
 }
 
 /** Bersihkan — dipanggil saat login berhasil (sesi formulir selesai). */
 export function clearLoginIdentifier(): void {
   pendingIdentifier = ""
+  identifiersByMethod.email = ""
+  identifiersByMethod.username = ""
 }

@@ -191,6 +191,9 @@ export default function PhoneMigrationScreen() {
             <Button onPress={() => void handleSubmit()} loading={submitting} disabled={!migrationToken}>
               Kirim kode
             </Button>
+            <Text variant="caption" tone="secondary" className="text-center text-pretty">
+              Demi keamanan, lokasi perangkat dapat dicatat jika Anda mengizinkan akses.
+            </Text>
             {!errorMessage ? <TextLink onPress={backToLogin}>Kembali ke Masuk</TextLink> : null}
           </VStack>
         </FooterBar>

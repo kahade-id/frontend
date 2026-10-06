@@ -220,7 +220,7 @@ export default function ForgotPasswordScreen() {
            * — jelaskan dulu di UI supaya tidak mengejutkan.
            */}
           <Text variant="caption" tone="secondary" className="text-center text-pretty">
-            Demi keamanan, kami mencatat lokasi saat Anda masuk.
+            Demi keamanan, lokasi perangkat dapat dicatat jika Anda mengizinkan akses.
           </Text>
           {/*
            * FE-IMP-3 #112 — reset HANYA via nomor HP (tidak ada jalur email).

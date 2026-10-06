@@ -203,6 +203,10 @@ export default function ResetPasswordScreen() {
                 ) : null}
               </VStack>
 
+              <Text variant="caption" tone="secondary" className="text-pretty">
+                Demi keamanan, lokasi perangkat dapat dicatat jika Anda mengizinkan akses.
+              </Text>
+
               <Button
                 onPress={() => void handleSubmit()}
                 loading={submitting}

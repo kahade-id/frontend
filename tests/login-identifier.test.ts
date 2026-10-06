@@ -24,9 +24,20 @@ describe("login-identifier (A01)", () => {
     expect(getLoginIdentifier()).toBe("johndoe")
   })
 
+  it("identifier email dan username disimpan terpisah saat berpindah tab", () => {
+    clearLoginIdentifier()
+    setLoginIdentifier("buyer@example.com", "email")
+    setLoginIdentifier("johndoe", "username")
+    expect(getLoginIdentifier("email")).toBe("buyer@example.com")
+    expect(getLoginIdentifier("username")).toBe("johndoe")
+    expect(getLoginIdentifier()).toBe("johndoe")
+  })
+
   it("dibersihkan saat login berhasil", () => {
-    setLoginIdentifier("nama@email.com")
+    setLoginIdentifier("nama@email.com", "email")
     clearLoginIdentifier()
     expect(getLoginIdentifier()).toBe("")
+    expect(getLoginIdentifier("email")).toBe("")
+    expect(getLoginIdentifier("username")).toBe("")
   })
 })
