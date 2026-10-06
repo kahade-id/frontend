@@ -93,37 +93,6 @@ export type TrackingEvent = {
  * di-whitelist BE (422) sehingga dihapus; filter provider opsional =
  * `providers?: string[]` (BE), bukan field `provider` tunggal.
  */
-export type QuoteBody = {
-  originPostalCode: string
-  destinationPostalCode: string
-  weightGrams: number
-  originCity?: string
-  destinationCity?: string
-  sort?: "price" | "eta"
-  providers?: string[]
-}
-
-export function getQuotes(body: QuoteBody, signal?: AbortSignal) {
-  return http
-    .post<unknown, QuoteBody>("/v1/courier/quotes", body, { auth: "required", signal })
-    .then((raw) => readList<CourierQuote>(raw, ["quotes", "items"]))
-}
-
-export type BookShipmentBody = {
-  orderId: string
-  providerCode: string
-  serviceCode: string
-  mode: ShipmentMode
-  costBearer: ShippingCostBearer
-  origin: { name: string; phone: string; address: string; city: string; postalCode: string }
-  destination: { name: string; phone: string; address: string; city: string; postalCode: string }
-  weightGrams: number
-}
-
-export function bookShipment(body: BookShipmentBody) {
-  return http.post<Shipment, BookShipmentBody>("/v1/courier/shipments", body, { auth: "required" })
-}
-
 export function getShipmentByOrder(orderId: string, signal?: AbortSignal) {
   return http.get<Shipment | null>(`/v1/courier/shipments/by-order/${orderId}`, { auth: "required", signal })
 }
@@ -140,24 +109,6 @@ export function getTrackingTimeline(id: string, signal?: AbortSignal) {
 
 export function refreshTracking(id: string) {
   return http.post<Shipment>(`/v1/courier/shipments/${id}/refresh`, undefined, { auth: "required" })
-}
-
-export function voidShipment(id: string, body: { reason: string }) {
-  return http.post<Shipment, { reason: string }>(`/v1/courier/shipments/${id}/void`, body, { auth: "required" })
-}
-
-export function submitManualResi(id: string, body: { trackingNumber: string; courierName: string }) {
-  return http.post<Shipment, { trackingNumber: string; courierName: string }>(`/v1/courier/shipments/${id}/manual-resi`, body, { auth: "required" })
-}
-
-/** Path unduh label — signed, expiry singkat; JANGAN di-cache/di-share (G234). */
-export function labelDownloadPath(shipmentId: string): string {
-  return `/v1/courier/shipments/${shipmentId}/label/file`
-}
-
-/** `amount` dalam SEN (bigint di DB) — field backend bernama `amount`, bukan `amountSen`. */
-export function requestShippingRefund(shipmentId: string, body: { amount: number; reason: string }) {
-  return http.post(`/v1/courier/shipments/${shipmentId}/refunds`, body, { auth: "required" })
 }
 
 /** FE-055: `formatIdrSen` kini alias helper kanonis — definisi duplikat dihapus. */

@@ -352,28 +352,28 @@ function ParticipantStep({
 const STEPS = [
   {
     title: "Kategori",
-    heading: "Apa yang ditransaksikan?",
-    description: "Pilih kategori — menentukan informasi yang perlu dilengkapi.",
+    heading: translate("Apa yang ditransaksikan?"),
+    description: translate("Pilih kategori — menentukan informasi yang perlu dilengkapi."),
   },
   {
-    title: "Sistem",
-    heading: "Bagaimana sistemnya?",
-    description: "Langsung atau preorder. Jasa memakai tanggal jadwal.",
+    title: translate("Sistem"),
+    heading: translate("Bagaimana sistemnya?"),
+    description: translate("Langsung atau preorder. Jasa memakai tanggal jadwal."),
   },
   {
-    title: "Peserta",
-    heading: "Siapa yang ikut?",
-    description: "Sendiri atau patungan bersama.",
+    title: translate("Peserta"),
+    heading: translate("Siapa yang ikut?"),
+    description: translate("Sendiri atau patungan bersama."),
   },
   {
-    title: "Detail",
-    heading: "Rincian transaksi",
-    description: "Lengkapi detail dan mitra transaksi.",
+    title: translate("Detail"),
+    heading: translate("Rincian transaksi"),
+    description: translate("Lengkapi detail dan mitra transaksi."),
   },
   {
-    title: "Ringkasan",
-    heading: "Periksa & buat",
-    description: "Periksa ringkasan dan biaya sebelum transaksi dibuat.",
+    title: translate("Ringkasan"),
+    heading: translate("Periksa & buat"),
+    description: translate("Periksa ringkasan dan biaya sebelum transaksi dibuat."),
   },
 ] as const
 const LAST_STEP = STEPS.length - 1
@@ -390,19 +390,16 @@ function kycReasonMessage(backendMessage: string): string {
   // sini HANYA memilih wording penjelasan. Copy server yang berubah/memakai
   // bahasa lain jatuh ke pesan generik yang AMAN (bukan false-positive/negatif).
   if (/cumulative/i.test(backendMessage)) {
-    return (
-      "Total nilai transaksi aktif Anda (ditambah transaksi ini) mencapai batas " +
-      "Rp2.000.000. Selesaikan verifikasi identitas (KYC) untuk melanjutkan " +
-      "membuat transaksi."
+    return translate(
+      "Total nilai transaksi aktif Anda (ditambah transaksi ini) mencapai batas Rp2.000.000. Selesaikan verifikasi identitas (KYC) untuk melanjutkan membuat transaksi.",
     )
   }
   if (/rolling/i.test(backendMessage)) {
-    return (
-      "Total transaksi 30 hari terakhir Anda mencapai batas. Selesaikan " +
-      "verifikasi identitas (KYC) untuk melanjutkan membuat transaksi."
+    return translate(
+      "Total transaksi 30 hari terakhir Anda mencapai batas. Selesaikan verifikasi identitas (KYC) untuk melanjutkan membuat transaksi.",
     )
   }
-  return "Transaksi dengan nilai Rp2.000.000 ke atas membutuhkan verifikasi identitas (KYC)."
+  return translate("Transaksi dengan nilai Rp2.000.000 ke atas membutuhkan verifikasi identitas (KYC).")
 }
 
 /** Bentuk prefill dari query params (ROUTES.createTransactionFromTemplate). */
@@ -1046,7 +1043,7 @@ export default function CreateTransactionScreen() {
           userRole: role,
         })
         if (!res.valid) {
-          setVoucherError(res.message ?? "Kode voucher tidak berlaku.")
+          setVoucherError(res.message ?? translate("Kode voucher tidak berlaku."))
           return
         }
         const v = res.voucher
@@ -1068,8 +1065,8 @@ export default function CreateTransactionScreen() {
           !isApiError(err) || err.isTransient || err.code === "ABORTED" || err.code === "PARSE"
         setVoucherError(
           uncertain
-            ? "Gagal memeriksa voucher — periksa koneksi, lalu coba lagi."
-            : "Kode voucher tidak berlaku.",
+            ? translate("Gagal memeriksa voucher — periksa koneksi, lalu coba lagi.")
+            : translate("Kode voucher tidak berlaku."),
         )
       } finally {
         setApplyingVoucher(false)
@@ -1093,7 +1090,7 @@ export default function CreateTransactionScreen() {
       try {
         const res = await api.commerce.validateSellerVoucher(code, orderValue, sellerIdForVoucher)
         if (!res.valid) {
-          setSellerVoucherError(res.message ?? "Kode voucher toko tidak berlaku.")
+          setSellerVoucherError(res.message ?? translate("Kode voucher toko tidak berlaku."))
           return
         }
         setSellerVoucher({

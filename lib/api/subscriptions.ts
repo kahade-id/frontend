@@ -32,30 +32,6 @@ export type SubscriptionHistoryEntry = {
   expiresAt?: string | null
 }
 
-export function getSubscriptionStatus(signal?: AbortSignal) {
-  return http.get<Record<string, unknown>>("/v1/subscriptions/status", { auth: "required", retry: 1, signal }).then((raw) => ({
-    ...raw,
-    active: raw.active ?? raw.isActive ?? false,
-    expiresAt: raw.expiresAt ?? raw.currentPeriodEnd ?? null,
-    autoRenew: raw.autoRenew ?? raw.isAutoRenew ?? false,
-    // Backend mengirim `isPaused`/`pausedAt`/`resumeAt` (model Subscription);
-    // kita menormalisasi ke `paused` agar layar tidak menebak bentuk server.
-    paused: raw.paused ?? raw.isPaused ?? false,
-    pausedAt: (raw.pausedAt ?? null) as string | null,
-    resumeAt: (raw.resumeAt ?? null) as string | null,
-  }) as SubscriptionStatus)
-}
-
-export function getSubscriptionHistory(query?: { page?: number; limit?: number }) {
-  return http
-    .get<Array<SubscriptionHistoryEntry>>("/v1/subscriptions/history", {
-      query,
-      auth: "required",
-      retry: 1,
-    })
-    .then((raw) => readList<SubscriptionHistoryEntry>(raw, ["history", "subscriptions"]))
-}
-
 export type SubscriptionBenefit = { key: string; title: string; description?: string }
 
 export function normalizeSubscriptionBenefit(value: unknown): SubscriptionBenefit | null {
@@ -68,26 +44,6 @@ export function normalizeSubscriptionBenefit(value: unknown): SubscriptionBenefi
     title,
     description: typeof row.description === "string" ? row.description : undefined,
   }
-}
-
-export function getSubscriptionBenefits(signal?: AbortSignal) {
-  return http
-    .get<unknown>("/v1/subscriptions/benefits", { auth: "required", retry: 1, signal })
-    .then((raw) =>
-      readList<unknown>(raw, ["benefits"])
-        .map(normalizeSubscriptionBenefit)
-        .filter((row): row is SubscriptionBenefit => row !== null),
-    )
-    .catch((error: unknown) => {
-      if (
-        error &&
-        typeof error === "object" &&
-        (("backendCode" in error && error.backendCode === "NO_ACTIVE_SUBSCRIPTION") ||
-          ("code" in error && error.code === "NOT_FOUND"))
-      )
-        return []
-      throw error
-    })
 }
 
 export function getSubscriptionPlans(signal?: AbortSignal) {
@@ -103,25 +59,6 @@ export function getSubscriptionPlans(signal?: AbortSignal) {
 // DIHAPUS (Mode Tanpa Wallet Internal, BI-safe): `POST /v1/subscriptions/renew`
 // memakai PIN dompet. Perpanjangan kini = langganan ulang via paket
 // (app/kahade-plus/plans.tsx) yang dibayar langsung via DANA.
-
-export function cancelSubscription() {
-  return http.post<SubscriptionStatus>("/v1/subscriptions/cancel", undefined, { auth: "required" })
-}
-
-/**
- * POST /v1/subscriptions/pause — jeda langganan aktif.
- * `resumeAtIso` opsional (ISO 8601, harus tanggal MASA DEPAN); tanpa itu
- * langganan tetap jeda sampai `resumeSubscription()` manual.
- * Respons = model Subscription server (BUKAN bentuk /status) — layar
- * harus `query.refresh()` setelahnya, jangan `setData` mentah-mentah.
- */
-export function pauseSubscription(resumeAtIso?: string) {
-  return http.post<Record<string, unknown>, { resumeAt?: string }>(
-    "/v1/subscriptions/pause",
-    { ...(resumeAtIso ? { resumeAt: resumeAtIso } : {}) },
-    { auth: "required" },
-  )
-}
 
 /** POST /v1/subscriptions/resume — aktifkan kembali langganan yang dijeda. Tanpa body. */
 export function resumeSubscription() {

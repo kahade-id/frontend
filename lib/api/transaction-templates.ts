@@ -39,14 +39,6 @@ export function listTransactionTemplates(signal?: AbortSignal) {
     .then((raw) => readList<TransactionTemplate>(raw, ["templates"]))
 }
 
-export function getTransactionTemplate(id: string, signal?: AbortSignal) {
-  return http.get<TransactionTemplate>(`/v1/transaction-templates/${seg(id)}`, {
-    auth: "required",
-    retry: 1,
-    signal,
-  })
-}
-
 /**
  * DTO produksi CreateTemplateDto/UpdateTemplateDto TIDAK mengenal `role` dan
  * `counterpartUsername` (forbidNonWhitelisted menolak field ekstra dengan 400).

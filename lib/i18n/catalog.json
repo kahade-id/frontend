@@ -827,6 +827,10 @@
    "n": 6
   },
   {
+   "s": "(lampiran)",
+   "n": 5
+  },
+  {
    "s": "{x} {y}",
    "n": 5
   },
@@ -1083,10 +1087,6 @@
    "n": 5
   },
   {
-   "s": "(lampiran)",
-   "n": 4
-  },
-  {
    "s": "{x} {y} rupiah",
    "n": 4
   },
@@ -1235,6 +1235,10 @@
    "n": 4
   },
   {
+   "s": "Detail",
+   "n": 4
+  },
+  {
    "s": "Diskon",
    "n": 4
   },
@@ -1264,6 +1268,10 @@
   },
   {
    "s": "Gagal memblokir pengguna",
+   "n": 4
+  },
+  {
+   "s": "Gagal memesan slot",
    "n": 4
   },
   {
@@ -2343,10 +2351,6 @@
    "n": 3
   },
   {
-   "s": "Detail",
-   "n": 3
-  },
-  {
    "s": "Detail etalase",
    "n": 3
   },
@@ -3295,7 +3299,7 @@
    "n": 3
   },
   {
-   "s": "Masukkan {x}–{y} digit kode yang diterima",
+   "s": "Masukkan {x} digit kode yang diterima",
    "n": 3
   },
   {
@@ -3915,6 +3919,10 @@
    "n": 3
   },
   {
+   "s": "Respons server tidak lengkap.",
+   "n": 3
+  },
+  {
    "s": "Reward",
    "n": 3
   },
@@ -3924,6 +3932,10 @@
   },
   {
    "s": "Rincian pembayaran, total {x}",
+   "n": 3
+  },
+  {
+   "s": "Ringkasan",
    "n": 3
   },
   {
@@ -4068,6 +4080,10 @@
   },
   {
    "s": "Sisa {x} dari {y} periode ini",
+   "n": 3
+  },
+  {
+   "s": "Sistem",
    "n": 3
   },
   {
@@ -5103,6 +5119,10 @@
    "n": 2
   },
   {
+   "s": "Bio tidak valid",
+   "n": 2
+  },
+  {
    "s": "Biometrik",
    "n": 2
   },
@@ -5732,10 +5752,6 @@
   },
   {
    "s": "Gagal membuka blokir",
-   "n": 2
-  },
-  {
-   "s": "Gagal memesan slot",
    "n": 2
   },
   {
@@ -6419,6 +6435,10 @@
    "n": 2
   },
   {
+   "s": "Kode voucher tidak berlaku.",
+   "n": 2
+  },
+  {
    "s": "Kondisi barang (opsional)",
    "n": 2
   },
@@ -6523,6 +6543,10 @@
    "n": 2
   },
   {
+   "s": "Langsung atau preorder. Jasa memakai tanggal jadwal.",
+   "n": 2
+  },
+  {
    "s": "Lanjutkan mengisi",
    "n": 2
   },
@@ -6552,6 +6576,10 @@
   },
   {
    "s": "Lengkapi akun Anda",
+   "n": 2
+  },
+  {
+   "s": "Lengkapi detail dan mitra transaksi.",
    "n": 2
   },
   {
@@ -7263,6 +7291,10 @@
    "n": 2
   },
   {
+   "s": "Periksa ringkasan dan biaya sebelum transaksi dibuat.",
+   "n": 2
+  },
+  {
    "s": "Periksa status langganan sebelum mencoba lagi.",
    "n": 2
   },
@@ -7359,6 +7391,10 @@
    "n": 2
   },
   {
+   "s": "Peserta",
+   "n": 2
+  },
+  {
    "s": "Pilih alamat pengiriman untuk menerima order ini.",
    "n": 2
   },
@@ -7372,6 +7408,10 @@
   },
   {
    "s": "Pilih jam lalu simpan — etalase terbit otomatis.",
+   "n": 2
+  },
+  {
+   "s": "Pilih kategori — menentukan informasi yang perlu dilengkapi.",
    "n": 2
   },
   {
@@ -7551,10 +7591,6 @@
    "n": 2
   },
   {
-   "s": "Ringkasan",
-   "n": 2
-  },
-  {
    "s": "Ringkasan mutasi",
    "n": 2
   },
@@ -7723,6 +7759,10 @@
    "n": 2
   },
   {
+   "s": "Sendiri atau patungan bersama.",
+   "n": 2
+  },
+  {
    "s": "Seret untuk memutar",
    "n": 2
   },
@@ -7788,10 +7828,6 @@
   },
   {
    "s": "Sisa putaran revisi: {x}",
-   "n": 2
-  },
-  {
-   "s": "Sistem",
    "n": 2
   },
   {
@@ -8140,6 +8176,10 @@
   },
   {
    "s": "Terlalu banyak percobaan gagal. Coba lagi nanti.",
+   "n": 2
+  },
+  {
+   "s": "Termasuk biaya layanan {x}.",
    "n": 2
   },
   {
@@ -10959,6 +10999,10 @@
    "n": 1
   },
   {
+   "s": "Apa yang ditransaksikan?",
+   "n": 1
+  },
+  {
    "s": "Apa yang harus dilakukan jika perangkat hilang?",
    "n": 1
   },
@@ -11184,6 +11228,10 @@
   },
   {
    "s": "Bagaimana menjaga PIN dan kode verifikasi tetap aman?",
+   "n": 1
+  },
+  {
+   "s": "Bagaimana sistemnya?",
    "n": 1
   },
   {
@@ -13751,6 +13799,10 @@
    "n": 1
   },
   {
+   "s": "Gagal memeriksa voucher — periksa koneksi, lalu coba lagi.",
+   "n": 1
+  },
+  {
    "s": "Gagal meminta ekspor",
    "n": 1
   },
@@ -15607,6 +15659,10 @@
    "n": 1
   },
   {
+   "s": "Kode voucher toko tidak berlaku.",
+   "n": 1
+  },
+  {
    "s": "Kode WhatsApp",
    "n": 1
   },
@@ -15939,10 +15995,6 @@
    "n": 1
   },
   {
-   "s": "Langsung atau preorder. Jasa memakai tanggal jadwal.",
-   "n": 1
-  },
-  {
    "s": "Lanjut ke transfer",
    "n": 1
   },
@@ -16052,10 +16104,6 @@
   },
   {
    "s": "Lengkapi data diri Anda",
-   "n": 1
-  },
-  {
-   "s": "Lengkapi detail dan mitra transaksi.",
    "n": 1
   },
   {
@@ -18395,6 +18443,10 @@
    "n": 1
   },
   {
+   "s": "Periksa & buat",
+   "n": 1
+  },
+  {
    "s": "Periksa daftar bukti sebelum mengunggah kembali.",
    "n": 1
   },
@@ -18436,10 +18488,6 @@
   },
   {
    "s": "Periksa perangkat, lokasi, dan alamat IP yang memiliki akses ke akun Anda. Melihat aktivitas yang bukan Anda? Cabut akses perangkat tersebut, lalu ganti kata sandi dan periksa verifikasi dua langkah Anda.",
-   "n": 1
-  },
-  {
-   "s": "Periksa ringkasan dan biaya sebelum transaksi dibuat.",
    "n": 1
   },
   {
@@ -18799,10 +18847,6 @@
    "n": 1
   },
   {
-   "s": "Peserta",
-   "n": 1
-  },
-  {
    "s": "peserta, admin berwenang, penyedia komunikasi, serta otoritas jika sah.",
    "n": 1
   },
@@ -18876,10 +18920,6 @@
   },
   {
    "s": "Pilih kata sandi baru untuk akun Anda. Minimal {x} karakter.",
-   "n": 1
-  },
-  {
-   "s": "Pilih kategori — menentukan informasi yang perlu dilengkapi.",
    "n": 1
   },
   {
@@ -19235,10 +19275,6 @@
    "n": 1
   },
   {
-   "s": "Respons server tidak lengkap.",
-   "n": 1
-  },
-  {
    "s": "Respons unggah video tidak memuat kunci berkas.",
    "n": 1
   },
@@ -19288,6 +19324,10 @@
   },
   {
    "s": "Rincian saldo",
+   "n": 1
+  },
+  {
+   "s": "Rincian transaksi",
    "n": 1
   },
   {
@@ -19663,10 +19703,6 @@
    "n": 1
   },
   {
-   "s": "Sendiri atau patungan bersama.",
-   "n": 1
-  },
-  {
    "s": "Sengketa berubah",
    "n": 1
   },
@@ -19864,6 +19900,10 @@
   },
   {
    "s": "Siapa yang dapat menerima data.",
+   "n": 1
+  },
+  {
+   "s": "Siapa yang ikut?",
    "n": 1
   },
   {
@@ -20943,11 +20983,19 @@
    "n": 1
   },
   {
+   "s": "Total nilai transaksi aktif Anda (ditambah transaksi ini) mencapai batas {x}. Selesaikan verifikasi identitas (KYC) untuk melanjutkan membuat transaksi.",
+   "n": 1
+  },
+  {
    "s": "Total pesanan",
    "n": 1
   },
   {
    "s": "Total saldo",
+   "n": 1
+  },
+  {
+   "s": "Total transaksi {x} hari terakhir Anda mencapai batas. Selesaikan verifikasi identitas (KYC) untuk melanjutkan membuat transaksi.",
    "n": 1
   },
   {
@@ -20976,6 +21024,10 @@
   },
   {
    "s": "Transaksi berisiko tinggi:",
+   "n": 1
+  },
+  {
+   "s": "Transaksi dengan nilai {x} ke atas membutuhkan verifikasi identitas (KYC).",
    "n": 1
   },
   {
