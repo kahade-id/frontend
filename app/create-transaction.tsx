@@ -121,7 +121,6 @@ import {
   ORDER_CATEGORY_DESCRIPTIONS,
   FULFILLMENT_LABELS,
   PARTICIPANT_MODE_LABELS,
-  calculatePatunganPerPerson,
   type OrderCategory,
   type FulfillmentType,
   type ParticipantMode,
@@ -196,6 +195,16 @@ function CategoryStep({
 }
 
 /**
+ * Format Date → "YYYY-MM-DD" untuk payload API.
+ */
+function toDateString(d: Date): string {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, "0")
+  const day = String(d.getDate()).padStart(2, "0")
+  return `${y}-${m}-${day}`
+}
+
+/**
  * Unified v2: pemilih sistem (Langsung/Preorder; Jasa pakai tanggal).
  */
 function SystemStep({
@@ -210,10 +219,10 @@ function SystemStep({
   category: OrderCategory
   fulfillment: FulfillmentType
   onFulfillmentChange: (v: FulfillmentType) => void
-  preorderDate: string
-  onPreorderDateChange: (v: string) => void
-  scheduledDate: string
-  onScheduledDateChange: (v: string) => void
+  preorderDate: Date | null
+  onPreorderDateChange: (v: Date | null) => void
+  scheduledDate: Date | null
+  onScheduledDateChange: (v: Date | null) => void
 }) {
   if (category === "JASA") {
     return (
@@ -221,13 +230,14 @@ function SystemStep({
         <Text variant="body" tone="secondary">
           Pilih tanggal pelaksanaan jasa.
         </Text>
-        <Field label="Tanggal jasa" required>
-          <Input
-            value={scheduledDate}
-            onChangeText={onScheduledDateChange}
-            placeholder="2026-12-20"
-          />
-        </Field>
+        <DateField
+          label="Tanggal jasa"
+          required
+          value={scheduledDate}
+          onChange={onScheduledDateChange}
+          placeholder="Pilih tanggal"
+          minDate={addDays(new Date(), 1)}
+        />
       </View>
     )
   }
@@ -257,13 +267,14 @@ function SystemStep({
         </PressableScale>
       ))}
       {fulfillment === "PREORDER" ? (
-        <Field label="Estimasi tanggal ready" required>
-          <Input
-            value={preorderDate}
-            onChangeText={onPreorderDateChange}
-            placeholder="2026-12-20"
-          />
-        </Field>
+        <DateField
+          label="Estimasi tanggal ready"
+          required
+          value={preorderDate}
+          onChange={onPreorderDateChange}
+          placeholder="Pilih tanggal"
+          minDate={addDays(new Date(), 1)}
+        />
       ) : null}
     </View>
   )
@@ -275,35 +286,15 @@ function SystemStep({
 function ParticipantStep({
   mode,
   onModeChange,
-  total,
-  onTotalChange,
-  target,
-  onTargetChange,
-  deadline,
-  onDeadlineChange,
-  inviteMethod,
-  onInviteMethodChange,
   counterpartNode,
 }: {
   mode: ParticipantMode
   onModeChange: (v: ParticipantMode) => void
-  total: string
-  onTotalChange: (v: string) => void
-  target: string
-  onTargetChange: (v: string) => void
-  deadline: string
-  onDeadlineChange: (v: string) => void
-  inviteMethod: "link" | "username"
-  onInviteMethodChange: (v: "link" | "username") => void
+  // P2-7: props patungan (total, target, deadline, inviteMethod) dihapus —
+  // mode GROUP diblokir sementara, tidak ada input patungan.
   /** Node pemilihan mitra (untuk mode SINGLE). */
   counterpartNode?: React.ReactNode
 }) {
-  const totalNum = Number(total)
-  const targetNum = Number(target)
-  const perPerson =
-    Number.isFinite(totalNum) && Number.isFinite(targetNum) && targetNum >= 2
-      ? calculatePatunganPerPerson(totalNum, targetNum)
-      : 0
   return (
     <View className="gap-3">
       {(["SINGLE", "GROUP"] as const).map((m) => (
@@ -334,63 +325,16 @@ function ParticipantStep({
       ) : null}
       {mode === "GROUP" ? (
         <View className="gap-3 pt-2">
-          <Field label="Total biaya (Rp)" required>
-            <Input
-              value={total}
-              onChangeText={onTotalChange}
-              placeholder="15000000"
-              keyboardType="numeric"
-            />
-          </Field>
-          <Field label="Target peserta (2-100)" required>
-            <Input
-              value={target}
-              onChangeText={onTargetChange}
-              placeholder="10"
-              keyboardType="numeric"
-            />
-          </Field>
-          {perPerson > 0 ? (
-            <View className="rounded-xl bg-surface p-3">
-              <Text variant="body" weight={700}>
-                Rp{perPerson.toLocaleString("id-ID")}/orang
-              </Text>
-              <Text variant="caption" tone="secondary">
-                Dihitung otomatis dari total ÷ target
-              </Text>
-            </View>
-          ) : null}
-          <Field label="Deadline" required>
-            <Input
-              value={deadline}
-              onChangeText={onDeadlineChange}
-              placeholder="2026-11-01"
-            />
-          </Field>
-          <Field label="Cara undang">
-            <View className="flex-row gap-2">
-              {(["link", "username"] as const).map((m) => (
-                <PressableScale
-                  key={m}
-                  onPress={() => onInviteMethodChange(m)}
-                  accessibilityRole="radio"
-                  accessibilityState={{ checked: inviteMethod === m }}
-                  accessibilityLabel={m === "link" ? "Via link" : "Via username"}
-                >
-                  <View
-                    className={cn(
-                      "rounded-xl border px-4 py-3",
-                      inviteMethod === m ? "border-primary bg-primary-soft" : "border-border bg-surface",
-                    )}
-                  >
-                    <Text variant="body" weight={600}>
-                      {m === "link" ? "Via link" : "Via username"}
-                    </Text>
-                  </View>
-                </PressableScale>
-              ))}
-            </View>
-          </Field>
+          {/* P2-7: Mode patungan diblokir sementara — backend belum punya kontrak grup yang nyata.
+              Jangan biarkan user masuk ke alur yang tidak berfungsi. */}
+          <View className="rounded-xl border border-warning bg-warning-soft p-4">
+            <Text variant="body" weight={700}>
+              Patungan segera hadir
+            </Text>
+            <Text variant="caption" tone="secondary">
+              Fitur urunan 2-100 orang sedang disiapkan. Untuk saat ini, silakan gunakan mode Sendiri (1 lawan 1).
+            </Text>
+          </View>
         </View>
       ) : null}
     </View>
@@ -536,14 +480,10 @@ export default function CreateTransactionScreen() {
     else if (category === "JASA") setOrderType("SERVICE")
   }, [category])
   const [fulfillment, setFulfillment] = useState<FulfillmentType>("BIASA")
-  const [preorderDate, setPreorderDate] = useState("")
-  const [scheduledDate, setScheduledDate] = useState("")
+  const [preorderDate, setPreorderDate] = useState<Date | null>(null)
+  const [scheduledDate, setScheduledDate] = useState<Date | null>(null)
   const [participantMode, setParticipantMode] = useState<ParticipantMode>("SINGLE")
-  // Detail patungan
-  const [patunganTotal, setPatunganTotal] = useState("")
-  const [patunganTarget, setPatunganTarget] = useState("")
-  const [patunganDeadline, setPatunganDeadline] = useState("")
-  const [patunganInviteMethod, setPatunganInviteMethod] = useState<"link" | "username">("link")
+  // P2-7: state patungan dihapus — mode GROUP diblokir sementara.
   // Detail kategori (v1): kondisi barang fisik, metode digital, deliverable jasa.
   // Alamat pengiriman pakai state existing (address book).
   const [itemCondition, setItemCondition] = useState<"baru" | "bekas">("baru")
@@ -939,11 +879,20 @@ export default function CreateTransactionScreen() {
       )
     : []
   const shippingAddressValid = shippingAddressMissing.length === 0
+  // P2-8: warrantyDays harus angka >= 0 (tolak negatif).
+  const warrantyDaysNum = Number(warrantyDays)
+  const warrantyDaysValid =
+    category !== "DIGITAL" ||
+    (warrantyDays.trim().length > 0 &&
+      Number.isFinite(warrantyDaysNum) &&
+      Number.isInteger(warrantyDaysNum) &&
+      warrantyDaysNum >= 0)
   const detailValid =
     titleTrimmed.length >= MIN_TITLE &&
     descriptionTrimmed.length >= MIN_DESCRIPTION &&
     isValidAmount(orderValue, AMOUNT_LIMITS.order) &&
     deadlineDate != null &&
+    warrantyDaysValid &&
     // TRX-009: barang fisik tidak bisa lanjut/submit tanpa alamat lengkap.
     shippingAddressValid
   const feeValid = confirmedFeeKey === feeKey && !feeLoading && !!fee
@@ -951,22 +900,13 @@ export default function CreateTransactionScreen() {
   const categoryValid = category !== null
   const systemValid =
     category === "JASA"
-      ? scheduledDate.trim().length > 0
+      ? scheduledDate != null
       : fulfillment === "PREORDER"
-        ? preorderDate.trim().length > 0
+        ? preorderDate != null
         : true
+  // P2-7: Mode GROUP diblokir sementara — selalu tidak valid agar user tidak bisa lanjut.
   const participantValid =
-    participantMode === "GROUP"
-      ? (() => {
-          const total = Number(patunganTotal)
-          const target = Number(patunganTarget)
-          return (
-            Number.isFinite(total) && total >= 10000 &&
-            Number.isFinite(target) && target >= 2 && target <= 100 &&
-            patunganDeadline.trim().length > 0
-          )
-        })()
-      : counterpartValid
+    participantMode === "GROUP" ? false : counterpartValid
   const stepValid = [
     categoryValid,
     systemValid,
@@ -1266,23 +1206,17 @@ export default function CreateTransactionScreen() {
         fulfillment,
         participantMode,
         ...(category ? { category } : {}),
-        ...(fulfillment === "PREORDER" && preorderDate ? { preorderEstimatedDate: preorderDate } : {}),
-        ...(category === "JASA" && scheduledDate ? { scheduledDate } : {}),
-        // Detail patungan
-        ...(participantMode === "GROUP"
-          ? {
-              patunganTotal: Number(patunganTotal) || undefined,
-              patunganTarget: Number(patunganTarget) || undefined,
-              patunganDeadline: patunganDeadline || undefined,
-              patunganInviteMethod,
-            }
+        ...(fulfillment === "PREORDER" && preorderDate
+          ? { preorderEstimatedDate: toDateString(preorderDate) }
           : {}),
+        ...(category === "JASA" && scheduledDate ? { scheduledDate: toDateString(scheduledDate) } : {}),
+        // P2-7: Detail patungan dihapus — mode GROUP diblokir sementara.
         // Detail kategori
         ...(category === "FISIK"
           ? { itemCondition, ...(itemCondition === "bekas" && conditionDesc ? { conditionDescription: conditionDesc } : {}) }
           : {}),
         ...(category === "DIGITAL"
-          ? { deliveryMethod, warrantyDays: Number(warrantyDays) || 7 }
+          ? { deliveryMethod, warrantyDays: Math.max(0, Math.floor(Number(warrantyDays) || 0)) }
           : {}),
         ...(category === "JASA"
           ? {
@@ -1500,14 +1434,6 @@ export default function CreateTransactionScreen() {
           <ParticipantStep
             mode={participantMode}
             onModeChange={setParticipantMode}
-            total={patunganTotal}
-            onTotalChange={setPatunganTotal}
-            target={patunganTarget}
-            onTargetChange={setPatunganTarget}
-            deadline={patunganDeadline}
-            onDeadlineChange={setPatunganDeadline}
-            inviteMethod={patunganInviteMethod}
-            onInviteMethodChange={setPatunganInviteMethod}
             counterpartNode={
               <CounterpartStep
                 value={counterpart}
@@ -1534,8 +1460,8 @@ export default function CreateTransactionScreen() {
                   Kategori: <Text weight={700}>{ORDER_CATEGORY_LABELS[category]}</Text>
                   {" · "}
                   {category === "JASA"
-                    ? `Jadwal: ${scheduledDate || "-"}`
-                    : `${FULFILLMENT_LABELS[fulfillment]}${fulfillment === "PREORDER" && preorderDate ? ` (${preorderDate})` : ""}`}
+                    ? `Jadwal: ${scheduledDate ? toDateString(scheduledDate) : "-"}`
+                    : `${FULFILLMENT_LABELS[fulfillment]}${fulfillment === "PREORDER" && preorderDate ? ` (${toDateString(preorderDate)})` : ""}`}
                   {" · "}
                   {PARTICIPANT_MODE_LABELS[participantMode]}
                 </Text>
@@ -1700,7 +1626,13 @@ export default function CreateTransactionScreen() {
                     ))}
                   </View>
                 </Field>
-                <Field label="Masa garansi (hari)" required>
+                <Field
+                  label="Masa garansi (hari)"
+                  required
+                  errorText={
+                    !warrantyDaysValid ? "Masa garansi harus angka 0 atau lebih" : undefined
+                  }
+                >
                   <Input
                     value={warrantyDays}
                     onChangeText={setWarrantyDays}
