@@ -39,7 +39,7 @@ export function OfflineBanner() {
           </Text>
           <Text variant="caption" tone="secondary">
             {translate(
-              "Suka & ikuti akan terkirim otomatis saat tersambung. Aksi lain (termasuk yang menyentuh uang) tidak bisa dilakukan saat offline.",
+              "Data tersimpan tetap terlihat, tetapi mungkin belum terbaru. Suka & ikuti akan terkirim otomatis saat tersambung. Aksi lain (termasuk yang menyentuh uang) tidak bisa dilakukan saat offline.",
             )}
           </Text>
         </View>

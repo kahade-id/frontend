@@ -18,9 +18,14 @@ import { byTimestampDesc, mergeById, usePaginatedQuery } from "@/lib/use-paginat
 import { clearBackpressure, recordBackpressure, backpressureRemainingMs } from "@/lib/api/backpressure"
 import { usePolling } from "@/lib/use-polling"
 import { RESULT_HOLD_MS, useResultTimer } from "@/lib/use-result-timer"
+import { initConnectivity } from "@/lib/connectivity"
 import { __setFocused } from "./stubs/react-navigation"
+import { __setNetInfoState } from "./stubs/netinfo"
 
-beforeEach(() => {
+beforeEach(async () => {
+  __setNetInfoState({ type: "wifi", isConnected: true, isInternetReachable: true })
+  initConnectivity()
+  await Promise.resolve()
   invalidateQueryCache()
   clearBackpressure()
   __setFocused(true)
@@ -53,6 +58,23 @@ describe("useApiQuery", () => {
     await waitFor(() => expect(result.current.data).toEqual({ v: 1 }))
     expect(result.current.loading).toBe(false)
     expect(result.current.error).toBeNull()
+  })
+
+  it("cache miss saat offline adalah state netral dan otomatis memuat saat tersambung", async () => {
+    __setNetInfoState({ type: "none", isConnected: false, isInternetReachable: false })
+    const fetcher = vi.fn(async () => ({ v: 7 }))
+    const { result } = renderHook(() => useApiQuery("h02-offline-miss", fetcher))
+
+    await waitFor(() => expect(result.current.offlineMiss).toBe(true))
+    expect(result.current.offline).toBe(true)
+    expect(result.current.error).toBeNull()
+    expect(result.current.refreshError).toBeNull()
+    expect(result.current.loading).toBe(false)
+    expect(fetcher).not.toHaveBeenCalled()
+
+    __setNetInfoState({ type: "wifi", isConnected: true, isInternetReachable: true })
+    await waitFor(() => expect(result.current.data).toEqual({ v: 7 }))
+    expect(fetcher).toHaveBeenCalledTimes(1)
   })
 
   it("membatalkan request saat unmount (tidak ada setState pasca-unmount)", async () => {
@@ -237,6 +259,20 @@ const page = (rows: Row[], totalPages: number, pageNum = 1): Page<Row> => ({
 })
 
 describe("usePaginatedQuery", () => {
+  it("offline tanpa halaman tersimpan menampilkan state netral tanpa request", async () => {
+    __setNetInfoState({ type: "none", isConnected: false, isInternetReachable: false })
+    const fetcher = vi.fn(async () => page([{ id: "a", v: 1 }], 1))
+    const { result } = renderHook(() => usePaginatedQuery("h02-page-offline-miss", fetcher))
+
+    await waitFor(() => expect(result.current.offlineMiss).toBe(true))
+    expect(result.current.offline).toBe(true)
+    expect(result.current.data).toEqual([])
+    expect(result.current.error).toBeNull()
+    expect(result.current.loadMoreError).toBeNull()
+    expect(result.current.loading).toBe(false)
+    expect(fetcher).not.toHaveBeenCalled()
+  })
+
   it("loadMore mengakumulasi halaman dan hasMore mengikuti meta server", async () => {
     const { result } = renderHook(() =>
       usePaginatedQuery<Row>("h02-pages", async (p) => {

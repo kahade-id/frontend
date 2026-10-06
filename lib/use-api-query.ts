@@ -1,16 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useIsFocused } from "expo-router"
 import { ApiError, userMessage } from "@/lib/api/errors"
-import { getSessionSnapshot } from "@/lib/api/session"
+import { getSessionRevision, getSessionSnapshot } from "@/lib/api/session"
 import { useGuestPathBlocked } from "@/lib/guest-gate"
-import { isOfflineKnown } from "@/lib/connectivity"
+import { isOfflineKnown, useIsOnline } from "@/lib/connectivity"
 import {
   CACHE_REVALIDATE_AFTER_MS,
   markQueryRevalidating,
   onQueryCacheInvalidation,
+  readPersistedQueryCacheEntry,
   readQueryCacheEntry,
   readQueryCacheStale,
   releaseQueryRevalidation,
+  restoreQueryCacheEntry,
   writeQueryCache,
 } from "@/lib/query-cache"
 
@@ -133,9 +135,11 @@ export function useApiQuery<TRaw, T = TRaw>(
    */
   const guestBlocked = useGuestPathBlocked()
   const active = enabled && !guestBlocked
+  const online = useIsOnline()
   const current = useRef<AbortController | null>(null)
   const [raw, setRaw] = useState<TRaw | null>(null)
-  const [loading, setLoading] = useState(active)
+  const [loading, setLoading] = useState(active && !isOfflineKnown())
+  const [offlineMiss, setOfflineMiss] = useState(active && isOfflineKnown())
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [errorStatus, setErrorStatus] = useState<number | null>(null)
@@ -162,6 +166,7 @@ export function useApiQuery<TRaw, T = TRaw>(
       current.current?.abort()
       const controller = new AbortController()
       current.current = controller
+      const requestSessionRevision = getSessionRevision()
       const releaseMarker = () => {
         if (background) releaseQueryRevalidation(key)
       }
@@ -169,6 +174,7 @@ export function useApiQuery<TRaw, T = TRaw>(
         setLoading(false)
         setRefreshing(false)
         setError(null)
+        setOfflineMiss(false)
         // T4-008: ikut direset — data ikut di-nul-kan di bawah.
         setRefreshError(null)
         setRaw(null)
@@ -176,36 +182,27 @@ export function useApiQuery<TRaw, T = TRaw>(
         return
       }
       /**
-       * NC-001 (P0, audit performa ronde 3) — stale-while-offline.
-       *
-       * Bila NetInfo PASTI melaporkan offline, menembak jaringan adalah
-       * kesia-siaan yang pasti gagal (diperparah retry 4x ~1,6 dtk sebelum
-       * error muncul). Sebagai gantinya:
-       *   1. cache segar → sajikan (tanpa revalidasi latar — pasti gagal);
-       *   2. cache basi → sajikan data terakhir + banner offline global;
-       *   3. tanpa cache → gagal CEPAT dengan pesan offline (tanpa retry).
-       * Banner offline global (<OfflineBanner/>) sudah menjelaskan situasi
-       * ke user; layar tidak perlu hancur menjadi full-page error.
+       * Cache-first offline: read stale memory, then the persistent native
+       * snapshot. An offline cache miss is a neutral empty state, not an API
+       * error, and must not send a request that cannot succeed.
        */
       if (isOfflineKnown()) {
         releaseMarker()
-        const fresh = readQueryCacheEntry<TRaw>(key)
-        const hit = fresh ?? readQueryCacheStale<TRaw>(key)
+        const hit =
+          readQueryCacheStale<TRaw>(key) ?? (await readPersistedQueryCacheEntry<TRaw>(key))
+        if (controller.signal.aborted || requestSessionRevision !== getSessionRevision()) return
         if (hit !== null) {
+          restoreQueryCacheEntry(key, hit.data, hit.at)
           setRaw(hit.data)
-          setLoading(false)
-          setRefreshing(false)
-          setError(null)
-          setRefreshError(null)
-          return
+          setOfflineMiss(false)
+        } else {
+          setRaw(null)
+          setOfflineMiss(true)
         }
-        // Tidak ada cache sama sekali — pesan offline langsung, tanpa
-        // menunggu 4x retry yang pasti gagal.
-        const msg = "Tidak ada koneksi internet. Periksa jaringan lalu coba lagi."
-        if (hasData.current) setRefreshError(msg)
-        else setError(msg)
         setLoading(false)
         setRefreshing(false)
+        setError(null)
+        setRefreshError(null)
         return
       }
       // F-03: cache per key — dua layar yang memakai data yang sama (mis.
@@ -215,6 +212,7 @@ export function useApiQuery<TRaw, T = TRaw>(
         const cached = readQueryCacheEntry<TRaw>(key)
         if (cached !== null) {
           setRaw(cached.data)
+          setOfflineMiss(false)
           setLoading(false)
           setRefreshing(false)
           setError(null)
@@ -233,6 +231,24 @@ export function useApiQuery<TRaw, T = TRaw>(
           if (
             !cached.revalidating &&
             Date.now() - cached.at >= CACHE_REVALIDATE_AFTER_MS &&
+            markQueryRevalidating(key)
+          ) {
+            void load(true, true)
+          }
+          return
+        }
+        const persisted = await readPersistedQueryCacheEntry<TRaw>(key)
+        if (controller.signal.aborted || requestSessionRevision !== getSessionRevision()) return
+        if (persisted !== null) {
+          restoreQueryCacheEntry(key, persisted.data, persisted.at)
+          setRaw(persisted.data)
+          setOfflineMiss(false)
+          setLoading(false)
+          setRefreshing(false)
+          setError(null)
+          setRefreshError(null)
+          if (
+            Date.now() - persisted.at >= CACHE_REVALIDATE_AFTER_MS &&
             markQueryRevalidating(key)
           ) {
             void load(true, true)
@@ -262,23 +278,53 @@ export function useApiQuery<TRaw, T = TRaw>(
         } else if (refresh) setRefreshing(true)
         else setLoading(true)
         if (!background) setError(null)
+        setOfflineMiss(false)
         // T4-008: banner refresh-error lama ikut dibersihkan saat percobaan
         // baru dimulai — ia akan muncul lagi bila percobaan ini juga gagal.
         if (!background) setRefreshError(null)
         try {
           const next = await fetchRef.current(controller.signal)
-          if (controller.signal.aborted) {
+          if (
+            controller.signal.aborted ||
+            requestSessionRevision !== getSessionRevision()
+          ) {
             releaseMarker()
             return
           }
           setRaw(next)
+          setOfflineMiss(false)
           writeQueryCache(key, next)
           if (!background) settle()
           // Penyegaran latar selesai: pastikan penanda cache dilepas.
           else releaseQueryRevalidation(key)
           return
         } catch (error) {
-          if (controller.signal.aborted) {
+          if (
+            controller.signal.aborted ||
+            requestSessionRevision !== getSessionRevision()
+          ) {
+            releaseMarker()
+            return
+          }
+          if (isOfflineKnown()) {
+            const cached =
+              readQueryCacheStale<TRaw>(key) ?? (await readPersistedQueryCacheEntry<TRaw>(key))
+            if (
+              controller.signal.aborted ||
+              requestSessionRevision !== getSessionRevision()
+            ) return
+            if (cached !== null) {
+              restoreQueryCacheEntry(key, cached.data, cached.at)
+              setRaw(cached.data)
+              setOfflineMiss(false)
+            } else {
+              setRaw(null)
+              setOfflineMiss(true)
+            }
+            setError(null)
+            setRefreshError(null)
+            setErrorStatus(null)
+            settle()
             releaseMarker()
             return
           }
@@ -342,9 +388,27 @@ export function useApiQuery<TRaw, T = TRaw>(
 
   useEffect(() => {
     setRaw(null)
+    setOfflineMiss(active && isOfflineKnown())
     void load()
     return () => current.current?.abort()
-  }, [load])
+  }, [load, active])
+
+  const previousOnline = useRef(online)
+  useEffect(() => {
+    const wasOnline = previousOnline.current
+    previousOnline.current = online
+    if (!active || wasOnline === online) return
+    if (!online) {
+      // Resolve the cache-first offline state immediately; this also clears a
+      // prior network message without replacing already-rendered data.
+      void load()
+    } else if (hasData.current) {
+      // A reconnect refreshes stale data in the background, keeping it visible.
+      void load(true, true)
+    } else {
+      void load()
+    }
+  }, [online, active, load])
 
   /**
    * R2 (audit ronde-2, butir #20): revalidate diam-diam saat cache
@@ -445,10 +509,23 @@ export function useApiQuery<TRaw, T = TRaw>(
   const setData = useCallback<typeof setRaw>((value) => {
     current.current?.abort()
     setRaw(value)
+    setOfflineMiss(false)
   }, [])
 
   return useMemo(
-    () => ({ data, setData, loading, refreshing, error, errorStatus, refreshError, refresh, reload }),
-    [data, setData, loading, refreshing, error, errorStatus, refreshError, refresh, reload],
+    () => ({
+      data,
+      setData,
+      loading,
+      refreshing,
+      error,
+      errorStatus,
+      refreshError,
+      offline: !online,
+      offlineMiss,
+      refresh,
+      reload,
+    }),
+    [data, setData, loading, refreshing, error, errorStatus, refreshError, online, offlineMiss, refresh, reload],
   )
 }

@@ -36,6 +36,8 @@ export const SecureKeys = {
   sessionSignedOut: "kahade.session.signedOut",
   accessToken: "kahade.auth.accessToken",
   refreshToken: "kahade.auth.refreshToken",
+  /** Random local namespace for persisted GET responses; never identifies the user. */
+  offlineQueryCacheScope: "kahade.cache.offlineScope",
   /**
    * Token akses admin panel (sesi TERPISAH dari sesi user — admin bisa login
    * sebagai admin tanpa mengganggu sesi user di perangkat yang sama).
@@ -392,6 +394,7 @@ export async function clearSession(): Promise<void> {
   await Promise.all([
     deleteSecureItem(SecureKeys.accessToken),
     deleteSecureItem(SecureKeys.refreshToken),
+    deleteSecureItem(SecureKeys.offlineQueryCacheScope),
     deleteSecureItem(SecureKeys.lastNativeRoute),
     deleteSecureItem(SecureKeys.biometricEnabled),
     deleteSecureItem(SecureKeys.pushToken),
