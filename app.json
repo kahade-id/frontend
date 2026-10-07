@@ -39,7 +39,9 @@
         "aps-environment": "development"
       },
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "Kahade membutuhkan lokasi Anda untuk keamanan akun: lokasi dicatat saat masuk, mendaftar, dan reset kata sandi untuk mendeteksi aktivitas mencurigakan."
+        "NSLocationWhenInUseUsageDescription": "Kahade membutuhkan lokasi Anda untuk keamanan akun: lokasi dicatat saat masuk, mendaftar, dan reset kata sandi untuk mendeteksi aktivitas mencurigakan.",
+        "NSPhotoLibraryAddUsageDescription": "Kahade butuh akses galeri untuk menyimpan foto dan video dari chat ke perangkat Anda.",
+        "NSPhotoLibraryUsageDescription": "Kahade butuh akses galeri untuk menyimpan foto dan video dari chat ke perangkat Anda."
       }
     },
     "android": {
