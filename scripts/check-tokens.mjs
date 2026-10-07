@@ -313,6 +313,17 @@ const DARK_ALLOWLIST = {
   "components/ui/showcase-gallery-grid.tsx": "+N text-white di atas bg-overlay (scrim hitam kedua mode)",
   "components/ui/showcase-media-gallery.tsx":
     "kontrol pager + titik indikator text-white/bg-white di atas bg-overlay-media (B-11, scrim hitam kedua mode — sama dengan +N showcase-gallery-grid)",
+  // Halaman media terpusat (2026-10): SELURUH halaman viewer berlatar hitam
+  // solid di kedua mode (pemutar media standar, konsisten dengan <ImageViewer>
+  // lama di atas bg-overlay) — chrome putih satu-satunya yang terbaca.
+  "components/media-viewer/viewer-chrome.tsx": "chrome viewer text-white/bg-white/bg-black di atas hitam solid kedua mode (§2 kontras, preseden showcase-media-gallery)",
+  "components/media-viewer/photo-viewer.tsx": "chrome foto text-white/bg-white/bg-black di atas hitam solid kedua mode (preseden showcase-media-gallery)",
+  "components/media-viewer/video-player.tsx": "kontrol video text-white/bg-white/bg-black di atas hitam solid kedua mode (preseden showcase-media-gallery)",
+  "components/media-viewer/file-viewer.tsx": "chrome berkas text-white/bg-white/bg-black di atas hitam solid kedua mode (preseden showcase-media-gallery)",
+  "components/media-viewer/audio-viewer.tsx": "chrome audio text-white/bg-white/bg-black di atas hitam solid kedua mode (preseden showcase-media-gallery)",
+  "components/media-viewer/location-viewer.tsx": "chrome peta text-white/bg-white/bg-black di atas hitam solid kedua mode (preseden showcase-media-gallery)",
+  "components/screens/media-viewer-screen.tsx": "latar halaman viewer bg-black solid kedua mode (preseden showcase-media-gallery)",
+  "app/media-viewer.tsx": "latar fallback rute viewer bg-black solid kedua mode (preseden showcase-media-gallery)",
 }
 const DARK_VARIANT_RE = /\bdark:[a-z][a-z0-9-]*/g
 const LITERAL_CLASS_RE = /\b(?:bg|text|border|fill|stroke)-(?:white|black|gray-\d{2,3})\b/g

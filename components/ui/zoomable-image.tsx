@@ -24,7 +24,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated"
 
-import { Picture } from "@/components/ui/picture"
+import { Picture, type PictureProps } from "@/components/ui/picture"
 
 const MIN_SCALE = 1
 const MAX_SCALE = 4
@@ -38,6 +38,8 @@ export function ZoomableImage({
   onZoomChange,
   resizeMode = "cover",
   priority,
+  onLoad,
+  onError,
 }: {
   source: string
   alt?: string
@@ -56,6 +58,13 @@ export function ZoomableImage({
    * agar tidak berebut bandwidth dengan prefetch tetangga.
    */
   priority?: "high" | "normal" | "low"
+  /**
+   * Media viewer (2026-10): teruskan event muat/gagal <Picture> — dipakai
+   * photo viewer untuk dimensi info + state error dengan retry per slide.
+   * Opsional; pemanggil lama tidak berubah perilaku.
+   */
+  onLoad?: PictureProps["onLoad"]
+  onError?: PictureProps["onError"]
 }) {
   const scale = useSharedValue(1)
   const savedScale = useSharedValue(1)
@@ -166,7 +175,7 @@ export function ZoomableImage({
           {/* P2 (2026-09-30): bitmap di-decode pada resolusi layar lalu di-scale
               GPU — zoom >2× terlihat buram. Full-res swap saat scale > 2
               adalah peningkatan lanjutan (belum diimplementasikan). */}
-          <Picture source={source} alt={alt} width={width} height={height} radius="none" bordered={false} resizeMode={resizeMode} priority={priority} />
+          <Picture source={source} alt={alt} width={width} height={height} radius="none" bordered={false} resizeMode={resizeMode} priority={priority} onLoad={onLoad} onError={onError} />
         </Animated.View>
       </Animated.View>
     </GestureDetector>
