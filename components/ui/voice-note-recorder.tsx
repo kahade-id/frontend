@@ -236,8 +236,15 @@ export function VoiceNoteRecorder({
     const elapsed = recState.durationMillis ?? 0
     try {
       await recorder.stop()
-      const uri = recorder.uri
+      // 2026-10-07: beri jeda kecil agar `uri` terisi (race condition di
+      // beberapa perangkat Android di mana uri null sesaat setelah stop).
+      let uri = recorder.uri
       if (!uri) {
+        await new Promise((resolve) => setTimeout(resolve, 300))
+        uri = recorder.uri
+      }
+      if (!uri) {
+        // Jangan diam — beri tahu user apa yang terjadi.
         setState("unsupported")
         return
       }
