@@ -7,7 +7,6 @@
  * dihapus (dead code, nol pemanggil).
  */
 import { ApiError, codeFromStatus, DEFAULT_ERROR_MESSAGES, type ApiErrorCode } from "@/lib/api/errors"
-import { safeHttpsUrl } from "@/lib/version"
 import { buildUrl, http, refreshAccessToken, seg } from "@/lib/api/client"
 import { getAccessToken } from "@/lib/api/session"
 import type { CleanupFilesDto } from "@/lib/api/types"
@@ -24,17 +23,6 @@ function loadImagePicker(): Promise<ImagePickerModule> {
   return imagePickerPromise
 }
 import { Platform } from "react-native"
-
-/** Hasil POST /v1/upload/presigned-url. */
-export type PresignedUpload = {
-  fileKey: string
-  url: string
-  /** Method PUT untuk menaruh objek (form = POST multipart). */
-  method?: "PUT" | "POST"
-  fields?: Record<string, string>
-  headers?: Record<string, string>
-  expiresAt?: string
-}
 
 /** Hasil POST /v1/upload/direct — menerima FormData multipart. */
 export type DirectUpload = {
@@ -56,124 +44,6 @@ export type DirectUpload = {
  * pemanggil); backend mematikan `POST /v1/upload/presigned-url`
  * (DEPRECATED 400). Upload kini via `uploadDirectImage`/`uploadDirect`.
  */
-
-/** Object storage is a separate HTTPS transport: never send cookies or application headers. */
-export async function uploadToPresignedUrl(
-  upload: Pick<PresignedUpload, "url" | "method" | "fields" | "headers">,
-  blob: Blob,
-  fileName = "upload",
-  timeoutMs = 60_000,
-  signal?: AbortSignal,
-) {
-  const url = safeHttpsUrl(upload.url)
-  if (!url) throw new ApiError({ code: "VALIDATION", message: "URL unggah tidak aman." })
-  const method = upload.method ?? (upload.fields ? "POST" : "PUT")
-  if (method !== "PUT" && method !== "POST")
-    throw new ApiError({ code: "PARSE", message: "Metode unggah tidak didukung." })
-  const headers = new Headers(upload.headers)
-  let body: Blob | FormData = blob
-  if (method === "POST") {
-    body = new FormData()
-    for (const [key, value] of Object.entries(upload.fields ?? {})) body.append(key, value)
-    body.append("file", blob, fileName)
-    headers.delete("Content-Type") // fetch owns the multipart boundary.
-  } else if (!headers.has("Content-Type") && blob.type) headers.set("Content-Type", blob.type)
-  const controller = new AbortController()
-  const abort = () => controller.abort()
-  signal?.addEventListener("abort", abort, { once: true })
-  if (signal?.aborted) controller.abort()
-  let timer: ReturnType<typeof setTimeout> | undefined
-  try {
-    let response: Response
-    try {
-      response = await Promise.race([
-        fetch(url, { method, body, headers, credentials: "omit", signal: controller.signal }),
-        new Promise<never>((_, reject) => {
-          timer = setTimeout(() => {
-            controller.abort()
-            reject(
-              new ApiError({
-                code: "TIMEOUT",
-                message: "Unggah terlalu lama. Periksa koneksi lalu coba kembali.",
-              }),
-            )
-          }, timeoutMs)
-        }),
-      ])
-    } catch (err) {
-      // BUG #2: fetch yang gagal total (offline/DNS) sebelumnya lolos sebagai
-      // TypeError mentah → userMessage() menampilkan UNKNOWN yang generik.
-      if (err instanceof ApiError) throw err // TIMEOUT dari race di atas.
-      if ((err as { name?: string } | null)?.name === "AbortError")
-        throw new ApiError({ code: "ABORTED", message: "Unggahan dibatalkan." })
-      throw new ApiError({ code: "NETWORK", message: DEFAULT_ERROR_MESSAGES.NETWORK, cause: err })
-    }
-    if (!response.ok) throw await storageUploadError(response)
-  } finally {
-    clearTimeout(timer)
-    signal?.removeEventListener("abort", abort)
-  }
-}
-
-/**
- * BUG #2 (2026-09-26): error PUT/POST ke object storage (R2/S3) sebelumnya
- * dibuang dan diganti pesan generik "Unggah berkas gagal" — penyebab asli
- * (mis. 403 SignatureDoesNotMatch) tak pernah terlacak. R2 menjawab error
- * dengan XML `<Error><Code>…</Code><Message>…</Message></Error>`; kode itu
- * sekarang diteruskan ke `ApiError.backendCode` (`R2_<Code>`) untuk
- * diagnostik, dan dipetakan ke copy Indonesia yang bisa ditindaklanjuti user.
- */
-function parseStorageErrorCode(bodyText: string): string | undefined {
-  const match = /<Code>([^<]{1,120})<\/Code>/i.exec(bodyText)
-  const code = match?.[1]?.trim()
-  return code || undefined
-}
-
-/** Copy Indonesia per kode error R2 yang umum saat PUT presigned gagal. */
-const STORAGE_ERROR_COPY: Record<string, string> = {
-  SignatureDoesNotMatch:
-    "Tanda tangan unggahan tidak cocok. Pilih ulang foto lalu coba unggah kembali.",
-  AccessDenied: "Akses ke penyimpanan ditolak. Coba lagi; bila berlanjut, hubungi bantuan.",
-  ExpiredToken: "Sesi unggah kedaluwarsa. Coba unggah ulang.",
-  EntityTooLarge: "Ukuran berkas melebihi batas penyimpanan.",
-  MaxMessageLengthExceeded: "Ukuran berkas melebihi batas penyimpanan.",
-  InvalidRequest: "Permintaan unggah tidak valid. Coba dengan foto lain.",
-  BadDigest: "Berkas rusak saat diunggah. Coba lagi.",
-  NoSuchBucket: "Tujuan penyimpanan tidak tersedia. Coba lagi nanti.",
-  InternalError: "Penyimpanan sedang gangguan. Coba lagi nanti.",
-  SlowDown: "Penyimpanan sedang sibuk. Tunggu sebentar lalu coba lagi.",
-}
-
-async function storageUploadError(response: Response): Promise<ApiError> {
-  const bodyText = await response.text().catch(() => "")
-  const storageCode = parseStorageErrorCode(bodyText)
-  const copy = (storageCode && STORAGE_ERROR_COPY[storageCode]) || undefined
-  return new ApiError({
-    // codeFromStatus: 4xx → FORBIDDEN/BAD_REQUEST/dsb. sehingga userMessage()
-    // menampilkan pesan informatif di bawah (bukan generik); 5xx → SERVER
-    // (pesan generik memang tepat untuk gangguan server).
-    code: codeFromStatus(response.status, false),
-    status: response.status,
-    backendCode: storageCode ? `R2_${storageCode}` : "R2_HTTP_ERROR",
-    message:
-      copy ??
-      `Unggah ke penyimpanan gagal (HTTP ${response.status}${
-        storageCode ? `, ${storageCode}` : ""
-      }). Coba lagi.`,
-    // Body XML bisa memuat fileKey di <Resource> — batasi panjangnya dan
-    // JANGAN tampilkan ke user (getter `raw` tidak ikut serialisasi).
-    raw: bodyText.slice(0, 2000) || undefined,
-    path: "object-storage",
-  })
-}
-export async function putToPresignedUrl(
-  url: string,
-  blob: Blob,
-  headers?: Record<string, string>,
-  signal?: AbortSignal,
-) {
-  return uploadToPresignedUrl({ url, method: "PUT", headers }, blob, "upload", 60_000, signal)
-}
 
 /**
  * BFE-115 (2026-10-03): `confirmUpload` DIHAPUS — dead code (nol pemanggil);
@@ -253,6 +123,9 @@ const VIDEO_UPLOAD_ERROR_COPY: Record<string, string> = {
   VIDEO_RESOLUTION_TOO_HIGH: "Resolusi video terlalu tinggi. Pilih video dengan resolusi lebih rendah.",
   VIDEO_UNPROCESSABLE: "Video tidak dapat diproses. Coba dengan video lain.",
   UPLOAD_FAILED: "Unggah video gagal. Periksa koneksi lalu coba lagi.",
+  // 2026-10-07: PhoneVerifiedGuard memblokir upload bila HP belum verifikasi.
+  // Tanpa ini user hanya lihat error generik dan tidak tahu penyebabnya.
+  PHONE_NOT_VERIFIED: "Verifikasi nomor HP dulu untuk mengunggah. Buka Pengaturan untuk verifikasi.",
 }
 
 /** Ambil kode error backend dari body respons (bentuk NestJS umum). */
