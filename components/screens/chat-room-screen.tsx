@@ -29,7 +29,8 @@
  *     sudah ada (C-07).
  *   - Hapus pesan: long-press gelembung milik sendiri → ActionSheet
  *     (Salin / Hapus). Hapus memakai Dialog destruktif.
- *   - Lampiran gambar dibuka di <MediaViewer>; berkas lain → buka eksternal.
+  *   - Lampiran dibuka di halaman media viewer (`/media-viewer`, Bagian 2):
+  *     foto/video/berkas/audio in-app; tidak pernah browser luar.
  *   - Nama lawan bicara diambil dari daftar ruang (GET /rooms tidak punya
  *     endpoint detail); fallback param navigasi `title` (C-06), lalu
  *     "Percakapan".
@@ -53,6 +54,8 @@ import {
   ArrowBendUpLeft,
   Chats,
   Copy,
+  DownloadSimple,
+  Eye,
   EyeClosed,
   MagnifyingGlass,
   PaperPlaneRight,
@@ -161,8 +164,8 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { Button } from "@/components/ui/button"
 import { ErrorState } from "@/components/ui/error-state"
 import { LoadMore, type LoadMoreStatus } from "@/components/ui/load-more"
-import { MediaViewer, isImageMedia, type MediaViewerItem } from "@/components/ui/media-viewer"
-import { ImageViewer, type ImageViewerItem } from "@/components/ui/image-viewer"
+import { classifyMedia, mediaViewerHref } from "@/lib/media-viewer"
+import { openFileWithOtherApp, saveImageOrVideoToGallery } from "@/lib/media-actions"
 import { ListLoading } from "@/components/ui/paginated-list"
 import { Screen } from "@/components/ui/screen"
 import { ChatRoomFooter } from "@/components/ui/chat-room-footer"
@@ -190,7 +193,7 @@ import { getMeCached, pickPublicUserId } from "@/lib/api/users"
 import { useToast } from "@/components/ui/toast"
 import { useOverlayDismissKeys } from "@/components/ui/backdrop"
 import { ephemeralDurationLabel } from "@/lib/chat-ephemeral"
-import { isImageMime, isVideoMime } from "@/lib/mime"
+import { isImageMime } from "@/lib/mime"
 import type { ChatBubbleAnchor } from "@/lib/chat-bubble"
 
 
@@ -678,12 +681,6 @@ export default function ChatRoomScreen() {
   /** Mode sekali-lihat — one-shot: reset setelah satu pesan terkirim. */
   const [viewOnceOn, setViewOnceOn] = useState(false)
 
-  const [viewerItem, setViewerItem] = useState<MediaViewerItem | null>(null)
-  /**
-   * Viewer gambar layar penuh (pinch-zoom + swipe): gambar dibuka di sini,
-   * berkas non-gambar tetap lewat <MediaViewer> (tombol "Buka eksternal").
-   */
-  const [imageViewer, setImageViewer] = useState<{ images: ImageViewerItem[]; index: number } | null>(null)
   /**
    * Mode pilih pesan (v3 2026-09-21). Tekan lama / ketuk satu pesan
    * mengaktifkannya; header ruang digantikan <SelectionBar> berisi reaksi
@@ -2800,51 +2797,108 @@ export default function ChatRoomScreen() {
   )
 
   /**
-   * FIX 2026-10-03 (bug media chat): dua akar masalah diperbaiki di sini.
-   *
-   * 1. URL kedaluwarsa: backend men-sign URL lampiran dengan TTL 5 menit
-   *    (`ATTACHMENT_URL_TTL_SECONDS=300`, di-sign ulang saat read). Klien
-   *    menyimpan pesan lebih lama dari itu — ketuk foto/video setelah 5
-   *    menit = URL mati. Kini: cek `urlExpiresAt`; bila kedaluwarsa (atau
-   *    <60 dtk lagi), refresh via `getChatAttachments` dulu sebelum buka.
-   *
-   * 2. Video tidak bisa di-play: sebelumnya video difilter keluar dari
-   *    ImageViewer (hanya gambar) lalu jatuh ke MediaViewer (kartu berkas +
-   *    "Buka eksternal"). Kini video ikut ke ImageViewer dengan
-   *    `kind: "video"` → diputar in-app via FeedVideo.
+   * Bagian 2 (2026-10-07): SEMUA lampiran dibuka di halaman media viewer
+   * (`/media-viewer`) — foto (album per pesan), video (pemutar penuh),
+   * audio (voice player), berkas (pratinjau in-app). Tidak pernah browser
+   * luar. Refresh signed URL kedaluwarsa (TTL 5 mnt) tetap jalan dulu
+   * (FIX 2026-10-03).
    */
   const openAttachment = useCallback(
     async (a: ChatAttachmentDto) => {
-      // — Refresh URL bila kedaluwarsa —
       const attachment = await refreshAttachmentIfExpired(a)
-
-    const isVideo = isVideoMime(attachment.mimeType)
-    if (isImageMedia({ url: attachment.fileUrl, mimeType: attachment.mimeType }) || isVideo) {
-      // Kumpulkan SEMUA media (gambar + video) di pesan yang sama supaya
-      // bisa swipe antar media di viewer.
       const owner = messages.find((m) =>
         m.attachments?.some((att) => att === a || att.fileUrl === a.fileUrl),
       )
-      const candidates = owner?.attachments?.length ? owner.attachments : [attachment]
-      const media = candidates.filter(
-        (att) => isImageMedia({ url: att.fileUrl, mimeType: att.mimeType }) || isVideoMime(att.mimeType),
+      const type = classifyMedia(attachment.mimeType, attachment.fileName)
+      if (type === "photo") {
+        // Album = semua FOTO di pesan pemilik (video dibuka satuan).
+        const candidates = owner?.attachments?.length ? owner.attachments : [attachment]
+        const photos = candidates.filter(
+          (att) => classifyMedia(att.mimeType, att.fileName) === "photo",
+        )
+        const items = (photos.length > 0 ? photos : [attachment]).map((att) => ({
+          url: att.fileUrl === attachment.fileUrl ? attachment.fileUrl : att.fileUrl,
+          fileName: att.fileName,
+        }))
+        const at = Math.max(
+          0,
+          items.findIndex((it) => it.url === attachment.fileUrl),
+        )
+        router.push(
+          mediaViewerHref({
+            type: "photo",
+            url: attachment.fileUrl,
+            title: attachment.fileName,
+            mimeType: attachment.mimeType,
+            fileName: attachment.fileName,
+            fileSize: attachment.fileSize,
+            sentAt: owner?.createdAt,
+            items,
+            index: at,
+          }),
+        )
+        return
+      }
+      router.push(
+        mediaViewerHref({
+          type,
+          url: attachment.fileUrl,
+          title: attachment.fileName,
+          mimeType: attachment.mimeType,
+          fileName: attachment.fileName,
+          fileSize: attachment.fileSize,
+          durationSeconds: owner?.durationSeconds,
+          sentAt: owner?.createdAt,
+        }),
       )
-      const at = Math.max(
-        0,
-        media.findIndex((att) => att === attachment || att.fileUrl === attachment.fileUrl),
-      )
-      setImageViewer({
-        images: media.map((att) => ({
-          url: att === attachment ? attachment.fileUrl : att.fileUrl,
-          alt: att.fileName ?? undefined,
-          kind: isVideoMime(att.mimeType) ? ("video" as const) : ("image" as const),
-        })),
-        index: at,
-      })
-      return
-    }
-    setViewerItem({ url: attachment.fileUrl, mimeType: attachment.mimeType, title: attachment.fileName, fileName: attachment.fileName })
-  }, [messages, refreshAttachmentIfExpired])
+    },
+    [messages, refreshAttachmentIfExpired],
+  )
+
+  /**
+   * Bagian 2: kartu lokasi → peta penuh IN-APP
+   * (`/media-viewer?type=location`), bukan OSM eksternal.
+   */
+  const openLocation = useCallback((location: { lat: number; lng: number; label?: string | null }) => {
+    router.push(
+      mediaViewerHref({
+        type: "location",
+        lat: location.lat,
+        lng: location.lng,
+        label: location.label ?? undefined,
+      }),
+    )
+  }, [])
+
+  /**
+   * Bagian 2: "Simpan" di mode pilih — foto/video ke galeri (izin diminta
+   * saat aksi), voice/dokumen diunduh lalu dibuka via sheet OS
+   * (bagi/simpan-ke-file). URL di-refresh dulu (TTL 5 mnt).
+   */
+  const saveAttachment = useCallback(
+    async (a: ChatAttachmentDto) => {
+      const attachment = await refreshAttachmentIfExpired(a)
+      const type = classifyMedia(attachment.mimeType, attachment.fileName)
+      try {
+        if (type === "photo" || type === "video") {
+          await saveImageOrVideoToGallery(attachment.fileUrl, attachment.fileName)
+          toast.show({ title: "Tersimpan ke galeri", tone: "success", duration: 2500 })
+        } else {
+          await openFileWithOtherApp(
+            attachment.fileUrl,
+            attachment.fileName,
+            attachment.mimeType,
+          )
+        }
+      } catch (err) {
+        toast.show({
+          title: err instanceof Error ? err.message : "Gagal menyimpan berkas",
+          tone: "danger",
+        })
+      }
+    },
+    [refreshAttachmentIfExpired, toast.show],
+  )
 
   const counterpartUsername = room?.counterpart?.username
   const composerAttachments = attachments
@@ -2942,6 +2996,46 @@ export default function ChatRoomScreen() {
         },
       })
     }
+    // Bagian 2 (2026-10-07): pesan media/lokasi terpilih tunggal → Lihat
+    // (viewer in-app) + Simpan (galeri / unduh+bagi).
+    if (singleSelected?.attachments?.length) {
+      const first = singleSelected.attachments[0]
+      actions.push({
+        key: "view",
+        label: "Lihat",
+        icon: Eye,
+        accessibilityHint: "Membuka media layar penuh",
+        onPress: () => {
+          exitSelect()
+          void openAttachment(first)
+        },
+      })
+      actions.push({
+        key: "save",
+        label: "Simpan",
+        icon: DownloadSimple,
+        accessibilityHint: "Menyimpan media ke perangkat",
+        onPress: () => {
+          exitSelect()
+          void saveAttachment(first)
+        },
+      })
+    } else if (
+      singleSelected?.messageType === "LOCATION" &&
+      singleSelected.location
+    ) {
+      const loc = singleSelected.location
+      actions.push({
+        key: "view",
+        label: "Lihat",
+        icon: Eye,
+        accessibilityHint: "Membuka peta layar penuh",
+        onPress: () => {
+          exitSelect()
+          openLocation(loc)
+        },
+      })
+    }
     // Batch 43: bintang / batal bintang (bisa multi).
     if (selectedMessages.length > 0) {
       const anyUnstarred = selectedMessages.some((m) => !m.isStarred)
@@ -2995,7 +3089,10 @@ export default function ChatRoomScreen() {
     handleCopySelected,
     handleTogglePin,
     handleToggleStarSelected,
+    openAttachment,
     openForward,
+    openLocation,
+    saveAttachment,
     selectedMessages,
     singleSelected,
   ])
@@ -3237,8 +3334,10 @@ export default function ChatRoomScreen() {
             onLongPress={handleRowLongPress}
             onReact={handleRowReact}
             onAttachmentPress={openAttachment}
+            // Bagian 2: kartu lokasi → peta penuh in-app.
+            onLocationPress={openLocation}
             // FIX 2026-10-03: thumbnail di bubble memakai signed URL yang
-            // juga kedaluwarsa (5 mnt). Diteruskan agar ChatAttachmentItem
+            // juga kedaluwarsa (5 mnt). Diteruskan agar bubble foto/video
             // bisa refresh saat Picture onError.
             onRefreshAttachmentUrl={refreshAttachmentIfExpired}
             // Batch 43: hasil terjemahan per pesan + tombol Beli kartu produk.
@@ -3272,6 +3371,7 @@ export default function ChatRoomScreen() {
       handleRowLongPress,
       handleRowReact,
       openAttachment,
+      openLocation,
       getTranslationView,
       isSelfChat,
       handleRowBuyProductCard,
@@ -3357,11 +3457,6 @@ export default function ChatRoomScreen() {
   const handlePinnedLayout = useCallback(
     (e: LayoutChangeEvent) => setPinnedBarHeight(e.nativeEvent.layout.height),
     [],
-  )
-  const handleViewerClose = useCallback(() => setViewerItem(null), [])
-  const handleViewerOpenError = useCallback(
-    (msg: string) => toast.show({ title: msg, tone: "danger" }),
-    [toast.show],
   )
   const handleStartReached = useCallback(() => {
     if (olderStatus === "idle" && messages.length > 0) void loadOlder()
@@ -3573,21 +3668,6 @@ export default function ChatRoomScreen() {
         windowSize={9}
       // removeClippedSubviews DIHAPUS (2026-09-23): sumber klasik baris/layar
       // blank saat scroll di Android — view terpotong tak selalu direstorasi.
-      />
-
-      {viewerItem ? (
-        <MediaViewer
-          item={viewerItem}
-          onClose={handleViewerClose}
-          onOpenError={handleViewerOpenError}
-        />
-      ) : null}
-
-      <ImageViewer
-        visible={imageViewer != null}
-        images={imageViewer?.images ?? []}
-        index={imageViewer?.index ?? 0}
-        onClose={() => setImageViewer(null)}
       />
 
       {/* Pemilih reaksi MENGAMBANG (revisi 2026-09-27): pil emoji di dekat

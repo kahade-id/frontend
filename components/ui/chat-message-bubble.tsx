@@ -246,6 +246,14 @@ export type ChatMessageBubbleProps = Omit<ViewProps, "children"> & {
    */
   anchorRef?: RefObject<ViewInstance | null>
   labels?: { retry?: string; failed?: string; edited?: string }
+  /**
+   * 2026-10-07 (Bagian 2): bubble MEDIA (foto/video/berkas/lokasi/voice).
+   * Meta (jam + centang) digambar sebagai pill melayang `bg-surface-elevated`
+   * di sudut media — ala WhatsApp — dan padding reservasi meta (pr-16/pb-5)
+   * dimatikan supaya media selebar bubble. Tanpa ini foto 208px + 64px
+   * reservasi meluap dari max-w 76% di layar 360px.
+   */
+  overlayMeta?: boolean
   className?: string
 }
 
@@ -289,6 +297,7 @@ function ChatMessageBubbleBase({
   translation,
   ephemeralChip,
   starred = false,
+  overlayMeta = false,
   className,
   ...rest
 }: ChatMessageBubbleProps) {
@@ -391,11 +400,20 @@ function ChatMessageBubbleBase({
   // ala WhatsApp — tidak makan space vertikal tambahan.
   // 2026-10-03 (update 2): tone inverse untuk bubble hitam (outgoing)
   // agar jam + centang terlihat jelas.
-  const metaTone = outgoing ? "inverse" : "secondary"
-  const metaIconTone = outgoing ? "inverse" : "default"
+  // overlayMeta: pill `bg-surface-elevated` (mode-aware) dengan tone
+  // PRIMER — bukan inverse — supaya terbaca di kedua mode (pill terang di
+  // light, gelap di dark; teks inverse justru salah di salah satunya).
+  const metaTone = overlayMeta ? "primary" : outgoing ? "inverse" : "secondary"
+  const metaIconTone = overlayMeta ? "default" : outgoing ? "inverse" : "default"
   const metaBlock =
     time || failed || (outgoing && status) || isPinned || isEdited || ephemeralChip || starred ? (
-      <View className="absolute bottom-1.5 right-2 flex-row items-center gap-1">
+      <View
+        className={
+          overlayMeta
+            ? "absolute bottom-1.5 right-2 flex-row items-center gap-1 rounded-full bg-surface-elevated px-1.5 py-0.5"
+            : "absolute bottom-1.5 right-2 flex-row items-center gap-1"
+        }
+      >
         {failed ? (
           <>
             <Icon icon={WarningCircle} size="xs" tone="danger" />
@@ -431,7 +449,7 @@ function ChatMessageBubbleBase({
               </View>
             ) : null}
             {outgoing && status && status !== "failed" ? (
-              <StatusGlyph status={status} outgoing={outgoing} />
+              <StatusGlyph status={status} outgoing={outgoing} onOverlay={overlayMeta} />
             ) : null}
           </>
         )}
@@ -449,7 +467,15 @@ function ChatMessageBubbleBase({
         // pr-16 + pb-5 hanya saat ada meta, agar teks pendek tidak tertutup
         // jam + centang (ala WhatsApp) tanpa makan space berlebih.
         "relative gap-2 rounded-md pl-3 pt-2",
-        hasMeta ? (status === "queued" ? "pr-28 pb-5" : "pr-16 pb-5") : "pr-3 pb-2",
+        overlayMeta
+          ? text
+            ? "pr-3 pb-5"
+            : "pr-3 pb-2"
+          : hasMeta
+            ? status === "queued"
+              ? "pr-28 pb-5"
+              : "pr-16 pb-5"
+            : "pr-3 pb-2",
         outgoing ? "bg-primary" : "bg-surface",
       )}
     >
@@ -814,11 +840,13 @@ export const ChatMessageBubble = memo(ChatMessageBubbleBase)
 function StatusGlyph({
   status,
   outgoing,
+  onOverlay = false,
 }: {
   status: Exclude<ChatMessageStatus, "failed">
   outgoing?: boolean
+  onOverlay?: boolean
 }) {
-  const tone = outgoing ? "inverse" : "default"
+  const tone = onOverlay ? "default" : outgoing ? "inverse" : "default"
   switch (status) {
     case "queued":
       return (

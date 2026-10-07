@@ -142,6 +142,21 @@ export function formatMediaClock(totalSeconds: number | null | undefined): strin
   return hours > 0 ? `${hours}:${mm}:${ss}` : `${mm}:${ss}`
 }
 
+/** Ukuran berkas → "1,2 MB" (locale Indonesia). NaN-safe → "–". */
+export function formatBytes(bytes: number | null | undefined): string {
+  if (bytes == null || !Number.isFinite(bytes) || bytes < 0) return "–"
+  if (bytes < 1024) return `${Math.floor(bytes)} B`
+  const units = ["KB", "MB", "GB"]
+  let value = bytes / 1024
+  let unit = 0
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024
+    unit += 1
+  }
+  const rounded = value >= 100 ? Math.round(value) : Math.round(value * 10) / 10
+  return `${String(rounded).replace(".", ",")} ${units[unit]}`
+}
+
 /** Kecepatan putar video/audio: 0.5x … 2x. */
 export const PLAYBACK_RATES = [0.5, 1, 1.25, 1.5, 2] as const
 export type PlaybackRate = (typeof PLAYBACK_RATES)[number]

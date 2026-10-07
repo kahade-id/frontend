@@ -15,28 +15,28 @@
    "n": 69
   },
   {
-   "s": "Gagal memuat",
-   "n": 41
+   "s": "Coba lagi",
+   "n": 43
   },
   {
-   "s": "Coba lagi",
-   "n": 35
+   "s": "Gagal memuat",
+   "n": 41
   },
   {
    "s": "Aksi mungkin sudah diproses — periksa kembali sebelum mencoba lagi.",
    "n": 28
   },
   {
+   "s": "Simpan",
+   "n": 27
+  },
+  {
    "s": "Etalase",
    "n": 26
   },
   {
-   "s": "Simpan",
-   "n": 26
-  },
-  {
    "s": "Kembali",
-   "n": 25
+   "n": 26
   },
   {
    "s": "{x}: {y}",
@@ -103,10 +103,6 @@
    "n": 14
   },
   {
-   "s": "Unggahan dibatalkan.",
-   "n": 14
-  },
-  {
    "s": "Anda sedang offline",
    "n": 13
   },
@@ -127,11 +123,19 @@
    "n": 13
   },
   {
+   "s": "Putar video",
+   "n": 13
+  },
+  {
    "s": "Sembunyikan",
    "n": 13
   },
   {
    "s": "Tanpa judul",
+   "n": 13
+  },
+  {
+   "s": "Unggahan dibatalkan.",
    "n": 13
   },
   {
@@ -147,10 +151,6 @@
    "n": 12
   },
   {
-   "s": "Memuat…",
-   "n": 12
-  },
-  {
    "s": "Pilihan etalase",
    "n": 12
   },
@@ -163,11 +163,19 @@
    "n": 11
   },
   {
+   "s": "Bagikan",
+   "n": 11
+  },
+  {
    "s": "Baru",
    "n": 11
   },
   {
    "s": "Gagal menyimpan",
+   "n": 11
+  },
+  {
+   "s": "Memuat…",
    "n": 11
   },
   {
@@ -183,11 +191,11 @@
    "n": 11
   },
   {
-   "s": "Atur ulang",
-   "n": 10
+   "s": "Video",
+   "n": 11
   },
   {
-   "s": "Bagikan",
+   "s": "Atur ulang",
    "n": 10
   },
   {
@@ -204,6 +212,10 @@
   },
   {
    "s": "Gagal menghapus",
+   "n": 10
+  },
+  {
+   "s": "Mengirim…",
    "n": 10
   },
   {
@@ -295,19 +307,11 @@
    "n": 9
   },
   {
-   "s": "Putar video",
-   "n": 9
-  },
-  {
    "s": "Simpan perubahan",
    "n": 9
   },
   {
    "s": "Tidak bisa membagikan",
-   "n": 9
-  },
-  {
-   "s": "Video",
    "n": 9
   },
   {
@@ -320,6 +324,10 @@
   },
   {
    "s": "Belum dibaca",
+   "n": 8
+  },
+  {
+   "s": "Belum terkirim",
    "n": 8
   },
   {
@@ -356,6 +364,10 @@
   },
   {
    "s": "Konfirmasi kata sandi",
+   "n": 8
+  },
+  {
+   "s": "Menyiapkan…",
    "n": 8
   },
   {
@@ -443,6 +455,14 @@
    "n": 7
   },
   {
+   "s": "Nyalakan suara",
+   "n": 7
+  },
+  {
+   "s": "Pesan suara",
+   "n": 7
+  },
+  {
    "s": "Pilih",
    "n": 7
   },
@@ -499,6 +519,14 @@
    "n": 6
   },
   {
+   "s": "Bisukan",
+   "n": 6
+  },
+  {
+   "s": "Buka lokasi di peta: {x}",
+   "n": 6
+  },
+  {
    "s": "Buka menu navigasi",
    "n": 6
   },
@@ -512,6 +540,10 @@
   },
   {
    "s": "Buka profil pengguna",
+   "n": 6
+  },
+  {
+   "s": "Buka video layar penuh",
    "n": 6
   },
   {
@@ -627,6 +659,10 @@
    "n": 6
   },
   {
+   "s": "Kecepatan putar {x} — ketuk untuk mengubah",
+   "n": 6
+  },
+  {
    "s": "Kedaluwarsa dalam",
    "n": 6
   },
@@ -683,7 +719,7 @@
    "n": 6
   },
   {
-   "s": "Menyiapkan…",
+   "s": "Menunggu koneksi",
    "n": 6
   },
   {
@@ -720,6 +756,10 @@
   },
   {
    "s": "Pilih alamat pengiriman",
+   "n": 6
+  },
+  {
+   "s": "Posisi putar {x} dari {y}",
    "n": 6
   },
   {
@@ -923,6 +963,10 @@
    "n": 5
   },
   {
+   "s": "Foto {x}",
+   "n": 5
+  },
+  {
    "s": "Frame berikutnya",
    "n": 5
   },
@@ -956,6 +1000,10 @@
   },
   {
    "s": "Izin kamera ditolak",
+   "n": 5
+  },
+  {
+   "s": "Jeda",
    "n": 5
   },
   {
@@ -1007,6 +1055,14 @@
    "n": 5
   },
   {
+   "s": "Memuat",
+   "n": 5
+  },
+  {
+   "s": "Memuat audio…",
+   "n": 5
+  },
+  {
    "s": "Mengerti",
    "n": 5
   },
@@ -1028,6 +1084,10 @@
   },
   {
    "s": "Promo saya",
+   "n": 5
+  },
+  {
+   "s": "Putar",
    "n": 5
   },
   {
@@ -1060,6 +1120,14 @@
   },
   {
    "s": "Tulis komentar…",
+   "n": 5
+  },
+  {
+   "s": "Tutup pencarian",
+   "n": 5
+  },
+  {
+   "s": "Tutup pratinjau",
    "n": 5
   },
   {
@@ -1243,6 +1311,10 @@
    "n": 4
   },
   {
+   "s": "Durasi {x}",
+   "n": 4
+  },
+  {
    "s": "Etalase dihapus. Dapat dipulihkan dalam {x} hari.",
    "n": 4
   },
@@ -1340,6 +1412,10 @@
   },
   {
    "s": "Harga minimum (opsional)",
+   "n": 4
+  },
+  {
+   "s": "Hemat data",
    "n": 4
   },
   {
@@ -1447,15 +1523,15 @@
    "n": 4
   },
   {
+   "s": "Lokasi",
+   "n": 4
+  },
+  {
    "s": "Media {x} dari {y}",
    "n": 4
   },
   {
    "s": "Membalas {x}",
-   "n": 4
-  },
-  {
-   "s": "Memuat",
    "n": 4
   },
   {
@@ -1468,10 +1544,6 @@
   },
   {
    "s": "Memuat voucher",
-   "n": 4
-  },
-  {
-   "s": "Mengirim…",
    "n": 4
   },
   {
@@ -1655,10 +1727,6 @@
    "n": 4
   },
   {
-   "s": "Tutup pratinjau",
-   "n": 4
-  },
-  {
    "s": "Ubah etalase",
    "n": 4
   },
@@ -1752,6 +1820,10 @@
   },
   {
    "s": "{x} jam",
+   "n": 3
+  },
+  {
+   "s": "{x} kali kecepatan",
    "n": 3
   },
   {
@@ -2071,6 +2143,10 @@
    "n": 3
   },
   {
+   "s": "Berkas",
+   "n": 3
+  },
+  {
    "s": "Berlaku dari",
    "n": 3
   },
@@ -2175,6 +2251,10 @@
    "n": 3
   },
   {
+   "s": "Buka layar penuh",
+   "n": 3
+  },
+  {
    "s": "Buka opsi kelola etalase",
    "n": 3
   },
@@ -2208,10 +2288,6 @@
   },
   {
    "s": "Buka utas balasan",
-   "n": 3
-  },
-  {
-   "s": "Buka video layar penuh",
    "n": 3
   },
   {
@@ -2283,7 +2359,7 @@
    "n": 3
   },
   {
-   "s": "Coba putar ulang pesan suara",
+   "s": "Coba putar ulang",
    "n": 3
   },
   {
@@ -2419,10 +2495,6 @@
    "n": 3
   },
   {
-   "s": "Durasi {x}",
-   "n": 3
-  },
-  {
    "s": "Email akun",
    "n": 3
   },
@@ -2512,10 +2584,6 @@
   },
   {
    "s": "Format jam HH:mm.",
-   "n": 3
-  },
-  {
-   "s": "Foto {x}",
    "n": 3
   },
   {
@@ -2791,10 +2859,6 @@
    "n": 3
   },
   {
-   "s": "Hemat data",
-   "n": 3
-  },
-  {
    "s": "Highlight \"{x}\" akan dihapus dari profil Anda.",
    "n": 3
   },
@@ -2815,6 +2879,10 @@
    "n": 3
   },
   {
+   "s": "Info foto: {x}",
+   "n": 3
+  },
+  {
    "s": "Info pengiriman digital (opsional)",
    "n": 3
   },
@@ -2824,6 +2892,10 @@
   },
   {
    "s": "Ini tampilan sampul {x}:{x} persis seperti di profil. Belum diunggah — tekan Simpan sampul untuk mengunggah.",
+   "n": 3
+  },
+  {
+   "s": "Isi berkas {x}",
    "n": 3
   },
   {
@@ -2899,10 +2971,6 @@
    "n": 3
   },
   {
-   "s": "Jeda pesan suara",
-   "n": 3
-  },
-  {
    "s": "Jeda video: {x}",
    "n": 3
   },
@@ -2971,11 +3039,7 @@
    "n": 3
   },
   {
-   "s": "Kecepatan putar {x} kali",
-   "n": 3
-  },
-  {
-   "s": "Kecepatan putar normal",
+   "s": "Kecepatan {x} — ketuk untuk mengubah",
    "n": 3
   },
   {
@@ -3035,11 +3099,27 @@
    "n": 3
   },
   {
+   "s": "Ketuk waveform untuk melompat ke posisi",
+   "n": 3
+  },
+  {
    "s": "Kirim hasil",
    "n": 3
   },
   {
    "s": "Kirim rating",
+   "n": 3
+  },
+  {
+   "s": "Kirim ulang berkas {x}",
+   "n": 3
+  },
+  {
+   "s": "Kirim ulang foto {x}",
+   "n": 3
+  },
+  {
+   "s": "Kirim ulang video {x}",
    "n": 3
   },
   {
@@ -3123,6 +3203,10 @@
    "n": 3
   },
   {
+   "s": "Kualitas {x}",
+   "n": 3
+  },
+  {
    "s": "Kumpulkan notifikasi menjadi satu ringkasan berkala.",
    "n": 3
   },
@@ -3188,6 +3272,10 @@
   },
   {
    "s": "Lepaskan di sini",
+   "n": 3
+  },
+  {
+   "s": "Lihat",
    "n": 3
   },
   {
@@ -3335,11 +3423,23 @@
    "n": 3
   },
   {
+   "s": "Membuka berkas di penampil dalam aplikasi",
+   "n": 3
+  },
+  {
+   "s": "Membuka foto layar penuh",
+   "n": 3
+  },
+  {
    "s": "Membuka pilihan cepat: isi saldo, buat transaksi, atau tambah etalase",
    "n": 3
   },
   {
    "s": "Membuka pilihan: buat karya, buat transaksi, atau isi saldo",
+   "n": 3
+  },
+  {
+   "s": "Membuka tautan di browser",
    "n": 3
   },
   {
@@ -3403,6 +3503,10 @@
    "n": 3
   },
   {
+   "s": "Memutar video di dalam chat (bisu)",
+   "n": 3
+  },
+  {
    "s": "Menandai seluruh notifikasi sebagai sudah dibaca",
    "n": 3
   },
@@ -3416,6 +3520,10 @@
   },
   {
    "s": "Mengganti username membutuhkan kata sandi akun.",
+   "n": 3
+  },
+  {
+   "s": "Mengirim",
    "n": 3
   },
   {
@@ -3444,6 +3552,10 @@
   },
   {
    "s": "Menunggu pembayaran",
+   "n": 3
+  },
+  {
+   "s": "Menyimpan…",
    "n": 3
   },
   {
@@ -3767,10 +3879,6 @@
    "n": 3
   },
   {
-   "s": "Pesan suara",
-   "n": 3
-  },
-  {
    "s": "Pesan terpin: {x}",
    "n": 3
   },
@@ -3884,10 +3992,6 @@
   },
   {
    "s": "Punya kode dari teman?",
-   "n": 3
-  },
-  {
-   "s": "Putar pesan suara",
    "n": 3
   },
   {
@@ -4143,6 +4247,10 @@
    "n": 3
   },
   {
+   "s": "Sumber {x}",
+   "n": 3
+  },
+  {
    "s": "Tambah aset digital",
    "n": 3
   },
@@ -4355,6 +4463,10 @@
    "n": 3
   },
   {
+   "s": "Tidak diketahui",
+   "n": 3
+  },
+  {
    "s": "Tidak pantas",
    "n": 3
   },
@@ -4424,10 +4536,6 @@
   },
   {
    "s": "Tutup kelola",
-   "n": 3
-  },
-  {
-   "s": "Tutup pencarian",
    "n": 3
   },
   {
@@ -4503,6 +4611,10 @@
    "n": 3
   },
   {
+   "s": "Unduh",
+   "n": 3
+  },
+  {
    "s": "Unduh file",
    "n": 3
   },
@@ -4540,6 +4652,10 @@
   },
   {
    "s": "Video diunggah dengan thumbnail otomatis",
+   "n": 3
+  },
+  {
+   "s": "Video gagal dimuat",
    "n": 3
   },
   {
@@ -4879,6 +4995,10 @@
    "n": 2
   },
   {
+   "s": "Audio gagal dimuat — ketuk putar untuk coba lagi",
+   "n": 2
+  },
+  {
    "s": "Bagaimana pengalaman Anda dengan tim kami?",
    "n": 2
   },
@@ -5135,6 +5255,10 @@
    "n": 2
   },
   {
+   "s": "Bisukan / atur volume",
+   "n": 2
+  },
+  {
    "s": "Bisukan mikrofon",
    "n": 2
   },
@@ -5235,6 +5359,10 @@
    "n": 2
   },
   {
+   "s": "Buka di peta",
+   "n": 2
+  },
+  {
    "s": "Buka Dompet",
    "n": 2
   },
@@ -5252,10 +5380,6 @@
   },
   {
    "s": "Buka layar masuk",
-   "n": 2
-  },
-  {
-   "s": "Buka lokasi di peta: {x}",
    "n": 2
   },
   {
@@ -5316,6 +5440,10 @@
   },
   {
    "s": "Cara membuat",
+   "n": 2
+  },
+  {
+   "s": "Cari dalam berkas",
    "n": 2
   },
   {
@@ -5667,6 +5795,14 @@
    "n": 2
   },
   {
+   "s": "Foto",
+   "n": 2
+  },
+  {
+   "s": "Foto {x} dari {x}",
+   "n": 2
+  },
+  {
    "s": "Foto atau video paket, tangkapan layar pengiriman. Maks {x} berkas.",
    "n": 2
   },
@@ -5688,6 +5824,10 @@
   },
   {
    "s": "Foto dilampirkan",
+   "n": 2
+  },
+  {
+   "s": "Foto gagal dimuat",
    "n": 2
   },
   {
@@ -6043,6 +6183,14 @@
    "n": 2
   },
   {
+   "s": "Hasil berikutnya",
+   "n": 2
+  },
+  {
+   "s": "Hasil sebelumnya",
+   "n": 2
+  },
+  {
    "s": "Highlight dihapus",
    "n": 2
   },
@@ -6147,6 +6295,10 @@
    "n": 2
   },
   {
+   "s": "Jeda video",
+   "n": 2
+  },
+  {
    "s": "Jelaskan di kolom detail",
    "n": 2
   },
@@ -6231,6 +6383,10 @@
    "n": 2
   },
   {
+   "s": "Keluar layar penuh",
+   "n": 2
+  },
+  {
    "s": "Keluarkan foto gagal",
    "n": 2
   },
@@ -6248,6 +6404,10 @@
   },
   {
    "s": "Kembali ke dompet",
+   "n": 2
+  },
+  {
+   "s": "Kembali ke peta",
    "n": 2
   },
   {
@@ -6571,6 +6731,10 @@
    "n": 2
   },
   {
+   "s": "Layar penuh",
+   "n": 2
+  },
+  {
    "s": "Lencana Verifikasi",
    "n": 2
   },
@@ -6627,11 +6791,19 @@
    "n": 2
   },
   {
+   "s": "Lihat info foto",
+   "n": 2
+  },
+  {
    "s": "Lihat paket",
    "n": 2
   },
   {
    "s": "Lihat riwayat laporan",
+   "n": 2
+  },
+  {
+   "s": "Lihat rute ke lokasi ini",
    "n": 2
   },
   {
@@ -6671,15 +6843,15 @@
    "n": 2
   },
   {
-   "s": "Lokasi",
-   "n": 2
-  },
-  {
    "s": "Lompat ke {x}",
    "n": 2
   },
   {
    "s": "Lupa kata sandi?",
+   "n": 2
+  },
+  {
+   "s": "Maju {x} detik",
    "n": 2
   },
   {
@@ -6779,7 +6951,15 @@
    "n": 2
   },
   {
+   "s": "Media",
+   "n": 2
+  },
+  {
    "s": "Media sudah penuh",
+   "n": 2
+  },
+  {
+   "s": "Media tidak bisa dibuka",
    "n": 2
   },
   {
@@ -6899,10 +7079,6 @@
    "n": 2
   },
   {
-   "s": "Menunggu koneksi",
-   "n": 2
-  },
-  {
    "s": "Menunggu OTP",
    "n": 2
   },
@@ -6984,6 +7160,10 @@
   },
   {
    "s": "Mulai chat baru",
+   "n": 2
+  },
+  {
+   "s": "Mundur {x} detik",
    "n": 2
   },
   {
@@ -7475,6 +7655,10 @@
    "n": 2
   },
   {
+   "s": "Pratinjau foto",
+   "n": 2
+  },
+  {
    "s": "Pratinjau lampiran: {x}",
    "n": 2
   },
@@ -7540,6 +7724,10 @@
   },
   {
    "s": "Putar pratinjau",
+   "n": 2
+  },
+  {
+   "s": "Putar ulang video",
    "n": 2
   },
   {
@@ -7728,6 +7916,10 @@
   },
   {
    "s": "Sembunyikan daftar isi",
+   "n": 2
+  },
+  {
+   "s": "Sembunyikan info foto",
    "n": 2
   },
   {
@@ -8051,6 +8243,14 @@
    "n": 2
   },
   {
+   "s": "Tautan berkas tidak valid.",
+   "n": 2
+  },
+  {
+   "s": "Tautan media tidak valid: URL berkas tidak ditemukan.",
+   "n": 2
+  },
+  {
    "s": "Tautan pembayaran tidak tersedia — coba buat ulang atau pilih metode lain.",
    "n": 2
   },
@@ -8255,6 +8455,10 @@
    "n": 2
   },
   {
+   "s": "Tidak ditemukan",
+   "n": 2
+  },
+  {
    "s": "Tidak sesuai deskripsi",
    "n": 2
   },
@@ -8371,10 +8575,6 @@
    "n": 2
   },
   {
-   "s": "Ukuran berkas melebihi batas penyimpanan.",
-   "n": 2
-  },
-  {
    "s": "Ukuran video tidak dapat dibaca. Pilih ulang video tersebut.",
    "n": 2
   },
@@ -8392,10 +8592,6 @@
   },
   {
    "s": "Undang teman",
-   "n": 2
-  },
-  {
-   "s": "Unduh",
    "n": 2
   },
   {
@@ -8459,11 +8655,11 @@
    "n": 2
   },
   {
-   "s": "Video gagal dimuat",
+   "s": "Virtual Account",
    "n": 2
   },
   {
-   "s": "Virtual Account",
+   "s": "Volume",
    "n": 2
   },
   {
@@ -8560,6 +8756,10 @@
   },
   {
    "s": ". Tarik untuk memuat ulang.",
+   "n": 1
+  },
+  {
+   "s": "…Berkas dipotong di",
    "n": 1
   },
   {
@@ -8676,6 +8876,10 @@
   },
   {
    "s": "{x} aksi yang tertunda terkirim.",
+   "n": 1
+  },
+  {
+   "s": "{x} dari {x}{x}",
    "n": 1
   },
   {
@@ -10431,6 +10635,10 @@
    "n": 1
   },
   {
+   "s": "↑ Sebelumnya",
+   "n": 1
+  },
+  {
    "s": "+{x} hari",
    "n": 1
   },
@@ -10651,10 +10859,6 @@
    "n": 1
   },
   {
-   "s": "Akses ke penyimpanan ditolak. Coba lagi; bila berlanjut, hubungi bantuan.",
-   "n": 1
-  },
-  {
    "s": "Akses premium tetap berlaku sampai akhir periode.",
    "n": 1
   },
@@ -10692,6 +10896,10 @@
   },
   {
    "s": "Aktifkan izin galeri untuk memilih foto.",
+   "n": 1
+  },
+  {
+   "s": "Aktifkan izin lokasi di Pengaturan perangkat untuk melihat posisi Anda di peta.",
    "n": 1
   },
   {
@@ -11099,6 +11307,10 @@
    "n": 1
   },
   {
+   "s": "Audio gagal dimuat. Periksa koneksi — jika dari pesan lama, tautannya mungkin sudah kedaluwarsa.",
+   "n": 1
+  },
+  {
    "s": "autentikasi, pencegahan pengambilalihan, pembatasan serangan, dan audit.",
    "n": 1
   },
@@ -11251,11 +11463,23 @@
    "n": 1
   },
   {
+   "s": "Bagikan berkas",
+   "n": 1
+  },
+  {
+   "s": "Bagikan foto",
+   "n": 1
+  },
+  {
    "s": "Bagikan kode Anda. Anda dan teman mendapat hadiah saat transaksi pertamanya selesai.",
    "n": 1
   },
   {
    "s": "Bagikan kode saya",
+   "n": 1
+  },
+  {
+   "s": "Bagikan lokasi",
    "n": 1
   },
   {
@@ -11272,6 +11496,10 @@
   },
   {
    "s": "Bagikan tautan ke lawan transaksi.",
+   "n": 1
+  },
+  {
+   "s": "Bagikan video",
    "n": 1
   },
   {
@@ -11655,6 +11883,10 @@
    "n": 1
   },
   {
+   "s": "Belum diputar",
+   "n": 1
+  },
+  {
    "s": "Belum diverifikasi",
    "n": 1
   },
@@ -11675,11 +11907,11 @@
    "n": 1
   },
   {
-   "s": "Belum terkirim",
+   "s": "Berakhir",
    "n": 1
   },
   {
-   "s": "Berakhir",
+   "s": "Berbagi tidak tersedia di perangkat ini",
    "n": 1
   },
   {
@@ -11715,6 +11947,10 @@
    "n": 1
   },
   {
+   "s": "Berikutnya ↓",
+   "n": 1
+  },
+  {
    "s": "Berjalan",
    "n": 1
   },
@@ -11723,11 +11959,15 @@
    "n": 1
   },
   {
-   "s": "Berkas rusak saat diunggah. Coba lagi.",
+   "s": "Berkas sensitif?",
    "n": 1
   },
   {
-   "s": "Berkas sensitif?",
+   "s": "Berkas tidak bisa dibuka",
+   "n": 1
+  },
+  {
+   "s": "Berkas: {x}",
    "n": 1
   },
   {
@@ -12039,15 +12279,15 @@
    "n": 1
   },
   {
+   "s": "Buka dengan aplikasi lain",
+   "n": 1
+  },
+  {
    "s": "Buka detail kejadian",
    "n": 1
   },
   {
    "s": "Buka di aplikasi lain",
-   "n": 1
-  },
-  {
-   "s": "Buka di peta",
    "n": 1
   },
   {
@@ -12367,6 +12607,14 @@
    "n": 1
   },
   {
+   "s": "Cari kata dalam berkas",
+   "n": 1
+  },
+  {
+   "s": "Cari kata…",
+   "n": 1
+  },
+  {
    "s": "Cari nama pengguna atau nomor HP yang ingin Anda kirimi saldo.",
    "n": 1
   },
@@ -12572,6 +12820,10 @@
   },
   {
    "s": "cth. {x}",
+   "n": 1
+  },
+  {
+   "s": "Cubit untuk memperbesar · Geser untuk pindah halaman",
    "n": 1
   },
   {
@@ -13275,6 +13527,10 @@
    "n": 1
   },
   {
+   "s": "Dikirim",
+   "n": 1
+  },
+  {
    "s": "dikonfirmasi otomatis setelah tenggat habis",
    "n": 1
   },
@@ -13295,6 +13551,10 @@
    "n": 1
   },
   {
+   "s": "Dimensi",
+   "n": 1
+  },
+  {
    "s": "Diminta oleh {x}",
    "n": 1
   },
@@ -13304,6 +13564,10 @@
   },
   {
    "s": "Diproses penjual",
+   "n": 1
+  },
+  {
+   "s": "Diputar {x}",
    "n": 1
   },
   {
@@ -13675,10 +13939,6 @@
    "n": 1
   },
   {
-   "s": "Foto",
-   "n": 1
-  },
-  {
    "s": "Foto (asli)",
    "n": 1
   },
@@ -13723,7 +13983,19 @@
    "n": 1
   },
   {
+   "s": "Foto tersimpan di galeri",
+   "n": 1
+  },
+  {
+   "s": "Foto tidak bisa dibuka",
+   "n": 1
+  },
+  {
    "s": "Foto, video, atau dokumen PDF. Maksimal {x} berkas @ {x} MB, total {x} MB per pesan.",
+   "n": 1
+  },
+  {
+   "s": "Foto: {x}",
    "n": 1
   },
   {
@@ -13732,6 +14004,10 @@
   },
   {
    "s": "gagal dikenali atau saat perangkat baru dipakai masuk. Transaksi uang (transfer, tarik dana, bayar pesanan) selalu memakai PIN dompet.",
+   "n": 1
+  },
+  {
+   "s": "Gagal dimuat",
    "n": 1
   },
   {
@@ -13839,11 +14115,23 @@
    "n": 1
   },
   {
+   "s": "Gagal memproses berkas. Coba lagi.",
+   "n": 1
+  },
+  {
+   "s": "Gagal memproses foto. Coba lagi.",
+   "n": 1
+  },
+  {
    "s": "Gagal memproses panggilan",
    "n": 1
   },
   {
    "s": "Gagal memproses permintaan",
+   "n": 1
+  },
+  {
+   "s": "Gagal memproses video. Coba lagi.",
    "n": 1
   },
   {
@@ -14087,6 +14375,10 @@
    "n": 1
   },
   {
+   "s": "Gagal menyimpan berkas",
+   "n": 1
+  },
+  {
    "s": "Gagal menyimpan gambar",
    "n": 1
   },
@@ -14156,6 +14448,10 @@
   },
   {
    "s": "Geser ke kiri",
+   "n": 1
+  },
+  {
+   "s": "Geser vertikal di tepi kiri video untuk volume, tepi kanan untuk kecerahan.",
    "n": 1
   },
   {
@@ -14439,10 +14735,6 @@
    "n": 1
   },
   {
-   "s": "Hasil berikutnya",
-   "n": 1
-  },
-  {
    "s": "hasil fungsi satu arah yang digunakan antara lain untuk membandingkan nilai tanpa menyimpan nilai asli dalam bentuk terbaca.",
    "n": 1
   },
@@ -14452,10 +14744,6 @@
   },
   {
    "s": "Hasil putusan",
-   "n": 1
-  },
-  {
-   "s": "Hasil sebelumnya",
    "n": 1
   },
   {
@@ -14667,6 +14955,10 @@
    "n": 1
   },
   {
+   "s": "Izin lokasi ditolak",
+   "n": 1
+  },
+  {
    "s": "Izin notifikasi diperlukan agar Kahade dapat memberi tahu Anda.",
    "n": 1
   },
@@ -14735,7 +15027,7 @@
    "n": 1
   },
   {
-   "s": "Jeda",
+   "s": "Jeda {x}",
    "n": 1
   },
   {
@@ -15083,6 +15375,10 @@
    "n": 1
   },
   {
+   "s": "KB. Unduh untuk membaca seluruhnya.",
+   "n": 1
+  },
+  {
    "s": "Ke nomor {x}.",
    "n": 1
   },
@@ -15120,6 +15416,14 @@
   },
   {
    "s": "Kebijakan Privasi ini menjelaskan bagaimana PT Kawal Hak Dengan Aman (selanjutnya disebut “Kahade”, “kami”, atau “milik kami”) memperoleh, menggunakan, menyimpan, mengungkapkan, melindungi, dan menghapus Data Pribadi ketika Anda menggunakan aplikasi, situs web, fitur escrow atau rekening bersama digital, dompet, transaksi, etalase sosial-commerce, profil, percakapan, dukungan pelanggan, serta kanal resmi Kahade lainnya (secara bersama-sama disebut “Layanan”).",
+   "n": 1
+  },
+  {
+   "s": "Kecepatan putar",
+   "n": 1
+  },
+  {
+   "s": "Kecerahan",
    "n": 1
   },
   {
@@ -15227,6 +15531,10 @@
    "n": 1
   },
   {
+   "s": "Kembali ke pin lokasi",
+   "n": 1
+  },
+  {
    "s": "Kembali ke rekening",
    "n": 1
   },
@@ -15303,6 +15611,10 @@
    "n": 1
   },
   {
+   "s": "Ketik untuk mencari",
+   "n": 1
+  },
+  {
    "s": "Ketuk “Mulai merekam”, bicara, lalu ketuk “Berhenti”.",
    "n": 1
   },
@@ -15312,6 +15624,18 @@
   },
   {
    "s": "Ketuk untuk lompat ke bagian",
+   "n": 1
+  },
+  {
+   "s": "Ketuk untuk melihat foto",
+   "n": 1
+  },
+  {
+   "s": "Ketuk untuk membuka",
+   "n": 1
+  },
+  {
+   "s": "Ketuk untuk memutar",
    "n": 1
   },
   {
@@ -15687,6 +16011,10 @@
    "n": 1
   },
   {
+   "s": "Komponen video perangkat bermasalah. Coba tutup halaman ini lalu buka ulang.",
+   "n": 1
+  },
+  {
    "s": "komunikasi, transaksi, sengketa, dukungan, keselamatan, dan audit.",
    "n": 1
   },
@@ -15823,6 +16151,10 @@
    "n": 1
   },
   {
+   "s": "Koordinat lokasi tidak valid.",
+   "n": 1
+  },
+  {
    "s": "Kosongkan bila {x}FA tidak aktif.",
    "n": 1
   },
@@ -15840,6 +16172,14 @@
   },
   {
    "s": "KTP + selfie — buka batas transaksi penuh",
+   "n": 1
+  },
+  {
+   "s": "Kualitas",
+   "n": 1
+  },
+  {
+   "s": "Kualitas video",
    "n": 1
   },
   {
@@ -16123,10 +16463,6 @@
    "n": 1
   },
   {
-   "s": "Lihat",
-   "n": 1
-  },
-  {
    "s": "Lihat & beli barang",
    "n": 1
   },
@@ -16251,7 +16587,19 @@
    "n": 1
   },
   {
+   "s": "Lokasi dibagikan",
+   "n": 1
+  },
+  {
    "s": "Lokasi diperkirakan dari alamat IP dan bisa tidak presisi. Waktu memakai zona waktu perangkat Anda.",
+   "n": 1
+  },
+  {
+   "s": "Lokasi saya",
+   "n": 1
+  },
+  {
+   "s": "Lokasi tidak ditemukan",
    "n": 1
   },
   {
@@ -16583,11 +16931,23 @@
    "n": 1
   },
   {
+   "s": "Membuka media layar penuh",
+   "n": 1
+  },
+  {
+   "s": "Membuka media…",
+   "n": 1
+  },
+  {
    "s": "Membuka menu bagikan perangkat",
    "n": 1
   },
   {
    "s": "Membuka pesan terpin di percakapan, atau tekan lama untuk melepas pin",
+   "n": 1
+  },
+  {
+   "s": "Membuka peta layar penuh",
    "n": 1
   },
   {
@@ -16687,7 +17047,11 @@
    "n": 1
   },
   {
-   "s": "Memuat pesan suara…",
+   "s": "Memuat peta…",
+   "n": 1
+  },
+  {
+   "s": "Memuat pratinjau…",
    "n": 1
   },
   {
@@ -16760,6 +17124,14 @@
   },
   {
    "s": "Memuat verifikasi keamanan…",
+   "n": 1
+  },
+  {
+   "s": "Memuat video",
+   "n": 1
+  },
+  {
+   "s": "Memuat video…",
    "n": 1
   },
   {
@@ -17019,11 +17391,15 @@
    "n": 1
   },
   {
+   "s": "Menyiapkan pratinjau berkas…",
+   "n": 1
+  },
+  {
    "s": "Menyiapkan profil…",
    "n": 1
   },
   {
-   "s": "Menyimpan…",
+   "s": "Menyimpan media ke perangkat",
    "n": 1
   },
   {
@@ -17064,10 +17440,6 @@
   },
   {
    "s": "Metode serah-terima",
-   "n": 1
-  },
-  {
-   "s": "Metode unggah tidak didukung.",
    "n": 1
   },
   {
@@ -17187,6 +17559,10 @@
    "n": 1
   },
   {
+   "s": "Muat ulang foto",
+   "n": 1
+  },
+  {
    "s": "Muat ulang halaman untuk memakai versi terbaru.",
    "n": 1
   },
@@ -17196,6 +17572,10 @@
   },
   {
    "s": "Muat ulang halaman, lalu tolak kembali.",
+   "n": 1
+  },
+  {
+   "s": "Muat ulang peta",
    "n": 1
   },
   {
@@ -17228,6 +17608,10 @@
   },
   {
    "s": "Nama",
+   "n": 1
+  },
+  {
+   "s": "Nama berkas",
    "n": 1
   },
   {
@@ -17531,6 +17915,10 @@
    "n": 1
   },
   {
+   "s": "Nyalakan",
+   "n": 1
+  },
+  {
    "s": "Offline — {x} diantrekan",
    "n": 1
   },
@@ -17608,6 +17996,10 @@
   },
   {
    "s": "OTA memperbarui JavaScript dan aset untuk runtime yang kompatibel. Perubahan native atau versi minimum membutuhkan pembaruan dari toko aplikasi.",
+   "n": 1
+  },
+  {
+   "s": "Otomatis",
    "n": 1
   },
   {
@@ -17736,6 +18128,10 @@
   },
   {
    "s": "Pastikan barang retur sudah benar-benar Anda terima dan periksa kondisinya. Setelah dikonfirmasi, retur lanjut ke tahap penyelesaian.",
+   "n": 1
+  },
+  {
+   "s": "Pastikan GPS aktif dan Anda berada di area dengan sinyal baik.",
    "n": 1
   },
   {
@@ -17896,6 +18292,14 @@
   },
   {
    "s": "Pemrosesan:",
+   "n": 1
+  },
+  {
+   "s": "Pemutar video gagal dibuka",
+   "n": 1
+  },
+  {
+   "s": "Pemutar video tidak tersedia",
    "n": 1
   },
   {
@@ -18291,14 +18695,6 @@
    "n": 1
   },
   {
-   "s": "Penyimpanan sedang gangguan. Coba lagi nanti.",
-   "n": 1
-  },
-  {
-   "s": "Penyimpanan sedang sibuk. Tunggu sebentar lalu coba lagi.",
-   "n": 1
-  },
-  {
    "s": "Peran (isian awal)",
    "n": 1
   },
@@ -18475,6 +18871,14 @@
    "n": 1
   },
   {
+   "s": "Periksa koneksi internet Anda. Jika foto ini dari pesan lama, tautannya mungkin sudah kedaluwarsa — tutup halaman ini lalu buka ulang dari chat.",
+   "n": 1
+  },
+  {
+   "s": "Periksa koneksi internet Anda. Jika video ini dari pesan lama, tautannya mungkin sudah kedaluwarsa — tutup halaman ini lalu buka ulang dari chat.",
+   "n": 1
+  },
+  {
    "s": "Periksa lagi",
    "n": 1
   },
@@ -18580,10 +18984,6 @@
   },
   {
    "s": "Permintaan tidak valid.",
-   "n": 1
-  },
-  {
-   "s": "Permintaan unggah tidak valid. Coba dengan foto lain.",
    "n": 1
   },
   {
@@ -18787,11 +19187,7 @@
    "n": 1
   },
   {
-   "s": "Pesan suara {x} dari {y}",
-   "n": 1
-  },
-  {
-   "s": "Pesan suara tidak bisa diputar",
+   "s": "Pesan suara {x}",
    "n": 1
   },
   {
@@ -18848,6 +19244,14 @@
   },
   {
    "s": "peserta, admin berwenang, penyedia komunikasi, serta otoritas jika sah.",
+   "n": 1
+  },
+  {
+   "s": "Peta",
+   "n": 1
+  },
+  {
+   "s": "Peta gagal dimuat. Periksa koneksi internet Anda, lalu coba lagi.",
    "n": 1
   },
   {
@@ -18975,11 +19379,19 @@
    "n": 1
   },
   {
+   "s": "Pilih tujuan simpan di sheet yang muncul",
+   "n": 1
+  },
+  {
    "s": "Pilih warna aksen dan ikon aplikasi khusus anggota Kahade+.",
    "n": 1
   },
   {
    "s": "Pilih yang mau Anda kerjakan.",
+   "n": 1
+  },
+  {
+   "s": "pilihan kualitas tersedia dari server — \"Otomatis\" menyesuaikan koneksi.",
    "n": 1
   },
   {
@@ -19036,6 +19448,14 @@
   },
   {
    "s": "Potongan voucher",
+   "n": 1
+  },
+  {
+   "s": "Pratinjau peta tidak tersedia di versi aplikasi ini. Perbarui aplikasi untuk melihat peta.",
+   "n": 1
+  },
+  {
+   "s": "Pratinjau tidak tersedia di perangkat ini — unduh atau buka dengan aplikasi lain.",
    "n": 1
   },
   {
@@ -19123,10 +19543,6 @@
    "n": 1
   },
   {
-   "s": "Putar",
-   "n": 1
-  },
-  {
    "s": "Putaran revisi sudah habis.",
    "n": 1
   },
@@ -19144,10 +19560,6 @@
   },
   {
    "s": "QRIS berlaku sampai {x}",
-   "n": 1
-  },
-  {
-   "s": "R{x}_HTTP_ERROR",
    "n": 1
   },
   {
@@ -19423,6 +19835,10 @@
    "n": 1
   },
   {
+   "s": "Rotasi layar tidak didukung perangkat ini",
+   "n": 1
+  },
+  {
    "s": "Rujukan ini dicantumkan untuk memudahkan pembaca. Peraturan pelaksana, perubahan, putusan pengadilan, serta ketentuan sektoral lain dapat berlaku sesuai jenis layanan dan keadaan pemrosesan.",
    "n": 1
   },
@@ -19432,6 +19848,10 @@
   },
   {
    "s": "Runtime:",
+   "n": 1
+  },
+  {
+   "s": "Rute",
    "n": 1
   },
   {
@@ -19516,6 +19936,10 @@
   },
   {
    "s": "Sebelum meluncurkan fitur yang secara material memperluas kategori data, tujuan, penerima, lokasi pemrosesan, atau dampak terhadap pengguna, Kahade akan menilai kebutuhan pembaruan pemberitahuan privasi. Pemberitahuan singkat pada layar fitur dapat menjelaskan data yang diminta, alasan, apakah wajib atau opsional, dan konsekuensi jika ditolak.",
+   "n": 1
+  },
+  {
+   "s": "Sedang",
    "n": 1
   },
   {
@@ -19791,10 +20215,6 @@
    "n": 1
   },
   {
-   "s": "Sesi unggah kedaluwarsa. Coba unggah ulang.",
-   "n": 1
-  },
-  {
    "s": "Sesi upload tidak konsisten.",
    "n": 1
   },
@@ -19927,6 +20347,10 @@
    "n": 1
   },
   {
+   "s": "Simpan foto ke galeri",
+   "n": 1
+  },
+  {
    "s": "Simpan jadwal",
    "n": 1
   },
@@ -19955,7 +20379,15 @@
    "n": 1
   },
   {
+   "s": "Simpan video ke galeri",
+   "n": 1
+  },
+  {
    "s": "Simulasi nominal",
+   "n": 1
+  },
+  {
+   "s": "sisa {x}",
    "n": 1
   },
   {
@@ -20187,6 +20619,10 @@
    "n": 1
   },
   {
+   "s": "Sumber video",
+   "n": 1
+  },
+  {
    "s": "sumber/metode dana, reference, rekening, nominal, biaya, saldo, status, refund, penarikan, transfer, chargeback, dan rekonsiliasi.",
    "n": 1
   },
@@ -20323,6 +20759,10 @@
    "n": 1
   },
   {
+   "s": "Tampilkan rute dari lokasi saya",
+   "n": 1
+  },
+  {
    "s": "Tampilkan status online",
    "n": 1
   },
@@ -20336,10 +20776,6 @@
   },
   {
    "s": "Tanda tangan di dalam kotak",
-   "n": 1
-  },
-  {
-   "s": "Tanda tangan unggahan tidak cocok. Pilih ulang foto lalu coba unggah kembali.",
    "n": 1
   },
   {
@@ -20423,6 +20859,10 @@
    "n": 1
   },
   {
+   "s": "Tautan foto tidak ditemukan.",
+   "n": 1
+  },
+  {
    "s": "Tautan harus diawali http(s)://",
    "n": 1
   },
@@ -20436,6 +20876,10 @@
   },
   {
    "s": "Tautan luar Kahade",
+   "n": 1
+  },
+  {
+   "s": "Tautan media tidak valid: jenis konten tidak dikenali.",
    "n": 1
   },
   {
@@ -20476,6 +20920,10 @@
   },
   {
    "s": "Tautan yang Anda buka tidak memuat identitas pesanan.",
+   "n": 1
+  },
+  {
+   "s": "Tautan: {x}",
    "n": 1
   },
   {
@@ -20723,6 +21171,10 @@
    "n": 1
   },
   {
+   "s": "Tersimpan ke galeri",
+   "n": 1
+  },
+  {
    "s": "Tertaut ke akun ini",
    "n": 1
   },
@@ -20823,14 +21275,6 @@
    "n": 1
   },
   {
-   "s": "Tidak diketahui",
-   "n": 1
-  },
-  {
-   "s": "Tidak ditemukan",
-   "n": 1
-  },
-  {
    "s": "Tidak ditemukan kode QR pada gambar tersebut.",
    "n": 1
   },
@@ -20916,6 +21360,10 @@
   },
   {
    "s": "tindakan yang karena nilai, pola, perangkat, lokasi, penerima, atau dampaknya memerlukan autentikasi atau pemeriksaan tambahan.",
+   "n": 1
+  },
+  {
+   "s": "Tinggi",
    "n": 1
   },
   {
@@ -21071,10 +21519,6 @@
    "n": 1
   },
   {
-   "s": "Tujuan penyimpanan tidak tersedia. Coba lagi nanti.",
-   "n": 1
-  },
-  {
    "s": "Tujuan utamanya adalah menyediakan Layanan; mengautentikasi pengguna; melaksanakan escrow, top up, penarikan, transfer, refund, dan rekonsiliasi; memverifikasi identitas; mencegah penipuan; menyelesaikan sengketa; memoderasi konten; mengirim notifikasi; memperbaiki Layanan; dan memenuhi kewajiban hukum.",
    "n": 1
   },
@@ -21155,6 +21599,10 @@
    "n": 1
   },
   {
+   "s": "Tutup pilihan",
+   "n": 1
+  },
+  {
    "s": "Tutup polling",
    "n": 1
   },
@@ -21204,6 +21652,10 @@
   },
   {
    "s": "Uji kunci sekarang",
+   "n": 1
+  },
+  {
+   "s": "Ukuran",
    "n": 1
   },
   {
@@ -21287,6 +21739,10 @@
    "n": 1
   },
   {
+   "s": "Unduh berkas",
+   "n": 1
+  },
+  {
    "s": "Unduh Riwayat",
    "n": 1
   },
@@ -21308,14 +21764,6 @@
   },
   {
    "s": "Unggah karya atau produk baru ke etalase Anda",
-   "n": 1
-  },
-  {
-   "s": "Unggah ke penyimpanan gagal (HTTP {x}{x}). Coba lagi.",
-   "n": 1
-  },
-  {
-   "s": "Unggah terlalu lama. Periksa koneksi lalu coba kembali.",
    "n": 1
   },
   {
@@ -21352,10 +21800,6 @@
   },
   {
    "s": "Upload gagal ({x}).",
-   "n": 1
-  },
-  {
-   "s": "URL unggah tidak aman.",
    "n": 1
   },
   {
@@ -21527,6 +21971,10 @@
    "n": 1
   },
   {
+   "s": "Verifikasi nomor HP dulu untuk mengunggah. Buka Pengaturan untuk verifikasi.",
+   "n": 1
+  },
+  {
    "s": "Verifikasi OTP",
    "n": 1
   },
@@ -21559,6 +22007,10 @@
    "n": 1
   },
   {
+   "s": "Versi aplikasi ini belum mendukung pemutaran video. Perbarui aplikasi ke versi terbaru, lalu coba lagi.",
+   "n": 1
+  },
+  {
    "s": "Versi baru Kahade tersedia",
    "n": 1
   },
@@ -21575,7 +22027,15 @@
    "n": 1
   },
   {
+   "s": "Video tersimpan di galeri",
+   "n": 1
+  },
+  {
    "s": "Video tidak dapat diproses. Coba dengan video lain.",
+   "n": 1
+  },
+  {
+   "s": "Video: {x}",
    "n": 1
   },
   {
@@ -21588,6 +22048,10 @@
   },
   {
    "s": "Visibilitas profil",
+   "n": 1
+  },
+  {
+   "s": "Volume video",
    "n": 1
   },
   {

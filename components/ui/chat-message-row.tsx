@@ -57,7 +57,10 @@ import {
 import { useSwipeReplyPan } from "@/lib/use-swipe-reply-pan"
 
 import { PressableScale } from "@/components/ui/pressable-scale"
-import { ChatAttachmentItem } from "@/components/ui/chat-attachment-item"
+import { ChatFileCard } from "@/components/ui/chat-file-card"
+import { ChatLinkPreview } from "@/components/ui/chat-link-preview"
+import { ChatPhotoBubble } from "@/components/ui/chat-photo-bubble"
+import { ChatVideoBubble } from "@/components/ui/chat-video-bubble"
 import { ChatOrderCard, ChatProductCard } from "@/components/ui/chat-cards"
 import { ChatDaySeparator, dayKey, dayLabel } from "@/components/ui/chat-day-separator"
 import { ChatFormattedText } from "@/components/ui/chat-formatted-text"
@@ -68,6 +71,7 @@ import { ChatViewOnce } from "@/components/ui/chat-view-once"
 import { isImageMedia } from "@/components/ui/media-viewer"
 import { isVideoMime } from "@/lib/mime"
 import { VoiceNotePlayer } from "@/components/ui/voice-note-player"
+import { extractFirstUrl } from "@/lib/link-preview"
 import { isAudioMime } from "@/lib/voice-note"
 import { type SealTier } from "@/components/ui/verified-seal"
 
@@ -119,8 +123,16 @@ export type ChatMessageRowProps = {
   onLongPress: (message: ChatMessage, anchor: ChatBubbleAnchor) => void
   /** Reaksi emoji dari badge di sudut bubble (bubar saat mode pilih). */
   onReact?: (message: ChatMessage, emoji: string) => void
-  /** Lampiran dibuka (gambar → MediaViewer, berkas → eksternal). */
+  /**
+   * Lampiran dibuka — SELALU ke halaman media viewer (`/media-viewer`),
+   * tidak pernah browser luar (Bagian 2, 2026-10-07).
+   */
   onAttachmentPress: (attachment: ChatAttachmentDto) => void
+  /**
+   * Kartu lokasi dibuka — peta penuh IN-APP (`/media-viewer?type=location`).
+   * Tanpa ini kartu memakai fallback tautan OSM eksternal (pemanggil lama).
+   */
+  onLocationPress?: (location: { lat: number; lng: number; label?: string | null }) => void
   /**
    * FIX 2026-10-03: refresh signed URL lampiran yang kedaluwarsa.
    * Dipakai thumbnail di bubble saat `Picture` onError — thumbnail memakai
@@ -182,33 +194,90 @@ export type ChatMessageRowProps = {
   onQuotePress?: (replyToId: string) => void
 }
 
-/** PERF-FIX (TIM1-P1): lampiran di-memo per item — onPress stabil via
- * useCallback, tidak ada closure inline per render baris. */
-const RowAttachmentItem = memo(function RowAttachmentItem({
+/**
+ * PERF-FIX (TIM1-P1): lampiran di-memo per item — onPress stabil via
+ * useCallback, tidak ada closure inline per render baris.
+ *
+ * Bagian 2 (2026-10-07): tiap jenis media punya bubble sendiri — foto besar,
+ * video (thumbnail + putar inline), audio (voice player), sisanya kartu
+ * berkas. <ChatAttachmentItem> lama hanya tersisa untuk chip composer.
+ */
+const RowMediaItem = memo(function RowMediaItem({
   attachment,
+  messageId,
+  fromUser,
+  durationSeconds,
+  sendStatus,
+  selecting,
   onAttachmentPress,
   onRefreshAttachmentUrl,
+  onRetryMessage,
 }: {
   attachment: ChatAttachmentDto
+  messageId: string
+  fromUser: boolean
+  durationSeconds?: number | null
+  sendStatus?: "queued" | "sending" | "failed"
+  selecting: boolean
   onAttachmentPress: (attachment: ChatAttachmentDto) => void
   onRefreshAttachmentUrl?: (attachment: ChatAttachmentDto) => Promise<ChatAttachmentDto>
+  onRetryMessage?: () => void
 }) {
   const handlePress = useCallback(() => onAttachmentPress(attachment), [onAttachmentPress, attachment])
-  // FIX 2026-10-03: video juga tampil sebagai tile (bukan row) — konsisten
-  // dengan gambar; ikon play di-overlay oleh ChatAttachmentItem.
-  const layout = useMemo(
+  const handleRefreshAudio = useMemo(
     () =>
-      isImageMedia({ url: attachment.fileUrl, mimeType: attachment.mimeType }) || isVideoMime(attachment.mimeType)
-        ? ("tile" as const)
-        : ("row" as const),
-    [attachment.fileUrl, attachment.mimeType],
+      onRefreshAttachmentUrl
+        ? () => onRefreshAttachmentUrl(attachment).then((a) => a.fileUrl || null)
+        : undefined,
+    [onRefreshAttachmentUrl, attachment],
   )
+  const sending = sendStatus === "sending" || sendStatus === "queued"
+
+  if (isAudioMime(attachment.mimeType)) {
+    return (
+      <VoiceNotePlayer
+        uri={attachment.fileUrl}
+        messageId={messageId}
+        direction={fromUser ? "out" : "in"}
+        durationSeconds={durationSeconds}
+        seekEnabled={!selecting}
+        sending={sending}
+        onRefreshUrl={handleRefreshAudio}
+      />
+    )
+  }
+  if (isImageMedia({ url: attachment.fileUrl, mimeType: attachment.mimeType })) {
+    return (
+      <ChatPhotoBubble
+        attachment={attachment}
+        messageId={messageId}
+        sendStatus={sendStatus}
+        onPress={handlePress}
+        onRetry={sendStatus === "failed" ? onRetryMessage : undefined}
+        onRefreshUrl={onRefreshAttachmentUrl}
+      />
+    )
+  }
+  if (isVideoMime(attachment.mimeType)) {
+    return (
+      <ChatVideoBubble
+        attachment={attachment}
+        messageId={messageId}
+        durationSeconds={durationSeconds}
+        sendStatus={sendStatus}
+        onOpenFullscreen={handlePress}
+        onRetry={sendStatus === "failed" ? onRetryMessage : undefined}
+        onRefreshUrl={onRefreshAttachmentUrl}
+      />
+    )
+  }
   return (
-    <ChatAttachmentItem
+    <ChatFileCard
       attachment={attachment}
-      layout={layout}
+      outgoing={fromUser}
+      sendStatus={sendStatus}
       onPress={handlePress}
-      onRefreshUrl={onRefreshAttachmentUrl}
+      onRetry={sendStatus === "failed" ? onRetryMessage : undefined}
     />
   )
 })
@@ -224,6 +293,7 @@ export function ChatMessageRowBase({
   onLongPress,
   onReact,
   onAttachmentPress,
+  onLocationPress,
   onRefreshAttachmentUrl,
   onRetry,
   showSenderIdentity = true,
@@ -381,11 +451,19 @@ export function ChatMessageRowBase({
       ? ephemeralCountdownLabel(message.expiresAt)
       : null
 
+  const rowSending = message.sendStatus === "sending" || message.sendStatus === "queued"
+  const rowRetryMessage =
+    message.sendStatus === "failed" && onRetry ? handleBubbleRetry : undefined
+
   const mediaBlock = isVoiceMessage ? (
     <VoiceNotePlayer
       uri={voiceAttachment!.fileUrl}
       messageId={message.id}
-      direction={message.fromUser ? "outgoing" : "incoming"}
+      direction={message.fromUser ? "out" : "in"}
+      durationSeconds={message.durationSeconds}
+      // Mode pilih: ketukan memilih pesan, bukan putar/seek.
+      seekEnabled={!selecting}
+      sending={rowSending}
       // UPFV-03: refresh signed URL (TTL 5 mnt) bila pemutaran gagal —
       // pola sama seperti `Picture` onError pada thumbnail lampiran.
       onRefreshUrl={
@@ -397,11 +475,17 @@ export function ChatMessageRowBase({
   ) : message.attachments?.length ? (
     <View className="gap-2">
       {message.attachments.map((a, j) => (
-        <RowAttachmentItem
+        <RowMediaItem
           key={`${message.id}-${j}`}
           attachment={a}
+          messageId={message.id}
+          fromUser={message.fromUser}
+          durationSeconds={message.durationSeconds}
+          sendStatus={message.sendStatus}
+          selecting={selecting}
           onAttachmentPress={onAttachmentPress}
           onRefreshAttachmentUrl={onRefreshAttachmentUrl}
+          onRetryMessage={rowRetryMessage}
         />
       ))}
     </View>
@@ -413,7 +497,12 @@ export function ChatMessageRowBase({
   const specialBlock = (
     <>
       {locationPayload ? (
-        <ChatLocationCard location={locationPayload} outgoing={outgoing} />
+        <ChatLocationCard
+          location={locationPayload}
+          outgoing={outgoing}
+          // Peta penuh in-app; tanpa ini kartu fallback ke OSM eksternal.
+          onOpenMap={onLocationPress}
+        />
       ) : null}
       {productCard ? (
         <ChatProductCard card={productCard} outgoing={outgoing} onBuy={onBuyProductCard} />
@@ -434,6 +523,15 @@ export function ChatMessageRowBase({
     </>
   )
 
+  // Bagian 2: pratinjau tautan untuk pesan TEKS (kartu yang menyembunyikan
+  // teks — lokasi/produk/order/poll — tidak dapat pratinjau; media + teks
+  // ber-URL dapat keduanya).
+  const cardHidesText = !!(locationPayload || productCard || orderCard || pollData)
+  const linkPreviewUrl =
+    !message.isDeleted && !isViewOnceMessage && !cardHidesText && message.text
+      ? extractFirstUrl(message.text)
+      : null
+
   // Sekali-lihat: teks + media dibungkus (blur sampai diketuk). Kartu
   // lokasi/produk/order tidak dikombinasikan dengan viewOnce oleh backend.
   const bubbleChildren = isViewOnceMessage ? (
@@ -443,8 +541,11 @@ export function ChatMessageRowBase({
       ) : null}
       {hasSpecialContent ? specialBlock : null}
     </ChatViewOnce>
-  ) : hasSpecialContent ? (
-    specialBlock
+  ) : hasSpecialContent || linkPreviewUrl ? (
+    <>
+      {hasSpecialContent ? specialBlock : null}
+      {linkPreviewUrl ? <ChatLinkPreview url={linkPreviewUrl} outgoing={outgoing} /> : null}
+    </>
   ) : undefined
 
   // Kartu sudah membawa label/judulnya sendiri — teks pesan disembunyikan
@@ -529,6 +630,9 @@ export function ChatMessageRowBase({
       isDeleted={message.isDeleted}
       onPress={pressHandlers.onPress}
       onLongPressAt={pressHandlers.onLongPressAt}
+      // Meta melayang di sudut media (tanpa ini media 208px + reservasi
+      // meta meluap dari max-w bubble).
+      overlayMeta={!!(mediaBlock || locationPayload || linkPreviewUrl)}
       className={selected ? "rounded-md bg-surface" : undefined}
     >
       {bubbleChildren}
@@ -644,6 +748,7 @@ function areRowPropsEqual(
     prev.onLongPress === next.onLongPress &&
     prev.onReact === next.onReact &&
     prev.onAttachmentPress === next.onAttachmentPress &&
+    prev.onLocationPress === next.onLocationPress &&
     prev.onRetry === next.onRetry &&
     prev.onSwipeReply === next.onSwipeReply &&
     prev.onBuyProductCard === next.onBuyProductCard &&

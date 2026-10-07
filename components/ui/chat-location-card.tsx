@@ -1,10 +1,12 @@
 /**
  * Kahade — kartu lokasi di chat (batch 43 FE-CHAT, 2026-09-28).
  *
- * Merender pesan LOCATION: pin + label + koordinat + tombol "Buka di peta"
- * (deep-link `geo:` di Android / Apple Maps di iOS — tanpa fetch tile peta
- * eksternal; thumbnail statis tidak dipakai agar tidak ada request
- * pihak ketiga yang tak disetujui).
+ * Merender pesan LOCATION: pratinjau peta mini + pin + label + koordinat +
+ * tombol "Buka di peta". Sejak Bagian 2 (2026-10): ketuk pratinjau/tombol
+ * membuka PETA PENUH IN-APP (`/media-viewer?type=location`) lewat `onOpenMap`
+ * — fallback deep-link OSM hanya bila `onOpenMap` tidak dipasang (pemanggil
+ * lama). Peta mini adalah SVG deterministik lokal (lihat
+ * <ChatMiniMap>) — tanpa fetch tile pihak ketiga.
  *
  * `compact` dipakai untuk cuplikan balasan (quote preview) — cukup label.
  */
@@ -16,7 +18,12 @@ import { logWarn } from "@/lib/telemetry"
 
 import { Text } from "@/components/ui/text"
 import { Icon } from "@/components/ui/icon"
+import { ChatMiniMap } from "@/components/ui/chat-mini-map"
 import { cn } from "@/lib/cn"
+import { translate, useLanguage } from "@/lib/i18n"
+import { semantic } from "@/lib/tokens"
+import { useTheme } from "@/components/theme-provider"
+import { tokens } from "@/lib/tokens"
 import { MapPin, NavigationArrow } from "phosphor-react-native"
 
 export type ChatLocationCardProps = {
@@ -25,6 +32,7 @@ export type ChatLocationCardProps = {
   outgoing?: boolean
   /** Mode ringkas (cuplikan balasan). */
   compact?: boolean
+  /** Buka peta penuh in-app; tanpa ini → fallback tautan OSM eksternal. */
   onOpenMap?: (location: ChatLocationPayload) => void
 }
 
@@ -38,7 +46,10 @@ export const ChatLocationCard = memo(function ChatLocationCard({
   compact = false,
   onOpenMap,
 }: ChatLocationCardProps) {
-  const label = location.label?.trim() || "Lokasi dibagikan"
+  useLanguage()
+  const { mode } = useTheme()
+  const p = tokens.colors[mode]
+  const label = location.label?.trim() || translate("Lokasi dibagikan")
   const open = () => {
     if (onOpenMap) {
       onOpenMap(location)
@@ -63,59 +74,68 @@ export const ChatLocationCard = memo(function ChatLocationCard({
     )
   }
 
+  // Pola CHT-013: bubble keluar = bg-primary (hitam di light, putih di dark),
+  // jadi permukaan kartu harus translucent putih/hitam mengikuti mode — inline
+  // style + useTheme (bukan class dark:/literal agar lolos check-tokens).
+  const outgoingWash = mode === "dark" ? "rgba(0,0,0,0.12)" : "rgba(255,255,255,0.12)"
+  const outgoingLine = mode === "dark" ? "rgba(0,0,0,0.3)" : "rgba(255,255,255,0.7)"
+
   return (
     <View
       className={cn(
-        "gap-1.5 rounded-sm border p-2",
-        outgoing
-          ? "border-white/70 dark:border-black/30 bg-white/10 dark:bg-black/10"
-          : "border-border bg-background",
+        "w-52 gap-1.5 overflow-hidden rounded-sm border",
+        outgoing ? "border-transparent" : "border-border",
       )}
-      // FIX 2026-10-03: kartu lokasi terpotong di bubble sempit (video user).
-      // Beri lebar minimum agar label + koordinat tidak terpotong ellipsis
-      // pada bubble chat yang sempit.
-      style={{ minWidth: 200 }}
+      style={
+        outgoing
+          ? { backgroundColor: outgoingWash, borderColor: outgoingLine }
+          : { backgroundColor: p.background }
+      }
     >
-      <View className="flex-row items-center gap-2">
-        <View
-          className={`h-9 w-9 items-center justify-center rounded-full ${
-            // UX-COL-011: pola CHT-013 — bg-black/15 tak terlihat di bubble
-            // hitam (light mode); pakai putih di light, hitam di dark.
-            outgoing ? "bg-white/15 dark:bg-black/15" : "bg-info-soft"
-          }`}
-        >
-          <Icon icon={MapPin} size={18} tone={outgoing ? "inverse" : "info"} weight="fill" />
-        </View>
-        <View className="flex-1">
-          <Text
-            variant="body"
-            weight={600}
-            tone={outgoing ? "inverse" : "primary"}
-            numberOfLines={2}
-            ellipsizeMode="tail"
-          >
-            {label}
-          </Text>
-          <Text variant="caption" tone={outgoing ? "inverse" : "tertiary"}>
-            {location.lat.toFixed(5)}, {location.lng.toFixed(5)}
-          </Text>
-        </View>
-      </View>
+      {/* Pratinjau peta mini — ketuk → peta penuh in-app. */}
       <Pressable
         onPress={open}
-        accessibilityRole="link"
-        accessibilityLabel={`Buka lokasi di peta: ${label}`}
-        className={`flex-row items-center justify-center gap-1.5 rounded-sm py-1.5 ${
-          // UX-COL-004: pola CHT-013 — bg-black/15 tak terlihat di bubble
-          // hitam (light mode); pakai putih di light, hitam di dark.
-          outgoing ? "bg-white/15 dark:bg-black/15" : "bg-background"
-        }`}
+        accessibilityRole="button"
+        accessibilityLabel={translate("Buka lokasi di peta: {x}", { x: label })}
       >
-        <Icon icon={NavigationArrow} size={14} tone={outgoing ? "inverse" : "info"} />
-        <Text variant="caption" weight={600} tone={outgoing ? "inverse" : "info"}>
-          Buka di peta
-        </Text>
+        <ChatMiniMap latitude={location.lat} longitude={location.lng} />
       </Pressable>
+      <View className="gap-1.5 p-2 pt-0.5">
+        <View className="flex-row items-center gap-2">
+          <View
+            className="h-9 w-9 items-center justify-center rounded-full"
+            style={{ backgroundColor: outgoing ? outgoingWash : semantic.info[mode].bgSoft }}
+          >
+            <Icon icon={MapPin} size={18} tone={outgoing ? "inverse" : "info"} weight="fill" />
+          </View>
+          <View className="flex-1">
+            <Text
+              variant="body"
+              weight={600}
+              tone={outgoing ? "inverse" : "primary"}
+              numberOfLines={2}
+              ellipsizeMode="tail"
+            >
+              {label}
+            </Text>
+            <Text variant="caption" tone={outgoing ? "inverse" : "tertiary"}>
+              {location.lat.toFixed(5)}, {location.lng.toFixed(5)}
+            </Text>
+          </View>
+        </View>
+        <Pressable
+          onPress={open}
+          accessibilityRole="button"
+          accessibilityLabel={translate("Buka lokasi di peta: {x}", { x: label })}
+          className="flex-row items-center justify-center gap-1.5 rounded-sm py-1.5"
+          style={{ backgroundColor: outgoing ? outgoingWash : p.background }}
+        >
+          <Icon icon={NavigationArrow} size={14} tone={outgoing ? "inverse" : "info"} />
+          <Text variant="caption" weight={600} tone={outgoing ? "inverse" : "info"}>
+            {translate("Buka di peta")}
+          </Text>
+        </Pressable>
+      </View>
     </View>
   )
 })

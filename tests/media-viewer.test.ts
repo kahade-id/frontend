@@ -13,6 +13,7 @@ import { describe, expect, it } from "vitest"
 import {
   asMediaViewerType,
   classifyMedia,
+  formatBytes,
   formatMediaClock,
   isOfficeDocument,
   isPdfMedia,
@@ -70,6 +71,23 @@ describe("formatMediaClock", () => {
   })
   it("pecahan detik dibulatkan ke bawah", () => {
     expect(formatMediaClock(61.9)).toBe("1:01")
+  })
+})
+
+describe("formatBytes", () => {
+  it("byte & KB & MB & GB (koma Indonesia)", () => {
+    expect(formatBytes(0)).toBe("0 B")
+    expect(formatBytes(999)).toBe("999 B")
+    expect(formatBytes(1024)).toBe("1 KB")
+    expect(formatBytes(1536)).toBe("1,5 KB")
+    expect(formatBytes(5 * 1024 * 1024)).toBe("5 MB")
+    expect(formatBytes(2.5 * 1024 * 1024 * 1024)).toBe("2,5 GB")
+  })
+  it("NaN/negatif/null → –", () => {
+    expect(formatBytes(NaN)).toBe("–")
+    expect(formatBytes(-1)).toBe("–")
+    expect(formatBytes(null)).toBe("–")
+    expect(formatBytes(undefined)).toBe("–")
   })
 })
 
