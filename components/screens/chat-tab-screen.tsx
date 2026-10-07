@@ -32,7 +32,7 @@
  */
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react"
 import { ScrollView, View, type FlatList, type ViewInstance } from "react-native"
-import { Archive, BellSlash, BellZ, Chats, GearSix, NotePencil, Plus, PushPin, Trash, X } from "phosphor-react-native"
+import { Archive, BellSlash, BellZ, Chats, GearSix, Plus, PushPin, Trash, X } from "phosphor-react-native"
 import { router, useFocusEffect } from "expo-router"
 
 import { api, isApiError, userMessage } from "@/lib/api"
@@ -41,7 +41,6 @@ import {
   canDeleteChatRoom,
   chatRoomPreview,
   deleteChatRoom,
-  getOrCreateSelfRoom,
   setRoomArchived,
   setRoomMuted,
   type ChatRoom,
@@ -56,7 +55,6 @@ import { ORDER_STATUS_LABELS } from "@/lib/labels/status"
 import { formatTimeAgo } from "@/lib/format"
 import { haptic } from "@/lib/haptics"
 import { translate, useLanguage } from "@/lib/i18n"
-import { openCreateSheet } from "@/lib/create-sheet"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 import { byTimestampDesc, usePaginatedQuery } from "@/lib/use-paginated-query"
@@ -79,14 +77,11 @@ import { CoachMark } from "@/components/ui/coach-mark"
 import { Dialog } from "@/components/ui/modal"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Header } from "@/components/ui/header"
-import { Icon } from "@/components/ui/icon"
 import { IconButton } from "@/components/ui/icon-button"
 import { DrawerMenuButton } from "@/components/ui/drawer-menu-button"
 import { ModeShiftFade } from "@/components/ui/mode-switcher"
 import { PaginatedList } from "@/components/ui/paginated-list"
-import { PressableScale } from "@/components/ui/pressable-scale"
 import { Screen } from "@/components/ui/screen"
-import { Text } from "@/components/ui/text"
 import {
   SwipeableListItem,
   useSwipeableGroup,
@@ -267,35 +262,6 @@ function useChatListTyping(roomIds: string[]): Set<string> {
   }, [])
 
   return typingRooms
-}
-
-/**
- * Batch 43: entri "Pesan untuk diri sendiri" di puncak daftar chat —
- * membuka/membuat self room (POST /v1/chat/self).
- */
-function SelfChatEntry({ onOpen }: { onOpen: () => void }) {
-  return (
-    <PressableScale
-      onPress={onOpen}
-      accessibilityRole="button"
-      accessibilityLabel="Pesan untuk diri sendiri"
-      className="flex-row items-center gap-3 px-4 py-2.5"
-    >
-      <View className="h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-        <Icon icon={NotePencil} size={22} tone="active" />
-      </View>
-      <View className="min-w-0 flex-1 gap-0.5">
-        <Text variant="body" weight={600} tone="primary" numberOfLines={1}>
-          Pesan untuk diri sendiri
-        </Text>
-        {/* FE-087: "Catatan, pengingat, dan draf untuk Anda" = tiga sinonim
-            untuk satu fungsi — cukup "Catatan untuk Anda". */}
-        <Text variant="caption" tone="secondary" numberOfLines={1}>
-          {translate("Catatan untuk Anda")}
-        </Text>
-      </View>
-    </PressableScale>
-  )
 }
 
 /**
@@ -628,8 +594,13 @@ export default function ChatScreen() {
           icon={Plus}
           variant="ghost"
           size="md"
-          accessibilityLabel={translate("Buat baru")}
-          onPress={openCreateSheet}
+          // 2026-10-08: ikon (+) membuka halaman "Pesan baru" (cari username /
+          // kontak tersimpan / pesan untuk diri sendiri) — bukan lagi sheet
+          // "Buat baru" yang berisi karya/transaksi. Jalur Buat-baru tetap ada
+          // di header tab Notifikasi, Dompet, dan Etalase.
+          accessibilityLabel={translate("Kirim pesan baru")}
+          accessibilityHint={translate("Mencari pengguna lewat username untuk mulai mengobrol")}
+          onPress={() => router.push(ROUTES.chatNew)}
         />
         <IconButton
           icon={GearSix}
@@ -673,23 +644,6 @@ export default function ChatScreen() {
     },
     [activeSetData],
   )
-
-  /**
-   * Batch 43: buka self-chat ("Pesan untuk diri sendiri") — POST /v1/chat/self
-   * bila belum ada. Gagal → toast sopan (bukan layar error).
-   */
-  const openSelfChat = useCallback(async () => {
-    try {
-      const room = await getOrCreateSelfRoom()
-      router.push(ROUTES.chatRoom(room.id, "Pesan untuk diri sendiri", true))
-    } catch (err) {
-      toast.show({
-        title: "Gagal membuka pesan untuk diri sendiri",
-        description: isApiError(err) ? userMessage(err) : undefined,
-        tone: "danger",
-      })
-    }
-  }, [toast.show])
 
   /** Hapus baris room dari daftar lokal (umpan balik instan setelah DELETE). */
   const removeRoom = useCallback(
@@ -1063,11 +1017,12 @@ export default function ChatScreen() {
    * R1-005 (2026-09-29, audit render-perf): elemen header/empty/loading
    * distabilkan — identitas baru tiap render membatalkan `useMemo` di dalam
    * <PaginatedList> dan memaksa VirtualizedList render ulang kontainer.
+   *
+   * 2026-10-08: slot `header` <PaginatedList> tidak lagi dipakai — satu-
+   * satunya isinya adalah entri self-chat, dan entri itu pindah ke halaman
+   * "Pesan baru" (/chat/new). Daftar percakapan kini murni berisi
+   * percakapan yang benar-benar ada.
    */
-  const chatListHeader = useMemo(
-    () => (filter === "all" ? <SelfChatEntry onOpen={() => void openSelfChat()} /> : undefined),
-    [filter, openSelfChat],
-  )
   const chatListLoading = useMemo(() => <ChatTabListSkeleton />, [])
   const chatListEmpty = useMemo(
     // FE-088: description yang mengulang judul dihapus — empty state =
@@ -1112,7 +1067,6 @@ export default function ChatScreen() {
           // tidak terbaca generator katalog i18n (hanya children JSX, properti
           // objek, dan argumen translate()), jadi copy dinamis harus dibungkus.
           title={selectedCount > 0 ? translate(`${selectedCount} dipilih`) : "Pilih percakapan"}
-          titleAlign="left"
           showBack={false}
           separator={false}
           elevated={false}
@@ -1163,7 +1117,8 @@ export default function ChatScreen() {
           showBack={false}
           separator={false}
           elevated={false}
-          titleAlign="left"
+          // 2026-10-08: judul center presisi — center terhadap lebar layar
+          // penuh walaupun kiri (drawer) & kanan (aksi) lebar berbeda.
           title="Pesan"
           // T5-002 (audit UI/UX intuitif 2026-09-29): drawer bisa dibuka dari
           // semua tab, bukan cuma Etalase.
@@ -1179,8 +1134,8 @@ export default function ChatScreen() {
          * baris chip ikut membesar ±setengah layar dan menyisakan kosong
          * raksasa sebelum daftar (repro web: 286px). `grow-0` mengembalikan
          * tinggi alami baris chip — pola sama dengan <ScrollRow> (grow-0) dan
-         * selection-bar. Tanpa ini jarak chip → "Pesan untuk diri sendiri"
-         * tidak akan pernah rapat. */
+         * selection-bar. Tanpa ini jarak chip → baris pertama daftar tidak
+         * akan pernah rapat. */
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -1200,9 +1155,6 @@ export default function ChatScreen() {
       <PaginatedList
         {...activeQuery}
         onScrollWorklet={onScrollWorklet}
-        // Batch 43: entri "Pesan untuk diri sendiri" di puncak daftar (hanya
-        // tab Semua; arsip/filter lain tidak menampilkan self-chat).
-        header={chatListHeader}
         // ChatRoomListItem memasang px-4 sendiri. `padded` default menambah
         // paddingHorizontal 20px lagi di contentContainer -> baris menjorok
         // dan tidak sejajar Header di atasnya. Sama seperti app/notifications.tsx.

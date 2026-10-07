@@ -3,10 +3,13 @@
  * U5-012 (audit UX-deep). Murni tampilan: tidak menyentuh logika
  * bayar/refund/escrow apa pun.
  *
- *  - U5-008: <DmEscrowWarning> — banner anti-tipu persisten di DM tanpa
- *    orderId, dengan CTA "Buat transaksi".
+ *  - U5-008 (REVISI 2026-10-08): <DmSafetyDialog> — popup anti-tipu yang
+ *    tampil SEKALI per lawan bicara di DM tanpa orderId, dengan CTA "Buat
+ *    transaksi". Banner permanen dihapus atas permintaan produk: peringatan
+ *    yang menetap selamanya berhenti dibaca dan menyempitkan ruang chat.
  *  - U5-009: <ChatRoomListItem orderBadge> — room ber-orderId ditandai
- *    badge kecil "Escrow", bukan kode order mentah.
+ *    badge kecil "Terlindungi", bukan kode order mentah (dan bukan istilah
+ *    internal "escrow" — lihat larangan istilah di UI, 2026-10-08).
  *  - U5-012: <OrderEscrowCard> PROCESSING (pembeli) — menyebut tenggat
  *    kirim 2 hari + jaminan auto-refund.
  */
@@ -16,45 +19,90 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { ThemeProvider } from "@/components/theme-provider"
 import { ChatRoomListItem } from "@/components/ui/chat-room-list-item"
-import { DmEscrowWarning } from "@/components/ui/dm-escrow-warning"
+import { DmSafetyDialog } from "@/components/ui/dm-safety-dialog"
 import { OrderEscrowCard } from "@/components/ui/order-escrow-card"
+import { PortalHost, PortalProvider } from "@/components/ui/portal"
+import { ToastProvider } from "@/components/ui/toast"
 
 function renderInTheme(ui: ReactElement) {
-  return render(<ThemeProvider>{ui}</ThemeProvider>)
+  // <Dialog> memakai <Modal> primitif: Portal + useToast (umpan balik saat
+  // overlay tidak bisa ditutup) — keduanya wajib ada di pohon test.
+  return render(
+    <ThemeProvider>
+      <PortalProvider>
+        <ToastProvider>
+          {ui}
+          <PortalHost />
+        </ToastProvider>
+      </PortalProvider>
+    </ThemeProvider>,
+  )
 }
 
 // Vitest tidak menyalakan `globals`, jadi auto-cleanup RTL tidak aktif.
 afterEach(cleanup)
 
-describe("U5-008 <DmEscrowWarning>", () => {
-  it("menampilkan peringatan escrow + CTA Buat transaksi", () => {
-    renderInTheme(<DmEscrowWarning onCreateOrder={() => {}} />)
-    expect(screen.getByText("Chat ini belum dilindungi escrow")).toBeTruthy()
-    expect(
-      screen.getByText(/Jangan kirim uang langsung ke siapa pun/),
-    ).toBeTruthy()
+describe("U5-008 <DmSafetyDialog>", () => {
+  it("menampilkan peringatan + CTA Buat transaksi saat visible", () => {
+    renderInTheme(
+      <DmSafetyDialog visible onCreateOrder={() => {}} onDismiss={() => {}} />,
+    )
+    expect(screen.getByText("Pastikan transaksi lewat Kahade")).toBeTruthy()
+    expect(screen.getByText(/Kirim uang hanya lewat transaksi di aplikasi/)).toBeTruthy()
     expect(screen.getByText("Buat transaksi")).toBeTruthy()
+    expect(screen.getByText("Mengerti")).toBeTruthy()
   })
 
-  it("CTA memanggil onCreateOrder (jalur escrow yang sama dengan menu ⋮)", () => {
+  it('"Mengerti" menutup popup, bukan membuka sheet transaksi', () => {
+    const onDismiss = vi.fn()
     const onCreateOrder = vi.fn()
-    renderInTheme(<DmEscrowWarning onCreateOrder={onCreateOrder} />)
+    renderInTheme(
+      <DmSafetyDialog visible onCreateOrder={onCreateOrder} onDismiss={onDismiss} />,
+    )
+    fireEvent.click(screen.getByText("Mengerti"))
+    expect(onDismiss).toHaveBeenCalledTimes(1)
+    expect(onCreateOrder).not.toHaveBeenCalled()
+  })
+
+  it("CTA memanggil onCreateOrder (jalur transaksi yang sama dengan menu ⋮)", () => {
+    const onCreateOrder = vi.fn()
+    renderInTheme(
+      <DmSafetyDialog visible onCreateOrder={onCreateOrder} onDismiss={() => {}} />,
+    )
     fireEvent.click(screen.getByText("Buat transaksi"))
     expect(onCreateOrder).toHaveBeenCalledTimes(1)
+  })
+
+  it("tidak menyebut istilah internal di teks yang tampil", () => {
+    renderInTheme(
+      <DmSafetyDialog visible onCreateOrder={() => {}} onDismiss={() => {}} />,
+    )
+    for (const banned of ["escrow", "Rekber", "rekber", "ditahan", "penahanan"]) {
+      expect(screen.queryByText(new RegExp(banned, "i"))).toBeNull()
+    }
+  })
+
+  it("tersembunyi saat visible=false (sekali per lawan bicara)", () => {
+    renderInTheme(
+      <DmSafetyDialog visible={false} onCreateOrder={() => {}} onDismiss={() => {}} />,
+    )
+    expect(screen.queryByText("Pastikan transaksi lewat Kahade")).toBeNull()
   })
 })
 
 describe("U5-009 <ChatRoomListItem orderBadge>", () => {
-  it("room ber-orderId menampilkan badge Escrow", () => {
+  it("room ber-orderId menampilkan badge Terlindungi", () => {
     renderInTheme(
       <ChatRoomListItem name="Toko Maju" orderBadge onPress={() => {}} />,
     )
-    expect(screen.getByText("Escrow")).toBeTruthy()
+    expect(screen.getByText("Terlindungi")).toBeTruthy()
+    // Istilah internal tidak boleh muncul di daftar percakapan.
+    expect(screen.queryByText(/escrow/i)).toBeNull()
   })
 
   it("DM tanpa orderId tidak menampilkan badge", () => {
     renderInTheme(<ChatRoomListItem name="Budi" onPress={() => {}} />)
-    expect(screen.queryByText("Escrow")).toBeNull()
+    expect(screen.queryByText("Terlindungi")).toBeNull()
   })
 })
 

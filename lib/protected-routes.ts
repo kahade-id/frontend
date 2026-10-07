@@ -32,6 +32,11 @@ export const AUTHENTICATED_SCREENS = [
   "change-pin",
   "chat/[roomId]",
   "chat",
+  // 2026-10-08: halaman "Pesan baru" — users/search, users/saved, chat/dm,
+  // chat/self SEMUANYA auth:"required". Tanpa entri ini, deep link
+  // /chat/new dari luar membuka halaman tanpa sesi (badai 401) dan tamu web
+  // tidak pernah melihat <GuestLoginPrompt>.
+  "chat/new",
   "chat/settings", // NAV-004 (2026-09-28): GET /v1/chat/privacy auth-required — deep link native tanpa sesi = 401
   "create-transaction",
   "delete-account",
@@ -57,6 +62,7 @@ export const AUTHENTICATED_SCREENS = [
   "privacy-settings",
   "profile/[id]",
   "questions",
+  "media-viewer", // 2026-10-08: penampil media terpusat — dibuka dari lampiran chat/sengketa/bukti kirim (semua ber-auth; URL lampiran di-sign per peserta)
   "rate/[orderId]",
   "ratings",
   "receive",

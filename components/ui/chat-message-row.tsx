@@ -73,6 +73,7 @@ import { isVideoMime } from "@/lib/mime"
 import { VoiceNotePlayer } from "@/components/ui/voice-note-player"
 import { extractFirstUrl } from "@/lib/link-preview"
 import { isAudioMime } from "@/lib/voice-note"
+import { isFreshMessage } from "@/lib/chat-bubble-motion"
 import { type SealTier } from "@/components/ui/verified-seal"
 
 /**
@@ -564,6 +565,16 @@ export function ChatMessageRowBase({
       // Jangkar popover tekan-lama di area kosong baris = node bubble ini.
       anchorRef={bubbleAnchorRef}
       direction={isSystemMessage ? "system" : message.fromUser ? "outgoing" : "incoming"}
+      /*
+       * 2026-10-08 (permintaan produk, bagian 3b): bubble yang BARU saja
+       * dibuat "mengambang masuk" (geser + naik + skala, spring playful).
+       * Pesan lama yang di-render ulang — membuka ruang, kembali menelusuri
+       * riwayat — TIDAK beranimasi, karena `isFreshMessage` hanya benar
+       * selama `BUBBLE_ENTRANCE_FRESH_MS`. Berlaku untuk SEMUA jenis bubble
+       * (teks, foto, video, berkas, pesan suara, lokasi, kartu produk) —
+       * lampiran hidup di dalam bubble yang sama.
+       */
+      animateEntrance={isFreshMessage(message.createdAt)}
       // CN-003: pesan terhapus — placeholder, bukan gelembung kosong.
       text={bubbleText}
       // Batch 43: blok terjemahan + chip ephemeral + penanda bintang.

@@ -724,7 +724,7 @@ export default function TransactionsScreen() {
   if (!hasSession) {
     return (
       <Screen edges={["top"]} padded={false}>
-        <Header title="Transaksi" showBack={false} separator={false} titleAlign="left" />
+        <Header title="Transaksi" showBack={false} separator={false} />
         <GuestLoginPrompt bare next="/transactions" />
       </Screen>
     )
@@ -736,7 +736,8 @@ export default function TransactionsScreen() {
       {/* Header tanpa separator; status dipilih melalui sheet funnel. */}
       <Header
         title="Transaksi"
-        titleAlign="left"
+        // 2026-10-08: judul center presisi (default Header) — center dihitung
+        // terhadap lebar layar penuh, bukan sisa ruang antar ikon.
         showBack={false}
         separator={false}
         elevated={false}

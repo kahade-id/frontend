@@ -121,6 +121,11 @@ import { formatChatListTime, formatTime, truncateMiddle } from "@/lib/format"
 import { ChatSearchSnippet } from "@/components/ui/chat-search-snippet"
 import { ActionSheet } from "@/components/ui/action-sheet"
 import { haptic } from "@/lib/haptics"
+import {
+  hasSeenDmNotice,
+  hydrateDmNoticeSeen,
+  markDmNoticeSeen,
+} from "@/lib/chat-dm-notice-seen"
 import { logWarn } from "@/lib/telemetry"
 import { pickImage, pickedImageToFormData, resizePickedImage, type PickedImage } from "@/lib/image-picker"
 import * as DocumentPicker from "expo-document-picker"
@@ -146,7 +151,7 @@ import { ChatInlineSearchBar } from "@/components/ui/chat-inline-search"
 import { findMessageMatches } from "@/lib/chat-search"
 import { useDebouncedValue } from "@/lib/use-debounced-value"
 import { ChatDaySeparator, dayKey, dayLabel } from "@/components/ui/chat-day-separator"
-import { DmEscrowWarning } from "@/components/ui/dm-escrow-warning"
+import { DmSafetyDialog } from "@/components/ui/dm-safety-dialog"
 import { ChatUnreadSeparator } from "@/components/ui/chat-unread-separator"
 import { presenceLabel } from "@/lib/chat-presence-label"
 import { firstUnreadMessageId } from "@/lib/chat-unread-anchor"
@@ -567,11 +572,22 @@ export default function ChatRoomScreen() {
    * (bukan cuid internal `id`).
    */
   const [myUserId, setMyUserId] = useState<string | null>(null)
+  /**
+   * 2026-10-08 (keluhan "double-send"): identitas saya untuk dedupe gema
+   * netral — lihat `ChatMergeOptions` di lib/chat-dedupe.ts. Disimpan di ref
+   * karena `mergeIncoming` berdeps `[]` (tidak boleh dibuat ulang tiap render
+   * — ia dipakai poll & socket).
+   */
+  const selfIdsRef = useRef<string[]>([])
   useEffect(() => {
     let alive = true
     void getMeCached()
       .then((me) => {
-        if (alive) setMyUserId(pickPublicUserId(me))
+        if (!alive) return
+        setMyUserId(pickPublicUserId(me))
+        selfIdsRef.current = [me?.userId, me?.id].filter(
+          (v): v is string => typeof v === "string" && v.length > 0,
+        )
       })
       .catch(() => {
         if (alive) setMyUserId(null)
@@ -670,6 +686,12 @@ export default function ChatRoomScreen() {
   const [blockDialogOpen, setBlockDialogOpen] = useState(false)
   /** Sheet buat transaksi dari chat. */
   const [createOrderSheetOpen, setCreateOrderSheetOpen] = useState(false)
+  /**
+   * 2026-10-08: popup keselamatan DM — tampil SEKALI per lawan bicara
+   * (banner permanen dihapus atas permintaan produk). Penanda lokal:
+   * lib/chat-dm-notice-seen.ts.
+   */
+  const [safetyNoticeOpen, setSafetyNoticeOpen] = useState(false)
   /** Kartu produk sumber tombol "Beli" (null = buat dari menu tanpa etalase). */
   const [createOrderProduct, setCreateOrderProduct] = useState<ChatProductCardPayload | null>(null)
   /** Sheet pilih etalase → kartu produk. */
@@ -1151,7 +1173,7 @@ export default function ChatRoomScreen() {
       let added = 0
       let freshFromOther = false
       setMessages((prev) => {
-        const result = mergeChatMessages(prev, incoming)
+        const result = mergeChatMessages(prev, incoming, { selfIds: selfIdsRef.current })
         added = result.added
         freshFromOther = result.hasFreshFromOther
         if (!result.changed) return prev
@@ -3182,6 +3204,36 @@ export default function ChatRoomScreen() {
     }),
     [counterpartName, room?.counterpart?.avatarUrl, room?.counterpart?.sealTier],
   )
+  /**
+   * 2026-10-08: putuskan popup keselamatan sekali-per-lawan-bicara.
+   *
+   * Syarat tampil = syarat banner lama: DM 1:1, bukan self-chat, TANPA
+   * orderId (belum ada transaksi di percakapan ini), dan lawan bicara belum
+   * berbadge (sealTier null — seller terverifikasi tidak perlu diingatkan).
+   * Ditambah: belum pernah dilihat untuk orang ini.
+   *
+   * Menunggu `room` termuat: menandai "sudah dilihat" sebelum tahu lawan
+   * bicaranya akan mematikan popup untuk orang yang salah.
+   */
+  useEffect(() => {
+    if (!room || loading) return
+    if (!isOneToOneChatRoom(room) || isSelfChat) return
+    if (room.orderId) return
+    if (room.counterpart?.sealTier != null) return
+    const counterpartId = room.counterpart?.id
+    if (!counterpartId) return
+    let alive = true
+    void hydrateDmNoticeSeen().then(() => {
+      if (!alive) return
+      if (hasSeenDmNotice(counterpartId)) return
+      markDmNoticeSeen(counterpartId)
+      setSafetyNoticeOpen(true)
+    })
+    return () => {
+      alive = false
+    }
+  }, [room, loading, isSelfChat])
+
   /** Ketuk bubble: NO-OP di luar mode pilih; toggle pilihan saat memilih. */
   const handleRowPress = useCallback(
     (target: ChatMessage) => {
@@ -3478,6 +3530,9 @@ export default function ChatRoomScreen() {
       keyboardAvoiding
       edges={["top"]}
       padded={false}
+      // 2026-10-08: tanpa garis pemisah di atas kolom ketik — ruang chat
+      // adalah satu percakapan, bukan body + CTA yang perlu dipisah.
+      footerBorderless
       footer={
         // UI-C001: room 404 (roomGone) menyembunyikan footer — composer yang
         // tetap tampil di bawah EmptyState "tidak tersedia" mengundang kirim
@@ -3707,15 +3762,18 @@ export default function ChatRoomScreen() {
           setCreateOrderSheetOpen(true)
         }}
         onOpenReport={() => setReportSheetOpen(true)}
-        // 2026-10-02: peringatan escrow pindah ke sini (dari banner atas).
-        escrowWarning={
-          room != null &&
-          isOneToOneChatRoom(room) &&
-          !isSelfChat &&
-          room.counterpart?.sealTier == null ? (
-            <DmEscrowWarning onCreateOrder={() => setCreateOrderSheetOpen(true)} />
-          ) : undefined
-        }
+      />
+
+      {/* 2026-10-08: popup keselamatan DM — menggantikan banner permanen
+          (dulu di atas menu ⋮). Tampil sekali per lawan bicara. */}
+      <DmSafetyDialog
+        visible={safetyNoticeOpen}
+        onDismiss={() => setSafetyNoticeOpen(false)}
+        onCreateOrder={() => {
+          setSafetyNoticeOpen(false)
+          setCreateOrderProduct(null)
+          setCreateOrderSheetOpen(true)
+        }}
       />
 
       {/* Edit pesan teks sendiri — draft + simpan di dalam komponen. */}

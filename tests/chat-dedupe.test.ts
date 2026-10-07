@@ -5,6 +5,12 @@
  * gema realtime `chat.new_message` tiba DENGAN ID SERVER (broadcast termasuk
  * ke pengirim) → di-append sebagai pesan baru → POST resolve mengganti entri
  * optimistis → dua bubble ber-id sama.
+ *
+ * 2026-10-08 (keluhan "double-send" pada koneksi lambat): gema bisa tiba
+ * dengan `fromUser: false` bila payload tidak menandai sisi-pengirim. Gema
+ * seperti itu dulu TIDAK PERNAH dicocokkan → di-append → bubble ganda yang
+ * menetap. Sekarang merge sadar-identitas lewat `selfIds` (lihat describe
+ * "gema netral milik sendiri" di bawah).
  */
 import { describe, expect, it } from "vitest"
 
@@ -211,5 +217,68 @@ describe("mergeChatMessages", () => {
     expect(result.next.map((m) => m.id).sort()).toEqual(["srv-0", "srv-1"])
     const times = result.next.map((m) => new Date(m.createdAt).getTime())
     expect([...times].sort((a, b) => a - b)).toEqual(times)
+  })
+})
+
+
+/**
+ * 2026-10-08: gema netral milik sendiri.
+ *
+ * Pada koneksi lambat, POST bisa resolve jauh setelah socket mengirim gema —
+ * dan sebagian payload gema tidak membawa `fromUser`/`isMine` sehingga
+ * `normalizeChatMessage` memberi `fromUser: false`. Tanpa `selfIds`, gema itu
+ * di-append sebagai "pesan baru" dan bubble ganda menetap sampai ruang
+ * ditutup. Dengan `selfIds`, pengirim yang cocok dengan identitas saya tetap
+ * MENGGANTIKAN bubble optimistis.
+ */
+describe("gema netral milik sendiri (selfIds)", () => {
+  const SELF = ["USR-ME-1", "cuid-me"]
+
+  it("gema fromUser=false dengan senderId saya MENGGANTI bubble optimistis", () => {
+    const prev = [optimistic()]
+    const neutral = serverEcho({ fromUser: false, senderId: "USR-ME-1" })
+    const result = mergeChatMessages(prev, [neutral], { selfIds: SELF })
+    expect(result.next.map((m) => m.id)).toEqual(["srv-1"])
+    expect(result.added).toBe(0)
+    expect(result.hasFreshFromOther).toBe(false)
+  })
+
+  it("`sender.userId` juga dikenali (payload tanpa senderId datar)", () => {
+    const neutral = serverEcho({
+      fromUser: false,
+      senderId: null,
+      sender: { id: "cuid-me", userId: "USR-ME-1", fullName: "Saya" },
+    })
+    const result = mergeChatMessages([optimistic()], [neutral], { selfIds: SELF })
+    expect(result.next.map((m) => m.id)).toEqual(["srv-1"])
+    expect(result.added).toBe(0)
+  })
+
+  it("pesan lawan bicara dengan teks IDENTIK tidak mencuri bubble optimistis", () => {
+    const theirs = serverEcho({ fromUser: false, senderId: "USR-OTHER", sender: null })
+    const result = mergeChatMessages([optimistic()], [theirs], { selfIds: SELF })
+    // Dua bubble: milik saya (masih sending) + pesan lawan yang memang baru.
+    expect(result.next.map((m) => m.id).sort()).toEqual(["srv-1", "temp-1"])
+    expect(result.added).toBe(1)
+    expect(result.hasFreshFromOther).toBe(true)
+  })
+
+  it("tanpa selfIds perilaku LAMA dipertahankan (konservatif)", () => {
+    const neutral = serverEcho({ fromUser: false, senderId: "USR-ME-1" })
+    const result = mergeChatMessages([optimistic()], [neutral])
+    expect(result.next.map((m) => m.id).sort()).toEqual(["srv-1", "temp-1"])
+    expect(result.added).toBe(1)
+  })
+
+  it("gema netral tanpa id pengirim + selfIds dikenal tetap di-append", () => {
+    const neutral = serverEcho({ fromUser: false, senderId: null, sender: null })
+    const result = mergeChatMessages([optimistic()], [neutral], { selfIds: SELF })
+    expect(result.next.map((m) => m.id).sort()).toEqual(["srv-1", "temp-1"])
+  })
+
+  it("findOptimisticMatch menerima gema netral milik sendiri", () => {
+    const neutral = serverEcho({ fromUser: false, senderId: "USR-ME-1" })
+    expect(findOptimisticMatch([optimistic()], neutral, { selfIds: SELF })?.id).toBe("temp-1")
+    expect(findOptimisticMatch([optimistic()], neutral)).toBeNull()
   })
 })

@@ -415,6 +415,12 @@ export const ROUTES = {
       : ("/disputes" as Href),
   /** Daftar ruang chat (GET /v1/chat/rooms) */
   chat: "/chat" as Href,
+  /**
+   * Mulai percakapan baru (2026-10-08): cari user lewat username, buka DM,
+   * atau pakai kontak tersimpan (`GET /v1/users/saved`). Ikon (+) di daftar
+   * Pesan menuju ke sini — bukan lagi sheet "Buat baru".
+   */
+  chatNew: "/chat/new" as Href,
   /** Pengaturan chat: privasi + template balasan (batch 43 FE-CHAT) */
   chatSettings: "/chat/settings" as Href,
   /** Satu ruang chat */

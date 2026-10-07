@@ -1246,21 +1246,27 @@ export type ChatPrivacySettings = {
 const DM_POLICIES: DmPolicy[] = ["EVERYONE", "FOLLOWING", "NONE"]
 
 /** Opsi kebijakan DM untuk UI radio + copy penjelasan per opsi. */
+/**
+ * Pilihan kebijakan DM — label & deskripsi SENGAJA singkat (2026-10-08):
+ * pengguna membaca label, bukan paragraf; nuansa "percakapan lama tetap
+ * jalan" cukup dijelaskan SEKALI di judul grup pengaturan, bukan diulang di
+ * setiap baris (halaman /chat/settings).
+ */
 export const DM_POLICY_OPTIONS: { value: DmPolicy; label: string; description: string }[] = [
   {
     value: "EVERYONE",
     label: "Semua orang",
-    description: "Siapa pun bisa mengirimi Anda pesan langsung baru.",
+    description: "Siapa pun bisa memulai percakapan.",
   },
   {
     value: "FOLLOWING",
     label: "Hanya yang saya ikuti",
-    description: "Hanya orang yang Anda follow yang bisa memulai DM baru.",
+    description: "Hanya orang yang Anda ikuti.",
   },
   {
     value: "NONE",
     label: "Tidak ada",
-    description: "Tolak semua pesan langsung baru. Percakapan yang sudah ada tidak terpengaruh.",
+    description: "Tolak semua percakapan baru.",
   },
 ]
 

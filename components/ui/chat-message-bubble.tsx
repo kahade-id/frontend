@@ -61,10 +61,18 @@
  *     yang dipasang langsung di bubble (tanpa `swipeOffsetX`) tetap berlaku
  *     untuk pemanggil lain (layar bantuan, sengketa).
  */
-import { memo, useMemo, useRef, type ReactNode, type RefObject } from "react"
+import { memo, useEffect, useMemo, useRef, type ReactNode, type RefObject } from "react"
 import { View, type GestureResponderEvent, type ViewInstance, type ViewProps } from "react-native"
 import { GestureDetector } from "react-native-gesture-handler"
-import Animated, { useAnimatedStyle, useSharedValue, type SharedValue } from "react-native-reanimated"
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withSpring,
+  withTiming,
+  type SharedValue,
+} from "react-native-reanimated"
 import { ArrowBendUpLeft, Check, Checks, Clock, PushPin, Star, Timer, WarningCircle } from "phosphor-react-native"
 
 import { Avatar } from "@/components/ui/avatar"
@@ -77,11 +85,17 @@ import { TextLink } from "@/components/ui/text-link"
 import { VerifiedName } from "@/components/ui/verified-name"
 import { type SealTier } from "@/components/ui/verified-seal"
 import { cn } from "@/lib/cn"
+import { tokens } from "@/lib/tokens"
 import { focusRing } from "@/lib/focus-ring"
 import { hitSlopToReach } from "@/lib/hit-slop"
 import { translate } from "@/lib/i18n/translate"
+import {
+  bubbleEntranceVector,
+  isStatusAdvance,
+} from "@/lib/chat-bubble-motion"
 import { summarize } from "@/lib/a11y"
 import { useSwipeReplyPan } from "@/lib/use-swipe-reply-pan"
+import { useReducedMotion } from "@/lib/use-reduced-motion"
 import { splitHighlightSpans } from "@/lib/chat-search"
 import {
   REACTION_BADGE_ANCHOR,
@@ -254,6 +268,14 @@ export type ChatMessageBubbleProps = Omit<ViewProps, "children"> & {
    * reservasi meluap dari max-w 76% di layar 360px.
    */
   overlayMeta?: boolean
+  /**
+   * 2026-10-08 (permintaan produk, bagian 3b): izinkan animasi MASUK
+   * ("mengambang masuk"). Pemanggil yang menentukan — biasanya
+   * `isFreshMessage(createdAt)` di <ChatMessageRow> — supaya pesan lama yang
+   * di-render ulang (buka ruang / kembali ke riwayat) TIDAK ikut beranimasi.
+   * Reduced-motion mematikan animasinya (bubble langsung tampil).
+   */
+  animateEntrance?: boolean
   className?: string
 }
 
@@ -298,6 +320,7 @@ function ChatMessageBubbleBase({
   ephemeralChip,
   starred = false,
   overlayMeta = false,
+  animateEntrance = false,
   className,
   ...rest
 }: ChatMessageBubbleProps) {
@@ -308,6 +331,75 @@ function ChatMessageBubbleBase({
   }
   /** Geometri simetri — `align` satu-satunya yang di-mirror per arah. */
   const geometry = chatBubbleGeometry(direction)
+  /**
+   * 2026-10-08 (permintaan produk, bagian 3b) — MOTION gelembung.
+   *
+   * 1. MASUK ("mengambang masuk"): geser dari sisi pengirim + naik + skala
+   *    0.96 → 1 dengan `tokens.motion.springPlayful` (overshoot halus). Nilai
+   *    awal dikunci saat MOUNT (`useRef(...).current`) supaya perubahan prop
+   *    di tengah umur komponen tidak pernah memulai animasi yang tertunda.
+   *    Reduced-motion → nilai awal 1 (langsung tampil, tanpa gerak).
+   *    Catatan: hook reduced-motion mengembalikan `true` sampai preferensi
+   *    perangkat terbaca, jadi bubble yang mount sebelum itu tampil statis —
+   *    arah aman (tidak ada gerak yang tidak diminta).
+   * 2. STATUS: centang "pop" saat status NAIK (sending → sent → read), dan
+   *    ikon jam berdenyut pelan selagi pesan masih di perjalanan ("sending")
+   *    — umpan balik bahwa kiriman hidup, bukan macet.
+   */
+  const reducedMotion = useReducedMotion()
+  const entranceStart = useRef(animateEntrance && !reducedMotion ? 0 : 1).current
+  const entrance = useSharedValue(entranceStart)
+  const entranceStyle = useAnimatedStyle(() => {
+    const p = entrance.value
+    const from = bubbleEntranceVector(direction)
+    return {
+      // Opasitas penuh mulai 60% perjalanan: bubble tidak "muncul dari
+      // ketiadaan" yang terasa berkedip, tapi tetap naik dengan tegas.
+      opacity: Math.min(1, p * 1.6),
+      transform: [
+        { translateX: from.translateX * (1 - p) },
+        // Geser vertikal memakai kurva lebih cepat luruh (kuadrat): bubble
+        // mendarat, tidak melayang-layang.
+        { translateY: from.translateY * (1 - p) * (1 - p) },
+        { scale: from.scale + (1 - from.scale) * p },
+      ],
+    }
+  })
+  useEffect(() => {
+    if (entranceStart !== 0) return
+    entrance.value = withSpring(1, tokens.motion.springPlayful)
+  }, [entrance, entranceStart])
+
+  /** Denyut ikon jam selama status "sending" (berhenti begitu status berubah). */
+  const sendingPulse = useSharedValue(1)
+  const sending = status === "sending"
+  useEffect(() => {
+    if (sending && !reducedMotion) {
+      sendingPulse.value = withRepeat(
+        withSequence(
+          withTiming(0.45, { duration: tokens.motion.duration.slow }),
+          withTiming(1, { duration: tokens.motion.duration.slow }),
+        ),
+        -1,
+        false,
+      )
+      return
+    }
+    sendingPulse.value = 1
+  }, [sending, reducedMotion, sendingPulse])
+  const sendingPulseStyle = useAnimatedStyle(() => ({ opacity: sendingPulse.value }))
+
+  /** Pop centang saat status NAIK (sent → read = "sudah dibaca"). */
+  const statusPop = useSharedValue(1)
+  const prevStatusRef = useRef(status)
+  useEffect(() => {
+    const prev = prevStatusRef.current
+    prevStatusRef.current = status
+    if (reducedMotion || !isStatusAdvance(prev, status)) return
+    statusPop.value = 1.35
+    statusPop.value = withSpring(1, tokens.motion.springPlayful)
+  }, [status, reducedMotion, statusPop])
+  const statusPopStyle = useAnimatedStyle(() => ({ transform: [{ scale: statusPop.value }] }))
   const hasReactions = !!reactions && reactions.length > 0
   /**
    * Tim8 P1: `splitHighlightSpans` mengkompilasi `new RegExp` per panggilan —
@@ -372,13 +464,17 @@ function ChatMessageBubbleBase({
   if (direction === "system") {
     // Batch 43 (2026-09-28): pesan SYSTEM dirender sebagai kartu terpusat
     // dengan ikon per jenis event (bukan caption polos).
+    // 2026-10-08: kartu sistem ikut "mengambang masuk" (naik dari bawah,
+    // tanpa geser samping — ia bukan milik salah satu pihak).
     return (
-      <View
-        className={cn("w-full", grouped ? "mt-1" : "mt-3", className)}
-        {...rest}
-      >
-        <ChatSystemCard text={text} />
-      </View>
+      <Animated.View style={[styles.entranceRow, entranceStyle]}>
+        <View
+          className={cn("w-full", grouped ? "mt-1" : "mt-3", className)}
+          {...rest}
+        >
+          <ChatSystemCard text={text} />
+        </View>
+      </Animated.View>
     )
   }
 
@@ -407,6 +503,9 @@ function ChatMessageBubbleBase({
   const metaIconTone = overlayMeta ? "default" : outgoing ? "inverse" : "default"
   const metaBlock =
     time || failed || (outgoing && status) || isPinned || isEdited || ephemeralChip || starred ? (
+      // Posisi absolute tetap di <View> (className); gerak-nya di
+      // <Animated.View> dalam — className di Animated.View diabaikan di web
+      // (WEB-014, lihat showcase-media-drag-sort).
       <View
         className={
           overlayMeta
@@ -449,7 +548,11 @@ function ChatMessageBubbleBase({
               </View>
             ) : null}
             {outgoing && status && status !== "failed" ? (
-              <StatusGlyph status={status} outgoing={outgoing} onOverlay={overlayMeta} />
+              <Animated.View style={sendingPulseStyle}>
+                <Animated.View style={statusPopStyle}>
+                  <StatusGlyph status={status} outgoing={outgoing} onOverlay={overlayMeta} />
+                </Animated.View>
+              </Animated.View>
             ) : null}
           </>
         )}
@@ -619,7 +722,12 @@ function ChatMessageBubbleBase({
           accessibilityHint={
             onPress ? "Ketuk atau tekan lama untuk opsi pesan" : "Tekan lama untuk opsi pesan"
           }
-          scaleOnPress={false}
+          /* 2026-10-08 (bagian 3b): umpan balik tekan dihidupkan kembali —
+             ketukan bubble teks memang NO-OP, tetapi tanpa gerak sedikit pun
+             jari tidak mendapat konfirmasi bahwa tekan lama-nya terdaftar.
+             Skala press = tokens.motion.scale.press (0.97), bahasa yang sama
+             dengan seluruh tombol di aplikasi. */
+          scaleOnPress
           onPress={onPress}
           onLongPress={handleLongPress}
           containerClassName={cn("rounded-md", focusRing)}
@@ -718,10 +826,11 @@ function ChatMessageBubbleBase({
       {/* Hint visual saat swipe: lingkaran ikon reply yang fade+scale masuk
           di ruang yang terbuka di kiri bubble. */}
       <Animated.View
-        pointerEvents="none"
+        // audit #5: prop `pointerEvents` deprecated di RN & RN-web —
+        // dipindahkan ke style (dekorasi murni, tidak boleh menangkap sentuhan).
+        style={[swipeHintStyle, styles.noTouch]}
         importantForAccessibility="no-hide-descendants"
         accessibilityElementsHidden
-        style={swipeHintStyle}
       >
         <View className="absolute -left-11 top-1/2 -mt-5">
           <View className="rounded-full border border-border bg-surface-elevated p-2">
@@ -753,6 +862,13 @@ function ChatMessageBubbleBase({
   )
 
   return (
+    /*
+     * Pembungkus MOTION (2026-10-08): lebar penuh + `style` saja. Semua
+     * className tetap di <View> dalam — di web, className pada Animated.View
+     * diabaikan total (WEB-014). Struktur ini selalu ada (bukan bersyarat),
+     * supaya bubble tidak pernah ter-remount saat prop animasi berubah.
+     */
+    <Animated.View style={[styles.entranceRow, entranceStyle]}>
     <View
       className={cn(
         // Gutter tunggal CHAT_MESSAGE_GUTTER_PX (20px): FlatList TIDAK memberi
@@ -820,6 +936,7 @@ function ChatMessageBubbleBase({
         )}
       </View>
     </View>
+    </Animated.View>
   )
 }
 
@@ -830,6 +947,15 @@ function ChatMessageBubbleBase({
  * tidak ikut me-render ulang. Syaratnya: <ChatMessageRow> menstabilkan
  * semua prop turunan (quote, handler, pressHandlers) — lihat file row.
  */
+/**
+ * Gaya statis pembungkus motion. `width: "100%"` menggantikan kelas `w-full`
+ * yang tidak boleh dipasang di <Animated.View> (diabaikan di web).
+ */
+const styles = {
+  entranceRow: { width: "100%" as const },
+  noTouch: { pointerEvents: "none" as const },
+}
+
 export const ChatMessageBubble = memo(ChatMessageBubbleBase)
 
 /**
