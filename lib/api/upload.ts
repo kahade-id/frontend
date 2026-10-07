@@ -57,11 +57,14 @@ export type DirectUpload = {
  * avatar / unggah galeri saat pengguna menutup layar — dulu hasilnya tetap
  * terkirim dan menimpa yang lama tanpa bisa dicegah.
  */
-export function uploadDirect(formData: FormData, signal?: AbortSignal) {
+export function uploadDirect(formData: FormData, signal?: AbortSignal, timeoutMs?: number) {
   return http.post<DirectUpload>("/v1/upload/direct", undefined, {
     formData,
     auth: "required",
     signal,
+    // 2026-10-07: timeout adaptif — default 20 detik terlalu pendek untuk
+    // foto di koneksi HP lambat. Caller bisa kirim timeoutMs eksplisit.
+    ...(timeoutMs ? { timeoutMs } : {}),
   })
 }
 
@@ -1001,7 +1004,14 @@ export async function uploadDirectImage(
   const resized = (img.mimeType ?? "").startsWith("image/") ? await resizePickedImage(img) : img
   const formData = await pickedImageToFormData(resized, "file")
   formData.append("purpose", purpose)
-  const result = await uploadDirect(formData, signal)
+  // 2026-10-07: timeout adaptif — 20 detik default membunuh upload foto di
+  // koneksi lambat. Rumus: 60 detik basis + waktu transfer pada 100 KB/s
+  // (konservatif). Min 60 detik, maks 5 menit. Mengikuti pola uploadDirectVideo.
+  const fileBytes = resized.size ?? img.size ?? 0
+  const adaptiveTimeout = fileBytes > 0
+    ? Math.min(300_000, Math.max(60_000, 60_000 + fileBytes / 100))
+    : 60_000
+  const result = await uploadDirect(formData, signal, adaptiveTimeout)
   if (!result.fileKey) throw new ApiError({ code: "PARSE", message: "Kunci unggahan tidak tersedia." })
   return { fileKey: result.fileKey }
 }
