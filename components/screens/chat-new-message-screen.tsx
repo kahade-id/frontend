@@ -38,6 +38,7 @@ import { BookmarkSimple, NotePencil, UserCircle, Users } from "phosphor-react-na
 import { api, isApiError, userMessage } from "@/lib/api"
 import { getOrCreateDm, getOrCreateSelfRoom, isDmNotAllowedError } from "@/lib/api/chat"
 import { getMeCached, type SavedProfileEntry, type UserSearchResult } from "@/lib/api/users"
+import { useHasSession } from "@/lib/guest-gate"
 import { haptic } from "@/lib/haptics"
 import { translate, useLanguage } from "@/lib/i18n"
 import { showMutationError } from "@/lib/mutation-toast"
@@ -67,6 +68,14 @@ const SEARCH_DEBOUNCE_MS = 350
 export default function ChatNewMessageScreen() {
   useLanguage()
   const toast = useToast()
+  /**
+   * Tamu web: route /chat/new terdaftar ber-auth (lib/protected-routes) —
+   * root layout sudah menampilkan ajakan login, dan `useApiQuery` berhenti
+   * menembak lewat `useGuestPathBlocked`. Pembacaan imperatif `getMeCached`
+   * di bawah TIDAK lewat jalur itu, jadi ikut digate di sini supaya tidak
+   * ada 401 yang tidak perlu.
+   */
+  const hasSession = useHasSession()
   const [text, setText] = useState("")
   const query = useDebouncedValue(text.trim(), SEARCH_DEBOUNCE_MS)
   const searchActive = query.length >= SEARCH_MIN_CHARS
@@ -77,6 +86,7 @@ export default function ChatNewMessageScreen() {
   const [meUsername, setMeUsername] = useState<string | null>(null)
 
   useEffect(() => {
+    if (!hasSession) return
     let alive = true
     void getMeCached()
       .then((me) => {
@@ -87,7 +97,7 @@ export default function ChatNewMessageScreen() {
     return () => {
       alive = false
     }
-  }, [])
+  }, [hasSession])
 
   const savedQuery = useApiQuery(
     "users-saved",
