@@ -140,6 +140,18 @@ function SwipeableListItemBase({
   // selalu no-op sehingga baris tidak pernah bergerak).
   const gestureStartX = useSharedValue(0)
   const [, setOpenState] = useState<SwipeSide | null>(null)
+  /**
+   * FE-FLASH (2026-10-08): lapisan aksi (termasuk fill `bg-danger` untuk
+   * Hapus) HANYA dipasang setelah baris ini benar-benar disentuh geser.
+   *
+   * Sebelumnya lapisan itu selalu ter-mount di belakang baris; pada frame
+   * pertama mount (masuk layar / refresh daftar) baris belum melukis
+   * background-nya, sehingga sapuan 1px merah di tepi atas/bawah baris
+   * berkedip — keluhan user "ada garis merah tipis sekilas saat refresh".
+   * Baris yang tak pernah digeser kini nol node merah.
+   */
+  const [actionsRevealed, setActionsRevealed] = useState(false)
+  const revealActions = useCallback(() => setActionsRevealed(true), [])
 
   const leftWidth = leftActions.length * actionWidth
   const rightWidth = rightActions.length * actionWidth
@@ -176,6 +188,7 @@ function SwipeableListItemBase({
           if (group && group.openId.value !== rowId) {
             group.openId.value = rowId
           }
+          runOnJS(revealActions)()
         })
         .onChange((e) => {
           // Basis = posisi saat gesture dimulai + total pergeseran.
@@ -222,7 +235,7 @@ function SwipeableListItemBase({
         .onFinalize((_e, success) => {
           if (!success) translateX.value = withSpring(0, tokens.motion.spring)
         }),
-    [disabled, fireFull, gestureStartX, group, leftWidth, rightWidth, rowId, rowWidth, setOpen, translateX],
+    [disabled, fireFull, gestureStartX, group, leftWidth, rightWidth, revealActions, rowId, rowWidth, setOpen, translateX],
   )
 
   // Tutup bila baris lain di group dibuka (worklet reaktif via animated style).
@@ -232,6 +245,17 @@ function SwipeableListItemBase({
     }
     return { transform: [{ translateX: translateX.value }] }
   })
+
+  /**
+   * Opasitas lapisan aksi mengikuti translasi: 0 saat baris di posisi diam.
+   * Ini pagar KEDUA setelah `actionsRevealed` — apa pun yang terjadi pada
+   * geometri/pelukisan baris (subpixel, baris menutup dengan spring, sel
+   * di-recycle FlatList), fill aksi tidak pernah bisa terlihat selama baris
+   * belum tergeser. Menutup = tak ada sisa merah sama sekali.
+   */
+  const actionsLayerStyle = useAnimatedStyle(() => ({
+    opacity: Math.abs(translateX.value) > 0.5 ? 1 : 0,
+  }))
 
   const handleLayout = useCallback(
     (e: LayoutChangeEvent) => {
@@ -258,19 +282,25 @@ function SwipeableListItemBase({
       onAccessibilityAction={a11yActions.length ? handleA11yAction : undefined}
       {...rest}
     >
-      {/* Lapisan aksi di belakang baris */}
-      <View style={{ pointerEvents: "box-none" }} className="absolute inset-0 flex-row justify-between">
-        <View className="flex-row">
-          {leftActions.map((a) => (
-            <ActionButton key={a.key} action={a} width={actionWidth} onDone={close} />
-          ))}
-        </View>
-        <View className="flex-row">
-          {rightActions.map((a) => (
-            <ActionButton key={a.key} action={a} width={actionWidth} onDone={close} />
-          ))}
-        </View>
-      </View>
+      {/* Lapisan aksi di belakang baris — dipasang setelah gesture pertama
+          (`actionsRevealed`) dan tidak terlihat saat baris diam. */}
+      {actionsRevealed ? (
+        <Animated.View
+          style={[{ pointerEvents: "box-none" }, actionsLayerStyle]}
+          className="absolute inset-0 flex-row justify-between"
+        >
+          <View className="flex-row">
+            {leftActions.map((a) => (
+              <ActionButton key={a.key} action={a} width={actionWidth} onDone={close} />
+            ))}
+          </View>
+          <View className="flex-row">
+            {rightActions.map((a) => (
+              <ActionButton key={a.key} action={a} width={actionWidth} onDone={close} />
+            ))}
+          </View>
+        </Animated.View>
+      ) : null}
 
       <GestureDetector gesture={pan}>
         <Animated.View style={rowStyle}>
