@@ -43,7 +43,7 @@ import { logicalParentForPath } from "@/lib/notification-routing"
 import { cn } from "@/lib/cn"
 import { translateProp, useLanguage } from "@/lib/i18n"
 import { translate } from "@/lib/i18n/translate"
-import { defaultHeaderTitleVariant } from "@/lib/header-title"
+import { defaultHeaderTitleVariant, headerTitleCenterPadding } from "@/lib/header-title"
 
 /**
  * Tinggi bar Header (px) — harus sama dengan class `h-14` di bawah (skala
@@ -376,6 +376,14 @@ export const Header = memo(function Header({
     setRightWidth((prev) => (prev === w ? prev : w))
   }, [])
   const sideWidth = Math.max(tokens.space[12], leftWidth, rightWidth)
+  /**
+   * Judul center presisi (permintaan produk 2026-10-08): padding kiri ==
+   * kanan == sisi terlebar, sehingga judul (kotak selebar baris) tetap tepat
+   * di tengah LEBAR LAYAR PENUH — bukan di tengah sisa ruang antar kolom,
+   * yang bergeser saat jumlah ikon kiri ≠ kanan. Lihat
+   * `headerTitleCenterPadding` untuk alasan matematisnya.
+   */
+  const titleCenterPadding = headerTitleCenterPadding(leftWidth, rightWidth, tokens.space[12])
 
   const canBack = showBack ?? true
   // T5-009 (audit UI/UX intuitif 2026-09-29): fallback back sadar konteks —
@@ -433,7 +441,7 @@ export const Header = memo(function Header({
       {...rest}
     >
       <View className="w-full md:max-w-content">
-        <View className="min-h-14 w-full flex-row items-center px-5 py-2">
+        <View className="relative min-h-14 w-full flex-row items-center px-5 py-2">
           {/* Kolom kiri: lebar tetap 1 slot. Di-skip saat judul rata kiri —
               judul menempel ke tepi kiri, node kiri tampil inline. */}
           {titleAlign === "left" ? null : (
@@ -443,10 +451,10 @@ export const Header = memo(function Header({
           )}
 
           {/*
-            Kolom tengah: judul teks (default) atau slot kustom penuh lebar
-            (`center` — kolom pencarian). Slot ini mengambil seluruh ruang
-            sisa supaya kontrol di dalamnya tidak terdesak oleh lebar kolom
-            kiri/kanan yang diukur.
+            Kolom tengah: `center` (slot kustom penuh lebar — kolom pencarian)
+            mengambil seluruh ruang sisa; mode judul center hanya menyisakan
+            SPACER flex-1 karena teksnya digambar absolut di bawah (center
+            presisi); mode rata kiri merender node kiri + judul inline.
           */}
           {center ? (
             <View className="flex-1 flex-row items-center">{center}</View>
@@ -466,19 +474,36 @@ export const Header = memo(function Header({
               ) : null}
             </View>
           ) : (
-            <View className="flex-1 items-center justify-center px-2">
-              {title ? (
-                <Text ellipsizeMode="tail"
-                  accessibilityRole="header"
-                  variant={titleVariant}
-                  numberOfLines={1}
-                  className="text-center"
-                >
-                  {title}
-                </Text>
-              ) : null}
-            </View>
+            <View className="flex-1" />
           )}
+
+          {/*
+            Judul CENTER PRESISI: absolut 0 → lebar baris, sehingga titik
+            tengahnya adalah titik tengah baris (dan layar) — TIDAK lagi
+            bergantung pada lebar kolom kiri/kanan. `paddingLeft ==
+            paddingRight` (sisi terlebar) menjaga titik tengah itu apa pun
+            isi aksi di kedua sisi; `pointerEvents="none"` supaya tidak
+            menelan sentuhan tombol (judul boleh memanjang sampai area
+            tombol saat teksnya sangat panjang).
+            Diletakkan SEBELUM kolom kanan agar urutan baca screen reader
+            tetap kiri → judul → aksi.
+          */}
+          {!center && titleAlign === "center" && title ? (
+            <View
+              pointerEvents="none"
+              className="absolute inset-y-0 left-0 right-0 items-center justify-center"
+              style={{ paddingLeft: titleCenterPadding, paddingRight: titleCenterPadding }}
+            >
+              <Text ellipsizeMode="tail"
+                accessibilityRole="header"
+                variant={titleVariant}
+                numberOfLines={1}
+                className="text-center"
+              >
+                {title}
+              </Text>
+            </View>
+          ) : null}
 
           {/* Kolom kanan: minimal 1 slot agar judul tetap center saat kosong */}
           <View style={{ width: sideWidth }} className="items-end justify-center">

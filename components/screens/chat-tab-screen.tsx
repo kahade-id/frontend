@@ -1112,7 +1112,6 @@ export default function ChatScreen() {
           // tidak terbaca generator katalog i18n (hanya children JSX, properti
           // objek, dan argumen translate()), jadi copy dinamis harus dibungkus.
           title={selectedCount > 0 ? translate(`${selectedCount} dipilih`) : "Pilih percakapan"}
-          titleAlign="left"
           showBack={false}
           separator={false}
           elevated={false}
@@ -1163,7 +1162,8 @@ export default function ChatScreen() {
           showBack={false}
           separator={false}
           elevated={false}
-          titleAlign="left"
+          // 2026-10-08: judul center presisi — center terhadap lebar layar
+          // penuh walaupun kiri (drawer) & kanan (aksi) lebar berbeda.
           title="Pesan"
           // T5-002 (audit UI/UX intuitif 2026-09-29): drawer bisa dibuka dari
           // semua tab, bukan cuma Etalase.
