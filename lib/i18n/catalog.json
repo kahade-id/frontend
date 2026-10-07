@@ -7,12 +7,12 @@
    "n": 139
   },
   {
-   "s": "Hapus",
-   "n": 70
+   "s": "Aksi mungkin sudah diproses — memuat ulang…",
+   "n": 71
   },
   {
-   "s": "Aksi mungkin sudah diproses — memuat ulang…",
-   "n": 69
+   "s": "Hapus",
+   "n": 70
   },
   {
    "s": "Coba lagi",
@@ -143,6 +143,10 @@
    "n": 12
   },
   {
+   "s": "Gagal menyimpan",
+   "n": 12
+  },
+  {
    "s": "Maksimal {x} digit; nilai negatif ditolak.",
    "n": 12
   },
@@ -171,7 +175,7 @@
    "n": 11
   },
   {
-   "s": "Gagal menyimpan",
+   "s": "Buat transaksi",
    "n": 11
   },
   {
@@ -184,6 +188,10 @@
   },
   {
    "s": "Pesanan",
+   "n": 11
+  },
+  {
+   "s": "Simpan perubahan",
    "n": 11
   },
   {
@@ -263,7 +271,7 @@
    "n": 9
   },
   {
-   "s": "Buat transaksi",
+   "s": "Buat template",
    "n": 9
   },
   {
@@ -304,10 +312,6 @@
   },
   {
    "s": "Pilihan lainnya",
-   "n": 9
-  },
-  {
-   "s": "Simpan perubahan",
    "n": 9
   },
   {
@@ -364,6 +368,10 @@
   },
   {
    "s": "Konfirmasi kata sandi",
+   "n": 8
+  },
+  {
+   "s": "Mengerti",
    "n": 8
   },
   {
@@ -639,6 +647,10 @@
    "n": 6
   },
   {
+   "s": "Isi template",
+   "n": 6
+  },
+  {
    "s": "Jalan, nomor rumah/gedung, patokan",
    "n": 6
   },
@@ -751,6 +763,10 @@
    "n": 6
   },
   {
+   "s": "Pengaturan pesan",
+   "n": 6
+  },
+  {
    "s": "Periksa koneksi lalu coba lagi.",
    "n": 6
   },
@@ -800,6 +816,10 @@
   },
   {
    "s": "Sengketa",
+   "n": 6
+  },
+  {
+   "s": "Shortcut template",
    "n": 6
   },
   {
@@ -899,6 +919,10 @@
    "n": 5
   },
   {
+   "s": "Balasan cepat",
+   "n": 5
+  },
+  {
    "s": "Bantuan",
    "n": 5
   },
@@ -995,6 +1019,10 @@
    "n": 5
   },
   {
+   "s": "Gagal menghapus template",
+   "n": 5
+  },
+  {
    "s": "Gagal mengirim komentar",
    "n": 5
   },
@@ -1004,6 +1032,10 @@
   },
   {
    "s": "Gagal mengunduh",
+   "n": 5
+  },
+  {
+   "s": "Gagal menyimpan template",
    "n": 5
   },
   {
@@ -1075,10 +1107,6 @@
    "n": 5
   },
   {
-   "s": "Mengerti",
-   "n": 5
-  },
-  {
    "s": "Mengunggah foto…",
    "n": 5
   },
@@ -1116,6 +1144,10 @@
   },
   {
    "s": "Tambah slot",
+   "n": 5
+  },
+  {
+   "s": "Tambah template",
    "n": 5
   },
   {
@@ -1244,6 +1276,10 @@
   },
   {
    "s": "Belum ada riwayat",
+   "n": 4
+  },
+  {
+   "s": "Belum ada template",
    "n": 4
   },
   {
@@ -1379,10 +1415,6 @@
    "n": 4
   },
   {
-   "s": "Gagal menghapus template",
-   "n": 4
-  },
-  {
    "s": "Gagal mengikuti",
    "n": 4
   },
@@ -1396,10 +1428,6 @@
   },
   {
    "s": "Gagal menutup polling",
-   "n": 4
-  },
-  {
-   "s": "Gagal menyimpan template",
    "n": 4
   },
   {
@@ -1627,6 +1655,10 @@
    "n": 4
   },
   {
+   "s": "Privasi",
+   "n": 4
+  },
+  {
    "s": "Privat",
    "n": 4
   },
@@ -1660,10 +1692,6 @@
   },
   {
    "s": "Selengkapnya",
-   "n": 4
-  },
-  {
-   "s": "Shortcut template",
    "n": 4
   },
   {
@@ -1707,7 +1735,19 @@
    "n": 4
   },
   {
-   "s": "Template balasan cepat",
+   "s": "Template baru",
+   "n": 4
+  },
+  {
+   "s": "Template diperbarui",
+   "n": 4
+  },
+  {
+   "s": "Template ditambahkan",
+   "n": 4
+  },
+  {
+   "s": "Template tidak valid",
    "n": 4
   },
   {
@@ -1979,6 +2019,10 @@
    "n": 3
   },
   {
+   "s": "Anda dan lawan bicara tidak melihat tanda pesan sudah dibaca.",
+   "n": 3
+  },
+  {
    "s": "Arah dana",
    "n": 3
   },
@@ -2164,6 +2208,10 @@
   },
   {
    "s": "Berlaku dari",
+   "n": 3
+  },
+  {
+   "s": "Berlaku di semua perangkat Anda.",
    "n": 3
   },
   {
@@ -2356,10 +2404,6 @@
   },
   {
    "s": "Chat dengan lawan transaksi",
-   "n": 3
-  },
-  {
-   "s": "Chat ini belum dilindungi escrow",
    "n": 3
   },
   {
@@ -2663,6 +2707,10 @@
    "n": 3
   },
   {
+   "s": "Gagal memuat pengaturan privasi",
+   "n": 3
+  },
+  {
    "s": "Gagal memuat pertanyaan",
    "n": 3
   },
@@ -2672,6 +2720,10 @@
   },
   {
    "s": "Gagal memuat saldo terbaru.",
+   "n": 3
+  },
+  {
+   "s": "Gagal memuat template",
    "n": 3
   },
   {
@@ -2855,6 +2907,10 @@
    "n": 3
   },
   {
+   "s": "Hapus template /{x}",
+   "n": 3
+  },
+  {
    "s": "Hapus ulasan ini?",
    "n": 3
   },
@@ -2892,6 +2948,10 @@
   },
   {
    "s": "Highlight etalase",
+   "n": 3
+  },
+  {
+   "s": "huruf kecil, angka, _",
    "n": 3
   },
   {
@@ -3107,6 +3167,10 @@
    "n": 3
   },
   {
+   "s": "Ketik “/” di kolom pesan untuk memakainya.",
+   "n": 3
+  },
+  {
    "s": "Ketik minimal {x} huruf untuk mulai mencari.",
    "n": 3
   },
@@ -3144,6 +3208,10 @@
   },
   {
    "s": "Kirim rating",
+   "n": 3
+  },
+  {
+   "s": "Kirim uang hanya lewat transaksi di aplikasi. Dana Anda baru diteruskan ke penjual setelah barang atau jasa benar-benar Anda terima.",
    "n": 3
   },
   {
@@ -3775,6 +3843,10 @@
    "n": 3
   },
   {
+   "s": "Pastikan transaksi lewat Kahade",
+   "n": 3
+  },
+  {
    "s": "Pembayar biaya",
    "n": 3
   },
@@ -3792,10 +3864,6 @@
   },
   {
    "s": "Pencarian gagal",
-   "n": 3
-  },
-  {
-   "s": "Pengaturan chat",
    "n": 3
   },
   {
@@ -4175,6 +4243,10 @@
    "n": 3
   },
   {
+   "s": "Sembunyikan centang dibaca",
+   "n": 3
+  },
+  {
    "s": "Sembunyikan komentar",
    "n": 3
   },
@@ -4223,6 +4295,10 @@
    "n": 3
   },
   {
+   "s": "Shortcut",
+   "n": 3
+  },
+  {
    "s": "Simpan {x} sebagai kontak",
    "n": 3
   },
@@ -4232,6 +4308,10 @@
   },
   {
    "s": "Simpan favorit",
+   "n": 3
+  },
+  {
+   "s": "Simpan kalimat yang sering dipakai agar tidak mengetik ulang.",
    "n": 3
   },
   {
@@ -4328,10 +4408,6 @@
   },
   {
    "s": "Tambah rekening",
-   "n": 3
-  },
-  {
-   "s": "Tambah template",
    "n": 3
   },
   {
@@ -4447,23 +4523,11 @@
    "n": 3
   },
   {
-   "s": "Template baru",
+   "s": "Template balasan cepat",
    "n": 3
   },
   {
    "s": "Template baru…",
-   "n": 3
-  },
-  {
-   "s": "Template diperbarui",
-   "n": 3
-  },
-  {
-   "s": "Template ditambahkan",
-   "n": 3
-  },
-  {
-   "s": "Template tidak valid",
    "n": 3
   },
   {
@@ -4563,6 +4627,10 @@
    "n": 3
   },
   {
+   "s": "Tulis kalimat yang sering Anda pakai",
+   "n": 3
+  },
+  {
    "s": "Tulis komentar",
    "n": 3
   },
@@ -4603,6 +4671,10 @@
    "n": 3
   },
   {
+   "s": "Tutup form template",
+   "n": 3
+  },
+  {
    "s": "Tutup kelola",
    "n": 3
   },
@@ -4640,6 +4712,10 @@
   },
   {
    "s": "Ubah Profil",
+   "n": 3
+  },
+  {
+   "s": "Ubah template /{x}",
    "n": 3
   },
   {
@@ -5083,10 +5159,6 @@
    "n": 2
   },
   {
-   "s": "Balasan cepat",
-   "n": 2
-  },
-  {
    "s": "Balasan dihapus",
    "n": 2
   },
@@ -5212,10 +5284,6 @@
   },
   {
    "s": "Belum ada statistik — bagikan etalase agar mulai terlihat.",
-   "n": 2
-  },
-  {
-   "s": "Belum ada template",
    "n": 2
   },
   {
@@ -5368,10 +5436,6 @@
   },
   {
    "s": "Buat tautan baru",
-   "n": 2
-  },
-  {
-   "s": "Buat template",
    "n": 2
   },
   {
@@ -5655,7 +5719,7 @@
    "n": 2
   },
   {
-   "s": "Dari etalase \"{x}\" — dana dikunci di escrow.",
+   "s": "Dari etalase \"{x}\" — dana diamankan Kahade sampai barang diterima.",
    "n": 2
   },
   {
@@ -6263,10 +6327,6 @@
    "n": 2
   },
   {
-   "s": "Hapus template /{x}",
-   "n": 2
-  },
-  {
    "s": "Harga maksimum harus ≥ harga minimum.",
    "n": 2
   },
@@ -6331,10 +6391,6 @@
    "n": 2
   },
   {
-   "s": "Isi template",
-   "n": 2
-  },
-  {
    "s": "Isian {x} tidak sesuai ketentuan layanan.",
    "n": 2
   },
@@ -6364,10 +6420,6 @@
   },
   {
    "s": "Jadwal baru",
-   "n": 2
-  },
-  {
-   "s": "Jangan kirim uang langsung ke siapa pun. Buat transaksi agar dana Anda dilindungi escrow Kahade.",
    "n": 2
   },
   {
@@ -6979,6 +7031,10 @@
    "n": 2
   },
   {
+   "s": "Maksimum {x} template per akun.",
+   "n": 2
+  },
+  {
    "s": "Masa garansi harus angka {x} atau lebih",
    "n": 2
   },
@@ -7539,6 +7595,10 @@
    "n": 2
   },
   {
+   "s": "Percakapan yang sudah ada tidak terpengaruh.",
+   "n": 2
+  },
+  {
    "s": "Percayai perangkat ini?",
    "n": 2
   },
@@ -7620,6 +7680,10 @@
   },
   {
    "s": "Pertanyaan Pengguna",
+   "n": 2
+  },
+  {
+   "s": "Perubahan mungkin sudah tersimpan — buka ulang halaman untuk memastikan.",
    "n": 2
   },
   {
@@ -7776,10 +7840,6 @@
   },
   {
    "s": "Preorder",
-   "n": 2
-  },
-  {
-   "s": "Privasi",
    "n": 2
   },
   {
@@ -8088,6 +8148,10 @@
   },
   {
    "s": "Shortcut: huruf kecil/angka/underscore. Tersinkron ke akun Anda.",
+   "n": 2
+  },
+  {
+   "s": "Siapa yang bisa memulai percakapan",
    "n": 2
   },
   {
@@ -8659,6 +8723,10 @@
    "n": 2
   },
   {
+   "s": "Ubah /{x}",
+   "n": 2
+  },
+  {
    "s": "Ubah jadwal",
    "n": 2
   },
@@ -8672,10 +8740,6 @@
   },
   {
    "s": "Ubah PIN dompet?",
-   "n": 2
-  },
-  {
-   "s": "Ubah template /{x}",
    "n": 2
   },
   {
@@ -10711,10 +10775,6 @@
    "n": 1
   },
   {
-   "s": "/shortcut (huruf kecil, angka, _)",
-   "n": 1
-  },
-  {
    "s": "% yang Anda pilih — ubah dengan tombol A− / A+ di atas untuk melihat perbedaannya langsung.",
    "n": 1
   },
@@ -11695,10 +11755,6 @@
    "n": 1
   },
   {
-   "s": "Batal mengubah",
-   "n": 1
-  },
-  {
    "s": "Batal simpan karya",
    "n": 1
   },
@@ -12079,10 +12135,6 @@
    "n": 1
   },
   {
-   "s": "Berlaku untuk akun Anda di semua perangkat.",
-   "n": 1
-  },
-  {
    "s": "Berlaku untuk seluruh aplikasi, mengikuti mode terang/gelap.",
    "n": 1
   },
@@ -12336,14 +12388,6 @@
   },
   {
    "s": "Buat tautan yang bisa dibagikan; siapa pun yang membuka dan menyetujui menjadi lawan transaksi.",
-   "n": 1
-  },
-  {
-   "s": "Buat template pertama di bawah.",
-   "n": 1
-  },
-  {
-   "s": "Buat transaksi via escrow",
    "n": 1
   },
   {
@@ -13027,6 +13071,10 @@
    "n": 1
   },
   {
+   "s": "Dana Anda aman sampai barang diterima",
+   "n": 1
+  },
+  {
    "s": "Dana Anda ditahan di escrow oleh {x} — hanya diteruskan ke penjual setelah Anda mengonfirmasi penerimaan, atau otomatis setelah tenggat tanpa sengketa.",
    "n": 1
   },
@@ -13119,19 +13167,15 @@
    "n": 1
   },
   {
-   "s": "Dana lewat escrow Kahade",
-   "n": 1
-  },
-  {
    "s": "Dana order yang belum selesai akan tampil di sini.",
    "n": 1
   },
   {
-   "s": "Dana pembeli dikunci di escrow Kahade dan baru cair setelah barang diterima.",
+   "s": "Dana pembeli diamankan Kahade dan baru diteruskan ke penjual setelah barang atau jasa diterima.",
    "n": 1
   },
   {
-   "s": "Dana pembeli dikunci di escrow Kahade dan baru cair setelah barang diterima. Bukan transfer langsung.",
+   "s": "Dana pembeli diamankan Kahade dan baru diteruskan ke penjual setelah barang diterima. Bukan transfer langsung.",
    "n": 1
   },
   {
@@ -14255,10 +14299,6 @@
    "n": 1
   },
   {
-   "s": "Gagal memuat pengaturan privasi",
-   "n": 1
-  },
-  {
    "s": "Gagal memuat pesan berbintang",
    "n": 1
   },
@@ -14288,10 +14328,6 @@
   },
   {
    "s": "Gagal memuat status pembayaran",
-   "n": 1
-  },
-  {
-   "s": "Gagal memuat template",
    "n": 1
   },
   {
@@ -14667,7 +14703,7 @@
    "n": 1
   },
   {
-   "s": "Hanya orang yang Anda follow yang bisa memulai DM baru.",
+   "s": "Hanya orang yang Anda ikuti.",
    "n": 1
   },
   {
@@ -15020,10 +15056,6 @@
   },
   {
    "s": "Isi template wajib diisi.",
-   "n": 1
-  },
-  {
-   "s": "Isi template…",
    "n": 1
   },
   {
@@ -15696,10 +15728,6 @@
   },
   {
    "s": "Keterangan tambahan (opsional)",
-   "n": 1
-  },
-  {
-   "s": "Ketik “/” di kolom chat untuk memakai template. Tersinkron ke akun Anda.",
    "n": 1
   },
   {
@@ -16736,10 +16764,6 @@
   },
   {
    "s": "Maksimal {x} passkey per akun. Menghapus passkey tidak menghapus akun Anda.",
-   "n": 1
-  },
-  {
-   "s": "Maksimum {x} template per akun.",
    "n": 1
   },
   {
@@ -18055,15 +18079,11 @@
    "n": 1
   },
   {
-   "s": "Orang lain tidak melihat tanda pesan telah Anda baca. Anda juga tidak melihat tanda baca mereka.",
-   "n": 1
-  },
-  {
    "s": "Order",
    "n": 1
   },
   {
-   "s": "Order {x} menunggu pembayaran via escrow.",
+   "s": "Order {x} dibuat — menunggu pembayaran pembeli.",
    "n": 1
   },
   {
@@ -18560,6 +18580,10 @@
   },
   {
    "s": "Pengaturan akun, akses, dan perlindungan perangkat.",
+   "n": 1
+  },
+  {
+   "s": "Pengaturan chat",
    "n": 1
   },
   {
@@ -19168,10 +19192,6 @@
   },
   {
    "s": "Perubahan ini membutuhkan verifikasi kata sandi. Masukkan kata sandi Anda untuk melanjutkan.",
-   "n": 1
-  },
-  {
-   "s": "Perubahan mungkin sudah tersimpan — buka ulang halaman untuk memastikan.",
    "n": 1
   },
   {
@@ -20159,10 +20179,6 @@
    "n": 1
   },
   {
-   "s": "Sembunyikan centang baca",
-   "n": 1
-  },
-  {
    "s": "Sembunyikan jumlah rating.",
    "n": 1
   },
@@ -20379,10 +20395,6 @@
    "n": 1
   },
   {
-   "s": "Shortcut",
-   "n": 1
-  },
-  {
    "s": "Shortcut hanya huruf kecil, angka, dan underscore.",
    "n": 1
   },
@@ -20395,11 +20407,7 @@
    "n": 1
   },
   {
-   "s": "Siapa pun bisa mengirimi Anda pesan langsung baru.",
-   "n": 1
-  },
-  {
-   "s": "Siapa yang bisa mengirimi saya pesan langsung",
+   "s": "Siapa pun bisa memulai percakapan.",
    "n": 1
   },
   {
@@ -21499,7 +21507,7 @@
    "n": 1
   },
   {
-   "s": "Tolak semua pesan langsung baru. Percakapan yang sudah ada tidak terpengaruh.",
+   "s": "Tolak semua percakapan baru.",
    "n": 1
   },
   {
@@ -21708,10 +21716,6 @@
   },
   {
    "s": "Tutup tiket?",
-   "n": 1
-  },
-  {
-   "s": "Ubah /{x}",
    "n": 1
   },
   {
