@@ -38,7 +38,7 @@
  *     <KeyboardAvoiding> + <SafeAreaSpacer> di layar (lihar §4 safe area).
  */
 import { Microphone, PaperPlaneRight, Plus, X } from "phosphor-react-native"
-import { useCallback, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import {
   Platform,
   ScrollView,
@@ -66,6 +66,22 @@ import { tokens } from "@/lib/tokens"
 
 export const CHAT_MESSAGE_MAX = 2000
 const MAX_LINES = 5
+/**
+ * FE-SEND (2026-10-08, keluhan "double-send"): jendela anti-kirim-ulang
+ * untuk MUATAN YANG SAMA.
+ *
+ * Bug: dua ketukan pada tombol kirim dalam rentang satu frame (atau sebelum
+ * React sempat melukis ulang `sending`) memanggil `onSend` dua kali → dua
+ * pesan dengan dua idempotency key berbeda → server membuat DUA pesan asli.
+ * Tidak ada dedupe sisi klien yang bisa menyembuhkan pesan yang memang
+ * dikirim dua kali, jadi pagarnya harus di sini (sinkron, sebelum await).
+ *
+ * Aturan: muatan identik (teks + lampiran + kutipan) diabaikan bila
+ *   (a) ketukan berikutnya < SEND_DUPLICATE_WINDOW_MS, atau
+ *   (b) kiriman sebelumnya masih dalam perjalanan (`sending`).
+ * Muatan BERBEDA (pesan berikutnya) tidak pernah terhalang.
+ */
+const SEND_DUPLICATE_WINDOW_MS = 1500
 
 export type ComposerAttachment = ChatAttachment & {
   /** Kunci lokal stabil (bukan fileUrl — URL belum ada saat masih diunggah) */
@@ -208,14 +224,37 @@ export function ChatComposer({
   // lampiran → kirim; sedang mengirim → kirim (loading).
   const showMic = !!onMicPress && value.trim().length === 0 && attachments.length === 0 && !sending
 
+  /** Muatan kiriman terakhir + waktunya — pagar dobel-kirim (lihat konstanta). */
+  const lastSendRef = useRef<{ key: string; at: number } | null>(null)
+  // Induk selesai mengirim → buka pagar (pesan berikutnya boleh dikirim).
+  useEffect(() => {
+    if (!sending) lastSendRef.current = null
+  }, [sending])
+
   const submit = useCallback(() => {
     if (!ready) return
-    onSend({
+    const payload = {
       content: value.trim(),
       attachments: attachments.map(({ localId: _l, status: _s, progress: _p, ...a }) => a),
       replyToId: replyTo?.id,
-    })
-  }, [ready, onSend, value, attachments, replyTo])
+    }
+    // Sidik muatan: isi + lampiran + kutipan. Teks kosong (hanya lampiran)
+    // tetap punya sidik yang stabil lewat daftar lampirannya.
+    const key = JSON.stringify([
+      payload.content,
+      payload.attachments.map((a) => a.fileUrl),
+      payload.replyToId ?? null,
+    ])
+    const now = Date.now()
+    const last = lastSendRef.current
+    if (last && last.key === key && now - last.at < SEND_DUPLICATE_WINDOW_MS) return
+    // `sending` menangkap ketukan "kenapa tidak muncul-muncul?" saat koneksi
+    // lambat: muatan sama yang dikirim ulang saat kiriman pertama masih di
+    // perjalanan akan menghasilkan pesan kedua yang asli di server.
+    if (last && last.key === key && sending) return
+    lastSendRef.current = { key, at: now }
+    onSend(payload)
+  }, [ready, onSend, value, attachments, replyTo, sending])
 
   // Web: Enter kirim, Shift+Enter baris baru; hormati komposisi IME CJK.
   const onKeyPress = useCallback(

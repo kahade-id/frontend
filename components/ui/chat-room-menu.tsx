@@ -19,8 +19,7 @@
  *   - Aksi massal dibungkus `runBusy` tunggal supaya tombol tidak bisa
  *     ditekan dua kali saat request masih berjalan.
  */
-import { useCallback, useMemo, useState, type ReactNode } from "react"
-import { View } from "react-native"
+import { useCallback, useMemo, useState } from "react"
 
 import {
   Archive,
@@ -65,8 +64,6 @@ export type ChatRoomMenuProps = {
   onOpenReport?: () => void
   /** Self-chat — sembunyikan blokir/lapor & buat transaksi. */
   isSelfChat?: boolean
-  /** Tampilkan peringatan escrow di atas menu (2026-10-02: pindahan dari banner atas). */
-  escrowWarning?: ReactNode
 }
 
 export function ChatRoomMenu({
@@ -81,7 +78,6 @@ export function ChatRoomMenu({
   onOpenCreateOrder,
   onOpenReport,
   isSelfChat = false,
-  escrowWarning,
 }: ChatRoomMenuProps) {
   const toast = useToast()
   const [busy, setBusy] = useState(false)
@@ -124,13 +120,15 @@ export function ChatRoomMenu({
     if (onOpenStarred) {
       items.push({ key: "starred", label: "Pesan berbintang", icon: Star, onPress: onOpenStarred })
     }
-    // Batch 43: buat transaksi dari chat — uang tetap via escrow, bukan
+    // Batch 43: buat transaksi dari chat — uang tetap lewat Kahade, bukan
     // transfer langsung (keputusan produk batch 43).
+    // 2026-10-08: deskripsi tanpa istilah internal ("escrow") — pengguna
+    // hanya perlu tahu dananya aman sampai barang diterima.
     if (onOpenCreateOrder && !isSelfChat) {
       items.push({
         key: "create-order",
         label: "Buat transaksi",
-        description: "Dana lewat escrow Kahade",
+        description: "Dana Anda aman sampai barang diterima",
         icon: Receipt,
         onPress: onOpenCreateOrder,
       })
@@ -210,7 +208,6 @@ export function ChatRoomMenu({
 
   return (
     <>
-      {escrowWarning ? <View className="px-5 pb-2">{escrowWarning}</View> : null}
       <ActionSheet
         visible={open}
         onRequestClose={onClose}

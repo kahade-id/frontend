@@ -205,7 +205,7 @@ export function ChatCreateOrderSheet({
       const created = await createOrderFromChat(roomId, dto)
       toast.show({
         title: "Transaksi dibuat",
-        description: `Order ${created.order.orderId} menunggu pembayaran via escrow.`,
+        description: `Order ${created.order.orderId} dibuat — menunggu pembayaran pembeli.`,
         tone: "success",
       })
       onCreated(created)
@@ -229,7 +229,7 @@ export function ChatCreateOrderSheet({
       title="Buat transaksi"
       description={
         withShowcase
-          ? `Dari etalase "${productCard?.title}" — dana dikunci di escrow.`
+          ? `Dari etalase "${productCard?.title}" — dana diamankan Kahade sampai barang diterima.`
           : "Buat transaksi aman dari percakapan ini — uang Anda dilindungi Kahade."
       }
       avoidKeyboard
@@ -240,8 +240,8 @@ export function ChatCreateOrderSheet({
             <View className="flex-row items-center gap-2 rounded-md bg-success-soft p-3">
               <Icon icon={ShieldCheck} size={20} tone="success" />
               <Text variant="body" tone="primary" className="flex-1">
-                Dana pembeli dikunci di escrow Kahade dan baru cair setelah barang
-                diterima. Bukan transfer langsung.
+                Dana pembeli diamankan Kahade dan baru diteruskan ke penjual
+                setelah barang diterima. Bukan transfer langsung.
               </Text>
             </View>
 
@@ -462,7 +462,8 @@ function ReviewStep({
           </View>
         ) : null}
         <Text variant="body" tone="secondary" className="mt-1.5">
-          Dana pembeli dikunci di escrow Kahade dan baru cair setelah barang diterima.
+          Dana pembeli diamankan Kahade dan baru diteruskan ke penjual setelah barang
+          atau jasa diterima.
         </Text>
       </View>
 
@@ -474,7 +475,7 @@ function ReviewStep({
         </View>
         <View className="flex-1">
           <Button onPress={onSubmit} disabled={!canSubmit} loading={sending}>
-            Buat transaksi via escrow
+            Buat transaksi
           </Button>
         </View>
       </View>

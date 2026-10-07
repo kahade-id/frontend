@@ -76,6 +76,14 @@ export type ScreenProps = Omit<ViewProps, "children"> & {
   background?: ScreenBackground
   /** Area sticky di bawah body — biasanya Button CTA */
   footer?: ReactNode
+  /**
+   * 2026-10-08 (permintaan produk): sembunyikan garis pemisah di atas slot
+   * `footer`. Dipakai ruang chat — garis tipis di atas kolom ketik terbaca
+   * sebagai "pemisah" yang mengotori percakapan (dan terlihat seperti
+   * artefak saat keyboard membuka). Bukan untuk CTA transaksi: di sana
+   * pemisah memang memisahkan nominal dari isi.
+   */
+  footerBorderless?: boolean
   /** Dipakai saat scroll=true; className konten ScrollView */
   contentContainerClassName?: string
   scrollViewProps?: Omit<ScrollViewProps, "children" | "contentContainerStyle">
@@ -101,6 +109,7 @@ export function Screen({
   edges = ["top", "bottom"],
   background = "background",
   footer,
+  footerBorderless = false,
   contentContainerClassName,
   scrollViewProps,
   className,
@@ -167,7 +176,7 @@ export function Screen({
           <View ref={contentRef as Ref<ViewInstance>} collapsable={false} className={cn("flex-1", bodyPad)}>{children}</View>
         )}
 
-        {footer ? <FooterBar>{footer}</FooterBar> : null}
+        {footer ? <FooterBar borderless={footerBorderless}>{footer}</FooterBar> : null}
       </Body>
     </ScreenInsetsContext.Provider>
   )

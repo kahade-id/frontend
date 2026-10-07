@@ -26,6 +26,49 @@ export const OPTIMISTIC_MATCH_WINDOW_MS = 120_000
  * perilakunya (dedupe optimistis, C-07 patch, urutan waktu) bisa diuji
  * lewat vitest (`tests/chat-dedupe.test.ts`).
  */
+/**
+ * 2026-10-08 (keluhan "double-send"): identitas pengguna yang sedang login.
+ *
+ * Pada koneksi lambat, gema `chat.new_message` untuk pesan SAYA bisa tiba
+ * lebih dulu daripada respons POST — dan bila payload gema tidak menandai
+ * sisi-pengirim (`fromUser`/`isMine` absen), `normalizeChatMessage` memberi
+ * `fromUser: false`. Sebelumnya gema seperti itu TIDAK PERNAH dicocokkan
+ * dengan bubble optimistis, jadi ia di-append sebagai pesan baru → bubble
+ * ganda yang menetap (POST resolve mengganti bubble optimistis dengan pesan
+ * ber-id SAMA).
+ *
+ * `selfIds` (id publik `USR-…` dan/atau id internal) membuat pencocokan
+ * sadar-identitas: gema netral yang PENGIRIMNYA saya tetap menggantikan
+ * bubble optimistis. Tanpa `selfIds`, perilaku lama dipertahankan
+ * (konservatif: tidak menebak).
+ */
+export type ChatMergeOptions = {
+  /** Id milik pengguna login (publik `USR-…` dan/atau id internal). */
+  selfIds?: readonly (string | null | undefined)[]
+}
+
+function selfIdSet(opts?: ChatMergeOptions): Set<string> {
+  const set = new Set<string>()
+  for (const id of opts?.selfIds ?? []) if (typeof id === "string" && id) set.add(id)
+  return set
+}
+
+/** Id pengirim yang dibawa sebuah pesan (backend bisa mengisi salah satunya). */
+function senderIdsOf(m: Pick<ChatMessage, "senderId" | "sender">): string[] {
+  const ids = [m.senderId, m.sender?.userId, m.sender?.id]
+  return ids.filter((id): id is string => typeof id === "string" && id.length > 0)
+}
+
+/**
+ * True bila pesan ini JELAS milik saya meski `fromUser` bernilai false —
+ * hanya ketika `selfIds` dikenal DAN id pengirimnya cocok.
+ */
+function isOwnBySender(m: ChatMessage, ids: Set<string>): boolean {
+  if (m.fromUser) return true
+  if (ids.size === 0) return false
+  return senderIdsOf(m).some((id) => ids.has(id))
+}
+
 export type ChatMergeResult = {
   /**
    * Daftar hasil terurut waktu menaik. Identik (`===`) dengan `prev` bila
@@ -109,7 +152,9 @@ function samePoll(
 export function mergeChatMessages(
   prev: ChatMessage[],
   incoming: ChatMessage[],
+  opts?: ChatMergeOptions,
 ): ChatMergeResult {
+  const ids = selfIdSet(opts)
   const known = new Map(prev.map((m) => [m.id, m]))
   // Fix duplikat 2026-09-28: gema server untuk pesan optimistis (gema
   // realtime bisa tiba SEBELUM POST resolve — id server ≠ id temp)
@@ -122,7 +167,7 @@ export function mergeChatMessages(
   let replacedOptimistic = false
   for (const m of incoming) {
     if (known.has(m.id)) continue
-    const match = findOptimisticMatch(working, m)
+    const match = findOptimisticMatch(working, m, opts)
     const idx = match ? indexById.get(match.id) : undefined
     if (match && idx !== undefined) {
       working[idx] = m
@@ -174,7 +219,10 @@ export function mergeChatMessages(
   return {
     next: sortByTimeAsc([...patched, ...fresh]),
     added: fresh.length,
-    hasFreshFromOther: fresh.some((m) => !m.fromUser),
+    // Gema netral milik SAYA bukan "pesan baru dari lawan bicara" — tanpa
+    // koreksi ini, mark-as-read bisa terpicu oleh pesan sendiri (centang biru
+    // palsu ke lawan bicara).
+    hasFreshFromOther: fresh.some((m) => !isOwnBySender(m, ids)),
     changed: true,
   }
 }
@@ -208,8 +256,14 @@ function attachmentSignature(m: Pick<ChatMessage, "attachments">): string {
 export function findOptimisticMatch(
   messages: ChatMessage[],
   incoming: ChatMessage,
+  opts?: ChatMergeOptions,
 ): ChatMessage | null {
-  if (!incoming.fromUser || incoming.sendStatus) return null
+  // `sendStatus` hanya ada di pesan lokal — jangan pernah "mencocokkan"
+  // pesan optimistis dengan pesan optimistis lain.
+  if (incoming.sendStatus) return null
+  // Gema milik sendiri: `fromUser` ATAU (karena payload gema bisa netral)
+  // id pengirimnya cocok dengan identitas saya.
+  if (!isOwnBySender(incoming, selfIdSet(opts))) return null
   const incomingAt = Date.parse(incoming.createdAt)
   if (Number.isNaN(incomingAt)) return null
   const text = (incoming.text ?? "").trim()

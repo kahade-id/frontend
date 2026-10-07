@@ -251,6 +251,15 @@ export function ChatRoomHeader({
             </View>
           )}
 
+          {/*
+            2026-10-08 (temuan sambil merapikan): slot `extra` sudah lama
+            diterima tetapi TIDAK PERNAH dirender — ikon "Cari pesan termuat"
+            yang dikirim ruang chat jadi hilang tanpa jejak (pencarian inline
+            tidak bisa dibuka sama sekali). Sekarang slot itu benar-benar
+            tampil, berdampingan dengan tombol menu.
+          */}
+          {extra ? <View className="flex-row items-center">{extra}</View> : null}
+
           <HeaderCircleButton
             icon={DotsThreeVertical}
             onPress={onMenuPress ?? (() => {})}
