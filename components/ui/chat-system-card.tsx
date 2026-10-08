@@ -15,6 +15,7 @@ import { memo } from "react"
 import { View } from "react-native"
 
 import { detectChatSystemKind, chatSystemKindLabel, type ChatSystemKind } from "@/lib/chat-system"
+import { translate } from "@/lib/i18n/translate"
 
 import { Text } from "@/components/ui/text"
 import { Icon } from "@/components/ui/icon"
@@ -48,7 +49,12 @@ export const ChatSystemCard = memo(function ChatSystemCard({ text, className }: 
   return (
     <View
       accessibilityRole="text"
-      accessibilityLabel={`${chatSystemKindLabel(kind)}: ${text ?? ""}`}
+      /* accessible: kartu sistem = grup ringkasan non-interaktif (tanpa
+         tombol) — label dirangkum jadi satu pengumuman, bukan dibaca per
+         fragmen ikon/teks (audit #4). Bagian label diterjemahkan; isi
+         `text` berasal dari backend dan tampil apa adanya. */
+      accessible
+      accessibilityLabel={`${translate(chatSystemKindLabel(kind))}: ${text ?? ""}`}
       className={`w-full items-center px-5 ${className ?? ""}`}
     >
       <View className="max-w-[92%] items-center gap-1.5 rounded-md border border-border bg-surface px-4 py-2.5">

@@ -217,7 +217,9 @@ export const ChatRoomFooter = memo(function ChatRoomFooter({
           2026-10-02: posisi absolute floating di atas input (bukan di dalam
           flow) — sebelumnya di dalam View footer sehingga terasa "di dalam input". */}
       {showJumpToLatest ? (
-        <View className="absolute -top-14 right-5 z-10" pointerEvents="box-none">
+        // audit #5: `pointerEvents` prop deprecated di RN & RN-web — pindah ke
+        // style (lapisan dekoratif di atas tombol, tidak boleh menangkap input).
+        <View className="absolute -top-14 right-5 z-10" style={{ pointerEvents: "box-none" }}>
           <ScrollToEndButton
             visible={showJumpToLatest}
             onPress={onJumpToLatest}

@@ -1935,6 +1935,10 @@
    "n": 3
   },
   {
+   "s": "{x}, {y} suara",
+   "n": 3
+  },
+  {
    "s": "{x}, {y}, {z}",
    "n": 3
   },
@@ -2360,6 +2364,10 @@
   },
   {
    "s": "Buka semua foto",
+   "n": 3
+  },
+  {
+   "s": "Buka tautan {x}",
    "n": 3
   },
   {
@@ -2919,6 +2927,10 @@
    "n": 3
   },
   {
+   "s": "Hapus opsi {x}",
+   "n": 3
+  },
+  {
    "s": "Hapus pencarian {x}",
    "n": 3
   },
@@ -3143,6 +3155,14 @@
    "n": 3
   },
   {
+   "s": "Kartu pesanan {x}: {y}. Buka detail pesanan.",
+   "n": 3
+  },
+  {
+   "s": "Kartu produk: {x}, {y}",
+   "n": 3
+  },
+  {
    "s": "Kata kunci pencarian",
    "n": 3
   },
@@ -3244,6 +3264,10 @@
   },
   {
    "s": "Kirim hasil",
+   "n": 3
+  },
+  {
+   "s": "Kirim kartu produk: {x}",
    "n": 3
   },
   {
@@ -4035,11 +4059,19 @@
    "n": 3
   },
   {
+   "s": "Pesan berbintang: {x}",
+   "n": 3
+  },
+  {
    "s": "Pesan di {x}: {y}",
    "n": 3
   },
   {
    "s": "Pesan ini telah dihapus",
+   "n": 3
+  },
+  {
+   "s": "Pesan sementara: {x}",
    "n": 3
   },
   {
@@ -4108,6 +4140,10 @@
   },
   {
    "s": "Pindai dengan aplikasi pembayaran",
+   "n": 3
+  },
+  {
+   "s": "Polling: {x}",
    "n": 3
   },
   {
@@ -5055,10 +5091,6 @@
    "n": 2
   },
   {
-   "s": "{x}, {x} suara",
-   "n": 2
-  },
-  {
    "s": "{x}% kembali ke pembeli",
    "n": 2
   },
@@ -5644,10 +5676,6 @@
   },
   {
    "s": "Buka spoiler",
-   "n": 2
-  },
-  {
-   "s": "Buka tautan {x}",
    "n": 2
   },
   {
@@ -6435,10 +6463,6 @@
    "n": 2
   },
   {
-   "s": "Hapus opsi {x}",
-   "n": 2
-  },
-  {
    "s": "Hapus pesan",
    "n": 2
   },
@@ -6599,14 +6623,6 @@
    "n": 2
   },
   {
-   "s": "Kartu pesanan {x}: {x}. Buka detail pesanan.",
-   "n": 2
-  },
-  {
-   "s": "Kartu produk: {x}, {x}",
-   "n": 2
-  },
-  {
    "s": "Karya tersimpan",
    "n": 2
   },
@@ -6756,10 +6772,6 @@
   },
   {
    "s": "Kirim bukti pengiriman",
-   "n": 2
-  },
-  {
-   "s": "Kirim kartu produk: {x}",
    "n": 2
   },
   {
@@ -7863,10 +7875,6 @@
    "n": 2
   },
   {
-   "s": "Pesan berbintang: {x}",
-   "n": 2
-  },
-  {
    "s": "Pesan dilepas dari pin",
    "n": 2
   },
@@ -7892,10 +7900,6 @@
   },
   {
    "s": "Pesan negosiasi",
-   "n": 2
-  },
-  {
-   "s": "Pesan sementara: {x}",
    "n": 2
   },
   {
@@ -8012,10 +8016,6 @@
   },
   {
    "s": "Polling ditutup",
-   "n": 2
-  },
-  {
-   "s": "Polling: {x}",
    "n": 2
   },
   {
@@ -15247,6 +15247,10 @@
    "n": 1
   },
   {
+   "s": "Isi harga lebih dari nol untuk melanjutkan.",
+   "n": 1
+  },
+  {
    "s": "Isi menu bawah",
    "n": 1
   },
@@ -16792,6 +16796,10 @@
   },
   {
    "s": "Lengkapi data diri Anda",
+   "n": 1
+  },
+  {
+   "s": "Lengkapi judul (min. {x} karakter), deskripsi (min. {x} karakter), dan harga lebih dari nol.",
    "n": 1
   },
   {

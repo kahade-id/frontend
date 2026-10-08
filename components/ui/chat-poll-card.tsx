@@ -11,6 +11,8 @@ import { View } from "react-native"
 
 import type { ChatPoll } from "@/lib/api/chat"
 import { formatDateTimeWIB } from "@/lib/format"
+import { translate } from "@/lib/i18n/translate"
+import { hitSlopToReach } from "@/lib/hit-slop"
 
 import { serverNow } from "@/lib/server-time"
 
@@ -85,7 +87,7 @@ export const ChatPollCard = memo(function ChatPollCard({
   return (
     <View
       accessibilityRole="summary"
-      accessibilityLabel={`Polling: ${poll.question}`}
+      accessibilityLabel={translate("Polling: {x}", { x: poll.question })}
       className="gap-2 rounded-md border border-border bg-surface p-3"
     >
       <View className="flex-row items-start gap-2">
@@ -115,10 +117,11 @@ export const ChatPollCard = memo(function ChatPollCard({
               disabled={locked || voting}
               accessibilityRole={poll.allowMultiple ? "checkbox" : "radio"}
               accessibilityState={{ checked: selected, disabled: locked || voting }}
-              accessibilityLabel={`${opt.text}, ${opt.votes} suara`}
+              accessibilityLabel={translate("{x}, {y} suara", { x: opt.text, y: opt.votes })}
               /* P2-16 (audit non-escrow 2026-10-03): hitSlop agar target
-                 sentuh ≥44px (baris ±36px). */
-              hitSlop={{ top: 4, bottom: 4 }}
+                 sentuh ≥44px (baris ±36px) — lewat hitSlopToReach, bukan
+                 angka literal (audit #1). */
+              hitSlop={hitSlopToReach(36, 36)}
               className={`overflow-hidden rounded-sm border ${
                 selected ? "border-primary bg-primary/10" : "border-border bg-background"
               }`}

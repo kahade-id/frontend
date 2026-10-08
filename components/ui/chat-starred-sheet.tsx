@@ -10,6 +10,7 @@ import { Pressable, View } from "react-native"
 
 import { listStarredMessages, unstarChatMessage, type ChatMessage } from "@/lib/api/chat"
 import { isApiError, userMessage } from "@/lib/api"
+import { translate } from "@/lib/i18n/translate"
 import { logWarn } from "@/lib/telemetry"
 import { formatTime } from "@/lib/format"
 
@@ -117,7 +118,7 @@ export function ChatStarredSheet({
               key={m.id}
               onPress={onJumpToMessage ? () => onJumpToMessage(m.id) : undefined}
               accessibilityRole={onJumpToMessage ? "button" : undefined}
-              accessibilityLabel={`Pesan berbintang: ${starredPreview(m)}`}
+              accessibilityLabel={translate("Pesan berbintang: {x}", { x: starredPreview(m) })}
               className="gap-1 rounded-md border border-border bg-surface p-3"
             >
               <View className="flex-row items-start justify-between gap-2">

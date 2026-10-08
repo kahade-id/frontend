@@ -10,6 +10,7 @@ import { Pressable, View } from "react-native"
 
 import { getMyShowcase, type ShowcaseItem } from "@/lib/api/users"
 import { isApiError, userMessage } from "@/lib/api"
+import { translate } from "@/lib/i18n/translate"
 import { logWarn } from "@/lib/telemetry"
 import { formatRupiah } from "@/lib/format"
 
@@ -99,7 +100,7 @@ export function ChatShowcasePickerSheet({
                   onRequestClose()
                 }}
                 accessibilityRole="button"
-                accessibilityLabel={`Kirim kartu produk: ${item.title ?? "Etalase"}`}
+                accessibilityLabel={translate("Kirim kartu produk: {x}", { x: item.title ?? "Etalase" })}
                 className="flex-row items-center gap-3 rounded-md border border-border bg-surface p-2.5"
               >
                 {/* T2-F11 (audit UI/UX 2026-09-28): placeholder media bila tanpa

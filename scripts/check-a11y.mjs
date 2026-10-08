@@ -314,6 +314,10 @@ const CONTAINER_LABEL_ALLOWLIST = {
   "components/ui/rating.tsx": "Varian interaktif berisi 5 PressableScale bintang; role=adjustable + accessibilityActions.",
   "components/ui/showcase-gallery-grid.tsx": "Grid berisi PressableScale per foto; label hanya untuk state loading.",
   "components/ui/radio.tsx": "Grup radio berisi <Radio> (PressableScale role=radio) — `accessible` akan menelan seluruh opsi; label grup justru dipasang agar pembaca layar mengumumkan konteks pertanyaan (F-08).",
+  // Audit chat 2026-10-08: kontainer chat yang berisi kontrol fokusable.
+  "components/ui/chat-cards.tsx": "Kartu produk chat berisi tombol Lihat/Beli (PressableScale) — `accessible` akan menelan kedua tombol; label kontainer = ringkasan kartu (role=summary).",
+  "components/ui/chat-format-bar.tsx": "Toolbar format teks berisi PressableScale per format — sama seperti segmented-control: `accessible` di kontainer akan menelan semua segmen.",
+  "components/ui/chat-poll-card.tsx": "Kartu polling berisi PressableScale per opsi jawaban — `accessible` akan menelan semua opsi; label kontainer = ringkasan pertanyaan polling (role=summary).",
   "components/ui/segmented-control.tsx": "Grup segmen berisi PressableScale role=radio per segmen; `accessible` di container akan menelan semua segmen (F-08).",
   "components/ui/mode-switcher.tsx": "Grup mode berisi PressableScale role=radio per pil; `accessible` di container akan menelan kedua pilihan (F-08).",
 }

@@ -253,7 +253,7 @@ export function ChatPollsSheet({ visible, roomId, myUserId, onRequestClose, refr
                   <PressableScale
                     onPress={() => setOptions((prev) => prev.filter((_, j) => j !== i))}
                     accessibilityRole="button"
-                    accessibilityLabel={`Hapus opsi ${i + 1}`}
+                    accessibilityLabel={translate("Hapus opsi {x}", { x: i + 1 })}
                     containerClassName="min-h-11 min-w-11 items-center justify-center rounded-full"
                   >
                     <Icon icon={Trash} size={16} tone="danger" />

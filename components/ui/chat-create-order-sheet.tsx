@@ -17,6 +17,7 @@
 import { useEffect, useState } from "react"
 import { Pressable, View } from "react-native"
 import { hitSlopToReach } from "@/lib/hit-slop"
+import { translate } from "@/lib/i18n/translate"
 
 import {
   createOrderFromChat,
@@ -160,6 +161,25 @@ export function ChatCreateOrderSheet({
     price > 0 &&
     qty >= 1 &&
     (withShowcase || (titleLen >= 3 && titleLen <= 100 && descLen >= 10 && descLen <= 500))
+  /**
+   * F-06: tombol terkunci harus bisa DIJELASKAN — pengguna pembaca layar
+   * tidak boleh menekan tombol mati tanpa tahu isian mana yang kurang.
+   * Hint yang sama tampil di bawah tombol (visual) dan sebagai
+   * `accessibilityHint` (SR). Disembunyikan saat proses kirim (ada indikator
+   * loading sendiri) dan saat ruang tidak valid.
+   */
+  const missingPrice = price <= 0
+  const missingText =
+    !withShowcase && !(titleLen >= 3 && titleLen <= 100 && descLen >= 10 && descLen <= 500)
+  const submitHint =
+    missingPrice && missingText
+      ? translate(
+          "Lengkapi judul (min. 3 karakter), deskripsi (min. 10 karakter), dan harga lebih dari nol.",
+        )
+      : missingPrice
+        ? translate("Isi harga lebih dari nol untuk melanjutkan.")
+        : translate("Judul min 3 karakter, deskripsi min 10 karakter.")
+  const showSubmitHint = !canSubmit && !sending && !!roomId
 
   const orderValue = price * qty
 
@@ -323,14 +343,18 @@ export function ChatCreateOrderSheet({
           onChange={setFeeBy}
         />
 
-        <Button onPress={goToReview} disabled={!canSubmit}>
+        <Button
+          onPress={goToReview}
+          disabled={!canSubmit}
+          accessibilityHint={showSubmitHint ? submitHint : undefined}
+        >
           Lanjut: review & biaya
         </Button>
-        {!withShowcase && (titleLen > 0 && titleLen < 3 || descLen > 0 && descLen < 10) ? (
+        {showSubmitHint ? (
           <View className="flex-row items-center gap-1.5">
             <Icon icon={CheckCircle} size={14} tone="warning" />
             <Text variant="caption" tone="secondary">
-              Judul min 3 karakter, deskripsi min 10 karakter.
+              {submitHint}
             </Text>
           </View>
         ) : null}

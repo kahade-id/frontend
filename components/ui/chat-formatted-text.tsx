@@ -17,6 +17,7 @@ import { memo, useMemo, useState } from "react"
 import { Linking } from "react-native"
 
 import { parseChatMarkup, hasChatMarkup, type ChatSegment } from "@/lib/chat-format"
+import { translate } from "@/lib/i18n/translate"
 import { safeHttpsLink } from "@/lib/external-url"
 import { logWarn } from "@/lib/telemetry"
 import { truncateMiddle } from "@/lib/format"
@@ -136,7 +137,7 @@ function ChatLinkSegment({
       weight={600}
       onPress={open}
       accessibilityRole="link"
-      accessibilityLabel={`Buka tautan ${segment.linkUrl}`}
+      accessibilityLabel={translate("Buka tautan {x}", { x: segment.linkUrl ?? "" })}
       className="underline"
     >
       {unbrokenDisplay(segment.text)}
