@@ -41,7 +41,7 @@ import {
   applyIncomingMessageToRooms,
   canDeleteChatRoom,
   chatRoomLastMessageStatus,
-  chatRoomPreview,
+  chatRoomListPreview,
   deleteChatRoom,
   normalizeChatMessage,
   setRoomArchived,
@@ -463,8 +463,9 @@ function ChatRoomRowBase({
       item.lastMessage
         ? {
             // UI-C002: pesan terakhir berisi lampiran saja (tanpa teks)
-            // menampilkan "(lampiran)", bukan baris kosong.
-            text: chatRoomPreview(item.lastMessage, translate("(lampiran)")),
+            // menampilkan "(lampiran)", bukan baris kosong. 2026-10-08:
+            // lokasi/kartu/polling berlabel, pesan terhapus → tombstone.
+            text: chatRoomListPreview(item.lastMessage, translate),
             fromSelf: item.lastMessage.fromUser,
             // Centang status pesan terakhir milik saya (pola WhatsApp/Telegram).
             status: chatRoomLastMessageStatus(item.lastMessage, viewerId),

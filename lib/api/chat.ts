@@ -327,6 +327,29 @@ export function nonTextMessageLabel(messageType?: string | null): string {
   }
 }
 
+/**
+ * Preview baris DAFTAR chat (2026-10-08): melengkapi `chatRoomPreview` untuk
+ * pesan tanpa teks DAN tanpa lampiran — lokasi, kartu produk/pesanan,
+ * polling — yang dulu tampil sebagai baris KOSONG, serta pesan yang sudah
+ * dihapus (tombstone) yang tampil sebagai "Pesan ini telah dihapus" seperti
+ * di bubble (pola WhatsApp). Label lewat `t` (translate) — teks pesan
+ * pengguna TIDAK pernah dilewatkan ke kamus. Murni, bisa di-unit-test.
+ */
+export function chatRoomListPreview(
+  last: ChatMessage | null | undefined,
+  t: (source: string) => string = (s) => s,
+): string {
+  if (!last) return ""
+  if (last.isDeleted) return t("Pesan ini telah dihapus")
+  const text = chatRoomPreview(last, t("(lampiran)"))
+  if (text) return text
+  const type = (last.messageType ?? "").toUpperCase()
+  if (type === "LOCATION" || type === "PRODUCT_CARD" || type === "ORDER_CARD" || type === "POLL") {
+    return t(nonTextMessageLabel(type))
+  }
+  return ""
+}
+
 /** Id pengirim yang dibawa sebuah pesan (backend bisa mengisi salah satunya). */
 function messageSenderIds(m: Pick<ChatMessage, "senderId" | "sender">): string[] {
   return [m.senderId, m.sender?.userId, m.sender?.id].filter(

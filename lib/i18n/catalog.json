@@ -1655,6 +1655,10 @@
    "n": 4
   },
   {
+   "s": "Pesan ini telah dihapus",
+   "n": 4
+  },
+  {
    "s": "Pilih alamat pengiriman untuk barang fisik ini.",
    "n": 4
   },
@@ -4056,10 +4060,6 @@
   },
   {
    "s": "Pesan di {x}: {y}",
-   "n": 3
-  },
-  {
-   "s": "Pesan ini telah dihapus",
    "n": 3
   },
   {

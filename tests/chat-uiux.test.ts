@@ -18,6 +18,7 @@ import { canSendMessage, type SendableAttachment } from "@/lib/chat-send-ready"
 import {
   applyIncomingMessageToRooms,
   chatRoomLastMessageStatus,
+  chatRoomListPreview,
   chatRoomPreview,
   nonTextMessageLabel,
   type ChatMessage,
@@ -198,6 +199,36 @@ function msg(partial: Partial<ChatMessage> & { id: string; roomId: string }): Ch
 function room(id: string, lastMessage: ChatMessage | null, unreadCount = 0): ChatRoom {
   return { id, lastMessage, unreadCount, updatedAt: lastMessage?.createdAt ?? "2026-10-01T00:00:00.000Z" }
 }
+
+describe("chatRoomListPreview (preview baris daftar chat)", () => {
+  const t = (s: string) => `EN:${s}`
+
+  it("teks pengguna apa adanya — TIDAK lewat kamus", () => {
+    expect(chatRoomListPreview(msg({ id: "m", roomId: "r", text: "Kirim" }), t)).toBe("Kirim")
+  })
+
+  it("lampiran saja → '(lampiran)' lewat kamus (UI-C002 tetap)", () => {
+    const attachments = [{ fileName: "a.jpg", fileUrl: "https://x/a.jpg", mimeType: "image/jpeg", fileSize: 1 }]
+    expect(chatRoomListPreview(msg({ id: "m", roomId: "r", text: "", messageType: "IMAGE", attachments }), t)).toBe(
+      "EN:(lampiran)",
+    )
+  })
+
+  it("lokasi / kartu / polling tanpa teks → label tipe (dulu baris kosong)", () => {
+    expect(chatRoomListPreview(msg({ id: "m", roomId: "r", text: "", messageType: "LOCATION" }), t)).toBe("EN:Lokasi")
+    expect(chatRoomListPreview(msg({ id: "m", roomId: "r", text: "", messageType: "POLL" }), t)).toBe("EN:Polling")
+  })
+
+  it("pesan terhapus → tombstone seperti di bubble", () => {
+    expect(chatRoomListPreview(msg({ id: "m", roomId: "r", text: "rahasia", isDeleted: true }), t)).toBe(
+      "EN:Pesan ini telah dihapus",
+    )
+  })
+
+  it("tanpa pesan → string kosong", () => {
+    expect(chatRoomListPreview(null, t)).toBe("")
+  })
+})
 
 describe("chatRoomLastMessageStatus (centang di daftar chat)", () => {
   it("pesan lawan bicara / tidak ada pesan → tanpa centang", () => {
