@@ -32,6 +32,7 @@
  */
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react"
 import { ScrollView, View, type FlatList, type ViewInstance } from "react-native"
+import { StoryTray } from "@/components/story/story-tray"
 import { Archive, BellSlash, BellZ, Chats, GearSix, Plus, PushPin, Trash, X } from "phosphor-react-native"
 import { router, useFocusEffect, useIsFocused } from "expo-router"
 
@@ -1243,6 +1244,8 @@ function ChatScreenContent() {
           right={headerRight}
         />
       )}
+      {/* Story (2026-10-08): tray di atas daftar chat — tersembunyi saat mode pilih. */}
+      {!selecting ? <StoryTray /> : null}
       {!selecting ? (
         /* AKAR BUG "gap putih raksasa" (2026-10-02): ScrollView RN/default
          * memakai `flexGrow: 1, flexShrink: 1` (ScrollView.js baseHorizontal)

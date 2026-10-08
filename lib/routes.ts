@@ -421,6 +421,22 @@ export const ROUTES = {
    * Pesan menuju ke sini — bukan lagi sheet "Buat baru".
    */
   chatNew: "/chat/new" as Href,
+  /**
+   * Story (ala WhatsApp Status, 2026-10-08): viewer fullscreen untuk satu
+   * penulis. `highlight` = buka arsip sorotan (bukan story aktif).
+   */
+  storyViewer: (userId: string, opts: { highlightId?: string } = {}) =>
+    ({
+      pathname: "/story/[userId]",
+      params: {
+        userId,
+        ...(opts.highlightId ? { highlight: opts.highlightId } : {}),
+      },
+    }) as unknown as Href,
+  /** Buat story: foto galeri/kamera atau teks berlatar. */
+  storyCreate: "/story/create" as Href,
+  /** Kelola story: story aktif, sorotan, dan kontak yang dibisukan. */
+  storyManage: "/story/manage" as Href,
   /** Pengaturan chat: privasi + template balasan (batch 43 FE-CHAT) */
   chatSettings: "/chat/settings" as Href,
   /** Satu ruang chat */

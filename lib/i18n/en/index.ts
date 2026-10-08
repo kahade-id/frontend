@@ -33,6 +33,8 @@ import chatRoom from "./chat-room.json"
 import errors from "./errors.json"
 import labels from "./labels.json"
 import remediation from "./remediation.json"
+// story (fitur Story): satu berkas untuk seluruh string tray, viewer, kreator, dan kelola.
+import story from "./story.json"
 import screens1 from "./screens-1.json"
 import screens2 from "./screens-2.json"
 import screens3 from "./screens-3.json"
@@ -67,6 +69,7 @@ export const EN: Dict = {
   ...tabs,
   ...ui,
   ...remediation,
+  ...story,
   ...screens1,
   ...screens2,
   ...screens3,
