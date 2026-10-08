@@ -52,7 +52,6 @@ import { useLocalSearchParams, router } from "expo-router"
 
 import {
   ArrowBendUpLeft,
-  Chats,
   Copy,
   DownloadSimple,
   Eye,
@@ -62,20 +61,22 @@ import {
   PencilSimple,
   PushPin,
   Trash,
-  // Batch 43 FE-CHAT: ikon aksi baru (terjemah, bintang, lokasi,
-  // kartu produk). Ekspor/buat-transaksi dipakai menu ruang.
   ChartBar,
   MapPin,
   Star,
   Storefront,
   Translate,
+  Chats,
 } from "phosphor-react-native"
 
 import { api, isApiError, userMessage } from "@/lib/api"
 import { isOfflineError } from "@/lib/api/errors"
 import { createIdempotencyKey } from "@/lib/api/client"
 import { drainChatSendQueue, enqueueChatMessage, onChatSendQueueEvent } from "@/lib/chat-send-queue"
-import { CHAT_ATTACHMENT_MAX_COUNT, validateChatAttachment } from "@/lib/chat-attachment-limits"
+import {
+  CHAT_ATTACHMENT_MAX_COUNT,
+  validateChatAttachment,
+} from "@/lib/chat-attachment-limits"
 import { getOrder, type Order } from "@/lib/api/orders"
 import { consumePrefetchedChatRoom } from "@/lib/chat-room-prefetch"
 import { fetchViaQueryCache, invalidateQueryPrefix } from "@/lib/query-cache"
@@ -108,7 +109,10 @@ import {
   applyDeletedTombstone,
   applyReactionSummary,
 } from "@/lib/realtime/chat-events"
-import { findOptimisticMatch, mergeChatMessages } from "@/lib/chat-dedupe"
+import {
+  findOptimisticMatch,
+  mergeChatMessages,
+} from "@/lib/chat-dedupe"
 import {
   CHAT_WINDOW_MAX_MESSAGES,
   trimNewestSide,
@@ -186,12 +190,12 @@ import { ChatCreateOrderSheet } from "@/components/ui/chat-create-order-sheet"
 import { ChatShowcasePickerSheet } from "@/components/ui/chat-showcase-picker-sheet"
 import { exportAndSaveChatRoom } from "@/lib/chat-export"
 import {
-  asProductCard,
   listStarredMessages,
   starChatMessage,
   unstarChatMessage,
   type ChatProductCardPayload,
   type ChatTranslation,
+  asProductCard,
 } from "@/lib/api/chat"
 import type { ShowcaseItem } from "@/lib/api/users"
 import { getMeCached, pickPublicUserId } from "@/lib/api/users"
@@ -200,6 +204,7 @@ import { useOverlayDismissKeys } from "@/components/ui/backdrop"
 import { ephemeralDurationLabel } from "@/lib/chat-ephemeral"
 import { isImageMime } from "@/lib/mime"
 import type { ChatBubbleAnchor } from "@/lib/chat-bubble"
+import { applyDeleteMessages, applyPinChange } from "@/lib/chat-message-actions"
 
 
 /** Lampiran composer + berkas lokal untuk unggah ulang bila gagal. */
@@ -714,7 +719,12 @@ export default function ChatRoomScreen() {
   const [deleteOpen, setDeleteOpen] = useState(false)
   /** B08: sheet pilihan cakupan hapus ("untuk saya" vs "untuk semua pihak"). */
   const [deleteScopeOpen, setDeleteScopeOpen] = useState(false)
-  const [deleting, setDeleting] = useState(false)
+  /**
+   * Audit chat A2: id pesan yang sedang dihapus (optimistis). Poll/gema
+   * realtime yang membawa pesan itu kembali SELAGI request berjalan diabaikan
+   * — tanpa ini bubble yang baru dihapus berkedip muncul lagi.
+   */
+  const pendingDeleteRef = useRef(new Set<string>())
   /** Menu ⋮ di header ruang (lihat pesanan, cari, bisukan, arsip, profil). */
   const [roomMenuOpen, setRoomMenuOpen] = useState(false)
   const [order, setOrder] = useState<Order | null>(null)
@@ -1170,10 +1180,15 @@ export default function ChatRoomScreen() {
       // C-05 (audit): respons terbang dari ruang lama (param berganti tanpa
       // unmount) tidak boleh menyentuh state ruang baru.
       if (sourceRoom !== undefined && sourceRoom !== roomIdRef.current) return 0
+      // Audit chat A2: pesan yang sedang dihapus optimistis tidak boleh hidup
+      // lagi karena poll/gema yang kebetulan membawanya.
+      const pendingDelete = pendingDeleteRef.current
+      const accepted =
+        pendingDelete.size > 0 ? incoming.filter((m) => !pendingDelete.has(m.id)) : incoming
       let added = 0
       let freshFromOther = false
       setMessages((prev) => {
-        const result = mergeChatMessages(prev, incoming, { selfIds: selfIdsRef.current })
+        const result = mergeChatMessages(prev, accepted, { selfIds: selfIdsRef.current })
         added = result.added
         freshFromOther = result.hasFreshFromOther
         if (!result.changed) return prev
@@ -2577,67 +2592,54 @@ export default function ChatRoomScreen() {
   }, [])
 
   /**
-   * Hapus semua pesan terpilih milik sendiri. Backend hanya punya DELETE per
-   * pesan, jadi dipakai `Promise.allSettled`: satu pesan yang gagal (mis.
-   * sudah dihapus lawan bicara) tidak membatalkan sisanya, dan kegagalan
-   * dilaporkan sekali — bukan satu toast per pesan.
+   * Hapus semua pesan terpilih milik sendiri — OPTIMISTIS (audit chat A2):
+   * bubble hilang seketika, dialog langsung tertutup, request berjalan di
+   * latar. Backend hanya punya DELETE per pesan, jadi dipakai semantik
+   * "settled" (`applyDeleteMessages`): satu pesan yang gagal (mis. sudah
+   * dihapus lawan bicara) tidak membatalkan sisanya — HANYA yang gagal
+   * dikembalikan ke posisinya, dan kegagalan dilaporkan sekali (bukan satu
+   * toast per pesan).
    */
   const handleDeleteSelected = useCallback(async () => {
     if (!roomId) return
-    // 2026-10-02: filter pesan optimistis (temp-*) — belum ada di server,
-    // delete ke backend pasti "permintaan tidak valid". Hapus lokal saja.
     const targets = selectedMessages.filter((m) => m.fromUser)
-    const tempTargets = targets.filter((m) => m.id.startsWith("temp-"))
-    const serverTargets = targets.filter((m) => !m.id.startsWith("temp-"))
-    if (targets.length === 0) {
-      setDeleteOpen(false)
-      exitSelect()
-      return
-    }
-    // Hapus pesan optimistis langsung dari state lokal.
-    if (tempTargets.length > 0) {
-      const tempIds = new Set(tempTargets.map((m) => m.id))
-      setMessages((prev) => prev.filter((m) => !tempIds.has(m.id)))
-    }
-    if (serverTargets.length === 0) {
-      setDeleteOpen(false)
-      exitSelect()
-      if (tempTargets.length > 0) {
-        toast.show({ title: translate("Pesan dihapus"), tone: "success", duration: 2500 })
-      }
-      return
-    }
-    setDeleting(true)
-    const results = await Promise.allSettled(
-      serverTargets.map((m) => api.chat.deleteChatMessage(roomId, m.id)),
-    )
-    const removed = new Set<string>()
-    let firstError: unknown
-    results.forEach((res, i) => {
-      const target = serverTargets[i]
-      if (!target) return
-      if (res.status === "fulfilled") removed.add(target.id)
-      else firstError ??= res.reason
+    setDeleteOpen(false)
+    exitSelect()
+    if (targets.length === 0) return
+    const { deleted, failed } = await applyDeleteMessages({
+      roomId,
+      targets,
+      remove: api.chat.deleteChatMessage,
+      setMessages,
+      setPinned,
+      // 2026-10-02: pesan optimistis (temp-*) belum ada di server — hapus
+      // lokal saja. Audit chat A2: juga dari antrean persisten, supaya pesan
+      // gagal yang dihapus pengguna tidak hidup lagi saat ruang dibuka ulang.
+      forgetLocal: (messageId) => removeChatFailedMessage(roomId, messageId),
+      pending: pendingDeleteRef.current,
     })
-    if (removed.size > 0) {
-      setMessages((prev) => prev.filter((m) => !removed.has(m.id)))
+    if (deleted.length > 0) {
       haptic("success")
       toast.show({
-        title: removed.size === 1 ? "Pesan dihapus" : `${removed.size} pesan dihapus`,
+        title:
+          deleted.length === 1
+            ? translate("Pesan dihapus")
+            : translate("{x} pesan dihapus", { x: deleted.length }),
         tone: "success",
         duration: 2500,
       })
     }
-    if (firstError) {
+    if (failed.length > 0) {
+      const firstError = failed[0]?.error
       toast.show({
-        title: translate("Gagal menghapus pesan"),
+        title:
+          failed.length === 1
+            ? translate("Gagal menghapus pesan")
+            : translate("Gagal menghapus {x} pesan", { x: failed.length }),
         description: isApiError(firstError) ? userMessage(firstError) : undefined,
         tone: "danger",
       })
     }
-    setDeleting(false)
-    setDeleteOpen(false)
-    exitSelect()
   }, [exitSelect, roomId, selectedMessages, toast.show])
 
   /** Salin semua pesan terpilih yang punya teks (dipisah baris kosong). */
@@ -2707,30 +2709,51 @@ export default function ChatRoomScreen() {
     [exitSelect, handleReact],
   )
 
-  // ── Pin / unpin ──
-  const handleTogglePin = useCallback(
-    async (message: ChatMessage) => {
-      if (!roomId) return
+  // ── Pin / unpin — OPTIMISTIS (audit chat A1/A3), pola yang sama dengan
+  // `handleReact`: ikon pin + baris pin di atas thread berubah SEKETIKA;
+  // server menolak → keduanya dikembalikan + toast. ──
+  /** Pesan yang pin/unpin-nya sedang berjalan — ketukan ganda diabaikan. */
+  const pinOpsRef = useRef(new Set<string>())
+  const pinnedRef = useRef(pinned)
+  pinnedRef.current = pinned
+  const setPinState = useCallback(
+    async (message: ChatMessage, wantPin: boolean) => {
+      if (!roomId || pinOpsRef.current.has(message.id)) return
+      pinOpsRef.current.add(message.id)
       try {
-        if (message.isPinned) {
-          await unpinChatMessage(roomId, message.id)
-          patchMessage(message.id, (m) => ({ ...m, isPinned: false }))
-          toast.show({ title: translate("Pesan dilepas dari pin"), tone: "success", duration: 2500 })
-        } else {
-          await pinChatMessage(roomId, message.id)
-          patchMessage(message.id, (m) => ({ ...m, isPinned: true }))
-          toast.show({ title: translate("Pesan dipin"), tone: "success", duration: 2500 })
+        const result = await applyPinChange({
+          roomId,
+          message,
+          wantPin,
+          pin: pinChatMessage,
+          unpin: unpinChatMessage,
+          patchMessage,
+          setPinned,
+        })
+        if (result.ok) {
+          toast.show({
+            title: translate(wantPin ? "Pesan dipin" : "Pesan dilepas dari pin"),
+            tone: "success",
+            duration: 2500,
+          })
+          // Rekonsiliasi dengan urutan/isi resmi server (bukan menunggu).
+          void refreshPinned()
+          return
         }
-        void refreshPinned()
-      } catch (err) {
         toast.show({
-          title: message.isPinned ? "Gagal melepas pin" : "Gagal mempin pesan",
-          description: isApiError(err) ? userMessage(err) : undefined,
+          title: translate(wantPin ? "Gagal mempin pesan" : "Gagal melepas pin"),
+          description: isApiError(result.error) ? userMessage(result.error) : undefined,
           tone: "danger",
         })
+      } finally {
+        pinOpsRef.current.delete(message.id)
       }
     },
     [roomId, patchMessage, refreshPinned, toast.show],
+  )
+  const handleTogglePin = useCallback(
+    (message: ChatMessage) => setPinState(message, !message.isPinned),
+    [setPinState],
   )
 
   // ── Edit pesan teks milik sendiri (draft + simpan di <ChatEditSheet>) ──
@@ -3502,9 +3525,11 @@ export default function ChatRoomScreen() {
    * (memo) dan MediaViewer (memo + mount kondisional).
    */
   const handlePinnedPress = useCallback((m: ChatMessage) => jumpToMessage(m.id), [jumpToMessage])
+  // Baris pin hanya memuat pesan terpin — tekan lama SELALU berarti lepas
+  // pin (jangan bergantung pada flag `isPinned` di payload /pins).
   const handlePinnedUnpin = useCallback(
-    (m: ChatMessage) => void handleTogglePin(m),
-    [handleTogglePin],
+    (m: ChatMessage) => void setPinState(m, false),
+    [setPinState],
   )
   const handlePinnedLayout = useCallback(
     (e: LayoutChangeEvent) => setPinnedBarHeight(e.nativeEvent.layout.height),
@@ -3851,7 +3876,6 @@ export default function ChatRoomScreen() {
         description={deleteCopy.description}
         visible={deleteOpen}
         destructive
-        loading={deleting}
         confirmLabel="Hapus"
         cancelLabel="Batal"
         onConfirm={() => void handleDeleteSelected()}

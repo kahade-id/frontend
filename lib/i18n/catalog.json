@@ -1119,10 +1119,6 @@
    "n": 5
   },
   {
-   "s": "Pesan dihapus",
-   "n": 5
-  },
-  {
    "s": "Promo saya",
    "n": 5
   },
@@ -1644,6 +1640,10 @@
   },
   {
    "s": "Pertanyaan terkirim",
+   "n": 4
+  },
+  {
+   "s": "Pesan dihapus",
    "n": 4
   },
   {
@@ -4959,6 +4959,10 @@
    "n": 2
   },
   {
+   "s": "{x} pesan dihapus",
+   "n": 2
+  },
+  {
    "s": "{x} tidak akan bisa mengirimi Anda pesan lagi dari percakapan ini.",
    "n": 2
   },
@@ -6011,6 +6015,10 @@
    "n": 2
   },
   {
+   "s": "Gagal melepas pin",
+   "n": 2
+  },
+  {
    "s": "Gagal membagikan",
    "n": 2
   },
@@ -6063,6 +6071,10 @@
    "n": 2
   },
   {
+   "s": "Gagal mempin pesan",
+   "n": 2
+  },
+  {
    "s": "Gagal memuat aset",
    "n": 2
   },
@@ -6104,6 +6116,10 @@
   },
   {
    "s": "Gagal mengekspor chat",
+   "n": 2
+  },
+  {
+   "s": "Gagal menghapus {x} pesan",
    "n": 2
   },
   {
@@ -9132,10 +9148,6 @@
   },
   {
    "s": "{x} pesan akan diteruskan sekaligus.",
-   "n": 1
-  },
-  {
-   "s": "{x} pesan dihapus",
    "n": 1
   },
   {
@@ -14163,10 +14175,6 @@
    "n": 1
   },
   {
-   "s": "Gagal melepas pin",
-   "n": 1
-  },
-  {
    "s": "Gagal mematikan verifikasi dua langkah",
    "n": 1
   },
@@ -14252,10 +14260,6 @@
   },
   {
    "s": "Gagal memperbarui status ikuti",
-   "n": 1
-  },
-  {
-   "s": "Gagal mempin pesan",
    "n": 1
   },
   {

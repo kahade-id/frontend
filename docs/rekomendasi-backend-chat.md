@@ -163,3 +163,32 @@ Catatan kecil untuk kelengkapan (bukan bug klien):
 | `total`/`hasMore` di cari-user, throttle lebih longgar | Daftar dibatasi 20 tanpa indikasi "ada lagi" | P1 |
 | Alasan terstruktur pada 403 DM | Copy generik tapi benar | P2 |
 | Ekspor server-side, filter tipe lampiran | Ekspor TXT klien; payload lampiran lebih besar | P2 |
+
+---
+
+# Tambahan — audit FE chat (24 temuan)
+
+Konteks: perbaikan ruang chat berdasarkan audit 24 temuan (optimistic UI,
+status kirim, voice note, navigasi/pencarian, pin & reaksi, performa, UX,
+privasi, bug kritis). Sama seperti bagian di atas: dikerjakan **tanpa
+mengubah kontrak API**; setiap butir di bawah adalah **rekomendasi** yang
+menghapus kelas bug/kejanggalan tertentu, dan klien sudah punya fallback
+untuk masing-masing. Satu bagian per kelompok temuan (A–I).
+
+## A — Aksi optimistis: pin, lepas pin, hapus
+
+**Kondisi hari ini.** Pin, lepas pin, dan hapus pesan kini optimistis di klien
+(UI berubah seketika; gagal → dikembalikan + toast). Agar rollback tidak
+pernah salah arah:
+
+1. **`DELETE …/messages/{id}` idempoten.** Menghapus pesan yang sudah terhapus
+   sebaiknya `200/204`, bukan `404`/`400`. Hari ini kasus "sudah dihapus
+   lawan bicara / perangkat lain" tampil sebagai GAGAL (bubble dikembalikan,
+   lalu hilang lagi saat event hapus tiba). Dengan idempotensi, hasilnya
+   sama-sama "hilang" tanpa kedipan.
+2. **`POST/DELETE …/pin` mengembalikan daftar pin resmi** (`{ pins: [...] }`).
+   Klien kini memanggil `GET /pins` setelah setiap pin/lepas pin hanya untuk
+   rekonsiliasi urutan; satu respons lengkap menghapus satu round-trip.
+   Mem-pin pesan yang sudah terpin dan melepas yang tak terpin juga sebaiknya
+   `200` (idempoten), bukan galat.
+
