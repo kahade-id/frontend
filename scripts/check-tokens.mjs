@@ -324,6 +324,18 @@ const DARK_ALLOWLIST = {
   "components/media-viewer/location-viewer.tsx": "chrome peta text-white/bg-white/bg-black di atas hitam solid kedua mode (preseden showcase-media-gallery)",
   "components/screens/media-viewer-screen.tsx": "latar halaman viewer bg-black solid kedua mode (preseden showcase-media-gallery)",
   "app/media-viewer.tsx": "latar fallback rute viewer bg-black solid kedua mode (preseden showcase-media-gallery)",
+  // Chat bubble inverse (2026-10-08): bubble KELUAR memakai bg-primary hitam
+  // (light) / putih (dark). Isi di atasnya (kutipan, terjemahan, kartu, overlay
+  // view-once) butuh overlay yang kontras di KEDUA mode — pola CHT-013/UX-COL-
+  // 007: border-white/70 bg-white/15 di atas bubble hitam (light),
+  // border-black/30 bg-black/15 di atas bubble putih (dark). Token tidak punya
+  // "lawan dari primary" — literal mode-aware ini satu-satunya yang terbaca.
+  "components/ui/chat-message-bubble.tsx":
+    "kutipan/terjemahan di bubble keluar bg-white/15 dark:bg-black/15 + border-white/70 dark:border-black/30 (CHT-013 kontras di atas bg-primary)",
+  "components/ui/chat-cards.tsx":
+    "kartu produk/order di bubble keluar — overlay tombol & border pola CHT-013 yang sama (bg-white/15 dark:bg-black/15)",
+  "components/ui/chat-view-once.tsx":
+    "tombol buka pesan sekali-lihat di bubble keluar — overlay pola CHT-013 (bg-white/15 dark:bg-black/15)",
 }
 const DARK_VARIANT_RE = /\bdark:[a-z][a-z0-9-]*/g
 const LITERAL_CLASS_RE = /\b(?:bg|text|border|fill|stroke)-(?:white|black|gray-\d{2,3})\b/g

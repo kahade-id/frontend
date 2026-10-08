@@ -278,14 +278,13 @@ function GlassIdentity({ children }: { children: React.ReactNode }) {
   const { mode } = useTheme()
   const glassBg = mode === "light" ? "rgba(243,244,246,0.64)" : "rgba(26,26,26,0.64)"
   return (
+    // Layout (h-12/rounded-full/px-3) lewat className; style hanya untuk
+    // kaca (rgba + blur web) — angka literal layout di-inline dilarang (audit #10).
     <View
+      className="h-12 justify-center rounded-full px-3"
       style={[
         {
-          borderRadius: 999,
           backgroundColor: glassBg,
-          height: 48,
-          justifyContent: "center",
-          paddingHorizontal: 12,
         },
         Platform.OS === "web"
           ? ({ backdropFilter: "blur(48px)", WebkitBackdropFilter: "blur(48px)" } as object)

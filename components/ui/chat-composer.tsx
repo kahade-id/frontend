@@ -449,15 +449,14 @@ export function ChatComposer({
             disabled={!ready}
             className="h-12 w-12 items-center justify-center"
           >
+            {/* (2026-10-05, revisi produk: tombol kirim lingkaran kaca seperti
+                header.) Layout lewat className (h-12/w-12/rounded-full) — style
+                hanya untuk kaca (rgba + blur web) & opasitas disabled. */}
             <View
+              className="h-12 w-12 items-center justify-center rounded-full"
               style={[
                 {
-                  borderRadius: 999,
                   backgroundColor: mode === "light" ? "rgba(243,244,246,0.64)" : "rgba(26,26,26,0.64)",
-                  height: 48,
-                  width: 48,
-                  alignItems: "center",
-                  justifyContent: "center",
                   opacity: !ready ? 0.5 : 1,
                 },
                 Platform.OS === "web"

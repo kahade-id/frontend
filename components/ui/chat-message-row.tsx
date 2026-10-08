@@ -36,7 +36,7 @@ import { GestureDetector } from "react-native-gesture-handler"
 import { useSharedValue } from "react-native-reanimated"
 
 import { useTheme } from "@/components/theme-provider"
-import { semantic } from "@/lib/tokens"
+import { semantic, tokens } from "@/lib/tokens"
 
 import type { ChatAttachmentDto } from "@/lib/api/types"
 import {
@@ -695,9 +695,10 @@ export function ChatMessageRowBase({
         className="gap-1"
         // B09: sorot pesan asal balasan — inline style mode-aware (aturan:
         // jangan className bg-* untuk background yang digambar manual).
+        // Radius dari token (radius.lg = 12) — bukan angka literal (audit #10).
         style={
           highlighted
-            ? { backgroundColor: semantic.warning[mode].bgSoft, borderRadius: 12 }
+            ? { backgroundColor: semantic.warning[mode].bgSoft, borderRadius: tokens.radius.lg }
             : undefined
         }
       >
