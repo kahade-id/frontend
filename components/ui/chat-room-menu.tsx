@@ -51,6 +51,12 @@ export type ChatRoomMenuProps = {
   onClose: () => void
   /** Buka sheet pencarian pesan di layar. */
   onSearch: () => void
+  /**
+   * Audit chat D9: pencarian cepat di pesan yang SUDAH dimuat (bar sorot +
+   * sebelumnya/berikutnya). Ikon cari di header kini membuka sheet seluruh
+   * riwayat, jadi jalan ke bar ini lewat menu.
+   */
+  onSearchLoaded?: () => void
   /** Ruang diperbarui (bisu/arsip) — layar menambal state ruangnya. */
   onRoomChange: (patch: Partial<ChatRoom>) => void
   // ── Batch 43 FE-CHAT ──────────────────────────────────────────────
@@ -72,6 +78,7 @@ export function ChatRoomMenu({
   counterpartUsername,
   onClose,
   onSearch,
+  onSearchLoaded,
   onRoomChange,
   onExport,
   onOpenStarred,
@@ -112,6 +119,15 @@ export function ChatRoomMenu({
       })
     }
     items.push({ key: "search", label: "Cari semua pesan", description: "Telusuri seluruh riwayat di server", icon: MagnifyingGlass, onPress: onSearch })
+    if (onSearchLoaded) {
+      items.push({
+        key: "search-loaded",
+        label: "Cari di pesan termuat",
+        description: "Sorot hasil langsung di percakapan",
+        icon: MagnifyingGlass,
+        onPress: onSearchLoaded,
+      })
+    }
     // Batch 43: ekspor, bintang — selalu tersedia di menu.
     // 2026-10-03: Polling DIHAPUS dari menu (sudah ada di sheet lampiran).
     if (onExport) {
@@ -201,6 +217,7 @@ export function ChatRoomMenu({
     onOpenStarred,
     onRoomChange,
     onSearch,
+    onSearchLoaded,
     room,
     runBusy,
     toast.show,

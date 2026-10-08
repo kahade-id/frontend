@@ -16,5 +16,20 @@
   "Rekaman terkunci": "Recording locked",
   "Tahan tombol mikrofon lagi untuk merekam.": "Hold the microphone button again to record.",
   "Ketuk untuk membuka perekam. Tahan untuk merekam, geser ke atas untuk mengunci.": "Tap to open the recorder. Hold to record, slide up to lock.",
-  "Kirim pesan suara": "Send voice message"
+  "Kirim pesan suara": "Send voice message",
+  "Mencari di seluruh riwayat percakapan ini": "Searches the whole history of this conversation",
+  "Pesan ini telah dihapus": "This message was deleted",
+  "Anda memilih Hapus untuk saya pada pesan tersebut.": "You chose Delete for me on that message.",
+  "Gagal memuat pesan lama": "Couldn't load older messages",
+  "Gulir ke atas untuk memuat riwayat yang lebih lama.": "Scroll up to load older history.",
+  "Memuat riwayat yang lebih lama.": "Loading older history.",
+  "Mencari pesan…": "Looking for the message…",
+  "Muat lebih banyak hasil": "Load more results",
+  "Pesan asli telah dihapus": "The original message was deleted",
+  "Pesan itu disembunyikan di perangkat ini": "That message is hidden on this device",
+  "Pesan mungkin sudah dihapus atau kedaluwarsa.": "The message may have been deleted or expired.",
+  "Pesan terlalu lama untuk dimuat otomatis": "The message is too old to load automatically",
+  "Pesan tidak ditemukan": "Message not found",
+  "Cari di pesan termuat": "Search loaded messages",
+  "Sorot hasil langsung di percakapan": "Highlight results right in the conversation"
 }

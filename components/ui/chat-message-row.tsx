@@ -75,6 +75,7 @@ import { extractFirstUrl } from "@/lib/link-preview"
 import { isAudioMime } from "@/lib/voice-note"
 import { isFreshMessage } from "@/lib/chat-bubble-motion"
 import { type SealTier } from "@/components/ui/verified-seal"
+import { translate } from "@/lib/i18n/translate"
 
 /**
  * Jendela pengelompokan bubble (ms): pesan berurutan dari pengirim yang sama
@@ -191,8 +192,10 @@ export type ChatMessageRowProps = {
   /**
    * B09: ketuk kutipan balasan → lompat ke pesan asal. Dipanggil dengan
    * `replyToId` pesan ini; `undefined` = kutipan tidak bisa diketuk.
+   * Audit chat D11: `info.deleted` = asal kutipan sudah dihapus (diketahui dari
+   * `replyTo.isDeleted`) — layar menjelaskannya, tidak mencoba melompat.
    */
-  onQuotePress?: (replyToId: string) => void
+  onQuotePress?: (replyToId: string, info?: { deleted?: boolean }) => void
 }
 
 /**
@@ -345,16 +348,19 @@ export function ChatMessageRowBase({
         ? {
             senderName: message.replyTo.senderName,
             preview: message.replyTo.isDeleted
-              ? "Pesan ini telah dihapus"
+              ? translate("Pesan ini telah dihapus")
               : message.replyTo.content?.trim() ||
                 quoteFallbackLabel(message.replyTo.messageType),
           }
         : null,
     [message.replyTo],
   )
+  const quoteDeleted = message.replyTo?.isDeleted === true
   const handleBubbleQuotePress = useCallback(() => {
-    if (onQuotePress && message.replyToId) onQuotePress(message.replyToId as string)
-  }, [onQuotePress, message.replyToId])
+    if (onQuotePress && message.replyToId) {
+      onQuotePress(message.replyToId as string, { deleted: quoteDeleted })
+    }
+  }, [onQuotePress, message.replyToId, quoteDeleted])
   const handleBubbleSwipeReply = useCallback(() => {
     onSwipeReply?.(message)
   }, [onSwipeReply, message])
@@ -552,7 +558,7 @@ export function ChatMessageRowBase({
   // Kartu sudah membawa label/judulnya sendiri — teks pesan disembunyikan
   // agar tidak duplikat.
   const bubbleText = message.isDeleted
-    ? "Pesan ini telah dihapus"
+    ? translate("Pesan ini telah dihapus")
     : isViewOnceMessage || locationPayload || productCard || orderCard || pollData
       ? undefined
       : message.text

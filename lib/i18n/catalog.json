@@ -4,7 +4,7 @@
  "strings": [
   {
    "s": "Batal",
-   "n": 139
+   "n": 141
   },
   {
    "s": "Aksi mungkin sudah diproses — memuat ulang…",
@@ -48,7 +48,7 @@
   },
   {
    "s": "Anda",
-   "n": 20
+   "n": 21
   },
   {
    "s": "Lihat profil {x}",
@@ -275,10 +275,6 @@
    "n": 9
   },
   {
-   "s": "Cari pesan termuat",
-   "n": 9
-  },
-  {
    "s": "Gagal mengunggah foto",
    "n": 9
   },
@@ -379,6 +375,10 @@
    "n": 8
   },
   {
+   "s": "Periksa koneksi lalu coba lagi.",
+   "n": 8
+  },
+  {
    "s": "Semua",
    "n": 8
   },
@@ -467,6 +467,10 @@
    "n": 7
   },
   {
+   "s": "(lampiran)",
+   "n": 6
+  },
+  {
    "s": "{x} bintang",
    "n": 6
   },
@@ -540,6 +544,10 @@
   },
   {
    "s": "Buka video layar penuh",
+   "n": 6
+  },
+  {
+   "s": "Cari pesan termuat",
    "n": 6
   },
   {
@@ -755,10 +763,6 @@
    "n": 6
   },
   {
-   "s": "Periksa koneksi lalu coba lagi.",
-   "n": 6
-  },
-  {
    "s": "Peringkat {x}, {y}, mengundang {z} orang, total reward {w}",
    "n": 6
   },
@@ -889,10 +893,6 @@
   {
    "s": "Utama",
    "n": 6
-  },
-  {
-   "s": "(lampiran)",
-   "n": 5
   },
   {
    "s": "{x} {y}",
@@ -1311,6 +1311,10 @@
    "n": 4
   },
   {
+   "s": "Cari pesan",
+   "n": 4
+  },
+  {
    "s": "Catatan (opsional)",
    "n": 4
   },
@@ -1532,6 +1536,10 @@
   },
   {
    "s": "Laporkan pengguna",
+   "n": 4
+  },
+  {
+   "s": "Lawan bicara",
    "n": 4
   },
   {
@@ -3371,10 +3379,6 @@
    "n": 3
   },
   {
-   "s": "Lawan bicara",
-   "n": 3
-  },
-  {
    "s": "Lencana centang abu-abu Kahade+",
    "n": 3
   },
@@ -3623,7 +3627,7 @@
    "n": 3
   },
   {
-   "s": "Mencari hanya pesan yang sudah dimuat di perangkat ini",
+   "s": "Mencari di seluruh riwayat percakapan ini",
    "n": 3
   },
   {
@@ -4851,6 +4855,10 @@
    "n": 2
   },
   {
+   "s": "(pesan tanpa teks)",
+   "n": 2
+  },
+  {
    "s": "{booked}/{cap} terisi",
    "n": 2
   },
@@ -5100,6 +5108,10 @@
   },
   {
    "s": "Anda kembali ke layar sebelumnya.",
+   "n": 2
+  },
+  {
+   "s": "Anda memilih Hapus untuk saya pada pesan tersebut.",
    "n": 2
   },
   {
@@ -6095,6 +6107,10 @@
    "n": 2
   },
   {
+   "s": "Gagal memuat pesan lama",
+   "n": 2
+  },
+  {
    "s": "Gagal memuat saran.",
    "n": 2
   },
@@ -6284,6 +6300,10 @@
   },
   {
    "s": "Geser untuk batal",
+   "n": 2
+  },
+  {
+   "s": "Gulir ke atas untuk memuat riwayat yang lebih lama.",
    "n": 2
   },
   {
@@ -7191,6 +7211,10 @@
    "n": 2
   },
   {
+   "s": "Memuat riwayat yang lebih lama.",
+   "n": 2
+  },
+  {
    "s": "Memuat template…",
    "n": 2
   },
@@ -7232,6 +7256,10 @@
   },
   {
    "s": "Mencari di {n} mutasi yang dimuat",
+   "n": 2
+  },
+  {
+   "s": "Mencari pesan…",
    "n": 2
   },
   {
@@ -7328,6 +7356,10 @@
   },
   {
    "s": "Muat lebih banyak",
+   "n": 2
+  },
+  {
+   "s": "Muat lebih banyak hasil",
    "n": 2
   },
   {
@@ -7723,11 +7755,11 @@
    "n": 2
   },
   {
-   "s": "Pesan belum masuk antrean",
+   "s": "Pesan asli telah dihapus",
    "n": 2
   },
   {
-   "s": "Pesan belum termuat di thread",
+   "s": "Pesan belum masuk antrean",
    "n": 2
   },
   {
@@ -7747,7 +7779,19 @@
    "n": 2
   },
   {
+   "s": "Pesan ini telah dihapus",
+   "n": 2
+  },
+  {
+   "s": "Pesan itu disembunyikan di perangkat ini",
+   "n": 2
+  },
+  {
    "s": "Pesan menunggu koneksi",
+   "n": 2
+  },
+  {
+   "s": "Pesan mungkin sudah dihapus atau kedaluwarsa.",
    "n": 2
   },
   {
@@ -7771,11 +7815,19 @@
    "n": 2
   },
   {
+   "s": "Pesan terlalu lama untuk dimuat otomatis",
+   "n": 2
+  },
+  {
    "s": "Pesan tertunda",
    "n": 2
   },
   {
    "s": "Pesan tetap di percakapan. Ketuk Coba lagi setelah tersambung.",
+   "n": 2
+  },
+  {
+   "s": "Pesan tidak ditemukan",
    "n": 2
   },
   {
@@ -9056,10 +9108,6 @@
   },
   {
    "s": "(opsional)",
-   "n": 1
-  },
-  {
-   "s": "(pesan tanpa teks)",
    "n": 1
   },
   {
@@ -12815,6 +12863,10 @@
    "n": 1
   },
   {
+   "s": "Cari di pesan termuat",
+   "n": 1
+  },
+  {
    "s": "Cari kata dalam berkas",
    "n": 1
   },
@@ -12828,10 +12880,6 @@
   },
   {
    "s": "Cari penerima",
-   "n": 1
-  },
-  {
-   "s": "Cari pesan",
    "n": 1
   },
   {
@@ -17739,10 +17787,6 @@
    "n": 1
   },
   {
-   "s": "Muat pesan sebelumnya untuk menjangkau riwayat yang lebih lama.",
-   "n": 1
-  },
-  {
    "s": "Muat ulang foto",
    "n": 1
   },
@@ -20608,6 +20652,10 @@
   },
   {
    "s": "Soft delete:",
+   "n": 1
+  },
+  {
+   "s": "Sorot hasil langsung di percakapan",
    "n": 1
   },
   {

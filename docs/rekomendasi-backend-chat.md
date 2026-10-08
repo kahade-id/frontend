@@ -242,3 +242,27 @@ yang berubah. Dua hal kecil yang akan mempertajamnya:
    tengah (unggah sukses, kirim gagal) tidak mungkin terjadi dan satu
    `Idempotency-Key` cukup untuk seluruh operasi.
 
+## D — Navigasi & pencarian: lompat ke pesan lama
+
+**Kondisi hari ini.** Ikon cari di header membuka sheet pencarian seluruh
+riwayat (kata kunci ditebalkan + muat bertahap); mengetuk hasil / kutipan /
+pin / pesan berbintang melompat TEPAT ke pesannya dan menyorotnya. Pesan yang
+belum termuat dicari dengan memuat halaman lama satu per satu
+(`GET …/messages?cursor=`, 30 pesan per halaman, anggaran 15 halaman). Kasus
+tak terjangkau dijelaskan per alasan (dihapus / disembunyikan / tidak
+ditemukan / di luar jangkauan). Tanpa perubahan kontrak. Yang akan
+menghapus seluruh kelas "menunggu banyak halaman":
+
+1. **`GET …/messages?around=<messageId>&limit=N`** (jendela di sekitar satu
+   pesan, plus `nextCursor`/`prevCursor`). Hari ini lompat ke pesan berusia
+   ratusan pesan memerlukan belasan request berurutan dan tetap berhenti di
+   anggaran halaman ("di luar jangkauan"). Dengan `around`, SATU request
+   cukup, dan klien memuat jendela itu sebagai thread aktif.
+2. **Hasil pencarian dengan konteks.** Sertakan `snippet` (potongan di
+   sekitar kata kunci), `total`, dan — bila memungkinkan — `position`
+   (urutan pesan dari yang terbaru). Hari ini klien memotong sendiri dan
+   tidak tahu berapa total hasil.
+3. **Batas `limit` pada `GET …/messages` didokumentasikan** (spec hanya
+   menyebut `limit: number`). Klien memakai 30 agar aman; bila backend
+   mengizinkan 100 untuk jalur lompat, jumlah request turun ±3×.
+

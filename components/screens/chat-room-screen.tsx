@@ -208,6 +208,8 @@ import { isImageMime } from "@/lib/mime"
 import type { ChatBubbleAnchor } from "@/lib/chat-bubble"
 import { applyDeleteMessages, applyPinChange } from "@/lib/chat-message-actions"
 import { createTempMessageId } from "@/lib/chat-optimistic"
+import { JUMP_MAX_PAGES, findThreadRowIndex, planJump, type JumpBlockedReason } from "@/lib/chat-jump"
+import { ROW_HEIGHT_FALLBACK, buildRowGeometry, type RowGeometry } from "@/lib/chat-thread-layout"
 import { mergeReadIds, messagesReadByEvent, readIdsFromReceipts } from "@/lib/chat-read-receipts"
 import { buildSendDto, resolveRetryKey } from "@/lib/chat-send-dto"
 
@@ -403,8 +405,48 @@ const RECEIPTS_REFRESH_EVERY_POLLS = 4
  * tinggi konten berubah sedikit (gambar selesai diukur, reaksi muncul).
  */
 const NEAR_BOTTOM_PX = 48
+/** Audit chat I24: batas cache handler onLayout per baris (riwayat panjang). */
+const ROW_LAYOUT_HANDLER_CAP = 600
 /** Interval event scroll (ms) — cukup untuk tombol "ke pesan terbaru". */
 const SCROLL_EVENT_THROTTLE = 64
+
+/** Jeda poll (ms) menunggu baris sasaran lompat terukur, dan batas tunggunya. */
+const JUMP_SETTLE_POLL_MS = 60
+const JUMP_SETTLE_MAX_MS = 700
+
+/** Tunggu `predicate` benar (poll ringan) sampai `timeoutMs`; selesai walau tak terpenuhi. */
+async function waitUntil(predicate: () => boolean, timeoutMs: number, pollMs = 40): Promise<void> {
+  const startedAt = Date.now()
+  while (!predicate() && Date.now() - startedAt < timeoutMs) {
+    await new Promise((resolve) => setTimeout(resolve, pollMs))
+  }
+}
+
+/** Toast penjelas untuk lompatan yang tidak bisa dilakukan (alasan per kasus). */
+function jumpBlockedToast(reason: JumpBlockedReason) {
+  switch (reason) {
+    case "deleted":
+      return { title: translate("Pesan asli telah dihapus"), tone: "info" as const }
+    case "hidden":
+      return {
+        title: translate("Pesan itu disembunyikan di perangkat ini"),
+        description: translate("Anda memilih Hapus untuk saya pada pesan tersebut."),
+        tone: "info" as const,
+      }
+    case "out-of-range":
+      return {
+        title: translate("Pesan terlalu lama untuk dimuat otomatis"),
+        description: translate("Gulir ke atas untuk memuat riwayat yang lebih lama."),
+        tone: "info" as const,
+      }
+    case "not-found":
+      return {
+        title: translate("Pesan tidak ditemukan"),
+        description: translate("Pesan mungkin sudah dihapus atau kedaluwarsa."),
+        tone: "info" as const,
+      }
+  }
+}
 
 function messageTypeFor(
   attachments: ChatAttachmentDto[],
@@ -422,9 +464,6 @@ function messageTypeFor(
   if (attachments.every(isAudio)) return "VOICE"
   return "FILE"
 }
-
-/** Tim8 P1: fallback tinggi baris untuk `getItemLayout` sebelum terukur. */
-const ROW_HEIGHT_ESTIMATE = 76
 
 function sortByTime(items: ChatMessage[]): ChatMessage[] {
   // Tim8 P1: decorate-sort-undecorate — `new Date()` per perbandingan =
@@ -481,6 +520,8 @@ export default function ChatRoomScreen() {
    * Yang disimpan hanya id (non-sensitif).
    */
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set())
+  const hiddenIdsRef = useRef(hiddenIds)
+  hiddenIdsRef.current = hiddenIds
   /**
    * B02: unreadCount room yang ditangkap SEBELUM `markChatRoomRead` pertama.
    * Dipakai menghitung jangkar "pesan pertama yang belum dibaca" — layar
@@ -930,19 +971,19 @@ export default function ChatRoomScreen() {
     Keyboard.dismiss()
   }, [])
 
-  const jumpToInlineMatch = useCallback(
-    (messageId: string) => {
-      const index = messages.findIndex((m) => m.id === messageId)
-      if (index < 0) return
-      try {
-        scrollRef.current?.scrollToIndex({ index, animated: true, viewPosition: 0.5 })
-      } catch {
-        // Item belum terukur (riwayat baru dimuat) — abaikan, user bisa
-        // menekan next/prev lagi setelah layout stabil.
-      }
-    },
-    [messages],
-  )
+  /**
+   * Audit chat D10: indeks BARIS dicari dari `threadRows` (hari/pemisah ikut
+   * dihitung, pesan tersembunyi tidak) — dulu `messages.findIndex` memakai
+   * indeks PESAN sehingga lompatan meleset begitu ada pemisah hari/unread atau
+   * pesan yang disembunyikan di atasnya. Highlight pencarian inline sudah
+   * ditangani bubble, jadi tidak ada sorotan tambahan.
+   */
+  const scrollToMessageRowRef = useRef<
+    (messageId: string, opts: { highlight: boolean }) => boolean
+  >(() => false)
+  const jumpToInlineMatch = useCallback((messageId: string) => {
+    scrollToMessageRowRef.current(messageId, { highlight: false })
+  }, [])
 
   // Hasil berubah (ketikan/pesan baru dari poll): pertahankan hasil aktif
   // bila masih ada; bila tidak, kembali ke hasil pertama + lompat.
@@ -1683,26 +1724,69 @@ export default function ChatRoomScreen() {
    * estimasi rata-rata → offset meleset di thread bergambar. Tinggi diukur
    * via `onLayout` pembungkus baris di `renderThreadRow` (ChatMessageRow
    * sendiri milik file lain — tidak disentuh).
+   *
+   * Audit chat D10/F15: geometri dibangun SEKALI per (daftar baris, versi
+   * cache) — dulu O(n) per panggilan × ratusan panggilan per render — dengan
+   * baris belum-terukur diperkirakan dari RATA-RATA yang sudah terukur dan
+   * tinggi header list ikut dihitung (lib/chat-thread-layout).
    */
   const rowHeightCacheRef = useRef(new Map<string, number>())
   const threadRowsRef = useRef(threadRows)
   threadRowsRef.current = threadRows
-  const handleRowLayout = useCallback(
-    (key: string) => (e: LayoutChangeEvent) => {
-      rowHeightCacheRef.current.set(key, e.nativeEvent.layout.height)
-    },
-    [],
+  /** Naik tiap tinggi baris/header berubah → geometri dibangun ulang. */
+  const layoutVersionRef = useRef(0)
+  const headerHeightRef = useRef(0)
+  const geometryRef = useRef<{ rows: ThreadRow[]; version: number; geometry: RowGeometry } | null>(
+    null,
   )
+  // Audit chat I24: SATU handler per kunci baris (dulu fungsi baru tiap render
+  // → prop `onLayout` pembungkus berubah → pembungkus di-update walau baris
+  // identik). Dibatasi agar riwayat panjang tidak menimbun handler.
+  const rowLayoutHandlersRef = useRef(new Map<string, (e: LayoutChangeEvent) => void>())
+  const handleRowLayout = useCallback((key: string) => {
+    const handlers = rowLayoutHandlersRef.current
+    const existing = handlers.get(key)
+    if (existing) return existing
+    const handler = (e: LayoutChangeEvent) => {
+      const height = e.nativeEvent.layout.height
+      const cache = rowHeightCacheRef.current
+      if (cache.get(key) !== height) {
+        cache.set(key, height)
+        layoutVersionRef.current += 1
+      }
+    }
+    handlers.set(key, handler)
+    if (handlers.size > ROW_LAYOUT_HANDLER_CAP) {
+      const oldest = handlers.keys().next().value
+      if (oldest !== undefined) handlers.delete(oldest)
+    }
+    return handler
+  }, [])
+  const handleListHeaderLayout = useCallback((e: LayoutChangeEvent) => {
+    const height = e.nativeEvent.layout.height
+    if (headerHeightRef.current !== height) {
+      headerHeightRef.current = height
+      layoutVersionRef.current += 1
+    }
+  }, [])
   const getThreadItemLayout = useCallback(
     (_data: ArrayLike<ThreadRow> | null | undefined, index: number) => {
       const rows = threadRowsRef.current
-      const cache = rowHeightCacheRef.current
-      let offset = 0
-      for (let i = 0; i < index; i++) {
-        offset += cache.get(rows[i]?.key ?? "") ?? ROW_HEIGHT_ESTIMATE
+      let cached = geometryRef.current
+      if (!cached || cached.rows !== rows || cached.version !== layoutVersionRef.current) {
+        cached = {
+          rows,
+          version: layoutVersionRef.current,
+          geometry: buildRowGeometry(
+            rows.map((r) => r.key),
+            rowHeightCacheRef.current,
+            headerHeightRef.current,
+          ),
+        }
+        geometryRef.current = cached
       }
-      const length = cache.get(rows[index]?.key ?? "") ?? ROW_HEIGHT_ESTIMATE
-      return { length, offset, index }
+      const { offsets, lengths } = cached.geometry
+      return { length: lengths[index] ?? ROW_HEIGHT_FALLBACK, offset: offsets[index] ?? 0, index }
     },
     [],
   )
@@ -1755,71 +1839,49 @@ export default function ChatRoomScreen() {
   }, [pinnedBarHeight])
 
   /**
-   * J-07: lompat ke pesan hasil pencarian — hanya mungkin bila pesannya
-   * sudah termuat di thread (virtualisasi mengandalkan data di state).
+   * Audit chat D11: satu halaman riwayat lama — dipakai `loadOlder` (tombol /
+   * gulir ke puncak) DAN lompatan ke pesan yang belum termuat. State dibaca
+   * lewat ref supaya bisa dipanggil berulang dalam satu loop tanpa closure
+   * basi. Mengembalikan id halaman yang dimuat + apakah riwayat habis;
+   * `null` bila gagal / sedang dimuat / ruang berganti.
+   *
+   * Perbaikan latent: keputusan "riwayat habis" dulu dibaca dari variabel yang
+   * diisi DI DALAM updater `setMessages` — React boleh menunda updater (ada
+   * update lain antre), sehingga `freshCount` terbaca 0 dan paginasi berhenti
+   * keliru. Sekarang dihitung dari snapshot ref sebelum updater; updater tetap
+   * satu-satunya yang menggabungkan (dedupe terhadap `prev` terkini, C-03).
    */
-  const jumpToMessage = useCallback(
-    (messageId: string) => {
-      // B10: thread kini berisi baris campuran (hari/pemisah/pesan) — cari
-      // indeks BARIS pesan, bukan indeks pesan.
-      const index = threadRows.findIndex((r) => r.kind === "msg" && r.message.id === messageId)
-      setSearchOpen(false)
-      if (index >= 0) {
-        scrollRef.current?.scrollToIndex({ index, animated: true, viewPosition: 0.5 })
-      } else {
-        toast.show({
-          title: translate("Pesan belum termuat di thread"),
-          description: "Muat pesan sebelumnya untuk menjangkau riwayat yang lebih lama.",
-          tone: "info",
-        })
-      }
-    },
-    [threadRows, toast.show],
-  )
-
-  /**
-   * B09: ketuk kutipan balasan → scroll ke pesan asal + sorot ~2,5 detik.
-   * Bila pesan asal belum termuat, jumpToMessage menampilkan panduan
-   * "muat pesan sebelumnya" (tidak ada toast ganda di sini).
-   */
-  const handleQuotePress = useCallback(
-    (replyToId: string) => {
-      jumpToMessage(replyToId)
-      // Sorot hanya bila pesannya memang ada di thread saat ini.
-      if (threadRows.some((r) => r.kind === "msg" && r.message.id === replyToId)) {
-        flashHighlight(replyToId)
-      }
-    },
-    [jumpToMessage, threadRows, flashHighlight],
-  )
-
-  const loadOlder = useCallback(async () => {
-    if (!roomId || olderStatus === "loading" || olderStatus === "end") return
+  const nextCursorRef = useRef<string | null>(null)
+  nextCursorRef.current = nextCursor
+  const olderStatusRef = useRef<LoadMoreStatus>("idle")
+  olderStatusRef.current = olderStatus
+  const fetchOlderPage = useCallback(async (): Promise<{ ids: string[]; ended: boolean } | null> => {
+    const targetRoom = roomIdRef.current
+    if (!targetRoom || olderStatusRef.current === "loading" || olderStatusRef.current === "end") {
+      return null
+    }
+    olderStatusRef.current = "loading"
     setOlderStatus("loading")
-    const targetRoom = roomId
     try {
-      const page = await api.chat.getChatMessages(
-        roomId,
-        {
-          cursor: nextCursor ?? messages[0]?.id,
-          limit: CHAT_PAGE_SIZE,
-          // C-02: dibatasi N id terbaru (bukan seluruh thread) — kursor tetap
-          // sumber utama; merge di bawah tetap menyaring duplikat apa pun.
-          excludeIds: messages.slice(-EXCLUDE_IDS_MAX).map((m) => m.id),
-        },
-      )
-      if (targetRoom !== roomIdRef.current) return
+      const current = messagesRef.current
+      const page = await api.chat.getChatMessages(targetRoom, {
+        cursor: nextCursorRef.current ?? current[0]?.id,
+        limit: CHAT_PAGE_SIZE,
+        // C-02: dibatasi N id terbaru (bukan seluruh thread) — kursor tetap
+        // sumber utama; merge di bawah tetap menyaring duplikat apa pun.
+        excludeIds: current.slice(-EXCLUDE_IDS_MAX).map((m) => m.id),
+      })
+      if (targetRoom !== roomIdRef.current) return null
+      const knownNow = new Set(messagesRef.current.map((m) => m.id))
+      const freshNow = sortByTime(page.items.filter((m) => !knownNow.has(m.id)))
+      const ended = freshNow.length === 0 || page.items.length < CHAT_PAGE_SIZE
       // C-03 (audit): dedupe dihitung DI DALAM updater terhadap `prev`
-      // terkini — sebelumnya set `known` diambil dari closure, sehingga poll
-      // yang menyisipkan pesan di tengah request menghasilkan duplikat.
-      let freshCount = 0
-      let oldestId: string | undefined
+      // terkini — poll yang menyisipkan pesan di tengah request tidak boleh
+      // menghasilkan duplikat.
       setMessages((prev) => {
         const known = new Set(prev.map((m) => m.id))
         const fresh = sortByTime(page.items.filter((m) => !known.has(m.id)))
-        freshCount = fresh.length
-        oldestId = fresh[0]?.id
-        if (!freshCount) return prev
+        if (fresh.length === 0) return prev
         const merged = sortByTime([...fresh, ...prev])
         // FE-019: jendela terbatas — buang sisi terbaru (non-pending) bila
         // melewati batas. Pengguna di puncak thread: scroll anchor aman
@@ -1829,14 +1891,183 @@ export default function ChatRoomScreen() {
         if (trimmed.dropped > 0) newestTruncatedRef.current = true
         return trimmed.next
       })
-      setNextCursor(page.nextCursor ?? oldestId ?? null)
-      setOlderStatus(freshCount === 0 || page.items.length < CHAT_PAGE_SIZE ? "end" : "idle")
+      const cursor = page.nextCursor ?? freshNow[0]?.id ?? null
+      nextCursorRef.current = cursor
+      setNextCursor(cursor)
+      olderStatusRef.current = ended ? "end" : "idle"
+      setOlderStatus(ended ? "end" : "idle")
+      return { ids: page.items.map((m) => m.id), ended }
     } catch (err) {
-      if (targetRoom !== roomIdRef.current) return
+      if (targetRoom !== roomIdRef.current) return null
       logWarn("chat:load-older", err)
+      olderStatusRef.current = "error"
       setOlderStatus("error")
+      return null
     }
-  }, [roomId, olderStatus, nextCursor, messages])
+  }, [])
+  const loadOlder = useCallback(async () => {
+    await fetchOlderPage()
+  }, [fetchOlderPage])
+
+  // ── Lompat ke pesan (audit chat D10 / D11) ──────────────────────────────
+  /**
+   * Gulir TEPAT ke baris pesan lalu sorot sebentar.
+   *
+   * Tinggi baris variabel, jadi satu `scrollToIndex` ke baris yang belum
+   * terukur hanya mendarat di perkiraan. Dua fase:
+   *   1. KASAR (tanpa animasi) — membawa area sasaran ke jendela render,
+   *      sehingga sel di sekitarnya di-mount dan diukur;
+   *   2. TEPAT — begitu baris sasaran terukur (atau batas tunggu habis),
+   *      `scrollToIndex` ulang memakai frame ASLI baris itu, dengan animasi.
+   * Lompatan yang lebih baru membatalkan yang lama (token), dan unmount
+   * membatalkan semuanya.
+   */
+  const jumpTokenRef = useRef(0)
+  const scrollToMessageRow = useCallback(
+    (messageId: string, opts: { highlight: boolean }): boolean => {
+      const list = scrollRef.current
+      const first = findThreadRowIndex(threadRowsRef.current, messageId)
+      if (!list || first < 0) return false
+      const token = ++jumpTokenRef.current
+      try {
+        list.scrollToIndex({ index: first, animated: false, viewPosition: 0.5 })
+      } catch {
+        // Fase 2 menyusul begitu sel diukur.
+      }
+      const startedAt = Date.now()
+      const settle = () => {
+        if (token !== jumpTokenRef.current) return
+        const rows = threadRowsRef.current
+        const index = findThreadRowIndex(rows, messageId)
+        if (index < 0) return
+        const measured = rowHeightCacheRef.current.has(rows[index]?.key ?? "")
+        if (!measured && Date.now() - startedAt < JUMP_SETTLE_MAX_MS) {
+          setTimeout(settle, JUMP_SETTLE_POLL_MS)
+          return
+        }
+        try {
+          scrollRef.current?.scrollToIndex({ index, animated: true, viewPosition: 0.5 })
+        } catch {
+          // Daftar sudah dibongkar / indeks di luar jangkauan — tidak ada yang bisa dilakukan.
+        }
+        if (opts.highlight) flashHighlight(messageId)
+      }
+      setTimeout(settle, JUMP_SETTLE_POLL_MS)
+      return true
+    },
+    [flashHighlight],
+  )
+  scrollToMessageRowRef.current = scrollToMessageRow
+  useEffect(
+    () => () => {
+      jumpTokenRef.current += 1
+    },
+    [],
+  )
+
+  /**
+   * Lompat ke pesan dari pemicu mana pun (hasil cari, kutipan, pin, bintang,
+   * "Belum dibaca"). Keputusannya di `planJump` (teruji): ada → gulir + sorot;
+   * belum termuat → muat halaman lama SATU PER SATU sampai ketemu (anggaran
+   * `JUMP_MAX_PAGES`, bisa dibatalkan); tidak terjangkau → alasan yang jelas
+   * (dihapus / disembunyikan / tidak ditemukan / di luar jangkauan), bukan
+   * satu toast generik.
+   */
+  const jumpLoadingRef = useRef(false)
+  const jumpCancelRef = useRef(false)
+  const jumpToMessage = useCallback(
+    async (messageId: string, opts: { knownDeleted?: boolean } = {}) => {
+      setSearchOpen(false)
+      const planNow = (pagesLoaded: number) =>
+        planJump({
+          messageId,
+          rows: threadRowsRef.current,
+          hiddenIds: hiddenIdsRef.current,
+          knownDeleted: opts.knownDeleted,
+          canLoadOlder: olderStatusRef.current !== "end",
+          pagesLoaded,
+        })
+      let plan = planNow(0)
+      if (plan.kind === "scroll") {
+        scrollToMessageRow(messageId, { highlight: true })
+        return
+      }
+      if (plan.kind === "blocked") {
+        toast.show(jumpBlockedToast(plan.reason))
+        return
+      }
+      if (jumpLoadingRef.current) return
+      jumpLoadingRef.current = true
+      jumpCancelRef.current = false
+      const room = roomIdRef.current
+      const progressToast = toast.show({
+        title: translate("Mencari pesan…"),
+        description: translate("Memuat riwayat yang lebih lama."),
+        tone: "info",
+        duration: 0,
+        action: {
+          label: translate("Batal"),
+          onPress: () => {
+            jumpCancelRef.current = true
+          },
+        },
+      })
+      try {
+        let pages = 0
+        for (;;) {
+          if (jumpCancelRef.current || roomIdRef.current !== room) return
+          // Halaman lain (gulir ke puncak) sedang dimuat → tunggu giliran.
+          await waitUntil(() => olderStatusRef.current !== "loading", 3000)
+          const result = await fetchOlderPage()
+          if (jumpCancelRef.current || roomIdRef.current !== room) return
+          if (!result) {
+            toast.show(
+              olderStatusRef.current === "end"
+                ? jumpBlockedToast("not-found")
+                : {
+                    title: translate("Gagal memuat pesan lama"),
+                    description: translate("Periksa koneksi lalu coba lagi."),
+                    tone: "danger",
+                  },
+            )
+            return
+          }
+          pages += 1
+          if (result.ids.includes(messageId) || result.ended) {
+            // Beri React satu render supaya `threadRows` memuat halaman baru.
+            await waitUntil(
+              () => findThreadRowIndex(threadRowsRef.current, messageId) >= 0,
+              600,
+            )
+            plan = planNow(pages)
+            break
+          }
+          if (pages >= JUMP_MAX_PAGES) {
+            plan = { kind: "blocked", reason: "out-of-range" }
+            break
+          }
+        }
+        if (plan.kind === "scroll") scrollToMessageRow(messageId, { highlight: true })
+        else toast.show(jumpBlockedToast(plan.kind === "blocked" ? plan.reason : "not-found"))
+      } finally {
+        toast.dismiss(progressToast)
+        jumpLoadingRef.current = false
+      }
+    },
+    [fetchOlderPage, scrollToMessageRow, toast.show, toast.dismiss],
+  )
+
+  /**
+   * B09 + audit chat D11: ketuk kutipan balasan → gulir ke pesan asal + sorot.
+   * Kutipan yang asalnya sudah dihapus (diketahui dari `replyTo.isDeleted`)
+   * langsung dijelaskan; asal yang belum termuat dicari ke riwayat lama.
+   */
+  const handleQuotePress = useCallback(
+    (replyToId: string, info?: { deleted?: boolean }) => {
+      void jumpToMessage(replyToId, { knownDeleted: info?.deleted })
+    },
+    [jumpToMessage],
+  )
 
   /**
    * Unggah satu lampiran dengan LAPORAN PROGRESS (B04).
@@ -2709,6 +2940,7 @@ export default function ChatRoomScreen() {
   const closeForward = useCallback(() => setForwardTarget(null), [])
 
   const openSearch = useCallback(() => setSearchOpen(true), [])
+  const openInlineSearch = useCallback(() => setInlineSearchOpen(true), [])
 
   // ── Typing indicator: kirim saat draft berubah, hentikan 3 dtk setelah diam ──
   const notifyTyping = useCallback(() => {
@@ -3406,7 +3638,7 @@ export default function ChatRoomScreen() {
       messages.length > 0 ? (
         // (2026-10-05, revisi produk: beri jarak dari header floating — konten
         // tidak lagi menempel header.)
-        <View className="px-5 pt-4">
+        <View className="px-5 pt-4" onLayout={handleListHeaderLayout}>
           <LoadMore
             status={olderStatus}
             onLoadMore={() => void loadOlder()}
@@ -3415,7 +3647,7 @@ export default function ChatRoomScreen() {
           />
         </View>
       ) : null,
-    [messages.length, olderStatus, loadOlder],
+    [messages.length, olderStatus, loadOlder, handleListHeaderLayout],
   )
   /**
    * FE-058 (audit 2026-09-29): ListEmptyComponent kondisional di-hoist —
@@ -3590,17 +3822,18 @@ export default function ChatRoomScreen() {
           // kembali ke daftar Pesan (/chat), bukan Etalase.
           onBack={() => (router.canGoBack() ? router.back() : router.replace(logicalParentForPath(`/chat/${roomId ?? ""}`)))}
           onMenuPress={() => setRoomMenuOpen(true)}
-          // Pencarian inline client-side (2026-09-28): ikon kaca pembesar di
-          // kiri menu — membuka bar cari di bawah header (highlight +
-          // next/prev di pesan yang sudah dimuat, tanpa endpoint).
+          // Audit chat D9: ikon cari di header → sheet pencarian (ketik →
+          // daftar hasil dari SELURUH riwayat → ketuk = lompat ke pesan).
+          // Pencarian cepat di pesan yang sudah dimuat (sorot + sebelumnya/
+          // berikutnya, 2026-09-28) tetap ada: menu ⋮ → "Cari di pesan termuat".
           extra={
             <IconButton
               icon={MagnifyingGlass}
               variant="ghost"
               size="sm"
-              accessibilityLabel={translate("Cari pesan termuat")}
-              accessibilityHint={translate("Mencari hanya pesan yang sudah dimuat di perangkat ini")}
-              onPress={() => setInlineSearchOpen(true)}
+              accessibilityLabel={translate("Cari pesan")}
+              accessibilityHint={translate("Mencari di seluruh riwayat percakapan ini")}
+              onPress={openSearch}
             />
           }
         />
@@ -3713,6 +3946,7 @@ export default function ChatRoomScreen() {
         counterpartUsername={counterpartUsername ?? undefined}
         onClose={() => setRoomMenuOpen(false)}
         onSearch={openSearch}
+        onSearchLoaded={openInlineSearch}
         onRoomChange={(patch) => setRoom((prev) => (prev ? { ...prev, ...patch } : prev))}
         // Batch 43 FE-CHAT.
         isSelfChat={isSelfChat}
