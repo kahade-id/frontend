@@ -27,6 +27,7 @@ import type { ChatReaction } from "@/lib/api/chat"
 import {
   CHAT_SOCKET_EVENTS,
   ORDER_SOCKET_EVENTS,
+  createTypingRoster,
   type ChatMessageDeletedPayload,
   type ChatMessagesExpiredPayload,
   type ChatPinPayload,
@@ -39,7 +40,7 @@ import {
   type ChatTypingPayload,
   type ChatViewOnceConsumedPayload,
   type OrderStatusChangedPayload,
-  createTypingTracker,
+  type TypingRosterEntry,
 } from "./chat-events"
 import { useRealtime, useRealtimeActions } from "./realtime-context"
 
@@ -62,7 +63,13 @@ export type ChatRoomRealtimeCallbacks = {
     messageId: string | null,
     meta?: { readAt?: string | null; markedCount?: number; ownDeviceSync?: boolean },
   ) => void
-  onTyping?: (isTyping: boolean) => void
+  /**
+   * `who` = pengetik (audit chat G17: nama dari payload `chat.typing.username`).
+   * Boolean ini berlaku untuk SATU pengetik; jumlah pengetik terkini lewat `onTypers`.
+   */
+  onTyping?: (isTyping: boolean, who?: { userId: string; name: string | null }) => void
+  /** Daftar pengetik TERKINI (expiry per pengguna) — kosong = tak seorang pun. */
+  onTypers?: (typers: readonly TypingRosterEntry[]) => void
   onPresence?: (isOnline: boolean) => void
   /** BFI-117: pesan sekali-lihat dikonsumsi penerima. */
   onViewOnceConsumed?: (messageId: string) => void
@@ -184,8 +191,11 @@ export function createChatRoomHandlers(
     },
     [CHAT_SOCKET_EVENTS.TYPING]: (payload) => {
       if (!sameRoom(payload) || !isRecord(payload) || isSelf(payload)) return
-      const { isTyping } = payload as Partial<ChatTypingPayload>
-      callbacks().onTyping?.(isTyping === true)
+      const { isTyping, userId, username } = payload as Partial<ChatTypingPayload>
+      callbacks().onTyping?.(isTyping === true, {
+        userId: typeof userId === "string" && userId ? userId : "peer",
+        name: typeof username === "string" && username.trim() ? username.trim() : null,
+      })
     },
     [CHAT_SOCKET_EVENTS.USER_ONLINE]: () => {
       callbacks().onPresence?.(true)
@@ -325,9 +335,12 @@ export function useChatRoomRealtime(
   useEffect(() => {
     if (!roomId || !socket || !enabled || status !== "connected") return
     let cancelled = false
-    // Typing: sinyal mentah → tracker (expiry otomatis) → callback.
-    const tracker = createTypingTracker((isTyping) => {
-      if (!cancelled) callbacksRef.current.onTyping?.(isTyping)
+    // Typing: sinyal mentah → roster (expiry otomatis PER PENGGUNA) → callback.
+    // `onTyping` boolean tetap dipanggil (kompatibel) bersama daftar lengkapnya.
+    const roster = createTypingRoster((typers) => {
+      if (cancelled) return
+      callbacksRef.current.onTypers?.(typers)
+      callbacksRef.current.onTyping?.(typers.length > 0)
     })
     const handlers = createChatRoomHandlers(roomId, viewerId, {
       onMessage: (raw) => callbacksRef.current.onMessage?.(raw),
@@ -336,7 +349,7 @@ export function useChatRoomRealtime(
       onReaction: (id, reactions) => callbacksRef.current.onReaction?.(id, reactions),
       onPin: (id, isPinned) => callbacksRef.current.onPin?.(id, isPinned),
       onRead: (id, meta) => callbacksRef.current.onRead?.(id, meta),
-      onTyping: (isTyping) => tracker.signal(isTyping),
+      onTyping: (isTyping, who) => roster.signal(who?.userId ?? "peer", isTyping, who?.name),
       onPresence: (isOnline) => callbacksRef.current.onPresence?.(isOnline),
       // BFI-118/BFI-119: teruskan callback poll & status order ke tabel
       // routing — tanpanya listener di atas tidak pernah memanggil balik.
@@ -403,7 +416,11 @@ export function useChatRoomRealtime(
 
     return () => {
       cancelled = true
-      tracker.dispose()
+      roster.dispose()
+      // Socket putus / ganti ruang: tanpa ini "mengetik…" yang terakhir tampil
+      // menetap selamanya (timer expiry ikut dibuang bersama roster).
+      callbacksRef.current.onTypers?.([])
+      callbacksRef.current.onTyping?.(false)
       detach()
       if (joinedRef.current) {
         joinedRef.current = false

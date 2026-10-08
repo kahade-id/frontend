@@ -542,3 +542,56 @@ export function createTypingTracker(
     },
   }
 }
+
+export type TypingRosterEntry = { userId: string; name: string | null }
+
+/**
+ * Daftar pengetik multi-pihak dengan expiry PER PENGGUNA (audit chat G17).
+ *
+ * `createTypingTracker` hanya satu boolean — di ruang multi-pihak (mis. admin
+ * mediasi masuk) dua orang yang mengetik saling menimpa: yang satu berhenti
+ * dan indikator mati padahal yang lain masih mengetik. Di sini tiap pengetik
+ * punya timer sendiri; `onChange` menerima daftar lengkap terkini (urutan:
+ * yang mulai mengetik lebih dulu di depan). Nama datang dari payload
+ * `chat.typing.username` (BFI-115) dan boleh berubah/kosong.
+ */
+export function createTypingRoster(
+  onChange: (typers: readonly TypingRosterEntry[]) => void,
+  expiryMs: number = TYPING_EXPIRY_MS,
+): {
+  signal: (userId: string, isTyping: boolean, name?: string | null) => void
+  dispose: () => void
+} {
+  const entries = new Map<string, { name: string | null; timer: ReturnType<typeof setTimeout> }>()
+  const emit = () =>
+    onChange([...entries].map(([userId, entry]) => ({ userId, name: entry.name })))
+  const drop = (userId: string) => {
+    const entry = entries.get(userId)
+    if (!entry) return false
+    clearTimeout(entry.timer)
+    entries.delete(userId)
+    return true
+  }
+  return {
+    signal(userId, isTyping, name) {
+      if (!isTyping) {
+        if (drop(userId)) emit()
+        return
+      }
+      const previous = entries.get(userId)
+      if (previous) clearTimeout(previous.timer)
+      const timer = setTimeout(() => {
+        if (drop(userId)) emit()
+      }, expiryMs)
+      const nextName = name?.trim() || previous?.name || null
+      entries.set(userId, { name: nextName, timer })
+      // Tidak emit ulang bila hanya denyut (pengetik & nama sama) — render layar dihemat.
+      if (!previous || previous.name !== nextName) emit()
+    },
+    dispose() {
+      for (const entry of entries.values()) clearTimeout(entry.timer)
+      entries.clear()
+    },
+  }
+}
+

@@ -13,15 +13,11 @@
  * ini di dalam footer membuat layar cukup berkata "apa keadaan ruangnya".
  */
 import { CheckCircle, Clock, EyeSlash, X } from "phosphor-react-native"
-import { useCallback, useEffect, useRef, useState, memo } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState, memo } from "react"
 import { View } from "react-native"
 
 import { Button } from "@/components/ui/button"
 import { ChatComposer, type ChatComposerPayload, type ComposerAttachment, type ComposerReplyTarget } from "@/components/ui/chat-composer"
-import { Icon } from "@/components/ui/icon"
-import { IconButton } from "@/components/ui/icon-button"
-import { ScrollToEndButton } from "@/components/ui/scroll-to-end-button"
-import { Text } from "@/components/ui/text"
 import { Dialog } from "@/components/ui/modal"
 import { useToast } from "@/components/ui/toast"
 import { VoiceNoteSession } from "@/components/ui/voice-note-session"
@@ -30,6 +26,10 @@ import { translate } from "@/lib/i18n"
 import { useVoiceHold, type VoiceIssue, type VoiceSessionApi } from "@/lib/use-voice-hold"
 import { needsDiscardConfirm } from "@/lib/voice-note-gesture"
 import type { VoiceNoteFile } from "@/lib/voice-note"
+import { Icon } from "@/components/ui/icon"
+import { IconButton } from "@/components/ui/icon-button"
+import { ScrollToEndButton } from "@/components/ui/scroll-to-end-button"
+import { Text } from "@/components/ui/text"
 
 export type ChatRoomFooterProps = {
   /** Tombol lompat ke bawah hanya berguna saat pembaca sudah meninggalkan dasar. */
@@ -60,6 +60,8 @@ export type ChatRoomFooterProps = {
    * untuk typing indicator + persist draft (murah, tanpa render ulang).
    */
   onDraftChange: (value: string) => void
+  /** Audit chat G17: kolom ketik kehilangan fokus → berhenti "mengetik…". */
+  onComposerBlur?: () => void
   onSend: (payload: ChatComposerPayload) => void
   attachments: ComposerAttachment[]
   onAttach: () => void
@@ -108,6 +110,7 @@ export const ChatRoomFooter = memo(function ChatRoomFooter({
   initialDraft = "",
   draftResetKey = 0,
   onDraftChange,
+  onComposerBlur,
   onSend,
   attachments,
   onAttach,
@@ -147,6 +150,12 @@ export const ChatRoomFooter = memo(function ChatRoomFooter({
     setDraft(text)
     onDraftChangeRef.current(text)
   }, [])
+
+  // Audit chat G17: blur kolom ketik diteruskan (stabil — memo footer tetap hit).
+  const composerInputProps = useMemo(
+    () => (onComposerBlur ? { onBlur: onComposerBlur } : undefined),
+    [onComposerBlur],
+  )
 
   // ── Voice note tahan-untuk-merekam (audit chat C7) ──────────────────────
   const toast = useToast()
@@ -277,6 +286,7 @@ export const ChatRoomFooter = memo(function ChatRoomFooter({
             onMicPress={onMicPress}
             voice={onVoiceNote ? voice : undefined}
             onVoiceDiscard={requestVoiceDiscard}
+            inputProps={composerInputProps}
             onRemoveAttachment={onRemoveAttachment}
             onRetryAttachment={onRetryAttachment}
             onCancelAttachment={onCancelAttachment}

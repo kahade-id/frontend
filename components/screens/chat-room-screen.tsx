@@ -75,6 +75,8 @@ import { createIdempotencyKey } from "@/lib/api/client"
 import { drainChatSendQueue, enqueueChatMessage, onChatSendQueueEvent } from "@/lib/chat-send-queue"
 import {
   CHAT_ATTACHMENT_MAX_COUNT,
+  formatBytesId,
+  needsLargeFileConfirm,
   validateChatAttachment,
 } from "@/lib/chat-attachment-limits"
 import { getOrder, type Order } from "@/lib/api/orders"
@@ -213,6 +215,10 @@ import { ROW_HEIGHT_FALLBACK, buildRowGeometry, type RowGeometry } from "@/lib/c
 import { mergeReadIds, messagesReadByEvent, readIdsFromReceipts } from "@/lib/chat-read-receipts"
 import { classifyPinFailure, pinBlockedByKnownLimit } from "@/lib/chat-pin"
 import { applyStarredIds, dmSafetyCounterpartId, nextInlineActiveId } from "@/lib/chat-room-effects"
+import { msUntilNextLocalMidnight } from "@/lib/chat-day-label"
+import { createConfirmGate, type ConfirmGate } from "@/lib/confirm-gate"
+import { createTypingSender, summarizeTypers, type TypingSender } from "@/lib/chat-typing"
+import type { TypingRosterEntry } from "@/lib/realtime/chat-events"
 import { buildSendDto, resolveRetryKey } from "@/lib/chat-send-dto"
 import { ChatReactorsSheet } from "@/components/ui/chat-reactors-sheet"
 
@@ -565,10 +571,12 @@ export default function ChatRoomScreen() {
    * realtime): dipanggil per ketikan TANPA setState sehingga layar tidak
    * render ulang saat pengguna mengetik.
    */
-  const notifyTypingRef = useRef<() => void>(() => {})
+  const notifyTypingRef = useRef<(hasText: boolean) => void>(() => {})
   const handleDraftChange = useCallback(
     (text: string) => {
-      if (text.trim()) notifyTypingRef.current()
+      // Audit chat G17: draft yang dikosongkan juga dilaporkan — indikator
+      // berhenti SEGERA (dulu menunggu timer 3 dtk).
+      notifyTypingRef.current(text.trim().length > 0)
       if (roomId) saveChatDraft(roomId, text)
     },
     [roomId],
@@ -887,13 +895,22 @@ export default function ChatRoomScreen() {
    * `chat.typing` (bukan dari poll). `createTypingTracker` di hook memberi
    * expiry otomatis bila sinyal berhenti tak pernah tiba.
    */
-  const [counterpartTyping, setCounterpartTyping] = useState(false)
+  const [typers, setTypers] = useState<readonly TypingRosterEntry[]>([])
   /** id pesan milik sendiri yang sudah dibaca lawan bicara (read receipt). */
   const [readByCounterpart, setReadByCounterpart] = useState<ReadonlySet<string>>(
     () => new Set<string>(),
   )
-  const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const typingActive = useRef(false)
+  /**
+   * Audit chat G17: pengirim sinyal mengetik (idle 3 dtk, denyut 5 dtk,
+   * berhenti seketika saat draft kosong/kirim/blur/latar) — lihat
+   * lib/chat-typing. `sendTypingRef` menunjuk ke `sendTyping` hook realtime
+   * (didefinisikan lebih bawah; identitasnya berganti saat socket sehat/tidak).
+   */
+  const sendTypingRef = useRef<(isTyping: boolean) => void>(() => undefined)
+  const typingSenderRef = useRef<TypingSender | null>(null)
+  if (typingSenderRef.current === null) {
+    typingSenderRef.current = createTypingSender((isTyping) => sendTypingRef.current(isTyping))
+  }
   const initialRequest = useRef<AbortController | null>(null)
   /**
    * C-05 (audit): roomId TERKINI untuk guard respons terbang — param ruang
@@ -1435,7 +1452,9 @@ export default function ChatRoomScreen() {
       if (ids.length > 0) setReadByCounterpart((prev) => mergeReadIds(prev, ids))
       if (!messageId) scheduleReceiptsReconcile()
     },
-    onTyping: (isTyping) => setCounterpartTyping(isTyping),
+    // Audit chat G17: daftar pengetik (expiry per pengguna, bernama) —
+    // bukan lagi satu boolean yang saling menimpa di ruang multi-pihak.
+    onTypers: setTypers,
     onPresence: (isOnline) =>
       setPresence((prev) => (prev ? { ...prev, isOnline } : prev)),
     // BFI-118: status order berubah di server (dibayar, dikirim, selesai,
@@ -1506,6 +1525,8 @@ export default function ChatRoomScreen() {
     },
   })
 
+  sendTypingRef.current = sendTypingRealtime
+
   /**
    * PERF-FIX (network P2): grace delay transisi — fallback poll hanya
    * dipersenjatai bila socket tidak sehat selama >10 dtk berturut-turut.
@@ -1560,6 +1581,8 @@ export default function ChatRoomScreen() {
    */
   useEffect(() => {
     const sub = AppState.addEventListener("change", (state) => {
+      // Audit chat G17: aplikasi ke latar → berhenti "mengetik…" seketika.
+      if (state !== "active") typingSenderRef.current?.stop()
       if (state === "active") {
         void refreshUnreadCount()
         void refreshChatUnreadCount()
@@ -1698,6 +1721,38 @@ export default function ChatRoomScreen() {
    * "Belum dibaca" (B02), dan bubble. Pemisah hari TIDAK lagi dirender di
    * dalam <ChatMessageRow> (hideDaySeparator) supaya bisa sticky.
    */
+  /**
+   * Audit chat G18: label hari ("Hari ini"/"Kemarin") dihitung ulang saat hari
+   * KALENDER berganti — tengah malam (timer) atau aplikasi kembali aktif.
+   * Dulu label hanya dihitung saat pesan berubah: ruang yang dibiarkan terbuka
+   * melewati tengah malam terus menulis "Hari ini" untuk pesan kemarin.
+   * Hanya naik bila hari memang berganti (tidak me-render ulang tiap foreground).
+   */
+  const [dayTick, setDayTick] = useState(0)
+  useEffect(() => {
+    let today = dayKey(new Date().toISOString())
+    const bump = () => {
+      const now = dayKey(new Date().toISOString())
+      if (now === today) return
+      today = now
+      setDayTick((t) => t + 1)
+    }
+    let timer: ReturnType<typeof setTimeout>
+    const schedule = () => {
+      timer = setTimeout(() => {
+        bump()
+        schedule()
+      }, msUntilNextLocalMidnight())
+    }
+    schedule()
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") bump()
+    })
+    return () => {
+      clearTimeout(timer)
+      sub.remove()
+    }
+  }, [])
   const threadRows = useMemo<ThreadRow[]>(() => {
     const rows: ThreadRow[] = []
     let lastDay = ""
@@ -1718,7 +1773,7 @@ export default function ChatRoomScreen() {
       rows.push({ kind: "msg", key: clientKeyOf(m), message: m, index })
     })
     return rows
-  }, [visibleMessages, unreadAnchorId])
+  }, [visibleMessages, unreadAnchorId, dayTick])
 
   /**
    * Tim8 P1: cache tinggi baris thread (kunci = `row.key`, stabil antar
@@ -2147,6 +2202,27 @@ export default function ChatRoomScreen() {
    * yang sama.
    */
   /**
+   * Audit chat G20: konfirmasi berkas besar (> 20 MB) SEBELUM unggah — unggahan
+   * dimulai begitu berkas dipilih (bukan saat tombol kirim), jadi di sinilah
+   * kuota pengirim masih bisa diselamatkan. Promise diselesaikan oleh dialog;
+   * keluar ruang = batal.
+   */
+  const [largeFileSize, setLargeFileSize] = useState<number | null>(null)
+  const largeFileGateRef = useRef<ConfirmGate<number> | null>(null)
+  if (largeFileGateRef.current === null) {
+    largeFileGateRef.current = createConfirmGate<number>(setLargeFileSize)
+  }
+  const askLargeFile = useCallback(
+    (size: number) => (largeFileGateRef.current as ConfirmGate<number>).ask(size),
+    [],
+  )
+  const settleLargeFile = useCallback(
+    (ok: boolean) => largeFileGateRef.current?.settle(ok),
+    [],
+  )
+  useEffect(() => () => largeFileGateRef.current?.dispose(), [])
+
+  /**
    * Audit chat C7: id lampiran yang harus DIKIRIM OTOMATIS begitu unggahnya
    * selesai — voice note hasil tahan-untuk-merekam (lepas = kirim, ala
    * WhatsApp), bukan menunggu ketukan "Kirim" kedua.
@@ -2183,6 +2259,11 @@ export default function ChatRoomScreen() {
         })
         return
       }
+      // G20: berkas > 20 MB meminta konfirmasi (voice note otomatis tidak pernah sebesar itu).
+      if (!opts.autoSend && needsLargeFileConfirm(picked.size)) {
+        const confirmed = await askLargeFile(picked.size)
+        if (!confirmed) return
+      }
       const localId = `${Date.now()}-${picked.name}`
       const idempotencyKey = createIdempotencyKey()
       if (opts.autoSend) autoSendIdsRef.current.add(localId)
@@ -2201,7 +2282,7 @@ export default function ChatRoomScreen() {
       ])
       await uploadAttachment(localId, picked, idempotencyKey)
     },
-    [toast.show, uploadAttachment],
+    [toast.show, uploadAttachment, askLargeFile],
   )
 
   /**
@@ -2451,10 +2532,7 @@ export default function ChatRoomScreen() {
         clearChatDraft(roomId)
         setAttachments([])
         // Hentikan indikator mengetik setelah pesan terkirim.
-        // Hentikan indikator mengetik setelah pesan terkirim.
-        if (typingTimer.current) clearTimeout(typingTimer.current)
-        typingActive.current = false
-        sendTypingRealtime(false)
+        typingSenderRef.current?.stop()
       }
       setReplyTarget(null)
       // Batch 43: sekali-lihat = one-shot, selalu direset setelah kirim.
@@ -3008,22 +3086,25 @@ export default function ChatRoomScreen() {
   const openSearch = useCallback(() => setSearchOpen(true), [])
   const openInlineSearch = useCallback(() => setInlineSearchOpen(true), [])
 
-  // ── Typing indicator: kirim saat draft berubah, hentikan 3 dtk setelah diam ──
-  const notifyTyping = useCallback(() => {
-    if (!roomId) return
-    if (!typingActive.current) {
-      typingActive.current = true
-      sendTypingRealtime(true)
-    }
-    // F-07: pengguna sedang mengetik → percakapan hidup, poll cepat.
-    emptyPolls.current = 0
-    setPollInterval(CHAT_POLL_MS)
-    if (typingTimer.current) clearTimeout(typingTimer.current)
-    typingTimer.current = setTimeout(() => {
-      typingActive.current = false
-      sendTypingRealtime(false)
-    }, 3000)
-  }, [roomId, sendTypingRealtime])
+  // ── Typing indicator (audit chat G17) ──
+  // Mesin kirim ada di lib/chat-typing: sinyal dikirim di ketikan pertama,
+  // diulang tiap 5 dtk selama masih mengetik (TTL server 8 dtk — tanpa denyut
+  // indikator lawan bicara mati di tengah sesi panjang), berhenti 3 dtk
+  // setelah diam, dan SEGERA saat draft dikosongkan / pesan dikirim / kolom
+  // kehilangan fokus / aplikasi ke latar.
+  const notifyTyping = useCallback(
+    (hasText: boolean) => {
+      if (!roomId) return
+      typingSenderRef.current?.keystroke(hasText)
+      if (hasText) {
+        // F-07: pengguna sedang mengetik → percakapan hidup, poll cepat.
+        emptyPolls.current = 0
+        setPollInterval(CHAT_POLL_MS)
+      }
+    },
+    [roomId],
+  )
+  const handleComposerBlur = useCallback(() => typingSenderRef.current?.stop(), [])
 
   // R1-001: draft kini milik <ChatRoomFooter> — ref ini menghubungkan
   // notifikasi ketikan (handleDraftChange) ke notifyTyping yang
@@ -3034,13 +3115,12 @@ export default function ChatRoomScreen() {
 
   useEffect(() => {
     return () => {
-      if (typingTimer.current) clearTimeout(typingTimer.current)
       // C-08 (audit): keluar ruang tanpa menghentikan indikator mengetik
       // membuat lawan bicara melihat "sedang mengetik…" tersisa sampai TTL
       // server. Fire-and-forget di cleanup (ref: roomId bisa sudah berganti).
-      if (typingActive.current && roomIdRef.current) {
+      const wasActive = typingSenderRef.current?.dispose()
+      if (wasActive && roomIdRef.current) {
         void sendChatTyping(roomIdRef.current, false).catch((err) => logWarn("chat:typing-unmount", err))
-        typingActive.current = false
       }
     }
   }, [])
@@ -3201,18 +3281,35 @@ export default function ChatRoomScreen() {
   // UIUX-121: presence yang basi/tidak diketahui tidak boleh disamakan dengan
   // offline; baris status dikosongkan kecuali server memberi keadaan yang jelas
   // atau last-seen masih dalam seminggu (keputusan produk 2026-10-03).
-  const statusText = counterpartTyping
-    ? "Sedang mengetik…"
+  // Audit chat G17: DM 1:1 → "Sedang mengetik…"; ruang multi-pihak menyebut
+  // NAMA ("Budi sedang mengetik…"). Teks status lewat translate() — dulu
+  // literal Indonesia (termasuk template literal "Terakhir dilihat …").
+  const typingSummary = summarizeTypers(typers, { isGroup: showPeerIdentity })
+  const typingText =
+    typingSummary.kind === "none"
+      ? undefined
+      : typingSummary.kind === "generic"
+        ? translate("Sedang mengetik…")
+        : typingSummary.kind === "one"
+          ? translate("{x} sedang mengetik…", { x: typingSummary.a })
+          : typingSummary.kind === "two"
+            ? translate("{x} dan {y} sedang mengetik…", { x: typingSummary.a, y: typingSummary.b })
+            : translate("{x} dan {y} lainnya sedang mengetik…", {
+                x: typingSummary.a,
+                y: typingSummary.others,
+              })
+  const statusText = typingText
+    ? typingText
     : presenceStatus.kind === "online"
-      ? "Sedang aktif"
+      ? translate("Sedang aktif")
       : presenceStatus.kind === "last-seen"
         ? // UI-C003: cap waktu ringkas ("Kemarin"), bukan datetime penuh yang
           // memadati baris status 2-baris di bawah nama.
-          `Terakhir dilihat ${formatChatListTime(presenceStatus.at)}`
+          translate("Terakhir dilihat {x}", { x: formatChatListTime(presenceStatus.at) })
         : presenceStatus.kind === "offline"
-          ? "Tidak aktif"
+          ? translate("Tidak aktif")
           : staleWithinWeek
-            ? `Terakhir dilihat ${formatChatListTime(staleLastSeenAt as string)}`
+            ? translate("Terakhir dilihat {x}", { x: formatChatListTime(staleLastSeenAt as string) })
             : undefined
 
   // ── Aksi mode pilih pesan (ubin ikon+label di <SelectionBar>) ──────────
@@ -3820,6 +3917,7 @@ export default function ChatRoomScreen() {
           initialDraft={restoredDraft}
           draftResetKey={draftResetKey}
           onDraftChange={handleDraftChange}
+          onComposerBlur={handleComposerBlur}
           onSend={(p) => void handleSend(p)}
           attachments={composerAttachments}
           onAttach={() => setAttachSheetOpen(true)}
@@ -4138,6 +4236,20 @@ export default function ChatRoomScreen() {
         onConfirm={() => void handleDeleteSelected()}
         onCancel={() => setDeleteOpen(false)}
         onRequestClose={() => setDeleteOpen(false)}
+      />
+
+      {/* Audit chat G20: berkas > 20 MB meminta konfirmasi sebelum diunggah. */}
+      <Dialog
+        visible={largeFileSize != null}
+        title={translate("File {x}, lanjutkan?", { x: formatBytesId(largeFileSize ?? 0) })}
+        description={translate(
+          "Mengunggah berkas besar memakai banyak kuota dan butuh waktu. Pastikan koneksi Anda stabil.",
+        )}
+        confirmLabel={translate("Lanjutkan")}
+        cancelLabel={translate("Batal")}
+        onConfirm={() => settleLargeFile(true)}
+        onCancel={() => settleLargeFile(false)}
+        onRequestClose={() => settleLargeFile(false)}
       />
 
       {/* Menu lampiran (+) composer: Gambar / Video / File / Voice Note

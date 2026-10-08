@@ -318,3 +318,28 @@ ruang:
    (`updatedAt`+`id` terakhir) halaman berikutnya stabil — dan perbaikan klien
    itu tidak lagi diperlukan.
 
+## G — UX: mengetik, pemisah hari, ruang kosong, berkas besar
+
+**Kondisi hari ini.** Indikator mengetik berhenti 3 dtk setelah diam (dan
+seketika saat draft kosong / pesan terkirim / kolom kehilangan fokus /
+aplikasi ke latar), berdenyut tiap 5 dtk selama masih mengetik, dan di ruang
+multi-pihak menyebut nama ("Budi sedang mengetik…") dari
+`chat.typing.username` yang SUDAH ada di payload. Pemisah hari menghitung
+ulang labelnya saat hari berganti; ruang kosong punya ilustrasi + panduan;
+berkas > 20 MB meminta konfirmasi sebelum diunggah. Tidak ada perubahan
+kontrak. Yang akan menghapus angka-angka yang kini disalin di klien:
+
+1. **Endpoint konfigurasi chat** — `GET /v1/chat/config` →
+   `{ attachmentMaxBytes, attachmentMaxCount, allowedMimeTypes,
+   messageMaxLength, voiceNoteMaxSeconds, maxPinsPerRoom }`. Hari ini klien
+   menyalin batas dari kode backend (`lib/chat-attachment-limits.ts`:
+   "tidak ada endpoint yang mengekspos batas ini — gap kontrak yang
+   diketahui"), menebak batas pin dari penolakan (bagian E), dan mem-hardcode
+   ambang konfirmasi berkas besar (20 MB) sebagai kebijakan klien. Satu
+   endpoint menutup ketiganya dan membuat perubahan batas di server tidak
+   diam-diam melenceng di klien.
+2. **Typing: sertakan `expiresAt` pada SETIAP event `chat.typing`** (field-nya
+   sudah ada di tipe). Klien memakai kedaluwarsa tetap 10 dtk bila server
+   tidak mengirimnya; dengan `expiresAt` akurat, indikator mati tepat saat
+   status server habis, termasuk bila paket `stop` hilang.
+

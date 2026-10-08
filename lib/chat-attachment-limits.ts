@@ -21,6 +21,24 @@
 export const CHAT_ATTACHMENT_MAX_BYTES = 50 * 1024 * 1024
 
 /**
+ * Audit chat G20: berkas LEBIH BESAR dari ini (20 MB) meminta konfirmasi
+ * ("File 40 MB, lanjutkan?") sebelum diunggah — unggahan besar menghabiskan
+ * kuota pengirim dan lama di jaringan lambat, dan sering tidak disengaja
+ * (video mentah, foto kualitas asli). Di atas batas server (50 MB) berkas
+ * ditolak lebih dulu oleh `validateChatAttachment`, jadi konfirmasi berlaku
+ * untuk rentang (20 MB, 50 MB].
+ */
+export const CHAT_LARGE_FILE_CONFIRM_BYTES = 20 * 1024 * 1024
+
+/**
+ * Perlu konfirmasi? Hanya bila ukurannya DIKETAHUI dan melewati batas
+ * (`size` 0/absen = platform tidak melaporkan → tidak ada dasar bertanya).
+ */
+export function needsLargeFileConfirm(size?: number | null): boolean {
+  return typeof size === "number" && Number.isFinite(size) && size > CHAT_LARGE_FILE_CONFIRM_BYTES
+}
+
+/**
  * SYS-C-303: batas jumlah lampiran per pesan chat: 10
  * (backend `src/modules/chat/dto/send-message.dto.ts:144`). Klien menolak
  * SEBELUM upload — user yang menambah file ke-11 akan membuang kuota karena

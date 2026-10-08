@@ -43,5 +43,16 @@
   "Batas pin tercapai": "Pin limit reached",
   "Ketuk untuk menarik reaksi": "Tap to remove your reaction",
   "Maksimal {x} pin per percakapan. Lepas salah satu pin untuk menyematkan pesan lain.": "Up to {x} pins per conversation. Unpin one to pin another message.",
-  "Pengguna lain": "Another user"
+  "Pengguna lain": "Another user",
+  "File {x}, lanjutkan?": "File {x}, continue?",
+  "Mengunggah berkas besar memakai banyak kuota dan butuh waktu. Pastikan koneksi Anda stabil.": "Uploading a large file uses a lot of data and takes time. Make sure your connection is stable.",
+  "Ketuk + untuk foto, berkas, atau lokasi. Tahan mikrofon untuk pesan suara.": "Tap + for a photo, file, or location. Hold the microphone for a voice message.",
+  "Terakhir dilihat {x}": "Last seen {x}",
+  "{x} dan {y} lainnya sedang mengetik…": "{x} and {y} others are typing…",
+  "{x} dan {y} sedang mengetik…": "{x} and {y} are typing…",
+  "{x} sedang mengetik…": "{x} is typing…",
+  "Sapa {x} untuk memulai percakapan. Tanyakan detail barang atau jasa, dan lakukan transaksi lewat Kahade agar aman.": "Say hi to {x} to start the conversation. Ask about the item or service, and complete the transaction through Kahade to stay safe.",
+  "Sapa lawan bicara Anda untuk memulai percakapan. Tanyakan detail barang atau jasa, dan lakukan transaksi lewat Kahade agar aman.": "Say hi to start the conversation. Ask about the item or service, and complete the transaction through Kahade to stay safe.",
+  "Sedang mengetik…": "Typing…",
+  "Simpan catatan, tautan, atau foto untuk diri sendiri di sini.": "Keep notes, links, or photos for yourself here."
 }

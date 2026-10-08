@@ -4,7 +4,7 @@
  "strings": [
   {
    "s": "Batal",
-   "n": 141
+   "n": 144
   },
   {
    "s": "Aksi mungkin sudah diproses — memuat ulang…",
@@ -51,6 +51,10 @@
    "n": 22
   },
   {
+   "s": "Lanjutkan",
+   "n": 19
+  },
+  {
    "s": "Lihat profil {x}",
    "n": 18
   },
@@ -64,10 +68,6 @@
   },
   {
    "s": "Komentar",
-   "n": 16
-  },
-  {
-   "s": "Lanjutkan",
    "n": 16
   },
   {
@@ -291,6 +291,10 @@
    "n": 9
   },
   {
+   "s": "Kemarin",
+   "n": 9
+  },
+  {
    "s": "Kirim komentar",
    "n": 9
   },
@@ -348,10 +352,6 @@
   },
   {
    "s": "Kata sandi",
-   "n": 8
-  },
-  {
-   "s": "Kemarin",
    "n": 8
   },
   {
@@ -416,6 +416,10 @@
   },
   {
    "s": "Gagal memuat etalase",
+   "n": 7
+  },
+  {
+   "s": "Hari ini",
    "n": 7
   },
   {
@@ -632,10 +636,6 @@
   },
   {
    "s": "Harga {x} ditampilkan sebagai Gratis.",
-   "n": 6
-  },
-  {
-   "s": "Hari ini",
    "n": 6
   },
   {
@@ -928,6 +928,10 @@
   },
   {
    "s": "Belum ada pertanyaan dari pengguna lain.",
+   "n": 5
+  },
+  {
+   "s": "Belum ada pesan",
    "n": 5
   },
   {
@@ -2171,10 +2175,6 @@
    "n": 3
   },
   {
-   "s": "Belum ada pesan",
-   "n": 3
-  },
-  {
    "s": "Belum ada produk di etalase",
    "n": 3
   },
@@ -2636,6 +2636,10 @@
   },
   {
    "s": "File",
+   "n": 3
+  },
+  {
+   "s": "File {x}, lanjutkan?",
    "n": 3
   },
   {
@@ -3671,6 +3675,10 @@
    "n": 3
   },
   {
+   "s": "Mengunggah berkas besar memakai banyak kuota dan butuh waktu. Pastikan koneksi Anda stabil.",
+   "n": 3
+  },
+  {
    "s": "Menit",
    "n": 3
   },
@@ -4616,6 +4624,10 @@
   },
   {
    "s": "Tidak ada yang cocok di mutasi yang dimuat",
+   "n": 3
+  },
+  {
+   "s": "Tidak aktif",
    "n": 3
   },
   {
@@ -6667,6 +6679,10 @@
    "n": 2
   },
   {
+   "s": "Ketuk + untuk foto, berkas, atau lokasi. Tahan mikrofon untuk pesan suara.",
+   "n": 2
+  },
+  {
    "s": "Ketuk atau tekan lama untuk opsi pesan",
    "n": 2
   },
@@ -8195,6 +8211,10 @@
    "n": 2
   },
   {
+   "s": "Sedang aktif",
+   "n": 2
+  },
+  {
    "s": "Sedang tren",
    "n": 2
   },
@@ -8659,6 +8679,10 @@
    "n": 2
   },
   {
+   "s": "Terakhir dilihat {x}",
+   "n": 2
+  },
+  {
    "s": "Terapkan format {x} pada teks yang dipilih",
    "n": 2
   },
@@ -8768,10 +8792,6 @@
   },
   {
    "s": "Tidak ada yang diblokir",
-   "n": 2
-  },
-  {
-   "s": "Tidak aktif",
    "n": 2
   },
   {
@@ -9207,6 +9227,14 @@
    "n": 1
   },
   {
+   "s": "{x} dan {y} lainnya sedang mengetik…",
+   "n": 1
+  },
+  {
+   "s": "{x} dan {y} sedang mengetik…",
+   "n": 1
+  },
+  {
    "s": "{x} dari {x}{x}",
    "n": 1
   },
@@ -9300,6 +9328,10 @@
   },
   {
    "s": "{x} pesan diteruskan",
+   "n": 1
+  },
+  {
+   "s": "{x} sedang mengetik…",
    "n": 1
   },
   {
@@ -20171,6 +20203,14 @@
    "n": 1
   },
   {
+   "s": "Sapa {x} untuk memulai percakapan. Tanyakan detail barang atau jasa, dan lakukan transaksi lewat Kahade agar aman.",
+   "n": 1
+  },
+  {
+   "s": "Sapa lawan bicara Anda untuk memulai percakapan. Tanyakan detail barang atau jasa, dan lakukan transaksi lewat Kahade agar aman.",
+   "n": 1
+  },
+  {
    "s": "Saran dan masukan untuk Kahade",
    "n": 1
   },
@@ -20219,15 +20259,15 @@
    "n": 1
   },
   {
-   "s": "Sedang aktif",
-   "n": 1
-  },
-  {
    "s": "Sedang ditangani",
    "n": 1
   },
   {
    "s": "Sedang ditinjau",
+   "n": 1
+  },
+  {
+   "s": "Sedang mengetik…",
    "n": 1
   },
   {
@@ -20604,6 +20644,10 @@
   },
   {
    "s": "Simpan catatan",
+   "n": 1
+  },
+  {
+   "s": "Simpan catatan, tautan, atau foto untuk diri sendiri di sini.",
    "n": 1
   },
   {
