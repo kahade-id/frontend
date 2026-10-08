@@ -47,4 +47,20 @@ describe("useSlowLoading", () => {
     act(() => void vi.advanceTimersByTime(100))
     expect(result.current).toBe(true)
   })
+
+  it("ganti token (Coba lagi) mengulang penghitungan: penanda lama tidak ikut terbawa", () => {
+    const { result, rerender } = renderHook(
+      ({ active, token }) => useSlowLoading(active, 1000, token),
+      { initialProps: { active: true, token: 1 } },
+    )
+    act(() => void vi.advanceTimersByTime(1500))
+    expect(result.current).toBe(true)
+    // Percobaan baru: shimmer lagi sejak detik ini, bukan galat sisa.
+    rerender({ active: true, token: 2 })
+    expect(result.current).toBe(false)
+    act(() => void vi.advanceTimersByTime(999))
+    expect(result.current).toBe(false)
+    act(() => void vi.advanceTimersByTime(1))
+    expect(result.current).toBe(true)
+  })
 })

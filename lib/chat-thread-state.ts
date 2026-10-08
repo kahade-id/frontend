@@ -34,31 +34,40 @@ export type ThreadStateInput = {
   roomGone: boolean
   /** Jumlah baris pesan yang bisa ditampilkan (sudah tanpa yang disembunyikan). */
   rowCount: number
+  /**
+   * Muat awal belum memberi data selama `THREAD_LOADING_TIMEOUT_MS` (Bug 2,
+   * 2026-10-08). Diberikan pemanggil dari timer yang hanya menyala saat
+   * `loading` dan belum ada baris; begitu ada baris, keadaan "ready" menang.
+   */
+  timedOut?: boolean
 }
 
 /**
  * Urutan keputusan (setiap pertanyaan menjawab satu hal):
  *   1. tanpa id ruang → "invalid" (tidak ada yang bisa dimuat);
  *   2. ADA pesan → "ready" — pesan yang sudah ada selalu menang, juga saat
- *      muat-ulang berjalan atau galat sementara (jangan menutupi percakapan
- *      dengan shimmer/galat);
+ *      muat-ulang berjalan, galat sementara, ATAU setelah timeout (respons
+ *      terlambat yang akhirnya membawa pesan langsung menggantikan galat);
  *   3. ruang hilang → "gone" (404: mencoba lagi sia-sia);
- *   4. sedang memuat → "loading";
- *   5. galat → "error";
- *   6. selain itu → "empty".
+ *   4. muat awal melewati batas waktu → "error" (Bug 2: pesan galat + Coba lagi,
+ *      bukan shimmer tanpa akhir);
+ *   5. sedang memuat → "loading";
+ *   6. galat → "error";
+ *   7. selain itu → "empty".
  */
 export function resolveThreadState(input: ThreadStateInput): ThreadState {
   if (!input.hasRoomId) return "invalid"
   if (input.rowCount > 0) return "ready"
   if (input.roomGone) return "gone"
+  if (input.timedOut) return "error"
   if (input.loading) return "loading"
   if (input.error) return "error"
   return "empty"
 }
 
 /**
- * Sesudah memuat ini lama (ms) tanpa hasil, shimmer diberi PENJELASAN + Coba
- * lagi — pengguna tidak dibiarkan menatap shimmer tanpa tahu apa yang terjadi
- * (timeout HTTP bisa puluhan detik).
+ * Batas tunggu muat awal (ms) tanpa data. Lewat dari ini, layar menampilkan
+ * galat + "Coba lagi" (Bug 2, permintaan produk: "lebih dari 10 detik").
+ * Permintaan di belakangnya tetap berjalan: bila datanya tiba, pesan menang.
  */
-export const THREAD_LOADING_SLOW_MS = 12_000
+export const THREAD_LOADING_TIMEOUT_MS = 10_000

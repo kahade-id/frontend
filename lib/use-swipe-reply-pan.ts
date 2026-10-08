@@ -29,7 +29,7 @@
  *     fungsi — pengecualian WCAG 2.3.3), hanya snap-back yang kehilangan
  *     spring.
  */
-import { useEffect, useMemo, useRef } from "react"
+import { useCallback, useEffect, useMemo, useRef } from "react"
 import { Gesture } from "react-native-gesture-handler"
 import { runOnJS, withSpring, withTiming, type SharedValue } from "react-native-reanimated"
 
@@ -62,6 +62,16 @@ export function useSwipeReplyPan({ enabled, swipeX, onTrigger }: SwipeReplyPanOp
   useEffect(() => {
     triggerRef.current = onTrigger
   }, [onTrigger])
+  /**
+   * Bug 1 (2026-10-08): worklet `onEnd` TIDAK boleh membaca `triggerRef.current`
+   * langsung — Reanimated menyalin objek ref ke UI thread saat gesture dibuat,
+   * jadi callback yang terpakai adalah snapshot pertama (stale). Gantinya,
+   * worklet memanggil fungsi JS stabil ini lewat runOnJS, dan fungsi ini
+   * membaca ref di JS thread (selalu nilai terbaru).
+   */
+  const fireTrigger = useCallback(() => {
+    triggerRef.current?.()
+  }, [])
 
   return useMemo(() => {
     if (!enabled) return Gesture.Pan().enabled(false)
@@ -79,10 +89,7 @@ export function useSwipeReplyPan({ enabled, swipeX, onTrigger }: SwipeReplyPanOp
           const triggered =
             swipeX.value >= SWIPE_REPLY_THRESHOLD_PX ||
             e.velocityX >= SWIPE_REPLY_FLING_VELOCITY_PX_S
-          if (triggered) {
-            const cb = triggerRef.current
-            if (cb) runOnJS(cb)()
-          }
+          if (triggered) runOnJS(fireTrigger)()
           // Reduce Motion: snap-back INSTAN tanpa spring — yang dipertahankan
           // hanya translasi mengikuti jari (pengecualian WCAG 2.3.3).
           swipeX.value = reduceMotion
@@ -90,5 +97,5 @@ export function useSwipeReplyPan({ enabled, swipeX, onTrigger }: SwipeReplyPanOp
             : withSpring(0, tokens.motion.spring)
         })
     )
-  }, [enabled, reduceMotion, swipeX])
+  }, [enabled, reduceMotion, swipeX, fireTrigger])
 }

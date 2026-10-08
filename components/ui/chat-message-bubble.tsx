@@ -65,7 +65,6 @@ import { memo, useEffect, useMemo, useRef, type ReactNode, type RefObject } from
 import { View, type GestureResponderEvent, type ViewInstance, type ViewProps } from "react-native"
 import { GestureDetector } from "react-native-gesture-handler"
 import Animated, {
-  useAnimatedStyle,
   useSharedValue,
   withRepeat,
   withSequence,
@@ -105,6 +104,7 @@ import {
 } from "@/lib/chat-bubble-motion"
 import { summarize } from "@/lib/a11y"
 import { useSwipeReplyPan } from "@/lib/use-swipe-reply-pan"
+import { useSafeAnimatedStyle } from "@/lib/use-safe-animated-style"
 import { useReducedMotion } from "@/lib/use-reduced-motion"
 import { splitHighlightSpans } from "@/lib/chat-search"
 import {
@@ -375,22 +375,37 @@ function ChatMessageBubbleBase({
   const reducedMotion = useReducedMotion()
   const entranceStart = useRef(animateEntrance && !reducedMotion ? 0 : 1).current
   const entrance = useSharedValue(entranceStart)
-  const entranceStyle = useAnimatedStyle(() => {
-    const p = entrance.value
-    const from = bubbleEntranceVector(direction)
-    return {
-      // Opasitas penuh mulai 60% perjalanan: bubble tidak "muncul dari
-      // ketiadaan" yang terasa berkedip, tapi tetap naik dengan tegas.
-      opacity: Math.min(1, p * 1.6),
-      transform: [
-        { translateX: from.translateX * (1 - p) },
-        // Geser vertikal memakai kurva lebih cepat luruh (kuadrat): bubble
-        // mendarat, tidak melayang-layang.
-        { translateY: from.translateY * (1 - p) * (1 - p) },
-        { scale: from.scale + (1 - from.scale) * p },
-      ],
-    }
-  })
+  /**
+   * Bug 1 (2026-10-08): vektor dihitung di JS thread (useMemo) lalu DIBACA
+   * sebagai angka oleh updater. Updater berjalan di UI thread; memanggil
+   * `bubbleEntranceVector` dari dalam sana melempar "Tried to synchronously
+   * call a Remote Function" dan mematikan app — terjadi di setiap bubble yang
+   * ter-mount, termasuk pesan lama. Jangan panggil helper JS dari updater.
+   */
+  const entranceVector = useMemo(() => bubbleEntranceVector(direction), [direction])
+  const entranceFromX = entranceVector.translateX
+  const entranceFromY = entranceVector.translateY
+  const entranceFromScale = entranceVector.scale
+  const entranceStyle = useSafeAnimatedStyle(
+    () => {
+      "worklet"
+      // Nilai tak terbaca (non-finite) → keadaan akhir (tampil utuh).
+      const p = Number.isFinite(entrance.value) ? entrance.value : 1
+      return {
+        // Opasitas penuh mulai 60% perjalanan: bubble tidak "muncul dari
+        // ketiadaan" yang terasa berkedip, tapi tetap naik dengan tegas.
+        opacity: Math.min(1, p * 1.6),
+        transform: [
+          { translateX: entranceFromX * (1 - p) },
+          // Geser vertikal memakai kurva lebih cepat luruh (kuadrat): bubble
+          // mendarat, tidak melayang-layang.
+          { translateY: entranceFromY * (1 - p) * (1 - p) },
+          { scale: entranceFromScale + (1 - entranceFromScale) * p },
+        ],
+      }
+    },
+    { opacity: 1, transform: [{ translateX: 0 }, { translateY: 0 }, { scale: 1 }] },
+  )
   useEffect(() => {
     if (entranceStart !== 0) return
     entrance.value = withSpring(1, tokens.motion.springPlayful)
@@ -413,7 +428,13 @@ function ChatMessageBubbleBase({
     }
     sendingPulse.value = 1
   }, [sending, reducedMotion, sendingPulse])
-  const sendingPulseStyle = useAnimatedStyle(() => ({ opacity: sendingPulse.value }))
+  const sendingPulseStyle = useSafeAnimatedStyle(
+    () => {
+      "worklet"
+      return { opacity: sendingPulse.value }
+    },
+    { opacity: 1 },
+  )
 
   /** Pop centang saat status NAIK (sent → read = "sudah dibaca"). */
   const statusPop = useSharedValue(1)
@@ -425,7 +446,13 @@ function ChatMessageBubbleBase({
     statusPop.value = 1.35
     statusPop.value = withSpring(1, tokens.motion.springPlayful)
   }, [status, reducedMotion, statusPop])
-  const statusPopStyle = useAnimatedStyle(() => ({ transform: [{ scale: statusPop.value }] }))
+  const statusPopStyle = useSafeAnimatedStyle(
+    () => {
+      "worklet"
+      return { transform: [{ scale: statusPop.value }] }
+    },
+    { transform: [{ scale: 1 }] },
+  )
   const hasReactions = !!reactions && reactions.length > 0
   /**
    * Tim8 P1: `splitHighlightSpans` mengkompilasi `new RegExp` per panggilan —
@@ -475,17 +502,25 @@ function ChatMessageBubbleBase({
    * terjadi — baik pan-nya milik bubble maupun milik baris.
    */
   const showSwipeChrome = canSwipeReply || rowOwnsSwipe
-  const swipeBubbleStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: swipeX.value }],
-  }))
+  const swipeBubbleStyle = useSafeAnimatedStyle(
+    () => {
+      "worklet"
+      return { transform: [{ translateX: swipeX.value }] }
+    },
+    { transform: [{ translateX: 0 }] },
+  )
   /**
    * Hint visual: ikon reply fade+scale (bukan gerak) di ruang yang terbuka
    * di kiri bubble saat digeser.
    */
-  const swipeHintStyle = useAnimatedStyle(() => {
-    const p = Math.min(1, swipeX.value / SWIPE_REPLY_MAX_PX)
-    return { opacity: p, transform: [{ scale: 0.5 + 0.5 * p }] }
-  })
+  const swipeHintStyle = useSafeAnimatedStyle(
+    () => {
+      "worklet"
+      const p = Math.min(1, swipeX.value / SWIPE_REPLY_MAX_PX)
+      return { opacity: p, transform: [{ scale: 0.5 + 0.5 * p }] }
+    },
+    { opacity: 0, transform: [{ scale: 0.5 }] },
+  )
 
   if (direction === "system") {
     // Batch 43 (2026-09-28): pesan SYSTEM dirender sebagai kartu terpusat

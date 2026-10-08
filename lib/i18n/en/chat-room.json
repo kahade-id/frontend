@@ -60,7 +60,10 @@
   "Hanya berlaku di perangkat ini.": "Applies to this device only.",
   "Izinkan screenshot & rekam layar di chat": "Allow screenshots & screen recording in chats",
   "Layar": "Screen",
-  "Masih memuat percakapan. Periksa koneksi internet Anda.": "Still loading the conversation. Check your internet connection.",
   "Kami tidak dapat memuat percakapan ini. Silakan coba lagi.": "We couldn't load this conversation. Please try again.",
-  "Tautan percakapan ini tidak valid.": "This conversation link isn't valid."
+  "Tautan percakapan ini tidak valid.": "This conversation link isn't valid.",
+  "Percakapan tidak dapat ditampilkan": "Conversation can't be displayed",
+  "Terjadi kesalahan saat menampilkan pesan. Coba lagi.": "Something went wrong while showing messages. Try again.",
+  "Pesan ini tidak dapat ditampilkan.": "This message can't be displayed.",
+  "Percakapan belum termuat. Periksa koneksi internet Anda, lalu coba lagi.": "The conversation hasn't loaded yet. Check your internet connection, then try again."
 }

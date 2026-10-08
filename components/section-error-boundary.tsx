@@ -16,22 +16,18 @@
  * Bukan class boundary sendiri — expo-router yang menyediakan boundary-nya
  * dan meneruskan `error` + `retry` sebagai props.
  */
+import { useEffect } from "react"
 import { WifiSlash } from "phosphor-react-native"
 
 import { ErrorState } from "@/components/ui/error-state"
 import { Screen } from "@/components/ui/screen"
 import { isOfflineKnown, useIsOnline } from "@/lib/connectivity"
 import { isConnectivityError } from "@/lib/connectivity-error"
-import { logWarn } from "@/lib/telemetry"
+import { captureError } from "@/lib/telemetry"
 
 export type SectionErrorBoundaryProps = {
   error: unknown
   retry: () => void
-}
-
-function messageOf(error: unknown): string {
-  if (error instanceof Error) return `${error.name}: ${error.message}`
-  return String(error ?? "")
 }
 
 export function SectionErrorBoundary({ error, retry }: SectionErrorBoundaryProps) {
@@ -41,9 +37,11 @@ export function SectionErrorBoundary({ error, retry }: SectionErrorBoundaryProps
   // sebagai masalah koneksi — retry akan berhasil setelah online.
   const offline = !online || isOfflineKnown() || isConnectivityError(error)
 
-  if (__DEV__) {
-    logWarn("section-boundary:caught", { message: messageOf(error), offline })
-  }
+  // Bug 1 (2026-10-08): dulu hanya dicatat di __DEV__ — crash render di produksi
+  // tidak pernah tercatat. Kini dicatat di semua build, sekali per error.
+  useEffect(() => {
+    captureError("section-boundary:caught", error)
+  }, [error])
 
   if (offline) {
     return (

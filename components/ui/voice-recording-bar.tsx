@@ -21,7 +21,6 @@ import { CaretLeft, Trash } from "phosphor-react-native"
 import { useEffect } from "react"
 import { View } from "react-native"
 import Animated, {
-  useAnimatedStyle,
   useSharedValue,
   withRepeat,
   withSequence,
@@ -35,6 +34,7 @@ import { IconButton } from "@/components/ui/icon-button"
 import { Text } from "@/components/ui/text"
 import { translate, useLanguage } from "@/lib/i18n"
 import { tokens } from "@/lib/tokens"
+import { useSafeAnimatedStyle } from "@/lib/use-safe-animated-style"
 import { useReducedMotion } from "@/lib/use-reduced-motion"
 import { formatVoiceNoteDuration } from "@/lib/voice-note"
 
@@ -83,12 +83,25 @@ export function VoiceRecordingBar({
       pulse.value = 1
     }
   }, [pulse, reducedMotion])
-  const dotStyle = useAnimatedStyle(() => ({ opacity: pulse.value }))
+  // Fallback = keadaan diam (lihat lib/use-safe-animated-style).
+  const dotStyle = useSafeAnimatedStyle(
+    () => {
+      "worklet"
+      return { opacity: pulse.value }
+    },
+    { opacity: 1 },
+  )
 
-  const hintStyle = useAnimatedStyle(() => ({
-    opacity: 1 - 0.5 * cancelProgress.value,
-    transform: [{ translateX: reducedMotion ? 0 : -HINT_SLIDE_PX * cancelProgress.value }],
-  }))
+  const hintStyle = useSafeAnimatedStyle(
+    () => {
+      "worklet"
+      return {
+        opacity: 1 - 0.5 * cancelProgress.value,
+        transform: [{ translateX: reducedMotion ? 0 : -HINT_SLIDE_PX * cancelProgress.value }],
+      }
+    },
+    { opacity: 1, transform: [{ translateX: 0 }] },
+  )
 
   const spokenMs = Math.floor(durationMs / SPOKEN_QUANTUM_MS) * SPOKEN_QUANTUM_MS
 

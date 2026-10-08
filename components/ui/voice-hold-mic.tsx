@@ -31,7 +31,8 @@ import { LockSimple, Microphone, PaperPlaneRight } from "phosphor-react-native"
 import { useEffect, useMemo, useRef } from "react"
 import { View } from "react-native"
 import { Gesture, GestureDetector } from "react-native-gesture-handler"
-import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated"
+import Animated, { useSharedValue, withTiming } from "react-native-reanimated"
+import { useSafeAnimatedStyle } from "@/lib/use-safe-animated-style"
 
 import { useTheme } from "@/components/theme-provider"
 import { Icon } from "@/components/ui/icon"
@@ -101,13 +102,26 @@ export function VoiceHoldMic({ voice, onTap, label, disabled = false }: VoiceHol
     const target = recording ? HOLD_SCALE : 1
     scale.value = reducedMotion ? target : withTiming(target, { duration: tokens.motion.duration.press })
   }, [recording, reducedMotion, scale])
-  const buttonStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }))
+  // Fallback = posisi diam (lihat lib/use-safe-animated-style).
+  const buttonStyle = useSafeAnimatedStyle(
+    () => {
+      "worklet"
+      return { transform: [{ scale: scale.value }] }
+    },
+    { transform: [{ scale: 1 }] },
+  )
 
   // Kapsul kunci naik mengikuti progres geser ke atas.
-  const capsuleStyle = useAnimatedStyle(() => ({
-    opacity: 0.55 + 0.45 * lockProgress.value,
-    transform: [{ translateY: reducedMotion ? 0 : -LOCK_CAPSULE_RISE_PX * lockProgress.value }],
-  }))
+  const capsuleStyle = useSafeAnimatedStyle(
+    () => {
+      "worklet"
+      return {
+        opacity: 0.55 + 0.45 * lockProgress.value,
+        transform: [{ translateY: reducedMotion ? 0 : -LOCK_CAPSULE_RISE_PX * lockProgress.value }],
+      }
+    },
+    { opacity: 0.55, transform: [{ translateY: 0 }] },
+  )
 
   const a11yLabel = locked ? translate("Kirim pesan suara") : label
   const a11yHint = locked
