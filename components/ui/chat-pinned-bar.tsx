@@ -33,6 +33,13 @@ export type ChatPinnedBarProps = {
   message: ChatMessage
   /** Jumlah seluruh pesan terpin di ruang (badge bila > 1). */
   count: number
+  /**
+   * Audit chat E12: batas pin per ruang YANG SUDAH DIKETAHUI (dipelajari dari
+   * penolakan backend). Diisi → badge tampil "2/3" supaya batasnya terlihat
+   * sebelum pengguna menabraknya. `undefined` = belum diketahui (tidak
+   * ditebak).
+   */
+  limit?: number
   /** Lompat ke pesan terpin di thread. */
   onPress: (message: ChatMessage) => void
   /** Tekan lama: lepas pin. */
@@ -45,6 +52,7 @@ export type ChatPinnedBarProps = {
 export const ChatPinnedBar = memo(function ChatPinnedBar({
   message,
   count,
+  limit,
   onPress,
   onUnpin,
   onLayout,
@@ -79,9 +87,18 @@ export const ChatPinnedBar = memo(function ChatPinnedBar({
           <Text variant="caption" weight={600} tone="primary" numberOfLines={1}>
             Pesan terpin
           </Text>
-          {count > 1 ? (
-            <Text variant="caption" tone="secondary" className="tabular-nums">
-              {count}
+          {limit != null || count > 1 ? (
+            <Text
+              variant="caption"
+              tone={limit != null && count >= limit ? "warning" : "secondary"}
+              className="tabular-nums"
+              accessibilityLabel={
+                limit != null
+                  ? translate("{x} dari maksimal {y} pin", { x: count, y: limit })
+                  : undefined
+              }
+            >
+              {limit != null ? `${count}/${limit}` : count}
             </Text>
           ) : null}
         </View>

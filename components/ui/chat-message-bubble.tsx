@@ -229,6 +229,13 @@ export type ChatMessageBubbleProps = Omit<ViewProps, "children"> & {
    */
   reactions?: { emoji: string; count: number; reactedByMe: boolean }[]
   onReact?: (emoji: string) => void
+  /**
+   * Audit chat E13: mengetuk chip reaksi membuka daftar "siapa memberi reaksi
+   * apa". Bila diisi, ia MENGGANTIKAN `onReact` untuk ketukan chip (mengubah
+   * reaksi sendiri lewat popover tekan-lama atau baris "Anda" di daftar).
+   * Tanpa ini (layar bantuan/sengketa) ketukan chip tetap mengubah reaksi.
+   */
+  onShowReactions?: (emoji: string) => void
   /** Ikon pin kecil di baris meta (pesan terpin). */
   isPinned?: boolean
   /** Tampilkan "diedit" di baris meta. */
@@ -314,6 +321,7 @@ function ChatMessageBubbleBase({
   onRetry,
   reactions,
   onReact,
+  onShowReactions,
   isPinned = false,
   isEdited = false,
   isDeleted = false,
@@ -781,9 +789,19 @@ function ChatMessageBubbleBase({
                 `${r.emoji} ${r.count}`,
                 r.reactedByMe ? translate("Anda") : undefined,
               ])}
-              accessibilityHint="Ketuk untuk mengubah reaksi"
+              accessibilityHint={
+                onShowReactions
+                  ? translate("Ketuk untuk melihat siapa yang bereaksi")
+                  : translate("Ketuk untuk mengubah reaksi")
+              }
               scaleOnPress={false}
-              onPress={onReact ? () => onReact(r.emoji) : undefined}
+              onPress={
+                onShowReactions
+                  ? () => onShowReactions(r.emoji)
+                  : onReact
+                    ? () => onReact(r.emoji)
+                    : undefined
+              }
               // UI-C005: chip ≈ 24px tinggi — slop vertikal ke 44pt target
               // sentuh; horizontal 0 supaya chip bertetangga tidak saling
               // menimpa area sentuhnya.

@@ -31,5 +31,17 @@
   "Pesan terlalu lama untuk dimuat otomatis": "The message is too old to load automatically",
   "Pesan tidak ditemukan": "Message not found",
   "Cari di pesan termuat": "Search loaded messages",
-  "Sorot hasil langsung di percakapan": "Highlight results right in the conversation"
+  "Sorot hasil langsung di percakapan": "Highlight results right in the conversation",
+  "{x} bereaksi {y}": "{x} reacted {y}",
+  "{x} dari maksimal {y} pin": "{x} of {y} pins maximum",
+  "Belum ada reaksi": "No reactions yet",
+  "Ketuk untuk melihat siapa yang bereaksi": "Tap to see who reacted",
+  "Reaksi": "Reactions",
+  "Semua {x}": "All {x}",
+  "Siapa memberi reaksi apa pada pesan ini.": "Who reacted with what on this message.",
+  "Tarik reaksi {x}": "Remove reaction {x}",
+  "Batas pin tercapai": "Pin limit reached",
+  "Ketuk untuk menarik reaksi": "Tap to remove your reaction",
+  "Maksimal {x} pin per percakapan. Lepas salah satu pin untuk menyematkan pesan lain.": "Up to {x} pins per conversation. Unpin one to pin another message.",
+  "Pengguna lain": "Another user"
 }

@@ -266,3 +266,33 @@ menghapus seluruh kelas "menunggu banyak halaman":
    menyebut `limit: number`). Klien memakai 30 agar aman; bila backend
    mengizinkan 100 untuk jalur lompat, jumlah request turun ±3×.
 
+## E — Pin & reaksi
+
+**Kondisi hari ini.** Penolakan "batas pin tercapai" dikenali dari kode/pesan
+galat dan dijelaskan di UI ("Maksimal N pin per percakapan…"); batas yang
+baru dipelajari diingat selama sesi ruang itu (pin berikutnya yang pasti
+ditolak dijelaskan tanpa request) dan baris pin menampilkan "2/3". Mengetuk
+chip reaksi membuka daftar "siapa memberi reaksi apa". Semua heuristik
+klien; kontrak tidak berubah. Karena kontrak OpenAPI hari ini tidak menyebut
+angka maupun kode galat batas pin (respons `200` tanpa skema), pengenalan
+itu bersifat menebak — usulan yang menghapus tebakan:
+
+1. **Kode galat tegas + batas di payload.** Penolakan pin: `409`
+   `{ code: "CHAT_PIN_LIMIT_REACHED", limit: 3 }`. Klien sudah membaca kode
+   seperti ini bila ada, dan memakai `limit` daripada menyimpulkan angka dari
+   jumlah pin saat ditolak.
+2. **Ekspos batas lebih awal:** `GET …/pins` → `{ pins: [...], maxPins: 3 }`.
+   Dengan itu baris pin bisa menampilkan "2/3" sejak ruang dibuka (hari ini
+   hanya setelah penolakan pertama) dan tombol Pin dapat dijelaskan sebelum
+   pengguna mencoba.
+3. **Reaksi: `users` WAJIB pada `reactions[]`** (`{ userId, fullName,
+   avatarUrl? }`). Tipe klien sudah menyebutnya opsional; tanpanya daftar
+   reaksi hanya bisa menamai "Anda" dan (di DM) lawan bicara — di ruang
+   dengan >2 pihak muncul "Pengguna lain" dengan jumlah yang benar tetapi
+   tanpa nama. Cukup `userId`+`fullName` untuk emoji yang ≤ N pengguna
+   pertama, ditambah `count` total.
+4. **`userId` pada `reactions[].users` memakai id PUBLIK (`USR-…`)** seperti
+   `GET /v1/users/me`, supaya baris "Anda" dikenali tanpa bergantung pada id
+   internal (klien membandingkan dengan keduanya, tetapi hanya satu yang
+   dijamin ada di payload).
+

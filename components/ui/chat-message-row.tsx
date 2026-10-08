@@ -126,6 +126,11 @@ export type ChatMessageRowProps = {
   /** Reaksi emoji dari badge di sudut bubble (bubar saat mode pilih). */
   onReact?: (message: ChatMessage, emoji: string) => void
   /**
+   * Audit chat E13: ketuk chip reaksi → daftar "siapa memberi reaksi apa".
+   * Mengambil alih ketukan chip dari `onReact` bila diisi.
+   */
+  onShowReactions?: (message: ChatMessage, emoji: string) => void
+  /**
    * Lampiran dibuka — SELALU ke halaman media viewer (`/media-viewer`),
    * tidak pernah browser luar (Bagian 2, 2026-10-07).
    */
@@ -296,6 +301,7 @@ export function ChatMessageRowBase({
   onPress,
   onLongPress,
   onReact,
+  onShowReactions,
   onAttachmentPress,
   onLocationPress,
   onRefreshAttachmentUrl,
@@ -369,6 +375,12 @@ export function ChatMessageRowBase({
       onReact?.(message, emoji)
     },
     [onReact, message],
+  )
+  const handleBubbleShowReactions = useCallback(
+    (emoji: string) => {
+      onShowReactions?.(message, emoji)
+    },
+    [onShowReactions, message],
   )
   const handleBubbleRetry = useCallback(() => {
     onRetry?.(message)
@@ -642,6 +654,7 @@ export function ChatMessageRowBase({
       onRetry={message.sendStatus === "failed" && onRetry ? handleBubbleRetry : undefined}
       reactions={message.reactions}
       onReact={selecting || !onReact ? undefined : handleBubbleReact}
+      onShowReactions={selecting || !onShowReactions ? undefined : handleBubbleShowReactions}
       isPinned={message.isPinned}
       isEdited={message.isEdited}
       isDeleted={message.isDeleted}
@@ -764,6 +777,7 @@ function areRowPropsEqual(
     prev.onPress === next.onPress &&
     prev.onLongPress === next.onLongPress &&
     prev.onReact === next.onReact &&
+    prev.onShowReactions === next.onShowReactions &&
     prev.onAttachmentPress === next.onAttachmentPress &&
     prev.onLocationPress === next.onLocationPress &&
     prev.onRetry === next.onRetry &&

@@ -43,12 +43,12 @@
    "n": 24
   },
   {
-   "s": "Tutup",
+   "s": "Anda",
    "n": 22
   },
   {
-   "s": "Anda",
-   "n": 21
+   "s": "Tutup",
+   "n": 22
   },
   {
    "s": "Lihat profil {x}",
@@ -1851,6 +1851,10 @@
    "n": 3
   },
   {
+   "s": "{x} bereaksi {y}",
+   "n": 3
+  },
+  {
    "s": "{x} dari {x}",
    "n": 3
   },
@@ -1872,6 +1876,10 @@
   },
   {
    "s": "{x} dari {y}, buka ulasan",
+   "n": 3
+  },
+  {
+   "s": "{x} dari maksimal {y} pin",
    "n": 3
   },
   {
@@ -2172,6 +2180,10 @@
   },
   {
    "s": "Belum ada profil tersimpan",
+   "n": 3
+  },
+  {
+   "s": "Belum ada reaksi",
    "n": 3
   },
   {
@@ -3195,7 +3207,15 @@
    "n": 3
   },
   {
+   "s": "Ketuk untuk melihat siapa yang bereaksi",
+   "n": 3
+  },
+  {
    "s": "Ketuk untuk memfilter",
+   "n": 3
+  },
+  {
+   "s": "Ketuk untuk mengubah reaksi",
    "n": 3
   },
   {
@@ -4135,6 +4155,10 @@
    "n": 3
   },
   {
+   "s": "Reaksi",
+   "n": 3
+  },
+  {
    "s": "Rekam pesan suara, maksimal {x} menit.",
    "n": 3
   },
@@ -4255,6 +4279,10 @@
    "n": 3
   },
   {
+   "s": "Semua {x}",
+   "n": 3
+  },
+  {
    "s": "Semua pergerakan dana Anda (top-up, penarikan, transfer) akan muncul di sini.",
    "n": 3
   },
@@ -4288,6 +4316,10 @@
   },
   {
    "s": "Shortcut",
+   "n": 3
+  },
+  {
+   "s": "Siapa memberi reaksi apa pada pesan ini.",
    "n": 3
   },
   {
@@ -4460,6 +4492,10 @@
   },
   {
    "s": "Tarik Dana",
+   "n": 3
+  },
+  {
+   "s": "Tarik reaksi {x}",
    "n": 3
   },
   {
@@ -5216,6 +5252,10 @@
   },
   {
    "s": "Batas highlight tercapai",
+   "n": 2
+  },
+  {
+   "s": "Batas pin tercapai",
    "n": 2
   },
   {
@@ -6651,6 +6691,10 @@
    "n": 2
   },
   {
+   "s": "Ketuk untuk menarik reaksi",
+   "n": 2
+  },
+  {
    "s": "Ketuk untuk mengubah pilihan",
    "n": 2
   },
@@ -7080,6 +7124,10 @@
   },
   {
    "s": "Maksimal {x} lampiran per pesan",
+   "n": 2
+  },
+  {
+   "s": "Maksimal {x} pin per percakapan. Lepas salah satu pin untuk menyematkan pesan lain.",
    "n": 2
   },
   {
@@ -15879,10 +15927,6 @@
    "n": 1
   },
   {
-   "s": "Ketuk untuk mengubah reaksi",
-   "n": 1
-  },
-  {
    "s": "kewajiban hukum dan kepentingan sah.",
    "n": 1
   },
@@ -18724,6 +18768,10 @@
   },
   {
    "s": "Pengguna harus menjadi diri sendiri atau mewakili entitas secara sah. Dilarang membuat identitas palsu, badge palsu, testimoni rekaan, transaksi semu, akun massal, atau koordinasi untuk menaikkan metrik. Parodi atau nama kreatif boleh sepanjang tidak menipu mengenai identitas dan tidak melanggar hak.",
+   "n": 1
+  },
+  {
+   "s": "Pengguna lain",
    "n": 1
   },
   {

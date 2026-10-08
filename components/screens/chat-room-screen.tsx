@@ -211,7 +211,9 @@ import { createTempMessageId } from "@/lib/chat-optimistic"
 import { JUMP_MAX_PAGES, findThreadRowIndex, planJump, type JumpBlockedReason } from "@/lib/chat-jump"
 import { ROW_HEIGHT_FALLBACK, buildRowGeometry, type RowGeometry } from "@/lib/chat-thread-layout"
 import { mergeReadIds, messagesReadByEvent, readIdsFromReceipts } from "@/lib/chat-read-receipts"
+import { classifyPinFailure, pinBlockedByKnownLimit } from "@/lib/chat-pin"
 import { buildSendDto, resolveRetryKey } from "@/lib/chat-send-dto"
+import { ChatReactorsSheet } from "@/components/ui/chat-reactors-sheet"
 
 
 /** Lampiran composer + berkas lokal untuk unggah ulang bila gagal. */
@@ -2873,6 +2875,30 @@ export default function ChatRoomScreen() {
     [exitSelect, handleReact],
   )
 
+  // ── Daftar reaksi: siapa memberi reaksi apa (audit chat E13) ──
+  const [reactorsTarget, setReactorsTarget] = useState<{ messageId: string; emoji: string } | null>(
+    null,
+  )
+  const handleRowShowReactions = useCallback((target: ChatMessage, emoji: string) => {
+    setReactorsTarget({ messageId: target.id, emoji })
+  }, [])
+  const closeReactors = useCallback(() => setReactorsTarget(null), [])
+  /**
+   * Pesan dibaca LIVE dari thread: reaksi lawan bicara yang masuk tampil tanpa
+   * menutup-buka sheet. Reaksi terakhir ditarik → sheet menutup sendiri.
+   */
+  const reactorsMessage = useMemo(() => {
+    if (!reactorsTarget) return null
+    const m = messages.find((x) => x.id === reactorsTarget.messageId)
+    return m?.reactions?.some((r) => r.count > 0) ? m : null
+  }, [messages, reactorsTarget])
+
+  // Reaksi terakhir ditarik (sheet menutup) → lupakan sasaran, supaya reaksi
+  // baru di pesan yang sama tidak membuka sheet itu lagi tanpa diminta.
+  useEffect(() => {
+    if (reactorsTarget && !reactorsMessage) setReactorsTarget(null)
+  }, [reactorsTarget, reactorsMessage])
+
   // ── Pin / unpin — OPTIMISTIS (audit chat A1/A3), pola yang sama dengan
   // `handleReact`: ikon pin + baris pin di atas thread berubah SEKETIKA;
   // server menolak → keduanya dikembalikan + toast. ──
@@ -2880,9 +2906,34 @@ export default function ChatRoomScreen() {
   const pinOpsRef = useRef(new Set<string>())
   const pinnedRef = useRef(pinned)
   pinnedRef.current = pinned
+  /**
+   * Audit chat E12: batas pin per ruang yang DIPELAJARI dari penolakan
+   * backend (kontrak tidak menyebut angkanya). Null = belum diketahui — tidak
+   * pernah ditebak di muka. State (bukan ref) karena baris pin menampilkannya.
+   */
+  const [pinLimit, setPinLimit] = useState<number | null>(null)
+  const explainPinLimit = useCallback(
+    (limit: number) => {
+      toast.show({
+        title: translate("Batas pin tercapai"),
+        description: translate(
+          "Maksimal {x} pin per percakapan. Lepas salah satu pin untuk menyematkan pesan lain.",
+          { x: limit },
+        ),
+        tone: "info",
+      })
+    },
+    [toast.show],
+  )
   const setPinState = useCallback(
     async (message: ChatMessage, wantPin: boolean) => {
       if (!roomId || pinOpsRef.current.has(message.id)) return
+      // Batas sudah dipelajari & daftar pin sudah penuh: jelaskan SEKARANG —
+      // tanpa request yang pasti ditolak dan tanpa kedipan optimistis.
+      if (wantPin && pinBlockedByKnownLimit(pinLimit, pinnedRef.current.length)) {
+        explainPinLimit(pinLimit as number)
+        return
+      }
       pinOpsRef.current.add(message.id)
       try {
         const result = await applyPinChange({
@@ -2904,6 +2955,18 @@ export default function ChatRoomScreen() {
           void refreshPinned()
           return
         }
+        // Rollback sudah terjadi di applyPinChange. Penolakan "batas pin
+        // tercapai" dijelaskan dengan angkanya; selain itu toast generik.
+        const failure = wantPin
+          ? classifyPinFailure(result.error, {
+              pinnedCount: pinnedRef.current.filter((p) => p.id !== message.id).length,
+            })
+          : ({ kind: "other" } as const)
+        if (failure.kind === "limit") {
+          setPinLimit(failure.limit)
+          explainPinLimit(failure.limit)
+          return
+        }
         toast.show({
           title: translate(wantPin ? "Gagal mempin pesan" : "Gagal melepas pin"),
           description: isApiError(result.error) ? userMessage(result.error) : undefined,
@@ -2913,7 +2976,7 @@ export default function ChatRoomScreen() {
         pinOpsRef.current.delete(message.id)
       }
     },
-    [roomId, patchMessage, refreshPinned, toast.show],
+    [roomId, patchMessage, refreshPinned, toast.show, pinLimit, explainPinLimit],
   )
   const handleTogglePin = useCallback(
     (message: ChatMessage) => setPinState(message, !message.isPinned),
@@ -3573,6 +3636,8 @@ export default function ChatRoomScreen() {
             onPress={handleRowPress}
             onLongPress={handleRowLongPress}
             onReact={handleRowReact}
+            // Audit chat E13: ketuk chip reaksi = daftar siapa memberi reaksi apa.
+            onShowReactions={handleRowShowReactions}
             onAttachmentPress={openAttachment}
             // Bagian 2: kartu lokasi → peta penuh in-app.
             onLocationPress={openLocation}
@@ -3610,6 +3675,7 @@ export default function ChatRoomScreen() {
       handleRowPress,
       handleRowLongPress,
       handleRowReact,
+      handleRowShowReactions,
       openAttachment,
       openLocation,
       getTranslationView,
@@ -3872,6 +3938,7 @@ export default function ChatRoomScreen() {
         <ChatPinnedBar
           message={latestPinned}
           count={pinned.length}
+          limit={pinLimit ?? undefined}
           onPress={handlePinnedPress}
           onUnpin={handlePinnedUnpin}
           onLayout={handlePinnedLayout}
@@ -3923,6 +3990,16 @@ export default function ChatRoomScreen() {
           bubble yang ditekan lama — bukan baris penuh di header. Backdrop
           transparan: tidak menutupi layar. Pilih → bereaksi + keluar mode
           pilih; ketuk di luar → tutup popover saja. */}
+      {/* Daftar reaksi (ketuk chip reaksi) — baris "Anda" menarik reaksi saya. */}
+      <ChatReactorsSheet
+        message={reactorsMessage}
+        initialEmoji={reactorsTarget?.emoji}
+        selfIds={selfIdsRef.current}
+        counterpartName={counterpartName}
+        isDirect={isOneToOneChatRoom(room)}
+        onClose={closeReactors}
+        onRemoveMine={handleReact}
+      />
       <ChatReactionPopover
         target={reactionPopover}
         emojis={QUICK_REACTIONS}
