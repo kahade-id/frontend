@@ -83,6 +83,7 @@ import { Dialog } from "@/components/ui/modal"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Header } from "@/components/ui/header"
 import { Icon } from "@/components/ui/icon"
+import { IconButton } from "@/components/ui/icon-button"
 import { Input } from "@/components/ui/input"
 import { Picture } from "@/components/ui/picture"
 import { PressableScale } from "@/components/ui/pressable-scale"
@@ -930,27 +931,34 @@ export default function ShowcaseCreateScreen() {
               (message): message is string => message != null,
             )}
           />
-          {/* C11 (batch 139): pratinjau kartu sebelum terbit. */}
-          <Button
-            variant="secondary"
-            fullWidth
-            disabled={busy || previews.length === 0}
-            onPress={() => setPreviewVisible(true)}
-          >
-            {translate("Pratinjau")}
-          </Button>
-          <Button
-            variant="primary"
-            fullWidth
-            loading={saving}
-            disabled={uploading || previews.length === 0}
-            onPress={() => void handleSave()}
-          >
-            {translate("Terbitkan etalase")}
-          </Button>
-          <Button variant="ghost" fullWidth disabled={busy} onPress={requestClose}>
-            {translate("Batal")}
-          </Button>
+          {/* Audit 2026-10-08: footer SATU baris — ikon pratinjau (C11) +
+              CTA terbit. Dulu tiga tombol penuh bertumpuk (~160px) menutup
+              sepertiga layar kecil saat keyboard tertutup; "Batal" dibuang
+              karena duplikat X header (keduanya `requestClose`, konfirmasi
+              buang draf tetap sama). Pratinjau = ikon saja supaya CTA utama
+              tidak terdesak pada font besar/320px. */}
+          <View className="flex-row items-center gap-3">
+            <IconButton
+              icon={Eye}
+              variant="secondary"
+              size="md"
+              accessibilityLabel={translate("Pratinjau")}
+              accessibilityHint={translate("Lihat kartu etalase seperti yang akan tampil di feed")}
+              disabled={busy || previews.length === 0}
+              onPress={() => setPreviewVisible(true)}
+            />
+            <View className="min-w-0 flex-1">
+              <Button
+                variant="primary"
+                fullWidth
+                loading={saving}
+                disabled={uploading || previews.length === 0}
+                onPress={() => void handleSave()}
+              >
+                {translate("Terbitkan etalase")}
+              </Button>
+            </View>
+          </View>
         </View>
       }
     >

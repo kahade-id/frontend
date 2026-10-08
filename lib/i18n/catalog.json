@@ -4,7 +4,7 @@
  "strings": [
   {
    "s": "Batal",
-   "n": 153
+   "n": 151
   },
   {
    "s": "Hapus",
@@ -483,6 +483,10 @@
    "n": 7
   },
   {
+   "s": "Pratinjau",
+   "n": 7
+  },
+  {
    "s": "Tutup balasan",
    "n": 7
   },
@@ -824,10 +828,6 @@
   },
   {
    "s": "Posisi putar {x} dari {y}",
-   "n": 6
-  },
-  {
-   "s": "Pratinjau",
    "n": 6
   },
   {
@@ -3716,6 +3716,10 @@
   },
   {
    "s": "Lihat foto profil ukuran penuh",
+   "n": 3
+  },
+  {
+   "s": "Lihat kartu etalase seperti yang akan tampil di feed",
    "n": 3
   },
   {
