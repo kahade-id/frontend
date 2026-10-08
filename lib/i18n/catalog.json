@@ -48,7 +48,7 @@
   },
   {
    "s": "Anda",
-   "n": 19
+   "n": 20
   },
   {
    "s": "Lihat profil {x}",
@@ -319,14 +319,6 @@
    "n": 9
   },
   {
-   "s": "Akan dikirim otomatis saat tersambung.",
-   "n": 8
-  },
-  {
-   "s": "Antrean aktif selama aplikasi terbuka hingga koneksi pulih.",
-   "n": 8
-  },
-  {
    "s": "Belum dibaca",
    "n": 8
   },
@@ -387,18 +379,6 @@
    "n": 8
   },
   {
-   "s": "Pesan belum masuk antrean",
-   "n": 8
-  },
-  {
-   "s": "Pesan menunggu koneksi",
-   "n": 8
-  },
-  {
-   "s": "Sambungkan internet lalu kirim kembali.",
-   "n": 8
-  },
-  {
    "s": "Semua",
    "n": 8
   },
@@ -448,6 +428,10 @@
   },
   {
    "s": "Lencana",
+   "n": 7
+  },
+  {
+   "s": "Menunggu koneksi",
    "n": 7
   },
   {
@@ -736,10 +720,6 @@
   },
   {
    "s": "Mengunggah foto profil",
-   "n": 6
-  },
-  {
-   "s": "Menunggu koneksi",
    "n": 6
   },
   {
@@ -1580,6 +1560,10 @@
   },
   {
    "s": "Memuat voucher",
+   "n": 4
+  },
+  {
+   "s": "Mengirim",
    "n": 4
   },
   {
@@ -2496,6 +2480,10 @@
   },
   {
    "s": "Diajukan",
+   "n": 3
+  },
+  {
+   "s": "Dibaca",
    "n": 3
   },
   {
@@ -3636,10 +3624,6 @@
   },
   {
    "s": "Mengganti username membutuhkan kata sandi akun.",
-   "n": 3
-  },
-  {
-   "s": "Mengirim",
    "n": 3
   },
   {
@@ -5023,6 +5007,10 @@
    "n": 2
   },
   {
+   "s": "Akan dikirim otomatis saat tersambung.",
+   "n": 2
+  },
+  {
    "s": "Akses kamera ditolak",
    "n": 2
   },
@@ -5120,6 +5108,10 @@
   },
   {
    "s": "Anggota {x}",
+   "n": 2
+  },
+  {
+   "s": "Antrean aktif selama aplikasi terbuka hingga koneksi pulih.",
    "n": 2
   },
   {
@@ -5752,10 +5744,6 @@
   },
   {
    "s": "Detail Tahap",
-   "n": 2
-  },
-  {
-   "s": "Dibaca",
    "n": 2
   },
   {
@@ -7703,6 +7691,10 @@
    "n": 2
   },
   {
+   "s": "Pesan belum masuk antrean",
+   "n": 2
+  },
+  {
    "s": "Pesan belum termuat di thread",
    "n": 2
   },
@@ -7723,6 +7715,10 @@
    "n": 2
   },
   {
+   "s": "Pesan menunggu koneksi",
+   "n": 2
+  },
+  {
    "s": "Pesan negosiasi",
    "n": 2
   },
@@ -7740,6 +7736,10 @@
   },
   {
    "s": "Pesan tertunda",
+   "n": 2
+  },
+  {
+   "s": "Pesan tetap di percakapan. Ketuk Coba lagi setelah tersambung.",
    "n": 2
   },
   {
@@ -8556,6 +8556,10 @@
   },
   {
    "s": "Terjemahkan",
+   "n": 2
+  },
+  {
+   "s": "Terkirim",
    "n": 2
   },
   {
@@ -19279,6 +19283,10 @@
    "n": 1
   },
   {
+   "s": "Pesan masuk",
+   "n": 1
+  },
+  {
    "s": "Pesan mungkin sudah terkirim — memuat ulang pesan…",
    "n": 1
   },
@@ -21236,10 +21244,6 @@
   },
   {
    "s": "Terjual",
-   "n": 1
-  },
-  {
-   "s": "Terkirim",
    "n": 1
   },
   {

@@ -1,5 +1,7 @@
 {
   "Gagal menghapus {x} pesan": "Couldn't delete {x} messages",
+  "Pesan tetap di percakapan. Ketuk Coba lagi setelah tersambung.": "The message stays in the conversation. Tap Try again once you're connected.",
+  "Pesan masuk": "Incoming message",
   "Mengirim": "Sending",
   "Terkirim": "Sent"
 }

@@ -192,3 +192,33 @@ pernah salah arah:
    Mem-pin pesan yang sudah terpin dan melepas yang tak terpin juga sebaiknya
    `200` (idempoten), bukan galat.
 
+## B — Kirim pesan, idempotensi, dan status baca
+
+**Kondisi hari ini.** Bubble optimistis kini memakai id sementara yang
+diturunkan dari `Idempotency-Key`, kunci render yang stabil, dan satu fungsi
+penggantian (`reconcileSentMessage`) sehingga gema yang tiba sebelum respons POST
+tidak lagi menghasilkan bubble ganda. Retry memakai key DAN body yang sama
+dengan kiriman pertama. Ketiga hal ini bekerja tanpa perubahan backend; yang
+berikut hanya membuatnya lebih pasti:
+
+1. **Pantulkan `Idempotency-Key` pada pesan** (`chat.new_message`, respons
+   `POST …/messages`, dan `GET …/messages` untuk pesan milik pengirim), mis.
+   `clientMessageId`. Klien sudah membaca `idempotencyKey` / `clientMessageId` /
+   `clientId` bila ada dan memakainya sebagai pencocokan utama (tanpa tebak
+   teks/waktu). Tanpa field ini klien tetap benar lewat pencocokan teks +
+   lampiran + jendela waktu, yang sengaja dilonggarkan untuk normalisasi server
+   (CRLF, `FILE`→`VIDEO`, ukuran lampiran).
+2. **Semantik key yang tegas:** key sama + body sama → kembalikan pesan ASLI
+   (200, bukan membuat pesan kedua); key sama + body berbeda → `409/422` dengan
+   kode yang jelas; masa berlaku key ≥ 24 jam. Retry setelah timeout (respons
+   hilang padahal pesan sudah masuk) hanya aman bila ini terpenuhi.
+3. **Status baca dengan watermark.** Event `chat.read` sekarang menyiratkan
+   "semua pesan hingga `readAt`" hanya untuk event massal (tanpa `messageId`).
+   Usulan: sertakan `lastReadMessageId` (atau `upToMessageId`) pada SETIAP
+   event baca, dan dukung `GET …/read-receipts?since=<ISO>` agar klien tidak
+   mengunduh status seluruh pesan room tiap rekonsiliasi (payload tumbuh
+   seiring panjang room).
+4. **Delivered receipt** — sudah tercatat di P0 di atas; klien tetap
+   menampilkan jam → centang → centang ganda (= dibaca) dan tidak mengarang
+   tahap tengah.
+

@@ -27,7 +27,6 @@ import type { ChatReaction } from "@/lib/api/chat"
 import {
   CHAT_SOCKET_EVENTS,
   ORDER_SOCKET_EVENTS,
-  createTypingTracker,
   type ChatMessageDeletedPayload,
   type ChatMessagesExpiredPayload,
   type ChatPinPayload,
@@ -40,6 +39,7 @@ import {
   type ChatTypingPayload,
   type ChatViewOnceConsumedPayload,
   type OrderStatusChangedPayload,
+  createTypingTracker,
 } from "./chat-events"
 import { useRealtime, useRealtimeActions } from "./realtime-context"
 
@@ -51,8 +51,17 @@ export type ChatRoomRealtimeCallbacks = {
   onMessageDeleted?: (messageId: string) => void
   onReaction?: (messageId: string, reactions: ChatReaction[]) => void
   onPin?: (messageId: string, isPinned: boolean) => void
-  /** messageId null = bulk read (seluruh pesan saya dibaca). */
-  onRead?: (messageId: string | null) => void
+  /**
+   * messageId null = bulk read (seluruh pesan saya dibaca). `meta` membawa
+   * waktu baca server (`readAt`) supaya klien bisa membatasi simpulan "baca
+   * massal" pada pesan yang memang dibuat sebelum itu (audit chat B5), dan
+   * `ownDeviceSync` = event sinkronisasi multi-device milik PEMBACA SENDIRI
+   * (bukan lawan bicara membaca pesan saya — jangan dipakai untuk centang).
+   */
+  onRead?: (
+    messageId: string | null,
+    meta?: { readAt?: string | null; markedCount?: number; ownDeviceSync?: boolean },
+  ) => void
   onTyping?: (isTyping: boolean) => void
   onPresence?: (isOnline: boolean) => void
   /** BFI-117: pesan sekali-lihat dikonsumsi penerima. */
@@ -164,9 +173,14 @@ export function createChatRoomHandlers(
       // baca antar-perangkat tidak pernah sinkron saat `hideReadReceipts`
       // aktif karena userId selalu == viewerId di semua perangkat sendiri.
       if (!sameRoom(payload) || !isRecord(payload)) return
-      const { messageId, isOwnDeviceSync } = payload as Partial<ChatReadPayload>
+      const { messageId, isOwnDeviceSync, readAt, markedCount } =
+        payload as Partial<ChatReadPayload>
       if (isSelf(payload) && isOwnDeviceSync !== true) return
-      callbacks().onRead?.(typeof messageId === "string" && messageId ? messageId : null)
+      callbacks().onRead?.(typeof messageId === "string" && messageId ? messageId : null, {
+        readAt: typeof readAt === "string" ? readAt : null,
+        markedCount: typeof markedCount === "number" ? markedCount : undefined,
+        ownDeviceSync: isOwnDeviceSync === true,
+      })
     },
     [CHAT_SOCKET_EVENTS.TYPING]: (payload) => {
       if (!sameRoom(payload) || !isRecord(payload) || isSelf(payload)) return
@@ -321,7 +335,7 @@ export function useChatRoomRealtime(
       onMessageDeleted: (id) => callbacksRef.current.onMessageDeleted?.(id),
       onReaction: (id, reactions) => callbacksRef.current.onReaction?.(id, reactions),
       onPin: (id, isPinned) => callbacksRef.current.onPin?.(id, isPinned),
-      onRead: (id) => callbacksRef.current.onRead?.(id),
+      onRead: (id, meta) => callbacksRef.current.onRead?.(id, meta),
       onTyping: (isTyping) => tracker.signal(isTyping),
       onPresence: (isOnline) => callbacksRef.current.onPresence?.(isOnline),
       // BFI-118/BFI-119: teruskan callback poll & status order ke tabel

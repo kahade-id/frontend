@@ -110,8 +110,10 @@ import {
   applyReactionSummary,
 } from "@/lib/realtime/chat-events"
 import {
+  clientKeyOf,
   findOptimisticMatch,
   mergeChatMessages,
+  reconcileSentMessage,
 } from "@/lib/chat-dedupe"
 import {
   CHAT_WINDOW_MAX_MESSAGES,
@@ -161,6 +163,7 @@ import { presenceLabel } from "@/lib/chat-presence-label"
 import { firstUnreadMessageId } from "@/lib/chat-unread-anchor"
 import {
   loadChatFailedMessages,
+  peekChatFailedMessages,
   removeChatFailedMessage,
   saveChatFailedMessage,
   type FailedChatMessage,
@@ -195,7 +198,6 @@ import {
   unstarChatMessage,
   type ChatProductCardPayload,
   type ChatTranslation,
-  asProductCard,
 } from "@/lib/api/chat"
 import type { ShowcaseItem } from "@/lib/api/users"
 import { getMeCached, pickPublicUserId } from "@/lib/api/users"
@@ -205,6 +207,9 @@ import { ephemeralDurationLabel } from "@/lib/chat-ephemeral"
 import { isImageMime } from "@/lib/mime"
 import type { ChatBubbleAnchor } from "@/lib/chat-bubble"
 import { applyDeleteMessages, applyPinChange } from "@/lib/chat-message-actions"
+import { createTempMessageId } from "@/lib/chat-optimistic"
+import { mergeReadIds, messagesReadByEvent, readIdsFromReceipts } from "@/lib/chat-read-receipts"
+import { buildSendDto, resolveRetryKey } from "@/lib/chat-send-dto"
 
 
 /** Lampiran composer + berkas lokal untuk unggah ulang bila gagal. */
@@ -552,7 +557,6 @@ export default function ChatRoomScreen() {
   const [error, setError] = useState<string | null>(null)
   /** Room dihapus/dinonaktifkan (404) — tampilkan EmptyState khusus, bukan error generik. */
   const [roomGone, setRoomGone] = useState(false)
-  const [sending, setSending] = useState(false)
   /** Sheet lampiran (+) composer: Gambar / Video / File / Voice Note. */
   const [attachSheetOpen, setAttachSheetOpen] = useState(false)
   /** Sheet perekam voice note. */
@@ -839,7 +843,9 @@ export default function ChatRoomScreen() {
    */
   const [counterpartTyping, setCounterpartTyping] = useState(false)
   /** id pesan milik sendiri yang sudah dibaca lawan bicara (read receipt). */
-  const [readByCounterpart, setReadByCounterpart] = useState<Set<string>>(new Set())
+  const [readByCounterpart, setReadByCounterpart] = useState<ReadonlySet<string>>(
+    () => new Set<string>(),
+  )
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const typingActive = useRef(false)
   const initialRequest = useRef<AbortController | null>(null)
@@ -1102,16 +1108,12 @@ export default function ChatRoomScreen() {
         return
       }
       setMessages((prev) => {
-        const found = prev.some(
-          (message) => message.id === event.messageId || message.id === event.message.id,
-        )
-        return found
-          ? prev.map((message) =>
-              message.id === event.messageId || message.id === event.message.id
-                ? event.message
-                : message,
-            )
-          : mergeChatMessages(prev, [event.message]).next
+        // Audit chat B4: satu jalur dengan respons POST — tepat satu entri
+        // yang bertahan (tidak menggandakan bila gema sudah masuk lebih dulu).
+        const next = reconcileSentMessage(prev, event.messageId, event.message)
+        return next !== prev
+          ? next
+          : mergeChatMessages(prev, [event.message], { selfIds: selfIdsRef.current }).next
       })
       emptyPolls.current = 0
       setPollInterval(CHAT_POLL_MS)
@@ -1125,14 +1127,37 @@ export default function ChatRoomScreen() {
       const { receipts } = await getReadReceipts(roomId)
       // `receipts` berisi status baca seluruh pesan room (dari semua pihak);
       // untuk ikon status cukup flag isRead per messageId milik saya.
-      setReadByCounterpart(
-        new Set(receipts.filter((r) => r.isRead).map((r) => r.messageId)),
-      )
+      // Audit chat B5: status baca MONOTON → digabung (union), bukan
+      // menimpa — respons GET yang tertinggal dari event socket tidak boleh
+      // menghapus centang ganda yang sudah tampil.
+      const ids = readIdsFromReceipts(receipts)
+      setReadByCounterpart((prev) => mergeReadIds(prev, ids))
     } catch (err) {
       // Read receipt bersifat kosmetik — kegagalan tidak boleh mengganggu ruang.
       logWarn("chat:read-receipts", err)
     }
   }, [roomId])
+  const refreshReadReceiptsRef = useRef(refreshReadReceipts)
+  refreshReadReceiptsRef.current = refreshReadReceipts
+  /**
+   * Audit chat B5: event baca MASSAL disimpulkan lokal seketika (centang ganda
+   * muncul tanpa menunggu jaringan), lalu direkonsiliasi dengan receipts resmi
+   * server — ditunda 1 dtk supaya rentetan event jadi satu GET.
+   */
+  const receiptsReconcileTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const scheduleReceiptsReconcile = useCallback(() => {
+    if (receiptsReconcileTimer.current) clearTimeout(receiptsReconcileTimer.current)
+    receiptsReconcileTimer.current = setTimeout(() => {
+      receiptsReconcileTimer.current = null
+      void refreshReadReceiptsRef.current()
+    }, 1000)
+  }, [])
+  useEffect(
+    () => () => {
+      if (receiptsReconcileTimer.current) clearTimeout(receiptsReconcileTimer.current)
+    },
+    [],
+  )
 
   // ── Daftar pesan terpin (baris pin di atas thread) ──
   const refreshPinned = useCallback(async () => {
@@ -1351,14 +1376,20 @@ export default function ChatRoomScreen() {
       )
       void refreshPinned()
     },
-    onRead: (messageId) => {
+    onRead: (messageId, meta) => {
       // Gema mark-as-read milik sendiri sudah difilter di hook; yang tiba
-      // di sini adalah bacaan lawan bicara.
-      if (messageId) {
-        setReadByCounterpart((prev) => new Set(prev).add(messageId))
-      } else {
-        void refreshReadReceipts()
-      }
+      // di sini adalah bacaan lawan bicara. Pengecualian: sinkronisasi
+      // multi-device (saya membaca di perangkat lain) — itu BUKAN lawan
+      // bicara membaca pesan saya, jadi tidak boleh menaikkan centang.
+      if (meta?.ownDeviceSync) return
+      // Audit chat B5: baca massal → semua pesan saya yang terkonfirmasi
+      // hingga `readAt` langsung centang ganda; baca satu pesan → hanya itu.
+      const ids = messagesReadByEvent(messagesRef.current, {
+        messageId,
+        readAt: meta?.readAt,
+      })
+      if (ids.length > 0) setReadByCounterpart((prev) => mergeReadIds(prev, ids))
+      if (!messageId) scheduleReceiptsReconcile()
     },
     onTyping: (isTyping) => setCounterpartTyping(isTyping),
     onPresence: (isOnline) =>
@@ -1422,6 +1453,8 @@ export default function ChatRoomScreen() {
     // via REST (kursor = halaman terbaru; mergeIncoming mendup).
     onReconnect: () => {
       void pollNewMessages()
+      // Audit chat B5: event baca yang terlewat selama socket putus.
+      void refreshReadReceipts()
       // B16: rekonsiliasi unread eksplisit — badge tab & header bisa basi
       // selama socket putus (polling store bisa tertunda).
       void refreshUnreadCount()
@@ -1486,6 +1519,9 @@ export default function ChatRoomScreen() {
       if (state === "active") {
         void refreshUnreadCount()
         void refreshChatUnreadCount()
+        // Audit chat B5: pesan saya mungkin dibaca selagi aplikasi di latar
+        // (event socket tidak tiba) — segarkan centang saat kembali aktif.
+        void refreshReadReceiptsRef.current()
       }
     })
     return () => sub.remove()
@@ -1635,7 +1671,7 @@ export default function ChatRoomScreen() {
           count: initialUnreadRef.current ?? 0,
         })
       }
-      rows.push({ kind: "msg", key: m.id, message: m, index })
+      rows.push({ kind: "msg", key: clientKeyOf(m), message: m, index })
     })
     return rows
   }, [visibleMessages, unreadAnchorId])
@@ -1994,29 +2030,131 @@ export default function ChatRoomScreen() {
     [toast.show, enqueueAndUpload],
   )
 
+  // ── Siklus kirim pesan (audit chat B4 / B6 / I24) ───────────────────────
+  /**
+   * Ganti bubble optimistis `tempId` dengan pesan resmi `sent` — SATU jalur
+   * untuk respons POST, gema antrean kirim, dan retry.
+   *
+   * Bug lama (B4): `prev.map(m => m.id === tempId || m.id === sent.id ? sent : m)`
+   * mengganti KEDUA entri bila gema realtime tiba lebih dulu dan lolos dari
+   * pencocokan → dua bubble ber-id sama yang menetap. `reconcileSentMessage`
+   * menyisakan tepat satu entri (dan mewariskan kunci render, jadi baris tidak
+   * di-remount — tidak ada kedip). Bila bubble optimistis maupun gema tidak ada
+   * (muat-ulang menimpa list), pesan ditambahkan agar tidak hilang dari layar.
+   */
+  const applySentMessage = useCallback((targetRoom: string, tempId: string, sent: ChatMessage) => {
+    // Hanya sentuh storage bila memang ada entri antrean (hindari I/O per kirim).
+    if (peekChatFailedMessages(targetRoom).some((m) => m.id === tempId)) {
+      removeChatFailedMessage(targetRoom, tempId)
+    }
+    if (roomIdRef.current !== targetRoom) return
+    setMessages((prev) => {
+      const next = reconcileSentMessage(prev, tempId, sent)
+      if (next !== prev) return next
+      return mergeChatMessages(prev, [sent], { selfIds: selfIdsRef.current }).next
+    })
+  }, [])
+
+  /**
+   * Hasil kirim yang SAMA untuk semua jenis pesan (teks, lampiran, lokasi, kartu
+   * produk) dan retry: sukses → bubble diganti; gangguan koneksi → antrean
+   * otomatis; selain itu → "Belum terkirim" + "Coba lagi". Bubble optimistis
+   * TIDAK PERNAH hilang diam-diam, dan body selalu dibangun `buildSendDto`
+   * dari bubble itu sendiri — key sama ⇒ body sama (B6).
+   */
+  const settleSend = useCallback(
+    async (args: {
+      roomId: string
+      optimistic: ChatMessage
+      idempotencyKey: string
+      failTitle: string
+    }): Promise<"sent" | "queued" | "failed"> => {
+      const { roomId: targetRoom, optimistic, idempotencyKey, failTitle } = args
+      const tempId = optimistic.id
+      const markFailed = () => {
+        setMessages((prev) =>
+          prev.map((m) => (m.id === tempId ? { ...m, sendStatus: "failed" as const } : m)),
+        )
+        saveChatFailedMessage(
+          targetRoom,
+          toFailedChatMessage(optimistic, { idempotencyKey, sendStatus: "failed" }),
+        )
+      }
+      try {
+        const sent = await api.chat.sendChatMessage(targetRoom, buildSendDto(optimistic), {
+          idempotencyKey,
+        })
+        applySentMessage(targetRoom, tempId, sent)
+        return "sent"
+      } catch (err) {
+        if (isChatConnectionFailure(err)) {
+          const queued = await enqueueChatMessage(
+            targetRoom,
+            toFailedChatMessage(optimistic, { idempotencyKey }),
+          )
+          if (queued.queued) {
+            toast.show({
+              title: translate("Pesan menunggu koneksi"),
+              description: translate(
+                queued.persisted
+                  ? "Akan dikirim otomatis saat tersambung."
+                  : "Antrean aktif selama aplikasi terbuka hingga koneksi pulih.",
+              ),
+              tone: "info",
+            })
+            return "queued"
+          }
+          // Antrean penuh/tipe tak didukung: bubble TETAP di thread sebagai
+          // "Belum terkirim" (isi pesan aman di dalamnya) — composer sudah
+          // dikosongkan saat kirim, jadi tidak ada lagi tempat teks itu hidup.
+          markFailed()
+          toast.show({
+            title: translate("Pesan belum masuk antrean"),
+            description: translate("Pesan tetap di percakapan. Ketuk Coba lagi setelah tersambung."),
+            tone: "info",
+          })
+          return "failed"
+        }
+        markFailed()
+        toast.show({
+          title: failTitle,
+          description: isApiError(err) ? userMessage(err) : undefined,
+          tone: "danger",
+        })
+        return "failed"
+      }
+    },
+    [applySentMessage, toast.show],
+  )
+
   const handleSend = useCallback(
-    async (payload: ChatComposerPayload) => {
+    async (payload: ChatComposerPayload, only?: { localId: string }) => {
       if (!roomId || isChatCompleted) return
       const content = payload.content.trim()
-      const ready = attachments.filter((a) => a.status !== "uploading" && a.status !== "error")
+      // Audit chat C7: `only` = kirim SATU lampiran saja (voice note hasil tahan-
+      // untuk-merekam) tanpa menyentuh draft teks/lampiran lain di composer.
+      const pool = only ? attachments.filter((a) => a.localId === only.localId) : attachments
+      const ready = pool.filter((a) => a.status !== "uploading" && a.status !== "error")
       if (!content && ready.length === 0) return
-      if (attachments.some((a) => a.status === "uploading")) {
+      if (pool.some((a) => a.status === "uploading")) {
         toast.show({ title: translate("Lampiran masih diunggah"), tone: "info" })
         return
       }
       // Optimistic message: tampilkan langsung agar tidak ada jeda kosong.
       // CN-015: sendStatus "sending" — bila gagal jadi "failed" + bisa retry.
-      const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2)}`
+      // B4: id sementara DITURUNKAN dari idempotency key (1 bubble ⇄ 1 key).
       const idempotencyKey = createIdempotencyKey()
-      const sendMessageType = messageTypeFor(
-        ready.map(({ fileName, fileUrl, mimeType, fileSize, thumbnailUrl }) => ({
+      const tempId = createTempMessageId(idempotencyKey)
+      const attachmentDtos: ChatAttachmentDto[] = ready.map(
+        ({ fileName, fileUrl, mimeType, fileSize, thumbnailUrl }) => ({
           fileName,
           fileUrl,
           mimeType,
           fileSize,
           thumbnailUrl,
-        })),
+        }),
       )
+      const sendMessageType = messageTypeFor(attachmentDtos)
       // BFE-003: `durationSeconds` WAJIB untuk VOICE — backend
       // `validateVoiceNote` menolak pesan suara tanpanya (400). Diambil dari
       // durationMs hasil rekam yang disimpan di item antrean upload.
@@ -2035,13 +2173,7 @@ export default function ChatRoomScreen() {
         text: content || undefined,
         messageType: sendMessageType,
         fromUser: true,
-        attachments: ready.map(({ fileName, fileUrl, mimeType, fileSize, thumbnailUrl }) => ({
-          fileName,
-          fileUrl,
-          mimeType,
-          fileSize,
-          thumbnailUrl,
-        })),
+        attachments: attachmentDtos,
         replyToId: payload.replyToId ?? null,
         // Kutipan langsung tampil di pesan optimistis (diganti objek asli
         // dari server setelah terkirim).
@@ -2064,112 +2196,40 @@ export default function ChatRoomScreen() {
         // BFE-003: durasi tampil di bubble optimistis (diganti data server).
         durationSeconds: voiceDurationSeconds ?? undefined,
       }
+      // Audit chat I24: bubble optimistis DAN composer yang dikosongkan terjadi
+      // di SATU batch render — sebelumnya composer baru dikosongkan setelah
+      // respons server (teks masih terlihat + input terkunci selama request,
+      // lalu berubah lagi di render kedua/ketiga). Pesan yang gagal tetap utuh
+      // di dalam bubble-nya (isi + lampiran) dan bisa dicoba lagi.
       setMessages((prev) => [...prev, optimisticMsg])
-      setSending(true)
-      try {
-        const dtoAttachments: ChatAttachmentDto[] = ready.map(
-          ({ fileName, fileUrl, mimeType, fileSize, thumbnailUrl }) => ({
-            fileName,
-            fileUrl,
-            mimeType,
-            fileSize,
-            thumbnailUrl,
-          }),
-        )
-        const msg = await api.chat.sendChatMessage(roomId, {
-          messageType: sendMessageType,
-          content: content || undefined,
-          attachments: dtoAttachments.length ? dtoAttachments : undefined,
-          replyToId: payload.replyToId,
-          // BFE-003: wajib untuk VOICE — voice note selalu 400 tanpa ini.
-          durationSeconds: voiceDurationSeconds ?? undefined,
-          // Batch 43: mode pesan sementara + sekali-lihat untuk pesan
-          // berikutnya. viewOnce one-shot — direset setelah kirim.
-          ephemeralTtlSeconds: ttlSeconds ?? undefined,
-          viewOnce: viewOnceOn || undefined,
-        }, { idempotencyKey })
-        // Ganti optimistic dengan pesan asli dari server. Cocokkan juga
-        // berdasar id server: bila gema realtime tiba lebih dulu, entri
-        // optimistis sudah diganti gema (fix duplikat 2026-09-28) — tanpa
-        // ini pesan server akan ter-append dua kali.
-        setMessages((prev) =>
-          prev.map((m) => (m.id === tempId || m.id === msg.id ? msg : m)),
-        )
-        // 2026-10-02: mergeIncoming DIHAPUS — setMessages di atas sudah
-        // mengganti pesan optimistis; panggilan redundan menyebabkan double bubble.
-        // Pengguna aktif → poll kembali cepat bila sedang idle.
-        emptyPolls.current = 0
-        setPollInterval(CHAT_POLL_MS)
-        // R1-001: draft milik footer — naikkan sinyal agar dikosongkan.
+      if (only) {
+        // Voice note otomatis: hanya lampiran ini yang keluar dari composer.
+        setAttachments((prev) => prev.filter((a) => a.localId !== only.localId))
+      } else {
         setDraftResetKey((k) => k + 1)
         clearChatDraft(roomId)
         setAttachments([])
-        setReplyTarget(null)
+        // Hentikan indikator mengetik setelah pesan terkirim.
         // Hentikan indikator mengetik setelah pesan terkirim.
         if (typingTimer.current) clearTimeout(typingTimer.current)
         typingActive.current = false
         sendTypingRealtime(false)
-        // Batch 43: sekali-lihat = one-shot, selalu direset setelah kirim.
-        if (viewOnceOn) setViewOnceOn(false)
-        void refreshReadReceipts()
-      } catch (err) {
-        if (isChatConnectionFailure(err)) {
-          const queued = await enqueueChatMessage(
-            roomId,
-            toFailedChatMessage(optimisticMsg, { idempotencyKey }),
-          )
-          if (queued.queued) {
-            toast.show({
-              title: translate("Pesan menunggu koneksi"),
-              description: translate(
-                queued.persisted
-                  ? "Akan dikirim otomatis saat tersambung."
-                  : "Antrean aktif selama aplikasi terbuka hingga koneksi pulih.",
-              ),
-              tone: "info",
-            })
-            // Pesan sudah aman di antrean chat tersendiri; kosongkan composer
-            // seperti pada kiriman sukses, tetapi pertahankan bubble berstatus queued.
-            setDraftResetKey((key) => key + 1)
-            clearChatDraft(roomId)
-            setAttachments([])
-            setReplyTarget(null)
-            if (typingTimer.current) clearTimeout(typingTimer.current)
-            typingActive.current = false
-            sendTypingRealtime(false)
-            if (viewOnceOn) setViewOnceOn(false)
-            return
-          }
-          // Antrean penuh/tipe pesan tak didukung: jangan tampilkan status
-          // terkirim atau menghapus draft. Teks composer tetap bisa dicoba lagi.
-          setMessages((prev) => prev.filter((m) => m.id !== tempId))
-          toast.show({
-            title: translate("Pesan belum masuk antrean"),
-            description: translate("Sambungkan internet lalu kirim kembali."),
-            tone: "info",
-          })
-          return
-        }
-        // Di luar gangguan koneksi, simpan status untuk retry manual.
-        setMessages((prev) =>
-          prev.map((m) => (m.id === tempId ? { ...m, sendStatus: "failed" as const } : m)),
-        )
-        if (roomId) {
-          saveChatFailedMessage(
-            roomId,
-            toFailedChatMessage(optimisticMsg, { idempotencyKey, sendStatus: "failed" }),
-          )
-        }
-        toast.show({
-          title: translate("Gagal mengirim pesan"),
-          description: isApiError(err) ? userMessage(err) : undefined,
-          tone: "danger",
-        })
-      } finally {
-        setSending(false)
       }
+      setReplyTarget(null)
+      // Batch 43: sekali-lihat = one-shot, selalu direset setelah kirim.
+      if (viewOnceOn) setViewOnceOn(false)
+      // Pengguna aktif → poll kembali cepat bila sedang idle.
+      emptyPolls.current = 0
+      setPollInterval(CHAT_POLL_MS)
+      const outcome = await settleSend({
+        roomId,
+        optimistic: optimisticMsg,
+        idempotencyKey,
+        failTitle: translate("Gagal mengirim pesan"),
+      })
+      if (outcome === "sent") void refreshReadReceipts()
     },
-    [roomId, attachments, toast.show, mergeIncoming, replyTarget, composerReplyTo, ttlSeconds, viewOnceOn],
+    [roomId, attachments, toast.show, replyTarget, composerReplyTo, ttlSeconds, viewOnceOn, isChatCompleted, settleSend, refreshReadReceipts],
   )
 
   // Batch 43: kirim pesan khusus (lokasi, kartu produk) ────────────
@@ -2180,8 +2240,8 @@ export default function ChatRoomScreen() {
   const sendLocation = useCallback(
     async (payload: { latitude: number; longitude: number; label?: string }) => {
       if (!roomId || isChatCompleted) return
-      const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2)}`
       const idempotencyKey = createIdempotencyKey()
+      const tempId = createTempMessageId(idempotencyKey)
       const optimisticMsg: ChatMessage = {
         id: tempId,
         messageType: "LOCATION",
@@ -2194,58 +2254,15 @@ export default function ChatRoomScreen() {
         viewOnce: viewOnceOn || undefined,
       }
       setMessages((prev) => [...prev, optimisticMsg])
-      try {
-        const msg = await api.chat.sendChatMessage(roomId, {
-          messageType: "LOCATION",
-          location: { lat: payload.latitude, lng: payload.longitude, label: payload.label },
-          ephemeralTtlSeconds: ttlSeconds ?? undefined,
-          viewOnce: viewOnceOn || undefined,
-        }, { idempotencyKey })
-        setMessages((prev) => prev.map((m) => (m.id === tempId || m.id === msg.id ? msg : m)))
-        // 2026-10-02: DIHAPUS — penyebab double bubble (redundan dengan setMessages di atas).
-        if (viewOnceOn) setViewOnceOn(false)
-      } catch (err) {
-        if (isChatConnectionFailure(err)) {
-          const queued = await enqueueChatMessage(
-            roomId,
-            toFailedChatMessage(optimisticMsg, { idempotencyKey }),
-          )
-          if (queued.queued) {
-            toast.show({
-              title: translate("Pesan menunggu koneksi"),
-              description: translate(
-                queued.persisted
-                  ? "Akan dikirim otomatis saat tersambung."
-                  : "Antrean aktif selama aplikasi terbuka hingga koneksi pulih.",
-              ),
-              tone: "info",
-            })
-            if (viewOnceOn) setViewOnceOn(false)
-            return
-          }
-          setMessages((prev) => prev.filter((m) => m.id !== tempId))
-          toast.show({
-            title: translate("Pesan belum masuk antrean"),
-            description: translate("Sambungkan internet lalu kirim kembali."),
-            tone: "info",
-          })
-          return
-        }
-        setMessages((prev) =>
-          prev.map((m) => (m.id === tempId ? { ...m, sendStatus: "failed" as const } : m)),
-        )
-        saveChatFailedMessage(
-          roomId,
-          toFailedChatMessage(optimisticMsg, { idempotencyKey, sendStatus: "failed" }),
-        )
-        toast.show({
-          title: translate("Gagal mengirim lokasi"),
-          description: isApiError(err) ? userMessage(err) : undefined,
-          tone: "danger",
-        })
-      }
+      if (viewOnceOn) setViewOnceOn(false)
+      await settleSend({
+        roomId,
+        optimistic: optimisticMsg,
+        idempotencyKey,
+        failTitle: translate("Gagal mengirim lokasi"),
+      })
     },
-    [roomId, isChatCompleted, ttlSeconds, viewOnceOn, mergeIncoming, toast.show],
+    [roomId, isChatCompleted, ttlSeconds, viewOnceOn, settleSend],
   )
 
   /**
@@ -2261,8 +2278,8 @@ export default function ChatRoomScreen() {
   const sendProductCard = useCallback(
     async (item: ShowcaseItem) => {
       if (!roomId || isChatCompleted) return
-      const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2)}`
       const idempotencyKey = createIdempotencyKey()
+      const tempId = createTempMessageId(idempotencyKey)
       // Username penjual = user sendiri (picker hanya menampilkan etalase
       // milik sendiri). getMeCached murah (cache 5 dtk); gagal → string
       // kosong, baris "@" disembunyikan kartu (lihat ChatProductCard).
@@ -2289,59 +2306,15 @@ export default function ChatRoomScreen() {
         viewOnce: viewOnceOn || undefined,
       }
       setMessages((prev) => [...prev, optimisticMsg])
-      try {
-        const msg = await api.chat.sendChatMessage(roomId, {
-          messageType: "PRODUCT_CARD",
-          showcaseId: item.id,
-          ephemeralTtlSeconds: ttlSeconds ?? undefined,
-          viewOnce: viewOnceOn || undefined,
-        }, { idempotencyKey })
-        setMessages((prev) => prev.map((m) => (m.id === tempId || m.id === msg.id ? msg : m)))
-        // 2026-10-02: DIHAPUS — penyebab double bubble (redundan dengan setMessages di atas).
-        if (viewOnceOn) setViewOnceOn(false)
-      } catch (err) {
-        if (isChatConnectionFailure(err)) {
-          const queued = await enqueueChatMessage(
-            roomId,
-            toFailedChatMessage(optimisticMsg, { idempotencyKey }),
-          )
-          if (queued.queued) {
-            toast.show({
-              title: translate("Pesan menunggu koneksi"),
-              description: translate(
-                queued.persisted
-                  ? "Akan dikirim otomatis saat tersambung."
-                  : "Antrean aktif selama aplikasi terbuka hingga koneksi pulih.",
-              ),
-              tone: "info",
-            })
-            if (viewOnceOn) setViewOnceOn(false)
-            return
-          }
-          setMessages((prev) => prev.filter((m) => m.id !== tempId))
-          toast.show({
-            title: translate("Pesan belum masuk antrean"),
-            description: translate("Sambungkan internet lalu kirim kembali."),
-            tone: "info",
-          })
-          return
-        }
-        // Di luar gangguan koneksi, pertahankan pesan untuk retry manual.
-        setMessages((prev) =>
-          prev.map((m) => (m.id === tempId ? { ...m, sendStatus: "failed" as const } : m)),
-        )
-        saveChatFailedMessage(
-          roomId,
-          toFailedChatMessage(optimisticMsg, { idempotencyKey, sendStatus: "failed" }),
-        )
-        toast.show({
-          title: translate("Gagal mengirim kartu produk"),
-          description: isApiError(err) ? userMessage(err) : undefined,
-          tone: "danger",
-        })
-      }
+      if (viewOnceOn) setViewOnceOn(false)
+      await settleSend({
+        roomId,
+        optimistic: optimisticMsg,
+        idempotencyKey,
+        failTitle: translate("Gagal mengirim kartu produk"),
+      })
     },
-    [roomId, isChatCompleted, ttlSeconds, viewOnceOn, mergeIncoming, toast.show],
+    [roomId, isChatCompleted, ttlSeconds, viewOnceOn, settleSend],
   )
 
   // ── Batch 43: pesan berbintang — tandai bubble dari GET /starred ────
@@ -2382,126 +2355,51 @@ export default function ChatRoomScreen() {
   }, [roomId, toast.show])
 
   /**
-   * CN-015: kirim ulang pesan yang gagal. Memakai konten & lampiran yang
-   * tersimpan di pesan optimistis; ID temp diganti agar tidak bentrok.
+   * CN-015: kirim ulang pesan yang gagal. Bubble yang SAMA dipakai ulang —
+   * id temp tidak diganti, dan (B6) idempotency key-nya TETAP key kiriman
+   * pertama, dengan body yang dibangun `buildSendDto` dari bubble itu sendiri.
+   * Retry atas kiriman yang sebenarnya sudah sampai (respons hilang/timeout)
+   * karenanya dikenali server sebagai permintaan yang sama, bukan pesan kedua.
    */
+  const retryingRef = useRef(new Set<string>())
   const handleRetry = useCallback(
     async (failed: ChatMessage) => {
-      if (!roomId || failed.sendStatus !== "failed") return
-      const tempId = failed.id
-      const idempotencyKey = failed.sendIdempotencyKey ?? createIdempotencyKey()
-      setMessages((prev) =>
-        prev.map((m) => (m.id === tempId ? { ...m, sendStatus: "sending" as const } : m)),
-      )
+      if (!roomId || failed.sendStatus !== "failed" || retryingRef.current.has(failed.id)) return
+      retryingRef.current.add(failed.id)
       try {
-        // messageType ChatMessage bisa string bebas; DTO hanya terima union —
-        // validasi defensif, fallback TEXT.
-        // CHT-004: LOCATION & PRODUCT_CARD (batch 43) sebelumnya jatuh ke
-        // fallback TEXT dengan content undefined — "Coba lagi" pada pesan
-        // lokasi mengirim pesan kosong dan lokasinya hilang. Retry sekarang
-        // mempertahankan payload asli tiap tipe.
-        const RETRYABLE_TYPES = [
-          "TEXT",
-          "IMAGE",
-          "FILE",
-          "VIDEO",
-          "VOICE",
-          "LOCATION",
-          "PRODUCT_CARD",
-        ] as const
-        type RetryableType = (typeof RETRYABLE_TYPES)[number]
-        const messageType: RetryableType = (
-          RETRYABLE_TYPES as readonly string[]
-        ).includes(failed.messageType)
-          ? (failed.messageType as RetryableType)
-          : "TEXT"
-        const retryLocation = messageType === "LOCATION" ? failed.location : null
-        const retryCard = messageType === "PRODUCT_CARD" ? asProductCard(failed.card) : null
-        // Pesan khusus batch 43 membawa flag ini saat kirim pertama; retry
-        // mereproduksi kiriman aslinya (jalur TEXT/IMAGE/dsb tidak berubah).
-        const isSpecialType = messageType === "LOCATION" || messageType === "PRODUCT_CARD"
-        const msg = await api.chat.sendChatMessage(roomId, {
-          messageType,
-          content: failed.text || undefined,
-          attachments: failed.attachments?.length
-            ? failed.attachments.map(({ fileName, fileUrl, mimeType, fileSize, thumbnailUrl }) => ({
-                fileName,
-                fileUrl,
-                mimeType,
-                fileSize,
-                thumbnailUrl,
-              }))
-            : undefined,
-          durationSeconds: messageType === "VOICE" ? failed.durationSeconds ?? undefined : undefined,
-          // CHT-004: koordinat + label asli — bukan TEXT kosong.
-          location: retryLocation
-            ? {
-                lat: retryLocation.lat,
-                lng: retryLocation.lng,
-                label: retryLocation.label ?? undefined,
-              }
-            : undefined,
-          // CHT-012: kartu produk dikirim ulang via showcaseId; backend
-          // membekukan ulang snapshot etalase saat kirim.
-          showcaseId: retryCard?.showcaseId,
-          replyToId: failed.replyToId ?? undefined,
-          ephemeralTtlSeconds: isSpecialType ? (failed.ephemeralTtlSeconds ?? undefined) : undefined,
-          viewOnce: isSpecialType ? (failed.viewOnce || undefined) : undefined,
-        }, { idempotencyKey })
-        // Samakan dengan jalur kirim: cocokkan id temp ATAU id server
-        // (gema bisa tiba sebelum POST resolve — fix duplikat 2026-09-28).
-        setMessages((prev) => prev.map((m) => (m.id === tempId || m.id === msg.id ? msg : m)))
-        // B07: retry sukses → keluar dari antrean persisten.
-        removeChatFailedMessage(roomId, tempId)
-        // Retry manual membuka jalan bagi pesan queued berikutnya pada room ini.
-        void drainChatSendQueue()
-        // 2026-10-02: DIHAPUS — penyebab double bubble (redundan dengan setMessages di atas).
-        emptyPolls.current = 0
-        setPollInterval(CHAT_POLL_MS)
-        void refreshReadReceipts()
-      } catch (err) {
-        if (isChatConnectionFailure(err)) {
-          const queued = await enqueueChatMessage(
-            roomId,
-            toFailedChatMessage(failed, { idempotencyKey }),
-          )
-          if (queued.queued) {
-            toast.show({
-              title: translate("Pesan menunggu koneksi"),
-              description: translate(
-                queued.persisted
-                  ? "Akan dikirim otomatis saat tersambung."
-                  : "Antrean aktif selama aplikasi terbuka hingga koneksi pulih.",
-              ),
-              tone: "info",
-            })
-            return
-          }
-          setMessages((prev) =>
-            prev.map((m) => (m.id === tempId ? { ...m, sendStatus: "failed" as const } : m)),
-          )
-          toast.show({
-            title: translate("Pesan belum masuk antrean"),
-            description: translate("Sambungkan internet lalu kirim kembali."),
-            tone: "info",
-          })
-          return
+        const { key: idempotencyKey, generated } = resolveRetryKey(failed)
+        const optimistic: ChatMessage = {
+          ...failed,
+          sendIdempotencyKey: idempotencyKey,
+          sendStatus: "sending",
         }
-        setMessages((prev) =>
-          prev.map((m) => (m.id === tempId ? { ...m, sendStatus: "failed" as const } : m)),
-        )
-        saveChatFailedMessage(
+        setMessages((prev) => prev.map((m) => (m.id === failed.id ? optimistic : m)))
+        // Data lama tanpa key: key baru WAJIB tersimpan sebelum request supaya
+        // percobaan berikutnya memakai key ini, bukan key baru lagi.
+        if (generated) {
+          saveChatFailedMessage(
+            roomId,
+            toFailedChatMessage(optimistic, { idempotencyKey, sendStatus: "sending" }),
+          )
+        }
+        const outcome = await settleSend({
           roomId,
-          toFailedChatMessage(failed, { idempotencyKey, sendStatus: "failed" }),
-        )
-        toast.show({
-          title: translate("Gagal mengirim pesan"),
-          description: isApiError(err) ? userMessage(err) : undefined,
-          tone: "danger",
+          optimistic,
+          idempotencyKey,
+          failTitle: translate("Gagal mengirim pesan"),
         })
+        if (outcome === "sent") {
+          // Retry manual membuka jalan bagi pesan queued berikutnya pada room ini.
+          void drainChatSendQueue()
+          emptyPolls.current = 0
+          setPollInterval(CHAT_POLL_MS)
+          void refreshReadReceipts()
+        }
+      } finally {
+        retryingRef.current.delete(failed.id)
       }
     },
-    [roomId, mergeIncoming, toast.show],
+    [roomId, settleSend, refreshReadReceipts],
   )
 
   // ── Mode pilih: masuk / keluar / toggle ────────────────────────────────
@@ -3596,7 +3494,7 @@ export default function ChatRoomScreen() {
             // (tersimpan di item antrean) — bukan key baru.
             if (a?.picked) void uploadAttachment(localId, a.picked, a.idempotencyKey ?? createIdempotencyKey())
           }}
-          sending={sending}
+          sending={false}
           disabled={loading}
           replyTo={composerReplyTo}
           onCancelReply={() => setReplyTarget(null)}

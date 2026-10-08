@@ -73,7 +73,16 @@ import Animated, {
   withTiming,
   type SharedValue,
 } from "react-native-reanimated"
-import { ArrowBendUpLeft, Check, Checks, Clock, PushPin, Star, Timer, WarningCircle } from "phosphor-react-native"
+import {
+  ArrowBendUpLeft,
+  Check,
+  Checks,
+  Clock,
+  PushPin,
+  Star,
+  Timer,
+  WarningCircle,
+} from "phosphor-react-native"
 
 import { Avatar } from "@/components/ui/avatar"
 import { ChatFormattedText } from "@/components/ui/chat-formatted-text"
@@ -699,9 +708,21 @@ function ChatMessageBubbleBase({
     onLongPress?.()
   }
 
-  const statusText = !outgoing ? undefined : status === "sending" ? "Mengirim" : status === "sent" ? "Terkirim" : status === "read" ? "Dibaca" : undefined
+  // Audit chat B5: label status SELALU lewat translate() (dulu literal
+  // Indonesia di UI Inggris) dan mencakup antrean ("Menunggu koneksi").
+  const statusText = !outgoing
+    ? undefined
+    : status === "sending"
+      ? translate("Mengirim")
+      : status === "queued"
+        ? translate("Menunggu koneksi")
+        : status === "sent"
+          ? translate("Terkirim")
+          : status === "read"
+            ? translate("Dibaca")
+            : undefined
   const a11yLabel = [
-    outgoing ? "Anda" : senderName ?? "Pesan masuk",
+    outgoing ? translate("Anda") : (senderName ?? translate("Pesan masuk")),
     text,
     time,
     failed ? t.failed : statusText,
