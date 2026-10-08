@@ -49,6 +49,7 @@ import {
   type ChatRoom,
 } from "@/lib/api/chat"
 import { peekChatDraft, subscribeChatDrafts } from "@/lib/chat-drafts"
+import { refreshChatUnreadCount } from "@/lib/chat-unread-count"
 import {
   CHAT_SOCKET_EVENTS,
   TYPING_EXPIRY_MS,
@@ -284,6 +285,8 @@ function useChatListTyping(roomIds: string[]): Set<string> {
  *     langsung terbaca, jadi menambah unread di sini akan keliru): event hanya
  *     menandai daftar "kotor"; saat tab kembali fokus daftar di-refresh
  *     sekali meski `refreshOnFocusStaleMs` belum lewat.
+ *   - Badge tab Pesan di-refresh pada setiap pesan masuk (tab tetap ter-mount
+ *     saat pengguna di tab lain, jadi listener ini hidup selama sesi).
  */
 function useChatListLiveUpdates(
   query: { setData: (fn: (prev: ChatRoom[]) => ChatRoom[]) => void; refresh: () => void },
@@ -300,6 +303,9 @@ function useChatListLiveUpdates(
       const state = ref.current
       const payload = state.unwrapEvent(raw)
       if (payload === null || typeof payload !== "object") return
+      // Badge tab Pesan ikut segar seketika (dulu menunggu poll 60 dtk atau
+      // push) — satu GET agregat, di-dedupe in-flight oleh store-nya.
+      if (payload.fromUser !== true) void refreshChatUnreadCount()
       if (!state.focused) {
         state.dirty = true
         return
