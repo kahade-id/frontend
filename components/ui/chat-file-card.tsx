@@ -114,7 +114,7 @@ export const ChatFileCard = memo(function ChatFileCard({
               onPress={onRetry}
               accessibilityRole="button"
               accessibilityLabel={translate("Kirim ulang berkas {x}", { x: attachment.fileName })}
-              className="rounded-full border border-border-default px-2 py-0.5"
+              className="rounded-full border border-border px-2 py-0.5"
             >
               <View className="flex-row items-center gap-1">
                 <Icon

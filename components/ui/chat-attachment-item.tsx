@@ -288,7 +288,10 @@ export const ChatAttachmentItem = memo(function ChatAttachmentItem({
           </Text>
         ) : uploading ? (
           <Text variant="caption" tone="secondary" numberOfLines={1} className="tabular-nums">
-            {`${t.uploading}${progress != null ? ` · ${Math.round(progress * 100)}%` : ""}`}
+            {/* Segmen terpisah: string rangkaian ("Mengunggah · 45%") tidak ada
+                di kamus — label status tetap terjemah, angka % murni data. */}
+            {t.uploading}
+            {progress != null ? ` · ${Math.round(progress * 100)}%` : ""}
           </Text>
         ) : attachment.fileSize > 0 ? (
           <Text variant="caption" tone="secondary" numberOfLines={1}>
