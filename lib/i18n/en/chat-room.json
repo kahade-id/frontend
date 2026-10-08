@@ -59,5 +59,8 @@
   "Diteruskan": "Forwarded",
   "Hanya berlaku di perangkat ini.": "Applies to this device only.",
   "Izinkan screenshot & rekam layar di chat": "Allow screenshots & screen recording in chats",
-  "Layar": "Screen"
+  "Layar": "Screen",
+  "Masih memuat percakapan. Periksa koneksi internet Anda.": "Still loading the conversation. Check your internet connection.",
+  "Kami tidak dapat memuat percakapan ini. Silakan coba lagi.": "We couldn't load this conversation. Please try again.",
+  "Tautan percakapan ini tidak valid.": "This conversation link isn't valid."
 }

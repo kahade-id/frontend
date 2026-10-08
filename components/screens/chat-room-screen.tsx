@@ -61,12 +61,13 @@ import {
   PencilSimple,
   PushPin,
   Trash,
+  // Batch 43 FE-CHAT: ikon aksi baru (terjemah, bintang, lokasi,
+  // kartu produk). Ekspor/buat-transaksi dipakai menu ruang.
   ChartBar,
   MapPin,
   Star,
   Storefront,
   Translate,
-  Chats,
 } from "phosphor-react-native"
 
 import { api, isApiError, userMessage } from "@/lib/api"
@@ -117,6 +118,23 @@ import {
   mergeChatMessages,
   reconcileSentMessage,
 } from "@/lib/chat-dedupe"
+import { applyDeleteMessages, applyPinChange } from "@/lib/chat-message-actions"
+import { createTempMessageId } from "@/lib/chat-optimistic"
+import { JUMP_MAX_PAGES, findThreadRowIndex, planJump, type JumpBlockedReason } from "@/lib/chat-jump"
+import { ROW_HEIGHT_FALLBACK, buildRowGeometry, type RowGeometry } from "@/lib/chat-thread-layout"
+import { mergeReadIds, messagesReadByEvent, readIdsFromReceipts } from "@/lib/chat-read-receipts"
+import { classifyPinFailure, pinBlockedByKnownLimit } from "@/lib/chat-pin"
+import { applyStarredIds, dmSafetyCounterpartId, nextInlineActiveId } from "@/lib/chat-room-effects"
+import { dayKey, dayLabel, msUntilNextLocalMidnight } from "@/lib/chat-day-label"
+import { buildThreadRows, stickyDayChildIndices, type ThreadRow } from "@/lib/chat-thread-rows"
+import { THREAD_LOADING_SLOW_MS, resolveThreadState } from "@/lib/chat-thread-state"
+import { useThreadPositioning } from "@/lib/use-thread-positioning"
+import { useSlowLoading } from "@/lib/use-slow-loading"
+import { createConfirmGate, type ConfirmGate } from "@/lib/confirm-gate"
+import { ChatScreenCaptureGate } from "@/components/security/chat-screen-capture-gate"
+import { createTypingSender, summarizeTypers, type TypingSender } from "@/lib/chat-typing"
+import type { TypingRosterEntry } from "@/lib/realtime/chat-events"
+import { buildSendDto, resolveRetryKey } from "@/lib/chat-send-dto"
 import {
   CHAT_WINDOW_MAX_MESSAGES,
   trimNewestSide,
@@ -151,6 +169,7 @@ import { ChatForwardSheet } from "@/components/ui/chat-forward-sheet"
 import { IconButton } from "@/components/ui/icon-button"
 import { ChatMessageRow } from "@/components/ui/chat-message-row"
 import { ChatPinnedBar } from "@/components/ui/chat-pinned-bar"
+import { ChatReactorsSheet } from "@/components/ui/chat-reactors-sheet"
 import { ChatReactionPopover } from "@/components/ui/chat-reaction-popover"
 import { ChatRoomHeader } from "@/components/ui/chat-room-header"
 import { ChatRoomMenu } from "@/components/ui/chat-room-menu"
@@ -158,7 +177,9 @@ import { ChatSearchSheet } from "@/components/ui/chat-search-sheet"
 import { ChatInlineSearchBar } from "@/components/ui/chat-inline-search"
 import { findMessageMatches } from "@/lib/chat-search"
 import { useDebouncedValue } from "@/lib/use-debounced-value"
-import { ChatDaySeparator, dayKey, dayLabel } from "@/components/ui/chat-day-separator"
+import { ChatDaySeparator } from "@/components/ui/chat-day-separator"
+import { ChatThreadSkeleton } from "@/components/ui/chat-thread-skeleton"
+import { ChatThreadStateView } from "@/components/ui/chat-thread-state-view"
 import { DmSafetyDialog } from "@/components/ui/dm-safety-dialog"
 import { ChatUnreadSeparator } from "@/components/ui/chat-unread-separator"
 import { presenceLabel } from "@/lib/chat-presence-label"
@@ -174,13 +195,9 @@ import { hideMessageLocally, loadHiddenMessageIds } from "@/lib/chat-hidden-mess
 import { type ChatComposerPayload, type ComposerAttachment, type ComposerReplyTarget } from "@/components/ui/chat-composer"
 import { clearChatDraft, loadChatDraft, saveChatDraft, setChatDraftReply } from "@/lib/chat-drafts"
 import { Dialog } from "@/components/ui/modal"
-import { EmptyState } from "@/components/ui/empty-state"
-import { Button } from "@/components/ui/button"
-import { ErrorState } from "@/components/ui/error-state"
 import { LoadMore, type LoadMoreStatus } from "@/components/ui/load-more"
 import { classifyMedia, mediaViewerHref } from "@/lib/media-viewer"
 import { openFileWithOtherApp, saveImageOrVideoToGallery } from "@/lib/media-actions"
-import { ListLoading } from "@/components/ui/paginated-list"
 import { Screen } from "@/components/ui/screen"
 import { ChatRoomFooter } from "@/components/ui/chat-room-footer"
 import { SelectionBar, type SelectionAction } from "@/components/ui/selection-bar"
@@ -208,20 +225,6 @@ import { useOverlayDismissKeys } from "@/components/ui/backdrop"
 import { ephemeralDurationLabel } from "@/lib/chat-ephemeral"
 import { isImageMime } from "@/lib/mime"
 import type { ChatBubbleAnchor } from "@/lib/chat-bubble"
-import { applyDeleteMessages, applyPinChange } from "@/lib/chat-message-actions"
-import { createTempMessageId } from "@/lib/chat-optimistic"
-import { JUMP_MAX_PAGES, findThreadRowIndex, planJump, type JumpBlockedReason } from "@/lib/chat-jump"
-import { ROW_HEIGHT_FALLBACK, buildRowGeometry, type RowGeometry } from "@/lib/chat-thread-layout"
-import { mergeReadIds, messagesReadByEvent, readIdsFromReceipts } from "@/lib/chat-read-receipts"
-import { classifyPinFailure, pinBlockedByKnownLimit } from "@/lib/chat-pin"
-import { applyStarredIds, dmSafetyCounterpartId, nextInlineActiveId } from "@/lib/chat-room-effects"
-import { msUntilNextLocalMidnight } from "@/lib/chat-day-label"
-import { createConfirmGate, type ConfirmGate } from "@/lib/confirm-gate"
-import { ChatScreenCaptureGate } from "@/components/security/chat-screen-capture-gate"
-import { createTypingSender, summarizeTypers, type TypingSender } from "@/lib/chat-typing"
-import type { TypingRosterEntry } from "@/lib/realtime/chat-events"
-import { buildSendDto, resolveRetryKey } from "@/lib/chat-send-dto"
-import { ChatReactorsSheet } from "@/components/ui/chat-reactors-sheet"
 
 
 /** Lampiran composer + berkas lokal untuk unggah ulang bila gagal. */
@@ -237,16 +240,13 @@ type LocalAttachment = ComposerAttachment & {
 }
 
 /**
- * Baris thread untuk FlatList (B02/B10):
+ * Baris thread untuk FlatList (B02/B10) — tipe & pembangunnya di
+ * lib/chat-thread-rows (audit chat I24: identitas baris stabil antar
+ * perubahan daftar, `previous` ditanam di baris):
  * - "day": pemisah hari — STICKY di atas list saat digulir (B10).
  * - "unread": pemisah "Belum dibaca" tepat di atas pesan jangkar (B02).
- * - "msg": satu bubble; `index` = posisi di `visibleMessages` (untuk
- *   previous/next grouping — bukan indeks baris).
+ * - "msg": satu bubble + pesan tepat di atasnya (`previous`, untuk grouping).
  */
-type ThreadRow =
-  | { kind: "day"; key: string; label: string }
-  | { kind: "unread"; key: string; anchorId: string; count: number }
-  | { kind: "msg"; key: string; message: ChatMessage; index: number }
 
 /**
  * LR-001 (2026-09-29): cache tampilan turunan per kunci konten — identitas
@@ -641,6 +641,8 @@ function ChatRoomScreenContent() {
    * — ia dipakai poll & socket).
    */
   const selfIdsRef = useRef<string[]>([])
+  /** Username saya — dipakai kartu produk optimistis tanpa menunggu /me (I24). */
+  const selfUsernameRef = useRef<string | null>(null)
   useEffect(() => {
     let alive = true
     void getMeCached()
@@ -650,6 +652,7 @@ function ChatRoomScreenContent() {
         selfIdsRef.current = [me?.userId, me?.id].filter(
           (v): v is string => typeof v === "string" && v.length > 0,
         )
+        selfUsernameRef.current = me?.username ?? null
       })
       .catch(() => {
         if (alive) setMyUserId(null)
@@ -850,21 +853,28 @@ function ChatRoomScreenContent() {
    * Target balasan → strip preview di atas composer ("Membalas {nama} ·
    * cuplikan" + X). Nama pengirim pesan sendiri = "Anda".
    */
-  const composerReplyTo: ComposerReplyTarget | undefined = replyTarget
-    ? {
-        id: replyTarget.id,
-        senderName: replyTarget.fromUser ? "Anda" : (counterpartName ?? "Pesan"),
-        preview: (
-          replyTarget.isDeleted
-            ? "Pesan ini telah dihapus"
-            : replyTarget.text?.trim() ||
-              // 2026-10-02: kartu produk/order/lokasi tidak punya text —
-              // pakai label yang jelas, bukan "Pesan" generik.
-              nonTextMessageLabel(replyTarget.messageType) ||
-              (replyTarget.attachments?.length ? "Lampiran" : "Pesan")
-        ).slice(0, 80),
-      }
-    : undefined
+  // Audit chat I24: di-memo — objek literal baru tiap render membuat `handleSend`
+  // (bergantung padanya) dan prop `replyTo` footer berganti identitas tiap
+  // render layar selama membalas, menggagalkan memo <ChatRoomFooter>.
+  const composerReplyTo = useMemo<ComposerReplyTarget | undefined>(
+    () =>
+      replyTarget
+        ? {
+            id: replyTarget.id,
+            senderName: replyTarget.fromUser ? translate("Anda") : (counterpartName ?? translate("Pesan")),
+            preview: (
+              replyTarget.isDeleted
+                ? translate("Pesan ini telah dihapus")
+                : replyTarget.text?.trim() ||
+                  // 2026-10-02: kartu produk/order/lokasi tidak punya text —
+                  // pakai label yang jelas, bukan "Pesan" generik.
+                  translate(nonTextMessageLabel(replyTarget.messageType)) ||
+                  (replyTarget.attachments?.length ? translate("Lampiran") : translate("Pesan"))
+            ).slice(0, 80),
+          }
+        : undefined,
+    [replyTarget, counterpartName, language],
+  )
   // P2-C2: simpan replyToId ke draft setiap target balasan berubah
   // (termasuk saat dibatalkan → null). Dijaga draftLoadedRef agar tidak
   // menimpa draft yang belum selesai dimuat dari storage.
@@ -1032,8 +1042,28 @@ function ChatRoomScreenContent() {
     [inlineMatches, inlineActiveId, jumpToInlineMatch],
   )
 
+  // ── Audit chat I23: penempatan posisi awal thread ─────────────────────────
+  // (lib/use-thread-positioning) shimmer menutup list sampai gulir ke pesan
+  // terbaru stabil — tidak ada pesan tertua sesaat atau ujung bawah kosong.
+  // Dideklarasikan SEBELUM fetchMessages: muat awal memanggil `begin()`.
+  const scrollRef = useRef<FlatList<ThreadRow>>(null)
+  const scrollThreadToEnd = useCallback(() => {
+    scrollRef.current?.scrollToEnd({ animated: false })
+  }, [])
+  const {
+    positioning,
+    begin: beginPositioning,
+    onContentSizeChange: onPositioningSizeChange,
+  } = useThreadPositioning(scrollThreadToEnd)
+
   const fetchMessages = useCallback(async () => {
-    if (!roomId) return
+    if (!roomId) {
+      // Audit chat I23: tanpa roomId tidak ada yang bisa dimuat. Dulu `return`
+      // diam-diam meninggalkan loading=true → shimmer selamanya. Kini loading
+      // selesai dan keadaan "invalid" (resolveThreadState) menjelaskannya.
+      setLoading(false)
+      return
+    }
     initialRequest.current?.abort()
     const controller = new AbortController()
     initialRequest.current = controller
@@ -1104,6 +1134,14 @@ function ChatRoomScreenContent() {
       if (initialUnreadRef.current === null) {
         initialUnreadRef.current = roomRow?.unreadCount ?? 0
       }
+      // Audit chat I23: muat awal membawa pesan → shimmer menutup list sampai
+      // posisi ke pesan terbaru stabil (satu batch dengan setMessages di atas).
+      if (items.length > 0 || stillFailed.length > 0) beginPositioning()
+      // Audit chat I23: pesan SUDAH ada di state — tutup shimmer sekarang.
+      // Dulu `loading` baru padam di `finally` SETELAH `await markChatRoomRead`
+      // (request terpisah yang bisa menggantung selama timeout jaringan):
+      // gulir-ke-bawah awal ikut tertunda dan composer terkunci selama itu.
+      if (initialRequest.current === controller && !controller.signal.aborted) setLoading(false)
       // B08: muat id pesan "hapus untuk saya".
       void loadHiddenMessageIds(roomId).then((ids) => {
         if (!controller.signal.aborted) setHiddenIds(ids)
@@ -1124,7 +1162,7 @@ function ChatRoomScreenContent() {
     } finally {
       if (initialRequest.current === controller && !controller.signal.aborted) setLoading(false)
     }
-  }, [roomId])
+  }, [roomId, beginPositioning])
 
   useEffect(() => {
     void fetchMessages()
@@ -1604,30 +1642,26 @@ function ChatRoomScreenContent() {
   // F-06 (audit): thread dirender <FlatList> (virtualisasi) — sebelumnya
   // ScrollView + messages.map menahan 200+ bubble ter-mount penuh dengan
   // gambar; memori & FPS jatuh di Android low-end.
-  const scrollRef = useRef<FlatList<ThreadRow>>(null)
   const replyCoachMarkRef = useRef<ViewInstance | null>(null)
   const lastSeenEndId = useRef<string | undefined>(undefined)
-  const lastMessageId = messages[messages.length - 1]?.id
+  const lastMessage = messages[messages.length - 1]
+  // Audit chat I24: kunci render stabil — bubble yang id-nya berganti dari
+  // `temp-…` ke id server BUKAN "pesan terakhir yang baru" (tanpa ini setiap
+  // kirim memicu scroll-ke-bawah kedua saat respons tiba).
+  const lastMessageId = lastMessage ? clientKeyOf(lastMessage) : undefined
   const handleContentSizeChange = useCallback(() => {
+    // Audit chat I23: selama penempatan posisi awal, perubahan ukuran konten
+    // (baris di ujung ter-mount & terukur) menggulir ulang ke ujung.
+    onPositioningSizeChange()
     if (lastMessageId && lastSeenEndId.current !== lastMessageId) {
       lastSeenEndId.current = lastMessageId
       scrollRef.current?.scrollToEnd({ animated: false })
     }
-  }, [lastMessageId])
+  }, [lastMessageId, onPositioningSizeChange])
 
   // (2026-10-05, revisi produk: buka chat langsung ke pesan terakhir, bukan ke
-  // atas. handleContentSizeChange kadang tidak fire di load awal.)
-  const initialScrollDone = useRef(false)
-  useEffect(() => {
-    if (!initialScrollDone.current && messages.length > 0 && !loading) {
-      initialScrollDone.current = true
-      // Tunda satu frame agar FlatList selesai layout.
-      const t = setTimeout(() => {
-        scrollRef.current?.scrollToEnd({ animated: false })
-      }, 100)
-      return () => clearTimeout(t)
-    }
-  }, [messages.length, loading])
+  // atas.) Audit chat I23: gulir awal kini dikelola useThreadPositioning
+  // (dipicu `beginPositioning` di fetchMessages) — efek 100 ms lama dihapus.
 
   /**
    * Posisi baca terkini. Dua kegunaannya:
@@ -1754,25 +1788,21 @@ function ChatRoomScreenContent() {
       sub.remove()
     }
   }, [])
+  // Audit chat I24: identitas baris STABIL — baris yang isinya tidak berubah
+  // memakai ulang objek lama (lib/chat-thread-rows), jadi mengirim/menerima
+  // satu pesan hanya menambah SATU baris baru; sel FlatList lain tidak
+  // di-render ulang. Kunci baris = kunci render stabil (B4): id temp diwarisi
+  // pesan server, baris tidak di-remount saat id berganti.
+  const prevThreadRowsRef = useRef<ThreadRow[]>([])
   const threadRows = useMemo<ThreadRow[]>(() => {
-    const rows: ThreadRow[] = []
-    let lastDay = ""
-    visibleMessages.forEach((m, index) => {
-      const day = dayKey(m.createdAt)
-      if (day !== lastDay) {
-        lastDay = day
-        rows.push({ kind: "day", key: `day-${day}`, label: dayLabel(m.createdAt) })
-      }
-      if (unreadAnchorId && m.id === unreadAnchorId) {
-        rows.push({
-          kind: "unread",
-          key: "unread-separator",
-          anchorId: m.id,
-          count: initialUnreadRef.current ?? 0,
-        })
-      }
-      rows.push({ kind: "msg", key: clientKeyOf(m), message: m, index })
+    const rows = buildThreadRows(visibleMessages, {
+      unreadAnchorId,
+      unreadCount: initialUnreadRef.current ?? 0,
+      dayKey,
+      dayLabel,
+      previousRows: prevThreadRowsRef.current,
     })
+    prevThreadRowsRef.current = rows
     return rows
   }, [visibleMessages, unreadAnchorId, dayTick])
 
@@ -1850,14 +1880,17 @@ function ChatRoomScreenContent() {
     [],
   )
 
-  /** B10: indeks baris "day" — FlatList menempelkannya di atas saat digulir. */
-  const stickyDayIndices = useMemo(() => {
-    const indices: number[] = []
-    threadRows.forEach((row, i) => {
-      if (row.kind === "day") indices.push(i)
-    })
-    return indices
-  }, [threadRows])
+  /**
+   * B10: indeks baris "day" — FlatList menempelkannya di atas saat digulir.
+   * Ruang indeks ANAK (header list = anak ke-0), bukan indeks data: lihat
+   * `stickyDayChildIndices`. `messages.length > 0` = syarat yang sama dengan
+   * `threadListHeader` (header ada).
+   */
+  const hasListHeader = messages.length > 0
+  const stickyDayIndices = useMemo(
+    () => stickyDayChildIndices(threadRows, hasListHeader ? 1 : 0),
+    [threadRows, hasListHeader],
+  )
 
   /**
    * B09: sorot pesan asal balasan selama ~2,5 detik setelah kutipan diketuk.
@@ -2629,9 +2662,12 @@ function ChatRoomScreenContent() {
       const idempotencyKey = createIdempotencyKey()
       const tempId = createTempMessageId(idempotencyKey)
       // Username penjual = user sendiri (picker hanya menampilkan etalase
-      // milik sendiri). getMeCached murah (cache 5 dtk); gagal → string
-      // kosong, baris "@" disembunyikan kartu (lihat ChatProductCard).
-      const me = await getMeCached().catch(() => null)
+      // milik sendiri). Dibaca dari ref yang diisi saat layar dibuka —
+      // bubble optimistis TIDAK menunggu /me. Hanya bila belum terisi
+      // jatuh ke getMeCached; gagal → string kosong, baris "@" disembunyikan
+      // kartu (lihat ChatProductCard).
+      const sellerUsername =
+        selfUsernameRef.current ?? (await getMeCached().catch(() => null))?.username ?? ""
       const optimisticCard: ChatProductCardPayload = {
         kind: "PRODUCT_CARD",
         showcaseId: item.id,
@@ -2639,7 +2675,7 @@ function ChatRoomScreenContent() {
         priceMin: item.priceMin != null ? String(item.priceMin) : null,
         priceMax: item.priceMax != null ? String(item.priceMax) : null,
         imageUrl: item.coverImageUrl ?? null,
-        sellerUsername: me?.username ?? "",
+        sellerUsername,
         snapshotAt: new Date().toISOString(),
       }
       const optimisticMsg: ChatMessage = {
@@ -3160,10 +3196,15 @@ function ChatRoomScreenContent() {
    * luar. Refresh signed URL kedaluwarsa (TTL 5 mnt) tetap jalan dulu
    * (FIX 2026-10-03).
    */
+  // Audit chat I24: dulu bergantung pada `messages` → identitas berganti pada
+  // SETIAP perubahan pesan (kirim, masuk, centang baca, reaksi) dan — karena ia
+  // prop `onAttachmentPress` tiap baris — membatalkan memo SELURUH baris:
+  // menambah satu pesan me-render ulang seluruh list. Pesan terkini dibaca
+  // lewat ref pada saat diketuk (handler event, bukan saat render).
   const openAttachment = useCallback(
     async (a: ChatAttachmentDto) => {
       const attachment = await refreshAttachmentIfExpired(a)
-      const owner = messages.find((m) =>
+      const owner = messagesRef.current.find((m) =>
         m.attachments?.some((att) => att === a || att.fileUrl === a.fileUrl),
       )
       const type = classifyMedia(attachment.mimeType, attachment.fileName)
@@ -3209,7 +3250,7 @@ function ChatRoomScreenContent() {
         }),
       )
     },
-    [messages, refreshAttachmentIfExpired],
+    [refreshAttachmentIfExpired],
   )
 
   /**
@@ -3703,7 +3744,6 @@ function ChatRoomScreenContent() {
         )
       }
       const m = row.message
-      const index = row.index
       const isReplyCoachTarget = m.id === replyCoachTargetId
       return (
         <View
@@ -3713,7 +3753,10 @@ function ChatRoomScreenContent() {
         >
           <ChatMessageRow
             message={m}
-            previous={index > 0 ? visibleMessages[index - 1] : undefined}
+            // Audit chat I24: `previous` ditanam di baris (bukan dicari lewat
+            // seluruh daftar pesan) — renderItem tidak lagi bergantung pada
+            // `visibleMessages`, jadi identitasnya stabil saat pesan ditambah.
+            previous={row.previous}
             // B10: pemisah hari sudah jadi baris sticky tersendiri.
             hideDaySeparator
             // B09: sorot pesan asal balasan + navigasi konteks kutipan.
@@ -3771,7 +3814,6 @@ function ChatRoomScreenContent() {
       )
     },
     [
-      visibleMessages,
       highlightedId,
       handleQuotePress,
       selecting,
@@ -3824,41 +3866,22 @@ function ChatRoomScreenContent() {
     [messages.length, olderStatus, loadOlder, handleListHeaderLayout],
   )
   /**
-   * FE-058 (audit 2026-09-29): ListEmptyComponent kondisional di-hoist —
-   * elemen JSX baru tiap render menggagalkan bail-out kontainer FlatList.
+   * Audit chat I23: keadaan tampilan thread — SATU dari enam, masing-masing
+   * dengan tampilan yang jelas (lib/chat-thread-state). Menggantikan
+   * `ListEmptyComponent` berisi ternary (FE-058) yang meninggalkan layar
+   * kosong pada kombinasi yang tak tertangani. FlatList hanya di-mount saat
+   * "ready"; selain itu tampilan keadaan memenuhi area thread.
    */
-  const threadListEmpty = useMemo(
-    () =>
-      loading ? (
-        <View className="pt-3">
-          <ListLoading />
-        </View>
-      ) : roomGone ? (
-        <EmptyState
-          icon={Chats}
-          title={translate("Percakapan tidak tersedia")}
-          description={translate("Ruang chat ini telah dihapus atau dinonaktifkan.")}
-          action={
-            <Button onPress={() => router.replace(ROUTES.chat)}>
-              {translate("Kembali ke daftar chat")}
-            </Button>
-          }
-        />
-      ) : error ? (
-        <ErrorState
-          title={translate("Gagal memuat")}
-          description={error}
-          onRetry={() => void fetchMessages()}
-        />
-      ) : (
-        <EmptyState
-          icon={Chats}
-          title={translate("Belum ada pesan")}
-          description={translate("Mulai percakapan Anda.")}
-        />
-      ),
-    [loading, roomGone, error, fetchMessages, language],
-  )
+  const threadState = resolveThreadState({
+    hasRoomId: Boolean(roomId),
+    loading,
+    error,
+    roomGone,
+    rowCount: threadRows.length,
+  })
+  const slowLoading = useSlowLoading(threadState === "loading", THREAD_LOADING_SLOW_MS)
+  const handleRetryLoad = useCallback(() => void fetchMessages(), [fetchMessages])
+  const handleBackToList = useCallback(() => router.replace(ROUTES.chat), [])
   /**
    * FE-059/FE-060 (audit 2026-09-29): handler stabil untuk ChatPinnedBar
    * (memo) dan MediaViewer (memo + mount kondisional).
@@ -3889,6 +3912,41 @@ function ChatRoomScreenContent() {
     [],
   )
 
+  // ── Audit chat I24: callback footer STABIL ───────────────────────────────
+  // <ChatRoomFooter> adalah `memo`: ia hanya dilewati bila SEMUA prop identik.
+  // Closure inline di JSX membuat identitas baru tiap render layar — yaitu tiap
+  // pesan terkirim/masuk — sehingga footer + composer ikut di-render ulang
+  // tepat saat thread sedang menambah baris (jendela jank "kedip saat kirim").
+  // Handler yang butuh state terbaru membacanya lewat ref.
+  const attachmentsRef = useRef(attachments)
+  attachmentsRef.current = attachments
+  const uploadAttachmentRef = useRef(uploadAttachment)
+  uploadAttachmentRef.current = uploadAttachment
+  const handleOpenOrderById = useCallback((id: string) => router.push(ROUTES.orderDetail(id)), [])
+  const handleFooterSend = useCallback((p: ChatComposerPayload) => void handleSendRef.current(p), [])
+  const handleOpenAttachSheet = useCallback(() => setAttachSheetOpen(true), [])
+  const handleOpenVoiceSheet = useCallback(() => setVoiceSheetOpen(true), [])
+  const handleRemoveAttachment = useCallback((localId: string) => {
+    // B04: menghapus chip saat upload berjalan ikut membatalkan
+    // request-nya — bukan sekadar menyembunyikan chip.
+    uploadControllersRef.current.get(localId)?.abort()
+    setAttachments((prev) => prev.filter((a) => a.localId !== localId))
+  }, [])
+  const handleRetryAttachment = useCallback((localId: string) => {
+    const a = attachmentsRef.current.find((x) => x.localId === localId)
+    // BFE-001: retry pakai key yang SAMA dengan attempt pertama
+    // (tersimpan di item antrean) — bukan key baru.
+    if (a?.picked) {
+      void uploadAttachmentRef.current(localId, a.picked, a.idempotencyKey ?? createIdempotencyKey())
+    }
+  }, [])
+  const handleCancelReply = useCallback(() => setReplyTarget(null), [])
+  const handleOpenEphemeral = useCallback(() => setEphemeralSheetOpen(true), [])
+  const handleClearEphemeral = useCallback(() => {
+    setTtlSeconds(null)
+    setViewOnceOn(false)
+  }, [])
+
   return (
     <Screen
       keyboardAvoiding
@@ -3901,7 +3959,7 @@ function ChatRoomScreenContent() {
         // UI-C001: room 404 (roomGone) menyembunyikan footer — composer yang
         // tetap tampil di bawah EmptyState "tidak tersedia" mengundang kirim
         // ke ruang yang sudah tidak ada (selalu gagal + retry yang sia-sia).
-        error || roomGone || !roomId ? undefined : (
+        threadState === "error" || threadState === "gone" || threadState === "invalid" ? undefined : (
         /*
           Footer dipecah ke <ChatRoomFooter> (2026-09-26): layar ini
           menyentuh plafon G-11, dan blok ini murni penyusunan — tidak
@@ -3914,43 +3972,32 @@ function ChatRoomScreenContent() {
           completed={isChatCompleted}
           closedNotice={closedNoticeText}
           orderId={room?.orderId}
-          onOpenOrder={(id) => router.push(ROUTES.orderDetail(id))}
+          onOpenOrder={handleOpenOrderById}
           initialDraft={restoredDraft}
           draftResetKey={draftResetKey}
           onDraftChange={handleDraftChange}
           onComposerBlur={handleComposerBlur}
-          onSend={(p) => void handleSend(p)}
+          onSend={handleFooterSend}
           attachments={composerAttachments}
-          onAttach={() => setAttachSheetOpen(true)}
-          onMicPress={() => setVoiceSheetOpen(true)}
+          onAttach={handleOpenAttachSheet}
+          onMicPress={handleOpenVoiceSheet}
           // Audit chat C7: tahan mic = rekam, geser ke atas = kunci (ketuk
           // biasa tetap membuka lembar perekam — jalan bagi pembaca layar).
           onVoiceNote={handleVoiceNote}
-          onRemoveAttachment={(localId) => {
-            // B04: menghapus chip saat upload berjalan ikut membatalkan
-            // request-nya — bukan sekadar menyembunyikan chip.
-            uploadControllersRef.current.get(localId)?.abort()
-            setAttachments((prev) => prev.filter((a) => a.localId !== localId))
-          }}
+          onRemoveAttachment={handleRemoveAttachment}
           onCancelAttachment={handleCancelAttachment}
-          onRetryAttachment={(localId) => {
-            const a = attachments.find((x) => x.localId === localId)
-            // BFE-001: retry pakai key yang SAMA dengan attempt pertama
-            // (tersimpan di item antrean) — bukan key baru.
-            if (a?.picked) void uploadAttachment(localId, a.picked, a.idempotencyKey ?? createIdempotencyKey())
-          }}
+          onRetryAttachment={handleRetryAttachment}
+          // Audit chat I24: composer TIDAK PERNAH dikunci saat kirim — kirim
+          // optimistis; mengunci `editable` membuat Android menutup keyboard.
           sending={false}
           disabled={loading}
           replyTo={composerReplyTo}
-          onCancelReply={() => setReplyTarget(null)}
+          onCancelReply={handleCancelReply}
           // Batch 43: strip mode pesan sementara + toolbar format teks.
           ephemeralLabel={ttlSeconds != null ? ephemeralDurationLabel(ttlSeconds) : null}
           viewOnceActive={viewOnceOn}
-          onOpenEphemeral={() => setEphemeralSheetOpen(true)}
-          onClearEphemeral={() => {
-            setTtlSeconds(null)
-            setViewOnceOn(false)
-          }}
+          onOpenEphemeral={handleOpenEphemeral}
+          onClearEphemeral={handleClearEphemeral}
           // 2026-10-02: formatBar DIHAPUS atas permintaan user — toolbar
           // format (B/I/mono/dll) di atas input dihapus; pemformatan cukup
           // otomatis terdeteksi saat render (ChatFormattedText).
@@ -4057,9 +4104,14 @@ function ChatRoomScreenContent() {
           thread panjang (ratusan bubble bergambar) dulu ter-mount penuh.
           Bubble TIDAK dianimasikan per-item: auto-scroll ke pesan terbaru +
           pesan baru tiap poll akan jitter bila posisi divisualkan bertahap. */}
+      {threadState === "ready" ? (
+        <View className="flex-1">
       <FlatList
         ref={scrollRef}
         className="flex-1"
+        // Audit chat I23: selama shimmer penutup tampil, isi list tidak dibaca
+        // pembaca layar (yang terdengar hanya "Memuat").
+        importantForAccessibility={positioning ? "no-hide-descendants" : "auto"}
         removeClippedSubviews={false}
         // 2026-10-03: sembunyikan scrollbar (permintaan user — efek abu-abu
         // di kanan mengganggu).
@@ -4078,7 +4130,6 @@ function ChatRoomScreenContent() {
         onScroll={handleScroll}
         scrollEventThrottle={SCROLL_EVENT_THROTTLE}
         ListHeaderComponent={threadListHeader ?? undefined}
-        ListEmptyComponent={threadListEmpty}
         renderItem={renderThreadRow}
         // Scroll ke puncak = muat riwayat lebih lama (tombol eksplisit tetap
         // ada di header list untuk status error).
@@ -4094,6 +4145,27 @@ function ChatRoomScreenContent() {
       // removeClippedSubviews DIHAPUS (2026-09-23): sumber klasik baris/layar
       // blank saat scroll di Android — view terpotong tak selalu direstorasi.
       />
+          {/* Audit chat I23: penutup shimmer selama posisi awal belum stabil. */}
+          {positioning ? (
+            <View
+              testID="chat-thread-positioning"
+              className="absolute inset-0 bg-background"
+            >
+              <ChatThreadSkeleton />
+            </View>
+          ) : null}
+        </View>
+      ) : (
+        <ChatThreadStateView
+          state={threadState}
+          error={error}
+          slow={slowLoading}
+          counterpartName={counterpartName}
+          selfChat={isSelfChat}
+          onRetry={handleRetryLoad}
+          onBackToList={handleBackToList}
+        />
+      )}
 
       {/* Pemilih reaksi MENGAMBANG (revisi 2026-09-27): pil emoji di dekat
           bubble yang ditekan lama — bukan baris penuh di header. Backdrop

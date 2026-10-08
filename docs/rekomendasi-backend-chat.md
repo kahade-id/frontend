@@ -375,3 +375,74 @@ bisa menyempurnakan:
    diaktifkan hari ini karena menyangkut privasi pihak lain dan tidak
    diminta di audit.
 
+## I — Bug kritis: layar kosong saat buka ruang, kedipan putih saat kirim
+
+**Kondisi hari ini (semua di klien, tanpa perubahan kontrak).**
+
+*Layar kosong (I23).* Penyebab yang ditemukan, semuanya sekarang tertutup:
+
+1. Rute tanpa `roomId` meninggalkan `loading=true` selamanya (shimmer abadi).
+2. `loading` baru padam setelah `POST …/read` (`markChatRoomRead`) selesai —
+   request yang tidak ada hubungannya dengan isi thread. Bila endpoint itu
+   lambat/menggantung, pengguna menatap shimmer padahal pesan sudah ada.
+3. List digulir ke ujung SEBELUM baris di ujung ter-mount: tampil dulu bagian
+   atas riwayat lalu melompat, atau sebuah celah kosong di tengah.
+4. Keadaan kosong/galat/memuat hidup di `ListEmptyComponent` dalam ternary —
+   mudah menghasilkan area putih saat urutan state berubah.
+
+Sekarang satu mesin keadaan (`resolveThreadState`) memutuskan tampilan:
+`memuat → shimmer berbentuk percakapan` · `ada pesan → thread` ·
+`kosong → ilustrasi + panduan` · `galat → pesan + Coba lagi` ·
+`ruang dihapus (404) → penjelasan + kembali ke daftar` ·
+`tautan rusak → penjelasan`. Memuat >12 dtk menambah catatan "Masih memuat
+percakapan…" + Coba lagi. Selama chunk layar dimuat, rute menampilkan shimmer
+yang sama, dan error render ditangkap `ErrorBoundary` tingkat-rute.
+
+*Kedipan putih saat kirim (I24).* Dugaan "render ulang besar memblokir UI"
+terbukti benar; penyebabnya ditemukan lewat harness hitung-render pada layar
+sungguhan (`tests/chat-room-thread-states.test.tsx`):
+
+1. `openAttachment` bergantung pada `messages`, sehingga identitasnya berganti
+   pada SETIAP perubahan pesan (kirim, masuk, centang baca, reaksi). Ia dikirim
+   ke tiap baris sebagai `onAttachmentPress`, jadi memo SEMUA baris batal dan
+   seluruh list di-render ulang. Kini pesan terkini dibaca lewat ref saat
+   diketuk.
+2. `stickyHeaderIndices` memakai indeks data padahal VirtualizedList memakai
+   ruang indeks anak (`ListHeaderComponent` = anak ke-0, item `i` ↔ `i+1`).
+   Akibatnya header "Muat pesan sebelumnya" yang menempel, dan untuk tiap
+   pemisah hari yang menempel justru bubble SEBELUMNYA — sel berbeda dibungkus
+   ulang setiap list berubah, pemisah hari tidak pernah menempel (B10 rusak
+   diam-diam). Ini bug lama; indeks kini digeser (`stickyDayChildIndices`).
+3. Daftar baris (pemisah hari, penanda belum dibaca, bubble) dibangun ulang
+   dengan objek baru tiap perubahan; kini `buildThreadRows` memakai ulang objek
+   baris yang tidak berubah dan mengembalikan array lama bila tak ada yang
+   berubah, `previous` dihitung sekali per baris, handler `onLayout` di-cache
+   per baris, dan callback footer/composer stabil — menambah satu pesan hanya
+   me-render baris baru (teruji: baris lama TIDAK di-render ulang saat kirim,
+   saat respons server tiba, maupun saat pesan realtime masuk).
+
+**Rekomendasi backend (tidak wajib, menyempurnakan penanganan galat):**
+
+1. **Bedakan `404` dan `403` untuk ruang.** Klien memperlakukan `404` sebagai
+   "percakapan tidak tersedia" (tidak ada gunanya Coba lagi). Pastikan ruang
+   yang dihapus/dinonaktifkan konsisten `404` dengan kode mesin yang stabil
+   (mis. `CHAT_ROOM_NOT_FOUND`), dan non-peserta `403` (`CHAT_ROOM_FORBIDDEN`),
+   bukan `500`/`400` — agar klien tidak menampilkan "Gagal memuat" untuk ruang
+   yang memang tidak ada.
+2. **`POST …/read` harus cepat dan idempoten**, dan sebaiknya tidak berbagi
+   timeout dengan `GET …/messages`. Klien sudah tidak menunggunya untuk
+   menampilkan pesan, tetapi tanda "sudah dibaca" ke lawan bicara tertunda
+   selama endpoint ini lambat.
+3. **Tambahkan `firstUnreadMessageId` (atau `lastReadMessageId`) pada
+   `GET …/rooms/{id}`.** Hari ini klien hanya punya `unreadCount` dan
+   menghitung jangkar "pesan belum dibaca" dari halaman riwayat yang sudah
+   dimuat; bila pesan itu lebih tua dari halaman pertama, penanda baru muncul
+   setelah pengguna memuat riwayat lebih lama. Dengan id jangkar dari server,
+   klien bisa langsung memuat sampai pesan itu.
+
+**Cara memverifikasi di perangkat Android (belum dijalankan di perangkat dari
+lingkungan ini):** buka ruang di mode pesawat (harus tampil galat + Coba lagi,
+bukan kosong); buka dengan jaringan lambat (shimmer → catatan lambat di 12
+dtk); buka ruang berisi >500 pesan (tanpa lompatan posisi yang terlihat); kirim
+pesan di ruang panjang dengan *Profiler → Highlight updates* menyala (hanya
+bubble baru yang berkedip).

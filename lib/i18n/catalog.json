@@ -16,7 +16,7 @@
   },
   {
    "s": "Coba lagi",
-   "n": 43
+   "n": 45
   },
   {
    "s": "Gagal memuat",
@@ -44,7 +44,7 @@
   },
   {
    "s": "Anda",
-   "n": 22
+   "n": 23
   },
   {
    "s": "Tutup",
@@ -159,6 +159,10 @@
    "n": 12
   },
   {
+   "s": "Pesan",
+   "n": 12
+  },
+  {
    "s": "Pilihan etalase",
    "n": 12
   },
@@ -228,10 +232,6 @@
   },
   {
    "s": "Penerima:",
-   "n": 10
-  },
-  {
-   "s": "Pesan",
    "n": 10
   },
   {
@@ -931,10 +931,6 @@
    "n": 5
   },
   {
-   "s": "Belum ada pesan",
-   "n": 5
-  },
-  {
    "s": "Beri ulasan",
    "n": 5
   },
@@ -1076,6 +1072,10 @@
   },
   {
    "s": "Konten tidak tersedia",
+   "n": 5
+  },
+  {
+   "s": "Lampiran",
    "n": 5
   },
   {
@@ -1524,10 +1524,6 @@
   },
   {
    "s": "Label (opsional)",
-   "n": 4
-  },
-  {
-   "s": "Lampiran",
    "n": 4
   },
   {
@@ -3135,6 +3131,10 @@
    "n": 3
   },
   {
+   "s": "Kami tidak dapat memuat percakapan ini. Silakan coba lagi.",
+   "n": 3
+  },
+  {
    "s": "Kami tidak dapat menyiapkan percakapan saat ini. Silakan coba lagi.",
    "n": 3
   },
@@ -3771,10 +3771,6 @@
    "n": 3
   },
   {
-   "s": "Mulai percakapan Anda.",
-   "n": 3
-  },
-  {
    "s": "Mutasi",
    "n": 3
   },
@@ -4040,6 +4036,10 @@
   },
   {
    "s": "Pesan di {x}: {y}",
+   "n": 3
+  },
+  {
+   "s": "Pesan ini telah dihapus",
    "n": 3
   },
   {
@@ -4540,6 +4540,10 @@
   },
   {
    "s": "Tautan mungkin sudah berubah. Kembali ke beranda untuk melanjutkan.",
+   "n": 3
+  },
+  {
+   "s": "Tautan percakapan ini tidak valid.",
    "n": 3
   },
   {
@@ -5356,6 +5360,10 @@
   },
   {
    "s": "Belum ada penarikan",
+   "n": 2
+  },
+  {
+   "s": "Belum ada pesan",
    "n": 2
   },
   {
@@ -7179,6 +7187,10 @@
    "n": 2
   },
   {
+   "s": "Masih memuat percakapan. Periksa koneksi internet Anda.",
+   "n": 2
+  },
+  {
    "s": "Masuk dengan Apple",
    "n": 2
   },
@@ -7860,10 +7872,6 @@
   },
   {
    "s": "Pesan dipin",
-   "n": 2
-  },
-  {
-   "s": "Pesan ini telah dihapus",
    "n": 2
   },
   {
