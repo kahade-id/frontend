@@ -571,6 +571,10 @@
    "n": 6
   },
   {
+   "s": "Buka percakapan langsung dengan penjual",
+   "n": 6
+  },
+  {
    "s": "Buka profil pengguna",
    "n": 6
   },
@@ -1031,6 +1035,10 @@
    "n": 5
   },
   {
+   "s": "Chat penjual",
+   "n": 5
+  },
+  {
    "s": "Daftar pengikut",
    "n": 5
   },
@@ -1380,10 +1388,6 @@
   },
   {
    "s": "Buat PIN",
-   "n": 4
-  },
-  {
-   "s": "Buat Transaksi",
    "n": 4
   },
   {
@@ -2267,6 +2271,10 @@
    "n": 3
   },
   {
+   "s": "Bayar lewat Kahade — dana diteruskan ke penjual setelah Anda konfirmasi terima.",
+   "n": 3
+  },
+  {
    "s": "Beli {x}",
    "n": 3
   },
@@ -2512,10 +2520,6 @@
   },
   {
    "s": "Buka percakapan",
-   "n": 3
-  },
-  {
-   "s": "Buka percakapan langsung dengan penjual",
    "n": 3
   },
   {
@@ -2831,7 +2835,7 @@
    "n": 3
   },
   {
-   "s": "Etalase ini sedang tidak aktif, jadi belum bisa ditransaksikan.",
+   "s": "Etalase ini sedang tidak aktif, jadi belum bisa dibeli.",
    "n": 3
   },
   {
@@ -4771,7 +4775,7 @@
    "n": 3
   },
   {
-   "s": "Stok etalase ini habis, jadi belum bisa ditransaksikan.",
+   "s": "Stok etalase ini habis, jadi belum bisa dibeli.",
    "n": 3
   },
   {
@@ -5771,6 +5775,10 @@
    "n": 2
   },
   {
+   "s": "Beli via Kahade",
+   "n": 2
+  },
+  {
    "s": "Belum ada alamat",
    "n": 2
   },
@@ -5999,6 +6007,10 @@
    "n": 2
   },
   {
+   "s": "Buat Transaksi",
+   "n": 2
+  },
+  {
    "s": "Buat ulang kode VA",
    "n": 2
   },
@@ -6176,10 +6188,6 @@
   },
   {
    "s": "Chat ditutup",
-   "n": 2
-  },
-  {
-   "s": "Chat penjual",
    "n": 2
   },
   {

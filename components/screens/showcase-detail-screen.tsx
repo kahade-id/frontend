@@ -25,6 +25,7 @@ import {
   PaperPlaneRight,
   PencilSimple,
   ShareNetwork,
+  ShieldCheck,
   Trash,
   UserMinus,
   UserPlus,
@@ -46,7 +47,7 @@ import {
 import { cn } from "@/lib/cn"
 import { focusRing } from "@/lib/focus-ring"
 import { ROUTES } from "@/lib/routes"
-import { showcasePriceLabel, showcasePriceLabelOrFallback } from "@/lib/showcase-labels"
+import { showcaseConditionLabel, showcasePriceLabel, showcasePriceLabelOrFallback } from "@/lib/showcase-labels"
 import { showcaseHtmlHasFormatting } from "@/lib/showcase-html"
 import { useShowcaseSocialActions } from "@/lib/use-showcase-social-actions"
 import { useApiQuery } from "@/lib/use-api-query"
@@ -834,8 +835,10 @@ function ShowcaseDetailContent({
 
   const priceLabel = showcasePriceLabelOrFallback(item)
   const priceRequiresChat = showcasePriceLabel(item) === null
+  // Audit 2026-10-08: badge kondisi (Baru/Bekas) — paritas dengan kartu feed.
+  const conditionLabel = showcaseConditionLabel(item)
   // C06 (batch 139): status stok konsisten dengan kartu feed — CTA
-  // "Buat Transaksi" nonaktif saat stok habis. Graceful: tanpa field stok
+  // "Beli via Kahade" nonaktif saat stok habis. Graceful: tanpa field stok
   // dari backend, perilaku sama seperti sebelumnya.
   const soldOut = isShowcaseSoldOut(item)
 
@@ -1025,21 +1028,41 @@ function ShowcaseDetailContent({
       footer={
         // FooterBar milik <Screen> sudah memberi px-5/pt-4 + inset bawah —
         // jangan dibungkus padding lagi (audit:classes: padding dobel).
+        // Audit 2026-10-08 (pola footer produk TikTok Shop/Tokopedia):
+        // chat penjual (ikon, sekunder) + CTA utama "Beli via Kahade" —
+        // kata kerja + jaminan dalam satu label, menggantikan "Buat Transaksi"
+        // yang generik. Chat tetap tersedia saat stok habis/tidak aktif
+        // (pembeli bisa bertanya kapan tersedia lagi).
         !isOwner ? (
-          <Button
-            fullWidth
-            disabled={item.isActive === false || soldOut}
-            onPress={handleCreateTransaction}
-            accessibilityHint={
-              soldOut
-                ? translate("Stok etalase ini habis, jadi belum bisa ditransaksikan.")
-                : item.isActive === false
-                  ? translate("Etalase ini sedang tidak aktif, jadi belum bisa ditransaksikan.")
-                  : undefined
-            }
-          >
-            {translate("Buat Transaksi")}
-          </Button>
+          <View className="flex-row items-center gap-3">
+            {sellerUsername ? (
+              <IconButton
+                icon={ChatCircle}
+                variant="secondary"
+                size="md"
+                accessibilityLabel={translate("Chat penjual")}
+                accessibilityHint={translate("Buka percakapan langsung dengan penjual")}
+                onPress={handleChatSeller}
+              />
+            ) : null}
+            <View className="min-w-0 flex-1">
+              <Button
+                fullWidth
+                leftIcon={ShieldCheck}
+                disabled={item.isActive === false || soldOut}
+                onPress={handleCreateTransaction}
+                accessibilityHint={
+                  soldOut
+                    ? translate("Stok etalase ini habis, jadi belum bisa dibeli.")
+                    : item.isActive === false
+                      ? translate("Etalase ini sedang tidak aktif, jadi belum bisa dibeli.")
+                      : translate("Bayar lewat Kahade — dana diteruskan ke penjual setelah Anda konfirmasi terima.")
+                }
+              >
+                {translate("Beli via Kahade")}
+              </Button>
+            </View>
+          </View>
         ) : undefined
       }
     >
@@ -1084,6 +1107,7 @@ function ShowcaseDetailContent({
         <Text variant="bodyLarge" weight={700} className="tabular-nums">
           {priceLabel}
         </Text>
+        {conditionLabel ? <Badge variant="outline">{conditionLabel}</Badge> : null}
         {priceRequiresChat && !isOwner && sellerUsername ? (
           <Button
             variant="secondary"

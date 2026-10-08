@@ -761,9 +761,7 @@
   "Status pesanan": "Order status",
   "Stok awal": "Initial stock",
   "Stok habis": "Out of stock",
-  "Stok etalase ini habis, jadi belum bisa ditransaksikan.": "This showcase is out of stock, so a transaction isn't available yet.",
   "Stok menipis ({x})": "Low stock ({x})",
-  "Etalase ini sedang tidak aktif, jadi belum bisa ditransaksikan.": "This showcase is inactive, so a transaction isn't available yet.",
   "Struk tidak dapat dibagikan saat ini. Coba lagi nanti.": "Receipt can't be shared right now. Try again later.",
   "Struk tidak dapat diunduh saat ini. Coba lagi nanti.": "Receipt can't be downloaded right now. Try again later.",
   "Sudah bayar": "Already paid",
@@ -1102,5 +1100,9 @@
   "Tolak semua percakapan baru.": "Decline all new conversations.",
   "Tulis kalimat yang sering Anda pakai": "Write a phrase you use often",
   "Tutup form template": "Close template form",
-  "huruf kecil, angka, _": "lowercase letters, numbers, _"
+  "huruf kecil, angka, _": "lowercase letters, numbers, _",
+  "Beli via Kahade": "Buy via Kahade",
+  "Stok etalase ini habis, jadi belum bisa dibeli.": "This showcase is out of stock, so it can't be bought yet.",
+  "Etalase ini sedang tidak aktif, jadi belum bisa dibeli.": "This showcase is inactive, so it can't be bought yet.",
+  "Bayar lewat Kahade — dana diteruskan ke penjual setelah Anda konfirmasi terima.": "Pay through Kahade — the money is passed on to the seller once you confirm receipt."
 }
