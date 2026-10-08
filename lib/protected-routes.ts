@@ -37,6 +37,10 @@ export const AUTHENTICATED_SCREENS = [
   // /chat/new dari luar membuka halaman tanpa sesi (badai 401) dan tamu web
   // tidak pernah melihat <GuestLoginPrompt>.
   "chat/new",
+  // Story (2026-10-08): semua endpoint /v1/stories* ber-auth; viewer & buat/kelola.
+  "story/[userId]",
+  "story/create",
+  "story/manage",
   "chat/settings", // NAV-004 (2026-09-28): GET /v1/chat/privacy auth-required — deep link native tanpa sesi = 401
   "create-transaction",
   "delete-account",

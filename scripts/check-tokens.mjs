@@ -299,6 +299,11 @@ const DARK_ALLOWLIST = {
   "components/ui/swipeable-list-item.tsx": "aksi destruktif text-white dark:text-gray-950 — ikut Button destructive",
   // Skala monokrom chart harus dibalik di dark supaya urutan kontras tetap.
   "components/ui/bar-chart.tsx": "chartMono gray-600/700/800 → dark gray-500/400/300 (§2.3 chart monokrom, tiap langkah >= 3:1)",
+  // Story: teks & chip di atas foto/warna story (media fullscreen, bukan permukaan app).
+  // Putih/hitam literal dipakai karena latar foto tidak mengikuti tema (§spek story).
+  "components/screens/story-viewer-screen.tsx": "overlay story fullscreen di atas media (putih/hitam literal, §spek story)",
+  "components/screens/story-create-screen.tsx": "pratinjau story di atas media/background story (putih/hitam literal, §spek story)",
+  "components/story/story-draggable-tag.tsx": "chip tag produk di atas foto story (§spek story)",
   // Divider subtle: gray-300 dekoratif di light, di dark jatuh ke border token.
   "components/ui/divider.tsx": "subtle bg-gray-300 dark:bg-border (§6.1)",
   // Skeleton: surface di light terlalu dekat background di dark → naik satu level.

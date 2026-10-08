@@ -4,15 +4,15 @@
  "strings": [
   {
    "s": "Batal",
-   "n": 144
+   "n": 153
+  },
+  {
+   "s": "Hapus",
+   "n": 79
   },
   {
    "s": "Aksi mungkin sudah diproses — memuat ulang…",
    "n": 71
-  },
-  {
-   "s": "Hapus",
-   "n": 70
   },
   {
    "s": "Coba lagi",
@@ -23,12 +23,16 @@
    "n": 41
   },
   {
-   "s": "Aksi mungkin sudah diproses — periksa kembali sebelum mencoba lagi.",
-   "n": 28
+   "s": "Tutup",
+   "n": 39
   },
   {
    "s": "Simpan",
-   "n": 27
+   "n": 31
+  },
+  {
+   "s": "Aksi mungkin sudah diproses — periksa kembali sebelum mencoba lagi.",
+   "n": 28
   },
   {
    "s": "Etalase",
@@ -45,10 +49,6 @@
   {
    "s": "Anda",
    "n": 23
-  },
-  {
-   "s": "Tutup",
-   "n": 22
   },
   {
    "s": "Lanjutkan",
@@ -68,6 +68,10 @@
   },
   {
    "s": "Komentar",
+   "n": 16
+  },
+  {
+   "s": "Selesai",
    "n": 16
   },
   {
@@ -99,11 +103,11 @@
    "n": 14
   },
   {
-   "s": "Selesai",
-   "n": 14
+   "s": "Anda sedang offline",
+   "n": 13
   },
   {
-   "s": "Anda sedang offline",
+   "s": "Bagikan",
    "n": 13
   },
   {
@@ -143,6 +147,10 @@
    "n": 13
   },
   {
+   "s": "Ambil foto",
+   "n": 12
+  },
+  {
    "s": "Foto profil",
    "n": 12
   },
@@ -167,15 +175,19 @@
    "n": 12
   },
   {
+   "s": "Produk",
+   "n": 12
+  },
+  {
    "s": "Transaksi",
    "n": 12
   },
   {
-   "s": "Alamat pengiriman",
+   "s": "Aktif",
    "n": 11
   },
   {
-   "s": "Bagikan",
+   "s": "Alamat pengiriman",
    "n": 11
   },
   {
@@ -251,14 +263,6 @@
    "n": 10
   },
   {
-   "s": "Aktif",
-   "n": 9
-  },
-  {
-   "s": "Ambil foto",
-   "n": 9
-  },
-  {
    "s": "Bagikan etalase ini",
    "n": 9
   },
@@ -284,6 +288,10 @@
   },
   {
    "s": "Hapus pertanyaan?",
+   "n": 9
+  },
+  {
+   "s": "Izin galeri ditolak",
    "n": 9
   },
   {
@@ -355,7 +363,15 @@
    "n": 8
   },
   {
+   "s": "Kirim balasan",
+   "n": 8
+  },
+  {
    "s": "Konfirmasi kata sandi",
+   "n": 8
+  },
+  {
+   "s": "Lihat viewer",
    "n": 8
   },
   {
@@ -380,6 +396,10 @@
   },
   {
    "s": "Semua",
+   "n": 8
+  },
+  {
+   "s": "Siapa yang bisa melihat",
    "n": 8
   },
   {
@@ -427,7 +447,7 @@
    "n": 7
   },
   {
-   "s": "Izin galeri ditolak",
+   "s": "Izin kamera ditolak",
    "n": 7
   },
   {
@@ -479,6 +499,10 @@
    "n": 6
   },
   {
+   "s": "{n} dilihat",
+   "n": 6
+  },
+  {
    "s": "{x} bintang",
    "n": 6
   },
@@ -516,6 +540,10 @@
   },
   {
    "s": "Belum ada pertanyaan",
+   "n": 6
+  },
+  {
+   "s": "Belum ada produk di etalase",
    "n": 6
   },
   {
@@ -639,6 +667,10 @@
    "n": 6
   },
   {
+   "s": "Hapus story ini?",
+   "n": 6
+  },
+  {
    "s": "Harga {x} ditampilkan sebagai Gratis.",
    "n": 6
   },
@@ -668,6 +700,10 @@
   },
   {
    "s": "Jenis produk",
+   "n": 6
+  },
+  {
+   "s": "Judul sorotan",
    "n": 6
   },
   {
@@ -795,10 +831,6 @@
    "n": 6
   },
   {
-   "s": "Produk",
-   "n": 6
-  },
-  {
    "s": "Profil tidak ditemukan",
    "n": 6
   },
@@ -836,6 +868,18 @@
   },
   {
    "s": "Status",
+   "n": 6
+  },
+  {
+   "s": "Story akan hilang dari semua orang yang bisa melihatnya.",
+   "n": 6
+  },
+  {
+   "s": "Story baru",
+   "n": 6
+  },
+  {
+   "s": "Story saya",
    "n": 6
   },
   {
@@ -887,6 +931,10 @@
    "n": 6
   },
   {
+   "s": "Ubah judul sorotan",
+   "n": 6
+  },
+  {
    "s": "Urutkan komentar terbaru dulu",
    "n": 6
   },
@@ -919,6 +967,10 @@
    "n": 5
   },
   {
+   "s": "Balasan terkirim",
+   "n": 5
+  },
+  {
    "s": "Bantuan",
    "n": 5
   },
@@ -947,7 +999,15 @@
    "n": 5
   },
   {
+   "s": "Buat sorotan",
+   "n": 5
+  },
+  {
    "s": "Buat SPK",
+   "n": 5
+  },
+  {
+   "s": "Buat story",
    "n": 5
   },
   {
@@ -999,6 +1059,10 @@
    "n": 5
   },
   {
+   "s": "Foto story",
+   "n": 5
+  },
+  {
    "s": "Frame berikutnya",
    "n": 5
   },
@@ -1031,15 +1095,19 @@
    "n": 5
   },
   {
+   "s": "Hapus story",
+   "n": 5
+  },
+  {
    "s": "Invoice",
    "n": 5
   },
   {
-   "s": "Izin kamera ditolak",
+   "s": "Jeda",
    "n": 5
   },
   {
-   "s": "Jeda",
+   "s": "Kelola story",
    "n": 5
   },
   {
@@ -1052,10 +1120,6 @@
   },
   {
    "s": "Kembali ke Masuk",
-   "n": 5
-  },
-  {
-   "s": "Kirim balasan",
    "n": 5
   },
   {
@@ -1123,11 +1187,19 @@
    "n": 5
   },
   {
+   "s": "Sorot ke profil",
+   "n": 5
+  },
+  {
    "s": "Suka",
    "n": 5
   },
   {
    "s": "Syarat & Ketentuan",
+   "n": 5
+  },
+  {
+   "s": "Tag produk etalase",
    "n": 5
   },
   {
@@ -1152,6 +1224,10 @@
   },
   {
    "s": "Tautan",
+   "n": 5
+  },
+  {
+   "s": "Tombol Tanya Stok",
    "n": 5
   },
   {
@@ -1189,6 +1265,10 @@
   {
    "s": "Verifikasi",
    "n": 5
+  },
+  {
+   "s": "{n} story",
+   "n": 4
   },
   {
    "s": "{x} {y} rupiah",
@@ -1252,6 +1332,10 @@
   },
   {
    "s": "Batalkan",
+   "n": 4
+  },
+  {
+   "s": "Batalkan bisu",
    "n": 4
   },
   {
@@ -1479,6 +1563,10 @@
    "n": 4
   },
   {
+   "s": "Judul terlalu panjang",
+   "n": 4
+  },
+  {
    "s": "Kahade",
    "n": 4
   },
@@ -1560,6 +1648,10 @@
   },
   {
    "s": "Lokasi",
+   "n": 4
+  },
+  {
+   "s": "Maksimal {n} produk per story.",
    "n": 4
   },
   {
@@ -1711,6 +1803,14 @@
    "n": 4
   },
   {
+   "s": "Story belum terhapus",
+   "n": 4
+  },
+  {
+   "s": "Story dihapus",
+   "n": 4
+  },
+  {
    "s": "Tambah",
    "n": 4
   },
@@ -1791,6 +1891,10 @@
    "n": 4
   },
   {
+   "s": "Umum",
+   "n": 4
+  },
+  {
    "s": "Urutkan:",
    "n": 4
   },
@@ -1799,7 +1903,15 @@
    "n": 3
   },
   {
+   "s": "{n} orang",
+   "n": 3
+  },
+  {
    "s": "{n} ulasan bintang {s}",
+   "n": 3
+  },
+  {
+   "s": "{title} sudah berisi story ini",
    "n": 3
   },
   {
@@ -2059,6 +2171,10 @@
    "n": 3
   },
   {
+   "s": "Bagian kelola story",
+   "n": 3
+  },
+  {
    "s": "Bagikan etalase",
    "n": 3
   },
@@ -2067,7 +2183,19 @@
    "n": 3
   },
   {
+   "s": "Bagikan story",
+   "n": 3
+  },
+  {
    "s": "Bahasa aplikasi",
+   "n": 3
+  },
+  {
+   "s": "Balas story",
+   "n": 3
+  },
+  {
+   "s": "Balas story…",
    "n": 3
   },
   {
@@ -2076,10 +2204,6 @@
   },
   {
    "s": "Balasan akan hilang dari profil publik Anda. Tindakan ini tidak bisa dibatalkan.",
-   "n": 3
-  },
-  {
-   "s": "Balasan terkirim",
    "n": 3
   },
   {
@@ -2108,6 +2232,10 @@
   },
   {
    "s": "Batal tidak sukai komentar",
+   "n": 3
+  },
+  {
+   "s": "Batalkan bisu {name}",
    "n": 3
   },
   {
@@ -2163,15 +2291,15 @@
    "n": 3
   },
   {
+   "s": "Belum ada penyimpan profil",
+   "n": 3
+  },
+  {
    "s": "Belum ada pertanyaan masuk",
    "n": 3
   },
   {
    "s": "Belum ada pertanyaan yang Anda ajukan",
-   "n": 3
-  },
-  {
-   "s": "Belum ada produk di etalase",
    "n": 3
   },
   {
@@ -2183,11 +2311,23 @@
    "n": 3
   },
   {
+   "s": "Belum ada sorotan",
+   "n": 3
+  },
+  {
+   "s": "Belum ada story aktif",
+   "n": 3
+  },
+  {
    "s": "Belum ada ulasan masuk",
    "n": 3
   },
   {
    "s": "Belum ada ulasan yang Anda beri",
+   "n": 3
+  },
+  {
+   "s": "Belum ada yang melihat",
    "n": 3
   },
   {
@@ -2208,6 +2348,10 @@
   },
   {
    "s": "Berhenti mengikuti",
+   "n": 3
+  },
+  {
+   "s": "Beri reaksi {emoji}",
    "n": 3
   },
   {
@@ -2243,6 +2387,10 @@
    "n": 3
   },
   {
+   "s": "Bisukan story kontak dari viewer story agar tidak tampil di depan tray.",
+   "n": 3
+  },
+  {
    "s": "Bisukan video",
    "n": 3
   },
@@ -2268,6 +2416,14 @@
   },
   {
    "s": "Buat PIN sekarang",
+   "n": 3
+  },
+  {
+   "s": "Buat sorotan {title}",
+   "n": 3
+  },
+  {
+   "s": "Buat story baru",
    "n": 3
   },
   {
@@ -2363,6 +2519,10 @@
    "n": 3
   },
   {
+   "s": "Buka sorotan {title}",
+   "n": 3
+  },
+  {
    "s": "Buka tautan luar?",
    "n": 3
   },
@@ -2447,6 +2607,10 @@
    "n": 3
   },
   {
+   "s": "Contoh: {x}",
+   "n": 3
+  },
+  {
    "s": "Contoh: AB{x}-CD{x}-EF{x}",
    "n": 3
   },
@@ -2475,7 +2639,23 @@
    "n": 3
   },
   {
+   "s": "Daftar belum bisa dimuat",
+   "n": 3
+  },
+  {
+   "s": "Daftar bisu belum bisa dimuat",
+   "n": 3
+  },
+  {
+   "s": "Daftar ini terisi saat ada yang menyimpan profil Anda.",
+   "n": 3
+  },
+  {
    "s": "Daftar periksa pengenalan",
+   "n": 3
+  },
+  {
+   "s": "Daftar viewer",
    "n": 3
   },
   {
@@ -2524,6 +2704,10 @@
   },
   {
    "s": "Dicairkan",
+   "n": 3
+  },
+  {
+   "s": "Dilihat oleh",
    "n": 3
   },
   {
@@ -2619,6 +2803,10 @@
    "n": 3
   },
   {
+   "s": "Etalase belum bisa dimuat",
+   "n": 3
+  },
+  {
    "s": "Etalase dihapus dan dapat dipulihkan dalam {x} hari.",
    "n": 3
   },
@@ -2680,6 +2868,10 @@
   },
   {
    "s": "Foto bukti",
+   "n": 3
+  },
+  {
+   "s": "Foto dari galeri",
    "n": 3
   },
   {
@@ -2819,6 +3011,10 @@
    "n": 3
   },
   {
+   "s": "Hanya orang yang menyimpan profil Anda yang bisa melihat story.",
+   "n": 3
+  },
+  {
    "s": "Hanya yang belum dibaca",
    "n": 3
   },
@@ -2931,7 +3127,19 @@
    "n": 3
   },
   {
+   "s": "Hapus sorotan",
+   "n": 3
+  },
+  {
+   "s": "Hapus sorotan ini?",
+   "n": 3
+  },
+  {
    "s": "Hapus suka",
+   "n": 3
+  },
+  {
+   "s": "Hapus tag {name}",
    "n": 3
   },
   {
@@ -2964,6 +3172,10 @@
   },
   {
    "s": "Harga coret harus lebih besar dari harga jual.",
+   "n": 3
+  },
+  {
+   "s": "Harga untuk stiker",
    "n": 3
   },
   {
@@ -3119,6 +3331,10 @@
    "n": 3
   },
   {
+   "s": "Judul lain",
+   "n": 3
+  },
+  {
    "s": "Judul, kategori, dan rentang harga membantu calon pembeli memahami penawaran Anda.",
    "n": 3
   },
@@ -3164,6 +3380,18 @@
   },
   {
    "s": "Kecepatan {x} — ketuk untuk mengubah",
+   "n": 3
+  },
+  {
+   "s": "Kecuali {n} orang",
+   "n": 3
+  },
+  {
+   "s": "Kecuali beberapa orang",
+   "n": 3
+  },
+  {
+   "s": "Kecualikan {name}",
    "n": 3
   },
   {
@@ -3415,6 +3643,10 @@
    "n": 3
   },
   {
+   "s": "Latar {color}",
+   "n": 3
+  },
+  {
    "s": "Layar",
    "n": 3
   },
@@ -3475,11 +3707,27 @@
    "n": 3
   },
   {
+   "s": "Lihat produk {name}",
+   "n": 3
+  },
+  {
    "s": "Lihat semua",
    "n": 3
   },
   {
    "s": "Lihat semua notifikasi",
+   "n": 3
+  },
+  {
+   "s": "Lihat story {name}",
+   "n": 3
+  },
+  {
+   "s": "Lihat story {name}, belum dilihat",
+   "n": 3
+  },
+  {
+   "s": "Lihat story saya",
    "n": 3
   },
   {
@@ -3647,6 +3895,14 @@
    "n": 3
   },
   {
+   "s": "Memuat story",
+   "n": 3
+  },
+  {
+   "s": "Memuat story…",
+   "n": 3
+  },
+  {
    "s": "Memuat ulasan",
    "n": 3
   },
@@ -3692,6 +3948,10 @@
   },
   {
    "s": "Mengunggah berkas besar memakai banyak kuota dan butuh waktu. Pastikan koneksi Anda stabil.",
+   "n": 3
+  },
+  {
+   "s": "Mengunggah…",
    "n": 3
   },
   {
@@ -3860,6 +4120,10 @@
   },
   {
    "s": "Opsi notifikasi",
+   "n": 3
+  },
+  {
+   "s": "Opsi story",
    "n": 3
   },
   {
@@ -4147,7 +4411,15 @@
    "n": 3
   },
   {
+   "s": "Pratinjau story",
+   "n": 3
+  },
+  {
    "s": "Preferensi tersimpan",
+   "n": 3
+  },
+  {
+   "s": "Produk {name}, geser untuk memindahkan",
    "n": 3
   },
   {
@@ -4287,6 +4559,10 @@
    "n": 3
   },
   {
+   "s": "Selesai memilih produk",
+   "n": 3
+  },
+  {
    "s": "Sembunyikan centang dibaca",
    "n": 3
   },
@@ -4316,6 +4592,10 @@
   },
   {
    "s": "Semua sesi termasuk PERANGKAT INI akan dicabut. Anda harus masuk kembali di semua perangkat.",
+   "n": 3
+  },
+  {
+   "s": "Semua yang menyimpan profil saya",
    "n": 3
   },
   {
@@ -4363,11 +4643,19 @@
    "n": 3
   },
   {
+   "s": "Simpan judul",
+   "n": 3
+  },
+  {
    "s": "Simpan kalimat yang sering dipakai agar tidak mengetik ulang.",
    "n": 3
   },
   {
    "s": "Simpan lewat username agar bisa langsung dipesan kapan saja.",
+   "n": 3
+  },
+  {
+   "s": "Simpan privasi",
    "n": 3
   },
   {
@@ -4396,6 +4684,22 @@
   },
   {
    "s": "Slot kembali tersedia untuk pembeli lain.",
+   "n": 3
+  },
+  {
+   "s": "Sorot story dari viewer story untuk menyimpannya permanen di profil.",
+   "n": 3
+  },
+  {
+   "s": "Sorotan belum bisa dimuat",
+   "n": 3
+  },
+  {
+   "s": "Sorotan story",
+   "n": 3
+  },
+  {
+   "s": "Sorotan tetap tampil di profil setelah {x} jam.",
    "n": 3
   },
   {
@@ -4431,6 +4735,34 @@
    "n": 3
   },
   {
+   "s": "Story",
+   "n": 3
+  },
+  {
+   "s": "Story belum bisa dimuat",
+   "n": 3
+  },
+  {
+   "s": "Story dari {name}",
+   "n": 3
+  },
+  {
+   "s": "Story di dalamnya tidak ikut terhapus dari berkas Anda, tetapi sorotan hilang dari profil.",
+   "n": 3
+  },
+  {
+   "s": "Story sudah habis masa tayangnya atau dihapus.",
+   "n": 3
+  },
+  {
+   "s": "Story tidak bisa dibuka",
+   "n": 3
+  },
+  {
+   "s": "Story yang Anda bagikan tampil di sini selama {x} jam.",
+   "n": 3
+  },
+  {
    "s": "Suka & simpan",
    "n": 3
   },
@@ -4451,6 +4783,10 @@
    "n": 3
   },
   {
+   "s": "Tag produk",
+   "n": 3
+  },
+  {
    "s": "Tambah aset digital",
    "n": 3
   },
@@ -4463,7 +4799,19 @@
    "n": 3
   },
   {
+   "s": "Tambah story",
+   "n": 3
+  },
+  {
+   "s": "Tambahkan ke {title}",
+   "n": 3
+  },
+  {
    "s": "Tambahkan produk ke etalase dulu untuk membuat highlight.",
+   "n": 3
+  },
+  {
+   "s": "Tambahkan produk ke etalase dulu, lalu tag di story.",
    "n": 3
   },
   {
@@ -4516,6 +4864,10 @@
   },
   {
    "s": "Tanpa harga maksimum, ini ditampilkan sebagai harga pasti.",
+   "n": 3
+  },
+  {
+   "s": "Tanya stok",
    "n": 3
   },
   {
@@ -4575,6 +4927,10 @@
    "n": 3
   },
   {
+   "s": "Teks story",
+   "n": 3
+  },
+  {
    "s": "Teks template",
    "n": 3
   },
@@ -4631,6 +4987,10 @@
    "n": 3
   },
   {
+   "s": "Tersimpan",
+   "n": 3
+  },
+  {
    "s": "Teruskan ke {x}",
    "n": 3
   },
@@ -4648,6 +5008,14 @@
   },
   {
    "s": "Tidak ada mutasi yang cocok dengan \"{q}\" di {n} mutasi yang dimuat.",
+   "n": 3
+  },
+  {
+   "s": "Tidak ada story",
+   "n": 3
+  },
+  {
+   "s": "Tidak ada story yang dibisukan",
    "n": 3
   },
   {
@@ -4712,6 +5080,14 @@
   },
   {
    "s": "Tulis pesan",
+   "n": 3
+  },
+  {
+   "s": "Tulis sesuatu…",
+   "n": 3
+  },
+  {
+   "s": "Tulis teks",
    "n": 3
   },
   {
@@ -4875,6 +5251,14 @@
    "n": 3
   },
   {
+   "s": "Viewer belum bisa dimuat",
+   "n": 3
+  },
+  {
+   "s": "Viewer muncul di sini setelah ada yang membuka story Anda.",
+   "n": 3
+  },
+  {
    "s": "Voucher",
    "n": 3
   },
@@ -4943,7 +5327,15 @@
    "n": 2
   },
   {
+   "s": "{n} orang dikecualikan",
+   "n": 2
+  },
+  {
    "s": "{n} transaksi",
+   "n": 2
+  },
+  {
+   "s": "{n}/{max}",
    "n": 2
   },
   {
@@ -5119,6 +5511,10 @@
    "n": 2
   },
   {
+   "s": "Aktifkan izin di Pengaturan perangkat untuk memilih foto.",
+   "n": 2
+  },
+  {
    "s": "Aktifkan jadwal",
    "n": 2
   },
@@ -5247,7 +5643,15 @@
    "n": 2
   },
   {
+   "s": "Bagikan momen tokomu",
+   "n": 2
+  },
+  {
    "s": "Bahasa Indonesia",
+   "n": 2
+  },
+  {
+   "s": "Balasan belum terkirim",
    "n": 2
   },
   {
@@ -5503,6 +5907,18 @@
    "n": 2
   },
   {
+   "s": "Bisu",
+   "n": 2
+  },
+  {
+   "s": "Bisu belum dibatalkan",
+   "n": 2
+  },
+  {
+   "s": "Bisu dibatalkan",
+   "n": 2
+  },
+  {
    "s": "Bisukan / atur volume",
    "n": 2
   },
@@ -5512,6 +5928,10 @@
   },
   {
    "s": "Bisukan percakapan terpilih",
+   "n": 2
+  },
+  {
+   "s": "Bisukan story kontak ini",
    "n": 2
   },
   {
@@ -5580,6 +6000,10 @@
   },
   {
    "s": "Buka bukti",
+   "n": 2
+  },
+  {
+   "s": "Buka chat",
    "n": 2
   },
   {
@@ -5712,6 +6136,10 @@
   },
   {
    "s": "Chat",
+   "n": 2
+  },
+  {
+   "s": "Chat belum bisa dibuka",
    "n": 2
   },
   {
@@ -5924,6 +6352,10 @@
   },
   {
    "s": "Diskon {x}",
+   "n": 2
+  },
+  {
+   "s": "Disorot ke {title}",
    "n": 2
   },
   {
@@ -6579,6 +7011,10 @@
    "n": 2
   },
   {
+   "s": "Judul belum tersimpan",
+   "n": 2
+  },
+  {
    "s": "Judul wajib diisi.",
    "n": 2
   },
@@ -7095,6 +7531,10 @@
    "n": 2
   },
   {
+   "s": "Lihat produk",
+   "n": 2
+  },
+  {
    "s": "Lihat riwayat laporan",
    "n": 2
   },
@@ -7156,6 +7596,10 @@
   },
   {
    "s": "Maksimal {n} karakter per tag",
+   "n": 2
+  },
+  {
+   "s": "Maksimal {n} karakter.",
    "n": 2
   },
   {
@@ -7483,6 +7927,10 @@
    "n": 2
   },
   {
+   "s": "Mulai Rp {n}",
+   "n": 2
+  },
+  {
    "s": "Mundur {x} detik",
    "n": 2
   },
@@ -7691,6 +8139,10 @@
    "n": 2
   },
   {
+   "s": "Pengaturan bisu belum tersimpan",
+   "n": 2
+  },
+  {
    "s": "Pengaturan tersimpan",
    "n": 2
   },
@@ -7724,6 +8176,10 @@
   },
   {
    "s": "Penjual: {x}",
+   "n": 2
+  },
+  {
+   "s": "Penonton bisa langsung menanyakan stok ke Anda.",
    "n": 2
   },
   {
@@ -8111,6 +8567,10 @@
    "n": 2
   },
   {
+   "s": "Reaksi gagal dikirim",
+   "n": 2
+  },
+  {
    "s": "Referensi",
    "n": 2
   },
@@ -8315,6 +8775,10 @@
    "n": 2
   },
   {
+   "s": "Semua penyimpan profil",
+   "n": 2
+  },
+  {
    "s": "Semua status",
    "n": 2
   },
@@ -8387,6 +8851,10 @@
    "n": 2
   },
   {
+   "s": "Sisa {time}",
+   "n": 2
+  },
+  {
    "s": "Sisa {x} hari untuk memulihkan",
    "n": 2
   },
@@ -8439,6 +8907,34 @@
    "n": 2
   },
   {
+   "s": "Sorotan",
+   "n": 2
+  },
+  {
+   "s": "Sorotan {title} dibuat",
+   "n": 2
+  },
+  {
+   "s": "Sorotan baru",
+   "n": 2
+  },
+  {
+   "s": "Sorotan belum dibuat",
+   "n": 2
+  },
+  {
+   "s": "Sorotan belum terhapus",
+   "n": 2
+  },
+  {
+   "s": "Sorotan belum tersimpan",
+   "n": 2
+  },
+  {
+   "s": "Sorotan yang ada",
+   "n": 2
+  },
+  {
    "s": "spin{x}-{x}",
    "n": 2
   },
@@ -8483,7 +8979,27 @@
    "n": 2
   },
   {
+   "s": "Stiker harga",
+   "n": 2
+  },
+  {
    "s": "Stok habis",
+   "n": 2
+  },
+  {
+   "s": "Story belum terbagikan",
+   "n": 2
+  },
+  {
+   "s": "Story dibisukan",
+   "n": 2
+  },
+  {
+   "s": "Story hilang otomatis setelah {x} jam dan hanya terlihat oleh orang yang menyimpan profil Anda.",
+   "n": 2
+  },
+  {
+   "s": "Story teks",
    "n": 2
   },
   {
@@ -8616,6 +9132,10 @@
   },
   {
    "s": "tanpa nama",
+   "n": 2
+  },
+  {
+   "s": "Tanya Stok",
    "n": 2
   },
   {
@@ -13955,6 +14475,10 @@
    "n": 1
   },
   {
+   "s": "Diskon weekend",
+   "n": 1
+  },
+  {
    "s": "Disusun {x} September {x}",
    "n": 1
   },
@@ -14759,6 +15283,10 @@
    "n": 1
   },
   {
+   "s": "Gagal terhubung ke server.",
+   "n": 1
+  },
+  {
    "s": "Gambar atau teks yang melanggar aturan",
    "n": 1
   },
@@ -14896,6 +15424,14 @@
   },
   {
    "s": "Hak portabilitas.",
+   "n": 1
+  },
+  {
+   "s": "Halo, apakah stok {produk} masih tersedia?",
+   "n": 1
+  },
+  {
+   "s": "Halo, apakah stok produk di story kamu masih tersedia?",
    "n": 1
   },
   {
@@ -15052,6 +15588,10 @@
   },
   {
    "s": "Harga tidak boleh menipu melalui diskon palsu, biaya tersembunyi, pembatalan berulang untuk menaikkan harga, atau syarat yang baru diungkap setelah pembayaran. Kelangkaan, hitung mundur, hadiah, dan testimoni tidak boleh direkayasa.",
+   "n": 1
+  },
+  {
+   "s": "Harga tidak valid.",
    "n": 1
   },
   {
@@ -15360,6 +15900,10 @@
   },
   {
    "s": "Jasa tidak dijalankan",
+   "n": 1
+  },
+  {
+   "s": "Jastip Korea buka lagi",
    "n": 1
   },
   {
@@ -17871,6 +18415,10 @@
    "n": 1
   },
   {
+   "s": "mock://story/{x}",
+   "n": 1
+  },
+  {
    "s": "Mode efektif berubah otomatis mengikuti pengaturan terang/gelap perangkat Anda.",
    "n": 1
   },
@@ -19567,6 +20115,10 @@
    "n": 1
   },
   {
+   "s": "Pesanan custom sudah open",
+   "n": 1
+  },
+  {
    "s": "Pesanan diterima, dan pembeli dapat melanjutkan pembayaran ke escrow. Selesaikan pekerjaan sesuai kesepakatan setelah dana masuk.",
    "n": 1
   },
@@ -19668,6 +20220,10 @@
   },
   {
    "s": "Pilih etalase — pembeli bisa langsung tap Beli.",
+   "n": 1
+  },
+  {
+   "s": "Pilih foto dulu.",
    "n": 1
   },
   {
@@ -20048,6 +20604,10 @@
   },
   {
    "s": "Respons unggahan tidak valid.",
+   "n": 1
+  },
+  {
+   "s": "Restock sepatu lari! Ukuran lengkap",
    "n": 1
   },
   {
@@ -20515,6 +21075,10 @@
    "n": 1
   },
   {
+   "s": "Sepatu Lari Ringan",
+   "n": 1
+  },
+  {
    "s": "seperti melihat etalase dan chat. Untuk bertransaksi, gunakan",
    "n": 1
   },
@@ -20900,6 +21464,10 @@
   },
   {
    "s": "Status transfer bank",
+   "n": 1
+  },
+  {
+   "s": "Stok baru datang hari ini",
    "n": 1
   },
   {
@@ -21295,6 +21863,10 @@
    "n": 1
   },
   {
+   "s": "Teks story terlalu panjang.",
+   "n": 1
+  },
+  {
    "s": "Teks tautan disalin",
    "n": 1
   },
@@ -21512,10 +22084,6 @@
   },
   {
    "s": "Terselesaikan",
-   "n": 1
-  },
-  {
-   "s": "Tersimpan",
    "n": 1
   },
   {
@@ -21895,6 +22463,10 @@
    "n": 1
   },
   {
+   "s": "Tulis teks untuk story.",
+   "n": 1
+  },
+  {
    "s": "Tulis ulang pesan Anda",
    "n": 1
   },
@@ -22056,10 +22628,6 @@
   },
   {
    "s": "Ulasan terkirim",
-   "n": 1
-  },
-  {
-   "s": "Umum",
    "n": 1
   },
   {

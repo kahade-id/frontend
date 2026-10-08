@@ -34,6 +34,8 @@ export type ScreenAnimation = "slide_from_right" | "slide_from_bottom" | "fade_f
  * untuk preset ini adalah swipe-down (bawaan), yang memang cocok.
  */
 const MODAL_LIKE_SCREENS: ReadonlySet<string> = new Set([
+  "story/[userId]",
+  "story/create",
   "create-transaction",
   "topup",
   "transfer",

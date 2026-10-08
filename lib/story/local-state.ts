@@ -38,8 +38,14 @@ export type StoryLocalState = {
   hiddenStoryIds: ReadonlySet<string>
   /** Jumlah story yang disembunyikan per penulis (untuk tray). */
   hiddenCountByAuthor: ReadonlyMap<string, number>
-  /** Story sendiri yang sedang diunggah / gagal. */
+  /** Story sendiri yang sedang diunggah. */
   pending: readonly PendingStory[]
+  /**
+   * Naik setiap kali ada mutasi story yang SUKSES di server (buat/hapus/sorot).
+   * Tray & viewer memuat ulang saat nilai ini berubah, meski layar pemicunya
+   * tidak berpindah fokus (mis. pengguna tetap di tab Pesan).
+   */
+  revision: number
 }
 
 const EMPTY_SET: ReadonlySet<string> = new Set<string>()
@@ -52,6 +58,7 @@ const INITIAL: StoryLocalState = {
   hiddenStoryIds: EMPTY_SET,
   hiddenCountByAuthor: new Map<string, number>(),
   pending: [],
+  revision: 0,
 }
 
 let state: StoryLocalState = INITIAL
@@ -166,6 +173,11 @@ export function setPendingStatusLocal(localId: string, status: PendingStory["sta
     ...state,
     pending: state.pending.map((p) => (p.localId === localId ? { ...p, status } : p)),
   })
+}
+
+/** Tandai ada perubahan story yang sudah dikonfirmasi server. */
+export function bumpStoryRevision(): void {
+  commit({ ...state, revision: state.revision + 1 })
 }
 
 export function removePendingStoryLocal(localId: string): void {

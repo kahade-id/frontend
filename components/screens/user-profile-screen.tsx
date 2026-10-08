@@ -87,6 +87,7 @@ import { ProfileEtalaseTab } from "@/components/ui/profile-etalase-tab"
 import { ProfileRatingsTab } from "@/components/ui/profile-ratings-tab"
 import { ProfileEditSheet } from "@/components/ui/profile-edit-sheet"
 import { ProfileHighlightsStrip } from "@/components/ui/profile-highlights-strip"
+import { StoryHighlightsStrip } from "@/components/story/story-highlights-strip"
 import { QRCodeDisplay } from "@/components/ui/qr-code-display"
 import { Screen } from "@/components/ui/screen"
 import { ShareSheetTrigger } from "@/components/ui/share-sheet-trigger"
@@ -1357,6 +1358,8 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
                 isSelf={isSelf}
                 showcaseItems={showcaseItems}
               />
+              {/* Sorotan story (arsip permanen), terpisah dari highlight etalase. */}
+              <StoryHighlightsStrip userId={profile?.id ?? null} />
               <View style={{ display: tabsStuck ? "none" : "flex" } as object}>
                 <Tabs<ProfileTab>
                   items={profileTabs}
