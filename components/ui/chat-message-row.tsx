@@ -798,6 +798,15 @@ function areRowPropsEqual(
     prev.onSwipeReply === next.onSwipeReply &&
     prev.onBuyProductCard === next.onBuyProductCard &&
     prev.onQuotePress === next.onQuotePress &&
+    prev.onRefreshAttachmentUrl === next.onRefreshAttachmentUrl &&
+    // 2026-10-08: prop polling dulu TIDAK dibandingkan — spinner "sedang
+    // voting/menutup" di kartu polling tak pernah tampil karena baris
+    // bail-out. Layar hanya mengisi prop ini untuk baris POLL (null/undefined
+    // di baris lain), jadi baris non-polling tetap bail-out.
+    prev.onVotePoll === next.onVotePoll &&
+    prev.onClosePoll === next.onClosePoll &&
+    (prev.votingPollId ?? null) === (next.votingPollId ?? null) &&
+    (prev.closingPollId ?? null) === (next.closingPollId ?? null) &&
     isSameCounterpart(prev.counterpart, next.counterpart) &&
     isSameTranslation(prev.translation, next.translation) &&
     isSameSearchHighlight(prev.searchHighlight, next.searchHighlight)

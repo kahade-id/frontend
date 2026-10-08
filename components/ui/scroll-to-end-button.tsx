@@ -15,17 +15,25 @@
  *   - `pointerEvents` tidak dipakai (ditolak audit #5): tombol ini selalu
  *     menerima sentuhan, dan saat tersembunyi ia tidak dirender sama sekali —
  *     tidak ada lapisan transparan yang bisa menahan ketukan di atas composer.
+ *   - 2026-10-08: masuk/keluar MEMUDAR (fade + naik 8px lewat <FadeIn>, RN
+ *     Animated native driver — pola pressable-scale/fade-in, bukan reanimated).
+ *     Sebelumnya tombol muncul/hilang seketika ("pop"). Setelah animasi
+ *     keluar selesai komponen melepas diri (`mounted=false`) sehingga
+ *     invarian "tersembunyi = tidak dirender" tetap berlaku; `visible=false`
+ *     sejak awal → tidak pernah dirender.
  *   - Revisi 2026-09-27 (UI polish): circle KOMPAK 40dp, ikon panah-bawah di
  *     tengah, shadow lembut. Dirender in-flow di atas composer (items-end +
  *     margin aman), BUKAN absolute mengambang — supaya tidak pernah menutupi
  *     konten chat. Target sentuh efektif 44dp lewat hitSlop (visual tetap
  *     40dp), sesuai konvensi UI-C005.
  */
+import { useCallback, useEffect, useState } from "react"
 import { View } from "react-native"
 
 import { CaretDown } from "phosphor-react-native"
 
 import { useTheme } from "@/components/theme-provider"
+import { FadeIn } from "@/components/ui/fade-in"
 import { Icon } from "@/components/ui/icon"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
@@ -33,6 +41,7 @@ import { cn } from "@/lib/cn"
 import { elevationStyle } from "@/lib/elevation"
 import { focusRing } from "@/lib/focus-ring"
 import { hitSlopToReach } from "@/lib/hit-slop"
+import { translate } from "@/lib/i18n/translate"
 
 export type ScrollToEndButtonProps = {
   /** Tampilkan hanya saat pembaca meninggalkan ujung daftar. */
@@ -61,15 +70,29 @@ export function ScrollToEndButton({
   className,
 }: ScrollToEndButtonProps) {
   const { mode } = useTheme()
-  if (!visible) return null
+  // Tetap ter-mount selama animasi keluar; dilepas saat fade-out selesai.
+  const [mounted, setMounted] = useState(visible)
+  useEffect(() => {
+    if (visible) setMounted(true)
+  }, [visible])
+  const handleHidden = useCallback(() => setMounted(false), [])
+  if (!visible && !mounted) return null
 
   return (
-    <View className={cn("items-end", className)}>
+    <FadeIn
+      visible={visible}
+      duration="fast"
+      easing={visible ? "enter" : "exit"}
+      onHidden={handleHidden}
+      className={cn("items-end", className)}
+    >
       <View style={elevationStyle("medium", mode)} className="rounded-full">
         <PressableScale
           testID="scroll-to-end-button"
           accessibilityRole="button"
-          accessibilityLabel={count > 0 ? `${label} (${count} pesan baru)` : label}
+          accessibilityLabel={
+            count > 0 ? translate("{x} ({y} pesan baru)", { x: label, y: count }) : label
+          }
           scaleOnPress={false}
           ripple
           onPress={onPress}
@@ -83,7 +106,7 @@ export function ScrollToEndButton({
           {count > 0 ? (
             <View
               className="absolute -right-1 -top-1 min-w-5 items-center justify-center rounded-full bg-danger px-1"
-              pointerEvents="none"
+              style={styles.noTouch}
             >
               {/* UX-COL-002 (audit UI/UX 2026-10-01): bg-danger di dark = #F87171
                   (terang) — text-white polos hanya 2.77:1. Ikuti pola
@@ -95,6 +118,10 @@ export function ScrollToEndButton({
           ) : null}
         </PressableScale>
       </View>
-    </View>
+    </FadeIn>
   )
+}
+
+const styles = {
+  noTouch: { pointerEvents: "none" as const },
 }

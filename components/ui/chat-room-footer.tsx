@@ -216,16 +216,18 @@ export const ChatRoomFooter = memo(function ChatRoomFooter({
           meninggalkan bawah (deteksi di onScroll).
           2026-10-02: posisi absolute floating di atas input (bukan di dalam
           flow) — sebelumnya di dalam View footer sehingga terasa "di dalam input". */}
-      {showJumpToLatest ? (
-        <View className="absolute -top-14 right-5 z-10" pointerEvents="box-none">
-          <ScrollToEndButton
-            visible={showJumpToLatest}
-            onPress={onJumpToLatest}
-            label="Gulir ke pesan terbaru"
-            count={newMessageCount}
-          />
-        </View>
-      ) : null}
+      {/* 2026-10-08: pembungkus SELALU ter-mount supaya tombol bisa memudar
+          masuk/keluar (<ScrollToEndButton> mengelola mount-nya sendiri dan
+          melepas diri setelah animasi keluar). `box-none`: area kosong di
+          sekitar tombol tetap meneruskan sentuhan ke thread. */}
+      <View className="absolute -top-14 right-5 z-10" style={styles.jumpToLatestWrap}>
+        <ScrollToEndButton
+          visible={showJumpToLatest}
+          onPress={onJumpToLatest}
+          label="Gulir ke pesan terbaru"
+          count={newMessageCount}
+        />
+      </View>
 
       {completed ? (
         // UX-SPA-001: dipakai di slot footer <Screen> — divider border-t,
@@ -255,9 +257,10 @@ export const ChatRoomFooter = memo(function ChatRoomFooter({
               <Icon icon={ephemeralLabel != null ? Clock : EyeSlash} size="sm" tone="warning" />
               <Text variant="caption" tone="secondary" className="flex-1" numberOfLines={1}>
                 {ephemeralLabel != null
-                  ? `Pesan sementara aktif (${ephemeralLabel})`
-                  : "Sekali-lihat aktif untuk pesan berikutnya"}
-                {viewOnceActive && ephemeralLabel != null ? " · sekali-lihat" : ""}
+                  ? viewOnceActive
+                    ? translate("Pesan sementara aktif ({x}) · sekali-lihat", { x: ephemeralLabel })
+                    : translate("Pesan sementara aktif ({x})", { x: ephemeralLabel })
+                  : translate("Sekali-lihat aktif untuk pesan berikutnya")}
               </Text>
               <Button
                 fullWidth={false}
@@ -318,3 +321,7 @@ export const ChatRoomFooter = memo(function ChatRoomFooter({
     </View>
   )
 })
+
+const styles = {
+  jumpToLatestWrap: { pointerEvents: "box-none" as const },
+}

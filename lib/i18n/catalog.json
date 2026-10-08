@@ -379,6 +379,10 @@
    "n": 8
   },
   {
+   "s": "Menunggu koneksi",
+   "n": 8
+  },
+  {
    "s": "Menyiapkan…",
    "n": 8
   },
@@ -456,10 +460,6 @@
   },
   {
    "s": "Lencana",
-   "n": 7
-  },
-  {
-   "s": "Menunggu koneksi",
    "n": 7
   },
   {
@@ -1036,6 +1036,10 @@
   },
   {
    "s": "Detail Pesanan",
+   "n": 5
+  },
+  {
+   "s": "Dibaca",
    "n": 5
   },
   {
@@ -1743,6 +1747,10 @@
    "n": 4
   },
   {
+   "s": "Pesan ini telah dihapus",
+   "n": 4
+  },
+  {
    "s": "Pilih alamat pengiriman untuk barang fisik ini.",
    "n": 4
   },
@@ -1932,6 +1940,10 @@
   },
   {
    "s": "{x} · {y}",
+   "n": 3
+  },
+  {
+   "s": "{x} ({y} pesan baru)",
    "n": 3
   },
   {
@@ -2695,10 +2707,6 @@
    "n": 3
   },
   {
-   "s": "Dibaca",
-   "n": 3
-  },
-  {
    "s": "Dibuka",
    "n": 3
   },
@@ -2872,6 +2880,10 @@
   },
   {
    "s": "Foto dari galeri",
+   "n": 3
+  },
+  {
+   "s": "Foto gagal dimuat",
    "n": 3
   },
   {
@@ -3356,6 +3368,14 @@
   },
   {
    "s": "Kapasitas",
+   "n": 3
+  },
+  {
+   "s": "Kartu pesanan {x}: {y}. Buka detail pesanan.",
+   "n": 3
+  },
+  {
+   "s": "Kartu produk: {x}, {y}",
    "n": 3
   },
   {
@@ -3903,6 +3923,10 @@
    "n": 3
   },
   {
+   "s": "Memuat ulang foto",
+   "n": 3
+  },
+  {
    "s": "Memuat ulasan",
    "n": 3
   },
@@ -4303,7 +4327,7 @@
    "n": 3
   },
   {
-   "s": "Pesan ini telah dihapus",
+   "s": "Pesan sementara: {x}",
    "n": 3
   },
   {
@@ -4979,6 +5003,10 @@
    "n": 3
   },
   {
+   "s": "Terkirim",
+   "n": 3
+  },
+  {
    "s": "Terpakai",
    "n": 3
   },
@@ -5356,10 +5384,6 @@
   },
   {
    "s": "{x} — {y}",
-   "n": 2
-  },
-  {
-   "s": "{x} ({x} pesan baru)",
    "n": 2
   },
   {
@@ -6503,10 +6527,6 @@
    "n": 2
   },
   {
-   "s": "Foto gagal dimuat",
-   "n": 2
-  },
-  {
    "s": "Foto paket/resi/hasil kerja agar pembeli bisa mengonfirmasi.",
    "n": 2
   },
@@ -7032,14 +7052,6 @@
   },
   {
    "s": "Kami masih memeriksa nama pengguna tersebut.",
-   "n": 2
-  },
-  {
-   "s": "Kartu pesanan {x}: {x}. Buka detail pesanan.",
-   "n": 2
-  },
-  {
-   "s": "Kartu produk: {x}, {x}",
    "n": 2
   },
   {
@@ -8351,7 +8363,11 @@
    "n": 2
   },
   {
-   "s": "Pesan sementara: {x}",
+   "s": "Pesan sementara aktif ({x})",
+   "n": 2
+  },
+  {
+   "s": "Pesan sementara aktif ({x}) · sekali-lihat",
    "n": 2
   },
   {
@@ -8716,6 +8732,10 @@
   },
   {
    "s": "Sejak {x}",
+   "n": 2
+  },
+  {
+   "s": "Sekali-lihat aktif untuk pesan berikutnya",
    "n": 2
   },
   {
@@ -9279,10 +9299,6 @@
    "n": 2
   },
   {
-   "s": "Terkirim",
-   "n": 2
-  },
-  {
    "s": "Terlalu banyak percobaan gagal. Coba lagi nanti.",
    "n": 2
   },
@@ -9688,10 +9704,6 @@
   },
   {
    "s": "· Resi manual",
-   "n": 1
-  },
-  {
-   "s": "· sekali-lihat",
    "n": 1
   },
   {
@@ -16527,6 +16539,10 @@
    "n": 1
   },
   {
+   "s": "Ketuk untuk memuat ulang",
+   "n": 1
+  },
+  {
    "s": "Ketuk untuk memutar",
    "n": 1
   },
@@ -20079,10 +20095,6 @@
    "n": 1
   },
   {
-   "s": "Pesan sementara aktif ({x})",
-   "n": 1
-  },
-  {
    "s": "Pesan suara {x}",
    "n": 1
   },
@@ -20884,10 +20896,6 @@
   },
   {
    "s": "Sekali-lihat",
-   "n": 1
-  },
-  {
-   "s": "Sekali-lihat aktif untuk pesan berikutnya",
    "n": 1
   },
   {

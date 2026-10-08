@@ -12,15 +12,22 @@
  * Pemakaian: layar ruang chat mengisinya saat tekan lama pada bubble
  * (`onLongPressAt` → jangkar `measureInWindow`). Pilihan emoji → `onPick`
  * (layar yang memutuskan: bereaksi + keluar mode pilih).
+ *
+ * Motion (2026-10-08): pil masuk dengan fade + naik 4px (<FadeIn>, kurva
+ * enter) di atas fade Modal — terasa "muncul dari bubble", bukan sekadar
+ * menyala; tiap emoji mengecil saat ditekan (umpan balik ketukan ala
+ * WhatsApp). Reduce Motion: keduanya statis lewat jalur FadeIn/PressableScale.
  */
 import { useState } from "react"
 import { Modal, Pressable, useWindowDimensions, View } from "react-native"
 
 import { useTheme } from "@/components/theme-provider"
+import { FadeIn } from "@/components/ui/fade-in"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { translate } from "@/lib/i18n"
 import { elevationStyle } from "@/lib/elevation"
+import { tokens } from "@/lib/tokens"
 import {
   REACTION_POPOVER_EST_WIDTH,
   placeReactionPopover,
@@ -82,22 +89,25 @@ export function ChatReactionPopover({
           if (w > 0 && Math.abs(w - measuredW) > 1) setMeasuredW(w)
         }}
         style={[{ position: "absolute", top, left }, elevationStyle("medium", mode)]}
-        className="flex-row items-center gap-0.5 rounded-full border border-border bg-surface-elevated px-2 py-1.5"
+        className="rounded-full"
       >
-        {emojis.map((emoji) => (
-          <PressableScale
-            key={emoji}
-            accessibilityRole="button"
-            // translate(): template literal di atribut JSX tidak terbaca
-            // generator katalog i18n — label dinamis wajib dibungkus.
-            accessibilityLabel={translate(`Reaksi ${emoji}`)}
-            scaleOnPress={false}
-            onPress={() => onPick(emoji)}
-            className="h-11 w-11 items-center justify-center rounded-full"
-          >
-            <Text variant="h3">{emoji}</Text>
-          </PressableScale>
-        ))}
+        <FadeIn duration="fast" distance={tokens.space[1]}>
+          <View className="flex-row items-center gap-0.5 rounded-full border border-border bg-surface-elevated px-2 py-1.5">
+            {emojis.map((emoji) => (
+              <PressableScale
+                key={emoji}
+                accessibilityRole="button"
+                // translate(): template literal di atribut JSX tidak terbaca
+                // generator katalog i18n — label dinamis wajib dibungkus.
+                accessibilityLabel={translate(`Reaksi ${emoji}`)}
+                onPress={() => onPick(emoji)}
+                className="h-11 w-11 items-center justify-center rounded-full"
+              >
+                <Text variant="h3">{emoji}</Text>
+              </PressableScale>
+            ))}
+          </View>
+        </FadeIn>
       </View>
     </Modal>
   )

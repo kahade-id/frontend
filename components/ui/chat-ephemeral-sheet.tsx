@@ -17,6 +17,7 @@ import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Icon } from "@/components/ui/icon"
 import { Switch } from "@/components/ui/switch"
 import { Text } from "@/components/ui/text"
+import { translate } from "@/lib/i18n/translate"
 import { CheckCircle, EyeSlash, Timer } from "phosphor-react-native"
 
 export type ChatEphemeralSheetProps = {
@@ -58,7 +59,7 @@ export function ChatEphemeralSheet({
               }}
               accessibilityRole="radio"
               accessibilityState={{ checked: active }}
-              accessibilityLabel={`Pesan sementara: ${opt.label}`}
+              accessibilityLabel={translate("Pesan sementara: {x}", { x: opt.label })}
               className={`flex-row items-center gap-3 rounded-md border px-3 py-2.5 ${
                 active ? "border-primary bg-primary/10" : "border-border"
               }`}

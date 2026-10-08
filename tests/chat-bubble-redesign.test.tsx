@@ -20,6 +20,7 @@ import {
   REACTION_BADGE_ANCHOR,
   REACTION_BADGE_CLEARANCE_PX,
   REACTION_POPOVER_EST_WIDTH,
+  bubbleMetaReservePx,
   chatBubbleGeometry,
   placeReactionPopover,
   resolveBubblePressHandlers,
@@ -131,5 +132,54 @@ describe("popover reaksi mengambang di dekat bubble", () => {
     const { top, left } = placeReactionPopover(anchor, winW, winH, REACTION_POPOVER_EST_WIDTH)
     expect(Math.abs(top - 300)).toBeLessThan(200)
     expect(left).toBeGreaterThanOrEqual(8)
+  })
+})
+
+describe("reservasi meta bubble (jam + status tidak menimpa teks)", () => {
+  const labels = {
+    edited: "diedit",
+    failed: "Belum terkirim",
+    retry: "Coba lagi",
+    queued: "Menunggu koneksi",
+    read: "Dibaca",
+  }
+
+  it("pesan keluar terkirim: jam + centang muat di reservasi lama (≤ 64px)", () => {
+    const px = bubbleMetaReservePx({ hasTime: true, outgoing: true, status: "sent", labels })
+    expect(px).toBeGreaterThan(12)
+    expect(px).toBeLessThanOrEqual(72)
+    expect(px % 4).toBe(0)
+  })
+
+  it("label 'Dibaca' / '(diedit)' / antrean MELEBARKAN reservasi — dulu tetap pr-16 dan meluber", () => {
+    const sent = bubbleMetaReservePx({ hasTime: true, outgoing: true, status: "sent", labels })
+    const read = bubbleMetaReservePx({ hasTime: true, outgoing: true, status: "read", labels })
+    const edited = bubbleMetaReservePx({ hasTime: true, outgoing: true, status: "sent", isEdited: true, labels })
+    const queued = bubbleMetaReservePx({ hasTime: true, outgoing: true, status: "queued", labels })
+    expect(read).toBeGreaterThan(sent)
+    expect(edited).toBeGreaterThan(sent)
+    expect(queued).toBeGreaterThan(read)
+  })
+
+  it("pesan masuk: hanya jam (tanpa glyph status); ikon pin/bintang menambah 16px + gap", () => {
+    const plain = bubbleMetaReservePx({ hasTime: true, outgoing: false, status: "sent", labels })
+    const pinned = bubbleMetaReservePx({ hasTime: true, outgoing: false, isPinned: true, labels })
+    expect(pinned - plain).toBeGreaterThanOrEqual(16)
+  })
+
+  it("skala font besar melebarkan bagian TEKS (jam/label), ikon tetap", () => {
+    const base = bubbleMetaReservePx({ hasTime: true, outgoing: true, status: "read", labels })
+    const big = bubbleMetaReservePx({ hasTime: true, outgoing: true, status: "read", labels, fontScale: 1.6 })
+    expect(big).toBeGreaterThan(base)
+  })
+
+  it("gagal kirim: ikon + 'Belum terkirim' + 'Coba lagi' dihitung sebagai meta", () => {
+    const failed = bubbleMetaReservePx({ hasTime: true, outgoing: true, status: "failed", labels })
+    const sent = bubbleMetaReservePx({ hasTime: true, outgoing: true, status: "sent", labels })
+    expect(failed).toBeGreaterThan(sent)
+  })
+
+  it("tanpa meta sama sekali → hanya padding tepi (12px)", () => {
+    expect(bubbleMetaReservePx({ hasTime: false, outgoing: false, labels })).toBe(12)
   })
 })

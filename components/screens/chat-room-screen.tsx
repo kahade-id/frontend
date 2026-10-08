@@ -147,6 +147,7 @@ import { formatChatListTime, formatTime, truncateMiddle } from "@/lib/format"
 import { ChatSearchSnippet } from "@/components/ui/chat-search-snippet"
 import { ActionSheet } from "@/components/ui/action-sheet"
 import { haptic } from "@/lib/haptics"
+import { useReducedMotion } from "@/lib/use-reduced-motion"
 import {
   hasSeenDmNotice,
   hydrateDmNoticeSeen,
@@ -635,6 +636,13 @@ function ChatRoomScreenContent() {
    */
   const [votingPollId, setVotingPollId] = useState<string | null>(null)
   const [closingPollId, setClosingPollId] = useState<string | null>(null)
+  // Gate "sedang sibuk" dibaca lewat ref supaya handler di bawah STABIL —
+  // ia diteruskan ke tiap baris POLL; identitas yang berganti tiap vote akan
+  // menjebol memo baris.
+  const votingPollIdRef = useRef<string | null>(null)
+  votingPollIdRef.current = votingPollId
+  const closingPollIdRef = useRef<string | null>(null)
+  closingPollIdRef.current = closingPollId
   /**
    * BFE-005: userId publik saya (format USR-XXXXXXXX) — diteruskan sebagai
    * prop `myUserId` ke <ChatPollsSheet> agar tombol "Tutup polling" muncul
@@ -674,7 +682,8 @@ function ChatRoomScreenContent() {
    * setelah vote berhasil.
    */
   const handleInlinePollVote = useCallback(async (pollId: string, optionIndexes: number[]) => {
-    if (!roomId || votingPollId) return
+    if (!roomId || votingPollIdRef.current) return
+    votingPollIdRef.current = pollId
     setVotingPollId(pollId)
     try {
       const updated = await api.chat.votePoll(roomId, pollId, optionIndexes)
@@ -693,14 +702,16 @@ function ChatRoomScreenContent() {
         tone: "danger",
       })
     } finally {
+      votingPollIdRef.current = null
       setVotingPollId(null)
     }
-  }, [roomId, votingPollId, toast.show])
+  }, [roomId, toast.show])
   /**
    * Tutup polling dari kartu di thread chat.
    */
   const handleInlinePollClose = useCallback(async (pollId: string) => {
-    if (!roomId || closingPollId) return
+    if (!roomId || closingPollIdRef.current) return
+    closingPollIdRef.current = pollId
     setClosingPollId(pollId)
     try {
       const updated = await api.chat.closePoll(roomId, pollId)
@@ -718,9 +729,10 @@ function ChatRoomScreenContent() {
         tone: "danger",
       })
     } finally {
+      closingPollIdRef.current = null
       setClosingPollId(null)
     }
-  }, [roomId, closingPollId, toast.show])
+  }, [roomId, toast.show])
   /**
    * BFE-006: refetch satu polling lalu patch `m.poll` pada pesan POLL di
    * state thread — kartu inline tidak basi saat LAWAN BICARA vote/menutup
@@ -1677,15 +1689,27 @@ function ChatRoomScreenContent() {
   // `temp-…` ke id server BUKAN "pesan terakhir yang baru" (tanpa ini setiap
   // kirim memicu scroll-ke-bawah kedua saat respons tiba).
   const lastMessageId = lastMessage ? clientKeyOf(lastMessage) : undefined
+  // Pesan terakhir milik saya (termasuk optimistis) — kiriman sendiri selalu
+  // membawa ke dasar thread, pesan lawan hanya bila pembaca memang di dasar.
+  const lastMessageIsMine = !!lastMessage && (lastMessage.fromUser || !!lastMessage.sendStatus)
+  const reduceMotion = useReducedMotion()
   const handleContentSizeChange = useCallback(() => {
     // Audit chat I23: selama penempatan posisi awal, perubahan ukuran konten
     // (baris di ujung ter-mount & terukur) menggulir ulang ke ujung.
     onPositioningSizeChange()
-    if (lastMessageId && lastSeenEndId.current !== lastMessageId) {
-      lastSeenEndId.current = lastMessageId
-      scrollRef.current?.scrollToEnd({ animated: false })
-    }
-  }, [lastMessageId, onPositioningSizeChange])
+    if (!lastMessageId || lastSeenEndId.current === lastMessageId) return
+    const initial = lastSeenEndId.current === undefined
+    lastSeenEndId.current = lastMessageId
+    // 2026-10-08 (pola WhatsApp/Telegram): pesan LAWAN yang masuk saat pembaca
+    // sedang menelusuri riwayat TIDAK menarik viewport ke bawah — posisi baca
+    // dipertahankan dan badge "pesan baru" di tombol gulir yang memberi tahu
+    // (B03). Sebelumnya setiap pesan masuk memaksa scrollToEnd, sehingga badge
+    // itu tak pernah sempat terlihat dan pembaca kehilangan posisinya.
+    if (!initial && !lastMessageIsMine && !atBottomRef.current) return
+    // Muat awal: lompat instan (posisi dikelola useThreadPositioning). Kiriman
+    // sendiri / pesan masuk saat di dasar: gulir halus (reduce motion → instan).
+    scrollRef.current?.scrollToEnd({ animated: !initial && !reduceMotion })
+  }, [lastMessageId, lastMessageIsMine, reduceMotion, onPositioningSizeChange])
 
   // (2026-10-05, revisi produk: buka chat langsung ke pesan terakhir, bukan ke
   // atas.) Audit chat I23: gulir awal kini dikelola useThreadPositioning
@@ -3036,6 +3060,8 @@ function ChatRoomScreenContent() {
       const target = reactionPopoverRef.current?.message
       setReactionPopover(null)
       if (target) {
+        // Umpan balik taktil ringan saat emoji dipilih (pola WhatsApp/Telegram).
+        haptic("select")
         exitSelect()
         void handleReact(target, emoji)
       }
@@ -3720,6 +3746,9 @@ function ChatRoomScreenContent() {
    * `selecting ? undefined : (m) => setReplyTarget(m)` sebelumnya.
    */
   const handleRowSwipeReply = useCallback((target: ChatMessage) => {
+    // Ambang balas terlewati — getaran ringan mengonfirmasi tanpa melihat
+    // layar (WhatsApp melakukan hal yang sama saat ikon balas "mengunci").
+    haptic("light")
     setReplyTarget(target)
   }, [])
   /** Tombol "Beli" kartu produk → sheet buat transaksi escrow. */
@@ -3852,10 +3881,12 @@ function ChatRoomScreenContent() {
               translation={getTranslationView(m.id)}
               onBuyProductCard={isSelfChat ? undefined : handleRowBuyProductCard}
               // 2026-10-02: voting polling inline di thread (pesan POLL).
-              onVotePoll={handleInlinePollVote}
-              onClosePoll={handleInlinePollClose}
-              votingPollId={votingPollId}
-              closingPollId={closingPollId}
+              // 2026-10-08: hanya baris POLL yang menerima prop ini — baris lain
+              // tidak ikut render ulang saat status voting berubah (memo).
+              onVotePoll={m.messageType === "POLL" ? handleInlinePollVote : undefined}
+              onClosePoll={m.messageType === "POLL" ? handleInlinePollClose : undefined}
+              votingPollId={m.messageType === "POLL" ? votingPollId : null}
+              closingPollId={m.messageType === "POLL" ? closingPollId : null}
               // CN-015: kirim ulang pesan yang gagal.
               onRetry={handleRowRetry}
               // Pencarian inline: sorot kata kunci; hasil aktif lebih tegas.
@@ -3888,6 +3919,11 @@ function ChatRoomScreenContent() {
       jumpToMessage,
       handleRowLayout,
       replyCoachTargetId,
+      refreshAttachmentIfExpired,
+      handleInlinePollVote,
+      handleInlinePollClose,
+      votingPollId,
+      closingPollId,
     ],
   )
 
@@ -4089,6 +4125,9 @@ function ChatRoomScreenContent() {
           }
           sealTier={room?.counterpart?.sealTier ?? null}
           status={statusText}
+          // "Sedang mengetik…" ditebalkan + titik hidup (prop header yang sudah
+          // ada tetapi tidak pernah diisi) — status terasa hidup ala WhatsApp.
+          typing={!!typingText}
           // B11: titik hijau "online" hanya bila datanya segar — data basi
           // tidak boleh mengklaim kepastian.
           online={presenceStatus.kind === "online"}
