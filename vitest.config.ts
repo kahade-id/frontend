@@ -41,6 +41,9 @@ export default defineConfig({
       "expo-localization": stub("expo-localization"),
       // `expo-clipboard` ditarik lib/clipboard (share etalase) — native EventEmitter.
       "expo-clipboard": stub("expo-clipboard"),
+      // `expo-audio` (voice note) menarik runtime winter `expo` saat import —
+      // gagal dikumpulkan Node/jsdom. Stub inert: audio adalah efek perangkat.
+      "expo-audio": stub("expo-audio"),
       // `expo-sharing` ditarik lib/share (sheet OS share) — native EventEmitter.
       "expo-sharing": stub("expo-sharing"),
       // `expo-location` ditarik lib/location (getAuthLocation) — kini di graf

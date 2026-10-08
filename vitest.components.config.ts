@@ -49,6 +49,10 @@ export default defineConfig({
       "expo-image": `${stub("expo-image")}x`,
       "expo-router": `${stub("expo-router")}x`,
       "expo-clipboard": stub("expo-clipboard"),
+      // `expo-audio` (voice note) menarik runtime winter `expo` saat import —
+      // "Cannot find module .../getBundleUrl" di jsdom. Stub inert agar baris
+      // chat yang memuat <VoiceNotePlayer> tetap bisa dirender (audit chat).
+      "expo-audio": stub("expo-audio"),
       // Sheet OS share (lib/share dari shareShowcaseById) — native EventEmitter.
       "expo-sharing": stub("expo-sharing"),
       // `expo-location` ditarik lib/location (getAuthLocation) — di graf impor

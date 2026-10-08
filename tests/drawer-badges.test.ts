@@ -24,6 +24,7 @@ import { describe, expect, it } from "vitest"
 
 import { hasOpenSupportTicket, type SupportTicket, type SupportTicketStatus } from "@/lib/api/support"
 import { MAIN_MENU_META, SECONDARY_MENU_META } from "@/lib/drawer-menu"
+import { defaultHeaderTitleVariant } from "@/lib/header-title"
 
 const testsDir = dirname(fileURLToPath(import.meta.url))
 const src = (p: string) => readFileSync(resolve(testsDir, "..", p), "utf8")
@@ -131,19 +132,22 @@ describe("hasOpenSupportTicket — dot tiket bantuan", () => {
 describe("header tab — Indonesia + judul lebih besar", () => {
   it("header tab chat berjudul Pesan (bukan Chat)", () => {
     // PERF-FIX (2026-09-30): tab kini thin shell — implementasi di components/screens/.
+    // 2026-10-08: judul tetap "Pesan" di semua keadaan — arsip dibedakan lewat
+    // chip filter "Diarsipkan" (query ?archived=true), bukan judul ikut berubah.
     const chatSrc = src("components/screens/chat-tab-screen.tsx")
-    expect(chatSrc).toContain('title={archiveOpen ? "Diarsipkan" : "Pesan"}')
-    expect(chatSrc).not.toContain('"Chat"}')
+    expect(chatSrc).toContain('title="Pesan"')
+    expect(chatSrc).not.toContain('title="Chat"')
   })
 
   it("tiga header tab memakai judul h2 yang lebih besar", () => {
-    for (const p of [
-      "components/screens/transactions-tab-screen.tsx",
-      "components/screens/chat-tab-screen.tsx",
-      "components/screens/notifications-tab-screen.tsx",
-    ]) {
-      expect(src(p)).toContain('titleVariant="h2"')
+    // 2026-10-08: varian judul tidak lagi di-override per layar — <Header>
+    // memakai defaultHeaderTitleVariant(pathname): route daftar/tab = h2,
+    // route detail item = h3. Ketiga tab berada di jalur daftar, jadi judulnya
+    // otomatis h2; ruang chat (detail) turun ke h3 untuk hierarki.
+    for (const path of ["/(tabs)/transactions", "/(tabs)/chat", "/(tabs)/notifications"]) {
+      expect(defaultHeaderTitleVariant(path)).toBe("h2")
     }
+    expect(defaultHeaderTitleVariant("/chat/room-1")).toBe("h3")
   })
 
   it("Header mendukung varian judul h2", () => {

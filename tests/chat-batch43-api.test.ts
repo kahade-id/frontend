@@ -230,9 +230,13 @@ describe("isDmNotAllowedError", () => {
 })
 
 describe("exportAndSaveChatRoom", () => {
-  it("membungkus konten TXT menjadi Blob + saveBlobFile", async () => {
-    const saveBlobFile = vi.fn().mockResolvedValue({ uri: "file://x" })
-    vi.doMock("@/lib/export-file", () => ({ saveBlobFile }))
+  it("menyimpan konten TXT lewat saveTextFile (teks asli, tanpa round-trip Blob)", async () => {
+    // saveTextFile (bukan saveBlobFile): konstruktor Blob + round-trip
+    // arrayBuffer() tidak konsisten di runtime RN — lihat lib/export-file.ts.
+    const saveTextFile = vi
+      .fn()
+      .mockResolvedValue({ kind: "shared", filename: "chat-export-room9.txt" })
+    vi.doMock("@/lib/export-file", () => ({ saveTextFile }))
     const { exportAndSaveChatRoom } = await import("@/lib/chat-export")
     fetchMock.mockResolvedValueOnce(
       new Response("isi chat", { status: 200, headers: { "Content-Type": "text/plain" } }),
@@ -240,12 +244,11 @@ describe("exportAndSaveChatRoom", () => {
     const res = await exportAndSaveChatRoom("room9")
     expect(res.saved).toBe(true)
     expect(res.filename).toBe("chat-export-room9.txt")
-    expect(saveBlobFile).toHaveBeenCalledTimes(1)
-    const [blob, filename, mime] = saveBlobFile.mock.calls[0]
+    expect(saveTextFile).toHaveBeenCalledTimes(1)
+    const [text, filename, mime] = saveTextFile.mock.calls[0]
+    expect(text).toBe("isi chat")
     expect(filename).toBe("chat-export-room9.txt")
     expect(mime).toContain("text/plain")
-    expect(blob).toBeInstanceOf(Blob)
-    expect(await blob.text()).toBe("isi chat")
     vi.doUnmock("@/lib/export-file")
   })
 })
