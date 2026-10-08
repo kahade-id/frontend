@@ -43,6 +43,7 @@ import {
   canDeleteChatRoom,
   chatRoomLastMessageStatus,
   chatRoomListPreview,
+  chatRoomPreviewKind,
   deleteChatRoom,
   normalizeChatMessage,
   setRoomArchived,
@@ -83,7 +84,7 @@ import { ChipGroup, type ChipOption } from "@/components/ui/chip"
 import { CoachMark } from "@/components/ui/coach-mark"
 import { Dialog } from "@/components/ui/modal"
 import { EmptyState } from "@/components/ui/empty-state"
-import { Header } from "@/components/ui/header"
+import { Header, HeaderCircleButton } from "@/components/ui/header"
 import { IconButton } from "@/components/ui/icon-button"
 import { DrawerMenuButton } from "@/components/ui/drawer-menu-button"
 import { ModeShiftFade } from "@/components/ui/mode-switcher"
@@ -474,6 +475,10 @@ function ChatRoomRowBase({
             // lokasi/kartu/polling berlabel, pesan terhapus → tombstone.
             text: chatRoomListPreview(item.lastMessage, translate),
             fromSelf: item.lastMessage.fromUser,
+            // 2026-10-08 (pola WhatsApp): lampiran tanpa teks diberi IKON
+            // jenisnya di depan preview (gambar/video/suara/berkas) — bukan
+            // sekadar label generik.
+            kind: chatRoomPreviewKind(item.lastMessage) ?? undefined,
             // Centang status pesan terakhir milik saya (pola WhatsApp/Telegram).
             status: chatRoomLastMessageStatus(item.lastMessage, viewerId),
           }
@@ -1188,13 +1193,18 @@ function ChatScreenContent() {
           separator={false}
           elevated={false}
           left={
-            <IconButton
+            /*
+              2026-10-08: tombol batal mode pilih memakai LINGKARAN KACA yang
+              sama dengan tombol kembali di seluruh aplikasi
+              (<HeaderCircleButton>) — bukan ikon X polos. Selain konsisten
+              secara visual, lingkaran memberi target sentuh 48px dan
+              membaca sebagai "tombol", bukan hiasan.
+            */
+            <HeaderCircleButton
               icon={X}
-              size="sm"
-              variant="ghost"
-              ripple
-              accessibilityLabel="Batal memilih"
               onPress={exitSelect}
+              accessibilityLabel="Batal memilih"
+              accessibilityHint="Keluar dari mode pilih percakapan"
             />
           }
           right={

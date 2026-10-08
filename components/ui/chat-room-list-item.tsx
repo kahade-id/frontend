@@ -38,13 +38,23 @@
  *     merah — §9.14 memakai dot merah tanpa angka hanya untuk tab bar; jumlah
  *     pesan bukan status bahaya).
  *   - `typing` mengganti preview dengan "mengetik…" weight 500.
- *   - Prefix "Anda: " ditambahkan bila `lastMessage.fromSelf`; status kirim
- *     pesan sendiri (`lastMessage.status`) tampil sebagai centang di kiri
- *     waktu — satu (terkirim) / ganda tebal (dibaca), kosakata yang sama
- *     dengan <ChatMessageBubble> (pola Telegram: centang di sisi metadata).
+ *   - 2026-10-08 (permintaan produk, pola WhatsApp): pesan terakhir dari kita
+ *     sendiri TIDAK lagi diberi prefix "Anda:". Status kirimnya tampil
+ *     sebagai centang di DEPAN isi preview — satu (terkirim) / ganda tebal
+ *     (dibaca) — persis posisi centang pada baris preview WhatsApp, sehingga
+ *     kolom kanan baris tetap milik metadata murni (bisu · unread · waktu).
  *   - `draft` (teks ketikan yang belum terkirim) MENGALAHKAN preview pesan
  *     terakhir: "Draf: …" dengan label merah (pola Telegram/WhatsApp) —
  *     pengingat ada ketikan yang tertinggal; mengetik lawan tetap menang.
+ *   - Lampiran (`attachmentKind`): ikon JENIS lampiran tampil di depan
+ *     preview (gambar/video/audio/berkas) — pola WhatsApp, supaya "Foto"
+ *     terbaca sebelum mata membaca teksnya. Teksnya diganti label jenisnya,
+ *     bukan "(lampiran)" yang generik.
+ *   - 2026-10-08 (permintaan produk): lencana verifikasi TIDAK lagi
+ *     menempel di foto profil. Seal hanya tampil di SAMPING NAMA
+ *     ("Agung Kurniawan ✓") — satu penanda cukup, overlay di avatar
+ *     menambah noise dan menutupi wajah (sudah jadi aturan di header &
+ *     bubble chat; daftar chat mengikuti).
  *   - Online = <Dot size="lg" tone="success" ring> di kanan-bawah avatar.
  *   - Mode pilih (`selecting`): baris menjadi target toggle, lencana Check
  *     menumpuk avatar (menggantikan dot online), dan baris terpilih diberi
@@ -53,11 +63,22 @@
  *   - `ripple` default ON di sini: baris list adalah permukaan yang disapu
  *     jari (lihat PressableScale — keputusan produk 2026-09-21).
  */
-import { BellSlash, Check, Checks, LockKey, PushPin } from "phosphor-react-native"
+import {
+  BellSlash,
+  Check,
+  Checks,
+  FileText,
+  Image as ImageIcon,
+  LockKey,
+  Microphone,
+  PushPin,
+  VideoCamera,
+} from "phosphor-react-native"
 import { memo } from "react"
 import { useWindowDimensions, View, type ViewProps } from "react-native"
 
 import { Avatar, type AvatarProps } from "@/components/ui/avatar"
+import { VerifiedName } from "@/components/ui/verified-name"
 import { type SealTier } from "@/components/ui/verified-seal"
 import { Badge } from "@/components/ui/badge"
 import { Dot } from "@/components/ui/dot"
@@ -72,14 +93,30 @@ import { focusRingInset } from "@/lib/focus-ring"
 
 export type ChatRoomLastMessage = {
   text: string
-  /** Pesan terakhir dikirim oleh pengguna sendiri -> prefix "Anda:" */
+  /**
+   * Pesan terakhir dikirim oleh pengguna sendiri. TIDAK lagi memunculkan
+   * prefix "Anda:" (permintaan produk 2026-10-08) — penanda satu-satunya
+   * adalah centang status di depan preview.
+   */
   fromSelf?: boolean
   /**
    * Status kirim pesan sendiri (hanya bermakna bila `fromSelf`): "sent" =
    * centang satu, "read" = centang ganda tebal. Tidak diisi = tanpa centang.
    */
   status?: "sent" | "read"
+  /**
+   * Jenis lampiran pesan terakhir (bila isinya lampiran tanpa teks). Ikon
+   * jenis tampil di depan preview — pola WhatsApp.
+   */
+  kind?: ChatPreviewKind
 }
+
+/**
+ * Jenis lampiran yang punya ikon sendiri di preview daftar chat.
+ * `null` = preview murni teks (atau tipe khusus yang sudah berlabel sendiri:
+ * lokasi, kartu produk/pesanan, polling).
+ */
+export type ChatPreviewKind = "image" | "video" | "voice" | "file"
 
 export type ChatRoomListItemProps = Omit<ViewProps, "children"> & {
   name: string
@@ -136,6 +173,22 @@ const DEFAULT_LABELS = {
   unread: "belum dibaca",
   selected: "dipilih",
   draft: "Draf",
+}
+
+/** Label singkat jenis lampiran di preview — kebalikan dari "(lampiran)". */
+const PREVIEW_KIND_LABEL: Record<ChatPreviewKind, string> = {
+  image: "Foto",
+  video: "Video",
+  voice: "Pesan suara",
+  file: "Dokumen",
+}
+
+/** Ikon jenis lampiran di preview (12px — sejajar dengan baris caption). */
+const PREVIEW_KIND_ICON: Record<ChatPreviewKind, typeof ImageIcon> = {
+  image: ImageIcon,
+  video: VideoCamera,
+  voice: Microphone,
+  file: FileText,
 }
 
 /**
@@ -198,13 +251,18 @@ export function ChatRoomListItemBase({
 
   const draftText = draft?.trim() ?? ""
   const showDraft = !typing && draftText.length > 0
+  /**
+   * Lampiran TANPA teks: teksnya diganti label jenis ("Foto", "Video", …)
+   * dan diberi ikon jenis di depannya. Draft & "mengetik…" tetap menang.
+   */
+  const attachmentKind = !typing && !showDraft ? lastMessage?.kind : undefined
   const preview = typing
     ? t.typing
     : showDraft
       ? draftText
-      : lastMessage
-        ? `${lastMessage.fromSelf ? `${t.you}: ` : ""}${lastMessage.text}`
-        : ""
+      : attachmentKind
+        ? translate(PREVIEW_KIND_LABEL[attachmentKind])
+        : (lastMessage?.text ?? "")
   const selfStatus = !typing && lastMessage?.fromSelf ? lastMessage.status : undefined
 
   const a11yLabel = [
@@ -231,12 +289,15 @@ export function ChatRoomListItemBase({
     >
       {/* Leading: avatar + status (online / lencana pilih) */}
       <View>
+        {/*
+          2026-10-08: avatar TIDAK lagi menerima `verified`/`sealTier` — seal
+          verifikasi pindah ke samping nama (satu penanda, tidak menutupi
+          wajah). Pola yang sama dengan header ruang chat dan bubble.
+        */}
         <Avatar
           source={avatar}
           name={name}
           size={compact ? "md" : "lg"}
-          verified={verified || sealTier != null}
-          sealTier={sealTier ?? undefined}
           className={compact ? undefined : AVATAR_WIDE_CLASS}
         />
         {selecting ? (
@@ -257,18 +318,22 @@ export function ChatRoomListItemBase({
 
       {/* Kolom teks: tepat dua baris */}
       <View className="min-w-0 flex-1 gap-0.5">
-        {/* Baris 1 — nama (kiri) · order id (kanan) */}
+        {/* Baris 1 — nama (+ seal verifikasi) · order id (kanan) */}
         <View className="flex-row items-center gap-2">
-          <Text
-            ellipsizeMode="tail"
+          <VerifiedName
+            name={name}
             variant="bodyLarge"
-            weight={hasUnread ? 600 : 500}
-            tone="primary"
-            numberOfLines={1}
+            badges={null}
+            verified={verified}
+            tier={sealTier ?? null}
             className="min-w-0 flex-1"
-          >
-            {name}
-          </Text>
+            textProps={{
+              weight: hasUnread ? 600 : 500,
+              tone: "primary",
+              ellipsizeMode: "tail",
+              numberOfLines: 1,
+            }}
+          />
           {pinned ? <Icon icon={PushPin} size="xs" tone="default" /> : null}
           {orderBadge ? (
             <View className="shrink-0 flex-row items-center gap-1">
@@ -291,28 +356,42 @@ export function ChatRoomListItemBase({
 
         {/* Baris 2 — preview pesan (kiri) · indikator + waktu (kanan) */}
         <View className="flex-row items-center gap-2">
-          <Text
-            ellipsizeMode="tail"
-            variant="body"
-            tone={typing || hasUnread ? "primary" : "secondary"}
-            weight={typing || hasUnread ? 500 : 400}
-            numberOfLines={1}
-            className="min-w-0 flex-1"
-          >
-            {showDraft ? (
-              <Text variant="inherit" tone="danger" weight={500}>
-                {t.draft}:{" "}
-              </Text>
+          <View className="min-w-0 flex-1 flex-row items-center gap-1">
+            {/*
+              2026-10-08 (pola WhatsApp): centang status MILIK KITA berdiri di
+              DEPAN isi preview — bukan lagi di kolom kanan bersama waktu, dan
+              tanpa teks "Anda:". Ikon lampiran (bila ada) berada di depannya.
+            */}
+            {attachmentKind ? (
+              <Icon
+                icon={PREVIEW_KIND_ICON[attachmentKind]}
+                size="xs"
+                tone={typing || hasUnread ? "active" : "default"}
+              />
             ) : null}
-            {preview}
-          </Text>
-          <View className="flex-row shrink-0 items-center gap-1.5">
-            {muted ? <Icon icon={BellSlash} size="xs" tone="default" /> : null}
             {selfStatus === "read" ? (
               <Icon icon={Checks} size="xs" tone="active" weight="bold" />
             ) : selfStatus === "sent" ? (
               <Icon icon={Check} size="xs" tone="default" />
             ) : null}
+            <Text
+              ellipsizeMode="tail"
+              variant="body"
+              tone={typing || hasUnread ? "primary" : "secondary"}
+              weight={typing || hasUnread ? 500 : 400}
+              numberOfLines={1}
+              className="min-w-0 flex-1"
+            >
+              {showDraft ? (
+                <Text variant="inherit" tone="danger" weight={500}>
+                  {t.draft}:{" "}
+                </Text>
+              ) : null}
+              {preview}
+            </Text>
+          </View>
+          <View className="flex-row shrink-0 items-center gap-1.5">
+            {muted ? <Icon icon={BellSlash} size="xs" tone="default" /> : null}
             {hasUnread ? (
               <View className="items-center justify-center rounded-full bg-primary px-1.5 py-[1px]">
                 <Text variant="caption" tone="inverse" weight={600} className="tabular-nums">
@@ -413,7 +492,8 @@ function isSameLastMessage(
   return (
     a.text === b.text &&
     !!a.fromSelf === !!b.fromSelf &&
-    (a.status ?? null) === (b.status ?? null)
+    (a.status ?? null) === (b.status ?? null) &&
+    (a.kind ?? null) === (b.kind ?? null)
   )
 }
 
