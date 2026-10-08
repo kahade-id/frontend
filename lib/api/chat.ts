@@ -400,10 +400,11 @@ export function chatRoomLastMessageStatus(
  * tiba dua kali (broadcast netral `chat:<id>` untuk ruang yang di-join
  * indikator mengetik + per-viewer `user:<id>`) hanya dihitung sekali: unread
  * tidak naik lagi dan `fromUser` digabung "sticky" (true menang). Pesan yang
- * lebih lama dari preview saat ini (gema terlambat) diabaikan.
+ * lebih lama dari preview saat ini (gema terlambat) diabaikan. Tanpa
+ * perubahan → referensi `rooms` yang sama dikembalikan (React skip render).
  */
 export function applyIncomingMessageToRooms(
-  rooms: readonly ChatRoom[],
+  rooms: ChatRoom[],
   message: ChatMessage,
   opts: { viewerId?: string | null } = {},
 ): ChatRoom[] | null {
@@ -414,15 +415,16 @@ export function applyIncomingMessageToRooms(
   const room = rooms[idx]
   const prev = room.lastMessage
   const own = isOwnMessage(message, opts.viewerId)
+  // Tidak ada yang berubah → kembalikan referensi yang sama (setState skip).
   if (prev && prev.id === message.id) {
-    if (prev.fromUser || !own) return [...rooms]
+    if (prev.fromUser || !own) return rooms
     const next = [...rooms]
     next[idx] = { ...room, lastMessage: { ...prev, fromUser: true } }
     return next
   }
   const prevTs = prev ? Date.parse(prev.createdAt) : Number.NaN
   const nextTs = Date.parse(message.createdAt)
-  if (Number.isFinite(prevTs) && Number.isFinite(nextTs) && nextTs < prevTs) return [...rooms]
+  if (Number.isFinite(prevTs) && Number.isFinite(nextTs) && nextTs < prevTs) return rooms
   const updated: ChatRoom = {
     ...room,
     lastMessage: own ? { ...message, fromUser: true } : message,

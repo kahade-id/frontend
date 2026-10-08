@@ -293,10 +293,10 @@ describe("applyIncomingMessageToRooms (daftar chat live)", () => {
     expect(twice[0].lastMessage?.fromUser).toBe(true)
   })
 
-  it("gema yang lebih lama dari preview saat ini diabaikan", () => {
+  it("gema yang lebih lama dari preview saat ini diabaikan (referensi sama → tanpa render)", () => {
     const stale = msg({ id: "a0", roomId: "A", createdAt: "2026-10-08T08:00:00.000Z" })
     const next = applyIncomingMessageToRooms(rooms, stale, { viewerId: "me" })!
-    expect(next.map((r) => r.id)).toEqual(["B", "A"])
+    expect(next).toBe(rooms)
     expect(next[1].lastMessage?.id).toBe("a1")
     expect(next[1].unreadCount).toBe(2)
   })
