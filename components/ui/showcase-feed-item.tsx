@@ -446,7 +446,7 @@ function ShowcaseFeedItemBase({
           ) : null}
           {heartVisible ? (
             <View
-              pointerEvents="none"
+              style={{ pointerEvents: "none" }}
               className="absolute inset-0 items-center justify-center"
               accessibilityElementsHidden
               importantForAccessibility="no-hide-descendants"

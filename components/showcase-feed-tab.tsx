@@ -1353,8 +1353,7 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
       {showScrollTop && collapsing.collapsed ? (
         <View
           className="absolute left-0 right-0 items-center"
-          style={{ top: insets.top + 8 }}
-          pointerEvents="box-none"
+          style={{ top: insets.top + 8, pointerEvents: "box-none" }}
         >
           <View
             className="rounded-full"

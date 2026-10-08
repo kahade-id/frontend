@@ -100,7 +100,7 @@ import { Spin360Viewer } from "@/components/ui/spin360-viewer"
 import { ShowcaseDetailActions } from "@/components/ui/showcase-detail-actions"
 import { ShowcaseHtmlView } from "@/components/ui/showcase-html-description-editor"
 import { ShowcaseDetailComments } from "@/components/showcase-detail-comments"
-import { ShowcaseFeedItem } from "@/components/ui/showcase-feed-item"
+import { ShowcaseRelatedCard } from "@/components/showcase-related-card"
 import { ShowcaseReportSheet } from "@/components/ui/showcase-report-sheet"
 import { ShowcaseShareSheet } from "@/components/ui/showcase-share-sheet"
 import { Text } from "@/components/ui/text"
@@ -1023,23 +1023,23 @@ function ShowcaseDetailContent({
       onScroll={handleDetailScroll}
       onScrollWorklet={handleDetailScrollWorklet}
       footer={
+        // FooterBar milik <Screen> sudah memberi px-5/pt-4 + inset bawah —
+        // jangan dibungkus padding lagi (audit:classes: padding dobel).
         !isOwner ? (
-          <View className="bg-background px-5 py-3">
-            <Button
-              fullWidth
-              disabled={item.isActive === false || soldOut}
-              onPress={handleCreateTransaction}
-                accessibilityHint={
-                  soldOut
-                    ? translate("Stok etalase ini habis, jadi belum bisa ditransaksikan.")
-                    : item.isActive === false
-                      ? translate("Etalase ini sedang tidak aktif, jadi belum bisa ditransaksikan.")
-                      : undefined
-                }
-              >
-                {translate("Buat Transaksi")}
-              </Button>
-          </View>
+          <Button
+            fullWidth
+            disabled={item.isActive === false || soldOut}
+            onPress={handleCreateTransaction}
+            accessibilityHint={
+              soldOut
+                ? translate("Stok etalase ini habis, jadi belum bisa ditransaksikan.")
+                : item.isActive === false
+                  ? translate("Etalase ini sedang tidak aktif, jadi belum bisa ditransaksikan.")
+                  : undefined
+            }
+          >
+            {translate("Buat Transaksi")}
+          </Button>
         ) : undefined
       }
     >
@@ -1295,8 +1295,13 @@ function ShowcaseDetailContent({
             {translate("Etalase terkait")}
           </Text>
           <View className="gap-0">
-            {item.related.slice(0, 5).map((rel) => (
-              <ShowcaseFeedItem key={rel.id} item={rel} />
+            {item.related.slice(0, 5).map((rel, index, list) => (
+              <ShowcaseRelatedCard
+                key={rel.id}
+                rel={rel}
+                divider={index < list.length - 1}
+                onReport={setReportItem}
+              />
             ))}
           </View>
         </View>

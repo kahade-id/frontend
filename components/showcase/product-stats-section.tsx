@@ -131,7 +131,12 @@ export function ProductStatsSection({ showcaseId }: { showcaseId: string }) {
 
   if (state.kind === "loading") {
     return (
-      <View className="px-5 pt-4" accessibilityLabel={translate("Memuat statistik produk")}>
+      <View
+        className="px-5 pt-4"
+        accessible
+        accessibilityRole="progressbar"
+        accessibilityLabel={translate("Memuat statistik produk")}
+      >
         <SkeletonBody />
       </View>
     )

@@ -405,6 +405,9 @@ const NOT_A_CARD = new Set([
   // ini either diabaikan RN (aturan A: tanpa `accessible`) atau menelan chip
   // reaksi + tombol coba lagi di dalam bubble (aturan B) — dua-duanya regresi.
   "components/ui/chat-message-row.tsx",
+  // Kartu "Etalase terkait" = pembungkus state sosial di atas <ShowcaseFeedItem>;
+  // label ringkas & kontrol fokusable milik kartu feed di dalamnya.
+  "components/showcase-related-card.tsx",
 ])
 
 for (const abs of files) {

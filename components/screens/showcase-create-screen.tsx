@@ -1000,24 +1000,30 @@ export default function ShowcaseCreateScreen() {
                 const label = preview.video
                   ? translate("Video {x}", { x: index + 1 })
                   : translate("Foto {x}", { x: index + 1 })
+                // A11y: pegangan seret adalah pratinjaunya sendiri — `accessible`
+                // TIDAK di root sel, karena menelan tombol sampul/hapus di
+                // dalamnya (pola sama dengan sheet media manajemen).
                 return (
-                  <View
-                    className="relative h-full w-full"
-                    accessible
-                    accessibilityRole="button"
-                    accessibilityLabel={translate("{x} — tahan lalu seret untuk mengubah urutan", { x: label })}
-                  >
-                    <Picture
-                      source={thumb}
-                      alt={label}
-                      width={88}
-                      height={88}
-                      radius="sm"
-                    />
+                  <View className="relative h-full w-full">
+                    <View
+                      accessible
+                      accessibilityRole="button"
+                      accessibilityLabel={translate("{x} — tahan lalu seret untuk mengubah urutan", { x: label })}
+                    >
+                      <Picture
+                        source={thumb}
+                        alt={label}
+                        width={88}
+                        height={88}
+                        radius="sm"
+                      />
+                    </View>
                     {preview.video ? (
                       <View
                         className="absolute inset-0 items-center justify-center"
-                        accessibilityLabel={translate("Video")}
+                        accessibilityElementsHidden
+                        importantForAccessibility="no-hide-descendants"
+                        style={{ pointerEvents: "none" }}
                       >
                         <View className="items-center justify-center rounded-full bg-overlay-media p-2">
                           <Icon icon={Play} size="sm" weight="fill" tone="inverse" />
@@ -1062,7 +1068,8 @@ export default function ShowcaseCreateScreen() {
                     {dropTarget ? (
                       <View
                         className="pointer-events-none absolute inset-0 rounded-sm border-2 border-accent"
-                        accessibilityLabel={translate("Lepaskan di sini")}
+                        accessibilityElementsHidden
+                        importantForAccessibility="no-hide-descendants"
                       />
                     ) : null}
                   </View>
