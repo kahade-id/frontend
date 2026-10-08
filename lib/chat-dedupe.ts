@@ -170,7 +170,11 @@ export function mergeChatMessages(
     const match = findOptimisticMatch(working, m, opts)
     const idx = match ? indexById.get(match.id) : undefined
     if (match && idx !== undefined) {
-      working[idx] = m
+      // Audit chat B4/I24: bubble server MEWARISI kunci render milik bubble
+      // optimistis — kunci baris FlatList tidak berubah, jadi baris tidak
+      // di-unmount/mount ulang (itu yang tampak sebagai kedip/animasi masuk
+      // dua kali).
+      working[idx] = withClientKey(m, match)
       indexById.delete(match.id)
       indexById.set(m.id, idx)
       replacedOptimistic = true
@@ -227,11 +231,128 @@ export function mergeChatMessages(
   }
 }
 
-function attachmentSignature(m: Pick<ChatMessage, "attachments">): string {
-  return (m.attachments ?? [])
-    .map((a) => `${a.fileName ?? ""}|${a.fileSize ?? 0}`)
-    .sort()
-    .join(";")
+/**
+ * Audit chat B4: kunci render stabil. Pesan optimistis membawa `clientKey`
+ * (= id temp); pesan server yang MENGGANTIKANNYA mewarisi kunci itu supaya
+ * baris thread tidak di-remount saat id berganti dari `temp-…` ke id server.
+ */
+export function clientKeyOf(m: Pick<ChatMessage, "id" | "clientKey">): string {
+  return m.clientKey ?? m.id
+}
+
+function withClientKey(serverMessage: ChatMessage, optimisticMessage: ChatMessage): ChatMessage {
+  const key = clientKeyOf(optimisticMessage)
+  // Pesan yang kunci-nya memang sama dengan id sendiri tidak perlu diberi
+  // field (menjaga objek tetap ringkas & perbandingan field-by-field).
+  if (key === serverMessage.id) return serverMessage
+  return serverMessage.clientKey === key ? serverMessage : { ...serverMessage, clientKey: key }
+}
+
+/**
+ * Audit chat B4 — ganti pesan optimistis dengan pesan resmi dari server
+ * (respons POST / gema antrean kirim) dan PASTIKAN tidak ada dobel.
+ *
+ * Bug asli (`prev.map(m => m.id === tempId || m.id === msg.id ? msg : m)`):
+ * bila gema realtime tiba lebih dulu dan lolos dari pencocokan (teks dinormalisasi
+ * server, tipe `FILE`→`VIDEO`, nama berkas disanitasi, …), list memuat DUA entri —
+ * temp dan gema — lalu `map` mengganti KEDUANYA dengan pesan yang sama:
+ * dua bubble ber-id sama yang menetap. Di sini hanya satu entri yang bertahan,
+ * di posisi entri pertama, dan urutan waktu dipulihkan (waktu server otoritatif).
+ *
+ * Mengembalikan `prev` apa adanya bila temp maupun gema tidak ada (mis. list
+ * di-reset oleh muat-ulang) — pemanggil memutuskan apakah perlu menambahkan.
+ */
+export function reconcileSentMessage(
+  prev: ChatMessage[],
+  tempId: string,
+  sent: ChatMessage,
+): ChatMessage[] {
+  const optimistic = prev.find((m) => m.id === tempId)
+  const hasEcho = prev.some((m) => m.id === sent.id)
+  if (!optimistic && !hasEcho) return prev
+  const merged = optimistic ? withClientKey(sent, optimistic) : sent
+  const out: ChatMessage[] = []
+  let placed = false
+  for (const m of prev) {
+    if (m.id === tempId || m.id === sent.id) {
+      if (!placed) {
+        out.push(merged)
+        placed = true
+      }
+      continue
+    }
+    out.push(m)
+  }
+  return sortByTimeAsc(out)
+}
+
+function attachmentList(m: Pick<ChatMessage, "attachments">) {
+  return m.attachments ?? []
+}
+
+/**
+ * Dua lampiran dianggap sama bila nama berkas sama DAN ukurannya tidak
+ * bertentangan (0/absen = tidak dilaporkan → kompatibel). Server kadang
+ * mengisi ulang `fileSize`; nama yang berbeda tetap berarti berkas berbeda.
+ */
+function sameAttachment(
+  a: NonNullable<ChatMessage["attachments"]>[number],
+  b: NonNullable<ChatMessage["attachments"]>[number],
+): boolean {
+  if ((a.fileName ?? "") !== (b.fileName ?? "")) return false
+  const sa = a.fileSize ?? 0
+  const sb = b.fileSize ?? 0
+  return sa === 0 || sb === 0 || sa === sb
+}
+
+function sameAttachments(a: Pick<ChatMessage, "attachments">, b: Pick<ChatMessage, "attachments">): boolean {
+  const la = attachmentList(a)
+  const lb = attachmentList(b)
+  if (la.length !== lb.length) return false
+  const used = new Set<number>()
+  for (const x of la) {
+    const at = lb.findIndex((y, i) => !used.has(i) && sameAttachment(x, y))
+    if (at < 0) return false
+    used.add(at)
+  }
+  return true
+}
+
+/**
+ * Keluarga tipe: server boleh mengklasifikasi ulang media (mis. klien kirim
+ * `FILE` untuk video, server menyimpan `VIDEO`). Teks + lampiran + balasan
+ * tetap harus sama, jadi keluarga yang sama sudah cukup tegas.
+ */
+function typeFamily(type: string | undefined): string {
+  switch (type) {
+    case "IMAGE":
+    case "VIDEO":
+    case "FILE":
+    case "VOICE":
+      return "MEDIA"
+    default:
+      return type ?? ""
+  }
+}
+
+/** CRLF → LF + trim: server/OS berbeda soal akhir baris & spasi pinggir. */
+function normalizeBody(text: string | undefined | null): string {
+  return (text ?? "").replace(/\r\n?/g, "\n").trim()
+}
+
+/**
+ * Penanda klien yang BOLEH dipantulkan backend pada gema pesan (tidak ada di
+ * kontrak hari ini — lihat docs/rekomendasi-backend-chat.md). Bila ada dan
+ * sama dengan idempotency key bubble optimistis, itu pencocokan paling pasti:
+ * tanpa tebak-tebakan teks/waktu.
+ */
+function echoedClientKey(m: ChatMessage): string | null {
+  const raw = m as unknown as Record<string, unknown>
+  for (const field of ["idempotencyKey", "clientMessageId", "clientId"]) {
+    const value = raw[field]
+    if (typeof value === "string" && value) return value
+  }
+  return null
 }
 
 /**
@@ -243,8 +364,12 @@ function attachmentSignature(m: Pick<ChatMessage, "attachments">): string {
  *   (`sendStatus` hanya ada di pesan optimistis);
  * - kandidat masih `"sending"` (yang `"failed"` menunggu retry eksplisit
  *   pengguna — jangan disentuh);
- * - `messageType`, teks (trim), `replyToId`, dan sidik lampiran sama;
+ * - keluarga tipe, teks (CRLF dinormalisasi + trim), `replyToId`, dan lampiran
+ *   (nama sama, ukuran tidak bertentangan) sama;
  * - selisih `createdAt` ≤ `OPTIMISTIC_MATCH_WINDOW_MS`.
+ *
+ * Pintasan: bila gema memantulkan idempotency key yang sama dengan kandidat,
+ * kriteria di atas dilewati — itu identitas, bukan perkiraan.
  *
  * Bila beberapa kandidat cocok (mis. teks identik dikirim beruntun), yang
  * TERLAMA menang (FIFO) — gema server tiba sesuai urutan kirim.
@@ -264,19 +389,26 @@ export function findOptimisticMatch(
   // Gema milik sendiri: `fromUser` ATAU (karena payload gema bisa netral)
   // id pengirimnya cocok dengan identitas saya.
   if (!isOwnBySender(incoming, selfIdSet(opts))) return null
+  const echoed = echoedClientKey(incoming)
+  if (echoed) {
+    const byKey = messages.find(
+      (m) => m.sendStatus === "sending" && m.fromUser && m.sendIdempotencyKey === echoed,
+    )
+    if (byKey) return byKey
+  }
   const incomingAt = Date.parse(incoming.createdAt)
   if (Number.isNaN(incomingAt)) return null
-  const text = (incoming.text ?? "").trim()
+  const text = normalizeBody(incoming.text)
   const replyToId = incoming.replyToId ?? null
-  const signature = attachmentSignature(incoming)
+  const family = typeFamily(incoming.messageType)
   let best: ChatMessage | null = null
   let bestAt = Number.POSITIVE_INFINITY
   for (const m of messages) {
     if (m.sendStatus !== "sending" || !m.fromUser) continue
-    if (m.messageType !== incoming.messageType) continue
-    if ((m.text ?? "").trim() !== text) continue
+    if (typeFamily(m.messageType) !== family) continue
+    if (normalizeBody(m.text) !== text) continue
     if ((m.replyToId ?? null) !== replyToId) continue
-    if (attachmentSignature(m) !== signature) continue
+    if (!sameAttachments(m, incoming)) continue
     const at = Date.parse(m.createdAt)
     if (Number.isNaN(at)) continue
     if (Math.abs(incomingAt - at) > OPTIMISTIC_MATCH_WINDOW_MS) continue

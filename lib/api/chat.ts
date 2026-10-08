@@ -206,6 +206,13 @@ export type ChatMessage = {
   sendStatus?: "queued" | "sending" | "failed"
   /** Kunci lokal untuk menghindari penggandaan pesan saat antrean/retry. */
   sendIdempotencyKey?: string
+  /**
+   * Audit chat B4: kunci render STABIL milik klien (BUKAN field API). Pesan
+   * optimistis memakainya = id temp-nya; pesan server yang menggantikannya
+   * mewarisi nilai itu, sehingga baris thread tidak di-remount saat id
+   * berganti. Absen = pakai `id`. Lihat `clientKeyOf` di lib/chat-dedupe.
+   */
+  clientKey?: string
   /** Kapan pesan terbaca per pembaca (userId → ISO), atau ISO tunggal. */
   readAt?: Record<string, string> | string | null
   /** Reaksi emoji tersummari (emoji, count, reactedByMe, users). */

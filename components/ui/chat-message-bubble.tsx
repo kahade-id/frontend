@@ -73,7 +73,17 @@ import Animated, {
   withTiming,
   type SharedValue,
 } from "react-native-reanimated"
-import { ArrowBendUpLeft, Check, Checks, Clock, PushPin, Star, Timer, WarningCircle } from "phosphor-react-native"
+import {
+  ArrowBendUpLeft,
+  ArrowBendUpRight,
+  Check,
+  Checks,
+  Clock,
+  PushPin,
+  Star,
+  Timer,
+  WarningCircle,
+} from "phosphor-react-native"
 
 import { Avatar } from "@/components/ui/avatar"
 import { ChatFormattedText } from "@/components/ui/chat-formatted-text"
@@ -220,6 +230,20 @@ export type ChatMessageBubbleProps = Omit<ViewProps, "children"> & {
    */
   reactions?: { emoji: string; count: number; reactedByMe: boolean }[]
   onReact?: (emoji: string) => void
+  /**
+   * Audit chat E13: mengetuk chip reaksi membuka daftar "siapa memberi reaksi
+   * apa". Bila diisi, ia MENGGANTIKAN `onReact` untuk ketukan chip (mengubah
+   * reaksi sendiri lewat popover tekan-lama atau baris "Anda" di daftar).
+   * Tanpa ini (layar bantuan/sengketa) ketukan chip tetap mengubah reaksi.
+   */
+  onShowReactions?: (emoji: string) => void
+  /**
+   * Audit chat H22 (cegah penipuan): pesan ini TERUSAN dari percakapan lain —
+   * label "Diteruskan" tampil di atas isi. Penipu sering menyalin instruksi
+   * pembayaran dari tempat lain seolah ditulis sendiri; label ini
+   * membuat asal-usulnya terlihat. Tidak tampil untuk pesan terhapus.
+   */
+  forwarded?: boolean
   /** Ikon pin kecil di baris meta (pesan terpin). */
   isPinned?: boolean
   /** Tampilkan "diedit" di baris meta. */
@@ -305,6 +329,8 @@ function ChatMessageBubbleBase({
   onRetry,
   reactions,
   onReact,
+  onShowReactions,
+  forwarded = false,
   isPinned = false,
   isEdited = false,
   isDeleted = false,
@@ -582,6 +608,14 @@ function ChatMessageBubbleBase({
         outgoing ? "bg-primary" : "bg-surface",
       )}
     >
+      {forwarded && !isDeleted ? (
+        <View testID="message-forwarded-label" className="flex-row items-center gap-1">
+          <Icon icon={ArrowBendUpRight} size="xs" tone={outgoing ? "inverse" : "default"} />
+          <Text variant="caption" italic weight={500} tone={outgoing ? "inverse" : "secondary"}>
+            {translate("Diteruskan")}
+          </Text>
+        </View>
+      ) : null}
       {quote ? (
         <QuoteBlock
           className={cn(
@@ -699,9 +733,22 @@ function ChatMessageBubbleBase({
     onLongPress?.()
   }
 
-  const statusText = !outgoing ? undefined : status === "sending" ? "Mengirim" : status === "sent" ? "Terkirim" : status === "read" ? "Dibaca" : undefined
+  // Audit chat B5: label status SELALU lewat translate() (dulu literal
+  // Indonesia di UI Inggris) dan mencakup antrean ("Menunggu koneksi").
+  const statusText = !outgoing
+    ? undefined
+    : status === "sending"
+      ? translate("Mengirim")
+      : status === "queued"
+        ? translate("Menunggu koneksi")
+        : status === "sent"
+          ? translate("Terkirim")
+          : status === "read"
+            ? translate("Dibaca")
+            : undefined
   const a11yLabel = [
-    outgoing ? "Anda" : senderName ?? "Pesan masuk",
+    outgoing ? translate("Anda") : (senderName ?? translate("Pesan masuk")),
+    forwarded && !isDeleted ? translate("Diteruskan") : undefined,
     text,
     time,
     failed ? t.failed : statusText,
@@ -760,9 +807,19 @@ function ChatMessageBubbleBase({
                 `${r.emoji} ${r.count}`,
                 r.reactedByMe ? translate("Anda") : undefined,
               ])}
-              accessibilityHint="Ketuk untuk mengubah reaksi"
+              accessibilityHint={
+                onShowReactions
+                  ? translate("Ketuk untuk melihat siapa yang bereaksi")
+                  : translate("Ketuk untuk mengubah reaksi")
+              }
               scaleOnPress={false}
-              onPress={onReact ? () => onReact(r.emoji) : undefined}
+              onPress={
+                onShowReactions
+                  ? () => onShowReactions(r.emoji)
+                  : onReact
+                    ? () => onReact(r.emoji)
+                    : undefined
+              }
               // UI-C005: chip ≈ 24px tinggi — slop vertikal ke 44pt target
               // sentuh; horizontal 0 supaya chip bertetangga tidak saling
               // menimpa area sentuhnya.

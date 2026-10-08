@@ -33,7 +33,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react"
 import { ScrollView, View, type FlatList, type ViewInstance } from "react-native"
 import { Archive, BellSlash, BellZ, Chats, GearSix, Plus, PushPin, Trash, X } from "phosphor-react-native"
-import { router, useFocusEffect } from "expo-router"
+import { router, useFocusEffect, useIsFocused } from "expo-router"
 
 import { api, isApiError, userMessage } from "@/lib/api"
 import {
@@ -81,6 +81,8 @@ import { IconButton } from "@/components/ui/icon-button"
 import { DrawerMenuButton } from "@/components/ui/drawer-menu-button"
 import { ModeShiftFade } from "@/components/ui/mode-switcher"
 import { PaginatedList } from "@/components/ui/paginated-list"
+import { CHAT_LIST_WINDOWING, limitTypingRoomIds } from "@/lib/chat-list-windowing"
+import { ChatScreenCaptureGate } from "@/components/security/chat-screen-capture-gate"
 import { Screen } from "@/components/ui/screen"
 import {
   SwipeableListItem,
@@ -505,7 +507,7 @@ const ChatRoomRow = memo(ChatRoomRowBase, areChatRowPropsEqual)
 // aman dipakai ulang antar render agar memo <Header> bisa bail-out.
 const CHAT_HEADER_LEFT = <DrawerMenuButton />
 
-export default function ChatScreen() {
+function ChatScreenContent() {
   const toast = useToast()
   const insets = useSafeAreaInsets()
   // FE-129: jangkar coach mark sekali-tampil gesture swipe di baris pertama.
@@ -630,7 +632,8 @@ export default function ChatScreen() {
   }, [activeQuery.data, filter])
 
   // CHT-008: indikator typing di daftar — join bertahap room yang tampil.
-  const roomIds = useMemo(() => shownRooms.map((r) => r.id), [shownRooms])
+  // Audit chat F15: hanya ruang teratas yang di-join (lihat TYPING_JOIN_MAX_ROOMS).
+  const roomIds = useMemo(() => limitTypingRoomIds(shownRooms.map((r) => r.id)), [shownRooms])
   const typingRooms = useChatListTyping(roomIds)
 
   // Terapkan hasil arsip/mute ke baris list tanpa memuat ulang seluruhnya.
@@ -1171,6 +1174,7 @@ export default function ChatScreen() {
         bottomPadding={insets.bottom + TAB_BAR_HEIGHT + tokens.space[4]}
         empty={chatListEmpty}
         renderItem={renderChatRoomItem}
+        windowing={CHAT_LIST_WINDOWING}
       />
       {/*
        * FE-129 (audit frontend 2026-09-29): coach mark SEKALI-tampil untuk
@@ -1223,5 +1227,20 @@ export default function ChatScreen() {
         />
       ) : null}
     </Screen>
+  )
+}
+
+/**
+ * Audit chat H21: daftar chat memuat nama + pratinjau pesan terakhir, jadi ikut
+ * dilindungi saat pengguna mematikan "Izinkan screenshot & rekam layar di chat".
+ * `active={isFocused}`: tab "Pesan" tetap ter-mount saat berpindah tab — tanpa
+ * itu FLAG_SECURE menempel di SEMUA tab (Beranda, Dompet, …), bukan hanya chat.
+ */
+export default function ChatScreen() {
+  const isFocused = useIsFocused()
+  return (
+    <ChatScreenCaptureGate active={isFocused}>
+      <ChatScreenContent />
+    </ChatScreenCaptureGate>
   )
 }

@@ -13,11 +13,19 @@
  * ini di dalam footer membuat layar cukup berkata "apa keadaan ruangnya".
  */
 import { CheckCircle, Clock, EyeSlash, X } from "phosphor-react-native"
-import { useCallback, useEffect, useRef, useState, memo } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState, memo } from "react"
 import { View } from "react-native"
 
 import { Button } from "@/components/ui/button"
 import { ChatComposer, type ChatComposerPayload, type ComposerAttachment, type ComposerReplyTarget } from "@/components/ui/chat-composer"
+import { Dialog } from "@/components/ui/modal"
+import { useToast } from "@/components/ui/toast"
+import { VoiceNoteSession } from "@/components/ui/voice-note-session"
+import { useOverlayDismissKeys } from "@/components/ui/backdrop"
+import { translate } from "@/lib/i18n"
+import { useVoiceHold, type VoiceIssue, type VoiceSessionApi } from "@/lib/use-voice-hold"
+import { needsDiscardConfirm } from "@/lib/voice-note-gesture"
+import type { VoiceNoteFile } from "@/lib/voice-note"
 import { Icon } from "@/components/ui/icon"
 import { IconButton } from "@/components/ui/icon-button"
 import { ScrollToEndButton } from "@/components/ui/scroll-to-end-button"
@@ -52,11 +60,20 @@ export type ChatRoomFooterProps = {
    * untuk typing indicator + persist draft (murah, tanpa render ulang).
    */
   onDraftChange: (value: string) => void
+  /** Audit chat G17: kolom ketik kehilangan fokus → berhenti "mengetik…". */
+  onComposerBlur?: () => void
   onSend: (payload: ChatComposerPayload) => void
   attachments: ComposerAttachment[]
   onAttach: () => void
   /** Mic ala WhatsApp di composer (opsional) — buka perekam voice note. */
   onMicPress?: () => void
+  /**
+   * Audit chat C7: tahan-untuk-merekam + geser-untuk-kunci. Footer yang
+   * MENGHOSTING state-nya (fase, timer 250 ms) — bukan layar room, supaya
+   * tick timer tidak me-render ulang seluruh layar + list. Berkas rekaman
+   * valid diserahkan ke sini; layar mengunggah dan mengirimnya otomatis.
+   */
+  onVoiceNote?: (file: VoiceNoteFile) => void
   onRemoveAttachment: (localId: string) => void
   onRetryAttachment: (localId: string) => void
   /** B04: batalkan unggahan yang sedang berjalan. */
@@ -93,10 +110,12 @@ export const ChatRoomFooter = memo(function ChatRoomFooter({
   initialDraft = "",
   draftResetKey = 0,
   onDraftChange,
+  onComposerBlur,
   onSend,
   attachments,
   onAttach,
   onMicPress,
+  onVoiceNote,
   onRemoveAttachment,
   onRetryAttachment,
   onCancelAttachment,
@@ -131,6 +150,66 @@ export const ChatRoomFooter = memo(function ChatRoomFooter({
     setDraft(text)
     onDraftChangeRef.current(text)
   }, [])
+
+  // Audit chat G17: blur kolom ketik diteruskan (stabil — memo footer tetap hit).
+  const composerInputProps = useMemo(
+    () => (onComposerBlur ? { onBlur: onComposerBlur } : undefined),
+    [onComposerBlur],
+  )
+
+  // ── Voice note tahan-untuk-merekam (audit chat C7) ──────────────────────
+  const toast = useToast()
+  const voiceSessionRef = useRef<VoiceSessionApi | null>(null)
+  const onVoiceNoteRef = useRef(onVoiceNote)
+  onVoiceNoteRef.current = onVoiceNote
+  const handleVoiceIssue = useCallback(
+    (issue: VoiceIssue) => {
+      if (issue === "denied") {
+        toast.show({
+          title: translate("Akses mikrofon ditolak"),
+          description: translate(
+            "Buka Pengaturan perangkat → Kahade → Mikrofon untuk mengaktifkan pesan suara.",
+          ),
+          tone: "danger",
+        })
+      } else if (issue === "retry") {
+        // Dialog izin pertama kali memutus gestur — bukan kesalahan pengguna.
+        toast.show({
+          title: translate("Izin mikrofon diberikan"),
+          description: translate("Tahan tombol mikrofon lagi untuk merekam."),
+          tone: "info",
+        })
+      } else {
+        toast.show({
+          title: translate("Perekaman suara tidak didukung di perangkat ini."),
+          tone: "danger",
+        })
+      }
+    },
+    [toast],
+  )
+  const handleVoiceLimit = useCallback(() => {
+    toast.show({
+      title: translate("Batas rekaman tercapai"),
+      description: translate("Pesan suara dikirim otomatis."),
+      tone: "info",
+    })
+  }, [toast])
+  const voice = useVoiceHold({
+    getSession: () => voiceSessionRef.current,
+    onRecorded: (file) => onVoiceNoteRef.current?.(file),
+    onIssue: handleVoiceIssue,
+    onLimitReached: handleVoiceLimit,
+    disabled: disabled || completed || !onVoiceNote,
+  })
+  // Membuang rekaman terkunci yang berarti meminta konfirmasi dulu (B3O-22).
+  const [voiceDiscardOpen, setVoiceDiscardOpen] = useState(false)
+  const requestVoiceDiscard = useCallback(() => {
+    if (needsDiscardConfirm(voice.durationMs)) setVoiceDiscardOpen(true)
+    else voice.discard()
+  }, [voice])
+  // Tombol kembali Android pada rekaman terkunci = buang (dengan konfirmasi).
+  useOverlayDismissKeys(voice.phase === "locked", requestVoiceDiscard)
   return (
     <View>
       {/* Kembali ke dasar thread — muncul hanya saat pembaca
@@ -205,6 +284,9 @@ export const ChatRoomFooter = memo(function ChatRoomFooter({
             attachments={attachments}
             onAttach={onAttach}
             onMicPress={onMicPress}
+            voice={onVoiceNote ? voice : undefined}
+            onVoiceDiscard={requestVoiceDiscard}
+            inputProps={composerInputProps}
             onRemoveAttachment={onRemoveAttachment}
             onRetryAttachment={onRetryAttachment}
             onCancelAttachment={onCancelAttachment}
@@ -216,6 +298,23 @@ export const ChatRoomFooter = memo(function ChatRoomFooter({
           />
         </View>
       )}
+      {/* Perekam voice note: di-mount hanya selama ada interaksi tahan/kunci. */}
+      {voice.phase !== "idle" ? (
+        <VoiceNoteSession apiRef={voiceSessionRef} onDuration={voice.handleDuration} />
+      ) : null}
+      <Dialog
+        visible={voiceDiscardOpen}
+        title={translate("Buang rekaman?")}
+        description={translate("Rekaman pesan suara ini akan dihapus dan tidak bisa dikembalikan.")}
+        confirmLabel={translate("Buang")}
+        cancelLabel={translate("Lanjutkan")}
+        destructive
+        onConfirm={() => {
+          setVoiceDiscardOpen(false)
+          voice.discard()
+        }}
+        onRequestClose={() => setVoiceDiscardOpen(false)}
+      />
     </View>
   )
 })

@@ -4,7 +4,7 @@
  "strings": [
   {
    "s": "Batal",
-   "n": 139
+   "n": 144
   },
   {
    "s": "Aksi mungkin sudah diproses — memuat ulang…",
@@ -16,7 +16,7 @@
   },
   {
    "s": "Coba lagi",
-   "n": 43
+   "n": 45
   },
   {
    "s": "Gagal memuat",
@@ -43,11 +43,15 @@
    "n": 24
   },
   {
+   "s": "Anda",
+   "n": 23
+  },
+  {
    "s": "Tutup",
    "n": 22
   },
   {
-   "s": "Anda",
+   "s": "Lanjutkan",
    "n": 19
   },
   {
@@ -103,15 +107,15 @@
    "n": 13
   },
   {
+   "s": "Buang",
+   "n": 13
+  },
+  {
    "s": "Buat baru",
    "n": 13
   },
   {
    "s": "Buka {x}",
-   "n": 13
-  },
-  {
-   "s": "Lanjutkan",
    "n": 13
   },
   {
@@ -152,6 +156,10 @@
   },
   {
    "s": "Masuk",
+   "n": 12
+  },
+  {
+   "s": "Pesan",
    "n": 12
   },
   {
@@ -207,10 +215,6 @@
    "n": 10
   },
   {
-   "s": "Buang",
-   "n": 10
-  },
-  {
    "s": "Dasar:",
    "n": 10
   },
@@ -228,10 +232,6 @@
   },
   {
    "s": "Penerima:",
-   "n": 10
-  },
-  {
-   "s": "Pesan",
    "n": 10
   },
   {
@@ -275,10 +275,6 @@
    "n": 9
   },
   {
-   "s": "Cari pesan termuat",
-   "n": 9
-  },
-  {
    "s": "Gagal mengunggah foto",
    "n": 9
   },
@@ -292,6 +288,10 @@
   },
   {
    "s": "Judul",
+   "n": 9
+  },
+  {
+   "s": "Kemarin",
    "n": 9
   },
   {
@@ -317,14 +317,6 @@
   {
    "s": "Tidak bisa membagikan",
    "n": 9
-  },
-  {
-   "s": "Akan dikirim otomatis saat tersambung.",
-   "n": 8
-  },
-  {
-   "s": "Antrean aktif selama aplikasi terbuka hingga koneksi pulih.",
-   "n": 8
   },
   {
    "s": "Belum dibaca",
@@ -363,10 +355,6 @@
    "n": 8
   },
   {
-   "s": "Kemarin",
-   "n": 8
-  },
-  {
    "s": "Konfirmasi kata sandi",
    "n": 8
   },
@@ -387,15 +375,7 @@
    "n": 8
   },
   {
-   "s": "Pesan belum masuk antrean",
-   "n": 8
-  },
-  {
-   "s": "Pesan menunggu koneksi",
-   "n": 8
-  },
-  {
-   "s": "Sambungkan internet lalu kirim kembali.",
+   "s": "Periksa koneksi lalu coba lagi.",
    "n": 8
   },
   {
@@ -439,6 +419,10 @@
    "n": 7
   },
   {
+   "s": "Hari ini",
+   "n": 7
+  },
+  {
    "s": "Izin galeri ditolak",
    "n": 7
   },
@@ -448,6 +432,10 @@
   },
   {
    "s": "Lencana",
+   "n": 7
+  },
+  {
+   "s": "Menunggu koneksi",
    "n": 7
   },
   {
@@ -481,6 +469,10 @@
   {
    "s": "Ubah",
    "n": 7
+  },
+  {
+   "s": "(lampiran)",
+   "n": 6
   },
   {
    "s": "{x} bintang",
@@ -531,6 +523,10 @@
    "n": 6
   },
   {
+   "s": "Buang rekaman?",
+   "n": 6
+  },
+  {
    "s": "Buka lokasi di peta: {x}",
    "n": 6
   },
@@ -552,6 +548,10 @@
   },
   {
    "s": "Buka video layar penuh",
+   "n": 6
+  },
+  {
+   "s": "Cari pesan termuat",
    "n": 6
   },
   {
@@ -636,10 +636,6 @@
   },
   {
    "s": "Harga {x} ditampilkan sebagai Gratis.",
-   "n": 6
-  },
-  {
-   "s": "Hari ini",
    "n": 6
   },
   {
@@ -739,7 +735,7 @@
    "n": 6
   },
   {
-   "s": "Menunggu koneksi",
+   "s": "Merekam {x}",
    "n": 6
   },
   {
@@ -764,10 +760,6 @@
   },
   {
    "s": "Pengaturan pesan",
-   "n": 6
-  },
-  {
-   "s": "Periksa koneksi lalu coba lagi.",
    "n": 6
   },
   {
@@ -812,6 +804,10 @@
   },
   {
    "s": "Reaksi {x}",
+   "n": 6
+  },
+  {
+   "s": "Rekaman pesan suara ini akan dihapus dan tidak bisa dikembalikan.",
    "n": 6
   },
   {
@@ -897,10 +893,6 @@
   {
    "s": "Utama",
    "n": 6
-  },
-  {
-   "s": "(lampiran)",
-   "n": 5
   },
   {
    "s": "{x} {y}",
@@ -1083,6 +1075,10 @@
    "n": 5
   },
   {
+   "s": "Lampiran",
+   "n": 5
+  },
+  {
    "s": "Laporkan etalase",
    "n": 5
   },
@@ -1116,10 +1112,6 @@
   },
   {
    "s": "Permintaan dibatalkan.",
-   "n": 5
-  },
-  {
-   "s": "Pesan dihapus",
    "n": 5
   },
   {
@@ -1320,6 +1312,10 @@
   },
   {
    "s": "Bukti {x} dari {y}",
+   "n": 4
+  },
+  {
+   "s": "Cari pesan",
    "n": 4
   },
   {
@@ -1531,10 +1527,6 @@
    "n": 4
   },
   {
-   "s": "Lampiran",
-   "n": 4
-  },
-  {
    "s": "Lampiran #{x}",
    "n": 4
   },
@@ -1544,6 +1536,10 @@
   },
   {
    "s": "Laporkan pengguna",
+   "n": 4
+  },
+  {
+   "s": "Lawan bicara",
    "n": 4
   },
   {
@@ -1584,6 +1580,10 @@
   },
   {
    "s": "Memuat voucher",
+   "n": 4
+  },
+  {
+   "s": "Mengirim",
    "n": 4
   },
   {
@@ -1644,6 +1644,10 @@
   },
   {
    "s": "Pertanyaan terkirim",
+   "n": 4
+  },
+  {
+   "s": "Pesan dihapus",
    "n": 4
   },
   {
@@ -1847,6 +1851,10 @@
    "n": 3
   },
   {
+   "s": "{x} bereaksi {y}",
+   "n": 3
+  },
+  {
    "s": "{x} dari {x}",
    "n": 3
   },
@@ -1868,6 +1876,10 @@
   },
   {
    "s": "{x} dari {y}, buka ulasan",
+   "n": 3
+  },
+  {
+   "s": "{x} dari maksimal {y} pin",
    "n": 3
   },
   {
@@ -2159,15 +2171,15 @@
    "n": 3
   },
   {
-   "s": "Belum ada pesan",
-   "n": 3
-  },
-  {
    "s": "Belum ada produk di etalase",
    "n": 3
   },
   {
    "s": "Belum ada profil tersimpan",
+   "n": 3
+  },
+  {
+   "s": "Belum ada reaksi",
    "n": 3
   },
   {
@@ -2227,6 +2239,10 @@
    "n": 3
   },
   {
+   "s": "Bila dimatikan, percakapan tidak bisa di-screenshot atau direkam layarnya di perangkat ini.",
+   "n": 3
+  },
+  {
    "s": "Bisukan video",
    "n": 3
   },
@@ -2243,7 +2259,7 @@
    "n": 3
   },
   {
-   "s": "Buang rekaman?",
+   "s": "Buang rekaman",
    "n": 3
   },
   {
@@ -2499,6 +2515,10 @@
    "n": 3
   },
   {
+   "s": "Dibaca",
+   "n": 3
+  },
+  {
    "s": "Dibuka",
    "n": 3
   },
@@ -2544,6 +2564,10 @@
   },
   {
    "s": "Diterima",
+   "n": 3
+  },
+  {
+   "s": "Diteruskan",
    "n": 3
   },
   {
@@ -2616,6 +2640,10 @@
   },
   {
    "s": "File",
+   "n": 3
+  },
+  {
+   "s": "File {x}, lanjutkan?",
    "n": 3
   },
   {
@@ -2780,6 +2808,10 @@
   },
   {
    "s": "Halaman tidak ditemukan",
+   "n": 3
+  },
+  {
+   "s": "Hanya berlaku di perangkat ini.",
    "n": 3
   },
   {
@@ -2991,6 +3023,10 @@
    "n": 3
   },
   {
+   "s": "Izinkan screenshot & rekam layar di chat",
+   "n": 3
+  },
+  {
    "s": "Jadikan {x} penerima favorit",
    "n": 3
   },
@@ -3095,6 +3131,10 @@
    "n": 3
   },
   {
+   "s": "Kami tidak dapat memuat percakapan ini. Silakan coba lagi.",
+   "n": 3
+  },
+  {
    "s": "Kami tidak dapat menyiapkan percakapan saat ini. Silakan coba lagi.",
    "n": 3
   },
@@ -3187,7 +3227,15 @@
    "n": 3
   },
   {
+   "s": "Ketuk untuk melihat siapa yang bereaksi",
+   "n": 3
+  },
+  {
    "s": "Ketuk untuk memfilter",
+   "n": 3
+  },
+  {
+   "s": "Ketuk untuk mengubah reaksi",
    "n": 3
   },
   {
@@ -3371,7 +3419,7 @@
    "n": 3
   },
   {
-   "s": "Lawan bicara",
+   "s": "Layar",
    "n": 3
   },
   {
@@ -3623,7 +3671,7 @@
    "n": 3
   },
   {
-   "s": "Mencari hanya pesan yang sudah dimuat di perangkat ini",
+   "s": "Mencari di seluruh riwayat percakapan ini",
    "n": 3
   },
   {
@@ -3639,15 +3687,15 @@
    "n": 3
   },
   {
-   "s": "Mengirim",
-   "n": 3
-  },
-  {
    "s": "Mengisi kolom pencarian dengan kata kunci ini",
    "n": 3
   },
   {
    "s": "Mengubah username, nomor HP, atau kontak membutuhkan kata sandi akun.",
+   "n": 3
+  },
+  {
+   "s": "Mengunggah berkas besar memakai banyak kuota dan butuh waktu. Pastikan koneksi Anda stabil.",
    "n": 3
   },
   {
@@ -3672,10 +3720,6 @@
   },
   {
    "s": "Menyimpan…",
-   "n": 3
-  },
-  {
-   "s": "Merekam {x}",
    "n": 3
   },
   {
@@ -3724,10 +3768,6 @@
   },
   {
    "s": "Mulai mencari",
-   "n": 3
-  },
-  {
-   "s": "Mulai percakapan Anda.",
    "n": 3
   },
   {
@@ -3999,6 +4039,10 @@
    "n": 3
   },
   {
+   "s": "Pesan ini telah dihapus",
+   "n": 3
+  },
+  {
    "s": "Pesan slot",
    "n": 3
   },
@@ -4139,11 +4183,11 @@
    "n": 3
   },
   {
-   "s": "Rekam pesan suara, maksimal {x} menit.",
+   "s": "Reaksi",
    "n": 3
   },
   {
-   "s": "Rekaman pesan suara ini akan dihapus dan tidak bisa dikembalikan.",
+   "s": "Rekam pesan suara, maksimal {x} menit.",
    "n": 3
   },
   {
@@ -4263,6 +4307,10 @@
    "n": 3
   },
   {
+   "s": "Semua {x}",
+   "n": 3
+  },
+  {
    "s": "Semua pergerakan dana Anda (top-up, penarikan, transfer) akan muncul di sini.",
    "n": 3
   },
@@ -4296,6 +4344,10 @@
   },
   {
    "s": "Shortcut",
+   "n": 3
+  },
+  {
+   "s": "Siapa memberi reaksi apa pada pesan ini.",
    "n": 3
   },
   {
@@ -4471,6 +4523,10 @@
    "n": 3
   },
   {
+   "s": "Tarik reaksi {x}",
+   "n": 3
+  },
+  {
    "s": "Tautan ini mengarah ke situs di luar Kahade. Pastikan Anda percaya sumbernya.",
    "n": 3
   },
@@ -4484,6 +4540,10 @@
   },
   {
    "s": "Tautan mungkin sudah berubah. Kembali ke beranda untuk melanjutkan.",
+   "n": 3
+  },
+  {
+   "s": "Tautan percakapan ini tidak valid.",
    "n": 3
   },
   {
@@ -4588,6 +4648,10 @@
   },
   {
    "s": "Tidak ada yang cocok di mutasi yang dimuat",
+   "n": 3
+  },
+  {
+   "s": "Tidak aktif",
    "n": 3
   },
   {
@@ -4863,6 +4927,10 @@
    "n": 2
   },
   {
+   "s": "(pesan tanpa teks)",
+   "n": 2
+  },
+  {
    "s": "{booked}/{cap} terisi",
    "n": 2
   },
@@ -4959,6 +5027,10 @@
    "n": 2
   },
   {
+   "s": "{x} pesan dihapus",
+   "n": 2
+  },
+  {
    "s": "{x} tidak akan bisa mengirimi Anda pesan lagi dari percakapan ini.",
    "n": 2
   },
@@ -5019,7 +5091,15 @@
    "n": 2
   },
   {
+   "s": "Akan dikirim otomatis saat tersambung.",
+   "n": 2
+  },
+  {
    "s": "Akses kamera ditolak",
+   "n": 2
+  },
+  {
+   "s": "Akses mikrofon ditolak",
    "n": 2
   },
   {
@@ -5103,6 +5183,10 @@
    "n": 2
   },
   {
+   "s": "Anda memilih Hapus untuk saya pada pesan tersebut.",
+   "n": 2
+  },
+  {
    "s": "Anda menyetujui SPK",
    "n": 2
   },
@@ -5116,6 +5200,10 @@
   },
   {
    "s": "Anggota {x}",
+   "n": 2
+  },
+  {
+   "s": "Antrean aktif selama aplikasi terbuka hingga koneksi pulih.",
    "n": 2
   },
   {
@@ -5203,6 +5291,14 @@
    "n": 2
   },
   {
+   "s": "Batas pin tercapai",
+   "n": 2
+  },
+  {
+   "s": "Batas rekaman tercapai",
+   "n": 2
+  },
+  {
    "s": "Batas waktu",
    "n": 2
   },
@@ -5264,6 +5360,10 @@
   },
   {
    "s": "Belum ada penarikan",
+   "n": 2
+  },
+  {
+   "s": "Belum ada pesan",
    "n": 2
   },
   {
@@ -5523,6 +5623,10 @@
    "n": 2
   },
   {
+   "s": "Buka Pengaturan perangkat → Kahade → Mikrofon untuk mengaktifkan pesan suara.",
+   "n": 2
+  },
+  {
    "s": "Buka percakapan, atau tekan lama untuk memilih beberapa",
    "n": 2
   },
@@ -5748,10 +5852,6 @@
   },
   {
    "s": "Detail Tahap",
-   "n": 2
-  },
-  {
-   "s": "Dibaca",
    "n": 2
   },
   {
@@ -6011,6 +6111,10 @@
    "n": 2
   },
   {
+   "s": "Gagal melepas pin",
+   "n": 2
+  },
+  {
    "s": "Gagal membagikan",
    "n": 2
   },
@@ -6063,6 +6167,10 @@
    "n": 2
   },
   {
+   "s": "Gagal mempin pesan",
+   "n": 2
+  },
+  {
    "s": "Gagal memuat aset",
    "n": 2
   },
@@ -6076,6 +6184,10 @@
   },
   {
    "s": "Gagal memuat percakapan lain",
+   "n": 2
+  },
+  {
+   "s": "Gagal memuat pesan lama",
    "n": 2
   },
   {
@@ -6104,6 +6216,10 @@
   },
   {
    "s": "Gagal mengekspor chat",
+   "n": 2
+  },
+  {
+   "s": "Gagal menghapus {x} pesan",
    "n": 2
   },
   {
@@ -6263,6 +6379,14 @@
    "n": 2
   },
   {
+   "s": "Geser untuk batal",
+   "n": 2
+  },
+  {
+   "s": "Gulir ke atas untuk memuat riwayat yang lebih lama.",
+   "n": 2
+  },
+  {
    "s": "Gunakan email yang terdaftar.",
    "n": 2
   },
@@ -6396,6 +6520,10 @@
   },
   {
    "s": "Item etalase",
+   "n": 2
+  },
+  {
+   "s": "Izin mikrofon diberikan",
    "n": 2
   },
   {
@@ -6579,6 +6707,10 @@
    "n": 2
   },
   {
+   "s": "Ketuk + untuk foto, berkas, atau lokasi. Tahan mikrofon untuk pesan suara.",
+   "n": 2
+  },
+  {
    "s": "Ketuk atau tekan lama untuk opsi pesan",
    "n": 2
   },
@@ -6600,6 +6732,10 @@
   },
   {
    "s": "Ketuk untuk memuat gambar",
+   "n": 2
+  },
+  {
+   "s": "Ketuk untuk menarik reaksi",
    "n": 2
   },
   {
@@ -6903,6 +7039,10 @@
    "n": 2
   },
   {
+   "s": "Lepas untuk membatalkan",
+   "n": 2
+  },
+  {
    "s": "Lewat batas waktu, pesanan dibatalkan otomatis — belum ada dana yang ditahan.",
    "n": 2
   },
@@ -7031,6 +7171,10 @@
    "n": 2
   },
   {
+   "s": "Maksimal {x} pin per percakapan. Lepas salah satu pin untuk menyematkan pesan lain.",
+   "n": 2
+  },
+  {
    "s": "Maksimum {x} template per akun.",
    "n": 2
   },
@@ -7040,6 +7184,10 @@
   },
   {
    "s": "Masih ada foto yang gagal diunggah",
+   "n": 2
+  },
+  {
+   "s": "Masih memuat percakapan. Periksa koneksi internet Anda.",
    "n": 2
   },
   {
@@ -7159,6 +7307,10 @@
    "n": 2
   },
   {
+   "s": "Memuat riwayat yang lebih lama.",
+   "n": 2
+  },
+  {
    "s": "Memuat template…",
    "n": 2
   },
@@ -7200,6 +7352,10 @@
   },
   {
    "s": "Mencari di {n} mutasi yang dimuat",
+   "n": 2
+  },
+  {
+   "s": "Mencari pesan…",
    "n": 2
   },
   {
@@ -7296,6 +7452,10 @@
   },
   {
    "s": "Muat lebih banyak",
+   "n": 2
+  },
+  {
+   "s": "Muat lebih banyak hasil",
    "n": 2
   },
   {
@@ -7603,6 +7763,10 @@
    "n": 2
   },
   {
+   "s": "Perekaman suara tidak didukung di perangkat ini.",
+   "n": 2
+  },
+  {
    "s": "Periksa bukti pengiriman",
    "n": 2
   },
@@ -7687,7 +7851,11 @@
    "n": 2
   },
   {
-   "s": "Pesan belum termuat di thread",
+   "s": "Pesan asli telah dihapus",
+   "n": 2
+  },
+  {
+   "s": "Pesan belum masuk antrean",
    "n": 2
   },
   {
@@ -7707,11 +7875,27 @@
    "n": 2
   },
   {
+   "s": "Pesan itu disembunyikan di perangkat ini",
+   "n": 2
+  },
+  {
+   "s": "Pesan menunggu koneksi",
+   "n": 2
+  },
+  {
+   "s": "Pesan mungkin sudah dihapus atau kedaluwarsa.",
+   "n": 2
+  },
+  {
    "s": "Pesan negosiasi",
    "n": 2
   },
   {
    "s": "Pesan sementara: {x}",
+   "n": 2
+  },
+  {
+   "s": "Pesan suara dikirim otomatis.",
    "n": 2
   },
   {
@@ -7723,7 +7907,19 @@
    "n": 2
   },
   {
+   "s": "Pesan terlalu lama untuk dimuat otomatis",
+   "n": 2
+  },
+  {
    "s": "Pesan tertunda",
+   "n": 2
+  },
+  {
+   "s": "Pesan tetap di percakapan. Ketuk Coba lagi setelah tersambung.",
+   "n": 2
+  },
+  {
+   "s": "Pesan tidak ditemukan",
    "n": 2
   },
   {
@@ -7923,6 +8119,10 @@
    "n": 2
   },
   {
+   "s": "Rekaman terkunci",
+   "n": 2
+  },
+  {
    "s": "Rekening Bank",
    "n": 2
   },
@@ -8036,6 +8236,10 @@
   },
   {
    "s": "Sebutkan di keterangan",
+   "n": 2
+  },
+  {
+   "s": "Sedang aktif",
    "n": 2
   },
   {
@@ -8299,6 +8503,10 @@
    "n": 2
   },
   {
+   "s": "Tahan tombol mikrofon lagi untuk merekam.",
+   "n": 2
+  },
+  {
    "s": "Tahan untuk aksi perangkat",
    "n": 2
   },
@@ -8499,6 +8707,10 @@
    "n": 2
   },
   {
+   "s": "Terakhir dilihat {x}",
+   "n": 2
+  },
+  {
    "s": "Terapkan format {x} pada teks yang dipilih",
    "n": 2
   },
@@ -8540,6 +8752,10 @@
   },
   {
    "s": "Terjemahkan",
+   "n": 2
+  },
+  {
+   "s": "Terkirim",
    "n": 2
   },
   {
@@ -8604,10 +8820,6 @@
   },
   {
    "s": "Tidak ada yang diblokir",
-   "n": 2
-  },
-  {
-   "s": "Tidak aktif",
    "n": 2
   },
   {
@@ -8995,10 +9207,6 @@
    "n": 1
   },
   {
-   "s": "(pesan tanpa teks)",
-   "n": 1
-  },
-  {
    "s": "(sisa pembulatan ke penjual)",
    "n": 1
   },
@@ -9044,6 +9252,14 @@
   },
   {
    "s": "{x} aksi yang tertunda terkirim.",
+   "n": 1
+  },
+  {
+   "s": "{x} dan {y} lainnya sedang mengetik…",
+   "n": 1
+  },
+  {
+   "s": "{x} dan {y} sedang mengetik…",
    "n": 1
   },
   {
@@ -9135,15 +9351,15 @@
    "n": 1
   },
   {
-   "s": "{x} pesan dihapus",
-   "n": 1
-  },
-  {
    "s": "{x} pesan disembunyikan dari perangkat ini",
    "n": 1
   },
   {
    "s": "{x} pesan diteruskan",
+   "n": 1
+  },
+  {
+   "s": "{x} sedang mengetik…",
    "n": 1
   },
   {
@@ -12755,6 +12971,10 @@
    "n": 1
   },
   {
+   "s": "Cari di pesan termuat",
+   "n": 1
+  },
+  {
    "s": "Cari kata dalam berkas",
    "n": 1
   },
@@ -12768,10 +12988,6 @@
   },
   {
    "s": "Cari penerima",
-   "n": 1
-  },
-  {
-   "s": "Cari pesan",
    "n": 1
   },
   {
@@ -14163,10 +14379,6 @@
    "n": 1
   },
   {
-   "s": "Gagal melepas pin",
-   "n": 1
-  },
-  {
    "s": "Gagal mematikan verifikasi dua langkah",
    "n": 1
   },
@@ -14252,10 +14464,6 @@
   },
   {
    "s": "Gagal memperbarui status ikuti",
-   "n": 1
-  },
-  {
-   "s": "Gagal mempin pesan",
    "n": 1
   },
   {
@@ -15763,6 +15971,10 @@
    "n": 1
   },
   {
+   "s": "Ketuk untuk membuka perekam. Tahan untuk merekam, geser ke atas untuk mengunci.",
+   "n": 1
+  },
+  {
    "s": "Ketuk untuk memutar",
    "n": 1
   },
@@ -15772,10 +15984,6 @@
   },
   {
    "s": "Ketuk untuk mengganti metode pembayaran",
-   "n": 1
-  },
-  {
-   "s": "Ketuk untuk mengubah reaksi",
    "n": 1
   },
   {
@@ -15844,6 +16052,10 @@
   },
   {
    "s": "Kirim pesan dari",
+   "n": 1
+  },
+  {
+   "s": "Kirim pesan suara",
    "n": 1
   },
   {
@@ -17679,10 +17891,6 @@
    "n": 1
   },
   {
-   "s": "Muat pesan sebelumnya untuk menjangkau riwayat yang lebih lama.",
-   "n": 1
-  },
-  {
    "s": "Muat ulang foto",
    "n": 1
   },
@@ -18623,6 +18831,10 @@
    "n": 1
   },
   {
+   "s": "Pengguna lain",
+   "n": 1
+  },
+  {
    "s": "Pengguna lain bisa melihat profil Anda.",
    "n": 1
   },
@@ -19272,6 +19484,10 @@
   },
   {
    "s": "Pesan ini tidak lagi ditandai sebagai pesan berbintang di ruang ini.",
+   "n": 1
+  },
+  {
+   "s": "Pesan masuk",
    "n": 1
   },
   {
@@ -20015,6 +20231,14 @@
    "n": 1
   },
   {
+   "s": "Sapa {x} untuk memulai percakapan. Tanyakan detail barang atau jasa, dan lakukan transaksi lewat Kahade agar aman.",
+   "n": 1
+  },
+  {
+   "s": "Sapa lawan bicara Anda untuk memulai percakapan. Tanyakan detail barang atau jasa, dan lakukan transaksi lewat Kahade agar aman.",
+   "n": 1
+  },
+  {
    "s": "Saran dan masukan untuk Kahade",
    "n": 1
   },
@@ -20063,15 +20287,15 @@
    "n": 1
   },
   {
-   "s": "Sedang aktif",
-   "n": 1
-  },
-  {
    "s": "Sedang ditangani",
    "n": 1
   },
   {
    "s": "Sedang ditinjau",
+   "n": 1
+  },
+  {
+   "s": "Sedang mengetik…",
    "n": 1
   },
   {
@@ -20451,6 +20675,10 @@
    "n": 1
   },
   {
+   "s": "Simpan catatan, tautan, atau foto untuk diri sendiri di sini.",
+   "n": 1
+  },
+  {
    "s": "Simpan email baru",
    "n": 1
   },
@@ -20544,6 +20772,10 @@
   },
   {
    "s": "Soft delete:",
+   "n": 1
+  },
+  {
+   "s": "Sorot hasil langsung di percakapan",
    "n": 1
   },
   {
@@ -21232,10 +21464,6 @@
   },
   {
    "s": "Terjual",
-   "n": 1
-  },
-  {
-   "s": "Terkirim",
    "n": 1
   },
   {

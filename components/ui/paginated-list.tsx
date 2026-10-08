@@ -8,6 +8,7 @@ import {
   type PullToRefreshFlatListProps,
 } from "@/components/ui/pull-to-refresh"
 import { Skeleton, SkeletonGroup, SkeletonText } from "@/components/ui/skeleton"
+import { FEED_LIST_WINDOWING, type ListWindowing } from "@/lib/list-windowing"
 import { tokens } from "@/lib/tokens"
 
 export type PaginatedListProps<T extends { id?: string }> = {
@@ -62,6 +63,8 @@ export type PaginatedListProps<T extends { id?: string }> = {
    * Diteruskan apa adanya ke FlatList.
    */
   listRef?: Ref<FlatList<T>>
+  /** Audit chat F15: tuning jendela render (default = tuning feed). */
+  windowing?: ListWindowing
 }
 
 /** Style konstan: literal `{ flex: 1 }` inline membuat prop baru tiap render. */
@@ -125,6 +128,7 @@ export function PaginatedList<T extends { id?: string }>({
   onViewableItemsChanged,
   viewabilityConfig,
   listRef,
+  windowing,
 }: PaginatedListProps<T>) {  /*
    * Audit performa — semua prop di bawah ini DULU ditulis inline di JSX.
    *
@@ -277,9 +281,10 @@ export function PaginatedList<T extends { id?: string }>({
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="on-drag"
       showsVerticalScrollIndicator={false}
-      initialNumToRender={6}
-      maxToRenderPerBatch={6}
-      windowSize={11}
+      initialNumToRender={windowing?.initialNumToRender ?? FEED_LIST_WINDOWING.initialNumToRender}
+      maxToRenderPerBatch={windowing?.maxToRenderPerBatch ?? FEED_LIST_WINDOWING.maxToRenderPerBatch}
+      windowSize={windowing?.windowSize ?? FEED_LIST_WINDOWING.windowSize}
+      updateCellsBatchingPeriod={windowing?.updateCellsBatchingPeriod}
       removeClippedSubviews={false}
       collapsable={false}
       onViewableItemsChanged={onViewableItemsChanged}

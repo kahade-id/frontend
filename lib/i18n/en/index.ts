@@ -27,6 +27,9 @@
  * kamus tidak boleh membengkak oleh entri no-op; fallback sudah benar.
  */
 import auth from "./auth.json"
+// chat-room (audit chat 2026-10): string baru dari perbaikan ruang chat —
+// satu berkas per batch terjemahan supaya bisa ditinjau tuntas.
+import chatRoom from "./chat-room.json"
 import errors from "./errors.json"
 import labels from "./labels.json"
 import remediation from "./remediation.json"
@@ -74,6 +77,7 @@ export const EN: Dict = {
   ...screens8,
   ...screens9,
   ...screens10,
+  ...chatRoom,
   // Pesan error & label status dari peta di lib/ — yang paling sering muncul
   // saat jaringan bermasalah, jadi jangan sampai jatuh ke Bahasa Indonesia.
   ...errors,

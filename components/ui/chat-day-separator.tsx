@@ -13,32 +13,14 @@
  */
 import { View } from "react-native"
 
-import { formatDate } from "@/lib/format"
+import { dayKey, dayLabel } from "@/lib/chat-day-label"
 
 import { Text } from "@/components/ui/text"
 
-/**
- * Kunci hari lokal (tanpa jam) — pembanding untuk memutuskan apakah sebuah
- * pesan membuka hari baru. Bukan `toISOString().slice(0,10)`: itu UTC, jadi
- * percakapan pukul 06.00 WIB akan dianggap "kemarin".
- */
-export function dayKey(iso: string): string {
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return ""
-  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`
-}
-
-/** Label manusia untuk satu hari: "Hari ini" / "Kemarin" / "12 Sep 2026". */
-export function dayLabel(iso: string): string {
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return formatDate(iso)
-  const now = new Date()
-  const startOf = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime()
-  const diffDays = Math.round((startOf(now) - startOf(d)) / 86_400_000)
-  if (diffDays === 0) return "Hari ini"
-  if (diffDays === 1) return "Kemarin"
-  return formatDate(d)
-}
+// Audit chat G18: logika kunci/label pindah ke lib/chat-day-label (teruji,
+// `now` bisa disuntikkan, label dihitung ulang saat hari berganti). Diekspor
+// ulang di sini agar pemakai lama (<ChatMessageRow>, layar room) tidak berubah.
+export { dayKey, dayLabel }
 
 export type ChatDaySeparatorProps = {
   /** Label hari (hasil `dayLabel`). */

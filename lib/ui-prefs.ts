@@ -81,6 +81,17 @@ export type UiPrefs = {
    * perangkat tetap dihormati terpisah (bunyi tidak diputar saat senyap).
    */
   scanFeedback: boolean
+  /**
+   * Audit chat H21 — izinkan screenshot & rekam layar di CHAT. Default ON
+   * (kebijakan 2026-09-27: layar non-sensitif tetap boleh di-screenshot).
+   * OFF = ruang chat (dan daftar chat saat tampil) dilindungi
+   * <ScreenCaptureGuard>: FLAG_SECURE di Android, pencegahan screenshot +
+   * rekam layar + blur app-switcher di iOS. Preferensi PERANGKAT (bukan akun):
+   * logout tidak meresetnya — perangkat yang diminta privat tetap privat bagi
+   * siapa pun yang memakainya. Rekomendasi sinkron antar-perangkat ada di
+   * docs/rekomendasi-backend-chat.md (bagian H).
+   */
+  chatAllowScreenCapture: boolean
 }
 
 const DEFAULT_PREFS: UiPrefs = {
@@ -94,6 +105,8 @@ const DEFAULT_PREFS: UiPrefs = {
   notificationsCategory: "TRANSAKSI",
   // Batch 139 E14: umpan balik pindaian default ON.
   scanFeedback: true,
+  // Audit chat H21: default IZINKAN screenshot di chat.
+  chatAllowScreenCapture: true,
 }
 
 export type RecentRecipient = {
@@ -210,6 +223,9 @@ export function sanitizePrefs(raw: unknown): UiPrefs {
     // Batch 139 E14: default ON bila belum pernah disimpan; nilai non-boolean
     // (data rusak) jatuh ke ON agar umpan balik tidak hilang diam-diam.
     scanFeedback: rec.scanFeedback !== false,
+    // Audit chat H21: hanya `false` EKSPLISIT yang mematikan — data rusak/absen
+    // jatuh ke "izinkan" (default produk), bukan ke blokir yang membingungkan.
+    chatAllowScreenCapture: rec.chatAllowScreenCapture !== false,
   }
 }
 

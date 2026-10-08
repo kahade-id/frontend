@@ -94,10 +94,20 @@ describe("ruang chat tidak lagi memakai banner permanen", () => {
     // Urutan: syarat tampil (DM 1:1, tanpa orderId, sealTier null) → id
     // lawan bicara ada → baru tandai. Menandai lebih dulu akan mematikan
     // popup untuk orang yang salah.
-    const guard = room.indexOf("const counterpartId = room.counterpart?.id")
-    const mark = room.indexOf("markDmNoticeSeen(counterpartId)")
-    expect(guard).toBeGreaterThan(-1)
+    //
+    // Audit chat F14: keputusan diturunkan jadi SATU id primitif lewat
+    // `dmSafetyCounterpartId` (lib/chat-room-effects, teruji — mengembalikan
+    // null bila id lawan bicara kosong); efeknya hanya menandai bila id itu ada.
+    const derive = room.indexOf("dmSafetyCounterpartId({")
+    const source = room.indexOf("counterpartId: room?.counterpart?.id")
+    const guard = room.indexOf("if (!dmSafetyId) return")
+    const mark = room.indexOf("markDmNoticeSeen(dmSafetyId)")
+    expect(derive).toBeGreaterThan(-1)
+    expect(source).toBeGreaterThan(derive)
+    expect(guard).toBeGreaterThan(source)
     expect(mark).toBeGreaterThan(guard)
+    // Efek tidak lagi bergantung pada objek `room` utuh (menyala ulang tiap setRoom).
+    expect(room).toContain("}, [dmSafetyId])")
   })
 
   it("menu ⋮ tidak lagi menerima slot peringatan escrow", () => {

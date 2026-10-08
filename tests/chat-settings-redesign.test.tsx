@@ -71,6 +71,7 @@ vi.mock("@/components/ui/toast", async () => {
 import { ThemeProvider } from "@/components/theme-provider"
 import { PortalHost, PortalProvider } from "@/components/ui/portal"
 import ChatSettingsScreen from "@/app/chat/settings"
+import { getUiPrefsSnapshot, loadUiPrefs, resetUiPrefsForTest } from "@/lib/ui-prefs"
 
 function renderScreen() {
   return render(
@@ -85,7 +86,10 @@ function renderScreen() {
 
 afterEach(cleanup)
 
-beforeEach(() => {
+beforeEach(async () => {
+  resetUiPrefsForTest()
+  // Hidrasi preferensi dari storage selesai dulu (lihat chat-screen-capture.test.tsx).
+  await loadUiPrefs()
   mocks.privacy = { hideReadReceipts: false, dmPolicy: "EVERYONE" }
   mocks.templates = []
   mocks.updatePrivacy.mockClear()
@@ -100,7 +104,7 @@ describe("grup & copy", () => {
     expect(screen.getByText("Pengaturan pesan")).toBeTruthy()
   })
 
-  it("dua grup bernama jelas dengan subtitle satu baris", async () => {
+  it("grup bernama jelas dengan subtitle satu baris", async () => {
     renderScreen()
     // "Privasi" langsung terlihat (tanpa menunggu muat).
     expect(screen.getByText("Privasi")).toBeTruthy()
@@ -200,5 +204,44 @@ describe("Privasi di layar tamu", () => {
     )
     expect(source).toContain("useHasSession()")
     expect(source).toContain("GuestLoginPrompt")
+  })
+})
+
+describe("grup layar — izinkan screenshot & rekam layar (audit chat H21)", () => {
+  const LABEL = /Izinkan screenshot & rekam layar di chat/
+
+  it("grup 'Layar' dengan subtitle yang jujur: hanya perangkat ini", () => {
+    renderScreen()
+    expect(screen.getByText("Layar")).toBeTruthy()
+    expect(screen.getByText("Hanya berlaku di perangkat ini.")).toBeTruthy()
+    // Grup Privasi tetap berlaku di semua perangkat akun — keduanya tidak boleh dicampur.
+    expect(screen.getByText("Berlaku di semua perangkat Anda.")).toBeTruthy()
+  })
+
+  it("default AKTIF (izinkan); tidak menunggu API privasi dimuat", () => {
+    renderScreen()
+    // Saklar tersedia langsung (grup ini lokal — tidak menunggu GET /v1/chat/privacy).
+    expect(screen.getByRole("switch", { name: LABEL })).toBeTruthy()
+    expect(getUiPrefsSnapshot().chatAllowScreenCapture).toBe(true)
+  })
+
+  it("mematikan saklar menulis preferensi LOKAL — tanpa memanggil API privasi", async () => {
+    renderScreen()
+    const toggle = screen.getByRole("switch", { name: LABEL })
+    fireEvent.click(toggle)
+    expect(getUiPrefsSnapshot().chatAllowScreenCapture).toBe(false)
+    expect(mocks.updatePrivacy).not.toHaveBeenCalled()
+    // Menyalakan lagi.
+    fireEvent.click(screen.getByRole("switch", { name: LABEL }))
+    expect(getUiPrefsSnapshot().chatAllowScreenCapture).toBe(true)
+  })
+
+  it("penjelasan menyebut efeknya dan tidak memakai istilah internal", () => {
+    renderScreen()
+    expect(
+      screen.getByText(
+        "Bila dimatikan, percakapan tidak bisa di-screenshot atau direkam layarnya di perangkat ini.",
+      ),
+    ).toBeTruthy()
   })
 })

@@ -4,9 +4,11 @@
  * Rancangan ulang (permintaan produk, bagian 5): tata letak rapi, grup jelas,
  * copy singkat, minimalis ala situs Apple. Yang berubah dari versi batch 43:
  *
- *   1. DUA grup bernama jelas — "Privasi" dan "Balasan cepat" — dengan
+ *   1. Grup bernama jelas — "Privasi", "Layar", dan "Balasan cepat" — dengan
  *      subtitle satu baris. Sebelumnya kontrol privasi bercampur dalam satu
- *      kolom tanpa batas antar konsep.
+ *      kolom tanpa batas antar konsep. (Audit chat H21: "Layar" ditambahkan —
+ *      preferensi PERANGKAT, sengaja dipisah dari "Privasi" yang berlaku di
+ *      semua perangkat akun.)
  *   2. Setiap kontrol berbentuk BARIS dalam kartu bergaris pemisah (iOS/
  *      Settings), bukan tumpukan kartu terpisah: satu kartu = satu konsep,
  *      pemisah 1px memisahkan pilihan di dalamnya. Kartu-per-item membuat
@@ -21,8 +23,10 @@
  *      menandainya dan pembaca layar berbahasa Inggris tetap mendengar
  *      kalimat Indonesia.
  *
- * Fungsi tidak berubah: GET/PATCH /v1/chat/privacy (hideReadReceipts,
- * dmPolicy) + CRUD template balasan "/" lewat lib/reply-templates.
+ * Fungsi: GET/PATCH /v1/chat/privacy (hideReadReceipts, dmPolicy) + CRUD
+ * template balasan "/" lewat lib/reply-templates. Audit chat H21: + saklar
+ * LOKAL "Izinkan screenshot & rekam layar di chat" (lib/ui-prefs; tanpa API —
+ * bila kelak perlu sinkron antar-perangkat: docs/rekomendasi-backend-chat.md).
  */
 import { useEffect, useMemo, useState } from "react"
 import { View } from "react-native"
@@ -38,6 +42,7 @@ import { useHasSession } from "@/lib/guest-gate"
 import { logWarn } from "@/lib/telemetry"
 import { showMutationError } from "@/lib/mutation-toast"
 import { translate } from "@/lib/i18n"
+import { useSetUiPrefs, useUiPref } from "@/lib/ui-prefs"
 
 import { Screen } from "@/components/ui/screen"
 import { Button } from "@/components/ui/button"
@@ -211,10 +216,45 @@ export default function ChatSettingsScreen() {
           )}
         </View>
 
-        {/* ── Grup 2: Balasan cepat ───────────────────────────────────── */}
+        {/* ── Grup 2: Layar (preferensi PERANGKAT) ────────────────────── */}
+        <ScreenCapturePreference />
+
+        {/* ── Grup 3: Balasan cepat ───────────────────────────────────── */}
         <ReplyTemplateManager />
       </View>
     </Screen>
+  )
+}
+
+/**
+ * Audit chat H21 — "Izinkan screenshot & rekam layar di chat". Default IZINKAN.
+ * Dimatikan → ruang chat + daftar chat dilindungi <ScreenCaptureGuard> (lihat
+ * components/security/chat-screen-capture-gate). Disimpan LOKAL (ui-prefs):
+ * preferensi perangkat, tidak menyentuh API — makanya di grup sendiri dengan
+ * subtitle "Hanya berlaku di perangkat ini" (grup Privasi berlaku di semua
+ * perangkat akun dan memuat dua kata yang berbeda).
+ */
+function ScreenCapturePreference() {
+  const allow = useUiPref("chatAllowScreenCapture")
+  const setPrefs = useSetUiPrefs()
+  return (
+    <View className="gap-2">
+      <SectionHeader
+        title={translate("Layar")}
+        subtitle={translate("Hanya berlaku di perangkat ini.")}
+      />
+      <Card padded={false} className="overflow-hidden">
+        <Switch
+          value={allow}
+          onChange={(v) => setPrefs({ chatAllowScreenCapture: v })}
+          label={translate("Izinkan screenshot & rekam layar di chat")}
+          description={translate(
+            "Bila dimatikan, percakapan tidak bisa di-screenshot atau direkam layarnya di perangkat ini.",
+          )}
+          className="px-4 py-3"
+        />
+      </Card>
+    </View>
   )
 }
 
