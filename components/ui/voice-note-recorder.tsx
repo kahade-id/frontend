@@ -163,11 +163,32 @@ export function VoiceNoteRecorder({
     onRequestClose()
   }, [hasMeaningfulRecording, onRequestClose])
 
+  /**
+   * 2026-10-08 (bug: habis rekam & tekan stop, perekam menyala lagi).
+   *
+   * `reset` bergantung pada `stopPreview` → `previewPlayer`, dan
+   * `useAudioPlayer(source)` MEMBERI instance player baru setiap kali
+   * `recordedUri` berubah. Jadi begitu `stopRecording()` menetapkan
+   * `recordedUri`, identitas `reset` ikut berubah → effect ini berjalan
+   * ulang padahal sheet sedang terbuka (`visible === true`) →
+   * `setState("requesting")` → izin sudah ada → `setState("ready")`.
+   * State "review" yang baru saja ditampilkan ditimpa, dan yang user lihat
+   * adalah tombol rekam siap pakai lagi — seolah-olah rekam ulang.
+   *
+   * Perbaikan: effect izin TIDAK boleh bergantung pada `reset`. Dependensi
+   * efektifnya cukup `visible`; `reset` dibaca lewat ref supaya effect
+   * berjalan TEPAT SATU KALI per kali sheet dibuka.
+   */
+  const resetRef = useRef(reset)
+  useEffect(() => {
+    resetRef.current = reset
+  }, [reset])
+
   // Minta izin saat sheet dibuka.
   useEffect(() => {
     aliveRef.current = true
     if (!visible) {
-      reset()
+      resetRef.current()
       return
     }
     setState("requesting")
@@ -188,7 +209,7 @@ export function VoiceNoteRecorder({
     return () => {
       cancelled = true
     }
-  }, [visible, reset])
+  }, [visible])
 
   useEffect(() => {
     return () => {

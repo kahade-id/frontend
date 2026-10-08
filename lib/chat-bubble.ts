@@ -278,8 +278,10 @@ export const SWIPE_REPLY_FAIL_OFFSET_Y = 8
  * Sedikit lebih lebar dari perlu lebih baik daripada tumpang tindih.
  */
 const META_TIME_PX = 36
-const META_ICON_PX = 16
-const META_GAP_PX = 4
+/** 2026-10-08: 14px mengikuti `META_ICON_PX` di chat-message-bubble — kalau
+ *  konstanta ini berbeda dari yang dirender, reservasi meleset. */
+const META_ICON_PX = 14
+const META_GAP_PX = 3
 const META_CHAR_PX = 6.5
 /** `pr-3` bubble — jarak meta ke tepi kanan. */
 const META_EDGE_PX = 12

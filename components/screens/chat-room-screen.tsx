@@ -56,7 +56,6 @@ import {
   DownloadSimple,
   Eye,
   EyeClosed,
-  MagnifyingGlass,
   PaperPlaneRight,
   PencilSimple,
   PushPin,
@@ -167,7 +166,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { ChatEditSheet } from "@/components/ui/chat-edit-sheet"
 import { ChatForwardSheet } from "@/components/ui/chat-forward-sheet"
-import { IconButton } from "@/components/ui/icon-button"
 import { ChatMessageRow } from "@/components/ui/chat-message-row"
 import { ChatErrorBoundary, renderChatRowFallback } from "@/components/ui/chat-error-boundary"
 import { ErrorState } from "@/components/ui/error-state"
@@ -4145,20 +4143,14 @@ function ChatRoomScreenContent() {
           // kembali ke daftar Pesan (/chat), bukan Etalase.
           onBack={() => (router.canGoBack() ? router.back() : router.replace(logicalParentForPath(`/chat/${roomId ?? ""}`)))}
           onMenuPress={() => setRoomMenuOpen(true)}
-          // Audit chat D9: ikon cari di header → sheet pencarian (ketik →
-          // daftar hasil dari SELURUH riwayat → ketuk = lompat ke pesan).
-          // Pencarian cepat di pesan yang sudah dimuat (sorot + sebelumnya/
-          // berikutnya, 2026-09-28) tetap ada: menu ⋮ → "Cari di pesan termuat".
-          extra={
-            <IconButton
-              icon={MagnifyingGlass}
-              variant="ghost"
-              size="sm"
-              accessibilityLabel={translate("Cari pesan")}
-              accessibilityHint={translate("Mencari di seluruh riwayat percakapan ini")}
-              onPress={openSearch}
-            />
-          }
+          // 2026-10-08 (temuan #8): tombol cari di header DIHAPUS — pintu
+          // masuknya sudah ada (dan lebih konsisten) di sheet ⋮:
+          // "Cari pesan" (seluruh riwayat) + "Cari di pesan termuat"
+          // (sorot & lompat antar hasil). Dua ikon untuk satufitur membuat
+          // header sesak dan memperbesar target sentuh yang saling berdekatan
+          // dengan tombol ⋮.
+          // `extra` sengaja dibiarkan tanpa nilai: <ChatRoomHeader> tidak
+          // lagi merender area aksi tambahan.
         />
       )}
 

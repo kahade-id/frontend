@@ -530,104 +530,16 @@ function ChatMessageBubbleBase({
     { opacity: 0, transform: [{ scale: 0.5 }] },
   )
 
-  if (direction === "system") {
-    // Batch 43 (2026-09-28): pesan SYSTEM dirender sebagai kartu terpusat
-    // dengan ikon per jenis event (bukan caption polos).
-    // 2026-10-08: kartu sistem ikut "mengambang masuk" (naik dari bawah,
-    // tanpa geser samping — ia bukan milik salah satu pihak).
-    return (
-      <Animated.View style={[styles.entranceRow, entranceStyle]}>
-        <View
-          className={cn("w-full", grouped ? "mt-1" : "mt-3", className)}
-          {...rest}
-        >
-          <ChatSystemCard text={text} />
-        </View>
-      </Animated.View>
-    )
-  }
-
+  // ── Hook yang HARUS sebelum early-return ────────────────────────────────
+  // 2026-10-08 (bug hooks bersyarat): `useFontScale` / `useWindowDimensions` /
+  // `useMemo` dulu dipanggil SETELAH `if (direction === "system") return …`.
+  // Baris yang berganti jenis (mis. pesan sistem → pesan biasa karena
+  // pembaruan langsung) membuat urutan hook berubah → React melempar
+  // "Rendered fewer hooks than expected" dan thread chat crash. Semua hook
+  // kini dipanggil lebih dulu; yang dipindah hanya perhitungan murni
+  // (`outgoing`/`failed`/`hasMeta`) yang memang dibutuhkannya.
   const outgoing = direction === "outgoing"
   const failed = outgoing && status === "failed"
-  /**
-   * Kolom avatar hanya disediakan bila pengirimnya dikenal (lihat docblock
-   * `avatarName`) — kalau tidak, baris pesan masuk tetap menempel ke kiri
-   * seperti sebelumnya.
-   */
-  const hasAvatarColumn = !outgoing && Boolean(avatarName || avatarUrl)
-  /** Avatar hanya di pesan PERTAMA kelompok; sisanya dapat spacer selebar itu. */
-  const showAvatar = hasAvatarColumn && !grouped
-
-  // 2026-10-03: meta (jam + centang) DI DALAM bubble, rata kanan ala WhatsApp.
-  // Didefinisikan SEBELUM `bubble` karena dipakai di dalamnya.
-  // 2026-10-03 (update): meta diposisikan absolute di pojok kanan bawah,
-  // menempel presisi di samping konten (teks/gambar/video/file/lokasi)
-  // ala WhatsApp — tidak makan space vertikal tambahan.
-  // 2026-10-03 (update 2): tone inverse untuk bubble hitam (outgoing)
-  // agar jam + centang terlihat jelas.
-  // overlayMeta: pill `bg-surface-elevated` (mode-aware) dengan tone
-  // PRIMER — bukan inverse — supaya terbaca di kedua mode (pill terang di
-  // light, gelap di dark; teks inverse justru salah di salah satunya).
-  const metaTone = overlayMeta ? "primary" : outgoing ? "inverse" : "secondary"
-  const metaIconTone = overlayMeta ? "default" : outgoing ? "inverse" : "default"
-  const metaBlock =
-    time || failed || (outgoing && status) || isPinned || isEdited || ephemeralChip || starred ? (
-      // Posisi absolute tetap di <View> (className); gerak-nya di
-      // <Animated.View> dalam — className di Animated.View diabaikan di web
-      // (WEB-014, lihat showcase-media-drag-sort).
-      <View
-        className={
-          overlayMeta
-            ? "absolute bottom-1.5 right-2 flex-row items-center gap-1 rounded-full bg-surface-elevated px-1.5 py-0.5"
-            : "absolute bottom-1.5 right-2 flex-row items-center gap-1"
-        }
-      >
-        {failed ? (
-          <>
-            <Icon icon={WarningCircle} size="xs" tone="danger" />
-            <Text variant="caption" tone="danger">
-              {t.failed}
-            </Text>
-            {onRetry ? (
-              <TextLink variant="caption" onPress={onRetry} className="ml-1">
-                {t.retry}
-              </TextLink>
-            ) : null}
-          </>
-        ) : (
-          <>
-            {time ? (
-              <Text variant="caption" tone={metaTone} className="tabular-nums">
-                {time}
-              </Text>
-            ) : null}
-            {isEdited ? (
-              <Text variant="caption" tone={metaTone}>
-                ({t.edited})
-              </Text>
-            ) : null}
-            {isPinned ? <Icon icon={PushPin} size="xs" tone={metaIconTone} /> : null}
-            {starred ? <Icon icon={Star} size="xs" tone="warning" weight="fill" /> : null}
-            {ephemeralChip ? (
-              <View className="flex-row items-center gap-0.5">
-                <Icon icon={Timer} size="xs" tone={metaIconTone} />
-                <Text variant="caption" tone={metaTone} className="tabular-nums">
-                  {ephemeralChip}
-                </Text>
-              </View>
-            ) : null}
-            {outgoing && status && status !== "failed" ? (
-              <Animated.View style={sendingPulseStyle}>
-                <Animated.View style={statusPopStyle}>
-                  <StatusGlyph status={status} outgoing={outgoing} onOverlay={overlayMeta} />
-                </Animated.View>
-              </Animated.View>
-            ) : null}
-          </>
-        )}
-      </View>
-    ) : null
-
   const hasMeta = !!(time || failed || (outgoing && status) || isPinned || isEdited || ephemeralChip || starred)
   // 2026-10-08: reservasi kanan untuk meta dihitung dari isi meta yang tampil
   // × skala font (A-/A+ × OS, di-clamp seperti <Text maxFontSizeMultiplier>)
@@ -678,6 +590,122 @@ function ChatMessageBubbleBase({
     ],
   )
 
+  if (direction === "system") {
+    // Batch 43 (2026-09-28): pesan SYSTEM dirender sebagai kartu terpusat
+    // dengan ikon per jenis event (bukan caption polos).
+    // 2026-10-08: kartu sistem ikut "mengambang masuk" (naik dari bawah,
+    // tanpa geser samping — ia bukan milik salah satu pihak).
+    return (
+      <Animated.View style={[styles.entranceRow, entranceStyle]}>
+        <View
+          className={cn("w-full", grouped ? "mt-1" : "mt-3", className)}
+          {...rest}
+        >
+          <ChatSystemCard text={text} />
+        </View>
+      </Animated.View>
+    )
+  }
+
+  /**
+   * Kolom avatar hanya disediakan bila pengirimnya dikenal (lihat docblock
+   * `avatarName`) — kalau tidak, baris pesan masuk tetap menempel ke kiri
+   * seperti sebelumnya.
+   */
+  const hasAvatarColumn = !outgoing && Boolean(avatarName || avatarUrl)
+  /** Avatar hanya di pesan PERTAMA kelompok; sisanya dapat spacer selebar itu. */
+  const showAvatar = hasAvatarColumn && !grouped
+
+  // 2026-10-03: meta (jam + centang) DI DALAM bubble, rata kanan ala WhatsApp.
+  // Didefinisikan SEBELUM `bubble` karena dipakai di dalamnya.
+  // 2026-10-03 (update): meta diposisikan absolute di pojok kanan bawah,
+  // menempel presisi di samping konten (teks/gambar/video/file/lokasi)
+  // ala WhatsApp — tidak makan space vertikal tambahan.
+  // 2026-10-03 (update 2): tone inverse untuk bubble hitam (outgoing)
+  // agar jam + centang terlihat jelas.
+  // overlayMeta: pill `bg-surface-elevated` (mode-aware) dengan tone
+  // PRIMER — bukan inverse — supaya terbaca di kedua mode (pill terang di
+  // light, gelap di dark; teks inverse justru salah di salah satunya).
+  // 2026-10-08 (penyegaran meta): jam 11px tabular + centang 14px — angka
+  // tidak "berdenyut" tiap detik berganti, dan centang tidak mendominasi
+  // baris meta yang tingginya cuma ~14px.
+  /**
+   * 2026-10-08 (temuan #6): apakah bubble lampiran ini juga memuat lapisan
+   * teks (caption / kutipan / label teruskan / terjemahan)? Kalau ya, jarak
+   * horizontal 12px dipasang di lapisan teksnya saja supaya media tetap
+   * membentang hampir penuh.
+   */
+  const hasTextLayer = Boolean(text || quote || (forwarded && !isDeleted) || (translation && !isDeleted))
+  /** Padding horizontal untuk lapisan teks di atas bubble lampiran. */
+  const textPad = overlayMeta ? "px-2" : undefined
+  const metaTone = overlayMeta ? "primary" : outgoing ? "inverse" : "secondary"
+  const metaIconTone = overlayMeta ? "default" : outgoing ? "inverse" : "default"
+  const metaBlock =
+    time || failed || (outgoing && status) || isPinned || isEdited || ephemeralChip || starred ? (
+      // Posisi absolute tetap di <View> (className); gerak-nya di
+      // <Animated.View> dalam — className di Animated.View diabaikan di web
+      // (WEB-014, lihat showcase-media-drag-sort).
+      <View
+        className={
+          // 2026-10-08 (temuan #13): jarak kanan meta DISESUAIKAN dengan
+          // `META_EDGE_PX` (12px) yang dipakai `bubbleMetaReservePx`. Dulu
+          // `right-2` (8px) sementara reservasi teks menghitung 12px → meta
+          // masuk 4px ke ruang yang dianggap aman; teks rapat bisa tersentuh.
+          // Kini keduanya sama-sama 12px, jadi teks dan meta tepat
+          // berdempet tanpa tumpang tindih — tidak ada ruang buangan juga.
+          // Di bubble lampiran meta berupa pill, jadi insetnya mengikuti
+          // padding media (3px) + 3px = 6px.
+          overlayMeta
+            ? "absolute bottom-1.5 right-1.5 flex-row items-center gap-[3px] rounded-full bg-surface-elevated px-1.5 py-0.5"
+            : "absolute bottom-1.5 right-3 flex-row items-center gap-[3px]"
+        }
+      >
+        {failed ? (
+          <>
+            <Icon icon={WarningCircle} size={META_ICON_PX} tone="danger" />
+            <Text variant="caption" tone="danger">
+              {t.failed}
+            </Text>
+            {onRetry ? (
+              <TextLink variant="caption" onPress={onRetry} className="ml-1">
+                {t.retry}
+              </TextLink>
+            ) : null}
+          </>
+        ) : (
+          <>
+            {time ? (
+              <Text variant="caption" tone={metaTone} className="tabular-nums">
+                {time}
+              </Text>
+            ) : null}
+            {isEdited ? (
+              <Text variant="caption" tone={metaTone}>
+                ({t.edited})
+              </Text>
+            ) : null}
+            {isPinned ? <Icon icon={PushPin} size={META_ICON_PX} tone={metaIconTone} /> : null}
+            {starred ? <Icon icon={Star} size={META_ICON_PX} tone="warning" weight="fill" /> : null}
+            {ephemeralChip ? (
+              <View className="flex-row items-center gap-[3px]">
+                <Icon icon={Timer} size={META_ICON_PX} tone={metaIconTone} />
+                <Text variant="caption" tone={metaTone} className="tabular-nums">
+                  {ephemeralChip}
+                </Text>
+              </View>
+            ) : null}
+            {outgoing && status && status !== "failed" ? (
+              <Animated.View style={sendingPulseStyle}>
+                <Animated.View style={statusPopStyle}>
+                  <StatusGlyph status={status} outgoing={outgoing} onOverlay={overlayMeta} />
+                </Animated.View>
+              </Animated.View>
+            ) : null}
+          </>
+        )}
+      </View>
+    ) : null
+
   const bubble = (
     <View
       className={cn(
@@ -687,14 +715,21 @@ function ChatMessageBubbleBase({
         // pb-5 hanya saat ada meta, agar teks pendek tidak tertutup jam +
         // centang (ala WhatsApp) tanpa makan space berlebih; padding kanan
         // dari `metaReserve` (style) saat meta tidak di-overlay.
-        "relative gap-2 rounded-md pl-3 pt-2",
-        overlayMeta ? (text ? "pr-3 pb-5" : "pr-3 pb-2") : hasMeta ? "pb-5" : "pr-3 pb-2",
+        "relative rounded-md",
+        // 2026-10-08 (temuan #6): bubble lampiran punya Bingkai 3px saja —
+        // padding 12px membuat area gelap bubble "melebar" dan gambar terasa
+        // mengambang di tengah kartu. Proporsional: 3px mengikuti radius
+        // bubble sehingga lampiran hampir memenuhi bubble-nya (WhatsApp/IG),
+        // sementara bubble teks tetap 12px kiri + 8px atas.
+        // Kalau ada teks/kutipan SELAIN media, bubble-nya tetap 3px — yang
+        // diberi jarak adalah baris teksnya (lihat `textPad`), bukan media.
+        overlayMeta ? (hasTextLayer ? "gap-1 p-[3px]" : "p-[3px]") : hasMeta ? "gap-2 pl-3 pt-2 pb-5" : "gap-2 pl-3 pt-2 pr-3 pb-2",
         outgoing ? "bg-primary" : "bg-surface",
       )}
       style={metaReserve != null ? { paddingRight: metaReserve } : undefined}
     >
       {forwarded && !isDeleted ? (
-        <View testID="message-forwarded-label" className="flex-row items-center gap-1">
+        <View testID="message-forwarded-label" className={cn("flex-row items-center gap-1", textPad)}>
           <Icon icon={ArrowBendUpRight} size="xs" tone={outgoing ? "inverse" : "default"} />
           <Text variant="caption" italic weight={500} tone={outgoing ? "inverse" : "secondary"}>
             {translate("Diteruskan")}
@@ -705,6 +740,9 @@ function ChatMessageBubbleBase({
         <QuoteBlock
           className={cn(
             "rounded-sm border-l-2 px-2 py-1",
+            // #6: bubble lampiran padding-nya 3px → kutipan diberi jarak
+            // sendiri (bukan menggemukkan media).
+            overlayMeta ? "mx-2" : undefined,
             // UX-COL-007: pola CHT-013 — border putih tak terlihat di dark
             // (bubble putih), bg hitam tak terlihat di light (bubble hitam).
             outgoing ? "border-white/70 dark:border-black/30 bg-white/15 dark:bg-black/15" : "border-border-focus bg-background",
@@ -735,7 +773,11 @@ function ChatMessageBubbleBase({
       ) : null}
       {children ? <View className="gap-2">{children}</View> : null}
       {text ? (
-        showSearchHighlight ? (
+        // #6: di bubble lampiran, teks caption diberi jarak 8px kiri/kanan
+        // dan 20px bawah — ruang bawah itu "dudukan" meta (jam + centang)
+        // yang absolute, supaya tidak menimpa baris terakhir caption.
+        <View className={cn(overlayMeta && "px-2 pb-5")}>
+          {showSearchHighlight ? (
           <Text
             variant="body"
             tone={outgoing ? "inverse" : "primary"}
@@ -759,23 +801,27 @@ function ChatMessageBubbleBase({
               ),
             )}
           </Text>
-        ) : (
-          // Batch 43 (2026-09-28): teks dirender lewat <ChatFormattedText>
-          // (**tebal**, _miring_, `mono`, __bawah__, ||spoiler||, tautan).
-          <ChatFormattedText
-            text={text}
-            outgoing={outgoing}
-            deleted={isDeleted}
-            selectable={!isDeleted}
-            italic={isDeleted || undefined}
-          />
-        )
+          ) : (
+            // Batch 43 (2026-09-28): teks dirender lewat <ChatFormattedText>
+            // (**tebal**, _miring_, `mono`, __bawah__, ||spoiler||, tautan).
+            <ChatFormattedText
+              text={text}
+              outgoing={outgoing}
+              deleted={isDeleted}
+              selectable={!isDeleted}
+              italic={isDeleted || undefined}
+            />
+          )}
+        </View>
       ) : null}
       {/* Batch 43: blok terjemahan di bawah teks asli. */}
       {translation && !isDeleted ? (
         <View
           className={cn(
             "gap-0.5 rounded-sm border-l-2 px-2 py-1",
+            // #6: sama seperti kutipan — blok terjemahan di bubble lampiran
+            // butuh jaraknya sendiri.
+            overlayMeta ? "mx-2" : undefined,
             // UX-COL-007: pola CHT-013 — border putih tak terlihat di dark
             // (bubble putih), bg hitam tak terlihat di light (bubble hitam).
             outgoing ? "border-white/70 dark:border-black/30 bg-white/15 dark:bg-black/15" : "border-info bg-info-soft",
@@ -1035,13 +1081,18 @@ function ChatMessageBubbleBase({
         )}
       >
         {hasAvatarColumn ? (
-          <View className="flex-row items-start">
+          // 2026-10-08 (temuan #7): jarak avatar → bubble dipresisi.
+          // `mr-2` (8px) membuat bubble grup masuk menjorok 8px lebih dalam
+          // daripada cerminnya (inset kanan bubble keluar = gutter 20px).
+          // Kini: gap 6px + `shrink-0`, dan avatar tidak lagi ikut
+          // maksimal-lebar kolom (lihat AVATAR_COLUMN_WIDTH_PX).
+          <View className="flex-row items-start gap-1.5">
             {/*
               Kolom avatar: foto lawan bicara di pesan pertama setiap kelompok,
               spacer selebar foto di lanjutannya supaya tepi kiri seluruh
               gelembung masuk sejajar (bukan menjorok).
             */}
-            <View className="mr-2">
+            <View className="shrink-0">
               {showAvatar ? (
                 <Avatar
                   source={avatarUrl ? { uri: avatarUrl } : undefined}
@@ -1105,6 +1156,13 @@ export const ChatMessageBubble = memo(ChatMessageBubbleBase)
  * kecuali `read` yang naik ke "active" + weight bold dan mendapat label
  * mikro "Dibaca" — tetap tanpa warna baru.
  */
+/**
+ * Ukuran glyph meta (jam + centang), px. 14px (bukan skala `xs` = 16px)
+ * supaya sejajar optis dengan caption 12px: glyph 16px di baris setinggi
+ * 18px membuat centang "menyundul" garis dasar jam.
+ */
+const META_ICON_PX = 14
+
 function StatusGlyph({
   status,
   outgoing,
@@ -1118,23 +1176,23 @@ function StatusGlyph({
   switch (status) {
     case "queued":
       return (
-        <View className="flex-row items-center gap-1">
-          <Icon icon={Clock} size="xs" tone={tone} />
+        <View className="flex-row items-center gap-[3px]">
+          <Icon icon={Clock} size={META_ICON_PX} tone={tone} />
           <Text variant="caption" tone={outgoing ? "inverse" : "secondary"}>
             {translate("Menunggu koneksi")}
           </Text>
         </View>
       )
     case "sending":
-      return <Icon icon={Clock} size="xs" tone={tone} />
+      return <Icon icon={Clock} size={META_ICON_PX} tone={tone} />
     case "sent":
-      return <Icon icon={Check} size="xs" tone={tone} />
+      return <Icon icon={Check} size={META_ICON_PX} tone={tone} />
     // CHT-007: case "delivered" dihapus — tidak pernah bisa tercapai
     // (backend tidak menyediakan delivered receipt).
     case "read":
       return (
-        <View className="flex-row items-center gap-1">
-          <Icon icon={Checks} size="xs" tone={outgoing ? "inverse" : "active"} weight="bold" />
+        <View className="flex-row items-center gap-[3px]">
+          <Icon icon={Checks} size={META_ICON_PX} tone={outgoing ? "inverse" : "active"} weight="bold" />
           <Text variant="caption" tone={outgoing ? "inverse" : "secondary"}>
             {translate("Dibaca")}
           </Text>
