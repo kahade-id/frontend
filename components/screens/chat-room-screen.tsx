@@ -1912,8 +1912,14 @@ export default function ChatRoomScreen() {
    * item antrean — retry (otomatis maupun manual "Coba lagi") memakai key
    * yang sama.
    */
+  /**
+   * Audit chat C7: id lampiran yang harus DIKIRIM OTOMATIS begitu unggahnya
+   * selesai — voice note hasil tahan-untuk-merekam (lepas = kirim, ala
+   * WhatsApp), bukan menunggu ketukan "Kirim" kedua.
+   */
+  const autoSendIdsRef = useRef(new Set<string>())
   const enqueueAndUpload = useCallback(
-    async (picked: PickedImage) => {
+    async (picked: PickedImage, opts: { autoSend?: boolean } = {}) => {
       // SYS-C-303: tolak file ke-11+ SEBELUM upload dimulai — server hanya
       // menerima maks 10 lampiran per pesan (send-message.dto.ts:144), jadi
       // upload-nya pasti terbuang. Baca dari updater fungsional agar akurat
@@ -1945,6 +1951,7 @@ export default function ChatRoomScreen() {
       }
       const localId = `${Date.now()}-${picked.name}`
       const idempotencyKey = createIdempotencyKey()
+      if (opts.autoSend) autoSendIdsRef.current.add(localId)
       setAttachments((prev) => [
         ...prev,
         {
@@ -2010,7 +2017,7 @@ export default function ChatRoomScreen() {
   }, [enqueueAndUpload])
 
   const handleVoiceRecorded = useCallback(
-    async (file: VoiceNoteFile) => {
+    async (file: VoiceNoteFile, opts: { autoSend?: boolean } = {}) => {
       setVoiceSheetOpen(false)
       const validation = validateVoiceNoteFile({ size: file.size, durationMs: file.durationMs })
       if (!validation.ok) {
@@ -2025,7 +2032,7 @@ export default function ChatRoomScreen() {
         // BFE-003: durasi rekam diteruskan ke antrean — dipakai sebagai
         // `durationSeconds` saat messageType === "VOICE" di handleSend.
         durationMs: file.durationMs,
-      })
+      }, { autoSend: opts.autoSend })
     },
     [toast.show, enqueueAndUpload],
   )
@@ -2231,6 +2238,34 @@ export default function ChatRoomScreen() {
     },
     [roomId, attachments, toast.show, replyTarget, composerReplyTo, ttlSeconds, viewOnceOn, isChatCompleted, settleSend, refreshReadReceipts],
   )
+
+  // ── Voice note tahan-untuk-merekam: lepas = kirim (audit chat C7) ─────────
+  // Footer menghosting gestur + perekam (agar timer 250 ms tidak me-render
+  // layar ini); di sini hanya berkasnya: diunggah lewat antrean lampiran
+  // yang sama, lalu DIKIRIM OTOMATIS begitu unggahan selesai — tanpa
+  // menyentuh draft teks atau lampiran lain di composer.
+  const handleVoiceNote = useCallback(
+    (file: VoiceNoteFile) => {
+      void handleVoiceRecorded(file, { autoSend: true })
+    },
+    [handleVoiceRecorded],
+  )
+  const handleSendRef = useRef(handleSend)
+  handleSendRef.current = handleSend
+  useEffect(() => {
+    const pending = autoSendIdsRef.current
+    if (pending.size === 0) return
+    for (const a of attachments) {
+      if (!pending.has(a.localId) || a.status === "uploading") continue
+      pending.delete(a.localId)
+      // Gagal/dibatalkan: tidak dikirim — chip tetap ada untuk "Coba lagi" manual.
+      if (a.status === "error" || a.status === "cancelled") continue
+      void handleSendRef.current(
+        { content: "", attachments: [], replyToId: replyTarget?.id },
+        { localId: a.localId },
+      )
+    }
+  }, [attachments, replyTarget])
 
   // Batch 43: kirim pesan khusus (lokasi, kartu produk) ────────────
   /**
@@ -3481,6 +3516,9 @@ export default function ChatRoomScreen() {
           attachments={composerAttachments}
           onAttach={() => setAttachSheetOpen(true)}
           onMicPress={() => setVoiceSheetOpen(true)}
+          // Audit chat C7: tahan mic = rekam, geser ke atas = kunci (ketuk
+          // biasa tetap membuka lembar perekam — jalan bagi pembaca layar).
+          onVoiceNote={handleVoiceNote}
           onRemoveAttachment={(localId) => {
             // B04: menghapus chip saat upload berjalan ikut membatalkan
             // request-nya — bukan sekadar menyembunyikan chip.

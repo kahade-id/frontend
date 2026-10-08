@@ -3,5 +3,18 @@
   "Pesan tetap di percakapan. Ketuk Coba lagi setelah tersambung.": "The message stays in the conversation. Tap Try again once you're connected.",
   "Pesan masuk": "Incoming message",
   "Mengirim": "Sending",
-  "Terkirim": "Sent"
+  "Terkirim": "Sent",
+  "Buang rekaman": "Discard recording",
+  "Akses mikrofon ditolak": "Microphone access denied",
+  "Batas rekaman tercapai": "Recording limit reached",
+  "Buka Pengaturan perangkat → Kahade → Mikrofon untuk mengaktifkan pesan suara.": "Open your device Settings → Kahade → Microphone to enable voice messages.",
+  "Geser untuk batal": "Slide to cancel",
+  "Izin mikrofon diberikan": "Microphone access granted",
+  "Lepas untuk membatalkan": "Release to cancel",
+  "Perekaman suara tidak didukung di perangkat ini.": "Voice recording isn't supported on this device.",
+  "Pesan suara dikirim otomatis.": "The voice message was sent automatically.",
+  "Rekaman terkunci": "Recording locked",
+  "Tahan tombol mikrofon lagi untuk merekam.": "Hold the microphone button again to record.",
+  "Ketuk untuk membuka perekam. Tahan untuk merekam, geser ke atas untuk mengunci.": "Tap to open the recorder. Hold to record, slide up to lock.",
+  "Kirim pesan suara": "Send voice message"
 }

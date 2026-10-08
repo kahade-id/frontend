@@ -38,7 +38,7 @@
  *     <KeyboardAvoiding> + <SafeAreaSpacer> di layar (lihar §4 safe area).
  */
 import { Microphone, PaperPlaneRight, Plus, X } from "phosphor-react-native"
-import { useCallback, useEffect, useRef, useState } from "react"
+import { Fragment, useCallback, useEffect, useRef, useState } from "react"
 import {
   Platform,
   ScrollView,
@@ -57,6 +57,9 @@ import { PressableScale } from "@/components/ui/pressable-scale"
 import { Icon } from "@/components/ui/icon"
 import { QuickReplyPicker } from "@/components/ui/quick-reply-picker"
 import { ChatFormatBar } from "@/components/ui/chat-format-bar"
+import { VoiceHoldMic } from "@/components/ui/voice-hold-mic"
+import { VoiceRecordingBar } from "@/components/ui/voice-recording-bar"
+import type { VoiceHoldController } from "@/lib/use-voice-hold"
 import { applyChatFormat, type ChatTextFormat } from "@/lib/chat-format"
 import { Text } from "@/components/ui/text"
 import { useTheme } from "@/components/theme-provider"
@@ -133,6 +136,15 @@ export type ChatComposerProps = Omit<ViewProps, "children"> & {
    * kosong. Opsional — tanpa ini tombol kirim selalu tampil (live-support).
    */
   onMicPress?: () => void
+  /**
+   * Audit chat C7 — tahan-untuk-merekam ala WhatsApp. Bila diisi, tombol mic
+   * mendukung TAHAN (rekam), GESER ATAS (kunci), GESER KIRI (batal); ketukan
+   * biasa tetap memanggil `onMicPress` (lembar perekam lama — jalan bagi
+   * pengguna pembaca layar). Kolom ketik digantikan bar rekaman selama aktif.
+   */
+  voice?: VoiceHoldController
+  /** Tombol buang pada bar rekaman terkunci (layar menambah konfirmasi untuk rekaman panjang). */
+  onVoiceDiscard?: () => void
   onRemoveAttachment?: (localId: string) => void
   onRetryAttachment?: (localId: string) => void
   /** B04: batalkan unggahan yang sedang berjalan (chip "Batal"). */
@@ -166,6 +178,8 @@ export function ChatComposer({
   attachments = [],
   onAttach,
   onMicPress,
+  voice,
+  onVoiceDiscard,
   onRemoveAttachment,
   onRetryAttachment,
   onCancelAttachment,
@@ -222,7 +236,10 @@ export function ChatComposer({
   const showCount = value.length >= Math.floor(maxLength * 0.9)
   // Mic menggantikan tombol kirim hanya saat benar-benar idle: ada teks atau
   // lampiran → kirim; sedang mengirim → kirim (loading).
-  const showMic = !!onMicPress && value.trim().length === 0 && attachments.length === 0 && !sending
+  const voiceActive = !!voice && (voice.phase === "holding" || voice.phase === "locked")
+  const showMic =
+    (!!onMicPress || !!voice) &&
+    ((value.trim().length === 0 && attachments.length === 0 && !sending) || voiceActive)
 
   /** Muatan kiriman terakhir + waktunya — pagar dobel-kirim (lihat konstanta). */
   const lastSendRef = useRef<{ key: string; at: number } | null>(null)
@@ -344,61 +361,87 @@ export function ChatComposer({
             : null,
         ]}
       >
-        {onAttach ? (
-          <IconButton
-            icon={Plus}
-            variant="ghost"
-            size="md"
-            shape="pill"
-            accessibilityLabel={t.attach}
-            onPress={onAttach}
-            disabled={disabled || sending}
+        {voiceActive && voice ? (
+          <VoiceRecordingBar
+            key="voice-bar"
+            phase={voice.phase === "locked" ? "locked" : "holding"}
+            durationMs={voice.durationMs}
+            cancelProgress={voice.cancelProgress}
+            cancelArmed={voice.cancelArmed}
+            onDiscard={onVoiceDiscard ?? voice.discard}
           />
-        ) : null}
+        ) : (
+          <Fragment key="input">
+            {onAttach ? (
+              <IconButton
+                icon={Plus}
+                variant="ghost"
+                size="md"
+                shape="pill"
+                accessibilityLabel={t.attach}
+                onPress={onAttach}
+                disabled={disabled || sending}
+              />
+            ) : null}
 
-        <TextInput
-          value={value}
-          onChangeText={(next) => onChangeText(next.slice(0, maxLength))}
-          multiline
-          editable={!disabled && !sending}
-          placeholder={translateProp(t.placeholder)}
-          placeholderTextColor={palette.textSecondary}
-          selectionColor={palette.primary}
-          cursorColor={palette.primary}
-          maxFontSizeMultiplier={2}
-          onSelectionChange={(e) => setSelection(e.nativeEvent.selection)}
-          selection={selection}
-          onKeyPress={onKeyPress}
-          blurOnSubmit={false}
-          accessibilityLabel={translateProp(t.placeholder)}
-          className={cn(
-            "flex-1 py-[11px] pl-2 font-sans-400 text-bodyLarge text-text-primary",
-            Platform.OS === "web" && "outline-none",
-          )}
-          style={[{ maxHeight: maxInputHeight + tokens.space[3] * 2 }, Platform.OS === "web" ? ({ outlineStyle: "none" } as object) : null]}
-          {...inputProps}
-        />
-        {showCount ? (
-          <View className="pb-3 pl-1">
-            <Text variant="caption" tone={value.length >= maxLength ? "danger" : "secondary"} className="tabular-nums">
-              {value.length}/{maxLength}
-            </Text>
-          </View>
-        ) : null}
+            <TextInput
+              value={value}
+              onChangeText={(next) => onChangeText(next.slice(0, maxLength))}
+              multiline
+              editable={!disabled && !sending}
+              placeholder={translateProp(t.placeholder)}
+              placeholderTextColor={palette.textSecondary}
+              selectionColor={palette.primary}
+              cursorColor={palette.primary}
+              maxFontSizeMultiplier={2}
+              onSelectionChange={(e) => setSelection(e.nativeEvent.selection)}
+              selection={selection}
+              onKeyPress={onKeyPress}
+              blurOnSubmit={false}
+              accessibilityLabel={translateProp(t.placeholder)}
+              className={cn(
+                "flex-1 py-[11px] pl-2 font-sans-400 text-bodyLarge text-text-primary",
+                Platform.OS === "web" && "outline-none",
+              )}
+              style={[{ maxHeight: maxInputHeight + tokens.space[3] * 2 }, Platform.OS === "web" ? ({ outlineStyle: "none" } as object) : null]}
+              {...inputProps}
+            />
+            {showCount ? (
+              <View className="pb-3 pl-1">
+                <Text variant="caption" tone={value.length >= maxLength ? "danger" : "secondary"} className="tabular-nums">
+                  {value.length}/{maxLength}
+                </Text>
+              </View>
+            ) : null}
+
+          </Fragment>
+        )}
 
         {showMic ? (
-          <IconButton
-            icon={Microphone}
-            variant="ghost"
-            size="md"
-            shape="pill"
-            accessibilityLabel={micLabel}
-            onPress={onMicPress}
-            disabled={disabled}
-          />
+          voice ? (
+            <VoiceHoldMic
+              key="action"
+              voice={voice}
+              onTap={onMicPress}
+              label={micLabel}
+              disabled={disabled}
+            />
+          ) : (
+            <IconButton
+              key="action"
+              icon={Microphone}
+              variant="ghost"
+              size="md"
+              shape="pill"
+              accessibilityLabel={micLabel}
+              onPress={onMicPress}
+              disabled={disabled}
+            />
+          )
         ) : (
           /* (2026-10-05, revisi produk: tombol kirim lingkaran kaca seperti header.) */
           <PressableScale
+            key="action"
             accessibilityRole="button"
             accessibilityLabel={translateProp(t.send) ?? t.send}
             haptic="light"

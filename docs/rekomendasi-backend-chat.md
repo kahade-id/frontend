@@ -222,3 +222,23 @@ berikut hanya membuatnya lebih pasti:
    menampilkan jam → centang → centang ganda (= dibaca) dan tidak mengarang
    tahap tengah.
 
+## C — Voice note (tahan untuk merekam, geser untuk mengunci)
+
+**Kondisi hari ini.** Mic di composer mendukung tahan (rekam, lepas = kirim),
+geser ke atas (kunci), geser ke kiri (batal); ketukan biasa tetap membuka
+lembar perekam lama. Rekaman diunggah lewat endpoint upload ruang lalu
+dikirim otomatis sebagai `VOICE` dengan `durationSeconds`. Tidak ada kontrak
+yang berubah. Dua hal kecil yang akan mempertajamnya:
+
+1. **Waveform sungguhan.** Bubble voice note menampilkan gelombang
+   DEKORATIF (deterministik dari id pesan) karena backend tidak menyimpan
+   amplitudo. Usulan: pada `POST …/upload` (atau saat kirim `VOICE`) terima
+   `waveform` (±64 sampel 0–255) dan kembalikan di `attachments[].waveform`;
+   klien sudah bisa memakainya begitu tersedia. Sampai itu ada, UI tidak
+   mengklaim gelombang itu sebagai amplitudo asli.
+2. **Satu langkah kirim untuk voice note.** Saat ini unggah + kirim adalah dua
+   request berurutan (klien mengotomatiskan keduanya). Bila `POST …/messages`
+   menerima unggahan langsung (multipart) untuk tipe `VOICE`, kegagalan di
+   tengah (unggah sukses, kirim gagal) tidak mungkin terjadi dan satu
+   `Idempotency-Key` cukup untuk seluruh operasi.
+

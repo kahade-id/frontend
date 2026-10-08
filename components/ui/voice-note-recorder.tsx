@@ -47,6 +47,7 @@ import { useTheme } from "@/components/theme-provider"
 import { useReducedMotion } from "@/lib/use-reduced-motion"
 import { tokens } from "@/lib/tokens"
 import { translate, useLanguage } from "@/lib/i18n"
+import { readRecordedFileSize } from "@/lib/voice-note-file"
 import {
   formatVoiceNoteDuration,
   validateVoiceNoteFile,
@@ -288,15 +289,8 @@ export function VoiceNoteRecorder({
     if (!recordedUri || sending) return
     setSending(true)
     try {
-      let size = 0
-      try {
-        const { File } = await import("expo-file-system")
-        const file = new File(recordedUri)
-        const reported = (file as unknown as { size?: number }).size
-        if (typeof reported === "number") size = reported
-      } catch {
-        // Ukuran tak terbaca — validasi meloloskan (server tetap gate).
-      }
+      // Ukuran tak terbaca = 0 — validasi meloloskan (server tetap gate).
+      const size = await readRecordedFileSize(recordedUri)
       const validation = validateVoiceNoteFile({ size, durationMs })
       if (!validation.ok) {
         // Terlalu pendek/panjang nyaris tak mungkin (auto-stop + min 1 dtk),
