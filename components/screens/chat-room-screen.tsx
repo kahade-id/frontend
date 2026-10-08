@@ -152,7 +152,7 @@ import {
   hydrateDmNoticeSeen,
   markDmNoticeSeen,
 } from "@/lib/chat-dm-notice-seen"
-import { logWarn } from "@/lib/telemetry"
+import { captureError, logWarn } from "@/lib/telemetry"
 import { pickImage, pickedImageToFormData, resizePickedImage, type PickedImage } from "@/lib/image-picker"
 import * as DocumentPicker from "expo-document-picker"
 import { ChatAttachmentSheet } from "@/components/ui/chat-attachment-sheet"
@@ -168,6 +168,8 @@ import { ChatEditSheet } from "@/components/ui/chat-edit-sheet"
 import { ChatForwardSheet } from "@/components/ui/chat-forward-sheet"
 import { IconButton } from "@/components/ui/icon-button"
 import { ChatMessageRow } from "@/components/ui/chat-message-row"
+import { ChatErrorBoundary, renderChatRowFallback } from "@/components/ui/chat-error-boundary"
+import { ErrorState } from "@/components/ui/error-state"
 import { ChatPinnedBar } from "@/components/ui/chat-pinned-bar"
 import { ChatReactorsSheet } from "@/components/ui/chat-reactors-sheet"
 import { ChatReactionPopover } from "@/components/ui/chat-reaction-popover"
@@ -2574,12 +2576,34 @@ function ChatRoomScreenContent() {
       // Pengguna aktif → poll kembali cepat bila sedang idle.
       emptyPolls.current = 0
       setPollInterval(CHAT_POLL_MS)
-      const outcome = await settleSend({
-        roomId,
-        optimistic: optimisticMsg,
-        idempotencyKey,
-        failTitle: translate("Gagal mengirim pesan"),
-      })
+      let outcome: "sent" | "queued" | "failed"
+      try {
+        outcome = await settleSend({
+          roomId,
+          optimistic: optimisticMsg,
+          idempotencyKey,
+          failTitle: translate("Gagal mengirim pesan"),
+        })
+      } catch (err) {
+        // Bug 1 (2026-10-08): settleSend yang MELEMPAR (mis. antrean offline
+        // gagal ditulis) dulu membiarkan bubble "sending" selamanya dan promise
+        // ini tak tertangani. Sekarang bubble ditandai gagal (bisa dicoba lagi)
+        // dan pengguna diberi tahu.
+        captureError("chat:send-unexpected", err)
+        setMessages((prev) =>
+          prev.map((m) => (m.id === optimisticMsg.id ? { ...m, sendStatus: "failed" as const } : m)),
+        )
+        try {
+          saveChatFailedMessage(
+            roomId,
+            toFailedChatMessage(optimisticMsg, { idempotencyKey, sendStatus: "failed" }),
+          )
+        } catch (saveErr) {
+          logWarn("chat:send-unexpected-save", saveErr)
+        }
+        toast.show({ title: translate("Gagal mengirim pesan"), tone: "danger" })
+        return
+      }
       if (outcome === "sent") void refreshReadReceipts()
     },
     [roomId, attachments, toast.show, replyTarget, composerReplyTo, ttlSeconds, viewOnceOn, isChatCompleted, settleSend, refreshReadReceipts],
@@ -3751,65 +3775,67 @@ function ChatRoomScreenContent() {
           collapsable={isReplyCoachTarget ? false : undefined}
           onLayout={handleRowLayout(row.key)}
         >
-          <ChatMessageRow
-            message={m}
-            // Audit chat I24: `previous` ditanam di baris (bukan dicari lewat
-            // seluruh daftar pesan) — renderItem tidak lagi bergantung pada
-            // `visibleMessages`, jadi identitasnya stabil saat pesan ditambah.
-            previous={row.previous}
-            // B10: pemisah hari sudah jadi baris sticky tersendiri.
-            hideDaySeparator
-            // B09: sorot pesan asal balasan + navigasi konteks kutipan.
-            highlighted={highlightedId === m.id}
-            onQuotePress={handleQuotePress}
-            selecting={selecting}
-            selected={selectedIds.has(m.id)}
-            readByCounterpart={readByCounterpart.has(m.id)}
-            // Foto + nama lawan bicara untuk gelembung masuk (2026-09-26).
-            // Revisi 2026-09-27 (UI polish): sealTier ikut diteruskan agar
-            // seal verifikasi tampil di samping nama pengirim bubble.
-            // Revisi 2026-09-28 (produk): DM 1:1 → disembunyikan total
-            // (showSenderIdentity=false); ruang transaksi/grup → tetap tampil.
-            counterpart={counterpartInfo}
-            showSenderIdentity={showPeerIdentity}
-            // Swipe kanan = jalan pintas balas (2026-09-28). Sejak
-            // 2026-10-05 area gesture = SELURUH baris (ala WhatsApp) —
-            // swipe di area kosong samping bubble pun memicu, tapi animasi
-            // translasi tetap digambar di bubble (pan milik row). Tekan lama
-            // "Balas" di SelectionBar TETAP ADA — gesture ini hanya
-            // memanggil setReplyTarget yang sama. Nonaktif saat mode pilih
-            // agar tidak bentrok dengan toggle pilihan (gate di row).
-            onSwipeReply={handleRowSwipeReply}
-            // Revisi 2026-09-27: KETUKAN bubble teks = NO-OP di luar mode
-            // pilih (tidak membuka apa pun); saat mode pilih aktif ketukan
-            // men-toggle pilihan. Aksi (menu/reaksi) HANYA lewat tekan lama
-            // → masuk mode pilih + popover reaksi mengambang di dekat bubble.
-            onPress={handleRowPress}
-            onLongPress={handleRowLongPress}
-            onReact={handleRowReact}
-            // Audit chat E13: ketuk chip reaksi = daftar siapa memberi reaksi apa.
-            onShowReactions={handleRowShowReactions}
-            onAttachmentPress={openAttachment}
-            // Bagian 2: kartu lokasi → peta penuh in-app.
-            onLocationPress={openLocation}
-            // FIX 2026-10-03: thumbnail di bubble memakai signed URL yang
-            // juga kedaluwarsa (5 mnt). Diteruskan agar bubble foto/video
-            // bisa refresh saat Picture onError.
-            onRefreshAttachmentUrl={refreshAttachmentIfExpired}
-            // Batch 43: hasil terjemahan per pesan + tombol Beli kartu produk.
-            // ChatTranslation (translatedText) → prop row ({ text, … }).
-            translation={getTranslationView(m.id)}
-            onBuyProductCard={isSelfChat ? undefined : handleRowBuyProductCard}
-            // 2026-10-02: voting polling inline di thread (pesan POLL).
-            onVotePoll={handleInlinePollVote}
-            onClosePoll={handleInlinePollClose}
-            votingPollId={votingPollId}
-            closingPollId={closingPollId}
-            // CN-015: kirim ulang pesan yang gagal.
-            onRetry={handleRowRetry}
-            // Pencarian inline: sorot kata kunci; hasil aktif lebih tegas.
-            searchHighlight={getSearchHighlightView(m)}
-          />
+          <ChatErrorBoundary scope="chat:row-render" fallback={renderChatRowFallback}>
+            <ChatMessageRow
+              message={m}
+              // Audit chat I24: `previous` ditanam di baris (bukan dicari lewat
+              // seluruh daftar pesan) — renderItem tidak lagi bergantung pada
+              // `visibleMessages`, jadi identitasnya stabil saat pesan ditambah.
+              previous={row.previous}
+              // B10: pemisah hari sudah jadi baris sticky tersendiri.
+              hideDaySeparator
+              // B09: sorot pesan asal balasan + navigasi konteks kutipan.
+              highlighted={highlightedId === m.id}
+              onQuotePress={handleQuotePress}
+              selecting={selecting}
+              selected={selectedIds.has(m.id)}
+              readByCounterpart={readByCounterpart.has(m.id)}
+              // Foto + nama lawan bicara untuk gelembung masuk (2026-09-26).
+              // Revisi 2026-09-27 (UI polish): sealTier ikut diteruskan agar
+              // seal verifikasi tampil di samping nama pengirim bubble.
+              // Revisi 2026-09-28 (produk): DM 1:1 → disembunyikan total
+              // (showSenderIdentity=false); ruang transaksi/grup → tetap tampil.
+              counterpart={counterpartInfo}
+              showSenderIdentity={showPeerIdentity}
+              // Swipe kanan = jalan pintas balas (2026-09-28). Sejak
+              // 2026-10-05 area gesture = SELURUH baris (ala WhatsApp) —
+              // swipe di area kosong samping bubble pun memicu, tapi animasi
+              // translasi tetap digambar di bubble (pan milik row). Tekan lama
+              // "Balas" di SelectionBar TETAP ADA — gesture ini hanya
+              // memanggil setReplyTarget yang sama. Nonaktif saat mode pilih
+              // agar tidak bentrok dengan toggle pilihan (gate di row).
+              onSwipeReply={handleRowSwipeReply}
+              // Revisi 2026-09-27: KETUKAN bubble teks = NO-OP di luar mode
+              // pilih (tidak membuka apa pun); saat mode pilih aktif ketukan
+              // men-toggle pilihan. Aksi (menu/reaksi) HANYA lewat tekan lama
+              // → masuk mode pilih + popover reaksi mengambang di dekat bubble.
+              onPress={handleRowPress}
+              onLongPress={handleRowLongPress}
+              onReact={handleRowReact}
+              // Audit chat E13: ketuk chip reaksi = daftar siapa memberi reaksi apa.
+              onShowReactions={handleRowShowReactions}
+              onAttachmentPress={openAttachment}
+              // Bagian 2: kartu lokasi → peta penuh in-app.
+              onLocationPress={openLocation}
+              // FIX 2026-10-03: thumbnail di bubble memakai signed URL yang
+              // juga kedaluwarsa (5 mnt). Diteruskan agar bubble foto/video
+              // bisa refresh saat Picture onError.
+              onRefreshAttachmentUrl={refreshAttachmentIfExpired}
+              // Batch 43: hasil terjemahan per pesan + tombol Beli kartu produk.
+              // ChatTranslation (translatedText) → prop row ({ text, … }).
+              translation={getTranslationView(m.id)}
+              onBuyProductCard={isSelfChat ? undefined : handleRowBuyProductCard}
+              // 2026-10-02: voting polling inline di thread (pesan POLL).
+              onVotePoll={handleInlinePollVote}
+              onClosePoll={handleInlinePollClose}
+              votingPollId={votingPollId}
+              closingPollId={closingPollId}
+              // CN-015: kirim ulang pesan yang gagal.
+              onRetry={handleRowRetry}
+              // Pencarian inline: sorot kata kunci; hasil aktif lebih tegas.
+              searchHighlight={getSearchHighlightView(m)}
+            />
+          </ChatErrorBoundary>
         </View>
       )
     },
@@ -4106,54 +4132,67 @@ function ChatRoomScreenContent() {
           pesan baru tiap poll akan jitter bila posisi divisualkan bertahap. */}
       {threadState === "ready" ? (
         <View className="flex-1">
-      <FlatList
-        ref={scrollRef}
-        className="flex-1"
-        // Audit chat I23: selama shimmer penutup tampil, isi list tidak dibaca
-        // pembaca layar (yang terdengar hanya "Memuat").
-        importantForAccessibility={positioning ? "no-hide-descendants" : "auto"}
-        removeClippedSubviews={false}
-        // 2026-10-03: sembunyikan scrollbar (permintaan user — efek abu-abu
-        // di kanan mengganggu).
-        showsVerticalScrollIndicator={false}
-        // B10: baris campuran (hari/pemisah/pesan); baris "day" sticky.
-        data={threadRows}
-        keyExtractor={threadKeyExtractor}
-        stickyHeaderIndices={stickyDayIndices}
-        // Revisi 2026-09-27: gutter horizontal HANYA dari baris bubble
-        // (`px-5` di <ChatMessageBubble>) — padding di sini DOBEL (40px)
-        // dan membuat inset kiri/kanan tidak proporsional.
-        contentContainerStyle={threadContentStyle}
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="none"
-        onContentSizeChange={handleContentSizeChange}
-        onScroll={handleScroll}
-        scrollEventThrottle={SCROLL_EVENT_THROTTLE}
-        ListHeaderComponent={threadListHeader ?? undefined}
-        renderItem={renderThreadRow}
-        // Scroll ke puncak = muat riwayat lebih lama (tombol eksplisit tetap
-        // ada di header list untuk status error).
-        onStartReached={handleStartReached}
-        onStartReachedThreshold={120}
-        onScrollToIndexFailed={handleScrollToIndexFailed}
-        // Tim8 P1: tinggi baris dari cache onLayout (fallback estimasi) —
-        // `scrollToIndex` akurat di thread bergambar.
-        getItemLayout={getThreadItemLayout}
-        initialNumToRender={12}
-        maxToRenderPerBatch={8}
-        windowSize={9}
-      // removeClippedSubviews DIHAPUS (2026-09-23): sumber klasik baris/layar
-      // blank saat scroll di Android — view terpotong tak selalu direstorasi.
-      />
-          {/* Audit chat I23: penutup shimmer selama posisi awal belum stabil. */}
-          {positioning ? (
-            <View
-              testID="chat-thread-positioning"
-              className="absolute inset-0 bg-background"
-            >
-              <ChatThreadSkeleton />
-            </View>
-          ) : null}
+      <ChatErrorBoundary
+        scope="chat:thread-render"
+        fallback={(reset) => (
+          <View testID="chat-thread-render-error" className="flex-1">
+            <ErrorState
+              title={translate("Percakapan tidak dapat ditampilkan")}
+              description={translate("Terjadi kesalahan saat menampilkan pesan. Coba lagi.")}
+              onRetry={reset}
+            />
+          </View>
+        )}
+      >
+        <FlatList
+          ref={scrollRef}
+          className="flex-1"
+          // Audit chat I23: selama shimmer penutup tampil, isi list tidak dibaca
+          // pembaca layar (yang terdengar hanya "Memuat").
+          importantForAccessibility={positioning ? "no-hide-descendants" : "auto"}
+          removeClippedSubviews={false}
+          // 2026-10-03: sembunyikan scrollbar (permintaan user — efek abu-abu
+          // di kanan mengganggu).
+          showsVerticalScrollIndicator={false}
+          // B10: baris campuran (hari/pemisah/pesan); baris "day" sticky.
+          data={threadRows}
+          keyExtractor={threadKeyExtractor}
+          stickyHeaderIndices={stickyDayIndices}
+          // Revisi 2026-09-27: gutter horizontal HANYA dari baris bubble
+          // (`px-5` di <ChatMessageBubble>) — padding di sini DOBEL (40px)
+          // dan membuat inset kiri/kanan tidak proporsional.
+          contentContainerStyle={threadContentStyle}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="none"
+          onContentSizeChange={handleContentSizeChange}
+          onScroll={handleScroll}
+          scrollEventThrottle={SCROLL_EVENT_THROTTLE}
+          ListHeaderComponent={threadListHeader ?? undefined}
+          renderItem={renderThreadRow}
+          // Scroll ke puncak = muat riwayat lebih lama (tombol eksplisit tetap
+          // ada di header list untuk status error).
+          onStartReached={handleStartReached}
+          onStartReachedThreshold={120}
+          onScrollToIndexFailed={handleScrollToIndexFailed}
+          // Tim8 P1: tinggi baris dari cache onLayout (fallback estimasi) —
+          // `scrollToIndex` akurat di thread bergambar.
+          getItemLayout={getThreadItemLayout}
+          initialNumToRender={12}
+          maxToRenderPerBatch={8}
+          windowSize={9}
+        // removeClippedSubviews DIHAPUS (2026-09-23): sumber klasik baris/layar
+        // blank saat scroll di Android — view terpotong tak selalu direstorasi.
+        />
+            {/* Audit chat I23: penutup shimmer selama posisi awal belum stabil. */}
+            {positioning ? (
+              <View
+                testID="chat-thread-positioning"
+                className="absolute inset-0 bg-background"
+              >
+                <ChatThreadSkeleton />
+              </View>
+            ) : null}
+      </ChatErrorBoundary>
         </View>
       ) : (
         <ChatThreadStateView

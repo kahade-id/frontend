@@ -157,6 +157,7 @@ import { refreshUnreadCount } from "@/lib/unread-count"
 import { tokens } from "@/lib/tokens"
 import { captureError, installTelemetry, logWarn } from "@/lib/telemetry"
 import { installSentrySink } from "@/lib/telemetry-sentry"
+import { installCrashLog } from "@/lib/crash-log"
 import { consumeOtaUpdateNotice } from "@/lib/ota-notice"
 import { translate } from "@/lib/i18n/translate"
 import { getLanguage, subscribeLanguage } from "@/lib/i18n/store"
@@ -281,6 +282,9 @@ export default function RootLayout() {
   // sekali per proses — idempoten terhadap Hot Reload (D-03).
   useEffect(() => {
     installTelemetry()
+    // Bug 1 (2026-10-08): kejadian error disimpan ke berkas lokal sebelum app
+    // bisa mati (lib/crash-log). Dipasang setelah telemetri agar ikut menerima.
+    installCrashLog()
     // G476: sink produksi — default aman (tanpa DSN tidak mengirim apa pun).
     installSentrySink()
   }, [])

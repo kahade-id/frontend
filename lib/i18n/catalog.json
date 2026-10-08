@@ -419,6 +419,10 @@
    "n": 7
   },
   {
+   "s": "Gagal mengirim pesan",
+   "n": 7
+  },
+  {
    "s": "Hari ini",
    "n": 7
   },
@@ -1016,10 +1020,6 @@
   },
   {
    "s": "Gagal mengirim komentar",
-   "n": 5
-  },
-  {
-   "s": "Gagal mengirim pesan",
    "n": 5
   },
   {
@@ -3963,6 +3963,10 @@
    "n": 3
   },
   {
+   "s": "Percakapan tidak dapat ditampilkan",
+   "n": 3
+  },
+  {
    "s": "Percakapan tidak tersedia",
    "n": 3
   },
@@ -4616,6 +4620,10 @@
   },
   {
    "s": "Terapkan filter",
+   "n": 3
+  },
+  {
+   "s": "Terjadi kesalahan saat menampilkan pesan. Coba lagi.",
    "n": 3
   },
   {
@@ -7872,6 +7880,10 @@
   },
   {
    "s": "Pesan dipin",
+   "n": 2
+  },
+  {
+   "s": "Pesan ini tidak dapat ditampilkan.",
    "n": 2
   },
   {
