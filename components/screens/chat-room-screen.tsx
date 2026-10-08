@@ -212,6 +212,7 @@ import { JUMP_MAX_PAGES, findThreadRowIndex, planJump, type JumpBlockedReason } 
 import { ROW_HEIGHT_FALLBACK, buildRowGeometry, type RowGeometry } from "@/lib/chat-thread-layout"
 import { mergeReadIds, messagesReadByEvent, readIdsFromReceipts } from "@/lib/chat-read-receipts"
 import { classifyPinFailure, pinBlockedByKnownLimit } from "@/lib/chat-pin"
+import { applyStarredIds, dmSafetyCounterpartId, nextInlineActiveId } from "@/lib/chat-room-effects"
 import { buildSendDto, resolveRetryKey } from "@/lib/chat-send-dto"
 import { ChatReactorsSheet } from "@/components/ui/chat-reactors-sheet"
 
@@ -865,12 +866,14 @@ export default function ChatRoomScreen() {
   // P2-C2: pulihkan target balasan draft setelah pesan awal dimuat.
   // Bila pesan tidak ditemukan (dihapus/kedaluwarsa) → konteks reply dibuang;
   // composer tidak menampilkan chip sehingga user sadar sebelum mengirim.
+  // Audit chat F14: pesan dibaca lewat ref — efek tidak lagi menyala di
+  // SETIAP perubahan `messages` (hanya saat memuat selesai / draft tiba).
   useEffect(() => {
     if (loading || !pendingReplyId) return
     setPendingReplyId(null)
-    const target = messages.find((m) => m.id === pendingReplyId)
+    const target = messagesRef.current.find((m) => m.id === pendingReplyId)
     if (target) setReplyTarget(target)
-  }, [loading, messages, pendingReplyId])
+  }, [loading, pendingReplyId])
   const [pinned, setPinned] = useState<ChatMessage[]>([])
   const [presence, setPresence] = useState<ChatPresence | null>(null)
   /**
@@ -989,18 +992,16 @@ export default function ChatRoomScreen() {
 
   // Hasil berubah (ketikan/pesan baru dari poll): pertahankan hasil aktif
   // bila masih ada; bila tidak, kembali ke hasil pertama + lompat.
+  // Audit chat F14: keputusan murni (`nextInlineActiveId`) di LUAR updater —
+  // dulu `jumpToInlineMatch` dipanggil di dalam `setInlineActiveId(updater)`
+  // (efek samping di updater: dobel di StrictMode). `inlineActiveId` masuk
+  // deps; efek langsung selesai bila hasil aktif masih valid.
   useEffect(() => {
     if (!inlineSearchOpen) return
-    if (inlineMatches.length === 0) {
-      setInlineActiveId(undefined)
-      return
-    }
-    setInlineActiveId((prev) => {
-      const next = prev && inlineMatches.includes(prev) ? prev : inlineMatches[0]
-      if (next !== prev) jumpToInlineMatch(next)
-      return next
-    })
-  }, [inlineSearchOpen, inlineMatches, jumpToInlineMatch])
+    const { id, shouldJump } = nextInlineActiveId(inlineMatches, inlineActiveId)
+    if (id !== inlineActiveId) setInlineActiveId(id)
+    if (shouldJump && id) jumpToInlineMatch(id)
+  }, [inlineSearchOpen, inlineMatches, inlineActiveId, jumpToInlineMatch])
 
   const stepInlineMatch = useCallback(
     (dir: 1 | -1) => {
@@ -2592,8 +2593,10 @@ export default function ChatRoomScreen() {
     listStarredMessages(roomId)
       .then((starred) => {
         if (!alive) return
+        // Audit chat F14: hanya pesan yang statusnya berubah yang diganti
+        // objeknya — dulu SEMUA pesan jadi objek baru (seluruh baris render ulang).
         const ids = new Set(starred.map((s) => s.id))
-        setMessages((prev) => prev.map((m) => ({ ...m, isStarred: ids.has(m.id) })))
+        setMessages((prev) => applyStarredIds(prev, ids))
       })
       .catch(() => undefined) // non-kritis: ikon bintang tetap bisa di-toggle manual
     return () => {
@@ -3466,24 +3469,31 @@ export default function ChatRoomScreen() {
    * Menunggu `room` termuat: menandai "sudah dilihat" sebelum tahu lawan
    * bicaranya akan mematikan popup untuk orang yang salah.
    */
+  // Audit chat F14: keputusan diturunkan jadi SATU id primitif — dulu efek
+  // bergantung pada objek `room` utuh dan menyala ulang tiap `setRoom`
+  // (bisukan/arsipkan). Id yang sama berarti efek tidak menyala lagi.
+  const dmSafetyId = loading
+    ? null
+    : dmSafetyCounterpartId({
+        isOneToOne: isOneToOneChatRoom(room),
+        isSelfChat,
+        orderId: room?.orderId,
+        sealTier: room?.counterpart?.sealTier,
+        counterpartId: room?.counterpart?.id,
+      })
   useEffect(() => {
-    if (!room || loading) return
-    if (!isOneToOneChatRoom(room) || isSelfChat) return
-    if (room.orderId) return
-    if (room.counterpart?.sealTier != null) return
-    const counterpartId = room.counterpart?.id
-    if (!counterpartId) return
+    if (!dmSafetyId) return
     let alive = true
     void hydrateDmNoticeSeen().then(() => {
       if (!alive) return
-      if (hasSeenDmNotice(counterpartId)) return
-      markDmNoticeSeen(counterpartId)
+      if (hasSeenDmNotice(dmSafetyId)) return
+      markDmNoticeSeen(dmSafetyId)
       setSafetyNoticeOpen(true)
     })
     return () => {
       alive = false
     }
-  }, [room, loading, isSelfChat])
+  }, [dmSafetyId])
 
   /** Ketuk bubble: NO-OP di luar mode pilih; toggle pilihan saat memilih. */
   const handleRowPress = useCallback(

@@ -296,3 +296,25 @@ itu bersifat menebak — usulan yang menghapus tebakan:
    internal (klien membandingkan dengan keduanya, tetapi hanya satu yang
    dijamin ada di payload).
 
+## F — Performa: efek layar & daftar ribuan ruang
+
+**Kondisi hari ini.** Efek layar ruang chat diaudit (deps primitif, tanpa
+efek samping di updater, tanpa mengganti objek pesan yang tak berubah) dan
+daftar chat memakai jendela render khusus baris rapat. Dua hal di sisi
+server yang akan menghilangkan beban terbesar untuk pengguna dengan ribuan
+ruang:
+
+1. **Indikator mengetik di daftar tanpa join per ruang.** Klien harus
+   `join-room chat:<id>` untuk SETIAP ruang yang indikatornya ingin
+   ditampilkan (bertahap 10 ruang / 2 dtk; kini dibatasi 60 ruang teratas).
+   Usulan: kirim `chat.typing` untuk semua ruang milik pengguna ke satu
+   channel pribadi (`user:<id>`, yang sudah dipakai event pin ruang) — daftar
+   chat cukup mendengarkan satu channel, nol join tambahan, dan batas 60
+   ruang bisa dicabut.
+2. **`GET /v1/chat/rooms` berbasis kursor.** Paginasi `page/limit` dengan
+   urutan `updatedAt` bergeser tiap ada pesan baru: item pindah antar halaman
+   sehingga "muat lebih banyak" bisa melewatkan atau menggandakan ruang
+   (klien menambal dengan urut ulang + dedupe per id). Dengan `cursor`
+   (`updatedAt`+`id` terakhir) halaman berikutnya stabil — dan perbaikan klien
+   itu tidak lagi diperlukan.
+

@@ -81,6 +81,7 @@ import { IconButton } from "@/components/ui/icon-button"
 import { DrawerMenuButton } from "@/components/ui/drawer-menu-button"
 import { ModeShiftFade } from "@/components/ui/mode-switcher"
 import { PaginatedList } from "@/components/ui/paginated-list"
+import { CHAT_LIST_WINDOWING, limitTypingRoomIds } from "@/lib/chat-list-windowing"
 import { Screen } from "@/components/ui/screen"
 import {
   SwipeableListItem,
@@ -630,7 +631,8 @@ export default function ChatScreen() {
   }, [activeQuery.data, filter])
 
   // CHT-008: indikator typing di daftar — join bertahap room yang tampil.
-  const roomIds = useMemo(() => shownRooms.map((r) => r.id), [shownRooms])
+  // Audit chat F15: hanya ruang teratas yang di-join (lihat TYPING_JOIN_MAX_ROOMS).
+  const roomIds = useMemo(() => limitTypingRoomIds(shownRooms.map((r) => r.id)), [shownRooms])
   const typingRooms = useChatListTyping(roomIds)
 
   // Terapkan hasil arsip/mute ke baris list tanpa memuat ulang seluruhnya.
@@ -1171,6 +1173,7 @@ export default function ChatScreen() {
         bottomPadding={insets.bottom + TAB_BAR_HEIGHT + tokens.space[4]}
         empty={chatListEmpty}
         renderItem={renderChatRoomItem}
+        windowing={CHAT_LIST_WINDOWING}
       />
       {/*
        * FE-129 (audit frontend 2026-09-29): coach mark SEKALI-tampil untuk
