@@ -273,20 +273,19 @@ export function ChatRoomHeader({
 }
 
 /** Pil kaca untuk identitas (foto + nama + status) — gaya landing kahade.id.
- * Tinggi TETAP 48px sejajar lingkaran back/menu (2026-10-05, revisi produk). */
+ * Tinggi MINIMUM 48px sejajar lingkaran back/menu (2026-10-05, revisi produk).
+ * 2026-10-08: dulu `height: 48` tetap — pada skala font besar (A+ / Dynamic
+ * Type) dua baris nama + status melebihi 48px dan terpotong di Android
+ * (overflow hidden). Kini min-h + padding vertikal: pil memanjang mengikuti
+ * teks, tetap 48px pada skala normal. */
 function GlassIdentity({ children }: { children: React.ReactNode }) {
   const { mode } = useTheme()
   const glassBg = mode === "light" ? "rgba(243,244,246,0.64)" : "rgba(26,26,26,0.64)"
   return (
     <View
+      className="min-h-12 justify-center rounded-full px-3 py-1"
       style={[
-        {
-          borderRadius: 999,
-          backgroundColor: glassBg,
-          height: 48,
-          justifyContent: "center",
-          paddingHorizontal: 12,
-        },
+        { backgroundColor: glassBg },
         Platform.OS === "web"
           ? ({ backdropFilter: "blur(48px)", WebkitBackdropFilter: "blur(48px)" } as object)
           : null,

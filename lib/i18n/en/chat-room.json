@@ -65,5 +65,14 @@
   "Percakapan tidak dapat ditampilkan": "Conversation can't be displayed",
   "Terjadi kesalahan saat menampilkan pesan. Coba lagi.": "Something went wrong while showing messages. Try again.",
   "Pesan ini tidak dapat ditampilkan.": "This message can't be displayed.",
-  "Percakapan belum termuat. Periksa koneksi internet Anda, lalu coba lagi.": "The conversation hasn't loaded yet. Check your internet connection, then try again."
+  "Percakapan belum termuat. Periksa koneksi internet Anda, lalu coba lagi.": "The conversation hasn't loaded yet. Check your internet connection, then try again.",
+  "{x} ({y} pesan baru)": "{x} ({y} new messages)",
+  "Foto gagal dimuat": "Photo failed to load",
+  "Memuat ulang foto": "Reloads the photo",
+  "Ketuk untuk memuat ulang": "Tap to reload",
+  "Kartu produk: {x}, {y}": "Product card: {x}, {y}",
+  "Kartu pesanan {x}: {y}. Buka detail pesanan.": "Order card {x}: {y}. Opens the order details.",
+  "Pesan sementara aktif ({x})": "Disappearing messages on ({x})",
+  "Sekali-lihat aktif untuk pesan berikutnya": "View once is on for the next message",
+  "Pesan sementara aktif ({x}) · sekali-lihat": "Disappearing messages on ({x}) · view once"
 }

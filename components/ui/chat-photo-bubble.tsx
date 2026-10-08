@@ -11,6 +11,11 @@
  *   - sending/queued → scrim + spinner + "Mengirim…"/"Menunggu koneksi".
  *   - failed → scrim + tombol "Coba lagi" (di samping tautan meta).
  *
+ * Foto GAGAL DIMUAT (jaringan/URL kedaluwarsa setelah refresh sekali) →
+ * placeholder "Ketuk untuk memuat ulang": ketukan memuat ulang gambar
+ * (remount <Picture> + izinkan refresh URL sekali lagi), BUKAN membuka
+ * viewer untuk gambar yang jelas tidak bisa ditampilkan (2026-10-08).
+ *
  * Long-press TIDAK ditangani di sini — milik baris (mode pilih + popover
  * reaksi); menu Lihat/Simpan/Teruskan/Hapus foto ada di SelectionBar saat
  * pesan foto dipilih (lihat chat-room-screen `selectionActions`). Ini
@@ -87,31 +92,44 @@ export const ChatPhotoBubble = memo(function ChatPhotoBubble({
   const sending = sendStatus === "sending" || sendStatus === "queued"
   const sendFailed = sendStatus === "failed"
 
+  // Muat ulang setelah gagal: remount <Picture> (nonce di key) + refresh URL
+  // boleh dicoba sekali lagi.
+  const [reloadNonce, setReloadNonce] = useState(0)
+  const handleReload = useCallback(() => {
+    refreshTried.current = false
+    setFailed(false)
+    setReloadNonce((n) => n + 1)
+  }, [])
+
   return (
     <PressableScale
       scaleOnPress={false}
-      onPress={onPress}
+      onPress={failed ? handleReload : onPress}
       accessibilityRole="button"
       accessibilityLabel={summarize([
         translate("Foto: {x}", { x: attachment.fileName }),
-        translate("Ketuk untuk melihat foto"),
+        failed ? translate("Foto gagal dimuat") : translate("Ketuk untuk melihat foto"),
         sending ? translate("Mengirim") : sendFailed ? translate("Belum terkirim") : undefined,
       ])}
-      accessibilityHint={translate("Membuka foto layar penuh")}
+      accessibilityHint={
+        failed ? translate("Memuat ulang foto") : translate("Membuka foto layar penuh")
+      }
       containerClassName="rounded-sm"
       className="relative w-52 overflow-hidden rounded-sm"
     >
       {failed ? (
-        <View className="aspect-[4/3] w-full items-center justify-center gap-1 bg-surface px-4">
-          <Text variant="caption" tone="secondary" className="text-center">
+        <View className="aspect-[4/3] w-full items-center justify-center gap-1.5 bg-surface px-4">
+          <ArrowClockwise size={20} color={iconColor} />
+          <Text variant="caption" tone="secondary" weight={500} className="text-center">
             Foto gagal dimuat
           </Text>
-          <Text variant="caption" tone="tertiary" numberOfLines={1} className="text-center">
-            {attachment.fileName}
+          <Text variant="caption" tone="tertiary" className="text-center">
+            Ketuk untuk memuat ulang
           </Text>
         </View>
       ) : (
         <Picture
+          key={reloadNonce}
           source={src}
           alt=""
           aspectRatio={4 / 3}

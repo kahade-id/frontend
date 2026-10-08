@@ -53,7 +53,7 @@ export const ChatProductCard = memo(function ChatProductCard({
   return (
     <View
       accessibilityRole="summary"
-      accessibilityLabel={`Kartu produk: ${card.title}, ${priceLabel(card)}`}
+      accessibilityLabel={translate("Kartu produk: {x}, {y}", { x: card.title, y: priceLabel(card) })}
       // 2026-10-02: w-full max-w-full agar tidak melebihi bubble.
       className={`w-full max-w-full overflow-hidden rounded-sm border ${
         // UX-COL-013: pola CHT-013 — border putih tak terlihat di dark
@@ -173,7 +173,10 @@ export const ChatOrderCard = memo(function ChatOrderCard({
     <Pressable
       onPress={() => router.push(ROUTES.orderDetail(card.orderId))}
       accessibilityRole="button"
-      accessibilityLabel={`Kartu pesanan ${card.orderCode}: ${card.title}. Buka detail pesanan.`}
+      accessibilityLabel={translate("Kartu pesanan {x}: {y}. Buka detail pesanan.", {
+        x: card.orderCode,
+        y: card.title,
+      })}
       className={`gap-1.5 rounded-sm border p-2.5 ${
         // UX-COL-013: pola CHT-013 — border putih tak terlihat di dark
         // (bubble putih), bg hitam tak terlihat di light (bubble hitam).

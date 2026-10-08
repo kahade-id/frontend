@@ -263,6 +263,66 @@ export const SWIPE_REPLY_ACTIVE_OFFSET_X = 12
 export const SWIPE_REPLY_FAIL_OFFSET_Y = 8
 
 /**
+ * Reservasi ruang META di kanan-bawah bubble (jam + status + ikon) — 2026-10-08.
+ *
+ * Meta diposisikan absolute di pojok kanan-bawah (ala WhatsApp: baris teks
+ * terakhir yang pendek berbagi baris dengan jam). Supaya teks tidak tertutup,
+ * bubble memberi padding-kanan sebesar lebar meta. Dulu dua kelas tetap
+ * (`pr-16`, `pr-28` khusus antrean) — meta "Dibaca" (centang + label),
+ * "(diedit)", pin/bintang, atau skala font besar membuatnya meluber ke teks.
+ * Kini dihitung dari komponen yang benar-benar tampil, dikalikan skala font
+ * (teks ikut membesar, ikon tidak), lalu dibulatkan ke kelipatan 4.
+ *
+ * Lebar teks = perkiraan per karakter caption 12px (bukan pengukuran —
+ * pengukuran onLayout berarti layout dua tahap per bubble saat scroll).
+ * Sedikit lebih lebar dari perlu lebih baik daripada tumpang tindih.
+ */
+const META_TIME_PX = 36
+const META_ICON_PX = 16
+const META_GAP_PX = 4
+const META_CHAR_PX = 6.5
+/** `pr-3` bubble — jarak meta ke tepi kanan. */
+const META_EDGE_PX = 12
+
+export type BubbleMetaReserveInput = {
+  hasTime: boolean
+  /** Pesan keluar: glyph status ikut dihitung (dan labelnya bila ada). */
+  outgoing: boolean
+  status?: "queued" | "sending" | "sent" | "read" | "failed"
+  isEdited?: boolean
+  isPinned?: boolean
+  starred?: boolean
+  ephemeralChip?: string | null
+  /** Label yang ikut tampil di meta — sudah diterjemahkan (panjang berbeda per bahasa). */
+  labels: { edited: string; failed: string; retry: string; queued: string; read: string }
+  /** Skala font efektif (pengaturan A-/A+ × skala OS yang di-clamp). */
+  fontScale?: number
+}
+
+export function bubbleMetaReservePx(input: BubbleMetaReserveInput): number {
+  const scale = Math.max(0.5, input.fontScale ?? 1)
+  const text = (s: string) => Math.ceil(s.length * META_CHAR_PX * scale)
+  const items: number[] = []
+  if (input.outgoing && input.status === "failed") {
+    items.push(META_ICON_PX, text(input.labels.failed), text(input.labels.retry))
+  } else {
+    if (input.hasTime) items.push(META_TIME_PX * scale)
+    if (input.isEdited) items.push(text(`(${input.labels.edited})`))
+    if (input.isPinned) items.push(META_ICON_PX)
+    if (input.starred) items.push(META_ICON_PX)
+    if (input.ephemeralChip) items.push(META_ICON_PX + text(input.ephemeralChip))
+    if (input.outgoing && input.status) {
+      items.push(META_ICON_PX)
+      if (input.status === "queued") items.push(text(input.labels.queued))
+      if (input.status === "read") items.push(text(input.labels.read))
+    }
+  }
+  if (items.length === 0) return META_EDGE_PX
+  const total = items.reduce((a, b) => a + b, 0) + META_GAP_PX * (items.length - 1) + META_EDGE_PX
+  return Math.ceil(total / 4) * 4
+}
+
+/**
  * Murni — bisa di-unit-test: apakah gesture pan berakhir sebagai "balas"?
  */
 export function shouldTriggerSwipeReply(

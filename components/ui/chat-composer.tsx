@@ -57,6 +57,7 @@ import { PressableScale } from "@/components/ui/pressable-scale"
 import { Icon } from "@/components/ui/icon"
 import { QuickReplyPicker } from "@/components/ui/quick-reply-picker"
 import { ChatFormatBar } from "@/components/ui/chat-format-bar"
+import { FadeIn } from "@/components/ui/fade-in"
 import { VoiceHoldMic } from "@/components/ui/voice-hold-mic"
 import { VoiceRecordingBar } from "@/components/ui/voice-recording-bar"
 import type { VoiceHoldController } from "@/lib/use-voice-hold"
@@ -205,7 +206,23 @@ export function ChatComposer({
   const { mode } = useTheme()
   const palette = tokens.colors[mode]
   // Batch 43: seleksi teks untuk toolbar format (onSelectionChange).
-  const [selection, setSelection] = useState<{ start: number; end: number } | undefined>(undefined)
+  // 2026-10-08: TextInput TIDAK lagi dikendalikan `selection` secara terus-
+  // menerus — di Android, prop `selection` yang selalu diisi pada input
+  // multiline membuat kursor melompat/IME terputus saat mengetik cepat.
+  // Seleksi terakhir disimpan di ref (dibaca toolbar format); prop
+  // `selection` hanya DIPAKSA sesaat setelah format diterapkan, lalu dilepas
+  // begitu native melaporkan seleksi berikutnya.
+  const selectionRef = useRef<{ start: number; end: number } | undefined>(undefined)
+  const [forcedSelection, setForcedSelection] = useState<
+    { start: number; end: number } | undefined
+  >(undefined)
+  const handleSelectionChange = useCallback(
+    (e: NativeSyntheticEvent<{ selection: { start: number; end: number } }>) => {
+      selectionRef.current = e.nativeEvent.selection
+      setForcedSelection((prev) => (prev === undefined ? prev : undefined))
+    },
+    [],
+  )
 
   /**
    * Batch 43: terapkan format markdown ke teks terpilih (atau kursor bila
@@ -215,13 +232,15 @@ export function ChatComposer({
   const handleFormat = useCallback(
     (format: ChatTextFormat) => {
       if (disabled || sending) return
+      const selection = selectionRef.current
       const start = selection?.start ?? value.length
       const end = selection?.end ?? value.length
       const edit = applyChatFormat(value, start, end, format)
       onChangeText(edit.value)
-      setSelection({ start: edit.start, end: edit.end })
+      selectionRef.current = { start: edit.start, end: edit.end }
+      setForcedSelection({ start: edit.start, end: edit.end })
     },
-    [disabled, sending, onChangeText, value, selection],
+    [disabled, sending, onChangeText, value],
   )
 
   // Item 23: "/" di awal teks (tanpa baris baru) → picker template. Memilih
@@ -394,8 +413,8 @@ export function ChatComposer({
               selectionColor={palette.primary}
               cursorColor={palette.primary}
               maxFontSizeMultiplier={2}
-              onSelectionChange={(e) => setSelection(e.nativeEvent.selection)}
-              selection={selection}
+              onSelectionChange={handleSelectionChange}
+              selection={forcedSelection}
               onKeyPress={onKeyPress}
               blurOnSubmit={false}
               accessibilityLabel={translateProp(t.placeholder)}
@@ -417,63 +436,60 @@ export function ChatComposer({
           </Fragment>
         )}
 
-        {showMic ? (
-          voice ? (
-            <VoiceHoldMic
-              key="action"
-              voice={voice}
-              onTap={onMicPress}
-              label={micLabel}
-              disabled={disabled}
-            />
-          ) : (
-            <IconButton
-              key="action"
-              icon={Microphone}
-              variant="ghost"
-              size="md"
-              shape="pill"
-              accessibilityLabel={micLabel}
-              onPress={onMicPress}
-              disabled={disabled}
-            />
-          )
-        ) : (
-          /* (2026-10-05, revisi produk: tombol kirim lingkaran kaca seperti header.) */
-          <PressableScale
-            key="action"
-            accessibilityRole="button"
-            accessibilityLabel={translateProp(t.send) ?? t.send}
-            haptic="light"
-            onPress={submit}
-            disabled={!ready}
-            className="h-12 w-12 items-center justify-center"
-          >
-            <View
-              style={[
-                {
-                  borderRadius: 999,
-                  backgroundColor: mode === "light" ? "rgba(243,244,246,0.64)" : "rgba(26,26,26,0.64)",
-                  height: 48,
-                  width: 48,
-                  alignItems: "center",
-                  justifyContent: "center",
-                  opacity: !ready ? 0.5 : 1,
-                },
-                Platform.OS === "web"
-                  ? ({ backdropFilter: "blur(48px)", WebkitBackdropFilter: "blur(48px)" } as object)
-                  : null,
-              ]}
-            >
-              <Icon
-                icon={PaperPlaneRight}
-                size="md"
-                weight="fill"
-                color={mode === "light" ? "#000000" : "#FFFFFF"}
+        {/* 2026-10-08: pergantian mic ⇄ kirim MEMUDAR masuk (key berganti →
+            <FadeIn> ulang, 250 ms, tanpa geser) — dulu ikon bertukar seketika
+            pada ketukan huruf pertama. RN Animated (native driver), bukan
+            reanimated: cukup untuk opacity sederhana (pola fade-in.tsx). */}
+        <FadeIn key={showMic ? "mic" : "send"} duration="fast" translate={false}>
+          {showMic ? (
+            voice ? (
+              <VoiceHoldMic
+                voice={voice}
+                onTap={onMicPress}
+                label={micLabel}
+                disabled={disabled}
               />
-            </View>
-          </PressableScale>
-        )}
+            ) : (
+              <IconButton
+                icon={Microphone}
+                variant="ghost"
+                size="md"
+                shape="pill"
+                accessibilityLabel={micLabel}
+                onPress={onMicPress}
+                disabled={disabled}
+              />
+            )
+          ) : (
+            /* (2026-10-05, revisi produk: tombol kirim lingkaran kaca seperti header.) */
+            <PressableScale
+              accessibilityRole="button"
+              accessibilityLabel={translateProp(t.send) ?? t.send}
+              haptic="light"
+              onPress={submit}
+              disabled={!ready}
+              className="h-12 w-12 items-center justify-center"
+            >
+              <View
+                className={cn(
+                  "h-12 w-12 items-center justify-center rounded-full",
+                  !ready && "opacity-disabled",
+                )}
+                style={[
+                  {
+                    backgroundColor:
+                      mode === "light" ? "rgba(243,244,246,0.64)" : "rgba(26,26,26,0.64)",
+                  },
+                  Platform.OS === "web"
+                    ? ({ backdropFilter: "blur(48px)", WebkitBackdropFilter: "blur(48px)" } as object)
+                    : null,
+                ]}
+              >
+                <Icon icon={PaperPlaneRight} size="md" weight="fill" color={palette.textPrimary} />
+              </View>
+            </PressableScale>
+          )}
+        </FadeIn>
       </View>
     </View>
   )

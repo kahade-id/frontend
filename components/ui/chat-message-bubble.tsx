@@ -62,7 +62,13 @@
  *     untuk pemanggil lain (layar bantuan, sengketa).
  */
 import { memo, useEffect, useMemo, useRef, type ReactNode, type RefObject } from "react"
-import { View, type GestureResponderEvent, type ViewInstance, type ViewProps } from "react-native"
+import {
+  View,
+  useWindowDimensions,
+  type GestureResponderEvent,
+  type ViewInstance,
+  type ViewProps,
+} from "react-native"
 import { GestureDetector } from "react-native-gesture-handler"
 import Animated, {
   useSharedValue,
@@ -95,6 +101,7 @@ import { VerifiedName } from "@/components/ui/verified-name"
 import { type SealTier } from "@/components/ui/verified-seal"
 import { cn } from "@/lib/cn"
 import { tokens } from "@/lib/tokens"
+import { useFontScale } from "@/lib/font-scale"
 import { focusRing } from "@/lib/focus-ring"
 import { hitSlopToReach } from "@/lib/hit-slop"
 import { translate } from "@/lib/i18n/translate"
@@ -110,6 +117,7 @@ import { splitHighlightSpans } from "@/lib/chat-search"
 import {
   REACTION_BADGE_ANCHOR,
   SWIPE_REPLY_MAX_PX,
+  bubbleMetaReservePx,
   chatBubbleGeometry,
   measureBubbleAnchor,
   type ChatBubbleAnchor,
@@ -621,6 +629,54 @@ function ChatMessageBubbleBase({
     ) : null
 
   const hasMeta = !!(time || failed || (outgoing && status) || isPinned || isEdited || ephemeralChip || starred)
+  // 2026-10-08: reservasi kanan untuk meta dihitung dari isi meta yang tampil
+  // × skala font (A-/A+ × OS, di-clamp seperti <Text maxFontSizeMultiplier>)
+  // — "Dibaca", "(diedit)", pin/bintang, dan font besar tidak lagi menimpa
+  // teks. Lihat `bubbleMetaReservePx`.
+  const appFontScale = useFontScale()
+  const osFontScale = useWindowDimensions().fontScale
+  const queuedLabel = translate("Menunggu koneksi")
+  const readLabel = translate("Dibaca")
+  const metaReserve = useMemo(
+    () =>
+      hasMeta && !overlayMeta
+        ? bubbleMetaReservePx({
+            hasTime: !!time,
+            outgoing,
+            status,
+            isEdited,
+            isPinned,
+            starred,
+            ephemeralChip,
+            labels: {
+              edited: t.edited,
+              failed: t.failed,
+              retry: t.retry,
+              queued: queuedLabel,
+              read: readLabel,
+            },
+            fontScale: appFontScale * Math.min(osFontScale, 2),
+          })
+        : null,
+    [
+      hasMeta,
+      overlayMeta,
+      time,
+      outgoing,
+      status,
+      isEdited,
+      isPinned,
+      starred,
+      ephemeralChip,
+      t.edited,
+      t.failed,
+      t.retry,
+      queuedLabel,
+      readLabel,
+      appFontScale,
+      osFontScale,
+    ],
+  )
 
   const bubble = (
     <View
@@ -628,20 +684,14 @@ function ChatMessageBubbleBase({
         // 2026-10-02: incoming tanpa border tebal — cukup background + rounded
         // (permintaan user). Outgoing tetap tanpa border (bg-primary solid).
         // 2026-10-03: relative untuk meta absolute di pojok kanan bawah.
-        // pr-16 + pb-5 hanya saat ada meta, agar teks pendek tidak tertutup
-        // jam + centang (ala WhatsApp) tanpa makan space berlebih.
+        // pb-5 hanya saat ada meta, agar teks pendek tidak tertutup jam +
+        // centang (ala WhatsApp) tanpa makan space berlebih; padding kanan
+        // dari `metaReserve` (style) saat meta tidak di-overlay.
         "relative gap-2 rounded-md pl-3 pt-2",
-        overlayMeta
-          ? text
-            ? "pr-3 pb-5"
-            : "pr-3 pb-2"
-          : hasMeta
-            ? status === "queued"
-              ? "pr-28 pb-5"
-              : "pr-16 pb-5"
-            : "pr-3 pb-2",
+        overlayMeta ? (text ? "pr-3 pb-5" : "pr-3 pb-2") : hasMeta ? "pb-5" : "pr-3 pb-2",
         outgoing ? "bg-primary" : "bg-surface",
       )}
+      style={metaReserve != null ? { paddingRight: metaReserve } : undefined}
     >
       {forwarded && !isDeleted ? (
         <View testID="message-forwarded-label" className="flex-row items-center gap-1">
