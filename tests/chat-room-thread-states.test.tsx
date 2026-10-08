@@ -187,17 +187,68 @@ describe("membuka ruang: selalu ada keadaan yang jelas (audit chat I23)", () => 
     expect(input.disabled).toBe(false)
   })
 
-  it("memuat terlalu lama → penjelasan + Coba lagi muncul di bawah shimmer", async () => {
+  it("muat awal tanpa data lebih dari 10 dtk → galat jelas + Coba lagi (bukan shimmer selamanya)", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
-    h.getChatMessages.mockReturnValue(new Promise(() => {}))
+    h.getChatMessages.mockReturnValue(new Promise(() => {})) // tidak pernah selesai
     mount()
-    expect(screen.queryByTestId("chat-thread-slow")).toBeNull()
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(12_500)
+      await vi.advanceTimersByTimeAsync(9_500)
     })
-    expect(screen.getByTestId("chat-thread-slow")).toBeTruthy()
-    expect(screen.getByText("Masih memuat percakapan. Periksa koneksi internet Anda.")).toBeTruthy()
-    expect(screen.getByRole("button", { name: "Coba lagi" })).toBeTruthy()
+    // Belum 10 dtk: masih shimmer, belum galat.
+    expect(screen.getByTestId("chat-thread-loading")).toBeTruthy()
+    expect(screen.queryByTestId("chat-thread-timeout")).toBeNull()
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1_000)
+    })
+    expect(screen.getByTestId("chat-thread-timeout")).toBeTruthy()
+    expect(screen.queryByTestId("chat-thread-loading")).toBeNull()
+    expect(
+      screen.getByText("Percakapan belum termuat. Periksa koneksi internet Anda, lalu coba lagi."),
+    ).toBeTruthy()
+    expect(screen.getByRole("button", { name: /Coba lagi/ })).toBeTruthy()
+  })
+
+  it("Coba lagi setelah timeout → kembali shimmer (bukan galat sisa), lalu pesan tampil", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    h.getChatMessages.mockReturnValueOnce(new Promise(() => {}))
+    h.getChatMessages.mockResolvedValueOnce({ items: [message("m1", 1)], nextCursor: null })
+    mount()
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10_500)
+    })
+    expect(screen.getByTestId("chat-thread-timeout")).toBeTruthy()
+    fireEvent.click(screen.getByRole("button", { name: /Coba lagi/ }))
+    expect(screen.queryByTestId("chat-thread-timeout")).toBeNull()
+    expect(screen.getByTestId("chat-thread-loading")).toBeTruthy()
+    expect(await screen.findByText("Isi pesan m1")).toBeTruthy()
+    expect(h.getChatMessages).toHaveBeenCalledTimes(2)
+  })
+
+  it("respons terlambat setelah timeout tetap menang: pesan menggantikan galat", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    let resolve!: (page: unknown) => void
+    h.getChatMessages.mockReturnValue(new Promise((r) => (resolve = r)))
+    mount()
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10_500)
+    })
+    expect(screen.getByTestId("chat-thread-timeout")).toBeTruthy()
+    await act(async () => resolve({ items: [message("m1", 1)], nextCursor: null }))
+    expect(await screen.findByText("Isi pesan m1")).toBeTruthy()
+    expect(screen.queryByTestId("chat-thread-timeout")).toBeNull()
+  })
+
+  it("pesan realtime yang tiba selama muat awal TIDAK hilang saat respons muat datang (race)", async () => {
+    let resolve!: (page: unknown) => void
+    h.getChatMessages.mockReturnValue(new Promise((r) => (resolve = r)))
+    mount()
+    // Socket sudah join ruang sebelum GET selesai: pesan masuk lebih dulu.
+    await act(async () => h.handlers.current?.onMessage?.(message("m-rt", 5)))
+    expect(await screen.findByText("Isi pesan m-rt")).toBeTruthy()
+    // Respons GET (snapshot yang diambil sebelum pesan realtime) tiba belakangan.
+    await act(async () => resolve({ items: [message("m1", 1)], nextCursor: null }))
+    expect(await screen.findByText("Isi pesan m1")).toBeTruthy()
+    expect(screen.getByText("Isi pesan m-rt")).toBeTruthy()
   })
 })
 

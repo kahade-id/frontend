@@ -6,7 +6,7 @@
 import { describe, expect, it } from "vitest"
 
 import {
-  THREAD_LOADING_SLOW_MS,
+  THREAD_LOADING_TIMEOUT_MS,
   resolveThreadState,
   type ThreadState,
   type ThreadStateInput,
@@ -62,22 +62,42 @@ describe("resolveThreadState — prioritas", () => {
 })
 
 describe("resolveThreadState — total", () => {
-  it("32 kombinasi boolean + jumlah baris: selalu salah satu dari 6 keadaan", () => {
+  it("64 kombinasi boolean + jumlah baris: selalu salah satu dari 7 keadaan", () => {
     const valid = new Set<ThreadState>(["invalid", "loading", "error", "gone", "empty", "ready"])
     let combos = 0
     for (const hasRoomId of [true, false])
       for (const loading of [true, false])
         for (const error of [null, "gagal"])
           for (const roomGone of [true, false])
-            for (const rowCount of [0, 7]) {
-              combos += 1
-              expect(valid.has(resolveThreadState({ hasRoomId, loading, error, roomGone, rowCount }))).toBe(true)
-            }
-    expect(combos).toBe(32)
+            for (const timedOut of [true, false])
+              for (const rowCount of [0, 7]) {
+                combos += 1
+                expect(
+                  valid.has(resolveThreadState({ hasRoomId, loading, error, roomGone, timedOut, rowCount })),
+                ).toBe(true)
+              }
+    expect(combos).toBe(64)
   })
 
-  it("ambang 'terlalu lama memuat' masuk akal (cukup lama untuk jaringan lambat, tidak menggantung)", () => {
-    expect(THREAD_LOADING_SLOW_MS).toBeGreaterThanOrEqual(8_000)
-    expect(THREAD_LOADING_SLOW_MS).toBeLessThanOrEqual(20_000)
+  it("batas tunggu muat awal = 10 dtk (permintaan produk Bug 2)", () => {
+    expect(THREAD_LOADING_TIMEOUT_MS).toBe(10_000)
+  })
+})
+
+describe("resolveThreadState — timeout muat awal (Bug 2, 2026-10-08)", () => {
+  it("memuat melewati 10 dtk tanpa data → galat (bukan shimmer selamanya)", () => {
+    expect(resolveThreadState({ ...base, loading: true, timedOut: true })).toBe("error")
+  })
+
+  it("sebelum timeout tetap shimmer (timeout belum menyala)", () => {
+    expect(resolveThreadState({ ...base, loading: true, timedOut: false })).toBe("loading")
+  })
+
+  it("respons terlambat yang membawa pesan MENANG atas timeout", () => {
+    expect(resolveThreadState({ ...base, loading: true, timedOut: true, rowCount: 3 })).toBe("ready")
+  })
+
+  it("ruang hilang (404) tetap keadaan sendiri, bukan galat timeout", () => {
+    expect(resolveThreadState({ ...base, roomGone: true, timedOut: true })).toBe("gone")
   })
 })

@@ -9,6 +9,7 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { ThemeProvider } from "@/components/theme-provider"
 import { ChatThreadSkeleton } from "@/components/ui/chat-thread-skeleton"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
   ChatThreadStateView,
   type ChatThreadStateViewProps,
@@ -20,10 +21,24 @@ function inTheme(ui: ReactElement) {
   return render(<ThemeProvider>{ui}</ThemeProvider>)
 }
 
+/** Kumpulkan `tone` setiap <Skeleton> di pohon elemen (tanpa merender DOM). */
+function collectSkeletonTones(node: unknown, out: string[] = []): string[] {
+  if (Array.isArray(node)) {
+    for (const child of node) collectSkeletonTones(child, out)
+    return out
+  }
+  if (typeof node === "object" && node !== null && "props" in node) {
+    const el = node as { type?: unknown; props: { children?: unknown; tone?: string } }
+    if (el.type === Skeleton) out.push(el.props.tone ?? "subtle")
+    collectSkeletonTones(el.props.children, out)
+  }
+  return out
+}
+
 const props = (over: Partial<ChatThreadStateViewProps> = {}): ChatThreadStateViewProps => ({
   state: "loading",
   error: null,
-  slow: false,
+  timedOut: false,
   counterpartName: "Budi",
   selfChat: false,
   onRetry: vi.fn(),
@@ -37,20 +52,31 @@ describe("<ChatThreadSkeleton>", () => {
     expect(screen.getByTestId("chat-thread-skeleton")).toBeTruthy()
     expect(screen.getAllByRole("progressbar")).toHaveLength(1)
   })
+
+  it("setiap blok shimmer memakai tone kontras (bg-border), bukan surface yang nyaris putih di light mode", () => {
+    // react-native-web tidak menaruh className ke DOM di test ini, jadi yang
+    // diperiksa adalah pohon elemen: tiap <Skeleton> harus tone="contrast".
+    const tones = collectSkeletonTones(ChatThreadSkeleton())
+    expect(tones.length).toBeGreaterThan(0)
+    expect(tones.every((tone) => tone === "contrast")).toBe(true)
+  })
 })
 
 describe("<ChatThreadStateView>", () => {
-  it("loading: shimmer; belum 'lambat' → tanpa penjelasan", () => {
+  it("loading: shimmer saja — belum timeout, tanpa galat", () => {
     inTheme(<ChatThreadStateView {...props()} />)
     expect(screen.getByTestId("chat-thread-skeleton")).toBeTruthy()
-    expect(screen.queryByTestId("chat-thread-slow")).toBeNull()
+    expect(screen.queryByTestId("chat-thread-timeout")).toBeNull()
+    expect(screen.queryByRole("button", { name: "Coba lagi" })).toBeNull()
   })
 
-  it("loading lambat: penjelasan + Coba lagi yang memanggil onRetry", () => {
+  it("muat awal melewati batas waktu → galat jelas + Coba lagi yang memanggil onRetry", () => {
     const onRetry = vi.fn()
-    inTheme(<ChatThreadStateView {...props({ slow: true, onRetry })} />)
-    expect(screen.getByText("Masih memuat percakapan. Periksa koneksi internet Anda.")).toBeTruthy()
-    fireEvent.click(screen.getByRole("button", { name: "Coba lagi" }))
+    inTheme(<ChatThreadStateView {...props({ state: "error", timedOut: true, onRetry })} />)
+    expect(screen.getByTestId("chat-thread-timeout")).toBeTruthy()
+    expect(screen.getByText("Percakapan belum termuat. Periksa koneksi internet Anda, lalu coba lagi.")).toBeTruthy()
+    expect(screen.queryByTestId("chat-thread-skeleton")).toBeNull()
+    fireEvent.click(screen.getByRole("button", { name: /Coba lagi/ }))
     expect(onRetry).toHaveBeenCalledTimes(1)
   })
 
@@ -96,7 +122,7 @@ describe("<ChatThreadStateView>", () => {
     const states: ChatThreadStateViewProps["state"][] = ["loading", "error", "gone", "invalid", "empty"]
     for (const state of states) {
       const { container, unmount } = inTheme(
-        <ChatThreadStateView {...props({ state, slow: true, error: "x" })} />,
+        <ChatThreadStateView {...props({ state, timedOut: true, error: "x" })} />,
       )
       expect(container.textContent ?? "").not.toMatch(/escrow|rekber|ditahan|penahanan/i)
       unmount()

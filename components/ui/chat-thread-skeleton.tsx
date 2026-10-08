@@ -11,7 +11,8 @@
  * Gelembung bergantian kiri/kanan dengan lebar & tinggi bervariasi, ditempel
  * ke DASAR (seperti chat sungguhan: pesan terbaru di bawah). Memakai
  * <SkeletonGroup> sehingga semua blok berdenyut serempak dan pembaca layar
- * hanya mendengar satu "Memuat". Tidak ada warna/ukuran baru di luar token.
+ * hanya mendengar satu "Memuat". Warna blok `contrast` (bg-border): di light
+ * mode blok `subtle` nyaris tak terlihat dan layar tampak putih polos (Bug 2).
  */
 import { View } from "react-native"
 
@@ -40,7 +41,7 @@ export function ChatThreadSkeleton() {
             {/* Lebar di pembungkus (persen terhadap baris penuh); blok `w-full`
                 di dalamnya — persen terhadap induk berukuran-isi akan nol. */}
             <View className={bubble.width}>
-              <Skeleton shape="card" className={`w-full ${bubble.height}`} />
+              <Skeleton shape="card" tone="contrast" className={`w-full ${bubble.height}`} />
             </View>
           </View>
         ))}

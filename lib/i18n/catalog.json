@@ -16,7 +16,7 @@
   },
   {
    "s": "Coba lagi",
-   "n": 45
+   "n": 43
   },
   {
    "s": "Gagal memuat",
@@ -3128,10 +3128,6 @@
   },
   {
    "s": "Jumlah cicilan setelah DP ({x}–{x})",
-   "n": 3
-  },
-  {
-   "s": "Kami tidak dapat memuat percakapan ini. Silakan coba lagi.",
    "n": 3
   },
   {
@@ -7192,10 +7188,6 @@
   },
   {
    "s": "Masih ada foto yang gagal diunggah",
-   "n": 2
-  },
-  {
-   "s": "Masih memuat percakapan. Periksa koneksi internet Anda.",
    "n": 2
   },
   {
@@ -15643,6 +15635,10 @@
    "n": 1
   },
   {
+   "s": "Kami tidak dapat memuat percakapan ini. Silakan coba lagi.",
+   "n": 1
+  },
+  {
    "s": "Kantor",
    "n": 1
   },
@@ -19136,6 +19132,10 @@
   },
   {
    "s": "Perbesar kode QR",
+   "n": 1
+  },
+  {
+   "s": "Percakapan belum termuat. Periksa koneksi internet Anda, lalu coba lagi.",
    "n": 1
   },
   {

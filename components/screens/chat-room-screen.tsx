@@ -127,7 +127,7 @@ import { classifyPinFailure, pinBlockedByKnownLimit } from "@/lib/chat-pin"
 import { applyStarredIds, dmSafetyCounterpartId, nextInlineActiveId } from "@/lib/chat-room-effects"
 import { dayKey, dayLabel, msUntilNextLocalMidnight } from "@/lib/chat-day-label"
 import { buildThreadRows, stickyDayChildIndices, type ThreadRow } from "@/lib/chat-thread-rows"
-import { THREAD_LOADING_SLOW_MS, resolveThreadState } from "@/lib/chat-thread-state"
+import { THREAD_LOADING_TIMEOUT_MS, resolveThreadState } from "@/lib/chat-thread-state"
 import { useThreadPositioning } from "@/lib/use-thread-positioning"
 import { useSlowLoading } from "@/lib/use-slow-loading"
 import { createConfirmGate, type ConfirmGate } from "@/lib/confirm-gate"
@@ -610,6 +610,12 @@ function ChatRoomScreenContent() {
   const uploadControllersRef = useRef(new Map<string, AbortController>())
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  /**
+   * Identitas SATU percobaan muat awal (Bug 2, 2026-10-08). Berganti setiap
+   * fetchMessages dijalankan (buka ruang / Coba lagi) — penanda "memuat terlalu
+   * lama" ikut di-reset, jadi Coba lagi kembali ke shimmer, bukan galat sisa.
+   */
+  const [loadToken, setLoadToken] = useState(0)
   /** Room dihapus/dinonaktifkan (404) — tampilkan EmptyState khusus, bukan error generik. */
   const [roomGone, setRoomGone] = useState(false)
   /** Sheet lampiran (+) composer: Gambar / Video / File / Voice Note. */
@@ -1069,6 +1075,7 @@ function ChatRoomScreenContent() {
     initialRequest.current?.abort()
     const controller = new AbortController()
     initialRequest.current = controller
+    setLoadToken((n) => n + 1)
     setLoading(true)
     setError(null)
     setRoomGone(false)
@@ -1118,11 +1125,30 @@ function ChatRoomScreenContent() {
         }
         return true
       })
-      setMessages(
+      // Bug 2 (2026-10-08) — race muat awal vs realtime/kiriman: socket sudah
+      // join ruang SEBELUM GET selesai, jadi pesan yang masuk di antara itu
+      // dulu hilang karena `setMessages(items)` menimpa seluruh state (polling
+      // dimatikan selama socket sehat, jadi tidak ada yang mengambilnya lagi).
+      // Sekarang state yang sudah ada digabung: snapshot memberi isi, state
+      // realtime/optimistis (lebih baru) tetap menang di field yang sama.
+      const loadedMessages =
         stillFailed.length > 0
           ? mergeChatMessages(items, stillFailed.map(failedToChatMessage)).next
-          : items,
+          : items
+      setMessages((prev) =>
+        prev.length === 0
+          ? loadedMessages
+          : mergeChatMessages(loadedMessages, prev, { selfIds: selfIdsRef.current }).next,
       )
+      // Bug 2 — diagnostik: ruang punya pesan terakhir tetapi halaman pertama
+      // kosong. Tidak mengubah tampilan (bisa sah bila semua pesan tersembunyi
+      // atau kedaluwarsa), tetapi meninggalkan jejak di log bila terjadi.
+      if (items.length === 0 && roomRow?.lastMessage) {
+        logWarn(
+          "chat:empty-page-mismatch",
+          new Error("halaman pertama kosong padahal ruang punya lastMessage"),
+        )
+      }
       // FE-019: muat ulang penuh = jendela di-reset; penanda potongan lama
       // tidak berlaku lagi.
       newestTruncatedRef.current = false
@@ -3898,14 +3924,24 @@ function ChatRoomScreenContent() {
    * kosong pada kombinasi yang tak tertangani. FlatList hanya di-mount saat
    * "ready"; selain itu tampilan keadaan memenuhi area thread.
    */
+  /**
+   * Bug 2 (2026-10-08): muat awal tanpa data selama 10 dtk → galat + Coba lagi.
+   * Timer hanya menyala saat memuat dan belum ada baris; token per percobaan
+   * membuat Coba lagi mulai dari shimmer lagi.
+   */
+  const loadTimedOut = useSlowLoading(
+    loading && threadRows.length === 0,
+    THREAD_LOADING_TIMEOUT_MS,
+    loadToken,
+  )
   const threadState = resolveThreadState({
     hasRoomId: Boolean(roomId),
     loading,
     error,
     roomGone,
     rowCount: threadRows.length,
+    timedOut: loadTimedOut,
   })
-  const slowLoading = useSlowLoading(threadState === "loading", THREAD_LOADING_SLOW_MS)
   const handleRetryLoad = useCallback(() => void fetchMessages(), [fetchMessages])
   const handleBackToList = useCallback(() => router.replace(ROUTES.chat), [])
   /**
@@ -4198,7 +4234,7 @@ function ChatRoomScreenContent() {
         <ChatThreadStateView
           state={threadState}
           error={error}
-          slow={slowLoading}
+          timedOut={loadTimedOut}
           counterpartName={counterpartName}
           selfChat={isSelfChat}
           onRetry={handleRetryLoad}

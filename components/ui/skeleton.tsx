@@ -93,11 +93,27 @@ function usePulse(): Animated.Value {
 
 export type SkeletonShape = "rect" | "card" | "circle"
 
+/**
+ * Warna blok. `subtle` (default) = `bg-surface` untuk kartu/daftar di atas
+ * background putih. `contrast` = `bg-border` (light #D1D5DB, dark #3F3F3F)
+ * untuk shimmer thread chat: dengan `subtle`, blok di light mode hanya
+ * berkontras 1.10:1 terhadap background dan layar tampak putih polos (Bug 2,
+ * 2026-10-08). Default tidak berubah untuk pemakai lain.
+ */
+export type SkeletonTone = "subtle" | "contrast"
+
+const toneClass: Record<SkeletonTone, string> = {
+  subtle: "bg-surface dark:bg-surface-elevated",
+  contrast: "bg-border",
+}
+
 export type SkeletonProps = Omit<ViewProps, "children"> & {
   /** Lebar: class Tailwind (w-24, w-full) lewat className, atau angka px */
   width?: number
   height?: number
   shape?: SkeletonShape
+  /** Warna blok — lihat SkeletonTone. */
+  tone?: SkeletonTone
   className?: string
 }
 
@@ -107,12 +123,20 @@ const shapeClass: Record<SkeletonShape, string> = {
   circle: "rounded-full",
 }
 
-export function Skeleton({ width, height, shape = "rect", className, style, ...rest }: SkeletonProps) {
+export function Skeleton({
+  width,
+  height,
+  shape = "rect",
+  tone = "subtle",
+  className,
+  style,
+  ...rest
+}: SkeletonProps) {
   const opacity = usePulse()
   return (
     <Animated.View style={[{ opacity }, style]} {...rest}>
       <View
-        className={cn("bg-surface dark:bg-surface-elevated", shapeClass[shape], className)}
+        className={cn(toneClass[tone], shapeClass[shape], className)}
         // Dimensi numerik eksplisit (mis. avatar 40x40) — className untuk yang berbasis skala
         style={{ width, height }}
       />
