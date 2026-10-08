@@ -86,6 +86,8 @@ describe("Etalase regression invariants", () => {
     expect(showcasePriceLabel({ priceMin: NaN })).toBeNull()
   })
   it("E54 canonical links encode exactly one path segment", () => {
-    expect(showcaseUrl("a/b?c#d")).toBe("https://kahade.id/showcase/a%2Fb%3Fc%23d")
+    // P1-1 (2026-10-03): tautan publik pendek `/p/<id>` (deep link lama
+    // /showcase/[id] tetap dilayani router).
+    expect(showcaseUrl("a/b?c#d")).toBe("https://kahade.id/p/a%2Fb%3Fc%23d")
   })
 })

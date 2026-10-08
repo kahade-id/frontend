@@ -25,11 +25,15 @@ vi.mock("@/lib/api/client", () => ({
 // `upload`-nya berasal dari `@/lib/api/upload`, jadi modul itulah yang di-mock.
 vi.mock("@/lib/api/upload", () => ({
   uploadDirect: (...args: unknown[]) => mocks.uploadDirect(...args),
-  uploadDirectVideo: (...args: unknown[]) => mocks.uploadDirectVideo(...args),
+  // NP-006: video memakai jalur chunked/resumable (≤ 8MB tetap single-shot
+  // di dalamnya) — satu titik masuk `uploadChunkedVideo`.
+  uploadChunkedVideo: (...args: unknown[]) => mocks.uploadDirectVideo(...args),
   cleanupUploads: vi.fn().mockResolvedValue(undefined),
 }))
 vi.mock("@/lib/image-picker", () => ({
   pickedImageToFormData: (...args: unknown[]) => mocks.toFormData(...args),
+  // NP-003: resize sebelum guard — identitas (tanpa dimensi = tak di-resize).
+  resizePickedImage: (asset: unknown) => Promise.resolve(asset),
 }))
 vi.mock("@/lib/secure-storage", () => ({
   getSecureItem: (key: string) => Promise.resolve(mocks.secureStore.get(key) ?? null),

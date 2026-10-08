@@ -13,6 +13,8 @@ import type { ShowcaseSocialItem } from "@/lib/api/showcase"
 const mocks = vi.hoisted(() => ({
   like: vi.fn(),
   unlike: vi.fn(),
+  save: vi.fn(),
+  unsave: vi.fn(),
   detail: vi.fn(),
   getMeCached: vi.fn(),
   toastShow: vi.fn(),
@@ -34,6 +36,9 @@ vi.mock("@/lib/api/showcase", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/api/showcase")>()),
   likeShowcase: mocks.like,
   unlikeShowcase: mocks.unlike,
+  // Kontrak final Tim A #4 (2026-09-28): simpan = server source of truth.
+  saveShowcase: mocks.save,
+  unsaveShowcase: mocks.unsave,
   getShowcaseDetail: mocks.detail,
 }))
 vi.mock("@/lib/guest-gate", () => ({
@@ -79,6 +84,8 @@ beforeEach(() => {
   vi.clearAllMocks()
   mocks.session = true
   mocks.getMeCached.mockResolvedValue({ id: "me", username: "me" })
+  mocks.save.mockResolvedValue({ saved: true, saveCount: 1 })
+  mocks.unsave.mockResolvedValue({ saved: false, saveCount: 0 })
   clearShowcaseLikeOverride("w1")
   if (isShowcaseSaved("w1")) toggleShowcaseSaved("w1")
 })
@@ -149,7 +156,7 @@ describe("S-02 — simpan optimistis", () => {
   })
 
   it("gagal menyimpan → nilai kembali + pesan batas/kesalahan diteruskan", async () => {
-    mocks.getMeCached.mockRejectedValue(new Error("offline"))
+    mocks.save.mockRejectedValueOnce(new Error("offline"))
     render(<Harness />)
     await waitFor(() => expect(screen.getByTestId("state").textContent).toBe("liked:no:4:saved:no"))
     act(() => { screen.getByText("save").click() })

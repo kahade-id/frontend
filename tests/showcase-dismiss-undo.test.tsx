@@ -24,15 +24,12 @@ vi.mock("expo-router", () => ({
 }))
 // ChatCircle/PaperPlaneRight dipakai kartu; ikon sheet share (PR #110) —
 // tanpa export ini modul ShowcaseShareSheet gagal dibuat saat impor.
-vi.mock("phosphor-react-native", () => ({
-  ChatCircle: () => null,
-  Copy: () => null,
-  Images: () => null,
-  PaperPlaneRight: () => null,
-  PaperPlaneTilt: () => null,
-  ShareNetwork: () => null,
-  X: () => null,
-}))
+// Ikon feed sering bertambah (CardsThree, ShoppingBag, …) — mock permisif:
+// nama ikon apa pun → komponen kosong, supaya tes ini tidak basi tiap ada ikon baru.
+vi.mock("phosphor-react-native", () => {
+  const Icon = () => null
+  return new Proxy({}, { has: () => true, get: (_t, prop) => (prop === "then" ? undefined : Icon) })
+})
 vi.mock("react-native-reanimated", () => ({ default: { View: ({ children }: { children: ReactNode }) => <>{children}</> } }))
 vi.mock("expo-router", async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
@@ -70,6 +67,11 @@ vi.mock("@/components/ui/bottom-sheet", () => ({
 }))
 vi.mock("@/components/ui/showcase-report-sheet", () => ({ ShowcaseReportSheet: () => null }))
 vi.mock("@/components/ui/showcase-header", () => ({ ShowcaseHeader: () => null }))
+// U5 (journey): lapisan first-run (overlay orientasi, coach mark, sheet
+// rationale push) memakai <Portal>; di luar cakupan tes ini → stub kosong.
+vi.mock("@/components/ui/feed-orientation-overlay", () => ({ FeedOrientationOverlay: () => null }))
+vi.mock("@/components/ui/coach-mark", () => ({ CoachMark: () => null }))
+vi.mock("@/components/ui/push-rationale-sheet", () => ({ PushRationaleSheet: () => null }))
 vi.mock("@/components/ui/mode-switcher", () => ({ ModeShiftFade: ({ children }: { children: ReactNode }) => <>{children}</> }))
 vi.mock("@/components/ui/button", () => ({
   Button: ({ children, onPress }: { children: ReactNode; onPress: () => void }) => <button onClick={onPress}>{children}</button>,
@@ -137,7 +139,7 @@ describe("S-04: membatalkan 'Tidak tertarik'", () => {
       title: string
       action?: { label: string; onPress: () => void }
     }
-    expect(shown.title).toBe("Karya disembunyikan dari feed")
+    expect(shown.title).toBe("Etalase disembunyikan dari feed")
     expect(shown.action?.label).toBe("Urungkan")
 
     // Menekan "Urungkan" mengembalikan kartu tanpa refetch apa pun.

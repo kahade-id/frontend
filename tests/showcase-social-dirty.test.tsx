@@ -27,7 +27,10 @@ vi.mock("@/lib/api/showcase", () => ({
   unlikeShowcase: mocks.unlike,
 }))
 vi.mock("@/lib/guest-gate", () => ({ useHasSession: () => true, useSessionRevision: () => 0 }))
-vi.mock("@/lib/showcase-social", () => ({ shareShowcaseById: mocks.share }))
+vi.mock("@/lib/showcase-social", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/showcase-social")>()),
+  shareShowcaseById: mocks.share,
+}))
 vi.mock("@/components/ui/toast", () => ({ useToast: () => ({ show: vi.fn() }) }))
 
 import { useShowcaseSocialActions } from "@/lib/use-showcase-social-actions"

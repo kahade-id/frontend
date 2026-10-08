@@ -1083,7 +1083,7 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
         <EmptyState
           icon={Images}
           title={hasMore ? translate("Masih mencari etalase dari akun yang diikuti") : translate("Belum ada etalase dari akun yang diikuti")}
-          description={hasMore ? translate("Lanjutkan pencarian pada halaman berikutnya.") : translate("Saat akun yang Anda ikuti membagikan etalase, etalasenya muncul di sini.")}
+          description={hasMore ? translate("Lanjutkan pencarian pada halaman berikutnya.") : translate("Saat akun yang Anda ikuti mengunggah etalase baru, etalasenya muncul di sini.")}
         />
       )
     }

@@ -26,13 +26,27 @@ describe("Etalase API contract boundaries", () => {
     mocks.get.mockResolvedValue({ items: [work], hasMore: true, nextCursor })
     await expect(getShowcaseFeed({ cursor: "same" })).rejects.toMatchObject({ code: "PARSE" })
   })
-  it("comments require entity identity rather than trusting an array cast", async () => {
-    mocks.get.mockResolvedValue({ data: [{ id: "bad", author: null }] })
-    await expect(listShowcaseComments("work")).rejects.toMatchObject({ code: "PARSE" })
+  it("comments without entity identity are dropped, never trusted via array cast", async () => {
+    // 2026-10-05: satu komentar rusak tidak meruntuhkan seluruh list —
+    // entri tanpa author/id dibuang, komentar valid tetap tampil.
+    mocks.get.mockResolvedValue({
+      data: [
+        { id: "bad", author: null },
+        { id: "ok", content: "halo", author: { userId: "u", username: "seller" } },
+      ],
+      total: 2,
+    })
+    const page = await listShowcaseComments("work")
+    expect(page.data.map((c) => c.id)).toEqual(["ok"])
   })
   it("mutation path encodes the item and final counts cannot become negative", async () => {
     mocks.post.mockResolvedValue({ liked: true, likeCount: -2 })
     expect(await likeShowcase("a/b")).toEqual({ liked: true, likeCount: 0 })
-    expect(mocks.post).toHaveBeenCalledWith("/v1/showcase/a%2Fb/like", undefined, { auth: "required" })
+    expect(mocks.post).toHaveBeenCalledWith(
+      "/v1/showcase/a%2Fb/like",
+      undefined,
+      // Item #27: aksi sosial boleh diantrekan saat offline.
+      expect.objectContaining({ auth: "required", offlineBehavior: "enqueue-social" }),
+    )
   })
 })

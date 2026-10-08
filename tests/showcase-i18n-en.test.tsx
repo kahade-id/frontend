@@ -25,6 +25,8 @@ import { applyLanguage, clearTranslationCache, translate } from "@/lib/i18n"
 // sinkron mengimpor `./en` langsung agar terdaftar sebelum render.
 import "@/lib/i18n/en"
 import { ThemeProvider } from "@/components/theme-provider"
+import { PortalProvider } from "@/components/ui/portal"
+import { ToastProvider } from "@/components/ui/toast"
 import { ShowcaseCommentRow, isEditedComment } from "@/components/ui/showcase-comment-row"
 import { ShowcaseFeedItem } from "@/components/ui/showcase-feed-item"
 
@@ -68,14 +70,18 @@ describe("kartu feed Etalase dalam bahasa Inggris", () => {
   it("membaca hitungan komentar + aksi dalam EN, bukan Indonesia", () => {
     render(
       <ThemeProvider>
-        <ShowcaseFeedItem item={item} onToggleLike={() => {}} onOpenComments={() => {}} />
+        <PortalProvider>
+          <ToastProvider>
+            <ShowcaseFeedItem item={item} onToggleLike={() => {}} onOpenComments={() => {}} />
+          </ToastProvider>
+        </PortalProvider>
       </ThemeProvider>,
     )
     // A-02 (audit 2026-09-24): label a11y tombol komentar = ANGKA, dan dalam EN.
     expect(screen.getByLabelText("3 Comments")).toBeTruthy()
     expect(screen.getByText("Like")).toBeTruthy()
     // Label lain di kartu juga EN (bukti render penuh, bukan satu tombol):
-    expect(screen.getByLabelText("Report work")).toBeTruthy()
+    expect(screen.getByLabelText("Report showcase")).toBeTruthy()
     expect(screen.getByLabelText("View Penjual's profile")).toBeTruthy()
     // K-04/penanda suntingan tidak boleh muncul untuk komentar apa adanya.
     expect(screen.queryByText("(Komentar disembunyikan)")).toBeNull()
@@ -86,12 +92,17 @@ describe("baris komentar dalam bahasa Inggris", () => {
   it("menerjemahkan penanda tersembunyi, alasan, dan aksi balas", () => {
     render(
       <ThemeProvider>
-        <ShowcaseCommentRow comment={comment} canReply onReply={() => {}} />
+        <PortalProvider>
+          <ToastProvider>
+            <ShowcaseCommentRow comment={comment} canReply onReply={() => {}} />
+          </ToastProvider>
+        </PortalProvider>
       </ThemeProvider>,
     )
     expect(screen.getByText("(Comment hidden)")).toBeTruthy()
     expect(screen.getByText("Reason: Spam")).toBeTruthy()
-    expect(screen.getByText("Reply")).toBeTruthy()
+    // Aksi balas kini ikon bubble (bahasa visual YouTube) — labelnya yang EN.
+    expect(screen.getByLabelText("Reply to comment")).toBeTruthy()
   })
 })
 
@@ -103,8 +114,8 @@ describe("kunci Etalase yang dulu tidak pernah terkumpul", () => {
     expect(translate("Tutup balasan")).toBe("Hide replies")
     expect(translate("Lihat balasan")).toBe("View replies")
     expect(translate("Muat komentar berikutnya")).toBe("Load more comments")
-    expect(translate("Karya terlihat di feed & profil publik Anda.")).toBe("The work appears in the feed and your public profile.")
-    expect(translate("Karya disimpan sebagai draf privat (tidak terlihat pengunjung).")).toBe("The work is saved as a private draft (not visible to visitors).")
+    expect(translate("Etalase terlihat di feed & profil publik Anda.")).toBe("The showcase appears in the feed and your public profile.")
+    expect(translate("Etalase disimpan sebagai draf privat (tidak terlihat pengunjung).")).toBe("The showcase is saved as a private draft (not visible to visitors).")
   })
 
   it("menghasilkan English untuk jalur render yang dulu melewati penerjemah", () => {
@@ -112,7 +123,7 @@ describe("kunci Etalase yang dulu tidak pernah terkumpul", () => {
     expect(translate("Saring hasil pencarian")).toBe("Filter search results")
     expect(translate("Etalase")).toBe("Showcase")
     expect(translate("Buka komentar")).toBe("Open comments")
-    expect(translate("Buka opsi karya")).toBe("Open work options")
+    expect(translate("Buka opsi etalase")).toBe("Open showcase options")
   })
 
   it("plural EN jamak: '{x} Komentar' → '{x} Comments'", () => {

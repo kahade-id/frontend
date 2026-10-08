@@ -79,10 +79,10 @@ describe("showcaseCoverOf (E-01)", () => {
       } as never),
     ).toContain("first.jpg")
   })
-  it("fallback: imageUrl lama lalu fileKey", () => {
-    expect(showcaseCoverOf({ id: "1", imageUrl: "legacy.jpg", createdAt: "" } as never)).toContain(
-      "legacy.jpg",
-    )
+  it("NP-007: alias imageUrl lama DIABAIKAN; fallback terakhir = fileKey", () => {
+    // Backend tidak lagi mengirim `imageUrl` top-level — satu sumber
+    // kebenaran gambar adalah `coverImageUrl`/`images[]`, lalu `fileKey`.
+    expect(showcaseCoverOf({ id: "1", imageUrl: "legacy.jpg", createdAt: "" } as never)).toBeUndefined()
     expect(showcaseCoverOf({ id: "1", fileKey: "key-only.jpg", createdAt: "" } as never)).toContain(
       "key-only.jpg",
     )

@@ -304,7 +304,8 @@ export async function shareShowcaseById(id: string, item?: ShowcaseSocialItem): 
  * dimasukkan (dirender terpisah via `showcaseSpin360Groups`).
  */
 export function showcaseImages(item: ShowcaseSocialItem): { id: string; url: string }[] {
-  const images = item.images.flatMap((image) => {
+  const source = Array.isArray(item.images) ? item.images : []
+  const images = source.flatMap((image) => {
     const rawUrl = image.kind === "video" ? (image.thumbnailUrl ?? image.imageUrl) : image.imageUrl
     const url = resolveMediaUrl(rawUrl)
     return url ? [{ id: image.id, url }] : []
@@ -377,7 +378,10 @@ export function showcaseMedia(item: ShowcaseSocialItem, opts: ShowcaseMediaOptio
   const byMode = mediaCache.get(item)
   const cached = byMode?.get(useThumbnails)
   if (cached) return cached
-  const rich = item.images.flatMap((m): GalleryMedia[] => {
+  // Defensif: parser menjamin `images: []`, tetapi item dari cache lama /
+  // sumber lain tidak boleh meruntuhkan seluruh feed lewat satu kartu.
+  const images = Array.isArray(item.images) ? item.images : []
+  const rich = images.flatMap((m): GalleryMedia[] => {
     // C01: bawa rasio dari respons list ke tiap slide galeri.
     const aspectRatio = showcaseMediaAspectRatio(m.width, m.height)
     if (m.kind === "video") {

@@ -76,15 +76,15 @@ export async function uploadShowcasePhoto(asset: PickedImage, signal?: AbortSign
     const result = await api.upload.uploadDirect(formData, signal)
     if (!result.fileKey) throw new ApiError({ code: "PARSE", message: "Kunci unggahan tidak tersedia." })
     fileKey = result.fileKey
+    // PERF-FIX (NP-001): catat thumbnailFileKey SEBELUM cek abort — kalau
+    // dibatalkan tepat di sini, thumbnail ikut dibersihkan (bukan yatim).
+    if (result.thumbnailFileKey) thumbnailFileKey = result.thumbnailFileKey
     check()
     // uploadDirect sudah auto-confirm di server — tidak perlu /upload/confirm
     // PERF-FIX (NP-001): teruskan thumbnailFileKey foto bila backend
     // mengembalikannya (auto-generate sharp ~640px).
     const outcome: ShowcaseUploadOutcome = { kind: "fileKey", fileKey }
-    if (result.thumbnailFileKey) {
-      outcome.thumbnailFileKey = result.thumbnailFileKey
-      thumbnailFileKey = result.thumbnailFileKey
-    }
+    if (thumbnailFileKey) outcome.thumbnailFileKey = thumbnailFileKey
     return outcome
   } catch (error) {
     // No file is attached in this workflow: compensating cleanup is safe even after confirm.

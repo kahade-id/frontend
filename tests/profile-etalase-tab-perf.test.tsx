@@ -6,7 +6,7 @@
  *   <ShowcaseFeedItem> (video profil hanya via ketuk eksplisit — tab ini
  *   tidak punya viewability wiring seperti feed utama).
  * - FS-002: windowing inkremental — mount awal dibatasi (10 kartu, bukan
- *   20), tombol "Tampilkan karya lainnya" +20/ketuk dipertahankan, dan
+ *   20), tombol "Tampilkan etalase lainnya" +20/ketuk dipertahankan, dan
  *   memo(EtalaseCard) tidak jebol (render ulang induk tidak me-render ulang
  *   kartu yang prop-nya identik).
  *
@@ -86,21 +86,21 @@ describe("ProfileEtalaseTab FS-001/FS-002 (audit performa)", () => {
     )
     await waitFor(() => expect(mountedCount()).toBe(10))
     // Tombol muat-bertahap tetap ada (UX dipertahankan).
-    expect(screen.getByText("Tampilkan karya lainnya")).toBeTruthy()
+    expect(screen.getByText("Tampilkan etalase lainnya")).toBeTruthy()
   })
 
-  it("FS-002: 'Tampilkan karya lainnya' menambah +20 per ketuk", async () => {
+  it("FS-002: 'Tampilkan etalase lainnya' menambah +20 per ketuk", async () => {
     const items = Array.from({ length: 100 }, (_, i) => raw(`big-${i}`))
     render(
       h(ProfileEtalaseTab, { items, loading: false, handle: "penjual", owner, isSelf: true }),
     )
     await waitFor(() => expect(mountedCount()).toBe(10))
     await act(async () => {
-      ;(screen.getByText("Tampilkan karya lainnya") as HTMLElement).click()
+      ;(screen.getByText("Tampilkan etalase lainnya") as HTMLElement).click()
     })
     await waitFor(() => expect(mountedCount()).toBe(30))
     await act(async () => {
-      ;(screen.getByText("Tampilkan karya lainnya") as HTMLElement).click()
+      ;(screen.getByText("Tampilkan etalase lainnya") as HTMLElement).click()
     })
     await waitFor(() => expect(mountedCount()).toBe(50))
   })
@@ -112,7 +112,7 @@ describe("ProfileEtalaseTab FS-001/FS-002 (audit performa)", () => {
     )
     await waitFor(() => expect(mountedCount()).toBe(10))
     await act(async () => {
-      ;(screen.getByText("Tampilkan karya lainnya") as HTMLElement).click()
+      ;(screen.getByText("Tampilkan etalase lainnya") as HTMLElement).click()
     })
     await waitFor(() => expect(mountedCount()).toBe(30))
     mocks.feedProps = []
@@ -122,7 +122,7 @@ describe("ProfileEtalaseTab FS-001/FS-002 (audit performa)", () => {
     // Jendela ter-reset ke 10 (efek [handle] sudah flush via act di rerender):
     // satu ketuk "lainnya" me-mount big-10..big-29 — BUKAN big-30..big-49.
     await act(async () => {
-      ;(screen.getByText("Tampilkan karya lainnya") as HTMLElement).click()
+      ;(screen.getByText("Tampilkan etalase lainnya") as HTMLElement).click()
     })
     await waitFor(() =>
       expect(
@@ -146,7 +146,7 @@ describe("ProfileEtalaseTab FS-001/FS-002 (audit performa)", () => {
     }
     // Setelah muat-bertahap pun tetap false.
     await act(async () => {
-      ;(screen.getByText("Tampilkan karya lainnya") as HTMLElement).click()
+      ;(screen.getByText("Tampilkan etalase lainnya") as HTMLElement).click()
     })
     await waitFor(() => expect(mountedCount()).toBe(30))
     for (const props of mocks.feedProps) {

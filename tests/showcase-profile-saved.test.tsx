@@ -31,17 +31,12 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock("expo-router", () => ({ router: { push: vi.fn() } }))
-// ProfileEtalaseTab kini me-mount ShowcaseShareSheet per kartu (PR #110) —
-// mock harus menyediakan SEMUA ikon yang diimpor modul share sheet.
-vi.mock("phosphor-react-native", () => ({
-  ChatCircle: () => null,
-  Copy: () => null,
-  Images: () => null,
-  PaperPlaneTilt: () => null,
-  Plus: () => null,
-  ShareNetwork: () => null,
-  Trash: () => null,
-}))
+// Ikon yang diimpor subtree ini sering bertambah — mock permisif: nama ikon
+// apa pun → komponen kosong, supaya tes tidak basi tiap ada ikon baru.
+vi.mock("phosphor-react-native", () => {
+  const Icon = () => null
+  return new Proxy({}, { has: () => true, get: (_t, prop) => (prop === "then" ? undefined : Icon) })
+})
 vi.mock("expo-router", async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
   useIsFocused: () => mocks.focused,
@@ -130,6 +125,7 @@ vi.mock("@/components/ui/icon-button", () => ({
 vi.mock("@/lib/routes", () => ({ ROUTES: { showcaseDetail: (id: string) => `/showcase/${id}` } }))
 vi.mock("@/components/ui/toast", () => ({ useToast: () => ({ show: vi.fn() }) }))
 
+import { invalidateQueryCache } from "@/lib/query-cache"
 import { useProfileShowcase } from "@/lib/use-profile-showcase"
 import { ProfileEtalaseTab } from "@/components/ui/profile-etalase-tab"
 import { ShowcaseSavedCollection } from "@/components/ui/showcase-saved-collection"
@@ -149,6 +145,9 @@ function deferred<T>() {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  // Katalog publik di-cache lintas test (kunci `public-showcase:{username}`)
+  // — kosongkan agar tiap test mulai dari cache miss.
+  invalidateQueryCache()
   mocks.dirtyVersion = 0
   mocks.focused = true
   mocks.savedIds = []
@@ -210,7 +209,7 @@ describe("ProfileEtalaseTab (H-05)", () => {
     )
     // FS-002 (audit performa): jendela awal 10 kartu (dulu 20).
     await waitFor(() => expect(mocks.feedProps.length).toBe(10))
-    expect(screen.getByText("Tampilkan karya lainnya")).toBeTruthy()
+    expect(screen.getByText("Tampilkan etalase lainnya")).toBeTruthy()
     expect(mocks.feedProps[8].divider).toBe(true)
     expect(mocks.feedProps[9].divider).toBe(false) // H-05
   })
@@ -241,11 +240,12 @@ describe("ShowcaseSavedCollection (FE-IMP-1 item 54: baca dari server)", () => {
     })
     render(h(ShowcaseSavedCollection))
     await waitFor(() => expect(mocks.getSavedShowcases).toHaveBeenCalledTimes(1))
-    expect(mocks.getSavedShowcases).toHaveBeenCalledWith({ page: 1, limit: 20 }, expect.anything())
+    // NP-008: halaman pertama = cursor null (keyset), bukan nomor halaman.
+    expect(mocks.getSavedShowcases).toHaveBeenCalledWith({ cursor: null, limit: 20 }, expect.anything())
     expect(mocks.detail).not.toHaveBeenCalled() // tanpa GET detail per id
     await waitFor(() => expect(screen.getByText("Karya s1")).toBeTruthy())
     expect(screen.getByText("Karya s2")).toBeTruthy()
-    expect(screen.getByText("@penjual")).toBeTruthy()
+    expect(screen.getAllByText("@penjual").length).toBeGreaterThan(0)
   })
 
   it("Muat lagi mengambil halaman berikut dan menempelkan hasilnya", async () => {
@@ -258,6 +258,7 @@ describe("ShowcaseSavedCollection (FE-IMP-1 item 54: baca dari server)", () => {
         totalPages: 2,
         hasNext: true,
         hasPrev: false,
+        nextCursor: "c2",
       })
       .mockResolvedValueOnce({
         data: [entry("s2")],
@@ -267,6 +268,7 @@ describe("ShowcaseSavedCollection (FE-IMP-1 item 54: baca dari server)", () => {
         totalPages: 2,
         hasNext: false,
         hasPrev: true,
+        nextCursor: null,
       })
     render(h(ShowcaseSavedCollection))
     await waitFor(() => expect(screen.getByText("Karya s1")).toBeTruthy())
@@ -275,7 +277,7 @@ describe("ShowcaseSavedCollection (FE-IMP-1 item 54: baca dari server)", () => {
     })
     await waitFor(() => expect(mocks.getSavedShowcases).toHaveBeenCalledTimes(2))
     expect(mocks.getSavedShowcases).toHaveBeenLastCalledWith(
-      { page: 2, limit: 20 },
+      { cursor: "c2", limit: 20 },
       expect.anything(),
     )
     expect(screen.getByText("Karya s1")).toBeTruthy()
@@ -295,7 +297,7 @@ describe("ShowcaseSavedCollection (FE-IMP-1 item 54: baca dari server)", () => {
     mocks.removeSavedShowcase.mockResolvedValue(undefined)
     render(h(ShowcaseSavedCollection))
     await waitFor(() => expect(screen.getByText("Karya s1")).toBeTruthy())
-    const trashButtons = screen.getAllByLabelText("Hapus karya tersimpan")
+    const trashButtons = screen.getAllByLabelText("Hapus etalase tersimpan")
     await act(async () => {
       ;(trashButtons[0] as HTMLElement).click()
     })
@@ -322,6 +324,6 @@ describe("ShowcaseSavedCollection (FE-IMP-1 item 54: baca dari server)", () => {
       ;(screen.getByText("Coba lagi") as HTMLElement).click()
     })
     await waitFor(() => expect(mocks.getSavedShowcases).toHaveBeenCalledTimes(2))
-    expect(screen.getByText("Belum ada karya tersimpan")).toBeTruthy()
+    expect(screen.getByText("Belum ada etalase tersimpan")).toBeTruthy()
   })
 })

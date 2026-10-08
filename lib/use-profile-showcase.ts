@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { useIsFocused } from "expo-router"
 import { api, userMessage } from "@/lib/api"
 import type { ShowcaseItem } from "@/lib/api/users"
-import { fetchViaQueryCache } from "@/lib/query-cache"
+import { fetchViaQueryCache, writeQueryCache } from "@/lib/query-cache"
 import { queryKeys } from "@/lib/query-keys"
 import { useSessionRevision } from "@/lib/guest-gate"
 import { useShowcaseDirtyVersion } from "@/lib/showcase-social-prefs"
@@ -28,8 +28,12 @@ export function useProfileShowcase() {
   const version = useShowcaseDirtyVersion()
   const seen = useRef(version)
   const focused = useIsFocused()
-  const fetch = useCallback((username: string, opts: { silent?: boolean } = {}) => {
+  const fetch = useCallback((username: string, opts: { silent?: boolean; fresh?: boolean } = {}) => {
     const silent = opts.silent === true
+    // Refresh dirty: ada mutasi etalase (hapus/ubah/tambah) — cache TTL 5 dtk
+    // harus dilewati, kalau tidak tab profil masih menampilkan daftar lama.
+    // Hasil segar tetap ditulis ke kunci yang sama untuk pembaca berikutnya.
+    const fresh = opts.fresh === true
     request.current?.abort()
     const controller = new AbortController()
     request.current = controller
@@ -40,11 +44,14 @@ export function useProfileShowcase() {
     // `public-showcase:{username}` — kunjungan ulang / buka-tutup tab dalam
     // jendela TTL tidak mengunduh ulang seluruh katalog seller. Cache hanya
     // ditulis saat sukses, jadi retry setelah gagal tetap menembak jaringan.
-    void fetchViaQueryCache(
-      queryKeys.publicShowcase(username),
-      (signal) => api.users.getPublicShowcase(username, signal),
-      controller.signal,
-    ).then((result) => {
+    const key = queryKeys.publicShowcase(username)
+    const load = fresh
+      ? api.users.getPublicShowcase(username, controller.signal).then((result) => {
+          writeQueryCache(key, result)
+          return result
+        })
+      : fetchViaQueryCache(key, (signal) => api.users.getPublicShowcase(username, signal), controller.signal)
+    void load.then((result) => {
       if (controller.signal.aborted) return
       setItems(result)
       setError(null)
@@ -67,7 +74,7 @@ export function useProfileShowcase() {
   useEffect(() => {
     if (focused && version !== seen.current && target.current) {
       seen.current = version
-      fetch(target.current, { silent: true })
+      fetch(target.current, { silent: true, fresh: true })
     }
   }, [focused, version, fetch])
   return { items, loading, error, fetch }

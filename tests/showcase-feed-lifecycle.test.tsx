@@ -4,24 +4,40 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-libra
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import type { ShowcaseFeedPage, ShowcaseSocialItem } from "@/lib/api/showcase"
 const mocks = vi.hoisted(() => ({
-  feed: vi.fn(), following: vi.fn(), me: vi.fn(), session: false,
+  feed: vi.fn(), followingIds: vi.fn(), me: vi.fn(), session: false,
   params: { kind: "following" } as Record<string, string>, renders: 0,
   // N-02 (audit 2026-09-23): versi dirty & fokus HIDUP (bukan konstan) —
   // regresi A-01/A-08 harus bisa ditangkap test di bawah.
   dirtyVersion: 0, focused: true,
 }))
-vi.mock("expo-router", () => ({ router: { push: vi.fn(), setParams: vi.fn() }, useLocalSearchParams: () => mocks.params }))
 // Modul native di lingkungan test: cukup stub nol / hook fokus statis.
-vi.mock("phosphor-react-native", () => ({ Images: () => null, X: () => null }))
+// Ikon feed sering bertambah (CardsThree, ShoppingBag, …) — mock permisif:
+// nama ikon apa pun → komponen kosong, supaya tes ini tidak basi tiap ada ikon baru.
+vi.mock("phosphor-react-native", () => {
+  const Icon = () => null
+  return new Proxy({}, { has: () => true, get: (_t, prop) => (prop === "then" ? undefined : Icon) })
+})
 // S-04: feed-tab memakai useToast (aksi "Tidak tertarik" bisa diurungkan);
 // provider asli hanya ada di app/_layout.tsx, jadi di test di-mock.
 vi.mock("@/components/ui/toast", () => ({ useToast: () => ({ show: vi.fn() }) }))
+// Feed-tab membaca mode tema untuk tombol "ke atas" (elevasi) — provider
+// asli ada di app/_layout.tsx.
+vi.mock("@/components/theme-provider", () => ({
+  useTheme: () => ({ mode: "light", preference: "light", setPreference: vi.fn(), toggle: vi.fn() }),
+}))
 vi.mock("react-native-reanimated", () => ({ default: { View: ({ children }: { children: ReactNode }) => <>{children}</> } }))
+// SATU mock expo-router: dua `vi.mock` untuk modul yang sama saling menimpa
+// (yang terakhir menang) — dulu `useLocalSearchParams` tertimpa stub asli
+// sehingga `kind` tidak pernah "following" di tes ini.
 vi.mock("expo-router", async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
+  router: { push: vi.fn(), setParams: vi.fn() },
+  useLocalSearchParams: () => mocks.params,
   useIsFocused: () => mocks.focused,
 }))
-vi.mock("@/lib/api", () => ({ api: { users: { getMe: mocks.me, getFollowing: mocks.following } }, isApiError: () => false, userMessage: () => "failed" }))
+// FE-076: daftar akun yang diikuti dibaca SATU request (`getMyFollowingIds`),
+// bukan loop halaman `getFollowing`.
+vi.mock("@/lib/api", () => ({ api: { users: { getMe: mocks.me, getMyFollowingIds: mocks.followingIds } }, isApiError: () => false, userMessage: () => "failed" }))
 vi.mock("@/lib/api/showcase", () => ({ getShowcaseFeed: mocks.feed }))
 vi.mock("@/lib/guest-gate", () => ({ useHasSession: () => mocks.session, useSessionRevision: () => 0 }))
 vi.mock("@/lib/query-cache", () => ({
@@ -39,6 +55,7 @@ vi.mock("@/lib/showcase-social-prefs", () => ({
   isShowcaseReported: () => false,
   useShowcaseHiddenIds: () => new Set(),
   dismissShowcase: vi.fn(),
+  undismissShowcase: vi.fn(),
   // F-01/C-01 (audit 2026-09-24): ledger hitungan komentar — tanpa event.
   showcaseCommentCountSeq: () => 0,
   showcaseCommentCountsSince: () => ({ events: [], seq: 0 }),
@@ -50,6 +67,11 @@ vi.mock("@/components/ui/bottom-sheet", () => ({ BottomSheet: () => null }))
 vi.mock("@/components/ui/showcase-comments-sheet", () => ({ ShowcaseCommentsSheet: () => null }))
 vi.mock("@/components/ui/showcase-report-sheet", () => ({ ShowcaseReportSheet: () => null }))
 vi.mock("@/components/ui/showcase-feed-item", () => ({ ShowcaseFeedItem: () => null }))
+// U5 (journey): lapisan first-run (overlay orientasi, coach mark, sheet
+// rationale push) memakai <Portal>; di luar cakupan tes ini → stub kosong.
+vi.mock("@/components/ui/feed-orientation-overlay", () => ({ FeedOrientationOverlay: () => null }))
+vi.mock("@/components/ui/coach-mark", () => ({ CoachMark: () => null }))
+vi.mock("@/components/ui/push-rationale-sheet", () => ({ PushRationaleSheet: () => null }))
 vi.mock("@/components/ui/showcase-header", () => ({ ShowcaseHeader: () => null }))
 vi.mock("@/components/ui/mode-switcher", () => ({ ModeShiftFade: ({ children }: { children: ReactNode }) => <>{children}</> }))
 vi.mock("@/components/ui/button", () => ({ Button: ({ children, onPress }: { children: ReactNode; onPress: () => void }) => <button onClick={onPress}>{children}</button> }))
@@ -88,7 +110,7 @@ beforeEach(() => {
   mocks.dirtyVersion = 0
   mocks.focused = true
   mocks.me.mockResolvedValue({ username: "me" })
-  mocks.following.mockResolvedValue({ data: [{ username: "followed" }], meta: { totalPages: 1 } })
+  mocks.followingIds.mockResolvedValue([{ userId: "f1", username: "followed" }])
   mocks.feed.mockResolvedValue(page([]))
 })
 afterEach(cleanup)
@@ -103,21 +125,21 @@ describe("actual feed component E09–E20", () => {
   })
   it("no-following account does not scan public feed pages", async () => {
     mocks.session = true
-    mocks.following.mockResolvedValue({ data: [], meta: { totalPages: 1 } })
+    mocks.followingIds.mockResolvedValue([])
     render(<ShowcaseFeedTab bottomPadding={0} />)
     await screen.findByText("Anda belum mengikuti siapa pun")
     expect(mocks.feed).not.toHaveBeenCalled()
   })
-  it("reads following relationships beyond the previous 200-account cap", async () => {
+  it("reads the whole following list in ONE request (no 200-account page cap)", async () => {
     mocks.session = true
-    mocks.following.mockImplementation(async (_user, { page: n }) => ({
-      data: n <= 4 ? Array.from({ length: 50 }, (_, i) => ({ username: `user-${n}-${i}` })) : [{ username: "followed" }],
-      meta: { totalPages: 5 },
-    }))
+    mocks.followingIds.mockResolvedValue([
+      ...Array.from({ length: 250 }, (_, i) => ({ userId: `u${i}`, username: `user-${i}` })),
+      { userId: "last", username: "followed" },
+    ])
     mocks.feed.mockResolvedValue(page([item("last-account-work")]))
     render(<ShowcaseFeedTab bottomPadding={0} />)
     await screen.findByText("last-account-work")
-    expect(mocks.following.mock.calls.some(call => call[1].page === 5)).toBe(true)
+    expect(mocks.followingIds).toHaveBeenCalledTimes(1)
   })
   it("F-05: memberi tahu saat hasil tab Mengikuti terpotong plafon klien", async () => {
     mocks.session = true
@@ -128,7 +150,7 @@ describe("actual feed component E09–E20", () => {
     render(<ShowcaseFeedTab bottomPadding={0} />)
     await waitFor(() => expect(screen.getAllByText("only-one").length).toBeGreaterThan(0))
     expect(
-      screen.getByText("Sebagian karya belum dapat dimuat. Tarik untuk menyegarkan."),
+      screen.getByText("Sebagian etalase belum dapat dimuat. Tarik untuk menyegarkan."),
     ).toBeTruthy()
   })
 
@@ -137,7 +159,7 @@ describe("actual feed component E09–E20", () => {
     mocks.feed.mockResolvedValue(page([item("last-account-work")]))
     render(<ShowcaseFeedTab bottomPadding={0} />)
     await screen.findByText("last-account-work")
-    expect(screen.queryByText("Sebagian karya belum dapat dimuat. Tarik untuk menyegarkan.")).toBeNull()
+    expect(screen.queryByText("Sebagian etalase belum dapat dimuat. Tarik untuk menyegarkan.")).toBeNull()
   })
 
   it("refresh blocks concurrent more and clears the old load-more error", async () => {
