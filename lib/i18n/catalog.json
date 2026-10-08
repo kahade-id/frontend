@@ -36,7 +36,7 @@
   },
   {
    "s": "Etalase",
-   "n": 26
+   "n": 27
   },
   {
    "s": "Kembali",
@@ -920,6 +920,10 @@
   },
   {
    "s": "Tutup menu",
+   "n": 6
+  },
+  {
+   "s": "Tutup orientasi",
    "n": 6
   },
   {
@@ -1907,10 +1911,6 @@
    "n": 4
   },
   {
-   "s": "{date} · {start}–{end}",
-   "n": 3
-  },
-  {
    "s": "{n} orang",
    "n": 3
   },
@@ -1940,6 +1940,10 @@
   },
   {
    "s": "{x} · {y}",
+   "n": 3
+  },
+  {
+   "s": "{x} · {y}–{z}",
    "n": 3
   },
   {
@@ -2439,6 +2443,10 @@
    "n": 3
   },
   {
+   "s": "Buat transaksi aman dari percakapan ini — uang Anda dilindungi Kahade.",
+   "n": 3
+  },
+  {
    "s": "Buat voucher toko",
    "n": 3
   },
@@ -2692,6 +2700,10 @@
   },
   {
    "s": "Dari {x}",
+   "n": 3
+  },
+  {
+   "s": "Dari etalase \"{x}\" — dana diamankan Kahade sampai barang diterima.",
    "n": 3
   },
   {
@@ -3235,6 +3247,10 @@
    "n": 3
   },
   {
+   "s": "Ini feed produk — ketuk barang untuk lihat detail & beli aman via Kahade",
+   "n": 3
+  },
+  {
    "s": "Ini tampilan sampul {x}:{x} persis seperti di profil. Belum diunggah — tekan Simpan sampul untuk mengunggah.",
    "n": 3
   },
@@ -3492,6 +3508,10 @@
   },
   {
    "s": "Kirim hasil",
+   "n": 3
+  },
+  {
+   "s": "Kirim kartu produk: {x}",
    "n": 3
   },
   {
@@ -4156,6 +4176,10 @@
   },
   {
    "s": "Order dibatalkan",
+   "n": 3
+  },
+  {
+   "s": "Orientasi Kahade",
    "n": 3
   },
   {
@@ -5347,10 +5371,6 @@
    "n": 2
   },
   {
-   "s": "{booked}/{cap} terisi",
-   "n": 2
-  },
-  {
    "s": "{m} berlaku sampai {x}",
    "n": 2
   },
@@ -5472,6 +5492,10 @@
   },
   {
    "s": "{x}, {x} suara",
+   "n": 2
+  },
+  {
+   "s": "{x}/{y} terisi",
    "n": 2
   },
   {
@@ -5987,10 +6011,6 @@
    "n": 2
   },
   {
-   "s": "Buat transaksi aman dari percakapan ini — uang Anda dilindungi Kahade.",
-   "n": 2
-  },
-  {
    "s": "Buat ulang kode VA",
    "n": 2
   },
@@ -6276,10 +6296,6 @@
   },
   {
    "s": "Dana telah diteruskan",
-   "n": 2
-  },
-  {
-   "s": "Dari etalase \"{x}\" — dana diamankan Kahade sampai barang diterima.",
    "n": 2
   },
   {
@@ -7031,6 +7047,10 @@
    "n": 2
   },
   {
+   "s": "Jual lewat etalase",
+   "n": 2
+  },
+  {
    "s": "Judul belum tersimpan",
    "n": 2
   },
@@ -7204,10 +7224,6 @@
   },
   {
    "s": "Kirim bukti pengiriman",
-   "n": 2
-  },
-  {
-   "s": "Kirim kartu produk: {x}",
    "n": 2
   },
   {
@@ -7500,6 +7516,10 @@
   },
   {
    "s": "Lewati",
+   "n": 2
+  },
+  {
+   "s": "Lihat & beli barang",
    "n": 2
   },
   {
@@ -8116,6 +8136,10 @@
   },
   {
    "s": "Pembayaran pesanan #{x}",
+   "n": 2
+  },
+  {
+   "s": "Pembeli bayar via Kahade — kirim barang dulu, dana diteruskan ke Anda setelah pembeli konfirmasi terima.",
    "n": 2
   },
   {
@@ -8795,6 +8819,10 @@
    "n": 2
   },
   {
+   "s": "Semua pembayaran via Kahade",
+   "n": 2
+  },
+  {
    "s": "Semua penyimpan profil",
    "n": 2
   },
@@ -9464,10 +9492,6 @@
   },
   {
    "s": "Tunggu sebentar",
-   "n": 2
-  },
-  {
-   "s": "Tutup orientasi",
    "n": 2
   },
   {
@@ -12507,7 +12531,7 @@
    "n": 1
   },
   {
-   "s": "Batal simpan karya",
+   "s": "Batal simpan etalase",
    "n": 1
   },
   {
@@ -12515,7 +12539,7 @@
    "n": 1
   },
   {
-   "s": "Batal suka karya",
+   "s": "Batal suka etalase",
    "n": 1
   },
   {
@@ -13615,6 +13639,10 @@
    "n": 1
   },
   {
+   "s": "Chat dengan penjual & pembeli",
+   "n": 1
+  },
+  {
    "s": "Chat transaksi hanya bisa dihapus setelah pesanan selesai (COMPLETED).",
    "n": 1
   },
@@ -13923,6 +13951,10 @@
    "n": 1
   },
   {
+   "s": "Dana pembeli aman di Kahade sampai barang diterima. Tanpa transfer langsung.",
+   "n": 1
+  },
+  {
    "s": "Dana pembeli diamankan Kahade dan baru diteruskan ke penjual setelah barang atau jasa diterima.",
    "n": 1
   },
@@ -13932,10 +13964,6 @@
   },
   {
    "s": "Dana pembeli ditahan escrow — kirim barang dulu, dana cair ke wallet Anda setelah pembeli konfirmasi terima.",
-   "n": 1
-  },
-  {
-   "s": "Dana pembeli ditahan escrow — kirim barang dulu, dana cair setelah pembeli konfirmasi.",
    "n": 1
   },
   {
@@ -14776,6 +14804,10 @@
   },
   {
    "s": "Fee layanan per orang (dibagi rata, tampil di depan)",
+   "n": 1
+  },
+  {
+   "s": "Feed barang & etalase — lihat, suka, beli",
    "n": 1
   },
   {
@@ -15755,10 +15787,6 @@
    "n": 1
   },
   {
-   "s": "Ini feed produk — ketuk barang untuk lihat detail & beli via escrow",
-   "n": 1
-  },
-  {
    "s": "Ini satu-satunya metode masuk Anda. Tambahkan kata sandi atau metode lain dulu sebelum menghapus passkey ini.",
    "n": 1
   },
@@ -16023,10 +16051,6 @@
    "n": 1
   },
   {
-   "s": "Jual lewat etalase",
-   "n": 1
-  },
-  {
    "s": "Judul baru (opsional)",
    "n": 1
   },
@@ -16072,6 +16096,10 @@
   },
   {
    "s": "Jumlah transfer",
+   "n": 1
+  },
+  {
+   "s": "Kabar transaksi & pesan penting",
    "n": 1
   },
   {
@@ -16516,6 +16544,10 @@
   },
   {
    "s": "Ketuk “Mulai merekam”, bicara, lalu ketuk “Berhenti”.",
+   "n": 1
+  },
+  {
+   "s": "Ketuk barang di feed untuk lihat detail, lalu bayar aman via Kahade.",
    "n": 1
   },
   {
@@ -17368,10 +17400,6 @@
   },
   {
    "s": "Lewati untuk sekarang",
-   "n": 1
-  },
-  {
-   "s": "Lihat & beli barang",
    "n": 1
   },
   {
@@ -18891,10 +18919,6 @@
    "n": 1
   },
   {
-   "s": "Orientasi Kahade",
-   "n": 1
-  },
-  {
    "s": "OTA memperbarui JavaScript dan aset untuk runtime yang kompatibel. Perubahan native atau versi minimum membutuhkan pembaruan dari toko aplikasi.",
    "n": 1
   },
@@ -20115,6 +20139,10 @@
    "n": 1
   },
   {
+   "s": "Pesanan Anda & status pembayarannya",
+   "n": 1
+  },
+  {
    "s": "Pesanan belum selesai",
    "n": 1
   },
@@ -21043,10 +21071,6 @@
    "n": 1
   },
   {
-   "s": "Semua uang lewat escrow",
-   "n": 1
-  },
-  {
    "s": "Sengketa berubah",
    "n": 1
   },
@@ -21267,15 +21291,15 @@
    "n": 1
   },
   {
+   "s": "Simpan etalase",
+   "n": 1
+  },
+  {
    "s": "Simpan foto ke galeri",
    "n": 1
   },
   {
    "s": "Simpan jadwal",
-   "n": 1
-  },
-  {
-   "s": "Simpan karya",
    "n": 1
   },
   {
@@ -21543,7 +21567,7 @@
    "n": 1
   },
   {
-   "s": "Suka karya",
+   "s": "Suka etalase",
    "n": 1
   },
   {
@@ -22672,6 +22696,10 @@
   },
   {
    "s": "Unduh riwayat dompet untuk dicetak",
+   "n": 1
+  },
+  {
+   "s": "Unggah barang lewat tombol +, terima order, kirim setelah dibayar.",
    "n": 1
   },
   {

@@ -19,6 +19,7 @@ import { Picture } from "@/components/ui/picture"
 import { Spinner } from "@/components/ui/spinner"
 import { Text } from "@/components/ui/text"
 import { useToast } from "@/components/ui/toast"
+import { translate } from "@/lib/i18n/translate"
 import { Storefront } from "phosphor-react-native"
 
 export type ChatShowcasePickerSheetProps = {
@@ -99,7 +100,7 @@ export function ChatShowcasePickerSheet({
                   onRequestClose()
                 }}
                 accessibilityRole="button"
-                accessibilityLabel={`Kirim kartu produk: ${item.title ?? "Etalase"}`}
+                accessibilityLabel={translate("Kirim kartu produk: {x}", { x: item.title ?? translate("Etalase") })}
                 className="flex-row items-center gap-3 rounded-md border border-border bg-surface p-2.5"
               >
                 {/* T2-F11 (audit UI/UX 2026-09-28): placeholder media bila tanpa

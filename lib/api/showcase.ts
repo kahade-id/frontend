@@ -603,7 +603,7 @@ export function likeShowcase(showcaseId: string, fallbackCount = 0) {
       auth: "required",
       // Item #27: boleh diantrekan saat offline (aksi sosial).
       offlineBehavior: "enqueue-social",
-      offlineLabel: "Suka karya",
+      offlineLabel: "Suka etalase",
     })
     .then((raw) => toLikeState(raw, fallbackCount))
 }
@@ -615,7 +615,7 @@ export function unlikeShowcase(showcaseId: string, fallbackCount = 0) {
       auth: "required",
       // Item #27: boleh diantrekan saat offline (aksi sosial).
       offlineBehavior: "enqueue-social",
-      offlineLabel: "Batal suka karya",
+      offlineLabel: "Batal suka etalase",
     })
     .then((raw) => toLikeState(raw, fallbackCount))
 }
@@ -647,7 +647,7 @@ export function saveShowcase(showcaseId: string, fallbackCount = 0) {
     .post<unknown>(`/v1/showcase/${seg(showcaseId)}/save`, undefined, {
       auth: "required",
       offlineBehavior: "enqueue-social",
-      offlineLabel: "Simpan karya",
+      offlineLabel: "Simpan etalase",
     })
     .then((raw) => toSaveState(raw, fallbackCount))
 }
@@ -662,7 +662,7 @@ export function unsaveShowcase(showcaseId: string, fallbackCount = 0) {
     .delete<unknown>(`/v1/showcase/${seg(showcaseId)}/save`, {
       auth: "required",
       offlineBehavior: "enqueue-social",
-      offlineLabel: "Batal simpan karya",
+      offlineLabel: "Batal simpan etalase",
     })
     .then((raw) => toSaveState(raw, fallbackCount))
 }

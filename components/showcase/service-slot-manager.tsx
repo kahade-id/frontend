@@ -186,9 +186,9 @@ export function ServiceSlotManagerSheet({
                   <View className="flex-row items-center gap-1">
                     <Icon icon={Users} size="xs" tone="default" />
                     <Text variant="caption" tone="secondary" className="tabular-nums">
-                      {translate("{booked}/{cap} terisi", {
-                        booked: slot.bookedCount,
-                        cap: slot.capacity,
+                      {translate("{x}/{y} terisi", {
+                        x: slot.bookedCount,
+                        y: slot.capacity,
                       })}
                     </Text>
                   </View>
@@ -290,10 +290,10 @@ export function ServiceSlotManagerSheet({
         title={translate("Nonaktifkan slot ini?")}
         description={
           deleteTarget
-            ? translate("{date} · {start}–{end}", {
-                date: slotDateLabel(deleteTarget.slotDate),
-                start: deleteTarget.startTime,
-                end: deleteTarget.endTime,
+            ? translate("{x} · {y}–{z}", {
+                x: slotDateLabel(deleteTarget.slotDate),
+                y: deleteTarget.startTime,
+                z: deleteTarget.endTime,
               })
             : undefined
         }

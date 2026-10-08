@@ -38,6 +38,7 @@ import { Input } from "@/components/ui/input"
 import { Text } from "@/components/ui/text"
 import { TextArea } from "@/components/ui/text-area"
 import { useToast } from "@/components/ui/toast"
+import { translate } from "@/lib/i18n/translate"
 import { CheckCircle, ShieldCheck } from "phosphor-react-native"
 
 export type ChatCreateOrderSheetProps = {
@@ -229,8 +230,10 @@ export function ChatCreateOrderSheet({
       title="Buat transaksi"
       description={
         withShowcase
-          ? `Dari etalase "${productCard?.title}" — dana diamankan Kahade sampai barang diterima.`
-          : "Buat transaksi aman dari percakapan ini — uang Anda dilindungi Kahade."
+          ? translate('Dari etalase "{x}" — dana diamankan Kahade sampai barang diterima.', {
+              x: productCard?.title ?? "",
+            })
+          : translate("Buat transaksi aman dari percakapan ini — uang Anda dilindungi Kahade.")
       }
       avoidKeyboard
     >

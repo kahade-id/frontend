@@ -1318,15 +1318,14 @@ export default function ShowcaseCreateScreen() {
         </View>
 
         {/*
-          U5-013 (journey): kartu info escrow di form buat karya — penjual
-          paham sejak awal bahwa pembeli membayar ke escrow, bukan ke mereka
-          langsung. Copy final audit; informatif, tidak mengubah alur.
+          U5-013 (journey): kartu info pembayaran di form buat etalase —
+          penjual paham sejak awal bahwa pembeli membayar via Kahade, bukan ke
+          mereka langsung. Informatif, tidak mengubah alur.
         */}
         <View className="flex-row items-start gap-2 rounded-md bg-accent-soft p-3">
           <Icon icon={ShieldCheck} size="sm" tone="accent" />
           <Text variant="caption" tone="secondary" className="flex-1 text-pretty">
-            Dana pembeli ditahan escrow — kirim barang dulu, dana cair setelah
-            pembeli konfirmasi.
+            {translate("Pembeli bayar via Kahade — kirim barang dulu, dana diteruskan ke Anda setelah pembeli konfirmasi terima.")}
           </Text>
         </View>
 

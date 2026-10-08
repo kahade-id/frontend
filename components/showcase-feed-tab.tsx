@@ -1419,7 +1419,7 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
         <CoachMark
           id="feed-buy"
           targetRef={firstCardRef}
-          message="Ini feed produk — ketuk barang untuk lihat detail & beli via escrow"
+          message={translate("Ini feed produk — ketuk barang untuk lihat detail & beli aman via Kahade")}
           delayMs={900}
         />
       ) : null}

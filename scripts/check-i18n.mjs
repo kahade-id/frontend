@@ -70,6 +70,7 @@ const COGNATE_ALLOWLIST = new Map([
   ["Dismiss", "istilah aksi moderasi, sama di EN"],
   ["Dispute rate", "istilah metrik, sama di EN"],
   ["Escrow", "istilah produk, sama di EN"],
+  ["Media: {x}", "kognat — judul sheet media etalase, 'Media' sama di EN"],
   ["Escrow refund", "istilah produk + aksi, sama di EN"],
   ["Fee", "istilah baku, sama di EN"],
   ["Filter plan {label}", "kata 'filter' + token"],

@@ -25,32 +25,39 @@ import { SHELL_TABS, type ShellTabKey } from "@/lib/shell-tabs"
 import { tokens } from "@/lib/tokens"
 import { useTheme } from "@/components/theme-provider"
 import { elevationStyle } from "@/lib/elevation"
+import { translate } from "@/lib/i18n/translate"
+import { useLanguage } from "@/lib/i18n"
 
-/** 1 baris penjelasan per tab — kunci = ShellTabKey (sinkron dengan label). */
-const TAB_BLURBS: Record<ShellTabKey, string> = {
-  showcase: "Feed barang & etalase — lihat, suka, beli",
-  transactions: "Pesanan Anda & status escrow-nya",
-  chat: "Chat dengan penjual & pembeli",
-  notifications: "Kabar transaksi & pesan penting",
-}
+/**
+ * 1 baris penjelasan per tab — kunci = ShellTabKey (sinkron dengan label).
+ * Fungsi (bukan konstanta) agar literalnya masuk katalog i18n dan ikut
+ * bahasa aktif saat dirender.
+ */
+const tabBlurbs = (): Record<ShellTabKey, string> => ({
+  showcase: translate("Feed barang & etalase — lihat, suka, beli"),
+  transactions: translate("Pesanan Anda & status pembayarannya"),
+  chat: translate("Chat dengan penjual & pembeli"),
+  notifications: translate("Kabar transaksi & pesan penting"),
+})
 
-const CONCEPTS = [
-  {
-    icon: Eye,
-    title: "Lihat & beli barang",
-    body: "Ketuk barang di feed untuk lihat detail, lalu bayar aman lewat escrow.",
-  },
-  {
-    icon: Storefront,
-    title: "Jual lewat etalase",
-    body: "Unggah barang lewat tombol +, terima order, kirim setelah dibayar.",
-  },
-  {
-    icon: ShieldCheck,
-    title: "Semua uang lewat escrow",
-    body: "Dana pembeli ditahan Kahade sampai barang diterima. Tanpa transfer langsung.",
-  },
-] as const
+const concepts = () =>
+  [
+    {
+      icon: Eye,
+      title: translate("Lihat & beli barang"),
+      body: translate("Ketuk barang di feed untuk lihat detail, lalu bayar aman via Kahade."),
+    },
+    {
+      icon: Storefront,
+      title: translate("Jual lewat etalase"),
+      body: translate("Unggah barang lewat tombol +, terima order, kirim setelah dibayar."),
+    },
+    {
+      icon: ShieldCheck,
+      title: translate("Semua pembayaran via Kahade"),
+      body: translate("Dana pembeli aman di Kahade sampai barang diterima. Tanpa transfer langsung."),
+    },
+  ] as const
 
 export function FeedOrientationOverlay({
   visible,
@@ -60,22 +67,24 @@ export function FeedOrientationOverlay({
   onDismiss: () => void
 }) {
   const { mode } = useTheme()
+  // i18n: blurb & konsep dibangun ulang saat bahasa berganti.
+  useLanguage()
   const { mounted, progress } = useOverlayPresence(visible)
   const dismiss = useCallback(() => onDismiss(), [onDismiss])
   useOverlayDismissKeys(visible, dismiss)
 
   if (!mounted) return null
+  const blurbs = tabBlurbs()
   return (
     <Portal>
-      <Backdrop progress={progress} onPress={dismiss} accessibilityLabel="Tutup orientasi" />
+      <Backdrop progress={progress} onPress={dismiss} accessibilityLabel={translate("Tutup orientasi")} />
       <Animated.View
-        pointerEvents="box-none"
         className="absolute inset-0 items-center justify-center px-6"
-        style={{ opacity: progress }}
+        style={{ opacity: progress, pointerEvents: "box-none" }}
       >
         <Animated.View
           accessibilityRole="alert"
-          accessibilityLabel="Orientasi Kahade"
+          accessibilityLabel={translate("Orientasi Kahade")}
           className="w-full max-w-md rounded-lg bg-background"
           style={[
             elevationStyle("high", mode),
@@ -100,7 +109,7 @@ export function FeedOrientationOverlay({
             </View>
             <IconButton
               icon={X}
-              accessibilityLabel="Tutup orientasi"
+              accessibilityLabel={translate("Tutup orientasi")}
               onPress={dismiss}
             />
           </View>
@@ -110,7 +119,7 @@ export function FeedOrientationOverlay({
             contentContainerClassName="gap-3 px-5 py-4"
             showsVerticalScrollIndicator={false}
           >
-            {CONCEPTS.map((c) => (
+            {concepts().map((c) => (
               <View
                 key={c.title}
                 className="flex-row items-start gap-3 rounded-md border border-border bg-surface-elevated px-4 py-3"
@@ -141,7 +150,7 @@ export function FeedOrientationOverlay({
                       {tab.label}
                     </Text>
                     {" — "}
-                    {TAB_BLURBS[tab.key]}
+                    {blurbs[tab.key]}
                   </Text>
                 </View>
               ))}

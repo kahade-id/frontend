@@ -207,7 +207,7 @@ export function CoachMark({
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={translate("Tutup pengenal")}
-                accessibilityHint={message}
+                accessibilityHint={translate(message)}
                 onPress={dismiss}
               >
                 <View
