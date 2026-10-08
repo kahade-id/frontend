@@ -1351,6 +1351,10 @@
    "n": 4
   },
   {
+   "s": "Dibaca",
+   "n": 4
+  },
+  {
    "s": "Diskon",
    "n": 4
   },
@@ -2512,10 +2516,6 @@
   },
   {
    "s": "Diajukan",
-   "n": 3
-  },
-  {
-   "s": "Dibaca",
    "n": 3
   },
   {
@@ -4620,6 +4620,10 @@
   },
   {
    "s": "Terjadi kesalahan saat menampilkan pesan. Coba lagi.",
+   "n": 3
+  },
+  {
+   "s": "Terkirim",
    "n": 3
   },
   {
@@ -8756,10 +8760,6 @@
   },
   {
    "s": "Terjemahkan",
-   "n": 2
-  },
-  {
-   "s": "Terkirim",
    "n": 2
   },
   {

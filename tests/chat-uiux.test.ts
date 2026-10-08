@@ -7,12 +7,22 @@
  *    pencarian — bukan `formatDateTime` penuh yang memadati baris.
  *  - `canSendMessage` (<ChatComposer>): tombol kirim hanya aktif bila ada isi
  *    dan semua lampiran siap (tidak ada yang masih uploading/error).
+ *  - Daftar chat LIVE (2026-10-08): `applyIncomingMessageToRooms` menerapkan
+ *    `chat.new_message` ke daftar room tanpa refetch; `chatRoomLastMessageStatus`
+ *    = centang status pesan terakhir milik saya (pola WhatsApp/Telegram).
  */
 import { describe, expect, it } from "vitest"
 
 import { formatChatListTime } from "@/lib/format"
 import { canSendMessage, type SendableAttachment } from "@/lib/chat-send-ready"
-import { chatRoomPreview, nonTextMessageLabel } from "@/lib/api/chat"
+import {
+  applyIncomingMessageToRooms,
+  chatRoomLastMessageStatus,
+  chatRoomPreview,
+  nonTextMessageLabel,
+  type ChatMessage,
+  type ChatRoom,
+} from "@/lib/api/chat"
 
 /** Komponen tanggal lokal (zona perangkat) — hasil tak bergantung TZ mesin CI. */
 function localIso(year: number, month: number, day: number, h = 12, min = 0): string {
@@ -172,5 +182,96 @@ describe("nonTextMessageLabel (CHT-011)", () => {
     expect(nonTextMessageLabel("STICKER")).toBe("(lampiran)")
     expect(nonTextMessageLabel(undefined)).toBe("(lampiran)")
     expect(nonTextMessageLabel(null)).toBe("(lampiran)")
+  })
+})
+
+function msg(partial: Partial<ChatMessage> & { id: string; roomId: string }): ChatMessage {
+  return {
+    messageType: "TEXT",
+    fromUser: false,
+    text: `teks ${partial.id}`,
+    createdAt: "2026-10-08T10:00:00.000Z",
+    ...partial,
+  }
+}
+
+function room(id: string, lastMessage: ChatMessage | null, unreadCount = 0): ChatRoom {
+  return { id, lastMessage, unreadCount, updatedAt: lastMessage?.createdAt ?? "2026-10-01T00:00:00.000Z" }
+}
+
+describe("chatRoomLastMessageStatus (centang di daftar chat)", () => {
+  it("pesan lawan bicara / tidak ada pesan → tanpa centang", () => {
+    expect(chatRoomLastMessageStatus(null, "me")).toBeUndefined()
+    expect(chatRoomLastMessageStatus(msg({ id: "m", roomId: "r" }), "me")).toBeUndefined()
+  })
+
+  it("pesan saya di server tanpa readAt → 'sent'; masih optimistis → tanpa centang", () => {
+    expect(chatRoomLastMessageStatus(msg({ id: "m", roomId: "r", fromUser: true }), "me")).toBe("sent")
+    expect(
+      chatRoomLastMessageStatus(msg({ id: "m", roomId: "r", fromUser: true, sendStatus: "sending" }), "me"),
+    ).toBeUndefined()
+  })
+
+  it("readAt ISO atau peta berisi pembaca lain → 'read'; peta hanya berisi saya → 'sent'", () => {
+    const base = { id: "m", roomId: "r", fromUser: true }
+    expect(chatRoomLastMessageStatus(msg({ ...base, readAt: "2026-10-08T10:01:00.000Z" }), "me")).toBe("read")
+    expect(chatRoomLastMessageStatus(msg({ ...base, readAt: { other: "2026-10-08T10:01:00.000Z" } }), "me")).toBe(
+      "read",
+    )
+    expect(chatRoomLastMessageStatus(msg({ ...base, readAt: { me: "2026-10-08T10:01:00.000Z" } }), "me")).toBe(
+      "sent",
+    )
+  })
+
+  it("broadcast netral (fromUser false) dikenali milik saya lewat senderId", () => {
+    expect(chatRoomLastMessageStatus(msg({ id: "m", roomId: "r", senderId: "me" }), "me")).toBe("sent")
+  })
+})
+
+describe("applyIncomingMessageToRooms (daftar chat live)", () => {
+  const older = msg({ id: "a1", roomId: "A", createdAt: "2026-10-08T09:00:00.000Z" })
+  const rooms: ChatRoom[] = [
+    room("B", msg({ id: "b1", roomId: "B", createdAt: "2026-10-08T09:30:00.000Z" })),
+    room("A", older, 2),
+  ]
+
+  it("pesan lawan bicara: preview + waktu diganti, unread +1, ruang naik ke atas", () => {
+    const incoming = msg({ id: "a2", roomId: "A", createdAt: "2026-10-08T10:00:00.000Z" })
+    const next = applyIncomingMessageToRooms(rooms, incoming, { viewerId: "me" })
+    expect(next).not.toBeNull()
+    expect(next!.map((r) => r.id)).toEqual(["A", "B"])
+    expect(next![0].lastMessage?.id).toBe("a2")
+    expect(next![0].unreadCount).toBe(3)
+    expect(next![0].updatedAt).toBe(incoming.createdAt)
+    // Ruang lain tidak disentuh (identitas objek sama → memo baris bail-out).
+    expect(next![1]).toBe(rooms[0])
+  })
+
+  it("pesan saya sendiri: unread TIDAK naik, fromUser dipaksa true", () => {
+    const mine = msg({ id: "a3", roomId: "A", senderId: "me", createdAt: "2026-10-08T10:00:00.000Z" })
+    const next = applyIncomingMessageToRooms(rooms, mine, { viewerId: "me" })!
+    expect(next[0].unreadCount).toBe(2)
+    expect(next[0].lastMessage?.fromUser).toBe(true)
+  })
+
+  it("pesan yang sama tiba dua kali (netral + per-viewer) hanya dihitung sekali", () => {
+    const incoming = msg({ id: "a2", roomId: "A", createdAt: "2026-10-08T10:00:00.000Z" })
+    const once = applyIncomingMessageToRooms(rooms, incoming, { viewerId: "me" })!
+    const twice = applyIncomingMessageToRooms(once, { ...incoming, fromUser: true }, { viewerId: "me" })!
+    expect(twice[0].unreadCount).toBe(3)
+    expect(twice[0].lastMessage?.fromUser).toBe(true)
+  })
+
+  it("gema yang lebih lama dari preview saat ini diabaikan", () => {
+    const stale = msg({ id: "a0", roomId: "A", createdAt: "2026-10-08T08:00:00.000Z" })
+    const next = applyIncomingMessageToRooms(rooms, stale, { viewerId: "me" })!
+    expect(next.map((r) => r.id)).toEqual(["B", "A"])
+    expect(next[1].lastMessage?.id).toBe("a1")
+    expect(next[1].unreadCount).toBe(2)
+  })
+
+  it("ruang tidak ada di daftar / payload tanpa roomId → null (pemanggil refetch)", () => {
+    expect(applyIncomingMessageToRooms(rooms, msg({ id: "z1", roomId: "Z" }))).toBeNull()
+    expect(applyIncomingMessageToRooms(rooms, { ...msg({ id: "z1", roomId: "Z" }), roomId: undefined })).toBeNull()
   })
 })

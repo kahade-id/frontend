@@ -38,7 +38,13 @@
  *     merah — §9.14 memakai dot merah tanpa angka hanya untuk tab bar; jumlah
  *     pesan bukan status bahaya).
  *   - `typing` mengganti preview dengan "mengetik…" weight 500.
- *   - Prefix "Anda: " ditambahkan bila `lastMessage.fromSelf`.
+ *   - Prefix "Anda: " ditambahkan bila `lastMessage.fromSelf`; status kirim
+ *     pesan sendiri (`lastMessage.status`) tampil sebagai centang di kiri
+ *     waktu — satu (terkirim) / ganda tebal (dibaca), kosakata yang sama
+ *     dengan <ChatMessageBubble> (pola Telegram: centang di sisi metadata).
+ *   - `draft` (teks ketikan yang belum terkirim) MENGALAHKAN preview pesan
+ *     terakhir: "Draf: …" dengan label merah (pola Telegram/WhatsApp) —
+ *     pengingat ada ketikan yang tertinggal; mengetik lawan tetap menang.
  *   - Online = <Dot size="lg" tone="success" ring> di kanan-bawah avatar.
  *   - Mode pilih (`selecting`): baris menjadi target toggle, lencana Check
  *     menumpuk avatar (menggantikan dot online), dan baris terpilih diberi
@@ -47,7 +53,7 @@
  *   - `ripple` default ON di sini: baris list adalah permukaan yang disapu
  *     jari (lihat PressableScale — keputusan produk 2026-09-21).
  */
-import { BellSlash, Check, LockKey, PushPin } from "phosphor-react-native"
+import { BellSlash, Check, Checks, LockKey, PushPin } from "phosphor-react-native"
 import { memo } from "react"
 import { useWindowDimensions, View, type ViewProps } from "react-native"
 
@@ -68,6 +74,11 @@ export type ChatRoomLastMessage = {
   text: string
   /** Pesan terakhir dikirim oleh pengguna sendiri -> prefix "Anda:" */
   fromSelf?: boolean
+  /**
+   * Status kirim pesan sendiri (hanya bermakna bila `fromSelf`): "sent" =
+   * centang satu, "read" = centang ganda tebal. Tidak diisi = tanpa centang.
+   */
+  status?: "sent" | "read"
 }
 
 export type ChatRoomListItemProps = Omit<ViewProps, "children"> & {
@@ -87,6 +98,8 @@ export type ChatRoomListItemProps = Omit<ViewProps, "children"> & {
   time?: string
   unreadCount?: number
   typing?: boolean
+  /** Ketikan yang belum terkirim di room ini — preview jadi "Draf: …". */
+  draft?: string
   muted?: boolean
   pinned?: boolean
   /**
@@ -113,7 +126,7 @@ export type ChatRoomListItemProps = Omit<ViewProps, "children"> & {
   divider?: boolean
   /** Garis batas ATAS — untuk baris pertama yang butuh bingkai (kartu dst). */
   dividerTop?: boolean
-  labels?: { you?: string; typing?: string; unread?: string; selected?: string }
+  labels?: { you?: string; typing?: string; unread?: string; selected?: string; draft?: string }
   className?: string
 }
 
@@ -122,6 +135,7 @@ const DEFAULT_LABELS = {
   typing: "mengetik…",
   unread: "belum dibaca",
   selected: "dipilih",
+  draft: "Draf",
 }
 
 /**
@@ -149,6 +163,7 @@ export function ChatRoomListItemBase({
   time,
   unreadCount = 0,
   typing = false,
+  draft,
   muted = false,
   pinned = false,
   context,
@@ -166,23 +181,37 @@ export function ChatRoomListItemBase({
   ...rest
 }: ChatRoomListItemProps) {
   useLanguage()
-  const t = { ...DEFAULT_LABELS, ...labels }
+  // Label digabung ke string preview (bukan children <Text> murni), jadi
+  // diterjemahkan eksplisit — `translate` mengembalikan sumber bila tak ada.
+  const merged = { ...DEFAULT_LABELS, ...labels }
+  const t = {
+    ...merged,
+    you: translate(merged.you),
+    typing: translate(merged.typing),
+    draft: translate(merged.draft),
+  }
   const protectedLabel = translate("Terlindungi")
   const { width } = useWindowDimensions()
   const compact = width < NARROW_WIDTH
   const hasUnread = unreadCount > 0
   const unreadLabel = unreadCount > 99 ? "99+" : String(unreadCount)
 
+  const draftText = draft?.trim() ?? ""
+  const showDraft = !typing && draftText.length > 0
   const preview = typing
     ? t.typing
-    : lastMessage
-      ? `${lastMessage.fromSelf ? `${t.you}: ` : ""}${lastMessage.text}`
-      : ""
+    : showDraft
+      ? draftText
+      : lastMessage
+        ? `${lastMessage.fromSelf ? `${t.you}: ` : ""}${lastMessage.text}`
+        : ""
+  const selfStatus = !typing && lastMessage?.fromSelf ? lastMessage.status : undefined
 
   const a11yLabel = [
     selecting && selected ? t.selected : undefined,
     name,
-    preview,
+    showDraft ? `${t.draft}: ${preview}` : preview,
+    selfStatus === "read" ? translate("Dibaca") : selfStatus === "sent" ? translate("Terkirim") : undefined,
     orderBadge ? protectedLabel : context,
     time,
     hasUnread ? `${unreadCount} ${t.unread}` : undefined,
@@ -270,10 +299,20 @@ export function ChatRoomListItemBase({
             numberOfLines={1}
             className="min-w-0 flex-1"
           >
+            {showDraft ? (
+              <Text variant="inherit" tone="danger" weight={500}>
+                {t.draft}:{" "}
+              </Text>
+            ) : null}
             {preview}
           </Text>
           <View className="flex-row shrink-0 items-center gap-1.5">
             {muted ? <Icon icon={BellSlash} size="xs" tone="default" /> : null}
+            {selfStatus === "read" ? (
+              <Icon icon={Checks} size="xs" tone="active" weight="bold" />
+            ) : selfStatus === "sent" ? (
+              <Icon icon={Check} size="xs" tone="default" />
+            ) : null}
             {hasUnread ? (
               <View className="items-center justify-center rounded-full bg-primary px-1.5 py-[1px]">
                 <Text variant="caption" tone="inverse" weight={600} className="tabular-nums">
@@ -371,7 +410,11 @@ function isSameLastMessage(
 ): boolean {
   if (a === b) return true
   if (!a || !b) return false
-  return a.text === b.text && !!a.fromSelf === !!b.fromSelf
+  return (
+    a.text === b.text &&
+    !!a.fromSelf === !!b.fromSelf &&
+    (a.status ?? null) === (b.status ?? null)
+  )
 }
 
 function isSameLabels(
@@ -384,7 +427,8 @@ function isSameLabels(
     (a.you ?? null) === (b.you ?? null) &&
     (a.typing ?? null) === (b.typing ?? null) &&
     (a.unread ?? null) === (b.unread ?? null) &&
-    (a.selected ?? null) === (b.selected ?? null)
+    (a.selected ?? null) === (b.selected ?? null) &&
+    (a.draft ?? null) === (b.draft ?? null)
   )
 }
 
@@ -402,6 +446,7 @@ function areRoomItemPropsEqual(
     prev.time === next.time &&
     (prev.unreadCount ?? 0) === (next.unreadCount ?? 0) &&
     prev.typing === next.typing &&
+    (prev.draft ?? "") === (next.draft ?? "") &&
     prev.muted === next.muted &&
     prev.pinned === next.pinned &&
     (prev.context ?? null) === (next.context ?? null) &&

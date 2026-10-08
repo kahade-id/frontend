@@ -327,6 +327,90 @@ export function nonTextMessageLabel(messageType?: string | null): string {
   }
 }
 
+/** Id pengirim yang dibawa sebuah pesan (backend bisa mengisi salah satunya). */
+function messageSenderIds(m: Pick<ChatMessage, "senderId" | "sender">): string[] {
+  return [m.senderId, m.sender?.userId, m.sender?.id].filter(
+    (id): id is string => typeof id === "string" && id.length > 0,
+  )
+}
+
+/**
+ * Pesan ini milik saya? `fromUser` dari payload per-viewer sudah benar;
+ * broadcast netral (`fromUser: false` selalu) dikenali lewat id pengirim
+ * bila `viewerId` diketahui.
+ */
+function isOwnMessage(m: ChatMessage, viewerId?: string | null): boolean {
+  if (m.fromUser) return true
+  if (!viewerId) return false
+  return messageSenderIds(m).includes(viewerId)
+}
+
+/**
+ * Status kirim pesan TERAKHIR milik saya untuk centang di daftar chat (pola
+ * WhatsApp/Telegram): "read" bila `readAt` menyebut pembaca selain saya,
+ * "sent" bila pesan sudah di server, `undefined` bila bukan pesan saya atau
+ * masih optimistis. Konservatif: `readAt` berbentuk peta yang HANYA berisi
+ * id saya sendiri tidak dihitung sebagai dibaca. Murni, bisa di-unit-test.
+ */
+export function chatRoomLastMessageStatus(
+  last: ChatMessage | null | undefined,
+  viewerId?: string | null,
+): "sent" | "read" | undefined {
+  if (!last || !isOwnMessage(last, viewerId) || last.sendStatus) return undefined
+  const readAt = last.readAt
+  if (typeof readAt === "string" && readAt) return "read"
+  if (readAt && typeof readAt === "object") {
+    const readers = Object.keys(readAt).filter((k) => k !== viewerId && readAt[k])
+    if (readers.length > 0) return "read"
+  }
+  return "sent"
+}
+
+/**
+ * Daftar chat LIVE (2026-10-08): terapkan payload `chat.new_message` (dikirim
+ * backend ke room `user:<id>` untuk SETIAP ruang yang saya ikuti) ke daftar
+ * room tanpa refetch — pola WhatsApp/Telegram: preview, waktu, badge unread
+ * berubah seketika dan ruangnya naik ke urutan teratas.
+ *
+ * Mengembalikan `null` bila ruangnya TIDAK ada di daftar (ruang baru / di
+ * halaman yang belum dimuat) — pemanggil refetch diam-diam. Pesan yang sama
+ * tiba dua kali (broadcast netral `chat:<id>` untuk ruang yang di-join
+ * indikator mengetik + per-viewer `user:<id>`) hanya dihitung sekali: unread
+ * tidak naik lagi dan `fromUser` digabung "sticky" (true menang). Pesan yang
+ * lebih lama dari preview saat ini (gema terlambat) diabaikan.
+ */
+export function applyIncomingMessageToRooms(
+  rooms: readonly ChatRoom[],
+  message: ChatMessage,
+  opts: { viewerId?: string | null } = {},
+): ChatRoom[] | null {
+  const roomId = message.roomId
+  if (!roomId) return null
+  const idx = rooms.findIndex((r) => r.id === roomId)
+  if (idx < 0) return null
+  const room = rooms[idx]
+  const prev = room.lastMessage
+  const own = isOwnMessage(message, opts.viewerId)
+  if (prev && prev.id === message.id) {
+    if (prev.fromUser || !own) return [...rooms]
+    const next = [...rooms]
+    next[idx] = { ...room, lastMessage: { ...prev, fromUser: true } }
+    return next
+  }
+  const prevTs = prev ? Date.parse(prev.createdAt) : Number.NaN
+  const nextTs = Date.parse(message.createdAt)
+  if (Number.isFinite(prevTs) && Number.isFinite(nextTs) && nextTs < prevTs) return [...rooms]
+  const updated: ChatRoom = {
+    ...room,
+    lastMessage: own ? { ...message, fromUser: true } : message,
+    updatedAt:
+      Number.isFinite(nextTs) && nextTs > Date.parse(room.updatedAt) ? message.createdAt : room.updatedAt,
+    unreadCount: own ? room.unreadCount : room.unreadCount + 1,
+  }
+  const rest = rooms.filter((_, i) => i !== idx)
+  return [updated, ...rest]
+}
+
 /**
  * Normalisasi satu pesan chat dari respons REST ATAU payload realtime
  * (`chat.new_message` / `chat.message_updated`) — serializer SAMA untuk

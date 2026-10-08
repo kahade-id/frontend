@@ -33,6 +33,9 @@
  *     yang sama. Persist SecureStore per-room tetap ada (bukan per-akun).
  *   - Draft dihapus saat pesan TERKIRIM (`clearChatDraft`), bukan saat layar
  *     ditutup — menutup room di tengah mengetik lalu kembali = draft kembali.
+ *   - `subscribeChatDrafts`: daftar chat menampilkan "Draf: …" (pola
+ *     WhatsApp/Telegram) dari memory — draft yang masih di storage dan belum
+ *     pernah dibuka sesi ini belum terlihat di daftar sampai room-nya dibuka.
  */
 import {
   chatDraftKey,
@@ -58,6 +61,27 @@ const EMPTY_DRAFT: ChatDraft = { text: "", replyToId: null }
 
 const memory = new Map<string, ChatDraft>()
 const pendingTimers = new Map<string, ReturnType<typeof setTimeout>>()
+/**
+ * Pelanggan perubahan draft (daftar chat menampilkan "Draf: …" ala
+ * WhatsApp/Telegram). Dipanggil setiap memory berubah — save/clear/hydrate.
+ */
+const listeners = new Set<() => void>()
+
+function notifyDraftListeners(): void {
+  for (const fn of listeners) fn()
+}
+
+/**
+ * Berlangganan perubahan draft (semua room). Mengembalikan fungsi unsubscribe.
+ * Hanya memory yang diamati: draft yang masih di SecureStore (belum pernah
+ * dibuka sesi ini) baru terlihat setelah `loadChatDraft` room itu dipanggil.
+ */
+export function subscribeChatDrafts(listener: () => void): () => void {
+  listeners.add(listener)
+  return () => {
+    listeners.delete(listener)
+  }
+}
 /** roomId yang sudah dimuat dari storage ke memory sesi ini. */
 const hydrated = new Set<string>()
 
@@ -172,6 +196,7 @@ export function saveChatDraft(roomId: string, text: string, replyToId?: string |
   memory.set(roomId, draft)
   hydrated.add(roomId)
   schedulePersist(roomId, draft)
+  if ((prev?.text ?? "") !== text) notifyDraftListeners()
 }
 
 /**
@@ -204,6 +229,7 @@ export async function loadChatDraft(roomId: string): Promise<ChatDraft | null> {
     if (!stored) return null
     const draft = parseStored(stored)
     memory.set(roomId, draft)
+    if (draft.text) notifyDraftListeners()
     return draft
   } catch {
     return null
@@ -216,8 +242,10 @@ export async function loadChatDraft(roomId: string): Promise<ChatDraft | null> {
  */
 export function clearChatDraft(roomId: string): void {
   if (!roomId) return
+  const hadText = !!memory.get(roomId)?.text
   memory.delete(roomId)
   hydrated.add(roomId)
+  if (hadText) notifyDraftListeners()
   const prev = pendingTimers.get(roomId)
   if (prev) {
     clearTimeout(prev)
@@ -234,4 +262,5 @@ export function __resetChatDraftsForTest(): void {
   pendingTimers.clear()
   memory.clear()
   hydrated.clear()
+  listeners.clear()
 }

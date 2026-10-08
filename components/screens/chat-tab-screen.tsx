@@ -38,13 +38,17 @@ import { router, useFocusEffect, useIsFocused } from "expo-router"
 import { api, isApiError, userMessage } from "@/lib/api"
 import {
   CHAT_PAGE_SIZE,
+  applyIncomingMessageToRooms,
   canDeleteChatRoom,
+  chatRoomLastMessageStatus,
   chatRoomPreview,
   deleteChatRoom,
+  normalizeChatMessage,
   setRoomArchived,
   setRoomMuted,
   type ChatRoom,
 } from "@/lib/api/chat"
+import { peekChatDraft, subscribeChatDrafts } from "@/lib/chat-drafts"
 import {
   CHAT_SOCKET_EVENTS,
   TYPING_EXPIRY_MS,
@@ -52,7 +56,8 @@ import {
 } from "@/lib/realtime/chat-events"
 import { useRealtime, useRealtimeActions } from "@/lib/realtime/realtime-context"
 import { ORDER_STATUS_LABELS } from "@/lib/labels/status"
-import { formatTimeAgo } from "@/lib/format"
+import { formatChatListTime } from "@/lib/format"
+import { logWarn } from "@/lib/telemetry"
 import { haptic } from "@/lib/haptics"
 import { translate, useLanguage } from "@/lib/i18n"
 import { ROUTES } from "@/lib/routes"
@@ -267,6 +272,80 @@ function useChatListTyping(roomIds: string[]): Set<string> {
 }
 
 /**
+ * Daftar chat LIVE (2026-10-08, pola WhatsApp/Telegram): preview, waktu, dan
+ * badge unread berubah seketika saat pesan masuk — tanpa menunggu kembali
+ * fokus / pull-to-refresh. Backend mengirim `chat.new_message` per-viewer ke
+ * room `user:<id>` untuk SETIAP ruang yang saya ikuti (tanpa join), jadi
+ * cukup satu listener global.
+ *
+ *   - Tab fokus: patch lokal via `applyIncomingMessageToRooms` (ruang naik ke
+ *     atas). Ruang yang belum ada di daftar → refresh diam-diam.
+ *   - Tab TIDAK fokus (mis. sedang di dalam ruang chat — pesan di sana
+ *     langsung terbaca, jadi menambah unread di sini akan keliru): event hanya
+ *     menandai daftar "kotor"; saat tab kembali fokus daftar di-refresh
+ *     sekali meski `refreshOnFocusStaleMs` belum lewat.
+ */
+function useChatListLiveUpdates(
+  query: { setData: (fn: (prev: ChatRoom[]) => ChatRoom[]) => void; refresh: () => void },
+  focused: boolean,
+) {
+  const { socket, status, epoch } = useRealtime()
+  const { viewerId, unwrapEvent } = useRealtimeActions()
+  const ref = useRef({ query, focused, viewerId, unwrapEvent, dirty: false })
+  ref.current = { ...ref.current, query, focused, viewerId, unwrapEvent }
+
+  useEffect(() => {
+    if (!socket || status !== "connected") return
+    const onNewMessage = (raw: unknown) => {
+      const state = ref.current
+      const payload = state.unwrapEvent(raw)
+      if (payload === null || typeof payload !== "object") return
+      if (!state.focused) {
+        state.dirty = true
+        return
+      }
+      let message
+      try {
+        message = normalizeChatMessage(payload as Record<string, unknown>)
+      } catch (err) {
+        logWarn("chat-list:realtime-message", err)
+        return
+      }
+      let missing = false
+      state.query.setData((prev) => {
+        const next = applyIncomingMessageToRooms(prev, message, { viewerId: state.viewerId })
+        if (next === null) {
+          missing = true
+          return prev
+        }
+        return next
+      })
+      if (missing) state.query.refresh()
+    }
+    socket.on(CHAT_SOCKET_EVENTS.NEW_MESSAGE, onNewMessage)
+    return () => {
+      socket.off(CHAT_SOCKET_EVENTS.NEW_MESSAGE, onNewMessage)
+    }
+  }, [socket, status, epoch])
+
+  useEffect(() => {
+    if (!focused || !ref.current.dirty) return
+    ref.current.dirty = false
+    ref.current.query.refresh()
+  }, [focused])
+}
+
+/**
+ * Versi draft ketikan (lib/chat-drafts) — naik setiap draft room mana pun
+ * berubah, supaya baris daftar menampilkan "Draf: …" yang segar.
+ */
+function useChatDraftsVersion(): number {
+  const [version, setVersion] = useState(0)
+  useEffect(() => subscribeChatDrafts(() => setVersion((v) => v + 1)), [])
+  return version
+}
+
+/**
  * LR-003 (2026-09-29): satu baris daftar chat sebagai komponen module-level
  * yang di-`memo`.
  *
@@ -285,6 +364,10 @@ type ChatRoomRowProps = {
   room: ChatRoom
   pinned: boolean
   typing: boolean
+  /** Ketikan yang belum terkirim di room ini (lib/chat-drafts) — "Draf: …". */
+  draft?: string
+  /** Id saya — centang status pesan terakhir hanya untuk pesan sendiri. */
+  viewerId: string | null
   selecting: boolean
   selected: boolean
   swipeGroup: SwipeableGroup
@@ -312,6 +395,8 @@ function ChatRoomRowBase({
   room: item,
   pinned,
   typing,
+  draft,
+  viewerId,
   selecting,
   selected,
   swipeGroup,
@@ -381,9 +466,11 @@ function ChatRoomRowBase({
             // menampilkan "(lampiran)", bukan baris kosong.
             text: chatRoomPreview(item.lastMessage, translate("(lampiran)")),
             fromSelf: item.lastMessage.fromUser,
+            // Centang status pesan terakhir milik saya (pola WhatsApp/Telegram).
+            status: chatRoomLastMessageStatus(item.lastMessage, viewerId),
           }
         : undefined,
-    [item.lastMessage],
+    [item.lastMessage, viewerId],
   )
 
   const row = (
@@ -409,9 +496,12 @@ function ChatRoomRowBase({
         muted={item.isMuted === true}
         pinned={pinned}
         lastMessage={lastMessageView}
-        // UI-C001 (revisi 2026-09-28): cap waktu relatif `formatTimeAgo`
-        // ("5 menit lalu" / "Kemarin").
-        time={item.lastMessage ? formatTimeAgo(item.lastMessage.createdAt) : undefined}
+        draft={draft}
+        // 2026-10-08: cap waktu ABSOLUT ringkas ("14:32" / "Kemarin" / "12 Sep")
+        // — pola WhatsApp/Telegram. Teks relatif ("5 menit lalu") sebelumnya
+        // membeku di nilai saat render (baris di-memo, tidak ada timer) sehingga
+        // "Baru saja" bisa bertahan berjam-jam.
+        time={item.lastMessage ? formatChatListTime(item.lastMessage.createdAt) : undefined}
         unreadCount={item.unreadCount}
         // U5-009 (UX-deep 2026-09-29): room ber-orderId ditandai badge
         // "Terlindungi" dengan ikon gembok, bukan kode order mentah.
@@ -485,6 +575,12 @@ function isSameRoomContent(a: ChatRoom, b: ChatRoom): boolean {
 function areChatRowPropsEqual(prev: ChatRoomRowProps, next: ChatRoomRowProps): boolean {
   return (
     isSameRoomContent(prev.room, next.room) &&
+    // Centang status hanya berubah lewat `readAt` pesan terakhir (tidak
+    // tercakup `isSameRoomContent`) — bandingkan hasil turunannya.
+    chatRoomLastMessageStatus(prev.room.lastMessage, prev.viewerId) ===
+      chatRoomLastMessageStatus(next.room.lastMessage, next.viewerId) &&
+    prev.viewerId === next.viewerId &&
+    (prev.draft ?? "") === (next.draft ?? "") &&
     prev.pinned === next.pinned &&
     prev.typing === next.typing &&
     prev.selecting === next.selecting &&
@@ -635,6 +731,11 @@ function ChatScreenContent() {
   // Audit chat F15: hanya ruang teratas yang di-join (lihat TYPING_JOIN_MAX_ROOMS).
   const roomIds = useMemo(() => limitTypingRoomIds(shownRooms.map((r) => r.id)), [shownRooms])
   const typingRooms = useChatListTyping(roomIds)
+  // 2026-10-08: daftar hidup — pesan masuk langsung memperbarui baris.
+  const listFocused = useIsFocused()
+  useChatListLiveUpdates(mainQuery, listFocused)
+  const { viewerId } = useRealtimeActions()
+  const draftVersion = useChatDraftsVersion()
 
   // Terapkan hasil arsip/mute ke baris list tanpa memuat ulang seluruhnya.
   // Untuk arsip, ini hanya umpan balik instan — `handleBatchArchive`
@@ -987,6 +1088,8 @@ function ChatScreenContent() {
         room={item}
         pinned={isRoomPinned(item.id)}
         typing={typingRooms.has(item.id)}
+        draft={peekChatDraft(item.id)?.text}
+        viewerId={viewerId}
         selecting={selecting}
         selected={selected.has(item.id)}
         swipeGroup={swipeGroup}
@@ -1001,8 +1104,11 @@ function ChatScreenContent() {
         onFullSwipe={fullSwipeAction}
       />
     ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- draftVersion: pemicu baca ulang peekChatDraft
     [
       typingRooms,
+      draftVersion,
+      viewerId,
       selecting,
       selected,
       swipeGroup,
