@@ -12,6 +12,19 @@
  *     kontrol diletakkan DI ATAS lapisan gesture, jadi sentuhan tidak saling
  *     menelan.
  *
+ * Motion (2026-10-08, penyegaran UI/UX story):
+ *   - BUKA: layar mengembang dari 0.92 + fade masuk (220ms, kurva enter) —
+ *     terasa seperti story "membesar dari ubin tray", bukan potongan layar
+ *     baru yang menimpa.
+ *   - TUTUP (geser ke bawah): selain turun, layar MENGECIL ke 0.86 dan
+ *     membulat (radius 24) sementara latar meredup — bahasa dismiss yang sama
+ *     dengan Instagram/WhatsApp. Dulu hanya translateY + opacity, sehingga
+ *     gerakan terasa seperti "menggeser kertas", bukan menutup lapisan.
+ *   - GANTI SEGMEN: media crossfade + sedikit zoom-out (1.03 → 1) tiap kali
+ *     story berganti, supaya potongan antar story tidak terasa "menjepret".
+ *   - Semua updater `useAnimatedStyle` murni membaca shared value — nol
+ *     pemanggilan fungsi JS di dalamnya (aturan worklet repo).
+ *
  * Aturan worklet (penting): `useAnimatedStyle` hanya membaca shared value.
  * Pemanggilan fungsi JS (navigasi, setState) selalu lewat `runOnJS` dari
  * callback gesture/animasi, tidak pernah dari dalam updater style.
@@ -274,10 +287,57 @@ export default function StoryViewerScreen({ userId, highlightId }: Props) {
 
   const [layoutWidth, setLayoutWidth] = useState(1)
   const dragY = useSharedValue(0)
-  const dragStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: dragY.value }],
-    opacity: 1 - Math.min(0.5, dragY.value / 600),
+  /**
+   * Progress tutup (0 = terbuka, 1 = tertutup). Satu sumber untuk skala,
+   * radius, dan redup latar — dihitung dari `dragY` di dalam worklet, tanpa
+   * memanggil fungsi JS apa pun.
+   */
+  const dismissProgress = useSharedValue(0)
+  const dragStyle = useAnimatedStyle(() => {
+    const p = dismissProgress.value
+    return {
+      transform: [{ translateY: dragY.value }, { scale: 1 - p * 0.14 }],
+      // Meredup perlahan ke latar hitam di belakangnya (root `bg-black`):
+      // kartu benar-benar terasa "ditutup", bukan sekadar digeser.
+      opacity: 1 - p * 0.35,
+      borderRadius: p * 24,
+      overflow: "hidden",
+    }
+  })
+  /**
+   * Reveal BUKA: 0.92 → 1 + fade. Dipisah dari `dragY` supaya gerakan tutup
+   * tidak pernah menimpa progress buka (dua animasi berbeda pada transform
+   * yang sama akan saling membatalkan).
+   */
+  const openProgress = useSharedValue(0)
+  const openStyle = useAnimatedStyle(() => ({
+    opacity: openProgress.value,
+    transform: [{ scale: 0.92 + openProgress.value * 0.08 }],
   }))
+  useEffect(() => {
+    openProgress.value = withTiming(1, { duration: 220, easing: Easing.out(Easing.cubic) })
+    return () => {
+      cancelAnimation(openProgress)
+    }
+  }, [openProgress])
+
+  /**
+   * Crossfade + zoom-out halus tiap kali segmen berganti (`current.id`).
+   * Shared value di-reset lalu dinaikkan, jadi story yang sama tidak
+   * beranimasi dua kali.
+   */
+  const segmentFade = useSharedValue(1)
+  const segmentStyle = useAnimatedStyle(() => ({
+    opacity: segmentFade.value,
+    transform: [{ scale: 1.03 - segmentFade.value * 0.03 }],
+  }))
+  useEffect(() => {
+    segmentFade.value = 0
+    segmentFade.value = withTiming(1, { duration: 200, easing: Easing.out(Easing.cubic) })
+    return () => {
+      cancelAnimation(segmentFade)
+    }
+  }, [current?.id, segmentFade])
 
   const closeFromGesture = useCallback(() => {
     router.back()
@@ -288,13 +348,21 @@ export default function StoryViewerScreen({ userId, highlightId }: Props) {
     .failOffsetX([-18, 18])
     .onUpdate((e) => {
       dragY.value = Math.max(0, e.translationY)
+      // Progress tutup dihitung DI SINI (bukan di dalam updater style):
+      // updater `useAnimatedStyle` harus murni membaca shared value —
+      // menulis dari dalamnya memicu evaluasi ganda per frame.
+      // 320px seretan = progress penuh, jadi redup terasa jauh sebelum
+      // jari mencapai dasar layar.
+      dismissProgress.value = Math.min(1, Math.max(0, dragY.value / 320))
     })
     .onEnd((e) => {
       if (e.translationY > 140 || e.velocityY > 900) {
+        dismissProgress.value = withTiming(1, { duration: 180 })
         dragY.value = withTiming(800, { duration: 180 }, (finished) => {
           if (finished) runOnJS(closeFromGesture)()
         })
       } else {
+        dismissProgress.value = withSpring(0, { damping: 22, stiffness: 240 })
         dragY.value = withSpring(0, { damping: 22, stiffness: 240 })
       }
     })
@@ -505,28 +573,31 @@ export default function StoryViewerScreen({ userId, highlightId }: Props) {
       onLayout={(e) => setLayoutWidth(e.nativeEvent.layout.width)}
       accessibilityLabel={t("Story dari {name}", { name: ringName })}
     >
-      {/* Lapisan media + gesture (paling bawah). */}
+      {/* Lapisan media + gesture (paling bawah). Latar hitam root (`bg-black`)
+          adalah kanvas tempat kartu mengecil & meredup saat ditutup. */}
       <GestureDetector gesture={gesture}>
-        <Animated.View style={[{ flex: 1 }, dragStyle]}>
-          {current.kind === "image" && current.mediaUrl ? (
-            <Image
-              source={{ uri: current.mediaUrl }}
-              style={{ flex: 1 }}
-              contentFit="contain"
-              cachePolicy="memory-disk"
-              transition={0}
-              accessibilityLabel={current.text ?? t("Foto story")}
-            />
-          ) : (
-            <View
-              className="flex-1 items-center justify-center px-8"
-              style={{ backgroundColor: current.backgroundColor ?? "#1F2937" }}
-            >
-              <Text variant="h2" className="text-center text-white">
-                {current.text ?? ""}
-              </Text>
-            </View>
-          )}
+        <Animated.View style={[{ flex: 1 }, dragStyle, openStyle]}>
+          <Animated.View style={[{ flex: 1 }, segmentStyle]}>
+            {current.kind === "image" && current.mediaUrl ? (
+              <Image
+                source={{ uri: current.mediaUrl }}
+                style={{ flex: 1 }}
+                contentFit="contain"
+                cachePolicy="memory-disk"
+                transition={0}
+                accessibilityLabel={current.text ?? t("Foto story")}
+              />
+            ) : (
+              <View
+                className="flex-1 items-center justify-center px-8"
+                style={{ backgroundColor: current.backgroundColor ?? "#1F2937" }}
+              >
+                <Text variant="h2" className="text-center text-white">
+                  {current.text ?? ""}
+                </Text>
+              </View>
+            )}
+          </Animated.View>
         </Animated.View>
       </GestureDetector>
 

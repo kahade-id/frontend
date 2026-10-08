@@ -34,7 +34,6 @@ export type ScreenAnimation = "slide_from_right" | "slide_from_bottom" | "fade_f
  * untuk preset ini adalah swipe-down (bawaan), yang memang cocok.
  */
 const MODAL_LIKE_SCREENS: ReadonlySet<string> = new Set([
-  "story/[userId]",
   "story/create",
   "create-transaction",
   "topup",
@@ -50,6 +49,15 @@ const MODAL_LIKE_SCREENS: ReadonlySet<string> = new Set([
  * dari kartu profil.
  */
 const DETAIL_SCREENS: ReadonlySet<string> = new Set([
+  /**
+   * 2026-10-08 (penyegaran motion story): viewer story keluar dari
+   * `slide_from_bottom` menjadi `fade_from_bottom`. Geser-naik penuh tinggi
+   * layar bertabrakan dengan animasi buka di dalam layar (kartu mengembang
+   * 0.92 → 1) — hasilnya gerakan ganda yang terasa berat. Fade + naik pendek
+   * justru menyatu dengan zoom internal: ubin tray "membesar" menjadi layar
+   * penuh ala WhatsApp/Instagram.
+   */
+  "story/[userId]",
   "order/[id]",
   "notification/[id]",
   "chat/[roomId]",
