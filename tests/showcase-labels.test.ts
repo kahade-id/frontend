@@ -10,7 +10,7 @@
  */
 import { describe, expect, it } from "vitest"
 
-import { showcasePriceLabel, showcasePriceLabelOrFallback } from "@/lib/showcase-labels"
+import { showcaseConditionLabel, showcasePriceLabel, showcasePriceLabelOrFallback } from "@/lib/showcase-labels"
 import { SHOWCASE_MAX_IMAGES } from "@/lib/showcase-limits"
 import { SHOWCASE_COMMENT_MESSAGES } from "@/lib/showcase-comment-messages"
 import { applyShowcaseCommentCountDelta } from "@/lib/showcase-social"
@@ -38,6 +38,18 @@ describe("showcasePriceLabel — satu implementasi untuk semua layar", () => {
   it("fallback mengarahkan pembeli untuk menghubungi penjual", () => {
     expect(showcasePriceLabelOrFallback({})).toBe("Harga: chat penjual")
     expect(showcasePriceLabelOrFallback({ priceMin: 50_000 })).toBe("Rp50.000")
+  })
+})
+
+describe("showcaseConditionLabel — badge kondisi kartu & detail (audit 2026-10-08)", () => {
+  it("memetakan kontrak Tim A ke kata yang sama dengan form penjual", () => {
+    expect(showcaseConditionLabel({ condition: "BARU" })).toBe("Baru")
+    expect(showcaseConditionLabel({ condition: "BEKAS" })).toBe("Bekas")
+  })
+
+  it("null/undefined = penjual tidak mengisi → tidak ada badge (bukan teks kosong)", () => {
+    expect(showcaseConditionLabel({ condition: null })).toBeNull()
+    expect(showcaseConditionLabel({})).toBeNull()
   })
 })
 

@@ -77,3 +77,19 @@ export function showcasePriceLabel(item: ShowcasePriceLike): string | null {
 export function showcasePriceLabelOrFallback(item: ShowcasePriceLike): string {
   return showcasePriceLabel(item) ?? translate("Harga: chat penjual")
 }
+
+export type ShowcaseConditionLike = {
+  condition?: "BARU" | "BEKAS" | null
+}
+
+/**
+ * Label kondisi barang (badge kartu feed & detail), atau `null` bila penjual
+ * tidak mengisinya — kontrak Tim A (2026-09-28): "BARU" | "BEKAS" | null.
+ * Kata yang sama dengan pilihan di form (<ShowcaseConditionInput>) supaya
+ * yang ditulis penjual = yang dibaca pembeli.
+ */
+export function showcaseConditionLabel(item: ShowcaseConditionLike): string | null {
+  if (item.condition === "BARU") return translate("Baru")
+  if (item.condition === "BEKAS") return translate("Bekas")
+  return null
+}

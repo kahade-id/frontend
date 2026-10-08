@@ -27,11 +27,11 @@
    "n": 39
   },
   {
-   "s": "Simpan",
-   "n": 31
+   "s": "Aksi mungkin sudah diproses — periksa kembali sebelum mencoba lagi.",
+   "n": 28
   },
   {
-   "s": "Aksi mungkin sudah diproses — periksa kembali sebelum mencoba lagi.",
+   "s": "Simpan",
    "n": 28
   },
   {
@@ -151,6 +151,10 @@
    "n": 12
   },
   {
+   "s": "Baru",
+   "n": 12
+  },
+  {
    "s": "Foto profil",
    "n": 12
   },
@@ -188,10 +192,6 @@
   },
   {
    "s": "Alamat pengiriman",
-   "n": 11
-  },
-  {
-   "s": "Baru",
    "n": 11
   },
   {
@@ -279,10 +279,6 @@
    "n": 9
   },
   {
-   "s": "Hapus dari tersimpan",
-   "n": 9
-  },
-  {
    "s": "Hapus pertanyaan?",
    "n": 9
   },
@@ -321,6 +317,10 @@
   {
    "s": "Tidak bisa membagikan",
    "n": 9
+  },
+  {
+   "s": "Bekas",
+   "n": 8
   },
   {
    "s": "Belum dibaca",
@@ -416,10 +416,6 @@
   },
   {
    "s": "Ajukan retur",
-   "n": 7
-  },
-  {
-   "s": "Bekas",
    "n": 7
   },
   {
@@ -652,6 +648,10 @@
   },
   {
    "s": "Hapus {x} dari kontak",
+   "n": 6
+  },
+  {
+   "s": "Hapus dari tersimpan",
    "n": 6
   },
   {

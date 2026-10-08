@@ -23,6 +23,12 @@ import type { OpeningMediaTap } from "@/lib/use-opening-media-tap"
  *  - H-04: tap penulis untuk tamu → loginRequired(next=profil).
  *  - C1 (batch 3): follow tidak boleh dirender di feed/list; hanya menu detail.
  *  - M-03: istilah "showcase" untuk user diganti "karya".
+ *  - Audit 2026-10-08 (positioning "jual-beli rasa media sosial"): HARGA
+ *    kembali ke kartu + badge KONDISI (Baru/Bekas) — keduanya dari DTO yang
+ *    sudah ada, tanpa fetch tambahan. Membalik keputusan 2026-09-27 (harga
+ *    disembunyikan "agar bersih"): kartu produk tanpa harga memaksa buka
+ *    detail hanya untuk tahu kisarannya — standar Instagram Shop/TikTok Shop
+ *    adalah harga terbaca langsung di kartu.
  *
  * Memo: komponen ini `memo` — kartu di feed tab membaca state sosialnya
  * sendiri (FeedCard/EtalaseCard) dan meneruskan HANYA prop yang stabil,
@@ -30,7 +36,7 @@ import type { OpeningMediaTap } from "@/lib/use-opening-media-tap"
  */
 
 import { memo, useCallback, useMemo, useState } from "react"
-import { BookmarkSimple, ChatCircle, DotsThreeCircle, Export, Flag, Funnel, Heart } from "phosphor-react-native"
+import { ChatCircle, DotsThreeCircle, Export, Flag, Funnel, Heart } from "phosphor-react-native"
 import { router } from "expo-router"
 import { View } from "react-native"
 import Animated, {
@@ -49,17 +55,21 @@ import type { ShowcaseSocialItem } from "@/lib/api/showcase"
 import type { VerificationBadge } from "@/lib/api/users"
 import { useHasSession } from "@/lib/guest-gate"
 import { showcaseMedia } from "@/lib/showcase-social"
+import { showcaseConditionLabel, showcasePriceLabel } from "@/lib/showcase-labels"
+import { summarize } from "@/lib/a11y"
 import { useReducedMotion } from "@/lib/use-reduced-motion"
 import { ShowcaseMediaGallery } from "@/components/ui/showcase-media-gallery"
 import { CommerceBadgesCompact } from "@/components/showcase/product-commerce-section"
 import { ROUTES } from "@/lib/routes"
 
 import { Avatar } from "@/components/ui/avatar"
+import { Badge } from "@/components/ui/badge"
 import { VerifiedName } from "@/components/ui/verified-name"
 import { Divider } from "@/components/ui/divider"
 import { Icon, type IconComponent } from "@/components/ui/icon"
 import { IconButton } from "@/components/ui/icon-button"
 import { LikeAction } from "@/components/ui/like-button"
+import { SaveAction } from "@/components/ui/save-button"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
@@ -298,6 +308,11 @@ function ShowcaseFeedItemBase({
   // C06 (batch 139): badge "Stok habis" di kartu — graceful: status unknown
   // (field backend belum ada) = tidak ada badge.
   const soldOut = isShowcaseSoldOut(item)
+  // Harga & kondisi dari satu util (lib/showcase-labels) — null = tidak ada
+  // barisnya; "Harga: chat penjual" sengaja TIDAK dipakai di kartu agar feed
+  // tidak dipenuhi fallback (detail yang menampilkannya + tombol chat).
+  const priceLabel = showcasePriceLabel(item)
+  const conditionLabel = showcaseConditionLabel(item)
   // C11 (batch 139): pratinjau — media tidak membuka apa pun.
   // PERF-FIX (TIM1-P1): useCallback — identitas stabil, tidak jebol memo
   // <ShowcaseMediaGallery>.
@@ -332,6 +347,29 @@ function ShowcaseFeedItemBase({
       accessibilityHint={translate("Buka komentar")}
       onPress={onOpenComments}
     />
+  )
+
+  const summaryBlock = (
+    <View className="gap-1">
+      <Text variant="body" weight={600} numberOfLines={2}>
+        {item.title}
+      </Text>
+      {priceLabel || conditionLabel ? (
+        <View className="flex-row flex-wrap items-center gap-2">
+          {priceLabel ? (
+            <Text variant="body" weight={700} className="tabular-nums">
+              {priceLabel}
+            </Text>
+          ) : null}
+          {conditionLabel ? <Badge variant="outline">{conditionLabel}</Badge> : null}
+        </View>
+      ) : null}
+      {item.description ? (
+        <Text variant="caption" tone="secondary" numberOfLines={2}>
+          {item.description}
+        </Text>
+      ) : null}
+    </View>
   )
 
   return (
@@ -462,10 +500,11 @@ function ShowcaseFeedItemBase({
         </View>
       </View>
 
-      {/* ── Kategori · judul · deskripsi (tap ke detail) ──
-          Revisi 2026-09-27 (permintaan produk): harga DIHAPUS dari list
-          feed agar bersih — harga tetap tampil di halaman detail karya.
-          `priceLabel` dipertahankan untuk ringkasan aksesibilitas.
+      {/* ── Kategori · judul · harga+kondisi · deskripsi (tap ke detail) ──
+          Audit 2026-10-08: harga (body/700, tabular) + badge kondisi di bawah
+          judul — hierarki judul ≥ harga dijaga lewat ukuran yang sama (TYP-A),
+          harga menonjol lewat bobot. Badge kondisi = <View> non-interaktif,
+          jadi aman di dalam pressable ringkasan (bukan button-in-button).
           B-03 (audit 2026-09-23): badge kategori kini SAUDARA (bukan anak)
           pressable ringkasan — button di dalam role=button = HTML tidak valid
           & iOS `accessible` induk menyembunyikan tombol kategori dari
@@ -506,36 +545,20 @@ function ShowcaseFeedItemBase({
         ) : null}
         {/* C11: pratinjau — judul/deskripsi sebagai teks biasa. */}
         {nonInteractive ? (
-          <View className="gap-1">
-            <Text variant="body" weight={600} numberOfLines={2}>
-              {item.title}
-            </Text>
-            {item.description ? (
-              <Text variant="caption" tone="secondary" numberOfLines={2}>
-                {item.description}
-              </Text>
-            ) : null}
-          </View>
+          summaryBlock
         ) : (
         <PressableScale
           accessibilityRole={onPress ? "button" : undefined}
-          accessibilityLabel={onPress ? item.title : undefined}
+          // Ringkasan screen reader = judul, harga, kondisi (audit #4) —
+          // pembaca layar tidak perlu membuka detail untuk tahu harganya.
+          accessibilityLabel={onPress ? summarize([item.title, priceLabel, conditionLabel]) : undefined}
           accessibilityHint={onPress ? translate("Buka detail etalase") : undefined}
           onPress={onPress}
           // C05: press-in = niat buka detail → prefetch metadata ringan.
           onPressIn={nonInteractive ? undefined : onPressIn}
           containerClassName={cn("rounded-sm", focusRing)}
         >
-          <View className="gap-1">
-            <Text variant="body" weight={600} numberOfLines={2}>
-              {item.title}
-            </Text>
-            {item.description ? (
-              <Text variant="caption" tone="secondary" numberOfLines={2}>
-                {item.description}
-              </Text>
-            ) : null}
-          </View>
+          {summaryBlock}
         </PressableScale>
         )}
       </View>
@@ -562,15 +585,9 @@ function ShowcaseFeedItemBase({
           </PressableScale>
         ) : null}
         {onToggleSave ? (
-          <PressableScale
-            accessibilityRole="button"
-            accessibilityLabel={saved ? translate("Hapus dari tersimpan") : translate("Simpan")}
-            accessibilityState={{ selected: saved, busy: savePending }}
-            onPress={onToggleSave}
-            containerClassName={cn("min-h-11 min-w-11 items-center justify-center rounded-md", focusRing)}
-          >
-            <Icon icon={BookmarkSimple} size="md" tone="active" weight={saved ? "fill" : "regular"} />
-          </PressableScale>
+          // Audit 2026-10-08: simpan kini bergerak (crossfade + pop) lewat
+          // <SaveAction> bersama dengan baris aksi detail.
+          <SaveAction saved={saved} busy={savePending} onPress={onToggleSave} />
         ) : null}
       </View>
 

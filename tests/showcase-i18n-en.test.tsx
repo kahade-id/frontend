@@ -37,6 +37,7 @@ const item = {
   category: "Furniture",
   priceMin: 250000,
   priceMax: 300000,
+  condition: "BARU",
   isLiked: false,
   likeCount: 4,
   commentCount: 3,
@@ -85,6 +86,25 @@ describe("kartu feed Etalase dalam bahasa Inggris", () => {
     expect(screen.getByLabelText("View Penjual's profile")).toBeTruthy()
     // K-04/penanda suntingan tidak boleh muncul untuk komentar apa adanya.
     expect(screen.queryByText("(Komentar disembunyikan)")).toBeNull()
+  })
+
+  it("harga + badge kondisi tampil di kartu (audit 2026-10-08) dan kondisinya EN", () => {
+    render(
+      <ThemeProvider>
+        <PortalProvider>
+          <ToastProvider>
+            <ShowcaseFeedItem item={item} onPress={() => {}} onToggleSave={() => {}} />
+          </ToastProvider>
+        </PortalProvider>
+      </ThemeProvider>,
+    )
+    expect(screen.getByText("Rp250.000 – Rp300.000")).toBeTruthy()
+    expect(screen.getByText("New")).toBeTruthy()
+    expect(screen.queryByText("Baru")).toBeNull()
+    // Ringkasan a11y pressable judul memuat harga + kondisi (summarize).
+    expect(screen.getByLabelText("Kursi rotan, Rp250.000 – Rp300.000, New")).toBeTruthy()
+    // Tombol simpan (SaveAction) berlabel EN.
+    expect(screen.getByLabelText("Save")).toBeTruthy()
   })
 })
 

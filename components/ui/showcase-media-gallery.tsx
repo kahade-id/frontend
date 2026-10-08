@@ -18,6 +18,7 @@ import { mediaTapPoint, type OpeningMediaTap } from "@/lib/use-opening-media-tap
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { ScrollView, View, type LayoutChangeEvent, type NativeScrollEvent, type NativeSyntheticEvent } from "react-native"
 import { Pause, Play, SpeakerHigh, SpeakerSimpleX } from "phosphor-react-native"
+import { cn } from "@/lib/cn"
 import { Picture } from "@/components/ui/picture"
 import { FeedVideo, useWifiAutoplayAllowed } from "@/components/ui/feed-video"
 import { Icon } from "@/components/ui/icon"
@@ -266,6 +267,30 @@ export function ShowcaseMediaGallery({ media, title, onOpen, onDoubleTap, autopl
           <Text variant="caption" weight={600} className="text-white tabular-nums">
             {page + 1}/{media.length}
           </Text>
+        </View>
+      ) : null}
+      {/* Audit 2026-10-08: titik indikator PASIF di kaki media (Instagram) —
+          pengguna melihat "ada slide lain" tanpa membaca angka. Berbeda dari
+          bar B-11 lama (panah + titik 44pt yang dibuang 2026-10-01 karena
+          berat), ini dekoratif: tidak bisa diketuk, disembunyikan dari
+          pembaca layar (posisi sudah dibacakan penghitung di atas), dan tidak
+          menyentuh gesture ScrollView. Maks SHOWCASE_MAX_IMAGES titik. */}
+      {media.length > 1 ? (
+        <View
+          style={{ pointerEvents: "none" }}
+          // bottom-3.5: pusat pil sejajar pusat kontrol video 44pt di kiri/kanan.
+          className="absolute bottom-3.5 left-0 right-0 items-center"
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+        >
+          <View className="flex-row items-center gap-1 rounded-full bg-overlay-media px-2 py-1.5">
+            {media.map((m, index) => (
+              <View
+                key={`dot-${m.id}`}
+                className={cn("h-1.5 w-1.5 rounded-full bg-white", index !== page && "opacity-40")}
+              />
+            ))}
+          </View>
         </View>
       ) : null}
 

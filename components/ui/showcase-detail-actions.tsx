@@ -8,12 +8,12 @@
  * (Suka memakai <LikeAction>: merah + motion pop/ring, permintaan produk
  * 2026-09-23).
  */
-import { BookmarkSimple, ChatCircle, Export } from "phosphor-react-native"
-import { useRef } from "react"
+import { ChatCircle, Export } from "phosphor-react-native"
 import { View } from "react-native"
 
 import { Icon } from "@/components/ui/icon"
 import { LikeAction } from "@/components/ui/like-button"
+import { SaveAction } from "@/components/ui/save-button"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
@@ -57,7 +57,6 @@ export function ShowcaseDetailActions({
 }: Props) {
   // i18n: label aksesibilitas mengikuti bahasa aktif.
   useLanguage()
-  const saveLongPressTriggered = useRef(false)
   return (
     <View className="flex-row items-center px-2 pt-1">
       <LikeAction
@@ -103,39 +102,15 @@ export function ShowcaseDetailActions({
       >
         <Icon icon={Export} size="md" tone="active" />
       </PressableScale>
-      <PressableScale
-        accessibilityRole="button"
-        accessibilityLabel={saved ? translate("Hapus dari tersimpan") : translate("Simpan")}
+      {/* Audit 2026-10-08: <SaveAction> bersama dengan kartu feed — crossfade
+          + pop; guard long-press (daftar penyimpan) ada di dalamnya. */}
+      <SaveAction
+        saved={saved}
+        busy={savedPending}
         accessibilityHint={translate("Simpan etalase ini")}
-        accessibilityState={{ selected: saved, busy: savedPending }}
-        onPressIn={() => {
-          saveLongPressTriggered.current = false
-        }}
-        onPress={() => {
-          if (saveLongPressTriggered.current) {
-            saveLongPressTriggered.current = false
-            return
-          }
-          onToggleSave()
-        }}
-        onLongPress={() => {
-          // A long press must never fall through to toggle-save, even when
-          // this caller cannot expose the private savers list.
-          saveLongPressTriggered.current = true
-          onShowSavers?.()
-        }}
-        containerClassName={cn(
-          "min-h-11 min-w-11 items-center justify-center rounded-md",
-          focusRing,
-        )}
-      >
-        <Icon
-          icon={BookmarkSimple}
-          size="md"
-          tone="active"
-          weight={saved ? "fill" : "regular"}
-        />
-      </PressableScale>
+        onPress={onToggleSave}
+        onLongPress={onShowSavers}
+      />
     </View>
   )
 }
