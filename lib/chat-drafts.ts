@@ -62,6 +62,26 @@ const pendingTimers = new Map<string, ReturnType<typeof setTimeout>>()
 const hydrated = new Set<string>()
 
 /**
+ * Pendengar perubahan draft (audit chat 2026-10-08): daftar chat menampilkan
+ * pratinjau "Draf: …" ala WhatsApp — baris harus ikut saat pengguna mengetik
+ * di ruang chat (tab daftar tetap ter-mount di bawahnya) dan saat draft
+ * dihapus setelah pesan terkirim. Dipanggil dari save/setReply/clear.
+ */
+const draftListeners = new Set<() => void>()
+
+/** Langganan perubahan draft. Mengembalikan fungsi berhenti langganan. */
+export function subscribeChatDrafts(listener: () => void): () => void {
+  draftListeners.add(listener)
+  return () => {
+    draftListeners.delete(listener)
+  }
+}
+
+function notifyDraftsChanged(): void {
+  for (const listener of draftListeners) listener()
+}
+
+/**
  * PERF-FIX (state audit): bersihkan draft saat sesi berganti (logout/login).
  * Draft menahan isi ketikan per room di memori proses — tanpa reset, akun B
  * yang login di perangkat yang sama dapat melihat sisa draft akun A
@@ -172,6 +192,7 @@ export function saveChatDraft(roomId: string, text: string, replyToId?: string |
   memory.set(roomId, draft)
   hydrated.add(roomId)
   schedulePersist(roomId, draft)
+  notifyDraftsChanged()
 }
 
 /**
@@ -186,6 +207,7 @@ export function setChatDraftReply(roomId: string, replyToId: string | null): voi
   memory.set(roomId, draft)
   hydrated.add(roomId)
   schedulePersist(roomId, draft)
+  notifyDraftsChanged()
 }
 
 /**
@@ -226,6 +248,38 @@ export function clearChatDraft(roomId: string): void {
   void deleteRawItem(chatDraftKey(roomId)).catch(() => {
     // Best-effort.
   })
+  notifyDraftsChanged()
+}
+
+/**
+ * Muat banyak draft sekaligus (daftar chat) dengan batas konkurensi —
+ * SecureStore membaca per kunci, 30 room tidak boleh membuka 30 Keychain
+ * read serentak di HP kentang. Room yang sudah di-hydrate sesi ini dilewati
+ * (`loadChatDraft` sudah menjamin itu), jadi aman dipanggil tiap kali daftar
+ * berubah.
+ */
+export async function hydrateChatDrafts(roomIds: readonly string[], limit = 8): Promise<void> {
+  const pending = roomIds.filter((id) => id && !hydrated.has(id))
+  if (pending.length === 0) return
+  let next = 0
+  const workers = Array.from({ length: Math.min(limit, pending.length) }, async () => {
+    while (next < pending.length) {
+      const index = next
+      next += 1
+      await loadChatDraft(pending[index]!)
+    }
+  })
+  await Promise.all(workers)
+}
+
+/**
+ * Teks draft untuk pratinjau daftar chat: `null` bila tidak ada yang perlu
+ * ditampilkan (tidak ada draft / teks kosong — konteks balasan saja tanpa
+ * ketikan belum dianggap draft yang tampil).
+ */
+export function chatDraftPreview(roomId: string): string | null {
+  const text = memory.get(roomId)?.text ?? ""
+  return text.trim().length > 0 ? text : null
 }
 
 /** @internal — dipakai test untuk isolasi antar kasus. */

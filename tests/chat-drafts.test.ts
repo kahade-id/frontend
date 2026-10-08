@@ -13,11 +13,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import {
   __resetChatDraftsForTest,
   CHAT_DRAFT_PERSIST_DEBOUNCE_MS,
+  chatDraftPreview,
   clearChatDraft,
+  hydrateChatDrafts,
   loadChatDraft,
   peekChatDraft,
   saveChatDraft,
   setChatDraftReply,
+  subscribeChatDrafts,
 } from "@/lib/chat-drafts"
 import { chatDraftKey, getRawItem, setRawItem } from "@/lib/secure-storage"
 
@@ -130,5 +133,53 @@ describe("chat drafts per-room", () => {
 
   it("P2-C2: loadChatDraft null bila tidak ada draft", async () => {
     expect(await loadChatDraft("room-kosong")).toBeNull()
+  })
+})
+
+describe("pratinjau draft daftar chat (audit 2026-10-08)", () => {
+  it("subscribeChatDrafts berbunyi saat draft disimpan, diubah reply-nya, dan dihapus", () => {
+    const listener = vi.fn()
+    const unsubscribe = subscribeChatDrafts(listener)
+    saveChatDraft("room-a", "halo")
+    expect(listener).toHaveBeenCalledTimes(1)
+    setChatDraftReply("room-a", "msg-1")
+    expect(listener).toHaveBeenCalledTimes(2)
+    clearChatDraft("room-a")
+    expect(listener).toHaveBeenCalledTimes(3)
+    unsubscribe()
+    saveChatDraft("room-a", "lagi")
+    expect(listener).toHaveBeenCalledTimes(3)
+  })
+
+  it("chatDraftPreview menampilkan teks draft; null bila kosong/hanya reply", () => {
+    expect(chatDraftPreview("room-a")).toBeNull()
+    saveChatDraft("room-a", "  ")
+    expect(chatDraftPreview("room-a")).toBeNull()
+    setChatDraftReply("room-a", "msg-1")
+    // Konteks balasan tanpa ketikan belum dianggap draft yang tampil.
+    expect(chatDraftPreview("room-a")).toBeNull()
+    saveChatDraft("room-a", "ketikan belum terkirim")
+    expect(chatDraftPreview("room-a")).toBe("ketikan belum terkirim")
+    clearChatDraft("room-a")
+    expect(chatDraftPreview("room-a")).toBeNull()
+  })
+
+  it("hydrateChatDrafts memuat banyak room dari storage dengan batas konkurensi", async () => {
+    await setRawItem(chatDraftKey("room-1"), "draft satu")
+    await setRawItem(chatDraftKey("room-2"), "draft dua")
+    await setRawItem(chatDraftKey("room-3"), "{\"t\":\"draft tiga\",\"r\":null}")
+    await hydrateChatDrafts(["room-1", "room-2", "room-3", "room-4"], 2)
+    expect(chatDraftPreview("room-1")).toBe("draft satu")
+    expect(chatDraftPreview("room-2")).toBe("draft dua")
+    expect(chatDraftPreview("room-3")).toBe("draft tiga")
+    expect(chatDraftPreview("room-4")).toBeNull()
+  })
+
+  it("hydrateChatDrafts tidak membaca ulang room yang sudah di-hydrate", async () => {
+    saveChatDraft("room-x", "hidup di memory")
+    await setRawItem(chatDraftKey("room-x"), "versi basi di storage")
+    await hydrateChatDrafts(["room-x"])
+    // Memory menang — storage tidak menimpa ketikan sesi ini.
+    expect(chatDraftPreview("room-x")).toBe("hidup di memory")
   })
 })

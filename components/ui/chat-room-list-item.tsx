@@ -83,6 +83,15 @@ export type ChatRoomListItemProps = Omit<ViewProps, "children"> & {
   sealTier?: SealTier | null
   online?: boolean
   lastMessage?: ChatRoomLastMessage
+  /**
+   * Audit chat 2026-10-08 (standar WhatsApp/Telegram): pratinjau draft
+   * ketikan yang belum terkirim — menggantikan preview pesan terakhir dengan
+   * prefix "Draf:" berwarna bahaya (merah pada app lain; di sini tone
+   * `danger` = satu-satunya warna status yang menandai "belum selesai").
+   * `typing` lebih tinggi prioritasnya (sinyal hidup), lalu draft, lalu
+   * pesan terakhir.
+   */
+  draftText?: string | null
   /** Sudah diformat pemanggil: "14:32" / "Kemarin" / "12 Mar" */
   time?: string
   unreadCount?: number
@@ -113,7 +122,7 @@ export type ChatRoomListItemProps = Omit<ViewProps, "children"> & {
   divider?: boolean
   /** Garis batas ATAS — untuk baris pertama yang butuh bingkai (kartu dst). */
   dividerTop?: boolean
-  labels?: { you?: string; typing?: string; unread?: string; selected?: string }
+  labels?: { you?: string; typing?: string; unread?: string; selected?: string; draft?: string }
   className?: string
 }
 
@@ -122,6 +131,7 @@ const DEFAULT_LABELS = {
   typing: "mengetik…",
   unread: "belum dibaca",
   selected: "dipilih",
+  draft: "Draf",
 }
 
 /**
@@ -146,6 +156,7 @@ export function ChatRoomListItemBase({
   sealTier = null,
   online = false,
   lastMessage,
+  draftText = null,
   time,
   unreadCount = 0,
   typing = false,
@@ -172,12 +183,20 @@ export function ChatRoomListItemBase({
   const compact = width < NARROW_WIDTH
   const hasUnread = unreadCount > 0
   const unreadLabel = unreadCount > 99 ? "99+" : String(unreadCount)
+  const hasDraft = !typing && !!draftText && draftText.trim().length > 0
 
+  // Prefix dirangkum per segmen lewat translate() — string hasil gabungan
+  // ("Anda: halo") tidak ada di kamus, jadi prefix tidak akan pernah berubah
+  // bahasa bila dirangkum utuh. Segmen "Anda"/"Draf" punya entri EN ("You"/
+  // "Draft").
+  const draftLabel = translate(t.draft)
   const preview = typing
-    ? t.typing
-    : lastMessage
-      ? `${lastMessage.fromSelf ? `${t.you}: ` : ""}${lastMessage.text}`
-      : ""
+    ? translate(t.typing)
+    : hasDraft
+      ? `${draftLabel}: ${draftText}`
+      : lastMessage
+        ? `${lastMessage.fromSelf ? `${translate(t.you)}: ` : ""}${lastMessage.text}`
+        : ""
 
   const a11yLabel = [
     selecting && selected ? t.selected : undefined,
@@ -265,12 +284,23 @@ export function ChatRoomListItemBase({
           <Text
             ellipsizeMode="tail"
             variant="body"
-            tone={typing || hasUnread ? "primary" : "secondary"}
-            weight={typing || hasUnread ? 500 : 400}
+            tone={typing || hasDraft || hasUnread ? "primary" : "secondary"}
+            weight={typing || hasDraft || hasUnread ? 500 : 400}
             numberOfLines={1}
             className="min-w-0 flex-1"
           >
-            {preview}
+            {hasDraft ? (
+              // Prefix "Draf:" tone bahaya — kontras dengan preview pesan,
+              // ala WhatsApp (merah) tetap dalam bahasa token (§2.3).
+              <>
+                <Text variant="inherit" tone="danger" weight={600}>
+                  {`${draftLabel}:`}
+                </Text>
+                {" "}{draftText}
+              </>
+            ) : (
+              preview
+            )}
           </Text>
           <View className="flex-row shrink-0 items-center gap-1.5">
             {muted ? <Icon icon={BellSlash} size="xs" tone="default" /> : null}
@@ -384,7 +414,8 @@ function isSameLabels(
     (a.you ?? null) === (b.you ?? null) &&
     (a.typing ?? null) === (b.typing ?? null) &&
     (a.unread ?? null) === (b.unread ?? null) &&
-    (a.selected ?? null) === (b.selected ?? null)
+    (a.selected ?? null) === (b.selected ?? null) &&
+    (a.draft ?? null) === (b.draft ?? null)
   )
 }
 
@@ -399,6 +430,7 @@ function areRoomItemPropsEqual(
     (prev.sealTier ?? null) === (next.sealTier ?? null) &&
     prev.online === next.online &&
     isSameLastMessage(prev.lastMessage, next.lastMessage) &&
+    (prev.draftText ?? null) === (next.draftText ?? null) &&
     prev.time === next.time &&
     (prev.unreadCount ?? 0) === (next.unreadCount ?? 0) &&
     prev.typing === next.typing &&

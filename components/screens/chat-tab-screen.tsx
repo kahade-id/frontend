@@ -67,6 +67,11 @@ import {
   subscribePinnedRooms,
   toggleRoomPinned,
 } from "@/lib/chat-pinned-rooms"
+import {
+  chatDraftPreview,
+  hydrateChatDrafts,
+  subscribeChatDrafts,
+} from "@/lib/chat-drafts"
 import { prefetchChatRoom } from "@/lib/entity-detail-prefetch"
 import { seedChatRoomPrefetch } from "@/lib/chat-room-prefetch"
 
@@ -285,6 +290,8 @@ type ChatRoomRowProps = {
   room: ChatRoom
   pinned: boolean
   typing: boolean
+  /** Pratinjau draft ketikan ("" = tidak ada) — prioritas kedua setelah typing. */
+  draftText: string | null
   selecting: boolean
   selected: boolean
   swipeGroup: SwipeableGroup
@@ -312,6 +319,7 @@ function ChatRoomRowBase({
   room: item,
   pinned,
   typing,
+  draftText,
   selecting,
   selected,
   swipeGroup,
@@ -405,6 +413,8 @@ function ChatRoomRowBase({
         sealTier={item.counterpart?.sealTier ?? null}
         // CHT-008: indikator "mengetik…" (server → chat.typing).
         typing={typing}
+        // Audit chat 2026-10-08: pratinjau draft ketikan ("Draf: …").
+        draftText={draftText}
         online={item.isOnline === true}
         muted={item.isMuted === true}
         pinned={pinned}
@@ -487,6 +497,7 @@ function areChatRowPropsEqual(prev: ChatRoomRowProps, next: ChatRoomRowProps): b
     isSameRoomContent(prev.room, next.room) &&
     prev.pinned === next.pinned &&
     prev.typing === next.typing &&
+    prev.draftText === next.draftText &&
     prev.selecting === next.selecting &&
     prev.selected === next.selected &&
     prev.swipeGroup === next.swipeGroup &&
@@ -635,6 +646,59 @@ function ChatScreenContent() {
   // Audit chat F15: hanya ruang teratas yang di-join (lihat TYPING_JOIN_MAX_ROOMS).
   const roomIds = useMemo(() => limitTypingRoomIds(shownRooms.map((r) => r.id)), [shownRooms])
   const typingRooms = useChatListTyping(roomIds)
+
+  /**
+   * Audit chat 2026-10-08 (standar WhatsApp/Telegram): pratinjau draft
+   * ketikan per room — "Draf: …" menggantikan preview pesan terakhir.
+   *
+   * Sumber: lib/chat-drafts (memory + SecureStore per room). Dua jalur update:
+   *   1. Hydrate saat daftar berubah (draft lama setelah restart app).
+   *   2. Langganan perubahan draft — tab daftar tetap ter-mount di bawah
+   *      ruang chat, jadi ketikan pengguna di ruang langsung tercermin saat
+   *      kembali (dan hilang saat pesan terkirim → clearChatDraft).
+   * Perubahan didebounce 300 ms: saveChatDraft berjalan tiap ketikan, dan
+   * tab yang tertutup tidak perlu render ulang secepat itu.
+   */
+  const [draftTexts, setDraftTexts] = useState<Record<string, string>>({})
+  const draftRoomIdsRef = useRef<string[]>([])
+  const refreshDrafts = useCallback(() => {
+    const next: Record<string, string> = {}
+    for (const id of draftRoomIdsRef.current) {
+      const text = chatDraftPreview(id)
+      if (text) next[id] = text
+    }
+    setDraftTexts((prev) => {
+      const prevKeys = Object.keys(prev)
+      const nextKeys = Object.keys(next)
+      if (prevKeys.length === nextKeys.length && nextKeys.every((k) => prev[k] === next[k])) {
+        return prev
+      }
+      return next
+    })
+  }, [])
+  const shownRoomIdsKey = useMemo(
+    () => shownRooms.map((r) => r.id).join("\u0001"),
+    [shownRooms],
+  )
+  useEffect(() => {
+    draftRoomIdsRef.current = shownRoomIdsKey ? shownRoomIdsKey.split("\u0001") : []
+    refreshDrafts()
+    void hydrateChatDrafts(draftRoomIdsRef.current).then(refreshDrafts)
+  }, [shownRoomIdsKey, refreshDrafts])
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | null = null
+    const unsubscribe = subscribeChatDrafts(() => {
+      if (timer) clearTimeout(timer)
+      timer = setTimeout(() => {
+        timer = null
+        refreshDrafts()
+      }, 300)
+    })
+    return () => {
+      if (timer) clearTimeout(timer)
+      unsubscribe()
+    }
+  }, [refreshDrafts])
 
   // Terapkan hasil arsip/mute ke baris list tanpa memuat ulang seluruhnya.
   // Untuk arsip, ini hanya umpan balik instan — `handleBatchArchive`
@@ -987,6 +1051,7 @@ function ChatScreenContent() {
         room={item}
         pinned={isRoomPinned(item.id)}
         typing={typingRooms.has(item.id)}
+        draftText={draftTexts[item.id] ?? null}
         selecting={selecting}
         selected={selected.has(item.id)}
         swipeGroup={swipeGroup}
@@ -1003,6 +1068,7 @@ function ChatScreenContent() {
     ),
     [
       typingRooms,
+      draftTexts,
       selecting,
       selected,
       swipeGroup,
