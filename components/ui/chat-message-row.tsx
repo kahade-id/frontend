@@ -47,6 +47,7 @@ import {
   type ChatProductCardPayload,
 } from "@/lib/api/chat"
 import { formatTime } from "@/lib/format"
+import { translate } from "@/lib/i18n/translate"
 import { ephemeralCountdownLabel, isMessageExpired } from "@/lib/chat-ephemeral"
 import {
   measureBubbleAnchor,
@@ -75,7 +76,6 @@ import { extractFirstUrl } from "@/lib/link-preview"
 import { isAudioMime } from "@/lib/voice-note"
 import { isFreshMessage } from "@/lib/chat-bubble-motion"
 import { type SealTier } from "@/components/ui/verified-seal"
-import { translate } from "@/lib/i18n/translate"
 
 /**
  * Jendela pengelompokan bubble (ms): pesan berurutan dari pengirim yang sama
@@ -91,6 +91,18 @@ const GROUP_WINDOW_MS = 5 * 60 * 1000
  * "Gambar"/"Video"/… sementara permukaan lain "(lampiran)".
  */
 const quoteFallbackLabel = nonTextMessageLabel
+
+/**
+ * Audit chat H22: pesan hasil Teruskan — backend mengisi `forwardedFromId`
+ * (dan `forwardedFrom` bila menyertakan info sumber). Salah satu cukup;
+ * pesan terhapus tidak membawa label.
+ */
+export function isForwardedMessage(
+  m: Pick<ChatMessage, "forwardedFromId" | "forwardedFrom" | "isDeleted">,
+): boolean {
+  if (m.isDeleted) return false
+  return !!m.forwardedFromId || !!m.forwardedFrom?.id
+}
 
 export type ChatMessageRowProps = {
   message: ChatMessage
@@ -655,6 +667,8 @@ export function ChatMessageRowBase({
       reactions={message.reactions}
       onReact={selecting || !onReact ? undefined : handleBubbleReact}
       onShowReactions={selecting || !onShowReactions ? undefined : handleBubbleShowReactions}
+      // Audit chat H22: pesan hasil Teruskan diberi label "Diteruskan".
+      forwarded={isForwardedMessage(message)}
       isPinned={message.isPinned}
       isEdited={message.isEdited}
       isDeleted={message.isDeleted}

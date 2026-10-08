@@ -54,5 +54,10 @@
   "Sapa {x} untuk memulai percakapan. Tanyakan detail barang atau jasa, dan lakukan transaksi lewat Kahade agar aman.": "Say hi to {x} to start the conversation. Ask about the item or service, and complete the transaction through Kahade to stay safe.",
   "Sapa lawan bicara Anda untuk memulai percakapan. Tanyakan detail barang atau jasa, dan lakukan transaksi lewat Kahade agar aman.": "Say hi to start the conversation. Ask about the item or service, and complete the transaction through Kahade to stay safe.",
   "Sedang mengetik…": "Typing…",
-  "Simpan catatan, tautan, atau foto untuk diri sendiri di sini.": "Keep notes, links, or photos for yourself here."
+  "Simpan catatan, tautan, atau foto untuk diri sendiri di sini.": "Keep notes, links, or photos for yourself here.",
+  "Bila dimatikan, percakapan tidak bisa di-screenshot atau direkam layarnya di perangkat ini.": "When off, conversations can't be screenshotted or screen-recorded on this device.",
+  "Diteruskan": "Forwarded",
+  "Hanya berlaku di perangkat ini.": "Applies to this device only.",
+  "Izinkan screenshot & rekam layar di chat": "Allow screenshots & screen recording in chats",
+  "Layar": "Screen"
 }

@@ -217,6 +217,7 @@ import { classifyPinFailure, pinBlockedByKnownLimit } from "@/lib/chat-pin"
 import { applyStarredIds, dmSafetyCounterpartId, nextInlineActiveId } from "@/lib/chat-room-effects"
 import { msUntilNextLocalMidnight } from "@/lib/chat-day-label"
 import { createConfirmGate, type ConfirmGate } from "@/lib/confirm-gate"
+import { ChatScreenCaptureGate } from "@/components/security/chat-screen-capture-gate"
 import { createTypingSender, summarizeTypers, type TypingSender } from "@/lib/chat-typing"
 import type { TypingRosterEntry } from "@/lib/realtime/chat-events"
 import { buildSendDto, resolveRetryKey } from "@/lib/chat-send-dto"
@@ -499,7 +500,7 @@ const UnreadSeparatorRow = memo(function UnreadSeparatorRow({
   return <ChatUnreadSeparator count={count} onPress={handlePress} />
 })
 
-export default function ChatRoomScreen() {
+function ChatRoomScreenContent() {
   const insets = useSafeAreaInsets()
   const language = useLanguage()
   // C-06 (audit): `title` opsional dikirim saat navigasi dari daftar chat —
@@ -4379,5 +4380,21 @@ export default function ChatRoomScreen() {
         onRecorded={(file) => void handleVoiceRecorded(file)}
       />
     </Screen>
+  )
+}
+
+/**
+ * Audit chat H21: ruang chat dilindungi <ScreenCaptureGuard> bila pengguna
+ * mematikan "Izinkan screenshot & rekam layar di chat" (Pengaturan pesan;
+ * default izinkan). Guard dipasang di PEMBUNGKUS ini — bukan di rute tipis
+ * `app/chat/[roomId].tsx` (yang dilarang memuat import berat) dan bukan di
+ * dalam JSX layar 4.000 baris — dan ter-mount selama ruang dibuka, sehingga
+ * penampil media yang dibuka dari chat ikut terlindungi.
+ */
+export default function ChatRoomScreen() {
+  return (
+    <ChatScreenCaptureGate>
+      <ChatRoomScreenContent />
+    </ChatScreenCaptureGate>
   )
 }

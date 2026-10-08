@@ -343,3 +343,35 @@ kontrak. Yang akan menghapus angka-angka yang kini disalin di klien:
    tidak mengirimnya; dengan `expiresAt` akurat, indikator mati tepat saat
    status server habis, termasuk bila paket `stop` hilang.
 
+## H — Privasi: screenshot & rekam layar, pesan terusan
+
+**Kondisi hari ini.** Pengaturan pesan → grup "Layar" → saklar "Izinkan
+screenshot & rekam layar di chat" (default IZINKAN, disimpan LOKAL di
+perangkat). Dimatikan → ruang chat dan daftar chat (hanya saat tab Pesan
+terfokus) dilindungi `expo-screen-capture`: Android FLAG_SECURE (juga
+mengosongkan pratinjau di daftar aplikasi terbaru), iOS pencegahan screenshot
+& rekam layar + blur app-switcher. Pesan hasil Teruskan diberi label
+"Diteruskan". Tidak ada field baru yang WAJIB; untuk dua hal berikut backend
+bisa menyempurnakan:
+
+1. **Sinkron antar-perangkat** — tambahkan `allowScreenCapture` (boolean,
+   default `true`) ke `GET/PATCH /v1/chat/privacy` (tempat `hideReadReceipts`
+   dan `dmPolicy` sudah hidup). Hari ini preferensi per perangkat: pengguna
+   yang mematikannya di HP A tetap bisa di-screenshot di HP B. Klien tinggal
+   menjadikan nilai server sumber kebenaran dan menyimpan salinan lokal
+   sebagai cache offline.
+2. **Penanda "Diteruskan" yang lengkap** — pastikan `forwardedFromId` (dan
+   `forwardedFrom`) ikut di SEMUA jalur: `GET …/messages`, `chat.new_message`
+   realtime, `lastMessage` pada `GET /rooms`, dan hasil pencarian. Usul
+   tambahan untuk pencegahan penipuan: `isForwarded: boolean` yang eksplisit
+   dan `forwardCount` (diteruskan berkali-kali = label lebih tegas, ala
+   "Diteruskan berkali-kali"), serta menolak meneruskan pesan yang memuat
+   nomor rekening ke ruang yang bukan milik transaksi yang sama bila
+   kebijakan antipenipuan menghendakinya. Klien hanya membaca penanda; tidak
+   ada logika keamanan yang bergantung pada klien.
+3. **Event tangkapan layar (opsional, keputusan produk).** Sebagian aplikasi
+   memberi tahu lawan bicara saat percakapan di-screenshot. Klien dapat
+   mengirim `POST …/screenshot-notice` bila produk menginginkannya; tidak
+   diaktifkan hari ini karena menyangkut privasi pihak lain dan tidak
+   diminta di audit.
+

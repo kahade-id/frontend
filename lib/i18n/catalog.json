@@ -2243,6 +2243,10 @@
    "n": 3
   },
   {
+   "s": "Bila dimatikan, percakapan tidak bisa di-screenshot atau direkam layarnya di perangkat ini.",
+   "n": 3
+  },
+  {
    "s": "Bisukan video",
    "n": 3
   },
@@ -2567,6 +2571,10 @@
    "n": 3
   },
   {
+   "s": "Diteruskan",
+   "n": 3
+  },
+  {
    "s": "Ditutup",
    "n": 3
   },
@@ -2807,6 +2815,10 @@
    "n": 3
   },
   {
+   "s": "Hanya berlaku di perangkat ini.",
+   "n": 3
+  },
+  {
    "s": "Hanya nama pemilik yang bisa diubah — nomor {x} tetap sama.",
    "n": 3
   },
@@ -3012,6 +3024,10 @@
   },
   {
    "s": "Isi kesepakatan",
+   "n": 3
+  },
+  {
+   "s": "Izinkan screenshot & rekam layar di chat",
    "n": 3
   },
   {
@@ -3400,6 +3416,10 @@
   },
   {
    "s": "Laporkan postingan \"{x}\" jika melanggar panduan komunitas.",
+   "n": 3
+  },
+  {
+   "s": "Layar",
    "n": 3
   },
   {

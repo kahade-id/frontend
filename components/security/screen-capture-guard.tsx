@@ -23,6 +23,13 @@
  * tidak ada (binary lama, Expo Go), guard menjadi no-op alih-alih crash.
  *
  * Tidak mengubah tampilan UI selain proteksi ini.
+ *
+ * Audit chat H21: prop `enabled` (default true — layar sensitif tidak berubah).
+ * Guard OPT-IN oleh pengguna (preferensi "Izinkan screenshot & rekam layar di
+ * chat") memasangnya selalu tetapi menyalakannya hanya saat dipilih: struktur
+ * pohon TIDAK berubah saat dinyalakan/dimatikan (anak tidak di-remount), dan
+ * perubahan `enabled` langsung memasang/melepas proteksi. Catatan batas:
+ * proteksi OS tidak menghalangi kamera perangkat lain memotret layar.
  */
 import { useEffect, useRef, useState, type ReactNode } from "react"
 import { Platform, StyleSheet, View } from "react-native"
@@ -85,7 +92,14 @@ function CaptureDetectedOverlay({ onDismiss }: { onDismiss: () => void }) {
   )
 }
 
-export function ScreenCaptureGuard({ children }: { children: ReactNode }) {
+export function ScreenCaptureGuard({
+  children,
+  enabled = true,
+}: {
+  children: ReactNode
+  /** `false` = guard tidak aktif (tidak ada pencegahan/listener). Default true. */
+  enabled?: boolean
+}) {
   const [captured, setCaptured] = useState(false)
   const keyRef = useRef<string | null>(null)
   if (keyRef.current === null) {
@@ -94,6 +108,11 @@ export function ScreenCaptureGuard({ children }: { children: ReactNode }) {
   }
 
   useEffect(() => {
+    if (!enabled) {
+      // Dimatikan di tengah umur komponen: lapisan "tertangkap" ikut dilepas.
+      setCaptured(false)
+      return
+    }
     let cancelled = false
     let screenshotSub: EventSubscription | undefined
     let sc: ScreenCaptureModule | null = null
@@ -121,12 +140,12 @@ export function ScreenCaptureGuard({ children }: { children: ReactNode }) {
         disableAppSwitcherProtection(sc)
       }
     }
-  }, [])
+  }, [enabled])
 
   return (
     <>
       {children}
-      {captured ? <CaptureDetectedOverlay onDismiss={() => setCaptured(false)} /> : null}
+      {enabled && captured ? <CaptureDetectedOverlay onDismiss={() => setCaptured(false)} /> : null}
     </>
   )
 }

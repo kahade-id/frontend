@@ -75,6 +75,7 @@ import Animated, {
 } from "react-native-reanimated"
 import {
   ArrowBendUpLeft,
+  ArrowBendUpRight,
   Check,
   Checks,
   Clock,
@@ -236,6 +237,13 @@ export type ChatMessageBubbleProps = Omit<ViewProps, "children"> & {
    * Tanpa ini (layar bantuan/sengketa) ketukan chip tetap mengubah reaksi.
    */
   onShowReactions?: (emoji: string) => void
+  /**
+   * Audit chat H22 (cegah penipuan): pesan ini TERUSAN dari percakapan lain —
+   * label "Diteruskan" tampil di atas isi. Penipu sering menyalin instruksi
+   * pembayaran dari tempat lain seolah ditulis sendiri; label ini
+   * membuat asal-usulnya terlihat. Tidak tampil untuk pesan terhapus.
+   */
+  forwarded?: boolean
   /** Ikon pin kecil di baris meta (pesan terpin). */
   isPinned?: boolean
   /** Tampilkan "diedit" di baris meta. */
@@ -322,6 +330,7 @@ function ChatMessageBubbleBase({
   reactions,
   onReact,
   onShowReactions,
+  forwarded = false,
   isPinned = false,
   isEdited = false,
   isDeleted = false,
@@ -599,6 +608,14 @@ function ChatMessageBubbleBase({
         outgoing ? "bg-primary" : "bg-surface",
       )}
     >
+      {forwarded && !isDeleted ? (
+        <View testID="message-forwarded-label" className="flex-row items-center gap-1">
+          <Icon icon={ArrowBendUpRight} size="xs" tone={outgoing ? "inverse" : "default"} />
+          <Text variant="caption" italic weight={500} tone={outgoing ? "inverse" : "secondary"}>
+            {translate("Diteruskan")}
+          </Text>
+        </View>
+      ) : null}
       {quote ? (
         <QuoteBlock
           className={cn(
@@ -731,6 +748,7 @@ function ChatMessageBubbleBase({
             : undefined
   const a11yLabel = [
     outgoing ? translate("Anda") : (senderName ?? translate("Pesan masuk")),
+    forwarded && !isDeleted ? translate("Diteruskan") : undefined,
     text,
     time,
     failed ? t.failed : statusText,
