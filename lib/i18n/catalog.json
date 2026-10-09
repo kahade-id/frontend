@@ -71,6 +71,10 @@
    "n": 16
   },
   {
+   "s": "Pengguna",
+   "n": 16
+  },
+  {
    "s": "Penjual",
    "n": 16
   },
@@ -88,10 +92,6 @@
   },
   {
    "s": "Pembeli",
-   "n": 15
-  },
-  {
-   "s": "Pengguna",
    "n": 15
   },
   {
@@ -455,6 +455,10 @@
    "n": 7
   },
   {
+   "s": "Kirim jawaban",
+   "n": 7
+  },
+  {
    "s": "Komentar dihapus",
    "n": 7
   },
@@ -619,6 +623,10 @@
    "n": 6
   },
   {
+   "s": "Dari {x}",
+   "n": 6
+  },
+  {
    "s": "Detail diperbarui",
    "n": 6
   },
@@ -712,6 +720,10 @@
   },
   {
    "s": "Jasa desain, kerajinan, digital…",
+   "n": 6
+  },
+  {
+   "s": "Jawab pertanyaan",
    "n": 6
   },
   {
@@ -920,6 +932,10 @@
   },
   {
    "s": "Tulis balasan untuk @{x}…",
+   "n": 6
+  },
+  {
+   "s": "Tulis jawaban Anda…",
    "n": 6
   },
   {
@@ -1255,6 +1271,10 @@
    "n": 5
   },
   {
+   "s": "Tanya @{x}…",
+   "n": 5
+  },
+  {
    "s": "Tautan",
    "n": 5
   },
@@ -1391,10 +1411,6 @@
    "n": 4
   },
   {
-   "s": "Bertanya",
-   "n": 4
-  },
-  {
    "s": "Blokir",
    "n": 4
   },
@@ -1527,6 +1543,10 @@
    "n": 4
   },
   {
+   "s": "Gagal mengirim jawaban",
+   "n": 4
+  },
+  {
    "s": "Gagal mengirim laporan",
    "n": 4
   },
@@ -1587,6 +1607,10 @@
    "n": 4
   },
   {
+   "s": "Jawaban terkirim",
+   "n": 4
+  },
+  {
    "s": "Jelajahi etalase",
    "n": 4
   },
@@ -1620,10 +1644,6 @@
   },
   {
    "s": "Kirim dokumen",
-   "n": 4
-  },
-  {
-   "s": "Kirim jawaban",
    "n": 4
   },
   {
@@ -2727,10 +2747,6 @@
    "n": 3
   },
   {
-   "s": "Dari {x}",
-   "n": 3
-  },
-  {
    "s": "Dari etalase \"{x}\" — dana diamankan Kahade sampai barang diterima.",
    "n": 3
   },
@@ -3356,10 +3372,6 @@
   },
   {
    "s": "Jarak antar cicilan (hari, {x}–{x})",
-   "n": 3
-  },
-  {
-   "s": "Jawab pertanyaan",
    "n": 3
   },
   {
@@ -5139,10 +5151,6 @@
    "n": 3
   },
   {
-   "s": "Tulis jawaban Anda…",
-   "n": 3
-  },
-  {
    "s": "Tulis kalimat yang sering Anda pakai",
    "n": 3
   },
@@ -5963,6 +5971,10 @@
    "n": 2
   },
   {
+   "s": "Bertanya",
+   "n": 2
+  },
+  {
    "s": "Biasanya sekitar {x} hari",
    "n": 2
   },
@@ -6779,10 +6791,6 @@
    "n": 2
   },
   {
-   "s": "Gagal mengirim jawaban",
-   "n": 2
-  },
-  {
    "s": "Gagal mengirim kartu produk",
    "n": 2
   },
@@ -7068,10 +7076,6 @@
   },
   {
    "s": "Jawaban minimal {x} karakter",
-   "n": 2
-  },
-  {
-   "s": "Jawaban terkirim",
    "n": 2
   },
   {
@@ -9220,6 +9224,10 @@
   },
   {
    "s": "tanpa nama",
+   "n": 2
+  },
+  {
+   "s": "Tanya",
    "n": 2
   },
   {

@@ -75,6 +75,7 @@ import { Header } from "@/components/ui/header"
 import { Icon } from "@/components/ui/icon"
 import { ImageViewer } from "@/components/ui/image-viewer"
 import { Picture } from "@/components/ui/picture"
+import { PressableScale } from "@/components/ui/pressable-scale"
 import { IconButton } from "@/components/ui/icon-button"
 import { Collapse } from "@/components/ui/collapse"
 import { Crossfade } from "@/components/ui/fade-in"
@@ -160,6 +161,13 @@ const COVER_HEIGHT = 120
  * terasa tanpa lompatan.
  */
 const TABS_STUCK_OFFSET = 280
+
+/**
+ * Batas jawaban pemilik — sama dengan layar inbox Tanya Jawab (app/questions.tsx):
+ * AnswerQuestionDto minLength 1, batas lokal 10 agar jawaban bermakna.
+ */
+const ANSWER_MIN = 10
+const ANSWER_MAX = 2000
 
 
 /**
@@ -313,6 +321,10 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
   const [askOpen, setAskOpen] = useState(false)
   const [askText, setAskText] = useState("")
   const [asking, setAsking] = useState(false)
+  /** Pertanyaan yang sedang dijawab pemilik profil (sheet jawab). */
+  const [answerTarget, setAnswerTarget] = useState<QuestionItem | null>(null)
+  const [answerText, setAnswerText] = useState("")
+  const [answering, setAnswering] = useState(false)
   const [openQuestionId, setOpenQuestionId] = useState<string | null>(null)
   const [questionComments, setQuestionComments] = useState<{
     items: QuestionComment[]
@@ -850,12 +862,14 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
   // Question & Comment handlers
   // P3 (audit 2026-09-26): buka sheet tanya hanya bila sudah login.
   const openAsk = useCallback(() => {
+    // Pemilik profil TIDAK bertanya di profilnya sendiri — hanya menjawab.
+    if (isSelf) return
     if (!requireSession()) return
     setAskOpen(true)
-  }, [requireSession])
+  }, [requireSession, isSelf])
 
   const submitAsk = useCallback(async () => {
-    if (!username || askText.trim().length < 5) return
+    if (isSelf || !username || askText.trim().length < 5) return
     setAsking(true)
     try {
       await api.users.addQuestion(username, askText.trim())
@@ -874,7 +888,41 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
     } finally {
       setAsking(false)
     }
-  }, [username, askText, toast])
+  }, [username, askText, toast, isSelf])
+
+  /** Pemilik menjawab pertanyaan langsung di profilnya (tanpa pindah ke inbox). */
+  const openAnswer = useCallback(
+    (q: QuestionItem) => {
+      if (!isSelf) return
+      setAnswerTarget(q)
+      setAnswerText("")
+    },
+    [isSelf],
+  )
+
+  const submitAnswer = useCallback(async () => {
+    if (!isSelf || !answerTarget || answering) return
+    const value = answerText.trim()
+    if (value.length < ANSWER_MIN || value.length > ANSWER_MAX) return
+    setAnswering(true)
+    try {
+      await api.users.answerQuestion(answerTarget.id, value)
+      toast.show({ title: translate("Jawaban terkirim"), tone: "success", duration: 3000 })
+      setAnswerTarget(null)
+      setAnswerText("")
+      const res = await api.users.getPublicQuestions(username, { page: 1, limit: 20 })
+      const { items } = readQuestionList(res)
+      setQuestions(items)
+    } catch (err) {
+      toast.show({
+        title: translate("Gagal mengirim jawaban"),
+        description: userMessage(err),
+        tone: "danger",
+      })
+    } finally {
+      setAnswering(false)
+    }
+  }, [isSelf, answerTarget, answerText, answering, toast, username])
 
   const toggleComments = useCallback(
     async (q: QuestionItem) => {
@@ -1417,21 +1465,32 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
                  * layar. Perbaikan dua sisi: teks dibatasi (flex-1 + 1 baris)
                  * dan tombol dikecilkan ke lebar konten (fullWidth={false}).
                  */}
-                <View className="flex-row items-center justify-between gap-3">
-                  <Text variant="label" tone="secondary" numberOfLines={1} className="flex-1">
+                {/*
+                 * CTA "Tanya" untuk pengunjung — dibuat seperti kolom balas
+                 * Threads (pill + ikon), jelas terlihat tanpa membaca daftar.
+                 * Pemilik profil tidak melihatnya: ia hanya menjawab.
+                 */}
+                {!isSelf ? (
+                  <PressableScale
+                    accessibilityRole="button"
+                    accessibilityLabel={translate("Tanya @{x}…", { x: handle })}
+                    onPress={openAsk}
+                    containerClassName="rounded-full"
+                    className="flex-row items-center gap-3 rounded-full border border-border bg-surface px-4 py-2.5"
+                  >
+                    <Icon icon={ChatCircleDots} size="sm" tone="default" />
+                    <Text variant="body" tone="secondary" numberOfLines={1} className="flex-1">
+                      {translate("Tanya @{x}…", { x: handle })}
+                    </Text>
+                    <Text variant="caption" weight={700} tone="primary">
+                      {translate("Tanya")}
+                    </Text>
+                  </PressableScale>
+                ) : (
+                  <Text variant="label" tone="secondary" numberOfLines={1}>
                     {translate("Pertanyaan Pengguna")}
                   </Text>
-                  {!isSelf ? (
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      fullWidth={false}
-                      onPress={openAsk}
-                    >
-                      {translate("Bertanya")}
-                    </Button>
-                  ) : null}
-                </View>
+                )}
 
                 {questionsLoading ? (
                   <ListLoading />
@@ -1494,7 +1553,7 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
                               size="sm"
                               variant="secondary"
                               fullWidth={false}
-                              onPress={() => router.push(ROUTES.questions)}
+                              onPress={() => openAnswer(q)}
                             >
                               {translate("Jawab")}
                             </Button>
@@ -1628,6 +1687,32 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
           showCount
         />
       </Dialog>
+
+      {/* ── Sheet Jawab (pemilik profil) — pola sama dengan inbox Tanya Jawab ── */}
+      <BottomSheet
+        avoidKeyboard
+        visible={!!answerTarget && isSelf}
+        onRequestClose={() => setAnswerTarget(null)}
+        title={translate("Jawab pertanyaan")}
+        description={translate("Dari {x}", {
+          x: answerTarget?.asker?.fullName ?? answerTarget?.asker?.username ?? translate("Pengguna"),
+        })}
+      >
+        <View className="px-5 pb-4">
+          <QaCommentComposer
+            value={answerText}
+            onChangeText={setAnswerText}
+            onSubmit={() => void submitAnswer()}
+            submitting={answering}
+            minLength={ANSWER_MIN}
+            maxLength={ANSWER_MAX}
+            authorName={profile?.fullName ?? handle}
+            authorAvatar={profile?.avatarUrl ? { source: profile.avatarUrl } : undefined}
+            placeholder={translate("Tulis jawaban Anda…")}
+            submitLabel={translate("Kirim jawaban")}
+          />
+        </View>
+      </BottomSheet>
 
       {/* ── Dialog Hapus Pertanyaan / Komentar ──────────────── */}
       <Dialog
