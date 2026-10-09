@@ -20,18 +20,18 @@
   },
   {
    "s": "Gagal memuat",
-   "n": 41
+   "n": 43
   },
   {
    "s": "Tutup",
    "n": 39
   },
   {
-   "s": "Aksi mungkin sudah diproses — periksa kembali sebelum mencoba lagi.",
-   "n": 28
+   "s": "Simpan",
+   "n": 29
   },
   {
-   "s": "Simpan",
+   "s": "Aksi mungkin sudah diproses — periksa kembali sebelum mencoba lagi.",
    "n": 28
   },
   {
@@ -48,7 +48,7 @@
   },
   {
    "s": "Anda",
-   "n": 23
+   "n": 24
   },
   {
    "s": "Lanjutkan",
@@ -65,6 +65,10 @@
   {
    "s": "Tambah alamat",
    "n": 17
+  },
+  {
+   "s": "Deskripsi",
+   "n": 16
   },
   {
    "s": "Komentar",
@@ -88,10 +92,6 @@
   },
   {
    "s": "Akses galeri ditolak",
-   "n": 14
-  },
-  {
-   "s": "Deskripsi",
    "n": 14
   },
   {
@@ -407,6 +407,10 @@
    "n": 8
   },
   {
+   "s": "Tunggu unggahan selesai…",
+   "n": 8
+  },
+  {
    "s": "Video",
    "n": 8
   },
@@ -680,6 +684,10 @@
   },
   {
    "s": "Harga {x} ditampilkan sebagai Gratis.",
+   "n": 6
+  },
+  {
+   "s": "Harga maksimum (opsional)",
    "n": 6
   },
   {
@@ -1491,6 +1499,10 @@
    "n": 4
   },
   {
+   "s": "Gagal memperbarui suka",
+   "n": 4
+  },
+  {
    "s": "Gagal memuat alamat",
    "n": 4
   },
@@ -1539,10 +1551,6 @@
    "n": 4
   },
   {
-   "s": "Harga maksimum (opsional)",
-   "n": 4
-  },
-  {
    "s": "Harga minimum (opsional)",
    "n": 4
   },
@@ -1575,11 +1583,19 @@
    "n": 4
   },
   {
+   "s": "Jelajahi etalase",
+   "n": 4
+  },
+  {
    "s": "Judul terlalu panjang",
    "n": 4
   },
   {
    "s": "Kahade",
+   "n": 4
+  },
+  {
+   "s": "Karya tersimpan",
    "n": 4
   },
   {
@@ -1892,10 +1908,6 @@
   },
   {
    "s": "Tulis balasan…",
-   "n": 4
-  },
-  {
-   "s": "Tunggu unggahan selesai…",
    "n": 4
   },
   {
@@ -3343,10 +3355,6 @@
    "n": 3
   },
   {
-   "s": "Jelajahi etalase",
-   "n": 3
-  },
-  {
    "s": "Jelaskan secara singkat detail pelanggaran...",
    "n": 3
   },
@@ -3923,6 +3931,10 @@
    "n": 3
   },
   {
+   "s": "Memuat profil tersimpan…",
+   "n": 3
+  },
+  {
    "s": "Memuat rekening…",
    "n": 3
   },
@@ -4483,6 +4495,10 @@
    "n": 3
   },
   {
+   "s": "Pulihkan",
+   "n": 3
+  },
+  {
    "s": "Punya kode dari teman?",
    "n": 3
   },
@@ -4704,6 +4720,10 @@
   },
   {
    "s": "Simpan profil",
+   "n": 3
+  },
+  {
+   "s": "Simpan profil penjual dari halaman profil mereka untuk dilihat lagi nanti.",
    "n": 3
   },
   {
@@ -5328,6 +5348,10 @@
   },
   {
    "s": "Wajib untuk rating {x}–{x} bintang",
+   "n": 3
+  },
+  {
+   "s": "WhatsApp",
    "n": 3
   },
   {
@@ -6419,6 +6443,10 @@
    "n": 2
   },
   {
+   "s": "Draf privat tetap tersimpan di etalase Anda dan bisa diterbitkan kapan saja.",
+   "n": 2
+  },
+  {
    "s": "Email baru",
    "n": 2
   },
@@ -6620,10 +6648,6 @@
   },
   {
    "s": "Gagal memperbarui reaksi",
-   "n": 2
-  },
-  {
-   "s": "Gagal memperbarui suka",
    "n": 2
   },
   {
@@ -7075,7 +7099,7 @@
    "n": 2
   },
   {
-   "s": "Karya tersimpan",
+   "s": "Karya langsung tampil di feed Etalase dan profil publik Anda.",
    "n": 2
   },
   {
@@ -8571,10 +8595,6 @@
    "n": 2
   },
   {
-   "s": "Pulihkan",
-   "n": 2
-  },
-  {
    "s": "Push tidak dibunyikan pada jam berikut.",
    "n": 2
   },
@@ -8700,6 +8720,10 @@
   },
   {
    "s": "Salin nomor",
+   "n": 2
+  },
+  {
+   "s": "Salin tautan",
    "n": 2
   },
   {
@@ -9251,6 +9275,10 @@
    "n": 2
   },
   {
+   "s": "Telegram",
+   "n": 2
+  },
+  {
    "s": "Template tersinkron ke akun Anda.",
    "n": 2
   },
@@ -9627,7 +9655,7 @@
    "n": 2
   },
   {
-   "s": "WhatsApp",
+   "s": "X (Twitter)",
    "n": 2
   },
   {
@@ -14615,10 +14643,6 @@
    "n": 1
   },
   {
-   "s": "Draf privat tetap tersimpan di etalase Anda dan bisa diterbitkan kapan saja.",
-   "n": 1
-  },
-  {
    "s": "Dukungan prioritas",
    "n": 1
   },
@@ -14835,7 +14859,7 @@
    "n": 1
   },
   {
-   "s": "Fitur dompet sedang dinonaktifkan. Dana escrow diteruskan langsung ke rekening bank Anda.",
+   "s": "Fitur dompet sedang dinonaktifkan. Dana transaksi diteruskan langsung ke rekening bank Anda.",
    "n": 1
   },
   {
@@ -16240,10 +16264,6 @@
   },
   {
    "s": "Karya Etalase",
-   "n": 1
-  },
-  {
-   "s": "Karya langsung tampil di feed Etalase dan profil publik Anda.",
    "n": 1
   },
   {
@@ -17992,10 +18012,6 @@
   },
   {
    "s": "Memuat preferensi server…",
-   "n": 1
-  },
-  {
-   "s": "Memuat profil tersimpan…",
    "n": 1
   },
   {
@@ -20831,10 +20847,6 @@
    "n": 1
   },
   {
-   "s": "Salin tautan",
-   "n": 1
-  },
-  {
    "s": "Salin Tautan",
    "n": 1
   },
@@ -21320,10 +21332,6 @@
   },
   {
    "s": "Simpan pengguna favorit dari profil mereka.",
-   "n": 1
-  },
-  {
-   "s": "Simpan profil penjual dari halaman profil mereka untuk dilihat lagi nanti.",
    "n": 1
   },
   {
@@ -21904,10 +21912,6 @@
   },
   {
    "s": "Teks tautan disalin",
-   "n": 1
-  },
-  {
-   "s": "Telegram",
    "n": 1
   },
   {
@@ -23064,10 +23068,6 @@
   },
   {
    "s": "WhatsApp promosi",
-   "n": 1
-  },
-  {
-   "s": "X (Twitter)",
    "n": 1
   },
   {

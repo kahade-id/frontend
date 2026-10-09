@@ -273,6 +273,8 @@ export default function ShowcaseCreateScreen() {
   // S7: autosave teks (debounce 1 dtk) — TANPA foto.
   useEffect(() => {
     const t = setTimeout(() => {
+      // SH-02: draf baru saja dihapus sengaja — jangan tuliskan ulang.
+      if (draftSuppressed.current) return
       const meaningful =
         form.title.trim() || form.description.trim() || form.category.trim() ||
         form.priceMin != null || form.priceMax != null || form.condition !== ""
@@ -302,6 +304,15 @@ export default function ShowcaseCreateScreen() {
   const [intentionalLeave, setIntentionalLeave] = useState(false)
 
   const pendingKeys = useRef<string[]>([])
+  /**
+   * SH-02 (audit 2026-10-09): setelah draft DIHAPUS secara sengaja (terbit
+   * sukses, "Buang", atau dialog "Lanjutkan draf?" → buang), timer autosave
+   * 1 dtk yang belum nembak TIDAK BOLEH menulis ulang draf ke penyimpanan —
+   * kalau menulis, layar terbuka lagi muncul prompt "Lanjutkan draf?" berisi
+   * karya yang sudah terbit. Dicek di DALAM callback timeout (cek saat efek
+   * terlambat: timer yang sudah berjalan tetap akan nembak).
+   */
+  const draftSuppressed = useRef(false)
   const createAttempt = useRef<{ key: string; dto: CreateShowcaseItemDto } | null>(null)
   const uploadAbort = useRef<AbortController | null>(null)
   const uploadBusy = useRef(false)
@@ -393,7 +404,7 @@ export default function ShowcaseCreateScreen() {
     // B2-SC-02: toast yang sama seperti jalur hardware back — X diam total
     // saat upload busy terasa seperti aplikasi macet.
     if (saveBusy.current || uploadBusy.current) {
-      toast.show({ title: "Tunggu unggahan selesai…", tone: "info" })
+      toast.show({ title: translate("Tunggu unggahan selesai…"), tone: "info" })
       return
     }
     if (dirty) setDiscardOpen(true)
@@ -405,6 +416,9 @@ export default function ShowcaseCreateScreen() {
     void cleanupPendingShowcaseKeys(pendingKeys.current)
     pendingKeys.current = []
     // S7: buang juga draft teks yang tersimpan.
+    // SH-02: matikan autosave TERLEBIH DULU — timer 1 dtk yang belum nembak
+    // (dari ketikan terakhir) tidak boleh menulis ulang draft yang dibuang.
+    draftSuppressed.current = true
     void clearShowcaseDraft()
     setDiscardOpen(false)
     // Jangan dispatch di sini: penjaga masih aktif sampai commit berikutnya
@@ -417,7 +431,7 @@ export default function ShowcaseCreateScreen() {
     // P1-S2: beri umpan balik saat back ditekan selama upload — sebelumnya
     // diam total dan terasa seperti aplikasi macet.
     if (saveBusy.current || uploadBusy.current) {
-      toast.show({ title: "Tunggu unggahan selesai…", tone: "info" })
+      toast.show({ title: translate("Tunggu unggahan selesai…"), tone: "info" })
       return
     }
     pendingNavigation.current = data.action
@@ -887,6 +901,9 @@ export default function ShowcaseCreateScreen() {
         }
       }
       // S7: terbit sukses → hapus draft teks.
+      // SH-02: matikan autosave TERLEBIH DULU — timer 1 dtk dari ketikan
+      // terakhir tidak boleh menulis ulang draf karya yang sudah terbit.
+      draftSuppressed.current = true
       void clearShowcaseDraft()
       if (!mounted.current || revision !== getSessionRevision()) return
       markShowcaseFeedDirty()
@@ -1318,7 +1335,7 @@ export default function ShowcaseCreateScreen() {
             <View className="flex-row items-start gap-2 rounded-md bg-surface p-3">
               <Icon icon={EyeSlash} size="sm" tone="default" />
               <Text variant="caption" tone="secondary" className="flex-1">
-                Draf privat tetap tersimpan di etalase Anda dan bisa diterbitkan kapan saja.
+                {translate("Draf privat tetap tersimpan di etalase Anda dan bisa diterbitkan kapan saja.")}
               </Text>
             </View>
           )}
@@ -1326,7 +1343,7 @@ export default function ShowcaseCreateScreen() {
             <View className="flex-row items-start gap-2 rounded-md bg-surface p-3">
               <Icon icon={Eye} size="sm" tone="default" />
               <Text variant="caption" tone="secondary" className="flex-1">
-                Karya langsung tampil di feed Etalase dan profil publik Anda.
+                {translate("Karya langsung tampil di feed Etalase dan profil publik Anda.")}
               </Text>
             </View>
           ) : null}
@@ -1389,6 +1406,8 @@ export default function ShowcaseCreateScreen() {
           setResumeDraft(null)
         }}
         onCancel={() => {
+          // SH-02: sama — jangan biarkan timer autosave menulis ulang.
+          draftSuppressed.current = true
           void clearShowcaseDraft()
           setResumeDraft(null)
         }}

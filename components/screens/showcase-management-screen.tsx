@@ -59,6 +59,7 @@ import { tokens } from "@/lib/tokens"
 
 import { ActionSheet, type ActionSheetItem } from "@/components/ui/action-sheet"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
+import { ValidationSummary } from "@/components/ui/validation-summary"
 import { DragSortList } from "@/components/showcase-media-drag-sort"
 import { Icon, type IconComponent } from "@/components/ui/icon"
 import { PressableScale } from "@/components/ui/pressable-scale"
@@ -322,7 +323,23 @@ function ShowcaseManagement() {
   const [form, setForm] = useState<FormState>(EMPTY_FORM)
   /** C11 (batch 139): pratinjau kartu feed dari draft editor. */
   const [editorPreviewVisible, setEditorPreviewVisible] = useState(false)
-  const [formError, setFormError] = useState<string | undefined>()
+  /**
+   * SH-03 (audit 2026-10-09): satu state `formError` tunggal dulu menampilkan
+   * SEMUA pesan di input "Harga maksimum" (termasuk error milik field
+   * komersial & harga minimum). Sekarang tiap pesan menempel di fieldnya:
+   * judul → input Judul; min/maks → input harga; komersial → ValidationSummary
+   * (field komersial punya mekanisme error sendiri di CommerceProductFields).
+   */
+  const [titleError, setTitleError] = useState<string | undefined>()
+  const [priceMinError, setPriceMinError] = useState<string | undefined>()
+  const [priceMaxError, setPriceMaxError] = useState<string | undefined>()
+  const [summaryError, setSummaryError] = useState<string | undefined>()
+  const clearFormErrors = useCallback(() => {
+    setTitleError(undefined)
+    setPriceMinError(undefined)
+    setPriceMaxError(undefined)
+    setSummaryError(undefined)
+  }, [])
   /**
    * C10 (batch 139): relasi harga min–maks divalidasi LANGSUNG saat mengetik
    * (computed, bukan hanya saat simpan).
@@ -384,7 +401,7 @@ function ShowcaseManagement() {
     }
     initialForm.current = nextForm
     setForm(nextForm)
-    setFormError(undefined)
+    clearFormErrors()
     // Batch 43: prefill commerce dari cache sesi (bila pernah di-PATCH di
     // sesi ini); kalau tidak ada, default kosong tanpa menebak.
     const cached = getCommerceFieldsCache(item.id)
@@ -423,7 +440,7 @@ function ShowcaseManagement() {
   const requestCloseEditor = useCallback(() => {
     // B2-SC-03: beri feedback saat X ditekan ketika upload/save busy.
     if (saveBusy.current || uploadBusy.current) {
-      toast.show({ title: "Tunggu unggahan selesai…", tone: "info" })
+      toast.show({ title: translate("Tunggu unggahan selesai…"), tone: "info" })
       return
     }
     if (dirtyEditor) setDiscardOpen(true)
@@ -433,7 +450,7 @@ function ShowcaseManagement() {
   usePreventRemove(dirtyEditor, ({ data }) => {
     // B2-SC-03: hardware back juga diberi feedback saat busy.
     if (saveBusy.current || uploadBusy.current) {
-      toast.show({ title: "Tunggu unggahan selesai…", tone: "info" })
+      toast.show({ title: translate("Tunggu unggahan selesai…"), tone: "info" })
       return
     }
     pendingNavigation.current = data.action
@@ -463,30 +480,35 @@ function ShowcaseManagement() {
     if (!editor || saveBusy.current || uploadBusy.current) return
     const title = form.title.trim()
     if (!title) {
-      setFormError(translate("Judul wajib diisi."))
+      // SH-03: error menempel di fieldnya (bukan di input harga).
+      setTitleError(translate("Judul wajib diisi."))
       return
     }
     if (form.priceMin != null && form.priceMax != null && form.priceMax < form.priceMin) {
-      setFormError(translate("Harga maksimum harus ≥ harga minimum."))
+      // (priceRangeError biasanya sudah menampilkan pesan live di input maks;
+      // ini cadangan bila kondisi muncul tanpa perubahan ketikan.)
+      setPriceMaxError(translate("Harga maksimum harus ≥ harga minimum."))
       return
     }
     // S5: tolak harga maksimum tanpa minimum — rentang tak bermakna.
     if (form.priceMin == null && form.priceMax != null) {
-      setFormError(translate("Isi harga minimum dulu bila memakai harga maksimum."))
+      setPriceMaxError(translate("Isi harga minimum dulu bila memakai harga maksimum."))
       return
     }
     if (editor.item.priceMin != null && form.priceMin == null) {
-      setFormError(translate("Harga yang sudah terisi belum dapat dikosongkan. Masukkan nominal baru, termasuk 0 untuk gratis."))
+      setPriceMinError(translate("Harga yang sudah terisi belum dapat dikosongkan. Masukkan nominal baru, termasuk 0 untuk gratis."))
       return
     }
     // Batch 43: validasi field commerce (sama seperti layar buat).
+    // SH-03: error komersial tidak pernah lagi mendarat di input harga —
+    // diringkas di atas sheet (field komersial punya error sendiri).
     if (commerce.productType === "JASA" && commerce.serviceDeadlineDays == null) {
-      setFormError(translate("Produk jasa wajib memiliki tenggat pengerjaan."))
+      setSummaryError(translate("Produk jasa wajib memiliki tenggat pengerjaan."))
       return
     }
     const salePrice = form.priceMin ?? form.priceMax
     if (commerce.originalPriceIdr != null && salePrice != null && commerce.originalPriceIdr <= salePrice) {
-      setFormError(translate("Harga coret harus lebih besar dari harga jual."))
+      setSummaryError(translate("Harga coret harus lebih besar dari harga jual."))
       return
     }
     saveBusy.current = true
@@ -987,7 +1009,7 @@ function ShowcaseManagement() {
         }}
       >
         {error ? (
-          <ErrorState title="Gagal memuat" description={error} onRetry={() => void query.reload()} />
+          <ErrorState title={translate("Gagal memuat")} description={error} onRetry={() => void query.reload()} />
         ) : (
           <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
             <SectionHeader
@@ -1068,7 +1090,7 @@ function ShowcaseManagement() {
                         disabled={restoringId !== null}
                         onPress={() => void handleRestore(item)}
                       >
-                        Pulihkan
+                        {translate("Pulihkan")}
                       </Button>
                     </View>
                   )
@@ -1314,17 +1336,22 @@ function ShowcaseManagement() {
               onResubmit={() => void handleSave()}
             />
           ) : null}
+          {/* SH-03: error yang bukan milik satu field tampilan (field
+              komersial) — diringkas di atas form, pola C10 layar buat. */}
+          {summaryError ? (
+            <ValidationSummary tone="danger" errors={[summaryError]} />
+          ) : null}
           <Input
             label={translate("Judul")}
             value={form.title}
             onChangeText={(t) => {
               setForm((f) => ({ ...f, title: t }))
-              setFormError(undefined)
+              clearFormErrors()
             }}
             autoCapitalize="sentences"
             returnKeyType="next"
             maxLength={TITLE_MAX}
-            errorText={formError && !form.title.trim() ? formError : undefined}
+            errorText={titleError}
             required
             disabled={saving}
           />
@@ -1344,7 +1371,7 @@ function ShowcaseManagement() {
             />
           ) : (
             <TextArea
-              label="Deskripsi"
+              label={translate("Deskripsi")}
               value={form.description}
               onChangeText={(t) => setForm((f) => ({ ...f, description: t }))}
               maxLength={DESC_MAX}
@@ -1379,8 +1406,9 @@ function ShowcaseManagement() {
               // undefined = ketikan tak valid (negatif/huruf/>15 digit) — abaikan.
               if (parsed === undefined) return
               setForm((f) => ({ ...f, priceMin: parsed }))
-              setFormError(undefined)
+              clearFormErrors()
             }}
+            errorText={priceMinError}
             helperText={
               form.priceMin === 0
                 ? translate("Harga {x} ditampilkan sebagai Gratis.", { x: 0 })
@@ -1389,18 +1417,18 @@ function ShowcaseManagement() {
             disabled={saving}
           />
           <Input
-            label="Harga maksimum (opsional)"
+            label={translate("Harga maksimum (opsional)")}
             keyboardType="number-pad"
             value={formatRupiahTyping(form.priceMax)}
             onChangeText={(raw) => {
               const parsed = parseRupiahTyping(raw)
               if (parsed === undefined) return
               setForm((f) => ({ ...f, priceMax: parsed }))
-              setFormError(undefined)
+              clearFormErrors()
             }}
             // C10: error relasi min–maks tampil langsung saat mengetik.
-            errorText={priceRangeError ?? (formError && form.title.trim() ? formError : undefined)}
-            helperText={priceRangeError || formError ? undefined : translate("Maksimal 15 digit; nilai negatif ditolak.")}
+            errorText={priceRangeError ?? priceMaxError}
+            helperText={priceRangeError || priceMaxError ? undefined : translate("Maksimal 15 digit; nilai negatif ditolak.")}
             disabled={saving}
           />
           {/* IMP-F-013: pratinjau label harga live — verifikasi "Rp 1.500.000"

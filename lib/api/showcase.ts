@@ -908,17 +908,40 @@ export type DeletedShowcaseList = {
 /**
  * GET /v1/users/me/showcase/deleted — item etalase milik sendiri yang
  * di-soft-delete, beserta sisa masa pemulihan (SS-012).
+ *
+ * SH-05 (audit 2026-10-09): di-parse defensif seperti semua daftar etalase
+ * lain (readList + kandidat kunci). Endpoint ini dulu mempercayai bentuk
+ * respons mentah — bila backend me-lewatkan kunci `items` (atau bergeser ke
+ * `data`/`showcase` seperti serializer lain), daftar "Baru dihapus" tampak
+ * KOSONG tanpa error dan fitur Pulihkan seolah mati. Bentuk resmi tetap
+ * `items` (SS-012); kandidat lain hanya toleransi, bukan perubahan kontrak.
  */
 export function getDeletedShowcase(params?: { page?: number; limit?: number }, signal?: AbortSignal) {
   const q = new URLSearchParams()
   if (params?.page) q.set("page", String(params.page))
   if (params?.limit) q.set("limit", String(params.limit))
   const qs = q.toString()
-  return http.get<DeletedShowcaseList>(`/v1/users/me/showcase/deleted${qs ? `?${qs}` : ""}`, {
-    auth: "required",
-    retry: 1,
-    signal,
-  })
+  return http
+    .get<Record<string, unknown>>(`/v1/users/me/showcase/deleted${qs ? `?${qs}` : ""}`, {
+      auth: "required",
+      retry: 1,
+      signal,
+    })
+    .then((raw) => {
+      const record = asRecord(raw) ?? {}
+      const list = readList(record, ["items", "data", "showcase"]).filter(
+        (it): it is DeletedShowcaseItem => {
+          const r = asRecord(it)
+          return r !== null && typeof r.id === "string"
+        },
+      )
+      return {
+        items: list,
+        total: typeof record.total === "number" ? record.total : list.length,
+        page: typeof record.page === "number" ? record.page : (params?.page ?? 1),
+        limit: typeof record.limit === "number" ? record.limit : (params?.limit ?? list.length),
+      }
+    })
 }
 
 /** Item kategori populer dari GET /v1/showcase/categories. */

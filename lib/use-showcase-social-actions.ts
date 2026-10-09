@@ -237,7 +237,7 @@ export function useShowcaseSocialActions(item: ShowcaseSocialItem): ShowcaseSoci
             // yang tertahan (alasan sama seperti di bawah).
             queuedLike.current = false
             if (revision === getSessionRevision()) clearShowcaseLikeOverride(item.id)
-            toast.show({ title: "Gagal memperbarui suka", tone: "danger" })
+            toast.show({ title: translate("Gagal memperbarui suka"), tone: "danger" })
           }
         } else {
           // D1-009 (perf 2026-09-29): request GAGAL -> batalkan toggle yang
@@ -249,7 +249,7 @@ export function useShowcaseSocialActions(item: ShowcaseSocialItem): ShowcaseSoci
           queuedLike.current = false
           setShowcaseLikeState(item.id, previous)
           toast.show({
-            title: "Gagal memperbarui suka",
+            title: translate("Gagal memperbarui suka"),
             description: userMessage(err),
             tone: "danger",
           })

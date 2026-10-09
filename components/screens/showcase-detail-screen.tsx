@@ -926,7 +926,10 @@ function ShowcaseDetailContent({
       if (task.valid()) setDeleting(false)
       task.finish()
     }
-  }, [id, isOwner, operation, toast.show])
+    // SH-04 (audit 2026-10-09): `item` ikut di deps — tanpa ini, refresh
+    // (pull-to-refresh) membuat objek item baru sementara callback masih
+    // memegang objek lama → entri hapus-pulihkan menyimpan judul/cover usang.
+  }, [id, isOwner, operation, toast.show, item])
 
   // TIM-8 (audit performa 2026-09-30): `showcaseHtmlHasFormatting` = parse +
   // sanitasi penuh — di-memo per description supaya tidak jalan ulang tiap
@@ -1423,7 +1426,7 @@ function ShowcaseDetailContent({
               disabled={!editText.trim()}
               onPress={() => void handleSaveEdit()}
             >
-              Simpan
+              {translate("Simpan")}
             </Button>
           </View>
         }

@@ -448,10 +448,13 @@ export function showcaseSpin360Groups(item: ShowcaseSocialItem): string[][] {
 /**
  * Urutan komentar (mega-batch FE-IMP-1, item 49/160).
  *
- * Backend TIDAK punya param sort untuk GET /v1/showcase/:id/comments
- * (kontrak final Tim A tidak mendefinisikannya) → urutkan sisi klien secara
- * deterministik dari komentar yang sudah dimuat. `createdAt` tidak valid
- * diperlakukan sebagai 0 (paling tua); seri dipecah lewat `id` agar urutan
+ * BFE-114 (fix 2026-10-03): urutan final kini dikirim ke SERVER lewat
+ * `?sort=newest|oldest` (lihat listShowcaseComments) — docblock lama yang
+ * mengklaim backend tidak punya param sort sudah usang (perbaikan audit
+ * 2026-10-09, SH-06). Fungsi ini tetap dipakai di layar detail untuk indeks
+ * fokus deep-link `?comment=` (C14): komentar yang sudah dimuat di-sort
+ * deterministik sebagai mirror urutan server, `createdAt` tidak valid
+ * diperlakukan sebagai 0 (paling tua), seri dipecah lewat `id` agar urutan
  * stabil antar render.
  */
 export type ShowcaseCommentOrder = "newest" | "oldest"
