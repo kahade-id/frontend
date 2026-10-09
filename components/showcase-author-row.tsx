@@ -122,7 +122,7 @@ export function ShowcaseAuthorRow({ item, isOwner, hasSession }: ShowcaseAuthorR
           {/* U5-007: cuplikan rating penjual (opsional, fail closed). */}
           <SellerRatingLine username={item.author.username} hasSession={hasSession} />
         </View>
-        {isOwner ? <Badge variant="outline">Anda</Badge> : null}
+        {isOwner ? <Badge variant="outline">{translate("Anda")}</Badge> : null}
       </PressableScale>
     </View>
   )

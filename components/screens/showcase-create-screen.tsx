@@ -393,7 +393,7 @@ export default function ShowcaseCreateScreen() {
     // B2-SC-02: toast yang sama seperti jalur hardware back — X diam total
     // saat upload busy terasa seperti aplikasi macet.
     if (saveBusy.current || uploadBusy.current) {
-      toast.show({ title: "Tunggu unggahan selesai…", tone: "info" })
+      toast.show({ title: translate("Tunggu unggahan selesai…"), tone: "info" })
       return
     }
     if (dirty) setDiscardOpen(true)
@@ -417,7 +417,7 @@ export default function ShowcaseCreateScreen() {
     // P1-S2: beri umpan balik saat back ditekan selama upload — sebelumnya
     // diam total dan terasa seperti aplikasi macet.
     if (saveBusy.current || uploadBusy.current) {
-      toast.show({ title: "Tunggu unggahan selesai…", tone: "info" })
+      toast.show({ title: translate("Tunggu unggahan selesai…"), tone: "info" })
       return
     }
     pendingNavigation.current = data.action
@@ -1318,7 +1318,7 @@ export default function ShowcaseCreateScreen() {
             <View className="flex-row items-start gap-2 rounded-md bg-surface p-3">
               <Icon icon={EyeSlash} size="sm" tone="default" />
               <Text variant="caption" tone="secondary" className="flex-1">
-                Draf privat tetap tersimpan di etalase Anda dan bisa diterbitkan kapan saja.
+                {translate("Draf privat tetap tersimpan di etalase Anda dan bisa diterbitkan kapan saja.")}
               </Text>
             </View>
           )}
@@ -1326,7 +1326,7 @@ export default function ShowcaseCreateScreen() {
             <View className="flex-row items-start gap-2 rounded-md bg-surface p-3">
               <Icon icon={Eye} size="sm" tone="default" />
               <Text variant="caption" tone="secondary" className="flex-1">
-                Karya langsung tampil di feed Etalase dan profil publik Anda.
+                {translate("Karya langsung tampil di feed Etalase dan profil publik Anda.")}
               </Text>
             </View>
           ) : null}

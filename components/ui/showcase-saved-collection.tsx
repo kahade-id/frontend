@@ -177,7 +177,7 @@ export function ShowcaseSavedCollection() {
   if (!session) {
     return (
       <View className="gap-3 pb-5">
-        <Text variant="h3">Karya tersimpan</Text>
+        <Text variant="h3">{translate("Karya tersimpan")}</Text>
         <Text tone="secondary">{translate("Masuk untuk melihat etalase yang Anda simpan.")}</Text>
       </View>
     )
@@ -185,7 +185,7 @@ export function ShowcaseSavedCollection() {
 
   return (
     <View className="gap-3 pb-5">
-      <Text variant="h3">Karya tersimpan</Text>
+      <Text variant="h3">{translate("Karya tersimpan")}</Text>
       {listState.status === "ready" ? (
         <Text variant="caption" tone="secondary">
           {translate("{x} etalase tersimpan di akun Anda.", { x: total })}

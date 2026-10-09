@@ -1423,7 +1423,7 @@ function ShowcaseDetailContent({
               disabled={!editText.trim()}
               onPress={() => void handleSaveEdit()}
             >
-              Simpan
+              {translate("Simpan")}
             </Button>
           </View>
         }

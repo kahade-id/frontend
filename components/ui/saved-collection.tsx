@@ -142,10 +142,10 @@ export function SavedCollection() {
     <EmptyState
       icon={BookmarkSimple}
       title={translate("Belum ada profil tersimpan")}
-      description="Simpan profil penjual dari halaman profil mereka untuk dilihat lagi nanti."
+      description={translate("Simpan profil penjual dari halaman profil mereka untuk dilihat lagi nanti.")}
       action={
         <Button variant="secondary" fullWidth={false} onPress={() => router.push(ROUTES.showcase)}>
-          Jelajahi etalase
+          {translate("Jelajahi etalase")}
         </Button>
       }
     />
@@ -175,7 +175,7 @@ export function SavedCollection() {
       {/* J-01: karya tersimpan punya query sendiri — tidak ikut hilang saat
           query PROFIL tersimpan loading/error. */}
       <ShowcaseSavedCollection />
-      <Crossfade loading={loading} skeleton={<LoadingScreen message="Memuat profil tersimpan…" />}>
+      <Crossfade loading={loading} skeleton={<LoadingScreen message={translate("Memuat profil tersimpan…")} />}>
         {content}
       </Crossfade>
     </DataScroll>

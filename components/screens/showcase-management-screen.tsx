@@ -423,7 +423,7 @@ function ShowcaseManagement() {
   const requestCloseEditor = useCallback(() => {
     // B2-SC-03: beri feedback saat X ditekan ketika upload/save busy.
     if (saveBusy.current || uploadBusy.current) {
-      toast.show({ title: "Tunggu unggahan selesai…", tone: "info" })
+      toast.show({ title: translate("Tunggu unggahan selesai…"), tone: "info" })
       return
     }
     if (dirtyEditor) setDiscardOpen(true)
@@ -433,7 +433,7 @@ function ShowcaseManagement() {
   usePreventRemove(dirtyEditor, ({ data }) => {
     // B2-SC-03: hardware back juga diberi feedback saat busy.
     if (saveBusy.current || uploadBusy.current) {
-      toast.show({ title: "Tunggu unggahan selesai…", tone: "info" })
+      toast.show({ title: translate("Tunggu unggahan selesai…"), tone: "info" })
       return
     }
     pendingNavigation.current = data.action
@@ -987,7 +987,7 @@ function ShowcaseManagement() {
         }}
       >
         {error ? (
-          <ErrorState title="Gagal memuat" description={error} onRetry={() => void query.reload()} />
+          <ErrorState title={translate("Gagal memuat")} description={error} onRetry={() => void query.reload()} />
         ) : (
           <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
             <SectionHeader
@@ -1068,7 +1068,7 @@ function ShowcaseManagement() {
                         disabled={restoringId !== null}
                         onPress={() => void handleRestore(item)}
                       >
-                        Pulihkan
+                        {translate("Pulihkan")}
                       </Button>
                     </View>
                   )
@@ -1344,7 +1344,7 @@ function ShowcaseManagement() {
             />
           ) : (
             <TextArea
-              label="Deskripsi"
+              label={translate("Deskripsi")}
               value={form.description}
               onChangeText={(t) => setForm((f) => ({ ...f, description: t }))}
               maxLength={DESC_MAX}
@@ -1389,7 +1389,7 @@ function ShowcaseManagement() {
             disabled={saving}
           />
           <Input
-            label="Harga maksimum (opsional)"
+            label={translate("Harga maksimum (opsional)")}
             keyboardType="number-pad"
             value={formatRupiahTyping(form.priceMax)}
             onChangeText={(raw) => {

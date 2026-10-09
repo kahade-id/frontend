@@ -117,16 +117,16 @@ export function ShowcaseShareSheet({ visible, item, onClose }: Props) {
         </Text>
         <View className="gap-2 pt-2">
           <Button variant="secondary" leftIcon={Copy} onPress={() => void handleCopy()} fullWidth>
-            Salin tautan
+            {translate("Salin tautan")}
           </Button>
           <Button variant="secondary" leftIcon={ChatCircle} onPress={() => void openUrl(waUrl)} fullWidth>
-            WhatsApp
+            {translate("WhatsApp")}
           </Button>
           <Button variant="secondary" leftIcon={PaperPlaneTilt} onPress={() => void openUrl(tgUrl)} fullWidth>
-            Telegram
+            {translate("Telegram")}
           </Button>
           <Button variant="secondary" leftIcon={ShareNetwork} onPress={() => void openUrl(xUrl)} fullWidth>
-            X (Twitter)
+            {translate("X (Twitter)")}
           </Button>
           {/* Item 51 (FE-IMP-1): "Aplikasi lain" membuka system share sheet OS
               (daftar aplikasi terinstal) — bukan sekadar salin tautan. */}
