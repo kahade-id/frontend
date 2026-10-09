@@ -27,18 +27,35 @@ import { isOfflineKnown } from "@/lib/connectivity"
  // dari string di lib/ — lihat scripts/gen-i18n-catalog.mjs).
 // ---------------------------------------------------------------------------
 
-/** Perangkat terverifikasi offline (NetInfo) — satu-satunya momen boleh bilang "tidak ada koneksi". */
-export const UPLOAD_OFFLINE_COPY = "Tidak ada koneksi internet. Periksa jaringan lalu coba lagi."
-/** Transport gagal TANPA verifikasi offline — jaringan ada tapi tidak stabil. */
-export const UPLOAD_UNSTABLE_COPY = "Koneksi terputus saat mengirim berkas. Periksa jaringan lalu coba lagi."
-/** Timeout upload — koneksi pengirim lambat, bukan server. */
-export const UPLOAD_TIMEOUT_COPY = "Koneksi lambat, coba lagi."
-/** 5xx — server yang bermasalah. */
-export const UPLOAD_SERVER_COPY = "Server bermasalah. Coba lagi nanti."
-/** 413 tanpa batas yang diketahui pemanggil. */
-export const UPLOAD_TOO_LARGE_GENERIC_COPY = "File terlalu besar. Pilih file yang lebih kecil."
-/** Bentuk 413 dengan batas — nilai {x} diisi `uploadTooLargeMessage`. */
-export const UPLOAD_TOO_LARGE_LIMIT_SHAPE = "File terlalu besar (maks {x} MB). Pilih file yang lebih kecil."
+/**
+ * Copy kegagalan upload — DISIMPAN sebagai object literal (bukan const bebas)
+ * karena generator katalog i18n (scripts/gen-i18n-catalog.mjs) hanya memindai
+ * NILAI OBJECT di `lib/`: `export const X = "…"` bebas tidak pernah terkatalog,
+ * dan kunci yang tidak ada di katalog tidak boleh punya terjemahan EN
+ * (check:i18n gagal: "kunci tidak ada di katalog"). Ekspor bernama di bawah
+ * adalah alias agar API lama (lib/api/upload.ts, test) tetap tak berubah.
+ */
+const UPLOAD_COPY = {
+  /** Perangkat terverifikasi offline (NetInfo) — satu-satunya momen boleh bilang "tidak ada koneksi". */
+  offline: "Tidak ada koneksi internet. Periksa jaringan lalu coba lagi.",
+  /** Transport gagal TANPA verifikasi offline — jaringan ada tapi tidak stabil. */
+  unstable: "Koneksi terputus saat mengirim berkas. Periksa jaringan lalu coba lagi.",
+  /** Timeout upload — koneksi pengirim lambat, bukan server. */
+  timeout: "Koneksi lambat, coba lagi.",
+  /** 5xx — server yang bermasalah. */
+  server: "Server bermasalah. Coba lagi nanti.",
+  /** 413 tanpa batas yang diketahui pemanggil. */
+  tooLargeGeneric: "File terlalu besar. Pilih file yang lebih kecil.",
+  /** Bentuk 413 dengan batas — nilai {x} diisi `uploadTooLargeMessage`. */
+  tooLargeLimitShape: "File terlalu besar (maks {x} MB). Pilih file yang lebih kecil.",
+}
+
+export const UPLOAD_OFFLINE_COPY = UPLOAD_COPY.offline
+export const UPLOAD_UNSTABLE_COPY = UPLOAD_COPY.unstable
+export const UPLOAD_TIMEOUT_COPY = UPLOAD_COPY.timeout
+export const UPLOAD_SERVER_COPY = UPLOAD_COPY.server
+export const UPLOAD_TOO_LARGE_GENERIC_COPY = UPLOAD_COPY.tooLargeGeneric
+export const UPLOAD_TOO_LARGE_LIMIT_SHAPE = UPLOAD_COPY.tooLargeLimitShape
 
 /**
  * Batas ukuran (byte) per purpose upload — salinan dari validasi backend yang

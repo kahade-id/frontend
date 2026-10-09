@@ -127,6 +127,10 @@
    "n": 13
   },
   {
+   "s": "Gagal mengunggah foto",
+   "n": 13
+  },
+  {
    "s": "Minimal {x} karakter",
    "n": 13
   },
@@ -140,10 +144,6 @@
   },
   {
    "s": "Tanpa judul",
-   "n": 13
-  },
-  {
-   "s": "Unggahan dibatalkan.",
    "n": 13
   },
   {
@@ -184,6 +184,10 @@
   },
   {
    "s": "Transaksi",
+   "n": 12
+  },
+  {
+   "s": "Unggahan dibatalkan.",
    "n": 12
   },
   {
@@ -276,10 +280,6 @@
   },
   {
    "s": "Buat template",
-   "n": 9
-  },
-  {
-   "s": "Gagal mengunggah foto",
    "n": 9
   },
   {
@@ -1327,6 +1327,10 @@
    "n": 4
   },
   {
+   "s": "{x} dari {y} foto gagal diunggah",
+   "n": 4
+  },
+  {
    "s": "{x} digit",
    "n": 4
   },
@@ -1395,6 +1399,10 @@
    "n": 4
   },
   {
+   "s": "Batalkan unggahan",
+   "n": 4
+  },
+  {
    "s": "Bayar dengan {m}",
    "n": 4
   },
@@ -1451,6 +1459,10 @@
    "n": 4
   },
   {
+   "s": "Coba lagi foto gagal",
+   "n": 4
+  },
+  {
    "s": "Daftar mengikuti",
    "n": 4
   },
@@ -1492,6 +1504,10 @@
   },
   {
    "s": "Etalase terlihat di feed & profil publik Anda.",
+   "n": 4
+  },
+  {
+   "s": "Foto dilampirkan",
    "n": 4
   },
   {
@@ -1707,6 +1723,10 @@
    "n": 4
   },
   {
+   "s": "Masih ada foto yang gagal diunggah",
+   "n": 4
+  },
+  {
    "s": "Media {x} dari {y}",
    "n": 4
   },
@@ -1852,6 +1872,10 @@
   },
   {
    "s": "Status belum diperbarui: {x}",
+   "n": 4
+  },
+  {
+   "s": "Status lampiran belum dapat dipastikan. Segarkan sebelum mencoba lagi.",
    "n": 4
   },
   {
@@ -4039,6 +4063,10 @@
    "n": 3
   },
   {
+   "s": "Mengunggah foto",
+   "n": 3
+  },
+  {
    "s": "Mengunggah…",
    "n": 3
   },
@@ -4564,6 +4592,10 @@
   },
   {
    "s": "Respons server tidak lengkap.",
+   "n": 3
+  },
+  {
+   "s": "Respons unggahan tidak valid.",
    "n": 3
   },
   {
@@ -5471,10 +5503,6 @@
    "n": 2
   },
   {
-   "s": "{x} dari {y} foto gagal diunggah",
-   "n": 2
-  },
-  {
    "s": "{x} dibagikan",
    "n": 2
   },
@@ -5560,6 +5588,10 @@
   },
   {
    "s": "a.n. {x}",
+   "n": 2
+  },
+  {
+   "s": "Abaikan foto ini",
    "n": 2
   },
   {
@@ -5776,10 +5808,6 @@
   },
   {
    "s": "Batalkan pendaftaran?",
-   "n": 2
-  },
-  {
-   "s": "Batalkan unggahan",
    "n": 2
   },
   {
@@ -6259,10 +6287,6 @@
    "n": 2
   },
   {
-   "s": "Coba lagi foto gagal",
-   "n": 2
-  },
-  {
    "s": "Coba lagi nanti.",
    "n": 2
   },
@@ -6583,6 +6607,10 @@
    "n": 2
   },
   {
+   "s": "Foto berikut gagal diunggah. Coba lagi atau abaikan.",
+   "n": 2
+  },
+  {
    "s": "Foto berikut gagal diunggah. Coba lagi atau keluarkan dari pilihan sebelum menyimpan.",
    "n": 2
   },
@@ -6592,10 +6620,6 @@
   },
   {
    "s": "Foto dihapus",
-   "n": 2
-  },
-  {
-   "s": "Foto dilampirkan",
    "n": 2
   },
   {
@@ -7423,10 +7447,6 @@
    "n": 2
   },
   {
-   "s": "Kunci unggahan tidak tersedia.",
-   "n": 2
-  },
-  {
    "s": "Kurangi",
    "n": 2
   },
@@ -7700,10 +7720,6 @@
   },
   {
    "s": "Masa garansi harus angka {x} atau lebih",
-   "n": 2
-  },
-  {
-   "s": "Masih ada foto yang gagal diunggah",
    "n": 2
   },
   {
@@ -9055,10 +9071,6 @@
    "n": 2
   },
   {
-   "s": "Status lampiran belum dapat dipastikan. Segarkan sebelum mencoba lagi.",
-   "n": 2
-  },
-  {
    "s": "Status pembayaran belum diketahui",
    "n": 2
   },
@@ -9408,6 +9420,10 @@
   },
   {
    "s": "Tidak ada gambar",
+   "n": 2
+  },
+  {
+   "s": "Tidak ada koneksi internet. Periksa jaringan lalu coba lagi.",
    "n": 2
   },
   {
@@ -12947,6 +12963,10 @@
    "n": 1
   },
   {
+   "s": "Berkas gagal diunggah (HTTP {x}). Coba lagi.",
+   "n": 1
+  },
+  {
    "s": "Berkas PDF dari perangkat",
    "n": 1
   },
@@ -14867,6 +14887,14 @@
    "n": 1
   },
   {
+   "s": "File terlalu besar (maks {x} MB). Pilih file yang lebih kecil.",
+   "n": 1
+  },
+  {
+   "s": "File terlalu besar. Pilih file yang lebih kecil.",
+   "n": 1
+  },
+  {
    "s": "File, lisensi, kode, atau akun digital",
    "n": 1
   },
@@ -14911,6 +14939,10 @@
    "n": 1
   },
   {
+   "s": "Format berkas tidak didukung. Untuk video gunakan MP{x}, MOV, atau WebM.",
+   "n": 1
+  },
+  {
    "s": "Format email tidak valid. Contoh: nama@email.com.",
    "n": 1
   },
@@ -14924,10 +14956,6 @@
   },
   {
    "s": "Format tidak didukung. Gunakan {x}.",
-   "n": 1
-  },
-  {
-   "s": "Format video tidak didukung. Gunakan MP{x}, MOV, atau WebM.",
    "n": 1
   },
   {
@@ -17019,11 +17047,19 @@
    "n": 1
   },
   {
+   "s": "Koneksi lambat, coba lagi.",
+   "n": 1
+  },
+  {
    "s": "Koneksi terputus di tengah pemeriksaan server — periksa daftar transaksi sebelum mengirim ulang.",
    "n": 1
   },
   {
    "s": "Koneksi terputus di tengah pengiriman — periksa daftar bukti; foto pilihan tetap tersimpan, tekan kirim ulang tanpa memilih ulang.",
+   "n": 1
+  },
+  {
+   "s": "Koneksi terputus saat mengirim berkas. Periksa jaringan lalu coba lagi.",
    "n": 1
   },
   {
@@ -17200,6 +17236,10 @@
   },
   {
    "s": "Kunci Perangkat",
+   "n": 1
+  },
+  {
+   "s": "Kunci unggahan tidak tersedia.",
    "n": 1
   },
   {
@@ -20683,19 +20723,7 @@
    "n": 1
   },
   {
-   "s": "Respons unggah video tidak memuat kunci berkas.",
-   "n": 1
-  },
-  {
-   "s": "Respons unggah video tidak valid.",
-   "n": 1
-  },
-  {
    "s": "Respons unggahan tidak memuat lampiran.",
-   "n": 1
-  },
-  {
-   "s": "Respons unggahan tidak valid.",
    "n": 1
   },
   {
@@ -21160,6 +21188,10 @@
   },
   {
    "s": "seperti melihat etalase dan chat. Untuk bertransaksi, gunakan",
+   "n": 1
+  },
+  {
+   "s": "Server bermasalah. Coba lagi nanti.",
    "n": 1
   },
   {
@@ -22207,10 +22239,6 @@
    "n": 1
   },
   {
-   "s": "Tidak ada koneksi internet. Periksa jaringan lalu coba lagi.",
-   "n": 1
-  },
-  {
    "s": "Tidak ada koneksi internet. Sambungkan kembali lalu coba verifikasi lagi — kode Anda tetap tersimpan di sini.",
    "n": 1
   },
@@ -22647,6 +22675,14 @@
    "n": 1
   },
   {
+   "s": "Ukuran berkas melebihi batas maksimal server.",
+   "n": 1
+  },
+  {
+   "s": "Ukuran berkas melebihi batas maksimal. Pilih berkas yang lebih kecil.",
+   "n": 1
+  },
+  {
    "s": "Ukuran berkas terlalu besar.",
    "n": 1
   },
@@ -22656,6 +22692,10 @@
   },
   {
    "s": "Ukuran foto melebihi {x} MB ({x} MB). Pilih foto yang lebih kecil.",
+   "n": 1
+  },
+  {
+   "s": "Ukuran foto story melebihi batas maksimal {x} MB. Pilih foto yang lebih kecil.",
    "n": 1
   },
   {
@@ -22755,19 +22795,11 @@
    "n": 1
   },
   {
-   "s": "Unggah video gagal (HTTP {x}). Coba lagi.",
-   "n": 1
-  },
-  {
-   "s": "Unggah video gagal. Periksa koneksi lalu coba lagi.",
-   "n": 1
-  },
-  {
-   "s": "Unggah video terlalu lama. Periksa koneksi lalu coba lagi.",
-   "n": 1
-  },
-  {
    "s": "Unggahan belum selesai",
+   "n": 1
+  },
+  {
+   "s": "Unggahan gagal di server. Coba lagi.",
    "n": 1
   },
   {
@@ -23008,10 +23040,6 @@
   },
   {
    "s": "Video pembukaan paket yang berkesinambungan dan memperlihatkan label.",
-   "n": 1
-  },
-  {
-   "s": "Video terlalu besar. Pilih video yang lebih kecil lalu coba lagi.",
    "n": 1
   },
   {
