@@ -48,13 +48,19 @@ vi.mock("@/components/ui/toast", async (importOriginal) => ({
   useToast: () => state.toast,
 }))
 vi.mock("@/components/auth/social-login-buttons", () => ({ SocialLoginButtons: () => null }))
-vi.mock("@/lib/passkey", () => ({ getPasskeyCapabilitySync: () => ({ supported: false }), startPasskeyAuthentication: vi.fn(), PasskeyError: class extends Error {} }))
+vi.mock("@/lib/passkey", () => ({
+  getPasskeyCapabilitySync: () => ({ supported: false }),
+  getPasskeyCapability: async () => ({ supported: false, conditionalMediation: false, platformAuthenticator: false }),
+  startPasskeyAuthentication: vi.fn(),
+  PasskeyError: class extends Error {},
+}))
 
 import { ThemeProvider } from "@/components/theme-provider"
 import { PortalHost, PortalProvider } from "@/components/ui/portal"
 import { ToastProvider } from "@/components/ui/toast"
 import { ApiError } from "@/lib/api/errors"
 import LoginScreen from "@/app/(auth)/login"
+import LoginWhatsappScreen from "@/app/(auth)/login/whatsapp"
 import PhoneMigrationScreen from "@/app/(auth)/phone-migration"
 import VerifyOtpScreen from "@/app/(auth)/verify-otp"
 import VerifyTwoFactorScreen from "@/app/(auth)/verify-2fa"
@@ -96,13 +102,24 @@ describe("A5 — phone migration always has a way out", () => {
 })
 
 describe("A6 — login method=phone", () => {
-  it("opens the WhatsApp OTP form directly without any password field", async () => {
+  /**
+   * Arsitektur masuk 2026-10-10: satu metode = satu halaman. Deep link lama
+   * `/login?method=phone` sekarang DIALIHKAN ke `/login/whatsapp` (bukan
+   * merender form OTP di hub), dan form-nya diuji di halaman tujuannya.
+   */
+  it("redirects the legacy method=phone deep link to the WhatsApp page", () => {
     state.params = { method: "phone" }
-    const { container } = render(themed(<LoginScreen />))
+    render(themed(<LoginScreen />))
+
+    expect(screen.getByTestId("router-redirect").getAttribute("data-href")).toBe("/login/whatsapp")
+    expect(state.requestOtp).not.toHaveBeenCalled()
+  })
+
+  it("opens the WhatsApp OTP form on its own page without any password field", async () => {
+    const { container } = render(themed(<LoginWhatsappScreen />))
     expect(container.querySelectorAll("input")).toHaveLength(1)
     expect(container.querySelector('input[type="password"]')).toBeNull()
     expect(screen.getByRole("button", { name: "Minta kode verifikasi" })).toBeTruthy()
-    expect(screen.queryByRole("button", { name: "Masuk dengan WhatsApp" })).toBeNull()
 
     fireEvent.change(screen.getByLabelText("Nomor HP Indonesia"), { target: { value: "81234567890" } })
     fireEvent.click(screen.getByRole("button", { name: "Minta kode verifikasi" }))

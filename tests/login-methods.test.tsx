@@ -18,12 +18,31 @@ const state = vi.hoisted(() => ({
   getSocialIdToken: vi.fn(),
   resolveTarget: vi.fn(),
   setPendingNext: vi.fn(),
+  getPasskeyCapability: vi.fn(async () => ({
+    supported: false,
+    conditionalMediation: false,
+    platformAuthenticator: false,
+  })),
+  startPasskeyAuthentication: vi.fn(),
+  passkeyAuthOptions: vi.fn(),
+  passkeyVerify: vi.fn(),
 }))
 
 vi.mock("expo-router", () => ({
   useRouter: () => state.router,
   useLocalSearchParams: () => ({ ...state.params }),
   usePathname: () => "/login",
+  // Hub me-redirect deep link lama `?method=`; baris metode memakai <Link href>.
+  Redirect: ({ href }: { href: string | { pathname: string; params?: Record<string, string> } }) => (
+    <span
+      data-testid="router-redirect"
+      data-href={typeof href === "string" ? href : href.pathname}
+      data-params={typeof href === "string" ? "" : JSON.stringify(href.params ?? {})}
+    />
+  ),
+  Link: ({ href, children }: { href: string | { pathname: string }; children?: ReactNode }) => (
+    <a href={typeof href === "string" ? href : href.pathname}>{children}</a>
+  ),
 }))
 vi.mock("@/components/theme-provider", () => ({
   ThemeProvider: ({ children }: { children: ReactNode }) => children,
@@ -44,8 +63,8 @@ vi.mock("@/lib/api", async () => ({
       requestOtpTrigger: state.requestOtp,
     },
     passkey: {
-      getAuthOptions: vi.fn(),
-      verifyAuthLogin: vi.fn(),
+      getAuthOptions: state.passkeyAuthOptions,
+      verifyAuthLogin: state.passkeyVerify,
     },
     social: {
       getProviders: state.getProviders,
@@ -67,7 +86,8 @@ vi.mock("@/lib/social-oauth", () => ({
 }))
 vi.mock("@/lib/passkey", () => ({
   getPasskeyCapabilitySync: () => ({ supported: false }),
-  startPasskeyAuthentication: vi.fn(),
+  getPasskeyCapability: state.getPasskeyCapability,
+  startPasskeyAuthentication: state.startPasskeyAuthentication,
   PasskeyError: class extends Error {
     code = "CANCELLED"
   },
@@ -79,7 +99,11 @@ import { ToastProvider } from "@/components/ui/toast"
 import { LoginPasswordForm } from "@/components/auth/login-password-form"
 import { LoginWhatsappForm } from "@/components/auth/login-whatsapp-form"
 import LoginScreen from "@/app/(auth)/login"
+import LoginEmailScreen from "@/app/(auth)/login/email"
+import LoginUsernameScreen from "@/app/(auth)/login/username"
+import LoginWhatsappScreen from "@/app/(auth)/login/whatsapp"
 import { clearLoginIdentifier } from "@/lib/login-identifier"
+import { PASSKEY_COPY } from "@/lib/passkey-instructions"
 import { ApiError } from "@/lib/api/errors"
 
 function themed(ui: ReactElement) {
@@ -111,6 +135,13 @@ beforeEach(() => {
   state.socialLogin.mockResolvedValue({ kind: "session" })
   state.getSocialIdToken.mockResolvedValue({ idToken: "oauth-id-token", nonce: "oauth-nonce" })
   state.resolveTarget.mockResolvedValue("/home")
+  state.getPasskeyCapability.mockResolvedValue({
+    supported: false,
+    conditionalMediation: false,
+    platformAuthenticator: false,
+  })
+  state.passkeyAuthOptions.mockResolvedValue({ challengeId: "pk-1", options: { challenge: "c" } })
+  state.passkeyVerify.mockResolvedValue({ accessToken: "session-token" })
 })
 
 afterEach(cleanup)
@@ -278,59 +309,189 @@ describe("WhatsApp OTP login", () => {
   })
 })
 
-describe("login method router and social OAuth", () => {
-  it("shows the method selector in the screen and switches to OTP without a password", () => {
-    const { container } = render(themed(<LoginScreen />))
-    expect(screen.getByRole("radiogroup", { name: "Metode masuk" })).toBeTruthy()
-    expect(container.querySelector('input[aria-label="Email"]')).toBeTruthy()
-
-    fireEvent.click(screen.getByRole("radio", { name: "WhatsApp" }))
-    expect(screen.getByRole("button", { name: "Minta kode verifikasi" })).toBeTruthy()
-    expect(container.querySelector('input[type="password"]')).toBeNull()
-    expect(screen.queryByText("Masuk dengan WhatsApp")).toBeNull()
-  })
-
-  it("method=phone opens OTP directly, with no password form", () => {
-    state.params = { method: "phone" }
-    const { container } = render(themed(<LoginScreen />))
-    expect(screen.getByRole("button", { name: "Minta kode verifikasi" })).toBeTruthy()
-    expect(container.querySelector('input[type="password"]')).toBeNull()
-    expect(screen.queryByRole("radiogroup", { name: "Metode masuk" })).toBeTruthy()
-    expect(screen.getByText("Demi keamanan, lokasi perangkat dapat dicatat jika Anda mengizinkan akses.")).toBeTruthy()
-    expect(screen.queryByRole("link", { name: "Lupa kata sandi?" })).toBeNull()
-  })
-
-  it("shows social OAuth below the credential form and starts it without password submission", async () => {
+describe("hub Masuk — satu pintu, satu metode per halaman", () => {
+  beforeEach(() => {
     state.getProviders.mockResolvedValue([
       { provider: "GOOGLE", enabled: true, configured: true, appId: "google-client-id" },
     ])
+  })
+
+  it("menampilkan aksi besar + pemisah \"atau\" + tiga tautan halaman metode", async () => {
+    const { container } = render(themed(<LoginScreen />))
+
+    expect(await screen.findByRole("button", { name: /Lanjut dengan Google/ })).toBeTruthy()
+    expect(screen.getByRole("button", { name: /Masuk dengan Passkey/i })).toBeTruthy()
+    expect(screen.getByText("atau")).toBeTruthy()
+
+    // Satu metode = satu halaman: baris metode adalah tautan rute, bukan radio
+    // yang menukar form di layar yang sama.
+    expect(container.querySelector('a[href="/login/whatsapp"]')).toBeTruthy()
+    expect(container.querySelector('a[href="/login/email"]')).toBeTruthy()
+    expect(container.querySelector('a[href="/login/username"]')).toBeTruthy()
+
+    // Hub tidak boleh punya kolom kredensial sama sekali.
+    expect(container.querySelectorAll("input")).toHaveLength(0)
+    expect(screen.queryByRole("radiogroup")).toBeNull()
+  })
+
+  it("mengganti paragraf disclaimer dengan satu baris persetujuan bertautan", async () => {
+    render(themed(<LoginScreen />))
+    await screen.findByRole("button", { name: /Lanjut dengan Google/ })
+
+    expect(screen.getByRole("link", { name: "Syarat & Ketentuan" })).toBeTruthy()
+    expect(screen.getByRole("link", { name: "Kebijakan Privasi" })).toBeTruthy()
+    expect(
+      screen.queryByText("Demi keamanan, lokasi perangkat dapat dicatat jika Anda mengizinkan akses."),
+    ).toBeNull()
+    // Detailnya pindah ke ikon ⓘ di header, tetap satu ketukan dari layar ini.
+    expect(screen.getByRole("button", { name: "Detail keamanan masuk" })).toBeTruthy()
+  })
+
+  it("tetap mengarahkan pendaftaran ke nomor HP dan menyediakan pemulihan akun", async () => {
+    render(themed(<LoginScreen />))
+    await screen.findByRole("button", { name: /Lanjut dengan Google/ })
+
+    fireEvent.click(screen.getByRole("link", { name: "Daftar" }))
+    expect(state.router.push).toHaveBeenCalledWith("/register")
+    fireEvent.click(screen.getByRole("link", { name: "Lupa kata sandi?" }))
+    expect(state.router.push).toHaveBeenCalledWith("/forgot-password")
+    fireEvent.click(screen.getByRole("link", { name: "Akun dihapus? Pulihkan di sini" }))
+    expect(state.router.push).toHaveBeenCalledWith("/deletion-status")
+  })
+
+  it("menjalankan OAuth Google dari hub tanpa menyentuh login kata sandi", async () => {
     render(themed(<LoginScreen />))
 
-    fireEvent.click(await screen.findByRole("button", { name: "Masuk dengan Google" }))
-    await waitFor(() => expect(state.socialLogin).toHaveBeenCalledWith({
-      provider: "GOOGLE",
-      idToken: "oauth-id-token",
-      nonce: "oauth-nonce",
-    }))
+    fireEvent.click(await screen.findByRole("button", { name: /Lanjut dengan Google/ }))
+    await waitFor(() =>
+      expect(state.socialLogin).toHaveBeenCalledWith({
+        provider: "GOOGLE",
+        idToken: "oauth-id-token",
+        nonce: "oauth-nonce",
+      }),
+    )
     expect(state.login).not.toHaveBeenCalled()
+  })
+
+  it("passkey: perangkat tidak mendukung → penjelasan spesifik, bukan permintaan ke server", async () => {
+    render(themed(<LoginScreen />))
+
+    fireEvent.click(await screen.findByRole("button", { name: /Masuk dengan Passkey/i }))
+    expect(await screen.findByText(PASSKEY_COPY.loginNativeInfo.title)).toBeTruthy()
+    expect(state.passkeyAuthOptions).not.toHaveBeenCalled()
+    expect(state.router.replace).not.toHaveBeenCalled()
+  })
+
+  it("passkey: perangkat mendukung → assertion ditukar menjadi sesi", async () => {
+    state.getPasskeyCapability.mockResolvedValue({
+      supported: true,
+      conditionalMediation: false,
+      platformAuthenticator: true,
+    })
+    state.startPasskeyAuthentication.mockResolvedValue({ id: "cred-1", rawId: "raw", type: "public-key" })
+    render(themed(<LoginScreen />))
+
+    fireEvent.click(await screen.findByRole("button", { name: /Masuk dengan Passkey/i }))
+    await waitFor(() => expect(state.passkeyAuthOptions).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(state.passkeyVerify).toHaveBeenCalledWith({
+      challengeId: "pk-1",
+      assertion: { id: "cred-1", rawId: "raw", type: "public-key" },
+    }))
+    await waitFor(() => expect(state.router.replace).toHaveBeenCalledWith("/home"))
+  })
+
+  it("passkey: verifikasi dua langkah diteruskan ke layar 2FA", async () => {
+    state.getPasskeyCapability.mockResolvedValue({
+      supported: true,
+      conditionalMediation: false,
+      platformAuthenticator: true,
+    })
+    state.startPasskeyAuthentication.mockResolvedValue({ id: "cred-1", rawId: "raw", type: "public-key" })
+    state.passkeyVerify.mockResolvedValue({ requiresTwoFactor: true, tempToken: "tmp-1" })
+    render(themed(<LoginScreen />))
+
+    fireEvent.click(await screen.findByRole("button", { name: /Masuk dengan Passkey/i }))
+    await waitFor(() => expect(state.router.push).toHaveBeenCalledWith("/verify-2fa"))
+    expect(state.router.replace).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ["phone", "/login/whatsapp"],
+    ["email", "/login/email"],
+    ["username", "/login/username"],
+  ] as const)("deep link lama method=%s dialihkan ke %s", (method, target) => {
+    state.params = { method }
+    render(themed(<LoginScreen />))
+
+    expect(screen.getByTestId("router-redirect").getAttribute("data-href")).toBe(target)
+  })
+
+  it("deep link lama meneruskan `next` ke halaman metode", () => {
+    state.params = { method: "email", next: "/transactions" }
+    render(themed(<LoginScreen />))
+
+    const redirect = screen.getByTestId("router-redirect")
+    expect(redirect.getAttribute("data-href")).toBe("/login/email")
+    // Tujuan semula tidak boleh hilang di tengah alur (OTP/2FA).
+    expect(redirect.getAttribute("data-params")).toBe(JSON.stringify({ next: "/transactions" }))
   })
 
   it.each([
     ["google", "GOOGLE"],
     ["apple", "APPLE"],
-  ] as const)("method=%s launches %s OAuth directly", async (method, provider) => {
+  ] as const)("method=%s memulai OAuth %s langsung di hub", async (method, provider) => {
     state.params = { method }
     state.getProviders.mockResolvedValue([
       { provider, enabled: true, configured: true, appId: `${method}-client-id` },
     ])
     render(themed(<LoginScreen />))
 
+    await waitFor(() =>
+      expect(state.socialLogin).toHaveBeenCalledWith({
+        provider,
+        idToken: "oauth-id-token",
+        nonce: "oauth-nonce",
+      }),
+    )
+    expect(state.login).not.toHaveBeenCalled()
+  })
+})
+
+describe("halaman metode: satu kredensial per layar", () => {
+  it("halaman WhatsApp hanya meminta nomor HP", () => {
+    const { container } = render(themed(<LoginWhatsappScreen />))
+
+    expect(screen.getByRole("heading", { name: "Masuk dengan WhatsApp" })).toBeTruthy()
+    expect(screen.getByLabelText("Nomor HP Indonesia")).toBeTruthy()
+    expect(container.querySelector('input[type="password"]')).toBeNull()
+    expect(screen.getByRole("button", { name: "Minta kode verifikasi" })).toBeTruthy()
+  })
+
+  it("halaman email meminta email + kata sandi dan menawarkan lupa kata sandi", () => {
+    const { container } = render(themed(<LoginEmailScreen />))
+
+    expect(screen.getByRole("heading", { name: "Masuk dengan email" })).toBeTruthy()
+    expect(screen.getByLabelText("Email")).toBeTruthy()
+    expect(container.querySelector('input[type="password"]')).toBeTruthy()
+    expect(screen.getByRole("link", { name: "Lupa kata sandi?" })).toBeTruthy()
+    // Tidak ada metode lain yang menumpuk di halaman ini.
+    expect(screen.queryByLabelText("Nomor HP Indonesia")).toBeNull()
+    expect(screen.queryByLabelText("Username")).toBeNull()
+  })
+
+  it("halaman username meminta username, bukan email", () => {
+    render(themed(<LoginUsernameScreen />))
+
+    expect(screen.getByRole("heading", { name: "Masuk dengan username" })).toBeTruthy()
+    expect(screen.getByLabelText("Username")).toBeTruthy()
     expect(screen.queryByLabelText("Email")).toBeNull()
-    expect(screen.queryByRole("link", { name: "Lupa kata sandi?" })).toBeNull()
-    await waitFor(() => expect(state.socialLogin).toHaveBeenCalledWith({
-      provider,
-      idToken: "oauth-id-token",
-      nonce: "oauth-nonce",
-    }))
+  })
+
+  it("setiap halaman metode menyediakan jalan keluar ke hub dan ke pendaftaran", () => {
+    render(themed(<LoginWhatsappScreen />))
+
+    expect(screen.getByRole("link", { name: "Pilih metode lain" })).toBeTruthy()
+    expect(screen.getByRole("link", { name: "Daftar" })).toBeTruthy()
+    expect(screen.getByRole("link", { name: "Syarat & Ketentuan" })).toBeTruthy()
   })
 })

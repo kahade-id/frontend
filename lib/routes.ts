@@ -53,16 +53,39 @@ export const ROUTES = {
   // setelah auth (cek permissions); kini semua alur auth langsung ke tujuan/
   // Beranda, rationale izin notifikasi menjadi bottom sheet di feed.
   /**
-   * Screen #7 — Login: metode WhatsApp/Email/Username dipilih secara terpisah;
-   * WhatsApp memakai OTP, sementara Email/Username memakai kata sandi.
-   * Google dan Apple tetap tersedia sebagai opsi sosial di bagian bawah.
+   * Screen #7 — Login (HUB): satu pintu masuk. Tombol besar Google / Apple
+   * (iOS) / Passkey, pemisah "atau", lalu tiga metode yang masing-masing
+   * membuka HALAMAN SENDIRI (satu metode = satu layar bersih, bukan form
+   * bertumpuk di satu rute). Registrasi tetap hanya lewat nomor HP.
    */
   login: "/login" as Href,
   /** Login dengan tujuan lanjutan yang aman (mis. tujuan semula setelah daftar). */
   loginWithNext: (next: string) =>
     ({ pathname: "/login", params: { next } }) as unknown as Href,
   /**
-   * Screen #7b — Verifikasi 2FA saat login (POST /v1/auth/2fa/verify-login).
+   * Screen #7a — Masuk lewat WhatsApp (OTP customer-initiated).
+   * `next` diteruskan apa adanya supaya tujuan semula tidak hilang setelah
+   * OTP/2FA; nilai bukan kredensial (path saja), jadi aman di query.
+   */
+  loginWhatsapp: (next?: string) =>
+    ({
+      pathname: "/login/whatsapp",
+      params: next ? { next } : undefined,
+    }) as unknown as Href,
+  /** Screen #7b — Masuk lewat email + kata sandi. */
+  loginEmail: (next?: string) =>
+    ({
+      pathname: "/login/email",
+      params: next ? { next } : undefined,
+    }) as unknown as Href,
+  /** Screen #7c — Masuk lewat username + kata sandi. */
+  loginUsername: (next?: string) =>
+    ({
+      pathname: "/login/username",
+      params: next ? { next } : undefined,
+    }) as unknown as Href,
+  /**
+   * Screen #7d — Verifikasi 2FA saat login (POST /v1/auth/2fa/verify-login).
    * tempToken TIDAK dibawa lewat param (kredensial) — lihat lib/two-factor-login.ts.
    */
   verify2fa: "/verify-2fa" as Href,

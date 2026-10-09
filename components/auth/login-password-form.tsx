@@ -3,12 +3,11 @@
  * Keeps credential validation, CAPTCHA, 2FA, migration and optional passkey
  * behavior together instead of branching through the login route.
  */
-import { useCallback, useEffect, useRef, useState } from "react"
-import { Platform, View, type TextInputInstance } from "react-native"
+import { useCallback, useRef, useState } from "react"
+import { View, type TextInputInstance } from "react-native"
 import { Alert } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { CaptchaSlider } from "@/components/ui/captcha-slider"
-import { Dialog } from "@/components/ui/modal"
 import { Input } from "@/components/ui/input"
 import { PasswordField } from "@/components/ui/password-field"
 import { Text } from "@/components/ui/text"
@@ -25,13 +24,7 @@ import { ROUTES } from "@/lib/routes"
 import { setPendingMigrationToken } from "@/lib/phone-migration-token"
 import { setPendingTwoFactorLogin } from "@/lib/two-factor-login"
 import { useLoginNavigation } from "@/components/auth/use-login-navigation"
-import {
-  getPasskeyCapabilitySync,
-  startPasskeyAuthentication,
-  type AuthenticationOptionsJSON,
-  PasskeyError,
-} from "@/lib/passkey"
-import { PASSKEY_COPY } from "@/lib/passkey-instructions"
+import { usePasskeyLogin } from "@/components/auth/use-passkey-login"
 
 type Props = {
   method: PasswordLoginMethod
@@ -54,8 +47,6 @@ export function LoginPasswordForm({ method, nextPath }: Props) {
   const [captchaRequired, setCaptchaRequired] = useState(false)
   const [captchaLoading, setCaptchaLoading] = useState(false)
   const [captchaError, setCaptchaError] = useState<string | null>(null)
-  const [pkSubmitting, setPkSubmitting] = useState(false)
-  const [pkInfoOpen, setPkInfoOpen] = useState(false)
   const passwordRef = useRef<TextInputInstance>(null)
 
   const identifierValidation = validateLoginIdentifier(method, identifier)
@@ -64,8 +55,13 @@ export function LoginPasswordForm({ method, nextPath }: Props) {
   const isFormValid = identifierValidation === null && password.length > 0
   const captchaBlocksLogin =
     captchaRequired && (captchaLoading || challenge === null || captchaAnswer === null)
-  const passkeySupported = getPasskeyCapabilitySync().supported
-  const showPasskey = Platform.OS === "web"
+  /**
+   * Mediasi conditional passkey (G041/G043) tetap di halaman ini: hanya di
+   * samping kolom kredensial browser bisa menawarkan passkey sebagai saran
+   * otomatis. Tombol passkey eksplisit hidup di hub `/login` — bukan di sini,
+   * supaya satu halaman = satu metode.
+   */
+  usePasskeyLogin({ nextPath, conditional: true })
 
   const loadCaptcha = useCallback(async () => {
     setCaptchaLoading(true)
@@ -187,86 +183,6 @@ export function LoginPasswordForm({ method, nextPath }: Props) {
     loadCaptcha,
   ])
 
-  const finishPasskeyLogin = useCallback(
-    async (challengeId: string, assertion: unknown) => {
-      const result = await api.passkey.verifyAuthLogin({ challengeId, assertion })
-      if ("requiresPhoneMigration" in result && result.requiresPhoneMigration) {
-        setPendingMigrationToken(result.migrationToken)
-        router.replace(ROUTES.phoneMigration())
-        return
-      }
-      if ("requiresTwoFactor" in result && result.requiresTwoFactor) {
-        setPendingTwoFactorLogin({ tempToken: result.tempToken, identifier: identifier.trim() })
-        router.push(ROUTES.verify2fa)
-        return
-      }
-      await finishLogin()
-    },
-    [finishLogin, identifier, router],
-  )
-
-  const handlePasskeyLogin = useCallback(async () => {
-    if (pkSubmitting) return
-    if (!passkeySupported) {
-      setPkInfoOpen(true)
-      return
-    }
-    setPkSubmitting(true)
-    setFormError(null)
-    beginLogin()
-    try {
-      const trimmedIdentifier = identifier.trim()
-      const { challengeId, options } = await api.passkey.getAuthOptions(
-        trimmedIdentifier ? { username: trimmedIdentifier } : {},
-      )
-      const assertion = await startPasskeyAuthentication(options as AuthenticationOptionsJSON)
-      await finishPasskeyLogin(challengeId, assertion)
-    } catch (err) {
-      if (err instanceof PasskeyError) {
-        if (err.code !== "CANCELLED") setFormError(err.message)
-        return
-      }
-      if (isApiError(err)) {
-        if (err.code === "RATE_LIMITED") {
-          setFormError("Terlalu banyak percobaan. Tunggu beberapa saat sebelum mencoba lagi.")
-          return
-        }
-        if (err.code === "VALIDATION" || err.code === "BAD_REQUEST") {
-          setFormError(userMessage(err))
-          return
-        }
-      }
-      setFormError(userMessage(err))
-    } finally {
-      setPkSubmitting(false)
-    }
-  }, [pkSubmitting, passkeySupported, beginLogin, identifier, finishPasskeyLogin])
-
-  // Conditional WebAuthn mediation lets a browser offer passkeys from the
-  // email/username credential field without adding another prominent method.
-  useEffect(() => {
-    if (Platform.OS !== "web" || !passkeySupported) return
-    let cancelled = false
-    void (async () => {
-      try {
-        const { getPasskeyCapability } = await import("@/lib/passkey")
-        if (!(await getPasskeyCapability()).conditionalMediation) return
-        const { challengeId, options } = await api.passkey.getAuthOptions()
-        const assertion = await startPasskeyAuthentication(
-          options as AuthenticationOptionsJSON,
-          { conditional: true },
-        )
-        if (cancelled) return
-        await finishPasskeyLogin(challengeId, assertion)
-      } catch {
-        // Autofill is optional; keep the regular email/username form available.
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [passkeySupported, finishPasskeyLogin])
-
   const forgotPassword = useCallback(() => {
     router.push(ROUTES.forgotPassword())
   }, [router])
@@ -383,35 +299,14 @@ export function LoginPasswordForm({ method, nextPath }: Props) {
         Demi keamanan, lokasi perangkat dapat dicatat jika Anda mengizinkan akses.
       </Text>
 
-      {formError && failCount >= 2 ? (
-        <View className="items-center">
-          <TextLink onPress={forgotPassword} disabled={submitting}>
-            Lupa kata sandi?
-          </TextLink>
-        </View>
-      ) : null}
-
-      {showPasskey ? (
-        <View className="items-center gap-1">
-          <TextLink onPress={() => void handlePasskeyLogin()} disabled={pkSubmitting || submitting}>
-            {PASSKEY_COPY.loginButton}
-          </TextLink>
-          <Text variant="caption" tone="secondary" className="text-center text-pretty">
-            {passkeySupported ? PASSKEY_COPY.loginHintWeb : "Perangkat ini belum mendukung passkey."}
-          </Text>
-          {pkSubmitting ? <Text variant="caption" tone="secondary">Menghubungkan passkey…</Text> : null}
-        </View>
-      ) : null}
-
-      <Dialog
-        visible={pkInfoOpen}
-        onRequestClose={() => setPkInfoOpen(false)}
-        title={PASSKEY_COPY.loginNativeInfo.title}
-        description={PASSKEY_COPY.loginNativeInfo.body}
-        confirmLabel="Mengerti"
-        hideCancel
-        onConfirm={() => setPkInfoOpen(false)}
-      />
+      {/* Jalan keluar selalu terlihat: menunggu dua kegagalan dulu (perilaku
+          lama) membuat tautan ini muncul tepat saat pengguna sudah frustrasi,
+          dan berpindah-pindah tempat di bawah tombol. */}
+      <View className="items-center">
+        <TextLink variant="caption" onPress={forgotPassword} disabled={submitting}>
+          Lupa kata sandi?
+        </TextLink>
+      </View>
     </VStack>
   )
 }

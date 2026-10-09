@@ -19,6 +19,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Platform, View } from "react-native"
 import * as AppleAuthentication from "expo-apple-authentication"
+import { AppleLogo, GoogleLogo } from "phosphor-react-native"
 
 import { api } from "@/lib/api"
 import type { SocialLoginResult, SocialProvider, SocialProviderCapability } from "@/lib/api/social"
@@ -30,6 +31,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Alert } from "@/components/ui/alert"
 import { Divider } from "@/components/ui/divider"
+import { Skeleton } from "@/components/ui/skeleton"
 import { logWarn } from "@/lib/telemetry"
 
 export type SocialOutcome =
@@ -166,26 +168,46 @@ export function SocialLoginButtons({
 
   if (capabilities !== null && !showGoogle && !showApple) return null
 
+  /**
+   * Kapabilitas provider dibaca dari server, jadi ada jeda sebelum tombol
+   * boleh dirender. Jeda itu diisi skeleton berukuran tombol (bukan ruang
+   * kosong): hub Masuk tidak "melompat" saat tombol tiba, dan pengguna tidak
+   * menatap layar yang tampak selesai padahal belum. Jumlah skeleton mengikuti
+   * platform — Apple hanya tampil di iOS/web, jadi di Android cukup satu.
+   */
+  if (capabilities === null) {
+    return (
+      <View accessible className="gap-2" accessibilityLabel="Memuat metode masuk">
+        {/* h-12 = tinggi Button md (min-h-12) — skeleton berukuran sama
+            dengan tombol yang akan menggantikannya, jadi tidak ada lompatan
+            layout saat kapabilitas provider tiba. */}
+        <Skeleton className="h-12 w-full" />
+        {isAppleButtonSupported() ? <Skeleton className="h-12 w-full" /> : null}
+      </View>
+    )
+  }
+
   return (
     <View className="gap-4">
-      {separatorLabel && capabilities !== null && (showGoogle || showApple) ? (
-        <Divider label={separatorLabel} />
-      ) : null}
+      {separatorLabel && (showGoogle || showApple) ? <Divider label={separatorLabel} /> : null}
       <View className="gap-2">
       {showGoogle ? (
         <Button
           variant="secondary"
+          leftIcon={GoogleLogo}
           disabled={activeProvider !== null}
           loading={activeProvider === "GOOGLE"}
           onPress={() => void start("GOOGLE")}
         >
-          Masuk dengan Google
+          Lanjut dengan Google
         </Button>
       ) : null}
       {showApple ? (
         Platform.OS === "ios" ? (
+          // HIG: tombol Apple asli (label & kontras diatur sistem). Tinggi 48
+          // disamakan dengan Button md agar tiga aksi besar sejajar.
           <AppleAuthentication.AppleAuthenticationButton
-            buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+            buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
             buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
             cornerRadius={8}
             style={{ height: 48 }}
@@ -194,11 +216,12 @@ export function SocialLoginButtons({
         ) : (
           <Button
             variant="secondary"
+            leftIcon={AppleLogo}
             disabled={activeProvider !== null}
             loading={activeProvider === "APPLE"}
             onPress={() => void start("APPLE")}
           >
-            Masuk dengan Apple
+            Lanjut dengan Apple
           </Button>
         )
       ) : null}
