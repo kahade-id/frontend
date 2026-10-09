@@ -94,9 +94,25 @@ describe("uploadMessage — klasifikasi per tipe kegagalan", () => {
 
   it("413 tanpa batas yang diketahui → copy generik (jangan mengarang angka)", () => {
     // 413 dari server: clientMessage false (copy upload layer yang dipakai).
+    // Purpose yang TIDAK ada di tabel batas → copy generik tanpa angka.
     const err = new ApiError({ code: "PAYLOAD_TOO_LARGE", status: 413, message: "too large", clientMessage: false })
-    expect(uploadMessage(err, { purpose: "MILESTONE_EVIDENCE" })).toBe(
+    expect(uploadMessage(err, { purpose: "PURPOSE_TANPA_BATAS_DIKETAHUI" })).toBe(
       "File terlalu besar. Pilih file yang lebih kecil.",
+    )
+  })
+
+  it("413 purpose dokumentasi/bukti (10 MB) → menyebut 'maks 10 MB'", () => {
+    // Audit 2026-10-09 (F1): purpose bukti (BISNIS/DELIVERY/MILESTONE) kini
+    // punya batas 10 MB (guard klien per layar) — 413 menyebut batasnya.
+    const err = new ApiError({ code: "PAYLOAD_TOO_LARGE", status: 413, message: "too large", clientMessage: false })
+    expect(uploadMessage(err, { purpose: "BUSINESS_DOCUMENT" })).toBe(
+      "File terlalu besar (maks 10 MB). Pilih file yang lebih kecil.",
+    )
+    expect(uploadMessage(err, { purpose: "DELIVERY_PROOF" })).toBe(
+      "File terlalu besar (maks 10 MB). Pilih file yang lebih kecil.",
+    )
+    expect(uploadMessage(err, { purpose: "MILESTONE_EVIDENCE" })).toBe(
+      "File terlalu besar (maks 10 MB). Pilih file yang lebih kecil.",
     )
   })
 

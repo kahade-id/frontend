@@ -46,6 +46,7 @@ import {
 } from "@/lib/image-picker"
 import { useApiQuery } from "@/lib/use-api-query"
 import { showMutationError } from "@/lib/mutation-toast"
+import { uploadMessage } from "@/lib/upload-errors"
 
 import { Button } from "@/components/ui/button"
 import { DataScreen } from "@/components/ui/data-screen"
@@ -269,12 +270,17 @@ export default function BusinessVerificationScreen() {
       await query.refresh()
     } catch (err) {
       // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+      // Audit 2026-10-09 (F1): describe = uploadMessage — kegagalan UPLOAD
+      // dokumen (loop di atas) kini menyebut batas 10 MB / timeout = koneksi
+      // lambat / offline terverifikasi; kegagalan submit (JSON) jatuh ke
+      // userMessage via fallback internal uploadMessage.
       if (
         showMutationError(toast.show, {
           failTitle: "Gagal mengirim verifikasi bisnis",
           uncertainHint: "Aksi mungkin sudah diproses — memuat ulang…",
           err: err,
           scope: "business-verification:mengirim-verifikasi-bisnis",
+          describe: (e) => uploadMessage(e, { purpose: "BUSINESS_DOCUMENT" }),
         })
       ) {
         void query.refresh()

@@ -870,12 +870,10 @@ export function deleteChatMessage(roomId: string, messageId: string) {
   })
 }
 
-export function uploadChatAttachment(roomId: string, formData: FormData) {
-  return http.post<ChatAttachmentDto>(`/v1/chat/rooms/${seg(roomId)}/upload`, undefined, {
-    formData,
-    auth: "required",
-  })
-}
+// Audit 2026-10-09 (B5/G3): `uploadChatAttachment` (jalur fetch, tanpa
+// timeoutMs, dan TIDAK mengirim Idempotency-Key yang WAJIB untuk endpoint
+// @Idempotency) dihapus — dead code, nol pemanggil. Jalur aktif =
+// `uploadChatAttachmentProgress` di bawah (XHR + progress + adaptif + key).
 
 /**
  * B04: parse respons upload chat — unwrap envelope `{success,data}`/`{data}`

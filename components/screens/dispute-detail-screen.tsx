@@ -34,7 +34,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { View } from "react-native"
 import { useLocalSearchParams } from "expo-router"
 
-import { api, createIdempotencyKey } from "@/lib/api"
+import { api, createIdempotencyKey, isApiError } from "@/lib/api"
 import { showMutationError } from "@/lib/mutation-toast"
 import type { Order } from "@/lib/api/orders"
 import { EVIDENCE_FILE_TYPES, expandEvidenceFiles, type EvidenceFileType } from "@/lib/api/disputes"
@@ -432,6 +432,13 @@ export default function DisputeDetailScreen() {
   const msgUploadContextRef = useRef<DisputeContext | null>(null)
   /** G137: cegah kirim ganda (tap dua kali / retry agresif). */
   const msgSendLockRef = useRef(false)
+  /**
+   * Audit 2026-10-09 (D3): AbortController per lampiran yang sedang diunggah
+   * (pola B04 chat-room). Dulu `uploadMessageFile` TIDAK memakai signal sama
+   * sekali — lampiran sengketa yang melambat tidak bisa dibatalkan (chip
+   * lampiran chat punya "Batal", sengketa tidak).
+   */
+  const msgUploadControllersRef = useRef(new Map<string, AbortController>())
 
   const currentDisputeContext = useCallback((): DisputeContext | null => {
     if (!id) return null
@@ -454,6 +461,10 @@ export default function DisputeDetailScreen() {
       if (!id) return
       // G144: kunci konteks saat upload dimulai.
       if (!msgUploadContextRef.current) msgUploadContextRef.current = currentDisputeContext()
+      // Audit 2026-10-09 (D3): controller per berkas — chip "Batal" & hapus
+      // chip membatalkan transfer ini (AbortSignal → uploadDirect/Image).
+      const controller = new AbortController()
+      msgUploadControllersRef.current.set(localId, controller)
       patchMsgAttachment(localId, { status: "uploading", progress: 0 })
       try {
         let fileKey: string
@@ -464,7 +475,10 @@ export default function DisputeDetailScreen() {
             mimeType: file.mimeType,
             size: file.size,
           }
-          ;({ fileKey } = await uploadDirectImage(picked, "DISPUTE_EVIDENCE"))
+          // Audit 2026-10-09 (C5): progress byte jujur dari XHR transport.
+          ;({ fileKey } = await uploadDirectImage(picked, "DISPUTE_EVIDENCE", controller.signal, {
+            onProgress: (fraction) => patchMsgAttachment(localId, { progress: fraction }),
+          }))
         } else {
           const formData = new FormData()
           formData.append("file", {
@@ -473,18 +487,37 @@ export default function DisputeDetailScreen() {
             type: file.mimeType,
           } as unknown as Blob)
           formData.append("purpose", "DISPUTE_EVIDENCE")
-          const result = await uploadDirect(formData)
+          // Audit 2026-10-09 (B3): dulu TIDAK ada timeoutMs/fileBytes —
+          // deadline 20 dtk global membunuh dokumen besar di 4G lambat.
+          // `fileBytes` → timeout adaptif (basis 60 dtk + 100 KB/s, cap 5 mnt).
+          const result = await uploadDirect(formData, controller.signal, undefined, file.size)
           if (!result.fileKey) throw new Error("Kunci unggahan tidak tersedia.")
           fileKey = result.fileKey
         }
         patchMsgAttachment(localId, { status: "idle", progress: 1, fileKey })
       } catch (err) {
-        logWarn("dispute:message-attachment-upload", err)
-        patchMsgAttachment(localId, { status: "error", progress: 0 })
+        // Audit 2026-10-09 (D3): batalkan = status "cancelled" (bukan error)
+        // — user sengaja menghentikan; chip tetap bisa dihapus.
+        const cancelledByUser = isApiError(err) && err.code === "ABORTED"
+        if (!cancelledByUser) logWarn("dispute:message-attachment-upload", err)
+        patchMsgAttachment(localId, {
+          status: cancelledByUser ? "cancelled" : "error",
+          progress: undefined,
+        })
+      } finally {
+        msgUploadControllersRef.current.delete(localId)
       }
     },
     [id, currentDisputeContext, patchMsgAttachment],
   )
+
+  /**
+   * Audit 2026-10-09 (D3): batalkan upload lampiran yang sedang berjalan
+   * (chip "Batal" di composer — prop `onCancelAttachment`, pola B04 chat).
+   */
+  const handleCancelMessageAttachment = useCallback((localId: string) => {
+    msgUploadControllersRef.current.get(localId)?.abort()
+  }, [])
 
   /**
    * FE-054: mulai upload lampiran pesan — diekstrak dari
@@ -757,6 +790,9 @@ export default function DisputeDetailScreen() {
   )
 
   const removeMessageAttachment = useCallback((localId: string) => {
+    // Audit 2026-10-09 (D3): hapus chip saat upload berjalan ikut membatalkan
+    // transfer-nya — bukan sekadar menyembunyikan chip (pola B04 chat).
+    msgUploadControllersRef.current.get(localId)?.abort()
     // G133: hapus hanya dari DRAFT — berkas yang sudah terkirim tidak bisa
     // ditarik (menjadi bukti permanen mediasi).
     setMsgAttachments((prev) => prev.filter((a) => a.localId !== localId))
@@ -1155,6 +1191,8 @@ export default function DisputeDetailScreen() {
             onAttach={() => setMsgAttachSheetOpen(true)}
             onRemoveAttachment={removeMessageAttachment}
             onRetryAttachment={retryMessageAttachment}
+            // Audit 2026-10-09 (D3): chip "Batal" per lampiran (pola B04 chat).
+            onCancelAttachment={handleCancelMessageAttachment}
           />
         ) : undefined
       }

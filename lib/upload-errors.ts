@@ -83,6 +83,13 @@ const UPLOAD_SIZE_LIMITS: Record<string, number> = {
   KYC_LIVENESS: 5 * MB,
   // docs/integrasi_backend.md §4: foto story maks 10 MB (413 STORY_MEDIA_TOO_LARGE).
   STORY: 10 * MB,
+  // Audit 2026-10-09 (F1): guard klien per layar (maks 10 MB) —
+  // app/business-verification.tsx MAX_SIZE_MB.
+  BUSINESS_DOCUMENT: 10 * MB,
+  // app/delivery-proof/[orderId].tsx (UPLOAD_DEFAULT_MAX_MB, guard 10 MB).
+  DELIVERY_PROOF: 10 * MB,
+  // app/milestones/[id].tsx (UPLOAD_DEFAULT_MAX_MB, guard 10 MB).
+  MILESTONE_EVIDENCE: 10 * MB,
 }
 
 export type UploadMessageContext = {

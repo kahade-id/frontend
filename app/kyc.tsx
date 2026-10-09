@@ -28,7 +28,7 @@
  *     KTP adalah bukti kepemilikan langsung; galeri tetap tersedia sebagai
  *     fallback bila izin kamera ditolak.
  */
-import { useCallback, useState } from "react"
+import { useCallback, useRef, useState } from "react"
 import { View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
@@ -67,6 +67,7 @@ import { useToast } from "@/components/ui/toast"
 import { UploadField, validateUploadFile, type UploadStatus } from "@/components/ui/upload-field"
 import { translate } from "@/lib/i18n/translate"
 import { showMutationError } from "@/lib/mutation-toast"
+import { uploadMessage } from "@/lib/upload-errors"
 
 
 /** KTP: lanskap 3:2 seperti kartu fisik; selfie tanpa crop paksa. */
@@ -123,6 +124,16 @@ export default function KycScreen() {
     selfie: "idle",
   })
   const [submitting, setSubmitting] = useState(false)
+  /**
+   * Audit 2026-10-09 (E2): fileKey sukses per dokumen — DIKUNCI saat submit
+   * agar percobaan berikutnya TIDAK mengunggah ulang dokumen yang sudah
+   * sukses (dulu: satu gagal → semua kunci dibersihkan G-04 → submit ulang
+   * = KEDUA dokumen diunggah ulang dari nol, buang kuota + waktu di 4G).
+   * Identitas aset = `uri` (pick baru = uri baru → cache tidak berlaku).
+   * Kunci yang di-invalidate (dokumen diganti / form dibuka ulang)
+   * dibersihkan best-effort — di situlah kewajiban G-04 kini dijalankan.
+   */
+  const uploadedFileKeysRef = useRef<Partial<Record<DocKey, { uri: string; fileKey: string }>>>({})
 
 
 
@@ -148,12 +159,41 @@ export default function KycScreen() {
     setKtp(null)
     setSelfie(null)
     setUploadStatus({ ktp: "idle", selfie: "idle" })
+    // Audit 2026-10-09 (E2): cache fileKey ikut dibuang — pembersihan
+    // (cleanup) kunci tak terpakai adalah tanggung jawab titik invalidasi
+    // (openForm / pickDoc), bukan di sini.
+    uploadedFileKeysRef.current = {}
   }, [])
 
   const openForm = useCallback(() => {
+    // Audit 2026-10-09 (E2): kunci percobaan lama yang TIDAK terpakai
+    // (submit gagal/ditolak) dibersihkan best-effort di titik invalidasi —
+    // di situlah kewajiban G-04 dijalankan (bukan setelah tiap submit gagal,
+    // yang justru memaksa kedua dokumen diunggah ulang — butir E2).
+    const stale = Object.values(uploadedFileKeysRef.current)
+      .map((e) => e?.fileKey)
+      .filter((k): k is string => Boolean(k))
+    if (stale.length > 0) {
+      api.upload
+        .cleanupUploads(stale)
+        .catch((cleanupErr: unknown) => logWarn("kyc:cleanup", cleanupErr))
+    }
     resetForm()
     setFormOpen(true)
   }, [resetForm])
+
+  /**
+   * Audit 2026-10-09 (E2): dokumen baru dipilih → fileKey lama untuk slot ini
+   * tak terpakai lagi: keluarkan dari cache + bersihkan best-effort (G-04).
+   */
+  const invalidateDocKey = useCallback((key: DocKey) => {
+    const cached = uploadedFileKeysRef.current[key]
+    if (!cached) return
+    uploadedFileKeysRef.current = { ...uploadedFileKeysRef.current, [key]: undefined }
+    api.upload
+      .cleanupUploads([cached.fileKey])
+      .catch((cleanupErr: unknown) => logWarn("kyc:cleanup", cleanupErr))
+  }, [])
 
   const pickDoc = useCallback(
     async (key: DocKey, opts: PickImageOptions) => {
@@ -171,6 +211,7 @@ export default function KycScreen() {
               toast.show({ title: "Berkas tidak valid", description: fallbackError, tone: "danger" })
               return
             }
+            invalidateDocKey("selfie")
             setSelfie(fallback.asset)
             setUploadStatus((u) => ({ ...u, selfie: "done" }))
             return
@@ -197,20 +238,35 @@ export default function KycScreen() {
         toast.show({ title: "Berkas tidak valid", description: validationError, tone: "danger" })
         return
       }
+      invalidateDocKey(key)
       if (key === "ktp") setKtp(res.asset)
       else setSelfie(res.asset)
       setUploadStatus((u) => ({ ...u, [key]: "done" }))
     },
-    [toast.show],
+    [toast.show, invalidateDocKey],
   )
 
   const uploadDoc = useCallback(
     async (key: DocKey, purpose: string, img: PickedImage): Promise<string> => {
+      // Audit 2026-10-09 (E2): REUSE fileKey sukses bila aset tak berubah
+      // (uri sama) — submit ulang hanya mengunggah dokumen yang GAGAL/GANTI,
+      // bukan keduanya dari nol (dulu buang kuota + menit di 4G).
+      const cached = uploadedFileKeysRef.current[key]
+      if (cached && cached.uri === img.uri) {
+        setUploadStatus((u) => ({ ...u, [key]: "done" }))
+        return cached.fileKey
+      }
       setUploadStatus((u) => ({ ...u, [key]: "uploading" }))
       try {
         // Self-hosted (2026-09-26): presigned URL dimatikan backend —
         // upload langsung multipart ke POST /v1/upload/direct.
         const { fileKey } = await api.upload.uploadDirectImage(img, purpose)
+        // Kunci sukses masuk cache — dipakai ulang bila percobaan ini gagal
+        // di dokumen saudara atau di submit-nya (invalidasi = pick/reset).
+        uploadedFileKeysRef.current = {
+          ...uploadedFileKeysRef.current,
+          [key]: { uri: img.uri, fileKey },
+        }
         setUploadStatus((u) => ({ ...u, [key]: "done" }))
         return fileKey
       } catch (err) {
@@ -237,20 +293,20 @@ export default function KycScreen() {
     if (!ktp || !selfie || !formValid) return
     setSubmitting(true)
     /**
-     * G-04: fileKey yang SUDAH terupload tapi tidak terpakai (satu dokumen
-     * gagal, atau submit KYC ditolak) menjadi orphan di S3. Kumpulkan kunci
-     * yang sukses dan bersihkan best-effort lewat `api.upload.cleanupUploads`
-     * di jalur gagal. `allSettled` (bukan `all`) supaya kunci dari dokumen
-     * yang sukses tetap terlihat saat saudaranya gagal.
+     * Audit 2026-10-09 (E2) — perubahan model G-04: kunci yang sukses TIDAK
+     * lagi dibersihkan setelah tiap submit gagal (itu yang memaksa KEDUA
+     * dokumen diunggah ulang dari nol). Kunci sukses hidup di
+     * `uploadedFileKeysRef` dan DIKUNCI percobaan berikutnya; pembersihan
+     * best-effort (G-04) dijalankan di titik invalidasi: dokumen diganti
+     * (`invalidateDocKey`) atau form dibuka ulang (`openForm`).
+     * `allSettled` (bukan `all`) supaya kegagalan dokumen pertama tetap
+     * terlihat walau yang kedua juga gagal.
      */
-    const uploadedKeys: string[] = []
     try {
       const [ktpRes, selfieRes] = await Promise.allSettled([
         uploadDoc("ktp", "KYC_KTP", ktp),
         uploadDoc("selfie", "KYC_SELFIE", selfie),
       ])
-      if (ktpRes.status === "fulfilled") uploadedKeys.push(ktpRes.value)
-      if (selfieRes.status === "fulfilled") uploadedKeys.push(selfieRes.value)
       if (ktpRes.status === "rejected") throw ktpRes.reason
       if (selfieRes.status === "rejected") throw selfieRes.reason
       const dto = { ktpFileKey: ktpRes.value, selfieFileKey: selfieRes.value, nik }
@@ -261,22 +317,25 @@ export default function KycScreen() {
         description: "Dokumen Anda sedang ditinjau. Kami beri tahu hasilnya lewat notifikasi.",
         tone: "success",
       })
+      // Kunci kini DIPAKAI oleh submission — keluar dari cache tanpa
+      // cleanup (file sudah live; cleanup di sini akan menghapusnya).
+      uploadedFileKeysRef.current = {}
       setFormOpen(false)
       resetForm()
       await query.refresh()
     } catch (err: unknown) {
-      if (uploadedKeys.length > 0) {
-        api.upload
-          .cleanupUploads(uploadedKeys)
-          .catch((cleanupErr: unknown) => logWarn("kyc:cleanup", cleanupErr))
-      }
       // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+      // Audit 2026-10-09 (F1): describe = uploadMessage — kegagalan UPLOAD
+      // dokumen menyebut "maks 5 MB" (KTP & selfie sama 5 MB), timeout =
+      // koneksi lambat, offline hanya terverifikasi; kegagalan submit (JSON)
+      // jatuh ke userMessage via fallback internal uploadMessage.
       if (
         showMutationError(toast.show, {
           failTitle: "Gagal mengirim verifikasi",
           uncertainHint: "Aksi mungkin sudah diproses — memuat ulang…",
           err: err,
           scope: "kyc:mengirim-verifikasi",
+          describe: (e) => uploadMessage(e, { purpose: "KYC_KTP" }),
         })
       ) {
         void query.refresh()
