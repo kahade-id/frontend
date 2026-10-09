@@ -170,7 +170,7 @@ export function RatingReviewCard({
 
       {orderId ? (
         <Text
-          accessibilityLabel={[translate(t.orderPrefix), orderId].join(" ")}
+          accessibilityLabel={[t.orderPrefix, orderId].join(" ")}
           variant="caption"
           tone="secondary"
           numberOfLines={1}
@@ -196,7 +196,7 @@ export function RatingReviewCard({
               <DateText value={reply.date} format="date" variant="caption" tone="secondary" />
               {reply.isEdited || (reply.updatedAt && String(reply.updatedAt) !== String(reply.date)) ? (
                 <Text variant="caption" tone="secondary">
-                  (diedit)
+                  {translate("(diedit)")}
                 </Text>
               ) : null}
             </View>

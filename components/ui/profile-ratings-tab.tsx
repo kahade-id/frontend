@@ -6,12 +6,16 @@
  * Negatif), list <RatingReviewCard> dengan balasan penjual, dan empty state
  * yang sama persis — hanya lokasi kodenya yang pindah.
  */
-import { router } from "expo-router"
+import { useMemo } from "react"
 import { View } from "react-native"
+import { router } from "expo-router"
 import { Star } from "phosphor-react-native"
 
 import { firstRatingReply, type PublicRatingFilter, type Rating } from "@/lib/api/ratings"
+import { useLanguage } from "@/lib/i18n"
+import { translate } from "@/lib/i18n/translate"
 import { ROUTES } from "@/lib/routes"
+import { sortProfileRatings, type ProfileRatingSort } from "@/lib/ratings-sort"
 
 import { Button } from "@/components/ui/button"
 import { Chip } from "@/components/ui/chip"
@@ -19,11 +23,8 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { ListLoading } from "@/components/ui/paginated-list"
 import { RatingDistributionBars } from "@/components/ui/rating-distribution"
-import { RatingReviewCard, type RatingPerson } from "@/components/ui/rating-review-card"
+import { RatingReviewCard, type RatingPerson, type RatingReply } from "@/components/ui/rating-review-card"
 import { Text } from "@/components/ui/text"
-import { useMemo } from "react"
-import { translate } from "@/lib/i18n/translate"
-import { useLanguage } from "@/lib/i18n"
 
 /** i18n: label filter mengikuti bahasa aktif (dulu konstanta modul). */
 function useRatingFilters(): { value: PublicRatingFilter; label: string }[] {
@@ -47,7 +48,6 @@ function useRatingFilters(): { value: PublicRatingFilter; label: string }[] {
  * `lib/ratings-sort.ts` (murni, unit-testable) — di sini hanya re-export tipe.
  */
 export type { ProfileRatingSort } from "@/lib/ratings-sort"
-import { sortProfileRatings, type ProfileRatingSort } from "@/lib/ratings-sort"
 
 function useRatingSorts(): { value: ProfileRatingSort; label: string }[] {
   const language = useLanguage()
@@ -58,6 +58,22 @@ function useRatingSorts(): { value: ProfileRatingSort; label: string }[] {
     ],
     [language],
   )
+}
+
+/**
+ * BFI-128: balasan penjual dibaca dari `replies[0]` (bentuk backend).
+ * Dipisah dari render agar JSX daftar tetap datar.
+ */
+function toProfileReply(r: Rating, handle: string): RatingReply | undefined {
+  const item = firstRatingReply(r)
+  if (!item) return undefined
+  return {
+    id: item.id || `reply-${r.id}`,
+    content: item.content,
+    by: { name: `@${handle}` },
+    role: "seller",
+    date: item.createdAt ?? r.createdAt,
+  }
 }
 
 export type ProfileRatingsTabProps = {
@@ -153,32 +169,19 @@ export function ProfileRatingsTab({
       ) : (
         <>
           {sorted.map((r) => {
-          const reviewer: RatingPerson = {
-            name: r.authorUsername ?? translate("Pengguna"),
-            avatar: r.authorAvatarUrl ? { uri: r.authorAvatarUrl } : undefined,
-          }
-          return (
-            <RatingReviewCard
-              key={r.id}
-              stars={r.stars}
-              comment={r.comment ?? undefined}
-              reviewer={reviewer}
-              date={r.createdAt}
-              orderId={r.orderId}
-              reply={(() => {
-                // BFI-128: baca replies[0] (bentuk backend), bukan `r.reply` datar.
-                const item = firstRatingReply(r)
-                return item
-                  ? {
-                      id: item.id || `reply-${r.id}`,
-                      content: item.content,
-                      by: { name: `@${handle}` },
-                      role: "seller",
-                      date: item.createdAt ?? r.createdAt,
-                    }
-                  : undefined
-              })()}
-            />
+            const reviewer: RatingPerson = {
+              name: r.authorUsername ?? translate("Pengguna"),
+              avatar: r.authorAvatarUrl ? { uri: r.authorAvatarUrl } : undefined,
+            }
+            return (
+              <RatingReviewCard
+                key={r.id}
+                stars={r.stars}
+                comment={r.comment ?? undefined}
+                reviewer={reviewer}
+                date={r.createdAt}
+                reply={toProfileReply(r, handle)}
+              />
             )
           })}
           {/* UI-P011: tab hanya menampilkan 20 item pertama — tautan ke daftar

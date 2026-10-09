@@ -11,6 +11,7 @@
  */
 import type { ReactNode } from "react"
 import { View } from "react-native"
+import { CalendarBlank, DeviceMobile, EnvelopeSimple, ShieldCheck } from "phosphor-react-native"
 
 import type { PublicUserProfile, VerificationBadge } from "@/lib/api/users"
 import { formatDate } from "@/lib/format"
@@ -18,6 +19,7 @@ import { useLanguage } from "@/lib/i18n"
 import { translate } from "@/lib/i18n/translate"
 
 import { Badge } from "@/components/ui/badge"
+import { Icon, type IconComponent } from "@/components/ui/icon"
 import { Text } from "@/components/ui/text"
 
 export type ProfileAboutTabProps = {
@@ -26,13 +28,27 @@ export type ProfileAboutTabProps = {
   badges?: VerificationBadge[]
 }
 
-/** Baris label–nilai di kartu tab Tentang (label kiri, nilai kanan). */
-function InfoRow({ label, children }: { label: string; children: ReactNode }) {
+/**
+ * Baris label–nilai di kartu tab Tentang (label kiri dengan ikon kecil,
+ * nilai kanan). Ikon membantu pembacaan sekilas tanpa menambah teks.
+ */
+function InfoRow({
+  label,
+  icon,
+  children,
+}: {
+  label: string
+  icon: IconComponent
+  children: ReactNode
+}) {
   return (
     <View className="flex-row items-center justify-between gap-3">
-      <Text variant="caption" tone="secondary">
-        {label}
-      </Text>
+      <View className="shrink flex-row items-center gap-2">
+        <Icon icon={icon} size="xs" tone="default" />
+        <Text variant="caption" tone="secondary" className="shrink">
+          {label}
+        </Text>
+      </View>
       {children}
     </View>
   )
@@ -81,12 +97,12 @@ export function ProfileAboutTab({ profile, badges = [] }: ProfileAboutTabProps) 
           {translate("Informasi Akun")}
         </Text>
         <View className="gap-2">
-          <InfoRow label={translate("Status Verifikasi (KYC)")}>
+          <InfoRow label={translate("Status Verifikasi (KYC)")} icon={ShieldCheck}>
             <Badge tone={profile.verified ? "success" : "neutral"}>
               {profile.verified ? translate("Terverifikasi") : translate("Belum Verifikasi")}
             </Badge>
           </InfoRow>
-          <InfoRow label={translate("Skor Kepercayaan")}>
+          <InfoRow label={translate("Skor Kepercayaan")} icon={ShieldCheck}>
             {/* D-09 (audit): fallback 100/100 = sinyal trust palsu untuk
                 profil yang skornya tidak dikirim/gagal dimuat. Tanpa data →
                 tampilkan "—" + keterangan. */}
@@ -95,7 +111,7 @@ export function ProfileAboutTab({ profile, badges = [] }: ProfileAboutTabProps) 
             </Text>
           </InfoRow>
           {/* B.2 — "Bergabung sejak" (join date) */}
-          <InfoRow label={translate("Bergabung Sejak")}>
+          <InfoRow label={translate("Bergabung Sejak")} icon={CalendarBlank}>
             <Text variant="caption" tone="primary">
               {profile.createdAt ? formatDate(profile.createdAt) : "—"}
             </Text>
@@ -105,22 +121,19 @@ export function ProfileAboutTab({ profile, badges = [] }: ProfileAboutTabProps) 
 
       {/* B.2 — Kontak publik. Nilai hanya dikirim backend bila pemilik
           mengaktifkan "tampilkan di profil" (flag showContact* dicek sebagai
-          pengaman); tanpa nilai baris jujur menampilkan "Tidak dibagikan"
-          daripada merahasiakan keberadaan fitur. */}
+          pengaman). Fail closed: flag harus eksplisit `true` — flag yang
+          tidak dikirim berarti TIDAK dibagikan. Tanpa nilai, baris jujur
+          menampilkan "Tidak dibagikan" daripada merahasiakan keberadaan fitur. */}
       <View className="w-full gap-3 rounded-md border border-border bg-surface p-4">
         <Text variant="body" weight={600} tone="primary">
           {translate("Kontak publik")}
         </Text>
         <View className="gap-2">
-          <InfoRow label={translate("Email kontak")}>
-            <ContactValue
-              value={profile.showContactEmail === false ? null : profile.contactEmail}
-            />
+          <InfoRow label={translate("Email kontak")} icon={EnvelopeSimple}>
+            <ContactValue value={profile.showContactEmail === true ? profile.contactEmail : null} />
           </InfoRow>
-          <InfoRow label={translate("Nomor HP kontak")}>
-            <ContactValue
-              value={profile.showContactPhone === false ? null : profile.contactPhone}
-            />
+          <InfoRow label={translate("Nomor HP kontak")} icon={DeviceMobile}>
+            <ContactValue value={profile.showContactPhone === true ? profile.contactPhone : null} />
           </InfoRow>
         </View>
       </View>
