@@ -1,6 +1,7 @@
 /** Secure two-step phone change: request a sensitive-action OTP via WhatsApp, then confirm it. */
 import { useCallback, useMemo, useState } from "react"
-import { ScrollView, View } from "react-native"
+import { ScrollView } from "react-native"
+import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { router } from "expo-router"
 
 import { Alert } from "@/components/ui/alert"
@@ -19,11 +20,13 @@ import { api, clearSession, isApiError, type UserProfile, userMessage } from "@/
 import { translate, useLanguage } from "@/lib/i18n"
 import { queryKeys } from "@/lib/query-keys"
 import { ROUTES } from "@/lib/routes"
+import { tokens } from "@/lib/tokens"
 import { useApiQuery } from "@/lib/use-api-query"
 
 type Step = "request" | "confirm"
 
 export default function ChangePhoneScreen() {
+  const insets = useSafeAreaInsets()
   // Langganan bahasa: kalimat Alert berisi <SensitiveText> (children campuran,
   // tidak auto-translate) harus langsung ikut berganti bahasa (UI-M014).
   useLanguage()
@@ -98,17 +101,13 @@ export default function ChangePhoneScreen() {
   }, [canConfirm, code, newPhone, toast.show])
 
   return (
-    <Screen keyboardAvoiding edges={["top"]} padded={false} footer={
-      <View>
-        <Button fullWidth loading={submitting} disabled={step === "request" ? !canRequest : !canConfirm}
-          // A11: langkah konfirmasi memakai dialog konfirmasi sensitif seragam.
-          onPress={() => void (step === "request" ? requestCode() : setConfirmOpen(true))}>
-          {step === "request" ? "Kirim kode verifikasi" : "Verifikasi dan ganti nomor"}
-        </Button>
-      </View>
-    }>
+    <Screen keyboardAvoiding edges={["top"]} padded={false}>
       <Header title="Ganti Nomor HP" />
-      <ScrollView keyboardShouldPersistTaps="handled" contentContainerClassName="gap-4 px-5 py-4">
+      <ScrollView
+        keyboardShouldPersistTaps="handled"
+        contentContainerClassName="gap-4 px-5 py-4"
+        contentContainerStyle={{ paddingBottom: insets.bottom + tokens.space[8] }}
+      >
         {currentPhone ? <Alert tone="neutral" title="Nomor saat ini">
           <SensitiveText value={currentPhone} mask="phone" mono={false} variant="body" toggleable={false} />
         </Alert> : null}
@@ -141,6 +140,20 @@ export default function ChangePhoneScreen() {
             Ubah nomor
           </Button>
         </>}
+
+        {/* P3 (overhaul auth 2026-10-10): tombol aksi mengikuti konten, bukan
+            FooterBar berpemisah `border-t`. Setelah field terakhir dibaca,
+            tombolnya satu ketukan di bawahnya — dan tidak lagi menutupi isi
+            form saat keyboard naik. */}
+        <Button
+          fullWidth
+          loading={submitting}
+          disabled={step === "request" ? !canRequest : !canConfirm}
+          // A11: langkah konfirmasi memakai dialog konfirmasi sensitif seragam.
+          onPress={() => void (step === "request" ? requestCode() : setConfirmOpen(true))}
+        >
+          {step === "request" ? "Kirim kode verifikasi" : "Verifikasi dan ganti nomor"}
+        </Button>
       </ScrollView>
 
       {/* A11: konfirmasi sensitif seragam sebelum nomor benar-benar diganti. */}

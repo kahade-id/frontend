@@ -23,7 +23,7 @@
  *     backend akan menolak dengan pesan jelas jika ternyata belum punya PIN.
  */
 import { useCallback, useEffect, useState } from "react"
-import { ScrollView, View } from "react-native"
+import { ScrollView } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { router } from "expo-router"
 
@@ -178,25 +178,12 @@ export default function ChangePinScreen() {
   return (
     // SEC-404: proteksi screen-capture iOS di layar PIN.
     <ScreenCaptureGuard>
-      <Screen
-      keyboardAvoiding
-      edges={["top"]}
-      padded={false}
-      footer={
-        step === "password" ? (
-          <View>
-            <Button fullWidth disabled={!passwordOk} onPress={afterPassword}>
-              Lanjut
-            </Button>
-          </View>
-        ) : undefined
-      }
-    >
+      <Screen keyboardAvoiding edges={["top"]} padded={false}>
       <Header title={hasPin === null ? "PIN dompet" : isSetupMode ? "Buat PIN" : "Ubah PIN"} />
       <ScrollView
         keyboardShouldPersistTaps="handled"
         contentContainerClassName="gap-4 px-5"
-        style={{ paddingTop: tokens.space[3], paddingBottom: insets.bottom + tokens.space[8] }}
+        contentContainerStyle={{ paddingTop: tokens.space[3], paddingBottom: insets.bottom + tokens.space[8] }}
       >
         {step === "password" ? (
           <>
@@ -231,6 +218,11 @@ export default function ChangePinScreen() {
               </TextLink>{" "}
               untuk verifikasi identitas dan bantuan reset.
             </Text>
+            {/* P3 (overhaul auth 2026-10-10): tombol aksi mengikuti konten,
+                bukan FooterBar berpemisah `border-t`. */}
+            <Button fullWidth disabled={!passwordOk} onPress={afterPassword}>
+              Lanjut
+            </Button>
           </>
         ) : step === "current" ? (
           <>
