@@ -46,7 +46,7 @@ import {
 import { useCopy } from "@/lib/clipboard"
 import { openDrawer } from "@/lib/drawer"
 import { profileUrl } from "@/lib/deeplinks"
-import { formatDecimal, formatNumber } from "@/lib/format"
+import { formatNumber } from "@/lib/format"
 import { acquireShowcaseMutation } from "@/lib/showcase-state"
 import { useHasSession } from "@/lib/guest-gate"
 import { goBackOrNavigate } from "@/lib/navigation"
@@ -58,7 +58,6 @@ import { logWarn } from "@/lib/telemetry"
 
 import { Avatar } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
-import { VerifiedSeal } from "@/components/ui/verified-seal"
 import { VerifiedName } from "@/components/ui/verified-name"
 import { GreyCheckBadge } from "@/components/ui/grey-check-badge"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
@@ -69,7 +68,6 @@ import { Card } from "@/components/ui/card"
 import { Dialog } from "@/components/ui/modal"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
-import { FavoriteIconButton } from "@/components/ui/favorite-icon-button"
 import { FollowButton } from "@/components/ui/follow-button"
 import { Header } from "@/components/ui/header"
 import { Icon } from "@/components/ui/icon"
@@ -223,11 +221,12 @@ function SocialStat({
       accessibilityRole="button"
       hitSlop={TEXT_ROW_HIT_SLOP}
       onPress={onPress}
+      className="items-center"
     >
-      <Text variant="body" tone="secondary">
-        <Text variant="body" weight={700} tone="primary">
-          {formatNumber(count)}{" "}
-        </Text>
+      <Text variant="body" weight={700} tone="primary" className="text-[17px]">
+        {formatNumber(count)}
+      </Text>
+      <Text variant="caption" tone="tertiary">
         {label}
       </Text>
     </Pressable>
@@ -258,9 +257,7 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
   const [error, setError] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
 
-  // Follow & favorite state
-  const [favorite, setFavorite] = useState(false)
-  const [favLoading, setFavLoading] = useState(false)
+  // Follow state (favorit/love dihapus 2026-10-09 — tidak ada gunanya)
   // "Tersimpan" (bookmark pribadi) — terpisah dari favorit publik.
   const [saved, setSaved] = useState(false)
   const [saveLoading, setSaveLoading] = useState(false)
@@ -424,7 +421,6 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
     setFollowing(null)
     setFollowerCount(null)
     setFollowingCount(null)
-    setFavorite(false)
     setSaved(false)
     setBadges([])
     setOpenQuestionId(null)
@@ -548,16 +544,6 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
 
       // Fetch tab data
       void fetchTabContents(targetName)
-
-      // Auxiliary social checks
-      void api.users
-        .isFavorite(targetName)
-        .then((r) => {
-          if (current()) setFavorite(Boolean(r?.favorited))
-        })
-        .catch(() => {
-          if (current()) setFavorite(false)
-        })
 
       void api.users
         .checkSavedProfile(targetName)
@@ -690,39 +676,6 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
       }
     },
     [handle, requireSession, toast, following, followerCount],
-  )
-
-  const handleFavorite = useCallback(
-    async (next: boolean) => {
-      if (!handle) return
-      if (!requireSession()) return
-      // UI-P005: kunci sinkron per-handle — guard `favLoading` (state async)
-      // balapan antar dua tap cepat (keduanya membaca state lama sebelum
-      // setState pertama diterapkan), seperti pada follow (SH-F-004).
-      const release = acquireShowcaseMutation(`favorite:${handle}`)
-      if (!release) return
-      // PERF-FIX (network P2): optimistis seperti handleFollow — set dulu,
-      // rollback ke snapshot saat gagal. Sebelumnya: menunggu round-trip
-      // sebelum tombol berubah.
-      const prevFavorite = favorite
-      setFavorite(next)
-      setFavLoading(true)
-      try {
-        if (next) await api.users.addFavorite(handle)
-        else await api.users.removeFavorite(handle)
-      } catch (err: unknown) {
-        setFavorite(prevFavorite)
-        toast.show({
-          title: translate("Gagal memperbarui favorit"),
-          description: userMessage(err),
-          tone: "danger",
-        })
-      } finally {
-        release()
-        setFavLoading(false)
-      }
-    },
-    [handle, requireSession, toast, favorite],
   )
 
   const handleUpvote = useCallback(
@@ -1196,35 +1149,40 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
                     {translate("Ubah profil")}
                   </Button>
                 ) : (
-                  <>
-                    <FavoriteIconButton
-                      active={favorite}
-                      disabled={favLoading}
-                      onToggle={(next) => void handleFavorite(next)}
-                      accessibilityLabel={favorite ? translate("Hapus favorit") : translate("Simpan favorit")}
-                      size="sm"
-                      className="border border-border"
+                  /* Stats di samping avatar (2026-10-09): menggantikan ikon
+                     love/simpan/QR yang dipindah. Desain: angka bold di atas,
+                     label abu di bawah. */
+                  <View className="flex-row items-center gap-5">
+                    <SocialStat
+                      count={followingCount}
+                      label={translate("Mengikuti")}
+                      onPress={() => router.push(ROUTES.followers(handle, "following"))}
+                      openListLabel={translate("Lihat daftar mengikuti")}
                     />
-                    <IconButton
-                      icon={BookmarkSimple}
-                      variant="secondary"
-                      size="sm"
-                      active={saved}
-                      accessibilityLabel={saved ? translate("Hapus dari tersimpan") : translate("Simpan profil")}
-                      loading={saveLoading}
-                      onPress={() => void handleSaveProfile(!saved)}
+                    <SocialStat
+                      count={followerCount}
+                      label={translate("Pengikut")}
+                      onPress={() => router.push(ROUTES.followers(handle))}
+                      openListLabel={translate("Lihat daftar pengikut")}
                     />
-                  </>
+                    {profile.ratingCount != null ? (
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={translate("{x} ulasan", { x: formatNumber(profile.ratingCount) })}
+                        accessibilityHint={translate("Lihat ulasan")}
+                        onPress={() => selectTab("ratings")}
+                        className="items-center"
+                      >
+                        <Text variant="body" weight={700} tone="primary" className="text-[17px]">
+                          {formatNumber(profile.ratingCount)}
+                        </Text>
+                        <Text variant="caption" tone="tertiary">
+                          {translate("Ulasan")}
+                        </Text>
+                      </Pressable>
+                    ) : null}
+                  </View>
                 )}
-                {/* Item 19 (2026-09-28): Kode QR profil — deep link
-                    https://kahade.id/<username>, dipindai kamera. */}
-                <IconButton
-                  icon={QrCode}
-                  variant="secondary"
-                  size="sm"
-                  accessibilityLabel={translate("Kode QR profil")}
-                  onPress={() => setQrOpen(true)}
-                />
               </View>
             </View>
 
@@ -1272,18 +1230,8 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
                * biru + label "Bisnis Terverifikasi" saja. Minimal, tanpa
                * layar baru.
                */}
-              {profile.accountType === "BUSINESS" ? (
-                <View
-                  className="flex-row items-center gap-1.5 pt-0.5"
-                  accessible
-                  accessibilityLabel={translate("Bisnis Terverifikasi")}
-                >
-                  <VerifiedSeal badges={badges} tier="blue" size={16} />
-                  <Text variant="body" weight={600} tone="primary">
-                    {translate("Bisnis Terverifikasi")}
-                  </Text>
-                </View>
-              ) : null}
+              {/* Bisnis Terverifikasi: dihapus (2026-10-09) — sudah ada verified
+                  di samping nama dan lencana di tab Tentang. */}
 
               {/*
                * Item 61 (mega-batch 2026-09-28): bio kepotong 4 baris +
@@ -1324,52 +1272,7 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
                 </Button>
               ) : null}
 
-              {/* ── Stats / Counter Strip (langsung di bawah bio) ── */}
-              {/* Batch 139 E05/E06: SocialStat menampilkan "Privat" (gembok)
-                  untuk count null = server tidak mengirim angka (sinyal
-                  privasi terbaik-effort; backend belum punya flag eksplisit),
-                  bukan angka 0. */}
-              <View className="flex-row flex-wrap items-center gap-4 pt-1">
-                <SocialStat
-                  count={followingCount}
-                  label={translate("Mengikuti")}
-                  onPress={() => router.push(ROUTES.followers(handle, "following"))}
-                  openListLabel={translate("Lihat daftar mengikuti")}
-                />
-                <SocialStat
-                  count={followerCount}
-                  label={translate("Pengikut")}
-                  onPress={() => router.push(ROUTES.followers(handle))}
-                  openListLabel={translate("Lihat daftar pengikut")}
-                />
-
-                {profile.rating != null ? (
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={
-                      profile.ratingCount != null
-                        ? translate("{x} dari {y}, {z} ulasan", {
-                            x: formatDecimal(profile.rating),
-                            y: 5,
-                            z: formatNumber(profile.ratingCount),
-                          })
-                        : translate("{x} dari {y}, buka ulasan", { x: formatDecimal(profile.rating), y: 5 })
-                    }
-                    hitSlop={TEXT_ROW_HIT_SLOP}
-                    onPress={() => selectTab("ratings")}
-                  >
-                    <Text variant="body" tone="secondary">
-                      <Text variant="body" weight={700} tone="primary">
-                        {formatDecimal(profile.rating)} ★{" "}
-                      </Text>
-                      {profile.ratingCount != null
-                        ? translate("({x} ulasan)", { x: formatNumber(profile.ratingCount) })
-                        : translate("Ulasan")}
-                    </Text>
-                  </Pressable>
-                ) : null}
-
-              </View>
+              {/* Stats dipindah ke baris avatar (2026-10-09) — bagian ini dihapus. */}
 
               {/* ── A.4 Action Row (HANYA profil orang lain) ────────
                   PRIMARY  : [Ikuti] — aksi sosial utama.
@@ -1388,16 +1291,22 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
                         onToggle={(next) => void handleFollow(next)}
                       />
                     </View>
-                    <View className="flex-1">
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        fullWidth
-                        onPress={() => void handleSendMessage()}
-                      >
-                        {translate("Kirim Pesan")}
-                      </Button>
-                    </View>
+                    <IconButton
+                      icon={ChatCircleDots}
+                      variant="secondary"
+                      size="sm"
+                      accessibilityLabel={translate("Kirim Pesan")}
+                      onPress={() => void handleSendMessage()}
+                    />
+                    <IconButton
+                      icon={BookmarkSimple}
+                      variant="secondary"
+                      size="sm"
+                      active={saved}
+                      accessibilityLabel={saved ? translate("Hapus dari tersimpan") : translate("Simpan profil")}
+                      loading={saveLoading}
+                      onPress={() => void handleSaveProfile(!saved)}
+                    />
                   </View>
 
                   <View className="gap-1 pt-1">
@@ -1781,6 +1690,12 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
                 icon: ShareNetwork,
                 disabled: !handle || state.sharing,
                 onPress: () => share(),
+              },
+              {
+                key: "qrcode",
+                label: translate("Kode QR profil"),
+                icon: QrCode,
+                onPress: () => setQrOpen(true),
               },
               {
                 key: "report",
