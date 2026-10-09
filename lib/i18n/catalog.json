@@ -1671,6 +1671,10 @@
    "n": 4
   },
   {
+   "s": "Lanjut",
+   "n": 4
+  },
+  {
    "s": "Laporan terkirim",
    "n": 4
   },
@@ -3692,10 +3696,6 @@
   },
   {
    "s": "Lacak Pengiriman",
-   "n": 3
-  },
-  {
-   "s": "Lanjut",
    "n": 3
   },
   {
@@ -9111,6 +9111,10 @@
    "n": 2
   },
   {
+   "s": "Sudah punya akun?",
+   "n": 2
+  },
+  {
    "s": "Sudut foto di luar lingkaran akan terpotong.",
    "n": 2
   },
@@ -13963,19 +13967,19 @@
    "n": 1
   },
   {
-   "s": "Dana dilepas hanya setelah barang sampai.",
-   "n": 1
-  },
-  {
-   "s": "Dana dilepas ke penjual",
-   "n": 1
-  },
-  {
-   "s": "Dana ditahan Kahade",
+   "s": "Dana disimpan Kahade",
    "n": 1
   },
   {
    "s": "Dana ditahan sampai mediator memutuskan. Bukti foto bisa ditambahkan setelah sengketa dibuat.",
+   "n": 1
+  },
+  {
+   "s": "Dana diteruskan hanya setelah barang sampai.",
+   "n": 1
+  },
+  {
+   "s": "Dana diteruskan ke penjual",
    "n": 1
   },
   {
@@ -16100,10 +16104,6 @@
   },
   {
    "s": "Jual atau beli dengan dana dijaga escrow",
-   "n": 1
-  },
-  {
-   "s": "Jual beli aman via Kahade.",
    "n": 1
   },
   {
@@ -21584,10 +21584,6 @@
   },
   {
    "s": "Sudah diterima",
-   "n": 1
-  },
-  {
-   "s": "Sudah punya akun?",
    "n": 1
   },
   {
