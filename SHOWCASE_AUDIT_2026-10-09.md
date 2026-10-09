@@ -268,6 +268,31 @@ username) — tidak ada bug client. Tidak ada crash.
 
 ---
 
+## DI LUAR SCOPE ETALASE (tidak diubah — transparansi baseline)
+
+Baseline `npm test` (sebelum perubahan apa pun): 37 gagal / 2109 lulus,
+SEMUA di luar etalase:
+
+1. **tests/i18n.test.ts (19)** — ~305 kunci EN mati (kunci tidak ada di
+   katalog; utang repo-wide di auth/remediation/labels/screens-*). Diluar
+   scope etalase → tidak dibersihkan. Efek samping perbaikan SH-01: regenerasi
+   katalog memindahkan `check:i18n` dari gate "katalog usang" (1 masalah) ke
+   gate "kunci mati" (464 masalah) — gate kedua memang sudah ada sejak
+   baseline (terlihat lewat i18n.test.ts), hanya sempat tersembunyi karena
+   gate usang lebih dulu gagal. Jumlah test gagal i18n TIDAK berubah (19).
+2. **tests/web-push-config (2)** — test USANG: asserting URL format lama
+   (`/register?ref=…`, `/user/…`), padahal keputusan produk 1 Okt 2026
+   (terdokumentasi di `lib/deeplinks.ts`) memakai format Instagram-style
+   (`/r/<kode>`, `/<username>`); route-nya ada (`app/r/[code].tsx`,
+   `app/[username].tsx`). Kodenya benar; testnya yang harus diperbarui oleh
+   pemilik fitur push/referral.
+3. Sisanya (device-location 6, poin2 3, drawer-badges 2, chat-batch43-api,
+   cn-merge, order-next-step, username-scanfeedback, wallet-limits) — fitur
+   lain, tidak tersentuh audit ini.
+
+Gerbang yang dipakai per komitmen: `npx tsc --noEmit` lulus + test etalase
+hijau (241) + jumlah kegagalan i18n tidak bertambah (19 = baseline).
+
 ## RENCANA KOMITMEN
 
 1. `fix(etalase): i18n — bungkus 25 string hardcoded + regenerasi katalog`
