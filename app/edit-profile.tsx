@@ -393,11 +393,21 @@ export default function EditProfileScreen() {
         // lagipula ketersediaan username sudah dicek sebelum save. Prinsip
         // yang sama untuk password: "kata sandi salah" hanya untuk respons
         // server (bukan NETWORK/TIMEOUT/SERVER).
-        const passwordMismatch =
-          password &&
-          !(isApiError(err) && (err.code === "NETWORK" || err.code === "TIMEOUT" || err.code === "SERVER"))
-        if (passwordMismatch) {
-          setPasswordError(translate("Kata sandi salah atau perubahan ditolak."))
+        const apiCode = isApiError(err) ? err.code : null
+        const backendCode = isApiError(err) ? err.backendCode : null
+        const isInfraError = apiCode === "NETWORK" || apiCode === "TIMEOUT" || apiCode === "SERVER"
+        // Tampilkan pesan spesifik sesuai kode backend — jangan generik.
+        // "Kata sandi salah" HANYA untuk INVALID_CREDENTIALS yang sebenarnya.
+        if (password && !isInfraError) {
+          if (backendCode === "INVALID_CREDENTIALS" || apiCode === "UNAUTHORIZED") {
+            setPasswordError(translate("Kata sandi salah. Periksa kembali lalu coba lagi."))
+          } else if (apiCode) {
+            // USERNAME_RESERVED, USERNAME_TAKEN, USERNAME_CHANGE_COOLDOWN,
+            // VALIDATION_ERROR, dll — tampilkan pesan spesifik dari backend.
+            setPasswordError(userMessage(err))
+          } else {
+            setPasswordError(translate("Kata sandi salah atau perubahan ditolak."))
+          }
         } else if (isApiError(err) && err.code === "CONFLICT") {
           toast.show({
             title: translate("Gagal menyimpan profil"),

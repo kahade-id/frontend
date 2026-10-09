@@ -27,7 +27,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { View } from "react-native"
 import { router } from "expo-router"
 
-import { api, userMessage, type UpdateProfileDto } from "@/lib/api"
+import { api, isApiError, userMessage, type UpdateProfileDto } from "@/lib/api"
 import { translate, useLanguage } from "@/lib/i18n"
 import { ROUTES } from "@/lib/routes"
 import { useAvatarUpload } from "@/lib/use-avatar-upload"
@@ -176,7 +176,17 @@ export function ProfileEditSheet({ visible, onRequestClose, profile, onSaved }: 
       } catch (err: unknown) {
         const message = userMessage(err)
         if (password) {
-          setPasswordError(translate("Kata sandi salah atau perubahan ditolak."))
+          const apiCode = isApiError(err) ? err.code : null
+          const backendCode = isApiError(err) ? err.backendCode : null
+          // Pesan spesifik sesuai kode backend — "kata sandi salah" hanya
+          // untuk INVALID_CREDENTIALS yang sebenarnya.
+          if (backendCode === "INVALID_CREDENTIALS" || apiCode === "UNAUTHORIZED") {
+            setPasswordError(translate("Kata sandi salah. Periksa kembali lalu coba lagi."))
+          } else if (apiCode && apiCode !== "NETWORK" && apiCode !== "TIMEOUT" && apiCode !== "SERVER") {
+            setPasswordError(message)
+          } else {
+            setPasswordError(translate("Kata sandi salah atau perubahan ditolak."))
+          }
         } else {
           setFormError(translate("Gagal menyimpan: {x}", { x: message }))
         }
