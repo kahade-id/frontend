@@ -32,6 +32,8 @@ import auth from "./auth.json"
 import chatRoom from "./chat-room.json"
 import errors from "./errors.json"
 import labels from "./labels.json"
+// profile (redesign Profil & Tanya Jawab): satu berkas per batch.
+import profile from "./profile.json"
 import remediation from "./remediation.json"
 // story (fitur Story): satu berkas untuk seluruh string tray, viewer, kreator, dan kelola.
 import story from "./story.json"
@@ -81,6 +83,7 @@ export const EN: Dict = {
   ...screens9,
   ...screens10,
   ...chatRoom,
+  ...profile,
   // Pesan error & label status dari peta di lib/ — yang paling sering muncul
   // saat jaringan bermasalah, jadi jangan sampai jatuh ke Bahasa Indonesia.
   ...errors,

@@ -32,7 +32,7 @@
 import type { ReactNode } from "react"
 import { View, type ViewProps } from "react-native"
 
-import { ArrowUp } from "phosphor-react-native"
+import { ArrowUp, HandsClapping } from "phosphor-react-native"
 
 import { Avatar, type AvatarProps } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -44,7 +44,7 @@ import { TextLink } from "@/components/ui/text-link"
 import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
 import { focusRing } from "@/lib/focus-ring"
-import { formatRelativeTime } from "@/lib/format"
+import { formatNumber, formatRelativeTime } from "@/lib/format"
 import { translate, useLanguage } from "@/lib/i18n"
 
 export type QaCommentLabels = {
@@ -72,6 +72,12 @@ export type QaCommentItemProps = Omit<ViewProps, "children"> & {
   reply?: boolean
   /** Ada balasan lanjutan di bawah -> gambar garis konektor vertikal */
   hasNext?: boolean
+  /**
+   * Jumlah "membantu" (tepuk tangan) — HANYA tampilan. Tampil bila backend
+   * sudah mengirim `upvoteCount` pada komentar (lihat docs/rekomendasi-backend-profile.md).
+   * Tanpa endpoint upvote komentar, tidak ada tombol — angka saja.
+   */
+  helpfulCount?: number
   /** Komentar sudah dihapus (soft) -> placeholder abu */
   deleted?: boolean
   onReply?: () => void
@@ -89,7 +95,7 @@ export type QaCommentItemProps = Omit<ViewProps, "children"> & {
 function useDefaultLabels(): QaCommentLabels {
   useLanguage()
   return {
-    owner: translate("Penjual"),
+    owner: translate("Pemilik"),
     reply: translate("Balas"),
     delete: translate("Hapus"),
     deleted: translate("Komentar telah dihapus"),
@@ -111,6 +117,7 @@ export function QaCommentItem({
   onDelete,
   onPressAuthor,
   extra,
+  helpfulCount,
   labels,
   className,
   ...rest
@@ -133,7 +140,8 @@ export function QaCommentItem({
         ) : null}
       </View>
 
-      <View className="flex-1 gap-1">
+      {/* Balasan pemilik disorot (latar surface) — beda dari balasan pengunjung. */}
+      <View className={cn("flex-1 gap-1", isOwner && !deleted && "rounded-md bg-surface px-3 py-2")}>
         <View className="flex-row flex-wrap items-center gap-x-2 gap-y-1">
           {onPressAuthor ? (
             <TextLink variant="body" weight={600} onPress={onPressAuthor} numberOfLines={1}>
@@ -174,8 +182,21 @@ export function QaCommentItem({
           </Text>
         )}
 
-        {!deleted && (onReply || onDelete) ? (
+        {!deleted && (onReply || onDelete || (helpfulCount ?? 0) > 0) ? (
           <View className="flex-row items-center gap-4 pt-1">
+            {(helpfulCount ?? 0) > 0 ? (
+              <View
+                accessible
+                accessibilityRole="text"
+                accessibilityLabel={translate("{x} membantu", { x: formatNumber(helpfulCount ?? 0) })}
+                className="flex-row items-center gap-1"
+              >
+                <Icon icon={HandsClapping} size="xs" tone="default" />
+                <Text variant="caption" tone="secondary" weight={500} className="tabular-nums">
+                  {formatNumber(helpfulCount ?? 0)}
+                </Text>
+              </View>
+            ) : null}
             {onReply ? (
               <TextLink variant="caption" weight={500} onPress={onReply}>
                 {t.reply}

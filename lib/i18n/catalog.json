@@ -59,10 +59,6 @@
    "n": 18
   },
   {
-   "s": "Penjual",
-   "n": 18
-  },
-  {
    "s": "Tambah alamat",
    "n": 17
   },
@@ -75,7 +71,19 @@
    "n": 16
   },
   {
+   "s": "Pengguna",
+   "n": 16
+  },
+  {
+   "s": "Penjual",
+   "n": 16
+  },
+  {
    "s": "Selesai",
+   "n": 16
+  },
+  {
+   "s": "Sembunyikan",
    "n": 16
   },
   {
@@ -96,10 +104,6 @@
   },
   {
    "s": "Lainnya",
-   "n": 14
-  },
-  {
-   "s": "Pengguna",
    "n": 14
   },
   {
@@ -132,10 +136,6 @@
   },
   {
    "s": "Putar video",
-   "n": 13
-  },
-  {
-   "s": "Sembunyikan",
    "n": 13
   },
   {
@@ -248,6 +248,10 @@
   },
   {
    "s": "Tampilkan secara publik",
+   "n": 10
+  },
+  {
+   "s": "Terbaru",
    "n": 10
   },
   {
@@ -403,10 +407,6 @@
    "n": 8
   },
   {
-   "s": "Terbaru",
-   "n": 8
-  },
-  {
    "s": "Tunggu unggahan selesai…",
    "n": 8
   },
@@ -452,6 +452,10 @@
   },
   {
    "s": "Izin kamera ditolak",
+   "n": 7
+  },
+  {
+   "s": "Kirim jawaban",
    "n": 7
   },
   {
@@ -619,6 +623,10 @@
    "n": 6
   },
   {
+   "s": "Dari {x}",
+   "n": 6
+  },
+  {
    "s": "Detail diperbarui",
    "n": 6
   },
@@ -712,6 +720,10 @@
   },
   {
    "s": "Jasa desain, kerajinan, digital…",
+   "n": 6
+  },
+  {
+   "s": "Jawab pertanyaan",
    "n": 6
   },
   {
@@ -920,6 +932,10 @@
   },
   {
    "s": "Tulis balasan untuk @{x}…",
+   "n": 6
+  },
+  {
+   "s": "Tulis jawaban Anda…",
    "n": 6
   },
   {
@@ -1215,11 +1231,11 @@
    "n": 5
   },
   {
-   "s": "Sorot ke profil",
+   "s": "Sembunyikan balasan",
    "n": 5
   },
   {
-   "s": "Suka",
+   "s": "Sorot ke profil",
    "n": 5
   },
   {
@@ -1243,11 +1259,19 @@
    "n": 5
   },
   {
+   "s": "Tampilkan {x} balasan",
+   "n": 5
+  },
+  {
    "s": "Tampilkan waktu relatif",
    "n": 5
   },
   {
    "s": "Tanggal",
+   "n": 5
+  },
+  {
+   "s": "Tanya @{x}…",
    "n": 5
   },
   {
@@ -1387,10 +1411,6 @@
    "n": 4
   },
   {
-   "s": "Bertanya",
-   "n": 4
-  },
-  {
    "s": "Blokir",
    "n": 4
   },
@@ -1523,6 +1543,10 @@
    "n": 4
   },
   {
+   "s": "Gagal mengirim jawaban",
+   "n": 4
+  },
+  {
    "s": "Gagal mengirim laporan",
    "n": 4
   },
@@ -1583,6 +1607,10 @@
    "n": 4
   },
   {
+   "s": "Jawaban terkirim",
+   "n": 4
+  },
+  {
    "s": "Jelajahi etalase",
    "n": 4
   },
@@ -1616,10 +1644,6 @@
   },
   {
    "s": "Kirim dokumen",
-   "n": 4
-  },
-  {
-   "s": "Kirim jawaban",
    "n": 4
   },
   {
@@ -1843,6 +1867,10 @@
    "n": 4
   },
   {
+   "s": "Suka",
+   "n": 4
+  },
+  {
    "s": "Tambah",
    "n": 4
   },
@@ -1925,6 +1953,10 @@
   {
    "s": "Urutkan:",
    "n": 4
+  },
+  {
+   "s": "(diedit)",
+   "n": 3
   },
   {
    "s": "{n} orang",
@@ -2044,6 +2076,10 @@
   },
   {
    "s": "{x} lencana diraih ditampilkan",
+   "n": 3
+  },
+  {
+   "s": "{x} membantu",
    "n": 3
   },
   {
@@ -2715,10 +2751,6 @@
    "n": 3
   },
   {
-   "s": "Dari {x}",
-   "n": 3
-  },
-  {
    "s": "Dari etalase \"{x}\" — dana diamankan Kahade sampai barang diterima.",
    "n": 3
   },
@@ -3347,10 +3379,6 @@
    "n": 3
   },
   {
-   "s": "Jawab pertanyaan",
-   "n": 3
-  },
-  {
    "s": "Jeda video: {x}",
    "n": 3
   },
@@ -3412,6 +3440,10 @@
   },
   {
    "s": "Kata sandi baru",
+   "n": 3
+  },
+  {
+   "s": "Kata sandi salah. Periksa kembali lalu coba lagi.",
    "n": 3
   },
   {
@@ -5123,10 +5155,6 @@
    "n": 3
   },
   {
-   "s": "Tulis jawaban Anda…",
-   "n": 3
-  },
-  {
    "s": "Tulis kalimat yang sering Anda pakai",
    "n": 3
   },
@@ -5376,10 +5404,6 @@
   },
   {
    "s": "({x} ulasan)",
-   "n": 2
-  },
-  {
-   "s": "(diedit)",
    "n": 2
   },
   {
@@ -5944,6 +5968,10 @@
   },
   {
    "s": "Bersihkan",
+   "n": 2
+  },
+  {
+   "s": "Bertanya",
    "n": 2
   },
   {
@@ -6763,10 +6791,6 @@
    "n": 2
   },
   {
-   "s": "Gagal mengirim jawaban",
-   "n": 2
-  },
-  {
    "s": "Gagal mengirim kartu produk",
    "n": 2
   },
@@ -7052,10 +7076,6 @@
   },
   {
    "s": "Jawaban minimal {x} karakter",
-   "n": 2
-  },
-  {
-   "s": "Jawaban terkirim",
    "n": 2
   },
   {
@@ -8167,6 +8187,10 @@
    "n": 2
   },
   {
+   "s": "Pemilik",
+   "n": 2
+  },
+  {
    "s": "Penarikan",
    "n": 2
   },
@@ -9203,6 +9227,10 @@
    "n": 2
   },
   {
+   "s": "Tanya",
+   "n": 2
+  },
+  {
    "s": "Tanya Stok",
    "n": 2
   },
@@ -9308,6 +9336,10 @@
   },
   {
    "s": "Terapkan format {x} pada teks yang dipilih",
+   "n": 2
+  },
+  {
+   "s": "Teratas",
    "n": 2
   },
   {
@@ -12555,11 +12587,11 @@
    "n": 1
   },
   {
-   "s": "Batal simpan etalase",
+   "s": "Batal membantu",
    "n": 1
   },
   {
-   "s": "Batal suka",
+   "s": "Batal simpan etalase",
    "n": 1
   },
   {
@@ -16295,10 +16327,6 @@
    "n": 1
   },
   {
-   "s": "Kata sandi salah. Periksa kembali lalu coba lagi.",
-   "n": 1
-  },
-  {
    "s": "Kata sandi terlalu umum",
    "n": 1
   },
@@ -17868,6 +17896,10 @@
   },
   {
    "s": "Membalas pesan yang dipilih",
+   "n": 1
+  },
+  {
+   "s": "Membantu",
    "n": 1
   },
   {

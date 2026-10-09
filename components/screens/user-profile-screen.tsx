@@ -46,7 +46,7 @@ import {
 import { useCopy } from "@/lib/clipboard"
 import { openDrawer } from "@/lib/drawer"
 import { profileUrl } from "@/lib/deeplinks"
-import { formatDateTime, formatDecimal, formatNumber } from "@/lib/format"
+import { formatDecimal, formatNumber } from "@/lib/format"
 import { acquireShowcaseMutation } from "@/lib/showcase-state"
 import { useHasSession } from "@/lib/guest-gate"
 import { goBackOrNavigate } from "@/lib/navigation"
@@ -75,13 +75,16 @@ import { Header } from "@/components/ui/header"
 import { Icon } from "@/components/ui/icon"
 import { ImageViewer } from "@/components/ui/image-viewer"
 import { Picture } from "@/components/ui/picture"
+import { PressableScale } from "@/components/ui/pressable-scale"
 import { IconButton } from "@/components/ui/icon-button"
 import { Collapse } from "@/components/ui/collapse"
 import { Crossfade } from "@/components/ui/fade-in"
 import { ListLoading } from "@/components/ui/paginated-list"
 import { DataScroll } from "@/components/ui/data-screen"
 import { QACard } from "@/components/ui/qa-card"
-import { QaCommentComposer, QaCommentItem } from "@/components/ui/qa-comment-item"
+import { QaCommentComposer } from "@/components/ui/qa-comment-item"
+import { QaThread } from "@/components/ui/qa-thread"
+import { buildCommentThread, type ThreadSort } from "@/lib/qa-thread"
 import { ProfileAboutTab } from "@/components/ui/profile-about-tab"
 import { ProfileEtalaseTab } from "@/components/ui/profile-etalase-tab"
 import { ProfileRatingsTab } from "@/components/ui/profile-ratings-tab"
@@ -158,6 +161,13 @@ const COVER_HEIGHT = 120
  * terasa tanpa lompatan.
  */
 const TABS_STUCK_OFFSET = 280
+
+/**
+ * Batas jawaban pemilik — sama dengan layar inbox Tanya Jawab (app/questions.tsx):
+ * AnswerQuestionDto minLength 1, batas lokal 10 agar jawaban bermakna.
+ */
+const ANSWER_MIN = 10
+const ANSWER_MAX = 2000
 
 
 /**
@@ -311,6 +321,10 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
   const [askOpen, setAskOpen] = useState(false)
   const [askText, setAskText] = useState("")
   const [asking, setAsking] = useState(false)
+  /** Pertanyaan yang sedang dijawab pemilik profil (sheet jawab). */
+  const [answerTarget, setAnswerTarget] = useState<QuestionItem | null>(null)
+  const [answerText, setAnswerText] = useState("")
+  const [answering, setAnswering] = useState(false)
   const [openQuestionId, setOpenQuestionId] = useState<string | null>(null)
   const [questionComments, setQuestionComments] = useState<{
     items: QuestionComment[]
@@ -318,6 +332,15 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
   }>({ items: [], loading: false })
   const [commentText, setCommentText] = useState("")
   const [commentSending, setCommentSending] = useState(false)
+  /** Urutan balasan utas: "Teratas" (paling membantu dulu) | "Terbaru". */
+  const [commentSort, setCommentSort] = useState<ThreadSort>("top")
+  /** Balasan yang sedang dibalas (null = balas langsung ke pertanyaan). */
+  const [replyTo, setReplyTo] = useState<{ id: string; name: string } | null>(null)
+  /** Pohon balasan dari daftar datar (lib/qa-thread.ts) — diurutkan sesuai pilihan. */
+  const commentTree = useMemo(
+    () => buildCommentThread(questionComments.items, commentSort),
+    [questionComments.items, commentSort],
+  )
   const [deleteQ, setDeleteQ] = useState<QuestionItem | null>(null)
   const [deleteC, setDeleteC] = useState<QuestionComment | null>(null)
   const [hideC, setHideC] = useState<QuestionComment | null>(null)
@@ -839,12 +862,14 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
   // Question & Comment handlers
   // P3 (audit 2026-09-26): buka sheet tanya hanya bila sudah login.
   const openAsk = useCallback(() => {
+    // Pemilik profil TIDAK bertanya di profilnya sendiri — hanya menjawab.
+    if (isSelf) return
     if (!requireSession()) return
     setAskOpen(true)
-  }, [requireSession])
+  }, [requireSession, isSelf])
 
   const submitAsk = useCallback(async () => {
-    if (!username || askText.trim().length < 5) return
+    if (isSelf || !username || askText.trim().length < 5) return
     setAsking(true)
     try {
       await api.users.addQuestion(username, askText.trim())
@@ -863,10 +888,46 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
     } finally {
       setAsking(false)
     }
-  }, [username, askText, toast])
+  }, [username, askText, toast, isSelf])
+
+  /** Pemilik menjawab pertanyaan langsung di profilnya (tanpa pindah ke inbox). */
+  const openAnswer = useCallback(
+    (q: QuestionItem) => {
+      if (!isSelf) return
+      setAnswerTarget(q)
+      setAnswerText("")
+    },
+    [isSelf],
+  )
+
+  const submitAnswer = useCallback(async () => {
+    if (!isSelf || !answerTarget || answering) return
+    const value = answerText.trim()
+    if (value.length < ANSWER_MIN || value.length > ANSWER_MAX) return
+    setAnswering(true)
+    try {
+      await api.users.answerQuestion(answerTarget.id, value)
+      toast.show({ title: translate("Jawaban terkirim"), tone: "success", duration: 3000 })
+      setAnswerTarget(null)
+      setAnswerText("")
+      const res = await api.users.getPublicQuestions(username, { page: 1, limit: 20 })
+      const { items } = readQuestionList(res)
+      setQuestions(items)
+    } catch (err) {
+      toast.show({
+        title: translate("Gagal mengirim jawaban"),
+        description: userMessage(err),
+        tone: "danger",
+      })
+    } finally {
+      setAnswering(false)
+    }
+  }, [isSelf, answerTarget, answerText, answering, toast, username])
 
   const toggleComments = useCallback(
     async (q: QuestionItem) => {
+      setReplyTo(null)
+      setCommentText("")
       if (openQuestionId === q.id) {
         setOpenQuestionId(null)
         return
@@ -889,8 +950,12 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
     if (!openQuestionId || !commentText.trim() || commentSending) return
     setCommentSending(true)
     try {
-      await api.users.addQuestionComment(openQuestionId, { content: commentText.trim() })
+      await api.users.addQuestionComment(openQuestionId, {
+        content: commentText.trim(),
+        ...(replyTo ? { parentId: replyTo.id } : {}),
+      })
       setCommentText("")
+      setReplyTo(null)
       const body = await api.users.getQuestionComments(openQuestionId, { page: 1, limit: 20 })
       const { items } = readQuestionComments(body)
       setQuestionComments({ items, loading: false })
@@ -904,7 +969,7 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
     } finally {
       setCommentSending(false)
     }
-  }, [openQuestionId, commentText, commentSending, toast])
+  }, [openQuestionId, commentText, commentSending, toast, replyTo])
 
   const handleDelete = useCallback(async () => {
     if (deleting) return
@@ -1400,21 +1465,32 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
                  * layar. Perbaikan dua sisi: teks dibatasi (flex-1 + 1 baris)
                  * dan tombol dikecilkan ke lebar konten (fullWidth={false}).
                  */}
-                <View className="flex-row items-center justify-between gap-3">
-                  <Text variant="label" tone="secondary" numberOfLines={1} className="flex-1">
+                {/*
+                 * CTA "Tanya" untuk pengunjung — dibuat seperti kolom balas
+                 * Threads (pill + ikon), jelas terlihat tanpa membaca daftar.
+                 * Pemilik profil tidak melihatnya: ia hanya menjawab.
+                 */}
+                {!isSelf ? (
+                  <PressableScale
+                    accessibilityRole="button"
+                    accessibilityLabel={translate("Tanya @{x}…", { x: handle })}
+                    onPress={openAsk}
+                    containerClassName="rounded-full"
+                    className="flex-row items-center gap-3 rounded-full border border-border bg-surface px-4 py-2.5"
+                  >
+                    <Icon icon={ChatCircleDots} size="sm" tone="default" />
+                    <Text variant="body" tone="secondary" numberOfLines={1} className="flex-1">
+                      {translate("Tanya @{x}…", { x: handle })}
+                    </Text>
+                    <Text variant="caption" weight={700} tone="primary">
+                      {translate("Tanya")}
+                    </Text>
+                  </PressableScale>
+                ) : (
+                  <Text variant="label" tone="secondary" numberOfLines={1}>
                     {translate("Pertanyaan Pengguna")}
                   </Text>
-                  {!isSelf ? (
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      fullWidth={false}
-                      onPress={openAsk}
-                    >
-                      {translate("Bertanya")}
-                    </Button>
-                  ) : null}
-                </View>
+                )}
 
                 {questionsLoading ? (
                   <ListLoading />
@@ -1477,7 +1553,7 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
                               size="sm"
                               variant="secondary"
                               fullWidth={false}
-                              onPress={() => router.push(ROUTES.questions)}
+                              onPress={() => openAnswer(q)}
                             >
                               {translate("Jawab")}
                             </Button>
@@ -1516,31 +1592,18 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
                           ) : questionComments.items.length === 0 ? (
                             <Text variant="caption" tone="secondary">{translate("Belum ada komentar.")}</Text>
                           ) : (
-                            questionComments.items.map((c) => (
-                              <QaCommentItem
-                                key={c.id}
-                                authorName={c.authorName ?? c.authorUsername ?? "Pengguna"}
-                                authorAvatar={c.authorAvatarUrl ? { source: c.authorAvatarUrl } : undefined}
-                                isOwner={c.isOwner}
-                                content={c.content}
-                                timestamp={formatDateTime(c.createdAt)}
-                                reply={c.reply || !!c.parentId}
-                                deleted={c.deleted}
-                                onDelete={isMyComment(c) && !c.deleted ? () => setDeleteC(c) : undefined}
-                                extra={
-                                  isSelf && !c.deleted && !c.isOwner ? (
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      fullWidth={false}
-                                      onPress={() => setHideC(c)}
-                                    >
-                                      {translate("Sembunyikan")}
-                                    </Button>
-                                  ) : undefined
-                                }
-                              />
-                            ))
+                            <QaThread
+                              nodes={commentTree}
+                              sort={commentSort}
+                              onSortChange={setCommentSort}
+                              isMine={isMyComment}
+                              canHide={isSelf}
+                              onHide={(c) => setHideC(c)}
+                              onReply={(c) => {
+                                setReplyTo({ id: c.id, name: c.authorUsername ?? c.authorName ?? translate("Pengguna") })
+                              }}
+                              onDelete={(c) => setDeleteC(c)}
+                            />
                           )}
 
                           <QaCommentComposer
@@ -1550,6 +1613,8 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
                             submitting={commentSending}
                             maxLength={1000}
                             placeholder={translate("Tulis balasan untuk @{x}…", { x: handle })}
+                            replyingTo={replyTo ? `@${replyTo.name}` : undefined}
+                            onCancelReply={() => setReplyTo(null)}
                           />
                         </Card>
                       ) : null}
@@ -1622,6 +1687,32 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
           showCount
         />
       </Dialog>
+
+      {/* ── Sheet Jawab (pemilik profil) — pola sama dengan inbox Tanya Jawab ── */}
+      <BottomSheet
+        avoidKeyboard
+        visible={!!answerTarget && isSelf}
+        onRequestClose={() => setAnswerTarget(null)}
+        title={translate("Jawab pertanyaan")}
+        description={translate("Dari {x}", {
+          x: answerTarget?.asker?.fullName ?? answerTarget?.asker?.username ?? translate("Pengguna"),
+        })}
+      >
+        <View className="px-5 pb-4">
+          <QaCommentComposer
+            value={answerText}
+            onChangeText={setAnswerText}
+            onSubmit={() => void submitAnswer()}
+            submitting={answering}
+            minLength={ANSWER_MIN}
+            maxLength={ANSWER_MAX}
+            authorName={profile?.fullName ?? handle}
+            authorAvatar={profile?.avatarUrl ? { source: profile.avatarUrl } : undefined}
+            placeholder={translate("Tulis jawaban Anda…")}
+            submitLabel={translate("Kirim jawaban")}
+          />
+        </View>
+      </BottomSheet>
 
       {/* ── Dialog Hapus Pertanyaan / Komentar ──────────────── */}
       <Dialog

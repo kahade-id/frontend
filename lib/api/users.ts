@@ -1109,6 +1109,12 @@ export type QuestionComment = {
   /** Komentar dari pemilik profil */
   isOwner?: boolean
   parentId?: string | null
+  /**
+   * Jumlah "membantu" komentar (tepuk tangan). BELUM ada di kontrak backend
+   * (lihat docs/rekomendasi-backend-profile.md) — opsional; bila tidak dikirim,
+   * UI tidak menampilkan angka dan urutan "Teratas" jatuh ke waktu.
+   */
+  upvoteCount?: number | null
   createdAt: string
   reply?: boolean
   deleted?: boolean

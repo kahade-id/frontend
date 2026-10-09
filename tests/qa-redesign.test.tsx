@@ -151,13 +151,13 @@ describe("<QACard> ala Threads", () => {
     fireEvent.click(replyBtn)
     expect(onToggle).toHaveBeenCalledTimes(1)
 
-    const likeBtn = screen.getByRole("button", { name: "Suka" })
+    const likeBtn = screen.getByRole("button", { name: "Membantu" })
     expect(within(likeBtn).getByText("12")).toBeTruthy()
     // Ikon bagikan tidak dirender tanpa onShare — tanpa tombol mati.
     expect(container.querySelector('[data-icon="PaperPlaneTilt"]')).toBeNull()
   })
 
-  it("suka aktif: hati terisi merah + label 'Batal suka'", () => {
+  it("membantu aktif: tepuk tangan terisi + label 'Batal membantu'", () => {
     const { container } = renderThemed(
       <QACard
         question="Tanya stok"
@@ -166,12 +166,12 @@ describe("<QACard> ala Threads", () => {
         upvote={{ count: 7, active: true, onToggle: vi.fn() }}
       />,
     )
-    expect(screen.getByRole("button", { name: "Batal suka" })).toBeTruthy()
-    const heart = container.querySelector('[data-icon="Heart"]')
-    expect(heart?.getAttribute("data-weight")).toBe("fill")
+    expect(screen.getByRole("button", { name: "Batal membantu" })).toBeTruthy()
+    const clap = container.querySelector('[data-icon="HandsClapping"]')
+    expect(clap?.getAttribute("data-weight")).toBe("fill")
   })
 
-  it("jawaban resmi dirender sebagai balasan ber-utas dengan badge Penjual", () => {
+  it("jawaban resmi dirender sebagai balasan ber-utas dengan badge Pemilik", () => {
     renderThemed(
       <QACard
         question="Apakah bisa COD?"
@@ -185,7 +185,7 @@ describe("<QACard> ala Threads", () => {
       />,
     )
     expect(screen.getByText("Bisa, silakan checkout.")).toBeTruthy()
-    expect(screen.getByText("Penjual")).toBeTruthy()
+    expect(screen.getByText("Pemilik")).toBeTruthy()
   })
 
   it("tanpa jawaban: tampil 'Belum dijawab' + slot answerAction", () => {
