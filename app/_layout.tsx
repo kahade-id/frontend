@@ -460,6 +460,16 @@ function ShellRouteEffects({ session, setRealtimeNeeded }: {
   // tetap memakai guard sesi seperti semula.
   const pathname = usePathname()
   const previousSessionToken = useRef(session.token)
+  /**
+   * 2026-10-08 (temuan #14): konfirmasi keluar aplikasi.
+   *
+   * Dulu Back pada tab utama tanpa riwayat tab langsung `BackHandler.exitApp()`
+   * — satu ketukan yang tak sengaja (atau gesture back yang "nyaris") menutup
+   * aplikasi tanpa peringatan. Kini ditahan dulu oleh dialog; Back kedua
+   * menutup dialog itu (bukan keluar), sehingga tidak pernah ada jalan
+   * tersembunyi yang memaksa keluar.
+   */
+  const [exitConfirmOpen, setExitConfirmOpen] = useState(false)
 
   useEffect(() => {
     rememberShellTabVisit(pathname)
@@ -471,14 +481,21 @@ function ShellRouteEffects({ session, setRealtimeNeeded }: {
   }, [session.token])
 
   // Android Back on a tab follows visit order, not the navigator's tab stack.
-  // With no previous tab, explicitly use the normal OS exit affordance so the
-  // handler can never trap the user on the first tab.
+  // With no previous tab, ask for confirmation before leaving the app so the
+  // handler can never trap the user on the first tab — nor close the app by
+  // accident.
   useEffect(() => {
     if (Platform.OS !== "android") return
     const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
       // B2-07: drawer terbuka → tutup dulu, jangan navigasi/exit di belakangnya.
       if (isDrawerOpen()) {
         closeDrawer()
+        return true
+      }
+      // #14: dialog keluar sedang terbuka → Back MENUTUP dialog, bukan
+      // keluar aplikasi (dan bukan mengulang pertanyaan yang sama).
+      if (exitConfirmOpen) {
+        setExitConfirmOpen(false)
         return true
       }
       if (!isShellTabPath(pathname)) {
@@ -498,11 +515,13 @@ function ShellRouteEffects({ session, setRealtimeNeeded }: {
         router.navigate(previousTab.href as never)
         return true
       }
-      BackHandler.exitApp()
+      // #14: tidak ada tab sebelumnya → minta konfirmasi dulu. Ini juga
+      // berarti Back TIDAK pernah menutup aplikasi dalam satu ketukan.
+      setExitConfirmOpen(true)
       return true
     })
     return () => subscription.remove()
-  }, [pathname, router])
+  }, [pathname, router, exitConfirmOpen])
 
   // FE-074: koneksi socket realtime DITUNDA sampai kebutuhan chat pertama.
   // Provider TETAP mount (layar chat mengandalkan context), tapi token hanya
@@ -697,6 +716,26 @@ function ShellRouteEffects({ session, setRealtimeNeeded }: {
   }, [router, session.restoring, session.error, session.token, pathname, buildNext, redirectToLoginWithNext])
 
   return (
+    <>
+      {/*
+        #14: konfirmasi keluar dari aplikasi. `destructive` membuat backdrop
+        tidak menutup (ketukan tidak sengaja di luar kartu tidak serta-merta
+        mengabaikan pertanyaan), dan satu-satunya jalan keluar adalah "Keluar"
+        atau tombol Back (yang menutup dialog).
+      */}
+      <Dialog
+        visible={exitConfirmOpen}
+        title={translate("Yakin ingin keluar dari Kahade?")}
+        description={translate("Anda akan menutup aplikasi. Sesi tetap tersimpan.")}
+        confirmLabel={translate("Keluar")}
+        cancelLabel={translate("Batal")}
+        destructive
+        onConfirm={() => {
+          setExitConfirmOpen(false)
+          BackHandler.exitApp()
+        }}
+        onRequestClose={() => setExitConfirmOpen(false)}
+      />
       <Dialog
         title="Sesi berakhir"
         description="Sesi Anda telah berakhir. Silakan masuk kembali untuk melanjutkan."
@@ -718,6 +757,7 @@ function ShellRouteEffects({ session, setRealtimeNeeded }: {
         onRequestClose={() => undefined}
         destructive={false}
       />
+    </>
   )
 }
 

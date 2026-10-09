@@ -4,7 +4,7 @@
  "strings": [
   {
    "s": "Batal",
-   "n": 151
+   "n": 154
   },
   {
    "s": "Hapus",
@@ -1135,6 +1135,10 @@
    "n": 5
   },
   {
+   "s": "Keluar",
+   "n": 5
+  },
+  {
    "s": "Kembali ke Masuk",
    "n": 5
   },
@@ -1408,10 +1412,6 @@
   },
   {
    "s": "Bukti {x} dari {y}",
-   "n": 4
-  },
-  {
-   "s": "Cari pesan",
    "n": 4
   },
   {
@@ -2152,6 +2152,10 @@
   },
   {
    "s": "Ancaman/pelecehan",
+   "n": 3
+  },
+  {
+   "s": "Anda akan menutup aplikasi. Sesi tetap tersimpan.",
    "n": 3
   },
   {
@@ -3967,10 +3971,6 @@
    "n": 3
   },
   {
-   "s": "Mencari di seluruh riwayat percakapan ini",
-   "n": 3
-  },
-  {
    "s": "Mencari pengguna lewat username untuk mulai mengobrol",
    "n": 3
   },
@@ -4699,10 +4699,6 @@
    "n": 3
   },
   {
-   "s": "Simpan lewat username agar bisa langsung dipesan kapan saja.",
-   "n": 3
-  },
-  {
    "s": "Simpan privasi",
    "n": 3
   },
@@ -5332,6 +5328,10 @@
   },
   {
    "s": "Wajib untuk rating {x}–{x} bintang",
+   "n": 3
+  },
+  {
+   "s": "Yakin ingin keluar dari Kahade?",
    "n": 3
   },
   {
@@ -7120,10 +7120,6 @@
   },
   {
    "s": "Kelola slot jasa",
-   "n": 2
-  },
-  {
-   "s": "Keluar",
    "n": 2
   },
   {
@@ -13551,6 +13547,10 @@
    "n": 1
   },
   {
+   "s": "Cari pesan",
+   "n": 1
+  },
+  {
    "s": "Cari semua pesan",
    "n": 1
   },
@@ -16404,6 +16404,10 @@
   },
   {
    "s": "Keluar dari Kahade?",
+   "n": 1
+  },
+  {
+   "s": "Keluar dari mode pilih percakapan",
    "n": 1
   },
   {
