@@ -199,6 +199,10 @@
    "n": 11
   },
   {
+   "s": "Batalkan unggahan",
+   "n": 11
+  },
+  {
    "s": "Buat transaksi",
    "n": 11
   },
@@ -464,6 +468,10 @@
   },
   {
    "s": "Lencana",
+   "n": 7
+  },
+  {
+   "s": "Mengunggah foto profil",
    "n": 7
   },
   {
@@ -796,10 +804,6 @@
   },
   {
    "s": "Memuat etalase",
-   "n": 6
-  },
-  {
-   "s": "Mengunggah foto profil",
    "n": 6
   },
   {
@@ -1211,10 +1215,6 @@
    "n": 5
   },
   {
-   "s": "Mengunggah foto…",
-   "n": 5
-  },
-  {
    "s": "Navigasi utama",
    "n": 5
   },
@@ -1396,10 +1396,6 @@
   },
   {
    "s": "Batalkan pesanan",
-   "n": 4
-  },
-  {
-   "s": "Batalkan unggahan",
    "n": 4
   },
   {
@@ -4064,6 +4060,10 @@
   },
   {
    "s": "Mengunggah foto",
+   "n": 3
+  },
+  {
+   "s": "Mengunggah foto sampul",
    "n": 3
   },
   {
@@ -7916,6 +7916,10 @@
   },
   {
    "s": "Mengunggah foto {x} dari {y}",
+   "n": 2
+  },
+  {
+   "s": "Mengunggah foto…",
    "n": 2
   },
   {

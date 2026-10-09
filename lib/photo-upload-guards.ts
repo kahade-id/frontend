@@ -1,5 +1,4 @@
 import type { PickedImage } from "@/lib/image-picker"
-import { uploadTimeoutMs } from "@/lib/upload-errors"
 
 /**
  * Guard klien upload foto profil — avatar & sampul (UPF-03, UPF-06).
@@ -44,16 +43,4 @@ export function validateAvatarAsset(asset: PickedImage): string | null {
 /** Guard foto sampul — dipakai app/edit-profile.tsx (UPF-03). */
 export function validateHeaderAsset(asset: PickedImage): string | null {
   return validatePhotoAsset(asset, HEADER_ALLOWED_MIME, HEADER_MAX_MB, HEADER_COPY)
-}
-
-/**
- * UPF-04: timeout adaptif upload foto.
- *
- * Audit 2026-10-09 (B6): rumus terpusat di `uploadTimeoutMs`
- * (upload-errors.ts) — 60 dtk basis + waktu transfer pada 100 KB/s, cap
- * 5 menit. Rumus lama (basis 20 dtk, cap 120 dtk) terlalu lemah: avatar
- * 2 MB @ 100 KB/s ≈ 20,5 dtk transfer + proses server melewati batas 23 dtk.
- */
-export function photoUploadTimeoutMs(bytes?: number): number {
-  return uploadTimeoutMs(bytes, "photo")
 }

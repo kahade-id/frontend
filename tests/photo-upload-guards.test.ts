@@ -1,21 +1,19 @@
 /**
- * Guard klien upload foto profil (UPF-03, UPF-06) + timeout adaptif (UPF-04).
+ * Guard klien upload foto profil (UPF-03, UPF-06).
  *
  * - validateAvatarAsset: tolak >2 MB / MIME tak didukung (pesan Indonesia).
  * - validateHeaderAsset: tolak >5 MB / MIME tak didukung (pesan Indonesia).
  * - UPF-06: MIME yang DILAPORKAN platform dan tidak didukung → tolak langsung,
  *   ekstensi tidak boleh mengesampingkannya.
- * - photoUploadTimeoutMs: delegasi rumus terpusat uploadTimeoutMs(bytes,
- *   "photo") — 60 dtk basis + waktu transfer @100 KB/s, cap 5 menit
- *   (audit 2026-10-09 B6: rumus lama 20 dtk basis membunuh upload avatar di
- *   4G lambat pada detik ~23).
+ *
+ * (Timeout adaptif UPF-04 kini diuji di tests/upload-errors.test.ts —
+ * rumus terpusat uploadTimeoutMs dipakai transport, audit 2026-10-09 B6.)
  */
 import { describe, expect, it } from "vitest"
 
 import {
   AVATAR_COPY,
   HEADER_COPY,
-  photoUploadTimeoutMs,
   validateAvatarAsset,
   validateHeaderAsset,
 } from "@/lib/photo-upload-guards"
@@ -85,32 +83,9 @@ describe("validateHeaderAsset (UPF-03)", () => {
   })
 })
 
-describe("photoUploadTimeoutMs (UPF-04 — delegasi rumus terpusat, audit B6)", () => {
-  it("tanpa info ukuran → 60 dtk", () => {
-    expect(photoUploadTimeoutMs()).toBe(60_000)
-    expect(photoUploadTimeoutMs(0)).toBe(60_000)
-  })
-
-  it("file kecil → minimal 60 dtk", () => {
-    expect(photoUploadTimeoutMs(1000)).toBe(60_010)
-  })
-
-  it("1 MiB → ~70,5 dtk (60 dtk basis + waktu @100KB/s)", () => {
-    expect(photoUploadTimeoutMs(MB)).toBeCloseTo(70_485.76, 1)
-  })
-
-  it("5 MiB → ~112,4 dtk", () => {
-    expect(photoUploadTimeoutMs(5 * MB)).toBeCloseTo(112_428.8, 1)
-  })
-
-  it("file raksasa → di-cap 300 dtk (5 menit)", () => {
-    expect(photoUploadTimeoutMs(50 * MB)).toBe(300_000)
-  })
-
-  it("avatar 2 MB di 4G lambat tidak lagi dibunuh di detik ~23 (regresi B6)", () => {
-    // Rumus lama: 20 dtk + 2MB/100 = 32,9 dtk — tapi pengamatan nyata
-    // (screenshot user) menunjukkan avatar digagalkan jauh lebih awal karena
-    // deadline global 20 dtk. Rumus baru memberi 60 dtk + jatah transfer.
-    expect(photoUploadTimeoutMs(2 * MB)).toBeGreaterThan(20_000)
-  })
-})
+// Audit 2026-10-09 (B6): `photoUploadTimeoutMs` dihapus — semua jalur upload
+// foto kini melewati transport terpusat `uploadFileWithProgress` yang
+// menghitung timeout adaptif dari `fileBytes` (rumus `uploadTimeoutMs` di
+// lib/upload-errors.ts). Regresi "avatar dibunuh di detik ~23" kini dijaga
+// oleh tests/upload-errors.test.ts (uploadTimeoutMs) & upload-transport.test.ts
+// (timeout adaptif dari fileBytes).
