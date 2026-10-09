@@ -39,7 +39,8 @@ import { ScreenInsetsContext } from "@/components/ui/screen"
 import { useTheme } from "@/components/theme-provider"
 import { elevationStyle } from "@/lib/elevation"
 import { modes, tokens } from "@/lib/tokens"
-import { logicalParentForPath } from "@/lib/notification-routing"
+import { backTargetForPath } from "@/lib/notification-routing"
+import { ROUTES } from "@/lib/routes"
 import { cn } from "@/lib/cn"
 import { translateProp, useLanguage } from "@/lib/i18n"
 import { translate } from "@/lib/i18n/translate"
@@ -385,17 +386,34 @@ export const Header = memo(function Header({
    */
   const titleCenterPadding = headerTitleCenterPadding(leftWidth, rightWidth, tokens.space[12])
 
-  const canBack = showBack ?? true
-  // T5-009 (audit UI/UX intuitif 2026-09-29): fallback back sadar konteks —
-  // bila stack kosong (mis. cold start dari deep link), kembali ke "layar
-  // induk logis" rute ini (chat room → /chat, detail pesanan →
-  // /transactions, …), bukan selalu ke Etalase.
+  /**
+   * 2026-10-08 (temuan #17): tombol kembali yang TIDAK PERNAH no-op.
+   *
+   * Tiga keadaan:
+   *  1. ada riwayat            → `router.back()` (perilaku lama).
+   *  2. stack kosong + induk   → `replace` ke induk logis (T5-009).
+   *  3. stack kosong + TANPA induk yang berbeda (layar hub seperti /faq,
+   *     /wallet, /disputes, /chat yang induknya diri sendiri) → beranda.
+   *
+   * Keadaan 3 dulu `replace()` ke rute yang sama: tombol terlihat, dipencet,
+   * dan tidak terjadi apa-apa — persis keluhan "tombol back nyangkut".
+   */
+  const backTarget = backTargetForPath(pathname)
   const handleBack =
     onBack ??
     (() =>
       router.canGoBack()
         ? router.back()
-        : router.replace(logicalParentForPath(pathname)))
+        : router.replace((backTarget ?? ROUTES.home) as never))
+  /**
+   * Visibilitas tombol SENGAJA tidak diubah: `router.canGoBack()` yang dibaca
+   * saat render bisa saja belum stabil (navigator belum selesai menetap),
+   * dan menyembunyikan tombol yang seharusnya ada jauh lebih buruk daripada
+   * tombol yang bekerja. Jadi tombol tetap tampil seperti sebelumnya — yang
+   * diperbaiki adalah AKSINYA (lihat `handleBack` di atas): ia tidak pernah
+   * lagi berujung pada `replace()` ke rute yang sama.
+   */
+  const canBack = showBack ?? true
 
   const leftNode =
     left ??

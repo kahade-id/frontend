@@ -6,7 +6,7 @@
  * tetap bisa di-mount, tapi yang tampil hanya layar ini, bukan konten dompet.
  *
  * Minimalis (§9): satu ikon, satu judul, satu kalimat, satu aksi primer
- * (Kelola Rekening Bank — karena dana escrow kini mengalir ke bank) +
+ * (Kelola Rekening Bank — karena dana transaksi kini mengalir ke bank) +
  * tombol kembali.
  */
 import { View } from "react-native"
@@ -29,14 +29,24 @@ export function WalletDisabledScreen() {
         <EmptyState
           icon={Wallet}
           title="Dompet tidak tersedia"
-          description="Fitur dompet sedang dinonaktifkan. Dana escrow diteruskan langsung ke rekening bank Anda."
+          description="Fitur dompet sedang dinonaktifkan. Dana transaksi diteruskan langsung ke rekening bank Anda."
           action={
             <Button fullWidth={false} onPress={() => router.push(ROUTES.bankAccounts)}>
               Kelola Rekening Bank
             </Button>
           }
           secondaryAction={
-            <Button variant="ghost" fullWidth={false} onPress={() => router.back()}>
+            <Button
+              variant="ghost"
+              fullWidth={false}
+              // 2026-10-08 (#17): `router.back()` saja no-op bila layar ini
+              // jadi entri pertama (dibuka dari tautan dompet) — tombol
+              // "Kembali" terasa mati. Jatuh ke tab Etalase.
+              onPress={() => {
+                if (router.canGoBack()) router.back()
+                else router.replace(ROUTES.home)
+              }}
+            >
               Kembali
             </Button>
           }

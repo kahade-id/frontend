@@ -186,18 +186,35 @@ export default function StoryViewerScreen({ userId, highlightId }: Props) {
 
   // ---- Navigasi antar penulis / tutup (dipanggil dari JS, tidak dari worklet) ----
 
+  /**
+   * 2026-10-08 (temuan #17): tutup story TIDAK boleh hanya `router.back()`.
+   *
+   * Viewer dibuka dari tray di tab Pesan, jadi biasanya ada riwayat. Tetapi
+   * pada cold start dari deep link / tautan story, `/story/<id>` adalah
+   * SATU-SATUNYA entri di stack — `router.back()` menjadi no-op. Layar
+   * fullscreen tanpa tombol keluar yang bekerja = terjebak: satu-satunya
+   * jalan keluar adalah menutup paksa aplikasi.
+   *
+   * Fallback-nya `/chat` (tray story hidup di sana), bukan Etalase — supaya
+   * "tutup story" terasa seperti kembali ke tempat ia dibuka.
+   */
+  const closeStory = useCallback(() => {
+    if (router.canGoBack()) router.back()
+    else router.replace(ROUTES.chat)
+  }, [router])
+
   const goNextAuthor = useCallback(() => {
     if (nextAuthorId) router.replace(ROUTES.storyViewer(nextAuthorId))
-    else router.back()
-  }, [nextAuthorId])
+    else closeStory()
+  }, [nextAuthorId, closeStory])
 
   const goPrevAuthor = useCallback(() => {
     if (prevAuthorId) router.replace(ROUTES.storyViewer(prevAuthorId))
   }, [prevAuthorId])
 
   const close = useCallback(() => {
-    router.back()
-  }, [])
+    closeStory()
+  }, [closeStory])
 
   const advance = useCallback(() => {
     const step = stepForward(safeIndex, stories.length, nextAuthorId !== null)
@@ -340,8 +357,8 @@ export default function StoryViewerScreen({ userId, highlightId }: Props) {
   }, [current?.id, segmentFade])
 
   const closeFromGesture = useCallback(() => {
-    router.back()
-  }, [])
+    closeStory()
+  }, [closeStory])
 
   const pan = Gesture.Pan()
     .activeOffsetY(14)
@@ -501,8 +518,8 @@ export default function StoryViewerScreen({ userId, highlightId }: Props) {
       return
     }
     toast.show({ title: t("Story dihapus"), tone: "neutral" })
-    if (stories.length <= 1) router.back()
-  }, [current, stories.length, toast, t])
+    if (stories.length <= 1) closeStory()
+  }, [current, stories.length, toast, t, closeStory])
 
   const menuActions: ActionSheetItem[] = isOwn
     ? [

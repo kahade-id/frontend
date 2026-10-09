@@ -6,7 +6,6 @@
  * In-process navigation and push/deep-link destinations remain authoritative.
  */
 import { Platform } from "react-native"
-import { createTrailingDebounce } from "@/lib/debounce"
 import { deleteSecureItem, getSecureItem, SecureKeys, setSecureItem } from "@/lib/secure-storage"
 import { getSessionRevision } from "@/lib/api/session"
 import { PRE_SESSION_AUTH_PATHS } from "@/lib/protected-routes"
@@ -64,35 +63,58 @@ export function saveLastNativeRoute(pathname: string): Promise<void> {
 }
 
 /**
- * P2 (audit perf/UX 2026-10-03): tulis rute terakhir DI-DEBOUNCE 500ms.
+ * 2026-10-08 (temuan #15): rute terakhir DITULIS SEGERA — tidak lagi
+ * di-debounce.
  *
- * `saveLastNativeRoute` dipanggil dari efek pathname — berpindah tab
- * beruntun (Etalase → Transaksi → Pesan) berarti satu penulisan SecureStore
- * per perpindahan, padahal hanya rute TERAKHIR yang berguna saat boot.
- * Debounce memangkasnya jadi satu penulisan per jendela 500ms.
+ * Dulu penulisan ditahan 500ms (`createTrailingDebounce`) untuk menggabung
+ * perpindahan tab beruntun, lalu di-flush saat `AppState` meninggalkan
+ * foreground. Itu mengasumsikan penulisan selesai sebelum proses mati —
+ * padahal `SecureStore.setItemAsync` ASINKRON. Saat pengguna menutup app
+ * dari app switcher (atau OS mematikannya), JS mati nyaris seketika; janji
+ * `setItemAsync` tidak pernah selesai dan rute terakhir HILANG. Maka boot
+ * berikutnya jatuh ke `ROUTES.home` (Etalase) — persis keluhan "harus kill
+ * aplikasi berulang kali": ia hanya pernah berhasil kalau kebetulan
+ * pengguna diam >500ms di halaman itu sehingga timer menyala lebih dulu.
  *
- * Risiko yang harus ditutup: OS bisa mematikan proses yang di-background
- * sebelum timer menyala. Karena itu tersedia `flushLastNativeRouteSave()`
- * yang dipanggil root layout saat app meninggalkan foreground — tidak ada
- * rute yang hilang.
+ * Kenapa menulis segera aman: perubahan `pathname` itu JARANG dan selalu
+ * dipicu pengguna (satu ketukan = satu rute), bukan per-frame seperti
+ * scroll. Satu penulisan Keychain/Keystore per navigasi tidak terukur;
+ * yang mahal justru kehilangan rute.
+ *
+ * Penggabungannya kini lewat DEDUPE (`lastSubmittedPath`), bukan timer:
+ * render ulang yang tidak mengubah path (sumber utama "beruntun" itu) tidak
+ * menulis apa-apa.
  */
-export const LAST_ROUTE_SAVE_DEBOUNCE_MS = 500
+let lastSubmittedPath: string | null = null
 
-const debouncedSave = createTrailingDebounce<string>((path) => {
-  // Kegagalan tulis sudah ditelan di dalam (best-effort) — jangan sampai
-  // rejection tanpa handler dari timer.
-  void saveLastNativeRoute(path).catch(() => undefined)
-}, LAST_ROUTE_SAVE_DEBOUNCE_MS)
-
-/** Versi debounce dari `saveLastNativeRoute` (dipakai root layout). */
+/** Catat rute terakhir SEGERA (dipakai root layout tiap pathname berubah). */
 export function saveLastNativeRouteDebounced(pathname: string): void {
   if (Platform.OS === "web") return
-  debouncedSave.call(pathname)
+  if (lastSubmittedPath === pathname) return
+  lastSubmittedPath = pathname
+  // Kegagalan tulis ditelan: persistensi rute bersifat best-effort, dan
+  // kegagalan menyimpan tidak boleh mengganggu navigasi.
+  void saveLastNativeRoute(pathname).catch(() => undefined)
 }
 
-/** Kirim penulisan yang tertunda sekarang (mis. app masuk background). */
+/**
+ * Kirim ulang rute terakhir yang tercatat (mis. app masuk background).
+ *
+ * Dengan penulisan segera, biasanya tidak ada yang tertunda. Ini tetap
+ * dipertahankan sebagai jaring pengaman untuk satu kasus nyata: proses
+ * dimatikan TEPAT di antara "pathname berubah" dan "setItemAsync selesai" —
+ * kirim ulang di kesempatan terakhir (`AppState` → inactive/background)
+ * memberi penulisan itu jendela kedua.
+ */
 export function flushLastNativeRouteSave(): void {
-  debouncedSave.flush()
+  if (Platform.OS === "web") return
+  if (lastSubmittedPath === null) return
+  void saveLastNativeRoute(lastSubmittedPath).catch(() => undefined)
+}
+
+/** Hanya untuk test: lupakan nilai yang pernah dikirim (reset dedupe). */
+export function __resetLastRouteDedupe(): void {
+  lastSubmittedPath = null
 }
 
 /** Return a validated path only on native; invalid/old entries fail closed. */

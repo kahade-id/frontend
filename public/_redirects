@@ -45,3 +45,14 @@
 /help/:slug                /help/[slug].html                  200
 /wallet-transaction/:txId  /wallet-transaction/[txId].html          200
 /showcase/:id              /showcase/[id].html                      200
+/milestones/:id            /milestones/[id].html                   200
+/returns/:id               /returns/[id].html                      200
+/story/:userId             /story/[userId].html                    200
+/tracking/:shipmentId      /tracking/[shipmentId].html             200
+# ── Tautan pendek (satu segmen, jadi HARUS di atas /:username) ──────────────
+/o/:token                  /o/[token].html                         200
+/p/:id                     /p/[id].html                            200
+/r/:code                   /r/[code].html                          200
+/v/:code                   /v/[code].html                          200
+# ── Profil vanity: PALING UMUM (satu segmen apa saja) → taruh TERAKHIR ──────
+/:username                 /[username].html                        200

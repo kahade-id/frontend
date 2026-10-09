@@ -107,7 +107,7 @@ import * as notificationsApi from "@/lib/api/notifications"
 import * as publicApi from "@/lib/api/public"
 import { emitSessionExpired, onSessionExpired } from "@/lib/api/session"
 import { fontAssetsBlocking, fontAssetsDeferred } from "@/lib/fonts"
-import { logicalParentForPath, routeForPushData } from "@/lib/notification-routing"
+import { backTargetForPath, routeForPushData } from "@/lib/notification-routing"
 import {
   flushLastNativeRouteSave,
   saveLastNativeRouteDebounced,
@@ -502,9 +502,16 @@ function ShellRouteEffects({ session, setRealtimeNeeded }: {
         // P1-B3: non-shell path tanpa riwayat — fallback ke induk logis
         // (mis. deeplink cold-start) alih-alih keluar aplikasi.
         if (!router.canGoBack()) {
-          const parent = logicalParentForPath(pathname)
-          if (parent && parent !== pathname) {
-            router.replace(parent as never)
+          // #14: layar pra-sesi (login, onboarding, …) memang tidak punya
+          // "halaman sebelumnya" — biarkan sistem yang menangani (keluar).
+          // Mengarahkannya ke ROUTES.home justru memantul balik ke login
+          // karena rute itu terproteksi: lingkaran tanpa akhir.
+          if (!isPreSessionAuthPath(pathname)) {
+            // #17: `backTargetForPath` mengembalikan null bila satu-satunya
+            // induk adalah layar ini sendiri (hub). Jangan `replace()` ke
+            // diri sendiri — itu no-op yang terasa sebagai "back macet".
+            // Tanpa induk sama sekali, beranda adalah tujuan yang jujur.
+            router.replace((backTargetForPath(pathname) ?? ROUTES.home) as never)
             return true
           }
         }
