@@ -86,10 +86,25 @@ export const ChatFileCard = memo(function ChatFileCard({
             >
               {attachment.fileName}
             </Text>
-            {metaLabel ? (
-              <Text variant="caption" tone={outgoing ? "inverse" : "secondary"}>
-                {metaLabel}
-              </Text>
+            {/* 2026-10-08 (temuan #13): baris meta berkas — ukuran TETAP
+                tabular (kolom angka tidak bergeser antar pesan) dan format
+                menjadi chip kecil, bukan "2,4 MB · PDF" yang terbaca sebagai
+                satu kalimat. */}
+            {sizeLabel || ext ? (
+              <View className="mt-0.5 flex-row items-center gap-1.5">
+                {sizeLabel ? (
+                  <Text variant="caption" tone={outgoing ? "inverse" : "secondary"} className="tabular-nums">
+                    {sizeLabel}
+                  </Text>
+                ) : null}
+                {ext ? (
+                  <View className="rounded-sm bg-black/[0.07] px-1 dark:bg-white/[0.14]">
+                    <Text variant="caption" weight={700} tone={outgoing ? "inverse" : "secondary"} className="tracking-widest">
+                      {ext}
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
             ) : null}
           </View>
         </View>

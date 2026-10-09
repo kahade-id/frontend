@@ -17,6 +17,10 @@
  *     konstanta modul: ini nilai, bukan pemanggilan fungsi, sehingga aman
  *     di-capture worklet (sama seperti `tokens.motion.spring` yang sudah
  *     dipakai pan lama di bubble).
+ *   - 2026-10-08 (#11): gesture-nya DUA ARAH. `clampSwipeReply` menjepit ke
+ *     -MAX..MAX (bukan 0..MAX) sehingga bubble benar-benar mengikuti jari ke
+ *     kiri pun, dan ambangnya memakai nilai mutlak — geser kanan (WhatsApp)
+ *     dan geser kiri (Telegram) dua-duanya membalas.
  *   - Callback pemicu disimpan di ref (`triggerRef`): handler pemanggil
  *     (mis. `setReplyTarget`) berubah identitas saat state layar berubah —
  *     tanpa ref, pan di-`useMemo` ulang dan gesture yang sedang berjalan
@@ -34,10 +38,10 @@ import { Gesture } from "react-native-gesture-handler"
 import { runOnJS, withSpring, withTiming, type SharedValue } from "react-native-reanimated"
 
 import {
+  clampSwipeReply,
   SWIPE_REPLY_ACTIVE_OFFSET_X,
   SWIPE_REPLY_FAIL_OFFSET_Y,
   SWIPE_REPLY_FLING_VELOCITY_PX_S,
-  SWIPE_REPLY_MAX_PX,
   SWIPE_REPLY_THRESHOLD_PX,
 } from "@/lib/chat-bubble"
 import { tokens } from "@/lib/tokens"
@@ -81,14 +85,15 @@ export function useSwipeReplyPan({ enabled, swipeX, onTrigger }: SwipeReplyPanOp
         .failOffsetY(SWIPE_REPLY_FAIL_OFFSET_Y)
         .onUpdate((e) => {
           "worklet"
-          // Geser kiri tidak pernah menggeser bubble (balas = ke kanan).
-          swipeX.value = Math.max(0, Math.min(e.translationX, SWIPE_REPLY_MAX_PX))
+          // #11: ikuti jari ke DUA arah, dijepit ±MAX. Dulu `Math.max(0, …)`
+          // membuat geser kiri tidak menggeser apa pun — gesture terasa mati.
+          swipeX.value = clampSwipeReply(e.translationX)
         })
         .onEnd((e) => {
           "worklet"
           const triggered =
-            swipeX.value >= SWIPE_REPLY_THRESHOLD_PX ||
-            e.velocityX >= SWIPE_REPLY_FLING_VELOCITY_PX_S
+            Math.abs(swipeX.value) >= SWIPE_REPLY_THRESHOLD_PX ||
+            Math.abs(e.velocityX) >= SWIPE_REPLY_FLING_VELOCITY_PX_S
           if (triggered) runOnJS(fireTrigger)()
           // Reduce Motion: snap-back INSTAN tanpa spring — yang dipertahankan
           // hanya translasi mengikuti jari (pengecualian WCAG 2.3.3).

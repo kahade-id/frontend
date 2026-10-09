@@ -243,8 +243,15 @@ export function placeReactionPopover(
  * - `activeOffsetX(12)` + `failOffsetY(8)` (pola <SwipeableListItem>): pan
  *   hanya diklaim setelah gerakan horizontal jelas; scroll vertikal list
  *   tidak terganggu.
- * - Translasi dijepit 0..MAX; ikon reply muncul (fade+scale, bukan gerak)
- *   di ruang yang terbuka di kiri bubble sebagai hint visual.
+ * - Translasi dijepit -MAX..MAX; ikon reply muncul (fade+scale, bukan gerak)
+ *   di ruang yang terbuka di SISI BERTOLAK BELAKANG arah geser sebagai hint
+ *   visual (geser kanan → hint kiri, geser kiri → hint kanan).
+ *
+ * 2026-10-08 (temuan #11): geser KIRI dulu dijepit ke 0 (`Math.max(0, …)`),
+ * jadi bubble sama sekali tidak bergerak walau jari bergerak — gesture
+ * terasa mati. Kini bubble mengikuti jari ke DUA arah dan balas terpicu di
+ * arah mana pun yang melewati ambang: WhatsApp (geser kanan) dan Telegram
+ * (geser kiri) dua-duanya jalan, jadi kebiasaan user mana pun dihargai.
  * - Reduce Motion: translasi mengikuti jari (esensial, pengecualian WCAG
  *   2.3.3 seperti <SwipeableListItem>), tapi snap-back tanpa spring —
  *   pemanggil memakai `withTiming({duration: 0})` bila reduce-motion aktif.
@@ -278,8 +285,10 @@ export const SWIPE_REPLY_FAIL_OFFSET_Y = 8
  * Sedikit lebih lebar dari perlu lebih baik daripada tumpang tindih.
  */
 const META_TIME_PX = 36
-const META_ICON_PX = 16
-const META_GAP_PX = 4
+/** 2026-10-08: 14px mengikuti `META_ICON_PX` di chat-message-bubble — kalau
+ *  konstanta ini berbeda dari yang dirender, reservasi meleset. */
+const META_ICON_PX = 14
+const META_GAP_PX = 3
 const META_CHAR_PX = 6.5
 /** `pr-3` bubble — jarak meta ke tepi kanan. */
 const META_EDGE_PX = 12
@@ -323,14 +332,28 @@ export function bubbleMetaReservePx(input: BubbleMetaReserveInput): number {
 }
 
 /**
+ * Murni — translasi bubble mengikuti jari, DIJEPIT ke rentang -MAX..MAX.
+ *
+ * Dua arah (lihat #11): bubble mengikuti jari baik ke kanan maupun ke kiri,
+ * lalu snap-back. Tanpa penjepit, geser jauh membuat bubble keluar dari
+ * layar; dengan penjepit, ada "tahanan" terasa di ujung.
+ */
+export function clampSwipeReply(translationX: number): number {
+  return Math.max(-SWIPE_REPLY_MAX_PX, Math.min(translationX, SWIPE_REPLY_MAX_PX))
+}
+
+/**
  * Murni — bisa di-unit-test: apakah gesture pan berakhir sebagai "balas"?
+ *
+ * #11: arah tidak lagi dipedulikan (nilai mutlak) — geser kanan (WhatsApp)
+ * maupun geser kiri (Telegram) sama-sama membalas.
  */
 export function shouldTriggerSwipeReply(
   translationX: number,
   velocityX: number,
 ): boolean {
   return (
-    translationX >= SWIPE_REPLY_THRESHOLD_PX ||
-    velocityX >= SWIPE_REPLY_FLING_VELOCITY_PX_S
+    Math.abs(translationX) >= SWIPE_REPLY_THRESHOLD_PX ||
+    Math.abs(velocityX) >= SWIPE_REPLY_FLING_VELOCITY_PX_S
   )
 }

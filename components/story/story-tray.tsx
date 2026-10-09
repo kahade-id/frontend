@@ -11,11 +11,19 @@
  *
  * Kegagalan memuat tray TIDAK memblokir daftar chat: tray disembunyikan kecuali
  * tombol "+" sendiri, supaya pengguna tetap bisa membuat story.
+ *
+ * Motion (2026-10-08, penyegaran UI/UX story):
+ *   - Ubin masuk bertahap: fade + naik 8px, jeda 40ms per ubin, dibatasi 8
+ *     ubin pertama (tray panjang tidak perlu reveal satu per satu — §8:
+ *     <Stagger> hanya untuk deret pendek).
+ *   - Ubin ditekan mengecil (spring) — lihat <StoryRing>.
+ *   - Reduced motion: tanpa animasi (audit #2).
  */
 import { router } from "expo-router"
 import { useCallback, useEffect, useMemo, useRef } from "react"
 import { ScrollView, View } from "react-native"
 
+import { FadeIn } from "@/components/ui/fade-in"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Text } from "@/components/ui/text"
 import { StoryRing, type StoryRingState } from "@/components/story/story-ring"
@@ -25,9 +33,16 @@ import { useApiQuery } from "@/lib/use-api-query"
 import { useStoryLocal } from "@/lib/story/local-state"
 import { applyTrayOverlay } from "@/lib/story/tray"
 import { ROUTES } from "@/lib/routes"
+import { tokens } from "@/lib/tokens"
 import { useT } from "@/lib/i18n"
 
 const TILE_WIDTH = 72
+/**
+ * Jumlah ubin pertama yang mendapat reveal bertahap. Lebih dari ini jeda
+ * kumulatifnya (> 300ms) mulai terasa seperti tray yang lambat dimuat.
+ */
+const STAGGER_LIMIT = 8
+const STAGGER_STEP_MS = 40
 
 function ringFor(entry: { hasUnseen: boolean; muted: boolean }): StoryRingState {
   if (entry.muted) return "muted"
@@ -90,6 +105,7 @@ export function StoryTray() {
         width={TILE_WIDTH}
         name={t("Story saya")}
         caption={ownPending ? t("Mengunggah…") : ownHasStories ? t("Story saya") : t("Tambah story")}
+        index={0}
       >
         <StoryRing
           name={ownName}
@@ -106,8 +122,8 @@ export function StoryTray() {
         />
       </StoryTile>
 
-      {view?.others.map((entry) => (
-        <OtherTile key={entry.author.userId} entry={entry} onOpen={openViewer} />
+      {view?.others.map((entry, i) => (
+        <OtherTile key={entry.author.userId} entry={entry} onOpen={openViewer} index={i + 1} />
       ))}
     </ScrollView>
   )
@@ -116,15 +132,17 @@ export function StoryTray() {
 function OtherTile({
   entry,
   onOpen,
+  index,
 }: {
   entry: StoryTrayEntry
   onOpen: (userId: string) => void
+  index: number
 }) {
   const t = useT()
   const name = entry.author.fullName || `@${entry.author.username}`
   const state = ringFor(entry)
   return (
-    <StoryTile width={TILE_WIDTH} name={name} caption={name} dim={entry.muted}>
+    <StoryTile width={TILE_WIDTH} name={name} caption={name} dim={entry.muted} index={index}>
       <StoryRing
         name={name}
         avatarUrl={entry.author.avatarUrl}
@@ -146,25 +164,37 @@ function StoryTile({
   name,
   caption,
   dim = false,
+  index = 0,
   children,
 }: {
   width: number
   name: string
   caption: string
   dim?: boolean
+  /** Urutan ubin — penentu jeda reveal bertahap. */
+  index?: number
   children: React.ReactNode
 }) {
+  /**
+   * Reveal masuk dipasang DI LUAR <View style={{width}}> supaya lebar ubin
+   * tetap milik pembungkus: <FadeIn> membungkus anaknya dengan Animated.View
+   * `flexGrow/flexShrink` (lihat docblock fade-in.tsx) dan tidak boleh
+   * mengubah lebar tetap tray.
+   */
+  const delay = Math.min(index, STAGGER_LIMIT) * STAGGER_STEP_MS
   return (
-    <View style={{ width }} className="items-center gap-1" accessibilityLabel={name}>
-      {children}
-      <Text
-        variant="caption"
-        tone={dim ? "tertiary" : "secondary"}
-        numberOfLines={1}
-        className="w-full text-center"
-      >
-        {caption}
-      </Text>
-    </View>
+    <FadeIn duration="fast" delay={delay} distance={tokens.space[2]}>
+      <View style={{ width }} className="items-center gap-1" accessibilityLabel={name}>
+        {children}
+        <Text
+          variant="caption"
+          tone={dim ? "tertiary" : "secondary"}
+          numberOfLines={1}
+          className="w-full text-center"
+        >
+          {caption}
+        </Text>
+      </View>
+    </FadeIn>
   )
 }

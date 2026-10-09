@@ -11,6 +11,20 @@
  * Draft tidak disimpan ulang — itu disengaja agar tidak ada story setengah jadi.
  */
 import { router } from "expo-router"
+
+import { ROUTES } from "@/lib/routes"
+
+/**
+ * 2026-10-08 (temuan #17): tutup pembuat story.
+ *
+ * `router.back()` saja bisa no-op bila rute ini adalah satu-satunya entri
+ * stack (dibuka dari tautan langsung) — layar tak bisa ditutup dan
+ * pengguna terjebak. Tray story hidup di tab Pesan, jadi itu fallback-nya.
+ */
+function closeStoryCreate(): void {
+  if (router.canGoBack()) router.back()
+  else router.replace(ROUTES.chat)
+}
 import { Camera, Check, Images, PaperPlaneRight, ShoppingBag, Storefront, TextAa, X } from "phosphor-react-native"
 import { useCallback, useMemo, useState } from "react"
 import { Pressable, ScrollView, View, useWindowDimensions } from "react-native"
@@ -193,7 +207,7 @@ export default function StoryCreateScreen() {
       status: "uploading",
     }
     const undo = addPendingStoryLocal(optimistic)
-    router.back()
+    closeStoryCreate()
 
     void (async () => {
       try {
@@ -216,7 +230,6 @@ export default function StoryCreateScreen() {
         })
       }
     })()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draft, media, toast, t])
 
   // ---- Render ----
@@ -227,7 +240,7 @@ export default function StoryCreateScreen() {
   if (stage === "choose") {
     return (
       <Screen edges={["top", "bottom"]} padded={false}>
-        <Header title={t("Story baru")} onClose={() => router.back()} closeLabel={t("Tutup")} />
+        <Header title={t("Story baru")} onClose={closeStoryCreate} closeLabel={t("Tutup")} />
         <View className="flex-1 justify-center gap-4 px-6">
           <Text variant="h3" className="text-center">{t("Bagikan momen tokomu")}</Text>
           <Text variant="body" tone="secondary" className="text-center">
@@ -255,7 +268,7 @@ export default function StoryCreateScreen() {
     <Screen edges={["top", "bottom"]} padded={false}>
       <Header
         title={t("Story baru")}
-        onClose={() => router.back()}
+        onClose={closeStoryCreate}
         closeLabel={t("Tutup")}
         right={
           <Button variant="primary" size="sm" onPress={share} accessibilityLabel={t("Bagikan story")} rightIcon={PaperPlaneRight}>

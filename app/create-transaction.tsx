@@ -830,8 +830,13 @@ export default function CreateTransactionScreen() {
     pendingReplace.current = null
     if (action) navigation.dispatch(action)
     else if (replaceHref) router.replace(replaceHref)
-    else router.back()
-  }, [intentionalLeave, navigation])
+    // 2026-10-08 (#17): cabang terakhir ini dulu `router.back()`. Bila rute
+    // ini adalah satu-satunya entri stack (dibuka dari tautan langsung),
+    // back adalah no-op: pengguna sudah mengonfirmasi "Buang" tetapi tetap
+    // terjebak di form. Jatuh ke daftar transaksi.
+    else if (router.canGoBack()) router.back()
+    else router.replace(ROUTES.transactions)
+  }, [intentionalLeave, navigation, router])
 
   // Web: peringatan bawaan browser sebelum tab ditutup dengan isian hidup.
   useEffect(() => {

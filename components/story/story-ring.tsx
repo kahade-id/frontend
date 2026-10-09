@@ -7,6 +7,17 @@
  *   - `muted`   → ring putus-putus (dibisukan; tetap bisa dibuka)
  *   - `empty`   → tanpa ring (story sendiri belum ada)
  *
+ * Motion (2026-10-08, penyegaran UI/UX story):
+ *   - Tekan = avatar MENGECIL halus (spring) lalu kembali — umpan balik tak
+ *     terlihat sebelumnya: satu-satunya isyarat bahwa ketukan terdaftar
+ *     adalah perpindahan halaman, yang baru terjadi ratusan ms kemudian.
+ *   - Masuk = fade + naik 8px per ubin (<FadeIn>, sudah mendukung Stagger di
+ *     <StoryTray>) sehingga tray tidak "muncul begitu saja" di atas daftar
+ *     chat. Reduced motion: tanpa animasi (audit #2).
+ *   - Ring yang belum dilihat diberi napas ekstra (padding 3px) agar benar-
+ *     benar menonjol dibanding yang sudah dilihat; ubin yang dibisukan
+ *     diredupkan (opacity) — hierarki terbaca sebelum membaca nama.
+ *
  * Keputusan non-obvious:
  *   - Ring adalah View border (bukan gambar): tidak ada biaya decode dan warnanya
  *     langsung mengikuti token tema.
@@ -14,16 +25,21 @@
  *     diunggah (optimistis, lihat lib/story/local-state.ts).
  *   - Tombol "+" adalah Pressable TERPISAH dari area avatar: keduanya tidak
  *     bersarang, sehingga tap pada "+" tidak ikut membuka viewer.
+ *   - Skala press memakai RN `Animated` (native driver) — BUKAN reanimated:
+ *     transform/opacity sederhana, 60fps tanpa menambah worklet per ubin
+ *     (tray bisa memuat belasan ubin). Pola sama dengan <PressableScale>.
  */
 import { Plus } from "phosphor-react-native"
-import { memo } from "react"
-import { View } from "react-native"
+import { memo, useCallback, useRef } from "react"
+import { Animated, View } from "react-native"
 import { PressableScale } from "@/components/ui/pressable-scale"
 
 import { Avatar } from "@/components/ui/avatar"
 import { Icon } from "@/components/ui/icon"
 import { Spinner } from "@/components/ui/spinner"
 import { cn } from "@/lib/cn"
+import { tokens } from "@/lib/tokens"
+import { useReducedMotion } from "@/lib/use-reduced-motion"
 
 export type StoryRingState = "unseen" | "seen" | "muted" | "empty"
 
@@ -41,11 +57,18 @@ export type StoryRingProps = {
 }
 
 const RING_CLASS: Record<StoryRingState, string> = {
-  unseen: "border-2 border-primary",
-  seen: "border-2 border-border-control",
-  muted: "border-2 border-dashed border-border-control",
-  empty: "border-2 border-transparent",
+  // 2026-10-08: ring yang belum dilihat diberi tebal 2.5px + napas 3px
+  // sehingga urutan perhatiannya jelas: belum dilihat > sudah dilihat > bisu.
+  unseen: "border-[2.5px] border-primary p-[3px]",
+  seen: "border-2 border-border-control p-[2px]",
+  muted: "border-2 border-dashed border-border-control p-[2px]",
+  empty: "border-2 border-transparent p-[2px]",
 }
+
+/** Skala avatar saat ditekan (§8 motion — kecil, tidak teatrikal). */
+const PRESS_SCALE = 0.94
+/** Redup untuk story yang dibisukan (tetap bisa dibuka). */
+const MUTED_OPACITY = 0.7
 
 export const StoryRing = memo(function StoryRing({
   name,
@@ -58,16 +81,49 @@ export const StoryRing = memo(function StoryRing({
   accessibilityLabel,
   testID,
 }: StoryRingProps) {
+  const reducedMotion = useReducedMotion()
+  /**
+   * Skala tekan DIKELOLA SENDIRI (bukan `scaleOnPress` <PressableScale>):
+   * yang mengecil harus AVATAR-nya saja, bukan ring — kalau ring ikut
+   * mengecil, seluruh ubin terasa "berdenyut" dan berantakan saat tray
+   * digulir. `useNativeDriver` menjaga 60fps tanpa menyentuh layout.
+   */
+  const press = useRef(new Animated.Value(1)).current
+  const springTo = useCallback(
+    (value: number) => {
+      if (reducedMotion) {
+        press.setValue(1)
+        return
+      }
+      Animated.spring(press, {
+        toValue: value,
+        // tokens.motion.spring (keputusan §8) — konsisten dengan seluruh app.
+        ...(tokens.motion.spring as object),
+        useNativeDriver: true,
+      }).start()
+    },
+    [press, reducedMotion],
+  )
+  const handlePressIn = useCallback(() => springTo(PRESS_SCALE), [springTo])
+  const handlePressOut = useCallback(() => springTo(1), [springTo])
+  /** Durasi fade masuk ubin — dipakai <StoryTray> lewat Animated.Value. */
+  const isMuted = ringState === "muted"
+
   return (
-    <View className="relative">
+    <View className="relative" style={isMuted ? { opacity: MUTED_OPACITY } : undefined}>
       <PressableScale
         onPress={onPress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
         accessibilityRole="button"
         accessibilityLabel={accessibilityLabel}
         testID={testID}
-        className={cn("h-[64px] w-[64px] items-center justify-center rounded-full p-[2px]", RING_CLASS[ringState])}
+        scaleOnPress={false}
+        className={cn("h-[64px] w-[64px] items-center justify-center rounded-full", RING_CLASS[ringState])}
       >
-        <Avatar source={avatarUrl ?? undefined} name={name} size="lg" />
+        <Animated.View style={{ transform: [{ scale: press }] }}>
+          <Avatar source={avatarUrl ?? undefined} name={name} size="lg" />
+        </Animated.View>
         {pending ? (
           <View className="absolute inset-0 items-center justify-center rounded-full bg-background/60">
             <Spinner size="sm" />

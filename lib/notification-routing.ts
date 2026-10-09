@@ -247,6 +247,11 @@ export function logicalParentForPath(pathname: string): Href {
   switch (head) {
     case "chat":
       return ROUTES.chat
+    case "story":
+      // 2026-10-08 (#17): tray story hidup di tab Pesan
+      // (chat-tab-screen.tsx) — buka story dari sana, kembali ke sana.
+      // Tanpa entri ini, cold-start dari tautan story mendarat di Etalase.
+      return ROUTES.chat
     case "order":
     case "o":
       return ROUTES.transactions
@@ -400,6 +405,37 @@ export function logicalParentForPath(pathname: string): Href {
     default:
       return ROUTES.home
   }
+}
+
+/**
+ * 2026-10-08 (temuan #17): induk tombol kembali yang DIJAMIN bukan
+ * `pathname` itu sendiri.
+ *
+ * `logicalParentForPath` memetakan per SEGMEN PERTAMA, jadi layar hub
+ * otomatis menjadi induknya sendiri — `/chat` → `/chat`, `/faq` → `/faq`,
+ * `/wallet` → `/wallet`. Untuk pemanggil yang punya riwayat itu tidak apa-apa
+ * (tombol back memang memanggil `router.back()`), tetapi pada cold start dari
+ * deep link/push stack-nya kosong dan jalur fallback dipakai: `replace()` ke
+ * diri sendiri adalah NO-OP. Tombol kembali terlihat, dipencet, dan tidak
+ * terjadi apa-apa — "nyangkut".
+ *
+ * Helper ini mengembalikan `null` untuk kasus itu supaya pemanggil memilih
+ * secara eksplisit (sembunyikan tombol, atau kembali ke beranda) alih-alih
+ * diam-diam tidak melakukan apa-apa.
+ */
+export function backTargetForPath(pathname: string): string | null {
+  const base = pathname.split("?")[0]?.split("#")[0] ?? "/"
+  const parent = logicalParentForPath(base)
+  const parentPath =
+    typeof parent === "string"
+      ? (parent.split(/[?#]/, 1)[0] ?? null)
+      : parent && typeof parent === "object" && "pathname" in parent
+        ? ((parent as { pathname?: string }).pathname ?? null)
+        : null
+  if (!parentPath) return null
+  const normalized = parentPath.replace(/\/+$/, "") || "/"
+  if (normalized === (base.replace(/\/+$/, "") || "/")) return null
+  return normalized
 }
 
 /**

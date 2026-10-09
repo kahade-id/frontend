@@ -125,7 +125,12 @@ vi.mock("@/components/ui/toast", () => ({
   useToast: () => ({ show: mocks.toastShow, dismiss: vi.fn(), dismissAll: vi.fn() }),
 }))
 
-vi.mock("@/lib/notification-routing", () => ({
+// 2026-10-08 (#17): pakai `importOriginal` lalu timpa hanya yang di-stub.
+// Mock literal (objek seadanya) memutus semua ekspor lain — begitu
+// `backTargetForPath` ditambahkan ke modul asli, layar gagal diimpor dan
+// seluruh berkas tes ini gagal dengan `<body><div /></body>` kosong.
+vi.mock("@/lib/notification-routing", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/notification-routing")>()),
   routeForNotificationReference: () => null,
 }))
 

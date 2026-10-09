@@ -45,6 +45,14 @@ export type FooterBarProps = Omit<ViewProps, "children"> & {
   safeArea?: boolean
   /** Tanpa border-t (bila body sudah berakhir dengan kartu ber-border) */
   borderless?: boolean
+  /**
+   * 2026-10-08 (temuan #9): jarak atas DIPERKECIL (pt-4 → pt-1.5, gap-3 →
+   * gap-2). Untuk footer yang isinya sudah berupa "kartu" sendiri (kolom
+   * ketik chat): padding ganda membuat pita putih tebal di antara konten dan
+   * kontrol, seolah-olah ada pemisah yang tidak didesain. Footer standar
+   * (ringkasan + tombol) TETAP memakai jarak default.
+   */
+  dense?: boolean
   className?: string
 }
 
@@ -54,6 +62,7 @@ export function FooterBar({
   layout = "stack",
   safeArea = true,
   borderless = false,
+  dense = false,
   className,
   ...rest
 }: FooterBarProps) {
@@ -66,7 +75,7 @@ export function FooterBar({
       style={{ paddingBottom }}
       {...rest}
     >
-      <View className="w-full gap-3 px-5 pt-4 md:max-w-content tabular-nums">
+      <View className={cn("w-full px-5 md:max-w-content tabular-nums", dense ? "gap-2 pt-1.5" : "gap-3 pt-4")}>
         {summary ? (
           <View className="flex-row flex-wrap items-end justify-between gap-4">
             <View className="min-w-0 flex-1 gap-0.5">

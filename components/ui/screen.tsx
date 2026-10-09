@@ -84,6 +84,8 @@ export type ScreenProps = Omit<ViewProps, "children"> & {
    * pemisah memang memisahkan nominal dari isi.
    */
   footerBorderless?: boolean
+  /** Footer tanpa jarak atas ganda — lihat `dense` di <FooterBar> (temuan #9). */
+  footerDense?: boolean
   /** Dipakai saat scroll=true; className konten ScrollView */
   contentContainerClassName?: string
   scrollViewProps?: Omit<ScrollViewProps, "children" | "contentContainerStyle">
@@ -110,6 +112,7 @@ export function Screen({
   background = "background",
   footer,
   footerBorderless = false,
+  footerDense = false,
   contentContainerClassName,
   scrollViewProps,
   className,
@@ -176,7 +179,11 @@ export function Screen({
           <View ref={contentRef as Ref<ViewInstance>} collapsable={false} className={cn("flex-1", bodyPad)}>{children}</View>
         )}
 
-        {footer ? <FooterBar borderless={footerBorderless}>{footer}</FooterBar> : null}
+        {footer ? (
+            <FooterBar borderless={footerBorderless} dense={footerDense}>
+              {footer}
+            </FooterBar>
+          ) : null}
       </Body>
     </ScreenInsetsContext.Provider>
   )

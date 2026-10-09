@@ -15,6 +15,7 @@
 import { describe, expect, it, afterEach } from "vitest"
 
 import {
+  backTargetForPath,
   labelForNotificationReference,
   logicalParentForPath,
   routeForActionUrl,
@@ -323,7 +324,15 @@ describe("SYS-C-404 — logicalParentForPath head baru", () => {
 
   it("support/questions → konteks masing-masing", () => {
     expect(logicalParentForPath("/support/t1")).toBe(ROUTES.support)
-    expect(logicalParentForPath("/questions")).toBe(ROUTES.questions)
+    // B3P-01 (diperbarui #17, 2026-10-08): dulu tes ini menuntut
+    // `/questions` → `/questions`. Itu SELF-LOOP: `router.replace()` ke rute
+    // yang sedang dibuka adalah no-op, jadi tombol kembali header pada
+    // cold-start push QUESTION terlihat ditekan tetapi layar tidak berubah
+    // ("back nyangkut"). Induk yang benar adalah konteks asal push, yaitu
+    // tab Notifikasi.
+    expect(logicalParentForPath("/questions")).toBe(ROUTES.notifications)
+    // Dan helper turunannya melaporkan bahwa induknya memang berbeda.
+    expect(backTargetForPath("/questions")).toBe(ROUTES.notifications)
   })
 })
 

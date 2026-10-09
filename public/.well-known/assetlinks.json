@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "id.kahade",
+      "sha256_cert_fingerprints": [
+        "DA:10:6E:7F:99:07:89:4C:29:F4:DE:9A:CC:E9:0C:E2:54:9F:23:08:B5:CC:DD:AA:ED:68:FB:37:3B:04:00:99"
+      ]
+    }
+  }
+]

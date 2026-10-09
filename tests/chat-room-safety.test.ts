@@ -117,14 +117,24 @@ describe("ruang chat tidak lagi memakai banner permanen", () => {
 })
 
 describe("kolom ketik tanpa garis pemisah", () => {
-  it("<Screen> meneruskan `footerBorderless` ke <FooterBar>", () => {
+  it("<Screen> meneruskan `footerBorderless` & `footerDense` ke <FooterBar>", () => {
     const screen = src("components/ui/screen.tsx")
-    expect(screen).toContain("footerBorderless")
-    expect(screen).toContain("<FooterBar borderless={footerBorderless}>")
+    // Regex (bukan string literal): JSX-nya terpotong beberapa baris, dan
+    // baris baru itu tidak boleh membuat penjaga ini gagal.
+    expect(screen).toMatch(/<FooterBar[^>]*borderless=\{footerBorderless\}/)
+    // #9: footer padat (tanpa jarak atas ganda) untuk kolom ketik chat.
+    expect(screen).toMatch(/<FooterBar[^>]*dense=\{footerDense\}/)
   })
 
-  it("ruang chat memakai footerBorderless", () => {
-    expect(src("components/screens/chat-room-screen.tsx")).toContain("footerBorderless")
+  it("ruang chat memakai footerBorderless + footerDense", () => {
+    const room = src("components/screens/chat-room-screen.tsx")
+    expect(room).toContain("footerBorderless")
+    expect(room).toContain("footerDense")
+  })
+
+  it("<FooterBar dense> memakai jarak atas yang lebih kecil", () => {
+    const bar = src("components/ui/footer-bar.tsx")
+    expect(bar).toContain('dense ? "gap-2 pt-1.5" : "gap-3 pt-4"')
   })
 })
 

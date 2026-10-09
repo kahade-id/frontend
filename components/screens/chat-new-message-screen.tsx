@@ -362,12 +362,13 @@ export default function ChatNewMessageScreen() {
             </PressableScale>
 
             <View className="gap-2">
-              <SectionHeader
-                title={translate("Kontak tersimpan")}
-                subtitle={translate(
-                  "Simpan lewat username agar bisa langsung dipesan kapan saja.",
-                )}
-              />
+              {/*
+                2026-10-08 (permintaan produk): deskripsi "Simpan lewat
+                username agar bisa langsung dipesan kapan saja" DIHAPUS —
+                judul "Kontak tersimpan" sudah cukup menjelaskan, dan baris
+                hasil pencarian memang punya ikon simpan sendiri.
+              */}
+              <SectionHeader title={translate("Kontak tersimpan")} />
               {savedQuery.loading && savedEntries.length === 0 ? (
                 <View className="py-6">
                   <ListLoading />

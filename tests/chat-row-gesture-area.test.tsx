@@ -179,15 +179,36 @@ describe("useSwipeReplyPan — satu konfigurasi pan untuk baris & bubble", () =>
     expect(Object.keys(result.current.gesture.__handlers)).toHaveLength(0)
   })
 
-  it("onUpdate: geser kanan dijepit ke SWIPE_REPLY_MAX_PX, geser kiri = 0", () => {
+  it("onUpdate: geser kanan dijepit ke +SWIPE_REPLY_MAX_PX", () => {
     const { result } = setup({ enabled: true, onTrigger: vi.fn() })
     act(() => {
       result.current.gesture.__handlers.onUpdate!({ translationX: 200, velocityX: 0 })
     })
     expect(result.current.swipeX.value).toBe(SWIPE_REPLY_MAX_PX)
+  })
+
+  // #11: dulu geser kiri DIJEPIT KE 0 — bubble sama sekali tidak bergerak,
+  // gesture terasa mati. Kini bubble mengikuti jari ke dua arah.
+  it("onUpdate: geser kiri MENGIKUTI jari (bubble bergerak), dijepit -MAX", () => {
+    const { result } = setup({ enabled: true, onTrigger: vi.fn() })
     act(() => {
       result.current.gesture.__handlers.onUpdate!({ translationX: -40, velocityX: 0 })
     })
+    expect(result.current.swipeX.value).toBe(-40)
+    act(() => {
+      result.current.gesture.__handlers.onUpdate!({ translationX: -200, velocityX: 0 })
+    })
+    expect(result.current.swipeX.value).toBe(-SWIPE_REPLY_MAX_PX)
+  })
+
+  it("onEnd geser kiri melewati ambang: tetap memicu balas", () => {
+    const onTrigger = vi.fn()
+    const { result } = setup({ enabled: true, onTrigger })
+    act(() => {
+      result.current.gesture.__handlers.onUpdate!({ translationX: -SWIPE_REPLY_THRESHOLD_PX, velocityX: 0 })
+      result.current.gesture.__handlers.onEnd!({ translationX: -SWIPE_REPLY_THRESHOLD_PX, velocityX: 0 })
+    })
+    expect(onTrigger).toHaveBeenCalledTimes(1)
     expect(result.current.swipeX.value).toBe(0)
   })
 

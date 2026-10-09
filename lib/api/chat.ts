@@ -335,6 +335,57 @@ export function nonTextMessageLabel(messageType?: string | null): string {
  * di bubble (pola WhatsApp). Label lewat `t` (translate) — teks pesan
  * pengguna TIDAK pernah dilewatkan ke kamus. Murni, bisa di-unit-test.
  */
+/**
+ * Jenis lampiran pesan terakhir untuk IKON di preview daftar chat
+ * (permintaan produk 2026-10-08, pola WhatsApp): gambar/video/suara/berkas
+ * ditandai ikonnya, bukan sekadar teks "(lampiran)".
+ *
+ * Mengembalikan `null` bila preview-nya adalah teks pengguna, teks tombstone,
+ * atau tipe khusus yang SUDAH punya label sendiri (lokasi, kartu produk /
+ * pesanan, polling) — ikon jenis justru menyesatkan untuk tipe-tipe itu.
+ *
+ * Prioritas: `messageType` (sudah dikirim backend), lalu MIME lampiran
+ * pertama sebagai fallback (pesan lama yang `messageType`-nya masih "TEXT").
+ * Murni, bisa di-unit-test.
+ */
+export type ChatPreviewKind = "image" | "video" | "voice" | "file"
+
+export function chatRoomPreviewKind(
+  last: Pick<ChatMessage, "text" | "messageType" | "attachments" | "isDeleted"> | null | undefined,
+): ChatPreviewKind | null {
+  if (!last || last.isDeleted) return null
+  // Teks pengguna menang: preview-nya adalah teksnya, bukan jenis lampiran.
+  if (last.text?.trim()) return null
+  const type = (last.messageType ?? "").toUpperCase()
+  switch (type) {
+    case "IMAGE":
+    case "PHOTO":
+      return "image"
+    case "VIDEO":
+      return "video"
+    case "VOICE":
+    case "AUDIO":
+      return "voice"
+    case "FILE":
+    case "DOCUMENT":
+      return "file"
+    // Tipe khusus tanpa lampiran (lokasi, kartu, polling) → tanpa ikon.
+    case "LOCATION":
+    case "PRODUCT_CARD":
+    case "ORDER_CARD":
+    case "POLL":
+      return null
+    default:
+      break
+  }
+  const mime = (last.attachments?.[0]?.mimeType ?? "").toLowerCase()
+  if (!mime) return last.attachments?.length ? "file" : null
+  if (mime.startsWith("image/")) return "image"
+  if (mime.startsWith("video/")) return "video"
+  if (mime.startsWith("audio/")) return "voice"
+  return "file"
+}
+
 export function chatRoomListPreview(
   last: ChatMessage | null | undefined,
   t: (source: string) => string = (s) => s,

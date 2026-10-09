@@ -122,6 +122,21 @@ if (!existsSync(assetlinksPath)) {
     }
     if (!Array.isArray(target?.sha256_cert_fingerprints) || target.sha256_cert_fingerprints.length === 0) {
       fail("assetlinks.json: sha256_cert_fingerprints harus berupa array non-empty")
+    } else {
+      // 2026-10-08 (#16): Android memverifikasi App Links secara diam-diam.
+      // Fingerprint yang tidak berbentuk SHA-256 (typo, placeholder yang
+      // belum diganti, entri kosong) membuat tautan jatuh ke browser tanpa
+      // pesan error — persis gejala #16. Nilai saat ini adalah SHA-256
+      // sertifikat `certificates/certificate.pem`; build Play Store perlu
+      // entri TAMBAHAN dari Play App Signing (lihat docs/DEEP-LINKING.md).
+      const HEX = /^([0-9A-F]{2}:){31}[0-9A-F]{2}$/i
+      for (const fp of target.sha256_cert_fingerprints) {
+        if (!HEX.test(String(fp).trim())) {
+          warn(
+            `assetlinks.json: fingerprint "${fp}" BUKAN SHA-256 yang sah — App Links Android akan gagal verifikasi dan tautan membuka browser. Ambil dari Play Console ▸ Setup ▸ App signing ▸ App signing key certificate SHA-256 (lihat docs/DEEP-LINKING.md).`,
+          )
+        }
+      }
     }
   }
 }
