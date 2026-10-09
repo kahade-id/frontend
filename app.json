@@ -8,6 +8,11 @@
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "autolinking": {
+      "exclude": [
+        "expo-passkeys"
+      ]
+    },
     "runtimeVersion": {
       "policy": "fingerprint"
     },

@@ -9,7 +9,7 @@
  *   menampilkan penjelasan jujur + mengarahkan ke web.
  * - Pemulihan bila semua passkey hilang: OTP WhatsApp 2 langkah (G039).
  */
-import { useCallback, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { Platform, View } from "react-native"
 import { Fingerprint, Plus, Trash, PencilSimple, ShieldWarning } from "phosphor-react-native"
 
@@ -18,11 +18,13 @@ import type { PasskeySummary } from "@/lib/api/passkey"
 import { formatDate } from "@/lib/format"
 import { useApiQuery } from "@/lib/use-api-query"
 import {
+  getPasskeyCapability,
   getPasskeyCapabilitySync,
   startPasskeyRegistration,
+  type PasskeyCapability,
   type RegistrationOptionsJSON,
 } from "@/lib/passkey"
-import { PASSKEY_COPY } from "@/lib/passkey-instructions"
+import { PASSKEY_COPY, passkeyUnsupportedCopy } from "@/lib/passkey-instructions"
 import { showMutationError } from "@/lib/mutation-toast"
 
 import { Button } from "@/components/ui/button"
@@ -99,7 +101,30 @@ export default function PasskeysScreen() {
   const [recoverStep, setRecoverStep] = useState<"request" | "verify">("request")
 
   const isLastCredential = items.length === 1
-  const webSupported = getPasskeyCapabilitySync().supported
+  /**
+   * Bagian 5 (overhaul auth 2026-10-10): ketersediaan passkey dibaca ASINKRON
+   * karena di native jawabannya datang dari seam provider
+   * (lib/passkey-native.ts), bukan dari `navigator.credentials`.
+   * `getPasskeyCapabilitySync()` tetap jadi nilai frame pertama supaya web
+   * tidak berkedip "belum didukung" sebelum probe selesai.
+   */
+  const [capability, setCapability] = useState<PasskeyCapability | null>(null)
+  useEffect(() => {
+    let alive = true
+    void getPasskeyCapability()
+      .then((next) => {
+        if (alive) setCapability(next)
+      })
+      .catch(() => {
+        // Probe gagal = anggap tidak didukung; layar tetap bisa dipakai untuk
+        // melihat & menghapus passkey yang sudah terdaftar.
+        if (alive) setCapability({ supported: false, conditionalMediation: false, platformAuthenticator: false })
+      })
+    return () => {
+      alive = false
+    }
+  }, [])
+  const webSupported = capability?.supported ?? getPasskeyCapabilitySync().supported
 
   const refresh = useCallback(async () => {
     try {
@@ -121,9 +146,12 @@ export default function PasskeysScreen() {
 
   const handleAdd = useCallback(() => {
     if (!webSupported) {
+      // Penjelasan mengikuti ALASANNYA (browser tanpa WebAuthn vs aplikasi
+      // native), bukan satu pesan untuk semua penyebab.
+      const info = passkeyUnsupportedCopy(capability?.reason)
       toast.show({
-        title: PASSKEY_COPY.loginNativeInfo.title,
-        description: PASSKEY_COPY.loginNativeInfo.body,
+        title: info.title,
+        description: info.body,
         tone: "neutral",
         duration: 6000,
       })
@@ -132,7 +160,7 @@ export default function PasskeysScreen() {
     setReauthInput({})
     setAddName(defaultPasskeyName())
     setReauthFor({ action: "add" })
-  }, [webSupported, toast.show, defaultPasskeyName])
+  }, [capability?.reason, webSupported, toast.show, defaultPasskeyName])
 
   const doAddWithReauth = useCallback(
     async (reauth: ReauthInput) => {

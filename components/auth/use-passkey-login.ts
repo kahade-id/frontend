@@ -34,6 +34,7 @@ import {
   type AuthenticationOptionsJSON,
   type PasskeyCapability,
 } from "@/lib/passkey"
+import { PASSKEY_COPY } from "@/lib/passkey-instructions"
 import { logWarn } from "@/lib/telemetry"
 import { ROUTES } from "@/lib/routes"
 import { setPendingMigrationToken } from "@/lib/phone-migration-token"
@@ -70,18 +71,20 @@ export type PasskeyLogin = {
   start: (identifier?: string) => Promise<void>
 }
 
+/**
+ * Pesan error siap tampil. Copy-nya dari PASSKEY_COPY.loginErrors (lib/) agar
+ * terkatalog i18n — literal di dalam fungsi komponen tidak pernah sampai ke
+ * kamus English.
+ */
 function describeError(err: unknown): string {
   if (isApiError(err)) {
-    if (err.code === "RATE_LIMITED") {
-      return "Terlalu banyak percobaan passkey. Tunggu beberapa saat sebelum mencoba lagi."
-    }
+    if (err.code === "RATE_LIMITED") return PASSKEY_COPY.loginErrors.rateLimited
     if (err.code === "UNAUTHORIZED" || err.code === "NOT_FOUND" || err.code === "FORBIDDEN") {
-      return "Passkey ini tidak dikenali. Pastikan passkey sudah terdaftar di akun Anda, atau masuk dengan metode lain."
+      return PASSKEY_COPY.loginErrors.unknownCredential
     }
     if (err.code === "NETWORK" || err.code === "TIMEOUT" || err.isTransient) {
-      return "Tidak dapat menghubungi Kahade. Periksa koneksi internet lalu coba lagi."
+      return PASSKEY_COPY.loginErrors.network
     }
-    return userMessage(err)
   }
   return userMessage(err)
 }

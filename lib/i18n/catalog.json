@@ -13119,6 +13119,14 @@
    "n": 1
   },
   {
+   "s": "Browser ini tidak mendukung passkey",
+   "n": 1
+  },
+  {
+   "s": "Browser ini tidak mendukung passkey. Coba browser lain, atau masuk dengan kata sandi atau kode WhatsApp.",
+   "n": 1
+  },
+  {
    "s": "Buang isian",
    "n": 1
   },
@@ -13716,6 +13724,10 @@
   },
   {
    "s": "Coba bayar lagi",
+   "n": 1
+  },
+  {
+   "s": "Coba browser lain, atau masuk dengan kata sandi atau kode WhatsApp. Passkey yang sudah Anda daftarkan tetap tersimpan di akun.",
    "n": 1
   },
   {
@@ -19195,11 +19207,31 @@
    "n": 1
   },
   {
+   "s": "Passkey belum tersedia di aplikasi native ini. Masuk dengan kata sandi atau kode WhatsApp, atau pakai aplikasi web Kahade untuk passkey.",
+   "n": 1
+  },
+  {
+   "s": "Passkey di perangkat ini memakai WebAuthn browser.",
+   "n": 1
+  },
+  {
+   "s": "Passkey dibatalkan. Coba lagi bila ingin melanjutkan.",
+   "n": 1
+  },
+  {
    "s": "Passkey dihapus",
    "n": 1
   },
   {
    "s": "Passkey hilang atau perangkat baru?",
+   "n": 1
+  },
+  {
+   "s": "Passkey ini tidak dikenali. Pastikan passkey sudah terdaftar di akun Anda, atau masuk dengan metode lain.",
+   "n": 1
+  },
+  {
+   "s": "Passkey perangkat gagal diproses. Coba lagi, atau masuk dengan metode lain.",
    "n": 1
   },
   {
@@ -19832,6 +19864,14 @@
   },
   {
    "s": "Perangkat dipercaya",
+   "n": 1
+  },
+  {
+   "s": "Perangkat ini tidak mendukung passkey.",
+   "n": 1
+  },
+  {
+   "s": "Perangkat menolak permintaan passkey. Buka kunci layar lalu coba lagi.",
    "n": 1
   },
   {
@@ -20792,6 +20832,10 @@
   },
   {
    "s": "Respons mungkin sudah dicatat — memuat ulang…",
+   "n": 1
+  },
+  {
+   "s": "Respons passkey perangkat tidak lengkap. Coba lagi, atau masuk dengan metode lain.",
    "n": 1
   },
   {
@@ -22243,6 +22287,10 @@
    "n": 1
   },
   {
+   "s": "Terlalu banyak percobaan passkey. Tunggu beberapa saat sebelum mencoba lagi.",
+   "n": 1
+  },
+  {
    "s": "Terlalu banyak percobaan PIN. Tunggu {x} menit lalu coba lagi.",
    "n": 1
   },
@@ -22343,6 +22391,10 @@
    "n": 1
   },
   {
+   "s": "Tidak ada passkey yang cocok di perangkat ini. Daftar passkey dulu, atau masuk dengan metode lain.",
+   "n": 1
+  },
+  {
    "s": "Tidak ada pesan yang cocok dengan kata kunci itu.",
    "n": 1
   },
@@ -22376,6 +22428,10 @@
   },
   {
    "s": "Tidak dapat mengajukan retur",
+   "n": 1
+  },
+  {
+   "s": "Tidak dapat menghubungi Kahade. Periksa koneksi internet lalu coba lagi.",
    "n": 1
   },
   {

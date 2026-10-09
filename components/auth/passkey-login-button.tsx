@@ -28,7 +28,7 @@ import {
   usePasskeyLogin,
   type UsePasskeyLoginOptions,
 } from "@/components/auth/use-passkey-login"
-import { PASSKEY_COPY } from "@/lib/passkey-instructions"
+import { PASSKEY_COPY, passkeyUnsupportedCopy } from "@/lib/passkey-instructions"
 
 export type PasskeyLoginButtonProps = UsePasskeyLoginOptions & {
   /** Label tombol. Default copy standar PASSKEY_COPY.loginButton. */
@@ -37,6 +37,8 @@ export type PasskeyLoginButtonProps = UsePasskeyLoginOptions & {
 
 export function PasskeyLoginButton({ label, ...options }: PasskeyLoginButtonProps) {
   const passkey = usePasskeyLogin(options)
+  // Alasan spesifik (browser tanpa WebAuthn vs aplikasi native) → copy berbeda.
+  const explanation = passkeyUnsupportedCopy(passkey.capability?.reason)
 
   const handlePress = useCallback(() => {
     void passkey.start()
@@ -63,8 +65,8 @@ export function PasskeyLoginButton({ label, ...options }: PasskeyLoginButtonProp
 
       <Dialog
         visible={passkey.explainUnsupported}
-        title={PASSKEY_COPY.loginNativeInfo.title}
-        description={PASSKEY_COPY.loginNativeInfo.body}
+        title={explanation.title}
+        description={explanation.body}
         confirmLabel="Mengerti"
         hideCancel
         onConfirm={passkey.dismissExplanation}
