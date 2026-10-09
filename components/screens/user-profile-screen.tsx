@@ -46,7 +46,7 @@ import {
 import { useCopy } from "@/lib/clipboard"
 import { openDrawer } from "@/lib/drawer"
 import { profileUrl } from "@/lib/deeplinks"
-import { formatDateTime, formatDecimal, formatNumber } from "@/lib/format"
+import { formatDecimal, formatNumber } from "@/lib/format"
 import { acquireShowcaseMutation } from "@/lib/showcase-state"
 import { useHasSession } from "@/lib/guest-gate"
 import { goBackOrNavigate } from "@/lib/navigation"
@@ -81,7 +81,9 @@ import { Crossfade } from "@/components/ui/fade-in"
 import { ListLoading } from "@/components/ui/paginated-list"
 import { DataScroll } from "@/components/ui/data-screen"
 import { QACard } from "@/components/ui/qa-card"
-import { QaCommentComposer, QaCommentItem } from "@/components/ui/qa-comment-item"
+import { QaCommentComposer } from "@/components/ui/qa-comment-item"
+import { QaThread } from "@/components/ui/qa-thread"
+import { buildCommentThread, type ThreadSort } from "@/lib/qa-thread"
 import { ProfileAboutTab } from "@/components/ui/profile-about-tab"
 import { ProfileEtalaseTab } from "@/components/ui/profile-etalase-tab"
 import { ProfileRatingsTab } from "@/components/ui/profile-ratings-tab"
@@ -318,6 +320,15 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
   }>({ items: [], loading: false })
   const [commentText, setCommentText] = useState("")
   const [commentSending, setCommentSending] = useState(false)
+  /** Urutan balasan utas: "Teratas" (paling membantu dulu) | "Terbaru". */
+  const [commentSort, setCommentSort] = useState<ThreadSort>("top")
+  /** Balasan yang sedang dibalas (null = balas langsung ke pertanyaan). */
+  const [replyTo, setReplyTo] = useState<{ id: string; name: string } | null>(null)
+  /** Pohon balasan dari daftar datar (lib/qa-thread.ts) — diurutkan sesuai pilihan. */
+  const commentTree = useMemo(
+    () => buildCommentThread(questionComments.items, commentSort),
+    [questionComments.items, commentSort],
+  )
   const [deleteQ, setDeleteQ] = useState<QuestionItem | null>(null)
   const [deleteC, setDeleteC] = useState<QuestionComment | null>(null)
   const [hideC, setHideC] = useState<QuestionComment | null>(null)
@@ -867,6 +878,8 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
 
   const toggleComments = useCallback(
     async (q: QuestionItem) => {
+      setReplyTo(null)
+      setCommentText("")
       if (openQuestionId === q.id) {
         setOpenQuestionId(null)
         return
@@ -889,8 +902,12 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
     if (!openQuestionId || !commentText.trim() || commentSending) return
     setCommentSending(true)
     try {
-      await api.users.addQuestionComment(openQuestionId, { content: commentText.trim() })
+      await api.users.addQuestionComment(openQuestionId, {
+        content: commentText.trim(),
+        ...(replyTo ? { parentId: replyTo.id } : {}),
+      })
       setCommentText("")
+      setReplyTo(null)
       const body = await api.users.getQuestionComments(openQuestionId, { page: 1, limit: 20 })
       const { items } = readQuestionComments(body)
       setQuestionComments({ items, loading: false })
@@ -904,7 +921,7 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
     } finally {
       setCommentSending(false)
     }
-  }, [openQuestionId, commentText, commentSending, toast])
+  }, [openQuestionId, commentText, commentSending, toast, replyTo])
 
   const handleDelete = useCallback(async () => {
     if (deleting) return
@@ -1516,31 +1533,18 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
                           ) : questionComments.items.length === 0 ? (
                             <Text variant="caption" tone="secondary">{translate("Belum ada komentar.")}</Text>
                           ) : (
-                            questionComments.items.map((c) => (
-                              <QaCommentItem
-                                key={c.id}
-                                authorName={c.authorName ?? c.authorUsername ?? "Pengguna"}
-                                authorAvatar={c.authorAvatarUrl ? { source: c.authorAvatarUrl } : undefined}
-                                isOwner={c.isOwner}
-                                content={c.content}
-                                timestamp={formatDateTime(c.createdAt)}
-                                reply={c.reply || !!c.parentId}
-                                deleted={c.deleted}
-                                onDelete={isMyComment(c) && !c.deleted ? () => setDeleteC(c) : undefined}
-                                extra={
-                                  isSelf && !c.deleted && !c.isOwner ? (
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      fullWidth={false}
-                                      onPress={() => setHideC(c)}
-                                    >
-                                      {translate("Sembunyikan")}
-                                    </Button>
-                                  ) : undefined
-                                }
-                              />
-                            ))
+                            <QaThread
+                              nodes={commentTree}
+                              sort={commentSort}
+                              onSortChange={setCommentSort}
+                              isMine={isMyComment}
+                              canHide={isSelf}
+                              onHide={(c) => setHideC(c)}
+                              onReply={(c) => {
+                                setReplyTo({ id: c.id, name: c.authorUsername ?? c.authorName ?? translate("Pengguna") })
+                              }}
+                              onDelete={(c) => setDeleteC(c)}
+                            />
                           )}
 
                           <QaCommentComposer
@@ -1550,6 +1554,8 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
                             submitting={commentSending}
                             maxLength={1000}
                             placeholder={translate("Tulis balasan untuk @{x}…", { x: handle })}
+                            replyingTo={replyTo ? `@${replyTo.name}` : undefined}
+                            onCancelReply={() => setReplyTo(null)}
                           />
                         </Card>
                       ) : null}

@@ -79,11 +79,19 @@
    "n": 16
   },
   {
+   "s": "Sembunyikan",
+   "n": 16
+  },
+  {
    "s": "Kata sandi akun",
    "n": 15
   },
   {
    "s": "Pembeli",
+   "n": 15
+  },
+  {
+   "s": "Pengguna",
    "n": 15
   },
   {
@@ -96,10 +104,6 @@
   },
   {
    "s": "Lainnya",
-   "n": 14
-  },
-  {
-   "s": "Pengguna",
    "n": 14
   },
   {
@@ -132,10 +136,6 @@
   },
   {
    "s": "Putar video",
-   "n": 13
-  },
-  {
-   "s": "Sembunyikan",
    "n": 13
   },
   {
@@ -248,6 +248,10 @@
   },
   {
    "s": "Tampilkan secara publik",
+   "n": 10
+  },
+  {
+   "s": "Terbaru",
    "n": 10
   },
   {
@@ -400,10 +404,6 @@
   },
   {
    "s": "Siapa yang bisa melihat",
-   "n": 8
-  },
-  {
-   "s": "Terbaru",
    "n": 8
   },
   {
@@ -1215,6 +1215,10 @@
    "n": 5
   },
   {
+   "s": "Sembunyikan balasan",
+   "n": 5
+  },
+  {
    "s": "Sorot ke profil",
    "n": 5
   },
@@ -1236,6 +1240,10 @@
   },
   {
    "s": "Tambah template",
+   "n": 5
+  },
+  {
+   "s": "Tampilkan {x} balasan",
    "n": 5
   },
   {
@@ -2044,6 +2052,10 @@
   },
   {
    "s": "{x} lencana diraih ditampilkan",
+   "n": 3
+  },
+  {
+   "s": "{x} membantu",
    "n": 3
   },
   {
@@ -9316,6 +9328,10 @@
   },
   {
    "s": "Terapkan format {x} pada teks yang dipilih",
+   "n": 2
+  },
+  {
+   "s": "Teratas",
    "n": 2
   },
   {
