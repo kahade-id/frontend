@@ -4,6 +4,10 @@
  * Tidak ada presigned URL, tidak ada /upload/confirm, tidak ada auto-create.
  * Kegagalan setelah kunci diterima = kompensasi cleanup; telemetri tidak
  * boleh membawa nama berkas/kunci.
+ *
+ * Audit upload 2026-10-09: jalur foto kini lewat transport XHR terpusat
+ * (`api.upload.uploadFileWithProgress` + `parseDirectUploadObject`) — timeout
+ * adaptif, NetInfo pre-check, progress jujur, retry transien, abort per file.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest"
 const mocks = vi.hoisted(() => ({
@@ -14,7 +18,7 @@ const mocks = vi.hoisted(() => ({
   log: vi.fn(),
 }))
 vi.mock("@/lib/api", () => ({
-  api: { upload: { uploadDirect: mocks.direct, cleanupUploads: mocks.cleanup } },
+  api: { upload: { uploadFileWithProgress: mocks.direct, cleanupUploads: mocks.cleanup } },
 }))
 vi.mock("@/lib/image-picker", () => ({
   resizePickedImage: mocks.resize,
@@ -45,6 +49,16 @@ describe("Etalase upload transaction E38–E42/E68", () => {
     expect(formData.append).toHaveBeenCalledWith("purpose", "SHOWCASE_IMAGE")
     expect(mocks.cleanup).not.toHaveBeenCalled()
   })
+  it("pass-through fileBytes hasil resize untuk timeout adaptif (audit B1)", async () => {
+    const small = { ...asset, uri: "file://small.jpg", size: 3 }
+    mocks.resize.mockResolvedValue(small)
+    mocks.direct.mockResolvedValue({ fileKey: "key" })
+    await uploadShowcasePhoto(asset)
+    expect(mocks.toFormData).toHaveBeenCalledWith(small, "file")
+    const opts = mocks.direct.mock.calls[0]![1] as Record<string, unknown>
+    expect(opts.fileBytes).toBe(3)
+    expect(opts.timeoutKind).toBe("photo")
+  })
   it("uploads the RESIZED asset, not the original", async () => {
     const small = { ...asset, uri: "file://small.jpg", size: 3 }
     mocks.resize.mockResolvedValue(small)
@@ -65,7 +79,7 @@ describe("Etalase upload transaction E38–E42/E68", () => {
   it("abort before upload performs no network operations", async () => {
     const controller = new AbortController()
     controller.abort()
-    await expect(uploadShowcasePhoto(asset, controller.signal)).rejects.toMatchObject({ code: "ABORTED" })
+    await expect(uploadShowcasePhoto(asset, { signal: controller.signal })).rejects.toMatchObject({ code: "ABORTED" })
     expect(mocks.direct).not.toHaveBeenCalled()
     expect(mocks.cleanup).not.toHaveBeenCalled()
   })
@@ -75,7 +89,7 @@ describe("Etalase upload transaction E38–E42/E68", () => {
       controller.abort()
       return { fileKey: "key", thumbnailFileKey: "thumb" }
     })
-    await expect(uploadShowcasePhoto(asset, controller.signal)).rejects.toMatchObject({ code: "ABORTED" })
+    await expect(uploadShowcasePhoto(asset, { signal: controller.signal })).rejects.toMatchObject({ code: "ABORTED" })
     expect(mocks.cleanup).toHaveBeenCalledWith(["key", "thumb"])
   })
   it("telemetry never carries file names or keys", async () => {

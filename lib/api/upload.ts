@@ -221,7 +221,7 @@ function parseUploadJsonObject(bodyText: string, path: string): Record<string, u
  * Parse respons sukses `POST /v1/upload/direct` (foto MAUPUN video) —
  * `fileKey` WAJIB; tanpa itu upload dianggap gagal (fail-closed).
  */
-function parseDirectUploadObject(body: Record<string, unknown>, path: string): DirectUpload {
+export function parseDirectUploadObject(body: Record<string, unknown>, path: string): DirectUpload {
   const str = (v: unknown): string | undefined => (typeof v === "string" && v ? v : undefined)
   const num = (v: unknown): number | undefined =>
     typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : undefined
