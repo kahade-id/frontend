@@ -6,7 +6,6 @@ import { WhatsappLogo } from "phosphor-react-native"
 import { Alert } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { PhoneInput, isValidPhoneId, toE164Id } from "@/components/ui/phone-input"
-import { Text } from "@/components/ui/text"
 import { VStack } from "@/components/ui/stack"
 import { api, isApiError, userMessage } from "@/lib/api"
 import { getAuthLocation } from "@/lib/location"
@@ -107,12 +106,6 @@ export function LoginWhatsappForm({ nextPath }: Props) {
       >
         Minta kode verifikasi
       </Button>
-      <Text variant="caption" tone="secondary" className="text-pretty">
-        Kami akan meminta Anda mengirim pesan ke WhatsApp resmi Kahade, lalu membalas kode verifikasi 6 digit.
-      </Text>
-      <Text variant="caption" tone="secondary" className="text-center text-pretty">
-        Demi keamanan, lokasi perangkat dapat dicatat jika Anda mengizinkan akses.
-      </Text>
     </VStack>
   )
 }

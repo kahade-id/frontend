@@ -351,10 +351,6 @@
    "n": 8
   },
   {
-   "s": "Demi keamanan, lokasi perangkat dapat dicatat jika Anda mengizinkan akses.",
-   "n": 8
-  },
-  {
    "s": "Dibatalkan",
    "n": 8
   },
@@ -12087,10 +12083,6 @@
    "n": 1
   },
   {
-   "s": "Anda akan diminta mengirim pesan ke WhatsApp kami terlebih dahulu.",
-   "n": 1
-  },
-  {
    "s": "Anda akan menerima",
    "n": 1
   },
@@ -14299,7 +14291,15 @@
    "n": 1
   },
   {
-   "s": "Dengan membuat akun, Anda menyetujui Syarat & Ketentuan serta Kebijakan Privasi Kahade.",
+   "s": "Dengan masuk, Anda menyetujui {x} serta {y}",
+   "n": 1
+  },
+  {
+   "s": "Dengan melanjutkan, Anda menyetujui {x} serta {y}",
+   "n": 1
+  },
+  {
+   "s": "Dengan membuat akun, Anda menyetujui {x} serta {y}",
    "n": 1
   },
   {
@@ -16296,10 +16296,6 @@
   },
   {
    "s": "Kami akan memandu Anda mengirim pesan ke WhatsApp resmi Kahade. Kode verifikasi akan dibalas lewat chat tersebut.",
-   "n": 1
-  },
-  {
-   "s": "Kami akan meminta Anda mengirim pesan ke WhatsApp resmi Kahade, lalu membalas kode verifikasi {x} digit.",
    "n": 1
   },
   {

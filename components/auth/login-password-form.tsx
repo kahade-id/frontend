@@ -295,10 +295,6 @@ export function LoginPasswordForm({ method, nextPath }: Props) {
         Masuk
       </Button>
 
-      <Text variant="caption" tone="secondary" className="text-center text-pretty">
-        Demi keamanan, lokasi perangkat dapat dicatat jika Anda mengizinkan akses.
-      </Text>
-
       {/* Jalan keluar selalu terlihat: menunggu dua kegagalan dulu (perilaku
           lama) membuat tautan ini muncul tepat saat pengguna sudah frustrasi,
           dan berpindah-pindah tempat di bawah tombol. */}

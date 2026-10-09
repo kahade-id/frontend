@@ -34,6 +34,7 @@ import { ScrollView, type TextInputInstance } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useRouter } from "expo-router"
 
+import { AuthSecurityInfo } from "@/components/auth/auth-security-info"
 import { Alert } from "@/components/ui/alert"
 import { FadeIn } from "@/components/ui/fade-in"
 import { FooterBar } from "@/components/ui/footer-bar"
@@ -123,7 +124,9 @@ export default function PhoneMigrationScreen() {
 
   return (
     <Screen padded={false} edges={["top"]}>
-      <Header title="Tambah Nomor HP" safeArea={false} showBack={false} />
+      <Header title="Tambah Nomor HP" safeArea={false} showBack={false}
+        right={<AuthSecurityInfo variant="signIn" />}
+      />
 
       <KeyboardAvoiding offset={insets.top + HEADER_BAR_HEIGHT}>
         <ScrollView
@@ -191,9 +194,6 @@ export default function PhoneMigrationScreen() {
             <Button onPress={() => void handleSubmit()} loading={submitting} disabled={!migrationToken}>
               Kirim kode
             </Button>
-            <Text variant="caption" tone="secondary" className="text-center text-pretty">
-              Demi keamanan, lokasi perangkat dapat dicatat jika Anda mengizinkan akses.
-            </Text>
             {!errorMessage ? <TextLink onPress={backToLogin}>Kembali ke Masuk</TextLink> : null}
           </VStack>
         </FooterBar>

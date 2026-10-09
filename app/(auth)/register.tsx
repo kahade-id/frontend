@@ -44,6 +44,7 @@ import { ScrollView, View, type TextInputInstance } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useLocalSearchParams, useRouter } from "expo-router"
 
+import { AuthSecurityInfo } from "@/components/auth/auth-security-info"
 import { Alert } from "@/components/ui/alert"
 import { FadeIn } from "@/components/ui/fade-in"
 import { FooterBar } from "@/components/ui/footer-bar"
@@ -186,7 +187,9 @@ export default function RegisterScreen() {
   // edges top saja: inset bawah dijumlahkan di footer (bukan di Screen) agar tidak ganda
   return (
     <Screen padded={false} edges={["top"]}>
-      <Header title="Buat Akun" progress={STEP_PROGRESS} safeArea={false} />
+      <Header title="Buat Akun" progress={STEP_PROGRESS} safeArea={false}
+        right={<AuthSecurityInfo variant="signUp" />}
+      />
 
       <KeyboardAvoiding offset={insets.top + HEADER_BAR_HEIGHT}>
         <ScrollView
@@ -261,13 +264,6 @@ export default function RegisterScreen() {
           >
             Lanjutkan
           </Button>
-          {/*
-           * T1-007: submit auth memicu dialog izin lokasi (getAuthLocation)
-           * — jelaskan dulu di UI supaya tidak mengejutkan.
-           */}
-          <Text variant="caption" tone="secondary" className="text-center text-pretty">
-            Demi keamanan, lokasi perangkat dapat dicatat jika Anda mengizinkan akses.
-          </Text>
           <Text variant="body" tone="secondary" className="text-center">
             Sudah punya akun?{" "}
             <TextLink inline onPress={goLogin}>

@@ -34,6 +34,7 @@ import { ScrollView, type TextInputInstance } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useRouter } from "expo-router"
 
+import { AuthSecurityInfo } from "@/components/auth/auth-security-info"
 import { Alert } from "@/components/ui/alert"
 import { FadeIn } from "@/components/ui/fade-in"
 import { FooterBar } from "@/components/ui/footer-bar"
@@ -132,7 +133,9 @@ export default function ResetPasswordScreen() {
 
   return (
     <Screen padded={false} edges={["top"]}>
-      <Header title="Kata Sandi Baru" progress={STEP_PROGRESS} safeArea={false} />
+      <Header title="Kata Sandi Baru" progress={STEP_PROGRESS} safeArea={false}
+        right={<AuthSecurityInfo variant="password" />}
+      />
 
       <KeyboardAvoiding offset={insets.top + HEADER_BAR_HEIGHT}>
         <ScrollView
@@ -202,10 +205,6 @@ export default function ResetPasswordScreen() {
                   </Text>
                 ) : null}
               </VStack>
-
-              <Text variant="caption" tone="secondary" className="text-pretty">
-                Demi keamanan, lokasi perangkat dapat dicatat jika Anda mengizinkan akses.
-              </Text>
 
               <Button
                 onPress={() => void handleSubmit()}
