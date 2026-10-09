@@ -19,10 +19,14 @@
  *   - Jawaban resmi dirender sebagai balasan ber-utas dengan garis konektor
  *     di bawah avatar penanya (sejajar tengah avatar md = ml-5), bukan blok
  *     fill seperti dulu: hierarki utas dibentuk dari garis, bukan fill.
- *   - "Suka" = Heart (bukan ThumbsUp): kosakata Threads; aktif = fill +
- *     tone danger (konvensi hati merah), mengikuti bentuk prop `upvote`
- *     yang lama `{ count, active, loading, onToggle }` supaya pemanggil
- *     tidak berubah.
+ *   - "Membantu" = ikon HandsClapping (tepuk tangan), BUKAN hati: di Tanya
+ *     Jawab arti like adalah "jawaban ini membantu / pertanyaan ini sudah
+ *     terjawab". Hati tetap milik etalase (❤️ = suka produk). Aktif = fill +
+ *     tone aksen. Bentuk prop `upvote` `{ count, active, loading, onToggle }`
+ *     tidak berubah supaya pemanggil tidak ikut berubah.
+ *   - Jawaban pemilik = blok ber-latar (`bg-surface`) berbadge "Pemilik" di
+ *     bawah pertanyaan — beda visual dari pertanyaan (netral) dan balasan
+ *     pengunjung (indent biasa, lihat <QaCommentItem>).
  *   - Ikon balas berfungsi ganda: bila `onToggleComments` diberikan ia jadi
  *     tombol buka/tutup utas; bila tidak, ia indikator statis jumlah
  *     balasan. Ikon bagikan HANYA dirender bila `onShare` diberikan — tombol
@@ -37,7 +41,7 @@
 import { useState, type ReactNode } from "react"
 import { View, type ViewProps } from "react-native"
 
-import { ChatCircle, DotsThree, Heart, PaperPlaneTilt, Trash } from "phosphor-react-native"
+import { ChatCircle, DotsThree, HandsClapping, PaperPlaneTilt, Trash } from "phosphor-react-native"
 
 import { Avatar, type AvatarProps } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -64,7 +68,7 @@ export type QAAnswer = {
   date: Date | number | string
 }
 
-/** Bentuk prop tidak berubah dari desain lama (chip ThumbsUp) — hanya presentasinya jadi Heart. */
+/** Bentuk prop tidak berubah dari desain lama — hanya presentasinya jadi tepuk tangan (HandsClapping). */
 export type QAUpvote = {
   count: number
   active: boolean
@@ -81,7 +85,7 @@ export type QACardProps = Omit<ViewProps, "children"> & {
   answerAction?: ReactNode
   /** Slot bawah: aksi tambahan (sembunyikan, hapus, lihat profil, dsb.) */
   footer?: ReactNode
-  /** Toggle suka — dirender sebagai Heart + hitungan di bar aksi */
+  /** Toggle "membantu" — dirender sebagai tepuk tangan + hitungan di bar aksi */
   upvote?: QAUpvote
   /** Jumlah balasan — indikator di ikon balas */
   commentCount?: number
@@ -103,7 +107,8 @@ export type QACardProps = Omit<ViewProps, "children"> & {
 
 /** Teks i18n */
 export type QACardLabels = {
-  seller: string
+  /** Badge di jawaban resmi pemilik profil. */
+  owner: string
   unanswered: string
   askedBy: (name: string) => string
   answeredBy: (name: string) => string
@@ -118,13 +123,13 @@ export type QACardLabels = {
 function useDefaultLabels(): QACardLabels {
   useLanguage()
   return {
-    seller: translate("Penjual"),
+    owner: translate("Pemilik"),
     unanswered: translate("Belum dijawab"),
     askedBy: (name: string) => translate("Ditanya {x}", { x: name }),
     answeredBy: (name: string) => translate("Dijawab {x}", { x: name }),
     reply: translate("Balas"),
-    like: translate("Suka"),
-    unlike: translate("Batal suka"),
+    like: translate("Membantu"),
+    unlike: translate("Batal membantu"),
     share: translate("Bagikan"),
     moreOptions: translate("Opsi lainnya"),
     delete: translate("Hapus"),
@@ -227,25 +232,26 @@ export function QACard({
             {question}
           </Text>
 
-          {/* Jawaban resmi sebagai balasan ber-utas */}
+          {/* Jawaban resmi pemilik: blok ber-latar + badge "Pemilik" —
+              disorot dari pertanyaan (netral) dan balasan pengunjung. */}
           {answer ? (
-            <View className="ml-5 border-l-2 border-border pl-4 pt-1">
+            <View className="ml-5 border-l-2 border-border pl-3 pt-1">
               <View
                 accessible
                 accessibilityLabel={summarize([
                   t.answeredBy(answer.by.name),
-                  t.seller,
+                  t.owner,
                   formatRelativeTime(answer.date),
                   answer.text,
                 ])}
-                className="gap-1.5"
+                className="gap-1.5 rounded-md bg-surface px-3 py-2.5"
               >
                 <View className="flex-row items-center gap-2">
                   <Avatar source={answer.by.avatar} name={answer.by.name} size="xs" verified={answer.by.verified} />
                   <Text variant="caption" weight={600} numberOfLines={1} className="shrink">
                     {answer.by.name}
                   </Text>
-                  <Badge tone="neutral">{t.seller}</Badge>
+                  <Badge tone="info" variant="soft">{t.owner}</Badge>
                   <Text variant="caption" tone="secondary" numberOfLines={1} className="ml-auto shrink-0 tabular-nums">
                     {formatRelativeTime(answer.date)}
                   </Text>
@@ -280,11 +286,10 @@ export function QACard({
             ) : null}
             {upvote ? (
               <ThreadAction
-                icon={Heart}
+                icon={HandsClapping}
                 label={upvote.active ? t.unlike : t.like}
                 count={upvote.count}
                 active={upvote.active}
-                activeTone="danger"
                 fillWhenActive
                 disabled={upvote.loading}
                 onPress={() => upvote.onToggle(!upvote.active)}
@@ -315,7 +320,7 @@ function ThreadAction({
   onPress,
   accessibilityHint,
 }: {
-  icon: typeof Heart
+  icon: typeof HandsClapping
   label: string
   count?: number
   active?: boolean

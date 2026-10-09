@@ -59,10 +59,6 @@
    "n": 18
   },
   {
-   "s": "Penjual",
-   "n": 18
-  },
-  {
    "s": "Tambah alamat",
    "n": 17
   },
@@ -72,6 +68,10 @@
   },
   {
    "s": "Komentar",
+   "n": 16
+  },
+  {
+   "s": "Penjual",
    "n": 16
   },
   {
@@ -1219,10 +1219,6 @@
    "n": 5
   },
   {
-   "s": "Suka",
-   "n": 5
-  },
-  {
    "s": "Syarat & Ketentuan",
    "n": 5
   },
@@ -1840,6 +1836,10 @@
   },
   {
    "s": "Story dihapus",
+   "n": 4
+  },
+  {
+   "s": "Suka",
    "n": 4
   },
   {
@@ -3412,6 +3412,10 @@
   },
   {
    "s": "Kata sandi baru",
+   "n": 3
+  },
+  {
+   "s": "Kata sandi salah. Periksa kembali lalu coba lagi.",
    "n": 3
   },
   {
@@ -8167,6 +8171,10 @@
    "n": 2
   },
   {
+   "s": "Pemilik",
+   "n": 2
+  },
+  {
    "s": "Penarikan",
    "n": 2
   },
@@ -12555,11 +12563,11 @@
    "n": 1
   },
   {
-   "s": "Batal simpan etalase",
+   "s": "Batal membantu",
    "n": 1
   },
   {
-   "s": "Batal suka",
+   "s": "Batal simpan etalase",
    "n": 1
   },
   {
@@ -16295,10 +16303,6 @@
    "n": 1
   },
   {
-   "s": "Kata sandi salah. Periksa kembali lalu coba lagi.",
-   "n": 1
-  },
-  {
    "s": "Kata sandi terlalu umum",
    "n": 1
   },
@@ -17868,6 +17872,10 @@
   },
   {
    "s": "Membalas pesan yang dipilih",
+   "n": 1
+  },
+  {
+   "s": "Membantu",
    "n": 1
   },
   {

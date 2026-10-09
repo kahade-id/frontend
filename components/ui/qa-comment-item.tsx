@@ -89,7 +89,7 @@ export type QaCommentItemProps = Omit<ViewProps, "children"> & {
 function useDefaultLabels(): QaCommentLabels {
   useLanguage()
   return {
-    owner: translate("Penjual"),
+    owner: translate("Pemilik"),
     reply: translate("Balas"),
     delete: translate("Hapus"),
     deleted: translate("Komentar telah dihapus"),
@@ -133,7 +133,8 @@ export function QaCommentItem({
         ) : null}
       </View>
 
-      <View className="flex-1 gap-1">
+      {/* Balasan pemilik disorot (latar surface) — beda dari balasan pengunjung. */}
+      <View className={cn("flex-1 gap-1", isOwner && !deleted && "rounded-md bg-surface px-3 py-2")}>
         <View className="flex-row flex-wrap items-center gap-x-2 gap-y-1">
           {onPressAuthor ? (
             <TextLink variant="body" weight={600} onPress={onPressAuthor} numberOfLines={1}>
