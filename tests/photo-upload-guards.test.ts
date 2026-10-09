@@ -5,8 +5,10 @@
  * - validateHeaderAsset: tolak >5 MB / MIME tak didukung (pesan Indonesia).
  * - UPF-06: MIME yang DILAPORKAN platform dan tidak didukung → tolak langsung,
  *   ekstensi tidak boleh mengesampingkannya.
- * - photoUploadTimeoutMs: 20 dtk basis + 100 KB/s, maks 120 dtk; tanpa info
- *   ukuran → 60 dtk.
+ * - photoUploadTimeoutMs: delegasi rumus terpusat uploadTimeoutMs(bytes,
+ *   "photo") — 60 dtk basis + waktu transfer @100 KB/s, cap 5 menit
+ *   (audit 2026-10-09 B6: rumus lama 20 dtk basis membunuh upload avatar di
+ *   4G lambat pada detik ~23).
  */
 import { describe, expect, it } from "vitest"
 
@@ -83,25 +85,32 @@ describe("validateHeaderAsset (UPF-03)", () => {
   })
 })
 
-describe("photoUploadTimeoutMs (UPF-04)", () => {
+describe("photoUploadTimeoutMs (UPF-04 — delegasi rumus terpusat, audit B6)", () => {
   it("tanpa info ukuran → 60 dtk", () => {
     expect(photoUploadTimeoutMs()).toBe(60_000)
     expect(photoUploadTimeoutMs(0)).toBe(60_000)
   })
 
-  it("file kecil → minimal 20 dtk", () => {
-    expect(photoUploadTimeoutMs(1000)).toBe(20_010)
+  it("file kecil → minimal 60 dtk", () => {
+    expect(photoUploadTimeoutMs(1000)).toBe(60_010)
   })
 
-  it("1 MiB → ~30,5 dtk (20 dtk basis + waktu @100KB/s)", () => {
-    expect(photoUploadTimeoutMs(MB)).toBeCloseTo(30_485.76, 1)
+  it("1 MiB → ~70,5 dtk (60 dtk basis + waktu @100KB/s)", () => {
+    expect(photoUploadTimeoutMs(MB)).toBeCloseTo(70_485.76, 1)
   })
 
-  it("5 MiB → ~72,4 dtk", () => {
-    expect(photoUploadTimeoutMs(5 * MB)).toBeCloseTo(72_428.8, 1)
+  it("5 MiB → ~112,4 dtk", () => {
+    expect(photoUploadTimeoutMs(5 * MB)).toBeCloseTo(112_428.8, 1)
   })
 
-  it("file raksasa → di-cap 120 dtk", () => {
-    expect(photoUploadTimeoutMs(50 * MB)).toBe(120_000)
+  it("file raksasa → di-cap 300 dtk (5 menit)", () => {
+    expect(photoUploadTimeoutMs(50 * MB)).toBe(300_000)
+  })
+
+  it("avatar 2 MB di 4G lambat tidak lagi dibunuh di detik ~23 (regresi B6)", () => {
+    // Rumus lama: 20 dtk + 2MB/100 = 32,9 dtk — tapi pengamatan nyata
+    // (screenshot user) menunjukkan avatar digagalkan jauh lebih awal karena
+    // deadline global 20 dtk. Rumus baru memberi 60 dtk + jatah transfer.
+    expect(photoUploadTimeoutMs(2 * MB)).toBeGreaterThan(20_000)
   })
 })

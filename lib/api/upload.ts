@@ -11,6 +11,13 @@ import { buildUrl, http, refreshAccessToken, seg } from "@/lib/api/client"
 import { getAccessToken } from "@/lib/api/session"
 import type { CleanupFilesDto } from "@/lib/api/types"
 import type { PickedImage } from "@/lib/image-picker"
+import { isOfflineKnown } from "@/lib/connectivity"
+import {
+  UPLOAD_OFFLINE_COPY,
+  UPLOAD_TIMEOUT_COPY,
+  UPLOAD_UNSTABLE_COPY,
+  uploadTimeoutMs,
+} from "@/lib/upload-errors"
 
 // PERF-FIX (bundle): `@/lib/image-picker` menarik `expo-image-picker`
 // (±788KB) — modul ini ada di barrel `@/lib/api` yang diimpor 152 file.
@@ -50,22 +57,401 @@ export type DirectUpload = {
  * alur presigned dimatikan backend; `uploadDirect` auto-confirm server-side.
  */
 
+// ---------------------------------------------------------------------------
+// Transport multipart XHR terpusat (audit upload 2026-10-09)
+// ---------------------------------------------------------------------------
+
 /**
- * Multipart langsung ke server dengan field `file`.
+ * Audit 2026-10-09: SATU transport multipart untuk SEMUA upload file —
+ * menggantikan percabangan lama (fetch `http.post` 20 dtk untuk foto vs XHR
+ * untuk video/chat) yang menghasilkan perilaku error & progress berbeda per
+ * titik upload. Alasan XHR (bukan fetch):
+ *   1. `xhr.upload.onprogress` = progress byte JUJUR 0–100% (fetch tidak
+ *      bisa melaporkan kemajuan upload — UI foto tidak boleh mengarang %);
+ *   2. `ontimeout`/`onerror` memisahkan TIMEOUT dari NETWORK dengan jelas;
+ *   3. satu titik untuk retry transien + backoff, cek NetInfo pra-upload,
+ *      dan refresh-token 401 (selaras perilaku lib/api/client.ts).
  *
- * O-01 (audit escrow 2026-09-24): `signal` membatalkan penggantian foto
- * avatar / unggah galeri saat pengguna menutup layar — dulu hasilnya tetap
- * terkirim dan menimpa yang lama tanpa bisa dicegah.
+ * O-01 (audit escrow 2026-09-24): `signal` membatalkan unggahan per file
+ * (avatar, etalase, sengketa, dsb.) — dulu hasilnya tetap terkirim.
  */
-export function uploadDirect(formData: FormData, signal?: AbortSignal, timeoutMs?: number) {
-  return http.post<DirectUpload>("/v1/upload/direct", undefined, {
-    formData,
-    auth: "required",
-    signal,
-    // 2026-10-07: timeout adaptif — default 20 detik terlalu pendek untuk
-    // foto di koneksi HP lambat. Caller bisa kirim timeoutMs eksplisit.
-    ...(timeoutMs ? { timeoutMs } : {}),
+export type UploadFileOptions = {
+  /** Endpoint multipart (default `POST /v1/upload/direct`). */
+  path?: string
+  /**
+   * Ukuran file (byte) — timeout ADAPTIF proporsional (audit B4/B6):
+   * file besar = deadline lebih longgar. Dipakai hanya bila `timeoutMs`
+   * tidak dikirim eksplisit.
+   */
+  fileBytes?: number
+  /** Fraksi 0–1 kemajuan transfer (jujur — dari `xhr.upload.onprogress`). */
+  onProgress?: (fraction: number) => void
+  /** Batalkan file ini. */
+  signal?: AbortSignal
+  /** Override timeout eksplisit (detik→milidetik). */
+  timeoutMs?: number
+  /** Rumus timeout: "photo" (basis 60 dtk, cap 5 mnt) | "video" (basis 120 dtk, cap 30 mnt). */
+  timeoutKind?: "photo" | "video"
+  /** Chat: header `Idempotency-Key` wajib (backend `@Idempotency()`, BFE-001). */
+  idempotencyKey?: string
+  /** Basis jeda retry (produksi 1000 ms); dikecilkan untuk test. */
+  retryBaseMs?: number
+}
+
+/** Maks 2 ulang (3 percobaan total) — selaras kebijakan NP-006 jalur video. */
+export const UPLOAD_MAX_RETRIES = 2
+export const UPLOAD_RETRY_BASE_MS = 1000
+
+function abortedUploadError(path: string): ApiError {
+  return new ApiError({ code: "ABORTED", message: "Unggahan dibatalkan.", path })
+}
+
+/**
+ * Perangkat TERVERIFIKASI offline via NetInfo (lib/connectivity.ts) —
+ * request TIDAK PERNAH dikirim. `backendCode: "OFFLINE_VERIFIED"`
+ * membedakan ini dari NETWORK biasa (transport gagal di tengah — nasib
+ * upload tak pasti) supaya pesan UI-nya benar (audit A1/A2/A3):
+ *   - OFFLINE_VERIFIED → "Tidak ada koneksi internet…"
+ *   - NETWORK saat online → "Koneksi terputus saat mengirim berkas…"
+ */
+export function offlineVerifiedUploadError(path: string): ApiError {
+  return new ApiError({
+    code: "NETWORK",
+    backendCode: "OFFLINE_VERIFIED",
+    message: UPLOAD_OFFLINE_COPY,
+    path,
+    clientMessage: true,
   })
+}
+
+/**
+ * Hanya error TRANSIEN yang layak diulang otomatis: jaringan terputus,
+ * timeout, atau 5xx. 4xx validasi (FILE_TOO_LARGE, MIME_TYPE_MISMATCH, …)
+ * TIDAK diulang (mengulang tidak akan sukses); ABORTED (user batal) tidak
+ * diulang; OFFLINE_VERIFIED tidak diulang (perangkat masih offline — cek
+ * ulang NetInfo di percobaan berikutnya).
+ */
+export function isRetriableUploadError(err: unknown): boolean {
+  if (!(err instanceof ApiError)) return false
+  if (err.backendCode === "OFFLINE_VERIFIED") return false
+  return err.isTransient
+}
+
+/**
+ * Ambil kode error backend dari body respons (bentuk NestJS umum).
+ * BFI-061: envelope BE yang sebenarnya adalah
+ * `{ success:false, message, data:null, errors:{ code, message, ... } }`
+ * (http-exception.filter.ts) — kode ada di `errors.code`, bukan di root.
+ */
+export function uploadBackendCode(bodyText: string): string | undefined {
+  try {
+    const body = JSON.parse(bodyText) as Record<string, unknown>
+    const errors = body.errors as Record<string, unknown> | undefined
+    const code =
+      (typeof errors?.code === "string" && errors.code) ||
+      (typeof body.code === "string" && body.code) ||
+      (typeof (body.error as Record<string, unknown> | undefined)?.code === "string" &&
+        (body.error as Record<string, unknown>).code) ||
+      undefined
+    return typeof code === "string" ? code : undefined
+  } catch {
+    return undefined
+  }
+}
+
+/** Pesan backend dari body (untuk log/diagnostik; copy UI tetap karangan klien). */
+function uploadBackendMessage(bodyText: string): string | undefined {
+  try {
+    const body = JSON.parse(bodyText) as Record<string, unknown>
+    const errors = body.errors as Record<string, unknown> | undefined
+    const message = errors?.message ?? body.message
+    return typeof message === "string" && message ? message : undefined
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * Error HTTP upload → ApiError terklasifikasi. Copy Indonesia spesifik dari
+ * `UPLOAD_ERROR_COPY` bila kode backend dikenal; selain itu default per
+ * status — TAPI untuk 413 pesan transport tetap netral: UI mengisi batas
+ * "maks X MB" via `uploadMessage` (upload-errors.ts) karena hanya UI yang
+ * tahu purpose/batas yang berlaku.
+ */
+function uploadHttpError(status: number, bodyText: string, path: string): ApiError {
+  const backendCode = uploadBackendCode(bodyText)
+  const copy = backendCode ? UPLOAD_ERROR_COPY[backendCode] : undefined
+  const serverMessage = uploadBackendMessage(bodyText)
+  const is413 = status === 413
+  return new ApiError({
+    code: is413 ? "PAYLOAD_TOO_LARGE" : codeFromStatus(status, false),
+    status,
+    backendCode: backendCode ?? "UPLOAD_HTTP_ERROR",
+    message:
+      copy ??
+      (is413
+        ? "Ukuran berkas melebihi batas maksimal server."
+        : serverMessage ?? `Berkas gagal diunggah (HTTP ${status}). Coba lagi.`),
+    // copy/413-netral dikarang klien; pesan server (bahasa tak terjamin) fail-closed.
+    clientMessage: copy != null || is413 || !serverMessage,
+    path,
+  })
+}
+
+/**
+ * Respons sukses → objek JSON apa adanya. Transport TIDAK memvalidasi bentuk
+ * per endpoint (direct vs avatar vs header beda field); pemanggil memvalidasi
+ * lewat `parseDirectUploadObject` / cast bertipe. Fail-closed: PARSE bila
+ * body bukan objek JSON (jangan kirim `undefined` ke layar).
+ */
+function parseUploadJsonObject(bodyText: string, path: string): Record<string, unknown> {
+  let body: unknown
+  try {
+    body = JSON.parse(bodyText) as unknown
+  } catch {
+    throw new ApiError({ code: "PARSE", message: "Respons unggahan tidak valid.", path })
+  }
+  if (typeof body !== "object" || body === null || Array.isArray(body)) {
+    throw new ApiError({ code: "PARSE", message: "Respons unggahan tidak valid.", path })
+  }
+  return body as Record<string, unknown>
+}
+
+/**
+ * Parse respons sukses `POST /v1/upload/direct` (foto MAUPUN video) —
+ * `fileKey` WAJIB; tanpa itu upload dianggap gagal (fail-closed).
+ */
+function parseDirectUploadObject(body: Record<string, unknown>, path: string): DirectUpload {
+  const str = (v: unknown): string | undefined => (typeof v === "string" && v ? v : undefined)
+  const num = (v: unknown): number | undefined =>
+    typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : undefined
+  const fileKey = str(body.fileKey)
+  if (!fileKey)
+    throw new ApiError({ code: "PARSE", message: "Kunci unggahan tidak tersedia.", path })
+  const out: DirectUpload = { fileKey }
+  const fileUrl = str(body.fileUrl)
+  if (fileUrl) out.fileUrl = fileUrl
+  const thumbnailFileKey = str(body.thumbnailFileKey)
+  if (thumbnailFileKey) out.thumbnailFileKey = thumbnailFileKey
+  const thumbnailUrl = str(body.thumbnailUrl)
+  if (thumbnailUrl) out.thumbnailUrl = thumbnailUrl
+  // Field video (durationSec/width/height) diteruskan apa adanya bila ada.
+  const durationSec = num(body.durationSec)
+  if (durationSec != null) (out as DirectVideoUpload).durationSec = durationSec
+  const width = num(body.width)
+  if (width != null) (out as DirectVideoUpload).width = width
+  const height = num(body.height)
+  if (height != null) (out as DirectVideoUpload).height = height
+  return out
+}
+
+/**
+ * Unggah `formData` multipart via XHR dengan progress jujur, timeout
+ * adaptif, cek NetInfo pra-upload, refresh-token 401 sekali, dan retry
+ * transien + backoff (lihat docblock blok ini). Dipakai SEMUA titik upload
+ * file (direct, avatar, header, story, lampiran chat/sengketa).
+ *
+ * Mengembalikan objek respons apa adanya (per endpoint bentuknya beda:
+ * direct → `fileKey`+thumbnail, avatar → `avatarKey`/`avatarUrl`,
+ * header → `headerUrl`). Validasi bentuk dilakukan pemanggil
+ * (`parseDirectUploadObject` dst.) — transport hanya menjamin JSON valid.
+ */
+export function uploadFileWithProgress(
+  formData: FormData,
+  opts: UploadFileOptions = {},
+): Promise<Record<string, unknown>> {
+  const path = opts.path ?? "/v1/upload/direct"
+  const { onProgress, signal, idempotencyKey } = opts
+  const timeoutMs = opts.timeoutMs ?? uploadTimeoutMs(opts.fileBytes, opts.timeoutKind ?? "photo")
+  const retryBaseMs = opts.retryBaseMs ?? UPLOAD_RETRY_BASE_MS
+  return new Promise<Record<string, unknown>>((resolvePromise, rejectPromise) => {
+    let settled = false
+    const resolve = (v: Record<string, unknown>) => {
+      if (!settled) {
+        settled = true
+        resolvePromise(v)
+      }
+    }
+    const reject = (e: unknown) => {
+      if (!settled) {
+        settled = true
+        rejectPromise(e)
+      }
+    }
+    if (signal?.aborted) {
+      reject(abortedUploadError(path))
+      return
+    }
+    // Audit 2026-10-09 (A3): cek NetInfo SEBELUM upload — offline yang pasti
+    // gagal cepat dengan pesan offline yang benar, bukan menyimpulkan dari
+    // kegagalan request setelah percobaan sia-sia.
+    if (isOfflineKnown()) {
+      reject(offlineVerifiedUploadError(path))
+      return
+    }
+
+    const sendOnce = (token: string): Promise<Record<string, unknown>> =>
+      new Promise<Record<string, unknown>>((resolveXhr, rejectXhr) => {
+        const xhr = new XMLHttpRequest()
+        let done = false
+        const cleanupAbort = () => signal?.removeEventListener("abort", onAbort)
+        const fail = (err: ApiError) => {
+          if (done) return
+          done = true
+          cleanupAbort()
+          rejectXhr(err)
+        }
+        const onAbort = () => {
+          try {
+            xhr.abort()
+          } catch {
+            // abaikan
+          }
+        }
+        if (signal) signal.addEventListener("abort", onAbort, { once: true })
+        xhr.upload.onprogress = (event) => {
+          if (event.lengthComputable && event.total > 0) {
+            onProgress?.(Math.min(1, Math.max(0, event.loaded / event.total)))
+          }
+        }
+        xhr.timeout = timeoutMs
+        xhr.ontimeout = () =>
+          fail(
+            new ApiError({
+              code: "TIMEOUT",
+              message: UPLOAD_TIMEOUT_COPY,
+              path,
+              clientMessage: true,
+            }),
+          )
+        xhr.onabort = () => fail(abortedUploadError(path))
+        xhr.onerror = () =>
+          fail(
+            // JANGAN menulis "Tidak ada koneksi internet" di sini — perangkat
+            // BISA online dengan socket yang terputus (audit A2). Pesan
+            // final dipilih `uploadMessage` setelah mengecek NetInfo.
+            new ApiError({
+              code: "NETWORK",
+              message: UPLOAD_UNSTABLE_COPY,
+              path,
+              clientMessage: true,
+            }),
+          )
+        xhr.onload = () => {
+          if (done) return
+          done = true
+          cleanupAbort()
+          const status = xhr.status
+          const bodyText = typeof xhr.responseText === "string" ? xhr.responseText : ""
+          if (status >= 200 && status < 300) {
+            try {
+              resolveXhr(parseUploadJsonObject(bodyText, path))
+            } catch (err) {
+              rejectXhr(err)
+            }
+            return
+          }
+          if (status === 401) {
+            // Selaras client.ts: satu kali refresh token lalu ulangi.
+            rejectXhr({ retriable401: true as const })
+            return
+          }
+          rejectXhr(uploadHttpError(status, bodyText, path))
+        }
+        xhr.open("POST", buildUrl(path))
+        xhr.setRequestHeader("Accept", "application/json")
+        xhr.setRequestHeader("Authorization", `Bearer ${token}`)
+        if (idempotencyKey) xhr.setRequestHeader("Idempotency-Key", idempotencyKey)
+        // JANGAN set Content-Type — XHR mengisi multipart boundary sendiri.
+        // RN: FormData diterima XMLHttpRequest.send; tipe lib DOM tidak
+        // mengenalnya sehingga cast ke parameter send yang sahih.
+        try {
+          xhr.send(formData as unknown as Parameters<XMLHttpRequest["send"]>[0])
+        } catch (err) {
+          // Kegagalan menyusun/membaca berkas (mis. URI tidak terbaca) —
+          // bukan "tidak ada koneksi internet" (audit A2).
+          fail(
+            new ApiError({
+              code: "NETWORK",
+              message: UPLOAD_UNSTABLE_COPY,
+              path,
+              cause: err,
+              clientMessage: true,
+            }),
+          )
+        }
+      })
+
+    const run = async () => {
+      try {
+        let attempt = 0
+        for (;;) {
+          try {
+            // Ulangi cek NetInfo tiap percobaan — status bisa berubah antar
+            // attempt (device baru saja offline → hentikan, jangan bakar retry).
+            if (isOfflineKnown()) throw offlineVerifiedUploadError(path)
+            const token = await getAccessToken()
+            if (!token)
+              throw new ApiError({
+                code: "UNAUTHORIZED",
+                message: DEFAULT_ERROR_MESSAGES.UNAUTHORIZED,
+                path,
+              })
+            try {
+              const result = await sendOnce(token)
+              resolve(result)
+              return
+            } catch (err) {
+              const retriable =
+                err && typeof err === "object" && (err as { retriable401?: unknown }).retriable401 === true
+              if (!retriable || signal?.aborted) throw err
+              const fresh = await refreshAccessToken()
+              if (!fresh)
+                throw new ApiError({
+                  code: "UNAUTHORIZED",
+                  message: DEFAULT_ERROR_MESSAGES.UNAUTHORIZED,
+                  path,
+                })
+              resolve(await sendOnce(fresh))
+              return
+            }
+          } catch (err) {
+            // Retry CERDAS (NP-006, kini juga jalur foto): hanya TRANSIEN,
+            // hormati abort, backoff eksponensial 1s → 2s, maks 2 ulang.
+            const canRetry =
+              attempt < UPLOAD_MAX_RETRIES &&
+              !signal?.aborted &&
+              isRetriableUploadError(err)
+            if (!canRetry) throw err
+            attempt += 1
+            await sleepAbortable(retryBaseMs * 2 ** (attempt - 1), signal)
+          }
+        }
+      } catch (err) {
+        reject(err)
+      }
+    }
+    void run()
+  })
+}
+
+/**
+ * Multipart langsung ke `POST /v1/upload/direct` dengan field `file`.
+ *
+ * 2026-10-07: timeout adaptif (dulu default 20 detik membunuh upload di
+ * koneksi HP lambat). Audit 2026-10-09 (B1–B3): kini lewat
+ * `uploadFileWithProgress` — bila `timeoutMs` tidak dikirim, deadline
+ * dihitung dari `fileBytes` (basis 60 dtk + 100 KB/s, cap 5 mnt).
+ */
+export function uploadDirect(
+  formData: FormData,
+  signal?: AbortSignal,
+  timeoutMs?: number,
+  fileBytes?: number,
+): Promise<DirectUpload> {
+  return uploadFileWithProgress(formData, { signal, timeoutMs, fileBytes }).then((raw) =>
+    parseDirectUploadObject(raw, "/v1/upload/direct"),
+  )
 }
 
 /**
@@ -114,53 +500,28 @@ export type DirectVideoUpload = {
   height?: number
 }
 
-/** Copy Indonesia per kode error upload video backend (kontrak #1). */
-const VIDEO_UPLOAD_ERROR_COPY: Record<string, string> = {
-  FILE_TOO_LARGE: "Video terlalu besar. Pilih video yang lebih kecil lalu coba lagi.",
+/**
+ * Copy Indonesia per kode error upload backend — SAHA untuk semua purpose
+ * (audit 2026-10-09 F2: dulu tabel ini hanya jalur video, jalur foto jatuh
+ * ke default generik). FILE_TOO_LARGE netral-media: pesan "maks X MB" per
+ * purpose diisi `uploadMessage` (upload-errors.ts) saat 413.
+ */
+export const UPLOAD_ERROR_COPY: Record<string, string> = {
+  FILE_TOO_LARGE: "Ukuran berkas melebihi batas maksimal. Pilih berkas yang lebih kecil.",
   // BFI-098: kode ini dipakai BE untuk SHOWCASE_VIDEO yang melebihi 100 MiB
   // (sebelumnya tidak dipetakan → fallback generik).
   VIDEO_TOO_LARGE: "Ukuran video melebihi batas maksimal 100 MB. Maksimal 100 MB / 180 detik.",
-  MIME_TYPE_MISMATCH: "Format video tidak didukung. Gunakan MP4, MOV, atau WebM.",
+  MIME_TYPE_MISMATCH: "Format berkas tidak didukung. Untuk video gunakan MP4, MOV, atau WebM.",
   VIDEO_TOO_LONG: "Durasi video melebihi batas yang diizinkan. Pilih video yang lebih pendek.",
   // UPV-04: resolusi video melebihi 3840p.
   VIDEO_RESOLUTION_TOO_HIGH: "Resolusi video terlalu tinggi. Pilih video dengan resolusi lebih rendah.",
   VIDEO_UNPROCESSABLE: "Video tidak dapat diproses. Coba dengan video lain.",
-  UPLOAD_FAILED: "Unggah video gagal. Periksa koneksi lalu coba lagi.",
+  UPLOAD_FAILED: "Unggahan gagal di server. Coba lagi.",
   // 2026-10-07: PhoneVerifiedGuard memblokir upload bila HP belum verifikasi.
   // Tanpa ini user hanya lihat error generik dan tidak tahu penyebabnya.
   PHONE_NOT_VERIFIED: "Verifikasi nomor HP dulu untuk mengunggah. Buka Pengaturan untuk verifikasi.",
-}
-
-/** Ambil kode error backend dari body respons (bentuk NestJS umum). */
-function videoUploadBackendCode(bodyText: string): string | undefined {
-  try {
-    const body = JSON.parse(bodyText) as Record<string, unknown>
-    // BFI-061: envelope BE yang sebenarnya adalah
-    // `{ success:false, message, data:null, errors:{ code, message, ... } }`
-    // (http-exception.filter.ts) — kode ada di `errors.code`, bukan di root.
-    const errors = body.errors as Record<string, unknown> | undefined
-    const code =
-      (typeof errors?.code === "string" && errors.code) ||
-      (typeof body.code === "string" && body.code) ||
-      (typeof (body.error as Record<string, unknown> | undefined)?.code === "string" &&
-        (body.error as Record<string, unknown>).code) ||
-      undefined
-    return typeof code === "string" ? code : undefined
-  } catch {
-    return undefined
-  }
-}
-
-function videoUploadError(status: number, bodyText: string): ApiError {
-  const backendCode = videoUploadBackendCode(bodyText)
-  const copy = (backendCode && VIDEO_UPLOAD_ERROR_COPY[backendCode]) || undefined
-  return new ApiError({
-    code: codeFromStatus(status, false),
-    status,
-    backendCode: backendCode ?? "UPLOAD_HTTP_ERROR",
-    message: copy ?? `Unggah video gagal (HTTP ${status}). Coba lagi.`,
-    path: "/v1/upload/direct",
-  })
+  // docs/integrasi_backend.md:74 — 413 foto story.
+  STORY_MEDIA_TOO_LARGE: "Ukuran foto story melebihi batas maksimal 10 MB. Pilih foto yang lebih kecil.",
 }
 
 /**
@@ -174,95 +535,22 @@ function videoUploadError(status: number, bodyText: string): ApiError {
  */
 function remapChunkedUploadError(err: unknown, path: string): never {
   if (err instanceof ApiError) {
-    const copy = err.backendCode ? VIDEO_UPLOAD_ERROR_COPY[err.backendCode] : undefined
+    const copy = err.backendCode ? UPLOAD_ERROR_COPY[err.backendCode] : undefined
     if (copy) {
       throw new ApiError({
         code: err.code,
         status: err.status,
         backendCode: err.backendCode,
-        // Copy dikarang klien (Indonesia) → userMessage() tampil apa adanya.
+        // Copy dikarang klien (Indonesia) → uploadMessage() tampil apa adanya.
         message: copy,
         method: err.method,
         path,
       })
     }
   }
+  // 413 tanpa copy dikenal: kode sudah PAYLOAD_TOO_LARGE (codeFromStatus) —
+  // `uploadMessage` di UI mengisi batas "maks X MB" dari ctx purpose.
   throw err
-}
-
-function parseVideoUploadObject(body: Record<string, unknown>): DirectVideoUpload {
-  const str = (v: unknown): string | undefined =>
-    typeof v === "string" && v ? v : undefined
-  const num = (v: unknown): number | undefined =>
-    typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : undefined
-  const fileKey = str(body.fileKey)
-  if (!fileKey)
-    throw new ApiError({ code: "PARSE", message: "Respons unggah video tidak memuat kunci berkas." })
-  const out: DirectVideoUpload = { fileKey }
-  const fileUrl = str(body.fileUrl)
-  if (fileUrl) out.fileUrl = fileUrl
-  const thumbnailFileKey = str(body.thumbnailFileKey)
-  if (thumbnailFileKey) out.thumbnailFileKey = thumbnailFileKey
-  const thumbnailUrl = str(body.thumbnailUrl)
-  if (thumbnailUrl) out.thumbnailUrl = thumbnailUrl
-  const durationSec = num(body.durationSec)
-  if (durationSec != null) out.durationSec = durationSec
-  const width = num(body.width)
-  if (width != null) out.width = width
-  const height = num(body.height)
-  if (height != null) out.height = height
-  return out
-}
-
-function parseVideoUploadResponse(bodyText: string): DirectVideoUpload {
-  let body: Record<string, unknown>
-  try {
-    body = JSON.parse(bodyText) as Record<string, unknown>
-  } catch {
-    throw new ApiError({ code: "PARSE", message: "Respons unggah video tidak valid." })
-  }
-  return parseVideoUploadObject(body)
-}
-
-/**
- * Upload video showcase via `POST /v1/upload/direct` (multipart
- * `file` + `purpose=SHOWCASE_VIDEO`) dengan LAPORAN PROGRESS.
- *
- * `fetch` tidak melaporkan progress upload, jadi jalur ini memakai
- * `XMLHttpRequest` (`xhr.upload.onprogress` — didukung React Native & web).
- * Auth: Bearer token dari sesi (satu kali refresh-and-retry bila 401,
- * selaras perilaku client.ts).
- *
- * Error backend (FILE_TOO_LARGE, VIDEO_TOO_LARGE, MIME_TYPE_MISMATCH,
- * VIDEO_TOO_LONG, VIDEO_UNPROCESSABLE, UPLOAD_FAILED) dipetakan ke pesan
- * Indonesia yang bisa ditindaklanjuti (lihat VIDEO_UPLOAD_ERROR_COPY);
- * untuk jalur chunked, `remapChunkedUploadError` menerapkan pemetaan yang
- * sama pada error init/complete (RV-001).
- */
-/**
- * NP-006 (audit performa): upload besar single-attempt — putus di tengah =
- * ulang dari NOL. Resume/chunked sejati kini TERSEDIA via `uploadChunkedVideo`
- * (protokol `POST /v1/upload/chunked/*`); fungsi ini dipertahankan sebagai
- * jalur single-shot untuk file kecil (≤ 8MB) dan sebagai fallback jujur bila
- * perangkat tak mendukung pembacaan parsial file. Sementara itu, retry CERDAS
- * sisi klien:
- * - hanya error TRANSIEN (NETWORK/TIMEOUT/SERVER 5xx) yang diulang;
- * - 4xx validasi (FILE_TOO_LARGE, MIME_TYPE_MISMATCH, ...) TIDAK di-retry
- *   (mengulang tidak akan sukses); ABORTED (user batal) tidak di-retry;
- * - backoff eksponensial 1s → 2s, maks 2x ulang (3 percobaan total).
- *
- * Jujur soal batasnya: ini tetap upload ulang PENUH dari byte 0 — menolong
- * putus-awal/gangguan sesaat, bukan putus di 95%. Progress dilaporkan ulang
- * dari 0 di tiap percobaan (pemanggil menampilkan "mencoba lagi").
- */
-const MAX_VIDEO_UPLOAD_RETRIES = 2
-const VIDEO_UPLOAD_RETRY_BASE_MS = 1000
-
-function isRetriableVideoUploadError(err: unknown): boolean {
-  // `{ retriable401: true }` bukan ApiError — jalur refresh token sudah
-  // ditangani di attemptUpload; di sini bukan kandidat retry jaringan.
-  if (!(err instanceof ApiError)) return false
-  return err.isTransient
 }
 
 function sleepAbortable(ms: number, signal?: AbortSignal): Promise<void> {
@@ -293,147 +581,29 @@ export function uploadDirectVideo(
     timeoutMs?: number
   } = {},
 ): Promise<DirectVideoUpload> {
-  // Timeout adaptif (bug 2026-09-28): 180 detik terlalu pendek untuk video
-  // besar di koneksi HP Indonesia (100MB @ 2Mbps ≈ 400 detik upload saja).
-  // Rumus: 120 detik basis (server: ffprobe 30s + ffmpeg 60s + margin) +
-  // waktu upload pada 100 KB/s (konservatif). Min 10 menit, maks 30 menit.
-  const fileBytes = asset.size ?? 0
-  const adaptiveTimeout = fileBytes > 0
-    ? Math.min(1_800_000, Math.max(600_000, 120_000 + fileBytes / 100))
-    : 600_000
-  const { purpose = "SHOWCASE_VIDEO", onProgress, signal, timeoutMs = adaptiveTimeout } = opts
-  return new Promise<DirectVideoUpload>((resolvePromise, rejectPromise) => {
-    let settled = false
-    const resolve = (v: DirectVideoUpload) => {
-      if (!settled) {
-        settled = true
-        resolvePromise(v)
-      }
-    }
-    const reject = (e: unknown) => {
-      if (!settled) {
-        settled = true
-        rejectPromise(e)
-      }
-    }
-    if (signal?.aborted) {
-      reject(new ApiError({ code: "ABORTED", message: "Unggahan dibatalkan." }))
-      return
-    }
-
-    const sendOnce = async (token: string): Promise<void> => {
-      // PERF-FIX (bundle): image-picker dimuat lazy (lihat loadImagePicker).
-      const { pickedImageToFormData } = await loadImagePicker()
-      const formData = await pickedImageToFormData(asset, "file")
-      formData.append("purpose", purpose)
-      await new Promise<void>((resolveXhr, rejectXhr) => {
-        const xhr = new XMLHttpRequest()
-        const onAbort = () => xhr.abort()
-        signal?.addEventListener("abort", onAbort, { once: true })
-        xhr.upload.onprogress = (event) => {
-          if (event.lengthComputable && event.total > 0) {
-            onProgress?.(Math.min(1, Math.max(0, event.loaded / event.total)))
-          }
-        }
-        xhr.timeout = timeoutMs
-        xhr.ontimeout = () => {
-          signal?.removeEventListener("abort", onAbort)
-          rejectXhr(
-            new ApiError({
-              code: "TIMEOUT",
-              message: "Unggah video terlalu lama. Periksa koneksi lalu coba lagi.",
-              path: "/v1/upload/direct",
-            }),
-          )
-        }
-        xhr.onabort = () => {
-          signal?.removeEventListener("abort", onAbort)
-          rejectXhr(new ApiError({ code: "ABORTED", message: "Unggahan dibatalkan." }))
-        }
-        xhr.onerror = () => {
-          signal?.removeEventListener("abort", onAbort)
-          rejectXhr(
-            new ApiError({
-              code: "NETWORK",
-              message: DEFAULT_ERROR_MESSAGES.NETWORK,
-              path: "/v1/upload/direct",
-            }),
-          )
-        }
-        xhr.onload = () => {
-          signal?.removeEventListener("abort", onAbort)
-          const bodyText = typeof xhr.responseText === "string" ? xhr.responseText : ""
-          if (xhr.status >= 200 && xhr.status < 300) {
-            try {
-              resolveXhr()
-              resolve(parseVideoUploadResponse(bodyText))
-            } catch (err) {
-              rejectXhr(err)
-            }
-            return
-          }
-          if (xhr.status === 401) {
-            // Selaras client.ts: satu kali refresh token lalu ulangi.
-            rejectXhr({ retriable401: true as const })
-            return
-          }
-          rejectXhr(videoUploadError(xhr.status, bodyText))
-        }
-        xhr.open("POST", buildUrl("/v1/upload/direct"))
-        xhr.setRequestHeader("Accept", "application/json")
-        xhr.setRequestHeader("Authorization", `Bearer ${token}`)
-        // JANGAN set Content-Type — XHR mengisi multipart boundary sendiri.
-        // RN: FormData diterima XMLHttpRequest.send; tipe lib DOM tidak
-        // mengenalnya sehingga cast ke parameter send yang sahih.
-        xhr.send(formData as unknown as Parameters<XMLHttpRequest["send"]>[0])
-      })
-    }
-
-    const run = async () => {
-      try {
-        let attempt = 0
-        for (;;) {
-          try {
-            const token = await getAccessToken()
-            if (!token)
-              throw new ApiError({
-                code: "UNAUTHORIZED",
-                message: DEFAULT_ERROR_MESSAGES.UNAUTHORIZED,
-                path: "/v1/upload/direct",
-              })
-            try {
-              await sendOnce(token)
-            } catch (err) {
-              const retriable =
-                err && typeof err === "object" && (err as { retriable401?: unknown }).retriable401 === true
-              if (!retriable || signal?.aborted) throw err
-              const fresh = await refreshAccessToken()
-              if (!fresh)
-                throw new ApiError({
-                  code: "UNAUTHORIZED",
-                  message: DEFAULT_ERROR_MESSAGES.UNAUTHORIZED,
-                  path: "/v1/upload/direct",
-                })
-              await sendOnce(fresh)
-            }
-            return
-          } catch (err) {
-            // NP-006: retry cerdas — hanya transien, hormati abort.
-            const canRetry =
-              attempt < MAX_VIDEO_UPLOAD_RETRIES &&
-              !signal?.aborted &&
-              isRetriableVideoUploadError(err)
-            if (!canRetry) throw err
-            attempt += 1
-            await sleepAbortable(VIDEO_UPLOAD_RETRY_BASE_MS * 2 ** (attempt - 1), signal)
-          }
-        }
-      } catch (err) {
-        reject(err)
-      }
-    }
-    void run()
-  })
+  // Audit 2026-10-09: JOIN transport terpusat `uploadFileWithProgress`
+  // (dulu XHR sendiri — ±150 baris duplikat dari jalur foto). Perilakunya
+  // sama: progress byte jujur, cek NetInfo pra-upload, refresh 401 sekali,
+  // retry transien + backoff (NP-006), timeout adaptif rumus VIDEO
+  // (basis 120 dtk + 100 KB/s, cap 30 mnt — 100 MB @ 100 KB/s ≈ 17 mnt
+  // transfer saja). Field video (durationSec/width/height) diteruskan
+  // parser yang sama.
+  const { purpose = "SHOWCASE_VIDEO", onProgress, signal, timeoutMs } = opts
+  return (async () => {
+    // PERF-FIX (bundle): image-picker dimuat lazy (lihat loadImagePicker).
+    const { pickedImageToFormData } = await loadImagePicker()
+    const formData = await pickedImageToFormData(asset, "file")
+    formData.append("purpose", purpose)
+    const raw = await uploadFileWithProgress(formData, {
+      fileBytes: asset.size ?? 0,
+      onProgress,
+      signal,
+      timeoutMs,
+      timeoutKind: "video",
+    })
+    // fail-closed: fileKey wajib (parser memvalidasi + meneruskan field video).
+    return parseDirectUploadObject(raw, "/v1/upload/direct") as DirectVideoUpload
+  })()
 }
 
 // ------------------------------------------------------------------
@@ -790,6 +960,12 @@ export async function uploadChunkedVideo(
   if (signal?.aborted) {
     throw new ApiError({ code: "ABORTED", message: "Unggahan dibatalkan." })
   }
+  // Audit 2026-10-09 (A3): cek NetInfo SEBELUM upload — video 100 MB offline
+  // dulu terbakar di onerror XHR dan dilaporkan "Tidak ada koneksi internet"
+  // SETELAH percobaan; kini gagal cepat dengan pesan offline yang terverifikasi.
+  if (isOfflineKnown()) {
+    throw offlineVerifiedUploadError("/v1/upload/chunked/init")
+  }
   const isWeb = Platform.OS === "web"
 
   // 1. init sesi (validasi purpose/batas/MIME gagal-cepat di server)
@@ -932,7 +1108,7 @@ export async function uploadChunkedVideo(
           })
           break
         } catch (err) {
-          const retriable = !signal?.aborted && attempt < 2 && isRetriableVideoUploadError(err)
+          const retriable = !signal?.aborted && attempt < UPLOAD_MAX_RETRIES && isRetriableUploadError(err)
           if (!retriable) throw err
           attempt += 1
           await sleepAbortable(1000 * 2 ** (attempt - 1), signal)
@@ -960,8 +1136,9 @@ export async function uploadChunkedVideo(
       // (magic-byte, durasi, thumbnail) — petakan ulang kode backendnya juga.
       remapChunkedUploadError(err, `${basePath}/complete`)
     }
-    const result = parseVideoUploadObject(
+    const result = parseDirectUploadObject(
       (completeRaw ?? {}) as Record<string, unknown>,
+      `${basePath}/complete`,
     )
     if (!result.fileKey) {
       throw new ApiError({ code: "PARSE", message: "Respons server tidak lengkap." })
@@ -994,6 +1171,7 @@ export async function uploadDirectImage(
   img: PickedImage,
   purpose: string,
   signal?: AbortSignal,
+  opts: { onProgress?: (fraction: number) => void } = {},
 ): Promise<{ fileKey: string }> {
   // PERF-FIX (bundle): image-picker dimuat lazy (lihat loadImagePicker).
   // PERF-FIX (2026-09-30): resize TERPUSAT untuk semua purpose (KYC, sengketa,
@@ -1004,15 +1182,15 @@ export async function uploadDirectImage(
   const resized = (img.mimeType ?? "").startsWith("image/") ? await resizePickedImage(img) : img
   const formData = await pickedImageToFormData(resized, "file")
   formData.append("purpose", purpose)
-  // 2026-10-07: timeout adaptif — 20 detik default membunuh upload foto di
-  // koneksi lambat. Rumus: 60 detik basis + waktu transfer pada 100 KB/s
-  // (konservatif). Min 60 detik, maks 5 menit. Mengikuti pola uploadDirectVideo.
+  // Audit 2026-10-09 (B4/B6): transport terpusat — timeout adaptif terhitung
+  // dari fileBytes (basis 60 dtk + 100 KB/s, cap 5 mnt; dulu rumus ini
+  // tercakup inline di sini, kini terpusat di upload-errors.ts), cek NetInfo
+  // pra-upload, progress byte jujur, retry transien + backoff.
   const fileBytes = resized.size ?? img.size ?? 0
-  const adaptiveTimeout = fileBytes > 0
-    ? Math.min(300_000, Math.max(60_000, 60_000 + fileBytes / 100))
-    : 60_000
-  const result = await uploadDirect(formData, signal, adaptiveTimeout)
-  if (!result.fileKey) throw new ApiError({ code: "PARSE", message: "Kunci unggahan tidak tersedia." })
+  const result = parseDirectUploadObject(
+    await uploadFileWithProgress(formData, { signal, fileBytes, onProgress: opts.onProgress }),
+    "/v1/upload/direct",
+  )
   return { fileKey: result.fileKey }
 }
 
