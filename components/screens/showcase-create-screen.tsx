@@ -56,6 +56,7 @@ import { SHOWCASE_IMAGE_MAX_BYTES, getShowcasePhotoLimit } from "@/lib/showcase-
 import { useKahadePlus } from "@/lib/use-kahade-plus"
 import { ShowcaseHtmlDescriptionEditor } from "@/components/ui/showcase-html-description-editor"
 import { sanitizeShowcaseHtml } from "@/lib/showcase-html"
+import { uploadMessage } from "@/lib/upload-errors"
 import {
   cleanupPendingShowcaseKeys,
   uploadShowcasePhoto,
@@ -538,31 +539,51 @@ export default function ShowcaseCreateScreen() {
       // S6: upload konkuren maks 2 — lebih cepat dari sekuensial, tetap ramah
       // memori/jaringan dibanding Promise.all tak terbatas.
       const CONCURRENCY = 2
+      const total = resizedAssets.length
       let completed = 0
+      // Audit 2026-10-09 C5: progress JUJUR — bar = foto selesai + fraksi
+      // byte foto yang sedang dikirim di tiap slot (dulu: lompat per foto
+      // selesai, tanpa kemajuan byte di dalam foto).
+      const inFlight: Record<number, number> = {}
+      const publish = () => {
+        const partial = Object.values(inFlight).reduce((a, b) => a + b, 0)
+        setUploadProgress(Math.min(1, (completed + partial) / total))
+      }
       const bump = () => {
         completed += 1
-        setUploadProgress(completed / resizedAssets.length)
+        publish()
         setProgress(
           translate("Mengunggah foto {x} dari {y}", {
             x: completed,
-            y: resizedAssets.length,
+            y: total,
           }),
         )
       }
       const queue = [...resizedAssets]
-      const workers = Array.from({ length: Math.min(CONCURRENCY, queue.length) }, async () => {
+      const workers = Array.from({ length: Math.min(CONCURRENCY, queue.length) }, async (_v, slot) => {
         while (queue.length > 0) {
           if (controller.signal.aborted) return
           const asset = queue.shift()!
+          inFlight[slot] = 0
           try {
-            const outcome = await uploadShowcasePhoto(asset, controller.signal)
+            const outcome = await uploadShowcasePhoto(asset, {
+              signal: controller.signal,
+              onProgress: (fraction) => {
+                inFlight[slot] = fraction
+                publish()
+              },
+            })
             uploaded.push({ fileKey: outcome.fileKey, asset, thumbnailFileKey: outcome.thumbnailFileKey })
           } catch (err) {
             if (controller.signal.aborted) throw new Error("aborted")
             // BUG #2: sebelumnya hanya asset yang disimpan tanpa pesan —
             // user tidak pernah tahu penyebab gagalnya.
-            failures.push({ asset, message: userMessage(err) })
+            // Audit 2026-10-09 A1: `uploadMessage` (bukan `userMessage`) —
+            // timeout/413/5xx/network tak stabil punya copy masing-masing;
+            // "Tidak ada koneksi internet" hanya bila NetInfo memverifikasi.
+            failures.push({ asset, message: uploadMessage(err, { purpose: "SHOWCASE_IMAGE" }) })
           } finally {
+            delete inFlight[slot]
             bump()
           }
         }
@@ -602,7 +623,11 @@ export default function ShowcaseCreateScreen() {
     } catch (error) {
       void cleanupPendingShowcaseKeys(uploaded.flatMap(previewServerKeys))
       if (!controller.signal.aborted && mounted.current) {
-        toast.show({ title: translate("Gagal mengunggah foto"), description: userMessage(error), tone: "danger" })
+        toast.show({
+          title: translate("Gagal mengunggah foto"),
+          description: uploadMessage(error, { purpose: "SHOWCASE_IMAGE" }),
+          tone: "danger",
+        })
       }
     } finally {
       uploadBusy.current = false
@@ -696,10 +721,13 @@ export default function ShowcaseCreateScreen() {
     } catch (error) {
       if (controller.signal.aborted) return
       if (mounted.current) {
-        // Pesan sudah Indonesia & spesifik (dipetakan dari kode backend).
+        // Audit 2026-10-09 A1/F1: `uploadMessage` — 413 menyebut "maks 100
+        // MB", timeout = "koneksi lambat", offline hanya bila terverifikasi.
+        // Copy backend spesifik (VIDEO_TOO_LARGE, dsb.) diteruskan apa
+        // adanya oleh `uploadMessage`.
         toast.show({
           title: translate("Gagal mengunggah video"),
-          description: userMessage(error),
+          description: uploadMessage(error, { purpose: "SHOWCASE_VIDEO" }),
           tone: "danger",
         })
       }
@@ -718,6 +746,7 @@ export default function ShowcaseCreateScreen() {
     if (uploadBusy.current || saveBusy.current || failedAssets.length === 0) return
     uploadBusy.current = true
     setUploading(true)
+    setUploadProgress(0)
     const controller = new AbortController()
     uploadAbort.current = controller
     const next = [...previews]
@@ -731,11 +760,18 @@ export default function ShowcaseCreateScreen() {
           }),
         )
         try {
-          const result = await uploadShowcasePhoto(failed.asset, controller.signal)
+          // Audit 2026-10-09 C5: retry hanya foto yang GAGAL (dulu sudah
+          // begitu — dipertahankan) + progress byte jujur per file.
+          const result = await uploadShowcasePhoto(failed.asset, {
+            signal: controller.signal,
+            onProgress: (fraction) =>
+              setUploadProgress((index + fraction) / failedAssets.length),
+          })
           next.push({ fileKey: result.fileKey, asset: failed.asset, thumbnailFileKey: result.thumbnailFileKey })
         } catch (err) {
           // BUG #2: pola yang sama — simpan pesan asli agar user tahu penyebabnya.
-          failures.push({ asset: failed.asset, message: userMessage(err) })
+          // Audit 2026-10-09 A1: `uploadMessage` (bukan `userMessage`).
+          failures.push({ asset: failed.asset, message: uploadMessage(err, { purpose: "SHOWCASE_IMAGE" }) })
         }
       }
       if (!mounted.current || revision !== getSessionRevision()) {

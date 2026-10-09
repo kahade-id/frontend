@@ -40,7 +40,6 @@ import { useToast } from "@/components/ui/toast"
 import { StoryAudienceSheet } from "@/components/story/story-audience-sheet"
 import { StoryDraggableTag } from "@/components/story/story-draggable-tag"
 import { StoryProductPicker } from "@/components/story/story-product-picker"
-import { userMessage } from "@/lib/api/errors"
 import {
   STORY_PRODUCT_TAGS_MAX,
   STORY_TEXT_MAX,
@@ -48,7 +47,9 @@ import {
   uploadStoryMedia,
   type StoryAudience,
 } from "@/lib/api/story"
-import { pickImage, pickedImageToFormData, type PickedImage } from "@/lib/image-picker"
+import { pickImage, pickedImageToFormData, resizePickedImage, type PickedImage } from "@/lib/image-picker"
+import { validateStoryMediaAsset } from "@/lib/story-media-limits"
+import { uploadMessage } from "@/lib/upload-errors"
 import { haptic } from "@/lib/haptics"
 import { useT } from "@/lib/i18n"
 import {
@@ -124,6 +125,14 @@ export default function StoryCreateScreen() {
         return
       }
       if (res.status !== "picked") return
+      // Audit 2026-10-09 (C2): guard 10 MB SEBELUM user menyusun story —
+      // server pasti menolak (413 STORY_MEDIA_TOO_LARGE); dulu gagal
+      // misterius di tengah/sesudah upload.
+      const guardError = validateStoryMediaAsset(res.asset)
+      if (guardError) {
+        toast.show({ title: t("Foto terlalu besar"), description: guardError, tone: "danger" })
+        return
+      }
       setMedia({ asset: res.asset })
       setDraft({ ...emptyStoryDraft("image") })
       setStage("edit")
@@ -214,8 +223,14 @@ export default function StoryCreateScreen() {
         let mediaId: string | undefined
         if (snapshot.kind === "image") {
           if (!mediaAsset) throw new Error("media")
-          const form = await pickedImageToFormData(mediaAsset)
-          mediaId = (await uploadStoryMedia(form)).mediaId
+          // Audit 2026-10-09 (C1/B4): dulu aset MENTAH (kamera 4000 px)
+          // diunggah tanpa timeout adaptif. Kini resize 1920 px (fail-open,
+          // pola semua jalur foto lain) + `fileBytes` → timeout adaptif di
+          // transport (10 MB @ 100 KB/s ≈ 100 dtk — mustahil di deadline
+          // 20 dtk global).
+          const resized = await resizePickedImage(mediaAsset)
+          const form = await pickedImageToFormData(resized)
+          mediaId = (await uploadStoryMedia(form, { fileBytes: resized.size })).mediaId
         }
         await createStory(buildCreateInput({ ...snapshot, mediaId: mediaId ?? null }))
         removePendingStoryLocal(localId)
@@ -223,9 +238,12 @@ export default function StoryCreateScreen() {
       } catch (err) {
         // Rollback: entri optimistis dibatalkan; story tidak pernah tercatat di server.
         undo()
+        // Audit 2026-10-09 (A1/F1): uploadMessage — 413 menyebut "maks
+        // 10 MB", timeout = koneksi lambat, offline hanya bila terverifikasi
+        // NetInfo; jatuh ke userMessage utk kegagalan createStory (mutasi JSON).
         toast.show({
           title: t("Story belum terbagikan"),
-          description: userMessage(err),
+          description: uploadMessage(err, { purpose: "STORY" }),
           tone: "danger",
         })
       }

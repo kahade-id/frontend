@@ -5,10 +5,15 @@
  * lengkap); menggantikan dua salinan kode upload yang identik sebelumnya.
  *
  * Fitur item 66:
- * - Progress bar saat mengunggah (ProgressBar indeterminate — fetch tidak
- *   mengekspos progress byte, jadi jangan klaim persen palsu).
+ * - Progress bar saat mengunggah. Audit 2026-10-09 (C5): kini JUJUR —
+ *   `progress` 0–1 dari byte transfer (upload direct memakai XHR
+ *   `uploadFileWithProgress`; dulu fetch → tidak bisa melaporkan kemajuan).
  * - Pesan error inline + tombol "Coba lagi" saat gagal: aset yang sudah
  *   dipilih disimpan (pendingRef) agar retry tidak memaksa pilih ulang.
+ * - Audit 2026-10-09 (D2): `cancelUpload()` membatalkan transfer yang
+ *   sedang berjalan (AbortSignal) — dulu hasil akhirnya tetap terkirim.
+ *   Pesan kegagalan via `uploadMessage` (timeout/413/5xx/offline beda-beda;
+ *   "Tidak ada koneksi internet" hanya bila NetInfo memverifikasi).
  *
  * UPI-08: G-04 lama ("avatarKey yang terupload tapi confirm-nya gagal adalah
  * orphan → hapus best-effort") SUDAH TIDAK BERLAKU. Di alur direct saat ini,
@@ -19,10 +24,11 @@
  */
 import { useCallback, useRef, useState } from "react"
 
-import { api, userMessage } from "@/lib/api"
+import { api, isApiError, userMessage } from "@/lib/api"
 import { translate } from "@/lib/i18n/translate"
 import { pickImage, pickedImageToFormData, resizePickedImage, type PickedImage, type PickImageOptions } from "@/lib/image-picker"
-import { photoUploadTimeoutMs, validateAvatarAsset } from "@/lib/photo-upload-guards"
+import { validateAvatarAsset } from "@/lib/photo-upload-guards"
+import { uploadMessage } from "@/lib/upload-errors"
 import { useToast } from "@/components/ui/toast"
 
 const AVATAR_PICKER: PickImageOptions = { square: true }
@@ -37,6 +43,14 @@ export type UseAvatarUploadOptions = {
 export type UseAvatarUpload = {
   /** true saat mengunggah/menghapus. */
   busy: boolean
+  /**
+   * Audit 2026-10-09 (C5): fraksi 0–1 kemajuan transfer byte (jujur, dari
+   * XHR). `null` = tidak sedang mengunggah. Konsumen menampilkan ProgressBar
+   * determinate saat != null, selain itu indeterminate (hapus avatar).
+   */
+  progress: number | null
+  /** Audit 2026-10-09 (D2): batalkan upload yang sedang berjalan. */
+  cancelUpload: () => void
   /** Pesan error terakhir (inline), atau null. */
   error: string | null
   /**
@@ -64,20 +78,35 @@ export function useAvatarUpload({ onAvatarUrl, onChanged }: UseAvatarUploadOptio
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [preview, setPreview] = useState<PickedImage | null>(null)
+  // Audit 2026-10-09 (C5): fraksi 0–1 byte transfer saat upload berjalan.
+  const [progress, setProgress] = useState<number | null>(null)
   // Aset yang sudah dipilih dipertahankan untuk retry tanpa pilih ulang.
   const pendingRef = useRef<PickedImage | null>(null)
+  // Audit 2026-10-09 (D2): batalkan transfer yang sedang berjalan.
+  const uploadAbortRef = useRef<AbortController | null>(null)
+
+  const cancelUpload = useCallback(() => {
+    uploadAbortRef.current?.abort()
+  }, [])
 
   const performUpload = useCallback(async () => {
     const asset = pendingRef.current
     if (!asset) return
     setBusy(true)
     setError(null)
+    const controller = new AbortController()
+    uploadAbortRef.current = controller
+    setProgress(0)
     try {
       // PERF-FIX (2026-09-30): resize avatar sebelum upload (fail-open).
-      // UPF-04: timeout adaptif dari ukuran file (pasca-resize).
+      // Audit 2026-10-09 (B6/C5): `fileBytes` memicu timeout adaptif di
+      // transport (satu rumus terpusat — bukan lagi pemanggil yang
+      // menghitung sendiri); onProgress = fraksi byte jujur 0–1.
       const resized = await resizePickedImage(asset)
       const uploaded = await api.users.uploadAvatarDirect(await pickedImageToFormData(resized), {
-        timeoutMs: photoUploadTimeoutMs(resized.size),
+        fileBytes: resized.size,
+        onProgress: setProgress,
+        signal: controller.signal,
       })
       // UPI-08: JANGAN anggap avatarKey sebagai orphan bila confirm gagal —
       // uploadAvatarDirect sudah mem-publish-nya sebagai avatar live.
@@ -90,10 +119,20 @@ export function useAvatarUpload({ onAvatarUrl, onChanged }: UseAvatarUploadOptio
       onChanged?.()
       toast.show({ title: translate("Foto profil diperbarui"), tone: "success" })
     } catch (err: unknown) {
-      const message = userMessage(err)
+      // Audit 2026-10-09 (D2): batalkan = tanpa error & tanpa toast —
+      // user sengaja menghentikan; pratinjau sudah ditutup saat confirm.
+      if (isApiError(err) && err.code === "ABORTED") {
+        pendingRef.current = null
+        return
+      }
+      // Audit 2026-10-09 (A1): uploadMessage — 413 menyebut "maks 2 MB",
+      // timeout = "koneksi lambat", offline hanya bila terverifikasi.
+      const message = uploadMessage(err, { purpose: "AVATAR" })
       setError(message)
       toast.show({ title: translate("Gagal mengunggah foto"), description: message, tone: "danger" })
     } finally {
+      uploadAbortRef.current = null
+      setProgress(null)
       setBusy(false)
     }
   }, [onAvatarUrl, onChanged, toast])
@@ -175,5 +214,5 @@ export function useAvatarUpload({ onAvatarUrl, onChanged }: UseAvatarUploadOptio
 
   const clearError = useCallback(() => setError(null), [])
 
-  return { busy, error, preview, upload, confirmPreview, cancelPreview, retry, remove, clearError }
+  return { busy, progress, cancelUpload, error, preview, upload, confirmPreview, cancelPreview, retry, remove, clearError }
 }

@@ -1,19 +1,19 @@
 /**
- * Guard klien upload foto profil (UPF-03, UPF-06) + timeout adaptif (UPF-04).
+ * Guard klien upload foto profil (UPF-03, UPF-06).
  *
  * - validateAvatarAsset: tolak >2 MB / MIME tak didukung (pesan Indonesia).
  * - validateHeaderAsset: tolak >5 MB / MIME tak didukung (pesan Indonesia).
  * - UPF-06: MIME yang DILAPORKAN platform dan tidak didukung → tolak langsung,
  *   ekstensi tidak boleh mengesampingkannya.
- * - photoUploadTimeoutMs: 20 dtk basis + 100 KB/s, maks 120 dtk; tanpa info
- *   ukuran → 60 dtk.
+ *
+ * (Timeout adaptif UPF-04 kini diuji di tests/upload-errors.test.ts —
+ * rumus terpusat uploadTimeoutMs dipakai transport, audit 2026-10-09 B6.)
  */
 import { describe, expect, it } from "vitest"
 
 import {
   AVATAR_COPY,
   HEADER_COPY,
-  photoUploadTimeoutMs,
   validateAvatarAsset,
   validateHeaderAsset,
 } from "@/lib/photo-upload-guards"
@@ -83,25 +83,9 @@ describe("validateHeaderAsset (UPF-03)", () => {
   })
 })
 
-describe("photoUploadTimeoutMs (UPF-04)", () => {
-  it("tanpa info ukuran → 60 dtk", () => {
-    expect(photoUploadTimeoutMs()).toBe(60_000)
-    expect(photoUploadTimeoutMs(0)).toBe(60_000)
-  })
-
-  it("file kecil → minimal 20 dtk", () => {
-    expect(photoUploadTimeoutMs(1000)).toBe(20_010)
-  })
-
-  it("1 MiB → ~30,5 dtk (20 dtk basis + waktu @100KB/s)", () => {
-    expect(photoUploadTimeoutMs(MB)).toBeCloseTo(30_485.76, 1)
-  })
-
-  it("5 MiB → ~72,4 dtk", () => {
-    expect(photoUploadTimeoutMs(5 * MB)).toBeCloseTo(72_428.8, 1)
-  })
-
-  it("file raksasa → di-cap 120 dtk", () => {
-    expect(photoUploadTimeoutMs(50 * MB)).toBe(120_000)
-  })
-})
+// Audit 2026-10-09 (B6): `photoUploadTimeoutMs` dihapus — semua jalur upload
+// foto kini melewati transport terpusat `uploadFileWithProgress` yang
+// menghitung timeout adaptif dari `fileBytes` (rumus `uploadTimeoutMs` di
+// lib/upload-errors.ts). Regresi "avatar dibunuh di detik ~23" kini dijaga
+// oleh tests/upload-errors.test.ts (uploadTimeoutMs) & upload-transport.test.ts
+// (timeout adaptif dari fileBytes).

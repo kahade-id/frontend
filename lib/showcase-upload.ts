@@ -1,5 +1,6 @@
 /** Upload-only workflow. Direct upload ke server (self-hosted storage, 2026-09-26). */
 import { api } from "@/lib/api"
+import { parseDirectUploadObject } from "@/lib/api/upload"
 import { ApiError, isApiError } from "@/lib/api/errors"
 import type { PickedImage } from "@/lib/image-picker"
 import { pickedImageToFormData, resizePickedImage } from "@/lib/image-picker"
@@ -44,7 +45,15 @@ export type ShowcaseVideoUploadOutcome = {
   height?: number
 }
 
-export async function uploadShowcasePhoto(asset: PickedImage, signal?: AbortSignal): Promise<ShowcaseUploadOutcome> {
+export async function uploadShowcasePhoto(
+  asset: PickedImage,
+  opts: {
+    signal?: AbortSignal
+    /** Fraksi 0–1 transfer file INI (jujur, dari XHR) — audit 2026-10-09 C. */
+    onProgress?: (fraction: number) => void
+  } = {},
+): Promise<ShowcaseUploadOutcome> {
+  const { signal, onProgress } = opts
   let fileKey: string | undefined
   let thumbnailFileKey: string | undefined
   let stage = "read"
@@ -66,6 +75,7 @@ export async function uploadShowcasePhoto(asset: PickedImage, signal?: AbortSign
         message: `Ukuran foto melebihi 5 MB (${(resized.size / 1048576).toFixed(1)} MB). Pilih foto yang lebih kecil.`,
       })
     }
+    check()
     stage = "transfer"
     // Self-hosted (2026-09-26): tidak ada presigned URL R2 lagi.
     // Upload langsung multipart ke server: POST /v1/upload/direct
@@ -73,8 +83,18 @@ export async function uploadShowcasePhoto(asset: PickedImage, signal?: AbortSign
     // tidak terbaca Multer di React Native.
     const formData = await pickedImageToFormData(resized, "file")
     formData.append("purpose", "SHOWCASE_IMAGE")
-    const result = await api.upload.uploadDirect(formData, signal)
-    if (!result.fileKey) throw new ApiError({ code: "PARSE", message: "Kunci unggahan tidak tersedia." })
+    // Audit 2026-10-09 B1: jalur foto dulu lewat `http` fetch (deadline 20
+    // dtk global, tanpa NetInfo pre-check, tanpa progress byte) — kini
+    // transport XHR terpusat: timeout ADAPTIF dari `resized.size`, cek
+    // NetInfo sebelum kirim, progress jujur 0–1, retry transien, abort
+    // per file.
+    const raw = await api.upload.uploadFileWithProgress(formData, {
+      fileBytes: resized.size,
+      timeoutKind: "photo",
+      onProgress,
+      signal,
+    })
+    const result = parseDirectUploadObject(raw, "/v1/upload/direct")
     fileKey = result.fileKey
     // PERF-FIX (NP-001): catat thumbnailFileKey SEBELUM cek abort — kalau
     // dibatalkan tepat di sini, thumbnail ikut dibersihkan (bukan yatim).

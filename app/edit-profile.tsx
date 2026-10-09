@@ -36,7 +36,8 @@ import { Camera as CameraIcon, Image as ImageIcon, Images, Trash } from "phospho
 
 import { api, isApiError, type UpdateProfileDto, userMessage } from "@/lib/api"
 import { pickImage, pickedImageToFormData, resizePickedImage, type PickedImage, type PickImageOptions } from "@/lib/image-picker"
-import { photoUploadTimeoutMs, validateHeaderAsset } from "@/lib/photo-upload-guards"
+import { validateHeaderAsset } from "@/lib/photo-upload-guards"
+import { uploadMessage } from "@/lib/upload-errors"
 import { goBackOrNavigate } from "@/lib/navigation"
 import { useLeaveConfirm } from "@/lib/use-leave-confirm"
 import { useAvatarUpload } from "@/lib/use-avatar-upload"
@@ -153,6 +154,11 @@ export default function EditProfileScreen() {
   const [headerUrl, setHeaderUrl] = useState<string | null>(null)
   const [headerSheetOpen, setHeaderSheetOpen] = useState(false)
   const [headerBusy, setHeaderBusy] = useState(false)
+  // Audit 2026-10-09 (C5/D2): progress byte jujur 0–1 + batalkan per file
+  // untuk upload sampul (dulu: timeout eksplisit, tanpa progress, tak bisa
+  // dibatalkan — tombol "Simpan sampul" memutar spinner tanpa jalan keluar).
+  const [headerProgress, setHeaderProgress] = useState<number | null>(null)
+  const headerAbortRef = useRef<AbortController | null>(null)
 
   const [passwordOpen, setPasswordOpen] = useState(false)
   const [currentPassword, setCurrentPassword] = useState("")
@@ -518,14 +524,22 @@ export default function EditProfileScreen() {
   const confirmPendingHeader = useCallback(async () => {
     if (!pendingHeader || headerBusy) return
     setHeaderBusy(true)
+    setHeaderProgress(0)
+    const controller = new AbortController()
+    headerAbortRef.current = controller
     try {
       // UPF-03: resize sampul sebelum upload (fail-open) — pola sama dengan
       // avatar, agar foto kamera penuh tidak diunggah mentah lalu ditolak.
-      // UPF-04: timeout adaptif dari ukuran file (pasca-resize).
+      // Audit 2026-10-09 (B2/C5): `fileBytes` memicu timeout adaptif di
+      // transport (satu rumus terpusat); onProgress = fraksi byte jujur.
       const resized = await resizePickedImage(pendingHeader)
       const uploaded = await api.users.uploadHeaderDirect(
         await pickedImageToFormData(resized),
-        { timeoutMs: photoUploadTimeoutMs(resized.size) },
+        {
+          fileBytes: resized.size,
+          onProgress: setHeaderProgress,
+          signal: controller.signal,
+        },
       )
       if (uploaded.headerKey) await api.users.confirmHeader({ headerKey: uploaded.headerKey })
       if (uploaded.headerUrl) setHeaderUrl(uploaded.headerUrl)
@@ -533,14 +547,23 @@ export default function EditProfileScreen() {
       setPendingHeaderSource(null)
       toast.show({ title: translate("Foto sampul diperbarui"), tone: "success" })
     } catch (err: unknown) {
+      // Audit 2026-10-09 (D2): user membatalkan → tanpa toast; pratinjau
+      // tetap terbuka supaya "Simpan sampul" bisa ditekan lagi.
+      if (isApiError(err) && err.code === "ABORTED") return
       // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+      // Audit 2026-10-09 (A1/F1): describe = uploadMessage — 413 menyebut
+      // "maks 5 MB", timeout = "koneksi lambat", offline hanya bila
+      // terverifikasi NetInfo (jangan klaim offline dari kegagalan request).
       showMutationError(toast.show, {
         failTitle: translate("Gagal mengunggah foto sampul"),
         uncertainHint: translate("Aksi mungkin sudah diproses — periksa kembali sebelum mencoba lagi."),
         err: err,
         scope: "edit-profile:mengunggah-foto-sampul",
+        describe: (e) => uploadMessage(e, { purpose: "HEADER" }),
       })
     } finally {
+      headerAbortRef.current = null
+      setHeaderProgress(null)
       setHeaderBusy(false)
     }
   }, [pendingHeader, headerBusy, toast.show])
@@ -716,13 +739,19 @@ export default function EditProfileScreen() {
                 </View>
               </View>
               {/* Item 66 (2026-09-28): progress saat mengunggah + error inline
-                  dengan tombol "Coba lagi" (tanpa pilih ulang foto). */}
+                  dengan tombol "Coba lagi" (tanpa pilih ulang foto).
+                  Audit 2026-10-09 (C5/D2): progress byte JUJUR + batalkan. */}
               {avatar.busy ? (
                 <View className="w-44 items-center gap-1.5 pt-2">
-                  <ProgressBar size="sm" className="w-full" accessibilityLabel={translate("Mengunggah foto profil")} />
-                  <Text variant="caption" tone="secondary">
-                    {translate("Mengunggah foto…")}
-                  </Text>
+                  <ProgressBar
+                    size="sm"
+                    className="w-full"
+                    value={avatar.progress != null ? Math.round(avatar.progress * 100) : undefined}
+                    accessibilityLabel={translate("Mengunggah foto profil")}
+                  />
+                  <Button size="sm" variant="ghost" onPress={() => avatar.cancelUpload()}>
+                    {translate("Batalkan unggahan")}
+                  </Button>
                 </View>
               ) : null}
               {avatar.error && !avatar.busy ? (
@@ -916,6 +945,26 @@ export default function EditProfileScreen() {
                 style={{ width: "100%", aspectRatio: undefined }}
               />
             </Card>
+            {/* Audit 2026-10-09 (C5/D2): progress byte jujur + batalkan
+                (dialog "Batal" terkunci selama loading — ini jalan keluarnya). */}
+            {headerProgress != null ? (
+              <View className="w-full items-center gap-1.5">
+                <ProgressBar
+                  size="sm"
+                  className="w-full"
+                  value={Math.round(headerProgress * 100)}
+                  accessibilityLabel={translate("Mengunggah foto sampul")}
+                />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  fullWidth={false}
+                  onPress={() => headerAbortRef.current?.abort()}
+                >
+                  {translate("Batalkan unggahan")}
+                </Button>
+              </View>
+            ) : null}
             <Button
               variant="ghost"
               size="sm"

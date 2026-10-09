@@ -30,6 +30,7 @@
  */
 import { http, seg } from "@/lib/api/client"
 import { ApiError, codeFromStatus } from "@/lib/api/errors"
+import { uploadFileWithProgress, type UploadFileOptions } from "@/lib/api/upload"
 import { asRecord, invalidResponse } from "@/lib/api/response"
 import { serverNow } from "@/lib/server-time"
 
@@ -544,17 +545,33 @@ export async function getMyStories(signal?: AbortSignal): Promise<Story[]> {
   return Array.isArray(r?.stories) ? r.stories.map(parseStory) : []
 }
 
-/** Unggah foto story. Hasil `mediaId` dipakai di `createStory`. */
-export async function uploadStoryMedia(file: FormData): Promise<StoryMediaUpload> {
+/**
+ * Unggah foto story. Hasil `mediaId` dipakai di `createStory`.
+ *
+ * Audit 2026-10-09 (B4): JOIN transport XHR terpusat
+ * (`uploadFileWithProgress`) — dulu `http.post` (fetch) tanpa `timeoutMs`,
+ * jadi deadline 20 dtk global membunuh foto story 10 MB di koneksi lambat
+ * (10 MB @ 100 KB/s ≈ 100 dtk transfer — mustahil lolos 20 dtk). Kini
+ * timeout ADAPTIF dari `fileBytes` (basis 60 dtk + jatah transfer, cap 5
+ * menit), progress byte jujur, bisa dibatalkan, dan cek offline-terverifikasi
+ * sebelum kirim.
+ */
+export async function uploadStoryMedia(
+  file: FormData,
+  opts: Pick<UploadFileOptions, "fileBytes" | "onProgress" | "signal" | "timeoutMs"> = {},
+): Promise<StoryMediaUpload> {
   if (STORY_API_MODE === "mock") {
     return delay(
       () => ({ mediaId: `med-${Date.now().toString(36)}`, url: "" }),
       "uploadStoryMedia",
     )
   }
-  const raw = await http.post<unknown, undefined>("/v1/stories/media", undefined, {
-    auth: "required",
-    formData: file,
+  const raw = await uploadFileWithProgress(file, {
+    path: "/v1/stories/media",
+    fileBytes: opts.fileBytes,
+    onProgress: opts.onProgress,
+    signal: opts.signal,
+    timeoutMs: opts.timeoutMs,
   })
   const r = asRecord(raw)
   const mediaId = str(r?.mediaId)

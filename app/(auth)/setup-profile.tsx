@@ -60,7 +60,7 @@
  *   - "Lewati untuk sekarang" = TextLink (bukan Button ghost): ini navigasi
  *     keluar, bukan aksi. Konsisten dengan pola TextLink di Onboarding.
  */
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { ScrollView, View } from "react-native"
 import { Redirect, useRouter } from "expo-router"
 import { Camera as CameraIcon, PencilSimple } from "phosphor-react-native"
@@ -80,6 +80,9 @@ import { Text } from "@/components/ui/text"
 import { TextLink } from "@/components/ui/text-link"
 import { VStack } from "@/components/ui/stack"
 import { api, getAccessToken, isApiError, userMessage } from "@/lib/api"
+import { uploadMessage } from "@/lib/upload-errors"
+import { validateAvatarAsset } from "@/lib/photo-upload-guards"
+import { ProgressBar } from "@/components/ui/progress-bar"
 import { clearRegistrationState, getRegistrationState } from "@/lib/registration"
 import { hasProfileChanges } from "@/lib/auth-ui"
 import { useLeaveConfirm } from "@/lib/use-leave-confirm"
@@ -123,6 +126,9 @@ export default function SetupProfileScreen() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [avatarUploading, setAvatarUploading] = useState(false)
   const [avatarError, setAvatarError] = useState<string | null>(null)
+  // Audit 2026-10-09 (C5/D2): progress byte jujur 0–1 + batalkan per file.
+  const [avatarProgress, setAvatarProgress] = useState(0)
+  const avatarAbortRef = useRef<AbortController | null>(null)
 
   // UI-A003: upload avatar non-blocking dan langsung tersimpan di server,
   // jadi foto yang terunggah dihitung sebagai perubahan — pengguna yang
@@ -214,12 +220,30 @@ export default function SetupProfileScreen() {
 
   // ── Upload avatar ──────────────────────────────────────────────────
   const uploadAvatar = useCallback(async (asset: PickedImage) => {
+    // UMD-004: guard klien — tolak >2 MB / MIME tak didukung SEBELUM upload
+    // (pola sama dengan useAvatarUpload); layar ini dulunya tidak memvalidasi.
+    const guardError = validateAvatarAsset(asset)
+    if (guardError) {
+      setAvatarError(guardError)
+      return
+    }
     setAvatarUploading(true)
     setAvatarError(null)
+    setAvatarProgress(0)
+    const controller = new AbortController()
+    avatarAbortRef.current = controller
     try {
       // Langkah 1: POST /v1/users/me/avatar/direct (multipart)
       // PERF-FIX (2026-09-30): resize avatar sebelum upload (fail-open).
-      const uploaded = await api.users.uploadAvatarDirect(await pickedImageToFormData(await resizePickedImage(asset)))
+      // Audit 2026-10-09 (B2): dulu TANPA timeoutMs (deadline 20 dtk global
+      // membunuh avatar di 4G lambat). Kini `fileBytes` memicu timeout
+      // adaptif di transport + progress byte jujur + batalkan per file.
+      const resized = await resizePickedImage(asset)
+      const uploaded = await api.users.uploadAvatarDirect(await pickedImageToFormData(resized), {
+        fileBytes: resized.size,
+        onProgress: setAvatarProgress,
+        signal: controller.signal,
+      })
       // Langkah 2: POST /v1/users/me/avatar/confirm — hanya bila server
       // mengembalikan avatarKey (kontrak ConfirmAvatarDto).
       if (uploaded.avatarKey) {
@@ -227,9 +251,15 @@ export default function SetupProfileScreen() {
       }
       if (uploaded.avatarUrl) setAvatarUrl(uploaded.avatarUrl)
     } catch (err) {
-      setAvatarError(isApiError(err) ? userMessage(err) : "Gagal mengunggah foto. Coba lagi.")
+      // Audit 2026-10-09 (D2): user membatalkan → tanpa error.
+      if (isApiError(err) && err.code === "ABORTED") return
+      // Audit 2026-10-09 (A1): uploadMessage — 413 "maks 2 MB", timeout
+      // "koneksi lambat", offline hanya bila NetInfo memverifikasi.
+      setAvatarError(uploadMessage(err, { purpose: "AVATAR" }))
     } finally {
+      avatarAbortRef.current = null
       setAvatarUploading(false)
+      setAvatarProgress(0)
     }
   }, [])
 
@@ -358,9 +388,22 @@ export default function SetupProfileScreen() {
                 {avatarError}
               </Text>
             ) : avatarUploading ? (
-              <Text variant="caption" tone="secondary" className="text-center">
-                Mengunggah foto…
-              </Text>
+              // Audit 2026-10-09 (C5/D2): progress byte JUJUR + batalkan.
+              <View className="w-44 items-center gap-1.5">
+                <ProgressBar
+                  size="sm"
+                  className="w-full"
+                  value={Math.round(avatarProgress * 100)}
+                  accessibilityLabel="Mengunggah foto profil"
+                />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onPress={() => avatarAbortRef.current?.abort()}
+                >
+                  Batalkan unggahan
+                </Button>
+              </View>
             ) : avatarUrl ? (
               <Text variant="caption" tone="success" className="text-center">
                 Foto profil berhasil diperbarui
