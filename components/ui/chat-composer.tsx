@@ -42,6 +42,7 @@ import { Fragment, useCallback, useEffect, useRef, useState } from "react"
 import {
   Platform,
   ScrollView,
+  StyleSheet,
   TextInput,
   View,
   type NativeSyntheticEvent,
@@ -58,6 +59,8 @@ import { Icon } from "@/components/ui/icon"
 import { QuickReplyPicker } from "@/components/ui/quick-reply-picker"
 import { ChatFormatBar } from "@/components/ui/chat-format-bar"
 import { FadeIn } from "@/components/ui/fade-in"
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated"
+import { useReducedMotion } from "@/lib/use-reduced-motion"
 import { VoiceHoldMic } from "@/components/ui/voice-hold-mic"
 import { VoiceRecordingBar } from "@/components/ui/voice-recording-bar"
 import type { VoiceHoldController } from "@/lib/use-voice-hold"
@@ -70,6 +73,13 @@ import { tokens } from "@/lib/tokens"
 
 export const CHAT_MESSAGE_MAX = 2000
 const MAX_LINES = 5
+/**
+ * 2026-10-08 (temuan #10): jarak "angkat" pil input saat mode balas aktif.
+ * Pil tidak berpindah posisi permanen — ia memulai 16px lebih bawah lalu naik
+ * (spring), sehingga kutipan yang masuk ke dalamnya terasa MENGANGKAT pil,
+ * bukan sekadar menyisipkan baris.
+ */
+const REPLY_LIFT_PX = 16
 /**
  * FE-SEND (2026-10-08, keluhan "double-send"): jendela anti-kirim-ulang
  * untuk MUATAN YANG SAMA.
@@ -205,6 +215,35 @@ export function ChatComposer({
   useLanguage()
   const { mode } = useTheme()
   const palette = tokens.colors[mode]
+  const reduceMotion = useReducedMotion()
+  /**
+   * 2026-10-08 (temuan #10): kutipan balasan PINDAH KE DALAM pil input, dan
+   * pilnya ikut "naik" saat kutipan muncul.
+   *
+   * Kenapa reanimated, bukan <FadeIn>: <FadeIn> mengganti `key` untuk
+   * mengulang animasi, dan mengganti key berarti me-remount pil — fokus
+   * TextInput hilang tepat saat user hendak mengetik balasannya. Shared
+   * value menggerakkan transform tanpa menyentuh pohon React.
+   * Updater `useAnimatedStyle` di bawah HANYA membaca shared value (tidak
+   * memanggil fungsi JS) — syarat 60fps.
+   */
+  const replyLift = useSharedValue(1)
+  const hadReplyRef = useRef(false)
+  useEffect(() => {
+    const has = !!replyTo
+    if (has && !hadReplyRef.current && !reduceMotion) {
+      // Mulai 16px lebih bawah lalu naik: pil terasa diangkat kutipannya.
+      replyLift.value = 0
+      replyLift.value = withSpring(1, tokens.motion.spring)
+    } else {
+      replyLift.value = 1
+    }
+    hadReplyRef.current = has
+  }, [replyTo, replyLift, reduceMotion])
+  const replyLiftStyle = useAnimatedStyle(
+    () => ({ transform: [{ translateY: (1 - replyLift.value) * REPLY_LIFT_PX }] }),
+    [],
+  )
   // Batch 43: seleksi teks untuk toolbar format (onSelectionChange).
   // 2026-10-08: TextInput TIDAK lagi dikendalikan `selection` secara terus-
   // menerus — di Android, prop `selection` yang selalu diisi pada input
@@ -315,7 +354,12 @@ export function ChatComposer({
   // (live-support) menambahkan chrome-nya sendiri di wrapper.
   return (
     <View
-      className={cn("relative w-full gap-2 bg-background pb-2 pt-2", className)}
+      // 2026-10-08 (temuan #9): `pt-2` DIHAPUS. <FooterBar> sudah memberi
+      // jarak atas (pt-4, atau pt-1.5 pada pemakaian `dense` seperti ruang
+      // chat), jadi tumpukan keduanya menghasilkan pita putih ~24px di antara
+      // thread dan pil input. Turunan terakhir yang tersisa di sini hanya
+      // `pb-2` sebelum safe-area.
+      className={cn("relative w-full gap-2 bg-background pb-2", className)}
       accessibilityRole="toolbar"
       {...rest}
     >
@@ -328,22 +372,6 @@ export function ChatComposer({
           onClose={() => onChangeText(value.replace(/^\//, ""))}
         />
       ) : null}
-      {replyTo ? (
-        <View className="flex-row items-center gap-3 rounded-sm border-l-2 border-border-focus bg-surface py-2 pl-3 pr-1">
-          <View className="flex-1">
-            <Text ellipsizeMode="tail" variant="caption" weight={600} tone="primary" numberOfLines={1}>
-              {t.replyingTo} {replyTo.senderName}
-            </Text>
-            <Text variant="caption" tone="secondary" numberOfLines={1}>
-              {replyTo.preview}
-            </Text>
-          </View>
-          {onCancelReply ? (
-            <IconButton icon={X} size="sm" variant="ghost" accessibilityLabel={t.cancelReply} onPress={onCancelReply} />
-          ) : null}
-        </View>
-      ) : null}
-
       {attachments.length > 0 ? (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="gap-2 pr-4">
           {attachments.map((a) => (
@@ -364,11 +392,21 @@ export function ChatComposer({
       {/* Batch 43: toolbar format teks (B/I/mono/underline/spoiler/tautan). */}
       {formatBar && !disabled ? <ChatFormatBar onFormat={handleFormat} /> : null}
 
+      {/* Pembungkus MOTION: hanya transform, lebar penuh, className
+          dilarang di Animated.View (WEB-014). */}
+      <Animated.View style={[styles.liftWrap, replyLiftStyle]}>
       {/* (2026-10-05, revisi produk: input card kaca seperti header —
-          background #F3F4F6/64, tanpa border/separator.) */}
+          background #F3F4F6/64, tanpa border/separator.)
+
+          2026-10-08 (temuan #10): kutipan balasan kini berada DI DALAM pil
+          kaca ini (bukan melayang di atasnya), jadi pil ikut membesar dan
+          terangkat — satu objek yang bergerak, bukan dua kartu terpisah.
+          Sudutnya mengikuti bentuk: `rounded-full` saat satu baris (tanpa
+          balasan), `rounded-lg` saat ada kutipan karena isinya dua baris. */}
       <View
         className={cn(
-          "min-h-12 w-full flex-row items-end rounded-full pl-1 pr-1 py-1",
+          "min-h-12 w-full rounded-full pl-1 pr-1 py-1",
+          replyTo && "rounded-lg",
           disabled && "opacity-disabled",
         )}
         style={[
@@ -380,6 +418,25 @@ export function ChatComposer({
             : null,
         ]}
       >
+        {/* Strip balasan — DI DALAM pil, di atas baris ketik. `bg-surface`
+            (mode-aware) memberi kontras tipis terhadap kaca pil sehingga
+            kutipan terbaca sebagai "lapisan dalam", bukan bagian teks. */}
+        {replyTo ? (
+          <View className="mb-1 flex-row items-center gap-2 rounded-sm border-l-2 border-border-focus bg-surface px-2 py-1.5">
+            <View className="min-w-0 flex-1">
+              <Text ellipsizeMode="tail" variant="caption" weight={600} tone="primary" numberOfLines={1}>
+                {t.replyingTo} {replyTo.senderName}
+              </Text>
+              <Text variant="caption" tone="secondary" numberOfLines={1}>
+                {replyTo.preview}
+              </Text>
+            </View>
+            {onCancelReply ? (
+              <IconButton icon={X} size="sm" variant="ghost" accessibilityLabel={t.cancelReply} onPress={onCancelReply} />
+            ) : null}
+          </View>
+        ) : null}
+        <View className="w-full flex-row items-end">
         {voiceActive && voice ? (
           <VoiceRecordingBar
             key="voice-bar"
@@ -490,7 +547,17 @@ export function ChatComposer({
             </PressableScale>
           )}
         </FadeIn>
+        </View>
       </View>
+      </Animated.View>
     </View>
   )
 }
+
+/**
+ * Pembungkus animasi angkat pil: lebar penuh (`width: "100%"` di style, bukan
+ * className — className pada Animated.View diabaikan di web, WEB-014).
+ */
+const styles = StyleSheet.create({
+  liftWrap: { width: "100%" },
+})

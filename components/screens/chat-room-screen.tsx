@@ -3931,10 +3931,6 @@ function ChatRoomScreenContent() {
    * keystroke) memaksa render ulang kontainer list.
    */
   const threadKeyExtractor = useCallback((row: ThreadRow) => row.key, [])
-  const threadContentStyle = useMemo(
-    () => ({ paddingBottom: insets.bottom + tokens.space[4], flexGrow: 1 }),
-    [insets.bottom],
-  )
   const threadListHeader = useMemo(
     () =>
       messages.length > 0 ? (
@@ -3977,6 +3973,24 @@ function ChatRoomScreenContent() {
     timedOut: loadTimedOut,
   })
   const handleRetryLoad = useCallback(() => void fetchMessages(), [fetchMessages])
+
+  /**
+   * 2026-10-08 (temuan #9): `insets.bottom` DIHAPUS dari padding bawah thread
+   * selama footer tampil. Footer (<FooterBar>) SUDAH menyediakan safe-area
+   * bawah, jadi inset ini cuma menambah pita kosong — pada perangkat
+   * ber-indikator home (34px) jarak antara pesan terakhir dan kolom ketik
+   * mencapai 34 + 16 + 22 ≈ 72px. Tanpa footer (ruang tidak tersedia) inset
+   * tetap diperlukan supaya konten tidak berada di bawah indikator.
+   */
+  const footerHidden =
+    threadState === "error" || threadState === "gone" || threadState === "invalid"
+  const threadContentStyle = useMemo(
+    () => ({
+      paddingBottom: footerHidden ? insets.bottom + tokens.space[4] : tokens.space[2],
+      flexGrow: 1,
+    }),
+    [footerHidden, insets.bottom],
+  )
   const handleBackToList = useCallback(() => router.replace(ROUTES.chat), [])
   /**
    * FE-059/FE-060 (audit 2026-09-29): handler stabil untuk ChatPinnedBar
@@ -4051,6 +4065,10 @@ function ChatRoomScreenContent() {
       // 2026-10-08: tanpa garis pemisah di atas kolom ketik — ruang chat
       // adalah satu percakapan, bukan body + CTA yang perlu dipisah.
       footerBorderless
+      // 2026-10-08 (temuan #9): jarak atas footer diperkecil. <FooterBar>
+      // pt-4 + <ChatComposer> pt-2 menumpuk jadi pita putih ~24px di antara
+      // pesan terakhir dan pil input; keduanya kini 6px + 0.
+      footerDense
       footer={
         // UI-C001: room 404 (roomGone) menyembunyikan footer — composer yang
         // tetap tampil di bawah EmptyState "tidak tersedia" mengundang kirim

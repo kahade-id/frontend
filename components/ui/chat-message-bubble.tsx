@@ -320,6 +320,14 @@ const DEFAULT_LABELS = { retry: "Coba lagi", failed: "Belum terkirim", edited: "
  */
 const AVATAR_SPACER = { width: 24, height: 24 } as const
 
+/**
+ * 2026-10-08 (#11): geser translasi untuk memindah hint reply ke sisi KANAN
+ * bubble. Dihitung dari geometri hint: posisi dasar -44px (`-left-11`) dan
+ * lingkaran 36px (padding 8 + ikon 20) → butuh `lebar bubble + 52px` supaya
+ * menempati [W + 8, W + 44], simetris dengan [-44, -8] di sisi kiri.
+ */
+const SWIPE_HINT_FLIP_PX = 52
+
 function ChatMessageBubbleBase({
   direction,
   text,
@@ -520,14 +528,29 @@ function ChatMessageBubbleBase({
   /**
    * Hint visual: ikon reply fade+scale (bukan gerak) di ruang yang terbuka
    * di kiri bubble saat digeser.
+   *
+   * 2026-10-08 (#11): gesture kini dua arah, jadi hint harus pindah ke sisi
+   * yang BERBEDA dari arah geser (geser kanan → hint kiri, geser kiri → hint
+   * kanan) — kalau tidak, ikon balas justru tertutup bubble.
+   *
+   * Lebar bubble diukur lewat `onLayout` (JS thread, sekali per layout) dan
+   * disimpan di shared value: di dalam updater worklet tidak ada cara lain
+   * mengetahui tepi kanan bubble, dan updater-nya tetap murni (hanya membaca
+   * shared value, tidak memanggil fungsi JS).
    */
+  const bubbleWidth = useSharedValue(0)
   const swipeHintStyle = useSafeAnimatedStyle(
     () => {
       "worklet"
-      const p = Math.min(1, swipeX.value / SWIPE_REPLY_MAX_PX)
-      return { opacity: p, transform: [{ scale: 0.5 + 0.5 * p }] }
+      const v = swipeX.value
+      const p = Math.min(1, Math.abs(v) / SWIPE_REPLY_MAX_PX)
+      // Posisi dasar hint: `absolute -left-11` (-44px), lingkaran 36px →
+      // menempati [-44, -8]. Sisi kanan bubble: [W + 8, W + 44] → geser
+      // sejauh W + 52 (= 2 × 44 − 36).
+      const flip = v < 0 ? bubbleWidth.value + SWIPE_HINT_FLIP_PX : 0
+      return { opacity: p, transform: [{ translateX: flip }, { scale: 0.5 + 0.5 * p }] }
     },
-    { opacity: 0, transform: [{ scale: 0.5 }] },
+    { opacity: 0, transform: [{ translateX: 0 }, { scale: 0.5 }] },
   )
 
   // ── Hook yang HARUS sebelum early-return ────────────────────────────────
@@ -1010,9 +1033,16 @@ function ChatMessageBubbleBase({
   )
 
   const bubbleBlock = showSwipeChrome ? (
-    <View className="relative">
+    <View
+      className="relative"
+      // Lebar bubble diukur untuk memindah hint ke sisi kanan saat geser
+      // kiri (lihat `swipeHintStyle`).
+      onLayout={(e) => {
+        bubbleWidth.value = e.nativeEvent.layout.width
+      }}
+    >
       {/* Hint visual saat swipe: lingkaran ikon reply yang fade+scale masuk
-          di ruang yang terbuka di kiri bubble. */}
+          di ruang yang terbuka di SISI BERTOLAK BELAKANG arah geser. */}
       <Animated.View
         // audit #5: prop `pointerEvents` deprecated di RN & RN-web —
         // dipindahkan ke style (dekorasi murni, tidak boleh menangkap sentuhan).
