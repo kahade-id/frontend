@@ -71,7 +71,8 @@ export type ShowcaseDetailCommentsProps = {
 const REPLY_PREVIEW = 3
 
 /** Sorotan baris yang dituju deep link `?comment=`. */
-const HIGHLIGHT_ROW = "rounded-md bg-surface-elevated px-2 py-2"
+// VI-04: `bg-surface-elevated` = background (#FFFFFF) di light → sorotan tak terlihat.
+const HIGHLIGHT_ROW = "rounded-md bg-surface px-2 py-2"
 
 export function ShowcaseDetailComments({
   composer,

@@ -49,6 +49,7 @@ vi.mock("@/lib/guest-gate", () => ({
 vi.mock("@/components/ui/toast", () => ({ useToast: () => ({ show: mocks.toastShow }) }))
 
 import { useShowcaseSocialActions } from "@/lib/use-showcase-social-actions"
+import { setRouteSnapshot } from "@/lib/current-route"
 import { clearShowcaseLikeOverride, isShowcaseSaved, toggleShowcaseSaved } from "@/lib/showcase-social-prefs"
 
 const item = {
@@ -167,6 +168,10 @@ describe("S-02 — simpan optimistis", () => {
 
   it("tamu diarahkan ke login dengan jalur kembali layar ini", async () => {
     mocks.session = false
+    // FD-07 (audit etalase 2026-10-10): rute aktif dibaca dari snapshot yang
+    // ditulis <RouteSnapshotTracker/> di root layout — bukan usePathname/
+    // useGlobalSearchParams per kartu (semua kartu render ulang tiap navigasi).
+    setRouteSnapshot({ pathname: "/showcase", params: { kind: "popular" } })
     render(<Harness />)
     act(() => { screen.getByText("login").click() })
     expect(mocks.push).toHaveBeenCalledWith({

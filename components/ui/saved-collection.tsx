@@ -131,6 +131,12 @@ export function SavedCollection() {
   }, [])
 
   const { loading, refreshing = false, error, refresh, reload } = query
+  // SO-09: satu gestur tarik-segarkan menyegarkan profil DAN karya tersimpan.
+  const [savedRefreshToken, setSavedRefreshToken] = useState(0)
+  const handleRefresh = useCallback(() => {
+    setSavedRefreshToken((t) => t + 1)
+    return refresh()
+  }, [refresh])
   const content = error ? (
     <ErrorState
       title={translate("Gagal memuat profil tersimpan")}
@@ -171,10 +177,10 @@ export function SavedCollection() {
   )
 
   return (
-    <DataScroll onRefresh={refresh} refreshing={refreshing} enabled={!loading}>
+    <DataScroll onRefresh={handleRefresh} refreshing={refreshing} enabled={!loading}>
       {/* J-01: karya tersimpan punya query sendiri — tidak ikut hilang saat
           query PROFIL tersimpan loading/error. */}
-      <ShowcaseSavedCollection />
+      <ShowcaseSavedCollection refreshToken={savedRefreshToken} />
       <Crossfade loading={loading} skeleton={<LoadingScreen message={translate("Memuat profil tersimpan…")} />}>
         {content}
       </Crossfade>

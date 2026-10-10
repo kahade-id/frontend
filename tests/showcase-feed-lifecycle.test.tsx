@@ -150,7 +150,7 @@ describe("actual feed component E09–E20", () => {
     render(<ShowcaseFeedTab bottomPadding={0} />)
     await waitFor(() => expect(screen.getAllByText("only-one").length).toBeGreaterThan(0))
     expect(
-      screen.getByText("Sebagian etalase belum dapat dimuat. Tarik untuk menyegarkan."),
+      screen.getByText("Hanya sebagian etalase dari akun yang Anda ikuti yang ditampilkan."),
     ).toBeTruthy()
   })
 
@@ -159,7 +159,7 @@ describe("actual feed component E09–E20", () => {
     mocks.feed.mockResolvedValue(page([item("last-account-work")]))
     render(<ShowcaseFeedTab bottomPadding={0} />)
     await screen.findByText("last-account-work")
-    expect(screen.queryByText("Sebagian etalase belum dapat dimuat. Tarik untuk menyegarkan.")).toBeNull()
+    expect(screen.queryByText("Hanya sebagian etalase dari akun yang Anda ikuti yang ditampilkan.")).toBeNull()
   })
 
   it("refresh blocks concurrent more and clears the old load-more error", async () => {

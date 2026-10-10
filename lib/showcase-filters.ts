@@ -14,6 +14,7 @@
  * dengan `CurrencyRange` sehingga assignment antar keduanya aman.
  */
 import { formatRupiah } from "@/lib/format"
+import { translate } from "@/lib/i18n/translate"
 
 export type PriceRange = { min: number | null; max: number | null }
 
@@ -80,10 +81,12 @@ export function countActiveFeedFilters(input: {
  */
 export function describeSheetFilters(f: ShowcaseFeedFilters): string {
   const parts: string[] = []
-  if (f.condition === "NEW") parts.push("Baru")
-  else if (f.condition === "USED") parts.push("Bekas")
-  if (f.minRating === "4") parts.push("Rating 4+")
-  else if (f.minRating === "4_5") parts.push("Rating 4,5+")
+  // UX-23 (audit etalase 2026-10-10): tiap bagian diterjemahkan SEBELUM
+  // digabung — string gabungan "Baru · Rating 4+" tidak pernah cocok kamus.
+  if (f.condition === "NEW") parts.push(translate("Baru"))
+  else if (f.condition === "USED") parts.push(translate("Bekas"))
+  if (f.minRating === "4") parts.push(translate("Rating 4+"))
+  else if (f.minRating === "4_5") parts.push(translate("Rating 4,5+"))
   const { min, max } = f.price
   if (min != null && max != null) parts.push(`${formatRupiah(min)}–${formatRupiah(max)}`)
   else if (min != null) parts.push(`≥ ${formatRupiah(min)}`)

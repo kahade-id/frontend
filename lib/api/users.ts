@@ -861,6 +861,14 @@ export type ShowcaseItem = {
   sortOrder?: number
   category?: string | null
   visibility?: "PUBLIC" | "PRIVATE"
+  condition?: string | null
+  /** Field commerce pemilik (CR-01): `originalPrice` lama = SEN, `originalPriceIdr` (BE-1) = IDR; delivery/scheduledAt hanya pemilik. */
+  productType?: "JASA" | "FISIK" | "DIGITAL" | "LAINNYA" | null
+  originalPrice?: number | null
+  originalPriceIdr?: number | null
+  serviceDeadlineDays?: number | null
+  digitalDeliveryInfo?: string | null
+  scheduledAt?: string | null
 }
 
 /**

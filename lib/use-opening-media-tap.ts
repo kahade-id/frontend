@@ -16,6 +16,29 @@ export function mediaTapPoint(event: unknown): MediaTapPoint | null {
 }
 const nearby = (a: MediaTapPoint | null, b: MediaTapPoint | null) => !a || !b || Math.hypot(a.x - b.x, a.y - b.y) <= TAP_SLOP
 
+/**
+ * FD-11 (audit etalase 2026-10-10): tamu yang mengetuk ganda di viewer —
+ * `toggleLike` berujung `router.push(loginRequired)` yang dulu terjadi DI
+ * BAWAH Modal viewer yang masih terbuka (layar login tidak terlihat). Tutup
+ * viewer dulu, lalu teruskan ketuk-ganda pada tick berikutnya (setelah
+ * Modal terlepas). Pengguna bersesi: tap diteruskan apa adanya.
+ */
+export function guardOpeningTapForGuest(
+  tap: OpeningMediaTap | undefined,
+  hasSession: boolean,
+  closeViewer: () => void,
+  defer: (fn: () => void) => void = (fn) => void setTimeout(fn, 0),
+): OpeningMediaTap | undefined {
+  if (!tap || hasSession) return tap
+  return {
+    ...tap,
+    onDoubleTap: () => {
+      closeViewer()
+      defer(tap.onDoubleTap)
+    },
+  }
+}
+
 /** Observe, never capture responders: zoom/pan and normal media controls remain intact. */
 export function useOpeningMediaTap(visible: boolean, openingTap?: OpeningMediaTap) {
   const seed = useRef<OpeningMediaTap | null>(openingTap ?? null)

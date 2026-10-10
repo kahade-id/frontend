@@ -112,7 +112,14 @@ describe("Idempotency-Key", () => {
    * membuat laporan/komentar tidak tercipta dua kali saat respons hilang.
    */
   it("Etalase: kunci yang disediakan pemanggil dipakai apa adanya pada percobaan ulang", async () => {
-    fetchMock.mockImplementation(() => jsonResponse({ success: true, data: { id: "s1" } }))
+    // AP-03 (audit etalase 2026-10-10): respons POST komentar diparse — ack
+    // tanpa author ditolak, jadi mock komentar harus berbentuk komentar valid.
+    const comment = { id: "c1", showcaseId: "s1", content: "halo", createdAt: "2026-10-10T00:00:00.000Z", author: { userId: "USR-1", username: "a" } }
+    fetchMock.mockImplementation((url: unknown) =>
+      String(url).includes("/comments")
+        ? jsonResponse({ success: true, data: comment })
+        : jsonResponse({ success: true, data: { id: "s1" } }),
+    )
     const { reportShowcase, addShowcaseComment } = await import("@/lib/api/showcase")
     const { createShowcase } = await import("@/lib/api/users")
 

@@ -30,7 +30,6 @@ import { Linking, Platform, View } from "react-native"
 import { useNavigation, usePreventRemove, type NavigationAction } from "expo-router"
 import {
   Eye,
-  EyeSlash,
   Images,
   Play,
   Plus,
@@ -40,7 +39,7 @@ import {
   VideoCamera,
 } from "phosphor-react-native"
 
-import { api, isApiError, userMessage } from "@/lib/api"
+import { api, userMessage } from "@/lib/api"
 import { createIdempotencyKey } from "@/lib/api/client"
 import { setCommerceFieldsCache } from "@/lib/commerce-fields"
 import { CommerceProductFields, EMPTY_COMMERCE_FORM, type CommerceFormValues } from "@/components/ui/commerce-product-fields"
@@ -48,10 +47,12 @@ import type { CreateShowcaseItemDto, ShowcaseMediaInput } from "@/lib/api/types"
 import { API_CONSTRAINTS } from "@/lib/api/constraints"
 import { getSessionRevision } from "@/lib/api/session"
 import { useSessionRevision } from "@/lib/guest-gate"
-import { pickImage, pickImages, pickedImageToBlob, resizePickedImage, type PickedImage } from "@/lib/image-picker"
+import { pickImage, pickImages, pickedImageToBlob, probePickedFileSize, resizePickedImage, type PickedImage } from "@/lib/image-picker"
 import { markShowcaseFeedDirty } from "@/lib/showcase-social-prefs"
 import { invalidateQueryPrefix } from "@/lib/query-cache"
 import { partitionAssetsBySize, resolveCreateAttempt } from "@/lib/showcase-state"
+import { classifyCreateFailure } from "@/lib/showcase-create-outcome"
+import { createDraftAutosaveGuard } from "@/lib/draft-autosave-guard"
 import { SHOWCASE_IMAGE_MAX_BYTES, getShowcasePhotoLimit } from "@/lib/showcase-limits"
 import { useKahadePlus } from "@/lib/use-kahade-plus"
 import { ShowcaseHtmlDescriptionEditor } from "@/components/ui/showcase-html-description-editor"
@@ -103,6 +104,10 @@ import { ShowcaseFeedItem } from "@/components/ui/showcase-feed-item"
 import type { ShowcaseMedia, ShowcaseSocialItem } from "@/lib/api/showcase"
 import { goBackOrNavigate } from "@/lib/navigation"
 import { ROUTES } from "@/lib/routes"
+import { hitSlopToReach } from "@/lib/hit-slop"
+
+/** VI-11 (audit etalase 2026-10-10): tombol sampul/hapus thumbnail 32pt → 44pt. */
+const THUMB_ACTION_HIT_SLOP = hitSlopToReach(32)
 
 /** Batas field — turunan dari kontrak backend, bukan angka lokal (D-08). */
 const TITLE_MAX = API_CONSTRAINTS.CreateShowcaseItemDto.title.maxLength
@@ -271,11 +276,27 @@ export default function ShowcaseCreateScreen() {
     })
   }, [])
 
+  /**
+   * SH-02 (audit 2026-10-09): setelah draft DIHAPUS secara sengaja (terbit
+   * sukses, "Buang", atau dialog "Lanjutkan draf?" → buang), timer autosave
+   * 1 dtk yang belum nembak TIDAK BOLEH menulis ulang draf ke penyimpanan —
+   * kalau menulis, layar terbuka lagi muncul prompt "Lanjutkan draf?" berisi
+   * karya yang sudah terbit. Dicek di DALAM callback timeout.
+   *
+   * CR-04 (audit etalase 2026-10-10): dulu flag boolean yang tidak pernah
+   * direset — setelah "Buang" di dialog "Lanjutkan draf?" autosave mati untuk
+   * sisa sesi dan ketikan baru hilang bila aplikasi ditutup. Kini penjaga
+   * berbasis epoch: hanya timer yang SUDAH berjalan saat pembuangan yang
+   * basi; timer berikutnya hidup lagi (lib/draft-autosave-guard.ts).
+   */
+  const [draftGuard] = useState(createDraftAutosaveGuard)
   // S7: autosave teks (debounce 1 dtk) — TANPA foto.
   useEffect(() => {
+    // CR-04: token epoch — basi bila draf dibuang sebelum timer menembak.
+    const token = draftGuard.arm()
     const t = setTimeout(() => {
       // SH-02: draf baru saja dihapus sengaja — jangan tuliskan ulang.
-      if (draftSuppressed.current) return
+      if (!draftGuard.isLive(token)) return
       const meaningful =
         form.title.trim() || form.description.trim() || form.category.trim() ||
         form.priceMin != null || form.priceMax != null || form.condition !== ""
@@ -292,7 +313,7 @@ export default function ShowcaseCreateScreen() {
       })
     }, 1000)
     return () => clearTimeout(t)
-  }, [form])
+  }, [form, draftGuard])
   /**
    * Keluar yang disengaja — terbit sukses, "Periksa daftar etalase", atau
    * konfirmasi "Buang". `usePreventRemove` HARUS sudah mati saat navigasi
@@ -305,15 +326,6 @@ export default function ShowcaseCreateScreen() {
   const [intentionalLeave, setIntentionalLeave] = useState(false)
 
   const pendingKeys = useRef<string[]>([])
-  /**
-   * SH-02 (audit 2026-10-09): setelah draft DIHAPUS secara sengaja (terbit
-   * sukses, "Buang", atau dialog "Lanjutkan draf?" → buang), timer autosave
-   * 1 dtk yang belum nembak TIDAK BOLEH menulis ulang draf ke penyimpanan —
-   * kalau menulis, layar terbuka lagi muncul prompt "Lanjutkan draf?" berisi
-   * karya yang sudah terbit. Dicek di DALAM callback timeout (cek saat efek
-   * terlambat: timer yang sudah berjalan tetap akan nembak).
-   */
-  const draftSuppressed = useRef(false)
   const createAttempt = useRef<{ key: string; dto: CreateShowcaseItemDto } | null>(null)
   const uploadAbort = useRef<AbortController | null>(null)
   const uploadBusy = useRef(false)
@@ -419,16 +431,19 @@ export default function ShowcaseCreateScreen() {
     // S7: buang juga draft teks yang tersimpan.
     // SH-02: matikan autosave TERLEBIH DULU — timer 1 dtk yang belum nembak
     // (dari ketikan terakhir) tidak boleh menulis ulang draft yang dibuang.
-    draftSuppressed.current = true
+    draftGuard.invalidate()
     void clearShowcaseDraft()
     setDiscardOpen(false)
     // Jangan dispatch di sini: penjaga masih aktif sampai commit berikutnya
     // dan `beforeRemove` akan membuka dialog lagi. Effect `intentionalLeave`
     // yang mengeksekusi navigasi tertunda (aksi tersimpan dibaca di sana).
     setIntentionalLeave(true)
-  }, [])
+  }, [draftGuard])
 
-  usePreventRemove(dirty && !intentionalLeave, ({ data }) => {
+  // CR-12 (audit etalase 2026-10-10): unggahan pertama saat form masih kosong
+  // (`dirty` false) juga dicegat — dulu hardware back langsung keluar,
+  // unggahan jalan terus di latar lalu kuncinya yatim.
+  usePreventRemove((dirty || uploading || saving) && !intentionalLeave, ({ data }) => {
     // P1-S2: beri umpan balik saat back ditekan selama upload — sebelumnya
     // diam total dan terasa seperti aplikasi macet.
     if (saveBusy.current || uploadBusy.current) {
@@ -464,7 +479,9 @@ export default function ShowcaseCreateScreen() {
 
   // ── Pilih & unggah foto ─────────────────────────────────────────────
   const handlePickPhotos = useCallback(async () => {
-    if (uploadBusy.current || saveBusy.current) return
+    // CR-03: saat status simpan belum pasti, DTO tidak boleh berubah di bawah
+    // Idempotency-Key yang sama (hapus/urut/sampul sudah digate — tambah belum).
+    if (uploadBusy.current || saveBusy.current || uncertainCreate) return
     const slots = photoLimit - previews.length
     if (slots <= 0) {
       toast.show({
@@ -500,6 +517,9 @@ export default function ShowcaseCreateScreen() {
       const sizedAssets = await Promise.all(
         picked.assets.map(async (asset) => {
           if (asset.size > 0) return asset
+          // CR-09: metadata dulu (murah); byte hanya sebagai cadangan foto.
+          const probed = await probePickedFileSize(asset)
+          if (probed > 0) return { ...asset, size: probed }
           try {
             const blob = await pickedImageToBlob(asset)
             return blob.size > 0 ? { ...asset, size: blob.size } : asset
@@ -637,7 +657,7 @@ export default function ShowcaseCreateScreen() {
         setProgress("")
       }
     }
-  }, [previews, revision, toast, photoLimit])
+  }, [previews, revision, toast, photoLimit, uncertainCreate])
 
   /**
    * Pilih & unggah SATU video karya (kontrak final Tim A #1, 2026-09-28).
@@ -650,7 +670,9 @@ export default function ShowcaseCreateScreen() {
    * Video menempati 1 slot dari `photoLimit` (sama seperti foto).
    */
   const handlePickVideo = useCallback(async () => {
-    if (uploadBusy.current || saveBusy.current) return
+    // CR-03: saat status simpan belum pasti, DTO tidak boleh berubah di bawah
+    // Idempotency-Key yang sama (hapus/urut/sampul sudah digate — tambah belum).
+    if (uploadBusy.current || saveBusy.current || uncertainCreate) return
     const slots = photoLimit - previews.length
     if (slots <= 0) {
       toast.show({
@@ -681,17 +703,11 @@ export default function ShowcaseCreateScreen() {
       // Ukuran tak terbaca (0, Android lama) → tolak dengan pesan jelas
       // (pola SH-F-005 untuk foto); batas atas diserahkan ke server yang
       // menjawab FILE_TOO_LARGE dengan pesan yang sudah dipetakan.
-      if (asset.size <= 0) {
-        try {
-          const blob = await pickedImageToBlob(asset)
-          if (blob.size <= 0) {
-            setPhotoError(translate("Ukuran video tidak dapat dibaca. Pilih ulang video tersebut."))
-            return
-          }
-        } catch {
-          setPhotoError(translate("Ukuran video tidak dapat dibaca. Pilih ulang video tersebut."))
-          return
-        }
+      // CR-09: ukuran dari metadata sistem berkas — JANGAN memuat video (bisa
+      // 90 MB) ke memori hanya untuk membaca `size`.
+      if ((await probePickedFileSize(asset)) <= 0) {
+        setPhotoError(translate("Ukuran video tidak dapat dibaca. Pilih ulang video tersebut."))
+        return
       }
       setUploading(true)
       setUploadProgress(0)
@@ -740,10 +756,10 @@ export default function ShowcaseCreateScreen() {
         setUploadProgress(0)
       }
     }
-  }, [previews, revision, toast, photoLimit])
+  }, [previews, revision, toast, photoLimit, uncertainCreate])
 
   const retryFailedPhotos = useCallback(async () => {
-    if (uploadBusy.current || saveBusy.current || failedAssets.length === 0) return
+    if (uploadBusy.current || saveBusy.current || uncertainCreate || failedAssets.length === 0) return
     uploadBusy.current = true
     setUploading(true)
     setUploadProgress(0)
@@ -797,7 +813,7 @@ export default function ShowcaseCreateScreen() {
         setProgress("")
       }
     }
-  }, [failedAssets, previews, revision])
+  }, [failedAssets, previews, revision, uncertainCreate])
 
   /** Buang satu pratinjau media. */
   const removePreview = useCallback(
@@ -939,7 +955,7 @@ export default function ShowcaseCreateScreen() {
       // S7: terbit sukses → hapus draft teks.
       // SH-02: matikan autosave TERLEBIH DULU — timer 1 dtk dari ketikan
       // terakhir tidak boleh menulis ulang draf karya yang sudah terbit.
-      draftSuppressed.current = true
+      draftGuard.invalidate()
       void clearShowcaseDraft()
       if (!mounted.current || revision !== getSessionRevision()) return
       markShowcaseFeedDirty()
@@ -956,16 +972,18 @@ export default function ShowcaseCreateScreen() {
       setIntentionalLeave(true)
     } catch (error) {
       if (!mounted.current || revision !== getSessionRevision()) return
-      // Hanya penolakan TEGAS yang aman dianggap belum tersimpan.
-      const rejected = isApiError(error) && [400, 403, 404, 413, 422].includes(error.status ?? 0)
-      if (rejected) createAttempt.current = null
-      setUncertainCreate(!rejected)
+      // CR-02: OfflineError = request tidak pernah dikirim → bukan "belum
+      // pasti" (dulu seluruh form terkunci hanya karena NetInfo offline).
+      // Hanya timeout/putus di tengah/5xx/409 yang mempertahankan kunci.
+      const outcome = classifyCreateFailure(error)
+      if (outcome !== "uncertain") createAttempt.current = null
+      setUncertainCreate(outcome === "uncertain")
       toast.show({ title: translate("Gagal menyimpan"), description: userMessage(error), tone: "danger" })
     } finally {
       saveBusy.current = false
       if (mounted.current) setSaving(false)
     }
-  }, [failedAssets.length, form, previews, revision, toast, isPlusActive, commerce])
+  }, [failedAssets.length, form, previews, revision, toast, isPlusActive, commerce, draftGuard])
 
   const busy = uploading || saving
 
@@ -1108,9 +1126,10 @@ export default function ShowcaseCreateScreen() {
                           accessibilityHint={translate("Pindahkan media ini ke posisi pertama sebagai sampul etalase")}
                           disabled={busy || uncertainCreate}
                           onPress={() => setAsCover(index)}
+                          hitSlop={THUMB_ACTION_HIT_SLOP}
                           containerClassName="items-center justify-center rounded-full bg-overlay-media p-1.5"
                         >
-                          <Icon icon={Star} size="sm" tone="inverse" />
+                          <Icon icon={Star} size="sm" tone="onMedia" />
                         </PressableScale>
                       </View>
                     )}
@@ -1120,15 +1139,16 @@ export default function ShowcaseCreateScreen() {
                         accessibilityLabel={translate("Hapus media {x}", { x: index + 1 })}
                         disabled={busy || uncertainCreate}
                         onPress={() => removePreview(index)}
+                        hitSlop={THUMB_ACTION_HIT_SLOP}
                         containerClassName="items-center justify-center rounded-full bg-overlay-media p-1.5"
                       >
-                        <Icon icon={Trash} size="sm" tone="inverse" />
+                        <Icon icon={Trash} size="sm" tone="onMedia" />
                       </PressableScale>
                     </View>
                     {/* C09: penanda target drop — tanpa menggeser layout. */}
                     {dropTarget ? (
                       <View
-                        className="pointer-events-none absolute inset-0 rounded-sm border-2 border-accent"
+                        className="pointer-events-none absolute inset-0 rounded-sm border-badge border-accent"
                         accessibilityElementsHidden
                         importantForAccessibility="no-hide-descendants"
                       />
@@ -1149,7 +1169,7 @@ export default function ShowcaseCreateScreen() {
             leftIcon={Plus}
             variant="secondary"
             loading={uploading}
-            disabled={saving || previews.length >= photoLimit}
+            disabled={saving || uncertainCreate || previews.length >= photoLimit}
             onPress={() => void handlePickPhotos()}
           >
             {previews.length > 0 ? translate("Tambah foto") : translate("Pilih foto")}
@@ -1159,7 +1179,7 @@ export default function ShowcaseCreateScreen() {
           <Button
             leftIcon={VideoCamera}
             variant="secondary"
-            disabled={uploading || saving || previews.length >= photoLimit}
+            disabled={uploading || saving || uncertainCreate || previews.length >= photoLimit}
             onPress={() => void handlePickVideo()}
             accessibilityHint={translate("Video diunggah dengan thumbnail otomatis")}
           >
@@ -1208,7 +1228,7 @@ export default function ShowcaseCreateScreen() {
                   </Button>
                 </View>
               ))}
-              <Button loading={uploading} onPress={() => void retryFailedPhotos()}>
+              <Button variant="secondary" loading={uploading} disabled={uncertainCreate} onPress={() => void retryFailedPhotos()}>
                 {translate("Coba lagi foto gagal")}
               </Button>
             </View>
@@ -1367,22 +1387,6 @@ export default function ShowcaseCreateScreen() {
             />
           </View>
 
-          {form.isPublic ? null : (
-            <View className="flex-row items-start gap-2 rounded-md bg-surface p-3">
-              <Icon icon={EyeSlash} size="sm" tone="default" />
-              <Text variant="caption" tone="secondary" className="flex-1">
-                {translate("Draf privat tetap tersimpan di etalase Anda dan bisa diterbitkan kapan saja.")}
-              </Text>
-            </View>
-          )}
-          {form.isPublic ? (
-            <View className="flex-row items-start gap-2 rounded-md bg-surface p-3">
-              <Icon icon={Eye} size="sm" tone="default" />
-              <Text variant="caption" tone="secondary" className="flex-1">
-                {translate("Karya langsung tampil di feed Etalase dan profil publik Anda.")}
-              </Text>
-            </View>
-          ) : null}
         </View>
 
         {/*
@@ -1443,7 +1447,7 @@ export default function ShowcaseCreateScreen() {
         }}
         onCancel={() => {
           // SH-02: sama — jangan biarkan timer autosave menulis ulang.
-          draftSuppressed.current = true
+          draftGuard.invalidate()
           void clearShowcaseDraft()
           setResumeDraft(null)
         }}

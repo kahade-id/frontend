@@ -78,6 +78,14 @@ export type ShowcaseSocialItem = {
   visibility?: string
   isActive?: boolean
   /**
+   * DT-11 (audit etalase 2026-10-10): tipe produk & harga coret (IDR) dari
+   * payload detail/owner. Dulu parser membuangnya — detail hanya menampilkan
+   * harga coret dari cache PATCH sesi ini (= hanya pemilik yang melihatnya),
+   * dan seksi jadwal jasa dimuat untuk semua produk.
+   */
+  productType?: "JASA" | "FISIK" | "DIGITAL" | "LAINNYA" | null
+  originalPriceIdr?: number | null
+  /**
    * KONTRAK FINAL Tim A (2026-09-28): `images[]` berisi objek kaya
    * `ShowcaseMedia` — image | video (imageUrl = berkas video, thumbnailUrl =
    * poster) | spin360 (imageUrl = satu frame, groupKey + groupOrder).
@@ -491,23 +499,22 @@ export function addShowcaseComment(
   dto: { content: string; parentId?: string },
   idempotencyKey?: string,
 ) {
-  return http.post<ShowcaseComment, { content: string; parentId?: string }>(
-    `/v1/showcase/${seg(showcaseId)}/comments`,
-    dto,
-    {
+  // AP-03 (audit etalase 2026-10-10): respons mutasi diparse seperti jalur
+  // GET — dulu objek mentah (bisa ack `{message}` tanpa `author`) langsung
+  // disisipkan ke daftar → TypeError saat render.
+  return http
+    .post<unknown, { content: string; parentId?: string }>(`/v1/showcase/${seg(showcaseId)}/comments`, dto, {
       auth: "required",
       ...(idempotencyKey ? { headers: { "Idempotency-Key": idempotencyKey } } : {}),
-    },
-  )
+    })
+    .then(parseShowcaseComment)
 }
 
 /** PATCH /v1/showcase/comments/:commentId — edit komentar sendiri. */
 export function updateShowcaseComment(commentId: string, content: string) {
-  return http.patch<ShowcaseComment, { content: string }>(
-    `/v1/showcase/comments/${seg(commentId)}`,
-    { content },
-    { auth: "required" },
-  )
+  return http
+    .patch<unknown, { content: string }>(`/v1/showcase/comments/${seg(commentId)}`, { content }, { auth: "required" })
+    .then(parseShowcaseComment)
 }
 
 /** DELETE /v1/showcase/comments/:commentId — pengarang ATAU pemilik item. */
@@ -525,18 +532,16 @@ export function hideShowcaseComment(
   commentId: string,
   reason: "SPAM" | "INAPPROPRIATE" | "HARASSMENT" | "OTHER",
 ) {
-  return http.post<ShowcaseComment, { reason: string }>(
-    `/v1/showcase/comments/${seg(commentId)}/hide`,
-    { reason },
-    { auth: "required" },
-  )
+  return http
+    .post<unknown, { reason: string }>(`/v1/showcase/comments/${seg(commentId)}/hide`, { reason }, { auth: "required" })
+    .then(parseShowcaseComment)
 }
 
 /** POST /v1/showcase/comments/:commentId/unhide — buka kembali komentar. */
 export function unhideShowcaseComment(commentId: string) {
-  return http.post<ShowcaseComment>(`/v1/showcase/comments/${seg(commentId)}/unhide`, undefined, {
+  return http.post<unknown>(`/v1/showcase/comments/${seg(commentId)}/unhide`, undefined, {
     auth: "required",
-  })
+  }).then(parseShowcaseComment)
 }
 
 /**
@@ -783,16 +788,22 @@ export function getSavedShowcases(
           return []
         }
       })
+      const nextCursor =
+        typeof record.nextCursor === "string" && record.nextCursor && record.nextCursor !== params.cursor
+          ? record.nextCursor
+          : null
       return {
         data,
         page,
         limit,
         total,
         totalPages,
-        hasNext: typeof record.nextCursor === "string" ? true : record.hasNext === true,
+        // AP-08 (audit etalase 2026-10-10): kursor kosong / tidak maju (sama
+        // dengan yang diminta) = tidak ada halaman berikut — dulu "" dianggap
+        // masih ada halaman → "Muat lagi" meminta halaman 1 lagi (duplikat).
+        hasNext: nextCursor != null ? true : record.hasNext === true,
         hasPrev: record.hasPrev === true,
-        // NP-008: kehadiran nextCursor = masih ada halaman berikut.
-        nextCursor: typeof record.nextCursor === "string" ? record.nextCursor : null,
+        nextCursor,
       } satisfies SavedShowcasesPage
     })
 }
@@ -802,7 +813,9 @@ export function addSavedShowcase(showcaseId: string) {
   return http.post<void, Record<string, never>>(
     `/v1/showcase/saved/${seg(showcaseId)}`,
     {},
-    { auth: "required", retry: 1 },
+    // AP-04: `retry` pada non-GET diabaikan transport (dipaksa 0) dan membuat
+    // `check:retry` (gerbang anti double-mutation) merah — dihapus.
+    { auth: "required" },
   )
 }
 
@@ -810,7 +823,6 @@ export function addSavedShowcase(showcaseId: string) {
 export function removeSavedShowcase(showcaseId: string) {
   return http.delete<void>(`/v1/showcase/saved/${seg(showcaseId)}`, {
     auth: "required",
-    retry: 1,
   })
 }
 
@@ -1110,6 +1122,10 @@ export function parseShowcaseItem(raw: unknown): ShowcaseSocialItem {
       : undefined,
     // D1-011: flag commerce eksplisit (pengganti pemicu "orderLink ada").
     isCommerce: value.isCommerce === true,
+    // DT-11: tipe produk & harga coret dari payload (detail/owner); feed
+    // (excerpt) tidak mengirimnya → undefined.
+    productType: parseProductType(value.productType),
+    originalPriceIdr: parseOriginalPriceIdr(value),
     // Karya terkait (audit Discovery 2026-09-26): backend mengirim `related`
     // (maks 6, bentuk serialize sama) di respons detail — parser sebelumnya
     // MEMBUANG field ini sehingga section "Karya terkait" di [id].tsx tidak
@@ -1192,6 +1208,39 @@ export function parseShowcaseComment(raw: unknown): ShowcaseComment {
       username: commentAuthorUsername,
       fullName: typeof author.fullName === "string" ? author.fullName : null,
       avatarUrl: typeof author.avatarUrl === "string" ? author.avatarUrl : null,
+      // SO-07 (audit 2026-10-10): seal verifikasi penulis komentar — dulu
+      // dibuang parser sehingga <VerifiedSeal> di baris komentar tidak pernah
+      // tampil walau backend mengirimnya (pola sama parseShowcaseItem).
+      isKycVerified: author.isKycVerified === true,
+      badges: Array.isArray(author.badges)
+        ? author.badges
+            .filter((b) => b && typeof (b as { type?: unknown }).type === "string")
+            .map((b) => ({ type: (b as { type: string }).type }))
+        : undefined,
+      sealTier: asSealTier(author.sealTier),
     },
   }
+}
+
+// ---------------------------------------------------------------------------
+// DT-11 (audit etalase 2026-10-10): field commerce pada payload etalase.
+// ---------------------------------------------------------------------------
+
+function parseProductType(value: unknown): ShowcaseSocialItem["productType"] {
+  if (value === null) return null
+  return value === "JASA" || value === "FISIK" || value === "DIGITAL" || value === "LAINNYA" ? value : undefined
+}
+
+/**
+ * Harga coret dalam IDR. Backend mengirim `originalPriceIdr` (IDR, BE-1)
+ * dan `originalPrice` lama dalam SEN (kontrak PATCH /v1/commerce/products) —
+ * yang lama dikonversi, bukan dipakai apa adanya.
+ */
+function parseOriginalPriceIdr(value: Record<string, unknown>): number | null | undefined {
+  const idr = value.originalPriceIdr
+  if (typeof idr === "number" && Number.isFinite(idr)) return idr > 0 ? idr : null
+  const sen = value.originalPrice
+  if (typeof sen === "number" && Number.isFinite(sen)) return sen > 0 ? sen / 100 : null
+  if (sen === null || idr === null) return null
+  return undefined
 }

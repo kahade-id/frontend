@@ -180,7 +180,8 @@ export function DigitalAssetsBuyerSection({ showcaseId }: { showcaseId: string }
           asset={asset}
           action={
             asset.assetType === "LINK" ? (
-              <Button variant="secondary" onPress={() => void openLink(asset.payload)}>
+              // VI-06: aksi baris — bukan tombol lebar penuh 48px di samping IconButton sm.
+              <Button variant="secondary" size="sm" fullWidth={false} onPress={() => void openLink(asset.payload)}>
                 {translate("Buka")}
               </Button>
             ) : asset.assetType === "LICENSE" ? (
@@ -208,8 +209,13 @@ export function DigitalAssetsBuyerSection({ showcaseId }: { showcaseId: string }
   )
 }
 
+/**
+ * UX-13 (audit 2026-10-10): tipe FILE disembunyikan dari pemilih sampai ada
+ * alur unggah berkas (BE-5, docs/rekomendasi-backend-etalase.md) — dulu
+ * penjual diminta mengetik `fileKey` hasil upload secara manual, yang tidak
+ * mungkin diketahui pengguna awam. Aset FILE yang sudah ada tetap tampil.
+ */
 const TYPE_OPTIONS: { value: DigitalAssetType; label: string }[] = [
-  { value: "FILE", label: "File" },
   { value: "LINK", label: "Tautan" },
   { value: "LICENSE", label: "Lisensi" },
 ]
@@ -246,8 +252,11 @@ export function DigitalAssetsSellerManager({ showcaseId }: { showcaseId: string 
       setFormError(translate("Isi wajib diisi."))
       return
     }
-    if (assetType === "LINK" && !/^https?:\/\//i.test(value)) {
-      setFormError(translate("Tautan harus diawali http(s)://"))
+    // DT-08 (audit 2026-10-10): validasi yang SAMA dengan sisi pembeli
+    // (`safeHttpsLink`): dulu form menerima http:// / URL berkredensial yang
+    // kemudian selalu gagal dibuka pembeli ("Tautan tidak bisa dibuka").
+    if (assetType === "LINK" && !safeHttpsLink(value)) {
+      setFormError(translate("Tautan harus https:// dan tanpa nama pengguna/kata sandi."))
       return
     }
     setSaving(true)

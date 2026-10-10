@@ -15,7 +15,7 @@ import { mediaTapPoint, type OpeningMediaTap } from "@/lib/use-opening-media-tap
  * off-screen (item 16); mode hemat data menunda unduhan gambar & video
  * sampai diketuk (item 15).
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { ScrollView, View, type LayoutChangeEvent, type NativeScrollEvent, type NativeSyntheticEvent } from "react-native"
 import { Pause, Play, SpeakerHigh, SpeakerSimpleX } from "phosphor-react-native"
 import { cn } from "@/lib/cn"
@@ -40,7 +40,7 @@ import type { GalleryMedia } from "@/lib/showcase-social"
  */
 const DOUBLE_TAP_MS = 300
 
-export function ShowcaseMediaGallery({ media, title, onOpen, onDoubleTap, autoplayActive = true, aspectRatio = 1, activeFullRes = false }: {
+function ShowcaseMediaGalleryInner({ media, title, onOpen, onDoubleTap, autoplayActive = true, autoplay = true, aspectRatio = 1, activeFullRes = false }: {
   /** Urutan media persis seperti yang dipakai `onOpen` (indeks = indeks media). */
   media: GalleryMedia[]
   title: string
@@ -52,6 +52,13 @@ export function ShowcaseMediaGallery({ media, title, onOpen, onDoubleTap, autopl
    * Kartu feed mengirim "kartu terlihat"; halaman detail mengirim true.
    */
   autoplayActive?: boolean
+  /**
+   * FD-02 (audit etalase 2026-10-10): false = video TIDAK pernah mulai
+   * sendiri (tab Etalase profil, kartu terkait — tanpa wiring viewability),
+   * tetapi tombol putar tetap bekerja. Dulu permukaan ini mengirim
+   * `autoplayActive={false}` yang ikut mematikan niat putar eksplisit.
+   */
+  autoplay?: boolean
   /**
    * C01 (batch 139): rasio slide pertama dari respons list — dipakai
    * placeholder di luar jendela render (±1 slide) agar pager tidak bergeser
@@ -223,7 +230,7 @@ export function ShowcaseMediaGallery({ media, title, onOpen, onDoubleTap, autopl
                     // PERF-FIX (2026-09-30): poster slide aktif prioritas high.
                     active={index === page}
                     // Item 16: autoplay hanya bila slide aktif & terlihat & tidak di-pause manual.
-                    shouldPlay={autoplayActive && index === page && !paused[m.id]}
+                    shouldPlay={autoplay && autoplayActive && index === page && !paused[m.id]}
                     // Item 59 strict: dalam mode hemat data, autoplay TIDAK
                     // PERNAH diizinkan — bahkan setelah video dimuat manual.
                     dataSaver={dataSaver}
@@ -352,17 +359,23 @@ function VideoSlide({
               <Picture source={media.posterUrl} alt={title} aspectRatio={slideAspectRatio}
                 radius="none" bordered={false} priority={active ? "high" : "low"} />
             ) : null}
-            <Text variant="caption" tone="secondary" className="absolute bottom-3 w-full text-center">
-              {translate("Mode hemat data")}
-            </Text>
+            {/* UX-21: label di atas foto butuh scrim — abu tanpa latar hilang di poster terang. */}
+            <View style={{ pointerEvents: "none" }} className="absolute bottom-3 w-full items-center">
+              <View className="rounded-full bg-overlay-media px-3 py-1">
+                <Text variant="caption" weight={600} tone="onMedia">
+                  {translate("Mode hemat data")}
+                </Text>
+              </View>
+            </View>
           </View>
         ) : (
-          // Kontrol FeedVideo internal tidak boleh mengambil ketukan permukaan.
-          <View style={{ pointerEvents: "none" }}>
-            <FeedVideo source={media.url} poster={media.posterUrl} alt={title}
-              shouldPlay={effectiveShouldPlay} muted={muted} aspectRatio={slideAspectRatio}
-              userInitiatedPlay={userPlay} posterPriority={active ? "high" : "low"} />
-          </View>
+          // FD-03: `embedded` — permukaan video meneruskan ketukan ke slide
+          // (viewer), tetapi tombol "Coba lagi" di dalam FeedVideo tetap bisa
+          // diketuk. Dulu seluruh FeedVideo `pointerEvents:none`: retry mati
+          // dan ketukannya justru membuka viewer.
+          <FeedVideo source={media.url} poster={media.posterUrl} alt={title}
+            shouldPlay={effectiveShouldPlay} muted={muted} aspectRatio={slideAspectRatio}
+            userInitiatedPlay={userPlay} posterPriority={active ? "high" : "low"} embedded />
         )}
       </PressableScale>
       {/* Kontrol adalah saudara permukaan: tidak memicu viewer atau suka. */}
@@ -375,7 +388,7 @@ function VideoSlide({
           containerClassName="rounded-full"
           className="h-11 w-11 items-center justify-center rounded-full bg-overlay-media"
         >
-          <Icon icon={playing ? Pause : Play} size="sm" weight="fill" tone="inverse" />
+          <Icon icon={playing ? Pause : Play} size="sm" weight="fill" tone="onMedia" />
         </PressableScale>
       </View>
       {!gated ? (
@@ -388,14 +401,15 @@ function VideoSlide({
             containerClassName="rounded-full"
           >
             <View className="items-center justify-center rounded-full bg-overlay-media p-2">
-              <Icon icon={muted ? SpeakerSimpleX : SpeakerHigh} size="sm" tone="inverse" />
+              <Icon icon={muted ? SpeakerSimpleX : SpeakerHigh} size="sm" tone="onMedia" />
             </View>
           </PressableScale>
         </View>
       ) : null}
       {media.durationSec != null ? (
-        <View style={{ pointerEvents: "none" }} className="absolute left-2 top-2 rounded-full bg-overlay-media px-2 py-0.5">
-          <Text variant="caption" weight={600} className="text-white tabular-nums">
+        <View style={{ pointerEvents: "none" }} className="absolute right-2 top-2 rounded-full bg-overlay-media px-2 py-0.5">
+          {/* VI-08: kanan-atas — kiri-atas dipakai badge "Stok habis" kartu feed. */}
+          <Text variant="caption" weight={600} tone="onMedia" className="tabular-nums">
             {formatCountdown(media.durationSec)}
           </Text>
         </View>
@@ -403,3 +417,10 @@ function VideoSlide({
     </View>
   )
 }
+
+/**
+ * FD-07 (audit etalase 2026-10-10): memo — `media` sudah stabil per item
+ * (cache WeakMap di `showcaseMedia`) dan callback dibaca lewat ref, jadi
+ * render ulang kartu induk (hitungan suka, dsb.) tidak merender ulang pager.
+ */
+export const ShowcaseMediaGallery = memo(ShowcaseMediaGalleryInner)

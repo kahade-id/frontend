@@ -25,7 +25,7 @@ import {
   getShowcaseSavers,
   type ShowcaseLiker,
 } from "@/lib/api/showcase"
-import { isApiError } from "@/lib/api"
+import { isApiError, userMessage } from "@/lib/api"
 import { cn } from "@/lib/cn"
 import { focusRing } from "@/lib/focus-ring"
 import { formatRelativeTime } from "@/lib/format"
@@ -62,6 +62,8 @@ type TabState = {
   nextCursor: string | null
   hasNext: boolean
   status: "idle" | "loading" | "error" | "end"
+  /** UX-15: pesan error sebenarnya (offline/timeout/5xx) — bukan tebakan "periksa koneksi". */
+  message?: string
 }
 
 const EMPTY_TAB: TabState = { data: [], nextCursor: null, hasNext: false, status: "idle" }
@@ -150,7 +152,7 @@ export function ShowcaseLikersSheet({
           return
         }
         logWarn("showcase:likers-sheet", error instanceof Error ? error : new Error(String(error)))
-        setState((prev) => ({ ...prev, status: "error" }))
+        setState((prev) => ({ ...prev, status: "error", message: userMessage(error) }))
       }
     },
     [itemId],
@@ -212,7 +214,7 @@ export function ShowcaseLikersSheet({
         ) : active.status === "error" ? (
           <View className="items-center gap-3 py-6">
             <Text variant="body" tone="secondary" className="text-center">
-              {translate("Gagal memuat daftar. Periksa koneksi lalu coba lagi.")}
+              {active.message || translate("Gagal memuat daftar.")}
             </Text>
             <Button variant="secondary" onPress={() => void fetchTab(tab, null, false)}>
               {translate("Coba lagi")}

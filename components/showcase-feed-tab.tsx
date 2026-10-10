@@ -1,4 +1,5 @@
-import type { OpeningMediaTap } from "@/lib/use-opening-media-tap"
+import { guardOpeningTapForGuest, type OpeningMediaTap } from "@/lib/use-opening-media-tap"
+import { loadErrorTitle } from "@/lib/load-error-title"
 /** Public cursor feed. Page data and cursors commit atomically; account/filter changes fence old responses.
  * Following remains a client-side filter until a server-side following-feed contract exists (audit A-17).
  *
@@ -34,7 +35,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, memo, useSyncExterna
 import { View, type FlatList, type ViewInstance } from "react-native"
 import Animated, { runOnJS } from "react-native-reanimated"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { Images, X, ArrowUp } from "phosphor-react-native"
+import { Images, ArrowUp } from "phosphor-react-native"
 import { router, useLocalSearchParams } from "expo-router"
 import { useIsFocused } from "expo-router"
 
@@ -67,7 +68,6 @@ import { applyShowcaseCommentCountDelta } from "@/lib/showcase-social"
 import { showcaseMedia } from "@/lib/showcase-social"
 import { prefetchShowcaseDetail } from "@/lib/showcase-detail-prefetch"
 import { tokens } from "@/lib/tokens"
-import { modes } from "@/lib/tokens"
 import { describeSheetFilters, countActiveFeedFilters } from "@/lib/showcase-filters"
 import { useSetUiPrefs, useUiPref, parseShowcaseFeedTab, type ShowcaseFeedTab as SavedFeedTab } from "@/lib/ui-prefs"
 import { useCollapsingHeader } from "@/lib/use-collapsing-header"
@@ -109,6 +109,7 @@ import { ShowcaseFeedSkeleton } from "@/components/ui/showcase-feed-skeleton"
 import { PushRationaleSheet } from "@/components/ui/push-rationale-sheet"
 import { WebGuestBanner } from "@/components/ui/web-guest-banner"
 import { Text } from "@/components/ui/text"
+import { Chip } from "@/components/ui/chip"
 import {
   hasSeenFeedOrientation,
   markFeedOrientationSeen,
@@ -220,6 +221,21 @@ function publishVisibleIds(next: ReadonlySet<string>): void {
     if (listeners) for (const listener of listeners) listener()
   }
 }
+/**
+ * FD-01 (audit etalase 2026-10-10): fokus layar ikut menentukan "terlihat".
+ * Tab Expo tetap ter-mount saat pengguna push ke detail/chat, jadi tanpa ini
+ * kartu video yang terlihat terus memutar di latar & memegang slot player.
+ * Hanya kartu yang sedang terlihat yang di-notify (mereka yang berubah).
+ */
+let feedFocused = true
+function publishFeedFocused(next: boolean): void {
+  if (feedFocused === next) return
+  feedFocused = next
+  for (const id of visibleIdsSnapshot) {
+    const listeners = visibilityListenersById.get(id)
+    if (listeners) for (const listener of listeners) listener()
+  }
+}
 function subscribeVisibleId(itemId: string, listener: VisibilityListener): () => void {
   let set = visibilityListenersById.get(itemId)
   if (!set) {
@@ -243,7 +259,7 @@ export function useFeedItemVisible(itemId: string): boolean {
     (listener: VisibilityListener) => subscribeVisibleId(itemId, listener),
     [itemId],
   )
-  const getSnapshot = useCallback(() => visibleIdsSnapshot.has(itemId), [itemId])
+  const getSnapshot = useCallback(() => feedFocused && visibleIdsSnapshot.has(itemId), [itemId])
   return useSyncExternalStore(subscribe, getSnapshot)
 }
 
@@ -275,7 +291,7 @@ const FeedCard = memo(function FeedCard({
   onReport,
   feedKind,
 }: FeedCardProps) {
-  const { liked, likeCount, saved, likePending, savedPending, toggleLike, toggleSave, share, shareSheetVisible, setShareSheetVisible } =
+  const { liked, likeCount, saved, likePending, savedPending, toggleLike, toggleSave, share, shareSheetVisible, setShareSheetVisible, hasSession } =
     useShowcaseSocialActions(item)
   // PERF-FIX (LR-004): visibilitas dibaca dari store eksternal — kartu ini
   // hanya render ulang bila visibilitasnya SENDIRI berubah.
@@ -312,10 +328,12 @@ const FeedCard = memo(function FeedCard({
   )
   const handleOpenMedia = useCallback(
     (mediaIndex: number, openingTap?: OpeningMediaTap) => {
-      viewerOpeningTap.current = openingTap
+      // FD-11: tamu — ketuk-ganda di viewer menutup viewer dulu, baru ke
+      // layar login (dulu router.push terjadi di bawah Modal yang terbuka).
+      viewerOpeningTap.current = guardOpeningTapForGuest(openingTap, hasSession, () => setViewerIndex(null))
       if (media[mediaIndex]) setViewerIndex(mediaIndex)
     },
-    [media],
+    [media, hasSession],
   )
   // PERF-FIX (TIM1-P2): onClose sheet stabil — bukan closure inline.
   const handleCloseShareSheet = useCallback(() => setShareSheetVisible(false), [])
@@ -448,6 +466,8 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
   const [refreshing, setRefreshing] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  /** UX-04: judul error jujur (offline/lambat/terputus); null = judul konteks. */
+  const [errorTitle, setErrorTitle] = useState<string | null>(null)
   const [loadMoreError, setLoadMoreError] = useState<string | null>(null)
   /** "Mengikuti": tamu (belum login) — empty state khusus, bukan error. */
   const [followingGuest, setFollowingGuest] = useState(false)
@@ -677,9 +697,12 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
         // FE-076: baca cache `me` SINKRON dulu. Bila hit dan following ref
         // milik owner yang sama → tidak ada request sama sekali (manfaat
         // followingIndexRef dipertahankan, bukan dibatalkan).
-        const cachedUsername = readQueryCacheEntry<{ username?: string }>(queryKeys.me())?.data?.username
+        // FD-05 (audit etalase 2026-10-10): pemilik cache = `me.id` (registrasi
+        // via HP → username bisa null; akun login tanpa username BUKAN tamu).
+        const cachedMe = readQueryCacheEntry<{ id?: string; username?: string | null }>(queryKeys.me())?.data
+        const cachedOwner = cachedMe?.id || cachedMe?.username || null
         const indexCache = followingIndexRef.current
-        if (cachedUsername && indexCache && indexCache.owner === cachedUsername) {
+        if (cachedOwner && indexCache && indexCache.owner === cachedOwner) {
           setFollowingSet(indexCache.keys)
           setFollowingGuest(false)
           return indexCache.keys
@@ -692,13 +715,14 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
           api.users.getMyFollowingIds(signal),
         ])
         if (signal.aborted) throw new Error("Aborted")
-        const username = me?.username
-        if (!username) {
+        const owner = me?.id || me?.username || null
+        if (!owner) {
+          // Tanpa profil sama sekali — perlakukan seperti 401 (tamu).
           markGuest()
           return new Set()
         }
         const keys = followingKeysOf(rows)
-        followingIndexRef.current = { owner: username, keys }
+        followingIndexRef.current = { owner, keys }
         setFollowingSet(keys)
         setFollowingGuest(false)
         return keys
@@ -739,6 +763,7 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
         loadMoreBusy.current = false
         setLoadMoreError(null)
         setError(null)
+        setErrorTitle(null)
       }
 
       const entry = pageStates.current[kind]
@@ -863,7 +888,11 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
       } catch (err) {
         if (controller.signal.aborted) return
         if (mode === "more") setLoadMoreError(userMessage(err))
-        else setError(userMessage(err))
+        else {
+          setError(userMessage(err))
+          // UX-04: judul jujur (offline/lambat/terputus), bukan "Terjadi kesalahan".
+          setErrorTitle(loadErrorTitle(err) ?? null)
+        }
       } finally {
         if (activeRequest.current === controller) {
           activeRequest.current = null
@@ -894,6 +923,7 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
       setRefreshing(false)
       setLoadingMore(false)
       setError(null)
+      setErrorTitle(null)
       setLoadMoreError(null)
       restorePosition(key)
     } else {
@@ -946,6 +976,11 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
    * following cukup disegarkan tarik-ke-bawah (A-13) atau oleh dirty.
    */
   const isFocused = useIsFocused()
+  // FD-01: layar tidak fokus → tidak ada kartu yang "terlihat" → video pause
+  // & slot player dilepas (lihat publishFeedFocused).
+  useEffect(() => {
+    publishFeedFocused(isFocused)
+  }, [isFocused])
   useEffect(() => {
     if (!isFocused) return
     const current = showcaseFeedDirtyVersion()
@@ -1185,7 +1220,7 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
   const followingPartialNotice = kind === "following" && followingPartial ? (
     <View className="mx-5 mt-3 rounded-md border border-border bg-surface px-3 py-2">
       <Text variant="caption" tone="secondary">
-        {translate("Sebagian etalase belum dapat dimuat. Tarik untuk menyegarkan.")}
+        {translate("Hanya sebagian etalase dari akun yang Anda ikuti yang ditampilkan.")}
       </Text>
     </View>
   ) : null
@@ -1194,69 +1229,46 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
       FE-082: chip hanya berisi nilainya ("Elektronik") tanpa awalan
       "Kategori:" — konteksnya sudah jelas dari ikon funnel + tombol
       "Atur ulang". */
+  // UX-17 (audit etalase 2026-10-10): chip filter aktif = <Chip onRemove>
+  // design system (32px, satu baris wrap) — dulu dirakit manual 4× sebagai
+  // pil lebar penuh ±52px bertumpuk.
   const categoryChip = category ? (
-    <View className="mt-3 flex-row items-center justify-between gap-2 rounded-full border border-border bg-surface py-1.5 pl-4 pr-1.5 mx-5">
-      <Text variant="caption" tone="secondary" className="flex-1" numberOfLines={1}>
-        {category}
-      </Text>
-      <IconButton
-        icon={X}
-        variant="ghost"
-        size="sm"
-        accessibilityLabel={translate("Hapus filter kategori {x}", { x: category })}
-        onPress={onClearCategory}
-      />
-    </View>
+    <Chip selected onRemove={onClearCategory} accessibilityLabel={translate("Filter kategori {x}", { x: category })}>
+      {category}
+    </Chip>
   ) : null
 
   /** Chip `?location=` — pola sama dengan chip kategori (A-06/A-12).
       FE-082: tanpa awalan "Lokasi:". */
   const locationChip = location ? (
-    <View className="mt-3 flex-row items-center justify-between gap-2 rounded-full border border-border bg-surface py-1.5 pl-4 pr-1.5 mx-5">
-      <Text variant="caption" tone="secondary" className="flex-1" numberOfLines={1}>
-        {location}
-      </Text>
-      <IconButton
-        icon={X}
-        variant="ghost"
-        size="sm"
-        accessibilityLabel={translate("Hapus filter lokasi {x}", { x: location })}
-        onPress={onClearLocation}
-      />
-    </View>
+    <Chip selected onRemove={onClearLocation} accessibilityLabel={translate("Filter lokasi {x}", { x: location })}>
+      {location}
+    </Chip>
   ) : null
 
   /** A-06: chip `?search=` kini bisa dihapus, bukan mengunci feed selamanya.
       FE-082: tanpa awalan "Cari:" — cukup nilai pencariannya. */
   const searchChip = activeSearch ? (
-    <View className="mt-3 flex-row items-center justify-between gap-2 rounded-full border border-border bg-surface py-1.5 pl-4 pr-1.5 mx-5">
-      <Text variant="caption" tone="secondary" className="flex-1" numberOfLines={1}>
-        {activeSearch}
-      </Text>
-      <IconButton
-        icon={X}
-        variant="ghost"
-        size="sm"
-        accessibilityLabel={translate("Hapus pencarian {x}", { x: activeSearch })}
-        onPress={() => router.setParams({ search: undefined })}
-      />
-    </View>
+    <Chip
+      selected
+      onRemove={() => router.setParams({ search: undefined })}
+      accessibilityLabel={translate("Pencarian {x}", { x: activeSearch })}
+    >
+      {activeSearch}
+    </Chip>
   ) : null
 
   /** DC-012: label rentang harga aktif untuk chip. */
   const sheetFilterChip = !isDefaultShowcaseFilters(sheetFilters) ? (
-    <View className="mt-3 flex-row items-center justify-between gap-2 rounded-full border border-border bg-surface py-1.5 pl-4 pr-1.5 mx-5">
-      <Text variant="caption" tone="secondary" className="flex-1" numberOfLines={1}>
-        {describeSheetFilters(sheetFilters)}
-      </Text>
-      <IconButton
-        icon={X}
-        variant="ghost"
-        size="sm"
-        accessibilityLabel={translate("Hapus semua filter")}
-        onPress={() => setSheetFilters(DEFAULT_SHOWCASE_FILTERS)}
-      />
-    </View>
+    <Chip
+      selected
+      onPress={() => setFilterSheetVisible(true)}
+      onRemove={() => setSheetFilters(DEFAULT_SHOWCASE_FILTERS)}
+      accessibilityLabel={translate("Filter aktif: {x}", { x: describeSheetFilters(sheetFilters) })}
+      accessibilityHint={translate("Ketuk untuk mengubah filter")}
+    >
+      {describeSheetFilters(sheetFilters)}
+    </Chip>
   ) : null
 
   /**
@@ -1267,24 +1279,29 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
    * sudah memberi tahu jumlahnya; baris ini tinggal tombol reset.
    */
   const resetAllChip = filtersActive ? (
-    <View className="mx-5 mt-3 flex-row items-center justify-end">
-      <Button
-        fullWidth={false}
-        variant="ghost"
-        size="sm"
-        onPress={resetAllFilters}
-        accessibilityLabel={translate("Atur ulang semua filter")}
-      >
-        {translate("Atur ulang")}
-      </Button>
-    </View>
+    <Button
+      fullWidth={false}
+      variant="ghost"
+      size="sm"
+      onPress={resetAllFilters}
+      accessibilityLabel={translate("Atur ulang semua filter")}
+    >
+      {translate("Atur ulang")}
+    </Button>
   ) : null
 
   // PERF-FIX (TIM1-P1): header list di-memo — didefinisikan setelah semua chip.
   const listHeader = useMemo(
     () =>
-      searchChip || categoryChip || locationChip || followingPartialNotice || resetAllChip ? (
-        <View>{searchChip}{categoryChip}{locationChip}{sheetFilterChip}{resetAllChip}{followingPartialNotice}</View>
+      searchChip || categoryChip || locationChip || sheetFilterChip || followingPartialNotice || resetAllChip ? (
+        <View>
+          {searchChip || categoryChip || locationChip || sheetFilterChip || resetAllChip ? (
+            <View className="mx-5 mt-3 flex-row flex-wrap items-center gap-2">
+              {searchChip}{categoryChip}{locationChip}{sheetFilterChip}{resetAllChip}
+            </View>
+          ) : null}
+          {followingPartialNotice}
+        </View>
       ) : undefined,
     [searchChip, categoryChip, locationChip, sheetFilterChip, resetAllChip, followingPartialNotice],
   )
@@ -1324,7 +1341,10 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
         loadingMore={loadingMore}
         hasMore={hasMore}
         error={error}
+        errorTitle={errorTitle ?? translate("Gagal memuat etalase")}
         loadMoreError={loadMoreError}
+        // UX-22: state "akhir feed" — bukan footer yang diam begitu saja.
+        endLabel={translate("Anda sudah melihat semua etalase")}
         onRefresh={handleRefresh}
         onRetry={handleRetry}
         onLoadMore={loadMore}
@@ -1353,12 +1373,10 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
       {showScrollTop && collapsing.collapsed ? (
         <View
           className="absolute left-0 right-0 items-center"
-          style={{ top: insets.top + 8, pointerEvents: "box-none" }}
+          style={{ top: insets.top + tokens.space[2], pointerEvents: "box-none" }}
         >
-          <View
-            className="rounded-full"
-            style={[{ backgroundColor: modes[themeMode].surfaceElevated }, elevationStyle("medium", themeMode)]}
-          >
+          {/* VI-15: warna lewat class theme; style inline hanya untuk elevasi. */}
+          <View className="rounded-full bg-surface-elevated" style={elevationStyle("medium", themeMode)}>
             <IconButton
               icon={ArrowUp}
               variant="ghost"

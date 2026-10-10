@@ -14,7 +14,7 @@
  *   CTA "Buat transaksi" meneruskan slotId ke create-transaction yang
  *   mem-booking slot saat transaksi dikonfirmasi.
  */
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { View } from "react-native"
 import { Clock, Flame, Tag } from "phosphor-react-native"
 import { router } from "expo-router"
@@ -36,6 +36,11 @@ import { SectionHeader } from "@/components/ui/section"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { hitSlopToReach } from "@/lib/hit-slop"
+import { tokens } from "@/lib/tokens"
+
+/** VI-11 (audit etalase 2026-10-10): chip tanggal jasa 30pt → target 44pt. */
+const DATE_CHIP_HIT_SLOP = hitSlopToReach(tokens.a11y.minHitTarget, 30)
 
 /** Chip TERLARIS / DISKON — publik, komputasi on-read di server. */
 export function ProductBadges({ showcaseId }: { showcaseId: string }) {
@@ -151,12 +156,19 @@ export function CommerceBadgesCompact({
 export function DiscountPrice({
   showcaseId,
   salePriceIdr,
+  originalPriceIdr,
 }: {
   showcaseId: string
   salePriceIdr: number | null | undefined
+  /**
+   * DT-11 (audit 2026-10-10): harga coret dari payload detail — dulu hanya
+   * dari cache PATCH sesi ini, sehingga PEMBELI tidak pernah melihat harga
+   * coret (hanya badge DISKON). Cache tetap fallback untuk payload lama.
+   */
+  originalPriceIdr?: number | null
 }) {
   const cached = getCommerceFieldsCache(showcaseId)
-  const original = cached?.originalPriceIdr ?? null
+  const original = originalPriceIdr ?? cached?.originalPriceIdr ?? null
   const pct = discountPercentOf(original, salePriceIdr)
   if (pct == null || original == null) return null
   return (
@@ -183,11 +195,18 @@ export function ServiceSlotSection({
   sellerUsername,
   hasSession,
   isOwner,
+  knownService = false,
 }: {
   showcaseId: string
   sellerUsername: string
   hasSession: boolean
   isOwner: boolean
+  /**
+   * DT-07 (audit 2026-10-10): true bila payload memastikan produk JASA —
+   * skeleton hanya tampil saat itu. Tipe tak diketahui → dicoba diam-diam
+   * (tanpa skeleton yang lalu lenyap = layout shift).
+   */
+  knownService?: boolean
 }) {
   const toast = useToast()
   const [slots, setSlots] = useState<ServiceSlot[] | null>(null)
@@ -198,28 +217,43 @@ export function ServiceSlotSection({
   const [cancelOpen, setCancelOpen] = useState(false)
   const [cancelBusy, setCancelBusy] = useState(false)
 
+  /** DT-07: guard unmount/ganti item — setState setelah unmount dihindari. */
+  const alive = useRef(true)
+  useEffect(() => {
+    alive.current = true
+    return () => {
+      alive.current = false
+    }
+  }, [])
   const load = useCallback(() => {
     setSlots(null)
     api.commerce
       .listServiceSlots(showcaseId)
       .then((list) => {
+        if (!alive.current) return
         setSlots(list)
         if (list.length > 0 && !selectedDate) setSelectedDate(slotDateKey(list[0]))
+        // DT-07: booking milik pembeli hanya relevan bila produk ini memang
+        // punya slot — dulu GET /my-bookings ditembak untuk SEMUA produk.
+        if (list.length > 0 && hasSession && !isOwner) {
+          api.commerce
+            .listMySlotBookings()
+            .then((bookings) => {
+              if (!alive.current) return
+              const mine =
+                bookings.find(
+                  (b) => (b.slot?.showcaseId ?? "") === showcaseId && b.status === "BOOKED",
+                ) ?? null
+              setMyBooking(mine)
+            })
+            .catch(() => {
+              if (alive.current) setMyBooking(null)
+            })
+        }
       })
-      .catch(() => setSlots([]))
-    if (hasSession && !isOwner) {
-      api.commerce
-        .listMySlotBookings()
-        .then((bookings) => {
-          const mine =
-            bookings.find(
-              (b) => (b.slot?.showcaseId ?? "") === showcaseId && b.status === "BOOKED",
-            ) ?? null
-          setMyBooking(mine)
-        })
-        .catch(() => setMyBooking(null))
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+      .catch(() => {
+        if (alive.current) setSlots([])
+      })
   }, [showcaseId, hasSession, isOwner])
 
   useEffect(() => {
@@ -262,7 +296,8 @@ export function ServiceSlotSection({
         toast.show({ title: translate("Slot berhasil dipesan"), tone: "success", duration: 3000 })
         router.push(ROUTES.orderDetail(result.orderId))
       } else {
-        toast.show({ title: translate("Gagal memesan slot"), description: translate("Respons server tidak lengkap."), tone: "danger" })
+        // UX-14: tanpa jargon "respons server" — pengguna hanya perlu tahu langkahnya.
+        toast.show({ title: translate("Gagal memesan slot"), description: translate("Pesanan belum bisa dibuka. Coba lagi."), tone: "danger" })
       }
       void load()
     } catch (err) {
@@ -289,8 +324,11 @@ export function ServiceSlotSection({
   }, [myBooking, cancelBusy, toast, load])
 
   if (slots == null) {
+    // DT-07: skeleton hanya bila produk DIKETAHUI jasa — untuk produk lain
+    // (atau payload lama tanpa tipe) jangan janjikan seksi yang mungkin lenyap.
+    if (!knownService) return null
     return (
-      <View className="gap-2 px-5 pt-4">
+      <View className="gap-2 px-5 pt-4" accessible accessibilityRole="progressbar" accessibilityLabel={translate("Memuat jadwal jasa")}>
         <Skeleton className="h-5 w-32" />
         <Skeleton className="h-12 w-full" />
       </View>
@@ -331,8 +369,9 @@ export function ServiceSlotSection({
               : translate("Lihat detail di Booking saya.")}
           </Text>
           <View className="flex-row gap-2 pt-1">
+            {/* UX-08: aturan tombol CLAUDE.md §2 — dari produk/etalase = "Beli via Kahade". */}
             <Button containerClassName="flex-1" size="sm" onPress={() => goTransact(myBooking)}>
-              {translate("Buat transaksi")}
+              {translate("Beli via Kahade")}
             </Button>
             <Button containerClassName="flex-1" size="sm" variant="secondary" onPress={() => setCancelOpen(true)}>
               {translate("Batalkan")}
@@ -350,9 +389,14 @@ export function ServiceSlotSection({
               accessibilityRole="button"
               accessibilityState={{ selected: active }}
               onPress={() => setSelectedDate(d)}
+              // VI-11: chip 30pt → target 44pt.
+              hitSlop={DATE_CHIP_HIT_SLOP}
+              // VI-03: `bg-primary/10` tidak dikompilasi (warna var() tanpa
+              // <alpha-value>) → chip aktif tanpa fill. `bg-pressed` = tint
+              // per-mode yang memang ada di theme.
               className={cn(
                 "rounded-full border px-3 py-1.5",
-                active ? "border-primary bg-primary/10" : "border-border",
+                active ? "border-primary bg-pressed" : "border-border",
               )}
             >
               <Text variant="caption" weight={active ? 600 : 400} tone={active ? "primary" : "secondary"}>
