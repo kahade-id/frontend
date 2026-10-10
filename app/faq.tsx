@@ -1,19 +1,26 @@
-import type { HelpArticle, HelpCategory } from "@/lib/api/help-center"
+import type { HelpArticle, HelpCategory, HelpCategoryDetail } from "@/lib/api/help-center"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { FlatList, Linking, View, type ListRenderItem } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useIsFocused } from "expo-router"
 import { router, useLocalSearchParams } from "expo-router"
-import { MagnifyingGlass, Question, Scales, Shield } from "phosphor-react-native"
+import {
+  ChatTeardropDots,
+  Info,
+  MagnifyingGlass,
+  Question,
+  Scales,
+  Shield,
+} from "phosphor-react-native"
+import { api } from "@/lib/api"
 import { safeExternalUrl } from "@/lib/external-url"
 import { translate, useLanguage } from "@/lib/i18n"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
-import {
-  BUNDLED_HELP_CATEGORIES,
-  searchBundledHelpArticles,
-} from "@/lib/help-content"
+import { BUNDLED_HELP, searchBundledHelpArticles } from "@/lib/help-content"
+import { mergeHelpArticles, mergeHelpCategories } from "@/lib/help-remote"
 import { clearHelpHistory, getHelpHistory, type HelpHistoryEntry } from "@/lib/help-history"
+import { useApiQuery } from "@/lib/use-api-query"
 import { DebouncedSearchField } from "@/components/ui/debounced-search-field"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Header } from "@/components/ui/header"
@@ -57,6 +64,11 @@ function openHelpSite() {
  * gelombang 1). Pintu lama (Bantuan Langsung palsu, Hubungi Kami/tiket manual)
  * dihapus. Tiket yang masih ada (kini hanya dibuat admin dari eskalasi chat)
  * tetap terjangkau sebagai tautan sekunder, begitu juga pusat bantuan web.
+ *
+ * Audit Pengaturan & Bantuan 2026-10-10: "Kirim masukan" (/feedback) dan
+ * "Tentang Kahade" (/about) ditambahkan di sini — sejak /settings dihapus
+ * (2026-10-05) KEDUA layar itu tidak punya satu pun pintu masuk di aplikasi
+ * (ROUTES.about/ROUTES.feedback tidak dirujuk layar mana pun).
  */
 function HelpEscalationFooter() {
   return (
@@ -84,6 +96,22 @@ function HelpEscalationFooter() {
       </View>
       <View className="w-full overflow-hidden rounded-md bg-surface">
         <ListItem
+          title={translate("Kirim masukan")}
+          titleVariant="bodyLarge"
+          leading={ChatTeardropDots}
+          chevron
+          divider={false}
+          href={ROUTES.feedback}
+        />
+        <ListItem
+          title={translate("Tentang Kahade")}
+          titleVariant="bodyLarge"
+          leading={Info}
+          chevron
+          divider={false}
+          href={ROUTES.about}
+        />
+        <ListItem
           title={translate("Syarat & Ketentuan")}
           titleVariant="bodyLarge"
           leading={Scales}
@@ -108,8 +136,9 @@ type FaqRow = { id: string } & ({ article: HelpArticle } | { category: HelpCateg
 
 export default function FaqScreen() {
   // Langganan bahasa: placeholder kolom cari (prop string) harus langsung
-  // ikut berganti saat pengguna mengubah bahasa (UI-M008).
-  useLanguage()
+  // ikut berganti saat pengguna mengubah bahasa (UI-M008). Bahasa juga
+  // menjadi bagian kunci query backend (artikel EN/ID berbeda).
+  const language = useLanguage()
   const insets = useSafeAreaInsets()
   const isFocused = useIsFocused()
   // F01: breadcrumb artikel menautkan kembali ke hasil pencarian — param `q`
@@ -119,15 +148,52 @@ export default function FaqScreen() {
   useEffect(() => {
     if (typeof params.q === "string" && params.q.trim()) setKeyword(params.q.trim())
   }, [params.q])
-  const searching = Boolean(keyword.trim())
-  // Konten bantuan inti dibundel: buka dan cari tidak menunggu request jaringan.
-  const rows = useMemo<FaqRow[]>(
-    () =>
-      searching
-        ? searchBundledHelpArticles(keyword).map((article) => ({ id: article.id, article }))
-        : BUNDLED_HELP_CATEGORIES.map((category) => ({ id: category.slug, category })),
-    [searching, keyword],
+  const trimmedKeyword = keyword.trim()
+  const searching = Boolean(trimmedKeyword)
+
+  /**
+   * Audit Pengaturan & Bantuan 2026-10-10: konten backend (artikel yang
+   * dikelola tim) digabung dengan bundel. Bundel tampil SEKETIKA (tidak
+   * menunggu jaringan); respons backend hanya menambah. Gagal/offline →
+   * diam, bundel tetap utuh (tidak ada error state untuk konten pelengkap).
+   */
+  const remoteCategories = useApiQuery<HelpCategoryDetail[]>(
+    `help-categories:${language}`,
+    (signal) => api.helpCenter.listHelpCategories(signal).catch(() => []),
   )
+  const categories = useMemo(
+    () => mergeHelpCategories(BUNDLED_HELP, remoteCategories.data),
+    [remoteCategories.data],
+  )
+  const remoteSearch = useApiQuery<HelpArticle[]>(
+    `help-search:${language}:${trimmedKeyword}`,
+    (signal) => api.helpCenter.searchHelpArticles(trimmedKeyword, signal).catch(() => []),
+    // Backend menolak kueri < 2 karakter (mengembalikan []) — hemat request.
+    trimmedKeyword.length >= 2,
+  )
+  const rows = useMemo<FaqRow[]>(() => {
+    if (!searching) {
+      return categories.map(({ articles: _articles, ...category }) => ({
+        id: category.slug,
+        category,
+      }))
+    }
+    const bundledHits = searchBundledHelpArticles(trimmedKeyword)
+    // Artikel backend yang sudah dimuat bersama kategori ikut dicari lokal
+    // (tanpa menunggu endpoint search), lalu hasil search server menambah.
+    const needle = trimmedKeyword.toLocaleLowerCase("id-ID")
+    const mergedLocalHits = categories
+      .flatMap((category) => category.articles ?? [])
+      .filter((article) =>
+        [article.title, article.content]
+          .filter((value): value is string => typeof value === "string")
+          .some((value) => value.toLocaleLowerCase("id-ID").includes(needle)),
+      )
+    return mergeHelpArticles(
+      mergeHelpArticles(bundledHits, mergedLocalHits),
+      remoteSearch.data ?? [],
+    ).map((article) => ({ id: article.id || article.slug, article }))
+  }, [searching, trimmedKeyword, categories, remoteSearch.data])
 
   // F04: riwayat artikel terakhir dilihat (lokal, per akun) + aksi bersihkan.
   const [history, setHistory] = useState<HelpHistoryEntry[]>([])
@@ -161,10 +227,10 @@ export default function FaqScreen() {
           {history.length > 0 ? (
             <View className="gap-2">
               <SectionHeader
-                title="Terakhir dilihat"
+                title={translate("Terakhir dilihat")}
                 action={
                   <TextLink inline onPress={() => setClearOpen(true)}>
-                    Bersihkan
+                    {translate("Bersihkan")}
                   </TextLink>
                 }
               />
@@ -193,9 +259,10 @@ export default function FaqScreen() {
         <HelpArticleListItem
           padded={false}
           title={item.article.title}
+          snippet={item.article.categoryName}
           highlight={keyword}
           href={ROUTES.helpArticle(
-            item.article.slug ?? item.article.id,
+            item.article.slug || item.article.id,
             item.article.category,
             item.article.title,
           )}
@@ -215,23 +282,27 @@ export default function FaqScreen() {
       searching ? (
         <EmptyState
           icon={MagnifyingGlass}
-          title="Tidak ada hasil"
-          description="Coba kata kunci lain, atau chat dengan tim Kahade untuk bantuan lebih lanjut."
+          title={translate("Tidak ada hasil")}
+          description={translate(
+            "Coba kata kunci lain, atau chat dengan tim Kahade untuk bantuan lebih lanjut.",
+          )}
           action={
             <Button
               variant="secondary"
               fullWidth={false}
               onPress={() => router.push(ROUTES.supportChat)}
             >
-              Chat dengan tim Kahade
+              {translate("Chat dengan tim Kahade")}
             </Button>
           }
         />
       ) : (
         <EmptyState
           icon={Question}
-          title="Panduan belum tersedia"
-          description="Panduan utama tetap tersedia di perangkat ini. Hubungi tim Kahade untuk pertanyaan lain."
+          title={translate("Panduan belum tersedia")}
+          description={translate(
+            "Panduan utama tetap tersedia di perangkat ini. Hubungi tim Kahade untuk pertanyaan lain.",
+          )}
         />
       ),
     [searching],
@@ -266,12 +337,14 @@ export default function FaqScreen() {
         windowSize={7}
       />
       <Dialog
-        title="Bersihkan riwayat?"
-        description="Daftar artikel yang terakhir Anda lihat akan dihapus dari perangkat ini. Tindakan ini tidak bisa dibatalkan."
+        title={translate("Bersihkan riwayat?")}
+        description={translate(
+          "Daftar artikel yang terakhir Anda lihat akan dihapus dari perangkat ini.",
+        )}
         visible={clearOpen}
         destructive
-        confirmLabel="Bersihkan"
-        cancelLabel="Batal"
+        confirmLabel={translate("Bersihkan")}
+        cancelLabel={translate("Batal")}
         onConfirm={() => {
           void clearHelpHistory().then(() => {
             setHistory([])
