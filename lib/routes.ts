@@ -314,6 +314,12 @@ export const ROUTES = {
   // ── Dompet — aksi cepat kartu saldo ─────────────────────────────────────
   /** POST /v1/wallet/topup */
   topup: "/topup" as Href,
+  /**
+   * Audit 2026-10-10 (F24): top-up dengan kode voucher TOPUP_BONUS terpasang
+   * (dari kartu voucher di Promo) — `TopupDto.voucherCode`.
+   */
+  topupWithVoucher: (voucherCode: string) =>
+    ({ pathname: "/topup", params: { voucherCode } }) as unknown as Href,
   /** POST /v1/wallet/withdraw */
   withdraw: "/withdraw" as Href,
   /** POST /v1/wallet/transfer */
@@ -491,6 +497,12 @@ export const ROUTES = {
   ratings: "/ratings" as Href,
   /** Voucher (available + my-usage + redeem) */
   vouchers: "/vouchers" as Href,
+  /**
+   * Audit 2026-10-10 (F30): Promo dengan kode terisi & dicek otomatis
+   * (deeplink /v/<kode>, notifikasi VOUCHER_ISSUED) — layar membaca `code`.
+   */
+  vouchersWithCode: (code: string) =>
+    ({ pathname: "/vouchers", params: { code } }) as unknown as Href,
   /** Buku alamat (batch 43, item 2 — GET/POST/PATCH/DELETE /v1/addresses) */
   addresses: "/addresses" as Href,
   /** Badge (GET /v1/badges + /my) */

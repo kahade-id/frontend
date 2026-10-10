@@ -246,9 +246,20 @@ export function getReferralStats(signal?: AbortSignal) {
     .then(normalizeReferralStats)
 }
 
+/**
+ * Audit 2026-10-10 (F20): `/rewards` & `/history` berhalaman (default 20,
+ * maks. 100). Tanpa `limit`, undangan/reward ke-21 dst. tidak pernah tampil —
+ * kuota per kode 100 undangan, jadi satu halaman 100 menampung semuanya.
+ */
+const LIST_LIMIT = 100
+
 export function getReferralRewards(signal?: AbortSignal) {
   return http
-    .get<unknown>("/v1/referral/rewards", { auth: "required", signal })
+    .get<unknown>("/v1/referral/rewards", {
+      query: { page: 1, limit: LIST_LIMIT },
+      auth: "required",
+      signal,
+    })
     .then((raw) =>
       readList<unknown>(raw, ["rewards"])
         .map(normalizeReferralReward)
@@ -258,12 +269,55 @@ export function getReferralRewards(signal?: AbortSignal) {
 
 export function getReferralHistory(signal?: AbortSignal) {
   return http
-    .get<unknown>("/v1/referral/history", { auth: "required", retry: 1, signal })
+    .get<unknown>("/v1/referral/history", {
+      query: { page: 1, limit: LIST_LIMIT },
+      auth: "required",
+      retry: 1,
+      signal,
+    })
     .then((raw) =>
       readList<unknown>(raw, ["history", "referrals"])
         .map(normalizeReferralHistoryEntry)
         .filter((h): h is ReferralHistoryEntry => h !== null),
     )
+}
+
+/**
+ * Format kode referral — kontrak `ApplyReferralDto` backend
+ * (`^KH[A-Z0-9]{6,8}$`, lihat lib/api/constraints.ts). Audit 2026-10-10
+ * (F22): dulu tidak dicek di klien → kode salah format dikirim dan backend
+ * menjawab 422 dengan pesan class-validator berbahasa Inggris.
+ */
+export const REFERRAL_CODE_PATTERN = /^KH[A-Z0-9]{6,8}$/
+
+export function isReferralCodeFormat(code: string): boolean {
+  return REFERRAL_CODE_PATTERN.test(code.trim().toUpperCase())
+}
+
+/**
+ * Pesan Indonesia per kode penolakan `POST /v1/referral/apply`
+ * (referral.service.ts) — pesan mentah backend berbahasa Inggris dan
+ * `userMessage()` hanya tahu kelas HTTP-nya. `undefined` → pemanggil jatuh
+ * ke `userMessage()`. F22: `REFERRAL_LIMIT_REACHED` (kuota kode habis) dan
+ * `CIRCULAR_REFERRAL` dulu tidak dipetakan.
+ */
+export function referralApplyMessage(backendCode: string | undefined): string | undefined {
+  switch (backendCode?.toUpperCase()) {
+    case "REFERRAL_CODE_NOT_FOUND":
+      return translate("Kode referral tidak ditemukan atau sudah tidak aktif.")
+    case "REFERRAL_SELF":
+      return translate("Kode referral Anda sendiri tidak bisa dipakai.")
+    case "REFERRAL_ALREADY_APPLIED":
+      return translate("Akun Anda sudah punya pengundang.")
+    case "REFERRAL_NOT_NEW_USER":
+      return translate("Kode referral hanya untuk akun yang belum pernah bertransaksi.")
+    case "REFERRAL_LIMIT_REACHED":
+      return translate("Kuota undangan kode ini sudah habis.")
+    case "CIRCULAR_REFERRAL":
+      return translate("Kode ini milik orang yang Anda undang — tidak bisa saling mengundang.")
+    default:
+      return undefined
+  }
 }
 
 /**

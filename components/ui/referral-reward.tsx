@@ -1,7 +1,6 @@
 /**
- * Kahade — <ReferralRewardListItem> + <ReferralApplyForm> (§9.17 List Item,
- * §3.1 Mono, §11 Form, §13 format).
- * API: GET /v1/referral/rewards, POST /v1/referral/apply
+ * Kahade — <ReferralRewardListItem> (§9.17 List Item, §3.1 Mono, §13 format).
+ * API: GET /v1/referral/rewards
  *
  * RewardListItem — satu hadiah undangan: IconBox Gift -> judul
  *   ("Hadiah undangan · Budi") + tanggal -> <Amount sign="always"> hijau di
@@ -15,25 +14,19 @@
  *     Badge "Menunggu"; hanya CREDITED yang hijau. Uang yang belum ada
  *     tidak boleh terlihat sudah ada.
  *
- * ApplyForm — memasukkan kode referral orang lain (sekali, saat onboarding
- *   atau dari Pengaturan): Input Mono huruf besar + tombol "Pakai kode".
- *   - Validasi lokal hanya format (6–12 alfanumerik); keabsahan ditentukan
- *     backend -> `errorText` dari pemanggil.
- *   - `appliedCode` ada -> form berubah menjadi konfirmasi read-only
- *     ("Kode X sudah dipakai") karena backend menolak pemakaian kedua.
- *   - Tidak ada tombol "Batal": apply tidak bisa di-undo; jangan menyiratkan
- *     sebaliknya.
+ * Audit 2026-10-10 (F23): <ReferralApplyForm> yang dulu ikut di berkas ini
+ * DIHAPUS — tidak dipakai layar mana pun, dan validasi formatnya
+ * (`[A-Z0-9]{6,12}`) bertentangan dengan kontrak backend (`KH` + 6–8
+ * alfanumerik). Form apply yang hidup ada di app/referral.tsx dengan
+ * `isReferralCodeFormat` (lib/api/referrals).
  */
-import { useState } from "react"
-import { CheckCircle, Gift } from "phosphor-react-native"
-import { View, type ViewProps } from "react-native"
+import { Gift } from "phosphor-react-native"
+import { View } from "react-native"
 import { translate } from "@/lib/i18n/translate"
 
 import { Amount } from "@/components/ui/amount"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 import { IconBox } from "@/components/ui/icon-box"
-import { Input } from "@/components/ui/input"
 import { ListItem, type ListItemProps } from "@/components/ui/list-item"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
@@ -89,7 +82,7 @@ export function ReferralRewardListItem({
   const title = titleOverride
     ? translate(titleOverride)
     : referredName
-    ? translate("Hadiah undangan \u00B7 {x}", { x: referredName })
+    ? translate("Hadiah undangan · {x}", { x: referredName })
     : translate("Hadiah undangan")
 
   return (
@@ -120,80 +113,5 @@ export function ReferralRewardListItem({
       accessibilityLabel={translate("{x}, {y}, {z}", { x: title, y: statusLabel, z: date })}
       {...rest}
     />
-  )
-}
-
-// ------------------------------------------------------------------
-// Apply form
-// ------------------------------------------------------------------
-
-export type ReferralApplyFormProps = Omit<ViewProps, "children"> & {
-  onSubmit: (code: string) => void
-  submitting?: boolean
-  /** Pesan error dari backend (kode tidak valid / kedaluwarsa / milik sendiri) */
-  errorText?: string
-  /** Kode yang sudah dipakai — mengubah form menjadi konfirmasi */
-  appliedCode?: string
-  /** Mis. "Anda dan pengundang masing-masing dapat Rp25.000 setelah transaksi pertama." */
-  rewardHint?: string
-  className?: string
-}
-
-const CODE_RE = /^[A-Z0-9]{6,12}$/
-
-export function ReferralApplyForm({
-  onSubmit,
-  submitting = false,
-  errorText,
-  appliedCode,
-  rewardHint,
-  className,
-  ...rest
-}: ReferralApplyFormProps) {
-  const [code, setCode] = useState("")
-  const normalized = code.trim().toUpperCase()
-  const formatOk = CODE_RE.test(normalized)
-
-  if (appliedCode) {
-    return (
-      <View
-        className={cn("flex-row items-center gap-3 rounded-md border border-border bg-surface p-4", className)}
-        accessible
-        accessibilityLabel={translate("Kode referral {x} sudah dipakai", { x: appliedCode })}
-        {...rest}
-      >
-        <IconBox icon={CheckCircle} size="md" variant="success" />
-        <View className="flex-1 gap-0.5">
-          <Text variant="body" weight={500} tone="primary">
-            Kode referral sudah dipakai
-          </Text>
-          <Text variant="monoBody" tone="secondary">
-            {appliedCode}
-          </Text>
-        </View>
-      </View>
-    )
-  }
-
-  return (
-    <View className={cn("gap-4", className)} {...rest}>
-      <Input
-        label="Kode referral"
-        value={code}
-        onChangeText={(v) => setCode(v.toUpperCase())}
-        autoCapitalize="characters"
-        autoCorrect={false}
-        spellCheck={false}
-        returnKeyType="done"
-        maxLength={12}
-        errorText={errorText ?? (code.length > 0 && !formatOk ? "6–12 huruf/angka" : undefined)}
-        helperText={rewardHint}
-        className="font-mono-500 tracking-widest"
-        accessibilityLabel="Masukkan kode referral"
-      />
-      <Button onPress={() => onSubmit(normalized)} disabled={!formatOk || submitting} loading={submitting}>
-        Pakai kode
-      </Button>
-    </View>
   )
 }

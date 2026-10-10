@@ -13,7 +13,7 @@
 
 import { Crossfade } from "@/components/ui/fade-in"
 import { ListLoading } from "@/components/ui/paginated-list"
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { View } from "react-native"
 import { useLocalSearchParams } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
@@ -22,6 +22,7 @@ import { goBackOrNavigate } from "@/lib/navigation"
 import { clearPendingReferralCode, getPendingReferralCode } from "@/lib/pending-referral"
 
 import { api, isApiError, userMessage } from "@/lib/api"
+import { isReferralCodeFormat, referralApplyMessage } from "@/lib/api/referrals"
 import { referralUrl } from "@/lib/deeplinks"
 import {
   disbursementStatusCopy,
@@ -49,7 +50,7 @@ import { ReferralRewardListItem } from "@/components/ui/referral-reward"
 import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
 import { Text } from "@/components/ui/text"
-import { useApiQuery } from "@/lib/use-api-query"
+import { invalidateQueryCache, useApiQuery } from "@/lib/use-api-query"
 import { useCopy } from "@/lib/clipboard"
 import { logWarn } from "@/lib/telemetry"
 import { useToast } from "@/components/ui/toast"
@@ -57,24 +58,11 @@ import { useWalletEnabled } from "@/lib/use-wallet-enabled"
 import { showMutationError } from "@/lib/mutation-toast"
 
 /**
- * Pesan spesifik per kode penolakan `POST /v1/referral/apply` — pesan mentah
- * backend berbahasa Inggris dan `userMessage()` hanya tahu kelas HTTP-nya.
- * `undefined` → jatuh ke `userMessage()`.
+ * Kunci cache ringkasan referral di layar Promo (app/vouchers.tsx). Audit
+ * 2026-10-10 (F31): setelah regenerate/apply di sini, Promo masih menampilkan
+ * kode/statistik lama dari cache sampai TTL habis — invalidasi eksplisit.
  */
-function referralApplyMessage(backendCode: string | undefined): string | undefined {
-  switch (backendCode?.toUpperCase()) {
-    case "REFERRAL_CODE_NOT_FOUND":
-      return translate("Kode referral tidak ditemukan atau sudah tidak aktif.")
-    case "REFERRAL_SELF":
-      return translate("Kode referral Anda sendiri tidak bisa dipakai.")
-    case "REFERRAL_ALREADY_APPLIED":
-      return translate("Akun Anda sudah punya pengundang.")
-    case "REFERRAL_NOT_NEW_USER":
-      return translate("Kode referral hanya untuk akun yang belum pernah bertransaksi.")
-    default:
-      return undefined
-  }
-}
+const PROMO_REFERRAL_QUERY_KEY = "promo-referral"
 
 export default function ReferralScreen() {
   const insets = useSafeAreaInsets()
@@ -191,12 +179,30 @@ export default function ReferralScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [deeplinkCode])
 
+  // F49: sudah punya pengundang → kode tertunda dibuang (tidak boleh
+  // "menempel" di perangkat), dan bila tiba lewat tautan undangan beri tahu
+  // SEKALI — dulu form disembunyikan (F03) dan kode param diabaikan diam-diam.
+  const deeplinkIgnoredRef = useRef(false)
+  useEffect(() => {
+    if (!invitedBy) return
+    void clearPendingReferralCode()
+    const incoming = Array.isArray(deeplinkCode) ? deeplinkCode[0] : deeplinkCode
+    if (!incoming || deeplinkIgnoredRef.current) return
+    deeplinkIgnoredRef.current = true
+    toast.show({
+      title: translate("Anda sudah punya pengundang"),
+      description: translate("Kode dari tautan undangan tidak dipakai."),
+      tone: "info",
+    })
+  }, [invitedBy, deeplinkCode, toast.show])
+
   const handleRegenerate = useCallback(async () => {
     setRegenerating(true)
     try {
       const res = await api.referrals.regenerateReferralCode()
       // Perbarui kode di dalam bundle milik useApiQuery (pengganti setCode).
       query.setData((prev) => (prev ? { ...prev, code: res?.code ?? prev.code } : prev))
+      invalidateQueryCache(PROMO_REFERRAL_QUERY_KEY)
       toast.show({ title: translate("Kode referral baru dibuat"), tone: "success", duration: 3000 })
     } catch (err: unknown) {
       // Klasifikasi toast: error mutasi non-blokir via showMutationError.
@@ -239,12 +245,19 @@ export default function ReferralScreen() {
   const handleApply = useCallback(async () => {
     const value = applyCode.trim().toUpperCase()
     if (!value) return
+    // F22: format dicek di klien (kontrak `^KH[A-Z0-9]{6,8}$`) — dulu kode
+    // salah format dikirim dan 422 class-validator (Inggris) tampil generik.
+    if (!isReferralCodeFormat(value)) {
+      setApplyError(translate("Kode referral diawali KH diikuti 6–8 huruf/angka."))
+      return
+    }
     setApplying(true)
     setApplyError(undefined)
     try {
       await api.referrals.applyReferralCode({ code: value })
       setApplyCode("")
       void clearPendingReferralCode()
+      invalidateQueryCache(PROMO_REFERRAL_QUERY_KEY)
       toast.show({ title: translate("Kode referral diterapkan"), tone: "success" })
       await query.refresh()
     } catch (err) {
@@ -368,9 +381,16 @@ export default function ReferralScreen() {
                 <Input
                   label="Kode referral"
                   value={applyCode}
-                  onChangeText={(v) => setApplyCode(v.toUpperCase())}
+                  onChangeText={(v) => {
+                    setApplyCode(v.toUpperCase())
+                    // F29 (pola FRM-015): error penolakan lama tidak lengket
+                    // saat pengguna mengetik koreksi.
+                    setApplyError(undefined)
+                  }}
                   autoCapitalize="characters"
                   autoCorrect={false}
+                  // Kontrak ApplyReferralDto: KH + 6–8 alfanumerik = maks. 10.
+                  maxLength={10}
                   errorText={applyError}
                   returnKeyType="done"
                   onSubmitEditing={() => void handleApply()}

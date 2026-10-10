@@ -88,6 +88,15 @@ function routeForNotificationReferenceRaw(ref: NotificationReference): Href | nu
   if (type.startsWith("dispute")) return id ? ROUTES.disputeDetail(id) : ROUTES.disputes
   // NCC-004: keluarga MILESTONE_* (MILESTONE_RELEASED dsb.) → detail milestone.
   if (type.startsWith("milestone")) return id ? ROUTES.milestoneDetail(id) : null
+  // Audit voucher/referral 2026-10-10 (F30): keluarga VOUCHER_* (VOUCHER_ISSUED
+  // dari kampanye, sengketa, win-back) dulu tidak dipetakan → tap notifikasi
+  // mendarat di tab Notifikasi. Kode voucher (push `voucherCode`) ikut dibawa
+  // agar Promo langsung mengeceknya. REFERRAL_* (REFERRAL_REWARD_RECEIVED,
+  // backend B13) → layar referral. TOPUP_BONUS_CREDITED /
+  // CAMPAIGN_CASHBACK_CREDITED → dompet (kill-switch via applyWalletFallback).
+  if (type.startsWith("voucher")) return id ? ROUTES.vouchersWithCode(id) : ROUTES.vouchers
+  if (type.startsWith("referral")) return ROUTES.referral
+  if (type.startsWith("topupbonus") || type.startsWith("campaigncashback")) return ROUTES.wallet
 
   switch (type) {
     case "order":
@@ -455,6 +464,10 @@ export function labelForNotificationReference(ref: NotificationReference): strin
   if (type === "feedback") return "Lihat bantuan"
   // FAL-019: ORDER_SHIPPED → detail pelacakan.
   if (type === "ordershipped" || type === "ordership" || type === "shipment") return "Lihat pelacakan"
+  // F30: sejajar dengan routeForNotificationReferenceRaw.
+  if (type.startsWith("voucher")) return "Lihat voucher"
+  if (type.startsWith("referral")) return "Lihat referral"
+  if (type.startsWith("topupbonus") || type.startsWith("campaigncashback")) return "Lihat dompet"
 
   switch (type) {
     case "order":
@@ -644,7 +657,10 @@ function routeForPushDataRaw(data: unknown): Href | null {
     str("txId") ??
     str("transactionId") ??
     str("username") ??
-    str("token")
+    str("token") ??
+    // F30: push VOUCHER_ISSUED membawa `voucherCode` (campaign.service,
+    // dormant-winback) — dipakai sebagai id agar Promo mengecek kodenya.
+    str("voucherCode")
   // SH-F-008: id komentar untuk highlight deep-link; kunci payload tidak
   // didokumentasikan backend (gap kontrak) — terima varian yang lazim.
   const commentId = str("commentId") ?? str("comment_id") ?? str("comment")
