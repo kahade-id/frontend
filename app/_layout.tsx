@@ -155,6 +155,7 @@ import {
   useSoftReauthActive,
 } from "@/lib/soft-reauth"
 import { refreshUnreadCount } from "@/lib/unread-count"
+import { invalidateQueryPrefix } from "@/lib/use-api-query"
 import { tokens } from "@/lib/tokens"
 import { captureError, installTelemetry, logWarn } from "@/lib/telemetry"
 import { installSentrySink } from "@/lib/telemetry-sentry"
@@ -769,6 +770,33 @@ function ShellRouteEffects({ session, setRealtimeNeeded }: {
   )
 }
 
+/**
+ * CN-012 / Audit 2026-10-10 (FE-15, FE-34, FE-44): tap push = notifikasi
+ * dibaca. Backend menyertakan `notificationId` (notifId publik; alias
+ * `notifId`) di payload push. Satu helper untuk jalur native (tap, cold
+ * start) dan web — dulu tiga salinan yang menyimpang. Kegagalan sunyi: badge
+ * tetap disegarkan pemanggil; kegagalan sesekali tidak boleh mengganggu
+ * navigasi.
+ */
+function markPushNotificationRead(data: unknown): void {
+  const d = (data ?? {}) as Record<string, unknown>
+  const notifId =
+    typeof d.notificationId === "string"
+      ? d.notificationId
+      : typeof d.notifId === "string"
+        ? d.notifId
+        : null
+  if (!notifId) return
+  notificationsApi
+    .markNotificationRead(notifId)
+    .then(() => {
+      // FE-15: daftar inbox yang ter-cache masih menampilkan item ini
+      // sebagai belum dibaca — batalkan.
+      invalidateQueryPrefix("notifications:")
+    })
+    .catch(() => {})
+}
+
 function AppShellInner() {
   const { mode } = useTheme()
   const palette = tokens.colors[mode]
@@ -972,7 +1000,13 @@ function AppShellInner() {
         // PERF-FIX (P1 nav): replace → navigate (dedup stack): tap push ke
         // rute yang sudah terbuka tidak menumpuk duplikat.
         router.navigate(session.token ? target : ROUTES.login)
-        if (session.token) void refreshUnreadCount()
+        if (session.token) {
+          // Audit 2026-10-10 (FE-34): paritas dengan tap native di bawah —
+          // tap = dibaca; dulu jalur web hanya menyegarkan badge sehingga
+          // item tetap "belum dibaca" di inbox sampai dibuka lagi.
+          markPushNotificationRead(data)
+          void refreshUnreadCount()
+        }
       })
     })
     return () => {
@@ -1048,7 +1082,15 @@ function AppShellInner() {
         // fallback ke Notifikasi di sini membuat setiap cold start mendarat
         // di tab yang salah. Tap saat app hidup tetap jatuh ke Notifikasi
         // karena niat penggunanya jelas (mereka mengetuk notifikasinya).
-        if (source === "cold-start" && !resolved) return
+        if (source === "cold-start" && !resolved) {
+          // Audit 2026-10-10 (FE-44): tetap tandai dibaca + segarkan badge —
+          // pengguna MENGETUK notifikasinya walau tidak ada tujuan navigasi.
+          if (session.token) {
+            markPushNotificationRead(data)
+            void refreshUnreadCount()
+          }
+          return
+        }
         if (source === "cold-start") suppressLastRouteRestore()
         const target = resolved ?? ROUTES.notifications
         // NAV-007: tap notifikasi saat logout — simpan tujuan supaya alur
@@ -1061,21 +1103,8 @@ function AppShellInner() {
         // PERF-FIX (P1 nav): dedup — tap push ke rute aktif tidak menumpuk.
         router.navigate(session.token ? target : ROUTES.login)
         if (session.token) {
-          // CN-012: tap push = notifikasi dibaca. Backend menyertakan
-          // `notificationId` (notifId publik) di payload push.
-          const d = (data ?? {}) as Record<string, unknown>
-          const notifId =
-            typeof d.notificationId === "string"
-              ? d.notificationId
-              : typeof d.notifId === "string"
-                ? d.notifId
-                : null
-          if (notifId) {
-            notificationsApi.markNotificationRead(notifId).catch(() => {
-              // Sunyi: badge di-refresh di bawah; kegagalan sesekali tidak
-              // boleh mengganggu navigasi.
-            })
-          }
+          // CN-012: tap push = notifikasi dibaca.
+          markPushNotificationRead(data)
           void refreshUnreadCount()
         }
       } catch (err) {
@@ -1113,7 +1142,13 @@ function AppShellInner() {
     }
     let cancelled = false
     // Daftarkan (idempoten) — jangan blokir boot bila gagal.
-    void registerPushDevice(deviceApi, { force: false }).catch((err) => {
+    // Audit 2026-10-10 (FE-49): `prompt: false` — JANGAN memunculkan dialog
+    // izin OS saat boot. Dulu `getPushToken` memanggil
+    // `requestPermissionsAsync` tiap peluncuran, sehingga dialog izin muncul
+    // sebelum sheet rationale (PushRationaleSheet di feed Etalase) sempat
+    // menjelaskan — di iOS dialog itu hanya sekali seumur instalasi. Izin
+    // diminta HANYA dari rationale sheet / CTA di Pengaturan Notifikasi.
+    void registerPushDevice(deviceApi, { force: false, prompt: false }).catch((err) => {
       if (!cancelled) logWarn("push:register-on-start", err)
     })
     const unsubscribeTokenRefresh = subscribePushTokenRefresh(deviceApi)

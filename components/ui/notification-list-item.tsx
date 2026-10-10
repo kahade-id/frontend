@@ -49,6 +49,7 @@ import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
+import { translate, useLanguage } from "@/lib/i18n"
 import { tokens } from "@/lib/tokens"
 import { focusRingInset } from "@/lib/focus-ring"
 
@@ -158,12 +159,19 @@ export const NotificationListItem = memo(function NotificationListItem({
   className,
   ...rest
 }: NotificationListItemProps) {
+  // Baris di-memo: langganan bahasa di sini supaya label a11y ikut berganti
+  // saat pengguna mengubah bahasa tanpa menunggu props berubah.
+  useLanguage()
+  // Audit Notifikasi 2026-10-10 (FE-39): tiap bagian diterjemahkan SENDIRI
+  // sebelum digabung — label gabungan ("Belum dibaca, Judul, …") tidak pernah
+  // cocok dengan kunci kamus, jadi `translateProp` di PressableScale tidak
+  // bisa menerjemahkannya; pengguna EN mendengar "Belum dibaca" / "dipilih".
   const a11y = summarize([
-    unread ? "Belum dibaca" : undefined,
+    unread ? translate("Belum dibaca") : undefined,
     title,
     body,
     timestamp,
-    selected ? "dipilih" : undefined,
+    selected ? translate("Dipilih") : undefined,
   ])
 
   /** Baris bertint (belum dibaca / terpilih) → chip dibalik agar terbaca. */

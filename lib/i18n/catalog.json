@@ -12,7 +12,7 @@
   },
   {
    "s": "Aksi mungkin sudah diproses — memuat ulang…",
-   "n": 70
+   "n": 71
   },
   {
    "s": "Coba lagi",
@@ -52,7 +52,7 @@
   },
   {
    "s": "Lanjutkan",
-   "n": 18
+   "n": 19
   },
   {
    "s": "Lihat profil {x}",
@@ -131,6 +131,10 @@
    "n": 13
   },
   {
+   "s": "Masuk",
+   "n": 13
+  },
+  {
    "s": "Minimal {x} karakter",
    "n": 13
   },
@@ -164,10 +168,6 @@
   },
   {
    "s": "Maksimal {x} digit; nilai negatif ditolak.",
-   "n": 12
-  },
-  {
-   "s": "Masuk",
    "n": 12
   },
   {
@@ -283,6 +283,10 @@
    "n": 9
   },
   {
+   "s": "Belum dibaca",
+   "n": 9
+  },
+  {
    "s": "Buat template",
    "n": 9
   },
@@ -331,10 +335,6 @@
    "n": 8
   },
   {
-   "s": "Belum dibaca",
-   "n": 8
-  },
-  {
    "s": "Belum terkirim",
    "n": 8
   },
@@ -372,6 +372,10 @@
   },
   {
    "s": "Konfirmasi kata sandi",
+   "n": 8
+  },
+  {
+   "s": "Lihat sengketa",
    "n": 8
   },
   {
@@ -443,6 +447,10 @@
    "n": 7
   },
   {
+   "s": "Dompet",
+   "n": 7
+  },
+  {
    "s": "Email kontak",
    "n": 7
   },
@@ -472,6 +480,10 @@
   },
   {
    "s": "Lencana",
+   "n": 7
+  },
+  {
+   "s": "Lihat pesanan",
    "n": 7
   },
   {
@@ -639,10 +651,6 @@
    "n": 6
   },
   {
-   "s": "Dompet",
-   "n": 6
-  },
-  {
    "s": "Eksklusif Kahade+: format teks dengan HTML ringan.",
    "n": 6
   },
@@ -759,6 +767,10 @@
    "n": 6
   },
   {
+   "s": "Kelola Etalase",
+   "n": 6
+  },
+  {
    "s": "Kembali ke atas",
    "n": 6
   },
@@ -796,6 +808,14 @@
   },
   {
    "s": "Lanjut mengedit",
+   "n": 6
+  },
+  {
+   "s": "Lihat profil",
+   "n": 6
+  },
+  {
+   "s": "Lihat ulasan",
    "n": 6
   },
   {
@@ -1059,6 +1079,10 @@
    "n": 5
   },
   {
+   "s": "Buka chat",
+   "n": 5
+  },
+  {
    "s": "Buka referensi {x}",
    "n": 5
   },
@@ -1155,6 +1179,10 @@
    "n": 5
   },
   {
+   "s": "Keamanan",
+   "n": 5
+  },
+  {
    "s": "Kelola story",
    "n": 5
   },
@@ -1183,6 +1211,10 @@
    "n": 5
   },
   {
+   "s": "Konfirmasi terima",
+   "n": 5
+  },
+  {
    "s": "Kontak publik",
    "n": 5
   },
@@ -1200,14 +1232,6 @@
   },
   {
    "s": "Lihat",
-   "n": 5
-  },
-  {
-   "s": "Lihat profil",
-   "n": 5
-  },
-  {
-   "s": "Lihat sengketa",
    "n": 5
   },
   {
@@ -1311,7 +1335,15 @@
    "n": 5
   },
   {
+   "s": "Umum",
+   "n": 5
+  },
+  {
    "s": "Username",
+   "n": 5
+  },
+  {
+   "s": "Verifikasi",
    "n": 5
   },
   {
@@ -1643,14 +1675,6 @@
    "n": 4
   },
   {
-   "s": "Keamanan",
-   "n": 4
-  },
-  {
-   "s": "Kelola Etalase",
-   "n": 4
-  },
-  {
    "s": "Kembali edit",
    "n": 4
   },
@@ -1668,10 +1692,6 @@
   },
   {
    "s": "Komentar terkirim",
-   "n": 4
-  },
-  {
-   "s": "Konfirmasi terima",
    "n": 4
   },
   {
@@ -1704,10 +1724,6 @@
   },
   {
    "s": "Lepas",
-   "n": 4
-  },
-  {
-   "s": "Lihat pesanan",
    "n": 4
   },
   {
@@ -1971,15 +1987,7 @@
    "n": 4
   },
   {
-   "s": "Umum",
-   "n": 4
-  },
-  {
    "s": "Urutkan:",
-   "n": 4
-  },
-  {
-   "s": "Verifikasi",
    "n": 4
   },
   {
@@ -2575,6 +2583,10 @@
    "n": 3
   },
   {
+   "s": "Buka keamanan",
+   "n": 3
+  },
+  {
    "s": "Buka Kelola Transaksi",
    "n": 3
   },
@@ -2623,7 +2635,15 @@
    "n": 3
   },
   {
+   "s": "Buka tautan pesanan",
+   "n": 3
+  },
+  {
    "s": "Buka utas balasan",
+   "n": 3
+  },
+  {
+   "s": "Buka verifikasi",
    "n": 3
   },
   {
@@ -2671,6 +2691,10 @@
    "n": 3
   },
   {
+   "s": "Chat",
+   "n": 3
+  },
+  {
    "s": "Chat dengan CS",
    "n": 3
   },
@@ -2684,10 +2708,6 @@
   },
   {
    "s": "Checklist akun",
-   "n": 3
-  },
-  {
-   "s": "Coba lagi dalam {x}",
    "n": 3
   },
   {
@@ -3059,10 +3079,6 @@
    "n": 3
   },
   {
-   "s": "Gagal mengirim OTP",
-   "n": 3
-  },
-  {
    "s": "Gagal mengirim rating",
    "n": 3
   },
@@ -3376,10 +3392,6 @@
   },
   {
    "s": "Jadilah yang pertama menyukai etalase ini.",
-   "n": 3
-  },
-  {
-   "s": "Jadwal harian tanpa bunyi notifikasi push.",
    "n": 3
   },
   {
@@ -3799,6 +3811,10 @@
    "n": 3
   },
   {
+   "s": "Lihat karya",
+   "n": 3
+  },
+  {
    "s": "Lihat kategori {x}",
    "n": 3
   },
@@ -3811,6 +3827,10 @@
    "n": 3
   },
   {
+   "s": "Lihat mutasi",
+   "n": 3
+  },
+  {
    "s": "Lihat pesan hasil pencarian",
    "n": 3
   },
@@ -3820,6 +3840,10 @@
   },
   {
    "s": "Lihat produk {name}",
+   "n": 3
+  },
+  {
+   "s": "Lihat retur",
    "n": 3
   },
   {
@@ -3840,10 +3864,6 @@
   },
   {
    "s": "Lihat story saya",
-   "n": 3
-  },
-  {
-   "s": "Lihat ulasan",
    "n": 3
   },
   {
@@ -4580,6 +4600,10 @@
   },
   {
    "s": "Punya kode dari teman?",
+   "n": 3
+  },
+  {
+   "s": "Push ditunda pada jam ini, kecuali keamanan. Notifikasi tetap ada di aplikasi.",
    "n": 3
   },
   {
@@ -5539,15 +5563,7 @@
    "n": 2
   },
   {
-   "s": "{x} dikenali dengan baik di perangkat ini.",
-   "n": 2
-  },
-  {
    "s": "{x} disalin",
-   "n": 2
-  },
-  {
-   "s": "{x} ditautkan",
    "n": 2
   },
   {
@@ -5576,6 +5592,10 @@
   },
   {
    "s": "{x} pesan dihapus",
+   "n": 2
+  },
+  {
+   "s": "{x} sudah tidak tersedia — kemungkinan sudah dihapus.",
    "n": 2
   },
   {
@@ -6031,6 +6051,10 @@
    "n": 2
   },
   {
+   "s": "Berlaku untuk semua kategori, bukan hanya tab yang sedang dibuka.",
+   "n": 2
+  },
+  {
    "s": "Bersihkan",
    "n": 2
   },
@@ -6179,10 +6203,6 @@
    "n": 2
   },
   {
-   "s": "Buka chat",
-   "n": 2
-  },
-  {
    "s": "Buka daftar artikel",
    "n": 2
   },
@@ -6204,6 +6224,10 @@
   },
   {
    "s": "Buka di peta",
+   "n": 2
+  },
+  {
+   "s": "Buka dompet",
    "n": 2
   },
   {
@@ -6319,10 +6343,6 @@
    "n": 2
   },
   {
-   "s": "Chat",
-   "n": 2
-  },
-  {
    "s": "Chat belum bisa dibuka",
    "n": 2
   },
@@ -6379,6 +6399,10 @@
    "n": 2
   },
   {
+   "s": "Daftarkan rekening",
+   "n": 2
+  },
+  {
    "s": "Dalam proses",
    "n": 2
   },
@@ -6416,6 +6440,10 @@
   },
   {
    "s": "Dana diteruskan ke penjual.",
+   "n": 2
+  },
+  {
+   "s": "Dana dompet: top-up, penarikan, transfer, dan pencairan dana.",
    "n": 2
   },
   {
@@ -6827,10 +6855,6 @@
    "n": 2
   },
   {
-   "s": "Gagal memulai tautan {x}",
-   "n": 2
-  },
-  {
    "s": "Gagal memulihkan",
    "n": 2
   },
@@ -6896,6 +6920,10 @@
   },
   {
    "s": "Gagal mengirim lokasi",
+   "n": 2
+  },
+  {
+   "s": "Gagal mengirim OTP",
    "n": 2
   },
   {
@@ -7451,10 +7479,6 @@
    "n": 2
   },
   {
-   "s": "Kode berlaku {x} menit. Belum menerima? Pastikan WhatsApp nomor baru aktif, lalu ketuk Ubah nomor untuk mengirim ulang.",
-   "n": 2
-  },
-  {
    "s": "Kode berlaku beberapa menit",
    "n": 2
   },
@@ -7711,6 +7735,14 @@
    "n": 2
   },
   {
+   "s": "Lihat bantuan",
+   "n": 2
+  },
+  {
+   "s": "Lihat booking",
+   "n": 2
+  },
+  {
    "s": "Lihat daftar mengikuti",
    "n": 2
   },
@@ -7739,11 +7771,27 @@
    "n": 2
   },
   {
+   "s": "Lihat langganan",
+   "n": 2
+  },
+  {
    "s": "Lihat paket",
    "n": 2
   },
   {
+   "s": "Lihat pelacakan",
+   "n": 2
+  },
+  {
+   "s": "Lihat pertanyaan",
+   "n": 2
+  },
+  {
    "s": "Lihat produk",
+   "n": 2
+  },
+  {
+   "s": "Lihat referral",
    "n": 2
   },
   {
@@ -7780,6 +7828,10 @@
   },
   {
    "s": "Lihat semua ulasan",
+   "n": 2
+  },
+  {
+   "s": "Lihat tahap",
    "n": 2
   },
   {
@@ -8119,6 +8171,10 @@
    "n": 2
   },
   {
+   "s": "Minta kode baru",
+   "n": 2
+  },
+  {
    "s": "mis. Laptop kerja",
    "n": 2
   },
@@ -8307,10 +8363,6 @@
    "n": 2
   },
   {
-   "s": "Passkey “{x}” terdaftar",
-   "n": 2
-  },
-  {
    "s": "Patungan",
    "n": 2
   },
@@ -8412,6 +8464,10 @@
   },
   {
    "s": "Pengguna yang Anda blokir akan muncul di sini.",
+   "n": 2
+  },
+  {
+   "s": "Pengumuman dan informasi lain di luar transaksi.",
    "n": 2
   },
   {
@@ -8539,6 +8595,10 @@
    "n": 2
   },
   {
+   "s": "Peringatan keamanan akun: login baru, perubahan kata sandi, dan verifikasi.",
+   "n": 2
+  },
+  {
    "s": "Perlu langkah tambahan",
    "n": 2
   },
@@ -8588,6 +8648,10 @@
   },
   {
    "s": "Pesan berbintang: {x}",
+   "n": 2
+  },
+  {
+   "s": "Pesan chat baru dari lawan transaksi atau admin.",
    "n": 2
   },
   {
@@ -8815,7 +8879,7 @@
    "n": 2
   },
   {
-   "s": "Push tidak dibunyikan pada jam berikut.",
+   "s": "Push tidak dikirim pada jam berikut.",
    "n": 2
   },
   {
@@ -9251,6 +9315,14 @@
    "n": 2
   },
   {
+   "s": "Status pesanan, dana masuk/keluar, dan batas waktu pembayaran. Sangat disarankan tetap aktif.",
+   "n": 2
+  },
+  {
+   "s": "Status pesanan: pembayaran diterima, pengiriman, dan pencairan dana.",
+   "n": 2
+  },
+  {
    "s": "Status simpan belum pasti. Coba Terbitkan lagi untuk melanjutkan permintaan yang sama, atau periksa daftar etalase Anda sebelum membuat etalase baru.",
    "n": 2
   },
@@ -9432,10 +9504,6 @@
   },
   {
    "s": "Tarik Saldo Lama",
-   "n": 2
-  },
-  {
-   "s": "Tautan {x} dilepas",
    "n": 2
   },
   {
@@ -10063,6 +10131,10 @@
    "n": 1
   },
   {
+   "s": "{x} · Push tertahan: izin perangkat mati",
+   "n": 1
+  },
+  {
    "s": "{x} ({x} percakapan)",
    "n": 1
   },
@@ -10099,7 +10171,7 @@
    "n": 1
   },
   {
-   "s": "{x} digit autentikator atau kode cadangan. Kosongkan bila {x}FA tidak aktif.",
+   "s": "{x} dari {y} jenis aktif",
    "n": 1
   },
   {
@@ -10111,7 +10183,15 @@
    "n": 1
   },
   {
+   "s": "{x} dikenali dengan baik di perangkat ini.",
+   "n": 1
+  },
+  {
    "s": "{x} disembunyikan",
+   "n": 1
+  },
+  {
+   "s": "{x} ditautkan",
    "n": 1
   },
   {
@@ -10183,10 +10263,6 @@
    "n": 1
   },
   {
-   "s": "{x} sudah tidak tersedia — kemungkinan sudah dihapus.",
-   "n": 1
-  },
-  {
    "s": "{x} tahun",
    "n": 1
   },
@@ -10252,10 +10328,6 @@
   },
   {
    "s": "{x}. CHAT, PANGGILAN FITUR, DAN LAMPIRAN",
-   "n": 1
-  },
-  {
-   "s": "{x}. Coba lagi dalam {y}.",
    "n": 1
   },
   {
@@ -13459,6 +13531,10 @@
    "n": 1
   },
   {
+   "s": "Buka chat bantuan",
+   "n": 1
+  },
+  {
    "s": "Buka daftar isi",
    "n": 1
   },
@@ -13488,10 +13564,6 @@
   },
   {
    "s": "Buka halaman masuk",
-   "n": 1
-  },
-  {
-   "s": "Buka keamanan",
    "n": 1
   },
   {
@@ -13536,10 +13608,6 @@
   },
   {
    "s": "Buka Tautan",
-   "n": 1
-  },
-  {
-   "s": "Buka tautan pesanan",
    "n": 1
   },
   {
@@ -13931,6 +13999,10 @@
    "n": 1
   },
   {
+   "s": "Coba lagi dalam {x}",
+   "n": 1
+  },
+  {
    "s": "Coba lagi dengan metode yang sama, atau pilih metode pembayaran lain di bawah.",
    "n": 1
   },
@@ -14184,10 +14256,6 @@
   },
   {
    "s": "Dana ditransfer ke rekening atas nama Anda yang dipilih di sini.",
-   "n": 1
-  },
-  {
-   "s": "Dana dompet: top-up, penarikan, transfer, dan pencairan dana.",
    "n": 1
   },
   {
@@ -14779,6 +14847,10 @@
    "n": 1
   },
   {
+   "s": "Dipilih",
+   "n": 1
+  },
+  {
    "s": "Diproses bank",
    "n": 1
   },
@@ -14967,6 +15039,10 @@
    "n": 1
   },
   {
+   "s": "Efektif: {x}",
+   "n": 1
+  },
+  {
    "s": "Eksekusi terakhir",
    "n": 1
   },
@@ -14984,10 +15060,6 @@
   },
   {
    "s": "Email {x}",
-   "n": 1
-  },
-  {
-   "s": "Email {x} akan menjadi email utama akun Anda.",
    "n": 1
   },
   {
@@ -15399,11 +15471,19 @@
    "n": 1
   },
   {
+   "s": "Gagal memulai tautan {x}",
+   "n": 1
+  },
+  {
    "s": "Gagal menanggapi usulan",
    "n": 1
   },
   {
    "s": "Gagal menautkan",
+   "n": 1
+  },
+  {
+   "s": "Gagal mencabut semua sesi",
    "n": 1
   },
   {
@@ -16879,6 +16959,10 @@
    "n": 1
   },
   {
+   "s": "Kirim kode",
+   "n": 1
+  },
+  {
    "s": "Kirim kode OTP",
    "n": 1
   },
@@ -17375,6 +17459,10 @@
    "n": 1
   },
   {
+   "s": "Kosongkan bila {x}FA tidak aktif.",
+   "n": 1
+  },
+  {
    "s": "Kota wajib diisi.",
    "n": 1
   },
@@ -17691,11 +17779,27 @@
    "n": 1
   },
   {
+   "s": "Lihat hasil banding",
+   "n": 1
+  },
+  {
    "s": "Lihat koleksi lencana Anda",
    "n": 1
   },
   {
+   "s": "Lihat laporan saya",
+   "n": 1
+  },
+  {
+   "s": "Lihat lencana",
+   "n": 1
+  },
+  {
    "s": "Lihat mutasi dana",
+   "n": 1
+  },
+  {
+   "s": "Lihat notifikasi",
    "n": 1
   },
   {
@@ -17759,11 +17863,23 @@
    "n": 1
   },
   {
+   "s": "Lihat status penghapusan",
+   "n": 1
+  },
+  {
+   "s": "Lihat tiket bantuan",
+   "n": 1
+  },
+  {
    "s": "Lihat transaksi",
    "n": 1
   },
   {
    "s": "Lihat transaksi saya",
+   "n": 1
+  },
+  {
+   "s": "Lihat voucher",
    "n": 1
   },
   {
@@ -17788,14 +17904,6 @@
   },
   {
    "s": "Log, alarm, dan indikator anomali digunakan untuk mendeteksi penyalahgunaan, kegagalan, atau perubahan tidak sah. Aktivitas yang tampak mencurigakan dapat diperiksa atau dibatasi.",
-   "n": 1
-  },
-  {
-   "s": "Login {x} gagal. Coba lagi, atau masuk dengan nomor HP.",
-   "n": 1
-  },
-  {
-   "s": "Login {x} gagal. Periksa koneksi internet lalu coba lagi.",
    "n": 1
   },
   {
@@ -18651,11 +18759,11 @@
    "n": 1
   },
   {
-   "s": "Minta kode baru",
+   "s": "Minta kode OTP via WhatsApp ke nomor HP terdaftar Anda, verifikasi, lalu daftarkan passkey baru. Kami akan memberi tahu Anda bila permintaan datang dari perangkat yang belum dikenal.",
    "n": 1
   },
   {
-   "s": "Minta kode OTP via WhatsApp ke nomor HP terdaftar Anda, verifikasi, lalu daftarkan passkey baru. Kami akan memberi tahu Anda bila permintaan datang dari perangkat yang belum dikenal.",
+   "s": "Minta kode verifikasi",
    "n": 1
   },
   {
@@ -18963,10 +19071,6 @@
    "n": 1
   },
   {
-   "s": "Nomor {x} akan menjadi nomor utama akun Anda.",
-   "n": 1
-  },
-  {
    "s": "Nomor baru",
    "n": 1
   },
@@ -19079,6 +19183,10 @@
    "n": 1
   },
   {
+   "s": "Notifikasi ini sudah dihapus atau kedaluwarsa.",
+   "n": 1
+  },
+  {
    "s": "Notifikasi ini tidak menaut ke halaman lain.",
    "n": 1
   },
@@ -19092,6 +19200,10 @@
   },
   {
    "s": "Notifikasi tidak ditemukan",
+   "n": 1
+  },
+  {
+   "s": "Notifikasi tidak tersedia",
    "n": 1
   },
   {
@@ -19279,7 +19391,7 @@
    "n": 1
   },
   {
-   "s": "Passkey “{x}” tidak bisa lagi dipakai untuk masuk setelah dihapus.",
+   "s": "Passkey “{x}” terdaftar",
    "n": 1
   },
   {
@@ -19787,10 +19899,6 @@
    "n": 1
   },
   {
-   "s": "Pengumuman dan informasi lain di luar transaksi.",
-   "n": 1
-  },
-  {
    "s": "Pengunjung profil bisa melihat alamat email Anda.",
    "n": 1
   },
@@ -20111,10 +20219,6 @@
    "n": 1
   },
   {
-   "s": "Peringatan keamanan akun: login baru, perubahan kata sandi, dan verifikasi.",
-   "n": 1
-  },
-  {
    "s": "Peringkat & lencana",
    "n": 1
   },
@@ -20140,6 +20244,10 @@
   },
   {
    "s": "Perjudian, taruhan, skema piramida, ponzi, atau investasi tanpa izin.",
+   "n": 1
+  },
+  {
+   "s": "Perlu konfirmasi keluar",
    "n": 1
   },
   {
@@ -20323,10 +20431,6 @@
    "n": 1
   },
   {
-   "s": "Pesan chat baru dari lawan transaksi atau admin.",
-   "n": 1
-  },
-  {
    "s": "Pesan dapat diteruskan ke percakapan Anda yang lain.",
    "n": 1
   },
@@ -20404,6 +20508,10 @@
   },
   {
    "s": "pesan, lampiran, reaksi, peserta, status baca, tiket, jawaban, dan rekaman keputusan.",
+   "n": 1
+  },
+  {
+   "s": "Pesanan & pembayaran",
    "n": 1
   },
   {
@@ -20563,7 +20671,7 @@
    "n": 1
   },
   {
-   "s": "Pilih PIN {x} digit. Hindari angka berurutan atau berulang.",
+   "s": "Pilih PIN {x} digit. Jangan gunakan tanggal lahir atau angka berurutan.",
    "n": 1
   },
   {
@@ -21375,6 +21483,10 @@
    "n": 1
   },
   {
+   "s": "Senyap {x}–{y}",
+   "n": 1
+  },
+  {
    "s": "Sepakati pembagian dana tanpa menunggu keputusan mediator.",
    "n": 1
   },
@@ -21428,10 +21540,6 @@
   },
   {
    "s": "Sesi dicabut",
-   "n": 1
-  },
-  {
-   "s": "Sesi migrasi kedaluwarsa. Minta kode baru lalu verifikasi lagi.",
    "n": 1
   },
   {
@@ -21751,15 +21859,7 @@
    "n": 1
   },
   {
-   "s": "Status pesanan, dana masuk/keluar, dan batas waktu pembayaran. Sangat disarankan tetap aktif.",
-   "n": 1
-  },
-  {
    "s": "Status pesanan, dompet, sengketa, dan ulasan.",
-   "n": 1
-  },
-  {
-   "s": "Status pesanan: pembayaran diterima, pengiriman, dan pencairan dana.",
    "n": 1
   },
   {
@@ -22052,6 +22152,10 @@
   },
   {
    "s": "Tarik sisa saldo lama",
+   "n": 1
+  },
+  {
+   "s": "Tautan {x} dilepas",
    "n": 1
   },
   {
@@ -22359,10 +22463,6 @@
    "n": 1
   },
   {
-   "s": "Terlalu banyak percobaan. Coba lagi dalam {x}.",
-   "n": 1
-  },
-  {
    "s": "Terlalu banyak percobaan. Tunggu sebentar lalu coba lagi.",
    "n": 1
   },
@@ -22423,6 +22523,10 @@
    "n": 1
   },
   {
+   "s": "Tidak ada kanal aktif",
+   "n": 1
+  },
+  {
    "s": "Tidak ada kode QR",
    "n": 1
   },
@@ -22468,18 +22572,6 @@
   },
   {
    "s": "Tidak bisa akses aplikasi? Pakai kode cadangan",
-   "n": 1
-  },
-  {
-   "s": "Tidak bisa membuka WhatsApp otomatis. Kirim pesan \"{x}\" ke {y} dari nomor Anda.",
-   "n": 1
-  },
-  {
-   "s": "Tidak bisa membuka WhatsApp otomatis. Kirim pesan berisi kode di atas ke {x} dari nomor Anda.",
-   "n": 1
-  },
-  {
-   "s": "Tidak bisa membuka WhatsApp. Kirim pesan berisi kode di atas manual ke {x}.",
    "n": 1
   },
   {
@@ -22692,6 +22784,10 @@
   },
   {
    "s": "Transaksi {x} lawan {x}",
+   "n": 1
+  },
+  {
+   "s": "Transaksi & pembayaran",
    "n": 1
   },
   {

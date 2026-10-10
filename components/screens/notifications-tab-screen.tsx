@@ -48,12 +48,11 @@
 
 import { byTimestampDesc, usePaginatedQuery } from "@/lib/use-paginated-query"
 import { useScrollElevation } from "@/lib/use-scroll-elevation"
-import { useNotificationsRealtime } from "@/lib/realtime/use-notifications-realtime"
 import { PaginatedList } from "@/components/ui/paginated-list"
 import { useToast } from "@/components/ui/toast"
 import { memo, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react"
 import { View, type FlatList } from "react-native"
-import { router } from "expo-router"
+import { router, useIsFocused } from "expo-router"
 import {
   Bell,
   Broom,
@@ -87,8 +86,10 @@ import {
   notificationRowId,
   type NotificationRow,
 } from "@/lib/notification-social-grouping"
-import { routeForNotificationReference } from "@/lib/notification-routing"
-import { refreshUnreadCount, setUnreadCount } from "@/lib/unread-count"
+import { isNotificationInboxRoute, routeForNotificationReference } from "@/lib/notification-routing"
+import { getSessionSnapshot } from "@/lib/api/session"
+import { invalidateQueryPrefix, onQueryCacheInvalidation } from "@/lib/query-cache"
+import { refreshUnreadCount, setUnreadCount, useUnreadCountNumber } from "@/lib/unread-count"
 import { logWarn } from "@/lib/telemetry"
 
 import { ActionSheet, type ActionSheetItem } from "@/components/ui/action-sheet"
@@ -314,8 +315,9 @@ function NotificationsScreen() {
   // Langganan bahasa: a11y label/hint tombol header (prop string) harus
   // langsung ikut berganti saat pengguna mengubah bahasa (UI-M019).
   useLanguage()
-  // BFI-112: segarkan inbox saat event WS notification.new/unread_count tiba.
-  useNotificationsRealtime()
+  // BFI-112 → audit 2026-10-10 (FE-22): listener WS notification.new /
+  // unread_count kini GLOBAL (components/realtime-global-listeners.tsx) —
+  // tidak dipasang lagi di sini agar tidak ganda.
   const toast = useToast()
   // Efek scroll: header terangkat (bayangan) saat daftar digulir.
   const { onScrollWorklet } = useScrollElevation()
@@ -343,8 +345,9 @@ function NotificationsScreen() {
   /** Funnel kanan header: true = hanya "Belum dibaca" (query isRead=false). */
   const [unreadOnly, setUnreadOnly] = useState(false)
 
+  const queryKey = `notifications:${category}:${unreadOnly ? "unread" : "all"}`
   const query = usePaginatedQuery<AppNotification>(
-    `notifications:${category}:${unreadOnly ? "unread" : "all"}`,
+    queryKey,
     (page, signal) =>
       api.notifications.getNotifications(
         {
@@ -367,6 +370,34 @@ function NotificationsScreen() {
     },
   )
   const { data: notifs, setData: setNotifs } = query
+
+  // Audit 2026-10-10 (FE-31): `usePaginatedQuery` TIDAK berlangganan
+  // invalidasi cache (berbeda dengan `useApiQuery`) — event WS
+  // notification.new / unread_count, push foreground, dan mutasi di layar
+  // detail (FE-14/FE-15) hanya mengosongkan cache; daftar yang sedang
+  // terbuka tetap basi, dan refresh fokus dilewati bila data <30 dtk.
+  // Fokus: refresh senyap langsung. Tidak fokus: tandai, refresh saat kembali.
+  const focused = useIsFocused()
+  const pendingRefresh = useRef(false)
+  const { refresh: refreshList } = query
+  useEffect(() => {
+    return onQueryCacheInvalidation((scope) => {
+      // Invalidasi penuh tanpa sesi = logout (`clearSession`) — jangan menembak 401.
+      if (getSessionSnapshot() == null) return
+      const hit =
+        scope === undefined ||
+        scope.keys?.includes(queryKey) === true ||
+        scope.prefixes?.some((prefix) => queryKey.startsWith(prefix)) === true
+      if (!hit) return
+      if (focused) void refreshList()
+      else pendingRefresh.current = true
+    })
+  }, [focused, queryKey, refreshList])
+  useEffect(() => {
+    if (!focused || !pendingRefresh.current) return
+    pendingRefresh.current = false
+    void refreshList()
+  }, [focused, refreshList])
 
   // Agregasi tampilan (2026-09-28): notifikasi sosial (like/follow) yang
   // berurutan & dekat waktunya digabung satu baris. Murni tampilan — tidak
@@ -405,7 +436,12 @@ function NotificationsScreen() {
     selectionStore.setState({ selecting, selected })
   }, [selecting, selected, selectionStore])
 
-  const hasUnread = notifs.some((n) => !n.isRead)
+  // Audit 2026-10-10 (FE-02): "Tandai semua dibaca" & funnel bekerja LINTAS
+  // kategori/halaman (read-all backend menandai semua), jadi syaratnya bukan
+  // hanya halaman yang termuat — badge global (store unread-count) ikut
+  // dihitung. Dulu tombol hilang bila unread ada di kategori lain.
+  const globalUnread = useUnreadCountNumber()
+  const hasUnread = notifs.some((n) => !n.isRead) || (globalUnread ?? 0) > 0
   const hasRead = notifs.some((n) => n.isRead)
   const selectedCount = selected.size
 
@@ -514,7 +550,16 @@ function NotificationsScreen() {
       // (referenceType/referenceId atau actionUrl), langsung ke sana
       // seperti tap push; bila tidak, baru ke layar detail.
       // Grup: reference sama untuk semua anggota → pakai head.
-      router.push(routeForNotificationReference(head) ?? ROUTES.notificationDetail(head.id))
+      // Audit 2026-10-10 (FE-30): rute yang = tab inbox ini sendiri
+      // (broadcast `actionUrl: /notifications`, `/badges`) bukan tujuan —
+      // `router.push` ke tab yang sedang terbuka adalah no-op, ketukan
+      // terasa mati. Buka layar detail agar isi penuh terbaca.
+      const resolved = routeForNotificationReference(head)
+      router.push(
+        resolved && !isNotificationInboxRoute(resolved)
+          ? resolved
+          : ROUTES.notificationDetail(head.id),
+      )
     },
     [selecting, toggleSelectGroup, toggleSelect, handleReadGroup, handleRead],
   )
@@ -564,7 +609,6 @@ function NotificationsScreen() {
     const ids = new Set(selectedIds)
     const previous = notifs
     setNotifs((prev) => prev.map((n) => (ids.has(n.id) ? { ...n, isRead: true } : n)))
-    void refreshUnreadCount()
     exitSelect()
     const chunks: string[][] = []
     for (let i = 0; i < selectedIds.length; i += 20) {
@@ -575,6 +619,12 @@ function NotificationsScreen() {
         for (const chunk of chunks) {
           await api.notifications.markNotificationsReadBatch(chunk)
         }
+        // Audit 2026-10-10 (FE-03): badge disegarkan SETELAH server
+        // mengonfirmasi — dulu dipanggil sebelum POST sehingga angka lama
+        // kembali sampai poll berikutnya.
+        void refreshUnreadCount()
+        // FE-32: varian "Belum dibaca"/"Semua" kategori ini ikut basi.
+        invalidateQueryPrefix(`notifications:${category}:`)
       } catch (err: unknown) {
         setNotifs(previous)
         void refreshUnreadCount()
@@ -586,7 +636,7 @@ function NotificationsScreen() {
         })
       }
     })()
-  }, [selectedIds, batchBusy, exitSelect, notifs, toast.show])
+  }, [selectedIds, batchBusy, exitSelect, notifs, toast.show, category])
 
   const handleDeleteSelected = useCallback(async () => {
     if (selectedIds.length === 0 || batchBusy) return
@@ -596,6 +646,9 @@ function NotificationsScreen() {
       const ids = new Set(selectedIds)
       setNotifs((prev) => prev.filter((n) => !ids.has(n.id)))
       void refreshUnreadCount()
+      // FE-32: varian daftar lain kategori ini (Semua ↔ Belum dibaca) masih
+      // menyimpan item yang baru dihapus.
+      invalidateQueryPrefix(`notifications:${category}:`)
       exitSelect()
     } catch (err: unknown) {
       toast.show({
@@ -607,7 +660,8 @@ function NotificationsScreen() {
       setBatchBusy(false)
       setConfirm(null)
     }
-  }, [selectedIds, batchBusy, exitSelect])
+    // Audit 2026-10-10 (FE-16): `toast.show` masuk dep — closure basi.
+  }, [selectedIds, batchBusy, exitSelect, setNotifs, toast.show, category])
 
   const handleDeleteRead = useCallback(async () => {
     if (batchBusy) return
@@ -616,6 +670,8 @@ function NotificationsScreen() {
       await api.notifications.deleteReadNotifications()
       setNotifs((prev) => prev.filter((n) => !n.isRead))
       void refreshUnreadCount()
+      // FE-32: delete-read lintas kategori — cache tab lain ikut basi.
+      invalidateQueryPrefix("notifications:")
     } catch (err: unknown) {
       toast.show({
         title: "Notifikasi belum dapat dihapus",
@@ -626,7 +682,7 @@ function NotificationsScreen() {
       setBatchBusy(false)
       setConfirm(null)
     }
-  }, [batchBusy])
+  }, [batchBusy, setNotifs, toast.show])
 
   /** Tandai semua dibaca — tombol Checks di header mode normal. */
   const handleReadAll = useCallback(async () => {
@@ -646,6 +702,10 @@ function NotificationsScreen() {
       // invalidates any poll started before the mutation (so its stale count
       // cannot race back in); later push/poll updates cover new arrivals.
       setUnreadCount(0)
+      // Audit 2026-10-10 (FE-32): read-all berlaku SEMUA kategori — cache
+      // tab kategori lain (dan varian "belum dibaca") masih menyimpan item
+      // unread; dulu pindah tab menampilkan dot unread yang sudah tidak ada.
+      invalidateQueryPrefix("notifications:")
       toast.show({ title: "Semua notifikasi ditandai dibaca", tone: "success", duration: 2000 })
     } catch (err: unknown) {
       setNotifs(previous)
@@ -722,17 +782,19 @@ function NotificationsScreen() {
           disabled={!hasUnread && !unreadOnly}
           onPress={() => setUnreadOnly((v) => !v)}
         />
-        {notifs.length > 0 ? (
-          <IconButton
-            icon={DotsThreeVertical}
-            variant="ghost"
-            accessibilityLabel={translate("Opsi notifikasi")}
-            onPress={() => setMenuOpen(true)}
-          />
-        ) : null}
+        {/* Audit 2026-10-10 (FE-41): menu ⋮ SELALU ada — dulu hilang saat
+            daftar kosong, padahal memuat jalan pintas "Pengaturan
+            notifikasi" (item yang bergantung data — "Hapus yang sudah
+            dibaca" — disaring di <ActionSheet>). */}
+        <IconButton
+          icon={DotsThreeVertical}
+          variant="ghost"
+          accessibilityLabel={translate("Opsi notifikasi")}
+          onPress={() => setMenuOpen(true)}
+        />
       </>
     ),
-    [hasUnread, readAllBusy, batchBusy, handleReadAll, unreadOnly, notifs.length],
+    [hasUnread, readAllBusy, batchBusy, handleReadAll, unreadOnly],
   )
 
   const menuActions: ActionSheetItem[] = [
@@ -873,6 +935,14 @@ function NotificationsScreen() {
             : translate("Hapus {x} notifikasi?", { x: selectedCount })
         }
         // FE-100: description mengulang judul dialog — dihapus (§9 aturan 2).
+        // Audit 2026-10-10 (FE-19): KECUALI "hapus yang sudah dibaca" —
+        // backend `delete-read` lintas kategori, pengguna harus tahu bahwa
+        // bukan hanya tab yang sedang dibuka yang terhapus.
+        description={
+          confirm === "delete-read"
+            ? "Berlaku untuk semua kategori, bukan hanya tab yang sedang dibuka."
+            : undefined
+        }
         visible={confirm !== null}
         destructive
         loading={batchBusy}

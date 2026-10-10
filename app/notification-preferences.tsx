@@ -18,6 +18,7 @@ import { CaretRight } from "phosphor-react-native"
 
 import { api } from "@/lib/api"
 import { useApiQuery } from "@/lib/use-api-query"
+import { QUIET_HOURS_DEFAULT_END, QUIET_HOURS_DEFAULT_START } from "@/lib/notification-effective"
 import { isTimeInRange } from "@/lib/time-input"
 import { isWebPushConfigured } from "@/lib/web-push-config"
 import { registerWebPushDevice } from "@/lib/web-push"
@@ -122,12 +123,22 @@ export default function NotificationPreferencesScreen() {
 
   // CN-008: kirim timezone perangkat sekali saat preferensi dimuat,
   // agar quiet hours dievaluasi di zona waktu pengguna, bukan selalu WIB.
+  // Audit 2026-10-10 (FE-36): dep = zona tersimpan (bukan seluruh objek
+  // data) dan zona yang berhasil dikirim DITULIS BALIK ke data lokal — dulu
+  // setiap toggle (setData → objek baru) memicu PUT timezone yang sama lagi
+  // karena data lokal tidak pernah tahu PUT-nya sudah sukses.
+  const loaded = query.data != null
   const prefsTz = query.data?.quietHoursTimezone
   useEffect(() => {
-    if (query.data) {
-      void api.notifications.syncQuietHoursTimezone(prefsTz ?? null)
+    if (!loaded) return
+    let alive = true
+    void api.notifications.syncQuietHoursTimezone(prefsTz ?? null).then((synced) => {
+      if (alive && synced) setData((prev) => ({ ...(prev ?? {}), quietHoursTimezone: synced }))
+    })
+    return () => {
+      alive = false
     }
-  }, [query.data])
+  }, [loaded, prefsTz, setData])
 
   const handleChange = useCallback(
     async (next: MatrixPreferences, key: NotificationPreferenceKey) => {
@@ -204,7 +215,14 @@ export default function NotificationPreferencesScreen() {
       }
       setData({ ...value, ...patch })
       try {
-        await api.notifications.updateNotificationPreferences(patch)
+        const saved = await api.notifications.updateNotificationPreferences(patch)
+        // Audit 2026-10-10 (FE-06): PUT kini mengembalikan `quietHoursActive`
+        // (zona preferensi, dihitung server) — pakai itu untuk badge
+        // "Aktif sekarang" tanpa refetch.
+        const serverActive = saved?.quietHoursActive
+        if (typeof serverActive === "boolean") {
+          setData((prev) => ({ ...(prev ?? {}), ...patch, quietHoursActive: serverActive }))
+        }
         toast.show({ title: "Preferensi tersimpan", tone: "success", duration: 2500 })
       } catch (err) {
         // Klasifikasi toast: error mutasi non-blokir via showMutationError.
@@ -267,7 +285,10 @@ export default function NotificationPreferencesScreen() {
         onChange={(n, k) => void handleChange(n, k)}
         // Keamanan akun tidak boleh dimatikan total: peringatan login baru,
         // perubahan kata sandi, dan 2FA adalah §14 — selalu aktif.
-        lockedKeys={["securityInApp", "securityPush"]}
+        // Audit 2026-10-10 (FE-04): backend memaksa KETIGA kanal keamanan
+        // `true` (securityEmail juga) — dulu email tidak dikunci: toast
+        // "tersimpan", nilai balik saat reload.
+        lockedKeys={["securityInApp", "securityPush", "securityEmail"]}
         // FE-IMP-3 #94: status efektif gabungan per jenis (perangkat + server).
         devicePushGranted={devicePushGranted}
       />
@@ -278,9 +299,11 @@ export default function NotificationPreferencesScreen() {
       />
       <QuietHoursSection
         enabled={query.data?.quietHoursEnabled ?? false}
-        start={query.data?.quietHoursStart ?? "22:00"}
-        end={query.data?.quietHoursEnd ?? "06:00"}
+        // FE-05: default jam = default backend (22:00–07:00), bukan 06:00.
+        start={query.data?.quietHoursStart ?? QUIET_HOURS_DEFAULT_START}
+        end={query.data?.quietHoursEnd ?? QUIET_HOURS_DEFAULT_END}
         timezone={query.data?.quietHoursTimezone}
+        serverActive={query.data?.quietHoursActive}
         onSave={(patch) => handleQuietHours(patch)}
       />
     </DataScreen>
@@ -365,12 +388,15 @@ function QuietHoursSection({
   start,
   end,
   timezone,
+  serverActive,
   onSave,
 }: {
   enabled: boolean
   start: string
   end: string
   timezone?: string | null
+  /** `quietHoursActive` dari server (zona preferensi); undefined = hitung lokal. */
+  serverActive?: boolean
   onSave: (patch: QuietHoursPatch) => void
 }) {
   const [picker, setPicker] = useState<"start" | "end" | null>(null)
@@ -382,13 +408,19 @@ function QuietHoursSection({
     }
   })()
   const tz = timezone || deviceTz
-  const activeNow = enabled && isQuietHoursActive(start, end)
+  // Audit 2026-10-10 (FE-06): server menghitung di `quietHoursTimezone`;
+  // perhitungan zona perangkat hanya fallback bila server tidak mengirimnya.
+  const activeNow =
+    enabled && (typeof serverActive === "boolean" ? serverActive : isQuietHoursActive(start, end))
 
   return (
     <View className="gap-3">
       <SectionHeader
         title={translate("Jangan ganggu")}
-        subtitle={translate("Jadwal harian tanpa bunyi notifikasi push.")}
+        // Audit 2026-10-10 (FE-35): backend TIDAK mengirim push sama sekali
+        // pada jam ini (hanya SECURITY_* lolos; push.service.shouldSendPush)
+        // — bukan sekadar "tanpa bunyi". Notifikasi tetap masuk inbox.
+        subtitle={translate("Push ditunda pada jam ini, kecuali keamanan. Notifikasi tetap ada di aplikasi.")}
       />
       <View className="gap-1 rounded-lg border border-border bg-surface p-4">
         <View className="flex-row items-center justify-between gap-3">
@@ -397,7 +429,7 @@ function QuietHoursSection({
               {translate("Aktifkan jadwal")}
             </Text>
             <Text variant="caption" tone="secondary">
-              {translate("Push tidak dibunyikan pada jam berikut.")}
+              {translate("Push tidak dikirim pada jam berikut.")}
             </Text>
           </View>
           <Switch

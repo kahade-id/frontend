@@ -149,7 +149,10 @@ export function localKindForPushData(data: unknown): LocalNotificationKind | nul
       upper.startsWith("WALLET_") ||
       upper.startsWith("DISPUTE_") ||
       upper.startsWith("MILESTONE_") ||
-      upper.startsWith("RATING_")
+      upper.startsWith("RATING_") ||
+      // Audit 2026-10-10 (FE-38): dana tertahan karena belum ada rekening —
+      // soal uang, sejajar WALLET_* (lihat juga FE-07 di notification-category).
+      upper === "ESCROW_HELD_NO_BANK"
     )
       return "transaction"
     if (upper.startsWith("SHOWCASE")) return "showcase"
@@ -159,6 +162,9 @@ export function localKindForPushData(data: unknown): LocalNotificationKind | nul
       upper.startsWith("TOPUP_BONUS_") ||
       upper.startsWith("SUBSCRIPTION_") ||
       upper.startsWith("REFERRAL_") ||
+      // FE-38: BADGE_AWARDED / RANK_UPGRADED = kategori PROMOSI di backend.
+      upper.startsWith("BADGE_") ||
+      upper.startsWith("RANK_") ||
       upper === "QUESTION_UNANSWERED_REMINDER"
     )
       return "promo"

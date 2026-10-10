@@ -55,12 +55,19 @@ export type AppNotification = {
    */
   type?: string | null
   isRead: boolean
+  /** Audit 2026-10-10 (FE-23): waktu dibaca (ISO) — ada di PublicNotification backend. */
+  readAt?: string | null
   createdAt: string
   /** Deep-link atau referensi entitas terkait (opsional). */
   referenceId?: string | null
   referenceType?: string | null
   /** Path backend (mis. `/chat/<id>`) — dipakai fallback routing bila reference kosong. */
   actionUrl?: string | null
+  /**
+   * Audit 2026-10-10 (FE-12): gambar opsional notifikasi kaya (kontrak
+   * backend item 114, dari `metadata.imageUrl`). Dirender di layar detail.
+   */
+  imageUrl?: string | null
 }
 
 type NotificationPayload = Omit<AppNotification, "id"> & {
@@ -92,6 +99,9 @@ export function normalizeNotification(raw: NotificationPayload): AppNotification
     referenceType: typeof refTypeRaw === "string" ? refTypeRaw : null,
     referenceId: typeof refIdRaw === "string" ? refIdRaw : null,
     actionUrl: raw.actionUrl ?? null,
+    readAt: typeof raw.readAt === "string" ? raw.readAt : null,
+    imageUrl:
+      typeof raw.imageUrl === "string" && raw.imageUrl.trim().length > 0 ? raw.imageUrl : null,
   }
 }
 
@@ -228,9 +238,18 @@ export type NotificationPreferences = {
   disputeEmail?: boolean
   rankingInApp?: boolean
   rankingPush?: boolean
+  /** Audit 2026-10-10 (FE-13): dua field marketing yang dipakai matriks tapi absen di tipe. */
+  marketingInApp?: boolean
+  marketingPush?: boolean
   marketingEmail?: boolean
   /** IANA timezone untuk quiet hours (batch 4: CN-008) */
   quietHoursTimezone?: string
+  /**
+   * Audit 2026-10-10 (FE-06/FE-13): status EFEKTIF quiet hours dihitung
+   * server di zona `quietHoursTimezone` (GET & PUT). Sumber kebenaran badge
+   * "Aktif sekarang" — perhitungan lokal hanya fallback.
+   */
+  quietHoursActive?: boolean
   /** Quiet hours enabled — item #26. */
   quietHoursEnabled?: boolean
   /** Quiet hours start (HH:mm) — item #26. */
@@ -277,18 +296,22 @@ export function updateNotificationPreferences(dto: UpdatePreferencesDto) {
  */
 export async function syncQuietHoursTimezone(
   stored?: string | null,
-): Promise<void> {
+): Promise<string | null> {
   let deviceTz: string | undefined
   try {
     deviceTz = Intl.DateTimeFormat().resolvedOptions().timeZone
   } catch {
-    return
+    return null
   }
-  if (!deviceTz || deviceTz === stored) return
+  if (!deviceTz || deviceTz === stored) return null
   try {
     await updateNotificationPreferences({ quietHoursTimezone: deviceTz })
+    // Audit 2026-10-10 (FE-36): kembalikan zona yang tersimpan agar pemanggil
+    // bisa menulisnya ke data lokal (tanpa ini PUT terulang tiap toggle).
+    return deviceTz
   } catch {
     // best-effort
+    return null
   }
 }
 
