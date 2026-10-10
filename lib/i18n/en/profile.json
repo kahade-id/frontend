@@ -7,5 +7,17 @@
   "Tampilkan {x} balasan": "Show {x} replies",
   "Sembunyikan balasan": "Hide replies",
   "Tanya": "Ask",
-  "Tanya @{x}…": "Ask @{x}…"
+  "Tanya @{x}…": "Ask @{x}…",
+  "{x} tautan lainnya": "{x} more links",
+  "Platform": "Platform",
+  "Tambah tautan": "Add link",
+  "Hapus tautan": "Remove link",
+  "Pindah ke atas": "Move up",
+  "Pindah ke bawah": "Move down",
+  "Maksimal {x} tautan": "Up to {x} links",
+  "Toko online": "Online store",
+  "Situs web": "Website",
+  "Tautan harus diawali https:// (WhatsApp: nomor HP atau tautan wa.me)": "Link must start with https:// (WhatsApp: phone number or wa.me link)",
+  "Tautan sosial belum valid": "Social links are not valid yet",
+  "Periksa tautan yang ditandai merah lalu simpan lagi.": "Check the links marked in red, then save again."
 }

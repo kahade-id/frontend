@@ -45,6 +45,8 @@ import { resolveMediaUrl } from "@/lib/media"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 import { translate, useLanguage } from "@/lib/i18n"
+import { BIO_MAX } from "@/lib/profile-bio"
+import { isValidSocialLinkInput, normalizeSocialLinkInput } from "@/lib/profile-links"
 import type { UserLinkItemDto } from "@/lib/api/types"
 import { useApiQuery } from "@/lib/use-api-query"
 import { showMutationError } from "@/lib/mutation-toast"
@@ -120,6 +122,13 @@ export default function EditProfileScreen() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [links, setLinks] = useState<SocialLink[]>([])
   const [initialLinks, setInitialLinks] = useState<SocialLink[]>([])
+  /**
+   * Error URL tautan baru ditampilkan setelah pengguna mencoba menyimpan —
+   * dulu `showErrors` tidak pernah dikirim ke editor, jadi tautan tak valid
+   * (http://, tanpa domain) lolos ke PUT lalu ditolak backend 400 dengan
+   * toast generik "tautan sosial gagal disimpan".
+   */
+  const [showLinkErrors, setShowLinkErrors] = useState(false)
   const [usernameAvailability, setUsernameAvailability] = useState<UsernameAvailability>("idle")
 
   /**
@@ -347,6 +356,18 @@ export default function EditProfileScreen() {
         })
         return
       }
+      // Kontrak PUT /v1/users/me/links: https wajib. Validasi klien memakai
+      // aturan yang SAMA dengan hasil normalisasi yang akan dikirim — tautan
+      // salah ditandai inline (bukan toast generik setelah 400).
+      if (linksChanged && links.some((l) => !isValidSocialLinkInput(l.platform, l.url))) {
+        setShowLinkErrors(true)
+        toast.show({
+          title: translate("Tautan sosial belum valid"),
+          description: translate("Periksa tautan yang ditandai merah lalu simpan lagi."),
+          tone: "danger",
+        })
+        return
+      }
       setSubmitting(true)
       setPasswordError(undefined)
       try {
@@ -370,11 +391,16 @@ export default function EditProfileScreen() {
             await api.users.updateLinks({
               links: links.map((l, i) => ({
                 platform: l.platform,
-                url: l.url,
-                label: l.label,
+                // Nomor WhatsApp → https://wa.me/62…, tanpa skema → https://
+                // (backend hanya menerima https).
+                url: normalizeSocialLinkInput(l.platform, l.url),
+                // Label kosong tidak dikirim (backend menyimpan "" sebagai
+                // undefined, tetapi `@MaxLength(50)` tetap memvalidasi string).
+                ...(l.label?.trim() ? { label: l.label.trim() } : {}),
                 displayOrder: i,
               })),
             })
+            setShowLinkErrors(false)
           } catch (err: unknown) {
             // Klasifikasi toast: error mutasi non-blokir via showMutationError.
             showMutationError(toast.show, {
@@ -700,7 +726,7 @@ export default function EditProfileScreen() {
                   >
                     <Icon icon={ImageIcon} size="md" tone="default" />
                     <Text variant="caption" tone="secondary">
-                      Belum ada foto sampul
+                      {translate("Belum ada foto sampul")}
                     </Text>
                   </View>
                 )}
@@ -791,11 +817,13 @@ export default function EditProfileScreen() {
                 availability={usernameAvailability}
                 helperText={translate("Hanya bisa diganti sekali per bulan.")}
               />
-              <Field label={translate("Bio")} helperText={translate("Maks. 500 karakter")}>
+              <Field label={translate("Bio")} helperText={translate("Maks. {x} karakter", { x: String(BIO_MAX) })}>
                 <TextArea
                   value={form.bio}
                   onChangeText={(v) => set("bio", v)}
-                  maxLength={500}
+                  // Kontrak backend update-profile.dto.ts: maks 160 (RK-P07).
+                  // Dulu 500 → bio 161–500 karakter ditolak 400 saat simpan.
+                  maxLength={BIO_MAX}
                   showCount
                   numberOfLines={4}
                   placeholder={translate("Ceritakan tentang Anda")}
@@ -825,7 +853,7 @@ export default function EditProfileScreen() {
                       variant="secondary"
                       onPress={() => router.push(ROUTES.verifyEmail(accountEmail))}
                     >
-                      Verifikasi sekarang
+                      {translate("Verifikasi sekarang")}
                     </Button>
                   }
                 >
@@ -845,7 +873,7 @@ export default function EditProfileScreen() {
                   variant="secondary"
                   onPress={() => router.push(ROUTES.changePhone)}
                 >
-                  Ubah nomor HP akun
+                  {translate("Ubah nomor HP akun")}
                 </Button>
               </View>
             </FormSection>
@@ -885,7 +913,12 @@ export default function EditProfileScreen() {
               divider
               description={translate("Ditampilkan di profil publik Anda.")}
             >
-              <SocialLinksEditor value={links} onChange={setLinks} max={MAX_LINKS} />
+              <SocialLinksEditor
+                value={links}
+                onChange={setLinks}
+                max={MAX_LINKS}
+                showErrors={showLinkErrors}
+              />
             </FormSection>
           </>
           )}

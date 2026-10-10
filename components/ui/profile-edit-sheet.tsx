@@ -17,7 +17,7 @@
  *   - Username: format lokal via <UsernameField> + cek ketersediaan server
  *     (debounce, hanya bila berubah); username hanya bisa diganti sekali
  *     sebulan — bila backend menolak, error server ditampilkan inline.
- *   - Bio: ≤500 karakter (counter).
+ *   - Bio: ≤160 karakter (counter) — kontrak backend update-profile.dto.ts.
  *   - Error simpan: inline <Alert> di sheet (bukan cuma toast) + toast.
  *   - Username yang berubah butuh `currentPassword` (kontrak DTO): diminta
  *     lewat <Dialog> kecil di dalam sheet — konsisten dengan layar lengkap.
@@ -29,6 +29,7 @@ import { router } from "expo-router"
 
 import { api, isApiError, userMessage, type UpdateProfileDto } from "@/lib/api"
 import { translate, useLanguage } from "@/lib/i18n"
+import { BIO_MAX } from "@/lib/profile-bio"
 import { ROUTES } from "@/lib/routes"
 import { useAvatarUpload } from "@/lib/use-avatar-upload"
 
@@ -369,7 +370,9 @@ export function ProfileEditSheet({ visible, onRequestClose, profile, onSaved }: 
             <TextArea
               value={bio}
               onChangeText={setBio}
-              maxLength={500}
+              // Kontrak backend update-profile.dto.ts: bio maks 160 (RK-P07).
+              // Dulu 500 → simpan ditolak 400 untuk bio 161–500 karakter.
+              maxLength={BIO_MAX}
               showCount
               numberOfLines={4}
               placeholder={translate("Ceritakan tentang Anda")}

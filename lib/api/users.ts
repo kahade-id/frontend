@@ -16,6 +16,7 @@ import { http, seg } from "@/lib/api/client"
 import { uploadFileWithProgress, type UploadFileOptions } from "@/lib/api/upload"
 import { fetchViaQueryCache } from "@/lib/query-cache"
 import { queryKeys } from "@/lib/query-keys"
+import { normalizeProfileLinks, type ProfileLink } from "@/lib/profile-links"
 import type {
   AddCommentDto,
   ConfirmAvatarDto,
@@ -412,6 +413,10 @@ export function getUserByUsername(username: string, signal?: AbortSignal) {
         showContactPhone:
           firstBoolean(profile, ["showContactPhone", "show_contact_phone"]) ??
           (contactPhone != null ? true : undefined),
+        // Bug "link di profil tidak muncul": backend mengirim `links` (array
+        // {platform,url,label,displayOrder}) sejak redesign 8224427, tetapi
+        // field ini tidak pernah dibaca. Normalizer fail-closed (https saja).
+        links: normalizeProfileLinks(profile.links),
       } as PublicUserProfile
     })
 }
@@ -466,6 +471,12 @@ export type PublicUserProfile = {
   followingCount?: number | null
   /** Alias deprecated backend — `social.isFollowing` lebih utama. */
   isFollowing?: boolean | null
+  /**
+   * Tautan sosial pemilik profil (bagian `links` GET /v1/users/{username}),
+   * sudah dinormalisasi `normalizeProfileLinks` (https saja, urut
+   * displayOrder, tanpa duplikat platform). Selalu array (bisa kosong).
+   */
+  links?: ProfileLink[]
   showcase?: unknown
   ratings?: unknown
 }

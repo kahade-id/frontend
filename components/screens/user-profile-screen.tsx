@@ -85,6 +85,7 @@ import { QaThread } from "@/components/ui/qa-thread"
 import { buildCommentThread, type ThreadSort } from "@/lib/qa-thread"
 import { ProfileAboutTab } from "@/components/ui/profile-about-tab"
 import { ProfileEtalaseTab } from "@/components/ui/profile-etalase-tab"
+import { ProfileLinks } from "@/components/ui/profile-links"
 import { ProfileRatingsTab } from "@/components/ui/profile-ratings-tab"
 import { ProfileEditSheet } from "@/components/ui/profile-edit-sheet"
 import { ProfileHighlightsStrip } from "@/components/ui/profile-highlights-strip"
@@ -1061,7 +1062,7 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
               <View className="absolute inset-0 items-center justify-center gap-1">
                 <Icon icon={ImageIcon} size="md" tone="default" />
                 <Text variant="caption" tone="secondary">
-                  Belum ada foto sampul
+                  {translate("Belum ada foto sampul")}
                 </Text>
               </View>
             ) : null}
@@ -1271,6 +1272,18 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
                   {translate("Tambah bio")}
                 </Button>
               ) : null}
+
+              {/*
+               * Tautan sosial (bug "link tidak muncul"): baris ringkas ala
+               * Instagram — maks 3 chip ikon platform + domain/label, sisanya
+               * "+N" membuka tab Tentang (daftar lengkap). Data dari
+               * `profile.links` (GET /v1/users/{username} → `links`).
+               */}
+              <ProfileLinks
+                links={profile.links ?? []}
+                compact
+                onMore={() => selectTab("about")}
+              />
 
               {/* Stats dipindah ke baris avatar (2026-10-09) — bagian ini dihapus. */}
 
