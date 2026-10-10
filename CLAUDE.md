@@ -28,11 +28,15 @@
 
 | Dilarang | Ganti dengan |
 |---|---|
-| escrow, rekber | (jangan sebut — itu hal normal semua marketplace) |
-| ditahan, penahanan | (jangan sebut) |
-| "Beli Sekarang" | "Buat Transaksi" |
+| escrow, rekber, rekening bersama | (jangan sebut — itu hal normal semua marketplace) |
+| ditahan, penahanan (untuk dana) | (jangan sebut) |
+| "Beli Sekarang" | lihat aturan tombol di bawah |
 
-**Tombol beli resmi:** "Beli via Kahade"
+Kosakata baku bila dana perlu disebut: "Dana disimpan aman oleh Kahade", "Dana aman di Kahade", saldo "Dalam transaksi" (`lib/labels/escrow.ts`), "Dana dibekukan" (sengketa). Dokumen legal memakai istilah "Pengamanan Dana".
+
+**Aturan tombol:**
+- Membeli dari produk/etalase → **"Beli via Kahade"** (tombol beli resmi)
+- Memulai transaksi umum tanpa produk (mis. dari profil, menu buat) → **"Buat Transaksi"**
 
 ---
 

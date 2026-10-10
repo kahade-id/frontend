@@ -553,7 +553,7 @@ export default function CreateTransactionScreen() {
     (templatePrefill.amount ?? 0) > 0
   /**
    * FE-044: etalase TANPA orderLink (hanya counterpart + role=BUYER dari
-   * tombol "Beli Sekarang") — prefill tidak lengkap, tapi "Cara & peran"
+   * tombol "Beli via Kahade") — prefill tidak lengkap, tapi "Cara & peran"
    * sudah terjawab konteks karya (direct + BUYER). Mulai dari langkah
    * "Mitra transaksi" (1), bukan "Cara & peran" (0). Tipe order/deadline/fee TIDAK
    * dikarang — tetap diisi manual di langkah Detail.
