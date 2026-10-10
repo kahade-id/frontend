@@ -10,7 +10,6 @@ import { ROUTES } from "@/lib/routes"
 import { unregisterPushDevice } from "@/lib/push-notifications"
 import { unregisterWebPushDevice } from "@/lib/web-push"
 
-import { Alert } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Dialog } from "@/components/ui/modal"
 
@@ -18,15 +17,22 @@ import { Dialog } from "@/components/ui/modal"
  * Keluar adalah aksi eksplisit, bukan bagian dari data/menu Keamanan.
  * `api.auth.logout` tetap membersihkan sesi lokal saat offline dan mengatur
  * percobaan pencabutan server best-effort sesuai kontrak sesi yang ada.
+ *
+ * Audit Pengaturan 2026-10-10: cabang lama menangkap throw `api.auth.logout`
+ * lalu menampilkan Alert teknis ("Penanda sesi perangkat belum tersimpan.
+ * Token sudah dihapus; coba keluar sekali lagi…") TANPA meninggalkan layar —
+ * padahal `logout()` tidak pernah melempar karena server (gagal 3× hanya
+ * di-log + retry diarmed, lalu `clearSession`). Satu-satunya throw yang
+ * mungkin datang dari penyimpanan lokal, dan untuk itu pun pengguna sudah
+ * tidak punya sesi: tetap bersihkan dan antar ke layar Masuk — jangan
+ * tinggalkan pengguna di hub Keamanan tanpa sesi dengan teks penjelasan.
  */
 export function SecurityLogoutControl() {
   const [logoutOpen, setLogoutOpen] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
-  const [logoutNotice, setLogoutNotice] = useState<string | null>(null)
 
   const performLogout = useCallback(async () => {
     setLoggingOut(true)
-    setLogoutNotice(null)
     try {
       const deviceApi = {
         registerDevice: (dto: Parameters<typeof api.notifications.registerDevice>[0]) =>
@@ -47,14 +53,9 @@ export function SecurityLogoutControl() {
         await api.auth.logout()
       } catch (err) {
         logWarn("security:logout", err)
-        setLogoutOpen(false)
-        setLogoutNotice(
-          "Penanda sesi perangkat belum tersimpan. Token sudah dihapus; coba keluar sekali lagi untuk memastikan sesi tidak aktif kembali.",
-        )
-        return
-      } finally {
-        await clearSession()
+        await clearSession().catch((clearErr) => logWarn("security:clear-session", clearErr))
       }
+      setLogoutOpen(false)
       router.replace(ROUTES.login)
     } finally {
       setLoggingOut(false)
@@ -63,15 +64,6 @@ export function SecurityLogoutControl() {
 
   return (
     <View className="gap-2">
-      {logoutNotice ? (
-        <Alert
-          tone="warning"
-          title="Perlu konfirmasi keluar"
-          onDismiss={() => setLogoutNotice(null)}
-        >
-          {logoutNotice}
-        </Alert>
-      ) : null}
       <Button
         variant="destructive"
         size="md"

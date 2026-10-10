@@ -6,7 +6,7 @@
  * menu selalu tampil langsung saat offline. Aksi keluar dipisahkan ke kontrol
  * eksplisit di footer; perubahan akun dijalankan pada layar tujuan.
  */
-import { ScrollView, View } from "react-native"
+import { Platform, ScrollView, View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import {
   Bell,
@@ -82,7 +82,9 @@ export default function SecurityScreen() {
               leading={UserFocus}
               chevron
               href={ROUTES.socialProviders}
-              trailing="Google / Apple"
+              // Audit 2026-10-10: Apple hanya tersedia di iOS (CLAUDE.md §5) —
+              // Android/web sebelumnya menjanjikan "Apple" yang tidak ada.
+              trailing={Platform.OS === "ios" ? "Google / Apple" : "Google"}
             />
           </View>
         </View>

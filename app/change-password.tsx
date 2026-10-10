@@ -40,9 +40,13 @@ export default function ChangePasswordScreen() {
   /** BFI-038: sesi dicabut server — dialog login-ulang satu aksi. */
   const [reloginDialog, setReloginDialog] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  // Audit 2026-10-10: setelah backend meminta kode 2FA, tombol tidak boleh
+  // aktif dengan kolom MFA kosong (kirim ulang = toast TWO_FA_REQUIRED lagi).
+  const mfaOk = !mfaRequired || mfa.trim().length > 0
+  const canSubmit = Boolean(current) && isPasswordValid(next) && next === confirm && mfaOk
 
   const handleSubmit = useCallback(async () => {
-    if (!current || !isPasswordValid(next) || next !== confirm) return
+    if (!canSubmit) return
     // BFI-043: blocklist password umum — umpan balik dini sebelum 400 server.
     if (isCommonPassword(next)) {
       toast.show({
@@ -94,7 +98,7 @@ export default function ChangePasswordScreen() {
     } finally {
       setSubmitting(false)
     }
-  }, [current, next, confirm, mfa, toast.show])
+  }, [canSubmit, current, next, confirm, mfa, toast.show])
 
   /** BFI-038: keluar bersih → /login (native) / guest gate (web). */
   const handleRelogin = useCallback(async () => {
@@ -154,7 +158,7 @@ export default function ChangePasswordScreen() {
         <Button
           fullWidth
           loading={submitting}
-          disabled={!current || !isPasswordValid(next) || next !== confirm}
+          disabled={!canSubmit}
           onPress={() => void handleSubmit()}
         >
           Simpan password

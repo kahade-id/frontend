@@ -160,7 +160,10 @@ export default function ChangePhoneScreen() {
       <SensitiveConfirmDialog
         visible={confirmOpen}
         title="Ganti nomor HP?"
-        description="Nomor baru sudah terverifikasi via WhatsApp."
+        // Audit 2026-10-10: dialog ini tampil SEBELUM kode dikirim ke server
+        // (confirmCode baru dipanggil saat "Ya") — kalimat lama "sudah
+        // terverifikasi" adalah klaim yang belum terjadi.
+        description="Kode WhatsApp akan diverifikasi saat Anda mengonfirmasi."
         consequences={[
           `Nomor ${newPhone || "baru"} akan menjadi nomor utama akun Anda.`,
           "Nomor lama tidak bisa lagi dipakai untuk masuk atau menerima OTP.",
