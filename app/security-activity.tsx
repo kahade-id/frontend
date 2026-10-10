@@ -10,7 +10,7 @@
  * Endpoint (lib/api/sessions.ts):
  *   GET    /v1/sessions?page&limit               daftar sesi
  *   DELETE /v1/sessions/{id} · /v1/sessions/others
- *   PATCH  /v1/users/me/devices/{id}/trust|untrust  perangkat tepercaya (penanda saja — #FE-S9)
+ *   PATCH  /v1/users/me/devices/{id}/trust|untrust  perangkat tepercaya (lewati 2FA)
  *   GET    /v1/users/me/security-log?page&limit&action
  *   GET    /v1/users/me/activity-log?page&limit
  *
@@ -35,8 +35,9 @@ import { router } from "expo-router"
 import { ChartLine, DeviceMobile, ShieldWarning } from "phosphor-react-native"
 
 import { api } from "@/lib/api"
-import { ROUTES } from "@/lib/routes"
+import { activityActionLabel, securityActionKind, securityActionLabel } from "@/lib/audit-action-labels"
 import { unregisterPushDevice } from "@/lib/push-notifications"
+import { ROUTES } from "@/lib/routes"
 import type { ActivityLogEntry, DeviceSession, SecurityLogEntry } from "@/lib/api/sessions"
 import { formatDateTime } from "@/lib/format"
 import { tokens } from "@/lib/tokens"
@@ -166,9 +167,12 @@ const SecurityLogRow = memo(function SecurityLogRow({
   entry: SecurityLogEntry
   divider: boolean
 }) {
+  // Audit 2026-10-10: judul = label manusiawi, bukan enum mentah
+  // ("PASSWORD_CHANGED"); ikon mengikuti jenis kejadian.
   return (
     <SecurityLogItem
-      title={entry.action}
+      title={securityActionLabel(entry.action)}
+      kind={securityActionKind(entry.action)}
       ip={entry.ip}
       timestamp={formatDateTime(entry.createdAt)}
       divider={divider}
@@ -185,7 +189,7 @@ const ActivityLogRow = memo(function ActivityLogRow({
 }) {
   return (
     <ActivityLogItem
-      title={entry.action}
+      title={activityActionLabel(entry.action)}
       description={entry.description}
       timestamp={formatDateTime(entry.createdAt)}
       divider={divider}
@@ -353,20 +357,26 @@ export default function SecurityActivityScreen() {
     }
   }, [sessionsQuery, toast.show])
 
-  /**
-   * Cabut SEMUA sesi termasuk perangkat ini → paksa logout lokal.
-   *
-   * Audit Auth 2026-10-10 (#FE-S5): dulu dua langkah — `DELETE /v1/sessions`
-   * (yang di backend hanya mencabut sesi LAIN) lalu `logout()` biasa. Bila
-   * langkah kedua gagal (offline), sesi perangkat ini tetap hidup di server
-   * padahal UI sudah "keluar". Kini SATU panggilan atomik
-   * `POST /v1/auth/logout { logoutAll: true }` yang mencabut semua sesi
-   * (termasuk ini) + memutus push semua perangkat di server; sesi lokal
-   * selalu dibersihkan oleh `api.auth.logout` apa pun hasil servernya
-   * (retry + penjadwalan ulang saat offline).
-   */
+  /** Cabut SEMUA sesi termasuk perangkat ini → paksa logout lokal. */
   const handleLogoutAll = useCallback(async () => {
     setRevokingAll(true)
+    try {
+      await api.sessions.deleteAllSessions()
+    } catch (err: unknown) {
+      // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+      if (
+        showMutationError(toast.show, {
+          failTitle: "Gagal mencabut semua sesi",
+          uncertainHint: "Aksi mungkin sudah diproses — memuat ulang…",
+          err: err,
+          scope: "security-activity:mencabut-semua-sesi",
+        })
+      ) {
+        void sessionsQuery.reload()
+      }
+      setRevokingAll(false)
+      return
+    }
     setConfirmAll(false)
     setConfirmAllArmed(false)
     // P1-1 (audit FCM 2026-10-03): cabut token push SEBELUM sesi lokal
@@ -381,16 +391,10 @@ export default function SecurityActivityScreen() {
     } catch {
       // diabaikan — logout tetap jalan
     }
-    try {
-      await api.auth.logout({ logoutAll: true })
-    } catch {
-      // Sesi lokal sudah dihapus di dalam logout(); kegagalan di sini hanya
-      // penanda "signed out" — tetap arahkan ke login.
-    } finally {
-      setRevokingAll(false)
-    }
+    // Sesi server sudah mati semua — bersihkan sesi lokal lalu ke login.
+    await api.auth.logout().catch(() => undefined)
     router.replace(ROUTES.login)
-  }, [])
+  }, [toast.show, sessionsQuery])
 
   /**
    * Trust/untrust menuntut re-auth password (TrustDeviceDto produksi: `password`

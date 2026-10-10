@@ -79,7 +79,14 @@ import { isShellTabPath } from "@/lib/shell-tabs"
 import { setOpenOwnProfileAfterLogin } from "@/lib/login-redirect"
 import { elevationStyle } from "@/lib/elevation"
 import { haptic } from "@/lib/haptics"
-import { getLanguage, setLanguage, useLanguage, translate, type LanguageCode } from "@/lib/i18n"
+import {
+  getLanguage,
+  markLanguagePendingSync,
+  setLanguage,
+  useLanguage,
+  translate,
+  type LanguageCode,
+} from "@/lib/i18n"
 import { showMutationError } from "@/lib/mutation-toast"
 import { ROUTES } from "@/lib/routes"
 import { installedAppVersion } from "@/lib/runtime-info"
@@ -277,7 +284,7 @@ function ThemeToggleButton() {
  * seluruh aplikasi) + PUT backend; gagal → dikembalikan + pesan alasan.
  * Error mutasi via showMutationError (klasifikasi toast: error non-blokir).
  */
-function LanguageSegment() {
+function LanguageSegment({ hasSession }: { hasSession: boolean }) {
   const language = useLanguage()
   const toast = useToast()
   const [busy, setBusy] = useState(false)
@@ -289,6 +296,18 @@ function LanguageSegment() {
       haptic("select")
       setBusy(true)
       setLanguage(next)
+      /**
+       * Audit Pengaturan 2026-10-10: tamu TIDAK punya sesi — PUT
+       * /v1/settings/language (auth:"required") langsung melempar
+       * UNAUTHORIZED, pilihan dikembalikan, dan tamu tidak pernah bisa
+       * mengganti bahasa. Untuk tamu: simpan lokal + tandai agar diteruskan
+       * ke akun saat masuk/mendaftar (<I18nProvider>).
+       */
+      if (!hasSession) {
+        void markLanguagePendingSync()
+        setBusy(false)
+        return
+      }
       try {
         await api.settings.updateLanguage({ language: next })
       } catch (err) {
@@ -303,7 +322,7 @@ function LanguageSegment() {
         setBusy(false)
       }
     },
-    [busy, toast.show],
+    [busy, hasSession, toast.show],
   )
 
   return (
@@ -348,7 +367,7 @@ function LanguageSegment() {
  * Gear/Pengaturan dan pensil/Buat dihapus — /settings & /language ikut
  * dihapus total; tiap halaman utama kini punya tombol Buat di header-nya.
  */
-function DrawerUtilityBar() {
+function DrawerUtilityBar({ hasSession }: { hasSession: boolean }) {
   useLanguage()
   const router = useRouter()
 
@@ -379,7 +398,7 @@ function DrawerUtilityBar() {
         <Icon icon={MagnifyingGlass} size="md" tone="default" weight="bold" />
       </PressableScale>
 
-      <LanguageSegment />
+      <LanguageSegment hasSession={hasSession} />
     </View>
   )
 }
@@ -732,7 +751,7 @@ export function AppDrawer() {
           </ScrollView>
 
           {/* Utility bar tetap di kaki drawer dan tidak ikut scroll. */}
-          <DrawerUtilityBar />
+          <DrawerUtilityBar hasSession={Boolean(token)} />
 
           {/* Versi aplikasi — teks mungil (pindahan /settings) → /app-version. */}
           <DrawerVersionFooter />

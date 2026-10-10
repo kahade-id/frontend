@@ -16,10 +16,14 @@
  *     yang sedang bermasalah dan menambah kebisingan (§12 tenang).
  */
 import { FileText } from "phosphor-react-native"
+import { View, type ViewProps } from "react-native"
 
 import { Highlight } from "@/components/ui/highlight"
 import { ListItem, type ListItemProps } from "@/components/ui/list-item"
+import { Skeleton } from "@/components/ui/skeleton"
 import { summarize } from "@/lib/a11y"
+import { cn } from "@/lib/cn"
+import { translate } from "@/lib/i18n/translate"
 
 export type HelpArticleListItemProps = Omit<ListItemProps, "title" | "subtitle" | "leading" | "trailing" | "chevron"> & {
   title: string
@@ -53,5 +57,27 @@ export function HelpArticleListItem({ title, snippet, highlight, onPress, href, 
       accessibilityHint={interactive ? "Buka artikel" : undefined}
       {...rest}
     />
+  )
+}
+/**
+ * Audit Pengaturan & Bantuan 2026-10-10: kerangka baris artikel — dipakai
+ * detail bantuan saat artikel/kategori backend sedang dimuat (shimmer,
+ * bukan layar kosong).
+ */
+export function HelpArticleListItemSkeleton({ className, ...rest }: Omit<ViewProps, "children"> & { className?: string }) {
+  return (
+    <View
+      accessible
+      accessibilityRole="progressbar"
+      accessibilityLabel={translate("Memuat artikel")}
+      className={cn("w-full flex-row items-center gap-3 py-3", className)}
+      {...rest}
+    >
+      <Skeleton width={24} height={24} />
+      <View className="flex-1 gap-2">
+        <Skeleton height={16} className="w-4/5" />
+        <Skeleton height={12} className="w-1/2" />
+      </View>
+    </View>
   )
 }

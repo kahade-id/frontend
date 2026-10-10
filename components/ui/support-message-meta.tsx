@@ -19,6 +19,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
+import { translate } from "@/lib/i18n/translate"
 
 export function SupportMessageMeta({
   role,
@@ -46,9 +47,11 @@ export function SupportMessageMeta({
         onPress={() => setAbsolute((v) => !v)}
         accessibilityRole="button"
         accessibilityLabel={
-          absolute ? "Tampilkan waktu relatif" : `Waktu absolut: ${supportMessageAbsoluteTime(createdAt)}`
+          absolute
+            ? translate("Tampilkan waktu relatif")
+            : translate("Waktu absolut: {x}", { x: supportMessageAbsoluteTime(createdAt) })
         }
-        accessibilityHint="Ketuk untuk beralih antara waktu relatif dan absolut"
+        accessibilityHint={translate("Ketuk untuk beralih antara waktu relatif dan absolut")}
       >
         <Text variant="caption" tone="secondary" style={{ textDecorationLine: "underline", textDecorationStyle: "dotted" }}>
           {label}

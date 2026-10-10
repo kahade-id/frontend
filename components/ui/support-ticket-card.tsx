@@ -82,11 +82,14 @@ export type SupportTicketCardLabels = {
   attachments: (n: number) => string
 }
 
-const DEFAULT_LABELS: SupportTicketCardLabels = {
-  awaitingYou: "Menunggu balasan Anda",
-  you: "Anda",
-  support: "CS Kahade",
-  attachments: (n) => `${n} lampiran`,
+/** Audit 2026-10-10: lewat translate() agar "CS Kahade"/"{x} lampiran" terkatalog. */
+function defaultLabels(): SupportTicketCardLabels {
+  return {
+    awaitingYou: translate("Menunggu balasan Anda"),
+    you: translate("Anda"),
+    support: translate("CS Kahade"),
+    attachments: (n) => translate("{x} lampiran", { x: n }),
+  }
 }
 
 export type SupportTicketCardProps = Omit<CardProps, "children" | "variant" | "padded"> & {
@@ -121,7 +124,7 @@ export function SupportTicketCard({
   className,
   ...rest
 }: SupportTicketCardProps) {
-  const t = { ...DEFAULT_LABELS, ...labels }
+  const t = { ...defaultLabels(), ...labels }
   const showAwaiting = (awaitingYou ?? status === "WAITING_USER") && isTicketActive(status)
   const statusLabel = isTicketStatus(status) ? TICKET_STATUS_LABELS[status] : status
   // Item 125: kategori backend ("ORDER") → label Indonesia ("Pesanan").
@@ -130,10 +133,10 @@ export function SupportTicketCard({
   const a11y =
     accessibilityLabel ??
     summarize([
-      unread ? "Ada balasan baru" : undefined,
-      `Tiket ${ticketNumber}`,
+      unread ? translate("Ada balasan baru") : undefined,
+      translate("Tiket {x}", { x: ticketNumber }),
       subject,
-      statusLabel,
+      translate(statusLabel),
       categoryLabel,
       updatedAt,
     ])
@@ -212,7 +215,7 @@ export function SupportTicketCard({
 
 export function SupportTicketCardSkeleton({ className, ...rest }: Omit<ViewProps, "children"> & { className?: string }) {
   return (
-    <View accessible accessibilityRole="progressbar" className={cn("w-full gap-3 rounded-md border border-border bg-surface p-5", className)} accessibilityLabel="Memuat tiket" {...rest}>
+    <View accessible accessibilityRole="progressbar" className={cn("w-full gap-3 rounded-md border border-border bg-surface p-5", className)} accessibilityLabel={translate("Memuat tiket")} {...rest}>
       <View className="flex-row items-center justify-between">
         <Skeleton height={12} className="w-32" />
         <Skeleton height={22} className="w-20" />

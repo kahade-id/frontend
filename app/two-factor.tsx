@@ -42,6 +42,7 @@ import { clearSession, emitSessionExpired } from "@/lib/api/session"
 import type { TwoFactorSetup } from "@/lib/api/auth"
 import { useCopy } from "@/lib/clipboard"
 import { saveBlobFile } from "@/lib/export-file"
+import { translate } from "@/lib/i18n/translate"
 import { tokens } from "@/lib/tokens"
 import { useApiQuery } from "@/lib/use-api-query"
 import { showMutationError } from "@/lib/mutation-toast"
@@ -398,15 +399,21 @@ export default function TwoFactorScreen() {
             />
           ) : null}
 
-          <TwoFactorStatusCard
-            enabled={enabled}
-            backupCodesRemaining={status?.backupCodesRemaining}
-            backupCodesTotal={codes.length > 0 ? codes.length : BACKUP_CODES_TOTAL}
-            loading={loading}
-            onEnable={!enabled && step === "idle" ? handleStartEnable : undefined}
-            onManage={enabled ? () => setDisableConfirmOpen(true) : undefined}
-            onRegenerateBackup={enabled ? openRegenerate : undefined}
-          />
+          {/* Audit 2026-10-10: saat status GAGAL dimuat, kartu lama tetap
+              dirender dengan `enabled=false` → "Nonaktif" + tombol Aktifkan,
+              klaim keamanan yang tidak pernah dibaca dari server. Kartu hanya
+              tampil bila status diketahui (atau sedang dimuat). */}
+          {loadError ? null : (
+            <TwoFactorStatusCard
+              enabled={enabled}
+              backupCodesRemaining={status?.backupCodesRemaining}
+              backupCodesTotal={codes.length > 0 ? codes.length : BACKUP_CODES_TOTAL}
+              loading={loading}
+              onEnable={!enabled && step === "idle" ? handleStartEnable : undefined}
+              onManage={enabled ? () => setDisableConfirmOpen(true) : undefined}
+              onRegenerateBackup={enabled ? openRegenerate : undefined}
+            />
+          )}
 
           {/* ── Langkah 1: password ─────────────────────────────────────── */}
           {step === "password" ? (
@@ -470,8 +477,9 @@ export default function TwoFactorScreen() {
                 onCopy={(v) => void copy(v, "secret")}
               />
               <Text variant="body" tone="secondary">
-                Setelah itu, masukkan kode {TOTP_LENGTH} digit yang ditampilkan aplikasi
-                autentikator.
+                {translate("Setelah itu, masukkan kode {x} digit yang ditampilkan aplikasi autentikator.", {
+                  x: TOTP_LENGTH,
+                })}
               </Text>
               <OtpInput
                 length={TOTP_LENGTH}
@@ -510,7 +518,10 @@ export default function TwoFactorScreen() {
                   void copy(text, "codes")
                 }}
                 onDownload={(text) => void handleDownloadCodes(text)}
-                onRegenerate={openRegenerate}
+                // Audit 2026-10-10: pasca-enable semua sesi SUDAH dicabut
+                // server — "Buat ulang kode" di langkah ini hanya akan 401
+                // dan membingungkan. Regenerasi tersedia setelah masuk kembali.
+                onRegenerate={reloginRequired ? undefined : openRegenerate}
                 regenerating={regenerating}
               />
               {step === "codes" ? (
@@ -707,9 +718,7 @@ export default function TwoFactorScreen() {
           </Text>
           {backupCodesLeft !== null ? (
             <Text variant="caption" tone="secondary" className="pt-1 text-pretty">
-              Kode cadangan tersisa: {backupCodesLeft}. Simpan kode cadangan di
-              tempat aman — tanpanya, kehilangan akses autentikator berarti
-              kehilangan akun.
+              {translate("Kode cadangan tersisa: {x}.", { x: backupCodesLeft })}
             </Text>
           ) : null}
         </View>

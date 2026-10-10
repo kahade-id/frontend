@@ -40,7 +40,7 @@ import { TextArea } from "@/components/ui/text-area"
 import { TextLink } from "@/components/ui/text-link"
 import { useToast } from "@/components/ui/toast"
 import { Platform } from "react-native"
-import { translate } from "@/lib/i18n/translate"
+import { translate, useLanguage } from "@/lib/i18n"
 import { showMutationError } from "@/lib/mutation-toast"
 
 const MESSAGE_MIN = 10
@@ -51,6 +51,8 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const USERNAME_RE = /^@[\w.]{1,30}$/
 
 export default function FeedbackScreen() {
+  // Langganan bahasa: placeholder/helper (prop string) ikut berganti bahasa.
+  useLanguage()
   const insets = useSafeAreaInsets()
   const toast = useToast()
   const [category, setCategory] = useState<FeedbackCategory>(FEEDBACK_CATEGORIES[0])
@@ -94,7 +96,7 @@ export default function FeedbackScreen() {
     ? undefined
     : EMAIL_RE.test(contactTrimmed) || USERNAME_RE.test(contactTrimmed)
       ? undefined
-      : "Format tidak valid — isi email (cth. nama@contoh.com) atau username diawali @."
+      : translate("Format tidak valid — isi email (cth. nama@contoh.com) atau username diawali @.")
   const contactValid = !contactError
 
   const handleSubmit = useCallback(async () => {
@@ -108,18 +110,22 @@ export default function FeedbackScreen() {
         contactConsent,
       })
       if (result.status === "queued") {
+        // Audit 2026-10-10 (FE-006, "sebersih Apple"): satu kalimat jujur —
+        // bukan paragraf prosedur. Rinciannya ada di catatan kaki layar.
         toast.show({
-          title: "Masukan tersimpan",
+          title: FEEDBACK_QUEUE_PERSISTS
+            ? translate("Masukan disimpan, dikirim saat online")
+            : translate("Masukan belum terkirim"),
           description: FEEDBACK_QUEUE_PERSISTS
-            ? "Masukan disimpan sementara di perangkat. Pengiriman ulang dicoba saat koneksi pulih selama layar ini terbuka, saat Anda membuka halaman ini lagi, atau saat mengirim masukan berikutnya; ini bukan tiket bantuan."
-            : "Pengiriman gagal dan versi web tidak menyimpan masukan pribadi di browser — jangan tutup halaman ini, kirim ulang setelah koneksi kembali. Untuk kendala yang butuh tindakan, buat tiket bantuan resmi.",
+            ? translate("Buka halaman ini lagi saat tersambung untuk mengirimnya.")
+            : translate("Tetap di halaman ini dan kirim ulang setelah koneksi kembali."),
           tone: FEEDBACK_QUEUE_PERSISTS ? "info" : "warning",
-          duration: 6000,
+          duration: 5000,
         })
       } else {
         toast.show({
-          title: "Terima kasih!",
-          description: "Masukan Anda telah dikirim ke tim Kahade.",
+          title: translate("Terima kasih!"),
+          description: translate("Masukan Anda telah dikirim ke tim Kahade."),
           tone: "success",
         })
       }
@@ -157,7 +163,7 @@ export default function FeedbackScreen() {
           style={{ paddingBottom: Math.max(tokens.space[4], insets.bottom) }}
         >
           <Button onPress={() => void handleSubmit()} loading={submitting} disabled={!valid || !contactValid}>
-            Kirim masukan
+            {translate("Kirim masukan")}
           </Button>
         </View>
       }
@@ -174,21 +180,28 @@ export default function FeedbackScreen() {
             {queuedCount > 0 ? (
               <Alert tone="info">
                 {FEEDBACK_QUEUE_PERSISTS
-                  ? `${queuedCount} masukan tersimpan di perangkat. Pengiriman ulang dicoba saat koneksi pulih selama layar ini terbuka.`
-                  : `${queuedCount} masukan menunggu terkirim. Tetap di halaman ini sampai koneksi kembali.`}
+                  ? translate("{x} masukan menunggu koneksi — dikirim otomatis saat online.", {
+                      x: queuedCount,
+                    })
+                  : translate("{x} masukan menunggu terkirim. Tetap di halaman ini sampai koneksi kembali.", {
+                      x: queuedCount,
+                    })}
               </Alert>
             ) : null}
 
-            {/* FE-034: 1 baris pembuka + tautan kecil tiket bantuan. */}
+            {/* FE-034: 1 baris pembuka + tautan kecil ke bantuan.
+                Audit 2026-10-10: tautan lama "Buat tiket bantuan" → /support
+                padahal pengguna TIDAK bisa membuat tiket (hanya admin dari
+                eskalasi chat, Poin 5 2026-10-04) — arahkan ke chat. */}
             <View className="gap-1">
               <Text variant="body" tone="primary">
                 {translate("Ceritakan saran atau kendala Anda.")}
               </Text>
               <TextLink
                 variant="caption"
-                onPress={() => router.push(ROUTES.support)}
+                onPress={() => router.push(ROUTES.supportChat)}
               >
-                {translate("Butuh bantuan transaksi? Buat tiket bantuan.")}
+                {translate("Butuh bantuan transaksi? Chat dengan tim Kahade.")}
               </TextLink>
             </View>
 
@@ -219,7 +232,7 @@ export default function FeedbackScreen() {
               <TextArea
                 value={message}
                 onChangeText={setMessage}
-                placeholder="Ceritakan saran, masalah, atau pengalaman Anda…"
+                placeholder={translate("Ceritakan saran, masalah, atau pengalaman Anda…")}
                 maxLength={MESSAGE_MAX}
                 multiline
                 numberOfLines={6}

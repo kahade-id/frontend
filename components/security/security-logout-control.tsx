@@ -17,6 +17,15 @@ import { Dialog } from "@/components/ui/modal"
  * Keluar adalah aksi eksplisit, bukan bagian dari data/menu Keamanan.
  * `api.auth.logout` tetap membersihkan sesi lokal saat offline dan mengatur
  * percobaan pencabutan server best-effort sesuai kontrak sesi yang ada.
+ *
+ * Audit Pengaturan 2026-10-10: cabang lama menangkap throw `api.auth.logout`
+ * lalu menampilkan Alert teknis ("Penanda sesi perangkat belum tersimpan.
+ * Token sudah dihapus; coba keluar sekali lagi…") TANPA meninggalkan layar —
+ * padahal `logout()` tidak pernah melempar karena server (gagal 3× hanya
+ * di-log + retry diarmed, lalu `clearSession`). Satu-satunya throw yang
+ * mungkin datang dari penyimpanan lokal, dan untuk itu pun pengguna sudah
+ * tidak punya sesi: tetap bersihkan dan antar ke layar Masuk — jangan
+ * tinggalkan pengguna di hub Keamanan tanpa sesi dengan teks penjelasan.
  */
 export function SecurityLogoutControl() {
   const [logoutOpen, setLogoutOpen] = useState(false)
@@ -43,15 +52,10 @@ export function SecurityLogoutControl() {
       try {
         await api.auth.logout()
       } catch (err) {
-        // Audit Auth 2026-10-10 (#FE-S7): `logout()` hanya melempar bila
-        // penanda "signed out" gagal ditulis — token lokal SUDAH dihapus.
-        // Dulu layar berhenti di sini dan menyuruh "keluar sekali lagi"
-        // padahal ketukan berikutnya pasti gagal (tidak ada token lagi).
-        // Kini tetap diarahkan ke login; kegagalan dicatat ke telemetri.
         logWarn("security:logout", err)
-      } finally {
-        await clearSession()
+        await clearSession().catch((clearErr) => logWarn("security:clear-session", clearErr))
       }
+      setLogoutOpen(false)
       router.replace(ROUTES.login)
     } finally {
       setLoggingOut(false)

@@ -11,6 +11,15 @@
  * - F03: daftar isi dari heading + anchor lompat.
  * - F04: artikel dicatat ke riwayat lokal per akun.
  * - F17: umpan balik sekali per versi artikel + koreksi tunggal.
+ *
+ * Audit Pengaturan & Bantuan 2026-10-10:
+ * - Artikel backend (dari kategori backend atau hasil pencarian global
+ *   `/search`) kini bisa dibuka: bila tidak ada di bundel, layar memuat
+ *   kategori backend (slug) / hasil pencarian (q) dan mencocokkan id.
+ *   Sebelumnya setiap artikel backend berakhir "Artikel tidak ditemukan".
+ * - `items/{id}/view` & `/feedback` HANYA dipanggil untuk artikel backend —
+ *   keduanya memakai ParseIdPipe (CUID) dan selalu menolak slug bundel
+ *   (400 diam-diam setiap kali artikel bawaan dibuka).
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
@@ -25,27 +34,32 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useLocalSearchParams, router, type Href } from "expo-router"
 import { Article, ArrowUp, CaretDown, Check, ListBullets, ShareNetwork, X } from "phosphor-react-native"
 import { api } from "@/lib/api"
-import { translate } from "@/lib/i18n/translate"
+import type { HelpArticle, HelpCategoryDetail } from "@/lib/api/help-center"
+import { translate, useLanguage } from "@/lib/i18n"
 import { ROUTES } from "@/lib/routes"
 import { helpArticleUrl } from "@/lib/deeplinks"
 import { shareContent } from "@/lib/share"
 import { tokens, modes } from "@/lib/tokens"
 import { isOfflineKnown } from "@/lib/connectivity"
 import {
+  BUNDLED_HELP,
   findBundledHelpArticle,
   getBundledHelpCategory,
+  isBundledHelpArticle,
   searchBundledHelpArticles,
 } from "@/lib/help-content"
+import { findHelpArticleIn, mergeHelpArticles, mergeHelpCategories } from "@/lib/help-remote"
 import { logWarn } from "@/lib/telemetry"
 import { getHelpFeedback, saveHelpFeedback, type HelpFeedbackChoice } from "@/lib/help-feedback"
 import { recordHelpArticleView } from "@/lib/help-history"
 import { parseArticleHeadings } from "@/lib/help-toc"
+import { useApiQuery } from "@/lib/use-api-query"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Header } from "@/components/ui/header"
 import { HelpArticleContent } from "@/components/ui/help-article-content"
-import { HelpArticleListItem } from "@/components/ui/help-article-list-item"
+import { HelpArticleListItem, HelpArticleListItemSkeleton } from "@/components/ui/help-article-list-item"
 import { Icon } from "@/components/ui/icon"
 import { IconButton } from "@/components/ui/icon-button"
 import { PressableScale } from "@/components/ui/pressable-scale"
@@ -58,7 +72,16 @@ import { useTheme } from "@/components/theme-provider"
  * versi konten; koreksi tunggal diizinkan (mis. salah ketuk), setelah itu
  * terkunci. Pengiriman ke server tetap best-effort seperti sebelumnya.
  */
-function FeedbackBlock({ articleId, content }: { articleId: string; content: string }) {
+function FeedbackBlock({
+  articleId,
+  content,
+  remote,
+}: {
+  articleId: string
+  content: string
+  /** true = artikel backend (id CUID) — hanya ini yang dikirim ke server. */
+  remote: boolean
+}) {
   const [choice, setChoice] = useState<HelpFeedbackChoice | null>(null)
   const [corrected, setCorrected] = useState(false)
   const [loaded, setLoaded] = useState(false)
@@ -86,11 +109,11 @@ function FeedbackBlock({ articleId, content }: { articleId: string; content: str
         setCorrected(res.status === "corrected")
         // Pilihan tersimpan lokal. Kirim ke server hanya saat online; feedback
         // tidak pernah masuk antrean aksi offline.
-        if (!isOfflineKnown())
+        if (remote && !isOfflineKnown())
           api.helpCenter.submitHelpArticleFeedback(articleId, helpful).catch(() => {})
       })()
     },
-    [articleId, content],
+    [articleId, content, remote],
   )
 
   if (!loaded) return null
@@ -161,14 +184,14 @@ function Breadcrumb({
   searchQuery?: string
 }) {
   const crumbs: Array<{ label: string; href?: Href; current?: boolean }> = [
-    { label: "Pusat Bantuan", href: ROUTES.faq },
+    { label: translate("Pusat Bantuan"), href: ROUTES.faq },
   ]
   if (searchQuery) {
     // P1b (2026-10-03): kembali ke /faq dengan param q (kolom cari terisi
     // otomatis, lihat app/faq.tsx). Sebelumnya menaut ke /help/[slug] tanpa
     // param article — halaman tujuan rusak.
     crumbs.push({
-      label: `Hasil pencarian "${searchQuery}"`,
+      label: translate('Hasil pencarian "{x}"', { x: searchQuery }),
       href: { pathname: "/faq", params: { q: searchQuery } } as Href,
     })
   } else {
@@ -179,7 +202,7 @@ function Breadcrumb({
     <View
       className="flex-row flex-wrap items-center gap-1"
       accessibilityRole="list"
-      accessibilityLabel="Navigasi breadcrumb"
+      accessibilityLabel={translate("Navigasi breadcrumb")}
     >
       {crumbs.map((c, i) => (
         <View key={i} className="flex-row items-center gap-1">
@@ -196,7 +219,7 @@ function Breadcrumb({
             <PressableScale
               onPress={() => router.push(c.href as Href)}
               accessibilityRole="link"
-              accessibilityLabel={`Kembali ke ${c.label}`}
+              accessibilityLabel={translate("Kembali ke {x}", { x: c.label })}
             >
               <Text variant="caption" tone="accent" numberOfLines={1} className="max-w-[160px] underline">
                 {c.label}
@@ -210,6 +233,7 @@ function Breadcrumb({
 }
 
 export default function HelpScreen() {
+  const language = useLanguage()
   const insets = useSafeAreaInsets()
   const { slug, article, q, anchor } = useLocalSearchParams<{
     slug: string
@@ -218,36 +242,113 @@ export default function HelpScreen() {
     /** F03: indeks heading untuk lompat otomatis (deep link anchor). */
     anchor?: string
   }>()
-  const category = getBundledHelpCategory(slug)
-  const searchResults = useMemo(() => searchBundledHelpArticles(q ?? ""), [q])
-  const articles = article && q ? searchResults : category?.articles ?? []
-  const selected = article
+  const bundledCategory = getBundledHelpCategory(slug)
+  const bundledSearchResults = useMemo(() => searchBundledHelpArticles(q ?? ""), [q])
+  const bundledSelected = article
     ? findBundledHelpArticle(article, q ? undefined : slug) ??
-      articles.find((item) => item.id === article || item.slug === article) ??
-      undefined
-    : undefined
-  const selectedCategory = selected?.category
-    ? getBundledHelpCategory(selected.category)
-    : category
+      bundledSearchResults.find((item) => item.id === article || item.slug === article) ??
+      null
+    : null
+
+  /**
+   * Sumber backend — dimuat HANYA bila yang dibutuhkan tidak ada di bundel:
+   *   - kategori (mode daftar): gabungkan artikel backend untuk slug ini;
+   *   - artikel: cari di kategori backend (slug) atau hasil pencarian (q).
+   * Gagal/offline → bundel apa adanya (tidak ada error state untuk konten
+   * pelengkap); artikel backend yang tidak terjangkau → EmptyState jujur.
+   */
+  const needRemoteCategory = Boolean(slug) && (!article || !bundledSelected) && !q
+  const remoteCategory = useApiQuery<HelpCategoryDetail | null>(
+    `help-category:${language}:${slug}`,
+    (signal) => api.helpCenter.getHelpCategory(slug, signal).catch(() => null),
+    needRemoteCategory,
+  )
+  const needRemoteSearch = Boolean(article) && !bundledSelected && Boolean(q)
+  const remoteSearch = useApiQuery<HelpArticle[]>(
+    `help-search:${language}:${q ?? ""}`,
+    (signal) => api.helpCenter.searchHelpArticles(q ?? "", signal).catch(() => []),
+    needRemoteSearch,
+  )
+  // Cadangan terakhir: artikel dibuka lewat deep link tanpa q dan dengan
+  // slug kategori yang tidak cocok — pindai seluruh kategori backend.
+  const needRemoteAll =
+    Boolean(article) &&
+    !bundledSelected &&
+    ((needRemoteCategory && !remoteCategory.loading && !remoteCategory.data) ||
+      (needRemoteSearch && !remoteSearch.loading && !(remoteSearch.data ?? []).some((a) => a.id === article || a.slug === article)))
+  const remoteAll = useApiQuery<HelpCategoryDetail[]>(
+    `help-categories:${language}`,
+    (signal) => api.helpCenter.listHelpCategories(signal).catch(() => []),
+    needRemoteAll,
+  )
+
+  const remoteCategories = useMemo<HelpCategoryDetail[]>(() => {
+    const list: HelpCategoryDetail[] = []
+    if (remoteCategory.data) list.push(remoteCategory.data)
+    for (const category of remoteAll.data ?? []) {
+      if (!list.some((c) => c.slug === category.slug)) list.push(category)
+    }
+    return list
+  }, [remoteCategory.data, remoteAll.data])
+  const mergedCategories = useMemo(
+    () => mergeHelpCategories(BUNDLED_HELP, remoteCategories),
+    [remoteCategories],
+  )
+
+  const category =
+    mergedCategories.find((c) => c.slug === slug) ??
+    (bundledCategory as HelpCategoryDetail | null) ??
+    null
+  const remoteHit = useMemo(() => {
+    if (!article || bundledSelected) return null
+    const fromSearch = (remoteSearch.data ?? []).find(
+      (item) => item.id === article || item.slug === article,
+    )
+    if (fromSearch) {
+      const cat = fromSearch.category
+        ? mergedCategories.find((c) => c.slug === fromSearch.category) ?? null
+        : null
+      return { article: fromSearch, category: cat }
+    }
+    const found = findHelpArticleIn(mergedCategories, article)
+    return found ? { article: found.article, category: found.category } : null
+  }, [article, bundledSelected, remoteSearch.data, mergedCategories])
+
+  const selected: HelpArticle | null = bundledSelected ?? remoteHit?.article ?? null
+  const selectedIsRemote = Boolean(selected) && !isBundledHelpArticle(selected as HelpArticle)
+  const selectedCategory: HelpCategoryDetail | null = bundledSelected?.category
+    ? (getBundledHelpCategory(bundledSelected.category) as HelpCategoryDetail | null)
+    : remoteHit?.category ?? category
+  const resolving =
+    Boolean(article) &&
+    !selected &&
+    (remoteCategory.loading || remoteSearch.loading || remoteAll.loading)
+
+  // Daftar artikel kategori (mode daftar) — bundel + backend untuk slug ini.
+  const articles: HelpArticle[] = useMemo(() => {
+    if (article && q) return mergeHelpArticles(bundledSearchResults, remoteSearch.data ?? [])
+    return category?.articles ?? []
+  }, [article, q, bundledSearchResults, remoteSearch.data, category])
 
   // F04: catat artikel ke riwayat lokal per akun; konten tetap tersedia dari bundle.
   useEffect(() => {
     if (!selected) return
     void recordHelpArticleView({
       articleId: selected.id || selected.slug,
-      slug,
+      slug: selectedCategory?.slug ?? slug,
       title: selected.title || "Artikel bantuan",
       categoryName: selectedCategory?.name,
     }).catch((err) => logWarn("help:record-history", err))
-  }, [selected, slug, selectedCategory?.name])
+  }, [selected, slug, selectedCategory?.slug, selectedCategory?.name])
 
-  // View-count hanya telemetri opsional; tidak pernah diminta ketika offline.
+  // View-count hanya telemetri opsional; tidak pernah diminta ketika offline,
+  // dan hanya untuk artikel backend (id CUID — lihat catatan di atas).
   useEffect(() => {
-    if (!selected?.id || isOfflineKnown()) return
+    if (!selected?.id || !selectedIsRemote || isOfflineKnown()) return
     void api.helpCenter.trackHelpArticleView(selected.id).catch((err) =>
       logWarn("help:track-view", err),
     )
-  }, [selected?.id])
+  }, [selected?.id, selectedIsRemote])
 
   const content = selected?.content || ""
   // F03: daftar isi dari heading yang ada.
@@ -307,37 +408,46 @@ export default function HelpScreen() {
 
   // Item 120: artikel terkait = artikel lain di kategori yang sama (maks 3).
   const related = selected
-    ? articles.filter((item) => item.id !== selected.id).slice(0, 3)
+    ? (selectedCategory?.articles ?? articles)
+        .filter((item) => item.id !== selected.id)
+        .slice(0, 3)
     : []
+  const relatedCategorySlug = selectedCategory?.slug ?? slug
   // Item 122: bagikan via tautan kanonis web (membuka deep link / web app).
   const shareArticle = useCallback(() => {
     if (!selected) return
     void shareContent({
       message: selected.title,
-      url: helpArticleUrl(selected.slug ?? selected.id, slug),
+      url: helpArticleUrl(selected.slug || selected.id, relatedCategorySlug),
       title: selected.title,
     }).catch((err) => logWarn("help:share", err))
-  }, [selected, slug])
+  }, [selected, relatedCategorySlug])
+
+  const listLoading = !article && !category && remoteCategory.loading
   return (
     <Screen edges={["top"]} padded={false}>
       {/* Header di LUAR area scroll: artikel bantuan bisa sangat panjang —
           pengguna harus bisa kembali tanpa menggulir ke atas dulu. */}
       <Header
-        title={article ? (selected?.title ?? "Artikel") : (category?.name ?? "Kategori Bantuan")}
+        title={article ? (selected?.title ?? "Artikel") : (category?.name || "Kategori Bantuan")}
         right={
           selected ? (
             <IconButton
               icon={ShareNetwork}
               variant="ghost"
               onPress={shareArticle}
-              accessibilityLabel="Bagikan artikel"
+              accessibilityLabel={translate("Bagikan artikel")}
             />
           ) : null
         }
       />
       {/* F02: progress bar tipis di bawah header (hanya mode artikel). */}
       {article ? (
-        <View className="h-[3px] w-full bg-border" accessibilityRole="progressbar" accessibilityLabel="Progres baca">
+        <View
+          className="h-[3px] w-full bg-border"
+          accessibilityRole="progressbar"
+          accessibilityLabel={translate("Progres baca")}
+        >
           <Animated.View className="h-[3px]" style={progressBarStyle} />
         </View>
       ) : null}
@@ -356,8 +466,8 @@ export default function HelpScreen() {
               <View className="gap-4">
                 {/* F01: breadcrumb — kembali ke kategori/pencarian tanpa reset. */}
                 <Breadcrumb
-                  slug={slug}
-                  categoryName={selectedCategory?.name ?? "Kategori Bantuan"}
+                  slug={relatedCategorySlug}
+                  categoryName={selectedCategory?.name || translate("Kategori Bantuan")}
                   articleTitle={selected.title}
                   searchQuery={q || undefined}
                 />
@@ -367,7 +477,9 @@ export default function HelpScreen() {
                     <PressableScale
                       onPress={() => setTocOpen((v) => !v)}
                       accessibilityRole="button"
-                      accessibilityLabel={tocOpen ? "Sembunyikan daftar isi" : "Tampilkan daftar isi"}
+                      accessibilityLabel={
+                        tocOpen ? translate("Sembunyikan daftar isi") : translate("Tampilkan daftar isi")
+                      }
                       accessibilityState={{ expanded: tocOpen }}
                       className="flex-row items-center justify-between py-1"
                     >
@@ -386,7 +498,7 @@ export default function HelpScreen() {
                             key={entry.index}
                             onPress={() => jumpToHeading(entry.index)}
                             accessibilityRole="link"
-                            accessibilityLabel={`Lompat ke ${entry.text}`}
+                            accessibilityLabel={translate("Lompat ke {x}", { x: entry.text })}
                             className="py-1.5"
                           >
                             <View style={{ paddingLeft: (entry.level - 1) * 12 }}>
@@ -407,13 +519,13 @@ export default function HelpScreen() {
                   }}
                 >
                   <HelpArticleContent
-                    content={content || "Isi panduan belum tersedia di perangkat ini."}
+                    content={content || translate("Isi panduan belum tersedia di perangkat ini.")}
                     onHeadingLayout={(index, y) => {
                       headingY.current.set(index, contentTopY.current + y)
                     }}
                   />
                 </View>
-                <FeedbackBlock articleId={selected.id} content={content} />
+                <FeedbackBlock articleId={selected.id} content={content} remote={selectedIsRemote} />
                 {related.length > 0 ? (
                   <View className="gap-2">
                     <Text variant="h3">
@@ -424,32 +536,54 @@ export default function HelpScreen() {
                         padded={false}
                         key={item.id}
                         title={item.title}
-                        href={ROUTES.helpArticle(item.slug ?? item.id, slug)}
+                        href={ROUTES.helpArticle(item.slug || item.id, relatedCategorySlug)}
                       />
                     ))}
                   </View>
                 ) : null}
               </View>
+            ) : resolving ? (
+              <View className="gap-3">
+                <HelpArticleListItemSkeleton />
+                <HelpArticleListItemSkeleton />
+              </View>
             ) : (
               <EmptyState
                 icon={Article}
                 title={translate("Artikel tidak ditemukan")}
-                description={translate("Artikel mungkin belum dipublikasikan atau telah dipindahkan.")}
+                description={translate(
+                  isOfflineKnown()
+                    ? "Artikel ini perlu koneksi internet. Panduan utama tetap tersedia di Pusat Bantuan."
+                    : "Artikel mungkin belum dipublikasikan atau telah dipindahkan.",
+                )}
+                action={
+                  <Button variant="secondary" fullWidth={false} onPress={() => router.push(ROUTES.faq)}>
+                    {translate("Buka Pusat Bantuan")}
+                  </Button>
+                }
               />
             )
+          ) : listLoading ? (
+            <View className="gap-3">
+              <HelpArticleListItemSkeleton />
+              <HelpArticleListItemSkeleton />
+              <HelpArticleListItemSkeleton />
+            </View>
           ) : articles.length === 0 ? (
             <EmptyState
               icon={Article}
-              title="Kategori bantuan belum tersedia"
-              description="Panduan utama tetap tersedia di Pusat Bantuan pada perangkat ini."
+              title={translate("Kategori bantuan belum tersedia")}
+              description={translate(
+                "Panduan utama tetap tersedia di Pusat Bantuan pada perangkat ini.",
+              )}
             />
           ) : (
             articles.map((item) => (
               <HelpArticleListItem
                 padded={false}
-                key={item.id}
+                key={item.id || item.slug}
                 title={item.title}
-                href={ROUTES.helpArticle(item.slug || item.id, slug)}
+                href={ROUTES.helpArticle(item.slug || item.id, item.category ?? slug)}
               />
             ))
           )}
@@ -459,7 +593,7 @@ export default function HelpScreen() {
           <PressableScale
             onPress={scrollToTop}
             accessibilityRole="button"
-            accessibilityLabel="Kembali ke atas artikel"
+            accessibilityLabel={translate("Kembali ke atas artikel")}
             className="h-12 w-12 items-center justify-center rounded-full bg-primary"
             containerClassName="absolute bottom-6 right-5"
           >

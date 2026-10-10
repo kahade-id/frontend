@@ -17,25 +17,12 @@
  * follower/following (G077), visibilitas default etalase (G078), kebijakan Q&A
  * (G079–G080), ulasan & statistik tersembunyi (G081–G082), indeks mesin pencari
  * (G083). Nilai enum dikirim apa adanya ke server (PATCH semantics).
- *
- * Audit profil 2026-10-10:
- *   - E-14: semua teks lewat `translate()`. Daftar item/label TIDAK lagi
- *     konstanta modul — `translate()` di scope modul membekukan bahasa saat
- *     berkas pertama dimuat (pola `defaultLabels()` di
- *     components/ui/username-field.tsx). Builder dipanggil saat render;
- *     `useLanguage()` di komponen memastikan render ulang saat bahasa ganti.
- *   - E-19: menggeser satu switch hanya mengirim `{ [key]: next }` dan hanya
- *     key itu yang `pending` — bukan seluruh grup (dulu semua switch grup
- *     berputar dan rollback menimpa seluruh grup).
- *   - E-28: `Linking.canOpenURL` false → toast danger + aksi "Salin tautan",
- *     supaya pengguna tetap bisa mengunduh ekspor lewat browser.
  */
 import { useCallback, useState } from "react"
 import { Linking, Pressable, View } from "react-native"
 import { CaretRight, DownloadSimple } from "phosphor-react-native"
 
 import { api } from "@/lib/api"
-import { copyToClipboard } from "@/lib/clipboard"
 import { formatDate } from "@/lib/format"
 import { translate, useLanguage } from "@/lib/i18n"
 import { safeHttpsUrl } from "@/lib/version"
@@ -58,173 +45,105 @@ import { DataScreen } from "@/components/ui/data-screen"
 import { Icon } from "@/components/ui/icon"
 import { Dialog } from "@/components/ui/modal"
 import { PressableScale } from "@/components/ui/pressable-scale"
-import { PrivacyToggleList, type PrivacyToggleItem } from "@/components/ui/privacy-toggle-list"
+import { PrivacyToggleList } from "@/components/ui/privacy-toggle-list"
 import { SectionHeader } from "@/components/ui/section"
 import { Switch } from "@/components/ui/switch"
 import { Text } from "@/components/ui/text"
 import { useToast } from "@/components/ui/toast"
 
-/** E-22: enum backend ShowcaseVisibility hanya PUBLIC|PRIVATE. */
-type ShowcaseDefaultVisibility = NonNullable<PrivacySettings["showcaseDefaultVisibility"]>
+const ITEMS = [
+  {
+    key: "profileVisible",
+    title: "Profil terlihat publik",
+    description: "Pengguna lain bisa melihat profil Anda.",
+  },
+  {
+    key: "showOnlineStatus",
+    title: "Tampilkan status online",
+    description: "Menampilkan indikator online pada profil Anda.",
+  },
+] as const
 
-type ToggleItems = {
-  profile: readonly PrivacyToggleItem[]
-  identity: readonly PrivacyToggleItem[]
-  review: readonly PrivacyToggleItem[]
-  hiddenStat: readonly PrivacyToggleItem[]
-  misc: readonly PrivacyToggleItem[]
+/** G076: visibilitas field identitas akun (berlaku untuk pengunjung profil). */
+const IDENTITY_ITEMS = [
+  {
+    key: "showEmail",
+    title: "Tampilkan email akun",
+    description: "Pengunjung profil bisa melihat alamat email Anda.",
+  },
+  {
+    key: "showPhone",
+    title: "Tampilkan nomor HP",
+    description: "Pengunjung profil bisa melihat nomor HP Anda.",
+  },
+  {
+    key: "showDob",
+    title: "Tampilkan tanggal lahir",
+    description: "Pengunjung profil bisa melihat tanggal lahir Anda.",
+  },
+  {
+    key: "showGender",
+    title: "Tampilkan gender",
+    description: "Pengunjung profil bisa melihat gender Anda.",
+  },
+] as const
+
+/** G081: ulasan publik. */
+const REVIEW_ITEMS = [
+  {
+    key: "showReviews",
+    title: "Tampilkan ulasan",
+    description: "Ulasan dan rating Anda terlihat di profil publik.",
+  },
+] as const
+
+/** G082: kunci statistik yang bisa disembunyikan (mirror backend KNOWN_HIDDEN_STAT_KEYS). */
+const HIDDEN_STAT_ITEMS = [
+  { key: "totalOrders", title: "Jumlah transaksi", description: "Sembunyikan total transaksi selesai." },
+  { key: "avgRating", title: "Rata-rata rating", description: "Sembunyikan rata-rata rating." },
+  { key: "ratingCount", title: "Jumlah rating", description: "Sembunyikan jumlah rating." },
+  { key: "memberSince", title: "Tanggal bergabung", description: "Sembunyikan tanggal bergabung." },
+] as const
+
+/** G083 + G080: toggle lain. */
+const MISC_ITEMS = [
+  {
+    key: "qaAnswerModeration",
+    title: "Moderasi jawaban Q&A",
+    description: "Jawaban Q&A baru tidak publik sampai Anda terbitkan.",
+  },
+  {
+    key: "searchEngineIndex",
+    title: "Izinkan mesin pencari",
+    // FE-IMP-3 #104 — jujur soal propagasi: perubahan butuh beberapa hari
+    // untuk tercermin di hasil pencarian (cache perayap, bukan instan).
+    description:
+      "Profil Anda boleh diindeks mesin pencari. Perubahan membutuhkan beberapa hari untuk berlaku di hasil pencarian.",
+  },
+] as const
+
+const LIST_VISIBILITY_LABELS: Record<PrivacyListVisibility, string> = {
+  EVERYONE: "Semua orang",
+  FOLLOWERS: "Pengikut saja",
+  ONLY_ME: "Hanya saya",
 }
 
-/**
- * E-14: daftar toggle dibangun saat render (bukan konstanta modul) — lihat
- * header berkas. Kunci = teks Indonesia (konvensi lib/i18n).
- */
-function buildToggleItems(): ToggleItems {
-  return {
-    profile: [
-      {
-        key: "profileVisible",
-        title: translate("Profil terlihat publik"),
-        description: translate("Pengguna lain bisa melihat profil Anda."),
-      },
-      {
-        key: "showOnlineStatus",
-        title: translate("Tampilkan status online"),
-        description: translate("Menampilkan indikator online pada profil Anda."),
-      },
-    ],
-    /** G076: visibilitas field identitas akun (berlaku untuk pengunjung profil). */
-    identity: [
-      {
-        key: "showEmail",
-        title: translate("Tampilkan email akun"),
-        description: translate("Pengunjung profil bisa melihat alamat email Anda."),
-      },
-      {
-        key: "showPhone",
-        title: translate("Tampilkan nomor HP"),
-        description: translate("Pengunjung profil bisa melihat nomor HP Anda."),
-      },
-      {
-        key: "showDob",
-        title: translate("Tampilkan tanggal lahir"),
-        description: translate("Pengunjung profil bisa melihat tanggal lahir Anda."),
-      },
-      {
-        key: "showGender",
-        title: translate("Tampilkan gender"),
-        description: translate("Pengunjung profil bisa melihat gender Anda."),
-      },
-    ],
-    /** G081: ulasan publik. */
-    review: [
-      {
-        key: "showReviews",
-        title: translate("Tampilkan ulasan"),
-        description: translate("Ulasan dan rating Anda terlihat di profil publik."),
-      },
-    ],
-    /** G082: kunci statistik yang bisa disembunyikan (mirror backend KNOWN_HIDDEN_STAT_KEYS). */
-    hiddenStat: [
-      {
-        key: "totalOrders",
-        title: translate("Jumlah transaksi"),
-        description: translate("Sembunyikan total transaksi selesai."),
-      },
-      {
-        key: "avgRating",
-        title: translate("Rata-rata rating"),
-        description: translate("Sembunyikan rata-rata rating."),
-      },
-      {
-        key: "ratingCount",
-        title: translate("Jumlah rating"),
-        description: translate("Sembunyikan jumlah rating."),
-      },
-      {
-        key: "memberSince",
-        title: translate("Tanggal bergabung"),
-        description: translate("Sembunyikan tanggal bergabung."),
-      },
-    ],
-    /** G083 + G080: toggle lain. */
-    misc: [
-      {
-        key: "qaAnswerModeration",
-        title: translate("Moderasi jawaban Q&A"),
-        description: translate("Jawaban Q&A baru tidak publik sampai Anda terbitkan."),
-      },
-      {
-        key: "searchEngineIndex",
-        title: translate("Izinkan mesin pencari"),
-        // FE-IMP-3 #104 — jujur soal propagasi: perubahan butuh beberapa hari
-        // untuk tercermin di hasil pencarian (cache perayap, bukan instan).
-        description: translate(
-          "Profil Anda boleh diindeks mesin pencari. Perubahan membutuhkan beberapa hari untuk berlaku di hasil pencarian.",
-        ),
-      },
-    ],
-  }
+const QA_POLICY_LABELS: Record<QaCommentPolicy, string> = {
+  EVERYONE: "Semua orang",
+  FOLLOWERS: "Pengikut saja",
+  DISABLED: "Nonaktif",
 }
 
-type EnumLabels = {
-  list: Record<PrivacyListVisibility, string>
-  qa: Record<QaCommentPolicy, string>
-  showcase: Record<ShowcaseDefaultVisibility, string>
-}
-
-/** E-14: label enum dibangun saat render — lihat header berkas. */
-function buildEnumLabels(): EnumLabels {
-  return {
-    list: {
-      EVERYONE: translate("Semua orang"),
-      FOLLOWERS: translate("Pengikut saja"),
-      ONLY_ME: translate("Hanya saya"),
-    },
-    qa: {
-      EVERYONE: translate("Semua orang"),
-      FOLLOWERS: translate("Pengikut saja"),
-      DISABLED: translate("Nonaktif"),
-    },
-    showcase: {
-      PUBLIC: translate("Publik"),
-      PRIVATE: translate("Pribadi"),
-    },
-  }
-}
-
-type ConsentLabels = Record<ConsentType, { title: string; description: string }>
-
-/** E-14: label persetujuan (G084–G086) dibangun saat render — lihat header berkas. */
-function buildConsentLabels(): ConsentLabels {
-  return {
-    MARKETING_PUSH: {
-      title: translate("Notifikasi promosi"),
-      description: translate("Penawaran dan promo via push notification."),
-    },
-    MARKETING_EMAIL: {
-      title: translate("Email promosi"),
-      description: translate("Penawaran dan promo via email."),
-    },
-    MARKETING_WHATSAPP: {
-      title: translate("WhatsApp promosi"),
-      description: translate("Penawaran dan promo via WhatsApp."),
-    },
-    TRANSACTIONAL: {
-      title: translate("Notifikasi transaksi"),
-      description: translate("Wajib untuk keamanan akun — tidak dapat dimatikan."),
-    },
-  }
+const SHOWCASE_VISIBILITY_LABELS: Record<string, string> = {
+  PUBLIC: "Publik",
+  PRIVATE: "Pribadi",
 }
 
 type EnumRowProps<T extends string> = {
-  /** Sudah diterjemahkan oleh pemanggil. */
   title: string
-  /** Sudah diterjemahkan oleh pemanggil. */
   description: string
   value: T | undefined
   options: readonly T[]
-  /** Sudah diterjemahkan oleh pemanggil. */
   labels: Record<string, string>
   pending: boolean
   onPick: (next: T) => void
@@ -238,8 +157,6 @@ type EnumRowProps<T extends string> = {
 
 /** Baris pemilih nilai enum (G077/G078/G079) — sheet opsi, bukan toggle. */
 function EnumRow<T extends string>({ title, description, value, options, labels, pending, onPick, defaultValue }: EnumRowProps<T>) {
-  // Langganan bahasa: teks internal ("Mengikuti default", "Batal", "Menyimpan…").
-  useLanguage()
   const [open, setOpen] = useState(false)
   return (
     <>
@@ -254,9 +171,9 @@ function EnumRow<T extends string>({ title, description, value, options, labels,
         </View>
         <Text variant="body" tone="secondary">
           {value
-            ? (labels[value] ?? value)
+            ? translate(labels[value] ?? value)
             : defaultValue
-              ? translate("Mengikuti default: {x}", { x: labels[defaultValue] ?? defaultValue })
+              ? translate("Bawaan: {x}", { x: translate(labels[defaultValue] ?? defaultValue) })
               : "—"}
         </Text>
         <Icon icon={CaretRight} size="sm" tone="default" />
@@ -269,22 +186,23 @@ function EnumRow<T extends string>({ title, description, value, options, labels,
         cancelLabel={translate("Batal")}
         actions={options.map((opt) => ({
           key: opt,
-          label: `${labels[opt] ?? opt}${value === opt ? " ✓" : ""}`,
+          label: `${translate(labels[opt] ?? opt)}${(value ?? defaultValue) === opt ? " ✓" : ""}`,
           onPress: () => {
             setOpen(false)
             if (opt !== value) onPick(opt)
           },
         }))}
       />
-      {pending ? <Text variant="caption" tone="secondary">{translate("Menyimpan…")}</Text> : null}
+      {pending ? <Text variant="caption" tone="secondary">Menyimpan…</Text> : null}
     </>
   )
 }
 
 export default function PrivacySettingsScreen() {
-  // Langganan bahasa: builder label di bawah memanggil translate() saat render
-  // (E-14) dan a11y label switch persetujuan adalah prop string (UI-M003).
-  useLanguage()
+  // Langganan bahasa: a11y label switch persetujuan (prop string, UI-M003).
+  // Nilai bahasa juga dipakai memilih judul persetujuan dari backend
+  // (`title: { id, en }`).
+  const language = useLanguage()
   const toast = useToast()
   // Partial: server boleh mengirim subset; UI tidak boleh mengarang default.
   const query = useApiQuery<Partial<PrivacySettings>>("privacy-settings", (signal) =>
@@ -293,18 +211,11 @@ export default function PrivacySettingsScreen() {
   const value: Partial<PrivacySettings> = query.data ?? {}
   const { setData } = query
 
-  const items = buildToggleItems()
-  const enumLabels = buildEnumLabels()
-  const consentLabels = buildConsentLabels()
-
   const [pending, setPending] = useState<string[]>([])
   const [exportOpen, setExportOpen] = useState(false)
   const [exporting, setExporting] = useState(false)
 
-  /**
-   * Simpan satu field (boolean / enum / array) dengan optimistic update + rollback.
-   * E-19: juga dipakai untuk toggle grup — hanya `key` yang dikirim & pending.
-   */
+  /** Simpan satu field (boolean / enum / array) dengan optimistic update + rollback. */
   const saveField = useCallback(
     async (key: string, next: unknown) => {
       const previous = (value as Record<string, unknown>)[key]
@@ -312,13 +223,13 @@ export default function PrivacySettingsScreen() {
       setPending((p) => [...p, key])
       try {
         await api.settings.updatePrivacySettings({ [key]: next } as unknown as UpdatePrivacyDto)
-        toast.show({ title: translate("Pengaturan tersimpan"), tone: "success", duration: 2500 })
+        toast.show({ title: "Pengaturan tersimpan", tone: "success", duration: 2500 })
       } catch (err) {
         // Klasifikasi toast: error mutasi non-blokir via showMutationError.
         if (
           showMutationError(toast.show, {
-            failTitle: translate("Gagal menyimpan"),
-            uncertainHint: translate("Aksi mungkin sudah diproses — memuat ulang…"),
+            failTitle: "Gagal menyimpan",
+            uncertainHint: "Aksi mungkin sudah diproses — memuat ulang…",
             err: err,
             scope: "privacy-settings:menyimpan",
           })
@@ -330,6 +241,40 @@ export default function PrivacySettingsScreen() {
         }
       } finally {
         setPending((p) => p.filter((k) => k !== key))
+      }
+    },
+    [value, setData, toast.show, query],
+  )
+
+  const handleChange = useCallback(
+    async (key: string, next: boolean, all: Partial<Record<string, boolean>>) => {
+      // `all` dari PrivacyToggleList bisa membawa beberapa key sekaligus;
+      // kirim semuanya agar state server selaras dengan optimistic update.
+      const keys = Object.keys(all)
+      const payload = { ...all, [key]: next } as UpdatePrivacyDto
+      const previous: Record<string, boolean | undefined> = {}
+      for (const k of [...keys, key]) previous[k] = (value as Record<string, boolean | undefined>)[k]
+      setData((prev) => ({ ...(prev ?? {}), ...all, [key]: next }))
+      setPending((p) => [...p, ...keys, key])
+      try {
+        await api.settings.updatePrivacySettings(payload)
+        toast.show({ title: "Pengaturan tersimpan", tone: "success", duration: 2500 })
+      } catch (err) {
+        // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+        if (
+          showMutationError(toast.show, {
+            failTitle: "Gagal menyimpan",
+            uncertainHint: "Aksi mungkin sudah diproses — memuat ulang…",
+            err: err,
+            scope: "privacy-settings:menyimpan",
+          })
+        ) {
+          void query.reload()
+        } else {
+          setData((prev) => ({ ...(prev ?? {}), ...previous }))
+        }
+      } finally {
+        setPending((p) => p.filter((k) => k !== key && !keys.includes(k)))
       }
     },
     [value, setData, toast.show, query],
@@ -353,42 +298,26 @@ export default function PrivacySettingsScreen() {
       const target = safeHttpsUrl(rawUrl)
       if (!target) {
         toast.show({
-          title: translate("Ekspor data gagal dibuka"),
-          description: translate(
+          title: "Ekspor data gagal dibuka",
+          description:
             "Tautan ekspor bukan HTTPS dan ditolak demi keamanan data Anda. Coba lagi atau hubungi dukungan.",
-          ),
           tone: "danger",
           duration: 6000,
         })
         return
       }
-      const ok = await Linking.canOpenURL(target)
-      if (ok) {
+      // Audit 2026-10-10: `canOpenURL` untuk https bisa false di Android 11+
+      // (butuh <queries> manifest) — sebelumnya unduhan diam saja. Coba buka
+      // langsung; gagal → beri tahu, jangan senyap.
+      try {
         await Linking.openURL(target)
-        return
+      } catch {
+        toast.show({
+          title: translate("Tautan unduhan tidak dapat dibuka"),
+          description: translate("Buka kembali dari Riwayat ekspor atau coba di perangkat lain."),
+          tone: "danger",
+        })
       }
-      // E-28: tidak ada handler untuk tautan → jangan diam. Tawarkan salin
-      // tautan supaya arsip tetap bisa diunduh lewat browser lain.
-      toast.show({
-        title: translate("Tautan ekspor tidak bisa dibuka"),
-        description: translate(
-          "Tidak ada aplikasi yang bisa membuka tautan ini. Salin tautan lalu buka di browser.",
-        ),
-        tone: "danger",
-        duration: 8000,
-        action: {
-          label: translate("Salin tautan"),
-          onPress: () => {
-            void copyToClipboard(target).then((copied) => {
-              toast.show({
-                title: translate(copied ? "Tautan disalin" : "Gagal menyalin tautan"),
-                tone: copied ? "success" : "danger",
-                duration: 2500,
-              })
-            })
-          },
-        },
-      })
     },
     [toast],
   )
@@ -405,6 +334,25 @@ export default function PrivacySettingsScreen() {
   // FE-IMP-3 #101 — riwayat persetujuan expandable.
   const [historyExpanded, setHistoryExpanded] = useState(false)
 
+  const CONSENT_LABELS: Record<ConsentType, { title: string; description: string }> = {
+    MARKETING_PUSH: {
+      title: "Notifikasi promosi",
+      description: "Penawaran dan promo via push notification.",
+    },
+    MARKETING_EMAIL: {
+      title: "Email promosi",
+      description: "Penawaran dan promo via email.",
+    },
+    MARKETING_WHATSAPP: {
+      title: "WhatsApp promosi",
+      description: "Penawaran dan promo via WhatsApp.",
+    },
+    TRANSACTIONAL: {
+      title: "Notifikasi transaksi",
+      description: "Wajib untuk keamanan akun — tidak dapat dimatikan.",
+    },
+  }
+
   const handleConsentChange = useCallback(
     async (type: ConsentType, granted: boolean) => {
       if (consentPending.includes(type)) return
@@ -416,17 +364,13 @@ export default function PrivacySettingsScreen() {
       try {
         await api.settings.updateConsent(type, granted)
         void consentHistory.reload()
-        toast.show({
-          title: translate(granted ? "Persetujuan diberikan" : "Persetujuan ditarik"),
-          tone: "success",
-          duration: 2500,
-        })
+        toast.show({ title: granted ? "Persetujuan diberikan" : "Persetujuan ditarik", tone: "success", duration: 2500 })
       } catch (err) {
         // Klasifikasi toast: error mutasi non-blokir via showMutationError.
         if (
           showMutationError(toast.show, {
-            failTitle: translate("Gagal menyimpan persetujuan"),
-            uncertainHint: translate("Aksi mungkin sudah diproses — memuat ulang…"),
+            failTitle: "Gagal menyimpan persetujuan",
+            uncertainHint: "Aksi mungkin sudah diproses — memuat ulang…",
             err: err,
             scope: "privacy-settings:menyimpan-persetujuan",
           })
@@ -469,8 +413,8 @@ export default function PrivacySettingsScreen() {
       setExportOpen(false)
       void exportHistory.reload()
       toast.show({
-        title: translate("Ekspor data siap"),
-        description: res.message || translate("Arsip data Anda siap diunduh. Tautan berlaku terbatas."),
+        title: "Ekspor data siap",
+        description: res.message || "Arsip data Anda siap diunduh. Tautan berlaku terbatas.",
         tone: "success",
         duration: 5000,
       })
@@ -479,8 +423,8 @@ export default function PrivacySettingsScreen() {
       // Klasifikasi toast: error mutasi non-blokir via showMutationError.
       if (
         showMutationError(toast.show, {
-          failTitle: translate("Gagal meminta ekspor"),
-          uncertainHint: translate("Aksi mungkin sudah diproses — memuat ulang…"),
+          failTitle: "Gagal meminta ekspor",
+          uncertainHint: "Aksi mungkin sudah diproses — memuat ulang…",
           err: err,
           scope: "privacy-settings:meminta-ekspor",
         })
@@ -507,8 +451,8 @@ export default function PrivacySettingsScreen() {
         // Klasifikasi toast: error mutasi non-blokir via showMutationError.
         if (
           showMutationError(toast.show, {
-            failTitle: translate("Gagal mengunduh"),
-            uncertainHint: translate("Aksi mungkin sudah diproses — memuat ulang…"),
+            failTitle: "Gagal mengunduh",
+            uncertainHint: "Aksi mungkin sudah diproses — memuat ulang…",
             err: err,
             scope: "privacy-settings:mengunduh",
           })
@@ -534,49 +478,41 @@ export default function PrivacySettingsScreen() {
     return out
   }
 
-  // E-19: abaikan argumen `all` dari PrivacyToggleList — hanya key yang
-  // digeser yang dikirim/pending (lihat saveField).
-  const onToggle = (key: string, next: boolean) => void saveField(key, next)
-
   return (
     <>
-      <DataScreen
-        title={translate("Privasi")}
-        state={query}
-        loadingMessage={translate("Memuat pengaturan privasi…")}
-      >
-        <SectionHeader title={translate("Visibilitas profil")} />
+      <DataScreen title="Privasi" state={query} loadingMessage="Memuat pengaturan privasi…">
+        <SectionHeader title="Visibilitas profil" />
         <Text variant="body" tone="secondary">
-          {translate("Atur siapa yang dapat melihat informasi profil Anda.")}
+          Atur siapa yang dapat melihat informasi profil Anda.
         </Text>
         <PrivacyToggleList
-          items={items.profile}
+          items={ITEMS}
           value={boolValue("profileVisible", "showOnlineStatus")}
-          onChange={onToggle}
+          onChange={(k, n, all) => void handleChange(k, n, all)}
           pendingKeys={pending}
         />
 
-        <SectionHeader title={translate("Informasi identitas")} />
+        <SectionHeader title="Informasi identitas" />
         <Text variant="body" tone="secondary">
-          {translate("Data akun yang boleh dilihat pengunjung profil Anda. Default: disembunyikan.")}
+          Data akun yang boleh dilihat pengunjung profil Anda. Default: disembunyikan.
         </Text>
         <PrivacyToggleList
-          items={items.identity}
+          items={IDENTITY_ITEMS}
           value={boolValue("showEmail", "showPhone", "showDob", "showGender")}
-          onChange={onToggle}
+          onChange={(k, n, all) => void handleChange(k, n, all)}
           pendingKeys={pending}
         />
 
-        <SectionHeader title={translate("Daftar pengikut")} />
+        <SectionHeader title="Daftar pengikut" />
         <Text variant="body" tone="secondary">
-          {translate("Siapa yang dapat melihat daftar pengikut dan yang Anda ikuti.")}
+          Siapa yang dapat melihat daftar pengikut dan yang Anda ikuti.
         </Text>
         <EnumRow<PrivacyListVisibility>
-          title={translate("Daftar pengikut")}
-          description={translate("Siapa yang dapat melihat siapa mengikuti Anda.")}
+          title="Daftar pengikut"
+          description="Siapa yang dapat melihat siapa mengikuti Anda."
           value={value.showFollowerList}
           options={["EVERYONE", "FOLLOWERS", "ONLY_ME"]}
-          labels={enumLabels.list}
+          labels={LIST_VISIBILITY_LABELS}
           pending={pending.includes("showFollowerList")}
           onPick={(next) => void saveField("showFollowerList", next)}
           // FE-IMP-3 #100 — default backend: DEFAULT_PRIVACY_SETTING di
@@ -584,44 +520,44 @@ export default function PrivacySettingsScreen() {
           defaultValue="EVERYONE"
         />
         <EnumRow<PrivacyListVisibility>
-          title={translate("Daftar mengikuti")}
-          description={translate("Siapa yang dapat melihat siapa Anda ikuti.")}
+          title="Daftar mengikuti"
+          description="Siapa yang dapat melihat siapa Anda ikuti."
           value={value.showFollowingList}
           options={["EVERYONE", "FOLLOWERS", "ONLY_ME"]}
-          labels={enumLabels.list}
+          labels={LIST_VISIBILITY_LABELS}
           pending={pending.includes("showFollowingList")}
           onPick={(next) => void saveField("showFollowingList", next)}
           defaultValue="EVERYONE"
         />
-        <EnumRow<ShowcaseDefaultVisibility>
-          title={translate("Visibilitas default etalase")}
-          description={translate("Visibilitas etalase baru yang Anda buat.")}
-          // E-22: tipe sudah PUBLIC|PRIVATE (selaras enum backend
-          // ShowcaseVisibility) — tidak perlu pemetaan manual lagi.
+        <EnumRow<string>
+          title="Visibilitas default etalase"
+          description="Visibilitas etalase baru yang Anda buat."
+          // P1 (audit 2026-10-06): backend enum ShowcaseVisibility hanya
+          // PUBLIC|PRIVATE — opsi FOLLOWERS dihapus agar tidak 422.
           value={value.showcaseDefaultVisibility}
           options={["PUBLIC", "PRIVATE"]}
-          labels={enumLabels.showcase}
+          labels={SHOWCASE_VISIBILITY_LABELS}
           pending={pending.includes("showcaseDefaultVisibility")}
           onPick={(next) => void saveField("showcaseDefaultVisibility", next)}
           defaultValue="PUBLIC"
         />
 
-        <SectionHeader title={translate("Ulasan & statistik")} />
+        <SectionHeader title="Ulasan & statistik" />
         <PrivacyToggleList
-          items={items.review}
+          items={REVIEW_ITEMS}
           value={boolValue("showReviews")}
-          onChange={onToggle}
+          onChange={(k, n, all) => void handleChange(k, n, all)}
           pendingKeys={pending}
         />
         <Text variant="body" tone="secondary">
-          {translate("Statistik yang disembunyikan dari pengunjung profil:")}
+          Statistik yang disembunyikan dari pengunjung profil:
         </Text>
-        {items.hiddenStat.map((item) => {
+        {HIDDEN_STAT_ITEMS.map((item) => {
           const hidden = hiddenStats.includes(item.key)
           return (
             <PrivacyToggleList
               key={item.key}
-              items={[item]}
+              items={[{ ...item, key: item.key }]}
               value={{ [item.key]: hidden }}
               onChange={() => toggleHiddenStat(item.key, !hidden)}
               pendingKeys={pending.includes("hiddenStats") ? [item.key] : []}
@@ -629,41 +565,60 @@ export default function PrivacySettingsScreen() {
           )
         })}
 
-        <SectionHeader title={translate("Interaksi & lainnya")} />
+        <SectionHeader title="Interaksi & lainnya" />
         <EnumRow<QaCommentPolicy>
-          title={translate("Komentar Q&A profil")}
-          description={translate("Siapa yang dapat bertanya/berkomentar di Q&A profil Anda.")}
+          title="Komentar Q&A profil"
+          description="Siapa yang dapat bertanya/berkomentar di Q&A profil Anda."
           value={value.qaCommentPolicy}
           options={["EVERYONE", "FOLLOWERS", "DISABLED"]}
-          labels={enumLabels.qa}
+          labels={QA_POLICY_LABELS}
           pending={pending.includes("qaCommentPolicy")}
           onPick={(next) => void saveField("qaCommentPolicy", next)}
           defaultValue="EVERYONE"
         />
         <PrivacyToggleList
-          items={items.misc}
+          items={MISC_ITEMS}
           value={boolValue("qaAnswerModeration", "searchEngineIndex")}
-          onChange={onToggle}
+          onChange={(k, n, all) => void handleChange(k, n, all)}
           pendingKeys={pending}
         />
 
-        <SectionHeader title={translate("Persetujuan")} />
-        <Text variant="body" tone="secondary">
-          {translate(
-            "Kelola persetujuan komunikasi. Persetujuan pemasaran dapat ditarik kapan saja; notifikasi transaksi wajib demi keamanan akun.",
-          )}
-        </Text>
+        {/* Audit 2026-10-10: judul + penjelasan hanya tampil bila daftar
+            persetujuan ada — gagal muat (ditelan jadi []) sebelumnya
+            meninggalkan section kosong berjudul "Persetujuan". */}
+        {(consents.data ?? []).length > 0 ? (
+          <>
+            <SectionHeader title="Persetujuan" />
+            <Text variant="body" tone="secondary">
+              Persetujuan pemasaran dapat ditarik kapan saja; notifikasi transaksi
+              wajib demi keamanan akun.
+            </Text>
+          </>
+        ) : null}
         {(consents.data ?? []).map((c) => {
-          const meta = consentLabels[c.type]
+          // Audit 2026-10-10: jenis persetujuan baru dari backend (tidak ada
+          // di CONSENT_LABELS) sebelumnya membuat `meta.title` melempar →
+          // seluruh layar privasi crash. Fallback ke judul dari server
+          // (`title: {id,en}`, mengikuti bahasa aktif), lalu ke kode jenisnya.
+          const meta = CONSENT_LABELS[c.type]
+          const serverTitle =
+            c.title && typeof c.title === "object"
+              ? (language === "en" ? c.title.en : c.title.id) || c.title.id || c.title.en
+              : undefined
+          const title = meta?.title ?? serverTitle ?? c.type
           const busy = consentPending.includes(c.type)
           return (
             <View key={c.type} className="flex-row items-center gap-3 px-5 py-3 opacity-100">
               <View className="flex-1">
-                <Text variant="body" weight={500}>{meta.title}</Text>
-                <Text variant="caption" tone="secondary">{meta.description}</Text>
+                <Text variant="body" weight={500}>{title}</Text>
+                {meta?.description ? (
+                  <Text variant="caption" tone="secondary">{meta.description}</Text>
+                ) : null}
                 {c.grantedAt ? (
                   <Text variant="caption" tone="secondary">
-                    {translate(c.granted ? "Disetujui" : "Ditarik")} · v{c.policyVersion}
+                    {c.granted
+                      ? translate("Disetujui · versi {x}", { x: c.policyVersion || "—" })
+                      : translate("Ditarik · versi {x}", { x: c.policyVersion || "—" })}
                   </Text>
                 ) : null}
               </View>
@@ -674,7 +629,7 @@ export default function PrivacySettingsScreen() {
                 value={c.granted}
                 onChange={(next) => void handleConsentChange(c.type, next)}
                 disabled={!c.revocable || busy}
-                accessibilityLabel={meta.title}
+                accessibilityLabel={translate(title)}
                 className="self-center"
               />
             </View>
@@ -683,13 +638,24 @@ export default function PrivacySettingsScreen() {
         {(consentHistory.data ?? []).length > 0 ? (
           <>
             <Text variant="body" tone="secondary">
-              {translate("Riwayat persetujuan:")}
+              Riwayat persetujuan:
             </Text>
-            {(historyExpanded ? consentHistory.data ?? [] : (consentHistory.data ?? []).slice(0, 3)).map((h, i) => (
-              <View key={`${h.type}-${h.createdAt}-${i}`} className="px-5 py-2">
+            {(historyExpanded ? consentHistory.data ?? [] : (consentHistory.data ?? []).slice(0, 3)).map((h) => (
+              <View key={h.id} className="px-5 py-2">
+                {/* Kalimat utuh per kejadian — generator katalog membuang kunci
+                    yang hanya token/tanda baca ("{x} — {y} · v{z}"). */}
                 <Text variant="caption" tone="secondary">
-                  {consentLabels[h.type]?.title ?? h.type} — {translate(h.granted ? "disetujui" : "ditarik")} · v
-                  {h.policyVersion} · {formatDate(h.createdAt)}
+                  {h.granted
+                    ? translate("{x} — disetujui · versi {y} · {z}", {
+                        x: translate(CONSENT_LABELS[h.type]?.title ?? h.type),
+                        y: h.policyVersion || "—",
+                        z: formatDate(h.createdAt),
+                      })
+                    : translate("{x} — ditarik · versi {y} · {z}", {
+                        x: translate(CONSENT_LABELS[h.type]?.title ?? h.type),
+                        y: h.policyVersion || "—",
+                        z: formatDate(h.createdAt),
+                      })}
                 </Text>
               </View>
             ))}
@@ -716,19 +682,19 @@ export default function PrivacySettingsScreen() {
           </>
         ) : null}
 
-        <SectionHeader title={translate("Data pribadi")} />
+        <SectionHeader title="Data pribadi" />
+        {/* Audit 2026-10-10 (§3 "tidak banyak teks"): satu kalimat — rincian
+            isi arsip & kedaluwarsa tautan sudah dijelaskan di dialog ekspor. */}
         <Text variant="body" tone="secondary">
-          {translate(
-            "Anda berhak meminta salinan seluruh data pribadi yang kami simpan. Arsip mencakup profil, pesanan, wallet, metadata chat (tanpa isi pesan), sengketa, ulasan, dan aktivitas — dengan data sensitif (KYC/bank) disamarkan. Setiap unduhan tercatat dan tautannya kedaluwarsa.",
-          )}
+          Minta salinan data pribadi yang Kahade simpan tentang Anda.
         </Text>
         <Button variant="secondary" leftIcon={DownloadSimple} onPress={() => setExportOpen(true)}>
-          {translate("Minta salinan data saya")}
+          Minta salinan data saya
         </Button>
 
         {exportHistory.data && exportHistory.data.length > 0 ? (
           <>
-            <SectionHeader title={translate("Riwayat ekspor")} />
+            <SectionHeader title="Riwayat ekspor" />
             {exportHistory.data.map((item) => {
               const expired = item.status === "EXPIRED"
               const ready = item.status === "READY"
@@ -736,18 +702,24 @@ export default function PrivacySettingsScreen() {
                 <View key={item.id} className="flex-row items-center gap-3 px-5 py-3">
                   <View className="flex-1">
                     <Text variant="body" weight={500}>
-                      {translate(item.format === "CSV" ? "Arsip CSV (ZIP)" : "Arsip JSON")}
+                      {item.format === "CSV" ? "Arsip CSV (ZIP)" : "Arsip JSON"}
                     </Text>
+                    {/* Audit 2026-10-10: children campuran tidak diterjemahkan
+                        otomatis — rangkai lewat translate() per potongan. */}
                     <Text variant="caption" tone="secondary">
-                      {formatDate(item.requestedAt)}
-                      {expired
-                        ? ` · ${translate("Kedaluwarsa")}`
-                        : ready && item.expiresAt
-                          ? ` · ${translate("Berlaku hingga {x}", { x: formatDate(item.expiresAt) })}`
-                          : ""}
-                      {item.downloadCount > 0
-                        ? ` · ${translate("Diunduh {x}×", { x: item.downloadCount })}`
-                        : ""}
+                      {[
+                        formatDate(item.requestedAt),
+                        expired
+                          ? translate("Kedaluwarsa")
+                          : ready && item.expiresAt
+                            ? translate("Berlaku hingga {x}", { x: formatDate(item.expiresAt) })
+                            : null,
+                        item.downloadCount > 0
+                          ? translate("Diunduh {x}×", { x: item.downloadCount })
+                          : null,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
                     </Text>
                   </View>
                   {ready ? (
@@ -758,7 +730,7 @@ export default function PrivacySettingsScreen() {
                       loading={downloadingId === item.id}
                       onPress={() => void handleDownloadHistory(item)}
                     >
-                      {translate("Unduh")}
+                      Unduh
                     </Button>
                   ) : null}
                 </View>
@@ -769,14 +741,12 @@ export default function PrivacySettingsScreen() {
       </DataScreen>
 
       <Dialog
-        title={translate("Minta salinan data?")}
-        description={translate(
-          "Arsip dibuat langsung dan tautan unduhnya berlaku terbatas. Maksimal 1 permintaan per 24 jam.",
-        )}
+        title="Minta salinan data?"
+        description="Arsip dibuat langsung dan tautan unduhnya berlaku terbatas. Maksimal 1 permintaan per 24 jam."
         visible={exportOpen}
         loading={exporting}
-        confirmLabel={translate("Minta ekspor")}
-        cancelLabel={translate("Batal")}
+        confirmLabel="Minta ekspor"
+        cancelLabel="Batal"
         onConfirm={() => void handleExport()}
         onCancel={() => setExportOpen(false)}
         onRequestClose={() => setExportOpen(false)}
@@ -797,10 +767,12 @@ export default function PrivacySettingsScreen() {
               accessibilityRole="button"
               onPress={() => setExportFormat(fmt)}
               containerClassName="flex-1"
-              className={`rounded-lg border px-4 py-3 ${exportFormat === fmt ? "border-emerald-500" : "border-neutral-700"}`}
+              // Audit 2026-10-10: warna token (bukan emerald/neutral literal
+              // yang tidak mengikuti mode terang/gelap).
+              className={`rounded-lg border px-4 py-3 ${exportFormat === fmt ? "border-primary bg-primary/10" : "border-border"}`}
+              accessibilityState={{ selected: exportFormat === fmt }}
             >
               <Text variant="body" weight={500} className="text-center">
-                {/* Nama format berkas (bukan prosa) — sengaja tidak diterjemahkan. */}
                 {fmt === "json" ? "JSON" : "CSV (ZIP)"}
               </Text>
             </PressableScale>

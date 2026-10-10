@@ -11,17 +11,8 @@
  * Struktur kategori × kanal mengikuti CATEGORY_CHANNELS di
  * components/ui/notification-preferences-matrix.tsx (sumber kebenaran bentuk
  * DTO); disalin di sini agar layer lib tidak mengimpor komponen UI.
- *
- * Audit 2026-10-10 (FE-20): semua string yang dilihat pengguna lewat
- * `translate()` — dulu literal Indonesia sehingga pengguna EN melihat
- * "Senyap …" / "Efektif: …". (FE-05): default jam selesai quiet hours = 07:00,
- * sama dengan backend (`quietHoursEnd || '07:00'`), bukan 06:00.
  */
 import { translate } from "@/lib/i18n/translate"
-
-/** Default jam quiet hours bila preferensi kosong — PERSIS default backend. */
-export const QUIET_HOURS_DEFAULT_START = "22:00"
-export const QUIET_HOURS_DEFAULT_END = "07:00"
 
 export const NOTIFICATION_CATEGORY_CHANNELS = {
   order: ["InApp", "Push", "Email"],
@@ -64,12 +55,14 @@ export function summarizeNotificationPreferences(
     const start =
       typeof prefs.quietHoursStart === "string" && prefs.quietHoursStart
         ? prefs.quietHoursStart
-        : QUIET_HOURS_DEFAULT_START
+        : "22:00"
+    // Audit 2026-10-10: bawaan backend (schema.prisma `quietHoursEnd
+    // @default("07:00")` & computeQuietHoursActive) adalah 07:00, bukan 06:00.
     const end =
       typeof prefs.quietHoursEnd === "string" && prefs.quietHoursEnd
         ? prefs.quietHoursEnd
-        : QUIET_HOURS_DEFAULT_END
-    return translate("Senyap {x}–{y}", { x: start, y: end })
+        : "07:00"
+    return `Senyap ${start}–${end}`
   }
   const categories = Object.keys(NOTIFICATION_CATEGORY_CHANNELS) as NotificationCategory[]
   let known = false
@@ -85,23 +78,13 @@ export function summarizeNotificationPreferences(
     if (catActive) active += 1
   }
   if (!known) return null
-  return translate("{x} dari {y} jenis aktif", { x: active, y: NOTIFICATION_CATEGORY_COUNT })
+  return `${active} dari ${NOTIFICATION_CATEGORY_COUNT} jenis aktif`
 }
 
-/**
- * Label kanal untuk caption status efektif. Literal ditulis langsung di dalam
- * `translate()` (bukan tabel) supaya pemindai katalog i18n menangkapnya —
- * nilai objek dengan kunci `InApp`/`Push`/`Email` tidak dianggap teks UI.
- */
-export function effectiveChannelLabel(channel: NotificationChannel): string {
-  switch (channel) {
-    case "InApp":
-      return translate("di aplikasi")
-    case "Push":
-      return translate("push")
-    case "Email":
-      return translate("email")
-  }
+export const EFFECTIVE_CHANNEL_LABELS: Record<NotificationChannel, string> = {
+  InApp: "di aplikasi",
+  Push: "push",
+  Email: "email",
 }
 
 export type EffectiveStatus = {
@@ -138,9 +121,16 @@ export function effectiveNotificationStatus(
   return { effective, pushBlockedByDevice }
 }
 
-/** Caption satu baris dari {@link EffectiveStatus} untuk tiap kategori. */
+/**
+ * Caption satu baris dari {@link EffectiveStatus} untuk tiap kategori.
+ *
+ * Audit 2026-10-10: dirangkai lewat `translate` — template literal dengan
+ * potongan non-angka ("Efektif: di aplikasi, push") tidak pernah cocok
+ * dengan bentuk katalog, jadi caption ini selalu Indonesia untuk pengguna
+ * English. Nama kanal diterjemahkan satu per satu.
+ */
 export function formatEffectiveStatus(status: EffectiveStatus): string {
-  const parts = status.effective.map(effectiveChannelLabel)
+  const parts = status.effective.map((ch) => translate(EFFECTIVE_CHANNEL_LABELS[ch]))
   const base =
     parts.length > 0
       ? translate("Efektif: {x}", { x: parts.join(", ") })

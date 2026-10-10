@@ -54,6 +54,7 @@ import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
 import { SensitiveConfirmDialog } from "@/components/ui/sensitive-confirm"
 import { SensitiveText } from "@/components/ui/sensitive-text"
+import { Skeleton } from "@/components/ui/skeleton"
 import { useToast } from "@/components/ui/toast"
 
 export default function ChangeEmailScreen() {
@@ -73,7 +74,11 @@ export default function ChangeEmailScreen() {
   const trimmed = email.trim()
   const emailValid = isValidEmail(trimmed)
   const unchanged = trimmed.toLowerCase() === currentEmail.trim().toLowerCase()
-  const canSubmit = emailValid && !unchanged && password.length > 0 && !submitting
+  // Audit 2026-10-10: setelah backend meminta kode 2FA, tombol tidak boleh
+  // aktif dengan kolom MFA kosong — kirim ulang hanya menghasilkan toast
+  // TWO_FA_REQUIRED yang sama.
+  const mfaOk = !mfaRequired || mfa.trim().length > 0
+  const canSubmit = emailValid && !unchanged && password.length > 0 && mfaOk && !submitting
   // A11 (batch 139): konfirmasi sensitif seragam sebelum email diganti.
   const [confirmOpen, setConfirmOpen] = useState(false)
 
@@ -130,6 +135,9 @@ export default function ChangeEmailScreen() {
         contentContainerStyle={{ paddingBottom: insets.bottom + tokens.space[8] }}
       >
         <SectionHeader title="Email terdaftar" />
+        {/* Audit 2026-10-10: "Belum ada email terdaftar" hanya boleh tampil
+            bila profil SUDAH termuat dan memang kosong — sebelumnya kalimat
+            itu muncul selama memuat/offline (klaim salah soal data akun). */}
         {currentEmail ? (
           <Alert tone="neutral" title="Email saat ini">
             <SensitiveText
@@ -140,12 +148,14 @@ export default function ChangeEmailScreen() {
               toggleable={false}
             />
           </Alert>
-        ) : (
+        ) : query.loading ? (
+          <Skeleton height={56} shape="card" />
+        ) : query.data ? (
           <Alert tone="info">
             Belum ada email terdaftar. Menambahkan email mengaktifkan pemulihan akun dan notifikasi
             penting.
           </Alert>
-        )}
+        ) : null}
 
         <SectionHeader title="Email baru" />
         <EmailField

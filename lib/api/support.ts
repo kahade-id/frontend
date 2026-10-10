@@ -315,7 +315,13 @@ function normalizeSupportConversation(raw: unknown): SupportChatConversation {
         ? (record.data as Record<string, unknown>)
         : record
   const id = pickUserId(inner)
-  const assignedRaw = inner.assignedAgentName ?? inner.agentName
+  // Audit 2026-10-10: backend `toConversationView` mengirim
+  // `assignedAgent: { id, name }` — nama agen sebelumnya selalu null.
+  const assignedAgent =
+    inner.assignedAgent && typeof inner.assignedAgent === "object"
+      ? (inner.assignedAgent as Record<string, unknown>).name
+      : undefined
+  const assignedRaw = inner.assignedAgentName ?? inner.agentName ?? assignedAgent
   return {
     id,
     status:

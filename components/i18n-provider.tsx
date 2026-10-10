@@ -26,7 +26,16 @@ import { Platform } from "react-native"
 
 import * as settingsApi from "@/lib/api/settings"
 import { getSessionRevision } from "@/lib/api/session"
-import { adoptAccountLanguage, initLanguage, systemLanguage, useLanguage } from "@/lib/i18n"
+import {
+  adoptAccountLanguage,
+  clearLanguagePendingSync,
+  getLanguage,
+  initLanguage,
+  isLanguagePendingSync,
+  systemLanguage,
+  useLanguage,
+} from "@/lib/i18n"
+import { logWarn } from "@/lib/telemetry"
 import { useAuthSession } from "@/lib/use-auth-session"
 
 export function I18nProvider({ children }: { children: ReactNode }) {
@@ -65,17 +74,34 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     let alive = true
     // ST-001 (audit performa): import domain langsung, bukan barrel @/lib/api
     // (±35 domain) — file ini di-mount paling luar di RootLayout.
-    void settingsApi
-      .getLanguage()
-      .then((res) => {
+    void (async () => {
+      /**
+       * Audit Pengaturan 2026-10-10: pilihan bahasa yang dibuat sebagai tamu
+       * atau saat registrasi (penanda `languagePendingSync`) adalah pilihan
+       * EKSPLISIT pengguna — kirim ke akun, jangan ditimpa bawaan server
+       * ("id" untuk akun baru). Gagal kirim (offline) → biarkan bahasa
+       * perangkat; penanda tetap ada untuk dicoba lagi di sesi berikutnya.
+       */
+      if (await isLanguagePendingSync()) {
+        if (!alive || getSessionRevision() !== revision) return
+        try {
+          await settingsApi.updateLanguage({ language: getLanguage() })
+          await clearLanguagePendingSync()
+        } catch (error) {
+          logWarn("i18n:push-pending-language", error)
+        }
+        return
+      }
+      try {
+        const res = await settingsApi.getLanguage()
         if (!alive || getSessionRevision() !== revision) return
         void adoptAccountLanguage(res?.language)
-      })
-      .catch(() => {
+      } catch {
         // Offline / endpoint belum siap: biarkan bahasa lokal. Tidak ada toast
         // di boot — kegagalan baca preferensi bukan keadaan yang perlu
         // memberi tahu user.
-      })
+      }
+    })()
     return () => {
       alive = false
     }

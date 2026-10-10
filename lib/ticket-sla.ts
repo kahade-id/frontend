@@ -96,7 +96,10 @@ export function describeTicketSla(ticket: SupportTicket & Record<string, unknown
       return {
         stage: "Ditutup",
         nextOwner: "none",
-        nextStep: "Tiket sudah ditutup. Buat tiket baru bila kendala muncul lagi.",
+        // Audit 2026-10-10: pengguna TIDAK bisa membuat tiket sendiri (tiket
+        // hanya dibuat admin dari eskalasi chat, Poin 5 2026-10-04) — arahkan
+        // ke chat, bukan "buat tiket baru".
+        nextStep: "Tiket sudah ditutup. Chat dengan tim Kahade bila kendala muncul lagi.",
         responseDueLabel,
       }
     default:

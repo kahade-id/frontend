@@ -44,6 +44,9 @@ import {
   stringList,
 } from "@/lib/api/response"
 import { clearSession, getAccessToken, getDeviceId, getDeviceInfo, startSession } from "@/lib/api/session"
+// Audit Pengaturan 2026-10-10: impor langsung dari store (bukan barrel
+// @/lib/i18n) — lapisan API tidak boleh menarik hook React.
+import { markLanguagePendingSync } from "@/lib/i18n/store"
 import { withDeviceLocation, type WithDeviceLocation } from "@/lib/api/device-location"
 import { AppState } from "react-native"
 import type {
@@ -507,6 +510,11 @@ export async function phoneRegister(dto: {
     },
   )
   await persistTokens(result)
+  // Audit Pengaturan 2026-10-10: akun baru lahir dengan bawaan server "id".
+  // Bahasa yang dipakai perangkat SELAMA mendaftar adalah pilihan nyata
+  // pengguna — tandai agar <I18nProvider> meneruskannya ke akun, bukan
+  // membalik perangkat English ke Indonesia setelah registrasi.
+  await markLanguagePendingSync()
   return result
 }
 

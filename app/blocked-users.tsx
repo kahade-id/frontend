@@ -109,13 +109,12 @@ export default function BlockedUsersScreen() {
         setUnblockingId(null)
       }
     },
-    [setData, toast.show],
+    [setData, toast.show, query],
   )
 
   // FE-065: handler stabil per-id untuk baris yang di-memo.
-  // Deps KOSONG: `[, query]` lama (lubang array + objek `query` baru tiap
-  // render) membuat handler berganti identitas setiap render → memo baris
-  // FE-065 jebol.
+  // Audit 2026-10-10: dependensi `[, query]` (elisi + objek query) membuat
+  // handler dibuat ulang setiap fetch → semua baris memo ter-render ulang.
   const requestUnblock = useCallback((user: BlockedUser) => {
     setConfirmTarget(user)
   }, [])
@@ -148,7 +147,7 @@ export default function BlockedUsersScreen() {
       </DataScreen>
 
       <Dialog
-        title={confirmTarget ? translate("Buka blokir @{x}?", { x: confirmTarget.username }) : translate("Buka blokir?")}
+        title={confirmTarget ? translate("Buka blokir @{x}?", { x: confirmTarget.username }) : "Buka blokir?"}
         description={translate("Pengguna ini akan dapat melihat profil Anda dan memulai percakapan kembali.")}
         visible={confirmTarget !== null}
         loading={unblockingId !== null}

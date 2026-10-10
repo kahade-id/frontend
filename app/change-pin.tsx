@@ -23,7 +23,7 @@
  *     backend akan menolak dengan pesan jelas jika ternyata belum punya PIN.
  */
 import { useCallback, useEffect, useState } from "react"
-import { ScrollView } from "react-native"
+import { ScrollView, View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { router } from "expo-router"
 
@@ -221,18 +221,23 @@ export default function ChangePinScreen() {
                 (OtpType tidak punya jenis reset PIN; `set-pin` selalu butuh
                 PIN lama untuk PIN existing). JANGAN mengklaim reset kata
                 sandi bisa membuat PIN baru — itu salah. Arahkan ke dukungan. */}
-            <Text variant="caption" tone="secondary" className="text-pretty">
-              Lupa PIN wallet? Reset PIN mandiri belum didukung — hubungi{" "}
+            {/* Audit 2026-10-10: "PIN wallet" → "PIN dompet" (istilah baku di
+                seluruh layar ini); satu kalimat + tautan terpisah agar
+                keduanya bisa diterjemahkan (children campuran tidak
+                diterjemahkan otomatis oleh <Text>). */}
+            <View className="flex-row flex-wrap items-center gap-1">
+              <Text variant="caption" tone="secondary">
+                Lupa PIN dompet?
+              </Text>
               <TextLink
                 variant="caption"
                 inline
-                onPress={() => router.push(ROUTES.faq)}
-                accessibilityLabel="Buka pusat bantuan"
+                onPress={() => router.push(ROUTES.supportChat)}
+                accessibilityLabel="Chat dengan tim Kahade untuk reset PIN"
               >
-                pusat bantuan
-              </TextLink>{" "}
-              untuk verifikasi identitas dan bantuan reset.
-            </Text>
+                Chat dengan tim Kahade
+              </TextLink>
+            </View>
             {/* P3 (overhaul auth 2026-10-10): tombol aksi mengikuti konten,
                 bukan FooterBar berpemisah `border-t`. */}
             <Button fullWidth disabled={!passwordOk} onPress={afterPassword}>

@@ -36,20 +36,23 @@ import {
   resetFontScale,
   useFontScale,
 } from "@/lib/font-scale"
-import { mapValue } from "@/lib/has-own"
 import { translate } from "@/lib/i18n/translate"
 import { useLanguage } from "@/lib/i18n"
 import { setDataSaver, useDataSaver } from "@/lib/ui-prefs"
 
-const PREFERENCE_HINT: Record<string, string> = {
-  system: "Mengikuti pengaturan terang/gelap perangkat Anda.",
-  light: "Selalu terang, apa pun pengaturan perangkat.",
-  dark: "Selalu gelap, apa pun pengaturan perangkat.",
+/**
+ * Audit Pengaturan 2026-10-10: literal ditulis LANGSUNG di dalam translate()
+ * (bukan tabel string) agar generator katalog i18n memungutnya — layar ini
+ * sebelumnya tetap Indonesia untuk pengguna English.
+ */
+function preferenceHint(preference: string): string {
+  if (preference === "light") return translate("Selalu terang, apa pun pengaturan perangkat.")
+  if (preference === "dark") return translate("Selalu gelap, apa pun pengaturan perangkat.")
+  return translate("Mengikuti pengaturan terang/gelap perangkat Anda.")
 }
 
-const MODE_LABEL: Record<string, string> = {
-  light: "Terang",
-  dark: "Gelap",
+function modeLabel(mode: string): string {
+  return mode === "dark" ? translate("Gelap") : translate("Terang")
 }
 
 export default function AppearanceScreen() {
@@ -64,30 +67,27 @@ export default function AppearanceScreen() {
 
   return (
     <Screen scroll edges={["top"]} padded={false}>
-      <Header title="Tampilan" />
+      <Header title={translate("Tampilan")} />
       <View className="gap-4 px-5 pt-3">
-        <SectionHeader title="Mode warna" subtitle="Berlaku untuk seluruh aplikasi." />
+        <SectionHeader
+          title={translate("Mode warna")}
+          subtitle={translate("Berlaku untuk seluruh aplikasi.")}
+        />
         <ThemeModeSelector />
         <Text variant="body" tone="secondary">
-          {mapValue(PREFERENCE_HINT, preference, PREFERENCE_HINT.system)}
+          {preferenceHint(preference)}
         </Text>
 
         <KeyValue
-          label="Sedang aktif"
+          label={translate("Sedang aktif")}
           value={
             // A14 (batch 139): saat "Ikuti sistem", tampilkan mode EFEKTIF
             // (terang/gelap) — nilai ini ikut berubah saat sistem berubah.
             preference === "system"
-              ? `${mapValue(MODE_LABEL, mode, mode)} (mengikuti sistem)`
-              : mapValue(MODE_LABEL, mode, mode)
+              ? translate("{x} (mengikuti sistem)", { x: modeLabel(mode) })
+              : modeLabel(mode)
           }
         />
-        {preference === "system" ? (
-          <Text variant="caption" tone="secondary" className="text-pretty">
-            Mode efektif berubah otomatis mengikuti pengaturan terang/gelap
-            perangkat Anda.
-          </Text>
-        ) : null}
 
         {/* Batch 19 (item 15): mode hemat data — default MATI, tersimpan lokal. */}
         <SectionHeader
@@ -152,17 +152,16 @@ export default function AppearanceScreen() {
          */}
         <View className="rounded-lg border border-border bg-surface p-4">
           <Text variant="body" tone="primary" className="text-pretty">
-            Contoh paragraf: dana Rp2.500.000 untuk pesanan #KD-88213
-            telah masuk dan menunggu konfirmasi penjual. Begini tampilan teks
-            sepanjang ini pada skala {Math.round(fontScale * 100)}% yang Anda
-            pilih — ubah dengan tombol A− / A+ di atas untuk melihat
-            perbedaannya langsung.
+            {translate(
+              "Contoh paragraf: dana aman di Kahade untuk pesanan Anda menunggu konfirmasi penjual. Begini tampilan teks pada skala {x}% yang Anda pilih.",
+              { x: Math.round(fontScale * 100) },
+            )}
           </Text>
           <Text variant="caption" tone="secondary" className="pt-2">
             {translate("Skala berlaku untuk seluruh teks aplikasi, termasuk judul di bawah ini.")}
           </Text>
           <Text variant="label" tone="primary" className="pt-3">
-            Contoh judul label
+            {translate("Contoh judul label")}
           </Text>
         </View>
       </View>

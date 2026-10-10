@@ -15,16 +15,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { api, isApiError, userMessage } from "@/lib/api"
 import { clearSession, emitSessionExpired } from "@/lib/api/session"
-import {
-  isCommonPassword,
-  isPasswordValid,
-  passwordValidationMessage,
-  SECURITY_CRITERIA,
-} from "@/lib/auth-constants"
-import { MFA_CODE_MAX_LENGTH, normalizeMfaCode } from "@/lib/auth-ui"
+import { isCommonPassword, isPasswordValid } from "@/lib/auth-constants"
 import { tokens } from "@/lib/tokens"
 
-import { ScreenCaptureGuard } from "@/components/security/screen-capture-guard"
 import { Button } from "@/components/ui/button"
 import { Header } from "@/components/ui/header"
 import { Input } from "@/components/ui/input"
@@ -47,9 +40,13 @@ export default function ChangePasswordScreen() {
   /** BFI-038: sesi dicabut server — dialog login-ulang satu aksi. */
   const [reloginDialog, setReloginDialog] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  // Audit 2026-10-10: setelah backend meminta kode 2FA, tombol tidak boleh
+  // aktif dengan kolom MFA kosong (kirim ulang = toast TWO_FA_REQUIRED lagi).
+  const mfaOk = !mfaRequired || mfa.trim().length > 0
+  const canSubmit = Boolean(current) && isPasswordValid(next) && next === confirm && mfaOk
 
   const handleSubmit = useCallback(async () => {
-    if (!current || !isPasswordValid(next) || next !== confirm) return
+    if (!canSubmit) return
     // BFI-043: blocklist password umum — umpan balik dini sebelum 400 server.
     if (isCommonPassword(next)) {
       toast.show({
@@ -101,7 +98,7 @@ export default function ChangePasswordScreen() {
     } finally {
       setSubmitting(false)
     }
-  }, [current, next, confirm, mfa, toast.show])
+  }, [canSubmit, current, next, confirm, mfa, toast.show])
 
   /** BFI-038: keluar bersih → /login (native) / guest gate (web). */
   const handleRelogin = useCallback(async () => {
@@ -110,14 +107,7 @@ export default function ChangePasswordScreen() {
     emitSessionExpired()
   }, [])
 
-  // #FE-I8/#FE-A2: alasan sandi baru ditolak tampil di field (blocklist umum /
-  // terlalu pendek) — bukan tombol mati tanpa penjelasan.
-  const nextError = next.length > 0 ? passwordValidationMessage(next) ?? undefined : undefined
-
   return (
-    // #FE-I10: kata sandi bisa ditampilkan lewat toggle mata — lindungi dari
-    // screenshot/app switcher seperti layar OTP/PIN.
-    <ScreenCaptureGuard>
     <Screen keyboardAvoiding edges={["top"]} padded={false}>
       <Header title="Ubah Kata Sandi" />
       <ScrollView
@@ -138,10 +128,6 @@ export default function ChangePasswordScreen() {
           onChangeText={setNext}
           required
           showStrength
-          // #FE-I8: kriteria produk (8 karakter + bukan sandi umum) — bukan
-          // kriteria kompleksitas bawaan yang bertentangan dengan kebijakan.
-          strengthProps={{ criteria: SECURITY_CRITERIA }}
-          errorText={nextError}
           helperText="Minimal 8 karakter."
         />
         <PasswordField
@@ -157,14 +143,10 @@ export default function ChangePasswordScreen() {
           <Input
             label="Kode autentikator / kode cadangan"
             value={mfa}
-            // #FE-I5: normalisasi spasi + one-time-code (kode tempel berspasi).
-            onChangeText={(value) => setMfa(normalizeMfaCode(value))}
+            onChangeText={setMfa}
             required
-            autoCapitalize="characters"
+            autoCapitalize="none"
             autoCorrect={false}
-            autoComplete="one-time-code"
-            textContentType="oneTimeCode"
-            maxLength={MFA_CODE_MAX_LENGTH}
             helperText="6 digit dari aplikasi autentikator, atau kode cadangan 10–16 karakter."
           />
         ) : null}
@@ -176,8 +158,7 @@ export default function ChangePasswordScreen() {
         <Button
           fullWidth
           loading={submitting}
-          disabled={!current || !isPasswordValid(next) || next !== confirm}
-          accessibilityHint={nextError ?? undefined}
+          disabled={!canSubmit}
           onPress={() => void handleSubmit()}
         >
           Simpan password
@@ -197,6 +178,5 @@ export default function ChangePasswordScreen() {
         onRequestClose={() => {}}
       />
     </Screen>
-    </ScreenCaptureGuard>
   )
 }

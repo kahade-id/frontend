@@ -97,6 +97,15 @@ export const SecureKeys = {
    */
   languagePreference: "kahade.language.preference",
   /**
+   * "1" bila pilihan bahasa di perangkat ini BELUM diteruskan ke akun —
+   * dipasang saat tamu mengganti bahasa di drawer atau saat akun baru
+   * dibuat (backend memberi bawaan "id" yang menimpa bahasa perangkat).
+   * <I18nProvider> mengirim PUT /v1/settings/language begitu sesi ada, lalu
+   * menghapus penanda ini. BUKAN rahasia; persist di web seperti
+   * `languagePreference`; TIDAK dihapus `clearSession()`.
+   */
+  languagePendingSync: "kahade.language.pendingSync",
+  /**
    * Antrean umpan balik yang belum terkirim (endpoint /v1/feedback belum
    * tersedia atau perangkat sedang luring). Di native disimpan sementara di
    * SecureStore; di web sengaja hanya memory agar PII tidak masuk localStorage.
@@ -312,6 +321,7 @@ const WEB_PERSISTENT_KEYS = new Set<SecureKey>([
   SecureKeys.onboardingSeen,
   SecureKeys.themePreference,
   SecureKeys.languagePreference,
+  SecureKeys.languagePendingSync,
   SecureKeys.sessionSignedOut,
   SecureKeys.lastNotificationResponse,
   SecureKeys.uiPrefs,

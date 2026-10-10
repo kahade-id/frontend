@@ -165,8 +165,13 @@ Kahade tidak pernah meminta kata sandi, PIN dompet, kode verifikasi, atau kode c
   },
 ] satisfies readonly BundledHelpCategory[]
 
+/**
+ * Audit Pengaturan & Bantuan 2026-10-10: `articleCount` diturunkan dari
+ * panjang daftar, bukan angka yang ditulis tangan — angka literal di atas
+ * tinggal dokumentasi dan tidak bisa lagi menyimpang dari isi sebenarnya.
+ */
 export const BUNDLED_HELP_CATEGORIES: readonly HelpCategory[] = BUNDLED_HELP.map(
-  ({ articles: _articles, ...category }) => category,
+  ({ articles, ...category }) => ({ ...category, articleCount: articles.length }),
 )
 
 export const BUNDLED_HELP_ARTICLES: readonly HelpArticle[] = BUNDLED_HELP.flatMap(
@@ -193,6 +198,16 @@ export function findBundledHelpArticle(
     if (found) return found
   }
   return null
+}
+
+/**
+ * Apakah artikel ini berasal dari bundel (bukan dari backend)? Dipakai untuk
+ * TIDAK memanggil `POST /v1/help-center/items/{id}/view|feedback` — kedua
+ * endpoint memakai `ParseIdPipe` (CUID) dan selalu menolak slug bundel
+ * (audit 2026-10-10: setiap pembukaan artikel bawaan memicu 400 diam-diam).
+ */
+export function isBundledHelpArticle(article: Pick<HelpArticle, "id" | "slug">): boolean {
+  return findBundledHelpArticle(article.id || article.slug) !== null
 }
 
 export function searchBundledHelpArticles(query: string): HelpArticle[] {

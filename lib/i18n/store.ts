@@ -21,7 +21,7 @@
  * Nilai "id" TIDAK pernah ditulis sebagai preferensi eksplisit saat boot
  * (fallback saja), supaya perangkat baru tetap mau mengikuti akun.
  */
-import { getSecureItem, setSecureItem, SecureKeys } from "@/lib/secure-storage"
+import { deleteSecureItem, getSecureItem, setSecureItem, SecureKeys } from "@/lib/secure-storage"
 
 import { logWarn } from "@/lib/telemetry"
 import { isLanguageCode, SOURCE_LANGUAGE, type LanguageCode } from "./languages"
@@ -145,6 +145,38 @@ export async function initLanguage(fallback: LanguageCode): Promise<LanguageCode
   publish(resolved)
   preloadDictionary(resolved)
   return resolved
+}
+
+/**
+ * Audit Pengaturan 2026-10-10: pilihan bahasa yang dibuat TANPA sesi (tamu di
+ * drawer) atau sesaat sebelum akun ada (registrasi) tidak bisa langsung
+ * dikirim ke backend — dan GET /v1/settings/language pada login berikutnya
+ * akan mengembalikan bawaan server ("id") yang menimpa pilihan perangkat.
+ * Penanda ini membuat <I18nProvider> MENGIRIM bahasa perangkat ke akun
+ * (PUT) alih-alih mengadopsi bawaan server, lalu menghapus penanda.
+ */
+export async function markLanguagePendingSync(): Promise<void> {
+  try {
+    await setSecureItem(SecureKeys.languagePendingSync, "1")
+  } catch (error) {
+    logWarn("i18n:mark-pending-sync", error)
+  }
+}
+
+export async function isLanguagePendingSync(): Promise<boolean> {
+  try {
+    return (await getSecureItem(SecureKeys.languagePendingSync)) === "1"
+  } catch {
+    return false
+  }
+}
+
+export async function clearLanguagePendingSync(): Promise<void> {
+  try {
+    await deleteSecureItem(SecureKeys.languagePendingSync)
+  } catch (error) {
+    logWarn("i18n:clear-pending-sync", error)
+  }
 }
 
 /**
