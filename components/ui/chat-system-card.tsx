@@ -15,6 +15,7 @@ import { memo } from "react"
 import { View } from "react-native"
 
 import { detectChatSystemKind, chatSystemKindLabel, type ChatSystemKind } from "@/lib/chat-system"
+import { translate } from "@/lib/i18n"
 
 import { Text } from "@/components/ui/text"
 import { Icon } from "@/components/ui/icon"
@@ -67,7 +68,7 @@ export const ChatSystemCard = memo(function ChatSystemCard({ text, className }: 
           <View className="mt-0.5 flex-row items-center gap-1">
             <Icon icon={Archive} size={12} tone="default" />
             <Text variant="caption" tone="tertiary">
-              Percakapan ini diarsipkan otomatis.
+              {translate("Percakapan ini diarsipkan otomatis.")}
             </Text>
           </View>
         ) : null}

@@ -148,7 +148,8 @@ export const ChatProductCard = memo(function ChatProductCard({
               }`}
             >
               <Text variant="caption" weight={700} tone="inverse">
-                {translate("Beli")}
+                {/* Audit Pesan #10: tombol beli resmi produk = "Beli via Kahade". */}
+                {translate("Beli via Kahade")}
               </Text>
             </PressableScale>
           ) : null}

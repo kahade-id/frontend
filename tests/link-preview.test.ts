@@ -6,7 +6,10 @@
  */
 import { describe, expect, it } from "vitest"
 
-import { decodeEntities, extractFirstUrl, parseOpenGraph } from "@/lib/link-preview"
+import { readFileSync } from "node:fs"
+import { resolve } from "node:path"
+
+import { decodeEntities, extractFirstUrl, parseOpenGraph, shouldShowLinkPreview } from "@/lib/link-preview"
 
 describe("extractFirstUrl", () => {
   it("null untuk teks tanpa URL", () => {
@@ -73,5 +76,28 @@ describe("parseOpenGraph", () => {
   })
   it("tanpa metadata → objek kosong", () => {
     expect(parseOpenGraph("<html><body>kosong</body></html>", "https://s.id/")).toEqual({})
+  })
+})
+
+// ── Audit Pesan 2026-10-10 (#5): kartu hanya pesan keluar / tautan Kahade ──
+describe("shouldShowLinkPreview", () => {
+  it("pesan keluar: semua tautan (milik pengguna sendiri)", () => {
+    expect(shouldShowLinkPreview({ outgoing: true, url: "https://contoh.com/a" })).toBe(true)
+    expect(shouldShowLinkPreview({ outgoing: true, url: "https://kahade.id/budi" })).toBe(true)
+  })
+  it("pesan masuk: hanya tautan https Kahade", () => {
+    expect(shouldShowLinkPreview({ outgoing: false, url: "https://kahade.id/p/abc" })).toBe(true)
+    expect(shouldShowLinkPreview({ outgoing: false, url: "https://www.kahade.id/budi" })).toBe(true)
+    expect(shouldShowLinkPreview({ outgoing: false, url: "https://contoh.com/pelacak?id=1" })).toBe(false)
+    expect(shouldShowLinkPreview({ outgoing: false, url: "https://kahade.id.evil.com/x" })).toBe(false)
+    expect(shouldShowLinkPreview({ outgoing: false, url: "http://kahade.id/x" })).toBe(false)
+  })
+  it("tanpa URL → tidak ada kartu", () => {
+    expect(shouldShowLinkPreview({ outgoing: true, url: null })).toBe(false)
+    expect(shouldShowLinkPreview({ outgoing: false, url: "" })).toBe(false)
+  })
+  it("baris chat menggerbangi URL lewat shouldShowLinkPreview", () => {
+    const row = readFileSync(resolve(__dirname, "..", "components/ui/chat-message-row.tsx"), "utf8")
+    expect(row).toContain("shouldShowLinkPreview({ outgoing: message.fromUser, url: firstUrl })")
   })
 })

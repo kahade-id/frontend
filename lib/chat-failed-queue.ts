@@ -13,10 +13,22 @@
 import {
   chatFailedKey,
   deleteRawItem,
+  getChatLocalScope,
   getRawItem,
+  registerChatLocalKey,
   setRawItem,
 } from "@/lib/secure-storage"
+import { getSessionRevision, subscribeSession } from "@/lib/api/session"
 import { logWarn } from "@/lib/telemetry"
+
+/**
+ * Audit Pesan 2026-10-10 (#6): kunci persist ber-scope SESI AKUN dan
+ * tercatat di indeks agar `clearSession()` menghapusnya saat logout —
+ * pesan gagal (isi chat!) akun A tidak boleh dipulihkan di sesi akun B.
+ */
+export async function chatFailedStorageKey(roomId: string): Promise<string> {
+  return chatFailedKey(roomId, await getChatLocalScope())
+}
 
 /** Maksimal pesan lokal yang dipertahankan per room. */
 export const CHAT_FAILED_QUEUE_MAX = 20
@@ -73,16 +85,32 @@ const memory = new Map<string, FailedChatMessage[]>()
 const hydrated = new Set<string>()
 /** Serialisasi tulis per room agar update status tidak menimpa snapshot lama. */
 const persistChains = new Map<string, Promise<void>>()
+/** Hidrasi per room yang sedang berjalan — pemanggil bersamaan menunggu ini. */
+const hydrating = new Map<string, Promise<FailedChatMessage[]>>()
+
+/**
+ * #6: memori proses juga dibersihkan saat sesi berganti (login/logout) —
+ * pola yang sama dengan lib/chat-drafts. Tanpa ini akun B masih melihat
+ * bubble "gagal terkirim" akun A sampai aplikasi di-restart.
+ */
+let failedQueueSessionRevision = getSessionRevision()
+subscribeSession(() => {
+  if (failedQueueSessionRevision === getSessionRevision()) return
+  failedQueueSessionRevision = getSessionRevision()
+  __resetChatFailedQueueForTest()
+})
 
 function persistRoom(roomId: string): Promise<void> {
   const previous = persistChains.get(roomId) ?? Promise.resolve()
   const next = previous.catch(() => undefined).then(async () => {
-    const key = chatFailedKey(roomId)
+    const key = await chatFailedStorageKey(roomId)
     const list = memory.get(roomId) ?? []
     if (list.length === 0) {
       await deleteRawItem(key)
       return
     }
+    // #6: catat di indeks DULU supaya logout selalu tahu kunci ini ada.
+    await registerChatLocalKey(key)
     await setRawItem(key, JSON.stringify(list))
   })
   persistChains.set(roomId, next)
@@ -190,33 +218,49 @@ export async function loadChatFailedMessages(roomId: string): Promise<FailedChat
   if (!roomId) return []
   const cached = memory.get(roomId)
   if (cached !== undefined) return [...cached]
+  // #6: pemanggil kedua yang datang SAAT hidrasi berjalan (mis. penjadwal
+  // kirim memulihkan antrean sementara room dibuka) menunggu hasil yang sama,
+  // bukan menerima [] — dulu jendela ini membuat pesan "sending" lolos dari
+  // pemulihan dan tetap terlihat berputar selamanya.
+  const inflight = hydrating.get(roomId)
+  if (inflight) return inflight.then(() => [...(memory.get(roomId) ?? [])])
   if (hydrated.has(roomId)) return []
   hydrated.add(roomId)
-  try {
-    const stored = await getRawItem(chatFailedKey(roomId))
-    if (!stored) {
-      memory.set(roomId, [])
-      return []
+  const task = (async (): Promise<FailedChatMessage[]> => {
+    try {
+      const stored = await getRawItem(await chatFailedStorageKey(roomId))
+      const parsed: unknown = stored ? JSON.parse(stored) : []
+      const list = Array.isArray(parsed)
+        ? parsed
+            .map(normalizeStoredMessage)
+            .filter((item): item is FailedChatMessage => item !== null)
+            .slice(-CHAT_FAILED_QUEUE_MAX)
+        : []
+      // Pesan yang disimpan SELAMA hidrasi (upsertMemory) tidak boleh tertimpa
+      // snapshot storage yang lebih lama.
+      const live = memory.get(roomId)
+      const merged = live
+        ? [...list.filter((m) => !live.some((l) => l.id === m.id)), ...live].slice(-CHAT_FAILED_QUEUE_MAX)
+        : list
+      memory.set(roomId, merged)
+      return [...merged]
+    } catch (error) {
+      reportPersistFailure("restore", error)
+      if (!memory.has(roomId)) memory.set(roomId, [])
+      return [...(memory.get(roomId) ?? [])]
     }
-    const parsed: unknown = JSON.parse(stored)
-    const list = Array.isArray(parsed)
-      ? parsed
-          .map(normalizeStoredMessage)
-          .filter((item): item is FailedChatMessage => item !== null)
-          .slice(-CHAT_FAILED_QUEUE_MAX)
-    : []
-    memory.set(roomId, list)
-    return [...list]
-  } catch (error) {
-    reportPersistFailure("restore", error)
-    memory.set(roomId, [])
-    return []
-  }
+  })()
+  hydrating.set(roomId, task)
+  void task.finally(() => {
+    if (hydrating.get(roomId) === task) hydrating.delete(roomId)
+  }).catch(() => undefined)
+  return task
 }
 
 /** @internal — dipakai test untuk isolasi antar kasus. */
 export function __resetChatFailedQueueForTest(): void {
   memory.clear()
   hydrated.clear()
+  hydrating.clear()
   persistChains.clear()
 }

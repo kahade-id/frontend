@@ -572,6 +572,41 @@ export function isSameDmAccount(
 }
 
 /**
+ * Audit Pesan 2026-10-10 (#3): self-chat ("Pesan untuk diri sendiri")
+ * diturunkan dari DATA ruang, bukan dari parameter URL `self=1`.
+ *
+ * Parameter URL bisa dipalsukan lewat deep link / riwayat navigasi: ruang
+ * dengan orang lain yang dibuka dengan `self=1` kehilangan tombol
+ * blokir/lapor dan "Buat transaksi" — justru pagar anti-tipu yang hilang.
+ * Sebaliknya ruang self-chat yang dibuka dari push tanpa param tampil
+ * seperti DM biasa (banner keselamatan untuk diri sendiri).
+ *
+ * Aturan: ruang 1:1 tanpa order, dan lawan bicara menurut server
+ * (`otherUser.userId` / `counterpart.id` / username) sama dengan salah satu
+ * identitas saya. `viewer` null (profil belum termuat) → false (fail-closed:
+ * pagar DM biasa tetap tampil sampai identitas diketahui).
+ */
+export function isSelfChatRoom(
+  room: Pick<ChatRoom, "orderId" | "roomType" | "type" | "otherUser" | "counterpart"> | null | undefined,
+  viewer: { ids: readonly (string | null | undefined)[]; username?: string | null } | null | undefined,
+): boolean {
+  if (!room || !viewer) return false
+  if (!isOneToOneChatRoom(room)) return false
+  const targetIds = [room.otherUser?.userId, room.counterpart?.id].filter(
+    (v): v is string => typeof v === "string" && v.trim().length > 0,
+  )
+  const targetUsername = room.otherUser?.username ?? room.counterpart?.username ?? null
+  if (targetIds.length === 0 && !targetUsername) return false
+  const viewerIds = viewer.ids.filter(
+    (v): v is string => typeof v === "string" && v.trim().length > 0,
+  )
+  for (const targetId of targetIds) {
+    if (viewerIds.some((id) => isSameDmAccount({ id: targetId }, { id }))) return true
+  }
+  return isSameDmAccount({ username: targetUsername }, { username: viewer.username ?? null })
+}
+
+/**
  * Fail-closed identity check before a profile-originated DM is opened.
  * A room may be minimal on POST /chat/dm, in which case callers must fetch
  * GET /chat/rooms/:id first. Contradictory IDs/usernames always reject.

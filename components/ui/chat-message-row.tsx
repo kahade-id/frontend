@@ -72,9 +72,10 @@ import { ChatViewOnce } from "@/components/ui/chat-view-once"
 import { isImageMedia } from "@/components/ui/media-viewer"
 import { isVideoMime } from "@/lib/mime"
 import { VoiceNotePlayer } from "@/components/ui/voice-note-player"
-import { extractFirstUrl } from "@/lib/link-preview"
+import { extractFirstUrl, shouldShowLinkPreview } from "@/lib/link-preview"
 import { isAudioMime } from "@/lib/voice-note"
 import { isFreshMessage } from "@/lib/chat-bubble-motion"
+import { resolveIncomingSenderIdentity } from "@/lib/chat-sender-identity"
 import { type SealTier } from "@/components/ui/verified-seal"
 
 /**
@@ -122,8 +123,18 @@ export type ChatMessageRowProps = {
    * Revisi 2026-09-27 (UI polish): `sealTier` diteruskan ke bubble agar seal
    * verifikasi tampil di SAMPING nama pengirim — tidak pernah di-overlay di
    * foto profil.
+   *
+   * Audit Pesan 2026-10-10 (#1): `id` dipakai mencocokkan `message.sender`
+   * dengan lawan bicara — di ruang transaksi/sengketa pesan admin memakai
+   * nama + foto SENDER-nya sendiri, dan seal hanya untuk lawan bicara asli
+   * (lihat lib/chat-sender-identity.ts).
    */
-  counterpart?: { name?: string | null; avatarUrl?: string | null; sealTier?: SealTier | null }
+  counterpart?: {
+    id?: string | null
+    name?: string | null
+    avatarUrl?: string | null
+    sealTier?: SealTier | null
+  }
   /**
    * Ketuk bubble — revisi 2026-09-27: di luar mode pilih ini NO-OP (tidak
    * membuka apa pun); saat mode pilih aktif, men-toggle pilihan pesan.
@@ -558,10 +569,16 @@ export function ChatMessageRowBase({
   // teks — lokasi/produk/order/poll — tidak dapat pratinjau; media + teks
   // ber-URL dapat keduanya).
   const cardHidesText = !!(locationPayload || productCard || orderCard || pollData)
-  const linkPreviewUrl =
+  // Audit Pesan 2026-10-10 (#5): pesan MASUK hanya mendapat kartu untuk
+  // tautan Kahade — metadata tautan asing tidak di-fetch otomatis
+  // (pelacakan IP/"sudah dibuka" + phishing bergambar). Lihat
+  // `shouldShowLinkPreview`.
+  const firstUrl =
     !message.isDeleted && !isViewOnceMessage && !cardHidesText && message.text
       ? extractFirstUrl(message.text)
       : null
+  const linkPreviewUrl =
+    firstUrl && shouldShowLinkPreview({ outgoing: message.fromUser, url: firstUrl }) ? firstUrl : null
 
   // Sekali-lihat: teks + media dibungkus (blur sampai diketuk). Kartu
   // lokasi/produk/order tidak dikombinasikan dengan viewOnce oleh backend.
@@ -586,6 +603,17 @@ export function ChatMessageRowBase({
     : isViewOnceMessage || locationPayload || productCard || orderCard || pollData
       ? undefined
       : message.text
+
+  /**
+   * Audit Pesan 2026-10-10 (#1): identitas gelembung masuk dari PENGIRIM
+   * pesan (`message.sender`), bukan selalu lawan bicara — di ruang
+   * sengketa admin Kahade tampil sebagai dirinya sendiri. Null = DM 1:1 /
+   * pesan keluar / sistem (tanpa kolom avatar).
+   */
+  const senderIdentity = useMemo(
+    () => resolveIncomingSenderIdentity(message, counterpart, showSenderIdentity),
+    [message, counterpart, showSenderIdentity],
+  )
 
   const bubbleElement = (
     <ChatMessageBubble
@@ -625,13 +653,14 @@ export function ChatMessageRowBase({
        *
        * Revisi 2026-09-28 (produk): di DM 1:1 (`showSenderIdentity=false`)
        * foto + nama disembunyikan total — ala WhatsApp, hanya bubble.
+       * 2026-10-10 (#1): sumbernya `senderIdentity` (pengirim asli).
        */
-      senderName={!showSenderIdentity || message.fromUser ? undefined : (counterpart?.name ?? undefined)}
-      avatarName={!showSenderIdentity || message.fromUser ? undefined : (counterpart?.name ?? undefined)}
-      avatarUrl={!showSenderIdentity || message.fromUser ? undefined : counterpart?.avatarUrl}
+      senderName={senderIdentity?.name}
+      avatarName={senderIdentity?.name}
+      avatarUrl={senderIdentity ? senderIdentity.avatarUrl : undefined}
       // Revisi 2026-09-27 (UI polish): seal verifikasi di samping nama
       // pengirim — avatar bubble TIDAK pernah menerima `verified`.
-      senderSealTier={!showSenderIdentity || message.fromUser ? undefined : (counterpart?.sealTier ?? null)}
+      senderSealTier={senderIdentity ? senderIdentity.sealTier : undefined}
       // DM 1:1: nama pengirim di blok kutipan balasan juga disembunyikan
       // (ala WhatsApp — kutipan hanya menampilkan cuplikan pesan).
       hideQuoteSenderName={!showSenderIdentity}
@@ -747,6 +776,7 @@ function isSameCounterpart(
   if (a === b) return true
   if (!a || !b) return false
   return (
+    (a.id ?? null) === (b.id ?? null) &&
     (a.name ?? null) === (b.name ?? null) &&
     (a.avatarUrl ?? null) === (b.avatarUrl ?? null) &&
     (a.sealTier ?? null) === (b.sealTier ?? null)

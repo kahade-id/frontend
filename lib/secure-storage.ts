@@ -236,6 +236,22 @@ export const SecureKeys = {
    */
   chatSendQueueRooms: "kahade.chat.sendQueueRooms",
   /**
+   * Audit Pesan 2026-10-10 (#6): scope ACAK per sesi login untuk kunci chat
+   * lokal (draft ketikan + pesan gagal/antre per room). Kunci per-room
+   * dulu hanya `kahade.chat.draft.<roomId>` — akun B yang login di perangkat
+   * yang sama memulihkan draft/pesan gagal akun A untuk roomId yang sama.
+   * Scope dibuat lazy (`getChatLocalScope`), tidak pernah berisi id user
+   * (acak), dihapus `clearSession()`; memory-only di web.
+   */
+  chatLocalScope: "kahade.chat.localScope",
+  /**
+   * Audit Pesan 2026-10-10 (#6): indeks (JSON array) kunci chat lokal yang
+   * pernah ditulis — SecureStore tidak bisa "list keys", jadi tanpa indeks
+   * kunci per-room tidak bisa dihapus saat logout. Dihapus `clearSession()`
+   * bersama semua kunci yang dicatatnya.
+   */
+  chatLocalKeys: "kahade.chat.localKeys",
+  /**
    * Item mega-batch 126 — timestamp terakhir tiket dukungan dibuka per
    * ticketId (JSON, lib/support-unread.ts). Data milik AKUN: dihapus
    * `clearSession()`; memory-only di web (bukan WEB_PERSISTENT_KEYS) supaya
@@ -427,7 +443,108 @@ export async function clearSession(): Promise<void> {
     deleteSecureItem(SecureKeys.helpHistory),
     // Batch 139 (F17): umpan balik artikel per versi milik akun.
     deleteSecureItem(SecureKeys.helpFeedback),
+    // Audit Pesan 2026-10-10 (#6): draft ketikan + pesan gagal per room
+    // (kunci dinamis — dihapus lewat indeks), scope-nya, dan indeksnya.
+    clearChatLocalStorage(),
   ])
+}
+
+// ── Audit Pesan 2026-10-10 (#6): kunci chat lokal ber-scope akun ─────────
+
+/** Scope sesi yang sudah dibaca/dibuat (sekali per proses per sesi). */
+let chatLocalScopePromise: Promise<string> | null = null
+/** Kunci chat lokal yang sudah tercatat di indeks (hindari tulis ulang). */
+const chatLocalKeysKnown = new Set<string>()
+/** Serialisasi tulis indeks — dua pendaftaran beruntun tidak saling menimpa. */
+let chatLocalIndexChain: Promise<void> = Promise.resolve()
+
+function randomScopeId(): string {
+  const cryptoApi = globalThis.crypto as Crypto | undefined
+  if (cryptoApi && typeof cryptoApi.randomUUID === "function") return cryptoApi.randomUUID()
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random()
+    .toString(36)
+    .slice(2)}`
+}
+
+/**
+ * Scope kunci chat lokal untuk sesi ini. Dibuat acak saat pertama diminta
+ * dan disimpan supaya bertahan restart; `clearSession()` menghapusnya,
+ * jadi sesi berikutnya (akun lain atau akun yang sama) memakai scope baru
+ * dan tidak pernah membaca kunci sesi sebelumnya.
+ */
+export function getChatLocalScope(): Promise<string> {
+  if (chatLocalScopePromise) return chatLocalScopePromise
+  chatLocalScopePromise = (async () => {
+    try {
+      const existing = await getSecureItem(SecureKeys.chatLocalScope)
+      if (existing && /^[A-Za-z0-9-]{8,64}$/.test(existing)) return existing
+      const fresh = randomScopeId().replace(/[^A-Za-z0-9-]/g, "").slice(0, 64)
+      await setSecureItem(SecureKeys.chatLocalScope, fresh)
+      return fresh
+    } catch {
+      // Storage bermasalah: pakai scope sesi-proses saja (memory). Tidak ada
+      // kunci lama yang bisa terbaca karena scope-nya berbeda.
+      return `mem-${randomScopeId().replace(/[^A-Za-z0-9-]/g, "").slice(0, 32)}`
+    }
+  })()
+  return chatLocalScopePromise
+}
+
+/**
+ * Catat kunci chat lokal ke indeks supaya bisa dihapus saat logout.
+ * Idempoten; best-effort (gagal tulis indeks tidak menggagalkan persist).
+ */
+export function registerChatLocalKey(key: string): Promise<void> {
+  if (chatLocalKeysKnown.has(key)) return Promise.resolve()
+  chatLocalKeysKnown.add(key)
+  chatLocalIndexChain = chatLocalIndexChain
+    .catch(() => undefined)
+    .then(async () => {
+      let list: string[] = []
+      try {
+        const raw = await getSecureItem(SecureKeys.chatLocalKeys)
+        const parsed: unknown = raw ? JSON.parse(raw) : []
+        if (Array.isArray(parsed)) list = parsed.filter((k): k is string => typeof k === "string")
+      } catch {
+        list = []
+      }
+      if (list.includes(key)) return
+      list.push(key)
+      await setSecureItem(SecureKeys.chatLocalKeys, JSON.stringify(list))
+    })
+    .catch(() => undefined)
+  return chatLocalIndexChain
+}
+
+/**
+ * Hapus SEMUA kunci chat lokal (draft + pesan gagal) yang tercatat, indeksnya,
+ * dan scope sesi. Dipanggil `clearSession()`; tidak melempar.
+ */
+export async function clearChatLocalStorage(): Promise<void> {
+  // Tunggu pendaftaran yang masih berjalan agar tidak ada kunci yang tertulis
+  // setelah indeks dihapus.
+  await chatLocalIndexChain.catch(() => undefined)
+  let keys: string[] = []
+  try {
+    const raw = await getSecureItem(SecureKeys.chatLocalKeys)
+    const parsed: unknown = raw ? JSON.parse(raw) : []
+    if (Array.isArray(parsed)) keys = parsed.filter((k): k is string => typeof k === "string")
+  } catch {
+    keys = []
+  }
+  for (const known of chatLocalKeysKnown) if (!keys.includes(known)) keys.push(known)
+  await Promise.all(keys.map((k) => deleteRawItem(k).catch(() => undefined)))
+  await deleteSecureItem(SecureKeys.chatLocalKeys).catch(() => undefined)
+  await deleteSecureItem(SecureKeys.chatLocalScope).catch(() => undefined)
+  chatLocalKeysKnown.clear()
+  chatLocalScopePromise = null
+}
+
+/** @internal — test: lupakan cache scope/indeks tanpa menyentuh storage. */
+export function __resetChatLocalStorageCacheForTest(): void {
+  chatLocalKeysKnown.clear()
+  chatLocalScopePromise = null
+  chatLocalIndexChain = Promise.resolve()
 }
 
 /**
@@ -439,20 +556,26 @@ export async function clearSession(): Promise<void> {
  *
  * roomId dinormalisasi: hanya [a-zA-Z0-9_-] yang lolos, sisanya diganti "-"
  * supaya kunci tetap valid & tidak bisa menyuntik path/key lain.
+ *
+ * Audit Pesan 2026-10-10 (#6): `scope` (dari `getChatLocalScope`) menjadi
+ * segmen kunci — draft akun A tidak pernah terbaca sesi akun B.
  */
-export function chatDraftKey(roomId: string): string {
-  const safe = String(roomId ?? "").replace(/[^a-zA-Z0-9_-]/g, "-").slice(0, 128)
-  return `kahade.chat.draft.${safe}`
+export function chatDraftKey(roomId: string, scope: string): string {
+  return `kahade.chat.draft.${safeKeySegment(scope)}.${safeKeySegment(roomId)}`
 }
 
 /**
  * Kunci antrean pesan gagal per-room (lib/chat-failed-queue.ts, B07) — pola
  * sama dengan `chatDraftKey`: memory + SecureStore (web memory-only, tidak
  * masuk WEB_PERSISTENT_KEYS — isi chat tidak boleh mendarat di localStorage).
+ * Ber-scope sesi (#6), lihat `chatDraftKey`.
  */
-export function chatFailedKey(roomId: string): string {
-  const safe = String(roomId ?? "").replace(/[^a-zA-Z0-9_-]/g, "-").slice(0, 128)
-  return `kahade.chat.failed.${safe}`
+export function chatFailedKey(roomId: string, scope: string): string {
+  return `kahade.chat.failed.${safeKeySegment(scope)}.${safeKeySegment(roomId)}`
+}
+
+function safeKeySegment(value: string): string {
+  return String(value ?? "").replace(/[^a-zA-Z0-9_-]/g, "-").slice(0, 128)
 }
 
 /**

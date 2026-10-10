@@ -17,6 +17,12 @@ export const DANA_VA_BANK_REQUIRED = "DANA_VA_BANK_REQUIRED" as const
  * (lihat komentar di `backend/src/common/constants/error-codes.ts`).
  */
 export const CHAT_MESSAGE_BLOCKED = "CHAT_MESSAGE_BLOCKED" as const
+/**
+ * Audit Pesan 2026-10-10 (#9d): edit/hapus pesan ditolak selama order ruang
+ * berstatus DISPUTED — isi chat adalah bukti sengketa (openapi: PATCH/DELETE
+ * /v1/chat/rooms/{roomId}/messages/{messageId}).
+ */
+export const CHAT_MESSAGE_LOCKED_DISPUTE = "CHAT_MESSAGE_LOCKED_DISPUTE" as const
 /** BFI-057: blocker penghapusan akun — pesanan aktif / penarikan berjalan / sengketa. */
 export const ACTIVE_ORDERS_PRESENT = "ACTIVE_ORDERS_PRESENT" as const
 /** BFI-057: blocker penghapusan akun — dana tertahan di escrow. */

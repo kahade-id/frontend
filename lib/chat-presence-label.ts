@@ -22,6 +22,43 @@ export type PresenceInput = {
   lastSeenAt?: string | null
 } | null
 
+/** Bentuk presence yang disimpan layar (cermin `ChatPresence` lib/api/chat). */
+export type PresenceRecord = {
+  roomId: string
+  userId: string | null
+  isOnline: boolean
+  lastSeenAt?: string | null
+}
+
+/**
+ * Audit Pesan 2026-10-10 (#9b): terapkan event realtime `user.online` /
+ * `user.offline` ke state presence.
+ *
+ * Dulu: `setPresence(prev => prev ? { ...prev, isOnline } : prev)` — dua
+ * cacat:
+ *   1. `prev === null` (GET presence awal gagal/belum tiba) → event dibuang,
+ *      baris status kosong walau socket baru saja bilang "online".
+ *   2. `fetchedAt` tidak dicap ulang, sedangkan saat realtime sehat polling
+ *      REST dimatikan → 60 dtk setelah GET terakhir label jatuh ke "stale"
+ *      (kosong) PADAHAL socket hidup dan tidak mengirim offline.
+ * Pemanggil WAJIB mencap `fetchedAt = now` bersamaan dengan hasil ini.
+ *
+ * Offline → `lastSeenAt = now`: event offline adalah momen terakhir terlihat
+ * yang paling akurat yang kita punya; online → pertahankan lastSeenAt lama.
+ */
+export function applyPresenceEvent(
+  prev: PresenceRecord | null,
+  isOnline: boolean,
+  ctx: { roomId: string; nowIso: string },
+): PresenceRecord {
+  return {
+    roomId: prev?.roomId ?? ctx.roomId,
+    userId: prev?.userId ?? null,
+    isOnline,
+    lastSeenAt: isOnline ? (prev?.lastSeenAt ?? null) : ctx.nowIso,
+  }
+}
+
 /** "Online" kedaluwarsa setelah 60 detik tanpa refresh. */
 export const PRESENCE_ONLINE_STALE_MS = 60_000
 /** "Terakhir dilihat …" tidak disebut spesifik bila lebih tua dari 5 menit. */

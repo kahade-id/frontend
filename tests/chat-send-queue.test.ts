@@ -28,7 +28,12 @@ vi.mock("@/lib/connectivity", () => ({
   isOfflineKnown: connectivity.isOfflineKnown,
   onReconnect: connectivity.onReconnect,
 }))
-vi.mock("@/lib/api/session", () => ({ onSessionCleared: () => () => undefined }))
+vi.mock("@/lib/api/session", () => ({
+  onSessionCleared: () => () => undefined,
+  // Audit Pesan #6: chat-failed-queue kini membersihkan memori saat sesi berganti.
+  getSessionRevision: () => 1,
+  subscribeSession: () => () => undefined,
+}))
 
 import { ApiError } from "@/lib/api/errors"
 import {

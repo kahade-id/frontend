@@ -3,10 +3,11 @@
  * U5-012 (audit UX-deep). Murni tampilan: tidak menyentuh logika
  * bayar/refund/escrow apa pun.
  *
- *  - U5-008 (REVISI 2026-10-08): <DmSafetyDialog> — popup anti-tipu yang
- *    tampil SEKALI per lawan bicara di DM tanpa orderId, dengan CTA "Buat
- *    transaksi". Banner permanen dihapus atas permintaan produk: peringatan
- *    yang menetap selamanya berhenti dibaca dan menyempitkan ruang chat.
+ *  - U5-008 (REVISI audit Pesan 2026-10-10, #8): <DmSafetyBanner> — banner
+ *    anti-tipu yang TAMPIL SELALU di DM tanpa orderId (kecuali lawan bicara
+ *    terverifikasi), dengan CTA "Buat transaksi". Popup sekali-per-lawan-
+ *    bicara (2026-10-08) dihapus: keputusan produk, peringatan tidak boleh
+ *    bisa dilewati sekali ketuk lalu hilang selamanya.
  *  - U5-009: <ChatRoomListItem orderBadge> — room ber-orderId ditandai
  *    badge kecil "Terlindungi", bukan kode order mentah (dan bukan istilah
  *    internal "escrow" — lihat larangan istilah di UI, 2026-10-08).
@@ -19,7 +20,7 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { ThemeProvider } from "@/components/theme-provider"
 import { ChatRoomListItem } from "@/components/ui/chat-room-list-item"
-import { DmSafetyDialog } from "@/components/ui/dm-safety-dialog"
+import { DmSafetyBanner } from "@/components/ui/dm-safety-banner"
 import { OrderEscrowCard } from "@/components/ui/order-escrow-card"
 import { PortalHost, PortalProvider } from "@/components/ui/portal"
 import { ToastProvider } from "@/components/ui/toast"
@@ -42,51 +43,32 @@ function renderInTheme(ui: ReactElement) {
 // Vitest tidak menyalakan `globals`, jadi auto-cleanup RTL tidak aktif.
 afterEach(cleanup)
 
-describe("U5-008 <DmSafetyDialog>", () => {
-  it("menampilkan peringatan + CTA Buat transaksi saat visible", () => {
-    renderInTheme(
-      <DmSafetyDialog visible onCreateOrder={() => {}} onDismiss={() => {}} />,
-    )
+describe("U5-008 <DmSafetyBanner> (#8: permanen di DM tanpa transaksi)", () => {
+  it("menampilkan peringatan + CTA Buat transaksi", () => {
+    renderInTheme(<DmSafetyBanner onCreateOrder={() => {}} />)
     expect(screen.getByText("Pastikan transaksi lewat Kahade")).toBeTruthy()
     expect(screen.getByText(/Kirim uang hanya lewat transaksi di aplikasi/)).toBeTruthy()
     expect(screen.getByText("Buat transaksi")).toBeTruthy()
-    expect(screen.getByText("Mengerti")).toBeTruthy()
   })
 
-  it('"Mengerti" menutup popup, bukan membuka sheet transaksi', () => {
-    const onDismiss = vi.fn()
-    const onCreateOrder = vi.fn()
-    renderInTheme(
-      <DmSafetyDialog visible onCreateOrder={onCreateOrder} onDismiss={onDismiss} />,
-    )
-    fireEvent.click(screen.getByText("Mengerti"))
-    expect(onDismiss).toHaveBeenCalledTimes(1)
-    expect(onCreateOrder).not.toHaveBeenCalled()
+  it("tidak punya tombol tutup/Mengerti — banner tidak bisa dilewati", () => {
+    renderInTheme(<DmSafetyBanner onCreateOrder={() => {}} />)
+    expect(screen.queryByText("Mengerti")).toBeNull()
+    expect(screen.queryByLabelText("Tutup pesan")).toBeNull()
   })
 
   it("CTA memanggil onCreateOrder (jalur transaksi yang sama dengan menu ⋮)", () => {
     const onCreateOrder = vi.fn()
-    renderInTheme(
-      <DmSafetyDialog visible onCreateOrder={onCreateOrder} onDismiss={() => {}} />,
-    )
+    renderInTheme(<DmSafetyBanner onCreateOrder={onCreateOrder} />)
     fireEvent.click(screen.getByText("Buat transaksi"))
     expect(onCreateOrder).toHaveBeenCalledTimes(1)
   })
 
   it("tidak menyebut istilah internal di teks yang tampil", () => {
-    renderInTheme(
-      <DmSafetyDialog visible onCreateOrder={() => {}} onDismiss={() => {}} />,
-    )
+    renderInTheme(<DmSafetyBanner onCreateOrder={() => {}} />)
     for (const banned of ["escrow", "Rekber", "rekber", "ditahan", "penahanan"]) {
       expect(screen.queryByText(new RegExp(banned, "i"))).toBeNull()
     }
-  })
-
-  it("tersembunyi saat visible=false (sekali per lawan bicara)", () => {
-    renderInTheme(
-      <DmSafetyDialog visible={false} onCreateOrder={() => {}} onDismiss={() => {}} />,
-    )
-    expect(screen.queryByText("Pastikan transaksi lewat Kahade")).toBeNull()
   })
 })
 
