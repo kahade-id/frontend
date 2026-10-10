@@ -103,6 +103,10 @@
    "n": 14
   },
   {
+   "s": "Alamat pengiriman",
+   "n": 14
+  },
+  {
    "s": "Lainnya",
    "n": 14
   },
@@ -192,10 +196,6 @@
   },
   {
    "s": "Aktif",
-   "n": 11
-  },
-  {
-   "s": "Alamat pengiriman",
    "n": 11
   },
   {
@@ -636,6 +636,10 @@
   },
   {
    "s": "Detail diperbarui",
+   "n": 6
+  },
+  {
+   "s": "Ditolak",
    "n": 6
   },
   {
@@ -1096,10 +1100,6 @@
   },
   {
    "s": "Disukai",
-   "n": 5
-  },
-  {
-   "s": "Ditolak",
    "n": 5
   },
   {
@@ -1756,6 +1756,10 @@
   },
   {
    "s": "Menunggu",
+   "n": 4
+  },
+  {
+   "s": "Menunggu konfirmasi",
    "n": 4
   },
   {
@@ -4087,10 +4091,6 @@
    "n": 3
   },
   {
-   "s": "Menunggu konfirmasi",
-   "n": 3
-  },
-  {
    "s": "Menunggu pembayaran",
    "n": 3
   },
@@ -4659,8 +4659,11 @@
    "n": 3
   },
   {
-"s": "Salin",
-"s": "Saldo terpakai sampai permintaan kedaluwarsa. Batalkan sekarang agar saldo langsung bebas.",
+   "s": "Saldo terpakai sampai permintaan kedaluwarsa. Batalkan sekarang agar saldo langsung bebas.",
+   "n": 3
+  },
+  {
+   "s": "Salin",
    "n": 3
   },
   {
@@ -4865,6 +4868,10 @@
   },
   {
    "s": "Status sengketa: {x}",
+   "n": 3
+  },
+  {
+   "s": "Status tidak dikenal",
    "n": 3
   },
   {
@@ -6752,7 +6759,7 @@
    "n": 2
   },
   {
-"s": "Gagal memperbarui percakapan",
+   "s": "Gagal memperbarui percakapan",
    "n": 2
   },
   {
@@ -8268,7 +8275,6 @@
    "n": 2
   },
   {
-   "s": "Order tidak berlanjut — dana escrow telah dikembalikan ke metode pembayaran pembeli oleh {x}.",
    "s": "Order tidak berlanjut — dana telah dikembalikan ke metode pembayaran pembeli oleh {x}.",
    "n": 2
   },
@@ -8366,6 +8372,10 @@
   },
   {
    "s": "Pencucian uang",
+   "n": 2
+  },
+  {
+   "s": "Penerima",
    "n": 2
   },
   {
@@ -9230,10 +9240,6 @@
   },
   {
    "s": "Status simpan belum pasti. Coba Terbitkan lagi untuk melanjutkan permintaan yang sama, atau periksa daftar etalase Anda sebelum membuat etalase baru.",
-   "n": 2
-  },
-  {
-   "s": "Status tidak dikenal",
    "n": 2
   },
   {
@@ -14089,11 +14095,6 @@
    "n": 1
   },
   {
-"s": "Dana Anda ditahan di escrow oleh {x} — hanya diteruskan ke penjual setelah Anda mengonfirmasi penerimaan, atau otomatis setelah tenggat tanpa sengketa.",
-"s": "Dana Anda aman sampai barang diterima",
-   "n": 1
-  },
-  {
    "s": "Dana Anda disimpan aman oleh {x} — hanya diteruskan ke penjual setelah Anda mengonfirmasi penerimaan, atau otomatis setelah tenggat tanpa sengketa.",
    "n": 1
   },
@@ -14731,6 +14732,14 @@
   },
   {
    "s": "Dikirim",
+   "n": 1
+  },
+  {
+   "s": "Dikonfirmasi",
+   "n": 1
+  },
+  {
+   "s": "Dikonfirmasi otomatis",
    "n": 1
   },
   {
@@ -18134,11 +18143,6 @@
    "n": 1
   },
   {
-"s": "membuat akun, mengelola profil, menjalankan fitur sosial, komunikasi, etalase, transaksi, escrow, dompet, dan dukungan.",
-"s": "Membintangi pesan yang dipilih",
-   "n": 1
-  },
-  {
    "s": "membuat akun, mengelola profil, menjalankan fitur sosial, komunikasi, etalase, transaksi, pengamanan dana, dompet, dan dukungan.",
    "n": 1
   },
@@ -19611,10 +19615,6 @@
    "n": 1
   },
   {
-   "s": "Penerima",
-   "n": 1
-  },
-  {
    "s": "Penerima ini tidak ada di daftar favorit Anda. Periksa kembali username sebelum mengirim — transfer yang sudah terkirim tidak bisa ditarik kembali.",
    "n": 1
   },
@@ -20419,12 +20419,11 @@
    "n": 1
   },
   {
-"s": "Pesanan dikirim",
+   "s": "Pesanan dikirim",
    "n": 1
   },
   {
-   "s": "Pesanan diterima, dan pembeli dapat melanjutkan pembayaran ke escrow. Selesaikan pekerjaan sesuai kesepakatan setelah dana masuk.",
-"s": "Pesanan diterima, dan pembeli dapat melanjutkan pembayaran. Selesaikan pekerjaan sesuai kesepakatan setelah dana masuk.",
+   "s": "Pesanan diterima, dan pembeli dapat melanjutkan pembayaran. Selesaikan pekerjaan sesuai kesepakatan setelah dana masuk.",
    "n": 1
   },
   {
@@ -22157,6 +22156,10 @@
   },
   {
    "s": "Teks tautan disalin",
+   "n": 1
+  },
+  {
+   "s": "Telepon",
    "n": 1
   },
   {

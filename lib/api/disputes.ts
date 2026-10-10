@@ -184,10 +184,22 @@ export type DisputeDetail = {
   disputePublicId?: string
   orderId: string
   status: string
+  /**
+   * K12 (audit transaksi 2026-10-10): backend TIDAK punya kolom `claim` —
+   * yang ada `buyerClaim` / `sellerClaim` (satu per pihak). Field ini = klaim
+   * PEMBUKA sengketa (`initiatedBy`), untuk tampilan ringkas. Form klaim milik
+   * user yang login harus membaca `buyerClaim`/`sellerClaim` sesuai perannya.
+   */
   claim: string
+  /** K12: klaim pembeli (kolom `buyerClaim`). */
+  buyerClaim?: string | null
+  /** K12: klaim penjual (kolom `sellerClaim`). */
+  sellerClaim?: string | null
+  /** K12: pihak pembuka sengketa (kolom `initiatedBy`). */
+  initiatedBy?: "BUYER" | "SELLER" | string
   /** Kategori sengketa (enum backend DisputeCategory) — nullable untuk data lama. */
   category?: string | null
-  /** Pihak pembuka sengketa — UNVERIFIED */
+  /** Pihak pembuka sengketa (kolom `initiatorUserId`, id DB user). */
   openedById?: string
   createdAt: string
   updatedAt?: string
@@ -236,7 +248,15 @@ function normalizeDisputeDecision(raw: unknown): DisputeDecision | null {
  */
 function normalizeDisputeDetail(raw: DisputeDetail): DisputeDetail {
   const d = (raw ?? {}) as unknown as Record<string, unknown>
-  const claimRaw = d.claim ?? d.reason ?? d.title ?? d.description
+  // K12: klaim per pihak dari backend (buyerClaim/sellerClaim). `claim`
+  // generik = klaim pembuka sengketa; fallback ke alias lama bila backend
+  // suatu saat mengirim `claim` langsung.
+  const buyerClaim = pickString(d, ["buyerClaim", "buyer_claim"]) ?? null
+  const sellerClaim = pickString(d, ["sellerClaim", "seller_claim"]) ?? null
+  const initiatedBy = pickString(d, ["initiatedBy", "initiated_by"])
+  const initiatorClaim = initiatedBy === "SELLER" ? sellerClaim : initiatedBy === "BUYER" ? buyerClaim : null
+  const claimRaw =
+    d.claim ?? d.reason ?? d.title ?? d.description ?? initiatorClaim ?? buyerClaim ?? sellerClaim
   // DRIFT-03 (fix 2026-09-26): backend mengirim public order ID di nested
   // `order.orderId` (bukan top-level) — baca sebagai fallback agar tombol
   // "Lihat transaksi" tidak hilang.
@@ -252,8 +272,19 @@ function normalizeDisputeDetail(raw: DisputeDetail): DisputeDetail {
       "",
     status: pickString(d, ["status", "state"]) ?? "",
     claim: typeof claimRaw === "string" ? claimRaw : "",
+    buyerClaim,
+    sellerClaim,
+    initiatedBy: initiatedBy ?? undefined,
     category: pickString(d, ["category"]) ?? null,
-    openedById: pickString(d, ["openedById", "opened_by_id", "claimantId", "claimant_id", "reporterId"]),
+    openedById: pickString(d, [
+      "initiatorUserId",
+      "initiator_user_id",
+      "openedById",
+      "opened_by_id",
+      "claimantId",
+      "claimant_id",
+      "reporterId",
+    ]),
     createdAt: pickString(d, ["createdAt", "created_at", "openedAt", "opened_at"]) ?? "",
     updatedAt: pickString(d, ["updatedAt", "updated_at", "lastUpdatedAt"]),
     messages: Array.isArray(d.messages) ? (d.messages as DisputeMessage[]) : undefined,

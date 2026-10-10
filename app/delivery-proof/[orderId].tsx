@@ -72,9 +72,17 @@ const FALLBACK_FILE_NAME = "bukti.pdf"
 /** Lampiran lokal yang sudah terunggah (key S3 untuk DTO, uri lokal untuk pratinjau). */
 type UploadedProof = EvidenceItem & { fileKey: string }
 
+/**
+ * K11 (audit transaksi 2026-10-10): enum backend `DeliveryProofStatus` adalah
+ * SUBMITTED | ACCEPTED | REJECTED | AUTO_RELEASED — bukan "CONFIRMED". Pemetaan
+ * lama hanya mengenal CONFIRMED sehingga bukti yang sudah DITERIMA buyer
+ * (ACCEPTED) atau dilepas otomatis (AUTO_RELEASED) tampil "Menunggu konfirmasi"
+ * selamanya.
+ */
 function toStatus(status: string): DeliveryProofStatus {
-  if (status === "CONFIRMED") return "confirmed"
-  if (status === "REJECTED") return "rejected"
+  const s = status.trim().toUpperCase()
+  if (s === "ACCEPTED" || s === "AUTO_RELEASED" || s === "CONFIRMED") return "confirmed"
+  if (s === "REJECTED") return "rejected"
   return "pending"
 }
 
@@ -119,10 +127,14 @@ function toAttachments(p: DeliveryProof): { items: DeliveryProofAttachment[]; dr
 /** R2 (butir #46): label status riwayat yang JUJUR — nilai tak dikenal tidak
  *  diturunkan menjadi "Menunggu konfirmasi" (lihat juga #48). */
 function proofHistoryLabel(status: string): string {
-  if (status === "PENDING") return "Menunggu konfirmasi"
-  if (status === "CONFIRMED") return "Dikonfirmasi"
-  if (status === "REJECTED") return "Ditolak"
-  return status || "Status tidak dikenal"
+  const s = status.trim().toUpperCase()
+  // K11: SUBMITTED/PENDING = menunggu; ACCEPTED/CONFIRMED = diterima buyer;
+  // AUTO_RELEASED = dilepas otomatis (buyer diam melewati jendela tinjau).
+  if (s === "PENDING" || s === "SUBMITTED") return translate("Menunggu konfirmasi")
+  if (s === "CONFIRMED" || s === "ACCEPTED") return translate("Dikonfirmasi")
+  if (s === "AUTO_RELEASED") return translate("Dikonfirmasi otomatis")
+  if (s === "REJECTED") return translate("Ditolak")
+  return status || translate("Status tidak dikenal")
 }
 
 export default function DeliveryProofScreen() {

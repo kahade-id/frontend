@@ -367,9 +367,19 @@ export default function DisputeDetailScreen() {
   // percobaan ACCEPT berulang (timeout / ketuk ganda) tidak membagi dana dua
   // kali di server yang mendukung header. Kunci baru dibuat setelah final.
   const respondKeyRef = useRef<Map<string, string>>(new Map())
+  // K12 (audit transaksi 2026-10-10): klaim yang diedit di form adalah klaim
+  // MILIK user yang login (POST /claim menulis buyerClaim/sellerClaim sesuai
+  // peran) — bukan `claim` generik (klaim pembuka sengketa). Tanpa ini penjual
+  // melihat/menimpa teks klaim pembeli, dan klaim sendiri tampak "basi".
+  const myClaim =
+    myRole === "seller"
+      ? (dispute?.sellerClaim ?? "")
+      : myRole === "buyer"
+        ? (dispute?.buyerClaim ?? "")
+        : (dispute?.claim ?? "")
   useEffect(() => {
     if (!dispute) return
-    const serverClaim = dispute.claim ?? ""
+    const serverClaim = myClaim
     const previous = trackedClaimRef.current
     const differentDispute = previous === null || previous.id !== dispute.id
     const serverChanged = previous !== null && previous.claim !== serverClaim
@@ -377,7 +387,7 @@ export default function DisputeDetailScreen() {
       setClaim(serverClaim)
       trackedClaimRef.current = { id: dispute.id, claim: serverClaim }
     }
-  }, [dispute])
+  }, [dispute, myClaim])
 
   const handleSubmitClaim = useCallback(
     async (text: string) => {
@@ -1228,7 +1238,7 @@ export default function DisputeDetailScreen() {
               onChange={setClaim}
               onSubmit={(t) => void handleSubmitClaim(t)}
               submitting={submitting}
-              existingClaim={dispute.claim || undefined}
+              existingClaim={myClaim || undefined}
               updatedAt={dispute.updatedAt ? formatDateTime(dispute.updatedAt) : undefined}
             />
 
