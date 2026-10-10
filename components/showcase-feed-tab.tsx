@@ -1,4 +1,5 @@
-import type { OpeningMediaTap } from "@/lib/use-opening-media-tap"
+import { guardOpeningTapForGuest, type OpeningMediaTap } from "@/lib/use-opening-media-tap"
+import { loadErrorTitle } from "@/lib/load-error-title"
 /** Public cursor feed. Page data and cursors commit atomically; account/filter changes fence old responses.
  * Following remains a client-side filter until a server-side following-feed contract exists (audit A-17).
  *
@@ -290,7 +291,7 @@ const FeedCard = memo(function FeedCard({
   onReport,
   feedKind,
 }: FeedCardProps) {
-  const { liked, likeCount, saved, likePending, savedPending, toggleLike, toggleSave, share, shareSheetVisible, setShareSheetVisible } =
+  const { liked, likeCount, saved, likePending, savedPending, toggleLike, toggleSave, share, shareSheetVisible, setShareSheetVisible, hasSession } =
     useShowcaseSocialActions(item)
   // PERF-FIX (LR-004): visibilitas dibaca dari store eksternal — kartu ini
   // hanya render ulang bila visibilitasnya SENDIRI berubah.
@@ -327,10 +328,12 @@ const FeedCard = memo(function FeedCard({
   )
   const handleOpenMedia = useCallback(
     (mediaIndex: number, openingTap?: OpeningMediaTap) => {
-      viewerOpeningTap.current = openingTap
+      // FD-11: tamu — ketuk-ganda di viewer menutup viewer dulu, baru ke
+      // layar login (dulu router.push terjadi di bawah Modal yang terbuka).
+      viewerOpeningTap.current = guardOpeningTapForGuest(openingTap, hasSession, () => setViewerIndex(null))
       if (media[mediaIndex]) setViewerIndex(mediaIndex)
     },
-    [media],
+    [media, hasSession],
   )
   // PERF-FIX (TIM1-P2): onClose sheet stabil — bukan closure inline.
   const handleCloseShareSheet = useCallback(() => setShareSheetVisible(false), [])
@@ -463,6 +466,8 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
   const [refreshing, setRefreshing] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  /** UX-04: judul error jujur (offline/lambat/terputus); null = judul konteks. */
+  const [errorTitle, setErrorTitle] = useState<string | null>(null)
   const [loadMoreError, setLoadMoreError] = useState<string | null>(null)
   /** "Mengikuti": tamu (belum login) — empty state khusus, bukan error. */
   const [followingGuest, setFollowingGuest] = useState(false)
@@ -692,9 +697,12 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
         // FE-076: baca cache `me` SINKRON dulu. Bila hit dan following ref
         // milik owner yang sama → tidak ada request sama sekali (manfaat
         // followingIndexRef dipertahankan, bukan dibatalkan).
-        const cachedUsername = readQueryCacheEntry<{ username?: string }>(queryKeys.me())?.data?.username
+        // FD-05 (audit etalase 2026-10-10): pemilik cache = `me.id` (registrasi
+        // via HP → username bisa null; akun login tanpa username BUKAN tamu).
+        const cachedMe = readQueryCacheEntry<{ id?: string; username?: string | null }>(queryKeys.me())?.data
+        const cachedOwner = cachedMe?.id || cachedMe?.username || null
         const indexCache = followingIndexRef.current
-        if (cachedUsername && indexCache && indexCache.owner === cachedUsername) {
+        if (cachedOwner && indexCache && indexCache.owner === cachedOwner) {
           setFollowingSet(indexCache.keys)
           setFollowingGuest(false)
           return indexCache.keys
@@ -707,13 +715,14 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
           api.users.getMyFollowingIds(signal),
         ])
         if (signal.aborted) throw new Error("Aborted")
-        const username = me?.username
-        if (!username) {
+        const owner = me?.id || me?.username || null
+        if (!owner) {
+          // Tanpa profil sama sekali — perlakukan seperti 401 (tamu).
           markGuest()
           return new Set()
         }
         const keys = followingKeysOf(rows)
-        followingIndexRef.current = { owner: username, keys }
+        followingIndexRef.current = { owner, keys }
         setFollowingSet(keys)
         setFollowingGuest(false)
         return keys
@@ -754,6 +763,7 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
         loadMoreBusy.current = false
         setLoadMoreError(null)
         setError(null)
+        setErrorTitle(null)
       }
 
       const entry = pageStates.current[kind]
@@ -878,7 +888,11 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
       } catch (err) {
         if (controller.signal.aborted) return
         if (mode === "more") setLoadMoreError(userMessage(err))
-        else setError(userMessage(err))
+        else {
+          setError(userMessage(err))
+          // UX-04: judul jujur (offline/lambat/terputus), bukan "Terjadi kesalahan".
+          setErrorTitle(loadErrorTitle(err) ?? null)
+        }
       } finally {
         if (activeRequest.current === controller) {
           activeRequest.current = null
@@ -909,6 +923,7 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
       setRefreshing(false)
       setLoadingMore(false)
       setError(null)
+      setErrorTitle(null)
       setLoadMoreError(null)
       restorePosition(key)
     } else {
@@ -1205,7 +1220,7 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
   const followingPartialNotice = kind === "following" && followingPartial ? (
     <View className="mx-5 mt-3 rounded-md border border-border bg-surface px-3 py-2">
       <Text variant="caption" tone="secondary">
-        {translate("Sebagian etalase belum dapat dimuat. Tarik untuk menyegarkan.")}
+        {translate("Hanya sebagian etalase dari akun yang Anda ikuti yang ditampilkan.")}
       </Text>
     </View>
   ) : null
@@ -1344,7 +1359,10 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
         loadingMore={loadingMore}
         hasMore={hasMore}
         error={error}
+        errorTitle={errorTitle ?? translate("Gagal memuat etalase")}
         loadMoreError={loadMoreError}
+        // UX-22: state "akhir feed" — bukan footer yang diam begitu saja.
+        endLabel={translate("Anda sudah melihat semua etalase")}
         onRefresh={handleRefresh}
         onRetry={handleRetry}
         onLoadMore={loadMore}

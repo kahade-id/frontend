@@ -1,6 +1,6 @@
 /** Shared social actions: account-scoped state, item-wide mutation lock, gesture-safe sharing. */
 import { useCallback, useEffect, useRef, useState } from "react"
-import { router, useGlobalSearchParams, usePathname } from "expo-router"
+import { router } from "expo-router"
 
 import { api, isApiError, userMessage } from "@/lib/api"
 import {
@@ -35,6 +35,7 @@ import {
   useShowcaseSavedPending,
 } from "@/lib/showcase-social-prefs"
 import { useToast } from "@/components/ui/toast"
+import { buildReturnPath } from "@/lib/current-route"
 import { translate } from "@/lib/i18n/translate"
 import { optimisticToggleState } from "@/lib/showcase-social"
 
@@ -44,16 +45,12 @@ import { optimisticToggleState } from "@/lib/showcase-social"
  * feed/profil setelah login harus mendarat lagi di posisi itu.
  */
 export function useLoginNextPath(fallback: string): () => string {
-  const pathname = usePathname()
-  const params = useGlobalSearchParams()
-  return useCallback(() => {
-    const query = Object.entries(params)
-      .filter((entry): entry is [string, string] => typeof entry[1] === "string" && entry[1].length > 0)
-      .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
-      .join("&")
-    const at = pathname && pathname !== "/" ? pathname : fallback
-    return query ? `${at}?${query}` : at
-  }, [pathname, params, fallback])
+  // FD-07 (audit etalase 2026-10-10): TANPA usePathname/useGlobalSearchParams
+  // per pemanggil — setiap kartu feed yang berlangganan state navigasi
+  // membuat SEMUA kartu render ulang pada navigasi apa pun (menembus memo).
+  // Snapshot rute ditulis sekali oleh <RouteSnapshotTracker/> (root layout)
+  // dan dibaca sinkron saat ♥ ditekan.
+  return useCallback(() => buildReturnPath(fallback), [fallback])
 }
 
 export type ShowcaseSocialActions = {

@@ -131,6 +131,7 @@ export function NativePullGestureSurface({
   // onScroll biasa. Feed mengirim keduanya — dieksekusi dua = lipat ganda.
   onScroll: _ignoredOnScroll,
   onScrollWorklet,
+  onScrollBeginDrag,
   className,
   ...rest
 }: PullGestureSurfaceProps) {
@@ -296,13 +297,19 @@ export function NativePullGestureSurface({
     // di tengah jalan (reducedMotion/reducedSV sengaja tidak masuk deps).
   }, [refreshing, threshold, reducedMotion, locked, pull])
 
+  // FD-04: handler seret pemanggil (gerbang infinite scroll) ikut dipanggil.
+  const onScrollBeginDragRef = useRef(onScrollBeginDrag)
+  onScrollBeginDragRef.current = onScrollBeginDrag
   const scrollBindings = useMemo<NativePullBindings>(
     () => ({
       onScroll: handleScroll,
       // Android: keyboardDismissMode="on-drag" tidak didukung scroller native
       // (lihat lib/keyboard.ts); ini menutup SEMUA layar ber-PTR, web/iOS
       // memakai prop aslinya dari pemanggil.
-      onScrollBeginDrag: dismissKeyboardOnDragProps.onScrollBeginDrag,
+      onScrollBeginDrag: (event) => {
+        dismissKeyboardOnDragProps.onScrollBeginDrag?.(event)
+        onScrollBeginDragRef.current?.(event)
+      },
       scrollEventThrottle: 16,
       // Overscroll native dimatikan: satu-satunya gerakan tarik adalah
       // Animated.View di sini (konsisten dengan jalur web/iOS).
@@ -392,6 +399,12 @@ export type PullGestureSurfaceProps = Omit<ViewProps, "children"> & {
    * `onScroll` biasa. Stabilkan identitasnya (useCallback).
    */
   onScrollWorklet?: (offsetY: number) => void
+  /**
+   * FD-04 (audit etalase 2026-10-10): jalur Android menimpa `onScrollBeginDrag`
+   * scroller (tutup keyboard saat seret) — handler pemanggil dirangkai di
+   * belakangnya, bukan hilang.
+   */
+  onScrollBeginDrag?: ScrollViewProps["onScrollBeginDrag"]
   className?: string
 }
 
@@ -891,6 +904,7 @@ export function PullToRefreshFlatList<ItemT>({
   onRefreshThresholdReached,
   onScroll,
   onScrollWorklet,
+  onScrollBeginDrag,
   listRef,
   ...listProps
 }: PullToRefreshFlatListProps<ItemT>) {
@@ -905,6 +919,7 @@ export function PullToRefreshFlatList<ItemT>({
         enabled={refreshEnabled}
         onScroll={onScroll}
         onScrollWorklet={onScrollWorklet}
+        onScrollBeginDrag={onScrollBeginDrag}
         className="flex-1"
       >
         {(scrollBindings) => <FlatList ref={listRef} removeClippedSubviews={false} collapsable={false} {...listProps} {...scrollBindings} />}
@@ -922,7 +937,7 @@ export function PullToRefreshFlatList<ItemT>({
       onScroll={onScroll}
       className="flex-1"
     >
-      {(scrollBindings) => <FlatList ref={listRef} removeClippedSubviews={false} collapsable={false} {...listProps} {...scrollBindings} />}
+      {(scrollBindings) => <FlatList ref={listRef} onScrollBeginDrag={onScrollBeginDrag} removeClippedSubviews={false} collapsable={false} {...listProps} {...scrollBindings} />}
     </PullGestureSurface>
   )
 }

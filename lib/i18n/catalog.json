@@ -291,6 +291,10 @@
    "n": 9
   },
   {
+   "s": "Gagal memuat etalase",
+   "n": 9
+  },
+  {
    "s": "Hapus komentar?",
    "n": 9
   },
@@ -452,10 +456,6 @@
   },
   {
    "s": "Email kontak",
-   "n": 7
-  },
-  {
-   "s": "Gagal memuat etalase",
    "n": 7
   },
   {
@@ -3007,6 +3007,10 @@
    "n": 3
   },
   {
+   "s": "Gagal memperbarui etalase",
+   "n": 3
+  },
+  {
    "s": "Gagal memuat — coba lagi",
    "n": 3
   },
@@ -5139,6 +5143,10 @@
    "n": 3
   },
   {
+   "s": "Tidak ada koneksi internet",
+   "n": 3
+  },
+  {
    "s": "Tidak ada mutasi yang cocok dengan \"{q}\" di {n} mutasi yang dimuat.",
    "n": 3
   },
@@ -5712,6 +5720,10 @@
   },
   {
    "s": "Anda nomor {n} dalam antrean.",
+   "n": 2
+  },
+  {
+   "s": "Anda sudah melihat semua etalase",
    "n": 2
   },
   {
@@ -6964,6 +6976,10 @@
   },
   {
    "s": "Hanya satu voucher yang bisa dipakai per transaksi: pilih voucher platform atau voucher toko penjual.",
+   "n": 2
+  },
+  {
+   "s": "Hanya sebagian etalase dari akun yang Anda ikuti yang ditampilkan.",
    "n": 2
   },
   {
@@ -8811,10 +8827,6 @@
    "n": 2
   },
   {
-   "s": "Sebagian etalase belum dapat dimuat. Tarik untuk menyegarkan.",
-   "n": 2
-  },
-  {
    "s": "Sebagian pesan belum terkirim. Buka percakapan untuk mencoba lagi.",
    "n": 2
   },
@@ -9440,10 +9452,6 @@
   },
   {
    "s": "Tidak ada gambar",
-   "n": 2
-  },
-  {
-   "s": "Tidak ada koneksi internet",
    "n": 2
   },
   {
@@ -17159,6 +17167,14 @@
    "n": 1
   },
   {
+   "s": "Koneksi lambat",
+   "n": 1
+  },
+  {
+   "s": "Koneksi terputus",
+   "n": 1
+  },
+  {
    "s": "Koneksi terputus di tengah pemeriksaan server — periksa daftar transaksi sebelum mengirim ulang.",
    "n": 1
   },
@@ -21387,6 +21403,10 @@
    "n": 1
   },
   {
+   "s": "Server sedang bermasalah",
+   "n": 1
+  },
+  {
    "s": "Server sedang menjalani pemeliharaan terjadwal. Coba lagi dalam beberapa menit.",
    "n": 1
   },
@@ -22364,6 +22384,10 @@
   },
   {
    "s": "Terlalu banyak percobaan. Tunggu sebentar sebelum mencoba lagi.",
+   "n": 1
+  },
+  {
+   "s": "Terlalu banyak permintaan",
    "n": 1
   },
   {

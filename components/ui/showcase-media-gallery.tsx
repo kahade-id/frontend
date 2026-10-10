@@ -15,7 +15,7 @@ import { mediaTapPoint, type OpeningMediaTap } from "@/lib/use-opening-media-tap
  * off-screen (item 16); mode hemat data menunda unduhan gambar & video
  * sampai diketuk (item 15).
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { ScrollView, View, type LayoutChangeEvent, type NativeScrollEvent, type NativeSyntheticEvent } from "react-native"
 import { Pause, Play, SpeakerHigh, SpeakerSimpleX } from "phosphor-react-native"
 import { cn } from "@/lib/cn"
@@ -40,7 +40,7 @@ import type { GalleryMedia } from "@/lib/showcase-social"
  */
 const DOUBLE_TAP_MS = 300
 
-export function ShowcaseMediaGallery({ media, title, onOpen, onDoubleTap, autoplayActive = true, autoplay = true, aspectRatio = 1, activeFullRes = false }: {
+function ShowcaseMediaGalleryInner({ media, title, onOpen, onDoubleTap, autoplayActive = true, autoplay = true, aspectRatio = 1, activeFullRes = false }: {
   /** Urutan media persis seperti yang dipakai `onOpen` (indeks = indeks media). */
   media: GalleryMedia[]
   title: string
@@ -411,3 +411,10 @@ function VideoSlide({
     </View>
   )
 }
+
+/**
+ * FD-07 (audit etalase 2026-10-10): memo — `media` sudah stabil per item
+ * (cache WeakMap di `showcaseMedia`) dan callback dibaca lewat ref, jadi
+ * render ulang kartu induk (hitungan suka, dsb.) tidak merender ulang pager.
+ */
+export const ShowcaseMediaGallery = memo(ShowcaseMediaGalleryInner)

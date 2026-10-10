@@ -1,4 +1,4 @@
-import type { OpeningMediaTap } from "@/lib/use-opening-media-tap"
+import { guardOpeningTapForGuest, type OpeningMediaTap } from "@/lib/use-opening-media-tap"
 /** Public Etalase detail with optional viewer authentication and fenced comment mutations.
  * Comment reads reconcile complete loaded pages after a mutation. Server authorization remains authoritative. */
 
@@ -85,6 +85,7 @@ import { useShowcaseAuthorFollow } from "@/lib/use-showcase-author-follow"
 import { useDocumentTitle, HeaderCircleButton } from "@/components/ui/header"
 import { IconButton } from "@/components/ui/icon-button"
 import { ImageViewer } from "@/components/ui/image-viewer"
+import { HeartBurst, useHeartBurst } from "@/components/ui/heart-burst"
 import { Input } from "@/components/ui/input"
 import type { LoadMoreStatus } from "@/components/ui/load-more"
 import { Dialog } from "@/components/ui/modal"
@@ -625,8 +626,11 @@ function ShowcaseDetailContent({
   const spin360Frames = useMemo(() => showcaseSpin360Groups(item), [item])
 
   /** Ketuk media → viewer layar penuh (pinch-zoom + swipe antar foto). */
+  // UX-06: semburan hati ketuk-ganda di galeri detail (dulu tanpa umpan balik).
+  const heart = useHeartBurst()
   const openViewer = (index: number, openingTap?: OpeningMediaTap) => {
-    viewerOpeningTap.current = openingTap
+    // FD-11: tamu — tutup viewer dulu sebelum ketuk-ganda berujung ke login.
+    viewerOpeningTap.current = guardOpeningTapForGuest(openingTap, hasSession, () => setViewerIndex(null))
     // Item 158 (FE-IMP-1): viewer kini campuran gambar+video — indeks slide
     // media dipakai langsung (tidak lagi dipetakan ke indeks gambar).
     if (index >= 0 && index < resolvedMedia.length) setViewerIndex(index)
@@ -1158,8 +1162,10 @@ function ShowcaseDetailContent({
           onOpen={openViewer}
           // Item 157 (FE-IMP-1): ketuk-ganda pada media = suka. (Galeri sudah
           // punya deteksi double-tap; yang kurang hanya wiring ke toggleLike.)
+          // UX-06: + semburan hati seperti di feed.
           onDoubleTap={() => {
             if (!liked) toggleLike()
+            heart.play()
           }}
           autoplayActive={viewerIndex == null && isFocused}
           // C01: rasio slide pertama untuk placeholder di luar jendela render.
@@ -1167,6 +1173,7 @@ function ShowcaseDetailContent({
           // PERF-FIX (2026-09-30): slide aktif full-res, sisanya thumbnail.
           activeFullRes
         />
+        <HeartBurst visible={heart.visible} style={heart.style} />
       </View>
 
       {/* ── Tampilan 360° (batch 19, item 12) — di bawah galeri, kontrak TIM A pending ── */}

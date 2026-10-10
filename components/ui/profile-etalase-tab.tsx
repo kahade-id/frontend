@@ -263,8 +263,12 @@ export function ProfileEtalaseTab({
           // Prinsip A.5: list ini SAMA PERSIS dengan feed Etalase — skeleton
           // pun sebentuk <ShowcaseFeedItem>, bukan kartu generik <ListLoading/>.
           <ShowcaseFeedSkeleton count={2} />
-        ) : error ? (
+        ) : error && patchedItems.length === 0 ? (
           // C-01: gagal memuat ≠ kosong — selalu ada jalan mencoba ulang.
+          // FD-06 (audit etalase 2026-10-10): ErrorState PENUH hanya bila
+          // daftar kosong; refresh diam yang gagal di atas daftar yang sudah
+          // ada → banner compact (lib/use-profile-showcase sengaja
+          // mempertahankan `items`, dulu cabang ini menyembunyikannya).
           <View className="px-5">
             <ErrorState
               compact
@@ -303,6 +307,16 @@ export function ProfileEtalaseTab({
           </View>
         ) : (
           <>
+            {error ? (
+              <View className="px-5">
+                <ErrorState
+                  compact
+                  title={translate("Gagal memperbarui etalase")}
+                  description={error}
+                  onRetry={onRetry}
+                />
+              </View>
+            ) : null}
             {patchedItems.slice(0, renderLimit).map((item, index) => (
               <EtalaseCard
                 key={item.id}

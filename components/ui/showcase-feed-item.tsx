@@ -35,20 +35,20 @@ import type { OpeningMediaTap } from "@/lib/use-opening-media-tap"
  * sehingga satu tap ♥ tidak me-render ulang seluruh sel (audit A-08).
  */
 
-import { memo, useCallback, useMemo, useState } from "react"
-import { ChatCircle, DotsThreeCircle, Export, Flag, Funnel, Heart } from "phosphor-react-native"
+import { memo, useCallback, useMemo } from "react"
+import { ChatCircle, DotsThreeCircle, Export, Flag, Funnel } from "phosphor-react-native"
 import { router } from "expo-router"
 import { View } from "react-native"
-import Animated, {
-  runOnJS,
-  useAnimatedStyle,
-  useSharedValue,
-  withDelay,
-  withSequence,
-  withTiming,
-} from "react-native-reanimated"
 import { translate } from "@/lib/i18n/translate"
 import { useLanguage } from "@/lib/i18n"
+
+/**
+ * FD-08 (audit etalase 2026-10-10): `PressableScale` memakai pressDelay 0
+ * (ketukan biasa instan). Di dalam daftar yang digulir, press-in tanpa jeda
+ * menembak pada sentuhan awal scroll — untuk pressable yang mem-prefetch
+ * (penulis, ringkasan) pakai jeda ala baris daftar (~130 ms).
+ */
+const SCROLL_PRESS_DELAY_MS = 130
 
 import { formatCountCompact, formatTimeAgo } from "@/lib/format"
 import type { ShowcaseSocialItem } from "@/lib/api/showcase"
@@ -57,7 +57,8 @@ import { useHasSession } from "@/lib/guest-gate"
 import { showcaseMedia } from "@/lib/showcase-social"
 import { showcaseConditionLabel, showcasePriceLabel } from "@/lib/showcase-labels"
 import { summarize } from "@/lib/a11y"
-import { useReducedMotion } from "@/lib/use-reduced-motion"
+import { useMinuteTick } from "@/lib/use-clock-tick"
+import { HeartBurst, useHeartBurst } from "@/components/ui/heart-burst"
 import { ShowcaseMediaGallery } from "@/components/ui/showcase-media-gallery"
 import { CommerceBadgesCompact } from "@/components/showcase/product-commerce-section"
 import { ROUTES } from "@/lib/routes"
@@ -223,7 +224,9 @@ function ShowcaseFeedItemBase({
   feedKind,
 }: ShowcaseFeedItemProps) {
   // i18n: label aksesibilitas mengikuti bahasa aktif.
-  useLanguage()
+  const language = useLanguage()
+  // FD-09: cap waktu relatif menyegar per menit (bukan membeku di "5 menit lalu").
+  const minute = useMinuteTick()
   // H-04: gate tap penulis untuk tamu (profil = layar terproteksi).
   const hasSession = useHasSession()
   // PERF-FIX (TIM1-P1): onPress penulis stabil — tidak jebol memo kartu.
@@ -250,8 +253,13 @@ function ShowcaseFeedItemBase({
     () => (item.author.avatarUrl ? { uri: item.author.avatarUrl } : undefined),
     [item.author.avatarUrl],
   )
-  // PERF-FIX (TIM1-P2): formatTimeAgo sekali per kartu, bukan 2x.
-  const timeAgo = useMemo(() => formatTimeAgo(item.createdAt), [item.createdAt])
+  // PERF-FIX (TIM1-P2): formatTimeAgo sekali per kartu, bukan 2x. FD-09:
+  // ikut bahasa aktif & ember menit — dulu di-memo hanya oleh createdAt
+  // sehingga tetap bahasa lama setelah ganti bahasa dan "5 menit lalu" beku.
+  const timeAgo = useMemo(
+    () => formatTimeAgo(item.createdAt),
+    [item.createdAt, language, minute],
+  )
   // Batch 19: slide galeri (gambar/video) — referensi stabil via cache WeakMap
   // di `showcaseMedia` agar memo galeri tidak re-render sia-sia.
   const gallery = useMemo(() => showcaseMedia(item), [item])
@@ -266,31 +274,9 @@ function ShowcaseFeedItemBase({
    *    `toggleLike` (useShowcaseSocialActions) tetap menjadi pertahanan
    *    terakhir bila race tetap terjadi.
    */
-  const reducedMotion = useReducedMotion()
-  const [heartVisible, setHeartVisible] = useState(false)
-  const heartScale = useSharedValue(0)
-  const heartOpacity = useSharedValue(0)
-  const heartStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: heartScale.value }],
-    opacity: heartOpacity.value,
-  }))
-  const playHeartBurst = useCallback(() => {
-    if (reducedMotion) return
-    setHeartVisible(true)
-    heartScale.value = 0
-    heartOpacity.value = 1
-    heartScale.value = withSequence(
-      withTiming(1.25, { duration: 160 }),
-      withTiming(1, { duration: 120 }),
-    )
-    // Tahan sekejap lalu memudar; unmount via JS agar state konsisten.
-    heartOpacity.value = withDelay(
-      450,
-      withTiming(0, { duration: 220 }, (finished) => {
-        if (finished) runOnJS(setHeartVisible)(false)
-      }),
-    )
-  }, [reducedMotion, heartScale, heartOpacity])
+  // UX-06: semburan hati dibagi dengan galeri detail & viewer (heart-burst.tsx).
+  const heart = useHeartBurst()
+  const playHeartBurst = heart.play
   const handleMediaDoubleTap = useCallback(() => {
     if (shouldFireDoubleTapLike({ liked, likePending, hasHandler: !!onToggleLike })) onToggleLike?.()
     playHeartBurst()
@@ -414,6 +400,7 @@ function ShowcaseFeedItemBase({
           accessibilityHint={`@${item.author.username}`}
           onPress={handleAuthorPress}
           onPressIn={handleAuthorPressIn}
+          unstable_pressDelay={SCROLL_PRESS_DELAY_MS}
           containerClassName={cn("min-w-0 flex-1 rounded-md", focusRing)}
           className="flex-row items-center gap-3"
         >
@@ -489,21 +476,7 @@ function ShowcaseFeedItemBase({
               </Text>
             </View>
           ) : null}
-          {heartVisible ? (
-            <View
-              style={{ pointerEvents: "none" }}
-              className="absolute inset-0 items-center justify-center"
-              accessibilityElementsHidden
-              importantForAccessibility="no-hide-descendants"
-            >
-              <Animated.View style={heartStyle}>
-                {/* Hati merah = bahasa suka aplikasi (LikeAction); putih
-                    butuh pengecualian allowlist — merah cukup terbaca di
-                    atas foto tanpa scrim tambahan. */}
-                <Icon icon={Heart} weight="fill" tone="danger" size={84} />
-              </Animated.View>
-            </View>
-          ) : null}
+          <HeartBurst visible={heart.visible} style={heart.style} />
         </View>
       </View>
 
@@ -563,6 +536,9 @@ function ShowcaseFeedItemBase({
           onPress={onPress}
           // C05: press-in = niat buka detail → prefetch metadata ringan.
           onPressIn={nonInteractive ? undefined : onPressIn}
+          // FD-08: jeda tekan — sentuhan awal scroll di judul dulu langsung
+          // menembak GET /v1/showcase/:id (endpoint menghitung tayang).
+          unstable_pressDelay={SCROLL_PRESS_DELAY_MS}
           containerClassName={cn("rounded-sm", focusRing)}
         >
           {summaryBlock}

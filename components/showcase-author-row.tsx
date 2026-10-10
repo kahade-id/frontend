@@ -44,6 +44,10 @@ function SellerRatingLine({ username, hasSession }: { username: string; hasSessi
   const [summary, setSummary] = useState<PublicRatingSummary | null>(null)
   useEffect(() => {
     const ctrl = new AbortController()
+    // FD-14 (audit etalase 2026-10-10): username berganti → buang ringkasan
+    // penulis lama DULU; bila fetch baru gagal, baris disembunyikan — bukan
+    // menampilkan rating orang lain.
+    setSummary(null)
     void getPublicRatingSummary(username, ctrl.signal)
       .then((result) => setSummary(result))
       .catch(() => {

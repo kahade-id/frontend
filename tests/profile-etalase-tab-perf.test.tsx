@@ -80,6 +80,26 @@ beforeEach(() => {
 })
 afterEach(cleanup)
 
+describe("ProfileEtalaseTab FD-06 (audit etalase 2026-10-10)", () => {
+  it("refresh diam gagal di atas daftar yang ada → banner error + kartu TETAP tampil (bukan daftar hilang)", async () => {
+    const items = [raw("a"), raw("b")]
+    render(
+      h(ProfileEtalaseTab, { items, loading: false, error: "Koneksi terputus", handle: "penjual", owner, isSelf: false }),
+    )
+    await waitFor(() => expect(mountedCount()).toBe(2))
+    expect(screen.getByText("Koneksi terputus")).toBeTruthy()
+  })
+
+  it("daftar kosong + error → hanya ErrorState (tidak ada kartu, tidak ada empty state)", async () => {
+    render(
+      h(ProfileEtalaseTab, { items: [], loading: false, error: "Koneksi terputus", handle: "penjual", owner, isSelf: false }),
+    )
+    expect(screen.getByText("Koneksi terputus")).toBeTruthy()
+    expect(mountedCount()).toBe(0)
+    expect(screen.queryByText("Belum ada konten")).toBeNull()
+  })
+})
+
 describe("ProfileEtalaseTab FS-001/FS-002 (audit performa)", () => {
   it("FS-002: 100 item → mount awal dibatasi 10 kartu (bukan 100)", async () => {
     const items = Array.from({ length: 100 }, (_, i) => raw(`big-${i}`))

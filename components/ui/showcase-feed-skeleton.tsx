@@ -24,41 +24,46 @@ import { Skeleton, SkeletonGroup } from "@/components/ui/skeleton"
  * Spacing meniru kartu asli: author row `px-5 pt-3`, media `mx-5 pt-3`,
  * blok teks `px-5 pt-3`, baris aksi `px-2 pt-1`.
  */
+/*
+ * UX-05 (audit etalase 2026-10-10): `tone="contrast"` — default `subtle`
+ * hanya 1,10:1 terhadap latar di light mode (layar tampak putih polos saat
+ * memuat; lihat catatan di skeleton.tsx).
+ */
 export function ShowcaseFeedItemSkeleton() {
   return (
     <View>
       {/* ── Penulis: avatar + 2 baris teks + ikon kanan ── */}
       <View className="flex-row items-center gap-3 px-5 pt-3">
         {/* Avatar md = h-10 w-10 */}
-        <Skeleton shape="circle" className="h-10 w-10" />
+        <Skeleton tone="contrast" shape="circle" className="h-10 w-10" />
         <View className="min-w-0 flex-1 gap-1.5">
-          <Skeleton className="h-4 w-2/5" />
-          <Skeleton className="h-3 w-1/3" />
+          <Skeleton tone="contrast" className="h-4 w-2/5" />
+          <Skeleton tone="contrast" className="h-3 w-1/3" />
         </View>
-        <Skeleton shape="circle" className="h-10 w-10" />
+        <Skeleton tone="contrast" shape="circle" className="h-10 w-10" />
       </View>
 
       {/* ── Media card ── */}
       <View className="mx-5 pt-3">
-        <Skeleton shape="card" className="aspect-square w-full" />
+        <Skeleton tone="contrast" shape="card" className="aspect-square w-full" />
       </View>
 
       {/* ── Kategori · judul · deskripsi ── */}
       <View className="gap-1.5 px-5 pt-3">
-        <Skeleton className="h-3 w-1/4" />
-        <Skeleton className="h-4 w-3/4" />
-        <Skeleton className="h-3 w-full" />
-        <Skeleton className="h-3 w-4/5" />
+        <Skeleton tone="contrast" className="h-3 w-1/4" />
+        <Skeleton tone="contrast" className="h-4 w-3/4" />
+        <Skeleton tone="contrast" className="h-3 w-full" />
+        <Skeleton tone="contrast" className="h-3 w-4/5" />
       </View>
 
       {/* ── Aksi: suka · komentar (kiri) · bagikan · simpan (kanan) ── */}
       <View className="flex-row items-center gap-2 px-2 pt-1">
-        <Skeleton className="h-8 w-24" />
-        <Skeleton className="h-8 w-24" />
+        <Skeleton tone="contrast" className="h-8 w-24" />
+        <Skeleton tone="contrast" className="h-8 w-24" />
         <View className="flex-1" />
         {/* Tombol ikon = min-h-11 min-w-11 di kartu asli */}
-        <Skeleton shape="circle" className="h-11 w-11" />
-        <Skeleton shape="circle" className="h-11 w-11" />
+        <Skeleton tone="contrast" shape="circle" className="h-11 w-11" />
+        <Skeleton tone="contrast" shape="circle" className="h-11 w-11" />
       </View>
     </View>
   )

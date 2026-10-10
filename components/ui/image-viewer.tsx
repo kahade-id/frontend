@@ -37,6 +37,7 @@ import { FeedVideo } from "@/components/ui/feed-video"
 import { IconButton } from "@/components/ui/icon-button"
 import { Text } from "@/components/ui/text"
 import { ZoomableImage } from "@/components/ui/zoomable-image"
+import { HeartBurst, useHeartBurst } from "@/components/ui/heart-burst"
 import { useReducedMotion } from "@/lib/use-reduced-motion"
 import { useDataSaver } from "@/lib/ui-prefs"
 import { prefetchNeighborImages } from "@/lib/prefetch-neighbors"
@@ -86,7 +87,16 @@ export function ImageViewer({
   const insets = useSafeAreaInsets()
   const reducedMotion = useReducedMotion()
   const dataSaver = useDataSaver()
-  const opening = useOpeningMediaTap(visible, openingTap)
+  // UX-06: ketuk-ganda pembuka (ketuk ke-2 dalam 300 ms setelah viewer
+  // terbuka) menyemburkan hati DI DALAM viewer — dulu meledak di kartu feed
+  // yang tertutup modal, jadi tidak ada umpan balik yang terlihat.
+  const heart = useHeartBurst()
+  const playHeart = heart.play
+  const burstingTap = useMemo<OpeningMediaTap | undefined>(
+    () => (openingTap ? { ...openingTap, onDoubleTap: () => { playHeart(); openingTap.onDoubleTap() } } : undefined),
+    [openingTap, playHeart],
+  )
+  const opening = useOpeningMediaTap(visible, burstingTap)
   const listRef = useRef<FlatList<ImageViewerItem>>(null)
   const [current, setCurrent] = useState(() => Math.min(Math.max(index, 0), Math.max(images.length - 1, 0)))
   const [zoomed, setZoomed] = useState(false)
@@ -319,6 +329,7 @@ export function ImageViewer({
             ) : null}
           </View>
         ) : null}
+        <HeartBurst visible={heart.visible} style={heart.style} size={96} />
       </View>
     </Modal>
   )

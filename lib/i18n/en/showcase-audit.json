@@ -1,16 +1,23 @@
 {
+  "Anda sudah melihat semua etalase": "You've seen all listings",
   "Buang urutan": "Discard order",
   "Etalase dihapus permanen setelah {x} hari.": "Listings are permanently deleted after {x} days.",
   "Etalase ini privat": "This listing is private",
   "Etalase ini sudah tidak ada di daftar hapus": "This listing is no longer in the deleted list",
+  "Gagal memperbarui etalase": "Couldn't refresh listings",
   "Gagal memuat daftar.": "Couldn't load the list.",
+  "Hanya sebagian etalase dari akun yang Anda ikuti yang ditampilkan.": "Only some listings from accounts you follow are shown.",
   "Komentar yang dihapus tidak bisa dikembalikan.": "Deleted comments can't be restored.",
+  "Koneksi lambat": "Slow connection",
+  "Koneksi terputus": "Connection dropped",
   "Masa pemulihan sudah lewat": "The restore window has passed",
   "Memuat jadwal jasa": "Loading service schedule",
   "Mungkin sudah dipulihkan dari perangkat lain.": "It may have been restored from another device.",
   "Pemilik membatasi siapa yang bisa melihatnya.": "The owner limits who can see it.",
   "Pesanan belum bisa dibuka. Coba lagi.": "The order couldn't be opened yet. Try again.",
   "Rating {x},{x}+": "{x}.{x}+ rating",
+  "Server sedang bermasalah": "The server is having trouble",
   "Tautan harus https:// dan tanpa nama pengguna/kata sandi.": "The link must use https:// and contain no username/password.",
+  "Terlalu banyak permintaan": "Too many requests",
   "Tidak ada koneksi internet": "No internet connection"
 }

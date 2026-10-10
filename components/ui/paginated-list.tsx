@@ -17,6 +17,11 @@ export type PaginatedListProps<T extends { id?: string }> = {
   loading: boolean
   offlineMiss?: boolean
   error?: string | null
+  /**
+   * UX-04 (audit etalase 2026-10-10): judul ErrorState yang jujur (offline/
+   * lambat/terputus) — tanpa ini judulnya selalu "Terjadi kesalahan".
+   */
+  errorTitle?: string
   loadMoreError?: string | null
   refreshing: boolean
   loadingMore: boolean
@@ -65,6 +70,11 @@ export type PaginatedListProps<T extends { id?: string }> = {
   listRef?: Ref<FlatList<T>>
   /** Audit chat F15: tuning jendela render (default = tuning feed). */
   windowing?: ListWindowing
+  /**
+   * UX-22 (audit etalase 2026-10-10): teks "akhir daftar" saat `hasMore`
+   * false dan ada data — opsional (daftar lain tidak berubah tanpa ini).
+   */
+  endLabel?: string
 }
 
 /** Style konstan: literal `{ flex: 1 }` inline membuat prop baru tiap render. */
@@ -129,6 +139,8 @@ export function PaginatedList<T extends { id?: string }>({
   viewabilityConfig,
   listRef,
   windowing,
+  errorTitle,
+  endLabel,
 }: PaginatedListProps<T>) {  /*
    * Audit performa — semua prop di bawah ini DULU ditulis inline di JSX.
    *
@@ -198,6 +210,13 @@ export function PaginatedList<T extends { id?: string }>({
   const handleMomentumScrollBegin = useCallback(() => {
     momentumRef.current = true
   }, [])
+  // FD-04 (audit etalase 2026-10-10): RN-web tidak mengemisi event momentum
+  // sama sekali, dan di native `onEndReached` saat jari masih menyeret pelan
+  // dibuang lalu VirtualizedList tidak menembak lagi untuk contentLength yang
+  // sama → infinite scroll macet. Awal seret = scroll nyata → arm juga.
+  const handleScrollBeginDrag = useCallback(() => {
+    momentumRef.current = true
+  }, [])
   const handleEndReached = useCallback(() => {
     if (!momentumRef.current) return
     momentumRef.current = false
@@ -209,11 +228,11 @@ export function PaginatedList<T extends { id?: string }>({
       <>
         {header}
         {error && data.length ? (
-          <ErrorState compact description={error} onRetry={handleRetry} />
+          <ErrorState compact title={errorTitle} description={error} onRetry={handleRetry} />
         ) : null}
       </>
     ),
-    [header, error, data.length, handleRetry],
+    [header, error, errorTitle, data.length, handleRetry],
   )
 
   const emptyElement = useMemo(
@@ -221,13 +240,13 @@ export function PaginatedList<T extends { id?: string }>({
       loading ? (
         (loadingPlaceholder ?? <ListLoading />)
       ) : error ? (
-        <ErrorState description={error} onRetry={handleRetry} />
+        <ErrorState title={errorTitle} description={error} onRetry={handleRetry} />
       ) : offlineMiss ? (
         <OfflineEmptyState />
       ) : (
         empty
       ),
-    [loading, loadingPlaceholder, error, offlineMiss, empty, handleRetry],
+    [loading, loadingPlaceholder, error, errorTitle, offlineMiss, empty, handleRetry],
   )
 
   const footerElement = useMemo(
@@ -239,11 +258,14 @@ export function PaginatedList<T extends { id?: string }>({
             errorLabel={loadMoreError ?? undefined}
             onLoadMore={handleLoadMore}
           />
+        ) : !loading && !hasMore && endLabel && data.length > 0 ? (
+          // UX-22: kepastian "sudah habis" — bukan footer yang diam begitu saja.
+          <LoadMore status="end" endLabel={endLabel} />
         ) : null}
         {footer}
       </>
     ),
-    [loading, hasMore, loadingMore, loadMoreError, footer, handleLoadMore],
+    [loading, hasMore, loadingMore, loadMoreError, footer, handleLoadMore, endLabel, data.length],
   )
 
   /**
@@ -278,6 +300,7 @@ export function PaginatedList<T extends { id?: string }>({
       onEndReached={handleEndReached}
       onEndReachedThreshold={0.3}
       onMomentumScrollBegin={handleMomentumScrollBegin}
+      onScrollBeginDrag={handleScrollBeginDrag}
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="on-drag"
       showsVerticalScrollIndicator={false}

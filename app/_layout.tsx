@@ -58,6 +58,7 @@ import { useFonts, loadAsync as loadFontsAsync } from "expo-font"
 import { installedAppVersion } from "@/lib/runtime-info"
 
 import { I18nProvider } from "@/components/i18n-provider"
+import { RouteSnapshotTracker } from "@/components/route-snapshot-tracker"
 import { ThemeProvider, useTheme } from "@/components/theme-provider"
 import { AnimatedSplash } from "@/components/ui/animated-splash"
 import { ContentContainer } from "@/components/ui/content-container"
@@ -1416,6 +1417,9 @@ function AppShellInner() {
         tidak diganggu; lihat efek onSessionExpired di atas + B-03).
       */}
       <ShellRouteEffects session={session} setRealtimeNeeded={setRealtimeNeeded} />
+      {/* FD-07: satu pelanggan rute untuk tujuan kembali setelah login (kartu
+          feed tidak lagi berlangganan usePathname/useGlobalSearchParams). */}
+      <RouteSnapshotTracker />
     </>
   )
 }
