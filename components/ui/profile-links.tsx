@@ -48,7 +48,7 @@ export type ProfileLinksProps = {
 /** Label aksesibilitas satu tautan: "Instagram: tokobudi.id". */
 function linkA11yLabel(link: ProfileLink): string {
   return translate("{x}: {y}", {
-    x: translate(socialPlatformLabel(link.platform)),
+    x: socialPlatformLabel(link.platform),
     y: profileLinkText(link),
   })
 }

@@ -23,6 +23,7 @@ import {
 
 import type { IconComponent } from "@/components/ui/icon"
 import { mapValue } from "@/lib/has-own"
+import { translate } from "@/lib/i18n/translate"
 
 export type SocialPlatform =
   | "instagram"
@@ -50,9 +51,9 @@ export const SOCIAL_PLATFORM_ICONS: Record<SocialPlatform, IconComponent> = {
 }
 
 /**
- * Label platform. Nama merek tidak diterjemahkan; dua label generik
- * ("Toko online", "Situs web") diterjemahkan oleh pemanggil lewat
- * `translate()` — lihat `socialPlatformLabel`.
+ * Label platform MENTAH (nama merek, tidak diterjemahkan). Dua label generik
+ * (shop/website) hanya placeholder — `socialPlatformLabel` yang
+ * menerjemahkannya; pakai fungsi itu untuk teks yang tampil.
  */
 export const SOCIAL_PLATFORM_LABELS: Record<SocialPlatform, string> = {
   instagram: "Instagram",
@@ -80,7 +81,13 @@ export function socialPlatformIcon(platform: string): IconComponent {
   return mapValue(SOCIAL_PLATFORM_ICONS, platform, Globe)
 }
 
-/** Label platform mentah (belum diterjemahkan); fallback = nama platform. */
+/**
+ * Label platform yang TAMPIL (mengikuti bahasa aktif). Nama merek apa
+ * adanya; label generik lewat translate() literal supaya masuk katalog i18n.
+ * Fallback = nama platform mentah dari server.
+ */
 export function socialPlatformLabel(platform: string): string {
+  if (platform === "shop") return translate("Toko online")
+  if (platform === "website") return translate("Situs web")
   return mapValue(SOCIAL_PLATFORM_LABELS, platform, platform)
 }

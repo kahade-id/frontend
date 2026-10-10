@@ -221,13 +221,13 @@ export default function PrivacySettingsScreen() {
       setPending((p) => [...p, key])
       try {
         await api.settings.updatePrivacySettings({ [key]: next } as unknown as UpdatePrivacyDto)
-        toast.show({ title: "Pengaturan tersimpan", tone: "success", duration: 2500 })
+        toast.show({ title: translate("Pengaturan tersimpan"), tone: "success", duration: 2500 })
       } catch (err) {
         // Klasifikasi toast: error mutasi non-blokir via showMutationError.
         if (
           showMutationError(toast.show, {
-            failTitle: "Gagal menyimpan",
-            uncertainHint: "Aksi mungkin sudah diproses — memuat ulang…",
+            failTitle: translate("Gagal menyimpan"),
+            uncertainHint: translate("Aksi mungkin sudah diproses — memuat ulang…"),
             err: err,
             scope: "privacy-settings:menyimpan",
           })
@@ -256,13 +256,13 @@ export default function PrivacySettingsScreen() {
       setPending((p) => [...p, ...keys, key])
       try {
         await api.settings.updatePrivacySettings(payload)
-        toast.show({ title: "Pengaturan tersimpan", tone: "success", duration: 2500 })
+        toast.show({ title: translate("Pengaturan tersimpan"), tone: "success", duration: 2500 })
       } catch (err) {
         // Klasifikasi toast: error mutasi non-blokir via showMutationError.
         if (
           showMutationError(toast.show, {
-            failTitle: "Gagal menyimpan",
-            uncertainHint: "Aksi mungkin sudah diproses — memuat ulang…",
+            failTitle: translate("Gagal menyimpan"),
+            uncertainHint: translate("Aksi mungkin sudah diproses — memuat ulang…"),
             err: err,
             scope: "privacy-settings:menyimpan",
           })
@@ -296,9 +296,10 @@ export default function PrivacySettingsScreen() {
       const target = safeHttpsUrl(rawUrl)
       if (!target) {
         toast.show({
-          title: "Ekspor data gagal dibuka",
-          description:
+          title: translate("Ekspor data gagal dibuka"),
+          description: translate(
             "Tautan ekspor bukan HTTPS dan ditolak demi keamanan data Anda. Coba lagi atau hubungi dukungan.",
+          ),
           tone: "danger",
           duration: 6000,
         })
@@ -401,8 +402,8 @@ export default function PrivacySettingsScreen() {
       setExportOpen(false)
       void exportHistory.reload()
       toast.show({
-        title: "Ekspor data siap",
-        description: res.message || "Arsip data Anda siap diunduh. Tautan berlaku terbatas.",
+        title: translate("Ekspor data siap"),
+        description: res.message || translate("Arsip data Anda siap diunduh. Tautan berlaku terbatas."),
         tone: "success",
         duration: 5000,
       })

@@ -113,9 +113,12 @@ export default function BlockedUsersScreen() {
   )
 
   // FE-065: handler stabil per-id untuk baris yang di-memo.
+  // Deps KOSONG: `[, query]` lama (lubang array + objek `query` baru tiap
+  // render) membuat handler berganti identitas setiap render → memo baris
+  // FE-065 jebol.
   const requestUnblock = useCallback((user: BlockedUser) => {
     setConfirmTarget(user)
-  }, [, query])
+  }, [])
 
   return (
     <>
@@ -145,7 +148,7 @@ export default function BlockedUsersScreen() {
       </DataScreen>
 
       <Dialog
-        title={confirmTarget ? translate("Buka blokir @{x}?", { x: confirmTarget.username }) : "Buka blokir?"}
+        title={confirmTarget ? translate("Buka blokir @{x}?", { x: confirmTarget.username }) : translate("Buka blokir?")}
         description={translate("Pengguna ini akan dapat melihat profil Anda dan memulai percakapan kembali.")}
         visible={confirmTarget !== null}
         loading={unblockingId !== null}

@@ -352,10 +352,19 @@ export function updateLinks(dto: UpdateLinksDto) {
   })
 }
 
-/** GET /v1/users/{username} — profil publik user. */
+/**
+ * GET /v1/users/{username} — profil publik user.
+ *
+ * `auth: "optional"` (audit 2026-10-10): endpoint backend `@Public()` —
+ * tamu boleh melihat profil (tautan kahade.id/<username>, QR, share).
+ * Versi lama `"required"` membuat tamu tanpa token langsung dilempar
+ * UNAUTHORIZED + `expireSession` sebelum request dikirim, padahal layar
+ * profil sudah menggerbang aksi sosial per-tombol (useHasSession).
+ * Pengguna login tetap mengirim token (isFollowing/kontak publik terisi).
+ */
 export function getUserByUsername(username: string, signal?: AbortSignal) {
   return http
-    .get<unknown>(`/v1/users/${seg(username)}`, { auth: "required", signal })
+    .get<unknown>(`/v1/users/${seg(username)}`, { auth: "optional", signal })
     .then((raw) => {
       const profile = readEntity<Record<string, unknown>>(raw, "user")
       const stats = asRecord(profile.stats)
@@ -747,10 +756,14 @@ export function getFollowers(
 }
 export function getFollowing(
   username: string,
-  options: { page?: number; limit?: number } = {},
+  // `search` (audit 2026-10-10): backend GET following kini menerima
+  // `?search=` seperti followers — saring nama/username di server, bukan di
+  // klien atas halaman yang sudah dimuat.
+  options: { page?: number; limit?: number; search?: string } = {},
   signal?: AbortSignal,
 ) {
-  const query = { page: 1, limit: 20, ...options }
+  const { search, ...paging } = options
+  const query = { page: 1, limit: 20, ...paging, ...(search?.trim() ? { search: search.trim() } : {}) }
   return http
     .get<unknown>(`/v1/users/${seg(username)}/following`, {
       query,

@@ -25,11 +25,11 @@ import {
   SOCIAL_PLATFORM_ICONS,
   SOCIAL_PLATFORM_LABELS,
   socialPlatformIcon,
+  socialPlatformLabel,
   type SocialPlatform,
 } from "@/components/ui/social-platforms"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
-import { mapValue } from "@/lib/has-own"
 import { translate, useLanguage } from "@/lib/i18n"
 import { isValidSocialLinkInput } from "@/lib/profile-links"
 
@@ -109,9 +109,7 @@ export function SocialLinksEditor({
   const t = { ...defaults, ...labels }
   const chipOptions = platforms.map((p) => ({
     value: p,
-    // "Toko online"/"Situs web" diterjemahkan; nama merek lewat translate()
-    // juga aman (kunci tanpa terjemahan jatuh ke teks sumbernya).
-    label: translate(mapValue(SOCIAL_PLATFORM_LABELS, p, p)),
+    label: socialPlatformLabel(p),
     icon: socialPlatformIcon(p),
   }))
   const canAdd = value.length < max && !disabled

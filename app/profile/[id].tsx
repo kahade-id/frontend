@@ -49,7 +49,7 @@ const USERNAME_RE = /^[a-zA-Z0-9](?:[a-zA-Z0-9_-]|\.(?=[a-zA-Z0-9])){2,29}$/
 function AliasError() {
   return (
     <Screen edges={["top"]} padded={false}>
-      <Header title="Profil" />
+      <Header title={translate("Profil")} />
       <View className="gap-4 px-5 pt-6">
         <ErrorState title={translate("Profil tidak ditemukan")} />
         <Button variant="secondary" onPress={() => goBackOrNavigate(ROUTES.home)}>
