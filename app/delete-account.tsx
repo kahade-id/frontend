@@ -23,11 +23,12 @@ import { Platform, ScrollView, View } from "react-native"
 import { router } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
-import { api, deletionBlockerMessage } from "@/lib/api"
+import { api, deletionBlockerMessage, userMessage } from "@/lib/api"
 import type { DeletionRequestResult } from "@/lib/api/account-deletion"
 import { clearSession } from "@/lib/api/session"
 import { copyToClipboard } from "@/lib/clipboard"
 import { formatDate } from "@/lib/format"
+import { translate } from "@/lib/i18n/translate"
 import { unregisterPushDevice } from "@/lib/push-notifications"
 import { unregisterWebPushDevice } from "@/lib/web-push"
 import { ROUTES } from "@/lib/routes"
@@ -93,9 +94,17 @@ export default function DeleteAccountScreen() {
         setResult(res)
         toast.show({
           title: "Permintaan penghapusan terkirim",
-          description: `Kode referensi: ${res.referenceCode}`,
+          description: translate("Kode referensi: {x}", { x: res.referenceCode }),
           tone: "success",
         })
+        /**
+         * Audit 2026-10-10: sesi lokal TIDAK dibersihkan di sini. Rute ini
+         * terproteksi — begitu token hilang, guard root layout langsung
+         * mengalihkan ke Masuk (native: NAV-007; web: GuestRouteOverlay), jadi
+         * layar hasil (kode referensi + cara membatalkan) tidak pernah
+         * terlihat. Push di-unregister sekarang (butuh sesi); sesi dibersihkan
+         * saat pengguna menekan "Ke Layar Masuk" — lihat `handleLeave`.
+         */
         const deviceApi = {
           registerDevice: (dto: Parameters<typeof api.notifications.registerDevice>[0]) =>
             api.notifications.registerDevice(dto),
@@ -106,7 +115,6 @@ export default function DeleteAccountScreen() {
         if (Platform.OS === "web")
           await unregisterWebPushDevice(deviceApi).catch((err) => logWarn("account-delete:unregister-push", err))
         else await unregisterPushDevice(deviceApi).catch((err) => logWarn("account-delete:unregister-push", err))
-        await clearSession()
       } catch (err) {
         // BFI-057: backend menolak dengan kode blocker SPESIFIK
         // (ACTIVE_ORDERS_PRESENT / ESCROW_BALANCE_PRESENT / WALLET_BALANCE_PRESENT
@@ -121,9 +129,10 @@ export default function DeleteAccountScreen() {
           void prerequisites.reload()
           return
         }
-        setErrorText(
-          "Permintaan belum dapat diproses. Periksa persyaratan dan autentikasi, lalu coba kembali.",
-        )
+        // Audit 2026-10-10: alasan asli (offline / kata sandi salah / rate
+        // limit) harus sampai — kalimat generik lama menyuruh "periksa
+        // persyaratan" bahkan saat perangkat sekadar tanpa internet.
+        setErrorText(userMessage(err))
       } finally {
         submitLock.current = false
         setSubmitting(false)
@@ -144,6 +153,12 @@ export default function DeleteAccountScreen() {
         : { title: "Gagal menyalin kode", description: "Salin manual dari layar ini.", tone: "danger" },
     )
   }, [result, toast])
+
+  /** Sesi dibersihkan di sini (bukan saat sukses) — lihat catatan di handleSubmit. */
+  const handleLeave = useCallback(async () => {
+    await clearSession().catch((err) => logWarn("account-delete:clear-session", err))
+    router.replace(ROUTES.login)
+  }, [])
 
   if (result) {
     return (
@@ -179,7 +194,7 @@ export default function DeleteAccountScreen() {
               3. Masukkan nomor HP, verifikasi kode WhatsApp, lalu batalkan penghapusan.
             </Text>
           </VStack>
-          <Button onPress={() => router.replace(ROUTES.login)}>
+          <Button onPress={() => void handleLeave()}>
             Ke Layar Masuk
           </Button>
         </ScrollView>
