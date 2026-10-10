@@ -103,7 +103,11 @@ export function LoginPasswordForm({ method, nextPath }: Props) {
         ("requiresTwoFactor" in result && result.requiresTwoFactor)
       ) {
         setFailCount(0)
-        setPendingTwoFactorLogin({ tempToken: result.tempToken, identifier: trimmedIdentifier })
+        setPendingTwoFactorLogin({
+          tempToken: result.tempToken,
+          identifier: trimmedIdentifier,
+          origin: "password",
+        })
         router.push(ROUTES.verify2fa)
         return
       }

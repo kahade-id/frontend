@@ -33,6 +33,7 @@ import { translate } from "@/lib/i18n/translate"
 import { getAuthLocation } from "@/lib/location"
 import { clearLoginIdentifier, getLoginIdentifier } from "@/lib/login-identifier"
 import { setPendingNext } from "@/lib/login-redirect"
+import { isCooldownError, retryAfterMessage } from "@/lib/retry-cooldown"
 import {
   closeSoftReauth,
   isSoftReauthActive,
@@ -142,19 +143,28 @@ export function SoftReauthGate() {
         return
       }
       if (isApiError(err) && err.code === "ACCOUNT_LOCKED") {
-        // Bentuk galat backend tidak diketik di ApiError; layar login membaca
-        // field yang sama dengan cast yang sama.
-        const remainingSeconds = (err as { lockoutRemainingSeconds?: number }).lockoutRemainingSeconds
-        const minutes = remainingSeconds ? Math.ceil(remainingSeconds / 60) : null
+        /*
+         * Audit Auth 2026-10-10 (#FE-L5): cabang countdown di modal ini mati
+         * dengan cara yang sama seperti FE-L1 — `ApiError` tidak pernah punya
+         * `lockoutRemainingSeconds`; durasinya hidup di `retryAfterMs`
+         * (diparse transport dari body). Kini memakai helper terpusat.
+         */
         setError(
-          minutes
-            ? translate("Akun terkunci sementara. Coba lagi dalam {x} menit.", { x: minutes })
-            : translate(
-                "Akun terkunci sementara karena terlalu banyak percobaan gagal. Coba beberapa saat lagi.",
-              ),
+          retryAfterMessage(
+            err,
+            translate(
+              "Akun terkunci sementara karena terlalu banyak percobaan gagal. Coba beberapa saat lagi.",
+            ),
+            translate("Akun terkunci sementara"),
+          ),
         )
-      } else if (isApiError(err) && err.code === "RATE_LIMITED") {
-        setError(translate("Terlalu banyak percobaan. Tunggu sebentar sebelum mencoba lagi."))
+      } else if (isCooldownError(err)) {
+        setError(
+          retryAfterMessage(
+            err,
+            translate("Terlalu banyak percobaan. Tunggu sebentar sebelum mencoba lagi."),
+          ),
+        )
       } else if (isApiError(err) && err.code === "UNAUTHORIZED") {
         setError(translate("Username, email, atau kata sandi salah. Periksa kembali dan coba lagi."))
       } else {

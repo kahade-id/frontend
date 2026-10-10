@@ -16,7 +16,10 @@ import { useRouter } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { api, isApiError, userMessage } from "@/lib/api"
-import type { DeletionStatus } from "@/lib/api/account-deletion"
+import type { DeletionRequestResult, DeletionStatus } from "@/lib/api/account-deletion"
+import { takePendingDeletionResult } from "@/lib/account-deletion-result"
+import { copyToClipboard } from "@/lib/clipboard"
+import { translate } from "@/lib/i18n/translate"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 import { formatDate } from "@/lib/format"
@@ -51,6 +54,26 @@ export default function DeletionStatusScreen() {
   const [errorText, setErrorText] = useState<string | null>(null)
   const [confirmCancel, setConfirmCancel] = useState(false)
   const [cancelled, setCancelled] = useState(false)
+  /**
+   * #FE-S16: hasil permintaan hapus akun yang BARU dikirim dari
+   * /delete-account (sesi sudah dicabut server → layar itu tidak bisa lagi
+   * menampilkan kode referensinya). Dibaca sekali saat mount.
+   */
+  const [submitted, setSubmitted] = useState<DeletionRequestResult | null>(takePendingDeletionResult)
+
+  const handleCopyReference = async () => {
+    if (!submitted) return
+    const ok = await copyToClipboard(submitted.referenceCode)
+    toast.show(
+      ok
+        ? { title: translate("Kode referensi disalin"), tone: "success", duration: 2500 }
+        : {
+            title: translate("Gagal menyalin kode"),
+            description: translate("Salin manual dari layar ini."),
+            tone: "danger",
+          },
+    )
+  }
 
   const lookupDto = () =>
     identifier.includes("@")
@@ -70,8 +93,10 @@ export default function DeletionStatusScreen() {
       setMaskedPhone(res.maskedPhone)
       setStep("otp")
       toast.show({
-        title: "Kode dikirim via WhatsApp",
-        description: res.maskedPhone ? `Ke nomor ${res.maskedPhone}.` : undefined,
+        title: translate("Kode dikirim via WhatsApp"),
+        description: res.maskedPhone
+          ? translate("Ke nomor {x}.", { x: res.maskedPhone })
+          : undefined,
         tone: "info",
       })
     } catch (err) {
@@ -130,7 +155,36 @@ export default function DeletionStatusScreen() {
           <Alert tone="danger" onDismiss={() => setErrorText(null)}>{errorText}</Alert>
         ) : null}
 
-        {cancelled ? (
+        {submitted ? (
+          <VStack gap={4}>
+            <VStack gap={2}>
+              <Heading level={1}>Akun dijadwalkan dihapus</Heading>
+              <Text variant="body" tone="secondary" className="text-pretty">
+                {translate(
+                  "Akun Anda dinonaktifkan dan akan dihapus permanen pada {x}. Anda masih bisa membatalkannya sampai tanggal itu.",
+                  { x: formatDate(submitted.purgeAt) },
+                )}
+              </Text>
+            </VStack>
+            <Alert tone="warning" title="Simpan kode referensi ini">
+              {submitted.referenceCode}
+            </Alert>
+            <Button variant="secondary" size="sm" onPress={() => void handleCopyReference()}>
+              Salin kode
+            </Button>
+            <VStack gap={2}>
+              <Heading level={2}>Cara membatalkan</Heading>
+              <Text variant="body" tone="secondary" className="text-pretty">
+                1. Buka layar Masuk, ketuk “Akun dihapus? Pulihkan di sini”.{"\n"}
+                2. Masukkan nomor HP, verifikasi kode WhatsApp, lalu batalkan penghapusan.
+              </Text>
+            </VStack>
+            <Button onPress={() => setSubmitted(null)}>Cek status sekarang</Button>
+            <Button variant="ghost" onPress={() => router.replace(ROUTES.login)}>
+              Ke Layar Masuk
+            </Button>
+          </VStack>
+        ) : cancelled ? (
           <VStack gap={3}>
             <Heading level={1}>Akun dipulihkan</Heading>
             <Text variant="body" tone="secondary" className="text-pretty">
@@ -169,8 +223,14 @@ export default function DeletionStatusScreen() {
           <VStack gap={3}>
             <Heading level={1}>Verifikasi kepemilikan</Heading>
             <Text variant="body" tone="secondary" className="text-pretty">
-              Masukkan kode 6 digit yang dikirim via WhatsApp{maskedPhone ? ` ke ${maskedPhone}` : ""}.
-              Ini membuktikan akun tersebut milik Anda — tanpa membuat sesi login.
+              {maskedPhone
+                ? translate(
+                    "Masukkan kode 6 digit yang dikirim via WhatsApp ke {x}. Ini membuktikan akun tersebut milik Anda — tanpa membuat sesi login.",
+                    { x: maskedPhone },
+                  )
+                : translate(
+                    "Masukkan kode 6 digit yang dikirim via WhatsApp. Ini membuktikan akun tersebut milik Anda — tanpa membuat sesi login.",
+                  )}
             </Text>
             <Input
               label="Kode WhatsApp"

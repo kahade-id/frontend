@@ -10,7 +10,7 @@
  * Endpoint (lib/api/sessions.ts):
  *   GET    /v1/sessions?page&limit               daftar sesi
  *   DELETE /v1/sessions/{id} · /v1/sessions/others
- *   PATCH  /v1/users/me/devices/{id}/trust|untrust  perangkat tepercaya (lewati 2FA)
+ *   PATCH  /v1/users/me/devices/{id}/trust|untrust  perangkat tepercaya (penanda saja — #FE-S9)
  *   GET    /v1/users/me/security-log?page&limit&action
  *   GET    /v1/users/me/activity-log?page&limit
  *
@@ -390,7 +390,7 @@ export default function SecurityActivityScreen() {
       setRevokingAll(false)
     }
     router.replace(ROUTES.login)
-  }, []),
+  }, [])
 
   /**
    * Trust/untrust menuntut re-auth password (TrustDeviceDto produksi: `password`

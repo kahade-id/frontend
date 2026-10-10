@@ -288,7 +288,23 @@ export default function VerifyOtpScreen() {
           // layar supaya tombol Verifikasi mengulang confirm TANPA OTP baru.
           clearRegistrationState()
           clearPasswordResetState()
-          await finishMigration(result.tempToken, location)
+          try {
+            await finishMigration(result.tempToken, location)
+          } catch (confirmErr) {
+            // #FE-N2 (lanjutan): OTP SUDAH diterima — kegagalan di sini milik
+            // langkah confirm, bukan kode. Tanpa cabang ini galat jatuh ke
+            // penangan generik di bawah yang mencocokkan kata "invalid"/"code"
+            // dan menuduh "Kode salah" padahal tempToken tersimpan untuk
+            // diulang. Pesan harus mengarahkan: tekan Verifikasi lagi.
+            haptic("error")
+            setFormError({
+              kind: "generic",
+              message: translate(
+                "Kode diterima, tetapi konfirmasi nomor belum berhasil ({x}). Tekan Verifikasi untuk mencoba lagi tanpa kode baru.",
+                { x: userMessage(confirmErr) },
+              ),
+            })
+          }
           return
         }
 

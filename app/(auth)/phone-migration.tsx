@@ -73,7 +73,12 @@ export default function PhoneMigrationScreen() {
   const errorMessage = !migrationToken
     ? "Sesi migrasi tidak valid. Silakan masuk kembali."
     : formError
-  const backToLogin = () => router.replace(ROUTES.login)
+  const backToLogin = () => {
+    // #FE-S14: keluar dari alur = token migrasi dibuang, tidak menggantung di
+    // memori sampai logout berikutnya (pola yang sama dengan social-link-confirm).
+    clearPendingMigrationToken()
+    router.replace(ROUTES.login)
+  }
 
   const handleSubmit = useCallback(async () => {
     if (submitting || cooldown.isCoolingDown) return

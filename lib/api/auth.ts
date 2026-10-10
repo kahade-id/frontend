@@ -644,6 +644,12 @@ export async function logout(dto: LogoutDto = {}): Promise<void> {
       break
     } catch (err) {
       lastError = err
+      // Audit Auth 2026-10-10 (#FE-S15): hanya kegagalan JARINGAN yang diulang.
+      // 401 (sesi sudah dicabut di server) / 4xx lain tidak akan berubah
+      // dengan diulang — tiga percobaan + backoff hanya menunda layar login
+      // ~1,5 detik tanpa guna, dan di jalur 401 transport sudah mencoba
+      // refresh sekali.
+      if (!isNetworkFailure(err)) break
       if (attempt < 2) await new Promise((resolve) => setTimeout(resolve, 500 * 2 ** attempt))
     }
   }
