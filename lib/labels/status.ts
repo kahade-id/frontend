@@ -66,7 +66,7 @@ export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   DISPUTED: "Sengketa",
   CANCELLED: "Dibatalkan",
   PENDING_PAYMENT: "Pembayaran diproses",
-  PAID: "Dana di escrow",
+  PAID: "Dana di Kahade",
   SHIPPED: "Paket dikirim",
   DELIVERED: "Konfirmasi penerimaan",
   // ESI-021 (audit integrasi 2026-09-30): entri REFUNDED/EXPIRED dihapus —

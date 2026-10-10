@@ -1,5 +1,5 @@
 /**
- * Kahade — istilah baku tunggal untuk dana yang ditahan di escrow (FE-004).
+ * Kahade — istilah baku tunggal untuk dana pesanan yang belum selesai (FE-004).
  *
  * Satu konsep ini sebelumnya dijelaskan dengan empat istilah berbeda di
  * wallet ("uang jaminan", "dana terkunci", "menahan dana", "jaminan
@@ -8,13 +8,12 @@
  * ulang di semua tempat (hero wallet, sheet rincian saldo, sheet holds).
  */
 
-/** Istilah baku untuk dana yang ditahan — satu-satunya yang dipakai di app. */
+/** Istilah baku untuk dana pesanan yang belum selesai — satu-satunya yang dipakai di app. */
 export const ESCROW_HELD_LABEL = "Dalam transaksi"
 
 /**
  * Satu kalimat penjelasan yang dipakai ulang di semua tempat.
- * Catatan: "escrow" dipertahankan sebagai kata baku lintas layar
- * (konsisten di seluruh app, bukan kata sehari-hari yang diganti).
+ * Catatan: kata "escrow"/"ditahan" tidak dipakai di teks pengguna (CLAUDE.md §2).
  */
 export const ESCROW_HELD_EXPLANATION =
   "Dana dalam transaksi untuk pesanan yang belum selesai — cair otomatis saat pesanan selesai atau dibatalkan."

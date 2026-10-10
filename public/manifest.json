@@ -1,7 +1,7 @@
 {
   "name": "Kahade",
   "short_name": "Kahade",
-  "description": "Platform transaksi aman dengan escrow, dompet, dan penyelesaian pesanan.",
+  "description": "Aplikasi jual-beli pengguna ke pengguna yang tampilannya seperti media sosial.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

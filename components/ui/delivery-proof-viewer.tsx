@@ -142,7 +142,7 @@ const DEFAULT_LABELS: DeliveryProofViewerLabels = {
   note: translate("Catatan penjual"),
   uploadedAt: translate("Diunggah"),
   escrowNotice: translate(
-    "Dana di escrow akan dilepas ke penjual setelah Anda mengonfirmasi penerimaan.",
+    "Dana akan diteruskan ke penjual setelah Anda mengonfirmasi penerimaan.",
   ),
   confirm: translate("Konfirmasi diterima"),
   reject: translate("Tolak bukti"),
@@ -422,7 +422,7 @@ export function DeliveryProofViewer({
                     loading={confirming}
                     disabled={busy}
                     onPress={onConfirm}
-                    accessibilityHint="Dana escrow akan dilepas ke penjual"
+                    accessibilityHint="Dana akan diteruskan ke penjual"
                   >
                     {t.confirm}
                   </Button>

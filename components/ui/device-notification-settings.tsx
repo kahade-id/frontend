@@ -18,7 +18,7 @@ const KIND_COPY: Record<LocalNotificationKind, { title: string; description: str
   },
   transaction: {
     title: "Transaksi",
-    description: "Status pesanan, escrow, dompet, sengketa, dan ulasan.",
+    description: "Status pesanan, dompet, sengketa, dan ulasan.",
   },
   showcase: {
     title: "Etalase",

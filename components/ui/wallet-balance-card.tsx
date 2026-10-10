@@ -68,7 +68,7 @@ export type WalletBalanceCardLabels = {
 
 const DEFAULT_LABELS: WalletBalanceCardLabels = {
   available: "Saldo tersedia",
-  held: "Tertahan di escrow",
+  held: "Dalam transaksi",
   hide: "Sembunyikan saldo",
   show: "Tampilkan saldo",
 }

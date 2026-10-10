@@ -2,7 +2,7 @@
  * Kahade — Journey (perjalanan) order.
  *
  * Pure function: menurunkan 5 tahap perjalanan order
- * (Dibuat → Dibayar ke escrow → Dikirim → Diterima → Dana cair)
+ * (Dibuat → Dibayar ke Kahade → Dikirim → Diterima → Dana cair)
  * dari data yang SUDAH ADA di layar detail order — tanpa fetch tambahan,
  * tanpa mengubah logika apa pun.
  *
@@ -35,7 +35,7 @@ export type JourneyStepKey =
 
 export type JourneyStep = {
   key: JourneyStepKey
-  /** Label Indonesia, mis. "Dibayar ke escrow". */
+  /** Label Indonesia, mis. "Dibayar ke Kahade". */
   label: string
   /** Petunjuk singkat untuk langkah berjalan, mis. "Menunggu pembayaran pembeli". */
   hint?: string
@@ -73,7 +73,7 @@ const LABELS: Record<JourneyStepKey, string> = {
   // FE-045: langkah eksplisit antara "dibuat" dan "dibayar" — pada tahap
   // ini BELUM ADA dana yang bergerak.
   confirmed: "Konfirmasi penjual",
-  paid: "Dibayar ke escrow",
+  paid: "Dibayar ke Kahade",
   shipped: "Dikirim penjual",
   received: "Diterima pembeli",
   released: "Dana cair ke penjual",
@@ -201,7 +201,7 @@ export function buildOrderJourney(input: JourneyInput): JourneyStep[] {
         ...(shippedAt ? [shippedDone(shippedAt)] : [shippedUpcoming()]),
         upcoming("received"),
         upcoming("released"),
-        step("disputed", "failed", disputedAt, "danger", "Dana escrow dibekukan sampai sengketa selesai"),
+        step("disputed", "failed", disputedAt, "danger", "Dana dibekukan sampai sengketa selesai"),
       ]
     }
     case "CANCELLED": {
@@ -210,8 +210,8 @@ export function buildOrderJourney(input: JourneyInput): JourneyStep[] {
       // untuk order yang dibatalkan SEBELUM pembayaran — tidak ada dana
       // escrow yang pernah bergerak.
       const cancelledHint = paidAt
-        ? "Dana escrow dikembalikan ke pembeli"
-        : "Order dibatalkan sebelum pembayaran — tidak ada dana yang sempat ditahan"
+        ? "Dana dikembalikan ke pembeli"
+        : "Order dibatalkan sebelum pembayaran — tidak ada dana yang sempat dibayarkan"
       return [
         done("created", createdAt),
         ...(paidAt ? [done("paid", paidAt)] : []),
@@ -236,7 +236,7 @@ export function buildOrderJourney(input: JourneyInput): JourneyStep[] {
     }
     case "WAITING_CONFIRMATION":
     default:
-      // FE-045: "Dibayar ke escrow" TIDAK boleh jadi current — pada tahap
+      // FE-045: "Dibayar ke Kahade" TIDAK boleh jadi current — pada tahap
       // ini uang BELUM bergerak. Langkah "Konfirmasi penjual" yang current.
       return [
         done("created", createdAt),

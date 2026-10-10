@@ -127,8 +127,11 @@
    "n": 13
   },
   {
-"s": "Masuk",
-"s": "Gagal mengunggah foto",
+   "s": "Gagal mengunggah foto",
+   "n": 13
+  },
+  {
+   "s": "Masuk",
    "n": 13
   },
   {
@@ -348,7 +351,7 @@
    "n": 8
   },
   {
-   "s": "Dana aman di escrow",
+   "s": "Dana aman di Kahade",
    "n": 8
   },
   {
@@ -764,11 +767,11 @@
    "n": 6
   },
   {
-   "s": "Kode pos",
+   "s": "Kirim Pesan",
    "n": 6
   },
   {
-   "s": "Kode QR profil",
+   "s": "Kode pos",
    "n": 6
   },
   {
@@ -1028,10 +1031,6 @@
    "n": 5
   },
   {
-   "s": "Bisnis Terverifikasi",
-   "n": 5
-  },
-  {
    "s": "Buat etalase baru",
    "n": 5
   },
@@ -1172,11 +1171,11 @@
    "n": 5
   },
   {
-   "s": "Kirim Pesan",
+   "s": "Kode lisensi",
    "n": 5
   },
   {
-   "s": "Kode lisensi",
+   "s": "Kode QR profil",
    "n": 5
   },
   {
@@ -1332,6 +1331,10 @@
    "n": 4
   },
   {
+   "s": "{x} ulasan",
+   "n": 4
+  },
+  {
    "s": "{x}/{y}",
    "n": 4
   },
@@ -1456,7 +1459,7 @@
    "n": 4
   },
   {
-   "s": "Dana akan ditahan di escrow",
+   "s": "Dana akan disimpan aman oleh Kahade",
    "n": 4
   },
   {
@@ -1517,10 +1520,6 @@
   },
   {
    "s": "Gagal memesan slot",
-   "n": 4
-  },
-  {
-   "s": "Gagal memperbarui favorit",
    "n": 4
   },
   {
@@ -2061,14 +2060,6 @@
   },
   {
    "s": "{x} dari {y} media. Item pertama menjadi cover etalase.",
-   "n": 3
-  },
-  {
-   "s": "{x} dari {y}, {z} ulasan",
-   "n": 3
-  },
-  {
-   "s": "{x} dari {y}, buka ulasan",
    "n": 3
   },
   {
@@ -2752,19 +2743,15 @@
    "n": 3
   },
   {
+   "s": "Dana akan langsung dibagi sesuai usulan berikut dan tidak bisa dibatalkan: {x} Pastikan Anda sudah setuju dengan pembagiannya.",
+   "n": 3
+  },
+  {
    "s": "Dana akan segera diteruskan ke penjual.",
    "n": 3
   },
   {
-   "s": "Dana escrow akan langsung dibagi sesuai usulan berikut dan tidak bisa dibatalkan: {x} Pastikan Anda sudah setuju dengan pembagiannya.",
-   "n": 3
-  },
-  {
    "s": "Dana kembali",
-   "n": 3
-  },
-  {
-   "s": "Dana tertahan sampai permintaan kedaluwarsa. Batalkan sekarang agar saldo langsung bebas.",
    "n": 3
   },
   {
@@ -3161,10 +3148,6 @@
   },
   {
    "s": "Hapus etalase tersimpan",
-   "n": 3
-  },
-  {
-   "s": "Hapus favorit",
    "n": 3
   },
   {
@@ -3829,6 +3812,10 @@
   },
   {
    "s": "Lihat story saya",
+   "n": 3
+  },
+  {
+   "s": "Lihat ulasan",
    "n": 3
   },
   {
@@ -4640,6 +4627,10 @@
    "n": 3
   },
   {
+   "s": "Saldo terpakai sampai permintaan kedaluwarsa. Batalkan sekarang agar saldo langsung bebas.",
+   "n": 3
+  },
+  {
    "s": "Salin ID transaksi",
    "n": 3
   },
@@ -4761,10 +4752,6 @@
   },
   {
    "s": "Simpan etalase yang kamu suka untuk dilihat lagi nanti.",
-   "n": 3
-  },
-  {
-   "s": "Simpan favorit",
    "n": 3
   },
   {
@@ -5172,11 +5159,11 @@
    "n": 3
   },
   {
-   "s": "Total {x} (termasuk biaya) masuk escrow Kahade.",
+   "s": "Total {x} (termasuk biaya) disimpan aman oleh Kahade.",
    "n": 3
   },
   {
-   "s": "Total {x} masuk ke escrow Kahade.",
+   "s": "Total {x} disimpan aman oleh Kahade.",
    "n": 3
   },
   {
@@ -5429,10 +5416,6 @@
   },
   {
    "s": "\"{x}\" terlihat seperti dokumen identitas. Bukti sengketa dilihat mediator dan lawan transaksi. Tetap lampirkan?",
-   "n": 2
-  },
-  {
-   "s": "({x} ulasan)",
    "n": 2
   },
   {
@@ -6348,19 +6331,19 @@
    "n": 2
   },
   {
+   "s": "Dana dicairkan ke rekening bank penjual per tahap setelah hasil diterima.",
+   "n": 2
+  },
+  {
+   "s": "Dana diteruskan ke penjual per tahap setelah hasil diterima.",
+   "n": 2
+  },
+  {
    "s": "Dana diteruskan ke penjual.",
    "n": 2
   },
   {
-   "s": "Dana escrow dicairkan ke rekening bank penjual per tahap setelah hasil diterima.",
-   "n": 2
-  },
-  {
-   "s": "Dana escrow dilepas per tahap setelah hasil diterima.",
-   "n": 2
-  },
-  {
-   "s": "Dana escrow yang akan dilepas: {x}",
+   "s": "Dana Pesanan",
    "n": 2
   },
   {
@@ -6369,6 +6352,10 @@
   },
   {
    "s": "Dana telah diteruskan",
+   "n": 2
+  },
+  {
+   "s": "Dana yang akan diteruskan ke penjual: {x}",
    "n": 2
   },
   {
@@ -6505,10 +6492,6 @@
   },
   {
    "s": "Email, nomor HP, kontak publik, dan tautan sosial diubah di Edit lengkap.",
-   "n": 2
-  },
-  {
-   "s": "Escrow Pesanan",
    "n": 2
   },
   {
@@ -6697,6 +6680,10 @@
   },
   {
    "s": "Gagal membuka pesan untuk diri sendiri",
+   "n": 2
+  },
+  {
+   "s": "Gagal memperbarui favorit",
    "n": 2
   },
   {
@@ -7572,7 +7559,7 @@
    "n": 2
   },
   {
-   "s": "Lewat batas waktu, pesanan dibatalkan otomatis — belum ada dana yang ditahan.",
+   "s": "Lewat batas waktu, pesanan dibatalkan otomatis — belum ada dana yang dibayarkan.",
    "n": 2
   },
   {
@@ -7721,15 +7708,6 @@
   },
   {
    "s": "Masa garansi harus angka {x} atau lebih",
-   "n": 2
-  },
-  {
-"s": "Masih ada foto yang gagal diunggah",
-"s": "Masuk dengan Apple",
-   "n": 2
-  },
-  {
-   "s": "Masuk dengan Google",
    "n": 2
   },
   {
@@ -8133,15 +8111,15 @@
    "n": 2
   },
   {
-   "s": "Order akan dibatalkan. Belum ada dana di escrow untuk status ini — tidak ada pengembalian dana.",
+   "s": "Order akan dibatalkan. Belum ada dana yang dibayarkan untuk status ini — tidak ada pengembalian dana.",
    "n": 2
   },
   {
-   "s": "Order tidak berlanjut — dana escrow telah dikembalikan ke metode pembayaran pembeli oleh {x}.",
+   "s": "Order tidak berlanjut — dana telah dikembalikan ke metode pembayaran pembeli oleh {x}.",
    "n": 2
   },
   {
-   "s": "Order tidak berlanjut — dana escrow telah dikembalikan ke pembeli oleh {x}.",
+   "s": "Order tidak berlanjut — dana telah dikembalikan ke pembeli oleh {x}.",
    "n": 2
   },
   {
@@ -8181,11 +8159,11 @@
    "n": 2
   },
   {
-   "s": "Pembayaran ditahan dengan aman oleh {x} dan akan dicairkan ke rekening bank Anda setelah pembeli mengonfirmasi penerimaan — atau otomatis setelah tenggat tanpa sengketa.",
+   "s": "Pembayaran disimpan aman oleh {x} dan akan dicairkan ke rekening bank Anda setelah pembeli mengonfirmasi penerimaan — atau otomatis setelah tenggat tanpa sengketa.",
    "n": 2
   },
   {
-   "s": "Pembayaran ditahan dengan aman oleh {x} dan akan diteruskan ke dompet Anda setelah pembeli mengonfirmasi penerimaan — atau otomatis setelah tenggat tanpa sengketa.",
+   "s": "Pembayaran disimpan aman oleh {x} dan akan diteruskan ke dompet Anda setelah pembeli mengonfirmasi penerimaan — atau otomatis setelah tenggat tanpa sengketa.",
    "n": 2
   },
   {
@@ -8497,7 +8475,7 @@
    "n": 2
   },
   {
-   "s": "Pesanan Escrow",
+   "s": "Pesanan Kahade",
    "n": 2
   },
   {
@@ -9305,7 +9283,7 @@
    "n": 2
   },
   {
-   "s": "Tawarkan skema DP + cicilan memakai escrow bertahap. Pembeli membayar per termin sesuai milestone.",
+   "s": "Tawarkan skema DP + cicilan dengan pencairan bertahap. Pembeli membayar per termin sesuai milestone.",
    "n": 2
   },
   {
@@ -10021,10 +9999,6 @@
    "n": 1
   },
   {
-   "s": "{x} ulasan",
-   "n": 1
-  },
-  {
    "s": "{x} undangan terbanyak (selalu {x} teratas)",
    "n": 1
   },
@@ -10101,15 +10075,15 @@
    "n": 1
   },
   {
-   "s": "{x}. DATA ESCROW DAN TRANSAKSI",
-   "n": 1
-  },
-  {
    "s": "{x}. DATA LOKASI",
    "n": 1
   },
   {
    "s": "{x}. DATA PEMBAYARAN DAN MITRA KEUANGAN",
+   "n": 1
+  },
+  {
+   "s": "{x}. DATA PENGAMANAN DANA DAN TRANSAKSI",
    "n": 1
   },
   {
@@ -10249,7 +10223,7 @@
    "n": 1
   },
   {
-   "s": "{x}. Pembayaran dan escrow",
+   "s": "{x}. Pembayaran dan pengamanan dana",
    "n": 1
   },
   {
@@ -10325,7 +10299,7 @@
    "n": 1
   },
   {
-   "s": "{x}. Sengketa dan keputusan escrow",
+   "s": "{x}. Sengketa dan keputusan atas dana",
    "n": 1
   },
   {
@@ -10377,11 +10351,7 @@
    "n": 1
   },
   {
-   "s": "{x}.{x} “Dompet” adalah tampilan dan fungsi pencatatan saldo, dana tersedia, dana dalam escrow, mutasi, penarikan, top up, transfer, refund, biaya, dan aktivitas keuangan lain yang didukung Layanan.",
-   "n": 1
-  },
-  {
-   "s": "{x}.{x} “Escrow” adalah mekanisme penahanan dana secara sementara dalam alur transaksi sampai syarat pelepasan, pengembalian, pembatalan, atau penyelesaian sengketa terpenuhi sesuai Syarat dan Ketentuan serta status transaksi.",
+   "s": "{x}.{x} “Dompet” adalah tampilan dan fungsi pencatatan saldo, dana tersedia, dana dalam transaksi, mutasi, penarikan, top up, transfer, refund, biaya, dan aktivitas keuangan lain yang didukung Layanan.",
    "n": 1
   },
   {
@@ -10390,6 +10360,10 @@
   },
   {
    "s": "{x}.{x} “Pemrosesan” mencakup memperoleh, mengumpulkan, mengolah, menganalisis, menyimpan, memperbaiki, memperbarui, menampilkan, mengumumkan, mentransfer, menyebarluaskan, mengungkapkan, menghapus, atau memusnahkan Data Pribadi.",
+   "n": 1
+  },
+  {
+   "s": "{x}.{x} “Pengamanan Dana” adalah mekanisme penyimpanan dana secara sementara dalam alur transaksi sampai syarat pelepasan, pengembalian, pembatalan, atau penyelesaian sengketa terpenuhi sesuai Syarat dan Ketentuan serta status transaksi.",
    "n": 1
   },
   {
@@ -10497,7 +10471,7 @@
    "n": 1
   },
   {
-   "s": "{x}.{x} Data transaksi digunakan untuk membentuk dan melaksanakan kesepakatan, menahan dana dalam escrow, menentukan status, memberi notifikasi, memfasilitasi pengiriman, mencatat persetujuan, menyelesaikan pembatalan atau refund, merekonsiliasi dana, mencegah duplikasi, dan menyediakan bukti transaksi.",
+   "s": "{x}.{x} Data transaksi digunakan untuk membentuk dan melaksanakan kesepakatan, menyimpan dana transaksi, menentukan status, memberi notifikasi, memfasilitasi pengiriman, mencatat persetujuan, menyelesaikan pembatalan atau refund, merekonsiliasi dana, mencegah duplikasi, dan menyediakan bukti transaksi.",
    "n": 1
   },
   {
@@ -10693,7 +10667,7 @@
    "n": 1
   },
   {
-   "s": "{x}.{x} Kami memproses saldo tersedia, saldo dalam escrow, saldo total, top up, transfer, penarikan, refund, biaya administrasi, cashback atau manfaat jika tersedia, batas transaksi, mutasi, referensi pembayaran, status, waktu, dan metadata rekonsiliasi.",
+   "s": "{x}.{x} Kami memproses saldo tersedia, saldo dalam transaksi, saldo total, top up, transfer, penarikan, refund, biaya administrasi, cashback atau manfaat jika tersedia, batas transaksi, mutasi, referensi pembayaran, status, waktu, dan metadata rekonsiliasi.",
    "n": 1
   },
   {
@@ -10861,7 +10835,7 @@
    "n": 1
   },
   {
-   "s": "{x}.{x} Penghapusan dari tampilan tidak selalu sama dengan pemusnahan langsung. Konten dapat melewati masa pemulihan, antrean penghapusan, pencadangan, atau penahanan hukum.",
+   "s": "{x}.{x} Penghapusan dari tampilan tidak selalu sama dengan pemusnahan langsung. Konten dapat melewati masa pemulihan, antrean penghapusan, pencadangan, atau retensi karena kewajiban hukum.",
    "n": 1
   },
   {
@@ -11037,7 +11011,7 @@
    "n": 1
   },
   {
-   "s": "{x}.{x}. Dana yang berhasil diterima untuk Transaksi ditempatkan dalam mekanisme escrow dan belum menjadi dana bebas Penjual sampai kondisi pelepasan terpenuhi.",
+   "s": "{x}.{x}. Dana yang berhasil diterima untuk Transaksi ditempatkan dalam mekanisme pengamanan dana dan belum menjadi dana bebas Penjual sampai kondisi pelepasan terpenuhi.",
    "n": 1
   },
   {
@@ -11057,7 +11031,7 @@
    "n": 1
   },
   {
-   "s": "{x}.{x}. Dompet menampilkan saldo total, saldo tersedia, saldo escrow, dan mutasi sesuai fungsi yang tersedia. Tampilan tidak menggantikan catatan penyelesaian pada mitra pembayaran atau bank jika terjadi perbedaan yang dapat dibuktikan.",
+   "s": "{x}.{x}. Dompet menampilkan saldo total, saldo tersedia, saldo dalam transaksi, dan mutasi sesuai fungsi yang tersedia. Tampilan tidak menggantikan catatan penyelesaian pada mitra pembayaran atau bank jika terjadi perbedaan yang dapat dibuktikan.",
    "n": 1
   },
   {
@@ -11189,7 +11163,7 @@
    "n": 1
   },
   {
-   "s": "{x}.{x}. Kahade menyediakan sarana elektronik untuk menemukan atau menampilkan etalase, berkomunikasi, membentuk kesepakatan, mencatat instruksi, memfasilitasi pembayaran dan escrow, serta menangani sengketa administratif.",
+   "s": "{x}.{x}. Kahade menyediakan sarana elektronik untuk menemukan atau menampilkan etalase, berkomunikasi, membentuk kesepakatan, mencatat instruksi, memfasilitasi pembayaran dan pengamanan dana, serta menangani sengketa administratif.",
    "n": 1
   },
   {
@@ -11217,7 +11191,7 @@
    "n": 1
   },
   {
-   "s": "{x}.{x}. Ketentuan ini berlaku terhadap aplikasi seluler, situs web, antarmuka pemrograman aplikasi yang diizinkan, layanan pelanggan, notifikasi, fitur sosial, etalase, chat, transaksi, escrow, dompet, voucher, promosi, langganan, serta fitur lain yang secara resmi dioperasikan Kahade.",
+   "s": "{x}.{x}. Ketentuan ini berlaku terhadap aplikasi seluler, situs web, antarmuka pemrograman aplikasi yang diizinkan, layanan pelanggan, notifikasi, fitur sosial, etalase, chat, transaksi, pengamanan dana, dompet, voucher, promosi, langganan, serta fitur lain yang secara resmi dioperasikan Kahade.",
    "n": 1
   },
   {
@@ -11341,7 +11315,7 @@
    "n": 1
   },
   {
-   "s": "{x}.{x}. Pengguna dapat meminta penghapusan melalui fitur yang tersedia setelah verifikasi sensitif. Permintaan tidak dapat diproses sampai pesanan dan Sengketa selesai, saldo tersedia ditarik, dana escrow terselesaikan, serta penarikan tidak lagi diproses.",
+   "s": "{x}.{x}. Pengguna dapat meminta penghapusan melalui fitur yang tersedia setelah verifikasi sensitif. Permintaan tidak dapat diproses sampai pesanan dan Sengketa selesai, saldo tersedia ditarik, dana transaksi terselesaikan, serta penarikan tidak lagi diproses.",
    "n": 1
   },
   {
@@ -11369,7 +11343,7 @@
    "n": 1
   },
   {
-   "s": "{x}.{x}. Pengguna harus mampu membuat perjanjian yang sah. Fitur keuangan, escrow, penarikan, verifikasi identitas, dan tindakan berisiko tinggi hanya boleh digunakan oleh pihak yang memenuhi usia, kapasitas, verifikasi, dan persyaratan lain yang ditampilkan serta diwajibkan hukum.",
+   "s": "{x}.{x}. Pengguna harus mampu membuat perjanjian yang sah. Fitur keuangan, pengamanan dana, penarikan, verifikasi identitas, dan tindakan berisiko tinggi hanya boleh digunakan oleh pihak yang memenuhi usia, kapasitas, verifikasi, dan persyaratan lain yang ditampilkan serta diwajibkan hukum.",
    "n": 1
   },
   {
@@ -11405,7 +11379,7 @@
    "n": 1
   },
   {
-   "s": "{x}.{x}. Pengguna tidak memperoleh bunga atas dana escrow kecuali diwajibkan hukum atau ditawarkan secara tegas. Dana tidak boleh digunakan untuk spekulasi atau kepentingan yang bertentangan dengan peruntukannya.",
+   "s": "{x}.{x}. Pengguna tidak memperoleh bunga atas dana transaksi kecuali diwajibkan hukum atau ditawarkan secara tegas. Dana tidak boleh digunakan untuk spekulasi atau kepentingan yang bertentangan dengan peruntukannya.",
    "n": 1
   },
   {
@@ -11461,7 +11435,7 @@
    "n": 1
   },
   {
-   "s": "{x}.{x}. Penukaran tidak dianggap selesai sampai objek pengganti diterima atau kesepakatan lain dipenuhi. Dana dapat tetap ditahan sepanjang diperlukan untuk melindungi kedua pihak.",
+   "s": "{x}.{x}. Penukaran tidak dianggap selesai sampai objek pengganti diterima atau kesepakatan lain dipenuhi. Dana dapat tetap disimpan sepanjang diperlukan untuk melindungi kedua pihak.",
    "n": 1
   },
   {
@@ -11537,7 +11511,7 @@
    "n": 1
   },
   {
-   "s": "{x}.{x}. Selama sengketa, peninjauan risiko, chargeback, permintaan otoritas, gangguan penyedia pembayaran, atau dugaan pelanggaran, pelepasan dana dapat ditahan sementara. Penahanan harus dibatasi pada kebutuhan pemeriksaan dan ditinjau secara wajar.",
+   "s": "{x}.{x}. Selama sengketa, peninjauan risiko, chargeback, permintaan otoritas, gangguan penyedia pembayaran, atau dugaan pelanggaran, pelepasan dana dapat ditangguhkan sementara. Penangguhan harus dibatasi pada kebutuhan pemeriksaan dan ditinjau secara wajar.",
    "n": 1
   },
   {
@@ -11613,7 +11587,7 @@
    "n": 1
   },
   {
-   "s": "{x}.{x}. Untuk mencegah kerugian, keputusan yang telah dieksekusi pada escrow dapat bersifat final secara operasional di sistem, tanpa menghilangkan koreksi atas kesalahan nyata, penipuan, atau putusan/ketetapan berwenang.",
+   "s": "{x}.{x}. Untuk mencegah kerugian, keputusan yang telah dieksekusi atas dana transaksi dapat bersifat final secara operasional di sistem, tanpa menghilangkan koreksi atas kesalahan nyata, penipuan, atau putusan/ketetapan berwenang.",
    "n": 1
   },
   {
@@ -11677,10 +11651,6 @@
    "n": 1
   },
   {
-   "s": "A.{x} Escrow dan pesanan",
-   "n": 1
-  },
-  {
    "s": "A.{x} Identitas dan kontak",
    "n": 1
   },
@@ -11694,6 +11664,10 @@
   },
   {
    "s": "A.{x} KYC dan verifikasi",
+   "n": 1
+  },
+  {
+   "s": "A.{x} Pengamanan dana dan pesanan",
    "n": 1
   },
   {
@@ -11745,7 +11719,7 @@
    "n": 1
   },
   {
-   "s": "A.{x}. Pembayaran, Dompet, dan escrow",
+   "s": "A.{x}. Pembayaran, Dompet, dan pengamanan dana",
    "n": 1
   },
   {
@@ -11789,7 +11763,7 @@
    "n": 1
   },
   {
-   "s": "adalah mekanisme penahanan dan pelepasan dana transaksi berdasarkan tahapan serta kondisi yang ditampilkan. Istilah ini tidak dengan sendirinya menyatakan Kahade sebagai bank, penerbit uang elektronik, atau penyedia jasa pembayaran berizin; pemrosesan pembayaran dapat melibatkan mitra yang tunduk pada ketentuannya sendiri.",
+   "s": "adalah mekanisme penyimpanan dan pelepasan dana transaksi berdasarkan tahapan serta kondisi yang ditampilkan. Istilah ini tidak dengan sendirinya menyatakan Kahade sebagai bank, penerbit uang elektronik, atau penyedia jasa pembayaran berizin; pemrosesan pembayaran dapat melibatkan mitra yang tunduk pada ketentuannya sendiri.",
    "n": 1
   },
   {
@@ -12353,7 +12327,7 @@
    "n": 1
   },
   {
-   "s": "B.{x} Membuat transaksi escrow",
+   "s": "B.{x} Membuat transaksi",
    "n": 1
   },
   {
@@ -13937,11 +13911,7 @@
    "n": 1
   },
   {
-   "s": "Dana akan ditahan di escrow setelah Anda membayar, sampai Anda mengonfirmasi penerimaan.",
-   "n": 1
-  },
-  {
-   "s": "Dana akan ditahan di escrow setelah pembeli membayar — Anda dapat memproses order setelah pembayaran masuk.",
+   "s": "Dana akan diteruskan ke penjual",
    "n": 1
   },
   {
@@ -13950,6 +13920,10 @@
   },
   {
    "s": "Dana akan diteruskan ke penjual dan tidak bisa dibatalkan. Pastikan barang/jasa sudah Anda terima dan sesuai kesepakatan.",
+   "n": 1
+  },
+  {
+   "s": "Dana akan diteruskan ke penjual setelah Anda mengonfirmasi penerimaan.",
    "n": 1
   },
   {
@@ -13969,11 +13943,11 @@
    "n": 1
   },
   {
-   "s": "Dana Anda ditahan di escrow oleh {x} — hanya diteruskan ke penjual setelah Anda mengonfirmasi penerimaan, atau otomatis setelah tenggat tanpa sengketa.",
+   "s": "Dana Anda disimpan aman oleh {x} — hanya diteruskan ke penjual setelah Anda mengonfirmasi penerimaan, atau otomatis setelah tenggat tanpa sengketa.",
    "n": 1
   },
   {
-   "s": "Dana Anda ditahan di escrow oleh {x} sampai Anda mengonfirmasi penerimaan — cair otomatis setelah tenggat tanpa sengketa, atau kembali otomatis bila penjual tidak kirim dalam {x} hari.",
+   "s": "Dana Anda disimpan aman oleh {x} sampai Anda mengonfirmasi penerimaan — cair otomatis setelah tenggat tanpa sengketa, atau kembali otomatis bila penjual tidak kirim dalam {x} hari.",
    "n": 1
   },
   {
@@ -13993,11 +13967,11 @@
    "n": 1
   },
   {
-   "s": "Dana di escrow",
+   "s": "Dana di Kahade",
    "n": 1
   },
   {
-   "s": "Dana di escrow akan dilepas ke penjual setelah Anda mengonfirmasi penerimaan.",
+   "s": "Dana dibekukan sampai mediator memutuskan. Bukti foto bisa ditambahkan setelah sengketa dibuat.",
    "n": 1
   },
   {
@@ -14017,11 +13991,19 @@
    "n": 1
   },
   {
-   "s": "Dana disimpan Kahade",
+   "s": "Dana disimpan aman oleh Kahade setelah Anda membayar, sampai Anda mengonfirmasi penerimaan.",
    "n": 1
   },
   {
-   "s": "Dana ditahan sampai mediator memutuskan. Bukti foto bisa ditambahkan setelah sengketa dibuat.",
+   "s": "Dana disimpan aman oleh Kahade setelah pembeli membayar — Anda dapat memproses order setelah pembayaran masuk.",
+   "n": 1
+  },
+  {
+   "s": "Dana disimpan aman oleh Kahade, baru diteruskan ke penjual setelah Anda konfirmasi terima.",
+   "n": 1
+  },
+  {
+   "s": "Dana disimpan Kahade",
    "n": 1
   },
   {
@@ -14037,23 +14019,7 @@
    "n": 1
   },
   {
-   "s": "Dana dompet: top-up, penarikan, transfer, dan pencairan escrow.",
-   "n": 1
-  },
-  {
-   "s": "Dana escrow akan dilepas ke penjual",
-   "n": 1
-  },
-  {
-   "s": "Dana escrow telah dicairkan ke rekening bank penjual oleh {x} setelah order dikonfirmasi selesai.",
-   "n": 1
-  },
-  {
-   "s": "Dana escrow telah diteruskan ke penjual oleh {x} setelah order dikonfirmasi selesai.",
-   "n": 1
-  },
-  {
-   "s": "Dana escrow yang dilepas ke penjual",
+   "s": "Dana dompet: top-up, penarikan, transfer, dan pencairan dana.",
    "n": 1
   },
   {
@@ -14077,11 +14043,11 @@
    "n": 1
   },
   {
-   "s": "Dana pembeli ditahan escrow — kirim barang dulu, dana cair ke wallet Anda setelah pembeli konfirmasi terima.",
+   "s": "Dana pembeli disimpan aman oleh Kahade — kirim barang dulu, dana cair ke wallet Anda setelah pembeli konfirmasi terima.",
    "n": 1
   },
   {
-   "s": "Dana pembeli ditahan escrow — kirim barang dulu, dana dicairkan ke rekening bank Anda setelah pembeli konfirmasi terima.",
+   "s": "Dana pembeli disimpan aman oleh Kahade — kirim barang dulu, dana dicairkan ke rekening bank Anda setelah pembeli konfirmasi terima.",
    "n": 1
   },
   {
@@ -14097,7 +14063,19 @@
    "n": 1
   },
   {
+   "s": "Dana telah dicairkan ke rekening bank penjual oleh {x} setelah order dikonfirmasi selesai.",
+   "n": 1
+  },
+  {
+   "s": "Dana telah diteruskan ke penjual oleh {x} setelah order dikonfirmasi selesai.",
+   "n": 1
+  },
+  {
    "s": "Dana yang bisa dipakai untuk transfer, tarik dana, dan pembayaran.",
+   "n": 1
+  },
+  {
+   "s": "Dana yang diteruskan ke penjual",
    "n": 1
   },
   {
@@ -14293,7 +14271,7 @@
    "n": 1
   },
   {
-   "s": "Data yang diperlukan untuk top up, escrow, transfer, penarikan, refund, verifikasi rekening, rekonsiliasi, dan penanganan transaksi gagal.",
+   "s": "Data yang diperlukan untuk top up, pengamanan dana, transfer, penarikan, refund, verifikasi rekening, rekonsiliasi, dan penanganan transaksi gagal.",
    "n": 1
   },
   {
@@ -14473,7 +14451,7 @@
    "n": 1
   },
   {
-   "s": "Dibatalkan sebelum diproses. Dana yang sempat ditahan sudah dikembalikan ke saldo — periksa riwayat.",
+   "s": "Dibatalkan sebelum diproses. Dana yang sempat disisihkan sudah dikembalikan ke saldo — periksa riwayat.",
    "n": 1
   },
   {
@@ -14481,11 +14459,11 @@
    "n": 1
   },
   {
-   "s": "Dibayar buyer ke escrow",
+   "s": "Dibayar buyer ke Kahade",
    "n": 1
   },
   {
-   "s": "Dibayar ke escrow",
+   "s": "Dibayar ke Kahade",
    "n": 1
   },
   {
@@ -14886,14 +14864,6 @@
   },
   {
    "s": "Enkripsi.",
-   "n": 1
-  },
-  {
-   "s": "Escrow",
-   "n": 1
-  },
-  {
-   "s": "Escrow balance:",
    "n": 1
   },
   {
@@ -16113,7 +16083,7 @@
    "n": 1
   },
   {
-   "s": "Jastip menitipkan belanja ke host lewat escrow: harga dikunci di depan, dana cair setelah barang diterima.",
+   "s": "Jastip menitipkan belanja ke host lewat Kahade: harga dikunci di depan, dana cair setelah barang diterima.",
    "n": 1
   },
   {
@@ -16209,7 +16179,7 @@
    "n": 1
   },
   {
-   "s": "Jual atau beli dengan dana dijaga escrow",
+   "s": "Jual atau beli dengan dana dijaga Kahade",
    "n": 1
   },
   {
@@ -16273,7 +16243,7 @@
    "n": 1
   },
   {
-   "s": "Kahade adalah platform social commerce dan fasilitasi transaksi peer-to-peer dengan mekanisme rekening bersama atau escrow. Pengguna dapat membuat profil dan etalase, berinteraksi melalui fitur sosial, berkomunikasi, membuat transaksi, melakukan pembayaran melalui metode yang tersedia, memantau pengiriman, mengonfirmasi penerimaan, memberi ulasan, serta mengajukan sengketa. Dana transaksi ditahan selama proses yang ditentukan dan diteruskan sesuai status transaksi, instruksi yang sah, keputusan sengketa, atau kewajiban hukum.",
+   "s": "Kahade adalah platform social commerce dan fasilitasi transaksi peer-to-peer dengan mekanisme pengamanan dana transaksi. Pengguna dapat membuat profil dan etalase, berinteraksi melalui fitur sosial, berkomunikasi, membuat transaksi, melakukan pembayaran melalui metode yang tersedia, memantau pengiriman, mengonfirmasi penerimaan, memberi ulasan, serta mengajukan sengketa. Dana transaksi disimpan selama proses yang ditentukan dan diteruskan sesuai status transaksi, instruksi yang sah, keputusan sengketa, atau kewajiban hukum.",
    "n": 1
   },
   {
@@ -16285,7 +16255,7 @@
    "n": 1
   },
   {
-   "s": "Kahade memproses rekening tujuan, nominal, biaya, PIN atau autentikasi, lokasi jika diminta, pemeriksaan risiko, dan hasil mitra. Penarikan dapat ditahan sementara untuk verifikasi atau kepatuhan.",
+   "s": "Kahade memproses rekening tujuan, nominal, biaya, PIN atau autentikasi, lokasi jika diminta, pemeriksaan risiko, dan hasil mitra. Penarikan dapat ditangguhkan sementara untuk verifikasi atau kepatuhan.",
    "n": 1
   },
   {
@@ -16513,7 +16483,7 @@
    "n": 1
   },
   {
-   "s": "Kebijakan Privasi ini menjelaskan bagaimana PT Kawal Hak Dengan Aman (selanjutnya disebut “Kahade”, “kami”, atau “milik kami”) memperoleh, menggunakan, menyimpan, mengungkapkan, melindungi, dan menghapus Data Pribadi ketika Anda menggunakan aplikasi, situs web, fitur escrow atau rekening bersama digital, dompet, transaksi, etalase sosial-commerce, profil, percakapan, dukungan pelanggan, serta kanal resmi Kahade lainnya (secara bersama-sama disebut “Layanan”).",
+   "s": "Kebijakan Privasi ini menjelaskan bagaimana PT Kawal Hak Dengan Aman (selanjutnya disebut “Kahade”, “kami”, atau “milik kami”) memperoleh, menggunakan, menyimpan, mengungkapkan, melindungi, dan menghapus Data Pribadi ketika Anda menggunakan aplikasi, situs web, fitur pengamanan dana transaksi, dompet, transaksi, etalase sosial-commerce, profil, percakapan, dukungan pelanggan, serta kanal resmi Kahade lainnya (secara bersama-sama disebut “Layanan”).",
    "n": 1
   },
   {
@@ -17097,7 +17067,7 @@
    "n": 1
   },
   {
-   "s": "Kode verifikasi kedaluwarsa sebelum penarikan diproses. Dana yang sempat ditahan sudah dikembalikan ke saldo.",
+   "s": "Kode verifikasi kedaluwarsa sebelum penarikan diproses. Dana yang sempat disisihkan sudah dikembalikan ke saldo.",
    "n": 1
   },
   {
@@ -17457,11 +17427,11 @@
    "n": 1
   },
   {
-   "s": "Langkah berikutnya: konfirmasi pesanan ini agar pembeli dapat membayar ke escrow.",
+   "s": "Langkah berikutnya: konfirmasi pesanan ini agar pembeli dapat membayar ke Kahade.",
    "n": 1
   },
   {
-   "s": "Langkah berikutnya: menunggu pembeli membayar ke escrow.",
+   "s": "Langkah berikutnya: menunggu pembeli membayar ke Kahade.",
    "n": 1
   },
   {
@@ -17849,10 +17819,6 @@
    "n": 1
   },
   {
-   "s": "Masuk escrow ({x} orang)",
-   "n": 1
-  },
-  {
    "s": "Masuk hanya butuh kata sandi. Konfirmasi dengan kata sandi, kode autentikator, dan OTP email.",
    "n": 1
   },
@@ -18085,7 +18051,7 @@
    "n": 1
   },
   {
-   "s": "membuat akun, mengelola profil, menjalankan fitur sosial, komunikasi, etalase, transaksi, escrow, dompet, dan dukungan.",
+   "s": "membuat akun, mengelola profil, menjalankan fitur sosial, komunikasi, etalase, transaksi, pengamanan dana, dompet, dan dukungan.",
    "n": 1
   },
   {
@@ -18145,7 +18111,7 @@
    "n": 1
   },
   {
-   "s": "Meminta pembayaran di luar escrow atau tidak mengirim barang",
+   "s": "Meminta pembayaran di luar Kahade atau tidak mengirim barang",
    "n": 1
   },
   {
@@ -18321,7 +18287,7 @@
    "n": 1
   },
   {
-   "s": "Menampilkan penjelasan saldo tersedia, dana ditahan di escrow, dan total",
+   "s": "Menampilkan penjelasan saldo tersedia, dana dalam transaksi, dan total",
    "n": 1
   },
   {
@@ -19125,7 +19091,7 @@
    "n": 1
   },
   {
-   "s": "Order dibatalkan sebelum pembayaran — tidak ada dana yang sempat ditahan di escrow.",
+   "s": "Order dibatalkan sebelum pembayaran — tidak ada dana yang sempat dibayarkan.",
    "n": 1
   },
   {
@@ -19317,7 +19283,7 @@
    "n": 1
   },
   {
-   "s": "Patungan mengumpulkan dana bersama lewat escrow: dana hanya cair ke host bila target tercapai.",
+   "s": "Patungan mengumpulkan dana bersama lewat Kahade: dana hanya cair ke host bila target tercapai.",
    "n": 1
   },
   {
@@ -19629,6 +19595,10 @@
    "n": 1
   },
   {
+   "s": "Pengamanan Dana",
+   "n": 1
+  },
+  {
    "s": "Penganoniman:",
    "n": 1
   },
@@ -19705,7 +19675,7 @@
    "n": 1
   },
   {
-   "s": "Penghapusan belum bisa diproses: masih ada dana yang tertahan di escrow. Selesaikan pesanan yang tertunda dulu, lalu coba lagi.",
+   "s": "Penghapusan belum bisa diproses: masih ada dana dalam transaksi yang belum selesai. Selesaikan pesanan yang tertunda dulu, lalu coba lagi.",
    "n": 1
   },
   {
@@ -20421,7 +20391,7 @@
    "n": 1
   },
   {
-   "s": "Pesanan diterima, dan pembeli dapat melanjutkan pembayaran ke escrow. Selesaikan pekerjaan sesuai kesepakatan setelah dana masuk.",
+   "s": "Pesanan diterima, dan pembeli dapat melanjutkan pembayaran. Selesaikan pekerjaan sesuai kesepakatan setelah dana masuk.",
    "n": 1
   },
   {
@@ -21065,6 +21035,10 @@
    "n": 1
   },
   {
+   "s": "Saldo dalam transaksi:",
+   "n": 1
+  },
+  {
    "s": "Saldo Tersedia",
    "n": 1
   },
@@ -21201,7 +21175,7 @@
    "n": 1
   },
   {
-   "s": "Selama Sengketa, hanya nilai yang relevan yang seharusnya ditahan kecuali risiko meluas dapat dibuktikan. Akses bukti dibatasi. Dokumen identitas dan data keuangan tidak ditampilkan kepada pihak lain kecuali perlu dan sah.",
+   "s": "Selama Sengketa, hanya nilai yang relevan yang seharusnya dibekukan kecuali risiko meluas dapat dibuktikan. Akses bukti dibatasi. Dokumen identitas dan data keuangan tidak ditampilkan kepada pihak lain kecuali perlu dan sah.",
    "n": 1
   },
   {
@@ -21353,7 +21327,7 @@
    "n": 1
   },
   {
-   "s": "Sepakati pembagian dana escrow tanpa menunggu keputusan mediator.",
+   "s": "Sepakati pembagian dana tanpa menunggu keputusan mediator.",
    "n": 1
   },
   {
@@ -21729,15 +21703,15 @@
    "n": 1
   },
   {
-   "s": "Status pesanan, dana masuk/keluar rekening escrow, dan batas waktu pembayaran. Sangat disarankan tetap aktif.",
+   "s": "Status pesanan, dana masuk/keluar, dan batas waktu pembayaran. Sangat disarankan tetap aktif.",
    "n": 1
   },
   {
-   "s": "Status pesanan, escrow, dompet, sengketa, dan ulasan.",
+   "s": "Status pesanan, dompet, sengketa, dan ulasan.",
    "n": 1
   },
   {
-   "s": "Status pesanan: pembayaran diterima, pengiriman, dan penyelesaian escrow.",
+   "s": "Status pesanan: pembayaran diterima, pengiriman, dan pencairan dana.",
    "n": 1
   },
   {
@@ -22329,6 +22303,10 @@
    "n": 1
   },
   {
+   "s": "Terkumpul ({x} orang)",
+   "n": 1
+  },
+  {
    "s": "Terlalu banyak percobaan gagal. Selesaikan verifikasi keamanan lalu coba lagi.",
    "n": 1
   },
@@ -22557,7 +22535,7 @@
    "n": 1
   },
   {
-   "s": "Tindakan dapat berupa pengurangan distribusi, label, penghapusan, pembatasan chat, pembekuan etalase, pembatalan transaksi, penahanan manfaat promo, verifikasi ulang, suspensi, atau penghentian. Tindakan disesuaikan dengan risiko dan tidak menggantikan proses hukum.",
+   "s": "Tindakan dapat berupa pengurangan distribusi, label, penghapusan, pembatasan chat, pembekuan etalase, pembatalan transaksi, penangguhan manfaat promo, verifikasi ulang, suspensi, atau penghentian. Tindakan disesuaikan dengan risiko dan tidak menggantikan proses hukum.",
    "n": 1
   },
   {
@@ -22721,7 +22699,7 @@
    "n": 1
   },
   {
-   "s": "Tujuan utamanya adalah menyediakan Layanan; mengautentikasi pengguna; melaksanakan escrow, top up, penarikan, transfer, refund, dan rekonsiliasi; memverifikasi identitas; mencegah penipuan; menyelesaikan sengketa; memoderasi konten; mengirim notifikasi; memperbaiki Layanan; dan memenuhi kewajiban hukum.",
+   "s": "Tujuan utamanya adalah menyediakan Layanan; mengautentikasi pengguna; melaksanakan pengamanan dana transaksi, top up, penarikan, transfer, refund, dan rekonsiliasi; memverifikasi identitas; mencegah penipuan; menyelesaikan sengketa; memoderasi konten; mengirim notifikasi; memperbaiki Layanan; dan memenuhi kewajiban hukum.",
    "n": 1
   },
   {
@@ -22769,7 +22747,7 @@
    "n": 1
   },
   {
-   "s": "Tunjukkan kode ini kepada pembeli atau mitra untuk membuka profil dan bertransaksi escrow secara aman.",
+   "s": "Tunjukkan kode ini kepada pembeli atau mitra untuk membuka profil dan bertransaksi secara aman.",
    "n": 1
   },
   {
@@ -22785,7 +22763,7 @@
    "n": 1
   },
   {
-   "s": "Tutup info escrow",
+   "s": "Tutup info dana",
    "n": 1
   },
   {

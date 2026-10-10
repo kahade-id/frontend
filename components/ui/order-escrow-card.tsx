@@ -51,8 +51,8 @@ function escrowCopy(
         title: translate("Dana telah diteruskan"),
         body: translate(
           walletEnabled
-            ? "Dana escrow telah diteruskan ke penjual oleh {x} setelah order dikonfirmasi selesai."
-            : "Dana escrow telah dicairkan ke rekening bank penjual oleh {x} setelah order dikonfirmasi selesai.",
+            ? "Dana telah diteruskan ke penjual oleh {x} setelah order dikonfirmasi selesai."
+            : "Dana telah dicairkan ke rekening bank penjual oleh {x} setelah order dikonfirmasi selesai.",
           { x: COMPANY },
         ),
       }
@@ -62,7 +62,7 @@ function escrowCopy(
         return {
           title: translate("Order dibatalkan"),
           body: translate(
-            "Order dibatalkan sebelum pembayaran — tidak ada dana yang sempat ditahan di escrow.",
+            "Order dibatalkan sebelum pembayaran — tidak ada dana yang sempat dibayarkan.",
           ),
         }
       }
@@ -70,8 +70,8 @@ function escrowCopy(
         title: translate("Dana dikembalikan"),
         body: translate(
           walletEnabled
-            ? "Order tidak berlanjut — dana escrow telah dikembalikan ke pembeli oleh {x}."
-            : "Order tidak berlanjut — dana escrow telah dikembalikan ke metode pembayaran pembeli oleh {x}.",
+            ? "Order tidak berlanjut — dana telah dikembalikan ke pembeli oleh {x}."
+            : "Order tidak berlanjut — dana telah dikembalikan ke metode pembayaran pembeli oleh {x}.",
           { x: COMPANY },
         ),
       }
@@ -80,8 +80,8 @@ function escrowCopy(
         title: translate("Dana dikembalikan"),
         body: translate(
           walletEnabled
-            ? "Order tidak berlanjut — dana escrow telah dikembalikan ke pembeli oleh {x}."
-            : "Order tidak berlanjut — dana escrow telah dikembalikan ke metode pembayaran pembeli oleh {x}.",
+            ? "Order tidak berlanjut — dana telah dikembalikan ke pembeli oleh {x}."
+            : "Order tidak berlanjut — dana telah dikembalikan ke metode pembayaran pembeli oleh {x}.",
           { x: COMPANY },
         ),
       }
@@ -102,18 +102,18 @@ function escrowCopy(
     case "PENDING_PAYMENT":
       return myRole === "SELLER"
         ? {
-            title: translate("Dana akan ditahan di escrow"),
+            title: translate("Dana akan disimpan aman oleh Kahade"),
             // FE-090: satu kalimat — gabungkan "setelah pembeli membayar"
             // dengan "setelah pembayaran masuk".
             body: translate(
-              "Dana akan ditahan di escrow setelah pembeli membayar — Anda dapat memproses order setelah pembayaran masuk.",
+              "Dana disimpan aman oleh Kahade setelah pembeli membayar — Anda dapat memproses order setelah pembayaran masuk.",
             ),
           }
         : {
-            title: translate("Dana akan ditahan di escrow"),
+            title: translate("Dana akan disimpan aman oleh Kahade"),
             // FE-090: satu kalimat; istilah baku "Ditahan di escrow" (§9).
             body: translate(
-              "Dana akan ditahan di escrow setelah Anda membayar, sampai Anda mengonfirmasi penerimaan.",
+              "Dana disimpan aman oleh Kahade setelah Anda membayar, sampai Anda mengonfirmasi penerimaan.",
             ),
           }
     // U5-012 (UX-deep 2026-09-29, keputusan produk): saat PROCESSING,
@@ -123,39 +123,39 @@ function escrowCopy(
     case "PROCESSING":
       return myRole === "SELLER"
         ? {
-            title: translate("Dana aman di escrow"),
+            title: translate("Dana aman di Kahade"),
             body: translate(
               walletEnabled
-                ? "Pembayaran ditahan dengan aman oleh {x} dan akan diteruskan ke dompet Anda setelah pembeli mengonfirmasi penerimaan — atau otomatis setelah tenggat tanpa sengketa."
-                : "Pembayaran ditahan dengan aman oleh {x} dan akan dicairkan ke rekening bank Anda setelah pembeli mengonfirmasi penerimaan — atau otomatis setelah tenggat tanpa sengketa.",
+                ? "Pembayaran disimpan aman oleh {x} dan akan diteruskan ke dompet Anda setelah pembeli mengonfirmasi penerimaan — atau otomatis setelah tenggat tanpa sengketa."
+                : "Pembayaran disimpan aman oleh {x} dan akan dicairkan ke rekening bank Anda setelah pembeli mengonfirmasi penerimaan — atau otomatis setelah tenggat tanpa sengketa.",
               { x: COMPANY },
             ),
           }
         : {
-            title: translate("Dana aman di escrow"),
+            title: translate("Dana aman di Kahade"),
             // FE-090: satu kalimat — jaminan auto-refund 2 hari (U5-012,
             // keputusan produk) digabung dengan em-dash, bukan kalimat terpisah.
             body: translate(
-              "Dana Anda ditahan di escrow oleh {x} sampai Anda mengonfirmasi penerimaan — cair otomatis setelah tenggat tanpa sengketa, atau kembali otomatis bila penjual tidak kirim dalam 2 hari.",
+              "Dana Anda disimpan aman oleh {x} sampai Anda mengonfirmasi penerimaan — cair otomatis setelah tenggat tanpa sengketa, atau kembali otomatis bila penjual tidak kirim dalam 2 hari.",
               { x: COMPANY },
             ),
           }
     default:
       return myRole === "SELLER"
         ? {
-            title: translate("Dana aman di escrow"),
+            title: translate("Dana aman di Kahade"),
             body: translate(
               walletEnabled
-                ? "Pembayaran ditahan dengan aman oleh {x} dan akan diteruskan ke dompet Anda setelah pembeli mengonfirmasi penerimaan — atau otomatis setelah tenggat tanpa sengketa."
-                : "Pembayaran ditahan dengan aman oleh {x} dan akan dicairkan ke rekening bank Anda setelah pembeli mengonfirmasi penerimaan — atau otomatis setelah tenggat tanpa sengketa.",
+                ? "Pembayaran disimpan aman oleh {x} dan akan diteruskan ke dompet Anda setelah pembeli mengonfirmasi penerimaan — atau otomatis setelah tenggat tanpa sengketa."
+                : "Pembayaran disimpan aman oleh {x} dan akan dicairkan ke rekening bank Anda setelah pembeli mengonfirmasi penerimaan — atau otomatis setelah tenggat tanpa sengketa.",
               { x: COMPANY },
             ),
           }
         : {
-            title: translate("Dana aman di escrow"),
+            title: translate("Dana aman di Kahade"),
             // FE-090: satu kalimat; istilah baku "Ditahan di escrow" (§9).
             body: translate(
-              "Dana Anda ditahan di escrow oleh {x} — hanya diteruskan ke penjual setelah Anda mengonfirmasi penerimaan, atau otomatis setelah tenggat tanpa sengketa.",
+              "Dana Anda disimpan aman oleh {x} — hanya diteruskan ke penjual setelah Anda mengonfirmasi penerimaan, atau otomatis setelah tenggat tanpa sengketa.",
               { x: COMPANY },
             ),
           }

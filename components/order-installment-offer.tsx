@@ -89,7 +89,7 @@ export function InstallmentOfferSection({
         </Text>
       </View>
       <Text variant="caption" tone="secondary">
-        {translate("Tawarkan skema DP + cicilan memakai escrow bertahap. Pembeli membayar per termin sesuai milestone.")}
+        {translate("Tawarkan skema DP + cicilan dengan pencairan bertahap. Pembeli membayar per termin sesuai milestone.")}
       </Text>
       <PressableScale
         accessibilityRole="button"

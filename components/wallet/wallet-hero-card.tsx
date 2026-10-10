@@ -21,7 +21,7 @@
  *
  * Aksesibilitas (pola HomeOverviewCard, audit #4): blok saldo dibungkus
  * <CardSummary> — satu elemen ringkasan ("Saldo dompet, Rp1.250.000,
- * Rp350.000 ditahan di escrow") — sedangkan toggle mata kontrol fokusable
+ * Rp350.000 dalam transaksi") — sedangkan toggle mata kontrol fokusable
  * terpisah. Root kartu TIDAK berlabel.
  */
 import { Bank, CaretRight, Eye, EyeSlash, Info, LockSimple, Wallet } from "phosphor-react-native"
@@ -44,7 +44,7 @@ export type WalletHeroCardProps = {
   /** Saldo tersedia — exact dari `GET /v1/wallet`. */
   available?: number
   /**
-   * Dana ditahan di escrow — pemanggil memetakan
+   * Dana dalam transaksi — pemanggil memetakan
    * `wallet.holdBalance ?? wallet.escrowBalance` (backend mengirim
    * `escrowBalance`; `holdBalance` fallback lama).
    */
@@ -57,7 +57,7 @@ export type WalletHeroCardProps = {
   error?: string | null
   onRetry?: () => void
   /**
-   * FE-IMP-4 item 1: bila diisi, sub-baris "ditahan di escrow" menjadi tombol
+   * FE-IMP-4 item 1: bila diisi, sub-baris "dalam transaksi" menjadi tombol
    * yang membuka rincian order penahan (read-only).
    */
   onPressHeld?: () => void
@@ -160,7 +160,7 @@ export function WalletHeroCard({
                     onPress={onPressBreakdown}
                     accessibilityRole="button"
                     accessibilityLabel="Lihat rincian saldo"
-                    accessibilityHint="Menampilkan penjelasan saldo tersedia, dana ditahan di escrow, dan total"
+                    accessibilityHint="Menampilkan penjelasan saldo tersedia, dana dalam transaksi, dan total"
                     className={cn(
                       "-my-2 -mr-2 min-h-11 min-w-11 items-center justify-center rounded-full",
                       focusRing,

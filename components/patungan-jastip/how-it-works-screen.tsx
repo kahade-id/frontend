@@ -52,7 +52,7 @@ function SimTable({ rows }: { rows: SimRow[] }) {
 
 const PATUNGAN_STEPS = [
   "Host membuat grup: tentukan target dana, iuran per orang, dan deadline.",
-  "Semua peserta membayar iuran ke escrow SEBELUM deadline — bukan ke host langsung.",
+  "Semua peserta membayar iuran ke Kahade SEBELUM deadline — bukan ke host langsung.",
   "Fee layanan dibagi rata ke semua peserta dan tampil di depan sebelum membayar.",
   "Target tercapai → host mengajukan pencairan; ada masa sanggah 24 jam untuk peserta sebelum dana cair.",
   "Target tidak tercapai saat deadline → dana kembali OTOMATIS dan penuh ke semua peserta (termasuk fee).",
@@ -63,7 +63,7 @@ const PATUNGAN_STEPS = [
 const JASTIP_STEPS = [
   "Host membuat etalase trip: tujuan, deadline pesanan, jumlah slot, dan katalog — request bebas juga bisa.",
   "Peserta mengajukan request barang; host mengonfirmasi dan MENGUNCI harga (harga barang + fee jastip + ongkir, terpisah).",
-  "Buyer membayar total yang dikunci ke escrow.",
+  "Buyer membayar total yang dikunci ke Kahade.",
   "Host berbelanja. Bila host gagal mendapatkan barang → dana kembali OTOMATIS ke buyer.",
   "Host mengirim barang; buyer konfirmasi terima → dana cair ke host.",
   "Buyer membatalkan SETELAH host membeli (ada struk) → diselesaikan lewat sengketa normal.",
@@ -83,8 +83,8 @@ export function HowItWorksScreen({ mode }: { mode: HowItWorksMode }) {
       <View className="gap-6 px-5 pb-10 pt-4">
         <Text variant="body" tone="secondary" className="text-pretty">
           {isPatungan
-            ? "Patungan mengumpulkan dana bersama lewat escrow: dana hanya cair ke host bila target tercapai."
-            : "Jastip menitipkan belanja ke host lewat escrow: harga dikunci di depan, dana cair setelah barang diterima."}
+            ? "Patungan mengumpulkan dana bersama lewat Kahade: dana hanya cair ke host bila target tercapai."
+            : "Jastip menitipkan belanja ke host lewat Kahade: harga dikunci di depan, dana cair setelah barang diterima."}
         </Text>
 
         <View className="gap-4">
@@ -109,7 +109,7 @@ export function HowItWorksScreen({ mode }: { mode: HowItWorksMode }) {
                   { label: "Iuran pokok per orang", value: formatRupiah(100000) },
                   { label: "Fee layanan per orang (dibagi rata, tampil di depan)", value: formatRupiah(2000) },
                   { label: "Dibayar tiap peserta", value: formatRupiah(102000), bold: true },
-                  { label: "Masuk escrow (10 orang)", value: formatRupiah(1020000) },
+                  { label: "Terkumpul (10 orang)", value: formatRupiah(1020000) },
                   { label: "Cair ke host (setelah masa sanggah 24 jam)", value: formatRupiah(1000000), bold: true },
                 ]}
               />
@@ -133,7 +133,7 @@ export function HowItWorksScreen({ mode }: { mode: HowItWorksMode }) {
                   { label: "Harga barang (dikunci host)", value: formatRupiah(850000) },
                   { label: "Fee jastip", value: formatRupiah(50000) },
                   { label: "Ongkir", value: formatRupiah(25000) },
-                  { label: "Dibayar buyer ke escrow", value: formatRupiah(925000), bold: true },
+                  { label: "Dibayar buyer ke Kahade", value: formatRupiah(925000), bold: true },
                   { label: "Cair ke host (setelah buyer konfirmasi)", value: formatRupiah(925000), bold: true },
                 ]}
               />

@@ -102,7 +102,7 @@ const DEFAULT_LABELS: OrderLinkPreviewCardLabels = {
   },
   expires: "Berlaku hingga",
   lockedTo: (u) => `Tautan ini hanya untuk @${u}. Masuk dengan akun tersebut untuk menerima.`,
-  consequenceBuyer: (amount) => `Dengan menerima, Anda akan membayar ${amount} ke rekening escrow Kahade.`,
+  consequenceBuyer: (amount) => `Dengan menerima, Anda akan membayar ${amount} ke Kahade.`,
   consequenceSeller: (amount) => `Dengan menerima, Anda akan menerima ${amount} setelah pembeli mengonfirmasi penerimaan.`,
   accept: "Terima & lanjutkan",
   decline: "Tolak",
@@ -184,10 +184,10 @@ export function OrderLinkPreviewCard({
     if (feeResponsibility === "SELLER") return t.consequenceBuyer(amountText)
     // Biaya ditanggung pembeli + angka server ada → total pasti.
     if (feeResponsibility === "BUYER" && feeAmount != null) {
-      return `Dengan menerima, Anda akan membayar ${formatRupiah(orderValue + feeAmount)} ke rekening escrow Kahade (termasuk biaya layanan ${formatRupiah(feeAmount)}).`
+      return `Dengan menerima, Anda akan membayar ${formatRupiah(orderValue + feeAmount)} ke Kahade (termasuk biaya layanan ${formatRupiah(feeAmount)}).`
     }
     // Biaya (sebagian) di pembeli tapi angka belum ada → jujur, tanpa klaim.
-    return `Dengan menerima, Anda akan membayar ${amountText} ke rekening escrow Kahade, ditambah biaya layanan${feeResponsibility === "SPLIT" ? " (dibagi dua pihak)" : ""}. Rincian pasti dihitung saat Anda menekan Terima.`
+    return `Dengan menerima, Anda akan membayar ${amountText} ke Kahade, ditambah biaya layanan${feeResponsibility === "SPLIT" ? " (dibagi dua pihak)" : ""}. Rincian pasti dihitung saat Anda menekan Terima.`
   }
 
   return (

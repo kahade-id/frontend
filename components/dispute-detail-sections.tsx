@@ -227,7 +227,7 @@ export function DisputeMutualSection({
     <>
       <SectionHeader
         title="Penyelesaian bersama"
-        subtitle="Sepakati pembagian dana escrow tanpa menunggu keputusan mediator."
+        subtitle="Sepakati pembagian dana tanpa menunggu keputusan mediator."
         action={
           !hasPendingProposal && hasOrder ? (
             <Button variant="secondary" size="sm" leftIcon={Handshake} onPress={onOpenPropose}>
@@ -496,7 +496,7 @@ export function DisputeActionDialogs({
 
       <Dialog
         title="Setujui usulan penyelesaian?"
-        description={translate("Dana escrow akan langsung dibagi sesuai usulan berikut dan tidak bisa dibatalkan: {x} Pastikan Anda sudah setuju dengan pembagiannya.", { x: acceptSummary })}
+        description={translate("Dana akan langsung dibagi sesuai usulan berikut dan tidak bisa dibatalkan: {x} Pastikan Anda sudah setuju dengan pembagiannya.", { x: acceptSummary })}
         visible={acceptOpen}
         loading={accepting}
         confirmLabel="Ya, setujui"

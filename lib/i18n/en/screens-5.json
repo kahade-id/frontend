@@ -104,7 +104,7 @@
   "Semua transaksi": "All transactions",
   "Sengketa pesanan akan muncul di sini.": "Order disputes will appear here.",
   "Sengketa saya": "My disputes",
-  "Sepakati pembagian dana escrow tanpa menunggu keputusan mediator.": "Agree on how the escrow funds are split without waiting for the mediator's decision.",
+  "Sepakati pembagian dana tanpa menunggu keputusan mediator.": "Agree on how the funds are split without waiting for the mediator's decision.",
   "Server membatasi riwayat {x} hari terakhir. Unduh CSV untuk rentang lengkap yang disediakan server.": "The server limits history to the last {x} days. Download the CSV for the full range the server provides.",
   "Sesi belum dapat dipulihkan": "The session couldn't be restored",
   "Sesi dicabut": "Session revoked",

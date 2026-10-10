@@ -23,7 +23,7 @@ export function orderNextStepHint(
   switch (status) {
     case "WAITING_CONFIRMATION":
       return role === "SELLER"
-        ? translate("Langkah berikutnya: konfirmasi pesanan ini agar pembeli dapat membayar ke escrow.")
+        ? translate("Langkah berikutnya: konfirmasi pesanan ini agar pembeli dapat membayar ke Kahade.")
         : role === "BUYER"
           ? translate("Langkah berikutnya: menunggu penjual mengonfirmasi pesanan Anda.")
           : null
@@ -31,7 +31,7 @@ export function orderNextStepHint(
     case "PENDING_PAYMENT":
       // Pembeli melihat tombol Bayar (bukan area kosong) — hint hanya untuk penjual.
       return role === "SELLER"
-        ? translate("Langkah berikutnya: menunggu pembeli membayar ke escrow.")
+        ? translate("Langkah berikutnya: menunggu pembeli membayar ke Kahade.")
         : null
     case "PROCESSING":
       // U5-012 (UX-deep 2026-09-29, keputusan produk): tenggat kirim 2 hari

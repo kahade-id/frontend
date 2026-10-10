@@ -47,13 +47,13 @@ function failureCopy(status?: string | null): { title: string; hint: string } {
   if (s === "CANCELLED") {
     return {
       title: "Penarikan dibatalkan",
-      hint: "Dibatalkan sebelum diproses. Dana yang sempat ditahan sudah dikembalikan ke saldo — periksa riwayat.",
+      hint: "Dibatalkan sebelum diproses. Dana yang sempat disisihkan sudah dikembalikan ke saldo — periksa riwayat.",
     }
   }
   if (s === "EXPIRED") {
     return {
       title: "Verifikasi kedaluwarsa",
-      hint: "Kode verifikasi kedaluwarsa sebelum penarikan diproses. Dana yang sempat ditahan sudah dikembalikan ke saldo.",
+      hint: "Kode verifikasi kedaluwarsa sebelum penarikan diproses. Dana yang sempat disisihkan sudah dikembalikan ke saldo.",
     }
   }
   return {

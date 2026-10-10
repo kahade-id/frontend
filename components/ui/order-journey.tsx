@@ -1,7 +1,7 @@
 /**
  * Kahade — <OrderJourney> (§9.21 Timeline).
  *
- * Pelacak perjalanan order: Dibuat → Dibayar ke escrow → Dikirim →
+ * Pelacak perjalanan order: Dibuat → Dibayar ke Kahade → Dikirim →
  * Diterima → Dana cair. Langkah dihitung oleh `buildOrderJourney`
  * (lib/order-journey.ts) dari data order + riwayat yang sudah ada.
  *

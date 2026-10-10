@@ -99,7 +99,7 @@ const DEFAULT_LABELS: SubscriptionStatusCardLabels = {
   renew: "Perpanjang",
   cancel: "Berhenti berlangganan",
   browsePlans: "Lihat paket",
-  noneDescription: "Dapatkan biaya escrow lebih rendah dan prioritas penanganan sengketa.",
+  noneDescription: "Dapatkan biaya transaksi lebih rendah dan prioritas penanganan sengketa.",
 }
 
 export type SubscriptionStatusCardProps = Omit<CardProps, "children" | "variant" | "padded" | "onPress"> & {

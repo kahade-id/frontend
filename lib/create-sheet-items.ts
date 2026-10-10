@@ -35,7 +35,7 @@ export const CREATE_SHEET_ITEMS_META: readonly CreateSheetItemMeta[] = [
   {
     key: "create-transaction",
     label: "Buat transaksi",
-    description: "Jual atau beli dengan dana dijaga escrow",
+    description: "Jual atau beli dengan dana dijaga Kahade",
     icon: "transaction",
     href: ROUTES.createTransaction,
   },

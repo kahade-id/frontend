@@ -229,7 +229,7 @@ describe("Kategori B — konten bantuan/legal dari bundle saat offline", () => {
     expectOfflineReady()
     expect(screen.getByRole("heading", { name: "Bagaimana cara kerja transaksi aman di Kahade?" })).toBeTruthy()
     expect(screen.getAllByText("Sebelum membuat transaksi").length).toBeGreaterThan(0)
-    expect(screen.getByText(/Dana transaksi ditahan sesuai alur escrow Kahade/)).toBeTruthy()
+    expect(screen.getByText(/Dana transaksi disimpan aman oleh Kahade/)).toBeTruthy()
     expect(helpApi.trackView).not.toHaveBeenCalled()
     expect(helpApi.submitFeedback).not.toHaveBeenCalled()
   })

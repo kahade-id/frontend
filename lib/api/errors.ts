@@ -690,7 +690,7 @@ const DELETION_BLOCKER_COPY: Record<string, string> = {
   [ACTIVE_ORDERS_PRESENT]:
     "Penghapusan belum bisa diproses: masih ada pesanan aktif, penarikan yang sedang diproses, atau sengketa terbuka. Selesaikan semuanya dulu, lalu coba lagi.",
   [ESCROW_BALANCE_PRESENT]:
-    "Penghapusan belum bisa diproses: masih ada dana yang tertahan di escrow. Selesaikan pesanan yang tertunda dulu, lalu coba lagi.",
+    "Penghapusan belum bisa diproses: masih ada dana dalam transaksi yang belum selesai. Selesaikan pesanan yang tertunda dulu, lalu coba lagi.",
   [WALLET_BALANCE_PRESENT]:
     "Penghapusan belum bisa diproses: saldo dompet Anda belum nol. Tarik dana Anda terlebih dahulu, lalu coba lagi.",
 }

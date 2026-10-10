@@ -21,7 +21,7 @@ export const BUNDLED_HELP: readonly BundledHelpCategory[] = [
         slug: "cara-kerja-transaksi-aman",
         category: "transaksi",
         title: "Bagaimana cara kerja transaksi aman di Kahade?",
-        content: `## Sebelum membuat transaksi\n\nSepakati barang atau jasa, harga, dan rincian pekerjaan dengan pihak lain. Pastikan deskripsi transaksi sesuai dengan kesepakatan.\n\n## Selama transaksi\n\nPembayaran dilakukan melalui metode yang tersedia di aplikasi. Dana transaksi ditahan sesuai alur escrow Kahade dan tidak langsung diteruskan kepada penjual.\n\n## Setelah pesanan diterima\n\nPeriksa barang atau hasil pekerjaan terlebih dahulu. Konfirmasikan penerimaan hanya jika pesanan sudah sesuai. Setelah konfirmasi, dana diteruskan mengikuti ketentuan transaksi.\n\nJika ada kendala, buka detail transaksi untuk melihat langkah yang tersedia.`,
+        content: `## Sebelum membuat transaksi\n\nSepakati barang atau jasa, harga, dan rincian pekerjaan dengan pihak lain. Pastikan deskripsi transaksi sesuai dengan kesepakatan.\n\n## Selama transaksi\n\nPembayaran dilakukan melalui metode yang tersedia di aplikasi. Dana transaksi disimpan aman oleh Kahade dan tidak langsung diteruskan kepada penjual.\n\n## Setelah pesanan diterima\n\nPeriksa barang atau hasil pekerjaan terlebih dahulu. Konfirmasikan penerimaan hanya jika pesanan sudah sesuai. Setelah konfirmasi, dana diteruskan mengikuti ketentuan transaksi.\n\nJika ada kendala, buka detail transaksi untuk melihat langkah yang tersedia.`,
       },
       {
         id: "pesanan-belum-diterima",
