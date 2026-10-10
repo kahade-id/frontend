@@ -1,9 +1,14 @@
 /**
  * Kahade — renderer teks berformat chat (batch 43 FE-CHAT, 2026-09-28).
  *
- * Merender segmen `parseChatMarkup`: **tebal**, _miring_, `mono`,
- * __garis bawah__, ||spoiler|| (ketuk untuk membuka), dan tautan aman
- * (hanya http/https lewat `safeHttpsLink` — anti `javascript:`).
+ * Merender segmen `parseChatMarkup`: **tebal** / *tebal* (gaya WhatsApp),
+ * _miring_, `mono`, __garis bawah__, ~coret~, ||spoiler|| (ketuk untuk
+ * membuka), dan tautan aman (hanya http/https lewat `safeHttpsLink` — anti
+ * `javascript:`).
+ *
+ * Segmen nested memakai tone "inherit" — warna datang dari <Text> induk
+ * (inverse di bubble keluar). Bug #6 2026-10-10: tanpa itu segmen memakai
+ * tone default "primary" dan teks berformat hilang di bubble keluar.
  *
  * Keputusan non-obvious:
  *   - `selectable` dimatikan otomatis bila ada segmen interaktif (tautan /
@@ -13,7 +18,7 @@
  *   - Tidak ada `dangerouslySetInnerHTML` / HTML parsing — sintaks hanya
  *     marker teks yang di-parse murni di `lib/chat-format`.
  */
-import { memo, useMemo, useState } from "react"
+import { memo, useMemo, useState, type ReactNode } from "react"
 import { Linking } from "react-native"
 
 import { parseChatMarkup, hasChatMarkup, type ChatSegment } from "@/lib/chat-format"
@@ -42,6 +47,8 @@ function stripHtmlTags(input: string): string {
     .replace(/<\/(i|em)>/gi, "_")
     .replace(/<u[^>]*>/gi, "__")
     .replace(/<\/u>/gi, "__")
+    .replace(/<(s|strike|del)[^>]*>/gi, "~")
+    .replace(/<\/(s|strike|del)>/gi, "~")
     .replace(/<code[^>]*>/gi, "`")
     .replace(/<\/code>/gi, "`")
     .replace(/<[^>]*>/g, "")
@@ -67,6 +74,13 @@ export type ChatFormattedTextProps = {
   selectable?: boolean
   /** Miring ASLI (file italic) untuk seluruh teks — mis. placeholder terhapus. */
   italic?: boolean
+  /**
+   * Bug #2 (2026-10-10): elemen inline yang ditempel di UJUNG teks — dipakai
+   * bubble untuk menyisakan ruang meta (jam + centang) hanya di baris
+   * terakhir, pola WhatsApp. Dirender di dalam <Text> induk sehingga ikut
+   * mengalir bersama baris terakhir (atau turun bersama ke baris baru).
+   */
+  trailing?: ReactNode
   className?: string
 }
 
@@ -157,25 +171,41 @@ function ChatSegmentView({
   if (segment.spoiler) {
     return <ChatSpoilerSegment segment={segment} outgoing={outgoing} />
   }
+  // Garis bawah + coret bisa bersamaan: RN hanya menerima SATU nilai
+  // textDecorationLine, jadi kombinasinya dipetakan ke "underline line-through".
+  const decoration =
+    segment.underline && segment.strike
+      ? "underline line-through"
+      : segment.underline
+        ? "underline"
+        : segment.strike
+          ? "line-through"
+          : undefined
   return (
     <Text
       variant="inherit"
+      // Bug #6 (audit Pesan 2026-10-10): tone WAJIB "inherit". Tanpa prop ini
+      // <Text> memasang tone default "primary" (text-text-primary) pada SETIAP
+      // segmen — di bubble KELUAR (bg-primary hitam/putih) teks jadi hitam di
+      // atas hitam (atau putih di atas putih di dark mode) begitu pesan
+      // mengandung markup apa pun. Itulah "format bold/underline/italic tidak
+      // terlihat": seluruh teks berformat memang lenyap, bukan hanya gayanya.
+      tone="inherit"
       italic={segment.italic}
-      className={cn(segment.underline && "underline", segment.mono && "font-mono-500")}
+      className={cn(segment.mono && "font-mono-500")}
       weight={segment.bold ? 700 : undefined}
       // CHT-003: segmen mono panjang tanpa spasi memakai proteksi yang sama
       // dengan tautan — teks penuh tetap di accessibilityLabel.
       accessibilityLabel={segment.mono ? segment.text : undefined}
-      style={
+      style={[
         segment.mono
           ? {
               backgroundColor: outgoing ? "rgba(0,0,0,0.18)" : "rgba(127,127,127,0.18)",
               borderRadius: tokens.radius.sm,
             }
-          : segment.underline
-            ? { textDecorationLine: "underline" }
-            : undefined
-      }
+          : null,
+        decoration ? { textDecorationLine: decoration } : null,
+      ]}
     >
       {segment.mono ? unbrokenDisplay(segment.text) : segment.text}
     </Text>
@@ -188,6 +218,7 @@ export const ChatFormattedText = memo(function ChatFormattedText({
   deleted = false,
   selectable = true,
   italic,
+  trailing,
   className,
 }: ChatFormattedTextProps) {
   // 2026-10-02: strip HTML dulu agar pesan ber-HTML tampil sebagai teks.
@@ -209,6 +240,7 @@ export const ChatFormattedText = memo(function ChatFormattedText({
         className={className}
       >
         {cleanText}
+        {trailing}
       </Text>
     )
   }
@@ -225,6 +257,7 @@ export const ChatFormattedText = memo(function ChatFormattedText({
       {segments.map((s, i) => (
         <ChatSegmentView key={i} segment={s} outgoing={outgoing && !deleted} />
       ))}
+      {trailing}
     </Text>
   )
 })

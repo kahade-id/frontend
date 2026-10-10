@@ -34,6 +34,7 @@ import { summarize } from "@/lib/a11y"
 import { translate, useLanguage } from "@/lib/i18n"
 import { useTheme } from "@/components/theme-provider"
 import { tokens } from "@/lib/tokens"
+import { cn } from "@/lib/cn"
 
 export type ChatVideoBubbleProps = {
   attachment: ChatAttachmentDto
@@ -45,6 +46,8 @@ export type ChatVideoBubbleProps = {
   onOpenFullscreen: () => void
   onRetry?: () => void
   onRefreshUrl?: (attachment: ChatAttachmentDto) => Promise<ChatAttachmentDto>
+  /** Bug #7 (2026-10-10): lebar media = lebar kolom bubble (lihat chat-message-row). */
+  width?: number
 }
 
 export const ChatVideoBubble = memo(function ChatVideoBubble({
@@ -55,6 +58,7 @@ export const ChatVideoBubble = memo(function ChatVideoBubble({
   onOpenFullscreen,
   onRetry,
   onRefreshUrl,
+  width,
 }: ChatVideoBubbleProps) {
   useLanguage()
   const { mode } = useTheme()
@@ -62,6 +66,10 @@ export const ChatVideoBubble = memo(function ChatVideoBubble({
   const [inline, setInline] = useState(false)
   const [muted, setMuted] = useState(true)
   const [src, setSrc] = useState(() => attachment.fileUrl)
+  // Audit Pesan 2026-10-10 (media #18): thumbnail punya URL bertanda tangan
+  // SENDIRI — dulu yang di-refresh `fileUrl` (video) sementara <Picture>
+  // tetap memuat `attachment.thumbnailUrl` lama → overlay "gagal" abadi.
+  const [thumbSrc, setThumbSrc] = useState(() => attachment.thumbnailUrl ?? null)
   const [thumbFailed, setThumbFailed] = useState(false)
   const refreshTried = useRef(false)
 
@@ -70,6 +78,7 @@ export const ChatVideoBubble = memo(function ChatVideoBubble({
   if (fileKey !== lastKey) {
     setLastKey(fileKey)
     setSrc(fileKey)
+    setThumbSrc(attachment.thumbnailUrl ?? null)
     setThumbFailed(false)
     setInline(false)
     refreshTried.current = false
@@ -83,12 +92,13 @@ export const ChatVideoBubble = memo(function ChatVideoBubble({
     refreshTried.current = true
     onRefreshUrl(attachment)
       .then((fresh) => {
-        const next = fresh.fileUrl
-        if (next && next !== src) setSrc(next)
+        if (fresh.fileUrl && fresh.fileUrl !== src) setSrc(fresh.fileUrl)
+        const nextThumb = fresh.thumbnailUrl ?? null
+        if (nextThumb && nextThumb !== thumbSrc) setThumbSrc(nextThumb)
         else setThumbFailed(true)
       })
       .catch(() => setThumbFailed(true))
-  }, [attachment, onRefreshUrl, src])
+  }, [attachment, onRefreshUrl, src, thumbSrc])
 
   const sending = sendStatus === "sending" || sendStatus === "queued"
   const sendFailed = sendStatus === "failed"
@@ -99,7 +109,10 @@ export const ChatVideoBubble = memo(function ChatVideoBubble({
   const sizeLabel = attachment.fileSize != null ? formatBytes(attachment.fileSize) : null
 
   return (
-    <View className="relative w-52 overflow-hidden rounded-sm">
+    <View
+      className={cn("relative overflow-hidden rounded-sm", width == null && "w-52")}
+      style={width != null ? { width } : undefined}
+    >
       {inline && !sending && !sendFailed ? (
         <>
           <FeedVideo
@@ -129,7 +142,12 @@ export const ChatVideoBubble = memo(function ChatVideoBubble({
               )}
             </PressableScale>
             <PressableScale
-              onPress={onOpenFullscreen}
+              // Audit Pesan 2026-10-10 (media #19): pemutar inline DIHENTIKAN
+              // sebelum layar penuh dibuka — dulu dua pemutar bersuara sekaligus.
+              onPress={() => {
+                setInline(false)
+                onOpenFullscreen()
+              }}
               accessibilityRole="button"
               accessibilityLabel={translate("Buka layar penuh")}
               className="rounded-full bg-surface-elevated p-1.5"
@@ -153,15 +171,15 @@ export const ChatVideoBubble = memo(function ChatVideoBubble({
           accessibilityHint={translate("Memutar video di dalam chat (bisu)")}
           className="relative w-full"
         >
-          {attachment.thumbnailUrl && !thumbFailed ? (
+          {thumbSrc && !thumbFailed ? (
             <Picture
-              source={attachment.thumbnailUrl}
+              source={thumbSrc}
               alt=""
               aspectRatio={4 / 3}
               radius="none"
               bordered={false}
               resizeMode="cover"
-              recyclingKey={`${messageId}:${attachment.thumbnailUrl}`}
+              recyclingKey={`${messageId}:${thumbSrc}`}
               onError={handleThumbError}
               className="w-full"
             />
@@ -207,7 +225,7 @@ export const ChatVideoBubble = memo(function ChatVideoBubble({
           <View className="flex-row items-center gap-2 rounded-full bg-surface-elevated px-3 py-1.5">
             <Spinner size="sm" />
             <Text variant="caption" weight={600}>
-              {sendStatus === "queued" ? "Menunggu koneksi" : "Mengirim…"}
+              {sendStatus === "queued" ? translate("Menunggu koneksi") : translate("Mengirim…")}
             </Text>
           </View>
         </View>
@@ -224,14 +242,14 @@ export const ChatVideoBubble = memo(function ChatVideoBubble({
               <View className="flex-row items-center gap-1.5">
                 <ArrowClockwise size={14} weight="bold" color={onElevated} />
                 <Text variant="caption" weight={700}>
-                  Coba lagi
+                  {translate("Coba lagi")}
                 </Text>
               </View>
             </PressableScale>
           ) : (
             <View className="rounded-full bg-surface-elevated px-3 py-1.5">
               <Text variant="caption" weight={600}>
-                Belum terkirim
+                {translate("Belum terkirim")}
               </Text>
             </View>
           )}

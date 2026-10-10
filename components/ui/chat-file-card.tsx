@@ -21,6 +21,7 @@ import { PressableScale } from "@/components/ui/pressable-scale"
 import { ProgressBar } from "@/components/ui/progress-bar"
 import { Text } from "@/components/ui/text"
 import { formatBytes } from "@/lib/media-viewer"
+import { cn } from "@/lib/cn"
 import { summarize } from "@/lib/a11y"
 import { translate, useLanguage } from "@/lib/i18n"
 
@@ -41,6 +42,8 @@ export type ChatFileCardProps = {
   sendStatus?: "queued" | "sending" | "failed"
   onPress: () => void
   onRetry?: () => void
+  /** Bug #7 (2026-10-10): lebar kartu = lebar kolom bubble (lihat chat-message-row). */
+  width?: number
 }
 
 export const ChatFileCard = memo(function ChatFileCard({
@@ -49,17 +52,23 @@ export const ChatFileCard = memo(function ChatFileCard({
   sendStatus,
   onPress,
   onRetry,
+  width,
 }: ChatFileCardProps) {
   useLanguage()
   const sending = sendStatus === "sending" || sendStatus === "queued"
   const sendFailed = sendStatus === "failed"
-  const IconGlyph = fileIcon(attachment.mimeType, attachment.fileName)
-  const ext = attachment.fileName.split(".").pop()?.toUpperCase() ?? ""
+  // Audit Pesan 2026-10-10 (media #36): nama berkas bisa tanpa ekstensi
+  // ("README") atau bukan string dari server lama — jangan melempar saat
+  // render, dan jangan menampilkan seluruh nama sebagai "ekstensi".
+  const fileName = typeof attachment.fileName === "string" ? attachment.fileName : ""
+  const IconGlyph = fileIcon(attachment.mimeType, fileName)
+  const dot = fileName.lastIndexOf(".")
+  const ext = dot > 0 && dot < fileName.length - 1 ? fileName.slice(dot + 1).toUpperCase() : ""
   const sizeLabel = attachment.fileSize != null ? formatBytes(attachment.fileSize) : null
   const metaLabel = [sizeLabel, ext || null].filter(Boolean).join(" · ")
 
   return (
-    <View className="w-52">
+    <View className={cn(width == null && "w-52")} style={width != null ? { width } : undefined}>
       <PressableScale
         scaleOnPress={false}
         onPress={onPress}
@@ -84,7 +93,7 @@ export const ChatFileCard = memo(function ChatFileCard({
               numberOfLines={2}
               ellipsizeMode="middle"
             >
-              {attachment.fileName}
+              {fileName || translate("Berkas")}
             </Text>
             {/* 2026-10-08 (temuan #13): baris meta berkas — ukuran TETAP
                 tabular (kolom angka tidak bergeser antar pesan) dan format

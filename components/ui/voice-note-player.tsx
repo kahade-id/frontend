@@ -28,6 +28,7 @@ import { formatMediaClock } from "@/lib/media-viewer"
 import { summarize } from "@/lib/a11y"
 import { translate, useLanguage } from "@/lib/i18n"
 import { useAudioPlayback } from "@/lib/use-audio-playback"
+import { cn } from "@/lib/cn"
 
 const BARS = 32
 
@@ -53,6 +54,8 @@ export type VoiceNotePlayerProps = {
   /** true saat pesan masih optimistis (queued/sending). */
   sending?: boolean
   onRefreshUrl?: (uri: string) => Promise<string | null>
+  /** Bug #7 (2026-10-10): lebar pemutar = lebar kolom bubble (lihat chat-message-row). */
+  width?: number
 }
 
 export const VoiceNotePlayer = memo(function VoiceNotePlayer({
@@ -63,6 +66,7 @@ export const VoiceNotePlayer = memo(function VoiceNotePlayer({
   seekEnabled = true,
   sending = false,
   onRefreshUrl,
+  width,
 }: VoiceNotePlayerProps) {
   useLanguage()
   const { mode } = useTheme()
@@ -135,7 +139,7 @@ export const VoiceNotePlayer = memo(function VoiceNotePlayer({
   // TANPA wrapper `accessible`: parent accessible menelan anak fokusable
   // (temuan gate F-08) — status lengkap justru ditempel di tombol putar.
   return (
-    <View className="w-56">
+    <View className={cn(width == null && "w-56")} style={width != null ? { width } : undefined}>
       <View className="flex-row items-center gap-2">
         <PressableScale
           onPress={handlePlayPause}

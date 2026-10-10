@@ -34,6 +34,7 @@ import { summarize } from "@/lib/a11y"
 import { translate, useLanguage } from "@/lib/i18n"
 import { useTheme } from "@/components/theme-provider"
 import { tokens } from "@/lib/tokens"
+import { cn } from "@/lib/cn"
 
 export type ChatPhotoBubbleProps = {
   attachment: ChatAttachmentDto
@@ -47,6 +48,12 @@ export type ChatPhotoBubbleProps = {
    * `Picture` onError → refresh sekali → retry.
    */
   onRefreshUrl?: (attachment: ChatAttachmentDto) => Promise<ChatAttachmentDto>
+  /**
+   * Bug #7 (2026-10-10): lebar media = lebar kolom bubble (dihitung baris
+   * via `chatMediaWidthPx`). Tanpa ini foto 208px tetap sementara caption
+   * membungkus selebar kolom — bubble "bertangga".
+   */
+  width?: number
 }
 
 export const ChatPhotoBubble = memo(function ChatPhotoBubble({
@@ -56,6 +63,7 @@ export const ChatPhotoBubble = memo(function ChatPhotoBubble({
   onPress,
   onRetry,
   onRefreshUrl,
+  width,
 }: ChatPhotoBubbleProps) {
   useLanguage()
   const { mode } = useTheme()
@@ -102,6 +110,7 @@ export const ChatPhotoBubble = memo(function ChatPhotoBubble({
   }, [])
 
   return (
+    <View className={cn(width == null && "w-52")} style={width != null ? { width } : undefined}>
     <PressableScale
       scaleOnPress={false}
       onPress={failed ? handleReload : onPress}
@@ -114,17 +123,17 @@ export const ChatPhotoBubble = memo(function ChatPhotoBubble({
       accessibilityHint={
         failed ? translate("Memuat ulang foto") : translate("Membuka foto layar penuh")
       }
-      containerClassName="rounded-sm"
-      className="relative w-52 overflow-hidden rounded-sm"
+      containerClassName="w-full rounded-sm"
+      className="relative w-full overflow-hidden rounded-sm"
     >
       {failed ? (
         <View className="aspect-[4/3] w-full items-center justify-center gap-1.5 bg-surface px-4">
           <ArrowClockwise size={20} color={iconColor} />
           <Text variant="caption" tone="secondary" weight={500} className="text-center">
-            Foto gagal dimuat
+            {translate("Foto gagal dimuat")}
           </Text>
           <Text variant="caption" tone="tertiary" className="text-center">
-            Ketuk untuk memuat ulang
+            {translate("Ketuk untuk memuat ulang")}
           </Text>
         </View>
       ) : (
@@ -148,7 +157,7 @@ export const ChatPhotoBubble = memo(function ChatPhotoBubble({
           <View className="flex-row items-center gap-2 rounded-full bg-surface-elevated px-3 py-1.5">
             <Spinner size="sm" />
             <Text variant="caption" weight={600}>
-              {sendStatus === "queued" ? "Menunggu koneksi" : "Mengirim…"}
+              {sendStatus === "queued" ? translate("Menunggu koneksi") : translate("Mengirim…")}
             </Text>
           </View>
         </View>
@@ -165,19 +174,20 @@ export const ChatPhotoBubble = memo(function ChatPhotoBubble({
               <View className="flex-row items-center gap-1.5">
                 <ArrowClockwise size={14} weight="bold" color={iconColor} />
                 <Text variant="caption" weight={700}>
-                  Coba lagi
+                  {translate("Coba lagi")}
                 </Text>
               </View>
             </PressableScale>
           ) : (
             <View className="rounded-full bg-surface-elevated px-3 py-1.5">
               <Text variant="caption" weight={600}>
-                Belum terkirim
+                {translate("Belum terkirim")}
               </Text>
             </View>
           )}
         </View>
       ) : null}
     </PressableScale>
+    </View>
   )
 })

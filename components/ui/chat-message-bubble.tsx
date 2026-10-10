@@ -63,6 +63,7 @@
  */
 import { memo, useEffect, useMemo, useRef, type ReactNode, type RefObject } from "react"
 import {
+  Platform,
   View,
   useWindowDimensions,
   type GestureResponderEvent,
@@ -117,7 +118,9 @@ import { splitHighlightSpans } from "@/lib/chat-search"
 import {
   REACTION_BADGE_ANCHOR,
   SWIPE_REPLY_MAX_PX,
+  bubbleMetaInlineSpacerPx,
   bubbleMetaReservePx,
+  bubbleTailCornerClass,
   chatBubbleGeometry,
   measureBubbleAnchor,
   type ChatBubbleAnchor,
@@ -572,9 +575,12 @@ function ChatMessageBubbleBase({
   const osFontScale = useWindowDimensions().fontScale
   const queuedLabel = translate("Menunggu koneksi")
   const readLabel = translate("Dibaca")
+  // Bug #2 (2026-10-10): reservasi dihitung untuk KEDUA jenis bubble (teks &
+  // lampiran ber-caption) — dipakai sebagai spacer inline di ujung baris
+  // terakhir, bukan lagi paddingRight seluruh bubble.
   const metaReserve = useMemo(
     () =>
-      hasMeta && !overlayMeta
+      hasMeta
         ? bubbleMetaReservePx({
             hasTime: !!time,
             outgoing,
@@ -595,7 +601,6 @@ function ChatMessageBubbleBase({
         : null,
     [
       hasMeta,
-      overlayMeta,
       time,
       outgoing,
       status,
@@ -612,6 +617,23 @@ function ChatMessageBubbleBase({
       osFontScale,
     ],
   )
+
+  /**
+   * Bug #2: spacer inline di ujung TEKS — selebar meta (jam + centang [+
+   * label]) + celah. Mengalir bersama baris terakhir: bila baris itu masih
+   * punya ruang, meta "menempel" di sampingnya (WhatsApp); bila tidak,
+   * spacer turun ke baris baru dan meta menempati baris itu. Baris-baris
+   * sebelumnya memakai lebar bubble PENUH — tidak ada lagi pita kosong di
+   * kanan setiap baris pesan panjang.
+   */
+  const metaSpacer =
+    metaReserve != null ? (
+      <View
+        accessibilityElementsHidden
+        importantForAccessibility="no"
+        style={{ width: bubbleMetaInlineSpacerPx(metaReserve, { pill: overlayMeta }), height: 1 }}
+      />
+    ) : null
 
   if (direction === "system") {
     // Batch 43 (2026-09-28): pesan SYSTEM dirender sebagai kartu terpusat
@@ -739,17 +761,23 @@ function ChatMessageBubbleBase({
         // centang (ala WhatsApp) tanpa makan space berlebih; padding kanan
         // dari `metaReserve` (style) saat meta tidak di-overlay.
         "relative rounded-md",
+        // Bug #2 (2026-10-10): sudut "ekor" — pesan pertama kelompok dapat
+        // satu sudut tajam di sisi pengirim (lihat `bubbleTailCornerClass`).
+        bubbleTailCornerClass(direction, grouped),
         // 2026-10-08 (temuan #6): bubble lampiran punya Bingkai 3px saja —
         // padding 12px membuat area gelap bubble "melebar" dan gambar terasa
         // mengambang di tengah kartu. Proporsional: 3px mengikuti radius
         // bubble sehingga lampiran hampir memenuhi bubble-nya (WhatsApp/IG),
-        // sementara bubble teks tetap 12px kiri + 8px atas.
+        // sementara bubble teks tetap 12px kiri/kanan + 8px atas/bawah.
         // Kalau ada teks/kutipan SELAIN media, bubble-nya tetap 3px — yang
         // diberi jarak adalah baris teksnya (lihat `textPad`), bukan media.
-        overlayMeta ? (hasTextLayer ? "gap-1 p-[3px]" : "p-[3px]") : hasMeta ? "gap-2 pl-3 pt-2 pb-5" : "gap-2 pl-3 pt-2 pr-3 pb-2",
+        // Bug #2: TIDAK ADA lagi `pb-5` + paddingRight reservasi meta —
+        // ruang meta disisakan inline di baris terakhir (`metaSpacer`).
+        overlayMeta ? (hasTextLayer ? "gap-1 p-[3px]" : "p-[3px]") : "gap-2 px-3 py-2",
+        // Blok terjemahan tidak membawa spacer inline → beri dudukan meta.
+        !overlayMeta && hasMeta && translation && !isDeleted && "pb-6",
         outgoing ? "bg-primary" : "bg-surface",
       )}
-      style={metaReserve != null ? { paddingRight: metaReserve } : undefined}
     >
       {forwarded && !isDeleted ? (
         <View testID="message-forwarded-label" className={cn("flex-row items-center gap-1", textPad)}>
@@ -799,12 +827,17 @@ function ChatMessageBubbleBase({
         // #6: di bubble lampiran, teks caption diberi jarak 8px kiri/kanan
         // dan 20px bawah — ruang bawah itu "dudukan" meta (jam + centang)
         // yang absolute, supaya tidak menimpa baris terakhir caption.
-        <View className={cn(overlayMeta && "px-2 pb-5")}>
+        // Bug #2: caption bubble lampiran cukup `px-2 pb-1` — ruang meta kini
+        // inline di baris terakhir, bukan `pb-5` yang selalu menambah tinggi.
+        <View className={cn(overlayMeta && "px-2 pb-1")}>
           {showSearchHighlight ? (
           <Text
             variant="body"
             tone={outgoing ? "inverse" : "primary"}
-            selectable={!isDeleted}
+            // Bug #2: seleksi teks native hanya di web — di Android
+            // `selectable` merebut tekan-lama (mode pilih tidak terbuka) dan
+            // bentrok dengan View inline spacer.
+            selectable={Platform.OS === "web" && !isDeleted}
           >
             {highlightSpans?.map((span, i) =>
               span.hit ? (
@@ -823,6 +856,7 @@ function ChatMessageBubbleBase({
                 </Text>
               ),
             )}
+            {metaSpacer}
           </Text>
           ) : (
             // Batch 43 (2026-09-28): teks dirender lewat <ChatFormattedText>
@@ -831,8 +865,9 @@ function ChatMessageBubbleBase({
               text={text}
               outgoing={outgoing}
               deleted={isDeleted}
-              selectable={!isDeleted}
+              selectable={Platform.OS === "web" && !isDeleted}
               italic={isDeleted || undefined}
+              trailing={metaSpacer}
             />
           )}
         </View>

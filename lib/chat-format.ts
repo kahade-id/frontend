@@ -2,15 +2,29 @@
  * Kahade — pemformatan teks chat (batch 43 FE-CHAT, 2026-09-28).
  *
  * Sintaks ringan (WhatsApp-style + spoiler/underline):
- *   **tebal**   _miring_   `mono`   __garis bawah__   ||spoiler||
- *   [label](https://tautan)   + tautan telanjang https://…
+ *   **tebal** / *tebal*   _miring_   `mono`   __garis bawah__   ~coret~
+ *   ||spoiler||   [label](https://tautan)   + tautan telanjang https://…
+ *
+ * Bug #6 (audit Pesan 2026-10-10): toolbar format sudah dihapus dari composer
+ * (keputusan produk 2026-10-02), jadi pengguna mengetik marker secara manual —
+ * dan kebiasaan yang mereka bawa adalah WhatsApp: `*tebal*` satu bintang dan
+ * `~coret~`. Keduanya dulu tidak dikenali (hanya `**`), sehingga "bold tidak
+ * terlihat". Aturan boundary-nya sama dengan `_miring_` supaya `2*3*4` atau
+ * `a~b` tidak ikut terformat.
  *
  * Murni (tanpa RN) — bisa di-unit-test di Node. Renderer aman ada di
  * `components/ui/chat-formatted-text.tsx`; toolbar di
  * `components/ui/chat-format-bar.tsx`.
  */
 
-export type ChatTextFormat = "bold" | "italic" | "mono" | "underline" | "spoiler" | "link"
+export type ChatTextFormat =
+  | "bold"
+  | "italic"
+  | "mono"
+  | "underline"
+  | "strike"
+  | "spoiler"
+  | "link"
 
 export type ChatSegment = {
   text: string
@@ -18,6 +32,8 @@ export type ChatSegment = {
   italic?: boolean
   mono?: boolean
   underline?: boolean
+  /** Coret (~teks~) — gaya WhatsApp. */
+  strike?: boolean
   spoiler?: boolean
   /** URL tujuan — ada bila segmen adalah tautan. */
   linkUrl?: string
@@ -28,6 +44,7 @@ const MARKERS: Record<Exclude<ChatTextFormat, "link">, { open: string; close: st
   italic: { open: "_", close: "_" },
   mono: { open: "`", close: "`" },
   underline: { open: "__", close: "__" },
+  strike: { open: "~", close: "~" },
   spoiler: { open: "||", close: "||" },
 }
 
@@ -40,6 +57,10 @@ export function hasChatMarkup(text: string): boolean {
     text.includes("`") ||
     text.includes("||") ||
     /(^|[\s(])_[^_\s]/.test(text) ||
+    // `*tebal*` satu bintang & `~coret~` (gaya WhatsApp) — boundary sama
+    // dengan miring supaya `2*3` / `a~b` tidak memicu parse.
+    /(^|[\s(])\*[^*\s]/.test(text) ||
+    /(^|[\s(])~[^~\s]/.test(text) ||
     /\[[^\]]+\]\(https?:\/\/[^\s)]+\)/.test(text) ||
     /https?:\/\/[^\s<]+/.test(text)
   )
@@ -84,7 +105,7 @@ function isCloseBoundary(ch: string | undefined): boolean {
   return ch === undefined || CLOSE_BOUNDARY.has(ch)
 }
 
-type Ctx = Partial<Pick<ChatSegment, "bold" | "italic" | "mono" | "underline" | "spoiler">>
+type Ctx = Partial<Pick<ChatSegment, "bold" | "italic" | "mono" | "underline" | "strike" | "spoiler">>
 
 /**
  * Parse teks berformat menjadi segmen. Murni & defensif: input aneh
@@ -170,13 +191,19 @@ export function parseChatMarkup(text: string, ctx: Ctx = {}): ChatSegment[] {
       }
     }
 
-    // 5) Miring _..._ — butuh boundary agar snake_case tidak kena.
-    if (text[i] === "_" && text[i + 1] !== "_" && isOpenBoundary(prev)) {
-      const end = text.indexOf("_", i + 1)
-      if (end > i + 1 && text[end + 1] !== "_" && isCloseBoundary(text[end + 1])) {
+    // 5) Marker SATU karakter ber-boundary: _miring_, *tebal* (WhatsApp),
+    //    ~coret~. Boundary wajib agar snake_case / 2*3*4 / a~b tidak kena.
+    const single = text[i]
+    const singleKey: keyof Ctx | null =
+      single === "_" ? "italic" : single === "*" ? "bold" : single === "~" ? "strike" : null
+    if (singleKey && text[i + 1] !== single && isOpenBoundary(prev)) {
+      const end = text.indexOf(single, i + 1)
+      if (end > i + 1 && text[end + 1] !== single && isCloseBoundary(text[end + 1])) {
         const inner = text.slice(i + 1, end)
-        if (inner.trim().length > 0) {
-          pushFormatted(inner, "italic")
+        // Isi tidak boleh diawali/diakhiri spasi (`* bukan *` = literal) —
+        // aturan WhatsApp, mencegah perkalian "2 * 3 * 4" jadi tebal.
+        if (inner.trim().length > 0 && inner[0] !== " " && inner[inner.length - 1] !== " ") {
+          pushFormatted(inner, singleKey)
           i = end + 1
           continue
         }

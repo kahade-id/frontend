@@ -31,6 +31,14 @@ describe("hasChatMarkup", () => {
   it("snake_case bukan markup", () => {
     expect(hasChatMarkup("variabel_foo_bar")).toBe(false)
   })
+  it("bug #6: *tebal* satu bintang & ~coret~ (gaya WhatsApp) dikenali", () => {
+    expect(hasChatMarkup("*tebal*")).toBe(true)
+    expect(hasChatMarkup("harga ~100rb~ 80rb")).toBe(true)
+  })
+  it("perkalian / tilde di tengah kata bukan markup", () => {
+    expect(hasChatMarkup("2*3*4")).toBe(false)
+    expect(hasChatMarkup("a~b")).toBe(false)
+  })
 })
 
 describe("parseChatMarkup", () => {
@@ -74,6 +82,25 @@ describe("parseChatMarkup", () => {
     const segs = parseChatMarkup("`**bukan bold**`")
     expect(segs).toHaveLength(1)
     expect(segs[0]).toMatchObject({ text: "**bukan bold**", mono: true })
+  })
+  it("bug #6: *tebal* satu bintang (WhatsApp) jadi bold", () => {
+    const segs = parseChatMarkup("ini *penting* ya")
+    expect(texts(segs)).toEqual(["ini ", "penting", " ya"])
+    expect(segs[1].bold).toBe(true)
+  })
+  it("bug #6: ~coret~ jadi strike", () => {
+    const segs = parseChatMarkup("harga ~100rb~ jadi 80rb")
+    expect(segs[1]).toMatchObject({ text: "100rb", strike: true })
+  })
+  it("perkalian & spasi di dalam marker tetap literal", () => {
+    expect(texts(parseChatMarkup("2*3*4 = 24"))).toEqual(["2*3*4 = 24"])
+    expect(texts(parseChatMarkup("2 * 3 * 4"))).toEqual(["2 * 3 * 4"])
+    expect(texts(parseChatMarkup("tanda ~ saja ~ di sini"))).toEqual(["tanda ~ saja ~ di sini"])
+  })
+  it("** dua bintang tetap didahulukan atas * satu bintang", () => {
+    const segs = parseChatMarkup("**tebal** dan *juga*")
+    expect(segs[0]).toMatchObject({ text: "tebal", bold: true })
+    expect(segs[2]).toMatchObject({ text: "juga", bold: true })
   })
 })
 
