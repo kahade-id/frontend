@@ -82,7 +82,26 @@ export function firstRatingReply(
       createdAt: item.createdAt ?? null,
     }
   }
-  if (r.reply) {
+  // Audit profil 2026-10-10 (P-02): `GET /users/:username/ratings` mengirim
+  // `reply` sebagai OBJEK `{ content, createdAt, replier }` (bukan string).
+  // Dulu objek itu diteruskan apa adanya sebagai `content` → "Objects are
+  // not valid as a React child" → tab Ulasan crash begitu ada balasan.
+  // `getPublicRatings` sudah menormalkannya ke `replies[]`; cabang ini
+  // menjaga pemanggil lain yang masih menerima bentuk mentah.
+  const replyObject = asRecord(r.reply)
+  if (replyObject) {
+    return {
+      id:
+        typeof replyObject.id === "string" && replyObject.id
+          ? replyObject.id
+          : typeof r.replyId === "string" && r.replyId
+            ? r.replyId
+            : "",
+      content: typeof replyObject.content === "string" ? replyObject.content : "",
+      createdAt: typeof replyObject.createdAt === "string" ? replyObject.createdAt : (r.replyCreatedAt ?? null),
+    }
+  }
+  if (typeof r.reply === "string" && r.reply) {
     return {
       id: typeof r.replyId === "string" && r.replyId ? r.replyId : "",
       content: r.reply,
@@ -90,6 +109,67 @@ export function firstRatingReply(
     }
   }
   return undefined
+}
+
+/**
+ * Normalisasi satu item `GET /v1/users/:username/ratings` ke bentuk `Rating`
+ * yang dibaca layar (audit profil 2026-10-10, P-01/P-02).
+ *
+ * Backend (`users.service.ts` getUserRatings) mengirim:
+ *   `giver: { username, avatarUrl }` — bukan `authorUsername`/`authorAvatarUrl`
+ *   `reply: { content, createdAt, replier }` — objek, bukan string/array
+ * Tanpa normalisasi: semua ulasan tampil "Pengguna" tanpa avatar, dan
+ * balasan penjual membuat tab Ulasan crash.
+ */
+export function normalizePublicRating(raw: Rating): Rating {
+  const record = raw as Rating & { giver?: unknown; reply?: unknown }
+  const giver = asRecord(record.giver)
+  const replyObject = asRecord(record.reply)
+  const out: Rating = { ...raw }
+  if (giver) {
+    if (out.authorUsername == null && typeof giver.username === "string" && giver.username) {
+      out.authorUsername = giver.username
+    }
+    if (out.authorAvatarUrl == null && typeof giver.avatarUrl === "string" && giver.avatarUrl) {
+      out.authorAvatarUrl = giver.avatarUrl
+    }
+  }
+  if (replyObject) {
+    if (!Array.isArray(out.replies) || out.replies.length === 0) {
+      out.replies = [
+        {
+          id: typeof replyObject.id === "string" ? replyObject.id : "",
+          content: typeof replyObject.content === "string" ? replyObject.content : "",
+          createdAt: typeof replyObject.createdAt === "string" ? replyObject.createdAt : null,
+        },
+      ]
+    }
+    // Objek jangan sampai bocor ke field string `reply` (deprecated).
+    delete (out as { reply?: unknown }).reply
+  } else if (record.reply != null && typeof record.reply !== "string") {
+    delete (out as { reply?: unknown }).reply
+  }
+  return out
+}
+
+/** Terapkan `normalizePublicRating` pada daftar di dalam body (array / {ratings} / {data}). */
+function normalizePublicRatingsBody(body: MyRatingsResponse): MyRatingsResponse {
+  if (Array.isArray(body)) return body.map(normalizePublicRating)
+  const root = asRecord(body)
+  if (!root) return body
+  const key = Array.isArray(root.ratings) ? "ratings" : Array.isArray(root.data) ? "data" : null
+  if (!key) return body
+  const list = root[key] as Rating[]
+  return { ...root, [key]: list.map(normalizePublicRating) } as MyRatingsResponse
+}
+
+/**
+ * P-11: `hidden: true` — pemilik mematikan "Tampilkan ulasan" (privasi).
+ * Backend mengirim daftar kosong + agregat null; tanpa membaca flag ini UI
+ * mengklaim "Belum ada ulasan" untuk profil yang sebenarnya punya ulasan.
+ */
+export function readPublicRatingsHidden(body: unknown): boolean {
+  return asRecord(body)?.hidden === true
 }
 
 /** Bentuk respons `GET /v1/ratings/my` — array polos ATAU {data, meta} (UNVERIFIED). */
@@ -150,12 +230,14 @@ export function getPublicRatings(
   query: { page: number; limit: number; filter?: Exclude<PublicRatingFilter, "all"> },
   signal?: AbortSignal,
 ) {
-  return http.get<MyRatingsResponse>(`/v1/users/${seg(username)}/ratings`, {
-    query,
-    auth: "optional",
-    retry: 1,
-    signal,
-  })
+  return http
+    .get<MyRatingsResponse>(`/v1/users/${seg(username)}/ratings`, {
+      query,
+      auth: "optional",
+      retry: 1,
+      signal,
+    })
+    .then(normalizePublicRatingsBody)
 }
 
 export function createRating(dto: CreateRatingDto) {
@@ -232,6 +314,8 @@ export type PublicRatingSummary = {
   distribution: RatingDistribution
   /** `averageRating` server; null bila backend tidak mengirimnya. */
   averageRating: number | null
+  /** P-11: pemilik menyembunyikan ulasan — distribusi 0 di payload bukan data nyata. */
+  hidden: boolean
 }
 
 function parseDistributionCounts(raw: unknown): [number, number, number, number, number] | null {
@@ -259,6 +343,7 @@ export function parsePublicRatingSummary(body: unknown): PublicRatingSummary | n
   return {
     distribution: { counts, total },
     averageRating: typeof avg === "number" && Number.isFinite(avg) ? avg : null,
+    hidden: root.hidden === true,
   }
 }
 

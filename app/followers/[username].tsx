@@ -23,7 +23,6 @@ import { Header } from "@/components/ui/header"
 import { PaginatedList } from "@/components/ui/paginated-list"
 import { Screen } from "@/components/ui/screen"
 import { SegmentedControl } from "@/components/ui/segmented-control"
-import { Text } from "@/components/ui/text"
 import { UserListItem } from "@/components/ui/user-list-item"
 
 type Tab = "followers" | "following"
@@ -86,9 +85,10 @@ export default function FollowersScreen() {
   const { username, tab: initialTab } = useLocalSearchParams<{ username: string; tab?: Tab }>()
   const [tab, setTab] = useState<Tab>(initialTab === "following" ? "following" : "followers")
   // Item 63 (mega-batch 2026-09-28): kolom pencarian nama/username.
-  // Backend mendukung `?search=` di GET followers; GET following TIDAK —
-  // jadi tab "Mengikuti" disaring di klien atas halaman yang sudah dimuat
-  // (lihat `visibleRows`).
+  // Audit 2026-10-10: GET following kini juga menerima `?search=` (backend
+  // disamakan dengan followers) — kedua tab disaring di server. Filter klien
+  // lama hanya melihat halaman yang sudah dimuat, jadi akun di halaman
+  // berikutnya "tidak ditemukan".
   const [connectionSearch, setConnectionSearch] = useState("")
   // UI-P019: sinkronkan tab bila param rute berubah setelah mount (mis. pindah
   // dari "Pengikut" ke "Mengikuti" tanpa remount).
@@ -128,7 +128,7 @@ export default function FollowersScreen() {
   // "terbaru diikuti" sesuai backend). Menambahkan pembanding rekaan di sini
   // akan mengacak urutan yang sudah benar.
   const query = usePaginatedQuery<UserConnection>(
-    `connections:${username}:${tab}:${tab === "followers" ? connectionSearch : ""}`,
+    `connections:${username}:${tab}:${connectionSearch}`,
     (page, signal) =>
       tab === "followers"
         ? api.users.getFollowers(
@@ -136,7 +136,11 @@ export default function FollowersScreen() {
             { page, limit: 20, search: connectionSearch.trim() || undefined },
             signal,
           )
-        : api.users.getFollowing(username, { page, limit: 20 }, signal),
+        : api.users.getFollowing(
+            username,
+            { page, limit: 20, search: connectionSearch.trim() || undefined },
+            signal,
+          ),
     // R1 (audit 2026-09-26): backend tidak mengirim id — dedup pakai username (unik).
     // UI-P020: `enabled` — username datang dari param rute; tanpa ini fetcher
     // menembak /v1/users/undefined/followers sebelum rute selesai di-resolve.
@@ -146,21 +150,7 @@ export default function FollowersScreen() {
   // yang benar-benar dipakai (`query` sendiri objek literal baru tiap render).
   const { data: queryData, setData: setQueryData } = query
 
-  // Item 63 (lanjutan): filter klien untuk tab "Mengikuti" (backend tidak
-  // punya ?search= di endpoint ini). Bila backend kelak mendukungnya, hapus
-  // filter ini dan teruskan search ke fetcher seperti tab Pengikut.
   const searchLower = connectionSearch.trim().toLowerCase()
-  const visibleRows = useMemo(
-    () =>
-      tab === "following" && searchLower
-        ? query.data.filter(
-            (u) =>
-              u.username.toLowerCase().includes(searchLower) ||
-              (u.fullName ?? "").toLowerCase().includes(searchLower),
-          )
-        : query.data,
-    [query.data, tab, searchLower],
-  )
 
   // Item 64 (mega-batch 2026-09-28): tombol Ikuti/Mengikuti per baris di
   // daftar "Mengikuti" — hanya daftar MILIK SENDIRI (semua baris pasti
@@ -208,9 +198,12 @@ export default function FollowersScreen() {
   )
 
   // FE-010: handler navigasi stabil per-id (bukan closure per baris).
+  // Deps KOSONG: versi lama `[, query]` (lubang array + objek `query` yang
+  // baru tiap render) membuat callback ini berganti identitas setiap render,
+  // sehingga semua baris memo ikut di-render ulang — memo FE-010 jebol.
   const openProfile = useCallback((targetUsername: string) => {
     router.push(ROUTES.userProfile(targetUsername))
-  }, [, query])
+  }, [])
 
   // Item 74 (mega-batch 2026-09-29): empty state pengikut di profil sendiri →
   // tombol "Bagikan profil" (pola share dari app/user/[username].tsx).
@@ -309,15 +302,9 @@ export default function FollowersScreen() {
           })}
           debounceMs={400}
         />
-        {tab === "following" && searchLower ? (
-          <Text variant="caption" tone="tertiary">
-            {translate("Mencari di {n} akun yang sudah dimuat.", { n: String(query.data.length) })}
-          </Text>
-        ) : null}
       </View>
       <PaginatedList
         {...query}
-        data={visibleRows}
         // R1 (audit 2026-09-26): backend tidak mengirim id — pakai username (unik) sebagai kunci.
         // FE-010: keyExtractor + renderItem stabil (hoist/useCallback).
         keyExtractor={connectionKeyExtractor}

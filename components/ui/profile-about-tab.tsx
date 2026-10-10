@@ -20,6 +20,7 @@ import { translate } from "@/lib/i18n/translate"
 
 import { Badge } from "@/components/ui/badge"
 import { Icon, type IconComponent } from "@/components/ui/icon"
+import { ProfileLinks } from "@/components/ui/profile-links"
 import { Text } from "@/components/ui/text"
 
 export type ProfileAboutTabProps = {
@@ -72,6 +73,9 @@ export function ProfileAboutTab({ profile, badges = [] }: ProfileAboutTabProps) 
   useLanguage()
   return (
     <View className="px-5 pt-4 gap-4">
+      {/* Tautan sosial lengkap (bug "link tidak muncul") — baris ringkas di
+          bawah bio hanya menampilkan 3; di sini semuanya. */}
+      <ProfileLinks links={profile.links ?? []} />
       {/* (2026-10-05: badge verifikasi pindah ke tab Tentang.) */}
       {badges.length > 0 ? (
         <View className="w-full gap-3 rounded-md border border-border bg-surface p-4">

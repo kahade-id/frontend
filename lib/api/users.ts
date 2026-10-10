@@ -16,12 +16,13 @@ import { http, seg } from "@/lib/api/client"
 import { uploadFileWithProgress, type UploadFileOptions } from "@/lib/api/upload"
 import { fetchViaQueryCache } from "@/lib/query-cache"
 import { queryKeys } from "@/lib/query-keys"
+import { translate } from "@/lib/i18n/translate"
+import { normalizeProfileLinks, type ProfileLink } from "@/lib/profile-links"
 import type {
   AddCommentDto,
   ConfirmAvatarDto,
   ConfirmHeaderDto,
   CreateShowcaseItemDto,
-  RequestAccountDeletionDto,
   UpdateLinksDto,
   UpdateProfileDto,
   UpdateShowcaseItemDto,
@@ -41,6 +42,13 @@ function asSealTier(value: unknown): SealTier | null {
 /** Profil user — subset field yang dipakai UI. */
 export type UserProfile = {
   id: string
+  /**
+   * E-01/E-08 (audit 2026-10-10): akun punya kata sandi? Akun OTP/sosial
+   * (false) tidak bisa re-auth password — hapus akun memakai OTP WhatsApp,
+   * ganti username diarahkan buat kata sandi dulu. `undefined` = backend
+   * lama belum mengirim → perlakukan seperti punya kata sandi.
+   */
+  hasPassword?: boolean
   /**
    * Public user ID format USR-XXXXXXXX (dikirim GET /v1/users/me).
    * Dipakai untuk pencocokan peran — JANGAN pakai `id` (cuid internal)
@@ -326,16 +334,9 @@ export function deleteHeader() {
   return http.delete<void>("/v1/users/me/header", { auth: "required", responseType: "void" })
 }
 
-/** POST /v1/users/me/delete-request — minta penghapusan akun. */
-export function requestAccountDeletion(dto: RequestAccountDeletionDto) {
-  return http.post<{ message: string }, RequestAccountDeletionDto>(
-    "/v1/users/me/delete-request",
-    dto,
-    {
-      auth: "required",
-    },
-  )
-}
+// E-20: `requestAccountDeletion` lama (kode mati, tipe password WAJIB yang
+// bertentangan dengan DTO backend) dihapus — alur resmi di
+// lib/api/account-deletion.ts (header idempotensi + deviceLocation).
 
 /** GET /v1/users/me/links — tautan sosial profil. */
 export function getLinks(signal?: AbortSignal) {
@@ -351,10 +352,19 @@ export function updateLinks(dto: UpdateLinksDto) {
   })
 }
 
-/** GET /v1/users/{username} — profil publik user. */
+/**
+ * GET /v1/users/{username} — profil publik user.
+ *
+ * `auth: "optional"` (audit 2026-10-10): endpoint backend `@Public()` —
+ * tamu boleh melihat profil (tautan kahade.id/<username>, QR, share).
+ * Versi lama `"required"` membuat tamu tanpa token langsung dilempar
+ * UNAUTHORIZED + `expireSession` sebelum request dikirim, padahal layar
+ * profil sudah menggerbang aksi sosial per-tombol (useHasSession).
+ * Pengguna login tetap mengirim token (isFollowing/kontak publik terisi).
+ */
 export function getUserByUsername(username: string, signal?: AbortSignal) {
   return http
-    .get<unknown>(`/v1/users/${seg(username)}`, { auth: "required", signal })
+    .get<unknown>(`/v1/users/${seg(username)}`, { auth: "optional", signal })
     .then((raw) => {
       const profile = readEntity<Record<string, unknown>>(raw, "user")
       const stats = asRecord(profile.stats)
@@ -406,12 +416,20 @@ export function getUserByUsername(username: string, signal?: AbortSignal) {
         // bila flag=false (lihat ProfileAboutTab).
         contactEmail,
         contactPhone,
+        // P-20: backend (RK-P05) menaruh flag eksplisit di `contact.*`, bukan
+        // di tingkat atas — baca dari sana dulu, alias flat sebagai cadangan.
         showContactEmail:
+          firstBoolean(contact, ["showContactEmail"]) ??
           firstBoolean(profile, ["showContactEmail", "show_contact_email"]) ??
           (contactEmail != null ? true : undefined),
         showContactPhone:
+          firstBoolean(contact, ["showContactPhone"]) ??
           firstBoolean(profile, ["showContactPhone", "show_contact_phone"]) ??
           (contactPhone != null ? true : undefined),
+        // Bug "link di profil tidak muncul": backend mengirim `links` (array
+        // {platform,url,label,displayOrder}) sejak redesign 8224427, tetapi
+        // field ini tidak pernah dibaca. Normalizer fail-closed (https saja).
+        links: normalizeProfileLinks(profile.links),
       } as PublicUserProfile
     })
 }
@@ -445,6 +463,11 @@ export type PublicUserProfile = {
   showContactEmail?: boolean
   showContactPhone?: boolean
   /**
+   * P-05 (audit 2026-10-10): lencana verifikasi aktif — payload profil
+   * memuatnya (`badges`, sumber sama dengan GET /users/{username}/badges).
+   */
+  badges?: VerificationBadge[] | null
+  /**
    * SS-009 (audit 2026-09-26): counter sosial dari payload profil —
    * dipakai sebagai sumber utama agar tidak tampil "0 palsu" saat request
    * list tambahan gagal. Backend mengirim `social.{followersCount,
@@ -466,6 +489,12 @@ export type PublicUserProfile = {
   followingCount?: number | null
   /** Alias deprecated backend — `social.isFollowing` lebih utama. */
   isFollowing?: boolean | null
+  /**
+   * Tautan sosial pemilik profil (bagian `links` GET /v1/users/{username}),
+   * sudah dinormalisasi `normalizeProfileLinks` (https saja, urut
+   * displayOrder, tanpa duplikat platform). Selalu array (bisa kosong).
+   */
+  links?: ProfileLink[]
   showcase?: unknown
   ratings?: unknown
 }
@@ -722,7 +751,10 @@ export function getFollowers(
   options: { page?: number; limit?: number; search?: string } = {},
   signal?: AbortSignal,
 ) {
-  const query = { page: 1, limit: 20, search: "", ...options }
+  // P-22: `search` kosong tidak dikirim (paritas dengan getFollowing; dulu
+  // selalu `?search=` kosong dan kunci dedupe GET pun berbeda).
+  const { search, ...paging } = options
+  const query = { page: 1, limit: 20, ...paging, ...(search?.trim() ? { search: search.trim() } : {}) }
   return http
     .get<unknown>(`/v1/users/${seg(username)}/followers`, {
       query,
@@ -736,10 +768,14 @@ export function getFollowers(
 }
 export function getFollowing(
   username: string,
-  options: { page?: number; limit?: number } = {},
+  // `search` (audit 2026-10-10): backend GET following kini menerima
+  // `?search=` seperti followers — saring nama/username di server, bukan di
+  // klien atas halaman yang sudah dimuat.
+  options: { page?: number; limit?: number; search?: string } = {},
   signal?: AbortSignal,
 ) {
-  const query = { page: 1, limit: 20, ...options }
+  const { search, ...paging } = options
+  const query = { page: 1, limit: 20, ...paging, ...(search?.trim() ? { search: search.trim() } : {}) }
   return http
     .get<unknown>(`/v1/users/${seg(username)}/following`, {
       query,
@@ -777,7 +813,20 @@ export function followUser(username: string) {
     auth: "required",
     // Item #27: boleh diantrekan saat offline (aksi sosial).
     offlineBehavior: "enqueue-social",
-    offlineLabel: "Ikuti pengguna",
+    // P-15: label tampil di toast "Offline — … diantrekan" → ikut bahasa aktif.
+    offlineLabel: translate("Ikuti pengguna"),
+  })
+}
+
+/**
+ * DELETE /v1/users/{username}/followers — hapus seseorang dari pengikut SAYA
+ * (I065). E-33 (audit 2026-10-10): endpoint sudah ada di backend tetapi tidak
+ * pernah dipakai FE — pemilik tidak punya cara menghapus pengikut.
+ * Tidak diantrekan saat offline: aksi ini mengubah relasi orang lain.
+ */
+export function removeFollower(username: string) {
+  return http.delete<{ message: string }>(`/v1/users/${seg(username)}/followers`, {
+    auth: "required",
   })
 }
 
@@ -787,7 +836,7 @@ export function unfollowUser(username: string) {
     responseType: "void",
     // Item #27: boleh diantrekan saat offline (aksi sosial).
     offlineBehavior: "enqueue-social",
-    offlineLabel: "Berhenti mengikuti",
+    offlineLabel: translate("Berhenti mengikuti"),
   })
 }
 
@@ -1206,7 +1255,10 @@ export function getQuestionComments(
 ) {
   return http.get<QuestionCommentListResponse>(`/v1/users/questions/${seg(questionId)}/comments`, {
     query,
-    auth: "required",
+    // P-04 (audit 2026-10-10): endpoint backend `@Public()` — tamu boleh
+    // membaca komentar; `"required"` dulu melempar UNAUTHORIZED + siklus
+    // expireSession sebelum request dikirim.
+    auth: "optional",
     retry: 1,
     signal,
   })
@@ -1319,8 +1371,10 @@ export function getVerificationBadges(username: string, signal?: AbortSignal) {
   return http
     .get<{ username: string; badges: VerificationBadge[] }>(
       `/v1/users/${seg(username)}/badges`,
-      // D-08 (audit): badge verifikasi bersifat publik.
-      { auth: "none", retry: 1, signal },
+      // D-08 (audit): badge verifikasi bersifat publik. P-05: token tetap
+      // dikirim bila ada — pemilik profil privat (profileVisible=false)
+      // hanya lolos gate backend bila viewerId = pemilik.
+      { auth: "optional", retry: 1, signal },
     )
     .then((r) => (Array.isArray(r?.badges) ? r.badges : []))
 }

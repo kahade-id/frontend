@@ -337,19 +337,26 @@ export type UpdateProfileDto = {
   username?: string
   /**
    * User bio
-   * minLength 0 · maxLength 500
+   * minLength 0 · maxLength 160 (kontrak update-profile.dto RK-P07 — dulu
+   * terdokumentasi 500, bio 161–500 ditolak 400 saat simpan)
    */
   bio?: string
-  /** Account type */
-  accountType?: "PERSONAL" | "BUSINESS"
-  /** Phone number */
-  phoneNumber?: string
+  /**
+   * @deprecated TIDAK ada di DTO backend (forbidNonWhitelisted → 422 bila
+   * terkirim). Tipe akun naik otomatis lewat verifikasi bisnis (BAI-064).
+   */
+  accountType?: never
+  /**
+   * @deprecated TIDAK diterima PUT /users/me (users.service.ts menolak) —
+   * ganti nomor HP lewat alur OTP `ROUTES.changePhone`.
+   */
+  phoneNumber?: never
   /** Date of birth (ISO date string) */
   dateOfBirth?: string
   /** Gender */
   gender?: string
-  /** Contact email (public) */
-  contactEmail?: string
+  /** Contact email (public). `null` = hapus (E-03: `""` ditolak @IsEmail). */
+  contactEmail?: string | null
   /** Contact phone (public) */
   contactPhone?: string
   /** Show contact email on profile */
@@ -408,8 +415,13 @@ export type UpdateLinksDto = {
 }
 
 export type RequestAccountDeletionDto = {
-  /** Current password for verification */
-  password: string
+  /**
+   * Current password for verification — WAJIB hanya untuk akun berkata
+   * sandi (DTO backend: opsional; akun OTP/sosial memakai `otpCode`).
+   */
+  password?: string
+  /** WhatsApp OTP (4–10 digit) untuk akun tanpa kata sandi — POST /users/me/deletion-otp. */
+  otpCode?: string
   /**
    * Reason for account deletion
    * maxLength 1000
@@ -1487,7 +1499,8 @@ export type UpdatePrivacyDto = {
   showGender?: boolean
   showFollowerList?: "EVERYONE" | "FOLLOWERS" | "ONLY_ME"
   showFollowingList?: "EVERYONE" | "FOLLOWERS" | "ONLY_ME"
-  showcaseDefaultVisibility?: "PUBLIC" | "PRIVATE" | "FOLLOWERS"
+  /** E-22: enum backend ShowcaseVisibility hanya PUBLIC|PRIVATE. */
+  showcaseDefaultVisibility?: "PUBLIC" | "PRIVATE"
   qaCommentPolicy?: "EVERYONE" | "FOLLOWERS" | "DISABLED"
   qaAnswerModeration?: boolean
   showReviews?: boolean

@@ -22,7 +22,12 @@ import { Spinner } from "@/components/ui/spinner"
 import { Text } from "@/components/ui/text"
 import { translate } from "@/lib/i18n/translate"
 
-export type UsernameAvailability = "idle" | "checking" | "available" | "taken"
+/**
+ * E-05 (audit 2026-10-10): `error` = pemeriksaan GAGAL (429 throttle 5/menit,
+ * jaringan) — bukan "tidak tersedia". Simpan tetap boleh berjalan; backend
+ * memutus (409 USERNAME_TAKEN).
+ */
+export type UsernameAvailability = "idle" | "checking" | "available" | "taken" | "error"
 
 // Batch 139 E01: konstanta + normalisasi dipindah ke lib/username.ts (murni,
 // teruji). Re-export di sini menjaga kompatibilitas import yang sudah ada.
@@ -33,15 +38,28 @@ export { normalizeUsername, USERNAME_MIN, USERNAME_MAX }
 // (DBL-006 backend; dulu 3–20). Nilai yang divalidasi di sini SUDAH
 // dinormalisasi (lowercase) oleh onChangeText di bawah, jadi charset kecil
 // tetap benar untuk nilai tampilan ini.
-// P1 (audit 2026-10-06): samakan dengan backend
-// update-profile.dto.ts `/^[a-zA-Z0-9._]+$/` — backend MENGIZINKAN awalan/
-// akhiran titik/garis bawah (mis. `budi_`, `.andi`); regex lama menolaknya.
-const USERNAME_RE = /^[a-z0-9._]+$/
+// E-06 (audit 2026-10-10): aturan SERVICE backend (users.service.ts
+// updateProfile), bukan hanya DTO. DTO memang longgar (`/^[a-zA-Z0-9._]+$/`),
+// tetapi service menolak awalan/akhiran `.`/`_` (`budi_`, `.andi`) dan simbol
+// berurutan (`a..b`) dengan VALIDATION_ERROR — versi 2026-10-06 yang hanya
+// meniru DTO meloloskannya di klien, lalu gagal saat simpan.
+export const USERNAME_RE = /^[a-z0-9](?:[a-z0-9._]*[a-z0-9])?$/
+export const USERNAME_CONSECUTIVE_RE = /[._]{2,}/
+
+/** Lolos SEMUA aturan username profil (panjang + bentuk) — dipakai guard cek ketersediaan & simpan. */
+export function isValidProfileUsername(value: string): boolean {
+  return (
+    value.length >= USERNAME_MIN &&
+    value.length <= USERNAME_MAX &&
+    USERNAME_RE.test(value) &&
+    !USERNAME_CONSECUTIVE_RE.test(value)
+  )
+}
 
 export function validateUsername(value: string, labels: UsernameFieldLabels): string | undefined {
   if (!value) return undefined
   if (value.length < USERNAME_MIN) return labels.tooShort
-  if (!USERNAME_RE.test(value)) return labels.invalid
+  if (!USERNAME_RE.test(value) || USERNAME_CONSECUTIVE_RE.test(value)) return labels.invalid
   return undefined
 }
 
@@ -52,6 +70,8 @@ export type UsernameFieldLabels = {
   checking: string
   available: string
   taken: string
+  /** E-05: pemeriksaan gagal (throttle/jaringan) — bukan "tidak tersedia". */
+  checkFailed: string
   hint: string
 }
 
@@ -65,10 +85,11 @@ function defaultLabels(): UsernameFieldLabels {
   return {
     label: translate("Nama pengguna"),
     tooShort: translate("Minimal {x} karakter", { x: USERNAME_MIN }),
-    invalid: translate("Hanya huruf kecil, angka, titik, dan garis bawah"),
+    invalid: translate("Huruf kecil, angka, titik, garis bawah — awal & akhir huruf/angka, tanpa simbol berurutan"),
     checking: translate("Memeriksa ketersediaan…"),
     available: translate("Nama pengguna tersedia"),
     taken: translate("Nama pengguna sudah dipakai"),
+    checkFailed: translate("Ketersediaan belum bisa diperiksa — akan dicek saat menyimpan"),
     hint: translate("{x}–{y} karakter, huruf kecil/angka/._", {
       x: USERNAME_MIN,
       y: USERNAME_MAX,
@@ -117,7 +138,9 @@ export const UsernameField = forwardRef<TextInputInstance, UsernameFieldProps>(f
           ? t.available
           : availability === "taken"
             ? t.taken
-            : undefined
+            : availability === "error"
+              ? t.checkFailed
+              : undefined
       : undefined
 
   return (

@@ -96,10 +96,17 @@ export function RatingDistributionBars({ username, selectedStars = null, onSelec
     )
   }
 
+  // P-11 (audit 2026-10-10): pemilik menyembunyikan ulasan → distribusi 0
+  // di payload bukan data; tab Ulasan sudah menampilkan status "disembunyikan".
+  if (summary.hidden) return null
+
   const { total } = summary.distribution
   // Rata-rata dari server; fallback = hitung dari distribusi server (bukan
   // dari halaman daftar yang dimuat — itu menyesatkan).
   const average = summary.averageRating ?? (total > 0 ? fallbackSum / total : 0)
+  // P-12: bar hanya jadi tombol bila pemanggil menyambungkan `onSelectStars`;
+  // tanpa handler, dulu tetap ber-role "button" yang tidak melakukan apa-apa.
+  const interactive = typeof onSelectStars === "function"
 
   return (
     <View
@@ -126,15 +133,9 @@ export function RatingDistributionBars({ username, selectedStars = null, onSelec
           const count = counts[stars - 1] ?? 0
           const pct = total > 0 ? (count / total) * 100 : 0
           const selected = selectedStars === stars
-          return (
-            <PressableScale
-              key={stars}
-              className="flex-row items-center gap-2 py-0.5"
-              accessibilityRole="button"
-              accessibilityState={{ selected }}
-              accessibilityLabel={translate("{n} ulasan bintang {s}", { n: String(count), s: String(stars) })}
-              onPress={() => onSelectStars?.(selected ? null : stars)}
-            >
+          const label = translate("{n} ulasan bintang {s}", { n: String(count), s: String(stars) })
+          const row = (
+            <>
               <Text variant="caption" tone="secondary" className="w-3 tabular-nums">
                 {stars}
               </Text>
@@ -150,7 +151,23 @@ export function RatingDistributionBars({ username, selectedStars = null, onSelec
               <Text variant="caption" tone="secondary" className="w-8 text-right tabular-nums">
                 {count}
               </Text>
+            </>
+          )
+          return interactive ? (
+            <PressableScale
+              key={stars}
+              className="flex-row items-center gap-2 py-0.5"
+              accessibilityRole="button"
+              accessibilityState={{ selected }}
+              accessibilityLabel={label}
+              onPress={() => onSelectStars(selected ? null : stars)}
+            >
+              {row}
             </PressableScale>
+          ) : (
+            <View key={stars} accessible className="flex-row items-center gap-2 py-0.5" accessibilityLabel={label}>
+              {row}
+            </View>
           )
         })}
       </View>

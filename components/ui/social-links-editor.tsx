@@ -13,89 +13,41 @@
  *   - Ikon platform memakai logo Phosphor monokrom (bukan warna brand) —
  *     konsisten §7; pengecualian warna hanya untuk logo bank.
  */
-import {
-  ArrowDown,
-  ArrowUp,
-  FacebookLogo,
-  Globe,
-  InstagramLogo,
-  LinkedinLogo,
-  Plus,
-  Storefront,
-  TelegramLogo,
-  TiktokLogo,
-  Trash,
-  WhatsappLogo,
-  XLogo,
-  YoutubeLogo,
-} from "phosphor-react-native"
+import { ArrowDown, ArrowUp, Plus, Trash } from "phosphor-react-native"
 import { View, type ViewProps } from "react-native"
 
 import { Button } from "@/components/ui/button"
 import { ChipGroup } from "@/components/ui/chip"
 import { IconButton } from "@/components/ui/icon-button"
-import type { IconComponent } from "@/components/ui/icon"
 import { Input } from "@/components/ui/input"
+import {
+  ALL_SOCIAL_PLATFORMS,
+  SOCIAL_PLATFORM_ICONS,
+  SOCIAL_PLATFORM_LABELS,
+  socialPlatformIcon,
+  socialPlatformLabel,
+  type SocialPlatform,
+} from "@/components/ui/social-platforms"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
-import { mapValue } from "@/lib/has-own"
+import { translate, useLanguage } from "@/lib/i18n"
+import { isValidSocialLinkInput } from "@/lib/profile-links"
 
-export type SocialPlatform =
-  | "instagram"
-  | "tiktok"
-  | "x"
-  | "facebook"
-  | "youtube"
-  | "linkedin"
-  | "whatsapp"
-  | "telegram"
-  | "shop"
-  | "website"
+// Katalog platform pindah ke components/ui/social-platforms.ts (dipakai juga
+// oleh <ProfileLinks> di profil publik). Re-export menjaga impor lama.
+export { SOCIAL_PLATFORM_ICONS, SOCIAL_PLATFORM_LABELS, socialPlatformIcon, type SocialPlatform }
 
 export type SocialLink = { platform: SocialPlatform | string; url: string; label?: string; displayOrder?: number }
 
-export const SOCIAL_PLATFORM_ICONS: Record<SocialPlatform, IconComponent> = {
-  instagram: InstagramLogo,
-  tiktok: TiktokLogo,
-  x: XLogo,
-  facebook: FacebookLogo,
-  youtube: YoutubeLogo,
-  linkedin: LinkedinLogo,
-  whatsapp: WhatsappLogo,
-  telegram: TelegramLogo,
-  shop: Storefront,
-  website: Globe,
-}
-
-export const SOCIAL_PLATFORM_LABELS: Record<SocialPlatform, string> = {
-  instagram: "Instagram",
-  tiktok: "TikTok",
-  x: "X",
-  facebook: "Facebook",
-  youtube: "YouTube",
-  linkedin: "LinkedIn",
-  whatsapp: "WhatsApp",
-  telegram: "Telegram",
-  shop: "Toko online",
-  website: "Situs web",
-}
-
 /**
- * `platform` dibaca dari tautan tersimpan (PUT/GET /v1/users/me/links) dan
- * tidak divalidasi. `MAP[key] ?? Globe` tidak melindungi dari kunci warisan
- * Object.prototype: `MAP["toString"]` adalah sebuah fungsi, bukan undefined,
- * sehingga `??` diam saja dan <Icon> akan merender fungsi itu sebagai
- * komponen. `mapValue` menutupnya (lihat lib/has-own).
+ * Validasi klien = aturan backend (`PUT /v1/users/me/links` menolak selain
+ * https). Versi lama menerima `http://` dan nomor telepon WhatsApp sehingga
+ * simpan selalu gagal 400 untuk input itu. Kini memakai helper bersama
+ * `isValidSocialLinkInput` yang menilai hasil SETELAH normalisasi (nomor WA
+ * → wa.me, tanpa skema → https://) — sama dengan yang dikirim saat simpan.
  */
-export function socialPlatformIcon(platform: string): IconComponent {
-  return mapValue(SOCIAL_PLATFORM_ICONS, platform, Globe)
-}
-
 export function validateSocialUrl(platform: string, url: string): boolean {
-  const v = url.trim()
-  if (!v) return false
-  if (platform === "whatsapp") return /^(\+?\d{8,15}|https?:\/\/(wa\.me|api\.whatsapp\.com)\/.+)$/i.test(v)
-  return /^https?:\/\/[^\s]+\.[^\s]+$/i.test(v)
+  return isValidSocialLinkInput(platform, url)
 }
 
 export type SocialLinksEditorLabels = {
@@ -110,16 +62,20 @@ export type SocialLinksEditorLabels = {
   maxReached: (n: number) => string
 }
 
-const DEFAULT_LABELS: SocialLinksEditorLabels = {
-  platform: "Platform",
-  url: "Tautan",
-  label: "Label tampilan (opsional)",
-  add: "Tambah tautan",
-  remove: "Hapus tautan",
-  moveUp: "Pindah ke atas",
-  moveDown: "Pindah ke bawah",
-  invalidUrl: "Tautan harus diawali https://",
-  maxReached: (n) => `Maksimal ${n} tautan`,
+/** Label bawaan mengikuti bahasa aktif (dulu konstanta modul Indonesia). */
+function useDefaultLabels(): SocialLinksEditorLabels {
+  useLanguage()
+  return {
+    platform: translate("Platform"),
+    url: translate("Tautan"),
+    label: translate("Label tampilan (opsional)"),
+    add: translate("Tambah tautan"),
+    remove: translate("Hapus tautan"),
+    moveUp: translate("Pindah ke atas"),
+    moveDown: translate("Pindah ke bawah"),
+    invalidUrl: translate("Tautan harus diawali https:// (WhatsApp: nomor HP atau tautan wa.me)"),
+    maxReached: (n) => translate("Maksimal {x} tautan", { x: String(n) }),
+  }
 }
 
 export type SocialLinksEditorProps = Omit<ViewProps, "children"> & {
@@ -134,8 +90,6 @@ export type SocialLinksEditorProps = Omit<ViewProps, "children"> & {
   className?: string
 }
 
-const ALL_PLATFORMS = Object.keys(SOCIAL_PLATFORM_ICONS) as SocialPlatform[]
-
 function withOrder(links: readonly SocialLink[]): SocialLink[] {
   return links.map((l, i) => ({ ...l, displayOrder: i }))
 }
@@ -143,7 +97,7 @@ function withOrder(links: readonly SocialLink[]): SocialLink[] {
 export function SocialLinksEditor({
   value,
   onChange,
-  platforms = ALL_PLATFORMS,
+  platforms = ALL_SOCIAL_PLATFORMS,
   max = 6,
   disabled = false,
   showErrors = false,
@@ -151,11 +105,12 @@ export function SocialLinksEditor({
   className,
   ...rest
 }: SocialLinksEditorProps) {
-  const t = { ...DEFAULT_LABELS, ...labels }
+  const defaults = useDefaultLabels()
+  const t = { ...defaults, ...labels }
   const chipOptions = platforms.map((p) => ({
     value: p,
-    label: mapValue(SOCIAL_PLATFORM_LABELS, p, p),
-    icon: mapValue(SOCIAL_PLATFORM_ICONS, p, Globe),
+    label: socialPlatformLabel(p),
+    icon: socialPlatformIcon(p),
   }))
   const canAdd = value.length < max && !disabled
 

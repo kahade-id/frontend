@@ -9,7 +9,7 @@
 import { useMemo } from "react"
 import { View } from "react-native"
 import { router } from "expo-router"
-import { Star } from "phosphor-react-native"
+import { Lock, Star } from "phosphor-react-native"
 
 import { firstRatingReply, type PublicRatingFilter, type Rating } from "@/lib/api/ratings"
 import { useLanguage } from "@/lib/i18n"
@@ -92,6 +92,12 @@ export type ProfileRatingsTabProps = {
   handle: string
   /** Apakah ini profil milik pengguna sendiri */
   isSelf?: boolean
+  /**
+   * P-11 (audit 2026-10-10): pemilik mematikan "Tampilkan ulasan" — backend
+   * mengirim `hidden: true` + daftar kosong. Tampilkan status privat, bukan
+   * "Belum ada ulasan" (klaim palsu) + distribusi 0.
+   */
+  hidden?: boolean
 }
 
 export function ProfileRatingsTab({
@@ -105,10 +111,22 @@ export function ProfileRatingsTab({
   onSortChange,
   handle,
   isSelf = false,
+  hidden = false,
 }: ProfileRatingsTabProps) {
   const ratingFilters = useRatingFilters()
   const ratingSorts = useRatingSorts()
   const sorted = useMemo(() => sortProfileRatings(ratings, sort), [ratings, sort])
+  if (hidden && !loading && !error) {
+    return (
+      <View className="px-5 pt-4">
+        <EmptyState
+          icon={Lock}
+          title={translate("Ulasan disembunyikan")}
+          description={translate("Pemilik profil memilih tidak menampilkan ulasannya.")}
+        />
+      </View>
+    )
+  }
   return (
     <View className="px-5 pt-4 gap-4">
       {/*

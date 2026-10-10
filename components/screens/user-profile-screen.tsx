@@ -1,15 +1,15 @@
 import { useProfileShowcase } from "@/lib/use-profile-showcase"
 /**
- * Screen — Profil User (Binance Social / Creator Profile style)
+ * Screen — Profil User (gaya Instagram / Threads)
  *
  *  - Navigasi atas di atas kartu sampul (+ untuk profil sendiri, back untuk orang lain).
- *  - Cover kartu (rounded + border + margin).
- *  - Avatar bulat besar menimpa sampul 30% (70% di bawah kartu).
- *  - Identitas: Nama lengkap & @username berdekatan, bio multi-line.
- *  - Statistik interaktif (Mengikuti, Pengikut, Ulasan, Skor) di bawah bio.
- *  - Aksi: [Edit profil] untuk diri sendiri; [Ikuti] + [Kirim Pesan] untuk orang lain.
- *  - Tab navigasi in-page: Etalase, Utas (QEtalase, Tanya Jawab, Ulasan, TentangA), Ulasan, Tentang via <Tabs>.
- *  - Bottom Nav Bar hanya dirender untuk PROFIL SENDIRI.
+ *  - Cover kartu (rounded + border + margin), avatar bulat menimpa sampul.
+ *  - Statistik (Mengikuti, Pengikut, Ulasan) di samping avatar — semua profil.
+ *  - Identitas: Nama lengkap & @username berdekatan, bio, tautan sosial.
+ *  - Aksi: [Ubah profil] [Bagikan] [QR] untuk diri sendiri;
+ *    [Ikuti] + [Kirim Pesan] untuk orang lain.
+ *  - Tab in-page: Etalase, Utas (Q&A), Ulasan, Tentang.
+ *  - Tamu (tanpa sesi) boleh melihat; aksi sosial digerbang `requireSession`.
  */
 import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
@@ -37,7 +37,13 @@ import {
 } from "phosphor-react-native"
 import { api, isApiError, userMessage } from "@/lib/api"
 import type { HiddenReason, PublicUserProfile, QuestionComment, QuestionItem, VerificationBadge } from "@/lib/api/users"
-import { readMyRatings, type PublicRatingFilter, type Rating } from "@/lib/api/ratings"
+import {
+  readMyRatings,
+  readPublicRatingsHidden,
+  type PublicRatingFilter,
+  type Rating,
+} from "@/lib/api/ratings"
+import { isOfflineKnown } from "@/lib/connectivity"
 import { isOwnQuestion, isOwnQuestionComment, resolveFollowStatus } from "@/lib/api/users"
 import {
   readQuestionComments,
@@ -52,7 +58,7 @@ import { useHasSession } from "@/lib/guest-gate"
 import { goBackOrNavigate } from "@/lib/navigation"
 import { resolveMediaUrl } from "@/lib/media"
 import { ROUTES } from "@/lib/routes"
-import { isFilePayload, type SharePayload } from "@/lib/share"
+import { isFilePayload, shareContent, type SharePayload } from "@/lib/share"
 import { TEXT_ROW_HIT_SLOP } from "@/lib/hit-slop"
 import { logWarn } from "@/lib/telemetry"
 
@@ -85,6 +91,7 @@ import { QaThread } from "@/components/ui/qa-thread"
 import { buildCommentThread, type ThreadSort } from "@/lib/qa-thread"
 import { ProfileAboutTab } from "@/components/ui/profile-about-tab"
 import { ProfileEtalaseTab } from "@/components/ui/profile-etalase-tab"
+import { ProfileLinks } from "@/components/ui/profile-links"
 import { ProfileRatingsTab } from "@/components/ui/profile-ratings-tab"
 import { ProfileEditSheet } from "@/components/ui/profile-edit-sheet"
 import { ProfileHighlightsStrip } from "@/components/ui/profile-highlights-strip"
@@ -378,7 +385,14 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
   const [ratingsLoading, setRatingsLoading] = useState(false)
   /** UX-FDB-008: failure ≠ empty — kegagalan muat dibedakan dari daftar kosong. */
   const [ratingsError, setRatingsError] = useState<string | null>(null)
+  /** P-11: pemilik menyembunyikan ulasan (`hidden: true` dari backend). */
+  const [ratingsHidden, setRatingsHidden] = useState(false)
   const [ratingFilter, setRatingFilter] = useState<PublicRatingFilter>("all")
+  /**
+   * Nilai filter yang dibaca `fetchTabContents` (supaya callback itu stabil);
+   * perubahan filter memicu HANYA `fetchRatings` (lihat effect di bawah).
+   */
+  const ratingFilterRef = useRef<PublicRatingFilter>("all")
   /** Item 70 (2026-09-28): urutan ulasan — Terbaru (createdAt desc) / Rating tertinggi. */
   const [ratingSort, setRatingSort] = useState<"newest" | "top">("newest")
   /** Item 61 (2026-09-28): bio kepotong 4 baris + toggle Selengkapnya/Tutup. */
@@ -410,11 +424,19 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
     prevUsernameRef.current = username
     // Item 72: pulihkan tab terakhir sesi (bukan hard-reset ke "content").
     selectTab(sessionProfileTab ?? "content")
+    // P-08 (audit 2026-10-10): buang profil lama — tanpa ini nama/bio/
+    // tautan/QR milik profil A tetap tampil di bawah header @B sampai
+    // respons B tiba (Crossfade hanya menampilkan kerangka bila profil null).
+    setProfile(null)
     setQuestions([])
     setRatings([])
     setQuestionsError(null)
     setRatingsError(null)
+    setRatingsHidden(false)
     setRatingFilter("all")
+    // P-09: samakan ref agar effect filter tidak menganggap reset ini sebagai
+    // perubahan filter dan menembak `fetchRatings` untuk profil LAMA.
+    ratingFilterRef.current = "all"
     setRatingSort("newest")
     setBioExpanded(false)
     setAvatarViewerOpen(false)
@@ -431,53 +453,113 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
     setDeleteQ(null)
     setDeleteC(null)
   }, [username, selectTab])
-  // Fetch all tab contents
-  const fetchTabContents = useCallback(
-    async (targetName: string) => {
-      setQuestionsLoading(true)
-      setRatingsLoading(true)
-      setQuestionsError(null)
+  /**
+   * Ulasan dipisah dari `fetchTabContents` (audit 2026-10-10): dulu
+   * `fetchTabContents` bergantung pada `ratingFilter`, sehingga `fetchProfile`
+   * ikut berubah identitas dan effect `[fetchProfile]` menjalankan ULANG
+   * seluruh muat profil (profil, me, etalase, pertanyaan, badge, tersimpan)
+   * — 7+ request dan tombol Ikuti berkedip ke spinner — hanya karena
+   * pengguna mengganti chip "Positif". Kini ganti filter = satu request.
+   *
+   * Respons basi dijaga dengan nomor urut: filter diganti cepat dua kali →
+   * hanya hasil request terakhir yang diterapkan.
+   */
+  const ratingsRequest = useRef(0)
+  const fetchRatings = useCallback(
+    (targetName: string, filter: PublicRatingFilter, opts?: { silent?: boolean }) => {
+      const started = ++ratingsRequest.current
+      const current = () => ratingsRequest.current === started
+      // P-06: tarik-untuk-menyegarkan (silent) tidak mengganti daftar dengan kerangka.
+      if (!opts?.silent) setRatingsLoading(true)
       setRatingsError(null)
-
-      fetchShowcaseTab(targetName)
-
-      void api.users
-        .getPublicQuestions(targetName, { page: 1, limit: 20 })
-        .then((res) => {
-          const { items } = readQuestionList(res)
-          setQuestions(items)
-        })
-        .catch((err: unknown) => {
-          // UX-FDB-008: jangan samarkan kegagalan sebagai empty state.
-          setQuestions([])
-          setQuestionsError(userMessage(err))
-        })
-        .finally(() => setQuestionsLoading(false))
-
       void api.ratings
         .getPublicRatings(targetName, {
           page: 1,
           limit: 20,
-          ...(ratingFilter === "all" ? {} : { filter: ratingFilter }),
+          ...(filter === "all" ? {} : { filter }),
         })
         .then((res) => {
+          if (!current()) return
           const { items } = readMyRatings(res)
           setRatings(items)
+          setRatingsHidden(readPublicRatingsHidden(res))
         })
         .catch((err: unknown) => {
+          if (!current()) return
           // UX-FDB-008: jangan samarkan kegagalan sebagai empty state.
           setRatings([])
           setRatingsError(userMessage(err))
         })
-        .finally(() => setRatingsLoading(false))
+        .finally(() => {
+          if (current()) setRatingsLoading(false)
+        })
     },
-    [ratingFilter, fetchShowcaseTab],
+    [],
   )
 
-  /** UX-FDB-008: muat ulang tab pertanyaan/ulasan setelah kegagalan. */
-  const retryTabContents = useCallback(() => {
-    if (handle) void fetchTabContents(handle)
-  }, [handle, fetchTabContents])
+  /**
+   * P-07 (audit 2026-10-10): pertanyaan punya penjaga respons basi sendiri
+   * (nomor urut) — dulu tanpa guard, pindah profil A→B cepat membuat
+   * respons A yang mendarat belakangan menampilkan pertanyaan A di profil B.
+   */
+  const questionsRequest = useRef(0)
+  const fetchQuestions = useCallback((targetName: string, opts?: { silent?: boolean }) => {
+    const started = ++questionsRequest.current
+    const current = () => questionsRequest.current === started
+    if (!opts?.silent) setQuestionsLoading(true)
+    setQuestionsError(null)
+    void api.users
+      .getPublicQuestions(targetName, { page: 1, limit: 20 })
+      .then((res) => {
+        if (!current()) return
+        const { items } = readQuestionList(res)
+        setQuestions(items)
+      })
+      .catch((err: unknown) => {
+        if (!current()) return
+        // UX-FDB-008: jangan samarkan kegagalan sebagai empty state.
+        setQuestions([])
+        setQuestionsError(userMessage(err))
+      })
+      .finally(() => {
+        if (current()) setQuestionsLoading(false)
+      })
+  }, [])
+
+  /**
+   * Muat ketiga tab. `silent` (P-06) diteruskan ke semuanya — dulu hanya
+   * header yang "diam" saat tarik-untuk-menyegarkan, sementara tab aktif
+   * tetap berganti kerangka.
+   */
+  const fetchTabContents = useCallback(
+    (targetName: string, opts?: { silent?: boolean }) => {
+      fetchShowcaseTab(targetName, { silent: opts?.silent === true })
+      fetchQuestions(targetName, opts)
+      fetchRatings(targetName, ratingFilterRef.current, opts)
+    },
+    [fetchShowcaseTab, fetchQuestions, fetchRatings],
+  )
+
+  /**
+   * Perubahan filter memicu HANYA `fetchRatings`. Dilewati saat profil belum
+   * termuat — muat awal sudah memanggilnya.
+   */
+  useEffect(() => {
+    if (ratingFilterRef.current === ratingFilter) return
+    ratingFilterRef.current = ratingFilter
+    if (profile?.username) fetchRatings(profile.username, ratingFilter)
+  }, [ratingFilter, profile?.username, fetchRatings])
+
+  /**
+   * UX-FDB-008: muat ulang SATU tab setelah kegagalan. P-21: dulu satu tombol
+   * "Coba lagi" memuat ulang ketiga tab (3 request + kerangka di tab lain).
+   */
+  const retryQuestions = useCallback(() => {
+    if (handle) fetchQuestions(handle)
+  }, [handle, fetchQuestions])
+  const retryRatings = useCallback(() => {
+    if (handle) fetchRatings(handle, ratingFilterRef.current)
+  }, [handle, fetchRatings])
 
   /**
    * `opts.silent` — perbaikan cacat yang terbukti: tarik-untuk-menyegarkan
@@ -518,12 +600,19 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
     if (!opts?.silent) setLoading(true)
     setError(null)
     try {
+      // P-03 (audit 2026-10-10): tamu TIDAK memanggil endpoint ber-auth
+      // "required" (`getMeCached`, `checkSavedProfile`). Tanpa token, client
+      // mencoba refresh → 401 → `expireSession` menaikkan revisi sesi →
+      // request profil publik yang masih in-flight dibatalkan (ABORTED) →
+      // "Gagal memuat profil — Permintaan dibatalkan" untuk tamu.
       const [res, me] = await Promise.all([
         api.users.getUserByUsername(username),
-        api.users.getMeCached().catch((err) => {
-          logWarn("profile:me-fallback", err)
-          return null
-        }),
+        hasSession
+          ? api.users.getMeCached().catch((err) => {
+              logWarn("profile:me-fallback", err)
+              return null
+            })
+          : Promise.resolve(null),
       ])
       if (!current()) return
       setProfile(res)
@@ -542,47 +631,47 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
       setFollowerCount(finiteCount(res.social?.followersCount) ?? finiteCount(res.followersCount))
       setFollowingCount(finiteCount(res.social?.followingCount) ?? finiteCount(res.followingCount))
 
-      // Fetch tab data
-      void fetchTabContents(targetName)
+      // Fetch tab data (silent diteruskan — P-06).
+      fetchTabContents(targetName, opts)
 
-      void api.users
-        .checkSavedProfile(targetName)
-        .then((isSaved) => {
-          if (current()) setSaved(isSaved)
-        })
-        .catch(() => {
-          if (current()) setSaved(false)
-        })
+      if (hasSession) {
+        void api.users
+          .checkSavedProfile(targetName)
+          .then((isSaved) => {
+            if (current()) setSaved(isSaved)
+          })
+          .catch(() => {
+            if (current()) setSaved(false)
+          })
+      } else {
+        setSaved(false)
+      }
 
-      void api.users
-        .getVerificationBadges(targetName)
-        .then((rows) => {
-          if (current()) setBadges(rows)
-        })
-        .catch(() => {
-          if (current()) setBadges([])
-        })
+      // P-05 (audit 2026-10-10): lencana dibaca dari payload profil
+      // (`badges`, sumber yang sama dengan GET /users/:username/badges) —
+      // satu request lebih sedikit, dan pemilik profil privat tetap melihat
+      // lencananya (endpoint terpisah dulu dipanggil tanpa token → 404).
+      // Request terpisah hanya cadangan bila payload tidak memuatnya.
+      if (Array.isArray(res.badges)) {
+        setBadges(res.badges)
+      } else {
+        void api.users
+          .getVerificationBadges(targetName)
+          .then((rows) => {
+            if (current()) setBadges(rows)
+          })
+          .catch(() => {
+            if (current()) setBadges([])
+          })
+      }
 
-      // Rekonsiliasi dengan total list (SS-019): angka profil disamakan dengan
-      // yang terlihat di daftar pengikut. Gagal → pertahankan nilai payload
-      // (jangan null → "0 palsu", SS-009).
-      void api.users
-        .getFollowers(targetName, { page: 1, limit: 1 })
-        .then((rows) => {
-          if (current() && typeof rows.meta.total === "number") setFollowerCount(rows.meta.total)
-        })
-        .catch(() => {
-          /* pertahankan nilai dari payload profil */
-        })
-
-      void api.users
-        .getFollowing(targetName, { page: 1, limit: 1 })
-        .then((rows) => {
-          if (current() && typeof rows.meta.total === "number") setFollowingCount(rows.meta.total)
-        })
-        .catch(() => {
-          /* pertahankan nilai dari payload profil */
-        })
+      // Rekonsiliasi SS-019 DIHAPUS (audit 2026-10-10): backend sudah
+      // menghitung `social.followersCount/followingCount` dengan
+      // visibleUserFilter yang SAMA PERSIS dengan total daftar, jadi dua
+      // request `?limit=1` tambahan per kunjungan profil hanya membuang
+      // kuota rate-limit (20/menit) tanpa mengubah angka. Lebih parah:
+      // daftar yang disembunyikan privasi mengembalikan `total: 0`, sehingga
+      // "Privat" (null dari payload) tertimpa menjadi "0" palsu.
 
       // PRF-003: status follow dibaca LANGSUNG dari payload profil
       // (`social.isFollowing` yang dihitung backend dari tabel follow).
@@ -593,14 +682,21 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
       if (current()) setFollowing(resolveFollowStatus(res))
     } catch (err) {
       if (current()) {
+        // 403 USER_BLOCKED (relasi blokir dua arah): backend menutup seluruh
+        // endpoint. Jangan tampilkan "Anda tidak memiliki akses" generik —
+        // cukup "tidak tersedia" tanpa membocorkan siapa memblokir siapa.
         setError(
-          isApiError(err) && err.status !== 404 ? userMessage(err) : translate("Profil tidak ditemukan."),
+          isApiError(err) && err.status === 403
+            ? translate("Profil ini tidak tersedia.")
+            : isApiError(err) && err.status !== 404
+              ? userMessage(err)
+              : translate("Profil tidak ditemukan."),
         )
       }
     } finally {
       if (current()) setLoading(false)
     }
-  }, [username, fetchTabContents])
+  }, [username, fetchTabContents, hasSession])
 
   useEffect(() => {
     void fetchProfile()
@@ -655,6 +751,18 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
       const prevCount = followerCount
       setFollowing(next)
       setFollowerCount((c) => (c == null ? c : Math.max(0, c + (next ? 1 : -1))))
+      // P-10 (audit 2026-10-10): saat PASTI offline, client mengantrekan aksi
+      // (`enqueue-social`) dan promise-nya baru selesai ketika antrean
+      // dikirim ulang — `await` di bawah akan menggantung: spinner & kunci
+      // follow tertahan sampai tersambung. Biarkan state optimistis, lepas
+      // kunci seketika; toast "diantrekan" sudah ditampilkan root layout.
+      if (isOfflineKnown()) {
+        void (next ? api.users.followUser(handle) : api.users.unfollowUser(handle)).catch((err) => {
+          logWarn("profile:follow-offline", err)
+        })
+        release()
+        return
+      }
       setFollowLoading(true)
       try {
         if (next) await api.users.followUser(handle)
@@ -663,6 +771,17 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
           title: next ? translate("Profil diikuti") : translate("Profil batal diikuti"),
         })
       } catch (err) {
+        // Idempoten di sisi klien: server sudah berada di state yang
+        // diminta (409 ALREADY_FOLLOWING saat ikuti, 400 NOT_FOLLOWING saat
+        // berhenti) — mis. aksi dari perangkat lain atau replay antrean
+        // offline. Dulu di-rollback → tombol menampilkan kebalikan dari
+        // kenyataan server + toast "Gagal mengikuti".
+        const code = isApiError(err) ? err.backendCode : undefined
+        if ((next && code === "ALREADY_FOLLOWING") || (!next && code === "NOT_FOLLOWING")) {
+          // Angka optimistis (+1/-1) tidak sahih karena server tidak berubah.
+          setFollowerCount(prevCount)
+          return
+        }
         setFollowing(prevFollowing)
         setFollowerCount(prevCount)
         toast.show({
@@ -720,18 +839,21 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
       // balapan antar dua tap cepat, seperti pada follow (SH-F-004).
       const release = acquireShowcaseMutation(`save-profile:${handle}`)
       if (!release) return
+      // P-13 (audit 2026-10-10): optimistis + rollback (CLAUDE.md §3) — dulu
+      // ikon hanya berputar dan baru berubah setelah respons.
+      const prevSaved = saved
+      setSaved(next)
       setSaveLoading(true)
       try {
         if (next) {
           await api.users.saveProfile(handle)
-          setSaved(true)
           toast.show({ title: translate("Profil disimpan"), tone: "success", duration: 2500 })
         } else {
           await api.users.unsaveProfile(handle)
-          setSaved(false)
           toast.show({ title: translate("Profil dihapus dari tersimpan"), tone: "success", duration: 2500 })
         }
       } catch (err: unknown) {
+        setSaved(prevSaved)
         toast.show({
           title: translate("Gagal memperbarui tersimpan"),
           description: userMessage(err),
@@ -742,7 +864,7 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
         setSaveLoading(false)
       }
     },
-    [handle, saveLoading, toast, requireSession],
+    [handle, saved, toast, requireSession],
   )
 
 
@@ -778,6 +900,25 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
     },
     [copy, toast],
   )
+
+  /**
+   * Bagikan profil SENDIRI dari baris aksi (tombol langsung, bukan lewat
+   * sheet titik tiga). Payload & fallback salin = sumber yang sama dengan
+   * <ShareSheetTrigger> profil orang lain; kunci sinkron menolak tap ganda
+   * selagi sheet OS terbuka (guard yang sama dengan ShareSheetTrigger).
+   */
+  const shareBusyRef = useRef(false)
+  const handleShareProfile = useCallback(async () => {
+    if (!handle || shareBusyRef.current) return
+    shareBusyRef.current = true
+    try {
+      const payload = profileSharePayload()
+      const outcome = await shareContent(payload)
+      if (outcome === "unavailable") await shareUnavailable(payload)
+    } finally {
+      shareBusyRef.current = false
+    }
+  }, [handle, profileSharePayload, shareUnavailable])
 
   const handleBlock = useCallback(async () => {
     // P3 (audit 2026-09-26): tamu di-gate login sebelum aksi blokir.
@@ -901,6 +1042,9 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
 
   const submitComment = useCallback(async () => {
     if (!openQuestionId || !commentText.trim() || commentSending) return
+    // P-14: tamu digerbang ke login (seperti openAsk/handleUpvote) — bukan
+    // toast "Gagal mengirim komentar" setelah 401.
+    if (!requireSession()) return
     setCommentSending(true)
     try {
       await api.users.addQuestionComment(openQuestionId, {
@@ -922,7 +1066,7 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
     } finally {
       setCommentSending(false)
     }
-  }, [openQuestionId, commentText, commentSending, toast, replyTo])
+  }, [openQuestionId, commentText, commentSending, toast, replyTo, requireSession])
 
   const handleDelete = useCallback(async () => {
     if (deleting) return
@@ -1061,7 +1205,7 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
               <View className="absolute inset-0 items-center justify-center gap-1">
                 <Icon icon={ImageIcon} size="md" tone="default" />
                 <Text variant="caption" tone="secondary">
-                  Belum ada foto sampul
+                  {translate("Belum ada foto sampul")}
                 </Text>
               </View>
             ) : null}
@@ -1130,59 +1274,44 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
                 )}
               </View>
 
-              {/* A.4 — aksi ringkas yang relevan duduk di samping avatar;
-                  aksi utama [Ikuti]/[Kirim Pesan] tetap berada di bawah bio.
-                  Bagikan tersedia dari bottom sheet titik tiga. Profil sendiri
-                  menampilkan [Ubah profil] di posisi kiri baris ini. */}
+              {/* A.4 — statistik sosial duduk di samping avatar (gaya
+                  Instagram): angka bold di atas, label abu di bawah. Tampil
+                  untuk SEMUA profil — versi 2026-10-09 menukar blok ini
+                  dengan tombol [Ubah profil] di profil sendiri, sehingga
+                  pemilik tidak pernah melihat jumlah pengikut/mengikuti/
+                  ulasannya sendiri. [Ubah profil] kini di baris aksi bawah
+                  bio (bersama Bagikan & QR), seperti Instagram. */}
               <View className="flex-row items-center gap-2 pb-1">
-                {isSelf ? (
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    fullWidth={false}
-                    leftIcon={PencilSimple}
-                    // Item 22 (2026-09-28): edit inline lewat bottom sheet —
-                    // tanpa pindah halaman. Layar edit lengkap
-                    // (app/edit-profile.tsx) tetap ada via link di sheet.
-                    onPress={() => setEditOpen(true)}
-                  >
-                    {translate("Ubah profil")}
-                  </Button>
-                ) : (
-                  /* Stats di samping avatar (2026-10-09): menggantikan ikon
-                     love/simpan/QR yang dipindah. Desain: angka bold di atas,
-                     label abu di bawah. */
-                  <View className="flex-row items-center gap-5">
-                    <SocialStat
-                      count={followingCount}
-                      label={translate("Mengikuti")}
-                      onPress={() => router.push(ROUTES.followers(handle, "following"))}
-                      openListLabel={translate("Lihat daftar mengikuti")}
-                    />
-                    <SocialStat
-                      count={followerCount}
-                      label={translate("Pengikut")}
-                      onPress={() => router.push(ROUTES.followers(handle))}
-                      openListLabel={translate("Lihat daftar pengikut")}
-                    />
-                    {profile.ratingCount != null ? (
-                      <Pressable
-                        accessibilityRole="button"
-                        accessibilityLabel={translate("{x} ulasan", { x: formatNumber(profile.ratingCount) })}
-                        accessibilityHint={translate("Lihat ulasan")}
-                        onPress={() => selectTab("ratings")}
-                        className="items-center"
-                      >
-                        <Text variant="body" weight={700} tone="primary" className="text-[17px]">
-                          {formatNumber(profile.ratingCount)}
-                        </Text>
-                        <Text variant="caption" tone="tertiary">
-                          {translate("Ulasan")}
-                        </Text>
-                      </Pressable>
-                    ) : null}
-                  </View>
-                )}
+                <View className="flex-row items-center gap-5">
+                  <SocialStat
+                    count={followingCount}
+                    label={translate("Mengikuti")}
+                    onPress={() => router.push(ROUTES.followers(handle, "following"))}
+                    openListLabel={translate("Lihat daftar mengikuti")}
+                  />
+                  <SocialStat
+                    count={followerCount}
+                    label={translate("Pengikut")}
+                    onPress={() => router.push(ROUTES.followers(handle))}
+                    openListLabel={translate("Lihat daftar pengikut")}
+                  />
+                  {profile.ratingCount != null ? (
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={translate("{x} ulasan", { x: formatNumber(profile.ratingCount) })}
+                      accessibilityHint={translate("Lihat ulasan")}
+                      onPress={() => selectTab("ratings")}
+                      className="items-center"
+                    >
+                      <Text variant="body" weight={700} tone="primary" className="text-[17px]">
+                        {formatNumber(profile.ratingCount)}
+                      </Text>
+                      <Text variant="caption" tone="tertiary">
+                        {translate("Ulasan")}
+                      </Text>
+                    </Pressable>
+                  ) : null}
+                </View>
               </View>
             </View>
 
@@ -1272,6 +1401,18 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
                 </Button>
               ) : null}
 
+              {/*
+               * Tautan sosial (bug "link tidak muncul"): baris ringkas ala
+               * Instagram — maks 3 chip ikon platform + domain/label, sisanya
+               * "+N" membuka tab Tentang (daftar lengkap). Data dari
+               * `profile.links` (GET /v1/users/{username} → `links`).
+               */}
+              <ProfileLinks
+                links={profile.links ?? []}
+                compact
+                onMore={() => selectTab("about")}
+              />
+
               {/* Stats dipindah ke baris avatar (2026-10-09) — bagian ini dihapus. */}
 
               {/* ── A.4 Action Row (HANYA profil orang lain) ────────
@@ -1320,7 +1461,43 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
                     </Button>
                   </View>
                 </>
-              ) : null}
+              ) : (
+                /* Profil SENDIRI (gaya Instagram): [Ubah profil] [Bagikan] [QR].
+                   Dulu Bagikan & Kode QR hanya ada di sheet titik tiga profil
+                   ORANG LAIN — pemilik tidak punya jalan membagikan / memindai
+                   profilnya sendiri dari layar ini. */
+                <View className="flex-row items-center gap-2 pt-2">
+                  <View className="flex-1">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      leftIcon={PencilSimple}
+                      // Item 22 (2026-09-28): edit inline lewat bottom sheet —
+                      // layar edit lengkap tetap ada via link di sheet.
+                      onPress={() => setEditOpen(true)}
+                    >
+                      {translate("Ubah profil")}
+                    </Button>
+                  </View>
+                  <View className="flex-1">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      leftIcon={ShareNetwork}
+                      onPress={() => void handleShareProfile()}
+                    >
+                      {translate("Bagikan profil")}
+                    </Button>
+                  </View>
+                  <IconButton
+                    icon={QrCode}
+                    variant="secondary"
+                    size="sm"
+                    accessibilityLabel={translate("Kode QR profil")}
+                    onPress={() => setQrOpen(true)}
+                  />
+                </View>
+              )}
             </View>
 
             {/* ── Tabs Bar ───────────────────────────────────────── */}
@@ -1333,7 +1510,10 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
                 showcaseItems={showcaseItems}
               />
               {/* Sorotan story (arsip permanen), terpisah dari highlight etalase. */}
-              <StoryHighlightsStrip userId={profile?.id ?? null} />
+              {/* P-03: endpoint highlights ber-auth (bukan @Public) — tamu
+                  tidak memanggilnya agar tidak memicu refresh 401 →
+                  expireSession → request profil dibatalkan. */}
+              <StoryHighlightsStrip userId={hasSession ? (profile?.id ?? null) : null} />
               <View style={{ display: tabsStuck ? "none" : "flex" } as object}>
                 <Tabs<ProfileTab>
                   items={profileTabs}
@@ -1365,7 +1545,7 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
               />
             ) : null}
 
-            {/* ── Tab Content 2: Utas (QTab Content 2: Tanya Jawab (Q&A)A, mantan "Tanya Jawab") ──────────────── */}
+            {/* ── Tab Content 2: Utas (Q&A, mantan "Tanya Jawab") ──────────────── */}
             {activeTab === "questions" ? (
               <View className="px-5 pt-4 gap-4">
                 {/*
@@ -1409,7 +1589,7 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
                     compact
                     title={translate("Gagal memuat pertanyaan")}
                     description={questionsError}
-                    onRetry={retryTabContents}
+                    onRetry={retryQuestions}
                   />
                 ) : questions.length === 0 ? (
                   <EmptyState
@@ -1434,7 +1614,7 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
                       <QACard
                         question={q.question}
                         asker={{
-                          name: q.asker?.fullName ?? q.asker?.username ?? "Pengguna",
+                          name: q.asker?.fullName ?? q.asker?.username ?? translate("Pengguna"),
                           avatar: q.asker?.avatarUrl ? { uri: q.asker.avatarUrl } : undefined,
                         }}
                         date={q.createdAt}
@@ -1551,7 +1731,8 @@ export default function UserProfileScreen() {  const { username: rawUsername } =
                 ratings={ratings}
                 loading={ratingsLoading}
                 error={ratingsError}
-                onRetry={retryTabContents}
+                onRetry={retryRatings}
+                hidden={ratingsHidden}
                 filter={ratingFilter}
                 onFilterChange={setRatingFilter}
                 sort={ratingSort}

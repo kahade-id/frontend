@@ -442,7 +442,7 @@ export default function PublicQuestionsScreen() {
                         {comments.items.map((c, i) => (
                           <QaCommentItem
                             key={c.id}
-                            authorName={c.authorName ?? c.authorUsername ?? "Pengguna"}
+                            authorName={c.authorName ?? c.authorUsername ?? translate("Pengguna")}
                             authorAvatar={
                               c.authorAvatarUrl ? { source: c.authorAvatarUrl } : undefined
                             }

@@ -24,12 +24,20 @@
  *     di `formValid` + helper text, bukan dibiarkan 400 di server.
  *   - Upload dilakukan saat submit (bukan saat pilih), persis pola KYC:
  *     tombol submit `loading` selama semua berkas diupload.
+ *   - E-30 (audit 2026-10-10): fileKey hasil unggah disimpan per aset
+ *     (`uploadedKeys`, uri → fileKey). Bila submit JSON gagal SETELAH semua
+ *     dokumen terunggah, percobaan ulang tidak mengunggah ulang aset yang
+ *     sudah punya fileKey. Peta dikosongkan saat form direset dan entri
+ *     dibuang saat aset dihapus pengguna.
+ *   - E-15: semua teks UI lewat `translate()`; `useLanguage()` membuat layar
+ *     ikut ter-render saat bahasa berganti (prop string ke komponen anak
+ *     dihitung di sini, bukan di <Text>).
  */
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Platform, View, type TextInputInstance } from "react-native"
 import { useNavigation, usePreventRemove, type NavigationAction } from "expo-router"
 import { Plus } from "phosphor-react-native"
-import { translate } from "@/lib/i18n/translate"
+import { translate, useLanguage } from "@/lib/i18n"
 
 import { api } from "@/lib/api"
 import {
@@ -80,6 +88,9 @@ function npwpDigits(value: string): number {
 export default function BusinessVerificationScreen() {
   const toast = useToast()
   const navigation = useNavigation()
+  // E-15: prop string (title/label/placeholder) dihitung di layar ini, bukan
+  // di <Text> — subscribe ke bahasa agar ikut ter-render saat bahasa berganti.
+  const language = useLanguage()
 
   /**
    * Status, tipe akun, dan riwayat dimuat bersama (satu query): riwayat yang
@@ -105,8 +116,11 @@ export default function BusinessVerificationScreen() {
   const history = query.data?.history ?? []
 
   const uiStatus = toBusinessVerificationUiStatus(state?.status)
-  // resubmit hanya untuk REJECTED (backend menolak selain itu); REVOKED dan
-  // pengajuan pertama memakai submit.
+  // resubmit hanya untuk REJECTED (backend menolak selain itu); pengajuan
+  // pertama memakai submit. REVOKED TIDAK bisa mengajukan lewat jalur mana pun:
+  // backend `assertNoActiveSubmission` melempar 403 BUSINESS_VERIFICATION_REVOKED
+  // untuk submit maupun resubmit (harus lewat CS) — karena itu `canSubmit`
+  // sengaja mengecualikan REVOKED (E-31).
   const isResubmit = uiStatus === "REJECTED"
   // POIN 3 (2026-10-04): gerbang tipe akun dibuka — siapa pun (semua user
   // kini PERSONAL karena self-claim dihapus) boleh mengajukan; backend
@@ -128,6 +142,9 @@ export default function BusinessVerificationScreen() {
   const siupRef = useRef<TextInputInstance>(null)
   const [docs, setDocs] = useState<PickedImage[]>([])
   const [submitting, setSubmitting] = useState(false)
+  // E-30: fileKey hasil unggah per aset (uri → fileKey). Tidak dirender, jadi
+  // ref (bukan state) — dibaca saat submit, dikosongkan di resetForm.
+  const uploadedKeys = useRef<Map<string, string>>(new Map())
 
   const resetForm = useCallback(() => {
     setBusinessName("")
@@ -135,6 +152,7 @@ export default function BusinessVerificationScreen() {
     setDeedNumber("")
     setSiupNumber("")
     setDocs([])
+    uploadedKeys.current.clear()
   }, [])
 
   const openForm = useCallback(() => {
@@ -146,8 +164,8 @@ export default function BusinessVerificationScreen() {
     const res = await pickImage(DOC_PICKER)
     if (res.status === "denied") {
       toast.show({
-        title: "Izin galeri ditolak",
-        description: "Aktifkan di pengaturan perangkat untuk melanjutkan verifikasi.",
+        title: translate("Izin galeri ditolak"),
+        description: translate("Aktifkan di pengaturan perangkat untuk melanjutkan verifikasi."),
         tone: "danger",
       })
       return
@@ -157,7 +175,15 @@ export default function BusinessVerificationScreen() {
   }, [toast.show])
 
   const removeDoc = useCallback((index: number) => {
-    setDocs((d) => d.filter((_, i) => i !== index))
+    setDocs((d) => {
+      const removed = d[index]
+      // E-30: aset diganti/dihapus → fileKey lamanya tidak boleh dipakai lagi
+      // (kecuali uri yang sama masih ada di posisi lain).
+      if (removed && !d.some((x, i) => i !== index && x.uri === removed.uri)) {
+        uploadedKeys.current.delete(removed.uri)
+      }
+      return d.filter((_, i) => i !== index)
+    })
   }, [])
 
   const npwpDigitsCount = npwpDigits(npwpNumber)
@@ -182,8 +208,8 @@ export default function BusinessVerificationScreen() {
   usePreventRemove((hasUnsavedChanges || (formOpen && submitting)) && !intentionalLeave, ({ data }) => {
     if (formOpen && submitting) {
       toast.show({
-        title: "Verifikasi sedang dikirim",
-        description: "Tunggu sampai pengiriman selesai sebelum meninggalkan layar.",
+        title: translate("Verifikasi sedang dikirim"),
+        description: translate("Tunggu sampai pengiriman selesai sebelum meninggalkan layar."),
         tone: "info",
       })
       return
@@ -246,9 +272,17 @@ export default function BusinessVerificationScreen() {
     try {
       const documentFileKeys: string[] = []
       for (const img of docs) {
+        // E-30: aset yang sudah terunggah pada percobaan sebelumnya (submit
+        // JSON gagal) tidak diunggah ulang — pakai fileKey tersimpan.
+        const cached = uploadedKeys.current.get(img.uri)
+        if (cached) {
+          documentFileKeys.push(cached)
+          continue
+        }
         // Self-hosted (2026-09-26): presigned URL dimatikan backend —
         // upload langsung multipart ke POST /v1/upload/direct.
         const { fileKey } = await api.upload.uploadDirectImage(img, "BUSINESS_DOCUMENT")
+        uploadedKeys.current.set(img.uri, fileKey)
         documentFileKeys.push(fileKey)
       }
       const dto: SubmitBusinessVerificationDto = {
@@ -261,8 +295,8 @@ export default function BusinessVerificationScreen() {
       if (isResubmit) await api.businessVerification.resubmitBusinessVerification(dto)
       else await api.businessVerification.submitBusinessVerification(dto)
       toast.show({
-        title: "Verifikasi bisnis dikirim",
-        description: "Dokumen Anda sedang ditinjau. Kami beri tahu hasilnya lewat notifikasi.",
+        title: translate("Verifikasi bisnis dikirim"),
+        description: translate("Dokumen Anda sedang ditinjau. Kami beri tahu hasilnya lewat notifikasi."),
         tone: "success",
       })
       setFormOpen(false)
@@ -276,8 +310,8 @@ export default function BusinessVerificationScreen() {
       // userMessage via fallback internal uploadMessage.
       if (
         showMutationError(toast.show, {
-          failTitle: "Gagal mengirim verifikasi bisnis",
-          uncertainHint: "Aksi mungkin sudah diproses — memuat ulang…",
+          failTitle: translate("Gagal mengirim verifikasi bisnis"),
+          uncertainHint: translate("Aksi mungkin sudah diproses — memuat ulang…"),
           err: err,
           scope: "business-verification:mengirim-verifikasi-bisnis",
           describe: (e) => uploadMessage(e, { purpose: "BUSINESS_DOCUMENT" }),
@@ -293,12 +327,60 @@ export default function BusinessVerificationScreen() {
   const latest = state?.latestRequest ?? null
   const decidedAt = latest?.approvedAt ?? latest?.reviewedAt ?? null
 
+  // E-15: label statis dibangun ulang hanya saat bahasa berganti (pola
+  // `defaultLabels()` username-field, di-memo karena dipakai berulang di JSX).
+  const L = useMemo(
+    () => ({
+      screenTitle: translate("Verifikasi Bisnis"),
+      loading: translate("Memuat status verifikasi bisnis…"),
+      businessName: translate("Nama badan usaha"),
+      deedShort: translate("No. akta"),
+      siupShort: translate("No. SIUP/NIB"),
+      formTitle: translate("Kirim dokumen"),
+      formTitleResubmit: translate("Kirim ulang dokumen"),
+      formDescription: translate(
+        "Foto NPWP, akta pendirian, atau SIUP/NIB. Pastikan terang dan seluruh dokumen terlihat. Kirim minimal 1, maksimal {x} dokumen.",
+        { x: MAX_DOCUMENTS },
+      ),
+      businessNamePlaceholder: translate("Sesuai akta/NPWP"),
+      npwp: translate("NPWP badan usaha"),
+      npwpHelper: translate("{x}–{y} digit; titik & strip diizinkan.", {
+        x: NPWP_DIGITS_MIN,
+        y: NPWP_DIGITS_MAX,
+      }),
+      deed: translate("No. akta pendirian"),
+      deedHelper: translate("Isi akta atau SIUP — minimal satu."),
+      deedPlaceholder: translate("Opsional bila sudah isi SIUP"),
+      siup: translate("No. SIUP / NIB"),
+      siupPlaceholder: translate("Opsional bila sudah isi akta"),
+      remove: translate("Hapus"),
+      addDocument: translate("Tambah dokumen"),
+      pickPhoto: translate("Pilih foto (maks {x}MB)", { x: MAX_SIZE_MB }),
+      pickDocument: translate("Pilih dokumen"),
+      submit: translate("Kirim verifikasi"),
+      submitResubmit: translate("Kirim ulang verifikasi"),
+      cancel: translate("Batal"),
+      historyTitle: translate("Riwayat pengajuan"),
+      approvedCaption: translate(
+        'Bisnis Anda sudah terverifikasi. Badge "Business Verified" tampil di profil Anda.',
+      ),
+      discardTitle: translate("Buang isian verifikasi?"),
+      discardDescription: translate(
+        "Data dan dokumen yang sudah dipilih akan dihapus jika Anda keluar sekarang.",
+      ),
+      discardConfirm: translate("Buang isian"),
+      discardCancel: translate("Lanjutkan mengisi"),
+    }),
+    // `language` = pemicu rebuild saat bahasa berganti (nilainya tidak dibaca).
+    [language],
+  )
+
   return (
     <DataScreen
-      title="Verifikasi Bisnis"
+      title={L.screenTitle}
       keyboardAvoiding
       state={query}
-      loadingMessage="Memuat status verifikasi bisnis…"
+      loadingMessage={L.loading}
     >
       <KycStatusCard
         status={uiStatus}
@@ -311,18 +393,18 @@ export default function BusinessVerificationScreen() {
 
           {uiStatus === "APPROVED" && latest?.businessName ? (
             <KeyValueList>
-              <KeyValue label="Nama badan usaha" value={latest.businessName} />
-              {latest.deedNumber ? <KeyValue label="No. akta" value={latest.deedNumber} /> : null}
-              {latest.siupNumber ? <KeyValue label="No. SIUP/NIB" value={latest.siupNumber} /> : null}
+              <KeyValue label={L.businessName} value={latest.businessName} />
+              {latest.deedNumber ? <KeyValue label={L.deedShort} value={latest.deedNumber} /> : null}
+              {latest.siupNumber ? <KeyValue label={L.siupShort} value={latest.siupNumber} /> : null}
             </KeyValueList>
           ) : null}
 
           {canSubmit && formOpen ? (
             <FormSection
-              title={isResubmit ? "Kirim ulang dokumen" : "Kirim dokumen"}
-              description="Foto NPWP, akta pendirian, atau SIUP/NIB. Pastikan terang dan seluruh dokumen terlihat. Kirim minimal 1, maksimal 5 dokumen."
+              title={isResubmit ? L.formTitleResubmit : L.formTitle}
+              description={L.formDescription}
             >
-              <Field label="Nama badan usaha" required>
+              <Field label={L.businessName} required>
                 <Input
                   value={businessName}
                   onChangeText={setBusinessName}
@@ -330,17 +412,10 @@ export default function BusinessVerificationScreen() {
                   // FRM-010: Next memindahkan fokus ke field berikutnya.
                   onSubmitEditing={() => npwpRef.current?.focus()}
                   maxLength={150}
-                  placeholder="Sesuai akta/NPWP"
+                  placeholder={L.businessNamePlaceholder}
                 />
               </Field>
-              <Field
-                label="NPWP badan usaha"
-                required
-                helperText={translate("{x}–{y} digit; titik & strip diizinkan.", {
-                  x: NPWP_DIGITS_MIN,
-                  y: NPWP_DIGITS_MAX,
-                })}
-              >
+              <Field label={L.npwp} required helperText={L.npwpHelper}>
                 <Input
                   ref={npwpRef}
                   value={npwpNumber}
@@ -354,7 +429,7 @@ export default function BusinessVerificationScreen() {
                   placeholder="01.234.567.8-901.000"
                 />
               </Field>
-              <Field label="No. akta pendirian" helperText="Isi akta atau SIUP — minimal satu.">
+              <Field label={L.deed} helperText={L.deedHelper}>
                 <Input
                   ref={deedRef}
                   value={deedNumber}
@@ -366,10 +441,10 @@ export default function BusinessVerificationScreen() {
                   spellCheck={false}
                   onSubmitEditing={() => siupRef.current?.focus()}
                   maxLength={100}
-                  placeholder="Opsional bila sudah isi SIUP"
+                  placeholder={L.deedPlaceholder}
                 />
               </Field>
-              <Field label="No. SIUP / NIB">
+              <Field label={L.siup}>
                 <Input
                   ref={siupRef}
                   value={siupNumber}
@@ -380,12 +455,14 @@ export default function BusinessVerificationScreen() {
                   autoCorrect={false}
                   spellCheck={false}
                   maxLength={100}
-                  placeholder="Opsional bila sudah isi akta"
+                  placeholder={L.siupPlaceholder}
                 />
               </Field>
 
+              {/* Children campuran tidak diterjemahkan otomatis oleh <Text> —
+                  pakai translate() dengan placeholder. */}
               <Text variant="label" tone="secondary">
-                Dokumen ({docs.length}/{MAX_DOCUMENTS})
+                {translate("Dokumen ({x}/{y})", { x: docs.length, y: MAX_DOCUMENTS })}
               </Text>
               {docs.map((d, i) => (
                 <View
@@ -402,20 +479,20 @@ export default function BusinessVerificationScreen() {
                     onPress={() => removeDoc(i)}
                     accessibilityLabel={translate("Hapus dokumen {x}", { x: d.name })}
                   >
-                    Hapus
+                    {L.remove}
                   </Button>
                 </View>
               ))}
               {docs.length < MAX_DOCUMENTS ? (
                 <UploadField
-                  label="Tambah dokumen"
+                  label={L.addDocument}
                   required={docs.length === 0}
                   file={null}
                   status="idle"
                   onPick={() => void pickDoc()}
                   accept={["jpg", "png"]}
                   maxSizeMB={MAX_SIZE_MB}
-                  title={translate("Pilih foto (maks {x}MB)", { x: MAX_SIZE_MB })}
+                  title={L.pickPhoto}
                   disabled={submitting}
                 />
               ) : null}
@@ -429,13 +506,13 @@ export default function BusinessVerificationScreen() {
                     disabled={submitting}
                     onPress={() => void pickDoc()}
                   >
-                    Pilih dokumen
+                    {L.pickDocument}
                   </Button>
                 </View>
               ) : null}
 
               <Button loading={submitting} disabled={!formValid} onPress={() => void handleSubmit()}>
-                {isResubmit ? "Kirim ulang verifikasi" : "Kirim verifikasi"}
+                {isResubmit ? L.submitResubmit : L.submit}
               </Button>
               <Button
                 variant="ghost"
@@ -443,14 +520,14 @@ export default function BusinessVerificationScreen() {
                 disabled={submitting}
                 onPress={requestCloseForm}
               >
-                Batal
+                {L.cancel}
               </Button>
             </FormSection>
           ) : null}
 
           {history.length > 0 ? (
             <>
-              <SectionHeader title="Riwayat pengajuan" />
+              <SectionHeader title={L.historyTitle} />
               {history.map((h, i) => (
                 <KycHistoryListItem
                   key={h.verificationId}
@@ -469,16 +546,16 @@ export default function BusinessVerificationScreen() {
               pada font OS besar (maxFontSizeMultiplier=2). */}
           {uiStatus === "APPROVED" ? (
             <Text variant="caption" tone="secondary">
-              Bisnis Anda sudah terverifikasi. Badge "Business Verified" tampil di profil Anda.
+              {L.approvedCaption}
             </Text>
           ) : null}
       <Dialog
-        title="Buang isian verifikasi?"
-        description="Data dan dokumen yang sudah dipilih akan dihapus jika Anda keluar sekarang."
+        title={L.discardTitle}
+        description={L.discardDescription}
         visible={discardOpen}
         destructive
-        confirmLabel="Buang isian"
-        cancelLabel="Lanjutkan mengisi"
+        confirmLabel={L.discardConfirm}
+        cancelLabel={L.discardCancel}
         onConfirm={confirmDiscard}
         onCancel={cancelDiscard}
         onRequestClose={cancelDiscard}
