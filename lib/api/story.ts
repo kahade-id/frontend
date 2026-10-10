@@ -1,8 +1,14 @@
 /**
- * Kahade — Story (ala WhatsApp Status): foto/teks yang hilang otomatis 24 jam.
+ * Kahade — Story (ala WhatsApp Status): foto/video/teks yang hilang otomatis 24 jam.
  *
  * SEMUA akses API story lewat berkas ini. Komponen/layar TIDAK boleh memanggil
  * `http` untuk endpoint `/v1/stories*` secara langsung.
+ *
+ * ── Video (2026-10-10) ──
+ *   `kind: "video"` — unggah lewat endpoint media yang sama (MP4/MOV/WEBM,
+ *   ≤ 50 MB, ≤ 60 detik). Server mem-probe durasi dan membuat poster JPEG:
+ *   `thumbnailUrl` dipakai tray/viewer sebelum stream siap, `durationMs`
+ *   menjadi panjang segmen progress bar (bukan 5 detik tetap).
  *
  * ── Aturan visibilitas (keputusan produk, dijaga server) ──
  *   Story HANYA terlihat oleh viewer yang MENYIMPAN profil pembuat
@@ -53,6 +59,15 @@ export const STORY_PRICE_MAX = 999_999_999
 /** Emoji reaksi cepat yang diterima server. */
 export const STORY_REACTIONS = ["❤️", "😂", "😮", "😢", "👏", "🔥"] as const
 export type StoryReaction = (typeof STORY_REACTIONS)[number]
+/** Batas video story — selaras backend `STORY_VIDEO_MAX_BYTES` / `_DURATION_SEC`. */
+export const STORY_VIDEO_MAX_BYTES = 50 * 1024 * 1024
+export const STORY_VIDEO_MAX_DURATION_MS = 60_000
+export const STORY_VIDEO_MIN_DURATION_MS = 1_000
+/** Kategori laporan story (backend `ReportStoryDto.category`). */
+export const STORY_REPORT_CATEGORIES = ["spam", "harassment", "offensive", "irrelevant", "other"] as const
+export type StoryReportCategory = (typeof STORY_REPORT_CATEGORIES)[number]
+/** Catatan laporan story maks 500 karakter (backend `@MaxLength(500)`). */
+export const STORY_REPORT_NOTE_MAX = 500
 
 export const STORY_API_MODE: "mock" | "live" =
   process.env.EXPO_PUBLIC_STORY_API === "live" ? "live" : "mock"
@@ -61,7 +76,9 @@ export const STORY_API_MODE: "mock" | "live" =
 // Tipe (kontrak)
 // ------------------------------------------------------------------
 
-export type StoryKind = "image" | "text"
+export type StoryKind = "image" | "video" | "text"
+/** Jenis media yang diunggah ke `POST /v1/stories/media`. */
+export type StoryMediaKind = "image" | "video"
 
 /**
  * Privasi per-story. `all_savers` = semua orang yang menyimpan profil pembuat.
@@ -97,8 +114,12 @@ export type Story = {
   id: string
   author: StoryAuthor
   kind: StoryKind
-  /** URL foto (kind = image). */
+  /** URL foto (kind = image) atau berkas video (kind = video). */
   mediaUrl: string | null
+  /** Poster JPEG (kind = video) — tampil sebelum stream siap & di tray/admin. */
+  thumbnailUrl: string | null
+  /** Durasi video dalam ms (kind = video); null untuk foto/teks. */
+  durationMs: number | null
   /** Teks (kind = text, atau caption opsional). */
   text: string | null
   /** Warna latar hex `#RRGGBB` (kind = text). */
@@ -163,11 +184,19 @@ export type StoryHighlight = {
   updatedAt: string
 }
 
-export type StoryMediaUpload = { mediaId: string; url: string }
+export type StoryMediaUpload = {
+  mediaId: string
+  url: string
+  kind: StoryMediaKind
+  /** Poster video (null untuk foto). */
+  thumbnailUrl: string | null
+  /** Durasi video ms hasil probe server (null untuk foto). */
+  durationMs: number | null
+}
 
 export type CreateStoryInput = {
   kind: StoryKind
-  /** Wajib untuk kind = image (hasil POST /v1/stories/media). */
+  /** Wajib untuk kind = image/video (hasil POST /v1/stories/media, jenis harus sama). */
   mediaId?: string
   text?: string
   backgroundColor?: string
@@ -178,6 +207,9 @@ export type CreateStoryInput = {
 }
 
 export type StoryReplyResult = { roomId: string }
+
+export type StoryReportInput = { category: StoryReportCategory; note?: string }
+export type StoryReportResult = { reported: true; reportId: string }
 
 export type StoryAudienceCandidate = StoryAuthor
 
@@ -258,14 +290,19 @@ export function parseStory(raw: unknown): Story {
   const r = asRecord(raw)
   const id = str(r?.id)
   if (!r || !id) throw invalidResponse("story")
-  const kind: StoryKind = r.kind === "text" ? "text" : "image"
+  // `video` dibaca EKSPLISIT: jenis tak dikenal jatuh ke image, tetapi video
+  // tidak boleh — <Image> tak bisa merender berkas MP4.
+  const kind: StoryKind = r.kind === "text" ? "text" : r.kind === "video" ? "video" : "image"
   const sticker = asRecord(r.priceSticker)
   const ask = asRecord(r.askStock)
+  const duration = num(r.durationMs, 0)
   return {
     id,
     author: parseAuthor(r.author),
     kind,
     mediaUrl: str(r.mediaUrl),
+    thumbnailUrl: kind === "video" ? str(r.thumbnailUrl) : null,
+    durationMs: kind === "video" && duration > 0 ? Math.round(duration) : null,
     text: str(r.text),
     backgroundColor: str(r.backgroundColor),
     productTags: parseProductTags(r.productTags),
@@ -332,6 +369,8 @@ type MockDb = {
   stories: Story[]
   viewedIds: Set<string>
   mutedUserIds: Set<string>
+  /** Story yang sudah dilaporkan viewer mock (409 bila dilaporkan lagi). */
+  reportedIds: Set<string>
   highlights: StoryHighlight[]
   /** Untuk pengujian rollback: panggilan berikutnya yang namanya ada di sini gagal. */
   failNext: Set<string>
@@ -353,6 +392,8 @@ function mockStory(
     author,
     kind: "text",
     mediaUrl: null,
+    thumbnailUrl: null,
+    durationMs: null,
     text: "Stok baru datang hari ini",
     backgroundColor: "#1F2937",
     productTags: [],
@@ -393,6 +434,7 @@ function seedMock(): MockDb {
     ],
     viewedIds: new Set(["st-sari-1"]),
     mutedUserIds: new Set(),
+    reportedIds: new Set(),
     highlights: [],
     failNext: new Set(),
   }
@@ -545,8 +587,20 @@ export async function getMyStories(signal?: AbortSignal): Promise<Story[]> {
   return Array.isArray(r?.stories) ? r.stories.map(parseStory) : []
 }
 
+export type UploadStoryMediaOptions = Pick<
+  UploadFileOptions,
+  "fileBytes" | "onProgress" | "signal" | "timeoutMs"
+> & {
+  /**
+   * Jenis media: menentukan rumus timeout adaptif transport ("video" = basis
+   * 120 dtk + transfer 100 KB/s, cap 30 mnt) dan bentuk respons mock.
+   */
+  kind?: StoryMediaKind
+}
+
 /**
- * Unggah foto story. Hasil `mediaId` dipakai di `createStory`.
+ * Unggah foto/video story. Hasil `mediaId` dipakai di `createStory`
+ * (`kind` story harus sama dengan `kind` tiket).
  *
  * Audit 2026-10-09 (B4): JOIN transport XHR terpusat
  * (`uploadFileWithProgress`) — dulu `http.post` (fetch) tanpa `timeoutMs`,
@@ -558,11 +612,18 @@ export async function getMyStories(signal?: AbortSignal): Promise<Story[]> {
  */
 export async function uploadStoryMedia(
   file: FormData,
-  opts: Pick<UploadFileOptions, "fileBytes" | "onProgress" | "signal" | "timeoutMs"> = {},
+  opts: UploadStoryMediaOptions = {},
 ): Promise<StoryMediaUpload> {
+  const kind: StoryMediaKind = opts.kind ?? "image"
   if (STORY_API_MODE === "mock") {
     return delay(
-      () => ({ mediaId: `med-${Date.now().toString(36)}`, url: "" }),
+      () => ({
+        mediaId: `med-${Date.now().toString(36)}`,
+        url: "",
+        kind,
+        thumbnailUrl: null,
+        durationMs: kind === "video" ? 5_000 : null,
+      }),
       "uploadStoryMedia",
     )
   }
@@ -572,17 +633,30 @@ export async function uploadStoryMedia(
     onProgress: opts.onProgress,
     signal: opts.signal,
     timeoutMs: opts.timeoutMs,
+    timeoutKind: kind === "video" ? "video" : "photo",
   })
   const r = asRecord(raw)
   const mediaId = str(r?.mediaId)
   const url = str(r?.url)
   if (!mediaId || !url) throw invalidResponse("story-media")
-  return { mediaId, url }
+  const serverKind: StoryMediaKind = r?.kind === "video" ? "video" : "image"
+  const duration = num(r?.durationMs, 0)
+  return {
+    mediaId,
+    url,
+    kind: serverKind,
+    thumbnailUrl: str(r?.thumbnailUrl),
+    durationMs: serverKind === "video" && duration > 0 ? Math.round(duration) : null,
+  }
 }
 
 function validateCreate(input: CreateStoryInput): void {
-  if (input.kind === "image" && !input.mediaId)
-    throw storyError(400, "STORY_MEDIA_REQUIRED", "Pilih foto untuk story.")
+  if ((input.kind === "image" || input.kind === "video") && !input.mediaId)
+    throw storyError(
+      400,
+      "STORY_MEDIA_REQUIRED",
+      input.kind === "video" ? "Pilih video untuk story." : "Pilih foto untuk story.",
+    )
   if (input.kind === "text") {
     const text = (input.text ?? "").trim()
     if (!text) throw storyError(400, "STORY_TEXT_REQUIRED", "Tulis teks untuk story.")
@@ -604,7 +678,9 @@ export async function createStory(input: CreateStoryInput): Promise<Story> {
         id: `st-${created.toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
         author: d.me,
         kind: input.kind,
-        mediaUrl: input.kind === "image" ? `mock://story/${input.mediaId}` : null,
+        mediaUrl: input.kind === "text" ? null : `mock://story/${input.mediaId}`,
+        thumbnailUrl: input.kind === "video" ? `mock://story/${input.mediaId}/thumb` : null,
+        durationMs: input.kind === "video" ? 5_000 : null,
         text: input.text?.trim() || null,
         backgroundColor: input.kind === "text" ? (input.backgroundColor ?? "#1F2937") : null,
         productTags: input.productTags.map((t) => ({
@@ -757,6 +833,41 @@ export async function replyToStory(storyId: string, text: string): Promise<Story
   const roomId = str(r?.roomId)
   if (!roomId) throw invalidResponse("story-reply")
   return { roomId }
+}
+
+/**
+ * Laporkan story orang lain (spam/pelecehan/menyinggung/tidak relevan/lainnya).
+ * Satu laporan per viewer per story — server menolak duplikat dengan 409
+ * `STORY_ALREADY_REPORTED`. ≥ 5 laporan unik → story disembunyikan otomatis.
+ */
+export async function reportStory(storyId: string, input: StoryReportInput): Promise<StoryReportResult> {
+  if (!(STORY_REPORT_CATEGORIES as readonly string[]).includes(input.category))
+    throw storyError(400, "VALIDATION_ERROR", "Pilih alasan laporan.")
+  const note = input.note?.trim() || undefined
+  if (note && note.length > STORY_REPORT_NOTE_MAX)
+    throw storyError(400, "VALIDATION_ERROR", "Catatan laporan terlalu panjang.")
+  if (STORY_API_MODE === "mock") {
+    return delay(() => {
+      const d = db()
+      const story = d.stories.find((s) => s.id === storyId)
+      if (!story) throw notFound("STORY_NOT_FOUND")
+      if (story.author.userId === d.me.userId)
+        throw storyError(403, "FORBIDDEN", "Anda tidak dapat melaporkan story sendiri.")
+      if (d.reportedIds.has(storyId))
+        throw storyError(409, "STORY_ALREADY_REPORTED", "Story ini sudah pernah dilaporkan.")
+      d.reportedIds.add(storyId)
+      return { reported: true as const, reportId: `rpt-${Math.random().toString(36).slice(2, 8)}` }
+    }, "reportStory")
+  }
+  const raw = await http.post<unknown, { category: StoryReportCategory; note?: string }>(
+    `/v1/stories/${seg(storyId)}/report`,
+    note ? { category: input.category, note } : { category: input.category },
+    { auth: "required" },
+  )
+  const r = asRecord(raw)
+  const reportId = str(r?.reportId)
+  if (!reportId) throw invalidResponse("story-report")
+  return { reported: true, reportId }
 }
 
 /** Daftar story yang sedang dibisukan oleh viewer. */

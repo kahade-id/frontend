@@ -1,14 +1,19 @@
 /**
  * Kahade — layar buat story (`/story/create`).
  *
- * Tiga jalur: foto dari galeri, foto dari kamera, atau teks berlatar warna.
- * Di pratinjau bisa: tag produk etalase (bisa digeser), stiker harga, tombol
- * "Tanya Stok", dan privasi per-story (semua penyimpan / kecuali beberapa).
+ * Empat jalur: foto/video dari galeri, foto kamera, rekam video, atau teks
+ * berlatar warna. Di pratinjau bisa: keterangan (caption) untuk foto/video,
+ * tag produk etalase (bisa digeser), stiker harga, tombol "Tanya Stok", dan
+ * privasi per-story (semua penyimpan / kecuali beberapa).
  *
  * Bagikan = OPTIMISTIS: layar langsung tertutup dan story tampil sebagai "sedang
- * diunggah" di tray. Unggah + buat dijalankan di latar belakang. Bila gagal,
- * entri optimistis dibatalkan (rollback) dan pengguna diberi tahu lewat toast.
- * Draft tidak disimpan ulang — itu disengaja agar tidak ada story setengah jadi.
+ * diunggah" di tray dengan progress byte. Unggah + buat berjalan di latar
+ * (`lib/story/publish.ts`). Bila gagal, entri tetap di tray sebagai GAGAL
+ * dengan pesan spesifik dan tombol "Coba lagi" — draft tidak hilang.
+ *
+ * Pratinjau = WYSIWYG viewer: foto `contain` di atas hitam (bukan `cover`),
+ * supaya posisi tag produk yang digeser di sini sama dengan yang dilihat
+ * penonton (audit 2026-10-10 #31).
  */
 import { router } from "expo-router"
 
@@ -25,12 +30,23 @@ function closeStoryCreate(): void {
   if (router.canGoBack()) router.back()
   else router.replace(ROUTES.chat)
 }
-import { Camera, Check, Images, PaperPlaneRight, ShoppingBag, Storefront, TextAa, X } from "phosphor-react-native"
+import {
+  Camera,
+  Check,
+  Images,
+  PaperPlaneRight,
+  ShoppingBag,
+  Storefront,
+  TextAa,
+  VideoCamera,
+  X,
+} from "phosphor-react-native"
 import { useCallback, useMemo, useState } from "react"
 import { Pressable, ScrollView, View, useWindowDimensions } from "react-native"
 import { Image } from "expo-image"
 
 import { Button } from "@/components/ui/button"
+import { FeedVideo } from "@/components/ui/feed-video"
 import { Icon, type IconComponent } from "@/components/ui/icon"
 import { Input } from "@/components/ui/input"
 import { PressableScale } from "@/components/ui/pressable-scale"
@@ -43,37 +59,34 @@ import { StoryProductPicker } from "@/components/story/story-product-picker"
 import {
   STORY_PRODUCT_TAGS_MAX,
   STORY_TEXT_MAX,
-  createStory,
-  uploadStoryMedia,
+  STORY_VIDEO_MAX_DURATION_MS,
   type StoryAudience,
+  type StoryMediaKind,
 } from "@/lib/api/story"
-import { pickImage, pickedImageToFormData, resizePickedImage, type PickedImage } from "@/lib/image-picker"
-import { validateStoryMediaAsset } from "@/lib/story-media-limits"
-import { uploadMessage } from "@/lib/upload-errors"
+import { pickImage, type PickedImage } from "@/lib/image-picker"
+import { formatMediaClock } from "@/lib/media-viewer"
+import { storyMediaKindOf, validateStoryMediaAsset } from "@/lib/story-media-limits"
 import { haptic } from "@/lib/haptics"
 import { useT } from "@/lib/i18n"
 import {
   STORY_TEXT_BACKGROUNDS,
-  buildCreateInput,
   clamp01,
   emptyStoryDraft,
   formatPriceSticker,
+  isMediaStoryKind,
   parsePriceInput,
   validateStoryDraft,
   type DraftProblem,
   type ProductTagDraft,
   type StoryDraft,
 } from "@/lib/story/compose"
-import {
-  addPendingStoryLocal,
-  bumpStoryRevision,
-  removePendingStoryLocal,
-  type PendingStory,
-} from "@/lib/story/local-state"
+import { publishStory, retryPublishStory, type PublishStoryCallbacks } from "@/lib/story/publish"
 
 type Stage = "choose" | "edit"
 
-type Media = { asset: PickedImage } | null
+type Media = { asset: PickedImage; kind: StoryMediaKind } | null
+
+type PickMode = "gallery" | "photo" | "video"
 
 export default function StoryCreateScreen() {
   const t = useT()
@@ -99,7 +112,7 @@ export default function StoryCreateScreen() {
   const problemText = (p: DraftProblem): string => {
     switch (p) {
       case "media-required":
-        return t("Pilih foto dulu.")
+        return draft.kind === "video" ? t("Pilih video dulu.") : t("Pilih foto dulu.")
       case "text-required":
         return t("Tulis teks untuk story.")
       case "text-too-long":
@@ -113,28 +126,40 @@ export default function StoryCreateScreen() {
 
   // ---- Pilih media ----
 
-  const takePhoto = useCallback(
-    async (source: "library" | "camera") => {
-      const res = await pickImage({ source, quality: 0.8, allowsEditing: false })
+  const pickMedia = useCallback(
+    async (mode: PickMode) => {
+      const res = await pickImage(
+        mode === "gallery"
+          ? { source: "library", quality: 0.8, allowsEditing: false, allowVideos: true, videoMaxDurationSec: STORY_VIDEO_MAX_DURATION_MS / 1000 }
+          : mode === "video"
+            ? { source: "camera", videoOnly: true, videoMaxDurationSec: STORY_VIDEO_MAX_DURATION_MS / 1000 }
+            : { source: "camera", quality: 0.8, allowsEditing: false },
+      )
       if (res.status === "denied") {
         toast.show({
-          title: source === "camera" ? t("Izin kamera ditolak") : t("Izin galeri ditolak"),
+          title: mode === "gallery" ? t("Izin galeri ditolak") : t("Izin kamera ditolak"),
           description: t("Aktifkan izin di Pengaturan perangkat untuk memilih foto."),
           tone: "warning",
         })
         return
       }
       if (res.status !== "picked") return
-      // Audit 2026-10-09 (C2): guard 10 MB SEBELUM user menyusun story —
-      // server pasti menolak (413 STORY_MEDIA_TOO_LARGE); dulu gagal
-      // misterius di tengah/sesudah upload.
+      // Audit 2026-10-09 (C2) + video 2026-10-10: guard ukuran/durasi/format
+      // SEBELUM user menyusun story — server pasti menolak (413/415/VIDEO_TOO_LONG);
+      // dulu gagal misterius di tengah/sesudah upload.
+      const kind = storyMediaKindOf(res.asset)
       const guardError = validateStoryMediaAsset(res.asset)
-      if (guardError) {
-        toast.show({ title: t("Foto terlalu besar"), description: guardError, tone: "danger" })
+      if (kind === "unsupported" || guardError) {
+        haptic("warning")
+        toast.show({
+          title: kind === "video" ? t("Video tidak bisa dipakai") : t("Foto tidak bisa dipakai"),
+          description: guardError ?? t("Format tidak didukung. Gunakan foto JPEG/PNG atau video MP4/MOV."),
+          tone: "danger",
+        })
         return
       }
-      setMedia({ asset: res.asset })
-      setDraft({ ...emptyStoryDraft("image") })
+      setMedia({ asset: res.asset, kind })
+      setDraft({ ...emptyStoryDraft(kind) })
       setStage("edit")
     },
     [toast, t],
@@ -193,88 +218,70 @@ export default function StoryCreateScreen() {
     }))
   }, [])
 
-  // ---- Bagikan (optimistis) ----
+  // ---- Bagikan (optimistis, pekerjaan latar di lib/story/publish) ----
 
   const share = useCallback(() => {
-    const problem = validateStoryDraft(draft)
+    const problem = validateStoryDraft(draft, { mediaPicked: media !== null })
     if (problem) {
       haptic("warning")
       toast.show({ title: problemText(problem), tone: "danger" })
       return
     }
     haptic("success")
-    const localId = `local-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`
-    const snapshot = draft
-    const mediaAsset = media?.asset ?? null
-    const optimistic: PendingStory = {
-      localId,
-      kind: snapshot.kind,
-      mediaUri: mediaAsset?.uri ?? null,
-      text: snapshot.kind === "text" ? snapshot.text.trim() : snapshot.text.trim() || null,
-      backgroundColor: snapshot.kind === "text" ? snapshot.backgroundColor : null,
-      createdAt: Date.now(),
-      status: "uploading",
-    }
-    const undo = addPendingStoryLocal(optimistic)
-    closeStoryCreate()
-
-    void (async () => {
-      try {
-        let mediaId: string | undefined
-        if (snapshot.kind === "image") {
-          if (!mediaAsset) throw new Error("media")
-          // Audit 2026-10-09 (C1/B4): dulu aset MENTAH (kamera 4000 px)
-          // diunggah tanpa timeout adaptif. Kini resize 1920 px (fail-open,
-          // pola semua jalur foto lain) + `fileBytes` → timeout adaptif di
-          // transport (10 MB @ 100 KB/s ≈ 100 dtk — mustahil di deadline
-          // 20 dtk global).
-          const resized = await resizePickedImage(mediaAsset)
-          const form = await pickedImageToFormData(resized)
-          mediaId = (await uploadStoryMedia(form, { fileBytes: resized.size })).mediaId
-        }
-        await createStory(buildCreateInput({ ...snapshot, mediaId: mediaId ?? null }))
-        removePendingStoryLocal(localId)
-        bumpStoryRevision()
-      } catch (err) {
-        // Rollback: entri optimistis dibatalkan; story tidak pernah tercatat di server.
-        undo()
-        // Audit 2026-10-09 (A1/F1): uploadMessage — 413 menyebut "maks
-        // 10 MB", timeout = koneksi lambat, offline hanya bila terverifikasi
-        // NetInfo; jatuh ke userMessage utk kegagalan createStory (mutasi JSON).
+    let localId = ""
+    const callbacks: PublishStoryCallbacks = {
+      onFailure: (message) => {
         toast.show({
           title: t("Story belum terbagikan"),
-          description: uploadMessage(err, { purpose: "STORY" }),
+          description: message,
           tone: "danger",
+          action: {
+            label: t("Coba lagi"),
+            onPress: () => {
+              retryPublishStory(localId, callbacks)
+            },
+          },
         })
-      }
-    })()
+      },
+    }
+    localId = publishStory({ draft, media: media?.asset ?? null }, callbacks)
+    closeStoryCreate()
+    // problemText membaca draft.kind — sudah tercakup oleh dependensi `draft`.
   }, [draft, media, toast, t])
 
   // ---- Render ----
 
   const bg = draft.backgroundColor
   const priceValue = useMemo(() => parsePriceInput(draft.priceText), [draft.priceText])
+  const isMedia = isMediaStoryKind(draft.kind)
+  const caption = draft.text.trim()
 
   if (stage === "choose") {
     return (
       <Screen edges={["top", "bottom"]} padded={false}>
         <Header title={t("Story baru")} onClose={closeStoryCreate} closeLabel={t("Tutup")} />
-        <View className="flex-1 justify-center gap-4 px-6">
+        <View className="flex-1 justify-center gap-3 px-6">
           <Text variant="h3" className="text-center">{t("Bagikan momen tokomu")}</Text>
-          <Text variant="body" tone="secondary" className="text-center">
-            {t("Story hilang otomatis setelah 24 jam dan hanya terlihat oleh orang yang menyimpan profil Anda.")}
+          <Text variant="body" tone="secondary" className="mb-2 text-center">
+            {t("Hilang otomatis setelah 24 jam. Hanya penyimpan profil Anda yang melihat.")}
           </Text>
           <ChooseCard
             icon={Images}
-            label={t("Foto dari galeri")}
-            onPress={() => void takePhoto("library")}
+            label={t("Foto atau video dari galeri")}
+            onPress={() => void pickMedia("gallery")}
             testID="story-choose-gallery"
           />
           <ChooseCard
             icon={Camera}
             label={t("Ambil foto")}
-            onPress={() => void takePhoto("camera")}
+            onPress={() => void pickMedia("photo")}
             testID="story-choose-camera"
+          />
+          <ChooseCard
+            icon={VideoCamera}
+            label={t("Rekam video")}
+            onPress={() => void pickMedia("video")}
+            testID="story-choose-video"
           />
           <ChooseCard icon={TextAa} label={t("Tulis teks")} onPress={startText} testID="story-choose-text" />
         </View>
@@ -296,13 +303,32 @@ export default function StoryCreateScreen() {
       />
       <ScrollView contentContainerClassName="items-center gap-4 px-4 pb-8 pt-2" keyboardShouldPersistTaps="handled">
         <View
-          className="overflow-hidden rounded-md bg-surface"
-          style={{ width: previewWidth, height: previewHeight, backgroundColor: draft.kind === "text" ? bg : undefined }}
+          className="overflow-hidden rounded-md bg-black"
+          style={{ width: previewWidth, height: previewHeight, backgroundColor: draft.kind === "text" ? bg : "#000000" }}
           onLayout={(e) => setPreviewSize({ width: e.nativeEvent.layout.width, height: e.nativeEvent.layout.height })}
           accessibilityLabel={t("Pratinjau story")}
         >
           {draft.kind === "image" && media ? (
-            <Image source={{ uri: media.asset.uri }} style={{ flex: 1 }} contentFit="cover" transition={0} />
+            <Image source={{ uri: media.asset.uri }} style={{ flex: 1 }} contentFit="contain" transition={0} />
+          ) : draft.kind === "video" && media ? (
+            <View className="flex-1 justify-center">
+              <FeedVideo
+                source={media.asset.uri}
+                alt={t("Pratinjau video story")}
+                shouldPlay
+                userInitiatedPlay
+                loop
+                muted
+                aspectRatio={9 / 16}
+              />
+              {typeof media.asset.durationMs === "number" ? (
+                <View className="absolute bottom-2 left-2 rounded-full bg-black/60 px-2 py-0.5" pointerEvents="none">
+                  <Text variant="caption" weight={600} className="text-white">
+                    {formatMediaClock(media.asset.durationMs / 1000)}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
           ) : (
             <View className="flex-1 items-center justify-center px-4">
               <Input
@@ -315,6 +341,17 @@ export default function StoryCreateScreen() {
               />
             </View>
           )}
+
+          {/* Caption foto/video — posisi sama dengan viewer (di atas footer). */}
+          {isMedia && caption ? (
+            <View className="absolute bottom-3 left-2 right-2 items-center" pointerEvents="none">
+              <View className="rounded-md bg-black/60 px-2.5 py-1.5">
+                <Text variant="caption" weight={600} className="text-center text-white" numberOfLines={3}>
+                  {caption}
+                </Text>
+              </View>
+            </View>
+          ) : null}
 
           {draft.productTags.map((tag) => (
             <StoryDraggableTag
@@ -358,6 +395,16 @@ export default function StoryCreateScreen() {
         ) : null}
 
         <View className="w-full gap-3">
+          {isMedia ? (
+            <Input
+              value={draft.text}
+              onChangeText={(v) => update({ text: v.slice(0, STORY_TEXT_MAX) })}
+              placeholder={t("Tulis keterangan…")}
+              maxLength={STORY_TEXT_MAX}
+              accessibilityLabel={t("Keterangan story")}
+            />
+          ) : null}
+
           <PressableScale
             onPress={() => setPickerOpen(true)}
             accessibilityRole="button"

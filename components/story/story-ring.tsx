@@ -18,18 +18,21 @@
  *     benar menonjol dibanding yang sudah dilihat; ubin yang dibisukan
  *     diredupkan (opacity) — hierarki terbaca sebelum membaca nama.
  *
+ * Unggahan (2026-10-10): `pending` menerima progress byte (0..1) → angka
+ * persen di atas avatar, bukan spinner buta (video 50 MB di 4G ≈ 8 menit).
+ * `failed` = ikon peringatan di posisi badge "+" supaya kegagalan terlihat
+ * tanpa membaca caption.
+ *
  * Keputusan non-obvious:
  *   - Ring adalah View border (bukan gambar): tidak ada biaya decode dan warnanya
  *     langsung mengikuti token tema.
- *   - `pending` menampilkan spinner di atas avatar saat story sendiri sedang
- *     diunggah (optimistis, lihat lib/story/local-state.ts).
  *   - Tombol "+" adalah Pressable TERPISAH dari area avatar: keduanya tidak
  *     bersarang, sehingga tap pada "+" tidak ikut membuka viewer.
  *   - Skala press memakai RN `Animated` (native driver) — BUKAN reanimated:
  *     transform/opacity sederhana, 60fps tanpa menambah worklet per ubin
  *     (tray bisa memuat belasan ubin). Pola sama dengan <PressableScale>.
  */
-import { Plus } from "phosphor-react-native"
+import { Plus, Warning } from "phosphor-react-native"
 import { memo, useCallback, useRef } from "react"
 import { Animated, View } from "react-native"
 import { PressableScale } from "@/components/ui/pressable-scale"
@@ -37,17 +40,26 @@ import { PressableScale } from "@/components/ui/pressable-scale"
 import { Avatar } from "@/components/ui/avatar"
 import { Icon } from "@/components/ui/icon"
 import { Spinner } from "@/components/ui/spinner"
+import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { tokens } from "@/lib/tokens"
 import { useReducedMotion } from "@/lib/use-reduced-motion"
 
 export type StoryRingState = "unseen" | "seen" | "muted" | "empty"
 
+export type StoryRingPending = {
+  /** 0..1; null = belum mulai / tahap buat story → spinner. */
+  progress: number | null
+}
+
 export type StoryRingProps = {
   name: string
   avatarUrl?: string | null
   ringState: StoryRingState
-  pending?: boolean
+  /** Unggahan berjalan (story sendiri). */
+  pending?: StoryRingPending | null
+  /** Unggahan gagal — badge peringatan menggantikan "+". */
+  failed?: boolean
   /** Tampilkan badge "+" (story sendiri). */
   showAddBadge?: boolean
   onPress: () => void
@@ -74,7 +86,8 @@ export const StoryRing = memo(function StoryRing({
   name,
   avatarUrl,
   ringState,
-  pending = false,
+  pending = null,
+  failed = false,
   showAddBadge = false,
   onPress,
   onPressAdd,
@@ -106,8 +119,9 @@ export const StoryRing = memo(function StoryRing({
   )
   const handlePressIn = useCallback(() => springTo(PRESS_SCALE), [springTo])
   const handlePressOut = useCallback(() => springTo(1), [springTo])
-  /** Durasi fade masuk ubin — dipakai <StoryTray> lewat Animated.Value. */
   const isMuted = ringState === "muted"
+  const percent =
+    pending && pending.progress !== null ? Math.round(Math.min(1, Math.max(0, pending.progress)) * 100) : null
 
   return (
     <View className="relative" style={isMuted ? { opacity: MUTED_OPACITY } : undefined}>
@@ -125,12 +139,28 @@ export const StoryRing = memo(function StoryRing({
           <Avatar source={avatarUrl ?? undefined} name={name} size="lg" />
         </Animated.View>
         {pending ? (
-          <View className="absolute inset-0 items-center justify-center rounded-full bg-background/60">
-            <Spinner size="sm" />
+          <View
+            className="absolute inset-0 items-center justify-center rounded-full bg-background/70"
+            accessibilityLiveRegion="polite"
+          >
+            {percent !== null && percent < 100 ? (
+              <Text variant="caption" weight={700}>
+                {`${percent}%`}
+              </Text>
+            ) : (
+              <Spinner size="sm" />
+            )}
           </View>
         ) : null}
       </PressableScale>
-      {showAddBadge && onPressAdd ? (
+      {failed ? (
+        <View
+          className="absolute -bottom-0.5 -right-0.5 h-6 w-6 items-center justify-center rounded-full border-2 border-background bg-danger"
+          pointerEvents="none"
+        >
+          <Icon icon={Warning} size="xs" tone="inverse" weight="fill" />
+        </View>
+      ) : showAddBadge && onPressAdd ? (
         <PressableScale
           onPress={onPressAdd}
           accessibilityRole="button"

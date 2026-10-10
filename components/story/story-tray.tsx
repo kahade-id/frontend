@@ -7,10 +7,15 @@
  *
  * Sumber data: GET /v1/stories/tray (lewat useApiQuery → refresh saat layar
  * kembali fokus) + overlay lokal (lib/story/local-state.ts) supaya ring langsung
- * berubah saat story dilihat/dibisukan, sebelum server merespons.
+ * berubah saat story dilihat/dibisukan, sebelum server merespons. Event
+ * realtime `story.*` (2026-10-10) membatalkan cache dan memuat ulang diam.
  *
  * Kegagalan memuat tray TIDAK memblokir daftar chat: tray disembunyikan kecuali
  * tombol "+" sendiri, supaya pengguna tetap bisa membuat story.
+ *
+ * Unggahan (2026-10-10): ubin sendiri menampilkan persen byte saat mengunggah;
+ * bila GAGAL, ubin diberi badge peringatan + caption "Gagal" dan ketukan
+ * membuka pilihan "Coba lagi" / "Buang" — draft tidak hilang diam-diam.
  *
  * Motion (2026-10-08, penyegaran UI/UX story):
  *   - Ubin masuk bertahap: fade + naik 8px, jeda 40ms per ubin, dibatasi 8
@@ -20,18 +25,23 @@
  *   - Reduced motion: tanpa animasi (audit #2).
  */
 import { router } from "expo-router"
-import { useCallback, useEffect, useMemo, useRef } from "react"
+import { ArrowClockwise, Trash } from "phosphor-react-native"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { ScrollView, View } from "react-native"
 
+import { ActionSheet } from "@/components/ui/action-sheet"
 import { FadeIn } from "@/components/ui/fade-in"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Text } from "@/components/ui/text"
+import { useToast } from "@/components/ui/toast"
 import { StoryRing, type StoryRingState } from "@/components/story/story-ring"
 import { getMeCached, type UserProfile } from "@/lib/api/users"
 import { getStoryTray, type StoryTrayEntry } from "@/lib/api/story"
 import { useApiQuery } from "@/lib/use-api-query"
-import { useStoryLocal } from "@/lib/story/local-state"
+import { useStoryLocal, type PendingStory } from "@/lib/story/local-state"
+import { discardPublishStory, retryPublishStory, type PublishStoryCallbacks } from "@/lib/story/publish"
 import { applyTrayOverlay } from "@/lib/story/tray"
+import { useStoryRealtime } from "@/lib/realtime/use-story-realtime"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 import { useT } from "@/lib/i18n"
@@ -49,8 +59,15 @@ function ringFor(entry: { hasUnseen: boolean; muted: boolean }): StoryRingState 
   return entry.hasUnseen ? "unseen" : "seen"
 }
 
+/** Entri unggahan yang paling relevan untuk ubin sendiri: yang gagal menang. */
+function pickOwnPending(pending: readonly PendingStory[]): PendingStory | null {
+  if (pending.length === 0) return null
+  return pending.find((p) => p.status === "failed") ?? pending[pending.length - 1] ?? null
+}
+
 export function StoryTray() {
   const t = useT()
+  const toast = useToast()
   const local = useStoryLocal()
   const me = useApiQuery<UserProfile | null>("story-tray-me", (signal) => getMeCached(signal))
   const tray = useApiQuery("story-tray", (signal) => getStoryTray(signal))
@@ -61,6 +78,8 @@ export function StoryTray() {
     seenRevision.current = local.revision
     tray.refresh()
   }, [local.revision, tray])
+  // Story kontak baru/hilang → tray memuat ulang diam, tanpa pindah tab.
+  useStoryRealtime(() => tray.refresh())
 
   const myUserId = me.data?.userId ?? me.data?.id ?? null
 
@@ -81,51 +100,117 @@ export function StoryTray() {
   const ownAvatar = me.data?.avatarUrl ?? view?.own?.author.avatarUrl ?? null
   const ownEntry = view?.own ?? null
   const ownHasStories = ownEntry !== null && ownEntry.storyCount > 0
-  const ownPending = local.pending.length > 0
+  const ownPending = pickOwnPending(local.pending)
+  const ownFailed = ownPending?.status === "failed"
+  const [failedOpen, setFailedOpen] = useState(false)
+
+  const retryCallbacks = useMemo<PublishStoryCallbacks>(
+    () => ({
+      onFailure: (message) =>
+        toast.show({ title: t("Story belum terbagikan"), description: message, tone: "danger" }),
+    }),
+    [toast, t],
+  )
+
+  const onPressOwn = useCallback(() => {
+    if (ownFailed) {
+      setFailedOpen(true)
+      return
+    }
+    if (ownHasStories && myUserId) openViewer(myUserId)
+    else openCreate()
+  }, [ownFailed, ownHasStories, myUserId, openViewer, openCreate])
+
+  const ownCaption = ownFailed
+    ? t("Gagal · ketuk")
+    : ownPending
+      ? ownPending.progress !== null && ownPending.progress < 1
+        ? t("Mengunggah…")
+        : t("Memproses…")
+      : ownHasStories
+        ? t("Story saya")
+        : t("Tambah story")
 
   if (tray.loading && !tray.data) {
     return (
       <View className="flex-row gap-3 px-4 pb-3 pt-1" accessibilityLabel={t("Memuat story")}>
         {[0, 1, 2, 3].map((i) => (
-          <Skeleton key={i} width={TILE_WIDTH} height={92} />
+          <View key={i} style={{ width: TILE_WIDTH }} className="items-center gap-1.5">
+            <Skeleton width={64} height={64} shape="circle" />
+            <Skeleton width={48} height={10} />
+          </View>
         ))}
       </View>
     )
   }
 
   return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      className="grow-0"
-      contentContainerClassName="gap-3 px-4 pb-3 pt-1"
-      accessibilityLabel={t("Story")}
-    >
-      <StoryTile
-        width={TILE_WIDTH}
-        name={t("Story saya")}
-        caption={ownPending ? t("Mengunggah…") : ownHasStories ? t("Story saya") : t("Tambah story")}
-        index={0}
+    <>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        className="grow-0"
+        contentContainerClassName="gap-3 px-4 pb-3 pt-1"
+        accessibilityLabel={t("Story")}
       >
-        <StoryRing
-          name={ownName}
-          avatarUrl={ownAvatar}
-          ringState={ownHasStories ? "seen" : "empty"}
-          pending={ownPending}
-          showAddBadge
-          onPress={ownHasStories && myUserId ? () => openViewer(myUserId) : openCreate}
-          onPressAdd={openCreate}
-          accessibilityLabel={
-            ownHasStories ? t("Lihat story saya") : t("Buat story baru")
-          }
-          testID="story-tray-own"
-        />
-      </StoryTile>
+        <StoryTile width={TILE_WIDTH} name={t("Story saya")} caption={ownCaption} index={0} danger={ownFailed}>
+          <StoryRing
+            name={ownName}
+            avatarUrl={ownAvatar}
+            ringState={ownHasStories ? "seen" : "empty"}
+            pending={ownPending && !ownFailed ? { progress: ownPending.progress } : null}
+            failed={ownFailed}
+            showAddBadge
+            onPress={onPressOwn}
+            onPressAdd={openCreate}
+            accessibilityLabel={
+              ownFailed
+                ? t("Story gagal diunggah, ketuk untuk mencoba lagi")
+                : ownHasStories
+                  ? t("Lihat story saya")
+                  : t("Buat story baru")
+            }
+            testID="story-tray-own"
+          />
+        </StoryTile>
 
-      {view?.others.map((entry, i) => (
-        <OtherTile key={entry.author.userId} entry={entry} onOpen={openViewer} index={i + 1} />
-      ))}
-    </ScrollView>
+        {view?.others.map((entry, i) => (
+          <OtherTile key={entry.author.userId} entry={entry} onOpen={openViewer} index={i + 1} />
+        ))}
+      </ScrollView>
+
+      <ActionSheet
+        visible={failedOpen}
+        onRequestClose={() => setFailedOpen(false)}
+        title={t("Story belum terbagikan")}
+        description={ownPending?.error ?? undefined}
+        actions={[
+          {
+            key: "retry",
+            label: t("Coba lagi"),
+            icon: ArrowClockwise,
+            onPress: () => {
+              if (!ownPending) return
+              if (!retryPublishStory(ownPending.localId, retryCallbacks)) {
+                // Proses sudah dimulai ulang → draft hilang; jujur, tawarkan buat ulang.
+                discardPublishStory(ownPending.localId)
+                toast.show({ title: t("Draft tidak tersimpan, buat story lagi."), tone: "warning" })
+                openCreate()
+              }
+            },
+          },
+          {
+            key: "discard",
+            label: t("Buang"),
+            icon: Trash,
+            destructive: true,
+            onPress: () => {
+              if (ownPending) discardPublishStory(ownPending.localId)
+            },
+          },
+        ]}
+      />
+    </>
   )
 }
 
@@ -164,6 +249,7 @@ function StoryTile({
   name,
   caption,
   dim = false,
+  danger = false,
   index = 0,
   children,
 }: {
@@ -171,6 +257,8 @@ function StoryTile({
   name: string
   caption: string
   dim?: boolean
+  /** Caption merah (unggahan gagal). */
+  danger?: boolean
   /** Urutan ubin — penentu jeda reveal bertahap. */
   index?: number
   children: React.ReactNode
@@ -188,7 +276,7 @@ function StoryTile({
         {children}
         <Text
           variant="caption"
-          tone={dim ? "tertiary" : "secondary"}
+          tone={danger ? "danger" : dim ? "tertiary" : "secondary"}
           numberOfLines={1}
           className="w-full text-center"
         >
