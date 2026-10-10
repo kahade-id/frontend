@@ -39,6 +39,19 @@ function ensurePlaybackAudioMode(): Promise<void> {
   return playbackModeReady
 }
 
+/**
+ * Audit Pesan 2026-10-10 batch 3 (voice note): perekam menyetel
+ * `allowsRecording: true` (kategori PlayAndRecord di iOS → suara keluar dari
+ * EARPIECE, pelan). `ensurePlaybackAudioMode` idempoten per proses, jadi
+ * setelah pengguna pernah merekam, pemutaran berikutnya TIDAK pernah kembali
+ * ke speaker. Perekam/sesi memanggil ini setiap kali selesai (kirim/buang)
+ * supaya mode putar dipasang ulang — best-effort, tidak melempar.
+ */
+export function restorePlaybackAudioMode(): Promise<void> {
+  playbackModeReady = null
+  return ensurePlaybackAudioMode()
+}
+
 export type AudioPlaybackPhase = "idle" | "loading" | "ready" | "error"
 
 /** Kecepatan putar voice note: 1x → 1.5x → 2x → 1x. */

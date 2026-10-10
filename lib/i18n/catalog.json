@@ -147,6 +147,10 @@
    "n": 13
   },
   {
+   "s": "Pesan",
+   "n": 13
+  },
+  {
    "s": "Pilih tanggal",
    "n": 13
   },
@@ -176,10 +180,6 @@
   },
   {
    "s": "Maksimal {x} digit; nilai negatif ditolak.",
-   "n": 12
-  },
-  {
-   "s": "Pesan",
    "n": 12
   },
   {
@@ -2652,6 +2652,10 @@
   },
   {
    "s": "Buka sorotan {title}",
+   "n": 3
+  },
+  {
+   "s": "Buka tautan {x}",
    "n": 3
   },
   {
@@ -6320,10 +6324,6 @@
   },
   {
    "s": "Buka spoiler",
-   "n": 2
-  },
-  {
-   "s": "Buka tautan {x}",
    "n": 2
   },
   {
@@ -22036,6 +22036,10 @@
   },
   {
    "s": "Tambahkan atau pilih rekening bank untuk penarikan.",
+   "n": 1
+  },
+  {
+   "s": "Tambahkan keterangan…",
    "n": 1
   },
   {

@@ -217,6 +217,58 @@ export function parseChatMarkup(text: string, ctx: Ctx = {}): ChatSegment[] {
   return segments
 }
 
+/**
+ * Strip tag HTML dari teks pesan (copy-paste web) sambil MEMPERTAHANKAN
+ * pemformatan: <b>/<strong> → **, <i>/<em> → _, <u> → __, <s>/<del> → ~,
+ * <code> → `. Dipindah dari renderer (2026-10-02/03) ke lapisan murni ini
+ * supaya bisa diuji di Node.
+ *
+ * Audit Pesan 2026-10-10 batch 3: hanya TAG SUNGGUHAN yang dibuang
+ * (`<nama …>` / `</nama>` dengan nama diawali huruf). Dulu `<[^>]*>` menelan
+ * teks apa pun di antara `<` dan `>` — "1<2 dan 3>2" tampil "12", "harga
+ * <100rb> ok" kehilangan angkanya. Perbandingan matematis dan tanda kurung
+ * sudut biasa kini utuh.
+ */
+export function stripChatHtml(input: string): string {
+  if (!input || (!input.includes("<") && !input.includes("&"))) return input
+  return input
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>\s*<p[^<>]*>/gi, "\n\n")
+    // Pertahankan formatting: konversi ke markdown SEBELUM strip.
+    .replace(/<(b|strong)(\s[^<>]*)?>/gi, "**")
+    .replace(/<\/(b|strong)>/gi, "**")
+    .replace(/<(i|em)(\s[^<>]*)?>/gi, "_")
+    .replace(/<\/(i|em)>/gi, "_")
+    .replace(/<u(\s[^<>]*)?>/gi, "__")
+    .replace(/<\/u>/gi, "__")
+    .replace(/<(s|strike|del)(\s[^<>]*)?>/gi, "~")
+    .replace(/<\/(s|strike|del)>/gi, "~")
+    .replace(/<code(\s[^<>]*)?>/gi, "`")
+    .replace(/<\/code>/gi, "`")
+    // Tag sungguhan saja: `<a href=…>`, `</div>`, `<img/>` — bukan `<2 dan 3>`.
+    .replace(/<\/?[a-z][a-z0-9-]*(\s[^<>]*)?\/?>/gi, "")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+}
+
+/**
+ * Teks POLOS sebuah pesan: marker format dilepas, tautan markdown jadi
+ * labelnya. Dipakai sorotan pencarian inline (bubble merender span polos,
+ * bukan segmen berformat — tanpa ini `*tebal*` tampil mentah selama mencari)
+ * dan label aksesibilitas.
+ */
+export function plainChatText(text: string): string {
+  const clean = stripChatHtml(text)
+  if (!hasChatMarkup(clean)) return clean
+  return parseChatMarkup(clean)
+    .map((s) => s.text)
+    .join("")
+}
+
 export type ChatFormatEdit = {
   value: string
   /** Kursor/seleksi baru. */

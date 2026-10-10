@@ -7,8 +7,39 @@ import {
   applyChatFormat,
   hasChatMarkup,
   parseChatMarkup,
+  plainChatText,
+  stripChatHtml,
   type ChatSegment,
 } from "@/lib/chat-format"
+
+describe("stripChatHtml (batch 3 2026-10-10)", () => {
+  it("hanya tag sungguhan yang dibuang — perbandingan matematis utuh", () => {
+    expect(stripChatHtml("1<2 dan 3>2")).toBe("1<2 dan 3>2")
+    expect(stripChatHtml("harga <100rb> ok")).toBe("harga <100rb> ok")
+    expect(stripChatHtml("a < b > c")).toBe("a < b > c")
+  })
+  it("tag HTML dilepas, formatting dipertahankan sebagai marker", () => {
+    expect(stripChatHtml('<p><b>halo</b> <a href="https://kahade.id">tautan</a></p>')).toBe(
+      "**halo** tautan",
+    )
+    expect(stripChatHtml("<i class=\"x\">miring</i><br/>baris<img src=x/>")).toBe("_miring_\nbaris")
+    expect(stripChatHtml("<s>coret</s> &amp; &lt;b&gt;")).toBe("~coret~ & <b>")
+  })
+  it("teks tanpa < atau & dikembalikan apa adanya", () => {
+    const s = "pesan biasa"
+    expect(stripChatHtml(s)).toBe(s)
+  })
+})
+
+describe("plainChatText", () => {
+  it("marker dilepas, tautan markdown jadi label", () => {
+    expect(plainChatText("*tebal* dan _miring_ [lihat](https://kahade.id/p/1)")).toBe(
+      "tebal dan miring lihat",
+    )
+    expect(plainChatText("<b>halo</b> 1<2")).toBe("halo 1<2")
+    expect(plainChatText("polos")).toBe("polos")
+  })
+})
 
 function texts(segments: ChatSegment[]): string[] {
   return segments.map((s) => s.text)

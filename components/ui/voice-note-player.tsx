@@ -139,7 +139,11 @@ export const VoiceNotePlayer = memo(function VoiceNotePlayer({
   // TANPA wrapper `accessible`: parent accessible menelan anak fokusable
   // (temuan gate F-08) — status lengkap justru ditempel di tombol putar.
   return (
-    <View className={cn(width == null && "w-56")} style={width != null ? { width } : undefined}>
+    // Batch 3 (2026-10-10): bubble lampiran hanya berbingkai 3px (temuan #6) —
+    // cocok untuk foto, tetapi tombol putar & waveform menempel ke tepi
+    // bubble. Pemutar membawa jarak dalamnya sendiri (lebar tetap `width`,
+    // padding dihitung di dalamnya).
+    <View className={cn("px-2 pt-1 pb-0.5", width == null && "w-56")} style={width != null ? { width } : undefined}>
       <View className="flex-row items-center gap-2">
         <PressableScale
           onPress={handlePlayPause}

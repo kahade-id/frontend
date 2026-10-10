@@ -117,7 +117,9 @@ export const ChatVideoBubble = memo(function ChatVideoBubble({
         <>
           <FeedVideo
             source={src}
-            poster={attachment.thumbnailUrl ?? undefined}
+            // Batch 3: poster = thumbnail yang SUDAH di-refresh (media #18),
+            // bukan URL lama yang mungkin kedaluwarsa.
+            poster={thumbSrc ?? undefined}
             alt={attachment.fileName}
             shouldPlay
             muted={muted}

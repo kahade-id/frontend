@@ -60,6 +60,7 @@ import {
   voiceNoteFileName,
   type VoiceNoteFile,
 } from "@/lib/voice-note"
+import { restorePlaybackAudioMode } from "@/lib/use-audio-playback"
 
 export type { VoiceNoteFile }
 
@@ -155,6 +156,8 @@ export function VoiceNoteRecorder({
     } catch {
       // Rekaman sudah berhenti / tidak valid — abaikan.
     }
+    // Batch 3: mode PUTAR dipasang ulang (speaker, bukan earpiece).
+    void restorePlaybackAudioMode()
   }, [recorder])
 
   const reset = useCallback(() => {
@@ -297,6 +300,10 @@ export function VoiceNoteRecorder({
       } catch {
         // Sudah berhenti / tidak valid — lanjut membaca uri.
       }
+      // Batch 3 (voice note): perekam meninggalkan `allowsRecording: true` →
+      // pratinjau DAN pesan suara berikutnya keluar dari earpiece (pelan).
+      // Kembalikan mode putar begitu mikrofon dilepas.
+      void restorePlaybackAudioMode()
       // 2026-10-07: beri jeda kecil agar `uri` terisi (race condition di
       // beberapa perangkat Android di mana uri null sesaat setelah stop).
       let uri = recorder.uri

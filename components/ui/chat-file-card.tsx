@@ -68,7 +68,9 @@ export const ChatFileCard = memo(function ChatFileCard({
   const metaLabel = [sizeLabel, ext || null].filter(Boolean).join(" · ")
 
   return (
-    <View className={cn(width == null && "w-52")} style={width != null ? { width } : undefined}>
+    // Batch 3 (2026-10-10): bingkai bubble lampiran hanya 3px — kartu berkas
+    // membawa jarak dalamnya sendiri supaya ikon/nama tidak menempel ke tepi.
+    <View className={cn("px-2 py-1.5", width == null && "w-52")} style={width != null ? { width } : undefined}>
       <PressableScale
         scaleOnPress={false}
         onPress={onPress}

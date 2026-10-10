@@ -290,6 +290,14 @@ export function ChatComposer({
   const quickReplyActive = quickReplies && !disabled && /^\/[a-z0-9_]*$/i.test(value)
   const quickReplyQuery = quickReplyActive ? value.slice(1) : ""
 
+  // Batch 3 (2026-10-10, "ukuran lampiran + caption"): begitu ada lampiran,
+  // kolom ketik adalah KETERANGAN media (pola WhatsApp/Telegram) — placeholder
+  // menyebutnya, bukan "Tulis pesan" yang menyiratkan pesan terpisah.
+  const placeholder =
+    attachments.length > 0 && labels?.placeholder === undefined
+      ? translateProp("Tambahkan keterangan…") ?? "Tambahkan keterangan…"
+      : translateProp(t.placeholder)
+
   const lineHeight = tokens.typography.bodyLarge.lineHeight
   const maxInputHeight = lineHeight * MAX_LINES
   const ready = canSendMessage(value, attachments) && !sending && !disabled
@@ -467,7 +475,7 @@ export function ChatComposer({
               onChangeText={(next) => onChangeText(next.slice(0, maxLength))}
               multiline
               editable={!disabled && !sending}
-              placeholder={translateProp(t.placeholder)}
+              placeholder={placeholder}
               placeholderTextColor={palette.textSecondary}
               selectionColor={palette.primary}
               cursorColor={palette.primary}

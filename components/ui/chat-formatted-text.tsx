@@ -21,44 +21,15 @@
 import { memo, useMemo, useState, type ReactNode } from "react"
 import { Linking } from "react-native"
 
-import { parseChatMarkup, hasChatMarkup, type ChatSegment } from "@/lib/chat-format"
+import { parseChatMarkup, hasChatMarkup, stripChatHtml, type ChatSegment } from "@/lib/chat-format"
 import { safeHttpsLink } from "@/lib/external-url"
 import { logWarn } from "@/lib/telemetry"
 import { truncateMiddle } from "@/lib/format"
+import { translate } from "@/lib/i18n/translate"
 
-/**
- * 2026-10-02: Strip tag HTML dari teks pesan agar tampil sebagai teks polos.
- * Pesan yang mengandung HTML (mis. dari copy-paste web) sebelumnya tidak
- * tampil dengan benar — tag mentah terlihat atau teks hilang. Kita strip
- * tag-nya dan decode entity umum, lalu render sebagai teks biasa.
- *
- * 2026-10-03: PERTAHANKAN formatting — <b>/<strong> → **, <i>/<em> → _,
- * <u> → __, <code> → `. User yang copy-paste teks berformat dari aplikasi
- * lain tetap melihat bold/italic/underline di bubble chat.
- */
-function stripHtmlTags(input: string): string {
-  return input
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<\/p>\s*<p[^>]*>/gi, "\n\n")
-    // Pertahankan formatting: konversi ke markdown SEBELUM strip.
-    .replace(/<(b|strong)[^>]*>/gi, "**")
-    .replace(/<\/(b|strong)>/gi, "**")
-    .replace(/<(i|em)[^>]*>/gi, "_")
-    .replace(/<\/(i|em)>/gi, "_")
-    .replace(/<u[^>]*>/gi, "__")
-    .replace(/<\/u>/gi, "__")
-    .replace(/<(s|strike|del)[^>]*>/gi, "~")
-    .replace(/<\/(s|strike|del)>/gi, "~")
-    .replace(/<code[^>]*>/gi, "`")
-    .replace(/<\/code>/gi, "`")
-    .replace(/<[^>]*>/g, "")
-    .replace(/&nbsp;/gi, " ")
-    .replace(/&amp;/gi, "&")
-    .replace(/&lt;/gi, "<")
-    .replace(/&gt;/gi, ">")
-    .replace(/&quot;/gi, '"')
-    .replace(/&#39;/gi, "'")
-}
+// 2026-10-02/03: strip tag HTML (copy-paste web) sambil mempertahankan
+// formatting — kini di `stripChatHtml` (lib/chat-format, murni & teruji).
+// Batch 3 2026-10-10: hanya tag sungguhan yang dibuang; "1<2 dan 3>2" utuh.
 
 import { useTheme } from "@/components/theme-provider"
 import { Text } from "@/components/ui/text"
@@ -150,7 +121,7 @@ function ChatLinkSegment({
       weight={600}
       onPress={open}
       accessibilityRole="link"
-      accessibilityLabel={`Buka tautan ${segment.linkUrl}`}
+      accessibilityLabel={translate("Buka tautan {x}", { x: segment.linkUrl ?? "" })}
       className="underline"
     >
       {unbrokenDisplay(segment.text)}
@@ -222,7 +193,7 @@ export const ChatFormattedText = memo(function ChatFormattedText({
   className,
 }: ChatFormattedTextProps) {
   // 2026-10-02: strip HTML dulu agar pesan ber-HTML tampil sebagai teks.
-  const cleanText = useMemo(() => stripHtmlTags(text), [text])
+  const cleanText = useMemo(() => stripChatHtml(text), [text])
   const segments = useMemo(
     () => (hasChatMarkup(cleanText) ? parseChatMarkup(cleanText) : null),
     [cleanText],

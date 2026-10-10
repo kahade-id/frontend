@@ -115,6 +115,7 @@ import { useSwipeReplyPan } from "@/lib/use-swipe-reply-pan"
 import { useSafeAnimatedStyle } from "@/lib/use-safe-animated-style"
 import { useReducedMotion } from "@/lib/use-reduced-motion"
 import { splitHighlightSpans } from "@/lib/chat-search"
+import { plainChatText } from "@/lib/chat-format"
 import {
   REACTION_BADGE_ANCHOR,
   SWIPE_REPLY_MAX_PX,
@@ -482,9 +483,15 @@ function ChatMessageBubbleBase({
   const highlightQuery = searchHighlight?.query ?? ""
   const showSearchHighlight =
     !!text && !!searchHighlight && highlightQuery.trim() !== "" && !isDeleted
+  // Batch 3 (2026-10-10): cabang sorotan merender span POLOS — teksnya harus
+  // teks polos juga (marker `*tebal*`/`<b>` dilepas), kalau tidak pesan
+  // berformat tampil mentah selama pencarian inline aktif. Label a11y memakai
+  // teks polos yang sama.
+  const plainText = useMemo(() => (text ? plainChatText(text) : text), [text])
   const highlightSpans = useMemo(
-    () => (showSearchHighlight && text ? splitHighlightSpans(text, highlightQuery) : null),
-    [showSearchHighlight, text, highlightQuery],
+    () =>
+      showSearchHighlight && plainText ? splitHighlightSpans(plainText, highlightQuery) : null,
+    [showSearchHighlight, plainText, highlightQuery],
   )
   /**
    * Ref pembungkus bubble: jangkar `measureInWindow` untuk popover reaksi
@@ -809,7 +816,7 @@ function ChatMessageBubbleBase({
               numberOfLines={1}
               ellipsizeMode="tail"
             >
-              {quote.senderName ?? "Pesan"}
+              {quote.senderName ?? translate("Pesan")}
             </Text>
           )}
           <Text
@@ -938,7 +945,7 @@ function ChatMessageBubbleBase({
   const a11yLabel = [
     outgoing ? translate("Anda") : (senderName ?? translate("Pesan masuk")),
     forwarded && !isDeleted ? translate("Diteruskan") : undefined,
-    text,
+    plainText,
     time,
     failed ? t.failed : statusText,
   ]
