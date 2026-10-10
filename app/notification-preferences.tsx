@@ -123,11 +123,15 @@ export default function NotificationPreferencesScreen() {
   // CN-008: kirim timezone perangkat sekali saat preferensi dimuat,
   // agar quiet hours dievaluasi di zona waktu pengguna, bukan selalu WIB.
   const prefsTz = query.data?.quietHoursTimezone
+  const prefsLoaded = Boolean(query.data)
+  // Audit 2026-10-10: dependensi = nilai tz + flag termuat, bukan objek
+  // `query.data` — setiap toggle optimistis (setData) sebelumnya memicu
+  // effect ini lagi (satu panggilan ekstra per toggle).
   useEffect(() => {
-    if (query.data) {
+    if (prefsLoaded) {
       void api.notifications.syncQuietHoursTimezone(prefsTz ?? null)
     }
-  }, [query.data])
+  }, [prefsLoaded, prefsTz])
 
   const handleChange = useCallback(
     async (next: MatrixPreferences, key: NotificationPreferenceKey) => {
@@ -229,7 +233,7 @@ export default function NotificationPreferencesScreen() {
     <DataScreen
       title={translate("Pengaturan Notifikasi")}
       state={query}
-      loadingMessage="Memuat preferensi server…"
+      loadingMessage={translate("Memuat preferensi…")}
       persistent={
         <View className="gap-4 pt-3">
           <DeviceNotificationSettings />
@@ -267,7 +271,10 @@ export default function NotificationPreferencesScreen() {
         onChange={(n, k) => void handleChange(n, k)}
         // Keamanan akun tidak boleh dimatikan total: peringatan login baru,
         // perubahan kata sandi, dan 2FA adalah §14 — selalu aktif.
-        lockedKeys={["securityInApp", "securityPush"]}
+        // Audit 2026-10-10: `securityEmail` ikut dikunci — backend memaksa
+        // ketiganya true (notifications.service.ts), jadi mematikannya di
+        // UI "berhasil" lalu kembali menyala saat dimuat ulang.
+        lockedKeys={["securityInApp", "securityPush", "securityEmail"]}
         // FE-IMP-3 #94: status efektif gabungan per jenis (perangkat + server).
         devicePushGranted={devicePushGranted}
       />

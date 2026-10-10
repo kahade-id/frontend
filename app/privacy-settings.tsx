@@ -171,9 +171,9 @@ function EnumRow<T extends string>({ title, description, value, options, labels,
         </View>
         <Text variant="body" tone="secondary">
           {value
-            ? (labels[value] ?? value)
+            ? translate(labels[value] ?? value)
             : defaultValue
-              ? `Mengikuti default: ${labels[defaultValue] ?? defaultValue}`
+              ? translate("Bawaan: {x}", { x: translate(labels[defaultValue] ?? defaultValue) })
               : "—"}
         </Text>
         <Icon icon={CaretRight} size="sm" tone="default" />
@@ -183,10 +183,10 @@ function EnumRow<T extends string>({ title, description, value, options, labels,
         visible={open}
         onRequestClose={() => setOpen(false)}
         showCancel
-        cancelLabel="Batal"
+        cancelLabel={translate("Batal")}
         actions={options.map((opt) => ({
           key: opt,
-          label: `${labels[opt] ?? opt}${value === opt ? " ✓" : ""}`,
+          label: `${translate(labels[opt] ?? opt)}${(value ?? defaultValue) === opt ? " ✓" : ""}`,
           onPress: () => {
             setOpen(false)
             if (opt !== value) onPick(opt)
@@ -304,8 +304,18 @@ export default function PrivacySettingsScreen() {
         })
         return
       }
-      const ok = await Linking.canOpenURL(target)
-      if (ok) await Linking.openURL(target)
+      // Audit 2026-10-10: `canOpenURL` untuk https bisa false di Android 11+
+      // (butuh <queries> manifest) — sebelumnya unduhan diam saja. Coba buka
+      // langsung; gagal → beri tahu, jangan senyap.
+      try {
+        await Linking.openURL(target)
+      } catch {
+        toast.show({
+          title: translate("Tautan unduhan tidak dapat dibuka"),
+          description: translate("Buka kembali dari Riwayat ekspor atau coba di perangkat lain."),
+          tone: "danger",
+        })
+      }
     },
     [toast],
   )
@@ -522,7 +532,7 @@ export default function PrivacySettingsScreen() {
           description="Visibilitas etalase baru yang Anda buat."
           // P1 (audit 2026-10-06): backend enum ShowcaseVisibility hanya
           // PUBLIC|PRIVATE — opsi FOLLOWERS dihapus agar tidak 422.
-          value={value.showcaseDefaultVisibility === "FOLLOWERS" ? "PUBLIC" : value.showcaseDefaultVisibility}
+          value={value.showcaseDefaultVisibility}
           options={["PUBLIC", "PRIVATE"]}
           labels={SHOWCASE_VISIBILITY_LABELS}
           pending={pending.includes("showcaseDefaultVisibility")}
@@ -571,11 +581,18 @@ export default function PrivacySettingsScreen() {
           pendingKeys={pending}
         />
 
-        <SectionHeader title="Persetujuan" />
-        <Text variant="body" tone="secondary">
-          Kelola persetujuan komunikasi. Persetujuan pemasaran dapat ditarik
-          kapan saja; notifikasi transaksi wajib demi keamanan akun.
-        </Text>
+        {/* Audit 2026-10-10: judul + penjelasan hanya tampil bila daftar
+            persetujuan ada — gagal muat (ditelan jadi []) sebelumnya
+            meninggalkan section kosong berjudul "Persetujuan". */}
+        {(consents.data ?? []).length > 0 ? (
+          <>
+            <SectionHeader title="Persetujuan" />
+            <Text variant="body" tone="secondary">
+              Persetujuan pemasaran dapat ditarik kapan saja; notifikasi transaksi
+              wajib demi keamanan akun.
+            </Text>
+          </>
+        ) : null}
         {(consents.data ?? []).map((c) => {
           const meta = CONSENT_LABELS[c.type]
           const busy = consentPending.includes(c.type)
@@ -608,11 +625,15 @@ export default function PrivacySettingsScreen() {
             <Text variant="body" tone="secondary">
               Riwayat persetujuan:
             </Text>
-            {(historyExpanded ? consentHistory.data ?? [] : (consentHistory.data ?? []).slice(0, 3)).map((h, i) => (
-              <View key={`${h.type}-${h.createdAt}-${i}`} className="px-5 py-2">
+            {(historyExpanded ? consentHistory.data ?? [] : (consentHistory.data ?? []).slice(0, 3)).map((h) => (
+              <View key={h.id} className="px-5 py-2">
                 <Text variant="caption" tone="secondary">
-                  {CONSENT_LABELS[h.type]?.title ?? h.type} — {h.granted ? "disetujui" : "ditarik"} · v{h.policyVersion} ·{" "}
-                  {formatDate(h.createdAt)}
+                  {translate("{x} — {y} · v{z}", {
+                    x: translate(CONSENT_LABELS[h.type]?.title ?? h.type),
+                    y: h.granted ? translate("disetujui") : translate("ditarik"),
+                    z: h.policyVersion || "—",
+                  })}{" "}
+                  · {formatDate(h.createdAt)}
                 </Text>
               </View>
             ))}
@@ -625,8 +646,8 @@ export default function PrivacySettingsScreen() {
               >
                 <Text variant="body" tone="primary">
                   {historyExpanded
-                    ? "Sembunyikan riwayat"
-                    : `Lihat semua riwayat (${(consentHistory.data ?? []).length})`}
+                    ? translate("Sembunyikan riwayat")
+                    : translate("Lihat semua riwayat ({x})", { x: (consentHistory.data ?? []).length })}
                 </Text>
                 <Icon
                   icon={CaretRight}
@@ -718,7 +739,10 @@ export default function PrivacySettingsScreen() {
               accessibilityRole="button"
               onPress={() => setExportFormat(fmt)}
               containerClassName="flex-1"
-              className={`rounded-lg border px-4 py-3 ${exportFormat === fmt ? "border-emerald-500" : "border-neutral-700"}`}
+              // Audit 2026-10-10: warna token (bukan emerald/neutral literal
+              // yang tidak mengikuti mode terang/gelap).
+              className={`rounded-lg border px-4 py-3 ${exportFormat === fmt ? "border-primary bg-primary/10" : "border-border"}`}
+              accessibilityState={{ selected: exportFormat === fmt }}
             >
               <Text variant="body" weight={500} className="text-center">
                 {fmt === "json" ? "JSON" : "CSV (ZIP)"}

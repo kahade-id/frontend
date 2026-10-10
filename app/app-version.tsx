@@ -5,6 +5,7 @@ import Constants from "expo-constants"
 import * as Updates from "expo-updates"
 import { installedAppVersion, installedBuildNumber } from "@/lib/runtime-info"
 import { formatDateTime } from "@/lib/format"
+import { translate, useLanguage } from "@/lib/i18n"
 import { getSecureItem, setSecureItem, SecureKeys } from "@/lib/secure-storage"
 import { isOfflineKnown } from "@/lib/connectivity"
 import { tokens } from "@/lib/tokens"
@@ -16,6 +17,7 @@ import { Text } from "@/components/ui/text"
 import { useToast } from "@/components/ui/toast"
 
 export default function AppVersionScreen() {
+  useLanguage()
   const toast = useToast()
   const insets = useSafeAreaInsets()
   const [checking, setChecking] = useState(false)
@@ -45,8 +47,8 @@ export default function AppVersionScreen() {
     if (!canUpdate || busy.current) return
     if (isOfflineKnown()) {
       toast.show({
-        title: "Anda sedang offline",
-        description: "Pembaruan dapat diperiksa setelah perangkat tersambung ke internet.",
+        title: translate("Anda sedang offline"),
+        description: translate("Pembaruan dapat diperiksa setelah perangkat tersambung ke internet."),
         tone: "info",
       })
       return
@@ -67,8 +69,8 @@ export default function AppVersionScreen() {
         markChecked()
         toast.show({
           title: result.isAvailable
-            ? "Pembaruan OTA tersedia"
-            : "Tidak ada OTA baru untuk runtime ini",
+            ? translate("Pembaruan tersedia")
+            : translate("Aplikasi sudah versi terbaru"),
           tone: "info",
         })
       }
@@ -77,10 +79,10 @@ export default function AppVersionScreen() {
       // keadaan offline, bukan error layar.
       const offline = isOfflineKnown()
       toast.show({
-        title: offline ? "Anda sedang offline" : "Pembaruan belum dapat diproses",
+        title: offline ? translate("Anda sedang offline") : translate("Pembaruan belum dapat diproses"),
         description: offline
-          ? "Pembaruan dapat diperiksa setelah perangkat tersambung ke internet."
-          : "Silakan coba lagi nanti.",
+          ? translate("Pembaruan dapat diperiksa setelah perangkat tersambung ke internet.")
+          : translate("Silakan coba lagi nanti."),
         tone: "info",
       })
     } finally {
@@ -92,7 +94,7 @@ export default function AppVersionScreen() {
     <Screen edges={["top"]} padded={false}>
       {/* Header di LUAR area scroll: tombol kembali harus tetap terjangkau
           saat konten panjang digulir (pola sama dengan <DataScreen>). */}
-      <Header title="Versi Aplikasi" />
+      <Header title={translate("Versi Aplikasi")} />
       <ScrollView
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
@@ -101,32 +103,35 @@ export default function AppVersionScreen() {
       >
         <AppVersionInfoRow
           appName={Constants.expoConfig?.name ?? "Kahade"}
-          version={installedAppVersion() ?? "Tidak tersedia"}
+          version={installedAppVersion() ?? translate("Tidak tersedia")}
           build={installedBuildNumber()}
-          channel={Updates.channel?.trim() || "Tidak terhubung"}
+          channel={Updates.channel?.trim() || translate("Tidak terhubung")}
           updateId={Updates.updateId ?? undefined}
         />
         <Text variant="caption" tone="secondary">
-          Runtime: {Updates.runtimeVersion?.trim() || "Tidak tersedia pada lingkungan ini"}
+          {translate("Runtime: {x}", {
+            x: Updates.runtimeVersion?.trim() || translate("Tidak tersedia"),
+          })}
         </Text>
         {canUpdate ? (
           <Button variant="secondary" loading={checking} onPress={() => void update()}>
-            {available ? "Unduh & terapkan OTA" : "Periksa pembaruan OTA"}
+            {available ? translate("Unduh & terapkan pembaruan") : translate("Periksa pembaruan")}
           </Button>
         ) : (
+          // Audit 2026-10-10: satu kalimat untuk pengguna, bukan penjelasan
+          // teknis EAS/Expo Go/development.
           <Text variant="body" tone="secondary">
-            Pembaruan OTA hanya tersedia pada build native yang terhubung ke EAS Update. Web, Expo
-            Go, dan mode development tidak menerapkan OTA melalui tombol ini.
+            {translate("Pembaruan diperiksa otomatis di aplikasi Android/iOS.")}
           </Text>
         )}
-        <Text variant="caption" tone="secondary">
-          OTA memperbarui JavaScript dan aset untuk runtime yang kompatibel. Perubahan native atau
-          versi minimum membutuhkan pembaruan dari toko aplikasi.
-        </Text>
         {/* FE-IMP-3 #99 — waktu terakhir pemeriksaan OTA. */}
-        <Text variant="caption" tone="secondary">
-          Terakhir diperiksa: {lastChecked ? formatDateTime(lastChecked) : "belum pernah"}
-        </Text>
+        {canUpdate ? (
+          <Text variant="caption" tone="secondary">
+            {translate("Terakhir diperiksa: {x}", {
+              x: lastChecked ? formatDateTime(lastChecked) : translate("belum pernah"),
+            })}
+          </Text>
+        ) : null}
       </ScrollView>
     </Screen>
   )

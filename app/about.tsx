@@ -18,6 +18,7 @@ import {
 } from "phosphor-react-native"
 
 import { useCopy } from "@/lib/clipboard"
+import { translate, useLanguage } from "@/lib/i18n"
 import { ROUTES } from "@/lib/routes"
 import { getTelemetryBuffer } from "@/lib/telemetry"
 import { installedAppVersion, installedBuildNumber } from "@/lib/runtime-info"
@@ -75,6 +76,7 @@ const LINKS: AboutLink[] = [
 ]
 
 export default function AboutScreen() {
+  useLanguage()
   const insets = useSafeAreaInsets()
   const version = installedAppVersion() ?? Constants.expoConfig?.version ?? "—"
   const build = installedBuildNumber()
@@ -98,7 +100,7 @@ export default function AboutScreen() {
 
   return (
     <Screen edges={["top"]} padded={false}>
-      <Header title="Tentang Kami" />
+      <Header title="Tentang Kahade" />
       <ScrollView
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
@@ -108,14 +110,15 @@ export default function AboutScreen() {
         {/* Identitas */}
         <Card elevation="flat" className="items-center gap-3 p-6">
           <Logo variant="lockup" size="lg" />
+          {/* Audit Pengaturan 2026-10-10: kalimat resmi whitepaper (CLAUDE.md
+              §1) — versi lama memakai "menahan dana" (kosakata terlarang §2). */}
           <Text variant="body" tone="secondary" className="text-center text-pretty">
-            Kahade adalah platform jual-beli yang
-            menahan dana pembayaran sampai barang atau jasa benar-benar diterima,
-            sehingga jual-beli antar pengguna menjadi aman, terlacak, dan
-            dipercaya.
+            Kahade adalah aplikasi jual-beli pengguna ke pengguna yang
+            tampilannya seperti media sosial. Dana disimpan aman oleh Kahade
+            sampai barang atau jasa benar-benar diterima.
           </Text>
           <Text variant="caption" tone="secondary" className="text-center">
-            Transaksi aman, mudah, dan terpercaya.
+            Jual Beli Semudah Scroll Medsos
           </Text>
         </Card>
 
@@ -177,11 +180,12 @@ export default function AboutScreen() {
         {/* Info versi — data yang ditanyakan admin saat membantu */}
         <View className="items-center gap-1">
           <Text variant="caption" tone="secondary">
-            Kahade versi {version}
-            {build ? ` (${build})` : ""}
+            {translate("Kahade versi {x}", { x: build ? `${version} (${build})` : version })}
           </Text>
           <Text variant="caption" tone="secondary">
-            © {new Date().getFullYear()} Kahade. Seluruh hak cipta dilindungi.
+            {translate("© {x} PT Kawal Hak Dengan Aman. Seluruh hak cipta dilindungi.", {
+              x: new Date().getFullYear(),
+            })}
           </Text>
         </View>
       </ScrollView>

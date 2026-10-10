@@ -15,6 +15,7 @@ import {
   Key,
   LockKey,
   Mailbox,
+  PaintBrush,
   Phone,
   ShieldCheck,
   Trash,
@@ -114,8 +115,12 @@ export default function SecurityScreen() {
           </View>
         </View>
 
+        {/* Audit Pengaturan 2026-10-10: "Tampilan" (/appearance — ikuti
+            sistem, hemat data, ukuran teks) tidak punya pintu masuk sejak
+            /settings dihapus; toggle drawer hanya memaksa terang/gelap dan
+            tidak pernah bisa kembali ke "ikuti sistem". */}
         <View className="gap-2">
-          <MenuGroupLabel>Notifikasi</MenuGroupLabel>
+          <MenuGroupLabel>Preferensi</MenuGroupLabel>
           <View className="w-full overflow-hidden rounded-md bg-surface">
             <ListItem
               title="Preferensi Notifikasi"
@@ -123,6 +128,13 @@ export default function SecurityScreen() {
               leading={Bell}
               chevron
               href={ROUTES.notificationPreferences}
+            />
+            <ListItem
+              title="Tampilan"
+              titleVariant="bodyLarge"
+              leading={PaintBrush}
+              chevron
+              href={ROUTES.appearance}
             />
           </View>
         </View>

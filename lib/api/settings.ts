@@ -43,8 +43,8 @@ export type PrivacySettings = {
   /** G077: siapa yang dapat melihat daftar follower/following. */
   showFollowerList?: PrivacyListVisibility
   showFollowingList?: PrivacyListVisibility
-  /** G078: visibilitas default etalase baru. */
-  showcaseDefaultVisibility?: "PUBLIC" | "PRIVATE" | "FOLLOWERS"
+  /** G078: visibilitas default etalase baru (enum backend ShowcaseVisibility: PUBLIC|PRIVATE). */
+  showcaseDefaultVisibility?: "PUBLIC" | "PRIVATE"
   /** G079–G080: kebijakan Q&A profil. */
   qaCommentPolicy?: QaCommentPolicy
   qaAnswerModeration?: boolean
@@ -244,19 +244,79 @@ export function updateConsent(type: ConsentType, granted: boolean) {
 }
 
 export type ConsentHistoryEntry = {
+  id: string
   type: ConsentType
   granted: boolean
   policyVersion: string
   channel: string | null
-  ipAddress: string | null
+  /** Waktu kejadian (pemberian, atau penarikan bila `granted=false`). */
   createdAt: string
 }
 
-/** GET /v1/settings/consents/history — riwayat persetujuan berversi. */
+/**
+ * Audit Pengaturan 2026-10-10: backend mengirim SATU baris per pemberian
+ * `{id,type,policyVersion,policyTextHash,channel,grantedAt,revokedAt}` —
+ * TIDAK ada `granted`/`createdAt`. UI lama membaca kedua field itu sehingga
+ * semua baris tampil "ditarik" dengan tanggal tidak valid. Normalisasi di
+ * sini: baris yang sudah ditarik dipecah jadi dua kejadian (diberikan ·
+ * ditarik), baris terbuka = satu kejadian "diberikan". Bentuk lama
+ * (`granted`+`createdAt`) tetap diterima bila backend sudah mengirimnya.
+ */
+export function normalizeConsentHistory(raw: unknown): ConsentHistoryEntry[] {
+  if (!raw || typeof raw !== "object") return []
+  const row = raw as Record<string, unknown>
+  const type = row.type
+  if (typeof type !== "string") return []
+  const id = typeof row.id === "string" ? row.id : ""
+  const policyVersion = typeof row.policyVersion === "string" ? row.policyVersion : ""
+  const channel = typeof row.channel === "string" ? row.channel : null
+  if (typeof row.granted === "boolean" && typeof row.createdAt === "string") {
+    return [
+      {
+        id: id || `${type}-${row.createdAt}`,
+        type: type as ConsentType,
+        granted: row.granted,
+        policyVersion,
+        channel,
+        createdAt: row.createdAt,
+      },
+    ]
+  }
+  const grantedAt = typeof row.grantedAt === "string" ? row.grantedAt : null
+  const revokedAt = typeof row.revokedAt === "string" ? row.revokedAt : null
+  const out: ConsentHistoryEntry[] = []
+  if (grantedAt) {
+    out.push({
+      id: `${id || type}:granted`,
+      type: type as ConsentType,
+      granted: true,
+      policyVersion,
+      channel,
+      createdAt: grantedAt,
+    })
+  }
+  if (revokedAt) {
+    out.push({
+      id: `${id || type}:revoked`,
+      type: type as ConsentType,
+      granted: false,
+      policyVersion,
+      channel,
+      createdAt: revokedAt,
+    })
+  }
+  return out
+}
+
+/** GET /v1/settings/consents/history — riwayat persetujuan berversi (terbaru dulu). */
 export function getConsentHistory(signal?: AbortSignal) {
   return http
     .get<unknown>("/v1/settings/consents/history", { auth: "required", signal })
-    .then((raw) => readList<ConsentHistoryEntry>(raw, ["items", "data"]))
+    .then((raw) =>
+      readList<unknown>(raw, ["items", "data"])
+        .flatMap(normalizeConsentHistory)
+        .sort((a, b) => (a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0)),
+    )
 }
 
 export function getLanguage(signal?: AbortSignal) {
@@ -287,10 +347,14 @@ export type DataExportResult = {
 }
 
 export function exportPrivacy(format: "json" | "csv" = "json") {
+  // Audit Pengaturan 2026-10-10: controller backend membaca `format` dari
+  // QUERY (`@Query() RequestExportDto`), bukan body — body saja selalu
+  // menghasilkan JSON walau pengguna memilih CSV. Kirim keduanya: query untuk
+  // backend yang sudah dirilis, body untuk kontrak baru.
   return http.post<DataExportResult, { format: "json" | "csv" }>(
     "/v1/settings/privacy/export",
     { format },
-    { auth: "required" },
+    { auth: "required", query: { format } },
   )
 }
 

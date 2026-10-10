@@ -23,9 +23,12 @@ export {
 export {
   adoptAccountLanguage,
   applyLanguage,
+  clearLanguagePendingSync,
   getLanguage,
   getLanguageRevision,
   initLanguage,
+  isLanguagePendingSync,
+  markLanguagePendingSync,
   persistLanguage,
   readCachedLanguage,
   setLanguage,

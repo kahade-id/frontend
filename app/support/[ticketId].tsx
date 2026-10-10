@@ -290,7 +290,7 @@ export default function SupportTicketDetailScreen() {
   return (
     <Screen keyboardAvoiding edges={["top"]} padded={false}>
       {/* Item 129: judul memuat nomor tiket setelah data termuat. */}
-      <Header title={ticket ? `Tiket ${ticket.ticketNumber}` : "Tiket"} />
+      <Header title={ticket ? translate("Tiket {x}", { x: ticket.ticketNumber }) : translate("Tiket")} />
       <PullToRefresh
         onRefresh={query.refresh}
         refreshing={query.refreshing}
@@ -321,9 +321,9 @@ export default function SupportTicketDetailScreen() {
               const sla = describeTicketSla(ticket)
               const ownerLabel =
                 sla.nextOwner === "agent"
-                  ? "Tim Kahade"
+                  ? translate("Tim Kahade")
                   : sla.nextOwner === "user"
-                    ? "Anda"
+                    ? translate("Anda")
                     : "—"
               return (
                 <Card padded={false} className="gap-1 p-3">
@@ -332,13 +332,16 @@ export default function SupportTicketDetailScreen() {
                   </Text>
                   <Text variant="body">{sla.stage}</Text>
                   <Text variant="caption" tone="secondary">
-                    {sla.nextStep} · {ownerLabel}
+                    {translate("{x} · {y}", { x: translate(sla.nextStep), y: ownerLabel })}
                   </Text>
-                  <Text variant="caption" tone={sla.responseDueLabel ? undefined : "secondary"}>
-                    {sla.responseDueLabel
-                      ? `Batas respons: ${sla.responseDueLabel}`
-                      : "Batas respons belum tersedia dari server."}
-                  </Text>
+                  {/* Audit 2026-10-10: tanpa SLA dari server, jangan cetak
+                      kalimat teknis "belum tersedia dari server" (teks
+                      penjelasan = desain belum intuitif) — cukup kosong. */}
+                  {sla.responseDueLabel ? (
+                    <Text variant="caption">
+                      {translate("Batas respons: {x}", { x: sla.responseDueLabel })}
+                    </Text>
+                  ) : null}
                 </Card>
               )
             })()}
@@ -468,8 +471,9 @@ export default function SupportTicketDetailScreen() {
             {/* Item 130: composer diblokir untuk tiket selesai; lampiran maks 5. */}
             {isClosedLike ? (
               <Text variant="caption" tone="secondary">
-                Tiket sudah {status === "RESOLVED" ? "diselesaikan" : "ditutup"} — balasan
-                dinonaktifkan. Buka kembali tiket bila masalahnya belum selesai.
+                {status === "RESOLVED"
+                  ? translate("Tiket sudah diselesaikan. Buka kembali bila masalahnya belum selesai.")
+                  : translate("Tiket sudah ditutup. Buka kembali bila masalahnya belum selesai.")}
               </Text>
             ) : (
               <View className="gap-2">
@@ -478,7 +482,7 @@ export default function SupportTicketDetailScreen() {
                   onChangeText={setReply}
                   // FRM-011: label terasosiasi — placeholder hilang saat mengetik.
                   label={translate("Balasan")}
-                  placeholder="Tulis balasan Anda"
+                  placeholder={translate("Tulis balasan Anda")}
                   maxLength={2000}
                   numberOfLines={4}
                 />
@@ -513,10 +517,10 @@ export default function SupportTicketDetailScreen() {
                     loading={uploadingReply}
                     disabled={replyAttachmentKeys.length >= 5}
                     onPress={() => void handlePickReplyAttachments()}
-                    accessibilityLabel="Tambah lampiran balasan"
+                    accessibilityLabel={translate("Tambah lampiran balasan")}
+                    leftIcon={Paperclip}
                   >
-                    <Icon icon={Paperclip} size="sm" tone="default" />
-                    {" "}Lampiran
+                    {translate("Lampiran")}
                   </Button>
                   <Button
                     loading={sending}
@@ -535,12 +539,12 @@ export default function SupportTicketDetailScreen() {
       </PullToRefresh>
 
       <Dialog
-        title="Tutup tiket?"
+        title={translate("Tutup tiket?")}
         // F13: jelaskan konsekuensi — termasuk nasib draf balasan & opsi batal.
         description={
           reply.trim()
-            ? "Tiket bisa dibuka kembali kapan saja. Draf balasan Anda tetap tersimpan."
-            : "Tiket bisa dibuka kembali kapan saja bila masalah belum selesai."
+            ? translate("Tiket bisa dibuka kembali kapan saja. Draf balasan Anda tetap tersimpan.")
+            : translate("Tiket bisa dibuka kembali kapan saja bila masalah belum selesai.")
         }
         visible={closeOpen}
         destructive

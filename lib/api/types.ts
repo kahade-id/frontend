@@ -1487,7 +1487,9 @@ export type UpdatePrivacyDto = {
   showGender?: boolean
   showFollowerList?: "EVERYONE" | "FOLLOWERS" | "ONLY_ME"
   showFollowingList?: "EVERYONE" | "FOLLOWERS" | "ONLY_ME"
-  showcaseDefaultVisibility?: "PUBLIC" | "PRIVATE" | "FOLLOWERS"
+  // Audit 2026-10-10: enum backend ShowcaseVisibility hanya PUBLIC|PRIVATE —
+  // "FOLLOWERS" dihapus agar tipe tidak mengundang 422.
+  showcaseDefaultVisibility?: "PUBLIC" | "PRIVATE"
   qaCommentPolicy?: "EVERYONE" | "FOLLOWERS" | "DISABLED"
   qaAnswerModeration?: boolean
   showReviews?: boolean

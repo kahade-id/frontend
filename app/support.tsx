@@ -16,6 +16,7 @@ import { View } from "react-native"
 import { api } from "@/lib/api"
 import type { SupportTicket } from "@/lib/api/support"
 import { formatDateTime } from "@/lib/format"
+import { translate, useLanguage } from "@/lib/i18n"
 import { ROUTES } from "@/lib/routes"
 import { getSupportOpenedAt, isSupportTicketUnread } from "@/lib/support-unread"
 import { useApiQuery } from "@/lib/use-api-query"
@@ -55,6 +56,8 @@ function matchesFilter(t: SupportTicket, filter: StatusFilter): boolean {
 }
 
 export default function SupportScreen() {
+  // Langganan bahasa: placeholder & a11y label kolom cari (prop string).
+  useLanguage()
   const query = useApiQuery("support-tickets", (signal) => api.support.listSupportTickets(signal))
   const tickets = query.data ?? []
 
@@ -108,9 +111,9 @@ export default function SupportScreen() {
         <DebouncedSearchField
           initialQuery={search}
           onQueryChange={setSearch}
-          placeholder="Cari subjek atau nomor tiket"
+          placeholder={translate("Cari subjek atau nomor tiket")}
           returnKeyType="search"
-          accessibilityLabel="Cari tiket"
+          accessibilityLabel={translate("Cari tiket")}
         />
         <View className="flex-row flex-wrap gap-2" accessibilityRole="radiogroup">
           {STATUS_FILTERS.map((f) => (

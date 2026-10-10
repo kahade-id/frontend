@@ -10,7 +10,10 @@
  * dibuka, koneksi pulih ketika layar masih terbuka, atau pengguna mengirim
  * masukan berikutnya.
  */
+import { Platform } from "react-native"
+
 import { http } from "@/lib/api/client"
+import { installedAppVersion } from "@/lib/runtime-info"
 import {
   getSecureItem,
   isSecureKeyPersisted,
@@ -129,6 +132,10 @@ function classifyFailure(err: unknown): "offline" | "unsupported" | "other" {
 }
 
 async function postFeedback(payload: FeedbackInput): Promise<void> {
+  // Audit 2026-10-10: `appVersion` + platform nyata (web/app) — DTO backend
+  // sudah menerimanya (CreateFeedbackDto) dan admin memakainya untuk triase;
+  // sebelumnya selalu "app" tanpa versi walau dikirim dari web.
+  const appVersion = installedAppVersion()
   await http.post(
     "/v1/feedback",
     {
@@ -137,7 +144,8 @@ async function postFeedback(payload: FeedbackInput): Promise<void> {
       contact: payload.contact?.trim() || undefined,
       contactConsent: payload.contactConsent === true,
       rating: payload.rating,
-      platform: "app",
+      platform: Platform.OS === "web" ? "web" : "app",
+      ...(appVersion ? { appVersion: appVersion.slice(0, 32) } : {}),
     },
     { auth: "optional" },
   )

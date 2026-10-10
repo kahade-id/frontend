@@ -47,10 +47,11 @@ import { SectionHeader } from "@/components/ui/section"
 import { Switch } from "@/components/ui/switch"
 import { Text } from "@/components/ui/text"
 import { useToast } from "@/components/ui/toast"
-import { translate } from "@/lib/i18n/translate"
+import { translate, useLanguage } from "@/lib/i18n"
 
 // UX polish: biometric toggle memakai Switch dengan haptic + description caption (audit #029)
 export default function BiometricSettingsScreen() {
+  useLanguage()
   const insets = useSafeAreaInsets()
   const toast = useToast()
 
@@ -93,30 +94,33 @@ export default function BiometricSettingsScreen() {
       try {
         if (next) {
           const outcome = await authenticateBiometric({
-            promptMessage: "Konfirmasi untuk mengaktifkan biometrik",
-            promptSubtitle: "Kahade akan memakai biometrik untuk membuka aplikasi",
-            fallbackLabel: "Batal",
+            promptMessage: translate("Konfirmasi untuk mengaktifkan biometrik"),
+            promptSubtitle: translate("Kahade akan memakai biometrik untuk membuka aplikasi"),
+            fallbackLabel: translate("Batal"),
           })
           if (outcome !== "success") {
             if (outcome === "lockout") {
               toast.show({
-                title: "Biometrik terkunci sementara",
-                description: "Terlalu banyak percobaan gagal. Coba lagi nanti.",
+                title: translate("Biometrik terkunci sementara"),
+                description: translate("Terlalu banyak percobaan gagal. Coba lagi nanti."),
                 tone: "danger",
               })
             } else if (outcome === "failed" || outcome === "unavailable") {
-              toast.show({ title: "Biometrik tidak dikenali", tone: "danger" })
+              toast.show({ title: translate("Biometrik tidak dikenali"), tone: "danger" })
             }
             return
           }
         }
         await setSecureItem(SecureKeys.biometricEnabled, next ? "1" : "0")
         setBiometric(next)
-        toast.show({ title: next ? "Biometrik diaktifkan" : "Biometrik dimatikan", tone: "success" })
+        toast.show({
+          title: next ? translate("Biometrik diaktifkan") : translate("Biometrik dimatikan"),
+          tone: "success",
+        })
       } catch {
         // Kegagalan di sini berasal dari perangkat (sensor/SecureStore), bukan
         // backend — tidak ada pesan server yang bisa diteruskan.
-        toast.show({ title: "Gagal menyimpan pengaturan biometrik", tone: "danger" })
+        toast.show({ title: translate("Gagal menyimpan pengaturan biometrik"), tone: "danger" })
       } finally {
         setToggling(false)
       }
@@ -135,27 +139,28 @@ export default function BiometricSettingsScreen() {
     setTesting(true)
     try {
       const outcome = await authenticateBiometric({
-        promptMessage: "Uji kunci biometrik",
-        promptSubtitle: "Tempelkan jari atau tunjukkan wajah Anda",
-        fallbackLabel: "Batal",
+        promptMessage: translate("Uji kunci biometrik"),
+        promptSubtitle: translate("Tempelkan jari atau tunjukkan wajah Anda"),
+        fallbackLabel: translate("Batal"),
       })
       if (outcome === "success") {
         toast.show({
-          title: "Kunci berfungsi",
-          description: `${label} dikenali dengan baik di perangkat ini.`,
+          title: translate("Kunci berfungsi"),
+          description: translate("{x} dikenali dengan baik di perangkat ini.", { x: label }),
           tone: "success",
         })
       } else if (outcome === "lockout") {
         toast.show({
-          title: "Biometrik terkunci sementara",
-          description: "Terlalu banyak percobaan gagal. Coba lagi nanti.",
+          title: translate("Biometrik terkunci sementara"),
+          description: translate("Terlalu banyak percobaan gagal. Coba lagi nanti."),
           tone: "danger",
         })
       } else if (outcome === "failed" || outcome === "unavailable") {
         toast.show({
-          title: "Biometrik tidak dikenali",
-          description:
+          title: translate("Biometrik tidak dikenali"),
+          description: translate(
             "Coba lagi, atau periksa pendaftaran biometrik di pengaturan perangkat.",
+          ),
           tone: "danger",
         })
       }
@@ -180,8 +185,8 @@ export default function BiometricSettingsScreen() {
            * mati beserta janji "setelah 1 menit di latar belakang…", menawarkan
            * fitur yang tidak akan pernah aktif di platform itu.
            */
-          <Alert tone="info" title="Kunci aplikasi hanya di aplikasi mobile">
-            Pasang aplikasi mobile untuk memakai {label} atau PIN dompet.
+          <Alert tone="info" title={translate("Kunci aplikasi hanya di aplikasi mobile")}>
+            {translate("Pasang aplikasi mobile untuk memakai {x} atau PIN dompet.", { x: label })}
           </Alert>
         ) : (
           <>
@@ -197,14 +202,17 @@ export default function BiometricSettingsScreen() {
             />
 
             {unavailable ? (
-              <Alert tone="info" title="Biometrik belum tersedia di perangkat ini">
-                Daftarkan wajah atau sidik jari di pengaturan sistem perangkat, lalu kembali ke sini
-                untuk mengaktifkannya.
+              <Alert tone="info" title={translate("Biometrik belum tersedia di perangkat ini")}>
+                {translate(
+                  "Daftarkan wajah atau sidik jari di pengaturan sistem perangkat, lalu kembali ke sini untuk mengaktifkannya.",
+                )}
               </Alert>
             ) : (
               <Text variant="caption" tone="secondary">
-                PIN dompet tetap diminta bila {label} gagal dikenali atau saat perangkat baru dipakai
-                masuk. Transaksi uang (transfer, tarik dana, bayar pesanan) selalu memakai PIN dompet.
+                {translate(
+                  "PIN dompet tetap diminta bila {x} gagal dikenali. Transaksi uang selalu memakai PIN dompet.",
+                  { x: label },
+                )}
               </Text>
             )}
 
