@@ -33,6 +33,7 @@ import { PasswordField } from "@/components/ui/password-field"
 import { Text } from "@/components/ui/text"
 import { TextArea } from "@/components/ui/text-area"
 import { cn } from "@/lib/cn"
+import { translate, useLanguage } from "@/lib/i18n"
 
 /** Panjang kode TOTP (RFC 6238) — sama dengan <OtpInput> default. */
 const MFA_CODE_LENGTH = 6
@@ -75,20 +76,34 @@ export type DeleteAccountFormProps = Omit<ViewProps, "children"> & {
   className?: string
 }
 
-const DEFAULT_LABELS: DeleteAccountLabels = {
-  warningTitle: "Tindakan ini tidak dapat dibatalkan",
-  warning: (days) =>
-    `Akun akan dinonaktifkan sekarang dan dihapus permanen setelah ${days} hari. Riwayat transaksi, ulasan, dan saldo yang tersisa akan hilang.`,
-  blockersTitle: "Selesaikan dulu sebelum menghapus akun",
-  reasonLabel: "Alasan (opsional)",
-  reasonPlaceholder: "Bantu kami memahami alasan Anda…",
-  passwordLabel: "Kata sandi akun",
-  mfaLabel: "Kode autentikator",
-  mfaHelper: "6 digit dari aplikasi autentikator Anda",
-  confirmCheckbox: "Saya memahami bahwa data saya akan dihapus dan tidak dapat dipulihkan.",
-  phraseLabel: "Ketik untuk mengonfirmasi",
-  phraseHelper: (phrase) => `Ketik "${phrase}" untuk melanjutkan`,
-  submit: "Hapus akun saya",
+/**
+ * Audit Pengaturan 2026-10-10: label bawaan dibangun lewat `translate()`
+ * (fungsi, bukan konstanta modul) — nama properti objek ini (`warningTitle`,
+ * `submit`, …) bukan nama prop teks yang dikenali generator katalog, sehingga
+ * seluruh form hapus akun tidak pernah masuk katalog dan selalu Indonesia
+ * untuk pengguna English.
+ */
+function defaultLabels(): DeleteAccountLabels {
+  return {
+    warningTitle: translate("Tindakan ini tidak dapat dibatalkan"),
+    warning: (days) =>
+      translate(
+        "Akun akan dinonaktifkan sekarang dan dihapus permanen setelah {x} hari. Riwayat transaksi, ulasan, dan saldo yang tersisa akan hilang.",
+        { x: days },
+      ),
+    blockersTitle: translate("Selesaikan dulu sebelum menghapus akun"),
+    reasonLabel: translate("Alasan (opsional)"),
+    reasonPlaceholder: translate("Bantu kami memahami alasan Anda…"),
+    passwordLabel: translate("Kata sandi akun"),
+    mfaLabel: translate("Kode autentikator"),
+    mfaHelper: translate("{x} digit dari aplikasi autentikator Anda", { x: MFA_CODE_LENGTH }),
+    confirmCheckbox: translate(
+      "Saya memahami bahwa data saya akan dihapus dan tidak dapat dipulihkan.",
+    ),
+    phraseLabel: translate("Ketik untuk mengonfirmasi"),
+    phraseHelper: (phrase) => translate("Ketik \"{x}\" untuk melanjutkan", { x: phrase }),
+    submit: translate("Hapus akun saya"),
+  }
 }
 
 export function DeleteAccountForm({
@@ -103,7 +118,9 @@ export function DeleteAccountForm({
   className,
   ...rest
 }: DeleteAccountFormProps) {
-  const t = { ...DEFAULT_LABELS, ...labels }
+  // Langganan bahasa: label dibangun saat render (lihat defaultLabels).
+  useLanguage()
+  const t = { ...defaultLabels(), ...labels }
   const [reason, setReason] = useState("")
   const [password, setPassword] = useState("")
   const [mfaCode, setMfaCode] = useState("")
@@ -120,7 +137,7 @@ export function DeleteAccountForm({
     <View className={cn("gap-5", className)} {...rest}>
       <Alert tone="danger" variant="soft" title={t.warningTitle}>
         {gracePeriodDays == null
-          ? "Penghapusan akun mengikuti ketentuan resmi Kahade. Jadwal penghapusan dan ketentuan pembatalan belum tersedia pada halaman ini; hubungi dukungan bila Anda membutuhkan kepastian sebelum melanjutkan."
+          ? translate("Penghapusan akun mengikuti ketentuan resmi Kahade.")
           : t.warning(gracePeriodDays)}
       </Alert>
 
@@ -190,7 +207,7 @@ export function DeleteAccountForm({
         autoCapitalize="characters"
         autoCorrect={false}
         disabled={hasBlockers || !agreed}
-        errorText={phrase.length > 0 && !phraseOk ? "Frasa tidak sesuai" : undefined}
+        errorText={phrase.length > 0 && !phraseOk ? translate("Frasa tidak sesuai") : undefined}
       />
 
       <Button

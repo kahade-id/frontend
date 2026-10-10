@@ -12,6 +12,7 @@
  * components/ui/notification-preferences-matrix.tsx (sumber kebenaran bentuk
  * DTO); disalin di sini agar layer lib tidak mengimpor komponen UI.
  */
+import { translate } from "@/lib/i18n/translate"
 
 export const NOTIFICATION_CATEGORY_CHANNELS = {
   order: ["InApp", "Push", "Email"],
@@ -55,10 +56,12 @@ export function summarizeNotificationPreferences(
       typeof prefs.quietHoursStart === "string" && prefs.quietHoursStart
         ? prefs.quietHoursStart
         : "22:00"
+    // Audit 2026-10-10: bawaan backend (schema.prisma `quietHoursEnd
+    // @default("07:00")` & computeQuietHoursActive) adalah 07:00, bukan 06:00.
     const end =
       typeof prefs.quietHoursEnd === "string" && prefs.quietHoursEnd
         ? prefs.quietHoursEnd
-        : "06:00"
+        : "07:00"
     return `Senyap ${start}–${end}`
   }
   const categories = Object.keys(NOTIFICATION_CATEGORY_CHANNELS) as NotificationCategory[]
@@ -118,12 +121,21 @@ export function effectiveNotificationStatus(
   return { effective, pushBlockedByDevice }
 }
 
-/** Caption satu baris dari {@link EffectiveStatus} untuk tiap kategori. */
+/**
+ * Caption satu baris dari {@link EffectiveStatus} untuk tiap kategori.
+ *
+ * Audit 2026-10-10: dirangkai lewat `translate` — template literal dengan
+ * potongan non-angka ("Efektif: di aplikasi, push") tidak pernah cocok
+ * dengan bentuk katalog, jadi caption ini selalu Indonesia untuk pengguna
+ * English. Nama kanal diterjemahkan satu per satu.
+ */
 export function formatEffectiveStatus(status: EffectiveStatus): string {
-  const parts = status.effective.map((ch) => EFFECTIVE_CHANNEL_LABELS[ch])
+  const parts = status.effective.map((ch) => translate(EFFECTIVE_CHANNEL_LABELS[ch]))
   const base =
-    parts.length > 0 ? `Efektif: ${parts.join(", ")}` : "Tidak ada kanal aktif"
+    parts.length > 0
+      ? translate("Efektif: {x}", { x: parts.join(", ") })
+      : translate("Tidak ada kanal aktif")
   return status.pushBlockedByDevice
-    ? `${base} · Push tertahan: izin perangkat mati`
+    ? translate("{x} · Push tertahan: izin perangkat mati", { x: base })
     : base
 }

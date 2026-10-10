@@ -49,7 +49,7 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
-import { translate } from "@/lib/i18n/translate"
+import { translate, useLanguage } from "@/lib/i18n"
 import { summarize } from "@/lib/a11y"
 
 export type BackupCodesLabels = {
@@ -84,17 +84,26 @@ export type BackupCodesDisplayProps = Omit<ViewProps, "children"> & {
   className?: string
 }
 
-const DEFAULT_LABELS: BackupCodesLabels = {
-  title: "Kode cadangan",
-  remaining: (n, total) => `${n} dari ${total} kode tersisa`,
-  warningTitle: "Simpan di tempat aman",
-  warningBody:
-    "Setiap kode hanya bisa dipakai sekali. Kode ini satu-satunya cara masuk jika Anda kehilangan akses ke aplikasi autentikator.",
-  copyAll: "Salin semua",
-  download: "Unduh",
-  regenerate: "Buat kode baru",
-  reveal: "Tampilkan",
-  used: "sudah dipakai",
+/**
+ * Audit Pengaturan 2026-10-10: label bawaan lewat `translate()` di dalam
+ * fungsi — `warningBody`/`copyAll`/`reveal`/`used` bukan nama prop teks yang
+ * dikenali generator katalog, jadi kartu kode cadangan tetap Indonesia untuk
+ * pengguna English.
+ */
+function defaultLabels(): BackupCodesLabels {
+  return {
+    title: translate("Kode cadangan"),
+    remaining: (n, total) => translate("{x} dari {y} kode tersisa", { x: n, y: total }),
+    warningTitle: translate("Simpan di tempat aman"),
+    warningBody: translate(
+      "Setiap kode hanya bisa dipakai sekali. Kode ini satu-satunya cara masuk jika Anda kehilangan akses ke aplikasi autentikator.",
+    ),
+    copyAll: translate("Salin semua"),
+    download: translate("Unduh"),
+    regenerate: translate("Buat kode baru"),
+    reveal: translate("Tampilkan"),
+    used: translate("sudah dipakai"),
+  }
 }
 
 /** "ABCD-EFGH" -> "A B C D strip E F G H" supaya screen reader mengeja */
@@ -119,7 +128,8 @@ export function BackupCodesDisplay({
   className,
   ...rest
 }: BackupCodesDisplayProps) {
-  const t = { ...DEFAULT_LABELS, ...labels }
+  useLanguage()
+  const t = { ...defaultLabels(), ...labels }
   const used = new Set(usedCodes)
   const remaining = codes.filter((c) => !used.has(c))
   const plain = remaining.join("\n")
@@ -215,7 +225,7 @@ export function BackupCodesDisplay({
           leftIcon={ArrowsClockwise}
           loading={regenerating}
           onPress={onRegenerate}
-          accessibilityHint="Semua kode lama tidak berlaku lagi"
+          accessibilityHint={translate("Semua kode lama tidak berlaku lagi")}
         >
           {t.regenerate}
         </Button>

@@ -616,10 +616,9 @@ export default function PrivacySettingsScreen() {
                 ) : null}
                 {c.grantedAt ? (
                   <Text variant="caption" tone="secondary">
-                    {translate("{x} · v{y}", {
-                      x: c.granted ? translate("Disetujui") : translate("Ditarik"),
-                      y: c.policyVersion || "—",
-                    })}
+                    {c.granted
+                      ? translate("Disetujui · versi {x}", { x: c.policyVersion || "—" })
+                      : translate("Ditarik · versi {x}", { x: c.policyVersion || "—" })}
                   </Text>
                 ) : null}
               </View>
@@ -643,13 +642,20 @@ export default function PrivacySettingsScreen() {
             </Text>
             {(historyExpanded ? consentHistory.data ?? [] : (consentHistory.data ?? []).slice(0, 3)).map((h) => (
               <View key={h.id} className="px-5 py-2">
+                {/* Kalimat utuh per kejadian — generator katalog membuang kunci
+                    yang hanya token/tanda baca ("{x} — {y} · v{z}"). */}
                 <Text variant="caption" tone="secondary">
-                  {translate("{x} — {y} · v{z}", {
-                    x: translate(CONSENT_LABELS[h.type]?.title ?? h.type),
-                    y: h.granted ? translate("disetujui") : translate("ditarik"),
-                    z: h.policyVersion || "—",
-                  })}{" "}
-                  · {formatDate(h.createdAt)}
+                  {h.granted
+                    ? translate("{x} — disetujui · versi {y} · {z}", {
+                        x: translate(CONSENT_LABELS[h.type]?.title ?? h.type),
+                        y: h.policyVersion || "—",
+                        z: formatDate(h.createdAt),
+                      })
+                    : translate("{x} — ditarik · versi {y} · {z}", {
+                        x: translate(CONSENT_LABELS[h.type]?.title ?? h.type),
+                        y: h.policyVersion || "—",
+                        z: formatDate(h.createdAt),
+                      })}
                 </Text>
               </View>
             ))}

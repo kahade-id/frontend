@@ -29,7 +29,7 @@ import { Skeleton, SkeletonText } from "@/components/ui/skeleton"
 import { Text } from "@/components/ui/text"
 import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
-import { translate } from "@/lib/i18n/translate"
+import { translate, useLanguage } from "@/lib/i18n"
 
 export type TwoFactorMethod = "TOTP" | "SMS" | "EMAIL"
 
@@ -67,17 +67,27 @@ export type TwoFactorStatusCardProps = Omit<CardProps, "children"> & {
   labels?: Partial<TwoFactorStatusLabels>
 }
 
-const DEFAULT_LABELS: TwoFactorStatusLabels = {
-  title: "Verifikasi dua langkah",
-  enabled: "Aktif",
-  disabled: "Nonaktif",
-  method: "Metode",
-  backupCodes: "Kode cadangan",
-  lowBackup: "Hampir habis",
-  enable: "Aktifkan",
-  manage: "Kelola",
-  regenerate: "Buat ulang kode",
-  disabledHint: "Lindungi akun dengan kode tambahan setiap kali masuk dari perangkat baru.",
+/**
+ * Audit Pengaturan 2026-10-10: label bawaan lewat `translate()` di dalam
+ * fungsi — properti `method`/`lowBackup`/`regenerate`/`disabledHint` bukan
+ * nama prop teks yang dikenali generator katalog, jadi sebagian kartu ini
+ * tetap Indonesia untuk pengguna English.
+ */
+function defaultLabels(): TwoFactorStatusLabels {
+  return {
+    title: translate("Verifikasi dua langkah"),
+    enabled: translate("Aktif"),
+    disabled: translate("Nonaktif"),
+    method: translate("Metode"),
+    backupCodes: translate("Kode cadangan"),
+    lowBackup: translate("Hampir habis"),
+    enable: translate("Aktifkan"),
+    manage: translate("Kelola"),
+    regenerate: translate("Buat ulang kode"),
+    disabledHint: translate(
+      "Lindungi akun dengan kode tambahan setiap kali masuk dari perangkat baru.",
+    ),
+  }
 }
 
 const LOW_BACKUP_THRESHOLD = 2
@@ -96,7 +106,8 @@ export function TwoFactorStatusCard({
   className,
   ...rest
 }: TwoFactorStatusCardProps) {
-  const t = { ...DEFAULT_LABELS, ...labels }
+  useLanguage()
+  const t = { ...defaultLabels(), ...labels }
 
   if (loading) {
     return (

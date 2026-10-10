@@ -116,8 +116,16 @@ export function NotificationPreferencesMatrix({
   className,
   ...rest
 }: NotificationPreferencesMatrixProps) {
-  const channelLabels = { ...DEFAULT_LABELS.channels, ...labels?.channels }
-  const lockedLabel = labels?.locked ?? DEFAULT_LABELS.locked
+  // Audit 2026-10-10: label kanal & "Wajib" lewat translate() literal —
+  // properti `channels`/`locked` bukan nama prop teks yang dikenali
+  // generator katalog, sehingga "Di aplikasi"/"Wajib" tidak pernah punya EN.
+  const channelLabels: Record<NotificationChannel, string> = {
+    InApp: translate("Di aplikasi"),
+    Push: translate("Push"),
+    Email: translate("Email"),
+    ...labels?.channels,
+  }
+  const lockedLabel = labels?.locked ?? translate("Wajib")
   const showEffective = devicePushGranted !== undefined
 
   return (

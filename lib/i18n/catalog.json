@@ -927,6 +927,10 @@
    "n": 6
   },
   {
+   "s": "Tampilkan waktu relatif",
+   "n": 6
+  },
+  {
    "s": "Tanggal tidak tersedia",
    "n": 6
   },
@@ -1280,10 +1284,6 @@
   },
   {
    "s": "Tampilkan {x} balasan",
-   "n": 5
-  },
-  {
-   "s": "Tampilkan waktu relatif",
    "n": 5
   },
   {
@@ -2008,6 +2008,10 @@
   },
   {
    "s": "Terlaris",
+   "n": 4
+  },
+  {
+   "s": "Tiket {x}",
    "n": 4
   },
   {
@@ -2899,10 +2903,6 @@
    "n": 3
   },
   {
-   "s": "Disetujui",
-   "n": 3
-  },
-  {
    "s": "Disimpan",
    "n": 3
   },
@@ -3663,6 +3663,10 @@
    "n": 3
   },
   {
+   "s": "Ketuk untuk beralih antara waktu relatif dan absolut",
+   "n": 3
+  },
+  {
    "s": "Ketuk untuk beralih format waktu",
    "n": 3
   },
@@ -4136,6 +4140,10 @@
   },
   {
    "s": "Memuat story…",
+   "n": 3
+  },
+  {
+   "s": "Memuat tiket",
    "n": 3
   },
   {
@@ -5367,10 +5375,6 @@
    "n": 3
   },
   {
-   "s": "Tiket {x}",
-   "n": 3
-  },
-  {
    "s": "Tiket bisa dibuka kembali kapan saja bila masalah belum selesai.",
    "n": 3
   },
@@ -5640,6 +5644,10 @@
   },
   {
    "s": "Wajib untuk rating {x}–{x} bintang",
+   "n": 3
+  },
+  {
+   "s": "Waktu absolut: {x}",
    "n": 3
   },
   {
@@ -6764,6 +6772,10 @@
   },
   {
    "s": "Disepakati di luar aplikasi",
+   "n": 2
+  },
+  {
+   "s": "Disetujui",
    "n": 2
   },
   {
@@ -10259,10 +10271,6 @@
    "n": 2
   },
   {
-   "s": "Waktu absolut: {x}",
-   "n": 2
-  },
-  {
    "s": "X (Twitter)",
    "n": 2
   },
@@ -10408,6 +10416,10 @@
   },
   {
    "s": "{x} · maks {y} MB",
+   "n": 1
+  },
+  {
+   "s": "{x} · Push tertahan: izin perangkat mati",
    "n": 1
   },
   {
@@ -12256,6 +12268,10 @@
   },
   {
    "s": "A.{x}. Pesanan dan pengiriman",
+   "n": 1
+  },
+  {
+   "s": "Ada balasan baru",
    "n": 1
   },
   {
@@ -15119,10 +15135,6 @@
    "n": 1
   },
   {
-   "s": "Ditarik",
-   "n": 1
-  },
-  {
    "s": "Diterima pembeli",
    "n": 1
   },
@@ -15244,6 +15256,10 @@
   },
   {
    "s": "E.{x} Tinjau penerima, nilai, biaya, dan detail sebelum menyetujui transaksi.",
+   "n": 1
+  },
+  {
+   "s": "Efektif: {x}",
    "n": 1
   },
   {
@@ -17087,10 +17103,6 @@
    "n": 1
   },
   {
-   "s": "Ketuk untuk beralih antara waktu relatif dan absolut",
-   "n": 1
-  },
-  {
    "s": "Ketuk untuk lompat ke bagian",
    "n": 1
   },
@@ -18564,10 +18576,6 @@
   },
   {
    "s": "Memuat templat",
-   "n": 1
-  },
-  {
-   "s": "Memuat tiket",
    "n": 1
   },
   {
@@ -22639,6 +22647,10 @@
    "n": 1
   },
   {
+   "s": "Tidak ada kanal aktif",
+   "n": 1
+  },
+  {
    "s": "Tidak ada kode QR",
    "n": 1
   },
@@ -22739,7 +22751,7 @@
    "n": 1
   },
   {
-   "s": "Tiket sudah ditutup. Buat tiket baru bila kendala muncul lagi.",
+   "s": "Tiket sudah ditutup. Chat dengan tim Kahade bila kendala muncul lagi.",
    "n": 1
   },
   {

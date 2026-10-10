@@ -62,7 +62,7 @@ import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { tokens } from "@/lib/tokens"
 import { focusRingInset } from "@/lib/focus-ring"
-import { translate } from "@/lib/i18n/translate"
+import { translate, useLanguage } from "@/lib/i18n"
 
 export type DevicePlatform = "mobile" | "tablet" | "laptop" | "desktop" | "web"
 
@@ -128,14 +128,22 @@ const PLATFORM_ICON: Record<DevicePlatform, IconComponent> = {
   web: GlobeSimple,
 }
 
-const DEFAULT_LABELS: DeviceSessionLabels = {
-  current: "Perangkat ini",
-  revoke: "Keluar",
-  suspicious: "Perlu ditinjau",
-  revokeFrom: "Keluar dari",
-  trusted: "Tepercaya",
-  trust: "Percayai",
-  untrust: "Cabut kepercayaan",
+/**
+ * Audit Pengaturan 2026-10-10: label bawaan lewat `translate()` di dalam
+ * fungsi — `trusted`/`trust`/`untrust`/`suspicious` bukan nama prop teks
+ * yang dikenali generator katalog, jadi badge & tombol kepercayaan tetap
+ * Indonesia untuk pengguna English.
+ */
+function defaultLabels(): DeviceSessionLabels {
+  return {
+    current: translate("Perangkat ini"),
+    revoke: translate("Keluar"),
+    suspicious: translate("Perlu ditinjau"),
+    revokeFrom: translate("Keluar dari"),
+    trusted: translate("Tepercaya"),
+    trust: translate("Percayai"),
+    untrust: translate("Cabut kepercayaan"),
+  }
 }
 
 // FE-011 (audit 2026-09-29): di-memo — daftar aktivitas memakai handler inline.
@@ -163,7 +171,8 @@ export const DeviceSessionListItem = memo(function DeviceSessionListItem({
   className,
   ...rest
 }: DeviceSessionListItemProps) {
-  const t = { ...DEFAULT_LABELS, ...labels }
+  useLanguage()
+  const t = { ...defaultLabels(), ...labels }
 
   const meta: string[] = []
   if (client) meta.push(client)
@@ -262,7 +271,9 @@ export const DeviceSessionListItem = memo(function DeviceSessionListItem({
           <PressableScale
             accessibilityRole="button"
             accessibilityLabel={a11yLabel}
-            accessibilityHint={onPress ? "Buka detail sesi" : "Tahan untuk aksi perangkat"}
+            accessibilityHint={
+              onPress ? translate("Buka detail sesi") : translate("Tahan untuk aksi perangkat")
+            }
             accessibilityState={{ disabled }}
             scaleOnPress={false}
             disabled={disabled}

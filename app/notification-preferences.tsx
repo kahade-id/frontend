@@ -283,10 +283,13 @@ export default function NotificationPreferencesScreen() {
         lastSentAt={query.data?.lastDigestSentAt ?? null}
         onChange={(next) => void handleDigestChange(next)}
       />
+      {/* Audit 2026-10-10: bawaan jam selesai mengikuti backend (07:00 —
+          schema.prisma & computeQuietHoursActive), bukan 06:00: UI sebelumnya
+          mengklaim "22:00–06:00" sementara server senyap sampai 07:00. */}
       <QuietHoursSection
         enabled={query.data?.quietHoursEnabled ?? false}
         start={query.data?.quietHoursStart ?? "22:00"}
-        end={query.data?.quietHoursEnd ?? "06:00"}
+        end={query.data?.quietHoursEnd ?? "07:00"}
         timezone={query.data?.quietHoursTimezone}
         onSave={(patch) => handleQuietHours(patch)}
       />
