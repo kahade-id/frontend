@@ -79,6 +79,34 @@ const listeners = new Set<(event: ChatSendQueueEvent) => void>()
 const drainedListeners = new Set<(result: ChatSendQueueDrainResult) => void>()
 let stopReconnect: (() => void) | null = null
 let stopSessionCleared: (() => void) | null = null
+/**
+ * Audit Pesan 2026-10-10 (realtime #8): pesan yang gagal karena TIMEOUT /
+ * NETWORK saat NetInfo masih "online" masuk antrean, tetapi antrean hanya
+ * dikuras saat transisi offline→online, boot, atau retry manual — di
+ * jaringan lambat pesan bisa "Menunggu koneksi" selamanya. Kini setiap
+ * enqueue / kegagalan koneksi menjadwalkan pengurasan ulang dengan backoff
+ * (5 → 10 → 20 → 40 → 60 dtk) selama perangkat tidak diketahui offline.
+ */
+const DRAIN_RETRY_BASE_MS = 5_000
+const DRAIN_RETRY_MAX_MS = 60_000
+let drainRetryTimer: ReturnType<typeof setTimeout> | null = null
+let drainRetryAttempt = 0
+
+function scheduleDrainRetry(): void {
+  if (drainRetryTimer || isOfflineKnown()) return
+  const delay = Math.min(DRAIN_RETRY_MAX_MS, DRAIN_RETRY_BASE_MS * 2 ** drainRetryAttempt)
+  drainRetryAttempt += 1
+  drainRetryTimer = setTimeout(() => {
+    drainRetryTimer = null
+    void drainChatSendQueue()
+  }, delay)
+}
+
+function clearDrainRetry(): void {
+  if (drainRetryTimer) clearTimeout(drainRetryTimer)
+  drainRetryTimer = null
+  drainRetryAttempt = 0
+}
 
 function randomIdempotencyKey(): string {
   const cryptoApi = globalThis.crypto
@@ -346,6 +374,9 @@ export async function enqueueChatMessage(
   // The SecureStore write may fail (for example, its per-value size limit).
   // Keep the in-memory queue active and tell the caller persistence is limited.
   emit({ type: "queued", roomId, messageId: message.id })
+  // Online menurut NetInfo tetapi request gagal (timeout) → coba kuras lagi
+  // sendiri; offline → menunggu onReconnect seperti biasa.
+  scheduleDrainRetry()
   return {
     queued: true,
     persisted:
@@ -453,6 +484,10 @@ export async function drainChatSendQueue(): Promise<ChatSendQueueDrainResult> {
     const ids = await loadRoomIds()
     result.waiting = Math.max(result.waiting, await countPendingMessages(ids).catch(() => 0))
     emitDrained(result)
+    // Masih ada yang menunggu padahal tidak offline → jadwalkan lagi
+    // (backoff); semua terkirim → reset backoff.
+    if (result.waiting > 0) scheduleDrainRetry()
+    else clearDrainRetry()
   }
   return result
 }
@@ -478,6 +513,7 @@ export function initChatSendQueue(): void {
   if (initialized) return
   initialized = true
   stopReconnect = onReconnect(() => {
+    clearDrainRetry()
     void drainChatSendQueue()
   })
   stopSessionCleared = onSessionCleared(() => {
@@ -488,6 +524,7 @@ export function initChatSendQueue(): void {
 
 /** @internal — reset singleton state in isolated unit tests. */
 export function __resetChatSendQueueForTest(): void {
+  clearDrainRetry()
   stopReconnect?.()
   stopSessionCleared?.()
   stopReconnect = null

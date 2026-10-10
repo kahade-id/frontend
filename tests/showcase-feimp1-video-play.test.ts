@@ -17,13 +17,21 @@ describe("resolveVideoShouldPlay", () => {
     ).toBe(false)
   })
 
-  it("tanpa hemat data: autoplaySignal menentukan", () => {
+  it("tanpa hemat data: autoplaySignal memutar", () => {
     expect(
       resolveVideoShouldPlay({ gated: false, dataSaver: false, autoplaySignal: true, userPlay: false }),
     ).toBe(true)
     expect(
-      resolveVideoShouldPlay({ gated: false, dataSaver: false, autoplaySignal: false, userPlay: true }),
+      resolveVideoShouldPlay({ gated: false, dataSaver: false, autoplaySignal: false, userPlay: false }),
     ).toBe(false)
+  })
+
+  it("FD-02: niat eksplisit memutar walau tanpa sinyal autoplay (tab Etalase profil, kartu terkait)", () => {
+    // Dulu false → tombol putar di permukaan dengan autoplay mati tidak
+    // melakukan apa-apa (audit etalase 2026-10-10).
+    expect(
+      resolveVideoShouldPlay({ gated: false, dataSaver: false, autoplaySignal: false, userPlay: true }),
+    ).toBe(true)
   })
 
   it("hemat data: autoplaySignal SELALU diabaikan — bahkan setelah load manual", () => {

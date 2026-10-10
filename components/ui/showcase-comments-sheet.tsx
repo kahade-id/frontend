@@ -65,6 +65,7 @@ import { tokens } from "@/lib/tokens"
 
 import { ActionSheet } from "@/components/ui/action-sheet"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
+import { Dialog } from "@/components/ui/modal"
 import { Button } from "@/components/ui/button"
 import { Chip } from "@/components/ui/chip"
 import { Divider } from "@/components/ui/divider"
@@ -245,6 +246,9 @@ export function ShowcaseCommentsSheet({
   const [sending, setSending] = useState(false)
   const [replyTo, setReplyTo] = useState<ShowcaseComment | null>(null)
   const [commentMenu, setCommentMenu] = useState<ShowcaseComment | null>(null)
+  /** SO-03: konfirmasi hapus (paritas layar detail) — bukan hapus langsung dari menu. */
+  const [deleteTarget, setDeleteTarget] = useState<ShowcaseComment | null>(null)
+  const [deleting, setDeleting] = useState(false)
   // PERF-FIX (TIM1-P2): handler sheet stabil.
   const handleRetryComments = useCallback(() => void query.reload(), [query])
   const handleCloseCommentMenu = useCallback(() => setCommentMenu(null), [])
@@ -285,30 +289,47 @@ export function ShowcaseCommentsSheet({
 
   const handleDeleteComment = useCallback(
     async (target: ShowcaseComment) => {
+      if (!showcaseId || deleting) return
+      setDeleting(true)
+      // SO-03 (audit 2026-10-10): hapus OPTIMISTIS + rollback, dan delta −1 ke
+      // ledger (dulu menunggu server lalu reload, tanpa ledger → hitungan
+      // kartu feed drift). SO-04: root yang punya balasan jadi placeholder
+      // `isDeleted` (server menyimpan utasnya), bukan dibuang.
+      const hasReplies =
+        (target.replyCount ?? 0) > 0 || replyPatches.some((p) => p.parentId === target.id)
+      const strip = <T extends ShowcaseComment & { replies?: ShowcaseComment[] }>(list: T[]): T[] =>
+        list.flatMap((c): T[] => {
+          if (c.id === target.id) return hasReplies ? [{ ...c, isDeleted: true, content: "" } as T] : []
+          return [{ ...c, replies: (c.replies ?? []).filter((r) => r.id !== target.id) } as T]
+        })
+      const prevLocal = localComments
+      const prevPatches = replyPatches
+      const prevQuery = query.data
+      setLocalComments((prev) => strip(prev))
+      setReplyPatches((prev) => prev.filter((p) => p.reply.id !== target.id))
+      if (prevQuery) {
+        query.setData({ ...prevQuery, data: strip(prevQuery.data), total: Math.max(0, prevQuery.total - 1) })
+      }
+      setDeleteTarget(null)
       try {
         await deleteShowcaseComment(target.id)
+        queueShowcaseCommentCount(showcaseId, -1)
         toast.show({ title: translate("Komentar dihapus"), tone: "success" })
-        setLocalComments((prev) =>
-          prev
-            .filter((c) => c.id !== target.id)
-            .map((c) => ({
-              ...c,
-              replies: (c.replies ?? []).filter((r) => r.id !== target.id),
-            })),
-        )
-        // T2-F02: buang juga patch balasan sesi ini (kalau tidak, reload di
-        // bawah menempelkannya kembali walau sudah dihapus).
-        setReplyPatches((prev) => prev.filter((p) => p.reply.id !== target.id))
-        void query.reload()
       } catch (err) {
+        // Rollback ke snapshot sebelum hapus.
+        setLocalComments(prevLocal)
+        setReplyPatches(prevPatches)
+        if (prevQuery) query.setData(prevQuery)
         toast.show({
           title: translate("Gagal menghapus komentar"),
           description: isApiError(err) ? userMessage(err) : undefined,
           tone: "danger",
         })
+      } finally {
+        setDeleting(false)
       }
     },
-    [toast, query],
+    [toast, query, showcaseId, deleting, localComments, replyPatches],
   )
 
   /** E-05 (audit 2026-09-23): draf PER ITEM — dipulihkan saat kembali. */
@@ -318,7 +339,7 @@ export function ShowcaseCommentsSheet({
    * Percobaan ulang setelah timeout memakai kunci yang SAMA, jadi komentar
    * tidak tercatat dua kali; isi komentar berbeda = aksi berbeda = kunci baru.
    */
-  const sendKey = useRef<{ item: string; content: string; key: string } | null>(null)
+  const sendKey = useRef<{ item: string; content: string; parentId: string | null; key: string } | null>(null)
   const draftOwner = useRef<string | null>(null)
   const draftRef = useRef("")
   /** FE-012: imperative handle komposer anak — untuk mengosongkan input setelah kirim sukses. */
@@ -372,9 +393,13 @@ export function ShowcaseCommentsSheet({
     if (!task) return
     setSending(true)
     try {
-      const keyed = sendKey.current?.item === showcaseId && sendKey.current?.content === content
-        ? sendKey.current.key
-        : (sendKey.current = { item: showcaseId, content, key: createIdempotencyKey() }).key
+      // SO-05: kunci = item × isi × induk — balasan dan komentar utama dengan
+      // teks sama adalah aksi berbeda.
+      const parentId = replyTo?.id ?? null
+      const keyed =
+        sendKey.current?.item === showcaseId && sendKey.current?.content === content && sendKey.current?.parentId === parentId
+          ? sendKey.current.key
+          : (sendKey.current = { item: showcaseId, content, parentId, key: createIdempotencyKey() }).key
       const saved = await addShowcaseComment(
         showcaseId,
         { content, parentId: replyTo?.id },
@@ -553,7 +578,7 @@ export function ShowcaseCommentsSheet({
       avoidKeyboard
       // B3O-01 (§9.9): sheet komentar disembunyikan selama ActionSheet
       // "Opsi Komentar" terbuka — tidak ada dua sheet co-visible.
-      visible={item != null && commentMenu == null}
+      visible={item != null && commentMenu == null && deleteTarget == null}
       onRequestClose={onRequestClose}
       title={headerTitle}
       padding="none"
@@ -706,7 +731,7 @@ export function ShowcaseCommentsSheet({
                   onPress: () => {
                     const target = commentMenu
                     setCommentMenu(null)
-                    void handleDeleteComment(target)
+                    setDeleteTarget(target)
                   },
                 },
               ]
@@ -718,13 +743,39 @@ export function ShowcaseCommentsSheet({
                   label: "Laporkan komentar",
                   icon: Flag,
                   onPress: () => {
+                    // UX-10 (audit 2026-10-10): langsung ke form lapor dengan
+                    // bukti komentar (paritas layar detail) — dulu hanya
+                    // pindah ke halaman detail tanpa form.
+                    const target = commentMenu
                     setCommentMenu(null)
-                    if (showcaseId) router.push(ROUTES.showcaseDetail(showcaseId))
+                    onRequestClose()
+                    router.push(
+                      ROUTES.reports({
+                        targetId: target.author.userId,
+                        targetName: target.author.username,
+                        commentId: target.id,
+                        commentBody: target.content.slice(0, 200),
+                      }),
+                    )
                   },
                 },
               ]
             : []),
         ]}
+      />
+      <Dialog
+        visible={deleteTarget != null}
+        title={translate("Hapus komentar?")}
+        description={translate("Komentar yang dihapus tidak bisa dikembalikan.")}
+        confirmLabel={translate("Hapus")}
+        cancelLabel={translate("Batal")}
+        destructive
+        loading={deleting}
+        onConfirm={() => {
+          const target = deleteTarget
+          if (target) void handleDeleteComment(target)
+        }}
+        onCancel={() => setDeleteTarget(null)}
       />
     </BottomSheet>
   )

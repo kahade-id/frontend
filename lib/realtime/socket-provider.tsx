@@ -78,8 +78,9 @@ export function RealtimeProvider({
    * value baru lewat dep `status`. Auth socket tetap baca `tokenRef`
    * (re-handshake by design tidak berubah).
    */
-  const viewerIdRef = useRef<string | null>(getViewerIdFromToken(token))
-  viewerIdRef.current = getViewerIdFromToken(token)
+  const viewerId = getViewerIdFromToken(token)
+  const viewerIdRef = useRef<string | null>(viewerId)
+  viewerIdRef.current = viewerId
   const pausedRef = useRef(false)
   /**
    * Kunci HMAC sesi dari event `session_hmac_token` server. Dipakai
@@ -376,8 +377,12 @@ export function RealtimeProvider({
     // viewerIdRef). `socket` dari ref: nilai baca saat render; hook per-room
     // membaca ulang lewat efek saat `status`/`epoch` berubah (itulah sinyal
     // koneksi baru).
+    // Audit Pesan 2026-10-10 (realtime #4): `viewerId` IKUT deps — ia stabil
+    // lintas refresh token (sub sama), tetapi BERUBAH saat provider mount
+    // dengan token null (sesi masih dipulihkan) lalu token tiba, atau saat
+    // ganti akun. Tanpa dep ini filter gema (typing/read milik sendiri) mati.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [status, epoch, joinRoom, leaveRoom, unwrapEvent],
+    [status, epoch, viewerId, joinRoom, leaveRoom, unwrapEvent],
   )
 
   // PERF-FIX (state audit): aksi stabil dipisah ke context sendiri — consumer
@@ -389,9 +394,10 @@ export function RealtimeProvider({
       unwrapEvent,
       viewerId: viewerIdRef.current,
     }),
-    // viewerId dari JWT, stabil selama sesi (dibaca via ref).
+    // viewerId dari JWT — stabil lintas refresh token, berubah saat sesi
+    // dipulihkan / ganti akun (realtime #4).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [joinRoom, leaveRoom, unwrapEvent],
+    [viewerId, joinRoom, leaveRoom, unwrapEvent],
   )
 
   return (

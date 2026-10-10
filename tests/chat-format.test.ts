@@ -7,8 +7,39 @@ import {
   applyChatFormat,
   hasChatMarkup,
   parseChatMarkup,
+  plainChatText,
+  stripChatHtml,
   type ChatSegment,
 } from "@/lib/chat-format"
+
+describe("stripChatHtml (batch 3 2026-10-10)", () => {
+  it("hanya tag sungguhan yang dibuang — perbandingan matematis utuh", () => {
+    expect(stripChatHtml("1<2 dan 3>2")).toBe("1<2 dan 3>2")
+    expect(stripChatHtml("harga <100rb> ok")).toBe("harga <100rb> ok")
+    expect(stripChatHtml("a < b > c")).toBe("a < b > c")
+  })
+  it("tag HTML dilepas, formatting dipertahankan sebagai marker", () => {
+    expect(stripChatHtml('<p><b>halo</b> <a href="https://kahade.id">tautan</a></p>')).toBe(
+      "**halo** tautan",
+    )
+    expect(stripChatHtml("<i class=\"x\">miring</i><br/>baris<img src=x/>")).toBe("_miring_\nbaris")
+    expect(stripChatHtml("<s>coret</s> &amp; &lt;b&gt;")).toBe("~coret~ & <b>")
+  })
+  it("teks tanpa < atau & dikembalikan apa adanya", () => {
+    const s = "pesan biasa"
+    expect(stripChatHtml(s)).toBe(s)
+  })
+})
+
+describe("plainChatText", () => {
+  it("marker dilepas, tautan markdown jadi label", () => {
+    expect(plainChatText("*tebal* dan _miring_ [lihat](https://kahade.id/p/1)")).toBe(
+      "tebal dan miring lihat",
+    )
+    expect(plainChatText("<b>halo</b> 1<2")).toBe("halo 1<2")
+    expect(plainChatText("polos")).toBe("polos")
+  })
+})
 
 function texts(segments: ChatSegment[]): string[] {
   return segments.map((s) => s.text)
@@ -30,6 +61,14 @@ describe("hasChatMarkup", () => {
   })
   it("snake_case bukan markup", () => {
     expect(hasChatMarkup("variabel_foo_bar")).toBe(false)
+  })
+  it("bug #6: *tebal* satu bintang & ~coret~ (gaya WhatsApp) dikenali", () => {
+    expect(hasChatMarkup("*tebal*")).toBe(true)
+    expect(hasChatMarkup("harga ~100rb~ 80rb")).toBe(true)
+  })
+  it("perkalian / tilde di tengah kata bukan markup", () => {
+    expect(hasChatMarkup("2*3*4")).toBe(false)
+    expect(hasChatMarkup("a~b")).toBe(false)
   })
 })
 
@@ -74,6 +113,25 @@ describe("parseChatMarkup", () => {
     const segs = parseChatMarkup("`**bukan bold**`")
     expect(segs).toHaveLength(1)
     expect(segs[0]).toMatchObject({ text: "**bukan bold**", mono: true })
+  })
+  it("bug #6: *tebal* satu bintang (WhatsApp) jadi bold", () => {
+    const segs = parseChatMarkup("ini *penting* ya")
+    expect(texts(segs)).toEqual(["ini ", "penting", " ya"])
+    expect(segs[1].bold).toBe(true)
+  })
+  it("bug #6: ~coret~ jadi strike", () => {
+    const segs = parseChatMarkup("harga ~100rb~ jadi 80rb")
+    expect(segs[1]).toMatchObject({ text: "100rb", strike: true })
+  })
+  it("perkalian & spasi di dalam marker tetap literal", () => {
+    expect(texts(parseChatMarkup("2*3*4 = 24"))).toEqual(["2*3*4 = 24"])
+    expect(texts(parseChatMarkup("2 * 3 * 4"))).toEqual(["2 * 3 * 4"])
+    expect(texts(parseChatMarkup("tanda ~ saja ~ di sini"))).toEqual(["tanda ~ saja ~ di sini"])
+  })
+  it("** dua bintang tetap didahulukan atas * satu bintang", () => {
+    const segs = parseChatMarkup("**tebal** dan *juga*")
+    expect(segs[0]).toMatchObject({ text: "tebal", bold: true })
+    expect(segs[2]).toMatchObject({ text: "juga", bold: true })
   })
 })
 

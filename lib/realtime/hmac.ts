@@ -21,6 +21,8 @@
  * melawan `node:crypto` di `tests/realtime-chat.test.ts`.
  */
 
+import { serverNow } from "@/lib/server-time"
+
 /* ------------------------------------------------------------------ */
 /* SHA-256 (FIPS 180-4) — murni TS, tanpa dependensi                   */
 /* ------------------------------------------------------------------ */
@@ -186,7 +188,11 @@ export function verifyAndUnwrapEvent(
 
   // Anti-replay: tolak envelope basi.
   if (typeof ts !== "number" || !Number.isFinite(ts)) return null
-  if (Math.abs(Date.now() - ts) > SIGNED_ENVELOPE_MAX_AGE_MS) return null
+  // Audit Pesan 2026-10-10 (realtime #6): jendela anti-replay diukur dengan
+  // WAKTU SERVER (offset header Date), bukan jam perangkat — ponsel yang
+  // jamnya meleset >5 mnt dulu membuang SEMUA event bertanda tangan diam-diam
+  // (status tetap "connected", polling mati → chat berhenti update).
+  if (Math.abs(serverNow() - ts) > SIGNED_ENVELOPE_MAX_AGE_MS) return null
 
   // Bentuk ulang payload persis seperti saat ditandatangani server:
   // semua field KECUALI `_signature`, urutan kunci dipertahankan.

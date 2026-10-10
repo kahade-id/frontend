@@ -32,6 +32,7 @@ import {
 import { useEffect, useImperativeHandle, useRef, type Ref } from "react"
 
 import type { VoiceSessionApi, VoiceSessionStart } from "@/lib/use-voice-hold"
+import { restorePlaybackAudioMode, stopAllAudio } from "@/lib/use-audio-playback"
 import {
   VOICE_NOTE_MAX_DURATION_MS,
   VOICE_NOTE_MIME,
@@ -74,6 +75,9 @@ export function VoiceNoteSession({ apiRef, onDuration }: VoiceNoteSessionProps) 
             granted = (await requestRecordingPermissionsAsync()).granted
           }
           if (!granted) return { status: "denied", prompted }
+          // Audit Pesan 2026-10-10 (media #9): pesan suara yang sedang diputar
+          // dihentikan — mikrofon tidak boleh merekam bunyi pemutar sendiri.
+          stopAllAudio()
           await recorder.prepareToRecordAsync(RecordingPresets.HIGH_QUALITY)
           // `forDuration` = rem native: berhenti sendiri di batas durasi walau JS sibuk.
           recorder.record({ forDuration: Math.ceil(VOICE_NOTE_MAX_DURATION_MS / 1000) })
@@ -85,12 +89,23 @@ export function VoiceNoteSession({ apiRef, onDuration }: VoiceNoteSessionProps) 
       },
 
       async stop(): Promise<VoiceNoteFile | null> {
-        if (!recorder.isRecording) return null
         // Durasi dibaca SEBELUM stop() — sesudahnya perekam di-reset.
-        const status = recorder.getStatus()
-        const elapsed = status.durationMillis || Math.round((recorder.currentTime ?? 0) * 1000)
+        let elapsed = 0
         try {
-          await recorder.stop()
+          const status = recorder.getStatus()
+          elapsed = status.durationMillis || Math.round((recorder.currentTime ?? 0) * 1000)
+        } catch {
+          // Perekam belum disiapkan / sudah dilepas — tidak ada rekaman.
+        }
+        // Audit Pesan 2026-10-10 (media #24): rekaman yang DIHENTIKAN OS
+        // (telepon masuk) masih punya berkas + durasi — dulu `!isRecording`
+        // langsung mengembalikan null dan kiriman hilang diam-diam.
+        if (!recorder.isRecording && !(recorder.uri && elapsed > 0)) return null
+        try {
+          if (recorder.isRecording) await recorder.stop()
+          // Batch 3: kembalikan mode PUTAR (speaker, bukan earpiece) begitu
+          // mikrofon dilepas — lihat restorePlaybackAudioMode.
+          void restorePlaybackAudioMode()
           let uri = recorder.uri
           if (!uri) {
             await new Promise((resolve) => setTimeout(resolve, URI_RETRY_MS))
@@ -116,6 +131,7 @@ export function VoiceNoteSession({ apiRef, onDuration }: VoiceNoteSessionProps) 
         } catch {
           // Sudah berhenti / tidak valid — abaikan.
         }
+        void restorePlaybackAudioMode()
       },
     }),
     [recorder],
@@ -125,7 +141,12 @@ export function VoiceNoteSession({ apiRef, onDuration }: VoiceNoteSessionProps) 
   useEffect(
     () => () => {
       try {
-        if (recorder.isRecording) void recorder.stop().catch(() => undefined)
+        if (recorder.isRecording) {
+          void recorder
+            .stop()
+            .catch(() => undefined)
+            .then(() => restorePlaybackAudioMode())
+        }
       } catch {
         // Perekam sudah dilepas native.
       }

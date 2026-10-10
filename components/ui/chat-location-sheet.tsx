@@ -9,7 +9,7 @@
  * akurasi ditampilkan dari hasil GPS.
  */
 import { useEffect, useState } from "react"
-import { View } from "react-native"
+import { Linking, View } from "react-native"
 import * as Location from "expo-location"
 
 import { logWarn } from "@/lib/telemetry"
@@ -20,6 +20,7 @@ import { Icon } from "@/components/ui/icon"
 import { Input } from "@/components/ui/input"
 import { Spinner } from "@/components/ui/spinner"
 import { Text } from "@/components/ui/text"
+import { translate } from "@/lib/i18n/translate"
 import { MapPin, WarningCircle } from "phosphor-react-native"
 
 export type ChatLocationResult = {
@@ -36,7 +37,13 @@ export type ChatLocationSheetProps = {
 
 export function ChatLocationSheet({ visible, onRequestClose, onSend }: ChatLocationSheetProps) {
   const [loading, setLoading] = useState(false)
-  const [denied, setDenied] = useState(false)
+  /**
+   * Audit Pesan 2026-10-10 (room #18): dua kegagalan dibedakan — izin DITOLAK
+   * (arahkan ke pengaturan) vs posisi TIDAK TERSEDIA (GPS mati / timeout;
+   * tawarkan coba lagi). Dulu keduanya "Izinkan akses lokasi di pengaturan".
+   */
+  const [failure, setFailure] = useState<"denied" | "unavailable" | null>(null)
+  const [attempt, setAttempt] = useState(0)
   const [coords, setCoords] = useState<{ lat: number; lng: number; accuracy?: number } | null>(null)
   const [label, setLabel] = useState("")
 
@@ -44,15 +51,15 @@ export function ChatLocationSheet({ visible, onRequestClose, onSend }: ChatLocat
     if (!visible) return
     let alive = true
     setLoading(true)
-    setDenied(false)
+    setFailure(null)
     setCoords(null)
-    setLabel("")
+    if (attempt === 0) setLabel("")
     ;(async () => {
       try {
         const { status } = await Location.requestForegroundPermissionsAsync()
         if (!alive) return
         if (status !== "granted") {
-          setDenied(true)
+          setFailure("denied")
           return
         }
         const pos = await Location.getCurrentPositionAsync({
@@ -66,7 +73,7 @@ export function ChatLocationSheet({ visible, onRequestClose, onSend }: ChatLocat
         })
       } catch (err) {
         logWarn("chat:location-fix", err)
-        if (alive) setDenied(true)
+        if (alive) setFailure("unavailable")
       } finally {
         if (alive) setLoading(false)
       }
@@ -74,7 +81,7 @@ export function ChatLocationSheet({ visible, onRequestClose, onSend }: ChatLocat
     return () => {
       alive = false
     }
-  }, [visible])
+  }, [visible, attempt])
 
   const send = () => {
     if (!coords) return
@@ -97,18 +104,31 @@ export function ChatLocationSheet({ visible, onRequestClose, onSend }: ChatLocat
             Mengambil posisi GPS…
           </Text>
         </View>
-      ) : denied || !coords ? (
+      ) : failure || !coords ? (
         <View className="items-center gap-2 py-4">
           <Icon icon={WarningCircle} size={28} tone="warning" />
           <Text variant="body" weight={600} tone="primary" className="text-center">
-            Tidak bisa mengambil lokasi
+            {failure === "denied" ? translate("Akses lokasi ditolak") : translate("Posisi belum ditemukan")}
           </Text>
           <Text variant="caption" tone="secondary" className="text-center">
-            Izinkan akses lokasi di pengaturan perangkat, lalu coba lagi.
+            {failure === "denied"
+              ? translate("Izinkan akses lokasi di pengaturan perangkat, lalu coba lagi.")
+              : translate("Pastikan GPS/lokasi perangkat aktif dan sinyal cukup, lalu coba lagi.")}
           </Text>
-          <Button variant="secondary" onPress={onRequestClose} fullWidth={false}>
-            Tutup
-          </Button>
+          <View className="flex-row gap-2">
+            {failure === "denied" ? (
+              <Button
+                variant="secondary"
+                fullWidth={false}
+                onPress={() => void Linking.openSettings().catch(() => undefined)}
+              >
+                {translate("Buka pengaturan")}
+              </Button>
+            ) : null}
+            <Button variant="primary" fullWidth={false} onPress={() => setAttempt((n) => n + 1)}>
+              {translate("Coba lagi")}
+            </Button>
+          </View>
         </View>
       ) : (
         <View className="gap-3">

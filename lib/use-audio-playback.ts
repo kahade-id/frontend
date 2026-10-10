@@ -17,8 +17,40 @@
  *   - `setRate` memakai `shouldCorrectPitch` (nada tidak melengking); platform
  *     yang menolak → kembali ke 1x diam-diam (tombol tidak macet).
  */
-import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio"
+import { setAudioModeAsync, useAudioPlayer, useAudioPlayerStatus } from "expo-audio"
 import { useCallback, useEffect, useRef, useState } from "react"
+
+/**
+ * Audit Pesan 2026-10-10 (media #7): mode audio untuk PEMUTARAN — iOS
+ * dengan sakelar dering di "silent" membisukan pemutar kecuali
+ * `playsInSilentMode`. Dulu mode ini hanya disetel oleh perekam, jadi pesan
+ * suara yang DITERIMA tidak bersuara sampai pengguna pernah merekam di sesi
+ * itu. Disetel sekali per proses (idempoten, best-effort).
+ */
+let playbackModeReady: Promise<void> | null = null
+function ensurePlaybackAudioMode(): Promise<void> {
+  if (!playbackModeReady) {
+    playbackModeReady = setAudioModeAsync({ playsInSilentMode: true, allowsRecording: false }).catch(
+      () => {
+        playbackModeReady = null
+      },
+    )
+  }
+  return playbackModeReady
+}
+
+/**
+ * Audit Pesan 2026-10-10 batch 3 (voice note): perekam menyetel
+ * `allowsRecording: true` (kategori PlayAndRecord di iOS → suara keluar dari
+ * EARPIECE, pelan). `ensurePlaybackAudioMode` idempoten per proses, jadi
+ * setelah pengguna pernah merekam, pemutaran berikutnya TIDAK pernah kembali
+ * ke speaker. Perekam/sesi memanggil ini setiap kali selesai (kirim/buang)
+ * supaya mode putar dipasang ulang — best-effort, tidak melempar.
+ */
+export function restorePlaybackAudioMode(): Promise<void> {
+  playbackModeReady = null
+  return ensurePlaybackAudioMode()
+}
 
 export type AudioPlaybackPhase = "idle" | "loading" | "ready" | "error"
 
@@ -107,7 +139,13 @@ export function useAudioPlayback({ uri: initialUri, onRefreshUrl }: UseAudioPlay
     setPositionMs(0)
     setDurationMs(0)
     setRate(1)
-  }, [initialUri, unload])
+    // Media #38: label kembali "1x" → pemutar native juga harus 1x.
+    try {
+      player.playbackRate = 1
+    } catch {
+      // Player sudah dilepas — abaikan.
+    }
+  }, [initialUri, unload, player])
 
   // Status player → state UI.
   useEffect(() => {
@@ -176,7 +214,16 @@ export function useAudioPlayback({ uri: initialUri, onRefreshUrl }: UseAudioPlay
         setPhase("loading")
         player.replace({ uri })
       }
-      player.play()
+      // Media #7: pastikan mode pemutaran (silent switch iOS) sebelum play.
+      // Perekam menyetel `allowsRecording: true` dan tidak pernah
+      // mengembalikannya (media #25) — di sini dikembalikan ke mode putar.
+      void ensurePlaybackAudioMode().finally(() => {
+        try {
+          if (aliveRef.current) player.play()
+        } catch {
+          if (aliveRef.current) setPhase("error")
+        }
+      })
     } catch {
       if (aliveRef.current) setPhase("error")
     }

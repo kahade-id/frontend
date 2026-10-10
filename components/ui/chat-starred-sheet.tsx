@@ -21,6 +21,7 @@ import { SensitiveConfirmDialog } from "@/components/ui/sensitive-confirm"
 import { Spinner } from "@/components/ui/spinner"
 import { Text } from "@/components/ui/text"
 import { useToast } from "@/components/ui/toast"
+import { translate } from "@/lib/i18n/translate"
 import { Star } from "phosphor-react-native"
 
 export type ChatStarredSheetProps = {
@@ -117,7 +118,7 @@ export function ChatStarredSheet({
               key={m.id}
               onPress={onJumpToMessage ? () => onJumpToMessage(m.id) : undefined}
               accessibilityRole={onJumpToMessage ? "button" : undefined}
-              accessibilityLabel={`Pesan berbintang: ${starredPreview(m)}`}
+              accessibilityLabel={translate("Pesan berbintang: {x}", { x: starredPreview(m) })}
               className="gap-1 rounded-md border border-border bg-surface p-3"
             >
               <View className="flex-row items-start justify-between gap-2">
@@ -130,12 +131,18 @@ export function ChatStarredSheet({
                 >
                   {starredPreview(m)}
                 </Text>
-                // UX-TCH-005: target 44pt (min-h-11/min-w-11) + feedback scale;
-                // sebelumnya Pressable polos 26px. Ketuk → dialog konfirmasi
-                // (aksi destruktif), bukan hapus langsung.
-                // P1d (2026-10-03): stopPropagation — tanpa ini, tap "Hapus
-                // bintang" juga memicu onPress "lompat ke pesan" di Pressable
-                // induk (keduanya fire).
+                {/*
+                  UX-TCH-005: target 44pt (min-h-11/min-w-11) + feedback scale;
+                  sebelumnya Pressable polos 26px. Ketuk → dialog konfirmasi
+                  (aksi destruktif), bukan hapus langsung.
+                  P1d (2026-10-03): stopPropagation — tanpa ini, tap "Hapus
+                  bintang" juga memicu onPress "lompat ke pesan" di Pressable
+                  induk (keduanya fire).
+                  Audit Pesan 2026-10-10 (room #1, KRITIS): komentar ini dulu
+                  ditulis `//` di antara anak JSX → dirender sebagai STRING di
+                  dalam <View> → "Text strings must be rendered within a <Text>"
+                  → crash setiap kali sheet berisi ≥1 pesan berbintang.
+                */}
                 <PressableScale
                   onPress={(e) => {
                     e.stopPropagation()
@@ -152,7 +159,7 @@ export function ChatStarredSheet({
                 </PressableScale>
               </View>
               <Text variant="caption" tone="secondary" className="tabular-nums">
-                {m.fromUser ? "Anda" : "Lawan bicara"} • {formatTime(m.createdAt)}
+                {m.fromUser ? translate("Anda") : translate("Lawan bicara")} • {formatTime(m.createdAt)}
               </Text>
             </Pressable>
           ))}

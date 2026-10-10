@@ -33,6 +33,7 @@ import { memo, useCallback, useMemo, useState, type ReactNode } from "react"
 import { View } from "react-native"
 import { router, usePathname } from "expo-router"
 import { translate } from "@/lib/i18n/translate"
+import { userMessage } from "@/lib/api"
 
 import type { ShowcaseComment } from "@/lib/api/showcase"
 import { formatCountCompact, formatDateTime, formatRelativeTime } from "@/lib/format"
@@ -53,6 +54,11 @@ import { Text } from "@/components/ui/text"
 import { useToast } from "@/components/ui/toast"
 import { VerifiedSeal } from "@/components/ui/verified-seal"
 import type { VerificationBadge } from "@/lib/api/users"
+import { hitSlopToReach } from "@/lib/hit-slop"
+import { tokens } from "@/lib/tokens"
+
+/** VI-11 (audit etalase 2026-10-10): baris identitas 24pt → target 44pt. */
+const PROFILE_LINK_HIT_SLOP = hitSlopToReach(tokens.a11y.minHitTarget, 24)
 
 
 /**
@@ -150,6 +156,10 @@ export const ShowcaseCommentRow = memo(function ShowcaseCommentRow({
   const toast = useToast()
   const pathname = usePathname()
   const hidden = comment.isHidden === true
+  // SO-04 (audit 2026-10-10): komentar soft-delete (placeholder server agar
+  // utas balasan tidak yatim) — dulu dirender sebagai baris kosong dengan
+  // tombol 👍👎💬 aktif yang 404 saat ditekan.
+  const deleted = comment.isDeleted === true
   const authorName = comment.author.fullName ?? comment.author.username
   const username = comment.author.username
   const edited = isEditedComment(comment.createdAt, comment.updatedAt)
@@ -178,20 +188,25 @@ export const ShowcaseCommentRow = memo(function ShowcaseCommentRow({
   )
   const commentVote = useShowcaseCommentVote(comment.id, commentVoteBase)
   const disliked = commentVote.userVote === -1
-  const handleVoteError = useCallback(() => {
-    toast.show({
-      title: translate("Gagal menyimpan penilaian"),
-      description: translate("Periksa koneksi lalu coba lagi."),
-      tone: "danger",
-    })
-  }, [toast])
+  // SO-06 (audit 2026-10-10): pesan dari error sebenarnya (429 "Terlalu banyak
+  // percobaan", 403, 404) — dulu selalu "Periksa koneksi" walau online.
+  const handleVoteError = useCallback(
+    (err?: unknown) => {
+      toast.show({
+        title: translate("Gagal menyimpan penilaian"),
+        description: err != null ? userMessage(err) : translate("Periksa koneksi lalu coba lagi."),
+        tone: "danger",
+      })
+    },
+    [toast],
+  )
   const handleCommentLike = () => {
     // P3: tamu diarahkan login dulu — jangan "like" yang tak tersimpan.
     if (!hasSession) {
       router.push(ROUTES.loginRequired(pathname))
       return
     }
-    if (hidden) return
+    if (hidden || deleted) return
     voteShowcaseComment(comment.id, 1, commentVoteBase, handleVoteError)
   }
   const handleDislike = () => {
@@ -199,7 +214,7 @@ export const ShowcaseCommentRow = memo(function ShowcaseCommentRow({
       router.push(ROUTES.loginRequired(pathname))
       return
     }
-    if (hidden) return
+    if (hidden || deleted) return
     voteShowcaseComment(comment.id, -1, commentVoteBase, handleVoteError)
   }
 
@@ -241,6 +256,8 @@ export const ShowcaseCommentRow = memo(function ShowcaseCommentRow({
                   : ROUTES.loginRequired(`/user/${encodeURIComponent(comment.author.username)}`),
               )
             }
+            // VI-11: tautan profil 24pt → target 44pt.
+            hitSlop={PROFILE_LINK_HIT_SLOP}
             containerClassName={cn("min-w-0 shrink rounded-sm", focusRing)}
           >
             {/*
@@ -298,7 +315,7 @@ export const ShowcaseCommentRow = memo(function ShowcaseCommentRow({
             </Text>
           </PressableScale>
           <View className="min-w-0 flex-1" />
-          {menuable && onOpenMenu ? (
+          {menuable && onOpenMenu && !deleted ? (
             <IconButton
               icon={DotsThree}
               variant="ghost"
@@ -309,8 +326,8 @@ export const ShowcaseCommentRow = memo(function ShowcaseCommentRow({
           ) : null}
         </View>
 
-        <Text variant="body" tone={hidden ? "secondary" : "primary"} weight={400}>
-          {hidden ? translate("(Komentar disembunyikan)") : comment.content}
+        <Text variant="body" tone={hidden || deleted ? "secondary" : "primary"} weight={400}>
+          {deleted ? translate("Komentar dihapus") : hidden ? translate("(Komentar disembunyikan)") : comment.content}
         </Text>
 
         {hidden && !comment.hiddenReason ? (
@@ -331,68 +348,70 @@ export const ShowcaseCommentRow = memo(function ShowcaseCommentRow({
           Ikon outline 20px; target sentuh tetap 44pt (UX-TCH-017/018).
           "Balas" teks diganti ikon bubble agar sejajar bahasa visual YouTube.
         */}
-        <View className="flex-row items-center gap-1 pt-2">
-          <PressableScale
-            accessibilityRole="button"
-            accessibilityLabel={
-              commentVote.userVote === 1
-                ? translate("Batal sukai komentar")
-                : translate("Sukai komentar")
-            }
-            accessibilityHint={
-              commentVote.likes > 0
-                ? translate("{x} suka", { x: formatCountCompact(commentVote.likes) })
-                : undefined
-            }
-            onPress={handleCommentLike}
-            containerClassName={cn("min-h-11 min-w-11 items-center justify-center rounded-full", focusRing)}
-            className="flex-row items-center gap-1.5 px-2 py-1"
-          >
-            <Icon
-              icon={ThumbsUp}
-              size="sm"
-              weight={commentVote.userVote === 1 ? "fill" : "regular"}
-              tone={commentVote.userVote === 1 ? "active" : "default"}
-            />
-            {commentVote.likes > 0 ? (
-              <Text
-                variant="caption"
-                tone={commentVote.userVote === 1 ? "primary" : "secondary"}
-                weight={500}
-                className="tabular-nums"
-              >
-                {formatCountCompact(commentVote.likes)}
-              </Text>
-            ) : null}
-          </PressableScale>
-          <PressableScale
-            accessibilityRole="button"
-            accessibilityLabel={
-              disliked ? translate("Batal tidak sukai komentar") : translate("Tidak sukai komentar")
-            }
-            onPress={handleDislike}
-            containerClassName={cn("min-h-11 min-w-11 items-center justify-center rounded-full", focusRing)}
-            className="px-2 py-1"
-          >
-            <Icon
-              icon={ThumbsDown}
-              size="sm"
-              weight={disliked ? "fill" : "regular"}
-              tone={disliked ? "active" : "default"}
-            />
-          </PressableScale>
-          {canReply && onReply ? (
+        {deleted ? null : (
+          <View className="flex-row items-center gap-1 pt-2">
             <PressableScale
               accessibilityRole="button"
-              accessibilityLabel={translate("Balas komentar")}
-              onPress={() => onReply(comment)}
+              accessibilityLabel={
+                commentVote.userVote === 1
+                  ? translate("Batal sukai komentar")
+                  : translate("Sukai komentar")
+              }
+              accessibilityHint={
+                commentVote.likes > 0
+                  ? translate("{x} suka", { x: formatCountCompact(commentVote.likes) })
+                  : undefined
+              }
+              onPress={handleCommentLike}
+              containerClassName={cn("min-h-11 min-w-11 items-center justify-center rounded-full", focusRing)}
+              className="flex-row items-center gap-1.5 px-2 py-1"
+            >
+              <Icon
+                icon={ThumbsUp}
+                size="sm"
+                weight={commentVote.userVote === 1 ? "fill" : "regular"}
+                tone={commentVote.userVote === 1 ? "active" : "default"}
+              />
+              {commentVote.likes > 0 ? (
+                <Text
+                  variant="caption"
+                  tone={commentVote.userVote === 1 ? "primary" : "secondary"}
+                  weight={500}
+                  className="tabular-nums"
+                >
+                  {formatCountCompact(commentVote.likes)}
+                </Text>
+              ) : null}
+            </PressableScale>
+            <PressableScale
+              accessibilityRole="button"
+              accessibilityLabel={
+                disliked ? translate("Batal tidak sukai komentar") : translate("Tidak sukai komentar")
+              }
+              onPress={handleDislike}
               containerClassName={cn("min-h-11 min-w-11 items-center justify-center rounded-full", focusRing)}
               className="px-2 py-1"
             >
-              <Icon icon={ChatCircle} size="sm" tone="default" />
+              <Icon
+                icon={ThumbsDown}
+                size="sm"
+                weight={disliked ? "fill" : "regular"}
+                tone={disliked ? "active" : "default"}
+              />
             </PressableScale>
-          ) : null}
-        </View>
+            {canReply && onReply ? (
+              <PressableScale
+                accessibilityRole="button"
+                accessibilityLabel={translate("Balas komentar")}
+                onPress={() => onReply(comment)}
+                containerClassName={cn("min-h-11 min-w-11 items-center justify-center rounded-full", focusRing)}
+                className="px-2 py-1"
+              >
+                <Icon icon={ChatCircle} size="sm" tone="default" />
+              </PressableScale>
+            ) : null}
+          </View>
+        )}
 
         {/* Balasan hidup di kolom yang SAMA dengan komentar induk, sehingga
             garis utas di kiri benar-benar menyambung keduanya. */}

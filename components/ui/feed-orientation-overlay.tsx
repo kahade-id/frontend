@@ -27,6 +27,10 @@ import { useTheme } from "@/components/theme-provider"
 import { elevationStyle } from "@/lib/elevation"
 import { translate } from "@/lib/i18n/translate"
 import { useLanguage } from "@/lib/i18n"
+import { modes } from "@/lib/tokens"
+
+/** = Tailwind max-w-md (28rem) — kartu orientasi di web lebar. */
+const ORIENTATION_CARD_MAX_WIDTH = 448
 
 /**
  * 1 baris penjelasan per tab — kunci = ShellTabKey (sinkron dengan label).
@@ -78,17 +82,33 @@ export function FeedOrientationOverlay({
   return (
     <Portal>
       <Backdrop progress={progress} onPress={dismiss} accessibilityLabel={translate("Tutup orientasi")} />
+      {/* VI-12 (audit etalase 2026-10-10): className di Animated.View
+          DIABAIKAN total di web (aturan repo, lihat toast.tsx) — seluruh
+          visual kartu inline. */}
       <Animated.View
-        className="absolute inset-0 items-center justify-center px-6"
-        style={{ opacity: progress, pointerEvents: "box-none" }}
+        style={{
+          position: "absolute",
+          top: 0,
+          right: 0,
+          bottom: 0,
+          left: 0,
+          alignItems: "center",
+          justifyContent: "center",
+          paddingHorizontal: tokens.space[6],
+          opacity: progress,
+          pointerEvents: "box-none",
+        }}
       >
         <Animated.View
           accessibilityRole="alert"
           accessibilityLabel={translate("Orientasi Kahade")}
-          className="w-full max-w-md rounded-lg bg-background"
           style={[
             elevationStyle("high", mode),
             {
+              width: "100%",
+              maxWidth: ORIENTATION_CARD_MAX_WIDTH,
+              borderRadius: tokens.radius.lg,
+              backgroundColor: modes[mode].background,
               transform: [
                 {
                   translateY: progress.interpolate({

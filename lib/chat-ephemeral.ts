@@ -9,6 +9,8 @@
  * diketuk" BELUM didukung backend (lihat handoff batch 43).
  */
 
+import { translate } from "@/lib/i18n/translate"
+
 export type EphemeralDurationOption = {
   /** Detik. 0 = pesan sementara mati. */
   seconds: number
@@ -26,13 +28,14 @@ export const EPHEMERAL_DURATION_OPTIONS: EphemeralDurationOption[] = [
 
 /** Label durasi untuk nilai detik arbitrer (fallback "N detik"). */
 export function ephemeralDurationLabel(seconds: number | null | undefined): string {
-  if (!seconds || seconds <= 0) return "Mati"
+  // Audit Pesan 2026-10-10 (room #24): semua label lewat kamus.
+  if (!seconds || seconds <= 0) return translate("Mati")
   const hit = EPHEMERAL_DURATION_OPTIONS.find((o) => o.seconds === seconds)
-  if (hit) return hit.label
-  if (seconds < 60) return `${seconds} detik`
-  if (seconds < 3600) return `${Math.round(seconds / 60)} menit`
-  if (seconds < 86400) return `${Math.round(seconds / 3600)} jam`
-  return `${Math.round(seconds / 86400)} hari`
+  if (hit) return translate(hit.label)
+  if (seconds < 60) return translate("{x} detik", { x: seconds })
+  if (seconds < 3600) return translate("{x} menit", { x: Math.round(seconds / 60) })
+  if (seconds < 86400) return translate("{x} jam", { x: Math.round(seconds / 3600) })
+  return translate("{x} hari", { x: Math.round(seconds / 86400) })
 }
 
 /** True bila pesan sudah melewati expiresAt. */

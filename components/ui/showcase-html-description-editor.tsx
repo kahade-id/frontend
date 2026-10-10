@@ -27,6 +27,7 @@ import {
 import { logWarn } from "@/lib/telemetry"
 import { tokens } from "@/lib/tokens"
 import { useDebouncedValue } from "@/lib/use-debounced-value"
+import { TextLink } from "@/components/ui/text-link"
 
 function SegmentText({ segment }: { segment: ShowcaseHtmlSegment }) {
   const inner = (
@@ -213,15 +214,10 @@ export function ShowcaseHtmlDescriptionEditor({
           />
         ))}
         <View className="flex-1" />
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => setPreviewOpen((v) => !v)}
-          hitSlop={8}
-        >
-          <Text variant="caption" weight={600} tone="info">
-            {previewOpen ? translate("Sembunyikan pratinjau") : translate("Tampilkan pratinjau")}
-          </Text>
-        </Pressable>
+        {/* UX-18: satu gaya tautan teks (text-link.tsx: monokrom + underline), bukan biru. */}
+        <TextLink variant="caption" hitSlop={8} onPress={() => setPreviewOpen((v) => !v)}>
+          {previewOpen ? translate("Sembunyikan pratinjau") : translate("Tampilkan pratinjau")}
+        </TextLink>
       </View>
       {previewOpen ? (
         <View className="rounded-md border border-border bg-surface p-3">

@@ -26,7 +26,7 @@ import { View } from "react-native"
 import type { IconProps as PhosphorProps, IconWeight } from "phosphor-react-native"
 
 import { useTheme } from "@/components/theme-provider"
-import { tokens } from "@/lib/tokens"
+import { brand, tokens } from "@/lib/tokens"
 
 export type IconComponent = ComponentType<PhosphorProps>
 export type IconWeightProp = IconWeight
@@ -35,6 +35,7 @@ export type IconTone =
   | "default" // text-tertiary
   | "active" // text-primary
   | "inverse" // primary-foreground (di atas bg-primary)
+  | "onMedia" // VI-01: putih di kedua mode — di atas scrim bg-overlay-media
   | "disabled"
   | "success"
   | "danger"
@@ -65,6 +66,8 @@ export function useIconColor(tone: IconTone = "default"): string {
       return palette.textPrimary
     case "inverse":
       return palette.primaryForeground
+    case "onMedia":
+      return brand.white
     case "disabled":
       return palette.textDisabled
     case "success":

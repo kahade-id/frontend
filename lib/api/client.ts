@@ -13,6 +13,7 @@ import {
   codeFromBackend,
   codeFromStatus,
   DEFAULT_ERROR_MESSAGES,
+  NETWORK_COPY,
   parseErrorBody,
   parseRetryAfterMs,
 } from "@/lib/api/errors"
@@ -236,7 +237,9 @@ async function bounded<T>(
     }
     throw new ApiError({
       code: "NETWORK",
-      message: DEFAULT_ERROR_MESSAGES.NETWORK,
+      // CR-10: "Tidak ada koneksi internet" HANYA bila NetInfo memverifikasi
+      // offline; socket putus saat online = "Koneksi terputus".
+      message: isOfflineKnown() ? NETWORK_COPY.offline : DEFAULT_ERROR_MESSAGES.NETWORK,
       method,
       path,
       cause,

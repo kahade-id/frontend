@@ -34,6 +34,13 @@ const ROOT = resolve(__dirname, "..")
 
 /** Modul JS biasa yang fungsinya TIDAK boleh dipanggil dari dalam worklet. */
 const NON_WORKLET_MODULE_ALIASES = ["_chatBubbleMotion"]
+/**
+ * Bug #9 (audit Pesan 2026-10-10, force close saat swipe reply): fungsi dari
+ * lib/chat-bubble yang pernah dipanggil dari worklet pan. Modulnya juga
+ * mengekspor KONSTANTA yang sah ditangkap worklet (nilai), jadi yang dilarang
+ * adalah referensi FUNGSI-nya, bukan seluruh modul.
+ */
+const NON_WORKLET_FUNCTION_REFS = ["_chatBubble.clampSwipeReply", "_chatBubble.shouldTriggerSwipeReply"]
 
 /** Transform satu berkas dengan konfigurasi Babel proyek (caller = Metro, dev). */
 function transformWithProjectBabel(relativePath: string): string {
@@ -68,8 +75,10 @@ function closureBodies(code: string): string[] {
 
 /** Daftar pelanggaran: closure worklet yang memuat referensi modul non-worklet. */
 function nonWorkletClosureRefs(code: string): string[] {
-  return closureBodies(code).filter((body) =>
-    NON_WORKLET_MODULE_ALIASES.some((alias) => body.includes(alias)),
+  return closureBodies(code).filter(
+    (body) =>
+      NON_WORKLET_MODULE_ALIASES.some((alias) => body.includes(alias)) ||
+      NON_WORKLET_FUNCTION_REFS.some((ref) => body.includes(ref)),
   )
 }
 
@@ -90,6 +99,17 @@ describe("regresi crash worklet (Bug 1)", () => {
     const code = transformWithProjectBabel("lib/use-swipe-reply-pan.ts")
     expect(closureBodies(code).length).toBeGreaterThanOrEqual(2)
     expect(nonWorkletClosureRefs(code)).toEqual([])
+  }, 60_000)
+
+  it("bug #9 (force close swipe reply): onUpdate TIDAK memanggil clampSwipeReply dari lib/chat-bubble", () => {
+    // Regresi 23a8c12 (#11): `swipeX.value = clampSwipeReply(e.translationX)`
+    // di dalam worklet → remote function call di UI thread → app tertutup
+    // paksa begitu bubble digeser. Closure worklet hanya boleh memuat
+    // konstanta modul, bukan fungsinya.
+    const code = transformWithProjectBabel("lib/use-swipe-reply-pan.ts")
+    const bodies = closureBodies(code)
+    expect(bodies.some((b) => b.includes("_chatBubble.SWIPE_REPLY_MAX_PX"))).toBe(true)
+    expect(bodies.filter((b) => b.includes("_chatBubble.clampSwipeReply"))).toEqual([])
   }, 60_000)
 
   it("use-safe-animated-style: pembungkus membawa updater + fallback, tanpa helper motion", () => {

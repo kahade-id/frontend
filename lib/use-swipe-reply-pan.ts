@@ -16,7 +16,9 @@
  *   - Ambang balas & clamp (56px / 800px·s⁻¹ / maks 72px) DIBACA dari
  *     konstanta modul: ini nilai, bukan pemanggilan fungsi, sehingga aman
  *     di-capture worklet (sama seperti `tokens.motion.spring` yang sudah
- *     dipakai pan lama di bubble).
+ *     dipakai pan lama di bubble). JANGAN memanggil helper JS apa pun
+ *     (mis. `clampSwipeReply`) dari dalam `onUpdate`/`onEnd` — itu penyebab
+ *     force close bug #9 (2026-10-10); matematikanya ditulis inline.
  *   - 2026-10-08 (#11): gesture-nya DUA ARAH. `clampSwipeReply` menjepit ke
  *     -MAX..MAX (bukan 0..MAX) sehingga bubble benar-benar mengikuti jari ke
  *     kiri pun, dan ambangnya memakai nilai mutlak — geser kanan (WhatsApp)
@@ -38,10 +40,10 @@ import { Gesture } from "react-native-gesture-handler"
 import { runOnJS, withSpring, withTiming, type SharedValue } from "react-native-reanimated"
 
 import {
-  clampSwipeReply,
   SWIPE_REPLY_ACTIVE_OFFSET_X,
   SWIPE_REPLY_FAIL_OFFSET_Y,
   SWIPE_REPLY_FLING_VELOCITY_PX_S,
+  SWIPE_REPLY_MAX_PX,
   SWIPE_REPLY_THRESHOLD_PX,
 } from "@/lib/chat-bubble"
 import { tokens } from "@/lib/tokens"
@@ -87,7 +89,19 @@ export function useSwipeReplyPan({ enabled, swipeX, onTrigger }: SwipeReplyPanOp
           "worklet"
           // #11: ikuti jari ke DUA arah, dijepit ±MAX. Dulu `Math.max(0, …)`
           // membuat geser kiri tidak menggeser apa pun — gesture terasa mati.
-          swipeX.value = clampSwipeReply(e.translationX)
+          //
+          // FORCE CLOSE (audit Pesan 2026-10-10, bug #9): penjepitan WAJIB
+          // inline. Versi sebelumnya memanggil `clampSwipeReply(...)` — fungsi
+          // JS biasa dari lib/chat-bubble — dari dalam worklet ini. Reanimated
+          // menjalankan onUpdate di UI thread; fungsi non-worklet di sana
+          // menjadi "remote function" dan pemanggilan sinkronnya melempar
+          // ("Tried to synchronously call a non-worklet function on the UI
+          // thread") → aplikasi tertutup paksa tepat saat jari mulai menggeser
+          // bubble. Hanya KONSTANTA (nilai) yang boleh ditangkap di sini —
+          // dikunci tests/chat-bubble-worklet-closures.test.ts.
+          const x = e.translationX
+          swipeX.value =
+            x > SWIPE_REPLY_MAX_PX ? SWIPE_REPLY_MAX_PX : x < -SWIPE_REPLY_MAX_PX ? -SWIPE_REPLY_MAX_PX : x
         })
         .onEnd((e) => {
           "worklet"

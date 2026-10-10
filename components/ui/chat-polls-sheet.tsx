@@ -53,6 +53,11 @@ export type ChatPollsSheetProps = {
    */
   refreshSignal?: number
   refreshKey?: number
+  /**
+   * Bug #8 (2026-10-10): polling berhasil dibuat → layar menutup sheet dan
+   * mengambil pesan POLL baru ke thread sekarang juga.
+   */
+  onCreated?: (poll: ChatPoll) => void
 }
 
 const DEADLINE_PRESETS = [
@@ -62,7 +67,7 @@ const DEADLINE_PRESETS = [
   { key: "7d", label: "7 hari", hours: 168 },
 ] as const
 
-export function ChatPollsSheet({ visible, roomId, myUserId, onRequestClose, refreshSignal = 0, refreshKey }: ChatPollsSheetProps) {
+export function ChatPollsSheet({ visible, roomId, myUserId, onRequestClose, refreshSignal = 0, refreshKey, onCreated }: ChatPollsSheetProps) {
   const toast = useToast()
   const [polls, setPolls] = useState<ChatPoll[] | null>(null)
   const [loading, setLoading] = useState(false)
@@ -89,7 +94,7 @@ export function ChatPollsSheet({ visible, roomId, myUserId, onRequestClose, refr
     } catch (err) {
       logWarn("chat:polls-load", err)
       toast.show({
-        title: "Gagal memuat polling",
+        title: translate("Gagal memuat polling"),
         description: isApiError(err) ? userMessage(err) : undefined,
         tone: "danger",
       })
@@ -148,7 +153,7 @@ export function ChatPollsSheet({ visible, roomId, myUserId, onRequestClose, refr
     } catch (err) {
       logWarn("chat:poll-vote", err)
       toast.show({
-        title: "Gagal menyimpan pilihan",
+        title: translate("Gagal menyimpan pilihan"),
         description: isApiError(err) ? userMessage(err) : undefined,
         tone: "danger",
       })
@@ -202,6 +207,7 @@ export function ChatPollsSheet({ visible, roomId, myUserId, onRequestClose, refr
       setAllowMultiple(false)
       setDeadlineKey("none")
       toast.show({ title: translate("Polling dibuat"), tone: "success", duration: 2500 })
+      onCreated?.(created)
     } catch (err) {
       logWarn("chat:poll-create", err)
       toast.show({
@@ -325,9 +331,19 @@ export function ChatPollsSheet({ visible, roomId, myUserId, onRequestClose, refr
       ) : (
         <View className="gap-3">
           <Button onPress={() => setCreating(true)} leftIcon={Plus}>
-            Buat polling baru
+            {translate("Buat polling baru")}
           </Button>
-          {loading || polls === null ? (
+          {/* Media #32: pembaruan live TIDAK mengganti daftar dengan spinner
+              (pilihan yang sedang disusun hilang) — cukup indikator kecil. */}
+          {loading && polls !== null ? (
+            <View className="flex-row items-center gap-2">
+              <Spinner size="sm" />
+              <Text variant="caption" tone="secondary">
+                {translate("Memperbarui polling…")}
+              </Text>
+            </View>
+          ) : null}
+          {polls === null ? (
             <View className="items-center py-8">
               <Spinner />
             </View>

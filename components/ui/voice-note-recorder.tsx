@@ -60,6 +60,7 @@ import {
   voiceNoteFileName,
   type VoiceNoteFile,
 } from "@/lib/voice-note"
+import { restorePlaybackAudioMode } from "@/lib/use-audio-playback"
 
 export type { VoiceNoteFile }
 
@@ -72,7 +73,7 @@ type RecorderState = "idle" | "requesting" | "denied" | "unsupported" | "ready" 
  * pendek / berkas tidak ada → kembali siap rekam. Keduanya diberi tahu —
  * tidak ada yang diam-diam.
  */
-type RecorderNotice = "interrupted-kept" | "interrupted-lost" | null
+type RecorderNotice = "interrupted-kept" | "interrupted-lost" | "too-short" | null
 
 export type VoiceNoteRecorderProps = {
   visible: boolean
@@ -155,6 +156,8 @@ export function VoiceNoteRecorder({
     } catch {
       // Rekaman sudah berhenti / tidak valid — abaikan.
     }
+    // Batch 3: mode PUTAR dipasang ulang (speaker, bukan earpiece).
+    void restorePlaybackAudioMode()
   }, [recorder])
 
   const reset = useCallback(() => {
@@ -297,6 +300,10 @@ export function VoiceNoteRecorder({
       } catch {
         // Sudah berhenti / tidak valid — lanjut membaca uri.
       }
+      // Batch 3 (voice note): perekam meninggalkan `allowsRecording: true` →
+      // pratinjau DAN pesan suara berikutnya keluar dari earpiece (pelan).
+      // Kembalikan mode putar begitu mikrofon dilepas.
+      void restorePlaybackAudioMode()
       // 2026-10-07: beri jeda kecil agar `uri` terisi (race condition di
       // beberapa perangkat Android di mana uri null sesaat setelah stop).
       let uri = recorder.uri
@@ -335,8 +342,16 @@ export function VoiceNoteRecorder({
   const stopRecording = useCallback(async () => {
     if (!recorder.isRecording) return
     // Durasi terakhir dibaca SEBELUM `stop()` — setelah berhenti, recorder
-    // di-reset untuk sesi berikutnya.
-    await finalizeRecording(recState.durationMillis ?? 0, false)
+    // di-reset untuk sesi berikutnya. Audit Pesan 2026-10-10 (media #8):
+    // dibaca SINKRON dari `getStatus()` (presisi), bukan state poll 250 ms —
+    // rekaman 1,1 dtk dulu bisa terbaca 0,85 dtk lalu ditolak "terlalu pendek".
+    let exact = 0
+    try {
+      exact = recorder.getStatus().durationMillis ?? 0
+    } catch {
+      // Status tak terbaca — jatuh ke nilai poll.
+    }
+    await finalizeRecording(Math.max(exact, recState.durationMillis ?? 0), false)
   }, [recorder, recState.durationMillis, finalizeRecording])
 
   /**
@@ -413,8 +428,9 @@ export function VoiceNoteRecorder({
       const size = await readRecordedFileSize(recordedUri)
       const validation = validateVoiceNoteFile({ size, durationMs })
       if (!validation.ok) {
-        // Terlalu pendek/panjang nyaris tak mungkin (auto-stop + min 1 dtk),
-        // tapi tetap ditangani eksplisit, bukan diam.
+        // Media #8: rekaman yang ditolak DIBERI TAHU (live region), bukan
+        // diam-diam kembali ke "Mulai merekam".
+        setNotice("too-short")
         setState("ready")
         setRecordedUri(null)
         setDurationMs(0)
@@ -488,7 +504,9 @@ export function VoiceNoteRecorder({
       ? translate("Rekaman terhenti oleh sistem. Bagian yang sudah terekam disimpan.")
       : notice === "interrupted-lost"
         ? translate("Rekaman terhenti oleh sistem sebelum 1 detik. Coba rekam lagi.")
-        : null
+        : notice === "too-short"
+          ? translate("Rekaman terlalu pendek — tahan dan rekam minimal 1 detik.")
+          : null
 
   return (
     <>

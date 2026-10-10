@@ -40,10 +40,14 @@ type ShowcaseAuthorRowProps = {
  * (JANGAN mengarang — khususnya "98% selesai" yang tidak ada di payload).
  * Ketuk → profil penulis (tab Ulasan tersedia di sana).
  */
-function SellerRatingLine({ username, hasSession }: { username: string; hasSession: boolean }) {
+function SellerRatingLine({ username }: { username: string }) {
   const [summary, setSummary] = useState<PublicRatingSummary | null>(null)
   useEffect(() => {
     const ctrl = new AbortController()
+    // FD-14 (audit etalase 2026-10-10): username berganti → buang ringkasan
+    // penulis lama DULU; bila fetch baru gagal, baris disembunyikan — bukan
+    // menampilkan rating orang lain.
+    setSummary(null)
     void getPublicRatingSummary(username, ctrl.signal)
       .then((result) => setSummary(result))
       .catch(() => {
@@ -54,24 +58,16 @@ function SellerRatingLine({ username, hasSession }: { username: string; hasSessi
   if (summary == null) return null
   if (summary.distribution.total === 0) return null
   if (summary.averageRating == null) return null
-  const goProfile = () =>
-    router.push(
-      hasSession
-        ? ROUTES.userProfile(username)
-        : ROUTES.loginRequired(`/user/${encodeURIComponent(username)}`),
-    )
+  // VI-10 (audit etalase 2026-10-10): BUKAN pressable — baris penulis yang
+  // membungkusnya sudah menuju profil yang sama (tab Ulasan ada di sana);
+  // button-in-button membuat VoiceOver menyembunyikan anak & HTML tak valid.
   return (
-    <PressableScale
-      accessibilityRole="button"
-      accessibilityLabel={translate("Lihat ulasan {x}", { x: username })}
-      onPress={goProfile}
-      className="flex-row items-center gap-1 self-start"
-    >
+    <View className="flex-row items-center gap-1 self-start">
       <Icon icon={Star} size="xs" tone="warning" weight="fill" />
       <Text variant="caption" tone="secondary" className="tabular-nums">
         {`${formatDecimal(summary.averageRating, 1)} · ${summary.distribution.total} ${translate("ulasan")}`}
       </Text>
-    </PressableScale>
+    </View>
   )
 }
 
@@ -120,7 +116,7 @@ export function ShowcaseAuthorRow({ item, isOwner, hasSession }: ShowcaseAuthorR
             {`@${item.author.username} · ${formatDateTime(item.createdAt)}`}
           </Text>
           {/* U5-007: cuplikan rating penjual (opsional, fail closed). */}
-          <SellerRatingLine username={item.author.username} hasSession={hasSession} />
+          <SellerRatingLine username={item.author.username} />
         </View>
         {isOwner ? <Badge variant="outline">{translate("Anda")}</Badge> : null}
       </PressableScale>

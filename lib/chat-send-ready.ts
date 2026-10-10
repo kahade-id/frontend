@@ -20,7 +20,11 @@ export function canSendMessage(
   attachments: readonly SendableAttachment[] = [],
 ): boolean {
   const hasText = text.trim().length > 0
-  const hasFiles = attachments.length > 0
-  const allReady = attachments.every((a) => (a.status ?? "idle") === "idle")
+  // Audit Pesan 2026-10-10 (realtime #31): chip "Dibatalkan" dibiarkan ada
+  // untuk "Coba lagi", tetapi TIDAK boleh mengunci tombol kirim — ia tidak
+  // ikut dikirim (layar menyaringnya), jadi bukan lampiran yang "belum siap".
+  const sendable = attachments.filter((a) => (a.status ?? "idle") !== "cancelled")
+  const hasFiles = sendable.length > 0
+  const allReady = sendable.every((a) => (a.status ?? "idle") === "idle")
   return (hasText || hasFiles) && allReady
 }

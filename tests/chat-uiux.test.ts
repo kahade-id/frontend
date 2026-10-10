@@ -17,6 +17,7 @@ import { formatChatListTime } from "@/lib/format"
 import { canSendMessage, type SendableAttachment } from "@/lib/chat-send-ready"
 import {
   applyIncomingMessageToRooms,
+  isTransactionChatRoom,
   chatRoomLastMessageStatus,
   chatRoomListPreview,
   chatRoomPreview,
@@ -304,5 +305,45 @@ describe("applyIncomingMessageToRooms (daftar chat live)", () => {
   it("ruang tidak ada di daftar / payload tanpa roomId → null (pemanggil refetch)", () => {
     expect(applyIncomingMessageToRooms(rooms, msg({ id: "z1", roomId: "Z" }))).toBeNull()
     expect(applyIncomingMessageToRooms(rooms, { ...msg({ id: "z1", roomId: "Z" }), roomId: undefined })).toBeNull()
+  })
+})
+
+
+describe("audit Pesan 2026-10-10 — daftar chat", () => {
+  it("#7: pesan SAYA dari perangkat lain (broadcast netral ber-id publik) tidak menaikkan unread", () => {
+    const rooms: ChatRoom[] = [
+      { id: "A", updatedAt: "2026-10-10T09:00:00.000Z", unreadCount: 0 } as ChatRoom,
+    ]
+    const incoming = {
+      id: "x1",
+      roomId: "A",
+      text: "dari web",
+      fromUser: false,
+      messageType: "TEXT",
+      createdAt: "2026-10-10T10:00:00.000Z",
+      senderId: "USR-ME",
+    } as ChatMessage
+    // viewerId JWT = id internal; broadcast membawa id publik → dulu +1.
+    const next = applyIncomingMessageToRooms(rooms, incoming, {
+      viewerId: "internal-me",
+      viewerIds: ["USR-ME", "internal-me"],
+    })
+    expect(next![0].unreadCount).toBe(0)
+    expect(next![0].lastMessage?.fromUser).toBe(true)
+  })
+
+  it("isTransactionChatRoom: orderId ATAU type ORDER — satu definisi untuk filter, badge, header", () => {
+    expect(isTransactionChatRoom({ orderId: "KHD-1" })).toBe(true)
+    expect(isTransactionChatRoom({ orderId: null, type: "ORDER" })).toBe(true)
+    expect(isTransactionChatRoom({ orderId: null, roomType: "order" })).toBe(true)
+    expect(isTransactionChatRoom({ orderId: null, type: "INQUIRY" })).toBe(false)
+    expect(isTransactionChatRoom(null)).toBe(false)
+  })
+
+  it("canSendMessage: chip 'Dibatalkan' tidak mengunci tombol kirim, tapi juga bukan lampiran", () => {
+    const cancelled: SendableAttachment[] = [{ status: "cancelled" }]
+    expect(canSendMessage("halo", cancelled)).toBe(true)
+    expect(canSendMessage("", cancelled)).toBe(false)
+    expect(canSendMessage("", [{ status: "cancelled" }, { status: "idle" }])).toBe(true)
   })
 })

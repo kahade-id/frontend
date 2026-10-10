@@ -1,4 +1,4 @@
-import type { OpeningMediaTap } from "@/lib/use-opening-media-tap"
+import { guardOpeningTapForGuest, type OpeningMediaTap } from "@/lib/use-opening-media-tap"
 /** Public Etalase detail with optional viewer authentication and fenced comment mutations.
  * Comment reads reconcile complete loaded pages after a mutation. Server authorization remains authoritative. */
 
@@ -12,7 +12,7 @@ import {
   type ViewInstance,
 } from "react-native"
 import { runOnJS } from "react-native-reanimated"
-import { useLocalSearchParams, router } from "expo-router"
+import { useIsFocused, useLocalSearchParams, router } from "expo-router"
 import { translate } from "@/lib/i18n/translate"
 import { useLanguage } from "@/lib/i18n"
 import { formatNumber } from "@/lib/format"
@@ -29,6 +29,8 @@ import {
   Trash,
   UserMinus,
   UserPlus,
+  EyeSlash,
+  Storefront,
 } from "phosphor-react-native"
 import { api, createIdempotencyKey, isApiError, userMessage } from "@/lib/api"
 import { API_CONSTRAINTS } from "@/lib/api/constraints"
@@ -55,6 +57,8 @@ import { consumePrefetchedShowcaseDetail } from "@/lib/showcase-detail-prefetch"
 import { isShowcaseSoldOut } from "@/lib/showcase-stock"
 
 import { goBackOrNavigate } from "@/lib/navigation"
+import { pushOnce } from "@/lib/push-once"
+import { resolveShowcaseUnavailability } from "@/lib/showcase-availability"
 import { useSessionRevision } from "@/lib/guest-gate"
 import { useShowcaseOperation } from "@/lib/use-showcase-operation"
 import { mergeComments, patchComments } from "@/lib/showcase-state"
@@ -81,6 +85,7 @@ import { useShowcaseAuthorFollow } from "@/lib/use-showcase-author-follow"
 import { useDocumentTitle, HeaderCircleButton } from "@/components/ui/header"
 import { IconButton } from "@/components/ui/icon-button"
 import { ImageViewer } from "@/components/ui/image-viewer"
+import { HeartBurst, useHeartBurst } from "@/components/ui/heart-burst"
 import { Input } from "@/components/ui/input"
 import type { LoadMoreStatus } from "@/components/ui/load-more"
 import { Dialog } from "@/components/ui/modal"
@@ -108,6 +113,11 @@ import { Text } from "@/components/ui/text"
 import { TextArea } from "@/components/ui/text-area"
 import { useToast } from "@/components/ui/toast"
 import { CONTENT_REPORT_REASONS, type ContentReportReason } from "@/lib/labels/report"
+import { hitSlopToReach } from "@/lib/hit-slop"
+import { tokens } from "@/lib/tokens"
+
+/** VI-11 (audit etalase 2026-10-10): badge kategori 22pt → target 44pt. */
+const CATEGORY_BADGE_HIT_SLOP = hitSlopToReach(tokens.a11y.minHitTarget, 22)
 
 /** G-13: opsi hide konten satu sumber di lib/labels/report. */
 const HIDE_REASONS = CONTENT_REPORT_REASONS
@@ -168,8 +178,14 @@ export default function ShowcaseDetailScreen() {
   // S3 (audit 2026-09-26): 404 (karya dihapus/privat/tak ada) → EmptyState khusus
   // TANPA tombol retry — "Coba lagi" untuk 404 tidak akan pernah berhasil.
   // Error lain tetap lewat DataScreen (ErrorState + retry).
-  const isNotFound =
-    !item && query.errorStatus === 404
+  // DT-03 (audit 2026-10-10): 410 (dihapus permanen), 403 (privat) dan id
+  // rusak (BAD_REQUEST tanpa status) juga bukan kondisi "coba lagi".
+  // DT-02: item yang hilang SAAT tarik-segarkan (404/410) ikut ke sini —
+  // konten lama tidak boleh tetap "bisa dibeli".
+  const unavailable = resolveShowcaseUnavailability(
+    item ? { status: query.refreshErrorStatus } : { status: query.errorStatus, code: query.errorCode },
+  )
+  const isNotFound = unavailable != null
 
   /**
    * P1-1 (audit perf/UX 2026-10-03): layar ini adalah tujuan deeplink
@@ -194,9 +210,12 @@ export default function ShowcaseDetailScreen() {
           reload: query.reload,
         }}
         empty={{
-          icon: ChatCircle,
-          title: translate("Etalase tidak ditemukan"),
-          description: translate("Etalase ini mungkin sudah dihapus atau tidak lagi tersedia."),
+          icon: unavailable === "private" ? EyeSlash : Storefront,
+          title: unavailable === "private" ? translate("Etalase ini privat") : translate("Etalase tidak ditemukan"),
+          description:
+            unavailable === "private"
+              ? translate("Pemilik membatasi siapa yang bisa melihatnya.")
+              : translate("Etalase ini mungkin sudah dihapus atau tidak lagi tersedia."),
           // Item 167 (FE-IMP-1): CTA eksplisit — user punya jalan keluar
           // yang jelas, bukan layar buntu.
           action: (
@@ -221,6 +240,8 @@ export default function ShowcaseDetailScreen() {
           loading: query.loading,
           refreshing: query.refreshing,
           error: query.error,
+          // DT-01: offline tanpa cache → OfflineEmptyState, bukan layar kosong.
+          offlineMiss: query.offlineMiss,
           refresh: query.refresh,
           reload: query.reload,
         }}
@@ -261,6 +282,9 @@ function ShowcaseDetailContent({
   const revision = useSessionRevision()
   const operation = useShowcaseOperation(id)
   const mutationPending = useRef(false)
+  /** DT-04: fetch komentar yang ditolak saat mutasi berjalan — dijalankan setelahnya. */
+  const pendingCommentsFetch = useRef<{ append: boolean; cursorOverride?: string | null } | null>(null)
+  const flushPendingCommentsFetchRef = useRef(() => {})
   const toast = useToast()
   const { following: authorFollowing, loading: followLoading, onToggle: onToggleFollow } =
     useShowcaseAuthorFollow(item.author.username)
@@ -281,6 +305,9 @@ function ShowcaseDetailContent({
   const [meUsername, setMeUsername] = useState<string | null>(null)
   /** Index foto yang dibuka di <ImageViewer>; null = viewer tertutup. */
   const [viewerIndex, setViewerIndex] = useState<number | null>(null)
+  // FD-01 (audit etalase 2026-10-10): layar detail tetap ter-mount saat
+  // pengguna push ke chat/transaksi — video harus pause & melepas slot player.
+  const isFocused = useIsFocused()
   const viewerOpeningTap = useRef<OpeningMediaTap | undefined>(undefined)
   const composerRef = useRef<TextInputInstance>(null)
 
@@ -379,7 +406,7 @@ function ShowcaseDetailContent({
    * `showcase-comments-sheet.tsx`. Komponen ini me-remount per item
    * (`key={`${revision}:${item.id}`}`), jadi tidak perlu reset per item.
    */
-  const sendKey = useRef<{ item: string; content: string; key: string } | null>(null)
+  const sendKey = useRef<{ item: string; content: string; parentId: string | null; key: string } | null>(null)
 
   const [commentMenu, setCommentMenu] = useState<ShowcaseComment | null>(null)
   const [editTarget, setEditTarget] = useState<ShowcaseComment | null>(null)
@@ -442,7 +469,13 @@ function ShowcaseDetailContent({
   const failedComments = useRef<{ append: boolean; cursor: string | null }>({ append: false, cursor: null })
   const fetchComments = useCallback(
     async (append: boolean, cursorOverride?: string | null) => {
-      if (mutationPending.current) return
+      if (mutationPending.current) {
+        // DT-04 (audit 2026-10-10): dulu return diam-diam — ganti urutan saat
+        // mengirim komentar membuat chip berganti tanpa daftar ikut berganti,
+        // lalu "muat berikutnya" mencampur dua urutan.
+        pendingCommentsFetch.current = { append, cursorOverride }
+        return
+      }
       // Tanpa override: tambah = lanjutkan rantai cursor; segarkan = dari awal.
       const startCursor = cursorOverride !== undefined ? cursorOverride : append ? commentsNextCursor.current : null
       failedComments.current = { append, cursor: startCursor }
@@ -489,6 +522,14 @@ function ShowcaseDetailContent({
     void fetchComments(false)
     return () => commentsAbort.current?.abort()
   }, [fetchComments])
+  // DT-04: dijalankan lewat ref supaya handler mutasi tidak perlu dep baru
+  // dan selalu memakai fetchComments terbaru (urutan terbaru).
+  flushPendingCommentsFetchRef.current = () => {
+    const pending = pendingCommentsFetch.current
+    if (!pending) return
+    pendingCommentsFetch.current = null
+    void fetchComments(pending.append, pending.cursorOverride)
+  }
 
   /**
    * C14 (batch 139): deep link `?comment=` — cari target lintas halaman
@@ -573,13 +614,28 @@ function ShowcaseDetailContent({
   // `activeFullRes` di galeri — bukan full-res untuk semua slide sekaligus
   // (8 slide × 2–5 MB = ~40 MB bila user swipe semua).
   const resolvedMedia = useMemo(() => showcaseMedia(item), [item])
+  // DT-09: daftar viewer di-memo — array baru tiap render membuat effect
+  // prefetch & data FlatList ImageViewer berubah terus saat viewer terbuka.
+  const viewerImages = useMemo(
+    () =>
+      resolvedMedia.map((m) => ({
+        // PERF-FIX (2026-09-30): viewer fullscreen selalu full-res.
+        url: m.fullUrl ?? m.url,
+        alt: item.title,
+        kind: (m.kind === "video" ? "video" : "image") as "video" | "image",
+      })),
+    [resolvedMedia, item.title],
+  )
   // Kontrak final Tim A (2026-09-28): spin360 dirangkai dari entri images
   // (groupKey + groupOrder), bukan field `frames` terpisah.
   const spin360Frames = useMemo(() => showcaseSpin360Groups(item), [item])
 
   /** Ketuk media → viewer layar penuh (pinch-zoom + swipe antar foto). */
+  // UX-06: semburan hati ketuk-ganda di galeri detail (dulu tanpa umpan balik).
+  const heart = useHeartBurst()
   const openViewer = (index: number, openingTap?: OpeningMediaTap) => {
-    viewerOpeningTap.current = openingTap
+    // FD-11: tamu — tutup viewer dulu sebelum ketuk-ganda berujung ke login.
+    viewerOpeningTap.current = guardOpeningTapForGuest(openingTap, hasSession, () => setViewerIndex(null))
     // Item 158 (FE-IMP-1): viewer kini campuran gambar+video — indeks slide
     // media dipakai langsung (tidak lagi dipetakan ke indeks gambar).
     if (index >= 0 && index < resolvedMedia.length) setViewerIndex(index)
@@ -644,6 +700,11 @@ function ShowcaseDetailContent({
         fullName: null,
       },
     }
+    // SO-05 (audit 2026-10-10): konteks balasan disimpan dulu — bila kirim
+    // gagal, chip "Membalas @…" dipulihkan (dulu hilang → retry terkirim
+    // sebagai komentar utama dengan Idempotency-Key yang sama).
+    const parent = replyTo
+    const parentId = parent?.id ?? null
     insertLocalComment(optimistic)
     // Kosongkan draft segera — UX terasa instan.
     setDraft("")
@@ -652,15 +713,17 @@ function ShowcaseDetailContent({
     setReplyTo(null)
 
     try {
+      // Kunci idempotensi = item × isi × induk — balasan dan komentar utama
+      // dengan teks sama adalah aksi berbeda.
       const keyed =
-        sendKey.current?.item === id && sendKey.current?.content === content
+        sendKey.current?.item === id && sendKey.current?.content === content && sendKey.current?.parentId === parentId
           ? sendKey.current.key
-          : (sendKey.current = { item: id, content, key: createIdempotencyKey() }).key
+          : (sendKey.current = { item: id, content, parentId, key: createIdempotencyKey() }).key
       const saved = await addShowcaseComment(
         id,
         {
           content,
-          parentId: replyTo?.id,
+          parentId: parent?.id,
         },
         keyed,
       )
@@ -696,7 +759,8 @@ function ShowcaseDetailContent({
       // Item 161: kirim gagal — kembalikan draft (state + SecureStore) supaya
       // teks yang diketik pengguna tidak hilang.
       setDraft(content)
-      saveShowcaseCommentDraft(id, content)
+      setReplyTo(parent)
+      saveShowcaseCommentDraft(id, content, parentId)
       toast.show({
         title: SHOWCASE_COMMENT_MESSAGES.sendFailed,
         description: isApiError(err) ? userMessage(err) : undefined,
@@ -708,6 +772,7 @@ function ShowcaseDetailContent({
         setCommentsStatus((status) => status === "loading" ? "idle" : status)
       }
       mutationPending.current = false
+      flushPendingCommentsFetchRef.current()
       task.finish()
     }
   }, [id, draft, replyTo, insertLocalComment, toast.show, hasSession, operation, fetchComments, commentsPage, meId, meUsername])
@@ -725,7 +790,10 @@ function ShowcaseDetailContent({
       const saved = await updateShowcaseComment(editTarget.id, content)
       if (!task.valid()) return
       // Suntingan tidak mengubah hitungan komentar — tidak ada event ledger.
-      patchComment((c) => (c.id === saved.id ? { ...c, content: saved.content } : c))
+      // SO-10: penanda "(diedit)" langsung tampil — jangan tunggu refetch.
+      patchComment((c) =>
+        c.id === saved.id ? { ...c, content: saved.content, updatedAt: saved.updatedAt ?? new Date().toISOString() } : c,
+      )
       setEditTarget(null)
     } catch (err) {
       if (!task.valid()) return
@@ -740,6 +808,7 @@ function ShowcaseDetailContent({
         setCommentsStatus((status) => status === "loading" ? "idle" : status)
       }
       mutationPending.current = false
+      flushPendingCommentsFetchRef.current()
       task.finish()
     }
   }, [editTarget, editText, patchComment, toast.show, operation, fetchComments, commentsPage])
@@ -755,15 +824,22 @@ function ShowcaseDetailContent({
       if (confirmKind === "delete") {
         await deleteShowcaseComment(confirmTarget.id)
         if (!task.valid()) return
-        // D-06: patchComments menghapus root BESERTA balasannya.
-        const removed =
-          1 + (comments.find((c) => c.id === confirmTarget.id)?.replies?.length ?? 0)
+        // SO-04 (audit 2026-10-10): server menyimpan root yang punya balasan
+        // sebagai placeholder `isDeleted` (balasan tetap ada) — tiru itu
+        // secara lokal: tandai, jangan buang utasnya. Hitungan turun TEPAT 1
+        // (dulu -(1+n) sehingga angka kartu meleset setelah refresh; lihat
+        // BE-8 untuk commentCount final dari server).
+        const hasReplies = (comments.find((c) => c.id === confirmTarget.id)?.replies?.length ?? 0) > 0
         // F-01 (audit 2026-09-24): delta negatif ke ledger, bukan refetch.
-        queueShowcaseCommentCount(id, -removed)
-        patchComment((comment) => comment.id === confirmTarget.id ? null : comment)
-        // F-08/D-05: hanya HAPUS yang menggeser total — ikut jumlah yang
-        // benar-benar hilang (root + balasan).
-        setCommentTotal((n) => Math.max(0, n - removed))
+        queueShowcaseCommentCount(id, -1)
+        patchComment((comment) =>
+          comment.id === confirmTarget.id
+            ? hasReplies
+              ? { ...comment, isDeleted: true, content: "" }
+              : null
+            : comment,
+        )
+        setCommentTotal((n) => Math.max(0, n - 1))
         toast.show({ title: SHOWCASE_COMMENT_MESSAGES.deleted, tone: "success", duration: 2500 })
       } else {
         const saved = await hideShowcaseComment(confirmTarget.id, hideReason)
@@ -790,9 +866,11 @@ function ShowcaseDetailContent({
         setCommentsStatus((status) => status === "loading" ? "idle" : status)
       }
       mutationPending.current = false
+      flushPendingCommentsFetchRef.current()
       task.finish()
     }
-  }, [confirmTarget, confirmKind, hideReason, patchComment, toast.show, operation, fetchComments, commentsPage])
+    // DT-05: `comments` ikut deps — `removed` dibaca dari daftar terbaru.
+  }, [confirmTarget, confirmKind, hideReason, patchComment, toast.show, operation, fetchComments, commentsPage, comments])
 
   const handleUnhide = useCallback(
     async (comment: ShowcaseComment) => {
@@ -818,6 +896,7 @@ function ShowcaseDetailContent({
         })
       } finally {
         mutationPending.current = false
+        flushPendingCommentsFetchRef.current()
         if (task.valid()) setCommentsStatus((status) => status === "loading" ? "idle" : status)
         task.finish()
       }
@@ -842,7 +921,7 @@ function ShowcaseDetailContent({
   // dari backend, perilaku sama seperti sebelumnya.
   const soldOut = isShowcaseSoldOut(item)
 
-  const canReply = (c: ShowcaseComment) => hasSession && !c.isHidden && c.parentId == null
+  const canReply = (c: ShowcaseComment) => hasSession && !c.isHidden && !c.isDeleted && c.parentId == null
   const isMine = (c: ShowcaseComment) => meId != null && c.author.userId === meId
   const handleReplyToComment = useCallback((comment: ShowcaseComment) => {
     setReplyTo(comment)
@@ -878,7 +957,8 @@ function ShowcaseDetailContent({
         // membawa flag fromShowcase — wizard mulai dari langkah 1 (mode &
         // peran sudah pasti), bukan langkah 0.
         ROUTES.createTransactionWith(item.author.username, { fromShowcase: true })
-    router.push(hasSession ? target : ROUTES.loginRequired(`/showcase/${encodeURIComponent(item.id)}`))
+    // DT-06: tap ganda tidak menumpuk dua layar create-transaction.
+    pushOnce(hasSession ? target : ROUTES.loginRequired(`/showcase/${encodeURIComponent(item.id)}`))
   }, [item, hasSession])
 
   const sellerUsername = item.author.username.trim()
@@ -886,7 +966,7 @@ function ShowcaseDetailContent({
     if (!sellerUsername) return
     if (!hasSession) {
       const next = `/prepare-navigation?kind=dm&id=${encodeURIComponent(sellerUsername)}`
-      router.push(ROUTES.loginRequired(next))
+      pushOnce(ROUTES.loginRequired(next))
       return
     }
     router.navigate({ pathname: "/prepare-navigation", params: { kind: "dm", id: sellerUsername } } as never)
@@ -942,7 +1022,8 @@ function ShowcaseDetailContent({
   const commentComposer = (
     <View className="gap-2">
       {replyTo ? (
-        <View className="flex-row items-center gap-2 rounded-md bg-surface-elevated px-3 py-1.5">
+        /* VI-04: bg-surface — surface-elevated = putih di light (chip tak terlihat). */
+        <View className="flex-row items-center gap-2 rounded-md bg-surface px-3 py-1.5">
           <Text variant="caption" tone="secondary" className="flex-1" numberOfLines={1}>
             {translate("Membalas {x}", { x: replyTo.author.fullName ?? `@${replyTo.author.username}` })}
           </Text>
@@ -1017,6 +1098,8 @@ function ShowcaseDetailContent({
         loading: false,
         refreshing: query.refreshing || commentsRefreshing,
         error: null,
+        // DT-02: refresh gagal → banner "Gagal memperbarui", bukan diam.
+        refreshError: query.refreshError,
         refresh: handleRefresh,
         reload: handleRefresh,
       }}
@@ -1085,15 +1168,18 @@ function ShowcaseDetailContent({
           onOpen={openViewer}
           // Item 157 (FE-IMP-1): ketuk-ganda pada media = suka. (Galeri sudah
           // punya deteksi double-tap; yang kurang hanya wiring ke toggleLike.)
+          // UX-06: + semburan hati seperti di feed.
           onDoubleTap={() => {
             if (!liked) toggleLike()
+            heart.play()
           }}
-          autoplayActive={viewerIndex == null}
+          autoplayActive={viewerIndex == null && isFocused}
           // C01: rasio slide pertama untuk placeholder di luar jendela render.
           aspectRatio={resolvedMedia[0]?.aspectRatio ?? 1}
           // PERF-FIX (2026-09-30): slide aktif full-res, sisanya thumbnail.
           activeFullRes
         />
+        <HeartBurst visible={heart.visible} style={heart.style} />
       </View>
 
       {/* ── Tampilan 360° (batch 19, item 12) — di bawah galeri, kontrak TIM A pending ── */}
@@ -1111,6 +1197,13 @@ function ShowcaseDetailContent({
           {priceLabel}
         </Text>
         {conditionLabel ? <Badge variant="outline">{conditionLabel}</Badge> : null}
+        {/* UX-01 (audit 2026-10-10): status stok/aktif TERLIHAT (paritas
+            badge kartu feed) — bukan hanya accessibilityHint pada tombol pudar. */}
+        {soldOut ? (
+          <Badge tone="danger">{translate("Stok habis")}</Badge>
+        ) : item.isActive === false ? (
+          <Badge variant="outline">{translate("Tidak aktif")}</Badge>
+        ) : null}
         {priceRequiresChat && !isOwner && sellerUsername ? (
           <Button
             variant="secondary"
@@ -1123,7 +1216,7 @@ function ShowcaseDetailContent({
           </Button>
         ) : null}
         {/* Batch 43: harga coret + badge Terlaris/Diskon */}
-        <DiscountPrice showcaseId={id} salePriceIdr={item.priceMin ?? item.priceMax} />
+        <DiscountPrice showcaseId={id} salePriceIdr={item.priceMin ?? item.priceMax} originalPriceIdr={item.originalPriceIdr ?? null} />
         <ProductBadges showcaseId={id} />
         {item.category ? (
           // A-12: badge kategori juga menavigasi ke feed terfilter.
@@ -1132,6 +1225,8 @@ function ShowcaseDetailContent({
             accessibilityLabel={translate("Lihat kategori {x}", { x: item.category })}
             // L-01: teruskan tab aktif dari param `?kind=` bila ada.
             onPress={() => router.push(ROUTES.showcaseWithCategory(item.category as string, tabKind))}
+            // VI-11: badge 22pt → target 44pt.
+            hitSlop={CATEGORY_BADGE_HIT_SLOP}
             containerClassName={cn("rounded-full", focusRing)}
           >
             <Badge variant="outline">{item.category}</Badge>
@@ -1171,12 +1266,18 @@ function ShowcaseDetailContent({
 
       {/* Batch 43 (item 10): kalender slot jasa + booking — hanya render bila
           penjual mengonfigurasi slot untuk karya ini. */}
-      <ServiceSlotSection
-        showcaseId={id}
-        sellerUsername={item.author.username}
-        hasSession={hasSession}
-        isOwner={isOwner}
-      />
+      {/* DT-07 (audit 2026-10-10): seksi jadwal hanya untuk produk jasa — dulu 1–2
+          request + skeleton untuk SEMUA produk, lalu lenyap (layout shift). Tipe
+          tak diketahui (payload lama) → tetap dicoba, tanpa skeleton. */}
+      {item.productType == null || item.productType === "JASA" ? (
+        <ServiceSlotSection
+          knownService={item.productType === "JASA"}
+          showcaseId={id}
+          sellerUsername={item.author.username}
+          hasSession={hasSession}
+          isOwner={isOwner}
+        />
+      ) : null}
 
       {/* Separator atas aksi — inset mx-5, bukan full */}
       <Divider inset className="mt-4" />
@@ -1276,12 +1377,7 @@ function ShowcaseDetailContent({
           (gambar + video) dengan aksi Bagikan & Simpan di chrome bawah. */}
       <ImageViewer
         visible={viewerIndex != null}
-        images={resolvedMedia.map((m) => ({
-          // PERF-FIX (2026-09-30): viewer fullscreen selalu full-res.
-          url: m.fullUrl ?? m.url,
-          alt: item.title,
-          kind: m.kind === "video" ? "video" : "image",
-        }))}
+        images={viewerImages}
         index={viewerIndex ?? 0}
         openingTap={viewerOpeningTap.current}
         onClose={() => setViewerIndex(null)}

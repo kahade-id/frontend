@@ -13,6 +13,7 @@
  * Modul MURNI (tanpa React/socket) supaya bisa di-unit-test via vitest.
  */
 import type { ChatMessage } from "@/lib/api/chat"
+import { reconcileReactionViewer } from "@/lib/realtime/chat-events"
 
 /**
  * Jendela maksimum (ms) antara `createdAt` pesan optimistis dan gema server
@@ -191,17 +192,28 @@ export function mergeChatMessages(
   const patched = working.map((m) => {
     const next = incomingById.get(m.id)
     if (!next) return m
+    // Audit Pesan 2026-10-10 (realtime #3): `chat.message_updated` disiarkan
+    // ke seluruh ruang dari SUDUT PANDANG PENGEDIT (`fromUser: true` untuk
+    // semua penerima), dan gema netral `chat.new_message` membawa
+    // `fromUser: false` untuk pesan saya sendiri. Arah bubble tidak boleh
+    // berbalik karena sudut pandang payload: `fromUser` hanya boleh NAIK ke
+    // true bila pengirimnya memang saya (id cocok), tidak pernah turun.
+    // Bila `selfIds` dikenal, HANYA id pengirim yang dipercaya (bukan
+    // `fromUser` payload — itulah sumber pembalikan arah). Tanpa selfIds,
+    // perilaku lama (BFE-007: view yang tiba belakangan menaikkan fromUser).
+    const nextFromUser =
+      m.fromUser || (ids.size === 0 ? next.fromUser : senderIdsOf(next).some((id) => ids.has(id)))
+    // Reaksi dari payload sudut pandang lain → `reactedByMe` dihitung ulang
+    // dari `users[]` (otoritatif) terhadap identitas saya.
+    const nextReactions = next.reactions ? reconcileReactionViewer(next.reactions, [...ids]) : next.reactions
     const same =
       next.isPinned === m.isPinned &&
       next.isEdited === m.isEdited &&
       next.isDeleted === m.isDeleted &&
       next.text === m.text &&
-      // BFE-007: race view netral vs sender-view — view yang tiba belakangan
-      // (biasanya sender-view milik sendiri) WAJIB me-refresh `fromUser`
-      // dan `poll` pada pesan yang sudah dikenal.
-      next.fromUser === m.fromUser &&
+      nextFromUser === m.fromUser &&
       samePoll(next.poll, m.poll) &&
-      sameReactions(next.reactions, m.reactions)
+      sameReactions(nextReactions, m.reactions)
     if (same) return m
     changed = true
     return {
@@ -212,11 +224,14 @@ export function mergeChatMessages(
       // CN-003: penghapusan yang tiba via poll/reconnect harus ikut
       // menandai tombstone (jalur realtime memakai applyDeletedTombstone).
       isDeleted: next.isDeleted,
+      // Realtime #23: tombstone dari poll juga melepas lampiran (seperti
+      // applyDeletedTombstone) supaya media pesan terhapus tidak tertinggal.
+      attachments: next.isDeleted ? [] : (next.attachments ?? m.attachments),
       editedAt: next.editedAt ?? m.editedAt,
-      reactions: next.reactions,
-      // BFE-007: refresh field view-relatif.
-      fromUser: next.fromUser,
+      reactions: nextReactions,
+      fromUser: nextFromUser,
       poll: next.poll,
+      viewOnceViewedAt: next.viewOnceViewedAt ?? m.viewOnceViewedAt,
     }
   })
   if (!changed) return { next: prev, added: 0, hasFreshFromOther: false, changed: false }

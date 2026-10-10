@@ -5,6 +5,7 @@
 import { asRecord, readEntity, invalidResponse, readList } from "@/lib/api/response"
 
 import { http } from "@/lib/api/client"
+import { ApiError } from "@/lib/api/errors"
 import { normalizeOrder, type Order } from "@/lib/api/orders"
 import type { UserProfile } from "@/lib/api/users"
 import type { WalletTransaction } from "@/lib/api/wallet"
@@ -135,9 +136,13 @@ export function globalSearch(
       // limit memotong). Fallback ke hitungan lokal bila backend tak kirim.
       const totalsRaw = asRecord(result.totals)
       const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? Math.max(0, Math.floor(v)) : 0)
-      const transactions = (Array.isArray(result.transactions) ? result.transactions : []).map((item) => {
-        const transaction = item as Record<string, unknown>
-        return {
+      // AP-02 (audit etalase 2026-10-10): satu baris null/non-objek dari
+      // server dilewati per baris (pola showcase/helpCenter di bawah) — dulu
+      // TypeError meruntuhkan SELURUH hasil dengan "Terjadi kesalahan".
+      const transactions = (Array.isArray(result.transactions) ? result.transactions : []).flatMap((item) => {
+        const transaction = asRecord(item)
+        if (!transaction) return []
+        return [{
           ...transaction,
           // DC-004 (audit Discovery 2026-09-26): preseden DIBALIK agar sama
           // dengan normalizeWalletTransaction (txId ?? id). `id` dari search
@@ -145,7 +150,7 @@ export function globalSearch(
           // (where: {txId}); txId publik-lah namespace navigasi yang benar.
           id: String(transaction.txId ?? transaction.id ?? ""),
           referenceId: transaction.referenceId ?? transaction.reference_id,
-        } as WalletTransaction
+        } as WalletTransaction]
       })
       const helpCenter = (Array.isArray(result.helpCenter) ? result.helpCenter : []).flatMap((item) => {
         const parsed = parseSearchHelpArticle(item)
@@ -157,17 +162,19 @@ export function globalSearch(
       })
       return {
         ...result,
-        users: (Array.isArray(result.users) ? result.users : []).map((item) => {
-          const user = item as Record<string, unknown>
-          return {
+        users: (Array.isArray(result.users) ? result.users : []).flatMap((item) => {
+          const user = asRecord(item)
+          if (!user) return []
+          return [{
             ...user,
             id: String(user.id ?? user.userId ?? ""),
             verified: user.verified ?? user.isKycVerified,
-          }
+          }]
         }),
-        orders: (Array.isArray(result.orders) ? result.orders : []).map((item) =>
-          normalizeOrder(item as Order & Record<string, unknown>),
-        ),
+        orders: (Array.isArray(result.orders) ? result.orders : []).flatMap((item) => {
+          const order = asRecord(item)
+          return order ? [normalizeOrder(order as Order & Record<string, unknown>)] : []
+        }),
         transactions,
         helpCenter,
         showcase,
@@ -330,7 +337,17 @@ export function clearSearchHistory(signal?: AbortSignal) {
  * meng-encode (spasi, `&`, `?`, dsb. akan merusak path bila mentah).
  */
 export function deleteSearchHistoryItem(query: string, signal?: AbortSignal) {
-  return http.delete<unknown>(`/v1/search/history/${encodeURIComponent(query)}`, {
+  // AP-06 (audit etalase 2026-10-10): "." / ".." / kosong tidak bisa jadi
+  // segmen path — URL dinormalkan (WHATWG/OkHttp) menjadi `/v1/search/` →
+  // 404 setiap kali. Gagalkan di klien dengan pesan yang bisa ditindak
+  // (kata kunci ini hanya bisa dihapus lewat "Hapus riwayat").
+  const trimmed = query.trim()
+  if (!trimmed || trimmed === "." || trimmed === "..") {
+    return Promise.reject(
+      new ApiError({ code: "BAD_REQUEST", message: "Kata kunci ini hanya bisa dihapus lewat Hapus riwayat." }),
+    )
+  }
+  return http.delete<unknown>(`/v1/search/history/${encodeURIComponent(trimmed)}`, {
     auth: "required",
     signal,
   })

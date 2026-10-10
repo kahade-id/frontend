@@ -120,9 +120,14 @@ export function ChatForwardSheet({
     void loadPage(1)
   }, [open, loadPage])
 
+  // Audit Pesan 2026-10-10 (room #13): pagar ketuk-ganda SINKRON (ref) —
+  // state `sending` baru terbaca setelah render, dua ketukan cepat dulu
+  // meneruskan dua kali (pesan ganda di ruang tujuan).
+  const sendingRef = useRef(false)
   const forwardTo = useCallback(
     async (targetRoomId: string) => {
-      if (!roomId || targets.length === 0 || sending) return
+      if (!roomId || targets.length === 0 || sendingRef.current) return
+      sendingRef.current = true
       setSending(true)
       const results = await Promise.allSettled(
         targets.map((message) => forwardChatMessage(roomId, message.id, [targetRoomId])),
@@ -138,13 +143,21 @@ export function ChatForwardSheet({
         if (res.value.skipped.length > 0) skipReason ??= res.value.skipped[0]?.reason
         else sent += 1
       })
+      sendingRef.current = false
       setSending(false)
       if (sent > 0) {
         haptic("success")
+        const failedCount = targets.length - sent
         toast.show({
-          title: sent === 1 ? "Pesan diteruskan" : `${sent} pesan diteruskan`,
-          tone: "success",
-          duration: 2500,
+          title: sent === 1 ? translate("Pesan diteruskan") : translate("{x} pesan diteruskan", { x: sent }),
+          // Room #12: sebagian gagal/dilewati tidak lagi disembunyikan.
+          description:
+            failedCount > 0
+              ? translate("{x} pesan tidak diteruskan.", { x: failedCount }) +
+                (skipReason ? ` ${skipReason}` : "")
+              : undefined,
+          tone: failedCount > 0 ? "warning" : "success",
+          duration: failedCount > 0 ? 4000 : 2500,
         })
         onForwarded(sent)
         return
@@ -167,7 +180,7 @@ export function ChatForwardSheet({
   const copy = {
     description:
       targets.length > 1
-        ? `${targets.length} pesan akan diteruskan sekaligus.`
+        ? translate("{x} pesan akan diteruskan sekaligus.", { x: targets.length })
         : "Pilih percakapan tujuan pesan.",
   }
 

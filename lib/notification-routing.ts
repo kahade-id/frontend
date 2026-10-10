@@ -701,6 +701,10 @@ function routeForActionUrlRaw(actionUrl: string | null | undefined): Href | null
   const [pathname, query] = path.split("?", 2)
   const segments = pathname.split("/").filter(Boolean)
 
+  // Audit Pesan 2026-10-10 (daftar #32): `/chat` tanpa id = daftar Pesan,
+  // bukan null (yang dulu mendaratkan ketukan push di tab Notifikasi).
+  if (segments.length === 1 && segments[0] === "chat") return ROUTES.chat
+
   if (segments.length >= 2) {
     const [head, ...rest] = segments
     const id = safeDecodeSegment(rest.join("/"))

@@ -31,7 +31,13 @@
  *     node BUBBLE (`bubbleAnchorRef`), bukan titik sentuh.
  */
 import { memo, useCallback, useMemo, useRef } from "react"
-import { View, type GestureResponderEvent, type ViewInstance } from "react-native"
+import {
+  Platform,
+  View,
+  useWindowDimensions,
+  type GestureResponderEvent,
+  type ViewInstance,
+} from "react-native"
 import { GestureDetector } from "react-native-gesture-handler"
 import { useSharedValue } from "react-native-reanimated"
 
@@ -50,11 +56,13 @@ import { formatTime } from "@/lib/format"
 import { translate } from "@/lib/i18n/translate"
 import { ephemeralCountdownLabel, isMessageExpired } from "@/lib/chat-ephemeral"
 import {
+  chatMediaWidthPx,
   measureBubbleAnchor,
   resolveBubblePressHandlers,
   resolveChatRowGesturePlan,
   type ChatBubbleAnchor,
 } from "@/lib/chat-bubble"
+import { layout } from "@/lib/tokens"
 import { useSwipeReplyPan } from "@/lib/use-swipe-reply-pan"
 
 import { PressableScale } from "@/components/ui/pressable-scale"
@@ -241,6 +249,7 @@ const RowMediaItem = memo(function RowMediaItem({
   durationSeconds,
   sendStatus,
   selecting,
+  width,
   onAttachmentPress,
   onRefreshAttachmentUrl,
   onRetryMessage,
@@ -251,6 +260,8 @@ const RowMediaItem = memo(function RowMediaItem({
   durationSeconds?: number | null
   sendStatus?: "queued" | "sending" | "failed"
   selecting: boolean
+  /** Bug #7: lebar media = lebar kolom bubble (lihat `chatMediaWidthPx`). */
+  width: number
   onAttachmentPress: (attachment: ChatAttachmentDto) => void
   onRefreshAttachmentUrl?: (attachment: ChatAttachmentDto) => Promise<ChatAttachmentDto>
   onRetryMessage?: () => void
@@ -274,6 +285,7 @@ const RowMediaItem = memo(function RowMediaItem({
         durationSeconds={durationSeconds}
         seekEnabled={!selecting}
         sending={sending}
+        width={width}
         onRefreshUrl={handleRefreshAudio}
       />
     )
@@ -284,6 +296,7 @@ const RowMediaItem = memo(function RowMediaItem({
         attachment={attachment}
         messageId={messageId}
         sendStatus={sendStatus}
+        width={width}
         onPress={handlePress}
         onRetry={sendStatus === "failed" ? onRetryMessage : undefined}
         onRefreshUrl={onRefreshAttachmentUrl}
@@ -297,6 +310,7 @@ const RowMediaItem = memo(function RowMediaItem({
         messageId={messageId}
         durationSeconds={durationSeconds}
         sendStatus={sendStatus}
+        width={width}
         onOpenFullscreen={handlePress}
         onRetry={sendStatus === "failed" ? onRetryMessage : undefined}
         onRefreshUrl={onRefreshAttachmentUrl}
@@ -308,6 +322,7 @@ const RowMediaItem = memo(function RowMediaItem({
       attachment={attachment}
       outgoing={fromUser}
       sendStatus={sendStatus}
+      width={width}
       onPress={handlePress}
       onRetry={sendStatus === "failed" ? onRetryMessage : undefined}
     />
@@ -497,6 +512,34 @@ export function ChatMessageRowBase({
   const rowRetryMessage =
     message.sendStatus === "failed" && onRetry ? handleBubbleRetry : undefined
 
+  /**
+   * Audit Pesan 2026-10-10 (#1): identitas gelembung masuk dari PENGIRIM
+   * pesan (`message.sender`), bukan selalu lawan bicara — di ruang
+   * sengketa admin Kahade tampil sebagai dirinya sendiri. Null = DM 1:1 /
+   * pesan keluar / sistem (tanpa kolom avatar).
+   */
+  const senderIdentity = useMemo(
+    () => resolveIncomingSenderIdentity(message, counterpart, showSenderIdentity),
+    [message, counterpart, showSenderIdentity],
+  )
+
+  /**
+   * Bug #7 (2026-10-10): lebar media mengikuti kolom bubble — dihitung dari
+   * lebar jendela (web dibatasi `layout.maxContentWidth` seperti <Screen>),
+   * dikurangi kolom avatar bila gelembung masuk menampilkan identitas.
+   * Satu angka untuk foto/video/berkas/pesan suara → caption di bawahnya
+   * membungkus tepat selebar media.
+   */
+  const windowWidth = useWindowDimensions().width
+  const mediaWidth = useMemo(
+    () =>
+      chatMediaWidthPx(
+        Platform.OS === "web" ? Math.min(windowWidth, layout.maxContentWidth) : windowWidth,
+        { hasAvatarColumn: !message.fromUser && senderIdentity != null },
+      ),
+    [windowWidth, message.fromUser, senderIdentity],
+  )
+
   const mediaBlock = isVoiceMessage ? (
     <VoiceNotePlayer
       uri={voiceAttachment!.fileUrl}
@@ -506,6 +549,7 @@ export function ChatMessageRowBase({
       // Mode pilih: ketukan memilih pesan, bukan putar/seek.
       seekEnabled={!selecting}
       sending={rowSending}
+      width={mediaWidth}
       // UPFV-03: refresh signed URL (TTL 5 mnt) bila pemutaran gagal —
       // pola sama seperti `Picture` onError pada thumbnail lampiran.
       onRefreshUrl={
@@ -525,6 +569,7 @@ export function ChatMessageRowBase({
           durationSeconds={message.durationSeconds}
           sendStatus={message.sendStatus}
           selecting={selecting}
+          width={mediaWidth}
           onAttachmentPress={onAttachmentPress}
           onRefreshAttachmentUrl={onRefreshAttachmentUrl}
           onRetryMessage={rowRetryMessage}
@@ -547,7 +592,13 @@ export function ChatMessageRowBase({
         />
       ) : null}
       {productCard ? (
-        <ChatProductCard card={productCard} outgoing={outgoing} onBuy={onBuyProductCard} />
+        // Audit Pesan 2026-10-10 (media #15): tombol "Beli via Kahade" hanya
+        // untuk kartu yang DITERIMA — penjual tidak membeli produknya sendiri.
+        <ChatProductCard
+          card={productCard}
+          outgoing={outgoing}
+          onBuy={outgoing ? undefined : onBuyProductCard}
+        />
       ) : null}
       {orderCard ? <ChatOrderCard card={orderCard} outgoing={outgoing} /> : null}
       {pollData ? (
@@ -603,17 +654,6 @@ export function ChatMessageRowBase({
     : isViewOnceMessage || locationPayload || productCard || orderCard || pollData
       ? undefined
       : message.text
-
-  /**
-   * Audit Pesan 2026-10-10 (#1): identitas gelembung masuk dari PENGIRIM
-   * pesan (`message.sender`), bukan selalu lawan bicara — di ruang
-   * sengketa admin Kahade tampil sebagai dirinya sendiri. Null = DM 1:1 /
-   * pesan keluar / sistem (tanpa kolom avatar).
-   */
-  const senderIdentity = useMemo(
-    () => resolveIncomingSenderIdentity(message, counterpart, showSenderIdentity),
-    [message, counterpart, showSenderIdentity],
-  )
 
   const bubbleElement = (
     <ChatMessageBubble

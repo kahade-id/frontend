@@ -42,10 +42,24 @@ export function peekHiddenMessageIds(roomId: string): Set<string> {
 /** Sembunyikan satu pesan hanya di perangkat ini. */
 export function hideMessageLocally(roomId: string, messageId: string): void {
   if (!roomId || !messageId) return
+  // Audit Pesan 2026-10-10 (room #38): bila daftar tersimpan BELUM dimuat,
+  // muat dulu lalu gabungkan — dulu id tunggal menimpa seluruh daftar lama
+  // di penyimpanan sehingga pesan yang pernah disembunyikan muncul lagi.
+  if (!hydrated.has(roomId)) {
+    void loadHiddenMessageIds(roomId)
+      .catch(() => new Set<string>())
+      .then(() => {
+        const set = memory.get(roomId) ?? new Set<string>()
+        set.add(messageId)
+        memory.set(roomId, set)
+        hydrated.add(roomId)
+        persist(roomId)
+      })
+    return
+  }
   const set = memory.get(roomId) ?? new Set<string>()
   set.add(messageId)
   memory.set(roomId, set)
-  hydrated.add(roomId)
   persist(roomId)
 }
 

@@ -30,7 +30,7 @@ export function ChatUnreadSeparator({ count = 0, onPress }: ChatUnreadSeparatorP
     <View className="items-center py-2">
       <View className="rounded-full bg-info-soft px-3 py-1">
         <Text variant="caption" tone="info" weight={600}>
-          {count > 0 ? `${translate("Belum dibaca")} · ${count} ${translate("pesan")}` : translate("Belum dibaca")}
+          {count > 0 ? translate("{x} pesan belum dibaca", { x: count }) : translate("Belum dibaca")}
         </Text>
       </View>
     </View>
@@ -41,9 +41,7 @@ export function ChatUnreadSeparator({ count = 0, onPress }: ChatUnreadSeparatorP
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={
-        count > 0
-          ? `${translate("Belum dibaca")} · ${count} ${translate("pesan")}`
-          : translate("Belum dibaca")
+        count > 0 ? translate("{x} pesan belum dibaca", { x: count }) : translate("Belum dibaca")
       }
       accessibilityHint={translate("Kembali ke pesan pertama yang belum dibaca")}
     >

@@ -276,7 +276,8 @@ export function Picture({
       {/* Overlay loading/error di atas area yang sama agar ukuran tidak berubah */}
       {status === "loading" && !gated ? (
         <View className="absolute inset-0">
-          <Skeleton shape="rect" className="h-full w-full rounded-none" />
+          {/* UX-05: placeholder gambar harus terlihat di light mode (subtle = 1,10:1). */}
+          <Skeleton shape="rect" tone="contrast" className="h-full w-full rounded-none" />
         </View>
       ) : null}
 

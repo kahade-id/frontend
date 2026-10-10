@@ -164,6 +164,40 @@ export function mergeDeletedShowcase(
 }
 
 /**
+ * CR-06 (audit etalase 2026-10-10): entri lokal yang baru ditulis (< 2 menit)
+ * tidak dipurge walau belum muncul di daftar server — menutup jeda antara
+ * DELETE yang baru sukses dan daftar server yang mungkin masih ter-cache.
+ */
+export const LOCAL_DELETED_GRACE_MS = 2 * 60 * 1000
+
+/**
+ * CR-06: buang entri lokal yang sudah TIDAK ada di daftar server (dipulihkan
+ * dari perangkat lain, dihapus permanen, atau `restorable:false`). Hanya
+ * berlaku bila daftar server LENGKAP (`complete`) — halaman terpotong tidak
+ * boleh dijadikan bukti ketiadaan. Tanpa purge ini, entri basi menampilkan
+ * tombol "Pulihkan" yang gagal selamanya ("Data tidak ditemukan") sampai
+ * 30 hari berlalu. Fungsi murni — teruji tanpa jaringan.
+ */
+export function purgeStaleLocalDeleted(
+  local: DeletedShowcaseItem[],
+  server: ServerDeletedShowcaseItem[],
+  options: { complete: boolean; now?: number },
+): DeletedShowcaseItem[] {
+  if (!options.complete) return local
+  const now = options.now ?? Date.now()
+  const alive = new Set(
+    server
+      .filter((s) => s && typeof s.id === "string" && s.id && s.restorable !== false)
+      .map((s) => s.id),
+  )
+  return local.filter((it) => {
+    if (alive.has(it.id)) return true
+    const t = Date.parse(it.deletedAt)
+    return Number.isFinite(t) && now - t < LOCAL_DELETED_GRACE_MS
+  })
+}
+
+/**
  * SH-F-003: daftar "Baru dihapus" = server (bila ada sesi) + lokal.
  * Kegagalan jaringan/otorisasi → fallback daftar lokal (fail-open yang aman:
  * menampilkan yang diketahui, bukan error).
@@ -172,11 +206,21 @@ export async function getRecoverableShowcaseItems(hasSession: boolean): Promise<
   const local = await getDeletedShowcaseItems()
   if (!hasSession) return mergeDeletedShowcase(local, [])
   let server: ServerDeletedShowcaseItem[] = []
+  let complete = false
   try {
     const res = await getDeletedShowcase({ page: 1, limit: 50 })
-    if (res && Array.isArray(res.items)) server = res.items
+    if (res && Array.isArray(res.items)) {
+      server = res.items
+      // Daftar lengkap bila total server muat di satu halaman.
+      complete = typeof res.total === "number" ? res.total <= res.items.length : res.items.length < 50
+    }
   } catch {
-    // Jaringan gagal → daftar lokal tetap tampil.
+    // Jaringan gagal → daftar lokal tetap tampil (tanpa purge: tidak ada bukti).
+    return mergeDeletedShowcase(local, server)
   }
-  return mergeDeletedShowcase(local, server)
+  // CR-06: server adalah sumber kebenaran — entri lokal yang tidak lagi ada
+  // di sana dibuang (dan ditulis balik) supaya tidak jadi "Pulihkan" zombie.
+  const kept = purgeStaleLocalDeleted(local, server, { complete })
+  if (kept.length !== local.length) await writeAll(kept)
+  return mergeDeletedShowcase(kept, server)
 }

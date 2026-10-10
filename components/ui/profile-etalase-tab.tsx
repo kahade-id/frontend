@@ -73,11 +73,13 @@ export type ProfileEtalaseTabProps = {
  * Kartu memo: membaca state sosialnya sendiri (store bersama) — menekan ♥
  * di sini langsung terlihat di feed/detail dan sebaliknya (A-07/C-06).
  *
- * FS-001 (audit performa): `autoplayActive={false}` SELALU — kartu ini
- * dirender di dalam ScrollView profil tanpa viewability wiring seperti feed
- * utama, jadi default `true` membuat 2 video pertama memegang slot player
- * (cap LR-008) dan terus memutar walau off-screen. Video profil hanya
- * diputar via ketuk eksplisit (konsisten dengan gerbang WiFi-only NP-002).
+ * FS-001 (audit performa): `autoplay={false}` SELALU — kartu ini dirender
+ * di dalam ScrollView profil tanpa viewability wiring seperti feed utama,
+ * jadi autoplay membuat 2 video pertama memegang slot player (cap LR-008)
+ * dan terus memutar walau off-screen. Video profil hanya diputar via ketuk
+ * eksplisit (konsisten dengan gerbang WiFi-only NP-002). FD-02 (audit
+ * etalase 2026-10-10): dulu memakai `autoplayActive={false}` yang ikut
+ * mematikan ketuk eksplisit — tombol putar tidak melakukan apa-apa.
  *
  * FS-002 (audit performa): memo yang TIDAK jebol — `display` di-memo dan
  * semua callback ke <ShowcaseFeedItem> stabil (useCallback), sehingga
@@ -128,7 +130,7 @@ const EtalaseCard = memo(function EtalaseCard({
         onReport={handleReport}
         onManage={handleManage}
         divider={divider}
-        autoplayActive={false}
+        autoplay={false}
       />
       <ShowcaseShareSheet visible={shareSheetVisible} item={display} onClose={handleCloseShare} />
     </>
@@ -261,8 +263,12 @@ export function ProfileEtalaseTab({
           // Prinsip A.5: list ini SAMA PERSIS dengan feed Etalase — skeleton
           // pun sebentuk <ShowcaseFeedItem>, bukan kartu generik <ListLoading/>.
           <ShowcaseFeedSkeleton count={2} />
-        ) : error ? (
+        ) : error && patchedItems.length === 0 ? (
           // C-01: gagal memuat ≠ kosong — selalu ada jalan mencoba ulang.
+          // FD-06 (audit etalase 2026-10-10): ErrorState PENUH hanya bila
+          // daftar kosong; refresh diam yang gagal di atas daftar yang sudah
+          // ada → banner compact (lib/use-profile-showcase sengaja
+          // mempertahankan `items`, dulu cabang ini menyembunyikannya).
           <View className="px-5">
             <ErrorState
               compact
@@ -301,6 +307,16 @@ export function ProfileEtalaseTab({
           </View>
         ) : (
           <>
+            {error ? (
+              <View className="px-5">
+                <ErrorState
+                  compact
+                  title={translate("Gagal memperbarui etalase")}
+                  description={error}
+                  onRetry={onRetry}
+                />
+              </View>
+            ) : null}
             {patchedItems.slice(0, renderLimit).map((item, index) => (
               <EtalaseCard
                 key={item.id}

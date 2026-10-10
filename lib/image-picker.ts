@@ -121,13 +121,19 @@ export async function resizePickedImage(
   asset: PickedImage,
   maxDimension = SHOWCASE_PHOTO_MAX_DIMENSION,
 ): Promise<PickedImage> {
-  const longest = Math.max(asset.width ?? 0, asset.height ?? 0)
+  const width = asset.width ?? 0
+  const height = asset.height ?? 0
+  const longest = Math.max(width, height)
   if (longest <= 0 || longest <= maxDimension) return asset
   try {
     const { manipulateAsync, SaveFormat } = await import("expo-image-manipulator")
+    // Audit Pesan 2026-10-10 (media #10): sisi TERPANJANG yang dibatasi.
+    // Dulu selalu `width: maxDimension` — tangkapan layar portrait 1080×2400
+    // justru DIBESARKAN ke 1920×4267 (unggahan membengkak, bukan mengecil).
+    const resize = height > width ? { height: maxDimension } : { width: maxDimension }
     const result = await manipulateAsync(
       asset.uri,
-      [{ resize: { width: maxDimension } }],
+      [{ resize }],
       { compress: 0.8, format: SaveFormat.JPEG },
     )
     // Ukuran hasil resize — dipakai guard 5MB di pemanggil.
@@ -294,6 +300,44 @@ export async function pickedImageToBlob(img: PickedImage): Promise<Blob> {
   } catch {}
   // Terakhir: coba fetch lagi – biar error asli keluar
   return (await fetch(img.uri)).blob()
+}
+
+/**
+ * CR-09 (audit etalase 2026-10-10): ukuran berkas dari METADATA sistem berkas
+ * — TANPA memuat byte ke memori. Dulu layar buat memanggil
+ * `pickedImageToBlob` hanya untuk membaca `blob.size`; untuk video 90 MB itu
+ * ±2× ukuran berkas di RAM demi satu angka. Urutan: size dari picker →
+ * expo-file-system `File.info()` → legacy `getInfoAsync` (content:// Android)
+ * → 0 (tak diketahui; pemanggil WAJIB menolak dengan pesan jelas, jangan
+ * fail-open ke upload yang berujung 413/gantung).
+ */
+export async function probePickedFileSize(img: PickedImage): Promise<number> {
+  if (img.size > 0) return img.size
+  if (Platform.OS === "web") {
+    // blob:/data: URL sudah berada di memori — membaca blob tidak menambah beban.
+    try {
+      const blob = await (await fetch(img.uri)).blob()
+      return blob.size > 0 ? blob.size : 0
+    } catch {
+      return 0
+    }
+  }
+  try {
+    const { File } = await import("expo-file-system")
+    const info = new File(img.uri).info()
+    if (typeof info.size === "number" && info.size > 0) return info.size
+  } catch {
+    // lanjut ke API legacy
+  }
+  try {
+    const { getInfoAsync } = await import("expo-file-system/legacy")
+    const info = await getInfoAsync(img.uri)
+    const size = (info as { size?: number }).size
+    if (info.exists && typeof size === "number" && size > 0) return size
+  } catch {
+    // tak diketahui
+  }
+  return 0
 }
 
 export type PickImagesResult =

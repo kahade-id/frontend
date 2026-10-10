@@ -109,7 +109,7 @@ export const SecureKeys = {
    * agar user bisa memulihkan dalam 30 hari. Dihapus `clearSession()` saat logout.
    */
   deletedShowcaseItems: "kahade.showcase.deleted",
-  /** S7: draft teks form "Buat karya" (autosave lokal). */
+  /** S7: draft teks form "Buat karya" (autosave lokal). Milik akun — dihapus `clearSession()`. */
   showcaseDraft: "kahade.showcase.draft",
   /**
    * P1-3 (audit perf/UX 2026-10-03): draft form "Buat Transaksi" (JSON —
@@ -443,6 +443,12 @@ export async function clearSession(): Promise<void> {
     deleteSecureItem(SecureKeys.helpHistory),
     // Batch 139 (F17): umpan balik artikel per versi milik akun.
     deleteSecureItem(SecureKeys.helpFeedback),
+    // CR-05 (audit etalase 2026-10-10): draf "Buat etalase" & daftar lokal
+    // "Baru dihapus" adalah data akun — komentar kuncinya sudah lama mengklaim
+    // dihapus di sini, tetapi tidak pernah masuk daftar: akun berikutnya di
+    // perangkat yang sama melihat draf & judul etalase akun sebelumnya.
+    deleteSecureItem(SecureKeys.showcaseDraft),
+    deleteSecureItem(SecureKeys.deletedShowcaseItems),
     // Audit Pesan 2026-10-10 (#6): draft ketikan + pesan gagal per room
     // (kunci dinamis — dihapus lewat indeks), scope-nya, dan indeksnya.
     clearChatLocalStorage(),

@@ -284,9 +284,19 @@ export function ChatComposer({
 
   // Item 23: "/" di awal teks (tanpa baris baru) → picker template. Memilih
   // template mengganti token "/..." dengan teks template.
-  const quickReplyActive =
-    quickReplies && !disabled && value.startsWith("/") && !value.includes("\n")
+  // Audit Pesan 2026-10-10 (realtime #28): picker hanya untuk token berbentuk
+  // shortcut (`/promo`, `/alamat_2`) — "/2 pcs", "/path/x", "/ ok" bukan
+  // pemicu, dan garis miring pengguna tidak dihapus saat picker ditutup.
+  const quickReplyActive = quickReplies && !disabled && /^\/[a-z0-9_]*$/i.test(value)
   const quickReplyQuery = quickReplyActive ? value.slice(1) : ""
+
+  // Batch 3 (2026-10-10, "ukuran lampiran + caption"): begitu ada lampiran,
+  // kolom ketik adalah KETERANGAN media (pola WhatsApp/Telegram) — placeholder
+  // menyebutnya, bukan "Tulis pesan" yang menyiratkan pesan terpisah.
+  const placeholder =
+    attachments.length > 0 && labels?.placeholder === undefined
+      ? translateProp("Tambahkan keterangan…") ?? "Tambahkan keterangan…"
+      : translateProp(t.placeholder)
 
   const lineHeight = tokens.typography.bodyLarge.lineHeight
   const maxInputHeight = lineHeight * MAX_LINES
@@ -465,7 +475,7 @@ export function ChatComposer({
               onChangeText={(next) => onChangeText(next.slice(0, maxLength))}
               multiline
               editable={!disabled && !sending}
-              placeholder={translateProp(t.placeholder)}
+              placeholder={placeholder}
               placeholderTextColor={palette.textSecondary}
               selectionColor={palette.primary}
               cursorColor={palette.primary}

@@ -31,7 +31,7 @@
  *     swipe dimatikan selama mode pilih supaya gesture tidak bentrok.
  */
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react"
-import { ScrollView, View, type FlatList, type ViewInstance } from "react-native"
+import { AppState, ScrollView, View, type FlatList, type ViewInstance } from "react-native"
 import { StoryTray } from "@/components/story/story-tray"
 import { Archive, BellSlash, BellZ, Chats, GearSix, Plus, PushPin, Trash, X } from "phosphor-react-native"
 import { router, useFocusEffect, useIsFocused } from "expo-router"
@@ -40,6 +40,7 @@ import { api, isApiError, userMessage } from "@/lib/api"
 import {
   CHAT_PAGE_SIZE,
   applyIncomingMessageToRooms,
+  isTransactionChatRoom,
   canDeleteChatRoom,
   chatRoomLastMessageStatus,
   chatRoomListPreview,
@@ -52,6 +53,9 @@ import {
 } from "@/lib/api/chat"
 import { peekChatDraft, subscribeChatDrafts } from "@/lib/chat-drafts"
 import { refreshChatUnreadCount } from "@/lib/chat-unread-count"
+import { subscribeChatRoomRead } from "@/lib/chat-room-read-events"
+import { getMeCached } from "@/lib/api/users"
+import { useOverlayDismissKeys } from "@/components/ui/backdrop"
 import {
   CHAT_SOCKET_EVENTS,
   TYPING_EXPIRY_MS,
@@ -121,10 +125,12 @@ const FILTER_OPTIONS: readonly ChipOption<ChatFilter>[] = [
   { value: "archived", label: "Diarsipkan" },
 ]
 
-/** "Transaksi" = punya orderId atau type ORDER (DRIFT-06: backend mengirim `type`). */
-function isTransactionRoom(room: ChatRoom): boolean {
-  return Boolean(room.orderId) || (room.type ?? room.roomType) === "ORDER"
-}
+/**
+ * "Transaksi" = punya orderId atau type ORDER (DRIFT-06: backend mengirim
+ * `type`). Bug #1 (2026-10-10): SATU definisi bersama dengan layar ruang —
+ * `isTransactionChatRoom` di lib/api/chat (filter, badge, header, banner).
+ */
+const isTransactionRoom = isTransactionChatRoom
 
 /**
  * CHT-008: indikator "mengetik…" di DAFTAR room.
@@ -140,8 +146,15 @@ function isTransactionRoom(room: ChatRoom): boolean {
  *
  * Mengembalikan Set roomId yang sedang mengetik (selain diri sendiri).
  */
-const TYPING_JOIN_BATCH = 10
-const TYPING_JOIN_GAP_MS = 2000
+/**
+ * Audit Pesan 2026-10-10 (daftar #2): gateway membatasi 30 pesan WS / 10 dtk
+ * per pengguna dan `join-room`/`leave-room` ikut dihitung. 10 join / 2 dtk
+ * = 50 / 10 dtk → join ruang yang kemudian dibuka pengguna ditolak "Rate
+ * limit exceeded" (pesan live & typing ruang itu mati). Kini 4 / 2,5 dtk =
+ * 16 / 10 dtk, menyisakan ruang untuk leave + join layar ruang.
+ */
+const TYPING_JOIN_BATCH = 4
+const TYPING_JOIN_GAP_MS = 2500
 
 function useChatListTyping(roomIds: string[]): Set<string> {
   // PERF-FIX (state audit): aksi stabil via context terpisah — tidak ikut
@@ -216,12 +229,21 @@ function useChatListTyping(roomIds: string[]): Set<string> {
 
   // Join bertahap room yang tampil; leave yang tak tampil lagi.
   const roomKey = roomIds.join(",")
+  const focusTickRef = useRef(focusTick)
   useEffect(() => {
     if (!socket || status !== "connected") return
     const api = apiRef.current
     // Reconnect = join sisi server hilang semua — mulai dari nol.
     if (epochRef.current !== epoch) {
       epochRef.current = epoch
+      joinedRef.current.clear()
+    }
+    // Audit Pesan 2026-10-10 (daftar #3): layar ruang mengirim `leave-room`
+    // saat ditutup (tanpa hitung rujukan di server) → join milik daftar untuk
+    // ruang itu ikut lenyap, sementara `joinedRef` masih mencatatnya dan
+    // tidak pernah join ulang. Kembali fokus = lupakan catatan join lokal.
+    if (focusTickRef.current !== focusTick) {
+      focusTickRef.current = focusTick
       joinedRef.current.clear()
     }
     const wanted = new Set(roomIds)
@@ -291,13 +313,35 @@ function useChatListTyping(roomIds: string[]): Set<string> {
  *     saat pengguna di tab lain, jadi listener ini hidup selama sesi).
  */
 function useChatListLiveUpdates(
-  query: { setData: (fn: (prev: ChatRoom[]) => ChatRoom[]) => void; refresh: () => void },
+  query: {
+    data: ChatRoom[]
+    setData: (fn: (prev: ChatRoom[]) => ChatRoom[]) => void
+    refresh: () => void
+  },
   focused: boolean,
 ) {
   const { socket, status, epoch } = useRealtime()
   const { viewerId, unwrapEvent } = useRealtimeActions()
-  const ref = useRef({ query, focused, viewerId, unwrapEvent, dirty: false })
-  ref.current = { ...ref.current, query, focused, viewerId, unwrapEvent }
+  /**
+   * Audit Pesan 2026-10-10 (daftar #7): broadcast netral membawa id PUBLIK
+   * pengirim (USR-…) sedangkan `viewerId` JWT adalah id internal — pesan
+   * saya dari perangkat lain dulu dihitung +1 unread. Simpan kedua id.
+   */
+  const [selfIds, setSelfIds] = useState<string[]>([])
+  useEffect(() => {
+    let alive = true
+    void getMeCached()
+      .then((me) => {
+        if (!alive) return
+        setSelfIds([me?.userId, me?.id].filter((v): v is string => typeof v === "string" && v.length > 0))
+      })
+      .catch(() => undefined)
+    return () => {
+      alive = false
+    }
+  }, [])
+  const ref = useRef({ query, focused, viewerId, selfIds, unwrapEvent, dirty: false })
+  ref.current = { ...ref.current, query, focused, viewerId, selfIds, unwrapEvent }
 
   useEffect(() => {
     if (!socket || status !== "connected") return
@@ -319,16 +363,20 @@ function useChatListLiveUpdates(
         logWarn("chat-list:realtime-message", err)
         return
       }
-      let missing = false
+      // Daftar #9: keputusan "ruang belum ada di daftar" dihitung dari data
+      // TERKINI di luar updater — React boleh menunda updater, sehingga flag
+      // yang diisi di dalamnya terbaca basi dan refresh tidak pernah dipanggil.
+      if (message.roomId && !state.query.data.some((r) => r.id === message.roomId)) {
+        state.query.refresh()
+        return
+      }
       state.query.setData((prev) => {
-        const next = applyIncomingMessageToRooms(prev, message, { viewerId: state.viewerId })
-        if (next === null) {
-          missing = true
-          return prev
-        }
-        return next
+        const next = applyIncomingMessageToRooms(prev, message, {
+          viewerId: state.viewerId,
+          viewerIds: state.selfIds,
+        })
+        return next ?? prev
       })
-      if (missing) state.query.refresh()
     }
     socket.on(CHAT_SOCKET_EVENTS.NEW_MESSAGE, onNewMessage)
     return () => {
@@ -341,6 +389,31 @@ function useChatListLiveUpdates(
     ref.current.dirty = false
     ref.current.query.refresh()
   }, [focused])
+
+  // Daftar #4: ruang yang baru saja dibaca (layar ruang) → badge baris nol
+  // seketika, tanpa menunggu refetch 30 dtk.
+  useEffect(
+    () =>
+      subscribeChatRoomRead((roomId) => {
+        ref.current.query.setData((prev) =>
+          prev.some((r) => r.id === roomId && r.unreadCount > 0)
+            ? prev.map((r) => (r.id === roomId ? { ...r, unreadCount: 0 } : r))
+            : prev,
+        )
+      }),
+    [],
+  )
+
+  // Daftar #5: kembali dari latar belakang → daftar bisa basi (push masuk
+  // selagi app di latar; `useIsFocused` tetap true). Segarkan diam-diam.
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (next) => {
+      if (next !== "active") return
+      if (ref.current.focused) ref.current.query.refresh()
+      else ref.current.dirty = true
+    })
+    return () => sub.remove()
+  }, [])
 }
 
 /**
@@ -518,7 +591,9 @@ function ChatRoomRowBase({
         unreadCount={item.unreadCount}
         // U5-009 (UX-deep 2026-09-29): room ber-orderId ditandai badge
         // "Terlindungi" dengan ikon gembok, bukan kode order mentah.
-        orderBadge={item.orderId != null}
+        // Bug #1: badge "Transaksi" mengikuti definisi bersama (orderId ATAU
+        // type ORDER) — sama dengan filter & layar ruang.
+        orderBadge={isTransactionRoom(item)}
         selecting={selecting}
         selected={selected}
         onPressIn={handlePressIn}
@@ -675,7 +750,11 @@ function ChatScreenContent() {
 
   // ── Item 18: pin per-perangkat — daftar subscribe agar toggle pin
   // memperbarui urutan tanpa refetch. ────────────────────────────────
-  const [, setPinVersion] = useState(0)
+  // Audit Pesan 2026-10-10 (daftar #1): versi pin masuk ke deps `shownRooms`
+  // (urutan pinned-first) DAN `renderChatRoomItem` (ikon pin) — dulu
+  // `setPinVersion` me-render layar tetapi kedua memo itu tidak punya dep
+  // pin sehingga baris & urutan baru berubah setelah refetch berikutnya.
+  const [pinVersion, setPinVersion] = useState(0)
   useEffect(() => {
     void ensurePinnedLoaded().then(() => setPinVersion((v) => v + 1))
     return subscribePinnedRooms(() => setPinVersion((v) => v + 1))
@@ -738,7 +817,9 @@ function ChatScreenContent() {
           ? base.filter(isTransactionRoom)
           : base
     return sortRoomsPinnedFirst(filtered)
-  }, [activeQuery.data, filter])
+    // pinVersion: urutan pinned-first dibaca dari memory pin (bukan dari room).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeQuery.data, filter, pinVersion])
 
   // CHT-008: indikator typing di daftar — join bertahap room yang tampil.
   // Audit chat F15: hanya ruang teratas yang di-join (lihat TYPING_JOIN_MAX_ROOMS).
@@ -809,6 +890,8 @@ function ChatScreenContent() {
   useEffect(() => {
     exitSelect()
   }, [filter, exitSelect])
+  // Daftar #25: tombol kembali Android menutup mode pilih, bukan keluar tab.
+  useOverlayDismissKeys(selecting, exitSelect)
 
   /**
    * Jalankan satu aksi untuk semua ruang terpilih. `Promise.allSettled` (bukan
@@ -842,7 +925,7 @@ function ChatScreenContent() {
       if (ok > 0) {
         haptic("success")
         toast.show({
-          title: ok === 1 ? successTitle : `${successTitle} (${ok} percakapan)`,
+          title: ok === 1 ? successTitle : translate("{x} ({y} percakapan)", { x: successTitle, y: ok }),
           tone: "success",
           duration: 2500,
         })
@@ -888,6 +971,9 @@ function ChatScreenContent() {
     // query arsip nonaktif (tidak menembak API).
     mainQuery.refresh()
     archivedQuery.refresh()
+    // Daftar #8: total unread server mengecualikan ruang arsip — badge tab
+    // ikut disegarkan, bukan menunggu poll 60 dtk.
+    void refreshChatUnreadCount()
   }, [archiveOpen, runBatch, mainQuery, archivedQuery])
 
   // ── Item 18: swipe per-baris ─────────────────────────────────────────
@@ -899,13 +985,13 @@ function ChatScreenContent() {
         const pinned = await toggleRoomPinned(room.id)
         haptic("select")
         toast.show({
-          title: pinned ? "Percakapan disematkan" : "Semat percakapan dilepas",
+          title: pinned ? translate("Percakapan disematkan") : translate("Semat percakapan dilepas"),
           tone: "neutral",
           duration: 2000,
         })
       } catch (err) {
         toast.show({
-          title: "Gagal mengubah sematan",
+          title: translate("Gagal mengubah sematan"),
           description: isApiError(err) ? userMessage(err) : undefined,
           tone: "danger",
         })
@@ -922,15 +1008,16 @@ function ChatScreenContent() {
         patchRoom(room.id, { isArchived: res.isArchived })
         haptic("success")
         toast.show({
-          title: unarchive ? "Pesan dikeluarkan dari arsip" : "Pesan diarsipkan",
+          title: unarchive ? translate("Percakapan dikeluarkan dari arsip") : translate("Percakapan diarsipkan"),
           tone: "neutral",
           duration: 2000,
         })
         mainQuery.refresh()
         archivedQuery.refresh()
+        void refreshChatUnreadCount()
       } catch (err: unknown) {
         toast.show({
-          title: "Gagal memperbarui arsip percakapan",
+          title: translate("Gagal memperbarui arsip percakapan"),
           description: userMessage(err),
           tone: "danger",
         })
@@ -974,14 +1061,16 @@ function ChatScreenContent() {
               ORDER_STATUS_LABELS[order.status as keyof typeof ORDER_STATUS_LABELS] ??
               order.status
             setDeleteBlockedMessage(
-              `Chat transaksi hanya bisa dihapus setelah pesanan selesai. Status pesanan ini: ${label}.`,
+              translate("Chat transaksi hanya bisa dihapus setelah pesanan selesai. Status pesanan ini: {x}.", {
+                x: translate(label),
+              }),
             )
             setDeleteRoom(room)
           }
         })
         .catch(() => {
           setDeleteBlockedMessage(
-            "Status pesanan tidak bisa diperiksa saat ini. Coba lagi nanti.",
+            translate("Status pesanan tidak bisa diperiksa saat ini. Coba lagi nanti."),
           )
           setDeleteRoom(room)
         })
@@ -1003,10 +1092,11 @@ function ChatScreenContent() {
       // Umpan balik instan + rekonsiliasi kedua query dengan server (seperti arsip).
       removeRoom(roomId)
       haptic("success")
-      toast.show({ title: translate("Pesan dihapus"), tone: "neutral" })
+      toast.show({ title: translate("Percakapan dihapus"), tone: "neutral" })
       closeDelete()
       mainQuery.refresh()
       archivedQuery.refresh()
+      void refreshChatUnreadCount()
     } catch (err: unknown) {
       const backendCode = isApiError(err) ? err.backendCode : undefined
       const status = isApiError(err) ? err.status : undefined
@@ -1117,10 +1207,11 @@ function ChatScreenContent() {
         onFullSwipe={fullSwipeAction}
       />
     ),
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- draftVersion: pemicu baca ulang peekChatDraft
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- draftVersion/pinVersion: pemicu baca ulang peekChatDraft/isRoomPinned
     [
       typingRooms,
       draftVersion,
+      pinVersion,
       viewerId,
       selecting,
       selected,
@@ -1163,7 +1254,7 @@ function ChatScreenContent() {
       ) : filter === "transaction" ? (
         <EmptyState
           icon={Chats}
-          title="Belum ada pesan transaksi"
+          title={translate("Belum ada percakapan transaksi")}
         />
       ) : (
         <EmptyState
@@ -1171,9 +1262,11 @@ function ChatScreenContent() {
           title="Belum ada percakapan"
           // UI-C004: empty state wajib punya jalan keluar yang bisa
           // diketuk — chat selalu bermula dari sebuah transaksi.
+          // Daftar #31: DM kini bisa dimulai dari (+) — CTA mengarah ke
+          // "Pesan baru", bukan ke daftar transaksi.
           action={
-            <Button fullWidth={false} onPress={() => router.push(ROUTES.transactions)}>
-              Lihat transaksi
+            <Button fullWidth={false} onPress={() => router.push(ROUTES.chatNew)}>
+              {translate("Kirim pesan baru")}
             </Button>
           }
         />
@@ -1345,11 +1438,14 @@ function ChatScreenContent() {
           title={translate("Memeriksa status pesanan…")}
           description={translate("Aturan: chat transaksi hanya bisa dihapus setelah pesanan selesai.")}
           visible
-          hideCancel
+          // Daftar #24: pemeriksaan di jaringan lambat tidak boleh mengunci
+          // pengguna di balik modal — Batal menutupnya (hasil cek diabaikan).
+          cancelLabel={translate("Batal")}
           confirmLabel={translate("Tunggu")}
           confirmButtonProps={{ disabled: true, loading: true }}
           onConfirm={() => undefined}
-          onRequestClose={() => undefined}
+          onCancel={() => setDeleteChecking(false)}
+          onRequestClose={() => setDeleteChecking(false)}
         />
       ) : null}
     </Screen>

@@ -282,3 +282,45 @@ describe("gema netral milik sendiri (selfIds)", () => {
     expect(findOptimisticMatch([optimistic()], neutral)).toBeNull()
   })
 })
+
+
+describe("audit Pesan 2026-10-10 (realtime #3): arah bubble tidak berbalik oleh sudut pandang payload", () => {
+  const peer = (over: Partial<ChatMessage> = {}): ChatMessage => ({
+    id: "s1",
+    text: "halo",
+    fromUser: false,
+    messageType: "TEXT",
+    createdAt: iso(0),
+    senderId: "USR-PEER",
+    ...over,
+  })
+
+  it("chat.message_updated dari sudut pandang PENGEDIT (fromUser: true) tidak memindahkan bubble lawan ke sisi saya", () => {
+    const prev = [peer()]
+    const updated = peer({ text: "halo (diedit)", isEdited: true, fromUser: true })
+    const { next } = mergeChatMessages(prev, [updated], { selfIds: ["USR-ME", "me-internal"] })
+    expect(next[0].text).toBe("halo (diedit)")
+    expect(next[0].fromUser).toBe(false)
+  })
+
+  it("gema netral (fromUser: false) untuk pesan SAYA yang sudah dikenal tidak menurunkannya ke sisi lawan", () => {
+    const mine = peer({ id: "m1", fromUser: true, senderId: "USR-ME" })
+    const neutral = peer({ id: "m1", fromUser: false, senderId: "USR-ME", isPinned: true })
+    const { next } = mergeChatMessages([mine], [neutral], { selfIds: ["USR-ME"] })
+    expect(next[0].isPinned).toBe(true)
+    expect(next[0].fromUser).toBe(true)
+  })
+
+  it("reaksi dari payload sudut pandang lain direkonsiliasi dari users[] terhadap id saya", () => {
+    const prev = [peer({ id: "r1" })]
+    const incoming = peer({
+      id: "r1",
+      reactions: [
+        { emoji: "👍", count: 1, reactedByMe: true, users: [{ userId: "USR-PEER" }] },
+        { emoji: "❤️", count: 1, reactedByMe: false, users: [{ userId: "USR-ME" }] },
+      ],
+    })
+    const { next } = mergeChatMessages(prev, [incoming], { selfIds: ["USR-ME"] })
+    expect(next[0].reactions?.map((r) => r.reactedByMe)).toEqual([false, true])
+  })
+})

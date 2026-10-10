@@ -65,6 +65,7 @@ import { Card } from "@/components/ui/card"
 import { Chip } from "@/components/ui/chip"
 import { Divider } from "@/components/ui/divider"
 import { EmptyState } from "@/components/ui/empty-state"
+import { OfflineEmptyState } from "@/components/ui/offline-empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { Header } from "@/components/ui/header"
 import { HelpArticleListItem } from "@/components/ui/help-article-list-item"
@@ -396,6 +397,19 @@ export default function SearchScreen() {
       : chatsOnly
         ? chatsResult.error
         : (result.error ?? postsResult.error ?? chatsResult.error)
+  // AP-01 (audit etalase 2026-10-10): offline tanpa cache = BUKAN "Tidak ada
+  // hasil" — useApiQuery menandainya lewat `offlineMiss` (error null), dan
+  // layar ini dulu tidak membacanya sama sekali (empty state + LiveRegion
+  // berbohong). Mengikuti query yang aktif untuk cakupan saat ini.
+  const offlineMiss =
+    enabled &&
+    (usersOnly
+      ? usersResult.offlineMiss
+      : postsOnly
+        ? postsResult.offlineMiss
+        : chatsOnly
+          ? chatsResult.offlineMiss
+          : result.offlineMiss || postsResult.offlineMiss || chatsResult.offlineMiss)
   const suggestions = useApiQuery(
     `suggestions:${keyword}`,
     (signal) => api.search.getSearchSuggestions({ q: keyword }, signal),
@@ -427,11 +441,15 @@ export default function SearchScreen() {
   const recordedKeyword = useRef<string | null>(null)
   useEffect(() => {
     if (!enabled) return
+    // AP-05 (audit etalase 2026-10-10): hanya kata kunci cakupan PUBLIK
+    // (Semua/Postingan) yang masuk tren publik — pencarian Pesan/Pesanan/
+    // Mutasi (nama lawan bicara, nomor HP, ID pesanan) adalah data pribadi.
+    if (scope !== "all" && scope !== "posts") return
     const q = keyword.trim()
     if (recordedKeyword.current === q) return
     recordedKeyword.current = q
     void api.commerce.recordSearchTrend(q)
-  }, [enabled, keyword])
+  }, [enabled, keyword, scope])
 
   // #6a (audit Discovery 2026-09-26): riwayat basi setelah mencari — backend
   // menyimpan riwayat secara async saat pencarian berjalan, jadi segarkan
@@ -622,6 +640,7 @@ export default function SearchScreen() {
     error: searchError,
     loading,
     count: totalResults,
+    offline: offlineMiss,
   })
 
   /** Isi kolom dari chip saran/riwayat, atau kosongkan lewat `applyQuery("")`. */
@@ -684,11 +703,15 @@ export default function SearchScreen() {
     const fingerprint = `${q}|${scope}|${loc}`
     if (fingerprint === lastSyncedUrl.current) return
     lastSyncedUrl.current = fingerprint
-    const next: Record<string, string> = {}
-    if (q) next.q = q
-    if (scope !== "all") next.scope = scope
-    if (loc) next.location = loc
-    router.setParams(next)
+    // AP-07 (audit etalase 2026-10-10): `setParams` MENGGABUNGKAN — kunci
+    // yang dihapus harus dikirim `undefined`, kalau tidak URL web menyimpan
+    // kata kunci/cakupan lama dan reload memulihkannya (pola feed-tab).
+    const next: Record<string, string | undefined> = {
+      q: q || undefined,
+      scope: scope !== "all" ? scope : undefined,
+      location: loc || undefined,
+    }
+    router.setParams(next as Record<string, string>)
   }, [keyword, scope, location])
 
   /*
@@ -921,6 +944,8 @@ export default function SearchScreen() {
     () =>
       loading ? (
         <ListLoading />
+      ) : offlineMiss ? (
+        <OfflineEmptyState />
       ) : searchError ? (
         <ErrorState
           title={translate("Gagal mencari")}
@@ -984,6 +1009,7 @@ export default function SearchScreen() {
       ),
     [
       loading,
+      offlineMiss,
       searchError,
       result,
       usersResult,

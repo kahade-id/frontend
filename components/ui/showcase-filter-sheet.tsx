@@ -100,19 +100,27 @@ export function ShowcaseFilterSheet({
     onRequestClose()
   }
 
+  // UX-23 (audit etalase 2026-10-10): label opsi diterjemahkan di sini —
+  // konstanta modul tidak lewat `translate()` sehingga chip tetap Indonesia
+  // di UI English.
+  const conditionOptions = CONDITION_OPTIONS.map((o) => ({ ...o, label: translate(o.label) }))
+  const ratingOptions = RATING_OPTIONS.map((o) => ({ ...o, label: translate(o.label) }))
   return (
     <BottomSheet
+      // VI-09: sheet berisi input harga — geser di atas keyboard seperti sheet lain.
+      avoidKeyboard
       visible={visible}
       onRequestClose={onRequestClose}
       title={translate("Filter etalase")}
       footer={
         <View className="flex-row gap-2">
-          <Button variant="secondary" onPress={resetDraft} className="flex-1">
+          {/* VI-05: `className` jatuh ke kotak dalam — lebar dibagi lewat containerClassName. */}
+          <Button variant="secondary" onPress={resetDraft} containerClassName="flex-1">
             {translate("Atur ulang")}
           </Button>
           <Button
             onPress={apply}
-            className="flex-1"
+            containerClassName="flex-1"
             disabled={priceInvalid}
             accessibilityHint={
               priceInvalid
@@ -133,7 +141,7 @@ export function ShowcaseFilterSheet({
           <ChipGroup
             accessibilityLabel={translate("Saring berdasarkan kondisi barang")}
             single
-            options={CONDITION_OPTIONS}
+            options={conditionOptions}
             value={[draft.condition]}
             onChange={setCondition}
           />
@@ -146,7 +154,7 @@ export function ShowcaseFilterSheet({
           <ChipGroup
             accessibilityLabel={translate("Saring berdasarkan rating penjual minimum")}
             single
-            options={RATING_OPTIONS}
+            options={ratingOptions}
             value={[draft.minRating]}
             onChange={setRating}
           />

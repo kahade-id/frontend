@@ -15,6 +15,7 @@ import { AppState } from "react-native"
 import { useIsFocused } from "expo-router"
 
 import { serverNow } from "@/lib/server-time"
+import { minuteBucket } from "@/lib/minute-bucket"
 
 const listeners = new Set<(nowMs: number) => void>()
 let interval: ReturnType<typeof setInterval> | null = null
@@ -54,6 +55,18 @@ export function useClockTick(active: boolean): number {
     return subscribe(setNowMs)
   }, [active])
   return nowMs
+}
+
+/**
+ * FD-09 (audit etalase 2026-10-10): detak per MENIT bersama untuk cap waktu
+ * relatif ("5 menit lalu" tidak lagi membeku). Memakai interval 1-Hz yang
+ * sama, tetapi setState hanya saat ember menit berubah — React bail-out saat
+ * nilai sama, jadi puluhan kartu feed tidak re-render tiap detik.
+ */
+export function useMinuteTick(): number {
+  const [minute, setMinute] = useState(() => minuteBucket(serverNow()))
+  useEffect(() => subscribe((now) => setMinute(minuteBucket(now))), [])
+  return minute
 }
 
 /**

@@ -36,6 +36,63 @@ export const CHAT_BUBBLE_MAX_WIDTH_PCT = 76
  */
 export const CHAT_AVATAR_COLUMN_PX = 32
 
+/**
+ * Bug #7 (audit Pesan 2026-10-10): LEBAR MEDIA = LEBAR KOLOM BUBBLE.
+ *
+ * Dulu foto/video/berkas/pesan suara memakai lebar tetap (`w-52` = 208px,
+ * `w-56` = 224px) sementara caption di bawahnya membungkus sampai batas kolom
+ * 76% — di layar 360dp kolom itu ±243px, di 412dp ±283px. Hasilnya bubble
+ * "bertangga": media 208px, teks lebih lebar (atau lebih sempit untuk caption
+ * pendek) sehingga ukuran lampiran tidak pernah mengikuti pesan teksnya.
+ *
+ * Kini lebar media dihitung dari geometri kolom yang SAMA dengan yang
+ * dipakai bubble (gutter + 76% + kolom avatar + bingkai 3px), dijepit ke
+ * rentang yang masih enak dilihat. Caption pun membungkus tepat selebar
+ * media — satu objek, seperti WhatsApp/Telegram. Murni, bisa diuji.
+ */
+export const CHAT_MEDIA_WIDTH_MIN_PX = 200
+export const CHAT_MEDIA_WIDTH_MAX_PX = 320
+/** Bingkai bubble lampiran (`p-[3px]`) — kiri + kanan. */
+export const CHAT_MEDIA_FRAME_PX = 3 * 2
+/** Kolom avatar pesan masuk: foto 24px + gap 6px (lihat chat-message-bubble). */
+export const CHAT_MEDIA_AVATAR_COLUMN_PX = 24 + 6
+
+export function chatMediaWidthPx(
+  rowWidth: number,
+  opts: { hasAvatarColumn?: boolean } = {},
+): number {
+  const safeRow = Number.isFinite(rowWidth) && rowWidth > 0 ? rowWidth : 360
+  const column = (safeRow - CHAT_MESSAGE_GUTTER_PX * 2) * (CHAT_BUBBLE_MAX_WIDTH_PCT / 100)
+  const inner = column - (opts.hasAvatarColumn ? CHAT_MEDIA_AVATAR_COLUMN_PX : 0) - CHAT_MEDIA_FRAME_PX
+  return Math.round(Math.max(CHAT_MEDIA_WIDTH_MIN_PX, Math.min(CHAT_MEDIA_WIDTH_MAX_PX, inner)))
+}
+
+/**
+ * Bug #2 (audit Pesan 2026-10-10): sudut "ekor" grup. Tanpa ekor dekoratif
+ * (§6), pesan PERTAMA sebuah kelompok diberi satu sudut lebih tajam di sisi
+ * pengirimnya (kanan-atas untuk keluar, kiri-atas untuk masuk) — pola
+ * Telegram/iMessage yang membuat awal kelompok terbaca tanpa menambah tinta.
+ * Pesan lanjutan (`grouped`) tetap simetris. Pesan sistem tidak punya ekor.
+ */
+export function bubbleTailCornerClass(side: ChatBubbleSide, grouped: boolean): string | undefined {
+  if (grouped || side === "system") return undefined
+  return side === "outgoing" ? "rounded-tr-xs" : "rounded-tl-xs"
+}
+
+/**
+ * Bug #2: ruang yang disisakan di UJUNG BARIS TERAKHIR teks untuk meta (jam +
+ * centang) yang digambar absolut di pojok kanan-bawah bubble — pola
+ * WhatsApp. Dulu reservasi dipasang sebagai `paddingRight` bubble sehingga
+ * SETIAP baris teks menyempit dan pesan panjang punya pita kosong di kanan.
+ * `reservePx` = hasil `bubbleMetaReservePx` (sudah termasuk tepi 12px).
+ * `pillPaddingPx` = padding horizontal pill meta pada bubble lampiran.
+ */
+export function bubbleMetaInlineSpacerPx(reservePx: number, opts: { pill?: boolean } = {}): number {
+  const base = Math.max(0, reservePx - META_EDGE_PX)
+  // Celah 6px dari huruf terakhir ke meta; pill lampiran punya padding 6px×2.
+  return base + 6 + (opts.pill ? 12 : 0)
+}
+
 export type ChatBubbleGeometry = {
   /** Inset horizontal luar baris (px) — identik kiri & kanan (mirror). */
   gutter: number
@@ -339,6 +396,10 @@ export function bubbleMetaReservePx(input: BubbleMetaReserveInput): number {
  * layar; dengan penjepit, ada "tahanan" terasa di ujung.
  */
 export function clampSwipeReply(translationX: number): number {
+  // Direktif "worklet": helper ini pernah dipanggil dari worklet pan
+  // (bug #9, force close). Pemanggil kini meng-inline matematikanya; direktif
+  // tetap dipasang sebagai pertahanan kedua bila ada pemanggil baru.
+  "worklet"
   return Math.max(-SWIPE_REPLY_MAX_PX, Math.min(translationX, SWIPE_REPLY_MAX_PX))
 }
 
@@ -352,6 +413,7 @@ export function shouldTriggerSwipeReply(
   translationX: number,
   velocityX: number,
 ): boolean {
+  "worklet"
   return (
     Math.abs(translationX) >= SWIPE_REPLY_THRESHOLD_PX ||
     Math.abs(velocityX) >= SWIPE_REPLY_FLING_VELOCITY_PX_S

@@ -19,6 +19,8 @@ vi.mock("@/lib/use-api-query", () => ({ useApiQuery: () => ({ data: { data: [], 
 vi.mock("@/lib/showcase-social-prefs", () => ({ queueShowcaseCommentCount: mocks.commentDelta }))
 vi.mock("@/components/ui/toast", () => ({ useToast: () => ({ show: mocks.toast }) }))
 vi.mock("@/components/ui/bottom-sheet", () => ({ BottomSheet: ({ visible, children, footer }: { visible: boolean; children: ReactNode; footer: ReactNode }) => visible ? <div>{children}{footer}</div> : null }))
+// SO-03: sheet kini merender Dialog konfirmasi hapus (butuh ThemeProvider) — di-stub.
+vi.mock("@/components/ui/modal", () => ({ Dialog: () => null }))
 vi.mock("@/components/ui/button", () => ({ Button: ({ onPress, children }: { onPress: () => void; children: ReactNode }) => <button onClick={onPress}>{children}</button> }))
 vi.mock("@/components/ui/text", () => ({ Text: ({ children }: { children: ReactNode }) => <span>{children}</span> }))
 vi.mock("@/components/ui/input", () => ({ Input: ({ value, onChangeText, onSubmitEditing, disabled }: { value: string; onChangeText: (v: string) => void; onSubmitEditing: () => void; disabled: boolean }) => <input aria-label="draft" value={value} disabled={disabled} onChange={event => onChangeText(event.target.value)} onKeyDown={event => { if (event.key === "Enter") onSubmitEditing() }} /> }))
