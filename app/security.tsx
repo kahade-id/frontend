@@ -7,6 +7,7 @@
  * eksplisit di footer; perubahan akun dijalankan pada layar tujuan.
  */
 import { ScrollView, View } from "react-native"
+import { useSafeAreaInsets } from "react-native-safe-area-context"
 import {
   Bell,
   DeviceMobile,
@@ -22,6 +23,7 @@ import {
 } from "phosphor-react-native"
 
 import { ROUTES } from "@/lib/routes"
+import { tokens } from "@/lib/tokens"
 
 import { Header } from "@/components/ui/header"
 import { ListItem } from "@/components/ui/list-item"
@@ -30,18 +32,17 @@ import { Screen } from "@/components/ui/screen"
 import { SecurityLogoutControl } from "@/components/security/security-logout-control"
 
 export default function SecurityScreen() {
+  const insets = useSafeAreaInsets()
+
   return (
-    <Screen
-      edges={["top"]}
-      padded={false}
-      footer={<SecurityLogoutControl />}
-    >
+    <Screen edges={["top"]} padded={false}>
       <Header title="Keamanan" />
       <ScrollView
         className="flex-1"
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
-        contentContainerClassName="gap-5 px-5 pb-8 pt-4"
+        contentContainerClassName="gap-5 px-5 pt-4"
+        contentContainerStyle={{ paddingBottom: insets.bottom + tokens.space[8] }}
       >
         <View className="gap-2">
           <MenuGroupLabel>Kredensial</MenuGroupLabel>
@@ -166,6 +167,12 @@ export default function SecurityScreen() {
             />
           </View>
         </View>
+
+        {/* P3 (overhaul auth 2026-10-10): "Keluar" mengikuti konten di ujung
+            daftar, bukan FooterBar berpemisah `border-t`. Urutannya sengaja
+            setelah "Zona Berbahaya" — keluar bukan bagian dari hapus akun,
+            tapi tetap aksi terakhir yang dibaca pengguna. */}
+        <SecurityLogoutControl />
       </ScrollView>
     </Screen>
   )

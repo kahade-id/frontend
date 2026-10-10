@@ -29,6 +29,7 @@ import { ScrollView, type TextInputInstance } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useRouter } from "expo-router"
 
+import { AuthSecurityInfo } from "@/components/auth/auth-security-info"
 import { Alert } from "@/components/ui/alert"
 import { FadeIn } from "@/components/ui/fade-in"
 import { FooterBar } from "@/components/ui/footer-bar"
@@ -145,7 +146,9 @@ export default function ForgotPasswordScreen() {
 
   return (
     <Screen padded={false} edges={["top"]}>
-      <Header title="Lupa Kata Sandi" progress={STEP_PROGRESS} safeArea={false} />
+      <Header title="Lupa Kata Sandi" progress={STEP_PROGRESS} safeArea={false}
+        right={<AuthSecurityInfo variant="whatsappOtp" />}
+      />
 
       <KeyboardAvoiding offset={insets.top + HEADER_BAR_HEIGHT}>
         <ScrollView
@@ -207,21 +210,6 @@ export default function ForgotPasswordScreen() {
               ? `Coba lagi dalam ${formatCountdown(cooldownSeconds)}`
               : "Lanjutkan"}
           </Button>
-          {/*
-           * FE-039: alur OTP bersifat customer-initiated — tegaskan bahwa
-           * user yang akan diminta mengirim pesan ke WhatsApp kami, bukan
-           * aplikasi yang mengirim kode ke user.
-           */}
-          <Text variant="caption" tone="secondary" className="text-center text-pretty">
-            Anda akan diminta mengirim pesan ke WhatsApp kami terlebih dahulu.
-          </Text>
-          {/*
-           * T1-007: submit auth memicu dialog izin lokasi (getAuthLocation)
-           * — jelaskan dulu di UI supaya tidak mengejutkan.
-           */}
-          <Text variant="caption" tone="secondary" className="text-center text-pretty">
-            Demi keamanan, lokasi perangkat dapat dicatat jika Anda mengizinkan akses.
-          </Text>
           {/*
            * FE-IMP-3 #112 — reset HANYA via nomor HP (tidak ada jalur email).
            * Nomor tidak aktif = tidak bisa terima balasan WA → tautan bantuan.

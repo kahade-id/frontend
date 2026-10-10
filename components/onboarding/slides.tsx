@@ -5,8 +5,14 @@
  * Artefak dibangun dari primitif UI yang sama dengan app sesungguhnya
  * (Card, Amount, OrderStatusBadge, Timeline, IconText) — bukan ilustrasi
  * gambar — supaya calon user melihat *persis* apa yang akan mereka pakai:
- * nominal Mono, badge status, garis waktu escrow. Ini "satu titik kejutan"
- * (§1.6) layar ini; sisanya tenang.
+ * nominal Mono, badge status, garis waktu pembayaran. Ini "satu titik
+ * kejutan" (§1.6) layar ini; sisanya tenang.
+ *
+ * COPY (kebijakan 2026-10-10): tanpa istilah "escrow", "rekber", atau
+ * "ditahan" — bahasa teknis/internal tidak boleh menjadi kalimat pertama
+ * yang dibaca calon pengguna. Konsepnya tetap sama (dana belum berpindah ke
+ * penjual sebelum barang diterima), tetapi disebut dengan kata kerja yang
+ * dipakai orang sehari-hari: "disimpan", "diteruskan", "dilepas".
  *
  * Keputusan non-obvious:
  *   - Judul memakai <DisplayHeading> (EB Garamond 34/42) — satu dari sedikit
@@ -61,7 +67,7 @@ export type OnboardingSlide = {
 const SAMPLE_AMOUNT = 2_500_000
 const SAMPLE_ORDER_ID = "KHD-240903-0812"
 
-function EscrowCard() {
+function GuaranteeCard() {
   return (
     <Card
       variant="elevated"
@@ -76,16 +82,17 @@ function EscrowCard() {
         <View className="flex-row items-center justify-between gap-3">
           <MonoText tone="secondary">{SAMPLE_ORDER_ID}</MonoText>
           {/* Status contoh memakai enum backend yang asli (PROCESSING = dana
-              sudah di escrow, penjual sedang bekerja) — menampilkan alias lama
-              "PAID" di slide pengenalan berarti mengenalkan kosakata yang
-              tidak akan pernah ditemui pengguna di aplikasi. */}
+              sudah diterima Kahade dan penjual sedang bekerja) — menampilkan
+              alias lama "PAID" di slide pengenalan berarti mengenalkan
+              kosakata yang tidak akan pernah ditemui pengguna di aplikasi. */}
           <OrderStatusBadge status="PROCESSING" />
         </View>
         <VStack gap={1}>
-          {/* v2: baris "ditahan" = momen trust pertama yang dilihat calon user
-              → pine. Konsisten dengan hint escrow di Beranda & TrustScoreCard. */}
+          {/* Baris penanda dana = momen trust pertama yang dilihat calon user
+              → pine. Copy 2026-10-10: "disimpan Kahade", bukan "ditahan"
+              (istilah internal yang terbaca seperti masalah, bukan jaminan). */}
           <Text variant="caption" tone="accent">
-            Dana ditahan Kahade
+            Dana disimpan Kahade
           </Text>
           <Amount value={SAMPLE_AMOUNT} size="large" />
         </VStack>
@@ -103,11 +110,11 @@ function FlowCard() {
     <Card
       variant="elevated"
       accessibilityLabel={summarize([
-        "Contoh alur escrow",
+        "Contoh alur pembayaran",
         "Pembeli membayar, selesai",
         "Penjual mengirim, selesai",
         "Barang diterima, sedang berjalan",
-        "Dana dilepas ke penjual, belum dimulai",
+        "Dana diteruskan ke penjual, belum dimulai",
       ])}
     >
       <Timeline
@@ -117,7 +124,7 @@ function FlowCard() {
           { id: "pay", title: "Pembeli membayar", status: "done" },
           { id: "ship", title: "Penjual mengirim", status: "done" },
           { id: "receive", title: "Barang diterima", status: "current" },
-          { id: "release", title: "Dana dilepas ke penjual", status: "upcoming" },
+          { id: "release", title: "Dana diteruskan ke penjual", status: "upcoming" },
         ]}
       />
     </Card>
@@ -157,15 +164,15 @@ function ProtectionCard() {
 export const ONBOARDING_SLIDES: readonly OnboardingSlide[] = [
   {
     key: "guarantee",
-    eyebrow: "Jaminan dana",
+    eyebrow: "Perlindungan pembayaran",
     title: "Bukan sekadar transfer — ini jaminan.",
-    body: "Dana pembeli ditahan Kahade, bukan langsung ke penjual. Kedua pihak terlindungi sejak rupiah pertama.",
-    artifact: <EscrowCard />,
+    body: "Dana pembeli disimpan Kahade lebih dulu, tidak langsung masuk ke penjual. Kedua pihak terlindungi sejak rupiah pertama.",
+    artifact: <GuaranteeCard />,
   },
   {
     key: "release",
-    eyebrow: "Alur escrow",
-    title: "Dana dilepas hanya setelah barang sampai.",
+    eyebrow: "Alur pembayaran",
+    title: "Dana diteruskan hanya setelah barang sampai.",
     body: "Penjual mengirim, Anda mengonfirmasi. Baru setelah itu dana diteruskan — setiap langkah tercatat.",
     artifact: <FlowCard />,
   },

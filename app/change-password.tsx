@@ -10,11 +10,13 @@
  *    terlempar 401 misterius.
  */
 import { useCallback, useState } from "react"
-import { ScrollView, View } from "react-native"
+import { ScrollView } from "react-native"
+import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { api, isApiError, userMessage } from "@/lib/api"
 import { clearSession, emitSessionExpired } from "@/lib/api/session"
 import { isCommonPassword, isPasswordValid } from "@/lib/auth-constants"
+import { tokens } from "@/lib/tokens"
 
 import { Button } from "@/components/ui/button"
 import { Header } from "@/components/ui/header"
@@ -26,6 +28,7 @@ import { SectionHeader } from "@/components/ui/section"
 import { useToast } from "@/components/ui/toast"
 
 export default function ChangePasswordScreen() {
+  const insets = useSafeAreaInsets()
   const toast = useToast()
 
   const [current, setCurrent] = useState("")
@@ -101,25 +104,13 @@ export default function ChangePasswordScreen() {
   }, [])
 
   return (
-    <Screen
-      keyboardAvoiding
-      edges={["top"]}
-      padded={false}
-      footer={
-        <View>
-          <Button
-            fullWidth
-            loading={submitting}
-            disabled={!current || !isPasswordValid(next) || next !== confirm}
-            onPress={() => void handleSubmit()}
-          >
-            Simpan password
-          </Button>
-        </View>
-      }
-    >
+    <Screen keyboardAvoiding edges={["top"]} padded={false}>
       <Header title="Ubah Kata Sandi" />
-      <ScrollView keyboardShouldPersistTaps="handled" contentContainerClassName="gap-4 px-5 py-4">
+      <ScrollView
+        keyboardShouldPersistTaps="handled"
+        contentContainerClassName="gap-4 px-5 py-4"
+        contentContainerStyle={{ paddingBottom: insets.bottom + tokens.space[8] }}
+      >
         <PasswordField
           label="Kata sandi saat ini"
           value={current}
@@ -155,6 +146,19 @@ export default function ChangePasswordScreen() {
             helperText="6 digit dari aplikasi autentikator, atau kode cadangan 10–16 karakter."
           />
         ) : null}
+
+        {/* P3 (overhaul auth 2026-10-10): tombol aksi mengikuti konten, bukan
+            FooterBar berpemisah `border-t`. Setelah field terakhir dibaca,
+            tombolnya satu ketukan di bawahnya — dan tidak lagi menutupi isi
+            form saat keyboard naik. */}
+        <Button
+          fullWidth
+          loading={submitting}
+          disabled={!current || !isPasswordValid(next) || next !== confirm}
+          onPress={() => void handleSubmit()}
+        >
+          Simpan password
+        </Button>
       </ScrollView>
 
       {/* BFI-038: sesi dicabut server — dialog satu aksi, tidak bisa

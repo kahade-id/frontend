@@ -37,6 +37,8 @@ import { ScrollView, type TextInputInstance } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useRouter } from "expo-router"
 
+import { LegalConsent } from "@/components/auth/legal-consent"
+import { AuthSecurityInfo } from "@/components/auth/auth-security-info"
 import { Alert } from "@/components/ui/alert"
 import { FadeIn } from "@/components/ui/fade-in"
 import { FooterBar } from "@/components/ui/footer-bar"
@@ -281,7 +283,9 @@ export default function RegisterSecurityScreen() {
 
   return (
     <Screen padded={false} edges={["top"]}>
-      <Header title="Buat Kata Sandi" progress={STEP_PROGRESS} safeArea={false} />
+      <Header title="Buat Kata Sandi" progress={STEP_PROGRESS} safeArea={false}
+        right={<AuthSecurityInfo variant="signUp" />}
+      />
 
       <KeyboardAvoiding offset={insets.top + HEADER_BAR_HEIGHT}>
         <ScrollView
@@ -429,14 +433,11 @@ export default function RegisterSecurityScreen() {
           </FadeIn>
         </ScrollView>
 
+        {/* P4 (overhaul auth 2026-10-10): SATU baris persetujuan di momen
+            akun benar-benar dibuat. Paragraf lokasi + kalimat S&K versi lama
+            (dua blok caption) melebur jadi satu; detailnya di ⓘ header. */}
         <FooterBar>
-          <Text variant="caption" tone="secondary" className="text-center text-pretty">
-            Demi keamanan, lokasi perangkat dapat dicatat jika Anda mengizinkan akses.
-          </Text>
-          <Text variant="caption" tone="secondary" className="text-center text-pretty">
-            Dengan membuat akun, Anda menyetujui Syarat & Ketentuan serta
-            Kebijakan Privasi Kahade.
-          </Text>
+          <LegalConsent action="signUp" />
         </FooterBar>
       </KeyboardAvoiding>
 

@@ -57,6 +57,7 @@ import { OtpInput, OTP_MIN_LENGTH, type OtpInputHandle } from "@/components/ui/o
 import { ScreenCaptureGuard } from "@/components/security/screen-capture-guard"
 import { FadeIn } from "@/components/ui/fade-in"
 import { FooterBar } from "@/components/ui/footer-bar"
+import { AuthSecurityInfo } from "@/components/auth/auth-security-info"
 import { Alert } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Countdown } from "@/components/ui/countdown"
@@ -432,7 +433,9 @@ export default function VerifyOtpScreen() {
     <ScreenCaptureGuard>
       <Screen padded={false} edges={["top"]}>
       {/* T1-002: progress per purpose — register/forgot 3/4 (langkah "masukkan OTP"; FE-040), login/migrasi disembunyikan */}
-      <Header title="Verifikasi OTP" progress={otpStepProgress(purpose, "otp")} safeArea={false} />
+      <Header title="Verifikasi OTP" progress={otpStepProgress(purpose, "otp")} safeArea={false}
+        right={<AuthSecurityInfo variant="whatsappOtp" />}
+      />
 
       <KeyboardAvoiding offset={insets.top + HEADER_BAR_HEIGHT}>
         <ScrollView
@@ -488,10 +491,6 @@ export default function VerifyOtpScreen() {
                 layar ini — kode yang sudah diketik tidak hilang.
               </Alert>
             ) : null}
-
-            <Text variant="caption" tone="secondary" className="text-pretty">
-              Demi keamanan, lokasi perangkat dapat dicatat jika Anda mengizinkan akses.
-            </Text>
 
             {/* Tombol Verifikasi — manual submit, bukan auto */}
             <Button

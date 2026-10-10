@@ -121,9 +121,24 @@ export async function getSocialIdToken(
   }
 }
 
-/** True bila tombol Apple boleh tampil di platform ini. */
+/**
+ * True bila tombol "Lanjut dengan Apple" boleh tampil di platform ini.
+ *
+ * iOS SAJA (kebijakan produk overhaul auth 2026-10-10): Apple sendiri
+ * meminta Sign in with Apple ditawarkan lewat mekanisme native di iOS, dan
+ * HIG melarang tombol Apple tiruan di platform lain. Di Android tombol ini
+ * TIDAK dirender sama sekali — bukan disabled, bukan "segera hadir": baris
+ * yang tidak bisa dipakai hanya menambah beban pilih di layar masuk.
+ *
+ * Web ikut disembunyikan karena `app/index.tsx` mengarahkan pengunjung web ke
+ * https://kahade.id, jadi permukaan web aplikasi ini bukan corong masuk utama.
+ * Jalur Apple berbasis browser di `getAppleIdToken` DIPERTAHANKAN (kontrak
+ * `POST /v1/auth/apple/nonce` + `response_mode=fragment` tetap teruji) supaya
+ * permukaan web yang memang membutuhkannya tinggal melonggarkan fungsi ini —
+ * satu tempat, bukan mencari-cari tombolnya.
+ */
 export function isAppleButtonSupported(): boolean {
-  return Platform.OS === "ios" || Platform.OS === "web"
+  return Platform.OS === "ios"
 }
 
 /**

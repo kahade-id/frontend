@@ -30,13 +30,15 @@
  *     kuota kirim.
  */
 import { useCallback, useState } from "react"
-import { ScrollView, View } from "react-native"
+import { ScrollView } from "react-native"
+import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { router } from "expo-router"
 
 import { api, isApiError, type UserProfile, userMessage } from "@/lib/api"
 import { PASSWORD_MAX } from "@/lib/auth-constants"
 import { queryKeys } from "@/lib/query-keys"
 import { ROUTES } from "@/lib/routes"
+import { tokens } from "@/lib/tokens"
 import { useApiQuery } from "@/lib/use-api-query"
 
 import { Alert } from "@/components/ui/alert"
@@ -52,6 +54,7 @@ import { SensitiveText } from "@/components/ui/sensitive-text"
 import { useToast } from "@/components/ui/toast"
 
 export default function ChangeEmailScreen() {
+  const insets = useSafeAreaInsets()
   const toast = useToast()
 
   const query = useApiQuery<UserProfile>(queryKeys.me(), (signal) => api.users.getMe(signal))
@@ -113,20 +116,13 @@ export default function ChangeEmailScreen() {
   }, [canSubmit, password, mfa, toast.show, trimmed])
 
   return (
-    <Screen
-      keyboardAvoiding
-      edges={["top"]}
-      padded={false}
-      footer={
-        <View>
-          <Button fullWidth loading={submitting} disabled={!canSubmit} onPress={() => setConfirmOpen(true)}>
-            Simpan email baru
-          </Button>
-        </View>
-      }
-    >
+    <Screen keyboardAvoiding edges={["top"]} padded={false}>
       <Header title="Ganti Email" />
-      <ScrollView keyboardShouldPersistTaps="handled" contentContainerClassName="gap-4 px-5 py-4">
+      <ScrollView
+        keyboardShouldPersistTaps="handled"
+        contentContainerClassName="gap-4 px-5 py-4"
+        contentContainerStyle={{ paddingBottom: insets.bottom + tokens.space[8] }}
+      >
         <SectionHeader title="Email terdaftar" />
         {currentEmail ? (
           <Alert tone="neutral" title="Email saat ini">
@@ -181,6 +177,19 @@ export default function ChangeEmailScreen() {
             helperText="6 digit dari aplikasi autentikator, atau kode cadangan 10–16 karakter."
           />
         ) : null}
+
+        {/* P3 (overhaul auth 2026-10-10): tombol aksi mengikuti konten, bukan
+            FooterBar berpemisah `border-t`. Setelah field terakhir dibaca,
+            tombolnya satu ketukan di bawahnya — dan tidak lagi menutupi isi
+            form saat keyboard naik. */}
+        <Button
+          fullWidth
+          loading={submitting}
+          disabled={!canSubmit}
+          onPress={() => setConfirmOpen(true)}
+        >
+          Simpan email baru
+        </Button>
       </ScrollView>
 
       {/* A11: konfirmasi sensitif seragam sebelum email benar-benar diganti. */}

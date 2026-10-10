@@ -65,8 +65,37 @@ export const BUNDLED_HELP: readonly BundledHelpCategory[] = [
     slug: "akun-keamanan",
     name: "Akun & keamanan",
     description: "Pengaturan akun, akses, dan perlindungan perangkat.",
-    articleCount: 3,
+    articleCount: 4,
     articles: [
+      {
+        // Tujuan tautan "Baca selengkapnya" pada ikon ⓘ di layar masuk/daftar
+        // (components/auth/auth-security-info.tsx). Sejak overhaul auth
+        // 2026-10-10 penjelasan panjang TIDAK lagi dicetak di kaki layar auth —
+        // isinya pindah ke sini supaya layar masuk tetap satu baris persetujuan.
+        id: "data-yang-dicatat-saat-masuk",
+        slug: "data-yang-dicatat-saat-masuk",
+        category: "akun-keamanan",
+        title: "Data apa yang dicatat saat saya masuk?",
+        content: `## Lokasi perangkat
+
+Saat Anda masuk, mendaftar, atau mengatur ulang kata sandi, aplikasi dapat meminta izin lokasi. Bila Anda mengizinkan, lokasi dicatat bersama peristiwa keamanan untuk membantu mengenali aktivitas yang tidak wajar, misalnya percobaan masuk dari kota lain beberapa menit setelahnya.
+
+Menolak izin lokasi **tidak** memblokir proses masuk maupun pendaftaran.
+
+## Kode verifikasi WhatsApp
+
+Kode verifikasi dikirim sebagai **balasan** setelah Anda mengirim pesan pemicu ke nomor resmi Kahade. Kahade tidak mengirim pesan lebih dulu, dan kode hanya berlaku singkat untuk satu percobaan.
+
+Periksa nomor tujuan sebelum mengirim pesan. Jangan teruskan kode kepada siapa pun, termasuk orang yang mengaku sebagai tim Kahade.
+
+## Perangkat dan sesi
+
+Setiap perangkat yang berhasil masuk tercatat pada menu **Keamanan** → **Perangkat & Log**. Cabut sesi yang tidak Anda kenali, lalu ubah kata sandi bila perlu.
+
+## Yang tidak pernah kami minta
+
+Kahade tidak pernah meminta kata sandi, PIN dompet, kode verifikasi, atau kode cadangan melalui chat, telepon, email, maupun tautan. Permintaan semacam itu adalah percobaan penipuan.`,
+      },
       {
         id: "ubah-kredensial-akun",
         slug: "ubah-kredensial-akun",

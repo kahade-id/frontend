@@ -34,6 +34,14 @@ const PUBLIC_SCREENS = new Set<string>([
   // Alur auth pra-sesi (setup-profile terdaftar protected — butuh token)
   "(auth)/forgot-password",
   "(auth)/login",
+  // Arsitektur masuk 2026-10-10: satu metode = satu halaman pra-sesi.
+  // Ketiganya tercakup prefix "/login" di WEB_GUEST_ALLOWED_PATHS dan
+  // PRE_SESSION_AUTH_PATHS (pencocokan `startsWith(`${path}/`)`), jadi tidak
+  // ada entri registri baru yang dibutuhkan — hanya keputusan publiknya yang
+  // harus eksplisit di sini.
+  "(auth)/login/email",
+  "(auth)/login/username",
+  "(auth)/login/whatsapp",
   "(auth)/onboarding",
   "(auth)/phone-migration",
   "(auth)/register",

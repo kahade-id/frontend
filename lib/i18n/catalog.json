@@ -127,7 +127,8 @@
    "n": 13
   },
   {
-   "s": "Gagal mengunggah foto",
+"s": "Masuk",
+"s": "Gagal mengunggah foto",
    "n": 13
   },
   {
@@ -164,10 +165,6 @@
   },
   {
    "s": "Maksimal {x} digit; nilai negatif ditolak.",
-   "n": 12
-  },
-  {
-   "s": "Masuk",
    "n": 12
   },
   {
@@ -307,6 +304,10 @@
    "n": 9
   },
   {
+   "s": "Mengerti",
+   "n": 9
+  },
+  {
    "s": "Menu",
    "n": 9
   },
@@ -351,10 +352,6 @@
    "n": 8
   },
   {
-   "s": "Demi keamanan, lokasi perangkat dapat dicatat jika Anda mengizinkan akses.",
-   "n": 8
-  },
-  {
    "s": "Dibatalkan",
    "n": 8
   },
@@ -367,6 +364,10 @@
    "n": 8
   },
   {
+   "s": "Kebijakan Privasi",
+   "n": 8
+  },
+  {
    "s": "Kirim balasan",
    "n": 8
   },
@@ -376,10 +377,6 @@
   },
   {
    "s": "Lihat viewer",
-   "n": 8
-  },
-  {
-   "s": "Mengerti",
    "n": 8
   },
   {
@@ -500,6 +497,10 @@
   },
   {
    "s": "Pratinjau",
+   "n": 7
+  },
+  {
+   "s": "Syarat & Ketentuan",
    "n": 7
   },
   {
@@ -747,10 +748,6 @@
    "n": 6
   },
   {
-   "s": "Kebijakan Privasi",
-   "n": 6
-  },
-  {
    "s": "Kecepatan putar {x} — ketuk untuk mengubah",
    "n": 6
   },
@@ -800,6 +797,10 @@
   },
   {
    "s": "Logo {x}",
+   "n": 6
+  },
+  {
+   "s": "Masuk ke Kahade",
    "n": 6
   },
   {
@@ -1199,10 +1200,6 @@
    "n": 5
   },
   {
-   "s": "Masuk ke Kahade",
-   "n": 5
-  },
-  {
    "s": "Masuk kembali",
    "n": 5
   },
@@ -1236,10 +1233,6 @@
   },
   {
    "s": "Sorot ke profil",
-   "n": 5
-  },
-  {
-   "s": "Syarat & Ketentuan",
    "n": 5
   },
   {
@@ -1680,6 +1673,10 @@
   },
   {
    "s": "Lampiran #{x}",
+   "n": 4
+  },
+  {
+   "s": "Lanjut",
    "n": 4
   },
   {
@@ -2731,6 +2728,10 @@
    "n": 3
   },
   {
+   "s": "Daftar",
+   "n": 3
+  },
+  {
    "s": "Daftar belum bisa dimuat",
    "n": 3
   },
@@ -3712,10 +3713,6 @@
   },
   {
    "s": "Lacak Pengiriman",
-   "n": 3
-  },
-  {
-   "s": "Lanjut",
    "n": 3
   },
   {
@@ -5951,6 +5948,10 @@
    "n": 2
   },
   {
+   "s": "Belum punya akun?",
+   "n": 2
+  },
+  {
    "s": "Belum tersedia",
    "n": 2
   },
@@ -6308,10 +6309,6 @@
   },
   {
    "s": "Cover etalase",
-   "n": 2
-  },
-  {
-   "s": "Daftar",
    "n": 2
   },
   {
@@ -7727,7 +7724,8 @@
    "n": 2
   },
   {
-   "s": "Masuk dengan Apple",
+"s": "Masih ada foto yang gagal diunggah",
+"s": "Masuk dengan Apple",
    "n": 2
   },
   {
@@ -9128,6 +9126,10 @@
   },
   {
    "s": "Sudah ditandai berguna",
+   "n": 2
+  },
+  {
+   "s": "Sudah punya akun?",
    "n": 2
   },
   {
@@ -11935,6 +11937,10 @@
    "n": 1
   },
   {
+   "s": "Aktifkan verifikasi dua langkah di menu Keamanan untuk lapisan kedua saat masuk.",
+   "n": 1
+  },
+  {
    "s": "Aktivitas",
    "n": 1
   },
@@ -12107,10 +12113,6 @@
    "n": 1
   },
   {
-   "s": "Anda akan diminta mengirim pesan ke WhatsApp kami terlebih dahulu.",
-   "n": 1
-  },
-  {
    "s": "Anda akan menerima",
    "n": 1
   },
@@ -12172,6 +12174,10 @@
   },
   {
    "s": "Anda membayar ke Kahade dulu, bukan langsung ke penjual",
+   "n": 1
+  },
+  {
+   "s": "Anda mengirim pesan pemicu berisi kode referensi ke nomor resmi Kahade yang tampil di layar berikutnya.",
    "n": 1
   },
   {
@@ -12447,6 +12453,10 @@
    "n": 1
   },
   {
+   "s": "Baca selengkapnya di Pusat Bantuan",
+   "n": 1
+  },
+  {
    "s": "Bagaimana cara kerja transaksi aman di Kahade?",
    "n": 1
   },
@@ -12715,6 +12725,10 @@
    "n": 1
   },
   {
+   "s": "Beberapa data dipakai untuk melindungi akun Anda. Tidak ada yang menghalangi proses masuk.",
+   "n": 1
+  },
+  {
    "s": "Belum",
    "n": 1
   },
@@ -12904,10 +12918,6 @@
   },
   {
    "s": "Belum diverifikasi",
-   "n": 1
-  },
-  {
-   "s": "Belum punya akun?",
    "n": 1
   },
   {
@@ -13140,6 +13150,14 @@
   },
   {
    "s": "Bonus Isi Saldo",
+   "n": 1
+  },
+  {
+   "s": "Browser ini tidak mendukung passkey",
+   "n": 1
+  },
+  {
+   "s": "Browser ini tidak mendukung passkey. Coba browser lain, atau masuk dengan kata sandi atau kode WhatsApp.",
    "n": 1
   },
   {
@@ -13603,6 +13621,10 @@
    "n": 1
   },
   {
+   "s": "Cara kerja kode WhatsApp",
+   "n": 1
+  },
+  {
    "s": "Cara membatalkan",
    "n": 1
   },
@@ -13736,6 +13758,10 @@
   },
   {
    "s": "Coba bayar lagi",
+   "n": 1
+  },
+  {
+   "s": "Coba browser lain, atau masuk dengan kata sandi atau kode WhatsApp. Passkey yang sudah Anda daftarkan tetap tersimpan di akun.",
    "n": 1
   },
   {
@@ -13991,19 +14017,19 @@
    "n": 1
   },
   {
-   "s": "Dana dilepas hanya setelah barang sampai.",
-   "n": 1
-  },
-  {
-   "s": "Dana dilepas ke penjual",
-   "n": 1
-  },
-  {
-   "s": "Dana ditahan Kahade",
+   "s": "Dana disimpan Kahade",
    "n": 1
   },
   {
    "s": "Dana ditahan sampai mediator memutuskan. Bukti foto bisa ditambahkan setelah sengketa dibuat.",
+   "n": 1
+  },
+  {
+   "s": "Dana diteruskan hanya setelah barang sampai.",
+   "n": 1
+  },
+  {
+   "s": "Dana diteruskan ke penjual",
    "n": 1
   },
   {
@@ -14104,6 +14130,14 @@
   },
   {
    "s": "Data akun yang boleh dilihat pengunjung profil Anda. Default: disembunyikan.",
+   "n": 1
+  },
+  {
+   "s": "Data apa yang dicatat saat saya masuk?",
+   "n": 1
+  },
+  {
+   "s": "Data apa yang dipakai saat mendaftar?",
    "n": 1
   },
   {
@@ -14303,7 +14337,15 @@
    "n": 1
   },
   {
-   "s": "Dengan membuat akun, Anda menyetujui Syarat & Ketentuan serta Kebijakan Privasi Kahade.",
+   "s": "Dengan masuk, Anda menyetujui {x} serta {y}",
+   "n": 1
+  },
+  {
+   "s": "Dengan melanjutkan, Anda menyetujui {x} serta {y}",
+   "n": 1
+  },
+  {
+   "s": "Dengan membuat akun, Anda menyetujui {x} serta {y}",
    "n": 1
   },
   {
@@ -14320,6 +14362,22 @@
   },
   {
    "s": "Deskripsi kondisi",
+   "n": 1
+  },
+  {
+   "s": "Detail keamanan kata sandi",
+   "n": 1
+  },
+  {
+   "s": "Detail keamanan masuk",
+   "n": 1
+  },
+  {
+   "s": "Detail keamanan pendaftaran",
+   "n": 1
+  },
+  {
+   "s": "Detail kode WhatsApp",
    "n": 1
   },
   {
@@ -14792,6 +14850,10 @@
   },
   {
    "s": "Email belum dapat diubah",
+   "n": 1
+  },
+  {
+   "s": "Email dan kata sandi",
    "n": 1
   },
   {
@@ -15495,6 +15557,10 @@
    "n": 1
   },
   {
+   "s": "Gunakan email yang terdaftar di akun Kahade Anda.",
+   "n": 1
+  },
+  {
    "s": "Gunakan kombinasi yang lebih unik dan sulit ditebak.",
    "n": 1
   },
@@ -15512,6 +15578,10 @@
   },
   {
    "s": "Gunakan sidik jari, wajah, atau kunci keamanan perangkat Anda untuk masuk — tanpa mengetik kata sandi.",
+   "n": 1
+  },
+  {
+   "s": "Gunakan username akun Kahade Anda, tanpa tanda @.",
    "n": 1
   },
   {
@@ -16027,6 +16097,10 @@
    "n": 1
   },
   {
+   "s": "Jangan teruskan kode kepada siapa pun, termasuk orang yang mengaku tim Kahade.",
+   "n": 1
+  },
+  {
    "s": "Jangan tutup aplikasi sampai proses selesai.",
    "n": 1
   },
@@ -16139,10 +16213,6 @@
    "n": 1
   },
   {
-   "s": "Jual beli aman via Kahade.",
-   "n": 1
-  },
-  {
    "s": "Judul baru (opsional)",
    "n": 1
   },
@@ -16239,6 +16309,10 @@
    "n": 1
   },
   {
+   "s": "Kahade tidak pernah meminta kata sandi, PIN, atau kode verifikasi Anda lewat chat, telepon, atau tautan.",
+   "n": 1
+  },
+  {
    "s": "Kahade versi",
    "n": 1
   },
@@ -16276,10 +16350,6 @@
   },
   {
    "s": "Kami akan memandu Anda mengirim pesan ke WhatsApp resmi Kahade. Kode verifikasi akan dibalas lewat chat tersebut.",
-   "n": 1
-  },
-  {
-   "s": "Kami akan meminta Anda mengirim pesan ke WhatsApp resmi Kahade, lalu membalas kode verifikasi {x} digit.",
    "n": 1
   },
   {
@@ -16343,6 +16413,10 @@
    "n": 1
   },
   {
+   "s": "Kata sandi adalah lapisan pertama akun. Beberapa aturan di bawah berlaku otomatis.",
+   "n": 1
+  },
+  {
    "s": "Kata sandi akun Kahade",
    "n": 1
   },
@@ -16356,6 +16430,14 @@
   },
   {
    "s": "Kata sandi dan PIN disimpan sebagai hash. Nilai hash atau pengenal pengganti dapat digunakan untuk pencocokan tanpa membuka nilai asli.",
+   "n": 1
+  },
+  {
+   "s": "Kata sandi disimpan sebagai hash. Kami tidak bisa membacanya atau mengirimkannya kepada Anda dalam bentuk apa pun.",
+   "n": 1
+  },
+  {
+   "s": "Kata sandi disimpan sebagai hash. Kami tidak bisa membacanya, mengirimkannya lewat chat, atau mengembalikannya bila terlupa.",
    "n": 1
   },
   {
@@ -16576,6 +16658,10 @@
   },
   {
    "s": "Kenalan dulu dengan Kahade",
+   "n": 1
+  },
+  {
+   "s": "Kenapa layar ini menanyakan hal tersebut?",
    "n": 1
   },
   {
@@ -16879,6 +16965,10 @@
    "n": 1
   },
   {
+   "s": "Kode dikirim sebagai balasan atas pesan yang Anda kirim, bukan pesan masuk yang tidak diminta.",
+   "n": 1
+  },
+  {
    "s": "Kode dikirim via WhatsApp",
    "n": 1
   },
@@ -17003,7 +17093,19 @@
    "n": 1
   },
   {
+   "s": "Kode verifikasi dikirim sebagai balasan WhatsApp setelah Anda mengirim pesan pemicu ke nomor resmi Kahade.",
+   "n": 1
+  },
+  {
    "s": "Kode verifikasi kedaluwarsa sebelum penarikan diproses. Dana yang sempat ditahan sudah dikembalikan ke saldo.",
+   "n": 1
+  },
+  {
+   "s": "Kode verifikasi sekali pakai",
+   "n": 1
+  },
+  {
+   "s": "Kode verifikasi WhatsApp dikirim sebagai balasan setelah Anda mengirim pesan pemicu ke nomor resmi Kahade — kami tidak mengirim pesan lebih dulu.",
    "n": 1
   },
   {
@@ -17375,6 +17477,14 @@
    "n": 1
   },
   {
+   "s": "Lanjut dengan Apple",
+   "n": 1
+  },
+  {
+   "s": "Lanjut dengan Google",
+   "n": 1
+  },
+  {
    "s": "Lanjut ke transfer",
    "n": 1
   },
@@ -17388,10 +17498,6 @@
   },
   {
    "s": "Lanjutkan daftar",
-   "n": 1
-  },
-  {
-   "s": "Lanjutkan dengan akun yang terhubung ke Kahade.",
    "n": 1
   },
   {
@@ -17452,6 +17558,10 @@
   },
   {
    "s": "Layanan dengan jadwal tertentu",
+   "n": 1
+  },
+  {
+   "s": "Layanan Kahade membalas dengan kode verifikasi {x} digit. Kode berlaku singkat dan hanya untuk satu percobaan.",
    "n": 1
   },
   {
@@ -17631,6 +17741,14 @@
    "n": 1
   },
   {
+   "s": "Lokasi perangkat dapat dicatat saat masuk untuk mengenali aktivitas yang tidak wajar. Menolak izin lokasi tidak memblokir proses masuk.",
+   "n": 1
+  },
+  {
+   "s": "Lokasi perangkat dapat dicatat untuk mengenali pendaftaran otomatis. Menolak izin lokasi tidak memblokir pendaftaran.",
+   "n": 1
+  },
+  {
    "s": "Lokasi saya",
    "n": 1
   },
@@ -17739,11 +17857,11 @@
    "n": 1
   },
   {
-   "s": "Masuk ke akun Kahade Anda untuk melanjutkan.",
+   "s": "Masuk ke akun Kahade untuk membuat kode QR profil Anda sendiri.",
    "n": 1
   },
   {
-   "s": "Masuk ke akun Kahade untuk membuat kode QR profil Anda sendiri.",
+   "s": "Masuk memakai sidik jari, wajah, atau kunci layar perangkat",
    "n": 1
   },
   {
@@ -17848,6 +17966,10 @@
   },
   {
    "s": "Masukkan nomor HP Anda",
+   "n": 1
+  },
+  {
+   "s": "Masukkan nomor HP yang terdaftar. Kode verifikasi dikirim sebagai balasan WhatsApp.",
    "n": 1
   },
   {
@@ -18056,6 +18178,10 @@
   },
   {
    "s": "Memuat kode referral",
+   "n": 1
+  },
+  {
+   "s": "Memuat metode masuk",
    "n": 1
   },
   {
@@ -18291,10 +18417,6 @@
    "n": 1
   },
   {
-   "s": "Menghubungkan passkey…",
-   "n": 1
-  },
-  {
    "s": "Mengikuti default: {x}",
    "n": 1
   },
@@ -18324,6 +18446,10 @@
   },
   {
    "s": "menilai bukti, berkomunikasi dengan pihak terkait, menjalankan keputusan, dan mempertahankan hak hukum.",
+   "n": 1
+  },
+  {
+   "s": "Menjaga kata sandi Anda",
    "n": 1
   },
   {
@@ -18456,10 +18582,6 @@
   },
   {
    "s": "Metode ini sedang gangguan atau maintenance. Pilih metode lain untuk melanjutkan.",
-   "n": 1
-  },
-  {
-   "s": "Metode masuk",
    "n": 1
   },
   {
@@ -18827,6 +18949,10 @@
    "n": 1
   },
   {
+   "s": "Nomor HP adalah identitas akun dan kanal pemulihan. Karena itu pendaftaran hanya tersedia lewat nomor HP.",
+   "n": 1
+  },
+  {
    "s": "Nomor HP akun Anda",
    "n": 1
   },
@@ -19135,11 +19261,31 @@
    "n": 1
   },
   {
+   "s": "Passkey belum tersedia di aplikasi native ini. Masuk dengan kata sandi atau kode WhatsApp, atau pakai aplikasi web Kahade untuk passkey.",
+   "n": 1
+  },
+  {
+   "s": "Passkey di perangkat ini memakai WebAuthn browser.",
+   "n": 1
+  },
+  {
+   "s": "Passkey dibatalkan. Coba lagi bila ingin melanjutkan.",
+   "n": 1
+  },
+  {
    "s": "Passkey dihapus",
    "n": 1
   },
   {
    "s": "Passkey hilang atau perangkat baru?",
+   "n": 1
+  },
+  {
+   "s": "Passkey ini tidak dikenali. Pastikan passkey sudah terdaftar di akun Anda, atau masuk dengan metode lain.",
+   "n": 1
+  },
+  {
+   "s": "Passkey perangkat gagal diproses. Coba lagi, atau masuk dengan metode lain.",
    "n": 1
   },
   {
@@ -19436,6 +19582,10 @@
   },
   {
    "s": "Pendaftaran berhasil",
+   "n": 1
+  },
+  {
+   "s": "Pendaftaran memakai nomor HP sebagai identitas akun. Sisanya dipakai untuk melindungi akun sejak hari pertama.",
    "n": 1
   },
   {
@@ -19759,6 +19909,10 @@
    "n": 1
   },
   {
+   "s": "Perangkat dan sesi yang sedang aktif dapat Anda periksa dan cabut kapan saja di menu Keamanan.",
+   "n": 1
+  },
+  {
    "s": "Perangkat dihapus",
    "n": 1
   },
@@ -19767,7 +19921,11 @@
    "n": 1
   },
   {
-   "s": "Perangkat ini belum mendukung passkey.",
+   "s": "Perangkat ini tidak mendukung passkey.",
+   "n": 1
+  },
+  {
+   "s": "Perangkat menolak permintaan passkey. Buka kunci layar lalu coba lagi.",
    "n": 1
   },
   {
@@ -19920,6 +20078,10 @@
   },
   {
    "s": "Periksa nominal dan metode pembayaran Anda.",
+   "n": 1
+  },
+  {
+   "s": "Periksa nomor tujuannya sebelum mengirim. Pesan dari nomor lain yang mengatasnamakan Kahade bukan dari kami.",
    "n": 1
   },
   {
@@ -20727,6 +20889,10 @@
    "n": 1
   },
   {
+   "s": "Respons passkey perangkat tidak lengkap. Coba lagi, atau masuk dengan metode lain.",
+   "n": 1
+  },
+  {
    "s": "Respons server tidak dapat dibaca.",
    "n": 1
   },
@@ -21043,10 +21209,6 @@
    "n": 1
   },
   {
-   "s": "Selamat datang kembali",
-   "n": 1
-  },
-  {
    "s": "Selamat datang!",
    "n": 1
   },
@@ -21116,6 +21278,10 @@
   },
   {
    "s": "Sembunyikan total transaksi selesai.",
+   "n": 1
+  },
+  {
+   "s": "Semua cara di bawah membuka akun yang sama. Pilih yang paling mudah untuk Anda.",
    "n": 1
   },
   {
@@ -21288,6 +21454,10 @@
   },
   {
    "s": "Setelah itu, masukkan kode",
+   "n": 1
+  },
+  {
+   "s": "Setelah kata sandi berubah, semua sesi dicabut dan Anda perlu masuk kembali di setiap perangkat.",
    "n": 1
   },
   {
@@ -21624,10 +21794,6 @@
   },
   {
    "s": "Sudah diterima",
-   "n": 1
-  },
-  {
-   "s": "Sudah punya akun?",
    "n": 1
   },
   {
@@ -22167,6 +22333,10 @@
    "n": 1
   },
   {
+   "s": "Terlalu banyak percobaan passkey. Tunggu beberapa saat sebelum mencoba lagi.",
+   "n": 1
+  },
+  {
    "s": "Terlalu banyak percobaan PIN. Tunggu {x} menit lalu coba lagi.",
    "n": 1
   },
@@ -22263,6 +22433,10 @@
    "n": 1
   },
   {
+   "s": "Tidak ada passkey yang cocok di perangkat ini. Daftar passkey dulu, atau masuk dengan metode lain.",
+   "n": 1
+  },
+  {
    "s": "Tidak ada pesan yang cocok dengan kata kunci itu.",
    "n": 1
   },
@@ -22296,6 +22470,10 @@
   },
   {
    "s": "Tidak dapat mengajukan retur",
+   "n": 1
+  },
+  {
+   "s": "Tidak dapat menghubungi Kahade. Periksa koneksi internet lalu coba lagi.",
    "n": 1
   },
   {
@@ -22839,6 +23017,10 @@
    "n": 1
   },
   {
+   "s": "Username dan kata sandi",
+   "n": 1
+  },
+  {
    "s": "Username disalin",
    "n": 1
   },
@@ -23012,6 +23194,10 @@
   },
   {
    "s": "Verifikasi siap dikirim.",
+   "n": 1
+  },
+  {
+   "s": "Verifikasi tambahan muncul setelah beberapa percobaan gagal. Ini melindungi akun dari tebakan otomatis, bukan tanda akun Anda bermasalah.",
    "n": 1
   },
   {

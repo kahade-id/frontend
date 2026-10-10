@@ -1,16 +1,20 @@
 /**
- * Kahade — klien WebAuthn/passkey (GAP-A: G033, G041, G043).
+ * Kahade — klien passkey: WebAuthn (web) + seam provider native (GAP-A G033/G041/G043).
  *
  * PENTING — batasan platform (jujur, sesuai G033):
  *  - WebAuthn adalah API browser (`navigator.credentials`). Di React Native
- *    (Android/iOS) API ini TIDAK tersedia, sehingga alur passkey penuh hanya
- *    berjalan di **web** (expo web). Di native, fungsi di sini mengembalikan
- *    `supported: false` dan UI menampilkan penjelasan + opsi masuk lain
- *    (kata sandi / OTP WhatsApp) — bukan klaim palsu "passkey native".
+ *    (Android/iOS) API ini TIDAK tersedia, sehingga di native fungsi di sini
+ *    mendelegasikan ke seam provider di lib/passkey-native.ts. Seam itu saat
+ *    ini SENGAJA mati (provider publik belum bisa membawa options server),
+ *    jadi native menjawab `supported: false` + `reason` spesifik dan UI
+ *    menampilkan penjelasan jujur + opsi masuk lain (kata sandi / OTP
+ *    WhatsApp) — bukan klaim palsu "passkey native".
  *  - Private key TIDAK PERNAH dikirim ke server: yang dikirim hanya
  *    attestation (pendaftaran) / assertion (login) hasil authenticator (G041).
+ *  - Bentuk payload ke backend identik di kedua jalur (lihat
+ *    lib/passkey-types.ts) — seam native tidak mengubah kontrak API.
  *
- * Implementasi memakai Web Authentication API mentah (tanpa dependency
+ * Implementasi web memakai Web Authentication API mentah (tanpa dependency
  * @simplewebauthn/browser) agar tidak menambah dependency frontend:
  * konversi base64url ↔ Uint8Array dan JSON options ditangani di sini,
  * mengikuti format PublicKeyCredentialCreationOptionsJSON /
@@ -18,16 +22,48 @@
  */
 import { Platform } from "react-native"
 
-/** Hasil deteksi kapabilitas passkey di perangkat ini. */
-export type PasskeyCapability = {
-  /** true hanya bila Platform.OS === 'web' dan browser mendukung WebAuthn */
-  supported: boolean
-  /** Conditional mediation (autofill passkey) tersedia — web saja (G041/G043) */
-  conditionalMediation: boolean
-  /** Platform authenticator dengan verifikasi user (Touch ID/Face ID/Windows Hello) */
-  platformAuthenticator: boolean
+import { PASSKEY_COPY } from "@/lib/passkey-instructions"
+import {
+  authenticateNativePasskey,
+  probeNativePasskey,
+  registerNativePasskey,
+} from "@/lib/passkey-native"
+import {
+  PasskeyError,
+  type AuthenticationOptionsJSON,
+  type AuthenticationResponseJSON,
+  type PasskeyCapability,
+  type PasskeyUnsupportedReason,
+  type RegistrationOptionsJSON,
+  type RegistrationResponseJSON,
+  type StartAuthenticationOpts,
+} from "@/lib/passkey-types"
+
+// Satu pintu masuk yang sama seperti sebelumnya: konsumen mengimpor tipe &
+// error dari "@/lib/passkey", padahal definisinya kini di passkey-types.ts
+// (supaya passkey.ts ↔ passkey-native.ts tidak membentuk siklus impor).
+export { PasskeyError }
+export type {
+  AuthenticationOptionsJSON,
+  AuthenticationResponseJSON,
+  PasskeyCapability,
+  PasskeyUnsupportedReason,
+  RegistrationOptionsJSON,
+  RegistrationResponseJSON,
+  StartAuthenticationOpts,
 }
 
+/** Pesan jujur untuk browser tanpa WebAuthn (jalur web) — copy terkatalog. */
+function webUnsupportedMessage(): string {
+  return PASSKEY_COPY.unsupportedMessages.web
+}
+
+/**
+ * Cek sinkron untuk frame pertama (layar kelola passkey tidak boleh berkedip).
+ * SENGAJA web-only: ketersediaan provider native harus ditanya lewat modulnya
+ * (async), jadi di native fungsi ini menjawab `supported: false` dan pemanggil
+ * yang butuh kepastian memakai `getPasskeyCapability()`.
+ */
 export function getPasskeyCapabilitySync(): Omit<PasskeyCapability, "conditionalMediation" | "platformAuthenticator"> {
   if (Platform.OS !== "web" || typeof window === "undefined") {
     return { supported: false }
@@ -36,9 +72,29 @@ export function getPasskeyCapabilitySync(): Omit<PasskeyCapability, "conditional
 }
 
 export async function getPasskeyCapability(): Promise<PasskeyCapability> {
+  // Native: satu-satunya jalur adalah provider di lib/passkey-native.ts.
+  // `platformAuthenticator` = true bila provider tersedia, karena Credential
+  // Manager / ASAuthorization memang authenticator platform (biometrik/kunci
+  // layar). Conditional mediation adalah fitur WebAuthn → selalu false.
+  if (Platform.OS !== "web") {
+    const probe = await probeNativePasskey()
+    return probe.available
+      ? { supported: true, conditionalMediation: false, platformAuthenticator: true }
+      : {
+          supported: false,
+          conditionalMediation: false,
+          platformAuthenticator: false,
+          reason: probe.reason as PasskeyUnsupportedReason,
+        }
+  }
   const base = getPasskeyCapabilitySync()
   if (!base.supported) {
-    return { supported: false, conditionalMediation: false, platformAuthenticator: false }
+    return {
+      supported: false,
+      conditionalMediation: false,
+      platformAuthenticator: false,
+      reason: "WEB_UNSUPPORTED",
+    }
   }
   const PKC = (window as unknown as { PublicKeyCredential: any }).PublicKeyCredential
   let conditionalMediation = false
@@ -83,30 +139,6 @@ export function bytesToBase64Url(bytes: Uint8Array | ArrayBuffer): string {
 
 // ── Registrasi ───────────────────────────────────────────────────────
 
-export type RegistrationOptionsJSON = {
-  rp: { name: string; id?: string }
-  user: { id: string; name: string; displayName?: string }
-  challenge: string
-  pubKeyCredParams: { type: string; alg: number }[]
-  timeout?: number
-  excludeCredentials?: { id: string; type: string; transports?: string[] }[]
-  authenticatorSelection?: Record<string, unknown>
-  attestation?: string
-  extensions?: Record<string, unknown>
-}
-
-export type RegistrationResponseJSON = {
-  id: string
-  rawId: string
-  type: string
-  response: {
-    attestationObject: string
-    clientDataJSON: string
-    transports?: string[]
-  }
-  clientExtensionResults: Record<string, unknown>
-}
-
 function toCreationOptions(json: RegistrationOptionsJSON): PublicKeyCredentialCreationOptions {
   return {
     rp: json.rp as PublicKeyCredentialRpEntity,
@@ -136,8 +168,12 @@ function toCreationOptions(json: RegistrationOptionsJSON): PublicKeyCredentialCr
 export async function startPasskeyRegistration(
   optionsJSON: RegistrationOptionsJSON,
 ): Promise<RegistrationResponseJSON> {
+  // Native → seam provider. Ia melempar PasskeyError NOT_SUPPORTED dengan
+  // alasan spesifik (DISABLED / MODULE_MISSING / PROVIDER_INCOMPLETE /
+  // RUNTIME_ERROR) bila passkey memang belum bisa dipakai di build ini.
+  if (Platform.OS !== "web") return registerNativePasskey(optionsJSON)
   if (!getPasskeyCapabilitySync().supported) {
-    throw new PasskeyError("NOT_SUPPORTED", "Perangkat ini tidak mendukung passkey.")
+    throw new PasskeyError("NOT_SUPPORTED", webUnsupportedMessage())
   }
   let credential: Credential | null
   try {
@@ -172,28 +208,6 @@ export async function startPasskeyRegistration(
 
 // ── Autentikasi ──────────────────────────────────────────────────────
 
-export type AuthenticationOptionsJSON = {
-  challenge: string
-  timeout?: number
-  rpId?: string
-  allowCredentials?: { id: string; type: string; transports?: string[] }[]
-  userVerification?: UserVerificationRequirement
-  extensions?: Record<string, unknown>
-}
-
-export type AuthenticationResponseJSON = {
-  id: string
-  rawId: string
-  type: string
-  response: {
-    authenticatorData: string
-    clientDataJSON: string
-    signature: string
-    userHandle?: string | null
-  }
-  clientExtensionResults: Record<string, unknown>
-}
-
 function toRequestOptions(
   json: AuthenticationOptionsJSON,
 ): PublicKeyCredentialRequestOptions {
@@ -211,14 +225,6 @@ function toRequestOptions(
   }
 }
 
-export type StartAuthenticationOpts = {
-  /**
-   * true → mediasi conditional (autofill passkey di kolom username) —
-   * hanya bila browser mendukung (G041). Native: selalu false.
-   */
-  conditional?: boolean
-}
-
 /**
  * Minta assertion passkey. Mengembalikan assertion JSON untuk
  * POST /v1/auth/passkey/auth/verify.
@@ -227,8 +233,12 @@ export async function startPasskeyAuthentication(
   optionsJSON: AuthenticationOptionsJSON,
   opts: StartAuthenticationOpts = {},
 ): Promise<AuthenticationResponseJSON> {
+  // Native → seam provider. `conditional` (autofill UI) adalah kemampuan
+  // WebAuthn; di native sheet sistem muncul sendiri, jadi opsi itu tidak
+  // diteruskan.
+  if (Platform.OS !== "web") return authenticateNativePasskey(optionsJSON)
   if (!getPasskeyCapabilitySync().supported) {
-    throw new PasskeyError("NOT_SUPPORTED", "Perangkat ini tidak mendukung passkey.")
+    throw new PasskeyError("NOT_SUPPORTED", webUnsupportedMessage())
   }
   const requestOptions: CredentialRequestOptions = { publicKey: toRequestOptions(optionsJSON) }
   if (opts.conditional) {
@@ -270,18 +280,6 @@ export async function startPasskeyAuthentication(
 }
 
 // ── Error mapping (Bahasa Indonesia) ─────────────────────────────────
-
-export class PasskeyError extends Error {
-  code: "NOT_SUPPORTED" | "CANCELLED" | "NOT_ALLOWED" | "SECURITY" | "UNKNOWN"
-  constructor(
-    code: "NOT_SUPPORTED" | "CANCELLED" | "NOT_ALLOWED" | "SECURITY" | "UNKNOWN",
-    message: string,
-  ) {
-    super(message)
-    this.name = "PasskeyError"
-    this.code = code
-  }
-}
 
 function toPasskeyError(err: unknown): PasskeyError {
   const name = (err as { name?: string })?.name ?? ""

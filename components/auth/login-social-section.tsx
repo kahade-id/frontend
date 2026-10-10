@@ -17,11 +17,21 @@ import type { SocialProvider } from "@/lib/api/social"
 
 type Props = {
   nextPath?: string
+  /**
+   * Mulai OAuth provider ini segera setelah kapabilitas server terbaca —
+   * dipakai deep link lama `/login?method=google|apple` supaya tautan itu
+   * tetap menjalankan alurnya, bukan hanya mendarat di hub.
+   */
   autoStartProvider?: SocialProvider
-  showDivider?: boolean
 }
 
-export function LoginSocialSection({ nextPath, autoStartProvider, showDivider = false }: Props) {
+/**
+ * Tombol sosial + percabangan hasilnya (sesi / 2FA / migrasi nomor / tautan
+ * akun). Pemisah "atau" BUKAN tanggung jawab komponen ini: di hub Masuk
+ * pemisah itu memisahkan grup aksi besar dari daftar metode, jadi posisinya
+ * milik layar (app/(auth)/login.tsx).
+ */
+export function LoginSocialSection({ nextPath, autoStartProvider }: Props) {
   const router = useRouter()
   const { beginLogin, finishLogin } = useLoginNavigation(nextPath)
   const [pendingLinkToken, setPendingLinkToken] = useState<string | null>(null)
@@ -75,7 +85,6 @@ export function LoginSocialSection({ nextPath, autoStartProvider, showDivider = 
         onBeforeStart={beginLogin}
         onOutcome={handleOutcome}
         autoStartProvider={autoStartProvider}
-        separatorLabel={showDivider ? "atau" : undefined}
       />
       <Dialog
         title="Akun belum terdaftar"
