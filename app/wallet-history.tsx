@@ -344,7 +344,7 @@ export default function WalletHistoryScreen() {
               {hasActiveFilters ? (
                 <View
                   className="absolute right-2 top-2 h-2 w-2 rounded-full bg-primary"
-                  pointerEvents="none"
+                  style={{ pointerEvents: "none" }}
                   accessibilityElementsHidden
                   importantForAccessibility="no-hide-descendants"
                 />

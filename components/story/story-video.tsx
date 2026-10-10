@@ -163,6 +163,8 @@ export const StoryVideo = memo(function StoryVideo(props: StoryVideoProps) {
     [onReady],
   )
   return (
+    // Letterbox video story: hitam solid di kedua mode (media fullscreen,
+    // §spek story — DARK_ALLOWLIST check-tokens, preseden story-viewer-screen).
     <View style={{ flex: 1 }} className="bg-black">
       {poster && !ready ? (
         <Image

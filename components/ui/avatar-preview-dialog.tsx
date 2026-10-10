@@ -54,7 +54,7 @@ export function AvatarPreviewDialog({
           <View className="h-40 w-40 overflow-hidden rounded-full bg-surface">
             <Image
               source={{ uri: asset.uri }}
-              style={{ width: 160, height: 160 }}
+              style={{ width: "100%", height: "100%" }}
               contentFit="cover"
               cachePolicy="memory-disk"
               // UX-A11Y-014: tanpa `accessible` + role, expo-image

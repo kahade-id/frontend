@@ -322,7 +322,7 @@ export default function StoryCreateScreen() {
                 aspectRatio={9 / 16}
               />
               {typeof media.asset.durationMs === "number" ? (
-                <View className="absolute bottom-2 left-2 rounded-full bg-black/60 px-2 py-0.5" pointerEvents="none">
+                <View className="absolute bottom-2 left-2 rounded-full bg-black/60 px-2 py-0.5" style={{ pointerEvents: "none" }}>
                   <Text variant="caption" weight={600} className="text-white">
                     {formatMediaClock(media.asset.durationMs / 1000)}
                   </Text>
@@ -344,7 +344,7 @@ export default function StoryCreateScreen() {
 
           {/* Caption foto/video — posisi sama dengan viewer (di atas footer). */}
           {isMedia && caption ? (
-            <View className="absolute bottom-3 left-2 right-2 items-center" pointerEvents="none">
+            <View className="absolute bottom-3 left-2 right-2 items-center" style={{ pointerEvents: "none" }}>
               <View className="rounded-md bg-black/60 px-2.5 py-1.5">
                 <Text variant="caption" weight={600} className="text-center text-white" numberOfLines={3}>
                   {caption}
@@ -368,7 +368,7 @@ export default function StoryCreateScreen() {
           ))}
 
           {priceValue !== null ? (
-            <View className="absolute left-0 right-0 items-center" style={{ top: "42%" }} pointerEvents="none">
+            <View className="absolute left-0 right-0 items-center" style={{ top: "42%", pointerEvents: "none" }}>
               <View className="rounded-md bg-white px-3 py-1.5">
                 <Text variant="label" weight={700} className="text-black">
                   {formatPriceSticker(priceValue)}

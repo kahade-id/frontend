@@ -26,6 +26,7 @@ export function OfflineBanner() {
   if (online) return null
   return (
     <View
+      accessible
       accessibilityRole="alert"
       accessibilityLabel={translate("Anda sedang offline")}
       style={{ paddingTop: insets.top }}

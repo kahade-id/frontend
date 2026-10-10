@@ -31,6 +31,7 @@ import { ROUTES } from "@/lib/routes"
 import { translate } from "@/lib/i18n/translate"
 import { resolveStatus, resolveVerifyTarget, type PaymentFinishStatus } from "@/lib/payment-finish"
 import { usePolling } from "@/lib/use-polling"
+import { tokens } from "@/lib/tokens"
 
 /**
  * UX-FDB-002 (audit UI/UX 2026-10-01): layar pending mem-poll status ke
@@ -40,6 +41,8 @@ import { usePolling } from "@/lib/use-polling"
  */
 const POLL_BASE_MS = 10_000
 const MAX_POLLS = 10
+/** Lebar maks kolom tombol aksi (320 = 5 × space[16]) agar tidak melebar di tablet/web. */
+const ACTIONS_MAX_WIDTH = tokens.space[16] * 5
 
 /**
  * Copy per status — klaim definitif "Dana sudah diterima Kahade" HANYA untuk
@@ -210,15 +213,7 @@ export default function PaymentFinishScreen() {
     <Screen>
       {/* P1-T1: Header dengan fallback aman untuk cold start via deeplink. */}
       <Header title="Status Pembayaran" />
-      <View
-        style={{
-          flex: 1,
-          alignItems: "center",
-          justifyContent: "center",
-          paddingHorizontal: 32,
-          gap: 16,
-        }}
-      >
+      <View className="flex-1 items-center justify-center gap-4 px-8">
         {verifying || verification?.targetKey !== targetKey ? (
           <>
             <ActivityIndicator size="large" />
@@ -241,9 +236,9 @@ export default function PaymentFinishScreen() {
             {/* UX-FDB-002(a): status pending tidak lagi statis — indikator
                 pengecekan otomatis + waktu cek terakhir. */}
             {status === "pending" ? (
-              <View style={{ alignItems: "center", gap: 6 }}>
+              <View className="items-center gap-1.5">
                 {!pollStopped ? (
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                  <View className="flex-row items-center gap-2">
                     <ActivityIndicator size="small" />
                     <Text variant="caption" tone="secondary">
                       Memeriksa status otomatis…
@@ -262,7 +257,7 @@ export default function PaymentFinishScreen() {
                 ) : null}
               </View>
             ) : null}
-            <View style={{ marginTop: 8, width: "100%", maxWidth: 320, gap: 12 }}>
+            <View className="mt-2 w-full gap-3" style={{ maxWidth: ACTIONS_MAX_WIDTH }}>
               {/* Status unknown juga bisa dicek via API jika identifier tersedia. */}
               {(status === "pending" || status === "unknown") && target ? (
                 <Button

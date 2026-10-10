@@ -48,6 +48,7 @@ export const ChatSystemCard = memo(function ChatSystemCard({ text, className }: 
   const icon = KIND_ICON[kind]
   return (
     <View
+      accessible
       accessibilityRole="text"
       accessibilityLabel={`${chatSystemKindLabel(kind)}: ${text ?? ""}`}
       className={`w-full items-center px-5 ${className ?? ""}`}

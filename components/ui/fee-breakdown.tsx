@@ -170,7 +170,7 @@ export function FeeBreakdown({
     )
     if (bare) {
       return (
-        <View className={cn("gap-3", className)} accessibilityLabel="Menghitung biaya" {...rest}>
+        <View accessible className={cn("gap-3", className)} accessibilityLabel="Menghitung biaya" {...rest}>
           {skeletonRows}
         </View>
       )

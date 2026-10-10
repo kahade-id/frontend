@@ -75,18 +75,20 @@ function CaptureDetectedOverlay({ onDismiss }: { onDismiss: () => void }) {
     <View
       style={StyleSheet.absoluteFill}
       className="z-banner items-center justify-center gap-4 bg-background px-8"
-      accessibilityRole="alert"
-      accessibilityLabel={translate("Konten sensitif disembunyikan")}
     >
-      <Icon icon={EyeSlash} size="xl" tone="default" />
-      <Text variant="h3" tone="primary" className="text-center">
-        {translate("Layar disembunyikan")}
-      </Text>
-      <Text variant="body" tone="secondary" className="text-center">
-        {translate(
-          "Tangkapan layar terdeteksi. Konten sensitif disembunyikan demi keamanan akun Anda.",
-        )}
-      </Text>
+      {/* Grup alert = ikon + judul + penjelasan (dibaca utuh, RN merangkai teks
+          anak); tombol Tutup di luar grup agar tetap fokusable (audit #4). */}
+      <View accessible accessibilityRole="alert" className="items-center gap-4">
+        <Icon icon={EyeSlash} size="xl" tone="default" />
+        <Text variant="h3" tone="primary" className="text-center">
+          {translate("Layar disembunyikan")}
+        </Text>
+        <Text variant="body" tone="secondary" className="text-center">
+          {translate(
+            "Tangkapan layar terdeteksi. Konten sensitif disembunyikan demi keamanan akun Anda.",
+          )}
+        </Text>
+      </View>
       <Button onPress={onDismiss}>{translate("Tutup")}</Button>
     </View>
   )

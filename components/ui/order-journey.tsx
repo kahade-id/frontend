@@ -28,6 +28,7 @@ import {
 
 import { Icon, type IconComponent, type IconTone } from "@/components/ui/icon"
 import { Text } from "@/components/ui/text"
+import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
 import { formatDate, formatTime, deviceTimeZoneShort } from "@/lib/format"
 import { translate } from "@/lib/i18n/translate"
@@ -131,9 +132,11 @@ export function OrderJourney({ steps, title, className, ...rest }: OrderJourneyP
         {steps.map((s, i) => {
           const isLast = i === steps.length - 1
           const upcoming = s.state === "upcoming"
-          const label = [s.label, STATE_LABEL[s.state], s.timestamp ? formatJourneyTime(s.timestamp, zone) : null]
-            .filter(Boolean)
-            .join(", ")
+          const label = summarize([
+            s.label,
+            STATE_LABEL[s.state],
+            s.timestamp ? formatJourneyTime(s.timestamp, zone) : null,
+          ])
           return (
             <View key={s.key} accessible accessibilityLabel={label} className="flex-row gap-3">
               {/* Kolom node + konektor */}

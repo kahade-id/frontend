@@ -60,11 +60,12 @@ export function StoryViewersSheet({ visible, storyId, onRequestClose }: StoryVie
       ) : rows.length === 0 ? (
         <EmptyState icon={Eye} title={t("Belum ada yang melihat")} description={t("Viewer muncul di sini setelah ada yang membuka story Anda.")} compact />
       ) : (
-        <View className="gap-3 pb-2" accessibilityLabel={t("Daftar viewer")}>
+        <View className="gap-3 pb-2" accessibilityRole="list">
           {rows.map((v) => {
             const name = v.user.fullName || `@${v.user.username}`
             return (
-              <View key={v.user.userId} className="flex-row items-center gap-3">
+              // Satu grup SR per viewer (nama, waktu, reaksi dibaca utuh — audit #4).
+              <View key={v.user.userId} accessible className="flex-row items-center gap-3">
                 <Avatar source={v.user.avatarUrl ?? undefined} name={name} size="sm" />
                 <View className="flex-1">
                   <Text variant="label" weight={600} numberOfLines={1}>

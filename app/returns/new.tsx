@@ -15,6 +15,7 @@ import type { ReturnEligibility, ReturnReasonCode } from "@/lib/api/returns"
 import { RETURN_REASON_LABEL } from "@/lib/api/returns"
 import { formatDateTimeWIB } from "@/lib/format"
 import { tokens } from "@/lib/tokens"
+import { translate } from "@/lib/i18n/translate"
 import { useApiQuery } from "@/lib/use-api-query"
 import { showMutationError } from "@/lib/mutation-toast"
 import { useTheme } from "@/components/theme-provider"
@@ -132,14 +133,14 @@ export default function NewReturnScreen() {
                     key={r}
                     onPress={() => setReasonCode(r)}
                     accessibilityRole="radio"
-                    accessibilityLabel={`Alasan: ${RETURN_REASON_LABEL[r]}`}
+                    accessibilityLabel={translate("Alasan: {x}", { x: RETURN_REASON_LABEL[r] })}
                     accessibilityState={{ checked: reasonCode === r }}
                   >
                     <View
                       style={{
                         padding: tokens.space[3],
                         borderRadius: tokens.radius.md,
-                        borderWidth: 1,
+                        borderWidth: tokens.borderWidth.default,
                         borderColor: reasonCode === r ? c.primary : c.borderDefault,
                         // Tidak ada token "primarySoft": tint 8% dari primary.
                         backgroundColor: reasonCode === r ? `${c.primary}14` : c.surface,

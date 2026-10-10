@@ -109,6 +109,8 @@ export const ChatFileCard = memo(function ChatFileCard({
                   </Text>
                 ) : null}
                 {ext ? (
+                  // Tint 7%/14% dari text-primary; modifier alpha warna token tidak
+                  // menghasilkan CSS → literal (DARK_ALLOWLIST check-tokens).
                   <View className="rounded-sm bg-black/[0.07] px-1 dark:bg-white/[0.14]">
                     <Text variant="caption" weight={700} tone={outgoing ? "inverse" : "secondary"} className="tracking-widest">
                       {ext}

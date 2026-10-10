@@ -22,6 +22,7 @@ import { translate } from "@/lib/i18n/translate"
 
 import { Text } from "@/components/ui/text"
 import { Icon } from "@/components/ui/icon"
+import { CardSummary } from "@/components/ui/card"
 import { Picture } from "@/components/ui/picture"
 import { isOrderStatus, OrderStatusBadge } from "@/components/ui/order-status-badge"
 import { PressableScale } from "@/components/ui/pressable-scale"
@@ -52,12 +53,12 @@ export const ChatProductCard = memo(function ChatProductCard({
   const openShowcase = () => router.push(ROUTES.showcaseDetail(card.showcaseId))
   return (
     <View
-      accessibilityRole="summary"
-      accessibilityLabel={translate("Kartu produk: {x}, {y}", { x: card.title, y: priceLabel(card) })}
       // 2026-10-02: w-full max-w-full agar tidak melebihi bubble.
       className={`w-full max-w-full overflow-hidden rounded-sm border ${
         // UX-COL-013: pola CHT-013 — border putih tak terlihat di dark
         // (bubble putih), bg hitam tak terlihat di light (bubble hitam).
+        // (= primary-foreground 70%/10%; modifier alpha warna token tidak
+        // menghasilkan CSS → literal, DARK_ALLOWLIST check-tokens.)
         outgoing ? "border-white/70 dark:border-black/30 bg-white/10 dark:bg-black/10" : "border-border bg-background"
       }`}
     >
@@ -71,43 +72,50 @@ export const ChatProductCard = memo(function ChatProductCard({
         />
       ) : null}
       <View className="gap-1 p-2.5">
-        {/*
-          CHT-012: snapshot optimistis bisa belum tahu username penjual
-          (profil gagal dimuat) — baris "@" kosong disembunyikan daripada
-          tampil "@" menggantung.
-        */}
-        {card.sellerUsername ? (
-          <View className="flex-row items-center gap-1">
-            <Icon icon={Storefront} size={12} tone={outgoing ? "inverse" : "default"} />
-            <Text
-              variant="caption"
-              tone={outgoing ? "inverse" : "secondary"}
-              numberOfLines={1}
-              ellipsizeMode="tail"
-            >
-              @{card.sellerUsername}
-            </Text>
-          </View>
-        ) : null}
-        <Text
-          variant="body"
-          weight={600}
-          tone={outgoing ? "inverse" : "primary"}
-          numberOfLines={2}
-          ellipsizeMode="tail"
+        {/* Grup SR bagian informasi (penjual, judul, harga); tombol Lihat/Beli di
+            bawahnya tetap fokusable terpisah (audit #4). */}
+        <CardSummary
+          label={translate("Kartu produk: {x}, {y}", { x: card.title, y: priceLabel(card) })}
+          className="gap-1"
         >
-          {card.title}
-        </Text>
-        {/*
-          CHT-002: harga memakai tone accent TANPA mempertimbangkan outgoing —
-          accent.text = #000000 (light) / #FFFFFF (dark), SAMA dengan warna
-          bubble keluar (bg-primary) → hitam-di-atas-hitam / putih-di-atas-putih.
-          Di bubble sendiri pakai "inverse" (mode-aware: putih di light,
-          hitam di dark) seperti semua teks lain di kartu ini.
-        */}
-        <Text variant="body" weight={700} tone={outgoing ? "inverse" : "accent"}>
-          {priceLabel(card)}
-        </Text>
+          {/*
+            CHT-012: snapshot optimistis bisa belum tahu username penjual
+            (profil gagal dimuat) — baris "@" kosong disembunyikan daripada
+            tampil "@" menggantung.
+          */}
+          {card.sellerUsername ? (
+            <View className="flex-row items-center gap-1">
+              <Icon icon={Storefront} size={12} tone={outgoing ? "inverse" : "default"} />
+              <Text
+                variant="caption"
+                tone={outgoing ? "inverse" : "secondary"}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
+                @{card.sellerUsername}
+              </Text>
+            </View>
+          ) : null}
+          <Text
+            variant="body"
+            weight={600}
+            tone={outgoing ? "inverse" : "primary"}
+            numberOfLines={2}
+            ellipsizeMode="tail"
+          >
+            {card.title}
+          </Text>
+          {/*
+            CHT-002: harga memakai tone accent TANPA mempertimbangkan outgoing —
+            accent.text = #000000 (light) / #FFFFFF (dark), SAMA dengan warna
+            bubble keluar (bg-primary) → hitam-di-atas-hitam / putih-di-atas-putih.
+            Di bubble sendiri pakai "inverse" (mode-aware: putih di light,
+            hitam di dark) seperti semua teks lain di kartu ini.
+          */}
+          <Text variant="body" weight={700} tone={outgoing ? "inverse" : "accent"}>
+            {priceLabel(card)}
+          </Text>
+        </CardSummary>
         <View className="mt-1 flex-row gap-2">
           {/* UX-TCH-025: PressableScale (feedback scale) + py-3 → ≥44pt;
               sebelumnya Pressable polos ~38px tanpa feedback. */}
@@ -181,6 +189,7 @@ export const ChatOrderCard = memo(function ChatOrderCard({
       className={`gap-1.5 rounded-sm border p-2.5 ${
         // UX-COL-013: pola CHT-013 — border putih tak terlihat di dark
         // (bubble putih), bg hitam tak terlihat di light (bubble hitam).
+        // (Literal karena alpha warna token tidak tersedia — DARK_ALLOWLIST.)
         outgoing ? "border-white/70 dark:border-black/30 bg-white/10 dark:bg-black/10" : "border-border bg-background"
       }`}
     >

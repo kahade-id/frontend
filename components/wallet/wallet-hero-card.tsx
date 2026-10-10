@@ -130,29 +130,31 @@ export function WalletHeroCard({
          * opacity tidak meredupkan konten.
          */}
         <View
-          pointerEvents="none"
           className="absolute -right-16 -top-16 h-52 w-52 rounded-full bg-primary-foreground"
-          style={{ opacity: 0.07 }}
+          style={{ opacity: 0.07, pointerEvents: "none" }}
         />
         <View
-          pointerEvents="none"
           className="absolute -bottom-20 -left-12 h-44 w-44 rounded-full bg-primary-foreground"
-          style={{ opacity: 0.05 }}
+          style={{ opacity: 0.05, pointerEvents: "none" }}
         />
         <View
-          pointerEvents="none"
           className="absolute -bottom-14 -left-6 h-32 w-32 rounded-full border-[20px] border-primary-foreground"
-          style={{ opacity: 0.06 }}
+          style={{ opacity: 0.06, pointerEvents: "none" }}
         />
 
         <View className="gap-5 p-5">
           <View className="flex-row items-start justify-between gap-3">
-            <CardSummary label={summary} className="flex-1 gap-2">
+            {/* Audit #4 (rule B): grup ringkasan hanya ikon + label "Saldo Tersedia"
+                (dibacakan sebagai `summary`); tombol rincian & dalam transaksi di luar
+                grup supaya tetap fokusable. */}
+            <View className="flex-1 gap-2">
               <View className="flex-row items-center gap-2">
-                <Icon icon={Wallet} size="xs" tone="inverse" />
-                <Text variant="caption" weight={600} tone="inverse">
-                  Saldo Tersedia
-                </Text>
+                <CardSummary label={summary} className="flex-row items-center gap-2">
+                  <Icon icon={Wallet} size="xs" tone="inverse" />
+                  <Text variant="caption" weight={600} tone="inverse">
+                    Saldo Tersedia
+                  </Text>
+                </CardSummary>
                 {onPressBreakdown && !loading ? (
                   // D03 (batch 139): rincian saldo tersedia/tertahan/total.
                   // Kotak 44x44 pola toggle mata — tidak menambah tinggi baris.
@@ -236,7 +238,7 @@ export function WalletHeroCard({
                   </Text>
                 </View>
               ) : null}
-            </CardSummary>
+            </View>
             {onToggleHidden ? (
               // Kotak nyata 44x44 + margin negatif agar tinggi baris label
               // tidak bertambah (pola WalletBalanceCard/HomeOverviewCard).

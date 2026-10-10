@@ -578,11 +578,12 @@ export function VoiceNoteRecorder({
               x: formatVoiceNoteDuration(spokenDurationMs),
             })}
           >
+            {/* Titik rekam 12px = skala <Dot> lg (space[3]); dulu 14 (di luar skala). */}
             <Animated.View
               style={{
-                width: 14,
-                height: 14,
-                borderRadius: 7,
+                width: tokens.space[3],
+                height: tokens.space[3],
+                borderRadius: tokens.radius.full,
                 backgroundColor: dangerFill,
                 opacity: pulse,
                 transform: [{ scale: pulse }],

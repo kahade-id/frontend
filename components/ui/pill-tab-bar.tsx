@@ -25,6 +25,7 @@ import Reanimated, {
   withTiming,
 } from "react-native-reanimated"
 
+import { CountBadge } from "@/components/ui/count-badge"
 import { Icon, type IconComponent } from "@/components/ui/icon"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
@@ -49,38 +50,22 @@ export type PillTabBarProps = {
   accessibilityLabel?: string
 }
 
-/**
- * Tinggi visual pill (px) — satu sumber untuk offset konten di atasnya.
- */
-export const PILL_TAB_BAR_HEIGHT = 60
-
 const HIT_SLOP = { top: 8, bottom: 8, left: 12, right: 12 } as const
-/** Napas horizontal kapsul indikator di kiri-kanan slot tab. */
-const PILL_PAD_X = 6
+/**
+ * Napas kapsul indikator di kiri-kanan slot tab, dan padding vertikal kapsul
+ * luar: 6px (= py-1.5; space[1] terlalu rapat, space[2] membuat pill 64px).
+ */
+const PILL_PAD_X = tokens.space[1] + tokens.space["0.5"]
+const PILL_PAD_Y = PILL_PAD_X
+/** Tinggi slot tab = target sentuh 48 (space[12]). */
+const TAB_MIN_HEIGHT = tokens.space[12]
+/**
+ * Tinggi visual pill (px) — satu sumber untuk offset konten di atasnya:
+ * slot tab + padding vertikal kapsul (48 + 2 × 6 = 60).
+ */
+export const PILL_TAB_BAR_HEIGHT = TAB_MIN_HEIGHT + PILL_PAD_Y * 2
 
 type SlotLayout = { x: number; w: number }
-
-function PillBadge({ count }: { count: number }) {
-  const { mode } = useTheme()
-  const palette = modes[mode]
-  return (
-    <View
-      style={[
-        styles.badge,
-        { backgroundColor: tokens.colors.semantic.danger[mode].fill },
-      ]}
-      pointerEvents="none"
-    >
-      <Text
-        variant="caption"
-        weight={700}
-        style={{ color: palette.primaryForeground, fontSize: 10, lineHeight: 12 }}
-      >
-        {count > 99 ? "99+" : String(count)}
-      </Text>
-    </View>
-  )
-}
 
 function PillTab({
   item,
@@ -112,8 +97,10 @@ function PillTab({
             active={active}
             color={active ? palette.textPrimary : palette.textSecondary}
           />
-          {item.badge && (item.badgeCount ?? 0) > 0 ? (
-            <PillBadge count={item.badgeCount ?? 0} />
+          {/* Angka badge = <CountBadge> bersama (18px, "99+"); menempel di
+              sudut kanan atas ikon seperti <BadgedIcon>. */}
+          {item.badge ? (
+            <CountBadge count={item.badgeCount ?? 0} className="absolute -right-2 -top-2" />
           ) : null}
         </View>
         {active ? (
@@ -184,10 +171,7 @@ function PillTabBarBase({ items, value, onChange, accessibilityLabel }: PillTabB
   const activeBg = mode === "light" ? tokens.colors.gray[200] : tokens.colors.gray[700]
 
   return (
-    <View
-      style={[styles.float, { bottom: Math.max(insets.bottom, 12) }]}
-      pointerEvents="box-none"
-    >
+    <View style={[styles.float, { bottom: Math.max(insets.bottom, 12), pointerEvents: "box-none" }]}>
       <View
         style={[
           styles.pill,
@@ -203,8 +187,7 @@ function PillTabBarBase({ items, value, onChange, accessibilityLabel }: PillTabB
         >
           {pillWTarget > 0 ? (
             <Reanimated.View
-              pointerEvents="none"
-              style={[styles.activePill, { backgroundColor: activeBg }, pillStyle]}
+              style={[styles.activePill, { backgroundColor: activeBg, pointerEvents: "none" }, pillStyle]}
             />
           ) : null}
           {items.map((item) => (
@@ -233,52 +216,44 @@ export const PillTabBar = memo(PillTabBarBase)
 const styles = StyleSheet.create({
   float: {
     position: "absolute",
-    left: 20,
-    right: 20,
+    left: tokens.layout.screenPaddingX,
+    right: tokens.layout.screenPaddingX,
     alignItems: "center",
     // Pill compact di tengah: baris shrink-to-fit, slot content-sized.
   },
   pill: {
-    borderRadius: 999,
+    borderRadius: tokens.radius.full,
     // (2026-10-05, revisi produk: padding horizontal agar pill aktif di
     // Etalase/Notifikasi tidak menempel background; vertikal tetap compact.)
-    paddingVertical: 6,
-    paddingHorizontal: 14,
+    // Horizontal = napas indikator + space[2] (14) supaya kapsul aktif di
+    // slot ujung tetap berjarak dari tepi kapsul luar.
+    paddingVertical: PILL_PAD_Y,
+    paddingHorizontal: PILL_PAD_X + tokens.space[2],
   },
   row: {
     position: "relative",
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
+    gap: tokens.space[1],
   },
   activePill: {
     position: "absolute",
     top: 0,
     bottom: 0,
     left: 0,
-    borderRadius: 999,
+    borderRadius: tokens.radius.full,
   },
   tabInner: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    gap: 8,
-    minHeight: 48,
+    // Konten ikon/label 24px + 2 × space[3] = 48 = minHeight (tampilan sama).
+    paddingVertical: tokens.space[3],
+    paddingHorizontal: tokens.space[3],
+    gap: tokens.space[2],
+    minHeight: TAB_MIN_HEIGHT,
   },
   iconWrap: {
     position: "relative",
-  },
-  badge: {
-    position: "absolute",
-    top: -8,
-    right: -10,
-    minWidth: 18,
-    height: 18,
-    borderRadius: 9,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 4,
   },
 })

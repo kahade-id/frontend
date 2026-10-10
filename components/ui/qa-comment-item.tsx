@@ -136,7 +136,7 @@ export function QaCommentItem({
       <View className="items-center">
         <Avatar source={authorAvatar?.source} name={authorName} size="sm" verified={authorVerified} />
         {hasNext ? (
-          <View testID="qa-thread-line" className="w-0.5 flex-1 bg-border" style={{ marginTop: 6 }} />
+          <View testID="qa-thread-line" className="mt-1.5 w-0.5 flex-1 bg-border" />
         ) : null}
       </View>
 

@@ -209,12 +209,6 @@ export function Picture({
 
   return (
     <View
-      // C04: saat error, overlay "Coba lagi" harus tetap terjangkau screen
-      // reader — jangan group-kan seluruh view (iOS menyembunyikan anak
-      // interaktif bila induk `accessible`).
-      accessible={!decorative && status !== "error"}
-      accessibilityRole={decorative ? undefined : "image"}
-      accessibilityLabel={decorative ? undefined : alt}
       accessibilityElementsHidden={decorative}
       importantForAccessibility={decorative ? "no-hide-descendants" : "auto"}
       className={cn(
@@ -229,14 +223,60 @@ export function Picture({
       {...protectionHandlers}
       {...rest}
     >
+      {/* C04 + audit #4 (rule B): grup SR (role image + alt) HANYA membungkus
+          gambar & skeleton. Overlay "Muat gambar"/"Coba lagi" dirender sebagai
+          SAUDARA setelah grup (di atasnya) sehingga tetap fokusable — induk
+          `accessible` menyembunyikan anak interaktif di iOS. */}
+      <View
+        accessible={!decorative}
+        accessibilityRole={decorative ? undefined : "image"}
+        accessibilityLabel={decorative ? undefined : alt}
+        className="h-full w-full"
+      >
+        {!gated && status !== "error" ? (
+          <Image
+            key={sourceKey}
+            source={src}
+            contentFit={resizeModeToContentFit[resizeMode]}
+            contentPosition="center"
+            cachePolicy={cachePolicy}
+            recyclingKey={recyclingKey}
+            priority={priority}
+            placeholder={placeholder}
+            // P2 PERF-FIX (2026-09-30): tanpa transisi fade di web (composite cost
+            // saat scroll cepat) atau saat reduced-motion.
+            transition={reducedMotion || Platform.OS === "web" ? 0 : tokens.motion.duration.fast}
+            style={{ width: "100%", height: "100%" }}
+            onLoad={(e: any) => {
+              setStatus("loaded")
+              onLoad?.(e)
+            }}
+            onError={(e: any) => {
+              setStatus("error")
+              onError?.(e)
+            }}
+          />
+        ) : null}
+
+        {/* Overlay loading di atas area yang sama agar ukuran tidak berubah */}
+        {status === "loading" && !gated ? (
+          <View className="absolute inset-0">
+            {/* UX-05: placeholder gambar harus terlihat di light mode (subtle = 1,10:1). */}
+            <Skeleton shape="rect" tone="contrast" className="h-full w-full rounded-none" />
+          </View>
+        ) : null}
+      </View>
+
       {gated ? (
         <PressableScale
           accessibilityRole="button"
           accessibilityLabel={translate("Muat gambar: {x}", { x: alt })}
           accessibilityHint={translate("Mode hemat data aktif. Ketuk untuk memuat gambar.")}
           onPress={() => setDeferred(false)}
+          // Kontainer absolut seukuran gambar — pola sama dengan overlay "Coba lagi".
+          containerClassName="absolute inset-0 items-center justify-center"
         >
-          <View className="absolute inset-0 items-center justify-center gap-1.5 px-6">
+          <View className="items-center justify-center gap-1.5 px-6">
             <View className="items-center justify-center rounded-full bg-background p-3.5">
               <Icon icon={CloudSlash} size="lg" tone="default" />
             </View>
@@ -248,37 +288,6 @@ export function Picture({
             </Text>
           </View>
         </PressableScale>
-      ) : status !== "error" ? (
-        <Image
-          key={sourceKey}
-          source={src}
-          contentFit={resizeModeToContentFit[resizeMode]}
-          contentPosition="center"
-          cachePolicy={cachePolicy}
-          recyclingKey={recyclingKey}
-          priority={priority}
-          placeholder={placeholder}
-          // P2 PERF-FIX (2026-09-30): tanpa transisi fade di web (composite cost
-          // saat scroll cepat) atau saat reduced-motion.
-          transition={reducedMotion || Platform.OS === "web" ? 0 : tokens.motion.duration.fast}
-          style={{ width: "100%", height: "100%" }}
-          onLoad={(e: any) => {
-            setStatus("loaded")
-            onLoad?.(e)
-          }}
-          onError={(e: any) => {
-            setStatus("error")
-            onError?.(e)
-          }}
-        />
-      ) : null}
-
-      {/* Overlay loading/error di atas area yang sama agar ukuran tidak berubah */}
-      {status === "loading" && !gated ? (
-        <View className="absolute inset-0">
-          {/* UX-05: placeholder gambar harus terlihat di light mode (subtle = 1,10:1). */}
-          <Skeleton shape="rect" tone="contrast" className="h-full w-full rounded-none" />
-        </View>
       ) : null}
 
       {status === "error" ? (

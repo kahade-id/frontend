@@ -260,13 +260,8 @@ export default function TrackingScreen() {
                 {events.map((ev, index) => (
                   <View key={ev.id} style={{ flexDirection: "row", gap: tokens.space[2] }}>
                     <View
-                      style={{
-                        width: 8,
-                        height: 8,
-                        borderRadius: 4,
-                        backgroundColor: index === 0 ? c.primary : c.borderDefault,
-                        marginTop: 6,
-                      }}
+                      className="mt-1.5 h-2 w-2 rounded-full"
+                      style={{ backgroundColor: index === 0 ? c.primary : c.borderDefault }}
                     />
                     <View style={{ flex: 1 }}>
                       <Text variant="body" weight={index === 0 ? 700 : 600}>{shipmentStatusText(ev.status)}</Text>

@@ -315,7 +315,18 @@ const CONTAINER_LABEL_ALLOWLIST = {
   "components/ui/showcase-gallery-grid.tsx": "Grid berisi PressableScale per foto; label hanya untuk state loading.",
   "components/ui/radio.tsx": "Grup radio berisi <Radio> (PressableScale role=radio) — `accessible` akan menelan seluruh opsi; label grup justru dipasang agar pembaca layar mengumumkan konteks pertanyaan (F-08).",
   "components/ui/segmented-control.tsx": "Grup segmen berisi PressableScale role=radio per segmen; `accessible` di container akan menelan semua segmen (F-08).",
-  "components/ui/mode-switcher.tsx": "Grup mode berisi PressableScale role=radio per pil; `accessible` di container akan menelan kedua pilihan (F-08).",
+  "components/dana-checkout-sheet.tsx": "Grup radio metode pembayaran berisi <PaymentMethodRow> (PressableScale role=radio); `accessible` akan menelan semua opsi (F-08, pola radio.tsx).",
+  "components/app-lock-gate.tsx": "Overlay kunci berisi PinInput + tombol; label dipakai bersama accessibilityViewIsModal + announceForAccessibility, bukan grup SR (pola modal.tsx).",
+  "components/screens/story-create-screen.tsx": "Pratinjau story berisi <Input> teks & <StoryDraggableTag> (geser/hapus); label kontainer = nama area pratinjau.",
+  "components/screens/story-viewer-screen.tsx": "Layar story fullscreen berisi kontrol tutup/jeda/balas/reaksi; label root = konteks layar, `accessible` akan menelan seluruh kontrol.",
+  "components/story/story-tray.tsx": "Ubin story berisi <StoryRing> (PressableScale berlabel sendiri); label ubin = nama pemilik sebagai penanda grup.",
+  "components/ui/app-drawer.tsx": "Root menu (role=menu, dipakai tes drawer), grup bahasa (radio) dan toolbar aksi cepat berisi PressableScale; `accessible` akan menelan semua kontrol (F-08).",
+  "components/ui/chat-format-bar.tsx": "Toolbar format berisi PressableScale per format; label = nama toolbar.",
+  "components/ui/quick-reply-picker.tsx": "Panel menu template berisi IconButton (kelola/tutup) + item PressableScale; label = nama menu (role=menu).",
+  "components/ui/pill-tab-bar.tsx": "Tablist berisi PressableScale role=tab per tab; `accessible` di container akan menelan semua tab (pola segmented-control).",
+  "components/ui/order-journey.tsx": "Tiap langkah sudah <View accessible> berlabel; label kontainer = nama daftar (role=list, pola bar-chart).",
+  "components/wallet/wallet-menu.tsx": "Toolbar aksi & menu cepat dompet berisi PressableScale per item; label = nama toolbar.",
+  "app/help/[slug].tsx": "Breadcrumb (role=list) berisi PressableScale role=link; label = nama navigasi (aria-label di web).",
 }
 
 const containerSeen = new Set()

@@ -33,10 +33,10 @@ import { View } from "react-native"
 import { CaretDown } from "phosphor-react-native"
 
 import { useTheme } from "@/components/theme-provider"
+import { CountBadge } from "@/components/ui/count-badge"
 import { FadeIn } from "@/components/ui/fade-in"
 import { Icon } from "@/components/ui/icon"
 import { PressableScale } from "@/components/ui/pressable-scale"
-import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { elevationStyle } from "@/lib/elevation"
 import { focusRing } from "@/lib/focus-ring"
@@ -102,19 +102,10 @@ export function ScrollToEndButton({
           className="h-10 w-10 items-center justify-center rounded-full"
         >
           <Icon icon={CaretDown} size="sm" tone="active" weight="bold" />
-          {/* B03: badge jumlah pesan baru — pill merah di sudut kanan atas. */}
+          {/* B03: badge jumlah pesan baru — <CountBadge> bersama (pill merah 18px,
+              "99+", kontras teks per mode sudah diurus primitif — UX-COL-002). */}
           {count > 0 ? (
-            <View
-              className="absolute -right-1 -top-1 min-w-5 items-center justify-center rounded-full bg-danger px-1"
-              style={styles.noTouch}
-            >
-              {/* UX-COL-002 (audit UI/UX 2026-10-01): bg-danger di dark = #F87171
-                  (terang) — text-white polos hanya 2.77:1. Ikuti pola
-                  button.tsx:77 / count-badge.tsx:58: dark:text-gray-950. */}
-              <Text variant="caption" weight={700} className="text-white dark:text-gray-950 tabular-nums">
-                {count > 99 ? "99+" : String(count)}
-              </Text>
-            </View>
+            <CountBadge count={count} className="absolute -right-1 -top-1" style={styles.noTouch} />
           ) : null}
         </PressableScale>
       </View>

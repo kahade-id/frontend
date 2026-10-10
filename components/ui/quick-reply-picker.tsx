@@ -43,6 +43,12 @@ import { isApiError, userMessage } from "@/lib/api"
 
 /** Batas backend: maksimum 50 template per user. */
 const REPLY_TEMPLATE_LIMIT = 50
+/**
+ * Tinggi maks panel (320 = 5 × space[16]) & daftar template-nya (200 =
+ * 5 × space[10]): panel mengambang di atas composer, tidak boleh menutupi thread.
+ */
+const PANEL_MAX_HEIGHT = tokens.space[16] * 5
+const LIST_MAX_HEIGHT = tokens.space[10] * 5
 
 export type QuickReplyPickerProps = {
   /** Teks setelah "/" — dipakai menyaring template. */
@@ -128,7 +134,7 @@ export function QuickReplyPicker({ query, onSelect, onClose }: QuickReplyPickerP
   return (
     <View
       className="absolute bottom-full left-0 right-0 mb-2"
-      style={{ maxHeight: 320 }}
+      style={{ maxHeight: PANEL_MAX_HEIGHT }}
       accessibilityRole="menu"
       accessibilityLabel={translate("Template balasan cepat")}
     >
@@ -166,7 +172,7 @@ export function QuickReplyPicker({ query, onSelect, onClose }: QuickReplyPickerP
         </View>
 
         <ScrollView
-          style={{ maxHeight: 200 }}
+          style={{ maxHeight: LIST_MAX_HEIGHT }}
           keyboardShouldPersistTaps="handled"
           contentContainerClassName="py-1"
         >

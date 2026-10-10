@@ -17,10 +17,12 @@
 import { MapPin } from "phosphor-react-native"
 import { View, type ViewProps } from "react-native"
 
+import { CardSummary } from "@/components/ui/card"
 import { CopyableField } from "@/components/ui/copyable-field"
 import { IconBox } from "@/components/ui/icon-box"
 import { SectionHeader } from "@/components/ui/section"
 import { Text } from "@/components/ui/text"
+import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
 import { translate } from "@/lib/i18n/translate"
 import type { OrderShippingAddress } from "@/lib/api/orders-shared"
@@ -75,7 +77,11 @@ export function ShippingAddressCard({
   return (
     <View className={cn("gap-4", className)} {...rest}>
       <SectionHeader title={t.title} />
-      <View className="flex-row items-start gap-3">
+      {/* Blok alamat = satu grup SR; <CopyableField> telepon di luar grup (audit #4). */}
+      <CardSummary
+        label={summarize([t.recipient, address.recipientName, address.addressLine, region])}
+        className="flex-row items-start gap-3"
+      >
         <IconBox icon={MapPin} size="md" variant="surface" />
         <View className="flex-1 gap-1">
           {address.recipientName ? (
@@ -99,7 +105,7 @@ export function ShippingAddressCard({
             </Text>
           ) : null}
         </View>
-      </View>
+      </CardSummary>
 
       {address.phone ? (
         <CopyableField label={t.phone} value={address.phone} mono onCopy={onCopy} copied={copied} />

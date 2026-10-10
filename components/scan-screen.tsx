@@ -532,6 +532,8 @@ export default function ScanScreen() {
                 </Button>
               </View>
             ) : cameraGranted ? (
+              // Bingkai kamera: hitam solid di kedua mode (permukaan pemindai,
+              // DARK_ALLOWLIST check-tokens — preseden media-viewer).
               <View className="relative h-64 w-64 overflow-hidden rounded-lg bg-black">
                 <CameraView
                   style={{ flex: 1 }}
@@ -687,7 +689,7 @@ export default function ScanScreen() {
                     icon={Trash}
                     size="sm"
                     variant="ghost"
-                    accessibilityLabel={`Hapus riwayat ${item.label}`}
+                    accessibilityLabel={translate("Hapus riwayat {x}", { x: item.label })}
                     onPress={() => void removeScanHistory(item.id).then(setHistory)}
                   />
                 </View>
@@ -988,7 +990,9 @@ export default function ScanScreen() {
         ) : null}
       </BottomSheet>
 
-      {/* ── QR layar penuh + kecerahan maksimal (FE-IMP-4 item 28) ── */}
+      {/* ── QR layar penuh + kecerahan maksimal (FE-IMP-4 item 28) ──
+          Overlay hitam permanen di kedua mode (kecerahan maksimal untuk
+          pemindai); chrome putih literal — DARK_ALLOWLIST check-tokens. */}
       {qrZoomed && myProfileUrl ? (
         <View className="absolute inset-0 z-modal items-center justify-center bg-black px-8">
           <View className="items-center gap-6">

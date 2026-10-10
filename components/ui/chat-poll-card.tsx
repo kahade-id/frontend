@@ -14,14 +14,21 @@ import { formatDateTimeWIB } from "@/lib/format"
 import { translate, useLanguage } from "@/lib/i18n"
 import { pollLockState, pollOptionPercent } from "@/lib/chat-poll"
 import { useClockTick } from "@/lib/use-clock-tick"
+import { summarize } from "@/lib/a11y"
+import { hitSlopToReach } from "@/lib/hit-slop"
+import { tokens } from "@/lib/tokens"
 
 import { serverNow } from "@/lib/server-time"
 
 import { Text } from "@/components/ui/text"
+import { CardSummary } from "@/components/ui/card"
 import { Icon } from "@/components/ui/icon"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Button } from "@/components/ui/button"
 import { ChartBar, CheckCircle, Clock, Lock } from "phosphor-react-native"
+
+/** Tinggi visual baris opsi: body 24 + py-2 (2 × space[2]) = 40 → slop vertikal 2px ke target 44. */
+const POLL_OPTION_HEIGHT = tokens.typography.body.lineHeight + 2 * tokens.space[2]
 
 export type ChatPollCardProps = {
   poll: ChatPoll
@@ -95,12 +102,12 @@ export const ChatPollCard = memo(function ChatPollCard({
   if (malformed) return null
 
   return (
-    <View
-      accessibilityRole="summary"
-      accessibilityLabel={translate("Polling: {x}", { x: poll.question })}
-      className="gap-2 rounded-md border border-border bg-surface p-3"
-    >
-      <View className="flex-row items-start gap-2">
+    <View className="gap-2 rounded-md border border-border bg-surface p-3">
+      {/* Kepala polling = satu grup SR; opsi & tombol di bawahnya tetap fokusable (audit #4). */}
+      <CardSummary
+        label={summarize([translate("Polling: {x}", { x: poll.question }), summary])}
+        className="flex-row items-start gap-2"
+      >
         <Icon icon={ChartBar} size={18} tone="accent" />
         <View className="flex-1">
           <Text variant="body" weight={700} tone="primary">
@@ -110,7 +117,7 @@ export const ChatPollCard = memo(function ChatPollCard({
             {summary}
           </Text>
         </View>
-      </View>
+      </CardSummary>
 
       <View className="gap-1.5">
         {poll.options.map((opt) => {
@@ -127,9 +134,9 @@ export const ChatPollCard = memo(function ChatPollCard({
               accessibilityRole={poll.allowMultiple ? "checkbox" : "radio"}
               accessibilityState={{ checked: selected, disabled: locked || voting }}
               accessibilityLabel={translate("{x}, {y} suara", { x: opt.text, y: opt.votes })}
-              /* P2-16 (audit non-escrow 2026-10-03): hitSlop agar target
-                 sentuh ≥44px (baris ±36px). */
-              hitSlop={{ top: 4, bottom: 4 }}
+              /* P2-16 (audit non-escrow 2026-10-03): slop VERTIKAL saja agar target
+                 sentuh ≥44px tanpa menumpuk dengan opsi tetangga (gap-1.5). */
+              hitSlop={hitSlopToReach(tokens.a11y.minHitTarget, POLL_OPTION_HEIGHT)}
               className={`overflow-hidden rounded-sm border ${
                 selected ? "border-primary bg-primary/10" : "border-border bg-background"
               }`}

@@ -265,7 +265,12 @@ function ThemeToggleButton() {
     >
       {/* Bingkai ikon polos — TANPA className (lihat LARANGAN di atas). */}
       <Reanimated.View
-        style={{ width: 24, height: 24, alignItems: "center", justifyContent: "center" }}
+        style={{
+          width: tokens.icon.size.md,
+          height: tokens.icon.size.md,
+          alignItems: "center",
+          justifyContent: "center",
+        }}
       >
         <Reanimated.View style={[{ position: "absolute" }, sunStyle]}>
           <Icon icon={Sun} size="md" tone="default" weight="bold" />
@@ -598,8 +603,10 @@ export function AppDrawer() {
               left: 0,
               width: drawerWidth,
               backgroundColor: modes[themeMode].background,
-              borderTopRightRadius: 20,
-              borderBottomRightRadius: 20,
+              // §5: radius lg (12) — satu-satunya radius besar di sistem;
+              // dulu 20 (di luar skala).
+              borderTopRightRadius: tokens.radius.lg,
+              borderBottomRightRadius: tokens.radius.lg,
               paddingTop: insets.top,
               paddingBottom: insets.bottom,
               ...elevationStyle("high", themeMode),
@@ -638,6 +645,7 @@ export function AppDrawer() {
               </PressableScale>
             ) : token || restoring || sessionError ? (
               <View
+                accessible
                 accessibilityRole="progressbar"
                 accessibilityLabel={translate("Memuat…")}
                 className="flex-row items-center gap-3 pr-12"
@@ -667,7 +675,7 @@ export function AppDrawer() {
                 pojok kanan atas header di semua platform (termasuk web).
                 Style inline untuk positioning — bukan background — jadi aman
                 dari masalah compile className di web. */}
-            <View style={{ position: "absolute", right: 12, top: 20 }}>
+            <View style={{ position: "absolute", right: tokens.space[3], top: tokens.space[5] }}>
               <PressableScale
                 onPress={closeDrawer}
                 accessibilityRole="button"
@@ -696,10 +704,10 @@ export function AppDrawer() {
                 <View
                   style={{
                     backgroundColor: tokens.colors.accent[themeMode].bgSoft,
-                    borderRadius: 16,
-                    padding: 16,
+                    // §5: kartu hero → radius lg (12); dulu 16 (di luar skala).
+                    borderRadius: tokens.radius.lg,
                   }}
-                  className="flex-row items-center gap-3"
+                  className="flex-row items-center gap-3 p-4"
                 >
                   <Icon icon={CrownSimple} size="lg" tone="accent" weight="bold" />
                   <View className="flex-1 gap-0.5">

@@ -28,6 +28,7 @@ import { Bell, Trash } from "phosphor-react-native"
 import { api, type AppNotification } from "@/lib/api"
 import { formatDateTime } from "@/lib/format"
 import { ROUTES } from "@/lib/routes"
+import { tokens } from "@/lib/tokens"
 import {
   checkConfirmReceiptEligible,
   confirmReceipt,
@@ -326,7 +327,7 @@ export default function NotificationDetailScreen() {
           {notif.imageUrl ? (
             <Image
               source={{ uri: notif.imageUrl }}
-              style={{ width: "100%", aspectRatio: 16 / 9, borderRadius: 12 }}
+              style={{ width: "100%", aspectRatio: 16 / 9, borderRadius: tokens.radius.lg }}
               contentFit="cover"
               transition={150}
               accessibilityIgnoresInvertColors

@@ -156,7 +156,7 @@ export const StoryRing = memo(function StoryRing({
       {failed ? (
         <View
           className="absolute -bottom-0.5 -right-0.5 h-6 w-6 items-center justify-center rounded-full border-2 border-background bg-danger"
-          pointerEvents="none"
+          style={{ pointerEvents: "none" }}
         >
           <Icon icon={Warning} size="xs" tone="inverse" weight="fill" />
         </View>

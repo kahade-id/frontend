@@ -823,7 +823,9 @@ export function OrderConfirmDialogs({
             className="mt-3 rounded-md border border-border bg-surface p-4"
             accessible
             accessibilityRole="text"
-            accessibilityLabel={`Dana yang akan diteruskan ke penjual: ${formatRupiah(escrowAmount)}`}
+            accessibilityLabel={translate("Dana yang akan diteruskan ke penjual: {x}", {
+              x: formatRupiah(escrowAmount),
+            })}
           >
             <Text variant="caption" tone="secondary">
               Dana yang diteruskan ke penjual

@@ -39,6 +39,11 @@ import { Text } from "@/components/ui/text"
 import { translate } from "@/lib/i18n"
 import { cn } from "@/lib/cn"
 import { focusRing } from "@/lib/focus-ring"
+import { hitSlopToReach } from "@/lib/hit-slop"
+import { tokens } from "@/lib/tokens"
+
+/** Tinggi visual tombol reaksi cepat (= h-9, 36px) — dasar slop vertikal ke target 44. */
+const QUICK_REACTION_HEIGHT = tokens.space[8] + tokens.space[1]
 
 export type SelectionAction = {
   key: string
@@ -147,7 +152,7 @@ export function SelectionBar({
                 onPress={() => quickReactions.onPick(emoji)}
                 // TOUCH-002: slop vertikal saja — slop horizontal akan
                 // menabrak tombol emoji sebelah (gap-1).
-                hitSlop={{ top: 4, bottom: 4 }}
+                hitSlop={hitSlopToReach(tokens.a11y.minHitTarget, QUICK_REACTION_HEIGHT)}
                 containerClassName={cn("rounded-full", focusRing)}
                 className="h-9 flex-1 items-center justify-center rounded-full"
               >

@@ -66,6 +66,7 @@ import { toEpochMs } from "@/lib/pending-actions"
 import { ROUTES } from "@/lib/routes"
 import { queryKeys } from "@/lib/query-keys"
 import { writeQueryCache } from "@/lib/query-cache"
+import { TEXT_ROW_HIT_SLOP } from "@/lib/hit-slop"
 import { tokens } from "@/lib/tokens"
 import { groupOrdersByDay, type OrderDayGroup } from "@/lib/transaction-grouping"
 import { TAB_BAR_HEIGHT } from "@/components/ui/bottom-tab-bar"
@@ -567,7 +568,9 @@ export default function TransactionsScreen() {
           <PressableScale
             onPress={handleWalletPress}
             accessibilityRole="button"
-            hitSlop={{ top: 8, bottom: 8, left: 0, right: 0 }}
+            // Slop vertikal saja (chip caption ~32px → ≥44); horizontal 0 agar
+            // tidak menimpa IconButton tetangga (gap-2).
+            hitSlop={TEXT_ROW_HIT_SLOP}
             accessibilityLabel={
               typeof walletBalance === "number"
                 ? `Buka Dompet, saldo ${formatRupiah(walletBalance)}`

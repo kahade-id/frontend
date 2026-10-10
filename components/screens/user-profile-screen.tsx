@@ -211,6 +211,7 @@ function SocialStat({
     return (
       <View
         className="flex-row items-center gap-1"
+        accessible
         accessibilityRole="text"
         accessibilityLabel={translate("{x}: disembunyikan", { x: label })}
       >

@@ -473,8 +473,9 @@ function HighlightEditor({
                       )}
                       {chosen ? (
                         <View
-                          className="absolute right-1 top-1 items-center justify-center rounded-full"
-                          style={{ width: 22, height: 22, backgroundColor: palette.primary }}
+                          // h-5 w-5 (20px = icon.size.sm; dulu 22, di luar skala)
+                          className="absolute right-1 top-1 h-5 w-5 items-center justify-center rounded-full"
+                          style={{ backgroundColor: palette.primary }}
                         >
                           <Icon icon={Check} size="xs" tone="inverse" weight="bold" />
                         </View>

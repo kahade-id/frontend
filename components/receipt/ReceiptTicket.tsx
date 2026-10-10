@@ -48,7 +48,11 @@ import { elevationStyle } from "@/lib/elevation"
 import { cn } from "@/lib/cn"
 import { RECEIPT_STATUS_LABEL, type ReceiptStatus } from "@/lib/receipt"
 import { ROUTES } from "@/lib/routes"
+import { translate } from "@/lib/i18n/translate"
 import { tokens } from "@/lib/tokens"
+
+/** Sisi QR verifikasi (160 = 4 × space[10]) — cukup besar untuk dipindai kamera ponsel. */
+const QR_SIZE = tokens.space[10] * 4
 
 export type ReceiptRow = {
   label: string
@@ -185,17 +189,13 @@ export function Watermark() {
  */
 export function Notch({ side, color }: { side: "left" | "right"; color: string }) {
   return (
+    // Lingkaran 24px (h-6 = space[6]) berpusat tepat di tepi kartu (-left-3 =
+    // -12 = setengah diameter); -mt-3 menjaga pusat vertikal di top 50%.
+    // Dulu 26px (di luar skala radius/spacing).
     <View
       accessible={false}
-      className={side === "left" ? "absolute -left-3" : "absolute -right-3"}
-      style={{
-        top: "50%",
-        marginTop: -13,
-        width: 26,
-        height: 26,
-        borderRadius: 13,
-        backgroundColor: color,
-      }}
+      className={cn("absolute -mt-3 h-6 w-6 rounded-full", side === "left" ? "-left-3" : "-right-3")}
+      style={{ top: "50%", backgroundColor: color }}
     />
   )
 }
@@ -304,7 +304,7 @@ export function ReceiptTicket({
           tone="secondary"
           selectable
           onPress={onCopyReceiptId ? () => onCopyReceiptId(receiptId) : undefined}
-          accessibilityLabel={`ID transaksi ${receiptId.split("").join(" ")}`}
+          accessibilityLabel={translate("ID transaksi {x}", { x: receiptId.split("").join(" ") })}
         >
           {receiptId}
         </Text>
@@ -319,7 +319,7 @@ export function ReceiptTicket({
           >
             <Image
               source={{ uri: qrDataUrl }}
-              style={{ width: 160, height: 160 }}
+              style={{ width: QR_SIZE, height: QR_SIZE }}
               accessible
               accessibilityRole="image"
               accessibilityLabel="Kode QR verifikasi keaslian struk"

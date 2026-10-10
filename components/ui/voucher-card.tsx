@@ -45,6 +45,7 @@ import { TicketDivider, TicketShell } from "@/components/ui/voucher-ticket"
 import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
 import { formatRupiah } from "@/lib/format"
+import { translate } from "@/lib/i18n/translate"
 
 export type VoucherDiscountType = "PERCENTAGE" | "FIXED" | "UNKNOWN"
 export type VoucherApplicableTo = "BUYER" | "SELLER" | "ALL"
@@ -247,7 +248,7 @@ export function VoucherCard({
               tone="primary"
               selectable
               className="shrink tracking-mono"
-              accessibilityLabel={`Kode voucher ${code.split("").join(" ")}`}
+              accessibilityLabel={translate("Kode voucher {x}", { x: code.split("").join(" ") })}
             >
               {code.toUpperCase()}
             </Text>

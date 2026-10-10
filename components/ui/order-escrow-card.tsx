@@ -12,8 +12,9 @@ import { Amount } from "@/components/ui/amount"
 import { Card } from "@/components/ui/card"
 import { Icon } from "@/components/ui/icon"
 import { Text } from "@/components/ui/text"
+import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
-import { formatDate } from "@/lib/format"
+import { formatDate, formatRupiah } from "@/lib/format"
 import { translate } from "@/lib/i18n/translate"
 
 const COMPANY = "PT Kawal Hak Dengan Aman"
@@ -183,7 +184,12 @@ export function OrderEscrowCard({
         <View className="h-11 w-11 items-center justify-center rounded-full bg-background">
           <Icon icon={ShieldCheck} size={24} weight="fill" tone="success" />
         </View>
-        <View className="flex-1 gap-0.5" accessible accessibilityRole="header">
+        <View
+          className="flex-1 gap-0.5"
+          accessible
+          accessibilityRole="header"
+          accessibilityLabel={summarize([title, formatRupiah(amount)])}
+        >
           <Text variant="body" weight={700}>
             {title}
           </Text>

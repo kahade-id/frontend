@@ -28,6 +28,7 @@ import {
 import { formatDateTime, formatFileSize } from "@/lib/format"
 import { safeHttpsUrl } from "@/lib/version"
 import { tokens } from "@/lib/tokens"
+import { translate } from "@/lib/i18n/translate"
 import { logWarn } from "@/lib/telemetry"
 
 import { Icon } from "@/components/ui/icon"
@@ -165,10 +166,12 @@ export function DisputeAttachmentViewer({
       transparent
       animationType="fade"
       onRequestClose={onClose}
-      accessibilityLabel={`Pratinjau lampiran: ${item.fileName}`}
+      accessibilityLabel={translate("Pratinjau lampiran: {x}", { x: item.fileName })}
     >
       {/* UX-SPA-019: safe-area aware (dulu pt-12/pb-8 hardcoded — berisiko
           tertutup notch/home indicator di device yang berbeda). */}
+      {/* Viewer lampiran = pemutar media: scrim hitam/90 + chrome putih di
+          kedua mode (DARK_ALLOWLIST check-tokens, preseden media-viewer). */}
       <View
         className="flex-1 bg-black/90 px-4"
         style={{
@@ -207,7 +210,7 @@ export function DisputeAttachmentViewer({
             <View
               className="items-center gap-2 px-8"
               accessible
-              accessibilityLabel={`Lampiran tidak tersedia: ${urlState.reason}`}
+              accessibilityLabel={translate("Lampiran tidak tersedia: {x}", { x: urlState.reason })}
             >
               <Icon icon={Warning} size="lg" tone="danger" />
               <Text variant="body" className="text-center text-white">
@@ -242,7 +245,9 @@ export function DisputeAttachmentViewer({
                 className="text-center text-white/70 underline"
                 onPress={() => void openExternal()}
                 accessibilityRole="button"
-                accessibilityLabel={`Buka ${attachmentTypeLabel(item.fileType)} di aplikasi lain`}
+                accessibilityLabel={translate("Buka {x} di aplikasi lain", {
+                  x: attachmentTypeLabel(item.fileType),
+                })}
               >
                 {opening ? "Membuka…" : "Buka di aplikasi lain"}
               </Text>
@@ -263,7 +268,7 @@ export function DisputeAttachmentViewer({
             <Text
               variant="caption"
               className="text-white/80"
-              accessibilityLabel={`Lampiran ${index + 1} dari ${items.length}`}
+              accessibilityLabel={translate("Lampiran {x} dari {y}", { x: index + 1, y: items.length })}
             >
               {index + 1} / {items.length}
             </Text>

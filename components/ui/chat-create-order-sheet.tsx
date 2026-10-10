@@ -39,7 +39,7 @@ import { Text } from "@/components/ui/text"
 import { TextArea } from "@/components/ui/text-area"
 import { useToast } from "@/components/ui/toast"
 import { translate } from "@/lib/i18n/translate"
-import { CheckCircle, ShieldCheck } from "phosphor-react-native"
+import { ShieldCheck } from "phosphor-react-native"
 
 export type ChatCreateOrderSheetProps = {
   visible: boolean
@@ -257,6 +257,11 @@ export function ChatCreateOrderSheet({
               placeholder="Mis. PS5 bekas + 2 stik"
               maxLength={100}
               required
+              // F-06: galat validasi di field-nya sendiri (dibacakan sebagai hint
+              // Input) — tombol Lanjut yang `disabled` jadi bisa dijelaskan.
+              errorText={
+                titleLen > 0 && titleLen < 3 ? translate("Judul minimal {x} karakter.", { x: 3 }) : undefined
+              }
             />
             <TextArea
               label={`Deskripsi (${descLen}/500)`}
@@ -266,6 +271,11 @@ export function ChatCreateOrderSheet({
               maxLength={500}
               numberOfLines={3}
               required
+              errorText={
+                descLen > 0 && descLen < 10
+                  ? translate("Deskripsi minimal {x} karakter.", { x: 10 })
+                  : undefined
+              }
             />
             <RadioRow
               label="Saya sebagai"
@@ -329,14 +339,6 @@ export function ChatCreateOrderSheet({
         <Button onPress={goToReview} disabled={!canSubmit}>
           Lanjut: review & biaya
         </Button>
-        {!withShowcase && (titleLen > 0 && titleLen < 3 || descLen > 0 && descLen < 10) ? (
-          <View className="flex-row items-center gap-1.5">
-            <Icon icon={CheckCircle} size={14} tone="warning" />
-            <Text variant="caption" tone="secondary">
-              Judul min 3 karakter, deskripsi min 10 karakter.
-            </Text>
-          </View>
-        ) : null}
       </>
         ) : (
           <ReviewStep

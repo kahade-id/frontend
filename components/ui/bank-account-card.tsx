@@ -87,7 +87,8 @@ function BankAvatar({
       className={cn(
         "h-12 w-12 items-center justify-center overflow-hidden rounded-full border border-border",
         // Logo bank diterbitkan di atas putih & banyak yang transparan →
-        // ubin putih (sama seperti <BankLogo>), bukan token permukaan.
+        // ubin putih (sama seperti <BankLogo>), bukan token permukaan
+        // (§7 pengecualian monokrom — DARK_ALLOWLIST check-tokens).
         logo ? "bg-white" : "bg-surface",
       )}
     >

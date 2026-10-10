@@ -216,11 +216,12 @@ function StoryThumb({ story }: { story: Story }) {
   }
   if (story.kind === "video") {
     return (
-      <View className="h-16 w-12 overflow-hidden rounded-sm bg-black">
+      <View className="h-16 w-12 overflow-hidden rounded-sm bg-surface-elevated">
         {story.thumbnailUrl ? <Picture source={story.thumbnailUrl} alt="" width={48} height={64} radius="sm" /> : null}
-        <View className="absolute inset-0 items-center justify-center" pointerEvents="none">
-          <View className="h-6 w-6 items-center justify-center rounded-full bg-black/60">
-            <Icon icon={Play} size="xs" tone="inverse" weight="fill" />
+        <View className="absolute inset-0 items-center justify-center" style={{ pointerEvents: "none" }}>
+          {/* Scrim di atas poster: token overlay-media + ikon onMedia (putih di kedua mode). */}
+          <View className="h-6 w-6 items-center justify-center rounded-full bg-overlay-media">
+            <Icon icon={Play} size="xs" tone="onMedia" weight="fill" />
           </View>
         </View>
       </View>

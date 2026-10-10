@@ -329,6 +329,26 @@ const DARK_ALLOWLIST = {
   "components/media-viewer/location-viewer.tsx": "chrome peta text-white/bg-white/bg-black di atas hitam solid kedua mode (preseden showcase-media-gallery)",
   "components/screens/media-viewer-screen.tsx": "latar halaman viewer bg-black solid kedua mode (preseden showcase-media-gallery)",
   "app/media-viewer.tsx": "latar fallback rute viewer bg-black solid kedua mode (preseden showcase-media-gallery)",
+  // Viewer lampiran sengketa & pemindai: permukaan hitam solid di kedua mode
+  // (preseden media-viewer); chrome putih satu-satunya yang terbaca.
+  "components/dispute-attachment-viewer.tsx": "viewer lampiran sengketa: chrome text-white di atas scrim bg-black/90 kedua mode (preseden media-viewer)",
+  "components/scan-screen.tsx": "bingkai kamera bg-black + overlay QR layar penuh hitam permanen dengan teks/tombol putih (UX-COL-001)",
+  "app/scan.tsx": "fallback viewfinder bg-black + bingkai border-white sebelum kamera siap (preseden app/media-viewer.tsx)",
+  // Story video: letterbox hitam di belakang media fullscreen (§spek story).
+  "components/story/story-video.tsx": "latar letterbox video story bg-black solid kedua mode (§spek story, preseden story-viewer-screen)",
+  // §7: ubin logo bank putih — sama dengan bank-select.
+  "components/ui/bank-account-card.tsx": "ubin logo bank bg-white + border-border (§7 pengecualian monokrom, sama dengan bank-select)",
+  // Chip translusen DI DALAM bubble keluar (bg-primary: hitam di light, putih
+  // di dark). Yang dimaksud adalah primary-foreground 10–15% (fill) / 70%
+  // (border), tetapi modifier alpha pada warna token var() TIDAK menghasilkan
+  // CSS sama sekali (bg-primary-foreground/15 → kosong; dicek 2026-10-10 via
+  // kompilasi Tailwind dengan config repo). Pasangan eksplisit
+  // bg-white/15 dark:bg-black/15 adalah satu-satunya cara mode-aware tanpa
+  // rgba literal inline. Fill bubble sendiri tetap token (bg-primary/bg-surface).
+  "components/ui/chat-view-once.tsx": "chip sekali-lihat bg-white/15 dark:bg-black/15 di atas bubble bg-primary (UX-COL-005, alpha warna token tak tersedia)",
+  "components/ui/chat-file-card.tsx": "chip ekstensi berkas bg-black/[0.07] dark:bg-white/[0.14] di dalam bubble (tint text-primary, alpha warna token tak tersedia)",
+  "components/ui/chat-message-bubble.tsx": "kutipan & pratinjau tautan border-white/70 dark:border-black/30 bg-white/15 dark:bg-black/15 di bubble keluar (UX-COL-007, alpha warna token tak tersedia)",
+  "components/ui/chat-cards.tsx": "kartu produk/order + tombolnya bg-white/10–15 dark:bg-black/10–15 di bubble keluar (UX-COL-013, alpha warna token tak tersedia)",
 }
 const DARK_VARIANT_RE = /\bdark:[a-z][a-z0-9-]*/g
 const LITERAL_CLASS_RE = /\b(?:bg|text|border|fill|stroke)-(?:white|black|gray-\d{2,3})\b/g
@@ -489,11 +509,6 @@ const INLINE_TYPO_ALLOWLIST = {
   // §3.1: huruf placeholder & wordmark diskalakan proporsional ke tinggi mark
   // (size prop), bukan nilai type scale — tidak ada varian Text yang cocok.
   "components/ui/logo.tsx": "fontSize/lineHeight proporsional ke ukuran mark (§3.1, §16.5)",
-  // §3 + Reanimated: label segmen mode memakai <Reanimated.Text> (warna label
-  // di-interpolate mengikuti posisi thumb), dan jsx-runtime Reanimated tidak
-  // di-interop NativeWind — className varian <Text> tidak pernah jadi style.
-  // Nilai tetap satu sumber: tokens.typography.label (= varian "label").
-  "components/ui/mode-switcher.tsx": "tipografi label segmen dari tokens.typography.label di <Reanimated.Text> (§3, interop NativeWind)",
 }
 const LAYOUT_KEYS =
   "width|height|minWidth|minHeight|maxWidth|maxHeight|padding[A-Za-z]*|margin[A-Za-z]*|border[A-Za-z]*Radius|gap|rowGap|columnGap|top|left|right|bottom|start|end|inset[A-Za-z]*|border[A-Za-z]*Width|translateX|translateY"

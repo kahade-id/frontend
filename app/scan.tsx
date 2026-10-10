@@ -31,7 +31,9 @@ export default function ScanRoute() {
       fallback={
         /* UX-FDB-004 (audit UI/UX 2026-10-01): placeholder viewfinder kamera,
            bukan skeleton daftar. Sengaja tanpa import komponen tambahan agar
-           thin shell tetap ringan (lihat header file). */
+           thin shell tetap ringan (lihat header file). Hitam + bingkai putih di
+           kedua mode = permukaan kamera yang akan menggantikannya (tanpa kilatan
+           putih di light) — DARK_ALLOWLIST check-tokens. */
         <View className="flex-1 items-center justify-center gap-4 bg-black px-8">
           <View className="h-56 w-56 items-center justify-center rounded-2xl border-2 border-white/30">
             <View className="h-40 w-40 rounded-xl border border-white/15" />

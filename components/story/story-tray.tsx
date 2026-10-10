@@ -133,7 +133,7 @@ export function StoryTray() {
 
   if (tray.loading && !tray.data) {
     return (
-      <View className="flex-row gap-3 px-4 pb-3 pt-1" accessibilityLabel={t("Memuat story")}>
+      <View accessible className="flex-row gap-3 px-4 pb-3 pt-1" accessibilityLabel={t("Memuat story")}>
         {[0, 1, 2, 3].map((i) => (
           <View key={i} style={{ width: TILE_WIDTH }} className="items-center gap-1.5">
             <Skeleton width={64} height={64} shape="circle" />

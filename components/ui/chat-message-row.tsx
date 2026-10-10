@@ -42,7 +42,7 @@ import { GestureDetector } from "react-native-gesture-handler"
 import { useSharedValue } from "react-native-reanimated"
 
 import { useTheme } from "@/components/theme-provider"
-import { semantic } from "@/lib/tokens"
+import { semantic, tokens } from "@/lib/tokens"
 
 import type { ChatAttachmentDto } from "@/lib/api/types"
 import {
@@ -766,7 +766,7 @@ export function ChatMessageRowBase({
         // jangan className bg-* untuk background yang digambar manual).
         style={
           highlighted
-            ? { backgroundColor: semantic.warning[mode].bgSoft, borderRadius: 12 }
+            ? { backgroundColor: semantic.warning[mode].bgSoft, borderRadius: tokens.radius.lg }
             : undefined
         }
       >

@@ -265,8 +265,9 @@ export function AppLockGate({ sessionActive }: { sessionActive: boolean }) {
       className="absolute inset-0 bg-background"
       style={{ zIndex: 10, elevation: 10, padding: tokens.space[5] }}
       // UX-A11Y-002: modal aksesibilitas — SR tidak boleh menjelajahi
-      // tree di belakang overlay kunci.
-      accessible
+      // tree di belakang overlay kunci. TANPA `accessible`: itu akan menelan
+      // PinInput & tombol di dalamnya (audit #4 rule B); konteks sudah
+      // diumumkan announceForAccessibility di atas (pola modal.tsx).
       accessibilityViewIsModal
       accessibilityLabel={translate("Kunci aplikasi")}
     >

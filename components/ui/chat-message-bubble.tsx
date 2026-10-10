@@ -638,7 +638,8 @@ function ChatMessageBubbleBase({
       <View
         accessibilityElementsHidden
         importantForAccessibility="no"
-        style={{ width: bubbleMetaInlineSpacerPx(metaReserve, { pill: overlayMeta }), height: 1 }}
+        className="h-px"
+        style={{ width: bubbleMetaInlineSpacerPx(metaReserve, { pill: overlayMeta }) }}
       />
     ) : null
 
@@ -803,6 +804,8 @@ function ChatMessageBubbleBase({
             overlayMeta ? "mx-2" : undefined,
             // UX-COL-007: pola CHT-013 — border putih tak terlihat di dark
             // (bubble putih), bg hitam tak terlihat di light (bubble hitam).
+            // (= primary-foreground 70%/15%; modifier alpha warna token tidak
+            // menghasilkan CSS → literal, DARK_ALLOWLIST check-tokens.)
             outgoing ? "border-white/70 dark:border-black/30 bg-white/15 dark:bg-black/15" : "border-border-focus bg-background",
           )}
           onPress={onQuotePress}
@@ -889,6 +892,7 @@ function ChatMessageBubbleBase({
             overlayMeta ? "mx-2" : undefined,
             // UX-COL-007: pola CHT-013 — border putih tak terlihat di dark
             // (bubble putih), bg hitam tak terlihat di light (bubble hitam).
+            // (Literal karena alpha warna token tidak tersedia — DARK_ALLOWLIST.)
             outgoing ? "border-white/70 dark:border-black/30 bg-white/15 dark:bg-black/15" : "border-info bg-info-soft",
           )}
         >

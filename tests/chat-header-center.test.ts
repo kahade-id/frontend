@@ -57,7 +57,7 @@ describe("<Header> center presisi", () => {
     expect(s).toContain('className="absolute inset-y-0 left-0 right-0 items-center justify-center"')
     expect(s).toContain("paddingLeft: titleCenterPadding, paddingRight: titleCenterPadding")
     // Tidak menelan sentuhan tombol di bawahnya.
-    expect(s).toContain('pointerEvents="none"')
+    expect(s).toContain('pointerEvents: "none"')
     // Di tengah vertical baris, bukan digantung dari atas.
     expect(s).toContain("items-center justify-center")
   })

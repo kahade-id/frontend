@@ -120,15 +120,9 @@ export function HeaderCircleButton({
       className="h-12 w-12 items-center justify-center"
     >
       <View
+        className="h-12 w-12 items-center justify-center rounded-full"
         style={[
-          {
-            borderRadius: 999,
-            backgroundColor: glassBg,
-            height: 48,
-            width: 48,
-            alignItems: "center",
-            justifyContent: "center",
-          },
+          { backgroundColor: glassBg },
           Platform.OS === "web"
             ? ({ backdropFilter: "blur(48px)", WebkitBackdropFilter: "blur(48px)" } as object)
             : null,
@@ -150,15 +144,9 @@ export function HeaderActionGroup({ children }: { children: ReactNode }) {
     mode === "light" ? "rgba(243,244,246,0.64)" : "rgba(26,26,26,0.64)"
   return (
     <View
+      className="flex-row items-center gap-1 rounded-full p-1"
       style={[
-        {
-          borderRadius: 999,
-          backgroundColor: glassBg,
-          flexDirection: "row",
-          alignItems: "center",
-          padding: 4,
-          gap: 4,
-        },
+        { backgroundColor: glassBg },
         Platform.OS === "web"
           ? ({ backdropFilter: "blur(48px)", WebkitBackdropFilter: "blur(48px)" } as object)
           : null,
@@ -194,7 +182,7 @@ function HeaderGroupIcon({
       onPress={onPress}
       className="h-10 w-10 items-center justify-center"
     >
-      <View style={{ borderRadius: 999, height: 40, width: 40, alignItems: "center", justifyContent: "center" }}>
+      <View className="h-10 w-10 items-center justify-center rounded-full">
         <Icon icon={icon} size="md" color={modes[mode].textPrimary} />
       </View>
     </PressableScale>
@@ -500,7 +488,7 @@ export const Header = memo(function Header({
             tengahnya adalah titik tengah baris (dan layar) — TIDAK lagi
             bergantung pada lebar kolom kiri/kanan. `paddingLeft ==
             paddingRight` (sisi terlebar) menjaga titik tengah itu apa pun
-            isi aksi di kedua sisi; `pointerEvents="none"` supaya tidak
+            isi aksi di kedua sisi; `pointerEvents: "none"` (style) supaya tidak
             menelan sentuhan tombol (judul boleh memanjang sampai area
             tombol saat teksnya sangat panjang).
             Diletakkan SEBELUM kolom kanan agar urutan baca screen reader
@@ -508,9 +496,8 @@ export const Header = memo(function Header({
           */}
           {!center && titleAlign === "center" && title ? (
             <View
-              pointerEvents="none"
               className="absolute inset-y-0 left-0 right-0 items-center justify-center"
-              style={{ paddingLeft: titleCenterPadding, paddingRight: titleCenterPadding }}
+              style={{ paddingLeft: titleCenterPadding, paddingRight: titleCenterPadding, pointerEvents: "none" }}
             >
               <Text ellipsizeMode="tail"
                 accessibilityRole="header"

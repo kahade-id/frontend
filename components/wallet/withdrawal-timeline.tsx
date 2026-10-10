@@ -79,11 +79,7 @@ export function WithdrawalTimeline({ status }: { status?: string | null }) {
     phase === "done" ? 3 : phase === "processing" ? 1 : phase === "otp" ? 0 : failed ? 1 : -1
 
   return (
-    <View
-      className="gap-3 rounded-md border border-border bg-surface px-4 py-4"
-      accessibilityRole="summary"
-      accessibilityLabel="Timeline status penarikan"
-    >
+    <View className="gap-3 rounded-md border border-border bg-surface px-4 py-4">
       <Text variant="body" weight={700}>
         Status penarikan
       </Text>
@@ -94,7 +90,8 @@ export function WithdrawalTimeline({ status }: { status?: string | null }) {
           const isFailedHere = failed && index === reachedIndex
           const isLast = index === STEPS.length - 1
           return (
-            <View key={step.key} className="flex-row gap-3">
+            // Satu grup SR per langkah (label + hint dibaca utuh — audit #4).
+            <View key={step.key} accessible className="flex-row gap-3">
               <View className="items-center">
                 <Icon
                   icon={isFailedHere ? XCircle : isDone ? CheckCircle : Circle}

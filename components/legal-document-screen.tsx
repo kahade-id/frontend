@@ -33,6 +33,7 @@ import { Screen } from "@/components/ui/screen"
 import { Text } from "@/components/ui/text"
 import { Emphasis } from "@/components/ui/typography"
 import { accent } from "@/lib/tokens"
+import { translate } from "@/lib/i18n/translate"
 import { PRIVACY_CONTENT, type LegalDocData } from "@/lib/legal/privacy-content"
 import { TERMS_CONTENT } from "@/lib/legal/terms-content"
 
@@ -108,7 +109,7 @@ function LegalDocumentContent({ kind, doc }: { kind: "terms" | "privacy"; doc: L
       <Header title={doc.title} />
       {/* Bar progres baca — inline backgroundColor (aman di web, lihat AGENTS.md). */}
       <View className="h-[3px] w-full bg-transparent">
-        <Animated.View style={[{ height: 3, backgroundColor: accent[mode].fill }, barStyle]} />
+        <Animated.View style={[{ height: "100%", backgroundColor: accent[mode].fill }, barStyle]} />
       </View>
 
       <View className="flex-1">
@@ -183,7 +184,7 @@ function LegalDocumentContent({ kind, doc }: { kind: "terms" | "privacy"; doc: L
                           key={s.id}
                           onPress={() => jumpTo(s.id)}
                           accessibilityRole="button"
-                          accessibilityLabel={`Ke bagian ${s.title}`}
+                          accessibilityLabel={translate("Ke bagian {x}", { x: s.title })}
                           className="flex-row items-center gap-3 border-t border-border px-5 py-3"
                         >
                           <View className="h-7 w-7 items-center justify-center rounded-full bg-accent-soft">
@@ -288,7 +289,7 @@ function LegalDocumentContent({ kind, doc }: { kind: "terms" | "privacy"; doc: L
                     key={s.id}
                     onPress={() => jumpTo(s.id)}
                     accessibilityRole="button"
-                    accessibilityLabel={`Ke bagian ${s.title}`}
+                    accessibilityLabel={translate("Ke bagian {x}", { x: s.title })}
                     className="flex-row items-center gap-3 border-t border-border py-3"
                   >
                     <View className="h-7 w-7 items-center justify-center rounded-full bg-accent-soft">

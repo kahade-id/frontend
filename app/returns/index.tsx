@@ -15,6 +15,7 @@ import type { ReturnListItem } from "@/lib/api/returns"
 import { RETURN_STATUS_LABEL, RETURN_REASON_LABEL, returnIdShort } from "@/lib/api/returns"
 import { formatDateTime } from "@/lib/format"
 import { tokens } from "@/lib/tokens"
+import { translate } from "@/lib/i18n/translate"
 import { usePaginatedQuery, byTimestampDesc } from "@/lib/use-paginated-query"
 import { useTheme } from "@/components/theme-provider"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
@@ -51,7 +52,10 @@ const ReturnRow = memo(function ReturnRow({
     <PressableScale
       onPress={handlePress}
       accessibilityRole="button"
-      accessibilityLabel={`Retur ${returnIdShort(item)}, ${RETURN_STATUS_LABEL[item.status] ?? item.status}`}
+      accessibilityLabel={translate("Retur {x}, {y}", {
+        x: returnIdShort(item),
+        y: RETURN_STATUS_LABEL[item.status] ?? item.status,
+      })}
     >
       <Card>
         <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
@@ -125,7 +129,7 @@ export default function ReturnsScreen() {
                 accessibilityState={{ selected: role === r }}
                 hitSlop={8}
                 style={{
-                  minHeight: 44,
+                  minHeight: tokens.a11y.minHitTarget,
                   justifyContent: "center",
                   paddingHorizontal: tokens.space[4],
                   borderRadius: tokens.radius.md,

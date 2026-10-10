@@ -444,6 +444,7 @@ export default function HelpScreen() {
       {/* F02: progress bar tipis di bawah header (hanya mode artikel). */}
       {article ? (
         <View
+          accessible
           className="h-[3px] w-full bg-border"
           accessibilityRole="progressbar"
           accessibilityLabel={translate("Progres baca")}

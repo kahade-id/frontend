@@ -75,6 +75,8 @@ export const ChatViewOnce = memo(function ChatViewOnce({
         className={`flex-row items-center gap-2 rounded-sm px-3 py-2 ${
           // UX-COL-005: pola CHT-013 — bg-black/15 tak terlihat di bubble
           // hitam (light mode); pakai putih di light, hitam di dark.
+          // (= primary-foreground 15%; modifier alpha warna token tidak
+          // menghasilkan CSS → literal, lihat DARK_ALLOWLIST check-tokens.)
           outgoing ? "bg-white/15 dark:bg-black/15" : "bg-background"
         }`}
       >

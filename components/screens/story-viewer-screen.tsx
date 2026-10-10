@@ -817,10 +817,17 @@ export default function StoryViewerScreen({ userId: routeUserId, highlightId }: 
 
   if (feed.status === "loading" && !current) {
     return (
-      <View className="flex-1 bg-black" style={{ paddingTop: topPad }} accessibilityLabel={t("Memuat story…")}>
+      <View className="flex-1 bg-black" style={{ paddingTop: topPad }}>
         <StatusBar style="light" />
         <View className="px-3 pt-2">
-          <View className="flex-row gap-1">
+          {/* Label pemuatan di grup skeleton (bukan root: root memuat tombol Tutup
+              yang harus tetap fokusable — audit #4). */}
+          <View
+            accessible
+            accessibilityRole="progressbar"
+            accessibilityLabel={t("Memuat story…")}
+            className="flex-row gap-1"
+          >
             {[0, 1, 2].map((i) => (
               <View key={i} className="h-[3px] flex-1 rounded-full bg-white/20" />
             ))}
@@ -925,7 +932,7 @@ export default function StoryViewerScreen({ userId: routeUserId, highlightId }: 
                   ) : (
                     <View className="flex-1" onLayout={() => setReadyId(current.id)} />
                   )}
-                  <View className="absolute inset-x-0 bottom-28 items-center" pointerEvents="none">
+                  <View className="absolute inset-x-0 bottom-28 items-center" style={{ pointerEvents: "none" }}>
                     <View className="rounded-full bg-black/60 px-3 py-1.5">
                       <Text variant="caption" className="text-white">
                         {t("Perbarui aplikasi untuk memutar video")}
@@ -950,12 +957,12 @@ export default function StoryViewerScreen({ userId: routeUserId, highlightId }: 
 
       {/* Media belum siap: indikator kecil, bar progress menunggu. */}
       {!mediaReady && !mediaError ? (
-        <View className="absolute inset-0 items-center justify-center" pointerEvents="none">
+        <View className="absolute inset-0 items-center justify-center" style={{ pointerEvents: "none" }}>
           <Spinner tone="inverse" />
         </View>
       ) : null}
       {mediaError ? (
-        <View className="absolute inset-0 items-center justify-center px-8" pointerEvents="box-none">
+        <View className="absolute inset-0 items-center justify-center px-8" style={{ pointerEvents: "box-none" }}>
           <View className="items-center gap-3 rounded-md bg-black/70 px-5 py-4">
             <Icon icon={WarningCircle} size="md" tone="inverse" />
             <Text variant="label" weight={600} className="text-center text-white">
@@ -989,8 +996,8 @@ export default function StoryViewerScreen({ userId: routeUserId, highlightId }: 
       ) : null}
 
       {/* Lapisan kontrol (di atas gesture). */}
-      <View pointerEvents="box-none" className="absolute inset-0">
-        <View className="px-3" style={{ paddingTop: topPad + 6 }} pointerEvents="box-none">
+      <View className="absolute inset-0" style={{ pointerEvents: "box-none" }}>
+        <View className="px-3" style={{ paddingTop: topPad + 6, pointerEvents: "box-none" }}>
           <View className="flex-row gap-1">
             {stories.map((s, i) => (
               <SegmentBar key={s.id} index={i} activeIndex={safeIndex} progress={progress} />
@@ -1054,7 +1061,7 @@ export default function StoryViewerScreen({ userId: routeUserId, highlightId }: 
 
         {/* Stiker harga. */}
         {current.priceSticker ? (
-          <View className="absolute left-0 right-0 items-center" style={{ top: "42%" }} pointerEvents="none">
+          <View className="absolute left-0 right-0 items-center" style={{ top: "42%", pointerEvents: "none" }}>
             <View className="rounded-md bg-white px-4 py-2">
               <Text variant="label" weight={700} className="text-black">
                 {formatPriceSticker(current.priceSticker.amount)}
@@ -1065,7 +1072,7 @@ export default function StoryViewerScreen({ userId: routeUserId, highlightId }: 
 
         {/* Burst reaksi. */}
         {lastBurst ? (
-          <Animated.View pointerEvents="none" style={[burstStyle]} className="absolute inset-0 items-center justify-center">
+          <Animated.View style={[burstStyle, { pointerEvents: "none" }]} className="absolute inset-0 items-center justify-center">
             <Text variant="display" className="text-white">{lastBurst}</Text>
           </Animated.View>
         ) : null}
@@ -1074,11 +1081,11 @@ export default function StoryViewerScreen({ userId: routeUserId, highlightId }: 
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : undefined}
           className="absolute bottom-0 left-0 right-0"
-          pointerEvents="box-none"
+          style={{ pointerEvents: "box-none" }}
         >
-          <View className="gap-3 px-3 pt-3" style={{ paddingBottom: bottomPad }} pointerEvents="box-none">
+          <View className="gap-3 px-3 pt-3" style={{ paddingBottom: bottomPad, pointerEvents: "box-none" }}>
             {caption ? (
-              <View className="items-center" pointerEvents="none">
+              <View className="items-center" style={{ pointerEvents: "none" }}>
                 <View className="rounded-md bg-black/60 px-3 py-2">
                   <Text variant="body" weight={600} className="text-center text-white" numberOfLines={4}>
                     {caption}

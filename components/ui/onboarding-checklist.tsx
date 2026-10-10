@@ -96,13 +96,11 @@ export function OnboardingChecklistCard({ state, className }: OnboardingChecklis
   })
 
   return (
-    <View
-      className={className}
-      accessibilityRole="summary"
-      accessibilityLabel={translate("Daftar periksa pengenalan")}
-    >
+    <View className={className}>
       <View className="gap-3 rounded-md border border-border bg-surface p-4">
-        <View className="gap-1">
+        {/* Grup ringkasan (judul + progres) dibaca utuh; item daftar di bawahnya
+            adalah tombol yang harus tetap fokusable (audit #4). */}
+        <View className="gap-1" accessible accessibilityRole="summary">
           <Text variant="bodyLarge" weight={700}>
             {translate("Lengkapi akun Anda")}
           </Text>

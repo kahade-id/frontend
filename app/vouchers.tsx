@@ -638,7 +638,7 @@ export default function VouchersScreen() {
       {/* V5/P2-13 (audit non-escrow 2026-10-03): skeleton saat loading agar
           tidak layout shift ketika seksi muncul. */}
       {referralQuery.loading && !referralReady ? (
-        <View className="gap-3" accessibilityLabel={translate("Memuat undangan")}>
+        <View accessible className="gap-3" accessibilityLabel={translate("Memuat undangan")}>
           <Skeleton className="h-6 w-2/5 rounded" />
           <Skeleton className="h-24 w-full rounded-md" />
         </View>
@@ -688,7 +688,7 @@ export default function VouchersScreen() {
       {/* ── 4. Lencana ───────────────────────────────────────── */}
       {/* V5/P2-13: skeleton saat loading agar tidak layout shift. */}
       {badgesQuery.loading && !badgeSummary ? (
-        <View className="gap-3" accessibilityLabel={translate("Memuat lencana")}>
+        <View accessible className="gap-3" accessibilityLabel={translate("Memuat lencana")}>
           <Skeleton className="h-6 w-1/3 rounded" />
           <Skeleton className="h-20 w-full rounded-md" />
         </View>

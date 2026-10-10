@@ -109,15 +109,17 @@ export function RatingDistributionBars({ username, selectedStars = null, onSelec
   const interactive = typeof onSelectStars === "function"
 
   return (
-    <View
-      className={DISTRIBUTION_FRAME}
-      accessibilityRole="summary"
-      accessibilityLabel={translate("Distribusi bintang: rata-rata {x} dari {n} ulasan", {
-        x: formatDecimal(average, 1),
-        n: String(total),
-      })}
-    >
-      <View className="items-center gap-1">
+    <View className={DISTRIBUTION_FRAME}>
+      {/* Ringkasan di blok angka (bukan root: bar per bintang bisa menjadi
+          tombol filter yang harus tetap fokusable — audit #4). */}
+      <View
+        className="items-center gap-1"
+        accessible
+        accessibilityLabel={translate("Distribusi bintang: rata-rata {x} dari {n} ulasan", {
+          x: formatDecimal(average, 1),
+          n: String(total),
+        })}
+      >
         <Text variant="h2" tone="primary" className="tabular-nums">
           {formatDecimal(average, 1)}
         </Text>

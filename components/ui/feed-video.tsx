@@ -249,6 +249,7 @@ function VideoPoster({
       // (APK lama), poster ini INERT — jangan tampilkan ikon Play besar +
       // label "Putar video" yang menyiratkan bisa diketuk padahal tap tidak
       // melakukan apa-apa. Tanpa onPress: murni pratinjau visual.
+      accessible={!onPress}
       accessibilityLabel={onPress ? undefined : (label ?? translate("Pratinjau video"))}
     >
       {posterSource ? (

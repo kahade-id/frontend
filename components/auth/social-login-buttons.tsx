@@ -35,6 +35,7 @@ import { Alert } from "@/components/ui/alert"
 import { Divider } from "@/components/ui/divider"
 import { Skeleton } from "@/components/ui/skeleton"
 import { logWarn } from "@/lib/telemetry"
+import { tokens } from "@/lib/tokens"
 
 export type SocialOutcome =
   | { kind: "session" }
@@ -212,7 +213,7 @@ export function SocialLoginButtons({
             buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
             buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
             cornerRadius={8}
-            style={{ height: 48 }}
+            style={{ height: tokens.space[12] }}
             onPress={() => void start("APPLE")}
           />
         ) : (
