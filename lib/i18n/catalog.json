@@ -4,11 +4,11 @@
  "strings": [
   {
    "s": "Batal",
-   "n": 154
+   "n": 157
   },
   {
    "s": "Hapus",
-   "n": 79
+   "n": 82
   },
   {
    "s": "Aksi mungkin sudah diproses — memuat ulang…",
@@ -287,6 +287,10 @@
    "n": 9
   },
   {
+   "s": "Hapus komentar?",
+   "n": 9
+  },
+  {
    "s": "Hapus pertanyaan?",
    "n": 9
   },
@@ -304,6 +308,10 @@
   },
   {
    "s": "Kirim komentar",
+   "n": 9
+  },
+  {
+   "s": "Komentar dihapus",
    "n": 9
   },
   {
@@ -460,10 +468,6 @@
   },
   {
    "s": "Kirim jawaban",
-   "n": 7
-  },
-  {
-   "s": "Komentar dihapus",
    "n": 7
   },
   {
@@ -692,10 +696,6 @@
   },
   {
    "s": "Hapus filter lokasi {x}",
-   "n": 6
-  },
-  {
-   "s": "Hapus komentar?",
    "n": 6
   },
   {
@@ -3652,6 +3652,10 @@
   },
   {
    "s": "Komentar yang diedit",
+   "n": 3
+  },
+  {
+   "s": "Komentar yang dihapus tidak bisa dikembalikan.",
    "n": 3
   },
   {
@@ -6727,7 +6731,7 @@
    "n": 2
   },
   {
-   "s": "Gagal memuat daftar. Periksa koneksi lalu coba lagi.",
+   "s": "Gagal memuat daftar.",
    "n": 2
   },
   {

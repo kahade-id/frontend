@@ -26,6 +26,7 @@ import {
 import { getProductStats, type ProductStats } from "@/lib/api/commerce"
 import { formatDateTime, formatNumber } from "@/lib/format"
 import { translate } from "@/lib/i18n/translate"
+import { isApiError, userMessage } from "@/lib/api"
 import { useLanguage } from "@/lib/i18n"
 
 import { Button } from "@/components/ui/button"
@@ -46,7 +47,7 @@ const STATS: { key: keyof ProductStats; label: string; icon: typeof Eye }[] = [
 
 type StatsState =
   | { kind: "loading" }
-  | { kind: "error"; lastGood: ProductStats | null; lastUpdatedAt: number | null }
+  | { kind: "error"; lastGood: ProductStats | null; lastUpdatedAt: number | null; message: string | null }
   | { kind: "ready"; stats: ProductStats; lastUpdatedAt: number }
 
 function SkeletonBody() {
@@ -109,10 +110,12 @@ export function ProductStatsSection({ showcaseId }: { showcaseId: string }) {
       const stats = await getProductStats(showcaseId, controller.signal)
       if (!mounted.current || !stats) throw new Error("empty")
       if (mounted.current) setState({ kind: "ready", stats, lastUpdatedAt: Date.now() })
-    } catch {
+    } catch (err) {
       if (!mounted.current) return
       setState((prev) => ({
         kind: "error",
+        // UX-15: pesan error sebenarnya (offline/timeout/5xx), bukan tebakan.
+        message: isApiError(err) ? userMessage(err) : null,
         lastGood: prev.kind === "ready" ? prev.stats : prev.kind === "error" ? prev.lastGood : null,
         lastUpdatedAt:
           prev.kind === "ready" ? prev.lastUpdatedAt : prev.kind === "error" ? prev.lastUpdatedAt : null,
@@ -168,7 +171,7 @@ export function ProductStatsSection({ showcaseId }: { showcaseId: string }) {
           </>
         ) : (
           <Text variant="caption" tone="secondary">
-            {translate("Periksa koneksi lalu coba lagi.")}
+            {state.message ?? translate("Periksa koneksi lalu coba lagi.")}
           </Text>
         )}
         <Button

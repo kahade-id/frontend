@@ -1,4 +1,6 @@
 /** Domain invariants shared by the Etalase screens and regression tests. */
+import { useCallback, useSyncExternalStore } from "react"
+
 import type { ShowcaseComment, ShowcaseCommentWithReplies } from "@/lib/api/showcase"
 
 export function mergeComments(previous: ShowcaseCommentWithReplies[], incoming: ShowcaseCommentWithReplies[]) {
@@ -97,10 +99,64 @@ export function partitionAssetsBySize<T extends { size: number }>(
 
 /** Shared lock: multiple mounted cards must not mutate the same item concurrently. */
 const mutations = new Set<string>()
+const mutationListeners = new Map<string, Set<() => void>>()
+function notifyMutation(key: string): void {
+  const listeners = mutationListeners.get(key)
+  if (listeners) for (const listener of listeners) listener()
+}
 export function acquireShowcaseMutation(key: string): (() => void) | null {
   if (mutations.has(key)) return null
   mutations.add(key)
-  return () => { mutations.delete(key) }
+  notifyMutation(key)
+  return () => {
+    mutations.delete(key)
+    notifyMutation(key)
+  }
 }
 
 export function showcaseMutationPending(key: string): boolean { return mutations.has(key) }
+
+/**
+ * SO-02 (audit etalase 2026-10-10): status "sedang diproses" dibaca dari kunci
+ * GLOBAL — kartu feed dan layar detail item yang sama sama-sama tampil sibuk,
+ * bukan hanya instance yang kebetulan menembakkan request.
+ */
+export function useShowcaseMutationPending(key: string): boolean {
+  const subscribe = useCallback(
+    (listener: () => void) => {
+      let set = mutationListeners.get(key)
+      if (!set) {
+        set = new Set()
+        mutationListeners.set(key, set)
+      }
+      set.add(listener)
+      return () => {
+        const current = mutationListeners.get(key)
+        if (!current) return
+        current.delete(listener)
+        if (current.size === 0) mutationListeners.delete(key)
+      }
+    },
+    [key],
+  )
+  return useSyncExternalStore(subscribe, () => mutations.has(key), () => false)
+}
+
+/**
+ * SO-01/SO-02: TUJUAN toggle (suka/simpan) yang diantre saat request untuk
+ * item yang sama masih berjalan — satu nilai per kunci (tap terakhir menang,
+ * bukan hitungan tap), global lintas kartu/detail. Dikonsumsi instance mana
+ * pun yang menyelesaikan request (`takeWantedToggle`).
+ */
+const wantedToggles = new Map<string, boolean>()
+export function setWantedToggle(key: string, value: boolean): void { wantedToggles.set(key, value) }
+export function peekWantedToggle(key: string): boolean | null { return wantedToggles.has(key) ? (wantedToggles.get(key) as boolean) : null }
+export function takeWantedToggle(key: string): boolean | null {
+  const value = peekWantedToggle(key)
+  wantedToggles.delete(key)
+  return value
+}
+export function resetShowcaseStateForTests(): void {
+  mutations.clear()
+  wantedToggles.clear()
+}

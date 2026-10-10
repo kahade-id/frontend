@@ -1204,6 +1204,16 @@ export function parseShowcaseComment(raw: unknown): ShowcaseComment {
       username: commentAuthorUsername,
       fullName: typeof author.fullName === "string" ? author.fullName : null,
       avatarUrl: typeof author.avatarUrl === "string" ? author.avatarUrl : null,
+      // SO-07 (audit 2026-10-10): seal verifikasi penulis komentar — dulu
+      // dibuang parser sehingga <VerifiedSeal> di baris komentar tidak pernah
+      // tampil walau backend mengirimnya (pola sama parseShowcaseItem).
+      isKycVerified: author.isKycVerified === true,
+      badges: Array.isArray(author.badges)
+        ? author.badges
+            .filter((b) => b && typeof (b as { type?: unknown }).type === "string")
+            .map((b) => ({ type: (b as { type: string }).type }))
+        : undefined,
+      sealTier: asSealTier(author.sealTier),
     },
   }
 }

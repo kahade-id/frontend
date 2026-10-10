@@ -400,7 +400,7 @@ function ShowcaseDetailContent({
    * `showcase-comments-sheet.tsx`. Komponen ini me-remount per item
    * (`key={`${revision}:${item.id}`}`), jadi tidak perlu reset per item.
    */
-  const sendKey = useRef<{ item: string; content: string; key: string } | null>(null)
+  const sendKey = useRef<{ item: string; content: string; parentId: string | null; key: string } | null>(null)
 
   const [commentMenu, setCommentMenu] = useState<ShowcaseComment | null>(null)
   const [editTarget, setEditTarget] = useState<ShowcaseComment | null>(null)
@@ -691,6 +691,11 @@ function ShowcaseDetailContent({
         fullName: null,
       },
     }
+    // SO-05 (audit 2026-10-10): konteks balasan disimpan dulu — bila kirim
+    // gagal, chip "Membalas @…" dipulihkan (dulu hilang → retry terkirim
+    // sebagai komentar utama dengan Idempotency-Key yang sama).
+    const parent = replyTo
+    const parentId = parent?.id ?? null
     insertLocalComment(optimistic)
     // Kosongkan draft segera — UX terasa instan.
     setDraft("")
@@ -699,15 +704,17 @@ function ShowcaseDetailContent({
     setReplyTo(null)
 
     try {
+      // Kunci idempotensi = item × isi × induk — balasan dan komentar utama
+      // dengan teks sama adalah aksi berbeda.
       const keyed =
-        sendKey.current?.item === id && sendKey.current?.content === content
+        sendKey.current?.item === id && sendKey.current?.content === content && sendKey.current?.parentId === parentId
           ? sendKey.current.key
-          : (sendKey.current = { item: id, content, key: createIdempotencyKey() }).key
+          : (sendKey.current = { item: id, content, parentId, key: createIdempotencyKey() }).key
       const saved = await addShowcaseComment(
         id,
         {
           content,
-          parentId: replyTo?.id,
+          parentId: parent?.id,
         },
         keyed,
       )
@@ -743,7 +750,8 @@ function ShowcaseDetailContent({
       // Item 161: kirim gagal — kembalikan draft (state + SecureStore) supaya
       // teks yang diketik pengguna tidak hilang.
       setDraft(content)
-      saveShowcaseCommentDraft(id, content)
+      setReplyTo(parent)
+      saveShowcaseCommentDraft(id, content, parentId)
       toast.show({
         title: SHOWCASE_COMMENT_MESSAGES.sendFailed,
         description: isApiError(err) ? userMessage(err) : undefined,
@@ -773,7 +781,10 @@ function ShowcaseDetailContent({
       const saved = await updateShowcaseComment(editTarget.id, content)
       if (!task.valid()) return
       // Suntingan tidak mengubah hitungan komentar — tidak ada event ledger.
-      patchComment((c) => (c.id === saved.id ? { ...c, content: saved.content } : c))
+      // SO-10: penanda "(diedit)" langsung tampil — jangan tunggu refetch.
+      patchComment((c) =>
+        c.id === saved.id ? { ...c, content: saved.content, updatedAt: saved.updatedAt ?? new Date().toISOString() } : c,
+      )
       setEditTarget(null)
     } catch (err) {
       if (!task.valid()) return
@@ -804,15 +815,22 @@ function ShowcaseDetailContent({
       if (confirmKind === "delete") {
         await deleteShowcaseComment(confirmTarget.id)
         if (!task.valid()) return
-        // D-06: patchComments menghapus root BESERTA balasannya.
-        const removed =
-          1 + (comments.find((c) => c.id === confirmTarget.id)?.replies?.length ?? 0)
+        // SO-04 (audit 2026-10-10): server menyimpan root yang punya balasan
+        // sebagai placeholder `isDeleted` (balasan tetap ada) — tiru itu
+        // secara lokal: tandai, jangan buang utasnya. Hitungan turun TEPAT 1
+        // (dulu -(1+n) sehingga angka kartu meleset setelah refresh; lihat
+        // BE-8 untuk commentCount final dari server).
+        const hasReplies = (comments.find((c) => c.id === confirmTarget.id)?.replies?.length ?? 0) > 0
         // F-01 (audit 2026-09-24): delta negatif ke ledger, bukan refetch.
-        queueShowcaseCommentCount(id, -removed)
-        patchComment((comment) => comment.id === confirmTarget.id ? null : comment)
-        // F-08/D-05: hanya HAPUS yang menggeser total — ikut jumlah yang
-        // benar-benar hilang (root + balasan).
-        setCommentTotal((n) => Math.max(0, n - removed))
+        queueShowcaseCommentCount(id, -1)
+        patchComment((comment) =>
+          comment.id === confirmTarget.id
+            ? hasReplies
+              ? { ...comment, isDeleted: true, content: "" }
+              : null
+            : comment,
+        )
+        setCommentTotal((n) => Math.max(0, n - 1))
         toast.show({ title: SHOWCASE_COMMENT_MESSAGES.deleted, tone: "success", duration: 2500 })
       } else {
         const saved = await hideShowcaseComment(confirmTarget.id, hideReason)
@@ -894,7 +912,7 @@ function ShowcaseDetailContent({
   // dari backend, perilaku sama seperti sebelumnya.
   const soldOut = isShowcaseSoldOut(item)
 
-  const canReply = (c: ShowcaseComment) => hasSession && !c.isHidden && c.parentId == null
+  const canReply = (c: ShowcaseComment) => hasSession && !c.isHidden && !c.isDeleted && c.parentId == null
   const isMine = (c: ShowcaseComment) => meId != null && c.author.userId === meId
   const handleReplyToComment = useCallback((comment: ShowcaseComment) => {
     setReplyTo(comment)

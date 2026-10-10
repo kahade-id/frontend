@@ -47,7 +47,7 @@ type ListState =
   | { status: "ready" }
   | { status: "error"; message: string }
 
-export function ShowcaseSavedCollection() {
+export function ShowcaseSavedCollection({ refreshToken = 0 }: { refreshToken?: number } = {}) {
   const session = useHasSession()
   const revision = useSessionRevision()
   const toast = useToast()
@@ -131,6 +131,15 @@ export function ShowcaseSavedCollection() {
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [session]),
   )
+
+  // SO-09 (audit 2026-10-10): tarik-segarkan di tab Tersimpan (induk) ikut
+  // menyegarkan karya — dulu hanya daftar profil yang di-refetch.
+  const lastRefreshToken = useRef(refreshToken)
+  useEffect(() => {
+    if (refreshToken === lastRefreshToken.current) return
+    lastRefreshToken.current = refreshToken
+    if (session) void load(null, false)
+  }, [refreshToken, session, load])
 
   const loadMore = useCallback(() => {
     if (loadingMore || !hasNext) return
