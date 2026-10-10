@@ -84,6 +84,10 @@ export type ReferralCodeCardProps = Omit<CardProps, "children" | "onPress"> & {
 
 export function ReferralCodeCard({
   code,
+  // Audit 2026-10-10 (F39): `shareUrl` hanya dokumentasi kontrak untuk
+  // pemanggil (onShare) — dulu tidak di-destructure sehingga ikut `...rest`
+  // ke <Card>/<View> sebagai prop asing (peringatan DOM di web).
+  shareUrl: _shareUrl,
   stats,
   rewardLabel,
   copied = false,

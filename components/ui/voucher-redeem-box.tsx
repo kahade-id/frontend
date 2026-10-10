@@ -51,16 +51,33 @@ import { cn } from "@/lib/cn"
 import { translate } from "@/lib/i18n/translate"
 import { summarize } from "@/lib/a11y"
 
+/**
+ * Jenis manfaat voucher yang terpasang (audit 2026-10-10, F11). Tanpa ini
+ * cashback/bonus top-up dirender "-Rp…" seolah potongan tagihan.
+ */
+export type AppliedVoucherKind = "FEE_DISCOUNT" | "CASHBACK" | "TOPUP_BONUS" | "UNKNOWN"
+
 export type AppliedVoucher = {
   code: string
   /**
-   * Nilai potongan (positif); dirender sebagai "-Rp…".
+   * Nilai manfaat (positif). Untuk FEE_DISCOUNT dirender "-Rp…"; untuk
+   * CASHBACK/TOPUP_BONUS dirender "+Rp…" dengan keterangan — bukan potongan.
    * `undefined` bila server mengonfirmasi voucher VALID tanpa mengembalikan
    * nominalnya — lebih jujur daripada menyimpan NaN yang tampil sebagai "Rp—".
    */
   discount?: number
   /** Nama promo, mis. "Cashback pengguna baru" */
   title?: string
+  /** Default FEE_DISCOUNT (perilaku lama) bila pemanggil tidak tahu jenisnya. */
+  kind?: AppliedVoucherKind
+}
+
+// Dibungkus translate() agar masuk katalog i18n (pola DEFAULT_LABELS di
+// fee-breakdown); <Text> tetap melokalkan ulang saat render.
+const KIND_HINT: Record<Exclude<AppliedVoucherKind, "FEE_DISCOUNT">, string> = {
+  CASHBACK: translate("Cashback masuk setelah transaksi selesai"),
+  TOPUP_BONUS: translate("Bonus saldo saat top-up"),
+  UNKNOWN: "",
 }
 
 export type VoucherRedeemBoxLabels = {
@@ -129,6 +146,9 @@ export function VoucherRedeemBox({
   }
 
   if (applied) {
+    const kind: AppliedVoucherKind = applied.kind ?? "FEE_DISCOUNT"
+    const isDiscount = kind === "FEE_DISCOUNT"
+    const kindHint = isDiscount ? "" : KIND_HINT[kind]
     return (
       // Root TANPA `accessible`: IconButton "Hapus" harus tetap fokusable.
       // Ringkasan dipasang pada blok teks kode voucher (audit #4).
@@ -147,6 +167,7 @@ export function VoucherRedeemBox({
               applied.code.split("").join(" "),
               translate(t.applied),
               applied.title ? translate(applied.title) : undefined,
+              kindHint ? translate(kindHint) : undefined,
             ])}
             className="flex-1 gap-0 tabular-nums"
           >
@@ -161,9 +182,20 @@ export function VoucherRedeemBox({
                 {applied.title}
               </Text>
             ) : null}
+            {kindHint ? (
+              <Text variant="caption" tone="secondary" numberOfLines={1}>
+                {kindHint}
+              </Text>
+            ) : null}
           </View>
           {Number.isFinite(applied.discount) ? (
-            <Amount value={-Math.abs(applied.discount as number)} tone="success" />
+            // F11: potongan biaya = "-Rp…" (success); cashback/bonus = "+Rp…"
+            // — nominalnya BUKAN pengurang tagihan.
+            <Amount
+              value={isDiscount ? -Math.abs(applied.discount as number) : Math.abs(applied.discount as number)}
+              tone={isDiscount ? "success" : "primary"}
+              sign={isDiscount ? "auto" : "always"}
+            />
           ) : null}
         </View>
 

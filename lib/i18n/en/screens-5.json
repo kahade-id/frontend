@@ -135,5 +135,16 @@
   "Tambah foto": "Add photo",
   "Tambahan waktu": "Extra time",
   "Ulasan transaksi Anda akan muncul di sini.": "Reviews for your transactions will appear here.",
-  "Pilih PIN {x} digit. Jangan gunakan tanggal lahir atau angka berurutan.": "Choose a {x}-digit PIN. Don’t use your birthday or sequential numbers."
+  "Pilih PIN {x} digit. Jangan gunakan tanggal lahir atau angka berurutan.": "Choose a {x}-digit PIN. Don’t use your birthday or sequential numbers.",
+  "Diundang oleh {x}": "Invited by {x}",
+  "Diundang oleh": "Invited by",
+  "Bonus sambutan": "Welcome bonus",
+  "Bonus sambutan cair setelah transaksi pertama Anda selesai.": "Your welcome bonus is paid after your first transaction completes.",
+  "Bonus sambutan sudah cair.": "Welcome bonus paid.",
+  "Akun Anda sudah punya pengundang.": "Your account already has a referrer.",
+  "Kode referral Anda sendiri tidak bisa dipakai.": "You can't use your own referral code.",
+  "Kode referral hanya untuk akun yang belum pernah bertransaksi.": "Referral codes are only for accounts with no completed transactions.",
+  "Kode referral tidak ditemukan atau sudah tidak aktif.": "Referral code not found or no longer active.",
+  "Kode tidak valid atau sudah pernah dipakai.": "Invalid code or already used.",
+  "Tautan dan kode lama tidak bisa dipakai lagi untuk mendaftar. Undangan yang sudah tercatat tetap dihitung.": "The old link and code can no longer be used to sign up. Invitations already recorded still count."
 }

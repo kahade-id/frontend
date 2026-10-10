@@ -20,7 +20,6 @@
  */
 import type { Href } from "expo-router"
 
-import { translate } from "@/lib/i18n/translate"
 import { ROUTES } from "@/lib/routes"
 import { getWalletEnabled } from "@/lib/wallet-flag"
 import { hrefPathname, isWalletOnlyPath, walletRouteFallback } from "@/lib/wallet-routes"
@@ -89,6 +88,15 @@ function routeForNotificationReferenceRaw(ref: NotificationReference): Href | nu
   if (type.startsWith("dispute")) return id ? ROUTES.disputeDetail(id) : ROUTES.disputes
   // NCC-004: keluarga MILESTONE_* (MILESTONE_RELEASED dsb.) → detail milestone.
   if (type.startsWith("milestone")) return id ? ROUTES.milestoneDetail(id) : null
+  // Audit voucher/referral 2026-10-10 (F30): keluarga VOUCHER_* (VOUCHER_ISSUED
+  // dari kampanye, sengketa, win-back) dulu tidak dipetakan → tap notifikasi
+  // mendarat di tab Notifikasi. Kode voucher (push `voucherCode`) ikut dibawa
+  // agar Promo langsung mengeceknya. REFERRAL_* (REFERRAL_REWARD_RECEIVED,
+  // backend B13) → layar referral. TOPUP_BONUS_CREDITED /
+  // CAMPAIGN_CASHBACK_CREDITED → dompet (kill-switch via applyWalletFallback).
+  if (type.startsWith("voucher")) return id ? ROUTES.vouchersWithCode(id) : ROUTES.vouchers
+  if (type.startsWith("referral")) return ROUTES.referral
+  if (type.startsWith("topupbonus") || type.startsWith("campaigncashback")) return ROUTES.wallet
 
   switch (type) {
     case "order":
@@ -134,15 +142,6 @@ function routeForNotificationReferenceRaw(ref: NotificationReference): Href | nu
     // (admin-support.service → emitNotificationCreated).
     case "supportticketupdate":
       return id ? ROUTES.supportTicket(id) : ROUTES.support
-    case "supportconversation":
-    case "supportagentreply":
-    case "supportchatreply":
-      // Audit 2026-10-10 (FE-08/FE-17): balasan agen livechat —
-      // `refType: SUPPORT_CONVERSATION` (support-chat.service) dan push
-      // `type: SUPPORT_CHAT_REPLY` / enum SUPPORT_AGENT_REPLY. Layar livechat
-      // menemukan percakapan aktif user sendiri (tanpa id di rute); dulu
-      // jatuh ke null / detail TIKET yang salah.
-      return ROUTES.supportChat
     case "user":
     case "profile":
     case "follow":
@@ -233,73 +232,8 @@ function routeForNotificationReferenceRaw(ref: NotificationReference): Href | nu
       // dari kandidat referenceId (shipmentId) di routeForPushDataRaw.
       return id ? ROUTES.trackingDetail(id) : null
     default:
-      return routeForTypeFamily(type, id)
+      return null
   }
-}
-
-/**
- * Audit Notifikasi 2026-10-10 (FE-37): keluarga tipe (awalan enum) sebagai
- * jaring terakhir. Push tanpa `actionUrl` — atau inbox yang refType-nya enum
- * penuh — membawa ORDER_PAYMENT_RECEIVED, WALLET_TOPUP_SUCCESS,
- * SECURITY_NEW_LOGIN, KYC_REJECTED, SUBSCRIPTION_EXPIRED, … yang dulu jatuh
- * ke `default: null` (→ tab Notifikasi) karena tabel hanya kenal kata dasar
- * ("order", "wallet", "kyc"). Dipanggil SETELAH switch: alias spesifik
- * (orderlink, ordershipped, wallettransaction, kycapproved, …) tetap menang.
- */
-function routeForTypeFamily(type: string, id: string): Href | null {
-  if (type.startsWith("order")) return id ? ROUTES.orderDetail(id) : ROUTES.transactions
-  if (type.startsWith("wallet")) return id ? ROUTES.walletTransaction(id) : ROUTES.wallet
-  // Dana tertahan karena belum ada rekening (actionUrl backend `/bank-accounts`).
-  if (type === "escrowheldnobank") return ROUTES.bankAccounts
-  if (type.startsWith("chat")) return id ? ROUTES.chatRoom(id) : ROUTES.chat
-  if (type.startsWith("security")) return ROUTES.security
-  if (type.startsWith("kyc") || type.startsWith("businessverification")) return ROUTES.kyc
-  if (type.startsWith("subscription")) return ROUTES.subscriptions
-  if (type.startsWith("referral")) return ROUTES.referral
-  if (type.startsWith("rating")) return ROUTES.ratings
-  if (type.startsWith("badge") || type.startsWith("rank")) return ROUTES.badges
-  if (type.startsWith("voucher")) return ROUTES.vouchers
-  if (type.startsWith("return")) return id ? ROUTES.returnDetail(id) : ROUTES.transactions
-  return null
-}
-
-/** Label CTA sejajar {@link routeForTypeFamily}. */
-function labelForTypeFamily(type: string, id: string): string | null {
-  if (type.startsWith("order")) return translate("Lihat pesanan")
-  if (type.startsWith("wallet")) return id ? translate("Lihat mutasi") : translate("Buka dompet")
-  if (type === "escrowheldnobank") return translate("Daftarkan rekening")
-  if (type.startsWith("chat")) return translate("Buka chat")
-  if (type.startsWith("security")) return translate("Buka keamanan")
-  if (type.startsWith("kyc") || type.startsWith("businessverification")) return translate("Buka verifikasi")
-  if (type.startsWith("subscription")) return translate("Lihat langganan")
-  if (type.startsWith("referral")) return translate("Lihat referral")
-  if (type.startsWith("rating")) return translate("Lihat ulasan")
-  if (type.startsWith("badge") || type.startsWith("rank")) return translate("Lihat lencana")
-  if (type.startsWith("voucher")) return translate("Lihat voucher")
-  if (type.startsWith("return")) return translate("Lihat retur")
-  return null
-}
-
-/**
- * Audit Notifikasi 2026-10-10 (FE-30/FE-45): rute hasil resolusi adalah tab
- * inbox itu sendiri (`/notifications` tanpa id, `/badges`)? Pemanggil di
- * inbox dan layar detail harus memperlakukannya sebagai "tidak ada tautan":
- * `router.push` ke tab yang sedang terbuka adalah no-op (ketukan broadcast
- * dengan actionUrl `/notifications` dulu tidak membuka apa pun).
- */
-export function isNotificationInboxRoute(href: Href | null | undefined): boolean {
-  if (!href) return false
-  return hrefPathname(href) === hrefPathname(ROUTES.notifications)
-}
-
-/** FE-45: rute menunjuk detail notifikasi `id` itu sendiri (tautan ke diri sendiri). */
-export function isNotificationSelfRoute(href: Href | null | undefined, id: string): boolean {
-  if (!href || !id) return false
-  if (typeof href === "string") return href.split("?", 1)[0] === `/notification/${id}`
-  // `ROUTES.notificationDetail` = { pathname: "/notification/[id]", params: { id } }
-  // — pathname-nya sama untuk SEMUA id, jadi params.id wajib dibandingkan.
-  const h = href as { pathname?: unknown; params?: { id?: unknown } }
-  return h.pathname === "/notification/[id]" && String(h.params?.id ?? "") === id
 }
 
 /**
@@ -516,111 +450,107 @@ export function backTargetForPath(pathname: string): string | null {
 /**
  * Label CTA layar detail ("Lihat pesanan", "Buka chat", …) untuk sebuah
  * referensi; `null` bila tidak dikenali (detail tetap tampil tanpa CTA).
- * Audit 2026-10-10 (FE-29): literal dibungkus `translate()` LANGSUNG — pemindai
- * katalog i18n tidak memungut `return "…"` polos, sehingga 20+ label ini
- * tidak pernah masuk katalog/kamus dan pengguna EN selalu melihat Indonesia.
  * Tabel sejajar dengan `routeForNotificationReference` di atas.
  * Bila `referenceType` kosong, label diturunkan dari `actionUrl`.
  */
 export function labelForNotificationReference(ref: NotificationReference): string | null {
   const type = ref.referenceType ? normalizeType(ref.referenceType) : ""
-  const id = ref.referenceId?.trim() ?? ""
   if (!type) return labelForActionUrl(ref.actionUrl)
 
   // NCC-003/NCC-004: keluarga DISPUTE_* / MILESTONE_* (push maupun inbox).
-  if (type.startsWith("dispute")) return translate("Lihat sengketa")
-  if (type.startsWith("milestone")) return translate("Lihat tahap")
+  if (type.startsWith("dispute")) return "Lihat sengketa"
+  if (type.startsWith("milestone")) return "Lihat tahap"
   // FAL-018: balasan feedback kini membuka tiket bantuan (bukan formulir).
-  if (type === "feedback") return translate("Lihat bantuan")
+  if (type === "feedback") return "Lihat bantuan"
   // FAL-019: ORDER_SHIPPED → detail pelacakan.
-  if (type === "ordershipped" || type === "ordership" || type === "shipment") return translate("Lihat pelacakan")
+  if (type === "ordershipped" || type === "ordership" || type === "shipment") return "Lihat pelacakan"
+  // F30: sejajar dengan routeForNotificationReferenceRaw.
+  if (type.startsWith("voucher")) return "Lihat voucher"
+  if (type.startsWith("referral")) return "Lihat referral"
+  if (type.startsWith("topupbonus") || type.startsWith("campaigncashback")) return "Lihat dompet"
 
   switch (type) {
     case "order":
     case "transaction":
     case "escrow":
-      return translate("Lihat pesanan")
+      return "Lihat pesanan"
     case "orderlink":
-      return translate("Buka tautan pesanan")
+      return "Buka tautan pesanan"
     case "dispute":
-      return translate("Lihat sengketa")
+      return "Lihat sengketa"
     case "wallettransaction":
     case "wallettx":
     case "topup":
     case "withdraw":
     case "withdrawal":
     case "transfer":
-      return translate("Lihat mutasi")
+      return "Lihat mutasi"
     case "wallet":
-      return translate("Buka dompet")
+      return "Buka dompet"
     case "chat":
     case "chatroom":
     case "message":
     case "chatnew":
     case "chatnewmessage":
-      return translate("Buka chat")
+      return "Buka chat"
     case "supportticket":
     case "ticket":
     case "support":
     case "supportticketupdate":
-      return translate("Lihat tiket bantuan")
-    case "supportconversation":
-    case "supportagentreply":
-    case "supportchatreply":
-      return translate("Buka chat bantuan")
+      return "Lihat tiket bantuan"
     case "user":
     case "profile":
     case "follow":
     case "follower":
-      return translate("Lihat profil")
+      return "Lihat profil"
     case "kyc":
     case "verification":
-      return translate("Buka verifikasi")
+      return "Buka verifikasi"
     case "subscription":
-      return translate("Lihat langganan")
+      return "Lihat langganan"
     case "referral":
-      return translate("Lihat referral")
+      return "Lihat referral"
     case "rating":
     case "review":
-      return translate("Lihat ulasan")
+      return "Lihat ulasan"
     case "showcase":
     case "etalase":
     case "showcaselike":
     case "showcasecomment":
-      return translate("Lihat karya")
+      return "Lihat karya"
     case "showcasereport":
-      return translate("Lihat laporan saya")
+      return "Lihat laporan saya"
     case "usershowcase":
-      return translate("Lihat karya")
+      return "Lihat karya"
     case "reportappeal":
-      return translate("Lihat hasil banding")
+      return "Lihat hasil banding"
     case "accountdeletion":
-      return translate("Lihat status penghapusan")
+      return "Lihat status penghapusan"
     case "ratingnew":
-      return translate("Lihat ulasan")
+      return "Lihat ulasan"
     case "kycapproved":
-      return translate("Buka verifikasi")
+      return "Buka verifikasi"
     case "security":
     case "session":
     case "login":
-      return translate("Buka keamanan")
+      return "Buka keamanan"
     case "questions":
     case "question":
       // FAL-020: sejajar dengan routeForNotificationReference.
-      return translate("Lihat pertanyaan")
+      return "Lihat pertanyaan"
     case "returns":
     case "return":
-      return translate("Lihat retur")
+      return "Lihat retur"
     case "products":
     case "product":
       // Poin 1: tujuan baru = Kelola Etalase (bukan detail produk).
-      return translate("Kelola Etalase")
+      return "Kelola Etalase"
     case "servicebookings":
     case "servicebooking":
       // Poin 1: tujuan baru = segmen booking di tab Transaksi.
-      return translate("Lihat booking")
+      return "Lihat booking"
     default:
-      return labelForTypeFamily(type, id)
+      return null
   }
 }
 
@@ -632,57 +562,45 @@ export function labelForActionUrl(actionUrl: string | null | undefined): string 
   if (!actionUrl) return null
   const path = actionUrl.startsWith("http") ? null : actionUrl.startsWith("/") ? actionUrl : `/${actionUrl}`
   if (!path) return null
-  const segments = path.split("?", 1)[0].split("/").filter(Boolean)
-  const head = segments[0]
+  const head = path.split("?", 1)[0].split("/").filter(Boolean)[0]
   switch (head) {
     case "chat":
-      return translate("Buka chat")
+      return "Buka chat"
     case "order":
-      return translate("Lihat pesanan")
     case "o":
-    case "order-link":
-    case "link":
-      // Audit 2026-10-10 (FE-09/FE-10): `/o/<token>` = tautan order pendek
-      // (app/o/[token].tsx), bukan detail order — sejajar routeForActionUrlRaw.
-      return translate("Buka tautan pesanan")
-    case "support":
-      // Audit 2026-10-10 (FE-18/FE-28): `/support/chat/<id>` = livechat;
-      // `/support/<id>` = tiket. Dulu tak ada cabang "support" sama sekali →
-      // CTA detail tersembunyi walau rutenya ada.
-      return segments[1] === "chat" ? "Buka chat bantuan" : "Lihat tiket bantuan"
+      return "Lihat pesanan"
     case "dispute":
-      return translate("Lihat sengketa")
+      return "Lihat sengketa"
     case "showcase":
-      return translate("Lihat karya")
+      return "Lihat karya"
     case "wallet":
-      return translate("Lihat mutasi")
+      return "Lihat mutasi"
     case "questions":
-      return translate("Lihat pertanyaan")
+      return "Lihat pertanyaan"
     case "returns":
       // FAL-016: `/returns/<id>` → detail retur.
-      return translate("Lihat retur")
+      return "Lihat retur"
     case "products":
       // Poin 1: `/products/<id>` → Kelola Etalase (bukan detail produk).
-      return translate("Kelola Etalase")
+      return "Kelola Etalase"
     case "service-bookings":
       // Poin 1: `/service-bookings` → segmen booking di tab Transaksi.
-      return translate("Lihat booking")
+      return "Lihat booking"
     case "tracking":
       // FAL-019: `kahade://tracking/<id>` → detail pelacakan.
-      return translate("Lihat pelacakan")
+      return "Lihat pelacakan"
     case "milestones":
       // NCC-004: `/milestones/<id>` → detail tahap.
-      return translate("Lihat tahap")
+      return "Lihat tahap"
     case "feedback":
       // FAL-018: balasan feedback → tiket bantuan (lihat routeForActionUrlRaw).
-      return translate("Lihat bantuan")
+      return "Lihat bantuan"
     case "bank-accounts":
       // NCC-008: `/bank-accounts` (ESCROW_HELD_NO_BANK) → daftar rekening.
-      return translate("Daftarkan rekening")
+      return "Daftarkan rekening"
     case "notifications":
-    case "notification":
     case "badges":
-      return translate("Lihat notifikasi")
+      return "Lihat notifikasi"
     default:
       return null
   }
@@ -733,14 +651,16 @@ function routeForPushDataRaw(data: unknown): Href | null {
     str("disputeId") ??
     str("milestoneId") ?? // NCC-004: data push milestone membawa milestoneId
     str("questionId") ?? // NCC-014: data push pertanyaan membawa questionId
-    str("conversationId") ?? // Audit 2026-10-10 (FE-17): push livechat support
     str("roomId") ??
     str("chatRoomId") ??
     str("ticketId") ??
     str("txId") ??
     str("transactionId") ??
     str("username") ??
-    str("token")
+    str("token") ??
+    // F30: push VOUCHER_ISSUED membawa `voucherCode` (campaign.service,
+    // dormant-winback) — dipakai sebagai id agar Promo mengecek kodenya.
+    str("voucherCode")
   // SH-F-008: id komentar untuk highlight deep-link; kunci payload tidak
   // didokumentasikan backend (gap kontrak) — terima varian yang lazim.
   const commentId = str("commentId") ?? str("comment_id") ?? str("comment")
@@ -797,10 +717,6 @@ function routeForActionUrlRaw(actionUrl: string | null | undefined): Href | null
   const [pathname, query] = path.split("?", 2)
   const segments = pathname.split("/").filter(Boolean)
 
-  // Audit Pesan 2026-10-10 (daftar #32): `/chat` tanpa id = daftar Pesan,
-  // bukan null (yang dulu mendaratkan ketukan push di tab Notifikasi).
-  if (segments.length === 1 && segments[0] === "chat") return ROUTES.chat
-
   if (segments.length >= 2) {
     const [head, ...rest] = segments
     const id = safeDecodeSegment(rest.join("/"))
@@ -811,27 +727,11 @@ function routeForActionUrlRaw(actionUrl: string | null | undefined): Href | null
       case "chat":
         return ROUTES.chatRoom(id)
       case "order":
-        return ROUTES.orderDetail(id)
       case "o":
-      case "order-link":
-      case "link":
-        // Audit 2026-10-10 (FE-09/FE-10): `/o/<token>` adalah tautan order
-        // PENDEK (app/o/[token].tsx → /order-link/[token]), bukan detail
-        // order — dulu dipetakan ke orderDetail(token) → layar 404.
-        // `/order-link/<token>` (push-action-url backend) dan `/link/<token>`
-        // (format processor lama) dulu tak dikenal → null.
-        return ROUTES.orderLink(id)
+        return ROUTES.orderDetail(id)
       case "dispute":
         return ROUTES.disputeDetail(id)
-      case "notification":
-        // Audit 2026-10-10 (FE-45): deep link `kahade.id/notification/<id>`
-        // (tautan email/push lama, lihat app/notification/[id].tsx) — dulu
-        // tak dikenal → null.
-        return ROUTES.notificationDetail(id)
       case "support": {
-        // Audit 2026-10-10 (FE-08): `/support/chat/<conversationId>`
-        // (SUPPORT_AGENT_REPLY) → livechat, BUKAN detail tiket.
-        if (rest[0] === "chat") return ROUTES.supportChat
         // F15: `/support/tickets/<id>` atau `/support/<id>` (actionUrl push
         // status tiket) → detail tiket; `/support` → daftar tiket.
         const tail = rest[rest.length - 1]

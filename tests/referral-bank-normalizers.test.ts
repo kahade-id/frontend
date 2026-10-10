@@ -74,7 +74,17 @@ describe("normalizeReferralReward — DRIFT-REF-02", () => {
       amount: 25000,
       status: "CREDITED",
       createdAt: "2026-09-19T10:00:00.000Z",
+      // Audit 2026-10-10 (F19/B23): backend lama tanpa `kind` → REFERRER.
+      kind: "REFERRER",
     })
+  })
+
+  it("kind REFEREE (bonus sambutan) dibaca; nilai lain → REFERRER", () => {
+    const base = { id: "rw3", rewardAmount: 5000, isCredited: true, createdAt: "2026-10-01T00:00:00.000Z" }
+    expect(normalizeReferralReward({ ...base, kind: "REFEREE" })?.kind).toBe("REFEREE")
+    expect(normalizeReferralReward({ ...base, kind: "referee" })?.kind).toBe("REFEREE")
+    expect(normalizeReferralReward({ ...base, kind: "REFERRER" })?.kind).toBe("REFERRER")
+    expect(normalizeReferralReward({ ...base, kind: "???" })?.kind).toBe("REFERRER")
   })
 
   it("isCredited false → PENDING (nominal tetap tampil, tidak NaN)", () => {
@@ -115,6 +125,8 @@ describe("normalizeReferralHistoryEntry — DRIFT-REF-03", () => {
     expect(out?.invitedUsername).toBe("Andi")
     expect(out?.status).toBe("PENDING")
     expect(out?.createdAt).toBe("2026-09-18T10:00:00.000Z")
+    // Audit 2026-10-10 (F04): sudut pandang viewer ikut dibawa.
+    expect(out?.role).toBe("REFERRER")
   })
 
   it("reward credited → REWARDED + nominal & tanggal cair", () => {
@@ -152,6 +164,9 @@ describe("normalizeReferralHistoryEntry — DRIFT-REF-03", () => {
       rewards: [],
     })
     expect(out?.invitedUsername).toBe("budi")
+    // F04: relasi "saya diundang oleh budi" → layar menampilkan "Diundang
+    // oleh", bukan baris undangan "Menunggu syarat".
+    expect(out?.role).toBe("REFEREE")
   })
 })
 

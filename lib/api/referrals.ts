@@ -38,6 +38,12 @@ export type ReferralReward = {
   amount: number
   status: string
   createdAt: string
+  /**
+   * Audit 2026-10-10 (F19/B23): REFERRER = reward saya sebagai pengundang;
+   * REFEREE = bonus sambutan saya sebagai yang diundang. Tanpa ini keduanya
+   * berlabel "Reward" yang sama.
+   */
+  kind: "REFERRER" | "REFEREE"
 }
 
 export type ReferralHistoryEntry = {
@@ -47,6 +53,21 @@ export type ReferralHistoryEntry = {
   reward?: number
   completedAt?: string | null
   createdAt: string
+  /**
+   * Audit 2026-10-10 (F04): sudut pandang saya pada relasi ini. REFEREE =
+   * `invitedUsername` adalah PENGUNDANG saya (bukan orang yang saya undang)
+   * — layar menampilkannya sebagai "Diundang oleh …", bukan baris undangan
+   * berstatus "Menunggu syarat".
+   */
+  role: "REFERRER" | "REFEREE"
+}
+
+/** Relasi referral hasil `POST /v1/referral/apply` (F16: bukan ReferralCode). */
+export type ReferralRelation = {
+  id: string
+  referrerId?: string
+  refereeId?: string
+  appliedAt?: string
 }
 
 /**
@@ -89,11 +110,14 @@ export function normalizeReferralReward(raw: unknown): ReferralReward | null {
       : record["isCredited"] === true
         ? "CREDITED"
         : "PENDING"
+  const rawKind = pickString(record, ["kind"])?.toUpperCase()
   return {
     id,
     amount: pickStrictNumber(record, ["rewardAmount", "reward_amount", "amount"]) ?? 0,
     status,
     createdAt: pickString(record, ["createdAt", "created_at"]) ?? "",
+    // Backend lama tanpa `kind` → anggap reward pengundang (perilaku lama).
+    kind: rawKind === "REFEREE" ? "REFEREE" : "REFERRER",
   }
 }
 
@@ -161,6 +185,9 @@ export function normalizeReferralHistoryEntry(raw: unknown): ReferralHistoryEntr
       ? (pickString(creditedRecord, ["creditedAt", "credited_at"]) ?? null)
       : null,
     createdAt: pickString(record, ["appliedAt", "applied_at", "createdAt", "created_at"]) ?? "",
+    // F04: `viewerRole` dulu dibuang — relasi "saya diundang oleh X" tampil
+    // sebagai undangan saya ke X.
+    role: viewerRole === "REFEREE" ? "REFEREE" : "REFERRER",
   }
 }
 
@@ -219,9 +246,20 @@ export function getReferralStats(signal?: AbortSignal) {
     .then(normalizeReferralStats)
 }
 
+/**
+ * Audit 2026-10-10 (F20): `/rewards` & `/history` berhalaman (default 20,
+ * maks. 100). Tanpa `limit`, undangan/reward ke-21 dst. tidak pernah tampil —
+ * kuota per kode 100 undangan, jadi satu halaman 100 menampung semuanya.
+ */
+const LIST_LIMIT = 100
+
 export function getReferralRewards(signal?: AbortSignal) {
   return http
-    .get<unknown>("/v1/referral/rewards", { auth: "required", signal })
+    .get<unknown>("/v1/referral/rewards", {
+      query: { page: 1, limit: LIST_LIMIT },
+      auth: "required",
+      signal,
+    })
     .then((raw) =>
       readList<unknown>(raw, ["rewards"])
         .map(normalizeReferralReward)
@@ -231,7 +269,12 @@ export function getReferralRewards(signal?: AbortSignal) {
 
 export function getReferralHistory(signal?: AbortSignal) {
   return http
-    .get<unknown>("/v1/referral/history", { auth: "required", retry: 1, signal })
+    .get<unknown>("/v1/referral/history", {
+      query: { page: 1, limit: LIST_LIMIT },
+      auth: "required",
+      retry: 1,
+      signal,
+    })
     .then((raw) =>
       readList<unknown>(raw, ["history", "referrals"])
         .map(normalizeReferralHistoryEntry)
@@ -239,8 +282,50 @@ export function getReferralHistory(signal?: AbortSignal) {
     )
 }
 
+/**
+ * Format kode referral — kontrak `ApplyReferralDto` backend
+ * (`^KH[A-Z0-9]{6,8}$`, lihat lib/api/constraints.ts). Audit 2026-10-10
+ * (F22): dulu tidak dicek di klien → kode salah format dikirim dan backend
+ * menjawab 422 dengan pesan class-validator berbahasa Inggris.
+ */
+export const REFERRAL_CODE_PATTERN = /^KH[A-Z0-9]{6,8}$/
+
+export function isReferralCodeFormat(code: string): boolean {
+  return REFERRAL_CODE_PATTERN.test(code.trim().toUpperCase())
+}
+
+/**
+ * Pesan Indonesia per kode penolakan `POST /v1/referral/apply`
+ * (referral.service.ts) — pesan mentah backend berbahasa Inggris dan
+ * `userMessage()` hanya tahu kelas HTTP-nya. `undefined` → pemanggil jatuh
+ * ke `userMessage()`. F22: `REFERRAL_LIMIT_REACHED` (kuota kode habis) dan
+ * `CIRCULAR_REFERRAL` dulu tidak dipetakan.
+ */
+export function referralApplyMessage(backendCode: string | undefined): string | undefined {
+  switch (backendCode?.toUpperCase()) {
+    case "REFERRAL_CODE_NOT_FOUND":
+      return translate("Kode referral tidak ditemukan atau sudah tidak aktif.")
+    case "REFERRAL_SELF":
+      return translate("Kode referral Anda sendiri tidak bisa dipakai.")
+    case "REFERRAL_ALREADY_APPLIED":
+      return translate("Akun Anda sudah punya pengundang.")
+    case "REFERRAL_NOT_NEW_USER":
+      return translate("Kode referral hanya untuk akun yang belum pernah bertransaksi.")
+    case "REFERRAL_LIMIT_REACHED":
+      return translate("Kuota undangan kode ini sudah habis.")
+    case "CIRCULAR_REFERRAL":
+      return translate("Kode ini milik orang yang Anda undang — tidak bisa saling mengundang.")
+    default:
+      return undefined
+  }
+}
+
+/**
+ * F16: backend mengembalikan RELASI (`ReferralRelation`), bukan kode —
+ * tipe lama `ReferralCode` menyesatkan pemanggil yang membaca `.code`.
+ */
 export function applyReferralCode(dto: ApplyReferralDto) {
-  return http.post<ReferralCode, ApplyReferralDto>("/v1/referral/apply", dto, { auth: "required" })
+  return http.post<ReferralRelation, ApplyReferralDto>("/v1/referral/apply", dto, { auth: "required" })
 }
 
 /**

@@ -478,9 +478,14 @@ export async function verifyOtp(dto: {
  * opsional (backend auto-generate bila kosong), password (min 8, tanpa
  * syarat kompleksitas), deviceId, lokasi opsional.
  *
- * Field lama (dateOfBirth, gender, email, pin, address, referralCode) tidak
- * lagi dikirim — backend 410/tidak mengenalnya. PIN wallet diatur belakangan
- * di Pengaturan (layar change-pin), bukan saat registrasi.
+ * Field lama (dateOfBirth, gender, email, pin, address) tidak lagi dikirim —
+ * backend 410/tidak mengenalnya. PIN wallet diatur belakangan di Pengaturan
+ * (layar change-pin), bukan saat registrasi.
+ *
+ * `referralCode` (audit 2026-10-10, F01): backend `PhoneRegisterDto` MASIH
+ * menerimanya (opsional, maxLength 20) dan inilah jalur utama pencatatan
+ * undangan — tanpa ini tautan `kahade.id/r/<kode>` ke user baru tidak pernah
+ * tercatat.
  */
 export async function phoneRegister(dto: {
   tempToken: string
@@ -490,7 +495,10 @@ export async function phoneRegister(dto: {
   location?: LocationDto
   /** Token signup sosial untuk identitas baru — ditautkan pasca-verifikasi. */
   socialLinkToken?: string
+  /** Kode referral pengundang (dari deeplink /r/<kode> yang tersimpan). */
+  referralCode?: string
 }) {
+  const referralCode = dto.referralCode?.trim().toUpperCase()
   const body: PhoneRegisterDto = {
     tempToken: dto.tempToken,
     fullName: dto.fullName,
@@ -499,6 +507,7 @@ export async function phoneRegister(dto: {
     deviceId: await getDeviceId(),
     location: dto.location,
     socialLinkToken: dto.socialLinkToken,
+    referralCode: referralCode && referralCode.length <= 20 ? referralCode : undefined,
   }
   const result = await http.post<AuthTokens & { user?: AuthUser }, PhoneRegisterDto>(
     "/v1/auth/phone-register",

@@ -6,7 +6,9 @@
 import { asRecord, pickBoolean, pickNumber, pickString, readList, readVerdict } from "@/lib/api/response"
 
 import { http } from "@/lib/api/client"
+import { isApiError } from "@/lib/api/errors"
 import type { ValidateVoucherDto } from "@/lib/api/types"
+import { translate } from "@/lib/i18n/translate"
 
 /** Voucher — UNVERIFIED. */
 export type Voucher = {
@@ -29,6 +31,132 @@ export type Voucher = {
   active: boolean
   usedAt?: string
   usageId?: string
+  /**
+   * Audit 2026-10-10 (F12): syarat peran dari `applicableTo` backend
+   * (ALL | BUYER_ONLY | SELLER_ONLY | NEW_USER | DORMANT_USER) — dipetakan ke
+   * badge Pembeli/Penjual di <VoucherCard>.
+   */
+  applicableTo?: VoucherApplicability
+  /**
+   * Audit 2026-10-10 (F08): pemakaian oleh user ini (backend B03:
+   * `usedCount` / `remainingUses`; `remainingUses` null = tanpa batas per
+   * user). `remainingUses === 0` → status "used".
+   */
+  usedCount?: number
+  remainingUses?: number | null
+}
+
+export type VoucherApplicability = "ALL" | "BUYER_ONLY" | "SELLER_ONLY" | "NEW_USER" | "DORMANT_USER"
+
+/**
+ * Jenis manfaat voucher — menentukan bagaimana nominalnya DITAMPILKAN dan di
+ * mana bisa dipakai (audit 2026-10-10, F10/F11):
+ *   - FEE_DISCOUNT : potongan biaya layanan saat buat transaksi ("-Rp…").
+ *   - CASHBACK     : dikreditkan setelah transaksi — BUKAN potongan tagihan.
+ *   - TOPUP_BONUS  : bonus saldo saat top-up — create order MENOLAK kode ini.
+ */
+export type VoucherKind = "FEE_DISCOUNT" | "CASHBACK" | "TOPUP_BONUS" | "UNKNOWN"
+
+export function voucherKindOf(voucherType: string | null | undefined): VoucherKind {
+  const raw = (voucherType ?? "").toUpperCase()
+  if (!raw) return "UNKNOWN"
+  if (raw === "TOPUP_BONUS") return "TOPUP_BONUS"
+  if (raw === "WALLET_CASHBACK" || raw === "CASHBACK") return "CASHBACK"
+  if (raw.startsWith("FEE_DISCOUNT") || raw === "FIXED" || raw === "PERCENT" || raw === "PERCENTAGE") {
+    return "FEE_DISCOUNT"
+  }
+  return "UNKNOWN"
+}
+
+/** Peta `applicableTo` backend → badge peran kartu voucher. */
+export function voucherRoleOf(applicableTo: VoucherApplicability | undefined): "BUYER" | "SELLER" | "ALL" {
+  if (applicableTo === "BUYER_ONLY") return "BUYER"
+  if (applicableTo === "SELLER_ONLY") return "SELLER"
+  return "ALL"
+}
+
+/** Teks pesan backend (Inggris) — hanya untuk MEMBEDAKAN sebab, tidak pernah ditampilkan mentah. */
+function backendText(error: unknown): string {
+  if (!isApiError(error)) return ""
+  const parts: string[] = [error.message ?? ""]
+  const raw = error.raw
+  if (raw && typeof raw === "object") {
+    const record = raw as Record<string, unknown>
+    if (typeof record.message === "string") parts.push(record.message)
+    const errors = record.errors
+    if (errors && typeof errors === "object" && typeof (errors as Record<string, unknown>).message === "string") {
+      parts.push((errors as Record<string, unknown>).message as string)
+    }
+  }
+  return parts.join(" ").toLowerCase()
+}
+
+/**
+ * Audit 2026-10-10 (F21): pesan Indonesia per kode penolakan `VOUCHER_*`
+ * backend (vouchers.service validate, orders.service create/calculate-fee,
+ * wallet.service top-up). `userMessage()` tidak mengenal kode-kode ini, jadi
+ * dulu user yang mengetik kode kedaluwarsa melihat "Permintaan tidak valid."
+ * dan kode yang salah ketik "Data tidak ditemukan." — generik, padahal server
+ * sudah menyebut sebabnya.
+ *
+ * `VOUCHER_NOT_APPLICABLE` dipakai backend untuk BANYAK sebab (peran, min.
+ * order, voucher toko, khusus top-up, user baru/dormant, ditujukan ke akun
+ * lain) — dibedakan dari kata kunci pesan backend; pesan itu sendiri tidak
+ * pernah dirender. `undefined` = bukan penolakan voucher (biarkan pemanggil
+ * memakai jalur error biasa).
+ */
+export function voucherErrorMessage(error: unknown): string | undefined {
+  if (!isApiError(error)) return undefined
+  const code = error.backendCode?.toUpperCase()
+  if (!code || !code.startsWith("VOUCHER_")) return undefined
+  const text = backendText(error)
+  switch (code) {
+    case "VOUCHER_NOT_FOUND":
+      return translate("Kode voucher tidak ditemukan.")
+    case "VOUCHER_EXPIRED":
+      return translate("Voucher sudah kedaluwarsa atau tidak aktif.")
+    case "VOUCHER_USAGE_LIMIT_REACHED":
+      return /per-user|per user/.test(text)
+        ? translate("Anda sudah mencapai batas pemakaian voucher ini.")
+        : translate("Kuota voucher sudah habis.")
+    case "VOUCHER_NOT_APPLICABLE":
+      if (/seller voucher/.test(text)) {
+        return translate("Ini voucher toko — masukkan di kolom voucher toko penjual.")
+      }
+      if (/only be used for wallet top-ups|only for wallet top-ups/.test(text)) {
+        return translate("Kode ini untuk bonus top-up saldo, bukan untuk transaksi.")
+      }
+      if (/cannot be used for wallet top-ups|for order fee/.test(text)) {
+        return translate("Voucher ini tidak berlaku untuk top-up saldo.")
+      }
+      if (/buyers/.test(text)) return translate("Voucher ini hanya untuk pembeli.")
+      if (/sellers/.test(text)) return translate("Voucher ini hanya untuk penjual.")
+      if (/new users/.test(text)) return translate("Voucher ini hanya untuk pengguna baru.")
+      if (/dormant/.test(text)) return translate("Voucher ini khusus akun yang lama tidak bertransaksi.")
+      if (/minimum/.test(text)) return translate("Nilai transaksi belum memenuhi minimum voucher ini.")
+      if (/different user|assigned/.test(text)) return translate("Voucher ini ditujukan untuk akun lain.")
+      return translate("Voucher tidak berlaku untuk transaksi ini.")
+    default:
+      return translate("Voucher tidak berlaku untuk transaksi ini.")
+  }
+}
+
+function normalizeApplicability(raw: string | undefined): VoucherApplicability | undefined {
+  const value = raw?.toUpperCase()
+  switch (value) {
+    case "ALL":
+    case "BUYER_ONLY":
+    case "SELLER_ONLY":
+    case "NEW_USER":
+    case "DORMANT_USER":
+      return value
+    case "BUYER":
+      return "BUYER_ONLY"
+    case "SELLER":
+      return "SELLER_ONLY"
+    default:
+      return undefined
+  }
 }
 
 export type VoucherValidation = {
@@ -37,9 +165,21 @@ export type VoucherValidation = {
   message?: string
 }
 
+/**
+ * Audit 2026-10-10 (F18): backend memberi halaman (default 20, maks. 100).
+ * Tanpa `limit`, voucher ke-21 dan seterusnya tidak pernah tampil — satu
+ * halaman 100 cukup untuk katalog promo yang aktif bersamaan.
+ */
+const AVAILABLE_LIMIT = 100
+
 export function listAvailableVouchers(signal?: AbortSignal) {
   return http
-    .get<unknown>("/v1/vouchers/available", { auth: "required", retry: 1, signal })
+    .get<unknown>("/v1/vouchers/available", {
+      query: { page: 1, limit: AVAILABLE_LIMIT },
+      auth: "required",
+      retry: 1,
+      signal,
+    })
     .then((raw) =>
       readList<unknown>(raw, ["vouchers"])
         .map(normalizeVoucher)
@@ -77,6 +217,14 @@ export function normalizeVoucher(raw: unknown): Voucher | null {
     maxDiscount: pickNumber(record, ["maxDiscountAmount", "maxDiscount"]) ?? undefined,
     expiresAt: pickString(record, ["validUntil", "expiresAt", "expiredAt"]) ?? undefined,
     active: pickBoolean(record, ["isActive", "active"]) ?? true,
+    applicableTo: normalizeApplicability(pickString(record, ["applicableTo", "applicable_to"])),
+    usedCount: pickNumber(record, ["usedCount", "used_count"]) ?? undefined,
+    // `remainingUses` null (tanpa batas per user) harus tetap null — bukan
+    // 0 (= habis) dan bukan undefined (= tidak diketahui).
+    remainingUses:
+      record.remainingUses === null || record.remaining_uses === null
+        ? null
+        : (pickNumber(record, ["remainingUses", "remaining_uses"]) ?? undefined),
   }
 }
 
@@ -115,9 +263,17 @@ export function normalizeVoucherUsage(raw: unknown): VoucherUsage | null {
   }
 }
 
+/** F20: sama dengan F18 — tanpa `limit`, pemakaian ke-21 dst. tidak tampil. */
+const USAGE_LIMIT = 100
+
 export function listMyVoucherUsage(signal?: AbortSignal) {
   return http
-    .get<unknown>("/v1/vouchers/my-usage", { auth: "required", retry: 1, signal })
+    .get<unknown>("/v1/vouchers/my-usage", {
+      query: { page: 1, limit: USAGE_LIMIT },
+      auth: "required",
+      retry: 1,
+      signal,
+    })
     .then((raw) =>
       readList<unknown>(raw, ["usages", "usage"])
         .map(normalizeVoucherUsage)
@@ -162,6 +318,10 @@ export function normalizeVoucherValidation(raw: unknown): VoucherValidation {
           percentValue ?? pickNumber(record, ["discountAmount", "cashbackAmount", "topupBonusAmount"]) ?? undefined,
         minOrderValue: pickNumber(record, ["minOrderValue"]) ?? undefined,
         maxDiscount: pickNumber(record, ["maxDiscountAmount", "maxDiscount"]) ?? undefined,
+        // Audit 2026-10-10 (B07): backend kini mengirim `applicableTo` dan
+        // `validUntil` agar layar bisa menyebut syarat peran/kedaluwarsa.
+        applicableTo: normalizeApplicability(pickString(record, ["applicableTo", "applicable_to"])),
+        expiresAt: pickString(record, ["validUntil", "expiresAt"]) ?? undefined,
         active: true,
       }
     }

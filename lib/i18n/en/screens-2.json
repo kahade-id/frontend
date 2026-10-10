@@ -158,5 +158,15 @@
   "kali dipakai": "times used",
   "{x} dari {y} lencana diraih": "{x} of {y} badges earned",
   "{x} undangan": "{x} invitations",
-  "{x} undangan terbanyak bulan ini": "Top {x} inviters this month"
+  "{x} teratas berdasarkan total reward": "Top {x} by total rewards",
+  "Kode {x} disalin": "Code {x} copied",
+  "Kode berlaku. Cashback masuk setelah transaksi selesai.": "The code is valid. Cashback is credited after the transaction completes.",
+  "Kode berlaku untuk bonus saldo saat top-up, bukan untuk transaksi.": "This code gives a balance bonus on top-up, not on transactions.",
+  "Kode ini tidak berlaku untuk akun Anda.": "This code isn't valid for your account.",
+  "Kode ini untuk bonus top-up saldo, bukan untuk transaksi.": "This code is for a top-up balance bonus, not for transactions.",
+  "Voucher sudah Anda pakai": "You've already used this voucher",
+  "Hanya untuk pembeli.": "Buyers only.",
+  "Hanya untuk penjual.": "Sellers only.",
+  "Cashback masuk setelah transaksi selesai": "Cashback is credited after the transaction completes",
+  "Bonus saldo saat top-up": "Balance bonus on top-up"
 }

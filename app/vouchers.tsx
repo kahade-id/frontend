@@ -42,15 +42,15 @@
  *   - Dua daftar voucher tidak berbagi satu EmptyState global: bila voucher
  *     tersedia kosong TAPI riwayat ada, riwayat tetap dirender.
  */
-import { useCallback, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { View } from "react-native"
 import { CaretRight, Medal, Ticket } from "phosphor-react-native"
-import { router } from "expo-router"
+import { router, useLocalSearchParams } from "expo-router"
 
 import { api, userMessage } from "@/lib/api"
 import type { ReferralLeaderboardEntry } from "@/lib/api/referrals"
 import { readBadgeList, type Badge } from "@/lib/api/badges"
-import type { Voucher } from "@/lib/api/vouchers"
+import { voucherKindOf, voucherRoleOf, type Voucher, type VoucherKind } from "@/lib/api/vouchers"
 import { mergeBadges } from "@/lib/badges"
 import { useCopy } from "@/lib/clipboard"
 import { referralUrl } from "@/lib/deeplinks"
@@ -139,7 +139,11 @@ function expiresSoon(v: Voucher): boolean {
  * sendiri). TRX-022: voucher nonaktif (active=false) BUKAN kedaluwarsa.
  */
 function voucherStatusOf(v: Voucher): VoucherStatus {
-  if (v.usedAt) return "used"
+  // Audit 2026-10-10 (F08): `usedAt` tidak pernah dikirim daftar voucher —
+  // status "used" dulu mustahil, voucher sekali-pakai yang sudah ditebus
+  // tampil "Aktif" + tombol Pakai (server menolak). Backend kini mengirim
+  // `remainingUses` per user (null = tanpa batas).
+  if (v.usedAt || v.remainingUses === 0) return "used"
   if (!v.active) return "inactive"
   if (v.expiresAt) {
     const time = new Date(v.expiresAt).getTime()
@@ -154,11 +158,11 @@ function voucherStatusOf(v: Voucher): VoucherStatus {
 type UrgencyKey = { soon: boolean; expiresMs: number; discount: number }
 function urgencyKeyOf(v: Voucher, now: number): UrgencyKey {
   const expiresMs = v.expiresAt ? new Date(v.expiresAt).getTime() : Number.POSITIVE_INFINITY
+  // Audit 2026-10-10 (F09): yang SUDAH lewat (selisih negatif) dulu ikut
+  // lolos `< 3 hari` dan diurut paling atas sebagai "segera berakhir".
+  const remaining = expiresMs - now
   return {
-    soon:
-      v.expiresAt != null
-        ? Number.isFinite(expiresMs) && expiresMs - now < EXPIRES_SOON_MS
-        : false,
+    soon: v.expiresAt != null && Number.isFinite(expiresMs) && remaining > 0 && remaining < EXPIRES_SOON_MS,
     expiresMs,
     discount: v.discountValue ?? 0,
   }
@@ -310,6 +314,11 @@ export default function VouchersScreen() {
   const hasSession = useHasSession()
   const toast = useToast()
   const { copied, copy } = useCopy()
+  // Audit 2026-10-10 (F15): deeplink `/v/<kode>` meneruskan `code` ke layar
+  // ini, tetapi dulu tidak pernah dibaca — kolom kode promo diisi otomatis
+  // dan dicek sekali begitu sesi siap.
+  const { code: deeplinkParam } = useLocalSearchParams<{ code?: string }>()
+  const deeplinkCode = (Array.isArray(deeplinkParam) ? deeplinkParam[0] : deeplinkParam)?.trim().toUpperCase() ?? ""
 
   const query = useApiQuery(
     "vouchers",
@@ -377,6 +386,10 @@ export default function VouchersScreen() {
   const [checking, setChecking] = useState(false)
   const [applied, setApplied] = useState<AppliedVoucher | undefined>(undefined)
   const [promoError, setPromoError] = useState<string | null>(null)
+  /** Jenis manfaat voucher yang lolos cek — menentukan CTA & keterangan (F10). */
+  const [appliedKind, setAppliedKind] = useState<VoucherKind>("FEE_DISCOUNT")
+  /** Peran yang disyaratkan voucher (B07/F12) — "Hanya untuk pembeli/penjual". */
+  const [appliedRole, setAppliedRole] = useState<"BUYER" | "SELLER" | "ALL">("ALL")
 
   const handleApplyCode = useCallback(async (code: string) => {
     setChecking(true)
@@ -385,7 +398,7 @@ export default function VouchersScreen() {
       const result = await api.vouchers.validateVoucher({ code })
       if (!result.valid) {
         setApplied(undefined)
-        setPromoError(result.message ?? "Kode ini tidak berlaku untuk akun Anda.")
+        setPromoError(result.message ?? translate("Kode ini tidak berlaku untuk akun Anda."))
         return
       }
       const voucher = result.voucher
@@ -394,7 +407,20 @@ export default function VouchersScreen() {
         voucher && Number.isFinite(voucher.discountValue ?? Number.NaN)
           ? (voucher.discountValue as number)
           : undefined
-      setApplied({ code, title: voucher?.title ?? undefined, discount })
+      // F10: TOPUP_BONUS tidak bisa dipakai di transaksi (create order
+      // menolak); cashback bukan potongan tagihan — cabang per jenis.
+      const kind = voucherKindOf(voucher?.voucherType)
+      // Voucher persen: `discountValue` adalah PERSEN, bukan Rupiah — jangan
+      // ditampilkan sebagai nominal di tiket terpasang.
+      const isPercent = voucher?.discountType === "PERCENT"
+      setAppliedKind(kind)
+      setAppliedRole(voucherRoleOf(voucher?.applicableTo))
+      setApplied({
+        code,
+        title: voucher?.title ?? undefined,
+        discount: isPercent ? undefined : discount,
+        kind,
+      })
     } catch (error) {
       setApplied(undefined)
       setPromoError(userMessage(error))
@@ -402,6 +428,15 @@ export default function VouchersScreen() {
       setChecking(false)
     }
   }, [])
+
+  // F15: cek otomatis kode dari deeplink — SEKALI per kode, hanya setelah
+  // sesi ada (endpoint validate auth-required; tamu melihat ajakan masuk).
+  const autoCheckedRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (!hasSession || !deeplinkCode || autoCheckedRef.current === deeplinkCode) return
+    autoCheckedRef.current = deeplinkCode
+    void handleApplyCode(deeplinkCode)
+  }, [deeplinkCode, handleApplyCode, hasSession])
 
   const clearPromo = useCallback(() => {
     setApplied(undefined)
@@ -412,8 +447,9 @@ export default function VouchersScreen() {
     async (code: string) => {
       const ok = await copy(code)
       if (ok) haptic("select")
+      // F07: judul toast berisi variabel wajib lewat translate().
       toast.show({
-        title: ok ? `Kode ${code} disalin` : "Gagal menyalin kode",
+        title: ok ? translate("Kode {x} disalin", { x: code }) : translate("Gagal menyalin kode"),
         tone: ok ? "success" : "danger",
       })
     },
@@ -424,7 +460,7 @@ export default function VouchersScreen() {
     if (!referralCode) return
     const url = referralUrl(referralCode)
     const outcome = await shareContent({
-      title: "Ajak teman ke Kahade",
+      title: translate("Ajak teman ke Kahade"),
       message: translate("Pakai kode referral saya {x} saat daftar di Kahade — jual beli aman.", {
         x: referralCode,
       }),
@@ -434,7 +470,7 @@ export default function VouchersScreen() {
       const ok = await copy(url)
       if (ok) haptic("select")
       toast.show({
-        title: ok ? "Tautan undangan disalin" : "Tidak bisa membagikan",
+        title: ok ? translate("Tautan undangan disalin") : translate("Tidak bisa membagikan"),
         tone: ok ? "success" : "danger",
       })
     }
@@ -497,6 +533,7 @@ export default function VouchersScreen() {
           subtitle="Punya kode dari promo atau kampanye? Periksa di sini."
         />
         <VoucherRedeemBox
+          initialCode={deeplinkCode}
           applied={applied}
           applying={checking}
           errorText={promoError ?? undefined}
@@ -506,19 +543,32 @@ export default function VouchersScreen() {
           labels={{ heading: "Kode promo", placeholder: "Masukkan kode", apply: "Cek kode" }}
         />
         {applied ? (
-          <>
+          // F10: CTA & keterangan per jenis — bonus top-up TIDAK ditawarkan
+          // "Pakai di transaksi baru" (server menolak saat create order).
+          appliedKind === "TOPUP_BONUS" ? (
             <Text variant="caption" tone="secondary">
-              Kode berlaku. Potongan diterapkan saat transaksi dibuat.
+              Kode berlaku untuk bonus saldo saat top-up, bukan untuk transaksi.
             </Text>
-            <Button
-              variant="secondary"
-              size="sm"
-              fullWidth={false}
-              onPress={() => router.push(ROUTES.createTransactionWithVoucher(applied.code))}
-            >
-              Pakai di transaksi baru
-            </Button>
-          </>
+          ) : (
+            <>
+              <Text variant="caption" tone="secondary">
+                {appliedKind === "CASHBACK"
+                  ? translate("Kode berlaku. Cashback masuk setelah transaksi selesai.")
+                  : translate("Kode berlaku. Potongan diterapkan saat transaksi dibuat.")}
+                {appliedRole !== "ALL"
+                  ? ` ${translate(appliedRole === "BUYER" ? "Hanya untuk pembeli." : "Hanya untuk penjual.")}`
+                  : ""}
+              </Text>
+              <Button
+                variant="secondary"
+                size="sm"
+                fullWidth={false}
+                onPress={() => router.push(ROUTES.createTransactionWithVoucher(applied.code))}
+              >
+                Pakai di transaksi baru
+              </Button>
+            </>
+          )
         ) : null}
       </View>
 
@@ -558,17 +608,26 @@ export default function VouchersScreen() {
                 discountValue={v.discountValue ?? Number.NaN}
                 maxDiscount={v.maxDiscount}
                 minOrderValue={v.minOrderValue}
+                // F12: badge Pembeli/Penjual dari `applicableTo` backend.
+                applicableTo={voucherRoleOf(v.applicableTo)}
                 expiresAt={v.expiresAt ? formatDateTimeWIB(v.expiresAt) : undefined}
                 expiresSoon={expiresSoon(v)}
                 status={status}
                 disabled={status !== "active"}
                 disabledReason={
-                  status !== "active"
-                    ? translate("Voucher tidak dapat dipakai")
-                    : undefined
+                  status === "used"
+                    ? translate("Voucher sudah Anda pakai")
+                    : status !== "active"
+                      ? translate("Voucher tidak dapat dipakai")
+                      : undefined
                 }
                 onCopyCode={() => void handleCopyVoucherCode(v.code)}
-                onUse={() => router.push(ROUTES.createTransactionWithVoucher(v.code))}
+                // F10: bonus top-up tidak punya alur "Pakai" di transaksi.
+                onUse={
+                  voucherKindOf(v.voucherType) === "TOPUP_BONUS"
+                    ? undefined
+                    : () => router.push(ROUTES.createTransactionWithVoucher(v.code))
+                }
               />
             )
           })
@@ -613,10 +672,12 @@ export default function VouchersScreen() {
           />
           {leaderboard.length > 0 ? (
             <View className="gap-3 pt-1">
+              {/* F06: backend mengurutkan TOTAL REWARD sepanjang waktu —
+                  bukan "undangan terbanyak bulan ini". */}
               <SectionHeader
                 title="Papan peringkat"
                 level="h3"
-                subtitle="3 undangan terbanyak bulan ini"
+                subtitle="3 teratas berdasarkan total reward"
               />
               <LeaderboardPreview entries={leaderboard} />
             </View>
