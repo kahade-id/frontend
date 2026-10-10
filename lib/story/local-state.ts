@@ -15,15 +15,25 @@ import { useSyncExternalStore } from "react"
 
 import type { StoryKind, StoryReaction } from "@/lib/api/story"
 
+export type PendingStoryStatus = "uploading" | "failed"
+
 export type PendingStory = {
   localId: string
   kind: StoryKind
-  /** URI lokal foto (kind = image). */
+  /** URI lokal foto/video (kind = image/video). */
   mediaUri: string | null
   text: string | null
   backgroundColor: string | null
   createdAt: number
-  status: "uploading" | "failed"
+  status: PendingStoryStatus
+  /**
+   * Kemajuan unggah 0..1 (byte jujur dari transport); null = belum mulai /
+   * tahap buat story (setelah upload selesai). Video 50 MB di 4G ≈ 8 menit —
+   * tanpa angka pengguna mengira macet.
+   */
+  progress: number | null
+  /** Pesan galat terakhir (status failed) — tray menampilkannya saat diketuk. */
+  error: string | null
 }
 
 export type StoryLocalState = {
@@ -168,10 +178,34 @@ export function addPendingStoryLocal(item: PendingStory): () => void {
   }
 }
 
-export function setPendingStatusLocal(localId: string, status: PendingStory["status"]): void {
+export function setPendingStatusLocal(
+  localId: string,
+  status: PendingStoryStatus,
+  error: string | null = null,
+): void {
   commit({
     ...state,
-    pending: state.pending.map((p) => (p.localId === localId ? { ...p, status } : p)),
+    pending: state.pending.map((p) =>
+      p.localId === localId
+        ? { ...p, status, error: status === "failed" ? error : null, progress: status === "failed" ? null : p.progress }
+        : p,
+    ),
+  })
+}
+
+/**
+ * Perbarui kemajuan unggah (0..1). Nilai dibulatkan ke 2 desimal supaya
+ * `onProgress` yang menembak puluhan kali per detik tidak merender ulang tray
+ * untuk perubahan yang tak terlihat.
+ */
+export function setPendingProgressLocal(localId: string, fraction: number | null): void {
+  const next =
+    fraction === null ? null : Math.round(Math.min(1, Math.max(0, Number.isFinite(fraction) ? fraction : 0)) * 100) / 100
+  const target = state.pending.find((p) => p.localId === localId)
+  if (!target || target.progress === next) return
+  commit({
+    ...state,
+    pending: state.pending.map((p) => (p.localId === localId ? { ...p, progress: next } : p)),
   })
 }
 

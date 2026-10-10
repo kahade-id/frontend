@@ -9,7 +9,7 @@
  * seluruh aplikasi. Bila server menolak, overlay dibatalkan dan toast tampil.
  */
 import { router } from "expo-router"
-import { Eye, Megaphone, PencilSimple, SpeakerSlash, Trash } from "phosphor-react-native"
+import { Eye, Megaphone, PencilSimple, Play, SpeakerSlash, Trash } from "phosphor-react-native"
 import { useCallback, useMemo, useState } from "react"
 import { ScrollView, View } from "react-native"
 import { Picture } from "@/components/ui/picture"
@@ -46,6 +46,7 @@ import {
 import { getMeCached, type UserProfile } from "@/lib/api/users"
 import { formatCountdown, formatNumber } from "@/lib/format"
 import { useT } from "@/lib/i18n"
+import { formatMediaClock } from "@/lib/media-viewer"
 import { ROUTES } from "@/lib/routes"
 import { serverNow } from "@/lib/server-time"
 import {
@@ -141,7 +142,7 @@ function ActiveTab() {
               <StoryThumb story={s} />
               <View className="flex-1 gap-1">
                 <Text variant="label" weight={600} numberOfLines={1}>
-                  {s.kind === "text" ? s.text || t("Story teks") : t("Foto story")}
+                  {storyRowTitle(s, t)}
                 </Text>
                 <Text variant="caption" tone="secondary" numberOfLines={1}>
                   {t("Sisa {time}", { time: formatCountdown(Math.floor(storyRemainingMs(s, serverNow()) / 1000)) })}
@@ -193,11 +194,44 @@ function ActiveTab() {
   )
 }
 
+/**
+ * Judul baris: caption bila ada; selain itu jenis media. Video (2026-10-10)
+ * menyertakan durasi "0:15" supaya story video terbaca tanpa membuka viewer.
+ */
+function storyRowTitle(story: Story, t: ReturnType<typeof useT>): string {
+  const caption = story.text?.trim()
+  if (story.kind === "text") return caption || t("Story teks")
+  if (caption) return caption
+  if (story.kind === "video") {
+    const clock = typeof story.durationMs === "number" ? formatMediaClock(story.durationMs / 1000) : null
+    return clock ? `${t("Video story")} · ${clock}` : t("Video story")
+  }
+  return t("Foto story")
+}
+
+/** Thumbnail baris: foto, poster video (+ ikon putar), atau latar warna story teks. */
 function StoryThumb({ story }: { story: Story }) {
   if (story.kind === "image" && story.mediaUrl) {
     return <Picture source={story.mediaUrl} alt="" width={48} height={64} radius="sm" />
   }
-  return <View className="h-16 w-12 rounded-sm bg-surface-elevated" />
+  if (story.kind === "video") {
+    return (
+      <View className="h-16 w-12 overflow-hidden rounded-sm bg-black">
+        {story.thumbnailUrl ? <Picture source={story.thumbnailUrl} alt="" width={48} height={64} radius="sm" /> : null}
+        <View className="absolute inset-0 items-center justify-center" pointerEvents="none">
+          <View className="h-6 w-6 items-center justify-center rounded-full bg-black/60">
+            <Icon icon={Play} size="xs" tone="inverse" weight="fill" />
+          </View>
+        </View>
+      </View>
+    )
+  }
+  return (
+    <View
+      className="h-16 w-12 rounded-sm bg-surface-elevated"
+      style={story.backgroundColor ? { backgroundColor: story.backgroundColor } : undefined}
+    />
+  )
 }
 
 // ---------------------------------------------------------------------------

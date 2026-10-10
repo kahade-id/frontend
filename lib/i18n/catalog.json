@@ -16,7 +16,7 @@
   },
   {
    "s": "Coba lagi",
-   "n": 43
+   "n": 54
   },
   {
    "s": "Gagal memuat",
@@ -24,7 +24,7 @@
   },
   {
    "s": "Tutup",
-   "n": 40
+   "n": 37
   },
   {
    "s": "Simpan",
@@ -71,6 +71,10 @@
    "n": 16
   },
   {
+   "s": "Lainnya",
+   "n": 16
+  },
+  {
    "s": "Pengguna",
    "n": 16
   },
@@ -85,6 +89,10 @@
   {
    "s": "Sembunyikan",
    "n": 16
+  },
+  {
+   "s": "Buang",
+   "n": 15
   },
   {
    "s": "Kata sandi akun",
@@ -103,19 +111,11 @@
    "n": 14
   },
   {
-   "s": "Lainnya",
-   "n": 14
-  },
-  {
    "s": "Anda sedang offline",
    "n": 13
   },
   {
    "s": "Bagikan",
-   "n": 13
-  },
-  {
-   "s": "Buang",
    "n": 13
   },
   {
@@ -152,6 +152,10 @@
   },
   {
    "s": "Ambil foto",
+   "n": 12
+  },
+  {
+   "s": "Bagikan profil",
    "n": 12
   },
   {
@@ -244,6 +248,10 @@
   },
   {
    "s": "Mengirim…",
+   "n": 10
+  },
+  {
+   "s": "Nyalakan suara",
    "n": 10
   },
   {
@@ -407,6 +415,10 @@
    "n": 8
   },
   {
+   "s": "Spam",
+   "n": 8
+  },
+  {
    "s": "Tunggu unggahan selesai…",
    "n": 8
   },
@@ -424,6 +436,10 @@
   },
   {
    "s": "Ajukan retur",
+   "n": 7
+  },
+  {
+   "s": "Alasan laporan",
    "n": 7
   },
   {
@@ -475,6 +491,10 @@
    "n": 7
   },
   {
+   "s": "Lewati",
+   "n": 7
+  },
+  {
    "s": "Mengunggah foto profil",
    "n": 7
   },
@@ -491,10 +511,6 @@
    "n": 7
   },
   {
-   "s": "Nyalakan suara",
-   "n": 7
-  },
-  {
    "s": "Pesan suara",
    "n": 7
   },
@@ -507,6 +523,10 @@
    "n": 7
   },
   {
+   "s": "Story belum terbagikan",
+   "n": 7
+  },
+  {
    "s": "Syarat & Ketentuan",
    "n": 7
   },
@@ -515,11 +535,11 @@
    "n": 7
   },
   {
-   "s": "(lampiran)",
-   "n": 6
+   "s": "Video story",
+   "n": 7
   },
   {
-   "s": "{n} dilihat",
+   "s": "(lampiran)",
    "n": 6
   },
   {
@@ -659,11 +679,19 @@
    "n": 6
   },
   {
+   "s": "Foto story",
+   "n": 6
+  },
+  {
    "s": "Gagal berhenti mengikuti",
    "n": 6
   },
   {
    "s": "Gagal memperbarui dukungan",
+   "n": 6
+  },
+  {
+   "s": "Gagal mengirim laporan",
    "n": 6
   },
   {
@@ -739,6 +767,10 @@
    "n": 6
   },
   {
+   "s": "Jelaskan secara singkat detail pelanggaran...",
+   "n": 6
+  },
+  {
    "s": "Jenis produk",
    "n": 6
   },
@@ -796,6 +828,10 @@
   },
   {
    "s": "Lanjut mengedit",
+   "n": 6
+  },
+  {
+   "s": "Laporan terkirim",
    "n": 6
   },
   {
@@ -903,10 +939,6 @@
    "n": 6
   },
   {
-   "s": "Spam",
-   "n": 6
-  },
-  {
    "s": "Status",
    "n": 6
   },
@@ -916,10 +948,6 @@
   },
   {
    "s": "Story baru",
-   "n": 6
-  },
-  {
-   "s": "Story saya",
    "n": 6
   },
   {
@@ -1008,6 +1036,10 @@
   },
   {
    "s": "Akun",
+   "n": 5
+  },
+  {
+   "s": "Ancaman/pelecehan",
    "n": 5
   },
   {
@@ -1111,10 +1143,6 @@
    "n": 5
   },
   {
-   "s": "Foto story",
-   "n": 5
-  },
-  {
    "s": "Frame berikutnya",
    "n": 5
   },
@@ -1187,6 +1215,10 @@
    "n": 5
   },
   {
+   "s": "Konten menyinggung",
+   "n": 5
+  },
+  {
    "s": "Konten tidak tersedia",
    "n": 5
   },
@@ -1199,6 +1231,10 @@
    "n": 5
   },
   {
+   "s": "Laporkan story",
+   "n": 5
+  },
+  {
    "s": "Lihat",
    "n": 5
   },
@@ -1208,6 +1244,10 @@
   },
   {
    "s": "Lihat sengketa",
+   "n": 5
+  },
+  {
+   "s": "Link/jualan tidak relevan",
    "n": 5
   },
   {
@@ -1228,6 +1268,10 @@
   },
   {
    "s": "Permintaan dibatalkan.",
+   "n": 5
+  },
+  {
+   "s": "Perundungan",
    "n": 5
   },
   {
@@ -1319,6 +1363,10 @@
    "n": 5
   },
   {
+   "s": "{n} dilihat",
+   "n": 4
+  },
+  {
    "s": "{n} story",
    "n": 4
   },
@@ -1372,10 +1420,6 @@
   },
   {
    "s": "Atur ulang filter",
-   "n": 4
-  },
-  {
-   "s": "Bagikan profil",
    "n": 4
   },
   {
@@ -1563,10 +1607,6 @@
    "n": 4
   },
   {
-   "s": "Gagal mengirim laporan",
-   "n": 4
-  },
-  {
    "s": "Gagal mengirim pertanyaan",
    "n": 4
   },
@@ -1631,6 +1671,10 @@
    "n": 4
   },
   {
+   "s": "Jelaskan di kolom detail",
+   "n": 4
+  },
+  {
    "s": "Judul terlalu panjang",
    "n": 4
   },
@@ -1659,7 +1703,19 @@
    "n": 4
   },
   {
+   "s": "Keterangan tambahan (opsional)",
+   "n": 4
+  },
+  {
    "s": "Kirim dokumen",
+   "n": 4
+  },
+  {
+   "s": "Kirim laporan",
+   "n": 4
+  },
+  {
+   "s": "Kirim Laporan",
    "n": 4
   },
   {
@@ -1688,10 +1744,6 @@
   },
   {
    "s": "Lanjut",
-   "n": 4
-  },
-  {
-   "s": "Laporan terkirim",
    "n": 4
   },
   {
@@ -1875,6 +1927,10 @@
    "n": 4
   },
   {
+   "s": "Sorotan",
+   "n": 4
+  },
+  {
    "s": "Status belum diperbarui: {x}",
    "n": 4
   },
@@ -1892,6 +1948,10 @@
   },
   {
    "s": "Story dihapus",
+   "n": 4
+  },
+  {
+   "s": "Story saya",
    "n": 4
   },
   {
@@ -1948,6 +2008,10 @@
   },
   {
    "s": "Terbitkan etalase",
+   "n": 4
+  },
+  {
+   "s": "Terima kasih telah membantu menjaga keamanan komunitas Kahade.",
    "n": 4
   },
   {
@@ -2216,10 +2280,6 @@
   },
   {
    "s": "Alamat tujuan barang dikirim — bisa diubah di buku alamat.",
-   "n": 3
-  },
-  {
-   "s": "Ancaman/pelecehan",
    "n": 3
   },
   {
@@ -2959,11 +3019,15 @@
    "n": 3
   },
   {
-   "s": "Foto bukti",
+   "s": "Format tidak didukung. Gunakan foto JPEG/PNG atau video MP{x}/MOV.",
    "n": 3
   },
   {
-   "s": "Foto dari galeri",
+   "s": "Foto atau video dari galeri",
+   "n": 3
+  },
+  {
+   "s": "Foto bukti",
    "n": 3
   },
   {
@@ -3064,6 +3128,10 @@
   },
   {
    "s": "Gagal menyimpan preferensi",
+   "n": 3
+  },
+  {
+   "s": "Gambar atau teks yang melanggar aturan",
    "n": 3
   },
   {
@@ -3224,6 +3292,10 @@
   },
   {
    "s": "Hapus pesan",
+   "n": 3
+  },
+  {
+   "s": "Hapus reaksi {emoji}",
    "n": 3
   },
   {
@@ -3419,10 +3491,6 @@
    "n": 3
   },
   {
-   "s": "Jelaskan secara singkat detail pelanggaran...",
-   "n": 3
-  },
-  {
    "s": "Jenis",
    "n": 3
   },
@@ -3544,6 +3612,10 @@
   },
   {
    "s": "Kembali mengedit",
+   "n": 3
+  },
+  {
+   "s": "Keterangan story",
    "n": 3
   },
   {
@@ -3683,10 +3755,6 @@
    "n": 3
   },
   {
-   "s": "Konten menyinggung",
-   "n": 3
-  },
-  {
    "s": "Konten sensitif disembunyikan",
    "n": 3
   },
@@ -3736,6 +3804,10 @@
   },
   {
    "s": "Laporan & Analitik",
+   "n": 3
+  },
+  {
+   "s": "Laporan bersifat rahasia. Pemilik story tidak tahu siapa yang melapor.",
    "n": 3
   },
   {
@@ -3847,10 +3919,6 @@
    "n": 3
   },
   {
-   "s": "Link/jualan tidak relevan",
-   "n": 3
-  },
-  {
    "s": "Lokasi (cth. Jakarta)",
    "n": 3
   },
@@ -3904,6 +3972,10 @@
   },
   {
    "s": "Masukkan PIN dompet Anda untuk menarik {x} ke {y} {z}.",
+   "n": 3
+  },
+  {
+   "s": "Matikan suara",
    "n": 3
   },
   {
@@ -4068,10 +4140,6 @@
   },
   {
    "s": "Mengunggah foto sampul",
-   "n": 3
-  },
-  {
-   "s": "Mengunggah…",
    "n": 3
   },
   {
@@ -4419,10 +4487,6 @@
    "n": 3
   },
   {
-   "s": "Perundungan",
-   "n": 3
-  },
-  {
    "s": "Pesan baru",
    "n": 3
   },
@@ -4547,6 +4611,10 @@
    "n": 3
   },
   {
+   "s": "Pratinjau video story",
+   "n": 3
+  },
+  {
    "s": "Preferensi tersimpan",
    "n": 3
   },
@@ -4600,6 +4668,10 @@
   },
   {
    "s": "Rekam pesan suara, maksimal {x} menit.",
+   "n": 3
+  },
+  {
+   "s": "Rekam video",
    "n": 3
   },
   {
@@ -4659,8 +4731,11 @@
    "n": 3
   },
   {
-"s": "Salin",
-"s": "Saldo terpakai sampai permintaan kedaluwarsa. Batalkan sekarang agar saldo langsung bebas.",
+   "s": "Saldo terpakai sampai permintaan kedaluwarsa. Batalkan sekarang agar saldo langsung bebas.",
+   "n": 3
+  },
+  {
+   "s": "Salin",
    "n": 3
   },
   {
@@ -4896,7 +4971,15 @@
    "n": 3
   },
   {
+   "s": "Story gagal diunggah, ketuk untuk mencoba lagi",
+   "n": 3
+  },
+  {
    "s": "Story sudah habis masa tayangnya atau dihapus.",
+   "n": 3
+  },
+  {
+   "s": "Story teks",
    "n": 3
   },
   {
@@ -4937,10 +5020,6 @@
   },
   {
    "s": "Tambah rekening",
-   "n": 3
-  },
-  {
-   "s": "Tambah story",
    "n": 3
   },
   {
@@ -5212,6 +5291,10 @@
    "n": 3
   },
   {
+   "s": "Tulis keterangan…",
+   "n": 3
+  },
+  {
    "s": "Tulis komentar",
    "n": 3
   },
@@ -5465,6 +5548,10 @@
   },
   {
    "s": "{m} berlaku sampai {x}",
+   "n": 2
+  },
+  {
+   "s": "{media} gagal dimuat",
    "n": 2
   },
   {
@@ -6240,6 +6327,10 @@
    "n": 2
   },
   {
+   "s": "Bukan jualan atau tidak sesuai etalase",
+   "n": 2
+  },
+  {
    "s": "Bukti Anda",
    "n": 2
   },
@@ -6540,6 +6631,10 @@
    "n": 2
   },
   {
+   "s": "Draft tidak tersimpan, buat story lagi.",
+   "n": 2
+  },
+  {
    "s": "Ekspor chat (TXT)",
    "n": 2
   },
@@ -6696,7 +6791,7 @@
    "n": 2
   },
   {
-   "s": "Foto terlalu besar",
+   "s": "Foto tidak bisa dipakai",
    "n": 2
   },
   {
@@ -6752,7 +6847,7 @@
    "n": 2
   },
   {
-"s": "Gagal memperbarui percakapan",
+   "s": "Gagal memperbarui percakapan",
    "n": 2
   },
   {
@@ -7084,6 +7179,10 @@
    "n": 2
   },
   {
+   "s": "Hilang otomatis setelah {x} jam. Hanya penyimpan profil Anda yang melihat.",
+   "n": 2
+  },
+  {
    "s": "Hilang untuk semua peserta ruang.",
    "n": 2
   },
@@ -7173,10 +7272,6 @@
   },
   {
    "s": "Jeda video",
-   "n": 2
-  },
-  {
-   "s": "Jelaskan di kolom detail",
    "n": 2
   },
   {
@@ -7373,10 +7468,6 @@
   },
   {
    "s": "Kirim kode verifikasi",
-   "n": 2
-  },
-  {
-   "s": "Kirim Laporan",
    "n": 2
   },
   {
@@ -7612,6 +7703,10 @@
    "n": 2
   },
   {
+   "s": "Laporan Anda sedang ditinjau moderasi.",
+   "n": 2
+  },
+  {
    "s": "Laporan Anda sedang ditinjau moderasi. Etalase ini disembunyikan dari feed Anda.",
    "n": 2
   },
@@ -7669,10 +7764,6 @@
   },
   {
    "s": "Lewat batas waktu, pesanan dibatalkan otomatis — belum ada dana yang dibayarkan.",
-   "n": 2
-  },
-  {
-   "s": "Lewati",
    "n": 2
   },
   {
@@ -7757,6 +7848,10 @@
   },
   {
    "s": "Lihat semua ulasan",
+   "n": 2
+  },
+  {
+   "s": "Lihat story {name} di Kahade",
    "n": 2
   },
   {
@@ -8268,7 +8363,6 @@
    "n": 2
   },
   {
-   "s": "Order tidak berlanjut — dana escrow telah dikembalikan ke metode pembayaran pembeli oleh {x}.",
    "s": "Order tidak berlanjut — dana telah dikembalikan ke metode pembayaran pembeli oleh {x}.",
    "n": 2
   },
@@ -8434,6 +8528,10 @@
   },
   {
    "s": "Perbaiki alamat email",
+   "n": 2
+  },
+  {
+   "s": "Perbarui aplikasi untuk memutar video",
    "n": 2
   },
   {
@@ -8817,6 +8915,10 @@
    "n": 2
   },
   {
+   "s": "Reaksi belum dihapus",
+   "n": 2
+  },
+  {
    "s": "Reaksi gagal dikirim",
    "n": 2
   },
@@ -9169,10 +9271,6 @@
    "n": 2
   },
   {
-   "s": "Sorotan",
-   "n": 2
-  },
-  {
    "s": "Sorotan {title} dibuat",
    "n": 2
   },
@@ -9245,19 +9343,11 @@
    "n": 2
   },
   {
-   "s": "Story belum terbagikan",
-   "n": 2
-  },
-  {
    "s": "Story dibisukan",
    "n": 2
   },
   {
-   "s": "Story hilang otomatis setelah {x} jam dan hanya terlihat oleh orang yang menyimpan profil Anda.",
-   "n": 2
-  },
-  {
-   "s": "Story teks",
+   "s": "Story sudah dilaporkan",
    "n": 2
   },
   {
@@ -9274,6 +9364,10 @@
   },
   {
    "s": "Sudah bayar",
+   "n": 2
+  },
+  {
+   "s": "Sudah dilaporkan",
    "n": 2
   },
   {
@@ -9537,10 +9631,6 @@
    "n": 2
   },
   {
-   "s": "Terima kasih telah membantu menjaga keamanan komunitas Kahade.",
-   "n": 2
-  },
-  {
    "s": "Terima pesanan",
    "n": 2
   },
@@ -9642,6 +9732,10 @@
   },
   {
    "s": "Tidak ditemukan",
+   "n": 2
+  },
+  {
+   "s": "Tidak relevan",
    "n": 2
   },
   {
@@ -9834,6 +9928,10 @@
   },
   {
    "s": "Video ditambahkan",
+   "n": 2
+  },
+  {
+   "s": "Video tidak bisa dipakai",
    "n": 2
   },
   {
@@ -12213,10 +12311,6 @@
    "n": 1
   },
   {
-   "s": "Alasan laporan",
-   "n": 1
-  },
-  {
    "s": "Alasan menyembunyikan",
    "n": 1
   },
@@ -14089,11 +14183,6 @@
    "n": 1
   },
   {
-"s": "Dana Anda ditahan di escrow oleh {x} — hanya diteruskan ke penjual setelah Anda mengonfirmasi penerimaan, atau otomatis setelah tenggat tanpa sengketa.",
-"s": "Dana Anda aman sampai barang diterima",
-   "n": 1
-  },
-  {
    "s": "Dana Anda disimpan aman oleh {x} — hanya diteruskan ke penjual setelah Anda mengonfirmasi penerimaan, atau otomatis setelah tenggat tanpa sengketa.",
    "n": 1
   },
@@ -15190,6 +15279,10 @@
    "n": 1
   },
   {
+   "s": "Foto story maksimal {x} MB. Pilih foto yang lebih kecil.",
+   "n": 1
+  },
+  {
    "s": "Foto tersimpan di galeri",
    "n": 1
   },
@@ -15203,6 +15296,10 @@
   },
   {
    "s": "Foto: {x}",
+   "n": 1
+  },
+  {
+   "s": "Gagal · ketuk",
    "n": 1
   },
   {
@@ -15591,10 +15688,6 @@
   },
   {
    "s": "Gagal terhubung ke server.",
-   "n": 1
-  },
-  {
-   "s": "Gambar atau teks yang melanggar aturan",
    "n": 1
   },
   {
@@ -16782,10 +16875,6 @@
    "n": 1
   },
   {
-   "s": "Keterangan tambahan (opsional)",
-   "n": 1
-  },
-  {
    "s": "Ketik atau tempel ID transaksi (mis. KHD-{x}), username (@username), atau tautan Kahade.",
    "n": 1
   },
@@ -16871,10 +16960,6 @@
   },
   {
    "s": "Kirim kode OTP",
-   "n": 1
-  },
-  {
-   "s": "Kirim laporan",
    "n": 1
   },
   {
@@ -18134,11 +18219,6 @@
    "n": 1
   },
   {
-"s": "membuat akun, mengelola profil, menjalankan fitur sosial, komunikasi, etalase, transaksi, escrow, dompet, dan dukungan.",
-"s": "Membintangi pesan yang dipilih",
-   "n": 1
-  },
-  {
    "s": "membuat akun, mengelola profil, menjalankan fitur sosial, komunikasi, etalase, transaksi, pengamanan dana, dompet, dan dukungan.",
    "n": 1
   },
@@ -18200,6 +18280,10 @@
   },
   {
    "s": "Memproses video…",
+   "n": 1
+  },
+  {
+   "s": "Memproses…",
    "n": 1
   },
   {
@@ -18483,6 +18567,10 @@
    "n": 1
   },
   {
+   "s": "Mengunggah…",
+   "n": 1
+  },
+  {
    "s": "menilai bukti, berkomunikasi dengan pihak terkait, menjalankan keputusan, dan mempertahankan hak hukum.",
    "n": 1
   },
@@ -18708,6 +18796,10 @@
   },
   {
    "s": "mock://story/{x}",
+   "n": 1
+  },
+  {
+   "s": "mock://story/{x}/thumb",
    "n": 1
   },
   {
@@ -20419,12 +20511,11 @@
    "n": 1
   },
   {
-"s": "Pesanan dikirim",
+   "s": "Pesanan dikirim",
    "n": 1
   },
   {
-   "s": "Pesanan diterima, dan pembeli dapat melanjutkan pembayaran ke escrow. Selesaikan pekerjaan sesuai kesepakatan setelah dana masuk.",
-"s": "Pesanan diterima, dan pembeli dapat melanjutkan pembayaran. Selesaikan pekerjaan sesuai kesepakatan setelah dana masuk.",
+   "s": "Pesanan diterima, dan pembeli dapat melanjutkan pembayaran. Selesaikan pekerjaan sesuai kesepakatan setelah dana masuk.",
    "n": 1
   },
   {
@@ -20589,6 +20680,10 @@
   },
   {
    "s": "Pilih tujuan simpan di sheet yang muncul",
+   "n": 1
+  },
+  {
+   "s": "Pilih video dulu.",
    "n": 1
   },
   {
@@ -21905,6 +22000,10 @@
   },
   {
    "s": "Tambah passkey",
+   "n": 1
+  },
+  {
+   "s": "Tambah story",
    "n": 1
   },
   {
@@ -23241,6 +23340,14 @@
   },
   {
    "s": "Video pembukaan paket yang berkesinambungan dan memperlihatkan label.",
+   "n": 1
+  },
+  {
+   "s": "Video story maksimal {x} detik. Potong video dulu di galeri.",
+   "n": 1
+  },
+  {
+   "s": "Video story maksimal {x} MB. Pilih video yang lebih kecil atau lebih pendek.",
    "n": 1
   },
   {

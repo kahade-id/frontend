@@ -46,6 +46,8 @@ function story(overrides: Partial<Story> = {}): Story {
     author: author("a"),
     kind: "text",
     mediaUrl: null,
+    thumbnailUrl: null,
+    durationMs: null,
     text: "hai",
     backgroundColor: "#1F2937",
     productTags: [],
@@ -222,6 +224,8 @@ describe("optimistic + rollback", () => {
       backgroundColor: null,
       createdAt: 0,
       status: "uploading",
+      progress: null,
+      error: null,
     })
     expect(getStoryLocalState().pending).toHaveLength(1)
     undo()

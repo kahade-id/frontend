@@ -68,6 +68,12 @@ export type PickImageOptions = {
    * "Gambar"). Mengalahkan `allowVideos`.
    */
   videoOnly?: boolean
+  /**
+   * Story video (2026-10-10): batas durasi rekam kamera (detik) — picker OS
+   * menghentikan rekaman di batas ini; di galeri iOS batas ini juga memotong
+   * pilihan. Android galeri mengabaikannya → guard durasi klien tetap jalan.
+   */
+  videoMaxDurationSec?: number
 }
 
 const DEFAULT_MIME = "image/jpeg"
@@ -226,6 +232,9 @@ export async function pickImage(opts: PickImageOptions = {}): Promise<PickImageR
         ? [opts.aspect[0], opts.aspect[1]]
         : undefined,
     quality: opts.quality ?? DEFAULT_QUALITY,
+    ...(opts.videoMaxDurationSec && (opts.videoOnly || opts.allowVideos)
+      ? { videoMaxDuration: opts.videoMaxDurationSec }
+      : {}),
   }
 
   const result =

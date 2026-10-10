@@ -3,6 +3,12 @@
  *
  * Teks pesan galat & pesan prefill dikembalikan sebagai kunci `translate()`
  * (string Indonesia = kunci), jadi UI cukup menampilkannya.
+ *
+ * Audit 2026-10-10 (temuan #1, KRITIS): `validateStoryDraft` dulu menuntut
+ * `mediaId` untuk kind image padahal `mediaId` baru ada SETELAH upload yang
+ * berjalan di latar — tombol Bagikan foto selalu ditolak "Pilih foto dulu."
+ * Kini validasi menerima `mediaPicked` (aset lokal sudah dipilih); `mediaId`
+ * hanya wajib saat `buildCreateInput` (badan request).
  */
 import {
   STORY_PRICE_MAX,
@@ -53,6 +59,19 @@ export type DraftProblem =
   | "price-invalid"
   | "too-many-tags"
 
+export type ValidateDraftOptions = {
+  /**
+   * Aset lokal (foto/video) sudah dipilih meski `mediaId` belum ada —
+   * upload berjalan di latar setelah Bagikan ditekan.
+   */
+  mediaPicked?: boolean
+}
+
+/** Story bermedia (foto/video) — lawan dari story teks. */
+export function isMediaStoryKind(kind: StoryKind): kind is "image" | "video" {
+  return kind === "image" || kind === "video"
+}
+
 /** Angka dari input harga: hanya digit. "1.500.000" → 1500000. */
 export function parsePriceInput(raw: string): number | null {
   const digits = raw.replace(/[^\d]/g, "")
@@ -62,10 +81,12 @@ export function parsePriceInput(raw: string): number | null {
   return n
 }
 
-export function validateStoryDraft(draft: StoryDraft): DraftProblem | null {
+export function validateStoryDraft(draft: StoryDraft, opts: ValidateDraftOptions = {}): DraftProblem | null {
   if (draft.productTags.length > STORY_PRODUCT_TAGS_MAX) return "too-many-tags"
-  if (draft.kind === "image") {
-    if (!draft.mediaId) return "media-required"
+  if (isMediaStoryKind(draft.kind)) {
+    if (!draft.mediaId && !opts.mediaPicked) return "media-required"
+    // Caption opsional, tetapi tetap dibatasi 200 karakter (server: STORY_TEXT_TOO_LONG).
+    if (draft.text.trim().length > STORY_TEXT_MAX) return "text-too-long"
   } else {
     const text = draft.text.trim()
     if (!text) return "text-required"
@@ -80,10 +101,11 @@ export function buildCreateInput(draft: StoryDraft): CreateStoryInput {
   const problem = validateStoryDraft(draft)
   if (problem) throw new Error(`draft tidak valid: ${problem}`)
   const price = draft.priceText.trim() ? parsePriceInput(draft.priceText) : null
+  const media = isMediaStoryKind(draft.kind)
   return {
     kind: draft.kind,
-    mediaId: draft.kind === "image" ? (draft.mediaId ?? undefined) : undefined,
-    text: draft.kind === "text" ? draft.text.trim() : draft.text.trim() || undefined,
+    mediaId: media ? (draft.mediaId ?? undefined) : undefined,
+    text: media ? draft.text.trim() || undefined : draft.text.trim(),
     backgroundColor: draft.kind === "text" ? draft.backgroundColor : undefined,
     productTags: draft.productTags.map((t) => ({
       productId: t.productId,

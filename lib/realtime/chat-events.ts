@@ -107,6 +107,19 @@ export const NOTIFICATION_SOCKET_EVENTS = {
 } as const
 
 /**
+ * Story (2026-10-10): event per-user dari `StoriesService` (backend
+ * `realtime.emitToUser(..., 'story.*')`). Klien hanya MEMBATALKAN cache tray/
+ * viewer — payload cukup `{ authorUserId, storyId }`; data sebenarnya tetap
+ * dari REST (sumber kebenaran visibilitas ada di server).
+ */
+export const STORY_SOCKET_EVENTS = {
+  CREATED: "story.created",
+  DELETED: "story.deleted",
+  EXPIRED: "story.expired",
+  VIEWERS_UPDATED: "story.viewers.updated",
+} as const
+
+/**
  * SYS-C-403: event keamanan & dompet — nama persis seperti yang di-emit
  * `RealtimeGateway.emitToUser` ke room `user:<id>` (backend), tanpa listener
  * di FE sebelum fix ini:
