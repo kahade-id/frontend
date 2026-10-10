@@ -29,6 +29,7 @@ import { Button } from "@/components/ui/button"
 import { CHAT_MESSAGE_MAX } from "@/components/ui/chat-composer"
 import { TextArea } from "@/components/ui/text-area"
 import { useToast } from "@/components/ui/toast"
+import { translate } from "@/lib/i18n/translate"
 
 export type ChatEditSheetProps = {
   /** Pesan yang diedit; `null` menutup sheet. */
@@ -51,7 +52,10 @@ export function ChatEditSheet({ message, roomId, onClose, onSaved }: ChatEditShe
 
   const save = async () => {
     const content = draft.trim()
-    if (!roomId || !message || !content || content === message.text) {
+    // Audit Pesan 2026-10-10 (room #36): bandingkan dengan teks asli yang
+    // juga di-trim — spasi ekor di pesan asli dulu membuat "Simpan" aktif
+    // tanpa perubahan nyata dan pesan diberi tanda "diedit".
+    if (!roomId || !message || !content || content === (message.text ?? "").trim()) {
       onClose()
       return
     }
@@ -67,7 +71,7 @@ export function ChatEditSheet({ message, roomId, onClose, onSaved }: ChatEditShe
     } catch (err) {
       logWarn("chat:edit", err)
       toast.show({
-        title: "Gagal menyimpan perubahan",
+        title: translate("Gagal menyimpan perubahan"),
         description: isApiError(err) ? userMessage(err) : undefined,
         tone: "danger",
       })
@@ -76,7 +80,7 @@ export function ChatEditSheet({ message, roomId, onClose, onSaved }: ChatEditShe
     }
   }
 
-  const unchanged = !draft.trim() || draft.trim() === message?.text
+  const unchanged = !draft.trim() || draft.trim() === (message?.text ?? "").trim()
 
   return (
     <BottomSheet

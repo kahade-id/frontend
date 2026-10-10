@@ -121,13 +121,19 @@ export async function resizePickedImage(
   asset: PickedImage,
   maxDimension = SHOWCASE_PHOTO_MAX_DIMENSION,
 ): Promise<PickedImage> {
-  const longest = Math.max(asset.width ?? 0, asset.height ?? 0)
+  const width = asset.width ?? 0
+  const height = asset.height ?? 0
+  const longest = Math.max(width, height)
   if (longest <= 0 || longest <= maxDimension) return asset
   try {
     const { manipulateAsync, SaveFormat } = await import("expo-image-manipulator")
+    // Audit Pesan 2026-10-10 (media #10): sisi TERPANJANG yang dibatasi.
+    // Dulu selalu `width: maxDimension` — tangkapan layar portrait 1080×2400
+    // justru DIBESARKAN ke 1920×4267 (unggahan membengkak, bukan mengecil).
+    const resize = height > width ? { height: maxDimension } : { width: maxDimension }
     const result = await manipulateAsync(
       asset.uri,
-      [{ resize: { width: maxDimension } }],
+      [{ resize }],
       { compress: 0.8, format: SaveFormat.JPEG },
     )
     // Ukuran hasil resize — dipakai guard 5MB di pemanggil.

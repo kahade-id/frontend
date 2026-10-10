@@ -284,8 +284,10 @@ export function ChatComposer({
 
   // Item 23: "/" di awal teks (tanpa baris baru) → picker template. Memilih
   // template mengganti token "/..." dengan teks template.
-  const quickReplyActive =
-    quickReplies && !disabled && value.startsWith("/") && !value.includes("\n")
+  // Audit Pesan 2026-10-10 (realtime #28): picker hanya untuk token berbentuk
+  // shortcut (`/promo`, `/alamat_2`) — "/2 pcs", "/path/x", "/ ok" bukan
+  // pemicu, dan garis miring pengguna tidak dihapus saat picker ditutup.
+  const quickReplyActive = quickReplies && !disabled && /^\/[a-z0-9_]*$/i.test(value)
   const quickReplyQuery = quickReplyActive ? value.slice(1) : ""
 
   const lineHeight = tokens.typography.bodyLarge.lineHeight

@@ -9,6 +9,8 @@
  */
 
 /** Bentuk minimal pesan yang bisa dicari — cukup untuk logika murni. */
+import { translate } from "@/lib/i18n/translate"
+
 export type SearchableMessage = {
   id: string
   text?: string | null
@@ -69,7 +71,9 @@ export function splitHighlightSpans(text: string, query: string): HighlightSpan[
  */
 export function matchCounterLabel(index: number, total: number): string {
   if (total <= 0 || index < 0 || index >= total) return ""
-  return `${index + 1} dari ${total}`
+  // Audit Pesan 2026-10-10 (room #23): lewat kamus — "3 dari 12" dulu
+  // literal Indonesia di UI Inggris.
+  return translate("{x} dari {y}", { x: index + 1, y: total })
 }
 
 /** Karakter konteks di tiap sisi keyword dalam cuplikan hasil pencarian. */

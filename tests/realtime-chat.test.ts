@@ -359,6 +359,26 @@ describe("createChatRoomHandlers (dua klien mock)", () => {
     expect(reads).toEqual(["m1", null])
   })
 
+  it("audit Pesan #1 (kritis): chat.read lawan bicara TETAP diproses walau backend menyetel isOwnDeviceSync", () => {
+    // Backend memberi `isOwnDeviceSync: true` pada SETIAP chat.read (termasuk
+    // siaran ke lawan bicara). Flag hanya bermakna bila userId == saya.
+    const reads: { id: string | null; own: boolean | undefined }[] = []
+    const handlers = createChatRoomHandlers(ROOM, ME, {
+      onRead: (id, meta) => reads.push({ id, own: meta?.ownDeviceSync }),
+    })
+    const socket = createMockSocket()
+    for (const [event, handler] of Object.entries(handlers)) socket.on(event, handler)
+
+    socket.receive(CHAT_SOCKET_EVENTS.READ, { roomId: ROOM, userId: PEER, readAt: "x", markedCount: 3, isOwnDeviceSync: true })
+    socket.receive(CHAT_SOCKET_EVENTS.READ, { roomId: ROOM, userId: ME, readAt: "x", markedCount: 1, isOwnDeviceSync: true })
+    socket.receive(CHAT_SOCKET_EVENTS.READ, { roomId: ROOM, userId: ME, readAt: "x" })
+    expect(reads).toEqual([
+      { id: null, own: false }, // lawan bicara membaca → centang ganda naik
+      { id: null, own: true }, // perangkat saya yang lain
+      // gema sendiri tanpa flag → dibuang
+    ])
+  })
+
   it("reaksi, hapus, pin, presence diteruskan dengan validasi bentuk", () => {
     const calls: Record<string, unknown[]> = {
       reaction: [],

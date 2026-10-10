@@ -504,14 +504,23 @@ export function applyReactionSummary(
  */
 export function reconcileReactionViewer(
   reactions: ChatReaction[],
-  viewerId: string | null,
+  viewer: string | null | readonly (string | null | undefined)[],
 ): ChatReaction[] {
-  if (!viewerId || !Array.isArray(reactions)) return reactions
+  // Audit Pesan 2026-10-10 (realtime #5): `users[].userId` adalah id PUBLIK
+  // (USR-…) sedangkan viewerId JWT adalah id internal — terima DAFTAR id
+  // (publik + internal) supaya pencocokan tidak pernah salah namespace.
+  const ids = new Set<string>()
+  if (typeof viewer === "string") {
+    if (viewer) ids.add(viewer)
+  } else if (Array.isArray(viewer)) {
+    for (const id of viewer) if (typeof id === "string" && id) ids.add(id)
+  }
+  if (ids.size === 0 || !Array.isArray(reactions)) return reactions
   let changed = false
   const next = reactions.map((entry) => {
     const users = entry.users
     if (!Array.isArray(users)) return entry
-    const mine = users.some((u) => u != null && u.userId === viewerId)
+    const mine = users.some((u) => u != null && typeof u.userId === "string" && ids.has(u.userId))
     if (mine === entry.reactedByMe) return entry
     changed = true
     return { ...entry, reactedByMe: mine }

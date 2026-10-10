@@ -40,6 +40,7 @@ import { LoadMore } from "@/components/ui/load-more"
 import { ListLoading } from "@/components/ui/paginated-list"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
+import { useToast } from "@/components/ui/toast"
 
 export type ChatSearchSheetProps = {
   /** Sheet terbuka. Menutup mengosongkan kata kunci + hasil. */
@@ -63,6 +64,7 @@ export function ChatSearchSheet({
   onClose,
   onJump,
 }: ChatSearchSheetProps) {
+  const toast = useToast()
   const [query, setQuery] = useState("")
   const debounced = useDebouncedValue(query.trim(), 400)
   const [results, setResults] = useState<ChatMessage[]>([])
@@ -139,7 +141,9 @@ export function ChatSearchSheet({
       .catch((err) => {
         if (controller.signal.aborted) return
         logWarn("chat:search-more", err)
-        setError(userMessage(err))
+        // Audit Pesan 2026-10-10 (room #30): gagal memuat halaman LANJUTAN
+        // tidak boleh menghapus hasil yang sudah tampil — cukup toast.
+        toast.show({ title: translate("Gagal memuat hasil berikutnya"), description: userMessage(err), tone: "danger" })
       })
       .finally(() => {
         if (!controller.signal.aborted) setLoadingMore(false)

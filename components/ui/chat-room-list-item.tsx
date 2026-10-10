@@ -169,7 +169,7 @@ export type ChatRoomListItemProps = Omit<ViewProps, "children"> & {
 
 const DEFAULT_LABELS = {
   you: "Anda",
-  typing: "mengetik…",
+  typing: "sedang mengetik…",
   unread: "belum dibaca",
   selected: "dipilih",
   draft: "Draf",
@@ -240,10 +240,16 @@ export function ChatRoomListItemBase({
   const t = {
     ...merged,
     you: translate(merged.you),
-    typing: translate(merged.typing),
+    // Kunci literal di sini supaya generator katalog i18n melihatnya (nilai
+    // objek DEFAULT_LABELS tidak dipindai) — label bawaan dulu tak pernah
+    // diterjemahkan.
+    typing: labels?.typing ? translate(labels.typing) : translate("sedang mengetik…"),
     draft: translate(merged.draft),
   }
-  const protectedLabel = translate("Terlindungi")
+  // Bug #1 (audit Pesan 2026-10-10): badge ruang transaksi berbunyi
+  // "Transaksi" — kata yang pengguna cari — bukan "Terlindungi" yang tidak
+  // menjelaskan JENIS ruangnya (DM vs transaksi).
+  const protectedLabel = translate("Transaksi")
   const { width } = useWindowDimensions()
   const compact = width < NARROW_WIDTH
   const hasUnread = unreadCount > 0
@@ -272,10 +278,12 @@ export function ChatRoomListItemBase({
     selfStatus === "read" ? translate("Dibaca") : selfStatus === "sent" ? translate("Terkirim") : undefined,
     orderBadge ? protectedLabel : context,
     time,
-    hasUnread ? `${unreadCount} ${t.unread}` : undefined,
-    muted ? "dibisukan" : undefined,
-    pinned ? "disematkan" : undefined,
-    online ? "online" : undefined,
+    hasUnread ? translate("{x} belum dibaca", { x: unreadCount }) : undefined,
+    // Huruf besar di awal: satu kata huruf kecil dianggap enum oleh generator
+    // katalog i18n dan tidak pernah masuk kamus.
+    muted ? translate("Dibisukan") : undefined,
+    pinned ? translate("Disematkan") : undefined,
+    online ? translate("sedang aktif") : undefined,
   ]
     .filter(Boolean)
     .join(", ")

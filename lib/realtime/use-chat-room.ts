@@ -21,7 +21,7 @@
  * (G125). Payload yang tidak valid / room lain / gema sendiri diabaikan
  * diam-diam (fail-closed di sisi UI: tidak merusak thread).
  */
-import { useCallback, useEffect, useRef } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 
 import type { ChatReaction } from "@/lib/api/chat"
 import {
@@ -182,11 +182,17 @@ export function createChatRoomHandlers(
       if (!sameRoom(payload) || !isRecord(payload)) return
       const { messageId, isOwnDeviceSync, readAt, markedCount } =
         payload as Partial<ChatReadPayload>
-      if (isSelf(payload) && isOwnDeviceSync !== true) return
+      // Audit Pesan 2026-10-10 (realtime #1, KRITIS): backend menyetel
+      // `isOwnDeviceSync: true` pada SETIAP `chat.read` — termasuk siaran ke
+      // lawan bicara. Flag itu hanya bermakna "sinkron perangkat saya" bila
+      // `userId` payload = saya. Dulu semua bacaan lawan bicara dibuang
+      // → centang ganda tidak pernah naik secara live.
+      const self = isSelf(payload)
+      if (self && isOwnDeviceSync !== true) return
       callbacks().onRead?.(typeof messageId === "string" && messageId ? messageId : null, {
         readAt: typeof readAt === "string" ? readAt : null,
         markedCount: typeof markedCount === "number" ? markedCount : undefined,
-        ownDeviceSync: isOwnDeviceSync === true,
+        ownDeviceSync: self && isOwnDeviceSync === true,
       })
     },
     [CHAT_SOCKET_EVENTS.TYPING]: (payload) => {
@@ -306,7 +312,14 @@ export function useChatRoomRealtime(
   callbacksRef.current = callbacks
   const joinedRef = useRef(false)
   const epochRef = useRef(0)
-  const healthy = status === "connected"
+  /**
+   * Audit Pesan 2026-10-10 (realtime #7): "sehat" = socket tersambung DAN
+   * join ruang ini diakui server. Join yang ditolak/timeout tidak memasang
+   * listener apa pun; dulu `healthy` tetap true sehingga polling fallback
+   * ikut mati dan ruang membeku sampai reconnect.
+   */
+  const [joined, setJoined] = useState(false)
+  const healthy = status === "connected" && joined
 
   const sendTyping = useCallback(
     (isTyping: boolean) => {
@@ -405,13 +418,14 @@ export function useChatRoomRealtime(
       }
       if (!ok) return // REST fallback tetap jalan (polling tidak dimatikan).
       joinedRef.current = true
+      setJoined(true)
       attach()
-      const previousEpoch = epochRef.current
       epochRef.current = epoch
-      if (previousEpoch !== 0 && previousEpoch !== epoch) {
-        // Reconnect: pesan yang terlewat diambil via REST (G109).
-        callbacksRef.current.onReconnect?.()
-      }
+      // Realtime #9/#15: SETIAP join sukses diikuti sinkronisasi REST —
+      // bukan hanya reconnect. Pesan yang tiba di antara GET awal dan ack
+      // join (atau selagi listener belum terpasang) dulu hilang karena
+      // polling fallback dijeda saat socket sehat. Delta-nya murah.
+      callbacksRef.current.onReconnect?.()
     })()
 
     return () => {
@@ -422,6 +436,7 @@ export function useChatRoomRealtime(
       callbacksRef.current.onTypers?.([])
       callbacksRef.current.onTyping?.(false)
       detach()
+      setJoined(false)
       if (joinedRef.current) {
         joinedRef.current = false
         leaveRoom(roomId)

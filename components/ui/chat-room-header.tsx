@@ -33,7 +33,7 @@
  *   - Judul dokumen web di-set dari nama lawan bicara (useDocumentTitle) —
  *     dua tab chat yang terbuka harus bisa dibedakan dari judulnya.
  */
-import { ArrowLeft, DotsThreeVertical } from "phosphor-react-native"
+import { ArrowLeft, DotsThreeVertical, LockKey } from "phosphor-react-native"
 import { useContext, type ReactNode } from "react"
 import { Platform, View, type ViewProps } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
@@ -42,6 +42,7 @@ import { Avatar, type AvatarProps } from "@/components/ui/avatar"
 import { Dot } from "@/components/ui/dot"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { ScreenInsetsContext } from "@/components/ui/screen"
+import { Icon } from "@/components/ui/icon"
 import { Text } from "@/components/ui/text"
 import { type SealTier } from "@/components/ui/verified-seal"
 import { VerifiedName } from "@/components/ui/verified-name"
@@ -76,6 +77,12 @@ export type ChatRoomHeaderProps = Omit<ViewProps, "children"> & {
   /** Order id ringkas (mono) setelah titik tengah — tap membuka detail pesanan */
   orderId?: string
   onOrderPress?: () => void
+  /**
+   * Bug #1 (audit Pesan 2026-10-10): ruang TRANSAKSI ditandai tegas —
+   * ikon gembok + label "Transaksi" mendahului kode order (tone accent),
+   * bukan sekadar kode mono kecil yang mudah terlewat. DM tidak membawa ini.
+   */
+  transaction?: boolean
   /** Tap blok identitas → profil publik lawan bicara */
   onProfilePress?: () => void
   onBack?: () => void
@@ -101,6 +108,7 @@ export function ChatRoomHeader({
   loading = false,
   orderId,
   onOrderPress,
+  transaction = false,
   onProfilePress,
   onBack,
   onMenuPress,
@@ -180,10 +188,17 @@ export function ChatRoomHeader({
                     hitSlop={TEXT_ROW_HIT_SLOP}
                     onPress={onOrderPress}
                     containerClassName={cn("shrink-0 rounded-xs", focusRing)}
+                    className="flex-row items-center gap-1"
                   >
+                    {transaction ? <Icon icon={LockKey} size={12} tone="accent" weight="fill" /> : null}
+                    {transaction ? (
+                      <Text variant="caption" tone="accent" weight={600} numberOfLines={1}>
+                        {translate("Transaksi")}
+                      </Text>
+                    ) : null}
                     <Text
                       variant="caption"
-                      tone="primary"
+                      tone={transaction ? "accent" : "primary"}
                       weight={500}
                       numberOfLines={1}
                       className="shrink-0 font-mono-500"
@@ -192,14 +207,17 @@ export function ChatRoomHeader({
                     </Text>
                   </PressableScale>
                 ) : (
-                  <Text
-                    variant="caption"
-                    tone="secondary"
-                    numberOfLines={1}
-                    className="shrink-0 font-mono-500"
-                  >
-                    {orderId}
-                  </Text>
+                  <View className="shrink-0 flex-row items-center gap-1">
+                    {transaction ? <Icon icon={LockKey} size={12} tone="accent" weight="fill" /> : null}
+                    <Text
+                      variant="caption"
+                      tone={transaction ? "accent" : "secondary"}
+                      numberOfLines={1}
+                      className="shrink-0 font-mono-500"
+                    >
+                      {orderId}
+                    </Text>
+                  </View>
                 )}
               </>
             ) : null}

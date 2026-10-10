@@ -11,6 +11,9 @@ import { View } from "react-native"
 
 import type { ChatPoll } from "@/lib/api/chat"
 import { formatDateTimeWIB } from "@/lib/format"
+import { translate, useLanguage } from "@/lib/i18n"
+import { pollLockState, pollOptionPercent } from "@/lib/chat-poll"
+import { useClockTick } from "@/lib/use-clock-tick"
 
 import { serverNow } from "@/lib/server-time"
 
@@ -49,19 +52,24 @@ export const ChatPollCard = memo(function ChatPollCard({
   // early return (urutan hook harus identik di setiap render). Keputusan render
   // tetap sama; semua pembacaan `poll` di atas guard memakai optional chaining
   // supaya data malformed tidak melempar sebelum guard tercapai.
+  useLanguage()
   const malformed = !poll || typeof poll !== "object" || !Array.isArray(poll.options)
-  const [picked, setPicked] = useState<number[]>(
-    poll && Array.isArray(poll.myVotes) ? poll.myVotes : [],
-  )
+  const myVotes = poll && Array.isArray(poll.myVotes) ? poll.myVotes : []
+  const [picked, setPicked] = useState<number[]>(myVotes)
   // P2 (2026-10-03): sinkronkan saat prop berubah — useState initializer hanya
-  // jalan sekali (mount). Tanpa ini, myVotes dari server (vote perangkat lain /
-  // refresh) tidak tercermin di UI.
+  // jalan sekali (mount). Bug #8 (2026-10-10, media #16): deps memakai ISI
+  // (string), bukan referensi array — refetch poll (suara orang lain) dulu
+  // membuat array baru tiap kali dan menghapus pilihan yang sedang disusun.
+  const myVotesKey = myVotes.join(",")
   useEffect(() => {
-    setPicked(poll && Array.isArray(poll.myVotes) ? poll.myVotes : [])
-  }, [poll?.myVotes])
-  const closed = poll?.isClosed
-  const expired = !closed && !!poll?.deadline && Date.parse(poll.deadline) <= serverNow()
-  const locked = closed || expired
+    setPicked(myVotesKey ? myVotesKey.split(",").map(Number) : [])
+  }, [myVotesKey])
+  // Media #30: tenggat dicek ulang tiap menit selama kartu tampil & belum terkunci.
+  const hasDeadline = !!poll?.deadline && !poll?.isClosed
+  useClockTick(hasDeadline)
+  const lock = poll ? pollLockState(poll, serverNow()) : "open"
+  const closed = lock === "closed"
+  const locked = lock !== "open"
 
   const toggle = (index: number) => {
     if (locked || voting) return
@@ -74,10 +82,14 @@ export const ChatPollCard = memo(function ChatPollCard({
     )
   }
 
-  const maxVotes = useMemo(
-    () => Math.max(1, ...(poll && Array.isArray(poll.options) ? poll.options.map((o) => o.votes) : [])),
-    [poll?.options],
-  )
+  const totalVotes = typeof poll?.totalVotes === "number" ? poll.totalVotes : 0
+  const summary = useMemo(() => {
+    const parts = [translate("{x} suara", { x: totalVotes })]
+    if (poll?.allowMultiple) parts.push(translate("boleh pilih lebih dari satu"))
+    const author = poll?.createdBy?.fullName
+    if (author) parts.push(translate("oleh {x}", { x: author }))
+    return parts.join(" • ")
+  }, [totalVotes, poll?.allowMultiple, poll?.createdBy?.fullName])
 
   // Guard defensif (Bug 1) — ditempatkan setelah semua hook, lihat catatan di atas.
   if (malformed) return null
@@ -85,7 +97,7 @@ export const ChatPollCard = memo(function ChatPollCard({
   return (
     <View
       accessibilityRole="summary"
-      accessibilityLabel={`Polling: ${poll.question}`}
+      accessibilityLabel={translate("Polling: {x}", { x: poll.question })}
       className="gap-2 rounded-md border border-border bg-surface p-3"
     >
       <View className="flex-row items-start gap-2">
@@ -95,9 +107,7 @@ export const ChatPollCard = memo(function ChatPollCard({
             {poll.question}
           </Text>
           <Text variant="caption" tone="secondary">
-            {poll.totalVotes} suara
-            {poll.allowMultiple ? " • boleh pilih lebih dari satu" : ""}
-            {poll.createdBy.fullName ? ` • oleh ${poll.createdBy.fullName}` : ""}
+            {summary}
           </Text>
         </View>
       </View>
@@ -105,7 +115,8 @@ export const ChatPollCard = memo(function ChatPollCard({
       <View className="gap-1.5">
         {poll.options.map((opt) => {
           const selected = picked.includes(opt.index)
-          const pct = poll.totalVotes > 0 ? Math.round((opt.votes / poll.totalVotes) * 100) : 0
+          // Media #17: bar DAN angka memakai persen dari total yang sama.
+          const pct = pollOptionPercent(opt.votes, totalVotes)
           return (
             // UX-TCH-011: PressableScale (feedback scale saat ditekan);
             // sebelumnya Pressable polos tanpa feedback.
@@ -115,7 +126,7 @@ export const ChatPollCard = memo(function ChatPollCard({
               disabled={locked || voting}
               accessibilityRole={poll.allowMultiple ? "checkbox" : "radio"}
               accessibilityState={{ checked: selected, disabled: locked || voting }}
-              accessibilityLabel={`${opt.text}, ${opt.votes} suara`}
+              accessibilityLabel={translate("{x}, {y} suara", { x: opt.text, y: opt.votes })}
               /* P2-16 (audit non-escrow 2026-10-03): hitSlop agar target
                  sentuh ≥44px (baris ±36px). */
               hitSlop={{ top: 4, bottom: 4 }}
@@ -125,7 +136,7 @@ export const ChatPollCard = memo(function ChatPollCard({
             >
               <View
                 className="absolute inset-y-0 left-0 bg-primary/15"
-                style={{ width: `${(opt.votes / maxVotes) * 100}%` }}
+                style={{ width: `${pct}%` }}
               />
               <View className="flex-row items-center gap-2 px-2.5 py-2">
                 {selected ? (
@@ -153,7 +164,7 @@ export const ChatPollCard = memo(function ChatPollCard({
         <View className="flex-row items-center gap-1.5">
           <Icon icon={Lock} size={14} tone="default" />
           <Text variant="caption" tone="secondary">
-            {closed ? "Polling ditutup." : "Tenggat polling lewat."}
+            {closed ? translate("Polling ditutup.") : translate("Tenggat polling lewat.")}
           </Text>
         </View>
       ) : (
@@ -162,7 +173,7 @@ export const ChatPollCard = memo(function ChatPollCard({
             <View className="flex-row items-center gap-1">
               <Icon icon={Clock} size={12} tone="default" />
               <Text variant="caption" tone="secondary">
-                Tenggat: {formatDateTimeWIB(poll.deadline)}
+                {translate("Tenggat: {x}", { x: formatDateTimeWIB(poll.deadline) })}
               </Text>
             </View>
           ) : null}
@@ -171,7 +182,11 @@ export const ChatPollCard = memo(function ChatPollCard({
             disabled={voting || picked.length === 0}
             size="sm"
           >
-            {voting ? "Mengirim…" : poll.myVotes.length > 0 ? "Ubah pilihan" : "Pilih"}
+            {voting
+              ? translate("Mengirim…")
+              : myVotes.length > 0
+                ? translate("Ubah pilihan")
+                : translate("Pilih")}
           </Button>
           {isCreator && onClose ? (
             <Button
@@ -180,7 +195,7 @@ export const ChatPollCard = memo(function ChatPollCard({
               variant="secondary"
               size="sm"
             >
-              {closing ? "Menutup…" : "Tutup polling"}
+              {closing ? translate("Menutup…") : translate("Tutup polling")}
             </Button>
           ) : null}
         </View>

@@ -413,10 +413,17 @@ function messageSenderIds(m: Pick<ChatMessage, "senderId" | "sender">): string[]
  * broadcast netral (`fromUser: false` selalu) dikenali lewat id pengirim
  * bila `viewerId` diketahui.
  */
-function isOwnMessage(m: ChatMessage, viewerId?: string | null): boolean {
+function isOwnMessage(
+  m: ChatMessage,
+  viewerId?: string | null,
+  viewerIds?: readonly (string | null | undefined)[],
+): boolean {
   if (m.fromUser) return true
-  if (!viewerId) return false
-  return messageSenderIds(m).includes(viewerId)
+  const ids = new Set<string>()
+  if (viewerId) ids.add(viewerId)
+  for (const id of viewerIds ?? []) if (id) ids.add(id)
+  if (ids.size === 0) return false
+  return messageSenderIds(m).some((id) => ids.has(id))
 }
 
 /**
@@ -457,7 +464,16 @@ export function chatRoomLastMessageStatus(
 export function applyIncomingMessageToRooms(
   rooms: ChatRoom[],
   message: ChatMessage,
-  opts: { viewerId?: string | null } = {},
+  opts: {
+    viewerId?: string | null
+    /**
+     * Audit Pesan 2026-10-10 (daftar #7): broadcast netral membawa id
+     * PUBLIK pengirim (`USR-…`) sedangkan `viewerId` dari JWT adalah id
+     * internal — pesan saya dari perangkat lain dulu dihitung +1 unread.
+     * Sertakan kedua namespace id saya di sini.
+     */
+    viewerIds?: readonly (string | null | undefined)[]
+  } = {},
 ): ChatRoom[] | null {
   const roomId = message.roomId
   if (!roomId) return null
@@ -465,7 +481,7 @@ export function applyIncomingMessageToRooms(
   if (idx < 0) return null
   const room = rooms[idx]
   const prev = room.lastMessage
-  const own = isOwnMessage(message, opts.viewerId)
+  const own = isOwnMessage(message, opts.viewerId, opts.viewerIds)
   // Tidak ada yang berubah → kembalikan referensi yang sama (setState skip).
   if (prev && prev.id === message.id) {
     if (prev.fromUser || !own) return rooms
@@ -707,6 +723,20 @@ export function normalizeChatRoom(raw: ChatRoom & Record<string, unknown>): Chat
  * identitas pengirim tetap tampil. Murni logika tampilan: tanpa mengubah
  * kontrak API.
  */
+/**
+ * Bug #1 (audit Pesan 2026-10-10): SATU definisi "ruang transaksi" untuk
+ * daftar (filter, badge, gate hapus) dan layar ruang (header, banner).
+ * Dulu filter memakai `orderId || type === "ORDER"` sedangkan badge hanya
+ * `orderId` — ruang ORDER yang order-nya di-soft-delete (orderId null)
+ * masuk filter "Transaksi" tanpa badge.
+ */
+export function isTransactionChatRoom(
+  room: Pick<ChatRoom, "orderId" | "roomType" | "type"> | null | undefined,
+): boolean {
+  if (!room) return false
+  return Boolean(room.orderId) || (room.type ?? room.roomType)?.toUpperCase() === "ORDER"
+}
+
 export function isOneToOneChatRoom(
   room: Pick<ChatRoom, "orderId" | "roomType" | "type"> | null | undefined,
 ): boolean {
@@ -1046,12 +1076,20 @@ export function uploadChatAttachmentProgress(
           cleanup()
           const bodyText = typeof xhr.responseText === "string" ? xhr.responseText : ""
           if (xhr.status >= 200 && xhr.status < 300) {
+            // Audit Pesan 2026-10-10 (media #1): PARSE DULU, baru selesaikan.
+            // Dulu `resolveXhr()` dipanggil sebelum parse — bila respons 200
+            // tidak valid (halaman HTML proxy / tanpa fileUrl), `rejectXhr`
+            // sesudahnya diabaikan dan promise luar tidak pernah selesai:
+            // chip "Mengunggah · 100%" selamanya dan pesan tak bisa dikirim.
+            let parsed: ChatAttachmentDto
             try {
-              resolveXhr()
-              resolve(parseChatUploadResponse(bodyText))
+              parsed = parseChatUploadResponse(bodyText)
             } catch (err) {
               rejectXhr(err)
+              return
             }
+            resolveXhr()
+            resolve(parsed)
             return
           }
           if (xhr.status === 401) {
@@ -1262,12 +1300,17 @@ export function removeReaction(roomId: string, messageId: string, emoji: string)
 function normalizeReactionPayload(raw: unknown, messageId: string): {
   roomId?: string
   messageId: string
-  reactions: ChatReaction[]
+  /**
+   * Audit Pesan 2026-10-10 (room #15): `null` bila respons TIDAK memuat
+   * array `reactions` — pemanggil mempertahankan chip yang ada, bukan
+   * menghapus semua reaksi pesan karena respons kosong (`{}`).
+   */
+  reactions: ChatReaction[] | null
 } {
   const record = (raw ?? {}) as Record<string, unknown>
   const reactions = Array.isArray(record.reactions)
     ? (record.reactions as ChatReaction[])
-    : []
+    : null
   return {
     roomId: typeof record.roomId === "string" ? record.roomId : undefined,
     messageId,

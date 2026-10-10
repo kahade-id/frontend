@@ -78,7 +78,7 @@ export function ChatReactionPopover({
           ketukan di luar pil menutup popover (tanpa mengubah pilihan). */}
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Tutup pemilih reaksi"
+        accessibilityLabel={translate("Tutup pemilih reaksi")}
         onPress={onDismiss}
         className="flex-1"
       />
@@ -99,7 +99,7 @@ export function ChatReactionPopover({
                 accessibilityRole="button"
                 // translate(): template literal di atribut JSX tidak terbaca
                 // generator katalog i18n — label dinamis wajib dibungkus.
-                accessibilityLabel={translate(`Reaksi ${emoji}`)}
+                accessibilityLabel={translate("Reaksi {x}", { x: emoji })}
                 onPress={() => onPick(emoji)}
                 className="h-11 w-11 items-center justify-center rounded-full"
               >

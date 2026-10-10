@@ -61,7 +61,9 @@ describe("<VoiceNoteRecorder>: rekaman yang terhenti dari luar ditangani (#7)", 
   it("satu jalur penghentian (finalizeRecording) dipakai stop manual DAN interupsi", () => {
     expect(src).toMatch(/const finalizeRecording = useCallback\(/)
     // Stop manual: interrupted=false; interupsi & ke latar: interrupted=true.
-    expect(src).toMatch(/finalizeRecording\(recState\.durationMillis \?\? 0, false\)/)
+    // Audit Pesan 2026-10-10 (media #8): durasi presisi dari getStatus(),
+    // minimal nilai poll — tetap SATU jalur finalizeRecording(…, false).
+    expect(src).toMatch(/finalizeRecording\(Math\.max\(exact, recState\.durationMillis \?\? 0\), false\)/)
     expect((src.match(/finalizeRecording\(durationMs, true\)/g) ?? []).length).toBeGreaterThanOrEqual(2)
     // Penjaga sekali-jalan — tanpa ini stop() kita sendiri terbaca sebagai interupsi.
     expect(src).toMatch(/if \(stoppingRef\.current\) return\s*\n\s*stoppingRef\.current = true/)
