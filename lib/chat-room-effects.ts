@@ -48,10 +48,11 @@ export type DmSafetyInput = {
 }
 
 /**
- * Id lawan bicara yang berhak dapat popup keselamatan DM, atau null.
- * Syarat (sama dengan banner lama): DM 1:1, bukan self-chat, TANPA orderId,
- * dan lawan bicara belum berbadge. Mengembalikan id supaya efek cukup
- * bergantung pada SATU string.
+ * Id lawan bicara yang berhak dapat banner anti-tipu DM (audit Pesan #8:
+ * tampil permanen selama syaratnya terpenuhi), atau null.
+ * Syarat: DM 1:1, bukan self-chat, TANPA orderId, dan lawan bicara belum
+ * berbadge. Mengembalikan id (satu string primitif) supaya render/efek tidak
+ * bergantung pada identitas objek `room`.
  */
 export function dmSafetyCounterpartId(input: DmSafetyInput): string | null {
   if (!input.isOneToOne || input.isSelfChat) return null

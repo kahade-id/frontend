@@ -19,6 +19,7 @@
 import {
   ACTIVE_ORDERS_PRESENT,
   BANK_ACCOUNT_VERIFICATION_FAILED,
+  CHAT_MESSAGE_LOCKED_DISPUTE,
   DISPLAYABLE_BACKEND_MESSAGES,
   ESCROW_BALANCE_PRESENT,
   NOT_ORDER_PARTICIPANT,
@@ -612,6 +613,11 @@ export function userMessage(err: unknown): string {
     }
     if (err.backendCode === NOT_ORDER_PARTICIPANT) {
       return "Anda tidak memiliki akses ke pesanan ini."
+    }
+    // Audit Pesan #9d: pesan dikunci selama sengketa (bukti) — jelaskan
+    // sebabnya, bukan "data belum benar"/CONFLICT generik.
+    if (err.backendCode === CHAT_MESSAGE_LOCKED_DISPUTE) {
+      return "Pesan tidak bisa diubah atau dihapus selama sengketa berlangsung — isi percakapan menjadi bukti sampai sengketa selesai."
     }
     // BFE-075: verifikasi nama pemilik rekening ke data bank gagal — jangan
     // biarkan jatuh ke VALIDATION generik ("data belum benar").

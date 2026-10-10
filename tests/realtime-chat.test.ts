@@ -203,6 +203,36 @@ describe("applyDeletedTombstone & applyReactionSummary", () => {
     expect(applyDeletedTombstone(prev, "nope")).toBe(prev)
   })
 
+  it("#9c: kutipan di pesan lain yang membalas pesan terhapus ikut jadi tombstone", () => {
+    const prev = [
+      msg({ id: "m1", text: "rahasia" }),
+      msg({
+        id: "m2",
+        text: "balasan",
+        replyTo: { id: "m1", content: "rahasia", senderName: "Budi", fileName: "foto.jpg" },
+      }),
+      msg({ id: "m3", text: "lain", replyTo: { id: "m0", content: "x" } }),
+    ]
+    const next = applyDeletedTombstone(prev, "m1")
+    // Isi asli tidak bocor lewat strip balasan.
+    expect(next[1].replyTo).toEqual({ id: "m1", content: null, senderName: "Budi", fileName: null, isDeleted: true })
+    // Pesan balasan itu sendiri tidak dihapus.
+    expect(next[1].isDeleted).toBeUndefined()
+    expect(next[1].text).toBe("balasan")
+    // Kutipan ke pesan lain tidak tersentuh (identitas objek sama).
+    expect(next[2]).toBe(prev[2])
+    // Idempotent setelah kutipan ditandai.
+    expect(applyDeletedTombstone(next, "m1")).toBe(next)
+  })
+
+  it("#9c: hanya kutipan yang berubah (pesan asli tidak ada di jendela) tetap dihitung perubahan", () => {
+    const prev = [msg({ id: "m2", replyTo: { id: "m1", content: "rahasia" } })]
+    const next = applyDeletedTombstone(prev, "m1")
+    expect(next).not.toBe(prev)
+    expect(next[0].replyTo?.isDeleted).toBe(true)
+    expect(next[0].replyTo?.content).toBeNull()
+  })
+
   it("reaksi diganti wholesale dari server", () => {
     const reactions: ChatReaction[] = [{ emoji: "👍", count: 2, reactedByMe: true }]
     const prev = [msg({ id: "m1", reactions: [] })]

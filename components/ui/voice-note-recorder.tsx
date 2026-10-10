@@ -36,7 +36,7 @@ import {
 } from "expo-audio"
 import { Microphone, Pause, Play, Stop, Trash } from "phosphor-react-native"
 import { useCallback, useEffect, useRef, useState } from "react"
-import { Animated, Easing, View } from "react-native"
+import { Animated, AppState, Easing, View } from "react-native"
 
 import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Button } from "@/components/ui/button"
@@ -49,6 +49,10 @@ import { tokens } from "@/lib/tokens"
 import { translate, useLanguage } from "@/lib/i18n"
 import { readRecordedFileSize } from "@/lib/voice-note-file"
 import {
+  isExternalRecordingStop,
+  resolveRecordingInterruption,
+} from "@/lib/voice-note-interruption"
+import {
   formatVoiceNoteDuration,
   validateVoiceNoteFile,
   VOICE_NOTE_MAX_DURATION_MS,
@@ -60,6 +64,15 @@ import {
 export type { VoiceNoteFile }
 
 type RecorderState = "idle" | "requesting" | "denied" | "unsupported" | "ready" | "recording" | "review"
+
+/**
+ * Audit Pesan 2026-10-10 (#7): pemberitahuan setelah rekaman terhenti dari
+ * luar (panggilan masuk, aplikasi lain merebut audio, aplikasi ke latar).
+ * "kept" = bagian yang sempat terekam disimpan ke pratinjau; "lost" = terlalu
+ * pendek / berkas tidak ada → kembali siap rekam. Keduanya diberi tahu —
+ * tidak ada yang diam-diam.
+ */
+type RecorderNotice = "interrupted-kept" | "interrupted-lost" | null
 
 export type VoiceNoteRecorderProps = {
   visible: boolean
@@ -88,6 +101,11 @@ export function VoiceNoteRecorder({
   const [sending, setSending] = useState(false)
   // B3O-22: konfirmasi sebelum membuang rekaman yang berarti.
   const [confirmDiscardOpen, setConfirmDiscardOpen] = useState(false)
+  const [notice, setNotice] = useState<RecorderNotice>(null)
+  /** #7: pernah melihat `isRecording === true` di sesi rekam ini. */
+  const sawRecordingRef = useRef(false)
+  /** #7: penghentian sedang/sudah ditangani (manual, auto-stop, atau interupsi). */
+  const stoppingRef = useRef(false)
 
   // UX-A11Y-007: label aksesibilitas harus ikut ganti bahasa.
   useLanguage()
@@ -145,6 +163,9 @@ export function VoiceNoteRecorder({
     setDurationMs(0)
     setRecordedUri(null)
     setSending(false)
+    setNotice(null)
+    sawRecordingRef.current = false
+    stoppingRef.current = false
     setState("idle")
   }, [discardRecording, stopPreview])
 
@@ -238,6 +259,9 @@ export function VoiceNoteRecorder({
   const startRecording = useCallback(async () => {
     if (state !== "ready") return
     setState("requesting")
+    setNotice(null)
+    sawRecordingRef.current = false
+    stoppingRef.current = false
     try {
       await recorder.prepareToRecordAsync(RecordingPresets.HIGH_QUALITY)
       // `forDuration` = rem native: rekaman berhenti sendiri di batas 5 menit
@@ -251,19 +275,50 @@ export function VoiceNoteRecorder({
     }
   }, [state, recorder])
 
-  const stopRecording = useCallback(async () => {
-    if (!recorder.isRecording) return
-    // Durasi terakhir dibaca SEBELUM `stop()` — setelah berhenti, recorder
-    // di-reset untuk sesi berikutnya.
-    const elapsed = recState.durationMillis ?? 0
-    try {
-      await recorder.stop()
+  /**
+   * Audit Pesan 2026-10-10 (#7): SATU jalur penghentian untuk stop manual,
+   * auto-stop batas durasi, aplikasi ke latar, dan interupsi OS. `stoppingRef`
+   * memastikan jalur ini berjalan sekali per sesi rekam — tanpa itu efek
+   * interupsi di bawah ikut menyala saat `isRecording` jatuh karena `stop()`
+   * kita sendiri.
+   *
+   * `interrupted=true` → keputusan via `resolveRecordingInterruption`: bagian
+   * yang sempat terekam disimpan bila ≥ durasi minimum, selain itu dibuang —
+   * dan pengguna DIBERI TAHU (notice), bukan menatap timer beku.
+   */
+  const finalizeRecording = useCallback(
+    async (elapsed: number, interrupted: boolean) => {
+      if (stoppingRef.current) return
+      stoppingRef.current = true
+      try {
+        // Interupsi OS: recorder mungkin sudah berhenti — `stop()` tetap
+        // dipanggil agar berkas ditutup rapi; gagal di sini bukan fatal.
+        if (recorder.isRecording) await recorder.stop()
+      } catch {
+        // Sudah berhenti / tidak valid — lanjut membaca uri.
+      }
       // 2026-10-07: beri jeda kecil agar `uri` terisi (race condition di
       // beberapa perangkat Android di mana uri null sesaat setelah stop).
       let uri = recorder.uri
       if (!uri) {
         await new Promise((resolve) => setTimeout(resolve, 300))
         uri = recorder.uri
+      }
+      if (!aliveRef.current) return
+      if (interrupted) {
+        const outcome = resolveRecordingInterruption({ uri, durationMs: elapsed })
+        if (outcome.kind === "review") {
+          setRecordedUri(outcome.uri)
+          setDurationMs(outcome.durationMs)
+          setNotice("interrupted-kept")
+          setState("review")
+        } else {
+          setRecordedUri(null)
+          setDurationMs(0)
+          setNotice("interrupted-lost")
+          setState("ready")
+        }
+        return
       }
       if (!uri) {
         // Jangan diam — beri tahu user apa yang terjadi.
@@ -273,10 +328,16 @@ export function VoiceNoteRecorder({
       setRecordedUri(uri)
       setDurationMs(elapsed)
       setState("review")
-    } catch {
-      setState("ready")
-    }
-  }, [recorder, recState.durationMillis])
+    },
+    [recorder],
+  )
+
+  const stopRecording = useCallback(async () => {
+    if (!recorder.isRecording) return
+    // Durasi terakhir dibaca SEBELUM `stop()` — setelah berhenti, recorder
+    // di-reset untuk sesi berikutnya.
+    await finalizeRecording(recState.durationMillis ?? 0, false)
+  }, [recorder, recState.durationMillis, finalizeRecording])
 
   /**
    * Auto-stop di batas maksimum. Sumber kebenarannya `durationMillis` dari
@@ -287,6 +348,44 @@ export function VoiceNoteRecorder({
     if (durationMs < VOICE_NOTE_MAX_DURATION_MS) return
     void stopRecording()
   }, [state, durationMs, stopRecording])
+
+  /**
+   * #7: interupsi OS. `isRecording` dari recorder native jatuh ke false TANPA
+   * `stop()` dari kita (panggilan telepon, aplikasi lain merebut audio
+   * focus, mikrofon dicabut OS). `sawRecordingRef` menahan false sesaat
+   * setelah `record()`; `stoppingRef` menahan gema dari stop kita sendiri.
+   */
+  useEffect(() => {
+    if (state !== "recording") return
+    if (recState.isRecording) {
+      sawRecordingRef.current = true
+      return
+    }
+    if (
+      !isExternalRecordingStop({
+        isRecording: recState.isRecording,
+        sawRecording: sawRecordingRef.current,
+        stopping: stoppingRef.current,
+      })
+    ) {
+      return
+    }
+    void finalizeRecording(durationMs, true)
+  }, [state, recState.isRecording, durationMs, finalizeRecording])
+
+  /**
+   * #7: aplikasi ke latar saat merekam → hentikan dan simpan yang sudah ada
+   * (pola WhatsApp). Dibiarkan jalan di latar = mikrofon menyala tanpa
+   * indikator di layar kita, dan OS kerap mematikannya tanpa kabar.
+   */
+  useEffect(() => {
+    if (state !== "recording") return
+    const sub = AppState.addEventListener("change", (next) => {
+      if (next === "active") return
+      void finalizeRecording(durationMs, true)
+    })
+    return () => sub.remove()
+  }, [state, durationMs, finalizeRecording])
 
   const togglePreview = useCallback(async () => {
     if (!recordedUri) return
@@ -338,21 +437,23 @@ export function VoiceNoteRecorder({
     stopPreview()
     setRecordedUri(null)
     setDurationMs(0)
+    setNotice(null)
     setState("ready")
   }, [stopPreview])
 
+  // #10 (audit Pesan): semua teks lewat translate() — dulu literal Indonesia.
   const footer = (() => {
     switch (state) {
       case "ready":
         return (
           <Button variant="primary" onPress={() => void startRecording()} leftIcon={Microphone}>
-            Mulai merekam
+            {translate("Mulai merekam")}
           </Button>
         )
       case "recording":
         return (
           <Button variant="destructive" onPress={() => void stopRecording()} leftIcon={Stop}>
-            Berhenti
+            {translate("Berhenti")}
           </Button>
         )
       case "review":
@@ -360,12 +461,12 @@ export function VoiceNoteRecorder({
           <View className="flex-row gap-2">
             <View className="flex-1">
               <Button variant="ghost" onPress={retryRecording} leftIcon={Trash}>
-                Hapus
+                {translate("Hapus")}
               </Button>
             </View>
             <View className="flex-1">
               <Button variant="primary" onPress={() => void sendRecording()} loading={sending}>
-                Kirim
+                {translate("Kirim")}
               </Button>
             </View>
           </View>
@@ -374,13 +475,20 @@ export function VoiceNoteRecorder({
       case "unsupported":
         return (
           <Button variant="secondary" onPress={onRequestClose}>
-            Tutup
+            {translate("Tutup")}
           </Button>
         )
       default:
         return null
     }
   })()
+
+  const noticeText =
+    notice === "interrupted-kept"
+      ? translate("Rekaman terhenti oleh sistem. Bagian yang sudah terekam disimpan.")
+      : notice === "interrupted-lost"
+        ? translate("Rekaman terhenti oleh sistem sebelum 1 detik. Coba rekam lagi.")
+        : null
 
   return (
     <>
@@ -398,7 +506,20 @@ export function VoiceNoteRecorder({
       <View className="items-center gap-3 py-4">
         {state === "requesting" || state === "idle" ? (
           <Text variant="body" tone="secondary">
-            Menyiapkan mikrofon…
+            {translate("Menyiapkan mikrofon…")}
+          </Text>
+        ) : null}
+
+        {/* #7: pemberitahuan interupsi — live region supaya pembaca layar
+            juga tahu rekaman berhenti bukan karena ketukan mereka. */}
+        {noticeText ? (
+          <Text
+            variant="caption"
+            tone="secondary"
+            className="text-center"
+            accessibilityLiveRegion="polite"
+          >
+            {noticeText}
           </Text>
         ) : null}
 
@@ -410,7 +531,9 @@ export function VoiceNoteRecorder({
 
         {state === "unsupported" ? (
           <Text variant="body" tone="secondary" className="text-center">
-            Perekaman suara tidak didukung di perangkat ini. Kamu tetap bisa mengirim gambar, video, atau file.
+            {translate(
+              "Perekaman suara tidak didukung di perangkat ini. Kamu tetap bisa mengirim gambar, video, atau file.",
+            )}
           </Text>
         ) : null}
 
@@ -418,7 +541,7 @@ export function VoiceNoteRecorder({
           <View className="items-center gap-2">
             <Icon icon={Microphone} size="lg" tone="active" />
             <Text variant="body" tone="secondary" className="text-center">
-              Ketuk “Mulai merekam”, bicara, lalu ketuk “Berhenti”.
+              {translate("Ketuk “Mulai merekam”, bicara, lalu ketuk “Berhenti”.")}
             </Text>
           </View>
         ) : null}
@@ -460,9 +583,9 @@ export function VoiceNoteRecorder({
               variant="secondary"
               onPress={() => void togglePreview()}
               leftIcon={playing ? Pause : Play}
-              accessibilityLabel={playing ? "Jeda pratinjau" : "Putar pratinjau"}
+              accessibilityLabel={playing ? translate("Jeda pratinjau") : translate("Putar pratinjau")}
             >
-              {playing ? "Jeda" : "Putar"}
+              {playing ? translate("Jeda") : translate("Putar")}
             </Button>
             <View className="flex-1">
               <Text variant="body" weight={600} tone="primary">

@@ -99,6 +99,38 @@ export function ensureFileExtension(fileName: string, mimeType?: string | null):
 
 export type DownloadProgress = { written: number; total: number }
 
+/**
+ * Audit Pesan 2026-10-10 (#4): `downloadAsync` DAN `createDownloadResumable`
+ * me-resolve walau server menjawab 4xx/5xx — berkas "berhasil diunduh" lalu
+ * berisi halaman galat, dan sheet OS membukanya sebagai PDF rusak. Jalur
+ * resumable (yang dipakai saat ada progress) dulu TIDAK memeriksa status.
+ * Satu pemeriksa untuk kedua jalur; `undefined` = platform tidak melaporkan
+ * status (web/stub) → lolos.
+ */
+export function assertDownloadStatus(status: number | undefined): void {
+  if (status === undefined || status === null) return
+  if (status >= 200 && status < 300) return
+  if (status === 404) {
+    throw new MediaActionError("not-found", "Berkas tidak ditemukan di server (mungkin sudah dihapus).")
+  }
+  if (status === 401 || status === 403 || status === 410) {
+    throw new MediaActionError(
+      "network",
+      "Tautan berkas sudah kedaluwarsa. Tutup halaman ini lalu buka ulang dari chat untuk tautan baru.",
+    )
+  }
+  if (status >= 500) {
+    throw new MediaActionError(
+      "network",
+      `Server sedang bermasalah (${status}). Coba lagi beberapa saat lagi.`,
+    )
+  }
+  throw new MediaActionError(
+    "network",
+    `Unduhan gagal (server menjawab ${status}). Periksa koneksi lalu coba lagi.`,
+  )
+}
+
 function toMediaActionError(err: unknown, fallback: string): MediaActionError {
   if (err instanceof MediaActionError) return err
   const message = err instanceof Error ? err.message : String(err)
@@ -141,25 +173,13 @@ export async function downloadToCache(
       )
       const result = await task.downloadAsync()
       if (!result?.uri) throw new Error("empty-download")
+      // #4: jalur resumable juga me-resolve pada 4xx/5xx — periksa status.
+      assertDownloadStatus(result.status)
       return result.uri
     }
     const result = await FileSystem.downloadAsync(url, target)
     // downloadAsync me-resolve walau status HTTP gagal — periksa status.
-    if (result.status !== 200) {
-      if (result.status === 404) {
-        throw new MediaActionError("not-found", "Berkas tidak ditemukan di server (mungkin sudah dihapus).")
-      }
-      if (result.status === 403 || result.status === 410) {
-        throw new MediaActionError(
-          "network",
-          "Tautan berkas sudah kedaluwarsa. Tutup halaman ini lalu buka ulang dari chat untuk tautan baru.",
-        )
-      }
-      throw new MediaActionError(
-        "network",
-        `Unduhan gagal (server menjawab ${result.status}). Periksa koneksi lalu coba lagi.`,
-      )
-    }
+    assertDownloadStatus(result.status)
     return result.uri
   } catch (err) {
     throw toMediaActionError(err, "Unduhan gagal. Periksa koneksi internet Anda, lalu coba lagi.")

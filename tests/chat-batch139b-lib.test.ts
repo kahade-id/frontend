@@ -25,6 +25,7 @@ import { firstUnreadMessageId } from "@/lib/chat-unread-anchor"
 import { buildSearchSnippet } from "@/lib/chat-search"
 import {
   __resetChatFailedQueueForTest,
+  chatFailedStorageKey,
   loadChatFailedMessages,
   peekChatFailedMessages,
   removeChatFailedMessage,
@@ -38,7 +39,7 @@ import {
   peekHiddenMessageIds,
   unhideMessageLocally,
 } from "@/lib/chat-hidden-messages"
-import { chatFailedKey, chatHiddenKey, getRawItem } from "@/lib/secure-storage"
+import { chatHiddenKey, getRawItem } from "@/lib/secure-storage"
 
 beforeEach(() => {
   __resetChatFailedQueueForTest()
@@ -263,7 +264,7 @@ describe("B07 — antrean pesan gagal persisten", () => {
     saveChatFailedMessage("room-a", failed("t1"))
     // flush promise setRawItem
     await vi.waitFor(async () => {
-      expect(await getRawItem(chatFailedKey("room-a"))).not.toBeNull()
+      expect(await getRawItem(await chatFailedStorageKey("room-a"))).not.toBeNull()
     })
     __resetChatFailedQueueForTest()
     const loaded = await loadChatFailedMessages("room-a")

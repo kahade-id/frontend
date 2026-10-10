@@ -40,10 +40,23 @@
 import {
   chatDraftKey,
   deleteRawItem,
+  getChatLocalScope,
   getRawItem,
+  registerChatLocalKey,
   setRawItem,
 } from "@/lib/secure-storage"
 import { getSessionRevision, subscribeSession } from "@/lib/api/session"
+
+/**
+ * Audit Pesan 2026-10-10 (#6): kunci persist ber-scope SESI AKUN
+ * (`getChatLocalScope`) dan tercatat di indeks supaya `clearSession()` bisa
+ * menghapusnya saat logout. Sebelumnya kunci hanya per roomId: akun B di
+ * perangkat yang sama memulihkan draft akun A, dan draft bertahan di
+ * Keychain/Keystore setelah logout.
+ */
+export async function chatDraftStorageKey(roomId: string): Promise<string> {
+  return chatDraftKey(roomId, await getChatLocalScope())
+}
 
 /** Jeda debounce tulis persist setelah ketikan terakhir (ms). */
 export const CHAT_DRAFT_PERSIST_DEBOUNCE_MS = 800
@@ -142,19 +155,21 @@ function parseStored(stored: string): ChatDraft {
 }
 
 function persist(roomId: string, draft: ChatDraft): void {
-  const key = chatDraftKey(roomId)
-  if (draft.text.length === 0 && !draft.replyToId) {
-    void deleteRawItem(key).catch(() => {
-      // Gagal hapus bukan fatal — memory tetap sumber kebenaran.
-    })
-    return
-  }
-  if (byteLength(draft.text) > CHAT_DRAFT_MAX_PERSIST_BYTES) {
-    // Terlalu besar untuk satu nilai SecureStore: biarkan di memory saja.
-    return
-  }
-  void setRawItem(key, serialize(draft)).catch(() => {
-    // Gagal persist bukan fatal — memory tetap sumber kebenaran.
+  void (async () => {
+    const key = await chatDraftStorageKey(roomId)
+    if (draft.text.length === 0 && !draft.replyToId) {
+      await deleteRawItem(key)
+      return
+    }
+    if (byteLength(draft.text) > CHAT_DRAFT_MAX_PERSIST_BYTES) {
+      // Terlalu besar untuk satu nilai SecureStore: biarkan di memory saja.
+      return
+    }
+    // #6: catat di indeks DULU supaya logout selalu tahu kunci ini ada.
+    await registerChatLocalKey(key)
+    await setRawItem(key, serialize(draft))
+  })().catch(() => {
+    // Gagal persist/hapus bukan fatal — memory tetap sumber kebenaran.
   })
 }
 
@@ -225,7 +240,7 @@ export async function loadChatDraft(roomId: string): Promise<ChatDraft | null> {
   if (hydrated.has(roomId)) return null
   hydrated.add(roomId)
   try {
-    const stored = await getRawItem(chatDraftKey(roomId))
+    const stored = await getRawItem(await chatDraftStorageKey(roomId))
     if (!stored) return null
     const draft = parseStored(stored)
     memory.set(roomId, draft)
@@ -251,9 +266,11 @@ export function clearChatDraft(roomId: string): void {
     clearTimeout(prev)
     pendingTimers.delete(roomId)
   }
-  void deleteRawItem(chatDraftKey(roomId)).catch(() => {
-    // Best-effort.
-  })
+  void chatDraftStorageKey(roomId)
+    .then((key) => deleteRawItem(key))
+    .catch(() => {
+      // Best-effort.
+    })
 }
 
 /** @internal — dipakai test untuk isolasi antar kasus. */

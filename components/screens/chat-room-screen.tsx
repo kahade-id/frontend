@@ -48,7 +48,7 @@ import {
   type NativeSyntheticEvent,
   type ViewInstance,
 } from "react-native"
-import { useLocalSearchParams, router } from "expo-router"
+import { useIsFocused, useLocalSearchParams, router } from "expo-router"
 
 import {
   ArrowBendUpLeft,
@@ -95,6 +95,7 @@ import {
   getReadReceipts,
   getRoomPresence,
   isOneToOneChatRoom,
+  isSelfChatRoom,
   normalizeChatMessage,
   pinChatMessage,
   removeReaction,
@@ -117,7 +118,7 @@ import {
   mergeChatMessages,
   reconcileSentMessage,
 } from "@/lib/chat-dedupe"
-import { applyDeleteMessages, applyPinChange } from "@/lib/chat-message-actions"
+import { applyDeleteMessages, applyPinChange, applyStarChange } from "@/lib/chat-message-actions"
 import { createTempMessageId } from "@/lib/chat-optimistic"
 import { JUMP_MAX_PAGES, findThreadRowIndex, planJump, type JumpBlockedReason } from "@/lib/chat-jump"
 import { ROW_HEIGHT_FALLBACK, buildRowGeometry, type RowGeometry } from "@/lib/chat-thread-layout"
@@ -147,11 +148,6 @@ import { ChatSearchSnippet } from "@/components/ui/chat-search-snippet"
 import { ActionSheet } from "@/components/ui/action-sheet"
 import { haptic } from "@/lib/haptics"
 import { useReducedMotion } from "@/lib/use-reduced-motion"
-import {
-  hasSeenDmNotice,
-  hydrateDmNoticeSeen,
-  markDmNoticeSeen,
-} from "@/lib/chat-dm-notice-seen"
 import { captureError, logWarn } from "@/lib/telemetry"
 import { pickImage, pickedImageToFormData, resizePickedImage, type PickedImage } from "@/lib/image-picker"
 import * as DocumentPicker from "expo-document-picker"
@@ -181,9 +177,11 @@ import { useDebouncedValue } from "@/lib/use-debounced-value"
 import { ChatDaySeparator } from "@/components/ui/chat-day-separator"
 import { ChatThreadSkeleton } from "@/components/ui/chat-thread-skeleton"
 import { ChatThreadStateView } from "@/components/ui/chat-thread-state-view"
-import { DmSafetyDialog } from "@/components/ui/dm-safety-dialog"
+import { DmSafetyBanner } from "@/components/ui/dm-safety-banner"
 import { ChatUnreadSeparator } from "@/components/ui/chat-unread-separator"
-import { presenceLabel } from "@/lib/chat-presence-label"
+import { applyPresenceEvent, presenceLabel } from "@/lib/chat-presence-label"
+import { canMarkRead, readActionForIncoming } from "@/lib/chat-read-gate"
+import { isChatMessageLockedByDispute } from "@/lib/chat-dispute-lock"
 import { firstUnreadMessageId } from "@/lib/chat-unread-anchor"
 import {
   loadChatFailedMessages,
@@ -361,24 +359,10 @@ function toFailedChatMessage(
 
 /** Jarak poll pesan baru saat ruang AKTIF. Push tetap pemicu utama. */
 const CHAT_POLL_MS = 8000
-/**
- * PERF-FIX (network P2): jalankan task async dengan batas konkurensi —
- * bulk-star 50 pesan tidak boleh membuka 50 koneksi serentak di HP kentang.
- * Semantik gagal = Promise.all: throw pertama membatalkan keseluruhan.
- */
-async function runWithConcurrency<T>(tasks: Array<() => Promise<T>>, limit: number): Promise<T[]> {
-  const results: T[] = new Array(tasks.length)
-  let next = 0
-  const workers = Array.from({ length: Math.min(limit, tasks.length) }, async () => {
-    while (next < tasks.length) {
-      const index = next
-      next += 1
-      results[index] = await tasks[index]()
-    }
-  })
-  await Promise.all(workers)
-  return results
-}
+// PERF-FIX (network P2) `runWithConcurrency` lokal dihapus (audit Pesan #9e):
+// bulk-star kini lewat `applyStarChange` → `settleWithConcurrency`
+// (lib/chat-optimistic) — batas 5 request serentak yang sama, tetapi
+// semantik "settled" (satu kegagalan tidak membatalkan sisanya).
 /**
  * GAP-B2 (implementasi 2026-09-26): chat memakai WebSocket realtime
  * (`useChatRoomRealtime`) DENGAN polling REST sebagai fallback.
@@ -507,13 +491,12 @@ function ChatRoomScreenContent() {
   // C-06 (audit): `title` opsional dikirim saat navigasi dari daftar chat —
   // GET /rooms tidak punya endpoint detail dan pencarian ruang hanya memuat
   // 30 pertama, sehingga ruang ke-31+ kehilangan nama lawan bicara di header.
-  const { roomId, title, self } = useLocalSearchParams<{ roomId: string; title?: string; self?: string }>()
+  // Audit Pesan 2026-10-10 (#3): param `self` dari URL SENGAJA tidak dibaca —
+  // self-chat diturunkan dari data ruang vs identitas saya (`isSelfChatRoom`,
+  // di bawah setelah `room` & profil tersedia). Param URL bisa dipalsukan
+  // lewat deep link dan mematikan pagar blokir/lapor/transaksi.
+  const { roomId, title } = useLocalSearchParams<{ roomId: string; title?: string }>()
   const titleParam = typeof title === "string" && title.trim() ? title.trim() : undefined
-  /**
-   * Self-chat ("Pesan untuk diri sendiri") — blokir/lapor & buat transaksi
-   * disembunyikan; penanda dari daftar chat (ROUTES.chatRoom self=1).
-   */
-  const isSelfChat = self === "1"
   const toast = useToast()
   const { copy } = useCopy()
 
@@ -657,16 +640,24 @@ function ChatRoomScreenContent() {
   const selfIdsRef = useRef<string[]>([])
   /** Username saya — dipakai kartu produk optimistis tanpa menunggu /me (I24). */
   const selfUsernameRef = useRef<string | null>(null)
+  /**
+   * Audit Pesan 2026-10-10 (#3): identitas saya sebagai STATE (bukan ref)
+   * karena `isSelfChat` diturunkan darinya saat render — ref tidak memicu
+   * render ulang ketika profil tiba setelah ruang termuat.
+   */
+  const [selfIdentity, setSelfIdentity] = useState<{ ids: string[]; username: string | null } | null>(null)
   useEffect(() => {
     let alive = true
     void getMeCached()
       .then((me) => {
         if (!alive) return
         setMyUserId(pickPublicUserId(me))
-        selfIdsRef.current = [me?.userId, me?.id].filter(
+        const ids = [me?.userId, me?.id].filter(
           (v): v is string => typeof v === "string" && v.length > 0,
         )
+        selfIdsRef.current = ids
         selfUsernameRef.current = me?.username ?? null
+        setSelfIdentity({ ids, username: me?.username ?? null })
       })
       .catch(() => {
         if (alive) setMyUserId(null)
@@ -769,12 +760,6 @@ function ChatRoomScreenContent() {
   const [blockDialogOpen, setBlockDialogOpen] = useState(false)
   /** Sheet buat transaksi dari chat. */
   const [createOrderSheetOpen, setCreateOrderSheetOpen] = useState(false)
-  /**
-   * 2026-10-08: popup keselamatan DM — tampil SEKALI per lawan bicara
-   * (banner permanen dihapus atas permintaan produk). Penanda lokal:
-   * lib/chat-dm-notice-seen.ts.
-   */
-  const [safetyNoticeOpen, setSafetyNoticeOpen] = useState(false)
   /** Kartu produk sumber tombol "Beli" (null = buat dari menu tanpa etalase). */
   const [createOrderProduct, setCreateOrderProduct] = useState<ChatProductCardPayload | null>(null)
   /** Sheet pilih etalase → kartu produk. */
@@ -829,6 +814,12 @@ function ChatRoomScreenContent() {
 
   const isOrderClosed =
     order != null && ["COMPLETED", "CANCELLED", "REFUNDED", "EXPIRED"].includes(order.status)
+  /**
+   * Audit Pesan 2026-10-10 (#9d): selama order DISPUTED, server menolak edit
+   * & hapus-untuk-semua (isi chat = bukti sengketa). Aksi itu tidak
+   * ditawarkan; percakapan sendiri TETAP terbuka (sengketa butuh komunikasi).
+   */
+  const messagesLockedByDispute = isChatMessageLockedByDispute(order?.status)
 
   const isChatCompleted =
     isOrderClosed ||
@@ -866,6 +857,13 @@ function ChatRoomScreenContent() {
    * `room` null (daftar ruang belum termuat) → perilaku lama (tampil).
    */
   const showPeerIdentity = !isOneToOneChatRoom(room)
+  /**
+   * Self-chat ("Pesan untuk diri sendiri") — blokir/lapor & buat transaksi
+   * disembunyikan. Audit Pesan 2026-10-10 (#3): diturunkan dari lawan
+   * bicara menurut SERVER vs identitas saya (bukan param URL `self=1`).
+   * Profil belum termuat → false (pagar DM biasa tetap tampil).
+   */
+  const isSelfChat = useMemo(() => isSelfChatRoom(room, selfIdentity), [room, selfIdentity])
 
   /**
    * Target balasan → strip preview di atas composer ("Membalas {nama} ·
@@ -1308,6 +1306,40 @@ function ChatRoomScreenContent() {
     }
   }, [roomId])
 
+  // ── Gate "boleh menandai dibaca" (audit Pesan 2026-10-10, #9a) ──────────
+  // Centang ganda ke lawan bicara hanya bila pesan BENAR-BENAR tampil: layar
+  // ini fokus (bukan tertutup profil/viewer di atasnya), aplikasi aktif
+  // (bukan di latar dengan socket masih hidup), dan viewport di dasar thread.
+  // Yang tertahan dicatat dan dilunasi saat gate terbuka lagi.
+  const isFocused = useIsFocused()
+  const isFocusedRef = useRef(isFocused)
+  const appActiveRef = useRef(
+    AppState.currentState !== "background" && AppState.currentState !== "inactive",
+  )
+  const deferredReadRef = useRef(false)
+  const flushDeferredRead = useCallback(() => {
+    if (!deferredReadRef.current || !roomIdRef.current) return
+    if (
+      !canMarkRead({
+        focused: isFocusedRef.current,
+        appActive: appActiveRef.current,
+        atBottom: atBottomRef.current,
+      })
+    ) {
+      return
+    }
+    deferredReadRef.current = false
+    void api.chat
+      .markChatRoomRead(roomIdRef.current)
+      .catch((err) => logWarn("chat:mark-read-resume", err))
+    void refreshUnreadCount()
+    void refreshChatUnreadCount()
+  }, [])
+  useEffect(() => {
+    isFocusedRef.current = isFocused
+    if (isFocused) flushDeferredRead()
+  }, [isFocused, flushDeferredRead])
+
   // ── Presence lawan bicara (REST poll; WS realtime belum ada di app) ──
   // C-04 (audit): setInterval mentah diganti usePolling — presence tidak
   // lagi terus dipoll saat app di background / layar tidak fokus, dan satu
@@ -1371,20 +1403,27 @@ function ChatRoomScreenContent() {
         if (lastConfirmed) newestMessageIdRef.current = lastConfirmed.id
         // Pesan masuk dari lawan bicara → badge tab Notifikasi harus turun
         // segera (ruang terbuka = terbaca), bukan menunggu poll 60 detik.
-        // Namun HANYA bila user sedang di dasar thread: yang sedang scroll
-        // ke atas membaca riwayat belum melihat pesan baru — menandainya
-        // "dibaca" akan menampilkan centang ganda palsu ke lawan bicara.
-        if (
-          result.added > 0 &&
-          result.hasFreshFromOther &&
-          roomIdRef.current &&
-          atBottomRef.current
-        ) {
+        // Namun HANYA bila pesan benar-benar tampil: user di dasar thread
+        // (yang sedang scroll ke atas belum melihatnya), layar ini fokus, dan
+        // aplikasi aktif (#9a) — selain itu centang ganda ke lawan bicara
+        // palsu. Yang tertahan dilunasi saat gate terbuka (flushDeferredRead).
+        const readAction = readActionForIncoming({
+          added: result.added,
+          freshFromOther: result.hasFreshFromOther,
+          gate: {
+            focused: isFocusedRef.current,
+            appActive: appActiveRef.current,
+            atBottom: atBottomRef.current,
+          },
+        })
+        if (readAction === "mark" && roomIdRef.current) {
           void api.chat
             .markChatRoomRead(roomIdRef.current)
             .catch((err) => logWarn("chat:mark-read", err))
           void refreshUnreadCount()
           void refreshChatUnreadCount()
+        } else if (readAction === "defer") {
+          deferredReadRef.current = true
         }
         return next
       })
@@ -1504,6 +1543,13 @@ function ChatRoomScreenContent() {
     },
     onMessageDeleted: (messageId) => {
       setMessages((prev) => applyDeletedTombstone(prev, messageId))
+      // #9c: pesan yang dihapus lawan bicara juga lenyap dari baris pin dan
+      // dari strip balasan yang sedang disusun — dulu keduanya tetap
+      // menampilkan isi lama sampai ruang dibuka ulang.
+      setPinned((prev) =>
+        prev.some((p) => p.id === messageId) ? prev.filter((p) => p.id !== messageId) : prev,
+      )
+      setReplyTarget((prev) => (prev?.id === messageId ? null : prev))
     },
     onReaction: (messageId, reactions) => {
       setMessages((prev) => applyReactionSummary(prev, messageId, reactions))
@@ -1532,8 +1578,18 @@ function ChatRoomScreenContent() {
     // Audit chat G17: daftar pengetik (expiry per pengguna, bernama) —
     // bukan lagi satu boolean yang saling menimpa di ruang multi-pihak.
     onTypers: setTypers,
-    onPresence: (isOnline) =>
-      setPresence((prev) => (prev ? { ...prev, isOnline } : prev)),
+    // #9b: event socket diterapkan walau presence awal belum ada, dan dicap
+    // `fetchedAt` — saat realtime sehat polling REST mati, jadi tanpa cap
+    // baru label jatuh ke "stale" 60 dtk setelah GET terakhir meski socket hidup.
+    onPresence: (isOnline) => {
+      setPresence((prev) =>
+        applyPresenceEvent(prev, isOnline, {
+          roomId: roomIdRef.current ?? "",
+          nowIso: new Date().toISOString(),
+        }),
+      )
+      setPresenceFetchedAt(Date.now())
+    },
     // BFI-118: status order berubah di server (dibayar, dikirim, selesai,
     // dibatalkan) — refresh kartu status order room ini tanpa remount.
     onOrderStatusChanged: (changedOrderId) => {
@@ -1658,9 +1714,13 @@ function ChatRoomScreenContent() {
    */
   useEffect(() => {
     const sub = AppState.addEventListener("change", (state) => {
+      // #9a: gate baca mengikuti AppState — di latar, pesan masuk TIDAK
+      // ditandai dibaca (ditunda), dilunasi saat aktif lagi bila di dasar.
+      appActiveRef.current = state === "active"
       // Audit chat G17: aplikasi ke latar → berhenti "mengetik…" seketika.
       if (state !== "active") typingSenderRef.current?.stop()
       if (state === "active") {
+        flushDeferredRead()
         void refreshUnreadCount()
         void refreshChatUnreadCount()
         // Audit chat B5: pesan saya mungkin dibaca selagi aplikasi di latar
@@ -1669,7 +1729,7 @@ function ChatRoomScreenContent() {
       }
     })
     return () => sub.remove()
-  }, [])
+  }, [flushDeferredRead])
 
   // ── Auto-scroll ke pesan terbaru ───────────────────────────────────────
   // Thread tumbuh ke bawah, tetapi ScrollView mulai di ATAS: membuka ruang
@@ -1740,12 +1800,19 @@ function ChatRoomScreenContent() {
         if (bottom) setNewWhileAway(0)
         // Kembali ke dasar thread = pesan baru kini terlihat → tandai dibaca.
         // (mergeIncoming menahan mark-as-read selama user menelusuri riwayat.)
+        // #9a: tetap lewat gate fokus/aktif — selain itu ditunda.
         if (bottom && roomIdRef.current) {
-          void api.chat
-            .markChatRoomRead(roomIdRef.current)
-            .catch((err) => logWarn("chat:mark-read-scroll", err))
-          void refreshUnreadCount()
-          void refreshChatUnreadCount()
+          if (
+            canMarkRead({ focused: isFocusedRef.current, appActive: appActiveRef.current, atBottom: true })
+          ) {
+            void api.chat
+              .markChatRoomRead(roomIdRef.current)
+              .catch((err) => logWarn("chat:mark-read-scroll", err))
+            void refreshUnreadCount()
+            void refreshChatUnreadCount()
+          } else {
+            deferredReadRef.current = true
+          }
           // B02: pengguna sudah melewati titik "Belum dibaca" → separator
           // tidak lagi relevan; hapus agar tidak menumpuk.
           setUnreadAnchorId((prev) => (prev ? null : prev))
@@ -2903,34 +2970,38 @@ function ChatRoomScreenContent() {
   const handleToggleStarSelected = useCallback(async () => {
     if (!roomId || selectedMessages.length === 0) return
     const anyUnstarred = selectedMessages.some((m) => !m.isStarred)
-    const op = anyUnstarred ? starChatMessage : unstarChatMessage
-    try {
-      // PERF-FIX (network P2): konkurensi dibatasi 5 (bukan Promise.all
-      // mentah) — 50 request serentak bisa menghabiskan socket di HP kentang.
-      await runWithConcurrency(
-        selectedMessages.map((m) => () => op(roomId, m.id)),
-        5,
-      )
-      setMessages((prev) =>
-        prev.map((m) =>
-          selectedIds.has(m.id) ? { ...m, isStarred: anyUnstarred } : m,
-        ),
-      )
+    const targets = selectedMessages
+    // Audit Pesan 2026-10-10 (#9e): OPTIMISTIS — bintang berubah seketika dan
+    // mode pilih langsung ditutup; request berjalan di latar dengan konkurensi
+    // 5 (PERF-FIX network P2). Hanya pesan yang ditolak server dikembalikan
+    // (lib/chat-message-actions.applyStarChange). Dulu `isStarred` baru
+    // ditambal SETELAH semua request selesai — di koneksi lambat ketukan
+    // terasa mati.
+    exitSelect()
+    const { changed, failed } = await applyStarChange({
+      roomId,
+      targets,
+      wantStar: anyUnstarred,
+      star: starChatMessage,
+      unstar: unstarChatMessage,
+      setMessages,
+    })
+    if (changed.length > 0) {
       toast.show({
-        title: anyUnstarred ? "Pesan dibintangi" : "Bintang dihapus",
+        title: anyUnstarred ? translate("Pesan dibintangi") : translate("Bintang dihapus"),
         tone: "success",
         duration: 2000,
       })
-    } catch (err) {
+    }
+    if (failed.length > 0) {
+      const firstError = failed[0]?.error
       toast.show({
-        title: anyUnstarred ? "Gagal membintangi" : "Gagal menghapus bintang",
-        description: isApiError(err) ? userMessage(err) : undefined,
+        title: anyUnstarred ? translate("Gagal membintangi") : translate("Gagal menghapus bintang"),
+        description: isApiError(firstError) ? userMessage(firstError) : undefined,
         tone: "danger",
       })
-    } finally {
-      exitSelect()
     }
-  }, [roomId, selectedMessages, selectedIds, toast.show, exitSelect])
+  }, [roomId, selectedMessages, toast.show, exitSelect])
 
   const enterSelect = useCallback((id: string) => {
     haptic("select")
@@ -3435,15 +3506,19 @@ function ChatRoomScreenContent() {
       singleSelected != null &&
       singleSelected.fromUser &&
       singleSelected.messageType === "TEXT" &&
-      !!singleSelected.text
+      !!singleSelected.text &&
+      // #9d: edit ditolak server selama sengketa — jangan tawarkan.
+      !messagesLockedByDispute
     const actions: SelectionAction[] = []
     if (singleSelected) {
       const target = singleSelected
+      // Audit Pesan #10: label & hint aksi seleksi lewat translate() —
+      // <SelectionBar> merender apa adanya (dulu literal Indonesia).
       actions.push({
         key: "reply",
-        label: "Balas",
+        label: translate("Balas"),
         icon: ArrowBendUpLeft,
-        accessibilityHint: "Membalas pesan yang dipilih",
+        accessibilityHint: translate("Membalas pesan yang dipilih"),
         onPress: () => {
           exitSelect()
           setReplyTarget(target)
@@ -3454,7 +3529,7 @@ function ChatRoomScreenContent() {
       const target = singleSelected
       actions.push({
         key: "pin",
-        label: target.isPinned ? "Lepas pin" : "Pin",
+        label: target.isPinned ? translate("Lepas pin") : translate("Pin"),
         selected: target.isPinned, // H-12: keadaan diumumkan, bukan hanya aksinya
         icon: PushPin,
         onPress: () => {
@@ -3465,10 +3540,10 @@ function ChatRoomScreenContent() {
     }
     actions.push({
       key: "copy",
-      label: "Salin",
+      label: translate("Salin"),
       icon: Copy,
       disabled: !anyText,
-      accessibilityHint: "Menyalin teks pesan yang dipilih",
+      accessibilityHint: translate("Menyalin teks pesan yang dipilih"),
       onPress: handleCopySelected,
     })
     // Batch 43: terjemahkan satu pesan teks (POST /translate per pesan).
@@ -3476,9 +3551,9 @@ function ChatRoomScreenContent() {
       const target = singleSelected
       actions.push({
         key: "translate",
-        label: "Terjemahkan",
+        label: translate("Terjemahkan"),
         icon: Translate,
-        accessibilityHint: "Menerjemahkan pesan yang dipilih",
+        accessibilityHint: translate("Menerjemahkan pesan yang dipilih"),
         onPress: () => {
           exitSelect()
           setTranslateTarget(target)
@@ -3491,9 +3566,9 @@ function ChatRoomScreenContent() {
       const first = singleSelected.attachments[0]
       actions.push({
         key: "view",
-        label: "Lihat",
+        label: translate("Lihat"),
         icon: Eye,
-        accessibilityHint: "Membuka media layar penuh",
+        accessibilityHint: translate("Membuka media layar penuh"),
         onPress: () => {
           exitSelect()
           void openAttachment(first)
@@ -3501,9 +3576,9 @@ function ChatRoomScreenContent() {
       })
       actions.push({
         key: "save",
-        label: "Simpan",
+        label: translate("Simpan"),
         icon: DownloadSimple,
-        accessibilityHint: "Menyimpan media ke perangkat",
+        accessibilityHint: translate("Menyimpan media ke perangkat"),
         onPress: () => {
           exitSelect()
           void saveAttachment(first)
@@ -3516,9 +3591,9 @@ function ChatRoomScreenContent() {
       const loc = singleSelected.location
       actions.push({
         key: "view",
-        label: "Lihat",
+        label: translate("Lihat"),
         icon: Eye,
-        accessibilityHint: "Membuka peta layar penuh",
+        accessibilityHint: translate("Membuka peta layar penuh"),
         onPress: () => {
           exitSelect()
           openLocation(loc)
@@ -3530,17 +3605,17 @@ function ChatRoomScreenContent() {
       const anyUnstarred = selectedMessages.some((m) => !m.isStarred)
       actions.push({
         key: "star",
-        label: anyUnstarred ? "Bintangi" : "Batal bintang",
+        label: anyUnstarred ? translate("Bintangi") : translate("Batal bintang"),
         icon: Star,
         accessibilityHint: anyUnstarred
-          ? "Membintangi pesan yang dipilih"
-          : "Menghapus bintang pesan yang dipilih",
+          ? translate("Membintangi pesan yang dipilih")
+          : translate("Menghapus bintang pesan yang dipilih"),
         onPress: () => void handleToggleStarSelected(),
       })
     }
     actions.push({
       key: "forward",
-      label: "Teruskan",
+      label: translate("Teruskan"),
       icon: PaperPlaneRight,
       onPress: () => {
         const targets = selectedMessages
@@ -3552,7 +3627,7 @@ function ChatRoomScreenContent() {
       const target = singleSelected
       actions.push({
         key: "edit",
-        label: "Ubah",
+        label: translate("Ubah"),
         icon: PencilSimple,
         onPress: () => {
           exitSelect()
@@ -3566,7 +3641,7 @@ function ChatRoomScreenContent() {
     if (selectedMessages.length > 0) {
       actions.push({
         key: "delete",
-        label: "Hapus",
+        label: translate("Hapus"),
         icon: Trash,
         tone: "danger",
         onPress: () => setDeleteScopeOpen(true),
@@ -3578,6 +3653,7 @@ function ChatRoomScreenContent() {
     handleCopySelected,
     handleTogglePin,
     handleToggleStarSelected,
+    messagesLockedByDispute,
     openAttachment,
     openForward,
     openLocation,
@@ -3625,12 +3701,16 @@ function ChatRoomScreenContent() {
     return text.length > 120 ? `${text.slice(0, 120)}…` : text
   }, [selectedMessages])
 
+  // Audit Pesan #10: copy dialog lewat translate() (dulu template literal —
+  // tidak ikut ganti bahasa); kutipan pratinjau ditempel setelahnya.
   const deleteCopy = {
-    title: deletableCount === 1 ? "Hapus pesan ini?" : "Hapus pesan yang dipilih?",
-    description:
+    title:
+      deletableCount === 1 ? translate("Hapus pesan ini?") : translate("Hapus pesan yang dipilih?"),
+    description: `${
       deletableCount === 1
-        ? `Pesan akan dihapus untuk semua peserta ruang.${deletePreview ? `\n\n"${deletePreview}"` : ""}`
-        : `${deletableCount} pesan akan dihapus untuk semua peserta ruang.${deletePreview ? `\n\n"${deletePreview}"` : ""}`,
+        ? translate("Pesan akan dihapus untuk semua peserta ruang.")
+        : translate("{x} pesan akan dihapus untuk semua peserta ruang.", { x: deletableCount })
+    }${deletePreview ? `\n\n"${deletePreview}"` : ""}`,
   }
 
   const jumpToLatest = useCallback(() => {
@@ -3665,26 +3745,28 @@ function ChatRoomScreenContent() {
   /** Info lawan bicara — SATU objek stabil, bukan literal baru tiap render. */
   const counterpartInfo = useMemo(
     () => ({
+      // Audit Pesan 2026-10-10 (#1): id untuk mencocokkan `message.sender` —
+      // pesan admin di ruang sengketa tidak boleh memakai nama/foto/seal
+      // lawan bicara (lib/chat-sender-identity.ts).
+      id: room?.counterpart?.id ?? null,
       name: counterpartName,
       avatarUrl: room?.counterpart?.avatarUrl,
       sealTier: room?.counterpart?.sealTier ?? null,
     }),
-    [counterpartName, room?.counterpart?.avatarUrl, room?.counterpart?.sealTier],
+    [counterpartName, room?.counterpart?.id, room?.counterpart?.avatarUrl, room?.counterpart?.sealTier],
   )
   /**
-   * 2026-10-08: putuskan popup keselamatan sekali-per-lawan-bicara.
+   * Audit Pesan 2026-10-10 (#8, keputusan produk): banner anti-tipu TAMPIL
+   * SELALU di DM tanpa transaksi — bukan popup sekali-per-lawan-bicara yang
+   * bisa dilewati sekali ketuk (modul penanda lokal "sudah dilihat" dihapus;
+   * tidak ada lagi state yang bisa salah).
    *
-   * Syarat tampil = syarat banner lama: DM 1:1, bukan self-chat, TANPA
-   * orderId (belum ada transaksi di percakapan ini), dan lawan bicara belum
-   * berbadge (sealTier null — seller terverifikasi tidak perlu diingatkan).
-   * Ditambah: belum pernah dilihat untuk orang ini.
-   *
-   * Menunggu `room` termuat: menandai "sudah dilihat" sebelum tahu lawan
-   * bicaranya akan mematikan popup untuk orang yang salah.
+   * Syarat tampil: DM 1:1, bukan self-chat, TANPA orderId (belum ada
+   * transaksi di percakapan ini), dan lawan bicara belum berbadge (sealTier
+   * null — seller terverifikasi tidak perlu diingatkan). Menunggu `room`
+   * termuat supaya banner tidak berkedip di shimmer awal.
    */
-  // Audit chat F14: keputusan diturunkan jadi SATU id primitif — dulu efek
-  // bergantung pada objek `room` utuh dan menyala ulang tiap `setRoom`
-  // (bisukan/arsipkan). Id yang sama berarti efek tidak menyala lagi.
+  // Audit chat F14: keputusan diturunkan jadi SATU id primitif.
   const dmSafetyId = loading
     ? null
     : dmSafetyCounterpartId({
@@ -3694,19 +3776,10 @@ function ChatRoomScreenContent() {
         sealTier: room?.counterpart?.sealTier,
         counterpartId: room?.counterpart?.id,
       })
-  useEffect(() => {
-    if (!dmSafetyId) return
-    let alive = true
-    void hydrateDmNoticeSeen().then(() => {
-      if (!alive) return
-      if (hasSeenDmNotice(dmSafetyId)) return
-      markDmNoticeSeen(dmSafetyId)
-      setSafetyNoticeOpen(true)
-    })
-    return () => {
-      alive = false
-    }
-  }, [dmSafetyId])
+  const handleSafetyCreateOrder = useCallback(() => {
+    setCreateOrderProduct(null)
+    setCreateOrderSheetOpen(true)
+  }, [])
 
   /** Ketuk bubble: NO-OP di luar mode pilih; toggle pilihan saat memilih. */
   const handleRowPress = useCallback(
@@ -4198,6 +4271,9 @@ function ChatRoomScreenContent() {
         />
       ) : null}
 
+      {/* #8: banner anti-tipu permanen di DM tanpa transaksi (keputusan
+          produk 2026-10-10). Hilang sendiri begitu ruang punya orderId. */}
+      {dmSafetyId ? <DmSafetyBanner onCreateOrder={handleSafetyCreateOrder} /> : null}
       {/* Baris pesan terpin: SATU baris ringkas (bukan deretan chip scroll).
           Ketuk = lompat ke pesannya; tekan lama = lepas pin. Tingginya diukur
           lewat onLayout untuk menjaga jangkar scroll — lihat efek di atas. */}
@@ -4341,18 +4417,6 @@ function ChatRoomScreenContent() {
         onOpenReport={() => setReportSheetOpen(true)}
       />
 
-      {/* 2026-10-08: popup keselamatan DM — menggantikan banner permanen
-          (dulu di atas menu ⋮). Tampil sekali per lawan bicara. */}
-      <DmSafetyDialog
-        visible={safetyNoticeOpen}
-        onDismiss={() => setSafetyNoticeOpen(false)}
-        onCreateOrder={() => {
-          setSafetyNoticeOpen(false)
-          setCreateOrderProduct(null)
-          setCreateOrderSheetOpen(true)
-        }}
-      />
-
       {/* Edit pesan teks sendiri — draft + simpan di dalam komponen. */}
       <ChatEditSheet
         message={editTarget}
@@ -4390,23 +4454,29 @@ function ChatRoomScreenContent() {
       <ActionSheet
         visible={deleteScopeOpen}
         onRequestClose={() => setDeleteScopeOpen(false)}
-        title={selectedMessages.length === 1 ? "Hapus pesan" : `Hapus ${selectedMessages.length} pesan`}
+        title={
+          selectedMessages.length === 1
+            ? translate("Hapus pesan")
+            : translate("Hapus {x} pesan", { x: selectedMessages.length })
+        }
         showCancel
-        cancelLabel="Batal"
+        cancelLabel={translate("Batal")}
         actions={[
           {
             key: "hide-local",
-            label: "Hapus untuk saya",
-            description: "Hanya hilang dari perangkat ini.",
+            label: translate("Hapus untuk saya"),
+            description: translate("Hanya hilang dari perangkat ini."),
             icon: EyeClosed,
             onPress: () => handleHideSelected(),
           },
-          ...(allSelectedMine
+          // #9d: "untuk semua orang" ditolak server selama sengketa — tidak
+          // ditawarkan (hapus lokal tetap bisa).
+          ...(allSelectedMine && !messagesLockedByDispute
             ? [
                 {
                   key: "delete-everyone",
-                  label: "Hapus untuk semua orang",
-                  description: "Hilang untuk semua peserta ruang.",
+                  label: translate("Hapus untuk semua orang"),
+                  description: translate("Hilang untuk semua peserta ruang."),
                   icon: Trash,
                   destructive: true,
                   onPress: () => {
@@ -4428,8 +4498,8 @@ function ChatRoomScreenContent() {
         description={deleteCopy.description}
         visible={deleteOpen}
         destructive
-        confirmLabel="Hapus"
-        cancelLabel="Batal"
+        confirmLabel={translate("Hapus")}
+        cancelLabel={translate("Batal")}
         onConfirm={() => void handleDeleteSelected()}
         onCancel={() => setDeleteOpen(false)}
         onRequestClose={() => setDeleteOpen(false)}

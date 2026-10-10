@@ -38,6 +38,7 @@ import { router } from "expo-router"
 import { isApiError, userMessage } from "@/lib/api"
 import { setRoomArchived, setRoomMuted, type ChatRoom } from "@/lib/api/chat"
 import { haptic } from "@/lib/haptics"
+import { translate } from "@/lib/i18n"
 import { ROUTES } from "@/lib/routes"
 
 import { ActionSheet, type ActionSheetItem } from "@/components/ui/action-sheet"
@@ -96,7 +97,7 @@ export function ChatRoomMenu({
         await action()
       } catch (err) {
         toast.show({
-          title: "Gagal memperbarui percakapan",
+          title: translate("Gagal memperbarui percakapan"),
           description: isApiError(err) ? userMessage(err) : undefined,
           tone: "danger",
         })
@@ -113,17 +114,23 @@ export function ChatRoomMenu({
     if (orderId) {
       items.push({
         key: "order",
-        label: "Lihat pesanan",
+        label: translate("Lihat pesanan"),
         icon: Package,
         onPress: () => router.push(ROUTES.orderDetail(orderId)),
       })
     }
-    items.push({ key: "search", label: "Cari semua pesan", description: "Telusuri seluruh riwayat di server", icon: MagnifyingGlass, onPress: onSearch })
+    items.push({
+      key: "search",
+      label: translate("Cari semua pesan"),
+      description: translate("Telusuri seluruh riwayat di server"),
+      icon: MagnifyingGlass,
+      onPress: onSearch,
+    })
     if (onSearchLoaded) {
       items.push({
         key: "search-loaded",
-        label: "Cari di pesan termuat",
-        description: "Sorot hasil langsung di percakapan",
+        label: translate("Cari di pesan termuat"),
+        description: translate("Sorot hasil langsung di percakapan"),
         icon: MagnifyingGlass,
         onPress: onSearchLoaded,
       })
@@ -131,10 +138,10 @@ export function ChatRoomMenu({
     // Batch 43: ekspor, bintang — selalu tersedia di menu.
     // 2026-10-03: Polling DIHAPUS dari menu (sudah ada di sheet lampiran).
     if (onExport) {
-      items.push({ key: "export", label: "Ekspor chat (TXT)", icon: FileArrowDown, onPress: onExport })
+      items.push({ key: "export", label: translate("Ekspor chat (TXT)"), icon: FileArrowDown, onPress: onExport })
     }
     if (onOpenStarred) {
-      items.push({ key: "starred", label: "Pesan berbintang", icon: Star, onPress: onOpenStarred })
+      items.push({ key: "starred", label: translate("Pesan berbintang"), icon: Star, onPress: onOpenStarred })
     }
     // Batch 43: buat transaksi dari chat — uang tetap lewat Kahade, bukan
     // transfer langsung (keputusan produk batch 43).
@@ -143,8 +150,8 @@ export function ChatRoomMenu({
     if (onOpenCreateOrder && !isSelfChat) {
       items.push({
         key: "create-order",
-        label: "Buat transaksi",
-        description: "Dana Anda aman sampai barang diterima",
+        label: translate("Buat transaksi"),
+        description: translate("Dana Anda aman sampai barang diterima"),
         icon: Receipt,
         onPress: onOpenCreateOrder,
       })
@@ -152,7 +159,7 @@ export function ChatRoomMenu({
     if (counterpartUsername) {
       items.push({
         key: "profile",
-        label: "Lihat profil",
+        label: translate("Lihat profil"),
         icon: UserCircle,
         onPress: () => router.push(ROUTES.userProfile(counterpartUsername)),
       })
@@ -162,48 +169,73 @@ export function ChatRoomMenu({
     if (onOpenReport && !isSelfChat && room?.counterpart) {
       items.push({
         key: "report",
-        label: "Laporkan / Blokir",
-        description: "Laporkan pesan atau blokir pengguna",
+        label: translate("Laporkan / Blokir"),
+        description: translate("Laporkan pesan atau blokir pengguna"),
         icon: Flag,
         onPress: onOpenReport,
       })
     }
+    // Audit Pesan 2026-10-10 (#9e): bisukan/arsip OPTIMISTIS — label menu &
+    // state ruang berubah seketika (sebelum `await`), dikembalikan persis ke
+    // nilai semula bila server menolak. Dulu `onRoomChange` baru dipanggil
+    // setelah respons: di koneksi lambat ketukan terasa "tidak terjadi apa-apa".
+    // #10: label/toast lewat translate() — dulu literal Indonesia.
     if (room) {
       items.push({
         key: "mute",
-        label: room.isMuted ? "Kembalikan suara" : "Bisukan percakapan",
+        label: room.isMuted ? translate("Kembalikan suara") : translate("Bisukan percakapan"),
         icon: room.isMuted ? BellZ : BellSlash,
         disabled: busy,
-        onPress: () =>
+        onPress: () => {
+          const wantMuted = room.isMuted !== true
+          const rollback = { isMuted: room.isMuted, mutedUntil: room.mutedUntil }
+          onRoomChange({ isMuted: wantMuted, mutedUntil: wantMuted ? room.mutedUntil : null })
           void runBusy(async () => {
-            const res = await setRoomMuted(room.id, room.isMuted !== true)
-            onRoomChange({ isMuted: res.isMuted, mutedUntil: res.mutedUntil })
+            try {
+              const res = await setRoomMuted(room.id, wantMuted)
+              onRoomChange({ isMuted: res.isMuted, mutedUntil: res.mutedUntil })
+            } catch (err) {
+              onRoomChange(rollback)
+              throw err
+            }
             haptic("success")
             toast.show({
-              title: res.isMuted ? "Percakapan dibisukan" : "Suara percakapan dikembalikan",
+              title: wantMuted
+                ? translate("Percakapan dibisukan")
+                : translate("Suara percakapan dikembalikan"),
               tone: "success",
               duration: 2500,
             })
-          }),
+          })
+        },
       })
       items.push({
         key: "archive",
-        label: room.isArchived ? "Keluarkan dari arsip" : "Arsipkan percakapan",
+        label: room.isArchived ? translate("Keluarkan dari arsip") : translate("Arsipkan percakapan"),
         icon: Archive,
         disabled: busy,
-        onPress: () =>
+        onPress: () => {
+          const wantArchived = !room.isArchived
+          const rollback = { isArchived: room.isArchived }
+          onRoomChange({ isArchived: wantArchived })
           void runBusy(async () => {
-            const res = await setRoomArchived(room.id, !room.isArchived)
-            onRoomChange({ isArchived: res.isArchived })
+            try {
+              const res = await setRoomArchived(room.id, wantArchived)
+              onRoomChange({ isArchived: res.isArchived })
+            } catch (err) {
+              onRoomChange(rollback)
+              throw err
+            }
             haptic("success")
             toast.show({
-              title: res.isArchived
-                ? "Percakapan diarsipkan"
-                : "Percakapan dikeluarkan dari arsip",
+              title: wantArchived
+                ? translate("Percakapan diarsipkan")
+                : translate("Percakapan dikeluarkan dari arsip"),
               tone: "success",
               duration: 2500,
             })
-          }),
+          })
+        },
       })
     }
     return items

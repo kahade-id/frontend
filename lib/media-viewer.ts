@@ -27,6 +27,7 @@
 import type { Href } from "expo-router"
 
 import { safeHttpsLink } from "@/lib/external-url"
+import { isKahadeHostname, isKahadeHttpsUrl } from "@/lib/kahade-host"
 
 /** Tipe konten yang bisa dibuka halaman media viewer. */
 export type MediaViewerType = "photo" | "video" | "file" | "audio" | "location"
@@ -128,6 +129,96 @@ export function isOfficeDocument(mimeType: string | null | undefined, fileName?:
 export function isPdfMedia(mimeType: string | null | undefined, fileName?: string | null): boolean {
   if (mimeType === "application/pdf") return true
   return typeof fileName === "string" && /\.pdf$/i.test(fileName)
+}
+
+// ── Kebijakan WebView file viewer (audit Pesan 2026-10-10, #2) ─────────
+//
+// Sebelumnya <WebView originWhitelist={["*"]} javaScriptEnabled> memuat
+// embed penampil dokumen untuk URL lampiran APA PUN. Lampiran chat adalah
+// konten lawan bicara: URL di luar Kahade bisa mengarahkan embed ke halaman
+// yang ia kendalikan dan menjalankan skrip di dalam aplikasi.
+//
+// Aturan (murni, diuji di tests/media-viewer.test.ts):
+//   - Berkas LOKAL (hasil unduhan, `file://`) dirender tanpa JavaScript —
+//     PDF native tidak membutuhkannya, dan PDF/HTML berbahaya tidak bisa
+//     menjalankan skrip dari origin file://.
+//   - Embed penampil dokumen HANYA untuk berkas dari host Kahade
+//     (`isKahadeHttpsUrl`). Origin yang diizinkan = origin embed itu saja —
+//     navigasi ke origin lain DITOLAK (`isFileViewerNavigationAllowed`),
+//     bukan dilempar ke browser luar.
+//   - Host lain → null: file viewer jatuh ke kartu berkas (unduh/buka
+//     dengan aplikasi lain tetap tersedia — itu aksi eksplisit pengguna).
+
+/** Origin penampil dokumen in-app (embed `gview`). */
+export const DOC_EMBED_ORIGIN = "https://docs.google.com"
+
+/** URL embed penampil dokumen (signature signed URL dipertahankan via encode). */
+export function docEmbedUrl(remoteUrl: string): string {
+  return `${DOC_EMBED_ORIGIN}/gview?embedded=1&url=${encodeURIComponent(remoteUrl)}`
+}
+
+export type FileViewerWebSource = {
+  kind: "local" | "embed"
+  uri: string
+  /**
+   * Embed penampil dokumen memerlukan skrip untuk merender halaman; berkas
+   * lokal tidak. Tidak ada jalur ketiga: URL remote tidak pernah dimuat
+   * langsung di WebView.
+   */
+  javaScriptEnabled: boolean
+  /** Daftar origin untuk prop `originWhitelist` — tidak pernah `"*"`. */
+  originWhitelist: string[]
+}
+
+/**
+ * Sumber WebView untuk file viewer, atau null bila berkas tidak boleh
+ * dipratinjau lewat WebView (→ kartu berkas).
+ */
+export function resolveFileViewerWebSource(input: {
+  fileUrl: string
+  localUri?: string | null
+}): FileViewerWebSource | null {
+  if (typeof input.localUri === "string" && /^file:/i.test(input.localUri)) {
+    return {
+      kind: "local",
+      uri: input.localUri,
+      javaScriptEnabled: false,
+      originWhitelist: ["file://*"],
+    }
+  }
+  if (!isKahadeHttpsUrl(input.fileUrl)) return null
+  return {
+    kind: "embed",
+    uri: docEmbedUrl(input.fileUrl),
+    javaScriptEnabled: true,
+    originWhitelist: [DOC_EMBED_ORIGIN],
+  }
+}
+
+/**
+ * Gerbang `onShouldStartLoadWithRequest`: hanya navigasi yang masih di dalam
+ * sumber yang kita buka. Ditolak = request dibatalkan (tidak ada handoff ke
+ * OS/browser luar — itu terjadi hanya bila origin tidak lolos
+ * `originWhitelist`, dan daftar itu sudah mencakup semua yang kita muat).
+ */
+export function isFileViewerNavigationAllowed(url: string, source: FileViewerWebSource): boolean {
+  if (typeof url !== "string" || !url) return false
+  if (url === "about:blank") return true
+  if (source.kind === "local") return /^file:/i.test(url)
+  let parsed: URL
+  try {
+    parsed = new URL(url)
+  } catch {
+    return false
+  }
+  if (parsed.protocol !== "https:") return false
+  const host = parsed.hostname.toLowerCase()
+  if (parsed.origin === DOC_EMBED_ORIGIN) return true
+  // Embed memuat halaman dokumen dari CDN Google dan berkasnya dari Kahade.
+  if (host.endsWith(".google.com") || host.endsWith(".googleusercontent.com") || host.endsWith(".gstatic.com")) {
+    return true
+  }
+  return isKahadeHostname(host)
 }
 
 /** Jam pemutar: 0:07, 12:34, 1:02:03. NaN/negatif → "0:00" (jangan "NaN:NaN"). */

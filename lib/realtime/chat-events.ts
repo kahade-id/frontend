@@ -451,9 +451,20 @@ export function applyDeletedTombstone(
 ): ChatMessage[] {
   let changed = false
   const next = prev.map((m) => {
-    if (m.id !== messageId || m.isDeleted) return m
-    changed = true
-    return { ...m, isDeleted: true, text: undefined, attachments: [] }
+    if (m.id === messageId) {
+      if (m.isDeleted) return m
+      changed = true
+      return { ...m, isDeleted: true, text: undefined, attachments: [] }
+    }
+    // Audit Pesan 2026-10-10 (#9c): kutipan di pesan LAIN yang membalas pesan
+    // ini ikut jadi tombstone — dulu strip balasan tetap menampilkan teks
+    // asli yang sudah dihapus (bocor isi), dan ketuk kutipan mencoba melompat
+    // ke pesan yang tidak ada.
+    if (m.replyTo?.id === messageId && !m.replyTo.isDeleted) {
+      changed = true
+      return { ...m, replyTo: { ...m.replyTo, isDeleted: true, content: null, fileName: null } }
+    }
+    return m
   })
   return changed ? next : prev
 }

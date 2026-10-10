@@ -62,6 +62,65 @@ export async function applyPinChange(deps: PinChangeDeps): Promise<PinChangeResu
   }
 }
 
+// ── Bintang / batal bintang (audit Pesan 2026-10-10, #9e) ───────────────
+
+export type StarChangeDeps = {
+  roomId: string
+  /** Pesan terpilih (bisa multi). */
+  targets: readonly ChatMessage[]
+  /** `true` = bintangi semua, `false` = lepas bintang semua. */
+  wantStar: boolean
+  star: (roomId: string, messageId: string) => Promise<unknown>
+  unstar: (roomId: string, messageId: string) => Promise<unknown>
+  setMessages: Updater<ChatMessage[]>
+  /** Batas request serentak (default 5). */
+  concurrency?: number
+}
+
+export type StarChangeResult = {
+  /** Pesan yang berhasil diubah di server. */
+  changed: ChatMessage[]
+  /** Pesan yang ditolak server — sudah dikembalikan ke keadaan semula. */
+  failed: { message: ChatMessage; error: unknown }[]
+}
+
+/**
+ * Bintang optimistis: ikon bintang di semua pesan terpilih berubah SEKETIKA;
+ * yang ditolak server dikembalikan ke nilai `isStarred` sebelumnya — per
+ * pesan, bukan semua (satu kegagalan tidak membatalkan yang lain). Dulu
+ * `isStarred` baru ditambal SETELAH semua request selesai: di koneksi lambat
+ * pengguna menekan "Bintangi" dan tidak terjadi apa-apa selama beberapa detik.
+ */
+export async function applyStarChange(deps: StarChangeDeps): Promise<StarChangeResult> {
+  const { targets, wantStar } = deps
+  if (targets.length === 0) return { changed: [], failed: [] }
+  const before = new Map(targets.map((m) => [m.id, m.isStarred === true] as const))
+  const ids = new Set(before.keys())
+  // 1. Optimistis (sinkron).
+  deps.setMessages((prev) => prev.map((m) => (ids.has(m.id) ? { ...m, isStarred: wantStar } : m)))
+  // 2. Server (settled: tiap pesan melapor sendiri).
+  const op = wantStar ? deps.star : deps.unstar
+  const results = await settleWithConcurrency(
+    targets.map((m) => () => op(deps.roomId, m.id)),
+    deps.concurrency ?? 5,
+  )
+  const changed: ChatMessage[] = []
+  const failed: StarChangeResult["failed"] = []
+  results.forEach((r, i) => {
+    const message = targets[i]
+    if (r.status === "fulfilled") changed.push(message)
+    else failed.push({ message, error: r.reason })
+  })
+  // 3. Rollback HANYA yang gagal, ke nilai semula masing-masing.
+  if (failed.length > 0) {
+    const failedIds = new Set(failed.map((f) => f.message.id))
+    deps.setMessages((prev) =>
+      prev.map((m) => (failedIds.has(m.id) ? { ...m, isStarred: before.get(m.id) ?? false } : m)),
+    )
+  }
+  return { changed, failed }
+}
+
 // ── Hapus pesan ─────────────────────────────────────────────────────────
 
 export type DeleteMessagesDeps = {

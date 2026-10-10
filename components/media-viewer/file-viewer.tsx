@@ -41,7 +41,13 @@ import { tokens } from "@/lib/tokens"
 import { formatFileSize } from "@/lib/format"
 import { translate } from "@/lib/i18n/translate"
 import { useLanguage } from "@/lib/i18n"
-import { isOfficeDocument, isPdfMedia, isReadableTextFile } from "@/lib/media-viewer"
+import {
+  isFileViewerNavigationAllowed,
+  isOfficeDocument,
+  isPdfMedia,
+  isReadableTextFile,
+  resolveFileViewerWebSource,
+} from "@/lib/media-viewer"
 import {
   MediaActionError,
   downloadToCache,
@@ -76,10 +82,13 @@ class WebViewBoundary extends Component<{ fallback: ReactNode; children: ReactNo
   }
 }
 
-/** URL embed penampil dokumen (signature signed URL dipertahankan via encode). */
-function docEmbedUrl(remoteUrl: string): string {
-  return `https://docs.google.com/gview?embedded=1&url=${encodeURIComponent(remoteUrl)}`
-}
+/**
+ * Audit Pesan 2026-10-10 (#2): embed penampil dokumen hanya untuk berkas dari
+ * host Kahade (lib/media-viewer `resolveFileViewerWebSource`). Berkas dari
+ * host lain jatuh ke kartu dengan penjelasan ini.
+ */
+const OUTSIDE_HOST_NOTE =
+  "Pratinjau hanya tersedia untuk berkas dari Kahade. Berkas ini tetap bisa diunduh atau dibuka dengan aplikasi lain."
 
 export function FileViewer({ url, title, mimeType, fileName, fileSize }: FileViewerProps) {
   const toast = useToast()
@@ -178,16 +187,26 @@ export function FileViewer({ url, title, mimeType, fileName, fileSize }: FileVie
           return
         }
         if (isRemoteHttps) {
-          finish(() => setMode("pdf"))
+          // Embed hanya untuk host Kahade — selain itu kartu + alasan.
+          const allowed = resolveFileViewerWebSource({ fileUrl: url }) != null
+          finish(() => {
+            if (!allowed) setErrorDetail(OUTSIDE_HOST_NOTE)
+            setMode(allowed ? "pdf" : "card")
+          })
           return
         }
         finish(() => setMode("card"))
         return
       }
 
-      // 3. Dokumen office → embed in-app bila remote https; selain itu kartu.
+      // 3. Dokumen office → embed in-app bila remote https DARI HOST KAHADE;
+      //    selain itu kartu (dengan alasan bila host-nya di luar Kahade).
       if (isOfficeDocument(mimeType, displayName) && isRemoteHttps) {
-        finish(() => setMode("doc"))
+        const allowed = resolveFileViewerWebSource({ fileUrl: url }) != null
+        finish(() => {
+          if (!allowed) setErrorDetail(OUTSIDE_HOST_NOTE)
+          setMode(allowed ? "doc" : "card")
+        })
         return
       }
 
@@ -297,8 +316,14 @@ export function FileViewer({ url, title, mimeType, fileName, fileSize }: FileVie
     )
   }
 
-  if (mode === "pdf" || mode === "doc") {
-    const sourceUri = mode === "pdf" && localUri ? localUri : docEmbedUrl(url)
+  // Audit Pesan 2026-10-10 (#2): sumber WebView dari kebijakan terpusat —
+  // berkas lokal tanpa JS, embed hanya untuk host Kahade, origin eksplisit.
+  const webSource =
+    mode === "pdf" || mode === "doc"
+      ? resolveFileViewerWebSource({ fileUrl: url, localUri: mode === "pdf" ? localUri : null })
+      : null
+
+  if ((mode === "pdf" || mode === "doc") && webSource) {
     return (
       <View className="flex-1 bg-black">
         <WebViewBoundary
@@ -316,10 +341,15 @@ export function FileViewer({ url, title, mimeType, fileName, fileSize }: FileVie
           }
         >
           <WebView
-            source={{ uri: sourceUri }}
-            originWhitelist={["*"]}
-            javaScriptEnabled
-            domStorageEnabled
+            source={{ uri: webSource.uri }}
+            // Tidak pernah "*": origin yang kita muat saja. Navigasi ke
+            // origin lain ditolak di onShouldStartLoadWithRequest (bukan
+            // dilempar ke browser luar).
+            originWhitelist={webSource.originWhitelist}
+            javaScriptEnabled={webSource.javaScriptEnabled}
+            domStorageEnabled={webSource.javaScriptEnabled}
+            onShouldStartLoadWithRequest={(req) => isFileViewerNavigationAllowed(req.url, webSource)}
+            setSupportMultipleWindows={false}
             allowsInlineMediaPlayback
             startInLoadingState
             renderLoading={() => (

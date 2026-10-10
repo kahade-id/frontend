@@ -10,17 +10,24 @@
  */
 import { describe, expect, it } from "vitest"
 
+import { readFileSync } from "node:fs"
+import { resolve } from "node:path"
+
 import {
   asMediaViewerType,
   classifyMedia,
+  DOC_EMBED_ORIGIN,
   formatBytes,
   formatMediaClock,
+  isFileViewerNavigationAllowed,
   isOfficeDocument,
   isPdfMedia,
   isReadableTextFile,
   mediaViewerHref,
   parseMediaViewerParams,
+  resolveFileViewerWebSource,
 } from "@/lib/media-viewer"
+import { isKahadeHostname, isKahadeHttpsUrl } from "@/lib/kahade-host"
 
 describe("classifyMedia", () => {
   it("image/* → photo", () => {
@@ -229,5 +236,90 @@ describe("routing file viewer", () => {
     expect(isOfficeDocument(null, "laporan.xlsx")).toBe(true)
     expect(isOfficeDocument(null, "slide.pptx")).toBe(true)
     expect(isOfficeDocument("application/pdf", "a.pdf")).toBe(false)
+  })
+})
+
+// ── Audit Pesan 2026-10-10 (#2): kebijakan WebView file viewer ──────────
+describe("isKahadeHostname / isKahadeHttpsUrl", () => {
+  it("kahade.id dan subdomainnya milik Kahade", () => {
+    expect(isKahadeHostname("kahade.id")).toBe(true)
+    expect(isKahadeHostname("cdn.kahade.id")).toBe(true)
+    expect(isKahadeHostname("API.Kahade.ID")).toBe(true)
+  })
+  it("sufiks palsu / host lain ditolak", () => {
+    expect(isKahadeHostname("kahade.id.evil.com")).toBe(false)
+    expect(isKahadeHostname("notkahade.id")).toBe(false)
+    expect(isKahadeHostname("")).toBe(false)
+    expect(isKahadeHostname(null)).toBe(false)
+  })
+  it("URL: https saja, tanpa kredensial", () => {
+    expect(isKahadeHttpsUrl("https://cdn.kahade.id/f.pdf?X-Amz-Signature=abc")).toBe(true)
+    expect(isKahadeHttpsUrl("http://cdn.kahade.id/f.pdf")).toBe(false)
+    expect(isKahadeHttpsUrl("https://user:pw@cdn.kahade.id/f.pdf")).toBe(false)
+    expect(isKahadeHttpsUrl("https://evil.com/f.pdf")).toBe(false)
+    expect(isKahadeHttpsUrl("bukan url")).toBe(false)
+    expect(isKahadeHttpsUrl(undefined)).toBe(false)
+  })
+})
+
+describe("resolveFileViewerWebSource", () => {
+  it("berkas lokal (file://) dirender TANPA JavaScript, origin hanya file://", () => {
+    const src = resolveFileViewerWebSource({
+      fileUrl: "https://evil.com/x.pdf",
+      localUri: "file:///cache/x.pdf",
+    })
+    expect(src).toEqual({
+      kind: "local",
+      uri: "file:///cache/x.pdf",
+      javaScriptEnabled: false,
+      originWhitelist: ["file://*"],
+    })
+  })
+  it("berkas remote dari host Kahade → embed penampil, origin embed saja (tidak pernah *)", () => {
+    const src = resolveFileViewerWebSource({ fileUrl: "https://cdn.kahade.id/d.docx?sig=1" })
+    expect(src?.kind).toBe("embed")
+    expect(src?.uri).toBe(`${DOC_EMBED_ORIGIN}/gview?embedded=1&url=${encodeURIComponent("https://cdn.kahade.id/d.docx?sig=1")}`)
+    expect(src?.originWhitelist).toEqual([DOC_EMBED_ORIGIN])
+    expect(src?.originWhitelist).not.toContain("*")
+  })
+  it("berkas remote di luar Kahade → null (kartu berkas, tanpa WebView)", () => {
+    expect(resolveFileViewerWebSource({ fileUrl: "https://evil.com/d.docx" })).toBeNull()
+    expect(resolveFileViewerWebSource({ fileUrl: "http://cdn.kahade.id/d.docx" })).toBeNull()
+  })
+})
+
+describe("isFileViewerNavigationAllowed", () => {
+  const local = resolveFileViewerWebSource({ fileUrl: "https://cdn.kahade.id/x.pdf", localUri: "file:///c/x.pdf" })!
+  const embed = resolveFileViewerWebSource({ fileUrl: "https://cdn.kahade.id/x.pdf" })!
+  it("berkas lokal hanya boleh menavigasi ke file://", () => {
+    expect(isFileViewerNavigationAllowed("file:///c/x.pdf", local)).toBe(true)
+    expect(isFileViewerNavigationAllowed("https://evil.com", local)).toBe(false)
+    expect(isFileViewerNavigationAllowed("https://cdn.kahade.id/x.pdf", local)).toBe(false)
+  })
+  it("embed: origin embed, CDN Google, dan host Kahade; selain itu ditolak", () => {
+    expect(isFileViewerNavigationAllowed(`${DOC_EMBED_ORIGIN}/gview?x=1`, embed)).toBe(true)
+    expect(isFileViewerNavigationAllowed("https://lh3.googleusercontent.com/a", embed)).toBe(true)
+    expect(isFileViewerNavigationAllowed("https://cdn.kahade.id/x.pdf", embed)).toBe(true)
+    expect(isFileViewerNavigationAllowed("https://evil.com/phish", embed)).toBe(false)
+    expect(isFileViewerNavigationAllowed("http://docs.google.com/", embed)).toBe(false)
+    expect(isFileViewerNavigationAllowed("intent://x#Intent;end", embed)).toBe(false)
+    expect(isFileViewerNavigationAllowed("javascript:alert(1)", embed)).toBe(false)
+  })
+  it("about:blank selalu boleh (halaman awal WebView)", () => {
+    expect(isFileViewerNavigationAllowed("about:blank", embed)).toBe(true)
+    expect(isFileViewerNavigationAllowed("about:blank", local)).toBe(true)
+  })
+})
+
+describe("file viewer memakai kebijakan terpusat", () => {
+  const src = readFileSync(resolve(__dirname, "..", "components/media-viewer/file-viewer.tsx"), "utf8")
+  it("tidak ada originWhitelist=* dan JS mengikuti kebijakan", () => {
+    expect(src).not.toContain('originWhitelist={["*"]}')
+    expect(src).toContain("originWhitelist={webSource.originWhitelist}")
+    expect(src).toContain("javaScriptEnabled={webSource.javaScriptEnabled}")
+    expect(src).toMatch(/onShouldStartLoadWithRequest=\{\(req\) => isFileViewerNavigationAllowed\(req\.url, webSource\)\}/)
+  })
+  it("mode pdf/doc remote digerbangi host Kahade sebelum WebView dipilih", () => {
+    expect(src.match(/resolveFileViewerWebSource\(\{ fileUrl: url \}\) != null/g)?.length).toBe(2)
   })
 })

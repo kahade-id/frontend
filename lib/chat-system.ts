@@ -9,7 +9,11 @@
  * plus (frontend) 🧾 order dibuat dari chat.
  *
  * Murni (tanpa RN) — bisa di-unit-test di Node.
+ *
+ * Audit Pesan 2026-10-10 (#10): label lewat translate() — dulu literal
+ * Indonesia yang tidak ikut ganti bahasa di kartu sistem.
  */
+import { translate } from "@/lib/i18n"
 
 export type ChatSystemKind =
   | "ORDER_PAID"
@@ -40,16 +44,16 @@ export function detectChatSystemKind(content: string | null | undefined): ChatSy
 export function chatSystemKindLabel(kind: ChatSystemKind): string {
   switch (kind) {
     case "ORDER_PAID":
-      return "Pembayaran diterima"
+      return translate("Pembayaran diterima")
     case "ORDER_TRACKING_UPDATED":
-      return "Resi diperbarui"
+      return translate("Resi diperbarui")
     case "ORDER_SHIPPED":
-      return "Pesanan dikirim"
+      return translate("Pesanan dikirim")
     case "ORDER_COMPLETED":
-      return "Transaksi selesai"
+      return translate("Transaksi selesai")
     case "ORDER_FROM_CHAT":
-      return "Order dibuat"
+      return translate("Order dibuat")
     case "GENERIC":
-      return "Info sistem"
+      return translate("Info sistem")
   }
 }

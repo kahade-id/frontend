@@ -21,6 +21,24 @@
  *     PELENGKAP — tidak boleh menampilkan error di bubble chat.
  */
 import { safeHttpsLink } from "@/lib/external-url"
+import { isKahadeHttpsUrl } from "@/lib/kahade-host"
+
+/**
+ * Audit Pesan 2026-10-10 (#5): kartu pratinjau TIDAK untuk setiap tautan.
+ *
+ * Mem-fetch metadata = perangkat penerima menghubungi server tautan itu
+ * begitu bubble tampil, tanpa ketukan. Pengirim yang jahat mendapat IP +
+ * konfirmasi "pesan sudah dibuka" dari URL pelacak, dan kartu bergambar
+ * membuat tautan phishing tampak resmi. Aturan:
+ *   - pesan KELUAR: selalu (tautan milik pengguna sendiri);
+ *   - pesan MASUK: hanya tautan https milik Kahade (`kahade.id`/subdomain) —
+ *     etalase, profil, order. Tautan lain tetap bisa diketuk dari teks.
+ */
+export function shouldShowLinkPreview(input: { outgoing: boolean; url: string | null | undefined }): boolean {
+  if (!input.url) return false
+  if (input.outgoing) return true
+  return isKahadeHttpsUrl(input.url)
+}
 
 export type LinkPreviewData = {
   url: string

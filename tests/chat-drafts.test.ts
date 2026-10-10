@@ -13,13 +13,21 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import {
   __resetChatDraftsForTest,
   CHAT_DRAFT_PERSIST_DEBOUNCE_MS,
+  chatDraftStorageKey,
   clearChatDraft,
   loadChatDraft,
   peekChatDraft,
   saveChatDraft,
   setChatDraftReply,
 } from "@/lib/chat-drafts"
-import { chatDraftKey, getRawItem, setRawItem } from "@/lib/secure-storage"
+import {
+  __resetChatLocalStorageCacheForTest,
+  chatDraftKey,
+  clearSession,
+  getChatLocalScope,
+  getRawItem,
+  setRawItem,
+} from "@/lib/secure-storage"
 
 beforeEach(() => {
   vi.useFakeTimers()
@@ -48,7 +56,7 @@ describe("chat drafts per-room", () => {
 
   it("persist di-debounce: belum menulis sebelum jeda", async () => {
     saveChatDraft("room-a", "halo")
-    expect(await getRawItem(chatDraftKey("room-a"))).toBeNull()
+    expect(await getRawItem(await chatDraftStorageKey("room-a"))).toBeNull()
     await flushPersist()
     expect(await loadChatDraft("room-a")).toEqual({ text: "halo", replyToId: null })
   })
@@ -60,7 +68,7 @@ describe("chat drafts per-room", () => {
     vi.advanceTimersByTime(100)
     saveChatDraft("room-a", "halo")
     await flushPersist()
-    expect(await getRawItem(chatDraftKey("room-a"))).toBe(
+    expect(await getRawItem(await chatDraftStorageKey("room-a"))).toBe(
       JSON.stringify({ t: "halo", r: null }),
     )
   })
@@ -82,7 +90,7 @@ describe("chat drafts per-room", () => {
     clearChatDraft("room-a")
     await vi.advanceTimersByTimeAsync(0)
     expect(peekChatDraft("room-a")).toBeUndefined()
-    expect(await getRawItem(chatDraftKey("room-a"))).toBeNull()
+    expect(await getRawItem(await chatDraftStorageKey("room-a"))).toBeNull()
   })
 
   it("draft kosong menghapus entri storage yang menggantung", async () => {
@@ -90,12 +98,13 @@ describe("chat drafts per-room", () => {
     await flushPersist()
     saveChatDraft("room-a", "")
     await flushPersist()
-    expect(await getRawItem(chatDraftKey("room-a"))).toBeNull()
+    expect(await getRawItem(await chatDraftStorageKey("room-a"))).toBeNull()
   })
 
-  it("chatDraftKey menormalisasi roomId liar", () => {
-    expect(chatDraftKey("room a/b?c")).toBe("kahade.chat.draft.room-a-b-c")
-    expect(chatDraftKey("")).toBe("kahade.chat.draft.")
+  it("chatDraftKey menormalisasi roomId liar & scope (audit Pesan #6)", () => {
+    expect(chatDraftKey("room a/b?c", "s1")).toBe("kahade.chat.draft.s1.room-a-b-c")
+    expect(chatDraftKey("", "s1")).toBe("kahade.chat.draft.s1.")
+    expect(chatDraftKey("r", "a.b/c")).toBe("kahade.chat.draft.a-b-c.r")
   })
 
   it("P2-C2: replyToId tersimpan dan pulih bersama teks", async () => {
@@ -124,11 +133,46 @@ describe("chat drafts per-room", () => {
   })
 
   it("P2-C2: nilai persist lama (string mentah) terbaca sebagai teks tanpa reply", async () => {
-    await setRawItem(chatDraftKey("room-a"), "draft versi lama")
+    await setRawItem(await chatDraftStorageKey("room-a"), "draft versi lama")
     expect(await loadChatDraft("room-a")).toEqual({ text: "draft versi lama", replyToId: null })
   })
 
   it("P2-C2: loadChatDraft null bila tidak ada draft", async () => {
     expect(await loadChatDraft("room-kosong")).toBeNull()
+  })
+})
+
+// ── Audit Pesan 2026-10-10 (#6): scope per akun + hapus saat logout ─────
+describe("draft chat ber-scope sesi akun", () => {
+  it("kunci persist memuat scope sesi, dan scope dibuat sekali per sesi", async () => {
+    const scope = await getChatLocalScope()
+    expect(scope.length).toBeGreaterThanOrEqual(8)
+    expect(await chatDraftStorageKey("room-a")).toBe(`kahade.chat.draft.${scope}.room-a`)
+    expect(await getChatLocalScope()).toBe(scope)
+  })
+
+  it("logout (clearSession) menghapus draft yang tersimpan DAN mengganti scope", async () => {
+    saveChatDraft("room-a", "rahasia akun A")
+    await flushPersist()
+    const key = await chatDraftStorageKey("room-a")
+    expect(await getRawItem(key)).not.toBeNull()
+    const scopeA = await getChatLocalScope()
+
+    await clearSession()
+    // Simulasi akun B login di perangkat yang sama (memory modul dibersihkan).
+    __resetChatDraftsForTest()
+
+    expect(await getRawItem(key)).toBeNull()
+    const scopeB = await getChatLocalScope()
+    expect(scopeB).not.toBe(scopeA)
+    expect(await loadChatDraft("room-a")).toBeNull()
+  })
+
+  it("scope lama tidak terbaca oleh sesi baru walau kuncinya masih ada (lapisan kedua)", async () => {
+    // Kunci sesi lama yang (hipotetis) gagal terhapus — scope berbeda, jadi
+    // tidak pernah dibaca.
+    await setRawItem(chatDraftKey("room-a", "scope-lama"), JSON.stringify({ t: "bocor", r: null }))
+    __resetChatLocalStorageCacheForTest()
+    expect(await loadChatDraft("room-a")).toBeNull()
   })
 })
