@@ -37,6 +37,8 @@ import { ScrollView, type TextInputInstance } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useRouter } from "expo-router"
 
+import { ScreenCaptureGuard } from "@/components/security/screen-capture-guard"
+
 import { LegalConsent } from "@/components/auth/legal-consent"
 import { AuthSecurityInfo } from "@/components/auth/auth-security-info"
 import { Alert } from "@/components/ui/alert"
@@ -282,6 +284,8 @@ export default function RegisterSecurityScreen() {
   }
 
   return (
+    // #FE-I10: layar kata sandi — proteksi screenshot seperti OTP/PIN.
+    <ScreenCaptureGuard>
     <Screen padded={false} edges={["top"]}>
       <Header title="Buat Kata Sandi" progress={STEP_PROGRESS} safeArea={false}
         right={<AuthSecurityInfo variant="signUp" />}
@@ -444,5 +448,6 @@ export default function RegisterSecurityScreen() {
       {/* A06: dialog konfirmasi keluar — hanya bila ada data belum disimpan */}
       <Dialog {...leaveConfirm.dialogProps} />
     </Screen>
+    </ScreenCaptureGuard>
   )
 }

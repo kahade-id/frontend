@@ -12,7 +12,7 @@
   },
   {
    "s": "Aksi mungkin sudah diproses — memuat ulang…",
-   "n": 71
+   "n": 70
   },
   {
    "s": "Coba lagi",
@@ -52,7 +52,7 @@
   },
   {
    "s": "Lanjutkan",
-   "n": 19
+   "n": 18
   },
   {
    "s": "Lihat profil {x}",
@@ -131,10 +131,6 @@
    "n": 13
   },
   {
-   "s": "Masuk",
-   "n": 13
-  },
-  {
    "s": "Minimal {x} karakter",
    "n": 13
   },
@@ -168,6 +164,10 @@
   },
   {
    "s": "Maksimal {x} digit; nilai negatif ditolak.",
+   "n": 12
+  },
+  {
+   "s": "Masuk",
    "n": 12
   },
   {
@@ -1315,10 +1315,6 @@
    "n": 5
   },
   {
-   "s": "Verifikasi",
-   "n": 5
-  },
-  {
    "s": "{n} story",
    "n": 4
   },
@@ -1980,6 +1976,10 @@
   },
   {
    "s": "Urutkan:",
+   "n": 4
+  },
+  {
+   "s": "Verifikasi",
    "n": 4
   },
   {
@@ -2687,6 +2687,10 @@
    "n": 3
   },
   {
+   "s": "Coba lagi dalam {x}",
+   "n": 3
+  },
+  {
    "s": "Coba muat video lagi",
    "n": 3
   },
@@ -3052,6 +3056,10 @@
   },
   {
    "s": "Gagal menghapus bintang",
+   "n": 3
+  },
+  {
+   "s": "Gagal mengirim OTP",
    "n": 3
   },
   {
@@ -4659,8 +4667,11 @@
    "n": 3
   },
   {
-"s": "Salin",
-"s": "Saldo terpakai sampai permintaan kedaluwarsa. Batalkan sekarang agar saldo langsung bebas.",
+   "s": "Saldo terpakai sampai permintaan kedaluwarsa. Batalkan sekarang agar saldo langsung bebas.",
+   "n": 3
+  },
+  {
+   "s": "Salin",
    "n": 3
   },
   {
@@ -5528,7 +5539,15 @@
    "n": 2
   },
   {
+   "s": "{x} dikenali dengan baik di perangkat ini.",
+   "n": 2
+  },
+  {
    "s": "{x} disalin",
+   "n": 2
+  },
+  {
+   "s": "{x} ditautkan",
    "n": 2
   },
   {
@@ -6752,7 +6771,7 @@
    "n": 2
   },
   {
-"s": "Gagal memperbarui percakapan",
+   "s": "Gagal memperbarui percakapan",
    "n": 2
   },
   {
@@ -6805,6 +6824,10 @@
   },
   {
    "s": "Gagal memuat voucher",
+   "n": 2
+  },
+  {
+   "s": "Gagal memulai tautan {x}",
    "n": 2
   },
   {
@@ -6873,10 +6896,6 @@
   },
   {
    "s": "Gagal mengirim lokasi",
-   "n": 2
-  },
-  {
-   "s": "Gagal mengirim OTP",
    "n": 2
   },
   {
@@ -7429,6 +7448,10 @@
   },
   {
    "s": "Kode bayar kedaluwarsa — buat ulang untuk mencoba lagi.",
+   "n": 2
+  },
+  {
+   "s": "Kode berlaku {x} menit. Belum menerima? Pastikan WhatsApp nomor baru aktif, lalu ketuk Ubah nomor untuk mengirim ulang.",
    "n": 2
   },
   {
@@ -8096,10 +8119,6 @@
    "n": 2
   },
   {
-   "s": "Minta kode baru",
-   "n": 2
-  },
-  {
    "s": "mis. Laptop kerja",
    "n": 2
   },
@@ -8268,7 +8287,6 @@
    "n": 2
   },
   {
-   "s": "Order tidak berlanjut — dana escrow telah dikembalikan ke metode pembayaran pembeli oleh {x}.",
    "s": "Order tidak berlanjut — dana telah dikembalikan ke metode pembayaran pembeli oleh {x}.",
    "n": 2
   },
@@ -8286,6 +8304,10 @@
   },
   {
    "s": "Passkey",
+   "n": 2
+  },
+  {
+   "s": "Passkey “{x}” terdaftar",
    "n": 2
   },
   {
@@ -9413,6 +9435,10 @@
    "n": 2
   },
   {
+   "s": "Tautan {x} dilepas",
+   "n": 2
+  },
+  {
    "s": "Tautan berkas tidak valid.",
    "n": 2
   },
@@ -10073,6 +10099,10 @@
    "n": 1
   },
   {
+   "s": "{x} digit autentikator atau kode cadangan. Kosongkan bila {x}FA tidak aktif.",
+   "n": 1
+  },
+  {
    "s": "{x} digit dari aplikasi autentikator, atau kode cadangan.",
    "n": 1
   },
@@ -10081,15 +10111,7 @@
    "n": 1
   },
   {
-   "s": "{x} dikenali dengan baik di perangkat ini.",
-   "n": 1
-  },
-  {
    "s": "{x} disembunyikan",
-   "n": 1
-  },
-  {
-   "s": "{x} ditautkan",
    "n": 1
   },
   {
@@ -10230,6 +10252,10 @@
   },
   {
    "s": "{x}. CHAT, PANGGILAN FITUR, DAN LAMPIRAN",
+   "n": 1
+  },
+  {
+   "s": "{x}. Coba lagi dalam {y}.",
    "n": 1
   },
   {
@@ -13905,10 +13931,6 @@
    "n": 1
   },
   {
-   "s": "Coba lagi dalam {x}",
-   "n": 1
-  },
-  {
    "s": "Coba lagi dengan metode yang sama, atau pilih metode pembayaran lain di bawah.",
    "n": 1
   },
@@ -14086,11 +14108,6 @@
   },
   {
    "s": "Dana akan segera dicairkan ke rekening bank.",
-   "n": 1
-  },
-  {
-"s": "Dana Anda ditahan di escrow oleh {x} — hanya diteruskan ke penjual setelah Anda mengonfirmasi penerimaan, atau otomatis setelah tenggat tanpa sengketa.",
-"s": "Dana Anda aman sampai barang diterima",
    "n": 1
   },
   {
@@ -14970,6 +14987,10 @@
    "n": 1
   },
   {
+   "s": "Email {x} akan menjadi email utama akun Anda.",
+   "n": 1
+  },
+  {
    "s": "Email atau username bila Anda ingin kami menindaklanjuti.",
    "n": 1
   },
@@ -15378,19 +15399,11 @@
    "n": 1
   },
   {
-   "s": "Gagal memulai tautan {x}",
-   "n": 1
-  },
-  {
    "s": "Gagal menanggapi usulan",
    "n": 1
   },
   {
    "s": "Gagal menautkan",
-   "n": 1
-  },
-  {
-   "s": "Gagal mencabut semua sesi",
    "n": 1
   },
   {
@@ -16866,10 +16879,6 @@
    "n": 1
   },
   {
-   "s": "Kirim kode",
-   "n": 1
-  },
-  {
    "s": "Kirim kode OTP",
    "n": 1
   },
@@ -17366,10 +17375,6 @@
    "n": 1
   },
   {
-   "s": "Kosongkan bila {x}FA tidak aktif.",
-   "n": 1
-  },
-  {
    "s": "Kota wajib diisi.",
    "n": 1
   },
@@ -17786,6 +17791,14 @@
    "n": 1
   },
   {
+   "s": "Login {x} gagal. Coba lagi, atau masuk dengan nomor HP.",
+   "n": 1
+  },
+  {
+   "s": "Login {x} gagal. Periksa koneksi internet lalu coba lagi.",
+   "n": 1
+  },
+  {
    "s": "Login baru, perubahan kata sandi, dan perangkat.",
    "n": 1
   },
@@ -18131,11 +18144,6 @@
   },
   {
    "s": "membentuk instruksi transaksi, memproses pembayaran, menahan atau melepaskan dana sesuai status, mengirim barang, menarik dana, mengembalikan pembayaran, dan menyediakan catatan.",
-   "n": 1
-  },
-  {
-"s": "membuat akun, mengelola profil, menjalankan fitur sosial, komunikasi, etalase, transaksi, escrow, dompet, dan dukungan.",
-"s": "Membintangi pesan yang dipilih",
    "n": 1
   },
   {
@@ -18643,11 +18651,11 @@
    "n": 1
   },
   {
-   "s": "Minta kode OTP via WhatsApp ke nomor HP terdaftar Anda, verifikasi, lalu daftarkan passkey baru. Kami akan memberi tahu Anda bila permintaan datang dari perangkat yang belum dikenal.",
+   "s": "Minta kode baru",
    "n": 1
   },
   {
-   "s": "Minta kode verifikasi",
+   "s": "Minta kode OTP via WhatsApp ke nomor HP terdaftar Anda, verifikasi, lalu daftarkan passkey baru. Kami akan memberi tahu Anda bila permintaan datang dari perangkat yang belum dikenal.",
    "n": 1
   },
   {
@@ -18952,6 +18960,10 @@
   },
   {
    "s": "Nominal yang diminta (opsional)",
+   "n": 1
+  },
+  {
+   "s": "Nomor {x} akan menjadi nomor utama akun Anda.",
    "n": 1
   },
   {
@@ -19267,7 +19279,7 @@
    "n": 1
   },
   {
-   "s": "Passkey “{x}” terdaftar",
+   "s": "Passkey “{x}” tidak bisa lagi dipakai untuk masuk setelah dihapus.",
    "n": 1
   },
   {
@@ -20131,10 +20143,6 @@
    "n": 1
   },
   {
-   "s": "Perlu konfirmasi keluar",
-   "n": 1
-  },
-  {
    "s": "Permintaan dicatat dengan waktu, kanal, ruang lingkup, dan identitas akun. Petugas tidak boleh meminta kredensial rahasia.",
    "n": 1
   },
@@ -20419,12 +20427,11 @@
    "n": 1
   },
   {
-"s": "Pesanan dikirim",
+   "s": "Pesanan dikirim",
    "n": 1
   },
   {
-   "s": "Pesanan diterima, dan pembeli dapat melanjutkan pembayaran ke escrow. Selesaikan pekerjaan sesuai kesepakatan setelah dana masuk.",
-"s": "Pesanan diterima, dan pembeli dapat melanjutkan pembayaran. Selesaikan pekerjaan sesuai kesepakatan setelah dana masuk.",
+   "s": "Pesanan diterima, dan pembeli dapat melanjutkan pembayaran. Selesaikan pekerjaan sesuai kesepakatan setelah dana masuk.",
    "n": 1
   },
   {
@@ -20556,7 +20563,7 @@
    "n": 1
   },
   {
-   "s": "Pilih PIN {x} digit. Jangan gunakan tanggal lahir atau angka berurutan.",
+   "s": "Pilih PIN {x} digit. Hindari angka berurutan atau berulang.",
    "n": 1
   },
   {
@@ -21424,6 +21431,10 @@
    "n": 1
   },
   {
+   "s": "Sesi migrasi kedaluwarsa. Minta kode baru lalu verifikasi lagi.",
+   "n": 1
+  },
+  {
    "s": "Sesi pendaftaran tidak tersedia — kemungkinan aplikasi ditutup di tengah alur atau halaman ini dibuka langsung. Kembali dan masukkan nomor HP Anda lagi.",
    "n": 1
   },
@@ -22044,10 +22055,6 @@
    "n": 1
   },
   {
-   "s": "Tautan {x} dilepas",
-   "n": 1
-  },
-  {
    "s": "Tautan belum punya URL; kalimat siap kirim disalin ke papan klip.",
    "n": 1
   },
@@ -22352,6 +22359,10 @@
    "n": 1
   },
   {
+   "s": "Terlalu banyak percobaan. Coba lagi dalam {x}.",
+   "n": 1
+  },
+  {
    "s": "Terlalu banyak percobaan. Tunggu sebentar lalu coba lagi.",
    "n": 1
   },
@@ -22457,6 +22468,18 @@
   },
   {
    "s": "Tidak bisa akses aplikasi? Pakai kode cadangan",
+   "n": 1
+  },
+  {
+   "s": "Tidak bisa membuka WhatsApp otomatis. Kirim pesan \"{x}\" ke {y} dari nomor Anda.",
+   "n": 1
+  },
+  {
+   "s": "Tidak bisa membuka WhatsApp otomatis. Kirim pesan berisi kode di atas ke {x} dari nomor Anda.",
+   "n": 1
+  },
+  {
+   "s": "Tidak bisa membuka WhatsApp. Kirim pesan berisi kode di atas manual ke {x}.",
    "n": 1
   },
   {

@@ -14,6 +14,8 @@
 import { useEffect, useRef, useState } from "react"
 import { ScrollView, type TextInputInstance } from "react-native"
 import { useLocalSearchParams, useRouter } from "expo-router"
+
+import { ScreenCaptureGuard } from "@/components/security/screen-capture-guard"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { api, isApiError, userMessage } from "@/lib/api"
@@ -153,6 +155,8 @@ export default function SocialLinkConfirmScreen() {
   }
 
   return (
+    // #FE-I10: layar kata sandi — proteksi screenshot seperti OTP/PIN.
+    <ScreenCaptureGuard>
     <Screen keyboardAvoiding edges={["top"]} padded={false}>
       <Header title="Tautkan Akun" />
       <ScrollView
@@ -230,5 +234,6 @@ export default function SocialLinkConfirmScreen() {
         </VStack>
       </ScrollView>
     </Screen>
+    </ScreenCaptureGuard>
   )
 }

@@ -17,7 +17,7 @@ import { LoginWhatsappForm } from "@/components/auth/login-whatsapp-form"
 
 export default function LoginWhatsappScreen() {
   const { next } = useLocalSearchParams<{ next?: string }>()
-  const nextPath = typeof next === "string" && next.startsWith("/") ? next : undefined
+  const nextPath = sanitizeNextPath(next) ?? undefined
 
   return (
     <LoginMethodScreen

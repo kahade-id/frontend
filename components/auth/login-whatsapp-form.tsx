@@ -11,6 +11,7 @@ import { api, isApiError, userMessage } from "@/lib/api"
 import { getAuthLocation } from "@/lib/location"
 import { ROUTES } from "@/lib/routes"
 import { setOtpFlow } from "@/lib/otp-flow"
+import { retryAfterMessage, useRetryCooldown } from "@/lib/retry-cooldown"
 import { useLoginNavigation } from "@/components/auth/use-login-navigation"
 
 type Props = {
@@ -24,9 +25,10 @@ export function LoginWhatsappForm({ nextPath }: Props) {
   const [formError, setFormError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const phoneRef = useRef<TextInputInstance>(null)
+  const cooldown = useRetryCooldown()
 
   const requestCode = useCallback(async () => {
-    if (submitting) return
+    if (submitting || cooldown.isCoolingDown) return
     setPhoneError(undefined)
     setFormError(null)
 
@@ -62,11 +64,17 @@ export function LoginWhatsappForm({ nextPath }: Props) {
     } catch (err) {
       if (isApiError(err)) {
         if (err.code === "NOT_FOUND") {
-          setFormError("Nomor HP ini belum terdaftar. Silakan daftar akun baru terlebih dahulu.")
+          // #FE-I13: jangan konfirmasi "belum terdaftar" — alur daftar/lupa
+          // sandi sengaja anti-enumerasi; copy generik + arah daftar.
+          setFormError(
+            "Kode belum bisa diminta untuk nomor ini. Periksa nomor HP, atau daftar bila belum punya akun.",
+          )
           return
         }
-        if (err.code === "RATE_LIMITED") {
-          setFormError("Terlalu banyak percobaan. Tunggu beberapa saat sebelum mencoba lagi.")
+        if (cooldown.startFromError(err)) {
+          setFormError(
+            retryAfterMessage(err, "Terlalu banyak percobaan. Tunggu beberapa saat sebelum mencoba lagi."),
+          )
           return
         }
       }
@@ -74,7 +82,7 @@ export function LoginWhatsappForm({ nextPath }: Props) {
     } finally {
       setSubmitting(false)
     }
-  }, [submitting, digits, beginLogin, router])
+  }, [submitting, digits, beginLogin, router, cooldown])
 
   return (
     <VStack gap={4}>
@@ -102,9 +110,10 @@ export function LoginWhatsappForm({ nextPath }: Props) {
       <Button
         onPress={() => void requestCode()}
         loading={submitting}
+        disabled={cooldown.isCoolingDown}
         leftIcon={WhatsappLogo}
       >
-        Minta kode verifikasi
+        {cooldown.label("Minta kode verifikasi")}
       </Button>
     </VStack>
   )

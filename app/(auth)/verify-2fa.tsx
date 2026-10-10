@@ -60,6 +60,8 @@ import { resolvePostLoginTarget } from "@/lib/login-redirect"
 import { AuthFlowMissing } from "@/lib/auth-flow-gate"
 import { ROUTES } from "@/lib/routes"
 import { clearPendingTwoFactorLogin, getPendingTwoFactorLogin } from "@/lib/two-factor-login"
+import { clearLoginIdentifier } from "@/lib/login-identifier"
+import { retryAfterMessage } from "@/lib/retry-cooldown"
 import { useAuthSession } from "@/lib/use-auth-session"
 import { translate } from "@/lib/i18n/translate"
 
@@ -124,6 +126,9 @@ export default function VerifyTwoFactorScreen() {
     try {
       await api.auth.verify2faLogin({ tempToken: pending.tempToken, code })
       clearPendingTwoFactorLogin()
+      // #FE-S1: sesi formulir login selesai — identifier terakhir tidak boleh
+      // terbawa ke form login pengguna berikutnya di perangkat ini.
+      clearLoginIdentifier()
       haptic("success")
       // U5-003 (journey): layar welcome dihapus — semua platform langsung ke
       // tujuan tertunda/Beranda. Navigasi DITUNDA hingga session.token
@@ -138,22 +143,43 @@ export default function VerifyTwoFactorScreen() {
         // KLASIFIKASI (kedaluwarsa tempToken vs kode salah), tidak pernah
         // dirender; yang tampil selalu copy Indonesia tetap / userMessage.
         const raw = err.message || ""
-        // tempToken kedaluwarsa/tidak valid → harus login ulang
-        if (err.code === "UNAUTHORIZED" && /token|sesi|session|expired|kedaluwarsa/i.test(raw)) {
+        const backendCode = (err.backendCode ?? "").toUpperCase()
+        // Audit Auth 2026-10-10 (#FE-I4): klasifikasi memakai KODE backend —
+        // `TEMP_TOKEN_EXPIRED` (kedaluwarsa / sudah dipakai / perangkat lain)
+        // dan `TOO_MANY_REQUESTS` 403 (tempToken di-blacklist setelah 5
+        // tebakan) sama-sama berarti sesi 2FA ini mati: harus masuk ulang.
+        // Regex pesan Inggris dipertahankan hanya sebagai fallback.
+        const tempTokenDead =
+          backendCode === "TEMP_TOKEN_EXPIRED" ||
+          (err.code === "UNAUTHORIZED" && /token|sesi|session|expired|kedaluwarsa/i.test(raw))
+        if (tempTokenDead) {
           setTokenExpired(true)
           setFormError("Sesi verifikasi sudah kedaluwarsa. Silakan masuk kembali.")
           return
         }
+        if (backendCode === "TOO_MANY_REQUESTS" || err.code === "RATE_LIMITED" || err.status === 403) {
+          setTokenExpired(true)
+          setFormError(
+            retryAfterMessage(err, "Terlalu banyak percobaan kode. Masuk kembali untuk memulai verifikasi baru."),
+          )
+          return
+        }
+        if (err.code === "ACCOUNT_LOCKED") {
+          setTokenExpired(true)
+          setFormError(retryAfterMessage(err, userMessage(err)))
+          return
+        }
         if (err.code === "UNAUTHORIZED" || err.code === "BAD_REQUEST" || err.code === "VALIDATION") {
-          setFieldError("Kode tidak valid. Periksa kembali 6 digit kode lalu coba lagi.")
+          // #FE-I3: copy per mode — kode cadangan 10–16 karakter, bukan 6 digit.
+          setFieldError(
+            mode === "totp"
+              ? "Kode tidak valid. Periksa kembali 6 digit kode lalu coba lagi."
+              : "Kode cadangan tidak valid atau sudah pernah dipakai. Coba kode lain.",
+          )
           if (mode === "totp") {
             setTotp("")
             otpRef.current?.focus()
           }
-          return
-        }
-        if (err.code === "RATE_LIMITED") {
-          setFormError(userMessage(err))
           return
         }
       }
@@ -165,9 +191,15 @@ export default function VerifyTwoFactorScreen() {
 
   const handleBackToLogin = useCallback(() => {
     clearPendingTwoFactorLogin()
+    // #FE-N3: dari alur OTP WhatsApp, layar di belakang (verify-otp) sudah
+    // mati — kembali ke hub masuk, bukan `back()` ke layar zombie.
+    if (pending?.origin === "otp") {
+      router.replace(ROUTES.login)
+      return
+    }
     if (router.canGoBack()) router.back()
     else router.replace(ROUTES.login)
-  }, [router])
+  }, [router, pending?.origin])
 
   // A2F-02: hardware back = seperti tombol visual (bersihkan state 2FA dulu).
   useFocusEffect(

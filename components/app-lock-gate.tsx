@@ -171,8 +171,21 @@ export function AppLockGate({ sessionActive }: { sessionActive: boolean }) {
     }
   }, [unlock])
 
+  /**
+   * Audit Auth 2026-10-10 (#FE-S3): jalan keluar darurat dulu hanya
+   * `clearSession()` LOKAL — sesi server (refresh token 7 hari) tetap hidup
+   * dan masih bisa dipakai bila token sempat bocor. Kini lewat
+   * `api.auth.logout()`: mencabut sesi di server (best-effort, retry +
+   * penjadwalan ulang saat offline) DAN membersihkan sesi lokal apa pun
+   * hasilnya — pengguna tidak pernah terjebak di layar kunci.
+   */
   const handleSignOut = useCallback(() => {
-    void clearSession().catch((err) => logWarn("app-lock:sign-out", err))
+    void api.auth
+      .logout()
+      .catch((err) => {
+        logWarn("app-lock:sign-out", err)
+        return clearSession().catch((cleanupErr) => logWarn("app-lock:sign-out-clear", cleanupErr))
+      })
   }, [])
 
   // UX-A11Y-002: saat overlay kunci muncul, umumkan ke screen reader.

@@ -59,7 +59,14 @@ import { isOfflineKnown, useIsOnline } from "@/lib/connectivity"
 import { safeWhatsAppLink } from "@/lib/external-url"
 import { formatPhoneId } from "@/lib/format"
 import { getAuthLocation } from "@/lib/location"
-import { getOtpFlow, patchOtpFlow, setOtpFlow } from "@/lib/otp-flow"
+import {
+  clearOtpFlow,
+  getOtpFlow,
+  otpTriggerCooldownRemainingMs,
+  patchOtpFlow,
+  setOtpFlow,
+} from "@/lib/otp-flow"
+import { retryAfterMessage, useRetryCooldown } from "@/lib/retry-cooldown"
 import { setPendingMigrationToken } from "@/lib/phone-migration-token"
 import { AuthFlowLoading, AuthFlowMissing } from "@/lib/auth-flow-gate"
 import { useOtpFlow } from "@/lib/use-otp-flow"
@@ -132,6 +139,19 @@ export default function WhatsappTriggerScreen() {
   // Dibaca dari `flow` (reaktif) supaya deeplink & kedaluwarsa ikut berganti
   // setiap kali trigger baru diminta atau alur baru terpulihkan.
   const waUrl = safeWhatsAppLink(flow?.whatsappUrl)
+  /**
+   * #FE-L3: cooldown "Minta kode baru" dari `lastTriggerAt` alur (persisten,
+   * 60 d — selaras cooldown per nomor backend) + 429 server. Dulu tombol ini
+   * tanpa cooldown sama sekali: tiap ketukan membuat trigger (refCode) baru.
+   */
+  const requestCooldown = useRetryCooldown()
+  const lastTriggerAt = flow?.lastTriggerAt
+  useEffect(() => {
+    const remaining = otpTriggerCooldownRemainingMs(flow)
+    if (remaining > 0) requestCooldown.start(remaining)
+    // Hanya saat trigger berganti — `requestCooldown` stabil (useMemo).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lastTriggerAt])
 
   const [formError, setFormError] = useState<string | null>(null)
   /**
@@ -419,16 +439,25 @@ export default function WhatsappTriggerScreen() {
     // B-08: URL yang tidak lolos whitelist TIDAK dibuka apa pun adanya —
     // tampilkan instruksi manual (kode refCode tetap terlihat di layar).
     if (!waUrl) {
+      // #FE-I14: template literal tidak bisa masuk katalog i18n — pakai
+      // translate dengan placeholder.
       setFormError(
         flow?.triggerText
-          ? `Tidak bisa membuka WhatsApp otomatis. Kirim pesan "${flow.triggerText}" ke ${KAHADE_WHATSAPP_NUMBER} dari nomor Anda.`
-          : `Tidak bisa membuka WhatsApp otomatis. Kirim pesan berisi kode di atas ke ${KAHADE_WHATSAPP_NUMBER} dari nomor Anda.`,
+          ? translate('Tidak bisa membuka WhatsApp otomatis. Kirim pesan "{x}" ke {y} dari nomor Anda.', {
+              x: flow.triggerText,
+              y: KAHADE_WHATSAPP_NUMBER,
+            })
+          : translate("Tidak bisa membuka WhatsApp otomatis. Kirim pesan berisi kode di atas ke {x} dari nomor Anda.", {
+              x: KAHADE_WHATSAPP_NUMBER,
+            }),
       )
       return
     }
     void Linking.openURL(waUrl).catch(() => {
       setFormError(
-        `Tidak bisa membuka WhatsApp. Kirim pesan berisi kode di atas manual ke ${KAHADE_WHATSAPP_NUMBER}.`,
+        translate("Tidak bisa membuka WhatsApp. Kirim pesan berisi kode di atas manual ke {x}.", {
+          x: KAHADE_WHATSAPP_NUMBER,
+        }),
       )
     })
   }, [waUrl, flow])
@@ -439,7 +468,7 @@ export default function WhatsappTriggerScreen() {
    * mengirim pesan pemicu (keputusan produk, anti-bekukan nomor bot).
    */
   const handleRequestNew = useCallback(async () => {
-    if (requesting || !phoneNumber || !purpose) return
+    if (requesting || !phoneNumber || !purpose || requestCooldown.isCoolingDown) return
     setRequesting(true)
     setFormError(null)
     setAltAuth(null)
@@ -467,13 +496,17 @@ export default function WhatsappTriggerScreen() {
       setReturnedEmpty(false)
       startedAt.current = Date.now()
     } catch (err) {
+      if (requestCooldown.startFromError(err)) {
+        setFormError(retryAfterMessage(err, "Terlalu banyak permintaan kode. Tunggu sebentar lalu coba lagi."))
+        return
+      }
       setFormError(
         isApiError(err) ? userMessage(err) : "Gagal meminta kode baru. Coba lagi sebentar.",
       )
     } finally {
       setRequesting(false)
     }
-  }, [requesting, phoneNumber, purpose, flow])
+  }, [requesting, phoneNumber, purpose, flow, requestCooldown])
 
   /**
    * Jalan keluar saat alur tidak ditemukan (deep-link/reload langsung ke
@@ -620,6 +653,10 @@ export default function WhatsappTriggerScreen() {
                   <TextLink
                     onPress={() => {
                       stopPolling()
+                      // #FE-N4: keluar lintas-alur = alur OTP ini ditinggalkan;
+                      // jangan biarkan nomor + refCode (+ migrationToken)
+                      // bertahan di SecureStore untuk pengguna berikutnya.
+                      clearOtpFlow()
                       router.replace(altAuth === "login" ? ROUTES.login : ROUTES.register)
                     }}
                   >
@@ -636,12 +673,17 @@ export default function WhatsappTriggerScreen() {
 
         <FooterBar>
           <View className="gap-3">
-            <Button variant="secondary" onPress={() => void handleRequestNew()} loading={requesting}>
-              Minta kode baru
+            <Button
+              variant="secondary"
+              onPress={() => void handleRequestNew()}
+              loading={requesting}
+              disabled={requestCooldown.isCoolingDown}
+            >
+              {requestCooldown.label("Minta kode baru")}
             </Button>
             <View className="flex-row items-center justify-center gap-6">
               {/* Jalan lintas-alur tetap generik untuk semua purpose (anti-enumerasi). */}
-              <TextLink onPress={() => { stopPolling(); router.replace(ROUTES.login) }}>Masuk</TextLink>
+              <TextLink onPress={() => { stopPolling(); clearOtpFlow(); router.replace(ROUTES.login) }}>Masuk</TextLink>
               <TextLink onPress={handleBack}>Kembali</TextLink>
               {purpose === "forgot_password" && formError ? (
                 <TextLink onPress={() => router.push(ROUTES.faq)}>Minta bantuan</TextLink>

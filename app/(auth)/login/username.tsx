@@ -14,7 +14,7 @@ import { LoginPasswordForm } from "@/components/auth/login-password-form"
 
 export default function LoginUsernameScreen() {
   const { next } = useLocalSearchParams<{ next?: string }>()
-  const nextPath = typeof next === "string" && next.startsWith("/") ? next : undefined
+  const nextPath = sanitizeNextPath(next) ?? undefined
 
   return (
     <LoginMethodScreen

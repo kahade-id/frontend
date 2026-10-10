@@ -65,7 +65,8 @@ function providerFromParam(method?: string): SocialProvider | undefined {
 export default function LoginScreen() {
   const router = useRouter()
   const { next, method } = useLocalSearchParams<{ next?: string; method?: string }>()
-  const nextPath = typeof next === "string" && next.startsWith("/") ? next : undefined
+  // #FE-N1: sanitasi terpusat (tolak //host, skema, backslash) — lihat lib/login-redirect.
+  const nextPath = sanitizeNextPath(next) ?? undefined
   const legacyMethod = typeof method === "string" ? method : undefined
   const session = useAuthSession()
   const [autoStartProvider] = useState<SocialProvider | undefined>(() =>

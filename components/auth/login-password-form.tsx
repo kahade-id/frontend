@@ -5,6 +5,7 @@
  */
 import { useCallback, useRef, useState } from "react"
 import { View, type TextInputInstance } from "react-native"
+import { ScreenCaptureGuard } from "@/components/security/screen-capture-guard"
 import { Alert } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { CaptchaSlider } from "@/components/ui/captcha-slider"
@@ -23,6 +24,7 @@ import { validateLoginIdentifier, type PasswordLoginMethod } from "@/lib/login-m
 import { ROUTES } from "@/lib/routes"
 import { setPendingMigrationToken } from "@/lib/phone-migration-token"
 import { setPendingTwoFactorLogin } from "@/lib/two-factor-login"
+import { retryAfterMessage, useRetryCooldown } from "@/lib/retry-cooldown"
 import { useLoginNavigation } from "@/components/auth/use-login-navigation"
 import { usePasskeyLogin } from "@/components/auth/use-passkey-login"
 
@@ -48,6 +50,9 @@ export function LoginPasswordForm({ method, nextPath }: Props) {
   const [captchaLoading, setCaptchaLoading] = useState(false)
   const [captchaError, setCaptchaError] = useState<string | null>(null)
   const passwordRef = useRef<TextInputInstance>(null)
+  // #FE-L1/#FE-L2: lockout akun & 429 mengunci tombol dengan hitung mundur
+  // nyata (durasi dari server), bukan teks "tunggu beberapa saat".
+  const cooldown = useRetryCooldown()
 
   const identifierValidation = validateLoginIdentifier(method, identifier)
   const identifierError = identifierTouched || loginAttempted ? identifierValidation ?? undefined : undefined
@@ -110,7 +115,7 @@ export function LoginPasswordForm({ method, nextPath }: Props) {
 
   const handleLogin = useCallback(async () => {
     setLoginAttempted(true)
-    if (!isFormValid || submitting || captchaBlocksLogin) return
+    if (!isFormValid || submitting || captchaBlocksLogin || cooldown.isCoolingDown) return
 
     const trimmedIdentifier = identifier.trim()
     setSubmitting(true)
@@ -148,17 +153,23 @@ export function LoginPasswordForm({ method, nextPath }: Props) {
           return
         }
         if (err.code === "ACCOUNT_LOCKED") {
-          const remaining = (err as { lockoutRemainingSeconds?: number }).lockoutRemainingSeconds
-          const minutes = remaining ? Math.ceil(remaining / 60) : null
+          // #FE-L1: `lockoutRemainingSeconds` tiba lewat `retryAfterMs`
+          // (body → transport), bukan properti ad-hoc yang tidak pernah ada.
+          cooldown.startFromError(err)
           setFormError(
-            minutes
-              ? `Akun terkunci sementara karena terlalu banyak percobaan gagal. Coba lagi dalam ${minutes} menit.`
-              : "Akun terkunci sementara karena terlalu banyak percobaan gagal. Tunggu beberapa saat sebelum mencoba lagi.",
+            retryAfterMessage(
+              err,
+              "Akun terkunci sementara karena terlalu banyak percobaan gagal. Tunggu beberapa saat sebelum mencoba lagi.",
+              "Akun terkunci sementara karena terlalu banyak percobaan gagal",
+            ),
           )
           return
         }
         if (err.code === "RATE_LIMITED") {
-          setFormError("Terlalu banyak percobaan. Tunggu beberapa saat sebelum mencoba lagi.")
+          cooldown.startFromError(err)
+          setFormError(
+            retryAfterMessage(err, "Terlalu banyak percobaan. Tunggu beberapa saat sebelum mencoba lagi."),
+          )
           return
         }
         if (err.code === "VALIDATION" || err.code === "BAD_REQUEST") {
@@ -181,6 +192,7 @@ export function LoginPasswordForm({ method, nextPath }: Props) {
     captchaAnswer,
     finishCredentialLogin,
     loadCaptcha,
+    cooldown,
   ])
 
   const forgotPassword = useCallback(() => {
@@ -190,6 +202,9 @@ export function LoginPasswordForm({ method, nextPath }: Props) {
   const emailMode = method === "email"
 
   return (
+    // #FE-I10: kata sandi bisa ditampilkan lewat toggle mata — lindungi dari
+    // screenshot/app switcher seperti layar OTP/PIN.
+    <ScreenCaptureGuard>
     <VStack gap={4}>
       <VStack gap={4}>
         <Input
@@ -290,9 +305,14 @@ export function LoginPasswordForm({ method, nextPath }: Props) {
       <Button
         onPress={() => void handleLogin()}
         loading={submitting}
-        disabled={!canAttempt || captchaBlocksLogin || (challenge !== null && captchaAnswer === null)}
+        disabled={
+          !canAttempt ||
+          captchaBlocksLogin ||
+          cooldown.isCoolingDown ||
+          (challenge !== null && captchaAnswer === null)
+        }
       >
-        Masuk
+        {cooldown.label("Masuk")}
       </Button>
 
       {/* Jalan keluar selalu terlihat: menunggu dua kegagalan dulu (perilaku
@@ -304,5 +324,6 @@ export function LoginPasswordForm({ method, nextPath }: Props) {
         </TextLink>
       </View>
     </VStack>
+    </ScreenCaptureGuard>
   )
 }

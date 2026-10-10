@@ -384,7 +384,13 @@ export default function SetupProfileScreen() {
             </Button>
 
             {avatarError ? (
-              <Text variant="caption" tone="danger" className="text-center">
+              <Text
+                variant="caption"
+                tone="danger"
+                className="text-center"
+                accessibilityRole="alert"
+                accessibilityLiveRegion="assertive"
+              >
                 {avatarError}
               </Text>
             ) : avatarUploading ? (
