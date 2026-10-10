@@ -143,6 +143,8 @@ export function useApiQuery<TRaw, T = TRaw>(
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [errorStatus, setErrorStatus] = useState<number | null>(null)
+  /** Kode ApiError untuk error fatal (mis. BAD_REQUEST dari seg() tanpa status HTTP). */
+  const [errorCode, setErrorCode] = useState<string | null>(null)
   /**
    * T4-008 (audit UI/UX intuitif 2026-09-29): error NON-FATAL dari refresh
    * (pull-to-refresh / refresh-on-focus / revalidasi) yang gagal padahal
@@ -152,6 +154,12 @@ export function useApiQuery<TRaw, T = TRaw>(
    * (load awal tanpa data).
    */
   const [refreshError, setRefreshError] = useState<string | null>(null)
+  /**
+   * DT-02 (audit etalase 2026-10-10): status HTTP error refresh — layar bisa
+   * membedakan "item hilang" (404/410/403) dari "jaringan" tanpa
+   * menghancurkan data lama.
+   */
+  const [refreshErrorStatus, setRefreshErrorStatus] = useState<number | null>(null)
   /**
    * Ada/tidaknya data — dibaca di dalam `load` (callback yang di-memo)
    * supaya keputusan fatal-vs-refresh memakai nilai terbaru, bukan yang
@@ -163,6 +171,7 @@ export function useApiQuery<TRaw, T = TRaw>(
   const load = useCallback(
     async (refresh = false, background = false) => {
       setErrorStatus(null)
+      setErrorCode(null)
       current.current?.abort()
       const controller = new AbortController()
       current.current = controller
@@ -177,6 +186,7 @@ export function useApiQuery<TRaw, T = TRaw>(
         setOfflineMiss(false)
         // T4-008: ikut direset — data ikut di-nul-kan di bawah.
         setRefreshError(null)
+        setRefreshErrorStatus(null)
         setRaw(null)
         releaseMarker()
         return
@@ -203,6 +213,7 @@ export function useApiQuery<TRaw, T = TRaw>(
         setRefreshing(false)
         setError(null)
         setRefreshError(null)
+        setRefreshErrorStatus(null)
         return
       }
       // F-03: cache per key — dua layar yang memakai data yang sama (mis.
@@ -220,6 +231,7 @@ export function useApiQuery<TRaw, T = TRaw>(
           // data segar dari cache berarti tidak ada lagi yang perlu
           // diperingatkan.
           setRefreshError(null)
+          setRefreshErrorStatus(null)
           /**
            * C-04 (audit): stale-while-revalidate. Entri yang sudah berumur
            * melewati CACHE_REVALIDATE_AFTER_MS TIDAK boleh disajikan sebagai
@@ -247,6 +259,7 @@ export function useApiQuery<TRaw, T = TRaw>(
           setRefreshing(false)
           setError(null)
           setRefreshError(null)
+          setRefreshErrorStatus(null)
           if (
             Date.now() - persisted.at >= CACHE_REVALIDATE_AFTER_MS &&
             markQueryRevalidating(key)
@@ -282,6 +295,7 @@ export function useApiQuery<TRaw, T = TRaw>(
         // T4-008: banner refresh-error lama ikut dibersihkan saat percobaan
         // baru dimulai — ia akan muncul lagi bila percobaan ini juga gagal.
         if (!background) setRefreshError(null)
+        if (!background) setRefreshErrorStatus(null)
         try {
           const next = await fetchRef.current(controller.signal)
           if (
@@ -323,7 +337,9 @@ export function useApiQuery<TRaw, T = TRaw>(
             }
             setError(null)
             setRefreshError(null)
+            setRefreshErrorStatus(null)
             setErrorStatus(null)
+            setErrorCode(null)
             settle()
             releaseMarker()
             return
@@ -361,10 +377,14 @@ export function useApiQuery<TRaw, T = TRaw>(
           // banner inline via `refreshError`). Tanpa data sama sekali →
           // error fatal seperti sebelumnya.
           const msg = userMessage(error)
-          if (hasData.current) setRefreshError(msg)
-          else {
+          const status = error instanceof ApiError ? error.status ?? null : null
+          if (hasData.current) {
+            setRefreshError(msg)
+            setRefreshErrorStatus(status)
+          } else {
             setError(msg)
-            setErrorStatus(error instanceof ApiError ? error.status ?? null : null)
+            setErrorStatus(status)
+            setErrorCode(error instanceof ApiError ? error.code : null)
           }
           settle()
           return
@@ -520,12 +540,14 @@ export function useApiQuery<TRaw, T = TRaw>(
       refreshing,
       error,
       errorStatus,
+      errorCode,
       refreshError,
+      refreshErrorStatus,
       offline: !online,
       offlineMiss,
       refresh,
       reload,
     }),
-    [data, setData, loading, refreshing, error, errorStatus, refreshError, online, offlineMiss, refresh, reload],
+    [data, setData, loading, refreshing, error, errorStatus, errorCode, refreshError, refreshErrorStatus, online, offlineMiss, refresh, reload],
   )
 }

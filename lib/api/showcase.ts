@@ -78,6 +78,14 @@ export type ShowcaseSocialItem = {
   visibility?: string
   isActive?: boolean
   /**
+   * DT-11 (audit etalase 2026-10-10): tipe produk & harga coret (IDR) dari
+   * payload detail/owner. Dulu parser membuangnya — detail hanya menampilkan
+   * harga coret dari cache PATCH sesi ini (= hanya pemilik yang melihatnya),
+   * dan seksi jadwal jasa dimuat untuk semua produk.
+   */
+  productType?: "JASA" | "FISIK" | "DIGITAL" | "LAINNYA" | null
+  originalPriceIdr?: number | null
+  /**
    * KONTRAK FINAL Tim A (2026-09-28): `images[]` berisi objek kaya
    * `ShowcaseMedia` — image | video (imageUrl = berkas video, thumbnailUrl =
    * poster) | spin360 (imageUrl = satu frame, groupKey + groupOrder).
@@ -1110,6 +1118,10 @@ export function parseShowcaseItem(raw: unknown): ShowcaseSocialItem {
       : undefined,
     // D1-011: flag commerce eksplisit (pengganti pemicu "orderLink ada").
     isCommerce: value.isCommerce === true,
+    // DT-11: tipe produk & harga coret dari payload (detail/owner); feed
+    // (excerpt) tidak mengirimnya → undefined.
+    productType: parseProductType(value.productType),
+    originalPriceIdr: parseOriginalPriceIdr(value),
     // Karya terkait (audit Discovery 2026-09-26): backend mengirim `related`
     // (maks 6, bentuk serialize sama) di respons detail — parser sebelumnya
     // MEMBUANG field ini sehingga section "Karya terkait" di [id].tsx tidak
@@ -1194,4 +1206,27 @@ export function parseShowcaseComment(raw: unknown): ShowcaseComment {
       avatarUrl: typeof author.avatarUrl === "string" ? author.avatarUrl : null,
     },
   }
+}
+
+// ---------------------------------------------------------------------------
+// DT-11 (audit etalase 2026-10-10): field commerce pada payload etalase.
+// ---------------------------------------------------------------------------
+
+function parseProductType(value: unknown): ShowcaseSocialItem["productType"] {
+  if (value === null) return null
+  return value === "JASA" || value === "FISIK" || value === "DIGITAL" || value === "LAINNYA" ? value : undefined
+}
+
+/**
+ * Harga coret dalam IDR. Backend mengirim `originalPriceIdr` (IDR, BE-1)
+ * dan `originalPrice` lama dalam SEN (kontrak PATCH /v1/commerce/products) —
+ * yang lama dikonversi, bukan dipakai apa adanya.
+ */
+function parseOriginalPriceIdr(value: Record<string, unknown>): number | null | undefined {
+  const idr = value.originalPriceIdr
+  if (typeof idr === "number" && Number.isFinite(idr)) return idr > 0 ? idr : null
+  const sen = value.originalPrice
+  if (typeof sen === "number" && Number.isFinite(sen)) return sen > 0 ? sen / 100 : null
+  if (sen === null || idr === null) return null
+  return undefined
 }

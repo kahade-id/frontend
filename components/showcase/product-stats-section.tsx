@@ -88,10 +88,13 @@ export function ProductStatsSection({ showcaseId }: { showcaseId: string }) {
   useLanguage()
   const [state, setState] = useState<StatsState>({ kind: "loading" })
   const mounted = useRef(true)
+  /** DT-10: request yang berjalan dibatalkan saat unmount / muat ulang. */
+  const abortRef = useRef<AbortController | null>(null)
   useEffect(() => {
     mounted.current = true
     return () => {
       mounted.current = false
+      abortRef.current?.abort()
     }
   }, [])
 
@@ -99,7 +102,9 @@ export function ProductStatsSection({ showcaseId }: { showcaseId: string }) {
     // Retry dari error memakai data terakhir sebagai latar (bukan skeleton
     // penuh) bila sudah ada; dari awal tetap skeleton.
     setState((prev) => (prev.kind === "ready" || prev.kind === "error" ? prev : { kind: "loading" }))
+    abortRef.current?.abort()
     const controller = new AbortController()
+    abortRef.current = controller
     try {
       const stats = await getProductStats(showcaseId, controller.signal)
       if (!mounted.current || !stats) throw new Error("empty")

@@ -203,10 +203,6 @@
    "n": 11
   },
   {
-   "s": "Buat transaksi",
-   "n": 11
-  },
-  {
    "s": "Memuat…",
    "n": 11
   },
@@ -284,6 +280,10 @@
   },
   {
    "s": "Buat template",
+   "n": 9
+  },
+  {
+   "s": "Buat transaksi",
    "n": 9
   },
   {
@@ -1271,6 +1271,10 @@
    "n": 5
   },
   {
+   "s": "Tidak aktif",
+   "n": 5
+  },
+  {
    "s": "Tombol Tanya Stok",
    "n": 5
   },
@@ -1400,6 +1404,10 @@
   },
   {
    "s": "Bayar dengan metode lain",
+   "n": 4
+  },
+  {
+   "s": "Beli via Kahade",
    "n": 4
   },
   {
@@ -1872,6 +1880,10 @@
   },
   {
    "s": "Status pembayaran belum pasti — cek status sekarang, atau bayar dengan metode lain.",
+   "n": 4
+  },
+  {
+   "s": "Stok habis",
    "n": 4
   },
   {
@@ -2900,10 +2912,6 @@
   },
   {
    "s": "Field berikut diubah di perangkat atau sesi lain sejak Anda mulai mengedit: {x}. Menyimpan sekarang akan menimpa perubahan tersebut.",
-   "n": 3
-  },
-  {
-   "s": "File",
    "n": 3
   },
   {
@@ -3959,6 +3967,10 @@
    "n": 3
   },
   {
+   "s": "Memuat jadwal jasa",
+   "n": 3
+  },
+  {
    "s": "Memuat lencana…",
    "n": 3
   },
@@ -4575,10 +4587,6 @@
    "n": 3
   },
   {
-   "s": "Respons server tidak lengkap.",
-   "n": 3
-  },
-  {
    "s": "Respons unggahan tidak valid.",
    "n": 3
   },
@@ -5132,10 +5140,6 @@
   },
   {
    "s": "Tidak ada yang cocok di mutasi yang dimuat",
-   "n": 3
-  },
-  {
-   "s": "Tidak aktif",
    "n": 3
   },
   {
@@ -5835,10 +5839,6 @@
    "n": 2
   },
   {
-   "s": "Beli via Kahade",
-   "n": 2
-  },
-  {
    "s": "Belum ada alamat",
    "n": 2
   },
@@ -6531,6 +6531,10 @@
    "n": 2
   },
   {
+   "s": "Etalase ini privat",
+   "n": 2
+  },
+  {
    "s": "Etalase ini sudah tidak ada di daftar hapus",
    "n": 2
   },
@@ -6560,6 +6564,10 @@
   },
   {
    "s": "Field commerce gagal disimpan — coba lagi nanti.",
+   "n": 2
+  },
+  {
+   "s": "File",
    "n": 2
   },
   {
@@ -8207,6 +8215,10 @@
    "n": 2
   },
   {
+   "s": "Pemilik membatasi siapa yang bisa melihatnya.",
+   "n": 2
+  },
+  {
    "s": "Penarikan",
    "n": 2
   },
@@ -8484,6 +8496,10 @@
   },
   {
    "s": "Pesan tidak diteruskan",
+   "n": 2
+  },
+  {
+   "s": "Pesanan belum bisa dibuka. Coba lagi.",
    "n": 2
   },
   {
@@ -9084,10 +9100,6 @@
   },
   {
    "s": "Stiker harga",
-   "n": 2
-  },
-  {
-   "s": "Stok habis",
    "n": 2
   },
   {
@@ -20883,6 +20895,10 @@
    "n": 1
   },
   {
+   "s": "Respons server tidak lengkap.",
+   "n": 1
+  },
+  {
    "s": "Respons unggahan tidak memuat lampiran.",
    "n": 1
   },
@@ -22055,7 +22071,7 @@
    "n": 1
   },
   {
-   "s": "Tautan harus diawali http(s)://",
+   "s": "Tautan harus https:// dan tanpa nama pengguna/kata sandi.",
    "n": 1
   },
   {
