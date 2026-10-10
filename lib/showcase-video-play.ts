@@ -7,7 +7,8 @@
  *   SELALU false, bahkan setelah video dimuat manual. Video hanya diputar
  *   dari aksi eksplisit pengguna (`userPlay`: ketuk poster "Putar video"
  *   atau ketuk video), yang dicabut saat pengguna pindah slide.
- * - Mode hemat data MATI → perilaku lama: autoplay bila sinyal aktif.
+ * - Mode hemat data MATI → autoplay bila sinyal aktif, ATAU niat eksplisit
+ *   pengguna (`userPlay`) — permukaan tanpa autoplay tetap bisa memutar.
  *
  * Diekstrak sebagai fungsi murni supaya bisa diuji tanpa JSX.
  */
@@ -24,8 +25,12 @@ export interface VideoPlayInput {
 
 export function resolveVideoShouldPlay(input: VideoPlayInput): boolean {
   if (input.gated) return false
-  if (input.dataSaver) return input.userPlay
-  return input.autoplaySignal
+  // FD-02 (audit etalase 2026-10-10): niat eksplisit pengguna SELALU memutar
+  // bila tidak gated. Dulu di luar mode hemat data hanya sinyal autoplay yang
+  // dihitung, sehingga tombol putar di permukaan tanpa autoplay (tab Etalase
+  // profil, kartu terkait) tidak melakukan apa-apa.
+  if (input.userPlay) return true
+  return !input.dataSaver && input.autoplaySignal
 }
 
 /**

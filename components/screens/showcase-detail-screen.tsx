@@ -12,7 +12,7 @@ import {
   type ViewInstance,
 } from "react-native"
 import { runOnJS } from "react-native-reanimated"
-import { useLocalSearchParams, router } from "expo-router"
+import { useIsFocused, useLocalSearchParams, router } from "expo-router"
 import { translate } from "@/lib/i18n/translate"
 import { useLanguage } from "@/lib/i18n"
 import { formatNumber } from "@/lib/format"
@@ -281,6 +281,9 @@ function ShowcaseDetailContent({
   const [meUsername, setMeUsername] = useState<string | null>(null)
   /** Index foto yang dibuka di <ImageViewer>; null = viewer tertutup. */
   const [viewerIndex, setViewerIndex] = useState<number | null>(null)
+  // FD-01 (audit etalase 2026-10-10): layar detail tetap ter-mount saat
+  // pengguna push ke chat/transaksi — video harus pause & melepas slot player.
+  const isFocused = useIsFocused()
   const viewerOpeningTap = useRef<OpeningMediaTap | undefined>(undefined)
   const composerRef = useRef<TextInputInstance>(null)
 
@@ -1088,7 +1091,7 @@ function ShowcaseDetailContent({
           onDoubleTap={() => {
             if (!liked) toggleLike()
           }}
-          autoplayActive={viewerIndex == null}
+          autoplayActive={viewerIndex == null && isFocused}
           // C01: rasio slide pertama untuk placeholder di luar jendela render.
           aspectRatio={resolvedMedia[0]?.aspectRatio ?? 1}
           // PERF-FIX (2026-09-30): slide aktif full-res, sisanya thumbnail.

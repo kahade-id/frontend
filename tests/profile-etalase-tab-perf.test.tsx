@@ -2,9 +2,11 @@
 /**
  * FS-001 + FS-002 (audit performa ronde 3) — regresi tab Etalase profil:
  *
- * - FS-001: EtalaseCard SELALU meneruskan autoplayActive={false} ke
+ * - FS-001: EtalaseCard SELALU meneruskan autoplay={false} ke
  *   <ShowcaseFeedItem> (video profil hanya via ketuk eksplisit — tab ini
- *   tidak punya viewability wiring seperti feed utama).
+ *   tidak punya viewability wiring seperti feed utama). FD-02 (audit etalase
+ *   2026-10-10): prop-nya `autoplay`, BUKAN `autoplayActive` — yang terakhir
+ *   ikut mematikan ketuk eksplisit sehingga tombol putar tidak berfungsi.
  * - FS-002: windowing inkremental — mount awal dibatasi (10 kartu, bukan
  *   20), tombol "Tampilkan etalase lainnya" +20/ketuk dipertahankan, dan
  *   memo(EtalaseCard) tidak jebol (render ulang induk tidak me-render ulang
@@ -134,7 +136,7 @@ describe("ProfileEtalaseTab FS-001/FS-002 (audit performa)", () => {
     expect(ids.has("big-30")).toBe(false)
   })
 
-  it("FS-001: SEMUA kartu menerima autoplayActive={false} (tidak ada regresi)", async () => {
+  it("FS-001/FD-02: SEMUA kartu menerima autoplay={false} tanpa mematikan autoplayActive (ketuk putar tetap hidup)", async () => {
     const items = Array.from({ length: 100 }, (_, i) => raw(`big-${i}`))
     render(
       h(ProfileEtalaseTab, { items, loading: false, handle: "penjual", owner, isSelf: true }),
@@ -142,15 +144,17 @@ describe("ProfileEtalaseTab FS-001/FS-002 (audit performa)", () => {
     await waitFor(() => expect(mountedCount()).toBe(10))
     expect(mocks.feedProps.length).toBeGreaterThan(0)
     for (const props of mocks.feedProps) {
-      expect(props.autoplayActive).toBe(false)
+      expect(props.autoplay).toBe(false)
+      expect(props.autoplayActive).not.toBe(false)
     }
-    // Setelah muat-bertahap pun tetap false.
+    // Setelah muat-bertahap pun tetap sama.
     await act(async () => {
       ;(screen.getByText("Tampilkan etalase lainnya") as HTMLElement).click()
     })
     await waitFor(() => expect(mountedCount()).toBe(30))
     for (const props of mocks.feedProps) {
-      expect(props.autoplayActive).toBe(false)
+      expect(props.autoplay).toBe(false)
+      expect(props.autoplayActive).not.toBe(false)
     }
   })
 

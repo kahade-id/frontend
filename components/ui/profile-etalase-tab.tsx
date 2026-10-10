@@ -73,11 +73,13 @@ export type ProfileEtalaseTabProps = {
  * Kartu memo: membaca state sosialnya sendiri (store bersama) — menekan ♥
  * di sini langsung terlihat di feed/detail dan sebaliknya (A-07/C-06).
  *
- * FS-001 (audit performa): `autoplayActive={false}` SELALU — kartu ini
- * dirender di dalam ScrollView profil tanpa viewability wiring seperti feed
- * utama, jadi default `true` membuat 2 video pertama memegang slot player
- * (cap LR-008) dan terus memutar walau off-screen. Video profil hanya
- * diputar via ketuk eksplisit (konsisten dengan gerbang WiFi-only NP-002).
+ * FS-001 (audit performa): `autoplay={false}` SELALU — kartu ini dirender
+ * di dalam ScrollView profil tanpa viewability wiring seperti feed utama,
+ * jadi autoplay membuat 2 video pertama memegang slot player (cap LR-008)
+ * dan terus memutar walau off-screen. Video profil hanya diputar via ketuk
+ * eksplisit (konsisten dengan gerbang WiFi-only NP-002). FD-02 (audit
+ * etalase 2026-10-10): dulu memakai `autoplayActive={false}` yang ikut
+ * mematikan ketuk eksplisit — tombol putar tidak melakukan apa-apa.
  *
  * FS-002 (audit performa): memo yang TIDAK jebol — `display` di-memo dan
  * semua callback ke <ShowcaseFeedItem> stabil (useCallback), sehingga
@@ -128,7 +130,7 @@ const EtalaseCard = memo(function EtalaseCard({
         onReport={handleReport}
         onManage={handleManage}
         divider={divider}
-        autoplayActive={false}
+        autoplay={false}
       />
       <ShowcaseShareSheet visible={shareSheetVisible} item={display} onClose={handleCloseShare} />
     </>

@@ -40,7 +40,7 @@ import type { GalleryMedia } from "@/lib/showcase-social"
  */
 const DOUBLE_TAP_MS = 300
 
-export function ShowcaseMediaGallery({ media, title, onOpen, onDoubleTap, autoplayActive = true, aspectRatio = 1, activeFullRes = false }: {
+export function ShowcaseMediaGallery({ media, title, onOpen, onDoubleTap, autoplayActive = true, autoplay = true, aspectRatio = 1, activeFullRes = false }: {
   /** Urutan media persis seperti yang dipakai `onOpen` (indeks = indeks media). */
   media: GalleryMedia[]
   title: string
@@ -52,6 +52,13 @@ export function ShowcaseMediaGallery({ media, title, onOpen, onDoubleTap, autopl
    * Kartu feed mengirim "kartu terlihat"; halaman detail mengirim true.
    */
   autoplayActive?: boolean
+  /**
+   * FD-02 (audit etalase 2026-10-10): false = video TIDAK pernah mulai
+   * sendiri (tab Etalase profil, kartu terkait — tanpa wiring viewability),
+   * tetapi tombol putar tetap bekerja. Dulu permukaan ini mengirim
+   * `autoplayActive={false}` yang ikut mematikan niat putar eksplisit.
+   */
+  autoplay?: boolean
   /**
    * C01 (batch 139): rasio slide pertama dari respons list — dipakai
    * placeholder di luar jendela render (±1 slide) agar pager tidak bergeser
@@ -223,7 +230,7 @@ export function ShowcaseMediaGallery({ media, title, onOpen, onDoubleTap, autopl
                     // PERF-FIX (2026-09-30): poster slide aktif prioritas high.
                     active={index === page}
                     // Item 16: autoplay hanya bila slide aktif & terlihat & tidak di-pause manual.
-                    shouldPlay={autoplayActive && index === page && !paused[m.id]}
+                    shouldPlay={autoplay && autoplayActive && index === page && !paused[m.id]}
                     // Item 59 strict: dalam mode hemat data, autoplay TIDAK
                     // PERNAH diizinkan — bahkan setelah video dimuat manual.
                     dataSaver={dataSaver}
@@ -357,12 +364,13 @@ function VideoSlide({
             </Text>
           </View>
         ) : (
-          // Kontrol FeedVideo internal tidak boleh mengambil ketukan permukaan.
-          <View style={{ pointerEvents: "none" }}>
-            <FeedVideo source={media.url} poster={media.posterUrl} alt={title}
-              shouldPlay={effectiveShouldPlay} muted={muted} aspectRatio={slideAspectRatio}
-              userInitiatedPlay={userPlay} posterPriority={active ? "high" : "low"} />
-          </View>
+          // FD-03: `embedded` — permukaan video meneruskan ketukan ke slide
+          // (viewer), tetapi tombol "Coba lagi" di dalam FeedVideo tetap bisa
+          // diketuk. Dulu seluruh FeedVideo `pointerEvents:none`: retry mati
+          // dan ketukannya justru membuka viewer.
+          <FeedVideo source={media.url} poster={media.posterUrl} alt={title}
+            shouldPlay={effectiveShouldPlay} muted={muted} aspectRatio={slideAspectRatio}
+            userInitiatedPlay={userPlay} posterPriority={active ? "high" : "low"} embedded />
         )}
       </PressableScale>
       {/* Kontrol adalah saudara permukaan: tidak memicu viewer atau suka. */}

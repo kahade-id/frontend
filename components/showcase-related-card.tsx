@@ -60,7 +60,9 @@ export const ShowcaseRelatedCard = memo(function ShowcaseRelatedCard({
         onShare={share}
         onReport={onReport ? handleReport : undefined}
         divider={divider}
-        autoplayActive={false}
+        // FD-02: tanpa autoplay (tak ada wiring viewability), tapi tombol
+        // putar tetap bekerja — `autoplayActive={false}` dulu mematikannya.
+        autoplay={false}
       />
       <ShowcaseShareSheet visible={shareSheetVisible} item={display} onClose={handleCloseShare} />
     </>

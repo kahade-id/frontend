@@ -47,40 +47,10 @@ import { useLanguage } from "@/lib/i18n"
 import type { MediaSource } from "@/lib/media"
 import { useConnectionType } from "@/lib/connectivity"
 import { supportsVideoModule } from "@/lib/showcase-video-play"
+import { acquireVideoPlayerSlot, releaseVideoPlayerSlot, waitForVideoPlayerSlot } from "@/lib/video-player-slots"
 
-/**
- * LR-008 (perf-fix): batas player video konkuren. Setiap <FeedVideo> yang
- * me-mount player native menambah hitungan; bila sudah mencapai batas,
- * video menampilkan poster saja sampai ada slot bebas. Mencegah N player
- * berebut decoder/memori saat beberapa video ter-mount bersamaan (mis.
- * gallery + viewer + pratinjau).
- */
-const MAX_CONCURRENT_VIDEO_PLAYERS = 2
-let activeVideoPlayers = 0
-const videoPlayerWaiters: Array<() => void> = []
-
-function acquireVideoPlayerSlot(): boolean {
-  if (activeVideoPlayers < MAX_CONCURRENT_VIDEO_PLAYERS) {
-    activeVideoPlayers += 1
-    return true
-  }
-  return false
-}
-
-function releaseVideoPlayerSlot() {
-  activeVideoPlayers = Math.max(0, activeVideoPlayers - 1)
-  const next = videoPlayerWaiters.shift()
-  if (next) {
-    activeVideoPlayers += 1
-    next()
-  }
-}
-
-function waitForVideoPlayerSlot(): Promise<void> {
-  return new Promise((resolve) => {
-    videoPlayerWaiters.push(resolve)
-  })
-}
+// LR-008: batas player video konkuren — lihat lib/video-player-slots.ts
+// (dipisah & diperbaiki pada audit etalase 2026-10-10, FD-01).
 
 /** Hasil guarded-require expo-video; null = modul tak tersedia di bundle. */
 type ExpoVideoModule = typeof import("expo-video") | null
@@ -195,6 +165,15 @@ export type FeedVideoProps = Omit<ViewProps, "children"> & {
    * semua <Picture> poster & state gagal.
    */
   posterPriority?: "high" | "normal" | "low"
+  /**
+   * FD-03 (audit etalase 2026-10-10): true bila video di-host di dalam
+   * permukaan yang memiliki ketukan (slide galeri → viewer). Permukaan video
+   * dan poster inert meneruskan sentuhan ke induk; hanya kontrol yang
+   * benar-benar bisa ditindak (tombol "Coba lagi") yang menangkapnya. Poster
+   * gerbang WiFi dirender TANPA tombol putar — induk punya kontrol sendiri
+   * (dulu dua ikon putar tampil bersamaan, yang besar tidak bisa diketuk).
+   */
+  embedded?: boolean
 }
 
 /**
@@ -340,6 +319,7 @@ function ExpoVideoInner({
   allowTapToggle,
   userInitiatedPlay = false,
   posterPriority,
+  embedded = false,
 }: {
   source: string
   poster?: MediaSource
@@ -355,6 +335,8 @@ function ExpoVideoInner({
   userInitiatedPlay?: boolean
   /** PERF-FIX (2026-09-30): prioritas unduhan poster/fallback. */
   posterPriority?: "high" | "normal" | "low"
+  /** FD-03: lihat FeedVideoProps.embedded. */
+  embedded?: boolean
 }) {
   // i18n: label aksesibilitas mengikuti bahasa aktif.
   useLanguage()
@@ -421,6 +403,11 @@ function ExpoVideoInner({
   // putar otomatis; poster + tombol putar, ketuk = niat eksplisit user.
   // Dilewati bila pemanggil sudah memastikan niat eksplisit (userInitiatedPlay).
   if (gated) {
+    // FD-03/VI-07: di dalam galeri, tombol putar milik induk — poster di sini
+    // inert supaya tidak ada dua ikon putar (yang besar tak bisa diketuk).
+    if (embedded) {
+      return <VideoPoster poster={poster} alt={alt} aspectRatio={aspectRatio} priority={posterPriority} />
+    }
     return (
       <VideoPoster
         poster={poster}
@@ -456,6 +443,7 @@ function ExpoVideoInner({
       poster={poster}
       alt={alt}
       posterPriority={posterPriority}
+      embedded={embedded}
     />
   )
 }
@@ -477,20 +465,31 @@ function ExpoVideoPlayer(props: {
   alt: string
   /** PERF-FIX (2026-09-30): prioritas unduhan poster saat slot penuh. */
   posterPriority?: "high" | "normal" | "low"
+  /** FD-03: lihat FeedVideoProps.embedded. */
+  embedded?: boolean
 }) {
-  const [hasSlot, setHasSlot] = useState(() => acquireVideoPlayerSlot())
+  // FD-01 (audit etalase 2026-10-10): slot diminta di EFFECT, bukan di
+  // initializer state — render yang dibuang React tanpa commit tidak boleh
+  // memegang slot tanpa cleanup. Satu cleanup menangani semua jalur: cancel
+  // bila masih mengantre, release bila sudah memegang (termasuk slot yang
+  // diserahkan lewat `onGranted`). Versi lama membiarkan resolver pemohon
+  // yang sudah unmount tetap di antrean → slot bocor permanen.
+  const [hasSlot, setHasSlot] = useState(false)
   useEffect(() => {
-    let cancelled = false
-    if (!hasSlot) {
-      void waitForVideoPlayerSlot().then(() => {
-        if (!cancelled) setHasSlot(true)
+    let owned = acquireVideoPlayerSlot()
+    let cancel: (() => void) | null = null
+    if (owned) setHasSlot(true)
+    else {
+      cancel = waitForVideoPlayerSlot(() => {
+        owned = true
+        setHasSlot(true)
       })
     }
     return () => {
-      cancelled = true
-      if (hasSlot) releaseVideoPlayerSlot()
+      cancel?.()
+      if (owned) releaseVideoPlayerSlot()
     }
-  }, [hasSlot])
+  }, [])
   if (!hasSlot) {
     return <VideoPoster poster={props.poster} alt={props.alt} aspectRatio={props.aspectRatio} priority={props.posterPriority} />
   }
@@ -509,6 +508,7 @@ const ExpoVideoPlayerInner = memo(function ExpoVideoPlayerInner({
   nativeControls,
   allowTapToggle,
   onError,
+  embedded = false,
 }: {
   source: string
   aspectRatio: number
@@ -523,6 +523,8 @@ const ExpoVideoPlayerInner = memo(function ExpoVideoPlayerInner({
    * dipakai player (tanpa poster), hanya agar tipe spread tetap valid.
    */
   posterPriority?: "high" | "normal" | "low"
+  /** FD-03: permukaan video meneruskan sentuhan ke induk (slide galeri). */
+  embedded?: boolean
 }) {
   // i18n: label aksesibilitas mengikuti bahasa aktif.
   useLanguage()
@@ -600,7 +602,10 @@ const ExpoVideoPlayerInner = memo(function ExpoVideoPlayerInner({
   const frame = (
     <View
       className="relative w-full overflow-hidden bg-surface"
-      style={{ aspectRatio }}
+      // FD-03: di dalam galeri, permukaan video bukan target sentuhan —
+      // ketukan jatuh ke slide (buka viewer). Ketuk-toggle pratinjau tetap
+      // butuh sentuhan, jadi dikecualikan.
+      style={{ aspectRatio, pointerEvents: embedded && !allowTapToggle ? "none" : undefined }}
     >
       <VideoView
         player={player}
@@ -640,6 +645,7 @@ export function FeedVideo({
   aspectRatio = 1,
   className,
   posterPriority,
+  embedded = false,
   ...rest
 }: FeedVideoProps) {
   // i18n: label aksesibilitas mengikuti bahasa aktif.
@@ -662,6 +668,7 @@ export function FeedVideo({
           allowTapToggle={allowTapToggle}
           userInitiatedPlay={userInitiatedPlay}
           posterPriority={posterPriority}
+          embedded={embedded}
         />
       </VideoErrorBoundary>
     </View>

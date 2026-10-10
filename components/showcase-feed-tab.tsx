@@ -220,6 +220,21 @@ function publishVisibleIds(next: ReadonlySet<string>): void {
     if (listeners) for (const listener of listeners) listener()
   }
 }
+/**
+ * FD-01 (audit etalase 2026-10-10): fokus layar ikut menentukan "terlihat".
+ * Tab Expo tetap ter-mount saat pengguna push ke detail/chat, jadi tanpa ini
+ * kartu video yang terlihat terus memutar di latar & memegang slot player.
+ * Hanya kartu yang sedang terlihat yang di-notify (mereka yang berubah).
+ */
+let feedFocused = true
+function publishFeedFocused(next: boolean): void {
+  if (feedFocused === next) return
+  feedFocused = next
+  for (const id of visibleIdsSnapshot) {
+    const listeners = visibilityListenersById.get(id)
+    if (listeners) for (const listener of listeners) listener()
+  }
+}
 function subscribeVisibleId(itemId: string, listener: VisibilityListener): () => void {
   let set = visibilityListenersById.get(itemId)
   if (!set) {
@@ -243,7 +258,7 @@ export function useFeedItemVisible(itemId: string): boolean {
     (listener: VisibilityListener) => subscribeVisibleId(itemId, listener),
     [itemId],
   )
-  const getSnapshot = useCallback(() => visibleIdsSnapshot.has(itemId), [itemId])
+  const getSnapshot = useCallback(() => feedFocused && visibleIdsSnapshot.has(itemId), [itemId])
   return useSyncExternalStore(subscribe, getSnapshot)
 }
 
@@ -946,6 +961,11 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
    * following cukup disegarkan tarik-ke-bawah (A-13) atau oleh dirty.
    */
   const isFocused = useIsFocused()
+  // FD-01: layar tidak fokus → tidak ada kartu yang "terlihat" → video pause
+  // & slot player dilepas (lihat publishFeedFocused).
+  useEffect(() => {
+    publishFeedFocused(isFocused)
+  }, [isFocused])
   useEffect(() => {
     if (!isFocused) return
     const current = showcaseFeedDirtyVersion()

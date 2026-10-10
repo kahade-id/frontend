@@ -112,6 +112,11 @@ export type ShowcaseFeedItemProps = {
    */
   autoplayActive?: boolean
   /**
+   * FD-02 (audit etalase 2026-10-10): false = video tidak mulai sendiri
+   * (permukaan tanpa wiring viewability), tombol putar tetap bekerja.
+   */
+  autoplay?: boolean
+  /**
    * Opsi untuk karya MILIK SENDIRI (edit/hapus) — ditampilkan sebagai
    * DotsThreeCircle di profile. Jika tidak disediakan, tombol disembunyikan
    * untuk karya sendiri (lapor tidak masuk akal untuk karya sendiri).
@@ -211,6 +216,7 @@ function ShowcaseFeedItemBase({
   onOptions,
   onManage,
   autoplayActive = true,
+  autoplay = true,
   nonInteractive = false,
   divider = false,
   className,
@@ -471,6 +477,7 @@ function ShowcaseFeedItemBase({
             onOpen={handleOpenMedia}
             onDoubleTap={!nonInteractive && onToggleLike ? handleMediaDoubleTap : undefined}
             autoplayActive={autoplayActive}
+            autoplay={autoplay}
             // C01: rasio slide pertama untuk placeholder di luar jendela render.
             aspectRatio={gallery[0]?.aspectRatio ?? 1}
           />
