@@ -1,14 +1,15 @@
 {
-  "Etalase dihapus permanen setelah 30 hari.": "Listings are permanently deleted after 30 days.",
+  "Etalase dihapus permanen setelah {x} hari.": "Listings are permanently deleted after {x} days.",
   "Etalase ini privat": "This listing is private",
   "Etalase ini sudah tidak ada di daftar hapus": "This listing is no longer in the deleted list",
   "Gagal memuat daftar.": "Couldn't load the list.",
-  "Hapus komentar?": "Delete comment?",
   "Komentar yang dihapus tidak bisa dikembalikan.": "Deleted comments can't be restored.",
   "Masa pemulihan sudah lewat": "The restore window has passed",
   "Memuat jadwal jasa": "Loading service schedule",
   "Mungkin sudah dipulihkan dari perangkat lain.": "It may have been restored from another device.",
   "Pemilik membatasi siapa yang bisa melihatnya.": "The owner limits who can see it.",
   "Pesanan belum bisa dibuka. Coba lagi.": "The order couldn't be opened yet. Try again.",
-  "Tautan harus https:// dan tanpa nama pengguna/kata sandi.": "The link must use https:// and contain no username/password."
+  "Rating {x},{x}+": "{x}.{x}+ rating",
+  "Tautan harus https:// dan tanpa nama pengguna/kata sandi.": "The link must use https:// and contain no username/password.",
+  "Tidak ada koneksi internet": "No internet connection"
 }

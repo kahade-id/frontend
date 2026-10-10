@@ -18,6 +18,8 @@ export interface SearchResultMessageInput {
   loading: boolean
   /** Jumlah baris hasil yang sedang ditampilkan. */
   count: number
+  /** AP-01: offline tanpa cache — bukan "tidak ada hasil". */
+  offline?: boolean
 }
 
 /**
@@ -25,8 +27,9 @@ export interface SearchResultMessageInput {
  * Urutan prioritas mengikuti render app/search.tsx: error > loading >
  * kosong > jumlah hasil.
  */
-export function buildResultMessage({ enabled, error, loading, count }: SearchResultMessageInput): string {
+export function buildResultMessage({ enabled, error, loading, count, offline }: SearchResultMessageInput): string {
   if (!enabled || loading) return ""
+  if (offline) return translate("Tidak ada koneksi internet")
   if (error) return error
   if (count === 0) return translate("Tidak ada hasil")
   return translate("{x} hasil ditemukan", { x: formatNumber(count) })

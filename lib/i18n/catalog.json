@@ -115,6 +115,10 @@
    "n": 13
   },
   {
+   "s": "Baru",
+   "n": 13
+  },
+  {
    "s": "Buang",
    "n": 13
   },
@@ -152,10 +156,6 @@
   },
   {
    "s": "Ambil foto",
-   "n": 12
-  },
-  {
-   "s": "Baru",
    "n": 12
   },
   {
@@ -271,6 +271,10 @@
    "n": 9
   },
   {
+   "s": "Bekas",
+   "n": 9
+  },
+  {
    "s": "Belum ada etalase",
    "n": 9
   },
@@ -337,10 +341,6 @@
   {
    "s": "Tidak bisa membagikan",
    "n": 9
-  },
-  {
-   "s": "Bekas",
-   "n": 8
   },
   {
    "s": "Belum dibaca",
@@ -4579,6 +4579,10 @@
    "n": 3
   },
   {
+   "s": "Rating {x}+",
+   "n": 3
+  },
+  {
    "s": "Reaksi",
    "n": 3
   },
@@ -8671,10 +8675,6 @@
    "n": 2
   },
   {
-   "s": "Rating {x}+",
-   "n": 2
-  },
-  {
    "s": "Rating penjual",
    "n": 2
   },
@@ -9440,6 +9440,10 @@
   },
   {
    "s": "Tidak ada gambar",
+   "n": 2
+  },
+  {
+   "s": "Tidak ada koneksi internet",
    "n": 2
   },
   {
@@ -16411,6 +16415,10 @@
    "n": 1
   },
   {
+   "s": "Kata kunci ini hanya bisa dihapus lewat Hapus riwayat.",
+   "n": 1
+  },
+  {
    "s": "Kata kunci pencarian pesan",
    "n": 1
   },
@@ -20787,6 +20795,10 @@
    "n": 1
   },
   {
+   "s": "Rating {x},{x}+",
+   "n": 1
+  },
+  {
    "s": "Rating Anda",
    "n": 1
   },
@@ -22424,10 +22436,6 @@
   },
   {
    "s": "Tidak ada kode QR",
-   "n": 1
-  },
-  {
-   "s": "Tidak ada koneksi internet",
    "n": 1
   },
   {

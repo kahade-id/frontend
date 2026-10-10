@@ -100,6 +100,11 @@ export function ShowcaseFilterSheet({
     onRequestClose()
   }
 
+  // UX-23 (audit etalase 2026-10-10): label opsi diterjemahkan di sini —
+  // konstanta modul tidak lewat `translate()` sehingga chip tetap Indonesia
+  // di UI English.
+  const conditionOptions = CONDITION_OPTIONS.map((o) => ({ ...o, label: translate(o.label) }))
+  const ratingOptions = RATING_OPTIONS.map((o) => ({ ...o, label: translate(o.label) }))
   return (
     <BottomSheet
       visible={visible}
@@ -133,7 +138,7 @@ export function ShowcaseFilterSheet({
           <ChipGroup
             accessibilityLabel={translate("Saring berdasarkan kondisi barang")}
             single
-            options={CONDITION_OPTIONS}
+            options={conditionOptions}
             value={[draft.condition]}
             onChange={setCondition}
           />
@@ -146,7 +151,7 @@ export function ShowcaseFilterSheet({
           <ChipGroup
             accessibilityLabel={translate("Saring berdasarkan rating penjual minimum")}
             single
-            options={RATING_OPTIONS}
+            options={ratingOptions}
             value={[draft.minRating]}
             onChange={setRating}
           />

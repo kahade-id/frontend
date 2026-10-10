@@ -499,23 +499,22 @@ export function addShowcaseComment(
   dto: { content: string; parentId?: string },
   idempotencyKey?: string,
 ) {
-  return http.post<ShowcaseComment, { content: string; parentId?: string }>(
-    `/v1/showcase/${seg(showcaseId)}/comments`,
-    dto,
-    {
+  // AP-03 (audit etalase 2026-10-10): respons mutasi diparse seperti jalur
+  // GET — dulu objek mentah (bisa ack `{message}` tanpa `author`) langsung
+  // disisipkan ke daftar → TypeError saat render.
+  return http
+    .post<unknown, { content: string; parentId?: string }>(`/v1/showcase/${seg(showcaseId)}/comments`, dto, {
       auth: "required",
       ...(idempotencyKey ? { headers: { "Idempotency-Key": idempotencyKey } } : {}),
-    },
-  )
+    })
+    .then(parseShowcaseComment)
 }
 
 /** PATCH /v1/showcase/comments/:commentId — edit komentar sendiri. */
 export function updateShowcaseComment(commentId: string, content: string) {
-  return http.patch<ShowcaseComment, { content: string }>(
-    `/v1/showcase/comments/${seg(commentId)}`,
-    { content },
-    { auth: "required" },
-  )
+  return http
+    .patch<unknown, { content: string }>(`/v1/showcase/comments/${seg(commentId)}`, { content }, { auth: "required" })
+    .then(parseShowcaseComment)
 }
 
 /** DELETE /v1/showcase/comments/:commentId — pengarang ATAU pemilik item. */
@@ -533,18 +532,16 @@ export function hideShowcaseComment(
   commentId: string,
   reason: "SPAM" | "INAPPROPRIATE" | "HARASSMENT" | "OTHER",
 ) {
-  return http.post<ShowcaseComment, { reason: string }>(
-    `/v1/showcase/comments/${seg(commentId)}/hide`,
-    { reason },
-    { auth: "required" },
-  )
+  return http
+    .post<unknown, { reason: string }>(`/v1/showcase/comments/${seg(commentId)}/hide`, { reason }, { auth: "required" })
+    .then(parseShowcaseComment)
 }
 
 /** POST /v1/showcase/comments/:commentId/unhide — buka kembali komentar. */
 export function unhideShowcaseComment(commentId: string) {
-  return http.post<ShowcaseComment>(`/v1/showcase/comments/${seg(commentId)}/unhide`, undefined, {
+  return http.post<unknown>(`/v1/showcase/comments/${seg(commentId)}/unhide`, undefined, {
     auth: "required",
-  })
+  }).then(parseShowcaseComment)
 }
 
 /**
@@ -791,16 +788,22 @@ export function getSavedShowcases(
           return []
         }
       })
+      const nextCursor =
+        typeof record.nextCursor === "string" && record.nextCursor && record.nextCursor !== params.cursor
+          ? record.nextCursor
+          : null
       return {
         data,
         page,
         limit,
         total,
         totalPages,
-        hasNext: typeof record.nextCursor === "string" ? true : record.hasNext === true,
+        // AP-08 (audit etalase 2026-10-10): kursor kosong / tidak maju (sama
+        // dengan yang diminta) = tidak ada halaman berikut — dulu "" dianggap
+        // masih ada halaman → "Muat lagi" meminta halaman 1 lagi (duplikat).
+        hasNext: nextCursor != null ? true : record.hasNext === true,
         hasPrev: record.hasPrev === true,
-        // NP-008: kehadiran nextCursor = masih ada halaman berikut.
-        nextCursor: typeof record.nextCursor === "string" ? record.nextCursor : null,
+        nextCursor,
       } satisfies SavedShowcasesPage
     })
 }
@@ -810,7 +813,9 @@ export function addSavedShowcase(showcaseId: string) {
   return http.post<void, Record<string, never>>(
     `/v1/showcase/saved/${seg(showcaseId)}`,
     {},
-    { auth: "required", retry: 1 },
+    // AP-04: `retry` pada non-GET diabaikan transport (dipaksa 0) dan membuat
+    // `check:retry` (gerbang anti double-mutation) merah — dihapus.
+    { auth: "required" },
   )
 }
 
@@ -818,7 +823,6 @@ export function addSavedShowcase(showcaseId: string) {
 export function removeSavedShowcase(showcaseId: string) {
   return http.delete<void>(`/v1/showcase/saved/${seg(showcaseId)}`, {
     auth: "required",
-    retry: 1,
   })
 }
 
