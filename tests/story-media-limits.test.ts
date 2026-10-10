@@ -14,6 +14,7 @@ import {
   STORY_MEDIA_MAX_BYTES,
   STORY_VIDEO_MAX_BYTES,
   STORY_VIDEO_MAX_DURATION_MS,
+  normalizeStoryMime,
   storyImageNeedsReencode,
   storyMediaKindOf,
   validateStoryMediaAsset,
@@ -103,6 +104,16 @@ describe("validateStoryMediaAsset — video", () => {
 
   it("durasi tak dilaporkan → fail-open (server yang memutuskan)", () => {
     expect(validateStoryMediaAsset(video({ durationMs: undefined }))).toBeNull()
+  })
+})
+
+describe("normalizeStoryMime", () => {
+  it("image/jpg (picker Android) → image/jpeg; lainnya apa adanya", () => {
+    expect(normalizeStoryMime("image/jpg")).toBe("image/jpeg")
+    expect(normalizeStoryMime("IMAGE/JPG")).toBe("image/jpeg")
+    expect(normalizeStoryMime("image/png")).toBe("image/png")
+    expect(normalizeStoryMime("video/quicktime")).toBe("video/quicktime")
+    expect(normalizeStoryMime("")).toBe("")
   })
 })
 

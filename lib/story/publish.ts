@@ -20,7 +20,7 @@
  */
 import { createStory, uploadStoryMedia, type StoryMediaKind } from "@/lib/api/story"
 import { pickedImageToFormData, resizePickedImage, type PickedImage } from "@/lib/image-picker"
-import { storyImageNeedsReencode } from "@/lib/story-media-limits"
+import { normalizeStoryMime, storyImageNeedsReencode } from "@/lib/story-media-limits"
 import { buildCreateInput, isMediaStoryKind, type StoryDraft } from "@/lib/story/compose"
 import {
   addPendingStoryLocal,
@@ -61,7 +61,10 @@ function newLocalId(): string {
  */
 async function prepareStoryImage(asset: PickedImage): Promise<PickedImage> {
   const resized = await resizePickedImage(asset)
-  if (!storyImageNeedsReencode(resized)) return resized
+  if (!storyImageNeedsReencode(resized)) {
+    const mimeType = normalizeStoryMime(resized.mimeType)
+    return mimeType === resized.mimeType ? resized : { ...resized, mimeType }
+  }
   try {
     const { manipulateAsync, SaveFormat } = await import("expo-image-manipulator")
     const result = await manipulateAsync(resized.uri, [], { compress: 0.86, format: SaveFormat.JPEG })

@@ -56,6 +56,15 @@ export function storyMediaKindOf(asset: Pick<PickedImage, "mimeType" | "name">):
 }
 
 /**
+ * MIME deklarasi yang dikirim ke server. `image/jpg` (non-standar, dilaporkan
+ * sebagian picker Android) lolos guard tetapi ditolak server 415 — server
+ * hanya mengenal `image/jpeg`. Selain itu dikembalikan apa adanya.
+ */
+export function normalizeStoryMime(mime: string): string {
+  return mime.toLowerCase() === "image/jpg" ? "image/jpeg" : mime
+}
+
+/**
  * True bila foto harus dikonversi ke JPEG di klien sebelum upload — HEIC/HEIF
  * (default kamera iPhone) ditolak server dengan 415 `STORY_MEDIA_TYPE`, dan
  * `resizePickedImage` hanya mengonversi bila sisi terpanjang > 1920 px.
