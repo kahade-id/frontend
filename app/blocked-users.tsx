@@ -109,13 +109,15 @@ export default function BlockedUsersScreen() {
         setUnblockingId(null)
       }
     },
-    [setData, toast.show],
+    [setData, toast.show, query],
   )
 
   // FE-065: handler stabil per-id untuk baris yang di-memo.
+  // Audit 2026-10-10: dependensi `[, query]` (elisi + objek query) membuat
+  // handler dibuat ulang setiap fetch → semua baris memo ter-render ulang.
   const requestUnblock = useCallback((user: BlockedUser) => {
     setConfirmTarget(user)
-  }, [, query])
+  }, [])
 
   return (
     <>

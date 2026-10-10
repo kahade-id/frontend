@@ -200,7 +200,9 @@ function EnumRow<T extends string>({ title, description, value, options, labels,
 
 export default function PrivacySettingsScreen() {
   // Langganan bahasa: a11y label switch persetujuan (prop string, UI-M003).
-  useLanguage()
+  // Nilai bahasa juga dipakai memilih judul persetujuan dari backend
+  // (`title: { id, en }`).
+  const language = useLanguage()
   const toast = useToast()
   // Partial: server boleh mengirim subset; UI tidak boleh mengarang default.
   const query = useApiQuery<Partial<PrivacySettings>>("privacy-settings", (signal) =>
@@ -594,16 +596,30 @@ export default function PrivacySettingsScreen() {
           </>
         ) : null}
         {(consents.data ?? []).map((c) => {
+          // Audit 2026-10-10: jenis persetujuan baru dari backend (tidak ada
+          // di CONSENT_LABELS) sebelumnya membuat `meta.title` melempar →
+          // seluruh layar privasi crash. Fallback ke judul dari server
+          // (`title: {id,en}`, mengikuti bahasa aktif), lalu ke kode jenisnya.
           const meta = CONSENT_LABELS[c.type]
+          const serverTitle =
+            c.title && typeof c.title === "object"
+              ? (language === "en" ? c.title.en : c.title.id) || c.title.id || c.title.en
+              : undefined
+          const title = meta?.title ?? serverTitle ?? c.type
           const busy = consentPending.includes(c.type)
           return (
             <View key={c.type} className="flex-row items-center gap-3 px-5 py-3 opacity-100">
               <View className="flex-1">
-                <Text variant="body" weight={500}>{meta.title}</Text>
-                <Text variant="caption" tone="secondary">{meta.description}</Text>
+                <Text variant="body" weight={500}>{title}</Text>
+                {meta?.description ? (
+                  <Text variant="caption" tone="secondary">{meta.description}</Text>
+                ) : null}
                 {c.grantedAt ? (
                   <Text variant="caption" tone="secondary">
-                    {c.granted ? "Disetujui" : "Ditarik"} · v{c.policyVersion}
+                    {translate("{x} · v{y}", {
+                      x: c.granted ? translate("Disetujui") : translate("Ditarik"),
+                      y: c.policyVersion || "—",
+                    })}
                   </Text>
                 ) : null}
               </View>
@@ -614,7 +630,7 @@ export default function PrivacySettingsScreen() {
                 value={c.granted}
                 onChange={(next) => void handleConsentChange(c.type, next)}
                 disabled={!c.revocable || busy}
-                accessibilityLabel={translate(meta.title)}
+                accessibilityLabel={translate(title)}
                 className="self-center"
               />
             </View>
@@ -661,11 +677,10 @@ export default function PrivacySettingsScreen() {
         ) : null}
 
         <SectionHeader title="Data pribadi" />
+        {/* Audit 2026-10-10 (§3 "tidak banyak teks"): satu kalimat — rincian
+            isi arsip & kedaluwarsa tautan sudah dijelaskan di dialog ekspor. */}
         <Text variant="body" tone="secondary">
-          Anda berhak meminta salinan seluruh data pribadi yang kami simpan.
-          Arsip mencakup profil, pesanan, wallet, metadata chat (tanpa isi pesan),
-          sengketa, ulasan, dan aktivitas — dengan data sensitif (KYC/bank)
-          disamarkan. Setiap unduhan tercatat dan tautannya kedaluwarsa.
+          Minta salinan data pribadi yang Kahade simpan tentang Anda.
         </Text>
         <Button variant="secondary" leftIcon={DownloadSimple} onPress={() => setExportOpen(true)}>
           Minta salinan data saya
@@ -683,14 +698,22 @@ export default function PrivacySettingsScreen() {
                     <Text variant="body" weight={500}>
                       {item.format === "CSV" ? "Arsip CSV (ZIP)" : "Arsip JSON"}
                     </Text>
+                    {/* Audit 2026-10-10: children campuran tidak diterjemahkan
+                        otomatis — rangkai lewat translate() per potongan. */}
                     <Text variant="caption" tone="secondary">
-                      {formatDate(item.requestedAt)}
-                      {expired
-                        ? " · Kedaluwarsa"
-                        : ready && item.expiresAt
-                          ? ` · Berlaku hingga ${formatDate(item.expiresAt)}`
-                          : ""}
-                      {item.downloadCount > 0 ? ` · Diunduh ${item.downloadCount}×` : ""}
+                      {[
+                        formatDate(item.requestedAt),
+                        expired
+                          ? translate("Kedaluwarsa")
+                          : ready && item.expiresAt
+                            ? translate("Berlaku hingga {x}", { x: formatDate(item.expiresAt) })
+                            : null,
+                        item.downloadCount > 0
+                          ? translate("Diunduh {x}×", { x: item.downloadCount })
+                          : null,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
                     </Text>
                   </View>
                   {ready ? (
@@ -724,10 +747,9 @@ export default function PrivacySettingsScreen() {
       >
         {/* FE-IMP-3 #102 — tanggal permintaan terakhir SEBELUM konfirmasi. */}
         <Text variant="caption" tone="secondary" className="pt-1">
-          Terakhir diminta:{" "}
-          {lastExportAt
-            ? formatDate(lastExportAt)
-            : "belum pernah"}
+          {translate("Terakhir diminta: {x}", {
+            x: lastExportAt ? formatDate(lastExportAt) : translate("belum pernah"),
+          })}
         </Text>
         <View className="flex-row gap-2 pt-2">
           {(["json", "csv"] as const).map((fmt) => (
