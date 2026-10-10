@@ -26,6 +26,7 @@ import { PressableScale, type PressableScaleProps } from "@/components/ui/pressa
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { focusRing } from "@/lib/focus-ring"
+import { translate } from "@/lib/i18n/translate"
 import { tokens } from "@/lib/tokens"
 
 export type SearchFieldProps = Omit<InputProps, "variant" | "label"> & {
@@ -41,11 +42,14 @@ export const SearchField = forwardRef<TextInputInstance, SearchFieldProps>(funct
     onChangeText,
     onSubmitEditing,
     value,
-    placeholder = "Cari transaksi, pihak, atau ID",
+    placeholder,
     ...rest
   },
   ref,
 ) {
+  // Audit Search 2026-10-10 (S-40): placeholder default lewat i18n
+  // (sebelumnya literal Indonesia di parameter default).
+  const resolvedPlaceholder = placeholder ?? translate("Cari transaksi, pihak, atau ID")
   const latestSearch = useRef(onSearch)
   latestSearch.current = onSearch
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -63,7 +67,7 @@ export const SearchField = forwardRef<TextInputInstance, SearchFieldProps>(funct
       ref={ref}
       variant="search"
       value={value}
-      placeholder={placeholder}
+      placeholder={resolvedPlaceholder}
       autoFocus={rest.autoFocus ?? true}
       returnKeyType="search"
       autoCorrect={false}
@@ -95,16 +99,18 @@ export type SearchTriggerProps = Omit<PressableScaleProps, "children" | "classNa
  * Ref diteruskan agar bisa jadi `SearchOverlay.returnFocusRef` (audit #3).
  */
 export const SearchTrigger = forwardRef<ViewInstance, SearchTriggerProps>(function SearchTrigger(
-  { placeholder = "Cari transaksi, pihak, atau ID", variant = "default", className, containerClassName, ...rest },
+  { placeholder: placeholderProp, variant = "default", className, containerClassName, ...rest },
   ref,
 ) {
   const isElevated = variant === "elevated"
+  // S-40: default placeholder & hint lewat i18n.
+  const placeholder = placeholderProp ?? translate("Cari transaksi, pihak, atau ID")
   return (
     <PressableScale
       ref={ref}
       accessibilityRole="search"
       accessibilityLabel={placeholder}
-      accessibilityHint="Ketuk untuk mencari"
+      accessibilityHint={translate("Ketuk untuk mencari")}
       scaleOnPress={false}
       containerClassName={cn("w-full rounded-sm", focusRing, containerClassName)}
       className={cn(

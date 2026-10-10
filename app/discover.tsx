@@ -7,6 +7,8 @@
  */
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
+import { useLanguage } from "@/lib/i18n"
+import { translate } from "@/lib/i18n/translate"
 import { tokens } from "@/lib/tokens"
 
 import { Header } from "@/components/ui/header"
@@ -16,12 +18,15 @@ import { UsersTab } from "@/components/discover-users-tab"
 
 export default function DiscoverScreen() {
   const insets = useSafeAreaInsets()
+  // S-55 (audit Search 2026-10-10, batch 2): judul lewat i18n — dulu literal
+  // Indonesia (satu-satunya teks di layar ini yang tidak berganti bahasa).
+  useLanguage()
 
   return (
     <Screen edges={["top"]} padded={false}>
       <Header
         showBack={true}
-        title="Temukan pengguna"
+        title={translate("Temukan pengguna")}
       />
       <UsersTab bottomPadding={insets.bottom + tokens.space[8]} />
     </Screen>

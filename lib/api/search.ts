@@ -5,7 +5,7 @@
 import { asRecord, readEntity, invalidResponse, readList } from "@/lib/api/response"
 
 import { http } from "@/lib/api/client"
-import { ApiError } from "@/lib/api/errors"
+import { translate } from "@/lib/i18n/translate"
 import { normalizeOrder, type Order } from "@/lib/api/orders"
 import type { UserProfile } from "@/lib/api/users"
 import type { WalletTransaction } from "@/lib/api/wallet"
@@ -63,17 +63,26 @@ export function parseSearchShowcaseItem(raw: unknown): import("@/lib/api/showcas
   const record = asRecord(raw)
   if (!record || typeof record.id !== "string" || !record.id) return null
   const userId = typeof record.userId === "string" ? record.userId : ""
+  // Audit Search 2026-10-10 (S-41): backend kini mengirim rich card (item
+  // 105: coverImageUrl, priceMin/priceMax, likeCount, saveCount) — bentuk
+  // minimal lama membuang semuanya sehingga kartu selalu tanpa gambar/harga.
+  const count = (v: unknown) => (typeof v === "number" && Number.isFinite(v) && v >= 0 ? Math.floor(v) : 0)
+  const price = (v: unknown) => (typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : null)
+  const cover = typeof record.coverImageUrl === "string" && record.coverImageUrl.trim() ? record.coverImageUrl.trim() : null
   return {
     id: record.id,
     title:
-      typeof record.title === "string" && record.title.trim() ? record.title.trim() : "Tanpa judul",
+      typeof record.title === "string" && record.title.trim() ? record.title.trim() : translate("Tanpa judul"),
     description: typeof record.description === "string" ? record.description : null,
-    images: [],
-    likeCount: 0,
+    images: cover ? [{ id: `${record.id}:cover`, kind: "image", imageUrl: cover, sortOrder: 0 }] : [],
+    coverImageUrl: cover,
+    priceMin: price(record.priceMin),
+    priceMax: price(record.priceMax),
+    likeCount: count(record.likeCount),
     commentCount: 0,
     viewCount: 0,
     shareCount: 0,
-    saveCount: 0,
+    saveCount: count(record.saveCount),
     descriptionHtml: null,
     createdAt: typeof record.createdAt === "string" ? record.createdAt : "",
     updatedAt: typeof record.updatedAt === "string" ? record.updatedAt : "",
@@ -101,15 +110,40 @@ export type GlobalSearchResults = {
   showcase?: Array<import("@/lib/api/showcase").ShowcaseSocialItem>
   /** DC-014: total per jenis dari server (bukan hitungan rows lokal). */
   totals?: { users: number; orders: number; transactions: number; showcase: number; helpCenter: number }
-  /** DC-011: hint berbahasa Indonesia dari backend (2 kasus, tampil apa adanya). */
+  /**
+   * DC-011: hint berbahasa Indonesia dari backend (2 kasus). Audit Search
+   * 2026-10-10 (S-09): TIDAK lagi ditampilkan apa adanya — layar memakai
+   * `hintCode` yang diterjemahkan; `hint` disimpan hanya untuk telemetri.
+   */
   hint?: string
+  /** S-09: kode hint stabil dari backend (`HELP_CENTER_ONLY` | `NO_RESULTS`). */
+  hintCode?: SearchHintCode
   total?: number
 }
 
+export type SearchHintCode = "HELP_CENTER_ONLY" | "NO_RESULTS"
+
+export function parseSearchHintCode(raw: unknown): SearchHintCode | undefined {
+  return raw === "HELP_CENTER_ONLY" || raw === "NO_RESULTS" ? raw : undefined
+}
+
 export function globalSearch(
-  query: { q: string; types?: string; limit?: number; location?: string },
+  query: {
+    q: string
+    types?: string
+    limit?: number
+    location?: string
+    /**
+     * S-64 (audit Search 2026-10-10, batch 2): `false` = backend TIDAK menulis
+     * riwayat untuk request ini — klien mencatatnya sendiri sekali per kata
+     * kunci stabil lewat `recordSearchHistory`. Tanpa flag (klien lama)
+     * backend tetap menulis seperti dulu.
+     */
+    recordHistory?: boolean
+  },
   signal?: AbortSignal,
 ) {
+  const { recordHistory, ...rest } = query
   return http
     .get<unknown>("/v1/search", {
       // DC-016 (audit Discovery 2026-09-26): komentar lama ("hanya users,
@@ -118,7 +152,12 @@ export function globalSearch(
       // meminta help-center juga (DC-002); showcase TIDAK diminta di sini
       // (postingan dilayani feed etalase — paritas app/search.tsx).
       // `types` kosong ditolak backend (SEARCH_INVALID_TYPES).
-      query: { types: "users,orders,transactions,help-center", limit: 20, ...query },
+      query: {
+        types: "users,orders,transactions,help-center",
+        limit: 20,
+        ...rest,
+        ...(recordHistory === false ? { recordHistory: "false" } : {}),
+      },
       auth: "required",
       retry: 1,
       signal,
@@ -136,13 +175,9 @@ export function globalSearch(
       // limit memotong). Fallback ke hitungan lokal bila backend tak kirim.
       const totalsRaw = asRecord(result.totals)
       const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? Math.max(0, Math.floor(v)) : 0)
-      // AP-02 (audit etalase 2026-10-10): satu baris null/non-objek dari
-      // server dilewati per baris (pola showcase/helpCenter di bawah) — dulu
-      // TypeError meruntuhkan SELURUH hasil dengan "Terjadi kesalahan".
-      const transactions = (Array.isArray(result.transactions) ? result.transactions : []).flatMap((item) => {
-        const transaction = asRecord(item)
-        if (!transaction) return []
-        return [{
+      const transactions = (Array.isArray(result.transactions) ? result.transactions : []).map((item) => {
+        const transaction = item as Record<string, unknown>
+        return {
           ...transaction,
           // DC-004 (audit Discovery 2026-09-26): preseden DIBALIK agar sama
           // dengan normalizeWalletTransaction (txId ?? id). `id` dari search
@@ -150,7 +185,7 @@ export function globalSearch(
           // (where: {txId}); txId publik-lah namespace navigasi yang benar.
           id: String(transaction.txId ?? transaction.id ?? ""),
           referenceId: transaction.referenceId ?? transaction.reference_id,
-        } as WalletTransaction]
+        } as WalletTransaction
       })
       const helpCenter = (Array.isArray(result.helpCenter) ? result.helpCenter : []).flatMap((item) => {
         const parsed = parseSearchHelpArticle(item)
@@ -162,19 +197,17 @@ export function globalSearch(
       })
       return {
         ...result,
-        users: (Array.isArray(result.users) ? result.users : []).flatMap((item) => {
-          const user = asRecord(item)
-          if (!user) return []
-          return [{
+        users: (Array.isArray(result.users) ? result.users : []).map((item) => {
+          const user = item as Record<string, unknown>
+          return {
             ...user,
             id: String(user.id ?? user.userId ?? ""),
             verified: user.verified ?? user.isKycVerified,
-          }]
+          }
         }),
-        orders: (Array.isArray(result.orders) ? result.orders : []).flatMap((item) => {
-          const order = asRecord(item)
-          return order ? [normalizeOrder(order as Order & Record<string, unknown>)] : []
-        }),
+        orders: (Array.isArray(result.orders) ? result.orders : []).map((item) =>
+          normalizeOrder(item as Order & Record<string, unknown>),
+        ),
         transactions,
         helpCenter,
         showcase,
@@ -185,8 +218,8 @@ export function globalSearch(
           showcase: num(totalsRaw?.showcase),
           helpCenter: num(totalsRaw?.helpCenter),
         },
-        // DC-011: hint backend ditampilkan apa adanya (komentar S2 backend).
         hint: typeof result.hint === "string" && result.hint.trim() ? result.hint.trim() : undefined,
+        hintCode: parseSearchHintCode(result.hintCode),
       } as GlobalSearchResults
     })
 }
@@ -323,9 +356,39 @@ export function getSearchHistory(signal?: AbortSignal) {
     })
 }
 
-/** DELETE /v1/search/history — hapus riwayat pencarian user (kanonis, DC-017). */
+/**
+ * DELETE /v1/search/history — hapus riwayat pencarian user (kanonis, DC-017).
+ *
+ * Audit Search 2026-10-10 (S-43): backend kini mengirim `cleared:false` bila
+ * Redis gagal — dilempar sebagai error supaya layar TIDAK menampilkan riwayat
+ * seolah terhapus.
+ */
 export function clearSearchHistory(signal?: AbortSignal) {
-  return http.delete<unknown>("/v1/search/history", { auth: "required", signal })
+  return http.delete<unknown>("/v1/search/history", { auth: "required", signal }).then((raw) => {
+    const record = asRecord(raw)
+    if (record && record.cleared === false) throw invalidResponse("search.history.clear")
+    return raw
+  })
+}
+
+/**
+ * POST /v1/search/history — catat SATU kata kunci yang sudah stabil.
+ *
+ * Audit Search 2026-10-10 (S-02): riwayat server sebelumnya hanya terisi dari
+ * dalam `GET /v1/search`, padahal cakupan Postingan/Pengguna/Pesan memakai
+ * endpoint lain — pencarian produk (kasus paling umum) tidak pernah masuk
+ * riwayat. Best-effort: kegagalan tidak boleh mengganggu pencarian.
+ */
+export function recordSearchHistory(query: string) {
+  const q = query.trim()
+  if (q.length < 2) return Promise.resolve({ recorded: false as boolean })
+  return http
+    .post<{ recorded: boolean }, { query: string }>(
+      "/v1/search/history",
+      { query: q.slice(0, 200) },
+      { auth: "required" },
+    )
+    .catch(() => ({ recorded: false as boolean }))
 }
 
 /**
@@ -337,17 +400,7 @@ export function clearSearchHistory(signal?: AbortSignal) {
  * meng-encode (spasi, `&`, `?`, dsb. akan merusak path bila mentah).
  */
 export function deleteSearchHistoryItem(query: string, signal?: AbortSignal) {
-  // AP-06 (audit etalase 2026-10-10): "." / ".." / kosong tidak bisa jadi
-  // segmen path — URL dinormalkan (WHATWG/OkHttp) menjadi `/v1/search/` →
-  // 404 setiap kali. Gagalkan di klien dengan pesan yang bisa ditindak
-  // (kata kunci ini hanya bisa dihapus lewat "Hapus riwayat").
-  const trimmed = query.trim()
-  if (!trimmed || trimmed === "." || trimmed === "..") {
-    return Promise.reject(
-      new ApiError({ code: "BAD_REQUEST", message: "Kata kunci ini hanya bisa dihapus lewat Hapus riwayat." }),
-    )
-  }
-  return http.delete<unknown>(`/v1/search/history/${encodeURIComponent(trimmed)}`, {
+  return http.delete<unknown>(`/v1/search/history/${encodeURIComponent(query)}`, {
     auth: "required",
     signal,
   })

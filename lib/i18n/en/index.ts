@@ -30,9 +30,6 @@ import auth from "./auth.json"
 // chat-room (audit chat 2026-10): string baru dari perbaikan ruang chat —
 // satu berkas per batch terjemahan supaya bisa ditinjau tuntas.
 import chatRoom from "./chat-room.json"
-// notifications (audit Notifikasi 2026-10-10): caption status efektif,
-// ringkasan preferensi, dan layar detail — satu berkas per batch.
-import notifications from "./notifications.json"
 import errors from "./errors.json"
 import labels from "./labels.json"
 // profile (redesign Profil & Tanya Jawab): satu berkas per batch.
@@ -58,9 +55,9 @@ import screens9 from "./screens-9.json"
 // screens-10 (audit UI/UX 2026-09-28, TEXT-004): sisa string Indonesia yang
 // belum punya padanan English — satu berkas per batch terjemahan.
 import screens10 from "./screens-10.json"
-// showcase-audit (audit etalase 2026-10-10): string baru dari perbaikan
-// etalase — satu berkas per batch supaya bisa ditinjau tuntas.
-import showcaseAudit from "./showcase-audit.json"
+// search (audit Search & Explore 2026-10-10): string layar Pencarian, filter
+// feed etalase, dan tab Temukan yang dulu hardcode — satu berkas per batch.
+import search from "./search.json"
 import tabs from "./tabs.json"
 import ui from "./ui.json"
 
@@ -88,10 +85,9 @@ export const EN: Dict = {
   ...screens8,
   ...screens9,
   ...screens10,
+  ...search,
   ...chatRoom,
-  ...notifications,
   ...profile,
-  ...showcaseAudit,
   // Pesan error & label status dari peta di lib/ — yang paling sering muncul
   // saat jaringan bermasalah, jadi jangan sampai jatuh ke Bahasa Indonesia.
   ...errors,

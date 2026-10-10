@@ -325,7 +325,15 @@ export type ShowcaseFeedQuery = {
    */
   condition?: "baru" | "bekas"
   minSellerRating?: number
+  /**
+   * Audit Search 2026-10-10 (S-29): filter tipe produk — backend
+   * `?productType=JASA|FISIK|DIGITAL|LAINNYA` (BE-API2 item 121).
+   */
+  productType?: ShowcaseProductTypeFilter
 }
+
+export type ShowcaseProductTypeFilter = "JASA" | "FISIK" | "DIGITAL" | "LAINNYA"
+const PRODUCT_TYPE_FILTERS: ReadonlySet<string> = new Set(["JASA", "FISIK", "DIGITAL", "LAINNYA"])
 
 export type ShowcaseFeedPage = {
   items: ShowcaseSocialItem[]
@@ -385,6 +393,11 @@ export function getShowcaseFeed(query: ShowcaseFeedQuery = {}, signal?: AbortSig
           query.minSellerRating <= 5
             ? query.minSellerRating
             : undefined,
+        // S-29: hanya nilai enum backend yang dikirim (fail-closed).
+        productType:
+          typeof query.productType === "string" && PRODUCT_TYPE_FILTERS.has(query.productType)
+            ? query.productType
+            : undefined,
       },
       retry: 1,
     })
@@ -405,7 +418,8 @@ export function getShowcaseFeed(query: ShowcaseFeedQuery = {}, signal?: AbortSig
             return []
           }
         }),
-        sort: record.sort === "popular" ? "popular" : "latest",
+        // S-27: `foryou` ikut dikenali (dulu jatuh ke "latest").
+        sort: record.sort === "popular" || record.sort === "foryou" ? record.sort : "latest",
         limit: typeof record.limit === "number" ? record.limit : 20,
         hasMore: record.hasMore === true,
         nextCursor: typeof record.nextCursor === "string" ? record.nextCursor : null,

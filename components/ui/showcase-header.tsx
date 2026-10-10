@@ -139,7 +139,9 @@ export function ShowcaseHeader({ kind, onKindChange, tabs, onFilterPress, filter
                 trailingAction: {
                   icon: Funnel,
                   accessibilityLabel: translate("Filter etalase"),
-                  accessibilityHint: translate("Buka filter kondisi, rating, dan harga"),
+                  // S-75 (audit Search 2026-10-10, batch 2): hint menyebut
+                  // jenis produk — filter itu ada sejak S-29.
+                  accessibilityHint: translate("Buka filter jenis produk, kondisi, rating, dan harga"),
                   onPress: onFilterPress,
                   badgeCount: filterBadgeCount,
                 },
