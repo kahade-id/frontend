@@ -127,3 +127,18 @@ export function isValidSocialLinkInput(platform: string, rawUrl: string): boolea
   const host = getUrlDomain(safe)
   return host != null && host.includes(".")
 }
+
+/**
+ * E-16 (audit 2026-10-10): backend `PUT /users/me/links` menolak dua tautan
+ * dengan platform yang sama (409 "Duplicate social link platform"). Dipakai
+ * editor (tanda inline) dan layar edit (blokir simpan).
+ */
+export function hasDuplicateSocialPlatforms(links: readonly { platform: string }[]): boolean {
+  const seen = new Set<string>()
+  for (const link of links) {
+    const key = link.platform.trim().toLowerCase()
+    if (seen.has(key)) return true
+    seen.add(key)
+  }
+  return false
+}

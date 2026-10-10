@@ -18,5 +18,21 @@
   "Situs web": "Website",
   "Tautan harus diawali https:// (WhatsApp: nomor HP atau tautan wa.me)": "Link must start with https:// (WhatsApp: phone number or wa.me link)",
   "Tautan sosial belum valid": "Social links are not valid yet",
-  "Periksa tautan yang ditandai merah lalu simpan lagi.": "Check the links marked in red, then save again."
+  "Periksa tautan yang ditandai merah lalu simpan lagi.": "Check the links marked in red, then save again.",
+  "Profil ini tidak tersedia.": "This profile is not available.",
+  "Lihat ulasan": "View reviews",
+  "Lencana Verifikasi": "Verification badges",
+  "Ulasan disembunyikan": "Reviews hidden",
+  "Pemilik profil memilih tidak menampilkan ulasannya.": "The profile owner chose not to show their reviews.",
+  "diblokir": "blocked",
+  "Bio tidak valid": "Invalid bio",
+  "Bio tidak boleh mengandung karakter < atau >.": "Bio must not contain < or > characters.",
+  "Verifikasi sedang dikirim": "Verification is being submitted",
+  "Tunggu sampai pengiriman selesai sebelum meninggalkan layar.": "Wait until the submission finishes before leaving this screen.",
+  "Foto NPWP, akta pendirian, atau SIUP/NIB. Pastikan terang dan seluruh dokumen terlihat. Kirim minimal 1, maksimal {x} dokumen.": "Photo of your NPWP, deed of establishment, or SIUP/NIB. Make sure it is well lit and the whole document is visible. Submit at least 1 and up to {x} documents.",
+  "Dokumen ({x}/{y})": "Documents ({x}/{y})",
+  "Buang isian verifikasi?": "Discard verification form?",
+  "Data dan dokumen yang sudah dipilih akan dihapus jika Anda keluar sekarang.": "The data and documents you selected will be removed if you leave now.",
+  "Buang isian": "Discard",
+  "Lanjutkan mengisi": "Keep editing"
 }

@@ -3,7 +3,7 @@
  * Profil/2FA/PIN tetap di users.ts & auth.ts & wallet.ts.
  */
 
-import { readList } from "@/lib/api/response"
+import { readList, readPage, type Page } from "@/lib/api/response"
 
 import { http, seg } from "@/lib/api/client"
 import { ApiError, isApiError } from "@/lib/api/errors"
@@ -43,8 +43,11 @@ export type PrivacySettings = {
   /** G077: siapa yang dapat melihat daftar follower/following. */
   showFollowerList?: PrivacyListVisibility
   showFollowingList?: PrivacyListVisibility
-  /** G078: visibilitas default etalase baru. */
-  showcaseDefaultVisibility?: "PUBLIC" | "PRIVATE" | "FOLLOWERS"
+  /**
+   * G078: visibilitas default etalase baru. E-22 (audit 2026-10-10): enum
+   * backend ShowcaseVisibility hanya PUBLIC|PRIVATE — "FOLLOWERS" dihapus.
+   */
+  showcaseDefaultVisibility?: "PUBLIC" | "PRIVATE"
   /** G079–G080: kebijakan Q&A profil. */
   qaCommentPolicy?: QaCommentPolicy
   qaAnswerModeration?: boolean
@@ -69,15 +72,27 @@ function normalizeBlockedUser(value: unknown): BlockedUser | null {
   }
 }
 
-/** Canonical mobile list: flattened users whose `userId` is valid for unblock. */
-export function getBlockedUsers(signal?: AbortSignal) {
+/**
+ * GET /v1/users/me/blocked?page&limit — daftar diblokir, BERPAGINASI.
+ * E-09 (audit 2026-10-10): backend memotong 20/halaman (DefaultValuePipe);
+ * versi lama tanpa page/limit hanya menampilkan 20 pertama dan membuang
+ * `total/page/limit` — pengguna dengan >20 blokir tidak bisa membuka blokir
+ * sisanya. Baris dinormalkan: `id` = userId publik (sah untuk unblock).
+ */
+export function getBlockedUsers(
+  options: { page?: number; limit?: number } = {},
+  signal?: AbortSignal,
+): Promise<Page<BlockedUser>> {
+  const query = { page: 1, limit: 20, ...options }
   return http
-    .get<unknown>("/v1/users/me/blocked", { auth: "required", retry: 1, signal })
-    .then((raw) =>
-      readList<unknown>(raw, ["blockedUsers", "users"])
-        .map(normalizeBlockedUser)
-        .filter((row): row is BlockedUser => row !== null),
-    )
+    .get<unknown>("/v1/users/me/blocked", { query, auth: "required", retry: 1, signal })
+    .then((raw) => {
+      const page = readPage<unknown>(raw, query, ["blockedUsers", "users"])
+      return {
+        ...page,
+        data: page.data.map(normalizeBlockedUser).filter((row): row is BlockedUser => row !== null),
+      }
+    })
 }
 
 /**
@@ -286,12 +301,17 @@ export type DataExportResult = {
   requestId: string
 }
 
+/**
+ * POST /v1/settings/privacy/export?format=json|csv
+ * E-04 (audit 2026-10-10): backend membaca `format` dari QUERY STRING
+ * (`@Query() RequestExportDto`), bukan body — versi lama mengirimnya di body
+ * sehingga pilihan "CSV (ZIP)" diabaikan dan selalu JSON.
+ */
 export function exportPrivacy(format: "json" | "csv" = "json") {
-  return http.post<DataExportResult, { format: "json" | "csv" }>(
-    "/v1/settings/privacy/export",
-    { format },
-    { auth: "required" },
-  )
+  return http.post<DataExportResult, undefined>("/v1/settings/privacy/export", undefined, {
+    query: { format },
+    auth: "required",
+  })
 }
 
 export type ExportRequestSummary = {

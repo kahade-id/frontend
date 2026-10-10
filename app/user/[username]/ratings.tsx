@@ -12,10 +12,16 @@ import { useState } from "react"
 import { View } from "react-native"
 import { useLocalSearchParams } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { Star } from "phosphor-react-native"
+import { Lock, Star } from "phosphor-react-native"
 
 import { api } from "@/lib/api"
-import { firstRatingReply, readMyRatings, type PublicRatingFilter, type Rating } from "@/lib/api/ratings"
+import {
+  firstRatingReply,
+  readMyRatings,
+  readPublicRatingsHidden,
+  type PublicRatingFilter,
+  type Rating,
+} from "@/lib/api/ratings"
 import { tokens } from "@/lib/tokens"
 import { translate, useLanguage } from "@/lib/i18n"
 import { atHandle } from "@/lib/profile-uiux"
@@ -46,6 +52,8 @@ export default function PublicRatingsScreen() {
   useLanguage()
 
   const [filter, setFilter] = useState<PublicRatingFilter>("all")
+  /** P-11: pemilik menyembunyikan ulasan (`hidden: true`) — bukan "belum ada". */
+  const [hidden, setHidden] = useState(false)
 
   /**
    * `usePaginatedQuery`, bukan rakitan manual page/hasMore/loadingMore.
@@ -73,6 +81,7 @@ export default function PublicRatingsScreen() {
         signal,
       )
       const { items, totalPages } = readMyRatings(body)
+      if (page === 1) setHidden(readPublicRatingsHidden(body))
       return {
         data: items,
         meta: {
@@ -114,11 +123,19 @@ export default function PublicRatingsScreen() {
             onRetry={() => void query.reload()}
           />
         ) : items.length === 0 ? (
-          <EmptyState
-            icon={Star}
-            title={translate("Belum ada ulasan")}
-            description={translate("Ulasan pesanan akan muncul di sini.")}
-          />
+          hidden ? (
+            <EmptyState
+              icon={Lock}
+              title={translate("Ulasan disembunyikan")}
+              description={translate("Pemilik profil memilih tidak menampilkan ulasannya.")}
+            />
+          ) : (
+            <EmptyState
+              icon={Star}
+              title={translate("Belum ada ulasan")}
+              description={translate("Ulasan pesanan akan muncul di sini.")}
+            />
+          )
         ) : (
           <View className="gap-3" style={{ paddingTop: tokens.space[3] }}>
             <SectionHeader title={atHandle(username)} />

@@ -27,7 +27,7 @@ import { useCallback, useRef, useState } from "react"
 import { api, isApiError, userMessage } from "@/lib/api"
 import { translate } from "@/lib/i18n/translate"
 import { pickImage, pickedImageToFormData, resizePickedImage, type PickedImage, type PickImageOptions } from "@/lib/image-picker"
-import { validateAvatarAsset } from "@/lib/photo-upload-guards"
+import { validateAvatarMime, validateAvatarSize } from "@/lib/photo-upload-guards"
 import { uploadMessage } from "@/lib/upload-errors"
 import { useToast } from "@/components/ui/toast"
 
@@ -103,6 +103,14 @@ export function useAvatarUpload({ onAvatarUrl, onChanged }: UseAvatarUploadOptio
       // transport (satu rumus terpusat — bukan lagi pemanggil yang
       // menghitung sendiri); onProgress = fraksi byte jujur 0–1.
       const resized = await resizePickedImage(asset)
+      // E-13: batas ukuran dinilai atas hasil resize (yang benar-benar
+      // diunggah), bukan foto kamera mentah.
+      const sizeError = validateAvatarSize(resized)
+      if (sizeError) {
+        setError(sizeError)
+        toast.show({ title: translate("Foto tidak valid"), description: sizeError, tone: "danger" })
+        return
+      }
       const uploaded = await api.users.uploadAvatarDirect(await pickedImageToFormData(resized), {
         fileBytes: resized.size,
         onProgress: setProgress,
@@ -150,9 +158,10 @@ export function useAvatarUpload({ onAvatarUrl, onChanged }: UseAvatarUploadOptio
         return
       }
       if (picked.status !== "picked") return
-      // UMD-004: guard klien — tolak >2 MB / MIME tak didukung sebelum
-      // pratinjau & upload, jangan biarkan gagal misterius di server.
-      const guardError = validateAvatarAsset(picked.asset)
+      // UMD-004: guard klien — tolak MIME tak didukung sebelum pratinjau.
+      // E-13: ukuran TIDAK dicek di sini (foto kamera mentah 3–8 MB lazim);
+      // dicek setelah resize di performUpload.
+      const guardError = validateAvatarMime(picked.asset)
       if (guardError) {
         toast.show({
           title: translate("Foto tidak valid"),

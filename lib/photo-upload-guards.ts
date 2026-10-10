@@ -35,12 +35,42 @@ function validatePhotoAsset(
   return null
 }
 
-/** Guard avatar — dipakai useAvatarUpload. */
+/** Guard avatar (MIME + ukuran mentah) — dipertahankan untuk pemanggil lama & test. */
 export function validateAvatarAsset(asset: PickedImage): string | null {
   return validatePhotoAsset(asset, AVATAR_ALLOWED_MIME, AVATAR_MAX_MB, AVATAR_COPY)
 }
 
-/** Guard foto sampul — dipakai app/edit-profile.tsx (UPF-03). */
+/** Guard foto sampul (MIME + ukuran mentah) — dipertahankan untuk pemanggil lama & test. */
 export function validateHeaderAsset(asset: PickedImage): string | null {
   return validatePhotoAsset(asset, HEADER_ALLOWED_MIME, HEADER_MAX_MB, HEADER_COPY)
+}
+
+/**
+ * E-13 (audit 2026-10-10): guard dipecah dua tahap. Ukuran dicek SETELAH
+ * resize — foto kamera (lazim 3–8 MB) dulu ditolak "maksimal 2 MB" padahal
+ * hasil resize pasti di bawah batas. MIME tetap dicek sebelum pratinjau.
+ */
+function validatePhotoMime(asset: PickedImage, allowedMime: readonly string[], copy: string): string | null {
+  const mime = (asset.mimeType ?? "").toLowerCase()
+  const extOk = /\.(jpe?g|png|webp)$/i.test(asset.name ?? "")
+  if (mime ? !allowedMime.includes(mime) : !extOk) return copy
+  return null
+}
+
+function validatePhotoSize(asset: Pick<PickedImage, "size">, maxMb: number, copy: string): string | null {
+  if (typeof asset.size === "number" && asset.size > maxMb * 1024 * 1024) return copy
+  return null
+}
+
+export function validateAvatarMime(asset: PickedImage): string | null {
+  return validatePhotoMime(asset, AVATAR_ALLOWED_MIME, AVATAR_COPY)
+}
+export function validateAvatarSize(asset: Pick<PickedImage, "size">): string | null {
+  return validatePhotoSize(asset, AVATAR_MAX_MB, AVATAR_COPY)
+}
+export function validateHeaderMime(asset: PickedImage): string | null {
+  return validatePhotoMime(asset, HEADER_ALLOWED_MIME, HEADER_COPY)
+}
+export function validateHeaderSize(asset: Pick<PickedImage, "size">): string | null {
+  return validatePhotoSize(asset, HEADER_MAX_MB, HEADER_COPY)
 }

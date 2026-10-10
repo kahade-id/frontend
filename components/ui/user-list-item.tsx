@@ -93,7 +93,7 @@ export function UserListItemView({
     handle,
     sealTier ?? (verified ? translate("terverifikasi") : undefined),
     stat,
-    blocked ? "diblokir" : undefined,
+    blocked ? translate("diblokir") : undefined,
   ]
     .filter(Boolean)
     .join(", ")

@@ -36,7 +36,10 @@ import { Camera as CameraIcon, Image as ImageIcon, Images, Trash } from "phospho
 
 import { api, isApiError, type UpdateProfileDto, userMessage } from "@/lib/api"
 import { pickImage, pickedImageToFormData, resizePickedImage, type PickedImage, type PickImageOptions } from "@/lib/image-picker"
-import { validateHeaderAsset } from "@/lib/photo-upload-guards"
+import { validateHeaderMime, validateHeaderSize } from "@/lib/photo-upload-guards"
+import { hasDuplicateSocialPlatforms } from "@/lib/profile-links"
+import { isValidEmail } from "@/components/ui/email-field"
+import { isValidProfileUsername } from "@/components/ui/username-field"
 import { uploadMessage } from "@/lib/upload-errors"
 import { goBackOrNavigate } from "@/lib/navigation"
 import { useLeaveConfirm } from "@/lib/use-leave-confirm"
@@ -96,6 +99,11 @@ type ProfileForm = {
   contactPhone: string
   showContactEmail: boolean
   showContactPhone: boolean
+}
+
+/** E-26: tanda tangan tautan untuk deteksi perubahan (abaikan id/clientId/displayOrder). */
+function linkSignature(links: readonly SocialLink[]): string {
+  return JSON.stringify(links.map((l) => [l.platform, l.url.trim(), (l.label ?? "").trim()]))
 }
 
 const EMPTY_FORM: ProfileForm = {
@@ -190,8 +198,17 @@ export default function EditProfileScreen() {
    * dicampurkan ke migrasi ini.
    */
   const loaded = query.data
+  // E-18 (audit 2026-10-10): penyegaran (tarik/refetch) TIDAK menimpa form
+  // yang sedang diedit — dulu `setForm(next)` tanpa syarat membuang perubahan
+  // belum tersimpan secara diam-diam. Muat pertama tetap menghidrasi.
+  const hydratedRef = useRef(false)
+  const dirtyRef = useRef(false)
+  /** E-17: error per-field dari validasi klien (bukan toast generik / salah field). */
+  const [fieldErrors, setFieldErrors] = useState<{ fullName?: string; contactEmail?: string }>({})
   useEffect(() => {
     if (!loaded) return
+    if (hydratedRef.current && dirtyRef.current) return
+    hydratedRef.current = true
     const { me, myLinks } = loaded
     const next: ProfileForm = {
       fullName: me.fullName ?? "",
@@ -222,21 +239,25 @@ export default function EditProfileScreen() {
       setUsernameAvailability("idle")
       return
     }
-    // SYS-C-201: guard ketersediaan selaras update-profile.dto (3–30,
-    // /[a-zA-Z0-9._]+/). Nilai di sini sudah lowercase dari UsernameField —
-    // charset kecil + batas 30 membuat cek konsisten tanpa menebak.
-    if (username.length < 3 || username.length > 30 || !/^[a-z0-9](?:[a-z0-9._]{1,28}[a-z0-9])?$/.test(username)) {
+    // E-06: aturan yang sama dengan SERVICE backend (isValidProfileUsername:
+    // awal/akhir huruf-angka, tanpa simbol berurutan) — bukan hanya DTO.
+    if (!isValidProfileUsername(username)) {
       setUsernameAvailability("idle")
       return
     }
     const controller = new AbortController()
     setUsernameAvailability("checking")
+    // E-05: endpoint availability di-throttle 5 req/menit — debounce lebih
+    // panjang, dan kegagalan (429/jaringan) = "error" (bukan "idle" yang lalu
+    // ditolak sebagai "tidak tersedia" saat simpan). Backend tetap memutus.
     const timer = setTimeout(() => {
       void api.users
         .checkUsernameAvailability(username, controller.signal)
         .then((available) => setUsernameAvailability(available ? "available" : "taken"))
-        .catch(() => setUsernameAvailability("idle"))
-    }, 450)
+        .catch(() => {
+          if (!controller.signal.aborted) setUsernameAvailability("error")
+        })
+    }, 800)
     return () => {
       clearTimeout(timer)
       controller.abort()
@@ -255,7 +276,10 @@ export default function EditProfileScreen() {
     if (trimmed.fullName !== initial.fullName) d.fullName = trimmed.fullName
     if (trimmed.username !== initial.username) d.username = trimmed.username
     if (trimmed.bio !== initial.bio) d.bio = trimmed.bio
-    if (trimmed.contactEmail !== initial.contactEmail) d.contactEmail = trimmed.contactEmail
+    // E-03: dikosongkan → `null` (bukan `""`) — `@IsOptional() @IsEmail()`
+    // backend hanya melewati null/undefined; string kosong ditolak 422
+    // "Invalid contact email format" sehingga email kontak tak bisa dihapus.
+    if (trimmed.contactEmail !== initial.contactEmail) d.contactEmail = trimmed.contactEmail || null
     if (form.contactPhone !== initial.contactPhone) d.contactPhone = toE164Id(form.contactPhone)
     if (form.showContactEmail !== initial.showContactEmail)
       d.showContactEmail = form.showContactEmail
@@ -264,12 +288,16 @@ export default function EditProfileScreen() {
     return d
   }, [form, initial])
 
+  // E-26: bandingkan isi yang bermakna saja (platform, url, label) — server
+  // mengirim `label: null`, baris baru `label: ""`, dan `id`/`clientId` ikut
+  // di objek; `JSON.stringify` mentah membuat "dirty" palsu.
   const linksChanged = useMemo(
-    () => JSON.stringify(links) !== JSON.stringify(initialLinks),
+    () => linkSignature(links) !== linkSignature(initialLinks),
     [links, initialLinks],
   )
   const profileChanged = Object.keys(dto).length > 0
   const dirty = profileChanged || linksChanged
+  dirtyRef.current = dirty
   // P1-S1: guard perubahan belum disimpan — konsisten dengan form showcase.
   const leaveConfirm = useLeaveConfirm(dirty, {
     title: "Buang perubahan?",
@@ -335,13 +363,54 @@ export default function EditProfileScreen() {
 
   const save = useCallback(
     async (password?: string) => {
-      if (dto.username !== undefined && usernameAvailability !== "available") {
+      if (dto.username !== undefined && !isValidProfileUsername(dto.username)) {
+        toast.show({
+          title: translate("Nama pengguna belum valid"),
+          description: translate("Awal & akhir huruf/angka, tanpa simbol berurutan."),
+          tone: "danger",
+        })
+        return
+      }
+      // E-05: hanya "taken"/"checking" yang memblokir — "error" (cek gagal,
+      // mis. 429) diteruskan; backend memutus (409 USERNAME_TAKEN).
+      if (dto.username !== undefined && (usernameAvailability === "taken" || usernameAvailability === "checking")) {
         toast.show({
           title: usernameAvailability === "checking" ? translate("Tunggu sebentar") : translate("Nama pengguna tidak tersedia"),
           description:
             usernameAvailability === "checking"
               ? translate("Kami masih memeriksa nama pengguna tersebut.")
               : translate("Silakan pilih nama pengguna lain."),
+          tone: "danger",
+        })
+        return
+      }
+      // E-17: validasi klien = DTO backend, error di field yang bersangkutan
+      // (dulu 422 generik "Ada data yang belum benar", atau — bila kata sandi
+      // ikut diminta — muncul di bawah field KATA SANDI).
+      if (dto.fullName !== undefined && (dto.fullName.length < 2 || /[<>]/.test(dto.fullName))) {
+        setFieldErrors((e) => ({
+          ...e,
+          fullName:
+            dto.fullName && dto.fullName.length < 2
+              ? translate("Nama minimal 2 karakter.")
+              : translate("Nama tidak boleh mengandung karakter < atau >."),
+        }))
+        toast.show({ title: translate("Nama belum valid"), tone: "danger" })
+        return
+      }
+      if (dto.contactEmail && !isValidEmail(dto.contactEmail)) {
+        setFieldErrors((e) => ({ ...e, contactEmail: translate("Format email belum valid") }))
+        toast.show({ title: translate("Email kontak belum valid"), tone: "danger" })
+        return
+      }
+      // E-16: dua tautan berplatform sama → backend 409 "Duplicate social
+      // link platform" tanpa baris yang ditandai. Editor sudah menandainya
+      // inline; blokir simpan di sini.
+      if (linksChanged && hasDuplicateSocialPlatforms(links)) {
+        setShowLinkErrors(true)
+        toast.show({
+          title: translate("Platform tautan ganda"),
+          description: translate("Setiap platform hanya boleh satu tautan."),
           tone: "danger",
         })
         return
@@ -385,6 +454,17 @@ export default function EditProfileScreen() {
           }
           skipConflictRef.current = false
           await api.users.updateProfile(password ? { ...dto, currentPassword: password } : dto)
+          // E-07: baseline profil = nilai yang baru tersimpan — bila PUT
+          // tautan di bawah gagal, profil tidak "dirty" lagi dan edit tautan
+          // pengguna TETAP ada untuk dicoba lagi (dulu `query.refresh()`
+          // menimpanya dengan data server).
+          setInitial({
+            ...form,
+            fullName: form.fullName.trim(),
+            username: form.username.trim(),
+            bio: form.bio.trim(),
+            contactEmail: form.contactEmail.trim(),
+          })
         }
         if (linksChanged) {
           try {
@@ -409,7 +489,10 @@ export default function EditProfileScreen() {
               err: err,
               scope: "edit-profile:profil-tersimpan-tautan",
             })
-            await query.refresh()
+            // E-07: jangan refresh (membuang edit tautan); tutup dialog kata
+            // sandi yang dulu tetap terbuka di atas toast.
+            setPasswordOpen(false)
+            setCurrentPassword("")
             return
           }
         }
@@ -431,7 +514,11 @@ export default function EditProfileScreen() {
         // Tampilkan pesan spesifik sesuai kode backend — jangan generik.
         // "Kata sandi salah" HANYA untuk INVALID_CREDENTIALS yang sebenarnya.
         if (password && !isInfraError) {
-          if (backendCode === "INVALID_CREDENTIALS" || apiCode === "UNAUTHORIZED") {
+          if (backendCode === "INVALID_CREDENTIALS" && /not configured/i.test(userMessage(err))) {
+            // E-08: akun tanpa kata sandi (OTP/sosial) — backend memakai kode
+            // yang sama untuk "password belum diatur"; jangan bilang "salah".
+            setPasswordError(translate("Akun ini belum punya kata sandi. Buat kata sandi dulu di Keamanan."))
+          } else if (backendCode === "INVALID_CREDENTIALS" || apiCode === "UNAUTHORIZED") {
             setPasswordError(translate("Kata sandi salah. Periksa kembali lalu coba lagi."))
           } else if (apiCode) {
             // USERNAME_RESERVED, USERNAME_TAKEN, USERNAME_CHANGE_COOLDOWN,
@@ -459,7 +546,7 @@ export default function EditProfileScreen() {
         setSubmitting(false)
       }
     },
-    [dto, links, linksChanged, profileChanged, toast.show, usernameAvailability, detectConflicts],
+    [dto, form, links, linksChanged, profileChanged, toast.show, usernameAvailability, detectConflicts],
   )
 
   const handleSubmit = useCallback(() => {
@@ -529,9 +616,10 @@ export default function EditProfileScreen() {
         return
       }
       if (picked.status !== "picked") return
-      // UPF-03: guard klien sampul — tolak >5 MB / MIME tak didukung sebelum
-      // pratinjau, dengan pesan Indonesia (pola sama dengan avatar).
-      const guardError = validateHeaderAsset(picked.asset)
+      // UPF-03: guard klien sampul — MIME dicek sebelum pratinjau. E-13:
+      // ukuran dicek SETELAH resize (confirmPendingHeader), bukan atas foto
+      // kamera mentah yang lazim 3–8 MB.
+      const guardError = validateHeaderMime(picked.asset)
       if (guardError) {
         toast.show({
           title: translate("Foto tidak valid"),
@@ -559,6 +647,12 @@ export default function EditProfileScreen() {
       // Audit 2026-10-09 (B2/C5): `fileBytes` memicu timeout adaptif di
       // transport (satu rumus terpusat); onProgress = fraksi byte jujur.
       const resized = await resizePickedImage(pendingHeader)
+      // E-13: batas 5 MB dinilai atas hasil resize (yang benar-benar diunggah).
+      const sizeError = validateHeaderSize(resized)
+      if (sizeError) {
+        toast.show({ title: translate("Foto tidak valid"), description: sizeError, tone: "danger" })
+        return
+      }
       const uploaded = await api.users.uploadHeaderDirect(
         await pickedImageToFormData(resized),
         {
@@ -793,10 +887,13 @@ export default function EditProfileScreen() {
             </View>
 
             <FormSection title={translate("Informasi dasar")}>
-              <Field label={translate("Nama lengkap")} required>
+              <Field label={translate("Nama lengkap")} required errorText={fieldErrors.fullName}>
                 <Input
                   value={form.fullName}
-                  onChangeText={(v) => set("fullName", v)}
+                  onChangeText={(v) => {
+                    set("fullName", v)
+                    if (fieldErrors.fullName) setFieldErrors((e) => ({ ...e, fullName: undefined }))
+                  }}
                   maxLength={60}
                   placeholder={translate("Nama lengkap Anda")}
                   // Field yang sama di (auth)/register-security sudah membawa
@@ -886,8 +983,12 @@ export default function EditProfileScreen() {
               <EmailField
                 label={translate("Email kontak")}
                 value={form.contactEmail}
-                onChangeText={(v) => set("contactEmail", v)}
+                onChangeText={(v) => {
+                  set("contactEmail", v)
+                  if (fieldErrors.contactEmail) setFieldErrors((e) => ({ ...e, contactEmail: undefined }))
+                }}
                 validate={form.contactEmail.length > 0}
+                errorText={fieldErrors.contactEmail}
               />
               <Switch
                 value={form.showContactEmail}

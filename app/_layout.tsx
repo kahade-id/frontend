@@ -909,8 +909,8 @@ function AppShellInner() {
     const show = toast.show
     const offQueued = onSocialActionQueued((label) => {
       show({
-        title: `Offline — ${label} diantrekan`,
-        description: "Akan dikirim otomatis saat tersambung kembali.",
+        title: translate("Offline — {x} diantrekan", { x: label }),
+        description: translate("Akan dikirim otomatis saat tersambung kembali."),
         tone: "warning",
         duration: 3500,
       })

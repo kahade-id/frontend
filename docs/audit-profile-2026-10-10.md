@@ -44,29 +44,29 @@ Status: ✅ selesai · ⏳ dikerjakan · ⛔ ditunda (alasan)
 
 | # | Status | Sev | Temuan | Lokasi |
 |---|---|---|---|---|
-| P-01 | ⏳ | kritis | Item rating publik dibaca `authorUsername/authorAvatarUrl`, backend kirim `giver.{username,avatarUrl}` → semua ulasan "Pengguna" tanpa avatar | lib/api/ratings.ts, profile-ratings-tab.tsx, user/[username]/ratings.tsx |
-| P-02 | ⏳ | kritis | `firstRatingReply` memperlakukan `reply` (objek `{content,createdAt,replier}`) sebagai string → objek jadi child Text → crash tab Ulasan | lib/api/ratings.ts |
-| P-03 | ⏳ | kritis | Tamu: `getMeCached` (auth required) paralel dengan GET profil → refresh 401 → expireSession → revision naik → GET profil ABORTED → "Gagal memuat profil" | user-profile-screen.tsx fetchProfile; checkSavedProfile; getStoryHighlights |
-| P-04 | ⏳ | sedang | `getQuestionComments` auth required padahal endpoint `@Public()` | lib/api/users.ts |
-| P-05 | ⏳ | sedang | `getVerificationBadges` auth none → pemilik profil privat kehilangan lencana; redundan (payload profil sudah memuat `badges`) | lib/api/users.ts, user-profile-screen.tsx |
-| P-06 | ⏳ | sedang | Pull-to-refresh `silent` tidak diteruskan ke tab → skeleton tab tiap refresh | user-profile-screen.tsx |
-| P-07 | ⏳ | sedang | Request pertanyaan tanpa guard respons basi → pertanyaan profil A tampil di profil B | user-profile-screen.tsx fetchTabContents |
-| P-08 | ⏳ | sedang | Reset per-profil tidak `setProfile(null)` → profil lama tampil di bawah header username baru | user-profile-screen.tsx |
-| P-09 | ⏳ | sedang | Effect filter ulasan menembak untuk profil LAMA saat pindah profil | user-profile-screen.tsx |
-| P-10 | ⏳ | sedang | Offline: `followUser` enqueue → promise menggantung → spinner & kunci follow tak lepas sampai online | user-profile-screen.tsx handleFollow |
-| P-11 | ⏳ | sedang | `hidden: true` dari backend (ulasan disembunyikan pemilik) tidak dibaca → "Belum ada ulasan" + distribusi 0 palsu | profile-ratings-tab.tsx, rating-distribution.tsx, lib/api/ratings.ts |
-| P-12 | ⏳ | sedang | Bar distribusi rating ber-role button tapi tanpa handler → tombol mati di screen reader | profile-ratings-tab.tsx, rating-distribution.tsx |
-| P-13 | ⏳ | sedang | Simpan profil tidak optimistis (setSaved setelah await) | user-profile-screen.tsx |
-| P-14 | ⏳ | sedang | `submitComment` tab Utas tanpa `requireSession()` → tamu dapat toast gagal, bukan gerbang login | user-profile-screen.tsx |
-| P-15 | ⏳ | ringan | `offlineLabel` follow/unfollow + judul toast offline hardcode | lib/api/users.ts, app/_layout.tsx |
-| P-16 | ⏳ | ringan | a11y "diblokir" hardcode | user-list-item.tsx |
-| P-17 | ⏳ | ringan | fallback "Pengguna" hardcode | user/[username]/questions.tsx |
-| P-18 | ⏳ | ringan | `ProfileHeader` dead code 317 baris + 2 string hardcode | components/ui/profile-header.tsx |
-| P-19 | ⏳ | ringan | Kunci EN hilang: "Profil ini tidak tersedia.", "Lihat ulasan", "Lencana Verifikasi" | lib/i18n/en/profile.json |
-| P-20 | ⏳ | ringan | `showContactEmail/Phone` dibaca dari root, backend menaruh di `contact.*` | lib/api/users.ts |
-| P-21 | ⏳ | ringan | "Coba lagi" per tab memuat ulang KETIGA tab | user-profile-screen.tsx retryTabContents |
-| P-22 | ⏳ | ringan | `getFollowers` selalu kirim `search=""` | lib/api/users.ts |
-| P-23 | ⏳ | ringan | Docblock & komentar tab usang/rusak | user-profile-screen.tsx |
+| P-01 | ✅ | kritis | Item rating publik dibaca `authorUsername/authorAvatarUrl`, backend kirim `giver.{username,avatarUrl}` → semua ulasan "Pengguna" tanpa avatar | lib/api/ratings.ts, profile-ratings-tab.tsx, user/[username]/ratings.tsx |
+| P-02 | ✅ | kritis | `firstRatingReply` memperlakukan `reply` (objek `{content,createdAt,replier}`) sebagai string → objek jadi child Text → crash tab Ulasan | lib/api/ratings.ts |
+| P-03 | ✅ | kritis | Tamu: `getMeCached` (auth required) paralel dengan GET profil → refresh 401 → expireSession → revision naik → GET profil ABORTED → "Gagal memuat profil" | user-profile-screen.tsx fetchProfile; checkSavedProfile; getStoryHighlights |
+| P-04 | ✅ | sedang | `getQuestionComments` auth required padahal endpoint `@Public()` | lib/api/users.ts |
+| P-05 | ✅ | sedang | `getVerificationBadges` auth none → pemilik profil privat kehilangan lencana; redundan (payload profil sudah memuat `badges`) | lib/api/users.ts, user-profile-screen.tsx |
+| P-06 | ✅ | sedang | Pull-to-refresh `silent` tidak diteruskan ke tab → skeleton tab tiap refresh | user-profile-screen.tsx |
+| P-07 | ✅ | sedang | Request pertanyaan tanpa guard respons basi → pertanyaan profil A tampil di profil B | user-profile-screen.tsx fetchTabContents |
+| P-08 | ✅ | sedang | Reset per-profil tidak `setProfile(null)` → profil lama tampil di bawah header username baru | user-profile-screen.tsx |
+| P-09 | ✅ | sedang | Effect filter ulasan menembak untuk profil LAMA saat pindah profil | user-profile-screen.tsx |
+| P-10 | ✅ | sedang | Offline: `followUser` enqueue → promise menggantung → spinner & kunci follow tak lepas sampai online | user-profile-screen.tsx handleFollow |
+| P-11 | ✅ | sedang | `hidden: true` dari backend (ulasan disembunyikan pemilik) tidak dibaca → "Belum ada ulasan" + distribusi 0 palsu | profile-ratings-tab.tsx, rating-distribution.tsx, lib/api/ratings.ts |
+| P-12 | ✅ | sedang | Bar distribusi rating ber-role button tapi tanpa handler → tombol mati di screen reader | profile-ratings-tab.tsx, rating-distribution.tsx |
+| P-13 | ✅ | sedang | Simpan profil tidak optimistis (setSaved setelah await) | user-profile-screen.tsx |
+| P-14 | ✅ | sedang | `submitComment` tab Utas tanpa `requireSession()` → tamu dapat toast gagal, bukan gerbang login | user-profile-screen.tsx |
+| P-15 | ✅ | ringan | `offlineLabel` follow/unfollow + judul toast offline hardcode | lib/api/users.ts, app/_layout.tsx |
+| P-16 | ✅ | ringan | a11y "diblokir" hardcode | user-list-item.tsx |
+| P-17 | ✅ | ringan | fallback "Pengguna" hardcode | user/[username]/questions.tsx |
+| P-18 | ✅ | ringan | `ProfileHeader` dead code 317 baris + 2 string hardcode | components/ui/profile-header.tsx |
+| P-19 | ✅ | ringan | Kunci EN hilang: "Profil ini tidak tersedia.", "Lihat ulasan", "Lencana Verifikasi" | lib/i18n/en/profile.json |
+| P-20 | ✅ | ringan | `showContactEmail/Phone` dibaca dari root, backend menaruh di `contact.*` | lib/api/users.ts |
+| P-21 | ✅ | ringan | "Coba lagi" per tab memuat ulang KETIGA tab | user-profile-screen.tsx retryTabContents |
+| P-22 | ✅ | ringan | `getFollowers` selalu kirim `search=""` | lib/api/users.ts |
+| P-23 | ✅ | ringan | Docblock & komentar tab usang/rusak | user-profile-screen.tsx |
 
 ## Batch 4 — edit profil & pengaturan (frontend)
 

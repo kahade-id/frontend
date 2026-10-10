@@ -47,7 +47,7 @@ import { PasswordField } from "@/components/ui/password-field"
 import { ProgressBar } from "@/components/ui/progress-bar"
 import { TextArea } from "@/components/ui/text-area"
 import { Text } from "@/components/ui/text"
-import { UsernameField, type UsernameAvailability } from "@/components/ui/username-field"
+import { UsernameField, isValidProfileUsername, type UsernameAvailability } from "@/components/ui/username-field"
 import { useToast } from "@/components/ui/toast"
 
 export type ProfileEditSheetProfile = {
@@ -110,18 +110,24 @@ export function ProfileEditSheet({ visible, onRequestClose, profile, onSaved }: 
       setUsernameAvailability("idle")
       return
     }
-    if (next.length < 3 || next.length > 30 || !/^[a-z0-9](?:[a-z0-9._]{1,28}[a-z0-9])?$/.test(next)) {
+    // E-06: aturan yang sama dengan service backend (isValidProfileUsername).
+    if (!isValidProfileUsername(next)) {
       setUsernameAvailability("idle")
       return
     }
     const controller = new AbortController()
     setUsernameAvailability("checking")
+    // E-05: endpoint availability di-throttle 5 req/menit — debounce lebih
+    // panjang, dan kegagalan (429/jaringan) = "error", bukan "idle" yang lalu
+    // ditafsirkan "tidak tersedia" saat simpan.
     const timer = setTimeout(() => {
       void api.users
         .checkUsernameAvailability(next, controller.signal)
         .then((available) => setUsernameAvailability(available ? "available" : "taken"))
-        .catch(() => setUsernameAvailability("idle"))
-    }, 450)
+        .catch(() => {
+          if (!controller.signal.aborted) setUsernameAvailability("error")
+        })
+    }, 800)
     return () => {
       clearTimeout(timer)
       controller.abort()
@@ -154,7 +160,13 @@ export function ProfileEditSheet({ visible, onRequestClose, profile, onSaved }: 
         setFormError(nameError)
         return
       }
-      if (usernameChanged && usernameAvailability !== "available") {
+      if (usernameChanged && !isValidProfileUsername(username.trim())) {
+        setFormError(translate("Nama pengguna belum valid. Periksa format lalu coba lagi."))
+        return
+      }
+      // E-05: hanya "taken"/"checking" yang memblokir — "error" (cek gagal)
+      // diteruskan ke backend yang memutus (409 USERNAME_TAKEN).
+      if (usernameChanged && (usernameAvailability === "taken" || usernameAvailability === "checking")) {
         setFormError(
           usernameAvailability === "checking"
             ? translate("Tunggu pemeriksaan nama pengguna selesai.")
@@ -181,7 +193,11 @@ export function ProfileEditSheet({ visible, onRequestClose, profile, onSaved }: 
           const backendCode = isApiError(err) ? err.backendCode : null
           // Pesan spesifik sesuai kode backend — "kata sandi salah" hanya
           // untuk INVALID_CREDENTIALS yang sebenarnya.
-          if (backendCode === "INVALID_CREDENTIALS" || apiCode === "UNAUTHORIZED") {
+          if (backendCode === "INVALID_CREDENTIALS" && /not configured/i.test(message)) {
+            // E-08: akun tanpa kata sandi (OTP/sosial) — backend memakai kode
+            // yang sama untuk "password belum diatur"; jangan bilang "salah".
+            setPasswordError(translate("Akun ini belum punya kata sandi. Buat kata sandi dulu di Keamanan."))
+          } else if (backendCode === "INVALID_CREDENTIALS" || apiCode === "UNAUTHORIZED") {
             setPasswordError(translate("Kata sandi salah. Periksa kembali lalu coba lagi."))
           } else if (apiCode && apiCode !== "NETWORK" && apiCode !== "TIMEOUT" && apiCode !== "SERVER") {
             setPasswordError(message)
