@@ -142,7 +142,7 @@ export default function BiometricSettingsScreen() {
       if (outcome === "success") {
         toast.show({
           title: "Kunci berfungsi",
-          description: `${label} dikenali dengan baik di perangkat ini.`,
+          description: translate("{x} dikenali dengan baik di perangkat ini.", { x: label }),
           tone: "success",
         })
       } else if (outcome === "lockout") {

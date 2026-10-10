@@ -36,6 +36,9 @@ import { router } from "expo-router"
 
 import { api, isApiError, type UserProfile, userMessage } from "@/lib/api"
 import { PASSWORD_MAX } from "@/lib/auth-constants"
+import { MFA_CODE_MAX_LENGTH, normalizeMfaCode } from "@/lib/auth-ui"
+import { setPendingVerifyEmail } from "@/lib/email-verify"
+import { translate } from "@/lib/i18n/translate"
 import { queryKeys } from "@/lib/query-keys"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
@@ -90,7 +93,10 @@ export default function ChangeEmailScreen() {
         tone: "success",
         duration: 4000,
       })
-      router.replace(ROUTES.verifyEmail(trimmed))
+      // #FE-I9: alamat baru lewat holder memori, bukan route param (PII di
+      // history/Referer web).
+      setPendingVerifyEmail(trimmed)
+      router.replace(ROUTES.verifyEmailScreen)
     } catch (err: unknown) {
       // BFE-042: akun ber-2FA tanpa mfaCode → 403 TWO_FA_REQUIRED.
       // Munculkan field MFA dengan penjelasan, jangan toast generik.
@@ -170,10 +176,14 @@ export default function ChangeEmailScreen() {
           <Input
             label="Kode autentikator / kode cadangan"
             value={mfa}
-            onChangeText={setMfa}
+            // #FE-I5: normalisasi spasi + one-time-code (kode tempel berspasi).
+            onChangeText={(value) => setMfa(normalizeMfaCode(value))}
             required
-            autoCapitalize="none"
+            autoCapitalize="characters"
             autoCorrect={false}
+            autoComplete="one-time-code"
+            textContentType="oneTimeCode"
+            maxLength={MFA_CODE_MAX_LENGTH}
             helperText="6 digit dari aplikasi autentikator, atau kode cadangan 10–16 karakter."
           />
         ) : null}
@@ -197,7 +207,7 @@ export default function ChangeEmailScreen() {
         visible={confirmOpen}
         title="Ganti email?"
         consequences={[
-          `Email ${trimmed || "baru"} akan menjadi email utama akun Anda.`,
+          translate("Email {x} akan menjadi email utama akun Anda.", { x: trimmed || translate("baru") }),
           "Kode aktivasi dikirim ke alamat baru — email lama tidak bisa dipakai lagi setelah aktif.",
         ]}
         confirmLabel="Ya, ganti email"

@@ -10,7 +10,6 @@ import { ROUTES } from "@/lib/routes"
 import { unregisterPushDevice } from "@/lib/push-notifications"
 import { unregisterWebPushDevice } from "@/lib/web-push"
 
-import { Alert } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Dialog } from "@/components/ui/modal"
 
@@ -22,11 +21,9 @@ import { Dialog } from "@/components/ui/modal"
 export function SecurityLogoutControl() {
   const [logoutOpen, setLogoutOpen] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
-  const [logoutNotice, setLogoutNotice] = useState<string | null>(null)
 
   const performLogout = useCallback(async () => {
     setLoggingOut(true)
-    setLogoutNotice(null)
     try {
       const deviceApi = {
         registerDevice: (dto: Parameters<typeof api.notifications.registerDevice>[0]) =>
@@ -46,12 +43,12 @@ export function SecurityLogoutControl() {
       try {
         await api.auth.logout()
       } catch (err) {
+        // Audit Auth 2026-10-10 (#FE-S7): `logout()` hanya melempar bila
+        // penanda "signed out" gagal ditulis — token lokal SUDAH dihapus.
+        // Dulu layar berhenti di sini dan menyuruh "keluar sekali lagi"
+        // padahal ketukan berikutnya pasti gagal (tidak ada token lagi).
+        // Kini tetap diarahkan ke login; kegagalan dicatat ke telemetri.
         logWarn("security:logout", err)
-        setLogoutOpen(false)
-        setLogoutNotice(
-          "Penanda sesi perangkat belum tersimpan. Token sudah dihapus; coba keluar sekali lagi untuk memastikan sesi tidak aktif kembali.",
-        )
-        return
       } finally {
         await clearSession()
       }
@@ -63,15 +60,6 @@ export function SecurityLogoutControl() {
 
   return (
     <View className="gap-2">
-      {logoutNotice ? (
-        <Alert
-          tone="warning"
-          title="Perlu konfirmasi keluar"
-          onDismiss={() => setLogoutNotice(null)}
-        >
-          {logoutNotice}
-        </Alert>
-      ) : null}
       <Button
         variant="destructive"
         size="md"

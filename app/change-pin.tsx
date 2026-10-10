@@ -13,7 +13,7 @@
  *
  * Keputusan non-obvious:
  *   - Validasi panjang password memakai `PASSWORD_MIN` dari lib/auth-constants
- *     (12), bukan angka literal — sama dengan aturan registrasi.
+ *     (8), bukan angka literal — sama dengan aturan registrasi.
  *   - WF-025 (fail-closed): bila `verify-pin` gagal karena jaringan, pengguna
  *     TIDAK boleh lanjut — tampilkan pesan jelas dan tetap di langkah PIN
  *     lama. Backend tetap memvalidasi ulang `currentPin` di set-pin sebagai
@@ -29,6 +29,8 @@ import { router } from "expo-router"
 
 import { api, isApiError, userMessage } from "@/lib/api"
 import { PASSWORD_MIN } from "@/lib/auth-constants"
+import { pinWeakness, pinWeaknessMessage } from "@/lib/pin-policy"
+import { retryAfterMessage } from "@/lib/retry-cooldown"
 import { goBackOrNavigate } from "@/lib/navigation"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
@@ -103,8 +105,11 @@ export default function ChangePinScreen() {
       // boleh lanjut — tampilkan pesan jelas dan tetap di langkah PIN lama.
       // Sebelumnya kode lanjut ke langkah PIN baru dengan asumsi backend
       // validasi ulang, yang menyesatkan bila PIN salah + jaringan buruk.
-      if (isApiError(err) && err.code === "RATE_LIMITED") {
-        setCurrentError("Terlalu banyak percobaan PIN. Coba lagi dalam 15 menit.")
+      if (isApiError(err) && (err.code === "RATE_LIMITED" || err.code === "PIN_RATE_LIMITED")) {
+        // #FE-I15: durasi dari server bila ada; "15 menit" hanya cadangan.
+        setCurrentError(
+          retryAfterMessage(err, "Terlalu banyak percobaan PIN. Coba lagi dalam 15 menit.", "Terlalu banyak percobaan PIN"),
+        )
         return
       }
       if (isApiError(err) && err.isTransient) {
@@ -122,6 +127,12 @@ export default function ChangePinScreen() {
     async (pin: string) => {
       if (!isSetupMode && pin === currentPin) {
         setNewError("PIN baru harus berbeda dari PIN lama.")
+        return
+      }
+      // #FE-I6: aturan PIN lemah mirror backend — alasan Indonesia SEBELUM request.
+      const weakness = pinWeakness(pin)
+      if (weakness) {
+        setNewError(pinWeaknessMessage(weakness))
         return
       }
       setSubmitting(true)
@@ -156,8 +167,12 @@ export default function ChangePinScreen() {
         // autentikasi (password/PIN salah menurut server) yang kembali.
         const authRejected =
           isApiError(err) && (err.code === "UNAUTHORIZED" || err.code === "FORBIDDEN")
-        if (authRejected) setStep("password")
-        else setNewError(msg)
+        if (authRejected) {
+          // #FE-I7: sandi yang ditolak server tidak boleh tersisa di state —
+          // tombol "Lanjut" akan langsung aktif dengan sandi salah yang sama.
+          setPassword("")
+          setStep("password")
+        } else setNewError(msg)
       } finally {
         setSubmitting(false)
       }
@@ -250,7 +265,7 @@ export default function ChangePinScreen() {
             {/* UI-W011: judul langkah membedakan mode — dulu dua cabang identik. */}
             <SectionHeader title={isSetupMode ? "Buat PIN" : "PIN baru"} />
             <Text variant="body" tone="secondary">
-              Pilih PIN 6 digit. Jangan gunakan tanggal lahir atau angka berurutan.
+              Pilih PIN 6 digit. Hindari angka berurutan atau berulang.
             </Text>
             <PinInput
               mode="setup"

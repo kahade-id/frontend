@@ -26,6 +26,9 @@ import {
 } from "@/lib/passkey"
 import { PASSKEY_COPY, passkeyUnsupportedCopy } from "@/lib/passkey-instructions"
 import { showMutationError } from "@/lib/mutation-toast"
+import { MFA_CODE_MAX_LENGTH, normalizeMfaCode } from "@/lib/auth-ui"
+import { retryAfterMessage, useRetryCooldown } from "@/lib/retry-cooldown"
+import { translate } from "@/lib/i18n/translate"
 
 import { Button } from "@/components/ui/button"
 import { DataScreen } from "@/components/ui/data-screen"
@@ -64,10 +67,16 @@ function ReauthFields({
       <Input
         label="Kode 2FA (bila aktif)"
         value={value.mfaCode ?? ""}
-        onChangeText={(t) => onChange({ ...value, mfaCode: t })}
-        keyboardType="number-pad"
-        maxLength={6}
-        helperText="Kosongkan bila 2FA tidak aktif."
+        // #FE-I1: dulu number-pad + maxLength 6 → kode cadangan (10–16
+        // alfanumerik) mustahil dimasukkan; pengguna yang kehilangan
+        // autentikator tidak bisa mengelola passkey (UI-A001 di tempat lain).
+        onChangeText={(t) => onChange({ ...value, mfaCode: normalizeMfaCode(t) })}
+        autoCapitalize="characters"
+        autoCorrect={false}
+        autoComplete="one-time-code"
+        textContentType="oneTimeCode"
+        maxLength={MFA_CODE_MAX_LENGTH}
+        helperText="6 digit autentikator atau kode cadangan. Kosongkan bila 2FA tidak aktif."
         returnKeyType="done"
         onSubmitEditing={onSubmit}
       />
@@ -99,6 +108,8 @@ export default function PasskeysScreen() {
   const [recoverOpen, setRecoverOpen] = useState(false)
   const [recoverOtp, setRecoverOtp] = useState("")
   const [recoverStep, setRecoverStep] = useState<"request" | "verify">("request")
+  // #FE-L4: permintaan OTP pemulihan dibatasi (60 d / Retry-After server).
+  const recoverCooldown = useRetryCooldown()
 
   const isLastCredential = items.length === 1
   /**
@@ -178,7 +189,7 @@ export default function PasskeysScreen() {
         setReauthFor(null)
         await refresh()
         toast.show({
-          title: `Passkey “${created.deviceName}” terdaftar`,
+          title: translate("Passkey “{x}” terdaftar", { x: created.deviceName }),
           description: "Anda kini bisa masuk tanpa mengetik kata sandi di perangkat ini.",
           tone: "success",
         })
@@ -274,12 +285,22 @@ export default function PasskeysScreen() {
   // ── Pemulihan (G039) ───────────────────────────────────────────────
 
   const handleRecoverRequest = useCallback(async () => {
+    if (recoverCooldown.isCoolingDown) return
     setWorking(true)
     try {
       const res = await api.passkey.recoverPasskey({ step: "request" })
       setRecoverStep("verify")
+      recoverCooldown.start(60_000)
       toast.show({ title: res.message, tone: "success" })
     } catch (err) {
+      if (recoverCooldown.startFromError(err)) {
+        toast.show({
+          title: "Gagal mengirim OTP",
+          description: retryAfterMessage(err, "Terlalu banyak permintaan OTP. Tunggu sebentar lalu coba lagi."),
+          tone: "danger",
+        })
+        return
+      }
       // Klasifikasi toast: error mutasi non-blokir via showMutationError.
       showMutationError(toast.show, {
         failTitle: "Gagal mengirim OTP",
@@ -290,7 +311,7 @@ export default function PasskeysScreen() {
     } finally {
       setWorking(false)
     }
-  }, [toast.show])
+  }, [toast.show, recoverCooldown])
 
   const handleRecoverVerify = useCallback(async () => {
     if (!recoverOtp.trim()) return
@@ -483,7 +504,9 @@ export default function PasskeysScreen() {
           isLastCredential
             ? ["Ini satu-satunya kredensial masuk Anda — pastikan masih ada cara lain untuk masuk."]
             : [
-                `Passkey “${revokeTarget?.deviceName}” tidak bisa lagi dipakai untuk masuk setelah dihapus.`,
+                translate("Passkey “{x}” tidak bisa lagi dipakai untuk masuk setelah dihapus.", {
+                  x: revokeTarget?.deviceName ?? "",
+                }),
                 "Menghapus passkey tidak menghapus akun Anda.",
               ]
         }
@@ -524,7 +547,9 @@ export default function PasskeysScreen() {
         title={PASSKEY_COPY.recover.title}
         description={PASSKEY_COPY.recover.body}
         confirmLabel={
-          recoverStep === "request" ? PASSKEY_COPY.recover.requestButton : PASSKEY_COPY.recover.verifyButton
+          recoverStep === "request"
+            ? recoverCooldown.label(PASSKEY_COPY.recover.requestButton)
+            : PASSKEY_COPY.recover.verifyButton
         }
         onConfirm={() =>
           void (recoverStep === "request" ? handleRecoverRequest() : handleRecoverVerify())

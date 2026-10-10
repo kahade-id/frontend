@@ -35,6 +35,7 @@ import { router } from "expo-router"
 import { ChartLine, DeviceMobile, ShieldWarning } from "phosphor-react-native"
 
 import { api } from "@/lib/api"
+import { ROUTES } from "@/lib/routes"
 import { unregisterPushDevice } from "@/lib/push-notifications"
 import type { ActivityLogEntry, DeviceSession, SecurityLogEntry } from "@/lib/api/sessions"
 import { formatDateTime } from "@/lib/format"
@@ -352,26 +353,20 @@ export default function SecurityActivityScreen() {
     }
   }, [sessionsQuery, toast.show])
 
-  /** Cabut SEMUA sesi termasuk perangkat ini → paksa logout lokal. */
+  /**
+   * Cabut SEMUA sesi termasuk perangkat ini → paksa logout lokal.
+   *
+   * Audit Auth 2026-10-10 (#FE-S5): dulu dua langkah — `DELETE /v1/sessions`
+   * (yang di backend hanya mencabut sesi LAIN) lalu `logout()` biasa. Bila
+   * langkah kedua gagal (offline), sesi perangkat ini tetap hidup di server
+   * padahal UI sudah "keluar". Kini SATU panggilan atomik
+   * `POST /v1/auth/logout { logoutAll: true }` yang mencabut semua sesi
+   * (termasuk ini) + memutus push semua perangkat di server; sesi lokal
+   * selalu dibersihkan oleh `api.auth.logout` apa pun hasil servernya
+   * (retry + penjadwalan ulang saat offline).
+   */
   const handleLogoutAll = useCallback(async () => {
     setRevokingAll(true)
-    try {
-      await api.sessions.deleteAllSessions()
-    } catch (err: unknown) {
-      // Klasifikasi toast: error mutasi non-blokir via showMutationError.
-      if (
-        showMutationError(toast.show, {
-          failTitle: "Gagal mencabut semua sesi",
-          uncertainHint: "Aksi mungkin sudah diproses — memuat ulang…",
-          err: err,
-          scope: "security-activity:mencabut-semua-sesi",
-        })
-      ) {
-        void sessionsQuery.reload()
-      }
-      setRevokingAll(false)
-      return
-    }
     setConfirmAll(false)
     setConfirmAllArmed(false)
     // P1-1 (audit FCM 2026-10-03): cabut token push SEBELUM sesi lokal
@@ -386,10 +381,16 @@ export default function SecurityActivityScreen() {
     } catch {
       // diabaikan — logout tetap jalan
     }
-    // Sesi server sudah mati semua — bersihkan sesi lokal lalu ke login.
-    await api.auth.logout().catch(() => undefined)
-    router.replace("/(auth)/login")
-  }, [toast.show, sessionsQuery])
+    try {
+      await api.auth.logout({ logoutAll: true })
+    } catch {
+      // Sesi lokal sudah dihapus di dalam logout(); kegagalan di sini hanya
+      // penanda "signed out" — tetap arahkan ke login.
+    } finally {
+      setRevokingAll(false)
+    }
+    router.replace(ROUTES.login)
+  }, []),
 
   /**
    * Trust/untrust menuntut re-auth password (TrustDeviceDto produksi: `password`
