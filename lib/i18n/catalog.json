@@ -283,6 +283,10 @@
    "n": 9
   },
   {
+   "s": "Belum dibaca",
+   "n": 9
+  },
+  {
    "s": "Buat template",
    "n": 9
   },
@@ -331,10 +335,6 @@
    "n": 8
   },
   {
-   "s": "Belum dibaca",
-   "n": 8
-  },
-  {
    "s": "Belum terkirim",
    "n": 8
   },
@@ -372,6 +372,10 @@
   },
   {
    "s": "Konfirmasi kata sandi",
+   "n": 8
+  },
+  {
+   "s": "Lihat sengketa",
    "n": 8
   },
   {
@@ -443,6 +447,10 @@
    "n": 7
   },
   {
+   "s": "Dompet",
+   "n": 7
+  },
+  {
    "s": "Email kontak",
    "n": 7
   },
@@ -472,6 +480,10 @@
   },
   {
    "s": "Lencana",
+   "n": 7
+  },
+  {
+   "s": "Lihat pesanan",
    "n": 7
   },
   {
@@ -639,10 +651,6 @@
    "n": 6
   },
   {
-   "s": "Dompet",
-   "n": 6
-  },
-  {
    "s": "Eksklusif Kahade+: format teks dengan HTML ringan.",
    "n": 6
   },
@@ -759,6 +767,10 @@
    "n": 6
   },
   {
+   "s": "Kelola Etalase",
+   "n": 6
+  },
+  {
    "s": "Kembali ke atas",
    "n": 6
   },
@@ -796,6 +808,14 @@
   },
   {
    "s": "Lanjut mengedit",
+   "n": 6
+  },
+  {
+   "s": "Lihat profil",
+   "n": 6
+  },
+  {
+   "s": "Lihat ulasan",
    "n": 6
   },
   {
@@ -1059,6 +1079,10 @@
    "n": 5
   },
   {
+   "s": "Buka chat",
+   "n": 5
+  },
+  {
    "s": "Buka referensi {x}",
    "n": 5
   },
@@ -1155,6 +1179,10 @@
    "n": 5
   },
   {
+   "s": "Keamanan",
+   "n": 5
+  },
+  {
    "s": "Kelola story",
    "n": 5
   },
@@ -1183,6 +1211,10 @@
    "n": 5
   },
   {
+   "s": "Konfirmasi terima",
+   "n": 5
+  },
+  {
    "s": "Kontak publik",
    "n": 5
   },
@@ -1200,14 +1232,6 @@
   },
   {
    "s": "Lihat",
-   "n": 5
-  },
-  {
-   "s": "Lihat profil",
-   "n": 5
-  },
-  {
-   "s": "Lihat sengketa",
    "n": 5
   },
   {
@@ -1308,6 +1332,10 @@
   },
   {
    "s": "Ubah ulasan",
+   "n": 5
+  },
+  {
+   "s": "Umum",
    "n": 5
   },
   {
@@ -1647,14 +1675,6 @@
    "n": 4
   },
   {
-   "s": "Keamanan",
-   "n": 4
-  },
-  {
-   "s": "Kelola Etalase",
-   "n": 4
-  },
-  {
    "s": "Kembali edit",
    "n": 4
   },
@@ -1672,10 +1692,6 @@
   },
   {
    "s": "Komentar terkirim",
-   "n": 4
-  },
-  {
-   "s": "Konfirmasi terima",
    "n": 4
   },
   {
@@ -1708,10 +1724,6 @@
   },
   {
    "s": "Lepas",
-   "n": 4
-  },
-  {
-   "s": "Lihat pesanan",
    "n": 4
   },
   {
@@ -1972,10 +1984,6 @@
   },
   {
    "s": "Ukuran berkas melebihi {x} MB.",
-   "n": 4
-  },
-  {
-   "s": "Umum",
    "n": 4
   },
   {
@@ -2575,6 +2583,10 @@
    "n": 3
   },
   {
+   "s": "Buka keamanan",
+   "n": 3
+  },
+  {
    "s": "Buka Kelola Transaksi",
    "n": 3
   },
@@ -2623,7 +2635,15 @@
    "n": 3
   },
   {
+   "s": "Buka tautan pesanan",
+   "n": 3
+  },
+  {
    "s": "Buka utas balasan",
+   "n": 3
+  },
+  {
+   "s": "Buka verifikasi",
    "n": 3
   },
   {
@@ -2668,6 +2688,10 @@
   },
   {
    "s": "Ceritakan kendalanya (wajib)",
+   "n": 3
+  },
+  {
+   "s": "Chat",
    "n": 3
   },
   {
@@ -3371,10 +3395,6 @@
    "n": 3
   },
   {
-   "s": "Jadwal harian tanpa bunyi notifikasi push.",
-   "n": 3
-  },
-  {
    "s": "Jadwal jasa",
    "n": 3
   },
@@ -3791,6 +3811,10 @@
    "n": 3
   },
   {
+   "s": "Lihat karya",
+   "n": 3
+  },
+  {
    "s": "Lihat kategori {x}",
    "n": 3
   },
@@ -3803,6 +3827,10 @@
    "n": 3
   },
   {
+   "s": "Lihat mutasi",
+   "n": 3
+  },
+  {
    "s": "Lihat pesan hasil pencarian",
    "n": 3
   },
@@ -3812,6 +3840,10 @@
   },
   {
    "s": "Lihat produk {name}",
+   "n": 3
+  },
+  {
+   "s": "Lihat retur",
    "n": 3
   },
   {
@@ -3832,10 +3864,6 @@
   },
   {
    "s": "Lihat story saya",
-   "n": 3
-  },
-  {
-   "s": "Lihat ulasan",
    "n": 3
   },
   {
@@ -4575,6 +4603,10 @@
    "n": 3
   },
   {
+   "s": "Push ditunda pada jam ini, kecuali keamanan. Notifikasi tetap ada di aplikasi.",
+   "n": 3
+  },
+  {
    "s": "Putar pratinjau",
    "n": 3
   },
@@ -4659,8 +4691,11 @@
    "n": 3
   },
   {
-"s": "Salin",
-"s": "Saldo terpakai sampai permintaan kedaluwarsa. Batalkan sekarang agar saldo langsung bebas.",
+   "s": "Saldo terpakai sampai permintaan kedaluwarsa. Batalkan sekarang agar saldo langsung bebas.",
+   "n": 3
+  },
+  {
+   "s": "Salin",
    "n": 3
   },
   {
@@ -5560,6 +5595,10 @@
    "n": 2
   },
   {
+   "s": "{x} sudah tidak tersedia — kemungkinan sudah dihapus.",
+   "n": 2
+  },
+  {
    "s": "{x} tidak akan bisa mengirimi Anda pesan lagi dari percakapan ini.",
    "n": 2
   },
@@ -6012,6 +6051,10 @@
    "n": 2
   },
   {
+   "s": "Berlaku untuk semua kategori, bukan hanya tab yang sedang dibuka.",
+   "n": 2
+  },
+  {
    "s": "Bersihkan",
    "n": 2
   },
@@ -6160,10 +6203,6 @@
    "n": 2
   },
   {
-   "s": "Buka chat",
-   "n": 2
-  },
-  {
    "s": "Buka daftar artikel",
    "n": 2
   },
@@ -6185,6 +6224,10 @@
   },
   {
    "s": "Buka di peta",
+   "n": 2
+  },
+  {
+   "s": "Buka dompet",
    "n": 2
   },
   {
@@ -6300,10 +6343,6 @@
    "n": 2
   },
   {
-   "s": "Chat",
-   "n": 2
-  },
-  {
    "s": "Chat belum bisa dibuka",
    "n": 2
   },
@@ -6360,6 +6399,10 @@
    "n": 2
   },
   {
+   "s": "Daftarkan rekening",
+   "n": 2
+  },
+  {
    "s": "Dalam proses",
    "n": 2
   },
@@ -6397,6 +6440,10 @@
   },
   {
    "s": "Dana diteruskan ke penjual.",
+   "n": 2
+  },
+  {
+   "s": "Dana dompet: top-up, penarikan, transfer, dan pencairan dana.",
    "n": 2
   },
   {
@@ -6752,7 +6799,7 @@
    "n": 2
   },
   {
-"s": "Gagal memperbarui percakapan",
+   "s": "Gagal memperbarui percakapan",
    "n": 2
   },
   {
@@ -7688,6 +7735,14 @@
    "n": 2
   },
   {
+   "s": "Lihat bantuan",
+   "n": 2
+  },
+  {
+   "s": "Lihat booking",
+   "n": 2
+  },
+  {
    "s": "Lihat daftar mengikuti",
    "n": 2
   },
@@ -7716,11 +7771,27 @@
    "n": 2
   },
   {
+   "s": "Lihat langganan",
+   "n": 2
+  },
+  {
    "s": "Lihat paket",
    "n": 2
   },
   {
+   "s": "Lihat pelacakan",
+   "n": 2
+  },
+  {
+   "s": "Lihat pertanyaan",
+   "n": 2
+  },
+  {
    "s": "Lihat produk",
+   "n": 2
+  },
+  {
+   "s": "Lihat referral",
    "n": 2
   },
   {
@@ -7757,6 +7828,10 @@
   },
   {
    "s": "Lihat semua ulasan",
+   "n": 2
+  },
+  {
+   "s": "Lihat tahap",
    "n": 2
   },
   {
@@ -8268,7 +8343,6 @@
    "n": 2
   },
   {
-   "s": "Order tidak berlanjut — dana escrow telah dikembalikan ke metode pembayaran pembeli oleh {x}.",
    "s": "Order tidak berlanjut — dana telah dikembalikan ke metode pembayaran pembeli oleh {x}.",
    "n": 2
   },
@@ -8390,6 +8464,10 @@
   },
   {
    "s": "Pengguna yang Anda blokir akan muncul di sini.",
+   "n": 2
+  },
+  {
+   "s": "Pengumuman dan informasi lain di luar transaksi.",
    "n": 2
   },
   {
@@ -8517,6 +8595,10 @@
    "n": 2
   },
   {
+   "s": "Peringatan keamanan akun: login baru, perubahan kata sandi, dan verifikasi.",
+   "n": 2
+  },
+  {
    "s": "Perlu langkah tambahan",
    "n": 2
   },
@@ -8566,6 +8648,10 @@
   },
   {
    "s": "Pesan berbintang: {x}",
+   "n": 2
+  },
+  {
+   "s": "Pesan chat baru dari lawan transaksi atau admin.",
    "n": 2
   },
   {
@@ -8793,7 +8879,7 @@
    "n": 2
   },
   {
-   "s": "Push tidak dibunyikan pada jam berikut.",
+   "s": "Push tidak dikirim pada jam berikut.",
    "n": 2
   },
   {
@@ -9226,6 +9312,14 @@
   },
   {
    "s": "Status pembayaran belum diketahui",
+   "n": 2
+  },
+  {
+   "s": "Status pesanan, dana masuk/keluar, dan batas waktu pembayaran. Sangat disarankan tetap aktif.",
+   "n": 2
+  },
+  {
+   "s": "Status pesanan: pembayaran diterima, pengiriman, dan pencairan dana.",
    "n": 2
   },
   {
@@ -10037,6 +10131,10 @@
    "n": 1
   },
   {
+   "s": "{x} · Push tertahan: izin perangkat mati",
+   "n": 1
+  },
+  {
    "s": "{x} ({x} percakapan)",
    "n": 1
   },
@@ -10070,6 +10168,10 @@
   },
   {
    "s": "{x} dari {y} bintang",
+   "n": 1
+  },
+  {
+   "s": "{x} dari {y} jenis aktif",
    "n": 1
   },
   {
@@ -10158,10 +10260,6 @@
   },
   {
    "s": "{x} sedang mengetik…",
-   "n": 1
-  },
-  {
-   "s": "{x} sudah tidak tersedia — kemungkinan sudah dihapus.",
    "n": 1
   },
   {
@@ -13433,6 +13531,10 @@
    "n": 1
   },
   {
+   "s": "Buka chat bantuan",
+   "n": 1
+  },
+  {
    "s": "Buka daftar isi",
    "n": 1
   },
@@ -13462,10 +13564,6 @@
   },
   {
    "s": "Buka halaman masuk",
-   "n": 1
-  },
-  {
-   "s": "Buka keamanan",
    "n": 1
   },
   {
@@ -13510,10 +13608,6 @@
   },
   {
    "s": "Buka Tautan",
-   "n": 1
-  },
-  {
-   "s": "Buka tautan pesanan",
    "n": 1
   },
   {
@@ -14089,11 +14183,6 @@
    "n": 1
   },
   {
-"s": "Dana Anda ditahan di escrow oleh {x} — hanya diteruskan ke penjual setelah Anda mengonfirmasi penerimaan, atau otomatis setelah tenggat tanpa sengketa.",
-"s": "Dana Anda aman sampai barang diterima",
-   "n": 1
-  },
-  {
    "s": "Dana Anda disimpan aman oleh {x} — hanya diteruskan ke penjual setelah Anda mengonfirmasi penerimaan, atau otomatis setelah tenggat tanpa sengketa.",
    "n": 1
   },
@@ -14167,10 +14256,6 @@
   },
   {
    "s": "Dana ditransfer ke rekening atas nama Anda yang dipilih di sini.",
-   "n": 1
-  },
-  {
-   "s": "Dana dompet: top-up, penarikan, transfer, dan pencairan dana.",
    "n": 1
   },
   {
@@ -14762,6 +14847,10 @@
    "n": 1
   },
   {
+   "s": "Dipilih",
+   "n": 1
+  },
+  {
    "s": "Diproses bank",
    "n": 1
   },
@@ -14947,6 +15036,10 @@
   },
   {
    "s": "E.{x} Tinjau penerima, nilai, biaya, dan detail sebelum menyetujui transaksi.",
+   "n": 1
+  },
+  {
+   "s": "Efektif: {x}",
    "n": 1
   },
   {
@@ -17686,11 +17779,27 @@
    "n": 1
   },
   {
+   "s": "Lihat hasil banding",
+   "n": 1
+  },
+  {
    "s": "Lihat koleksi lencana Anda",
    "n": 1
   },
   {
+   "s": "Lihat laporan saya",
+   "n": 1
+  },
+  {
+   "s": "Lihat lencana",
+   "n": 1
+  },
+  {
    "s": "Lihat mutasi dana",
+   "n": 1
+  },
+  {
+   "s": "Lihat notifikasi",
    "n": 1
   },
   {
@@ -17754,11 +17863,23 @@
    "n": 1
   },
   {
+   "s": "Lihat status penghapusan",
+   "n": 1
+  },
+  {
+   "s": "Lihat tiket bantuan",
+   "n": 1
+  },
+  {
    "s": "Lihat transaksi",
    "n": 1
   },
   {
    "s": "Lihat transaksi saya",
+   "n": 1
+  },
+  {
+   "s": "Lihat voucher",
    "n": 1
   },
   {
@@ -18131,11 +18252,6 @@
   },
   {
    "s": "membentuk instruksi transaksi, memproses pembayaran, menahan atau melepaskan dana sesuai status, mengirim barang, menarik dana, mengembalikan pembayaran, dan menyediakan catatan.",
-   "n": 1
-  },
-  {
-"s": "membuat akun, mengelola profil, menjalankan fitur sosial, komunikasi, etalase, transaksi, escrow, dompet, dan dukungan.",
-"s": "Membintangi pesan yang dipilih",
    "n": 1
   },
   {
@@ -19067,6 +19183,10 @@
    "n": 1
   },
   {
+   "s": "Notifikasi ini sudah dihapus atau kedaluwarsa.",
+   "n": 1
+  },
+  {
    "s": "Notifikasi ini tidak menaut ke halaman lain.",
    "n": 1
   },
@@ -19080,6 +19200,10 @@
   },
   {
    "s": "Notifikasi tidak ditemukan",
+   "n": 1
+  },
+  {
+   "s": "Notifikasi tidak tersedia",
    "n": 1
   },
   {
@@ -19775,10 +19899,6 @@
    "n": 1
   },
   {
-   "s": "Pengumuman dan informasi lain di luar transaksi.",
-   "n": 1
-  },
-  {
    "s": "Pengunjung profil bisa melihat alamat email Anda.",
    "n": 1
   },
@@ -20099,10 +20219,6 @@
    "n": 1
   },
   {
-   "s": "Peringatan keamanan akun: login baru, perubahan kata sandi, dan verifikasi.",
-   "n": 1
-  },
-  {
    "s": "Peringkat & lencana",
    "n": 1
   },
@@ -20315,10 +20431,6 @@
    "n": 1
   },
   {
-   "s": "Pesan chat baru dari lawan transaksi atau admin.",
-   "n": 1
-  },
-  {
    "s": "Pesan dapat diteruskan ke percakapan Anda yang lain.",
    "n": 1
   },
@@ -20399,6 +20511,10 @@
    "n": 1
   },
   {
+   "s": "Pesanan & pembayaran",
+   "n": 1
+  },
+  {
    "s": "Pesanan Anda & status pembayarannya",
    "n": 1
   },
@@ -20419,12 +20535,11 @@
    "n": 1
   },
   {
-"s": "Pesanan dikirim",
+   "s": "Pesanan dikirim",
    "n": 1
   },
   {
-   "s": "Pesanan diterima, dan pembeli dapat melanjutkan pembayaran ke escrow. Selesaikan pekerjaan sesuai kesepakatan setelah dana masuk.",
-"s": "Pesanan diterima, dan pembeli dapat melanjutkan pembayaran. Selesaikan pekerjaan sesuai kesepakatan setelah dana masuk.",
+   "s": "Pesanan diterima, dan pembeli dapat melanjutkan pembayaran. Selesaikan pekerjaan sesuai kesepakatan setelah dana masuk.",
    "n": 1
   },
   {
@@ -21368,6 +21483,10 @@
    "n": 1
   },
   {
+   "s": "Senyap {x}–{y}",
+   "n": 1
+  },
+  {
    "s": "Sepakati pembagian dana tanpa menunggu keputusan mediator.",
    "n": 1
   },
@@ -21740,15 +21859,7 @@
    "n": 1
   },
   {
-   "s": "Status pesanan, dana masuk/keluar, dan batas waktu pembayaran. Sangat disarankan tetap aktif.",
-   "n": 1
-  },
-  {
    "s": "Status pesanan, dompet, sengketa, dan ulasan.",
-   "n": 1
-  },
-  {
-   "s": "Status pesanan: pembayaran diterima, pengiriman, dan pencairan dana.",
    "n": 1
   },
   {
@@ -22412,6 +22523,10 @@
    "n": 1
   },
   {
+   "s": "Tidak ada kanal aktif",
+   "n": 1
+  },
+  {
    "s": "Tidak ada kode QR",
    "n": 1
   },
@@ -22669,6 +22784,10 @@
   },
   {
    "s": "Transaksi {x} lawan {x}",
+   "n": 1
+  },
+  {
+   "s": "Transaksi & pembayaran",
    "n": 1
   },
   {

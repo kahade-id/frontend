@@ -21,6 +21,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react"
 import { View } from "react-native"
+import { Image } from "expo-image"
 import { router, useLocalSearchParams } from "expo-router"
 import { Bell, Trash } from "phosphor-react-native"
 
@@ -33,6 +34,8 @@ import {
   orderIdFromNotification,
 } from "@/lib/order-confirm"
 import {
+  isNotificationInboxRoute,
+  isNotificationSelfRoute,
   labelForNotificationReference,
   routeForNotificationReference,
 } from "@/lib/notification-routing"
@@ -43,7 +46,7 @@ import {
   notificationUiCategory,
 } from "@/lib/notification-category"
 import { refreshUnreadCount } from "@/lib/unread-count"
-import { useApiQuery } from "@/lib/use-api-query"
+import { invalidateQueryPrefix, useApiQuery } from "@/lib/use-api-query"
 import { translate, useLanguage } from "@/lib/i18n"
 import { showMutationError } from "@/lib/mutation-toast"
 
@@ -99,15 +102,26 @@ export default function NotificationDetailScreen() {
       .markNotificationRead(notif.id)
       .then(() => {
         setReadLocally(true)
-        refreshUnreadCount()
+        void refreshUnreadCount()
+        // Audit 2026-10-10 (FE-14): daftar inbox ter-cache masih menandai item
+        // ini belum dibaca (refresh fokus dilewati bila data <30 dtk).
+        invalidateQueryPrefix("notifications:")
       })
       .catch(() => {
         markedRead.current = null
       })
   }, [notif])
 
-  const relatedRoute = notif ? routeForNotificationReference(notif) : null
-  const relatedLabel = notif ? labelForNotificationReference(notif) : null
+  // Audit 2026-10-10 (FE-45): rute yang menunjuk layar ini sendiri (broadcast
+  // `actionUrl: /notifications?notificationId=<id ini>`) atau tab inbox =
+  // bukan tautan — dulu tampil CTA "Lihat notifikasi" yang menumpuk layar
+  // detail yang sama di atas dirinya.
+  const resolvedRoute = notif ? routeForNotificationReference(notif) : null
+  const relatedRoute =
+    notif && resolvedRoute && !isNotificationInboxRoute(resolvedRoute) && !isNotificationSelfRoute(resolvedRoute, notif.id)
+      ? resolvedRoute
+      : null
+  const relatedLabel = notif && relatedRoute ? labelForNotificationReference(notif) : null
 
   /**
    * B15: validasi target CTA sebelum navigasi — target yang sudah dihapus
@@ -120,7 +134,12 @@ export default function NotificationDetailScreen() {
     if (check.status === "unavailable") {
       toast.show({
         title: "Konten tidak tersedia",
-        description: `${check.entityLabel} sudah tidak tersedia — kemungkinan sudah dihapus.`,
+        // Audit 2026-10-10 (FE-40): label entitas ("Order"/"Sengketa"/"Karya")
+        // diterjemahkan terpisah — template literal lama menyisipkan label
+        // Indonesia mentah ke kalimat EN.
+        description: translate("{x} sudah tidak tersedia — kemungkinan sudah dihapus.", {
+          x: translate(check.entityLabel),
+        }),
         tone: "warning",
       })
       return
@@ -204,6 +223,8 @@ export default function NotificationDetailScreen() {
     try {
       await api.notifications.deleteNotification(notif.id)
       void refreshUnreadCount()
+      // FE-14: item yang dihapus jangan muncul lagi saat kembali ke daftar.
+      invalidateQueryPrefix("notifications:")
       toast.show({ title: "Notifikasi dihapus", tone: "success", duration: 2500 })
       if (router.canGoBack()) router.back()
       else router.replace(ROUTES.notifications)
@@ -239,6 +260,11 @@ export default function NotificationDetailScreen() {
   const uiCategory =
     notificationTypeUiCategory(notif?.type) ?? notificationUiCategory(notif?.category)
 
+  // Audit 2026-10-10 (FE-11): 404 = notifikasi sudah dihapus/kedaluwarsa
+  // (deep link lama, push basi) — bukan kegagalan jaringan. Dulu tampil
+  // "Gagal memuat notifikasi" + "Coba lagi" yang tidak akan pernah berhasil.
+  const notFound = query.errorStatus === 404
+
   return (
     <DataScreen
       title="Detail Notifikasi"
@@ -256,9 +282,18 @@ export default function NotificationDetailScreen() {
             }
           : undefined
       }
-      state={query}
+      state={notFound ? { ...query, error: null } : query}
       loadingMessage="Memuat notifikasi"
       errorTitle="Gagal memuat notifikasi"
+      empty={
+        notFound
+          ? {
+              icon: Bell,
+              title: "Notifikasi tidak tersedia",
+              description: "Notifikasi ini sudah dihapus atau kedaluwarsa.",
+            }
+          : null
+      }
     >
       {notif ? (
         <View className="gap-5">
@@ -286,6 +321,18 @@ export default function NotificationDetailScreen() {
             </View>
             <Text variant="h2" accessibilityRole="header">{notif.title}</Text>
           </View>
+
+          {/* ── FE-12: gambar notifikasi kaya (opsional, kontrak item 114) ── */}
+          {notif.imageUrl ? (
+            <Image
+              source={{ uri: notif.imageUrl }}
+              style={{ width: "100%", aspectRatio: 16 / 9, borderRadius: 12 }}
+              contentFit="cover"
+              transition={150}
+              accessibilityIgnoresInvertColors
+              accessible={false}
+            />
+          ) : null}
 
           {/* ── Isi penuh (daftar hanya memotong 2 baris) ─────────── */}
           <Text variant="body" tone="primary">

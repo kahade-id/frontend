@@ -28,9 +28,10 @@ describe("summarizeNotificationPreferences (#91)", () => {
     ).toBe("Senyap 22:00–07:00")
   })
 
-  it("quiet hours tanpa jam → fallback 22:00–06:00", () => {
+  // Audit 2026-10-10 (FE-05): default jam selesai = 07:00, sama dengan backend.
+  it("quiet hours tanpa jam → fallback 22:00–07:00 (default backend)", () => {
     expect(summarizeNotificationPreferences({ quietHoursEnabled: true })).toBe(
-      "Senyap 22:00–06:00",
+      "Senyap 22:00–07:00",
     )
   })
 

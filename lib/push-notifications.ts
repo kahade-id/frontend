@@ -58,6 +58,7 @@ import {
   localKindForPushData,
 } from "@/lib/notification-local-prefs"
 import { SecureKeys, deleteSecureItem, getOrCreateDeviceId, getSecureItem, setSecureItem } from "@/lib/secure-storage"
+import { translate } from "@/lib/i18n/translate"
 import { logWarn } from "@/lib/telemetry"
 import {
   CONFIRM_RECEIPT_ACTION,
@@ -240,7 +241,8 @@ export function subscribePushTokenRefresh(api: RegisterDeviceApi): () => void {
         const next = event?.data
         if (typeof next !== "string" || !next) return
         try {
-          await registerPushDevice(api, { force: true })
+          // Token berotasi = izin sudah ada; tidak perlu dialog izin (FE-49).
+          await registerPushDevice(api, { force: true, prompt: false })
         } catch (err) {
           logWarn("push:token-refresh", err)
         }
@@ -315,9 +317,6 @@ export async function setupNotifications(): Promise<void> {
         invalidateQueryPrefix("transaction")
         invalidateQueryPrefix("dispute")
         invalidateQueryPrefix("milestone")
-        // NCC-011: badge tab notifikasi naik segera saat push tiba di
-        // foreground (sebelumnya hanya via tap / AppState / poll 60 detik).
-        void refreshUnreadCount()
       } else if (kind === "showcase") {
         invalidateQueryPrefix("showcase")
         invalidateQueryPrefix("feed")
@@ -327,23 +326,33 @@ export async function setupNotifications(): Promise<void> {
         invalidateQueryPrefix("campaign")
         invalidateQueryPrefix("subscription")
         invalidateQueryPrefix("referral")
-        void refreshUnreadCount()
       } else {
         invalidateQueryCache()
-        void refreshUnreadCount()
       }
+      // Audit Notifikasi 2026-10-10 (FE-33): setiap push = (hampir selalu)
+      // satu baris inbox baru — badge tab Notifikasi dan cache daftar inbox
+      // disegarkan untuk SEMUA jenis. Dulu chat/showcase tidak menyentuh
+      // badge, dan tidak ada jenis yang membatalkan cache `notifications:`,
+      // sehingga inbox yang terbuka tetap basi saat WS mati (push = cadangan).
+      invalidateQueryPrefix("notifications:")
+      void refreshUnreadCount()
     })
     handlerInstalled = true
   }
 
   if (Platform.OS === "android") {
+    // Audit Notifikasi 2026-10-10 (FE-43): nama & deskripsi channel tampil di
+    // Setelan Android dan IKUT diperbarui tiap boot (hanya importance/suara
+    // yang write-once) — diterjemahkan agar pengguna EN tidak membaca
+    // Indonesia di setelan sistem.
     // Dibuat berurutan, bukan Promise.all: urutan pembuatan menentukan urutan
     // tampil di Setelan Android, dan "Transaksi & pembayaran" yang paling penting
     // sebaiknya di atas.
     await Notifications.setNotificationChannelAsync(NOTIFICATION_CHANNELS.transaksi, {
-      name: "Transaksi & pembayaran",
-      description:
+      name: translate("Transaksi & pembayaran"),
+      description: translate(
         "Status pesanan, dana masuk/keluar, dan batas waktu pembayaran. Sangat disarankan tetap aktif.",
+      ),
       importance: Notifications.AndroidImportance.MAX,
       vibrationPattern: [0, 250, 250, 250],
       lockscreenVisibility: Notifications.AndroidNotificationVisibility.PRIVATE,
@@ -352,9 +361,10 @@ export async function setupNotifications(): Promise<void> {
     })
 
     await Notifications.setNotificationChannelAsync(NOTIFICATION_CHANNELS.orders, {
-      name: "Pesanan & pembayaran",
-      description:
+      name: translate("Pesanan & pembayaran"),
+      description: translate(
         "Status pesanan: pembayaran diterima, pengiriman, dan pencairan dana.",
+      ),
       importance: Notifications.AndroidImportance.MAX,
       vibrationPattern: [0, 250, 250, 250],
       lockscreenVisibility: Notifications.AndroidNotificationVisibility.PRIVATE,
@@ -363,8 +373,8 @@ export async function setupNotifications(): Promise<void> {
     })
 
     await Notifications.setNotificationChannelAsync(NOTIFICATION_CHANNELS.wallet, {
-      name: "Dompet",
-      description: "Dana dompet: top-up, penarikan, transfer, dan pencairan dana.",
+      name: translate("Dompet"),
+      description: translate("Dana dompet: top-up, penarikan, transfer, dan pencairan dana."),
       importance: Notifications.AndroidImportance.MAX,
       vibrationPattern: [0, 250, 250, 250],
       lockscreenVisibility: Notifications.AndroidNotificationVisibility.PRIVATE,
@@ -373,8 +383,8 @@ export async function setupNotifications(): Promise<void> {
     })
 
     await Notifications.setNotificationChannelAsync(NOTIFICATION_CHANNELS.chat, {
-      name: "Chat",
-      description: "Pesan chat baru dari lawan transaksi atau admin.",
+      name: translate("Chat"),
+      description: translate("Pesan chat baru dari lawan transaksi atau admin."),
       importance: Notifications.AndroidImportance.HIGH,
       lockscreenVisibility: Notifications.AndroidNotificationVisibility.PRIVATE,
       sound: "default",
@@ -382,9 +392,10 @@ export async function setupNotifications(): Promise<void> {
     })
 
     await Notifications.setNotificationChannelAsync(NOTIFICATION_CHANNELS.security, {
-      name: "Keamanan",
-      description:
+      name: translate("Keamanan"),
+      description: translate(
         "Peringatan keamanan akun: login baru, perubahan kata sandi, dan verifikasi.",
+      ),
       importance: Notifications.AndroidImportance.HIGH,
       lockscreenVisibility: Notifications.AndroidNotificationVisibility.PRIVATE,
       sound: "default",
@@ -392,8 +403,8 @@ export async function setupNotifications(): Promise<void> {
     })
 
     await Notifications.setNotificationChannelAsync(NOTIFICATION_CHANNELS.default, {
-      name: "Umum",
-      description: "Pengumuman dan informasi lain di luar transaksi.",
+      name: translate("Umum"),
+      description: translate("Pengumuman dan informasi lain di luar transaksi."),
       importance: Notifications.AndroidImportance.DEFAULT,
       lockscreenVisibility: Notifications.AndroidNotificationVisibility.PRIVATE,
       sound: "default",
@@ -414,7 +425,7 @@ export async function setupNotifications(): Promise<void> {
       await Notifications.setNotificationCategoryAsync(ORDER_ACTION_CATEGORY, [
         {
           identifier: CONFIRM_RECEIPT_ACTION,
-          buttonTitle: "Konfirmasi terima",
+          buttonTitle: translate("Konfirmasi terima"),
           options: {
             // Aksi melepas dana escrow: WAJIB buka app (foreground) supaya
             // berjalan dalam sesi terverifikasi + verifikasi ulang via API.
@@ -456,15 +467,22 @@ export async function getDevicePushPermissionGranted(): Promise<boolean | null> 
 /**
  * Minta izin (bila belum) dan ambil Expo push token.
  * `null` = tidak bisa (izin ditolak, emulator, tanpa EAS projectId, web).
+ *
+ * Audit Notifikasi 2026-10-10 (FE-49): `prompt: false` = JANGAN memunculkan
+ * dialog izin OS — hanya ambil token bila izin SUDAH diberikan. Dipakai
+ * registrasi saat boot (root layout): dulu setiap peluncuran memanggil
+ * `requestPermissionsAsync`, sehingga dialog izin OS muncul SEBELUM sheet
+ * rationale (components/ui/push-rationale-sheet.tsx) sempat menjelaskan
+ * alasannya — di iOS dialog itu hanya muncul sekali seumur instalasi.
  */
-export async function getPushToken(): Promise<string | null> {
+export async function getPushToken(opts?: { prompt?: boolean }): Promise<string | null> {
   if (Platform.OS === "web" || !Device.isDevice) return null
 
   // PERF-FIX (bundle): expo-notifications dimuat lazy — lihat loadNotifications.
   const Notifications = await loadNotifications()
   const current = await Notifications.getPermissionsAsync()
   let status = current.status
-  if (status !== "granted") {
+  if (status !== "granted" && opts?.prompt !== false) {
     const asked = await Notifications.requestPermissionsAsync()
     status = asked.status
   }
@@ -486,8 +504,11 @@ export async function getPushToken(): Promise<string | null> {
  * dengan yang sudah terdaftar (dipanggil tiap app start — jangan spam).
  * Kembalikan token yang terdaftar, atau `null` bila tidak tersedia.
  */
-export async function registerPushDevice(api: RegisterDeviceApi, opts?: { force?: boolean }): Promise<string | null> {
-  const token = await getPushToken()
+export async function registerPushDevice(
+  api: RegisterDeviceApi,
+  opts?: { force?: boolean; prompt?: boolean },
+): Promise<string | null> {
+  const token = await getPushToken({ prompt: opts?.prompt })
   if (!token) return null
 
   const previous = await getSecureItem(SecureKeys.pushToken)

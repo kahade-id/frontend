@@ -383,3 +383,74 @@ describe("Poin 1 — remap rute usang (products/returns/service-bookings/seller)
     expect(logicalParentForPath("/seller/vouchers")).toBe(ROUTES.showcaseManagement)
   })
 })
+
+// ---------------------------------------------------------------------------
+// Audit Notifikasi 2026-10-10 (FE-30/FE-37/FE-45)
+// ---------------------------------------------------------------------------
+import { isNotificationInboxRoute, isNotificationSelfRoute } from "@/lib/notification-routing"
+
+describe("FE-37 — keluarga tipe enum penuh sebagai jaring terakhir", () => {
+  afterEach(() => __resetWalletFlagForTests())
+
+  it("ORDER_PAYMENT_RECEIVED + orderId (push tanpa actionUrl) → detail order", () => {
+    expect(
+      hrefPath(routeForPushData({ type: "ORDER_PAYMENT_RECEIVED", orderId: "o9" })),
+    ).toBe(hrefPath(ROUTES.orderDetail("o9")))
+    expect(labelForNotificationReference({ referenceType: "ORDER_PAYMENT_RECEIVED", referenceId: "o9" })).toBe(
+      "Lihat pesanan",
+    )
+  })
+
+  it("alias spesifik tetap menang atas keluarga: ORDER_SHIPPED → pelacakan, ORDER_LINK → tautan", () => {
+    expect(hrefPath(routeForNotificationReference({ referenceType: "ORDER_SHIPPED", referenceId: "s1" }))).toBe(
+      hrefPath(ROUTES.trackingDetail("s1")),
+    )
+    expect(hrefPath(routeForNotificationReference({ referenceType: "ORDER_LINK", referenceId: "t1" }))).toBe(
+      hrefPath(ROUTES.orderLink("t1")),
+    )
+  })
+
+  it("WALLET_TOPUP_SUCCESS + txId → detail mutasi (dompet nyala)", () => {
+    __setWalletServerStatusForTests(true)
+    expect(hrefPath(routeForPushData({ type: "WALLET_TOPUP_SUCCESS", txId: "tx1" }))).toBe(
+      hrefPath(ROUTES.walletTransaction("tx1")),
+    )
+  })
+
+  it("SECURITY_NEW_LOGIN → Keamanan; KYC_REJECTED → KYC; SUBSCRIPTION_EXPIRED → langganan", () => {
+    expect(hrefPath(routeForPushData({ type: "SECURITY_NEW_LOGIN" }))).toBe(ROUTES.security)
+    expect(hrefPath(routeForPushData({ type: "KYC_REJECTED" }))).toBe(ROUTES.kyc)
+    expect(hrefPath(routeForPushData({ type: "SUBSCRIPTION_EXPIRED" }))).toBe(ROUTES.subscriptions)
+    expect(labelForNotificationReference({ referenceType: "SECURITY_NEW_LOGIN" })).toBe("Buka keamanan")
+  })
+
+  it("ESCROW_HELD_NO_BANK (tanpa actionUrl) → daftar rekening", () => {
+    expect(hrefPath(routeForPushData({ type: "ESCROW_HELD_NO_BANK" }))).toBe(ROUTES.bankAccounts)
+    expect(labelForNotificationReference({ referenceType: "ESCROW_HELD_NO_BANK" })).toBe("Daftarkan rekening")
+  })
+
+  it("SYSTEM_ANNOUNCEMENT tanpa actionUrl tetap null (pemanggil → detail/inbox)", () => {
+    expect(routeForPushData({ type: "SYSTEM_ANNOUNCEMENT" })).toBeNull()
+  })
+})
+
+describe("FE-30/FE-45 — rute inbox & tautan ke diri sendiri", () => {
+  it("/notifications & /badges = rute inbox; detail spesifik bukan", () => {
+    expect(isNotificationInboxRoute(routeForActionUrl("/notifications"))).toBe(true)
+    expect(isNotificationInboxRoute(routeForActionUrl("/badges"))).toBe(true)
+    expect(isNotificationInboxRoute(routeForActionUrl("/notifications?notificationId=n1"))).toBe(false)
+    expect(isNotificationInboxRoute(null)).toBe(false)
+  })
+
+  it("self-route hanya bila id sama", () => {
+    const toN1 = routeForActionUrl("/notifications?notificationId=n1")
+    expect(isNotificationSelfRoute(toN1, "n1")).toBe(true)
+    expect(isNotificationSelfRoute(toN1, "n2")).toBe(false)
+    expect(isNotificationSelfRoute(routeForActionUrl("/order/o1"), "n1")).toBe(false)
+  })
+
+  it("actionUrl /notification/<id> (deep link email lama) → detail notifikasi", () => {
+    expect(hrefPath(routeForActionUrl("/notification/n7"))).toBe(hrefPath(ROUTES.notificationDetail("n7")))
+    expect(labelForNotificationReference({ actionUrl: "/notification/n7" })).toBe("Lihat notifikasi")
+  })
+})

@@ -30,6 +30,9 @@ import auth from "./auth.json"
 // chat-room (audit chat 2026-10): string baru dari perbaikan ruang chat —
 // satu berkas per batch terjemahan supaya bisa ditinjau tuntas.
 import chatRoom from "./chat-room.json"
+// notifications (audit Notifikasi 2026-10-10): caption status efektif,
+// ringkasan preferensi, dan layar detail — satu berkas per batch.
+import notifications from "./notifications.json"
 import errors from "./errors.json"
 import labels from "./labels.json"
 // profile (redesign Profil & Tanya Jawab): satu berkas per batch.
@@ -83,6 +86,7 @@ export const EN: Dict = {
   ...screens9,
   ...screens10,
   ...chatRoom,
+  ...notifications,
   ...profile,
   // Pesan error & label status dari peta di lib/ — yang paling sering muncul
   // saat jaringan bermasalah, jadi jangan sampai jatuh ke Bahasa Indonesia.

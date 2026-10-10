@@ -38,9 +38,13 @@ export function notificationUiCategory(category: string | null | undefined): UiC
  */
 export function notificationTypeUiCategory(type: string | null | undefined): UiCategory | null {
   if (!type) return null
-  if (type.startsWith("ORDER_")) return "order"
-  if (type.startsWith("WALLET_")) return "wallet"
-  if (type.startsWith("CHAT_")) return "chat"
+  // Audit 2026-10-10 (FE-07/FE-24): keluarga yang dulu tak dikenal (→ ikon
+  // kategori generik): MILESTONE_* = tahap order; ESCROW_HELD_NO_BANK = dana;
+  // SUPPORT_AGENT_REPLY = chat; SYSTEM_/MODERATION_/DATA_EXPORT_/QUESTION_/
+  // DIGEST_ = sistem; BADGE_/RANK_ = PROMOSI di backend (bukan sistem).
+  if (type.startsWith("ORDER_") || type.startsWith("MILESTONE_")) return "order"
+  if (type.startsWith("WALLET_") || type === "ESCROW_HELD_NO_BANK") return "wallet"
+  if (type.startsWith("CHAT_") || type === "SUPPORT_AGENT_REPLY") return "chat"
   if (type.startsWith("DISPUTE_")) return "dispute"
   if (type.startsWith("SECURITY_") || type.startsWith("KYC_") || type.startsWith("BUSINESS_VERIFICATION_"))
     return "security"
@@ -49,10 +53,20 @@ export function notificationTypeUiCategory(type: string | null | undefined): UiC
     type.startsWith("VOUCHER_") ||
     type.startsWith("CAMPAIGN_") ||
     type.startsWith("TOPUP_BONUS_") ||
-    type.startsWith("SUBSCRIPTION_")
+    type.startsWith("SUBSCRIPTION_") ||
+    type.startsWith("BADGE_") ||
+    type.startsWith("RANK_")
   )
     return "promo"
-  if (type.startsWith("RATING_") || type.startsWith("BADGE_") || type.startsWith("RANK_"))
+  if (
+    type.startsWith("RATING_") ||
+    type.startsWith("SYSTEM_") ||
+    type.startsWith("MODERATION_") ||
+    type.startsWith("DATA_EXPORT_") ||
+    type.startsWith("QUESTION_") ||
+    type.startsWith("DIGEST_") ||
+    type.startsWith("SUPPORT_TICKET_")
+  )
     return "system"
   return null
 }

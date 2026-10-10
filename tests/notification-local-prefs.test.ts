@@ -150,3 +150,22 @@ describe("persistensi toggle", () => {
     expect(JSON.parse(raw ?? "{}")).toMatchObject({ showcase: false })
   })
 })
+
+// Audit Notifikasi 2026-10-10 (FE-38): keluarga yang dulu jatuh ke null.
+describe("localKindForPushData — FE-38", () => {
+  it("ESCROW_HELD_NO_BANK → transaction (soal dana, sejajar WALLET_*)", async () => {
+    const { localKindForPushData } = await freshModule()
+    expect(localKindForPushData({ notificationType: "ESCROW_HELD_NO_BANK" })).toBe("transaction")
+  })
+
+  it("BADGE_AWARDED / RANK_UPGRADED → promo (kategori PROMOSI backend)", async () => {
+    const { localKindForPushData } = await freshModule()
+    expect(localKindForPushData({ notificationType: "BADGE_AWARDED" })).toBe("promo")
+    expect(localKindForPushData({ type: "RANK_UPGRADED" })).toBe("promo")
+  })
+
+  it("keamanan tetap null (selalu tampil, tidak bisa di-toggle)", async () => {
+    const { localKindForPushData } = await freshModule()
+    expect(localKindForPushData({ notificationType: "SECURITY_NEW_LOGIN" })).toBeNull()
+  })
+})
