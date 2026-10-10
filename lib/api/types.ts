@@ -938,6 +938,13 @@ export type ConfirmOrderDto = {
    * maxLength 500
    */
   reason?: string
+  /**
+   * B02 (audit alamat & kurir 2026-10-10): ID alamat buku alamat PEMBELI —
+   * wajib bila pembeli menerima order BARANG FISIK yang dibuat penjual
+   * (backend fail-closed SHIPPING_ADDRESS_REQUIRED). Diabaikan untuk order
+   * buatan pembeli / non-fisik.
+   */
+  shippingAddressId?: string
 }
 
 export type PayOrderDto = {

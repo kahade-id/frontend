@@ -7,12 +7,13 @@
  *
  * Keputusan non-obvious:
  * - Label: RUMAH / KANTOR / LAINNYA (customLabel bila LAINNYA). Server yang
- *   menentukan validasi akhir; klien hanya validasi kosong.
+ *   menentukan validasi akhir; klien menyalin aturannya
+ *   (`lib/address-validation.ts`) agar kesalahan ketahuan sebelum POST.
  * - Hapus alamat utama: server menolak/menetapkan ulang sesuai kontrak —
  *   klien menampilkan pesan server apa adanya.
  * - Tamu: GuestLoginPrompt (seluruh endpoint auth-required).
  */
-import { useCallback, useState } from "react"
+import { useCallback, useMemo, useState } from "react"
 import { View } from "react-native"
 import { House, Briefcase, DotsThreeVertical, MapPin, PencilSimple, Plus, Tag, Trash } from "phosphor-react-native"
 
@@ -23,6 +24,12 @@ import {
   type AddressLabel,
   type CreateAddressDto,
 } from "@/lib/api/commerce"
+import {
+  ADDRESS_LIMITS,
+  sanitizePhoneInput,
+  sanitizePostalInput,
+  validateAddressForm,
+} from "@/lib/address-validation"
 import { useHasSession } from "@/lib/guest-gate"
 import { translate } from "@/lib/i18n/translate"
 import { useApiQuery } from "@/lib/use-api-query"
@@ -79,7 +86,15 @@ const EMPTY_FORM: FormState = {
   postalCode: "",
 }
 
-function formToDto(form: FormState): CreateAddressDto {
+/**
+ * C15 (audit alamat & kurir 2026-10-10): saat UBAH, `province` dikirim
+ * sebagai string kosong (bukan `undefined`) — PATCH backend hanya menyentuh
+ * field yang ADA di body, jadi `undefined` berarti "biarkan" dan provinsi
+ * lama tidak pernah bisa dikosongkan. Saat TAMBAH tetap `undefined` agar
+ * body tidak memuat field kosong.
+ */
+function formToDto(form: FormState, mode: "create" | "update"): CreateAddressDto {
+  const province = form.province.trim()
   return {
     label: form.label,
     customLabel: form.label === "LAINNYA" && form.customLabel.trim() ? form.customLabel.trim() : undefined,
@@ -87,7 +102,7 @@ function formToDto(form: FormState): CreateAddressDto {
     phone: form.phone.trim(),
     addressLine: form.addressLine.trim(),
     city: form.city.trim(),
-    province: form.province.trim() || undefined,
+    province: province || (mode === "update" ? "" : undefined),
     postalCode: form.postalCode.trim(),
   }
 }
@@ -99,8 +114,18 @@ export default function AddressesScreen() {
     "addresses",
     (signal) => api.commerce.listAddresses(1, 50, signal),
     hasSession,
+    // C12 (audit alamat & kurir 2026-10-10): alamat yang ditambah dari form
+    // inline checkout harus tampak saat kembali ke layar ini.
+    { refreshOnFocus: true, refreshOnFocusStaleMs: 10_000 },
   )
   const addresses = query.data ?? []
+  // C11: backend menolak alamat ke-21 — beri tahu sebelum form dibuka.
+  const atLimit = addresses.length >= ADDRESS_LIMITS.maxAddresses
+  // C13: label segmen lewat translate (di dalam komponen agar ikut bahasa aktif).
+  const labelOptions = useMemo(
+    () => LABEL_OPTIONS.map((option) => ({ ...option, label: translate(option.label) })),
+    [],
+  )
 
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editing, setEditing] = useState<Address | null>(null)
@@ -113,11 +138,21 @@ export default function AddressesScreen() {
   const [defaultBusy, setDefaultBusy] = useState(false)
 
   const openCreate = useCallback(() => {
+    if (atLimit) {
+      toast.show({
+        title: translate("Buku alamat penuh"),
+        description: translate("Maksimal {x} alamat. Hapus salah satu untuk menambah yang baru.", {
+          x: ADDRESS_LIMITS.maxAddresses,
+        }),
+        tone: "warning",
+      })
+      return
+    }
     setEditing(null)
     setForm(EMPTY_FORM)
     setFormError(undefined)
     setSheetOpen(true)
-  }, [])
+  }, [atLimit, toast])
 
   const openEdit = useCallback((address: Address) => {
     setEditing(address)
@@ -142,35 +177,47 @@ export default function AddressesScreen() {
     setFormError(undefined)
   }, [])
 
-  const validate = (dto: CreateAddressDto): string | null => {
-    if (!dto.recipientName) return translate("Nama penerima wajib diisi.")
-    if (!dto.phone) return translate("Nomor HP wajib diisi.")
-    if (!dto.addressLine) return translate("Alamat wajib diisi.")
-    if (!dto.city) return translate("Kota wajib diisi.")
-    if (!dto.postalCode) return translate("Kode pos wajib diisi.")
-    return null
-  }
+  // C06 (audit alamat & kurir 2026-10-10): aturan = validator backend
+  // (kode pos 5 digit, HP 8–20 karakter, label LAINNYA wajib nama) — dulu baru
+  // ketahuan lewat 400 dari server.
+  const validate = (f: FormState): string | null =>
+    validateAddressForm({
+      label: f.label,
+      customLabel: f.customLabel,
+      recipientName: f.recipientName,
+      phone: f.phone,
+      addressLine: f.addressLine,
+      city: f.city,
+      postalCode: f.postalCode,
+    })
 
   const handleSave = useCallback(async () => {
     if (saving) return
-    const dto = formToDto(form)
-    const error = validate(dto)
+    const error = validate(form)
     if (error) {
       setFormError(error)
       return
     }
+    const dto = formToDto(form, editing ? "update" : "create")
     setSaving(true)
     try {
       if (editing) {
-        await api.commerce.updateAddress(editing.id, dto)
+        const updated = await api.commerce.updateAddress(editing.id, dto)
         toast.show({ title: translate("Alamat diperbarui"), tone: "success" })
+        // C09: pakai hasil server langsung — daftar tidak menunggu refetch.
+        if (updated) query.setData((prev) => (prev ? prev.map((a) => (a.id === updated.id ? updated : a)) : prev))
+        else void query.refresh()
       } else {
-        await api.commerce.createAddress(dto)
+        const created = await api.commerce.createAddress(dto)
         toast.show({ title: translate("Alamat ditambahkan"), tone: "success" })
+        if (created) {
+          query.setData((prev) =>
+            prev ? (created.isDefault ? [created, ...prev.map((a) => ({ ...a, isDefault: false }))] : [...prev, created]) : [created],
+          )
+        } else void query.refresh()
       }
       setSheetOpen(false)
       setEditing(null)
-      await query.refresh()
     } catch (err) {
       setFormError(userMessage(err))
     } finally {
@@ -181,12 +228,17 @@ export default function AddressesScreen() {
   const handleDelete = useCallback(async () => {
     if (!deleteTarget || deleting) return
     setDeleting(true)
+    // C08: optimistis — kartu hilang seketika, dikembalikan bila server menolak.
+    const snapshot = query.data
+    query.setData((prev) => (prev ? prev.filter((a) => a.id !== deleteTarget.id) : prev))
+    setDeleteTarget(null)
     try {
       await api.commerce.deleteAddress(deleteTarget.id)
       toast.show({ title: translate("Alamat dihapus"), tone: "success" })
-      setDeleteTarget(null)
-      await query.refresh()
+      // Server mempromosikan alamat utama pengganti — sinkronkan diam-diam.
+      if (deleteTarget.isDefault) void query.refresh()
     } catch (err) {
+      query.setData(snapshot ?? null)
       // Klasifikasi toast: error mutasi non-blokir via showMutationError.
       if (
         showMutationError(toast.show, {
@@ -207,12 +259,20 @@ export default function AddressesScreen() {
     async (address: Address) => {
       if (defaultBusy || address.isDefault) return
       setDefaultBusy(true)
+      setMenuAddress(null)
+      // C08: optimistis — badge "Utama" pindah seketika, rollback bila gagal.
+      const snapshot = query.data
+      query.setData((prev) => {
+        if (!prev) return prev
+        const next = prev.map((a) => ({ ...a, isDefault: a.id === address.id }))
+        // Server mengurutkan default paling atas — tiru agar tidak melompat saat refresh.
+        return [...next.filter((a) => a.isDefault), ...next.filter((a) => !a.isDefault)]
+      })
       try {
         await api.commerce.setDefaultAddress(address.id)
         toast.show({ title: translate("Alamat utama diperbarui"), tone: "success" })
-        setMenuAddress(null)
-        await query.refresh()
       } catch (err) {
+        query.setData(snapshot ?? null)
         // Klasifikasi toast: error mutasi non-blokir via showMutationError.
         if (
           showMutationError(toast.show, {
@@ -272,8 +332,8 @@ export default function AddressesScreen() {
 
   // FRM-003: pesan validasi pertama ditampilkan sebagai hint di atas tombol
   // supaya jelas field mana yang masih kurang (tombol nonaktif tak lagi bisu).
-  const saveError = validate(formToDto(form))
-  const hasTypedAny = [form.recipientName, form.phone, form.addressLine, form.city, form.postalCode].some(
+  const saveError = validate(form)
+  const hasTypedAny = [form.recipientName, form.phone, form.addressLine, form.city, form.postalCode, form.customLabel].some(
     (v) => v.trim().length > 0,
   )
 
@@ -357,7 +417,8 @@ export default function AddressesScreen() {
 
       <Dialog
         title={translate("Hapus alamat ini?")}
-        description={translate("Alamat \"{x}\" akan dihapus permanen.", {
+        // C10: backend soft-delete; order lama tetap memegang snapshot alamatnya.
+        description={translate("Alamat \"{x}\" akan dihapus dari buku alamat. Pesanan yang sudah dibuat tidak berubah.", {
           x: deleteTarget ? addressLabelText(deleteTarget) : "",
         })}
         visible={deleteTarget != null}
@@ -400,7 +461,7 @@ export default function AddressesScreen() {
         <View className="gap-4">
           <Field label={translate("Label")}>
             <SegmentedControl<AddressLabel>
-              items={LABEL_OPTIONS}
+              items={labelOptions}
               value={form.label}
               onChange={(label) => patchForm({ label })}
               accessibilityLabel={translate("Label alamat")}
@@ -412,29 +473,30 @@ export default function AddressesScreen() {
               value={form.customLabel}
               onChangeText={(text) => patchForm({ customLabel: text })}
               placeholder={translate("cth: Kos, Rumah orang tua")}
-              maxLength={30}
+              // C07: batas sama dengan backend (40), bukan 30.
+              maxLength={ADDRESS_LIMITS.customLabel}
             />
           ) : null}
           <Input
             label={translate("Nama penerima")}
             value={form.recipientName}
             onChangeText={(text) => patchForm({ recipientName: text })}
-            maxLength={100}
+            maxLength={ADDRESS_LIMITS.recipientName}
             autoCapitalize="words"
           />
           <Input
             label={translate("Nomor HP")}
             value={form.phone}
-            onChangeText={(text) => patchForm({ phone: text.replace(/[^\d+]/g, "") })}
+            onChangeText={(text) => patchForm({ phone: sanitizePhoneInput(text) })}
             keyboardType="phone-pad"
-            maxLength={16}
+            maxLength={ADDRESS_LIMITS.phone}
           />
           <Input
             label={translate("Alamat")}
             value={form.addressLine}
             onChangeText={(text) => patchForm({ addressLine: text })}
             placeholder={translate("Jalan, nomor rumah/gedung, patokan")}
-            maxLength={255}
+            maxLength={ADDRESS_LIMITS.addressLine}
             multiline
           />
           <View className="flex-row gap-3">
@@ -442,15 +504,16 @@ export default function AddressesScreen() {
               label={translate("Kota")}
               value={form.city}
               onChangeText={(text) => patchForm({ city: text })}
-              maxLength={100}
+              maxLength={ADDRESS_LIMITS.city}
               containerClassName="flex-1"
             />
             <Input
               label={translate("Kode pos")}
               value={form.postalCode}
-              onChangeText={(text) => patchForm({ postalCode: text.replace(/\D/g, "") })}
+              onChangeText={(text) => patchForm({ postalCode: sanitizePostalInput(text) })}
               keyboardType="number-pad"
-              maxLength={10}
+              // C07: kode pos Indonesia tepat 5 digit (validator backend).
+              maxLength={ADDRESS_LIMITS.postalCode}
               containerClassName="flex-1"
             />
           </View>
@@ -458,7 +521,7 @@ export default function AddressesScreen() {
             label={translate("Provinsi (opsional)")}
             value={form.province}
             onChangeText={(text) => patchForm({ province: text })}
-            maxLength={100}
+            maxLength={ADDRESS_LIMITS.province}
           />
           {formError ? (
             <Text variant="caption" tone="danger">

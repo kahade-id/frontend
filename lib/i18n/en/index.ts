@@ -55,6 +55,9 @@ import screens9 from "./screens-9.json"
 // screens-10 (audit UI/UX 2026-09-28, TEXT-004): sisa string Indonesia yang
 // belum punya padanan English — satu berkas per batch terjemahan.
 import screens10 from "./screens-10.json"
+// alamat-kurir (audit alamat & kurir 2026-10-10): buku alamat, picker,
+// pelacakan kiriman — satu berkas per batch terjemahan.
+import alamatKurir from "./alamat-kurir.json"
 import tabs from "./tabs.json"
 import ui from "./ui.json"
 
@@ -82,6 +85,7 @@ export const EN: Dict = {
   ...screens8,
   ...screens9,
   ...screens10,
+  ...alamatKurir,
   ...chatRoom,
   ...profile,
   // Pesan error & label status dari peta di lib/ — yang paling sering muncul

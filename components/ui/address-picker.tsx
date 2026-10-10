@@ -1,21 +1,34 @@
 /**
  * AddressPicker — pilih alamat pengiriman dari buku alamat (batch 43, item 2).
  *
- * Dipakai di checkout untuk produk FISIK (resi/ongkir hanya relevan di sana).
- * Praseleksi: alamat utama. Pilihan disimpan di state layar pemanggil.
+ * Dipakai di checkout (pembeli), accept link, dan terima pesanan untuk produk
+ * FISIK (resi/ongkir hanya relevan di sana). Praseleksi: alamat utama.
+ * Pilihan disimpan di state layar pemanggil; `shippingAddressId` dikirim ke
+ * backend (createOrder / acceptLink / confirm).
  *
- * CATATAN KONTRAK: CreateOrderDto backend (mega/be-commerce d420cf7) belum
- * memiliki field alamat — pilihan saat ini tampil di ringkasan checkout dan
- * siap dikirim begitu backend menambahkan field-nya (satu baris wiring).
- * Klien TIDAK mengarang field baru ke DTO (risiko 400 forbidNonWhitelisted).
+ * Audit alamat & kurir (2026-10-10):
+ *   - C01: `load` dulu menangkap `selected` dari render pertama (closure
+ *     basi, `useCallback([])`) → setiap kali sheet dibuka pilihan user
+ *     DITIMPA alamat utama. Kini `selected`/`onSelect` dibaca lewat ref.
+ *   - C02: pilihan direkonsiliasi dengan daftar segar — alamat yang diubah
+ *     di buku alamat diperbarui, yang dihapus diganti alamat utama (user
+ *     diberi tahu), bukan dikirim sebagai id basi (400 dari server).
+ *   - C03: validasi lokal (kode pos 5 digit, HP) sebelum POST.
+ *   - C04/C05: pesan error spesifik (`userMessage`) + indikator memuat.
  */
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { View } from "react-native"
 import { CaretRight, MapPin, Plus } from "phosphor-react-native"
 import { router } from "expo-router"
 
 import { api, userMessage } from "@/lib/api"
 import { addressLabelText, type Address, type CreateAddressDto } from "@/lib/api/commerce"
+import {
+  ADDRESS_LIMITS,
+  sanitizePhoneInput,
+  sanitizePostalInput,
+  validateAddressForm,
+} from "@/lib/address-validation"
 import { translate } from "@/lib/i18n/translate"
 import { ROUTES } from "@/lib/routes"
 import { useToast } from "@/components/ui/toast"
@@ -27,6 +40,20 @@ import { Icon } from "@/components/ui/icon"
 import { Input } from "@/components/ui/input"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
+
+function sameAddress(a: Address, b: Address): boolean {
+  return (
+    a.label === b.label &&
+    a.customLabel === b.customLabel &&
+    a.recipientName === b.recipientName &&
+    a.phone === b.phone &&
+    a.addressLine === b.addressLine &&
+    a.city === b.city &&
+    a.province === b.province &&
+    a.postalCode === b.postalCode &&
+    a.isDefault === b.isDefault
+  )
+}
 
 export function AddressPicker({
   selected,
@@ -41,24 +68,48 @@ export function AddressPicker({
   const [sheetOpen, setSheetOpen] = useState(false)
   const [addresses, setAddresses] = useState<Address[]>([])
   const [loading, setLoading] = useState(false)
+  const [loadError, setLoadError] = useState<string | null>(null)
+
+  // C01: selalu baca nilai TERBARU, bukan tangkapan render pertama.
+  const selectedRef = useRef(selected)
+  selectedRef.current = selected
+  const onSelectRef = useRef(onSelect)
+  onSelectRef.current = onSelect
 
   const load = useCallback(async () => {
     setLoading(true)
+    setLoadError(null)
     try {
       const list = await api.commerce.listAddresses(1, 50)
       setAddresses(list)
-      // Praseleksi alamat utama bila belum ada pilihan.
-      if (!selected) {
-        const def = list.find((a) => a.isDefault) ?? list[0] ?? null
-        if (def) onSelect(def)
+      const current = selectedRef.current
+      const def = list.find((a) => a.isDefault) ?? list[0] ?? null
+      if (!current) {
+        // Praseleksi alamat utama bila belum ada pilihan.
+        if (def) onSelectRef.current(def)
+        return
       }
-    } catch {
-      toast.show({ title: translate("Gagal memuat alamat"), tone: "danger" })
+      // C02: rekonsiliasi pilihan dengan daftar segar.
+      const fresh = list.find((a) => a.id === current.id)
+      if (!fresh) {
+        onSelectRef.current(def)
+        toast.show({
+          title: translate("Alamat yang dipilih sudah dihapus"),
+          description: def ? translate("Diganti dengan alamat utama Anda.") : translate("Pilih alamat lain."),
+          tone: "warning",
+        })
+      } else if (!sameAddress(fresh, current)) {
+        onSelectRef.current(fresh)
+      }
+    } catch (err) {
+      // C04: pesan spesifik (offline / lambat / server), bukan "gagal" generik.
+      const message = userMessage(err)
+      setLoadError(message)
+      toast.show({ title: translate("Gagal memuat alamat"), description: message, tone: "danger" })
     } finally {
       setLoading(false)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [toast])
 
   useEffect(() => {
     void load()
@@ -90,13 +141,18 @@ export function AddressPicker({
     setAddError(undefined)
   }
 
-  // FRM-003: tombol nonaktif sampai semua field wajib terisi.
-  const addValid =
-    addName.trim() !== "" &&
-    addPhone.trim() !== "" &&
-    addLine.trim() !== "" &&
-    addCity.trim() !== "" &&
-    addPostal.trim() !== ""
+  // FRM-003 + C03: tombol nonaktif sampai semua field wajib terisi & valid;
+  // pesan validasi pertama tampil sebagai hint begitu user mulai mengetik.
+  const addValidation = validateAddressForm({
+    label: "RUMAH",
+    recipientName: addName,
+    phone: addPhone,
+    addressLine: addLine,
+    city: addCity,
+    postalCode: addPostal,
+  })
+  const addValid = addValidation === null
+  const addTyped = [addName, addPhone, addLine, addCity, addPostal].some((v) => v.trim().length > 0)
 
   const handleAdd = async () => {
     if (saving || !addValid) return
@@ -112,8 +168,10 @@ export function AddressPicker({
     setSaving(true)
     try {
       const created = await api.commerce.createAddress(dto)
+      // Alamat baru langsung terpilih SEBELUM daftar dimuat ulang — rekonsiliasi
+      // di `load` akan menemukannya di daftar segar.
+      if (created) onSelectRef.current(created)
       await load()
-      if (created) onSelect(created)
       setAddOpen(false)
       resetAddForm()
       toast.show({ title: translate("Alamat ditambahkan"), tone: "success" })
@@ -124,11 +182,14 @@ export function AddressPicker({
     }
   }
 
+  const atLimit = addresses.length >= ADDRESS_LIMITS.maxAddresses
+
   return (
     <View className="gap-2">
       <PressableScale
         accessibilityRole="button"
         accessibilityLabel={translate("Pilih alamat pengiriman")}
+        accessibilityState={{ disabled: !!disabled }}
         disabled={disabled}
         onPress={() => {
           void load()
@@ -210,7 +271,23 @@ export function AddressPicker({
               </PressableScale>
             )
           })}
-          {addresses.length === 0 && !loading ? (
+          {/* C05: jangan kosong tanpa penjelasan saat memuat / gagal. */}
+          {addresses.length === 0 && loading ? (
+            <Text variant="caption" tone="secondary">
+              {translate("Memuat alamat…")}
+            </Text>
+          ) : null}
+          {addresses.length === 0 && !loading && loadError ? (
+            <View className="gap-3 py-1">
+              <Text variant="caption" tone="danger">
+                {loadError}
+              </Text>
+              <Button variant="secondary" fullWidth onPress={() => void load()}>
+                {translate("Coba lagi")}
+              </Button>
+            </View>
+          ) : null}
+          {addresses.length === 0 && !loading && !loadError ? (
             <View className="gap-3 py-1">
               <Text variant="caption" tone="secondary">
                 {translate("Belum ada alamat tersimpan.")}
@@ -220,6 +297,7 @@ export function AddressPicker({
                 variant="secondary"
                 fullWidth
                 leftIcon={Plus}
+                disabled={atLimit}
                 onPress={() => {
                   resetAddForm()
                   setAddOpen(true)
@@ -240,9 +318,16 @@ export function AddressPicker({
         avoidKeyboard
         title={translate("Tambah alamat")}
         footer={
-          <Button fullWidth loading={saving} disabled={!addValid} onPress={() => void handleAdd()}>
-            {translate("Tambah alamat")}
-          </Button>
+          <View className="gap-2">
+            {addValidation && addTyped ? (
+              <Text variant="caption" tone="secondary" className="text-center">
+                {addValidation}
+              </Text>
+            ) : null}
+            <Button fullWidth loading={saving} disabled={!addValid} onPress={() => void handleAdd()}>
+              {translate("Tambah alamat")}
+            </Button>
+          </View>
         }
       >
         <View className="gap-4">
@@ -253,18 +338,18 @@ export function AddressPicker({
               setAddName(t)
               setAddError(undefined)
             }}
-            maxLength={100}
+            maxLength={ADDRESS_LIMITS.recipientName}
             autoCapitalize="words"
           />
           <Input
             label={translate("Nomor HP")}
             value={addPhone}
             onChangeText={(t) => {
-              setAddPhone(t.replace(/[^\d+]/g, ""))
+              setAddPhone(sanitizePhoneInput(t))
               setAddError(undefined)
             }}
             keyboardType="phone-pad"
-            maxLength={16}
+            maxLength={ADDRESS_LIMITS.phone}
           />
           <Input
             label={translate("Alamat")}
@@ -274,7 +359,7 @@ export function AddressPicker({
               setAddError(undefined)
             }}
             placeholder={translate("Jalan, nomor rumah/gedung, patokan")}
-            maxLength={255}
+            maxLength={ADDRESS_LIMITS.addressLine}
             multiline
           />
           <View className="flex-row gap-3">
@@ -285,18 +370,18 @@ export function AddressPicker({
                 setAddCity(t)
                 setAddError(undefined)
               }}
-              maxLength={100}
+              maxLength={ADDRESS_LIMITS.city}
               containerClassName="flex-1"
             />
             <Input
               label={translate("Kode pos")}
               value={addPostal}
               onChangeText={(t) => {
-                setAddPostal(t.replace(/\D/g, ""))
+                setAddPostal(sanitizePostalInput(t))
                 setAddError(undefined)
               }}
               keyboardType="number-pad"
-              maxLength={10}
+              maxLength={ADDRESS_LIMITS.postalCode}
               containerClassName="flex-1"
             />
           </View>
@@ -307,7 +392,7 @@ export function AddressPicker({
               setAddProvince(t)
               setAddError(undefined)
             }}
-            maxLength={100}
+            maxLength={ADDRESS_LIMITS.province}
           />
           {addError ? (
             <Text variant="caption" tone="danger">

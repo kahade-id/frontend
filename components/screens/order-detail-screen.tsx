@@ -112,6 +112,12 @@ import { OrderAgreementSection } from "@/components/order-agreement-section"
 import { DigitalAssetsBuyerSection } from "@/components/showcase/digital-asset-section"
 import { ShippingInfoCard } from "@/components/ui/shipping-info-card"
 import { ShippingAddressCard } from "@/components/ui/shipping-address-card"
+// D03 (audit alamat & kurir 2026-10-10): pembeli memilih alamat saat
+// menerima order fisik buatan penjual.
+import { AddressPicker } from "@/components/ui/address-picker"
+import { Alert } from "@/components/ui/alert"
+import { Field } from "@/components/ui/field"
+import type { Address } from "@/lib/api/commerce"
 import { ReceiptTicket } from "@/components/receipt/ReceiptTicket"
 import { shareReceipt } from "@/components/receipt/shareReceipt"
 import { useReceiptQr } from "@/components/receipt/use-receipt-qr"
@@ -894,10 +900,16 @@ export default function OrderDetailScreen() {
   // server-side — destruktif bila pengguna baru saja membayar kode lama.
   // Wajib konfirmasi eksplisit; cabang gagal-tak-pasti sudah di hook (A-14).
   const [confirmRecreatePayment, setConfirmRecreatePayment] = useState(false)
+  /**
+   * D03 (audit alamat & kurir 2026-10-10): alamat pengiriman yang dipilih
+   * PEMBELI saat menerima order barang fisik buatan penjual — dikirim sebagai
+   * `shippingAddressId` di `/confirm` (backend fail-closed).
+   */
+  const [confirmAddress, setConfirmAddress] = useState<Address | null>(null)
 
   const openChatBusyRef = useRef(false)
   // Lacak pengiriman (Gap-D) — logika di lib/use-order-tracking.ts (S9).
-  const { openTracking } = useOrderTracking(order, toast.show)
+  const { openTracking } = useOrderTracking(order)
   const openChat = useCallback(async () => {
     if (!order) return
     // R2 (audit ronde-2, butir #54): pemindaian room bisa memakan beberapa GET
@@ -1116,7 +1128,15 @@ export default function OrderDetailScreen() {
    * Dibersihkan tanpa mengubah perilaku.
    */
   const canPay = (order.status === "WAITING_PAYMENT" || order.status === "PENDING_PAYMENT") && isBuyer
-  const canConfirm = order.status === "WAITING_CONFIRMATION" && isSeller
+  /**
+   * D03 (audit alamat & kurir 2026-10-10): konfirmasi adalah giliran LAWAN
+   * dari pembuat order (backend `confirmOrder`: createdByBuyer → seller,
+   * selain itu → buyer). Order buatan penjual diterima PEMBELI — dulu layar
+   * menganggap selalu giliran penjual sehingga pembeli tidak punya tombol.
+   * Fallback ke penjual bila backend lama tidak mengirim `createdByRole`.
+   */
+  const confirmTurn: typeof myRole = order.createdByRole === "SELLER" ? "BUYER" : "SELLER"
+  const canConfirm = order.status === "WAITING_CONFIRMATION" && knownRole && myRole === confirmTurn
   const canShip = order.status === "PROCESSING" && isSeller
   /** Penjual melihat bukti pengiriman saat order dalam pengiriman. */
   const canViewProof =
@@ -1146,6 +1166,8 @@ export default function OrderDetailScreen() {
     Boolean(cancelReason.code) &&
     (cancelReason.code !== "OTHER" || cancelReason.note.trim().length > 0)
   const shippingRequired = order.orderType === "PHYSICAL_GOODS"
+  // D03: pembeli yang menerima order fisik buatan penjual wajib memilih alamat.
+  const buyerAddressNeeded = canConfirm && isBuyer && shippingRequired
   // Item 46: "Ajukan retur" sebagai aksi PRIMER selama jendela retur berlaku.
   const canReturnPrimary = query.data?.returnEligible === true
   // Footer (bottom navbar) menampilkan ≥1 aksi utama bila ada yang relevan.
@@ -1272,7 +1294,19 @@ export default function OrderDetailScreen() {
             submitting={submitting}
             chatBusy={chatBusy}
             onPay={() => setSheet("pay")}
-            onAccept={() => setConfirmAccept(true)}
+            onAccept={() => {
+              // D03: jangan buka dialog terima sebelum alamat dipilih —
+              // backend menolak (SHIPPING_ADDRESS_REQUIRED) dan user bingung.
+              if (buyerAddressNeeded && !confirmAddress) {
+                toast.show({
+                  title: translate("Pilih alamat pengiriman dulu"),
+                  description: translate("Barang fisik akan dikirim ke alamat yang Anda pilih."),
+                  tone: "warning",
+                })
+                return
+              }
+              setConfirmAccept(true)
+            }}
             onReject={() => setSheet("reject")}
             onShipping={() => setSheet("shipping")}
             onComplete={() => setConfirmComplete(true)}
@@ -1448,6 +1482,26 @@ export default function OrderDetailScreen() {
               onCopy={(v) => void copy(v)}
               copied={copied}
             />
+          ) : shippingRequired && buyerAddressNeeded ? (
+            // D03: pembeli memilih alamat tujuan SEBELUM menerima pesanan
+            // buatan penjual — alamat dikirim bersama konfirmasi.
+            <View className="gap-4">
+              <SectionHeader title={translate("Alamat pengiriman")} />
+              <Field
+                required
+                helperText={translate("Barang fisik akan dikirim ke alamat ini.")}
+                errorText={confirmAddress ? undefined : translate("Pilih alamat pengiriman untuk menerima pesanan ini.")}
+              >
+                <AddressPicker selected={confirmAddress} onSelect={setConfirmAddress} />
+              </Field>
+            </View>
+          ) : shippingRequired ? (
+            // D04: snapshot kosong — jelaskan, jangan hilang diam-diam.
+            <Alert tone="info" title={translate("Alamat pengiriman")}>
+              {isSeller && order.status === "WAITING_CONFIRMATION"
+                ? translate("Pembeli mengisi alamat pengiriman saat menerima pesanan ini.")
+                : translate("Alamat pengiriman belum tercatat untuk pesanan ini.")}
+            </Alert>
           ) : null}
 
           {/* 9 — Dana escrow: penjelasan menenangkan sesuai status */}
@@ -1670,6 +1724,8 @@ export default function OrderDetailScreen() {
             () =>
               api.orders.confirmOrder(order.id, {
                 action: "ACCEPT",
+                // D03: alamat pembeli untuk order fisik buatan penjual.
+                ...(buyerAddressNeeded && confirmAddress ? { shippingAddressId: confirmAddress.id } : {}),
               }),
             "Order dikonfirmasi",
             "Gagal mengonfirmasi order",

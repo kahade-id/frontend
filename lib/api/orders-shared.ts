@@ -387,6 +387,13 @@ export type Order = {
    * alamat (jasa/digital/data lama).
    */
   shippingAddress?: OrderShippingAddress | null
+  /**
+   * D03 (audit alamat & kurir 2026-10-10): peran PEMBUAT order dari backend
+   * (`createdByRole`). Menentukan siapa yang mengonfirmasi WAITING_CONFIRMATION:
+   * lawan dari pembuat (order buatan penjual → PEMBELI yang menerima). Tanpa
+   * ini layar menganggap konfirmasi selalu giliran penjual.
+   */
+  createdByRole?: OrderRole
   /** A-10: kode voucher order asli — disertakan saat fee dihitung ulang. */
   voucherCode?: string | null
   /** A-03: pembayaran sudah masuk (penanda "WAITING_PAYMENT sudah dibayar"). */
@@ -588,6 +595,11 @@ export function normalizeOrder(raw: Order & Record<string, unknown>): Order {
     courierName: optionalText(record.courierName ?? record.courier_name),
     // K9: alamat kirim DIPERTAHANKAN (dulu dibuang whitelist).
     shippingAddress: normalizeShippingAddress(record.shippingAddress ?? record.shipping_address),
+    // D03: peran pembuat order (BUYER/SELLER) — dipakai gerbang konfirmasi.
+    createdByRole: ((): OrderRole | undefined => {
+      const raw = pickString(record, ["createdByRole", "created_by_role"])
+      return raw === "BUYER" || raw === "SELLER" ? raw : undefined
+    })(),
     voucherCode: pickString(record, ["voucherCode", "voucher_code", "voucher"]) ?? null,
     paidAt: pickString(record, ["paidAt", "paid_at"]) ?? null,
     // EO-009: completedAt DIPERTAHANKAN (pola sama seperti paidAt) — gate

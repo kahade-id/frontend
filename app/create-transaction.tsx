@@ -114,7 +114,7 @@ import type { AppliedVoucher } from "@/components/ui/voucher-redeem-box"
 import { AddressPicker } from "@/components/ui/address-picker"
 import type { Address } from "@/lib/api/commerce"
 import { addressLabelText } from "@/lib/api/commerce"
-import { addressMissingFields } from "@/lib/wallet-batch139"
+import { ADDRESS_MISSING_ALL, addressMissingFields } from "@/lib/wallet-batch139"
 import { translate } from "@/lib/i18n/translate"
 import {
   ORDER_CATEGORY_LABELS,
@@ -869,11 +869,14 @@ export default function CreateTransactionScreen() {
     deadlineTouched && deadlineDate == null
       ? translate("Pilih tanggal tenggat pengiriman terlebih dahulu.")
       : undefined
-  // TRX-009: alamat pengiriman WAJIB & LENGKAP untuk barang fisik. Mode link
-  // yang dibuat sebagai SELLER dikecualikan — alamat diisi penerima saat
-  // accept link (kontrak accept mendukung shippingAddressId).
-  const shippingAddressRequired =
-    orderType === "PHYSICAL_GOODS" && (mode === "direct" || role === "BUYER")
+  // TRX-009: alamat pengiriman WAJIB & LENGKAP untuk barang fisik.
+  // D01 (audit alamat & kurir 2026-10-10): HANYA bila pembuat adalah PEMBELI —
+  // alamat tujuan milik pembeli. Pembuat berperan SELLER (mode langsung
+  // maupun tautan) tidak memilih alamat; pembeli mengisinya saat menerima
+  // pesanan / tautan (backend: confirm & accept menerima shippingAddressId).
+  // Dulu mode langsung sebagai SELLER memaksa penjual memilih alamatnya
+  // sendiri sebagai "alamat pengiriman".
+  const shippingAddressRequired = orderType === "PHYSICAL_GOODS" && role === "BUYER"
   const shippingAddressMissing = shippingAddressRequired
     ? addressMissingFields(
         shippingAddress
@@ -1245,7 +1248,11 @@ export default function CreateTransactionScreen() {
             }
           : {}),
         // TRX-009: alamat pengiriman untuk barang fisik (backend fail-closed).
-        ...(orderType === "PHYSICAL_GOODS" && shippingAddress
+        // D09 (audit alamat & kurir 2026-10-10): HANYA bila pembuat = PEMBELI —
+        // state `shippingAddress` bisa tersisa dari pilihan saat masih berperan
+        // BUYER lalu peran diganti SELLER; alamat penjual tidak boleh terkirim
+        // sebagai tujuan kirim.
+        ...(shippingAddressRequired && shippingAddress
           ? { shippingAddressId: shippingAddress.id }
           : {}),
         // Poin 2 (2026-10-04): slot jasa yang dibayar order ini — selaras
@@ -1536,7 +1543,7 @@ export default function CreateTransactionScreen() {
                 helperText={translate("Alamat tujuan barang dikirim — bisa diubah di buku alamat.")}
                 errorText={
                   shippingAddressMissing.length > 0
-                    ? shippingAddressMissing.includes("alamat")
+                    ? shippingAddressMissing.includes(ADDRESS_MISSING_ALL)
                       ? translate("Pilih alamat pengiriman untuk barang fisik ini.")
                       : translate("Alamat belum lengkap: {x}.", { x: shippingAddressMissing.join(", ") })
                     : undefined
@@ -1545,9 +1552,11 @@ export default function CreateTransactionScreen() {
                 <AddressPicker selected={shippingAddress} onSelect={setShippingAddress} />
               </Field>
             ) : null}
-            {orderType === "PHYSICAL_GOODS" && mode === "link" && role === "SELLER" ? (
+            {orderType === "PHYSICAL_GOODS" && role === "SELLER" ? (
               <Alert tone="info" title={translate("Alamat pengiriman")}>
-                {translate("Alamat pengiriman akan diisi oleh pembeli saat menerima tautan ini.")}
+                {mode === "link"
+                  ? translate("Alamat pengiriman akan diisi oleh pembeli saat menerima tautan ini.")
+                  : translate("Alamat pengiriman akan diisi oleh pembeli saat menerima pesanan ini.")}
               </Alert>
             ) : null}
             <AmountInput

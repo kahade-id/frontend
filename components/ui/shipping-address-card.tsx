@@ -22,6 +22,7 @@ import { IconBox } from "@/components/ui/icon-box"
 import { SectionHeader } from "@/components/ui/section"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { translate } from "@/lib/i18n/translate"
 import type { OrderShippingAddress } from "@/lib/api/orders-shared"
 
 export type ShippingAddressCardLabels = {
@@ -61,7 +62,14 @@ export function ShippingAddressCard({
   className,
   ...rest
 }: ShippingAddressCardProps) {
-  const t = { ...DEFAULT_LABELS, ...labels }
+  // D07 (audit alamat & kurir 2026-10-10): label default lewat `translate`
+  // saat render — pemanggil tanpa `labels` tetap mendapat bahasa aktif.
+  const t: ShippingAddressCardLabels = {
+    title: translate(DEFAULT_LABELS.title),
+    recipient: translate(DEFAULT_LABELS.recipient),
+    phone: translate(DEFAULT_LABELS.phone),
+    ...labels,
+  }
   const region = formatRegion(address)
 
   return (

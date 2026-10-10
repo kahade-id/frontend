@@ -33,6 +33,7 @@ import { IconButton } from "@/components/ui/icon-button"
 import { SectionHeader } from "@/components/ui/section"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { translate } from "@/lib/i18n/translate"
 
 export type ShippingInfo = {
   courierName?: string
@@ -68,6 +69,12 @@ const DEFAULT_LABELS: ShippingInfoCardLabels = {
   emptyDescriptionBuyer: "Penjual belum mengisi nomor resi.",
 }
 
+function translatedDefaults(): ShippingInfoCardLabels {
+  return Object.fromEntries(
+    Object.entries(DEFAULT_LABELS).map(([key, value]) => [key, translate(value)]),
+  ) as ShippingInfoCardLabels
+}
+
 export type ShippingInfoCardProps = Omit<ViewProps, "children"> & {
   shipping?: ShippingInfo | null
   /** Penjual boleh menambah/mengubah */
@@ -81,7 +88,9 @@ export type ShippingInfoCardProps = Omit<ViewProps, "children"> & {
 }
 
 export function ShippingInfoCard({ shipping, canEdit = false, onEdit, onTrack, onCopy, copied, labels, className, ...rest }: ShippingInfoCardProps) {
-  const t = { ...DEFAULT_LABELS, ...labels }
+  // D05 (audit alamat & kurir 2026-10-10): label default lewat `translate`
+  // saat render — pemanggil yang tidak mengirim `labels` tetap dapat bahasa aktif.
+  const t = { ...translatedDefaults(), ...labels }
   const filled = !!shipping?.trackingNumber || !!shipping?.courierName
 
   if (!filled) {
