@@ -64,6 +64,12 @@ export type ReferralRewardListItemProps = Omit<ListItemProps, "title" | "subtitl
   /** Sudah diformat (§13) */
   date: string
   labels?: Partial<Record<ReferralRewardStatus, string>>
+  /**
+   * Audit 2026-10-10 (F19): judul kustom — mis. "Bonus sambutan" untuk reward
+   * yang diterima sebagai orang yang DIUNDANG (backend `kind: REFEREE`),
+   * bukan "Hadiah undangan" milik pengundang.
+   */
+  title?: string
 }
 
 export function ReferralRewardListItem({
@@ -72,6 +78,7 @@ export function ReferralRewardListItem({
   status,
   date,
   labels,
+  title: titleOverride,
   ...rest
 }: ReferralRewardListItemProps) {
   const t = { ...REFERRAL_REWARD_STATUS_LABELS, ...labels }
@@ -79,7 +86,9 @@ export function ReferralRewardListItem({
   const cancelled = status === "CANCELLED"
   const statusLabel = t[status as ReferralRewardStatus] ?? status
   // DRIFT-REF-02: tanpa nama orang yang diundang, judul generik saja.
-  const title = referredName
+  const title = titleOverride
+    ? translate(titleOverride)
+    : referredName
     ? translate("Hadiah undangan \u00B7 {x}", { x: referredName })
     : translate("Hadiah undangan")
 

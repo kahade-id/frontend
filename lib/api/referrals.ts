@@ -38,6 +38,12 @@ export type ReferralReward = {
   amount: number
   status: string
   createdAt: string
+  /**
+   * Audit 2026-10-10 (F19/B23): REFERRER = reward saya sebagai pengundang;
+   * REFEREE = bonus sambutan saya sebagai yang diundang. Tanpa ini keduanya
+   * berlabel "Reward" yang sama.
+   */
+  kind: "REFERRER" | "REFEREE"
 }
 
 export type ReferralHistoryEntry = {
@@ -47,6 +53,21 @@ export type ReferralHistoryEntry = {
   reward?: number
   completedAt?: string | null
   createdAt: string
+  /**
+   * Audit 2026-10-10 (F04): sudut pandang saya pada relasi ini. REFEREE =
+   * `invitedUsername` adalah PENGUNDANG saya (bukan orang yang saya undang)
+   * — layar menampilkannya sebagai "Diundang oleh …", bukan baris undangan
+   * berstatus "Menunggu syarat".
+   */
+  role: "REFERRER" | "REFEREE"
+}
+
+/** Relasi referral hasil `POST /v1/referral/apply` (F16: bukan ReferralCode). */
+export type ReferralRelation = {
+  id: string
+  referrerId?: string
+  refereeId?: string
+  appliedAt?: string
 }
 
 /**
@@ -89,11 +110,14 @@ export function normalizeReferralReward(raw: unknown): ReferralReward | null {
       : record["isCredited"] === true
         ? "CREDITED"
         : "PENDING"
+  const rawKind = pickString(record, ["kind"])?.toUpperCase()
   return {
     id,
     amount: pickStrictNumber(record, ["rewardAmount", "reward_amount", "amount"]) ?? 0,
     status,
     createdAt: pickString(record, ["createdAt", "created_at"]) ?? "",
+    // Backend lama tanpa `kind` → anggap reward pengundang (perilaku lama).
+    kind: rawKind === "REFEREE" ? "REFEREE" : "REFERRER",
   }
 }
 
@@ -161,6 +185,9 @@ export function normalizeReferralHistoryEntry(raw: unknown): ReferralHistoryEntr
       ? (pickString(creditedRecord, ["creditedAt", "credited_at"]) ?? null)
       : null,
     createdAt: pickString(record, ["appliedAt", "applied_at", "createdAt", "created_at"]) ?? "",
+    // F04: `viewerRole` dulu dibuang — relasi "saya diundang oleh X" tampil
+    // sebagai undangan saya ke X.
+    role: viewerRole === "REFEREE" ? "REFEREE" : "REFERRER",
   }
 }
 
@@ -239,8 +266,12 @@ export function getReferralHistory(signal?: AbortSignal) {
     )
 }
 
+/**
+ * F16: backend mengembalikan RELASI (`ReferralRelation`), bukan kode —
+ * tipe lama `ReferralCode` menyesatkan pemanggil yang membaca `.code`.
+ */
 export function applyReferralCode(dto: ApplyReferralDto) {
-  return http.post<ReferralCode, ApplyReferralDto>("/v1/referral/apply", dto, { auth: "required" })
+  return http.post<ReferralRelation, ApplyReferralDto>("/v1/referral/apply", dto, { auth: "required" })
 }
 
 /**

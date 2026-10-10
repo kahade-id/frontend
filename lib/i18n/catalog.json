@@ -227,6 +227,10 @@
    "n": 11
   },
   {
+   "s": "Tidak bisa membagikan",
+   "n": 11
+  },
+  {
    "s": "Atur ulang",
    "n": 10
   },
@@ -320,10 +324,6 @@
   },
   {
    "s": "Pilihan lainnya",
-   "n": 9
-  },
-  {
-   "s": "Tidak bisa membagikan",
    "n": 9
   },
   {
@@ -1343,11 +1343,19 @@
    "n": 4
   },
   {
+   "s": "{x} undangan",
+   "n": 4
+  },
+  {
    "s": "{x}/{y}",
    "n": 4
   },
   {
    "s": "@{x} di Kahade",
+   "n": 4
+  },
+  {
+   "s": "Ajak teman ke Kahade",
    "n": 4
   },
   {
@@ -1572,6 +1580,10 @@
   },
   {
    "s": "Gagal menutup polling",
+   "n": 4
+  },
+  {
+   "s": "Gagal menyalin kode",
    "n": 4
   },
   {
@@ -1927,6 +1939,10 @@
    "n": 4
   },
   {
+   "s": "Tautan undangan disalin",
+   "n": 4
+  },
+  {
    "s": "Template baru",
    "n": 4
   },
@@ -2156,10 +2172,6 @@
   },
   {
    "s": "Ada ketikan etalase yang belum diterbitkan. Lanjutkan dari draft tersebut?",
-   "n": 3
-  },
-  {
-   "s": "Ajak teman ke Kahade",
    "n": 3
   },
   {
@@ -2851,6 +2863,10 @@
    "n": 3
   },
   {
+   "s": "Diundang oleh {x}",
+   "n": 3
+  },
+  {
    "s": "DP ({x}–{x})",
    "n": 3
   },
@@ -3056,10 +3072,6 @@
   },
   {
    "s": "Gagal mengirim rating",
-   "n": 3
-  },
-  {
-   "s": "Gagal menyalin kode",
    "n": 3
   },
   {
@@ -4659,8 +4671,11 @@
    "n": 3
   },
   {
-"s": "Salin",
-"s": "Saldo terpakai sampai permintaan kedaluwarsa. Batalkan sekarang agar saldo langsung bebas.",
+   "s": "Saldo terpakai sampai permintaan kedaluwarsa. Batalkan sekarang agar saldo langsung bebas.",
+   "n": 3
+  },
+  {
+   "s": "Salin",
    "n": 3
   },
   {
@@ -5560,15 +5575,15 @@
    "n": 2
   },
   {
+   "s": "{x} teratas berdasarkan total reward",
+   "n": 2
+  },
+  {
    "s": "{x} tidak akan bisa mengirimi Anda pesan lagi dari percakapan ini.",
    "n": 2
   },
   {
    "s": "{x} transaksi · {x}",
-   "n": 2
-  },
-  {
-   "s": "{x} undangan",
    "n": 2
   },
   {
@@ -6097,6 +6112,18 @@
   },
   {
    "s": "Blokir pengguna ini",
+   "n": 2
+  },
+  {
+   "s": "Bonus sambutan",
+   "n": 2
+  },
+  {
+   "s": "Bonus sambutan cair setelah transaksi pertama Anda selesai.",
+   "n": 2
+  },
+  {
+   "s": "Bonus sambutan sudah cair.",
    "n": 2
   },
   {
@@ -6752,7 +6779,7 @@
    "n": 2
   },
   {
-"s": "Gagal memperbarui percakapan",
+   "s": "Gagal memperbarui percakapan",
    "n": 2
   },
   {
@@ -7420,6 +7447,10 @@
    "n": 2
   },
   {
+   "s": "Kode {x} disalin",
+   "n": 2
+  },
+  {
    "s": "Kode / Tautan",
    "n": 2
   },
@@ -7433,6 +7464,14 @@
   },
   {
    "s": "Kode berlaku beberapa menit",
+   "n": 2
+  },
+  {
+   "s": "Kode berlaku. Cashback masuk setelah transaksi selesai.",
+   "n": 2
+  },
+  {
+   "s": "Kode berlaku. Potongan diterapkan saat transaksi dibuat.",
    "n": 2
   },
   {
@@ -8268,7 +8307,6 @@
    "n": 2
   },
   {
-   "s": "Order tidak berlanjut — dana escrow telah dikembalikan ke metode pembayaran pembeli oleh {x}.",
    "s": "Order tidak berlanjut — dana telah dikembalikan ke metode pembayaran pembeli oleh {x}.",
    "n": 2
   },
@@ -9437,10 +9475,6 @@
    "n": 2
   },
   {
-   "s": "Tautan undangan disalin",
-   "n": 2
-  },
-  {
    "s": "Tautan, template, sengketa, retur",
    "n": 2
   },
@@ -9857,6 +9891,10 @@
    "n": 2
   },
   {
+   "s": "Voucher sudah Anda pakai",
+   "n": 2
+  },
+  {
    "s": "Voucher tidak dapat dipakai",
    "n": 2
   },
@@ -10174,14 +10212,6 @@
   },
   {
    "s": "{x} transaksi selesai",
-   "n": 1
-  },
-  {
-   "s": "{x} undangan terbanyak (selalu {x} teratas)",
-   "n": 1
-  },
-  {
-   "s": "{x} undangan terbanyak bulan ini",
    "n": 1
   },
   {
@@ -12117,6 +12147,10 @@
    "n": 1
   },
   {
+   "s": "Akun Anda sudah punya pengundang.",
+   "n": 1
+  },
+  {
    "s": "Akun Anda sudah terverifikasi. Anda bisa bertransaksi tanpa batasan tambahan.",
    "n": 1
   },
@@ -13285,6 +13319,10 @@
    "n": 1
   },
   {
+   "s": "Bonus saldo saat top-up",
+   "n": 1
+  },
+  {
    "s": "Browser ini tidak mendukung passkey",
    "n": 1
   },
@@ -13805,6 +13843,10 @@
    "n": 1
   },
   {
+   "s": "Cashback masuk setelah transaksi selesai",
+   "n": 1
+  },
+  {
    "s": "Catatan hasil (opsional)",
    "n": 1
   },
@@ -14086,11 +14128,6 @@
   },
   {
    "s": "Dana akan segera dicairkan ke rekening bank.",
-   "n": 1
-  },
-  {
-"s": "Dana Anda ditahan di escrow oleh {x} — hanya diteruskan ke penjual setelah Anda mengonfirmasi penerimaan, atau otomatis setelah tenggat tanpa sengketa.",
-"s": "Dana Anda aman sampai barang diterima",
    "n": 1
   },
   {
@@ -14859,6 +14896,10 @@
   },
   {
    "s": "Ditugaskan ke mediator",
+   "n": 1
+  },
+  {
+   "s": "Diundang oleh",
    "n": 1
   },
   {
@@ -15779,6 +15820,14 @@
   },
   {
    "s": "Hanya tersedia di aplikasi",
+   "n": 1
+  },
+  {
+   "s": "Hanya untuk pembeli.",
+   "n": 1
+  },
+  {
+   "s": "Hanya untuk penjual.",
    "n": 1
   },
   {
@@ -16958,10 +17007,6 @@
    "n": 1
   },
   {
-   "s": "Kode {x} disalin",
-   "n": 1
-  },
-  {
    "s": "Kode {x}–{x} karakter.",
    "n": 1
   },
@@ -16998,7 +17043,7 @@
    "n": 1
   },
   {
-   "s": "Kode berlaku. Potongan diterapkan saat transaksi dibuat.",
+   "s": "Kode berlaku untuk bonus saldo saat top-up, bukan untuk transaksi.",
    "n": 1
   },
   {
@@ -17086,7 +17131,11 @@
    "n": 1
   },
   {
-   "s": "Kode lama tidak akan berlaku lagi. Teman yang mendaftar dengan kode lama tidak terhitung sebagai undangan Anda.",
+   "s": "Kode ini tidak berlaku untuk akun Anda.",
+   "n": 1
+  },
+  {
+   "s": "Kode ini untuk bonus top-up saldo, bukan untuk transaksi.",
    "n": 1
   },
   {
@@ -17146,11 +17195,27 @@
    "n": 1
   },
   {
+   "s": "Kode referral Anda sendiri tidak bisa dipakai.",
+   "n": 1
+  },
+  {
+   "s": "Kode referral hanya untuk akun yang belum pernah bertransaksi.",
+   "n": 1
+  },
+  {
    "s": "Kode referral sudah dipakai",
    "n": 1
   },
   {
+   "s": "Kode referral tidak ditemukan atau sudah tidak aktif.",
+   "n": 1
+  },
+  {
    "s": "Kode tidak bisa diverifikasi tanpa koneksi internet. Tetap di layar ini — kode yang sudah diketik tidak hilang.",
+   "n": 1
+  },
+  {
+   "s": "Kode tidak valid atau sudah pernah dipakai.",
    "n": 1
   },
   {
@@ -17431,6 +17496,10 @@
   },
   {
    "s": "Kuota bebas biaya layanan",
+   "n": 1
+  },
+  {
+   "s": "Kuota voucher sudah habis — dilepas dari transaksi.",
    "n": 1
   },
   {
@@ -18131,11 +18200,6 @@
   },
   {
    "s": "membentuk instruksi transaksi, memproses pembayaran, menahan atau melepaskan dana sesuai status, mengirim barang, menarik dana, mengembalikan pembayaran, dan menyediakan catatan.",
-   "n": 1
-  },
-  {
-"s": "membuat akun, mengelola profil, menjalankan fitur sosial, komunikasi, etalase, transaksi, escrow, dompet, dan dukungan.",
-"s": "Membintangi pesan yang dipilih",
    "n": 1
   },
   {
@@ -20419,12 +20483,11 @@
    "n": 1
   },
   {
-"s": "Pesanan dikirim",
+   "s": "Pesanan dikirim",
    "n": 1
   },
   {
-   "s": "Pesanan diterima, dan pembeli dapat melanjutkan pembayaran ke escrow. Selesaikan pekerjaan sesuai kesepakatan setelah dana masuk.",
-"s": "Pesanan diterima, dan pembeli dapat melanjutkan pembayaran. Selesaikan pekerjaan sesuai kesepakatan setelah dana masuk.",
+   "s": "Pesanan diterima, dan pembeli dapat melanjutkan pembayaran. Selesaikan pekerjaan sesuai kesepakatan setelah dana masuk.",
    "n": 1
   },
   {
@@ -22052,6 +22115,10 @@
    "n": 1
   },
   {
+   "s": "Tautan dan kode lama tidak bisa dipakai lagi untuk mendaftar. Undangan yang sudah tercatat tetap dihitung.",
+   "n": 1
+  },
+  {
    "s": "Tautan dibatalkan",
    "n": 1
   },
@@ -23280,7 +23347,19 @@
    "n": 1
   },
   {
+   "s": "Voucher sudah kedaluwarsa atau nonaktif — dilepas dari transaksi.",
+   "n": 1
+  },
+  {
    "s": "Voucher terpakai",
+   "n": 1
+  },
+  {
+   "s": "Voucher tidak berlaku untuk nilai transaksi ini — dilepas. Periksa minimum transaksinya.",
+   "n": 1
+  },
+  {
+   "s": "Voucher tidak ditemukan — dilepas dari transaksi.",
    "n": 1
   },
   {

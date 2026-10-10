@@ -92,6 +92,12 @@ export type PhoneRegisterDto = {
    * identitas baru — ditautkan setelah nomor HP terverifikasi.
    */
   socialLinkToken?: string
+  /**
+   * Kode referral pengundang (opsional, maxLength 20) — backend
+   * `PhoneRegisterDto.referralCode` (trim + uppercase di server). Audit
+   * 2026-10-10 (F01): diisi dari `lib/pending-referral` (deeplink /r/<kode>).
+   */
+  referralCode?: string
 }
 
 export type RequestPhoneChangeDto = {

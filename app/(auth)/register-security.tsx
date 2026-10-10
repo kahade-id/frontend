@@ -73,6 +73,10 @@ import {
   clearPendingSocialSignup,
   getPendingSocialSignup,
 } from "@/lib/social-signup"
+import {
+  clearPendingReferralCode,
+  getPendingReferralCode,
+} from "@/lib/pending-referral"
 import { useLeaveConfirm } from "@/lib/use-leave-confirm"
 import { Dialog } from "@/components/ui/modal"
 import { useToast } from "@/components/ui/toast"
@@ -215,6 +219,11 @@ export default function RegisterSecurityScreen() {
     setSubmitting(true)
     try {
       const socialLinkToken = getPendingSocialSignup()
+      // Audit referral 2026-10-10 (F01): kode undangan dari deeplink
+      // `kahade.id/r/<kode>` (tersimpan saat tautan dibuka) dikirim di sini —
+      // jalur UTAMA pencatatan undangan. Kode tak valid/habis kuota diabaikan
+      // backend secara diam-diam (registrasi tetap sukses).
+      const referralCode = await getPendingReferralCode()
       const result = await api.auth.phoneRegister({
         tempToken,
         fullName: fullName.trim(),
@@ -225,8 +234,10 @@ export default function RegisterSecurityScreen() {
         // Identitas sosial baru (dari login Google/Apple): ditautkan setelah
         // nomor HP terverifikasi. Gagal menautkan tidak menggagalkan registrasi.
         socialLinkToken: socialLinkToken ?? undefined,
+        referralCode: referralCode ?? undefined,
       })
       clearPendingSocialSignup()
+      if (referralCode) void clearPendingReferralCode()
       if (socialLinkToken && !(result as { socialLinked?: boolean }).socialLinked) {
         toast.show({
           title: "Pendaftaran berhasil",

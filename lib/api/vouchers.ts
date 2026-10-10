@@ -29,6 +29,66 @@ export type Voucher = {
   active: boolean
   usedAt?: string
   usageId?: string
+  /**
+   * Audit 2026-10-10 (F12): syarat peran dari `applicableTo` backend
+   * (ALL | BUYER_ONLY | SELLER_ONLY | NEW_USER | DORMANT_USER) — dipetakan ke
+   * badge Pembeli/Penjual di <VoucherCard>.
+   */
+  applicableTo?: VoucherApplicability
+  /**
+   * Audit 2026-10-10 (F08): pemakaian oleh user ini (backend B03:
+   * `usedCount` / `remainingUses`; `remainingUses` null = tanpa batas per
+   * user). `remainingUses === 0` → status "used".
+   */
+  usedCount?: number
+  remainingUses?: number | null
+}
+
+export type VoucherApplicability = "ALL" | "BUYER_ONLY" | "SELLER_ONLY" | "NEW_USER" | "DORMANT_USER"
+
+/**
+ * Jenis manfaat voucher — menentukan bagaimana nominalnya DITAMPILKAN dan di
+ * mana bisa dipakai (audit 2026-10-10, F10/F11):
+ *   - FEE_DISCOUNT : potongan biaya layanan saat buat transaksi ("-Rp…").
+ *   - CASHBACK     : dikreditkan setelah transaksi — BUKAN potongan tagihan.
+ *   - TOPUP_BONUS  : bonus saldo saat top-up — create order MENOLAK kode ini.
+ */
+export type VoucherKind = "FEE_DISCOUNT" | "CASHBACK" | "TOPUP_BONUS" | "UNKNOWN"
+
+export function voucherKindOf(voucherType: string | null | undefined): VoucherKind {
+  const raw = (voucherType ?? "").toUpperCase()
+  if (!raw) return "UNKNOWN"
+  if (raw === "TOPUP_BONUS") return "TOPUP_BONUS"
+  if (raw === "WALLET_CASHBACK" || raw === "CASHBACK") return "CASHBACK"
+  if (raw.startsWith("FEE_DISCOUNT") || raw === "FIXED" || raw === "PERCENT" || raw === "PERCENTAGE") {
+    return "FEE_DISCOUNT"
+  }
+  return "UNKNOWN"
+}
+
+/** Peta `applicableTo` backend → badge peran kartu voucher. */
+export function voucherRoleOf(applicableTo: VoucherApplicability | undefined): "BUYER" | "SELLER" | "ALL" {
+  if (applicableTo === "BUYER_ONLY") return "BUYER"
+  if (applicableTo === "SELLER_ONLY") return "SELLER"
+  return "ALL"
+}
+
+function normalizeApplicability(raw: string | undefined): VoucherApplicability | undefined {
+  const value = raw?.toUpperCase()
+  switch (value) {
+    case "ALL":
+    case "BUYER_ONLY":
+    case "SELLER_ONLY":
+    case "NEW_USER":
+    case "DORMANT_USER":
+      return value
+    case "BUYER":
+      return "BUYER_ONLY"
+    case "SELLER":
+      return "SELLER_ONLY"
+    default:
+      return undefined
+  }
 }
 
 export type VoucherValidation = {
@@ -37,9 +97,21 @@ export type VoucherValidation = {
   message?: string
 }
 
+/**
+ * Audit 2026-10-10 (F18): backend memberi halaman (default 20, maks. 100).
+ * Tanpa `limit`, voucher ke-21 dan seterusnya tidak pernah tampil — satu
+ * halaman 100 cukup untuk katalog promo yang aktif bersamaan.
+ */
+const AVAILABLE_LIMIT = 100
+
 export function listAvailableVouchers(signal?: AbortSignal) {
   return http
-    .get<unknown>("/v1/vouchers/available", { auth: "required", retry: 1, signal })
+    .get<unknown>("/v1/vouchers/available", {
+      query: { page: 1, limit: AVAILABLE_LIMIT },
+      auth: "required",
+      retry: 1,
+      signal,
+    })
     .then((raw) =>
       readList<unknown>(raw, ["vouchers"])
         .map(normalizeVoucher)
@@ -77,6 +149,14 @@ export function normalizeVoucher(raw: unknown): Voucher | null {
     maxDiscount: pickNumber(record, ["maxDiscountAmount", "maxDiscount"]) ?? undefined,
     expiresAt: pickString(record, ["validUntil", "expiresAt", "expiredAt"]) ?? undefined,
     active: pickBoolean(record, ["isActive", "active"]) ?? true,
+    applicableTo: normalizeApplicability(pickString(record, ["applicableTo", "applicable_to"])),
+    usedCount: pickNumber(record, ["usedCount", "used_count"]) ?? undefined,
+    // `remainingUses` null (tanpa batas per user) harus tetap null — bukan
+    // 0 (= habis) dan bukan undefined (= tidak diketahui).
+    remainingUses:
+      record.remainingUses === null || record.remaining_uses === null
+        ? null
+        : (pickNumber(record, ["remainingUses", "remaining_uses"]) ?? undefined),
   }
 }
 
@@ -162,6 +242,10 @@ export function normalizeVoucherValidation(raw: unknown): VoucherValidation {
           percentValue ?? pickNumber(record, ["discountAmount", "cashbackAmount", "topupBonusAmount"]) ?? undefined,
         minOrderValue: pickNumber(record, ["minOrderValue"]) ?? undefined,
         maxDiscount: pickNumber(record, ["maxDiscountAmount", "maxDiscount"]) ?? undefined,
+        // Audit 2026-10-10 (B07): backend kini mengirim `applicableTo` dan
+        // `validUntil` agar layar bisa menyebut syarat peran/kedaluwarsa.
+        applicableTo: normalizeApplicability(pickString(record, ["applicableTo", "applicable_to"])),
+        expiresAt: pickString(record, ["validUntil", "expiresAt"]) ?? undefined,
         active: true,
       }
     }

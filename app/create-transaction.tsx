@@ -111,6 +111,7 @@ import { Text } from "@/components/ui/text"
 import { TextArea } from "@/components/ui/text-area"
 import { useToast } from "@/components/ui/toast"
 import type { AppliedVoucher } from "@/components/ui/voucher-redeem-box"
+import { voucherKindOf } from "@/lib/api/vouchers"
 import { AddressPicker } from "@/components/ui/address-picker"
 import type { Address } from "@/lib/api/commerce"
 import { addressLabelText } from "@/lib/api/commerce"
@@ -128,6 +129,29 @@ import {
 import { showMutationError } from "@/lib/mutation-toast"
 
 const DEBOUNCE_MS = 400
+
+/**
+ * Audit voucher 2026-10-10 (F13): pesan spesifik saat `calculate-fee`
+ * menolak VOUCHER (bukan nilai order-nya). Backend (B09) kini mengirim kode
+ * yang sama dengan create order: VOUCHER_NOT_FOUND / VOUCHER_EXPIRED /
+ * VOUCHER_USAGE_LIMIT_REACHED / VOUCHER_NOT_APPLICABLE. `undefined` = bukan
+ * penolakan voucher → biarkan jalur error biaya biasa.
+ */
+function voucherRejectionMessage(error: unknown): string | undefined {
+  if (!isApiError(error)) return undefined
+  const code = error.backendCode?.toUpperCase()
+  if (!code || !code.startsWith("VOUCHER_")) return undefined
+  switch (code) {
+    case "VOUCHER_NOT_FOUND":
+      return translate("Voucher tidak ditemukan — dilepas dari transaksi.")
+    case "VOUCHER_EXPIRED":
+      return translate("Voucher sudah kedaluwarsa atau nonaktif — dilepas dari transaksi.")
+    case "VOUCHER_USAGE_LIMIT_REACHED":
+      return translate("Kuota voucher sudah habis — dilepas dari transaksi.")
+    default:
+      return translate("Voucher tidak berlaku untuk nilai transaksi ini — dilepas. Periksa minimum transaksinya.")
+  }
+}
 /** P1-3 (audit perf/UX 2026-10-03): autosave draft form — satu penulisan per detik. */
 const DRAFT_SAVE_DEBOUNCE_MS = 1000
 const MIN_ORDER_VALUE = AMOUNT_LIMITS.order.minimum
@@ -671,7 +695,9 @@ export default function CreateTransactionScreen() {
     description.trim() !== (templatePrefill.description ?? "").trim() ||
     orderValue !== (templatePrefill.amount ?? 0) ||
     (deadlineDate?.getTime() ?? null) !== initialDeadlineTime ||
-    voucher != null ||
+    // F14: voucher yang dipasang OTOMATIS dari param bukan ketikan user —
+    // tidak boleh memicu konfirmasi "Buang?" saat kembali.
+    (voucher != null && voucher.code !== params.voucherCode?.trim().toUpperCase()) ||
     sellerVoucher != null ||
     shippingAddress != null
   /**
@@ -946,15 +972,30 @@ export default function CreateTransactionScreen() {
       setFee(res)
       setConfirmedFeeKey(started)
     } catch (error) {
-      if (draft.current.feeKey === started) {
-        setFee(null)
-        setConfirmedFeeKey(null)
-        setFeeError(userMessage(error))
+      if (draft.current.feeKey !== started) return
+      // Audit voucher 2026-10-10 (F13): nilai order diubah SETELAH voucher
+      // terpasang → server menolak voucher (min. order / kuota / kedaluwarsa)
+      // dan dulu SELURUH ringkasan biaya error tanpa menyebut voucher. Kini
+      // voucher dilepas dengan pesan spesifik; fee dihitung ulang tanpa kode
+      // (feeKey berubah → effect refreshFee jalan lagi).
+      const voucherReason = effectiveVoucherCode ? voucherRejectionMessage(error) : undefined
+      if (voucherReason) {
+        if (sellerVoucher) {
+          setSellerVoucher(null)
+          setSellerVoucherError(voucherReason)
+        } else {
+          setVoucher(null)
+          setVoucherError(voucherReason)
+        }
+        return
       }
+      setFee(null)
+      setConfirmedFeeKey(null)
+      setFeeError(userMessage(error))
     } finally {
       if (draft.current.feeKey === started) setFeeLoading(false)
     }
-  }, [orderValue, feeResponsibility, voucher?.code, role, feeKey])
+  }, [orderValue, feeResponsibility, effectiveVoucherCode, sellerVoucher, role, feeKey])
 
   const validateCounterpart = useCallback(async () => {
     const q = counterpart.trim()
@@ -1052,13 +1093,24 @@ export default function CreateTransactionScreen() {
           return
         }
         const v = res.voucher
+        // F10/F11: bonus top-up tidak bisa dipakai di transaksi — tolak di
+        // sini dengan pesan jelas, bukan saat create order.
+        const kind = voucherKindOf(v?.voucherType)
+        if (kind === "TOPUP_BONUS") {
+          setVoucherError(translate("Kode ini untuk bonus top-up saldo, bukan untuk transaksi."))
+          return
+        }
         setVoucher({
           code: v?.code ?? code,
           // Voucher valid tanpa nominal dari server: simpan `undefined`, bukan
           // NaN — NaN merambat ke <Amount> sebagai "Rp—" dan ke perhitungan
-          // biaya sebagai angka yang terlihat sah.
-          discount: Number.isFinite(v?.discountValue) ? v?.discountValue : undefined,
+          // biaya sebagai angka yang terlihat sah. Voucher PERSEN:
+          // `discountValue` adalah persen, bukan Rupiah — nominalnya baru
+          // diketahui dari calculate-fee (`fee.discount`).
+          discount:
+            v?.discountType !== "PERCENT" && Number.isFinite(v?.discountValue) ? v?.discountValue : undefined,
           title: v?.title,
+          kind,
         })
         // Saling eksklusif dengan voucher toko (item 9).
         setSellerVoucher(null)
@@ -1079,6 +1131,20 @@ export default function CreateTransactionScreen() {
     },
     [orderValue, role],
   )
+
+  // Audit voucher 2026-10-10 (F14): kode dari halaman Promo / kartu voucher
+  // ("Pakai") dulu hanya mengisi kolom di langkah terakhir — user masih
+  // harus menekan "Pakai" lagi. Kini dipasang otomatis SEKALI per kode.
+  const autoAppliedVoucherRef = useRef<string | null>(null)
+  useEffect(() => {
+    const code = params.voucherCode?.trim().toUpperCase()
+    if (!code || mode !== "direct" || autoAppliedVoucherRef.current === code) return
+    autoAppliedVoucherRef.current = code
+    void handleApplyVoucher(code)
+    // Hanya saat kode param berubah — handleApplyVoucher berubah tiap
+    // orderValue/role, dan itu bukan alasan memasang ulang.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params.voucherCode, mode])
 
   // Batch 43 (item 9): validasi voucher toko penjual. sellerId = lawan bila
   // saya pembeli, atau diri sendiri bila saya penjual. Saling eksklusif
