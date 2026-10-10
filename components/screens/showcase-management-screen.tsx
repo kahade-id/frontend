@@ -683,6 +683,29 @@ function ShowcaseManagement() {
         await query.refresh()
         await refreshDeleted()
       } catch (err) {
+        // CR-06 (audit etalase 2026-10-10): 404 (sudah dipulihkan dari
+        // perangkat lain / dihapus permanen) dan 410 (lewat 30 hari) berarti
+        // entri lokal BASI — buang & segarkan daftar, bukan "Gagal memulihkan"
+        // berulang setiap ketuk sampai 30 hari berlalu.
+        if (isApiError(err) && (err.status === 404 || err.status === 410)) {
+          await unmarkShowcaseDeleted(item.id)
+          await refreshDeleted()
+          touchFeed()
+          void query.refresh()
+          toast.show({
+            title:
+              err.status === 410
+                ? translate("Masa pemulihan sudah lewat")
+                : translate("Etalase ini sudah tidak ada di daftar hapus"),
+            description:
+              err.status === 410
+                ? translate("Etalase dihapus permanen setelah 30 hari.")
+                : translate("Mungkin sudah dipulihkan dari perangkat lain."),
+            tone: "info",
+            duration: 4000,
+          })
+          return
+        }
         toast.show({ title: translate("Gagal memulihkan"), description: userMessage(err), tone: "danger" })
       } finally {
         setRestoringId(null)

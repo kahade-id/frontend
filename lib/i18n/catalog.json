@@ -6507,6 +6507,10 @@
    "n": 2
   },
   {
+   "s": "Etalase dihapus permanen setelah {x} hari.",
+   "n": 2
+  },
+  {
    "s": "Etalase dinonaktifkan",
    "n": 2
   },
@@ -6524,6 +6528,10 @@
   },
   {
    "s": "Etalase ini mungkin sudah dihapus atau tidak lagi tersedia.",
+   "n": 2
+  },
+  {
+   "s": "Etalase ini sudah tidak ada di daftar hapus",
    "n": 2
   },
   {
@@ -7711,6 +7719,10 @@
    "n": 2
   },
   {
+   "s": "Masa pemulihan sudah lewat",
+   "n": 2
+  },
+  {
    "s": "Masuk untuk akses penuh",
    "n": 2
   },
@@ -8008,6 +8020,10 @@
   },
   {
    "s": "Mungkin maksud Anda:",
+   "n": 2
+  },
+  {
+   "s": "Mungkin sudah dipulihkan dari perangkat lain.",
    "n": 2
   },
   {
