@@ -27,6 +27,8 @@ import Animated, {
 } from "react-native-reanimated"
 import { View } from "react-native"
 import { cn } from "@/lib/cn"
+import { useTheme } from "@/components/theme-provider"
+import { elevationStyle } from "@/lib/elevation"
 
 export type DragSortRenderState = {
   /** Sel ini sedang diseret. */
@@ -317,6 +319,9 @@ function SortableCell({
     pan.enabled(!disabled)
   }, [disabled, pan])
 
+  // VI-14: elevasi dari token (lib/elevation.ts), bukan angka literal.
+  const { mode } = useTheme()
+  const liftedElevation = elevationStyle("medium", mode).elevation ?? 0
   const dragStyle = useAnimatedStyle(() => {
     const isActive = dragId.value === id
     return {
@@ -326,7 +331,7 @@ function SortableCell({
         { scale: isActive ? 1.06 : 1 },
       ],
       zIndex: isActive ? 20 : 0,
-      elevation: isActive ? 8 : 0,
+      elevation: isActive ? liftedElevation : 0,
       opacity: isActive ? 0.96 : 1,
     }
   })

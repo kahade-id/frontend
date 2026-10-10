@@ -268,7 +268,7 @@ function VideoPoster({
             icon={Play}
             size="lg"
             weight="fill"
-            tone="inverse"
+            tone="onMedia"
             accessibilityLabel={label ?? translate("Putar video")}
           />
         </View>
@@ -392,9 +392,12 @@ function ExpoVideoInner({
             </Text>
           </View>
         </PressableScale>
-        <Text variant="caption" tone="secondary" className="text-center">
-          {translate("Video gagal dimuat")}
-        </Text>
+        {/* UX-21 (audit etalase 2026-10-10): teks di atas poster butuh scrim. */}
+        <View className="rounded-full bg-overlay-media px-3 py-1">
+          <Text variant="caption" weight={600} tone="onMedia" className="text-center">
+            {translate("Video gagal dimuat")}
+          </Text>
+        </View>
       </View>
     )
   }
@@ -621,7 +624,7 @@ const ExpoVideoPlayerInner = memo(function ExpoVideoPlayerInner({
           {tapPaused ? (
             <View style={{ pointerEvents: "none" }} className="flex-1 items-center justify-center">
               <View className="items-center justify-center rounded-full bg-overlay-media p-4">
-                <Icon icon={Play} size="lg" weight="fill" tone="inverse" />
+                <Icon icon={Play} size="lg" weight="fill" tone="onMedia" />
               </View>
             </View>
           ) : null}

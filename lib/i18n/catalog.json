@@ -655,6 +655,10 @@
    "n": 6
   },
   {
+   "s": "Filter kategori {x}",
+   "n": 6
+  },
+  {
    "s": "Foto etalase",
    "n": 6
   },
@@ -688,10 +692,6 @@
   },
   {
    "s": "Hapus etalase ini?",
-   "n": 6
-  },
-  {
-   "s": "Hapus filter lokasi {x}",
    "n": 6
   },
   {
@@ -2939,11 +2939,15 @@
    "n": 3
   },
   {
-   "s": "Filter kategori {x}",
+   "s": "Filter aktif: {x}",
    "n": 3
   },
   {
    "s": "Filter lokasi",
+   "n": 3
+  },
+  {
+   "s": "Filter lokasi {x}",
    "n": 3
   },
   {
@@ -3175,7 +3179,7 @@
    "n": 3
   },
   {
-   "s": "Hapus filter kategori {x}",
+   "s": "Hapus filter lokasi {x}",
    "n": 3
   },
   {
@@ -3215,15 +3219,7 @@
    "n": 3
   },
   {
-   "s": "Hapus pencarian {x}",
-   "n": 3
-  },
-  {
    "s": "Hapus percakapan?",
-   "n": 3
-  },
-  {
-   "s": "Hapus semua filter",
    "n": 3
   },
   {
@@ -3567,6 +3563,10 @@
    "n": 3
   },
   {
+   "s": "Ketuk untuk mengubah filter",
+   "n": 3
+  },
+  {
    "s": "Ketuk untuk mengubah reaksi",
    "n": 3
   },
@@ -3840,10 +3840,6 @@
   },
   {
    "s": "Lihat ulasan",
-   "n": 3
-  },
-  {
-   "s": "Lihat ulasan {x}",
    "n": 3
   },
   {
@@ -4288,6 +4284,10 @@
   },
   {
    "s": "Penarikan gagal",
+   "n": 3
+  },
+  {
+   "s": "Pencarian {x}",
    "n": 3
   },
   {

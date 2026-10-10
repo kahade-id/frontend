@@ -160,7 +160,8 @@ function CommerceLinkRow({
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
-      className="flex-row items-center gap-3 rounded-xl border border-border bg-surface px-4 py-3"
+      // VI-02: rounded-xl sengaja tidak ada di theme (§5) — lg = kartu besar.
+      className="flex-row items-center gap-3 rounded-lg border border-border bg-surface px-4 py-3"
     >
       <Icon icon={icon} size="md" tone="default" weight="bold" />
       <View className="flex-1 gap-0.5">
@@ -1423,7 +1424,7 @@ function ShowcaseManagement() {
                 />
                 {/* C09: penanda target drop — tanpa menggeser layout. */}
                 {dropTarget ? (
-                  <View className="pointer-events-none absolute inset-0 rounded-md border-2 border-accent" />
+                  <View className="pointer-events-none absolute inset-0 rounded-md border-badge border-accent" />
                 ) : null}
               </>
             )}

@@ -54,6 +54,11 @@ import { Text } from "@/components/ui/text"
 import { useToast } from "@/components/ui/toast"
 import { VerifiedSeal } from "@/components/ui/verified-seal"
 import type { VerificationBadge } from "@/lib/api/users"
+import { hitSlopToReach } from "@/lib/hit-slop"
+import { tokens } from "@/lib/tokens"
+
+/** VI-11 (audit etalase 2026-10-10): baris identitas 24pt → target 44pt. */
+const PROFILE_LINK_HIT_SLOP = hitSlopToReach(tokens.a11y.minHitTarget, 24)
 
 
 /**
@@ -251,6 +256,8 @@ export const ShowcaseCommentRow = memo(function ShowcaseCommentRow({
                   : ROUTES.loginRequired(`/user/${encodeURIComponent(comment.author.username)}`),
               )
             }
+            // VI-11: tautan profil 24pt → target 44pt.
+            hitSlop={PROFILE_LINK_HIT_SLOP}
             containerClassName={cn("min-w-0 shrink rounded-sm", focusRing)}
           >
             {/*

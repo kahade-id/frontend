@@ -35,7 +35,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, memo, useSyncExterna
 import { View, type FlatList, type ViewInstance } from "react-native"
 import Animated, { runOnJS } from "react-native-reanimated"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { Images, X, ArrowUp } from "phosphor-react-native"
+import { Images, ArrowUp } from "phosphor-react-native"
 import { router, useLocalSearchParams } from "expo-router"
 import { useIsFocused } from "expo-router"
 
@@ -68,7 +68,6 @@ import { applyShowcaseCommentCountDelta } from "@/lib/showcase-social"
 import { showcaseMedia } from "@/lib/showcase-social"
 import { prefetchShowcaseDetail } from "@/lib/showcase-detail-prefetch"
 import { tokens } from "@/lib/tokens"
-import { modes } from "@/lib/tokens"
 import { describeSheetFilters, countActiveFeedFilters } from "@/lib/showcase-filters"
 import { useSetUiPrefs, useUiPref, parseShowcaseFeedTab, type ShowcaseFeedTab as SavedFeedTab } from "@/lib/ui-prefs"
 import { useCollapsingHeader } from "@/lib/use-collapsing-header"
@@ -110,6 +109,7 @@ import { ShowcaseFeedSkeleton } from "@/components/ui/showcase-feed-skeleton"
 import { PushRationaleSheet } from "@/components/ui/push-rationale-sheet"
 import { WebGuestBanner } from "@/components/ui/web-guest-banner"
 import { Text } from "@/components/ui/text"
+import { Chip } from "@/components/ui/chip"
 import {
   hasSeenFeedOrientation,
   markFeedOrientationSeen,
@@ -1229,69 +1229,46 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
       FE-082: chip hanya berisi nilainya ("Elektronik") tanpa awalan
       "Kategori:" — konteksnya sudah jelas dari ikon funnel + tombol
       "Atur ulang". */
+  // UX-17 (audit etalase 2026-10-10): chip filter aktif = <Chip onRemove>
+  // design system (32px, satu baris wrap) — dulu dirakit manual 4× sebagai
+  // pil lebar penuh ±52px bertumpuk.
   const categoryChip = category ? (
-    <View className="mt-3 flex-row items-center justify-between gap-2 rounded-full border border-border bg-surface py-1.5 pl-4 pr-1.5 mx-5">
-      <Text variant="caption" tone="secondary" className="flex-1" numberOfLines={1}>
-        {category}
-      </Text>
-      <IconButton
-        icon={X}
-        variant="ghost"
-        size="sm"
-        accessibilityLabel={translate("Hapus filter kategori {x}", { x: category })}
-        onPress={onClearCategory}
-      />
-    </View>
+    <Chip selected onRemove={onClearCategory} accessibilityLabel={translate("Filter kategori {x}", { x: category })}>
+      {category}
+    </Chip>
   ) : null
 
   /** Chip `?location=` — pola sama dengan chip kategori (A-06/A-12).
       FE-082: tanpa awalan "Lokasi:". */
   const locationChip = location ? (
-    <View className="mt-3 flex-row items-center justify-between gap-2 rounded-full border border-border bg-surface py-1.5 pl-4 pr-1.5 mx-5">
-      <Text variant="caption" tone="secondary" className="flex-1" numberOfLines={1}>
-        {location}
-      </Text>
-      <IconButton
-        icon={X}
-        variant="ghost"
-        size="sm"
-        accessibilityLabel={translate("Hapus filter lokasi {x}", { x: location })}
-        onPress={onClearLocation}
-      />
-    </View>
+    <Chip selected onRemove={onClearLocation} accessibilityLabel={translate("Filter lokasi {x}", { x: location })}>
+      {location}
+    </Chip>
   ) : null
 
   /** A-06: chip `?search=` kini bisa dihapus, bukan mengunci feed selamanya.
       FE-082: tanpa awalan "Cari:" — cukup nilai pencariannya. */
   const searchChip = activeSearch ? (
-    <View className="mt-3 flex-row items-center justify-between gap-2 rounded-full border border-border bg-surface py-1.5 pl-4 pr-1.5 mx-5">
-      <Text variant="caption" tone="secondary" className="flex-1" numberOfLines={1}>
-        {activeSearch}
-      </Text>
-      <IconButton
-        icon={X}
-        variant="ghost"
-        size="sm"
-        accessibilityLabel={translate("Hapus pencarian {x}", { x: activeSearch })}
-        onPress={() => router.setParams({ search: undefined })}
-      />
-    </View>
+    <Chip
+      selected
+      onRemove={() => router.setParams({ search: undefined })}
+      accessibilityLabel={translate("Pencarian {x}", { x: activeSearch })}
+    >
+      {activeSearch}
+    </Chip>
   ) : null
 
   /** DC-012: label rentang harga aktif untuk chip. */
   const sheetFilterChip = !isDefaultShowcaseFilters(sheetFilters) ? (
-    <View className="mt-3 flex-row items-center justify-between gap-2 rounded-full border border-border bg-surface py-1.5 pl-4 pr-1.5 mx-5">
-      <Text variant="caption" tone="secondary" className="flex-1" numberOfLines={1}>
-        {describeSheetFilters(sheetFilters)}
-      </Text>
-      <IconButton
-        icon={X}
-        variant="ghost"
-        size="sm"
-        accessibilityLabel={translate("Hapus semua filter")}
-        onPress={() => setSheetFilters(DEFAULT_SHOWCASE_FILTERS)}
-      />
-    </View>
+    <Chip
+      selected
+      onPress={() => setFilterSheetVisible(true)}
+      onRemove={() => setSheetFilters(DEFAULT_SHOWCASE_FILTERS)}
+      accessibilityLabel={translate("Filter aktif: {x}", { x: describeSheetFilters(sheetFilters) })}
+      accessibilityHint={translate("Ketuk untuk mengubah filter")}
+    >
+      {describeSheetFilters(sheetFilters)}
+    </Chip>
   ) : null
 
   /**
@@ -1302,24 +1279,29 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
    * sudah memberi tahu jumlahnya; baris ini tinggal tombol reset.
    */
   const resetAllChip = filtersActive ? (
-    <View className="mx-5 mt-3 flex-row items-center justify-end">
-      <Button
-        fullWidth={false}
-        variant="ghost"
-        size="sm"
-        onPress={resetAllFilters}
-        accessibilityLabel={translate("Atur ulang semua filter")}
-      >
-        {translate("Atur ulang")}
-      </Button>
-    </View>
+    <Button
+      fullWidth={false}
+      variant="ghost"
+      size="sm"
+      onPress={resetAllFilters}
+      accessibilityLabel={translate("Atur ulang semua filter")}
+    >
+      {translate("Atur ulang")}
+    </Button>
   ) : null
 
   // PERF-FIX (TIM1-P1): header list di-memo — didefinisikan setelah semua chip.
   const listHeader = useMemo(
     () =>
-      searchChip || categoryChip || locationChip || followingPartialNotice || resetAllChip ? (
-        <View>{searchChip}{categoryChip}{locationChip}{sheetFilterChip}{resetAllChip}{followingPartialNotice}</View>
+      searchChip || categoryChip || locationChip || sheetFilterChip || followingPartialNotice || resetAllChip ? (
+        <View>
+          {searchChip || categoryChip || locationChip || sheetFilterChip || resetAllChip ? (
+            <View className="mx-5 mt-3 flex-row flex-wrap items-center gap-2">
+              {searchChip}{categoryChip}{locationChip}{sheetFilterChip}{resetAllChip}
+            </View>
+          ) : null}
+          {followingPartialNotice}
+        </View>
       ) : undefined,
     [searchChip, categoryChip, locationChip, sheetFilterChip, resetAllChip, followingPartialNotice],
   )
@@ -1391,12 +1373,10 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
       {showScrollTop && collapsing.collapsed ? (
         <View
           className="absolute left-0 right-0 items-center"
-          style={{ top: insets.top + 8, pointerEvents: "box-none" }}
+          style={{ top: insets.top + tokens.space[2], pointerEvents: "box-none" }}
         >
-          <View
-            className="rounded-full"
-            style={[{ backgroundColor: modes[themeMode].surfaceElevated }, elevationStyle("medium", themeMode)]}
-          >
+          {/* VI-15: warna lewat class theme; style inline hanya untuk elevasi. */}
+          <View className="rounded-full bg-surface-elevated" style={elevationStyle("medium", themeMode)}>
             <IconButton
               icon={ArrowUp}
               variant="ghost"

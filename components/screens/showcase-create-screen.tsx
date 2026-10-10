@@ -104,6 +104,10 @@ import { ShowcaseFeedItem } from "@/components/ui/showcase-feed-item"
 import type { ShowcaseMedia, ShowcaseSocialItem } from "@/lib/api/showcase"
 import { goBackOrNavigate } from "@/lib/navigation"
 import { ROUTES } from "@/lib/routes"
+import { hitSlopToReach } from "@/lib/hit-slop"
+
+/** VI-11 (audit etalase 2026-10-10): tombol sampul/hapus thumbnail 32pt → 44pt. */
+const THUMB_ACTION_HIT_SLOP = hitSlopToReach(32)
 
 /** Batas field — turunan dari kontrak backend, bukan angka lokal (D-08). */
 const TITLE_MAX = API_CONSTRAINTS.CreateShowcaseItemDto.title.maxLength
@@ -1122,9 +1126,10 @@ export default function ShowcaseCreateScreen() {
                           accessibilityHint={translate("Pindahkan media ini ke posisi pertama sebagai sampul etalase")}
                           disabled={busy || uncertainCreate}
                           onPress={() => setAsCover(index)}
+                          hitSlop={THUMB_ACTION_HIT_SLOP}
                           containerClassName="items-center justify-center rounded-full bg-overlay-media p-1.5"
                         >
-                          <Icon icon={Star} size="sm" tone="inverse" />
+                          <Icon icon={Star} size="sm" tone="onMedia" />
                         </PressableScale>
                       </View>
                     )}
@@ -1134,15 +1139,16 @@ export default function ShowcaseCreateScreen() {
                         accessibilityLabel={translate("Hapus media {x}", { x: index + 1 })}
                         disabled={busy || uncertainCreate}
                         onPress={() => removePreview(index)}
+                        hitSlop={THUMB_ACTION_HIT_SLOP}
                         containerClassName="items-center justify-center rounded-full bg-overlay-media p-1.5"
                       >
-                        <Icon icon={Trash} size="sm" tone="inverse" />
+                        <Icon icon={Trash} size="sm" tone="onMedia" />
                       </PressableScale>
                     </View>
                     {/* C09: penanda target drop — tanpa menggeser layout. */}
                     {dropTarget ? (
                       <View
-                        className="pointer-events-none absolute inset-0 rounded-sm border-2 border-accent"
+                        className="pointer-events-none absolute inset-0 rounded-sm border-badge border-accent"
                         accessibilityElementsHidden
                         importantForAccessibility="no-hide-descendants"
                       />

@@ -113,6 +113,11 @@ import { Text } from "@/components/ui/text"
 import { TextArea } from "@/components/ui/text-area"
 import { useToast } from "@/components/ui/toast"
 import { CONTENT_REPORT_REASONS, type ContentReportReason } from "@/lib/labels/report"
+import { hitSlopToReach } from "@/lib/hit-slop"
+import { tokens } from "@/lib/tokens"
+
+/** VI-11 (audit etalase 2026-10-10): badge kategori 22pt → target 44pt. */
+const CATEGORY_BADGE_HIT_SLOP = hitSlopToReach(tokens.a11y.minHitTarget, 22)
 
 /** G-13: opsi hide konten satu sumber di lib/labels/report. */
 const HIDE_REASONS = CONTENT_REPORT_REASONS
@@ -1017,7 +1022,8 @@ function ShowcaseDetailContent({
   const commentComposer = (
     <View className="gap-2">
       {replyTo ? (
-        <View className="flex-row items-center gap-2 rounded-md bg-surface-elevated px-3 py-1.5">
+        /* VI-04: bg-surface — surface-elevated = putih di light (chip tak terlihat). */
+        <View className="flex-row items-center gap-2 rounded-md bg-surface px-3 py-1.5">
           <Text variant="caption" tone="secondary" className="flex-1" numberOfLines={1}>
             {translate("Membalas {x}", { x: replyTo.author.fullName ?? `@${replyTo.author.username}` })}
           </Text>
@@ -1219,6 +1225,8 @@ function ShowcaseDetailContent({
             accessibilityLabel={translate("Lihat kategori {x}", { x: item.category })}
             // L-01: teruskan tab aktif dari param `?kind=` bila ada.
             onPress={() => router.push(ROUTES.showcaseWithCategory(item.category as string, tabKind))}
+            // VI-11: badge 22pt → target 44pt.
+            hitSlop={CATEGORY_BADGE_HIT_SLOP}
             containerClassName={cn("rounded-full", focusRing)}
           >
             <Badge variant="outline">{item.category}</Badge>

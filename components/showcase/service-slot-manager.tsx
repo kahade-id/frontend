@@ -166,6 +166,7 @@ export function ServiceSlotManagerSheet({
             <SkeletonGroup>
               <View
                 className="gap-2"
+                accessible
                 accessibilityRole="progressbar"
                 accessibilityLabel={translate("Memuat jadwal jasa")}
               >

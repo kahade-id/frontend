@@ -862,11 +862,7 @@ export type ShowcaseItem = {
   category?: string | null
   visibility?: "PUBLIC" | "PRIVATE"
   condition?: string | null
-  /**
-   * Field commerce pemilik (CR-01, audit etalase 2026-10-10). `originalPrice`
-   * lama dikirim dalam SEN; `originalPriceIdr` (BE-1) sudah IDR.
-   * `digitalDeliveryInfo`/`scheduledAt` hanya untuk pemilik.
-   */
+  /** Field commerce pemilik (CR-01): `originalPrice` lama = SEN, `originalPriceIdr` (BE-1) = IDR; delivery/scheduledAt hanya pemilik. */
   productType?: "JASA" | "FISIK" | "DIGITAL" | "LAINNYA" | null
   originalPrice?: number | null
   originalPriceIdr?: number | null

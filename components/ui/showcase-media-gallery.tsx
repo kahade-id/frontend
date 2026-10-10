@@ -359,9 +359,14 @@ function VideoSlide({
               <Picture source={media.posterUrl} alt={title} aspectRatio={slideAspectRatio}
                 radius="none" bordered={false} priority={active ? "high" : "low"} />
             ) : null}
-            <Text variant="caption" tone="secondary" className="absolute bottom-3 w-full text-center">
-              {translate("Mode hemat data")}
-            </Text>
+            {/* UX-21: label di atas foto butuh scrim — abu tanpa latar hilang di poster terang. */}
+            <View style={{ pointerEvents: "none" }} className="absolute bottom-3 w-full items-center">
+              <View className="rounded-full bg-overlay-media px-3 py-1">
+                <Text variant="caption" weight={600} tone="onMedia">
+                  {translate("Mode hemat data")}
+                </Text>
+              </View>
+            </View>
           </View>
         ) : (
           // FD-03: `embedded` — permukaan video meneruskan ketukan ke slide
@@ -383,7 +388,7 @@ function VideoSlide({
           containerClassName="rounded-full"
           className="h-11 w-11 items-center justify-center rounded-full bg-overlay-media"
         >
-          <Icon icon={playing ? Pause : Play} size="sm" weight="fill" tone="inverse" />
+          <Icon icon={playing ? Pause : Play} size="sm" weight="fill" tone="onMedia" />
         </PressableScale>
       </View>
       {!gated ? (
@@ -396,14 +401,15 @@ function VideoSlide({
             containerClassName="rounded-full"
           >
             <View className="items-center justify-center rounded-full bg-overlay-media p-2">
-              <Icon icon={muted ? SpeakerSimpleX : SpeakerHigh} size="sm" tone="inverse" />
+              <Icon icon={muted ? SpeakerSimpleX : SpeakerHigh} size="sm" tone="onMedia" />
             </View>
           </PressableScale>
         </View>
       ) : null}
       {media.durationSec != null ? (
-        <View style={{ pointerEvents: "none" }} className="absolute left-2 top-2 rounded-full bg-overlay-media px-2 py-0.5">
-          <Text variant="caption" weight={600} className="text-white tabular-nums">
+        <View style={{ pointerEvents: "none" }} className="absolute right-2 top-2 rounded-full bg-overlay-media px-2 py-0.5">
+          {/* VI-08: kanan-atas — kiri-atas dipakai badge "Stok habis" kartu feed. */}
+          <Text variant="caption" weight={600} tone="onMedia" className="tabular-nums">
             {formatCountdown(media.durationSec)}
           </Text>
         </View>

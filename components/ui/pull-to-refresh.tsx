@@ -297,8 +297,7 @@ export function NativePullGestureSurface({
     // di tengah jalan (reducedMotion/reducedSV sengaja tidak masuk deps).
   }, [refreshing, threshold, reducedMotion, locked, pull])
 
-  // FD-04: handler seret pemanggil (gerbang infinite scroll) ikut dipanggil.
-  const onScrollBeginDragRef = useRef(onScrollBeginDrag)
+  const onScrollBeginDragRef = useRef(onScrollBeginDrag) // FD-04: handler seret pemanggil ikut dipanggil
   onScrollBeginDragRef.current = onScrollBeginDrag
   const scrollBindings = useMemo<NativePullBindings>(
     () => ({
@@ -306,10 +305,7 @@ export function NativePullGestureSurface({
       // Android: keyboardDismissMode="on-drag" tidak didukung scroller native
       // (lihat lib/keyboard.ts); ini menutup SEMUA layar ber-PTR, web/iOS
       // memakai prop aslinya dari pemanggil.
-      onScrollBeginDrag: (event) => {
-        dismissKeyboardOnDragProps.onScrollBeginDrag?.(event)
-        onScrollBeginDragRef.current?.(event)
-      },
+      onScrollBeginDrag: (event) => { dismissKeyboardOnDragProps.onScrollBeginDrag?.(event); onScrollBeginDragRef.current?.(event) },
       scrollEventThrottle: 16,
       // Overscroll native dimatikan: satu-satunya gerakan tarik adalah
       // Animated.View di sini (konsisten dengan jalur web/iOS).
@@ -399,11 +395,7 @@ export type PullGestureSurfaceProps = Omit<ViewProps, "children"> & {
    * `onScroll` biasa. Stabilkan identitasnya (useCallback).
    */
   onScrollWorklet?: (offsetY: number) => void
-  /**
-   * FD-04 (audit etalase 2026-10-10): jalur Android menimpa `onScrollBeginDrag`
-   * scroller (tutup keyboard saat seret) — handler pemanggil dirangkai di
-   * belakangnya, bukan hilang.
-   */
+  /** FD-04 (audit etalase 2026-10-10): Android menimpa onScrollBeginDrag scroller (tutup keyboard) — handler pemanggil dirangkai, bukan hilang. */
   onScrollBeginDrag?: ScrollViewProps["onScrollBeginDrag"]
   className?: string
 }

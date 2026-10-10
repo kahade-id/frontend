@@ -107,17 +107,20 @@ export function ShowcaseFilterSheet({
   const ratingOptions = RATING_OPTIONS.map((o) => ({ ...o, label: translate(o.label) }))
   return (
     <BottomSheet
+      // VI-09: sheet berisi input harga — geser di atas keyboard seperti sheet lain.
+      avoidKeyboard
       visible={visible}
       onRequestClose={onRequestClose}
       title={translate("Filter etalase")}
       footer={
         <View className="flex-row gap-2">
-          <Button variant="secondary" onPress={resetDraft} className="flex-1">
+          {/* VI-05: `className` jatuh ke kotak dalam — lebar dibagi lewat containerClassName. */}
+          <Button variant="secondary" onPress={resetDraft} containerClassName="flex-1">
             {translate("Atur ulang")}
           </Button>
           <Button
             onPress={apply}
-            className="flex-1"
+            containerClassName="flex-1"
             disabled={priceInvalid}
             accessibilityHint={
               priceInvalid

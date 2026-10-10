@@ -36,6 +36,11 @@ import { SectionHeader } from "@/components/ui/section"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { hitSlopToReach } from "@/lib/hit-slop"
+import { tokens } from "@/lib/tokens"
+
+/** VI-11 (audit etalase 2026-10-10): chip tanggal jasa 30pt → target 44pt. */
+const DATE_CHIP_HIT_SLOP = hitSlopToReach(tokens.a11y.minHitTarget, 30)
 
 /** Chip TERLARIS / DISKON — publik, komputasi on-read di server. */
 export function ProductBadges({ showcaseId }: { showcaseId: string }) {
@@ -323,7 +328,7 @@ export function ServiceSlotSection({
     // (atau payload lama tanpa tipe) jangan janjikan seksi yang mungkin lenyap.
     if (!knownService) return null
     return (
-      <View className="gap-2 px-5 pt-4" accessibilityRole="progressbar" accessibilityLabel={translate("Memuat jadwal jasa")}>
+      <View className="gap-2 px-5 pt-4" accessible accessibilityRole="progressbar" accessibilityLabel={translate("Memuat jadwal jasa")}>
         <Skeleton className="h-5 w-32" />
         <Skeleton className="h-12 w-full" />
       </View>
@@ -384,9 +389,14 @@ export function ServiceSlotSection({
               accessibilityRole="button"
               accessibilityState={{ selected: active }}
               onPress={() => setSelectedDate(d)}
+              // VI-11: chip 30pt → target 44pt.
+              hitSlop={DATE_CHIP_HIT_SLOP}
+              // VI-03: `bg-primary/10` tidak dikompilasi (warna var() tanpa
+              // <alpha-value>) → chip aktif tanpa fill. `bg-pressed` = tint
+              // per-mode yang memang ada di theme.
               className={cn(
                 "rounded-full border px-3 py-1.5",
-                active ? "border-primary bg-primary/10" : "border-border",
+                active ? "border-primary bg-pressed" : "border-border",
               )}
             >
               <Text variant="caption" weight={active ? 600 : 400} tone={active ? "primary" : "secondary"}>

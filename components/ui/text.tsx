@@ -52,6 +52,12 @@ export type TextTone =
   | "tertiary"
   | "disabled"
   | "inverse" // teks di atas bg-primary
+  /**
+   * VI-01 (audit etalase 2026-10-10): putih di KEDUA mode — teks di atas
+   * scrim `bg-overlay-media` (hitam di kedua mode). BUKAN `inverse`:
+   * primary-foreground = #000000 di dark mode → hitam di atas hitam.
+   */
+  | "onMedia"
   | "success"
   | "danger"
   | "warning"
@@ -126,6 +132,7 @@ const toneClass: Record<TextTone, string> = {
   tertiary: "text-text-tertiary",
   disabled: "text-text-disabled",
   inverse: "text-primary-foreground",
+  onMedia: "text-white",
   success: "text-success-text",
   danger: "text-danger-text",
   warning: "text-warning-text",

@@ -180,7 +180,8 @@ export function DigitalAssetsBuyerSection({ showcaseId }: { showcaseId: string }
           asset={asset}
           action={
             asset.assetType === "LINK" ? (
-              <Button variant="secondary" onPress={() => void openLink(asset.payload)}>
+              // VI-06: aksi baris — bukan tombol lebar penuh 48px di samping IconButton sm.
+              <Button variant="secondary" size="sm" fullWidth={false} onPress={() => void openLink(asset.payload)}>
                 {translate("Buka")}
               </Button>
             ) : asset.assetType === "LICENSE" ? (

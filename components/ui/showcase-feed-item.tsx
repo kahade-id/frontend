@@ -49,6 +49,8 @@ import { useLanguage } from "@/lib/i18n"
  * (penulis, ringkasan) pakai jeda ala baris daftar (~130 ms).
  */
 const SCROLL_PRESS_DELAY_MS = 130
+/** VI-11 (audit etalase 2026-10-10): chip kategori ±18pt → target 44pt. */
+const CATEGORY_CHIP_HIT_SLOP = hitSlopToReach(tokens.a11y.minHitTarget, 18)
 
 import { formatCountCompact, formatTimeAgo } from "@/lib/format"
 import type { ShowcaseSocialItem } from "@/lib/api/showcase"
@@ -78,6 +80,8 @@ import { focusRing } from "@/lib/focus-ring"
 import { shouldFireDoubleTapLike } from "@/lib/showcase-like-guard"
 import { isShowcaseSoldOut } from "@/lib/showcase-stock"
 import { prefetchUserProfile } from "@/lib/entity-detail-prefetch"
+import { hitSlopToReach } from "@/lib/hit-slop"
+import { tokens } from "@/lib/tokens"
 
 export type ShowcaseFeedItemProps = {
   item: ShowcaseSocialItem
@@ -471,7 +475,8 @@ function ShowcaseFeedItemBase({
           {/* C06: badge stok habis — menimpa media, info kartu tetap tampil. */}
           {soldOut ? (
             <View className="absolute left-2 top-2 rounded-full bg-overlay-media px-2.5 py-1">
-              <Text variant="caption" weight={700} tone="inverse">
+              {/* VI-01: onMedia (putih di kedua mode) — inverse = hitam di dark. */}
+              <Text variant="caption" weight={700} tone="onMedia">
                 {translate("Stok habis")}
               </Text>
             </View>
@@ -495,7 +500,7 @@ function ShowcaseFeedItemBase({
             {item.category ? (
               nonInteractive ? (
                 /* C11: pratinjau — kategori sebagai label biasa. */
-                <View className="rounded-sm px-0">
+                <View className="rounded-sm">
                   <Text variant="caption" tone="secondary" numberOfLines={1}>
                     {item.category}
                   </Text>
@@ -506,6 +511,8 @@ function ShowcaseFeedItemBase({
                 accessibilityLabel={translate("Filter kategori {x}", { x: item.category })}
                 accessibilityHint={translate("Tampilkan feed kategori ini")}
                 onPress={handleCategoryPress}
+                // VI-11: chip ±18pt → target 44pt tanpa mengubah tata letak.
+                hitSlop={CATEGORY_CHIP_HIT_SLOP}
                 containerClassName={cn("rounded-sm", focusRing)}
               >
                 <View className="flex-row items-center gap-1">
