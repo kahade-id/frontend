@@ -826,3 +826,24 @@ function routeForActionUrlRaw(actionUrl: string | null | undefined): Href | null
 
   return null
 }
+
+/**
+ * Apakah route menunjuk ke tab/layar inbox notifikasi itu sendiri.
+ * Dipakai untuk menghindari navigasi no-op atau menumpuk layar yang sama.
+ */
+export function isNotificationInboxRoute(route: Href | null | undefined): boolean {
+  if (!route) return false
+  const path = hrefPathname(route)
+  return path === "/notifications" || path.startsWith("/notifications?")
+}
+
+/**
+ * Apakah route menunjuk ke layar detail notifikasi untuk ID tertentu.
+ * Dipakai untuk menghindari CTA "Lihat notifikasi" yang membuka
+ * layar detail yang sama di atas dirinya sendiri.
+ */
+export function isNotificationSelfRoute(route: Href | null | undefined, notificationId: string): boolean {
+  if (!route || !notificationId) return false
+  const path = hrefPathname(route)
+  return path === `/notification/${notificationId}` || path.startsWith(`/notification/${notificationId}?`)
+}

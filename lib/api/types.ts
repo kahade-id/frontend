@@ -355,7 +355,7 @@ export type UpdateProfileDto = {
   /** Gender */
   gender?: string
   /** Contact email (public) */
-  contactEmail?: string
+  contactEmail?: string | null
   /** Contact phone (public) */
   contactPhone?: string
   /** Show contact email on profile */
