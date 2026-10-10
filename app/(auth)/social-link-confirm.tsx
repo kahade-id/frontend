@@ -14,10 +14,13 @@
 import { useEffect, useRef, useState } from "react"
 import { ScrollView, type TextInputInstance } from "react-native"
 import { useLocalSearchParams, useRouter } from "expo-router"
+
+import { ScreenCaptureGuard } from "@/components/security/screen-capture-guard"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { api, isApiError, userMessage } from "@/lib/api"
 import { MFA_CODE_MAX_LENGTH, normalizeMfaCode } from "@/lib/auth-ui"
+import { translate } from "@/lib/i18n/translate"
 import { setPendingNext, resolvePostLoginTarget } from "@/lib/login-redirect"
 import {
   clearPendingSocialLinkConfirm,
@@ -103,7 +106,11 @@ export default function SocialLinkConfirmScreen() {
           // BATCH4-B3: penautan selesai di server — token sekali-pakai
           // dibakar sekarang agar tidak bisa dipakai ulang.
           clearPendingSocialLinkConfirm()
-          setPendingTwoFactorLogin({ tempToken: result.tempToken, identifier: displayEmail ?? "" })
+          setPendingTwoFactorLogin({
+            tempToken: result.tempToken,
+            identifier: displayEmail ?? "",
+            origin: "social",
+          })
           router.replace(ROUTES.verify2fa)
           return
         }
@@ -142,7 +149,9 @@ export default function SocialLinkConfirmScreen() {
           return
         }
         if (code === "SOCIAL_ACCOUNT_TAKEN") {
-          setErrorText(`Akun ${providerLabel} ini sudah tertaut ke akun Kahade lain.`)
+          setErrorText(
+            translate("Akun {x} ini sudah tertaut ke akun Kahade lain.", { x: providerLabel }),
+          )
           return
         }
       }
@@ -153,6 +162,8 @@ export default function SocialLinkConfirmScreen() {
   }
 
   return (
+    // #FE-I10: layar kata sandi — proteksi screenshot seperti OTP/PIN.
+    <ScreenCaptureGuard>
     <Screen keyboardAvoiding edges={["top"]} padded={false}>
       <Header title="Tautkan Akun" />
       <ScrollView
@@ -164,9 +175,15 @@ export default function SocialLinkConfirmScreen() {
         <VStack gap={2}>
           <Heading level={1}>Email sudah terdaftar</Heading>
           <Text variant="body" tone="secondary" className="text-pretty">
-            {displayEmail ? `Email ${displayEmail} ` : "Email "}
-            sudah dipakai akun Kahade. Untuk menautkan akun {providerLabel} ini, buktikan bahwa
-            akun Kahade tersebut milik Anda dengan memasukkan kata sandinya.
+            {displayEmail
+              ? translate(
+                  "Email {x} sudah dipakai akun Kahade. Untuk menautkan akun {y} ini, buktikan bahwa akun Kahade tersebut milik Anda dengan memasukkan kata sandinya.",
+                  { x: displayEmail, y: providerLabel },
+                )
+              : translate(
+                  "Email sudah dipakai akun Kahade. Untuk menautkan akun {x} ini, buktikan bahwa akun Kahade tersebut milik Anda dengan memasukkan kata sandinya.",
+                  { x: providerLabel },
+                )}
           </Text>
         </VStack>
 
@@ -230,5 +247,6 @@ export default function SocialLinkConfirmScreen() {
         </VStack>
       </ScrollView>
     </Screen>
+    </ScreenCaptureGuard>
   )
 }

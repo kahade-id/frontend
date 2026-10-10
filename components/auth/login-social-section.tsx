@@ -8,6 +8,7 @@ import {
 } from "@/components/auth/social-login-buttons"
 import { Dialog } from "@/components/ui/modal"
 import { useLoginNavigation } from "@/components/auth/use-login-navigation"
+import { translate } from "@/lib/i18n/translate"
 import { ROUTES } from "@/lib/routes"
 import { setPendingMigrationToken } from "@/lib/phone-migration-token"
 import { setPendingSocialLinkConfirm } from "@/lib/social-link-confirm"
@@ -44,7 +45,7 @@ export function LoginSocialSection({ nextPath, autoStartProvider }: Props) {
         return
       }
       if (outcome.kind === "twoFactor") {
-        setPendingTwoFactorLogin({ tempToken: outcome.tempToken, identifier: "" })
+        setPendingTwoFactorLogin({ tempToken: outcome.tempToken, identifier: "", origin: "social" })
         router.push(ROUTES.verify2fa)
         return
       }
@@ -64,12 +65,9 @@ export function LoginSocialSection({ nextPath, autoStartProvider }: Props) {
         maskedEmail: outcome.maskedEmail,
         provider: outcome.provider,
       })
-      router.push(
-        ROUTES.socialLinkConfirm({
-          maskedEmail: outcome.maskedEmail,
-          provider: outcome.provider,
-        }),
-      )
+      // #FE-I9 (pasangan): email tersamar TIDAK lagi lewat route param — ia
+      // sudah ada di holder memori; di web param itu masuk history/Referer.
+      router.push(ROUTES.socialLinkConfirm({ provider: outcome.provider }))
     },
     [finishLogin, router],
   )
@@ -87,11 +85,13 @@ export function LoginSocialSection({ nextPath, autoStartProvider }: Props) {
         autoStartProvider={autoStartProvider}
       />
       <Dialog
-        title="Akun belum terdaftar"
-        description="Daftar dulu dengan nomor HP — akun ditautkan otomatis setelah terverifikasi."
+        title={translate("Akun belum terdaftar")}
+        description={translate(
+          "Daftar dulu dengan nomor HP — akun ditautkan otomatis setelah terverifikasi.",
+        )}
         visible={linkConfirmOpen}
-        confirmLabel="Lanjutkan daftar"
-        cancelLabel="Batal"
+        confirmLabel={translate("Lanjutkan daftar")}
+        cancelLabel={translate("Batal")}
         onConfirm={() => {
           setLinkConfirmOpen(false)
           if (pendingLinkToken) setPendingSocialSignup(pendingLinkToken)

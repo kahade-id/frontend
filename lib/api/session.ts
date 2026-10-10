@@ -22,6 +22,12 @@
  */
 import { clearRegistrationState } from "@/lib/registration"
 import { clearPendingTwoFactorLogin } from "@/lib/two-factor-login"
+import { clearPasswordResetState } from "@/lib/password-reset"
+import { clearPendingMigrationToken } from "@/lib/phone-migration-token"
+import { clearPendingSocialLinkConfirm } from "@/lib/social-link-confirm"
+import { clearPendingSocialSignup } from "@/lib/social-signup"
+import { clearLoginIdentifier } from "@/lib/login-identifier"
+import { clearOtpFlow } from "@/lib/otp-flow"
 import { clearAccountPrefs } from "@/lib/ui-prefs"
 import { installedAppVersion } from "@/lib/runtime-info"
 import { logWarn } from "@/lib/telemetry"
@@ -169,6 +175,10 @@ export async function setRefreshToken(token: string): Promise<void> {
 export async function getRefreshToken(): Promise<string | null> {
   return getSecureItem(SecureKeys.refreshToken)
 }
+/** #FE-S4: hapus slot refresh token (dipakai setelah refresh gagal beruntun). */
+export async function clearRefreshToken(): Promise<void> {
+  await writeInOrder(() => deleteSecureItem(SecureKeys.refreshToken))
+}
 
 /**
  * Alasan sesi diakhiri (P0-1, audit perf/UX 2026-10-03).
@@ -215,6 +225,22 @@ export async function clearSession(options?: {
   for (const listener of sessionClearedListeners) listener(reason)
   clearRegistrationState()
   clearPendingTwoFactorLogin()
+  /*
+   * Audit Auth 2026-10-10 (#FE-S1): SEMUA pemegang kredensial alur auth ikut
+   * dibersihkan, bukan hanya registrasi + 2FA. Sebelumnya tempToken reset
+   * sandi (lib/password-reset), token migrasi HP, linkToken sosial (taut +
+   * signup), identifier login terakhir, dan alur OTP tersimpan (nomor HP +
+   * refCode + migrationToken di SecureStore) BERTAHAN melewati logout —
+   * pengguna berikutnya di perangkat yang sama bisa membuka /reset-password
+   * dan mengganti sandi nomor sebelumnya selama token masih berlaku, atau
+   * mendapat akun barunya tertaut ke identitas Google/Apple orang lain.
+   */
+  clearPasswordResetState()
+  clearPendingMigrationToken()
+  clearPendingSocialLinkConfirm()
+  clearPendingSocialSignup()
+  clearLoginIdentifier()
+  clearOtpFlow()
   /*
    * I-04 (audit 2026-09-22): banner "pembayaran/penarikan menggantung"
    * disimpan di perangkat untuk ditampilkan lain kali. Tanpa pembersihan saat

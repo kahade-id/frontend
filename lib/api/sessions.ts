@@ -96,17 +96,23 @@ export function deleteOtherSessions() {
 }
 
 /**
- * DELETE /v1/sessions — cabut SEMUA sesi & perangkat termasuk sesi saat ini.
- * Setelah ini sesi lokal harus dihapus dan user diarahkan ke login.
+ * DELETE /v1/sessions — cabut semua sesi LAIN dan putus push perangkat lain
+ * (sesi saat ini TETAP hidup — SessionsService.revokeAllSessionsAndDevices).
+ *
+ * Audit Auth 2026-10-10 (#FE-S8): komentar lama menyebut "termasuk sesi saat
+ * ini" — keliru. Untuk keluar dari SEMUA perangkat termasuk ini, pakai
+ * `api.auth.logout({ logoutAll: true })` (satu panggilan atomik di server).
  */
 export function deleteAllSessions() {
   return http.delete<void>("/v1/sessions", { auth: "required", responseType: "void" })
 }
 
 /**
- * PATCH /v1/users/me/devices/{deviceId}/trust — tandai perangkat tepercaya
- * (lewati 2FA saat login). Spec: method PATCH dengan body `TrustDeviceDto`
- * (objek kosong — dikirim `{}` agar `Content-Type: application/json` valid).
+ * PATCH /v1/users/me/devices/{deviceId}/trust — tandai perangkat tepercaya.
+ *
+ * #FE-S9: sejak AUT-005 (backend) perangkat tepercaya TIDAK lagi melewati
+ * 2FA saat login — status ini hanya penanda visibilitas di daftar perangkat.
+ * Butuh re-auth: body `TrustDeviceDto` = `{ password, mfaCode? }`.
  */
 export function trustDevice(deviceId: string, dto: TrustDeviceDto) {
   return http.patch<DeviceSession, TrustDeviceDto>(

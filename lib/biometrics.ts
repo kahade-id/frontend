@@ -33,6 +33,8 @@
 import * as LocalAuthentication from "expo-local-authentication"
 import { Platform } from "react-native"
 
+import { translate } from "@/lib/i18n/translate"
+
 export type BiometricOutcome = "success" | "cancelled" | "fallback" | "failed" | "lockout" | "unavailable"
 
 export type BiometricKind = "face" | "fingerprint" | "iris" | "none"
@@ -45,7 +47,7 @@ export type BiometricCapability = {
 }
 
 export async function getBiometricCapability(): Promise<BiometricCapability> {
-  if (Platform.OS === "web") return { available: false, kind: "none", label: "biometrik" }
+  if (Platform.OS === "web") return { available: false, kind: "none", label: translate("biometrik") }
 
   const [hasHardware, enrolled, types] = await Promise.all([
     LocalAuthentication.hasHardwareAsync(),
@@ -68,15 +70,16 @@ export function describeBiometrics(kind: BiometricKind): string {
     if (kind === "face") return "Face ID"
     if (kind === "fingerprint") return "Touch ID"
   }
+  // #FE-I16: label masuk ke prompt OS & copy pengaturan — ikut bahasa app.
   switch (kind) {
     case "face":
-      return "wajah"
+      return translate("wajah")
     case "fingerprint":
-      return "sidik jari"
+      return translate("sidik jari")
     case "iris":
-      return "iris"
+      return translate("iris")
     default:
-      return "biometrik"
+      return translate("biometrik")
   }
 }
 
@@ -96,8 +99,8 @@ export async function authenticateBiometric(opts: AuthenticateOptions): Promise<
   const result = await LocalAuthentication.authenticateAsync({
     promptMessage: opts.promptMessage,
     promptSubtitle: opts.promptSubtitle,
-    cancelLabel: opts.cancelLabel ?? "Batal",
-    fallbackLabel: opts.fallbackLabel ?? "Gunakan PIN",
+    cancelLabel: opts.cancelLabel ?? translate("Batal"),
+    fallbackLabel: opts.fallbackLabel ?? translate("Gunakan PIN"),
     disableDeviceFallback: true,
     requireConfirmation: false,
     biometricsSecurityLevel: "strong",

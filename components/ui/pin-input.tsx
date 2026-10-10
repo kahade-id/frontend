@@ -240,7 +240,15 @@ export function PinInput({
         ) : null}
         <PinDots length={length} filled={value.length} error={!!error} success={success} />
         {error || helperText ? (
-          <Text variant="caption" tone={error ? "danger" : "secondary"} className="text-center">
+          <Text
+            variant="caption"
+            tone={error ? "danger" : "secondary"}
+            className="text-center"
+            // #FE-A1: PIN ditolak = titik-titik mengosong tanpa suara bagi
+            // screen reader; umumkan sebagai alert seperti <Alert>.
+            accessibilityRole={error ? "alert" : undefined}
+            accessibilityLiveRegion={error ? "assertive" : undefined}
+          >
             {error ?? helperText}
           </Text>
         ) : null}

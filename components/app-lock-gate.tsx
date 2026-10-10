@@ -35,8 +35,11 @@ import { AccessibilityInfo, AppState, Platform, View } from "react-native"
 import { LockKey } from "phosphor-react-native"
 
 import { api, clearSession } from "@/lib/api"
+import { isOfflineError, userMessage } from "@/lib/api/errors"
 import { authenticateBiometric, getBiometricCapability } from "@/lib/biometrics"
 import { haptic } from "@/lib/haptics"
+import { translate } from "@/lib/i18n/translate"
+import { isCooldownError, retryAfterMessage } from "@/lib/retry-cooldown"
 import { getSecureItem, SecureKeys } from "@/lib/secure-storage"
 import { logWarn } from "@/lib/telemetry"
 import { tokens } from "@/lib/tokens"
@@ -65,6 +68,45 @@ export function AppLockGate({ sessionActive }: { sessionActive: boolean }) {
       backgroundAt.current = null
     }
   }, [sessionActive, locked])
+
+  /**
+   * Audit Auth 2026-10-10 (#FE-S17): kunci juga saat SESI DIPULIHKAN pada
+   * cold start. Sebelumnya gate hanya menyala lewat transisi AppState
+   * background→active, jadi mematikan aplikasi (app switcher / OS) lalu
+   * membukanya lagi — "latar belakang" terpanjang yang ada — justru melewati
+   * kunci sama sekali: isi dompet/chat tampil tanpa biometrik/PIN.
+   *
+   * Dibedakan dari login baru: `startSession()` menghapus flag
+   * `biometricEnabled` (akun baru tidak mewarisi kunci), jadi flag "1" saat
+   * sesi menjadi aktif hanya terjadi pada pemulihan sesi tersimpan.
+   */
+  const restoreChecked = useRef(false)
+  useEffect(() => {
+    if (Platform.OS === "web") return
+    if (!sessionActive) {
+      restoreChecked.current = false
+      return
+    }
+    if (restoreChecked.current) return
+    restoreChecked.current = true
+    void (async () => {
+      const [stored, cap] = await Promise.all([
+        getSecureItem(SecureKeys.biometricEnabled).catch((err) => {
+          logWarn("app-lock:read-flag", err)
+          return null
+        }),
+        getBiometricCapability().catch((err) => {
+          logWarn("app-lock:capability", err)
+          return null
+        }),
+      ])
+      if (stored !== "1") return
+      setBiometricAvailable(Boolean(cap?.available))
+      autoPrompted.current = false
+      setPinError(undefined)
+      setLocked(true)
+    })()
+  }, [sessionActive])
 
   useEffect(() => {
     if (Platform.OS === "web" || !sessionActive) return
@@ -106,8 +148,8 @@ export function AppLockGate({ sessionActive }: { sessionActive: boolean }) {
     autoPrompted.current = true
     void (async () => {
       const outcome = await authenticateBiometric({
-        promptMessage: "Buka Kahade",
-        promptSubtitle: "Verifikasi untuk melanjutkan ke aplikasi",
+        promptMessage: translate("Buka Kahade"),
+        promptSubtitle: translate("Verifikasi untuk melanjutkan ke aplikasi"),
       })
       if (outcome === "success") {
         haptic("success")
@@ -115,8 +157,8 @@ export function AppLockGate({ sessionActive }: { sessionActive: boolean }) {
       } else if (outcome === "failed" || outcome === "lockout") {
         setPinError(
           outcome === "lockout"
-            ? "Biometrik terkunci sementara. Masukkan PIN dompet."
-            : "Biometrik tidak dikenali. Masukkan PIN dompet.",
+            ? translate("Biometrik terkunci sementara. Masukkan PIN dompet.")
+            : translate("Biometrik tidak dikenali. Masukkan PIN dompet."),
         )
       }
     })()
@@ -140,12 +182,30 @@ export function AppLockGate({ sessionActive }: { sessionActive: boolean }) {
           unlock()
         } else {
           haptic("error")
-          setPinError("PIN salah. Coba lagi.")
+          setPinError(translate("PIN salah. Coba lagi."))
         }
       } catch (err) {
-        // Kegagalan jaringan saat unlock tidak boleh diklaim sebagai PIN salah.
         haptic("error")
-        setPinError("Tidak dapat memverifikasi PIN. Periksa koneksi lalu coba lagi.")
+        /*
+         * Audit Auth 2026-10-10 (#FE-S18): SEMUA galat dulu dilaporkan sebagai
+         * "periksa koneksi" — termasuk lockout PIN (403/429 dengan durasi) dan
+         * sesi yang sudah habis — pelanggaran aturan pesan jujur (CLAUDE.md §3).
+         * Lockout → durasi nyata; offline → kalimat offline; sisanya pesan
+         * spesifik dari transport (timeout, server) lewat userMessage.
+         */
+        if (isCooldownError(err)) {
+          setPinError(
+            retryAfterMessage(
+              err,
+              translate("Terlalu banyak percobaan PIN. Tunggu beberapa saat lalu coba lagi."),
+              translate("Terlalu banyak percobaan PIN"),
+            ),
+          )
+        } else if (isOfflineError(err)) {
+          setPinError(translate("Tidak ada koneksi internet. PIN tidak bisa diverifikasi."))
+        } else {
+          setPinError(userMessage(err))
+        }
         logWarn("app-lock:verify-pin", err)
       } finally {
         setVerifying(false)
@@ -156,8 +216,8 @@ export function AppLockGate({ sessionActive }: { sessionActive: boolean }) {
 
   const handleBiometricPress = useCallback(async () => {
     const outcome = await authenticateBiometric({
-      promptMessage: "Buka Kahade",
-      promptSubtitle: "Verifikasi untuk melanjutkan ke aplikasi",
+      promptMessage: translate("Buka Kahade"),
+      promptSubtitle: translate("Verifikasi untuk melanjutkan ke aplikasi"),
     })
     if (outcome === "success") {
       haptic("success")
@@ -165,21 +225,36 @@ export function AppLockGate({ sessionActive }: { sessionActive: boolean }) {
     } else if (outcome === "failed" || outcome === "lockout") {
       setPinError(
         outcome === "lockout"
-          ? "Biometrik terkunci sementara. Masukkan PIN dompet."
-          : "Biometrik tidak dikenali. Masukkan PIN dompet.",
+          ? translate("Biometrik terkunci sementara. Masukkan PIN dompet.")
+          : translate("Biometrik tidak dikenali. Masukkan PIN dompet."),
       )
     }
   }, [unlock])
 
+  /**
+   * Audit Auth 2026-10-10 (#FE-S3): jalan keluar darurat dulu hanya
+   * `clearSession()` LOKAL — sesi server (refresh token 7 hari) tetap hidup
+   * dan masih bisa dipakai bila token sempat bocor. Kini lewat
+   * `api.auth.logout()`: mencabut sesi di server (best-effort, retry +
+   * penjadwalan ulang saat offline) DAN membersihkan sesi lokal apa pun
+   * hasilnya — pengguna tidak pernah terjebak di layar kunci.
+   */
   const handleSignOut = useCallback(() => {
-    void clearSession().catch((err) => logWarn("app-lock:sign-out", err))
+    void api.auth
+      .logout()
+      .catch((err) => {
+        logWarn("app-lock:sign-out", err)
+        return clearSession().catch((cleanupErr) => logWarn("app-lock:sign-out-clear", cleanupErr))
+      })
   }, [])
 
   // UX-A11Y-002: saat overlay kunci muncul, umumkan ke screen reader.
   // Overlay penuh menutupi seluruh app tanpa ini tidak terdeteksi SR.
   useEffect(() => {
     if (locked) {
-      AccessibilityInfo.announceForAccessibility("Kahade terkunci. Masukkan PIN dompet untuk melanjutkan.")
+      AccessibilityInfo.announceForAccessibility(
+        translate("Kahade terkunci. Masukkan PIN dompet untuk melanjutkan."),
+      )
     }
   }, [locked])
 
@@ -193,18 +268,18 @@ export function AppLockGate({ sessionActive }: { sessionActive: boolean }) {
       // tree di belakang overlay kunci.
       accessible
       accessibilityViewIsModal
-      accessibilityLabel="Kunci aplikasi"
+      accessibilityLabel={translate("Kunci aplikasi")}
     >
       <View className="flex-1 items-center justify-center gap-8">
         <View className="items-center gap-3">
           <Icon icon={LockKey} size={40} weight="duotone" tone="active" />
           <Heading level={2} className="text-center">
-            Kahade terkunci
+            {translate("Kahade terkunci")}
           </Heading>
           <Text variant="body" tone="secondary" className="text-center text-pretty">
             {biometricAvailable
-              ? "Gunakan biometrik atau masukkan PIN dompet untuk melanjutkan."
-              : "Masukkan PIN dompet Anda untuk melanjutkan."}
+              ? translate("Gunakan biometrik atau masukkan PIN dompet untuk melanjutkan.")
+              : translate("Masukkan PIN dompet Anda untuk melanjutkan.")}
           </Text>
         </View>
 
@@ -217,7 +292,7 @@ export function AppLockGate({ sessionActive }: { sessionActive: boolean }) {
         />
 
         <Button variant="ghost" fullWidth={false} onPress={handleSignOut}>
-          Keluar & masuk ulang
+          {translate("Keluar & masuk ulang")}
         </Button>
       </View>
     </View>

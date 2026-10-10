@@ -25,9 +25,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { api, deletionBlockerMessage } from "@/lib/api"
 import type { DeletionRequestResult } from "@/lib/api/account-deletion"
+import { setPendingDeletionResult } from "@/lib/account-deletion-result"
 import { clearSession } from "@/lib/api/session"
-import { copyToClipboard } from "@/lib/clipboard"
-import { formatDate } from "@/lib/format"
+import { translate } from "@/lib/i18n/translate"
 import { unregisterPushDevice } from "@/lib/push-notifications"
 import { unregisterWebPushDevice } from "@/lib/web-push"
 import { ROUTES } from "@/lib/routes"
@@ -35,13 +35,9 @@ import { tokens } from "@/lib/tokens"
 import { logWarn } from "@/lib/telemetry"
 
 import { Alert } from "@/components/ui/alert"
-import { Button } from "@/components/ui/button"
 import { DeleteAccountForm, type DeleteAccountPayload } from "@/components/ui/delete-account-form"
 import { Header } from "@/components/ui/header"
-import { Heading } from "@/components/ui/heading"
 import { Screen } from "@/components/ui/screen"
-import { Text } from "@/components/ui/text"
-import { VStack } from "@/components/ui/stack"
 import { useToast } from "@/components/ui/toast"
 
 const CONFIRM_PHRASE = "HAPUS AKUN"
@@ -57,7 +53,6 @@ export default function DeleteAccountScreen() {
   const submitLock = useRef(false)
   const [submitting, setSubmitting] = useState(false)
   const [errorText, setErrorText] = useState<string | undefined>()
-  const [result, setResult] = useState<DeletionRequestResult | null>(null)
   const [idempotencyKey] = useState(newIdempotencyKey)
 
   const prerequisites = useApiQuery("account-deletion-checks", async (signal) => {
@@ -84,16 +79,15 @@ export default function DeleteAccountScreen() {
       setSubmitting(true)
       setErrorText(undefined)
       try {
-        const res = await api.accountDeletion.requestAccountDeletion({
+        const res: DeletionRequestResult = await api.accountDeletion.requestAccountDeletion({
           password: payload.password,
           reason: payload.reason.trim() || undefined,
           mfaCode: payload.mfaCode || undefined,
           idempotencyKey,
         })
-        setResult(res)
         toast.show({
-          title: "Permintaan penghapusan terkirim",
-          description: `Kode referensi: ${res.referenceCode}`,
+          title: translate("Permintaan penghapusan terkirim"),
+          description: translate("Kode referensi: {x}", { x: res.referenceCode }),
           tone: "success",
         })
         const deviceApi = {
@@ -106,7 +100,15 @@ export default function DeleteAccountScreen() {
         if (Platform.OS === "web")
           await unregisterWebPushDevice(deviceApi).catch((err) => logWarn("account-delete:unregister-push", err))
         else await unregisterPushDevice(deviceApi).catch((err) => logWarn("account-delete:unregister-push", err))
+        /*
+         * Audit Auth 2026-10-10 (#FE-S16): server sudah mencabut semua sesi;
+         * membersihkan sesi lokal di sini membuat `Stack.Protected` mencabut
+         * layar INI sebelum kode referensi terbaca. Hasilnya dititipkan ke
+         * memori modul dan ditampilkan layar publik /deletion-status.
+         */
+        setPendingDeletionResult(res)
         await clearSession()
+        router.replace(ROUTES.deletionStatus)
       } catch (err) {
         // BFI-057: backend menolak dengan kode blocker SPESIFIK
         // (ACTIVE_ORDERS_PRESENT / ESCROW_BALANCE_PRESENT / WALLET_BALANCE_PRESENT
@@ -132,60 +134,8 @@ export default function DeleteAccountScreen() {
     [prerequisites.loading, prerequisites.error, eligible, toast.show, idempotencyKey, prerequisites],
   )
 
-  // ── Layar hasil: kode referensi + jadwal purge + cara batalkan ─────────
-  // FE-IMP-3 #96 — tombol "Salin kode" untuk kode referensi (dibutuhkan untuk
-  // pembatalan pra-login dari layar Masuk).
-  const handleCopyCode = useCallback(async () => {
-    if (!result) return
-    const ok = await copyToClipboard(result.referenceCode)
-    toast.show(
-      ok
-        ? { title: "Kode referensi disalin", tone: "success", duration: 2500 }
-        : { title: "Gagal menyalin kode", description: "Salin manual dari layar ini.", tone: "danger" },
-    )
-  }, [result, toast])
-
-  if (result) {
-    return (
-      <Screen edges={["top"]}>
-        <Header title="Permintaan Terkirim" />
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerClassName="gap-4 px-5"
-          contentContainerStyle={{
-            paddingTop: tokens.space[3],
-            paddingBottom: insets.bottom + tokens.space[8],
-          }}
-        >
-          <VStack gap={2}>
-            <Heading level={1}>Akun dijadwalkan dihapus</Heading>
-            <Text variant="body" tone="secondary" className="text-pretty">
-              Akun Anda dinonaktifkan dan akan dihapus permanen pada{" "}
-              <Text variant="body" weight={600}>{formatDate(result.purgeAt)}</Text>.
-              Anda masih bisa membatalkannya sampai tanggal itu.
-            </Text>
-          </VStack>
-          <Alert tone="warning" title="Simpan kode referensi ini">
-            {result.referenceCode}
-          </Alert>
-          <Button variant="secondary" size="sm" onPress={() => void handleCopyCode()}>
-            Salin kode
-          </Button>
-          <VStack gap={2}>
-            <Heading level={2}>Cara membatalkan</Heading>
-            <Text variant="body" tone="secondary" className="text-pretty">
-              1. Keluar / buka layar Masuk.{"\n"}
-              2. Ketuk “Akun dihapus? Pulihkan di sini”.{"\n"}
-              3. Masukkan nomor HP, verifikasi kode WhatsApp, lalu batalkan penghapusan.
-            </Text>
-          </VStack>
-          <Button onPress={() => router.replace(ROUTES.login)}>
-            Ke Layar Masuk
-          </Button>
-        </ScrollView>
-      </Screen>
-    )
-  }
+  // Layar hasil (kode referensi + jadwal purge + cara batalkan) kini dirender
+  // layar publik /deletion-status (#FE-S16) — sesi sudah dicabut server.
 
   return (
     <Screen keyboardAvoiding edges={["top"]} padded={false}>

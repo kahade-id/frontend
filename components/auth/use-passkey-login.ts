@@ -127,7 +127,7 @@ export function usePasskeyLogin({ nextPath, conditional = false }: UsePasskeyLog
         return
       }
       if ("requiresTwoFactor" in result && result.requiresTwoFactor) {
-        setPendingTwoFactorLogin({ tempToken: result.tempToken, identifier })
+        setPendingTwoFactorLogin({ tempToken: result.tempToken, identifier, origin: "passkey" })
         router.push(ROUTES.verify2fa)
         return
       }

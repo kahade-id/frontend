@@ -58,7 +58,8 @@ import { Text } from "@/components/ui/text"
 import { TextLink } from "@/components/ui/text-link"
 import { api, isApiError, userMessage } from "@/lib/api"
 import { getAuthLocation } from "@/lib/location"
-import { setPendingNext } from "@/lib/login-redirect"
+import { sanitizeNextPath, setPendingNext } from "@/lib/login-redirect"
+import { retryAfterMessage, useRetryCooldown } from "@/lib/retry-cooldown"
 import { setOtpFlow } from "@/lib/otp-flow"
 import { ROUTES } from "@/lib/routes"
 import { useLeaveConfirm } from "@/lib/use-leave-confirm"
@@ -80,13 +81,16 @@ export default function RegisterScreen() {
   // jalur "Masuk". Sanitiasi: hanya path absolut.
   const { next } = useLocalSearchParams<{ next?: string }>()
   useEffect(() => {
-    if (typeof next === "string" && next.startsWith("/")) setPendingNext(next)
+    // #FE-N1: setPendingNext sudah menyanitasi (tolak //host & skema).
+    setPendingNext(sanitizeNextPath(next))
   }, [next])
 
   const [digits, setDigits] = useState("")
   const [phoneError, setPhoneError] = useState<string | undefined>()
   const [formError, setFormError] = useState<FormError | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  // #FE-L2: 429 → tombol dikunci dengan hitung mundur nyata.
+  const cooldown = useRetryCooldown()
 
   // A06 (batch 139): konfirmasi bila keluar dengan nomor yang belum terkirim.
   const leaveConfirm = useLeaveConfirm(digits.length > 0 && !submitting, {
@@ -105,17 +109,15 @@ export default function RegisterScreen() {
   const goLogin = useCallback(() => {
     // NAV-013: bawa `next` bila ada — pengguna yang ternyata sudah punya akun
     // tetap kembali ke tujuan setelah masuk.
-    const loginHref =
-      typeof next === "string" && next.startsWith("/")
-        ? ROUTES.loginWithNext(next)
-        : ROUTES.login
+    const safeNext = sanitizeNextPath(next)
+    const loginHref = safeNext ? ROUTES.loginWithNext(safeNext) : ROUTES.login
     // A2F-03: SELALU replace eksplisit ke login — router.back() dari
     // web-guest-banner (push) mendarat kembali di banner, bukan di Masuk.
     router.replace(loginHref)
   }, [router, next])
 
   const handleSubmit = useCallback(async () => {
-    if (submitting) return
+    if (submitting || cooldown.isCoolingDown) return
     setFormError(null)
 
     if (!isValidPhoneId(digits)) {
@@ -177,12 +179,19 @@ export default function RegisterScreen() {
           phoneRef.current?.focus()
           return
         }
+        if (cooldown.startFromError(err)) {
+          setFormError({
+            kind: "generic",
+            message: retryAfterMessage(err, "Terlalu banyak permintaan kode. Tunggu sebentar lalu coba lagi."),
+          })
+          return
+        }
       }
       setFormError({ kind: "generic", message: userMessage(err) })
     } finally {
       setSubmitting(false)
     }
-  }, [digits, router, submitting, markLeaving])
+  }, [digits, router, submitting, markLeaving, cooldown])
 
   // edges top saja: inset bawah dijumlahkan di footer (bukan di Screen) agar tidak ganda
   return (
@@ -261,8 +270,9 @@ export default function RegisterScreen() {
           <Button
             onPress={() => void handleSubmit()}
             loading={submitting}
+            disabled={cooldown.isCoolingDown}
           >
-            Lanjutkan
+            {cooldown.label("Lanjutkan")}
           </Button>
           <Text variant="body" tone="secondary" className="text-center">
             Sudah punya akun?{" "}

@@ -15,9 +15,16 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { api, isApiError, userMessage } from "@/lib/api"
 import { clearSession, emitSessionExpired } from "@/lib/api/session"
-import { isCommonPassword, isPasswordValid } from "@/lib/auth-constants"
+import {
+  isCommonPassword,
+  isPasswordValid,
+  passwordValidationMessage,
+  SECURITY_CRITERIA,
+} from "@/lib/auth-constants"
+import { MFA_CODE_MAX_LENGTH, normalizeMfaCode } from "@/lib/auth-ui"
 import { tokens } from "@/lib/tokens"
 
+import { ScreenCaptureGuard } from "@/components/security/screen-capture-guard"
 import { Button } from "@/components/ui/button"
 import { Header } from "@/components/ui/header"
 import { Input } from "@/components/ui/input"
@@ -103,7 +110,14 @@ export default function ChangePasswordScreen() {
     emitSessionExpired()
   }, [])
 
+  // #FE-I8/#FE-A2: alasan sandi baru ditolak tampil di field (blocklist umum /
+  // terlalu pendek) — bukan tombol mati tanpa penjelasan.
+  const nextError = next.length > 0 ? passwordValidationMessage(next) ?? undefined : undefined
+
   return (
+    // #FE-I10: kata sandi bisa ditampilkan lewat toggle mata — lindungi dari
+    // screenshot/app switcher seperti layar OTP/PIN.
+    <ScreenCaptureGuard>
     <Screen keyboardAvoiding edges={["top"]} padded={false}>
       <Header title="Ubah Kata Sandi" />
       <ScrollView
@@ -124,6 +138,10 @@ export default function ChangePasswordScreen() {
           onChangeText={setNext}
           required
           showStrength
+          // #FE-I8: kriteria produk (8 karakter + bukan sandi umum) — bukan
+          // kriteria kompleksitas bawaan yang bertentangan dengan kebijakan.
+          strengthProps={{ criteria: SECURITY_CRITERIA }}
+          errorText={nextError}
           helperText="Minimal 8 karakter."
         />
         <PasswordField
@@ -139,10 +157,14 @@ export default function ChangePasswordScreen() {
           <Input
             label="Kode autentikator / kode cadangan"
             value={mfa}
-            onChangeText={setMfa}
+            // #FE-I5: normalisasi spasi + one-time-code (kode tempel berspasi).
+            onChangeText={(value) => setMfa(normalizeMfaCode(value))}
             required
-            autoCapitalize="none"
+            autoCapitalize="characters"
             autoCorrect={false}
+            autoComplete="one-time-code"
+            textContentType="oneTimeCode"
+            maxLength={MFA_CODE_MAX_LENGTH}
             helperText="6 digit dari aplikasi autentikator, atau kode cadangan 10–16 karakter."
           />
         ) : null}
@@ -155,6 +177,7 @@ export default function ChangePasswordScreen() {
           fullWidth
           loading={submitting}
           disabled={!current || !isPasswordValid(next) || next !== confirm}
+          accessibilityHint={nextError ?? undefined}
           onPress={() => void handleSubmit()}
         >
           Simpan password
@@ -174,5 +197,6 @@ export default function ChangePasswordScreen() {
         onRequestClose={() => {}}
       />
     </Screen>
+    </ScreenCaptureGuard>
   )
 }

@@ -17,6 +17,8 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+
+import { translate } from "@/lib/i18n/translate"
 import { Platform, View } from "react-native"
 import * as AppleAuthentication from "expo-apple-authentication"
 import { AppleLogo, GoogleLogo } from "phosphor-react-native"
@@ -138,8 +140,8 @@ export function SocialLoginButtons({
         const label = provider === "GOOGLE" ? "Google" : "Apple"
         setFailed(
           kind === "network"
-            ? `Login ${label} gagal. Periksa koneksi internet lalu coba lagi.`
-            : `Login ${label} gagal. Coba lagi, atau masuk dengan nomor HP.`,
+            ? translate("Login {x} gagal. Periksa koneksi internet lalu coba lagi.", { x: label })
+            : translate("Login {x} gagal. Coba lagi, atau masuk dengan nomor HP.", { x: label }),
         )
         const msg = err instanceof Error ? err.message : String(err ?? "")
         onError?.({ provider, label, kind })

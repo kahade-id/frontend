@@ -17,6 +17,7 @@ import { SensitiveConfirmDialog } from "@/components/ui/sensitive-confirm"
 import { SensitiveText } from "@/components/ui/sensitive-text"
 import { useToast } from "@/components/ui/toast"
 import { api, clearSession, isApiError, type UserProfile, userMessage } from "@/lib/api"
+import { MFA_CODE_MAX_LENGTH, normalizeMfaCode } from "@/lib/auth-ui"
 import { translate, useLanguage } from "@/lib/i18n"
 import { queryKeys } from "@/lib/query-keys"
 import { ROUTES } from "@/lib/routes"
@@ -125,8 +126,11 @@ export default function ChangePhoneScreen() {
           <PasswordField label="Kata sandi akun" value={password} onChangeText={setPassword} required
             helperText="Dibutuhkan untuk mengotorisasi perubahan nomor." />
           {mfaRequired ? <Input label="Kode autentikator atau backup" value={mfaCode}
-            onChangeText={(value) => setMfaCode(value.replace(/[^A-Za-z0-9]/g, "").slice(0, 16))}
-            autoCapitalize="characters" autoCorrect={false} maxLength={16} required
+            // #FE-I5: props seragam dengan social-link-confirm (one-time-code,
+            // normalisasi spasi) — kode tempel berspasi tidak lagi gagal.
+            onChangeText={(value) => setMfaCode(normalizeMfaCode(value.replace(/[^A-Za-z0-9\s]/g, "")))}
+            autoCapitalize="characters" autoCorrect={false} maxLength={MFA_CODE_MAX_LENGTH} required
+            autoComplete="one-time-code" textContentType="oneTimeCode"
             helperText="Masukkan 6 digit autentikator atau kode backup Anda." /> : null}
           <Alert tone="info" title="Kode via WhatsApp">
             Kode verifikasi 6 digit akan dikirim ke nomor baru melalui WhatsApp.
@@ -134,8 +138,13 @@ export default function ChangePhoneScreen() {
         </> : <>
           <SectionHeader title="Masukkan kode verifikasi" />
           <Alert tone="info">{translate("Kode 6 digit telah dikirim via WhatsApp ke")} <SensitiveText value={newPhone} mask="phone" toggleable={false} />.</Alert>
+          {/* #FE-I2: errorText WAJIB — tanpa ini kode yang ditolak tetap 6/6 dan
+              ketikan berikutnya diabaikan (regresi A-03 otp-input). */}
           <OtpInput value={code} onChange={(value) => { setCode(value); setError(undefined) }}
-            autoFocus disabled={submitting} />
+            errorText={error} autoFocus disabled={submitting} />
+          <Alert tone="neutral">
+            {translate("Kode berlaku 5 menit. Belum menerima? Pastikan WhatsApp nomor baru aktif, lalu ketuk Ubah nomor untuk mengirim ulang.")}
+          </Alert>
           <Button variant="ghost" disabled={submitting} onPress={() => { setCode(""); setError(undefined); setStep("request") }}>
             Ubah nomor
           </Button>
@@ -162,7 +171,7 @@ export default function ChangePhoneScreen() {
         title="Ganti nomor HP?"
         description="Nomor baru sudah terverifikasi via WhatsApp."
         consequences={[
-          `Nomor ${newPhone || "baru"} akan menjadi nomor utama akun Anda.`,
+          translate("Nomor {x} akan menjadi nomor utama akun Anda.", { x: newPhone || translate("baru") }),
           "Nomor lama tidak bisa lagi dipakai untuk masuk atau menerima OTP.",
           "Setelah berhasil, semua sesi dicabut dan Anda harus masuk kembali.",
         ]}

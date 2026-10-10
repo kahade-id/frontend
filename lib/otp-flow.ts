@@ -60,7 +60,26 @@ export type OtpFlowState = {
   triggerText?: string
   /** Kedaluwarsa trigger (ISO) — dokumentasi/polling. */
   expiresAt?: string
+  /**
+   * Audit Auth 2026-10-10 (#FE-L3): epoch-ms saat trigger terakhir dibuat.
+   * Sumber tunggal cooldown "Minta kode baru" di whatsapp-trigger & verify-otp
+   * — dulu timer 60 d dihitung dari waktu MOUNT layar (navigasi bolak-balik
+   * mereset/melewatinya) dan tombol di whatsapp-trigger tanpa cooldown sama
+   * sekali. Dipersist bersama alur agar tahan restart.
+   */
+  lastTriggerAt?: number
 }
+
+/** Cooldown minta trigger baru (ms) — selaras cooldown per nomor backend (60 d). */
+export const OTP_TRIGGER_COOLDOWN_MS = 60_000
+
+/**
+ * #FE-N4: alur yang kedaluwarsa lebih dari ini dibuang saat hidrasi — nomor
+ * HP + refCode orang sebelumnya tidak boleh tersimpan di SecureStore berhari-
+ * hari (clearSession juga membersihkannya; ini jaring untuk alur yang tidak
+ * pernah berakhir di login).
+ */
+export const OTP_FLOW_STALE_AFTER_MS = 60 * 60 * 1000
 
 let state: OtpFlowState | null = null
 /**
@@ -98,9 +117,15 @@ function persist(): void {
 
 /** Mulai/timpa alur OTP (dipanggil sebelum navigasi ke whatsapp-trigger). */
 export function setOtpFlow(next: OtpFlowState): void {
-  state = { ...next }
+  state = { ...next, lastTriggerAt: next.lastTriggerAt ?? (next.refCode ? Date.now() : undefined) }
   emit()
   persist()
+}
+
+/** Sisa ms cooldown "Minta kode baru" untuk alur ini (0 bila boleh). */
+export function otpTriggerCooldownRemainingMs(flow: OtpFlowState | null, now: number = Date.now()): number {
+  if (!flow?.lastTriggerAt) return 0
+  return Math.max(0, flow.lastTriggerAt + OTP_TRIGGER_COOLDOWN_MS - now)
 }
 
 /**
@@ -110,9 +135,17 @@ export function setOtpFlow(next: OtpFlowState): void {
  */
 export function patchOtpFlow(patch: Partial<OtpFlowState>): void {
   if (!state) return
-  state = { ...state, ...patch }
+  const triggerRenewed = typeof patch.refCode === "string" && patch.refCode !== state.refCode
+  state = { ...state, ...patch, ...(triggerRenewed && patch.lastTriggerAt == null ? { lastTriggerAt: Date.now() } : {}) }
   emit()
   persist()
+}
+
+function isStaleFlow(flow: OtpFlowState, now: number = Date.now()): boolean {
+  if (!flow.expiresAt) return false
+  const expires = new Date(flow.expiresAt).getTime()
+  if (!Number.isFinite(expires)) return false
+  return now - expires > OTP_FLOW_STALE_AFTER_MS
 }
 
 /**
@@ -151,7 +184,7 @@ export function initOtpFlow(): Promise<void> {
       const raw = await getSecureItem(SecureKeys.otpFlow)
       if (raw) {
         const parsed: unknown = JSON.parse(raw)
-        if (isValidFlow(parsed)) {
+        if (isValidFlow(parsed) && !isStaleFlow(parsed)) {
           // JANGAN menimpa alur yang sudah ada di memori: pembacaan SecureStore
           // bisa selesai SETELAH pengguna memulai alur baru (mis. request trigger
           // kedua). State di memori selalu lebih baru daripada salinan disk.

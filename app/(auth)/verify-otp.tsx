@@ -73,7 +73,14 @@ import { formatPhoneId } from "@/lib/format"
 import { haptic } from "@/lib/haptics"
 import { getAuthLocation } from "@/lib/location"
 import { translate } from "@/lib/i18n"
-import { clearOtpFlow, patchOtpFlow, type OtpFlowState } from "@/lib/otp-flow"
+import {
+  clearOtpFlow,
+  OTP_TRIGGER_COOLDOWN_MS,
+  otpTriggerCooldownRemainingMs,
+  patchOtpFlow,
+  type OtpFlowState,
+} from "@/lib/otp-flow"
+import { retryAfterMessage, useRetryCooldown } from "@/lib/retry-cooldown"
 import { setPendingMigrationToken } from "@/lib/phone-migration-token"
 import { AuthFlowLoading, AuthFlowMissing } from "@/lib/auth-flow-gate"
 import { useOtpFlow } from "@/lib/use-otp-flow"
@@ -85,9 +92,6 @@ import { setPendingTwoFactorLogin } from "@/lib/two-factor-login"
 import { useAuthSession } from "@/lib/use-auth-session"
 import { useLeaveConfirm } from "@/lib/use-leave-confirm"
 import { Dialog } from "@/components/ui/modal"
-
-/** Cooldown default kirim ulang (detik) */
-const DEFAULT_COOLDOWN = 60
 
 type FormError = { kind: "generic"; message: string } | null
 
@@ -143,10 +147,14 @@ export default function VerifyOtpScreen() {
   // A07 (batch 139): status koneksi — verifikasi OTP butuh jaringan.
   const isOnline = useIsOnline()
 
-  // Resend countdown
-  const [canResend, setCanResend] = useState(false)
+  // Resend countdown — #FE-L3: deadline dari `lastTriggerAt` alur (persisten),
+  // bukan waktu mount; navigasi bolak-balik tidak mereset/melewati timer.
+  const [canResend, setCanResend] = useState(() => otpTriggerCooldownRemainingMs(activeFlow) === 0)
   const [resending, setResending] = useState(false)
   const [countdownKey, setCountdownKey] = useState(0)
+  const resendDeadline = (activeFlow?.lastTriggerAt ?? Date.now()) + OTP_TRIGGER_COOLDOWN_MS
+  // #FE-L2: 429 saat verifikasi → tombol dikunci sampai durasi server habis.
+  const verifyCooldown = useRetryCooldown()
 
   // A06 (batch 139): konfirmasi bila keluar dengan kode yang belum diverifikasi.
   const leaveConfirm = useLeaveConfirm(code.length > 0 && !verifying, {
@@ -183,9 +191,66 @@ export default function VerifyOtpScreen() {
     }
   }, [loginDone, session.restoring, session.token, router])
 
+  /**
+   * #FE-N2: tempToken migrasi yang OTP-nya sudah terverifikasi tetapi
+   * confirm-nya belum sukses. Selama ada, tombol Verifikasi mengulang
+   * confirm (bukan verify-otp) sampai berhasil atau token kedaluwarsa.
+   */
+  const [migrationTempToken, setMigrationTempToken] = useState<string | null>(null)
+
+  const finishMigration = useCallback(
+    async (tempToken: string, location: Awaited<ReturnType<typeof getAuthLocation>> | undefined) => {
+      setMigrationTempToken(tempToken)
+      const migrationResult = await api.auth.confirmPhoneMigration({
+        tempToken,
+        location: location ?? undefined,
+      })
+      setMigrationTempToken(null)
+      clearOtpFlow()
+      markLeaving()
+      // BFI-033: akun ber-2FA → tidak ada token sesi; lanjut ke /verify-2fa.
+      if ("requires2FA" in migrationResult && migrationResult.requires2FA) {
+        setPendingTwoFactorLogin({
+          tempToken: migrationResult.tempToken,
+          identifier: phoneNumber ?? "",
+          origin: "otp",
+        })
+        router.replace(ROUTES.verify2fa)
+        return
+      }
+      goWelcome()
+    },
+    [phoneNumber, router, goWelcome, markLeaving],
+  )
+
   const doVerify = useCallback(
     async (otpCode: string) => {
       if (verifying || !phoneNumber || !purpose) return
+      if (migrationTempToken) {
+        // #FE-N2: OTP sudah terpakai — ulangi confirm migrasi saja.
+        setVerifying(true)
+        setFormError(null)
+        try {
+          const location = (await getAuthLocation()) ?? undefined
+          await finishMigration(migrationTempToken, location)
+        } catch (err) {
+          haptic("error")
+          if (isApiError(err) && err.backendCode === "TEMP_TOKEN_EXPIRED") {
+            // Token migrasi habis: mulai ulang dari OTP (alur masih ada).
+            setMigrationTempToken(null)
+            setCode("")
+            setFormError({
+              kind: "generic",
+              message: "Sesi migrasi kedaluwarsa. Minta kode baru lalu verifikasi lagi.",
+            })
+          } else {
+            setFormError({ kind: "generic", message: userMessage(err) })
+          }
+        } finally {
+          setVerifying(false)
+        }
+        return
+      }
       if (otpCode.length < OTP_MIN_LENGTH) return
 
       setVerifying(true)
@@ -213,6 +278,36 @@ export default function VerifyOtpScreen() {
         })
 
         haptic("success")
+
+        if (result.status === "migration_verified") {
+          // Audit Auth 2026-10-10 (#FE-N2): alur OTP JANGAN dibersihkan sebelum
+          // confirmPhoneMigration sukses. Sebelumnya `clearOtpFlow()` jalan
+          // dulu; bila confirm gagal (timeout/5xx) OTP sudah terbakar,
+          // tempToken tidak tersimpan, dan "Minta kode baru" kehilangan
+          // migrationToken → pengguna buntu. Kini tempToken disimpan di state
+          // layar supaya tombol Verifikasi mengulang confirm TANPA OTP baru.
+          clearRegistrationState()
+          clearPasswordResetState()
+          try {
+            await finishMigration(result.tempToken, location)
+          } catch (confirmErr) {
+            // #FE-N2 (lanjutan): OTP SUDAH diterima — kegagalan di sini milik
+            // langkah confirm, bukan kode. Tanpa cabang ini galat jatuh ke
+            // penangan generik di bawah yang mencocokkan kata "invalid"/"code"
+            // dan menuduh "Kode salah" padahal tempToken tersimpan untuk
+            // diulang. Pesan harus mengarahkan: tekan Verifikasi lagi.
+            haptic("error")
+            setFormError({
+              kind: "generic",
+              message: translate(
+                "Kode diterima, tetapi konfirmasi nomor belum berhasil ({x}). Tekan Verifikasi untuk mencoba lagi tanpa kode baru.",
+                { x: userMessage(confirmErr) },
+              ),
+            })
+          }
+          return
+        }
+
         clearOtpFlow()
         // A06: verifikasi sukses = keluar yang disengaja.
         markLeaving()
@@ -231,33 +326,17 @@ export default function VerifyOtpScreen() {
             setPasswordResetState({ tempToken: result.tempToken, phoneNumber })
             router.replace(ROUTES.resetPassword())
             break
-          case "migration_verified":
-            // Migrasi nomor HP → tukar tempToken jadi sesi penuh.
-            clearRegistrationState()
-            clearPasswordResetState()
-            const migrationResult = await api.auth.confirmPhoneMigration({
-              tempToken: result.tempToken,
-              location,
-            })
-            // BFI-033: akun ber-2FA → tidak ada token sesi; lanjut ke /verify-2fa.
-            if ("requires2FA" in migrationResult && migrationResult.requires2FA) {
-              setPendingTwoFactorLogin({
-                tempToken: migrationResult.tempToken,
-                identifier: phoneNumber,
-              })
-              router.push(ROUTES.verify2fa)
-              break
-            }
-            goWelcome()
-            break
           case "existing_user":
             // BFI-032: akun ber-2FA → tempToken saja, tanpa token sesi.
             if ("requires2FA" in result && result.requires2FA) {
               setPendingTwoFactorLogin({
                 tempToken: result.tempToken,
                 identifier: phoneNumber,
+                origin: "otp",
               })
-              router.push(ROUTES.verify2fa)
+              // #FE-N3: `replace`, bukan `push` — layar OTP ini sudah mati
+              // (kode terpakai, alur dibersihkan); Back dari 2FA ke hub masuk.
+              router.replace(ROUTES.verify2fa)
               break
             }
           // falls through
@@ -295,11 +374,11 @@ export default function VerifyOtpScreen() {
             return
           }
 
-          // Rate limited → alert khusus (fail-closed Indonesia via userMessage)
-          if (err.code === "RATE_LIMITED") {
+          // Rate limited → kunci tombol + durasi nyata (#FE-L2)
+          if (verifyCooldown.startFromError(err)) {
             setFormError({
               kind: "generic",
-              message: userMessage(err),
+              message: retryAfterMessage(err, userMessage(err)),
             })
             return
           }
@@ -310,7 +389,7 @@ export default function VerifyOtpScreen() {
         setVerifying(false)
       }
     },
-    [verifying, phoneNumber, purpose, router, goWelcome, markLeaving],
+    [verifying, phoneNumber, purpose, router, goWelcome, markLeaving, migrationTempToken, finishMigration, verifyCooldown],
   )
 
   const handleVerify = useCallback(() => {
@@ -324,6 +403,7 @@ export default function VerifyOtpScreen() {
    */
   const handleResend = useCallback(async () => {
     if (resending || !phoneNumber || !purpose) return
+    if (otpTriggerCooldownRemainingMs(flow) > 0) return
     // A07: kirim ulang butuh koneksi — gagal cepat dengan pesan jelas.
     if (isOfflineKnown()) {
       setFormError({
@@ -354,11 +434,15 @@ export default function VerifyOtpScreen() {
       setCode("")
       router.replace(ROUTES.whatsappTrigger)
     } catch (err) {
+      if (verifyCooldown.startFromError(err)) {
+        setFormError({ kind: "generic", message: retryAfterMessage(err, userMessage(err)) })
+        return
+      }
       setFormError({ kind: "generic", message: userMessage(err) })
     } finally {
       setResending(false)
     }
-  }, [resending, phoneNumber, purpose, flow, router])
+  }, [resending, phoneNumber, purpose, flow, router, verifyCooldown])
 
   const handleChangePhone = useCallback(() => {
     // FE-IMP-3 #117 — kembali ke input nomor SESUAI purpose, bukan
@@ -496,9 +580,9 @@ export default function VerifyOtpScreen() {
             <Button
               onPress={handleVerify}
               loading={verifying}
-              disabled={code.length < OTP_MIN_LENGTH}
+              disabled={verifyCooldown.isCoolingDown || (!migrationTempToken && code.length < OTP_MIN_LENGTH)}
             >
-              Verifikasi
+              {verifyCooldown.label(migrationTempToken ? "Coba lagi" : "Verifikasi")}
             </Button>
 
             {/* Error alert (non-field) */}
@@ -538,8 +622,8 @@ export default function VerifyOtpScreen() {
               </>
             ) : (
               <Countdown
-                key={countdownKey}
-                seconds={DEFAULT_COOLDOWN}
+                key={`${countdownKey}:${resendDeadline}`}
+                until={resendDeadline}
                 prefix="Kirim ulang dalam"
                 tone="secondary"
                 onComplete={() => setCanResend(true)}

@@ -34,6 +34,8 @@ import { ScrollView, type TextInputInstance } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useRouter } from "expo-router"
 
+import { ScreenCaptureGuard } from "@/components/security/screen-capture-guard"
+
 import { AuthSecurityInfo } from "@/components/auth/auth-security-info"
 import { Alert } from "@/components/ui/alert"
 import { FadeIn } from "@/components/ui/fade-in"
@@ -110,6 +112,9 @@ export default function ResetPasswordScreen() {
       })
       clearPasswordResetState()
       // Kata sandi berubah → user login ulang (belum punya sesi).
+      // #FE-I12: buang forgot-password/whatsapp-trigger dari back stack —
+      // Back dari hub masuk tidak boleh kembali ke alur yang sudah selesai.
+      if (router.canDismiss()) router.dismissAll()
       router.replace(ROUTES.login)
     } catch (err) {
       setFormError(userMessage(err))
@@ -132,6 +137,9 @@ export default function ResetPasswordScreen() {
   }
 
   return (
+    // #FE-I10: kata sandi baru bisa ditampilkan (toggle mata) — lindungi dari
+    // screenshot/app switcher seperti layar OTP/PIN.
+    <ScreenCaptureGuard>
     <Screen padded={false} edges={["top"]}>
       <Header title="Kata Sandi Baru" progress={STEP_PROGRESS} safeArea={false}
         right={<AuthSecurityInfo variant="password" />}
@@ -231,5 +239,6 @@ export default function ResetPasswordScreen() {
         </FooterBar>
       </KeyboardAvoiding>
     </Screen>
+    </ScreenCaptureGuard>
   )
 }

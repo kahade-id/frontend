@@ -13,11 +13,12 @@
 import { useLocalSearchParams } from "expo-router"
 
 import { LoginMethodScreen } from "@/components/auth/login-method-screen"
+import { sanitizeNextPath } from "@/lib/login-redirect"
 import { LoginPasswordForm } from "@/components/auth/login-password-form"
 
 export default function LoginEmailScreen() {
   const { next } = useLocalSearchParams<{ next?: string }>()
-  const nextPath = typeof next === "string" && next.startsWith("/") ? next : undefined
+  const nextPath = sanitizeNextPath(next) ?? undefined
 
   return (
     <LoginMethodScreen

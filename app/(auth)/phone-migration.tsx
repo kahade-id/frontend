@@ -55,6 +55,7 @@ import {
   getPendingMigrationToken,
 } from "@/lib/phone-migration-token"
 import { ROUTES } from "@/lib/routes"
+import { retryAfterMessage, useRetryCooldown } from "@/lib/retry-cooldown"
 
 export default function PhoneMigrationScreen() {
   const router = useRouter()
@@ -68,13 +69,19 @@ export default function PhoneMigrationScreen() {
   const [phoneError, setPhoneError] = useState<string | undefined>()
   const [formError, setFormError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const cooldown = useRetryCooldown()
   const errorMessage = !migrationToken
     ? "Sesi migrasi tidak valid. Silakan masuk kembali."
     : formError
-  const backToLogin = () => router.replace(ROUTES.login)
+  const backToLogin = () => {
+    // #FE-S14: keluar dari alur = token migrasi dibuang, tidak menggantung di
+    // memori sampai logout berikutnya (pola yang sama dengan social-link-confirm).
+    clearPendingMigrationToken()
+    router.replace(ROUTES.login)
+  }
 
   const handleSubmit = useCallback(async () => {
-    if (submitting) return
+    if (submitting || cooldown.isCoolingDown) return
     setFormError(null)
 
     if (!migrationToken) {
@@ -116,11 +123,18 @@ export default function PhoneMigrationScreen() {
       clearPendingMigrationToken()
       router.push(ROUTES.whatsappTrigger)
     } catch (err) {
+      // #FE-L2: 429 → kunci tombol + durasi nyata, bukan teks generik.
+      if (cooldown.startFromError(err)) {
+        setFormError(
+          retryAfterMessage(err, "Terlalu banyak permintaan kode. Tunggu sebentar lalu coba lagi."),
+        )
+        return
+      }
       setFormError(userMessage(err))
     } finally {
       setSubmitting(false)
     }
-  }, [digits, migrationToken, router, submitting])
+  }, [digits, migrationToken, router, submitting, cooldown])
 
   return (
     <Screen padded={false} edges={["top"]}>
@@ -191,8 +205,12 @@ export default function PhoneMigrationScreen() {
 
         <FooterBar>
           <VStack gap={3}>
-            <Button onPress={() => void handleSubmit()} loading={submitting} disabled={!migrationToken}>
-              Kirim kode
+            <Button
+              onPress={() => void handleSubmit()}
+              loading={submitting}
+              disabled={!migrationToken || cooldown.isCoolingDown}
+            >
+              {cooldown.label("Kirim kode")}
             </Button>
             {!errorMessage ? <TextLink onPress={backToLogin}>Kembali ke Masuk</TextLink> : null}
           </VStack>

@@ -74,6 +74,10 @@ async function getAppleIdToken(clientId: string, nonce: string): Promise<string>
     return credential.identityToken
   }
   const redirectUri = AuthSession.makeRedirectUri()
+  // Audit Auth 2026-10-10 (#FE-S13): `state` dibangkitkan tetapi tidak pernah
+  // DICOCOKKAN saat callback — callback palsu (login-CSRF) bisa menyuntik
+  // id_token milik akun penyerang ke alur ini. Kini state wajib sama.
+  const state = randomHex(16)
   const authUrl =
     `${APPLE_AUTHORIZE_URL}?` +
     new URLSearchParams({
@@ -83,13 +87,17 @@ async function getAppleIdToken(clientId: string, nonce: string): Promise<string>
       response_mode: "fragment",
       scope: "name email",
       nonce,
-      state: randomHex(16),
+      state,
     }).toString()
   const res = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri)
   if (res.type === "cancel" || res.type === "dismiss") throw new SocialCancelledError()
   if (res.type !== "success") throw new Error(`Apple auth gagal (${res.type}). Coba lagi.`)
   const hash = new URL(res.url).hash.replace(/^#/, "")
-  const idToken = new URLSearchParams(hash).get("id_token")
+  const fragment = new URLSearchParams(hash)
+  if (fragment.get("state") !== state) {
+    throw new Error("Apple auth gagal (state tidak cocok). Coba lagi.")
+  }
+  const idToken = fragment.get("id_token")
   if (!idToken) throw new Error("Apple tidak mengembalikan id_token (mungkin callback kedaluwarsa).")
   return idToken
 }

@@ -160,7 +160,18 @@ export interface SocialLoginDto {
 export async function socialLogin(dto: SocialLoginDto): Promise<SocialLoginResult> {
   // BFI-035: provider dikirim lowercase (verifikasi server BE menolak
   // UPPERCASE dengan 400). idToken tetap diverifikasi server-side oleh BE.
-  const wireBody = { ...dto, provider: toWireProvider(dto.provider) }
+  //
+  // Audit Auth 2026-10-10 (#FE-S11 / pasangan BE-30): deviceId + deviceInfo
+  // SELALU disertakan. Sebelumnya tidak ada pemanggil yang mengisinya,
+  // sehingga backend mengikat tempToken 2FA & sesi ke literal 'social' —
+  // sesi antar perangkat saling mengusir dan binding perangkat refresh token
+  // tidak berlaku untuk login sosial. Backend kini mewajibkannya.
+  const wireBody = {
+    ...dto,
+    provider: toWireProvider(dto.provider),
+    deviceId: dto.deviceId ?? (await getDeviceId()),
+    deviceInfo: dto.deviceInfo ?? getDeviceInfo(),
+  }
   const raw = await http.post<unknown, typeof wireBody>("/v1/auth/social/login", wireBody, { auth: "none" })
   const record = asRecord(raw)
   if (!record) throw invalidResponse("social-login")
@@ -196,9 +207,12 @@ export async function socialLogin(dto: SocialLoginDto): Promise<SocialLoginResul
   }
   const accessToken = pickString(record, ["accessToken"])
   const refreshToken = pickString(record, ["refreshToken"])
-  if (!accessToken || !refreshToken) throw invalidResponse("social-login/tokens")
+  // #FE-S12: refreshToken OPSIONAL seperti `login()` — di web ia datang lewat
+  // cookie HttpOnly, bukan body; mewajibkannya membuat login sosial web gagal
+  // dengan "respons tidak valid" padahal sesi sudah terbit.
+  if (!accessToken) throw invalidResponse("social-login/tokens")
   await persistSocialTokens(record)
-  return { kind: "session", accessToken, refreshToken, user: record.user }
+  return { kind: "session", accessToken, refreshToken: refreshToken ?? "", user: record.user }
 }
 
 /** GET /v1/auth/social — provider yang tertaut ke akun ini (G013). */

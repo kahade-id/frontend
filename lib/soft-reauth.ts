@@ -77,6 +77,23 @@ subscribeSession(() => {
  * sesi, dan hanya bila pengguna belum memilih alur lama.
  */
 onSessionCleared((reason: SessionEndReason) => {
+  /*
+   * Audit Auth 2026-10-10 (#FE-S10): logout EKSPLISIT menutup latch yang
+   * sempat menyala. Skenario nyata: sesi sudah dicabut dari perangkat lain,
+   * lalu pengguna menekan "Keluar" — `POST /auth/logout` dijawab 401, transport
+   * memanggil `expireSession()` (alasan "expired" → latch aktif), baru
+   * kemudian `logout()` membersihkan sesi dengan alasan "signout". Tanpa
+   * penutupan ini, modal "Sesi Anda berakhir — masuk kembali" muncul DI ATAS
+   * layar login yang baru dibuka pengguna yang justru ingin keluar.
+   */
+  if (reason === "signout") {
+    if (!active) return
+    active = false
+    attempts = 0
+    fallbackTarget = null
+    notify()
+    return
+  }
   if (reason !== "expired") return
   if (!hadToken) return
   if (suppressed || active) return

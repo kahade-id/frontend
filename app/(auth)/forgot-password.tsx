@@ -29,6 +29,8 @@ import { ScrollView, type TextInputInstance } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useRouter } from "expo-router"
 
+import { translate } from "@/lib/i18n/translate"
+
 import { AuthSecurityInfo } from "@/components/auth/auth-security-info"
 import { Alert } from "@/components/ui/alert"
 import { FadeIn } from "@/components/ui/fade-in"
@@ -133,7 +135,9 @@ export default function ForgotPasswordScreen() {
         setNow(Date.now())
         setFormError(
           typeof err.retryAfterMs === "number" && err.retryAfterMs > 0
-            ? `Terlalu banyak percobaan. Coba lagi dalam ${formatCountdown(Math.ceil(waitMs / 1000))}.`
+            ? translate("Terlalu banyak percobaan. Coba lagi dalam {x}.", {
+                x: formatCountdown(Math.ceil(waitMs / 1000)),
+              })
             : "Terlalu banyak percobaan. Tunggu sekitar 1 menit lalu coba lagi.",
         )
       } else {
@@ -207,7 +211,7 @@ export default function ForgotPasswordScreen() {
             disabled={isCoolingDown}
           >
             {isCoolingDown
-              ? `Coba lagi dalam ${formatCountdown(cooldownSeconds)}`
+              ? translate("Coba lagi dalam {x}", { x: formatCountdown(cooldownSeconds) })
               : "Lanjutkan"}
           </Button>
           {/*

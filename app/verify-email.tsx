@@ -25,6 +25,8 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { ScrollView, View } from "react-native"
 import { useLocalSearchParams, useRouter } from "expo-router"
+
+import { takePendingVerifyEmail } from "@/lib/email-verify"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { api, isApiError, userMessage } from "@/lib/api"
@@ -66,7 +68,9 @@ export default function VerifyEmailScreen() {
   const otpRef = useRef<OtpInputHandle>(null)
 
   const { email: emailParam } = useLocalSearchParams<{ email?: string }>()
-  const [email, setEmail] = useState(emailParam ?? "")
+  // #FE-I9: alamat yang baru diganti datang dari holder memori (change-email),
+  // param URL hanya untuk pemanggil lama (edit-profile).
+  const [email, setEmail] = useState(() => takePendingVerifyEmail() ?? emailParam ?? "")
 
   useEffect(() => {
     if (!email) {

@@ -10,6 +10,8 @@
  */
 
 import { useCallback, useState } from "react"
+
+import { translate } from "@/lib/i18n/translate"
 import { View } from "react-native"
 
 import { api, isApiError, userMessage } from "@/lib/api"
@@ -68,7 +70,7 @@ export default function SocialProvidersScreen() {
         if (!(err instanceof SocialCancelledError)) {
           // Klasifikasi toast: error mutasi non-blokir via showMutationError.
           showMutationError(toast.show, {
-            failTitle: `Gagal memulai tautan ${PROVIDER_LABEL[provider]}`,
+            failTitle: translate("Gagal memulai tautan {x}", { x: PROVIDER_LABEL[provider] }),
             uncertainHint: "Aksi mungkin sudah diproses — periksa kembali sebelum mencoba lagi.",
             err: err,
             scope: "social-providers:link",
@@ -106,10 +108,10 @@ export default function SocialProvidersScreen() {
           setReauthError("Akun ini bentrok dengan akun lain. Hubungi support Kahade.")
           return
         }
-        toast.show({ title: `${PROVIDER_LABEL[reauthFor.provider]} ditautkan`, tone: "success" })
+        toast.show({ title: translate("{x} ditautkan", { x: PROVIDER_LABEL[reauthFor.provider] }), tone: "success" })
       } else {
         await api.social.unlinkSocial(reauthFor.provider, { password })
-        toast.show({ title: `Tautan ${PROVIDER_LABEL[reauthFor.provider]} dilepas`, tone: "success" })
+        toast.show({ title: translate("Tautan {x} dilepas", { x: PROVIDER_LABEL[reauthFor.provider] }), tone: "success" })
       }
       setReauthFor(null)
       reload()
