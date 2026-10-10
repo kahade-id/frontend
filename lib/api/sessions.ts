@@ -125,12 +125,47 @@ export function untrustDevice(deviceId: string, dto: TrustDeviceDto) {
   })
 }
 
-export type SecurityLogEntry = { id: string; action: string; ip?: string; createdAt: string }
+export type SecurityLogEntry = {
+  id: string
+  /** Enum `UserAuditAction` backend — tampilkan lewat lib/audit-action-labels. */
+  action: string
+  description?: string
+  ip?: string
+  createdAt: string
+}
 export type ActivityLogEntry = {
   id: string
   action: string
   description?: string
+  ip?: string
   createdAt: string
+}
+
+/**
+ * Audit Pengaturan 2026-10-10: kedua endpoint log mengirim `ipAddress`
+ * (users.service.ts `select`), bukan `ip` — tipe lama membaca `ip` sehingga
+ * alamat IP tidak pernah tampil di log keamanan. Normalisasi di satu tempat;
+ * baris tanpa `id`/`action` string dilewati (bukan crash di render).
+ */
+function normalizeLogEntry(value: unknown): ActivityLogEntry | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null
+  const row = value as Record<string, unknown>
+  if (typeof row.id !== "string" || !row.id || typeof row.action !== "string") return null
+  const ip =
+    typeof row.ipAddress === "string" && row.ipAddress
+      ? row.ipAddress
+      : typeof row.ip === "string" && row.ip
+        ? row.ip
+        : undefined
+  return {
+    id: row.id,
+    action: row.action,
+    ...(typeof row.description === "string" && row.description
+      ? { description: row.description }
+      : {}),
+    ...(ip ? { ip } : {}),
+    createdAt: typeof row.createdAt === "string" ? row.createdAt : "",
+  }
 }
 
 /**
@@ -152,7 +187,11 @@ export function getSecurityLog(
       retry: 1,
       signal,
     })
-    .then((raw) => readList<SecurityLogEntry>(raw, ["securityLog", "logs"]))
+    .then((raw) =>
+      readList<unknown>(raw, ["securityLog", "logs"])
+        .map(normalizeLogEntry)
+        .filter((row): row is SecurityLogEntry => row !== null),
+    )
 }
 
 /** GET /v1/users/me/activity-log — aktivitas umum (page/limit wajib). */
@@ -164,5 +203,9 @@ export function getActivityLog(query: SessionsPageQuery, signal?: AbortSignal) {
       retry: 1,
       signal,
     })
-    .then((raw) => readList<ActivityLogEntry>(raw, ["activityLog", "logs"]))
+    .then((raw) =>
+      readList<unknown>(raw, ["activityLog", "logs"])
+        .map(normalizeLogEntry)
+        .filter((row): row is ActivityLogEntry => row !== null),
+    )
 }

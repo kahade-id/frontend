@@ -160,7 +160,7 @@ export function TwoFactorStatusCard({
               </Badge>
               {enabledAt && enabled ? (
                 <Text variant="caption" tone="secondary">
-                  sejak {enabledAt}
+                  {translate("sejak {x}", { x: enabledAt })}
                 </Text>
               ) : null}
             </View>

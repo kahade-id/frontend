@@ -231,6 +231,10 @@
    "n": 10
   },
   {
+   "s": "Chat dengan tim Kahade",
+   "n": 10
+  },
+  {
    "s": "Dasar:",
    "n": 10
   },
@@ -284,10 +288,6 @@
   },
   {
    "s": "Buat template",
-   "n": 9
-  },
-  {
-   "s": "Chat dengan tim Kahade",
    "n": 9
   },
   {
@@ -1243,6 +1243,10 @@
    "n": 5
   },
   {
+   "s": "Profil diperbarui",
+   "n": 5
+  },
+  {
    "s": "Promo saya",
    "n": 5
   },
@@ -1679,6 +1683,10 @@
    "n": 4
   },
   {
+   "s": "Kedaluwarsa",
+   "n": 4
+  },
+  {
    "s": "Kelola Etalase",
    "n": 4
   },
@@ -1827,6 +1835,10 @@
    "n": 4
   },
   {
+   "s": "Pengguna diblokir",
+   "n": 4
+  },
+  {
    "s": "Pengguna Diblokir",
    "n": 4
   },
@@ -1876,10 +1888,6 @@
   },
   {
    "s": "Profil dihapus dari tersimpan",
-   "n": 4
-  },
-  {
-   "s": "Profil diperbarui",
    "n": 4
   },
   {
@@ -2515,6 +2523,10 @@
    "n": 3
   },
   {
+   "s": "Berlaku hingga {x}",
+   "n": 3
+  },
+  {
    "s": "Berlaku sampai",
    "n": 3
   },
@@ -3059,6 +3071,10 @@
    "n": 3
   },
   {
+   "s": "Foto profil diperbarui",
+   "n": 3
+  },
+  {
    "s": "Foto profil tampil sebagai lingkaran — pastikan wajah atau objek penting berada di tengah.",
    "n": 3
   },
@@ -3591,10 +3607,6 @@
    "n": 3
   },
   {
-   "s": "Kedaluwarsa",
-   "n": 3
-  },
-  {
    "s": "Kekuatan kata sandi: {x}",
    "n": 3
   },
@@ -3608,6 +3620,10 @@
   },
   {
    "s": "Kelola slot",
+   "n": 3
+  },
+  {
+   "s": "Keluar dari semua perangkat",
    "n": 3
   },
   {
@@ -4067,6 +4083,10 @@
    "n": 3
   },
   {
+   "s": "Memuat artikel",
+   "n": 3
+  },
+  {
    "s": "Memuat daftar…",
    "n": 3
   },
@@ -4416,10 +4436,6 @@
   },
   {
    "s": "Pengaturan Notifikasi",
-   "n": 3
-  },
-  {
-   "s": "Pengguna diblokir",
    "n": 3
   },
   {
@@ -4832,6 +4848,10 @@
   },
   {
    "s": "Sedang dalam pemeliharaan",
+   "n": 3
+  },
+  {
+   "s": "sejak {x}",
    "n": 3
   },
   {
@@ -5299,6 +5319,10 @@
    "n": 3
   },
   {
+   "s": "Tidak ada koneksi internet",
+   "n": 3
+  },
+  {
    "s": "Tidak ada mutasi yang cocok dengan \"{q}\" di {n} mutasi yang dimuat.",
    "n": 3
   },
@@ -5368,6 +5392,10 @@
   },
   {
    "s": "Total {x} disimpan aman oleh Kahade.",
+   "n": 3
+  },
+  {
+   "s": "Transaksi dibuat",
    "n": 3
   },
   {
@@ -5540,6 +5568,10 @@
   },
   {
    "s": "Verifikasi dua langkah",
+   "n": 3
+  },
+  {
+   "s": "Verifikasi dua langkah dimatikan",
    "n": 3
   },
   {
@@ -5856,6 +5888,10 @@
   },
   {
    "s": "Aktifkan jadwal",
+   "n": 2
+  },
+  {
+   "s": "Aktivitas",
    "n": 2
   },
   {
@@ -6215,10 +6251,6 @@
    "n": 2
   },
   {
-   "s": "Berlaku hingga {x}",
-   "n": 2
-  },
-  {
    "s": "Berlaku sampai {x} — bayar sesuai nominal.",
    "n": 2
   },
@@ -6428,10 +6460,6 @@
   },
   {
    "s": "Buka percakapan, atau tekan lama untuk memilih beberapa",
-   "n": 2
-  },
-  {
-   "s": "Buka pusat bantuan",
    "n": 2
   },
   {
@@ -6787,6 +6815,10 @@
    "n": 2
   },
   {
+   "s": "Email diverifikasi",
+   "n": 2
+  },
+  {
    "s": "Email, nomor HP, kontak publik, dan tautan sosial diubah di Edit lengkap.",
    "n": 2
   },
@@ -6912,10 +6944,6 @@
   },
   {
    "s": "Foto profil dihapus",
-   "n": 2
-  },
-  {
-   "s": "Foto profil diperbarui",
    "n": 2
   },
   {
@@ -7219,6 +7247,14 @@
    "n": 2
   },
   {
+   "s": "Google",
+   "n": 2
+  },
+  {
+   "s": "Google / Apple",
+   "n": 2
+  },
+  {
    "s": "Gulir ke atas untuk memuat riwayat yang lebih lama.",
    "n": 2
   },
@@ -7471,6 +7507,14 @@
    "n": 2
   },
   {
+   "s": "Kata sandi direset",
+   "n": 2
+  },
+  {
+   "s": "Kata sandi diubah",
+   "n": 2
+  },
+  {
    "s": "Kata sandi salah atau perubahan ditolak.",
    "n": 2
   },
@@ -7504,6 +7548,10 @@
   },
   {
    "s": "Kelola slot jasa",
+   "n": 2
+  },
+  {
+   "s": "Keluar dari akun",
    "n": 2
   },
   {
@@ -7544,6 +7592,10 @@
   },
   {
    "s": "Kemungkinan sudah dihapus sebelumnya.",
+   "n": 2
+  },
+  {
+   "s": "Kepercayaan perangkat dicabut",
    "n": 2
   },
   {
@@ -7691,6 +7743,10 @@
    "n": 2
   },
   {
+   "s": "Kode cadangan tersisa: {x}.",
+   "n": 2
+  },
+  {
    "s": "Kode pembayaran kedaluwarsa",
    "n": 2
   },
@@ -7704,6 +7760,10 @@
   },
   {
    "s": "Kode referensi disalin",
+   "n": 2
+  },
+  {
+   "s": "Kode referensi: {x}",
    "n": 2
   },
   {
@@ -7840,6 +7900,10 @@
   },
   {
    "s": "Langganan aktif",
+   "n": 2
+  },
+  {
+   "s": "Langganan dibatalkan",
    "n": 2
   },
   {
@@ -8068,6 +8132,14 @@
   },
   {
    "s": "Masa garansi harus angka {x} atau lebih",
+   "n": 2
+  },
+  {
+   "s": "Masuk dengan passkey",
+   "n": 2
+  },
+  {
+   "s": "Masuk ke akun",
    "n": 2
   },
   {
@@ -8555,6 +8627,10 @@
    "n": 2
   },
   {
+   "s": "Passkey dihapus",
+   "n": 2
+  },
+  {
    "s": "Patungan",
    "n": 2
   },
@@ -8699,6 +8775,10 @@
    "n": 2
   },
   {
+   "s": "Perangkat ditandai tepercaya",
+   "n": 2
+  },
+  {
    "s": "Perangkat tepercaya melewati {x}FA saat masuk. Masukkan kata sandi akun untuk konfirmasi.",
    "n": 2
   },
@@ -8819,6 +8899,14 @@
    "n": 2
   },
   {
+   "s": "Persetujuan diberikan",
+   "n": 2
+  },
+  {
+   "s": "Persetujuan ditarik",
+   "n": 2
+  },
+  {
    "s": "Pertanyaan disembunyikan",
    "n": 2
   },
@@ -8916,6 +9004,10 @@
   },
   {
    "s": "Pesan tidak diteruskan",
+   "n": 2
+  },
+  {
+   "s": "Pesanan dikirim",
    "n": 2
   },
   {
@@ -9336,6 +9428,10 @@
   },
   {
    "s": "Seseorang",
+   "n": 2
+  },
+  {
+   "s": "Setelah itu, masukkan kode {x} digit yang ditampilkan aplikasi autentikator.",
    "n": 2
   },
   {
@@ -9799,6 +9895,10 @@
    "n": 2
   },
   {
+   "s": "Terakhir diminta: {x}",
+   "n": 2
+  },
+  {
    "s": "Terakhir diperiksa: {x}",
    "n": 2
   },
@@ -9987,11 +10087,11 @@
    "n": 2
   },
   {
-   "s": "Transaksi dibuat",
+   "s": "Transaksi ini membutuhkan verifikasi identitas (KYC).",
    "n": 2
   },
   {
-   "s": "Transaksi ini membutuhkan verifikasi identitas (KYC).",
+   "s": "Transaksi selesai",
    "n": 2
   },
   {
@@ -10107,6 +10207,10 @@
    "n": 2
   },
   {
+   "s": "Verifikasi dua langkah diaktifkan",
+   "n": 2
+  },
+  {
    "s": "Verifikasi email agar notifikasi penting dan pemulihan akun bisa dikirim.",
    "n": 2
   },
@@ -10219,10 +10323,6 @@
    "n": 1
   },
   {
-   "s": ". Simpan kode cadangan di tempat aman — tanpanya, kehilangan akses autentikator berarti kehilangan akun.",
-   "n": 1
-  },
-  {
    "s": ". Tarik untuk memuat ulang.",
    "n": 1
   },
@@ -10235,19 +10335,7 @@
    "n": 1
   },
   {
-   "s": "· Berlaku hingga {x}",
-   "n": 1
-  },
-  {
    "s": "· Disarankan",
-   "n": 1
-  },
-  {
-   "s": "· Diunduh {x}×",
-   "n": 1
-  },
-  {
-   "s": "· Kedaluwarsa",
    "n": 1
   },
   {
@@ -12359,10 +12447,6 @@
    "n": 1
   },
   {
-   "s": "Aktivitas",
-   "n": 1
-  },
-  {
    "s": "Akun Anda akan diaktifkan kembali seperti semula. Tindakan ini tidak bisa dibatalkan setelah masa tenggang berakhir.",
    "n": 1
   },
@@ -12391,6 +12475,10 @@
    "n": 1
   },
   {
+   "s": "Akun dibuat",
+   "n": 1
+  },
+  {
    "s": "Akun dijadwalkan dihapus",
    "n": 1
   },
@@ -12416,6 +12504,10 @@
   },
   {
    "s": "Akun palsu",
+   "n": 1
+  },
+  {
+   "s": "Akun sosial ditautkan",
    "n": 1
   },
   {
@@ -12540,10 +12632,6 @@
   },
   {
    "s": "Anda belum punya PIN dompet. Buat PIN dulu untuk mengirim uang.",
-   "n": 1
-  },
-  {
-   "s": "Anda berhak meminta salinan seluruh data pribadi yang kami simpan. Arsip mencakup profil, pesanan, wallet, metadata chat (tanpa isi pesan), sengketa, ulasan, dan aktivitas — dengan data sensitif (KYC/bank) disamarkan. Setiap unduhan tercatat dan tautannya kedaluwarsa.",
    "n": 1
   },
   {
@@ -13499,6 +13587,10 @@
    "n": 1
   },
   {
+   "s": "Blokir pengguna dibuka",
+   "n": 1
+  },
+  {
    "s": "Blokir pengguna ini?",
    "n": 1
   },
@@ -13723,6 +13815,10 @@
    "n": 1
   },
   {
+   "s": "Buka pusat bantuan",
+   "n": 1
+  },
+  {
    "s": "Buka Pusat Bantuan untuk mencari panduan yang tersedia. Jika masih memerlukan bantuan, pilih **Chat dengan tim Kahade** atau buka daftar tiket bantuan dari aplikasi. Saat menghubungi tim, sertakan nomor atau tautan transaksi bila relevan. Jangan kirim PIN, kata sandi, kode OTP, atau kode cadangan.",
    "n": 1
   },
@@ -13844,6 +13940,14 @@
   },
   {
    "s": "Bukti penyerahan jasa atau produk digital.",
+   "n": 1
+  },
+  {
+   "s": "Bukti sengketa dihapus",
+   "n": 1
+  },
+  {
+   "s": "Bukti sengketa ditambahkan",
    "n": 1
   },
   {
@@ -14092,6 +14196,10 @@
   },
   {
    "s": "Chat dengan penjual & pembeli",
+   "n": 1
+  },
+  {
+   "s": "Chat dengan tim Kahade untuk reset PIN",
    "n": 1
   },
   {
@@ -14839,10 +14947,6 @@
    "n": 1
   },
   {
-   "s": "digit yang ditampilkan aplikasi autentikator.",
-   "n": 1
-  },
-  {
    "s": "Digunakan jika pemrosesan diperlukan untuk tugas yang ditetapkan hukum.",
    "n": 1
   },
@@ -15051,6 +15155,10 @@
    "n": 1
   },
   {
+   "s": "Diunduh {x}×",
+   "n": 1
+  },
+  {
    "s": "Diunggah",
    "n": 1
   },
@@ -15236,6 +15344,10 @@
   },
   {
    "s": "Estimasi tanggal ready",
+   "n": 1
+  },
+  {
+   "s": "Etalase dilaporkan",
    "n": 1
   },
   {
@@ -15835,10 +15947,6 @@
    "n": 1
   },
   {
-   "s": "Google / Apple",
-   "n": 1
-  },
-  {
    "s": "Grup &ldquo;Kado perpisahan&rdquo; — target",
    "n": 1
   },
@@ -16199,6 +16307,10 @@
    "n": 1
   },
   {
+   "s": "Info pengiriman diperbarui",
+   "n": 1
+  },
+  {
    "s": "Info sistem",
    "n": 1
   },
@@ -16268,6 +16380,14 @@
   },
   {
    "s": "Isi pesan yang diedit",
+   "n": 1
+  },
+  {
+   "s": "Isi saldo dibatalkan",
+   "n": 1
+  },
+  {
+   "s": "Isi saldo dimulai",
    "n": 1
   },
   {
@@ -16847,10 +16967,6 @@
    "n": 1
   },
   {
-   "s": "Keluar dari semua perangkat",
-   "n": 1
-  },
-  {
    "s": "Keluar dari semua perangkat lain?",
    "n": 1
   },
@@ -17183,10 +17299,6 @@
    "n": 1
   },
   {
-   "s": "Kode cadangan tersisa:",
-   "n": 1
-  },
-  {
    "s": "Kode dari aplikasi autentikator saat masuk",
    "n": 1
   },
@@ -17303,11 +17415,11 @@
    "n": 1
   },
   {
-   "s": "Kode referensi: {x}",
+   "s": "Kode referral Anda",
    "n": 1
   },
   {
-   "s": "Kode referral Anda",
+   "s": "Kode referral dipakai",
    "n": 1
   },
   {
@@ -17356,6 +17468,10 @@
   },
   {
    "s": "Kode WhatsApp",
+   "n": 1
+  },
+  {
+   "s": "Kode WhatsApp akan diverifikasi saat Anda mengonfirmasi.",
    "n": 1
   },
   {
@@ -17667,11 +17783,11 @@
    "n": 1
   },
   {
-   "s": "Langganan dibatalkan",
+   "s": "Langganan dilanjutkan",
    "n": 1
   },
   {
-   "s": "Langganan dilanjutkan",
+   "s": "Langganan dimulai",
    "n": 1
   },
   {
@@ -17987,7 +18103,7 @@
    "n": 1
   },
   {
-   "s": "Lupa PIN wallet? Reset PIN mandiri belum didukung — hubungi",
+   "s": "Lupa PIN dompet?",
    "n": 1
   },
   {
@@ -18047,11 +18163,11 @@
    "n": 1
   },
   {
-   "s": "Masuk dengan nomor ini",
+   "s": "Masuk dengan akun sosial",
    "n": 1
   },
   {
-   "s": "Masuk dengan passkey",
+   "s": "Masuk dengan nomor ini",
    "n": 1
   },
   {
@@ -18340,10 +18456,6 @@
   },
   {
    "s": "Memuat analitik",
-   "n": 1
-  },
-  {
-   "s": "Memuat artikel",
    "n": 1
   },
   {
@@ -18799,6 +18911,10 @@
    "n": 1
   },
   {
+   "s": "Minta salinan data pribadi yang Kahade simpan tentang Anda.",
+   "n": 1
+  },
+  {
    "s": "Minta salinan data saya",
    "n": 1
   },
@@ -18924,6 +19040,10 @@
   },
   {
    "s": "Nama passkey diperbarui",
+   "n": 1
+  },
+  {
+   "s": "Nama passkey diubah",
    "n": 1
   },
   {
@@ -19080,10 +19200,6 @@
   },
   {
    "s": "Nomor baru",
-   "n": 1
-  },
-  {
-   "s": "Nomor baru sudah terverifikasi via WhatsApp.",
    "n": 1
   },
   {
@@ -19395,7 +19511,11 @@
    "n": 1
   },
   {
-   "s": "Passkey dihapus",
+   "s": "Passkey didaftarkan",
+   "n": 1
+  },
+  {
+   "s": "Passkey gagal dipakai",
    "n": 1
   },
   {
@@ -19587,6 +19707,18 @@
    "n": 1
   },
   {
+   "s": "Penarikan dana dibatalkan",
+   "n": 1
+  },
+  {
+   "s": "Penarikan dana dikonfirmasi",
+   "n": 1
+  },
+  {
+   "s": "Penarikan dana diminta",
+   "n": 1
+  },
+  {
    "s": "Penarikan dana memerlukan PIN dompet. Buat PIN dulu sebelum memasukkan nominal.",
    "n": 1
   },
@@ -19719,6 +19851,10 @@
    "n": 1
   },
   {
+   "s": "Penerimaan pesanan dikonfirmasi",
+   "n": 1
+  },
+  {
    "s": "Pengajuan #{x}",
    "n": 1
   },
@@ -19763,6 +19899,10 @@
    "n": 1
   },
   {
+   "s": "Pengaturan privasi diubah",
+   "n": 1
+  },
+  {
    "s": "Pengecekan dilanjutkan otomatis saat internet kembali.",
    "n": 1
   },
@@ -19780,6 +19920,10 @@
   },
   {
    "s": "pengenal unik untuk suatu Transaksi; berbeda dari ID struk, reference pembayaran, atau nomor resi.",
+   "n": 1
+  },
+  {
+   "s": "Pengguna dilaporkan",
    "n": 1
   },
   {
@@ -19812,6 +19956,10 @@
   },
   {
    "s": "Pengguna yang menawarkan dan memenuhi barang/jasa.",
+   "n": 1
+  },
+  {
+   "s": "Penghapusan akun diminta",
    "n": 1
   },
   {
@@ -20215,10 +20363,6 @@
    "n": 1
   },
   {
-   "s": "Perlu konfirmasi keluar",
-   "n": 1
-  },
-  {
    "s": "Permintaan dicatat dengan waktu, kanal, ruang lingkup, dan identitas akun. Petugas tidak boleh meminta kredensial rahasia.",
    "n": 1
   },
@@ -20287,7 +20431,19 @@
    "n": 1
   },
   {
+   "s": "Perpanjangan otomatis diubah",
+   "n": 1
+  },
+  {
    "s": "Perpanjangan Tenggat",
+   "n": 1
+  },
+  {
+   "s": "Perpanjangan waktu dijawab",
+   "n": 1
+  },
+  {
+   "s": "Perpanjangan waktu diminta",
    "n": 1
   },
   {
@@ -20300,14 +20456,6 @@
   },
   {
    "s": "Persetujuan",
-   "n": 1
-  },
-  {
-   "s": "Persetujuan diberikan",
-   "n": 1
-  },
-  {
-   "s": "Persetujuan ditarik",
    "n": 1
   },
   {
@@ -20504,10 +20652,6 @@
   },
   {
    "s": "Pesanan custom sudah open",
-   "n": 1
-  },
-  {
-   "s": "Pesanan dikirim",
    "n": 1
   },
   {
@@ -20755,6 +20899,10 @@
    "n": 1
   },
   {
+   "s": "Preferensi notifikasi diubah",
+   "n": 1
+  },
+  {
    "s": "Produk berizin atau berisiko hanya boleh ditawarkan setelah verifikasi yang diperlukan. Ini dapat mencakup obat dan alat kesehatan; pangan, kosmetik, alkohol dan tembakau; bahan kimia; produk dewasa; hewan atau tumbuhan; tiket; jasa keuangan; aset digital; jasa profesional; barang antik; serta produk impor. Kahade dapat meminta nomor izin, label, sertifikat, verifikasi usia, atau bukti asal.",
    "n": 1
   },
@@ -20827,10 +20975,6 @@
    "n": 1
   },
   {
-   "s": "pusat bantuan",
-   "n": 1
-  },
-  {
    "s": "Putaran revisi sudah habis.",
    "n": 1
   },
@@ -20860,10 +21004,6 @@
   },
   {
    "s": "Rata-rata rating",
-   "n": 1
-  },
-  {
-   "s": "Rating {x}–{x} bintang membutuhkan komentar agar tim kami bisa menindaklanjuti.",
    "n": 1
   },
   {
@@ -20907,6 +21047,14 @@
    "n": 1
   },
   {
+   "s": "Rekening bank dihapus",
+   "n": 1
+  },
+  {
+   "s": "Rekening bank ditambahkan",
+   "n": 1
+  },
+  {
    "s": "Rekening Bank Tujuan",
    "n": 1
   },
@@ -20932,6 +21080,10 @@
   },
   {
    "s": "Rekening tujuan",
+   "n": 1
+  },
+  {
+   "s": "Rekening utama diatur",
    "n": 1
   },
   {
@@ -21187,6 +21339,14 @@
    "n": 1
   },
   {
+   "s": "Salinan data diminta",
+   "n": 1
+  },
+  {
+   "s": "Salinan data diunduh",
+   "n": 1
+  },
+  {
    "s": "Sapa {x} untuk memulai percakapan. Tanyakan detail barang atau jasa, dan lakukan transaksi lewat Kahade agar aman.",
    "n": 1
   },
@@ -21260,10 +21420,6 @@
   },
   {
    "s": "Segera berakhir",
-   "n": 1
-  },
-  {
-   "s": "sejak {x}",
    "n": 1
   },
   {
@@ -21427,6 +21583,10 @@
    "n": 1
   },
   {
+   "s": "Sengketa diajukan",
+   "n": 1
+  },
+  {
    "s": "Sengketa diajukan dari Transaksi dengan kategori, kronologi, hasil yang diminta, dan bukti. Sistem mencatat waktu dan menahan pelepasan dana sesuai status. Pengajuan yang terlambat dapat dipertimbangkan jika ada alasan sah dan sistem belum menyelesaikan dana secara final.",
    "n": 1
   },
@@ -21548,10 +21708,6 @@
   },
   {
    "s": "Setelah ini Anda membayar via aplikasi bank/e-wallet sebelum kode kedaluwarsa.",
-   "n": 1
-  },
-  {
-   "s": "Setelah itu, masukkan kode",
    "n": 1
   },
   {
@@ -22119,6 +22275,10 @@
    "n": 1
   },
   {
+   "s": "Tautan akun sosial dilepas",
+   "n": 1
+  },
+  {
    "s": "Tautan belum punya URL; kalimat siap kirim disalin ke papan klip.",
    "n": 1
   },
@@ -22188,6 +22348,14 @@
   },
   {
    "s": "Tautan Transaksi",
+   "n": 1
+  },
+  {
+   "s": "Tautan transaksi dibuat",
+   "n": 1
+  },
+  {
+   "s": "Tautan transaksi diterima",
    "n": 1
   },
   {
@@ -22328,10 +22496,6 @@
   },
   {
    "s": "Terakhir dicek pukul",
-   "n": 1
-  },
-  {
-   "s": "Terakhir diminta:",
    "n": 1
   },
   {
@@ -22476,10 +22640,6 @@
   },
   {
    "s": "Tidak ada kode QR",
-   "n": 1
-  },
-  {
-   "s": "Tidak ada koneksi internet",
    "n": 1
   },
   {
@@ -22723,7 +22883,27 @@
    "n": 1
   },
   {
+   "s": "Transaksi dibatalkan",
+   "n": 1
+  },
+  {
+   "s": "Transaksi dibayar",
+   "n": 1
+  },
+  {
    "s": "Transaksi dibuat, tapi gagal mencatat ke partisipasi",
+   "n": 1
+  },
+  {
+   "s": "Transaksi dikonfirmasi",
+   "n": 1
+  },
+  {
+   "s": "Transaksi diproses",
+   "n": 1
+  },
+  {
+   "s": "Transaksi ditolak",
    "n": 1
   },
   {
@@ -22743,10 +22923,6 @@
    "n": 1
   },
   {
-   "s": "Transaksi selesai",
-   "n": 1
-  },
-  {
    "s": "Transaksi terakhir",
    "n": 1
   },
@@ -22756,6 +22932,14 @@
   },
   {
    "s": "Transfer Dana",
+   "n": 1
+  },
+  {
+   "s": "Transfer dikirim",
+   "n": 1
+  },
+  {
+   "s": "Transfer diterima",
    "n": 1
   },
   {
@@ -22955,6 +23139,10 @@
    "n": 1
   },
   {
+   "s": "Ulasan dikirim",
+   "n": 1
+  },
+  {
    "s": "Ulasan hanya bisa diberikan setelah pesanan berstatus selesai.",
    "n": 1
   },
@@ -23039,10 +23227,6 @@
    "n": 1
   },
   {
-   "s": "untuk verifikasi identitas dan bantuan reset.",
-   "n": 1
-  },
-  {
    "s": "Upload gagal ({x}).",
    "n": 1
   },
@@ -23056,6 +23240,10 @@
   },
   {
    "s": "Username dan kata sandi",
+   "n": 1
+  },
+  {
+   "s": "Username diatur",
    "n": 1
   },
   {
@@ -23131,6 +23319,10 @@
    "n": 1
   },
   {
+   "s": "Verifikasi badan usaha dikirim",
+   "n": 1
+  },
+  {
    "s": "Verifikasi berhasil",
    "n": 1
   },
@@ -23159,10 +23351,6 @@
    "n": 1
   },
   {
-   "s": "Verifikasi dua langkah dimatikan",
-   "n": 1
-  },
-  {
    "s": "Verifikasi dua langkah sudah aktif. Demi keamanan, semua sesi Anda telah dicabut — masuk kembali untuk melanjutkan.",
    "n": 1
   },
@@ -23176,6 +23364,10 @@
   },
   {
    "s": "Verifikasi identitas (KYC)",
+   "n": 1
+  },
+  {
+   "s": "Verifikasi identitas dikirim",
    "n": 1
   },
   {

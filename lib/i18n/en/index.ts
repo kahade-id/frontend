@@ -58,6 +58,9 @@ import screens10 from "./screens-10.json"
 // screens-11 (audit Pengaturan & Bantuan 2026-10-10): Pusat Bantuan, Tentang,
 // Tampilan, Privasi, Umpan Balik, Tiket, Versi Aplikasi, Biometrik.
 import screens11 from "./screens-11.json"
+// screens-12 (audit Pengaturan & Bantuan 2026-10-10, batch 2): label log
+// keamanan/aktivitas (enum UserAuditAction), kredensial, privasi, hapus akun.
+import screens12 from "./screens-12.json"
 import tabs from "./tabs.json"
 import ui from "./ui.json"
 
@@ -86,6 +89,7 @@ export const EN: Dict = {
   ...screens9,
   ...screens10,
   ...screens11,
+  ...screens12,
   ...chatRoom,
   ...profile,
   // Pesan error & label status dari peta di lib/ — yang paling sering muncul

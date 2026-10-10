@@ -35,7 +35,9 @@ import { router } from "expo-router"
 import { ChartLine, DeviceMobile, ShieldWarning } from "phosphor-react-native"
 
 import { api } from "@/lib/api"
+import { activityActionLabel, securityActionKind, securityActionLabel } from "@/lib/audit-action-labels"
 import { unregisterPushDevice } from "@/lib/push-notifications"
+import { ROUTES } from "@/lib/routes"
 import type { ActivityLogEntry, DeviceSession, SecurityLogEntry } from "@/lib/api/sessions"
 import { formatDateTime } from "@/lib/format"
 import { tokens } from "@/lib/tokens"
@@ -165,9 +167,12 @@ const SecurityLogRow = memo(function SecurityLogRow({
   entry: SecurityLogEntry
   divider: boolean
 }) {
+  // Audit 2026-10-10: judul = label manusiawi, bukan enum mentah
+  // ("PASSWORD_CHANGED"); ikon mengikuti jenis kejadian.
   return (
     <SecurityLogItem
-      title={entry.action}
+      title={securityActionLabel(entry.action)}
+      kind={securityActionKind(entry.action)}
       ip={entry.ip}
       timestamp={formatDateTime(entry.createdAt)}
       divider={divider}
@@ -184,7 +189,7 @@ const ActivityLogRow = memo(function ActivityLogRow({
 }) {
   return (
     <ActivityLogItem
-      title={entry.action}
+      title={activityActionLabel(entry.action)}
       description={entry.description}
       timestamp={formatDateTime(entry.createdAt)}
       divider={divider}
@@ -388,7 +393,7 @@ export default function SecurityActivityScreen() {
     }
     // Sesi server sudah mati semua — bersihkan sesi lokal lalu ke login.
     await api.auth.logout().catch(() => undefined)
-    router.replace("/(auth)/login")
+    router.replace(ROUTES.login)
   }, [toast.show, sessionsQuery])
 
   /**
