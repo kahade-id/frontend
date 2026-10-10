@@ -299,6 +299,13 @@ export function parseErrorBody(body: unknown): {
    * → http-exception.filter.ts). `undefined` bila backend tidak mengirimnya.
    */
   fieldErrors: FieldError[] | undefined
+  /**
+   * Audit Auth 2026-10-10 (#FE-L1): durasi tunggu dari BODY — `retryAfter`
+   * (detik; filter backend menyertakannya di 429 dan, sejak audit ini, pada
+   * lockout akun/PIN) atau `lockoutRemainingSeconds` (payload ACCOUNT_LOCKED).
+   * Melengkapi header `Retry-After` yang di web bisa tidak terekspos CORS.
+   */
+  retryAfterMs: number | undefined
 } {
   const rec = asRecord(body) as NestErrorBody | null
   if (!rec) {
@@ -310,6 +317,7 @@ export function parseErrorBody(body: unknown): {
       backendCode: undefined,
       validationMessages: undefined,
       fieldErrors: undefined,
+      retryAfterMs: undefined,
     }
   }
 
@@ -341,7 +349,25 @@ export function parseErrorBody(body: unknown): {
     rec.error_code,
   ].find((c): c is string => typeof c === "string" && c.length > 0)
 
-  return { message, backendCode, validationMessages, fieldErrors: parseFieldErrors(src) }
+  return {
+    message,
+    backendCode,
+    validationMessages,
+    fieldErrors: parseFieldErrors(src),
+    retryAfterMs: parseBodyRetryAfterMs(src) ?? parseBodyRetryAfterMs(rec),
+  }
+}
+
+/** Detik → ms dari `retryAfter` / `lockoutRemainingSeconds` body; dibatasi 24 jam. */
+function parseBodyRetryAfterMs(src: Record<string, unknown> | null): number | undefined {
+  if (!src) return undefined
+  const MAX_MS = 24 * 60 * 60 * 1000
+  for (const key of ["retryAfter", "retry_after", "lockoutRemainingSeconds", "lockout_remaining_seconds"]) {
+    const raw = src[key]
+    const seconds = typeof raw === "number" ? raw : typeof raw === "string" && /^\d+$/.test(raw) ? Number(raw) : NaN
+    if (Number.isFinite(seconds) && seconds > 0) return Math.min(seconds * 1000, MAX_MS)
+  }
+  return undefined
 }
 
 /**

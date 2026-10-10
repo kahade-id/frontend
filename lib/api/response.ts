@@ -73,6 +73,8 @@ export function unwrapResponse(value: unknown, status?: number): unknown {
       validationMessages: parsed.validationMessages,
       // BFI-059: atribusi per field dari errors.fields backend.
       fieldErrors: parsed.fieldErrors,
+      // #FE-L1: durasi tunggu dari body (retryAfter / lockoutRemainingSeconds).
+      retryAfterMs: parsed.retryAfterMs,
       raw: value,
     })
   }

@@ -16,8 +16,27 @@ import { ROUTES } from "@/lib/routes"
 
 let pendingNext: string | null = null
 
+/**
+ * Audit Auth 2026-10-10 (#FE-N1): `next` hanya boleh PATH internal.
+ *
+ * Pemeriksaan lama `startsWith("/")` meloloskan `//evil.tld/…` (URL
+ * protocol-relative) dan `/\evil.tld` — di web `router.replace` memperlakukan
+ * keduanya sebagai tujuan eksternal, sehingga tautan login palsu
+ * (`kahade.id/login?next=//evil.tld`) membawa pengguna yang BARU memasukkan
+ * kredensial ke situs penyerang (open redirect pasca-login). Yang lolos:
+ * satu garis miring di depan, tanpa skema, tanpa backslash/karakter kontrol.
+ */
+export function sanitizeNextPath(path: unknown): string | null {
+  if (typeof path !== "string") return null
+  const value = path.trim()
+  if (!value.startsWith("/") || value.startsWith("//") || value.startsWith("/\\")) return null
+  if (/[\\\u0000-\u001f\u007f]/.test(value)) return null
+  if (/^\/[a-z][a-z\d+.-]*:/i.test(value)) return null
+  return value
+}
+
 export function setPendingNext(path: string | null | undefined): void {
-  pendingNext = path && path.startsWith("/") ? path : null
+  pendingNext = sanitizeNextPath(path)
 }
 
 /** Ambil & bersihkan tujuan tertunda. */
@@ -75,6 +94,9 @@ export async function resolvePostLoginTarget(queryNext?: string | null): Promise
   }
   const pending = takePendingNext()
   if (pending) return pending as Href
-  if (queryNext) return queryNext as Href
+  // #FE-N1: param `?next=` berasal dari deep link eksternal — disanitasi di
+  // sini juga, bukan hanya di layar yang membacanya.
+  const safeQueryNext = sanitizeNextPath(queryNext)
+  if (safeQueryNext) return safeQueryNext as Href
   return ROUTES.home
 }

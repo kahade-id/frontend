@@ -118,6 +118,11 @@ export const ROUTES = {
   verifyEmail: (email: string) =>
     ({ pathname: "/verify-email", params: { email } }) as unknown as Href,
   /**
+   * #FE-I9: varian tanpa param — alamat baru dari change-email dibawa lewat
+   * `lib/email-verify.ts` (memori), bukan URL.
+   */
+  verifyEmailScreen: "/verify-email" as Href,
+  /**
    * Screen #8a — Forgot Password: kirim OTP reset via WhatsApp.
    *
    * Auth-rework: HANYA nomor HP (email → 400). Response forgot-password

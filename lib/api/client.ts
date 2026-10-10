@@ -37,6 +37,7 @@ import {
   getAppVersion,
   getDeviceId,
   getDeviceInfo,
+  clearRefreshToken,
   getRefreshToken,
   getSessionRevision,
   setAccessToken,
@@ -299,10 +300,12 @@ async function toApiError(res: Response, method: HttpMethod, path: string): Prom
     // 429/503: server sering menyebut berapa lama harus menunggu. Tanpa ini UI
     // hanya bisa bilang "tunggu sebentar" dan pengguna mencoba lagi terlalu
     // cepat, memperpanjang masa throttle-nya sendiri.
+    // #FE-L1: body `retryAfter`/`lockoutRemainingSeconds` melengkapi header —
+    // lockout akun (401 ACCOUNT_LOCKED) & PIN (403) kini juga membawa durasi.
     retryAfterMs:
-      res.status === 429 || res.status === 503
+      (res.status === 429 || res.status === 503
         ? parseRetryAfterMs(res.headers?.get?.("Retry-After") ?? null)
-        : undefined,
+        : undefined) ?? parsed.retryAfterMs,
   })
 }
 
@@ -412,7 +415,8 @@ export function refreshAccessToken(): Promise<string | null> {
         consecutiveRefreshFailures++
         // Token mati beruntun → hapus dari penyimpanan agar tidak di-retry lagi.
         if (consecutiveRefreshFailures >= MAX_CONSECUTIVE_REFRESH_FAILURES) {
-          await setRefreshToken("")
+          // #FE-S4: hapus slotnya, bukan menulis string kosong.
+          await clearRefreshToken()
           consecutiveRefreshFailures = 0
         }
         return null
