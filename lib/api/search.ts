@@ -128,9 +128,22 @@ export function parseSearchHintCode(raw: unknown): SearchHintCode | undefined {
 }
 
 export function globalSearch(
-  query: { q: string; types?: string; limit?: number; location?: string },
+  query: {
+    q: string
+    types?: string
+    limit?: number
+    location?: string
+    /**
+     * S-64 (audit Search 2026-10-10, batch 2): `false` = backend TIDAK menulis
+     * riwayat untuk request ini — klien mencatatnya sendiri sekali per kata
+     * kunci stabil lewat `recordSearchHistory`. Tanpa flag (klien lama)
+     * backend tetap menulis seperti dulu.
+     */
+    recordHistory?: boolean
+  },
   signal?: AbortSignal,
 ) {
+  const { recordHistory, ...rest } = query
   return http
     .get<unknown>("/v1/search", {
       // DC-016 (audit Discovery 2026-09-26): komentar lama ("hanya users,
@@ -139,7 +152,12 @@ export function globalSearch(
       // meminta help-center juga (DC-002); showcase TIDAK diminta di sini
       // (postingan dilayani feed etalase — paritas app/search.tsx).
       // `types` kosong ditolak backend (SEARCH_INVALID_TYPES).
-      query: { types: "users,orders,transactions,help-center", limit: 20, ...query },
+      query: {
+        types: "users,orders,transactions,help-center",
+        limit: 20,
+        ...rest,
+        ...(recordHistory === false ? { recordHistory: "false" } : {}),
+      },
       auth: "required",
       retry: 1,
       signal,

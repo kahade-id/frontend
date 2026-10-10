@@ -45,7 +45,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Platform, View, type ListRenderItem } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { ArrowUpLeft, ChatCircleText, ClockCounterClockwise, Images, MagnifyingGlass, MapPin, TrendUp, X } from "phosphor-react-native"
-import { router, useLocalSearchParams } from "expo-router"
+import { router, useIsFocused, useLocalSearchParams } from "expo-router"
 import { api, type Order, type UserSearchResult, type WalletTransaction } from "@/lib/api"
 import { getShowcaseFeed, type ShowcaseSocialItem } from "@/lib/api/showcase"
 import { showcaseImages } from "@/lib/showcase-social"
@@ -112,19 +112,25 @@ type Scope = SearchScope
  * Audit Search 2026-10-10 (S-28): cakupan "Mutasi" disembunyikan saat mode
  * tanpa dompet — memilihnya selalu kosong (tidak ada rute dompet).
  */
-function useScopes(walletEnabled: boolean): ReadonlyArray<{ value: Scope; label: string }> {
+function useScopes(walletEnabled: boolean, hasSession: boolean): ReadonlyArray<{ value: Scope; label: string }> {
   const language = useLanguage()
   return useMemo(
-    () => [
-      { value: "all" as const, label: translate("Semua") },
-      { value: "users" as const, label: translate("Pengguna") },
-      { value: "posts" as const, label: translate("Postingan") },
-      { value: "orders" as const, label: translate("Pesanan") },
-      ...(walletEnabled ? [{ value: "transactions" as const, label: translate("Mutasi") }] : []),
-      // Item 87 (mega-batch 2026-09-28): pencarian lintas-room.
-      { value: "chats" as const, label: translate("Pesan") },
-    ],
-    [language, walletEnabled],
+    () =>
+      // S-57 (batch 2): tamu hanya punya SATU sumber publik (feed etalase) —
+      // pengguna/pesanan/mutasi/pesan semuanya auth-required. Chip cakupan
+      // tidak ditawarkan sama sekali (satu pilihan bukan pilihan).
+      !hasSession
+        ? []
+        : [
+            { value: "all" as const, label: translate("Semua") },
+            { value: "users" as const, label: translate("Pengguna") },
+            { value: "posts" as const, label: translate("Postingan") },
+            { value: "orders" as const, label: translate("Pesanan") },
+            ...(walletEnabled ? [{ value: "transactions" as const, label: translate("Mutasi") }] : []),
+            // Item 87 (mega-batch 2026-09-28): pencarian lintas-room.
+            { value: "chats" as const, label: translate("Pesan") },
+          ],
+    [language, walletEnabled, hasSession],
   )
 }
 
@@ -163,6 +169,16 @@ function useSectionTitle(): Record<ResultRow["kind"], string> {
 
 /** Minimal kata kunci sebelum request ditembakkan. */
 const MIN_KEYWORD = 2
+
+/**
+ * S-61 (batch 2): jatah hasil per request. Cakupan "Semua" membagi layar ke
+ * beberapa jenis (20 per jenis cukup); cakupan SATU jenis memakai batas
+ * maksimum backend (50) — daftar tujuan "Lihat semua pesanan" tidak punya
+ * kolom cari, jadi makin banyak yang tampil di sini makin jarang pengguna
+ * harus pindah layar dan mencari ulang dengan mata.
+ */
+const LIMIT_MIXED = 20
+const LIMIT_SINGLE = 50
 
 /**
  * R1-006 (2026-09-29, audit render-perf): separator stabil level modul —
@@ -218,7 +234,9 @@ const SearchResultRow = memo(function SearchResultRow({
             ? translate("Anggota {x}", { x: item.user.membershipRank })
             : undefined
         }
-        chevron
+        // S-72 (batch 2): chevron menjanjikan navigasi — hanya bila baris
+        // memang bisa dibuka (punya username).
+        chevron={!!item.user.username}
         onPress={item.user.username ? handleUserPress : undefined}
       />
     ) : item.kind === "transaction" ? (
@@ -300,7 +318,10 @@ export default function SearchScreen() {
   // Mode Tanpa Wallet Internal (BI-safe): hasil mutasi dompet disembunyikan
   // saat kill-switch mati (tidak ada rute dompet yang bisa dibuka).
   const walletEnabled = useWalletEnabled()
-  const scopes = useScopes(walletEnabled)
+  // S-57 (batch 2): sesi dibaca paling awal — menentukan cakupan & query mana
+  // yang boleh hidup (tamu: hanya feed etalase yang publik).
+  const hasSession = useHasSession()
+  const scopes = useScopes(walletEnabled, hasSession)
   const sectionTitle = useSectionTitle()
   const insets = useSafeAreaInsets()
   /*
@@ -330,7 +351,14 @@ export default function SearchScreen() {
   const searchScope = useUiPref("searchScope")
   const setPrefs = useSetUiPrefs()
   // S-28: cakupan tersimpan "Mutasi" tidak berlaku saat dompet dimatikan.
-  const scope: Scope = searchScope === "transactions" && !walletEnabled ? "all" : searchScope
+  // S-57: tamu selalu di cakupan "Postingan" — satu-satunya sumber publik;
+  // dulu cakupan "Semua" menembak /v1/search (auth:"required") → tiap
+  // pencarian tamu berakhir "Gagal mencari"/"Sebagian hasil gagal dimuat".
+  const scope: Scope = !hasSession
+    ? "posts"
+    : searchScope === "transactions" && !walletEnabled
+      ? "all"
+      : searchScope
   // S-17: identitas stabil — dulu arrow baru tiap render membuat memo header
   // (chip, saran, riwayat) tidak pernah hit.
   const setScope = useCallback((next: Scope) => setPrefs({ searchScope: next }), [setPrefs])
@@ -369,23 +397,34 @@ export default function SearchScreen() {
   // Cakupan "Pesan" DI LUAR /v1/search — dilayani GET /v1/chat/search.
   const chatsOnly = scope === "chats"
 
+  // S-61: cakupan satu jenis memakai jatah maksimum backend.
+  const limit = scope === "all" ? LIMIT_MIXED : LIMIT_SINGLE
+  // S-70 (batch 2): `location` TIDAK ikut ke /v1/search — endpoint ini tidak
+  // pernah diminta jenis `showcase` dari layar ini (postingan lewat feed),
+  // jadi filter lokasi di sana tak berpengaruh; dulu ia masuk kunci query
+  // sehingga mengubah lokasi memicu refetch pesanan/mutasi yang sia-sia.
+  // S-64: `recordHistory:false` — riwayat dicatat eksplisit lewat
+  // POST /v1/search/history (S-02) saat kata kunci stabil; tanpa flag ini
+  // backend ikut menulis riwayat per request ter-debounce (tulis ganda +
+  // potongan kata non-prefiks seperti "sepatu nike" saat pengguna menghapus
+  // lalu mengetik "sepatu adidas").
   const result = useApiQuery(
-    `search:${scope}:${keyword}:${location}`,
+    `search:${scope}:${keyword}:${limit}`,
     (signal) =>
       api.search.globalSearch(
-        { q: keyword, types: SCOPE_TYPES[scope as Exclude<Scope, "posts" | "chats">], limit: 20, location: location || undefined },
+        { q: keyword, types: SCOPE_TYPES[scope as Exclude<Scope, "posts" | "chats">], limit, recordHistory: false },
         signal,
       ),
-    enabled && !usersOnly && !postsOnly && !chatsOnly,
+    enabled && hasSession && !usersOnly && !postsOnly && !chatsOnly,
   )
   // S-05: endpoint dedikasi HANYA untuk cakupan "Pengguna" — cakupan "Semua"
   // sudah menerima users (dengan membershipRank + sealTier) dari /v1/search.
   // Dulu keduanya ditembak bersamaan: duplikat + throttle 10/menit habis saat
   // mengetik nama panjang (429 → "Gagal mencari").
   const usersResult = useApiQuery(
-    `search-users:${keyword}`,
-    (signal) => api.users.searchUsers(keyword, { limit: 20 }, signal),
-    enabled && usersOnly,
+    `search-users:${keyword}:${limit}`,
+    (signal) => api.users.searchUsers(keyword, { limit }, signal),
+    enabled && hasSession && usersOnly,
   )
   // Postingan etalase — feed publik (auth:"optional"), 12 hasil cukup untuk
   // satu layar; penelusuran lanjutan hidup di tab Etalase itu sendiri.
@@ -399,10 +438,9 @@ export default function SearchScreen() {
   // /v1/chat/search (`lib/api/chat.ts` searchAllMessages). auth:"required":
   // tamu tidak punya percakapan; query dimatikan untuk tamu agar error auth
   // tidak meracuni state error cakupan "Semua".
-  const hasSession = useHasSession()
   const chatsResult = useApiQuery(
-    `search-chats:${keyword}`,
-    (signal) => api.chat.searchAllMessages(keyword, { limit: 20 }, signal),
+    `search-chats:${keyword}:${limit}`,
+    (signal) => api.chat.searchAllMessages(keyword, { limit }, signal),
     enabled && wantChats && hasSession,
   )
   // Keadaan daftar = gabungan keempat request. Tanpa ini, cakupan
@@ -430,6 +468,8 @@ export default function SearchScreen() {
   )
   // Riwayat pencarian (GET /v1/search/history) — tampil saat kolom kosong;
   // gagal dimuat tidak boleh menghalangi pencarian (fallback kosong).
+  // S-58 (batch 2): hanya untuk yang login — tamu dulu menembak endpoint
+  // auth:"required" ini di tiap mount (401 → upaya refresh sia-sia).
   const historyQuery = useApiQuery<import("@/lib/api/search").SearchHistoryEntry[]>(
     "search-history",
     async (signal) =>
@@ -437,6 +477,7 @@ export default function SearchScreen() {
         logWarn("search:history", err)
         return undefined
       })) ?? [],
+    hasSession,
   )
   const history = historyQuery.data ?? []
 
@@ -461,6 +502,10 @@ export default function SearchScreen() {
    * kunci barusan langsung tampil saat kolom dikosongkan.
    */
   const recordedKeyword = useRef<string | null>(null)
+  // S-63 (batch 2): hanya `setData` (identitas stabil) yang masuk deps —
+  // objek `historyQuery` utuh berganti tiap data/loading berubah, dan itu
+  // membuat timer "kata kunci stabil" di bawah di-reset tanpa alasan.
+  const setHistoryData = historyQuery.setData
   const recordSettledKeyword = useCallback(
     (raw: string) => {
       const q = raw.trim()
@@ -470,7 +515,7 @@ export default function SearchScreen() {
       if (!hasSession) return
       void api.search.recordSearchHistory(q)
       const lower = q.toLowerCase()
-      historyQuery.setData((prev) => [
+      setHistoryData((prev) => [
         { query: q, searchedAt: new Date().toISOString() },
         ...(prev ?? []).filter((entry) => {
           const existing = entry.query.toLowerCase()
@@ -478,7 +523,7 @@ export default function SearchScreen() {
         }),
       ])
     },
-    [hasSession, historyQuery],
+    [hasSession, setHistoryData],
   )
   useEffect(() => {
     if (!enabled) return
@@ -486,6 +531,19 @@ export default function SearchScreen() {
     const timer = setTimeout(() => recordSettledKeyword(q), RECORD_SETTLE_MS)
     return () => clearTimeout(timer)
   }, [enabled, keyword, recordSettledKeyword])
+  /**
+   * S-62 (batch 2): meninggalkan layar (mengetuk hasil, kembali) SEBELUM jeda
+   * stabil = kata kunci itu justru yang paling berhasil — catat seketika.
+   * Tanpa ini pencarian yang langsung diketuk hasilnya (< 2 dtk) tidak pernah
+   * masuk riwayat maupun tren.
+   */
+  const focused = useIsFocused()
+  const keywordRef = useRef(keyword)
+  keywordRef.current = keyword
+  useEffect(() => {
+    if (focused) return
+    recordSettledKeyword(keywordRef.current)
+  }, [focused, recordSettledKeyword])
 
   // #6a (audit Discovery 2026-09-26): riwayat basi setelah mencari — backend
   // menyimpan riwayat secara async saat pencarian berjalan, jadi segarkan
@@ -734,7 +792,6 @@ export default function SearchScreen() {
       setLocationSeed(loc)
       setLocation(loc)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [deepLinkQ, deepLinkScope, deepLinkLocation])
 
   /*
@@ -939,8 +996,11 @@ export default function SearchScreen() {
             </View>
           ) : null}
           {/* Item 81 (mega-batch 2026-09-28): saran menampilkan status
-              loading & error — sebelumnya gagal diam-diam. */}
-          {scope === "all" ? (
+              loading & error — sebelumnya gagal diam-diam.
+              S-56 (batch 2): blok hanya dirender bila ADA yang ditampilkan
+              (memuat / gagal / chip) — label "Saran pencarian" tanpa isi
+              adalah teks yang tidak menjelaskan apa pun. */}
+          {scope === "all" && (suggestions.loading || suggestions.error || suggestionChips.length > 0) ? (
             <View className="gap-2">
               <View className="flex-row items-center gap-2">
                 <Text variant="caption" tone="tertiary">
@@ -1030,12 +1090,8 @@ export default function SearchScreen() {
         <ErrorState
           title={translate("Gagal mencari")}
           description={searchError}
-          onRetry={() => {
-            void result.reload()
-            void usersResult.reload()
-            void postsResult.reload()
-            void chatsResult.reload()
-          }}
+          // S-49 (sebagian): satu handler stabil, bukan closure atas 4 objek hook.
+          onRetry={retryAll}
         />
       ) : (
         <EmptyState
@@ -1086,19 +1142,7 @@ export default function SearchScreen() {
           }
         />
       ),
-    [
-      loading,
-      searchError,
-      result,
-      usersResult,
-      postsResult,
-      chatsResult,
-      enabled,
-      emptyCopy,
-      didYouMean,
-      applyQuery,
-      setScope,
-    ],
+    [loading, searchError, retryAll, enabled, emptyCopy, didYouMean, applyQuery, setScope],
   )
   // S-03: Enter = kata kunci dianggap final — catat seketika (tanpa menunggu
   // jeda stabil). `onSubmitEditing` diteruskan <DebouncedSearchField> ke
@@ -1139,7 +1183,10 @@ export default function SearchScreen() {
             </Button>
           ) : null}
           {showAllTransactions ? (
-            <Button variant="ghost" fullWidth onPress={() => router.push(ROUTES.walletHistory)}>
+            // S-60 (batch 2): kata kunci dibawa — riwayat dompet punya kolom
+            // cari sendiri; dulu pengguna mendarat di daftar penuh dan harus
+            // mengetik ulang.
+            <Button variant="ghost" fullWidth onPress={() => router.push(ROUTES.walletHistorySearch(keyword.trim()))}>
               {translate("Lihat semua mutasi")}
             </Button>
           ) : null}

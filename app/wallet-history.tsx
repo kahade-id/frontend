@@ -61,7 +61,7 @@
  */
 import { memo, useCallback, useMemo, useState } from "react"
 import { View } from "react-native"
-import { router } from "expo-router"
+import { router, useLocalSearchParams } from "expo-router"
 import { translate } from "@/lib/i18n/translate"
 import {
   ArrowCircleDown,
@@ -201,8 +201,17 @@ export default function WalletHistoryScreen() {
   const insets = useSafeAreaInsets()
   const [filters, setFilters] = useState<WalletHistoryFilters>(DEFAULT_HISTORY_FILTERS)
   const [sheetOpen, setSheetOpen] = useState(false)
-  /** Teks pencarian yang sudah di-debounce (milik layar; kolomnya di bawah). */
-  const [search, setSearch] = useState("")
+  /**
+   * Teks pencarian yang sudah di-debounce (milik layar; kolomnya di bawah).
+   * S-60 (audit Search 2026-10-10, batch 2): `?q=` dari CTA "Lihat semua
+   * mutasi" di layar Pencarian mengisi kolom sejak awal (dibaca sekali saat
+   * mount — setelah itu teks milik pengguna).
+   */
+  const { q: seedParam } = useLocalSearchParams<{ q?: string | string[] }>()
+  const [search, setSearch] = useState(() => {
+    const raw = Array.isArray(seedParam) ? seedParam[0] : seedParam
+    return typeof raw === "string" ? raw.trim().slice(0, 100) : ""
+  })
   const { exporting, exportWallet } = useWalletExport()
 
   // Rentang dihitung saat query dimulai (bukan per render) supaya key stabil.

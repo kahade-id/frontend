@@ -146,17 +146,22 @@ export function UsersTab({ bottomPadding }: { bottomPadding: number }) {
 
   return (
     <View className="flex-1">
-      {/* DC-013: filter rating minimum — chip toggle. */}
-      <View className="flex-row gap-2 px-5 pb-2">
-        <Chip
-          selected={minRating === 4}
-          accessibilityState={{ selected: minRating === 4 }}
-          accessibilityLabel={translate("Hanya tampilkan pengguna rating 4 ke atas")}
-          onPress={() => setMinRating((v) => (v === 4 ? undefined : 4))}
-        >
-          {translate("Rating 4+")}
-        </Chip>
-      </View>
+      {/* DC-013: filter rating minimum — chip toggle.
+          S-69 (audit Search 2026-10-10, batch 2): tamu melihat empty state
+          "Masuk untuk menemukan pengguna" — chip filter di atasnya adalah
+          kontrol tanpa daftar yang bisa disaring. */}
+      {hasSession ? (
+        <View className="flex-row gap-2 px-5 pb-2">
+          <Chip
+            selected={minRating === 4}
+            accessibilityState={{ selected: minRating === 4 }}
+            accessibilityLabel={translate("Hanya tampilkan pengguna rating 4 ke atas")}
+            onPress={() => setMinRating((v) => (v === 4 ? undefined : 4))}
+          >
+            {translate("Rating 4+")}
+          </Chip>
+        </View>
+      ) : null}
     <PaginatedList
       {...query}
       onRefresh={query.refresh}

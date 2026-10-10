@@ -39,6 +39,7 @@ import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { focusRing } from "@/lib/focus-ring"
 import { ICON_XS_HIT_SLOP } from "@/lib/hit-slop"
+import { translate } from "@/lib/i18n/translate"
 import { tokens } from "@/lib/tokens"
 
 export type ChipProps = Omit<PressableScaleProps, "children" | "className"> & {
@@ -98,7 +99,9 @@ export function Chip({
           disabled={disabled}
           hitSlop={ICON_XS_HIT_SLOP}
           accessibilityRole="button"
-          accessibilityLabel="Hapus filter"
+          // S-73 (audit Search 2026-10-10, batch 2): label a11y lewat i18n —
+          // dulu literal Indonesia untuk pengguna screen reader berbahasa EN.
+          accessibilityLabel={translate("Hapus filter")}
           className={cn("ml-1 rounded-full", focusRing)}
         >
           <Icon icon={X} size="xs" weight="bold" tone={selected ? "inverse" : "default"} />

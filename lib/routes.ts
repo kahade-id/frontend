@@ -326,6 +326,13 @@ export const ROUTES = {
    * terbaru dan menaut ke sini ("Lihat semua").
    */
   walletHistory: "/wallet-history" as Href,
+  /**
+   * S-60 (audit Search 2026-10-10, batch 2): riwayat dompet dengan kolom cari
+   * SUDAH TERISI — tujuan CTA "Lihat semua mutasi" dari layar Pencarian.
+   * Tanpa `q` pengguna mendarat di daftar penuh dan harus mengetik ulang.
+   */
+  walletHistorySearch: (q: string) =>
+    (q.trim() ? { pathname: "/wallet-history", params: { q: q.trim() } } : "/wallet-history") as unknown as Href,
   /** Riwayat topup (GET /v1/wallet/topup-history) */
   topupHistory: "/topup-history" as Href,
   /** Riwayat penarikan (GET /v1/wallet/withdraw-history) */

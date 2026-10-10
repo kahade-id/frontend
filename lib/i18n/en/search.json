@@ -7,5 +7,7 @@
   "Rating 4+": "4+ rating",
   "Rating 4,5+": "4.5+ rating",
   "Cari transaksi, pihak, atau ID": "Search transactions, parties, or IDs",
-  "Hanya tampilkan pengguna rating 4 ke atas": "Only show users rated 4 and up"
+  "Hanya tampilkan pengguna rating 4 ke atas": "Only show users rated 4 and up",
+  "Coba keterangan atau ID transaksi yang berbeda.": "Try a different description or transaction ID.",
+  "Buka filter jenis produk, kondisi, rating, dan harga": "Open product type, condition, rating, and price filters"
 }

@@ -1599,6 +1599,10 @@
    "n": 4
   },
   {
+   "s": "Hapus filter",
+   "n": 4
+  },
+  {
    "s": "Hapus foto",
    "n": 4
   },
@@ -5127,6 +5131,10 @@
    "n": 3
   },
   {
+   "s": "Temukan pengguna",
+   "n": 3
+  },
+  {
    "s": "Tenggat dalam {x}",
    "n": 3
   },
@@ -6375,11 +6383,11 @@
    "n": 2
   },
   {
-   "s": "Coba lagi nanti.",
+   "s": "Coba keterangan atau ID transaksi yang berbeda.",
    "n": 2
   },
   {
-   "s": "Coba nominal, keterangan, atau ID transaksi yang berbeda.",
+   "s": "Coba lagi nanti.",
    "n": 2
   },
   {
@@ -7064,10 +7072,6 @@
   },
   {
    "s": "Hapus Akun",
-   "n": 2
-  },
-  {
-   "s": "Hapus filter",
    "n": 2
   },
   {
@@ -22188,10 +22192,6 @@
   },
   {
    "s": "Template mungkin sudah tersimpan — memuat ulang daftar…",
-   "n": 1
-  },
-  {
-   "s": "Temukan pengguna",
    "n": 1
   },
   {

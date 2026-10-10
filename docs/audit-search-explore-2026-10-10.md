@@ -111,6 +111,32 @@ Status: ✅ diperbaiki · ⏭ ditunda (alasan dicatat) · ℹ catatan.
 | S-53 | Frontend `recordSearchTrend` memakai `auth:"none"` sehingga user login pun anonim → throttle per IP saja. | FE `lib/api/commerce.ts:333` | ✅ `auth:"optional"` |
 | S-54 | Tes BE `search.service.spec` memock `getClient()` baru tiap panggilan sehingga LREM/LPUSH prefiks tidak teruji. | BE `tests/search.service.spec.ts:18` | ✅ tes baru untuk dedupe prefiks |
 
+## I. Batch 2 (lanjutan audit, sesi kedua 10 Okt 2026)
+
+| # | Temuan | Lokasi | Status |
+|---|---|---|---|
+| S-55 | Judul header "Temukan pengguna" hardcode (tidak berganti bahasa). | FE `app/discover.tsx:22` | ✅ |
+| S-56 | Label "Saran pencarian" dirender walau tidak ada chip, tidak memuat, dan tidak error → label tanpa isi. | FE `search-screen.tsx:943` | ✅ hanya saat memuat/gagal/ada chip |
+| S-57 | **Tamu di cakupan "Semua" selalu error.** `/v1/search` auth:"required" → tiap pencarian tamu "Gagal mencari"/"Sebagian hasil gagal dimuat"; chip Pengguna/Pesanan/Mutasi/Pesan ditawarkan padahal semua auth-required. | FE `search-screen.tsx:372-389,115` | ✅ tamu = cakupan Postingan tanpa chip; query auth dimatikan |
+| S-58 | `GET /v1/search/history` ditembak tamu tiap mount (401 → refresh sia-sia). | FE `search-screen.tsx:433` | ✅ gated `hasSession` |
+| S-59 | Empty state Mutasi: "Coba nominal…" — backend hanya mencocokkan `description`/`txId`, nominal tidak dicari. | FE `lib/search-ui.ts:101`, BE `search.service.ts:searchTransactions` | ✅ copy diperbaiki |
+| S-60 | CTA "Lihat semua mutasi" membuang kata kunci — riwayat dompet punya kolom cari tetapi tidak bisa di-seed dari URL. | FE `search-screen.tsx:1142`, `app/wallet-history.tsx:205` | ✅ `ROUTES.walletHistorySearch(q)` + `?q=` |
+| S-61 | Cakupan satu jenis tetap `limit 20` padahal backend maks 50 dan daftar tujuan CTA "Lihat semua pesanan" tidak punya kolom cari. | FE `search-screen.tsx:376,387,405` | ✅ 50 untuk cakupan tunggal, 20 untuk "Semua" |
+| S-62 | Mengetuk hasil < 2 dtk setelah mengetik (sebelum jeda stabil) → kata kunci tidak pernah masuk riwayat/tren — padahal itu pencarian yang paling berhasil. | FE `search-screen.tsx:483-488` | ✅ catat saat layar kehilangan fokus |
+| S-63 | `recordSettledKeyword` deps memuat objek `historyQuery` utuh → identitas berganti tiap data/loading → timer stabil di-reset tanpa alasan. | FE `search-screen.tsx:481` | ✅ hanya `setData` |
+| S-64 | `GET /v1/search` masih menulis riwayat per request ter-debounce walau klien sudah mencatat eksplisit (S-02) → tulis ganda + potongan non-prefiks ("sepatu nike" tertinggal saat dihapus jadi "sepatu adidas"). | BE `search.service.ts:53`, FE `lib/api/search.ts` | ✅ param `recordHistory=false` (klien lama tidak berubah) |
+| S-65 | `users.service.searchUsers` boost prefiks `LIKE ${q}%` tanpa escape → `_`/`%` di query jadi wildcard (mengacaukan urutan). | BE `users.service.ts:709` | ✅ `escapeLikePattern` |
+| S-66 | `recordSearch` upsert Prisma tidak atomik → dua klien mencatat kata kunci baru bersamaan → P2002 → 500. | BE `search-trends.service.ts:50` | ✅ retry sekali pada P2002 + tes |
+| S-67 | Fallback ORM help-center tidak mengirim `answer` → cuplikan kosong saat jalur FTS gagal. | BE `search.service.ts:706` | ✅ `answer` dipotong 300 |
+| S-68 | `searchOrders` FTS `ORDER BY rank, createdAt` tanpa tiebreak id. | BE `search.service.ts:434` | ✅ |
+| S-69 | Tab Temukan: chip "Rating 4+" tampil untuk tamu yang daftarnya terkunci login — kontrol tanpa objek. | FE `discover-users-tab.tsx:150` | ✅ |
+| S-70 | `location` dikirim ke `/v1/search` dan masuk kunci query padahal jenis `showcase` tidak pernah diminta dari layar ini → ganti lokasi memicu refetch pesanan/mutasi sia-sia. | FE `search-screen.tsx:373-376` | ✅ dihapus dari query & kunci |
+| S-71 | ErrorState `onRetry` = closure baru atas 4 objek hook (duplikat `retryAll`), deps memo `searchListEmpty` ikut membengkak (lanjutan S-49). | FE `search-screen.tsx:1033-1038` | ✅ pakai `retryAll` |
+| S-72 | Baris pengguna tanpa `username` tetap menampilkan chevron padahal tidak bisa dibuka. | FE `search-screen.tsx:221` | ✅ chevron hanya bila bisa dibuka |
+| S-73 | `<Chip onRemove>` label a11y "Hapus filter" hardcode. | FE `components/ui/chip.tsx:101` | ✅ i18n |
+| S-74 | Feed Etalase: 5 chip filter dibangun sebagai JSX tiap render lalu dimasukkan ke deps memo `listHeader` → memo tidak pernah hit, header dirender ulang tiap tick scroll. | FE `showcase-feed-tab.tsx:1206-1299` | ✅ satu `useMemo` deps primitif |
+| S-75 | Hint a11y tombol funnel "Buka filter kondisi, rating, dan harga" basi — filter jenis produk ada sejak S-29. | FE `components/ui/showcase-header.tsx:142` | ✅ |
+
 ## Rekomendasi lanjutan (tidak dikerjakan)
 
 1. Cursor untuk `GET /v1/chat/search` (S-34) + CTA "Lihat semua pesan".

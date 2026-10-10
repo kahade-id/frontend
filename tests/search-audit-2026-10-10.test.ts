@@ -19,11 +19,14 @@ import {
 import { sameFeedFilter } from "@/lib/showcase-feed-logic"
 import {
   clearSearchHistory,
+  globalSearch,
   parseSearchHintCode,
   parseSearchShowcaseItem,
   recordSearchHistory,
 } from "@/lib/api/search"
 import { clearSession, setAccessToken } from "@/lib/api/session"
+import { ROUTES } from "@/lib/routes"
+import { getSearchEmptyStateCopy } from "@/lib/search-ui"
 
 describe("S-29: filter jenis produk", () => {
   it("default = tanpa filter (productType ALL)", () => {
@@ -159,5 +162,39 @@ describe("S-02/S-43: adapter riwayat pencarian (fetch di-stub)", () => {
   it("clearSearchHistory: `cleared:true` lolos", async () => {
     stubFetch({ cleared: true })
     await expect(clearSearchHistory()).resolves.toBeTruthy()
+  })
+
+  const EMPTY_RESULTS = { results: { users: [], orders: [], transactions: [], helpCenter: [] } }
+
+  it("S-64: globalSearch recordHistory:false → ?recordHistory=false", async () => {
+    stubFetch(EMPTY_RESULTS)
+    await globalSearch({ q: "sepatu", recordHistory: false })
+    expect(calls).toHaveLength(1)
+    const url = new URL(calls[0].url)
+    expect(url.searchParams.get("recordHistory")).toBe("false")
+    expect(url.searchParams.get("q")).toBe("sepatu")
+  })
+
+  it("S-64: tanpa flag → param tidak dikirim (perilaku klien lama)", async () => {
+    stubFetch(EMPTY_RESULTS)
+    await globalSearch({ q: "sepatu" })
+    const url = new URL(calls[0].url)
+    expect(url.searchParams.has("recordHistory")).toBe(false)
+  })
+})
+
+describe("Batch 2: rute & copy", () => {
+  it("S-60: walletHistorySearch membawa q ter-trim; kosong = rute polos", () => {
+    expect(ROUTES.walletHistorySearch("  topup  ")).toEqual({
+      pathname: "/wallet-history",
+      params: { q: "topup" },
+    })
+    expect(ROUTES.walletHistorySearch("   ")).toBe("/wallet-history")
+  })
+
+  it("S-59: empty state mutasi tidak menjanjikan pencarian nominal", () => {
+    const copy = getSearchEmptyStateCopy("transactions")
+    expect(copy.description).not.toMatch(/nominal/i)
+    expect(copy.description.length).toBeGreaterThan(0)
   })
 })

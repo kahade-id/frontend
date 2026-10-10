@@ -367,6 +367,8 @@ export type ShowcaseFeedTabProps = {
 export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, location, onClearLocation }: ShowcaseFeedTabProps) {
   // i18n: label tab mengikuti bahasa aktif.
   const feedTabs = useFeedTabs()
+  // S-74: dep memo header list — label chip filter lewat translate.
+  const language = useLanguage()
   const params = useLocalSearchParams<{ kind?: string; search?: string }>()
   // Item 47 (FE-IMP-1): tab terakhir yang dibuka persist per perangkat
   // (lib/ui-prefs `showcaseFeedTab`). Param URL (deep link) tetap menang
@@ -1186,117 +1188,136 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
   )
 
   /**
-   * F-05: tab "Mengikuti" memakai filter sisi klien (plafon
-   * FOLLOWING_MAX_PAGES). Bila hasil terpotong, katakan apa adanya — jangan
-   * biarkan pengguna mengira sudah melihat semua karya akun yang diikuti.
-   * Usulan jangka panjang tetap: `GET /showcase/feed?following=true`.
+   * Header list: chip filter aktif (A-06/A-12/DC-012/C15) + catatan parsial
+   * "Mengikuti" (F-05).
+   *
+   * S-74 (audit Search 2026-10-10, batch 2): SATU useMemo dengan deps nilai
+   * primitif. Versi lama membangun tiap chip sebagai JSX di badan komponen
+   * (identitas baru tiap render) lalu memasukkannya ke deps memo header —
+   * memo tidak pernah hit, header dirender ulang di setiap tick scroll feed.
+   * `language` ikut deps karena label lewat translate/describeSheetFilters.
    */
-  const followingPartialNotice = kind === "following" && followingPartial ? (
-    <View className="mx-5 mt-3 rounded-md border border-border bg-surface px-3 py-2">
-      <Text variant="caption" tone="secondary">
-        {translate("Sebagian etalase belum dapat dimuat. Tarik untuk menyegarkan.")}
-      </Text>
-    </View>
-  ) : null
-
-  /** A-06: chip filter aktif di atas list (scroll ikut konten).
-      FE-082: chip hanya berisi nilainya ("Elektronik") tanpa awalan
-      "Kategori:" — konteksnya sudah jelas dari ikon funnel + tombol
-      "Atur ulang". */
-  const categoryChip = category ? (
-    <View className="mt-3 flex-row items-center justify-between gap-2 rounded-full border border-border bg-surface py-1.5 pl-4 pr-1.5 mx-5">
-      <Text variant="caption" tone="secondary" className="flex-1" numberOfLines={1}>
-        {category}
-      </Text>
-      <IconButton
-        icon={X}
-        variant="ghost"
-        size="sm"
-        accessibilityLabel={translate("Hapus filter kategori {x}", { x: category })}
-        onPress={onClearCategory}
-      />
-    </View>
-  ) : null
-
-  /** Chip `?location=` — pola sama dengan chip kategori (A-06/A-12).
-      FE-082: tanpa awalan "Lokasi:". */
-  const locationChip = location ? (
-    <View className="mt-3 flex-row items-center justify-between gap-2 rounded-full border border-border bg-surface py-1.5 pl-4 pr-1.5 mx-5">
-      <Text variant="caption" tone="secondary" className="flex-1" numberOfLines={1}>
-        {location}
-      </Text>
-      <IconButton
-        icon={X}
-        variant="ghost"
-        size="sm"
-        accessibilityLabel={translate("Hapus filter lokasi {x}", { x: location })}
-        onPress={onClearLocation}
-      />
-    </View>
-  ) : null
-
-  /** A-06: chip `?search=` kini bisa dihapus, bukan mengunci feed selamanya.
-      FE-082: tanpa awalan "Cari:" — cukup nilai pencariannya. */
-  const searchChip = activeSearch ? (
-    <View className="mt-3 flex-row items-center justify-between gap-2 rounded-full border border-border bg-surface py-1.5 pl-4 pr-1.5 mx-5">
-      <Text variant="caption" tone="secondary" className="flex-1" numberOfLines={1}>
-        {activeSearch}
-      </Text>
-      <IconButton
-        icon={X}
-        variant="ghost"
-        size="sm"
-        accessibilityLabel={translate("Hapus pencarian {x}", { x: activeSearch })}
-        onPress={() => router.setParams({ search: undefined })}
-      />
-    </View>
-  ) : null
-
-  /** DC-012: label rentang harga aktif untuk chip. */
-  const sheetFilterChip = !isDefaultShowcaseFilters(sheetFilters) ? (
-    <View className="mt-3 flex-row items-center justify-between gap-2 rounded-full border border-border bg-surface py-1.5 pl-4 pr-1.5 mx-5">
-      <Text variant="caption" tone="secondary" className="flex-1" numberOfLines={1}>
-        {describeSheetFilters(sheetFilters)}
-      </Text>
-      <IconButton
-        icon={X}
-        variant="ghost"
-        size="sm"
-        accessibilityLabel={translate("Hapus semua filter")}
-        onPress={() => setSheetFilters(DEFAULT_SHOWCASE_FILTERS)}
-      />
-    </View>
-  ) : null
-
-  /**
-   * C15 (batch 139): aksi "Atur ulang" SELALU terlihat selama ada filter
-   * aktif — satu ketuk menghapus search + kategori + lokasi + filter sheet.
-   * (Chip individual di atas tetap ada untuk hapus satu per satu.)
-   * FE-082: teks "{x} filter aktif" dihapus — badge angka di ikon funnel
-   * sudah memberi tahu jumlahnya; baris ini tinggal tombol reset.
-   */
-  const resetAllChip = filtersActive ? (
-    <View className="mx-5 mt-3 flex-row items-center justify-end">
-      <Button
-        fullWidth={false}
-        variant="ghost"
-        size="sm"
-        onPress={resetAllFilters}
-        accessibilityLabel={translate("Atur ulang semua filter")}
-      >
-        {translate("Atur ulang")}
-      </Button>
-    </View>
-  ) : null
-
-  // PERF-FIX (TIM1-P1): header list di-memo — didefinisikan setelah semua chip.
-  const listHeader = useMemo(
-    () =>
-      searchChip || categoryChip || locationChip || followingPartialNotice || resetAllChip ? (
-        <View>{searchChip}{categoryChip}{locationChip}{sheetFilterChip}{resetAllChip}{followingPartialNotice}</View>
-      ) : undefined,
-    [searchChip, categoryChip, locationChip, sheetFilterChip, resetAllChip, followingPartialNotice],
-  )
+  const sheetFilterLabel = isDefaultShowcaseFilters(sheetFilters) ? "" : describeSheetFilters(sheetFilters)
+  const clearSearchParam = useCallback(() => router.setParams({ search: undefined }), [])
+  const clearSheetFilters = useCallback(() => setSheetFilters(DEFAULT_SHOWCASE_FILTERS), [])
+  const listHeader = useMemo(() => {
+    /** A-06: chip `?search=` kini bisa dihapus, bukan mengunci feed selamanya.
+        FE-082: tanpa awalan "Cari:" — cukup nilai pencariannya. */
+    const searchChip = activeSearch ? (
+      <View className="mt-3 flex-row items-center justify-between gap-2 rounded-full border border-border bg-surface py-1.5 pl-4 pr-1.5 mx-5">
+        <Text variant="caption" tone="secondary" className="flex-1" numberOfLines={1}>
+          {activeSearch}
+        </Text>
+        <IconButton
+          icon={X}
+          variant="ghost"
+          size="sm"
+          accessibilityLabel={translate("Hapus pencarian {x}", { x: activeSearch })}
+          onPress={clearSearchParam}
+        />
+      </View>
+    ) : null
+    /** A-06: chip filter aktif di atas list (scroll ikut konten).
+        FE-082: chip hanya berisi nilainya ("Elektronik") tanpa awalan
+        "Kategori:" — konteksnya sudah jelas dari ikon funnel + tombol
+        "Atur ulang". */
+    const categoryChip = category ? (
+      <View className="mt-3 flex-row items-center justify-between gap-2 rounded-full border border-border bg-surface py-1.5 pl-4 pr-1.5 mx-5">
+        <Text variant="caption" tone="secondary" className="flex-1" numberOfLines={1}>
+          {category}
+        </Text>
+        <IconButton
+          icon={X}
+          variant="ghost"
+          size="sm"
+          accessibilityLabel={translate("Hapus filter kategori {x}", { x: category })}
+          onPress={onClearCategory}
+        />
+      </View>
+    ) : null
+    /** Chip `?location=` — pola sama dengan chip kategori (A-06/A-12).
+        FE-082: tanpa awalan "Lokasi:". */
+    const locationChip = location ? (
+      <View className="mt-3 flex-row items-center justify-between gap-2 rounded-full border border-border bg-surface py-1.5 pl-4 pr-1.5 mx-5">
+        <Text variant="caption" tone="secondary" className="flex-1" numberOfLines={1}>
+          {location}
+        </Text>
+        <IconButton
+          icon={X}
+          variant="ghost"
+          size="sm"
+          accessibilityLabel={translate("Hapus filter lokasi {x}", { x: location })}
+          onPress={onClearLocation}
+        />
+      </View>
+    ) : null
+    /** DC-012: label filter sheet aktif (kondisi · rating · jenis · harga). */
+    const sheetFilterChip = sheetFilterLabel ? (
+      <View className="mt-3 flex-row items-center justify-between gap-2 rounded-full border border-border bg-surface py-1.5 pl-4 pr-1.5 mx-5">
+        <Text variant="caption" tone="secondary" className="flex-1" numberOfLines={1}>
+          {sheetFilterLabel}
+        </Text>
+        <IconButton
+          icon={X}
+          variant="ghost"
+          size="sm"
+          accessibilityLabel={translate("Hapus semua filter")}
+          onPress={clearSheetFilters}
+        />
+      </View>
+    ) : null
+    /**
+     * C15 (batch 139): aksi "Atur ulang" SELALU terlihat selama ada filter
+     * aktif — satu ketuk menghapus search + kategori + lokasi + filter sheet.
+     * (Chip individual di atas tetap ada untuk hapus satu per satu.)
+     * FE-082: teks "{x} filter aktif" dihapus — badge angka di ikon funnel
+     * sudah memberi tahu jumlahnya; baris ini tinggal tombol reset.
+     */
+    const resetAllChip = filtersActive ? (
+      <View className="mx-5 mt-3 flex-row items-center justify-end">
+        <Button
+          fullWidth={false}
+          variant="ghost"
+          size="sm"
+          onPress={resetAllFilters}
+          accessibilityLabel={translate("Atur ulang semua filter")}
+        >
+          {translate("Atur ulang")}
+        </Button>
+      </View>
+    ) : null
+    /**
+     * F-05: tab "Mengikuti" memakai filter sisi klien (plafon
+     * FOLLOWING_MAX_PAGES). Bila hasil terpotong, katakan apa adanya — jangan
+     * biarkan pengguna mengira sudah melihat semua karya akun yang diikuti.
+     * Usulan jangka panjang tetap: `GET /showcase/feed?following=true`.
+     */
+    const followingPartialNotice =
+      kind === "following" && followingPartial ? (
+        <View className="mx-5 mt-3 rounded-md border border-border bg-surface px-3 py-2">
+          <Text variant="caption" tone="secondary">
+            {translate("Sebagian etalase belum dapat dimuat. Tarik untuk menyegarkan.")}
+          </Text>
+        </View>
+      ) : null
+    return searchChip || categoryChip || locationChip || sheetFilterChip || followingPartialNotice || resetAllChip ? (
+      <View>{searchChip}{categoryChip}{locationChip}{sheetFilterChip}{resetAllChip}{followingPartialNotice}</View>
+    ) : undefined
+  }, [
+    activeSearch,
+    category,
+    location,
+    sheetFilterLabel,
+    filtersActive,
+    kind,
+    followingPartial,
+    language,
+    clearSearchParam,
+    clearSheetFilters,
+    onClearCategory,
+    onClearLocation,
+    resetAllFilters,
+  ])
 
   return (
     <View className="flex-1">

@@ -98,9 +98,9 @@ export function getSearchEmptyStateCopy(scope: SearchScopeKey): {
     case "transactions":
       return {
         title: translate("Tidak ada mutasi ditemukan"),
-        description: translate(
-          "Coba nominal, keterangan, atau ID transaksi yang berbeda.",
-        ),
+        // S-59 (audit Search 2026-10-10, batch 2): backend hanya mencocokkan
+        // keterangan & ID transaksi — "nominal" dijanjikan padahal tidak dicari.
+        description: translate("Coba keterangan atau ID transaksi yang berbeda."),
       }
     case "chats":
       return {
