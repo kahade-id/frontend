@@ -23,7 +23,8 @@ import { useLanguage } from "@/lib/i18n"
 import { api, isApiError, userMessage } from "@/lib/api"
 import { API_CONSTRAINTS } from "@/lib/api/constraints"
 import type { ShowcaseImage, ShowcaseItem } from "@/lib/api/users"
-import { buildMediaReplacePayload } from "@/lib/showcase-media-replace"
+import { buildShowcaseUpdatePayload, visibilityFromRaw, type ShowcaseVisibilityMeta } from "@/lib/showcase-edit-payload"
+import { withActive, withItemAt, withoutItem } from "@/lib/showcase-optimistic-list"
 import {
   buildCommercePatch,
   commerceFormFromFields,
@@ -191,29 +192,6 @@ function labelOf(it: ShowcaseItem): string {
   return it.title ?? it.caption ?? untitledShowcaseTitle()
 }
 
-/** Explicit zero is a valid price; null means no draft price. */
-function formToPayload(form: FormState) {
-  /*
-   * Harga minimum TANPA maksimum = HARGA PASTI (2026-09-26): penjual yang
-   * menetapkan satu harga hanya mengisi kolom pertama, dan menyimpannya apa
-   * adanya membuat kartu etalase menampilkan "Mulai Rp 100.000" seolah itu
-   * sekadar batas bawah. Lihat lib/showcase-labels.ts.
-   */
-  const priceMin = form.priceMin ?? undefined
-  const priceMax = form.priceMax ?? (form.priceMin != null ? form.priceMin : undefined)
-  return {
-    description: form.description.trim(),
-    priceMin,
-    priceMax,
-    category: form.category.trim().replace(/\s+/g, " "),
-    visibility: form.isPublic ? ("PUBLIC" as const) : ("PRIVATE" as const),
-    // Item 53: hanya kirim bila dipilih — backend opsional & case-insensitive.
-    ...(form.condition === "BARU" || form.condition === "BEKAS"
-      ? { condition: form.condition }
-      : null),
-  }
-}
-
 /** Kategori/visibilitas/kondisi dari respons mentah (ShowcaseItem belum mengetiknya). */
 function rawMeta(it: ShowcaseItem): { category: string; isPublic: boolean; condition: "" | "BARU" | "BEKAS" } {
   const raw = it as ShowcaseItem & {
@@ -224,9 +202,10 @@ function rawMeta(it: ShowcaseItem): { category: string; isPublic: boolean; condi
   return {
     category: typeof raw.category === "string" ? raw.category : "",
     // SH-F-011 (audit 2026-09-27): fail-CLOSED — nilai asing (bukan "PUBLIC")
-    // diperlakukan sebagai privat, bukan publik. Sebelumnya `!== "PRIVATE"`
-    // membuat "FOLLOWERS"/"UNLISTED" masa depan tampil sebagai publik.
-    isPublic: raw.visibility === "PUBLIC",
+    // diperlakukan sebagai privat, bukan publik. CR-08 (audit etalase
+    // 2026-10-10): nilai absen/asing TIDAK ditulis balik ke server saat simpan
+    // (lihat `visibilityFromRaw` + `buildShowcaseUpdatePayload`).
+    isPublic: visibilityFromRaw(raw.visibility).isPublic,
     // Item 53: fail-closed — hanya "BARU"/"BEKAS" (case-insensitive, backend
     // juga mentransformasi begitu) yang diisi ke form; sisanya "" (= tak dipilih).
     condition:
@@ -376,6 +355,8 @@ function ShowcaseManagement() {
   const mounted = useRef(true)
   const [discardOpen, setDiscardOpen] = useState(false)
   const initialForm = useRef(EMPTY_FORM)
+  /** CR-08: apakah `visibility` item diketahui dari server saat editor dibuka. */
+  const initialVisibility = useRef<ShowcaseVisibilityMeta>({ isPublic: true, known: false })
   useEffect(() => {
     mounted.current = true
     return () => {
@@ -423,6 +404,7 @@ function ShowcaseManagement() {
       ...rawMeta(item),
     }
     initialForm.current = nextForm
+    initialVisibility.current = visibilityFromRaw((item as { visibility?: unknown }).visibility)
     setForm(nextForm)
     clearFormErrors()
     // CR-01 (audit etalase 2026-10-10): prefill commerce dari respons server
@@ -535,17 +517,20 @@ function ShowcaseManagement() {
     }
     saveBusy.current = true
     setSaving(true)
-    const payload = { title, ...formToPayload(form) }
-    // Benefit 7 Kahade+: deskripsi HTML disanitasi allowlist SEBELUM dikirim —
-    // jangan pernah mengirim HTML mentah ketikan user ke backend.
-    if (isPlusActive) payload.description = sanitizeShowcaseHtml(payload.description)
-    // Batch 43 (item 15): replace media existing via PUT penuh memakai fileKey
-    // owner-only. Return null bila tidak mungkin (video/spin360 tanpa
-    // fileKey lengkap) → detail disimpan tanpa menyentuh media.
-    const media = buildMediaReplacePayload(editor.item.images ?? [])
-    const savePayload = media ? { ...payload, media } : payload
+    // CR-07 (audit etalase 2026-10-10): editor detail TIDAK mengirim `media[]`
+    // — PUT media = REPLACE penuh dari snapshot saat sheet dibuka: foto yang
+    // ditambah dari perangkat lain terhapus saat menyimpan judul, dan fileKey
+    // divalidasi ulang tiap simpan (UPLOAD_NOT_CONFIRMED → dua request).
+    // Media dikelola di sheet "Kelola foto" (attach/delete/reorder).
+    // Benefit 7 Kahade+: deskripsi HTML disanitasi allowlist SEBELUM dikirim.
+    const payload = buildShowcaseUpdatePayload({
+      title,
+      form,
+      initialVisibility: initialVisibility.current,
+      sanitizeDescription: isPlusActive ? sanitizeShowcaseHtml : undefined,
+    })
     try {
-      await api.users.updateShowcase(editor.item.id, savePayload)
+      await api.users.updateShowcase(editor.item.id, payload)
       if (!mounted.current || revision !== getSessionRevision()) return
       // Batch 43: PATCH commerce (best-effort; detail sudah tersimpan).
       // CR-01: hanya field yang DIUBAH pengguna — tanpa PATCH sama sekali bila
@@ -577,29 +562,6 @@ function ShowcaseManagement() {
       await query.refresh()
     } catch (err) {
       if (!mounted.current || revision !== getSessionRevision()) return
-      // Kontrak server: fileKey existing bisa ditolak (UPLOAD_NOT_CONFIRMED,
-      // konfirmasi one-time) — fallback simpan detail TANPA media supaya
-      // edit detail tidak ikut gagal.
-      if (media && isApiError(err) && err.backendCode === "UPLOAD_NOT_CONFIRMED") {
-        try {
-          await api.users.updateShowcase(editor.item.id, payload)
-          if (mounted.current && revision === getSessionRevision()) {
-            toast.show({
-              title: translate("Detail diperbarui"),
-              description: translate("Media tidak ikut tersimpan (server menolak fileKey lama) — ubah media lewat Kelola Foto."),
-              tone: "warning",
-              duration: 5000,
-            })
-            setEditor(null)
-            touchFeed()
-            await query.refresh()
-          }
-          return
-        } catch (retryErr) {
-          toast.show({ title: translate("Gagal menyimpan"), description: userMessage(retryErr), tone: "danger" })
-          return
-        }
-      }
       toast.show({ title: translate("Gagal menyimpan"), description: userMessage(err), tone: "danger" })
     } finally {
       saveBusy.current = false
@@ -613,7 +575,12 @@ function ShowcaseManagement() {
       const task = mutations.begin()
       if (!task) return
       setToggling(true)
-      const next = !(item.isActive ?? true)
+      const previous = item.isActive ?? true
+      const next = !previous
+      // UX-11 (audit etalase 2026-10-10): OPTIMISTIS — menu tutup & kartu
+      // langsung mencerminkan status baru; server menolak → kembalikan.
+      setMenuItem(null)
+      query.setData((current) => withActive(current ?? [], item.id, next))
       try {
         await api.users.updateShowcase(item.id, { isActive: next })
         if (!task.valid()) return
@@ -622,11 +589,11 @@ function ShowcaseManagement() {
           tone: "success",
           duration: 2500,
         })
-        setMenuItem(null)
         touchFeed()
-        await query.refresh()
+        void query.refresh()
       } catch (err) {
-      if (!task.valid()) return
+        if (!task.valid()) return
+        query.setData((current) => withActive(current ?? [], item.id, previous))
         toast.show({
           title: translate("Gagal mengubah visibilitas"),
           description: userMessage(err),
@@ -640,41 +607,15 @@ function ShowcaseManagement() {
     [toggling, toast, query, touchFeed, mutations],
   )
 
-  const handleDelete = useCallback(async () => {
-    if (!deleteTarget) return
-    const task = mutations.begin()
-    if (!task) return
-    setDeleting(true)
-    const target = deleteTarget
-    try {
-      await api.users.deleteShowcase(target.id)
-      if (!task.valid()) return
-      // Soft-delete: catat lokal agar bisa dipulihkan dalam 30 hari.
-      await markShowcaseDeleted({
-        id: target.id,
-        title: target.title?.trim() || untitledShowcaseTitle(),
-        deletedAt: new Date().toISOString(),
-        coverUrl: showcaseCoverOf(target) ?? undefined,
-      })
-      toast.show({ title: translate("Etalase dihapus. Dapat dipulihkan dalam 30 hari."), tone: "success", duration: 3000 })
-      setDeleteTarget(null)
-      touchFeed()
-      await query.refresh()
-      await refreshDeleted()
-    } catch (err) {
-      if (!task.valid()) return
-      toast.show({ title: translate("Gagal menghapus"), description: userMessage(err), tone: "danger" })
-    } finally {
-      task.finish()
-      if (task.valid()) setDeleting(false)
-    }
-  }, [deleteTarget, toast, query, touchFeed, mutations, refreshDeleted])
-
   /** Pulihkan karya yang di-soft-delete. */
   const handleRestore = useCallback(
     async (item: RecoverableShowcaseItem) => {
       if (restoringId) return
       setRestoringId(item.id)
+      // UX-11: baris "Baru dihapus" hilang seketika; gagal → kembali ke posisinya.
+      const removed = withoutItem(deletedItems, item.id)
+      setDeletedItems(removed.next)
+      const rollback = () => setDeletedItems((current) => withItemAt(current, item, removed.index))
       try {
         await api.users.restoreShowcaseItem(item.id)
         await unmarkShowcaseDeleted(item.id)
@@ -706,13 +647,63 @@ function ShowcaseManagement() {
           })
           return
         }
+        rollback()
         toast.show({ title: translate("Gagal memulihkan"), description: userMessage(err), tone: "danger" })
       } finally {
         setRestoringId(null)
       }
     },
-    [restoringId, toast, query, touchFeed, refreshDeleted],
+    [restoringId, deletedItems, toast, query, touchFeed, refreshDeleted],
   )
+  // Aksi "Urungkan" di toast hapus berjalan lama setelah closure-nya dibuat —
+  // selalu pakai handleRestore TERKINI (daftar "Baru dihapus" sudah berubah).
+  const handleRestoreRef = useRef(handleRestore)
+  useEffect(() => {
+    handleRestoreRef.current = handleRestore
+  }, [handleRestore])
+
+  const handleDelete = useCallback(async () => {
+    if (!deleteTarget) return
+    const task = mutations.begin()
+    if (!task) return
+    setDeleting(true)
+    const target = deleteTarget
+    // UX-11: OPTIMISTIS — dialog tutup & kartu hilang seketika (di 2G dulu
+    // spinner dialog 5–20 dtk); server menolak → kartu kembali ke posisinya.
+    setDeleteTarget(null)
+    const removed = withoutItem(items, target.id)
+    query.setData(removed.next)
+    try {
+      await api.users.deleteShowcase(target.id)
+      if (!task.valid()) return
+      // Soft-delete: catat lokal agar bisa dipulihkan dalam 30 hari.
+      const deletedAt = new Date().toISOString()
+      const recoverable: RecoverableShowcaseItem = {
+        id: target.id,
+        title: target.title?.trim() || untitledShowcaseTitle(),
+        deletedAt,
+        coverUrl: showcaseCoverOf(target) ?? undefined,
+      }
+      await markShowcaseDeleted({ id: recoverable.id, title: recoverable.title, deletedAt, coverUrl: recoverable.coverUrl })
+      toast.show({
+        title: translate("Etalase dihapus. Dapat dipulihkan dalam 30 hari."),
+        tone: "success",
+        duration: 5000,
+        // UX-11: Urungkan satu ketuk — memakai jalur pulihkan yang sama.
+        action: { label: translate("Urungkan"), onPress: () => void handleRestoreRef.current(recoverable) },
+      })
+      touchFeed()
+      void query.refresh()
+      await refreshDeleted()
+    } catch (err) {
+      if (!task.valid()) return
+      query.setData((current) => withItemAt(current ?? [], target, removed.index))
+      toast.show({ title: translate("Gagal menghapus"), description: userMessage(err), tone: "danger" })
+    } finally {
+      task.finish()
+      if (task.valid()) setDeleting(false)
+    }
+  }, [deleteTarget, items, toast, query, touchFeed, mutations, refreshDeleted])
 
   /**
    * Lampirkan foto tambahan — MULTI-PICK (D-11): pilih beberapa sekaligus,
@@ -928,7 +919,11 @@ function ShowcaseManagement() {
 
   /** Commit draft urutan (dipanggil saat sheet ditutup). */
   const closeImagesSheet = useCallback(async () => {
-    if (committingOrder || attaching || deletingImage || uploadBusy.current) return
+    if (committingOrder || attaching || deletingImage || uploadBusy.current) {
+      // UX-12 (audit etalase 2026-10-10): dulu diam total saat sibuk — terasa macet.
+      toast.show({ title: translate("Tunggu unggahan selesai…"), tone: "info" })
+      return
+    }
     const itemId = imagesItemId
     const server = (imagesItem?.images ?? []).map((image) => image.id)
     if (!itemId) return
@@ -950,8 +945,20 @@ function ShowcaseManagement() {
       toast.show({ title: translate("Urutan foto disimpan"), tone: "success" })
     } catch (error) {
       if (!task.valid()) return
-      toast.show({ title: translate("Gagal mengubah urutan foto"), description: userMessage(error), tone: "danger" })
-      // Keep the sheet and draft open; closing again retries the same order.
+      // UX-12: sheet & draft tetap terbuka (tutup lagi = coba lagi urutan yang
+      // sama), tetapi pengguna punya jalan keluar: buang urutan lalu tutup.
+      toast.show({
+        title: translate("Gagal mengubah urutan foto"),
+        description: userMessage(error),
+        tone: "danger",
+        action: {
+          label: translate("Buang urutan"),
+          onPress: () => {
+            setOrderDraft(null)
+            setImagesItemId(null)
+          },
+        },
+      })
     } finally {
       task.finish()
       if (task.valid()) setCommittingOrder(false)
@@ -1516,17 +1523,25 @@ function ShowcaseManagement() {
         title={translate("Ubah detail")}
         description={translate("Judul, kategori, dan rentang harga membantu calon pembeli memahami penawaran Anda.")}
         footer={
-          <View className="gap-2">
-            {/* C11 (batch 139): pratinjau kartu feed dari draft sebelum simpan. */}
-            <Button variant="secondary" disabled={saving} onPress={() => setEditorPreviewVisible(true)} fullWidth>
-              {translate("Pratinjau")}
-            </Button>
-            <Button variant="primary" loading={saving} onPress={() => void handleSave()} fullWidth>
-              {translate("Simpan")}
-            </Button>
-            <Button variant="ghost" disabled={saving} onPress={requestCloseEditor} fullWidth>
-              {translate("Batal")}
-            </Button>
+          /* UX-19 (audit etalase 2026-10-10): SATU baris seperti footer layar
+             buat — ikon pratinjau (C11) + CTA simpan. Dulu tiga tombol penuh
+             bertumpuk (~160px) menutup sepertiga layar kecil; "Batal" dibuang
+             karena duplikat X header (keduanya `requestCloseEditor`). */
+          <View className="flex-row items-center gap-3">
+            <IconButton
+              icon={Eye}
+              variant="secondary"
+              size="md"
+              accessibilityLabel={translate("Pratinjau")}
+              accessibilityHint={translate("Lihat kartu etalase seperti yang akan tampil di feed")}
+              disabled={saving}
+              onPress={() => setEditorPreviewVisible(true)}
+            />
+            <View className="min-w-0 flex-1">
+              <Button variant="primary" fullWidth loading={saving} onPress={() => void handleSave()}>
+                {translate("Simpan")}
+              </Button>
+            </View>
           </View>
         }
       >

@@ -31,6 +31,7 @@ import { Icon } from "@/components/ui/icon"
 import { Input } from "@/components/ui/input"
 import { IconButton } from "@/components/ui/icon-button"
 import { NumberStepper } from "@/components/ui/number-stepper"
+import { Skeleton, SkeletonGroup } from "@/components/ui/skeleton"
 import { Text } from "@/components/ui/text"
 import { TimePickerSheet } from "@/components/ui/time-picker-sheet"
 
@@ -161,7 +162,18 @@ export function ServiceSlotManagerSheet({
       >
         <View className="gap-2">
           {loading ? (
-            <Text variant="caption" tone="secondary">{translate("Memuat…")}</Text>
+            // UX-16 (audit etalase 2026-10-10): shimmer, bukan teks "Memuat…".
+            <SkeletonGroup>
+              <View
+                className="gap-2"
+                accessibilityRole="progressbar"
+                accessibilityLabel={translate("Memuat jadwal jasa")}
+              >
+                {[0, 1, 2].map((i) => (
+                  <Skeleton key={i} shape="card" height={72} className="w-full" />
+                ))}
+              </View>
+            </SkeletonGroup>
           ) : slots.length === 0 ? (
             <Text variant="caption" tone="secondary">
               {translate("Belum ada slot. Tambahkan jadwal ketersediaan agar pembeli bisa booking.")}

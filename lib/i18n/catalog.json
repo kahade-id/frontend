@@ -4,7 +4,7 @@
  "strings": [
   {
    "s": "Batal",
-   "n": 157
+   "n": 155
   },
   {
    "s": "Hapus",
@@ -163,10 +163,6 @@
    "n": 12
   },
   {
-   "s": "Gagal menyimpan",
-   "n": 12
-  },
-  {
    "s": "Maksimal {x} digit; nilai negatif ditolak.",
    "n": 12
   },
@@ -203,10 +199,6 @@
    "n": 11
   },
   {
-   "s": "Memuat…",
-   "n": 11
-  },
-  {
    "s": "Mengikuti",
    "n": 11
   },
@@ -239,6 +231,10 @@
    "n": 10
   },
   {
+   "s": "Gagal menyimpan",
+   "n": 10
+  },
+  {
    "s": "Mengirim…",
    "n": 10
   },
@@ -260,6 +256,10 @@
   },
   {
    "s": "Tujuan:",
+   "n": 10
+  },
+  {
+   "s": "Tunggu unggahan selesai…",
    "n": 10
   },
   {
@@ -316,6 +316,10 @@
   },
   {
    "s": "Komentar dihapus",
+   "n": 9
+  },
+  {
+   "s": "Memuat…",
    "n": 9
   },
   {
@@ -411,15 +415,15 @@
    "n": 8
   },
   {
+   "s": "Pratinjau",
+   "n": 8
+  },
+  {
    "s": "Semua",
    "n": 8
   },
   {
    "s": "Siapa yang bisa melihat",
-   "n": 8
-  },
-  {
-   "s": "Tunggu unggahan selesai…",
    "n": 8
   },
   {
@@ -500,10 +504,6 @@
   },
   {
    "s": "Pilih",
-   "n": 7
-  },
-  {
-   "s": "Pratinjau",
    "n": 7
   },
   {
@@ -640,10 +640,6 @@
   },
   {
    "s": "Dari {x}",
-   "n": 6
-  },
-  {
-   "s": "Detail diperbarui",
    "n": 6
   },
   {
@@ -799,6 +795,10 @@
    "n": 6
   },
   {
+   "s": "Lihat kartu etalase seperti yang akan tampil di feed",
+   "n": 6
+  },
+  {
    "s": "Logo {x}",
    "n": 6
   },
@@ -808,6 +808,10 @@
   },
   {
    "s": "Memuat etalase",
+   "n": 6
+  },
+  {
+   "s": "Memuat jadwal jasa",
    "n": 6
   },
   {
@@ -1487,6 +1491,10 @@
    "n": 4
   },
   {
+   "s": "Detail diperbarui",
+   "n": 4
+  },
+  {
    "s": "Diskon",
    "n": 4
   },
@@ -1976,6 +1984,10 @@
   },
   {
    "s": "Umum",
+   "n": 4
+  },
+  {
+   "s": "Urungkan",
    "n": 4
   },
   {
@@ -3775,10 +3787,6 @@
    "n": 3
   },
   {
-   "s": "Lihat kartu etalase seperti yang akan tampil di feed",
-   "n": 3
-  },
-  {
    "s": "Lihat kategori {x}",
    "n": 3
   },
@@ -3968,10 +3976,6 @@
   },
   {
    "s": "Memuat distribusi ulasan",
-   "n": 3
-  },
-  {
-   "s": "Memuat jadwal jasa",
    "n": 3
   },
   {
@@ -6067,6 +6071,10 @@
    "n": 2
   },
   {
+   "s": "Buang urutan",
+   "n": 2
+  },
+  {
    "s": "Buat jadwal",
    "n": 2
   },
@@ -6484,10 +6492,6 @@
   },
   {
    "s": "Draf",
-   "n": 2
-  },
-  {
-   "s": "Draf privat tetap tersimpan di etalase Anda dan bisa diterbitkan kapan saja.",
    "n": 2
   },
   {
@@ -7155,10 +7159,6 @@
    "n": 2
   },
   {
-   "s": "Karya langsung tampil di feed Etalase dan profil publik Anda.",
-   "n": 2
-  },
-  {
    "s": "Kata sandi belum sama",
    "n": 2
   },
@@ -7424,6 +7424,10 @@
   },
   {
    "s": "Kondisi barang (opsional)",
+   "n": 2
+  },
+  {
+   "s": "Koneksi lambat, coba lagi.",
    "n": 2
   },
   {
@@ -7804,10 +7808,6 @@
   },
   {
    "s": "Media tidak bisa dibuka",
-   "n": 2
-  },
-  {
-   "s": "Media tidak ikut tersimpan (server menolak fileKey lama) — ubah media lewat Kelola Foto.",
    "n": 2
   },
   {
@@ -9615,10 +9615,6 @@
    "n": 2
   },
   {
-   "s": "Ukuran video tidak dapat dibaca. Pilih ulang video tersebut.",
-   "n": 2
-  },
-  {
    "s": "Ulasan dihapus",
    "n": 2
   },
@@ -9644,10 +9640,6 @@
   },
   {
    "s": "Untuk jasa/digital, resi opsional — pembeli akan diminta memeriksa hasil.",
-   "n": 2
-  },
-  {
-   "s": "Urungkan",
    "n": 2
   },
   {
@@ -17167,10 +17159,6 @@
    "n": 1
   },
   {
-   "s": "Koneksi lambat, coba lagi.",
-   "n": 1
-  },
-  {
    "s": "Koneksi terputus di tengah pemeriksaan server — periksa daftar transaksi sebelum mengirim ulang.",
    "n": 1
   },
@@ -17180,6 +17168,10 @@
   },
   {
    "s": "Koneksi terputus saat mengirim berkas. Periksa jaringan lalu coba lagi.",
+   "n": 1
+  },
+  {
+   "s": "Koneksi terputus. Periksa jaringan lalu coba lagi.",
    "n": 1
   },
   {
@@ -21399,10 +21391,6 @@
    "n": 1
   },
   {
-   "s": "Server terlalu lama merespons. Coba lagi sebentar.",
-   "n": 1
-  },
-  {
    "s": "Sesi Anda telah berakhir. Silakan masuk kembali untuk melanjutkan.",
    "n": 1
   },
@@ -22916,6 +22904,10 @@
   },
   {
    "s": "Ukuran video melebihi batas maksimal {x} MB. Maksimal {x} MB / {x} detik.",
+   "n": 1
+  },
+  {
+   "s": "Ukuran video tidak dapat dibaca. Pilih ulang video tersebut.",
    "n": 1
   },
   {

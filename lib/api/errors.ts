@@ -488,12 +488,27 @@ export function codeFromStatus(status: number, hasValidationMessages: boolean): 
 }
 
 /**
+ * CR-10: copy transport yang dipilih pemanggil berdasarkan NetInfo — disimpan
+ * sebagai object literal agar terkatalog i18n (scripts/gen-i18n-catalog.mjs
+ * hanya memindai nilai object di lib/).
+ */
+export const NETWORK_COPY = {
+  /** Perangkat TERVERIFIKASI offline saat request gagal. */
+  offline: "Tidak ada koneksi internet. Periksa jaringan lalu coba lagi.",
+}
+
+/**
  * Copy default Bahasa Indonesia per kode — dipakai bila backend tidak memberi
  * `message` yang layak tampil. Screen boleh override per konteks.
  */
 export const DEFAULT_ERROR_MESSAGES: Record<ApiErrorCode, string> = {
-  NETWORK: "Tidak ada koneksi internet. Periksa jaringan lalu coba lagi.",
-  TIMEOUT: "Server terlalu lama merespons. Coba lagi sebentar.",
+  // CR-10 (audit etalase 2026-10-10): NETWORK = transport gagal di TENGAH
+  // request — perangkat bisa saja online (socket reset, Wi-Fi berpindah).
+  // "Tidak ada koneksi internet" hanya bila NetInfo memverifikasi offline
+  // (lihat NETWORK_COPY.offline, dipilih di lib/api/client.ts).
+  NETWORK: "Koneksi terputus. Periksa jaringan lalu coba lagi.",
+  // CLAUDE.md: timeout = koneksi pengirim lambat, bukan "server lama".
+  TIMEOUT: "Koneksi lambat, coba lagi.",
   ABORTED: "Permintaan dibatalkan.",
   BAD_REQUEST: "Permintaan tidak valid.",
   VALIDATION: "Ada data yang belum benar. Periksa kembali isian Anda.",
@@ -627,6 +642,12 @@ export function userMessage(err: unknown): string {
       err.code === "SERVER" ||
       err.code === "PARSE"
     ) {
+      // CR-10: NETWORK/TIMEOUT selalu dibuat klien dengan copy yang sudah
+      // membedakan offline terverifikasi / koneksi putus / lambat — hormati.
+      // SERVER/PARSE tetap default (wording backend teknis).
+      if ((err.code === "NETWORK" || err.code === "TIMEOUT") && err.clientMessage && err.message) {
+        return err.message
+      }
       return DEFAULT_ERROR_MESSAGES[err.code]
     }
     // CPY-012/ERR-002: pesan backend (bahasa tidak terjamin — bisa Inggris)
