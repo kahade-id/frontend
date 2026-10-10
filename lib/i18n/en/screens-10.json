@@ -1105,5 +1105,8 @@
   "Etalase ini sedang tidak aktif, jadi belum bisa dibeli.": "This showcase is inactive, so it can't be bought yet.",
   "Bayar lewat Kahade — dana diteruskan ke penjual setelah Anda konfirmasi terima.": "Pay through Kahade — the money is passed on to the seller once you confirm receipt.",
   "Pengamanan Dana": "Fund Protection",
-  "Dana disimpan aman oleh Kahade, baru diteruskan ke penjual setelah Anda konfirmasi terima.": "Funds are kept safe by Kahade and only forwarded to the seller after you confirm receipt."
+  "Dana disimpan aman oleh Kahade, baru diteruskan ke penjual setelah Anda konfirmasi terima.": "Funds are kept safe by Kahade and only forwarded to the seller after you confirm receipt.",
+  "Telepon": "Phone",
+  "Dikonfirmasi": "Confirmed",
+  "Dikonfirmasi otomatis": "Auto-confirmed"
 }

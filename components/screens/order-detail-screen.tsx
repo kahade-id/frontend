@@ -111,6 +111,7 @@ import { InstallmentOfferSection } from "@/components/order-installment-offer"
 import { OrderAgreementSection } from "@/components/order-agreement-section"
 import { DigitalAssetsBuyerSection } from "@/components/showcase/digital-asset-section"
 import { ShippingInfoCard } from "@/components/ui/shipping-info-card"
+import { ShippingAddressCard } from "@/components/ui/shipping-address-card"
 import { ReceiptTicket } from "@/components/receipt/ReceiptTicket"
 import { shareReceipt } from "@/components/receipt/shareReceipt"
 import { useReceiptQr } from "@/components/receipt/use-receipt-qr"
@@ -1428,6 +1429,22 @@ export default function OrderDetailScreen() {
                     }
                   : null
               }
+              onCopy={(v) => void copy(v)}
+              copied={copied}
+            />
+          ) : null}
+
+          {/* K9 (audit transaksi 2026-10-10): alamat tujuan kirim — snapshot
+              dari backend, khusus barang fisik. Penjual butuh ini untuk
+              mengirim; pembeli untuk memastikan alamat yang dipakai benar. */}
+          {shippingRequired && order.shippingAddress ? (
+            <ShippingAddressCard
+              address={order.shippingAddress}
+              labels={{
+                title: translate("Alamat pengiriman"),
+                recipient: translate("Penerima"),
+                phone: translate("Telepon"),
+              }}
               onCopy={(v) => void copy(v)}
               copied={copied}
             />

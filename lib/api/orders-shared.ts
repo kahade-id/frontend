@@ -379,6 +379,14 @@ export type Order = {
   fee?: FeeBreakdown
   trackingNumber?: string | null
   courierName?: string | null
+  /**
+   * K9 (audit transaksi 2026-10-10): snapshot alamat pengiriman dari
+   * GET /v1/orders/:id (`shippingAddress`, sudah didekripsi server; hanya
+   * barang fisik). Whitelist normalize lama MEMBUANGNYA sehingga penjual
+   * tidak pernah melihat ke mana barang harus dikirim. `null` = order tanpa
+   * alamat (jasa/digital/data lama).
+   */
+  shippingAddress?: OrderShippingAddress | null
   /** A-10: kode voucher order asli — disertakan saat fee dihitung ulang. */
   voucherCode?: string | null
   /** A-03: pembayaran sudah masuk (penanda "WAITING_PAYMENT sudah dibayar"). */
@@ -483,6 +491,38 @@ export function normalizeFeeBreakdown(raw: unknown): FeeBreakdown | undefined {
  *   - A-08: alias lama dipetakan ke enum backend sekali di sini.
  *   - A-10: `voucherCode` disimpan untuk perhitungan fee susulan.
  */
+/** K9: snapshot alamat kirim (semua field nullable — data lama bisa kosong). */
+export type OrderShippingAddress = {
+  id?: string | null
+  recipientName?: string | null
+  phone?: string | null
+  addressLine?: string | null
+  city?: string | null
+  province?: string | null
+  postalCode?: string | null
+}
+
+/** K9: normalisasi toleran `shippingAddress` (camel/snake); null bila tak ada isi. */
+export function normalizeShippingAddress(raw: unknown): OrderShippingAddress | null {
+  if (!raw || typeof raw !== "object") return null
+  const r = raw as Record<string, unknown>
+  const text = (keys: string[]): string | null => {
+    const v = pickString(r, keys)
+    return v && v.trim() ? v.trim() : null
+  }
+  const out: OrderShippingAddress = {
+    id: text(["id", "addressId", "address_id"]),
+    recipientName: text(["recipientName", "recipient_name"]),
+    phone: text(["phone", "phoneNumber", "phone_number"]),
+    addressLine: text(["addressLine", "address_line", "address"]),
+    city: text(["city"]),
+    province: text(["province"]),
+    postalCode: text(["postalCode", "postal_code"]),
+  }
+  const hasContent = [out.recipientName, out.phone, out.addressLine, out.city, out.province, out.postalCode].some(Boolean)
+  return hasContent ? out : null
+}
+
 export function normalizeOrder(raw: Order & Record<string, unknown>): Order {
   const normalizeParty = (value: unknown): OrderParty | undefined => {
     if (!value || typeof value !== "object") return undefined
@@ -546,6 +586,8 @@ export function normalizeOrder(raw: Order & Record<string, unknown>): Order {
     fee: normalizeFeeBreakdown(record.fee ?? record.feeBreakdown ?? record.fee_breakdown),
     trackingNumber: optionalText(record.trackingNumber ?? record.tracking_number),
     courierName: optionalText(record.courierName ?? record.courier_name),
+    // K9: alamat kirim DIPERTAHANKAN (dulu dibuang whitelist).
+    shippingAddress: normalizeShippingAddress(record.shippingAddress ?? record.shipping_address),
     voucherCode: pickString(record, ["voucherCode", "voucher_code", "voucher"]) ?? null,
     paidAt: pickString(record, ["paidAt", "paid_at"]) ?? null,
     // EO-009: completedAt DIPERTAHANKAN (pola sama seperti paidAt) — gate
@@ -810,7 +852,12 @@ export type DeliveryProof = {
    */
   fileUrls: string[]
   linkUrls: string[]
-  status: "SUBMITTED" | "CONFIRMED" | "REJECTED" | (string & {})
+  /**
+   * K11 (audit transaksi 2026-10-10): enum backend `DeliveryProofStatus` =
+   * SUBMITTED | ACCEPTED | REJECTED | AUTO_RELEASED. "CONFIRMED" tidak pernah
+   * dikirim backend — dipertahankan hanya untuk kompatibilitas data lama.
+   */
+  status: "SUBMITTED" | "ACCEPTED" | "AUTO_RELEASED" | "REJECTED" | "CONFIRMED" | (string & {})
   note?: string | null
   createdAt: string
   /**
