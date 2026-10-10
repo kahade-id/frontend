@@ -23,6 +23,7 @@ import { ListItem, type ListItemProps } from "@/components/ui/list-item"
 import { Skeleton } from "@/components/ui/skeleton"
 import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
+import { translate } from "@/lib/i18n/translate"
 
 export type HelpArticleListItemProps = Omit<ListItemProps, "title" | "subtitle" | "leading" | "trailing" | "chevron"> & {
   title: string
@@ -68,7 +69,7 @@ export function HelpArticleListItemSkeleton({ className, ...rest }: Omit<ViewPro
     <View
       accessible
       accessibilityRole="progressbar"
-      accessibilityLabel="Memuat artikel"
+      accessibilityLabel={translate("Memuat artikel")}
       className={cn("w-full flex-row items-center gap-3 py-3", className)}
       {...rest}
     >

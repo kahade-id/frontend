@@ -139,6 +139,18 @@ export default function SupportChatScreen() {
   // ── 1. Buat / ambil percakapan (REST, idempoten) ──────────────────────
   const createConversation = useCallback(() => {
     setPhase("creating")
+    // Audit 2026-10-10: "Mulai chat baru" memakai fungsi ini lagi, tetapi
+    // state thread lama (pesan, agen, antrean, tiket eskalasi) tidak pernah
+    // direset — percakapan baru tampil dengan isi percakapan yang sudah
+    // ditutup. Bersihkan semua state per-percakapan di sini.
+    setConversationId(null)
+    setMessages([])
+    setAgentOnline(false)
+    setAgentName(null)
+    setQueuePosition(null)
+    setTypingName(null)
+    setJoinError(null)
+    setEscalatedTicket(null)
     const controller = new AbortController()
     void createSupportConversation(controller.signal)
       .then((conversation) => {
@@ -541,11 +553,15 @@ export default function SupportChatScreen() {
       </View>
     ) : null
 
+  // Audit 2026-10-10: "offline" ≠ "menghubungkan ulang" — saat perangkat
+  // memang tanpa internet, katakan itu (CLAUDE.md §3: pesan jujur).
   const reconnectBanner =
     phase === "chat" && (connecting || status === "offline") ? (
       <View className="mx-5 mt-3 rounded-md bg-warning-soft px-4 py-2">
         <Text variant="caption" tone="warning" className="text-center">
-          {translate("Menghubungkan ulang…")}
+          {status === "offline"
+            ? translate("Tidak ada koneksi internet")
+            : translate("Menghubungkan ulang…")}
         </Text>
       </View>
     ) : null

@@ -409,14 +409,9 @@ export default function SupportTicketDetailScreen() {
                     maxLength={500}
                     numberOfLines={2}
                   />
-                  {/* UI-M009: aturan "komentar wajib untuk rating 1–2" tidak
-                      terlihat dari label/placeholder — jelaskan eksplisit. */}
-                  {starRating >= 1 && starRating <= 2 && !ratingComment.trim() ? (
-                    <Text variant="caption" tone="warning">
-                      Rating 1–2 bintang membutuhkan komentar agar tim kami bisa
-                      menindaklanjuti.
-                    </Text>
-                  ) : null}
+                  {/* Audit 2026-10-10: aturan "wajib untuk rating 1–2" sudah
+                      ada di helperText + tanda wajib + placeholder — caption
+                      ketiga yang mengulanginya dihapus (§3: satu penjelasan). */}
                   <Button
                     variant="secondary"
                     loading={ratingSubmitting}
