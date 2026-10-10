@@ -5,6 +5,7 @@
 import { asRecord, readEntity, invalidResponse, readList } from "@/lib/api/response"
 
 import { http } from "@/lib/api/client"
+import { translate } from "@/lib/i18n/translate"
 import { normalizeOrder, type Order } from "@/lib/api/orders"
 import type { UserProfile } from "@/lib/api/users"
 import type { WalletTransaction } from "@/lib/api/wallet"
@@ -62,17 +63,26 @@ export function parseSearchShowcaseItem(raw: unknown): import("@/lib/api/showcas
   const record = asRecord(raw)
   if (!record || typeof record.id !== "string" || !record.id) return null
   const userId = typeof record.userId === "string" ? record.userId : ""
+  // Audit Search 2026-10-10 (S-41): backend kini mengirim rich card (item
+  // 105: coverImageUrl, priceMin/priceMax, likeCount, saveCount) — bentuk
+  // minimal lama membuang semuanya sehingga kartu selalu tanpa gambar/harga.
+  const count = (v: unknown) => (typeof v === "number" && Number.isFinite(v) && v >= 0 ? Math.floor(v) : 0)
+  const price = (v: unknown) => (typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : null)
+  const cover = typeof record.coverImageUrl === "string" && record.coverImageUrl.trim() ? record.coverImageUrl.trim() : null
   return {
     id: record.id,
     title:
-      typeof record.title === "string" && record.title.trim() ? record.title.trim() : "Tanpa judul",
+      typeof record.title === "string" && record.title.trim() ? record.title.trim() : translate("Tanpa judul"),
     description: typeof record.description === "string" ? record.description : null,
-    images: [],
-    likeCount: 0,
+    images: cover ? [{ id: `${record.id}:cover`, kind: "image", imageUrl: cover, sortOrder: 0 }] : [],
+    coverImageUrl: cover,
+    priceMin: price(record.priceMin),
+    priceMax: price(record.priceMax),
+    likeCount: count(record.likeCount),
     commentCount: 0,
     viewCount: 0,
     shareCount: 0,
-    saveCount: 0,
+    saveCount: count(record.saveCount),
     descriptionHtml: null,
     createdAt: typeof record.createdAt === "string" ? record.createdAt : "",
     updatedAt: typeof record.updatedAt === "string" ? record.updatedAt : "",
@@ -100,9 +110,21 @@ export type GlobalSearchResults = {
   showcase?: Array<import("@/lib/api/showcase").ShowcaseSocialItem>
   /** DC-014: total per jenis dari server (bukan hitungan rows lokal). */
   totals?: { users: number; orders: number; transactions: number; showcase: number; helpCenter: number }
-  /** DC-011: hint berbahasa Indonesia dari backend (2 kasus, tampil apa adanya). */
+  /**
+   * DC-011: hint berbahasa Indonesia dari backend (2 kasus). Audit Search
+   * 2026-10-10 (S-09): TIDAK lagi ditampilkan apa adanya — layar memakai
+   * `hintCode` yang diterjemahkan; `hint` disimpan hanya untuk telemetri.
+   */
   hint?: string
+  /** S-09: kode hint stabil dari backend (`HELP_CENTER_ONLY` | `NO_RESULTS`). */
+  hintCode?: SearchHintCode
   total?: number
+}
+
+export type SearchHintCode = "HELP_CENTER_ONLY" | "NO_RESULTS"
+
+export function parseSearchHintCode(raw: unknown): SearchHintCode | undefined {
+  return raw === "HELP_CENTER_ONLY" || raw === "NO_RESULTS" ? raw : undefined
 }
 
 export function globalSearch(
@@ -178,8 +200,8 @@ export function globalSearch(
           showcase: num(totalsRaw?.showcase),
           helpCenter: num(totalsRaw?.helpCenter),
         },
-        // DC-011: hint backend ditampilkan apa adanya (komentar S2 backend).
         hint: typeof result.hint === "string" && result.hint.trim() ? result.hint.trim() : undefined,
+        hintCode: parseSearchHintCode(result.hintCode),
       } as GlobalSearchResults
     })
 }
@@ -316,9 +338,39 @@ export function getSearchHistory(signal?: AbortSignal) {
     })
 }
 
-/** DELETE /v1/search/history — hapus riwayat pencarian user (kanonis, DC-017). */
+/**
+ * DELETE /v1/search/history — hapus riwayat pencarian user (kanonis, DC-017).
+ *
+ * Audit Search 2026-10-10 (S-43): backend kini mengirim `cleared:false` bila
+ * Redis gagal — dilempar sebagai error supaya layar TIDAK menampilkan riwayat
+ * seolah terhapus.
+ */
 export function clearSearchHistory(signal?: AbortSignal) {
-  return http.delete<unknown>("/v1/search/history", { auth: "required", signal })
+  return http.delete<unknown>("/v1/search/history", { auth: "required", signal }).then((raw) => {
+    const record = asRecord(raw)
+    if (record && record.cleared === false) throw invalidResponse("search.history.clear")
+    return raw
+  })
+}
+
+/**
+ * POST /v1/search/history — catat SATU kata kunci yang sudah stabil.
+ *
+ * Audit Search 2026-10-10 (S-02): riwayat server sebelumnya hanya terisi dari
+ * dalam `GET /v1/search`, padahal cakupan Postingan/Pengguna/Pesan memakai
+ * endpoint lain — pencarian produk (kasus paling umum) tidak pernah masuk
+ * riwayat. Best-effort: kegagalan tidak boleh mengganggu pencarian.
+ */
+export function recordSearchHistory(query: string) {
+  const q = query.trim()
+  if (q.length < 2) return Promise.resolve({ recorded: false as boolean })
+  return http
+    .post<{ recorded: boolean }, { query: string }>(
+      "/v1/search/history",
+      { query: q.slice(0, 200) },
+      { auth: "required" },
+    )
+    .catch(() => ({ recorded: false as boolean }))
 }
 
 /**

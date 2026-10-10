@@ -16,7 +16,7 @@
   },
   {
    "s": "Coba lagi",
-   "n": 43
+   "n": 45
   },
   {
    "s": "Gagal memuat",
@@ -91,6 +91,10 @@
    "n": 15
   },
   {
+   "s": "Lainnya",
+   "n": 15
+  },
+  {
    "s": "Pembeli",
    "n": 15
   },
@@ -103,7 +107,15 @@
    "n": 14
   },
   {
-   "s": "Lainnya",
+   "s": "Baru",
+   "n": 14
+  },
+  {
+   "s": "Masuk",
+   "n": 14
+  },
+  {
+   "s": "Tanpa judul",
    "n": 14
   },
   {
@@ -131,10 +143,6 @@
    "n": 13
   },
   {
-   "s": "Masuk",
-   "n": 13
-  },
-  {
    "s": "Minimal {x} karakter",
    "n": 13
   },
@@ -147,15 +155,7 @@
    "n": 13
   },
   {
-   "s": "Tanpa judul",
-   "n": 13
-  },
-  {
    "s": "Ambil foto",
-   "n": 12
-  },
-  {
-   "s": "Baru",
    "n": 12
   },
   {
@@ -231,6 +231,10 @@
    "n": 10
   },
   {
+   "s": "Bekas",
+   "n": 10
+  },
+  {
    "s": "Dasar:",
    "n": 10
   },
@@ -240,6 +244,10 @@
   },
   {
    "s": "Gagal menghapus",
+   "n": 10
+  },
+  {
+   "s": "Identitas belum tersedia",
    "n": 10
   },
   {
@@ -327,10 +335,6 @@
    "n": 9
   },
   {
-   "s": "Bekas",
-   "n": 8
-  },
-  {
    "s": "Belum dibaca",
    "n": 8
   },
@@ -355,7 +359,7 @@
    "n": 8
   },
   {
-   "s": "Identitas belum tersedia",
+   "s": "Jenis produk",
    "n": 8
   },
   {
@@ -603,6 +607,10 @@
    "n": 6
   },
   {
+   "s": "Cari {x}",
+   "n": 6
+  },
+  {
    "s": "Cari pesan termuat",
    "n": 6
   },
@@ -739,10 +747,6 @@
    "n": 6
   },
   {
-   "s": "Jenis produk",
-   "n": 6
-  },
-  {
    "s": "Judul sorotan",
    "n": 6
   },
@@ -812,6 +816,10 @@
   },
   {
    "s": "Mengerti",
+   "n": 6
+  },
+  {
+   "s": "Mengisi kolom pencarian dengan kata kunci ini",
    "n": 6
   },
   {
@@ -1152,6 +1160,10 @@
   },
   {
    "s": "Invoice",
+   "n": 5
+  },
+  {
+   "s": "Jasa",
    "n": 5
   },
   {
@@ -1612,10 +1624,6 @@
   },
   {
    "s": "Jadikan utama",
-   "n": 4
-  },
-  {
-   "s": "Jasa",
    "n": 4
   },
   {
@@ -2311,6 +2319,10 @@
    "n": 3
   },
   {
+   "s": "Barang fisik",
+   "n": 3
+  },
+  {
    "s": "Baru dihapus",
    "n": 3
   },
@@ -2400,6 +2412,10 @@
   },
   {
    "s": "Belum ada reaksi",
+   "n": 3
+  },
+  {
+   "s": "Belum ada rekomendasi",
    "n": 3
   },
   {
@@ -2632,10 +2648,6 @@
   },
   {
    "s": "Buku alamat",
-   "n": 3
-  },
-  {
-   "s": "Cari {x}",
    "n": 3
   },
   {
@@ -3115,6 +3127,10 @@
    "n": 3
   },
   {
+   "s": "Hanya tampilkan pengguna rating {x} ke atas",
+   "n": 3
+  },
+  {
    "s": "Hanya yang belum dibaca",
    "n": 3
   },
@@ -3575,6 +3591,10 @@
    "n": 3
   },
   {
+   "s": "Ketuk untuk mencari",
+   "n": 3
+  },
+  {
    "s": "Ketuk untuk mengubah reaksi",
    "n": 3
   },
@@ -3895,6 +3915,10 @@
    "n": 3
   },
   {
+   "s": "Masuk untuk menemukan pengguna",
+   "n": 3
+  },
+  {
    "s": "Masukkan {x} digit kode yang diterima",
    "n": 3
   },
@@ -4048,10 +4072,6 @@
   },
   {
    "s": "Mengganti username membutuhkan kata sandi akun.",
-   "n": 3
-  },
-  {
-   "s": "Mengisi kolom pencarian dengan kata kunci ini",
    "n": 3
   },
   {
@@ -4304,6 +4324,10 @@
   },
   {
    "s": "Pengguna ini akan dapat melihat profil Anda dan memulai percakapan kembali.",
+   "n": 3
+  },
+  {
+   "s": "Pengguna yang disarankan untuk Anda akan muncul di sini.",
    "n": 3
   },
   {
@@ -4595,11 +4619,19 @@
    "n": 3
   },
   {
+   "s": "Rating {x}+",
+   "n": 3
+  },
+  {
    "s": "Reaksi",
    "n": 3
   },
   {
    "s": "Rekam pesan suara, maksimal {x} menit.",
+   "n": 3
+  },
+  {
+   "s": "Rekomendasi pengguna disusun dari riwayat transaksi dan lingkaran sosial akun Anda.",
    "n": 3
   },
   {
@@ -4659,8 +4691,11 @@
    "n": 3
   },
   {
-"s": "Salin",
-"s": "Saldo terpakai sampai permintaan kedaluwarsa. Batalkan sekarang agar saldo langsung bebas.",
+   "s": "Saldo terpakai sampai permintaan kedaluwarsa. Batalkan sekarang agar saldo langsung bebas.",
+   "n": 3
+  },
+  {
+   "s": "Salin",
    "n": 3
   },
   {
@@ -4681,6 +4716,10 @@
   },
   {
    "s": "Saran kategori",
+   "n": 3
+  },
+  {
+   "s": "Saring berdasarkan jenis produk",
    "n": 3
   },
   {
@@ -5584,11 +5623,19 @@
    "n": 2
   },
   {
+   "s": "{x},{x}+ ke atas",
+   "n": 2
+  },
+  {
    "s": "{x}/{y} terisi",
    "n": 2
   },
   {
    "s": "{x}% kembali ke pembeli",
+   "n": 2
+  },
+  {
+   "s": "{x}+ ke atas",
    "n": 2
   },
   {
@@ -5776,6 +5823,10 @@
    "n": 2
   },
   {
+   "s": "Atur ulang pencarian",
+   "n": 2
+  },
+  {
    "s": "Audio gagal dimuat — ketuk putar untuk coba lagi",
    "n": 2
   },
@@ -5809,10 +5860,6 @@
   },
   {
    "s": "Bank",
-   "n": 2
-  },
-  {
-   "s": "Barang fisik",
    "n": 2
   },
   {
@@ -6284,6 +6331,10 @@
    "n": 2
   },
   {
+   "s": "Cari transaksi, pihak, atau ID",
+   "n": 2
+  },
+  {
    "s": "Cashback",
    "n": 2
   },
@@ -6752,11 +6803,15 @@
    "n": 2
   },
   {
-"s": "Gagal memperbarui percakapan",
+   "s": "Gagal memperbarui percakapan",
    "n": 2
   },
   {
    "s": "Gagal memperbarui reaksi",
+   "n": 2
+  },
+  {
+   "s": "Gagal memperbarui status ikuti",
    "n": 2
   },
   {
@@ -7744,6 +7799,10 @@
    "n": 2
   },
   {
+   "s": "Lihat semua di Etalase",
+   "n": 2
+  },
+  {
    "s": "Lihat semua mutasi",
    "n": 2
   },
@@ -8268,7 +8327,6 @@
    "n": 2
   },
   {
-   "s": "Order tidak berlanjut — dana escrow telah dikembalikan ke metode pembayaran pembeli oleh {x}.",
    "s": "Order tidak berlanjut — dana telah dikembalikan ke metode pembayaran pembeli oleh {x}.",
    "n": 2
   },
@@ -8757,6 +8815,10 @@
    "n": 2
   },
   {
+   "s": "Produk digital",
+   "n": 2
+  },
+  {
    "s": "Profil batal diikuti",
    "n": 2
   },
@@ -8802,10 +8864,6 @@
   },
   {
    "s": "QRIS kedaluwarsa — buat ulang untuk mencoba lagi.",
-   "n": 2
-  },
-  {
-   "s": "Rating {x}+",
    "n": 2
   },
   {
@@ -8945,6 +9003,10 @@
    "n": 2
   },
   {
+   "s": "Sebagian hasil gagal dimuat: {x}",
+   "n": 2
+  },
+  {
    "s": "Sebagian pesan belum terkirim. Buka percakapan untuk mencoba lagi.",
    "n": 2
   },
@@ -9021,7 +9083,15 @@
    "n": 2
   },
   {
+   "s": "Semua jenis",
+   "n": 2
+  },
+  {
    "s": "Semua keperluan transaksi Anda dalam satu tempat.",
+   "n": 2
+  },
+  {
+   "s": "Semua kondisi",
    "n": 2
   },
   {
@@ -9034,6 +9104,10 @@
   },
   {
    "s": "Semua penyimpan profil",
+   "n": 2
+  },
+  {
+   "s": "Semua rating",
    "n": 2
   },
   {
@@ -10194,10 +10268,6 @@
   },
   {
    "s": "{x}, biaya {y}",
-   "n": 1
-  },
-  {
-   "s": "{x},{x}+ ke atas",
    "n": 1
   },
   {
@@ -11777,10 +11847,6 @@
    "n": 1
   },
   {
-   "s": "{x}+ ke atas",
-   "n": 1
-  },
-  {
    "s": "**Kunci biometrik** melindungi aplikasi di perangkat ini dan menggunakan kemampuan perangkat, seperti sidik jari atau pengenalan wajah. **Verifikasi dua langkah** menambah pemeriksaan saat masuk ke akun. Pengaturannya tersedia dari menu Keamanan dan memerlukan koneksi untuk perubahan yang disimpan ke akun.",
    "n": 1
   },
@@ -12469,10 +12535,6 @@
    "n": 1
   },
   {
-   "s": "Atur ulang pencarian",
-   "n": 1
-  },
-  {
    "s": "Atur ulang semua filter riwayat",
    "n": 1
   },
@@ -13002,10 +13064,6 @@
   },
   {
    "s": "Belum ada rekening bank terdaftar.",
-   "n": 1
-  },
-  {
-   "s": "Belum ada rekomendasi",
    "n": 1
   },
   {
@@ -14086,11 +14144,6 @@
   },
   {
    "s": "Dana akan segera dicairkan ke rekening bank.",
-   "n": 1
-  },
-  {
-"s": "Dana Anda ditahan di escrow oleh {x} — hanya diteruskan ke penjual setelah Anda mengonfirmasi penerimaan, atau otomatis setelah tenggat tanpa sengketa.",
-"s": "Dana Anda aman sampai barang diterima",
    "n": 1
   },
   {
@@ -15298,10 +15351,6 @@
    "n": 1
   },
   {
-   "s": "Gagal memperbarui status ikuti",
-   "n": 1
-  },
-  {
    "s": "Gagal memproses berkas. Coba lagi.",
    "n": 1
   },
@@ -15767,10 +15816,6 @@
   },
   {
    "s": "Hanya pembeli yang dapat konfirmasi terima.",
-   "n": 1
-  },
-  {
-   "s": "Hanya tampilkan pengguna rating {x} ke atas",
    "n": 1
   },
   {
@@ -16830,10 +16875,6 @@
    "n": 1
   },
   {
-   "s": "Ketuk untuk mencari",
-   "n": 1
-  },
-  {
    "s": "Ketuk untuk mengganti metode pembayaran",
    "n": 1
   },
@@ -17722,10 +17763,6 @@
    "n": 1
   },
   {
-   "s": "Lihat semua di Etalase",
-   "n": 1
-  },
-  {
    "s": "Lihat semua komentar",
    "n": 1
   },
@@ -17930,10 +17967,6 @@
    "n": 1
   },
   {
-   "s": "Masuk untuk menemukan pengguna",
-   "n": 1
-  },
-  {
    "s": "Masukan",
    "n": 1
   },
@@ -18131,11 +18164,6 @@
   },
   {
    "s": "membentuk instruksi transaksi, memproses pembayaran, menahan atau melepaskan dana sesuai status, mengirim barang, menarik dana, mengembalikan pembayaran, dan menyediakan catatan.",
-   "n": 1
-  },
-  {
-"s": "membuat akun, mengelola profil, menjalankan fitur sosial, komunikasi, etalase, transaksi, escrow, dompet, dan dukungan.",
-"s": "Membintangi pesan yang dipilih",
    "n": 1
   },
   {
@@ -19711,10 +19739,6 @@
    "n": 1
   },
   {
-   "s": "Pengguna yang disarankan untuk Anda akan muncul di sini.",
-   "n": 1
-  },
-  {
    "s": "Pengguna yang membuat atau membiayai pesanan barang/jasa.",
    "n": 1
   },
@@ -20419,12 +20443,11 @@
    "n": 1
   },
   {
-"s": "Pesanan dikirim",
+   "s": "Pesanan dikirim",
    "n": 1
   },
   {
-   "s": "Pesanan diterima, dan pembeli dapat melanjutkan pembayaran ke escrow. Selesaikan pekerjaan sesuai kesepakatan setelah dana masuk.",
-"s": "Pesanan diterima, dan pembeli dapat melanjutkan pembayaran. Selesaikan pekerjaan sesuai kesepakatan setelah dana masuk.",
+   "s": "Pesanan diterima, dan pembeli dapat melanjutkan pembayaran. Selesaikan pekerjaan sesuai kesepakatan setelah dana masuk.",
    "n": 1
   },
   {
@@ -20672,10 +20695,6 @@
    "n": 1
   },
   {
-   "s": "Produk digital",
-   "n": 1
-  },
-  {
    "s": "Profil",
    "n": 1
   },
@@ -20784,6 +20803,10 @@
    "n": 1
   },
   {
+   "s": "Rating {x},{x}+",
+   "n": 1
+  },
+  {
    "s": "Rating Anda",
    "n": 1
   },
@@ -20853,10 +20876,6 @@
   },
   {
    "s": "Rekening utama diperbarui",
-   "n": 1
-  },
-  {
-   "s": "Rekomendasi pengguna disusun dari riwayat transaksi dan lingkaran sosial akun Anda.",
    "n": 1
   },
   {
@@ -21300,15 +21319,7 @@
    "n": 1
   },
   {
-   "s": "Semua jenis",
-   "n": 1
-  },
-  {
    "s": "Semua kode lama tidak berlaku lagi",
-   "n": 1
-  },
-  {
-   "s": "Semua kondisi",
    "n": 1
   },
   {
@@ -21321,10 +21332,6 @@
   },
   {
    "s": "Semua perangkat lain dicabut",
-   "n": 1
-  },
-  {
-   "s": "Semua rating",
    "n": 1
   },
   {

@@ -330,7 +330,9 @@ export function recordSearchTrend(keyword: string) {
     .post<{ ok: boolean; recorded: boolean }, { keyword: string }>(
       "/v1/commerce/trends/record",
       { keyword: q.slice(0, 80) },
-      { auth: "none" },
+      // Audit Search 2026-10-10 (S-53): "optional" — token ikut dikirim bila
+      // ada (throttle per user, bukan hanya per IP); tamu tetap boleh.
+      { auth: "optional" },
     )
     .catch(() => ({ ok: false as boolean, recorded: false as boolean }))
 }

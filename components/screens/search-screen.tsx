@@ -24,10 +24,14 @@
  *     menembakkan /v1/search sama sekali (paritas dengan cakupan Pengguna).
  *   - Chip cakupan HANYA muncul setelah ada kata kunci. Menawarkan filter
  *     atas hasil yang belum ada adalah kontrol tanpa objek.
- *   - Bagian "Pengguna" memakai endpoint dedikasi GET /v1/users/search (lebih
- *     kaya: membershipRank; throttle 10 rpm/IP) — /v1/search tetap dipakai
- *     untuk pesanan, mutasi, dan artikel. Bila endpoint dedikasi gagal, hasil
- *     user dari /v1/search dipakai sebagai fallback.
+ *   - Audit Search 2026-10-10 (S-05): cakupan "Semua" memakai users dari
+ *     /v1/search (kini sudah membawa membershipRank + sealTier) — SATU request,
+ *     bukan dua endpoint yang sama-sama mengembalikan pengguna. Endpoint
+ *     dedikasi GET /v1/users/search (throttle per-IP ketat) hanya dipakai
+ *     pada cakupan "Pengguna".
+ *   - S-03: tren & riwayat dicatat SEKALI per kata kunci yang sudah STABIL
+ *     (2 dtk tanpa perubahan, atau Enter) — bukan per kata kunci ter-debounce,
+ *     supaya "Sedang tren"/riwayat tidak berisi potongan kata ("se", "sepa").
  *   - Judul kelompok membawa JUMLAH hasil. Dalam daftar campur, "Pesanan"
  *     saja tidak memberi tahu apakah ada 1 atau 40 pesanan di bawahnya, dan
  *     pengguna harus menggulir untuk tahu.
@@ -103,22 +107,33 @@ type ResultRow = { id: string } & (
  */
 type Scope = SearchScope
 
-/** i18n: label cakupan mengikuti bahasa aktif (dulu konstanta modul). */
-function useScopes(): ReadonlyArray<{ value: Scope; label: string }> {
+/**
+ * i18n: label cakupan mengikuti bahasa aktif (dulu konstanta modul).
+ * Audit Search 2026-10-10 (S-28): cakupan "Mutasi" disembunyikan saat mode
+ * tanpa dompet — memilihnya selalu kosong (tidak ada rute dompet).
+ */
+function useScopes(walletEnabled: boolean): ReadonlyArray<{ value: Scope; label: string }> {
   const language = useLanguage()
   return useMemo(
     () => [
-      { value: "all", label: translate("Semua") },
-      { value: "users", label: translate("Pengguna") },
-      { value: "posts", label: translate("Postingan") },
-      { value: "orders", label: translate("Pesanan") },
-      { value: "transactions", label: translate("Mutasi") },
+      { value: "all" as const, label: translate("Semua") },
+      { value: "users" as const, label: translate("Pengguna") },
+      { value: "posts" as const, label: translate("Postingan") },
+      { value: "orders" as const, label: translate("Pesanan") },
+      ...(walletEnabled ? [{ value: "transactions" as const, label: translate("Mutasi") }] : []),
       // Item 87 (mega-batch 2026-09-28): pencarian lintas-room.
-      { value: "chats", label: translate("Pesan") },
+      { value: "chats" as const, label: translate("Pesan") },
     ],
-    [language],
+    [language, walletEnabled],
   )
 }
+
+/**
+ * S-03: jeda "kata kunci stabil" sebelum tren/riwayat dicatat. Lebih panjang
+ * dari debounce request (300 ms) supaya jeda antar huruf saat mengetik tidak
+ * terhitung sebagai pencarian tersendiri.
+ */
+const RECORD_SETTLE_MS = 2000
 
 /** Parameter `types` untuk GET /v1/search per cakupan (postingan & chat di luar endpoint ini). */
 const SCOPE_TYPES: Record<Exclude<Scope, "posts" | "chats">, string> = {
@@ -191,7 +206,7 @@ const SearchResultRow = memo(function SearchResultRow({
     item.kind === "user" ? (
       <UserListItem
         padded={false}
-        name={item.user.fullName || item.user.username || "Identitas belum tersedia"}
+        name={item.user.fullName || item.user.username || translate("Identitas belum tersedia")}
         username={item.user.username ?? undefined}
         avatar={item.user.avatarUrl ? { source: item.user.avatarUrl } : undefined}
         sealTier={item.user.sealTier ?? null}
@@ -272,7 +287,7 @@ function OrderRowBody({ order, keyword }: { order: Order; keyword: string }) {
       status={order.status}
       role={role}
       counterpart={{
-        name: counterpart?.fullName ?? counterpart?.username ?? "Identitas belum tersedia",
+        name: counterpart?.fullName ?? counterpart?.username ?? translate("Identitas belum tersedia"),
       }}
       timestamp={formatDateTime(order.createdAt)}
       href={ROUTES.orderDetail(order.id)}
@@ -285,7 +300,7 @@ export default function SearchScreen() {
   // Mode Tanpa Wallet Internal (BI-safe): hasil mutasi dompet disembunyikan
   // saat kill-switch mati (tidak ada rute dompet yang bisa dibuka).
   const walletEnabled = useWalletEnabled()
-  const scopes = useScopes()
+  const scopes = useScopes(walletEnabled)
   const sectionTitle = useSectionTitle()
   const insets = useSafeAreaInsets()
   /*
@@ -314,8 +329,11 @@ export default function SearchScreen() {
   // terakhir ("Semua" | "Pengguna" | …) diingat antar sesi.
   const searchScope = useUiPref("searchScope")
   const setPrefs = useSetUiPrefs()
-  const scope: Scope = searchScope
-  const setScope = (next: Scope) => setPrefs({ searchScope: next })
+  // S-28: cakupan tersimpan "Mutasi" tidak berlaku saat dompet dimatikan.
+  const scope: Scope = searchScope === "transactions" && !walletEnabled ? "all" : searchScope
+  // S-17: identitas stabil — dulu arrow baru tiap render membuat memo header
+  // (chip, saran, riwayat) tidak pernah hit.
+  const setScope = useCallback((next: Scope) => setPrefs({ searchScope: next }), [setPrefs])
   /*
    * Filter lokasi (free-text, mis. "Jakarta"): hanya memengaruhi hasil
    * POSTINGAN — backend mencocokkan `users.address` milik owner
@@ -360,10 +378,14 @@ export default function SearchScreen() {
       ),
     enabled && !usersOnly && !postsOnly && !chatsOnly,
   )
+  // S-05: endpoint dedikasi HANYA untuk cakupan "Pengguna" — cakupan "Semua"
+  // sudah menerima users (dengan membershipRank + sealTier) dari /v1/search.
+  // Dulu keduanya ditembak bersamaan: duplikat + throttle 10/menit habis saat
+  // mengetik nama panjang (429 → "Gagal mencari").
   const usersResult = useApiQuery(
     `search-users:${keyword}`,
     (signal) => api.users.searchUsers(keyword, { limit: 20 }, signal),
-    enabled && wantUsers,
+    enabled && usersOnly,
   )
   // Postingan etalase — feed publik (auth:"optional"), 12 hasil cukup untuk
   // satu layar; penelusuran lanjutan hidup di tab Etalase itu sendiri.
@@ -399,9 +421,12 @@ export default function SearchScreen() {
   const suggestions = useApiQuery(
     `suggestions:${keyword}`,
     (signal) => api.search.getSearchSuggestions({ q: keyword }, signal),
-    // Saran hanya berguna selagi cakupan "Semua": pada satu jenis hasil,
-    // chip saran menyempitkan apa yang sudah dipersempit pengguna.
-    enabled && scope === "all",
+    // S-23: saran dimuat di SEMUA cakupan — chip saran hanya tampil di
+    // "Semua", tetapi "Mungkin maksud Anda" di empty state cakupan lain juga
+    // membutuhkannya (dulu query dimatikan sehingga koreksi tidak pernah
+    // ditawarkan di cakupan Pengguna/Postingan/…). Endpoint ini ringan
+    // (3 query FTS kecil, paralel) dan tamu tidak sampai sini (auth).
+    enabled && hasSession,
   )
   // Riwayat pencarian (GET /v1/search/history) — tampil saat kolom kosong;
   // gagal dimuat tidak boleh menghalangi pencarian (fallback kosong).
@@ -423,15 +448,44 @@ export default function SearchScreen() {
   )
   const trending = trendingQuery.data ?? []
 
-  // Batch 43 (item 7): catat pencarian — fire-and-forget, sekali per keyword.
+  /**
+   * Batch 43 (item 7) + audit Search 2026-10-10 (S-02/S-03): catat tren &
+   * riwayat SEKALI per kata kunci yang sudah STABIL — setelah RECORD_SETTLE_MS
+   * tanpa perubahan, atau seketika saat Enter. Dulu dicatat per kata kunci
+   * ter-debounce (300 ms) sehingga "sepatu" menyumbang "se", "sep", "sepa"…
+   * ke "Sedang tren". Riwayat dicatat eksplisit (POST /v1/search/history)
+   * karena cakupan Postingan/Pengguna/Pesan tidak lewat GET /v1/search.
+   *
+   * Riwayat lokal diperbarui OPTIMISTIS (entri baru di depan, prefiks &
+   * duplikat case-insensitive dibuang — cermin aturan backend) supaya kata
+   * kunci barusan langsung tampil saat kolom dikosongkan.
+   */
   const recordedKeyword = useRef<string | null>(null)
+  const recordSettledKeyword = useCallback(
+    (raw: string) => {
+      const q = raw.trim()
+      if (q.length < MIN_KEYWORD || recordedKeyword.current === q) return
+      recordedKeyword.current = q
+      void api.commerce.recordSearchTrend(q)
+      if (!hasSession) return
+      void api.search.recordSearchHistory(q)
+      const lower = q.toLowerCase()
+      historyQuery.setData((prev) => [
+        { query: q, searchedAt: new Date().toISOString() },
+        ...(prev ?? []).filter((entry) => {
+          const existing = entry.query.toLowerCase()
+          return existing !== lower && !(lower.length > existing.length && lower.startsWith(existing))
+        }),
+      ])
+    },
+    [hasSession, historyQuery],
+  )
   useEffect(() => {
     if (!enabled) return
     const q = keyword.trim()
-    if (recordedKeyword.current === q) return
-    recordedKeyword.current = q
-    void api.commerce.recordSearchTrend(q)
-  }, [enabled, keyword])
+    const timer = setTimeout(() => recordSettledKeyword(q), RECORD_SETTLE_MS)
+    return () => clearTimeout(timer)
+  }, [enabled, keyword, recordSettledKeyword])
 
   // #6a (audit Discovery 2026-09-26): riwayat basi setelah mencari — backend
   // menyimpan riwayat secara async saat pencarian berjalan, jadi segarkan
@@ -451,6 +505,8 @@ export default function SearchScreen() {
     try {
       await api.search.clearSearchHistory()
       historyQuery.setData([])
+      // S-33: toggle "Lihat semua" ikut direset — riwayat baru mulai dari 0.
+      setHistoryExpanded(false)
     } catch (err) {
       // #6c (audit Discovery 2026-09-26): gagal clear = riwayat tetap tampil;
       // pengguna bisa mengulang lewat pull-to-refresh (kini aktif juga saat
@@ -487,19 +543,23 @@ export default function SearchScreen() {
   )
 
   const rows = useMemo<ResultRow[]>(() => {
-    const dedicated = usersResult.data?.users
+    // S-05: cakupan "Pengguna" = endpoint dedikasi; cakupan "Semua" = users
+    // dari /v1/search (sudah membawa membershipRank + sealTier, DC-009/item 104).
     const users: UserSearchResult[] = !wantUsers
       ? []
-      : (dedicated ??
-        (usersResult.error
-          ? (result.data?.users ?? []).map((u) => ({
-              userId: u.id,
+      : usersOnly
+        ? (usersResult.data?.users ?? [])
+        : (result.data?.users ?? []).map((u) => {
+            const extra = u as { sealTier?: UserSearchResult["sealTier"]; membershipRank?: string | null }
+            return {
+              userId: u.userId ?? u.id,
               username: u.username ?? null,
               fullName: u.fullName ?? "",
               avatarUrl: u.avatarUrl ?? null,
-              sealTier: (u as { sealTier?: UserSearchResult["sealTier"] }).sealTier ?? null,
-            }))
-          : []))
+              membershipRank: extra.membershipRank ?? null,
+              sealTier: extra.sealTier ?? null,
+            }
+          })
     return [
       ...users.map((user) => ({ id: `user:${user.userId}`, kind: "user" as const, user })),
       ...(!wantPosts ? [] : (postsResult.data?.items ?? [])).map((showcase) => ({
@@ -534,14 +594,16 @@ export default function SearchScreen() {
         chat,
       })),
     ]
-  }, [result.data, usersResult.data, usersResult.error, postsResult.data, chatsResult.data, scope, wantUsers, wantPosts, wantChats])
+    // S-18: `walletEnabled` ikut deps — dulu baris mutasi basi saat kill-switch berubah.
+  }, [result.data, usersResult.data, postsResult.data, chatsResult.data, scope, wantUsers, wantPosts, wantChats, usersOnly, walletEnabled])
 
   /**
    * Jumlah per jenis — DC-014: pakai totals dari server bila ada (angka benar
    * saat limit memotong: 20 tampil dari 40 total → "40", bukan "20").
-   * Fallback ke hitungan rows lokal bila totals absen.
+   * Fallback ke hitungan rows lokal bila totals absen. `shown` = baris yang
+   * benar-benar tampil (S-31: CTA "Lihat semua" hanya bila total > tampil).
    */
-  const counts = useMemo(() => {
+  const { counts, shown } = useMemo(() => {
     const totals = result.data?.totals
     const local: Record<ResultRow["kind"], number> = {
       user: 0,
@@ -552,17 +614,22 @@ export default function SearchScreen() {
       chat: 0,
     }
     for (const row of rows) local[row.kind] += 1
+    const fromServer = totals && !usersOnly && !postsOnly && !chatsOnly
     return {
-      // user, showcase & chat dilayani endpoint lain — totals /v1/search tidak
-      // mencakupnya; tetap hitung lokal.
-      user: local.user,
-      showcase: local.showcase,
-      chat: local.chat,
-      order: totals && !usersOnly && !postsOnly && !chatsOnly ? Math.max(totals.orders, local.order) : local.order,
-      transaction: totals && !usersOnly && !postsOnly && !chatsOnly ? Math.max(totals.transactions, local.transaction) : local.transaction,
-      article: totals ? Math.max(totals.helpCenter, local.article) : local.article,
-    } as Record<ResultRow["kind"], number>
-  }, [rows, result.data?.totals, usersOnly, postsOnly, chatsOnly])
+      shown: local,
+      counts: {
+        // showcase & chat dilayani endpoint lain — totals /v1/search tidak
+        // mencakupnya; tetap hitung lokal. user: dedikasi (lokal) di cakupan
+        // Pengguna, totals server di cakupan Semua (S-05).
+        user: fromServer ? Math.max(totals.users, local.user) : usersOnly ? usersResult.data?.total ?? local.user : local.user,
+        showcase: local.showcase,
+        chat: local.chat,
+        order: fromServer ? Math.max(totals.orders, local.order) : local.order,
+        transaction: fromServer ? Math.max(totals.transactions, local.transaction) : local.transaction,
+        article: totals ? Math.max(totals.helpCenter, local.article) : local.article,
+      } as Record<ResultRow["kind"], number>,
+    }
+  }, [rows, result.data?.totals, usersResult.data?.total, usersOnly, postsOnly, chatsOnly])
 
   /**
    * Item 78 (mega-batch 2026-09-28): ringkasan utama memakai TOTAL server
@@ -579,19 +646,19 @@ export default function SearchScreen() {
    * seluruh layar jatuh ke ErrorBoundary ("Halaman tidak dapat ditampilkan").
    * Ini lapis kedua di sisi render: saring non-string, trim, dedupe.
    */
-  const suggestionChips = useMemo(
-    () =>
-      scope === "all"
-        ? [
-            ...new Set(
-              (suggestions.data ?? [])
-                .filter((s): s is string => typeof s === "string" && s.trim().length > 0)
-                .map((s) => s.trim()),
-            ),
-          ]
-        : [],
-    [suggestions.data, scope],
-  )
+  const suggestionChips = useMemo(() => {
+    if (scope !== "all") return []
+    // S-22: saran yang sama persis dengan kata kunci bukan saran — dibuang.
+    const base = keyword.trim().toLowerCase()
+    return [
+      ...new Set(
+        (suggestions.data ?? [])
+          .filter((s): s is string => typeof s === "string" && s.trim().length > 0)
+          .map((s) => s.trim())
+          .filter((s) => s.toLowerCase() !== base),
+      ),
+    ]
+  }, [suggestions.data, scope, keyword])
 
   /**
    * Batch 139 E08 — "Mungkin maksud Anda": saran backend ditawarkan sebagai
@@ -684,11 +751,13 @@ export default function SearchScreen() {
     const fingerprint = `${q}|${scope}|${loc}`
     if (fingerprint === lastSyncedUrl.current) return
     lastSyncedUrl.current = fingerprint
-    const next: Record<string, string> = {}
-    if (q) next.q = q
-    if (scope !== "all") next.scope = scope
-    if (loc) next.location = loc
-    router.setParams(next)
+    // S-32: param yang kosong di-set `undefined` supaya DIHAPUS dari URL —
+    // dulu `setParams({})` meninggalkan `?q=` basi setelah kolom dikosongkan.
+    router.setParams({
+      q: q || undefined,
+      scope: scope !== "all" ? scope : undefined,
+      location: loc || undefined,
+    })
   }, [keyword, scope, location])
 
   /*
@@ -714,9 +783,28 @@ export default function SearchScreen() {
    * pesanan/mutasi; postingan memakai hasMore dari feed).
    */
   const showAllPosts = wantPosts && (postsResult.data?.hasMore ?? false)
-  const showAllOrders = (scope === "all" || scope === "orders") && counts.order >= 20
+  // S-31: CTA hanya bila total server MELEBIHI yang sudah tampil (dulu
+  // `>= 20` memunculkan CTA walau 20 hasil itu sudah seluruhnya).
+  const showAllOrders = (scope === "all" || scope === "orders") && counts.order > shown.order
   const showAllTransactions =
-    walletEnabled && (scope === "all" || scope === "transactions") && counts.transaction >= 20
+    walletEnabled && (scope === "all" || scope === "transactions") && counts.transaction > shown.transaction
+
+  /**
+   * S-37: cakupan "Semua" menggabungkan beberapa request. Bila sebagian gagal
+   * tetapi daftar tetap terisi (mis. postingan sukses, /v1/search gagal),
+   * ErrorState tidak pernah tampil (hanya untuk daftar kosong) — pengguna
+   * tidak tahu pesanan/mutasi tidak ikut dicari. Tampilkan catatan inline.
+   */
+  const partialError =
+    scope === "all" && !loading && rows.length > 0
+      ? (result.error ?? postsResult.error ?? chatsResult.error ?? null)
+      : null
+  const retryAll = useCallback(() => {
+    void result.reload()
+    void usersResult.reload()
+    void postsResult.reload()
+    void chatsResult.reload()
+  }, [result, usersResult, postsResult, chatsResult])
 
   /**
    * R1-005/R1-006 (2026-09-29, audit render-perf): prop list distabilkan —
@@ -815,6 +903,10 @@ export default function SearchScreen() {
                 key={locationNonce}
                 initialQuery={locationSeed}
                 onQueryChange={setLocation}
+                // S-04: <SearchField> default autoFocus=true — kolom ini
+                // dimount SAAT pengguna sedang mengetik kata kunci (begitu
+                // `enabled` true) dan mencuri fokus/keyboard dari kolom utama.
+                autoFocus={false}
                 leftIcon={MapPin}
                 placeholder={translate("Lokasi (cth. Jakarta)")}
                 accessibilityLabel={translate("Filter lokasi")}
@@ -834,6 +926,17 @@ export default function SearchScreen() {
                     y: keyword.trim(),
                   })}
             </Text>
+          ) : null}
+          {/* S-37: sebagian sumber gagal padahal daftar terisi. */}
+          {partialError ? (
+            <View className="flex-row items-center justify-between gap-3">
+              <Text variant="caption" tone="danger" className="min-w-0 flex-1" numberOfLines={2}>
+                {translate("Sebagian hasil gagal dimuat: {x}", { x: partialError })}
+              </Text>
+              <Button variant="ghost" size="sm" fullWidth={false} onPress={retryAll}>
+                {translate("Coba lagi")}
+              </Button>
+            </View>
           ) : null}
           {/* Item 81 (mega-batch 2026-09-28): saran menampilkan status
               loading & error — sebelumnya gagal diam-diam. */}
@@ -903,6 +1006,8 @@ export default function SearchScreen() {
       rows,
       totalResults,
       keyword,
+      partialError,
+      retryAll,
       suggestions,
       suggestionChips,
       applyQuery,
@@ -938,10 +1043,9 @@ export default function SearchScreen() {
           title={enabled ? emptyCopy.title : translate("Mulai mencari")}
           description={
             enabled
-              ? // DC-011: hint backend ditampilkan apa adanya (lebih
-                // spesifik dari kalimat generik — mis. "tapi ada artikel
-                // bantuan yang cocok").
-                (result.data?.hint ?? emptyCopy.description)
+              ? // S-09: copy empty state dari i18n lokal — `hint` backend
+                // (kalimat Indonesia) tidak lagi ditampilkan apa adanya.
+                emptyCopy.description
               : translate("Ketik minimal 2 huruf untuk mulai mencari.")
           }
           action={
@@ -960,7 +1064,7 @@ export default function SearchScreen() {
                   setLocationNonce((n) => n + 1)
                 }}
               >
-                Atur ulang pencarian
+                {translate("Atur ulang pencarian")}
               </Button>
             ) : undefined
           }
@@ -996,6 +1100,13 @@ export default function SearchScreen() {
       setScope,
     ],
   )
+  // S-03: Enter = kata kunci dianggap final — catat seketika (tanpa menunggu
+  // jeda stabil). `onSubmitEditing` diteruskan <DebouncedSearchField> ke
+  // <SearchField> apa adanya.
+  const handleSubmitKeyword = useCallback(
+    (e: { nativeEvent: { text: string } }) => recordSettledKeyword(e.nativeEvent.text),
+    [recordSettledKeyword],
+  )
   // L-03 (audit 2026-09-23): postingan dibatasi 12 — tautan penelusuran
   // lanjutan ke feed Etalase (search=) saat hasil masih terpotong.
   // Item 82 (mega-batch 2026-09-28): CTA "Lihat semua" juga untuk
@@ -1019,7 +1130,7 @@ export default function SearchScreen() {
               fullWidth
               onPress={() => router.push(ROUTES.showcaseSearch(keyword.trim(), location || undefined))}
             >
-              Lihat semua di Etalase
+              {translate("Lihat semua di Etalase")}
             </Button>
           ) : null}
           {showAllOrders ? (
@@ -1046,6 +1157,7 @@ export default function SearchScreen() {
             key={seedNonce}
             initialQuery={seed}
             onQueryChange={setKeyword}
+            onSubmitEditing={handleSubmitKeyword}
             placeholder={translate("Cari etalase, pengguna, pesanan…")}
             containerClassName="flex-1"
           />
@@ -1216,7 +1328,13 @@ function TrendingSearches({
       </View>
       <View className="flex-row flex-wrap gap-2">
         {entries.map((entry) => (
-          <Chip key={entry.keyword} onPress={() => onPick(entry.keyword)}>
+          <Chip
+            key={entry.keyword}
+            // S-42: paritas a11y dengan baris riwayat.
+            accessibilityLabel={translate("Cari {x}", { x: entry.keyword })}
+            accessibilityHint={translate("Mengisi kolom pencarian dengan kata kunci ini")}
+            onPress={() => onPick(entry.keyword)}
+          >
             {entry.keyword}
           </Chip>
         ))}

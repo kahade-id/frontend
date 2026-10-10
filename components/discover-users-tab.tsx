@@ -25,6 +25,7 @@ import { Compass, LockKey } from "phosphor-react-native"
 import { api, userMessage } from "@/lib/api"
 import type { DiscoveredUser } from "@/lib/api/users"
 import { useHasSession } from "@/lib/guest-gate"
+import { useLanguage } from "@/lib/i18n"
 import { translate } from "@/lib/i18n/translate"
 import { ROUTES } from "@/lib/routes"
 import { usePaginatedQuery } from "@/lib/use-paginated-query"
@@ -79,6 +80,8 @@ const DiscoverUserRow = memo(function DiscoverUserRow({
 })
 
 export function UsersTab({ bottomPadding }: { bottomPadding: number }) {
+  // S-39: render ulang saat bahasa berganti (teks lewat translate di bawah).
+  useLanguage()
   const toast = useToast()
   const hasSession = useHasSession()
   // DC-013: filter rating minimum (backend minRating). Satu chip agar tidak
@@ -105,7 +108,8 @@ export function UsersTab({ bottomPadding }: { bottomPadding: number }) {
       } catch (err) {
         apply(!following)
         toast.show({
-          title: "Gagal memperbarui status ikuti",
+          // Audit Search 2026-10-10 (S-39): teks lewat i18n.
+          title: translate("Gagal memperbarui status ikuti"),
           description: userMessage(err),
           tone: "danger",
         })
@@ -147,7 +151,7 @@ export function UsersTab({ bottomPadding }: { bottomPadding: number }) {
         <Chip
           selected={minRating === 4}
           accessibilityState={{ selected: minRating === 4 }}
-          accessibilityLabel="Hanya tampilkan pengguna rating 4 ke atas"
+          accessibilityLabel={translate("Hanya tampilkan pengguna rating 4 ke atas")}
           onPress={() => setMinRating((v) => (v === 4 ? undefined : 4))}
         >
           {translate("Rating 4+")}
@@ -164,15 +168,17 @@ export function UsersTab({ bottomPadding }: { bottomPadding: number }) {
         hasSession ? (
           <EmptyState
             icon={Compass}
-            title="Belum ada rekomendasi"
-            description="Pengguna yang disarankan untuk Anda akan muncul di sini."
+            title={translate("Belum ada rekomendasi")}
+            description={translate("Pengguna yang disarankan untuk Anda akan muncul di sini.")}
           />
         ) : (
           <EmptyState
             icon={LockKey}
-            title="Masuk untuk menemukan pengguna"
-            description="Rekomendasi pengguna disusun dari riwayat transaksi dan lingkaran sosial akun Anda."
-            action={<Button onPress={() => router.push(ROUTES.login)}>Masuk</Button>}
+            title={translate("Masuk untuk menemukan pengguna")}
+            description={translate(
+              "Rekomendasi pengguna disusun dari riwayat transaksi dan lingkaran sosial akun Anda.",
+            )}
+            action={<Button onPress={() => router.push(ROUTES.login)}>{translate("Masuk")}</Button>}
           />
         )
       }

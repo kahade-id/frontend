@@ -1,21 +1,21 @@
 /**
- * Kahade — <ShowcaseFilterSheet> (batch 19, item 14 — UI DRAF).
+ * Kahade — <ShowcaseFilterSheet> (batch 19, item 14).
  *
  * Panel filter feed etalase: kondisi (Baru/Bekas), rating penjual minimum,
- * dan rentang harga. Memakai pola filter yang sudah ada:
+ * jenis produk (audit Search 2026-10-10, S-29), dan rentang harga. Memakai
+ * pola filter yang sudah ada:
  * - <ChipGroup single> seperti <WalletHistoryFilterSheet>,
  * - <CurrencyRangeField> untuk harga,
  * - draf: pilihan belum mengubah apa pun sampai "Terapkan" ditekan.
  *
- * ── KONTRAK TIM A PENDING ──
- * Sheet ini MENGEMBALIKAN nilai draf bertipe (`onApply`) — ia TIDAK
- * memetakan ke query param API dan TIDAK dipasang ke feed tab. Nama param
- * query (condition? rating? priceMin?) adalah kontrak backend TIM A; menebak
- * nama param = request 400/diam-diam diabaikan. Setelah kontrak diterima,
- * pemanggil memetakan `ShowcaseFeedFilters` → query param di
- * `lib/api/showcase.ts` lalu memasang sheet + tombol funnel di feed.
+ * Sheet ini MENGEMBALIKAN nilai bertipe (`onApply`); pemetaan ke query param
+ * backend (`condition`, `minSellerRating`, `minPrice`/`maxPrice`,
+ * `productType`) hidup di `components/showcase-feed-tab.tsx`.
+ *
+ * S-30: label opsi lewat `translate` dan dihitung ulang saat bahasa berganti
+ * (sebelumnya konstanta modul berbahasa Indonesia).
  */
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { View } from "react-native"
 
 import { BottomSheet } from "@/components/ui/bottom-sheet"
@@ -27,9 +27,12 @@ import { translate } from "@/lib/i18n/translate"
 import { useLanguage } from "@/lib/i18n"
 import {
   DEFAULT_SHOWCASE_FILTERS,
+  showcaseProductTypeLabel,
+  showcaseProductTypeOf,
   type PriceRange,
   type ShowcaseConditionFilter,
   type ShowcaseFeedFilters,
+  type ShowcaseProductTypeUiFilter,
   type ShowcaseRatingFilter,
 } from "@/lib/showcase-filters"
 
@@ -43,20 +46,11 @@ export {
   type PriceRange,
   type ShowcaseConditionFilter,
   type ShowcaseFeedFilters,
+  type ShowcaseProductTypeUiFilter,
   type ShowcaseRatingFilter,
 } from "@/lib/showcase-filters"
 
-const CONDITION_OPTIONS: ReadonlyArray<{ value: ShowcaseConditionFilter; label: string }> = [
-  { value: "ALL", label: "Semua kondisi" },
-  { value: "NEW", label: "Baru" },
-  { value: "USED", label: "Bekas" },
-]
-
-const RATING_OPTIONS: ReadonlyArray<{ value: ShowcaseRatingFilter; label: string }> = [
-  { value: "ALL", label: "Semua rating" },
-  { value: "4", label: "4+ ke atas" },
-  { value: "4_5", label: "4,5+ ke atas" },
-]
+const PRODUCT_TYPE_VALUES: readonly ShowcaseProductTypeUiFilter[] = ["ALL", "FISIK", "JASA", "DIGITAL", "LAINNYA"]
 
 export type ShowcaseFilterSheetProps = {
   visible: boolean
@@ -74,7 +68,27 @@ export function ShowcaseFilterSheet({
   onApply,
 }: ShowcaseFilterSheetProps) {
   // i18n: label mengikuti bahasa aktif.
-  useLanguage()
+  const language = useLanguage()
+  const conditionOptions = useMemo<ReadonlyArray<{ value: ShowcaseConditionFilter; label: string }>>(
+    () => [
+      { value: "ALL", label: translate("Semua kondisi") },
+      { value: "NEW", label: translate("Baru") },
+      { value: "USED", label: translate("Bekas") },
+    ],
+    [language],
+  )
+  const ratingOptions = useMemo<ReadonlyArray<{ value: ShowcaseRatingFilter; label: string }>>(
+    () => [
+      { value: "ALL", label: translate("Semua rating") },
+      { value: "4", label: translate("4+ ke atas") },
+      { value: "4_5", label: translate("4,5+ ke atas") },
+    ],
+    [language],
+  )
+  const productTypeOptions = useMemo<ReadonlyArray<{ value: ShowcaseProductTypeUiFilter; label: string }>>(
+    () => PRODUCT_TYPE_VALUES.map((value) => ({ value, label: showcaseProductTypeLabel(value) })),
+    [language],
+  )
   const [draft, setDraft] = useState<ShowcaseFeedFilters>(initial)
 
   // Tiap dibuka, draf = filter yang sedang diterapkan (bukan sisa draf lama).
@@ -86,6 +100,8 @@ export function ShowcaseFilterSheet({
     setDraft((d) => ({ ...d, condition: next[0] ?? "ALL" }))
   const setRating = (next: ShowcaseRatingFilter[]) =>
     setDraft((d) => ({ ...d, minRating: next[0] ?? "ALL" }))
+  const setProductType = (next: ShowcaseProductTypeUiFilter[]) =>
+    setDraft((d) => ({ ...d, productType: next[0] ?? "ALL" }))
   const setPrice = (price: PriceRange) => setDraft((d) => ({ ...d, price }))
 
   const resetDraft = () => setDraft(DEFAULT_SHOWCASE_FILTERS)
@@ -128,12 +144,25 @@ export function ShowcaseFilterSheet({
       <View className="gap-5">
         <View className="gap-2">
           <Text variant="label" weight={600} tone="secondary">
+            {translate("Jenis produk")}
+          </Text>
+          <ChipGroup
+            accessibilityLabel={translate("Saring berdasarkan jenis produk")}
+            single
+            options={productTypeOptions}
+            value={[showcaseProductTypeOf(draft)]}
+            onChange={setProductType}
+          />
+        </View>
+
+        <View className="gap-2">
+          <Text variant="label" weight={600} tone="secondary">
             {translate("Kondisi barang")}
           </Text>
           <ChipGroup
             accessibilityLabel={translate("Saring berdasarkan kondisi barang")}
             single
-            options={CONDITION_OPTIONS}
+            options={conditionOptions}
             value={[draft.condition]}
             onChange={setCondition}
           />
@@ -146,7 +175,7 @@ export function ShowcaseFilterSheet({
           <ChipGroup
             accessibilityLabel={translate("Saring berdasarkan rating penjual minimum")}
             single
-            options={RATING_OPTIONS}
+            options={ratingOptions}
             value={[draft.minRating]}
             onChange={setRating}
           />

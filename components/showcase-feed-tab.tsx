@@ -398,7 +398,12 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
   const { mode: themeMode } = useTheme()
   // A-16: debounce dibuang — tidak ada kolom ketik yang mengubah `search`
   // di layar ini; debounce hanya menunda fetch saat param URL berubah.
-  const activeSearch = search.trim()
+  // Audit Search 2026-10-10 (S-26): backend mengabaikan `search` < 2 huruf
+  // (SHOWCASE_SEARCH_MIN_LENGTH) dan mengembalikan feed penuh — jangan
+  // tampilkan chip "a" seolah hasil terfilter; perlakukan sebagai tanpa
+  // pencarian di sisi klien juga.
+  const trimmedSearch = search.trim()
+  const activeSearch = trimmedSearch.length >= 2 ? trimmedSearch : ""
   const collapsing = useCollapsingHeader()
   const insets = useSafeAreaInsets()
 
@@ -655,6 +660,9 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
         sheetFilters.minRating === "4" ? 4 : sheetFilters.minRating === "4_5" ? 4.5 : undefined,
       minPrice: sheetFilters.price.min ?? undefined,
       maxPrice: sheetFilters.price.max ?? undefined,
+      // Audit Search 2026-10-10 (S-29): jenis produk → ?productType=…
+      productType:
+        sheetFilters.productType && sheetFilters.productType !== "ALL" ? sheetFilters.productType : undefined,
     }),
     [activeSearch, category, location, sheetFilters],
   )
@@ -763,6 +771,7 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
         minSellerRating: filter.minSellerRating,
         minPrice: filter.minPrice,
         maxPrice: filter.maxPrice,
+        productType: filter.productType,
       }
       try {
         let incoming: ShowcaseSocialItem[] = []

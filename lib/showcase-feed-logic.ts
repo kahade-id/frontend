@@ -61,6 +61,8 @@ export type ShowcaseFeedFilter = {
   condition?: "baru" | "bekas"
   /** Kontrak final Tim A (2026-09-28): rating minimal penjual (mis. 4.0). */
   minSellerRating?: number
+  /** Audit Search 2026-10-10 (S-29): tipe produk (enum backend). */
+  productType?: "JASA" | "FISIK" | "DIGITAL" | "LAINNYA"
 }
 
 /**
@@ -83,7 +85,10 @@ export function sameFeedFilter(a: ShowcaseFeedFilter, b: ShowcaseFeedFilter): bo
     // Kontrak final Tim A (2026-09-28): kondisi & rating ikut identitas —
     // kursor himpunan "baru" tidak valid untuk "bekas".
     (a.condition ?? "") === (b.condition ?? "") &&
-    (a.minSellerRating ?? -1) === (b.minSellerRating ?? -1)
+    (a.minSellerRating ?? -1) === (b.minSellerRating ?? -1) &&
+    // S-29: tipe produk ikut identitas — kursor himpunan "JASA" tidak valid
+    // untuk "FISIK".
+    (a.productType ?? "") === (b.productType ?? "")
   )
 }
 
