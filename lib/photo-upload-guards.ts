@@ -44,13 +44,3 @@ export function validateAvatarAsset(asset: PickedImage): string | null {
 export function validateHeaderAsset(asset: PickedImage): string | null {
   return validatePhotoAsset(asset, HEADER_ALLOWED_MIME, HEADER_MAX_MB, HEADER_COPY)
 }
-
-/**
- * UPF-04: timeout adaptif upload foto — 20 dtk basis + waktu upload pada
- * 100 KB/s (konservatif untuk koneksi HP Indonesia), maks 120 dtk.
- * Tanpa info ukuran (fail-open resize): 60 dtk — aman untuk file pasca-resize.
- */
-export function photoUploadTimeoutMs(bytes?: number): number {
-  if (typeof bytes !== "number" || bytes <= 0) return 60_000
-  return Math.min(120_000, Math.max(20_000, 20_000 + bytes / 100))
-}

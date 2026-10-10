@@ -13,6 +13,7 @@ import {
 } from "@/lib/api/response"
 
 import { http, seg } from "@/lib/api/client"
+import { uploadFileWithProgress, type UploadFileOptions } from "@/lib/api/upload"
 import { fetchViaQueryCache } from "@/lib/query-cache"
 import { queryKeys } from "@/lib/query-keys"
 import type {
@@ -222,16 +223,26 @@ export function checkUsernameAvailability(username: string, signal?: AbortSignal
  * POST /v1/users/me/avatar/direct — upload avatar langsung lewat server
  * (multipart/form-data). Bypasses presigned URL — lebih simple untuk mobile.
  *
- * File harus sudah divalidasi klien (JPG/PNG, maks 10MB, idealnya < 2MB
+ * File harus sudah divalidasi klien (JPG/PNG, maks 2MB, idealnya < 2MB
  * setelah kompresi — §9.19). Server yang menangani kompresi jika perlu.
+ *
+ * Audit 2026-10-09 (B2): JOIN transport XHR terpusat (`uploadFileWithProgress`).
+ * Dulu `http.post` tanpa `timeoutMs` eksplisit → default 20 dtk membunuh avatar
+ * di 4G lambat (jalur `setup-profile` tidak mengirim timeoutMs). Kini bila
+ * `timeoutMs` tidak dikirim, deadline adaptif dari `fileBytes`; cek NetInfo
+ * pra-upload; progress byte jujur untuk UI; retry transien + backoff.
  */
-export async function uploadAvatarDirect(formData: FormData, opts?: { timeoutMs?: number }) {
-  const result = await http.post<AvatarResult>("/v1/users/me/avatar/direct", undefined, {
-    auth: "required",
-    formData,
-    // UPF-04: timeout adaptif dari pemanggil; undefined → default API_TIMEOUT_MS.
-    timeoutMs: opts?.timeoutMs,
-  })
+export async function uploadAvatarDirect(
+  formData: FormData,
+  opts: Pick<UploadFileOptions, "timeoutMs" | "fileBytes" | "onProgress" | "signal"> = {},
+) {
+  const result = (await uploadFileWithProgress(formData, {
+    path: "/v1/users/me/avatar/direct",
+    timeoutMs: opts.timeoutMs,
+    fileBytes: opts.fileBytes,
+    onProgress: opts.onProgress,
+    signal: opts.signal,
+  })) as unknown as AvatarResult
   return {
     ...result,
     avatarUrl: pickString(result, ["avatarUrl", "avatar_url"]),
@@ -282,14 +293,21 @@ function normalizeHeaderResult(result: HeaderImageResult): HeaderImageResult {
  * POST /v1/users/me/header/direct — unggah foto sampul langsung (multipart
  * `file`). Pola sama dengan avatar: direct upload memangkas round-trip
  * presigned URL (PUT /v1/users/me/header) yang tidak dibutuhkan mobile.
+ *
+ * Audit 2026-10-09: transport XHR terpusat — sama seperti avatar (timeout
+ * adaptif bila tidak eksplisit, cek NetInfo pra-upload, progress, retry).
  */
-export async function uploadHeaderDirect(formData: FormData, opts?: { timeoutMs?: number }) {
-  const result = await http.post<HeaderImageResult>("/v1/users/me/header/direct", undefined, {
-    auth: "required",
-    formData,
-    // UPF-04: timeout adaptif dari pemanggil; undefined → default API_TIMEOUT_MS.
-    timeoutMs: opts?.timeoutMs,
-  })
+export async function uploadHeaderDirect(
+  formData: FormData,
+  opts: Pick<UploadFileOptions, "timeoutMs" | "fileBytes" | "onProgress" | "signal"> = {},
+) {
+  const result = (await uploadFileWithProgress(formData, {
+    path: "/v1/users/me/header/direct",
+    timeoutMs: opts.timeoutMs,
+    fileBytes: opts.fileBytes,
+    onProgress: opts.onProgress,
+    signal: opts.signal,
+  })) as unknown as HeaderImageResult
   return normalizeHeaderResult(result)
 }
 

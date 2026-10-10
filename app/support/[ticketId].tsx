@@ -34,6 +34,7 @@ import { ChatMessageBubble } from "@/components/ui/chat-message-bubble"
 import { SupportMessageMeta } from "@/components/ui/support-message-meta"
 import { describeTicketSla } from "@/lib/ticket-sla"
 import { showMutationError } from "@/lib/mutation-toast"
+import { uploadMessage } from "@/lib/upload-errors"
 import { Dialog } from "@/components/ui/modal"
 import { ErrorState } from "@/components/ui/error-state"
 import { Header } from "@/components/ui/header"
@@ -123,11 +124,15 @@ export default function SupportTicketDetailScreen() {
     } catch (err: unknown) {
       logWarn("support:reply-attachment", err)
       // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+      // Audit 2026-10-09 (F1): describe = uploadMessage — 413 menyebut
+      // "maks 50 MB" (batas CHAT_ATTACHMENT), timeout = koneksi lambat,
+      // offline hanya terverifikasi NetInfo.
       showMutationError(toast.show, {
         failTitle: "Gagal mengunggah lampiran",
         uncertainHint: "Aksi mungkin sudah diproses — periksa kembali sebelum mencoba lagi.",
         err: err,
         scope: "support:ticketId:mengunggah-lampiran",
+        describe: (e) => uploadMessage(e, { purpose: "CHAT_ATTACHMENT" }),
       })
     } finally {
       setUploadingReply(false)

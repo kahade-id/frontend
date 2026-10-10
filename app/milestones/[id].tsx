@@ -45,6 +45,7 @@ import { translate } from "@/lib/i18n"
 import { useApiQuery } from "@/lib/use-api-query"
 import { useWalletEnabled } from "@/lib/use-wallet-enabled"
 import { showMutationError } from "@/lib/mutation-toast"
+import { uploadMessage } from "@/lib/upload-errors"
 
 import { Button } from "@/components/ui/button"
 import { AmountInput } from "@/components/ui/amount-input"
@@ -201,12 +202,16 @@ export default function MilestoneDetailScreen() {
       toast.show({ title: "Bukti dilampirkan", tone: "success" })
     } catch (e) {
       // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+      // Audit 2026-10-09 (F1): describe = uploadMessage — 413 menyebut
+      // "maks 10 MB", timeout = koneksi lambat, offline hanya terverifikasi;
+      // kegagalan attach (JSON) jatuh ke userMessage via fallback internal.
       if (
         showMutationError(toast.show, {
           failTitle: "Gagal mengunggah bukti",
           uncertainHint: "Aksi mungkin sudah diproses — memuat ulang…",
           err: e,
           scope: "milestones:id:mengunggah-bukti",
+          describe: (ee) => uploadMessage(ee, { purpose: "MILESTONE_EVIDENCE" }),
         })
       ) {
         void query.refresh()

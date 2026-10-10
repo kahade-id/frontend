@@ -8,8 +8,19 @@
  * Pola itu sebelumnya tersalin per-handler (layar order ronde-1); dipusatkan
  * di sini supaya seluruh mutasi mendapat perilaku yang sama.
  */
-import { isApiError, isUncertainMutationError, userMessage } from "@/lib/api/errors"
+import { isApiError, isOfflineError, isUncertainMutationError, userMessage } from "@/lib/api/errors"
 import { captureError } from "@/lib/telemetry"
+
+/**
+ * Kegagalan yang nasibnya PASTI walau biasanya masuk "tak pasti":
+ * perangkat terverifikasi offline (request tak pernah dikirim — NetInfo,
+ * audit 2026-10-09 A3) atau OfflineError (ditolak gerbang sebelum kirim).
+ * Menampilkan "Aksi mungkin sudah diproses" untuk kasus ini menyesatkan.
+ */
+function isDefinitelyNotSent(err: unknown): boolean {
+  if (isOfflineError(err)) return true
+  return isApiError(err) && err.backendCode === "OFFLINE_VERIFIED"
+}
 
 /** Bentuk minimal `toast.show` — struktural supaya tanpa impor sirkular. */
 export type ShowMutationToast = (opts: {
@@ -43,20 +54,31 @@ export function showMutationError(
      * telemetri (dan sink remote bila diaktifkan) dengan scope layar.
      */
     scope?: string
+    /**
+     * Audit 2026-10-09: penafsir pesan khusus. Jalur UPLOAD meneruskan
+     * `uploadMessage` (klasifikasi offline/timeout/413/5xx berbeda dari
+     * mutasi JSON biasa — `userMessage` membuang pesan karangan klien untuk
+     * kode NETWORK/TIMEOUT/SERVER). Default tetap `userMessage`.
+     */
+    describe?: (err: unknown) => string
   },
 ): boolean {
-  if (!isUncertainMutationError(opts.err)) {
+  const describe = opts.describe ?? ((err: unknown) => (isApiError(err) ? userMessage(err) : ""))
+  // Audit 2026-10-09 (A3): offline terverifikasi (NetInfo) = request TAK
+  // PERNAH dikirim → kegagalan PASTI, bukan "tak pasti". Menampilkan
+  // "Aksi mungkin sudah diproses" untuk kasus ini menyesatkan (mustahil —
+  // request tidak pernah keluar perangkat).
+  if (!isUncertainMutationError(opts.err) || isDefinitelyNotSent(opts.err)) {
+    const desc = describe(opts.err)
     show({
       title: opts.failTitle,
-      description: isApiError(opts.err) ? userMessage(opts.err) : undefined,
+      description: desc || undefined,
       tone: "danger",
     })
     return false
   }
   captureError(opts.scope ?? "mutation.uncertain", opts.err)
-  const base = isApiError(opts.err)
-    ? userMessage(opts.err)
-    : `${opts.failTitle} — penyebab tidak diketahui.`
+  const base = describe(opts.err) || `${opts.failTitle} — penyebab tidak diketahui.`
   show({
     title: opts.uncertainHint,
     description: opts.uncertainDetail ? `${base} ${opts.uncertainDetail}` : base,

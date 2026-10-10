@@ -23,13 +23,20 @@ vi.mock("@/lib/api/client", () => ({
 }))
 // showcase-upload.ts memakai `api` dari `@/lib/api` (index) — namespace
 // `upload`-nya berasal dari `@/lib/api/upload`, jadi modul itulah yang di-mock.
-vi.mock("@/lib/api/upload", () => ({
-  uploadDirect: (...args: unknown[]) => mocks.uploadDirect(...args),
-  // NP-006: video memakai jalur chunked/resumable (≤ 8MB tetap single-shot
-  // di dalamnya) — satu titik masuk `uploadChunkedVideo`.
-  uploadChunkedVideo: (...args: unknown[]) => mocks.uploadDirectVideo(...args),
-  cleanupUploads: vi.fn().mockResolvedValue(undefined),
-}))
+// Audit upload 2026-10-09: foto lewat `uploadFileWithProgress` +
+// `parseDirectUploadObject` (dipertahankan asli — parse murni yang diuji
+// end-to-end lewat respons yang direturn mock transport).
+vi.mock("@/lib/api/upload", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/api/upload")>()
+  return {
+    uploadFileWithProgress: (...args: unknown[]) => mocks.uploadDirect(...args),
+    parseDirectUploadObject: actual.parseDirectUploadObject,
+    // NP-006: video memakai jalur chunked/resumable (≤ 8MB tetap single-shot
+    // di dalamnya) — satu titik masuk `uploadChunkedVideo`.
+    uploadChunkedVideo: (...args: unknown[]) => mocks.uploadDirectVideo(...args),
+    cleanupUploads: vi.fn().mockResolvedValue(undefined),
+  }
+})
 vi.mock("@/lib/image-picker", () => ({
   pickedImageToFormData: (...args: unknown[]) => mocks.toFormData(...args),
   // NP-003: resize sebelum guard — identitas (tanpa dimensi = tak di-resize).

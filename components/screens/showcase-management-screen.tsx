@@ -41,12 +41,13 @@ import { sanitizeShowcaseHtml } from "@/lib/showcase-html"
 import { useShowcaseOperation } from "@/lib/use-showcase-operation"
 import { useHasSession, useSessionRevision } from "@/lib/guest-gate"
 import { getSessionRevision } from "@/lib/api/session"
-import { pickImages } from "@/lib/image-picker"
+import { pickImages, type PickedImage } from "@/lib/image-picker"
 import { useApiQuery } from "@/lib/use-api-query"
 import { ROUTES } from "@/lib/routes"
 import { showcasePriceLabel, showcasePriceLabelOrFallback } from "@/lib/showcase-labels"
 import { showcaseCoverOf, untitledShowcaseTitle } from "@/lib/showcase-social"
 import { markShowcaseFeedDirty } from "@/lib/showcase-social-prefs"
+import { uploadMessage } from "@/lib/upload-errors"
 import { cleanupPendingShowcaseKeys, uploadShowcasePhoto } from "@/lib/showcase-upload"
 import {
   getRecoverableShowcaseItems,
@@ -73,6 +74,7 @@ import { Header } from "@/components/ui/header"
 import { IconButton } from "@/components/ui/icon-button"
 import { Input } from "@/components/ui/input"
 import { Picture } from "@/components/ui/picture"
+import { ProgressBar } from "@/components/ui/progress-bar"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
 import { SectionHeader, MenuGroupLabel } from "@/components/ui/section"
@@ -374,6 +376,11 @@ function ShowcaseManagement() {
   const [attaching, setAttaching] = useState(false)
   const [deleteImage, setDeleteImage] = useState<ShowcaseImage | null>(null)
   const [deletingImage, setDeletingImage] = useState(false)
+  // Audit 2026-10-09 E1/D1: foto yang gagal di lampir di-retry PER FILE
+  // (dulu: satu gagal = seluruh batch dibersihkan, user ulang dari nol),
+  // dan unggahan berjalan bisa dibatalkan + progres byte-nya jujur.
+  const [failedAttach, setFailedAttach] = useState<{ asset: PickedImage; message: string }[]>([])
+  const [attachProgress, setAttachProgress] = useState(0)
 
   /**
    * D-10: urutan foto diedit LOKAL (draft) — panah menukar posisi di draft;
@@ -704,10 +711,39 @@ function ShowcaseManagement() {
       }
       if (picked.status !== "picked" || controller.signal.aborted) return
       setAttaching(true)
-      for (const asset of picked.assets) {
-        const result = await uploadShowcasePhoto(asset, controller.signal)
-        keys.push(result.fileKey)
-        if (result.thumbnailFileKey) thumbMap[result.fileKey] = result.thumbnailFileKey
+      setAttachProgress(0)
+      // Audit 2026-10-09 E1: kegagalan PER FILE tidak lagi menggagalkan
+      // seluruh batch (dulu: 1 foto gagal = semua key yang sudah terunggah
+      // dibersihkan dan user mengulang dari nol). Foto yang gagal masuk
+      // daftar "Coba lagi foto gagal"; yang berhasil tetap dilampirkan.
+      const failures: { asset: PickedImage; message: string }[] = []
+      for (const [index, asset] of picked.assets.entries()) {
+        if (controller.signal.aborted) break
+        try {
+          const result = await uploadShowcasePhoto(asset, {
+            signal: controller.signal,
+            // Audit 2026-10-09 C5: progres byte jujur per file (0–1).
+            onProgress: (fraction) => setAttachProgress((index + fraction) / picked.assets.length),
+          })
+          keys.push(result.fileKey)
+          if (result.thumbnailFileKey) thumbMap[result.fileKey] = result.thumbnailFileKey
+        } catch (err) {
+          if (controller.signal.aborted) break
+          // Audit 2026-10-09 A1: copy spesifik per tipe kegagalan.
+          failures.push({ asset, message: uploadMessage(err, { purpose: "SHOWCASE_IMAGE" }) })
+        }
+      }
+      if (keys.length === 0) {
+        // SEMUA foto gagal (atau user batal di foto pertama).
+        if (!controller.signal.aborted && task.valid() && failures.length > 0) {
+          setFailedAttach(failures)
+          toast.show({
+            title: translate("Gagal mengunggah foto"),
+            description: failures[0].message,
+            tone: "danger",
+          })
+        }
+        return
       }
       if (controller.signal.aborted || !task.valid()) return
       submitted = true
@@ -716,8 +752,23 @@ function ShowcaseManagement() {
       touchFeed()
       setOrderDraft(null)
       await query.refresh()
-      toast.show({ title: translate("Foto dilampirkan"), tone: "success" })
+      if (failures.length > 0) {
+        setFailedAttach(failures)
+        toast.show({
+          title: translate("{x} dari {y} foto gagal diunggah", {
+            x: failures.length,
+            y: picked.assets.length,
+          }),
+          description: failures[0].message,
+          tone: "warning",
+        })
+      } else {
+        setFailedAttach([])
+        toast.show({ title: translate("Foto dilampirkan"), tone: "success" })
+      }
     } catch (error) {
+      // Hanya kegagalan di luar loop per-file yang sampai sini
+      // (picker, attach) — bukan kegagalan upload per foto.
       if (!controller.signal.aborted && task.valid()) toast.show({
         title: submitted ? translate("Status lampiran belum dapat dipastikan. Segarkan sebelum mencoba lagi.") : translate("Gagal mengunggah foto"),
         description: userMessage(error), tone: "danger",
@@ -729,13 +780,88 @@ function ShowcaseManagement() {
       task.finish()
       uploadBusy.current = false
       if (uploadAbort.current === controller) uploadAbort.current = null
-      if (task.valid()) setAttaching(false)
+      if (task.valid()) {
+        setAttaching(false)
+        setAttachProgress(0)
+      }
     }
   }, [committingOrder, deletingImage, toast, query, touchFeed, mutations, photoLimit])
+
+  /**
+   * Audit 2026-10-09 E1: "Coba lagi" mengulang HANYA foto yang gagal —
+   * key yang sudah terlampirkan tidak disentuh, tidak diunggah ulang.
+   * `uploadAbort` mengizinkan tombol "Batalkan" menghentikan foto berikut.
+   */
+  const retryFailedAttach = useCallback(async () => {
+    if (uploadBusy.current || committingOrder || deletingImage || failedAttach.length === 0) return
+    const item = imagesItem
+    if (!item) return
+    const task = mutations.begin()
+    if (!task) return
+    uploadBusy.current = true
+    setAttaching(true)
+    setAttachProgress(0)
+    const controller = new AbortController()
+    uploadAbort.current = controller
+    const keys: string[] = []
+    const thumbMap: Record<string, string> = {}
+    let submitted = false
+    try {
+      const remaining: { asset: PickedImage; message: string }[] = []
+      for (const [index, failed] of failedAttach.entries()) {
+        if (controller.signal.aborted) break
+        try {
+          const result = await uploadShowcasePhoto(failed.asset, {
+            signal: controller.signal,
+            onProgress: (fraction) => setAttachProgress((index + fraction) / failedAttach.length),
+          })
+          keys.push(result.fileKey)
+          if (result.thumbnailFileKey) thumbMap[result.fileKey] = result.thumbnailFileKey
+        } catch (err) {
+          if (controller.signal.aborted) break
+          remaining.push({ asset: failed.asset, message: uploadMessage(err, { purpose: "SHOWCASE_IMAGE" }) })
+        }
+      }
+      if (keys.length > 0 && !controller.signal.aborted && task.valid()) {
+        submitted = true
+        await api.users.attachShowcaseImages(item.id, keys, thumbMap)
+        if (task.valid()) {
+          touchFeed()
+          setOrderDraft(null)
+          await query.refresh()
+          toast.show({ title: translate("Foto dilampirkan"), tone: "success" })
+        }
+      }
+      setFailedAttach(remaining)
+      if (remaining.length > 0 && !controller.signal.aborted && task.valid()) {
+        toast.show({
+          title: translate("Masih ada foto yang gagal diunggah"),
+          description: remaining[0].message,
+          tone: "warning",
+        })
+      }
+    } catch (error) {
+      if (!controller.signal.aborted && task.valid()) toast.show({
+        title: submitted ? translate("Status lampiran belum dapat dipastikan. Segarkan sebelum mencoba lagi.") : translate("Gagal mengunggah foto"),
+        description: userMessage(error), tone: "danger",
+      })
+    } finally {
+      if (!submitted) void cleanupPendingShowcaseKeys([...keys, ...Object.values(thumbMap)])
+      task.finish()
+      uploadBusy.current = false
+      if (uploadAbort.current === controller) uploadAbort.current = null
+      if (task.valid()) {
+        setAttaching(false)
+        setAttachProgress(0)
+      }
+    }
+  }, [failedAttach, imagesItem, committingOrder, deletingImage, toast, query, touchFeed, mutations])
 
   // ── D-10: reorder foto — draft lokal, SATU commit saat sheet tutup ──
   const openImagesSheet = useCallback((item: ShowcaseItem) => {
     setOrderDraft(null)
+    // Audit 2026-10-09 E1: daftar gagal adalah per-item — reset saat pindah item.
+    setFailedAttach([])
     setImagesItemId(item.id)
   }, [])
 
@@ -1262,6 +1388,52 @@ function ShowcaseManagement() {
             <Text variant="caption" tone="secondary">
               {translate("Belum ada media — lampirkan yang pertama di bawah.")}
             </Text>
+          ) : null}
+
+          {/* Audit 2026-10-09 D1: progres byte jujur + batalkan unggahan. */}
+          {attaching ? (
+            <View className="gap-2">
+              <ProgressBar
+                value={Math.round(attachProgress * 100)}
+                showValue
+                accessibilityLabel={translate("Mengunggah foto")}
+              />
+              <Button variant="ghost" onPress={() => uploadAbort.current?.abort()}>
+                {translate("Batalkan unggahan")}
+              </Button>
+            </View>
+          ) : null}
+
+          {/* Audit 2026-10-09 E1: retry PER FILE — key yang sudah
+              terlampirkan tidak diulang; penyebab per foto ditampilkan. */}
+          {failedAttach.length > 0 ? (
+            <View className="gap-2">
+              <Text tone="danger">
+                {translate("Foto berikut gagal diunggah. Coba lagi atau abaikan.")}
+              </Text>
+              {failedAttach.map((failed, index) => (
+                <View key={`${failed.asset.uri}-${index}`} className="gap-1">
+                  <Text>{failed.asset.name}</Text>
+                  <Text variant="caption" tone="danger">
+                    {failed.message}
+                  </Text>
+                  <Button
+                    variant="ghost"
+                    disabled={attaching}
+                    onPress={() => setFailedAttach((entries) => entries.filter((_, i) => i !== index))}
+                  >
+                    {translate("Abaikan foto ini")}
+                  </Button>
+                </View>
+              ))}
+              <Button
+                loading={attaching}
+                disabled={committingOrder || deletingImage}
+                onPress={() => void retryFailedAttach()}
+              >
+                {translate("Coba lagi foto gagal")}
+              </Button>
+            </View>
           ) : null}
         </View>
       </BottomSheet>

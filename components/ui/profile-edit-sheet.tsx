@@ -312,13 +312,21 @@ export function ProfileEditSheet({ visible, onRequestClose, profile, onSaved }: 
               </View>
             </View>
             {/* Item 66 (2026-09-28): progress saat mengunggah + error inline
-                dengan tombol "Coba lagi" (tanpa pilih ulang foto). */}
+                dengan tombol "Coba lagi" (tanpa pilih ulang foto).
+                Audit 2026-10-09 (C5/D2): progress byte JUJUR + batalkan. */}
             {avatar.busy ? (
               <View className="w-44 gap-1.5 pt-3">
-                <ProgressBar size="sm" accessibilityLabel={translate("Mengunggah foto profil")} />
+                <ProgressBar
+                  size="sm"
+                  value={avatar.progress != null ? Math.round(avatar.progress * 100) : undefined}
+                  accessibilityLabel={translate("Mengunggah foto profil")}
+                />
                 <Text variant="caption" tone="secondary" className="text-center">
                   {translate("Mengunggah foto…")}
                 </Text>
+                <Button size="sm" variant="ghost" onPress={() => avatar.cancelUpload()}>
+                  {translate("Batalkan unggahan")}
+                </Button>
               </View>
             ) : null}
             {avatar.error && !avatar.busy ? (

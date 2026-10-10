@@ -38,6 +38,7 @@ import { Package, CaretRight } from "phosphor-react-native"
 
 import { api, createIdempotencyKey, isApiError, userMessage, type Order } from "@/lib/api"
 import { showMutationError } from "@/lib/mutation-toast"
+import { uploadMessage } from "@/lib/upload-errors"
 import { orderPartyName, type DeliveryProof } from "@/lib/api/orders"
 import { pickImage } from "@/lib/image-picker"
 import { formatDateTime } from "@/lib/format"
@@ -380,11 +381,14 @@ export default function DeliveryProofScreen() {
       ])
     } catch (err) {
       // Klasifikasi toast: error mutasi non-blokir via showMutationError.
+      // Audit 2026-10-09 (F1): describe = uploadMessage — 413 menyebut
+      // "maks 10 MB", timeout = koneksi lambat, offline hanya terverifikasi.
       showMutationError(toast.show, {
         failTitle: "Gagal mengunggah foto",
         uncertainHint: "Aksi mungkin sudah diproses — periksa kembali sebelum mencoba lagi.",
         err: err,
         scope: "delivery-proof:orderId:mengunggah-foto",
+        describe: (e) => uploadMessage(e, { purpose: "DELIVERY_PROOF" }),
       })
     } finally {
       setUploading(false)
