@@ -1,56 +1,60 @@
 /**
  * Kahade — viewer story fullscreen (`/story/[userId]`).
  *
- * Perilaku (ala WhatsApp Status):
+ * Perilaku (ala Instagram/WhatsApp Status):
  *   - Progress bar per story; segmen aktif diisi lewat SATU shared value yang
- *     dianimasikan di UI thread (`withTiming`). Segmen lain statis.
- *   - Tap kiri/kanan → mundur/maju (lihat lib/story/playback.ts). Di ujung
- *     penulis → penulis berikutnya dari tray; di ujung terakhir → tutup.
- *   - Tekan-tahan → pause (sisa durasi dilanjutkan saat dilepas). Fokus input
- *     balasan juga men-pause.
- *   - Geser ke bawah → tutup. Gesture dipisah dari tombol/tag/input: lapisan
- *     kontrol diletakkan DI ATAS lapisan gesture, jadi sentuhan tidak saling
- *     menelan.
+ *     dianimasikan di UI thread (`withTiming`). Foto/teks 5 dtk; VIDEO
+ *     mengikuti posisi pemutar (event `timeUpdate`) — buffering otomatis
+ *     menahan bar, dan segmen baru mulai saat media SIAP (bukan saat mount).
+ *   - Tap kiri/kanan → mundur/maju (lib/story/playback.ts). Di ujung penulis
+ *     → penulis berikutnya dari tray; di ujung terakhir → tutup.
+ *   - GESER KIRI/KANAN → penulis berikutnya/sebelumnya (2026-10-10). Viewer
+ *     TETAP satu layar: penulis diganti sebagai state, feed tetangga sudah
+ *     di-prefetch (lib/story/feed-cache.ts), jadi tidak ada layar loading
+ *     putih di antaranya (dulu `router.replace` me-mount ulang layar).
+ *   - Tekan-tahan / sedang menggeser / sheet terbuka / app ke latar → pause.
+ *   - Geser ke bawah → tutup. Lapisan kontrol diletakkan DI ATAS lapisan
+ *     gesture, jadi sentuhan tidak saling menelan.
+ *   - Area atas/bawah menghormati safe-area (progress bar tidak lagi tenggelam
+ *     di balik notch) dan status bar dipaksa terang di atas latar hitam.
  *
- * Motion (2026-10-08, penyegaran UI/UX story):
- *   - BUKA: layar mengembang dari 0.92 + fade masuk (220ms, kurva enter) —
- *     terasa seperti story "membesar dari ubin tray", bukan potongan layar
- *     baru yang menimpa.
- *   - TUTUP (geser ke bawah): selain turun, layar MENGECIL ke 0.86 dan
- *     membulat (radius 24) sementara latar meredup — bahasa dismiss yang sama
- *     dengan Instagram/WhatsApp. Dulu hanya translateY + opacity, sehingga
- *     gerakan terasa seperti "menggeser kertas", bukan menutup lapisan.
- *   - GANTI SEGMEN: media crossfade + sedikit zoom-out (1.03 → 1) tiap kali
- *     story berganti, supaya potongan antar story tidak terasa "menjepret".
- *   - Semua updater `useAnimatedStyle` murni membaca shared value — nol
- *     pemanggilan fungsi JS di dalamnya (aturan worklet repo).
- *
- * Aturan worklet (penting): `useAnimatedStyle` hanya membaca shared value.
- * Pemanggilan fungsi JS (navigasi, setState) selalu lewat `runOnJS` dari
- * callback gesture/animasi, tidak pernah dari dalam updater style.
+ * Motion:
+ *   - BUKA: mengembang dari 0.92 + fade (220ms). TUTUP: turun + mengecil ke
+ *     0.86 + membulat sementara latar meredup. GANTI SEGMEN: crossfade + zoom
+ *     halus. Semua updater `useAnimatedStyle` murni membaca shared value.
  *
  * Interaksi (semua optimistis + rollback):
- *   - tandai dilihat (ring abu-abu di tray setelah story terakhir),
- *   - reaksi emoji cepat,
- *   - balas → masuk sebagai chat ke pemilik,
- *   - tanya stok → draft chat berisi pertanyaan stok (tidak terkirim otomatis),
- *   - bisukan kontak; untuk story sendiri: hapus, lihat viewer, sorot.
+ *   - tandai dilihat (server dipanggil setelah story tampil ≥ 0,6 dtk —
+ *     tap cepat 10 story tidak menembak 10 POST),
+ *   - reaksi emoji cepat (ketuk ulang = hapus reaksi),
+ *   - balas → chat ke pemilik; tanya stok → draft chat,
+ *   - bisukan kontak, LAPORKAN story, bagikan profil; story sendiri: hapus,
+ *     lihat viewer, sorot.
+ *   - mode SOROTAN (`highlightId`): arsip permanen — hanya tonton & tag
+ *     produk; reaksi/balas/tandai-dilihat dimatikan (story asli bisa sudah
+ *     kedaluwarsa → 404).
  */
 import { router } from "expo-router"
 import { Image } from "expo-image"
+import { StatusBar } from "expo-status-bar"
 import {
   DotsThree,
   Eye,
+  Flag,
   PaperPlaneRight,
+  ShareNetwork,
   ShoppingBag,
+  SpeakerHigh,
   SpeakerSlash,
+  SpeakerX,
   Star,
   Trash,
   X,
   Megaphone,
+  WarningCircle,
 } from "phosphor-react-native"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { KeyboardAvoidingView, Platform, Pressable, TextInput, View } from "react-native"
+import { AppState, KeyboardAvoidingView, Platform, Pressable, TextInput, View, useWindowDimensions } from "react-native"
 import { Gesture, GestureDetector } from "react-native-gesture-handler"
 import Animated, {
   Easing,
@@ -63,24 +67,28 @@ import Animated, {
   withSpring,
   withTiming,
 } from "react-native-reanimated"
+import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { ActionSheet, type ActionSheetItem } from "@/components/ui/action-sheet"
 import { Avatar } from "@/components/ui/avatar"
 import { Dialog } from "@/components/ui/modal"
-import { ErrorState } from "@/components/ui/error-state"
 import { Icon } from "@/components/ui/icon"
-import { LoadingScreen } from "@/components/ui/loading-screen"
 import { PressableScale } from "@/components/ui/pressable-scale"
-import { Screen } from "@/components/ui/screen"
+import { Spinner } from "@/components/ui/spinner"
 import { Text } from "@/components/ui/text"
 import { useToast } from "@/components/ui/toast"
+import { isExpoVideoAvailable } from "@/components/ui/feed-video"
 import { StoryHighlightSheet } from "@/components/story/story-highlight-sheet"
+import { StoryReportSheet } from "@/components/story/story-report-sheet"
+import { StoryVideo } from "@/components/story/story-video"
 import { StoryViewersSheet } from "@/components/story/story-viewers-sheet"
 import { getOrCreateDm } from "@/lib/api/chat"
 import { userMessage } from "@/lib/api/errors"
 import {
   STORY_REACTIONS,
+  STORY_TEXT_MAX,
   deleteStory,
+  getStoryHighlights,
   getStoryTray,
   getUserStories,
   isStoryActive,
@@ -90,10 +98,15 @@ import {
   setStoryReaction,
   unmuteStoryAuthor,
   type Story,
+  type StoryAuthor,
+  type StoryHighlight,
   type StoryReaction,
+  type StoryUserStories,
 } from "@/lib/api/story"
 import { getMeCached, type UserProfile } from "@/lib/api/users"
+import { profileUrl } from "@/lib/deeplinks"
 import { formatPriceSticker, askStockPrefill } from "@/lib/story/compose"
+import { createFeedCache } from "@/lib/story/feed-cache"
 import { applyTrayOverlay } from "@/lib/story/tray"
 import {
   hideStoryLocal,
@@ -105,19 +118,22 @@ import {
   useStoryLocal,
 } from "@/lib/story/local-state"
 import {
-  STORY_SEGMENT_MS,
   clampIndex,
   remainingSegmentMs,
+  segmentDurationMs,
   stepBack,
   stepForward,
+  swipeAuthorAction,
   tapActionAt,
 } from "@/lib/story/playback"
 import { saveChatDraft } from "@/lib/chat-drafts"
 import { formatRelativeTime } from "@/lib/format"
 import { haptic } from "@/lib/haptics"
 import { useT } from "@/lib/i18n"
+import { useStoryRealtime } from "@/lib/realtime/use-story-realtime"
 import { ROUTES } from "@/lib/routes"
 import { serverNow } from "@/lib/server-time"
+import { shareContent } from "@/lib/share"
 import { useApiQuery } from "@/lib/use-api-query"
 
 type Props = {
@@ -127,44 +143,159 @@ type Props = {
 
 type Sequence = { userId: string; hasStories: boolean }
 
-export default function StoryViewerScreen({ userId, highlightId }: Props) {
+type FeedState = {
+  status: "loading" | "ready" | "error"
+  author: StoryAuthor | null
+  stories: Story[]
+  error: string | null
+}
+
+/** Feed per penulis (story aktif) & arsip sorotan — dipakai lintas pembukaan viewer. */
+const feedCache = createFeedCache<StoryUserStories>({ ttlMs: 60_000, max: 12 })
+const highlightCache = createFeedCache<StoryHighlight[]>({ ttlMs: 120_000, max: 8 })
+/** Story yang sudah dilaporkan di sesi ini (menu menampilkan "Sudah dilaporkan"). */
+const reportedStoryIds = new Set<string>()
+/** Preferensi suara video story — sesi berjalan (Instagram mengingat pilihan terakhir). */
+let storySoundMuted = false
+
+/** Jeda sebelum view dikirim ke server — kontrak: "dipanggil saat story tampil ≥ 1 detik". */
+const MARK_VIEWED_DELAY_MS = 600
+
+const FEED_LOADING: FeedState = { status: "loading", author: null, stories: [], error: null }
+
+/**
+ * State feed DIKUNCI ke kunci penulis+sorotan. Tanpa kunci ini, saat penulis
+ * berganti (geser/tap) state lama masih dipakai satu render sebelum effect
+ * memuat yang baru — story penulis sebelumnya berkedip di bawah nama penulis
+ * baru, dan `current.id` yang salah sempat masuk ke efek tandai-dilihat.
+ */
+type KeyedFeedState = FeedState & { key: string }
+
+function useAuthorFeed(userId: string, highlightId: string | null, revision: number) {
+  const key = `${userId}|${highlightId ?? ""}`
+  const readFromCache = useCallback((): FeedState | null => {
+    if (highlightId) {
+      const list = highlightCache.get(userId)
+      if (!list) return null
+      return toHighlightState(list, highlightId)
+    }
+    const feed = feedCache.get(userId)
+    return feed ? { status: "ready", author: feed.author, stories: feed.stories, error: null } : null
+  }, [userId, highlightId])
+
+  const [state, setState] = useState<KeyedFeedState>(() => ({ key, ...(readFromCache() ?? FEED_LOADING) }))
+  const generation = useRef(0)
+
+  const load = useCallback(
+    (opts: { silent: boolean }) => {
+      const gen = ++generation.current
+      const cached = opts.silent ? null : readFromCache()
+      if (cached) {
+        setState({ key, ...cached })
+        return
+      }
+      if (!opts.silent) {
+        setState((prev) =>
+          prev.key === key && prev.status === "ready" ? prev : { key, ...FEED_LOADING, author: prev.key === key ? prev.author : null },
+        )
+      }
+      const run = highlightId
+        ? highlightCache.load(userId, () => getStoryHighlights(userId)).then((list) => toHighlightState(list, highlightId))
+        : feedCache
+            .load(userId, () => getUserStories(userId))
+            .then((feed): FeedState => ({ status: "ready", author: feed.author, stories: feed.stories, error: null }))
+      run
+        .then((next) => {
+          if (gen === generation.current) setState({ key, ...next })
+        })
+        .catch((err: unknown) => {
+          if (gen !== generation.current) return
+          setState((prev) =>
+            prev.key === key && prev.status === "ready"
+              ? prev
+              : { key, status: "error", author: prev.key === key ? prev.author : null, stories: [], error: userMessage(err) },
+          )
+        })
+    },
+    [key, userId, highlightId, readFromCache],
+  )
+
+  useEffect(() => {
+    load({ silent: false })
+  }, [load])
+
+  // Mutasi story sukses (hapus/sorot/buat) → segarkan diam, data lama tetap tampil.
+  const seenRevision = useRef(revision)
+  useEffect(() => {
+    if (seenRevision.current === revision) return
+    seenRevision.current = revision
+    feedCache.invalidate(userId)
+    highlightCache.invalidate(userId)
+    load({ silent: true })
+  }, [revision, userId, load])
+
+  const reload = useCallback(() => {
+    feedCache.invalidate(userId)
+    highlightCache.invalidate(userId)
+    setState((prev) => ({ ...prev, key, status: "loading", error: null }))
+    load({ silent: true })
+  }, [key, userId, load])
+
+  // Kunci tidak cocok (penulis baru, effect belum jalan): cache atau loading — bukan data penulis lama.
+  const view: FeedState = state.key === key ? state : (readFromCache() ?? FEED_LOADING)
+  return { ...view, reload, silentReload: () => load({ silent: true }) }
+}
+
+function toHighlightState(list: StoryHighlight[], highlightId: string): FeedState {
+  const hl = list.find((h) => h.id === highlightId)
+  const stories = hl?.stories ?? []
+  return { status: "ready", author: stories[0]?.author ?? null, stories, error: null }
+}
+
+export default function StoryViewerScreen({ userId: routeUserId, highlightId }: Props) {
   const t = useT()
   const toast = useToast()
+  const insets = useSafeAreaInsets()
   const local = useStoryLocal()
+
+  // Penulis aktif = STATE (bukan rute): geser/tap antar penulis tidak me-mount ulang layar.
+  const [userId, setUserId] = useState(routeUserId)
+  useEffect(() => {
+    setUserId(routeUserId)
+  }, [routeUserId])
 
   const meQuery = useApiQuery<UserProfile | null>("story-viewer-me", (signal) => getMeCached(signal))
   const myUserId = meQuery.data?.userId ?? meQuery.data?.id ?? null
 
-  const feed = useApiQuery(`story-user-${userId}`, (signal) => getUserStories(userId, signal), !highlightId)
+  const feed = useAuthorFeed(userId, highlightId, local.revision)
   const trayQuery = useApiQuery("story-tray", (signal) => getStoryTray(signal))
-  const seenRevision = useRef(local.revision)
-  useEffect(() => {
-    if (seenRevision.current === local.revision) return
-    seenRevision.current = local.revision
-    feed.refresh()
+  useStoryRealtime(() => {
+    feedCache.invalidate()
+    feed.silentReload()
     trayQuery.refresh()
-  }, [local.revision, feed, trayQuery])
+  })
 
-  const author = feed.data?.author ?? null
+  const author = feed.author
   const isOwn = myUserId !== null && userId === myUserId
+  const isHighlight = highlightId !== null
+  const videoPlayable = useMemo(() => isExpoVideoAvailable(), [])
 
-  /** Story aktif, belum dihapus (optimistis), urut pemutaran. */
+  /** Story aktif, belum dihapus (optimistis), urut pemutaran. Sorotan: apa adanya. */
   const stories = useMemo<Story[]>(() => {
+    if (isHighlight) return feed.stories
     const now = serverNow()
-    return (feed.data?.stories ?? []).filter(
-      (s) => !local.hiddenStoryIds.has(s.id) && isStoryActive(s, now),
-    )
-  }, [feed.data, local.hiddenStoryIds])
+    return feed.stories.filter((s) => !local.hiddenStoryIds.has(s.id) && isStoryActive(s, now))
+  }, [feed.stories, local.hiddenStoryIds, isHighlight])
 
   /** Urutan penulis untuk maju/mundur — sama dengan urutan tray. */
   const sequence = useMemo<Sequence[]>(() => {
-    if (!trayQuery.data) return []
+    if (!trayQuery.data || isHighlight) return []
     const view = applyTrayOverlay(trayQuery.data, local, myUserId ?? undefined)
     const list: Sequence[] = []
     if (view.own) list.push({ userId: view.own.author.userId, hasStories: view.own.storyCount > 0 })
     for (const e of view.others) list.push({ userId: e.author.userId, hasStories: e.storyCount > 0 })
     return list.filter((x) => x.hasStories)
-  }, [trayQuery.data, local, myUserId])
+  }, [trayQuery.data, local, myUserId, isHighlight])
 
   const seqIndex = sequence.findIndex((s) => s.userId === userId)
   const nextAuthorId = seqIndex >= 0 ? (sequence[seqIndex + 1]?.userId ?? null) : null
@@ -172,56 +303,95 @@ export default function StoryViewerScreen({ userId, highlightId }: Props) {
 
   const [index, setIndex] = useState(0)
   const [holding, setHolding] = useState(false)
+  const [dragging, setDragging] = useState(false)
+  const [backgrounded, setBackgrounded] = useState(false)
   const [inputFocused, setInputFocused] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [viewersOpen, setViewersOpen] = useState(false)
   const [highlightOpen, setHighlightOpen] = useState(false)
+  const [reportOpen, setReportOpen] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [replyText, setReplyText] = useState("")
   const [replyBusy, setReplyBusy] = useState(false)
+  const [soundMuted, setSoundMuted] = useState(storySoundMuted)
+  /** Media siap / gagal — dikunci ke id story supaya onLoad yang mendahului efek tidak hilang. */
+  const [readyId, setReadyId] = useState<string | null>(null)
+  const [errorId, setErrorId] = useState<string | null>(null)
+  /** Naik tiap "Coba lagi" media — ikut masuk `key` supaya pemutar/gambar benar-benar di-mount ulang. */
+  const [mediaAttempt, setMediaAttempt] = useState(0)
+  /** Hanya pemicu render ulang menu setelah story dilaporkan (`reportedStoryIds` modul). */
+  const [, bumpReported] = useState(0)
 
   const safeIndex = clampIndex(index, stories.length)
   const current = stories[safeIndex] ?? null
-  const paused = holding || inputFocused || menuOpen || viewersOpen || highlightOpen || confirmDelete
+  const paused =
+    holding ||
+    dragging ||
+    backgrounded ||
+    inputFocused ||
+    menuOpen ||
+    viewersOpen ||
+    highlightOpen ||
+    reportOpen ||
+    confirmDelete
+  const isVideoSegment = current?.kind === "video" && videoPlayable
+  const mediaReady = current ? current.kind === "text" || readyId === current.id : false
+  const mediaError = current ? errorId === current.id : false
+
+  // App ke latar → pause (video tetap bersuara kalau tidak).
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (state) => setBackgrounded(state !== "active"))
+    return () => sub.remove()
+  }, [])
 
   // ---- Navigasi antar penulis / tutup (dipanggil dari JS, tidak dari worklet) ----
 
   /**
    * 2026-10-08 (temuan #17): tutup story TIDAK boleh hanya `router.back()`.
-   *
-   * Viewer dibuka dari tray di tab Pesan, jadi biasanya ada riwayat. Tetapi
-   * pada cold start dari deep link / tautan story, `/story/<id>` adalah
-   * SATU-SATUNYA entri di stack — `router.back()` menjadi no-op. Layar
-   * fullscreen tanpa tombol keluar yang bekerja = terjebak: satu-satunya
-   * jalan keluar adalah menutup paksa aplikasi.
-   *
-   * Fallback-nya `/chat` (tray story hidup di sana), bukan Etalase — supaya
-   * "tutup story" terasa seperti kembali ke tempat ia dibuka.
+   * Pada cold start dari deep link `/story/<id>` adalah SATU-SATUNYA entri
+   * stack — `router.back()` no-op = pengguna terjebak. Fallback `/chat`
+   * (tray story hidup di sana).
    */
   const closeStory = useCallback(() => {
     if (router.canGoBack()) router.back()
     else router.replace(ROUTES.chat)
-  }, [router])
+  }, [])
+
+  const progress = useSharedValue(0)
+  const segmentIdRef = useRef<string | null>(null)
+  const dragX = useSharedValue(0)
+
+  const switchAuthor = useCallback(
+    (id: string) => {
+      haptic("select")
+      segmentIdRef.current = null
+      cancelAnimation(progress)
+      progress.value = 0
+      dragX.value = 0
+      setIndex(0)
+      setReplyText("")
+      setUserId(id)
+      // URL tetap sinkron (share/deep link/back) tanpa me-mount ulang layar.
+      router.setParams({ userId: id })
+    },
+    [progress, dragX],
+  )
 
   const goNextAuthor = useCallback(() => {
-    if (nextAuthorId) router.replace(ROUTES.storyViewer(nextAuthorId))
+    if (nextAuthorId) switchAuthor(nextAuthorId)
     else closeStory()
-  }, [nextAuthorId, closeStory])
+  }, [nextAuthorId, switchAuthor, closeStory])
 
   const goPrevAuthor = useCallback(() => {
-    if (prevAuthorId) router.replace(ROUTES.storyViewer(prevAuthorId))
-  }, [prevAuthorId])
-
-  const close = useCallback(() => {
-    closeStory()
-  }, [closeStory])
+    if (prevAuthorId) switchAuthor(prevAuthorId)
+  }, [prevAuthorId, switchAuthor])
 
   const advance = useCallback(() => {
     const step = stepForward(safeIndex, stories.length, nextAuthorId !== null)
     if (step.kind === "index") setIndex(step.index)
     else if (step.kind === "next-author") goNextAuthor()
-    else close()
-  }, [safeIndex, stories.length, nextAuthorId, goNextAuthor, close])
+    else closeStory()
+  }, [safeIndex, stories.length, nextAuthorId, goNextAuthor, closeStory])
 
   const retreat = useCallback(() => {
     const step = stepBack(safeIndex, prevAuthorId !== null)
@@ -248,9 +418,6 @@ export default function StoryViewerScreen({ userId, highlightId }: Props) {
 
   // ---- Progress (UI thread) ----
 
-  const progress = useSharedValue(0)
-  const segmentIdRef = useRef<string | null>(null)
-
   useEffect(() => {
     if (!current) return
     if (segmentIdRef.current !== current.id) {
@@ -258,11 +425,17 @@ export default function StoryViewerScreen({ userId, highlightId }: Props) {
       progress.value = 0
       segmentIdRef.current = current.id
     }
-    if (paused) {
+    // Video yang bisa diputar: bar mengikuti posisi pemutar (lihat onVideoProgress).
+    if (isVideoSegment) {
+      if (paused) cancelAnimation(progress)
+      return
+    }
+    if (paused || !mediaReady) {
       cancelAnimation(progress)
       return
     }
-    const remaining = remainingSegmentMs(progress.value, STORY_SEGMENT_MS)
+    const duration = segmentDurationMs(current, { videoPlayable })
+    const remaining = remainingSegmentMs(progress.value, duration)
     if (remaining <= 0) {
       onSegmentDone()
       return
@@ -275,57 +448,83 @@ export default function StoryViewerScreen({ userId, highlightId }: Props) {
       },
     )
     return () => cancelAnimation(progress)
-  }, [current, paused, progress, onSegmentDone])
+  }, [current, paused, mediaReady, isVideoSegment, videoPlayable, progress, onSegmentDone])
 
-  // Reset posisi saat penulis berganti.
+  const onVideoProgress = useCallback(
+    (fraction: number) => {
+      // Dipanggil ~5×/dtk: animasikan ke posisi berikutnya supaya bar mulus, bukan melompat.
+      progress.value = withTiming(fraction, { duration: 220, easing: Easing.linear })
+    },
+    [progress],
+  )
+  const onVideoReady = useCallback(() => {
+    if (current) setReadyId(current.id)
+  }, [current])
+  const onVideoEnded = useCallback(() => {
+    progress.value = 1
+    onSegmentDone()
+  }, [progress, onSegmentDone])
+  const onMediaError = useCallback(() => {
+    if (current) setErrorId(current.id)
+  }, [current])
+
+  // ---- Prefetch tetangga: feed penulis berikutnya + media story berikutnya ----
+
   useEffect(() => {
-    setIndex(0)
-    segmentIdRef.current = null
-    progress.value = 0
-  }, [userId, progress])
-
-  // ---- Tandai dilihat (optimistis, rollback bila gagal) ----
+    if (!nextAuthorId || isHighlight) return
+    void feedCache.load(nextAuthorId, () => getUserStories(nextAuthorId)).catch(() => undefined)
+  }, [nextAuthorId, isHighlight])
 
   useEffect(() => {
-    if (!current || isOwn) return
+    const next = stories[safeIndex + 1]
+    const nextFeed = nextAuthorId ? feedCache.peek(nextAuthorId) : null
+    const candidates = [next, nextFeed?.stories[0]]
+    for (const s of candidates) {
+      if (!s) continue
+      // Hanya gambar/poster — berkas video tidak pernah di-prefetch (boros kuota).
+      const url = s.kind === "image" ? s.mediaUrl : s.kind === "video" ? s.thumbnailUrl : null
+      if (url) Image.prefetch(url, "memory-disk").catch(() => undefined)
+    }
+  }, [stories, safeIndex, nextAuthorId])
+
+  // ---- Tandai dilihat (optimistis; server setelah tampil ≥ 0,6 dtk) ----
+
+  useEffect(() => {
+    if (!current || isOwn || isHighlight) return
     const isLast = safeIndex === stories.length - 1
     const undoStory = markStorySeenLocal(current.id)
     const undoAuthor = isLast ? markAuthorSeenLocal(userId, true) : null
     if (current.viewed) return
-    markStoryViewed(current.id).catch(() => {
-      undoStory()
-      undoAuthor?.()
-    })
+    const timer = setTimeout(() => {
+      markStoryViewed(current.id).catch(() => {
+        undoStory()
+        undoAuthor?.()
+      })
+    }, MARK_VIEWED_DELAY_MS)
+    return () => clearTimeout(timer)
     // Hanya bergantung pada story aktif; `stories` diturunkan darinya.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [current?.id, isOwn, safeIndex, stories.length, userId])
+  }, [current?.id, isOwn, isHighlight, safeIndex, stories.length, userId])
 
   // ---- Gesture ----
 
-  const [layoutWidth, setLayoutWidth] = useState(1)
+  // Awal = lebar jendela (bukan 1 px): ambang geser 30% lebar sudah benar sebelum onLayout pertama.
+  const { width: windowWidth } = useWindowDimensions()
+  const [layoutWidth, setLayoutWidth] = useState(Math.max(1, windowWidth))
   const dragY = useSharedValue(0)
   /**
    * Progress tutup (0 = terbuka, 1 = tertutup). Satu sumber untuk skala,
-   * radius, dan redup latar — dihitung dari `dragY` di dalam worklet, tanpa
-   * memanggil fungsi JS apa pun.
+   * radius, dan redup latar — dihitung dari `dragY` di dalam worklet.
    */
   const dismissProgress = useSharedValue(0)
   const dragStyle = useAnimatedStyle(() => {
     const p = dismissProgress.value
     return {
-      transform: [{ translateY: dragY.value }, { scale: 1 - p * 0.14 }],
-      // Meredup perlahan ke latar hitam di belakangnya (root `bg-black`):
-      // kartu benar-benar terasa "ditutup", bukan sekadar digeser.
+      transform: [{ translateX: dragX.value }, { translateY: dragY.value }, { scale: 1 - p * 0.14 }],
       opacity: 1 - p * 0.35,
       borderRadius: p * 24,
       overflow: "hidden",
     }
   })
-  /**
-   * Reveal BUKA: 0.92 → 1 + fade. Dipisah dari `dragY` supaya gerakan tutup
-   * tidak pernah menimpa progress buka (dua animasi berbeda pada transform
-   * yang sama akan saling membatalkan).
-   */
   const openProgress = useSharedValue(0)
   const openStyle = useAnimatedStyle(() => ({
     opacity: openProgress.value,
@@ -338,11 +537,6 @@ export default function StoryViewerScreen({ userId, highlightId }: Props) {
     }
   }, [openProgress])
 
-  /**
-   * Crossfade + zoom-out halus tiap kali segmen berganti (`current.id`).
-   * Shared value di-reset lalu dinaikkan, jadi story yang sama tidak
-   * beranimasi dua kali.
-   */
   const segmentFade = useSharedValue(1)
   const segmentStyle = useAnimatedStyle(() => ({
     opacity: segmentFade.value,
@@ -356,32 +550,72 @@ export default function StoryViewerScreen({ userId, highlightId }: Props) {
     }
   }, [current?.id, segmentFade])
 
-  const closeFromGesture = useCallback(() => {
-    closeStory()
-  }, [closeStory])
+  const onSwipeEnd = useCallback(
+    (translationX: number, velocityX: number) => {
+      const action = swipeAuthorAction(translationX, velocityX, layoutWidth, {
+        hasNext: nextAuthorId !== null,
+        hasPrev: prevAuthorId !== null,
+      })
+      if (action === "none") {
+        dragX.value = withSpring(0, { damping: 22, stiffness: 240 })
+        return
+      }
+      const target = action === "next" ? -layoutWidth : layoutWidth
+      const go = action === "next" ? goNextAuthor : goPrevAuthor
+      dragX.value = withTiming(target, { duration: 160, easing: Easing.out(Easing.cubic) }, (finished) => {
+        if (finished) runOnJS(go)()
+      })
+    },
+    [layoutWidth, nextAuthorId, prevAuthorId, dragX, goNextAuthor, goPrevAuthor],
+  )
+  const onSwipeEndRef = useRef(onSwipeEnd)
+  onSwipeEndRef.current = onSwipeEnd
+  const swipeEnd = useCallback((tx: number, vx: number) => onSwipeEndRef.current(tx, vx), [])
 
-  const pan = Gesture.Pan()
+  const hasNext = nextAuthorId !== null
+  const hasPrev = prevAuthorId !== null
+
+  const panY = Gesture.Pan()
     .activeOffsetY(14)
     .failOffsetX([-18, 18])
+    .onStart(() => {
+      runOnJS(setDragging)(true)
+    })
     .onUpdate((e) => {
       dragY.value = Math.max(0, e.translationY)
-      // Progress tutup dihitung DI SINI (bukan di dalam updater style):
-      // updater `useAnimatedStyle` harus murni membaca shared value —
-      // menulis dari dalamnya memicu evaluasi ganda per frame.
-      // 320px seretan = progress penuh, jadi redup terasa jauh sebelum
-      // jari mencapai dasar layar.
       dismissProgress.value = Math.min(1, Math.max(0, dragY.value / 320))
     })
     .onEnd((e) => {
       if (e.translationY > 140 || e.velocityY > 900) {
         dismissProgress.value = withTiming(1, { duration: 180 })
         dragY.value = withTiming(800, { duration: 180 }, (finished) => {
-          if (finished) runOnJS(closeFromGesture)()
+          if (finished) runOnJS(closeStory)()
         })
       } else {
         dismissProgress.value = withSpring(0, { damping: 22, stiffness: 240 })
         dragY.value = withSpring(0, { damping: 22, stiffness: 240 })
       }
+    })
+    .onFinalize(() => {
+      runOnJS(setDragging)(false)
+    })
+
+  const panX = Gesture.Pan()
+    .activeOffsetX([-20, 20])
+    .failOffsetY([-16, 16])
+    .onStart(() => {
+      runOnJS(setDragging)(true)
+    })
+    .onUpdate((e) => {
+      // Ke arah tanpa tetangga: ikut sedikit saja (karet) — isyarat "tidak ada lagi".
+      const blocked = (e.translationX < 0 && !hasNext) || (e.translationX > 0 && !hasPrev)
+      dragX.value = blocked ? e.translationX * 0.25 : e.translationX
+    })
+    .onEnd((e) => {
+      runOnJS(swipeEnd)(e.translationX, e.velocityX)
+    })
+    .onFinalize(() => {
+      runOnJS(setDragging)(false)
     })
 
   const tap = Gesture.Tap()
@@ -402,9 +636,9 @@ export default function StoryViewerScreen({ userId, highlightId }: Props) {
       runOnJS(setHolding)(false)
     })
 
-  const gesture = Gesture.Exclusive(pan, Gesture.Race(tap, hold))
+  const gesture = Gesture.Exclusive(panY, panX, Gesture.Race(tap, hold))
 
-  // ---- Reaksi (optimistis) ----
+  // ---- Reaksi (optimistis; ketuk ulang = hapus) ----
 
   const burst = useSharedValue(0)
   const burstStyle = useAnimatedStyle(() => ({
@@ -413,30 +647,38 @@ export default function StoryViewerScreen({ userId, highlightId }: Props) {
   }))
   const [lastBurst, setLastBurst] = useState<StoryReaction | null>(null)
 
+  const reactionFor = current
+    ? local.reactions.has(current.id)
+      ? (local.reactions.get(current.id) ?? null)
+      : current.myReaction
+    : null
+
   const react = useCallback(
     async (emoji: StoryReaction) => {
       if (!current) return
-      haptic("select")
-      setLastBurst(emoji)
-      burst.value = withSequence(withTiming(1, { duration: 160 }), withTiming(0, { duration: 420 }))
       const storyId = current.id
+      const removing = reactionFor === emoji
+      haptic("select")
+      if (!removing) {
+        setLastBurst(emoji)
+        burst.value = withSequence(withTiming(1, { duration: 160 }), withTiming(0, { duration: 420 }))
+      }
+      const next = removing ? null : emoji
       const res = await runOptimistic(
-        () => setReactionLocal(storyId, emoji),
-        () => setStoryReaction(storyId, emoji),
+        () => setReactionLocal(storyId, next),
+        () => setStoryReaction(storyId, next),
       )
       if (!res.ok) {
         haptic("error")
         toast.show({
-          title: t("Reaksi gagal dikirim"),
+          title: removing ? t("Reaksi belum dihapus") : t("Reaksi gagal dikirim"),
           description: userMessage(res.error),
           tone: "danger",
         })
       }
     },
-    [current, burst, toast, t],
+    [current, reactionFor, burst, toast, t],
   )
-
-  const reactionFor = current ? (local.reactions.has(current.id) ? local.reactions.get(current.id) : current.myReaction) : null
 
   // ---- Balas (optimistis: input langsung kosong; dipulihkan bila gagal) ----
 
@@ -521,68 +763,112 @@ export default function StoryViewerScreen({ userId, highlightId }: Props) {
     if (stories.length <= 1) closeStory()
   }, [current, stories.length, toast, t, closeStory])
 
-  const menuActions: ActionSheetItem[] = isOwn
-    ? [
-        { key: "viewers", label: t("Lihat viewer"), icon: Eye, onPress: () => setViewersOpen(true) },
-        { key: "highlight", label: t("Sorot ke profil"), icon: Star, onPress: () => setHighlightOpen(true) },
-        { key: "manage", label: t("Kelola story"), icon: Megaphone, onPress: () => router.push(ROUTES.storyManage) },
-        { key: "delete", label: t("Hapus story"), icon: Trash, destructive: true, onPress: () => setConfirmDelete(true) },
-      ]
-    : [
-        {
-          key: "mute",
-          label: isMuted ? t("Batalkan bisu") : t("Bisukan story kontak ini"),
-          icon: SpeakerSlash,
-          onPress: () => void toggleMute(),
-        },
-      ]
+  const shareProfile = useCallback(async () => {
+    if (!author) return
+    const name = author.fullName || `@${author.username}`
+    await shareContent({
+      url: profileUrl(author.username),
+      message: t("Lihat story {name} di Kahade", { name }),
+      title: t("Bagikan profil"),
+    })
+  }, [author, t])
+
+  const toggleSound = useCallback(() => {
+    setSoundMuted((prev) => {
+      storySoundMuted = !prev
+      return !prev
+    })
+  }, [])
+
+  const alreadyReported = current ? reportedStoryIds.has(current.id) : false
+  const menuActions: ActionSheetItem[] = isHighlight
+    ? [{ key: "share", label: t("Bagikan profil"), icon: ShareNetwork, onPress: () => void shareProfile() }]
+    : isOwn
+      ? [
+          { key: "viewers", label: t("Lihat viewer"), icon: Eye, onPress: () => setViewersOpen(true) },
+          { key: "highlight", label: t("Sorot ke profil"), icon: Star, onPress: () => setHighlightOpen(true) },
+          { key: "share", label: t("Bagikan profil"), icon: ShareNetwork, onPress: () => void shareProfile() },
+          { key: "manage", label: t("Kelola story"), icon: Megaphone, onPress: () => router.push(ROUTES.storyManage) },
+          { key: "delete", label: t("Hapus story"), icon: Trash, destructive: true, onPress: () => setConfirmDelete(true) },
+        ]
+      : [
+          { key: "share", label: t("Bagikan profil"), icon: ShareNetwork, onPress: () => void shareProfile() },
+          {
+            key: "mute",
+            label: isMuted ? t("Batalkan bisu") : t("Bisukan story kontak ini"),
+            icon: SpeakerSlash,
+            onPress: () => void toggleMute(),
+          },
+          {
+            key: "report",
+            label: alreadyReported ? t("Sudah dilaporkan") : t("Laporkan story"),
+            icon: Flag,
+            destructive: !alreadyReported,
+            disabled: alreadyReported,
+            onPress: () => setReportOpen(true),
+          },
+        ]
 
   // ---- Render ----
 
   const ringName = author ? author.fullName || `@${author.username}` : ""
+  const topPad = Math.max(insets.top, 8)
+  const bottomPad = Math.max(insets.bottom, 16)
 
-  if (!highlightId && feed.loading && !feed.data) {
+  if (feed.status === "loading" && !current) {
     return (
-      <Screen edges={[]} padded={false} background="background">
-        <LoadingScreen message={t("Memuat story…")} />
-      </Screen>
+      <View className="flex-1 bg-black" style={{ paddingTop: topPad }} accessibilityLabel={t("Memuat story…")}>
+        <StatusBar style="light" />
+        <View className="px-3 pt-2">
+          <View className="flex-row gap-1">
+            {[0, 1, 2].map((i) => (
+              <View key={i} className="h-[3px] flex-1 rounded-full bg-white/20" />
+            ))}
+          </View>
+          <View className="mt-3 flex-row items-center gap-3">
+            <View className="h-8 w-8 rounded-full bg-white/15" />
+            <View className="h-3 w-28 rounded-full bg-white/15" />
+            <View className="flex-1" />
+            <CloseButton onPress={closeStory} label={t("Tutup")} />
+          </View>
+        </View>
+        <View className="flex-1 items-center justify-center">
+          <Spinner tone="inverse" />
+        </View>
+      </View>
     )
   }
 
-  if (!highlightId && feed.error && !feed.data) {
+  if (feed.status === "error" && !current) {
     return (
-      <Screen edges={[]} padded={false}>
-        <ErrorState
-          title={t("Story tidak bisa dibuka")}
-          description={feed.error ?? undefined}
-          onRetry={feed.reload}
-          action={
-            <PressableScale onPress={close} accessibilityRole="button" accessibilityLabel={t("Tutup")} className="px-4 py-2">
-              <Text variant="body" tone="secondary">{t("Tutup")}</Text>
-            </PressableScale>
-          }
-        />
-      </Screen>
+      <ViewerMessage
+        topPad={topPad}
+        title={t("Story tidak bisa dibuka")}
+        description={feed.error ?? undefined}
+        primaryLabel={t("Coba lagi")}
+        onPrimary={feed.reload}
+        closeLabel={t("Tutup")}
+        onClose={closeStory}
+      />
     )
   }
 
   if (!current) {
     return (
-      <Screen edges={[]} padded={false}>
-        <ErrorState
-          title={t("Tidak ada story")}
-          description={t("Story sudah habis masa tayangnya atau dihapus.")}
-          action={
-            <PressableScale onPress={close} accessibilityRole="button" accessibilityLabel={t("Tutup")} className="px-4 py-2">
-              <Text variant="body" tone="secondary">{t("Tutup")}</Text>
-            </PressableScale>
-          }
-        />
-      </Screen>
+      <ViewerMessage
+        topPad={topPad}
+        title={t("Tidak ada story")}
+        description={t("Story sudah habis masa tayangnya atau dihapus.")}
+        closeLabel={t("Tutup")}
+        onClose={closeStory}
+      />
     )
   }
 
   const ago = formatRelativeTime(current.createdAt, serverNow())
+  const caption = current.kind !== "text" ? current.text?.trim() || null : null
+  const mediaLabel =
+    current.kind === "video" ? t("Video story") : current.kind === "image" ? t("Foto story") : t("Story teks")
 
   return (
     <View
@@ -590,20 +876,64 @@ export default function StoryViewerScreen({ userId, highlightId }: Props) {
       onLayout={(e) => setLayoutWidth(e.nativeEvent.layout.width)}
       accessibilityLabel={t("Story dari {name}", { name: ringName })}
     >
-      {/* Lapisan media + gesture (paling bawah). Latar hitam root (`bg-black`)
-          adalah kanvas tempat kartu mengecil & meredup saat ditutup. */}
+      <StatusBar style="light" />
+      {/* Lapisan media + gesture (paling bawah). */}
       <GestureDetector gesture={gesture}>
         <Animated.View style={[{ flex: 1 }, dragStyle, openStyle]}>
           <Animated.View style={[{ flex: 1 }, segmentStyle]}>
             {current.kind === "image" && current.mediaUrl ? (
               <Image
+                key={`${current.id}:${mediaAttempt}`}
                 source={{ uri: current.mediaUrl }}
                 style={{ flex: 1 }}
                 contentFit="contain"
                 cachePolicy="memory-disk"
+                priority="high"
                 transition={0}
+                onLoad={() => setReadyId(current.id)}
+                onError={onMediaError}
                 accessibilityLabel={current.text ?? t("Foto story")}
               />
+            ) : current.kind === "video" && current.mediaUrl ? (
+              isVideoSegment ? (
+                <StoryVideo
+                  key={`${current.id}:${mediaAttempt}`}
+                  uri={current.mediaUrl}
+                  poster={current.thumbnailUrl}
+                  paused={paused || mediaError}
+                  muted={soundMuted}
+                  onReady={onVideoReady}
+                  onProgress={onVideoProgress}
+                  onEnded={onVideoEnded}
+                  onError={onMediaError}
+                  accessibilityLabel={current.text ?? t("Video story")}
+                />
+              ) : (
+                <View className="flex-1">
+                  {current.thumbnailUrl ? (
+                    <Image
+                      key={`${current.id}:${mediaAttempt}`}
+                      source={{ uri: current.thumbnailUrl }}
+                      style={{ flex: 1 }}
+                      contentFit="contain"
+                      cachePolicy="memory-disk"
+                      transition={0}
+                      onLoad={() => setReadyId(current.id)}
+                      onError={onMediaError}
+                      accessibilityLabel={current.text ?? t("Video story")}
+                    />
+                  ) : (
+                    <View className="flex-1" onLayout={() => setReadyId(current.id)} />
+                  )}
+                  <View className="absolute inset-x-0 bottom-28 items-center" pointerEvents="none">
+                    <View className="rounded-full bg-black/60 px-3 py-1.5">
+                      <Text variant="caption" className="text-white">
+                        {t("Perbarui aplikasi untuk memutar video")}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              )
             ) : (
               <View
                 className="flex-1 items-center justify-center px-8"
@@ -618,9 +948,49 @@ export default function StoryViewerScreen({ userId, highlightId }: Props) {
         </Animated.View>
       </GestureDetector>
 
+      {/* Media belum siap: indikator kecil, bar progress menunggu. */}
+      {!mediaReady && !mediaError ? (
+        <View className="absolute inset-0 items-center justify-center" pointerEvents="none">
+          <Spinner tone="inverse" />
+        </View>
+      ) : null}
+      {mediaError ? (
+        <View className="absolute inset-0 items-center justify-center px-8" pointerEvents="box-none">
+          <View className="items-center gap-3 rounded-md bg-black/70 px-5 py-4">
+            <Icon icon={WarningCircle} size="md" tone="inverse" />
+            <Text variant="label" weight={600} className="text-center text-white">
+              {t("{media} gagal dimuat", { media: mediaLabel })}
+            </Text>
+            <View className="flex-row gap-2">
+              <PressableScale
+                onPress={() => {
+                  // Key media berubah → expo-image/pemutar memulai permintaan baru (bukan hanya hapus overlay).
+                  setErrorId(null)
+                  setReadyId(null)
+                  setMediaAttempt((n) => n + 1)
+                }}
+                accessibilityRole="button"
+                accessibilityLabel={t("Coba lagi")}
+                className="rounded-full bg-white px-4 py-2"
+              >
+                <Text variant="label" weight={600} className="text-black">{t("Coba lagi")}</Text>
+              </PressableScale>
+              <PressableScale
+                onPress={() => advanceRef.current()}
+                accessibilityRole="button"
+                accessibilityLabel={t("Lewati")}
+                className="rounded-full border border-white/40 px-4 py-2"
+              >
+                <Text variant="label" weight={600} className="text-white">{t("Lewati")}</Text>
+              </PressableScale>
+            </View>
+          </View>
+        </View>
+      ) : null}
+
       {/* Lapisan kontrol (di atas gesture). */}
       <View pointerEvents="box-none" className="absolute inset-0">
-        <View className="px-3 pt-2" pointerEvents="box-none">
+        <View className="px-3" style={{ paddingTop: topPad + 6 }} pointerEvents="box-none">
           <View className="flex-row gap-1">
             {stories.map((s, i) => (
               <SegmentBar key={s.id} index={i} activeIndex={safeIndex} progress={progress} />
@@ -633,13 +1003,19 @@ export default function StoryViewerScreen({ userId, highlightId }: Props) {
                 {ringName}
               </Text>
               <Text variant="caption" className="text-white/80" numberOfLines={1}>
-                {ago}
+                {isHighlight ? t("Sorotan") : ago}
               </Text>
             </View>
-            {isOwn ? (
-              <Text variant="caption" className="text-white/80">
-                {t("{n} dilihat", { n: current.viewCount })}
-              </Text>
+            {isVideoSegment ? (
+              <PressableScale
+                onPress={toggleSound}
+                accessibilityRole="button"
+                accessibilityLabel={soundMuted ? t("Nyalakan suara") : t("Matikan suara")}
+                accessibilityState={{ selected: !soundMuted }}
+                className="h-10 w-10 items-center justify-center"
+              >
+                <Icon icon={soundMuted ? SpeakerX : SpeakerHigh} size="md" tone="inverse" />
+              </PressableScale>
             ) : null}
             <PressableScale
               onPress={() => setMenuOpen(true)}
@@ -649,14 +1025,7 @@ export default function StoryViewerScreen({ userId, highlightId }: Props) {
             >
               <Icon icon={DotsThree} size="md" tone="inverse" />
             </PressableScale>
-            <PressableScale
-              onPress={close}
-              accessibilityRole="button"
-              accessibilityLabel={t("Tutup")}
-              className="h-10 w-10 items-center justify-center"
-            >
-              <Icon icon={X} size="md" tone="inverse" />
-            </PressableScale>
+            <CloseButton onPress={closeStory} label={t("Tutup")} />
           </View>
         </View>
 
@@ -701,14 +1070,24 @@ export default function StoryViewerScreen({ userId, highlightId }: Props) {
           </Animated.View>
         ) : null}
 
-        {/* Footer: tanya stok, balasan, reaksi — atau viewer untuk pemilik. */}
+        {/* Footer: caption, tanya stok, balasan, reaksi — atau viewer untuk pemilik. */}
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : undefined}
           className="absolute bottom-0 left-0 right-0"
           pointerEvents="box-none"
         >
-          <View className="gap-3 px-3 pb-6 pt-3" pointerEvents="box-none">
-            {current.askStock && !isOwn ? (
+          <View className="gap-3 px-3 pt-3" style={{ paddingBottom: bottomPad }} pointerEvents="box-none">
+            {caption ? (
+              <View className="items-center" pointerEvents="none">
+                <View className="rounded-md bg-black/60 px-3 py-2">
+                  <Text variant="body" weight={600} className="text-center text-white" numberOfLines={4}>
+                    {caption}
+                  </Text>
+                </View>
+              </View>
+            ) : null}
+
+            {current.askStock && !isOwn && !isHighlight ? (
               <View className="flex-row">
                 <PressableScale
                   onPress={() => void askStock()}
@@ -724,7 +1103,7 @@ export default function StoryViewerScreen({ userId, highlightId }: Props) {
               </View>
             ) : null}
 
-            {isOwn ? (
+            {isHighlight ? null : isOwn ? (
               <PressableScale
                 onPress={() => setViewersOpen(true)}
                 accessibilityRole="button"
@@ -744,7 +1123,9 @@ export default function StoryViewerScreen({ userId, highlightId }: Props) {
                       key={emoji}
                       onPress={() => void react(emoji)}
                       accessibilityRole="button"
-                      accessibilityLabel={t("Beri reaksi {emoji}", { emoji })}
+                      accessibilityLabel={
+                        reactionFor === emoji ? t("Hapus reaksi {emoji}", { emoji }) : t("Beri reaksi {emoji}", { emoji })
+                      }
                       accessibilityState={{ selected: reactionFor === emoji }}
                       className={`h-11 w-11 items-center justify-center rounded-full ${
                         reactionFor === emoji ? "bg-white/30" : ""
@@ -762,7 +1143,7 @@ export default function StoryViewerScreen({ userId, highlightId }: Props) {
                     onBlur={() => setInputFocused(false)}
                     placeholder={t("Balas story…")}
                     placeholderTextColor="#D1D5DB"
-                    maxLength={200}
+                    maxLength={STORY_TEXT_MAX}
                     returnKeyType="send"
                     onSubmitEditing={() => void sendReply()}
                     accessibilityLabel={t("Balas story")}
@@ -803,6 +1184,16 @@ export default function StoryViewerScreen({ userId, highlightId }: Props) {
         onRequestClose={() => setHighlightOpen(false)}
       />
 
+      <StoryReportSheet
+        visible={reportOpen}
+        storyId={current.id}
+        onRequestClose={() => setReportOpen(false)}
+        onReported={(id) => {
+          reportedStoryIds.add(id)
+          bumpReported((n) => n + 1)
+        }}
+      />
+
       <Dialog
         title={t("Hapus story ini?")}
         description={t("Story akan hilang dari semua orang yang bisa melihatnya.")}
@@ -817,6 +1208,73 @@ export default function StoryViewerScreen({ userId, highlightId }: Props) {
         onCancel={() => setConfirmDelete(false)}
         onRequestClose={() => setConfirmDelete(false)}
       />
+    </View>
+  )
+}
+
+function CloseButton({ onPress, label }: { onPress: () => void; label: string }) {
+  return (
+    <PressableScale
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      className="h-10 w-10 items-center justify-center"
+    >
+      <Icon icon={X} size="md" tone="inverse" />
+    </PressableScale>
+  )
+}
+
+/** Pesan di atas latar hitam viewer (galat/kosong) — tanpa layar putih. */
+function ViewerMessage({
+  topPad,
+  title,
+  description,
+  primaryLabel,
+  onPrimary,
+  closeLabel,
+  onClose,
+}: {
+  topPad: number
+  title: string
+  description?: string
+  primaryLabel?: string
+  onPrimary?: () => void
+  closeLabel: string
+  onClose: () => void
+}) {
+  return (
+    <View className="flex-1 bg-black" style={{ paddingTop: topPad }}>
+      <StatusBar style="light" />
+      <View className="flex-row justify-end px-3 pt-2">
+        <CloseButton onPress={onClose} label={closeLabel} />
+      </View>
+      <View className="flex-1 items-center justify-center gap-3 px-8">
+        <Text variant="h3" className="text-center text-white">{title}</Text>
+        {description ? (
+          <Text variant="body" className="text-center text-white/80">{description}</Text>
+        ) : null}
+        <View className="mt-2 flex-row gap-2">
+          {primaryLabel && onPrimary ? (
+            <PressableScale
+              onPress={onPrimary}
+              accessibilityRole="button"
+              accessibilityLabel={primaryLabel}
+              className="rounded-full bg-white px-5 py-2.5"
+            >
+              <Text variant="label" weight={600} className="text-black">{primaryLabel}</Text>
+            </PressableScale>
+          ) : null}
+          <PressableScale
+            onPress={onClose}
+            accessibilityRole="button"
+            accessibilityLabel={closeLabel}
+            className="rounded-full border border-white/40 px-5 py-2.5"
+          >
+            <Text variant="label" weight={600} className="text-white">{closeLabel}</Text>
+          </PressableScale>
+        </View>
+      </View>
     </View>
   )
 }
@@ -840,4 +1298,3 @@ function SegmentBar({
     </View>
   )
 }
-
