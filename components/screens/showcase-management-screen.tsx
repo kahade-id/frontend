@@ -24,7 +24,13 @@ import { api, isApiError, userMessage } from "@/lib/api"
 import { API_CONSTRAINTS } from "@/lib/api/constraints"
 import type { ShowcaseImage, ShowcaseItem } from "@/lib/api/users"
 import { buildMediaReplacePayload } from "@/lib/showcase-media-replace"
-import { getCommerceFieldsCache, setCommerceFieldsCache } from "@/lib/commerce-fields"
+import {
+  buildCommercePatch,
+  commerceFormFromFields,
+  commerceFormFromShowcaseItem,
+  getCommerceFieldsCache,
+  setCommerceFieldsCache,
+} from "@/lib/commerce-fields"
 import { ServiceSlotManagerSheet } from "@/components/showcase/service-slot-manager"
 import {
   CommerceProductFields,
@@ -169,6 +175,16 @@ function CommerceLinkRow({
   )
 }
 
+
+/**
+ * CR-01: tipe produk yang DIKETAHUI — dari respons server bila ada, lalu
+ * cache sesi; `undefined` = tidak diketahui (jangan menebak).
+ */
+function knownProductType(it: ShowcaseItem): ShowcaseItem["productType"] | undefined {
+  const fromServer = commerceFormFromShowcaseItem(it)
+  if (fromServer.known) return fromServer.values.productType
+  return getCommerceFieldsCache(it.id)?.productType
+}
 
 /** Judul tampil item mentah — fallback netral bersama (J-04). */
 function labelOf(it: ShowcaseItem): string {
@@ -409,18 +425,17 @@ function ShowcaseManagement() {
     initialForm.current = nextForm
     setForm(nextForm)
     clearFormErrors()
-    // Batch 43: prefill commerce dari cache sesi (bila pernah di-PATCH di
-    // sesi ini); kalau tidak ada, default kosong tanpa menebak.
-    const cached = getCommerceFieldsCache(item.id)
-    const nextCommerce: CommerceFormValues = cached
-      ? {
-          productType: cached.productType ?? "LAINNYA",
-          originalPriceIdr: cached.originalPriceIdr,
-          serviceDeadlineDays: cached.serviceDeadlineDays,
-          digitalDeliveryInfo: cached.digitalDeliveryInfo ?? "",
-          scheduledAt: cached.scheduledAt,
-        }
-      : EMPTY_COMMERCE_FORM
+    // CR-01 (audit etalase 2026-10-10): prefill commerce dari respons server
+    // (GET /me/showcase menyerialkan field commerce pemilik), lalu cache sesi
+    // (hasil PATCH), terakhir default kosong. Simpan HANYA mengirim delta
+    // (buildCommercePatch) — default kosong tidak pernah menimpa server.
+    const fromServer = commerceFormFromShowcaseItem(item)
+    const cached = fromServer.known ? null : getCommerceFieldsCache(item.id)
+    const nextCommerce: CommerceFormValues = fromServer.known
+      ? fromServer.values
+      : cached
+        ? commerceFormFromFields(cached)
+        : EMPTY_COMMERCE_FORM
     initialCommerce.current = nextCommerce
     setCommerce(nextCommerce)
     setEditor({ mode: "edit", item })
@@ -533,16 +548,16 @@ function ShowcaseManagement() {
       await api.users.updateShowcase(editor.item.id, savePayload)
       if (!mounted.current || revision !== getSessionRevision()) return
       // Batch 43: PATCH commerce (best-effort; detail sudah tersimpan).
+      // CR-01: hanya field yang DIUBAH pengguna — tanpa PATCH sama sekali bila
+      // form commerce tidak disentuh (dulu seluruh form, termasuk default
+      // LAINNYA + null, dikirim tiap simpan dan menghapus data di server).
       let commerceWarned = false
+      const commercePatch = buildCommercePatch(initialCommerce.current, commerce)
       try {
-        const updated = await api.commerce.updateProductCommerce(editor.item.id, {
-          productType: commerce.productType,
-          originalPriceIdr: commerce.originalPriceIdr,
-          serviceDeadlineDays: commerce.serviceDeadlineDays,
-          digitalDeliveryInfo: commerce.digitalDeliveryInfo.trim() || undefined,
-          scheduledAt: commerce.scheduledAt,
-        })
-        if (updated) setCommerceFieldsCache(editor.item.id, updated)
+        if (commercePatch) {
+          const updated = await api.commerce.updateProductCommerce(editor.item.id, commercePatch)
+          if (updated) setCommerceFieldsCache(editor.item.id, updated)
+        }
       } catch {
         commerceWarned = true
         if (mounted.current && revision === getSessionRevision()) {
@@ -977,11 +992,10 @@ function ShowcaseManagement() {
             openImagesSheet(it)
           },
         },
-        // Batch 43 (item 12): kalender slot hanya untuk produk JASA. Tipe
-        // produk tidak dikembalikan GET owner — andalkan cache sesi; bila
+        // Batch 43 (item 12): kalender slot hanya untuk produk JASA. CR-01:
+        // tipe produk dibaca dari respons GET owner, lalu cache sesi; bila
         // tidak diketahui, tampilkan dan biarkan server memvalidasi.
-        ...(getCommerceFieldsCache(menuItem.id)?.productType !== undefined &&
-        getCommerceFieldsCache(menuItem.id)?.productType !== "JASA"
+        ...(knownProductType(menuItem) !== undefined && knownProductType(menuItem) !== "JASA"
           ? []
           : [
               {
