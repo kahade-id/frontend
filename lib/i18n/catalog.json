@@ -1255,10 +1255,6 @@
    "n": 5
   },
   {
-   "s": "Etalase tidak tersedia lagi",
-   "n": 5
-  },
-  {
    "s": "Filter etalase",
    "n": 5
   },
@@ -7464,6 +7460,10 @@
   },
   {
    "s": "Etalase tidak ditemukan",
+   "n": 2
+  },
+  {
+   "s": "Etalase tidak tersedia lagi",
    "n": 2
   },
   {

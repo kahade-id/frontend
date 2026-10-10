@@ -153,7 +153,7 @@ export default function StoryCreateScreen() {
         haptic("warning")
         toast.show({
           title: kind === "video" ? t("Video tidak bisa dipakai") : t("Foto tidak bisa dipakai"),
-          description: guardError ?? t("Format tidak didukung. Gunakan foto JPEG/PNG atau video MP4/MOV."),
+          description: guardError ? t(guardError) : t("Format tidak didukung. Gunakan foto JPEG/PNG atau video MP4/MOV."),
           tone: "danger",
         })
         return

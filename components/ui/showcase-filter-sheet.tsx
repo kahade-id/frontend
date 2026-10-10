@@ -116,6 +116,9 @@ export function ShowcaseFilterSheet({
     onRequestClose()
   }
 
+  // UX-23 (audit etalase 2026-10-10): label opsi diterjemahkan di useMemo di
+  // atas — konstanta modul tidak lewat `translate()` sehingga chip tetap
+  // Indonesia di UI English.
   return (
     <BottomSheet
       // VI-09: sheet berisi input harga — geser di atas keyboard seperti sheet lain.
