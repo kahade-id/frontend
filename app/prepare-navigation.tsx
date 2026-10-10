@@ -3,6 +3,7 @@ import { useEffect, useState } from "react"
 import { router, useLocalSearchParams } from "expo-router"
 import { ChatCircle, Package } from "phosphor-react-native"
 import { api } from "@/lib/api"
+import { translate } from "@/lib/i18n/translate"
 import {
   getOrCreateDm,
   isChatRoomForDmTarget,
@@ -52,7 +53,7 @@ export default function PrepareNavigationScreen() {
           const targetUsername = (target.username ?? requestedUsername).replace(/^@/, "").trim()
           const normalizedTarget = normalizeUsername(targetUsername)
           if (!normalizedTarget || normalizedTarget !== normalizeUsername(requestedUsername)) {
-            setState({ loading: false, error: null, empty: "Profil tujuan tidak cocok. Percakapan tidak dibuka demi melindungi akun Anda." })
+            setState({ loading: false, error: null, empty: translate("Profil tujuan tidak cocok. Percakapan tidak dibuka demi melindungi akun Anda.") })
             return
           }
           const targetId = target.id?.trim() ?? ""
@@ -63,7 +64,7 @@ export default function PrepareNavigationScreen() {
               { id: currentId, username: me.username },
             )
           ) {
-            setState({ loading: false, error: null, empty: "Anda tidak dapat membuka pesan langsung dengan akun sendiri." })
+            setState({ loading: false, error: null, empty: translate("Anda tidak dapat membuka pesan langsung dengan akun sendiri.") })
             return
           }
 
@@ -82,7 +83,7 @@ export default function PrepareNavigationScreen() {
             setState({
               loading: false,
               error: null,
-              empty: "Percakapan tidak cocok dengan profil ini. Demi keamanan, percakapan tidak dibuka.",
+              empty: translate("Percakapan tidak cocok dengan profil ini. Demi keamanan, percakapan tidak dibuka."),
             })
             return
           }
@@ -91,12 +92,22 @@ export default function PrepareNavigationScreen() {
           const shipment = await api.courier.getShipmentByOrder(id, controller.signal)
           if (cancelled) return
           if (shipment) router.replace(ROUTES.trackingDetail(shipment.id))
-          else setState({ loading: false, error: null, empty: "Pengiriman ini memakai resi manual — belum ada timeline kurir terintegrasi." })
+          // E12: resi manual tidak punya timeline terintegrasi — arahkan ke
+          // resi yang bisa disalin di detail order, jangan buntu.
+          // E14: seluruh teks layar ini lewat `translate` (dulu hardcode).
+          else
+            setState({
+              loading: false,
+              error: null,
+              empty: translate(
+                "Pengiriman ini memakai resi manual dari penjual. Salin nomor resi di detail order lalu lacak di situs atau aplikasi kurir.",
+              ),
+            })
         }
       } catch (error) {
         if (cancelled) return
         if (kind === "dm" && isDmNotAllowedError(error)) {
-          setState({ loading: false, error: null, empty: "Pengguna ini membatasi pesan langsung baru. Anda hanya bisa chat dengannya lewat transaksi." })
+          setState({ loading: false, error: null, empty: translate("Pengguna ini membatasi pesan langsung baru. Anda hanya bisa chat dengannya lewat transaksi.") })
         } else setState({ loading: false, error: userMessage(error) })
       }
     })()
@@ -106,14 +117,23 @@ export default function PrepareNavigationScreen() {
 
   return (
     <DataScreen
-      title={kind === "dm" ? "Kirim Pesan" : "Lacak Pengiriman"}
-      loadingMessage={kind === "dm" ? "Menyiapkan percakapan…" : "Memuat pengiriman…"}
+      title={kind === "dm" ? translate("Kirim Pesan") : translate("Lacak Pengiriman")}
+      loadingMessage={kind === "dm" ? translate("Menyiapkan percakapan…") : translate("Memuat pengiriman…")}
       state={{ ...state, refresh: retry, reload: retry }}
       empty={state.empty ? {
         icon: kind === "dm" ? ChatCircle : Package,
-        title: kind === "dm" ? "Tidak bisa mengirim pesan" : "Belum ada data pelacakan",
+        title: kind === "dm" ? translate("Tidak bisa mengirim pesan") : translate("Belum ada data pelacakan"),
         description: state.empty,
-        action: <Button onPress={() => goBackOrNavigate(kind === "dm" ? ROUTES.chat : ROUTES.transactions)}>Kembali</Button>,
+        // E17: untuk pelacakan, arahkan ke detail order (tempat resi bisa
+        // disalin) — bukan ke daftar transaksi.
+        action:
+          kind === "dm" ? (
+            <Button onPress={() => goBackOrNavigate(ROUTES.chat)}>{translate("Kembali")}</Button>
+          ) : (
+            <Button onPress={() => goBackOrNavigate(id ? ROUTES.orderDetail(id) : ROUTES.transactions)}>
+              {translate("Lihat detail order")}
+            </Button>
+          ),
       } : null}
     >{null}</DataScreen>
   )

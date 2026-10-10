@@ -55,15 +55,9 @@ import screens9 from "./screens-9.json"
 // screens-10 (audit UI/UX 2026-09-28, TEXT-004): sisa string Indonesia yang
 // belum punya padanan English — satu berkas per batch terjemahan.
 import screens10 from "./screens-10.json"
-// screens-11 (audit Pengaturan & Bantuan 2026-10-10): Pusat Bantuan, Tentang,
-// Tampilan, Privasi, Umpan Balik, Tiket, Versi Aplikasi, Biometrik.
-import screens11 from "./screens-11.json"
-// screens-12 (audit Pengaturan & Bantuan 2026-10-10, batch 2): label log
-// keamanan/aktivitas (enum UserAuditAction), kredensial, privasi, hapus akun.
-import screens12 from "./screens-12.json"
-// screens-13 (audit Pengaturan & Bantuan 2026-10-10, batch 3): sisa string
-// layar Keamanan/Privasi/Notifikasi/Bantuan/Chat + label komponen bawaan.
-import screens13 from "./screens-13.json"
+// alamat-kurir (audit alamat & kurir 2026-10-10): buku alamat, picker,
+// pelacakan kiriman — satu berkas per batch terjemahan.
+import alamatKurir from "./alamat-kurir.json"
 import tabs from "./tabs.json"
 import ui from "./ui.json"
 
@@ -91,9 +85,7 @@ export const EN: Dict = {
   ...screens8,
   ...screens9,
   ...screens10,
-  ...screens11,
-  ...screens12,
-  ...screens13,
+  ...alamatKurir,
   ...chatRoom,
   ...profile,
   // Pesan error & label status dari peta di lib/ — yang paling sering muncul

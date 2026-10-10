@@ -16,7 +16,7 @@
   },
   {
    "s": "Coba lagi",
-   "n": 43
+   "n": 46
   },
   {
    "s": "Gagal memuat",
@@ -28,7 +28,7 @@
   },
   {
    "s": "Simpan",
-   "n": 30
+   "n": 31
   },
   {
    "s": "Aksi mungkin sudah diproses — periksa kembali sebelum mencoba lagi.",
@@ -36,7 +36,7 @@
   },
   {
    "s": "Kembali",
-   "n": 26
+   "n": 27
   },
   {
    "s": "Etalase",
@@ -44,6 +44,10 @@
   },
   {
    "s": "{x}: {y}",
+   "n": 24
+  },
+  {
+   "s": "Alamat pengiriman",
    "n": 24
   },
   {
@@ -87,7 +91,15 @@
    "n": 16
   },
   {
+   "s": "{x} hari",
+   "n": 15
+  },
+  {
    "s": "Kata sandi akun",
+   "n": 15
+  },
+  {
+   "s": "Lainnya",
    "n": 15
   },
   {
@@ -95,15 +107,7 @@
    "n": 15
   },
   {
-   "s": "{x} hari",
-   "n": 14
-  },
-  {
    "s": "Akses galeri ditolak",
-   "n": 14
-  },
-  {
-   "s": "Lainnya",
    "n": 14
   },
   {
@@ -195,10 +199,6 @@
    "n": 11
   },
   {
-   "s": "Alamat pengiriman",
-   "n": 11
-  },
-  {
    "s": "Batalkan unggahan",
    "n": 11
   },
@@ -227,10 +227,6 @@
    "n": 11
   },
   {
-   "s": "Tidak bisa membagikan",
-   "n": 11
-  },
-  {
    "s": "Atur ulang",
    "n": 10
   },
@@ -248,6 +244,10 @@
   },
   {
    "s": "Mengirim…",
+   "n": 10
+  },
+  {
+   "s": "Nomor resi",
    "n": 10
   },
   {
@@ -291,11 +291,19 @@
    "n": 9
   },
   {
+   "s": "Bukti pengiriman",
+   "n": 9
+  },
+  {
    "s": "Hapus pertanyaan?",
    "n": 9
   },
   {
    "s": "Izin galeri ditolak",
+   "n": 9
+  },
+  {
+   "s": "JNE, SiCepat, …",
    "n": 9
   },
   {
@@ -327,6 +335,10 @@
    "n": 9
   },
   {
+   "s": "Tidak bisa membagikan",
+   "n": 9
+  },
+  {
    "s": "Bekas",
    "n": 8
   },
@@ -339,10 +351,6 @@
    "n": 8
   },
   {
-   "s": "Bukti pengiriman",
-   "n": 8
-  },
-  {
    "s": "Chat dengan tim Kahade",
    "n": 8
   },
@@ -352,6 +360,10 @@
   },
   {
    "s": "Dibatalkan",
+   "n": 8
+  },
+  {
+   "s": "Hari ini",
    "n": 8
   },
   {
@@ -455,15 +467,15 @@
    "n": 7
   },
   {
-   "s": "Hari ini",
-   "n": 7
-  },
-  {
    "s": "Izin kamera ditolak",
    "n": 7
   },
   {
    "s": "Kirim jawaban",
+   "n": 7
+  },
+  {
+   "s": "Kirim Pesan",
    "n": 7
   },
   {
@@ -544,6 +556,10 @@
   },
   {
    "s": "Aset digital",
+   "n": 6
+  },
+  {
+   "s": "Barang fisik akan dikirim ke alamat ini.",
    "n": 6
   },
   {
@@ -636,6 +652,10 @@
   },
   {
    "s": "Detail diperbarui",
+   "n": 6
+  },
+  {
+   "s": "Ditolak",
    "n": 6
   },
   {
@@ -767,10 +787,6 @@
    "n": 6
   },
   {
-   "s": "Kirim Pesan",
-   "n": 6
-  },
-  {
    "s": "Kode pos",
    "n": 6
   },
@@ -795,6 +811,14 @@
    "n": 6
   },
   {
+   "s": "Kurir",
+   "n": 6
+  },
+  {
+   "s": "Lacak Pengiriman",
+   "n": 6
+  },
+  {
    "s": "Lanjut mengedit",
    "n": 6
   },
@@ -808,6 +832,10 @@
   },
   {
    "s": "Memuat etalase",
+   "n": 6
+  },
+  {
+   "s": "Memuat pengiriman…",
    "n": 6
   },
   {
@@ -835,6 +863,10 @@
    "n": 6
   },
   {
+   "s": "Nomor resi pengiriman balik",
+   "n": 6
+  },
+  {
    "s": "Pencarian",
    "n": 6
   },
@@ -855,7 +887,7 @@
    "n": 6
   },
   {
-   "s": "Pilih alamat pengiriman",
+   "s": "Pilih alamat pengiriman untuk menerima pesanan ini.",
    "n": 6
   },
   {
@@ -1099,10 +1131,6 @@
    "n": 5
   },
   {
-   "s": "Ditolak",
-   "n": 5
-  },
-  {
    "s": "Filter etalase",
    "n": 5
   },
@@ -1231,6 +1259,14 @@
    "n": 5
   },
   {
+   "s": "Pilih alamat pengiriman",
+   "n": 5
+  },
+  {
+   "s": "Pilih alamat pengiriman untuk barang fisik ini.",
+   "n": 5
+  },
+  {
    "s": "Promo saya",
    "n": 5
   },
@@ -1264,6 +1300,10 @@
   },
   {
    "s": "Tampilkan waktu relatif",
+   "n": 5
+  },
+  {
+   "s": "Tandai dikirim",
    "n": 5
   },
   {
@@ -1343,19 +1383,11 @@
    "n": 4
   },
   {
-   "s": "{x} undangan",
-   "n": 4
-  },
-  {
    "s": "{x}/{y}",
    "n": 4
   },
   {
    "s": "@{x} di Kahade",
-   "n": 4
-  },
-  {
-   "s": "Ajak teman ke Kahade",
    "n": 4
   },
   {
@@ -1392,6 +1424,10 @@
   },
   {
    "s": "Balas ulasan",
+   "n": 4
+  },
+  {
+   "s": "Barang fisik akan dikirim ke alamat yang Anda pilih.",
    "n": 4
   },
   {
@@ -1583,10 +1619,6 @@
    "n": 4
   },
   {
-   "s": "Gagal menyalin kode",
-   "n": 4
-  },
-  {
    "s": "Gambar artikel",
    "n": 4
   },
@@ -1723,6 +1755,10 @@
    "n": 4
   },
   {
+   "s": "Lihat detail order",
+   "n": 4
+  },
+  {
    "s": "Lihat pesanan",
    "n": 4
   },
@@ -1768,6 +1804,10 @@
   },
   {
    "s": "Menunggu",
+   "n": 4
+  },
+  {
+   "s": "Menunggu konfirmasi",
    "n": 4
   },
   {
@@ -1835,7 +1875,7 @@
    "n": 4
   },
   {
-   "s": "Pilih alamat pengiriman untuk barang fisik ini.",
+   "s": "Pilih alamat pengiriman dulu",
    "n": 4
   },
   {
@@ -1923,10 +1963,6 @@
    "n": 4
   },
   {
-   "s": "Tandai dikirim",
-   "n": 4
-  },
-  {
    "s": "Tautan disalin",
    "n": 4
   },
@@ -1935,11 +1971,11 @@
    "n": 4
   },
   {
-   "s": "Tautan tidak bisa dibuka",
+   "s": "Tautan sudah kedaluwarsa",
    "n": 4
   },
   {
-   "s": "Tautan undangan disalin",
+   "s": "Tautan tidak bisa dibuka",
    "n": 4
   },
   {
@@ -2175,6 +2211,10 @@
    "n": 3
   },
   {
+   "s": "Ajak teman ke Kahade",
+   "n": 3
+  },
+  {
    "s": "Ajukan pertanyaan dari halaman profil pengguna lain.",
    "n": 3
   },
@@ -2219,11 +2259,15 @@
    "n": 3
   },
   {
-   "s": "Alamat \"{x}\" akan dihapus permanen.",
+   "s": "Alamat \"{x}\" akan dihapus dari buku alamat. Pesanan yang sudah dibuat tidak berubah.",
    "n": 3
   },
   {
    "s": "Alamat belum lengkap: {x}.",
+   "n": 3
+  },
+  {
+   "s": "Alamat pengiriman belum lengkap",
    "n": 3
   },
   {
@@ -2679,6 +2723,10 @@
    "n": 3
   },
   {
+   "s": "Catatan untuk pembeli (min. {x} karakter)",
+   "n": 3
+  },
+  {
    "s": "Ceritakan kendalanya (wajib)",
    "n": 3
   },
@@ -2860,10 +2908,6 @@
   },
   {
    "s": "Ditutup",
-   "n": 3
-  },
-  {
-   "s": "Diundang oleh {x}",
    "n": 3
   },
   {
@@ -3072,6 +3116,10 @@
   },
   {
    "s": "Gagal mengirim rating",
+   "n": 3
+  },
+  {
+   "s": "Gagal menyalin kode",
    "n": 3
   },
   {
@@ -3331,6 +3379,10 @@
    "n": 3
   },
   {
+   "s": "Info pengiriman",
+   "n": 3
+  },
+  {
    "s": "Info pengiriman digital (opsional)",
    "n": 3
   },
@@ -3344,6 +3396,10 @@
   },
   {
    "s": "Ini tampilan sampul {x}:{x} persis seperti di profil. Belum diunggah — tekan Simpan sampul untuk mengunggah.",
+   "n": 3
+  },
+  {
+   "s": "Instruksi pengiriman balik",
    "n": 3
   },
   {
@@ -3599,6 +3655,10 @@
    "n": 3
   },
   {
+   "s": "Kirim barang retur",
+   "n": 3
+  },
+  {
    "s": "Kirim hasil",
    "n": 3
   },
@@ -3727,15 +3787,15 @@
    "n": 3
   },
   {
+   "s": "Kurir (opsional)",
+   "n": 3
+  },
+  {
    "s": "Label",
    "n": 3
   },
   {
    "s": "Label alamat",
-   "n": 3
-  },
-  {
-   "s": "Lacak Pengiriman",
    "n": 3
   },
   {
@@ -3995,10 +4055,6 @@
    "n": 3
   },
   {
-   "s": "Memuat pengiriman…",
-   "n": 3
-  },
-  {
    "s": "Memuat profil tersimpan…",
    "n": 3
   },
@@ -4099,11 +4155,11 @@
    "n": 3
   },
   {
-   "s": "Menunggu konfirmasi",
+   "s": "Menunggu pembayaran",
    "n": 3
   },
   {
-   "s": "Menunggu pembayaran",
+   "s": "Menyiapkan percakapan…",
    "n": 3
   },
   {
@@ -4132,6 +4188,10 @@
   },
   {
    "s": "Miring",
+   "n": 3
+  },
+  {
+   "s": "Mis. dikirim via JNE, estimasi {x} hari",
    "n": 3
   },
   {
@@ -4211,7 +4271,15 @@
    "n": 3
   },
   {
-   "s": "Nomor resi",
+   "s": "Nomor resi (manual)",
+   "n": 3
+  },
+  {
+   "s": "Nomor resi (opsional)",
+   "n": 3
+  },
+  {
+   "s": "Nomor resi & kurir wajib untuk barang fisik.",
    "n": 3
   },
   {
@@ -4376,6 +4444,10 @@
   },
   {
    "s": "Periksa ejaan username-nya — ditulis tanpa spasi.",
+   "n": 3
+  },
+  {
+   "s": "Perjalanan paket",
    "n": 3
   },
   {
@@ -4883,6 +4955,10 @@
    "n": 3
   },
   {
+   "s": "Status tidak dikenal",
+   "n": 3
+  },
+  {
    "s": "Status tiket: {x}",
    "n": 3
   },
@@ -5060,10 +5136,6 @@
   },
   {
    "s": "Tautan sosial",
-   "n": 3
-  },
-  {
-   "s": "Tautan sudah kedaluwarsa",
    "n": 3
   },
   {
@@ -5367,6 +5439,10 @@
    "n": 3
   },
   {
+   "s": "Untuk jasa/digital, resi opsional — pembeli akan diminta memeriksa hasil.",
+   "n": 3
+  },
+  {
    "s": "Username tidak ditemukan",
    "n": 3
   },
@@ -5575,15 +5651,15 @@
    "n": 2
   },
   {
-   "s": "{x} teratas berdasarkan total reward",
-   "n": 2
-  },
-  {
    "s": "{x} tidak akan bisa mengirimi Anda pesan lagi dari percakapan ini.",
    "n": 2
   },
   {
    "s": "{x} transaksi · {x}",
+   "n": 2
+  },
+  {
+   "s": "{x} undangan",
    "n": 2
   },
   {
@@ -5711,11 +5787,23 @@
    "n": 2
   },
   {
+   "s": "Alamat pengiriman akan diisi oleh pembeli saat menerima pesanan ini.",
+   "n": 2
+  },
+  {
    "s": "Alamat pengiriman akan diisi oleh pembeli saat menerima tautan ini.",
    "n": 2
   },
   {
+   "s": "Alamat pengiriman belum tercatat untuk pesanan ini.",
+   "n": 2
+  },
+  {
    "s": "Alamat utama diperbarui",
+   "n": 2
+  },
+  {
+   "s": "Alamat yang dipilih sudah dihapus",
    "n": 2
   },
   {
@@ -5907,6 +5995,14 @@
    "n": 2
   },
   {
+   "s": "Belum ada data pelacakan",
+   "n": 2
+  },
+  {
+   "s": "Belum ada event tracking.",
+   "n": 2
+  },
+  {
    "s": "Belum ada komentar.",
    "n": 2
   },
@@ -5967,6 +6063,10 @@
    "n": 2
   },
   {
+   "s": "Belum ada update baru dari kurir",
+   "n": 2
+  },
+  {
    "s": "Belum ada voucher",
    "n": 2
   },
@@ -5976,6 +6076,10 @@
   },
   {
    "s": "Belum bisa mengirim pesan",
+   "n": 2
+  },
+  {
+   "s": "Belum diisi: {x}.",
    "n": 2
   },
   {
@@ -6112,18 +6216,6 @@
   },
   {
    "s": "Blokir pengguna ini",
-   "n": 2
-  },
-  {
-   "s": "Bonus sambutan",
-   "n": 2
-  },
-  {
-   "s": "Bonus sambutan cair setelah transaksi pertama Anda selesai.",
-   "n": 2
-  },
-  {
-   "s": "Bonus sambutan sudah cair.",
    "n": 2
   },
   {
@@ -6276,6 +6368,14 @@
   },
   {
    "s": "Bukti sebelumnya ditolak pembeli — unggah bukti yang lebih jelas.",
+   "n": 2
+  },
+  {
+   "s": "Bukti terkirim, resi gagal disimpan",
+   "n": 2
+  },
+  {
+   "s": "Buku alamat penuh",
    "n": 2
   },
   {
@@ -6491,6 +6591,10 @@
    "n": 2
   },
   {
+   "s": "Diganti dengan alamat utama Anda.",
+   "n": 2
+  },
+  {
    "s": "Digital",
    "n": 2
   },
@@ -6587,7 +6691,15 @@
    "n": 2
   },
   {
+   "s": "Estimasi ongkir",
+   "n": 2
+  },
+  {
    "s": "Estimasi sampai: maks. {x} hari kerja.",
+   "n": 2
+  },
+  {
+   "s": "Estimasi tiba: {x}",
    "n": 2
   },
   {
@@ -6828,6 +6940,10 @@
   },
   {
    "s": "Gagal memuat slot",
+   "n": 2
+  },
+  {
+   "s": "Gagal memuat ulang tracking",
    "n": 2
   },
   {
@@ -7131,10 +7247,6 @@
    "n": 2
   },
   {
-   "s": "Info pengiriman",
-   "n": 2
-  },
-  {
    "s": "Info penting dari Kahade akan muncul di sini.",
    "n": 2
   },
@@ -7148,6 +7260,10 @@
   },
   {
    "s": "Isi harga minimum dulu bila memakai harga maksimum.",
+   "n": 2
+  },
+  {
+   "s": "Isi nama kurir (mis. JNE, SiCepat, J&T).",
    "n": 2
   },
   {
@@ -7232,6 +7348,10 @@
   },
   {
    "s": "Kami masih memeriksa nama pengguna tersebut.",
+   "n": 2
+  },
+  {
+   "s": "Kantor",
    "n": 2
   },
   {
@@ -7391,6 +7511,10 @@
    "n": 2
   },
   {
+   "s": "Kirim bukti",
+   "n": 2
+  },
+  {
    "s": "Kirim bukti baru",
    "n": 2
   },
@@ -7411,7 +7535,15 @@
    "n": 2
   },
   {
+   "s": "Kirim Resi",
+   "n": 2
+  },
+  {
    "s": "Kirim saldo ke @{x} di Kahade: {y}",
+   "n": 2
+  },
+  {
+   "s": "Kirim sebelum {x}",
    "n": 2
   },
   {
@@ -7447,10 +7579,6 @@
    "n": 2
   },
   {
-   "s": "Kode {x} disalin",
-   "n": 2
-  },
-  {
    "s": "Kode / Tautan",
    "n": 2
   },
@@ -7464,14 +7592,6 @@
   },
   {
    "s": "Kode berlaku beberapa menit",
-   "n": 2
-  },
-  {
-   "s": "Kode berlaku. Cashback masuk setelah transaksi selesai.",
-   "n": 2
-  },
-  {
-   "s": "Kode berlaku. Potongan diterapkan saat transaksi dibuat.",
    "n": 2
   },
   {
@@ -7576,6 +7696,10 @@
   },
   {
    "s": "Kurangi jumlah",
+   "n": 2
+  },
+  {
+   "s": "Kurir tidak merespons",
    "n": 2
   },
   {
@@ -7688,6 +7812,10 @@
   },
   {
    "s": "Lengkapi akun Anda",
+   "n": 2
+  },
+  {
+   "s": "Lengkapi alamat",
    "n": 2
   },
   {
@@ -7831,6 +7959,10 @@
    "n": 2
   },
   {
+   "s": "Maksimal {x} alamat. Hapus salah satu untuk menambah yang baru.",
+   "n": 2
+  },
+  {
    "s": "Maksimal {x} hari setelah transaksi selesai.",
    "n": 2
   },
@@ -7931,6 +8063,10 @@
    "n": 2
   },
   {
+   "s": "Melewati estimasi tiba. Hubungi kurir atau penjual bila paket belum sampai.",
+   "n": 2
+  },
+  {
    "s": "Membalas @{x}",
    "n": 2
   },
@@ -7971,7 +8107,15 @@
    "n": 2
   },
   {
+   "s": "Memuat alamat…",
+   "n": 2
+  },
+  {
    "s": "Memuat metode…",
+   "n": 2
+  },
+  {
+   "s": "Memuat perjalanan paket…",
    "n": 2
   },
   {
@@ -8103,10 +8247,6 @@
    "n": 2
   },
   {
-   "s": "Menyiapkan percakapan…",
-   "n": 2
-  },
-  {
    "s": "Menyimpan media ke perangkat",
    "n": 2
   },
@@ -8136,6 +8276,10 @@
   },
   {
    "s": "Minta kode baru",
+   "n": 2
+  },
+  {
+   "s": "Minta tautan baru kepada pembuat pesanan.",
    "n": 2
   },
   {
@@ -8172,6 +8316,14 @@
   },
   {
    "s": "Muat ulang saldo",
+   "n": 2
+  },
+  {
+   "s": "Muat ulang status order",
+   "n": 2
+  },
+  {
+   "s": "Muat Ulang Tracking",
    "n": 2
   },
   {
@@ -8243,11 +8395,7 @@
    "n": 2
   },
   {
-   "s": "Nomor resi & kurir wajib untuk barang fisik.",
-   "n": 2
-  },
-  {
-   "s": "Nomor resi pengiriman balik",
+   "s": "Nomor resi belum tersedia.",
    "n": 2
   },
   {
@@ -8287,6 +8435,10 @@
    "n": 2
   },
   {
+   "s": "Ongkir aktual",
+   "n": 2
+  },
+  {
    "s": "Opsi {x}",
    "n": 2
   },
@@ -8304,6 +8456,10 @@
   },
   {
    "s": "Order dibuat",
+   "n": 2
+  },
+  {
+   "s": "Order link diterima",
    "n": 2
   },
   {
@@ -8371,6 +8527,10 @@
    "n": 2
   },
   {
+   "s": "Pembeli mengisi alamat pengiriman saat menerima pesanan ini.",
+   "n": 2
+  },
+  {
    "s": "Pembeli: {x}",
    "n": 2
   },
@@ -8404,6 +8564,10 @@
   },
   {
    "s": "Pencucian uang",
+   "n": 2
+  },
+  {
+   "s": "Penerima",
    "n": 2
   },
   {
@@ -8475,6 +8639,10 @@
    "n": 2
   },
   {
+   "s": "Perbarui resi dari detail pesanan.",
+   "n": 2
+  },
+  {
    "s": "Percakapan diarsipkan",
    "n": 2
   },
@@ -8520,6 +8688,10 @@
   },
   {
    "s": "Periksa ejaan nama pengguna, atau coba nama lengkapnya.",
+   "n": 2
+  },
+  {
+   "s": "Periksa info pengiriman",
    "n": 2
   },
   {
@@ -8679,6 +8851,10 @@
    "n": 2
   },
   {
+   "s": "Pesanan berhasil dibuat.",
+   "n": 2
+  },
+  {
    "s": "Pesanan dikonfirmasi diterima",
    "n": 2
   },
@@ -8691,7 +8867,11 @@
    "n": 2
   },
   {
-   "s": "Pilih alamat pengiriman untuk menerima order ini.",
+   "s": "Pilih alamat",
+   "n": 2
+  },
+  {
+   "s": "Pilih alamat lain.",
    "n": 2
   },
   {
@@ -8867,6 +9047,10 @@
    "n": 2
   },
   {
+   "s": "Refresh mungkin sudah diproses — memuat ulang…",
+   "n": 2
+  },
+  {
    "s": "Refund Order",
    "n": 2
   },
@@ -8884,6 +9068,18 @@
   },
   {
    "s": "Resi & ongkir hanya untuk barang fisik — diisi saat transaksi.",
+   "n": 2
+  },
+  {
+   "s": "Resi manual",
+   "n": 2
+  },
+  {
+   "s": "Resi manual dari penjual — lacak di situs atau aplikasi kurir.",
+   "n": 2
+  },
+  {
+   "s": "Resi retur:",
    "n": 2
   },
   {
@@ -8920,6 +9116,10 @@
   },
   {
    "s": "Riwayat pengajuan",
+   "n": 2
+  },
+  {
+   "s": "Rumah",
    "n": 2
   },
   {
@@ -9259,7 +9459,19 @@
    "n": 2
   },
   {
+   "s": "Status belum bisa diperbarui. Coba lagi beberapa saat.",
+   "n": 2
+  },
+  {
+   "s": "Status belum diketahui — provider tidak merespons atau timeout. Bukan berarti gagal.",
+   "n": 2
+  },
+  {
    "s": "Status DANA: {x}",
+   "n": 2
+  },
+  {
+   "s": "Status order tidak dapat dimuat: {x}",
    "n": 2
   },
   {
@@ -9268,10 +9480,6 @@
   },
   {
    "s": "Status simpan belum pasti. Coba Terbitkan lagi untuk melanjutkan permintaan yang sama, atau periksa daftar etalase Anda sebelum membuat etalase baru.",
-   "n": 2
-  },
-  {
-   "s": "Status tidak dikenal",
    "n": 2
   },
   {
@@ -9475,6 +9683,10 @@
    "n": 2
   },
   {
+   "s": "Tautan undangan disalin",
+   "n": 2
+  },
+  {
    "s": "Tautan, template, sengketa, retur",
    "n": 2
   },
@@ -9671,6 +9883,10 @@
    "n": 2
   },
   {
+   "s": "Tidak bisa mengirim pesan",
+   "n": 2
+  },
+  {
    "s": "Tidak dibagikan",
    "n": 2
   },
@@ -9732,6 +9948,10 @@
   },
   {
    "s": "Total yang harus dibayar berubah dari {x} menjadi {x} sejak Anda membuka halaman ini (perubahan biaya/diskon). Lanjutkan membayar dengan total terbaru?",
+   "n": 2
+  },
+  {
+   "s": "Tracking diperbarui",
    "n": 2
   },
   {
@@ -9819,10 +10039,6 @@
    "n": 2
   },
   {
-   "s": "Untuk jasa/digital, resi opsional — pembeli akan diminta memeriksa hasil.",
-   "n": 2
-  },
-  {
    "s": "Urungkan",
    "n": 2
   },
@@ -9888,10 +10104,6 @@
   },
   {
    "s": "Voucher dinonaktifkan",
-   "n": 2
-  },
-  {
-   "s": "Voucher sudah Anda pakai",
    "n": 2
   },
   {
@@ -10000,10 +10212,6 @@
   },
   {
    "s": "· Kedaluwarsa",
-   "n": 1
-  },
-  {
-   "s": "· Resi manual",
    "n": 1
   },
   {
@@ -10212,6 +10420,18 @@
   },
   {
    "s": "{x} transaksi selesai",
+   "n": 1
+  },
+  {
+   "s": "{x} undangan terbanyak (selalu {x} teratas)",
+   "n": 1
+  },
+  {
+   "s": "{x} undangan terbanyak bulan ini",
+   "n": 1
+  },
+  {
+   "s": "{x}–{y} hari",
    "n": 1
   },
   {
@@ -12147,10 +12367,6 @@
    "n": 1
   },
   {
-   "s": "Akun Anda sudah punya pengundang.",
-   "n": 1
-  },
-  {
    "s": "Akun Anda sudah terverifikasi. Anda bisa bertransaksi tanpa batasan tambahan.",
    "n": 1
   },
@@ -12219,15 +12435,11 @@
    "n": 1
   },
   {
+   "s": "alamat jalan",
+   "n": 1
+  },
+  {
    "s": "Alamat kirim",
-   "n": 1
-  },
-  {
-   "s": "Alamat pengiriman belum lengkap",
-   "n": 1
-  },
-  {
-   "s": "Alamat pengiriman wajib diisi untuk menerima order barang fisik ini.",
    "n": 1
   },
   {
@@ -12396,6 +12608,10 @@
   },
   {
    "s": "Anda tetap dapat menggunakan fitur yang tidak mensyaratkan KYC, jika tersedia. Fitur finansial, batas, penarikan, atau transaksi tertentu dapat dibatasi sesuai risiko dan ketentuan.",
+   "n": 1
+  },
+  {
+   "s": "Anda tidak dapat membuka pesan langsung dengan akun sendiri.",
    "n": 1
   },
   {
@@ -12751,10 +12967,6 @@
    "n": 1
   },
   {
-   "s": "Barang fisik akan dikirim ke alamat ini.",
-   "n": 1
-  },
-  {
    "s": "Barang fisik yang dikirim via ekspedisi",
    "n": 1
   },
@@ -12935,10 +13147,6 @@
    "n": 1
   },
   {
-   "s": "Belum ada data pelacakan",
-   "n": 1
-  },
-  {
    "s": "Belum ada eksekusi tercatat.",
    "n": 1
   },
@@ -12948,10 +13156,6 @@
   },
   {
    "s": "Belum ada etalase aktif",
-   "n": 1
-  },
-  {
-   "s": "Belum ada event tracking.",
    "n": 1
   },
   {
@@ -13076,10 +13280,6 @@
   },
   {
    "s": "Belum berhasil",
-   "n": 1
-  },
-  {
-   "s": "Belum diisi: {x}.",
    "n": 1
   },
   {
@@ -13316,10 +13516,6 @@
   },
   {
    "s": "Bonus Isi Saldo",
-   "n": 1
-  },
-  {
-   "s": "Bonus saldo saat top-up",
    "n": 1
   },
   {
@@ -13663,10 +13859,6 @@
    "n": 1
   },
   {
-   "s": "Bukti terkirim, resi gagal disimpan",
-   "n": 1
-  },
-  {
    "s": "Bukti video",
    "n": 1
   },
@@ -13843,10 +14035,6 @@
    "n": 1
   },
   {
-   "s": "Cashback masuk setelah transaksi selesai",
-   "n": 1
-  },
-  {
    "s": "Catatan hasil (opsional)",
    "n": 1
   },
@@ -13860,10 +14048,6 @@
   },
   {
    "s": "Catatan terlalu pendek",
-   "n": 1
-  },
-  {
-   "s": "Catatan untuk pembeli (min. {x} karakter)",
    "n": 1
   },
   {
@@ -14771,6 +14955,14 @@
    "n": 1
   },
   {
+   "s": "Dikonfirmasi",
+   "n": 1
+  },
+  {
+   "s": "Dikonfirmasi otomatis",
+   "n": 1
+  },
+  {
    "s": "dikonfirmasi otomatis setelah tenggat habis",
    "n": 1
   },
@@ -14896,10 +15088,6 @@
   },
   {
    "s": "Ditugaskan ke mediator",
-   "n": 1
-  },
-  {
-   "s": "Diundang oleh",
    "n": 1
   },
   {
@@ -15083,10 +15271,6 @@
    "n": 1
   },
   {
-   "s": "Estimasi ongkir",
-   "n": 1
-  },
-  {
    "s": "Estimasi tanggal ready",
    "n": 1
   },
@@ -15176,6 +15360,10 @@
   },
   {
    "s": "Format pesanan siap pakai ulang",
+   "n": 1
+  },
+  {
+   "s": "Format resi tidak valid — {x}–{y} karakter huruf/angka (boleh tanda -), tanpa spasi.",
    "n": 1
   },
   {
@@ -15415,10 +15603,6 @@
    "n": 1
   },
   {
-   "s": "Gagal memuat ulang tracking",
-   "n": 1
-  },
-  {
    "s": "Gagal memulai tautan {x}",
    "n": 1
   },
@@ -15523,6 +15707,10 @@
    "n": 1
   },
   {
+   "s": "Gagal mengirim resi",
+   "n": 1
+  },
+  {
    "s": "Gagal mengirim ulasan",
    "n": 1
   },
@@ -15600,6 +15788,10 @@
   },
   {
    "s": "Gagal menyimpan gambar",
+   "n": 1
+  },
+  {
+   "s": "Gagal menyimpan info pengiriman",
    "n": 1
   },
   {
@@ -15820,14 +16012,6 @@
   },
   {
    "s": "Hanya tersedia di aplikasi",
-   "n": 1
-  },
-  {
-   "s": "Hanya untuk pembeli.",
-   "n": 1
-  },
-  {
-   "s": "Hanya untuk penjual.",
    "n": 1
   },
   {
@@ -16063,6 +16247,10 @@
    "n": 1
   },
   {
+   "s": "Info pengiriman disimpan",
+   "n": 1
+  },
+  {
    "s": "Info sistem",
    "n": 1
   },
@@ -16107,10 +16295,6 @@
    "n": 1
   },
   {
-   "s": "Instruksi pengiriman balik",
-   "n": 1
-  },
-  {
    "s": "Interaksi & lainnya",
    "n": 1
   },
@@ -16128,6 +16312,10 @@
   },
   {
    "s": "Isi menu bawah",
+   "n": 1
+  },
+  {
+   "s": "Isi nama label untuk alamat \"Lainnya\".",
    "n": 1
   },
   {
@@ -16343,10 +16531,6 @@
    "n": 1
   },
   {
-   "s": "JNE, SiCepat, …",
-   "n": 1
-  },
-  {
    "s": "Jual atau beli dengan dana dijaga Kahade",
    "n": 1
   },
@@ -16520,10 +16704,6 @@
   },
   {
    "s": "Kami tidak dapat memuat percakapan ini. Silakan coba lagi.",
-   "n": 1
-  },
-  {
-   "s": "Kantor",
    "n": 1
   },
   {
@@ -16899,14 +17079,6 @@
    "n": 1
   },
   {
-   "s": "Kirim barang retur",
-   "n": 1
-  },
-  {
-   "s": "Kirim bukti",
-   "n": 1
-  },
-  {
    "s": "Kirim kartu produk",
    "n": 1
   },
@@ -16955,15 +17127,7 @@
    "n": 1
   },
   {
-   "s": "Kirim Resi",
-   "n": 1
-  },
-  {
    "s": "Kirim saldo sebagai gantinya",
-   "n": 1
-  },
-  {
-   "s": "Kirim sebelum",
    "n": 1
   },
   {
@@ -17007,6 +17171,10 @@
    "n": 1
   },
   {
+   "s": "Kode {x} disalin",
+   "n": 1
+  },
+  {
    "s": "Kode {x}–{x} karakter.",
    "n": 1
   },
@@ -17043,7 +17211,7 @@
    "n": 1
   },
   {
-   "s": "Kode berlaku untuk bonus saldo saat top-up, bukan untuk transaksi.",
+   "s": "Kode berlaku. Potongan diterapkan saat transaksi dibuat.",
    "n": 1
   },
   {
@@ -17131,11 +17299,7 @@
    "n": 1
   },
   {
-   "s": "Kode ini tidak berlaku untuk akun Anda.",
-   "n": 1
-  },
-  {
-   "s": "Kode ini untuk bonus top-up saldo, bukan untuk transaksi.",
+   "s": "Kode lama tidak akan berlaku lagi. Teman yang mendaftar dengan kode lama tidak terhitung sebagai undangan Anda.",
    "n": 1
   },
   {
@@ -17156,6 +17320,14 @@
   },
   {
    "s": "Kode pembayaran",
+   "n": 1
+  },
+  {
+   "s": "kode pos",
+   "n": 1
+  },
+  {
+   "s": "Kode pos harus {x} digit angka.",
    "n": 1
   },
   {
@@ -17195,27 +17367,11 @@
    "n": 1
   },
   {
-   "s": "Kode referral Anda sendiri tidak bisa dipakai.",
-   "n": 1
-  },
-  {
-   "s": "Kode referral hanya untuk akun yang belum pernah bertransaksi.",
-   "n": 1
-  },
-  {
    "s": "Kode referral sudah dipakai",
    "n": 1
   },
   {
-   "s": "Kode referral tidak ditemukan atau sudah tidak aktif.",
-   "n": 1
-  },
-  {
    "s": "Kode tidak bisa diverifikasi tanpa koneksi internet. Tetap di layar ini — kode yang sudah diketik tidak hilang.",
-   "n": 1
-  },
-  {
-   "s": "Kode tidak valid atau sudah pernah dipakai.",
    "n": 1
   },
   {
@@ -17435,6 +17591,10 @@
    "n": 1
   },
   {
+   "s": "kota tujuan",
+   "n": 1
+  },
+  {
    "s": "Kota wajib diisi.",
    "n": 1
   },
@@ -17499,11 +17659,7 @@
    "n": 1
   },
   {
-   "s": "Kuota voucher sudah habis — dilepas dari transaksi.",
-   "n": 1
-  },
-  {
-   "s": "Kurir",
+   "s": "label alamat",
    "n": 1
   },
   {
@@ -17723,10 +17879,6 @@
    "n": 1
   },
   {
-   "s": "Lengkapi alamat",
-   "n": 1
-  },
-  {
    "s": "Lengkapi data diri Anda",
    "n": 1
   },
@@ -17744,10 +17896,6 @@
   },
   {
    "s": "lihat Anonimisasi.",
-   "n": 1
-  },
-  {
-   "s": "Lihat detail order",
    "n": 1
   },
   {
@@ -18315,10 +18463,6 @@
    "n": 1
   },
   {
-   "s": "Memuat perjalanan paket…",
-   "n": 1
-  },
-  {
    "s": "Memuat peta…",
    "n": 1
   },
@@ -18695,10 +18839,6 @@
    "n": 1
   },
   {
-   "s": "Minimal {x} karakter, atau kosongkan bila tidak dikirim dari sini.",
-   "n": 1
-  },
-  {
    "s": "Minta",
    "n": 1
   },
@@ -18739,15 +18879,7 @@
    "n": 1
   },
   {
-   "s": "Minta tautan baru kepada pembuat pesanan.",
-   "n": 1
-  },
-  {
    "s": "Minta Transfer",
-   "n": 1
-  },
-  {
-   "s": "Mis. dikirim via JNE, estimasi {x} hari",
    "n": 1
   },
   {
@@ -18823,15 +18955,7 @@
    "n": 1
   },
   {
-   "s": "Muat ulang status order",
-   "n": 1
-  },
-  {
    "s": "Muat ulang tantangan",
-   "n": 1
-  },
-  {
-   "s": "Muat Ulang Tracking",
    "n": 1
   },
   {
@@ -18868,6 +18992,10 @@
   },
   {
    "s": "Nama pemilik tidak cocok dengan data bank. Periksa lalu tambah ulang.",
+   "n": 1
+  },
+  {
+   "s": "nama penerima",
    "n": 1
   },
   {
@@ -19055,7 +19183,15 @@
    "n": 1
   },
   {
+   "s": "nomor HP penerima",
+   "n": 1
+  },
+  {
    "s": "Nomor HP tidak aktif atau sudah tidak dipakai?",
+   "n": 1
+  },
+  {
+   "s": "Nomor HP tidak valid (minimal {x} digit).",
    "n": 1
   },
   {
@@ -19083,11 +19219,7 @@
    "n": 1
   },
   {
-   "s": "Nomor resi (opsional)",
-   "n": 1
-  },
-  {
-   "s": "Nomor resi terlalu pendek",
+   "s": "Nomor resi wajib diisi untuk barang fisik.",
    "n": 1
   },
   {
@@ -19167,10 +19299,6 @@
    "n": 1
   },
   {
-   "s": "Ongkir aktual",
-   "n": 1
-  },
-  {
    "s": "Operasi saldo dirancang menggunakan pencatatan konsisten, kontrol transaksi basis data, idempotensi, rekonsiliasi, dan pemisahan status agar instruksi yang sama tidak dibukukan berulang.",
    "n": 1
   },
@@ -19216,10 +19344,6 @@
   },
   {
    "s": "Order kedaluwarsa",
-   "n": 1
-  },
-  {
-   "s": "Order link diterima",
    "n": 1
   },
   {
@@ -19675,10 +19799,6 @@
    "n": 1
   },
   {
-   "s": "Penerima",
-   "n": 1
-  },
-  {
    "s": "Penerima ini tidak ada di daftar favorit Anda. Periksa kembali username sebelum mengirim — transfer yang sudah terkirim tidak bisa ditarik kembali.",
    "n": 1
   },
@@ -19763,6 +19883,10 @@
    "n": 1
   },
   {
+   "s": "Pengguna ini membatasi pesan langsung baru. Anda hanya bisa chat dengannya lewat transaksi.",
+   "n": 1
+  },
+  {
    "s": "Pengguna lain",
    "n": 1
   },
@@ -19836,6 +19960,10 @@
   },
   {
    "s": "Pengiriman gagal dan versi web tidak menyimpan masukan pribadi di browser — jangan tutup halaman ini, kirim ulang setelah koneksi kembali. Untuk kendala yang butuh tindakan, buat tiket bantuan resmi.",
+   "n": 1
+  },
+  {
+   "s": "Pengiriman ini memakai resi manual dari penjual. Salin nomor resi di detail order lalu lacak di situs atau aplikasi kurir.",
    "n": 1
   },
   {
@@ -20055,10 +20183,6 @@
    "n": 1
   },
   {
-   "s": "Perbarui resi dari detail pesanan.",
-   "n": 1
-  },
-  {
    "s": "Perbesar",
    "n": 1
   },
@@ -20096,6 +20220,10 @@
   },
   {
    "s": "Percakapan ini telah ditutup karena transaksi telah selesai.",
+   "n": 1
+  },
+  {
+   "s": "Percakapan tidak cocok dengan profil ini. Demi keamanan, percakapan tidak dibuka.",
    "n": 1
   },
   {
@@ -20180,10 +20308,6 @@
   },
   {
    "s": "peristiwa penggunaan, performa, crash, versi aplikasi, referer, dan metrik agregat.",
-   "n": 1
-  },
-  {
-   "s": "Perjalanan paket",
    "n": 1
   },
   {
@@ -20471,10 +20595,6 @@
    "n": 1
   },
   {
-   "s": "Pesanan berhasil dibuat.",
-   "n": 1
-  },
-  {
    "s": "Pesanan bisa sudah dibuat — periksa status tautan / daftar transaksi.",
    "n": 1
   },
@@ -20564,10 +20684,6 @@
   },
   {
    "s": "pihak, objek, harga, alamat, penerima, kurir, resi, status, bukti, retur, dan penukaran.",
-   "n": 1
-  },
-  {
-   "s": "Pilih alamat",
    "n": 1
   },
   {
@@ -20755,6 +20871,10 @@
    "n": 1
   },
   {
+   "s": "Profil tujuan tidak cocok. Percakapan tidak dibuka demi melindungi akun Anda.",
+   "n": 1
+  },
+  {
    "s": "Profiling:",
    "n": 1
   },
@@ -20859,10 +20979,6 @@
    "n": 1
   },
   {
-   "s": "Refresh mungkin sudah diproses — memuat ulang…",
-   "n": 1
-  },
-  {
    "s": "Refund dana",
    "n": 1
   },
@@ -20947,7 +21063,7 @@
    "n": 1
   },
   {
-   "s": "Resi retur:",
+   "s": "Resi terkirim",
    "n": 1
   },
   {
@@ -21116,10 +21232,6 @@
   },
   {
    "s": "Rujukan ini dicantumkan untuk memudahkan pembaca. Peraturan pelaksana, perubahan, putusan pengadilan, serta ketentuan sektoral lain dapat berlaku sesuai jenis layanan dan keadaan pemrosesan.",
-   "n": 1
-  },
-  {
-   "s": "Rumah",
    "n": 1
   },
   {
@@ -21747,10 +21859,6 @@
    "n": 1
   },
   {
-   "s": "Status belum diketahui — provider tidak merespons atau timeout. Bukan berarti gagal.",
-   "n": 1
-  },
-  {
    "s": "Status belum tersedia",
    "n": 1
   },
@@ -21764,10 +21872,6 @@
   },
   {
    "s": "Status metode belum terkonfirmasi",
-   "n": 1
-  },
-  {
-   "s": "Status order tidak dapat dimuat:",
    "n": 1
   },
   {
@@ -22115,10 +22219,6 @@
    "n": 1
   },
   {
-   "s": "Tautan dan kode lama tidak bisa dipakai lagi untuk mendaftar. Undangan yang sudah tercatat tetap dihitung.",
-   "n": 1
-  },
-  {
    "s": "Tautan dibatalkan",
    "n": 1
   },
@@ -22224,6 +22324,10 @@
   },
   {
    "s": "Teks tautan disalin",
+   "n": 1
+  },
+  {
+   "s": "Telepon",
    "n": 1
   },
   {
@@ -22528,10 +22632,6 @@
   },
   {
    "s": "Tidak bisa mengambil lokasi",
-   "n": 1
-  },
-  {
-   "s": "Tidak bisa mengirim pesan",
    "n": 1
   },
   {
@@ -23347,19 +23447,7 @@
    "n": 1
   },
   {
-   "s": "Voucher sudah kedaluwarsa atau nonaktif — dilepas dari transaksi.",
-   "n": 1
-  },
-  {
    "s": "Voucher terpakai",
-   "n": 1
-  },
-  {
-   "s": "Voucher tidak berlaku untuk nilai transaksi ini — dilepas. Periksa minimum transaksinya.",
-   "n": 1
-  },
-  {
-   "s": "Voucher tidak ditemukan — dilepas dari transaksi.",
    "n": 1
   },
   {

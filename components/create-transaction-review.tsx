@@ -29,7 +29,7 @@ import type { FeeSchedule } from "@/lib/api/public"
 import { formatDateLong, formatDecimal, formatRupiah } from "@/lib/format"
 import type { Address } from "@/lib/api/commerce"
 import { addressLabelText } from "@/lib/api/commerce"
-import { addressMissingFields } from "@/lib/wallet-batch139"
+import { ADDRESS_MISSING_ALL, addressMissingFields } from "@/lib/wallet-batch139"
 import { Alert } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { View } from "react-native"
@@ -342,17 +342,20 @@ export function ShippingAddressSummaryCard({
         }
       : null,
   )
+  // D10 (audit alamat & kurir 2026-10-10): seluruh teks lewat `translate`;
+  // nomor HP penerima ikut tampil — pembeli memverifikasi nomor yang akan
+  // dihubungi kurir SEBELUM membayar, bukan setelah order terbentuk.
   return (
-    <FormSection title="Alamat pengiriman" divider>
+    <FormSection title={translate("Alamat pengiriman")} divider>
       {missing.length > 0 ? (
         <View className="gap-2">
-          <Alert tone="warning" title="Alamat pengiriman belum lengkap">
-            {missing.includes("alamat")
-              ? "Pilih alamat pengiriman untuk barang fisik ini."
-              : `Belum diisi: ${missing.join(", ")}.`}
+          <Alert tone="warning" title={translate("Alamat pengiriman belum lengkap")}>
+            {missing.includes(ADDRESS_MISSING_ALL)
+              ? translate("Pilih alamat pengiriman untuk barang fisik ini.")
+              : translate("Belum diisi: {x}.", { x: missing.join(", ") })}
           </Alert>
           <Button variant="secondary" size="sm" fullWidth={false} onPress={onFix}>
-            {address ? "Lengkapi alamat" : "Pilih alamat"}
+            {address ? translate("Lengkapi alamat") : translate("Pilih alamat")}
           </Button>
         </View>
       ) : (
@@ -363,6 +366,9 @@ export function ShippingAddressSummaryCard({
               {address!.recipientName}
             </Text>
           </View>
+          <Text variant="caption" tone="secondary" numberOfLines={1}>
+            {address!.phone}
+          </Text>
           <Text variant="caption" tone="secondary" numberOfLines={2}>
             {address!.addressLine}, {address!.city} {address!.postalCode}
           </Text>

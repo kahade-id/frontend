@@ -201,7 +201,7 @@ describe("D09 addressMissingFields", () => {
 
   it("field kosong dilaporkan spesifik", () => {
     const missing = addressMissingFields({ ...full, city: "  ", postalCode: "" })
-    expect(missing).toContain("kota")
+    expect(missing).toContain("kota tujuan")
     expect(missing).toContain("kode pos")
     expect(missing).not.toContain("nama penerima")
   })

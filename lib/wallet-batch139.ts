@@ -4,6 +4,7 @@
  * UI-only, fail-closed. Tidak menyentuh logika uang/escrow/ledger — hanya
  * keputusan presentasi yang bisa diuji tanpa render.
  */
+import { translate } from "@/lib/i18n/translate"
 
 /** D04: hasil lookup ulang penerima transfer. */
 export type RevalidatedRecipient =
@@ -140,14 +141,17 @@ export function validateTrackingInput(
   const out: TrackingValidation = {}
   const c = courier.trim()
   const t = tracking.trim()
+  // D11 (audit alamat & kurir 2026-10-10): pesan lewat `translate`.
   if (physical) {
-    if (c.length < 2) out.courierError = "Isi nama kurir (mis. JNE, SiCepat, J&T)."
+    if (c.length < 2) out.courierError = translate("Isi nama kurir (mis. JNE, SiCepat, J&T).")
   }
   if (t.length === 0) {
-    if (physical) out.trackingError = "Nomor resi wajib diisi untuk barang fisik."
+    if (physical) out.trackingError = translate("Nomor resi wajib diisi untuk barang fisik.")
   } else if (!/^[A-Za-z0-9-]{6,40}$/.test(t)) {
-    out.trackingError =
-      "Format resi tidak valid — 6–40 karakter huruf/angka (boleh tanda -), tanpa spasi."
+    out.trackingError = translate(
+      "Format resi tidak valid — {x}–{y} karakter huruf/angka (boleh tanda -), tanpa spasi.",
+      { x: 6, y: 40 },
+    )
   }
   return out
 }
@@ -168,16 +172,23 @@ export type CheckoutAddress = {
  * spesifik ("belum ada alamat" vs "kota belum diisi"), bukan vonis generik.
  */
 export function addressMissingFields(address: CheckoutAddress): string[] {
-  if (!address) return ["alamat"]
+  // Penanda "belum ada alamat sama sekali" — pemanggil membandingkan dengan
+  // `ADDRESS_MISSING_ALL` (bukan string literal) agar tetap benar saat diterjemahkan.
+  if (!address) return [ADDRESS_MISSING_ALL]
   const missing: string[] = []
-  if (!address.label.trim()) missing.push("label alamat")
-  if (!address.recipientName.trim()) missing.push("nama penerima")
-  if (!address.phone.trim()) missing.push("nomor HP penerima")
-  if (!address.addressLine.trim()) missing.push("alamat jalan")
-  if (!address.city.trim()) missing.push("kota")
-  if (!address.postalCode.trim()) missing.push("kode pos")
+  // C14 (audit alamat & kurir 2026-10-10): nama field lewat `translate` —
+  // dulu disisipkan mentah (Indonesia) ke kalimat terjemahan "{x}".
+  if (!address.label.trim()) missing.push(translate("label alamat"))
+  if (!address.recipientName.trim()) missing.push(translate("nama penerima"))
+  if (!address.phone.trim()) missing.push(translate("nomor HP penerima"))
+  if (!address.addressLine.trim()) missing.push(translate("alamat jalan"))
+  if (!address.city.trim()) missing.push(translate("kota tujuan"))
+  if (!address.postalCode.trim()) missing.push(translate("kode pos"))
   return missing
 }
+
+/** Nilai tunggal yang dikembalikan `addressMissingFields(null)`. */
+export const ADDRESS_MISSING_ALL = "alamat"
 
 /**
  * D13 (batch 139): pisahkan kejadian TERBARU dari riwayat lama.

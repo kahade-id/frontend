@@ -12,6 +12,7 @@
  */
 import { http, seg } from "./client"
 import { asRecord, pickBoolean, pickNumber, pickString, readList } from "./response"
+import { translate } from "@/lib/i18n/translate"
 
 // ------------------------------------------------------------------
 // Item 1/8: field commerce produk (PATCH /v1/commerce/products/:id)
@@ -187,9 +188,14 @@ export type Address = {
   createdAt: string | null
 }
 
+/**
+ * Label alamat siap tampil. C13 (audit alamat & kurir 2026-10-10): label
+ * baku lewat `translate` — dulu "Rumah/Kantor/Lainnya" hardcode dan ikut
+ * disisipkan mentah ke kalimat terjemahan (`"Opsi alamat {x}"`).
+ */
 export function addressLabelText(a: Pick<Address, "label" | "customLabel">): string {
   if (a.label === "LAINNYA" && a.customLabel) return a.customLabel
-  return a.label === "RUMAH" ? "Rumah" : a.label === "KANTOR" ? "Kantor" : "Lainnya"
+  return a.label === "RUMAH" ? translate("Rumah") : a.label === "KANTOR" ? translate("Kantor") : translate("Lainnya")
 }
 
 export function normalizeAddress(raw: unknown): Address | null {

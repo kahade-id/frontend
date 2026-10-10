@@ -64,6 +64,7 @@ import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
 import { useToast } from "@/components/ui/toast"
 import { translate } from "@/lib/i18n/translate"
+import { validateTrackingInput } from "@/lib/wallet-batch139"
 
 const MAX_PROOF_FILES = 10
 const MIN_DESCRIPTION = 10
@@ -207,7 +208,7 @@ export default function DeliveryProofScreen() {
     setUploads([])
   }, [orderId])
   const [uploading, setUploading] = useState(false)
-  const [form, setForm] = useState<DeliveryProofFormValue>({ trackingNumber: "", note: "" })
+  const [form, setForm] = useState<DeliveryProofFormValue>({ trackingNumber: "", courierName: "", note: "" })
   const [submitting, setSubmitting] = useState(false)
 
   const sortedProofs = useMemo(
@@ -259,7 +260,12 @@ export default function DeliveryProofScreen() {
    */
   useEffect(() => {
     if (!order) return
-    setForm((f) => ({ ...f, trackingNumber: f.trackingNumber || (order.trackingNumber ?? "") }))
+    // D08: kurir ikut dipra-isi — resi tanpa kurir ditolak backend.
+    setForm((f) => ({
+      ...f,
+      trackingNumber: f.trackingNumber || (order.trackingNumber ?? ""),
+      courierName: (f.courierName ?? "") || (order.courierName ?? ""),
+    }))
   }, [order])
 
   const handleConfirm = useCallback(async () => {
@@ -420,17 +426,28 @@ export default function DeliveryProofScreen() {
         return
       }
       const tracking = value.trackingNumber.trim()
+      const courier = (value.courierName ?? "").trim()
       // M-42 (audit end-to-end, issue #36): validasi resi SEBELUM mutasi —
       // dulu `updateShipping` (min 3) baru dicek server SETELAH bukti terkirim
       // (setengah jalan). Semua syarat dicek di depan; tidak ada mutasi parsial
       // karena alasan yang bisa diketahui lebih awal.
-      if (tracking && tracking !== (order?.trackingNumber ?? "") && tracking.length < 3) {
-        toast.show({
-          title: "Nomor resi terlalu pendek",
-          description: "Minimal 3 karakter, atau kosongkan bila tidak dikirim dari sini.",
-          tone: "warning",
-        })
-        return
+      // D08/D12 (audit alamat & kurir 2026-10-10): validator sama dengan sheet
+      // "Info pengiriman"; resi WAJIB berpasangan dengan kurir (backend menolak
+      // barang fisik yang hanya mengirim resi).
+      const shippingChanged =
+        tracking.length > 0 &&
+        (tracking !== (order?.trackingNumber ?? "") || courier !== (order?.courierName ?? ""))
+      if (shippingChanged) {
+        const validation = validateTrackingInput(courier, tracking, true)
+        const problem = validation.courierError ?? validation.trackingError
+        if (problem) {
+          toast.show({
+            title: translate("Periksa info pengiriman"),
+            description: problem,
+            tone: "warning",
+          })
+          return
+        }
       }
       setSubmitting(true)
       try {
@@ -438,19 +455,19 @@ export default function DeliveryProofScreen() {
           description,
           fileUrls: uploads.map((u) => u.fileKey),
         })
-        if (tracking && tracking !== (order?.trackingNumber ?? "")) {
+        if (shippingChanged) {
           try {
-            await api.orders.updateShipping(orderId, { trackingNumber: tracking })
-          } catch {
+            await api.orders.updateShipping(orderId, { trackingNumber: tracking, courierName: courier })
+          } catch (shipErr) {
             toast.show({
-              title: "Bukti terkirim, resi gagal disimpan",
-              description: "Perbarui resi dari detail pesanan.",
+              title: translate("Bukti terkirim, resi gagal disimpan"),
+              description: isApiError(shipErr) ? userMessage(shipErr) : translate("Perbarui resi dari detail pesanan."),
               tone: "warning",
             })
           }
         }
         setUploads([])
-        setForm({ trackingNumber: tracking, note: "" })
+        setForm({ trackingNumber: tracking, courierName: courier, note: "" })
         toast.show({
           title: "Bukti pengiriman terkirim",
           description: "Menunggu konfirmasi pembeli.",
@@ -479,7 +496,7 @@ export default function DeliveryProofScreen() {
         setSubmitting(false)
       }
     },
-    [orderId, uploads, order?.trackingNumber, toast.show, query],
+    [orderId, uploads, order?.trackingNumber, order?.courierName, toast.show, query],
   )
 
   const openAttachment = useCallback(
