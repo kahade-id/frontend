@@ -1296,7 +1296,7 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
       kind === "following" && followingPartial ? (
         <View className="mx-5 mt-3 rounded-md border border-border bg-surface px-3 py-2">
           <Text variant="caption" tone="secondary">
-            {translate("Sebagian etalase belum dapat dimuat. Tarik untuk menyegarkan.")}
+            {translate("Hanya sebagian etalase dari akun yang Anda ikuti yang ditampilkan.")}
           </Text>
         </View>
       ) : null

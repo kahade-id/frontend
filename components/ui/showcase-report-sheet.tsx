@@ -186,7 +186,7 @@ export function ShowcaseReportSheet({ item, onRequestClose }: ShowcaseReportShee
             value={detail}
             onChangeText={setDetail}
             placeholder={translate("Jelaskan secara singkat detail pelanggaran...")}
-            maxLength={API_CONSTRAINTS.CreateShowcaseReportDto.description.maxLength}
+            maxLength={API_CONSTRAINTS.ReportShowcaseDto.description.maxLength}
             multiline
             numberOfLines={3}
           />

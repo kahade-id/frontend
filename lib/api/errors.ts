@@ -28,6 +28,7 @@ import {
   REAUTH_PASSWORD_REQUIRED,
   REAUTH_TOO_MANY_ATTEMPTS,
   REAUTH_UNAVAILABLE,
+  SHOWCASE_MODERATED,
   SUBSCRIPTION_NOT_FOUND,
   WALLET_BALANCE_PRESENT,
   WALLET_PIN_NOT_SET,
@@ -90,6 +91,13 @@ export type ApiErrorInit = {
   status?: number
   /** Kode mentah dari backend bila ada (`code` | `errorCode` | `error_code`) */
   backendCode?: string
+  /**
+   * RK-01 (audit etalase 2026-10-10): payload tambahan `errors.data` dari
+   * HttpExceptionFilter backend (objek datar), mis. state server pada 409
+   * suka/simpan (`{ liked, likeCount }` / `{ saved, saveCount }`) atau
+   * `{ reportId }` pada 403 SHOWCASE_MODERATED.
+   */
+  data?: Record<string, unknown>
   /** Pesan-pesan validasi per field dari class-validator, apa adanya */
   validationMessages?: string[]
   /**
@@ -132,6 +140,8 @@ export class ApiError extends Error {
   readonly code: ApiErrorCode
   readonly status: number | undefined
   readonly backendCode: string | undefined
+  /** RK-01: lihat `ApiErrorInit.data`. */
+  readonly data: Record<string, unknown> | undefined
   readonly validationMessages: string[] | undefined
   /** BFI-059: atribusi per field — lihat `ApiErrorInit.fieldErrors`. */
   readonly fieldErrors: FieldError[] | undefined
@@ -158,6 +168,7 @@ export class ApiError extends Error {
     this.code = init.code
     this.status = init.status
     this.backendCode = init.backendCode
+    this.data = init.data
     this.validationMessages = init.validationMessages
     this.fieldErrors = init.fieldErrors
     this.#raw = init.raw
@@ -306,6 +317,8 @@ export function parseErrorBody(body: unknown): {
    * Melengkapi header `Retry-After` yang di web bisa tidak terekspos CORS.
    */
   retryAfterMs: number | undefined
+  /** RK-01: `errors.data` (objek datar) dari envelope backend, bila ada. */
+  data: Record<string, unknown> | undefined
 } {
   const rec = asRecord(body) as NestErrorBody | null
   if (!rec) {
@@ -318,6 +331,7 @@ export function parseErrorBody(body: unknown): {
       validationMessages: undefined,
       fieldErrors: undefined,
       retryAfterMs: undefined,
+      data: undefined,
     }
   }
 
@@ -355,6 +369,8 @@ export function parseErrorBody(body: unknown): {
     validationMessages,
     fieldErrors: parseFieldErrors(src),
     retryAfterMs: parseBodyRetryAfterMs(src) ?? parseBodyRetryAfterMs(rec),
+    // Hanya objek (bukan null/array) — `data: null` level atas envelope diabaikan.
+    data: asRecord((src as { data?: unknown }).data) ?? undefined,
   }
 }
 
@@ -654,6 +670,11 @@ export function userMessage(err: unknown): string {
     // jangan biarkan jatuh ke UNKNOWN generik.
     if (err.backendCode === SUBSCRIPTION_NOT_FOUND) {
       return "Data langganan tidak ditemukan. Mungkin sudah kedaluwarsa — silakan buat langganan baru."
+    }
+    // BEC-01 (audit etalase 2026-10-10): item sedang ditindak moderator —
+    // FORBIDDEN generik ("tidak punya akses") menyesatkan pemilik.
+    if (err.backendCode === SHOWCASE_MODERATED) {
+      return "Etalase ini sedang ditindak moderator dan tidak bisa diubah untuk sementara."
     }
     // BFE-076: kegagalan re-auth keamanan — tiap kode punya arti sendiri;
     // pesan generik ("sesi berakhir"/"data belum benar") menyesatkan di sini.

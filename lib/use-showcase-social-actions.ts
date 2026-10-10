@@ -23,6 +23,7 @@ import {
 } from "@/lib/showcase-state"
 import { ROUTES } from "@/lib/routes"
 import { shouldClearLikeOverride, type ServerLikeState } from "@/lib/showcase-social"
+import { likeStateFromConflict, saveStateFromConflict } from "@/lib/showcase-conflict-state"
 import {
   loadShowcaseBookmarks,
   clearShowcaseLikeOverride,
@@ -220,9 +221,18 @@ export function useShowcaseSocialActions(item: ShowcaseSocialItem): ShowcaseSoci
         if (peekWantedToggle(key) == null) setShowcaseLikeState(item.id, settled)
       } catch (err) {
         if (revision !== getSessionRevision()) return
-        // SHOWCASE_ALREADY_LIKED (race) bukan error pengguna — cukup sinkronkan.
-        const isRace = isApiError(err) && err.backendCode === "SHOWCASE_ALREADY_LIKED"
-        if (isRace) {
+        // SHOWCASE_ALREADY_LIKED / SHOWCASE_NOT_LIKED (race) bukan error
+        // pengguna — cukup sinkronkan. RK-01 (audit etalase 2026-10-10): 409
+        // kini membawa state server di `errors.data` ({liked, likeCount}) →
+        // langsung dipakai; GET detail hanya bila data tidak ada (backend lama).
+        const isRace =
+          isApiError(err) &&
+          (err.backendCode === "SHOWCASE_ALREADY_LIKED" || err.backendCode === "SHOWCASE_NOT_LIKED")
+        const fromServer = isRace ? likeStateFromConflict(err) : null
+        if (isRace && fromServer) {
+          settled = fromServer
+          if (peekWantedToggle(key) == null) setShowcaseLikeState(item.id, settled)
+        } else if (isRace) {
           try {
             const fresh = await getShowcaseDetail(item.id)
             if (revision !== getSessionRevision()) return
@@ -332,10 +342,15 @@ export function useShowcaseSocialActions(item: ShowcaseSocialItem): ShowcaseSoci
           (next && backendCode === "SHOWCASE_ALREADY_SAVED") ||
           (!next && backendCode === "SHOWCASE_NOT_SAVED")
         if (idempotent) {
-          // Keadaan akhir sudah sesuai — commit tanpa toast error.
-          settledSaved = next
-          settledCount = Math.max(0, previousCount + (next ? 1 : -1))
-          if (peekWantedToggle(key) == null) setShowcaseSavedState(item.id, next)
+          // Keadaan akhir sudah sesuai — commit tanpa toast error. RK-01: pakai
+          // hitungan server dari `errors.data` bila dikirim (bukan tebakan ±1).
+          const fromServer = saveStateFromConflict(error)
+          settledSaved = fromServer?.saved ?? next
+          settledCount = fromServer?.saveCount ?? Math.max(0, previousCount + (next ? 1 : -1))
+          if (peekWantedToggle(key) == null) {
+            setShowcaseSavedState(item.id, settledSaved)
+            if (fromServer) setSaveCountOverride(settledCount)
+          }
         } else {
           // P2-04: request GAGAL → batalkan toggle yang tertahan (dibuat
           // relatif terhadap state optimistis yang kini di-rollback).

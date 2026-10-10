@@ -51,6 +51,9 @@ vi.mock("@/lib/guest-gate", () => ({
   useGuestPathBlocked: () => false,
 }))
 vi.mock("@/lib/query-cache", () => ({
+  // Upstream 2026-10-10: use-api-query membaca cache persisten saat memori kosong.
+  readPersistedQueryCacheEntry: async () => null,
+  restoreQueryCacheEntry: () => {},
   CACHE_REVALIDATE_AFTER_MS: 0,
   fetchViaQueryCache: (_key: string, fetcher: (signal: AbortSignal) => unknown, signal: AbortSignal) => fetcher(signal),
   markQueryRevalidating: () => true,

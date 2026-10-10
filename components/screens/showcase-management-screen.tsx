@@ -94,8 +94,11 @@ import { ShowcaseModerationNotice } from "@/components/ui/showcase-moderation-no
 import { Switch } from "@/components/ui/switch"
 import { Text } from "@/components/ui/text"
 import { TextArea } from "@/components/ui/text-area"
-import { resolveShowcaseModeration } from "@/lib/showcase-moderation"
+import { isModerationLocked, resolveShowcaseModeration } from "@/lib/showcase-moderation"
 import { useToast } from "@/components/ui/toast"
+
+/** BEC-01: aksi yang ditolak server saat item ditindak moderator. */
+const LOCKED_MENU_KEYS: ReadonlySet<string> = new Set(["edit", "images", "toggle", "slots"])
 
 /** Batas form — D-08: TURUNAN dari kontrak backend, bukan angka lokal. */
 const TITLE_MAX = API_CONSTRAINTS.CreateShowcaseItemDto.title.maxLength
@@ -618,9 +621,17 @@ function ShowcaseManagement() {
       setDeletedItems(removed.next)
       const rollback = () => setDeletedItems((current) => withItemAt(current, item, removed.index))
       try {
-        await api.users.restoreShowcaseItem(item.id)
+        const restored = await api.users.restoreShowcaseItem(item.id)
         await unmarkShowcaseDeleted(item.id)
-        toast.show({ title: translate("Etalase dipulihkan"), tone: "success", duration: 2500 })
+        // BE-4: sudah tayang kembali (dipulihkan dari perangkat lain) — jujur,
+        // bukan "dipulihkan" seolah aksi ini yang melakukannya.
+        const already = restored?.alreadyRestored === true
+        toast.show({
+          title: already ? translate("Etalase sudah aktif kembali") : translate("Etalase dipulihkan"),
+          description: already ? translate("Dipulihkan lebih dulu dari perangkat lain.") : undefined,
+          tone: already ? "info" : "success",
+          duration: already ? 4000 : 2500,
+        })
         touchFeed()
         await query.refresh()
         await refreshDeleted()
@@ -1061,6 +1072,17 @@ function ShowcaseManagement() {
       ]
     : []
 
+  /**
+   * BEC-01 (audit etalase 2026-10-10): item yang sedang ditindak moderator
+   * (TAKEDOWN/RESTRICTED) terkunci di server — ubah/foto/aktifkan ditolak 403
+   * SHOWCASE_MODERATED. Sembunyikan aksinya; sisakan lihat detail & hapus.
+   */
+  const menuModeration = menuItem ? resolveShowcaseModeration(menuItem) : null
+  const menuLocked = menuModeration != null && isModerationLocked(menuModeration)
+  const visibleMenuActions = menuLocked
+    ? menuActions.filter((action) => !LOCKED_MENU_KEYS.has(action.key))
+    : menuActions
+
   // TIM 8 (perf): full scan hanya saat `items` berubah — sebelumnya
   // dihitung tiap render.
   const hiddenCount = useMemo(() => items.filter(showcaseIsHidden).length, [items])
@@ -1306,8 +1328,16 @@ function ShowcaseManagement() {
         visible={!!menuItem}
         onRequestClose={() => setMenuItem(null)}
         title={menuItem ? labelOf(menuItem) : undefined}
-        description={menuItem?.isActive === false ? translate("Disembunyikan dari profil publik") : undefined}
-        actions={menuActions}
+        description={
+          menuLocked
+            ? menuModeration?.status === "takedown"
+              ? translate("Diturunkan moderator — tidak bisa diubah sampai peninjauan selesai")
+              : translate("Dibatasi sementara oleh moderator — tidak bisa diubah sampai peninjauan selesai")
+            : menuItem?.isActive === false
+              ? translate("Disembunyikan dari profil publik")
+              : undefined
+        }
+        actions={visibleMenuActions}
       />
 
       {/* Batch 43 (item 12): kalender slot jasa per produk. */}

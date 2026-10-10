@@ -531,11 +531,25 @@ export function updateShowcaseComment(commentId: string, content: string) {
     .then(parseShowcaseComment)
 }
 
-/** DELETE /v1/showcase/comments/:commentId — pengarang ATAU pemilik item. */
-export function deleteShowcaseComment(commentId: string) {
-  return http.delete<{ message: string }>(`/v1/showcase/comments/${seg(commentId)}`, {
-    auth: "required",
-  })
+/**
+ * DELETE /v1/showcase/comments/:commentId — pengarang ATAU pemilik item.
+ * BE-8 (audit etalase 2026-10-10): respons membawa `commentCount` final
+ * item dari server (hitungan publik) — dipakai layar detail sebagai nilai
+ * absolut, bukan tebakan -1 (root dengan balasan tetap dihitung server).
+ */
+export function deleteShowcaseComment(commentId: string): Promise<{ message: string; commentCount?: number }> {
+  return http
+    .delete<unknown>(`/v1/showcase/comments/${seg(commentId)}`, {
+      auth: "required",
+    })
+    .then((raw) => {
+      const rec = (raw ?? {}) as Record<string, unknown>
+      const commentCount =
+        typeof rec.commentCount === "number" && Number.isFinite(rec.commentCount)
+          ? Math.max(0, Math.floor(rec.commentCount))
+          : undefined
+      return { message: typeof rec.message === "string" ? rec.message : "", commentCount }
+    })
 }
 
 /**
@@ -749,7 +763,19 @@ function parseShowcaseLikersPage(raw: unknown, timeField: "likedAt" | "savedAt")
  * (mega-batch FE-IMP-1, item 54). Kartu publik bentuk feed + `savedAt`;
  * pagination HALAMAN (?page&limit, kontrak final backend BE-IMP item 54).
  */
-export type SavedShowcaseEntry = { item: ShowcaseSocialItem; savedAt: string }
+/**
+ * Satu entri koleksi tersimpan. BES-05 (audit etalase 2026-10-10): item yang
+ * sudah tidak tersedia (dihapus pemilik / nonaktif / ditindak) dikirim
+ * backend sebagai placeholder `{ id, unavailable: true, savedAt }` — bukan
+ * dihilangkan diam-diam — agar pengguna bisa melepas simpanannya.
+ */
+export type SavedShowcaseEntry = {
+  /** id etalase (sama dengan item.id bila tersedia). */
+  id: string
+  item: ShowcaseSocialItem | null
+  savedAt: string
+  unavailable: boolean
+}
 export type SavedShowcasesPage = {
   data: SavedShowcaseEntry[]
   page: number
@@ -786,17 +812,27 @@ export function getSavedShowcases(
       const total = typeof record.total === "number" ? record.total : 0
       const totalPages = typeof record.totalPages === "number" ? record.totalPages : 0
       // DRIFT-04: item rusak dilewati per-item, jangan runtuhkan koleksi.
-      const data = readList<unknown>(record, ["data"]).flatMap((rawItem) => {
+      const data = readList<unknown>(record, ["data"]).flatMap((rawItem): SavedShowcaseEntry[] => {
         try {
           const asRec = (rawItem ?? {}) as Record<string, unknown>
-          const item = parseShowcaseItem(asRec.item ?? rawItem)
           const savedAt =
             typeof asRec.savedAt === "string"
               ? asRec.savedAt
               : typeof asRec.createdAt === "string"
                 ? asRec.createdAt
                 : new Date(0).toISOString()
-          return [{ item, savedAt }]
+          // BES-05: placeholder item yang tidak tersedia lagi.
+          if (asRec.unavailable === true) {
+            const id =
+              typeof asRec.id === "string" && asRec.id
+                ? asRec.id
+                : typeof asRec.showcaseId === "string"
+                  ? asRec.showcaseId
+                  : ""
+            return id ? [{ id, item: null, savedAt, unavailable: true }] : []
+          }
+          const item = parseShowcaseItem(asRec.item ?? rawItem)
+          return [{ id: item.id, item, savedAt, unavailable: false }]
         } catch (err) {
           logWarn("showcase:saved:skip-item", err)
           return []

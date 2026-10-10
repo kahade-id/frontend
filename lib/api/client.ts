@@ -294,6 +294,8 @@ async function toApiError(res: Response, method: HttpMethod, path: string): Prom
     // CPY-012: message bisa berasal dari body backend (bahasa tak terjamin).
     clientMessage: false,
     backendCode: parsed.backendCode,
+    // RK-01: state server dari errors.data (409 suka/simpan, 403 moderasi).
+    data: parsed.data,
     validationMessages: parsed.validationMessages,
     // BFI-059: atribusi per field dari errors.fields backend.
     fieldErrors: parsed.fieldErrors,

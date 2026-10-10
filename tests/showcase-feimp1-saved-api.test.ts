@@ -44,7 +44,7 @@ describe("Saved collection backend contract (FE-IMP-1 item 54)", () => {
     })
     const page = await getSavedShowcases()
     expect(page.data).toHaveLength(1)
-    expect(page.data[0].item.id).toBe("work")
+    expect(page.data[0].item?.id).toBe("work")
     expect(page.data[0].savedAt).toBe("2026-09-28T00:00:00.000Z")
   })
 
@@ -60,7 +60,7 @@ describe("Saved collection backend contract (FE-IMP-1 item 54)", () => {
     })
     const page = await getSavedShowcases()
     expect(page.data).toHaveLength(1)
-    expect(page.data[0].item.id).toBe("work")
+    expect(page.data[0].item?.id).toBe("work")
     expect(page.data[0].savedAt).toBe("2026-09-28T00:00:00.000Z")
   })
 
@@ -71,5 +71,28 @@ describe("Saved collection backend contract (FE-IMP-1 item 54)", () => {
     expect(mocks.post).toHaveBeenCalledWith("/v1/showcase/saved/a%2Fb", {}, expect.objectContaining({ auth: "required" }))
     await removeSavedShowcase("a/b")
     expect(mocks.del).toHaveBeenCalledWith("/v1/showcase/saved/a%2Fb", expect.objectContaining({ auth: "required" }))
+  })
+})
+
+describe("BES-05 (audit etalase 2026-10-10): placeholder item tidak tersedia", () => {
+  it("entri {id, unavailable:true, savedAt} dipertahankan sebagai baris tanpa item; entri normal tetap diparse", async () => {
+    mocks.get.mockResolvedValue({
+      data: [
+        { item: work, savedAt: "2026-09-28T00:00:00.000Z" },
+        { id: "gone-1", unavailable: true, savedAt: "2026-09-27T00:00:00.000Z" },
+        { unavailable: true, savedAt: "2026-09-26T00:00:00.000Z" }, // tanpa id → dilewati
+      ],
+      total: 3,
+      page: 1,
+      limit: 20,
+      totalPages: 1,
+      hasNext: false,
+      hasPrev: false,
+    })
+    const page = await getSavedShowcases({ limit: 20 })
+    expect(page.data).toHaveLength(2)
+    expect(page.data[0]).toMatchObject({ id: "work", unavailable: false })
+    expect(page.data[0].item?.id).toBe("work")
+    expect(page.data[1]).toEqual({ id: "gone-1", item: null, savedAt: "2026-09-27T00:00:00.000Z", unavailable: true })
   })
 })

@@ -151,7 +151,7 @@ export function ShowcaseSavedCollection({ refreshToken = 0 }: { refreshToken?: n
       if (removingIds.has(id)) return
       setRemovingIds((prev) => new Set(prev).add(id))
       // Optimistis: keluarkan dari daftar langsung.
-      setEntries((prev) => prev.filter((e) => e.item.id !== id))
+      setEntries((prev) => prev.filter((e) => e.id !== id))
       setTotal((t) => Math.max(0, t - 1))
       void (async () => {
         const rev = getSessionRevision()
@@ -227,12 +227,43 @@ export function ShowcaseSavedCollection({ refreshToken = 0 }: { refreshToken?: n
       ) : null}
 
       {listState.status === "ready"
-        ? entries.map(({ item, savedAt }) => {
+        ? entries.map((entry) => {
+            const { id, savedAt, item } = entry
+            // BES-05 (audit etalase 2026-10-10): item yang sudah tidak tersedia
+            // (dihapus pemilik / nonaktif / ditindak) tetap tampil sebagai baris
+            // jujur yang bisa dilepas — dulu dibuang diam-diam dari daftar
+            // sementara hitungan "tersimpan" tetap menghitungnya.
+            if (!item) {
+              return (
+                <View key={id} className="flex-row items-center gap-3 rounded-md border border-border p-3">
+                  {/* Kotak kosong seperti baris tanpa cover — tanpa dependensi tema. */}
+                  <View className="h-14 w-14 rounded-sm bg-surface" />
+                  <View className="min-w-0 flex-1 gap-0.5">
+                    <Text variant="body" tone="secondary" numberOfLines={1}>
+                      {translate("Etalase tidak tersedia lagi")}
+                    </Text>
+                    <Text variant="caption" tone="tertiary" numberOfLines={2}>
+                      {translate("Dihapus pemiliknya atau sedang tidak tayang.")}
+                    </Text>
+                    <Text variant="caption" tone="secondary" numberOfLines={1}>
+                      {translate("Disimpan {x}", { x: formatRelativeTime(savedAt) })}
+                    </Text>
+                  </View>
+                  <IconButton
+                    icon={Trash}
+                    variant="ghost"
+                    size="sm"
+                    accessibilityLabel={translate("Hapus etalase tersimpan")}
+                    onPress={() => removeOne(id)}
+                    disabled={removingIds.has(id)}
+                  />
+                </View>
+              )
+            }
             // Kontrak final Tim A (2026-09-28): entri video memakai thumbnailUrl
             // sebagai cover (imageUrl-nya = berkas video).
             const first = item.images[0]
             const cover = first?.kind === "video" ? (first.thumbnailUrl ?? first.imageUrl) : first?.imageUrl
-            const id = item.id
             return (
               <View key={id} className="flex-row items-center gap-3 rounded-md border border-border p-3">
                 <Button

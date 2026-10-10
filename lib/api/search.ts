@@ -6,6 +6,7 @@ import { asRecord, readEntity, invalidResponse, readList } from "@/lib/api/respo
 
 import { http } from "@/lib/api/client"
 import { translate } from "@/lib/i18n/translate"
+import { ApiError } from "@/lib/api/errors"
 import { normalizeOrder, type Order } from "@/lib/api/orders"
 import type { UserProfile } from "@/lib/api/users"
 import type { WalletTransaction } from "@/lib/api/wallet"
@@ -175,8 +176,15 @@ export function globalSearch(
       // limit memotong). Fallback ke hitungan lokal bila backend tak kirim.
       const totalsRaw = asRecord(result.totals)
       const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? Math.max(0, Math.floor(v)) : 0)
-      const transactions = (Array.isArray(result.transactions) ? result.transactions : []).map((item) => {
-        const transaction = item as Record<string, unknown>
+      // AP-02 (audit etalase 2026-10-10): satu baris null/non-objek dari server
+      // tidak boleh meruntuhkan seluruh hasil (dulu TypeError → "Terjadi
+      // kesalahan"). Baris rusak dilewati per baris; total tetap dari server.
+      const rows = (value: unknown): Record<string, unknown>[] =>
+        (Array.isArray(value) ? value : []).flatMap((item) => {
+          const rec = asRecord(item)
+          return rec ? [rec] : []
+        })
+      const transactions = rows(result.transactions).map((transaction) => {
         return {
           ...transaction,
           // DC-004 (audit Discovery 2026-09-26): preseden DIBALIK agar sama
@@ -197,17 +205,14 @@ export function globalSearch(
       })
       return {
         ...result,
-        users: (Array.isArray(result.users) ? result.users : []).map((item) => {
-          const user = item as Record<string, unknown>
+        users: rows(result.users).map((user) => {
           return {
             ...user,
             id: String(user.id ?? user.userId ?? ""),
             verified: user.verified ?? user.isKycVerified,
           }
         }),
-        orders: (Array.isArray(result.orders) ? result.orders : []).map((item) =>
-          normalizeOrder(item as Order & Record<string, unknown>),
-        ),
+        orders: rows(result.orders).map((item) => normalizeOrder(item as Order & Record<string, unknown>)),
         transactions,
         helpCenter,
         showcase,
@@ -400,7 +405,17 @@ export function recordSearchHistory(query: string) {
  * meng-encode (spasi, `&`, `?`, dsb. akan merusak path bila mentah).
  */
 export function deleteSearchHistoryItem(query: string, signal?: AbortSignal) {
-  return http.delete<unknown>(`/v1/search/history/${encodeURIComponent(query)}`, {
+  // AP-06 (audit etalase 2026-10-10): "." / ".." / kosong tidak bisa jadi
+  // segmen path — URL dinormalkan (WHATWG/OkHttp) menjadi `/v1/search/` →
+  // 404 setiap kali. Gagalkan di klien dengan pesan yang bisa ditindak
+  // (kata kunci ini hanya bisa dihapus lewat "Hapus riwayat").
+  const trimmed = query.trim()
+  if (!trimmed || trimmed === "." || trimmed === "..") {
+    return Promise.reject(
+      new ApiError({ code: "BAD_REQUEST", message: "Kata kunci ini hanya bisa dihapus lewat Hapus riwayat." }),
+    )
+  }
+  return http.delete<unknown>(`/v1/search/history/${encodeURIComponent(trimmed)}`, {
     auth: "required",
     signal,
   })

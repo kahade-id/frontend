@@ -822,7 +822,7 @@ function ShowcaseDetailContent({
     setConfirmBusy(true)
     try {
       if (confirmKind === "delete") {
-        await deleteShowcaseComment(confirmTarget.id)
+        const res = await deleteShowcaseComment(confirmTarget.id)
         if (!task.valid()) return
         // SO-04 (audit 2026-10-10): server menyimpan root yang punya balasan
         // sebagai placeholder `isDeleted` (balasan tetap ada) — tiru itu
@@ -839,7 +839,8 @@ function ShowcaseDetailContent({
               : null
             : comment,
         )
-        setCommentTotal((n) => Math.max(0, n - 1))
+        // BE-8: hitungan final dari server bila dikirim; fallback -1 (backend lama).
+        setCommentTotal((n) => (typeof res.commentCount === "number" ? res.commentCount : Math.max(0, n - 1)))
         toast.show({ title: SHOWCASE_COMMENT_MESSAGES.deleted, tone: "success", duration: 2500 })
       } else {
         const saved = await hideShowcaseComment(confirmTarget.id, hideReason)

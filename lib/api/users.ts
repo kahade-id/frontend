@@ -918,6 +918,15 @@ export type ShowcaseItem = {
   serviceDeadlineDays?: number | null
   digitalDeliveryInfo?: string | null
   scheduledAt?: string | null
+  /**
+   * BE-1/BE-2 (audit etalase 2026-10-10): enforcement moderasi aktif (hanya
+   * pemilik). Ada = item terkunci di server (403 SHOWCASE_MODERATED).
+   */
+  moderationStatus?: "TAKEDOWN" | "RESTRICTED" | string | null
+  moderationReason?: string | null
+  moderatedAt?: string | null
+  moderationReportId?: string | null
+  moderationUntil?: string | null
 }
 
 /**
@@ -999,11 +1008,18 @@ export function deleteShowcase(id: string) {
   })
 }
 
-/** Pulihkan karya yang di-soft-delete (dalam 30 hari). POST /v1/users/me/showcase/:id/restore. */
+/**
+ * Pulihkan karya yang di-soft-delete (dalam 30 hari). POST /v1/users/me/showcase/:id/restore.
+ * BE-4 (audit etalase 2026-10-10): idempoten — item yang sudah tayang kembali
+ * (dipulihkan dari perangkat lain) menjawab `{ alreadyRestored: true }`,
+ * bukan 404.
+ */
 export function restoreShowcaseItem(id: string) {
-  return http.post<{ message: string }>(`/v1/users/me/showcase/${seg(id)}/restore`, undefined, {
-    auth: "required",
-  })
+  return http.post<{ message: string; alreadyRestored?: boolean }>(
+    `/v1/users/me/showcase/${seg(id)}/restore`,
+    undefined,
+    { auth: "required" },
+  )
 }
 
 export function getPublicShowcase(username: string, signal?: AbortSignal) {

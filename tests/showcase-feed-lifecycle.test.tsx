@@ -41,6 +41,9 @@ vi.mock("@/lib/api", () => ({ api: { users: { getMe: mocks.me, getMyFollowingIds
 vi.mock("@/lib/api/showcase", () => ({ getShowcaseFeed: mocks.feed }))
 vi.mock("@/lib/guest-gate", () => ({ useHasSession: () => mocks.session, useSessionRevision: () => 0 }))
 vi.mock("@/lib/query-cache", () => ({
+  // Upstream 2026-10-10: use-api-query membaca cache persisten saat memori kosong.
+  readPersistedQueryCacheEntry: async () => null,
+  restoreQueryCacheEntry: () => {},
   CACHE_REVALIDATE_AFTER_MS: 0,
   fetchViaQueryCache: (_key: string, fetcher: (signal: AbortSignal) => unknown, signal: AbortSignal) => fetcher(signal),
   markQueryRevalidating: () => true,

@@ -10,13 +10,16 @@
  * - <DigitalAssetsSellerManager>: kelola aset di sisi penjual (daftar /
  *   tambah FILE|LINK|LICENSE / hapus) via endpoint seller.
  *
- * CATATAN KONTRAK: payload FILE adalah fileKey. Belum ada endpoint unduh
- * file khusus buyer — tombol unduh memakai GET /v1/upload/my-file (berhasil
- * untuk pemilik; buyer mendapat pesan server apa adanya). Backend perlu
- * signed-download ber-skala buyer agar FILE benar-benar auto-delivery.
+ * KONTRAK (BE-5, audit etalase 2026-10-10): payload FILE = fileKey hasil
+ * POST /v1/upload/direct purpose=DIGITAL_ASSET (privat; PDF/JPG/PNG/WebP/MP4,
+ * maks 50 MB). Unduhan pembeli/pemilik lewat
+ * GET /v1/commerce/digital-assets/:id/download → URL bertanda tangan 15 menit
+ * (server memverifikasi order berbayar) — bukan lagi GET /v1/upload/my-file
+ * yang hanya berhasil untuk pemilik.
  */
 import { useCallback, useEffect, useState } from "react"
 import { Linking, View } from "react-native"
+import * as DocumentPicker from "expo-document-picker"
 import {
   Copy,
   DownloadSimple,
@@ -36,6 +39,7 @@ import {
   type DigitalAssetType,
 } from "@/lib/api/commerce"
 import { saveBlobFile } from "@/lib/export-file"
+import { uploadDirect } from "@/lib/api/upload"
 import { translate } from "@/lib/i18n/translate"
 import { useToast } from "@/components/ui/toast"
 
@@ -49,6 +53,13 @@ import { Input } from "@/components/ui/input"
 import { IconButton } from "@/components/ui/icon-button"
 import { SegmentedControl } from "@/components/ui/segmented-control"
 import { Text } from "@/components/ui/text"
+
+/** Batas backend UploadPurpose.DIGITAL_ASSET (upload.service.ts). */
+const DIGITAL_ASSET_MAX_MB = 50
+const DIGITAL_ASSET_MAX_BYTES = DIGITAL_ASSET_MAX_MB * 1024 * 1024
+const DIGITAL_ASSET_MIME = ["application/pdf", "image/jpeg", "image/png", "image/webp", "video/mp4"] as const
+
+type PickedAssetFile = { uri: string; name: string; mimeType: string; size: number }
 
 const ASSET_ICONS: Record<DigitalAssetType, typeof FileArrowDown> = {
   FILE: FileArrowDown,
@@ -141,10 +152,21 @@ export function DigitalAssetsBuyerSection({ showcaseId }: { showcaseId: string }
       if (downloading) return
       setDownloading(asset.id)
       try {
-        const blob = await api.upload.downloadOwnFile(asset.payload)
+        // BE-5: URL bertanda tangan dari server (pemilik ATAU pembeli lunas) —
+        // dulu GET /v1/upload/my-file yang hanya berhasil untuk pemilik.
+        const { downloadUrl } = await api.commerce.getDigitalAssetDownload(asset.id)
+        const safe = safeHttpsLink(downloadUrl)
+        if (!safe) throw new Error(translate("Tautan unduhan tidak valid."))
+        const res = await fetch(safe)
+        if (!res.ok) throw new Error(translate("Unduhan ditolak server. Coba lagi."))
+        const blob = await res.blob()
         await saveBlobFile(blob, asset.label?.trim() || `aset-digital-${asset.id}`, blob.type || "application/octet-stream")
       } catch (err) {
-        toast.show({ title: translate("Gagal mengunduh"), description: userMessage(err), tone: "danger" })
+        toast.show({
+          title: translate("Gagal mengunduh"),
+          description: isApiError(err) ? userMessage(err) : err instanceof Error ? err.message : undefined,
+          tone: "danger",
+        })
       } finally {
         setDownloading(null)
       }
@@ -210,15 +232,27 @@ export function DigitalAssetsBuyerSection({ showcaseId }: { showcaseId: string }
 }
 
 /**
- * UX-13 (audit 2026-10-10): tipe FILE disembunyikan dari pemilih sampai ada
- * alur unggah berkas (BE-5, docs/rekomendasi-backend-etalase.md) — dulu
- * penjual diminta mengetik `fileKey` hasil upload secara manual, yang tidak
- * mungkin diketahui pengguna awam. Aset FILE yang sudah ada tetap tampil.
+ * UX-13 → BE-5 (audit 2026-10-10): tipe FILE kembali tersedia — penjual
+ * memilih berkas (document picker), aplikasi mengunggahnya lewat transport
+ * terpusat (purpose DIGITAL_ASSET), fileKey-nya menjadi payload. Dulu penjual
+ * diminta mengetik fileKey secara manual.
  */
 const TYPE_OPTIONS: { value: DigitalAssetType; label: string }[] = [
+  { value: "FILE", label: "Berkas" },
   { value: "LINK", label: "Tautan" },
   { value: "LICENSE", label: "Lisensi" },
 ]
+
+/** Validasi lokal = cermin batas server (gagal cepat, pesan jujur). */
+function pickedFileProblem(file: PickedAssetFile): string | null {
+  if (file.size > DIGITAL_ASSET_MAX_BYTES) {
+    return translate("Berkas melebihi {x} MB.", { x: DIGITAL_ASSET_MAX_MB })
+  }
+  if (!(DIGITAL_ASSET_MIME as readonly string[]).includes(file.mimeType)) {
+    return translate("Jenis berkas tidak didukung. Gunakan PDF, JPG, PNG, WebP, atau MP4.")
+  }
+  return null
+}
 
 export function DigitalAssetsSellerManager({ showcaseId }: { showcaseId: string }) {
   const toast = useToast()
@@ -229,6 +263,9 @@ export function DigitalAssetsSellerManager({ showcaseId }: { showcaseId: string 
   const [label, setLabel] = useState("")
   const [formError, setFormError] = useState<string | undefined>()
   const [saving, setSaving] = useState(false)
+  // BE-5: berkas terpilih untuk tipe FILE (diunggah saat "Tambah aset").
+  const [pickedFile, setPickedFile] = useState<PickedAssetFile | null>(null)
+  const [uploading, setUploading] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<DigitalAsset | null>(null)
   const [deleting, setDeleting] = useState(false)
 
@@ -245,8 +282,71 @@ export function DigitalAssetsSellerManager({ showcaseId }: { showcaseId: string 
     void load()
   }, [load])
 
+  const pickFile = useCallback(async () => {
+    setFormError(undefined)
+    const result = await DocumentPicker.getDocumentAsync({
+      type: [...DIGITAL_ASSET_MIME],
+      copyToCacheDirectory: true,
+      multiple: false,
+    })
+    const asset = result.canceled ? null : result.assets[0]
+    if (!asset) return
+    const file: PickedAssetFile = {
+      uri: asset.uri,
+      name: asset.name,
+      mimeType: asset.mimeType ?? "application/octet-stream",
+      size: asset.size ?? 0,
+    }
+    const problem = pickedFileProblem(file)
+    if (problem) {
+      setPickedFile(null)
+      setFormError(problem)
+      return
+    }
+    setPickedFile(file)
+  }, [])
+
   const handleSave = useCallback(async () => {
     if (saving) return
+    if (assetType === "FILE") {
+      if (!pickedFile) {
+        setFormError(translate("Pilih berkas terlebih dahulu."))
+        return
+      }
+      const problem = pickedFileProblem(pickedFile)
+      if (problem) {
+        setFormError(problem)
+        return
+      }
+      setSaving(true)
+      setUploading(true)
+      try {
+        // Transport terpusat (XHR progress/timeout adaptif/retry) — purpose
+        // DIGITAL_ASSET = privat, hanya bisa diunduh via signed URL.
+        const formData = new FormData()
+        formData.append("file", { uri: pickedFile.uri, name: pickedFile.name, type: pickedFile.mimeType } as unknown as Blob)
+        formData.append("purpose", "DIGITAL_ASSET")
+        const uploaded = await uploadDirect(formData, undefined, undefined, pickedFile.size)
+        setUploading(false)
+        await api.commerce.createDigitalAsset({
+          showcaseId,
+          assetType: "FILE",
+          payload: uploaded.fileKey,
+          label: label.trim() || pickedFile.name,
+        })
+        toast.show({ title: translate("Aset ditambahkan"), tone: "success" })
+        setSheetOpen(false)
+        setPickedFile(null)
+        setLabel("")
+        await load()
+      } catch (err) {
+        setFormError(userMessage(err))
+      } finally {
+        setUploading(false)
+        setSaving(false)
+      }
+      return
+    }
     const value = payload.trim()
     if (!value) {
       setFormError(translate("Isi wajib diisi."))
@@ -277,7 +377,7 @@ export function DigitalAssetsSellerManager({ showcaseId }: { showcaseId: string 
     } finally {
       setSaving(false)
     }
-  }, [saving, payload, assetType, label, showcaseId, toast, load])
+  }, [saving, payload, assetType, label, showcaseId, toast, load, pickedFile])
 
   const handleDelete = useCallback(async () => {
     if (!deleteTarget || deleting) return
@@ -336,7 +436,7 @@ export function DigitalAssetsSellerManager({ showcaseId }: { showcaseId: string 
         avoidKeyboard
         footer={
           <Button fullWidth loading={saving} onPress={() => void handleSave()}>
-            {translate("Tambah aset")}
+            {uploading ? translate("Mengunggah berkas…") : translate("Tambah aset")}
           </Button>
         }
       >
@@ -349,32 +449,41 @@ export function DigitalAssetsSellerManager({ showcaseId }: { showcaseId: string 
               accessibilityLabel={translate("Tipe aset")}
             />
           </Field>
-          <Input
-            label={
-              assetType === "LINK"
-                ? translate("URL")
-                : assetType === "LICENSE"
-                  ? translate("Kode lisensi")
-                  : translate("fileKey upload")
-            }
-            value={payload}
-            onChangeText={setPayload}
-            placeholder={
-              assetType === "LINK"
-                ? "https://…"
-                : assetType === "LICENSE"
-                  ? translate("Contoh: AB12-CD34-EF56")
-                  : translate("Hasil upload file")
-            }
-            maxLength={500}
-            autoCapitalize="none"
-            // FRM-021: khusus tipe LINK — keyboard URL + autocorrect mati agar
-            // URL tidak diubah saat mengetik.
-            keyboardType={assetType === "LINK" ? "url" : "default"}
-            autoCorrect={assetType === "LINK" ? false : undefined}
-            spellCheck={assetType === "LINK" ? false : undefined}
-            autoComplete={assetType === "LINK" ? "url" : undefined}
-          />
+          {assetType === "FILE" ? (
+            <Field label={translate("Berkas")} helperText={translate("PDF, JPG, PNG, WebP, atau MP4 — maks {x} MB", { x: DIGITAL_ASSET_MAX_MB })}>
+              <View className="gap-2">
+                {pickedFile ? (
+                  <Text variant="body" numberOfLines={1}>
+                    {pickedFile.name}
+                  </Text>
+                ) : null}
+                <Button
+                  variant="secondary"
+                  fullWidth={false}
+                  leftIcon={FileArrowDown}
+                  disabled={saving}
+                  onPress={() => void pickFile()}
+                >
+                  {pickedFile ? translate("Ganti berkas") : translate("Pilih berkas")}
+                </Button>
+              </View>
+            </Field>
+          ) : (
+            <Input
+              label={assetType === "LINK" ? translate("URL") : translate("Kode lisensi")}
+              value={payload}
+              onChangeText={setPayload}
+              placeholder={assetType === "LINK" ? "https://…" : translate("Contoh: AB12-CD34-EF56")}
+              maxLength={500}
+              autoCapitalize="none"
+              // FRM-021: khusus tipe LINK — keyboard URL + autocorrect mati agar
+              // URL tidak diubah saat mengetik.
+              keyboardType={assetType === "LINK" ? "url" : "default"}
+              autoCorrect={assetType === "LINK" ? false : undefined}
+              spellCheck={assetType === "LINK" ? false : undefined}
+              autoComplete={assetType === "LINK" ? "url" : undefined}
+            />
+          )}
           <Input
             label={translate("Label (opsional)")}
             value={label}

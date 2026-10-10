@@ -10,7 +10,21 @@
  * "Alasan aman": alasan dari server ditampilkan sebagai TEKS BIASA (tanpa
  * render HTML) — tidak ada injeksi markup dari payload.
  */
-export type ShowcaseModerationStatus = "approved" | "pending" | "rejected" | "unknown"
+/**
+ * BE-1/BE-2 (audit etalase 2026-10-10): backend kini mengirim field
+ * moderasi pemilik pada GET /v1/users/me/showcase & detail pemilik —
+ * `moderationStatus` ("TAKEDOWN" | "RESTRICTED"), `moderationReason`,
+ * `moderatedAt`, `moderationReportId`, `moderationUntil` (RESTRICTED).
+ * "takedown"/"restricted" = TERKUNCI: ubah/aktifkan/jadwalkan ditolak 403
+ * SHOWCASE_MODERATED oleh server sampai moderator memulihkan.
+ */
+export type ShowcaseModerationStatus =
+  | "approved"
+  | "pending"
+  | "rejected"
+  | "takedown"
+  | "restricted"
+  | "unknown"
 
 export type ShowcaseModerationInfo = {
   status: ShowcaseModerationStatus
@@ -18,6 +32,8 @@ export type ShowcaseModerationInfo = {
   reason?: string
   /** Waktu keputusan/peninjauan (ISO) bila ada. */
   reviewedAt?: string
+  /** RESTRICTED: batas waktu pembatasan (ISO) bila ada. */
+  until?: string
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -41,6 +57,7 @@ const REASON_KEYS = [
   "reviewReason",
 ] as const
 const TIME_KEYS = ["moderatedAt", "reviewedAt", "moderationAt", "reviewAt"] as const
+const UNTIL_KEYS = ["moderationUntil", "restrictedUntil"] as const
 
 /** Normalisasi nilai status mentah → kosakata UI. */
 export function normalizeModerationStatus(raw: unknown): ShowcaseModerationStatus {
@@ -57,6 +74,11 @@ export function normalizeModerationStatus(raw: unknown): ShowcaseModerationStatu
     return "pending"
   if (v === "REJECTED" || v === "REJECT" || v === "DECLINED" || v === "FAILED_REVIEW")
     return "rejected"
+  // Enforcement moderasi aktif (ModerationEventAction backend).
+  if (v === "TAKEDOWN" || v === "TAKEN_DOWN") return "takedown"
+  if (v === "RESTRICTED") return "restricted"
+  // RESTORED = enforcement dicabut → item normal kembali.
+  if (v === "RESTORED") return "approved"
   return "unknown"
 }
 
@@ -71,10 +93,26 @@ export function resolveShowcaseModeration(item: unknown): ShowcaseModerationInfo
   if (reason) info.reason = reason
   const reviewedAt = pickString(rec, TIME_KEYS)
   if (reviewedAt) info.reviewedAt = reviewedAt
+  const until = pickString(rec, UNTIL_KEYS)
+  if (until) info.until = until
   return info
 }
 
-/** True bila item butuh perhatian pemilik (ditinjau/ditolak). */
+/** True bila item butuh perhatian pemilik (ditinjau/ditolak/ditindak). */
 export function needsModerationAttention(info: ShowcaseModerationInfo): boolean {
-  return info.status === "pending" || info.status === "rejected"
+  return (
+    info.status === "pending" ||
+    info.status === "rejected" ||
+    info.status === "takedown" ||
+    info.status === "restricted"
+  )
+}
+
+/**
+ * True bila server menolak perubahan (403 SHOWCASE_MODERATED): item sedang
+ * di-takedown / dibatasi. UI menyembunyikan aksi ubah/aktifkan/foto agar
+ * pengguna tidak menabrak dinding 403 berulang.
+ */
+export function isModerationLocked(info: ShowcaseModerationInfo): boolean {
+  return info.status === "takedown" || info.status === "restricted"
 }

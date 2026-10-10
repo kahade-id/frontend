@@ -12,6 +12,7 @@
  */
 import { http, seg } from "./client"
 import { asRecord, pickBoolean, pickNumber, pickString, readList } from "./response"
+import { invalidResponse } from "@/lib/api/response"
 import { translate } from "@/lib/i18n/translate"
 
 // ------------------------------------------------------------------
@@ -791,6 +792,29 @@ export function listSellerDigitalAssets(showcaseId: string, signal?: AbortSignal
 
 export function deleteDigitalAsset(id: string) {
   return http.delete<{ message?: string }>(`/v1/commerce/digital-assets/${seg(id)}`, { auth: "required", responseType: "json" })
+}
+
+/**
+ * BE-5 (audit etalase 2026-10-10): GET /v1/commerce/digital-assets/:id/download
+ * → `{ id, downloadUrl, expiresAt }` — URL bertanda tangan 15 menit untuk
+ * aset FILE; pemilik atau pembeli dengan order berbayar (403
+ * DIGITAL_ASSET_FORBIDDEN bila belum).
+ */
+export type DigitalAssetDownload = { id: string; downloadUrl: string; expiresAt: string | null }
+
+export function getDigitalAssetDownload(id: string, signal?: AbortSignal): Promise<DigitalAssetDownload> {
+  return http
+    .get<unknown>(`/v1/commerce/digital-assets/${seg(id)}/download`, { auth: "required", signal })
+    .then((raw) => {
+      const record = asRecord(raw)
+      const downloadUrl = record ? pickString(record, ["downloadUrl", "url"]) : undefined
+      if (!record || !downloadUrl) throw invalidResponse("digital-assets.download")
+      return {
+        id: pickString(record, ["id"]) ?? id,
+        downloadUrl,
+        expiresAt: pickString(record, ["expiresAt"]) ?? null,
+      }
+    })
 }
 
 /** Buyer: aset hanya terlihat SETELAH order berbayar (server fail-closed bila belum). */

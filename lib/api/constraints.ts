@@ -1,6 +1,20 @@
 // GENERATED from docs/api/kahade-api-mobile.json. Run npm run gen:api; do not edit.
 export const API_CONSTRAINTS = {
+  "AcceptOrderLinkDto": {
+    "shippingAddressId": {
+      "maxLength": 100
+    }
+  },
   "AddBankAccountDto": {
+    "password": {
+      "maxLength": 72
+    },
+    "mfaCode": {
+      "maxLength": 16
+    },
+    "otpCode": {
+      "maxLength": 10
+    },
     "bankCode": {
       "enum": [
         "BCA",
@@ -35,6 +49,14 @@ export const API_CONSTRAINTS = {
     "content": {
       "minLength": 1,
       "maxLength": 1000
+    }
+  },
+  "AddJastipItemDto": {
+    "name": {
+      "maxLength": 150
+    },
+    "note": {
+      "maxLength": 300
     }
   },
   "AddReactionDto": {
@@ -107,11 +129,11 @@ export const API_CONSTRAINTS = {
       "maxLength": 72
     },
     "newPassword": {
-      "minLength": 12,
+      "minLength": 8,
       "maxLength": 72
     },
     "confirmPassword": {
-      "minLength": 12,
+      "minLength": 8,
       "maxLength": 72
     },
     "mfaCode": {
@@ -138,11 +160,24 @@ export const API_CONSTRAINTS = {
     },
     "reason": {
       "maxLength": 500
+    },
+    "shippingAddressId": {
+      "maxLength": 100
     }
   },
   "ConfirmPhoneChangeDto": {
     "newPhoneNumber": {
       "maxLength": 20
+    }
+  },
+  "ConfirmPhoneMigrationDto": {
+    "deviceId": {
+      "maxLength": 255
+    }
+  },
+  "ConfirmSocialLinkDto": {
+    "deviceId": {
+      "maxLength": 255
     }
   },
   "ConfirmWithdrawOtpDto": {
@@ -162,12 +197,91 @@ export const API_CONSTRAINTS = {
       "maxLength": 16
     }
   },
+  "CreateAddressDto": {
+    "label": {
+      "enum": [
+        "RUMAH",
+        "KANTOR",
+        "LAINNYA"
+      ]
+    },
+    "customLabel": {
+      "maxLength": 40
+    },
+    "recipientName": {
+      "maxLength": 100
+    },
+    "phone": {
+      "maxLength": 20
+    },
+    "addressLine": {
+      "maxLength": 300
+    },
+    "city": {
+      "maxLength": 100
+    },
+    "province": {
+      "maxLength": 100
+    },
+    "postalCode": {
+      "maxLength": 10
+    }
+  },
+  "CreateAgreementDto": {
+    "text": {
+      "maxLength": 5000
+    }
+  },
+  "CreateConversationDto": {
+    "source": {
+      "enum": [
+        "APP",
+        "HELP_SITE"
+      ]
+    }
+  },
+  "CreateDigitalAssetDto": {
+    "assetType": {
+      "enum": [
+        "FILE",
+        "LINK",
+        "LICENSE"
+      ]
+    },
+    "label": {
+      "maxLength": 120
+    }
+  },
+  "CreateDmDto": {
+    "username": {
+      "maxLength": 30
+    }
+  },
+  "CreateFeedbackDto": {
+    "rating": {
+      "minimum": 1,
+      "maximum": 5
+    },
+    "appVersion": {
+      "maxLength": 32
+    }
+  },
+  "CreateHighlightDto": {
+    "title": {
+      "maxLength": 80
+    }
+  },
   "CreateInquiryDto": {
     "subject": {
       "maxLength": 200
     },
     "message": {
       "maxLength": 1000
+    }
+  },
+  "CreateJastipTripDto": {
+    "title": {
+      "maxLength": 120
     }
   },
   "CreateOrderDto": {
@@ -179,7 +293,7 @@ export const API_CONSTRAINTS = {
     },
     "counterpartUsername": {
       "minLength": 3,
-      "maxLength": 50
+      "maxLength": 30
     },
     "title": {
       "minLength": 3,
@@ -214,6 +328,99 @@ export const API_CONSTRAINTS = {
     },
     "voucherCode": {
       "maxLength": 50
+    },
+    "shippingAddressId": {
+      "maxLength": 100
+    },
+    "fulfillment": {
+      "enum": [
+        "BIASA",
+        "PREORDER"
+      ]
+    },
+    "participantMode": {
+      "enum": [
+        "SINGLE",
+        "GROUP"
+      ]
+    },
+    "category": {
+      "enum": [
+        "FISIK",
+        "DIGITAL",
+        "JASA"
+      ]
+    },
+    "itemCondition": {
+      "enum": [
+        "baru",
+        "bekas"
+      ]
+    },
+    "conditionDescription": {
+      "maxLength": 500
+    },
+    "deliveryMethod": {
+      "enum": [
+        "file",
+        "kode",
+        "akun",
+        "lainnya"
+      ]
+    },
+    "warrantyDays": {
+      "minimum": 0
+    },
+    "deliverables": {
+      "maxLength": 1000
+    },
+    "serviceLocation": {
+      "maxLength": 200
+    },
+    "cancellationPolicy": {
+      "maxLength": 1000
+    },
+    "slotId": {
+      "maxLength": 100
+    }
+  },
+  "CreateOrderFromChatDto": {
+    "title": {
+      "maxLength": 100
+    },
+    "description": {
+      "maxLength": 500
+    },
+    "hargaSepakat": {
+      "minimum": 1
+    },
+    "qty": {
+      "minimum": 1
+    },
+    "role": {
+      "enum": [
+        "BUYER",
+        "SELLER"
+      ]
+    },
+    "orderType": {
+      "enum": [
+        "PHYSICAL_GOODS",
+        "DIGITAL_GOODS",
+        "SERVICE",
+        "OTHER"
+      ]
+    },
+    "deliveryDeadlineDays": {
+      "minimum": 1,
+      "maximum": 14
+    },
+    "feeResponsibility": {
+      "enum": [
+        "BUYER",
+        "SELLER",
+        "SPLIT"
+      ]
     }
   },
   "CreateOrderLinkDto": {
@@ -255,7 +462,29 @@ export const API_CONSTRAINTS = {
       ]
     },
     "counterpartUsername": {
-      "maxLength": 50
+      "maxLength": 30
+    },
+    "shippingAddressId": {
+      "maxLength": 100
+    },
+    "showcaseId": {
+      "maxLength": 64
+    }
+  },
+  "CreatePatunganGroupDto": {
+    "title": {
+      "maxLength": 120
+    },
+    "mode": {
+      "enum": [
+        "BAGI_RATA",
+        "CUSTOM"
+      ]
+    }
+  },
+  "CreatePollDto": {
+    "question": {
+      "maxLength": 300
     }
   },
   "CreateRatingDto": {
@@ -267,6 +496,25 @@ export const API_CONSTRAINTS = {
       "maxLength": 500
     }
   },
+  "CreateReceiptTokenDto": {
+    "kind": {
+      "enum": [
+        "WALLET_TX",
+        "TRANSFER",
+        "ORDER_PAYMENT",
+        "TOPUP",
+        "WITHDRAWAL"
+      ]
+    }
+  },
+  "CreateReplyTemplateDto": {
+    "shortcut": {
+      "maxLength": 32
+    },
+    "text": {
+      "maxLength": 500
+    }
+  },
   "CreateScheduleDto": {
     "dayOfWeek": {
       "minimum": 0,
@@ -274,6 +522,25 @@ export const API_CONSTRAINTS = {
     },
     "minAmount": {
       "minimum": 1
+    },
+    "pin": {
+      "minLength": 6,
+      "maxLength": 6
+    }
+  },
+  "CreateSellerVoucherDto": {
+    "voucherType": {
+      "enum": [
+        "FEE_DISCOUNT_FLAT",
+        "FEE_DISCOUNT_PERCENT",
+        "WALLET_CASHBACK",
+        "TOPUP_BONUS"
+      ]
+    }
+  },
+  "CreateServiceSlotDto": {
+    "note": {
+      "maxLength": 200
     }
   },
   "CreateShowcaseCommentDto": {
@@ -288,6 +555,9 @@ export const API_CONSTRAINTS = {
     "description": {
       "maxLength": 500
     },
+    "descriptionHtml": {
+      "maxLength": 10000
+    },
     "category": {
       "maxLength": 60
     },
@@ -298,18 +568,51 @@ export const API_CONSTRAINTS = {
       ]
     },
     "priceMin": {
-      "minimum": 0
+      "minimum": 0,
+      "maximum": 1000000000
     },
     "priceMax": {
-      "minimum": 0
+      "minimum": 0,
+      "maximum": 1000000000
     },
     "sortOrder": {
       "minimum": 0
+    },
+    "condition": {
+      "enum": [
+        "BARU",
+        "BEKAS"
+      ]
     }
   },
-  "CreateShowcaseReportDto": {
-    "description": {
-      "maxLength": 500
+  "CreateStoryDto": {
+    "kind": {
+      "enum": [
+        "image",
+        "video",
+        "text"
+      ]
+    },
+    "mediaId": {
+      "maxLength": 100
+    },
+    "text": {
+      "maxLength": 200
+    },
+    "backgroundColor": {
+      "pattern": "^#[0-9A-Fa-f]{6}$"
+    },
+    "productTags": {
+      "maxItems": 5
+    }
+  },
+  "CreateStoryHighlightDto": {
+    "title": {
+      "maxLength": 24
+    },
+    "storyIds": {
+      "minItems": 1,
+      "maxItems": 30
     }
   },
   "CreateTemplateDto": {
@@ -348,28 +651,42 @@ export const API_CONSTRAINTS = {
       "maximum": 14
     }
   },
-  "CreateTicketDto": {
-    "subject": {
-      "minLength": 1,
-      "maxLength": 200
-    },
-    "message": {
-      "minLength": 1,
-      "maxLength": 5000
-    },
-    "category": {
+  "DanaDirectPayDto": {
+    "payKind": {
       "enum": [
-        "GENERAL",
-        "ORDER",
-        "PAYMENT",
-        "ACCOUNT",
-        "KYC",
-        "TECHNICAL",
-        "OTHER"
+        "QRIS",
+        "VA",
+        "BALANCE"
       ]
+    }
+  },
+  "DeleteCommentDto": {
+    "reason": {
+      "maxLength": 500
+    }
+  },
+  "DeletionCancelDto": {
+    "cancelReason": {
+      "maxLength": 500
+    }
+  },
+  "DeletionStatusRequestDto": {
+    "phoneNumber": {
+      "maxLength": 20
     },
-    "attachments": {
-      "maxItems": 5
+    "email": {
+      "maxLength": 254
+    }
+  },
+  "DeletionStatusVerifyDto": {
+    "phoneNumber": {
+      "maxLength": 20
+    },
+    "email": {
+      "maxLength": 254
+    },
+    "otp": {
+      "maxLength": 10
     }
   },
   "Disable2faDto": {
@@ -404,9 +721,17 @@ export const API_CONSTRAINTS = {
       "maxLength": 6
     }
   },
+  "EscalateDisputeDto": {
+    "reason": {
+      "maxLength": 2000
+    }
+  },
   "ForgotPasswordDto": {
     "identifier": {
       "maxLength": 20
+    },
+    "deviceId": {
+      "maxLength": 255
     }
   },
   "ForwardMessageDto": {
@@ -424,6 +749,48 @@ export const API_CONSTRAINTS = {
       ]
     }
   },
+  "InitChunkedUploadDto": {
+    "purpose": {
+      "enum": [
+        "KYC_KTP",
+        "KYC_SELFIE",
+        "KYC_PASSPORT",
+        "KYC_LIVENESS",
+        "BUSINESS_DOCUMENT",
+        "SHOWCASE_IMAGE",
+        "SHOWCASE_VIDEO",
+        "STORY_MEDIA",
+        "STORY_HIGHLIGHT",
+        "AVATAR",
+        "DIGITAL_ASSET",
+        "CHAT_ATTACHMENT",
+        "DISPUTE_EVIDENCE",
+        "REPORT_EVIDENCE",
+        "DELIVERY_PROOF",
+        "MILESTONE_EVIDENCE",
+        "CAREER_CV"
+      ]
+    },
+    "fileName": {
+      "maxLength": 255
+    },
+    "mimeType": {
+      "maxLength": 100
+    }
+  },
+  "JoinJastipDto": {
+    "itemSummary": {
+      "maxLength": 300
+    }
+  },
+  "LinkSocialProviderDto": {
+    "provider": {
+      "enum": [
+        "google",
+        "apple"
+      ]
+    }
+  },
   "LoginDto": {
     "identifier": {
       "maxLength": 254
@@ -436,11 +803,6 @@ export const API_CONSTRAINTS = {
     },
     "deviceInfo": {
       "maxLength": 512
-    }
-  },
-  "MigratePhoneConfirmDto": {
-    "deviceId": {
-      "maxLength": 255
     }
   },
   "MuteRoomDto": {
@@ -474,20 +836,78 @@ export const API_CONSTRAINTS = {
       "maxLength": 2000
     }
   },
-  "OtpTriggerRequestDto": {
-    "phoneNumber": {
-      "maxLength": 20
+  "PasskeyAuthVerifyDto": {
+    "deviceId": {
+      "maxLength": 255
+    }
+  },
+  "PasskeyReauthDto": {
+    "password": {
+      "maxLength": 72
+    },
+    "mfaCode": {
+      "maxLength": 16
+    },
+    "otpCode": {
+      "maxLength": 10
+    }
+  },
+  "PasskeyRecoverDto": {
+    "step": {
+      "enum": [
+        "request",
+        "verify"
+      ]
+    },
+    "otpCode": {
+      "maxLength": 10
     },
     "deviceId": {
       "maxLength": 255
+    }
+  },
+  "PasskeyRegisterOptionsDto": {
+    "password": {
+      "maxLength": 72
     },
-    "purpose": {
-      "enum": [
-        "register",
-        "login",
-        "forgot_password",
-        "migrate_phone"
-      ]
+    "mfaCode": {
+      "maxLength": 16
+    },
+    "otpCode": {
+      "maxLength": 10
+    },
+    "deviceName": {
+      "maxLength": 100
+    }
+  },
+  "PasskeyRegisterVerifyDto": {
+    "deviceName": {
+      "maxLength": 100
+    }
+  },
+  "PasskeyRenameDto": {
+    "password": {
+      "maxLength": 72
+    },
+    "mfaCode": {
+      "maxLength": 16
+    },
+    "otpCode": {
+      "maxLength": 10
+    },
+    "deviceName": {
+      "maxLength": 100
+    }
+  },
+  "PasskeyRevokeDto": {
+    "password": {
+      "maxLength": 72
+    },
+    "mfaCode": {
+      "maxLength": 16
+    },
+    "otpCode": {
+      "maxLength": 10
     }
   },
   "PhoneRegisterDto": {
@@ -503,6 +923,9 @@ export const API_CONSTRAINTS = {
       "minLength": 8,
       "maxLength": 72
     },
+    "referralCode": {
+      "maxLength": 20
+    },
     "deviceId": {
       "maxLength": 255
     }
@@ -516,17 +939,56 @@ export const API_CONSTRAINTS = {
         "KYC_LIVENESS",
         "BUSINESS_DOCUMENT",
         "SHOWCASE_IMAGE",
+        "SHOWCASE_VIDEO",
+        "STORY_MEDIA",
+        "STORY_HIGHLIGHT",
         "AVATAR",
+        "DIGITAL_ASSET",
         "CHAT_ATTACHMENT",
         "DISPUTE_EVIDENCE",
         "REPORT_EVIDENCE",
-        "DELIVERY_PROOF"
+        "DELIVERY_PROOF",
+        "MILESTONE_EVIDENCE",
+        "CAREER_CV"
       ]
+    }
+  },
+  "QaAppealDto": {
+    "targetType": {
+      "enum": [
+        "QUESTION",
+        "COMMENT"
+      ]
+    },
+    "reason": {
+      "minLength": 10,
+      "maxLength": 1000
+    }
+  },
+  "QaReportDto": {
+    "reasonCode": {
+      "enum": [
+        "SPAM",
+        "PROFANITY",
+        "HARASSMENT",
+        "PII_LEAK",
+        "SCAM_SUSPECTED",
+        "OFF_TOPIC",
+        "OTHER"
+      ]
+    },
+    "note": {
+      "maxLength": 500
     }
   },
   "RatingReplyDto": {
     "content": {
       "maxLength": 500
+    }
+  },
+  "RecordSearchDto": {
+    "keyword": {
+      "maxLength": 80
     }
   },
   "RegenerateBackupCodesDto": {
@@ -562,10 +1024,64 @@ export const API_CONSTRAINTS = {
       "pattern": "^c[a-z0-9]{24}$"
     }
   },
+  "RenewDanaDto": {
+    "payKind": {
+      "enum": [
+        "QRIS",
+        "VA",
+        "BALANCE"
+      ]
+    }
+  },
   "ReplyTicketDto": {
     "message": {
       "minLength": 1,
       "maxLength": 5000
+    }
+  },
+  "ReplyToStoryDto": {
+    "text": {
+      "maxLength": 200
+    }
+  },
+  "ReportRoomDto": {
+    "category": {
+      "enum": [
+        "FRAUD",
+        "FAKE_IDENTITY",
+        "INAPPROPRIATE_CONTENT",
+        "TNC_VIOLATION",
+        "MONEY_LAUNDERING",
+        "SPAM",
+        "OTHER"
+      ]
+    },
+    "description": {
+      "minLength": 20,
+      "maxLength": 500
+    }
+  },
+  "ReportShowcaseDto": {
+    "reason": {
+      "minLength": 3,
+      "maxLength": 100
+    },
+    "description": {
+      "maxLength": 1000
+    }
+  },
+  "ReportStoryDto": {
+    "category": {
+      "enum": [
+        "spam",
+        "harassment",
+        "offensive",
+        "irrelevant",
+        "other"
+      ]
+    },
+    "note": {
+      "maxLength": 500
     }
   },
   "ReportUserDto": {
@@ -611,6 +1127,9 @@ export const API_CONSTRAINTS = {
     },
     "mfaCode": {
       "maxLength": 16
+    },
+    "otpCode": {
+      "maxLength": 10
     }
   },
   "RequestExtensionDto": {
@@ -623,9 +1142,31 @@ export const API_CONSTRAINTS = {
       "maxLength": 500
     }
   },
+  "RequestOtpTriggerDto": {
+    "phoneNumber": {
+      "maxLength": 20
+    },
+    "deviceId": {
+      "maxLength": 255
+    },
+    "purpose": {
+      "enum": [
+        "register",
+        "login",
+        "forgot_password",
+        "migrate_phone"
+      ]
+    }
+  },
   "RequestPhoneChangeDto": {
     "newPhoneNumber": {
       "maxLength": 20
+    },
+    "method": {
+      "enum": [
+        "SMS",
+        "WHATSAPP"
+      ]
     },
     "currentPassword": {
       "minLength": 1,
@@ -641,7 +1182,14 @@ export const API_CONSTRAINTS = {
     }
   },
   "ResetPasswordDto": {
+    "deviceId": {
+      "maxLength": 255
+    },
     "newPassword": {
+      "minLength": 8,
+      "maxLength": 72
+    },
+    "confirmPassword": {
       "minLength": 8,
       "maxLength": 72
     }
@@ -664,7 +1212,10 @@ export const API_CONSTRAINTS = {
         "IMAGE",
         "FILE",
         "VIDEO",
-        "VOICE"
+        "VOICE",
+        "LOCATION",
+        "PRODUCT_CARD",
+        "ORDER_CARD"
       ]
     },
     "content": {
@@ -676,6 +1227,10 @@ export const API_CONSTRAINTS = {
     },
     "caption": {
       "maxLength": 500
+    },
+    "ephemeralTtlSeconds": {
+      "minimum": 5,
+      "maximum": 604800
     }
   },
   "SetCommentHiddenDto": {
@@ -698,6 +1253,18 @@ export const API_CONSTRAINTS = {
       "maxLength": 6
     }
   },
+  "SetStoryReactionDto": {
+    "emoji": {
+      "enum": [
+        "❤️",
+        "😂",
+        "😮",
+        "😢",
+        "👏",
+        "🔥"
+      ]
+    }
+  },
   "SetUsernameDto": {
     "username": {
       "minLength": 3,
@@ -709,31 +1276,15 @@ export const API_CONSTRAINTS = {
       "maxLength": 72
     }
   },
-  "ShowcaseCommentDto": {
-    "hiddenReason": {
-      "enum": [
-        "SPAM",
-        "INAPPROPRIATE",
-        "HARASSMENT",
-        "OTHER",
-        null
-      ]
-    }
-  },
-  "ShowcaseItemDto": {
-    "visibility": {
-      "enum": [
-        "PUBLIC",
-        "PRIVATE"
-      ]
-    }
-  },
   "SocialLoginDto": {
     "provider": {
       "enum": [
         "google",
         "apple"
       ]
+    },
+    "deviceId": {
+      "maxLength": 255
     }
   },
   "SubmitBusinessVerificationDto": {
@@ -812,11 +1363,26 @@ export const API_CONSTRAINTS = {
       ]
     }
   },
+  "SubscribeDanaDto": {
+    "plan": {
+      "enum": [
+        "MONTHLY",
+        "YEARLY"
+      ]
+    },
+    "payKind": {
+      "enum": [
+        "QRIS",
+        "VA",
+        "BALANCE"
+      ]
+    }
+  },
   "SubscribeDto": {
     "plan": {
       "enum": [
         "MONTHLY",
-        "ANNUAL"
+        "YEARLY"
       ]
     },
     "paymentMethod": {
@@ -840,6 +1406,15 @@ export const API_CONSTRAINTS = {
         "AKULAKU",
         "KREDIVO",
         "KAHADE_WALLET"
+      ]
+    }
+  },
+  "ToggleCommentLikeDto": {
+    "value": {
+      "enum": [
+        1,
+        -1,
+        0
       ]
     }
   },
@@ -877,6 +1452,11 @@ export const API_CONSTRAINTS = {
       "maximum": 25000000
     }
   },
+  "TranslateMessageDto": {
+    "targetLang": {
+      "maxLength": 10
+    }
+  },
   "TrustDeviceDto": {
     "password": {
       "minLength": 1,
@@ -884,6 +1464,75 @@ export const API_CONSTRAINTS = {
     },
     "mfaCode": {
       "maxLength": 16
+    }
+  },
+  "UpdateAddressDto": {
+    "label": {
+      "enum": [
+        "RUMAH",
+        "KANTOR",
+        "LAINNYA"
+      ]
+    },
+    "customLabel": {
+      "maxLength": 40
+    },
+    "recipientName": {
+      "maxLength": 100
+    },
+    "phone": {
+      "maxLength": 20
+    },
+    "addressLine": {
+      "maxLength": 300
+    },
+    "city": {
+      "maxLength": 100
+    },
+    "province": {
+      "maxLength": 100
+    },
+    "postalCode": {
+      "maxLength": 10
+    }
+  },
+  "UpdateBankAccountDto": {
+    "password": {
+      "maxLength": 72
+    },
+    "mfaCode": {
+      "maxLength": 16
+    },
+    "otpCode": {
+      "maxLength": 10
+    },
+    "accountName": {
+      "minLength": 2,
+      "maxLength": 100
+    }
+  },
+  "UpdateChatPrivacyDto": {
+    "dmPolicy": {
+      "enum": [
+        "EVERYONE",
+        "FOLLOWING",
+        "NONE"
+      ]
+    }
+  },
+  "UpdateConsentDto": {
+    "type": {
+      "enum": [
+        "MARKETING_PUSH",
+        "MARKETING_EMAIL",
+        "MARKETING_WHATSAPP",
+        "TRANSACTIONAL"
+      ]
+    }
+  },
+  "UpdateHighlightDto": {
+    "title": {
+      "maxLength": 80
     }
   },
   "UpdateLanguageDto": {
@@ -900,6 +1549,52 @@ export const API_CONSTRAINTS = {
         "id",
         "en"
       ]
+    },
+    "digestFrequency": {
+      "enum": [
+        "off",
+        "daily",
+        "weekly"
+      ]
+    }
+  },
+  "UpdatePrivacyDto": {
+    "showFollowerList": {
+      "enum": [
+        "EVERYONE",
+        "FOLLOWERS",
+        "ONLY_ME"
+      ]
+    },
+    "showFollowingList": {
+      "enum": [
+        "EVERYONE",
+        "FOLLOWERS",
+        "ONLY_ME"
+      ]
+    },
+    "showcaseDefaultVisibility": {
+      "enum": [
+        "PUBLIC",
+        "PRIVATE"
+      ]
+    },
+    "qaCommentPolicy": {
+      "enum": [
+        "EVERYONE",
+        "FOLLOWERS",
+        "DISABLED"
+      ]
+    }
+  },
+  "UpdateProductCommerceDto": {
+    "productType": {
+      "enum": [
+        "JASA",
+        "FISIK",
+        "DIGITAL",
+        "LAINNYA"
+      ]
     }
   },
   "UpdateProfileDto": {
@@ -913,13 +1608,7 @@ export const API_CONSTRAINTS = {
     },
     "bio": {
       "minLength": 0,
-      "maxLength": 500
-    },
-    "accountType": {
-      "enum": [
-        "PERSONAL",
-        "BUSINESS"
-      ]
+      "maxLength": 160
     }
   },
   "UpdateRatingDto": {
@@ -931,6 +1620,14 @@ export const API_CONSTRAINTS = {
       "maxLength": 500
     }
   },
+  "UpdateReplyTemplateDto": {
+    "shortcut": {
+      "maxLength": 32
+    },
+    "text": {
+      "maxLength": 500
+    }
+  },
   "UpdateScheduleDto": {
     "dayOfWeek": {
       "minimum": 0,
@@ -938,6 +1635,10 @@ export const API_CONSTRAINTS = {
     },
     "minAmount": {
       "minimum": 1
+    },
+    "pin": {
+      "minLength": 6,
+      "maxLength": 6
     }
   },
   "UpdateShippingDto": {
@@ -965,6 +1666,9 @@ export const API_CONSTRAINTS = {
     "description": {
       "maxLength": 500
     },
+    "descriptionHtml": {
+      "maxLength": 10000
+    },
     "category": {
       "maxLength": 60
     },
@@ -975,13 +1679,30 @@ export const API_CONSTRAINTS = {
       ]
     },
     "priceMin": {
-      "minimum": 0
+      "minimum": 0,
+      "maximum": 1000000000
     },
     "priceMax": {
-      "minimum": 0
+      "minimum": 0,
+      "maximum": 1000000000
     },
     "sortOrder": {
       "minimum": 0
+    },
+    "condition": {
+      "enum": [
+        "BARU",
+        "BEKAS"
+      ]
+    }
+  },
+  "UpdateStoryHighlightDto": {
+    "title": {
+      "maxLength": 24
+    },
+    "storyIds": {
+      "minItems": 1,
+      "maxItems": 30
     }
   },
   "UpdateTemplateDto": {
@@ -1084,7 +1805,7 @@ export const API_CONSTRAINTS = {
   "WithdrawDto": {
     "amount": {
       "minimum": 50000,
-      "maximum": 50000000
+      "maximum": 25000000
     }
   }
 } as const

@@ -47,6 +47,12 @@ export const REAUTH_TOO_MANY_ATTEMPTS = "REAUTH_TOO_MANY_ATTEMPTS" as const
 export const REAUTH_UNAVAILABLE = "REAUTH_UNAVAILABLE" as const
 /** BFE-080: polling status langganan dengan id basi (404). */
 export const SUBSCRIPTION_NOT_FOUND = "SUBSCRIPTION_NOT_FOUND" as const
+/**
+ * BEC-01 (audit etalase 2026-10-10): item sedang ditindak moderator
+ * (TAKEDOWN/RESTRICTED) — ubah/aktifkan/jadwalkan ditolak 403 oleh backend
+ * (showcase.service.ts updateShowcaseItem, product-commerce.service.ts).
+ */
+export const SHOWCASE_MODERATED = "SHOWCASE_MODERATED" as const
 
 /**
  * Kode yang pesannya DIRANCANG backend untuk ditampilkan langsung ke user

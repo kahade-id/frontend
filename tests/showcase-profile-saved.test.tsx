@@ -216,7 +216,10 @@ describe("ProfileEtalaseTab (H-05)", () => {
 })
 
 describe("ShowcaseSavedCollection (FE-IMP-1 item 54: baca dari server)", () => {
+  // BES-05: kontrak entri kini {id, unavailable, item, savedAt}.
   const entry = (id: string) => ({
+    id,
+    unavailable: false,
     item: {
       id,
       title: `Karya ${id}`,
@@ -305,6 +308,30 @@ describe("ShowcaseSavedCollection (FE-IMP-1 item 54: baca dari server)", () => {
     expect(mocks.savedStateSet).toContainEqual({ id: "s1", saved: false })
     expect(screen.queryByText("Karya s1")).toBeNull() // optimistis hilang
     expect(screen.getByText("Karya s2")).toBeTruthy()
+  })
+
+  it("BES-05: item tidak tersedia tampil sebagai baris jujur yang bisa dilepas", async () => {
+    mocks.getSavedShowcases.mockResolvedValue({
+      data: [entry("s1"), { id: "gone-1", item: null, savedAt: "2026-09-27T00:00:00.000Z", unavailable: true }],
+      page: 1,
+      limit: 20,
+      total: 2,
+      totalPages: 1,
+      hasNext: false,
+      hasPrev: false,
+    })
+    mocks.removeSavedShowcase.mockResolvedValue(undefined)
+    render(h(ShowcaseSavedCollection))
+    await waitFor(() => expect(screen.getByText("Karya s1")).toBeTruthy())
+    expect(screen.getByText("Etalase tidak tersedia lagi")).toBeTruthy()
+    const trashButtons = screen.getAllByLabelText("Hapus etalase tersimpan")
+    expect(trashButtons).toHaveLength(2)
+    await act(async () => {
+      ;(trashButtons[1] as HTMLElement).click()
+    })
+    await waitFor(() => expect(mocks.removeSavedShowcase).toHaveBeenCalledWith("gone-1"))
+    expect(screen.queryByText("Etalase tidak tersedia lagi")).toBeNull()
+    expect(screen.getByText("Karya s1")).toBeTruthy()
   })
 
   it("gagal muat = pesan error + tombol Coba lagi memuat ulang", async () => {

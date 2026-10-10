@@ -68,3 +68,15 @@ describe("AP-08 kursor koleksi tersimpan", () => {
     expect(page.hasNext).toBe(true)
   })
 })
+
+describe("BE-8 DELETE komentar → commentCount server", () => {
+  it("commentCount angka diteruskan; tanpa commentCount → undefined (backend lama)", async () => {
+    const { deleteShowcaseComment } = await import("@/lib/api/showcase")
+    mocks.del.mockResolvedValue({ message: "Comment deleted", commentCount: 4 })
+    await expect(deleteShowcaseComment("c1")).resolves.toEqual({ message: "Comment deleted", commentCount: 4 })
+    mocks.del.mockResolvedValue({ message: "Comment deleted" })
+    await expect(deleteShowcaseComment("c1")).resolves.toEqual({ message: "Comment deleted", commentCount: undefined })
+    mocks.del.mockResolvedValue(undefined)
+    await expect(deleteShowcaseComment("c1")).resolves.toEqual({ message: "", commentCount: undefined })
+  })
+})

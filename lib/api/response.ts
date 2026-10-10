@@ -70,6 +70,8 @@ export function unwrapResponse(value: unknown, status?: number): unknown {
       // CPY-012: message bisa berasal dari body backend (bahasa tak terjamin).
       clientMessage: false,
       backendCode: parsed.backendCode,
+      // RK-01: state server dari errors.data.
+      data: parsed.data,
       validationMessages: parsed.validationMessages,
       // BFI-059: atribusi per field dari errors.fields backend.
       fieldErrors: parsed.fieldErrors,

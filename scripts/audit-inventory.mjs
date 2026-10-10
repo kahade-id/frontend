@@ -18,6 +18,62 @@ for (const [url, verbs] of Object.entries(spec.paths))
   for (const method of Object.keys(verbs))
     if (["get", "post", "put", "patch", "delete"].includes(method))
       documented.set(`${method.toUpperCase()} ${normalize(url)}`, url)
+/**
+ * Audit etalase 2026-10-10: path diambil dari AST template, bukan regex atas
+ * teks mentah. Regex `\$\{[^}]+\}` gagal pada ekspresi bersarang
+ * (`${qs ? \`?${qs}\` : ""}`) sehingga menyisakan sampah `{}\` : ""}` dan
+ * melaporkan path yang sebenarnya terdokumentasi sebagai "undocumented".
+ *
+ * Aturan tambahan:
+ *  - query string dalam literal (`/v1/showcase/categories?limit=${n}`) dibuang;
+ *  - `{}` di ujung yang tidak didahului "/" (`...deleted${qs}`) adalah query
+ *    opsional, bukan segmen path;
+ *  - awalan dinamis (`${basePath}/status`) di-resolve dari penugasan
+ *    `basePath = \`...\`` di fungsi pembungkus (kasus upload chunked).
+ */
+function templateToPath(expr, scopeNode, depth = 0) {
+  if (ts.isStringLiteral(expr) || ts.isNoSubstitutionTemplateLiteral(expr)) return expr.text
+  if (ts.isTemplateExpression(expr)) {
+    let out = expr.head.text
+    expr.templateSpans.forEach((span, i) => {
+      if (i === 0 && expr.head.text === "" && ts.isIdentifier(span.expression) && depth < 3) {
+        out += resolveIdentifierPath(span.expression.text, scopeNode, depth + 1) ?? "{}"
+      } else {
+        out += "{}"
+      }
+      out += span.literal.text
+    })
+    return out
+  }
+  return null
+}
+function resolveIdentifierPath(name, scopeNode, depth) {
+  let fn = scopeNode
+  while (fn && !ts.isFunctionLike(fn)) fn = fn.parent
+  if (!fn) return null
+  let found = null
+  const visit = (n) => {
+    if (found) return
+    if (
+      ts.isBinaryExpression(n) &&
+      n.operatorToken.kind === ts.SyntaxKind.EqualsToken &&
+      ts.isIdentifier(n.left) &&
+      n.left.text === name
+    ) {
+      found = templateToPath(n.right, n, depth)
+      return
+    }
+    if (ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.name.text === name && n.initializer) {
+      found = templateToPath(n.initializer, n, depth)
+      return
+    }
+    ts.forEachChild(n, visit)
+  }
+  visit(fn)
+  return found
+}
+const cleanPath = (value) => value.split("?")[0].replace(/([^/])\{\}$/, "$1")
+
 const operations = []
 for (const name of fs.readdirSync("lib/api").filter((name) => name.endsWith(".ts"))) {
   const file = `lib/api/${name}`,
@@ -32,16 +88,9 @@ for (const name of fs.readdirSync("lib/api").filter((name) => name.endsWith(".ts
     ) {
       const method = node.expression.name.text.toUpperCase(),
         argument = node.arguments[0]
-      if (
-        argument &&
-        (ts.isStringLiteral(argument) ||
-          ts.isNoSubstitutionTemplateLiteral(argument) ||
-          ts.isTemplateExpression(argument))
-      ) {
-        const url = argument
-            .getText(ast)
-            .slice(1, -1)
-            .replace(/\$\{[^}]+\}/g, "{}"),
+      const literal = argument ? templateToPath(argument, node) : null
+      if (literal !== null) {
+        const url = cleanPath(literal),
           canonical = documented.get(`${method} ${normalize(url)}`)
         operations.push({
           file,
@@ -155,14 +204,9 @@ const OUT_OF_BAND_HTTP = [
     probe: /REFRESH_PATH\s*=\s*"\/v1\/auth\/refresh"/,
     why: "refreshAccessToken() memanggil exchange() langsung agar bisa single-flight dan menghindari interceptor 401 (rekursi).",
   },
-  {
-    file: "lib/api/upload.ts",
-    method: "PUT",
-    path: "<presigned object-storage URL>",
-    documented: false,
-    probe: /fetch\(url, \{ method, body, headers, credentials: "omit"/,
-    why: "uploadToPresignedUrl() mengunggah langsung ke object storage, bukan ke API Kahade — memang tidak ada di spec.",
-  },
+  // 2026-10-10: entri `PUT <presigned object-storage URL>` dihapus — alur
+  // presigned sudah dimatikan backend dan kodenya tidak ada lagi di
+  // lib/api/upload.ts (probe-nya yang menangkap: OUT_OF_BAND_STALE).
 ]
 
 const staleOutOfBand = OUT_OF_BAND_HTTP.filter(
