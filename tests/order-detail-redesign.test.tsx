@@ -104,7 +104,7 @@ describe("<OrderJourney>", () => {
       screen.getByRole("list", { name: /perjalanan pesanan/i }),
     ).toBeTruthy()
     expect(screen.getByText("Order dibuat")).toBeTruthy()
-    expect(screen.getByText("Dibayar ke escrow")).toBeTruthy()
+    expect(screen.getByText("Dibayar ke Kahade")).toBeTruthy()
     expect(screen.getByText("Dikirim penjual")).toBeTruthy()
     expect(screen.getByText("Diterima pembeli")).toBeTruthy()
     expect(screen.getByText("Dana cair ke penjual")).toBeTruthy()
@@ -373,7 +373,7 @@ describe("<OrderEscrowCard>", () => {
     // Item 33: pra-bayar — dana BELUM ditahan, copy jujur mengatakannya.
     expect(
       screen.getByText(
-        /Dana akan ditahan di escrow setelah Anda membayar, sampai Anda mengonfirmasi penerimaan\./,
+        /Dana disimpan aman oleh Kahade setelah Anda membayar, sampai Anda mengonfirmasi penerimaan\./,
       ),
     ).toBeTruthy()
 
@@ -393,12 +393,12 @@ describe("<OrderEscrowCard>", () => {
     expect(screen.getAllByText(/telah diteruskan/i)).toHaveLength(2)
   })
 
-  it("WAITING_CONFIRMATION untuk penjual: dana ditahan SETELAH pembeli membayar", () => {
+  it("WAITING_CONFIRMATION untuk penjual: dana disimpan SETELAH pembeli membayar", () => {
     renderWithTheme(
       <OrderEscrowCard status="WAITING_CONFIRMATION" amount={250000} myRole="SELLER" />,
     )
     expect(document.body.textContent).toMatch(
-      /Dana akan ditahan di escrow setelah pembeli membayar/,
+      /Dana disimpan aman oleh Kahade setelah pembeli membayar/,
     )
   })
 })

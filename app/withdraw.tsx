@@ -1021,7 +1021,7 @@ export default function WithdrawScreen() {
         visible={closeConfirmOpen}
         title="Penarikan masih menunggu OTP"
         description={translate(
-          "Dana tertahan sampai permintaan kedaluwarsa. Batalkan sekarang agar saldo langsung bebas.",
+          "Saldo terpakai sampai permintaan kedaluwarsa. Batalkan sekarang agar saldo langsung bebas.",
         )}
         confirmLabel="Batalkan penarikan"
         cancelLabel="Kembali ke OTP"

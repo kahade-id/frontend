@@ -201,17 +201,17 @@ export function OrderPaymentSheet({
         // kanonis `DanaDirectPayResult`); `feeBuyerPays` tidak memuat fee
         // provider sehingga total lama lebih KECIL dari tagihan sebenarnya.
         payment.intent
-          ? translate("Total {x} (termasuk biaya) masuk escrow Kahade.", {
+          ? translate("Total {x} (termasuk biaya) disimpan aman oleh Kahade.", {
               x: formatRupiah(payment.intent.amount),
             })
           : feeBuyerPays != null
-            ? translate("Total {x} masuk ke escrow Kahade.", { x: formatRupiah(feeBuyerPays) })
+            ? translate("Total {x} disimpan aman oleh Kahade.", { x: formatRupiah(feeBuyerPays) })
             : "Total pembayaran belum terkonfirmasi. Muat ulang rincian biaya sebelum membayar."
       }
       topExtra={
         showEscrowDef ? (
           <Text variant="caption" tone="secondary">
-            Escrow = dana ditahan Kahade, baru diteruskan ke penjual setelah Anda konfirmasi terima.
+            Dana disimpan aman oleh Kahade, baru diteruskan ke penjual setelah Anda konfirmasi terima.
           </Text>
         ) : undefined
       }
@@ -332,7 +332,7 @@ export function OrderActionSheets({
         // ("dana di escrow dikembalikan") adalah janji yang tak bisa ditepati
         // karena backend menolak pembatalan PROCESSING/PAID.
         description={
-          "Order akan dibatalkan. Belum ada dana di escrow untuk status ini — tidak ada pengembalian dana."
+          "Order akan dibatalkan. Belum ada dana yang dibayarkan untuk status ini — tidak ada pengembalian dana."
         }
         footer={
           <Button
@@ -409,7 +409,7 @@ export function OrderActionSheets({
         visible={sheet === "dispute"}
         onRequestClose={guardedClose}
         title="Ajukan sengketa"
-        description="Dana ditahan sampai mediator memutuskan. Bukti foto bisa ditambahkan setelah sengketa dibuat."
+        description="Dana dibekukan sampai mediator memutuskan. Bukti foto bisa ditambahkan setelah sengketa dibuat."
         footer={
           <Button
             variant="destructive"
@@ -759,7 +759,7 @@ export function OrderConfirmDialogs({
         // terjadi SEBELUM pembayaran — copy lama ("…setelah pembeli membayar")
         // membuat penjual menunggu pembayaran yang justru baru bisa dilakukan
         // setelah order diterima.
-        description="Pesanan diterima, dan pembeli dapat melanjutkan pembayaran ke escrow. Selesaikan pekerjaan sesuai kesepakatan setelah dana masuk."
+        description="Pesanan diterima, dan pembeli dapat melanjutkan pembayaran. Selesaikan pekerjaan sesuai kesepakatan setelah dana masuk."
         visible={acceptOpen}
         loading={acceptLoading}
         confirmLabel="Terima"
@@ -822,10 +822,10 @@ export function OrderConfirmDialogs({
             className="mt-3 rounded-md border border-border bg-surface p-4"
             accessible
             accessibilityRole="text"
-            accessibilityLabel={`Dana escrow yang akan dilepas: ${formatRupiah(escrowAmount)}`}
+            accessibilityLabel={`Dana yang akan diteruskan ke penjual: ${formatRupiah(escrowAmount)}`}
           >
             <Text variant="caption" tone="secondary">
-              Dana escrow yang dilepas ke penjual
+              Dana yang diteruskan ke penjual
             </Text>
             <Text variant="h2" tone="primary" className="tabular-nums">
               {formatRupiah(escrowAmount)}

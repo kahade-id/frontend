@@ -273,7 +273,7 @@ export const ConfirmCountdownBox = memo(function ConfirmCountdownBox({
         </Text>
       )}
       <Text variant="caption" tone="secondary">
-        {translate("Lewat batas waktu, pesanan dibatalkan otomatis — belum ada dana yang ditahan.")}
+        {translate("Lewat batas waktu, pesanan dibatalkan otomatis — belum ada dana yang dibayarkan.")}
       </Text>
     </View>
   )

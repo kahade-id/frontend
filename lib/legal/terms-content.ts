@@ -42,7 +42,7 @@ export const TERMS_CONTENT: LegalDocData = {
       "kind": "p",
       "segments": [
         {
-          "text": "Kahade adalah platform social commerce dan fasilitasi transaksi peer-to-peer dengan mekanisme rekening bersama atau escrow. Pengguna dapat membuat profil dan etalase, berinteraksi melalui fitur sosial, berkomunikasi, membuat transaksi, melakukan pembayaran melalui metode yang tersedia, memantau pengiriman, mengonfirmasi penerimaan, memberi ulasan, serta mengajukan sengketa. Dana transaksi ditahan selama proses yang ditentukan dan diteruskan sesuai status transaksi, instruksi yang sah, keputusan sengketa, atau kewajiban hukum."
+          "text": "Kahade adalah platform social commerce dan fasilitasi transaksi peer-to-peer dengan mekanisme pengamanan dana transaksi. Pengguna dapat membuat profil dan etalase, berinteraksi melalui fitur sosial, berkomunikasi, membuat transaksi, melakukan pembayaran melalui metode yang tersedia, memantau pengiriman, mengonfirmasi penerimaan, memberi ulasan, serta mengajukan sengketa. Dana transaksi disimpan selama proses yang ditentukan dan diteruskan sesuai status transaksi, instruksi yang sah, keputusan sengketa, atau kewajiban hukum."
         }
       ]
     },
@@ -77,7 +77,7 @@ export const TERMS_CONTENT: LegalDocData = {
               "kind": "p",
               "segments": [
                 {
-                  "text": "1.2. Ketentuan ini berlaku terhadap aplikasi seluler, situs web, antarmuka pemrograman aplikasi yang diizinkan, layanan pelanggan, notifikasi, fitur sosial, etalase, chat, transaksi, escrow, dompet, voucher, promosi, langganan, serta fitur lain yang secara resmi dioperasikan Kahade."
+                  "text": "1.2. Ketentuan ini berlaku terhadap aplikasi seluler, situs web, antarmuka pemrograman aplikasi yang diizinkan, layanan pelanggan, notifikasi, fitur sosial, etalase, chat, transaksi, pengamanan dana, dompet, voucher, promosi, langganan, serta fitur lain yang secara resmi dioperasikan Kahade."
                 }
               ]
             },
@@ -163,11 +163,11 @@ export const TERMS_CONTENT: LegalDocData = {
                   "text": "2.4. "
                 },
                 {
-                  "text": "Escrow",
+                  "text": "Pengamanan Dana",
                   "bold": true
                 },
                 {
-                  "text": " adalah mekanisme penahanan dan pelepasan dana transaksi berdasarkan tahapan serta kondisi yang ditampilkan. Istilah ini tidak dengan sendirinya menyatakan Kahade sebagai bank, penerbit uang elektronik, atau penyedia jasa pembayaran berizin; pemrosesan pembayaran dapat melibatkan mitra yang tunduk pada ketentuannya sendiri."
+                  "text": " adalah mekanisme penyimpanan dan pelepasan dana transaksi berdasarkan tahapan serta kondisi yang ditampilkan. Istilah ini tidak dengan sendirinya menyatakan Kahade sebagai bank, penerbit uang elektronik, atau penyedia jasa pembayaran berizin; pemrosesan pembayaran dapat melibatkan mitra yang tunduk pada ketentuannya sendiri."
                 }
               ]
             },
@@ -234,7 +234,7 @@ export const TERMS_CONTENT: LegalDocData = {
               "kind": "p",
               "segments": [
                 {
-                  "text": "3.1. Pengguna harus mampu membuat perjanjian yang sah. Fitur keuangan, escrow, penarikan, verifikasi identitas, dan tindakan berisiko tinggi hanya boleh digunakan oleh pihak yang memenuhi usia, kapasitas, verifikasi, dan persyaratan lain yang ditampilkan serta diwajibkan hukum."
+                  "text": "3.1. Pengguna harus mampu membuat perjanjian yang sah. Fitur keuangan, pengamanan dana, penarikan, verifikasi identitas, dan tindakan berisiko tinggi hanya boleh digunakan oleh pihak yang memenuhi usia, kapasitas, verifikasi, dan persyaratan lain yang ditampilkan serta diwajibkan hukum."
                 }
               ]
             },
@@ -388,7 +388,7 @@ export const TERMS_CONTENT: LegalDocData = {
               "kind": "p",
               "segments": [
                 {
-                  "text": "6.2. Kahade menyediakan sarana elektronik untuk menemukan atau menampilkan etalase, berkomunikasi, membentuk kesepakatan, mencatat instruksi, memfasilitasi pembayaran dan escrow, serta menangani sengketa administratif."
+                  "text": "6.2. Kahade menyediakan sarana elektronik untuk menemukan atau menampilkan etalase, berkomunikasi, membentuk kesepakatan, mencatat instruksi, memfasilitasi pembayaran dan pengamanan dana, serta menangani sengketa administratif."
                 }
               ]
             },
@@ -474,7 +474,7 @@ export const TERMS_CONTENT: LegalDocData = {
         },
         {
           "id": "8-pembayaran-dan-escrow",
-          "title": "8. Pembayaran dan escrow",
+          "title": "8. Pembayaran dan pengamanan dana",
           "paragraphs": [
             {
               "kind": "p",
@@ -488,7 +488,7 @@ export const TERMS_CONTENT: LegalDocData = {
               "kind": "p",
               "segments": [
                 {
-                  "text": "8.2. Dana yang berhasil diterima untuk Transaksi ditempatkan dalam mekanisme escrow dan belum menjadi dana bebas Penjual sampai kondisi pelepasan terpenuhi."
+                  "text": "8.2. Dana yang berhasil diterima untuk Transaksi ditempatkan dalam mekanisme pengamanan dana dan belum menjadi dana bebas Penjual sampai kondisi pelepasan terpenuhi."
                 }
               ]
             },
@@ -512,7 +512,7 @@ export const TERMS_CONTENT: LegalDocData = {
               "kind": "p",
               "segments": [
                 {
-                  "text": "8.5. Selama sengketa, peninjauan risiko, chargeback, permintaan otoritas, gangguan penyedia pembayaran, atau dugaan pelanggaran, pelepasan dana dapat ditahan sementara. Penahanan harus dibatasi pada kebutuhan pemeriksaan dan ditinjau secara wajar."
+                  "text": "8.5. Selama sengketa, peninjauan risiko, chargeback, permintaan otoritas, gangguan penyedia pembayaran, atau dugaan pelanggaran, pelepasan dana dapat ditangguhkan sementara. Penangguhan harus dibatasi pada kebutuhan pemeriksaan dan ditinjau secara wajar."
                 }
               ]
             },
@@ -520,7 +520,7 @@ export const TERMS_CONTENT: LegalDocData = {
               "kind": "p",
               "segments": [
                 {
-                  "text": "8.6. Pengguna tidak memperoleh bunga atas dana escrow kecuali diwajibkan hukum atau ditawarkan secara tegas. Dana tidak boleh digunakan untuk spekulasi atau kepentingan yang bertentangan dengan peruntukannya."
+                  "text": "8.6. Pengguna tidak memperoleh bunga atas dana transaksi kecuali diwajibkan hukum atau ditawarkan secara tegas. Dana tidak boleh digunakan untuk spekulasi atau kepentingan yang bertentangan dengan peruntukannya."
                 }
               ]
             },
@@ -604,7 +604,7 @@ export const TERMS_CONTENT: LegalDocData = {
               "kind": "p",
               "segments": [
                 {
-                  "text": "10.1. Dompet menampilkan saldo total, saldo tersedia, saldo escrow, dan mutasi sesuai fungsi yang tersedia. Tampilan tidak menggantikan catatan penyelesaian pada mitra pembayaran atau bank jika terjadi perbedaan yang dapat dibuktikan."
+                  "text": "10.1. Dompet menampilkan saldo total, saldo tersedia, saldo dalam transaksi, dan mutasi sesuai fungsi yang tersedia. Tampilan tidak menggantikan catatan penyelesaian pada mitra pembayaran atau bank jika terjadi perbedaan yang dapat dibuktikan."
                 }
               ]
             },
@@ -852,7 +852,7 @@ export const TERMS_CONTENT: LegalDocData = {
               "kind": "p",
               "segments": [
                 {
-                  "text": "14.5. Penukaran tidak dianggap selesai sampai objek pengganti diterima atau kesepakatan lain dipenuhi. Dana dapat tetap ditahan sepanjang diperlukan untuk melindungi kedua pihak."
+                  "text": "14.5. Penukaran tidak dianggap selesai sampai objek pengganti diterima atau kesepakatan lain dipenuhi. Dana dapat tetap disimpan sepanjang diperlukan untuk melindungi kedua pihak."
                 }
               ]
             }
@@ -860,7 +860,7 @@ export const TERMS_CONTENT: LegalDocData = {
         },
         {
           "id": "15-sengketa-dan-keputusan-escrow",
-          "title": "15. Sengketa dan keputusan escrow",
+          "title": "15. Sengketa dan keputusan atas dana",
           "paragraphs": [
             {
               "kind": "p",
@@ -914,7 +914,7 @@ export const TERMS_CONTENT: LegalDocData = {
               "kind": "p",
               "segments": [
                 {
-                  "text": "15.7. Untuk mencegah kerugian, keputusan yang telah dieksekusi pada escrow dapat bersifat final secara operasional di sistem, tanpa menghilangkan koreksi atas kesalahan nyata, penipuan, atau putusan/ketetapan berwenang."
+                  "text": "15.7. Untuk mencegah kerugian, keputusan yang telah dieksekusi atas dana transaksi dapat bersifat final secara operasional di sistem, tanpa menghilangkan koreksi atas kesalahan nyata, penipuan, atau putusan/ketetapan berwenang."
                 }
               ]
             },
@@ -1356,7 +1356,7 @@ export const TERMS_CONTENT: LegalDocData = {
               "kind": "p",
               "segments": [
                 {
-                  "text": "26.1. Pengguna dapat meminta penghapusan melalui fitur yang tersedia setelah verifikasi sensitif. Permintaan tidak dapat diproses sampai pesanan dan Sengketa selesai, saldo tersedia ditarik, dana escrow terselesaikan, serta penarikan tidak lagi diproses."
+                  "text": "26.1. Pengguna dapat meminta penghapusan melalui fitur yang tersedia setelah verifikasi sensitif. Permintaan tidak dapat diproses sampai pesanan dan Sengketa selesai, saldo tersedia ditarik, dana transaksi terselesaikan, serta penarikan tidak lagi diproses."
                 }
               ]
             },
@@ -1900,7 +1900,7 @@ export const TERMS_CONTENT: LegalDocData = {
         },
         {
           "id": "a-5-pembayaran-dompet-dan-escrow",
-          "title": "A.5. Pembayaran, Dompet, dan escrow",
+          "title": "A.5. Pembayaran, Dompet, dan pengamanan dana",
           "paragraphs": [
             {
               "kind": "p",
@@ -2542,7 +2542,7 @@ export const TERMS_CONTENT: LegalDocData = {
               "kind": "p",
               "segments": [
                 {
-                  "text": "Tindakan dapat berupa pengurangan distribusi, label, penghapusan, pembatasan chat, pembekuan etalase, pembatalan transaksi, penahanan manfaat promo, verifikasi ulang, suspensi, atau penghentian. Tindakan disesuaikan dengan risiko dan tidak menggantikan proses hukum."
+                  "text": "Tindakan dapat berupa pengurangan distribusi, label, penghapusan, pembatasan chat, pembekuan etalase, pembatalan transaksi, penangguhan manfaat promo, verifikasi ulang, suspensi, atau penghentian. Tindakan disesuaikan dengan risiko dan tidak menggantikan proses hukum."
                 }
               ]
             }
@@ -2780,7 +2780,7 @@ export const TERMS_CONTENT: LegalDocData = {
               "kind": "p",
               "segments": [
                 {
-                  "text": "Selama Sengketa, hanya nilai yang relevan yang seharusnya ditahan kecuali risiko meluas dapat dibuktikan. Akses bukti dibatasi. Dokumen identitas dan data keuangan tidak ditampilkan kepada pihak lain kecuali perlu dan sah."
+                  "text": "Selama Sengketa, hanya nilai yang relevan yang seharusnya dibekukan kecuali risiko meluas dapat dibuktikan. Akses bukti dibatasi. Dokumen identitas dan data keuangan tidak ditampilkan kepada pihak lain kecuali perlu dan sah."
                 }
               ]
             }
@@ -2850,7 +2850,7 @@ export const TERMS_CONTENT: LegalDocData = {
               "kind": "p",
               "segments": [
                 {
-                  "text": "Escrow balance:",
+                  "text": "Saldo dalam transaksi:",
                   "bold": true
                 },
                 {

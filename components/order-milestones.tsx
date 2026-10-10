@@ -274,8 +274,8 @@ export function MilestoneSection({
         title="Tahapan Pembayaran"
         subtitle={
           walletEnabled
-            ? "Dana escrow dilepas per tahap setelah hasil diterima."
-            : "Dana escrow dicairkan ke rekening bank penjual per tahap setelah hasil diterima."
+            ? "Dana diteruskan ke penjual per tahap setelah hasil diterima."
+            : "Dana dicairkan ke rekening bank penjual per tahap setelah hasil diterima."
         }
       />
       {/* UX-A11Y-015: daftar tahap sebagai list (pola timeline.tsx);

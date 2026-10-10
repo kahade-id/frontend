@@ -8,7 +8,7 @@
  *
  * Display-only / read-only: fungsi ini tidak mengubah saldo, limit, atau
  * eligibility apa pun — hanya mengelompokkan data server untuk ditampilkan
- * saat sub-baris "ditahan di escrow" diketuk.
+ * saat sub-baris "dalam transaksi" diketuk.
  */
 
 import type { WalletTransaction } from "@/lib/api/wallet"

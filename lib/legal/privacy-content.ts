@@ -42,7 +42,7 @@ export const PRIVACY_CONTENT: LegalDocData = {
       "kind": "p",
       "segments": [
         {
-          "text": "Kebijakan Privasi ini menjelaskan bagaimana PT Kawal Hak Dengan Aman (selanjutnya disebut “Kahade”, “kami”, atau “milik kami”) memperoleh, menggunakan, menyimpan, mengungkapkan, melindungi, dan menghapus Data Pribadi ketika Anda menggunakan aplikasi, situs web, fitur escrow atau rekening bersama digital, dompet, transaksi, etalase sosial-commerce, profil, percakapan, dukungan pelanggan, serta kanal resmi Kahade lainnya (secara bersama-sama disebut “Layanan”)."
+          "text": "Kebijakan Privasi ini menjelaskan bagaimana PT Kawal Hak Dengan Aman (selanjutnya disebut “Kahade”, “kami”, atau “milik kami”) memperoleh, menggunakan, menyimpan, mengungkapkan, melindungi, dan menghapus Data Pribadi ketika Anda menggunakan aplikasi, situs web, fitur pengamanan dana transaksi, dompet, transaksi, etalase sosial-commerce, profil, percakapan, dukungan pelanggan, serta kanal resmi Kahade lainnya (secara bersama-sama disebut “Layanan”)."
         }
       ]
     },
@@ -86,7 +86,7 @@ export const PRIVACY_CONTENT: LegalDocData = {
             "bold": true
           },
           {
-            "text": " Tujuan utamanya adalah menyediakan Layanan; mengautentikasi pengguna; melaksanakan escrow, top up, penarikan, transfer, refund, dan rekonsiliasi; memverifikasi identitas; mencegah penipuan; menyelesaikan sengketa; memoderasi konten; mengirim notifikasi; memperbaiki Layanan; dan memenuhi kewajiban hukum."
+            "text": " Tujuan utamanya adalah menyediakan Layanan; mengautentikasi pengguna; melaksanakan pengamanan dana transaksi, top up, penarikan, transfer, refund, dan rekonsiliasi; memverifikasi identitas; mencegah penipuan; menyelesaikan sengketa; memoderasi konten; mengirim notifikasi; memperbaiki Layanan; dan memenuhi kewajiban hukum."
           }
         ]
       },
@@ -253,7 +253,7 @@ export const PRIVACY_CONTENT: LegalDocData = {
               "kind": "p",
               "segments": [
                 {
-                  "text": "3.5 “Escrow” adalah mekanisme penahanan dana secara sementara dalam alur transaksi sampai syarat pelepasan, pengembalian, pembatalan, atau penyelesaian sengketa terpenuhi sesuai Syarat dan Ketentuan serta status transaksi."
+                  "text": "3.5 “Pengamanan Dana” adalah mekanisme penyimpanan dana secara sementara dalam alur transaksi sampai syarat pelepasan, pengembalian, pembatalan, atau penyelesaian sengketa terpenuhi sesuai Syarat dan Ketentuan serta status transaksi."
                 }
               ]
             },
@@ -261,7 +261,7 @@ export const PRIVACY_CONTENT: LegalDocData = {
               "kind": "p",
               "segments": [
                 {
-                  "text": "3.6 “Dompet” adalah tampilan dan fungsi pencatatan saldo, dana tersedia, dana dalam escrow, mutasi, penarikan, top up, transfer, refund, biaya, dan aktivitas keuangan lain yang didukung Layanan."
+                  "text": "3.6 “Dompet” adalah tampilan dan fungsi pencatatan saldo, dana tersedia, dana dalam transaksi, mutasi, penarikan, top up, transfer, refund, biaya, dan aktivitas keuangan lain yang didukung Layanan."
                 }
               ]
             },
@@ -469,7 +469,7 @@ export const PRIVACY_CONTENT: LegalDocData = {
         },
         {
           "id": "8-data-escrow-dan-transaksi",
-          "title": "8. DATA ESCROW DAN TRANSAKSI",
+          "title": "8. DATA PENGAMANAN DANA DAN TRANSAKSI",
           "paragraphs": [
             {
               "kind": "p",
@@ -491,7 +491,7 @@ export const PRIVACY_CONTENT: LegalDocData = {
               "kind": "p",
               "segments": [
                 {
-                  "text": "8.3 Data transaksi digunakan untuk membentuk dan melaksanakan kesepakatan, menahan dana dalam escrow, menentukan status, memberi notifikasi, memfasilitasi pengiriman, mencatat persetujuan, menyelesaikan pembatalan atau refund, merekonsiliasi dana, mencegah duplikasi, dan menyediakan bukti transaksi."
+                  "text": "8.3 Data transaksi digunakan untuk membentuk dan melaksanakan kesepakatan, menyimpan dana transaksi, menentukan status, memberi notifikasi, memfasilitasi pengiriman, mencatat persetujuan, menyelesaikan pembatalan atau refund, merekonsiliasi dana, mencegah duplikasi, dan menyediakan bukti transaksi."
                 }
               ]
             },
@@ -521,7 +521,7 @@ export const PRIVACY_CONTENT: LegalDocData = {
               "kind": "p",
               "segments": [
                 {
-                  "text": "9.1 Kami memproses saldo tersedia, saldo dalam escrow, saldo total, top up, transfer, penarikan, refund, biaya administrasi, cashback atau manfaat jika tersedia, batas transaksi, mutasi, referensi pembayaran, status, waktu, dan metadata rekonsiliasi."
+                  "text": "9.1 Kami memproses saldo tersedia, saldo dalam transaksi, saldo total, top up, transfer, penarikan, refund, biaya administrasi, cashback atau manfaat jika tersedia, batas transaksi, mutasi, referensi pembayaran, status, waktu, dan metadata rekonsiliasi."
                 }
               ]
             },
@@ -1177,7 +1177,7 @@ export const PRIVACY_CONTENT: LegalDocData = {
                   "bold": true
                 },
                 {
-                  "text": " membuat akun, mengelola profil, menjalankan fitur sosial, komunikasi, etalase, transaksi, escrow, dompet, dan dukungan."
+                  "text": " membuat akun, mengelola profil, menjalankan fitur sosial, komunikasi, etalase, transaksi, pengamanan dana, dompet, dan dukungan."
                 }
               ]
             },
@@ -1452,7 +1452,7 @@ export const PRIVACY_CONTENT: LegalDocData = {
                   "bold": true
                 },
                 {
-                  "text": " Data yang diperlukan untuk top up, escrow, transfer, penarikan, refund, verifikasi rekening, rekonsiliasi, dan penanganan transaksi gagal."
+                  "text": " Data yang diperlukan untuk top up, pengamanan dana, transfer, penarikan, refund, verifikasi rekening, rekonsiliasi, dan penanganan transaksi gagal."
                 }
               ]
             },
@@ -1747,7 +1747,7 @@ export const PRIVACY_CONTENT: LegalDocData = {
               "kind": "p",
               "segments": [
                 {
-                  "text": "30.1 Penghapusan dari tampilan tidak selalu sama dengan pemusnahan langsung. Konten dapat melewati masa pemulihan, antrean penghapusan, pencadangan, atau penahanan hukum."
+                  "text": "30.1 Penghapusan dari tampilan tidak selalu sama dengan pemusnahan langsung. Konten dapat melewati masa pemulihan, antrean penghapusan, pencadangan, atau retensi karena kewajiban hukum."
                 }
               ]
             },
@@ -2547,7 +2547,7 @@ export const PRIVACY_CONTENT: LegalDocData = {
         },
         {
           "id": "a-5-escrow-dan-pesanan",
-          "title": "A.5 Escrow dan pesanan",
+          "title": "A.5 Pengamanan dana dan pesanan",
           "paragraphs": [
             {
               "kind": "p",
@@ -2693,7 +2693,7 @@ export const PRIVACY_CONTENT: LegalDocData = {
         },
         {
           "id": "b-5-membuat-transaksi-escrow",
-          "title": "B.5 Membuat transaksi escrow",
+          "title": "B.5 Membuat transaksi",
           "paragraphs": [
             {
               "kind": "p",
@@ -2755,7 +2755,7 @@ export const PRIVACY_CONTENT: LegalDocData = {
               "kind": "p",
               "segments": [
                 {
-                  "text": "Kahade memproses rekening tujuan, nominal, biaya, PIN atau autentikasi, lokasi jika diminta, pemeriksaan risiko, dan hasil mitra. Penarikan dapat ditahan sementara untuk verifikasi atau kepatuhan."
+                  "text": "Kahade memproses rekening tujuan, nominal, biaya, PIN atau autentikasi, lokasi jika diminta, pemeriksaan risiko, dan hasil mitra. Penarikan dapat ditangguhkan sementara untuk verifikasi atau kepatuhan."
                 }
               ]
             }

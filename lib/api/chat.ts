@@ -1967,7 +1967,7 @@ export type CreatedOrderFromChat = {
 
 /**
  * POST /v1/chat/rooms/{roomId}/order — buat order ESCROW 1-by-1 dari ruang
- * negosiasi (INQUIRY). Uang HANYA lewat escrow: seluruh logika finansial
+ * negosiasi (INQUIRY). Uang HANYA lewat Kahade: seluruh logika finansial
  * didelegasikan ke OrdersService di backend. TIDAK ADA jalur kirim uang
  * langsung — keputusan user, jangan pernah menambahkannya di sini.
  */

@@ -338,12 +338,12 @@ export async function setupNotifications(): Promise<void> {
 
   if (Platform.OS === "android") {
     // Dibuat berurutan, bukan Promise.all: urutan pembuatan menentukan urutan
-    // tampil di Setelan Android, dan "Transaksi & escrow" yang paling penting
+    // tampil di Setelan Android, dan "Transaksi & pembayaran" yang paling penting
     // sebaiknya di atas.
     await Notifications.setNotificationChannelAsync(NOTIFICATION_CHANNELS.transaksi, {
-      name: "Transaksi & escrow",
+      name: "Transaksi & pembayaran",
       description:
-        "Status pesanan, dana masuk/keluar rekening escrow, dan batas waktu pembayaran. Sangat disarankan tetap aktif.",
+        "Status pesanan, dana masuk/keluar, dan batas waktu pembayaran. Sangat disarankan tetap aktif.",
       importance: Notifications.AndroidImportance.MAX,
       vibrationPattern: [0, 250, 250, 250],
       lockscreenVisibility: Notifications.AndroidNotificationVisibility.PRIVATE,
@@ -352,9 +352,9 @@ export async function setupNotifications(): Promise<void> {
     })
 
     await Notifications.setNotificationChannelAsync(NOTIFICATION_CHANNELS.orders, {
-      name: "Pesanan & escrow",
+      name: "Pesanan & pembayaran",
       description:
-        "Status pesanan: pembayaran diterima, pengiriman, dan penyelesaian escrow.",
+        "Status pesanan: pembayaran diterima, pengiriman, dan pencairan dana.",
       importance: Notifications.AndroidImportance.MAX,
       vibrationPattern: [0, 250, 250, 250],
       lockscreenVisibility: Notifications.AndroidNotificationVisibility.PRIVATE,
@@ -364,7 +364,7 @@ export async function setupNotifications(): Promise<void> {
 
     await Notifications.setNotificationChannelAsync(NOTIFICATION_CHANNELS.wallet, {
       name: "Dompet",
-      description: "Dana dompet: top-up, penarikan, transfer, dan pencairan escrow.",
+      description: "Dana dompet: top-up, penarikan, transfer, dan pencairan dana.",
       importance: Notifications.AndroidImportance.MAX,
       vibrationPattern: [0, 250, 250, 250],
       lockscreenVisibility: Notifications.AndroidNotificationVisibility.PRIVATE,

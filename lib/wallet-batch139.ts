@@ -95,7 +95,7 @@ export function ctaUnavailableReasons(
     case "WAITING_PAYMENT":
     case "PENDING_PAYMENT":
       return role === "SELLER"
-        ? ["Menunggu pembeli membayar ke escrow — aksi penjual dibuka setelah pembayaran masuk."]
+        ? ["Menunggu pembeli membayar ke Kahade — aksi penjual dibuka setelah pembayaran masuk."]
         : []
     case "PROCESSING":
       return role === "BUYER"

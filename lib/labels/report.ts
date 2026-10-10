@@ -41,7 +41,7 @@ export type ReportReasonOption = {
 }
 
 export const USER_REPORT_REASONS: readonly ReportReasonOption[] = [
-  { value: "SCAM", label: "Penipuan", description: "Meminta pembayaran di luar escrow atau tidak mengirim barang" },
+  { value: "SCAM", label: "Penipuan", description: "Meminta pembayaran di luar Kahade atau tidak mengirim barang" },
   { value: "HARASSMENT", label: "Pelecehan", description: "Kata-kata kasar, ancaman, atau intimidasi" },
   { value: "FAKE_ACCOUNT", label: "Akun palsu", description: "Mengaku sebagai orang atau bisnis lain" },
   { value: "INAPPROPRIATE_CONTENT", label: "Konten tidak pantas", description: "Gambar atau teks yang melanggar aturan" },

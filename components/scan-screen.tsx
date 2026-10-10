@@ -742,7 +742,7 @@ export default function ScanScreen() {
                   </View>
 
                   <Text variant="caption" tone="secondary" className="text-center px-2">
-                    Tunjukkan kode ini kepada pembeli atau mitra untuk membuka profil dan bertransaksi escrow secara aman.
+                    Tunjukkan kode ini kepada pembeli atau mitra untuk membuka profil dan bertransaksi secara aman.
                   </Text>
 
                   <View className="w-full flex-row gap-3 pt-1">

@@ -90,7 +90,7 @@ export type HomeOverviewCardLabels = {
 
 const DEFAULT_LABELS: HomeOverviewCardLabels = {
   available: "Saldo tersedia",
-  held: "ditahan di escrow",
+  held: "dalam transaksi",
   hide: "Sembunyikan saldo",
   show: "Tampilkan saldo",
   walletErrorTitle: "Gagal memuat saldo",

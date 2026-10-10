@@ -182,14 +182,14 @@ function SellerEscrowBanner({
       <Icon icon={ShieldCheck} size="sm" tone="accent" />
       <Text variant="caption" tone="secondary" className="flex-1 text-pretty">
         {walletEnabled
-          ? "Dana pembeli ditahan escrow — kirim barang dulu, dana cair ke wallet Anda setelah pembeli konfirmasi terima."
-          : "Dana pembeli ditahan escrow — kirim barang dulu, dana dicairkan ke rekening bank Anda setelah pembeli konfirmasi terima."}
+          ? "Dana pembeli disimpan aman oleh Kahade — kirim barang dulu, dana cair ke wallet Anda setelah pembeli konfirmasi terima."
+          : "Dana pembeli disimpan aman oleh Kahade — kirim barang dulu, dana dicairkan ke rekening bank Anda setelah pembeli konfirmasi terima."}
       </Text>
       <IconButton
         icon={X}
         variant="ghost"
         size="sm"
-        accessibilityLabel="Tutup info escrow"
+        accessibilityLabel="Tutup info dana"
         onPress={onDismiss}
       />
     </View>

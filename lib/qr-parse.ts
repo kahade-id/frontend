@@ -92,7 +92,7 @@ function parseKahadeUrl(url: URL): QrTarget | null {
     if (ORDER_CODE_RE.test(orderId) || ORDER_ID_RE.test(orderId)) {
       return {
         type: "order",
-        label: "Pesanan Escrow",
+        label: "Pesanan Kahade",
         detail: `ID: ${orderId}`,
         risky: false,
         orderId,
@@ -201,7 +201,7 @@ export function parseQrCode(raw: string): QrTarget {
   if (isOrderCode && !text.includes(" ") && !text.includes("/")) {
     return {
       type: "order",
-      label: "Pesanan Escrow",
+      label: "Pesanan Kahade",
       detail: `ID: ${text}`,
       risky: false,
       orderId: text,

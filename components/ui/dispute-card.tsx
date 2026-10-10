@@ -50,7 +50,7 @@ export type DisputeCardLabels = {
 const DEFAULT_LABELS: DisputeCardLabels = {
   openedByYou: "Diajukan oleh Anda",
   openedBy: "Diajukan oleh",
-  heldAmount: "Dana tertahan",
+  heldAmount: "Dana dibekukan",
   awaitingYou: "Tanggapan Anda dibutuhkan",
 }
 
