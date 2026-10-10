@@ -35,6 +35,7 @@ import {
 } from "@/lib/api/support"
 import { formatDateTime } from "@/lib/format"
 import { translate } from "@/lib/i18n"
+import { CHAT_LIST_WINDOWING } from "@/lib/chat-list-windowing"
 import { logWarn } from "@/lib/telemetry"
 import {
   normalizeSupportChatMessage,
@@ -634,6 +635,16 @@ export default function SupportChatScreen() {
             className="flex-1"
             contentContainerClassName="pb-4 pt-2"
             keyboardShouldPersistTaps="handled"
+            // PERF (fase 2): tuning jendela render khusus daftar chat
+            // (baris rapat, bisa memanjang) — tanpa ini FlatList memakai
+            // default RN (windowSize 21) yang me-mount jauh lebih banyak
+            // bubble dari yang terlihat. Nilai dari lib/chat-list-windowing
+            // (dipakai juga daftar chat utama); TANPA getItemLayout karena
+            // tinggi bubble bervariasi (teks multi-baris, lampiran).
+            initialNumToRender={CHAT_LIST_WINDOWING.initialNumToRender}
+            maxToRenderPerBatch={CHAT_LIST_WINDOWING.maxToRenderPerBatch}
+            windowSize={CHAT_LIST_WINDOWING.windowSize}
+            updateCellsBatchingPeriod={CHAT_LIST_WINDOWING.updateCellsBatchingPeriod}
             ListEmptyComponent={
               !joinError ? (
                 <View className="items-center px-8 pt-16">
