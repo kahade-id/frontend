@@ -118,7 +118,7 @@ export default function PublicRatingsScreen() {
         <Crossfade loading={query.loading} skeleton={<ListLoading />}>
           {query.error ? (
           <ErrorState
-            title={translate("Gagal memuat")}
+            title={translate("Gagal memuat ulasan")}
             description={query.error}
             onRetry={() => void query.reload()}
           />

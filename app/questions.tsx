@@ -283,7 +283,7 @@ export default function QuestionsScreen() {
         <Crossfade loading={query.loading} skeleton={<ListLoading />}>
           {query.error ? (
           <ErrorState
-            title={translate("Gagal memuat")}
+            title={translate("Gagal memuat pertanyaan")}
             description={query.error}
             onRetry={() => void query.reload()}
           />

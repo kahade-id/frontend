@@ -385,7 +385,7 @@ export default function ExtensionScreen() {
       >
         <Crossfade loading={loading} skeleton={<DetailLoading />}>
           {error ? (
-          <ErrorState title="Gagal memuat" description={error} onRetry={() => void query.reload()} />
+          <ErrorState title="Gagal memuat permintaan perpanjangan" description={error} onRetry={() => void query.reload()} />
         ) : (
           // UX-SPA-016: gap-4 = standar DataScreen (contentClassName gap-4 pt-3).
           <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>

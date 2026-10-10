@@ -383,7 +383,7 @@ export default function PublicQuestionsScreen() {
       >
         <Crossfade loading={loading} skeleton={<ListLoading />}>
           {error ? (
-          <ErrorState title={translate("Gagal memuat")} description={error} onRetry={() => void query.reload()} />
+          <ErrorState title={translate("Gagal memuat pertanyaan")} description={error} onRetry={() => void query.reload()} />
         ) : items.length === 0 ? (
           <QaEmptyState
             onAsk={() => {

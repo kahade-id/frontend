@@ -422,7 +422,7 @@ describe("layar Tanya Jawab publik", () => {
   it("fail closed: error API -> ErrorState, bukan daftar kosong palsu", () => {
     mocks.questionsError = "Jaringan gagal"
     renderThemed(<PublicQuestionsScreen />)
-    expect(screen.getByText("Gagal memuat")).toBeTruthy()
+    expect(screen.getByText("Gagal memuat pertanyaan")).toBeTruthy()
     expect(screen.queryByText("Belum ada pertanyaan")).toBeNull()
   })
 

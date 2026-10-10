@@ -318,7 +318,7 @@ export default function OrderLinkScreen() {
         <Crossfade loading={query.loading} skeleton={<DetailLoading />}>
           {query.error ? (
           <ErrorState
-            title="Gagal memuat"
+            title="Gagal memuat tautan pesanan"
             description={query.error}
             onRetry={() => void query.reload()}
           />

@@ -210,47 +210,39 @@ export default function PaymentFinishScreen() {
     <Screen>
       {/* P1-T1: Header dengan fallback aman untuk cold start via deeplink. */}
       <Header title="Status Pembayaran" />
-      <View
-        style={{
-          flex: 1,
-          alignItems: "center",
-          justifyContent: "center",
-          paddingHorizontal: 32,
-          gap: 16,
-        }}
-      >
+      <View className="flex-1 items-center justify-center gap-4 px-8">
         {verifying || verification?.targetKey !== targetKey ? (
           <>
             <ActivityIndicator size="large" />
-            <Text variant="h2" accessibilityRole="header" style={{ textAlign: "center" }}>
+            <Text variant="h2" accessibilityRole="header" className="text-center">
               Memverifikasi pembayaran…
             </Text>
-            <Text variant="body" tone="secondary" style={{ textAlign: "center" }}>
+            <Text variant="body" tone="secondary" className="text-center">
               Memastikan status ke server Kahade.
             </Text>
           </>
         ) : (
           <>
             <Icon icon={icon} tone={tone} size={64} />
-            <Text variant="h2" accessibilityRole="header" style={{ textAlign: "center" }}>
+            <Text variant="h2" accessibilityRole="header" className="text-center">
               {copy.title}
             </Text>
-            <Text variant="body" tone="secondary" style={{ textAlign: "center" }}>
+            <Text variant="body" tone="secondary" className="text-center">
               {copy.subtitle}
             </Text>
             {/* UX-FDB-002(a): status pending tidak lagi statis — indikator
                 pengecekan otomatis + waktu cek terakhir. */}
             {status === "pending" ? (
-              <View style={{ alignItems: "center", gap: 6 }}>
+              <View className="items-center gap-1.5">
                 {!pollStopped ? (
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                  <View className="flex-row items-center gap-2">
                     <ActivityIndicator size="small" />
                     <Text variant="caption" tone="secondary">
                       Memeriksa status otomatis…
                     </Text>
                   </View>
                 ) : (
-                  <Text variant="caption" tone="secondary" style={{ textAlign: "center" }}>
+                  <Text variant="caption" tone="secondary" className="text-center">
                     Pengecekan otomatis berhenti — tekan tombol di bawah untuk
                     memeriksa lagi.
                   </Text>
@@ -262,7 +254,7 @@ export default function PaymentFinishScreen() {
                 ) : null}
               </View>
             ) : null}
-            <View style={{ marginTop: 8, width: "100%", maxWidth: 320, gap: 12 }}>
+            <View className="mt-2 w-full max-w-[320px] gap-3">
               {/* Status unknown juga bisa dicek via API jika identifier tersedia. */}
               {(status === "pending" || status === "unknown") && target ? (
                 <Button

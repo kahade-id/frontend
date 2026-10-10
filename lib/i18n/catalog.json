@@ -19,10 +19,6 @@
    "n": 63
   },
   {
-   "s": "Gagal memuat",
-   "n": 43
-  },
-  {
    "s": "Tutup",
    "n": 36
   },
@@ -32,6 +28,10 @@
   },
   {
    "s": "Aksi mungkin sudah diproses — periksa kembali sebelum mencoba lagi.",
+   "n": 28
+  },
+  {
+   "s": "Gagal memuat",
    "n": 28
   },
   {
@@ -328,6 +328,10 @@
   },
   {
    "s": "Bukti pengiriman",
+   "n": 9
+  },
+  {
+   "s": "Gagal memuat pertanyaan",
    "n": 9
   },
   {
@@ -744,6 +748,10 @@
   },
   {
    "s": "Gagal memperbarui dukungan",
+   "n": 6
+  },
+  {
+   "s": "Gagal memuat ulasan",
    "n": 6
   },
   {
@@ -3403,10 +3411,6 @@
    "n": 3
   },
   {
-   "s": "Gagal memuat pertanyaan",
-   "n": 3
-  },
-  {
    "s": "Gagal memuat profil tersimpan",
    "n": 3
   },
@@ -3416,10 +3420,6 @@
   },
   {
    "s": "Gagal memuat template",
-   "n": 3
-  },
-  {
-   "s": "Gagal memuat ulasan",
    "n": 3
   },
   {
@@ -16567,6 +16567,10 @@
    "n": 1
   },
   {
+   "s": "Gagal memuat bukti pengiriman",
+   "n": 1
+  },
+  {
    "s": "Gagal memuat daftar percakapan",
    "n": 1
   },
@@ -16583,7 +16587,19 @@
    "n": 1
   },
   {
+   "s": "Gagal memuat mutasi",
+   "n": 1
+  },
+  {
+   "s": "Gagal memuat order",
+   "n": 1
+  },
+  {
    "s": "Gagal memuat pencairan",
+   "n": 1
+  },
+  {
+   "s": "Gagal memuat permintaan perpanjangan",
    "n": 1
   },
   {
@@ -16612,6 +16628,14 @@
   },
   {
    "s": "Gagal memuat status pembayaran",
+   "n": 1
+  },
+  {
+   "s": "Gagal memuat tautan pesanan",
+   "n": 1
+  },
+  {
+   "s": "Gagal memuat tiket bantuan",
    "n": 1
   },
   {

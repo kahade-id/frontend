@@ -546,7 +546,7 @@ export default function DeliveryProofScreen() {
       >
         <Crossfade loading={loading && !order} skeleton={<DetailLoading />}>
           {error ? (
-          <ErrorState title="Gagal memuat" description={error} onRetry={() => void query.reload()} />
+          <ErrorState title="Gagal memuat bukti pengiriman" description={error} onRetry={() => void query.reload()} />
         ) : (
           <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
             {showSellerForm ? (

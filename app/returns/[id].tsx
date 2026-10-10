@@ -42,7 +42,7 @@ function Timeline({ detail, dot }: { detail: ReturnDetail; dot: string }) {
     <View style={{ gap: tokens.space[2] }}>
       {(detail.timeline ?? []).map((t) => (
         <View key={t.id} style={{ flexDirection: "row", gap: tokens.space[2] }}>
-          <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: dot, marginTop: 6 }} />
+          <View className="mt-[6px] h-2 w-2 rounded-xs" style={{ backgroundColor: dot }} />
           <View style={{ flex: 1 }}>
             <Text variant="body" weight={600}>
               {t.toStatus ? (RETURN_STATUS_LABEL[t.toStatus as keyof typeof RETURN_STATUS_LABEL] ?? t.toStatus) : t.event}

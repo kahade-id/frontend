@@ -302,7 +302,7 @@ export default function SupportTicketDetailScreen() {
         <Crossfade loading={query.loading} skeleton={<DetailLoading />}>
           {query.error ? (
           <ErrorState
-            title="Gagal memuat"
+            title="Gagal memuat tiket bantuan"
             description={query.error}
             onRetry={() => void query.reload()}
           />

@@ -152,7 +152,7 @@ export default function RateOrderScreen() {
         <Crossfade loading={loading} skeleton={<DetailLoading />}>
           {error || !order ? (
           <ErrorState
-            title="Gagal memuat"
+            title="Gagal memuat order"
             description={error ?? "Order tidak ditemukan."}
             onRetry={() => void query.reload()}
           />

@@ -121,7 +121,7 @@ export default function WalletTransactionScreen() {
         <Crossfade loading={query.loading} skeleton={<DetailLoading />}>
           {query.error || !txn ? (
             <ErrorState
-              title="Gagal memuat"
+              title="Gagal memuat mutasi"
               description={query.error ?? "Mutasi tidak ditemukan."}
               onRetry={() => void query.reload()}
             />
