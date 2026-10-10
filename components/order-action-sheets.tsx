@@ -497,11 +497,12 @@ export function OrderActionSheets({
         avoidKeyboard
         visible={sheet === "shipping"}
         onRequestClose={guardedClose}
-        title={shippingRequired ? "Info pengiriman" : "Tandai dikirim"}
+        // D11 (audit alamat & kurir 2026-10-10): seluruh teks sheet lewat `translate`.
+        title={shippingRequired ? translate("Info pengiriman") : translate("Tandai dikirim")}
         description={
           shippingRequired
-            ? "Nomor resi & kurir wajib untuk barang fisik."
-            : "Untuk jasa/digital, resi opsional — pembeli akan diminta memeriksa hasil."
+            ? translate("Nomor resi & kurir wajib untuk barang fisik.")
+            : translate("Untuk jasa/digital, resi opsional — pembeli akan diminta memeriksa hasil.")
         }
         footer={
           <Button
@@ -519,25 +520,25 @@ export function OrderActionSheets({
                     trackingNumber: tracking.trim() || undefined,
                     courierName: courier.trim() || undefined,
                   }),
-                "Info pengiriman disimpan",
-                "Gagal menyimpan info pengiriman",
+                translate("Info pengiriman disimpan"),
+                translate("Gagal menyimpan info pengiriman"),
               )
             }
           >
-            Simpan
+            {translate("Simpan")}
           </Button>
         }
       >
         <View className="gap-4">
           <Field
-            label="Kurir"
+            label={translate("Kurir")}
             required={shippingRequired}
             errorText={trackingValidation.courierError}
           >
             <Input
               value={courier}
               onChangeText={onChangeCourier}
-              placeholder="JNE, SiCepat, …"
+              placeholder={translate("JNE, SiCepat, …")}
               autoCapitalize="words"
               returnKeyType="next"
               // FRM-008: Next memindahkan fokus ke Nomor resi.
@@ -546,7 +547,7 @@ export function OrderActionSheets({
             />
           </Field>
           <Field
-            label="Nomor resi"
+            label={translate("Nomor resi")}
             required={shippingRequired}
             errorText={trackingError}
           >
@@ -556,7 +557,7 @@ export function OrderActionSheets({
               onChangeText={onChangeTracking}
               // FRM-009: tandai sudah disentuh agar error format boleh tampil.
               onBlur={() => setTrackingTouched(true)}
-              placeholder="Nomor resi"
+              placeholder={translate("Nomor resi")}
               autoCapitalize="characters"
               autoCorrect={false}
               spellCheck={false}

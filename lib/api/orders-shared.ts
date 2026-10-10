@@ -379,6 +379,8 @@ export type Order = {
   fee?: FeeBreakdown
   trackingNumber?: string | null
   courierName?: string | null
+  /** D13 (audit alamat & kurir 2026-10-10): catatan pengiriman dari penjual — dulu dibuang normalizer. */
+  trackingNotes?: string | null
   /**
    * K9 (audit transaksi 2026-10-10): snapshot alamat pengiriman dari
    * GET /v1/orders/:id (`shippingAddress`, sudah didekripsi server; hanya
@@ -593,6 +595,7 @@ export function normalizeOrder(raw: Order & Record<string, unknown>): Order {
     fee: normalizeFeeBreakdown(record.fee ?? record.feeBreakdown ?? record.fee_breakdown),
     trackingNumber: optionalText(record.trackingNumber ?? record.tracking_number),
     courierName: optionalText(record.courierName ?? record.courier_name),
+    trackingNotes: optionalText(record.trackingNotes ?? record.tracking_notes),
     // K9: alamat kirim DIPERTAHANKAN (dulu dibuang whitelist).
     shippingAddress: normalizeShippingAddress(record.shippingAddress ?? record.shipping_address),
     // D03: peran pembuat order (BUYER/SELLER) — dipakai gerbang konfirmasi.

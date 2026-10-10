@@ -124,7 +124,16 @@ export default function PrepareNavigationScreen() {
         icon: kind === "dm" ? ChatCircle : Package,
         title: kind === "dm" ? translate("Tidak bisa mengirim pesan") : translate("Belum ada data pelacakan"),
         description: state.empty,
-        action: <Button onPress={() => goBackOrNavigate(kind === "dm" ? ROUTES.chat : ROUTES.transactions)}>{translate("Kembali")}</Button>,
+        // E17: untuk pelacakan, arahkan ke detail order (tempat resi bisa
+        // disalin) — bukan ke daftar transaksi.
+        action:
+          kind === "dm" ? (
+            <Button onPress={() => goBackOrNavigate(ROUTES.chat)}>{translate("Kembali")}</Button>
+          ) : (
+            <Button onPress={() => goBackOrNavigate(id ? ROUTES.orderDetail(id) : ROUTES.transactions)}>
+              {translate("Lihat detail order")}
+            </Button>
+          ),
       } : null}
     >{null}</DataScreen>
   )

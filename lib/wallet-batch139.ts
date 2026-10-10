@@ -141,14 +141,17 @@ export function validateTrackingInput(
   const out: TrackingValidation = {}
   const c = courier.trim()
   const t = tracking.trim()
+  // D11 (audit alamat & kurir 2026-10-10): pesan lewat `translate`.
   if (physical) {
-    if (c.length < 2) out.courierError = "Isi nama kurir (mis. JNE, SiCepat, J&T)."
+    if (c.length < 2) out.courierError = translate("Isi nama kurir (mis. JNE, SiCepat, J&T).")
   }
   if (t.length === 0) {
-    if (physical) out.trackingError = "Nomor resi wajib diisi untuk barang fisik."
+    if (physical) out.trackingError = translate("Nomor resi wajib diisi untuk barang fisik.")
   } else if (!/^[A-Za-z0-9-]{6,40}$/.test(t)) {
-    out.trackingError =
-      "Format resi tidak valid — 6–40 karakter huruf/angka (boleh tanda -), tanpa spasi."
+    out.trackingError = translate(
+      "Format resi tidak valid — {x}–{y} karakter huruf/angka (boleh tanda -), tanpa spasi.",
+      { x: 6, y: 40 },
+    )
   }
   return out
 }

@@ -158,18 +158,19 @@ export default function OrderLinkScreen() {
     // R2 (butir #72): tautan yang kedaluwarsa tidak boleh ditembak ke server.
     if (isExpiredLocally) {
       toast.show({
-        title: "Tautan sudah kedaluwarsa",
-        description: "Minta tautan baru kepada pembuat pesanan.",
+        title: translate("Tautan sudah kedaluwarsa"),
+        description: translate("Minta tautan baru kepada pembuat pesanan."),
         tone: "warning",
       })
       return
     }
     // TRX-009: link barang fisik yang dibuat SELLER — penerima adalah pembeli,
     // alamat pengiriman wajib dipilih sebelum accept (backend fail-closed).
+    // D06 (audit alamat & kurir 2026-10-10): teks lewat `translate`.
     if (needsAcceptAddress && !acceptAddress) {
       toast.show({
-        title: "Pilih alamat pengiriman",
-        description: "Alamat pengiriman wajib diisi untuk menerima order barang fisik ini.",
+        title: translate("Pilih alamat pengiriman dulu"),
+        description: translate("Barang fisik akan dikirim ke alamat yang Anda pilih."),
         tone: "warning",
       })
       return
@@ -181,8 +182,8 @@ export default function OrderLinkScreen() {
         needsAcceptAddress && acceptAddress ? { shippingAddressId: acceptAddress.id } : undefined,
       )
       toast.show({
-        title: "Order link diterima",
-        description: "Pesanan berhasil dibuat.",
+        title: translate("Order link diterima"),
+        description: translate("Pesanan berhasil dibuat."),
         tone: "success",
         duration: 4000,
       })
@@ -373,11 +374,11 @@ export default function OrderLinkScreen() {
                 fisik buatan SELLER — wajib sebelum Terima. */}
             {canAct && needsAcceptAddress ? (
               <Field
-                label="Alamat pengiriman"
+                label={translate("Alamat pengiriman")}
                 required
-                helperText="Barang fisik akan dikirim ke alamat ini."
+                helperText={translate("Barang fisik akan dikirim ke alamat ini.")}
                 errorText={
-                  acceptAddress ? undefined : "Pilih alamat pengiriman untuk menerima order ini."
+                  acceptAddress ? undefined : translate("Pilih alamat pengiriman untuk menerima pesanan ini.")
                 }
               >
                 <AddressPicker selected={acceptAddress} onSelect={setAcceptAddress} />

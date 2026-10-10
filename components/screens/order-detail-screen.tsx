@@ -1460,6 +1460,8 @@ export default function OrderDetailScreen() {
                   ? {
                       courierName: order.courierName ?? undefined,
                       trackingNumber: order.trackingNumber ?? undefined,
+                      // D13: catatan pengiriman ikut tampil (kartu sudah mendukungnya).
+                      trackingNotes: order.trackingNotes ?? undefined,
                     }
                   : null
               }

@@ -174,8 +174,10 @@ export default function TrackingScreen() {
           <Card>
             <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: tokens.space[2] }}>
               <Text variant="body" weight={600} style={{ flex: 1 }} numberOfLines={1}>
-                {shipment.serviceName ?? shipment.providerCode.toUpperCase()}
-                {shipment.isManual && shipment.manualCourierName ? ` · ${shipment.manualCourierName}` : ""}
+                {/* E15: resi manual → nama kurir dari penjual, bukan "MANUAL · JNE". */}
+                {shipment.isManual
+                  ? shipment.manualCourierName ?? translate("Resi manual")
+                  : shipment.serviceName ?? shipment.providerCode.toUpperCase()}
               </Text>
               {/* UI-T009 + E07: status asing tetap tampil; tone semantik. */}
               <Badge tone={shipmentStatusTone(shipment.status)}>{shipmentStatusText(shipment.status)}</Badge>

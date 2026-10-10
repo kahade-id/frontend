@@ -28,7 +28,7 @@
   },
   {
    "s": "Simpan",
-   "n": 30
+   "n": 31
   },
   {
    "s": "Aksi mungkin sudah diproses — periksa kembali sebelum mencoba lagi.",
@@ -47,12 +47,12 @@
    "n": 24
   },
   {
-   "s": "Anda",
+   "s": "Alamat pengiriman",
    "n": 24
   },
   {
-   "s": "Alamat pengiriman",
-   "n": 22
+   "s": "Anda",
+   "n": 24
   },
   {
    "s": "Lanjutkan",
@@ -247,6 +247,10 @@
    "n": 10
   },
   {
+   "s": "Nomor resi",
+   "n": 10
+  },
+  {
    "s": "Penerima:",
    "n": 10
   },
@@ -287,11 +291,19 @@
    "n": 9
   },
   {
+   "s": "Bukti pengiriman",
+   "n": 9
+  },
+  {
    "s": "Hapus pertanyaan?",
    "n": 9
   },
   {
    "s": "Izin galeri ditolak",
+   "n": 9
+  },
+  {
+   "s": "JNE, SiCepat, …",
    "n": 9
   },
   {
@@ -336,10 +348,6 @@
   },
   {
    "s": "Belum terkirim",
-   "n": 8
-  },
-  {
-   "s": "Bukti pengiriman",
    "n": 8
   },
   {
@@ -548,6 +556,10 @@
   },
   {
    "s": "Aset digital",
+   "n": 6
+  },
+  {
+   "s": "Barang fisik akan dikirim ke alamat ini.",
    "n": 6
   },
   {
@@ -799,6 +811,10 @@
    "n": 6
   },
   {
+   "s": "Kurir",
+   "n": 6
+  },
+  {
    "s": "Lacak Pengiriman",
    "n": 6
   },
@@ -847,7 +863,7 @@
    "n": 6
   },
   {
-   "s": "Nomor resi",
+   "s": "Nomor resi pengiriman balik",
    "n": 6
   },
   {
@@ -871,7 +887,7 @@
    "n": 6
   },
   {
-   "s": "Pilih alamat pengiriman",
+   "s": "Pilih alamat pengiriman untuk menerima pesanan ini.",
    "n": 6
   },
   {
@@ -1243,6 +1259,10 @@
    "n": 5
   },
   {
+   "s": "Pilih alamat pengiriman",
+   "n": 5
+  },
+  {
    "s": "Pilih alamat pengiriman untuk barang fisik ini.",
    "n": 5
   },
@@ -1280,6 +1300,10 @@
   },
   {
    "s": "Tampilkan waktu relatif",
+   "n": 5
+  },
+  {
+   "s": "Tandai dikirim",
    "n": 5
   },
   {
@@ -1403,7 +1427,7 @@
    "n": 4
   },
   {
-   "s": "Barang fisik akan dikirim ke alamat ini.",
+   "s": "Barang fisik akan dikirim ke alamat yang Anda pilih.",
    "n": 4
   },
   {
@@ -1731,6 +1755,10 @@
    "n": 4
   },
   {
+   "s": "Lihat detail order",
+   "n": 4
+  },
+  {
    "s": "Lihat pesanan",
    "n": 4
   },
@@ -1847,6 +1875,10 @@
    "n": 4
   },
   {
+   "s": "Pilih alamat pengiriman dulu",
+   "n": 4
+  },
+  {
    "s": "Pratinjau: {x}",
    "n": 4
   },
@@ -1931,15 +1963,15 @@
    "n": 4
   },
   {
-   "s": "Tandai dikirim",
-   "n": 4
-  },
-  {
    "s": "Tautan disalin",
    "n": 4
   },
   {
    "s": "Tautan profil disalin",
+   "n": 4
+  },
+  {
+   "s": "Tautan sudah kedaluwarsa",
    "n": 4
   },
   {
@@ -2691,6 +2723,10 @@
    "n": 3
   },
   {
+   "s": "Catatan untuk pembeli (min. {x} karakter)",
+   "n": 3
+  },
+  {
    "s": "Ceritakan kendalanya (wajib)",
    "n": 3
   },
@@ -3343,6 +3379,10 @@
    "n": 3
   },
   {
+   "s": "Info pengiriman",
+   "n": 3
+  },
+  {
    "s": "Info pengiriman digital (opsional)",
    "n": 3
   },
@@ -3356,6 +3396,10 @@
   },
   {
    "s": "Ini tampilan sampul {x}:{x} persis seperti di profil. Belum diunggah — tekan Simpan sampul untuk mengunggah.",
+   "n": 3
+  },
+  {
+   "s": "Instruksi pengiriman balik",
    "n": 3
   },
   {
@@ -3611,6 +3655,10 @@
    "n": 3
   },
   {
+   "s": "Kirim barang retur",
+   "n": 3
+  },
+  {
    "s": "Kirim hasil",
    "n": 3
   },
@@ -3736,6 +3784,10 @@
   },
   {
    "s": "Kuota total",
+   "n": 3
+  },
+  {
+   "s": "Kurir (opsional)",
    "n": 3
   },
   {
@@ -4139,6 +4191,10 @@
    "n": 3
   },
   {
+   "s": "Mis. dikirim via JNE, estimasi {x} hari",
+   "n": 3
+  },
+  {
    "s": "Mode hemat data aktif. Ketuk untuk memuat gambar.",
    "n": 3
   },
@@ -4216,6 +4272,14 @@
   },
   {
    "s": "Nomor resi (manual)",
+   "n": 3
+  },
+  {
+   "s": "Nomor resi (opsional)",
+   "n": 3
+  },
+  {
+   "s": "Nomor resi & kurir wajib untuk barang fisik.",
    "n": 3
   },
   {
@@ -4472,10 +4536,6 @@
   },
   {
    "s": "Pihak transaksi",
-   "n": 3
-  },
-  {
-   "s": "Pilih alamat pengiriman untuk menerima pesanan ini.",
    "n": 3
   },
   {
@@ -5079,10 +5139,6 @@
    "n": 3
   },
   {
-   "s": "Tautan sudah kedaluwarsa",
-   "n": 3
-  },
-  {
    "s": "Tautan tidak tersedia",
    "n": 3
   },
@@ -5380,6 +5436,10 @@
   },
   {
    "s": "Unduh file",
+   "n": 3
+  },
+  {
+   "s": "Untuk jasa/digital, resi opsional — pembeli akan diminta memeriksa hasil.",
    "n": 3
   },
   {
@@ -5859,10 +5919,6 @@
    "n": 2
   },
   {
-   "s": "Barang fisik akan dikirim ke alamat yang Anda pilih.",
-   "n": 2
-  },
-  {
    "s": "Barang rusak",
    "n": 2
   },
@@ -6312,6 +6368,10 @@
   },
   {
    "s": "Bukti sebelumnya ditolak pembeli — unggah bukti yang lebih jelas.",
+   "n": 2
+  },
+  {
+   "s": "Bukti terkirim, resi gagal disimpan",
    "n": 2
   },
   {
@@ -7187,10 +7247,6 @@
    "n": 2
   },
   {
-   "s": "Info pengiriman",
-   "n": 2
-  },
-  {
    "s": "Info penting dari Kahade akan muncul di sini.",
    "n": 2
   },
@@ -7204,6 +7260,10 @@
   },
   {
    "s": "Isi harga minimum dulu bila memakai harga maksimum.",
+   "n": 2
+  },
+  {
+   "s": "Isi nama kurir (mis. JNE, SiCepat, J&T).",
    "n": 2
   },
   {
@@ -7451,6 +7511,10 @@
    "n": 2
   },
   {
+   "s": "Kirim bukti",
+   "n": 2
+  },
+  {
    "s": "Kirim bukti baru",
    "n": 2
   },
@@ -7471,7 +7535,15 @@
    "n": 2
   },
   {
+   "s": "Kirim Resi",
+   "n": 2
+  },
+  {
    "s": "Kirim saldo ke @{x} di Kahade: {y}",
+   "n": 2
+  },
+  {
+   "s": "Kirim sebelum {x}",
    "n": 2
   },
   {
@@ -7796,10 +7868,6 @@
   },
   {
    "s": "Lihat detail di Booking saya.",
-   "n": 2
-  },
-  {
-   "s": "Lihat detail order",
    "n": 2
   },
   {
@@ -8211,6 +8279,10 @@
    "n": 2
   },
   {
+   "s": "Minta tautan baru kepada pembuat pesanan.",
+   "n": 2
+  },
+  {
    "s": "mis. Laptop kerja",
    "n": 2
   },
@@ -8323,15 +8395,7 @@
    "n": 2
   },
   {
-   "s": "Nomor resi & kurir wajib untuk barang fisik.",
-   "n": 2
-  },
-  {
    "s": "Nomor resi belum tersedia.",
-   "n": 2
-  },
-  {
-   "s": "Nomor resi pengiriman balik",
    "n": 2
   },
   {
@@ -8392,6 +8456,10 @@
   },
   {
    "s": "Order dibuat",
+   "n": 2
+  },
+  {
+   "s": "Order link diterima",
    "n": 2
   },
   {
@@ -8571,6 +8639,10 @@
    "n": 2
   },
   {
+   "s": "Perbarui resi dari detail pesanan.",
+   "n": 2
+  },
+  {
    "s": "Percakapan diarsipkan",
    "n": 2
   },
@@ -8616,6 +8688,10 @@
   },
   {
    "s": "Periksa ejaan nama pengguna, atau coba nama lengkapnya.",
+   "n": 2
+  },
+  {
+   "s": "Periksa info pengiriman",
    "n": 2
   },
   {
@@ -8775,6 +8851,10 @@
    "n": 2
   },
   {
+   "s": "Pesanan berhasil dibuat.",
+   "n": 2
+  },
+  {
    "s": "Pesanan dikonfirmasi diterima",
    "n": 2
   },
@@ -8792,14 +8872,6 @@
   },
   {
    "s": "Pilih alamat lain.",
-   "n": 2
-  },
-  {
-   "s": "Pilih alamat pengiriman dulu",
-   "n": 2
-  },
-  {
-   "s": "Pilih alamat pengiriman untuk menerima order ini.",
    "n": 2
   },
   {
@@ -8999,7 +9071,15 @@
    "n": 2
   },
   {
+   "s": "Resi manual",
+   "n": 2
+  },
+  {
    "s": "Resi manual dari penjual — lacak di situs atau aplikasi kurir.",
+   "n": 2
+  },
+  {
+   "s": "Resi retur:",
    "n": 2
   },
   {
@@ -9956,10 +10036,6 @@
   },
   {
    "s": "Untuk Anda",
-   "n": 2
-  },
-  {
-   "s": "Untuk jasa/digital, resi opsional — pembeli akan diminta memeriksa hasil.",
    "n": 2
   },
   {
@@ -12367,10 +12443,6 @@
    "n": 1
   },
   {
-   "s": "Alamat pengiriman wajib diisi untuk menerima order barang fisik ini.",
-   "n": 1
-  },
-  {
    "s": "Alamat wajib diisi.",
    "n": 1
   },
@@ -13787,10 +13859,6 @@
    "n": 1
   },
   {
-   "s": "Bukti terkirim, resi gagal disimpan",
-   "n": 1
-  },
-  {
    "s": "Bukti video",
    "n": 1
   },
@@ -13980,10 +14048,6 @@
   },
   {
    "s": "Catatan terlalu pendek",
-   "n": 1
-  },
-  {
-   "s": "Catatan untuk pembeli (min. {x} karakter)",
    "n": 1
   },
   {
@@ -15299,6 +15363,10 @@
    "n": 1
   },
   {
+   "s": "Format resi tidak valid — {x}–{y} karakter huruf/angka (boleh tanda -), tanpa spasi.",
+   "n": 1
+  },
+  {
    "s": "Format teks",
    "n": 1
   },
@@ -15639,6 +15707,10 @@
    "n": 1
   },
   {
+   "s": "Gagal mengirim resi",
+   "n": 1
+  },
+  {
    "s": "Gagal mengirim ulasan",
    "n": 1
   },
@@ -15716,6 +15788,10 @@
   },
   {
    "s": "Gagal menyimpan gambar",
+   "n": 1
+  },
+  {
+   "s": "Gagal menyimpan info pengiriman",
    "n": 1
   },
   {
@@ -16171,6 +16247,10 @@
    "n": 1
   },
   {
+   "s": "Info pengiriman disimpan",
+   "n": 1
+  },
+  {
    "s": "Info sistem",
    "n": 1
   },
@@ -16212,10 +16292,6 @@
   },
   {
    "s": "Instruksi pembayaran dibuat",
-   "n": 1
-  },
-  {
-   "s": "Instruksi pengiriman balik",
    "n": 1
   },
   {
@@ -16452,10 +16528,6 @@
   },
   {
    "s": "Jl. Cihideung Udik, Kecamatan Ciampea, Kabupaten Bogor, Jawa Barat {x}, Indonesia",
-   "n": 1
-  },
-  {
-   "s": "JNE, SiCepat, …",
    "n": 1
   },
   {
@@ -17007,14 +17079,6 @@
    "n": 1
   },
   {
-   "s": "Kirim barang retur",
-   "n": 1
-  },
-  {
-   "s": "Kirim bukti",
-   "n": 1
-  },
-  {
    "s": "Kirim kartu produk",
    "n": 1
   },
@@ -17063,15 +17127,7 @@
    "n": 1
   },
   {
-   "s": "Kirim Resi",
-   "n": 1
-  },
-  {
    "s": "Kirim saldo sebagai gantinya",
-   "n": 1
-  },
-  {
-   "s": "Kirim sebelum",
    "n": 1
   },
   {
@@ -17600,10 +17656,6 @@
   },
   {
    "s": "Kuota bebas biaya layanan",
-   "n": 1
-  },
-  {
-   "s": "Kurir",
    "n": 1
   },
   {
@@ -18787,10 +18839,6 @@
    "n": 1
   },
   {
-   "s": "Minimal {x} karakter, atau kosongkan bila tidak dikirim dari sini.",
-   "n": 1
-  },
-  {
    "s": "Minta",
    "n": 1
   },
@@ -18831,15 +18879,7 @@
    "n": 1
   },
   {
-   "s": "Minta tautan baru kepada pembuat pesanan.",
-   "n": 1
-  },
-  {
    "s": "Minta Transfer",
-   "n": 1
-  },
-  {
-   "s": "Mis. dikirim via JNE, estimasi {x} hari",
    "n": 1
   },
   {
@@ -19179,11 +19219,7 @@
    "n": 1
   },
   {
-   "s": "Nomor resi (opsional)",
-   "n": 1
-  },
-  {
-   "s": "Nomor resi terlalu pendek",
+   "s": "Nomor resi wajib diisi untuk barang fisik.",
    "n": 1
   },
   {
@@ -19308,10 +19344,6 @@
   },
   {
    "s": "Order kedaluwarsa",
-   "n": 1
-  },
-  {
-   "s": "Order link diterima",
    "n": 1
   },
   {
@@ -20151,10 +20183,6 @@
    "n": 1
   },
   {
-   "s": "Perbarui resi dari detail pesanan.",
-   "n": 1
-  },
-  {
    "s": "Perbesar",
    "n": 1
   },
@@ -20564,10 +20592,6 @@
   },
   {
    "s": "Pesanan belum selesai",
-   "n": 1
-  },
-  {
-   "s": "Pesanan berhasil dibuat.",
    "n": 1
   },
   {
@@ -21039,7 +21063,7 @@
    "n": 1
   },
   {
-   "s": "Resi retur:",
+   "s": "Resi terkirim",
    "n": 1
   },
   {

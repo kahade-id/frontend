@@ -18,6 +18,8 @@ import {
   returnIdShort,
 } from "@/lib/api/returns"
 import { formatDateTime, formatDateTimeWIB } from "@/lib/format"
+import { translate } from "@/lib/i18n/translate"
+import { validateTrackingInput } from "@/lib/wallet-batch139"
 import { tokens } from "@/lib/tokens"
 import { useApiQuery } from "@/lib/use-api-query"
 import { showMutationError } from "@/lib/mutation-toast"
@@ -30,6 +32,7 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { DataScreen } from "@/components/ui/data-screen"
 import { Dialog } from "@/components/ui/modal"
+import { Field } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { SectionHeader } from "@/components/ui/section"
 import { Text } from "@/components/ui/text"
@@ -67,6 +70,13 @@ export default function ReturnDetailScreen() {
   const c = tokens.colors[mode]
   const [note, setNote] = useState("")
   const [tracking, setTracking] = useState("")
+  // E16 (audit alamat & kurir 2026-10-10): kurir retur ikut dikirim
+  // (`SubmitReturnTrackingDto.courier`) — dulu selalu kosong sehingga penjual
+  // hanya menerima nomor tanpa tahu kurirnya.
+  const [returnCourier, setReturnCourier] = useState("")
+  const returnTrackingValidation = validateTrackingInput(returnCourier, tracking, false)
+  const returnTrackingValid =
+    tracking.trim().length > 0 && !returnTrackingValidation.trackingError && !returnTrackingValidation.courierError
   const [mutating, setMutating] = useState(false)
   /** T4-010: dialog konfirmasi batal retur (menggantikan Alert.alert). */
   const [cancelOpen, setCancelOpen] = useState(false)
@@ -161,16 +171,16 @@ export default function ReturnDetailScreen() {
 
           {detail.returnInstructions ? (
             <Card>
-              <SectionHeader title="Instruksi pengiriman balik" />
+              <SectionHeader title={translate("Instruksi pengiriman balik")} />
               <Text variant="body">{detail.returnInstructions}</Text>
               {detail.shipBy ? (
                 <Text variant="body" tone="secondary" style={{ marginTop: tokens.space[1] }}>
-                  Kirim sebelum {formatDateTimeWIB(detail.shipBy)}
+                  {translate("Kirim sebelum {x}", { x: formatDateTimeWIB(detail.shipBy) })}
                 </Text>
               ) : null}
               {detail.returnTrackingNumber ? (
                 <Text variant="body" style={{ marginTop: tokens.space[1] }}>
-                  Resi retur: <Text variant="monoBody">{detail.returnTrackingNumber}</Text>
+                  {translate("Resi retur:")} <Text variant="monoBody">{detail.returnTrackingNumber}</Text>
                   {detail.returnCourier ? ` (${detail.returnCourier})` : ""}
                 </Text>
               ) : null}
@@ -179,26 +189,49 @@ export default function ReturnDetailScreen() {
 
           {detail.status === "APPROVED" ? (
             <Card>
-              <SectionHeader title="Kirim barang retur" />
-              <Input
-                label="Nomor resi pengiriman balik"
-                value={tracking}
-                onChangeText={setTracking}
-                accessibilityLabel="Nomor resi pengiriman balik"
-              />
+              <SectionHeader title={translate("Kirim barang retur")} />
+              <View style={{ gap: tokens.space[3] }}>
+                <Field label={translate("Kurir (opsional)")} errorText={returnTrackingValidation.courierError}>
+                  <Input
+                    value={returnCourier}
+                    onChangeText={setReturnCourier}
+                    placeholder={translate("JNE, SiCepat, …")}
+                    autoCapitalize="words"
+                    maxLength={64}
+                  />
+                </Field>
+                <Field
+                  label={translate("Nomor resi pengiriman balik")}
+                  required
+                  errorText={tracking.trim() ? returnTrackingValidation.trackingError : undefined}
+                >
+                  <Input
+                    value={tracking}
+                    onChangeText={setTracking}
+                    accessibilityLabel={translate("Nomor resi pengiriman balik")}
+                    autoCapitalize="characters"
+                    autoCorrect={false}
+                    maxLength={64}
+                  />
+                </Field>
+              </View>
               <View style={{ marginTop: tokens.space[2] }}>
                 <Button
-                  disabled={!tracking.trim() || mutating}
+                  disabled={!returnTrackingValid || mutating}
                   loading={mutating}
                   onPress={() =>
                     run(
-                      "Gagal mengirim resi",
-                      () => api.returns.submitReturnTracking(detail.id, { trackingNumber: tracking.trim() }),
-                      { successTitle: "Resi terkirim" },
+                      translate("Gagal mengirim resi"),
+                      () =>
+                        api.returns.submitReturnTracking(detail.id, {
+                          trackingNumber: tracking.trim(),
+                          ...(returnCourier.trim() ? { courier: returnCourier.trim() } : {}),
+                        }),
+                      { successTitle: translate("Resi terkirim") },
                     )
                   }
                 >
-                  Kirim Resi
+                  {translate("Kirim Resi")}
                 </Button>
               </View>
             </Card>

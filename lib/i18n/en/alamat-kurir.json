@@ -59,5 +59,21 @@
   "Belum ada data pelacakan": "No tracking data yet",
   "Profil tujuan tidak cocok. Percakapan tidak dibuka demi melindungi akun Anda.": "The target profile does not match. The conversation was not opened to protect your account.",
   "Anda tidak dapat membuka pesan langsung dengan akun sendiri.": "You cannot open a direct message with your own account.",
-  "Percakapan tidak cocok dengan profil ini. Demi keamanan, percakapan tidak dibuka.": "The conversation does not match this profile. For safety, it was not opened."
+  "Percakapan tidak cocok dengan profil ini. Demi keamanan, percakapan tidak dibuka.": "The conversation does not match this profile. For safety, it was not opened.",
+  "Minta tautan baru kepada pembuat pesanan.": "Ask the order creator for a new link.",
+  "Isi nama kurir (mis. JNE, SiCepat, J&T).": "Enter the courier name (e.g. JNE, SiCepat, J&T).",
+  "Nomor resi wajib diisi untuk barang fisik.": "A tracking number is required for physical goods.",
+  "Format resi tidak valid — {x}–{y} karakter huruf/angka (boleh tanda -), tanpa spasi.": "Invalid tracking number format — {x}–{y} letters/digits (hyphens allowed), no spaces.",
+  "Periksa info pengiriman": "Check the shipping info",
+  "Info pengiriman disimpan": "Shipping info saved",
+  "Gagal menyimpan info pengiriman": "Failed to save shipping info",
+  "Resi manual": "Manual tracking number",
+  "Instruksi pengiriman balik": "Return shipping instructions",
+  "Kirim sebelum {x}": "Ship before {x}",
+  "Resi retur:": "Return tracking number:",
+  "Kirim barang retur": "Ship the returned item",
+  "Kurir (opsional)": "Courier (optional)",
+  "Gagal mengirim resi": "Failed to submit tracking number",
+  "Resi terkirim": "Tracking number submitted",
+  "Kirim Resi": "Submit Tracking Number"
 }

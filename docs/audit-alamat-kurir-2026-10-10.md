@@ -54,6 +54,7 @@ Status: ✅ diperbaiki di branch ini · ⏸ ditunda (butuh keputusan produk/back
 | C14 | `addressMissingFields` mengembalikan nama field Indonesia yang disisipkan ke `translate("{x}")` tanpa diterjemahkan | `lib/wallet-batch139.ts:170-179` | ✅ |
 | C15 | Ubah alamat: `province` kosong dikirim `undefined` → PATCH backend "biarkan" → provinsi lama tidak pernah bisa dikosongkan | `app/addresses.tsx:82-93` | ✅ `""` saat update |
 | C16 | Validasi HP klien menolak 20 digit tanpa `+` yang diterima backend (`^[0-9+][0-9 ]{7,19}$`); pesan "8–15 digit" tidak sesuai aturan | `lib/address-validation.ts:51` | ✅ regex disamakan |
+| C17 | `AddressPicker` tidak memuat ulang saat layar kembali fokus dari "Kelola buku alamat" → ringkasan checkout menampilkan alamat yang sudah diubah/dihapus sampai sheet dibuka lagi | `components/ui/address-picker.tsx:115` | ✅ `useFocusEffect` |
 
 ## D. Frontend — checkout & detail order
 
@@ -64,9 +65,14 @@ Status: ✅ diperbaiki di branch ini · ⏸ ditunda (butuh keputusan produk/back
 | D03 | Pembeli order buatan penjual: tidak ada UI pilih alamat saat Terima pesanan; `canConfirm` hanya seller | `components/screens/order-detail-screen.tsx:1118`, `:1654` | ✅ |
 | D04 | Kartu alamat tidak tampil bila snapshot kosong — tidak ada petunjuk "alamat belum ada" | `order-detail-screen.tsx:1437-1450` | ✅ |
 | D05 | `ShippingInfoCard` label default tidak lewat `translate` | `components/ui/shipping-info-card.tsx:58-69` | ✅ |
+| D06 | Terima tautan: toast "Pilih alamat pengiriman", label/helper/error `Field` alamat, toast kedaluwarsa & sukses hardcode tanpa `translate` | `app/order-link/[token].tsx:160-188,374-385` | ✅ |
 | D07 | `ShippingAddressCard` label default ("Alamat pengiriman/Penerima/Telepon") tidak lewat `translate` | `components/ui/shipping-address-card.tsx:64` | ✅ |
+| D08 | Bukti kirim: `updateShipping({ trackingNumber })` TANPA `courierName` padahal backend mewajibkan keduanya untuk barang fisik → resi dari layar bukti kirim SELALU gagal ("Bukti terkirim, resi gagal disimpan"); form tidak punya kolom kurir | `app/delivery-proof/[orderId].tsx:441-443`, `components/ui/delivery-proof.tsx:100-110` | ✅ kolom kurir + prefill + kirim keduanya |
 | D09 | `shippingAddressId` dikirim walau peran diganti ke SELLER setelah memilih alamat sebagai BUYER → alamat penjual terkirim sebagai tujuan | `app/create-transaction.tsx:1248` | ✅ gerbang `shippingAddressRequired` |
 | D10 | `ShippingAddressSummaryCard` (ringkasan checkout): judul/alert/tombol hardcode tanpa `translate`; nomor HP penerima tidak ditampilkan sebelum bayar | `components/create-transaction-review.tsx:345-355` | ✅ |
+| D11 | Sheet "Info pengiriman" (judul, deskripsi, label Kurir/Nomor resi, placeholder, Simpan, toast sukses/gagal) dan pesan `validateTrackingInput` hardcode | `components/order-action-sheets.tsx:500-560`, `lib/wallet-batch139.ts:150-158` | ✅ |
+| D12 | Aturan resi tidak konsisten: sheet 6–40 alfanumerik vs bukti kirim "min 3 karakter" → resi 3–5 karakter diterima di satu layar, ditolak di layar lain | `app/delivery-proof/[orderId].tsx:427`, `components/ui/delivery-proof.tsx:73` | ✅ satu validator |
+| D13 | `trackingNotes` dari backend dibuang normalizer; `ShippingInfoCard` mendukung catatan tapi tidak pernah menerimanya | `lib/api/orders-shared.ts:594`, `order-detail-screen.tsx:1458` | ✅ |
 
 ## E. Frontend — tracking & kurir
 
@@ -86,6 +92,9 @@ Status: ✅ diperbaiki di branch ini · ⏸ ditunda (butuh keputusan produk/back
 | E12 | Empty state resi manual buntu — tidak menyebut resi bisa disalin dari detail order | `app/prepare-navigation.tsx:94` | ✅ copy |
 | E13 | `useOrderTracking` menerima `_toastShow` yang tidak dipakai | `lib/use-order-tracking.ts:7` | ✅ dibersihkan |
 | E14 | `prepare-navigation`: judul, pesan memuat, judul/deskripsi empty-state, tombol "Kembali" semuanya hardcode (tracking & DM) | `app/prepare-navigation.tsx:55-118` | ✅ `translate` |
+| E15 | Judul kartu resi manual "MANUAL · JNE" (providerCode + nama kurir) — tampilkan nama kurir dari penjual saja | `app/tracking/[shipmentId].tsx:176-178` | ✅ |
+| E16 | Resi retur: kurir tidak pernah dikirim walau DTO backend menerima `courier` (penjual hanya dapat nomor tanpa kurir); tanpa validasi format; tanpa `maxLength` (BE 64); teks hardcode | `app/returns/[id].tsx:180-200`, `lib/api/returns.ts:176` | ✅ kolom kurir + validator + translate |
+| E17 | Empty state resi manual di `prepare-navigation` menawarkan "Kembali" ke DAFTAR transaksi, padahal resi ada di DETAIL order yang baru ditinggalkan | `app/prepare-navigation.tsx:118` | ✅ "Lihat detail order" |
 
 ## F. Admin — kurir
 

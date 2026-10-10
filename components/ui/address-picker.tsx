@@ -15,11 +15,14 @@
  *     diberi tahu), bukan dikirim sebagai id basi (400 dari server).
  *   - C03: validasi lokal (kode pos 5 digit, HP) sebelum POST.
  *   - C04/C05: pesan error spesifik (`userMessage`) + indikator memuat.
+ *   - C17: daftar & pilihan dimuat ulang saat layar kembali fokus (mis.
+ *     setelah "Kelola buku alamat") — tanpa ini ringkasan menampilkan
+ *     data alamat yang sudah diubah/dihapus sampai sheet dibuka lagi.
  */
 import { useCallback, useEffect, useRef, useState } from "react"
 import { View } from "react-native"
 import { CaretRight, MapPin, Plus } from "phosphor-react-native"
-import { router } from "expo-router"
+import { router, useFocusEffect } from "expo-router"
 
 import { api, userMessage } from "@/lib/api"
 import { addressLabelText, type Address, type CreateAddressDto } from "@/lib/api/commerce"
@@ -111,9 +114,19 @@ export function AddressPicker({
     }
   }, [toast])
 
+  const loadedOnceRef = useRef(false)
   useEffect(() => {
-    void load()
+    void load().finally(() => {
+      loadedOnceRef.current = true
+    })
   }, [load])
+  // C17: fokus pertama dilewati (sudah dimuat oleh effect di atas).
+  useFocusEffect(
+    useCallback(() => {
+      if (!loadedOnceRef.current) return
+      void load()
+    }, [load]),
+  )
 
   /**
    * FE-123: form tambah alamat inline — pengguna yang bukunya kosong bisa
